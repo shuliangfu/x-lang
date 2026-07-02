@@ -12,6 +12,7 @@ enum {
   PARSER_ASM_EXPR_NEG = 22,
   PARSER_ASM_EXPR_LOGNOT = 24,
   PARSER_ASM_EXPR_ADDR_OF = 51,
+  PARSER_ASM_EXPR_DEREF = 52,
   PARSER_ASM_EXPR_AWAIT = 55,
   PARSER_ASM_EXPR_RUN = 56,
   PARSER_ASM_EXPR_SPAWN = 57
@@ -916,6 +917,17 @@ void parser_asm_parse_unary_into_slice_c(void *arena, struct parser_asm_lexer le
     if (!out->ok)
       return;
     if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_ADDR_OF, out->expr_ref, kw_line, kw_col) == 0)
+      out->ok = 0;
+    return;
+  }
+  if (r.tok.kind == (int32_t)TOKEN_STAR) {
+    int32_t kw_line = r.tok.line;
+    int32_t kw_col = r.tok.col;
+    parser_asm_lex_from_result_val_into(&lex, r);
+    parser_parse_unary_into(arena, lex, source, out);
+    if (!out->ok)
+      return;
+    if (parser_asm_unary_wrap_operand_c(arena, out, PARSER_ASM_EXPR_DEREF, out->expr_ref, kw_line, kw_col) == 0)
       out->ok = 0;
     return;
   }

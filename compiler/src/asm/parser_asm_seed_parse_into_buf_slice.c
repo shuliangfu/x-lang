@@ -38,6 +38,13 @@ extern int32_t parser_asm_stretch_top_level_let_buf_audit_c(struct parser_asm_le
 extern int32_t parser_asm_stretch_struct_record_layout_body_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
                                                                         int32_t len);
 extern int32_t parser_asm_stretch_type_ref_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+extern void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                                  const uint8_t *name);
+extern void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                                const uint8_t *name);
+extern int32_t parser_parse_peek_function_name_buf_glue(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
+                                                        uint8_t *out);
+extern int32_t parser_diag_fail_at_token_kind_buf_glue(uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_type_ref_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
                                                                       int32_t len);
 extern int32_t parser_asm_stretch_type_ref_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
@@ -293,8 +300,8 @@ extern void parser_asm_collect_imports_buf_c(struct parser_asm_lexer lex, uint8_
                                              struct parser_asm_collect_imports_result *out);
 extern void parser_parse_one_function_impl(struct parser_asm_onefunc_result *res, void *arena,
                                            struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-extern void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *out, struct parser_asm_lexer lex,
-                                                      uint8_t *data, int32_t len);
+extern void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *out, void *arena,
+                                                      struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern struct parser_asm_library_parse_result parser_asm_parse_one_function_library_buf_c(
     void *arena, void *module, struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern struct parser_asm_onefunc_result parser_onefunc_scratch_empty(void);
@@ -1508,12 +1515,14 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_into_loop_iter_deep_buf_audit_c(iter_start, data, len));
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_into_loop_entry_full_deep_buf_audit_c(iter_start, data, len));
     r = lexer_next_buf(lex, data, len);
+    lex_at_function = lex;
     parser_lex_from_next_into_glue(&lex, r);
     func_is_async = 0;
     if (r.tok.kind == (int32_t)TOKEN_ASYNC) {
       func_is_async = 1;
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_async_fn_prefix_buf_audit_c(iter_start, data, len));
       parser_lex_from_next_into_glue(&lex, r);
+      lex_at_function = lex;
       r = lexer_next_buf(lex, data, len);
       parser_lex_from_next_into_glue(&lex, r);
     }
@@ -1806,6 +1815,9 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
     }
     if (r.tok.kind == (int32_t)TOKEN_EOF) {
       if (mod_hdr->num_funcs == 0) {
+        int32_t fail_tok = parser_diag_fail_at_token_kind_buf_glue(data, len);
+        if (fail_tok == (int32_t)TOKEN_STRING)
+          out.ok = -2;
         out.main_idx = -1;
         return out;
       }
@@ -1813,7 +1825,6 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       return out;
     }
 
-    lex_at_function = lex;
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_into_function_branch_deep_buf_audit_c(lex_at_function, data, len));
     parser_lex_from_next_into_glue(&lex, r);
     {
@@ -1828,7 +1839,7 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       res = parser_asm_seed_onefunc_wired_c(lex);
       parser_parse_one_function_impl(&res, arena, lex, &slice);
       if (!res.ok)
-        parser_asm_parse_one_function_buf_into_c(&res, lex_at_function, data, len);
+        parser_asm_parse_one_function_buf_into_c(&res, arena, lex_at_function, data, len);
       if (!res.ok) {
         /* 与 parser.sx parse_into_buf 一致：跳过前打印函数名，供 A-11 typeck 截断 bisect。 */
         {
@@ -1896,13 +1907,6 @@ struct parser_asm_seed_parse_into_result parser_parse_into(void *arena, void *mo
 
 /** parse_into_set_main_index：写 module.main_func_index。 */
 extern void pipeline_module_set_main_func_index(void *m, int32_t idx);
-/** parse_into_buf 跳过/commit 失败时 stderr 诊断（SHUX_DEBUG_PARSE=1）；与 parser.sx / runtime.c 一致。 */
-extern void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
-                                                  const uint8_t *name);
-extern void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
-                                                const uint8_t *name);
-extern int32_t parser_parse_peek_function_name_buf_glue(struct parser_asm_lexer lex, uint8_t *data, int32_t len,
-                                                      uint8_t *out);
 
 void parse_into_set_main_index(void *module, int32_t main_idx) {
   pipeline_module_set_main_func_index(module, main_idx);

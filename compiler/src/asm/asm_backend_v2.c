@@ -6,6 +6,9 @@
 #include "ast.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
+#include "diag.h"
+#include "runtime_diag_codes.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +23,22 @@ static char *var_names[256];
 static int nvars;
 
 #define emitf(...) do { for(int _i=0;_i<indent;_i++) fputc(' ',s); fprintf(s,__VA_ARGS__); fputc('\n',s); } while(0)
+
+static int asm_backend_v2_usage(const char *argv0) {
+    diag_reportf_with_code(NULL, 0, 0, "usage error", SHUX_DIAG_CODE_ARGUMENT_ARG001, NULL,
+                           "usage: %s <in.sx> [-o <out>]",
+                           argv0 ? argv0 : "asm_backend_v2");
+    return 1;
+}
+
+static int asm_backend_v2_errno(const char *path, const char *op) {
+    diag_reportf_with_code(path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                           "%s failed for '%s': %s",
+                           op ? op : "file operation",
+                           path ? path : "?",
+                           strerror(errno));
+    return 1;
+}
 
 static void asm_expr(const struct ASTExpr *e);
 static void asm_block(const struct ASTBlock *b);
@@ -42,7 +61,7 @@ static void asm_expr(const struct ASTExpr *e) {
     if (!e) return;
     switch (e->kind) {
     case AST_EXPR_LIT:
-        emitf("mov x0, #%d", e->value.int_val);
+        emitf("mov x0, #%lld", (long long)e->value.int_val);
         break;
     case AST_EXPR_BOOL_LIT:
         emitf("mov x0, #%d", e->value.int_val ? 1 : 0);
@@ -240,7 +259,8 @@ static void asm_module(struct ASTModule *m) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 2) { fprintf(stderr, "Usage: %s <in.sx> [-o <out>]\n", argv[0]); return 1; }
+    if (argc < 2)
+        return asm_backend_v2_usage(argv[0]);
 
     const char *in = argv[1];
     const char *out = "a.out";
@@ -248,7 +268,8 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) out = argv[i + 1];
 
     FILE *fi = fopen(in, "r");
-    if (!fi) { perror(in); return 1; }
+    if (!fi)
+        return asm_backend_v2_errno(in, "open");
     fseek(fi, 0, SEEK_END);
     size_t len = ftell(fi);
     fseek(fi, 0, SEEK_SET);
@@ -259,15 +280,19 @@ int main(int argc, char **argv) {
     if (!lex) { free(src); return 1; }
     ASTModule *mod = NULL;
     if (parse(lex, &mod) != 0 || !mod) {
-        fprintf(stderr, "parse failed\n"); lexer_free(lex); free(src); return 1;
+        diag_report_with_code(NULL, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, "parse failed", NULL);
+        lexer_free(lex); free(src); return 1;
     }
     lexer_free(lex); free(src);
-    printf("[asm_v2] parsed %d funcs\n", mod->num_funcs);
+    diag_reportf(NULL, 0, 0, "info", NULL,
+                 "asm backend v2: parsed %d funcs",
+                 mod->num_funcs);
 
     char tmp_s[256];
     snprintf(tmp_s, sizeof(tmp_s), "/tmp/shux_asmv2_%d.s", getpid());
     s = fopen(tmp_s, "w");
-    if (!s) { perror(tmp_s); return 1; }
+    if (!s)
+        return asm_backend_v2_errno(tmp_s, "open");
     label_id = 0;
     asm_module(mod);
     fclose(s);
@@ -281,8 +306,14 @@ int main(int argc, char **argv) {
         "-syslibroot $(xcrun --show-sdk-path) -lSystem %s 2>&1",
         tmp_o, tmp_s, out, tmp_o);
     int rc = system(cmd);
-    if (rc == 0) printf("[asm_v2] built %s\n", out);
-    else fprintf(stderr, "[asm_v2] FAILED\n");
+    if (rc == 0)
+        diag_reportf(NULL, 0, 0, "info", NULL,
+                     "asm backend v2: built %s",
+                     out);
+    else
+        diag_reportf_with_code(out, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                     "asm backend v2 failed to build '%s'",
+                     out);
 
     ast_module_free(mod);
     return rc;

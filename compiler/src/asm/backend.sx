@@ -145,6 +145,12 @@ extern function pipeline_asm_emit_set_func_index(func_index: i32): void;
 /** 记录 dep 池；import struct 字段 layout 在 dep module 时 asm 查偏移用。 */
 extern function pipeline_asm_emit_set_dep_pipe(pipeline_ctx: *PipelineDepCtx): void;
 extern function pipeline_asm_emit_set_module(module: *Module): void;
+extern function pipeline_debug_trace_body_sx_mega_pre_reset(module: *Module, arena: *ASTArena): void;
+extern function pipeline_debug_trace_body_sx_mega_post_reset(module: *Module, arena: *ASTArena): void;
+extern function pipeline_debug_trace_body_sx_mega_post_params(module: *Module, arena: *ASTArena): void;
+extern function pipeline_debug_trace_body_sx_mega_post_frame(module: *Module, arena: *ASTArena): void;
+extern function pipeline_debug_trace_body_sx_mega_post_locals(module: *Module, arena: *ASTArena): void;
+extern function pipeline_debug_trace_body_sx_mega_pre_emit(module: *Module, arena: *ASTArena): void;
 /** WPO v0：asm emit 前查询是否应发射该函数（0=跳过 dead export）。 */
 extern function pipeline_asm_wpo_should_emit_func(module: *Module, func_index: i32): i32;
 extern function pipeline_asm_wpo_pgo_is_hot_func(module: *Module, func_index: i32): i32;
@@ -2473,9 +2479,12 @@ function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTArena, elf
     let fname_len2: i32 = pipeline_asm_module_func_name_len_at(module, i);
     driver_diagnostic_asm_set_current_func(&fname_buf2[0], fname_len2);
     pipeline_asm_emit_set_func_index(i);
+    pipeline_debug_trace_body_sx_mega_pre_reset(module, arena);
     ctx_reset(&ctx, module);
+    pipeline_debug_trace_body_sx_mega_post_reset(module, arena);
     ctx.dep_pipe = pipeline_ctx;
     fill_param_slots(&ctx, module, i);
+    pipeline_debug_trace_body_sx_mega_post_params(module, arena);
     if (enc_label_arch(elf_ctx, fname_buf2, fname_len2, 1, ta) != 0) { return -1; }
     /** build_shux_asm：SKIP 桩；M8-tail 薄包装 bl C 委托。 */
     if (asm_skip_heavy_module_func_body(module, arena, i) != 0) {
@@ -2488,9 +2497,11 @@ function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTArena, elf
     let frame_sz: i32 = 0;
     if (body_ref != 0) {
       frame_sz = compute_frame_size(pipeline_asm_module_func_num_params_at(module, i), arena, body_ref, module);
+      pipeline_debug_trace_body_sx_mega_post_frame(module, arena);
       if (pipeline_asm_block_num_stmt_order_at(arena, body_ref) == 0) {
         fill_local_slots(&ctx, arena, body_ref);
       }
+      pipeline_debug_trace_body_sx_mega_post_locals(module, arena);
     }
     if (enc_prologue_arch(elf_ctx, frame_sz, ta) != 0) { return -1; }
     if (pipeline_asm_emit_param_home_elf_c(elf_ctx, &ctx, module, i, ta) != 0) { return -1; }
@@ -2498,6 +2509,7 @@ function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTArena, elf
     if (body_ref != 0) {
       ctx.tail_join_label_len = emit_next_label(&ctx, &ctx.tail_join_label[0], 64);
       if (pipeline_asm_block_num_stmt_order_at(arena, body_ref) > 0) {
+        pipeline_debug_trace_body_sx_mega_pre_emit(module, arena);
         if (emit_block_body_elf(arena, elf_ctx, body_ref, &ctx, ta) != 0) { return -1; }
         /** final_expr 已由 emit_block_body_sync 末尾发射，勿重复。 */
       } else {

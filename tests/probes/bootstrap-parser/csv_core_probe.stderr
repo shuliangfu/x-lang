@@ -1,0 +1,74 @@
+note: pipeline debug: pipeline thread start len=10986
+ --> ../std/csv/csv.sx
+note: pipeline debug: entry_source_len=10986
+ --> ../std/csv/csv.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=21
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: after_entry_parse num_funcs=21
+ --> ../std/csv/csv.sx
+note: pipeline debug: after_entry_parse num_funcs=21 num_defined=21 num_extern=0
+ --> ../std/csv/csv.sx
+note: pipeline debug: after_entry_parse num_top_level_lets=0
+ --> ../std/csv/csv.sx
+shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=21
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=23 tail=1460 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=24 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=24 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=24 si=0 so_kind=2 so_idx=0 expr=1552 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=24 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=24 tail=1552 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=25 tail=1954 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=26 tail=2356 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=33 tail=2752 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=40 tail=3099 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=41 tail=3379 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=42 tail=3753 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=43 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=43 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=43 si=0 so_kind=2 so_idx=0 expr=3843 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=43 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=43 tail=3843 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=44 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=44 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=44 si=0 so_kind=2 so_idx=0 expr=3885 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=44 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=44 tail=3885 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=45 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=45 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=45 si=0 so_kind=2 so_idx=0 expr=3943 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=45 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=45 tail=3943 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=46 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=46 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=46 si=0 so_kind=2 so_idx=0 expr=3985 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=46 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=46 tail=3985 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=47 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=47 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=47 si=0 so_kind=2 so_idx=0 expr=3995 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=47 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=47 tail=3995 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=51 tail=4130 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=59 tail=4954 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=69 tail=5449 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=70 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=70 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=70 si=0 so_kind=2 so_idx=0 expr=5576 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=70 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=70 tail=5576 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=71 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=71 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=71 si=0 so_kind=2 so_idx=0 expr=5682 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=71 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=71 tail=5682 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=76 tail=6231 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=83 tail=8865 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=84 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=84 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=84 si=0 so_kind=2 so_idx=0 expr=8943 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=84 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=84 tail=8943 kind=41
+note: pipeline debug: before_codegen num_funcs=21 out_len=0
+ --> ../std/csv/csv.sx
+note: pipeline debug: pipeline thread done ec=0
+ --> ../std/csv/csv.sx

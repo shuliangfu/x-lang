@@ -28,6 +28,7 @@
 // 【性能】is_absolute、sep 为 O(1)。join/dirname/basename 单次 last_slash
 // + 一次拷贝，路径通常很短，已接近最优。同时需要 extension 与 stem 时用
 // extension_and_stem 可少一次 last_slash 与 last_dot 扫描。
+// 递归方法 缺少，后面完善？
 
 /** 空路径长度 0；与 join 等配合使用。 */
 function empty_len(): i32 { return 0; }
@@ -35,11 +36,11 @@ function empty_len(): i32 { return 0; }
 /** 平台主路径分隔符：POSIX '/'(47)；Windows '\\'(92)。F-path v1：cfg 内联 .sx。 */
 #[cfg(target_os = "windows")]
 function sep(): u8 {
-  return 92;
+  return 92 as u8;
 }
 #[cfg(not(target_os = "windows"))]
 function sep(): u8 {
-  return 47;
+  return 47 as u8;
 }
 
 /** 路径拼接：将 a[0..a_len-1] 与 b[0..b_len-1] 写入 out，中间按需加 '/'，不超过
@@ -280,16 +281,21 @@ function clean(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
  * 对标 Go filepath.Join(base, ref) 在 base 为文件路径时的语义。
  */
 function resolve(out: *u8, out_max: i32, base: *u8, base_len: i32, ref: *u8, ref_len: i32): i32 {
+  let rc: i32 = 0;
   if (ref_len > 0 && is_absolute(ref, ref_len) != 0) {
-    return clean(ref, ref_len, out, out_max);
+    rc = clean(ref, ref_len, out, out_max);
+    return rc;
   }
   let dir_buf: u8[256] = [];
   let dir_len: i32 = dirname(base, base_len, &dir_buf[0], 256);
   let tmp: u8[512] = [];
   let jlen: i32 = join(&tmp[0], 512, &dir_buf[0], dir_len, ref, ref_len);
   if (jlen < 0) { return -1; }
-  return clean(&tmp[0], jlen, out, out_max);
+  rc = clean(&tmp[0], jlen, out, out_max);
+  return rc;
 }
 
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
 function module_anchor(): i32 { return 0; }
+
+

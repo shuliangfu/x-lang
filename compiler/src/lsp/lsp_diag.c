@@ -15,6 +15,8 @@
 #include "lexer/lexer.h"
 #include "typeck/typeck.h"
 #include "ast.h"
+#include "diag.h"
+#include "runtime_driver_abi.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -72,6 +74,7 @@ typedef struct {
     int line;
     int col;
     int severity;
+    char code[LSP_DIAG_CODE_MAX + 1];
     char msg[LSP_MSG_MAX + 1];
 } LspDiagEntry;
 
@@ -275,22 +278,33 @@ void lsp_diag_invalidate_cache(void) {
     s_typeck_full = 0;
 }
 
-void lsp_diag_add(int line, int col, int severity, const char *msg) {
+static void lsp_diag_copy_text(char *dst, int cap, const char *src) {
+    size_t n = 0;
+    if (!dst || cap <= 0)
+        return;
+    if (!src) {
+        dst[0] = '\0';
+        return;
+    }
+    while (n + 1 < (size_t)cap && src[n] != '\0') {
+        dst[n] = src[n];
+        n++;
+    }
+    dst[n] = '\0';
+}
+
+void lsp_diag_add_code(int line, int col, int severity, const char *code, const char *msg) {
     if (s_diag_count >= LSP_DIAG_MAX) return;
     LspDiagEntry *e = &s_diag[s_diag_count++];
     e->line = line;
     e->col = col;
     e->severity = (severity == 2) ? 2 : ((severity == 3) ? 3 : 1);
-    if (msg) {
-        size_t n = 0;
-        while (n < LSP_MSG_MAX && msg[n] != '\0') {
-            e->msg[n] = msg[n];
-            n++;
-        }
-        e->msg[n] = '\0';
-    } else {
-        e->msg[0] = '\0';
-    }
+    lsp_diag_copy_text(e->code, (int)sizeof(e->code), code);
+    lsp_diag_copy_text(e->msg, (int)sizeof(e->msg), msg);
+}
+
+void lsp_diag_add(int line, int col, int severity, const char *msg) {
+    lsp_diag_add_code(line, col, severity, NULL, msg);
 }
 
 int lsp_diag_count_severity(int severity) {
@@ -301,16 +315,33 @@ int lsp_diag_count_severity(int severity) {
     return n;
 }
 
+void lsp_diag_report_typeck_code(const char *code, int line, int col, const char *fmt, ...) {
+    char buf[LSP_MSG_MAX + 1];
+    va_list ap;
+    va_start(ap, fmt);
+    (void)vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    if (lsp_diag_enabled)
+        lsp_diag_add_code(line, col, 1, code, buf);
+    else {
+        if (driver_check_only_get())
+            driver_check_diag_emitted_note();
+        diag_report_with_code(NULL, line, col, "typeck error", code, buf, buf);
+    }
+}
+
 void lsp_diag_report_typeck(int line, int col, const char *fmt, ...) {
     char buf[LSP_MSG_MAX + 1];
     va_list ap;
     va_start(ap, fmt);
     (void)vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
-    if (lsp_diag_enabled) {
-        lsp_diag_add(line, col, 1, buf);
-    } else {
-        fprintf(stderr, "typeck error: %s at %d:%d\n", buf, line, col);
+    if (lsp_diag_enabled)
+        lsp_diag_add_code(line, col, 1, "T001", buf);
+    else {
+        if (driver_check_only_get())
+            driver_check_diag_emitted_note();
+        diag_report_with_code(NULL, line, col, "typeck error", "T001", buf, buf);
     }
 }
 
@@ -330,21 +361,30 @@ void lsp_diag_collect_end(void) {
 int lsp_diag_print_stderr_human(const char *path) {
     int i;
     int n = 0;
-    const char *sev;
+    int errors = 0;
+    DiagContextSnapshot snapshot;
+    const char *kind;
+
     if (!path)
         path = "?";
+    diag_push_file(&snapshot, path, NULL, 0);
     for (i = 0; i < s_diag_count; i++) {
         if (s_diag[i].severity == 2)
-            sev = "warning";
+            kind = "warning";
         else if (s_diag[i].severity == 3)
-            sev = "info";
+            kind = "info";
         else
-            sev = "error";
-        fprintf(stderr, "%s:%d:%d - %s: %s\n", path, s_diag[i].line, s_diag[i].col, sev, s_diag[i].msg);
+            kind = "error";
+        diag_report_with_code(path, s_diag[i].line, s_diag[i].col, kind, s_diag[i].code, s_diag[i].msg, s_diag[i].msg);
+        if (s_diag[i].severity == 1)
+            errors++;
         n++;
     }
-  if (n > 0)
-        fflush(stderr);
+    if (errors > 1) {
+        diag_reportf(path, 0, 0, "error", NULL,
+                     "aborting due to %d previous errors", errors);
+    }
+    diag_restore(&snapshot);
     return n;
 }
 
@@ -1468,8 +1508,11 @@ int lsp_diag_format_diagnostics_json(char *out, int out_cap) {
         char esc_buf[LSP_MSG_MAX * 2 + 16];
         json_escape_str(e->msg, esc_buf, (int)sizeof(esc_buf));
         int n = snprintf(out + k, (size_t)(out_cap - k),
-            "%s{\"range\":{\"start\":{\"line\":%d,\"character\":%d},\"end\":{\"line\":%d,\"character\":%d}},\"message\":\"%s\",\"severity\":%d}",
-            i > 0 ? "," : "", line0, col0, line0, col0 + 1, esc_buf, e->severity);
+            "%s{\"range\":{\"start\":{\"line\":%d,\"character\":%d},\"end\":{\"line\":%d,\"character\":%d}},\"message\":\"%s\",\"severity\":%d%s%s%s}",
+            i > 0 ? "," : "", line0, col0, line0, col0 + 1, esc_buf, e->severity,
+            e->code[0] != '\0' ? ",\"code\":\"" : "",
+            e->code[0] != '\0' ? e->code : "",
+            e->code[0] != '\0' ? "\"" : "");
         if (n <= 0 || n >= out_cap - k) break;
         k += n;
     }

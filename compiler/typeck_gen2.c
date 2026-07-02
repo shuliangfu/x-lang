@@ -65,6 +65,8 @@ extern uint8_t ast_block_stmt_order_kind(struct ast_ASTArena * a, int32_t br, in
 extern int32_t ast_block_stmt_order_idx(struct ast_ASTArena * a, int32_t br, int32_t si);
 extern int32_t ast_block_expr_stmt_ref(struct ast_ASTArena * a, int32_t br, int32_t ei);
 extern int ast_expr_disallows_implicit_tail(struct ast_ASTArena * a, int32_t expr_ref);
+extern int32_t ast_ast_block_region_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ri);
+extern int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena * a, int32_t br, int32_t ri);
 extern int32_t ast_block_const_init_ref(struct ast_ASTArena * a, int32_t br, int32_t ci);
 extern int32_t ast_block_const_type_ref(struct ast_ASTArena * a, int32_t br, int32_t ci);
 extern int32_t ast_block_let_init_ref(struct ast_ASTArena * a, int32_t br, int32_t li);
@@ -599,6 +601,7 @@ extern int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena * arena,
 #define ast_block_stmt_order_kind ast_ast_block_stmt_order_kind
 #define ast_block_stmt_order_idx ast_ast_block_stmt_order_idx
 #define ast_expr_disallows_implicit_tail ast_ast_expr_disallows_implicit_tail
+#define ast_block_region_body_ref ast_ast_block_region_body_ref
 #define ast_block_const_init_ref ast_ast_block_const_init_ref
 #define ast_block_const_type_ref ast_ast_block_const_type_ref
 #define ast_block_let_init_ref ast_ast_block_let_init_ref
@@ -3938,16 +3941,26 @@ int32_t typeck_check_expr(struct ast_Module * module, struct ast_ASTArena * aren
   return typeck_check_expr_impl(module, arena, expr_ref, return_type_ref, ctx);
 }
 int32_t typeck_func_body_tail_expr_ref_for_implicit_rule(struct ast_ASTArena * arena, int32_t body_ref) {
+  const uint8_t stmt_order_kind_expr_stmt = ((uint8_t)(2));
+  const uint8_t stmt_order_kind_region_c_parser = ((uint8_t)(5));
+  const uint8_t stmt_order_kind_region_sx_parser = ((uint8_t)(6));
   int32_t fin_ref = ast_block_final_expr_ref(arena, body_ref);
   (void)(({ int32_t __tmp = 0; if ((!ast_ref_is_null(fin_ref))) {   return fin_ref;
  } else (__tmp = 0) ; __tmp; }));
   int32_t nso = ast_block_num_stmt_order(arena, body_ref);
   (void)(({ int32_t __tmp = 0; if (nso > 0) {   uint8_t last_k = ast_block_stmt_order_kind(arena, body_ref, nso - 1);
-  (void)(({ int32_t __tmp = 0; if (last_k == ((uint8_t)(2))) {   int32_t idx = ast_block_stmt_order_idx(arena, body_ref, nso - 1);
+  (void)(({ int32_t __tmp = 0; if (last_k == stmt_order_kind_expr_stmt) {   int32_t idx = ast_block_stmt_order_idx(arena, body_ref, nso - 1);
   int32_t nes = ast_block_num_expr_stmts(arena, body_ref);
   __tmp = ({ int32_t __tmp = 0; if (idx >= 0 && idx < nes) {   return ast_block_expr_stmt_ref(arena, body_ref, idx);
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
+  (void)(({ int32_t __tmp = 0; if (last_k == stmt_order_kind_region_c_parser || last_k == stmt_order_kind_region_sx_parser) {   int32_t ridx = ast_block_stmt_order_idx(arena, body_ref, nso - 1);
+  int32_t nreg = ast_block_num_regions(arena, body_ref);
+  __tmp = ({ int32_t __tmp = 0; if (ridx >= 0 && ridx < nreg && pipeline_block_region_is_unsafe(arena, body_ref, ridx) != 0) {   int32_t inner_ref = ast_block_region_body_ref(arena, body_ref, ridx);
+  __tmp = ({ int32_t __tmp = 0; if ((!ast_ref_is_null(inner_ref))) {   return typeck_func_body_tail_expr_ref_for_implicit_rule(arena, inner_ref);
+} else (__tmp = 0) ; __tmp; });
+} else (__tmp = 0) ; __tmp; });
+} else (__tmp = 0) ; __tmp; }));
   return 0;
  } else (__tmp = 0) ; __tmp; }));
   int32_t nes2 = ast_block_num_expr_stmts(arena, body_ref);

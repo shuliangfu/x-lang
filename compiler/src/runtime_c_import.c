@@ -10,11 +10,13 @@
 #include "runtime_c_import.h"
 #include "runtime_pipeline_abi.h"
 #include "runtime_io_abi.h"
+#include "runtime_diag_codes.h"
 #include "preprocess.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "typeck/typeck.h"
 #include "lsp/lsp_diag.h"
+#include "diag.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,7 +36,7 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
     if (idx >= 0)
         return all_dep_mods[idx];
     if (*n_all >= max_all) {
-        fprintf(stderr, "shux: too many transitive imports\n");
+        diag_report_with_code(NULL, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP004, "too many transitive imports", NULL);
         return NULL;
     }
     {
@@ -44,33 +46,48 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
         char *src;
         Lexer *lex;
         ASTModule *dep = NULL;
+        DiagContextSnapshot diag_snapshot;
+        int diag_pushed = 0;
         int pr;
 
         shux_resolve_import_file_path_multi(lib_roots, n_lib_roots, entry_dir, import_path, path, sizeof(path));
         if (shux_import_dep_dir_from_path(path, dep_dir, sizeof(dep_dir)) != 0) {
-            fprintf(stderr, "shux: import path too long for dep_dir '%s'\n", import_path);
+            diag_reportf_with_code(path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP004, NULL,
+                         "import path too long for dep_dir '%s'", import_path ? import_path : "?");
             return NULL;
         }
         if (runtime_read_file_view(path, &raw_view) != 0) {
-            fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", import_path, path);
+            diag_reportf_with_code(path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP001, NULL,
+                         "cannot open import '%s' (tried %s)",
+                         import_path ? import_path : "?", path);
             return NULL;
         }
         src = preprocess(raw_view.data, raw_view.length, defines, ndefines, NULL);
         runtime_release_file_view(&raw_view);
         if (!src) {
-            fprintf(stderr, "shux: preprocess failed for import '%s'\n", import_path);
+            diag_reportf_with_code(path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP002, NULL,
+                         "preprocess failed for import '%s'", import_path ? import_path : "?");
             return NULL;
         }
+        diag_push_file(&diag_snapshot, path, src, strlen(src));
+        diag_pushed = 1;
         lex = lexer_new(src);
         pr = parse(lex, &dep);
         lexer_free(lex);
-        free(src);
         if (pr != 0 || !dep) {
-            fprintf(stderr, "shux: failed to parse import '%s'\n", import_path);
+            if (diag_pushed)
+                diag_restore(&diag_snapshot);
+            free(src);
+            diag_reportf_with_code(path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP003, NULL,
+                         "failed to parse import '%s'", import_path ? import_path : "?");
             return NULL;
         }
         if (dep->num_imports > 0 && !dep->import_paths) {
-            fprintf(stderr, "shux: internal error: module has num_imports but import_paths is NULL\n");
+            if (diag_pushed)
+                diag_restore(&diag_snapshot);
+            free(src);
+            diag_report(path, 0, 0, "internal error",
+                        "module has num_imports but import_paths is NULL", NULL);
             ast_module_free(dep);
             return NULL;
         }
@@ -78,6 +95,9 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
             ASTModule *sub = load_one_import(dep->import_paths[i], lib_roots, n_lib_roots, dep_dir, defines, ndefines,
                 allow_legacy_extern, all_dep_mods, all_dep_paths, all_dep_fs, n_all, max_all);
             if (!sub) {
+                if (diag_pushed)
+                    diag_restore(&diag_snapshot);
+                free(src);
                 ast_module_free(dep);
                 return NULL;
             }
@@ -97,15 +117,23 @@ static ASTModule *load_one_import(const char *import_path, const char **lib_root
                 const int typeck_rc = typeck_module(dep, deps, ndeps, NULL, 0);
                 typeck_set_allow_legacy_extern_calls(old_allow_legacy_extern);
                 if (typeck_rc != 0) {
-                lsp_diag_collect_end();
-                lsp_diag_print_stderr_human(path);
-                fprintf(stderr, "shux: typeck failed for import '%s' (file %s)\n", import_path, path);
-                ast_module_free(dep);
-                return NULL;
+                    lsp_diag_collect_end();
+                    lsp_diag_print_stderr_human(path);
+                    if (diag_pushed)
+                        diag_restore(&diag_snapshot);
+                    free(src);
+                    diag_reportf_with_code(path, 0, 0, "typeck error", SHUX_DIAG_CODE_IMPORT_IMP004, NULL,
+                                 "typeck failed for import '%s' (file %s)",
+                                 import_path ? import_path : "?", path);
+                    ast_module_free(dep);
+                    return NULL;
                 }
             }
             lsp_diag_collect_end();
         }
+        if (diag_pushed)
+            diag_restore(&diag_snapshot);
+        free(src);
         all_dep_mods[*n_all] = dep;
         all_dep_paths[*n_all] = strdup(import_path);
         if (!all_dep_paths[*n_all]) {
@@ -127,7 +155,8 @@ int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n
     int n_all = 0;
 
     if (mod->num_imports > 0 && !mod->import_paths) {
-        fprintf(stderr, "shux: internal error: entry module has num_imports but import_paths is NULL\n");
+        diag_report(NULL, 0, 0, "internal error",
+                    "entry module has num_imports but import_paths is NULL", NULL);
         return -1;
     }
     for (int i = 0; i < mod->num_imports && i < max_deps; i++) {

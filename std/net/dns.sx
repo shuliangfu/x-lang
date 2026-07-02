@@ -89,10 +89,12 @@ let net_dns_wsa_done: i32 = 0;
  */
 #[cfg(target_os = "windows")]
 function net_dns_ensure_wsa_c(): i32 {
+  let rc: i32 = 0;
   if (net_dns_wsa_done != 0) {
     return 0;
   }
-  if (WSAStartup(514 as u16, 0 as *u8) != 0) {
+  unsafe { rc = WSAStartup(514 as u16, 0 as *u8); }
+  if (rc != 0) {
     return -1;
   }
   net_dns_wsa_done = 1;
@@ -218,20 +220,20 @@ function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i3
     return -1;
   }
   net_dns_fill_hints_inet_c(&hints_mem[0], AF_INET, net_dns_ai_addconfig_c());
-  ga = getaddrinfo(hostname, 0 as *u8, &hints_mem[0], &res_head);
+  unsafe { ga = getaddrinfo(hostname, 0 as *u8, &hints_mem[0], &res_head); }
   res = res_head as *AddrInfo;
   if (ga != 0 || res == 0) {
     if (out_addr != 0) { out_addr[0] = 0; }
     if (out_err != 0) { out_err[0] = net_map_gai_error_c(ga); }
-    if (res != 0) { freeaddrinfo(res); }
+    if (res != 0) { unsafe { freeaddrinfo(res); } }
     return -1;
   }
   rp = res;
   if (rp.ai_family == AF_INET && rp.ai_addr != 0 && rp.ai_addrlen >= 16 as u32) {
     sa = rp.ai_addr as *SockAddrIn;
-    addr_u32 = ntohl(sa.sin_addr);
+    unsafe { addr_u32 = ntohl(sa.sin_addr); }
   }
-  freeaddrinfo(res);
+  unsafe { freeaddrinfo(res); }
   if (addr_u32 == 0) {
     if (out_addr != 0) { out_addr[0] = 0; }
     if (out_err != 0) { out_err[0] = 2; }
@@ -266,11 +268,11 @@ function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): 
     i0 = i0 + 1;
   }
   net_dns_fill_hints_inet_c(&hints_mem[0], AF_INET6, net_dns_ai_addconfig_c());
-  ga = getaddrinfo(hostname, 0 as *u8, &hints_mem[0], &res_head);
+  unsafe { ga = getaddrinfo(hostname, 0 as *u8, &hints_mem[0], &res_head); }
   res = res_head as *AddrInfo;
   if (ga != 0 || res == 0) {
     if (out_err != 0) { out_err[0] = net_map_gai_error_c(ga); }
-    if (res != 0) { freeaddrinfo(res); }
+    if (res != 0) { unsafe { freeaddrinfo(res); } }
     return -1;
   }
   rp = res;
@@ -283,10 +285,10 @@ function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): 
     }
   } else {
     if (out_err != 0) { out_err[0] = 2; }
-    freeaddrinfo(res);
+    unsafe { freeaddrinfo(res); }
     return -1;
   }
-  freeaddrinfo(res);
+  unsafe { freeaddrinfo(res); }
   if (out_err != 0) { out_err[0] = 0; }
   return 0;
 }

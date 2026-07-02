@@ -56,7 +56,7 @@ function datetime_f_zero_c_marker_c(): i32 {
  * 委托 runtime_time_os 的 time_wall_local_offset_min_c（经 std.time extern）。
  */
 function datetime_local_offset_min_c(): i32 {
-  return time_wall_local_offset_min_c();
+  unsafe { return time_wall_local_offset_min_c(); }
 }
 
 /** 闰年判定。 */
@@ -232,8 +232,8 @@ function dt_name_eq(p: *u8, len: i32, lit: *u8, lit_len: i32): i32 {
 function datetime_now_utc_c(out_sec: *i64, out_nsec: *i32): void {
   let ns: i64 = 0;
   if (out_sec == 0 || out_nsec == 0) { return; }
-  out_sec[0] = time_now_wall_sec_c();
-  ns = time_now_wall_ns_c();
+  unsafe { out_sec[0] = time_now_wall_sec_c(); }
+  unsafe { ns = time_now_wall_ns_c(); }
   out_nsec[0] = (ns % 1000000000) as i32;
   if (out_nsec[0] < 0) { out_nsec[0] = out_nsec[0] + 1000000000; }
 }
@@ -792,7 +792,7 @@ function datetime_smoke_c(): i32 {
   if (sec != 1577934245 || nsec != 0) { return 2; }
   n = datetime_format_rfc3339_c(sec, nsec, &buf[0], 64);
   if (n != 20) { return 3; }
-  if (memcmp(&buf[0], &expect20[0], 20) != 0) { return 4; }
+  unsafe { if (memcmp(&buf[0], &expect20[0], 20) != 0) { return 4; } }
   if (datetime_parse_rfc3339_c(&raw30[0], 30, &sec, &nsec, 0) != 0) { return 5; }
   if (sec != 1577934245 || nsec != 123456789) { return 6; }
   if (datetime_add_duration_ns_c(sec, nsec, 1000000000, &sec, &nsec) != 0) { return 7; }

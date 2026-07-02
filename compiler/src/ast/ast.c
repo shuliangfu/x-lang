@@ -138,6 +138,24 @@ void ast_expr_free(ASTExpr *e) {
             if (e->value.enum_variant.enum_name) free((void *)e->value.enum_variant.enum_name);
             if (e->value.enum_variant.variant_name) free((void *)e->value.enum_variant.variant_name);
             break;
+        case AST_EXPR_ASM: {
+            int i;
+            if (e->value.asm_tmpl.bytes) free((void *)e->value.asm_tmpl.bytes);
+            for (i = 0; i < e->value.asm_tmpl.num_outputs; i++) {
+                if (e->value.asm_tmpl.outputs[i].constraint) free((void *)e->value.asm_tmpl.outputs[i].constraint);
+                ast_expr_free(e->value.asm_tmpl.outputs[i].expr);
+            }
+            if (e->value.asm_tmpl.outputs) free(e->value.asm_tmpl.outputs);
+            for (i = 0; i < e->value.asm_tmpl.num_inputs; i++) {
+                if (e->value.asm_tmpl.inputs[i].constraint) free((void *)e->value.asm_tmpl.inputs[i].constraint);
+                ast_expr_free(e->value.asm_tmpl.inputs[i].expr);
+            }
+            if (e->value.asm_tmpl.inputs) free(e->value.asm_tmpl.inputs);
+            for (i = 0; i < e->value.asm_tmpl.num_clobbers; i++)
+                if (e->value.asm_tmpl.clobbers[i]) free((void *)e->value.asm_tmpl.clobbers[i]);
+            if (e->value.asm_tmpl.clobbers) free(e->value.asm_tmpl.clobbers);
+            break;
+        }
     }
     free(e);
 }

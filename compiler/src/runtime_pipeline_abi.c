@@ -9,6 +9,8 @@
 #include "runtime_pipeline_abi.h"
 #include "runtime_driver_abi.h"
 #include "runtime_io_abi.h"
+#include "runtime_diag_codes.h"
+#include "diag.h"
 #include "preprocess.h"
 
 #include <limits.h>
@@ -22,6 +24,241 @@ extern int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len
 extern void preprocess_define_reset(void);
 extern int32_t preprocess_if_stack_len(void);
 extern void preprocess_define_add(const char *name);
+
+static int pipeline_diag_emitted_flag;
+static int pipeline_last_import_open_valid;
+static char pipeline_last_import_open_import[65];
+static char pipeline_last_import_open_resolved[PATH_MAX];
+
+void pipeline_diag_emitted_reset(void) {
+    pipeline_diag_emitted_flag = 0;
+}
+
+void pipeline_diag_emitted_note(void) {
+    pipeline_diag_emitted_flag = 1;
+}
+
+int32_t pipeline_diag_emitted_get(void) {
+    return pipeline_diag_emitted_flag ? 1 : 0;
+}
+
+void pipeline_diag_import_open_fail_once(const char *import_path, const char *resolved_path) {
+    const char *import_key = import_path ? import_path : "?";
+    const char *resolved_key = resolved_path ? resolved_path : "?";
+    if (pipeline_last_import_open_valid &&
+        strcmp(pipeline_last_import_open_import, import_key) == 0 &&
+        strcmp(pipeline_last_import_open_resolved, resolved_key) == 0) {
+        pipeline_diag_emitted_note();
+        return;
+    }
+    snprintf(pipeline_last_import_open_import, sizeof(pipeline_last_import_open_import), "%s", import_key);
+    snprintf(pipeline_last_import_open_resolved, sizeof(pipeline_last_import_open_resolved), "%s", resolved_key);
+    pipeline_last_import_open_valid = 1;
+    pipeline_diag_emitted_note();
+    diag_reportf_with_code(resolved_path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP001, NULL,
+                 "cannot open import '%s' (tried %s)",
+                 import_key,
+                 resolved_key);
+}
+
+static void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
+    pipeline_diag_emitted_note();
+    diag_report_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP001, "unclosed #if", NULL);
+}
+
+static void pipeline_diag_preprocess_fail(const char *path_diag) {
+    pipeline_diag_emitted_note();
+    diag_reportf_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+                 ".sx preprocess failed for '%s'",
+                 path_diag ? path_diag : "?");
+}
+
+static void pipeline_diag_import_preprocess_fail(const char *import_path, const char *resolved_path) {
+    pipeline_diag_emitted_note();
+    diag_reportf_with_code(resolved_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_IMPORT_IMP002, NULL,
+                 "preprocess failed for import '%s' (%s)",
+                 import_path ? import_path : "?",
+                 resolved_path ? resolved_path : "?");
+}
+
+static void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what) {
+    pipeline_diag_emitted_note();
+    diag_reportf_with_code(path_diag, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005, NULL,
+                 "%s allocation failed during .sx preprocess",
+                 what ? what : "buffer");
+}
+
+static void pipeline_diag_merge_dep_missing(const char *import_path) {
+    pipeline_diag_emitted_note();
+    diag_reportf_with_code(import_path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP004, NULL,
+                 "direct import '%s' was not found in the resolved dependency closure",
+                 import_path ? import_path : "?");
+    diag_report(NULL, 0, 0, "note",
+                "dependency closure construction failed before merge_deps completed", NULL);
+}
+
+static int pipeline_asm_debug_enabled(void) {
+    return getenv("SHUX_ASM_DEBUG") != NULL;
+}
+
+extern int32_t pipeline_module_num_funcs(void *module);
+extern int32_t pipeline_module_func_name_len_at(void *module, int32_t fi);
+extern void pipeline_module_func_name_copy64(void *module, int32_t fi, uint8_t *dst);
+extern int32_t pipeline_module_func_body_ref_at(void *module, int32_t fi);
+extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
+
+static int pipeline_debug_body_func_match(const char *filter, const char *name) {
+    const char *p;
+    size_t name_len;
+    if (!filter || !filter[0] || filter[0] == '0' || !name || !name[0])
+        return 0;
+    name_len = strlen(name);
+    p = filter;
+    while (*p) {
+        const char *start;
+        const char *end;
+        size_t tok_len;
+        while (*p == ' ' || *p == '\t' || *p == ',')
+            p++;
+        if (!*p)
+            break;
+        start = p;
+        while (*p && *p != ',')
+            p++;
+        end = p;
+        while (end > start && (end[-1] == ' ' || end[-1] == '\t'))
+            end--;
+        tok_len = (size_t)(end - start);
+        if (tok_len > 0 && tok_len == name_len && strncmp(start, name, tok_len) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena) {
+    const char *filter = getenv("SHUX_DEBUG_BODY_FUNC");
+    int32_t nf;
+    int32_t fi;
+    if (!filter || !filter[0] || filter[0] == '0' || !module || !arena)
+        return;
+    nf = pipeline_module_num_funcs(module);
+    for (fi = 0; fi < nf; fi++) {
+        uint8_t raw_name[64];
+        char name[65];
+        int32_t name_len;
+        int32_t body_ref;
+        memset(raw_name, 0, sizeof(raw_name));
+        memset(name, 0, sizeof(name));
+        name_len = pipeline_module_func_name_len_at(module, fi);
+        if (name_len <= 0 || name_len > 64)
+            continue;
+        pipeline_module_func_name_copy64(module, fi, raw_name);
+        memcpy(name, raw_name, (size_t)name_len);
+        name[name_len] = '\0';
+        if (!pipeline_debug_body_func_match(filter, name))
+            continue;
+        body_ref = pipeline_module_func_body_ref_at(module, fi);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "body trace: phase=%s fi=%d body_ref=%d name=%s block(c=%d l=%d if=%d reg=%d so=%d fin=%d)",
+                     phase ? phase : "?", (int)fi, (int)body_ref, name,
+                     body_ref > 0 ? (int)ast_ast_block_num_consts(arena, body_ref) : -1,
+                     body_ref > 0 ? (int)ast_ast_block_num_lets(arena, body_ref) : -1,
+                     body_ref > 0 ? (int)ast_ast_block_num_if_stmts(arena, body_ref) : -1,
+                     body_ref > 0 ? (int)ast_ast_block_num_regions(arena, body_ref) : -1,
+                     body_ref > 0 ? (int)ast_ast_block_num_stmt_order(arena, body_ref) : -1,
+                     body_ref > 0 ? (int)ast_ast_block_final_expr_ref(arena, body_ref) : -1);
+    }
+}
+
+void pipeline_debug_trace_body_sx_mega_pre_reset(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("sx_mega_pre_reset", module, arena);
+}
+
+void pipeline_debug_trace_body_sx_mega_post_reset(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("sx_mega_post_reset", module, arena);
+}
+
+void pipeline_debug_trace_body_sx_mega_post_params(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("sx_mega_post_params", module, arena);
+}
+
+void pipeline_debug_trace_body_sx_mega_post_frame(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("sx_mega_post_frame", module, arena);
+}
+
+void pipeline_debug_trace_body_sx_mega_post_locals(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("sx_mega_post_locals", module, arena);
+}
+
+void pipeline_debug_trace_body_sx_mega_pre_emit(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("sx_mega_pre_emit", module, arena);
+}
+
+static int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
+    size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag) {
+    int di;
+    if (out_src)
+        *out_src = NULL;
+    if (out_src_len)
+        *out_src_len = 0;
+    if (raw_len > (size_t)SHUX_PIPELINE_CTX_BUF_SIZE) {
+        if (emit_diag) {
+            diag_reportf_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+                         "entry file too large for .sx preprocessor (%zu > %d): '%s'",
+                         raw_len,
+                         SHUX_PIPELINE_CTX_BUF_SIZE,
+                         path_diag ? path_diag : "?");
+        }
+        return -1;
+    }
+    uint8_t *scratch = (uint8_t *)malloc((size_t)SHUX_PIPELINE_CTX_BUF_SIZE);
+    if (!scratch) {
+        if (emit_diag)
+            pipeline_diag_preprocess_alloc_fail(path_diag, "scratch buffer");
+        return -1;
+    }
+    preprocess_define_reset();
+    for (di = 0; di < ndefines; di++)
+        if (defines && defines[di])
+            preprocess_define_add(defines[di]);
+    int32_t n = preprocess_sx_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)SHUX_PIPELINE_CTX_BUF_SIZE);
+    if (n < 0) {
+        free(scratch);
+        if (emit_diag) {
+            if (preprocess_if_stack_len() != 0)
+                pipeline_diag_preprocess_unclosed_if(path_diag);
+            else
+                pipeline_diag_preprocess_fail(path_diag);
+        }
+        return -1;
+    }
+    if (preprocess_if_stack_len() != 0) {
+        free(scratch);
+        if (emit_diag)
+            pipeline_diag_preprocess_unclosed_if(path_diag);
+        return -1;
+    }
+    char *dup = (char *)malloc((size_t)n + 1);
+    if (!dup) {
+        free(scratch);
+        if (emit_diag)
+            pipeline_diag_preprocess_alloc_fail(path_diag, "output buffer");
+        return -1;
+    }
+    memcpy(dup, scratch, (size_t)n);
+    dup[n] = '\0';
+    free(scratch);
+    if (out_src)
+        *out_src = dup;
+    if (out_src_len)
+        *out_src_len = (size_t)n;
+    return 0;
+}
 
 /** typeck/pipeline 兼容 dep 侧车（pipeline_gen.c get_dep_* / pipeline_set_dep）。 */
 void *typeck_dep_module_ptrs[32];
@@ -89,47 +326,7 @@ void pipeline_set_ndep(int32_t n) {
  */
 int shux_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char **out_src, size_t *out_src_len,
     const char *path_diag, const char **defines, int ndefines) {
-    int di;
-    if (raw_len > (size_t)SHUX_PIPELINE_CTX_BUF_SIZE) {
-        fprintf(stderr,
-            "shux: entry file too large for .sx preprocessor (%zu > %d): '%s'\n",
-            raw_len,
-            SHUX_PIPELINE_CTX_BUF_SIZE,
-            path_diag ? path_diag : "?");
-        return -1;
-    }
-    uint8_t *scratch = (uint8_t *)malloc((size_t)SHUX_PIPELINE_CTX_BUF_SIZE);
-    if (!scratch)
-        return -1;
-    preprocess_define_reset();
-    for (di = 0; di < ndefines; di++)
-        if (defines && defines[di])
-            preprocess_define_add(defines[di]);
-    int32_t n = preprocess_sx_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)SHUX_PIPELINE_CTX_BUF_SIZE);
-    if (n < 0) {
-        free(scratch);
-        if (preprocess_if_stack_len() != 0)
-            fprintf(stderr, "preprocess: unclosed #if\n");
-        else
-            fprintf(stderr, "shux: .sx preprocess failed for '%s'\n", path_diag ? path_diag : "?");
-        return -1;
-    }
-    if (preprocess_if_stack_len() != 0) {
-        free(scratch);
-        fprintf(stderr, "preprocess: unclosed #if\n");
-        return -1;
-    }
-    char *dup = (char *)malloc((size_t)n + 1);
-    if (!dup) {
-        free(scratch);
-        return -1;
-    }
-    memcpy(dup, scratch, (size_t)n);
-    dup[n] = '\0';
-    free(scratch);
-    *out_src = dup;
-    *out_src_len = (size_t)n;
-    return 0;
+    return shux_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
 }
 
 /**
@@ -808,19 +1005,18 @@ int32_t pipeline_read_file(void) {
     size_t prep_len = 0;
 
     if (runtime_read_file_view(pipeline_resolved_path_buf, &raw_view) != 0) {
-        fprintf(stderr, "shux: cannot open import (tried %s)\n", pipeline_resolved_path_buf);
+        pipeline_diag_import_open_fail_once(NULL, pipeline_resolved_path_buf);
         return -1;
     }
     if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
             pipeline_resolved_path_buf,
             NULL, 0) != 0) {
         runtime_release_file_view(&raw_view);
-        fprintf(stderr, "shux: preprocess failed for import\n");
         return -1;
     }
     runtime_release_file_view(&raw_view);
     if (!prep) {
-        fprintf(stderr, "shux: preprocess failed for import\n");
+        pipeline_diag_import_preprocess_fail(NULL, pipeline_resolved_path_buf);
         return -1;
     }
     if (prep_len > pipeline_loaded_import_cap || !pipeline_loaded_import_buf) {
@@ -883,10 +1079,12 @@ static void *pipeline_run_sx_thread_fn(void *arg) {
     PipelineRunSuArgs *a = (PipelineRunSuArgs *)arg;
     driver_set_pipeline_entry_source_len(a->source_len);
     if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] pipeline thread start len=%zu\n", a->source_len);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: pipeline thread start len=%zu", a->source_len);
     a->result = pipeline_run_sx_pipeline(a->module, a->arena, a->source_data, a->source_len, a->out_buf, a->ctx);
     if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] pipeline thread done ec=%d\n", a->result);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: pipeline thread done ec=%d", a->result);
     return NULL;
 }
 
@@ -949,29 +1147,34 @@ int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const u
                                                     (uint8_t *)src, len_i32);
     if (parse_rc != 0) {
         if (getenv("SHUX_DEBUG_PIPE"))
-            fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun parse rc=%d\n", (int)parse_rc);
+            diag_reportf(NULL, 0, 0, "note", NULL,
+                         "pipeline debug: dep prerun parse rc=%d", (int)parse_rc);
         return -2;
     }
     load_rc = pipeline_load_and_sync_direct_import_deps_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                                           (struct ast_PipelineDepCtx *)one_ctx);
     if (load_rc != 0) {
         if (getenv("SHUX_DEBUG_PIPE"))
-            fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun load rc=%d ndep=%d\n", (int)load_rc,
-                    (int)pipeline_dep_ctx_ndep((struct ast_PipelineDepCtx *)one_ctx));
+            diag_reportf(NULL, 0, 0, "note", NULL,
+                         "pipeline debug: dep prerun load rc=%d ndep=%d",
+                         (int)load_rc, (int)pipeline_dep_ctx_ndep((struct ast_PipelineDepCtx *)one_ctx));
         return load_rc;
     }
     if (getenv("SHUX_DEBUG_PIPE")) {
         uint8_t dep_path_buf[64];
         memset(dep_path_buf, 0, sizeof(dep_path_buf));
         pipeline_dep_ctx_import_path_copy64((struct ast_PipelineDepCtx *)one_ctx, 0, dep_path_buf);
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun call path=%s main=%d\n",
-                dep_path_buf[0] ? (char *)dep_path_buf : "?", (int)pipeline_module_main_func_index(dep_mod));
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: dep prerun call path=%s main=%d",
+                     dep_path_buf[0] ? (char *)dep_path_buf : "?", (int)pipeline_module_main_func_index(dep_mod));
     }
     tc_rc = pipeline_typeck_dep_prerun_module_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                               (struct ast_PipelineDepCtx *)one_ctx);
     if (getenv("SHUX_DEBUG_PIPE") && tc_rc != 0)
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun typeck rc=%d funcs=%d main=%d ctx=%p\n", (int)tc_rc,
-                (int)pipeline_module_num_funcs(dep_mod), (int)pipeline_module_main_func_index(dep_mod), one_ctx);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: dep prerun typeck rc=%d funcs=%d main=%d ctx=%p",
+                     (int)tc_rc, (int)pipeline_module_num_funcs(dep_mod),
+                     (int)pipeline_module_main_func_index(dep_mod), one_ctx);
     return tc_rc;
 }
 
@@ -986,15 +1189,17 @@ int shux_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const ui
         return -1;
     if (len > (size_t)INT32_MAX)
         return -1;
-    if (getenv("SHUX_ASM_DEBUG"))
-        fprintf(stderr, "shux: dep_prerun_parse_only len=%zu funcs_before=%d\n", len,
-                pipeline_module_num_funcs(dep_mod));
+    if (pipeline_asm_debug_enabled())
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "asm debug: dep_prerun_parse_only len=%zu funcs_before=%d",
+                     len, pipeline_module_num_funcs(dep_mod));
     parser_parse_into_init(dep_mod, dep_arena);
     parse_rc = pipeline_parse_set_main_from_buf_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                                   (uint8_t *)src, (int32_t)len);
-    if (getenv("SHUX_ASM_DEBUG"))
-        fprintf(stderr, "shux: dep_prerun_parse_only done rc=%d funcs=%d\n", (int)parse_rc,
-                pipeline_module_num_funcs(dep_mod));
+    if (pipeline_asm_debug_enabled())
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "asm debug: dep_prerun_parse_only done rc=%d funcs=%d",
+                     (int)parse_rc, pipeline_module_num_funcs(dep_mod));
     return (parse_rc == 0) ? 0 : -1;
 }
 
@@ -1076,13 +1281,18 @@ int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots
         path_c[k] = '\0';
         shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, path_c, resolved, sizeof(resolved));
         if (runtime_read_file_view(resolved, &raw_view) != 0) {
-            fprintf(stderr, "shux: cannot open direct import '%s' (tried %s)\n", path_c, resolved);
+            pipeline_diag_import_open_fail_once(path_c, resolved);
             goto fail_partial;
         }
-        prep = shux_preprocess(raw_view.data, raw_view.length, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
+        prep = NULL;
+        if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
+                resolved, ndefines > 0 ? defines : NULL, ndefines) != 0) {
+            runtime_release_file_view(&raw_view);
+            goto fail_partial;
+        }
         runtime_release_file_view(&raw_view);
         if (!prep) {
-            fprintf(stderr, "shux: preprocess failed for direct import '%s'\n", path_c);
+            pipeline_diag_import_preprocess_fail(path_c, resolved);
             goto fail_partial;
         }
         dep_sources[mi] = prep;
@@ -1137,7 +1347,7 @@ int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char
             kk++;
         }
         if (found < 0) {
-            fprintf(stderr, "shux: merge deps: direct import '%s' not found in transitive closure\n", path_c);
+            pipeline_diag_merge_dep_missing(path_c);
             return 1;
         }
         out_src[mi] = cls[found];
@@ -1189,7 +1399,7 @@ int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports,
             kk++;
         }
         if (found < 0) {
-            fprintf(stderr, "shux: merge deps: direct import '%s' not found in transitive closure\n", path_c);
+            pipeline_diag_merge_dep_missing(path_c);
             return 1;
         }
         out_paths[mi] = cpaths[found];
@@ -1249,15 +1459,21 @@ int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz
         shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, resolved, sizeof(resolved));
         ShuxRuntimeFileView raw_view;
         if (runtime_read_file_view(resolved, &raw_view) != 0) {
-            fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", path_c, resolved);
+            pipeline_diag_import_open_fail_once(path_c, resolved);
             free(path_c);
             goto fail_to_load;
         }
         size_t prep_len = 0;
-        char *prep = shux_preprocess(raw_view.data, raw_view.length, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
+        char *prep = NULL;
+        if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
+                resolved, ndefines > 0 ? defines : NULL, ndefines) != 0) {
+            runtime_release_file_view(&raw_view);
+            free(path_c);
+            goto fail_to_load;
+        }
         runtime_release_file_view(&raw_view);
         if (!prep) {
-            fprintf(stderr, "shux: preprocess failed for import '%s'\n", path_c);
+            pipeline_diag_import_preprocess_fail(path_c, resolved);
             free(path_c);
             goto fail_to_load;
         }
@@ -1281,8 +1497,9 @@ int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz
             {
                 int n_imp = parser_get_module_num_imports(tmp_module);
                 if (getenv("SHUX_DEBUG_PIPE")) {
-                    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] collect parse dep=%s pr_ok=%d n_imp=%d\n",
-                            dep_paths[n - 1] ? dep_paths[n - 1] : "?", (int)pr_dep.ok, n_imp);
+                    diag_reportf(NULL, 0, 0, "note", NULL,
+                                 "pipeline debug: collect parse dep=%s pr_ok=%d n_imp=%d",
+                                 dep_paths[n - 1] ? dep_paths[n - 1] : "?", (int)pr_dep.ok, n_imp);
                 }
                 if (n_imp > 0) {
                     for (int jj = 0; jj < n_imp && jj < SHUX_DRIVER_DEP_SLOT_MAX && to_load_n < SHUX_DRIVER_DEP_SLOT_MAX;
@@ -1389,15 +1606,21 @@ int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t modu
             shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, resolved, sizeof(resolved));
             ShuxRuntimeFileView raw_view;
             if (runtime_read_file_view(resolved, &raw_view) != 0) {
-                fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", path_c, resolved);
+                pipeline_diag_import_open_fail_once(path_c, resolved);
                 free(path_c);
                 goto fail_to_load;
             }
             size_t prep_len = 0;
-            char *prep = shux_preprocess(raw_view.data, raw_view.length, ndefines > 0 ? defines : NULL, ndefines, &prep_len);
+            char *prep = NULL;
+            if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
+                    resolved, ndefines > 0 ? defines : NULL, ndefines) != 0) {
+                runtime_release_file_view(&raw_view);
+                free(path_c);
+                goto fail_to_load;
+            }
             runtime_release_file_view(&raw_view);
             if (!prep) {
-                fprintf(stderr, "shux: preprocess failed for import '%s'\n", path_c);
+                pipeline_diag_import_preprocess_fail(path_c, resolved);
                 free(path_c);
                 goto fail_to_load;
             }
@@ -1409,8 +1632,9 @@ int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t modu
             {
                 int n_imp = parser_get_module_num_imports(tmp_module);
                 if (getenv("SHUX_DEBUG_PIPE")) {
-                    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] collect parse dep=%s pr_ok=%d n_imp=%d\n",
-                            path_c ? path_c : "?", (int)pr_dep.ok, n_imp);
+                    diag_reportf(NULL, 0, 0, "note", NULL,
+                                 "pipeline debug: collect parse dep=%s pr_ok=%d n_imp=%d",
+                                 path_c ? path_c : "?", (int)pr_dep.ok, n_imp);
                 }
                 if (n_imp > 0) {
                     for (int jj = 0; jj < n_imp && jj < SHUX_DRIVER_DEP_SLOT_MAX && to_load_n < SHUX_DRIVER_DEP_SLOT_MAX;
@@ -1484,8 +1708,10 @@ void shux_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pct
     asm_skip_heavy_set_pipeline_ctx(pctx);
     pipeline_fill_array_lit_types_for_skipped_typeck(module, arena);
     pipeline_fill_soa_field_access_for_asm_emit(module, arena);
+    pipeline_debug_trace_named_func_bodies("emit_prepare_pre_fixup", module, arena);
     /** with_arena：parse 扁平 stmt_order 时补 kind=6 region，否则 main 仅 emit 前几条 if（SIGSEGV）。 */
     pipeline_module_fixup_with_arena_stmt_orders((struct ast_Module *)module, (struct ast_ASTArena *)arena);
+    pipeline_debug_trace_named_func_bodies("emit_prepare_post_fixup", module, arena);
 }
 
 /** pthread 大栈 emit 参数包。 */
@@ -1565,6 +1791,11 @@ void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_de
  * 返回值：malloc 字符串（调用方 free）；失败 NULL。
  */
 char *shux_preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
+    return shux_preprocess_quiet(source, source_len, defines, ndefines, out_length);
+}
+
+char *shux_preprocess_with_path(const char *source, size_t source_len, const char *path_diag,
+    const char **defines, int ndefines, size_t *out_length) {
     size_t slen;
 
     if (out_length)
@@ -1577,8 +1808,33 @@ char *shux_preprocess(const char *source, size_t source_len, const char **define
         char *out = NULL;
         size_t olen = 0;
 
-        if (shux_preprocess_raw_to_malloc((const unsigned char *)source, slen, &out, &olen, NULL,
-                ndefines > 0 ? defines : NULL, ndefines) != 0)
+        if (shux_preprocess_raw_to_malloc_impl((const unsigned char *)source, slen, &out, &olen, path_diag,
+                ndefines > 0 ? defines : NULL, ndefines, 1) != 0)
+            return NULL;
+        if (out_length)
+            *out_length = olen;
+        return out;
+    }
+#else
+    return preprocess_c_fallback(source, source_len, defines, ndefines, out_length);
+#endif
+}
+
+char *shux_preprocess_quiet(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
+    size_t slen;
+
+    if (out_length)
+        *out_length = 0;
+    if (!source)
+        return NULL;
+#if defined(SHUX_USE_SX_PIPELINE) && !defined(SHUX_LEGACY_PREPROCESS_C)
+    slen = source_len ? source_len : strlen(source);
+    {
+        char *out = NULL;
+        size_t olen = 0;
+
+        if (shux_preprocess_raw_to_malloc_impl((const unsigned char *)source, slen, &out, &olen, NULL,
+                ndefines > 0 ? defines : NULL, ndefines, 0) != 0)
             return NULL;
         if (out_length)
             *out_length = olen;

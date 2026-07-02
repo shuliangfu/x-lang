@@ -75,10 +75,10 @@ function net_run_accept_workers_c_real_c(listener_fd: i32, n_workers: i32, timeo
     net_worker_arg_fill_c(net_worker_arg_slot_ptr_c(&args[0], i), listener_fd, timeout_ms, i);
     i = i + 1;
   }
-  entry = shu_net_worker_accept_entry_ptr_c();
+  unsafe { entry = shu_net_worker_accept_entry_ptr_c(); }
   i = 0;
   while (i < nw) {
-    tids[i] = thread_create_c(entry, net_worker_arg_slot_ptr_c(&args[0], i) as usize);
+    unsafe { tids[i] = thread_create_c(entry, net_worker_arg_slot_ptr_c(&args[0], i) as usize); }
     if (tids[i] == 0) {
       return -1;
     }
@@ -86,9 +86,9 @@ function net_run_accept_workers_c_real_c(listener_fd: i32, n_workers: i32, timeo
   }
   i = 0;
   while (i < nw) {
-    if (thread_join_c(tids[i]) != 0) {
+    unsafe { if (thread_join_c(tids[i]) != 0) {
       return -1;
-    }
+    } }
     i = i + 1;
   }
   return 0;

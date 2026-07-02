@@ -29,10 +29,10 @@ if [ -z "${SHUX_BUILD_ASM_TIMEOUT_WRAPPED:-}" ] && [ -n "${SHUX_BUILD_ASM_TIMEOU
   fi
   if [ -n "$_to_bin" ]; then
     export SHUX_BUILD_ASM_TIMEOUT_WRAPPED=1
-    echo "build_shux_asm: outer timeout ${SHUX_BUILD_ASM_TIMEOUT}s"
+    build_shux_asm_info "outer timeout ${SHUX_BUILD_ASM_TIMEOUT}s"
     exec "$_to_bin" "${SHUX_BUILD_ASM_TIMEOUT}" "$0" "$@"
   fi
-  echo "build_shux_asm: WARN timeout unavailable; SHUX_BUILD_ASM_TIMEOUT ignored" >&2
+  build_shux_asm_warn "timeout unavailable; SHUX_BUILD_ASM_TIMEOUT ignored"
 fi
 
 # CI：跳过 second pass 与全量 typeck 预检，避免 Token/Lexer 布局刷屏导致 runner OOM（1h+ lost communication）。
@@ -51,10 +51,22 @@ fi
 # 调试 env 勿泄漏进 build_asm：SHUX_ASM_START_FUNC>=模块 func 数时 emit 循环全跳过，仅剩 8B 空 __text 桩（B-strict PTEXT 门禁失败）。
 unset SHUX_ASM_START_FUNC 2>/dev/null || true
 
+build_shux_asm_warn() {
+  printf 'warning: build_shux_asm: %s\n' "$*" >&2
+}
+
+build_shux_asm_info() {
+  printf 'info: build_shux_asm: %s\n' "$*" >&2
+}
+
+build_shux_asm_error() {
+  printf 'build error: build_shux_asm: %s\n' "$*" >&2
+}
+
 # B-strict（SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1）：链接或 smoke 失败即 exit 1，不回退 gen_driver / pipeline_sx。
 # 非 SKIP_GEN 时仅告警并返回，供 Linux 等宿主继续 gen_driver 回退或保留 experimental bootstrap 产物。
 shux_asm_bstrict_fail() {
-  echo "build_shux_asm: B-strict failed: $*"
+  build_shux_asm_error "B-strict failed: $*"
   if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
     exit 1
   fi
@@ -98,7 +110,7 @@ if [ -f "$BUILD_LIST_SX" ]; then
 fi
 [ -z "$LIBROOT" ] && LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
-echo "build_shux_asm: using SHUX=$SHUX (list from $BUILD_LIST_SX)"
+build_shux_asm_info "using SHUX=$SHUX (list from $BUILD_LIST_SX)"
 
 # compile_sx 的 stub 回退与后续链接均依赖宿主 cc；须在 asm 编译循环之前定义。
 CC="${CC:-cc}"
@@ -229,7 +241,7 @@ compile_sx() {
       _txt=$(asm_o_text_bytes "$out")
       if [ "$_txt" = "0" ]; then
         echo "WARN-empty-__text"
-        echo "build_shux_asm: $out __text=0 (SHUX_ASM_ENTRY_ONLY_DEBUG=1 $SHUX -backend asm -o /tmp/x.o $LIBROOT $src → funcs=N)"
+        build_shux_asm_warn "$out __text=0 (SHUX_ASM_ENTRY_ONLY_DEBUG=1 $SHUX -backend asm -o /tmp/x.o $LIBROOT $src -> funcs=N)"
       fi
       echo OK; return 0
     fi
@@ -238,7 +250,7 @@ compile_sx() {
       _txt=$(asm_o_text_bytes "$out")
       if [ "$_txt" = "0" ]; then
         echo "WARN-empty-__text"
-        echo "build_shux_asm: $out __text=0 (SHUX_ASM_ENTRY_ONLY_DEBUG=1 … → funcs=N)"
+        build_shux_asm_warn "$out __text=0 (SHUX_ASM_ENTRY_ONLY_DEBUG=1 ... -> funcs=N)"
       fi
       echo OK; return 0
     elif env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 "$SHUX" -backend asm -o "$out" $LIBROOT "$src" ${SHUX_ASM_QUIET:+2>/dev/null}; then
@@ -316,7 +328,7 @@ ld_partial_export() {
 # 成功须 __text≥200B（B-strict 前置）；bootstrap shux_asm 在 Linux ELF 常产出 0B 桩，须回退 seed ./shux。
 rebuild_pipeline_o_second_pass() {
   if [ -n "${SHUX_ASM_CI_SKIP_SECOND_PASS:-}" ]; then
-    echo "build_shux_asm: pipeline.o second pass skipped (CI fast)"
+    build_shux_asm_info "pipeline.o second pass skipped (CI fast)"
     return 0
   fi
   local min_text=200
@@ -327,7 +339,7 @@ rebuild_pipeline_o_second_pass() {
     cp -f pipeline_sx.o "$BUILD_DIR/pipeline.o"
     asm_strict_pipeline_selfhosted || return 1
     PTEXT=$(asm_o_text_bytes "$BUILD_DIR/pipeline.o" 2>/dev/null || echo 0)
-    echo "build_shux_asm: pipeline.o second pass promote pipeline_sx.o (__text=${PTEXT}B, skip asm emit)"
+    build_shux_asm_info "pipeline.o second pass promote pipeline_sx.o (__text=${PTEXT}B, skip asm emit)"
     return 0
   }
   if [ "${SHUX_ASM_SECOND_PASS_FORCE_ASM:-0}" != "1" ] && _promote_pipeline_sx_second_pass; then
@@ -342,7 +354,7 @@ rebuild_pipeline_o_second_pass() {
     PTMP="$BUILD_DIR/pipeline.second_pass.o"
   fi
   ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
-  echo "build_shux_asm: second pass — recompile pipeline.o (tmp=$PTMP) ..."
+  build_shux_asm_info "second pass - recompile pipeline.o (tmp=$PTMP)"
   # 单次 attempt 超时（秒）；EMIT_HEAVY 在 pipeline.sx 上偶发 futex 卡死，须 timeout 后回退轻量路径
   _sp_timeout="${SHUX_ASM_SECOND_PASS_TIMEOUT:-7200}"
   _run_pipeline_sp() {
@@ -361,16 +373,16 @@ rebuild_pipeline_o_second_pass() {
     PTEXT=$(asm_o_text_bytes "$PTMP" 2>/dev/null || echo 0)
     if [ "$PTEXT" -ge "$min_text" ] 2>/dev/null; then
       mv -f "$PTMP" "$BUILD_DIR/pipeline.o"
-      echo "build_shux_asm: pipeline.o second pass OK $_label (__text=${PTEXT}B)"
+      build_shux_asm_info "pipeline.o second pass OK $_label (__text=${PTEXT}B)"
       return 0
     fi
-    echo "build_shux_asm: pipeline.o second pass $_label too small (__text=${PTEXT}B)"
+    build_shux_asm_warn "pipeline.o second pass $_label too small (__text=${PTEXT}B)"
     return 1
   }
   for pcomp in "./shux_asm.experimental" "./shux-seed-phase1" "${SHUX:-}" "./shux" "./shux_asm"; do
     [ -n "$pcomp" ] || continue
     [ -x "$pcomp" ] || continue
-    echo "build_shux_asm: pipeline.o second pass try $pcomp ..."
+    build_shux_asm_info "pipeline.o second pass try $pcomp"
     # 1) 轻量 SKIP_TYPECK（避免 EMIT_HEAVY futex 卡死）
     if _run_pipeline_sp "$pcomp" SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1; then
       _try_pipeline_sp_ok "with SKIP_TYPECK via $pcomp" && return 0
@@ -390,14 +402,14 @@ rebuild_pipeline_o_second_pass() {
   if _promote_pipeline_sx_second_pass; then
     return 0
   fi
-  echo "build_shux_asm: pipeline.o second pass failed (no compiler reached __text>=${min_text}B)"
+  build_shux_asm_error "pipeline.o second pass failed (no compiler reached __text>=${min_text}B)"
   return 1
 }
 
 # 第二遍：用 bootstrap shux_asm（experimental 链，含 pipeline_sx.o）重编大模块；须在 strict 重链覆盖 shux_asm 之前执行。
 rebuild_typeck_parser_backend_second_pass() {
   if [ -n "${SHUX_ASM_CI_SKIP_SECOND_PASS:-}" ]; then
-    echo "build_shux_asm: typeck/parser/backend second pass skipped (CI fast)"
+    build_shux_asm_info "typeck/parser/backend second pass skipped (CI fast)"
     return 0
   fi
   # 第二遍编译器：显式参数 > ./shux_asm（strict 产物）> ${SHUX} > experimental；勿用过期 seed ./shux。
@@ -430,7 +442,7 @@ rebuild_typeck_parser_backend_second_pass() {
     local pass_ok=0
     # backend：seed partial 已提供强符号时跳过 asm 二遍（backend.sx 极大，Docker 易 OOM/Killed）
     if [ "$out" = "backend.o" ] && [ -s "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
-      echo "build_shux_asm: $out second pass skip — seed_host/asm_backend_partial.o"
+      build_shux_asm_info "$out second pass skip - seed_host/asm_backend_partial.o"
       ok=1
       continue
     fi
@@ -440,14 +452,14 @@ rebuild_typeck_parser_backend_second_pass() {
       case "$out" in
         typeck.o)
           if asm_strict_typeck_selfhosted; then
-            echo "build_shux_asm: $out second pass promote $sx_o (__text=$(asm_o_text_bytes "$BUILD_DIR/$out")B, skip asm emit)"
+            build_shux_asm_info "$out second pass promote $sx_o (__text=$(asm_o_text_bytes "$BUILD_DIR/$out")B, skip asm emit)"
             ok=1
             continue
           fi
           ;;
         parser.o)
           if [ "$(asm_o_text_bytes "$BUILD_DIR/$out" 2>/dev/null || echo 0)" -gt 8192 ] 2>/dev/null; then
-            echo "build_shux_asm: $out second pass promote $sx_o (__text=$(asm_o_text_bytes "$BUILD_DIR/$out")B, skip asm emit)"
+            build_shux_asm_info "$out second pass promote $sx_o (__text=$(asm_o_text_bytes "$BUILD_DIR/$out")B, skip asm emit)"
             ok=1
             continue
           fi
@@ -455,7 +467,7 @@ rebuild_typeck_parser_backend_second_pass() {
       esac
       rm -f "$BUILD_DIR/$out" 2>/dev/null || true
     fi
-    echo "build_shux_asm: second pass — recompile $out with $comp ..."
+    build_shux_asm_info "second pass - recompile $out with $comp"
     if [ "$out" = "typeck.o" ] || [ "$out" = "backend.o" ] || [ "$out" = "parser.o" ]; then
       # 第二遍：EMIT_HEAVY 真 emit（parser 截断模块在 ast_pool 内桩化；真机在 parser_sx.o）。
       if env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
@@ -467,11 +479,11 @@ rebuild_typeck_parser_backend_second_pass() {
     fi
     if [ "$pass_ok" -eq 1 ] && [ -f "$tmp" ]; then
       mv -f "$tmp" "$BUILD_DIR/$out"
-      echo "build_shux_asm: $out second pass OK (__text=$(asm_o_text_bytes "$BUILD_DIR/$out")B)"
+      build_shux_asm_info "$out second pass OK (__text=$(asm_o_text_bytes "$BUILD_DIR/$out")B)"
       ok=1
     else
       rm -f "$tmp" 2>/dev/null || true
-      echo "build_shux_asm: $out second pass failed"
+      build_shux_asm_error "$out second pass failed"
       return 1
     fi
   done
@@ -496,40 +508,40 @@ rebuild_typeck_o_emit_heavy_s2() {
     comp="./shux_asm"
   fi
   if [ ! -x "$comp" ]; then
-    echo "build_shux_asm: typeck EMIT_HEAVY S2 — no shux_asm compiler" >&2
+    build_shux_asm_error "typeck EMIT_HEAVY S2: no shux_asm compiler"
     return 1
   fi
   cur_txt=$(asm_o_text_bytes "$out" 2>/dev/null || echo 0)
   if [ "${cur_txt:-0}" -ge "$min_gate" ] 2>/dev/null; then
-    echo "build_shux_asm: typeck.o already S2-ready (__text=${cur_txt}B >= ${min_gate})"
+    build_shux_asm_info "typeck.o already S2-ready (__text=${cur_txt}B >= ${min_gate})"
     return 0
   fi
-  echo "build_shux_asm: S2 typeck — EMIT_HEAVY recompile typeck.o with $comp (was __text=${cur_txt}B) ..."
+  build_shux_asm_info "S2 typeck: EMIT_HEAVY recompile typeck.o with $comp (was __text=${cur_txt}B)"
   ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
   rm -f "$tmp"
   if ! env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
     SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
     "$comp" -backend asm -o "$tmp" $LIBROOT "$src"; then
     rm -f "$tmp" 2>/dev/null || true
-    echo "build_shux_asm: typeck.o EMIT_HEAVY compile failed" >&2
+    build_shux_asm_error "typeck.o EMIT_HEAVY compile failed"
     return 1
   fi
   new_txt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
   if [ "${new_txt:-0}" -lt "$min_gate" ] 2>/dev/null; then
     rm -f "$tmp" 2>/dev/null || true
-    echo "build_shux_asm: typeck.o EMIT_HEAVY __text=${new_txt}B < S2 min ${min_gate}" >&2
+    build_shux_asm_error "typeck.o EMIT_HEAVY __text=${new_txt}B < S2 min ${min_gate}"
     return 1
   fi
   mv -f "$tmp" "$out"
   ensure_typeck_asm_layout_partial_obj || true
-  echo "build_shux_asm: typeck.o EMIT_HEAVY S2 OK (__text=${new_txt}B)"
+  build_shux_asm_info "typeck.o EMIT_HEAVY S2 OK (__text=${new_txt}B)"
   return 0
 }
 
 # M8a：parser 支持 Module.sub.Type 后，须用已链入新 parser 的编译器重编首遍仅解析到首个函数的模块（arm64_enc 等）。
 rebuild_m8a_parser_dependent_modules_second_pass() {
   if [ -n "${SHUX_ASM_CI_SKIP_SECOND_PASS:-}" ]; then
-    echo "build_shux_asm: M8a second pass skipped (CI fast)"
+    build_shux_asm_info "M8a second pass skipped (CI fast)"
     return 0
   fi
   local comp="${SHUX_ASM_SECOND_PASS_COMPILER:-./shux_asm}"
@@ -548,13 +560,13 @@ rebuild_m8a_parser_dependent_modules_second_pass() {
     local out="${spec%%:*}"
     local src="${spec#*:}"
     local tmp="$BUILD_DIR/${out%.o}.m8a_second_pass.o"
-    echo "build_shux_asm: M8a second pass — recompile $out with $comp ..."
+    build_shux_asm_info "M8a second pass - recompile $out with $comp"
     local cur_txt=0
     if [ -f "$BUILD_DIR/$out" ]; then
       cur_txt=$(asm_o_text_bytes "$BUILD_DIR/$out" 2>/dev/null || echo 0)
     fi
     if [ "$cur_txt" -gt 0 ] 2>/dev/null; then
-      echo "build_shux_asm: $out M8a pass skipped (__text=${cur_txt}B already OK)"
+      build_shux_asm_info "$out M8a pass skipped (__text=${cur_txt}B already OK)"
       ok=1
       continue
     fi
@@ -564,16 +576,16 @@ rebuild_m8a_parser_dependent_modules_second_pass() {
       new_txt=$(asm_o_text_bytes "$tmp" 2>/dev/null || echo 0)
       if [ "${new_txt:-0}" -gt 0 ] 2>/dev/null; then
         mv -f "$tmp" "$BUILD_DIR/$out"
-        echo "build_shux_asm: $out M8a pass OK (__text=${new_txt}B)"
+        build_shux_asm_info "$out M8a pass OK (__text=${new_txt}B)"
         ok=1
       else
         rm -f "$tmp" 2>/dev/null || true
-        echo "build_shux_asm: $out M8a pass empty __text (keep existing ${cur_txt}B)"
+        build_shux_asm_warn "$out M8a pass empty __text (keep existing ${cur_txt}B)"
         [ "${cur_txt:-0}" -gt 0 ] 2>/dev/null && ok=1
       fi
     else
       rm -f "$tmp" 2>/dev/null || true
-      echo "build_shux_asm: $out M8a pass failed"
+      build_shux_asm_warn "$out M8a pass failed"
     fi
   done
   [ "$ok" -eq 1 ]
@@ -586,7 +598,7 @@ strip_main_entry_from_build_asm_main_o() {
   if ! nm "$mo" 2>/dev/null | grep -q ' _main_entry$'; then
     return 0
   fi
-  echo "build_shux_asm: strip _main_entry from main.o (CLI dispatch via asm_experimental_symbol_bridge) ..."
+  build_shux_asm_info "strip _main_entry from main.o (CLI dispatch via asm_experimental_symbol_bridge)"
   if command -v llvm-objcopy >/dev/null 2>&1; then
     llvm-objcopy --strip-symbol=_main_entry "$mo"
   elif strip -N _main_entry "$mo" 2>/dev/null; then
@@ -594,7 +606,7 @@ strip_main_entry_from_build_asm_main_o() {
   elif command -v objcopy >/dev/null 2>&1; then
     objcopy --strip-symbol=_main_entry "$mo" 2>/dev/null || objcopy -N _main_entry "$mo"
   else
-    echo "build_shux_asm: cannot strip _main_entry (need llvm-objcopy or strip -N)" >&2
+    build_shux_asm_error "cannot strip _main_entry (need llvm-objcopy or strip -N)"
     return 1
   fi
 }
@@ -610,7 +622,7 @@ rebuild_main_o_for_cli() {
   local main_tout="${SHUX_MAIN_O_COMPILE_TIMEOUT:-300}"
 
   if [ "${SHUX_ASM_SKIP_MAIN_O_REBUILD:-0}" = "1" ]; then
-    echo "build_shux_asm: skip main.o recompile (SHUX_ASM_SKIP_MAIN_O_REBUILD=1)"
+    build_shux_asm_info "skip main.o recompile (SHUX_ASM_SKIP_MAIN_O_REBUILD=1)"
     return 0
   fi
 
@@ -669,7 +681,7 @@ rebuild_main_o_for_cli() {
     return 0
   }
 
-  echo "build_shux_asm: recompile main.o (ENTRY_MODULE_ONLY + ENTRY_EMIT_HEAVY + WPO DCE prefer-on) ..."
+  build_shux_asm_info "recompile main.o (ENTRY_MODULE_ONLY + ENTRY_EMIT_HEAVY + WPO DCE prefer-on)"
   set +e
   # SHUX_WPO_MAIN_REBUILD_ONLY：post-strict 仅允许指定编译器（须为新链出的 ./shux_asm）。
   if [ -n "${SHUX_WPO_MAIN_REBUILD_ONLY:-}" ]; then
@@ -688,12 +700,12 @@ rebuild_main_o_for_cli() {
         continue
       fi
       mv -f "$tmp" "$BUILD_DIR/main.o"
-      echo "build_shux_asm: main.o CLI entry OK via $comp (__text=${txt}B, WPO DCE ${wpo_mode}, symbol entry)"
+      build_shux_asm_info "main.o CLI entry OK via $comp (__text=${txt}B, WPO DCE ${wpo_mode}, symbol entry)"
       set -e
       return 0
     done
     set -e
-    echo "build_shux_asm: main.o post-strict WPO recompile failed (compiler=${SHUX_WPO_MAIN_REBUILD_ONLY})" >&2
+    build_shux_asm_error "main.o post-strict WPO recompile failed (compiler=${SHUX_WPO_MAIN_REBUILD_ONLY})"
     return 1
   fi
   # post-strict / 生产链：优先 experimental（ENTRY_MODULE_ONLY smoke 通过）。
@@ -712,14 +724,14 @@ rebuild_main_o_for_cli() {
       continue
     fi
     mv -f "$tmp" "$BUILD_DIR/main.o"
-    echo "build_shux_asm: main.o CLI entry OK via $comp (__text=${txt}B, WPO DCE ${wpo_mode}, symbol entry)"
+    build_shux_asm_info "main.o CLI entry OK via $comp (__text=${txt}B, WPO DCE ${wpo_mode}, symbol entry)"
     set -e
     return 0
   done <<EOF
 $(wpo_rebuild_compiler_candidates)
 EOF
   set -e
-  echo "build_shux_asm: main.o CLI recompile failed (check/fmt/test may rely on asm_experimental_symbol_bridge)" >&2
+  build_shux_asm_error "main.o CLI recompile failed (check/fmt/test may rely on asm_experimental_symbol_bridge)"
   return 1
 }
 
@@ -730,18 +742,18 @@ rebuild_main_o_post_strict_link() {
   local comp
   local cur_txt
   if [ "${SHUX_ASM_SKIP_MAIN_O_REBUILD:-0}" = "1" ]; then
-    echo "build_shux_asm: post-strict skip main.o recompile (SHUX_ASM_SKIP_MAIN_O_REBUILD=1)"
+    build_shux_asm_info "post-strict skip main.o recompile (SHUX_ASM_SKIP_MAIN_O_REBUILD=1)"
     return 0
   fi
   if [ -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ] && \
      ! nm "$BUILD_DIR/main.o" 2>/dev/null | grep -q ' entry$'; then
-    echo "build_shux_asm: post-strict skip main.o recompile (bridge entry; main.o stub)"
+    build_shux_asm_info "post-strict skip main.o recompile (bridge entry; main.o stub)"
     return 0
   fi
   cur_txt=$(asm_o_text_bytes "$BUILD_DIR/main.o" 2>/dev/null || echo 0)
   if [ "$cur_txt" -gt 0 ] && [ "$cur_txt" -le 768 ] 2>/dev/null && \
      nm "$BUILD_DIR/main.o" 2>/dev/null | grep -q ' entry$'; then
-    echo "build_shux_asm: post-strict main.o keep compressed (__text=${cur_txt}B, entry present)"
+    build_shux_asm_info "post-strict main.o keep compressed (__text=${cur_txt}B, entry present)"
     return 0
   fi
   for comp in ./shux_asm ./shux_asm.experimental ./shux_asm_stage1 ./shux; do
@@ -778,7 +790,7 @@ ensure_driver_compile_link_obj() {
   [ -f "$eh_o" ] && [ -s "$eh_o" ] || return 1
   [ -f "$alias_src" ] || return 1
   if [ ! -f "$alias_o" ] || [ "$alias_src" -nt "$alias_o" ]; then
-    echo "build_shux_asm: cc driver_compile_asm_link_alias.o ..."
+    build_shux_asm_info "cc driver_compile_asm_link_alias.o"
     "$CC" $CFLAGS -c -o "$alias_o" "$alias_src"
   fi
   if nm "$eh_o" 2>/dev/null | grep -qE ' U (_)?driver_compile_parse_argv_loop$'; then
@@ -790,7 +802,7 @@ ensure_driver_compile_link_obj() {
   fi
   if [ ! -f "$link_o" ] || [ "$eh_o" -nt "$link_o" ] || [ "$alias_o" -nt "$link_o" ] || \
      { [ -n "$loop_partial" ] && [ -f "$loop_partial" ] && [ "$loop_partial" -nt "$link_o" ]; }; then
-    echo "build_shux_asm: ld -r driver_compile_emit_heavy.o + link_alias -> driver_compile_link.o ..."
+    build_shux_asm_info "ld -r driver_compile_emit_heavy.o + link_alias -> driver_compile_link.o"
     rm -f "$link_o" 2>/dev/null || true
     if [ -n "$loop_partial" ] && [ -f "$loop_partial" ]; then
       ld -r -o "$link_o" "$eh_o" "$alias_o" "$loop_partial" 2>/dev/null || return 1
@@ -848,7 +860,7 @@ rebuild_driver_compile_o_wpo() {
   local txt=""
   local wpo_mode=""
   if [ "${SHUX_ASM_SKIP_WPO_DOGFOOD:-0}" = "1" ]; then
-    echo "build_shux_asm: skip driver_compile.o WPO recompile (SHUX_ASM_SKIP_WPO_DOGFOOD=1)"
+    build_shux_asm_info "skip driver_compile.o WPO recompile (SHUX_ASM_SKIP_WPO_DOGFOOD=1)"
     return 0
   fi
   ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
@@ -882,7 +894,7 @@ rebuild_driver_compile_o_wpo() {
     return 0
   }
 
-  echo "build_shux_asm: recompile driver_compile.o (WPO DCE prefer-on, entry-only ~145B) ..."
+  build_shux_asm_info "recompile driver_compile.o (WPO DCE prefer-on, entry-only ~145B)"
   set +e
   while IFS= read -r comp; do
     [ -n "$comp" ] || continue
@@ -895,14 +907,14 @@ rebuild_driver_compile_o_wpo() {
       continue
     fi
     mv -f "$tmp" "$BUILD_DIR/driver_compile.o"
-    echo "build_shux_asm: driver_compile.o WPO OK via $comp (__text=${txt}B, WPO DCE ${wpo_mode})"
+    build_shux_asm_info "driver_compile.o WPO OK via $comp (__text=${txt}B, WPO DCE ${wpo_mode})"
     set -e
     return 0
   done <<EOF
 $(wpo_rebuild_compiler_candidates)
 EOF
   set -e
-  echo "build_shux_asm: driver_compile.o WPO recompile failed (non-fatal)" >&2
+  build_shux_asm_warn "driver_compile.o WPO recompile failed (non-fatal)"
   return 1
 }
 
@@ -912,25 +924,25 @@ rebuild_driver_compile_emit_heavy_and_link() {
   local comp=""
   local eh_tout="${SHUX_DRIVER_EMIT_HEAVY_TIMEOUT:-600}"
   if [ "${SHUX_ASM_SKIP_DRIVER_EMIT_HEAVY:-0}" = "1" ]; then
-    echo "build_shux_asm: skip driver_compile_emit_heavy.o recompile (SHUX_ASM_SKIP_DRIVER_EMIT_HEAVY=1)"
+    build_shux_asm_info "skip driver_compile_emit_heavy.o recompile (SHUX_ASM_SKIP_DRIVER_EMIT_HEAVY=1)"
     return 0
   fi
   ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
-  echo "build_shux_asm: recompile driver_compile_emit_heavy.o (EMIT_HEAVY full SX) ..."
+  build_shux_asm_info "recompile driver_compile_emit_heavy.o (EMIT_HEAVY full SX)"
   set +e
   for comp in "${SHUX:-}" "./shux_asm" "./shux_asm_stage1" "${SHUX_ASM_SECOND_PASS_COMPILER:-./shux_asm.experimental}" "./shux" "./shux-sx"; do
     [ -n "$comp" ] || continue
     [ -x "$comp" ] || continue
     if try_driver_emit_heavy_compile "$eh_o" "$comp"; then
       if ensure_driver_compile_link_obj; then
-        echo "build_shux_asm: driver_compile_emit_heavy.o OK via $comp (__text=$(asm_o_text_bytes "$eh_o")B, link.o ready)"
+        build_shux_asm_info "driver_compile_emit_heavy.o OK via $comp (__text=$(asm_o_text_bytes "$eh_o")B, link.o ready)"
         set -e
         return 0
       fi
     fi
   done
   set -e
-  echo "build_shux_asm: driver_compile_emit_heavy.o failed (strict driver asm fallback to C-gen)" >&2
+  build_shux_asm_warn "driver_compile_emit_heavy.o failed; using strict driver asm fallback to C-gen"
   return 1
 }
 
@@ -938,7 +950,7 @@ rebuild_driver_compile_post_strict_link() {
   local cur_txt
   cur_txt=$(asm_o_text_bytes "$BUILD_DIR/driver_compile.o" 2>/dev/null || echo 0)
   if driver_wpo_compressed_o_ok "$BUILD_DIR/driver_compile.o" 2>/dev/null; then
-    echo "build_shux_asm: post-strict driver_compile.o keep compressed (__text=${cur_txt}B)"
+    build_shux_asm_info "post-strict driver_compile.o keep compressed (__text=${cur_txt}B)"
   else
     rebuild_driver_compile_o_wpo || true
   fi
@@ -948,15 +960,15 @@ rebuild_driver_compile_post_strict_link() {
   rebuild_backend_wpo_post_strict || true
   if asm_pipeline_wpo_strict_reach_ok; then
     export STRICT_LINK_BUILD_ASM_WPO=1
-    echo "build_shux_asm: post-strict STRICT_LINK_BUILD_ASM_WPO=1 (pipeline_wpo.o reach OK)"
+    build_shux_asm_info "post-strict STRICT_LINK_BUILD_ASM_WPO=1 (pipeline_wpo.o reach OK)"
   fi
   if [ "${SHUX_ASM_STRICT_LINK_TYPECK_WPO:-1}" != "0" ] && asm_typeck_wpo_strict_reach_ok; then
     export STRICT_LINK_BUILD_ASM_TYPECK_WPO=1
-    echo "build_shux_asm: post-strict STRICT_LINK_BUILD_ASM_TYPECK_WPO=1 (typeck_wpo reach OK; helpers only if typeck.o not selfhosted)"
+    build_shux_asm_info "post-strict STRICT_LINK_BUILD_ASM_TYPECK_WPO=1 (typeck_wpo reach OK; helpers only if typeck.o not selfhosted)"
   fi
   if asm_backend_wpo_strict_reach_ok; then
     export STRICT_LINK_BUILD_ASM_BACKEND_WPO=1
-    echo "build_shux_asm: post-strict STRICT_LINK_BUILD_ASM_BACKEND_WPO=1 (backend_wpo.o reach OK)"
+    build_shux_asm_info "post-strict STRICT_LINK_BUILD_ASM_BACKEND_WPO=1 (backend_wpo.o reach OK)"
   fi
 }
 
@@ -998,7 +1010,7 @@ ensure_experimental_ast_pool_for_wpo() {
     need=1
   fi
   if [ "$need" -eq 1 ] && command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-    echo "build_shux_asm: ast_pool/glue stale — make pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1 ..."
+    build_shux_asm_info "ast_pool/glue stale - make pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1"
     make pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1 || return 1
   fi
   if [ ! -x ./scripts/relink_shux_asm_experimental_bootstrap.sh ]; then
@@ -1006,7 +1018,7 @@ ensure_experimental_ast_pool_for_wpo() {
   fi
   if [ ! -x ./shux_asm.experimental ] || [ pipeline_sx.o -nt ./shux_asm.experimental ] 2>/dev/null \
     || [ ast_pool.c -nt ./shux_asm.experimental ] 2>/dev/null; then
-    echo "build_shux_asm: relink shux_asm.experimental (pipeline_sx.o / ast_pool WPO) ..."
+    build_shux_asm_info "relink shux_asm.experimental (pipeline_sx.o / ast_pool WPO)"
     ./scripts/relink_shux_asm_experimental_bootstrap.sh || return 1
   fi
   return 0
@@ -1067,7 +1079,7 @@ rebuild_pipeline_wpo_o() {
   local pipe_wpo_max="${SHUX_WPO_PIPELINE_MAX_TEXT:-12288}"
   local pipe_tout="${SHUX_WPO_PIPELINE_COMPILE_TIMEOUT:-600}"
   if [ "${SHUX_ASM_SKIP_WPO_DOGFOOD:-0}" = "1" ]; then
-    echo "build_shux_asm: skip pipeline_wpo.o recompile (SHUX_ASM_SKIP_WPO_DOGFOOD=1)"
+    build_shux_asm_info "skip pipeline_wpo.o recompile (SHUX_ASM_SKIP_WPO_DOGFOOD=1)"
     return 0
   fi
   ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
@@ -1106,13 +1118,13 @@ rebuild_pipeline_wpo_o() {
     pipeline_wpo_tmp_reach_ok "$tmp" || return 1
     return 0
   }
-  echo "build_shux_asm: recompile pipeline_wpo.o (WPO DCE, run_sx_pipeline_impl root, max __text=${pipe_wpo_max}B) ..."
+  build_shux_asm_info "recompile pipeline_wpo.o (WPO DCE, run_sx_pipeline_impl root, max __text=${pipe_wpo_max}B)"
   set +e
   while IFS= read -r comp; do
     [ -n "$comp" ] || continue
     if try_pipe_wpo "" "$comp"; then
       mv -f "$tmp" "$BUILD_DIR/pipeline_wpo.o"
-      echo "build_shux_asm: pipeline_wpo.o OK via $comp (__text=${txt}B, reach OK)"
+      build_shux_asm_info "pipeline_wpo.o OK via $comp (__text=${txt}B, reach OK)"
       rm -f "$preserve_backup" 2>/dev/null || true
       set -e
       return 0
@@ -1123,7 +1135,7 @@ EOF
   set -e
   if [ -n "$preserve_backup" ] && [ -f "$preserve_backup" ]; then
     cp -f "$preserve_backup" "$BUILD_DIR/pipeline_wpo.o"
-    echo "build_shux_asm: pipeline_wpo.o rebuild failed — restored previous artifact" >&2
+    build_shux_asm_warn "pipeline_wpo.o rebuild failed; restored previous artifact"
   fi
   return 1
 }
@@ -1138,7 +1150,7 @@ rebuild_typeck_wpo_o() {
   local comp=""
   local txt=""
   if [ "${SHUX_ASM_SKIP_WPO_DOGFOOD:-0}" = "1" ]; then
-    echo "build_shux_asm: skip typeck_wpo.o recompile (SHUX_ASM_SKIP_WPO_DOGFOOD=1)"
+    build_shux_asm_info "skip typeck_wpo.o recompile (SHUX_ASM_SKIP_WPO_DOGFOOD=1)"
     return 0
   fi
   ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
@@ -1162,13 +1174,13 @@ rebuild_typeck_wpo_o() {
     nm "$tmp" 2>/dev/null | grep -q 'check_block' || return 1
     return 0
   }
-  echo "build_shux_asm: recompile typeck_wpo.o (WPO DCE, typeck_sx_ast root) ..."
+  build_shux_asm_info "recompile typeck_wpo.o (WPO DCE, typeck_sx_ast root)"
   set +e
   while IFS= read -r comp; do
     [ -n "$comp" ] || continue
     if try_tck_wpo "" "$comp"; then
       mv -f "$tmp" "$BUILD_DIR/typeck_wpo.o"
-      echo "build_shux_asm: typeck_wpo.o OK via $comp (__text=${txt}B)"
+      build_shux_asm_info "typeck_wpo.o OK via $comp (__text=${txt}B)"
       set -e
       return 0
     fi
@@ -1189,7 +1201,7 @@ rebuild_backend_wpo_o() {
   local comp=""
   local txt=""
   if [ "${SHUX_ASM_SKIP_WPO_DOGFOOD:-0}" = "1" ]; then
-    echo "build_shux_asm: skip backend_wpo.o recompile (SHUX_ASM_SKIP_WPO_DOGFOOD=1)"
+    build_shux_asm_info "skip backend_wpo.o recompile (SHUX_ASM_SKIP_WPO_DOGFOOD=1)"
     return 0
   fi
   ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
@@ -1212,13 +1224,13 @@ rebuild_backend_wpo_o() {
     nm "$tmp" 2>/dev/null | grep -q 'asm_codegen_ast' || return 1
     return 0
   }
-  echo "build_shux_asm: recompile backend_wpo.o (WPO DCE, asm_codegen_ast root) ..."
+  build_shux_asm_info "recompile backend_wpo.o (WPO DCE, asm_codegen_ast root)"
   set +e
   while IFS= read -r comp; do
     [ -n "$comp" ] || continue
     if try_be_wpo "" "$comp"; then
       mv -f "$tmp" "$BUILD_DIR/backend_wpo.o"
-      echo "build_shux_asm: backend_wpo.o OK via $comp (__text=${txt}B)"
+      build_shux_asm_info "backend_wpo.o OK via $comp (__text=${txt}B)"
       set -e
       return 0
     fi
@@ -1238,13 +1250,13 @@ if [ "${SHUX_WPO_REBUILD_ARTIFACTS_ONLY:-}" = "1" ]; then
   ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
   # ast_pool WPO reach：重编 pipeline_sx.o + relink experimental（WPO 产物编应用须 shux_asm.experimental 或 strict_glue）。
   ensure_experimental_ast_pool_for_wpo || \
-    echo "build_shux_asm: warn: ensure_experimental_ast_pool_for_wpo failed (WPO rebuild may use stale ast_pool)" >&2
+    build_shux_asm_warn "ensure_experimental_ast_pool_for_wpo failed (WPO rebuild may use stale ast_pool)"
   if [ -x ./scripts/relink_shux_asm_strict_glue.sh ] \
     && { [ ast_pool.c -nt ./shux_asm.strict_glue ] 2>/dev/null || [ pipeline_glue.c -nt ./shux_asm.strict_glue ] 2>/dev/null \
       || [ pipeline_sx.o -nt ./shux_asm.strict_glue ] 2>/dev/null; }; then
-    echo "build_shux_asm: ast_pool/glue newer — relink shux_asm.strict_glue (pipeline_glue_standalone only, no shux_asm overwrite) ..."
+    build_shux_asm_info "ast_pool/glue newer - relink shux_asm.strict_glue (pipeline_glue_standalone only, no shux_asm overwrite)"
     ./scripts/relink_shux_asm_strict_glue.sh || \
-      echo "build_shux_asm: warn: relink_shux_asm_strict_glue failed" >&2
+      build_shux_asm_warn "relink_shux_asm_strict_glue failed"
   fi
   wpo_fail=0
   rebuild_main_o_for_cli || wpo_fail=1
@@ -1253,10 +1265,10 @@ if [ "${SHUX_WPO_REBUILD_ARTIFACTS_ONLY:-}" = "1" ]; then
   rebuild_typeck_wpo_o || wpo_fail=1
   rebuild_backend_wpo_o || wpo_fail=1
   if [ "$wpo_fail" -ne 0 ]; then
-    echo "build_shux_asm: SHUX_WPO_REBUILD_ARTIFACTS_ONLY failed (one or more WPO .o missing)" >&2
+    build_shux_asm_error "SHUX_WPO_REBUILD_ARTIFACTS_ONLY failed (one or more WPO .o missing)"
     exit 1
   fi
-  echo "build_shux_asm: SHUX_WPO_REBUILD_ARTIFACTS_ONLY OK (main+driver+pipeline_wpo+typeck_wpo+backend_wpo)"
+  build_shux_asm_info "SHUX_WPO_REBUILD_ARTIFACTS_ONLY OK (main+driver+pipeline_wpo+typeck_wpo+backend_wpo)"
   exit 0
 fi
 
@@ -1276,7 +1288,7 @@ if [ -f "$BUILD_LIST_SX" ]; then
     [ -n "$out" ] && [ -n "$src" ] && compile_sx "$out" "$src"
   done
 else
-  echo "build_shux_asm: $BUILD_LIST_SX not found, using built-in list."
+  build_shux_asm_warn "$BUILD_LIST_SX not found, using built-in list"
   compile_sx token.o src/lexer/token.sx
   compile_sx ast.o src/ast/ast.sx
   compile_sx codegen.o src/codegen/codegen.sx
@@ -1311,7 +1323,7 @@ if [ -z "${SHUX_ASM_SKIP_QUALITY_REPORT}" ]; then
   # Target B（SELFHOST §4）：非空清单提示下一批应修的 BUILD 令牌，便于逐项消灭 EMPTY/MISSING
   BADEMPTY="$BUILD_DIR/.asm_empty_text_list"
   if [ -s "$BADEMPTY" ]; then
-    echo "build_shux_asm: __text EMPTY/MISSING sample (full list: $BADEMPTY, doc: docs/SELFHOST.md §4.1)"
+    build_shux_asm_warn "__text EMPTY/MISSING sample (full list: $BADEMPTY, doc: docs/SELFHOST.md §4.1)"
     head -n 12 "$BADEMPTY" | sed 's/^/  /' || true
   fi
 fi
@@ -1697,7 +1709,7 @@ ensure_pipeline_wpo_helpers_partial_obj() {
      [ -f "$BUILD_DIR/.pipeline_wpo_helpers_export_syms.txt" ]; then
     if comm -12 "$BUILD_DIR/.pipeline_wpo_helpers_export_syms.txt" \
        "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" 2>/dev/null | grep -q .; then
-      echo "  stale pipeline_wpo_helpers_partial (glue dupes); rebuild" >&2
+      build_shux_asm_warn "stale pipeline_wpo_helpers_partial (glue dupes); rebuild"
       rm -f "$PARTIAL" "$SYMS"
     fi
   fi
@@ -1744,7 +1756,7 @@ ensure_typeck_wpo_helpers_partial_obj() {
     ld_partial_export "$SYMS" "$PARTIAL" "$WPO_E" || return 1
     nm "$PARTIAL" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$BUILD_DIR/.typeck_wpo_helpers_export_syms.txt"
     nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?typeck_sx_ast$' && {
-      echo "build_shux_asm: typeck_wpo_helpers_partial must not export typeck_sx_ast (use typeck.o entry)" >&2
+      build_shux_asm_error "typeck_wpo_helpers_partial must not export typeck_sx_ast (use typeck.o entry)"
       return 1
     }
   fi
@@ -1892,7 +1904,7 @@ _parser_get_module_num_imports
 _parser_get_module_import_path
 EOF
     SYMS="$PARSE_ONLY_SYMS"
-    echo "build_shux_asm: strict_support parse-only partial (typeck.o=${TCK_BYTES}B selfhosted from build_asm)"
+    build_shux_asm_info "strict_support parse-only partial (typeck.o=${TCK_BYTES}B selfhosted from build_asm)"
   else
     cat > "$SYMS" <<'EOF'
 _pipeline_parse_into_with_init_buf
@@ -1906,7 +1918,7 @@ _parser_get_module_import_path
 _typeck_typeck_sx_ast
 _typeck_typeck_sx_ast_library
 EOF
-    echo "build_shux_asm: strict_support parse+typeck partial (typeck.o=${TCK_BYTES}B not selfhosted yet)"
+    build_shux_asm_info "strict_support parse+typeck partial (typeck.o=${TCK_BYTES}B not selfhosted yet)"
   fi
   if [ ! -f "$PARTIAL" ] || [ "$SUO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ] || \
      [ "$BUILD_DIR/typeck.o" -nt "$PARTIAL" ] || [ "$BUILD_DIR/backend.o" -nt "$PARTIAL" ]; then
@@ -2052,19 +2064,19 @@ ensure_typeck_o_strict_link_partial_obj() {
     ld_partial_export "$SYMS" "$PARTIAL" "$TCKO" || return 1
     if [ "${STRICT_LINK_BUILD_ASM_TYPECK_WPO:-0}" -eq 1 ] && asm_typeck_wpo_strict_reach_ok; then
       nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?typeck_check_block_one_while$' || {
-        echo "build_shux_asm: typeck_strict_link_partial missing typeck_check_block_one_while (stale export?)" >&2
+        build_shux_asm_error "typeck_strict_link_partial missing typeck_check_block_one_while (stale export?)"
         return 1
       }
       nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?check_block_as_loop_body$' || {
-        echo "build_shux_asm: typeck_strict_link_partial missing check_block_as_loop_body" >&2
+        build_shux_asm_error "typeck_strict_link_partial missing check_block_as_loop_body"
         return 1
       }
       nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?check_block$' || {
-        echo "build_shux_asm: typeck_strict_link_partial missing check_block (must come from typeck.o, not typeck_wpo.o)" >&2
+        build_shux_asm_error "typeck_strict_link_partial missing check_block (must come from typeck.o, not typeck_wpo.o)"
         return 1
       }
       nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?typeck_sx_ast$' || {
-        echo "build_shux_asm: typeck_strict_link_partial missing typeck_sx_ast (must come from typeck.o, not typeck_wpo.o)" >&2
+        build_shux_asm_error "typeck_strict_link_partial missing typeck_sx_ast (must come from typeck.o, not typeck_wpo.o)"
         return 1
       }
     fi
@@ -2218,10 +2230,10 @@ maybe_default_pipeline_wpo_strict_link() {
         export SHUX_ASM_STRICT_LINK_PIPELINE_WPO=1
         if [ "${SHUX_ASM_STRICT_LINK_PIPELINE_WPO_FULL:-0}" = "1" ]; then
           export SHUX_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1
-          echo "build_shux_asm: default SHUX_ASM_STRICT_LINK_PIPELINE_WPO=1 + FULL=1 (whole pipeline_wpo.o + glue support)"
+          build_shux_asm_info "default SHUX_ASM_STRICT_LINK_PIPELINE_WPO=1 + FULL=1 (whole pipeline_wpo.o + glue support)"
         else
           export SHUX_ASM_STRICT_LINK_PIPELINE_WPO_FULL=0
-          echo "build_shux_asm: default SHUX_ASM_STRICT_LINK_PIPELINE_WPO=1 (helpers + C orchestration)"
+          build_shux_asm_info "default SHUX_ASM_STRICT_LINK_PIPELINE_WPO=1 (helpers + C orchestration)"
         fi
       fi
       ;;
@@ -2360,18 +2372,18 @@ EOF
     sort -u "$EXCLUDE" -o "$EXCLUDE"
     comm -23 "$SYMS.all" "$EXCLUDE" >"$SYMS"
     rm -f "$SYMS.all"
-    echo "  seed helper export: $(wc -l <"$SYMS" | tr -d ' ') symbols (seed minus wpo thin entry)" >&2
+    build_shux_asm_info "seed helper export: $(wc -l <"$SYMS" | tr -d ' ') symbols (seed minus wpo thin entry)"
   fi
   if [ -f "$SYMS" ] && grep -qxF 'backend_asm_codegen_ast' "$SYMS" 2>/dev/null; then
-    echo "  stale asm_backend_seed_helper export (dup bare_link_alias); regen" >&2
+    build_shux_asm_warn "stale asm_backend_seed_helper export (dup bare_link_alias); regen"
     rm -f "$SYMS" "$PARTIAL"
   fi
   if [ -f "$PARTIAL" ] && nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?backend_asm_codegen_ast$'; then
-    echo "  stale asm_backend_seed_helper_partial (dup bare_link_alias); rebuild" >&2
+    build_shux_asm_warn "stale asm_backend_seed_helper_partial (dup bare_link_alias); rebuild"
     rm -f "$PARTIAL"
   fi
   if [ ! -f "$PARTIAL" ] || [ "$SEED" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ] || [ "$EXCLUDE" -nt "$PARTIAL" ]; then
-    echo "  ld partial export $SYMS seed asm_backend_partial.o -> $PARTIAL" >&2
+    build_shux_asm_info "ld partial export $SYMS seed asm_backend_partial.o -> $PARTIAL"
     ld_partial_export "$SYMS" "$PARTIAL" "$SEED" || return 1
   fi
   return 0
@@ -2425,7 +2437,7 @@ ensure_backend_o_strict_link_partial_obj() {
     ld_partial_export "$SYMS" "$PARTIAL" "$BACKO" || return 1
     if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && asm_backend_wpo_strict_reach_ok; then
       nm "$PARTIAL" 2>/dev/null | grep -qE ' T (_)?arch_emit_add_imm_to_rax$' || {
-        echo "build_shux_asm: backend_strict_link_partial missing arch_emit_add_imm_to_rax" >&2
+        build_shux_asm_error "backend_strict_link_partial missing arch_emit_add_imm_to_rax"
         return 1
       }
     fi
@@ -2508,7 +2520,7 @@ asm_strict_round2_skip_typeck_wpo() {
 # strict 最终链是否使用 driver_compile_link.o（须 asm_strict_driver_selfhosted）。
 asm_strict_link_driver_selfhosted() {
   if [ -n "${SHUX_ASM_STRICT_FORCE_DRIVER_SX:-}" ]; then
-    echo "build_shux_asm: SHUX_ASM_STRICT_FORCE_DRIVER_SX=1 — keep driver_compile_sx"
+    build_shux_asm_info "SHUX_ASM_STRICT_FORCE_DRIVER_SX=1 - keep driver_compile_sx"
     return 1
   fi
   if ! asm_strict_driver_selfhosted; then
@@ -2542,7 +2554,7 @@ EOF
     local ld_rc=$?
     set -e
     if [ "$ld_rc" -ne 0 ]; then
-      echo "build_shux_asm: typeck layout partial skipped (layout symbols missing in typeck.o; need typeck second pass >8KiB)"
+      build_shux_asm_warn "typeck layout partial skipped (layout symbols missing in typeck.o; need typeck second pass >8KiB)"
       rm -f "$PARTIAL"
       return 1
     fi
@@ -2603,7 +2615,7 @@ ensure_typeck_c_orchestration_partial_obj() {
 _typeck_module
 _typeck_one_function
 EOF
-    echo "  ld -r -exported_symbols_list $SYMS $TCKO -> $PARTIAL (C orchestration only)" >&2
+    build_shux_asm_info "ld -r -exported_symbols_list $SYMS $TCKO -> $PARTIAL (C orchestration only)"
     set +e
     ld_partial_export "$SYMS" "$PARTIAL" "$TCKO" 2>"$BUILD_DIR/.typeck_c_orch_partial_err"
     local ld_rc=$?
@@ -2619,7 +2631,7 @@ EOF
 ensure_typeck_c_module_stubs_obj() {
   local OBJ="$BUILD_DIR/typeck_c_module_stubs.o"
   if [ ! -f "$OBJ" ] || [ typeck_c_module_stubs.c -nt "$OBJ" ]; then
-    echo "  cc -c typeck_c_module_stubs.c -> $OBJ" >&2
+    build_shux_asm_info "cc -c typeck_c_module_stubs.c -> $OBJ"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$OBJ" typeck_c_module_stubs.c
   fi
 }
@@ -2630,7 +2642,7 @@ ensure_typeck_c_user_precheck_obj() {
     echo "$BUILD_DIR/typeck_c_orchestration_partial.o"
     return 0
   fi
-  echo "build_shux_asm: warn: typeck_c_orchestration_partial failed; fallback typeck_c_module_stubs" >&2
+  build_shux_asm_warn "typeck_c_orchestration_partial failed; falling back to typeck_c_module_stubs"
   ensure_typeck_c_module_stubs_obj
   echo "$BUILD_DIR/typeck_c_module_stubs.o"
   return 0
@@ -2726,21 +2738,21 @@ filter_strict_asm_objs() {
             # FULL 仍须 pipeline_sx glue support：ast_pool 桥接符号不在 pipeline_wpo.o 内（typeck_sx U 引用）。
             if asm_strict_typeck_sx_glue_via_pipeline_sx && ensure_pipeline_sx_glue_support_partial_obj; then
               FILTERED="$FILTERED $BUILD_DIR/pipeline_sx_glue_support_partial.o"
-              echo "build_shux_asm: strict link pipeline_sx glue support (FULL wpo astpool bridge)"
+              build_shux_asm_info "strict link pipeline_sx glue support (FULL wpo astpool bridge)"
             fi
-            echo "build_shux_asm: strict link whole pipeline_wpo.o (SX orchestration, track-only FULL)"
+            build_shux_asm_info "strict link whole pipeline_wpo.o (SX orchestration, track-only FULL)"
           else
             if asm_strict_sx_orchestration_ok; then
               ensure_pipeline_runtime_bootstrap_partial_obj && FILTERED="$FILTERED $BUILD_DIR/pipeline_runtime_bootstrap_partial.o"
               if asm_strict_typeck_sx_glue_via_pipeline_sx && ensure_pipeline_sx_glue_support_partial_obj; then
                 FILTERED="$FILTERED $BUILD_DIR/pipeline_sx_glue_support_partial.o"
-                echo "build_shux_asm: strict link pipeline_sx glue support (replace glue_standalone astpool)"
+                build_shux_asm_info "strict link pipeline_sx glue support (replace glue_standalone astpool)"
               fi
               if ensure_pipeline_wpo_helpers_partial_obj; then
                 FILTERED="$FILTERED $BUILD_DIR/pipeline_wpo_helpers_partial.o"
-                echo "build_shux_asm: strict link pipeline_wpo_helpers + pipeline_sx runtime bootstrap (opt-in WPO)"
+                build_shux_asm_info "strict link pipeline_wpo_helpers + pipeline_sx runtime bootstrap (opt-in WPO)"
               else
-                echo "build_shux_asm: pipeline_wpo_helpers partial failed — pipeline_sx runtime bootstrap only" >&2
+                build_shux_asm_warn "pipeline_wpo_helpers partial failed; using pipeline_sx runtime bootstrap only"
               fi
               echo "su" >"$BUILD_DIR/.pipeline_strict_orch_mode"
             else
@@ -2748,9 +2760,9 @@ filter_strict_asm_objs() {
               FILTERED="$FILTERED $BUILD_DIR/pipeline_asm_orchestration_partial.o"
               if ensure_pipeline_wpo_helpers_partial_obj; then
                 FILTERED="$FILTERED $BUILD_DIR/pipeline_wpo_helpers_partial.o"
-                echo "build_shux_asm: strict link pipeline_wpo_helpers + C orchestration (opt-in WPO)"
+                build_shux_asm_info "strict link pipeline_wpo_helpers + C orchestration (opt-in WPO)"
               else
-                echo "build_shux_asm: pipeline_wpo_helpers partial failed — fallback C orchestration only" >&2
+                build_shux_asm_warn "pipeline_wpo_helpers partial failed; falling back to C orchestration only"
               fi
               echo "c" >"$BUILD_DIR/.pipeline_strict_orch_mode"
             fi
@@ -2760,14 +2772,14 @@ filter_strict_asm_objs() {
             ensure_pipeline_runtime_bootstrap_partial_obj && FILTERED="$FILTERED $BUILD_DIR/pipeline_runtime_bootstrap_partial.o"
             if asm_strict_typeck_sx_glue_via_pipeline_sx && ensure_pipeline_sx_glue_support_partial_obj; then
               FILTERED="$FILTERED $BUILD_DIR/pipeline_sx_glue_support_partial.o"
-              echo "build_shux_asm: strict link pipeline_sx glue support (replace glue_standalone astpool)"
+              build_shux_asm_info "strict link pipeline_sx glue support (replace glue_standalone astpool)"
             fi
-            echo "build_shux_asm: strict link pipeline_sx runtime bootstrap orchestration"
+            build_shux_asm_info "strict link pipeline_sx runtime bootstrap orchestration"
             echo "su" >"$BUILD_DIR/.pipeline_strict_orch_mode"
           else
             ensure_pipeline_asm_orchestration_partial_obj
             FILTERED="$FILTERED $BUILD_DIR/pipeline_asm_orchestration_partial.o"
-            echo "build_shux_asm: strict link pipeline_asm_orchestration_partial.o (C run_sx_pipeline_impl)"
+            build_shux_asm_info "strict link pipeline_asm_orchestration_partial.o (C run_sx_pipeline_impl)"
             echo "c" >"$BUILD_DIR/.pipeline_strict_orch_mode"
           fi
         fi
@@ -2815,27 +2827,39 @@ filter_strict_asm_objs() {
         continue
         ;;
     esac
+    # strict 链的 x86_64 encoder 由 seed_host partial / filtered dispatch companions 提供；
+    # 若再把 build_asm/backend_x86_64_enc_c.o 混进 ASM_TRY_OBJS，会和 seed partial 重复定义。
+    if [ "$base" = "backend_x86_64_enc_c.o" ] && [ -s "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
+      build_shux_asm_info "strict skip build_asm/backend_x86_64_enc_c.o (seed_host partial already provides encoder)"
+      continue
+    fi
+    # Darwin strict fallback 的 mega backend 也已被 seed_host partial 覆盖；
+    # 若再把 build_asm/backend_seed_mega_fallback.o 混入 strict link，会与 seed partial 重复导出 backend_asm_codegen_*。
+    if [ "$base" = "backend_seed_mega_fallback.o" ] && [ -s "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
+      build_shux_asm_info "strict skip build_asm/backend_seed_mega_fallback.o (seed_host partial already provides backend mega fallback)"
+      continue
+    fi
     if [ "$base" = "typeck.o" ]; then
       # typeck 自举：WPO reach OK 且 typeck.o 未自举时链 typeck_wpo helpers + partial；自举后整颗 typeck.o（wpo partial 会 poison check_block）。
       if [ "$LINK_BUILD_ASM_TYPECK" -eq 1 ]; then
         if asm_typeck_wpo_strict_link_helpers_ok; then
           if ensure_typeck_wpo_helpers_partial_obj; then
             FILTERED="$FILTERED $BUILD_DIR/typeck_wpo_helpers_partial.o"
-            echo "build_shux_asm: strict link typeck_wpo_helpers + typeck.o partial (pre-selfhosted typeck)"
+            build_shux_asm_info "strict link typeck_wpo_helpers + typeck.o partial (pre-selfhosted typeck)"
           else
             FILTERED="$FILTERED $BUILD_DIR/typeck_wpo.o"
-            echo "build_shux_asm: strict link typeck_wpo.o (helpers partial failed, fallback full wpo.o)"
+            build_shux_asm_warn "strict link typeck_wpo.o (helpers partial failed; falling back to full wpo.o)"
           fi
           ensure_typeck_o_strict_link_partial_obj && FILTERED="$FILTERED $BUILD_DIR/typeck_strict_link_partial.o"
         elif asm_strict_typeck_selfhosted; then
           if asm_strict_typeck_sx_glue_via_pipeline_sx; then
-            echo "build_shux_asm: strict skip build_asm/typeck.o (SX glue; seed typeck + typeck_sx.o tail)"
+            build_shux_asm_info "strict skip build_asm/typeck.o (SX glue; seed typeck + typeck_sx.o tail)"
           elif ensure_typeck_o_strict_link_partial_obj; then
             FILTERED="$FILTERED $BUILD_DIR/typeck_strict_link_partial.o"
-            echo "build_shux_asm: strict link typeck.o partial (selfhosted, minus glue dupes)"
+            build_shux_asm_info "strict link typeck.o partial (selfhosted, minus glue dupes)"
           else
             FILTERED="$FILTERED $o"
-            echo "build_shux_asm: strict link whole typeck.o (selfhosted partial failed)"
+            build_shux_asm_warn "strict link whole typeck.o (selfhosted partial failed)"
           fi
         else
           FILTERED="$FILTERED $o"
@@ -2875,7 +2899,7 @@ filter_strict_asm_objs() {
       x86_64_enc.o|arm64_enc.o|riscv64_enc.o)
         enc_stub_bytes=$(asm_o_text_bytes "$o" 2>/dev/null || echo 0)
         if [ "${enc_stub_bytes:-0}" -lt 512 ] 2>/dev/null; then
-          echo "build_shux_asm: strict skip stub $base (__text=${enc_stub_bytes}B)"
+          build_shux_asm_info "strict skip stub $base (__text=${enc_stub_bytes}B)"
           continue
         fi
         ;;
@@ -2939,9 +2963,9 @@ ensure_asm_pipeline_glue_standalone_obj() {
     fi
   fi
   if [ ! -f "$GLUE_STANDALONE_OBJ" ] || [ "src/asm/pipeline_glue_standalone.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "$GLUE_TYPES" -nt "$GLUE_STANDALONE_OBJ" ] || [ "ast_pool.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "pipeline_glue.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/extract_pipeline_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/patch_ide_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ]; then
-    echo "  cc -c src/asm/pipeline_glue_standalone.c -> $GLUE_STANDALONE_OBJ"
+    build_shux_asm_info "cc -c src/asm/pipeline_glue_standalone.c -> $GLUE_STANDALONE_OBJ"
     if ! "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR" -c -o "$GLUE_STANDALONE_OBJ" src/asm/pipeline_glue_standalone.c; then
-      echo "build_shux_asm: pipeline_glue_standalone.o compile failed (strict 链可继续用 pipeline_glue_strict_minimal)"
+      build_shux_asm_warn "pipeline_glue_standalone.o compile failed (strict 链可继续用 pipeline_glue_strict_minimal)"
       rm -f "$GLUE_STANDALONE_OBJ" 2>/dev/null || true
     fi
   fi
@@ -2972,7 +2996,7 @@ ensure_std_fs_io_heap_objs() {
 # pipeline.sx import pipeline.run_sx_pipeline → pipeline_run_sx_link_alias 提供 C 符号。
 ensure_pipeline_run_sx_link_alias_obj() {
   if [ ! -f src/asm/pipeline_run_sx_link_alias.o ] || [ src/asm/pipeline_run_sx_link_alias.c -nt src/asm/pipeline_run_sx_link_alias.o ]; then
-    echo "build_shux_asm: cc pipeline_run_sx_link_alias.o"
+    build_shux_asm_info "cc pipeline_run_sx_link_alias.o"
     "$CC" $CFLAGS -c -o src/asm/pipeline_run_sx_link_alias.o src/asm/pipeline_run_sx_link_alias.c
   fi
 }
@@ -2981,16 +3005,26 @@ ensure_pipeline_run_sx_link_alias_obj() {
 # 瘦 pipeline_sx.o 须链 parser_sx/typeck_sx/codegen_sx/lexer_sx、std_fs_shim、seed_host backend partial；
 # 首遍勿并 build_asm/*.o（各模块 __shux_asm_mod_stub 重复 → Darwin ld 失败）。
 ensure_asm_bootstrap_sx_companion_objs() {
+  if [ "${SHUX_ASM_BOOTSTRAP_SX_COMPANIONS_READY:-0}" = "1" ] \
+    && [ -f parser_sx.o ] && [ -f lexer_sx.o ] && [ -f typeck_sx.o ] \
+    && [ -f codegen_sx.o ] && [ -f preprocess_sx.o ] \
+    && [ -f driver_sx.o ] && [ -f driver_fmt_sx.o ] && [ -f driver_check_sx.o ] \
+    && [ -f driver_test_sx.o ] && [ -f driver_build_sx.o ] && [ -f driver_run_sx.o ] \
+    && [ -f driver_compile_sx.o ] && [ -f driver_emit_sx.o ] \
+    && [ -f lsp_io_std_heap_sx.o ]; then
+    build_shux_asm_info "reuse SX companion objs (already ensured in this run)"
+    return 0
+  fi
   detect_pipeline_gen_cflags
   ensure_pipeline_sx_o_fresh
   # runtime-only relink：SX companion .o 已存在时勿 make typeck_sx.o（stale typeck_gen 会阻断 relink）。
   if [ -n "${SHUX_ASM_BSTRICT_RELINK_ONLY:-}" ] \
     && [ -f parser_sx.o ] && [ -f lexer_sx.o ] && [ -f typeck_sx.o ] \
     && [ -f codegen_sx.o ] && [ -f preprocess_sx.o ]; then
-    echo "build_shux_asm: BSTRICT_RELINK_ONLY — skip SX companion make (reuse existing *_sx.o)"
+    build_shux_asm_info "BSTRICT_RELINK_ONLY - skip SX companion make (reuse existing *_sx.o)"
     return 0
   elif [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    echo "build_shux_asm: ensure SX companion objs (parser/lexer/typeck/codegen/preprocess/compile) ..."
+    build_shux_asm_info "ensure SX companion objs (parser/lexer/typeck/codegen/preprocess/compile)"
     # 瘦 pipeline_sx.o 仍引用 codegen_codegen_* / typeck_typeck_* / lexer_lexer_init；须与 bootstrap-driver-seed 同款 link alias。
     # sx 命名 迁移：链接行仍引用 *_sx.o，须 make 别名目标（cp *_sx.o）。
     make -s parser_sx.o lexer_sx.o typeck_sx.o codegen_sx.o preprocess_sx.o \
@@ -3024,13 +3058,14 @@ ensure_asm_bootstrap_sx_companion_objs() {
   if [ -n "${SHUX_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
     :
   elif [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.sx" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
-    echo "build_shux_asm: build_seed_asm_host (backend_enc_* for pipeline_sx.o) ..."
+    build_shux_asm_info "build_seed_asm_host (backend_enc_* for pipeline_sx.o)"
     ./scripts/build_seed_asm_host.sh
   fi
   ensure_ast_pool_l5_bridge_obj
   if [ ! -f pipeline_bootstrap_orchestration.o ] || [ pipeline_bootstrap_orchestration.c -nt pipeline_bootstrap_orchestration.o ]; then
     make pipeline_bootstrap_orchestration.o
   fi
+  SHUX_ASM_BOOTSTRAP_SX_COMPANIONS_READY=1
 }
 
 # 与 Makefile USER_ASM_SEED_OBJS 对齐：pipeline_glue / partial 引用的 enc/call 分派 TU。
@@ -3162,9 +3197,18 @@ ensure_lsp_diag_seed_obj() {
   fi
 }
 
+ensure_diag_seed_obj() {
+  local seed_dir="$1"
+  if [ ! -f "$seed_dir/diag.o" ] || [ "src/diag.c" -nt "$seed_dir/diag.o" ] || [ "include/diag.h" -nt "$seed_dir/diag.o" ]; then
+    echo "  cc -c $seed_dir/diag.o <- src/diag.c"
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$seed_dir/diag.o" src/diag.c
+  fi
+}
+
 ensure_asm_driver_seed_support_c_objs() {
   SEED_DIR="${SEED_DIR:-$BUILD_DIR/asm_driver_seed}"
   mkdir -p "$SEED_DIR"
+  ensure_diag_seed_obj "$SEED_DIR"
   if [ ! -f "$SEED_DIR/async_liveness.o" ] || [ src/async/async_liveness.c -nt "$SEED_DIR/async_liveness.o" ]; then
     "$CC" $CFLAGS -c -o "$SEED_DIR/async_liveness.o" src/async/async_liveness.c
   fi
@@ -3190,7 +3234,7 @@ ensure_asm_driver_seed_frontend_c_objs() {
   echo "  cc -c asm_driver_seed/*.o <- preprocess/lexer/ast_seed/parser/typeck/codegen .c (SHUX_LEGACY_SEED_FRONTEND_CC archaeology)"
   if [ ! -f src/preprocess.c ] || [ ! -f src/lexer/lexer.c ] || [ ! -f src/ast/ast.c ] \
     || [ ! -f src/parser/parser.c ] || [ ! -f src/typeck/typeck.c ] || [ ! -f src/codegen/codegen.c ]; then
-    echo "build_shux_asm: LEGACY seed frontend .c missing — use SX companions or restore C sources" >&2
+    build_shux_asm_error "LEGACY seed frontend .c missing; use SX companions or restore C sources"
     return 1
   fi
   "$CC" $CFLAGS -DSHUX_USE_SX_PREPROCESS -c -o "$SEED_DIR/preprocess.o" src/preprocess.c
@@ -3337,7 +3381,7 @@ ensure_asm_experimental_lsp_objs() {
   if [ -f lsp_io_std_heap_gen.c ] && [ ! -s lsp_io_std_heap_gen.c ]; then
     rm -f lsp_io_std_heap_gen.c
   fi
-  echo "build_shux_asm: ensure lsp_sx.o (+ lsp_io) for lsp_state (typeck_lsp_main_impl) ..."
+  build_shux_asm_info "ensure lsp_sx.o (+ lsp_io) for lsp_state (typeck_lsp_main_impl)"
   make -s lsp_io_gen.c lsp_gen.c lsp_io_std_heap_gen.c lsp_sx.o lsp_io_sx.o lsp_io_std_heap_sx.o
   cp -f lsp_sx.o lsp_io_sx.o lsp_io_std_heap_sx.o "$GEN_DIR/"
 }
@@ -3348,7 +3392,9 @@ ensure_pipeline_sx_o_fresh() {
   # runtime-only relink：已有 pipeline_sx.o 时跳过（勿因 ast_pool 等 mtime 触发 bootstrap-pipeline）。
   if [ -n "${SHUX_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f pipeline_sx.o ]; then
     mkdir -p "$BUILD_DIR/gen_driver"
-    cp -f pipeline_sx.o "$BUILD_DIR/gen_driver/pipeline_sx.o" 2>/dev/null || true
+    if [ ! -f "$BUILD_DIR/gen_driver/pipeline_sx.o" ] || ! cmp -s pipeline_sx.o "$BUILD_DIR/gen_driver/pipeline_sx.o" 2>/dev/null; then
+      cp -fp pipeline_sx.o "$BUILD_DIR/gen_driver/pipeline_sx.o" 2>/dev/null || true
+    fi
     return 0
   fi
   if [ ! -f pipeline_sx.o ] || [ ! -f pipeline_gen.c ]; then
@@ -3368,13 +3414,15 @@ ensure_pipeline_sx_o_fresh() {
     fi
   done
   if [ "$need" -eq 1 ]; then
-    echo "build_shux_asm: rebuild pipeline_sx.o (PIPELINE_SX_DEPS / ast_pool newer than pipeline_sx.o) ..."
+    build_shux_asm_info "rebuild pipeline_sx.o (PIPELINE_SX_DEPS / ast_pool newer than pipeline_sx.o)"
     make bootstrap-pipeline pipeline_sx.o
   fi
   # gen_driver 与 strict partial 须与 compiler/pipeline_sx.o 同步；parser_sx.o 变更后须失效旧 partial。
   if [ -f pipeline_sx.o ]; then
     mkdir -p "$BUILD_DIR/gen_driver"
-    cp -f pipeline_sx.o "$BUILD_DIR/gen_driver/pipeline_sx.o"
+    if [ ! -f "$BUILD_DIR/gen_driver/pipeline_sx.o" ] || ! cmp -s pipeline_sx.o "$BUILD_DIR/gen_driver/pipeline_sx.o" 2>/dev/null; then
+      cp -fp pipeline_sx.o "$BUILD_DIR/gen_driver/pipeline_sx.o"
+    fi
   fi
   if [ -f parser_sx.o ]; then
     for stale in \
@@ -3395,7 +3443,7 @@ ensure_parser_sx_o_for_strict_link() {
     return 0
   fi
   if [ ! -f parser_sx.o ] || [ src/parser/parser.sx -nt parser_sx.o ]; then
-    echo "build_shux_asm: make parser_sx.o (strict link must override seed parser.o) ..."
+    build_shux_asm_info "make parser_sx.o (strict link must override seed parser.o)"
     make -s parser_sx.o
   fi
 }
@@ -3405,6 +3453,15 @@ ensure_parser_sx_o_for_strict_link() {
 ensure_asm_gen_driver_sx_objs() {
   detect_pipeline_gen_cflags
   GEN_DIR="$BUILD_DIR/gen_driver"
+  if [ "${SHUX_ASM_GEN_DRIVER_SX_READY:-0}" = "1" ] \
+    && [ -f "$GEN_DIR/pipeline_sx.o" ] && [ -f "$GEN_DIR/driver_sx.o" ] \
+    && [ -f "$GEN_DIR/preprocess_sx.o" ] && [ -f "$GEN_DIR/lsp_io_sx.o" ] \
+    && [ -f "$GEN_DIR/lsp_sx.o" ] && [ -f "$GEN_DIR/lsp_io_std_heap_sx.o" ] \
+    && [ -f "$GEN_DIR/driver_fmt_sx.o" ] && [ -f "$GEN_DIR/driver_check_sx.o" ] \
+    && [ -f "$GEN_DIR/driver_test_sx.o" ]; then
+    build_shux_asm_info "reuse gen_driver SX objs (already ensured in this run)"
+    return 0
+  fi
   mkdir -p "$GEN_DIR"
   SHUX_E="${SHUX_E:-}"
   if [ -z "$SHUX_E" ] || [ ! -x "$SHUX_E" ]; then
@@ -3552,14 +3609,21 @@ ensure_asm_gen_driver_sx_objs() {
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
     -c "$GEN_DIR/lsp_io_std_heap_gen.c" -o "$GEN_DIR/lsp_io_std_heap_sx.o"
   ensure_gen_driver_typeck_companion_objs
+  SHUX_ASM_GEN_DRIVER_SX_READY=1
 }
 
 # gen_driver 回退链：pipeline_sx.o 内 mega C 直接调用 typeck_check_*（typeck.sx -E 导出），须链 typeck_sx.o 与 alias。
 ensure_gen_driver_typeck_companion_objs() {
+  if [ "${SHUX_ASM_GEN_DRIVER_TYPECK_READY:-0}" = "1" ] \
+    && [ -f typeck_sx.o ] && [ -f typeck_sx_link_alias.o ]; then
+    build_shux_asm_info "reuse gen_driver typeck companions (already ensured in this run)"
+    return 0
+  fi
   if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    echo "build_shux_asm: gen_driver typeck companions (typeck_sx.o + link alias) ..."
+    build_shux_asm_info "gen_driver typeck companions (typeck_sx.o + link alias)"
     make -s typeck_sx.o typeck_sx_link_alias.o
   fi
+  SHUX_ASM_GEN_DRIVER_TYPECK_READY=1
 }
 
 # 与 ensure_gen_driver_typeck_companion_objs 配套：gen_driver 链接行追加对象（experimental 链已含；回退仅补 typeck mega 符号）。
@@ -3664,6 +3728,14 @@ ensure_runtime_driver_abi_obj() {
   fi
 }
 
+ensure_diag_obj() {
+  local o="src/diag.o"
+  if [ ! -f "$o" ] || [ "src/diag.c" -nt "$o" ] || [ "include/diag.h" -nt "$o" ]; then
+    echo "  cc -c $o <- src/diag.c"
+    "$CC" $CFLAGS -c -o "$o" src/diag.c
+  fi
+}
+
 ensure_runtime_driver_diagnostic_obj() {
   local o="src/runtime_driver_diagnostic.o"
   if [ ! -f "$o" ] || [ "src/runtime_driver_diagnostic.c" -nt "$o" ]; then
@@ -3679,6 +3751,7 @@ ensure_runtime_driver_asm_strict_obj() {
   ensure_runtime_link_abi_obj
   ensure_runtime_pipeline_abi_obj
   ensure_runtime_driver_abi_obj
+  ensure_diag_obj
   ensure_runtime_driver_diagnostic_obj
   local o="src/runtime_driver_asm_bstrict.o"
   if [ ! -f "$o" ] || [ "src/runtime.c" -nt "$o" ] || [ "scripts/build_shux_asm.sh" -nt "$o" ]; then
@@ -3714,7 +3787,7 @@ ensure_asm_bootstrap_support_extra_objs() {
       "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_link_alias.o src/lexer/cfg_eval_link_alias.c
       "$LD" $LD_RELFLAGS -r -o "$o" src/lexer/cfg_eval_sx.o src/lexer/cfg_eval_link_alias.o
     elif [ -f src/lexer/cfg_eval.sx ] && [ -x "$SHUX" ]; then
-      echo "  cfg_eval: need $SHUX -backend asm or -E-extern for cfg_eval.sx (G-02a: no cfg_eval.c)" >&2
+      build_shux_asm_error "cfg_eval: need $SHUX -backend asm or -E-extern for cfg_eval.sx (G-02a: no cfg_eval.c)"
       return 1
     fi
   fi
@@ -3940,9 +4013,11 @@ shux_asm_bstrict_relink_runtime_only() {
   local BSTRICT_SEED_SUPPORT BOOT_ENTRY_OBJ BOOT_ENTRY_LDFLAGS BOOT_DRIVER_TAIL
   local ST_BSTRICT_LINK_EXTRA PTEXT
 
-  echo "build_shux_asm: SHUX_ASM_BSTRICT_RELINK_ONLY — refresh runtime/bootstrap + strict relink"
+  build_shux_asm_info "SHUX_ASM_BSTRICT_RELINK_ONLY - refresh runtime/bootstrap + strict relink"
   export STRICT_LINK_BUILD_ASM_PIPELINE=1
   SEED_O="${SEED_O:-$BUILD_DIR/asm_driver_seed}"
+  ensure_diag_seed_obj "$SEED_O"
+  ensure_lsp_diag_seed_obj "$SEED_O"
   LSP_DIAG_SEED_O=${LSP_DIAG_SEED_O:-$(lsp_diag_seed_obj_path "$SEED_O")}
   PIPELINE_LIBS=$(bootstrap_pipeline_libs)
   build_nonempty_asm_objs
@@ -4007,7 +4082,7 @@ shux_asm_bstrict_relink_runtime_only() {
   ensure_asm_backend_compat_stubs_obj
   refresh_bstrict_link_variants
   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
-  ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BUILD_DIR/preprocess_if_stack_bridge.o"
+  ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
   ST_STRICT_COMPANIONS="$BUILD_DIR/sx_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_sx.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
   ensure_pipeline_o_strict_link_partial_obj || true
   filter_strict_asm_objs
@@ -4029,7 +4104,7 @@ shux_asm_bstrict_relink_runtime_only() {
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] \
     || [ "$(wc -c <"$BUILD_DIR/seed_host/asm_backend_partial.o" | tr -d ' ')" -lt 8192 ]; then
     if [ "${SHUX_ASM_BSTRICT_RELINK_ALLOW_PHASE1_STUB:-0}" = "1" ]; then
-      echo "build_shux_asm: warn: runtime-only relink with phase1 asm_backend_partial (dev/Docker only)" >&2
+      build_shux_asm_warn "runtime-only relink with phase1 asm_backend_partial (dev/Docker only)"
     else
       shux_asm_bstrict_fail "runtime-only relink needs real build_asm/seed_host/asm_backend_partial.o (not phase1 stub)"
     fi
@@ -4049,6 +4124,7 @@ shux_asm_bstrict_relink_runtime_only() {
     src/runtime_link_abi.o \
     src/runtime_pipeline_abi.o \
     src/runtime_driver_abi.o \
+    src/diag.o \
     src/runtime_driver_diagnostic.o \
     src/runtime_driver_asm_strict.o \
     $BSTRICT_SEED_SUPPORT \
@@ -4081,18 +4157,18 @@ shux_asm_bstrict_relink_runtime_only() {
   ST_RC=$?
   set -e
   if [ "$ST_RC" -ne 0 ]; then
-    echo "build_shux_asm: runtime-only strict relink failed (rc=$ST_RC)" >&2
+    build_shux_asm_error "runtime-only strict relink failed (rc=$ST_RC)"
     tail -n 12 "$BUILD_DIR/.asm_strict_relink_only_err" 2>/dev/null | sed 's/^/  /' || true
     shux_asm_bstrict_fail "runtime-only strict relink failed"
   fi
-  echo "build_shux_asm: shux_asm strict OK (runtime-only relink, pipeline.o __text=${PTEXT}B)."
+  build_shux_asm_info "shux_asm strict OK (runtime-only relink, pipeline.o __text=${PTEXT}B)"
   LINK_OK=1
   LINK_MODE=asm_only_strict
   if [ -z "${SHUX_ASM_SKIP_STRICT_SMOKE:-}" ]; then
     if ! SHUX_ASM_SMOKE_SKIP_GATE=1 ./scripts/run_shux_asm_smoke.sh >"$BUILD_DIR/.asm_strict_smoke.log" 2>&1; then
       shux_asm_bstrict_fail "strict shux_asm smoke failed after runtime-only relink"
     fi
-    echo "build_shux_asm: strict shux_asm smoke passed (runtime-only relink)."
+    build_shux_asm_info "strict shux_asm smoke passed (runtime-only relink)"
   fi
   shux_asm_sync_stage1_from_strict
 }
@@ -4114,18 +4190,18 @@ if [ -z "${SHUX_ASM_LINK_TOPOLOGY+x}" ]; then
   UNAMES=$(uname -s 2>/dev/null || echo Unknown)
   if [ "$ASM_TEXT_ALL_OK" = "1" ]; then
     SHUX_ASM_LINK_TOPOLOGY=full_asm
-    echo "build_shux_asm: auto SHUX_ASM_LINK_TOPOLOGY=full_asm ($UNAMES, all BUILD __text non-empty)"
+    build_shux_asm_info "auto SHUX_ASM_LINK_TOPOLOGY=full_asm ($UNAMES, all BUILD __text non-empty)"
     if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
-      echo "build_shux_asm: M11 production B-strict (SKIP_GEN → asm_only_strict, no cc -c pipeline_gen.c in final link)"
+      build_shux_asm_info "M11 production B-strict (SKIP_GEN -> asm_only_strict, no cc -c pipeline_gen.c in final link)"
     elif [ "$UNAMES" != "Linux" ]; then
-      echo "build_shux_asm: hint: export SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 or make bootstrap-driver-bstrict for asm_only_strict"
+      build_shux_asm_info "hint: export SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 or make bootstrap-driver-bstrict for asm_only_strict"
     fi
   elif [ "$UNAMES" != "Linux" ]; then
-    echo "build_shux_asm: host=$UNAMES: topology pipeline_sx (__text 未全绿；crt0 仅 Linux，见 docs/SELFHOST.md §4)"
+    build_shux_asm_info "host=$UNAMES: topology pipeline_sx (__text 未全绿；crt0 仅 Linux，见 docs/SELFHOST.md §4)"
   fi
 else
   if [ "$SHUX_ASM_LINK_TOPOLOGY" = "full_asm" ] && [ "$ASM_TEXT_ALL_OK" != "1" ]; then
-    echo "build_shux_asm: SHUX_ASM_LINK_TOPOLOGY=full_asm requires all __text non-empty; forcing pipeline_sx"
+    build_shux_asm_warn "SHUX_ASM_LINK_TOPOLOGY=full_asm requires all __text non-empty; forcing pipeline_sx"
     SHUX_ASM_LINK_TOPOLOGY=pipeline_sx
   fi
 fi
@@ -4139,7 +4215,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   fi
   # B-strict（SKIP_GEN）须 asm_only_strict（含 runtime_driver）；crt0 链无 driver，成功反而会触发末尾 bstrict 失败。
   if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
-    echo "build_shux_asm: SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 — skip crt0 link (use asm_only_strict; crt0 见 make bootstrap-driver-crt0)"
+    build_shux_asm_info "SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 - skip crt0 link (use asm_only_strict; crt0 见 make bootstrap-driver-crt0)"
   elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ] && [ -f src/typeck/typeck_f64_bits.o ] && [ -f runtime_panic.o ]; then
     echo "  linking shux_asm (crt0 + typeck_f64_bits + runtime_panic + asm*.o, no runtime_driver) ..."
     CRT0_ASM=""
@@ -4159,18 +4235,18 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
     CRT_RC=1
     if bootstrap_wants_nostdlib; then
       BOOT_CRT0_TAIL=$(bootstrap_link_tail_crt0)
-      echo "build_shux_asm: trying bootstrap nostdlib crt0 link (SHUX_BOOTSTRAP_NOSTDLIB=1) ..."
+      build_shux_asm_info "trying bootstrap nostdlib crt0 link (SHUX_BOOTSTRAP_NOSTDLIB=1)"
       # shellcheck disable=SC2086
       "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o \
         $CRT0_ASM $BOOT_CRT0_TAIL 2>"$BUILD_DIR/.bootstrap_nostdlib_link_err"
       CRT_RC=$?
       if [ "$CRT_RC" -ne 0 ]; then
-        echo "build_shux_asm: bootstrap nostdlib crt0 link failed (rc=$CRT_RC)"
+        build_shux_asm_error "bootstrap nostdlib crt0 link failed (rc=$CRT_RC)"
         if [ -f "$BUILD_DIR/.bootstrap_nostdlib_link_err" ]; then
           head -15 "$BUILD_DIR/.bootstrap_nostdlib_link_err" 2>/dev/null || true
         fi
       else
-        echo "build_shux_asm: bootstrap nostdlib crt0 link OK (no libc/libm)"
+        build_shux_asm_info "bootstrap nostdlib crt0 link OK (no libc/libm)"
       fi
     fi
     if [ "$CRT_RC" -ne 0 ]; then
@@ -4183,12 +4259,12 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
     # F-no-libc NL-07 END
     set -e
     if [ "$CRT_RC" -eq 0 ]; then
-      echo "build_shux_asm: shux_asm built (no C runtime driver)."
+      build_shux_asm_info "shux_asm built (no C runtime driver)"
       LINK_OK=1
       USE_CRT0=1
       LINK_MODE=crt0
     else
-      echo "build_shux_asm: crt0 link failed (rc=$CRT_RC), trying runtime_driver fallback..."
+      build_shux_asm_warn "crt0 link failed (rc=$CRT_RC); trying runtime_driver fallback"
     fi
   fi
   if [ "$LINK_OK" -ne 1 ]; then
@@ -4205,14 +4281,14 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
       _try_experimental=1
     elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ "$LINK_OK" -ne 1 ]; then
       _try_experimental=1
-      echo "build_shux_asm: Linux crt0/runtime link failed — trying experimental bootstrap (pipeline_sx.o + SX companions)"
+      build_shux_asm_warn "Linux crt0/runtime link failed; trying experimental bootstrap (pipeline_sx.o + SX companions)"
     fi
     if [ "$_try_experimental" -eq 1 ]; then
       _try_exp_enter=0
       if [ -n "$NONEMPTY_ASM" ]; then
         _try_exp_enter=1
       elif [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ] && build_shux_asm_is_msys; then
-        echo "build_shux_asm: E-06 v5 Windows B-strict — experimental SX-only (no build_asm/*.o required)"
+        build_shux_asm_info "E-06 v5 Windows B-strict - experimental SX-only (no build_asm/*.o required)"
         _try_exp_enter=1
       fi
     else
@@ -4220,9 +4296,9 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
     fi
     if [ "$_try_exp_enter" -eq 1 ]; then
       if [ "$ASM_TEXT_ALL_OK" != "1" ]; then
-        echo "build_shux_asm: SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 (__text 未全绿仍试 asm-only 链)"
+        build_shux_asm_info "SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 (__text 未全绿仍试 asm-only 链)"
       else
-        echo "build_shux_asm: SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 — B-strict asm-only（bootstrap + strict 重链，最终无 pipeline_gen.c）"
+        build_shux_asm_info "SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 - B-strict asm-only（bootstrap + strict 重链，最终无 pipeline_gen.c）"
       fi
       ensure_std_fs_io_heap_objs
       PIPELINE_LIBS=$(bootstrap_pipeline_libs)
@@ -4230,17 +4306,17 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
       BOOT_ENTRY_OBJ=$(bootstrap_entry_obj)
       BOOT_ENTRY_LDFLAGS=$(bootstrap_entry_ldflags)
       if bootstrap_wants_nostdlib; then
-        echo "build_shux_asm: NL-07 v5 nostdlib entry $BOOT_ENTRY_OBJ ($BOOT_ENTRY_LDFLAGS)"
+        build_shux_asm_info "NL-07 v5 nostdlib entry $BOOT_ENTRY_OBJ ($BOOT_ENTRY_LDFLAGS)"
       fi
       UNAME_ASM=$(uname -s 2>/dev/null || echo Unknown)
       # Darwin：ENTRY_MODULE_ONLY 下 duplicate symbol 已消除，但大模块 .o 符号不全/跨模块命名仍会导致 undefined；试链后失败则回退 gen_driver。
       filter_experimental_asm_objs
       ASM_TRY_OBJS="$FILTERED"
       if [ "$UNAME_ASM" = "Darwin" ]; then
-        echo "build_shux_asm: Darwin 试 asm-only 链（ENTRY_MODULE_ONLY 已无 duplicate；若 undefined 则回退）"
+        build_shux_asm_info "Darwin 试 asm-only 链（ENTRY_MODULE_ONLY 已无 duplicate；若 undefined 则回退）"
       fi
       if build_shux_asm_is_msys && [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
-        echo "build_shux_asm: MSYS B-strict — skip build_asm/*.o in experimental bootstrap (SX companions + pipeline_sx)"
+        build_shux_asm_info "MSYS B-strict - skip build_asm/*.o in experimental bootstrap (SX companions + pipeline_sx)"
         ASM_TRY_OBJS=""
       fi
       if [ -n "$ASM_TRY_OBJS" ] || { [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ] && build_shux_asm_is_msys; }; then
@@ -4261,9 +4337,9 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         if ! asm_seed_omit_c_frontend_seed; then
           ASM_SEED_FRONTEND_LINK="$SEED_O/preprocess.o $SEED_O/parser.o $SEED_O/typeck.o $SEED_O/codegen.o $SEED_O/autovec.o $SEED_O/lexer.o $SEED_O/ast_seed.o"
         elif asm_seed_use_sx_frontend; then
-          echo "build_shux_asm: E-06 v2 experimental link omit asm_driver_seed frontend .o (SX companions)"
+          build_shux_asm_info "E-06 v2 experimental link omit asm_driver_seed frontend .o (SX companions)"
         else
-          echo "build_shux_asm: E-06 v4 experimental link omit asm_driver_seed frontend .o (SX ready, no SKIP_GEN)"
+          build_shux_asm_info "E-06 v4 experimental link omit asm_driver_seed frontend .o (SX ready, no SKIP_GEN)"
         fi
         # pipeline_sx / dispatch 引用的 arch_* enc/emit 须 weak 桩（与 bootstrap-driver-seed 同源）。
         ASM_LINK_STUBS_O=""
@@ -4305,6 +4381,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           src/runtime_link_abi.o \
           src/runtime_pipeline_abi.o \
           src/runtime_driver_abi.o \
+          src/diag.o \
           src/runtime_driver_diagnostic.o \
           src/runtime_driver_asm_strict.o \
           $BSTRICT_SEED_SUPPORT \
@@ -4348,15 +4425,15 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         FB_RC=$?
         set -e
         if [ "$FB_RC" -eq 0 ]; then
-          echo "build_shux_asm: shux_asm built (experimental: build_asm backend + pipeline_sx.o bootstrap)."
+          build_shux_asm_info "shux_asm built (experimental: build_asm backend + pipeline_sx.o bootstrap)"
           cp -f shux_asm shux_asm.experimental 2>/dev/null || true
           export SHUX_ASM_SECOND_PASS_COMPILER=./shux_asm.experimental
           LINK_OK=1
           LINK_MODE=asm_only_experimental
           if [ -n "${SHUX_ASM_CI_ACCEPT_EXPERIMENTAL_ONLY:-}" ]; then
-            echo "build_shux_asm: CI fast — keep asm_only_experimental bootstrap (skip strict relink + gen_driver)"
+            build_shux_asm_info "CI fast - keep asm_only_experimental bootstrap (skip strict relink + gen_driver)"
             if asm_ci_skip_typeck_emit_heavy; then
-              echo "build_shux_asm: CI fast — skip typeck EMIT_HEAVY on $(uname -s) (S2 gate Linux-only)"
+              build_shux_asm_info "CI fast - skip typeck EMIT_HEAVY on $(uname -s) (S2 gate Linux-only)"
             elif ! rebuild_typeck_o_emit_heavy_s2 "./shux_asm.experimental"; then
               shux_asm_bstrict_fail "typeck.o EMIT_HEAVY required for S2 gate after CI experimental bootstrap"
             fi
@@ -4371,9 +4448,9 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           # EMIT_HEAVY 第二遍：pipeline 未达标时仍重编 typeck/parser/backend（S2 gate 依赖 build_asm/typeck.o）。
           if ! rebuild_typeck_parser_backend_second_pass "./shux_asm.experimental"; then
             if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
-              echo "build_shux_asm: bootstrap second pass (typeck/parser/backend) failed; continuing strict with partials"
+              build_shux_asm_warn "bootstrap second pass (typeck/parser/backend) failed; continuing strict with partials"
             else
-              echo "build_shux_asm: warn: typeck/parser/backend second pass failed (pipeline may be partial)"
+              build_shux_asm_warn "typeck/parser/backend second pass failed (pipeline may be partial)"
             fi
           fi
           PTEXT=$(asm_o_text_bytes "$BUILD_DIR/pipeline.o" 2>/dev/null || echo 0)
@@ -4381,7 +4458,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           if [ "$SECOND_PASS_OK" -eq 1 ] && [ "$PTEXT" -gt 200 ] 2>/dev/null; then
             STRICT_TRY=1
           else
-            echo "build_shux_asm: pipeline.o second pass failed (__text=${PTEXT}B)" >&2
+            build_shux_asm_error "pipeline.o second pass failed (__text=${PTEXT}B)"
             shux_asm_bstrict_fail "pipeline second pass required for B-strict (__text=${PTEXT}B)"
           fi
           if [ "$STRICT_TRY" -eq 1 ]; then
@@ -4399,15 +4476,15 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
               ST_PARSER_LINK=""
               ST_PHASE_PARSE_PARTIAL=""
               if asm_strict_pipeline_selfhosted; then
-                echo "build_shux_asm: pipeline.o EMIT_HEAVY OK (__text=${PTEXT}B, run_sx_pipeline_impl + path/resolve SX emit)"
+                build_shux_asm_info "pipeline.o EMIT_HEAVY OK (__text=${PTEXT}B, run_sx_pipeline_impl + path/resolve SX emit)"
                 STRICT_LINK_BUILD_ASM_PIPELINE=1
                 export STRICT_LINK_BUILD_ASM_PIPELINE
-                echo "build_shux_asm: strict link build_asm/pipeline.o + glue_standalone"
+                build_shux_asm_info "strict link build_asm/pipeline.o + glue_standalone"
               elif [ "$PTEXT" -gt 512 ] 2>/dev/null; then
-                echo "build_shux_asm: pipeline.o __text=${PTEXT}B but not selfhosted — B-strict link aborted" >&2
+                build_shux_asm_error "pipeline.o __text=${PTEXT}B but not selfhosted; B-strict link aborted"
                 shux_asm_bstrict_fail "pipeline.o not selfhosted (__text=${PTEXT}B)"
               else
-                echo "build_shux_asm: pipeline.o __text=${PTEXT}B too small — B-strict link aborted" >&2
+                build_shux_asm_error "pipeline.o __text=${PTEXT}B too small; B-strict link aborted"
                 shux_asm_bstrict_fail "pipeline.o __text=${PTEXT}B"
               fi
               ST_PIPELINE_ALIAS=""
@@ -4425,7 +4502,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 ST_RUNTIME_MODE="strict_support"
                 if asm_strict_typeck_sx_glue_via_pipeline_sx; then
                   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
-                  echo "build_shux_asm: strict glue_strict_minimal + pipeline_sx glue support (SX orch)"
+                  build_shux_asm_info "strict glue_strict_minimal + pipeline_sx glue support (SX orch)"
                 else
                   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
                 fi
@@ -4433,9 +4510,9 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 if asm_strict_typeck_selfhosted; then
                   ensure_typeck_asm_layout_partial_obj && ST_LAYOUT_PARTIAL="$BUILD_DIR/typeck_asm_layout_partial.o" || ST_LAYOUT_PARTIAL=""
                   if asm_strict_typeck_sx_glue_via_pipeline_sx; then
-                    echo "build_shux_asm: strict link typeck.o partial + pipeline_sx glue support (__text=$(asm_o_text_bytes "$BUILD_DIR/typeck.o" 2>/dev/null || echo ?)B)"
+                    build_shux_asm_info "strict link typeck.o partial + pipeline_sx glue support (__text=$(asm_o_text_bytes "$BUILD_DIR/typeck.o" 2>/dev/null || echo ?)B)"
                   else
-                    echo "build_shux_asm: strict link typeck.o partial+glue_standalone (__text=$(asm_o_text_bytes "$BUILD_DIR/typeck.o" 2>/dev/null || echo ?)B, minus glue dupes + bare_link_alias)"
+                    build_shux_asm_info "strict link typeck.o partial+glue_standalone (__text=$(asm_o_text_bytes "$BUILD_DIR/typeck.o" 2>/dev/null || echo ?)B, minus glue dupes + bare_link_alias)"
                   fi
                 else
                   ensure_typeck_asm_layout_partial_obj && ST_LAYOUT_PARTIAL="$BUILD_DIR/typeck_asm_layout_partial.o" || ST_LAYOUT_PARTIAL=""
@@ -4492,7 +4569,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                     if [ "${SHUX_ASM_STRICT_LINK_PIPELINE_WPO:-0}" = "1" ] && asm_pipeline_wpo_strict_link_full_ok; then
                       if ensure_pipeline_glue_standalone_wpo_dedupe_obj; then
                         ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_wpo_dedupe.o"
-                        echo "build_shux_asm: strict glue_wpo_dedupe (glue minus pipeline_wpo T dupes)"
+                        build_shux_asm_info "strict glue_wpo_dedupe (glue minus pipeline_wpo T dupes)"
                       fi
                     fi
                     filter_strict_asm_objs
@@ -4512,7 +4589,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
               ensure_asm_driver_seed_c_objs
               SEED_O="$BUILD_DIR/asm_driver_seed"
               ensure_asm_strict_link_extra_objs
-              ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o $BUILD_DIR/preprocess_if_stack_bridge.o"
+              ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
               ensure_asm_link_objs
               ST_RUNTIME_PANIC="runtime_panic.o"
               ST_BRIDGE_OBJ=""
@@ -4533,7 +4610,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   ST_DRIVER_CLI_OBJS="driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_build_sx.o driver_run_sx.o driver_emit_sx.o"
                   STRICT_LINK_BUILD_ASM_DRIVER=1
                   export STRICT_LINK_BUILD_ASM_DRIVER
-                  echo "build_shux_asm: strict link build_asm/driver_compile_link.o (parse_argv + run_compiler_full_sx SX emit)"
+                  build_shux_asm_info "strict link build_asm/driver_compile_link.o (parse_argv + run_compiler_full_sx SX emit)"
                 fi
                 ST_TYPECK_SX_LINK="typeck_sx.o"
                 if [ -n "$ST_LAYOUT_PARTIAL" ] && ensure_typeck_sx_no_layout_partial_obj; then
@@ -4544,10 +4621,10 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   if [ "${SHUX_ASM_STRICT_LINK_PIPELINE_WPO:-0}" = "1" ] && asm_pipeline_wpo_strict_reach_ok; then
                     export STRICT_LINK_BUILD_ASM_WPO=1
                     if asm_pipeline_wpo_strict_link_full_ok; then
-                      echo "build_shux_asm: strict link whole pipeline_wpo.o (SX orchestration FULL)"
+                      build_shux_asm_info "strict link whole pipeline_wpo.o (SX orchestration FULL)"
                     else
                       ensure_pipeline_wpo_typecheck_emit_bridge_obj && ST_WPO_ALIAS="$BUILD_DIR/pipeline_wpo_typecheck_emit_bridge.o"
-                      echo "build_shux_asm: strict link pipeline_wpo_helpers (opt-in WPO, C orchestration + typecheck emit bridge)"
+                      build_shux_asm_info "strict link pipeline_wpo_helpers (opt-in WPO, C orchestration + typecheck emit bridge)"
                     fi
                   fi
                   if asm_backend_wpo_strict_reach_ok; then
@@ -4559,16 +4636,16 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                     if asm_strict_typeck_sx_glue_via_pipeline_sx; then
                       if asm_seed_use_sx_frontend; then
                         ST_SEED_PARSER_TCK="$(asm_seed_st_async_support_link) $(asm_seed_st_sx_glue_suffix)"
-                        echo "build_shux_asm: E-06 v3 strict SX-only seed (async + SX glue; no SEED C frontend .o)"
+                        build_shux_asm_info "E-06 v3 strict SX-only seed (async + SX glue; no SEED C frontend .o)"
                       else
                         ST_SEED_PARSER_TCK="$(asm_seed_st_frontend_seed_link) $(asm_seed_st_sx_glue_suffix)"
-                        echo "build_shux_asm: strict seed typeck + typeck_sx tail (SX glue; no build_asm typeck partial)"
+                        build_shux_asm_info "strict seed typeck + typeck_sx tail (SX glue; no build_asm typeck partial)"
                       fi
                     else
                       ensure_typeck_asm_bare_link_alias_obj
                       if asm_seed_use_sx_frontend; then
                         ST_SEED_PARSER_TCK="$ST_TCK_C_PRECHECK $BUILD_DIR/typeck_asm_bare_link_alias.o $(asm_seed_st_async_support_link) $(asm_seed_st_sx_glue_suffix) src/typeck/typeck_f64_bits.o"
-                        echo "build_shux_asm: E-06 v3 strict bare alias SX-only (no SEED parser/lexer/ast .o)"
+                        build_shux_asm_info "E-06 v3 strict bare alias SX-only (no SEED parser/lexer/ast .o)"
                       else
                         ST_SEED_PARSER_TCK="$ST_TCK_C_PRECHECK $BUILD_DIR/typeck_asm_bare_link_alias.o $(asm_seed_st_frontend_seed_no_typeck_link) $(asm_seed_st_sx_glue_suffix) src/typeck/typeck_f64_bits.o"
                       fi
@@ -4588,7 +4665,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   ensure_ast_pool_l5_bridge_obj
                   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
                   if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && asm_backend_wpo_strict_reach_ok; then
-                    echo "build_shux_asm: strict link backend_wpo.o (WPO reach OK)"
+                    build_shux_asm_info "strict link backend_wpo.o (WPO reach OK)"
                   fi
                   ensure_asm_backend_compat_stubs_obj
                   refresh_bstrict_link_variants
@@ -4598,7 +4675,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   # E-06 v3 SX：仅 async seed + SX glue；parser_sx.o 在 ST_PARSER_SX_TAIL 压过重复符号。
                   if asm_seed_use_sx_frontend; then
                     ST_SEED_PARSER_TCK="$(asm_seed_st_async_support_link) $ST_TYPECK_SX_LINK $(asm_seed_st_sx_glue_suffix)"
-                    echo "build_shux_asm: E-06 v3 strict default SX-only ST_SEED_PARSER_TCK"
+                    build_shux_asm_info "E-06 v3 strict default SX-only ST_SEED_PARSER_TCK"
                   else
                     ST_SEED_PARSER_TCK="$(asm_seed_st_frontend_seed_link) $ST_TYPECK_SX_LINK $(asm_seed_st_sx_glue_suffix)"
                   fi
@@ -4639,7 +4716,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 export SHUX_ASM_SKIP_DRIVER_EMIT_HEAVY=1
                 export SHUX_ASM_SKIP_WPO_DOGFOOD=1
                 rebuild_main_o_for_cli || true
-                echo "build_shux_asm: skip WPO dogfood recompile (strict bridge / pipeline selfhosted)"
+                build_shux_asm_info "skip WPO dogfood recompile (strict bridge / pipeline selfhosted)"
               else
                 rebuild_main_o_for_cli || true
                 rebuild_driver_compile_emit_heavy_and_link || true
@@ -4656,7 +4733,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   ST_DRIVER_CLI_OBJS="driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_build_sx.o driver_run_sx.o driver_emit_sx.o"
                   filter_strict_asm_objs
                   ASM_TRY_OBJS="$FILTERED"
-                  echo "build_shux_asm: strict re-filter after driver_compile_link OK"
+                  build_shux_asm_info "strict re-filter after driver_compile_link OK"
                 else
                   ST_DRIVER_CLI_OBJS="driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_build_sx.o driver_run_sx.o driver_compile_sx.o driver_emit_sx.o"
                 fi
@@ -4680,6 +4757,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           src/runtime_link_abi.o \
           src/runtime_pipeline_abi.o \
           src/runtime_driver_abi.o \
+          src/diag.o \
           src/runtime_driver_diagnostic.o \
           src/runtime_driver_asm_strict.o \
           $BSTRICT_SEED_SUPPORT \
@@ -4712,7 +4790,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
               ST_RC=$?
               set -e
               if [ "$ST_RC" -ne 0 ] && [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
-                echo "build_shux_asm: strict asm orchestration link failed; retry pipeline_runtime_bootstrap_partial.o ..."
+                build_shux_asm_warn "strict asm orchestration link failed; retrying with pipeline_runtime_bootstrap_partial.o"
                 ensure_pipeline_runtime_bootstrap_partial_obj
                 ST_PARSER_LINK="$BUILD_DIR/pipeline_parse_sx_partial.o"
                 ST_RUNTIME_EXTRA=""
@@ -4723,7 +4801,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   ST_SEED_PREPROCESS_LINK=""
                   ST_SEED_PARSER_TCK="$(asm_seed_st_async_support_link) $(asm_seed_st_sx_glue_suffix)"
                   ST_STRICT_FB_SX_TAIL="preprocess_sx.o parser_sx.o lexer_sx.o typeck_sx.o codegen_sx.o"
-                  echo "build_shux_asm: E-06 v3 strict fallback SX-only (no SEED C frontend .o)"
+                  build_shux_asm_info "E-06 v3 strict fallback SX-only (no SEED C frontend .o)"
                 else
                   ST_SEED_PREPROCESS_LINK="$SEED_O/preprocess.o"
                   ST_SEED_PARSER_TCK="$SEED_O/parser.o $SEED_O/typeck.o $SEED_O/codegen.o $SEED_O/autovec.o $SEED_O/async_liveness.o $SEED_O/async_cps_codegen.o $SEED_O/lexer.o $SEED_O/ast_seed.o"
@@ -4744,6 +4822,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           src/runtime_link_abi.o \
           src/runtime_pipeline_abi.o \
           src/runtime_driver_abi.o \
+          src/diag.o \
           src/runtime_driver_diagnostic.o \
           src/runtime_driver_asm_strict.o \
           $BSTRICT_SEED_SUPPORT \
@@ -4771,7 +4850,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 set -e
               fi
               if [ "$ST_RC" -ne 0 ]; then
-                echo "build_shux_asm: strict link failed (rc=$ST_RC)"
+                build_shux_asm_error "strict link failed (rc=$ST_RC)"
                 if [ -s "$BUILD_DIR/.asm_strict_link_err" ]; then
                   tail -n 8 "$BUILD_DIR/.asm_strict_link_err" | sed 's/^/  /'
                 fi
@@ -4779,15 +4858,15 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
               if [ "$ST_RC" -eq 0 ]; then
                 LINK_OK=1
                 if [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
-                  echo "build_shux_asm: shux_asm strict OK (pipeline.o + C orchestration, __text=${PTEXT}B)."
+                  build_shux_asm_info "shux_asm strict OK (pipeline.o + C orchestration, __text=${PTEXT}B)"
                 elif [ "$ST_RUNTIME_MODE" = "strict_support" ]; then
                   if [ "${STRICT_LINK_BUILD_ASM_PIPELINE:-0}" -eq 1 ]; then
-                    echo "build_shux_asm: shux_asm strict OK (build_asm/pipeline.o + glue_standalone, __text=${PTEXT}B)."
+                    build_shux_asm_info "shux_asm strict OK (build_asm/pipeline.o + glue_standalone, __text=${PTEXT}B)"
                   else
-                    echo "build_shux_asm: shux_asm strict OK (strict_support, pipeline.o __text=${PTEXT}B)."
+                    build_shux_asm_info "shux_asm strict OK (strict_support, pipeline.o __text=${PTEXT}B)"
                   fi
                 else
-                  echo "build_shux_asm: shux_asm strict OK (pipeline_runtime_bootstrap_partial.o + pipeline.o __text=${PTEXT}B)."
+                  build_shux_asm_info "shux_asm strict OK (pipeline_runtime_bootstrap_partial.o + pipeline.o __text=${PTEXT}B)"
                 fi
                 LINK_MODE=asm_only_strict
                 if [ -z "${SHUX_ASM_SKIP_STRICT_SMOKE:-}" ]; then
@@ -4796,7 +4875,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                     if [ -x ./shux_asm.experimental ] && cp -f ./shux_asm "$BUILD_DIR/shux_asm.strict_failed" 2>/dev/null; then
                       cp -f ./shux_asm.experimental ./shux_asm
                       if SHUX_ASM_SMOKE_SKIP_GATE=1 ./scripts/run_shux_asm_smoke.sh >"$BUILD_DIR/.asm_strict_smoke_fallback.log" 2>&1; then
-                        echo "build_shux_asm: strict smoke failed; installed shux_asm.experimental as shux_asm (fallback OK)."
+                        build_shux_asm_warn "strict smoke failed; installed shux_asm.experimental as shux_asm (fallback OK)"
                         touch "$BUILD_DIR/.strict_smoke_experimental_fallback"
                         if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ] && [ -z "${SHUX_ASM_ALLOW_EXPERIMENTAL_FALLBACK:-}" ]; then
                           shux_asm_bstrict_fail "strict shux_asm smoke failed (experimental fallback disabled for B-strict)"
@@ -4807,19 +4886,19 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                         if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
                           shux_asm_bstrict_fail "strict shux_asm smoke failed (experimental fallback also failed)"
                         fi
-                        echo "build_shux_asm: strict shux_asm smoke failed (experimental fallback also failed)."
+                        build_shux_asm_error "strict shux_asm smoke failed (experimental fallback also failed)"
                         tail -n 8 "$BUILD_DIR/.asm_strict_smoke.log" 2>/dev/null | sed 's/^/  /' || true
                         tail -n 8 "$BUILD_DIR/.asm_strict_smoke_fallback.log" 2>/dev/null | sed 's/^/  fallback: /' || true
                       fi
                     elif [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
                       shux_asm_bstrict_fail "strict shux_asm smoke failed"
                     else
-                      echo "build_shux_asm: strict shux_asm smoke failed."
+                      build_shux_asm_error "strict shux_asm smoke failed"
                       tail -n 8 "$BUILD_DIR/.asm_strict_smoke.log" 2>/dev/null | sed 's/^/  /' || true
                     fi
                   else
                     rm -f "$BUILD_DIR/.strict_smoke_experimental_fallback" 2>/dev/null || true
-                    echo "build_shux_asm: strict shux_asm smoke passed."
+                    build_shux_asm_info "strict shux_asm smoke passed"
                     shux_asm_sync_stage1_from_strict
                   fi
                 fi
@@ -4827,16 +4906,16 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 if rebuild_main_o_post_strict_link; then
                   :
                 elif [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
-                  echo "build_shux_asm: post-strict main.o WPO recompile failed (non-fatal for gate; stage2 may retry)" >&2
+                  build_shux_asm_warn "post-strict main.o WPO recompile failed (non-fatal for gate; stage2 may retry)"
                 else
-                  echo "build_shux_asm: post-strict main.o WPO recompile failed (keeping pre-link main.o)" >&2
+                  build_shux_asm_warn "post-strict main.o WPO recompile failed (keeping pre-link main.o)"
                 fi
                 rebuild_driver_compile_post_strict_link || true
                 ensure_experimental_ast_pool_for_wpo || true
                 # strict 产物自编译大模块（>150KiB 入口仍 SIGSEGV；bootstrap experimental 第二遍已通过）。
                 if ! rebuild_typeck_parser_backend_second_pass; then
                   if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
-                    echo "build_shux_asm: B-strict warning: strict shux_asm self-compile second pass failed (bootstrap shux_asm + smoke OK; retry with seed SHU for -backend asm)"
+                    build_shux_asm_warn "B-strict self-compile second pass failed (bootstrap shux_asm + smoke OK; retry with seed SHU for -backend asm)"
                   fi
                 fi
                 # M8a：strict 重链后的 shux_asm 已含新 parser.o，再重编 arm64_enc/lsp/asm（勿用 experimental，其仍链旧 parser）。
@@ -4846,7 +4925,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 TCK2=$(asm_o_text_bytes "$BUILD_DIR/typeck.o" 2>/dev/null || echo 0)
                 PAR2=$(asm_o_text_bytes "$BUILD_DIR/parser.o" 2>/dev/null || echo 0)
                 BACK2=$(asm_o_text_bytes "$BUILD_DIR/backend.o" 2>/dev/null || echo 0)
-                echo "build_shux_asm: strict self-compile __text typeck=${TCK2}B parser=${PAR2}B backend=${BACK2}B"
+                build_shux_asm_info "strict self-compile __text typeck=${TCK2}B parser=${PAR2}B backend=${BACK2}B"
               else
                 if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
                   if [ -s "$BUILD_DIR/.asm_strict_link_err" ]; then
@@ -4854,7 +4933,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   fi
                   shux_asm_bstrict_fail "strict re-link failed (rc=$ST_RC)"
                 fi
-                echo "build_shux_asm: strict re-link failed (rc=$ST_RC); keeping bootstrap shux_asm with pipeline_sx.o"
+                build_shux_asm_warn "strict re-link failed (rc=$ST_RC); keeping bootstrap shux_asm with pipeline_sx.o"
                 if [ -s "$BUILD_DIR/.asm_strict_link_err" ]; then
                   tail -n 15 "$BUILD_DIR/.asm_strict_link_err" | sed 's/^/  /'
                 fi
@@ -4863,7 +4942,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
             if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
               shux_asm_bstrict_fail "strict re-link skipped (pipeline.o __text=${PTEXT}B)"
             fi
-            echo "build_shux_asm: strict re-link skipped (pipeline.o __text=${PTEXT}B); keeping bootstrap shux_asm with pipeline_sx.o"
+            build_shux_asm_warn "strict re-link skipped (pipeline.o __text=${PTEXT}B); keeping bootstrap shux_asm with pipeline_sx.o"
           fi
           fi
         else
@@ -4873,7 +4952,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
             fi
             shux_asm_bstrict_fail "experimental asm-only link failed (rc=$FB_RC)"
           fi
-          echo "build_shux_asm: experimental asm-only link failed (rc=$FB_RC); falling back to gen_driver..."
+          build_shux_asm_warn "experimental asm-only link failed (rc=$FB_RC); falling back to gen_driver"
           if [ -s "$BUILD_DIR/.asm_experimental_link_err" ]; then
             tail -n 20 "$BUILD_DIR/.asm_experimental_link_err" | sed 's/^/  /'
           fi
@@ -4885,7 +4964,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           fi
           shux_asm_bstrict_fail "experimental asm-only skipped on $UNAME_ASM"
         fi
-        echo "build_shux_asm: experimental asm-only skipped on $UNAME_ASM; falling back to gen_driver (仍含 cc -c pipeline_gen.c)..."
+        build_shux_asm_warn "experimental asm-only skipped on $UNAME_ASM; falling back to gen_driver (仍含 cc -c pipeline_gen.c)"
       fi
     fi
     if [ "$LINK_OK" -ne 1 ]; then
@@ -4893,7 +4972,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         shux_asm_bstrict_fail "asm-only link not OK (LINK_MODE=${LINK_MODE:-none})"
       fi
       if [ "$SHUX_ASM_LINK_TOPOLOGY" = "full_asm" ] && [ "$ASM_TEXT_ALL_OK" = "1" ]; then
-        echo "build_shux_asm: full_asm: __text 已全部非空，默认仍走 gen_driver（设 SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 试 asm-only 链）"
+        build_shux_asm_info "full_asm: __text 已全部非空，默认仍走 gen_driver（设 SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 试 asm-only 链）"
       fi
       ensure_asm_gen_driver_sx_objs
       ensure_asm_bootstrap_sx_companion_objs
@@ -4908,7 +4987,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
       ASM_GEN_DRIVER_C_FRONTEND_LINK=$(asm_seed_gen_driver_c_frontend_link)
       ASM_GEN_DRIVER_ASYNC_LINK=$(asm_seed_st_async_support_link)
       if asm_seed_omit_c_frontend_seed; then
-        echo "build_shux_asm: E-06 v4 gen_driver hybrid link omit SEED C frontend .o (SX companions via GEN_DRIVER_SX_PIPELINE_COMPANIONS)"
+        build_shux_asm_info "E-06 v4 gen_driver hybrid link omit SEED C frontend .o (SX companions via GEN_DRIVER_SX_PIPELINE_COMPANIONS)"
       fi
       echo "  linking shux_asm (runtime_asm_build + runtime_driver + seed + driver/* + -E pipeline/lsp; no build_asm/*.o) ..."
       set +e
@@ -4926,6 +5005,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         src/runtime_link_abi.o \
         src/runtime_pipeline_abi.o \
         src/runtime_driver_abi.o \
+        src/diag.o \
         src/runtime_driver_diagnostic.o \
         src/runtime_driver_asm_strict.o \
         $BSTRICT_SEED_SUPPORT \
@@ -4953,11 +5033,11 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
       FB_RC=$?
       set -e
       if [ "$FB_RC" -eq 0 ]; then
-        echo "build_shux_asm: shux_asm built."
+        build_shux_asm_info "shux_asm built"
         LINK_OK=1
         LINK_MODE=driver
       else
-        echo "build_shux_asm: link failed (rc=$FB_RC). See src/asm/README.md Goal 2."
+        build_shux_asm_error "link failed (rc=$FB_RC). See src/asm/README.md Goal 2"
       fi
     fi
   fi
@@ -4965,7 +5045,7 @@ else
   if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
     shux_asm_bstrict_fail "main.o or pipeline.o missing or empty"
   fi
-  echo "build_shux_asm: main.o or pipeline.o missing or empty; trying gen_driver fallback only."
+  build_shux_asm_warn "main.o or pipeline.o missing or empty; trying gen_driver fallback only"
   ensure_runtime_cc_stubs
   ensure_std_fs_io_heap_objs
   ensure_asm_driver_seed_c_objs
@@ -4983,9 +5063,9 @@ else
   ASM_GEN_DRIVER_C_FRONTEND_LINK=$(asm_seed_gen_driver_c_frontend_link)
   ASM_GEN_DRIVER_ASYNC_LINK=$(asm_seed_st_async_support_link)
   if asm_seed_omit_c_frontend_seed; then
-    echo "build_shux_asm: E-06 v4 gen_driver fallback link omit SEED C frontend .o (SX companions)"
+    build_shux_asm_info "E-06 v4 gen_driver fallback link omits SEED C frontend .o (SX companions)"
   fi
-  echo "  linking shux_asm (gen_driver fallback; build_asm incomplete) ..."
+  build_shux_asm_info "linking shux_asm (gen_driver fallback; build_asm incomplete)"
   set +e
   ensure_runtime_driver_asm_strict_obj
   ensure_asm_bootstrap_support_extra_objs
@@ -5000,6 +5080,7 @@ else
     src/runtime_link_abi.o \
     src/runtime_pipeline_abi.o \
     src/runtime_driver_abi.o \
+    src/diag.o \
     src/runtime_driver_diagnostic.o \
     src/runtime_driver_asm_strict.o \
     $BSTRICT_SEED_SUPPORT \
@@ -5027,7 +5108,7 @@ else
   FB_RC=$?
   set -e
   if [ "$FB_RC" -eq 0 ]; then
-    echo "build_shux_asm: shux_asm built (gen_driver fallback)."
+    build_shux_asm_info "shux_asm built (gen_driver fallback)"
     LINK_OK=1
     LINK_MODE=driver
   fi
@@ -5036,16 +5117,16 @@ fi
 if [ "$LINK_OK" -eq 1 ]; then
   case "$LINK_MODE" in
     crt0)
-      echo "build_shux_asm: Target-B-partial: linked without cc -c pipeline_gen.c (crt0 + asm .o)."
+      build_shux_asm_info "Target-B-partial: linked without cc -c pipeline_gen.c (crt0 + asm .o)"
       ;;
     driver)
-      echo "build_shux_asm: Target-B-hybrid: shux-c -E + cc -c gen_driver (topology=${SHUX_ASM_LINK_TOPOLOGY})."
+      build_shux_asm_info "Target-B-hybrid: shux-c -E + cc -c gen_driver (topology=${SHUX_ASM_LINK_TOPOLOGY})"
       ;;
     asm_only_experimental)
-      echo "build_shux_asm: Target-B-experimental: bootstrap with pipeline_sx.o partial (no pipeline_gen.c in link)."
+      build_shux_asm_info "Target-B-experimental: bootstrap with pipeline_sx.o partial (no pipeline_gen.c in link)"
       ;;
     asm_only_strict)
-      echo "build_shux_asm: Target-B-strict: build_asm + glue_standalone + partials, no pipeline_sx.o / pipeline_gen.c."
+      build_shux_asm_info "Target-B-strict: build_asm + glue_standalone + partials, no pipeline_sx.o / pipeline_gen.c"
       ;;
   esac
 fi
@@ -5056,13 +5137,13 @@ fi
 
 # B-strict 验收：最终链无 cc -c pipeline_gen.c；asm_only_experimental = pipeline_sx partial bootstrap（strict 重链待 pipeline.o 自举）。
 if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ] && [ "$LINK_MODE" = "asm_only_strict" ]; then
-  echo "build_shux_asm: B-strict OK — LINK_MODE=asm_only_strict, no pipeline_sx.o in final link"
+  build_shux_asm_info "B-strict OK - LINK_MODE=asm_only_strict, no pipeline_sx.o in final link"
   if [ "$SHUX_ASM_LINK_TOPOLOGY" = "full_asm" ] && [ "$ASM_TEXT_ALL_OK" = "1" ]; then
-    echo "build_shux_asm: M11 OK — full_asm topology + asm_only_strict (macOS/Linux production B-strict)"
+    build_shux_asm_info "M11 OK - full_asm topology + asm_only_strict (macOS/Linux production B-strict)"
   fi
 fi
 if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ] && [ "$LINK_MODE" = "asm_only_experimental" ]; then
-  echo "build_shux_asm: B-strict OK (experimental bootstrap) — LINK_MODE=asm_only_experimental, final link uses pipeline_sx.o partial not pipeline_gen.c"
+  build_shux_asm_info "B-strict OK (experimental bootstrap) - LINK_MODE=asm_only_experimental, final link uses pipeline_sx.o partial not pipeline_gen.c"
 fi
 
 # CI：experimental 链成功后仍须 typeck.o EMIT_HEAVY（S2 gate）；兜底若上文未跑或仍为小桩。
@@ -5072,7 +5153,7 @@ if [ "$LINK_OK" -eq 1 ] && [ -n "${CI:-}" ]; then
   if [ -x "$_s2_comp" ]; then
     _s2_txt=$(asm_o_text_bytes "$BUILD_DIR/typeck.o" 2>/dev/null || echo 0)
     if asm_ci_skip_typeck_emit_heavy; then
-      echo "build_shux_asm: skip typeck EMIT_HEAVY S2 fallback on $(uname -s) (__text=${_s2_txt}B stub OK)"
+      build_shux_asm_info "skip typeck EMIT_HEAVY S2 fallback on $(uname -s) (__text=${_s2_txt}B stub OK)"
     elif [ "${_s2_txt:-0}" -lt 68264 ] 2>/dev/null; then
       rebuild_typeck_o_emit_heavy_s2 "$_s2_comp" || {
         if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
@@ -5091,7 +5172,7 @@ if [ -x ./shux_asm ] && [ "$LINK_OK" -eq 1 ]; then
   chmod +x scripts/shux_asm_postlink_smoke.sh 2>/dev/null || true
   if [ -x scripts/shux_asm_postlink_smoke.sh ]; then
     ./scripts/shux_asm_postlink_smoke.sh ./shux_asm "${SHUX:-./shux}" || {
-      echo "build_shux_asm: WARN shux_asm postlink smoke failed (strict relink -o broken)" >&2
+      build_shux_asm_warn "shux_asm postlink smoke failed (strict relink -o broken)"
     }
   fi
   if bootstrap_wants_nostdlib; then
@@ -5106,7 +5187,7 @@ if [ -x ./shux_asm ] && [ "$LINK_OK" -eq 1 ]; then
       fi
     fi
     if [ "$_nostdlib_ok" -eq 1 ]; then
-      echo "build_shux_asm: bootstrap nostdlib final link OK (no libc/libm)"
+      build_shux_asm_info "bootstrap nostdlib final link OK (no libc/libm)"
     fi
   fi
 fi

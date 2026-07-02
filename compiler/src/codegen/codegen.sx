@@ -64,6 +64,13 @@ extern function pipeline_module_import_binding_name_byte_at(module: *Module, idx
 extern function pipeline_module_import_select_count_at(module: *Module, idx: i32): i32;
 extern function pipeline_module_import_select_name_len(module: *Module, idx: i32, sel: i32): i32;
 extern function pipeline_module_import_select_name_byte_at(module: *Module, idx: i32, sel: i32, off: i32): u8;
+extern function pipeline_module_import_path_len(module: *Module, idx: i32): i32;
+extern function pipeline_module_import_path_copy(module: *Module, idx: i32, dst: *u8, dst_cap: i32): void;
+extern function parser_get_module_num_imports(module: *Module): i32;
+extern function driver_dep_arena_buf(i: i32): *u8;
+extern function driver_dep_module_buf(i: i32): *u8;
+extern function driver_dep_seeded_get(i: i32): i32;
+extern function driver_dep_slot_for_path(path: *u8): i32;
 /** runtime.c：当前 codegen 单元的 dep 逻辑路径（如 std.io.core），dep 池 prefix 不可用时的回退。 */
 extern function driver_get_current_dep_path_for_codegen(): *u8;
 /** Expr 变长附属池读 API。 */
@@ -82,11 +89,15 @@ extern function pipeline_expr_struct_lit_init_ref(arena: *ASTArena, expr_ref: i3
 extern function pipeline_expr_struct_lit_num_fields(arena: *ASTArena, expr_ref: i32): i32;
 extern function pipeline_module_enum_name_len(module: *Module, idx: i32): i32;
 extern function pipeline_module_enum_name_byte_at(module: *Module, idx: i32, off: i32): u8;
+extern function pipeline_module_enum_num_variants(module: *Module, idx: i32): i32;
+extern function pipeline_module_enum_variant_name_len(module: *Module, idx: i32, variant_idx: i32): i32;
+extern function pipeline_module_enum_variant_name_byte_at(module: *Module, idx: i32, variant_idx: i32, off: i32): u8;
 extern function pipeline_module_top_level_let_is_const(module: *Module, idx: i32): i32;
 extern function pipeline_module_top_level_let_name_len(module: *Module, idx: i32): i32;
 extern function pipeline_module_top_level_let_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 extern function pipeline_module_top_level_let_type_ref(module: *Module, idx: i32): i32;
 extern function pipeline_module_top_level_let_init_ref(module: *Module, idx: i32): i32;
+extern function pipeline_codegen_dep_skip_sx_bootstrap_partial(path: *u8): i32;
 /** glue：C 指针读 module.funcs[fi].name / params[pi].name，避免 .sx 嵌套下标 typeck 与 asm GEP 问题。 */
 extern function pipeline_module_func_name_copy64(module: *Module, fi: i32, dst: *u8): void;
 extern function pipeline_module_func_param_name_copy32(module: *Module, fi: i32, pi: i32, dst: *u8): void;
@@ -228,6 +239,82 @@ function codegen_ctx_dep_path_for_current_codegen_module_into(ctx: *PipelineDepC
 }
 
 /**
+ * 读取当前 codegen 模块第 import_idx 条 import 的原始 import path。
+ * 返回长度，0 表示当前模块为空、索引无效或未记录路径。
+ */
+function codegen_module_import_path_len_at(module: *Module, import_idx: i32, dst: *u8): i32 {
+  if (module == 0 as *Module || dst == 0 as *u8 || import_idx < 0) {
+    return 0;
+  }
+  let plen: i32 = pipeline_module_import_path_len(module, import_idx);
+  if (plen <= 0) {
+    return 0;
+  }
+  pipeline_module_import_path_copy(module, import_idx, dst, 64);
+  return plen;
+}
+
+/**
+ * 以 import path 精确匹配 dep_ctx 中的全局 dep 槽位，返回 dep index；找不到返回 -1。
+ */
+function codegen_find_dep_index_by_path(ctx: *PipelineDepCtx, path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *PipelineDepCtx || path == 0 as *u8 || path_len <= 0) {
+    return -1;
+  }
+  let di: i32 = 0;
+  let nd: i32 = pipeline_dep_ctx_ndep(ctx);
+  while (di < nd) {
+    let dep_path: u8[64] = [];
+    let dep_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
+    if (dep_len == path_len) {
+      let eq: bool = true;
+      let k: i32 = 0;
+      while (k < path_len && k < 64) {
+        if (dep_path[k] != path[k]) {
+          eq = false;
+          break;
+        }
+        k = k + 1;
+      }
+      if (eq) {
+        return di;
+      }
+    }
+    di = di + 1;
+  }
+  return -1;
+}
+
+function codegen_find_seeded_global_dep_slot_by_path(path: *u8, path_len: i32): i32 {
+  if (path == 0 as *u8 || path_len <= 0 || path_len > 63) {
+    return -1;
+  }
+  let path_buf: u8[64] = [];
+  let i: i32 = 0;
+  while (i < path_len && i < 63) {
+    path_buf[i] = path[i];
+    i = i + 1;
+  }
+  path_buf[i] = 0 as u8;
+  let gs: i32 = driver_dep_slot_for_path(&path_buf[0]);
+  if (gs >= 0 && driver_dep_seeded_get(gs) != 0) {
+    return gs;
+  }
+  return -1;
+}
+
+function codegen_module_num_imports(module: *Module): i32 {
+  if (module == 0 as *Module) {
+    return 0;
+  }
+  let n_imp: i32 = parser_get_module_num_imports(module);
+  if (n_imp > 0) {
+    return n_imp;
+  }
+  return module.num_imports;
+}
+
+/**
  * 根据当前 codegen 模块在 dep 池中的逻辑路径，写入与 emit_func 一致的 C 符号前缀（buf 内 NUL 结尾），返回前缀字节长度（不含 NUL）。
  * 主模块未出现在 dep 池中时路径为空，返回 0；std.io.core 与 codegen_sx_ast 一致不加前缀。
  */
@@ -265,6 +352,429 @@ function codegen_emit_prefix_len_from_ctx(ctx: *PipelineDepCtx, buf: *u8, buf_ca
     i = i + 1;
   }
   return i;
+}
+
+/** 按形参类型选择 run v4 seed push 入口；与 codegen.c codegen_run_seed_push_fn 对齐。 */
+function codegen_emit_async_run_seed_push_name(out: *CodegenOutBuf, arena: *ASTArena, type_ref: i32): i32 {
+  let push_i32: u8[28] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 51, 50];
+  let push_u32: u8[28] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 51, 50];
+  let push_i64: u8[28] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 105, 54, 52];
+  let push_usize: u8[30] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 112, 117, 115, 104, 95, 117, 115, 105, 122, 101];
+  let kind_ord: i32 = TypeKind.TYPE_I32 as i32;
+  if (arena != 0 as *ASTArena && !ast.ref_is_null(type_ref)) {
+    kind_ord = pipeline_type_kind_ord_at(arena, type_ref);
+  }
+  if (kind_ord == (TypeKind.TYPE_U32 as i32)) {
+    return emit_bytes_from_ptr(out, &push_u32[0], 28);
+  }
+  if (kind_ord == (TypeKind.TYPE_I64 as i32)) {
+    return emit_bytes_from_ptr(out, &push_i64[0], 28);
+  }
+  if (kind_ord == (TypeKind.TYPE_USIZE as i32)) {
+    return emit_bytes_from_ptr(out, &push_usize[0], 30);
+  }
+  return emit_bytes_from_ptr(out, &push_i32[0], 28);
+}
+
+/** 输出 async 调度 wrapper 调用 `shux_async_sched_<fn>()`。 */
+function codegen_emit_async_sched_call(out: *CodegenOutBuf, module: *Module, func_index: i32): i32 {
+  let sched_prefix: u8[17] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
+  let fn_name: u8[64] = [];
+  let fn_len: i32 = 0;
+  if (module == 0 as *Module || func_index < 0 || func_index >= module.num_funcs) {
+    return -1;
+  }
+  fn_len = pipeline_module_func_name_len_at(module, func_index);
+  if (fn_len <= 0) {
+    return -1;
+  }
+  pipeline_module_func_name_copy64(module, func_index, &fn_name[0]);
+  if (emit_bytes_from_ptr(out, &sched_prefix[0], 17) != 0) {
+    return -1;
+  }
+  if (emit_bytes_from_ptr(out, &fn_name[0], fn_len) != 0) {
+    return -1;
+  }
+  if (append_byte(out, 40) != 0) {
+    return -1;
+  }
+  return append_byte(out, 41);
+}
+
+/** 输出 async 调度 wrapper 调用 `shux_async_sched_<name>()`。 */
+function codegen_emit_async_sched_call_by_name(out: *CodegenOutBuf, fn_name: *u8, fn_len: i32): i32 {
+  let sched_prefix: u8[17] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 115, 99, 104, 101, 100, 95];
+  if (out == 0 as *CodegenOutBuf || fn_name == 0 as *u8 || fn_len <= 0) {
+    return -1;
+  }
+  if (emit_bytes_from_ptr(out, &sched_prefix[0], 17) != 0) {
+    return -1;
+  }
+  if (emit_bytes_from_ptr(out, fn_name, fn_len) != 0) {
+    return -1;
+  }
+  if (append_byte(out, 40) != 0) {
+    return -1;
+  }
+  return append_byte(out, 41);
+}
+
+/** 输出 `shux_async_task_submit((int32_t (*)(void))fn)`；与 C 路径 spawn 对齐。 */
+function codegen_emit_async_task_submit_call(out: *CodegenOutBuf, module: *Module, func_index: i32): i32 {
+  let submit_name: u8[22] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
+  let cast_prefix: u8[19] = [40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41];
+  let fn_name: u8[64] = [];
+  let fn_len: i32 = 0;
+  if (module == 0 as *Module || func_index < 0 || func_index >= module.num_funcs) {
+    return -1;
+  }
+  fn_len = pipeline_module_func_name_len_at(module, func_index);
+  if (fn_len <= 0) {
+    return -1;
+  }
+  pipeline_module_func_name_copy64(module, func_index, &fn_name[0]);
+  if (emit_bytes_from_ptr(out, &submit_name[0], 22) != 0) {
+    return -1;
+  }
+  if (append_byte(out, 40) != 0) {
+    return -1;
+  }
+  if (emit_bytes_from_ptr(out, &cast_prefix[0], 19) != 0) {
+    return -1;
+  }
+  if (emit_bytes_from_ptr(out, &fn_name[0], fn_len) != 0) {
+    return -1;
+  }
+  if (append_byte(out, 41) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/** 输出 `shux_async_task_submit((int32_t (*)(void))prefix_name)`；spawn 的 binding import 回退路径复用。 */
+function codegen_emit_async_task_submit_call_by_symbol(out: *CodegenOutBuf, prefix: *u8, prefix_len: i32, fn_name: *u8, fn_len: i32): i32 {
+  let submit_name: u8[22] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 116, 97, 115, 107, 95, 115, 117, 98, 109, 105, 116];
+  let cast_prefix: u8[19] = [40, 105, 110, 116, 51, 50, 95, 116, 32, 40, 42, 41, 40, 118, 111, 105, 100, 41, 41];
+  if (out == 0 as *CodegenOutBuf || fn_name == 0 as *u8 || fn_len <= 0) {
+    return -1;
+  }
+  if (emit_bytes_from_ptr(out, &submit_name[0], 22) != 0) {
+    return -1;
+  }
+  if (append_byte(out, 40) != 0) {
+    return -1;
+  }
+  if (emit_bytes_from_ptr(out, &cast_prefix[0], 19) != 0) {
+    return -1;
+  }
+  if (prefix != 0 as *u8 && prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, prefix_len, fn_name, fn_len) == 0 && emit_bytes_from_ptr(out, prefix, prefix_len) != 0) {
+    return -1;
+  }
+  if (emit_bytes_from_ptr(out, fn_name, fn_len) != 0) {
+    return -1;
+  }
+  if (append_byte(out, 41) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/** binding import 的 run/spawn 回退：直接按 `binding.fn(...)` 的字段名与 import 前缀发射，避免依赖 dep module 元数据。 */
+function codegen_emit_async_binding_import_call(arena: *ASTArena, out: *CodegenOutBuf, call_expr_ref: i32, ctx: *PipelineDepCtx, is_spawn: i32): i32 {
+  let reset_name: u8[25] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
+  let comma: u8[3] = [44, 32, 0];
+  let dep_path: u8[64] = [];
+  let prefix_buf: u8[128] = [];
+  let dep_ix: i32 = -1;
+  let n_args: i32 = 0;
+  let ai: i32 = 0;
+  let prefix_len: i32 = 0;
+  if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+    return -1;
+  }
+  if (ast.ref_is_null(call_expr_ref) || call_expr_ref <= 0 || call_expr_ref > arena.num_exprs) {
+    return -1;
+  }
+  let call_e: Expr = ast.ast_arena_expr_get(arena, call_expr_ref);
+  if (call_e.kind != ExprKind.EXPR_CALL || ast.ref_is_null(call_e.call_callee_ref) || call_e.call_callee_ref <= 0 || call_e.call_callee_ref > arena.num_exprs) {
+    return -1;
+  }
+  let callee_e: Expr = ast.ast_arena_expr_get(arena, call_e.call_callee_ref);
+  if (callee_e.kind != ExprKind.EXPR_FIELD_ACCESS || callee_e.field_access_field_len <= 0) {
+    return -1;
+  }
+  n_args = call_e.call_num_args;
+  if (n_args < 0) {
+    return -1;
+  }
+  if (is_spawn == 0) {
+    if (n_args > 0) {
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &reset_name[0], 25) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 41) != 0) {
+        return -1;
+      }
+      ai = 0;
+      while (ai < n_args) {
+        let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, call_expr_ref, ai);
+        let arg_type_ref: i32 = 0;
+        if (emit_bytes_3(out, comma, 2) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(arg_ref)) {
+          arg_type_ref = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        }
+        if (codegen_emit_async_run_seed_push_name(out, arena, arg_type_ref) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(arg_ref) && emit_expr(arena, out, arg_ref, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        ai = ai + 1;
+      }
+      if (emit_bytes_3(out, comma, 2) != 0) {
+        return -1;
+      }
+      if (codegen_emit_async_sched_call_by_name(out, &callee_e.field_access_field_name[0], callee_e.field_access_field_len) != 0) {
+        return -1;
+      }
+      return append_byte(out, 41);
+    }
+    return codegen_emit_async_sched_call_by_name(out, &callee_e.field_access_field_name[0], callee_e.field_access_field_len);
+  }
+  dep_ix = codegen_resolve_binding_import_dep_index(ctx, arena, call_e.call_callee_ref);
+  if (dep_ix < 0 || dep_ix >= pipeline_dep_ctx_ndep(ctx)) {
+    return -1;
+  }
+  pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &dep_path[0]);
+  codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
+  while (prefix_len < 128 && prefix_buf[prefix_len] != 0) {
+    prefix_len = prefix_len + 1;
+  }
+  if (n_args > 0) {
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    ai = 0;
+    while (ai < n_args) {
+      let arg_ref2: i32 = pipeline_expr_call_arg_ref(arena, call_expr_ref, ai);
+      let arg_type_ref2: i32 = 0;
+      if (ai > 0 && emit_bytes_3(out, comma, 2) != 0) {
+        return -1;
+      }
+      if (!ast.ref_is_null(arg_ref2)) {
+        arg_type_ref2 = pipeline_expr_resolved_type_ref(arena, arg_ref2);
+      }
+      if (codegen_emit_async_run_seed_push_name(out, arena, arg_type_ref2) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      if (!ast.ref_is_null(arg_ref2) && emit_expr(arena, out, arg_ref2, ctx) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 41) != 0) {
+        return -1;
+      }
+      ai = ai + 1;
+    }
+    if (emit_bytes_3(out, comma, 2) != 0) {
+      return -1;
+    }
+    if (codegen_emit_async_task_submit_call_by_symbol(out, &prefix_buf[0], prefix_len, &callee_e.field_access_field_name[0], callee_e.field_access_field_len) != 0) {
+      return -1;
+    }
+    return append_byte(out, 41);
+  }
+  return codegen_emit_async_task_submit_call_by_symbol(out, &prefix_buf[0], prefix_len, &callee_e.field_access_field_name[0], callee_e.field_access_field_len);
+}
+
+/** `run dep.fn(args)` 等 METHOD_CALL async 回退：run 仅依赖 method 名，不需要 dep 前缀。 */
+function codegen_emit_async_method_call_run(arena: *ASTArena, out: *CodegenOutBuf, method_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  let reset_name: u8[25] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
+  let comma: u8[3] = [44, 32, 0];
+  let ai: i32 = 0;
+  if (arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+    return -1;
+  }
+  if (ast.ref_is_null(method_expr_ref) || method_expr_ref <= 0 || method_expr_ref > arena.num_exprs) {
+    return -1;
+  }
+  let method_e: Expr = ast.ast_arena_expr_get(arena, method_expr_ref);
+  if (method_e.kind != ExprKind.EXPR_METHOD_CALL || method_e.method_call_name_len <= 0) {
+    return -1;
+  }
+  if (method_e.method_call_num_args > 0) {
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (emit_bytes_from_ptr(out, &reset_name[0], 25) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 40) != 0) {
+      return -1;
+    }
+    if (append_byte(out, 41) != 0) {
+      return -1;
+    }
+    while (ai < method_e.method_call_num_args) {
+      let arg_ref: i32 = pipeline_expr_method_call_arg_ref(arena, method_expr_ref, ai);
+      let arg_type_ref: i32 = 0;
+      if (emit_bytes_3(out, comma, 2) != 0) {
+        return -1;
+      }
+      if (!ast.ref_is_null(arg_ref)) {
+        arg_type_ref = pipeline_expr_resolved_type_ref(arena, arg_ref);
+      }
+      if (codegen_emit_async_run_seed_push_name(out, arena, arg_type_ref) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      if (!ast.ref_is_null(arg_ref) && emit_expr(arena, out, arg_ref, ctx) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 41) != 0) {
+        return -1;
+      }
+      ai = ai + 1;
+    }
+    if (emit_bytes_3(out, comma, 2) != 0) {
+      return -1;
+    }
+    if (codegen_emit_async_sched_call_by_name(out, &method_e.method_call_name[0], method_e.method_call_name_len) != 0) {
+      return -1;
+    }
+    return append_byte(out, 41);
+  }
+  return codegen_emit_async_sched_call_by_name(out, &method_e.method_call_name[0], method_e.method_call_name_len);
+}
+
+/** 线性扫描 module.funcs，按 ASCII 函数名返回下标；找不到返回 -1。 */
+function codegen_find_module_func_index_by_name(module: *Module, nm: *u8, nm_len: i32): i32 {
+  if (module == 0 as *Module || nm == 0 as *u8 || nm_len <= 0) {
+    return -1;
+  }
+  let fi: i32 = 0;
+  while (fi < module.num_funcs) {
+    let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+    if (fn_len == nm_len && fn_len > 0) {
+      let fn_name: u8[64] = [];
+      let matched: i32 = 1;
+      let bi: i32 = 0;
+      pipeline_module_func_name_copy64(module, fi, &fn_name[0]);
+      while (bi < fn_len) {
+        if (fn_name[bi] != nm[bi]) {
+          matched = 0;
+          bi = fn_len;
+        } else {
+          bi = bi + 1;
+        }
+      }
+      if (matched != 0) {
+        return fi;
+      }
+    }
+    fi = fi + 1;
+  }
+  return -1;
+}
+
+/** 绑定 import（`const dep = import("...")`）的 `dep.fn(...)` 回退解析依赖槽，找不到返回 -1。 */
+function codegen_resolve_binding_import_dep_index(ctx: *PipelineDepCtx, arena: *ASTArena, callee_expr_ref: i32): i32 {
+  if (ctx == 0 as *PipelineDepCtx || arena == 0 as *ASTArena || ctx.current_codegen_module == 0 as *Module) {
+    return -1;
+  }
+  if (ast.ref_is_null(callee_expr_ref) || callee_expr_ref <= 0 || callee_expr_ref > arena.num_exprs) {
+    return -1;
+  }
+  let callee_e: Expr = ast.ast_arena_expr_get(arena, callee_expr_ref);
+  if (callee_e.kind != ExprKind.EXPR_FIELD_ACCESS || callee_e.field_access_base_ref <= 0 || callee_e.field_access_base_ref > arena.num_exprs) {
+    return -1;
+  }
+  let base_e: Expr = ast.ast_arena_expr_get(arena, callee_e.field_access_base_ref);
+  if (base_e.kind != ExprKind.EXPR_VAR || base_e.var_name_len <= 0 || base_e.var_name_len > 63) {
+    return -1;
+  }
+  let cur_mod: *Module = ctx.current_codegen_module;
+  let nd: i32 = pipeline_dep_ctx_ndep(ctx);
+  let j: i32 = 0;
+  let n_imp: i32 = codegen_module_num_imports(cur_mod);
+  while (j < n_imp && j < nd) {
+    if (pipeline_module_import_kind_at(cur_mod, j) == 1) {
+      let bind_len: i32 = pipeline_module_import_binding_name_len(cur_mod, j);
+      if (bind_len == base_e.var_name_len) {
+        let matched: i32 = 1;
+        let kk: i32 = 0;
+        while (kk < bind_len) {
+          if (base_e.var_name[kk] != pipeline_module_import_binding_name_byte_at(cur_mod, j, kk)) {
+            matched = 0;
+            kk = bind_len;
+          } else {
+            kk = kk + 1;
+          }
+        }
+        if (matched != 0) {
+          let import_path: u8[64] = [];
+          let import_path_len: i32 = codegen_module_import_path_len_at(cur_mod, j, &import_path[0]);
+          if (import_path_len <= 0) {
+            return -1;
+          }
+          return codegen_find_dep_index_by_path(ctx, &import_path[0], import_path_len);
+        }
+      }
+    }
+    j = j + 1;
+  }
+  return -1;
+}
+
+/** run/spawn 的 resolved_func_index 未填稳时，回退按 callee/method 名在线性扫描目标模块函数。 */
+function codegen_resolve_call_target_func_index(arena: *ASTArena, module: *Module, call_expr_ref: i32): i32 {
+  let func_ix: i32 = -1;
+  if (module == 0 as *Module || arena == 0 as *ASTArena) {
+    return -1;
+  }
+  func_ix = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
+  if (func_ix >= 0 && func_ix < module.num_funcs) {
+    return func_ix;
+  }
+  if (ast.ref_is_null(call_expr_ref) || call_expr_ref <= 0 || call_expr_ref > arena.num_exprs) {
+    return -1;
+  }
+  let call_e: Expr = ast.ast_arena_expr_get(arena, call_expr_ref);
+  if (call_e.kind == ExprKind.EXPR_CALL) {
+    if (ast.ref_is_null(call_e.call_callee_ref) || call_e.call_callee_ref <= 0 || call_e.call_callee_ref > arena.num_exprs) {
+      return -1;
+    }
+    let callee_e: Expr = ast.ast_arena_expr_get(arena, call_e.call_callee_ref);
+    if (callee_e.kind == ExprKind.EXPR_VAR && callee_e.var_name_len > 0) {
+      return codegen_find_module_func_index_by_name(module, &callee_e.var_name[0], callee_e.var_name_len);
+    }
+    if (callee_e.kind == ExprKind.EXPR_FIELD_ACCESS && callee_e.field_access_field_len > 0) {
+      return codegen_find_module_func_index_by_name(module, &callee_e.field_access_field_name[0], callee_e.field_access_field_len);
+    }
+    return -1;
+  }
+  if (call_e.kind == ExprKind.EXPR_METHOD_CALL && call_e.method_call_name_len > 0) {
+    return codegen_find_module_func_index_by_name(module, &call_e.method_call_name[0], call_e.method_call_name_len);
+  }
+  return -1;
 }
 
 /**
@@ -1648,6 +2158,8 @@ function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, struct_
   }
   name_len = pipeline_type_named_name_into(arena, type_ref, &nm[0]);
   if (tk == TypeKind.TYPE_NAMED && name_len > 0) {
+    let dep_prefix_buf: u8[128] = [];
+    let dep_prefix_len: i32 = 0;
     /* 解构 import("std.io.driver") 的 Buffer：与 preamble typedef std_io_Buffer / struct std_io_driver_Buffer 一致。 */
     if (name_len == 6 && nm[0] == 66 && nm[1] == 117 && nm[2] == 102 && nm[3] == 102
         && nm[4] == 101 && nm[5] == 114) {
@@ -1664,13 +2176,24 @@ function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, struct_
     if (emit_bytes_8(out, s, 7) != 0) {
       return -1;
     }
+    dep_prefix_len = codegen_type_dep_struct_prefix_into(ctx, arena, type_ref, &dep_prefix_buf[0], 128);
     if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
       if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
         return -1;
       }
+    } else if (dep_prefix_len > 0) {
+      if (emit_bytes_from_ptr(out, &dep_prefix_buf[0], dep_prefix_len) != 0) {
+        return -1;
+      }
     } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
         && codegen_type_is_module_user_struct(ctx.current_codegen_module, arena, type_ref) != 0) {
-      /* 用户 struct：struct Point */
+      if (ctx.current_codegen_dep_index >= 0) {
+        let cur_pre: u8[128] = [];
+        let cur_pre_len: i32 = codegen_emit_prefix_len_from_ctx(ctx, &cur_pre[0], 128);
+        if (cur_pre_len > 0 && emit_bytes_from_ptr(out, &cur_pre[0], cur_pre_len) != 0) {
+          return -1;
+        }
+      }
     } else {
       /* 无前缀时默认 ast_，生成 struct ast_ASTArena / struct ast_Type 等 */
       let ast_p: u8[4] = [97, 115, 116, 95];
@@ -1716,6 +2239,65 @@ function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, struct_
     return emit_type(arena, out, elem_ref, struct_prefix, struct_prefix_len, ctx);
   }
   return emit_type_kind_ord(out, tk);
+}
+
+/**
+ * 入口模块 codegen 时，若 TYPE_NAMED 实际来自某个 dep 模块的 struct_layouts，
+ * 则返回该 dep 的 C 前缀长度并写入 dst（如 lexer_ / std_io_driver_）。
+ * 这与宿主 C codegen 的 dep struct 前缀解析保持一致，避免错误回退为 ast_。
+ */
+function codegen_type_dep_struct_prefix_into(ctx: *PipelineDepCtx, arena: *ASTArena, type_ref: i32, dst: *u8, dst_cap: i32): i32 {
+  let name_len: i32 = 0;
+  let ty_nm: u8[64] = [];
+  let di: i32 = 0;
+  if (ctx == 0 as *PipelineDepCtx || arena == 0 as *ASTArena || dst == 0 as *u8 || dst_cap <= 0 || ast.ref_is_null(type_ref)) {
+    return 0;
+  }
+  if (pipeline_type_kind_ord_at(arena, type_ref) != TypeKind.TYPE_NAMED) {
+    return 0;
+  }
+  name_len = pipeline_type_named_name_into(arena, type_ref, &ty_nm[0]);
+  if (name_len <= 0) {
+    return 0;
+  }
+  di = 0;
+  while (di < pipeline_dep_ctx_ndep(ctx)) {
+    let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
+    if (dep_mod != 0 as *Module) {
+      let li: i32 = 0;
+      while (li < dep_mod.num_struct_layouts) {
+        let dep_name_len: i32 = pipeline_module_struct_layout_name_len(dep_mod, li);
+        if (dep_name_len == name_len) {
+          let dep_nm: u8[64] = [];
+          let eq: bool = true;
+          let j: i32 = 0;
+          pipeline_module_struct_layout_name_into(dep_mod, li, &dep_nm[0]);
+          while (j < name_len && j < 64) {
+            if (dep_nm[j] != ty_nm[j]) {
+              eq = false;
+              break;
+            }
+            j = j + 1;
+          }
+          if (eq) {
+            let dep_path: u8[64] = [];
+            let plen: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
+            if (plen > 0) {
+              codegen_import_path_to_c_prefix_into(&dep_path[0], dst, dst_cap);
+              let out_len: i32 = 0;
+              while (out_len < dst_cap && dst[out_len] != 0 as u8) {
+                out_len = out_len + 1;
+              }
+              return out_len;
+            }
+          }
+        }
+        li = li + 1;
+      }
+    }
+    di = di + 1;
+  }
+  return 0;
 }
 
 /**
@@ -1986,6 +2568,49 @@ function codegen_type_is_module_user_enum(module: *Module, arena: *ASTArena, typ
 }
 
 /**
+ * 发射完整 struct 字段声明，支持多维数组的 `type name[N][M]` 顺序；
+ * 与旧 C glue 的职责相同，但改在 SX 侧走 emit_type(ctx) 以正确解析 dep struct 前缀。
+ */
+function codegen_emit_struct_field_decl_sx(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, field_name: *u8, field_name_len: i32, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
+  let base_ref: i32 = type_ref;
+  if (ast.ref_is_null(type_ref) || field_name == 0 as *u8 || field_name_len <= 0) {
+    return -1;
+  }
+  while (!ast.ref_is_null(base_ref) && pipeline_type_kind_ord_at(arena, base_ref) == TypeKind.TYPE_ARRAY) {
+    let inner: i32 = pipeline_type_elem_ref_at(arena, base_ref);
+    if (ast.ref_is_null(inner)) {
+      break;
+    }
+    base_ref = inner;
+  }
+  if (emit_type(arena, out, base_ref, struct_prefix, struct_prefix_len, ctx) != 0) {
+    return -1;
+  }
+  if (append_byte(out, 32) != 0) {
+    return -1;
+  }
+  if (emit_bytes_from_ptr(out, field_name, field_name_len) != 0) {
+    return -1;
+  }
+  let dims_ref: i32 = type_ref;
+  while (!ast.ref_is_null(dims_ref) && pipeline_type_kind_ord_at(arena, dims_ref) == TypeKind.TYPE_ARRAY) {
+    let lbr: u8[2] = [91, 0];
+    let rbr: u8[2] = [93, 0];
+    if (emit_bytes_2(out, lbr, 1) != 0) {
+      return -1;
+    }
+    if (format_int(out, pipeline_type_array_size_at(arena, dims_ref)) != 0) {
+      return -1;
+    }
+    if (emit_bytes_2(out, rbr, 1) != 0) {
+      return -1;
+    }
+    dims_ref = pipeline_type_elem_ref_at(arena, dims_ref);
+  }
+  return 0;
+}
+
+/**
  * 遍历 module.struct_layouts，发射完整 C struct（须在首次使用类型之前）；名称与字段名由 glue 读出。
  */
 function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, struct_prefix: *u8, struct_prefix_len: i32, ctx: *PipelineDepCtx): i32 {
@@ -2039,7 +2664,7 @@ function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTAren
       }
       let fnm: u8[64] = [];
       pipeline_module_struct_layout_field_name_into(module, k, j, &fnm[0]);
-      if (pipeline_codegen_emit_struct_field_decl(arena, out, ftr, &fnm[0], flen, struct_prefix, struct_prefix_len) != 0) {
+      if (codegen_emit_struct_field_decl_sx(arena, out, ftr, &fnm[0], flen, 0 as *u8, 0, ctx) != 0) {
         return -1;
       }
       let semi_nl: u8[3] = [59, 10, 0];
@@ -2058,31 +2683,209 @@ function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTAren
 }
 
 /**
- * binding.CONST：将 dep 模块顶层 const 生成为 prefix+const_name（如 async_mod.POLL_PENDING）。
- * 非 import binding 常量访问时返回 -1。
+ * 遍历 module.enums，按 `enum prefix_Name { prefix_Name_Variant, ... };` 发射完整 C enum。
+ * 供 entry 单文件模式为“被跳过或纯类型 dep”补齐类型定义，避免 dep struct 字段引用不完整 enum。
  */
-function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
-  if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
-    return -1;
+function codegen_emit_module_enum_definitions(module: *Module, out: *CodegenOutBuf, enum_prefix: *u8, enum_prefix_len: i32): i32 {
+  let ei: i32 = 0;
+  while (ei < module.num_module_enums) {
+    let enl: i32 = pipeline_module_enum_name_len(module, ei);
+    if (enl <= 0) {
+      ei = ei + 1;
+      continue;
+    }
+    let enm: u8[64] = [];
+    let hdr: u8[8] = [101, 110, 117, 109, 32, 0, 0, 0];
+    let open: u8[4] = [32, 123, 32, 0];
+    let close: u8[6] = [32, 125, 59, 10, 0, 0];
+    let comma: u8[3] = [44, 32, 0];
+    pipeline_module_enum_name_byte_at(module, ei, 0);
+    let nk: i32 = 0;
+    while (nk < enl && nk < 64) {
+      enm[nk] = pipeline_module_enum_name_byte_at(module, ei, nk);
+      nk = nk + 1;
+    }
+    if (emit_bytes_from_ptr(out, &hdr[0], 5) != 0) {
+      return -1;
+    }
+    if (enum_prefix != 0 as *u8 && enum_prefix_len > 0) {
+      if (emit_bytes_from_ptr(out, enum_prefix, enum_prefix_len) != 0) {
+        return -1;
+      }
+    }
+    if (emit_bytes_from_ptr(out, &enm[0], enl) != 0) {
+      return -1;
+    }
+    if (emit_bytes_4(out, open, 3) != 0) {
+      return -1;
+    }
+    let nv: i32 = pipeline_module_enum_num_variants(module, ei);
+    let vi: i32 = 0;
+    while (vi < nv) {
+      let vlen: i32 = pipeline_module_enum_variant_name_len(module, ei, vi);
+      let vnm: u8[64] = [];
+      let vk: i32 = 0;
+      if (vi > 0) {
+        if (emit_bytes_3(out, comma, 2) != 0) {
+          return -1;
+        }
+      }
+      while (vk < vlen && vk < 64) {
+        vnm[vk] = pipeline_module_enum_variant_name_byte_at(module, ei, vi, vk);
+        vk = vk + 1;
+      }
+      if (enum_prefix != 0 as *u8 && enum_prefix_len > 0) {
+        if (emit_bytes_from_ptr(out, enum_prefix, enum_prefix_len) != 0) {
+          return -1;
+        }
+      }
+      if (emit_bytes_from_ptr(out, &enm[0], enl) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 95) != 0) {
+        return -1;
+      }
+      if (vlen > 0 && emit_bytes_from_ptr(out, &vnm[0], vlen) != 0) {
+        return -1;
+      }
+      vi = vi + 1;
+    }
+    if (emit_bytes_from_ptr(out, &close[0], 4) != 0) {
+      return -1;
+    }
+    ei = ei + 1;
   }
-  if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
-    return -1;
+  return 0;
+}
+
+/**
+ * entry 单文件模式下，某些 dep 会被 pipeline 层整块跳过（如 lexer/ast/parser/bootstrap partial），
+ * 或者仅含类型而无函数体（如 token）。这些 dep 的 enum/struct 仍需先发射，否则 entry C 会因不完整类型失败。
+ */
+function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, out: *CodegenOutBuf): i32 {
+  if (ctx == 0 as *PipelineDepCtx || out == 0 as *CodegenOutBuf) {
+    return 0;
+  }
+  let saved_module: *Module = ctx.current_codegen_module;
+  let saved_arena: *ASTArena = ctx.current_codegen_arena;
+  let saved_dep_index: i32 = ctx.current_codegen_dep_index;
+  let saved_prefix_len: i32 = ctx.current_codegen_prefix_len;
+  let saved_prefix: u8[64] = [];
+  let sp: i32 = 0;
+  while (sp < 64) {
+    saved_prefix[sp] = ctx.current_codegen_prefix_mirror[sp];
+    sp = sp + 1;
+  }
+  let nd: i32 = pipeline_dep_ctx_ndep(ctx);
+  let phase: i32 = 0;
+  while (phase < 2) {
+    let di: i32 = 0;
+    while (di < nd) {
+      let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
+      let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di);
+      let dep_path: u8[64] = [];
+      let dep_path_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
+      if (dep_mod != 0 as *Module && dep_arena != 0 as *ASTArena && dep_path_len > 0) {
+        let should_emit_types: i32 = 0;
+        if (phase == 0 && dep_mod.num_funcs <= 0) {
+          should_emit_types = 1;
+        } else if (phase == 1 && dep_mod.num_funcs > 0 && pipeline_codegen_dep_skip_sx_bootstrap_partial(&dep_path[0]) != 0) {
+          should_emit_types = 1;
+        }
+        if (should_emit_types != 0) {
+          let seen_before: i32 = 0;
+          let pj: i32 = 0;
+          while (pj < di) {
+            let prev_path: u8[64] = [];
+            let prev_len: i32 = codegen_dep_import_path_len_at(ctx, pj, &prev_path[0]);
+            if (prev_len == dep_path_len) {
+              let eq_prev: bool = true;
+              let pk: i32 = 0;
+              while (pk < dep_path_len && pk < 64) {
+                if (prev_path[pk] != dep_path[pk]) {
+                  eq_prev = false;
+                  break;
+                }
+                pk = pk + 1;
+              }
+              if (eq_prev) {
+                seen_before = 1;
+                break;
+              }
+            }
+            pj = pj + 1;
+          }
+          if (seen_before == 0) {
+            let prefix_buf: u8[128] = [];
+            let prefix_len: i32 = 0;
+            if (codegen_path_is_std_io_core_bytes(&dep_path[0]) == 0) {
+              codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
+              while (prefix_len < 128 && prefix_buf[prefix_len] != 0 as u8) {
+                prefix_len = prefix_len + 1;
+              }
+            }
+            ctx.current_codegen_module = dep_mod;
+            ctx.current_codegen_arena = dep_arena;
+            ctx.current_codegen_dep_index = di;
+            ctx.current_codegen_prefix_len = 0;
+            let px: i32 = 0;
+            while (px < prefix_len && px < 63) {
+              ctx.current_codegen_prefix_mirror[px] = prefix_buf[px];
+              px = px + 1;
+            }
+            ctx.current_codegen_prefix_mirror[px] = 0 as u8;
+            ctx.current_codegen_prefix_len = px;
+            if (codegen_emit_module_enum_definitions(dep_mod, out, &prefix_buf[0], prefix_len) != 0) {
+              return -1;
+            }
+            if (codegen_emit_module_struct_definitions(dep_mod, dep_arena, out, &prefix_buf[0], prefix_len, ctx) != 0) {
+              return -1;
+            }
+          }
+        }
+      }
+      di = di + 1;
+    }
+    phase = phase + 1;
+  }
+  ctx.current_codegen_module = saved_module;
+  ctx.current_codegen_arena = saved_arena;
+  ctx.current_codegen_dep_index = saved_dep_index;
+  ctx.current_codegen_prefix_len = saved_prefix_len;
+  sp = 0;
+  while (sp < 64) {
+    ctx.current_codegen_prefix_mirror[sp] = saved_prefix[sp];
+    sp = sp + 1;
+  }
+  return 0;
+}
+
+/**
+ * 若字段访问形如 binding.field，且 binding 为当前模块 import 绑定名，则把该 import 的路径写入 dst 并返回长度。
+ * 仅做 binding->path 解析，不校验 field 是否真为 const / function。
+ */
+function codegen_resolve_binding_import_path_for_field_access(ctx: *PipelineDepCtx, arena: *ASTArena, expr_ref: i32, dst: *u8): i32 {
+  if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
+    return 0;
+  }
+  if (arena == 0 as *ASTArena || dst == 0 as *u8 || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    return 0;
   }
   let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
   if (e.kind != ExprKind.EXPR_FIELD_ACCESS) {
-    return -1;
+    return 0;
   }
   if (e.field_access_base_ref <= 0 || e.field_access_base_ref > arena.num_exprs) {
-    return -1;
+    return 0;
   }
   let base: Expr = ast.ast_arena_expr_get(arena, e.field_access_base_ref);
   if (base.kind != ExprKind.EXPR_VAR || base.var_name_len <= 0) {
-    return -1;
+    return 0;
   }
   let cur_mod: *Module = ctx.current_codegen_module;
   let j: i32 = 0;
-  let nd: i32 = pipeline_dep_ctx_ndep(ctx);
-  while (j < cur_mod.num_imports && j < nd) {
+  let n_imp: i32 = codegen_module_num_imports(cur_mod);
+  while (j < n_imp) {
     if (pipeline_module_import_kind_at(cur_mod, j) != 1) {
       j = j + 1;
       continue;
@@ -2105,52 +2908,146 @@ function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOutBuf, e
       j = j + 1;
       continue;
     }
-    let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, j);
-    if (dep_mod == 0 as *Module) {
+    return codegen_module_import_path_len_at(cur_mod, j, dst);
+  }
+  return 0;
+}
+
+/**
+ * 若方法调用形如 binding.method(...)，且 binding 为当前模块 import 绑定名，则把该 import 的路径写入 dst 并返回长度。
+ * 仅做 binding->path 解析，不依赖 typeck 已写入 resolved dep。
+ */
+function codegen_resolve_binding_import_path_for_method_call(ctx: *PipelineDepCtx, arena: *ASTArena, expr_ref: i32, dst: *u8): i32 {
+  if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
+    return 0;
+  }
+  if (arena == 0 as *ASTArena || dst == 0 as *u8 || expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    return 0;
+  }
+  let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+  if (e.kind != ExprKind.EXPR_METHOD_CALL) {
+    return 0;
+  }
+  if (e.method_call_base_ref <= 0 || e.method_call_base_ref > arena.num_exprs) {
+    return 0;
+  }
+  let base: Expr = ast.ast_arena_expr_get(arena, e.method_call_base_ref);
+  if (base.kind != ExprKind.EXPR_VAR || base.var_name_len <= 0) {
+    return 0;
+  }
+  let cur_mod: *Module = ctx.current_codegen_module;
+  let j: i32 = 0;
+  let n_imp: i32 = codegen_module_num_imports(cur_mod);
+  while (j < n_imp) {
+    if (pipeline_module_import_kind_at(cur_mod, j) != 1) {
       j = j + 1;
       continue;
     }
-    let ti: i32 = 0;
-    while (ti < dep_mod.num_top_level_lets) {
-      if (pipeline_module_top_level_let_is_const(dep_mod, ti) == 0) {
-        ti = ti + 1;
-        continue;
-      }
-      let nlen: i32 = pipeline_module_top_level_let_name_len(dep_mod, ti);
-      if (nlen != e.field_access_field_len) {
-        ti = ti + 1;
-        continue;
-      }
-      let nm_eq: bool = true;
-      let ni: i32 = 0;
-      while (ni < nlen) {
-        if (pipeline_module_top_level_let_name_byte_at(dep_mod, ti, ni) != e.field_access_field_name[ni]) {
-          nm_eq = false;
-          break;
-        }
-        ni = ni + 1;
-      }
-      if (!nm_eq) {
-        ti = ti + 1;
-        continue;
-      }
-      let dep_path: u8[64] = [];
-      pipeline_dep_ctx_import_path_copy64(ctx, j, &dep_path[0]);
-      let pre: u8[128] = [];
-      codegen_import_path_to_c_prefix_into(&dep_path[0], &pre[0], 128);
-      let plen: i32 = 0;
-      while (plen < 128 && pre[plen] != 0) {
-        plen = plen + 1;
-      }
-      if (plen > 0 && emit_bytes_from_ptr(out, &pre[0], plen) != 0) {
-        return -1;
-      }
-      if (e.field_access_field_len > 0 && emit_bytes_from_ptr(out, &e.field_access_field_name[0], e.field_access_field_len) != 0) {
-        return -1;
-      }
-      return 0;
+    let bind_len: i32 = pipeline_module_import_binding_name_len(cur_mod, j);
+    if (bind_len != base.var_name_len) {
+      j = j + 1;
+      continue;
     }
-    j = j + 1;
+    let eq: bool = true;
+    let kk: i32 = 0;
+    while (kk < base.var_name_len) {
+      if (base.var_name[kk] != pipeline_module_import_binding_name_byte_at(cur_mod, j, kk)) {
+        eq = false;
+        break;
+      }
+      kk = kk + 1;
+    }
+    if (!eq) {
+      j = j + 1;
+      continue;
+    }
+    return codegen_module_import_path_len_at(cur_mod, j, dst);
+  }
+  return 0;
+}
+
+/**
+ * binding.field：将 import binding 上的字段访问扁平化为 prefix+field（如 heap_libc.heap_alloc_c -> std_heap_libc_heap_alloc_c）。
+ * 仅在字段访问确实落到 import binding 时成功；否则返回 -1。
+ */
+function emit_import_module_field_symbol(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  if (ctx == 0 as *PipelineDepCtx || arena == 0 as *ASTArena || out == 0 as *CodegenOutBuf) {
+    return -1;
+  }
+  if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    return -1;
+  }
+  let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+  let dep_path: u8[64] = [];
+  let dep_path_len: i32 = codegen_resolve_binding_import_path_for_field_access(ctx, arena, expr_ref, &dep_path[0]);
+  if (e.kind != ExprKind.EXPR_FIELD_ACCESS || dep_path_len <= 0) {
+    return -1;
+  }
+  let pre: u8[128] = [];
+  codegen_import_path_to_c_prefix_into(&dep_path[0], &pre[0], 128);
+  let plen: i32 = 0;
+  while (plen < 128 && pre[plen] != 0) {
+    plen = plen + 1;
+  }
+  if (plen > 0 && codegen_c_prefix_redundant_with_name(&pre[0], plen, &e.field_access_field_name[0], e.field_access_field_len) == 0 && emit_bytes_from_ptr(out, &pre[0], plen) != 0) {
+    return -1;
+  }
+  if (e.field_access_field_len > 0 && emit_bytes_from_ptr(out, &e.field_access_field_name[0], e.field_access_field_len) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * binding.CONST：将 dep 模块顶层 const 生成为 prefix+const_name（如 async_mod.POLL_PENDING）。
+ * 非 import binding 常量访问时返回 -1。
+ */
+function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *PipelineDepCtx): i32 {
+  if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
+    return -1;
+  }
+  if (expr_ref <= 0 || expr_ref > arena.num_exprs) {
+    return -1;
+  }
+  let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+  let dep_path: u8[64] = [];
+  let dep_path_len: i32 = codegen_resolve_binding_import_path_for_field_access(ctx, arena, expr_ref, &dep_path[0]);
+  if (e.kind != ExprKind.EXPR_FIELD_ACCESS || dep_path_len <= 0) {
+    return -1;
+  }
+  let dep_ix: i32 = codegen_find_dep_index_by_path(ctx, &dep_path[0], dep_path_len);
+  if (dep_ix < 0 || dep_ix >= pipeline_dep_ctx_ndep(ctx)) {
+    return -1;
+  }
+  let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix);
+  if (dep_mod == 0 as *Module) {
+    return -1;
+  }
+  let ti: i32 = 0;
+  while (ti < dep_mod.num_top_level_lets) {
+    if (pipeline_module_top_level_let_is_const(dep_mod, ti) == 0) {
+      ti = ti + 1;
+      continue;
+    }
+    let nlen: i32 = pipeline_module_top_level_let_name_len(dep_mod, ti);
+    if (nlen != e.field_access_field_len) {
+      ti = ti + 1;
+      continue;
+    }
+    let nm_eq: bool = true;
+    let ni: i32 = 0;
+    while (ni < nlen) {
+      if (pipeline_module_top_level_let_name_byte_at(dep_mod, ti, ni) != e.field_access_field_name[ni]) {
+        nm_eq = false;
+        break;
+      }
+      ni = ni + 1;
+    }
+    if (!nm_eq) {
+      ti = ti + 1;
+      continue;
+    }
+    return emit_import_module_field_symbol(arena, out, expr_ref, ctx);
   }
   return -1;
 }
@@ -2167,6 +3064,83 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
     return 0;
   }
   let e: Expr = ast.ast_arena_expr_get(arena, expr_ref);
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) == 59) {
+    let slen: i32 = e.var_name_len;
+    let emit_slice: bool = false;
+    if (slen < 0) {
+      slen = 0;
+    }
+    if (slen > 63) {
+      slen = 63;
+    }
+    if (!ast.ref_is_null(e.resolved_type_ref) && e.resolved_type_ref > 0 && e.resolved_type_ref <= arena.num_types) {
+      let sty: Type = ast.ast_arena_type_get(arena, e.resolved_type_ref);
+      if (sty.kind == TypeKind.TYPE_SLICE) {
+        emit_slice = true;
+      }
+    }
+    if (emit_slice) {
+      let slice_mid: u8[13] = [41, 123, 32, 46, 100, 97, 116, 97, 32, 61, 32, 40, 0];
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      if (emit_type(arena, out, e.resolved_type_ref, 0 as *u8, 0, ctx) != 0) {
+        return -1;
+      }
+      if (emit_bytes_from_ptr(out, &slice_mid[0], 12) != 0) {
+        return -1;
+      }
+    } else {
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+    }
+    let u8ty: u8[9] = [117, 105, 110, 116, 56, 95, 116, 0, 0];
+    if (emit_bytes_9(out, u8ty, 7) != 0) {
+      return -1;
+    }
+    let arr_head: u8[5] = [91, 93, 41, 123, 0];
+    if (emit_bytes_5(out, arr_head, 4) != 0) {
+      return -1;
+    }
+    if (slen == 0) {
+      if (append_byte(out, 48) != 0) {
+        return -1;
+      }
+    } else {
+      let si: i32 = 0;
+      while (si < slen) {
+        if (si > 0) {
+          let comma: u8[3] = [44, 32, 0];
+          if (emit_bytes_3(out, comma, 2) != 0) {
+            return -1;
+          }
+        }
+        if (format_int(out, e.var_name[si] as i32) != 0) {
+          return -1;
+        }
+        si = si + 1;
+      }
+    }
+    if (emit_slice) {
+      let slice_tail: u8[18] = [32, 125, 44, 32, 46, 108, 101, 110, 103, 116, 104, 32, 61, 32, 0, 0, 0, 0];
+      if (emit_bytes_from_ptr(out, &slice_tail[0], 14) != 0) {
+        return -1;
+      }
+      if (format_int(out, slen) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 32) != 0) {
+        return -1;
+      }
+      if (append_byte(out, 125) != 0) {
+        return -1;
+      }
+      return 0;
+    }
+    let close: u8[4] = [32, 125, 0, 0];
+    return emit_bytes_4(out, close, 2);
+  }
   if (e.kind == ExprKind.EXPR_LIT) {
     return format_int(out, e.int_val);
   }
@@ -2477,6 +3451,173 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
     }
     return 0;
   }
+  if (e.kind == ExprKind.EXPR_AWAIT) {
+    if (!ast.ref_is_null(e.unary_operand_ref) && emit_expr(arena, out, e.unary_operand_ref, ctx) != 0) {
+      return -1;
+    }
+    return 0;
+  }
+  if (e.kind == ExprKind.EXPR_RUN || e.kind == ExprKind.EXPR_SPAWN) {
+    let op_ref: i32 = e.unary_operand_ref;
+    let dep_ix: i32 = -1;
+    let func_ix: i32 = -1;
+    let target_mod: *Module = 0 as *Module;
+    let n_args: i32 = 0;
+    let num_params: i32 = 0;
+    let ai: i32 = 0;
+    let op_is_call: i32 = 0;
+    let reset_name: u8[25] = [115, 104, 117, 120, 95, 97, 115, 121, 110, 99, 95, 114, 117, 110, 95, 115, 101, 101, 100, 95, 114, 101, 115, 101, 116];
+    let comma: u8[3] = [44, 32, 0];
+    if (ctx == 0 as *PipelineDepCtx || ctx.current_codegen_module == 0 as *Module) {
+      return -1;
+    }
+    if (ast.ref_is_null(op_ref) || op_ref <= 0 || op_ref > arena.num_exprs) {
+      return -1;
+    }
+    let op: Expr = ast.ast_arena_expr_get(arena, op_ref);
+    if (op.kind == ExprKind.EXPR_CALL) {
+      op_is_call = 1;
+    } else if (op.kind != ExprKind.EXPR_METHOD_CALL) {
+      return -1;
+    }
+    if (e.kind == ExprKind.EXPR_RUN && op.kind == ExprKind.EXPR_METHOD_CALL && codegen_emit_async_method_call_run(arena, out, op_ref, ctx) == 0) {
+      return 0;
+    }
+    if (op_is_call != 0 && op.call_callee_ref > 0 && op.call_callee_ref <= arena.num_exprs) {
+      let fast_callee: Expr = ast.ast_arena_expr_get(arena, op.call_callee_ref);
+      if (fast_callee.kind == ExprKind.EXPR_FIELD_ACCESS && codegen_emit_async_binding_import_call(arena, out, op_ref, ctx, if (e.kind == ExprKind.EXPR_SPAWN) { 1 } else { 0 }) == 0) {
+        return 0;
+      }
+    }
+    dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, op_ref);
+    if (dep_ix < 0 && op_is_call != 0) {
+      dep_ix = codegen_resolve_binding_import_dep_index(ctx, arena, op.call_callee_ref);
+    }
+    if (dep_ix >= 0) {
+      if (dep_ix >= pipeline_dep_ctx_ndep(ctx)) {
+        return -1;
+      }
+      target_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+    } else {
+      target_mod = ctx.current_codegen_module;
+    }
+    if (target_mod != 0 as *Module) {
+      func_ix = codegen_resolve_call_target_func_index(arena, target_mod, op_ref);
+    }
+    if (dep_ix >= 0 && (target_mod == 0 as *Module || func_ix < 0 || func_ix >= target_mod.num_funcs)) {
+      return codegen_emit_async_binding_import_call(arena, out, op_ref, ctx, if (e.kind == ExprKind.EXPR_SPAWN) { 1 } else { 0 });
+    }
+    if (target_mod == 0 as *Module) {
+      return -1;
+    }
+    if (func_ix < 0 || func_ix >= target_mod.num_funcs) {
+      return -1;
+    }
+    if (op_is_call != 0) {
+      n_args = op.call_num_args;
+    } else {
+      n_args = op.method_call_num_args;
+    }
+    if (n_args < 0) {
+      return -1;
+    }
+    num_params = pipeline_module_func_num_params_at(target_mod, func_ix);
+    if (e.kind == ExprKind.EXPR_RUN) {
+      if (n_args > 0) {
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &reset_name[0], 25) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        ai = 0;
+        while (ai < n_args) {
+          let arg_ref: i32 = 0;
+          let param_type_ref: i32 = 0;
+          if (emit_bytes_3(out, comma, 2) != 0) {
+            return -1;
+          }
+          if (op_is_call != 0) {
+            arg_ref = pipeline_expr_call_arg_ref(arena, op_ref, ai);
+          } else {
+            arg_ref = pipeline_expr_method_call_arg_ref(arena, op_ref, ai);
+          }
+          if (ai < num_params) {
+            param_type_ref = pipeline_module_func_param_type_ref_at(target_mod, func_ix, ai);
+          }
+          if (codegen_emit_async_run_seed_push_name(out, arena, param_type_ref) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 40) != 0) {
+            return -1;
+          }
+          if (!ast.ref_is_null(arg_ref) && emit_expr(arena, out, arg_ref, ctx) != 0) {
+            return -1;
+          }
+          if (append_byte(out, 41) != 0) {
+            return -1;
+          }
+          ai = ai + 1;
+        }
+        if (emit_bytes_3(out, comma, 2) != 0) {
+          return -1;
+        }
+        if (codegen_emit_async_sched_call(out, target_mod, func_ix) != 0) {
+          return -1;
+        }
+        return append_byte(out, 41);
+      }
+      return codegen_emit_async_sched_call(out, target_mod, func_ix);
+    }
+    if (n_args > 0) {
+      if (append_byte(out, 40) != 0) {
+        return -1;
+      }
+      ai = 0;
+      while (ai < n_args) {
+        let arg_ref2: i32 = 0;
+        let param_type_ref2: i32 = 0;
+        if (ai > 0 && emit_bytes_3(out, comma, 2) != 0) {
+          return -1;
+        }
+        if (op_is_call != 0) {
+          arg_ref2 = pipeline_expr_call_arg_ref(arena, op_ref, ai);
+        } else {
+          arg_ref2 = pipeline_expr_method_call_arg_ref(arena, op_ref, ai);
+        }
+        if (ai < num_params) {
+          param_type_ref2 = pipeline_module_func_param_type_ref_at(target_mod, func_ix, ai);
+        }
+        if (codegen_emit_async_run_seed_push_name(out, arena, param_type_ref2) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        if (!ast.ref_is_null(arg_ref2) && emit_expr(arena, out, arg_ref2, ctx) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        ai = ai + 1;
+      }
+      if (emit_bytes_3(out, comma, 2) != 0) {
+        return -1;
+      }
+      if (codegen_emit_async_task_submit_call(out, target_mod, func_ix) != 0) {
+        return -1;
+      }
+      return append_byte(out, 41);
+    }
+    return codegen_emit_async_task_submit_call(out, target_mod, func_ix);
+  }
   if (e.kind == ExprKind.EXPR_IF) {
     if (append_byte(out, 40) != 0) {
       return -1;
@@ -2540,6 +3681,51 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
         return 0;
       }
     }
+    /* 优先吃 typeck 已解析好的 dep 槽位，避免在 dep 模块内再次按 import 表重猜而漏掉 binding 调用。 */
+    if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && pipeline_dep_ctx_ndep(ctx) > 0) {
+      let dep_ix_fast: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
+      let callee_fast: Expr = ast.ast_arena_expr_get(arena, callee_ref);
+      if (dep_ix_fast >= 0 && dep_ix_fast < pipeline_dep_ctx_ndep(ctx) && callee_fast.kind == ExprKind.EXPR_FIELD_ACCESS && callee_fast.field_access_field_len > 0) {
+        let dep_path_fast: u8[64] = [];
+        pipeline_dep_ctx_import_path_copy64(ctx, dep_ix_fast, &dep_path_fast[0]);
+        let pre_fast: u8[128] = [];
+        codegen_import_path_to_c_prefix_into(&dep_path_fast[0], &pre_fast[0], 128);
+        let pre_fast_len: i32 = 0;
+        while (pre_fast_len < 128 && pre_fast[pre_fast_len] != 0) {
+          pre_fast_len = pre_fast_len + 1;
+        }
+        if (pre_fast_len > 0 && codegen_c_prefix_redundant_with_name(&pre_fast[0], pre_fast_len, &callee_fast.field_access_field_name[0], callee_fast.field_access_field_len) == 0 && emit_bytes_from_ptr(out, &pre_fast[0], pre_fast_len) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &callee_fast.field_access_field_name[0], callee_fast.field_access_field_len) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        let ai_fast: i32 = 0;
+        while (ai_fast < e.call_num_args) {
+          if (ai_fast > 0) {
+            let comma_fast: u8[3] = [44, 32, 0];
+            if (emit_bytes_3(out, comma_fast, 2) != 0) {
+              return -1;
+            }
+          }
+          if (ast.ref_is_null(pipeline_expr_call_arg_ref(arena, expr_ref, ai_fast))) {
+            if (append_byte(out, 48) != 0) {
+              return -1;
+            }
+          } else if (emit_expr(arena, out, pipeline_expr_call_arg_ref(arena, expr_ref, ai_fast), ctx) != 0) {
+            return -1;
+          }
+          ai_fast = ai_fast + 1;
+        }
+        if (append_byte(out, 41) != 0) {
+          return -1;
+        }
+        return 0;
+      }
+    }
     if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && pipeline_dep_ctx_ndep(ctx) > 0 && ctx.current_codegen_module != 0 as *Module) {
       let callee: Expr = ast.ast_arena_expr_get(arena, callee_ref);
       let cur_mod: *Module = ctx.current_codegen_module;
@@ -2549,8 +3735,9 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
         if (base.kind == ExprKind.EXPR_VAR && base.var_name_len > 0 && base.var_name_len <= 63) {
           let j: i32 = 0;
           let nd_bind: i32 = pipeline_dep_ctx_ndep(ctx);
-          while (j < cur_mod.num_imports && j < nd_bind) {
-            if (pipeline_module_import_kind_at(cur_mod, j) == 1 && pipeline_dep_ctx_import_path_len(ctx, j) > 0) {
+          let n_imp: i32 = codegen_module_num_imports(cur_mod);
+          while (j < n_imp && j < nd_bind) {
+            if (pipeline_module_import_kind_at(cur_mod, j) == 1) {
               let bind_len: i32 = pipeline_module_import_binding_name_len(cur_mod, j);
               if (bind_len != base.var_name_len) {
                 j = j + 1;
@@ -2567,7 +3754,11 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
               }
               if (eq) {
                 let dep_path_bind: u8[64] = [];
-                pipeline_dep_ctx_import_path_copy64(ctx, j, &dep_path_bind[0]);
+                let dep_path_bind_len: i32 = codegen_module_import_path_len_at(cur_mod, j, &dep_path_bind[0]);
+                if (dep_path_bind_len <= 0) {
+                  j = j + 1;
+                  continue;
+                }
                 let pre_buf: u8[128] = [];
                 codegen_import_path_to_c_prefix_into(&dep_path_bind[0], &pre_buf[0], 128);
                 let pre_len: i32 = 0;
@@ -2615,8 +3806,9 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
         /* 解构形式 const { getenv } = import("std.process")；裸名 getenv 在 dep j 的 import_select_names 中 */
         let j: i32 = 0;
         let nd_sel: i32 = pipeline_dep_ctx_ndep(ctx);
-        while (j < cur_mod.num_imports && j < nd_sel) {
-          if (pipeline_module_import_kind_at(cur_mod, j) == 2 && pipeline_dep_ctx_import_path_len(ctx, j) > 0) {
+        let n_imp: i32 = codegen_module_num_imports(cur_mod);
+        while (j < n_imp && j < nd_sel) {
+          if (pipeline_module_import_kind_at(cur_mod, j) == 2) {
             let k: i32 = 0;
             let sel_cnt: i32 = pipeline_module_import_select_count_at(cur_mod, j);
             while (k < sel_cnt) {
@@ -2633,7 +3825,11 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
                 }
                 if (eq) {
                   let dep_path_sel: u8[64] = [];
-                  pipeline_dep_ctx_import_path_copy64(ctx, j, &dep_path_sel[0]);
+                  let dep_path_sel_len: i32 = codegen_module_import_path_len_at(cur_mod, j, &dep_path_sel[0]);
+                  if (dep_path_sel_len <= 0) {
+                    k = k + 1;
+                    continue;
+                  }
                   let pre_buf: u8[128] = [];
                   codegen_import_path_to_c_prefix_into(&dep_path_sel[0], &pre_buf[0], 128);
                   let pre_len: i32 = 0;
@@ -3391,6 +4587,10 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
       /** 枚举变体：输出 typeck 填好的 tag 整数字面量（C 侧无 enum 声明时仍合法）。 */
       return format_int(out, e.enum_variant_tag);
     }
+    /** callee 位置的 binding.func：直接扁平化为 dep 前缀 C 符号，避免回落成 `(binding).func`。 */
+    if (ctx != 0 as *PipelineDepCtx && ctx.emit_expr_as_callee != 0 && emit_import_module_field_symbol(arena, out, expr_ref, ctx) == 0) {
+      return 0;
+    }
     /** binding.CONST：如 async_mod.POLL_PENDING → std_async_POLL_PENDING */
     if (emit_import_module_const_field(arena, out, expr_ref, ctx) == 0) {
       return 0;
@@ -3525,6 +4725,45 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
           }
           return append_byte(out, 41);
         }
+      }
+      let dep_path_fb: u8[64] = [];
+      let dep_path_fb_len: i32 = codegen_resolve_binding_import_path_for_method_call(ctx, arena, expr_ref, &dep_path_fb[0]);
+      if (dep_path_fb_len > 0) {
+        let pre_fb: u8[128] = [];
+        codegen_import_path_to_c_prefix_into(&dep_path_fb[0], &pre_fb[0], 128);
+        let pre_fb_len: i32 = 0;
+        while (pre_fb_len < 128 && pre_fb[pre_fb_len] != 0) {
+          pre_fb_len = pre_fb_len + 1;
+        }
+        if (pre_fb_len > 0 && codegen_c_prefix_redundant_with_name(&pre_fb[0], pre_fb_len, &e.method_call_name[0], e.method_call_name_len) == 0 && emit_bytes_from_ptr(out, &pre_fb[0], pre_fb_len) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &e.method_call_name[0], e.method_call_name_len) != 0) {
+          return -1;
+        }
+        if (append_byte(out, 40) != 0) {
+          return -1;
+        }
+        let n_fb: i32 = codegen_call_num_args_override(&pre_fb[0], pre_fb_len, &e.method_call_name[0], e.method_call_name_len, e.method_call_num_args);
+        let ai_fb: i32 = 0;
+        while (ai_fb < n_fb) {
+          if (ai_fb > 0) {
+            let comma_fb: u8[3] = [44, 32, 0];
+            if (emit_bytes_3(out, comma_fb, 2) != 0) {
+              return -1;
+            }
+          }
+          let arg_fb: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, ai_fb);
+          if (ast.ref_is_null(arg_fb)) {
+            if (append_byte(out, 48) != 0) {
+              return -1;
+            }
+          } else if (emit_expr(arena, out, arg_fb, ctx) != 0) {
+            return -1;
+          }
+          ai_fb = ai_fb + 1;
+        }
+        return append_byte(out, 41);
       }
     }
     if (append_byte(out, 40) != 0) {
@@ -5111,10 +6350,119 @@ function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutBuf, mod
   return 0;
 }
 
-/** 仅写 C 头（#include <stdint.h>\\n）到 out。拆成独立函数避免 C 代码生成时被重排到 while/return 之后。 */
+/**
+ * 为当前模块直接 import 的 dep 预发函数原型。
+ * 单文件/partial bootstrap 时，某些被跳过或未 co-emit 的 dep 仍会被调用；先补 extern，避免 C99 隐式声明报错。
+ */
+function codegen_emit_import_dep_function_declarations(module: *Module, out: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
+  if (module == 0 as *Module || out == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+    return 0;
+  }
+  let saved_module: *Module = ctx.current_codegen_module;
+  let saved_arena: *ASTArena = ctx.current_codegen_arena;
+  let saved_dep_index: i32 = ctx.current_codegen_dep_index;
+  let saved_prefix_len: i32 = ctx.current_codegen_prefix_len;
+  let saved_prefix: u8[64] = [];
+  let sp: i32 = 0;
+  while (sp < 64) {
+    saved_prefix[sp] = ctx.current_codegen_prefix_mirror[sp];
+    sp = sp + 1;
+  }
+  let n_imp: i32 = codegen_module_num_imports(module);
+  let imp_i: i32 = 0;
+  while (imp_i < n_imp) {
+    let dep_path: u8[64] = [];
+    let dep_path_len: i32 = codegen_module_import_path_len_at(module, imp_i, &dep_path[0]);
+    if (dep_path_len > 0) {
+      let seen_before: i32 = 0;
+      let prev_i: i32 = 0;
+      while (prev_i < imp_i) {
+        let prev_path: u8[64] = [];
+        let prev_len: i32 = codegen_module_import_path_len_at(module, prev_i, &prev_path[0]);
+        if (prev_len == dep_path_len) {
+          let eq_prev: bool = true;
+          let pk: i32 = 0;
+          while (pk < dep_path_len && pk < 64) {
+            if (prev_path[pk] != dep_path[pk]) {
+              eq_prev = false;
+              break;
+            }
+            pk = pk + 1;
+          }
+          if (eq_prev) {
+            seen_before = 1;
+            break;
+          }
+        }
+        prev_i = prev_i + 1;
+      }
+      if (seen_before == 0) {
+        let dep_ix: i32 = codegen_find_dep_index_by_path(ctx, &dep_path[0], dep_path_len);
+        let dep_mod: *Module = 0 as *Module;
+        let dep_arena: *ASTArena = 0 as *ASTArena;
+        let dep_ctx_ix: i32 = dep_ix;
+        if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
+          dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+          dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+        }
+        if ((dep_mod == 0 as *Module || dep_arena == 0 as *ASTArena) && dep_path_len > 0) {
+          let global_slot: i32 = codegen_find_seeded_global_dep_slot_by_path(&dep_path[0], dep_path_len);
+          if (global_slot >= 0) {
+            dep_mod = driver_dep_module_buf(global_slot) as *Module;
+            dep_arena = driver_dep_arena_buf(global_slot) as *ASTArena;
+            dep_ctx_ix = -1;
+          }
+        }
+        if (dep_mod != 0 as *Module && dep_arena != 0 as *ASTArena && dep_mod.num_funcs > 0) {
+            let prefix_buf: u8[128] = [];
+            let prefix_len: i32 = 0;
+            if (codegen_path_is_std_io_core_bytes(&dep_path[0]) == 0) {
+              codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
+              while (prefix_len < 128 && prefix_buf[prefix_len] != 0 as u8) {
+                prefix_len = prefix_len + 1;
+              }
+            }
+            ctx.current_codegen_module = dep_mod;
+            ctx.current_codegen_arena = dep_arena;
+            ctx.current_codegen_dep_index = dep_ctx_ix;
+            ctx.current_codegen_prefix_len = 0;
+            let px: i32 = 0;
+            while (px < prefix_len && px < 63) {
+              ctx.current_codegen_prefix_mirror[px] = prefix_buf[px];
+              px = px + 1;
+            }
+            ctx.current_codegen_prefix_mirror[px] = 0 as u8;
+            ctx.current_codegen_prefix_len = px;
+            let fi: i32 = 0;
+            while (fi < dep_mod.num_funcs) {
+              if (emit_func_extern_declaration(dep_arena, out, dep_mod, fi, &prefix_buf[0], prefix_len, ctx) != 0) {
+                return -1;
+              }
+              fi = fi + 1;
+            }
+        }
+      }
+    }
+    imp_i = imp_i + 1;
+  }
+  ctx.current_codegen_module = saved_module;
+  ctx.current_codegen_arena = saved_arena;
+  ctx.current_codegen_dep_index = saved_dep_index;
+  ctx.current_codegen_prefix_len = saved_prefix_len;
+  sp = 0;
+  while (sp < 64) {
+    ctx.current_codegen_prefix_mirror[sp] = saved_prefix[sp];
+    sp = sp + 1;
+  }
+  return 0;
+}
+
+/** 仅写 C 头（#include <stdint.h>\\n#include <stddef.h>\\n）到 out。拆成独立函数避免 C 代码生成时被重排到 while/return 之后。 */
 function codegen_sx_ast_emit_header(out: *CodegenOutBuf): i32 {
-  let h: u8[22] = [35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10, 0, 0];
-  return emit_bytes_22(out, h, 20);
+  let h: u8[64] = [35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10,
+    35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  return emit_bytes_64(out, &h[0], 40);
 }
 
 /**
@@ -5189,6 +6537,12 @@ function codegen_sx_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, 
         return -1;
       }
       /* 用户 struct 完整定义须在任意函数/全局使用该类型之前（否则 cc 报不完整类型）。 */
+      if (dep_index < 0 && codegen_emit_skipped_dep_type_definitions(ctx, out) != 0) {
+        return -1;
+      }
+      if (codegen_emit_import_dep_function_declarations(module, out, ctx) != 0) {
+        return -1;
+      }
       if (codegen_emit_module_struct_definitions(module, arena, out, &prefix_buf[0], prefix_len, ctx) != 0) {
         return -1;
       }

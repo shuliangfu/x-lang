@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "diag.h"
 #if defined(__unix__) || defined(__APPLE__)
 #include <unistd.h>
 #endif
@@ -347,8 +348,9 @@ int32_t backtrace_xplat_quality_c(void) {
   total = backtrace_capture_c(buf, 32);
   if (total > 0)
     resolved = backtrace_symbolicate_c(buf, total, buf, names, total);
-  fprintf(stderr, "shux: [SHUX_BT_XPLAT] platform=%s gold=%d resolved=%d total=%d\n", plat, gold,
-          resolved, total);
+  diag_reportf(NULL, 0, 0, "note", NULL,
+               "backtrace xplat: platform=%s gold=%d resolved=%d total=%d",
+               plat, gold, resolved, total);
   if (gold < 1 || resolved < 1 || total < 1)
     return 1;
   return 0;
@@ -371,7 +373,7 @@ void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
 #elif defined(_WIN32) || defined(_WIN64)
   pid = (int32_t)GetCurrentProcessId();
 #endif
-  fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] panic=%d msg=%d frames=%d pid=%d\n", has_msg, msg_val,
+  fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=%d pid=%d\n", has_msg, msg_val,
           n, pid);
   {
     const char *dir = getenv("SHUX_CRASH_EVIDENCE_DIR");
@@ -388,7 +390,7 @@ void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
           fprintf(f, "frame%d=0x%zx\n", (int)i, (size_t)(uintptr_t)addr);
         }
         fclose(f);
-        fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] bundle=%s\n", path);
+        fprintf(stderr, "note: crash evidence: bundle=%s\n", path);
       }
     }
   }

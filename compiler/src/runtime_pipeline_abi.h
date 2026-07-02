@@ -71,6 +71,15 @@ struct ast_PipelineDepCtx {
  */
 int shux_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char **out_src, size_t *out_src_len,
     const char *path_diag, const char **defines, int ndefines);
+char *shux_preprocess_with_path(const char *source, size_t source_len, const char *path_diag,
+    const char **defines, int ndefines, size_t *out_length);
+char *shux_preprocess_quiet(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length);
+
+/** 预处理/dep import 失败已输出结构化诊断的标志；供上层避免重复补摘要。 */
+void pipeline_diag_emitted_reset(void);
+void pipeline_diag_emitted_note(void);
+int32_t pipeline_diag_emitted_get(void);
+void pipeline_diag_import_open_fail_once(const char *import_path, const char *resolved_path);
 
 /** typeck/pipeline 兼容 dep 侧车（pipeline_gen.c / get_dep_*）。 */
 extern void *typeck_dep_module_ptrs[32];

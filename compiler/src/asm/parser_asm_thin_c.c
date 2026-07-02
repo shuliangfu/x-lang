@@ -6503,7 +6503,33 @@ struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref)
 
 static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae) {
   struct ast_Expr e;
+  const char *trace_name;
+  const char *trace_type;
+  int trace_ty;
+  int trace_hit;
   memcpy(&e, &ae, sizeof(e));
+  trace_name = getenv("SHUX_TRACE_EXPR_NAME");
+  trace_type = getenv("SHUX_TRACE_TYPE_REF");
+  trace_ty = 0;
+  trace_hit = 0;
+  if (trace_name && *trace_name && e.var_name_len > 0) {
+    size_t want_len = strlen(trace_name);
+    if ((int32_t)want_len == e.var_name_len && want_len < sizeof(e.var_name) &&
+        memcmp(e.var_name, trace_name, want_len) == 0)
+      trace_hit = 1;
+  }
+  if (trace_type && *trace_type) {
+    trace_ty = atoi(trace_type);
+    if (trace_ty != 0 && e.resolved_type_ref == trace_ty)
+      trace_hit = 1;
+  }
+  if (trace_hit) {
+    fprintf(stderr,
+            "note: parser expr watch: expr=%d kind=%d block=%d ty=%d left=%d right=%d name_len=%d name=%.*s\n",
+            (int)ref, (int)e.kind, (int)e.block_ref, (int)e.resolved_type_ref,
+            (int)e.binop_left_ref, (int)e.binop_right_ref, (int)e.var_name_len,
+            (int)e.var_name_len, (const char *)e.var_name);
+  }
   ast_arena_expr_set(arena, ref, e);
 }
 
@@ -6641,11 +6667,17 @@ void parser_asm_diag_skip_let_const_into_slice_c(struct parser_asm_lexer_result 
         return;
       parser_lex_from_lexer_result_ptr_into(&lex, out);
       lexer_next_into(out, lex, source);
-    } else if (out->tok.kind == (int32_t)TOKEN_I32 || out->tok.kind == (int32_t)TOKEN_BOOL
-               || out->tok.kind == (int32_t)TOKEN_I64 || out->tok.kind == (int32_t)TOKEN_VOID
-               || out->tok.kind == (int32_t)TOKEN_IDENT) {
+    } else if (parser_asm_is_fn_sig_scalar_type_token_c(out->tok.kind)) {
       parser_lex_from_lexer_result_ptr_into(&lex, out);
       lexer_next_into(out, lex, source);
+      if (out->tok.kind == (int32_t)TOKEN_LBRACKET) {
+        parser_lex_from_lexer_result_ptr_into(&lex, out);
+        lexer_next_into(out, lex, source);
+        if (out->tok.kind != (int32_t)TOKEN_RBRACKET)
+          return;
+        parser_lex_from_lexer_result_ptr_into(&lex, out);
+        lexer_next_into(out, lex, source);
+      }
     } else {
       return;
     }
@@ -6654,6 +6686,8 @@ void parser_asm_diag_skip_let_const_into_slice_c(struct parser_asm_lexer_result 
     parser_lex_from_lexer_result_ptr_into(&lex, out);
     lexer_next_into(out, lex, source);
     while (out->tok.kind != (int32_t)TOKEN_SEMICOLON && out->tok.kind != (int32_t)TOKEN_EOF) {
+      if (out->tok.kind == (int32_t)TOKEN_STRING)
+        return;
       parser_lex_from_lexer_result_ptr_into(&lex, out);
       lexer_next_into(out, lex, source);
     }
@@ -11862,6 +11896,8 @@ struct parser_asm_lexer_result parser_asm_diag_skip_let_const_buf_c(struct parse
     parser_asm_lex_from_result_val_into(&lex, r);
     r = lexer_next_buf(lex, data, len);
     while (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_EOF) {
+      if (r.tok.kind == (int32_t)TOKEN_STRING)
+        return r;
       parser_asm_lex_from_result_val_into(&lex, r);
       r = lexer_next_buf(lex, data, len);
     }
@@ -15469,8 +15505,10 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
                                                     struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer lex_cur;
+  const char *dbg_skip;
   if (!out || !source)
     return;
+  dbg_skip = getenv("SHUX_DEBUG_SKIP_FUNC");
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_function_header_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_async_fn_prefix_audit_c(lex, source));
   /**
@@ -16286,6 +16324,11 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
     lexer_next_into(&r, lex_cur, source);
   }
   if (r.tok.kind != (int32_t)TOKEN_LBRACE) {
+    if (dbg_skip && dbg_skip[0] && dbg_skip[0] != '0') {
+      fprintf(stderr,
+              "note: skip function debug: no-body start_pos=%zu scan_pos=%zu tok=%d ident_len=%d\n",
+              lex.pos, lex_cur.pos, (int)r.tok.kind, (int)r.tok.ident_len);
+    }
     out->pos = lex_cur.pos;
     out->line = lex_cur.line;
     out->col = lex_cur.col;
@@ -16297,6 +16340,14 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_block_stmt_mega_full_deep_audit_c(r.next_lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_match_mega_full_deep_audit_c(lex, source));
   parser_asm_skip_balanced_braces_into_slice_c(out, r.next_lex, source);
+  if (dbg_skip && dbg_skip[0] && dbg_skip[0] != '0') {
+    struct parser_asm_lexer_result tail;
+    memset(&tail, 0, sizeof(tail));
+    lexer_next_into(&tail, *out, source);
+    fprintf(stderr,
+            "note: skip function debug: start_pos=%zu body_pos=%zu out_pos=%zu next_tok=%d next_ident_len=%d\n",
+            lex.pos, r.next_lex.pos, out->pos, (int)tail.tok.kind, (int)tail.tok.ident_len);
+  }
 }
 
 /**
@@ -16638,10 +16689,10 @@ void parser_parse_one_type_alias_into_glue(void *arena, void *module, struct par
 }
 
 /** parse_one_function_buf_into_glue：buf 路径精简 function 解析（LexerResult 链勿 SX emit）。 */
-void parser_parse_one_function_buf_into_glue(struct parser_asm_onefunc_result *out, struct parser_asm_lexer lex,
-                                           uint8_t *data, int32_t len) {
+void parser_parse_one_function_buf_into_glue(struct parser_asm_onefunc_result *out, void *arena,
+                                           struct parser_asm_lexer lex, uint8_t *data, int32_t len) {
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_one_function_buf_deep_audit_c(lex, data, len));
-  parser_asm_parse_one_function_buf_into_c(out, lex, data, len);
+  parser_asm_parse_one_function_buf_into_c(out, arena, lex, data, len);
 }
 
 /** fill_block_const_let_from_res_glue：OneFunc 侧车 → block const/let（Expr 按值勿 SX emit）。 */

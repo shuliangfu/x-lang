@@ -110,7 +110,8 @@ typedef enum ASTExprKind {
     AST_EXPR_RUN,          /**< run async_fn()（sync 上下文经 shux_async_sched_* drain；复用 value.unary.operand） */
     AST_EXPR_SPAWN,        /**< spawn async_fn()（非阻塞 submit；须 shux_async_run_drain_until_idle，IO-A5 v4） */
     AST_EXPR_TRY_PROPAGATE,/**< ERR-01：Result `?` 传播；operand 为 Result 表达式，desugar 为 err 早退并 unwrap value */
-    AST_EXPR_STRING_LIT    /**< 字符串字面量 "..."；value.string_lit.bytes/len，编译期静态存储 */
+    AST_EXPR_STRING_LIT,   /**< 字符串字面量 "..."；value.string_lit.bytes/len，编译期静态存储 */
+    AST_EXPR_ASM          /**< 内联汇编 asm!("template")；K1：仅模板字符串；in/out/clobber 操作数见 L8。value.asm_tmpl.bytes/len */
 } ASTExprKind;
 
 /** match 单分支：整数字面量、_、或枚举变体 Name.Variant => 表达式（arms 由 ast_module_free 路径释放） */
@@ -145,6 +146,12 @@ typedef struct ASTMatchArm {
 } ASTMatchArm;
 
 /** 表达式节点（可递归；二元用 binop，一元用 unary，变量用 var，条件用 if_expr） */
+/** 内联汇编操作数（K1/L8）：约束串 + 操作数表达式；output 须为左值。 */
+typedef struct ASTAsmOperand {
+    char *constraint;     /**< 约束串如 "=a"/"+r"/"c"/"n"/"m"（strdup，由 ast_expr_free 释放） */
+    struct ASTExpr *expr; /**< 操作数表达式；output 须为左值（由 ast_expr_free 释放） */
+} ASTAsmOperand;
+
 typedef struct ASTExpr {
     ASTExprKind kind;
     const struct ASTType *resolved_type; /**< 由 typeck 填写：表达式类型，用于向量运算等 codegen；不归 ast_expr_free 释放 */
@@ -204,6 +211,16 @@ typedef struct ASTExpr {
             char *bytes;       /**< AST_EXPR_STRING_LIT 内容（strdup，不含引号；由 ast_expr_free 释放） */
             int len;           /**< 字节长度（不含 NUL） */
         } string_lit;
+        struct {
+            char *bytes;            /**< AST_EXPR_ASM 模板字符串内容（strdup，不含引号；由 ast_expr_free 释放） */
+            int len;                /**< 模板字节长度（不含 NUL） */
+            ASTAsmOperand *outputs; /**< 输出操作数数组（由 ast_expr_free 释放） */
+            int num_outputs;
+            ASTAsmOperand *inputs;  /**< 输入操作数数组（由 ast_expr_free 释放） */
+            int num_inputs;
+            char **clobbers;        /**< clobber 列表（strdup 数组，由 ast_expr_free 释放） */
+            int num_clobbers;
+        } asm_tmpl;
         struct {
             struct ASTExpr *callee;  /**< 被调用表达式（当前仅 VAR 标识符）；由 ast_expr_free 释放 */
             struct ASTExpr **args;   /**< 实参表达式数组；由 ast_expr_free 释放 */

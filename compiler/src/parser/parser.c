@@ -10,6 +10,7 @@
 #include "parser/parser.h"
 #include "lexer/lexer.h"
 #include "lsp/lsp_diag.h"
+#include "diag.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,6 +76,18 @@ typedef struct {
     Token next_next;  /**< 再下一 Token，用于 < 后 IDENT 时区分比较与泛型 */
     int next_next_loaded;
 } Parser;
+
+static int parser_recovery_enabled(void);
+static int parser_is_stmt_sync_token(Parser *p);
+static void parser_recover_statement_boundary(Parser *p);
+static void parser_recover_struct_field_boundary(Parser *p);
+static void parser_recover_enum_variant_boundary(Parser *p);
+static void parser_recover_trait_method_boundary(Parser *p);
+static void parser_recover_impl_method_boundary(Parser *p);
+static int parser_stmt_needs_semicolon(Parser *p);
+static int parser_top_level_recovery_enabled(void);
+static int parser_is_top_level_sync_token(Parser *p);
+static void parser_recover_top_level_boundary(Parser *p);
 
 /**
  * 推进到下一个 Token：cur 变为 next（或新取词），next 置为未加载。
@@ -175,11 +188,27 @@ static char *parser_struct_field_name_dup(Parser *p) {
 static int fail(Parser *p, const char *msg) {
     const Token *t = peek(p);
     if (lsp_diag_enabled) {
-        lsp_diag_add(t->line, t->col, 1, msg);
+        lsp_diag_add_code(t->line, t->col, 1, "P001", msg);
         return -1;
     }
-    fprintf(stderr, "parse error at %d:%d: %s\n", t->line, t->col, msg);
+    diag_report_with_code(NULL, t->line, t->col, "parse error", "P001", msg, msg);
     return -1;
+}
+
+static void parser_oom(Parser *p) {
+    (void)fail(p, "out of memory");
+}
+
+static void parser_oom_at(int line, int col) {
+    if (lsp_diag_enabled) {
+        lsp_diag_add_code(line, col, 1, "P001", "out of memory");
+        return;
+    }
+    diag_report_with_code(NULL, line, col, "parse error", "P001", "out of memory", "out of memory");
+}
+
+static void parser_oom_global(void) {
+    parser_oom_at(0, 0);
 }
 
 /**
@@ -212,7 +241,8 @@ static int fail_if_semicolon_after_brace(Parser *p) {
  */
 static int expr_ends_with_brace(const ASTExpr *e) {
     if (!e) return 0;
-    return e->kind == AST_EXPR_STRUCT_LIT || e->kind == AST_EXPR_IF || e->kind == AST_EXPR_MATCH;
+    return e->kind == AST_EXPR_STRUCT_LIT || e->kind == AST_EXPR_IF || e->kind == AST_EXPR_MATCH
+        || e->kind == AST_EXPR_BLOCK;
 }
 
 /**
@@ -228,7 +258,7 @@ static int parse_generic_param_list(Parser *p, char ***out_names, int *out_count
     advance(p);
     char **names = (char **)malloc((size_t)AST_MAX_GENERIC_PARAMS * sizeof(char *));
     if (!names) {
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return -1;
     }
     int n = 0;
@@ -249,7 +279,7 @@ static int parse_generic_param_list(Parser *p, char ***out_names, int *out_count
         if (!names[n]) {
             for (int i = 0; i < n; i++) free(names[i]);
             free(names);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return -1;
         }
         advance(p);
@@ -331,7 +361,7 @@ static ASTExpr *parse_struct_lit_body(Parser *p, char *name, int ident_line, int
         free(name);
         if (fnames) free(fnames);
         if (inits) free(inits);
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     nf = 0;
@@ -418,7 +448,7 @@ static ASTExpr *parse_struct_lit_body(Parser *p, char *name, int ident_line, int
         }
         free(fnames);
         free(inits);
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     set_expr_loc_at(e, ident_line, ident_col);
@@ -447,7 +477,7 @@ static ASTExpr *parse_new_var_expr(const char *name, int line, int col) {
     return NULL;
   e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
   if (!e) {
-    fprintf(stderr, "parse: out of memory\n");
+    parser_oom_at(line, col);
     return NULL;
   }
   set_expr_loc_at(e, line, col);
@@ -455,7 +485,7 @@ static ASTExpr *parse_new_var_expr(const char *name, int line, int col) {
   e->value.var.name = strdup(name);
   if (!e->value.var.name) {
     free(e);
-    fprintf(stderr, "parse: out of memory\n");
+    parser_oom_at(line, col);
     return NULL;
   }
   return e;
@@ -525,7 +555,7 @@ static ASTExpr *parse_at_simd_builtin(Parser *p) {
           for (int i = 0; i < num_args; i++)
             ast_expr_free(args[i]);
           free(args);
-          fprintf(stderr, "parse: out of memory\n");
+          parser_oom(p);
           return NULL;
         }
         args = n;
@@ -571,7 +601,7 @@ static ASTExpr *parse_at_simd_builtin(Parser *p) {
     for (int i = 0; i < num_args; i++)
       ast_expr_free(args[i]);
     free(args);
-    fprintf(stderr, "parse: out of memory\n");
+    parser_oom(p);
     return NULL;
   }
   set_expr_loc_at(call, line, col);
@@ -603,7 +633,7 @@ static void parse_slice_region_label(Parser *p, ASTType *ty) {
     }
     ty->region_label = (const char *)malloc((size_t)lab->ident_len + 1u);
     if (!ty->region_label) {
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         fail(p, "out of memory");
         return;
     }
@@ -635,7 +665,7 @@ static ASTType *parse_type_name(Parser *p) {
         ASTType *ty = (ASTType *)malloc(sizeof(ASTType));
         if (!ty) {
             ast_type_free(inner);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         ty->kind = AST_TYPE_PTR;
@@ -657,7 +687,7 @@ static ASTType *parse_type_name(Parser *p) {
             ASTType *ty = (ASTType *)malloc(sizeof(ASTType));
             if (!ty) {
                 ast_type_free(inner);
-                fprintf(stderr, "parse: out of memory\n");
+                parser_oom(p);
                 return NULL;
             }
             ty->kind = AST_TYPE_SLICE;
@@ -688,7 +718,7 @@ static ASTType *parse_type_name(Parser *p) {
         ASTType *ty = (ASTType *)malloc(sizeof(ASTType));
         if (!ty) {
             ast_type_free(inner);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         ty->kind = AST_TYPE_ARRAY;
@@ -699,7 +729,7 @@ static ASTType *parse_type_name(Parser *p) {
     }
     ASTType *ty = (ASTType *)malloc(sizeof(ASTType));
     if (!ty) {
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     ty->name = NULL;
@@ -752,49 +782,49 @@ static ASTType *parse_type_name(Parser *p) {
             return ty;
         case TOKEN_I32X4: {
             ASTType *elem = (ASTType *)malloc(sizeof(ASTType));
-            if (!elem) { free(ty); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+            if (!elem) { free(ty); parser_oom(p); return NULL; }
             elem->kind = AST_TYPE_I32; elem->name = NULL; elem->elem_type = NULL; elem->array_size = 0;
             ty->kind = AST_TYPE_VECTOR; ty->elem_type = elem; ty->array_size = 4;
             advance(p); return ty;
         }
         case TOKEN_I32X8: {
             ASTType *elem = (ASTType *)malloc(sizeof(ASTType));
-            if (!elem) { free(ty); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+            if (!elem) { free(ty); parser_oom(p); return NULL; }
             elem->kind = AST_TYPE_I32; elem->name = NULL; elem->elem_type = NULL; elem->array_size = 0;
             ty->kind = AST_TYPE_VECTOR; ty->elem_type = elem; ty->array_size = 8;
             advance(p); return ty;
         }
         case TOKEN_U32X4: {
             ASTType *elem = (ASTType *)malloc(sizeof(ASTType));
-            if (!elem) { free(ty); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+            if (!elem) { free(ty); parser_oom(p); return NULL; }
             elem->kind = AST_TYPE_U32; elem->name = NULL; elem->elem_type = NULL; elem->array_size = 0;
             ty->kind = AST_TYPE_VECTOR; ty->elem_type = elem; ty->array_size = 4;
             advance(p); return ty;
         }
         case TOKEN_U32X8: {
             ASTType *elem = (ASTType *)malloc(sizeof(ASTType));
-            if (!elem) { free(ty); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+            if (!elem) { free(ty); parser_oom(p); return NULL; }
             elem->kind = AST_TYPE_U32; elem->name = NULL; elem->elem_type = NULL; elem->array_size = 0;
             ty->kind = AST_TYPE_VECTOR; ty->elem_type = elem; ty->array_size = 8;
             advance(p); return ty;
         }
         case TOKEN_I32X16: {
             ASTType *elem = (ASTType *)malloc(sizeof(ASTType));
-            if (!elem) { free(ty); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+            if (!elem) { free(ty); parser_oom(p); return NULL; }
             elem->kind = AST_TYPE_I32; elem->name = NULL; elem->elem_type = NULL; elem->array_size = 0;
             ty->kind = AST_TYPE_VECTOR; ty->elem_type = elem; ty->array_size = 16;
             advance(p); return ty;
         }
         case TOKEN_U32X16: {
             ASTType *elem = (ASTType *)malloc(sizeof(ASTType));
-            if (!elem) { free(ty); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+            if (!elem) { free(ty); parser_oom(p); return NULL; }
             elem->kind = AST_TYPE_U32; elem->name = NULL; elem->elem_type = NULL; elem->array_size = 0;
             ty->kind = AST_TYPE_VECTOR; ty->elem_type = elem; ty->array_size = 16;
             advance(p); return ty;
         }
         case TOKEN_F32X4: {
             ASTType *elem = (ASTType *)malloc(sizeof(ASTType));
-            if (!elem) { free(ty); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+            if (!elem) { free(ty); parser_oom(p); return NULL; }
             elem->kind = AST_TYPE_F32; elem->name = NULL; elem->elem_type = NULL; elem->array_size = 0;
             ty->kind = AST_TYPE_VECTOR; ty->elem_type = elem; ty->array_size = 4;
             advance(p); return ty;
@@ -821,7 +851,7 @@ static ASTType *parse_type_name(Parser *p) {
                 /* 非 Linear(...) 时回退为 NAMED "Linear"：还原 pos 不可行，按 NAMED 处理 */
                 ty->kind = AST_TYPE_NAMED;
                 ty->name = strndup("Linear", 6);
-                if (!ty->name) { free(ty); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+                if (!ty->name) { free(ty); parser_oom(p); return NULL; }
                 return ty;
             }
             /* 支持限定类型名：Module.sub.Type（如 platform.elf.ElfCodegenCtx）；拼成 "module.sub.Type" 存 name */
@@ -854,7 +884,7 @@ static ASTType *parse_type_name(Parser *p) {
             ty->name = strndup(qbuf, (size_t)qlen);
             if (!ty->name) {
                 free(ty);
-                fprintf(stderr, "parse: out of memory\n");
+                parser_oom(p);
                 return NULL;
             }
             /* LANG-009：Option<i32> 等具体实例 mangling 为 Option_i32 */
@@ -870,7 +900,7 @@ static ASTType *parse_type_name(Parser *p) {
                 ty->name = strdup(mbuf);
                 if (!ty->name) {
                     free(ty);
-                    fprintf(stderr, "parse: out of memory\n");
+                    parser_oom(p);
                     return NULL;
                 }
             }
@@ -903,7 +933,7 @@ static ASTType *parse_type_apply_slice_suffix(Parser *p, ASTType *ty) {
         wrapped = (ASTType *)malloc(sizeof(ASTType));
         if (!wrapped) {
             ast_type_free(ty);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         wrapped->kind = AST_TYPE_SLICE;
@@ -932,7 +962,7 @@ static ASTType *parse_type_apply_slice_suffix(Parser *p, ASTType *ty) {
         wrapped = (ASTType *)malloc(sizeof(ASTType));
         if (!wrapped) {
             ast_type_free(ty);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         wrapped->kind = AST_TYPE_ARRAY;
@@ -1103,7 +1133,7 @@ static ASTExpr *parse_if_expr(Parser *p) {
     if (!then_expr) {
         ast_expr_free(cond);
         ast_block_free(then_block);
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     set_expr_loc_at(then_expr, if_start_line, if_start_col);
@@ -1154,7 +1184,7 @@ static ASTExpr *parse_if_expr(Parser *p) {
                 ast_expr_free(cond);
                 ast_expr_free(then_expr);
                 ast_block_free(else_block);
-                fprintf(stderr, "parse: out of memory\n");
+                parser_oom(p);
                 return NULL;
             }
             set_expr_loc_at(else_expr, if_start_line, if_start_col);
@@ -1167,7 +1197,7 @@ static ASTExpr *parse_if_expr(Parser *p) {
         ast_expr_free(cond);
         ast_expr_free(then_expr);
         ast_expr_free(else_expr);
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     set_expr_loc_at(e, if_start_line, if_start_col);
@@ -1175,6 +1205,113 @@ static ASTExpr *parse_if_expr(Parser *p) {
     e->value.if_expr.cond = cond;
     e->value.if_expr.then_expr = then_expr;
     e->value.if_expr.else_expr = else_expr;
+    return e;
+}
+
+/**
+ * 解析 unsafe 块表达式：unsafe { body }。
+ * 语义上仍复用 block expr，但外层 block 以单个 unsafe region 承载，
+ * 让 typeck/codegen/asm 后端沿现有 unsafe region 语义继续工作。
+ */
+/**
+ * 解析内联汇编表达式：asm!("template")（K1）。
+ * 仅支持模板字符串；in/out/clobber 操作数（L8）待补。必须在 unsafe{ } 内（由 typeck 强制）。
+ * 返回 AST_EXPR_ASM；value.asm_tmpl.bytes/len 为模板内容（strdup，不含引号）。
+ */
+static ASTExpr *parse_asm_expr(Parser *p) {
+    int asm_line = peek(p)->line;
+    int asm_col = peek(p)->col;
+    advance(p);  /* asm */
+    advance(p);  /* ! */
+    if (peek(p)->kind != TOKEN_LPAREN) {
+        fail(p, "expected '(' after asm!");
+        return NULL;
+    }
+    advance(p);
+    if (peek(p)->kind != TOKEN_STRING) {
+        fail(p, "expected string template in asm!(\"...\")");
+        return NULL;
+    }
+    const Token *st = peek(p);
+    char *tmpl = (st->ident_len > 0 && st->value.ident)
+        ? strndup(st->value.ident, (size_t)st->ident_len) : strdup("");
+    if (!tmpl) { parser_oom(p); return NULL; }
+    int tmpl_len = st->ident_len;
+    advance(p);  /* string */
+    if (peek(p)->kind != TOKEN_RPAREN) {
+        free(tmpl);
+        fail(p, "expected ')' after asm! template");
+        return NULL;
+    }
+    advance(p);  /* ) */
+    ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+    if (!e) { free(tmpl); parser_oom(p); return NULL; }
+    set_expr_loc_at(e, asm_line, asm_col);
+    e->kind = AST_EXPR_ASM;
+    e->value.asm_tmpl.bytes = tmpl;
+    e->value.asm_tmpl.len = tmpl_len;
+    return e;
+}
+
+static ASTExpr *parse_unsafe_expr(Parser *p) {
+    ASTBlock *unsafe_body = NULL;
+    ASTBlock *outer = NULL;
+    ASTRegionBlock *regions = NULL;
+    ASTExpr *e = NULL;
+    const Token *t = peek(p);
+    int unsafe_line;
+    int unsafe_col;
+    if (!t || t->kind != TOKEN_IDENT || !is_ident_str(p, "unsafe", 6))
+        return NULL;
+    unsafe_line = t->line;
+    unsafe_col = t->col;
+    advance(p);
+    if (peek(p)->kind != TOKEN_LBRACE) {
+        fail(p, "expected '{' after unsafe");
+        return NULL;
+    }
+    advance(p);
+    unsafe_body = parse_block(p, 1, 0);
+    if (!unsafe_body)
+        return NULL;
+    if (peek(p)->kind != TOKEN_RBRACE) {
+        ast_block_free(unsafe_body);
+        fail(p, "expected '}' after unsafe body");
+        return NULL;
+    }
+    advance(p);
+    outer = (ASTBlock *)calloc(1, sizeof(ASTBlock));
+    if (!outer) {
+        ast_block_free(unsafe_body);
+        parser_oom(p);
+        return NULL;
+    }
+    regions = (ASTRegionBlock *)calloc(1, sizeof(ASTRegionBlock));
+    if (!regions) {
+        ast_block_free(unsafe_body);
+        free(outer);
+        parser_oom(p);
+        return NULL;
+    }
+    regions[0].label = NULL;
+    regions[0].body = unsafe_body;
+    regions[0].is_unsafe = 1;
+    outer->regions = regions;
+    outer->num_regions = 1;
+    outer->stmt_order[0].kind = 5;
+    outer->stmt_order[0].idx = 0;
+    outer->num_stmt_order = 1;
+    e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+    if (!e) {
+        ast_block_free(unsafe_body);
+        free(regions);
+        free(outer);
+        parser_oom(p);
+        return NULL;
+    }
+    set_expr_loc_at(e, unsafe_line, unsafe_col);
+    e->kind = AST_EXPR_BLOCK;
+    e->value.block = outer;
     return e;
 }
 
@@ -1188,7 +1325,7 @@ static ASTExpr *parse_primary(Parser *p) {
     if (t->kind == TOKEN_BREAK) {
         advance(p);
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
-        if (!e) { fprintf(stderr, "parse: out of memory\n"); return NULL; }
+        if (!e) { parser_oom(p); return NULL; }
         set_expr_loc(e, p);
         e->kind = AST_EXPR_BREAK;
         return e;
@@ -1196,7 +1333,7 @@ static ASTExpr *parse_primary(Parser *p) {
     if (t->kind == TOKEN_CONTINUE) {
         advance(p);
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
-        if (!e) { fprintf(stderr, "parse: out of memory\n"); return NULL; }
+        if (!e) { parser_oom(p); return NULL; }
         set_expr_loc(e, p);
         e->kind = AST_EXPR_CONTINUE;
         return e;
@@ -1225,7 +1362,7 @@ static ASTExpr *parse_primary(Parser *p) {
             advance(p);
         }
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
-        if (!e) { ast_expr_free(val); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+        if (!e) { ast_expr_free(val); parser_oom(p); return NULL; }
         set_expr_loc(e, p);
         e->kind = AST_EXPR_RETURN;
         e->value.unary.operand = val;
@@ -1251,7 +1388,7 @@ static ASTExpr *parse_primary(Parser *p) {
             }
         }
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
-        if (!e) { ast_expr_free(operand); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+        if (!e) { ast_expr_free(operand); parser_oom(p); return NULL; }
         set_expr_loc(e, p);
         e->kind = AST_EXPR_PANIC;
         e->value.unary.operand = operand;
@@ -1273,7 +1410,7 @@ static ASTExpr *parse_primary(Parser *p) {
         ASTMatchArm *arms = (ASTMatchArm *)malloc(16 * sizeof(ASTMatchArm));
         if (!arms) {
             ast_expr_free(matched);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         int num_arms = 0;
@@ -1373,7 +1510,7 @@ static ASTExpr *parse_primary(Parser *p) {
             while (num_arms--) ast_expr_free(arms[num_arms].result);
             free(arms);
             ast_expr_free(matched);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, match_line, match_col);
@@ -1389,7 +1526,7 @@ static ASTExpr *parse_primary(Parser *p) {
         int arr_start_col = t->col;
         advance(p);
         ASTExpr **elems = (ASTExpr **)malloc(32 * sizeof(ASTExpr *));
-        if (!elems) { fprintf(stderr, "parse: out of memory\n"); return NULL; }
+        if (!elems) { parser_oom(p); return NULL; }
         int num_elems = 0, cap = 32;
         if (peek(p)->kind != TOKEN_RBRACKET) {
             for (;;) {
@@ -1430,7 +1567,7 @@ static ASTExpr *parse_primary(Parser *p) {
         if (!arr) {
             while (num_elems--) ast_expr_free(elems[num_elems]);
             free(elems);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(arr, arr_start_line, arr_start_col);
@@ -1458,7 +1595,7 @@ static ASTExpr *parse_primary(Parser *p) {
     if (t->kind == TOKEN_SELF) {
         advance(p);
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
-        if (!e) { fprintf(stderr, "parse: out of memory\n"); return NULL; }
+        if (!e) { parser_oom(p); return NULL; }
         set_expr_loc_at(e, t->line, t->col);
         e->kind = AST_EXPR_VAR;
         e->value.var.name = strdup("self");
@@ -1466,6 +1603,10 @@ static ASTExpr *parse_primary(Parser *p) {
     }
     /* 变量/常量引用（标识符）或结构体字面量 TypeName { field: expr, ... } */
     if (t->kind == TOKEN_IDENT) {
+        if (is_ident_str(p, "unsafe", 6))
+            return parse_unsafe_expr(p);
+        if (is_ident_str(p, "asm", 3) && peek_next(p)->kind == TOKEN_BANG)
+            return parse_asm_expr(p);
         int ident_line = t->line;
         int ident_col = t->col;
         char *name = t->ident_len > 0 && t->value.ident
@@ -1486,7 +1627,7 @@ static ASTExpr *parse_primary(Parser *p) {
             free(name);
             name = strdup(mbuf);
             if (!name) {
-                fprintf(stderr, "parse: out of memory\n");
+                parser_oom(p);
                 return NULL;
             }
         }
@@ -1497,7 +1638,7 @@ static ASTExpr *parse_primary(Parser *p) {
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
             free(name);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, ident_line, ident_col);
@@ -1509,7 +1650,7 @@ static ASTExpr *parse_primary(Parser *p) {
         advance(p);
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, t->line, t->col);
@@ -1521,7 +1662,7 @@ static ASTExpr *parse_primary(Parser *p) {
         advance(p);
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, t->line, t->col);
@@ -1535,7 +1676,7 @@ static ASTExpr *parse_primary(Parser *p) {
         advance(p);
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, fline, fcol);
@@ -1551,7 +1692,7 @@ static ASTExpr *parse_primary(Parser *p) {
         advance(p);
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, ident_line, ident_col);
@@ -1560,13 +1701,12 @@ static ASTExpr *parse_primary(Parser *p) {
         return e;
     }
     if (t->kind != TOKEN_INT) {
-        fprintf(stderr, "parse_primary: at %d:%d unexpected token kind=%d (expected INT/IDENT/...)\n", t->line, t->col, (int)t->kind);
         fail(p, "expected integer literal, float literal, identifier, 'true', 'false', 'if', 'break', 'continue', 'return', 'panic', 'match', or '('");
         return NULL;
     }
     ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
     if (!e) {
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     set_expr_loc(e, p);
@@ -1611,7 +1751,7 @@ static ASTExpr *parse_as_chain(Parser *p, ASTExpr *left) {
             ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
             if (!e) {
                 ast_expr_free(left);
-                fprintf(stderr, "parse: out of memory\n");
+                parser_oom(p);
                 return NULL;
             }
             e->kind = AST_EXPR_TRY_PROPAGATE;
@@ -1634,7 +1774,7 @@ static ASTExpr *parse_as_chain(Parser *p, ASTExpr *left) {
         if (!e) {
             ast_expr_free(left);
             ast_type_free(ty);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         e->kind = AST_EXPR_AS;
@@ -1680,7 +1820,7 @@ static ASTExpr *parse_postfix(Parser *p) {
             }
             if (!field_name) {
                 ast_expr_free(left);
-                fprintf(stderr, "parse: out of memory\n");
+                parser_oom(p);
                 return NULL;
             }
             advance(p);
@@ -1692,7 +1832,7 @@ static ASTExpr *parse_postfix(Parser *p) {
                 if (!args) {
                     ast_expr_free(left);
                     free(field_name);
-                    fprintf(stderr, "parse: out of memory\n");
+                    parser_oom(p);
                     return NULL;
                 }
                 int num_args = 0;
@@ -1703,7 +1843,7 @@ static ASTExpr *parse_postfix(Parser *p) {
                         free(field_name);
                         for (int i = 0; i < num_args; i++) ast_expr_free(args[i]);
                         free(args);
-                        fprintf(stderr, "parse: out of memory\n");
+                        parser_oom(p);
                         return NULL;
                     }
                     args = na;
@@ -1734,7 +1874,7 @@ static ASTExpr *parse_postfix(Parser *p) {
                     free(field_name);
                     for (int i = 0; i < num_args; i++) ast_expr_free(args[i]);
                     free(args);
-                    fprintf(stderr, "parse: out of memory\n");
+                    parser_oom(p);
                     return NULL;
                 }
                 set_expr_loc(e, p);
@@ -1756,7 +1896,7 @@ static ASTExpr *parse_postfix(Parser *p) {
                         if (!lit_name) {
                             ast_expr_free(left);
                             free(field_name);
-                            fprintf(stderr, "parse: out of memory\n");
+                            parser_oom(p);
                             return NULL;
                         }
                         ast_expr_free(left);
@@ -1770,7 +1910,7 @@ static ASTExpr *parse_postfix(Parser *p) {
                 if (!e) {
                     ast_expr_free(left);
                     free(field_name);
-                    fprintf(stderr, "parse: out of memory\n");
+                    parser_oom(p);
                     return NULL;
                 }
                 set_expr_loc(e, p);
@@ -1799,7 +1939,7 @@ static ASTExpr *parse_postfix(Parser *p) {
             if (!e) {
                 ast_expr_free(left);
                 ast_expr_free(idx);
-                fprintf(stderr, "parse: out of memory\n");
+                parser_oom(p);
                 return NULL;
             }
             set_expr_loc(e, p);
@@ -1831,7 +1971,7 @@ static ASTExpr *parse_postfix(Parser *p) {
         ASTType **ta = (ASTType **)malloc((size_t)AST_MAX_GENERIC_PARAMS * sizeof(ASTType *));
         if (!ta) {
             ast_expr_free(left);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         int nta = 0;
@@ -1881,7 +2021,7 @@ static ASTExpr *parse_postfix(Parser *p) {
         if (!args) {
             ast_expr_free(left);
             if (type_args) { for (int i = 0; i < num_type_args; i++) ast_type_free(type_args[i]); free(type_args); }
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         while (peek(p)->kind != TOKEN_RPAREN) {
@@ -1912,7 +2052,7 @@ static ASTExpr *parse_postfix(Parser *p) {
                     for (int i = 0; i < num_args; i++) ast_expr_free(args[i]);
                     free(args);
                     if (type_args) { for (int i = 0; i < num_type_args; i++) ast_type_free(type_args[i]); free(type_args); }
-                    fprintf(stderr, "parse: out of memory\n");
+                    parser_oom(p);
                     return NULL;
                 }
                 args = n;
@@ -1926,7 +2066,7 @@ static ASTExpr *parse_postfix(Parser *p) {
             for (int i = 0; i < num_args; i++) ast_expr_free(args[i]);
             free(args);
             if (type_args) { for (int i = 0; i < num_type_args; i++) ast_type_free(type_args[i]); free(type_args); }
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc(e, p);
@@ -1958,7 +2098,7 @@ static ASTExpr *parse_unary(Parser *p) {
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
             ast_expr_free(inner);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, unary_line, unary_col);
@@ -1976,7 +2116,7 @@ static ASTExpr *parse_unary(Parser *p) {
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
             ast_expr_free(inner);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, unary_line, unary_col);
@@ -1994,7 +2134,7 @@ static ASTExpr *parse_unary(Parser *p) {
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
             ast_expr_free(inner);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, unary_line, unary_col);
@@ -2012,7 +2152,7 @@ static ASTExpr *parse_unary(Parser *p) {
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
             ast_expr_free(inner);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, unary_line, unary_col);
@@ -2030,7 +2170,7 @@ static ASTExpr *parse_unary(Parser *p) {
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
             ast_expr_free(inner);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, unary_line, unary_col);
@@ -2047,7 +2187,7 @@ static ASTExpr *parse_unary(Parser *p) {
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
             ast_expr_free(inner);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(e, unary_line, unary_col);
@@ -2080,7 +2220,7 @@ static ASTExpr *parse_term(Parser *p) {
         if (!bin) {
             ast_expr_free(left);
             ast_expr_free(right);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         set_expr_loc_at(bin, t->line, t->col);
@@ -2099,7 +2239,7 @@ static ASTExpr *parse_binop_right(Parser *p, ASTExpr *left, ASTExpr *right, int 
     if (!bin) {
         ast_expr_free(left);
         ast_expr_free(right);
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     set_expr_loc_at(bin, line, col);
@@ -2281,7 +2421,7 @@ static ASTExpr *parse_ternary(Parser *p) {
         ast_expr_free(cond);
         ast_expr_free(then_expr);
         ast_expr_free(else_expr);
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     e->kind = AST_EXPR_TERNARY;
@@ -2356,7 +2496,7 @@ static ASTExpr *parse_assign(Parser *p) {
         if (!e) {
             ast_expr_free(left);
             ast_expr_free(right);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         e->kind = (t == TOKEN_ASSIGN) ? AST_EXPR_ASSIGN : compound_assign_token_to_kind(t);
@@ -2401,14 +2541,6 @@ static ASTExpr *parse_expr(Parser *p) {
 #define MAX_EXPR_STMTS 512
 
 /**
- * LANG-007 v2：判断 token 是否为标识符 unsafe（保留字作 IDENT 解析，避免 TOKEN 枚举漂移）。
- */
-static int parser_token_is_unsafe_keyword(const Token *t) {
-    return t && t->kind == TOKEN_IDENT && t->ident_len == 6 && t->value.ident
-        && memcmp(t->value.ident, "unsafe", 6) == 0;
-}
-
-/**
  * 解析 import("path")：当前 Token 须为 '('；返回 strdup 的路径字符串。
  */
 static char *parse_import_call_path(Parser *p) {
@@ -2451,7 +2583,7 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_so
     }
     char *name = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
     if (!name) {
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     advance(p);
@@ -2489,7 +2621,7 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_so
     if (!fields) {
         free(name);
         if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     int num_fields = 0;
@@ -2497,15 +2629,8 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_so
     memset(field_aligns, 0, sizeof(field_aligns));
     while (peek(p)->kind != TOKEN_RBRACE) {
         if (num_fields >= MAX_STRUCT_FIELDS_DEF) {
-            free(name);
-            if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
-            for (int i = 0; i < num_fields; i++) {
-                free((void *)fields[i].name);
-                ast_type_free(fields[i].type);
-            }
-            free(fields);
             fail(p, "too many struct fields");
-            return NULL;
+            goto struct_fail;
         }
         /** DOD-CL：可选 align(N) 前缀。 */
         int field_min_align = 0;
@@ -2513,57 +2638,42 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_so
             advance(p);
             if (peek(p)->kind != TOKEN_LPAREN) {
                 fail(p, "expected '(' after align");
-                return NULL;
+                if (parser_recovery_enabled()) { parser_recover_struct_field_boundary(p); continue; }
+                goto struct_fail;
             }
             advance(p);
             if (peek(p)->kind != TOKEN_INT || peek(p)->value.int_val <= 0) {
                 fail(p, "expected positive integer in align(N)");
-                return NULL;
+                if (parser_recovery_enabled()) { parser_recover_struct_field_boundary(p); continue; }
+                goto struct_fail;
             }
             field_min_align = peek(p)->value.int_val;
             advance(p);
             if (peek(p)->kind != TOKEN_RPAREN) {
                 fail(p, "expected ')' after align(N)");
-                return NULL;
+                if (parser_recovery_enabled()) { parser_recover_struct_field_boundary(p); continue; }
+                goto struct_fail;
             }
             advance(p);
         }
         char *fname = parser_struct_field_name_dup(p);
         if (!fname) {
-            free(name);
-            if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
-            for (int i = 0; i < num_fields; i++) {
-                free((void *)fields[i].name);
-                ast_type_free(fields[i].type);
-            }
-            free(fields);
             fail(p, "expected field name in struct");
-            return NULL;
+            if (parser_recovery_enabled()) { parser_recover_struct_field_boundary(p); continue; }
+            goto struct_fail;
         }
         if (peek(p)->kind != TOKEN_COLON) {
             free(fname);
-            free(name);
-            if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
-            for (int i = 0; i < num_fields; i++) {
-                free((void *)fields[i].name);
-                ast_type_free(fields[i].type);
-            }
-            free(fields);
             fail(p, "expected ':' after field name");
-            return NULL;
+            if (parser_recovery_enabled()) { parser_recover_struct_field_boundary(p); continue; }
+            goto struct_fail;
         }
         advance(p);
         ASTType *ty = parse_type(p);
         if (!ty) {
             free(fname);
-            free(name);
-            if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
-            for (int i = 0; i < num_fields; i++) {
-                free((void *)fields[i].name);
-                ast_type_free(fields[i].type);
-            }
-            free(fields);
-            return NULL;
+            if (parser_recovery_enabled()) { parser_recover_struct_field_boundary(p); continue; }
+            goto struct_fail;
         }
         fields[num_fields].name = fname;
         fields[num_fields].type = ty;
@@ -2572,27 +2682,12 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_so
         if (peek(p)->kind == TOKEN_SEMICOLON) advance(p);
     }
     advance(p); /* consume RBRACE */
-    if (fail_if_semicolon_after_brace(p) != 0) {
-        free(name);
-        if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
-        for (int i = 0; i < num_fields; i++) {
-            free((void *)fields[i].name);
-            ast_type_free(fields[i].type);
-        }
-        free(fields);
-        return NULL;
-    }
+    if (fail_if_semicolon_after_brace(p) != 0)
+        goto struct_fail;
     ASTStructDef *s = (ASTStructDef *)malloc(sizeof(ASTStructDef));
     if (!s) {
-        free(name);
-        if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
-        for (int i = 0; i < num_fields; i++) {
-            free((void *)fields[i].name);
-            ast_type_free(fields[i].type);
-        }
-        free(fields);
-        fprintf(stderr, "parse: out of memory\n");
-        return NULL;
+        parser_oom(p);
+        goto struct_fail;
     }
     memset(s, 0, sizeof(*s));
     s->name = name;
@@ -2608,6 +2703,16 @@ static ASTStructDef *parse_one_struct(Parser *p, int allow_padding, int force_so
     for (int fi = 0; fi < num_fields && fi < AST_STRUCT_MAX_FIELDS; fi++)
         s->field_min_align[fi] = field_aligns[fi];
     return s;
+
+struct_fail:
+    free(name);
+    if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
+    for (int i = 0; i < num_fields; i++) {
+        free((void *)fields[i].name);
+        ast_type_free(fields[i].type);
+    }
+    free(fields);
+    return NULL;
 }
 
 /**
@@ -2622,7 +2727,7 @@ static ASTEnumDef *parse_one_enum(Parser *p) {
         return NULL;
     }
     char *name = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
-    if (!name) { fprintf(stderr, "parse: out of memory\n"); return NULL; }
+    if (!name) { parser_oom(p); return NULL; }
     advance(p);
     if (peek(p)->kind != TOKEN_LBRACE) {
         free(name);
@@ -2631,54 +2736,45 @@ static ASTEnumDef *parse_one_enum(Parser *p) {
     }
     advance(p);
     char **variants = (char **)malloc((size_t)MAX_ENUM_VARIANTS * sizeof(char *));
-    if (!variants) { free(name); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+    if (!variants) { free(name); parser_oom(p); return NULL; }
     int num_variants = 0;
     while (peek(p)->kind != TOKEN_RBRACE) {
         if (num_variants >= MAX_ENUM_VARIANTS) {
-            free(name);
-            for (int i = 0; i < num_variants; i++) free((void *)variants[i]);
-            free(variants);
             fail(p, "too many enum variants");
-            return NULL;
+            goto enum_fail;
         }
         if (peek(p)->kind != TOKEN_IDENT) {
-            free(name);
-            for (int i = 0; i < num_variants; i++) free((void *)variants[i]);
-            free(variants);
             fail(p, "expected variant name in enum");
-            return NULL;
+            if (parser_recovery_enabled()) { parser_recover_enum_variant_boundary(p); continue; }
+            goto enum_fail;
         }
         variants[num_variants] = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
         if (!variants[num_variants]) {
-            free(name);
-            for (int i = 0; i < num_variants; i++) free((void *)variants[i]);
-            free(variants);
-            fprintf(stderr, "parse: out of memory\n");
-            return NULL;
+            parser_oom(p);
+            goto enum_fail;
         }
         num_variants++;
         advance(p);
         if (peek(p)->kind == TOKEN_COMMA) advance(p);
     }
     advance(p); /* consume RBRACE */
-    if (fail_if_semicolon_after_brace(p) != 0) {
-        free(name);
-        for (int i = 0; i < num_variants; i++) free((void *)variants[i]);
-        free(variants);
-        return NULL;
-    }
+    if (fail_if_semicolon_after_brace(p) != 0)
+        goto enum_fail;
     ASTEnumDef *e = (ASTEnumDef *)malloc(sizeof(ASTEnumDef));
     if (!e) {
-        free(name);
-        for (int i = 0; i < num_variants; i++) free((void *)variants[i]);
-        free(variants);
-        fprintf(stderr, "parse: out of memory\n");
-        return NULL;
+        parser_oom(p);
+        goto enum_fail;
     }
     e->name = name;
     e->variant_names = variants;
     e->num_variants = num_variants;
     return e;
+
+enum_fail:
+    free(name);
+    for (int i = 0; i < num_variants; i++) free((void *)variants[i]);
+    free(variants);
+    return NULL;
 }
 
 /** 解析 trait 内单条方法签名：function method_name ( self ) -> type ;（阶段 7.2） */
@@ -2687,7 +2783,7 @@ static ASTTraitMethod *parse_trait_method_sig(Parser *p) {
     advance(p);
     if (peek(p)->kind != TOKEN_IDENT) { fail(p, "expected method name in trait"); return NULL; }
     char *name = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
-    if (!name) { fprintf(stderr, "parse: out of memory\n"); return NULL; }
+    if (!name) { parser_oom(p); return NULL; }
     advance(p);
     if (peek(p)->kind != TOKEN_LPAREN) { free(name); fail(p, "expected '(' in trait method"); return NULL; }
     advance(p);
@@ -2716,50 +2812,44 @@ static ASTTraitDef *parse_one_trait(Parser *p) {
     advance(p);
     if (peek(p)->kind != TOKEN_IDENT) { fail(p, "expected trait name after 'trait'"); return NULL; }
     char *name = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
-    if (!name) { fprintf(stderr, "parse: out of memory\n"); return NULL; }
+    if (!name) { parser_oom(p); return NULL; }
     advance(p);
     if (peek(p)->kind != TOKEN_LBRACE) { free(name); fail(p, "expected '{' after trait name"); return NULL; }
     advance(p);
     ASTTraitMethod *methods = (ASTTraitMethod *)malloc((size_t)AST_TRAIT_MAX_METHODS * sizeof(ASTTraitMethod));
-    if (!methods) { free(name); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+    if (!methods) { free(name); parser_oom(p); return NULL; }
     int num_methods = 0;
     while (peek(p)->kind != TOKEN_RBRACE) {
         if (num_methods >= AST_TRAIT_MAX_METHODS) {
-            free(name);
-            for (int i = 0; i < num_methods; i++) { free((void *)methods[i].name); ast_type_free(methods[i].return_type); }
-            free(methods);
             fail(p, "too many methods in trait");
-            return NULL;
+            goto trait_fail;
         }
         ASTTraitMethod *m = parse_trait_method_sig(p);
         if (!m) {
-            free(name);
-            for (int i = 0; i < num_methods; i++) { free((void *)methods[i].name); ast_type_free(methods[i].return_type); }
-            free(methods);
-            return NULL;
+            if (parser_recovery_enabled()) { parser_recover_trait_method_boundary(p); continue; }
+            goto trait_fail;
         }
         methods[num_methods++] = *m;
         free(m);
     }
     advance(p); /* consume RBRACE */
-    if (fail_if_semicolon_after_brace(p) != 0) {
-        free(name);
-        for (int i = 0; i < num_methods; i++) { free((void *)methods[i].name); ast_type_free(methods[i].return_type); }
-        free(methods);
-        return NULL;
-    }
+    if (fail_if_semicolon_after_brace(p) != 0)
+        goto trait_fail;
     ASTTraitDef *t = (ASTTraitDef *)malloc(sizeof(ASTTraitDef));
     if (!t) {
-        free(name);
-        for (int i = 0; i < num_methods; i++) { free((void *)methods[i].name); ast_type_free(methods[i].return_type); }
-        free(methods);
-        fprintf(stderr, "parse: out of memory\n");
-        return NULL;
+        parser_oom(p);
+        goto trait_fail;
     }
     t->name = name;
     t->methods = methods;
     t->num_methods = num_methods;
     return t;
+
+trait_fail:
+    free(name);
+    for (int i = 0; i < num_methods; i++) { free((void *)methods[i].name); ast_type_free(methods[i].return_type); }
+    free(methods);
+    return NULL;
 }
 
 /** 将当前 token 解析为类型名字符串（用于 impl for Type 的 Type）；仅接受单 token 类型名。 */
@@ -2787,7 +2877,7 @@ static ASTFunc *parse_impl_method(Parser *p, const char *trait_name, const char 
     advance(p);
     if (peek(p)->kind != TOKEN_IDENT) { fail(p, "expected method name in impl"); return NULL; }
     char *meth_name = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
-    if (!meth_name) { fprintf(stderr, "parse: out of memory\n"); return NULL; }
+    if (!meth_name) { parser_oom(p); return NULL; }
     advance(p);
     if (peek(p)->kind != TOKEN_LPAREN) { free(meth_name); fail(p, "expected '(' in impl method"); return NULL; }
     advance(p);
@@ -2799,7 +2889,7 @@ static ASTFunc *parse_impl_method(Parser *p, const char *trait_name, const char 
     if (!self_type) { free(meth_name); return NULL; }
     int params_cap = AST_FUNC_PARAMS_INIT;
     ASTParam *params = (ASTParam *)malloc((size_t)params_cap * sizeof(ASTParam));
-    if (!params) { free(meth_name); ast_type_free(self_type); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+    if (!params) { free(meth_name); ast_type_free(self_type); parser_oom(p); return NULL; }
     (void)memset(params, 0, (size_t)params_cap * sizeof(ASTParam));
     params[0].name = strdup("self");
     params[0].type = self_type;
@@ -2811,7 +2901,7 @@ static ASTFunc *parse_impl_method(Parser *p, const char *trait_name, const char 
             free(meth_name);
             for (int j = 0; j < num_params; j++) { free((void *)params[j].name); ast_type_free(params[j].type); }
             free(params);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         params = np;
@@ -2915,7 +3005,7 @@ static ASTImplBlock *parse_one_impl(Parser *p) {
     advance(p);
     if (peek(p)->kind != TOKEN_IDENT) { fail(p, "expected trait name after 'impl'"); return NULL; }
     char *trait_name = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
-    if (!trait_name) { fprintf(stderr, "parse: out of memory\n"); return NULL; }
+    if (!trait_name) { parser_oom(p); return NULL; }
     advance(p);
     if (peek(p)->kind != TOKEN_FOR) { free(trait_name); fail(p, "expected 'for' after trait name"); return NULL; }
     advance(p);
@@ -2926,36 +3016,18 @@ static ASTImplBlock *parse_one_impl(Parser *p) {
     advance(p);
     ASTFunc **funcs = (ASTFunc **)malloc((size_t)AST_MODULE_FUNCS_INIT * sizeof(ASTFunc *));
     int funcs_cap = AST_MODULE_FUNCS_INIT;
-    if (!funcs) { free(trait_name); free(type_name); fprintf(stderr, "parse: out of memory\n"); return NULL; }
+    if (!funcs) { free(trait_name); free(type_name); parser_oom(p); return NULL; }
     int nfuncs = 0;
     while (peek(p)->kind != TOKEN_RBRACE) {
         if (peek(p)->kind != TOKEN_FUNCTION) {
-            free(trait_name); free(type_name);
-            for (int i = 0; i < nfuncs; i++) {
-                ASTFunc *f = funcs[i];
-                if (f->name) free((void *)f->name);
-                if (f->params) { for (int j = 0; j < f->num_params; j++) { free((void *)f->params[j].name); ast_type_free(f->params[j].type); } free(f->params); }
-                if (f->return_type) ast_type_free(f->return_type);
-                if (f->body) ast_block_free(f->body);
-                free(f);
-            }
-            free(funcs);
             fail(p, "expected function in impl block");
-            return NULL;
+            if (parser_recovery_enabled()) { parser_recover_impl_method_boundary(p); continue; }
+            goto impl_fail;
         }
         ASTFunc *meth = parse_impl_method(p, trait_name, type_name);
         if (!meth) {
-            free(trait_name); free(type_name);
-            for (int i = 0; i < nfuncs; i++) {
-                ASTFunc *f = funcs[i];
-                if (f->name) free((void *)f->name);
-                if (f->params) { for (int j = 0; j < f->num_params; j++) { free((void *)f->params[j].name); ast_type_free(f->params[j].type); } free(f->params); }
-                if (f->return_type) ast_type_free(f->return_type);
-                if (f->body) ast_block_free(f->body);
-                free(f);
-            }
-            free(funcs);
-            return NULL;
+            if (parser_recovery_enabled()) { parser_recover_impl_method_boundary(p); continue; }
+            goto impl_fail;
         }
         if (nfuncs >= funcs_cap) {
             ASTFunc **nf = parser_grow_func_ptrs(funcs, &funcs_cap, nfuncs + 1);
@@ -2980,39 +3052,31 @@ static ASTImplBlock *parse_one_impl(Parser *p) {
         funcs[nfuncs++] = meth;
     }
     advance(p); /* consume RBRACE */
-    if (fail_if_semicolon_after_brace(p) != 0) {
-        free(trait_name); free(type_name);
-        for (int i = 0; i < nfuncs; i++) {
-            ASTFunc *f = funcs[i];
-            if (f->name) free((void *)f->name);
-            if (f->params) { for (int j = 0; j < f->num_params; j++) { free((void *)f->params[j].name); ast_type_free(f->params[j].type); } free(f->params); }
-            if (f->return_type) ast_type_free(f->return_type);
-            if (f->body) ast_block_free(f->body);
-            free(f);
-        }
-        free(funcs);
-        return NULL;
-    }
+    if (fail_if_semicolon_after_brace(p) != 0)
+        goto impl_fail;
     ASTImplBlock *impl = (ASTImplBlock *)malloc(sizeof(ASTImplBlock));
     if (!impl) {
-        free(trait_name); free(type_name);
-        for (int i = 0; i < nfuncs; i++) {
-            ASTFunc *f = funcs[i];
-            if (f->name) free((void *)f->name);
-            if (f->params) { for (int j = 0; j < f->num_params; j++) { free((void *)f->params[j].name); ast_type_free(f->params[j].type); } free(f->params); }
-            if (f->return_type) ast_type_free(f->return_type);
-            if (f->body) ast_block_free(f->body);
-            free(f);
-        }
-        free(funcs);
-        fprintf(stderr, "parse: out of memory\n");
-        return NULL;
+        parser_oom(p);
+        goto impl_fail;
     }
     impl->trait_name = trait_name;
     impl->type_name = type_name;
     impl->funcs = funcs;
     impl->num_funcs = nfuncs;
     return impl;
+
+impl_fail:
+        free(trait_name); free(type_name);
+        for (int i = 0; i < nfuncs; i++) {
+            ASTFunc *f = funcs[i];
+            if (f->name) free((void *)f->name);
+            if (f->params) { for (int j = 0; j < f->num_params; j++) { free((void *)f->params[j].name); ast_type_free(f->params[j].type); } free(f->params); }
+            if (f->return_type) ast_type_free(f->return_type);
+            if (f->body) ast_block_free(f->body);
+            free(f);
+        }
+        free(funcs);
+    return NULL;
 }
 
 /** 将一条语句顺序追加到块 b；kind 0=const, 1=let, 2=expr_stmt, 3=loop, 4=for；idx 为对应数组下标。 */
@@ -3146,24 +3210,77 @@ static int ast_block_flatten_into(ASTBlock *dst, ASTBlock *src) {
 
 /**
  * 解析单条 const 或 let 并追加到块 b；当前 token 须为 TOKEN_CONST 或 TOKEN_LET。
- * 返回值：1 表示已解析并追加一条，0 表示当前不是 const/let，-1 表示失败并已 fail。
+ * 返回值：1 表示已解析并追加一条，0 表示当前不是 const/let，2 表示已报错并恢复到下一语句，-1 表示致命失败。
  */
 static int parse_one_const_or_let(Parser *p, ASTBlock *b) {
     if (peek(p)->kind == TOKEN_CONST) {
         if (b->num_consts >= MAX_CONST_DECLS) { fail(p, "too many const declarations"); ast_block_free(b); return -1; }
         advance(p);
-        if (peek(p)->kind != TOKEN_IDENT && peek(p)->kind != TOKEN_I32) { fail(p, "expected identifier after const"); ast_block_free(b); return -1; }
+        if (peek(p)->kind != TOKEN_IDENT && peek(p)->kind != TOKEN_I32) {
+            fail(p, "expected identifier after const");
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                return 2;
+            }
+            ast_block_free(b);
+            return -1;
+        }
         char *name = (peek(p)->ident_len > 0 && peek(p)->value.ident) ? strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len) : (peek(p)->kind == TOKEN_I32 ? strdup("i32") : NULL);
         advance(p);
         if (!name) { ast_block_free(b); return -1; }
         ASTType *type = NULL;
-        if (peek(p)->kind == TOKEN_COLON) { advance(p); type = parse_type(p); if (!type) { free(name); ast_block_free(b); return -1; } }
-        if (peek(p)->kind != TOKEN_ASSIGN) { free(name); if (type) free((void *)type); fail(p, "expected '=' in const"); ast_block_free(b); return -1; }
+        if (peek(p)->kind == TOKEN_COLON) {
+            advance(p);
+            type = parse_type(p);
+            if (!type) {
+                free(name);
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    return 2;
+                }
+                ast_block_free(b);
+                return -1;
+            }
+        }
+        if (peek(p)->kind != TOKEN_ASSIGN) {
+            free(name);
+            if (type) free((void *)type);
+            fail(p, "expected '=' in const");
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                return 2;
+            }
+            ast_block_free(b);
+            return -1;
+        }
         advance(p);
         ASTExpr *init = parse_expr(p);
-        if (!init) { free(name); if (type) free((void *)type); ast_block_free(b); return -1; }
+        if (!init) {
+            free(name);
+            if (type) free((void *)type);
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                return 2;
+            }
+            ast_block_free(b);
+            return -1;
+        }
         if (expr_ends_with_brace(init)) { if (peek(p)->kind == TOKEN_SEMICOLON) advance(p); }
-        else { if (peek(p)->kind != TOKEN_SEMICOLON) { ast_expr_free(init); free(name); if (type) free((void *)type); fail(p, "expected ';' after const"); ast_block_free(b); return -1; } advance(p); }
+        else {
+            if (peek(p)->kind != TOKEN_SEMICOLON) {
+                ast_expr_free(init);
+                free(name);
+                if (type) free((void *)type);
+                fail(p, "expected ';' after const");
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    return 2;
+                }
+                ast_block_free(b);
+                return -1;
+            }
+            advance(p);
+        }
         b->const_decls[b->num_consts].name = name; b->const_decls[b->num_consts].type = type; b->const_decls[b->num_consts].init = init; b->num_consts++;
         push_stmt_order(b, 0, b->num_consts - 1);
         return 1;
@@ -3172,30 +3289,79 @@ static int parse_one_const_or_let(Parser *p, ASTBlock *b) {
         if (b->num_lets >= MAX_LET_DECLS) { fail(p, "too many let declarations"); ast_block_free(b); return -1; }
         advance(p);
         /* let 后允许 IDENT 或 _（占位符，如 let _: i32 = ...） */
-        if (peek(p)->kind != TOKEN_IDENT && peek(p)->kind != TOKEN_UNDERSCORE) { fail(p, "expected identifier after let"); ast_block_free(b); return -1; }
+        if (peek(p)->kind != TOKEN_IDENT && peek(p)->kind != TOKEN_UNDERSCORE) {
+            fail(p, "expected identifier after let");
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                return 2;
+            }
+            ast_block_free(b);
+            return -1;
+        }
         char *name = (peek(p)->kind == TOKEN_UNDERSCORE) ? strdup("_") : ((peek(p)->ident_len > 0 && peek(p)->value.ident) ? strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len) : NULL);
         advance(p);
         if (!name) { ast_block_free(b); return -1; }
-        if (peek(p)->kind != TOKEN_COLON) { free(name); fail(p, "expected ':' and type in let"); ast_block_free(b); return -1; }
+        if (peek(p)->kind != TOKEN_COLON) {
+            free(name);
+            fail(p, "expected ':' and type in let");
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                return 2;
+            }
+            ast_block_free(b);
+            return -1;
+        }
         advance(p);
         ASTType *type = parse_type(p);
-        if (!type) { free(name); ast_block_free(b); return -1; }
+        if (!type) {
+            free(name);
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                return 2;
+            }
+            ast_block_free(b);
+            return -1;
+        }
         ASTExpr *init = NULL;
         if (peek(p)->kind == TOKEN_ASSIGN) {
             advance(p);
             init = parse_expr(p);
-            if (!init) { free(name); free((void *)type); ast_block_free(b); return -1; }
+            if (!init) {
+                free(name);
+                free((void *)type);
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    return 2;
+                }
+                ast_block_free(b);
+                return -1;
+            }
         } else if (peek(p)->kind != TOKEN_SEMICOLON && peek(p)->kind != TOKEN_LET && peek(p)->kind != TOKEN_CONST
                    && peek(p)->kind != TOKEN_RETURN && peek(p)->kind != TOKEN_IF && peek(p)->kind != TOKEN_WHILE
                    && peek(p)->kind != TOKEN_FOR && peek(p)->kind != TOKEN_RBRACE) {
             free(name); free((void *)type);
             fail(p, "expected '=' or ';' after let type");
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                return 2;
+            }
             ast_block_free(b);
             return -1;
         }
         if (init && expr_ends_with_brace(init)) { if (peek(p)->kind == TOKEN_SEMICOLON) advance(p); }
         else if (init) {
-            if (peek(p)->kind != TOKEN_SEMICOLON) { ast_expr_free(init); free(name); free((void *)type); fail(p, "expected ';' after let"); ast_block_free(b); return -1; }
+            if (peek(p)->kind != TOKEN_SEMICOLON) {
+                ast_expr_free(init);
+                free(name);
+                free((void *)type);
+                fail(p, "expected ';' after let");
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    return 2;
+                }
+                ast_block_free(b);
+                return -1;
+            }
             advance(p);
         } else if (peek(p)->kind == TOKEN_SEMICOLON) {
             advance(p);
@@ -3215,7 +3381,7 @@ static int parse_one_const_or_let(Parser *p, ASTBlock *b) {
 static ASTBlock *parse_block(Parser *p, int allow_while, int consume_rbrace) {
     ASTBlock *b = (ASTBlock *)malloc(sizeof(ASTBlock));
     if (!b) {
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     b->num_consts = 0;
@@ -3258,8 +3424,12 @@ next_stmt:
                 int cfg_match = peek(p)->value.int_val != 0;
                 advance(p);
                 if (peek(p)->kind != TOKEN_LBRACE) {
-                    ast_block_free(b);
                     fail(p, "expected '{' after #[cfg]");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
+                    ast_block_free(b);
                     return NULL;
                 }
                 if (!cfg_match) {
@@ -3270,20 +3440,32 @@ next_stmt:
                 {
                     ASTBlock *cb = parse_block(p, 1, 0);
                     if (!cb) {
+                        if (parser_recovery_enabled()) {
+                            parser_recover_statement_boundary(p);
+                            goto next_stmt;
+                        }
                         ast_block_free(b);
                         return NULL;
                     }
                     if (peek(p)->kind != TOKEN_RBRACE) {
                         ast_block_free(cb);
-                        ast_block_free(b);
                         fail(p, "expected '}' after #[cfg] block");
+                        if (parser_recovery_enabled()) {
+                            parser_recover_statement_boundary(p);
+                            goto next_stmt;
+                        }
+                        ast_block_free(b);
                         return NULL;
                     }
                     advance(p);
                     if (ast_block_flatten_into(b, cb) != 0) {
                         ast_block_free(cb);
-                        ast_block_free(b);
                         fail(p, "too many statements in #[cfg] block");
+                        if (parser_recovery_enabled()) {
+                            parser_recover_statement_boundary(p);
+                            goto next_stmt;
+                        }
+                        ast_block_free(b);
                         return NULL;
                     }
                     ast_block_free(cb);
@@ -3296,18 +3478,24 @@ next_stmt:
                     if (!seen_expr) b->num_early_lets = b->num_lets;
                     continue;
                 }
+                if (r == 2)
+                    continue;
                 if (r == -1) return NULL;
             }
             if (allow_while && (peek(p)->kind == TOKEN_WHILE || peek(p)->kind == TOKEN_LOOP)) goto parse_while_start;
             if (allow_while && peek(p)->kind == TOKEN_FOR) goto parse_for_start;
             if (peek(p)->kind == TOKEN_REGION) goto parse_region_start;
-            if (peek(p)->kind == TOKEN_IDENT && parser_token_is_unsafe_keyword(peek(p))
-                && peek_next(p)->kind == TOKEN_LBRACE)
+            if (peek(p)->kind == TOKEN_IDENT && is_ident_str(p, "unsafe", 6))
                 goto parse_unsafe_start;
             if (peek(p)->kind == TOKEN_DEFER) goto parse_defer_start;
-            if (peek(p)->kind == TOKEN_IDENT && peek_next(p)->kind == TOKEN_COLON) goto parse_label_start;
+            if (peek(p)->kind == TOKEN_GOTO || (peek(p)->kind == TOKEN_IDENT && peek_next(p)->kind == TOKEN_COLON))
+                goto parse_label_start;
             ASTExpr *e = parse_expr(p);
             if (!e) {
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    continue;
+                }
                 ast_block_free(b);
                 return NULL;
             }
@@ -3328,7 +3516,7 @@ next_stmt:
                     if (!b->expr_stmts) {
                         ast_expr_free(e);
                         ast_block_free(b);
-                        fprintf(stderr, "parse: out of memory\n");
+                        parser_oom(p);
                         return NULL;
                     }
                 }
@@ -3337,6 +3525,16 @@ next_stmt:
                 seen_expr = 1;
                 advance(p);
             } else {
+                if (!expr_ends_with_brace(e) && parser_stmt_needs_semicolon(p)) {
+                    ast_expr_free(e);
+                    fail(p, "expected ';' after expression");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        continue;
+                    }
+                    ast_block_free(b);
+                    return NULL;
+                }
                 if (expr_ends_with_brace(e) && peek(p)->kind != TOKEN_RBRACE) {
                     if (b->num_expr_stmts >= MAX_EXPR_STMTS) {
                         ast_expr_free(e);
@@ -3349,7 +3547,7 @@ next_stmt:
                         if (!b->expr_stmts) {
                             ast_expr_free(e);
                             ast_block_free(b);
-                            fprintf(stderr, "parse: out of memory\n");
+                            parser_oom(p);
                             return NULL;
                         }
                     }
@@ -3389,14 +3587,18 @@ parse_while_start:
             if (is_loop) {
                 /* loop { body }：条件恒为 1 */
                 if (peek(p)->kind != TOKEN_LBRACE) {
-                    ast_block_free(b);
                     fail(p, "expected '{' after loop");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
+                    ast_block_free(b);
                     return NULL;
                 }
                 cond = (ASTExpr *)calloc(1, sizeof(ASTExpr));
                 if (!cond) {
                     ast_block_free(b);
-                    fprintf(stderr, "parse: out of memory\n");
+                    parser_oom(p);
                     return NULL;
                 }
                 set_expr_loc(cond, p);
@@ -3405,27 +3607,43 @@ parse_while_start:
             } else {
                 /* while ( cond ) { body }：条件必须用括号包裹，可读性更好 */
                 if (peek(p)->kind != TOKEN_LPAREN) {
-                    ast_block_free(b);
                     fail(p, "expected '(' after while");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
+                    ast_block_free(b);
                     return NULL;
                 }
                 advance(p);
                 cond = parse_expr(p);
                 if (!cond) {
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
                     ast_block_free(b);
                     return NULL;
                 }
                 if (peek(p)->kind != TOKEN_RPAREN) {
                     ast_expr_free(cond);
-                    ast_block_free(b);
                     fail(p, "expected ')' after while condition");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
+                    ast_block_free(b);
                     return NULL;
                 }
                 advance(p);
                 if (peek(p)->kind != TOKEN_LBRACE) {
                     ast_expr_free(cond);
-                    ast_block_free(b);
                     fail(p, "expected '{' after while (cond)");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
+                    ast_block_free(b);
                     return NULL;
                 }
             }
@@ -3433,14 +3651,22 @@ parse_while_start:
             ASTBlock *body = parse_block(p, 1, 0);  /* 体可含嵌套 while/for，不消耗 } 由调用方消耗 */
             if (!body) {
                 ast_expr_free(cond);
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    goto next_stmt;
+                }
                 ast_block_free(b);
                 return NULL;
             }
             if (peek(p)->kind != TOKEN_RBRACE) {
                 ast_expr_free(cond);
                 ast_block_free(body);
-                ast_block_free(b);
                 fail(p, "expected '}' after loop/while body");
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    goto next_stmt;
+                }
+                ast_block_free(b);
                 return NULL;
             }
             advance(p);
@@ -3474,8 +3700,12 @@ parse_for_start:
             }
             advance(p);
             if (peek(p)->kind != TOKEN_LPAREN) {
-                ast_block_free(b);
                 fail(p, "expected '(' after for");
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    goto next_stmt;
+                }
+                ast_block_free(b);
                 return NULL;
             }
             advance(p);
@@ -3491,6 +3721,10 @@ parse_for_start:
                 advance(p);
                 if (peek(p)->kind != TOKEN_IDENT && peek(p)->kind != TOKEN_UNDERSCORE) {
                     fail(p, "expected identifier after let in for init");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
                     ast_block_free(b);
                     return NULL;
                 }
@@ -3500,6 +3734,10 @@ parse_for_start:
                 if (peek(p)->kind != TOKEN_COLON) {
                     free(name);
                     fail(p, "expected ':' and type in for init let");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
                     ast_block_free(b);
                     return NULL;
                 }
@@ -3507,6 +3745,10 @@ parse_for_start:
                 ASTType *type = parse_type(p);
                 if (!type) {
                     free(name);
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
                     ast_block_free(b);
                     return NULL;
                 }
@@ -3514,6 +3756,10 @@ parse_for_start:
                     free(name);
                     free((void *)type);
                     fail(p, "expected '=' in for init let");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
                     ast_block_free(b);
                     return NULL;
                 }
@@ -3522,6 +3768,10 @@ parse_for_start:
                 if (!let_init) {
                     free(name);
                     free((void *)type);
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
                     ast_block_free(b);
                     return NULL;
                 }
@@ -3530,6 +3780,10 @@ parse_for_start:
                     free((void *)type);
                     ast_expr_free(let_init);
                     fail(p, "expected ';' after for init let");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
                     ast_block_free(b);
                     return NULL;
                 }
@@ -3541,11 +3795,22 @@ parse_for_start:
                 push_stmt_order(b, 1, b->num_lets - 1);
             } else if (peek(p)->kind != TOKEN_SEMICOLON) {
                 init = parse_expr(p);
-                if (!init) { ast_block_free(b); return NULL; }
+                if (!init) {
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
+                    ast_block_free(b);
+                    return NULL;
+                }
                 if (peek(p)->kind != TOKEN_SEMICOLON) {
                     ast_expr_free(init);
-                    ast_block_free(b);
                     fail(p, "expected ';' in for");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
+                    ast_block_free(b);
                     return NULL;
                 }
                 advance(p);
@@ -3558,6 +3823,10 @@ parse_for_start:
                 cond = parse_expr(p);
                 if (!cond) {
                     ast_expr_free(init);
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
                     ast_block_free(b);
                     return NULL;
                 }
@@ -3565,8 +3834,12 @@ parse_for_start:
             if (peek(p)->kind != TOKEN_SEMICOLON) {
                 ast_expr_free(init);
                 ast_expr_free(cond);
-                ast_block_free(b);
                 fail(p, "expected ';' in for");
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    goto next_stmt;
+                }
+                ast_block_free(b);
                 return NULL;
             }
             advance(p);
@@ -3577,6 +3850,10 @@ parse_for_start:
                 if (!step) {
                     ast_expr_free(init);
                     ast_expr_free(cond);
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
                     ast_block_free(b);
                     return NULL;
                 }
@@ -3585,8 +3862,12 @@ parse_for_start:
                 ast_expr_free(init);
                 ast_expr_free(cond);
                 ast_expr_free(step);
-                ast_block_free(b);
                 fail(p, "expected ')' in for");
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    goto next_stmt;
+                }
+                ast_block_free(b);
                 return NULL;
             }
             advance(p);
@@ -3594,8 +3875,12 @@ parse_for_start:
                 ast_expr_free(init);
                 ast_expr_free(cond);
                 ast_expr_free(step);
-                ast_block_free(b);
                 fail(p, "expected '{' after for");
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    goto next_stmt;
+                }
+                ast_block_free(b);
                 return NULL;
             }
             advance(p);
@@ -3604,6 +3889,10 @@ parse_for_start:
                 ast_expr_free(init);
                 ast_expr_free(cond);
                 ast_expr_free(step);
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    goto next_stmt;
+                }
                 ast_block_free(b);
                 return NULL;
             }
@@ -3612,8 +3901,12 @@ parse_for_start:
                 ast_expr_free(cond);
                 ast_expr_free(step);
                 ast_block_free(body);
-                ast_block_free(b);
                 fail(p, "expected '}' after for body");
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    goto next_stmt;
+                }
+                ast_block_free(b);
                 return NULL;
             }
             advance(p);
@@ -3643,20 +3936,32 @@ parse_defer_start:
         }
         advance(p);
         if (peek(p)->kind != TOKEN_LBRACE) {
-            ast_block_free(b);
             fail(p, "expected '{' after defer");
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                goto next_stmt;
+            }
+            ast_block_free(b);
             return NULL;
         }
         advance(p);
         ASTBlock *db = parse_block(p, 0, 0);
         if (!db) {
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                goto next_stmt;
+            }
             ast_block_free(b);
             return NULL;
         }
         if (peek(p)->kind != TOKEN_RBRACE) {
             ast_block_free(db);
-            ast_block_free(b);
             fail(p, "expected '}' after defer block");
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                goto next_stmt;
+            }
+            ast_block_free(b);
             return NULL;
         }
         advance(p);
@@ -3689,8 +3994,12 @@ parse_region_start:
         char *label = NULL;
         ASTBlock *rb = NULL;
         if (!lab || lab->kind != TOKEN_IDENT || lab->ident_len <= 0) {
-            ast_block_free(b);
             fail(p, "expected region label after region");
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                goto next_stmt;
+            }
+            ast_block_free(b);
             return NULL;
         }
         label = (lab->value.ident && lab->ident_len > 0)
@@ -3703,22 +4012,34 @@ parse_region_start:
         advance(p);
         if (peek(p)->kind != TOKEN_LBRACE) {
             free(label);
-            ast_block_free(b);
             fail(p, "expected '{' after region label");
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                goto next_stmt;
+            }
+            ast_block_free(b);
             return NULL;
         }
         advance(p);
         rb = parse_block(p, 1, 0);
         if (!rb) {
             free(label);
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                goto next_stmt;
+            }
             ast_block_free(b);
             return NULL;
         }
         if (peek(p)->kind != TOKEN_RBRACE) {
             free(label);
             ast_block_free(rb);
-            ast_block_free(b);
             fail(p, "expected '}' after region body");
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                goto next_stmt;
+            }
+            ast_block_free(b);
             return NULL;
         }
         advance(p);
@@ -3734,7 +4055,7 @@ parse_region_start:
                 free(label);
                 ast_block_free(rb);
                 ast_block_free(b);
-                fprintf(stderr, "parse: out of memory\n");
+                parser_oom(p);
                 return NULL;
             }
         }
@@ -3754,21 +4075,33 @@ parse_unsafe_start:
     }
     advance(p); /* consume 'unsafe' */
     if (peek(p)->kind != TOKEN_LBRACE) {
-        ast_block_free(b);
         fail(p, "expected '{' after unsafe");
+        if (parser_recovery_enabled()) {
+            parser_recover_statement_boundary(p);
+            goto next_stmt;
+        }
+        ast_block_free(b);
         return NULL;
     }
     advance(p);
     {
         ASTBlock *ub = parse_block(p, 1, 0);
         if (!ub) {
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                goto next_stmt;
+            }
             ast_block_free(b);
             return NULL;
         }
         if (peek(p)->kind != TOKEN_RBRACE) {
             ast_block_free(ub);
-            ast_block_free(b);
             fail(p, "expected '}' after unsafe body");
+            if (parser_recovery_enabled()) {
+                parser_recover_statement_boundary(p);
+                goto next_stmt;
+            }
+            ast_block_free(b);
             return NULL;
         }
         advance(p);
@@ -3782,7 +4115,7 @@ parse_unsafe_start:
             if (!b->regions) {
                 ast_block_free(ub);
                 ast_block_free(b);
-                fprintf(stderr, "parse: out of memory\n");
+                parser_oom(p);
                 return NULL;
             }
         }
@@ -3812,8 +4145,12 @@ parse_label_start:
             advance(p);
             if (peek(p)->kind != TOKEN_IDENT && peek(p)->kind != TOKEN_I32) {
                 if (label) free(label);
-                ast_block_free(b);
                 fail(p, "expected identifier after goto");
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    goto next_stmt;
+                }
+                ast_block_free(b);
                 return NULL;
             }
             char *target = (peek(p)->ident_len > 0 && peek(p)->value.ident)
@@ -3827,8 +4164,12 @@ parse_label_start:
             if (peek(p)->kind != TOKEN_SEMICOLON) {
                 free(target);
                 if (label) free(label);
-                ast_block_free(b);
                 fail(p, "expected ';' after goto target");
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    goto next_stmt;
+                }
+                ast_block_free(b);
                 return NULL;
             }
             advance(p);
@@ -3858,8 +4199,18 @@ parse_label_start:
             advance(p);
             /* 支持 return;（无表达式）与 return expr;（文档 01：return expr; / return;） */
             ASTExpr *ret_expr = NULL;
-            if (peek(p)->kind != TOKEN_SEMICOLON && peek(p)->kind != TOKEN_RBRACE)
+            if (peek(p)->kind != TOKEN_SEMICOLON && peek(p)->kind != TOKEN_RBRACE) {
                 ret_expr = parse_expr(p);
+            }
+            if (!ret_expr && peek(p)->kind != TOKEN_SEMICOLON && peek(p)->kind != TOKEN_RBRACE) {
+                if (label) free(label);
+                if (parser_recovery_enabled()) {
+                    parser_recover_statement_boundary(p);
+                    goto next_stmt;
+                }
+                ast_block_free(b);
+                return NULL;
+            }
             /* } 后分号可选；return 以 } 结尾时可不写分号；其他 return 必须带分号 */
             if (ret_expr && expr_ends_with_brace(ret_expr)) {
                 if (peek(p)->kind == TOKEN_SEMICOLON) advance(p);
@@ -3868,6 +4219,10 @@ parse_label_start:
                     ast_expr_free(ret_expr);
                     if (label) free(label);
                     fail(p, "expected ';' after return");
+                    if (parser_recovery_enabled()) {
+                        parser_recover_statement_boundary(p);
+                        goto next_stmt;
+                    }
                     ast_block_free(b);
                     return NULL;
                 }
@@ -3931,6 +4286,185 @@ static void skip_balanced_tokens(Parser *p, TokenKind open, TokenKind close) {
             depth--;
         advance(p);
     }
+}
+
+static int parser_recovery_enabled(void) {
+    return lsp_diag_enabled ? 1 : 0;
+}
+
+static int parser_is_stmt_sync_token(Parser *p) {
+    TokenKind k = peek(p)->kind;
+    if (k == TOKEN_EOF || k == TOKEN_RBRACE || k == TOKEN_CONST || k == TOKEN_LET
+        || k == TOKEN_RETURN || k == TOKEN_IF || k == TOKEN_WHILE || k == TOKEN_LOOP
+        || k == TOKEN_FOR || k == TOKEN_DEFER || k == TOKEN_REGION || k == TOKEN_GOTO
+        || k == TOKEN_ATTR_CFG)
+        return 1;
+    if (k == TOKEN_IDENT && peek_next(p)->kind == TOKEN_COLON)
+        return 1;
+    if (k == TOKEN_IDENT && is_ident_str(p, "unsafe", 6))
+        return 1;
+    return 0;
+}
+
+static void parser_recover_statement_boundary(Parser *p) {
+    int paren_depth = 0;
+    int bracket_depth = 0;
+
+    while (peek(p)->kind != TOKEN_EOF) {
+        TokenKind k = peek(p)->kind;
+        if (paren_depth == 0 && bracket_depth == 0) {
+            if (k == TOKEN_SEMICOLON) {
+                advance(p);
+                break;
+            }
+            if (parser_is_stmt_sync_token(p))
+                break;
+            if (k == TOKEN_LBRACE) {
+                skip_balanced_tokens(p, TOKEN_LBRACE, TOKEN_RBRACE);
+                continue;
+            }
+        }
+        if (k == TOKEN_LPAREN)
+            paren_depth++;
+        else if (k == TOKEN_RPAREN && paren_depth > 0)
+            paren_depth--;
+        else if (k == TOKEN_LBRACKET)
+            bracket_depth++;
+        else if (k == TOKEN_RBRACKET && bracket_depth > 0)
+            bracket_depth--;
+        advance(p);
+    }
+    while (peek(p)->kind == TOKEN_SEMICOLON)
+        advance(p);
+}
+
+/**
+ * struct 字段级同步恢复：跳过当前坏字段，定位到下一个字段边界。
+ * 停在：消耗并越过 ';'（字段分隔），或停在 '}' 前（由外层 while 退出），或 EOF。
+ * 仅在 parser_recovery_enabled() 时由字段错误路径调用；保留括号/方括号深度以免误停在嵌套 ';'。
+ */
+static void parser_recover_struct_field_boundary(Parser *p) {
+    int paren_depth = 0;
+    int bracket_depth = 0;
+    while (peek(p)->kind != TOKEN_EOF) {
+        TokenKind k = peek(p)->kind;
+        if (paren_depth == 0 && bracket_depth == 0) {
+            if (k == TOKEN_SEMICOLON) { advance(p); break; }
+            if (k == TOKEN_RBRACE) break;
+        }
+        if (k == TOKEN_LPAREN) paren_depth++;
+        else if (k == TOKEN_RPAREN && paren_depth > 0) paren_depth--;
+        else if (k == TOKEN_LBRACKET) bracket_depth++;
+        else if (k == TOKEN_RBRACKET && bracket_depth > 0) bracket_depth--;
+        advance(p);
+    }
+}
+
+/**
+ * enum 变体级同步恢复：跳过当前坏变体，定位到下一个变体边界。
+ * 停在：消耗并越过 ','（变体分隔），或停在 '}' 前（由外层 while 退出），或 EOF。
+ */
+static void parser_recover_enum_variant_boundary(Parser *p) {
+    int paren_depth = 0;
+    while (peek(p)->kind != TOKEN_EOF) {
+        TokenKind k = peek(p)->kind;
+        if (paren_depth == 0) {
+            if (k == TOKEN_COMMA) { advance(p); break; }
+            if (k == TOKEN_RBRACE) break;
+        }
+        if (k == TOKEN_LPAREN) paren_depth++;
+        else if (k == TOKEN_RPAREN && paren_depth > 0) paren_depth--;
+        advance(p);
+    }
+}
+
+/**
+ * trait 方法级同步恢复：跳过当前坏方法签名，定位到下一个方法边界。
+ * 停在：下一个 'function'（下一方法起点）或 '}' 前（trait 结束，由外层 while 退出），或 EOF。
+ * trait 方法无函数体（';' 结束），无嵌套 function，故以 TOKEN_FUNCTION 为可靠同步点。
+ */
+static void parser_recover_trait_method_boundary(Parser *p) {
+    while (peek(p)->kind != TOKEN_EOF) {
+        TokenKind k = peek(p)->kind;
+        if (k == TOKEN_FUNCTION || k == TOKEN_RBRACE) break;
+        advance(p);
+    }
+}
+
+/**
+ * impl 方法级同步恢复：跳过当前坏方法，定位到下一个方法边界。
+ * impl 方法带函数体（{ ... }），不能像 trait 那样见到 '}' 就停（方法体的 '}' 会误判为 impl 结束）。
+ * 故按花括号深度跟踪：depth 0 处的 'function' = 下一方法起点；使 depth 跌到 -1 的 '}' = impl 结束。
+ * 坏签名但函数体仍平衡时定位准确；函数体未闭合的极端情形为 best-effort。
+ */
+static void parser_recover_impl_method_boundary(Parser *p) {
+    int depth = 0;
+    while (peek(p)->kind != TOKEN_EOF) {
+        TokenKind k = peek(p)->kind;
+        if (depth == 0 && k == TOKEN_FUNCTION) break;
+        if (k == TOKEN_LBRACE) depth++;
+        else if (k == TOKEN_RBRACE) {
+            depth--;
+            if (depth < 0) break; /* impl 结束的 '}' */
+        }
+        advance(p);
+    }
+}
+
+static int parser_stmt_needs_semicolon(Parser *p) {
+    if (!parser_recovery_enabled())
+        return 0;
+    if (peek(p)->kind == TOKEN_RBRACE || peek(p)->kind == TOKEN_EOF || peek(p)->kind == TOKEN_SEMICOLON)
+        return 0;
+    return parser_is_stmt_sync_token(p);
+}
+
+static int parser_top_level_recovery_enabled(void) {
+    return parser_recovery_enabled();
+}
+
+static int parser_is_top_level_sync_token(Parser *p) {
+    TokenKind k = peek(p)->kind;
+    if (k == TOKEN_EOF || k == TOKEN_EXTERN || k == TOKEN_ASYNC || k == TOKEN_FUNCTION
+        || k == TOKEN_STRUCT || k == TOKEN_ENUM || k == TOKEN_TRAIT || k == TOKEN_IMPL
+        || k == TOKEN_LET || k == TOKEN_CONST || k == TOKEN_ATTR_SOA || k == TOKEN_ATTR_CFG
+        || k == TOKEN_ATTR_REPR_C || k == TOKEN_ATTR_REPR_COMPATIBLE || k == TOKEN_ATTR_ALLOC)
+        return 1;
+    if (k == TOKEN_IDENT && is_ident_str(p, "allow", 5))
+        return 1;
+    return 0;
+}
+
+static void parser_recover_top_level_boundary(Parser *p) {
+    int paren_depth = 0;
+    int bracket_depth = 0;
+
+    while (peek(p)->kind != TOKEN_EOF) {
+        TokenKind k = peek(p)->kind;
+        if (paren_depth == 0 && bracket_depth == 0) {
+            if (k == TOKEN_SEMICOLON) {
+                advance(p);
+                break;
+            }
+            if (k == TOKEN_LBRACE) {
+                skip_balanced_tokens(p, TOKEN_LBRACE, TOKEN_RBRACE);
+                break;
+            }
+            if (parser_is_top_level_sync_token(p))
+                break;
+        }
+        if (k == TOKEN_LPAREN)
+            paren_depth++;
+        else if (k == TOKEN_RPAREN && paren_depth > 0)
+            paren_depth--;
+        else if (k == TOKEN_LBRACKET)
+            bracket_depth++;
+        else if (k == TOKEN_RBRACKET && bracket_depth > 0)
+            bracket_depth--;
+        advance(p);
+    }
+    while (peek(p)->kind == TOKEN_SEMICOLON)
+        advance(p);
 }
 
 /**
@@ -4022,7 +4556,7 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern, int is_async) {
         return NULL;
     }
     if (!name) {
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     advance(p);
@@ -4048,7 +4582,7 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern, int is_async) {
     if (!params) {
         free(name);
         if (gp_names) { for (int i = 0; i < n_gp; i++) free(gp_names[i]); free(gp_names); }
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     (void)memset(params, 0, (size_t)params_cap * sizeof(ASTParam));
@@ -4063,7 +4597,7 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern, int is_async) {
                 if (params[i].type) ast_type_free(params[i].type);
             }
             free(params);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom(p);
             return NULL;
         }
         params = np;
@@ -4197,7 +4731,7 @@ static ASTFunc *parse_one_function(Parser *p, int is_extern, int is_async) {
             if (params[i].type) ast_type_free(params[i].type);
         }
         free(params);
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom(p);
         return NULL;
     }
     func->line = name_line;
@@ -4239,7 +4773,7 @@ int parse(Lexer *lex, ASTModule **out) {
 
     ASTModule *mod = (ASTModule *)malloc(sizeof(ASTModule));
     if (!mod) {
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom_global();
         return -1;
     }
     mod->import_paths = NULL;
@@ -4329,6 +4863,10 @@ int parse(Lexer *lex, ASTModule **out) {
                 if (peek(&prs)->kind != TOKEN_IMPORT) {
                     free(name);
                     fail(&prs, "expected const x = import(\"path\")");
+                    if (parser_top_level_recovery_enabled()) {
+                        parser_recover_top_level_boundary(&prs);
+                        continue;
+                    }
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
                     free(mod);
@@ -4338,6 +4876,10 @@ int parse(Lexer *lex, ASTModule **out) {
                 char *path = parse_import_call_path(&prs);
                 if (!path) {
                     free(name);
+                    if (parser_top_level_recovery_enabled()) {
+                        parser_recover_top_level_boundary(&prs);
+                        continue;
+                    }
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
                     free(mod);
@@ -4346,6 +4888,10 @@ int parse(Lexer *lex, ASTModule **out) {
                 if (peek(&prs)->kind != TOKEN_SEMICOLON) {
                     free(name); free(path);
                     fail(&prs, "expected ';' after const x = import(\"path\")");
+                    if (parser_top_level_recovery_enabled()) {
+                        parser_recover_top_level_boundary(&prs);
+                        continue;
+                    }
                     while (nimports--) free(import_list[nimports]);
                     FREE_IMPORT_AUX;
                     free(mod);
@@ -4476,7 +5022,7 @@ int parse(Lexer *lex, ASTModule **out) {
             }
             while (nimports--) free(import_list[nimports]);
             free(mod);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom_global();
             return -1;
         }
         for (int i = 0; i < ntoplets; i++) {
@@ -4627,7 +5173,7 @@ int parse(Lexer *lex, ASTModule **out) {
     int func_cap = AST_MODULE_FUNCS_INIT;
     ASTFunc **func_list = (ASTFunc **)malloc((size_t)func_cap * sizeof(ASTFunc *));
     if (!func_list) {
-        fprintf(stderr, "parse: out of memory\n");
+        parser_oom_global();
         while (nimports--) free(import_list[nimports]);
         while (nstructs--) ast_struct_def_free(struct_list[nstructs]);
         while (nenums--) ast_enum_def_free(enum_list[nenums]);
@@ -4889,6 +5435,14 @@ int parse(Lexer *lex, ASTModule **out) {
         ASTFunc *func = parse_one_function(&prs, is_extern, is_async);
         if (!func) {
 cleanup_funcs_fail:
+            if (parser_top_level_recovery_enabled()) {
+                pending_soa = 0;
+                pending_cfg_skip = 0;
+                pending_repr_c = 0;
+                pending_repr_compatible = 0;
+                parser_recover_top_level_boundary(&prs);
+                continue;
+            }
             while (nfuncs--) {
                 ASTFunc *f = func_list[nfuncs];
                 if (f->name) free((void *)f->name);
@@ -5001,7 +5555,7 @@ cleanup_funcs_fail:
             while (nenums--) ast_enum_def_free(enum_list[nenums]);
             free(func_list);
             free(mod);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom_global();
             return -1;
         }
         for (int i = 0; i < nfuncs; i++)
@@ -5043,7 +5597,7 @@ cleanup_funcs_fail:
                 free(mod->funcs);
             }
             free(mod);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom_global();
             return -1;
         }
         for (int i = 0; i < nstructs; i++)
@@ -5085,7 +5639,7 @@ cleanup_funcs_fail:
                 free(mod->funcs);
             }
             free(mod);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom_global();
             return -1;
         }
         for (int i = 0; i < nenums; i++)
@@ -5112,7 +5666,7 @@ cleanup_funcs_fail:
                 free(mod->funcs);
             }
             free(mod);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom_global();
             return -1;
         }
         for (int i = 0; i < ntraits; i++) mod->trait_defs[i] = trait_list[i];
@@ -5137,7 +5691,7 @@ cleanup_funcs_fail:
                 free(mod->funcs);
             }
             free(mod);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom_global();
             return -1;
         }
         for (int i = 0; i < nimpls; i++) mod->impl_blocks[i] = impl_list[i];
@@ -5202,7 +5756,7 @@ cleanup_funcs_fail:
                 free(mod->funcs);
             }
             free(mod);
-            fprintf(stderr, "parse: out of memory\n");
+            parser_oom_global();
             return -1;
         }
         for (int i = 0; i < nimports; i++) {

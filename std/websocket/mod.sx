@@ -358,7 +358,7 @@ function ws_close(stream: WsStream): i32 {
     tls.net_tls_close_c(stream.tls_ctx);
   }
   if (stream.fd < 0) { return ws_err_ok(); }
-  return net_close_socket_c(stream.fd);
+  unsafe { return net_close_socket_c(stream.fd); }
 }
 
 /** 从 HTTP Upgrade 请求提取 Sec-WebSocket-Key；成功返回 key 长度。 */

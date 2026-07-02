@@ -47,6 +47,69 @@ else
   exit 1
 fi
 
+# 负例：check 模式下 parser 应能同步恢复并连续输出多条错误，而不是首错即停或刷屏超时
+multi_out=$($SHUX check tests/parser/multi_error_recovery.sx 2>&1) || true
+if echo "$multi_out" | grep -q "expected ';' after let" \
+  && echo "$multi_out" | grep -q "expected '(' after 'if'" \
+  && echo "$multi_out" | grep -q "aborting due to" \
+  && ! echo "$multi_out" | grep -q "parse_primary:"; then
+  : # 预期多错误恢复
+else
+  echo "parser: expected multi-error recovery diagnostics in check mode"
+  echo "$multi_out"
+  exit 1
+fi
+
+# 负例：块内控制语句错误后应恢复到下一条语句，继续输出 defer/region 的后续错误
+control_out=$($SHUX check tests/parser/control_stmt_recovery.sx 2>&1) || true
+if echo "$control_out" | grep -q "expected '{' after defer" \
+  && echo "$control_out" | grep -q "expected region label after region" \
+  && echo "$control_out" | grep -q "aborting due to" \
+  && ! echo "$control_out" | grep -q "parse_primary:"; then
+  : # 预期控制语句恢复
+else
+  echo "parser: expected control statement recovery diagnostics in check mode"
+  echo "$control_out"
+  exit 1
+fi
+
+# 负例：顶层声明错误后应恢复到下一条顶层声明，而不是整模块首错即停
+top_out=$($SHUX check tests/parser/top_level_recovery.sx 2>&1) || true
+if echo "$top_out" | grep -q "expected ';' after top-level const" \
+  && echo "$top_out" | grep -q "expected '{' before function body" \
+  && echo "$top_out" | grep -q "aborting due to" \
+  && ! echo "$top_out" | grep -q "parse_primary:"; then
+  : # 预期顶层恢复
+else
+  echo "parser: expected top-level recovery diagnostics in check mode"
+  echo "$top_out"
+  exit 1
+fi
+
+# 负例：裸 unsafe 应命中专门语句诊断，而不是退化成通用表达式/分号错误
+unsafe_out=$($SHUX check tests/parser/unsafe_stmt_recovery.sx 2>&1) || true
+if echo "$unsafe_out" | grep -q "expected '{' after unsafe" \
+  && ! echo "$unsafe_out" | grep -q "expected ';' after expression"; then
+  : # 预期 unsafe 专项诊断
+else
+  echo "parser: expected dedicated unsafe diagnostic in check mode"
+  echo "$unsafe_out"
+  exit 1
+fi
+
+# 负例：import 预扫描段出错后应恢复到后续顶层声明继续报错
+import_out=$($SHUX check tests/parser/import_recovery.sx 2>&1) || true
+if echo "$import_out" | grep -q "expected const x = import(\"path\")" \
+  && echo "$import_out" | grep -q "expected '{' before function body" \
+  && echo "$import_out" | grep -q "aborting due to" \
+  && ! echo "$import_out" | grep -q "parse_primary:"; then
+  : # 预期 import 预扫描恢复
+else
+  echo "parser: expected import pre-scan recovery diagnostics in check mode"
+  echo "$import_out"
+  exit 1
+fi
+
 # return (1+2) 无分号（`}` 前可略分号）：须正确建 AST 并得到退出码 3；与 compiler/shux、compiler/shux-c 共用 parser.c 时行为一致
 $SHUX -L . tests/parser/return_paren_expr.sx -o /tmp/shux_parser_return_paren 2>&1 || {
   echo "parser: return_paren_expr.sx should compile with $SHUX"

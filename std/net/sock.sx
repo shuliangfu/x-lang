@@ -44,7 +44,8 @@ extern function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
  */
 #[cfg(not(target_os = "windows"))]
 function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
-  let flags: i32 = fcntl(fd, F_GETFL, 0);
+  let flags: i32 = 0;
+  unsafe { flags = fcntl(fd, F_GETFL, 0); }
   if (flags < 0) {
     return -1;
   }
@@ -53,9 +54,9 @@ function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
   } else {
     flags = flags | O_NONBLOCK;
   }
-  if (fcntl(fd, F_SETFL, flags) == 0) {
+  unsafe { if (fcntl(fd, F_SETFL, flags) == 0) {
     return 0;
-  }
+  } }
   return -1;
 }
 
@@ -68,9 +69,9 @@ function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
   if (blocking == 0) {
     mode = 1;
   }
-  if (ioctlsocket(fd, (0x80000000 | 0x40000000) as i32, &mode) == 0) {
+  unsafe { if (ioctlsocket(fd, (0x80000000 | 0x40000000) as i32, &mode) == 0) {
     return 0;
-  }
+  } }
   return -1;
 }
 
@@ -83,15 +84,15 @@ function net_close_socket_c(fd: i32): i32 {
   }
   #[cfg(not(target_os = "windows"))]
   {
-    if (close(fd) == 0) {
+    unsafe { if (close(fd) == 0) {
       return 0;
-    }
+    } }
   }
   #[cfg(target_os = "windows")]
   {
-    if (closesocket(fd) == 0) {
+    unsafe { if (closesocket(fd) == 0) {
       return 0;
-    }
+    } }
   }
   return -1;
 }

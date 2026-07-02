@@ -313,6 +313,7 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
   int32_t nthen;
   int32_t nelse;
   struct parser_asm_lexer lex_after;
+  struct parser_asm_lexer elif_lex;
   if (!arena || !source || !out_cond || !out_then || !out_else || !lex_out)
     return 0;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_branch_audit_c(lex_at_if, source));
@@ -1110,7 +1111,6 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
   if (r.tok.kind != (int32_t)TOKEN_LBRACE)
     return 0;
   lex_cur = r.next_lex;
-  lex_cur = r.next_lex;
   memset(&then_res, 0, sizeof(then_res));
   then_res.next_lex = lex_cur;
   parser_parse_block_into(arena, lex_cur, source, type_ref, &then_res);
@@ -1130,15 +1130,16 @@ static int32_t parser_asm_parse_if_stmt_into_slice_c(void *arena, struct parser_
       parser_lex_from_next_into_glue(&lex_cur, r);
       lexer_next_into(&r, lex_cur, source);
     if (r.tok.kind == (int32_t)TOKEN_IF) {
-      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_else_if_chain_audit_c(lex_cur, source));
+      elif_lex = parser_asm_lex_at_token_from_result_c(r);
+      PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_else_if_chain_audit_c(elif_lex, source));
       wrap_ref = ast_ast_arena_block_alloc(arena);
       if (wrap_ref == 0)
         return 0;
       ncond = 0;
       nthen = 0;
       nelse = 0;
-      lex_after = lex_cur;
-      if (!parser_asm_parse_if_stmt_into_slice_c(arena, lex_cur, source, type_ref, &ncond, &nthen, &nelse, &lex_after))
+      lex_after = elif_lex;
+      if (!parser_asm_parse_if_stmt_into_slice_c(arena, elif_lex, source, type_ref, &ncond, &nthen, &nelse, &lex_after))
         return 0;
       if (pipeline_block_append_if(arena, wrap_ref, ncond, nthen, nelse) < 0)
         return 0;
@@ -1211,8 +1212,17 @@ static int32_t parser_asm_kw_at_pos_c(struct parser_asm_slice_u8 *source, size_t
     next_pos = parser_asm_stretch_skip_ws_and_comments_c(source->data, source->length, i + (size_t)klen);
     if (next_pos < source->length) {
       uint8_t nx = source->data[next_pos];
-      if (nx != (uint8_t)'(' && nx != (uint8_t)'{' && nx != (uint8_t)';')
+      if (klen == 2 && memcmp(kw, "if", 2) == 0) {
+        if (nx != (uint8_t)'(')
+          return 0;
+      } else if (klen == 4 && memcmp(kw, "else", 4) == 0) {
+        if (nx != (uint8_t)'{' && nx != (uint8_t)';') {
+          if (next_pos + 2 > source->length || memcmp(source->data + next_pos, "if", 2) != 0)
+            return 0;
+        }
+      } else if (nx != (uint8_t)'(' && nx != (uint8_t)'{' && nx != (uint8_t)';') {
         return 0;
+      }
     }
   }
   return 1;
@@ -1335,9 +1345,13 @@ void parser_realign_lex_after_if_stmt_onefunc_glue(struct parser_asm_lexer *lex,
   struct parser_asm_lexer out;
   if (!lex || !source)
     return;
-  out = parser_asm_scan_sync_after_if_stmt_c(*lex, source);
-  if (out.pos < lex->pos)
-    out = parser_asm_realign_lex_after_if_arm_c(out, source);
+  /**
+   * parse_if_stmt_into_slice_c 已从 lex_at_if 重扫整句 if/else 并返回“整条语句之后”的 lex_out。
+   * 这里若再从当前 lex 反向找最近的 if，会在嵌套 if 场景误命中内层 if，
+   * 把 then 臂里的 `continue;` / `return;` 重新暴露给外层 block 或函数体。
+   * 因此这里只做当前位置附近的 stmt 对齐，不再二次整句回扫。
+   */
+  out = parser_asm_realign_lex_after_if_arm_c(*lex, source);
   lex->pos = out.pos;
   lex->line = out.line;
   lex->col = out.col;

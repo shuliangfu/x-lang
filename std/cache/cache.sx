@@ -172,7 +172,7 @@ function lru_expire_if_needed(c: *LruCacheMem, idx: i32): i32 {
   let now: i64 = 0;
   if (idx < 0 || c.nodes[idx].used == 0) { return 0; }
   if (c.nodes[idx].expire_ns == 0) { return 0; }
-  now = time_now_monotonic_ns_c();
+  unsafe { now = time_now_monotonic_ns_c(); }
   if (now >= c.nodes[idx].expire_ns) {
     lru_remove_node(c, idx);
     return 1;
@@ -184,7 +184,7 @@ function lru_expire_if_needed(c: *LruCacheMem, idx: i32): i32 {
 function cache_lru_create_c(capacity: i32): i64 {
   let c: *LruCacheMem = 0;
   if (capacity <= 0 || capacity > LRU_MAX_NODES) { return 0; }
-  c = calloc(1, LRU_CACHE_MEM_SIZE) as *LruCacheMem;
+  unsafe { c = calloc(1, LRU_CACHE_MEM_SIZE) as *LruCacheMem; }
   if (c == 0) { return 0; }
   c.capacity = capacity;
   c.head = -1;
@@ -195,7 +195,7 @@ function cache_lru_create_c(capacity: i32): i64 {
 /** 释放 LRU 缓存。 */
 function cache_lru_free_c(handle: i64): void {
   let c: *LruCacheMem = lru_from_handle(handle);
-  if (c != 0) { free(c as *u8); }
+  if (c != 0) { unsafe { free(c as *u8); } }
 }
 
 /** 读取键；0 成功，-2 未命中/过期。 */
@@ -224,7 +224,7 @@ function cache_lru_put_c(handle: i64, key: i64, value: i64, ttl_ns: i64): i32 {
   let idx: i32 = 0;
   let expire: i64 = 0;
   if (c == 0) { return CACHE_ERR_NULL; }
-  if (ttl_ns > 0) { expire = time_now_monotonic_ns_c() + ttl_ns; }
+  if (ttl_ns > 0) { unsafe { expire = time_now_monotonic_ns_c() + ttl_ns; } }
   idx = lru_find(c, key);
   if (idx >= 0) {
     c.nodes[idx].value = value;
@@ -290,7 +290,7 @@ function cache_lru_stats_c(handle: i64, hits: *i64, misses: *i64, evictions: *i6
 function cache_pool_create_c(max_slots: i32): i64 {
   let p: *ObjPoolMem = 0;
   if (max_slots <= 0 || max_slots > POOL_MAX_SLOTS) { return 0; }
-  p = calloc(1, OBJ_POOL_MEM_SIZE) as *ObjPoolMem;
+  unsafe { p = calloc(1, OBJ_POOL_MEM_SIZE) as *ObjPoolMem; }
   if (p == 0) { return 0; }
   p.max_slots = max_slots;
   return p as i64;
@@ -299,7 +299,7 @@ function cache_pool_create_c(max_slots: i32): i64 {
 /** 释放对象池。 */
 function cache_pool_free_c(handle: i64): void {
   let p: *ObjPoolMem = pool_from_handle(handle);
-  if (p != 0) { free(p as *u8); }
+  if (p != 0) { unsafe { free(p as *u8); } }
 }
 
 /** 向池注册空闲资源；0 成功。 */

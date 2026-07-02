@@ -273,7 +273,7 @@ function base64_stream_enc_init_c(state: *u8, state_cap: i32, url: i32): i32 {
   let need: i32 = B64_STREAM_STATE_BYTES;
   let s: *B64Stream = 0 as *B64Stream;
   if (state == 0 || state_cap < need) { return -1; }
-  memset(state, 0, need);
+  unsafe { memset(state, 0, need); }
   s = state as *B64Stream;
   s.magic = 0x42345354;
   s.is_url = (url != 0) ? 1 : 0;
@@ -286,7 +286,7 @@ function base64_stream_dec_init_c(state: *u8, state_cap: i32, url: i32): i32 {
   let need: i32 = B64_STREAM_STATE_BYTES;
   let s: *B64Stream = 0 as *B64Stream;
   if (state == 0 || state_cap < need) { return -1; }
-  memset(state, 0, need);
+  unsafe { memset(state, 0, need); }
   s = state as *B64Stream;
   s.magic = 0x42345354;
   s.is_url = (url != 0) ? 1 : 0;
@@ -476,7 +476,7 @@ function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8, in_len
   }
   if (in_consumed != 0) { in_consumed[0] = 0; }
   qi = s.dec_len;
-  if (qi > 0) { memcpy(&quad[0], &s.dec_pending[0], qi); }
+  if (qi > 0) { unsafe { memcpy(&quad[0], &s.dec_pending[0], qi); } }
   while (qi > 0 || used_in < in_len) {
     while (qi < 4 && used_in < in_len) {
       quad[qi] = inp[used_in];
@@ -503,7 +503,7 @@ function base64_stream_dec_update_c(state: *u8, state_cap: i32, inp: *u8, in_len
     qi = 0;
   }
   s.dec_len = qi;
-  if (qi > 0) { memcpy(&s.dec_pending[0], &quad[0], qi); }
+  if (qi > 0) { unsafe { memcpy(&s.dec_pending[0], &quad[0], qi); } }
   if (in_consumed != 0) { in_consumed[0] = used_in; }
   return written;
 }
@@ -525,10 +525,10 @@ function base64_stream_smoke_c(): i32 {
   plain[2] = 108;
   plain[3] = 108;
   plain[4] = 111;
-  memset(&st[0], 0, 32);
-  memset(&enc[0], 0, 16);
-  memset(&dec[0], 0, 8);
-  memset(&block[0], 0, 16);
+  unsafe { memset(&st[0], 0, 32); }
+  unsafe { memset(&enc[0], 0, 16); }
+  unsafe { memset(&dec[0], 0, 8); }
+  unsafe { memset(&block[0], 0, 16); }
   if (base64_encode_standard_c(&plain[0], 5, &block[0], 16) != 8) { return -1; }
   if (base64_stream_enc_init_c(&st[0], 32, 0) != 0) { return -1; }
   n1 = base64_stream_enc_update_c(&st[0], 32, &plain[0], 2, &enc[0], 16, 0, &consumed);

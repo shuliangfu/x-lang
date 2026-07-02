@@ -10,7 +10,7 @@ static void shux_crash_evidence_minimal(int has_msg, int msg_val) {
     return;
   }
   int pid = (int)getpid();
-  fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val,
+  fprintf(stderr, "note: crash evidence: panic=%d msg=%d frames=0 pid=%d\n", has_msg, msg_val,
           pid);
   const char *dir = getenv("SHUX_CRASH_EVIDENCE_DIR");
   if (dir && dir[0]) {
@@ -20,7 +20,7 @@ static void shux_crash_evidence_minimal(int has_msg, int msg_val) {
     if (f) {
       fprintf(f, "panic_has_msg=%d\npanic_msg=%d\nframes=0\npid=%d\n", has_msg, msg_val, pid);
       fclose(f);
-      fprintf(stderr, "shux: [SHUX_CRASH_EVIDENCE] bundle=%s\n", path);
+      fprintf(stderr, "note: crash evidence: bundle=%s\n", path);
     }
   }
 }

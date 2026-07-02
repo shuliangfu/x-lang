@@ -9,6 +9,7 @@
 #define SHUX_PREPROCESS_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 /**
  * 对源码做条件编译预处理，保留「条件成立」分支的代码，被跳过行以空行占位以保持行号一致。
@@ -29,5 +30,20 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
  * 返回值：非 0 表示条件成立。
  */
 int preprocess_eval_condition(const char *cond, const char **defines, int ndefines);
+
+/**
+ * 兼容 runtime_pipeline_abi / legacy shux-c 的固定缓冲接口。
+ * 参数：source_buf/source_len 为输入源码；out_buf/out_cap 为调用方提供的输出缓冲。
+ * 返回值：成功返回输出字节数；失败返回 -1。
+ */
+int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
+
+/** 与 seed/selfhost 链兼容的别名。 */
+int32_t typeck_preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
+
+/** runtime_pipeline_abi 的 -D 注入接口。 */
+void preprocess_define_reset(void);
+void preprocess_define_add(const char *name);
+int32_t preprocess_if_stack_len(void);
 
 #endif /* SHUX_PREPROCESS_H */

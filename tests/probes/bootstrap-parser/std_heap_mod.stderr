@@ -1,0 +1,117 @@
+note: pipeline debug: driver post-parse_into_buf num_funcs=47 n_imports=2 pr_ok=0 pr_main_idx=-1 src_len=11557
+ --> ../std/heap/mod.sx
+note: pipeline debug: collect parse dep=std.heap.libc pr_ok=0 n_imp=1
+ --> ../std/heap/mod.sx
+note: pipeline debug: collect parse dep=core.mem pr_ok=0 n_imp=0
+ --> ../std/heap/mod.sx
+note: pipeline debug: collect parse dep=std.heap.ops pr_ok=0 n_imp=1
+ --> ../std/heap/mod.sx
+note: pipeline debug: n_deps=3
+ --> ../std/heap/mod.sx
+note: pipeline debug: dep[0]=std.heap.libc
+ --> ../std/heap/mod.sx
+note: pipeline debug: dep[1]=core.mem
+ --> ../std/heap/mod.sx
+note: pipeline debug: dep[2]=std.heap.ops
+ --> ../std/heap/mod.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=4
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=31
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=52
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: before entry memset arena_sz=16
+ --> ../std/heap/mod.sx
+note: pipeline debug: before pipeline_run entry=../std/heap/mod.sx src_len=11557
+ --> ../std/heap/mod.sx
+note: pipeline debug: pipeline thread start len=11557
+ --> ../std/heap/mod.sx
+note: pipeline debug: entry_source_len=11557
+ --> ../std/heap/mod.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=47
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: after_entry_parse num_funcs=47
+ --> ../std/heap/mod.sx
+note: pipeline debug: after_entry_parse num_funcs=47 num_defined=47 num_extern=0
+ --> ../std/heap/mod.sx
+shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=47
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=2 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=2 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=2 si=0 so_kind=2 so_idx=0 expr=115 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=2 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=2 tail=115 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=3 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=3 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=3 si=0 so_kind=2 so_idx=0 expr=189 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=3 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=3 tail=189 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=4 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=4 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=4 si=0 so_kind=2 so_idx=0 expr=199 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=4 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=4 tail=199 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=7 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=7 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=7 si=0 so_kind=2 so_idx=0 expr=435 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=7 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=7 tail=435 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=9 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=9 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=9 si=0 so_kind=2 so_idx=0 expr=502 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=9 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=9 tail=502 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=11 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=11 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=11 si=0 so_kind=2 so_idx=0 expr=601 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=11 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=11 tail=601 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=12 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=12 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=12 si=0 so_kind=2 so_idx=0 expr=643 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=12 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=12 tail=643 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=15 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=15 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=15 si=0 so_kind=2 so_idx=0 expr=747 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=15 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=15 tail=747 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=16 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=16 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=16 si=0 so_kind=2 so_idx=0 expr=753 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=16 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=16 tail=753 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=17 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=17 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=17 si=0 so_kind=2 so_idx=0 expr=823 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=17 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=17 tail=823 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=18 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=18 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=18 si=0 so_kind=2 so_idx=0 expr=877 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=18 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=18 tail=877 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=19 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=19 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=19 si=0 so_kind=2 so_idx=0 expr=887 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=19 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=19 tail=887 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=20 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=20 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=20 si=0 so_kind=2 so_idx=0 expr=897 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=20 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=20 tail=897 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=23 tail=1037 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=27 tail=1149 kind=41
+typeck error: return expression type mismatch: expected *u8, found *u64
+ --> ../std/heap/mod.sx
+typeck note: return subexpression: alloc()
+ --> ../std/heap/mod.sx
+typeck error[SXT001]: .sx type check failed in function #23 bump (check_block failed)
+ --> ../std/heap/mod.sx
+shux: [SHUX_DEBUG_PIPE] typeck library rc=-5 ctx=0x44f400000 ndep=3
+note: pipeline debug: pipeline thread done ec=-5
+ --> ../std/heap/mod.sx
+note: pipeline debug: after pipeline_run ec=-5
+ --> ../std/heap/mod.sx
+pipeline error: pipeline failed for '../std/heap/mod.sx' (ec=-5, out_len=0)
+ --> ../std/heap/mod.sx

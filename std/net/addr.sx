@@ -60,8 +60,8 @@ function net_sockaddr_in_pack_addr_port_c(sin_ptr: *u8): i64 {
   let p_addr: *u32 = (sin_ptr + 4) as *u32;
   let a: u32 = 0;
   let p: u32 = 0;
-  a = ntohl(p_addr[0]);
-  p = ntohs(p_port[0]) as u32;
+  unsafe { a = ntohl(p_addr[0]); }
+  unsafe { p = ntohs(p_port[0]) as u32; }
   return ((a as i64) << 32) | (p & 0xffff) as i64;
 }
 
@@ -73,7 +73,9 @@ function net_tcp_local_addr_c(fd: i32): i64 {
   let sin_mem: u8[16] = [];
   let len: u32 = 16;
   let sin_ptr: *u8 = net_sockaddr_in_buf_ptr_c(&sin_mem[0]);
-  if (getsockname(fd, sin_ptr, &len) != 0) {
+  let rc: i32 = 0;
+  unsafe { rc = getsockname(fd, sin_ptr, &len); }
+  if (rc != 0) {
     return (0 - 1) as i64;
   }
   return net_sockaddr_in_pack_addr_port_c(sin_ptr);
@@ -84,7 +86,9 @@ function net_tcp_local_addr_c(fd: i32): i64 {
   let sin_mem: u8[16] = [];
   let len_i: i32 = 16;
   let sin_ptr: *u8 = net_sockaddr_in_buf_ptr_c(&sin_mem[0]);
-  if (getsockname(fd, sin_ptr, &len_i) != 0) {
+  let rc: i32 = 0;
+  unsafe { rc = getsockname(fd, sin_ptr, &len_i); }
+  if (rc != 0) {
     return (0 - 1) as i64;
   }
   return net_sockaddr_in_pack_addr_port_c(sin_ptr);
@@ -98,7 +102,9 @@ function net_tcp_peer_addr_c(fd: i32): i64 {
   let sin_mem: u8[16] = [];
   let len: u32 = 16;
   let sin_ptr: *u8 = net_sockaddr_in_buf_ptr_c(&sin_mem[0]);
-  if (getpeername(fd, sin_ptr, &len) != 0) {
+  let rc: i32 = 0;
+  unsafe { rc = getpeername(fd, sin_ptr, &len); }
+  if (rc != 0) {
     return (0 - 1) as i64;
   }
   return net_sockaddr_in_pack_addr_port_c(sin_ptr);
@@ -109,7 +115,9 @@ function net_tcp_peer_addr_c(fd: i32): i64 {
   let sin_mem: u8[16] = [];
   let len_i: i32 = 16;
   let sin_ptr: *u8 = net_sockaddr_in_buf_ptr_c(&sin_mem[0]);
-  if (getpeername(fd, sin_ptr, &len_i) != 0) {
+  let rc: i32 = 0;
+  unsafe { rc = getpeername(fd, sin_ptr, &len_i); }
+  if (rc != 0) {
     return (0 - 1) as i64;
   }
   return net_sockaddr_in_pack_addr_port_c(sin_ptr);

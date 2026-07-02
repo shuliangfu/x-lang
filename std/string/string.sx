@@ -32,7 +32,7 @@ function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8 {
 function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
   let r: i32 = 0;
   if (n <= 0) { return 0; }
-  r = memcmp(a, b, n);
+  unsafe { r = memcmp(a, b, n); }
   if (r < 0) { return -1; }
   if (r > 0) { return 1; }
   return 0;
@@ -40,21 +40,23 @@ function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
 
 /** 比较 a[off..off+n-1] 与 b[0..n-1]；相等 0，否则非 0。 */
 function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
+  let p: *u8 = 0 as *u8;
   if (n <= 0) { return 0; }
-  return memcmp(a + off, b, n);
+  p = a + off;
+  unsafe { return memcmp(p, b, n); }
 }
 
 /** 块拷贝 dst[0..n-1] = src[0..n-1]；n<=0 不写。 */
 function shux_string_copy_c(dst: *u8, src: *u8, n: i32): void {
   if (n <= 0) { return; }
-  memcpy(dst, src, n);
+  unsafe { memcpy(dst, src, n); }
 }
 
 /** 在 ptr[0..n-1] 中找字节 c 首次出现；无则 -1。 */
 function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
   let p: *u8 = 0 as *u8;
   if (n <= 0) { return -1; }
-  p = memchr(ptr, c as i32, n);
+  unsafe { p = memchr(ptr, c as i32, n); }
   if (p == 0) { return -1; }
   return (p - ptr) as i32;
 }

@@ -252,7 +252,7 @@ static int32_t http2_server_send_response_c(io_t *io, int32_t stream_id, const u
     return 0;
 }
 
-#include "server_push.inc.c"
+#include "http2_server_push.inc.c"
 
 /**
  * 对已 handshake h2c 连接：发 PUSH_PROMISE + push body，再回主 GET 200+body。
@@ -1702,7 +1702,7 @@ int32_t http2_h2c_server_multistream_push_smoke_c(void) {
 #endif
 }
 
-#include "test_tls_cert.inc.c"
+#include "http2_test_tls_cert.inc.c"
 
 /**
  * h2 over TLS server 集成烟测：fork + 自签 PEM；TLS 不可用或 Windows 跳过返回 0。

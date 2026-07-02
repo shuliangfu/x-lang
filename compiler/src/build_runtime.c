@@ -14,7 +14,17 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "diag.h"
+
 #define PIPELINE_GEN_PATCH_BUF_SIZE (512 * 1024)
+
+static void build_runtime_info(const char *msg) {
+  diag_report(NULL, 0, 0, "info", msg ? msg : "build step complete", NULL);
+}
+
+static void build_runtime_warn(const char *msg) {
+  diag_report(NULL, 0, 0, "warning", msg ? msg : "build step degraded", NULL);
+}
 
 /**
  * 从源头去补丁：pipeline.sx 已用 run_sx_pipeline_impl、get_ndep()；codegen 已对 slice/数组形参生成 -> 与 *。
@@ -415,10 +425,10 @@ int main(int argc, char **argv) {
     int ar = build_run_asm_build(shu_path);
     if (ar == 0) {
       (void)system("cp -f shux_asm shux");
-      fprintf(stderr, "build_tool: asm path OK; ./shux updated from shux_asm.\n");
+      build_runtime_info("asm path OK; ./shux updated from shux_asm");
       return 0;
     }
-    fprintf(stderr, "build_tool: asm build failed; falling back to legacy C codegen steps.\n");
+    build_runtime_warn("asm build failed; falling back to legacy C codegen steps");
   }
   return build_run_legacy_steps(shu_path) != 0 ? 1 : 0;
 }

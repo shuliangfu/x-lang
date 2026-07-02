@@ -1,0 +1,53 @@
+note: pipeline debug: driver_first_parse num_funcs=45 src_len=45873
+ --> ../std/regex/regex.sx
+note: pipeline debug: pipeline thread start len=45873
+ --> ../std/regex/regex.sx
+note: pipeline debug: after_entry_parse num_funcs=45
+ --> ../std/regex/regex.sx
+shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=45
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=1 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=1 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=1 si=0 so_kind=2 so_idx=0 expr=2590 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=1 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=1 tail=2590 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=2 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=2 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=2 si=0 so_kind=2 so_idx=0 expr=2596 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=2 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=2 tail=2596 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=4 tail=2623 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=9 tail=3095 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=17 tail=3457 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=59 tail=6465 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=66 tail=7563 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=68 tail=7613 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=72 tail=8236 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=79 tail=9497 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=96 tail=10335 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=118 tail=12872 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=143 tail=15581 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=150 tail=16003 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=159 tail=16419 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=177 tail=17374 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=187 tail=18499 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=202 tail=18859 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=226 tail=20235 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=237 tail=21260 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=251 tail=22303 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=256 tail=22835 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=260 tail=23206 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=266 tail=23915 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=271 tail=24463 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=274 tail=24765 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=278 tail=25244 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=306 tail=27808 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=310 tail=28172 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=320 tail=29369 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=332 tail=29980 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=334 tail=30091 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=336 tail=30146 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=339 tail=30306 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=343 tail=30515 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=409 tail=39372 kind=41
+note: pipeline debug: pipeline thread done ec=0
+ --> ../std/regex/regex.sx

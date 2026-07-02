@@ -5,7 +5,7 @@
  * v1 静态表；v3 动态表；v4 Huffman 解码；供 client.inc.c 构建 HEADERS 帧。
  */
 
-#include "hpack_huffman.inc.c"
+#include "http2_hpack_huffman.inc.c"
 
 /** HPACK 整型编码（N 位前缀）；成功返回写入字节数，失败 -1。 */
 static int32_t hpack_encode_int(uint32_t I, int32_t N, uint8_t prefix_mask, uint8_t *out,
@@ -391,5 +391,5 @@ int32_t http2_hpack_smoke_c(void) {
     return 0;
 }
 
-#include "hpack_dyn.inc.c"
-#include "hpack_server_dyn.inc.c"
+#include "http2_hpack_dyn.inc.c"
+#include "http2_hpack_server_dyn.inc.c"

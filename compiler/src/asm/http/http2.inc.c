@@ -156,9 +156,9 @@ int32_t http2_smoke_c(void) {
     return 0;
 }
 
-#include "flow.inc.c"
-#include "settings.inc.c"
-#include "push_h2c.inc.c"
-#include "goaway.inc.c"
-#include "ping.inc.c"
-#include "rst_stream.inc.c"
+#include "http2_flow.inc.c"
+#include "http2_settings.inc.c"
+#include "http2_push_h2c.inc.c"
+#include "http2_goaway.inc.c"
+#include "http2_ping.inc.c"
+#include "http2_rst_stream.inc.c"

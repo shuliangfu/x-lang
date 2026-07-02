@@ -11,6 +11,13 @@ extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex
 extern void parser_lex_from_next_into_glue(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 extern struct parser_asm_lexer_result parser_asm_body_skip_let_const_then_if_buf_c(struct parser_asm_lexer lex,
                                                                                    uint8_t *data, int32_t len);
+extern void parser_asm_copy_slice_to_param32_buf_c(uint8_t *source, int32_t source_len, size_t start, int32_t nlen,
+                                                   uint8_t *out);
+extern int32_t pipeline_onefunc_append_param(uint8_t *out, uint8_t *name, int32_t name_len, int32_t type_ref);
+extern void pipeline_onefunc_set_param_type_ref(uint8_t *out, int32_t pidx, int32_t ty);
+extern int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                                                struct parser_asm_slice_u8 *source,
+                                                                struct parser_asm_lexer *out_lex);
 extern int32_t parser_asm_stretch_onefunc_buf_name_audit_c(const uint8_t *name, int32_t name_len);
 extern int32_t parser_asm_stretch_onefunc_slice_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_onefunc_buf_full_deep_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
@@ -77,17 +84,28 @@ static int32_t parser_asm_onefunc_buf_return_type_ok_c(int32_t kind) {
 /**
  * parse_one_function_buf_into：buf 路径精简 function 解析，结果写入 *out。
  */
-void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *out, struct parser_asm_lexer lex,
-                                              uint8_t *data, int32_t len) {
+void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *out, void *arena,
+                                              struct parser_asm_lexer lex, uint8_t *data, int32_t len) {
   struct parser_asm_lexer_result r;
+  struct parser_asm_slice_u8 source;
   uint8_t dummy_name[64];
+  uint8_t pname_buf[32];
+  uint8_t *out_pool;
+  int32_t param_idx;
+  int32_t param_name_len;
+  int32_t param_type_ref;
+  int32_t ret_type_ref;
   int32_t name_len;
   size_t name_start_buf;
   int32_t ret_val;
   int32_t ni;
   if (!out || !data || len <= 0)
     return;
+  source.data = data;
+  source.length = (size_t)len;
   memset(dummy_name, 0, sizeof(dummy_name));
+  memset(pname_buf, 0, sizeof(pname_buf));
+  out_pool = (uint8_t *)out;
   /* parse_into_buf 传入的 lex 已在 function 之后（首 token 为 IDENT）；与 parse_one_function_impl 一致。 */
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
@@ -816,11 +834,57 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   }
   parser_lex_from_next_into_glue(&lex, r);
   r = lexer_next_buf(lex, data, len);
-  if (r.tok.kind != (int32_t)TOKEN_RPAREN) {
-    parser_asm_set_onefunc_fail_c(out, lex);
-    return;
+  out->num_params = 0;
+  if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+    parser_lex_from_next_into_glue(&lex, r);
+  } else {
+    for (;;) {
+      if (r.tok.kind != (int32_t)TOKEN_IDENT) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      param_name_len = r.tok.ident_len;
+      if (param_name_len <= 0 || param_name_len > 31) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      parser_asm_copy_slice_to_param32_buf_c(data, len, r.token_start, param_name_len, pname_buf);
+      param_idx = pipeline_onefunc_append_param(out_pool, pname_buf, param_name_len, 0);
+      if (param_idx < 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      out->num_params = param_idx + 1;
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind != (int32_t)TOKEN_COLON) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      parser_lex_from_next_into_glue(&lex, r);
+      param_type_ref = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, lex, &source, &lex);
+      if (param_type_ref == 0) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      pipeline_onefunc_set_param_type_ref(out_pool, param_idx, param_type_ref);
+      r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+        parser_lex_from_next_into_glue(&lex, r);
+        break;
+      }
+      if (r.tok.kind != (int32_t)TOKEN_COMMA) {
+        parser_asm_set_onefunc_fail_c(out, lex);
+        return;
+      }
+      parser_lex_from_next_into_glue(&lex, r);
+      r = lexer_next_buf(lex, data, len);
+      if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
+        parser_lex_from_next_into_glue(&lex, r);
+        break;
+      }
+    }
   }
-  parser_lex_from_next_into_glue(&lex, r);
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_COLON) {
     parser_asm_set_onefunc_fail_c(out, lex);
@@ -832,7 +896,12 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
   }
-  parser_lex_from_next_into_glue(&lex, r);
+  ret_type_ref = parser_asm_parse_type_ref_for_arena_into_slice_c(arena, lex, &source, &lex);
+  if (ret_type_ref == 0) {
+    parser_asm_set_onefunc_fail_c(out, lex);
+    return;
+  }
+  out->func_return_type_ref = ret_type_ref;
   r = lexer_next_buf(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_LBRACE) {
     parser_asm_set_onefunc_fail_c(out, lex);

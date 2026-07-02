@@ -138,8 +138,8 @@ function shux_async_future_wait_c(handle: i64, max_rounds: i32): i32 {
     pr = shux_async_future_poll_c(handle);
     if (pr == SHUX_POLL_READY) { return SHUX_POLL_READY; }
     if (pr < 0) { return pr; }
-    shux_io_poll_async_completions(0);
-    shux_async_run_drain_until_idle();
+    unsafe { shux_io_poll_async_completions(0); }
+    unsafe { shux_async_run_drain_until_idle(); }
     round = round + 1;
   }
   return shux_async_future_poll_c(handle);

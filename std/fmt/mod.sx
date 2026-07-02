@@ -72,10 +72,19 @@ function format_template(buf: *u8, cap: i32, pat: *u8, pat_len: i32, val: i32): 
 // ——— 标准输出 print/println（stdout）：字节串 + 标量重载 ———
 /** 将 ptr[0..len) 写入 stdout；返回写入字节数，-1 错误。 */
 function print(ptr: *u8, len: i32): i32 { return io.print(ptr, len as usize); }
+/** 将字节切片写入 stdout。 */
+function print(s: u8[]): i32 { return io.print(s.data, s.length); }
 
 /** 将 ptr[0..len) 写入 stdout 并追加换行。 */
 function println(ptr: *u8, len: i32): i32 {
   let r: i32 = io.print(ptr, len as usize);
+  let nl: u8[1] = [10];
+  let ign: i32 = io.print(&nl[0], 1);
+  return r;
+}
+/** 将字节切片写入 stdout 并追加换行。 */
+function println(s: u8[]): i32 {
+  let r: i32 = io.print(s.data, s.length);
   let nl: u8[1] = [10];
   let ign: i32 = io.print(&nl[0], 1);
   return r;

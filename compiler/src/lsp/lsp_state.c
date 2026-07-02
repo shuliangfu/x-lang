@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "diag.h"
+
 /** 由 lsp.sx 导出（function lsp_main_impl）；本文件 wrapper 再导出 typeck_lsp_main 供 main.sx 调用。 */
 extern int32_t typeck_lsp_main_impl(void);
 extern void driver_bump_stack_limit(void);
@@ -27,7 +29,9 @@ static void lsp_debug_report_sqpoll_env(void) {
     const char *sq = getenv("SHUX_IO_URING_SQPOLL");
     if (!dbg || dbg[0] == '\0' || dbg[0] == '0')
         return;
-    fprintf(stderr, "shux: [lsp-io] SHUX_IO_URING_SQPOLL=%s\n", (sq && sq[0]) ? sq : "<unset>");
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "lsp io debug: SHUX_IO_URING_SQPOLL=%s",
+                 (sq && sq[0]) ? sq : "<unset>");
 }
 
 static void lsp_apply_default_io_policy(void) {

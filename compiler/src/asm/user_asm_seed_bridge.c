@@ -10,12 +10,22 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "diag.h"
+#include "runtime_diag_codes.h"
 
 /** 与 pipeline 生成体一致的 CodegenOutBuf 布局。 */
 struct codegen_CodegenOutBuf {
   uint8_t data[8388608];
   int32_t len;
 };
+
+static int seed_asm_debug_enabled(void) {
+  return getenv("SHUX_ASM_DEBUG") != NULL;
+}
+
+static int seed_asm_emit_trace_enabled(void) {
+  return getenv("SHUX_ASM_EMIT_TRACE") != NULL;
+}
 
 struct ast_Module;
 struct ast_ASTArena;
@@ -76,7 +86,6 @@ extern struct ast_Module *pipeline_dep_ctx_module_at(struct ast_PipelineDepCtx *
 extern struct ast_ASTArena *pipeline_dep_ctx_arena_at(struct ast_PipelineDepCtx *ctx, int32_t idx);
 extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *dst);
 extern int32_t pipeline_module_num_funcs(struct ast_Module *m);
-extern void pipeline_elf_ctx_diag_stderr(uint8_t *ctx_bytes);
 extern void pipeline_elf_label_mod_scope_reset(void);
 extern void pipeline_elf_ctx_reloc_sidecar_reset(uint8_t *ctx_bytes);
 extern int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes);
@@ -126,11 +135,11 @@ extern int32_t backend_asm_emit_one_call_arg_elf_arm64_push(void *arena, void *e
 int32_t pipeline_seed_asm_emit_call_args_elf_arm64_push_loop(void *arena, void *elf_ctx, int32_t expr_ref, int32_t reg_n, void *ctx, int32_t ta) {
   int32_t i;
   for (i = 0; i < reg_n; i++) {
-    if (getenv("SHUX_ASM_DEBUG")) {
+    if (seed_asm_debug_enabled()) {
       int32_t arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
-      fprintf(stderr, "shux: arm64_push_loop i=%d reg_n=%d call_ref=%d arg_ref=%d\n",
-              (int)i, (int)reg_n, (int)expr_ref, (int)arg_ref);
-      fflush(stderr);
+      diag_reportf(NULL, 0, 0, "note", NULL,
+                   "asm debug: arm64_push_loop i=%d reg_n=%d call_ref=%d arg_ref=%d",
+                   (int)i, (int)reg_n, (int)expr_ref, (int)arg_ref);
     }
     if (backend_asm_emit_one_call_arg_elf_arm64_push(arena, elf_ctx, expr_ref, i, ctx, ta) != 0)
       return -1;
@@ -201,6 +210,7 @@ extern int32_t pipeline_elf_ctx_total_code_len(uint8_t *ctx_bytes);
 static int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
   int32_t nf;
   int32_t clen;
+  int32_t total_code_len;
   if (!module || !elf_ctx)
     return 0;
   nf = pipeline_module_num_funcs((struct ast_Module *)module);
@@ -209,22 +219,44 @@ static int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
   clen = seed_elf_ctx_code_len(elf_ctx);
   if (clen > 0)
     return 0;
-  if (pipeline_elf_ctx_total_code_len((uint8_t *)elf_ctx) > 0)
+  total_code_len = pipeline_elf_ctx_total_code_len((uint8_t *)elf_ctx);
+  if (total_code_len > 0)
     return 0;
-  fprintf(stderr, "shux: asm_codegen_elf_o: empty __text (code_len=0 num_funcs=%d)\n", (int)nf);
-  pipeline_elf_ctx_diag_stderr((uint8_t *)elf_ctx);
-  return -1;
+  return SHUX_ASM_CODEGEN_ELF_EMPTY_TEXT_RC;
 }
-int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
+/*
+ * Seed bridge 仅消费 seed_host/asm_backend_partial.o 提供的真实 writer。
+ * 这里不能再定义同名 fallback，否则同一 TU 内调用会静态绑定到本地 stub，
+ * 直接把真实的 Mach-O/COFF writer 全部遮蔽掉。
+ */
+#if defined(__APPLE__)
+extern int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) __attribute__((weak_import));
+#elif defined(_WIN32) || defined(_WIN64)
+extern int32_t platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) __attribute__((weak));
+#endif
+
+static int32_t seed_platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
+#if defined(__APPLE__)
+  if (!platform_macho_write_macho_o_to_buf)
+    return -1;
+  return platform_macho_write_macho_o_to_buf(elf_ctx, out_buf);
+#else
   (void)elf_ctx;
   (void)out_buf;
   return -1;
+#endif
 }
 
-int32_t platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
+static int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
+#if defined(_WIN32) || defined(_WIN64)
+  if (!platform_coff_write_coff_o_to_buf)
+    return -1;
+  return platform_coff_write_coff_o_to_buf(elf_ctx, out_buf);
+#else
   (void)elf_ctx;
   (void)out_buf;
   return -1;
+#endif
 }
 
 /** .sx 模块名修饰后的 pipeline_module_num_funcs 转发（asm/backend 分 TU 链接）。 */
@@ -288,11 +320,11 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
         continue;
       memset(dep_path_buf, 0, sizeof(dep_path_buf));
       pipeline_dep_ctx_import_path_copy64(pctx, jdep, dep_path_buf);
-      if (getenv("SHUX_ASM_EMIT_TRACE")) {
-        fprintf(stderr, "shux: co-emit dep[%d] path=%s funcs=%d\n", (int)jdep, (char *)dep_path_buf,
-                dep_mod ? (int)pipeline_module_num_funcs(dep_mod) : -1);
-        fflush(stderr);
-      }
+      if (seed_asm_emit_trace_enabled())
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "asm emit trace: co-emit dep[%d] path=%s funcs=%d",
+                     (int)jdep, (char *)dep_path_buf,
+                     dep_mod ? (int)pipeline_module_num_funcs(dep_mod) : -1);
       /** std.io 族：符号由 io.o + 本 TU 桩提供，避免整库 asm emit 导致宿主 Abort。 */
       if (pipeline_codegen_dep_skip_asm_user_std_io(dep_path_buf) != 0)
         continue;
@@ -322,13 +354,14 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
     }
   }
   driver_set_current_dep_path_for_codegen(NULL);
-  if (getenv("SHUX_ASM_EMIT_TRACE"))
-    fprintf(stderr, "shux: asm_codegen_ast_to_elf entry module funcs=%d\n",
-            (int)pipeline_module_num_funcs(module));
+  if (seed_asm_emit_trace_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm emit trace: asm_codegen_ast_to_elf entry module funcs=%d",
+                 (int)pipeline_module_num_funcs(module));
   pipeline_asm_patch_module_parent_links(module, arena);
   if (backend_asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx) != 0) {
-    if (getenv("SHUX_ASM_DEBUG")) {
-      fprintf(stderr, "shux: asm_codegen_elf_o fail at backend entry\n");
+    if (seed_asm_debug_enabled()) {
+      diag_report(NULL, 0, 0, "note", "asm debug: asm_codegen_elf_o fail at backend entry", NULL);
       driver_diagnostic_asm_print_current_func();
     }
     pipeline_asm_wpo_reach_clear();
@@ -339,35 +372,41 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
     return -1;
   }
   if (elf_ctx && peephole_elf_run(elf_ctx) != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: asm_codegen_elf_o fail at peephole_elf\n");
+    if (seed_asm_debug_enabled())
+      diag_report(NULL, 0, 0, "note", "asm debug: asm_codegen_elf_o fail at peephole_elf", NULL);
     pipeline_asm_wpo_reach_clear();
     return -1;
   }
   if (elf_ctx && platform_elf_elf_resolve_patches(elf_ctx) != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: asm_codegen_elf_o fail at resolve_patches\n");
+    if (seed_asm_debug_enabled())
+      diag_report(NULL, 0, 0, "note", "asm debug: asm_codegen_elf_o fail at resolve_patches", NULL);
     pipeline_asm_wpo_reach_clear();
     return -1;
   }
   if (pctx && pipeline_dep_ctx_use_coff_o(pctx) != 0) {
-    int32_t cw = platform_coff_write_coff_o_to_buf(elf_ctx, out_buf);
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: asm_codegen_elf_o coff_write=%d out_len=%d\n", (int)cw, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
+    int32_t cw = seed_platform_coff_write_coff_o_to_buf(elf_ctx, out_buf);
+    if (seed_asm_debug_enabled())
+      diag_reportf(NULL, 0, 0, "note", NULL,
+                   "asm debug: asm_codegen_elf_o coff_write=%d out_len=%d",
+                   (int)cw, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
     pipeline_asm_wpo_reach_clear();
     return cw < 0 ? -1 : 0;
   }
   if (pctx && pipeline_dep_ctx_use_macho_o(pctx) != 0) {
-    int32_t mw = platform_macho_write_macho_o_to_buf(elf_ctx, out_buf);
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: asm_codegen_elf_o macho_write=%d out_len=%d\n", (int)mw, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
+    int32_t mw = seed_platform_macho_write_macho_o_to_buf(elf_ctx, out_buf);
+    if (seed_asm_debug_enabled())
+      diag_reportf(NULL, 0, 0, "note", NULL,
+                   "asm debug: asm_codegen_elf_o macho_write=%d out_len=%d",
+                   (int)mw, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
     pipeline_asm_wpo_reach_clear();
     return mw < 0 ? -1 : 0;
   }
   {
     int32_t ew = pipeline_elf_write_o_standard_to_buf_c((uint8_t *)elf_ctx, (struct codegen_CodegenOutBuf *)out_buf);
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: asm_codegen_elf_o elf_write=%d out_len=%d\n", (int)ew, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
+    if (seed_asm_debug_enabled())
+      diag_reportf(NULL, 0, 0, "note", NULL,
+                   "asm debug: asm_codegen_elf_o elf_write=%d out_len=%d",
+                   (int)ew, (int)((struct codegen_CodegenOutBuf *)out_buf)->len);
     pipeline_asm_wpo_reach_clear();
     return ew < 0 ? -1 : 0;
   }

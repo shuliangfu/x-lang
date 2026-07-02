@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+#define LSP_DIAG_CODE_MAX 15
+
 /** 非零时 parser/typeck 应调用 lsp_diag_add 而非写 stderr（由 lsp_diagnostics_collect 置 1，结束后置 0）。 */
 extern int lsp_diag_enabled;
 
@@ -38,6 +40,7 @@ void lsp_diag_invalidate_cache(void);
 
 /** 追加一条诊断：line/col 为 1-based；severity 1=Error 2=Warning 3=Information。 */
 void lsp_diag_add(int line, int col, int severity, const char *msg);
+void lsp_diag_add_code(int line, int col, int severity, const char *code, const char *msg);
 
 /**
  * 统计当前收集器中 severity 等于给定值的诊断条数（用于 shux check CI profile）。
@@ -52,6 +55,7 @@ int lsp_diag_print_stderr_human(const char *path);
 
 /** typeck 统一报错入口：line/col 为 1-based；LSP 模式下写入收集器，否则 fprintf stderr + " at line:col\n"。 */
 void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
+void lsp_diag_report_typeck_code(const char *code, int line, int col, const char *fmt, ...);
 
 /**
  * 对 source[0..source_len-1] 跑 .sx parse_into_buf + typeck_sx_ast，收集诊断，构建完整 JSON-RPC 响应正文：

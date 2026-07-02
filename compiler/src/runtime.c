@@ -27,12 +27,112 @@
 #include "preprocess.h"
 #include "target_cpu.h"
 #include "lsp/lsp_diag.h"
+#include "diag.h"
+#include "runtime_diag_codes.h"
 #include "runtime_abi.h"
 #include "runtime_io_abi.h"
 #include "runtime_proc_abi.h"
 #include "runtime_link_abi.h"
 #include "runtime_driver_abi.h"
 #include "runtime_pipeline_abi.h"
+
+static const char *runtime_diag_code_for_kind(const char *kind) {
+    if (!kind)
+        return SHUX_DIAG_CODE_BUILD_BLD001;
+    if (strcmp(kind, "io error") == 0)
+        return SHUX_DIAG_CODE_IO_IO001;
+    if (strcmp(kind, "process error") == 0)
+        return SHUX_DIAG_CODE_PROCESS_PRC001;
+    if (strcmp(kind, "build error") == 0)
+        return SHUX_DIAG_CODE_BUILD_BLD001;
+    return NULL;
+}
+
+static int runtime_try_handle_explain_cli(int argc, char **argv) {
+    const char *code = NULL;
+    if (argc < 2 || !argv || !argv[1])
+        return -1;
+    if (strcmp(argv[1], "explain") == 0) {
+        if (argc >= 3 && argv[2] && argv[2][0])
+            code = argv[2];
+        else
+            code = NULL;
+    } else if (strcmp(argv[1], "--explain") == 0) {
+        if (argc >= 3 && argv[2] && argv[2][0])
+            code = argv[2];
+        else
+            code = NULL;
+    } else if (strncmp(argv[1], "--explain=", 10) == 0 && argv[1][10] != '\0') {
+        code = argv[1] + 10;
+    } else {
+        return -1;
+    }
+    if (!code || !code[0]) {
+        diag_reportf_with_code(NULL, 0, 0, "usage error", SHUX_DIAG_CODE_ARGUMENT_ARG001, NULL,
+                               "--explain requires a diagnostic code (example: shux --explain P001; use --list to see all)");
+        return 1;
+    }
+    /* 用户面列表模式：`shux explain --list` / `shux --explain --list` / `shux --explain=list`。 */
+    if (strcmp(code, "list") == 0 || strcmp(code, "--list") == 0) {
+        diag_print_code_table(stdout);
+        return 0;
+    }
+    if (!diag_code_is_known(code)) {
+        char suggest[16];
+        const char *sug;
+        diag_reportf_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, NULL,
+                               "unknown diagnostic code '%s'", code);
+        sug = diag_code_suggest(code, suggest, sizeof suggest);
+        if (sug)
+            diag_reportf(NULL, 0, 0, "help", NULL, "did you mean '%s'?", sug);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "use `shux --explain P001` or `shux explain P001`; use `--list` to see all codes");
+        fputs("note: ", stderr);
+        diag_print_known_codes(stderr);
+        return 1;
+    }
+    diag_print_code_explain(stdout, code);
+    return 0;
+}
+
+/**
+ * 兼容 smoke summary：保留 stdout 与精确文本，供 run-lexer golden、run-std/run-typeck grep
+ * 和 bootstrap-parse-file 继续工作。后续若迁移 parse OK/typeck OK，只改这一处出口。
+ */
+/* 结构化 smoke 是否启用：`--diag-json` 或 SHUX_SMOKE_DIAG=1；定义延后到 <stdlib.h> 可见处。 */
+static int shux_smoke_diag_enabled(void);
+
+static void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_final_lit,
+                                                    int has_main_body) {
+    const char *name = main_name ? main_name : "?";
+    if (has_main_body) {
+        if (main_final_lit >= 0)
+            printf("parse OK: %s(): i32 { %d }\n", name, main_final_lit);
+        else
+            printf("parse OK: %s(): i32 { expr }\n", name);
+    } else {
+        printf("parse OK (library module)\n");
+    }
+    printf("typeck OK\n");
+    /* 双写过渡：opt-in（--diag-json / SHUX_SMOKE_DIAG=1）时另向 stderr 输出结构化 info 诊断，
+     * 将 smoke 纳入统一诊断体系（编号 SMOKE001/SMOKE002、JSON、颜色）；默认仅 stdout 旧行，
+     * 保持 run-lexer golden、run-import/run-stdlib-import grep 完全不变。 */
+    if (shux_smoke_diag_enabled()) {
+        if (has_main_body) {
+            if (main_final_lit >= 0)
+                diag_reportf_with_code(NULL, 0, 0, "info", SHUX_DIAG_CODE_SMOKE_SMOKE001, NULL,
+                                        "parse OK: %s(): i32 { %d }", name, main_final_lit);
+            else
+                diag_reportf_with_code(NULL, 0, 0, "info", SHUX_DIAG_CODE_SMOKE_SMOKE001, NULL,
+                                        "parse OK: %s(): i32 { expr }", name);
+        } else {
+            diag_reportf_with_code(NULL, 0, 0, "info", SHUX_DIAG_CODE_SMOKE_SMOKE001, NULL,
+                                    "parse OK (library module)");
+        }
+        diag_report_with_code(NULL, 0, 0, "info", SHUX_DIAG_CODE_SMOKE_SMOKE002, "typeck OK", NULL);
+    }
+}
+
 /** 本文件内 read_file 调用映射至 E-04 v3 I/O ABI TU。 */
 #define read_file runtime_read_file_malloc
 #if defined(SHUX_USE_SX_PREPROCESS)
@@ -98,9 +198,123 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
+
+/**
+ * 结构化 smoke 是否启用：`--diag-json`（diag_json_enabled）或 SHUX_SMOKE_DIAG=1。
+ * 默认关闭，保持 stdout 旧行（grep/golden 兼容）；启用时另向 stderr 输出带编号的 info 诊断。
+ */
+static int shux_smoke_diag_enabled(void) {
+    const char *e;
+    if (diag_json_enabled())
+        return 1;
+    e = getenv("SHUX_SMOKE_DIAG");
+    return (e && e[0] && e[0] != '0') ? 1 : 0;
+}
+
+/* 编译/链接失败时删除 -o 目标，避免遗留 0 字节或半写入产物污染后续增量构建。 */
+static void driver_unlink_failed_output(const char *out_path) {
+    if (!out_path || !out_path[0])
+        return;
+    (void)unlink(out_path);
+}
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
+
+static void runtime_diag_errno(const char *file, const char *kind, const char *op) {
+    int saved_errno = errno;
+    const char *err = strerror(saved_errno);
+    const char *resolved_kind = kind ? kind : "build error";
+    const char *code = runtime_diag_code_for_kind(resolved_kind);
+    if (code) {
+        diag_reportf_with_code(file, 0, 0, resolved_kind, code, NULL,
+                               "%s failed: %s",
+                               op ? op : "system call",
+                               err ? err : "unknown error");
+    } else {
+        diag_reportf(file, 0, 0, resolved_kind, NULL,
+                     "%s failed: %s",
+                     op ? op : "system call",
+                     err ? err : "unknown error");
+    }
+}
+
+static void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path) {
+    int saved_errno = errno;
+    const char *err = strerror(saved_errno);
+    const char *resolved_kind = kind ? kind : "build error";
+    const char *code = runtime_diag_code_for_kind(resolved_kind);
+    if (path && path[0] != '\0') {
+        if (code) {
+            diag_reportf_with_code(file, 0, 0, resolved_kind, code, NULL,
+                                   "%s failed for '%s': %s",
+                                   op ? op : "system call",
+                                   path,
+                                   err ? err : "unknown error");
+        } else {
+            diag_reportf(file, 0, 0, resolved_kind, NULL,
+                         "%s failed for '%s': %s",
+                         op ? op : "system call",
+                         path,
+                         err ? err : "unknown error");
+        }
+        return;
+    }
+    runtime_diag_errno(file, resolved_kind, op);
+}
+
+static void runtime_diag_errno_path_pair(const char *file, const char *kind, const char *op,
+                                         const char *from_path, const char *to_path) {
+    int saved_errno = errno;
+    const char *err = strerror(saved_errno);
+    const char *resolved_kind = kind ? kind : "build error";
+    const char *code = runtime_diag_code_for_kind(resolved_kind);
+    if (code) {
+        diag_reportf_with_code(file, 0, 0, resolved_kind, code, NULL,
+                               "%s failed for '%s' -> '%s': %s",
+                               op ? op : "system call",
+                               from_path ? from_path : "?",
+                               to_path ? to_path : "?",
+                               err ? err : "unknown error");
+    } else {
+        diag_reportf(file, 0, 0, resolved_kind, NULL,
+                     "%s failed for '%s' -> '%s': %s",
+                     op ? op : "system call",
+                     from_path ? from_path : "?",
+                     to_path ? to_path : "?",
+                     err ? err : "unknown error");
+    }
+}
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((unused))
+#endif
+static void runtime_diag_cli_usage_note(const char *argv0) {
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]",
+                 argv0 ? argv0 : "shux");
+}
+
+void driver_print_usage_c(void);
+
+static int runtime_test_status_to_rc(const char *script, int st) {
+    if (st == -1) {
+        runtime_diag_errno_path(script, "process error", "system(shux test)", script);
+        return 1;
+    }
+    if (WIFEXITED(st))
+        return WEXITSTATUS(st) != 0 ? 1 : 0;
+    if (WIFSIGNALED(st)) {
+        diag_reportf_with_code(script, 0, 0, "process error", SHUX_DIAG_CODE_PROCESS_PRC001, NULL,
+                               "test script terminated by signal %d: '%s'",
+                               WTERMSIG(st), script ? script : "?");
+        return 1;
+    }
+    diag_reportf_with_code(script, 0, 0, "process error", SHUX_DIAG_CODE_PROCESS_PRC001, NULL,
+                           "test script terminated abnormally: '%s'",
+                           script ? script : "?");
+    return 1;
+}
 
 #if defined(SHUX_USE_SX_TYPECK) && !defined(SHUX_NO_C_FRONTEND)
 /* 6.1：.sx typeck 入口；由 typeck.sx 提供（库模块形式生成，符号为 typeck_typeck_entry），转调 C typeck_module */
@@ -419,7 +633,68 @@ extern size_t pipeline_sizeof_elf_ctx(void);
 /** 7.4：直接生成 ELF64 .o 到 out_buf（仅 x86_64）；由 asm.sx 提供，pipeline_sx.o 链接；ElfCodegenCtx 在 platform/elf.sx，C 侧为 platform_elf_ElfCodegenCtx。out_buf 用 void* 避免不同 GCC 下「形参内 struct 声明不可见」导致 -Wincompatible-pointer-types。 */
 struct platform_elf_ElfCodegenCtx;
 extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
-extern void pipeline_elf_ctx_diag_stderr(uint8_t *ctx_bytes);
+
+#define RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP 16384
+
+typedef struct {
+    uint8_t name[64];
+    int32_t name_len;
+    int32_t offset;
+} RuntimePipelineElfLabelEntry;
+
+typedef struct {
+    int32_t rel32_offset;
+    uint8_t name[64];
+    int32_t name_len;
+    int32_t patch_imm_bits;
+} RuntimePipelineElfPatchEntry;
+
+typedef struct {
+    int32_t code_len;
+    RuntimePipelineElfLabelEntry labels[RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP];
+    int32_t num_labels;
+    RuntimePipelineElfPatchEntry patches[RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP];
+    int32_t num_patches;
+} RuntimePipelineElfCtxAccess;
+
+static void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
+    RuntimePipelineElfCtxAccess *ctx;
+    int32_t l;
+    char namebuf[65];
+
+    if (!ctx_bytes)
+        return;
+    ctx = (RuntimePipelineElfCtxAccess *)ctx_bytes;
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "elf ctx code_len=%d num_labels=%d num_patches=%d",
+                 (int)ctx->code_len, (int)ctx->num_labels, (int)ctx->num_patches);
+    if (ctx->num_patches <= 0)
+        return;
+    {
+        RuntimePipelineElfPatchEntry *p = &ctx->patches[0];
+        int32_t name_len = p->name_len > 64 ? 64 : p->name_len;
+        if (name_len < 0)
+            name_len = 0;
+        for (int32_t i = 0; i < name_len; i++)
+            namebuf[i] = (char)p->name[i];
+        namebuf[name_len] = '\0';
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "elf first patch name_len=%d name='%s'",
+                     (int)p->name_len, namebuf);
+        for (l = 0; l < ctx->num_labels; l++) {
+            int32_t same = (ctx->labels[l].name_len == p->name_len);
+            if (same && p->name_len > 0)
+                same = (memcmp(ctx->labels[l].name, p->name, (size_t)p->name_len) == 0);
+            if (same) {
+                diag_reportf(NULL, 0, 0, "note", NULL,
+                             "elf label match at idx=%d offset=%d",
+                             (int)l, (int)ctx->labels[l].offset);
+                return;
+            }
+        }
+    }
+    diag_report(NULL, 0, 0, "note", "elf no label match for first patch", NULL);
+}
 
 /** 调试：打印 module 中每个 func 的 name_len/name（由 Makefile 追加到 pipeline_gen.c）；便于定位 mai/ba 截断 */
 extern void pipeline_debug_module_funcs(void *module);
@@ -472,6 +747,23 @@ extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source)
 extern int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t *source, void *module);
 extern int32_t pipeline_parse_one_function_ok(struct shux_slice_uint8_t *source, void *arena);
 extern int32_t pipeline_typeck_after_parse_ok(void *arena, void *module, struct shux_slice_uint8_t *source, void *ctx);
+
+static int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
+    struct shux_slice_uint8_t diag_src_slice;
+    int32_t fail_tok;
+    if (!src || src_len == 0)
+        return 0;
+    diag_src_slice.data = (uint8_t *)src;
+    diag_src_slice.length = src_len;
+    fail_tok = parser_diag_fail_at_token_kind(&diag_src_slice);
+    if (fail_tok == TOKEN_STRING) {
+        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                               "expected integer literal, float literal, identifier, 'true', 'false', 'if', "
+                               "'break', 'continue', 'return', 'panic', 'match', or '('");
+        return 1;
+    }
+    return 0;
+}
 #ifdef SHUX_USE_SX_DRIVER
 /* run_compiler_c 由 C 在此定义，转调 main.sx 的 main_run_compiler_c，供 main_entry 等调用；不再依赖 driver_gen.c 追加。 */
 extern int main_run_compiler_c(int argc, uint8_t *argv);
@@ -761,7 +1053,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
     /* 阶段 3.2：链入 _sx.o 时不再提供 typeck_module/codegen_* 等 C 符号，run_compiler_c 不应被调用；main 已走 run_compiler_sx_path。 */
     (void)argc;
     (void)argv;
-    fprintf(stderr, "shux: internal error: run_compiler_c called with SHUX_USE_SX_FRONTEND\n");
+    diag_report(NULL, 0, 0, "internal error",
+                "run_compiler_c called with SHUX_USE_SX_FRONTEND", NULL);
     return 1;
 #else
     /* typeck/codegen 等大模块自举 parse/typeck 栈帧深；须早于 pipeline 入口扩容。 */
@@ -788,7 +1081,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             use_sx_pipeline = 1;
         } else if (strcmp(argv[i], "-backend") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "shux: -backend requires an argument (asm or c)\n");
+                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-backend requires an argument (asm or c)", NULL);
                 return 1;
             }
             if (strcmp(argv[i + 1], "asm") == 0) {
@@ -798,7 +1091,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 use_asm_backend = 0;
                 use_sx_pipeline = 0;  /* -backend c：C parse/typeck/codegen；-o+import 走 SX pipeline 易 out_len=0 */
             } else {
-                fprintf(stderr, "shux: -backend expects asm or c (got '%s')\n", argv[i + 1]);
+                diag_reportf_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, NULL,
+                             "-backend expects asm or c (got '%s')", argv[i + 1]);
                 return 1;
             }
             i++;
@@ -811,11 +1105,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
             emit_extern_imports = 1;
         } else if (strcmp(argv[i], "-D") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
+                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-D requires an argument", NULL);
+                runtime_diag_cli_usage_note(argv[0]);
                 return 1;
             }
             if (ndefines >= MAX_DEFINES) {
-                fprintf(stderr, "shux: too many -D defines\n");
+                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, "too many -D defines", NULL);
                 return 1;
             }
             defines[ndefines++] = argv[i + 1];
@@ -823,18 +1118,20 @@ int RUN_CC_FUNC(int argc, char **argv) {
         } else if (strncmp(argv[i], "-D", 2) == 0 && argv[i][2] != '\0') {
             /* -DSYMBOL 形式 */
             if (ndefines >= MAX_DEFINES) {
-                fprintf(stderr, "shux: too many -D defines\n");
+                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, "too many -D defines", NULL);
                 return 1;
             }
             defines[ndefines++] = argv[i] + 2;
         } else if (strcmp(argv[i], "-O") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
+                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-O requires an argument", NULL);
+                runtime_diag_cli_usage_note(argv[0]);
                 return 1;
             }
             opt_level = argv[i + 1];
             if (strcmp(opt_level, "0") != 0 && strcmp(opt_level, "1") != 0 && strcmp(opt_level, "2") != 0 && strcmp(opt_level, "3") != 0 && strcmp(opt_level, "s") != 0) {
-                fprintf(stderr, "shux: -O expects 0, 1, 2, 3, or s (got '%s')\n", opt_level);
+                diag_reportf_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, NULL,
+                             "-O expects 0, 1, 2, 3, or s (got '%s')", opt_level);
                 return 1;
             }
             i++;
@@ -848,14 +1145,16 @@ int RUN_CC_FUNC(int argc, char **argv) {
             setenv("SHUX_ABI_F32_XMM", "0", 1);
         } else if (strcmp(argv[i], "-o") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
+                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-o requires an argument", NULL);
+                runtime_diag_cli_usage_note(argv[0]);
                 return 1;
             }
             out_path = argv[i + 1];
             i++;
         } else if (strcmp(argv[i], "-L") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
+                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-L requires an argument", NULL);
+                runtime_diag_cli_usage_note(argv[0]);
                 return 1;
             }
             if (n_lib_roots < MAX_LIB_ROOTS)
@@ -863,7 +1162,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
             i++;
         } else if (strcmp(argv[i], "-target") == 0) {
             if (i + 1 >= argc) {
-                fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
+                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-target requires an argument", NULL);
+                runtime_diag_cli_usage_note(argv[0]);
                 return 1;
             }
             target = argv[i + 1];
@@ -871,9 +1171,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
         } else if (argv[i][0] == '-') {
             /* 未知选项（如 -backend 在未链 pipeline 的构建中）：提示而非当作输入文件 */
             if (strcmp(argv[i], "-backend") == 0) {
-                fprintf(stderr, "shux: -backend asm not available in this build. Use: make bootstrap-driver\n");
+                diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, "-backend asm not available in this build. Use: make bootstrap-driver", NULL);
             } else {
-                fprintf(stderr, "shux: unknown option '%s'\n", argv[i]);
+                diag_reportf_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, NULL,
+                             "unknown option '%s'", argv[i]);
             }
             return 1;
         } else if (!input_path) {
@@ -917,7 +1218,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         use_lto = 1;
 
     if (!input_path) {
-        fprintf(stderr, "Usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.sx> [ -o <out> ]\n", argv[0] ? argv[0] : "shux");
+        driver_print_usage_c();
         return 0;
     }
 
@@ -929,7 +1230,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
 
     ShuxRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-        fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
+        diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                               "cannot read file '%s'", input_path);
         return 1;
     }
     size_t src_len = 0;
@@ -946,14 +1248,20 @@ int RUN_CC_FUNC(int argc, char **argv) {
     } else
 #endif
     {
-        src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, ndefines > 0 ? defines : NULL, ndefines,
+        pipeline_diag_emitted_reset();
+        src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
+            ndefines > 0 ? defines : NULL, ndefines,
             &src_len);
         runtime_release_file_view(&raw_src_view);
-        if (!src) {
-            fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
+        if (!src && !pipeline_diag_emitted_get()) {
+            diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+                         "preprocess failed for '%s'", input_path);
             return 1;
         }
+        if (!src)
+            return 1;
     }
+    diag_set_file(input_path, src, src_len);
 
 #ifdef SHUX_USE_SX_PIPELINE
     if (use_sx_pipeline) {
@@ -962,7 +1270,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
         void *arena = malloc(arena_sz);
         void *module = malloc(module_sz);
         if (!arena || !module) {
-            fprintf(stderr, "shux: -sx pipeline: malloc failed\n");
+            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005,
+                                  ".sx pipeline allocation failed", NULL);
             if (arena) free(arena);
             if (module) free(module);
             free(src);
@@ -972,7 +1281,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
         memset(module, 0, module_sz);
         struct shux_slice_uint8_t src_slice = { (uint8_t *)src, src_len };
         if (src_len > (size_t)INT32_MAX) {
-            fprintf(stderr, "shux: -sx pipeline: source too large for parser (>%d bytes): '%s'\n", INT32_MAX, input_path);
+            diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP007, NULL,
+                                   ".sx pipeline source too large for parser (>%d bytes): '%s'",
+                                   INT32_MAX, input_path ? input_path : "?");
             free(arena);
             free(module);
             free(src);
@@ -981,7 +1292,15 @@ int RUN_CC_FUNC(int argc, char **argv) {
         parser_parse_into_init(module, arena);
         struct parser_ParseIntoResult pr = parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
         if (pr.ok != 0) {
-            fprintf(stderr, "shux: -sx pipeline failed (parse_into)\n");
+            if (runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
+                free(arena);
+                free(module);
+                free(src);
+                return 1;
+            }
+            diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                         ".sx pipeline parse_into failed for '%s'",
+                         input_path ? input_path : "?");
             free(arena);
             free(module);
             free(src);
@@ -1040,7 +1359,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, path_c, resolved, sizeof(resolved));
                 ShuxRuntimeFileView raw_view;
                 if (runtime_read_file_view(resolved, &raw_view) != 0) {
-                    fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", path_c, resolved);
+                    pipeline_diag_import_open_fail_once(path_c, resolved);
                     while (n_deps--)
                         free(dep_paths[n_deps]);
                     free(arena);
@@ -1076,7 +1395,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 strcpy(asm_tmp_o_path, "/tmp/shux_asm_XXXXXX");
                 int fd = mkstemp(asm_tmp_o_path);
                 if (fd < 0) {
-                    perror("shux: mkstemp (asm)");
+                    runtime_diag_errno_path(input_path, "build error", "mkstemp (asm)", asm_tmp_o_path);
                     free(arena);
                     free(module);
                     free(src);
@@ -1084,6 +1403,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 }
                 asm_out = fdopen(fd, "wb");
                 if (!asm_out) {
+                    runtime_diag_errno_path(input_path, "build error", "fdopen (asm)", asm_tmp_o_path);
                     close(fd);
                     unlink(asm_tmp_o_path);
                     free(arena);
@@ -1095,7 +1415,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             } else {
                 asm_out = fopen(out_path, "wb");
                 if (!asm_out) {
-                    perror("shux: -o (asm)");
+                    runtime_diag_errno_path(out_path, "io error", "fopen (-o asm)", out_path);
                     free(arena);
                     free(module);
                     free(src);
@@ -1106,7 +1426,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
             if (emit_elf_o) {
                 elf_ctx_ptr = malloc(pipeline_sizeof_elf_ctx());
                 if (!elf_ctx_ptr) {
-                    fprintf(stderr, "shux: elf_ctx alloc failed\n");
+                    diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005,
+                                          "ELF context allocation failed", NULL);
                     fclose(asm_out);
                     free(arena);
                     free(module);
@@ -1123,7 +1444,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
             dep_arenas[i] = malloc(arena_sz);
             dep_modules[i] = malloc(module_sz);
             if (!dep_arenas[i] || !dep_modules[i]) {
-                fprintf(stderr, "shux: -sx pipeline: dep alloc failed\n");
+                diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005,
+                                      ".sx pipeline dependency allocation failed", NULL);
                 if (asm_out) fclose(asm_out);
                 if (elf_ctx_ptr) free(elf_ctx_ptr);
                 while (i > 0) { i--; free(dep_arenas[i]); free(dep_modules[i]); }
@@ -1143,7 +1465,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
         struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
         struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
         if (!out_buf || !pctx) {
-            fprintf(stderr, "shux: -sx pipeline: out_buf/pctx alloc failed\n");
+            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP006,
+                                  ".sx pipeline output/context allocation failed", NULL);
             if (asm_out) fclose(asm_out);
             if (elf_ctx_ptr) free(elf_ctx_ptr);
             for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
@@ -1167,7 +1490,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
                 struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
                 if (!one_ctx || !dep_out) {
-                    fprintf(stderr, "shux: -sx pipeline: dep_one_ctx/out alloc failed\n");
+                    diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP006,
+                                          ".sx pipeline dependency context/output allocation failed", NULL);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
                     free(out_buf);
@@ -1186,7 +1510,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, dep_paths[j], resolved, sizeof(resolved));
                 ShuxRuntimeFileView raw_view;
                 if (runtime_read_file_view(resolved, &raw_view) != 0) {
-                    fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", dep_paths[j], resolved);
+                    pipeline_diag_import_open_fail_once(dep_paths[j], resolved);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
                     free(out_buf);
@@ -1203,7 +1527,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 char *dep_src = shux_preprocess(raw_view.data, raw_view.length, ndefines > 0 ? defines : NULL, ndefines, &dep_len);
                 runtime_release_file_view(&raw_view);
                 if (!dep_src) {
-                    fprintf(stderr, "shux: preprocess failed for import '%s'\n", dep_paths[j]);
+                    diag_reportf_with_code(resolved, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP002, NULL,
+                                 "preprocess failed for import '%s'", dep_paths[j]);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
                     free(out_buf);
@@ -1218,7 +1543,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 }
                 shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
                     (const uint8_t *)dep_src, dep_len);
+                DiagContextSnapshot dep_diag_snapshot;
                 int ec;
+                diag_push_file(&dep_diag_snapshot, resolved, dep_src, dep_len);
                 if (use_asm_backend && emit_elf_o && shux_asm_user_std_dep_skip_sx_typeck(dep_paths[j])) {
                     ec = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                         (const uint8_t *)dep_src, dep_len);
@@ -1231,11 +1558,13 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     ec = shux_pipeline_dep_prerun_for_asm_module_o(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_src,
                         dep_len, (void *)dep_out, (void *)one_ctx);
                 }
+                diag_restore(&dep_diag_snapshot);
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
                 free(dep_src);
                 if (ec != 0) {
-                    fprintf(stderr, "shux: pipeline failed for import '%s' (rc=%d)\n", dep_paths[j], ec);
+                    diag_reportf_with_code(resolved, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP008, NULL,
+                                           "pipeline failed for import '%s' (rc=%d)", dep_paths[j], ec);
                     free(out_buf);
                     pipeline_dep_ctx_heap_destroy(pctx);
                     for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
@@ -1314,8 +1643,9 @@ int RUN_CC_FUNC(int argc, char **argv) {
         driver_sx_pipeline_skip_typeck_set(0);
         driver_sx_pipeline_skip_codegen_set(0);
         if (getenv("SHUX_ASM_ENTRY_DEBUG")) {
-            fprintf(stderr, "shux: asm entry dbg ec=%d num_funcs=%d out_asm_len=%zu\n",
-                    ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
+            diag_reportf(NULL, 0, 0, "note", NULL,
+                         "asm entry debug: ec=%d num_funcs=%d out_asm_len=%zu",
+                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
         }
         driver_dep_seeded_clear_all();
         codegen_set_dep_slots_for_sx_pipeline(NULL, NULL, 0);
@@ -1324,10 +1654,15 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 shux_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
                 int32_t elf_ec = shux_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
                 if (elf_ec != 0 || out_buf->len <= 0) {
-                    fprintf(stderr, "shux: asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)\n",
-                            (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
+                    diag_reportf_with_code(input_path, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG002, NULL,
+                                           "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
+                                           (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
+                    if (elf_ec == SHUX_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
+                        diag_report(NULL, 0, 0, "note",
+                                    "asm backend produced no object text; empty .o emission was rejected", NULL);
                     if (elf_ec != 0 && elf_ctx_ptr)
-                        pipeline_elf_ctx_diag_stderr((uint8_t *)elf_ctx_ptr);
+                        runtime_pipeline_elf_ctx_diag_note((uint8_t *)elf_ctx_ptr);
+                    driver_unlink_failed_output(out_path);
                     if (asm_out) fclose(asm_out);
                     if (elf_ctx_ptr) free(elf_ctx_ptr);
                     for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
@@ -1354,7 +1689,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 int ld_ok = shux_invoke_ld_for_exe(asm_tmp_o_path, out_path, target, pctx->use_macho_o, pctx->use_coff_o, argv[0], lib_roots_arr, n_lib_roots);
                 unlink(asm_tmp_o_path);
                 if (ld_ok != 0) {
-                    fprintf(stderr, "shux: ld failed (asm -o exe)\n");
+                    driver_unlink_failed_output(out_path);
+                    diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, "ld failed (asm -o exe)", NULL);
                     free(out_buf);
                     pipeline_dep_ctx_heap_destroy(pctx);
                     free(arena);
@@ -1380,7 +1716,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 free(dep_paths[n_deps]);
             }
             if (ec != 0) {
-                fprintf(stderr, "shux: -sx pipeline failed (parse_into / typeck_sx_ast / codegen_sx_ast)\n");
+                driver_unlink_failed_output(out_path);
+                diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP001, NULL,
+                             ".sx pipeline failed for '%s' (stage=parse_into/typeck_sx_ast/codegen_sx_ast)",
+                             input_path ? input_path : "?");
                 /* 诊断：单独试 parse_into 以区分失败阶段 */
                 {
                 void *diag_arena = malloc(arena_sz);
@@ -1395,14 +1734,18 @@ int RUN_CC_FUNC(int argc, char **argv) {
                         struct ast_PipelineDepCtx *diag_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*diag_ctx));
                         if (diag_ctx) {
                             int32_t tck = pipeline_typeck_after_parse_ok(diag_arena, diag_module, &src_slice, (void *)diag_ctx);
-                            fprintf(stderr, "shux: (diagnostic) parse_into OK, typeck_after_parse=%d (0=ok -2=parse_fail -10=main_idx<0 -11=main_idx>=num_funcs -1=impl)\n", (int)tck);
+                            diag_reportf(input_path, 0, 0, "note", NULL,
+                                         "diagnostic probe: parse_into OK, typeck_after_parse=%d "
+                                         "(0=ok -2=parse_fail -10=main_idx<0 -11=main_idx>=num_funcs -1=impl)",
+                                         (int)tck);
                             pipeline_dep_ctx_heap_destroy(diag_ctx);
                         }
                     } else {
                         int32_t fail_tok = parser_diag_fail_at_token_kind(&src_slice);
                         int32_t one_ok = pipeline_parse_one_function_ok(&src_slice, diag_arena);
-                        fprintf(stderr, "shux: (diagnostic) parse_into failed (len=%zu, diag_fail=%d, parse_one_func_ok=%d)\n",
-                                (size_t)src_slice.length, (int)fail_tok, (int)one_ok);
+                        diag_reportf(input_path, 0, 0, "note", NULL,
+                                     "diagnostic probe: parse_into failed (len=%zu, diag_fail=%d, parse_one_func_ok=%d)",
+                                     (size_t)src_slice.length, (int)fail_tok, (int)one_ok);
                     }
                     free(diag_arena);
                     free(diag_module);
@@ -1427,7 +1770,6 @@ int RUN_CC_FUNC(int argc, char **argv) {
     if (pr != 0 || !mod) {
         if (mod) ast_module_free(mod);
         free(src);
-        fprintf(stderr, "shux: parse failed for '%s' (pr=%d)\n", input_path, pr);
         return 1;
     }
     char entry_dir_buf[512];
@@ -1528,11 +1870,11 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(stdout, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
             fprintf(stdout, "  if (!_ev || _ev[0] != '1') return;\n");
             fprintf(stdout, "  int _pid = (int)getpid();\n");
-            fprintf(stdout, "  fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
+            fprintf(stdout, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
             fprintf(stdout, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
             fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
             fprintf(stdout, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
-            fprintf(stdout, "      fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] bundle=%%s\\n\", _p); } } }\n");
+            fprintf(stdout, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
             fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
             fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
             fprintf(stdout, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
@@ -1597,7 +1939,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     ec = codegen_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted);
 #endif
                 } else {
-                    fprintf(stderr, "shux: no main function (cannot emit C)\n");
+                    diag_report_with_code(NULL, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG001,
+                                          "no main function (cannot emit C)", NULL);
                     ec = -1;
                 }
             }
@@ -1617,7 +1960,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 ec = codegen_library_module_to_c(mod, lib_name, NULL, NULL, 0, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0, input_path);
 #endif
             } else {
-                fprintf(stderr, "shux: no main function (cannot emit C)\n");
+                diag_report_with_code(NULL, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG001,
+                                      "no main function (cannot emit C)", NULL);
                 ec = -1;
             }
         }
@@ -1640,7 +1984,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 char tmp_lib[] = "/tmp/shux_XXXXXX";
                 int fd_lib = mkstemp(tmp_lib);
                 if (fd_lib < 0) {
-                    perror("shux: mkstemp");
+                    runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp_lib);
                     while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
                     ast_module_free(mod);
                     free(src);
@@ -1648,6 +1992,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 }
                 FILE *cf_lib = fdopen(fd_lib, "w");
                 if (!cf_lib) {
+                    runtime_diag_errno_path(input_path, "build error", "fdopen", tmp_lib);
                     close(fd_lib);
                     unlink(tmp_lib);
                     while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
@@ -1680,7 +2025,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 char tmp_lib_c[32];
                 snprintf(tmp_lib_c, sizeof(tmp_lib_c), "%s.c", tmp_lib);
                 if (rename(tmp_lib, tmp_lib_c) != 0) {
-                    perror("shux: rename");
+                    runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp_lib, tmp_lib_c);
                     unlink(tmp_lib);
                     while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
                     ast_module_free(mod);
@@ -1691,23 +2036,25 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     pid_t cpid = fork();
                     int cc_ok = 0;
                     if (cpid < 0) {
-                        perror("shux: fork");
+                        runtime_diag_errno_path(input_path, "build error", "fork (cc -c)", out_path);
                         cc_ok = -1;
                     } else if (cpid == 0) {
                         execlp("cc", "cc", "-std=gnu11", "-Wall", "-Wextra", "-c", "-o", (char *)out_path,
                             tmp_lib_c, (char *)NULL);
-                        perror("shux: cc");
+                        runtime_diag_errno_path(input_path, "build error", "execlp(cc -c)", tmp_lib_c);
                         _exit(127);
                     } else {
                         int status = 0;
                         if (shu_waitpid_retry(cpid, &status) != 0 ||
                             !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                            fprintf(stderr, "shux: cc -c failed for library module\n");
+                            diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
+                                        "cc -c failed for library module", NULL);
                             cc_ok = -1;
                         }
                     }
                     if (cc_ok != 0)
-                        fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_lib_c);
+                        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                                     "cc failed, keeping generated C: %s", tmp_lib_c);
                     else if (!getenv("SHUX_KEEP_C"))
                         unlink(tmp_lib_c);
                     while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
@@ -1716,7 +2063,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     return cc_ok == 0 ? 0 : 1;
                 }
             }
-            fprintf(stderr, "shux: no main function (cannot emit executable)\n");
+            diag_report_with_code(NULL, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG001,
+                                  "no main function (cannot emit executable)", NULL);
             while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
             ast_module_free(mod);
             free(src);
@@ -1741,7 +2089,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         char tmp[] = "/tmp/shux_XXXXXX";
         int fd = mkstemp(tmp);
         if (fd < 0) {
-            perror("shux: mkstemp");
+            runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp);
             while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
             ast_module_free(mod);
             free(src);
@@ -1749,6 +2097,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         }
         FILE *cf = fdopen(fd, "w");
         if (!cf) {
+            runtime_diag_errno_path(input_path, "build error", "fdopen", tmp);
             close(fd);
             unlink(tmp);
             while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
@@ -1777,11 +2126,11 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
             fprintf(cf, "  if (!_ev || _ev[0] != '1') return;\n");
             fprintf(cf, "  int _pid = (int)getpid();\n");
-            fprintf(cf, "  fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
+            fprintf(cf, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
             fprintf(cf, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
             fprintf(cf, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
             fprintf(cf, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
-            fprintf(cf, "      fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] bundle=%%s\\n\", _p); } } }\n");
+            fprintf(cf, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
             fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
             fprintf(cf, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
             fprintf(cf, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
@@ -1914,7 +2263,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         fclose(cf);
         snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
         if (rename(tmp, tmp_c) != 0) {
-            perror("shux: rename");
+            runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
             unlink(tmp);
             while (ndep--) ast_module_free(dep_mods[ndep]);
             ast_module_free(mod);
@@ -1988,9 +2337,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
             async_scheduler_o = shux_std_async_scheduler_o_path(argv[0]);
         int cc_ok = shux_invoke_cc(c_paths, n_c, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), async_scheduler_o);
         if (cc_ok != 0) {
-            fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_c);
+            driver_unlink_failed_output(out_path);
+            diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                         "cc failed, keeping generated C: %s", tmp_c);
         } else if (getenv("SHUX_KEEP_C")) {
-            fprintf(stderr, "shux: kept generated C: %s\n", tmp_c);
+            diag_reportf(NULL, 0, 0, "note", NULL,
+                         "kept generated C: %s", tmp_c);
         } else {
             unlink(tmp_c);
         }
@@ -2011,14 +2363,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
     /* typeck 后主线程栈剩余不足；二次 lexer 改在大栈 pthread 上跑（见 driver_smoke_lex_dump_on_large_stack）。 */
     driver_smoke_lex_dump_on_large_stack(src);
 
-    if (mod->main_func && mod->main_func->body) {
-        if (main_final_lit >= 0)
-            printf("parse OK: %s(): i32 { %d }\n", main_name, main_final_lit);
-        else
-            printf("parse OK: %s(): i32 { expr }\n", main_name);
-    } else
-        printf("parse OK (library module)\n");
-    printf("typeck OK\n");
+    driver_emit_legacy_smoke_summary_stdout(main_name, main_final_lit,
+                                            mod->main_func && mod->main_func->body ? 1 : 0);
     while (n_all--) { free(all_dep_paths[n_all]); ast_module_free(all_dep_mods[n_all]); }
     ast_module_free(mod);
     free(src);
@@ -2083,17 +2429,23 @@ int run_compiler_sx_path(int argc, char **argv) {
 
     ShuxRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-        fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
+        diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                               "cannot read file '%s'", input_path ? input_path : "?");
         return 1;
     }
     size_t src_len = 0;
-    char *src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, ndefines > 0 ? defines : NULL, ndefines,
+    pipeline_diag_emitted_reset();
+    char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
+        ndefines > 0 ? defines : NULL, ndefines,
         &src_len);
     runtime_release_file_view(&raw_src_view);
-    if (!src) {
-        fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
+    if (!src && !pipeline_diag_emitted_get()) {
+        diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+                     "preprocess failed for '%s'", input_path);
         return 1;
     }
+    if (!src)
+        return 1;
     /* 有 -o 且源码含泛型语法（如 <T> 或 <i32>）时走 C 流水线，因 .sx 流水线暂不支持泛型单态化。 */
     if (!emit_to_stdout && src_len > 0) {
         const char *p = (const char *)src;
@@ -2129,10 +2481,24 @@ int run_compiler_sx_path(int argc, char **argv) {
     parser_parse_into_init(module, arena);
     struct parser_ParseIntoResult pr = parser_parse_into(arena, module, &src_slice);
     if (pr.ok != 0) {
-        fprintf(stderr, "shux: parse failed for '%s' (pr.ok=%d main_idx=%d)\n", input_path, (int)pr.ok, (int)pr.main_idx);
-        { int32_t first_tok = parser_diag_token_after_collect_imports(&src_slice, module); fprintf(stderr, "shux: first_token_after_imports=%d (1=TOKEN_FUNCTION)\n", (int)first_tok); }
+        if (runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
+            free(arena);
+            free(module);
+            free(src);
+            return 1;
+        }
+        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                     "parse failed for '%s' (pr.ok=%d main_idx=%d)",
+                     input_path, (int)pr.ok, (int)pr.main_idx);
+        {
+            int32_t first_tok = parser_diag_token_after_collect_imports(&src_slice, module);
+            diag_reportf(input_path, 0, 0, "note", NULL,
+                         "first_token_after_imports=%d (1=TOKEN_FUNCTION)", (int)first_tok);
+        }
         if (src_len > 0 && src_len < 200)
-            fprintf(stderr, "shux: src_len=%zu first_bytes=%.*s\n", src_len, (int)(src_len > 60 ? 60 : src_len), src);
+            diag_reportf(input_path, 0, 0, "note", NULL,
+                         "src_len=%zu first_bytes=%.*s",
+                         src_len, (int)(src_len > 60 ? 60 : src_len), src);
         free(arena);
         free(module);
         free(src);
@@ -2169,13 +2535,14 @@ int run_compiler_sx_path(int argc, char **argv) {
     } else {
         fd = mkstemp(tmp);
         if (fd < 0) {
-            perror("shux: mkstemp");
+            runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
             return 1;
         }
         cf = fdopen(fd, "w");
         if (!cf) {
+            runtime_diag_errno_path(input_path, "build error", "fdopen", tmp);
             close(fd);
             unlink(tmp);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -2184,6 +2551,7 @@ int run_compiler_sx_path(int argc, char **argv) {
         }
         snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
         if (rename(tmp, tmp_c) != 0) {
+            runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
             unlink(tmp);
             fclose(cf);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -2200,7 +2568,8 @@ int run_compiler_sx_path(int argc, char **argv) {
         dep_arenas[j] = malloc(arena_sz);
         dep_modules[j] = malloc(module_sz);
         if (!dep_arenas[j] || !dep_modules[j]) {
-            fprintf(stderr, "shux: -sx path: dep alloc failed\n");
+            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005,
+                                  ".sx path dependency allocation failed", NULL);
             while (j > 0) { j--; free(dep_arenas[j]); free(dep_modules[j]); }
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -2213,7 +2582,8 @@ int run_compiler_sx_path(int argc, char **argv) {
     struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
     struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
     if (!out_buf || !pctx) {
-        fprintf(stderr, "shux: -sx path: out_buf/pctx alloc failed\n");
+        diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP006,
+                              ".sx path output/context allocation failed", NULL);
         for (int jj = 0; jj < n_deps; jj++) { free(dep_arenas[jj]); free(dep_modules[jj]); }
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
         while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -2230,7 +2600,8 @@ int run_compiler_sx_path(int argc, char **argv) {
         struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
         struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
         if (!one_ctx || !dep_out) {
-            fprintf(stderr, "shux: -sx path: dep_one_ctx/out alloc failed\n");
+            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP006,
+                                  ".sx path dependency context/output allocation failed", NULL);
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
             free(out_buf);
@@ -2245,12 +2616,16 @@ int run_compiler_sx_path(int argc, char **argv) {
         shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_sources[j], dep_lens[j]);
         driver_set_current_dep_path_for_codegen(dep_paths[j]);
+        DiagContextSnapshot dep_diag_snapshot;
+        diag_push_file(&dep_diag_snapshot, dep_paths[j], dep_sources[j], dep_lens[j]);
         int ec_loop = shux_pipeline_run_sx_pipeline_large_stack(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j], dep_lens[j], (void *)dep_out, (void *)one_ctx);
+        diag_restore(&dep_diag_snapshot);
         driver_set_current_dep_path_for_codegen(NULL);
         pipeline_dep_ctx_heap_destroy(one_ctx);
         free(dep_out);
         if (ec_loop != 0) {
-            fprintf(stderr, "shux: pipeline failed for import '%s' (rc=%d)\n", dep_paths[j], ec_loop);
+            diag_reportf_with_code(dep_paths[j], 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP008, NULL,
+                                   "pipeline failed for import '%s' (rc=%d)", dep_paths[j], ec_loop);
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
             for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
@@ -2293,7 +2668,9 @@ int run_compiler_sx_path(int argc, char **argv) {
     free(module);
     free(src);
     if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
-        fprintf(stderr, "shux: pipeline failed for '%s' (ec=%d, out_len=%d)\n", input_path, ec, (int)out_buf->len);
+        diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP003, NULL,
+                     "pipeline failed for '%s' (ec=%d, out_len=%d)",
+                     input_path, ec, (int)out_buf->len);
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx);
@@ -2380,11 +2757,14 @@ int run_compiler_sx_path(int argc, char **argv) {
             const char *test_o = shux_rel_o_path_from_argv0(argv[0], "std/test/test.o");
             int cc_ret = shux_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), NULL);
             if (cc_ret != 0) {
-                fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_c);
+                driver_unlink_failed_output(out_path);
+                diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                             "cc failed, keeping generated C: %s", tmp_c);
             } else if (!getenv("SHUX_KEEP_C")) {
                 unlink(tmp_c);
             } else {
-                fprintf(stderr, "shux: kept generated C: %s\n", tmp_c);
+                diag_reportf(NULL, 0, 0, "note", NULL,
+                             "kept generated C: %s", tmp_c);
             }
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
@@ -2515,7 +2895,7 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque)
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (driver_exec_compiled)");
+            runtime_diag_errno_path(NULL, "process error", "fork (driver_exec_compiled)", exe);
             return 1;
         }
         if (pid == 0) {
@@ -2523,7 +2903,7 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque)
             av[0] = (char *)exe;
             av[1] = NULL;
             execv(exe, av);
-            perror("shux: execv (driver_exec_compiled)");
+            runtime_diag_errno_path(NULL, "process error", "execv (driver_exec_compiled)", exe);
             _exit(127);
         }
         {
@@ -2553,12 +2933,14 @@ int driver_build_build_sx(void)
        Makefile 在 compiler 子目录，build_tool 也生成在 compiler 下。 */
     int rc = system("cd compiler && make -s build-tool 2>&1");
     if (rc != 0) {
-        fprintf(stderr, "shux: make build-tool failed (exit %d)\n", rc);
+        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                     "make build-tool failed (exit %d)", rc);
         return 1;
     }
     rc = system("cd compiler && ./build_tool ./shux 2>&1");
     if (rc != 0) {
-        fprintf(stderr, "shux: build_tool failed (exit %d)\n", rc);
+        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                     "build_tool failed (exit %d)", rc);
         return 1;
     }
     return 0;
@@ -2781,17 +3163,24 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         cfg_reset_compile_target();
     ShuxRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-        fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
+        diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                               "cannot read file '%s'", input_path ? input_path : "?");
         return 1;
     }
     size_t src_len = 0;
-    char *src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, ndefines > 0 ? defines : NULL, ndefines,
+    pipeline_diag_emitted_reset();
+    char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path,
+        ndefines > 0 ? defines : NULL, ndefines,
         &src_len);
     runtime_release_file_view(&raw_src_view);
-    if (!src) {
-        fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
+    if (!src && !pipeline_diag_emitted_get()) {
+        diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+                     "preprocess failed for '%s'", input_path);
         return 1;
     }
+    if (!src)
+        return 1;
+    diag_set_file(input_path, src, src_len);
 #if !defined(SHUX_NO_C_FRONTEND)
     /* 无 -o 烟测走 C 前端（含 import 时 SX asm parse 易 0 func）；shux check 不走烟测。 */
     if (out_path == NULL && !driver_check_only_get()) {
@@ -2816,7 +3205,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     void *arena = malloc(arena_sz);
     void *module = malloc(module_sz);
     if (!arena || !module) {
-        fprintf(stderr, "shux: -sx pipeline: malloc failed\n");
+        diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005,
+                              ".sx pipeline allocation failed", NULL);
         if (arena) free(arena);
         if (module) free(module);
         free(src);
@@ -2827,7 +3217,15 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     parser_parse_into_init(module, arena);
     struct parser_ParseIntoResult pr_imp = parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
     if (pr_imp.ok != 0) {
-        fprintf(stderr, "shux: driver asm backend: parse_into_buf failed\n");
+        if (runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
+            free(arena);
+            free(module);
+            free(src);
+            return 1;
+        }
+        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                     "asm backend parse_into_buf failed for '%s'",
+                     input_path ? input_path : "?");
         free(arena);
         free(module);
         free(src);
@@ -2836,8 +3234,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     parser_parse_into_set_main_index(module, pr_imp.main_idx);
     driver_set_pipeline_entry_source_len(src_len);
     if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] driver_first_parse num_funcs=%d src_len=%zu\n",
-            driver_get_module_num_funcs(module), src_len);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: driver_first_parse num_funcs=%d src_len=%zu",
+                     driver_get_module_num_funcs(module), src_len);
     /*
      * A-11 run-typeck-parse-count-gate：ENTRY_MODULE_ONLY 下 entry parse_into 即金标准；
      * 全量 asm_codegen_elf_o(typeck.sx) 在 Docker 内易 OOM(137)，仅 stderr 指标 + 占位 .o。
@@ -2850,7 +3249,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         {
             FILE *metric_o = fopen(out_path, "wb");
             if (!metric_o) {
-                perror("shux: -o (parse-metric-only)");
+                diag_reportf_with_code(out_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                             "cannot open parse-metric output '%s'",
+                             out_path ? out_path : "?");
                 free(arena);
                 free(module);
                 free(src);
@@ -2858,7 +3259,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
             (void)fputc('\0', metric_o);
             if (fclose(metric_o) != 0) {
-                fprintf(stderr, "shux: parse-metric-only: failed to write '%s'\n", out_path);
+                diag_reportf_with_code(out_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                             "failed to write parse-metric output '%s'",
+                             out_path ? out_path : "?");
                 free(arena);
                 free(module);
                 free(src);
@@ -2958,7 +3361,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             strcpy(asm_tmp_o_path, "/tmp/shux_asm_XXXXXX");
             int fd = mkstemp(asm_tmp_o_path);
             if (fd < 0) {
-                perror("shux: mkstemp (asm)");
+                runtime_diag_errno_path(input_path, "build error", "mkstemp (asm)", asm_tmp_o_path);
                 free(arena);
                 free(module);
                 free(src);
@@ -2966,6 +3369,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             }
             asm_out = fdopen(fd, "wb");
             if (!asm_out) {
+                runtime_diag_errno_path(input_path, "build error", "fdopen (asm)", asm_tmp_o_path);
                 close(fd);
                 unlink(asm_tmp_o_path);
                 free(arena);
@@ -2977,7 +3381,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         } else {
             asm_out = fopen(out_path, "wb");
             if (!asm_out) {
-                perror("shux: -o (asm)");
+                runtime_diag_errno_path(out_path, "io error", "fopen (-o asm)", out_path);
                 free(arena);
                 free(module);
                 free(src);
@@ -2989,7 +3393,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     if (emit_elf_o) {
         elf_ctx_ptr = malloc(pipeline_sizeof_elf_ctx());
         if (!elf_ctx_ptr) {
-            fprintf(stderr, "shux: elf_ctx alloc failed\n");
+            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005,
+                                  "ELF context allocation failed", NULL);
             driver_asm_fclose_asm_out(asm_out);
             free(arena);
             free(module);
@@ -3005,7 +3410,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         dep_arenas[j] = malloc(arena_sz);
         dep_modules[j] = malloc(module_sz);
         if (!dep_arenas[j] || !dep_modules[j]) {
-            fprintf(stderr, "shux: -sx pipeline: dep alloc failed\n");
+            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005,
+                                  ".sx pipeline dependency allocation failed", NULL);
             driver_asm_fclose_asm_out(asm_out);
             if (elf_ctx_ptr) free(elf_ctx_ptr);
             while (j > 0) { j--; free(dep_arenas[j]); free(dep_modules[j]); }
@@ -3025,7 +3431,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
     struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
     if (!out_buf || !pctx) {
-        fprintf(stderr, "shux: -sx pipeline: out_buf/pctx alloc failed\n");
+        diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP006,
+                              ".sx pipeline output/context allocation failed", NULL);
         driver_asm_fclose_asm_out(asm_out);
         if (elf_ctx_ptr) free(elf_ctx_ptr);
         for (j = 0; j < n_deps; j++) { free(dep_arenas[j]); free(dep_modules[j]); }
@@ -3093,8 +3500,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         for (j = 0; j < n_deps; j++) {
             if (shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
                     dep_lens[j]) != 0) {
-                fprintf(stderr, "shux: asm layout dep parse-only failed for '%s'\n",
-                    dep_paths[j] ? dep_paths[j] : "?");
+                diag_reportf_with_code(dep_paths[j], 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                             "asm layout dep parse-only failed for '%s'",
+                             dep_paths[j] ? dep_paths[j] : "?");
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx);
                 for (int k = 0; k < n_deps; k++) {
@@ -3121,7 +3529,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
             struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
             if (!one_ctx || !dep_out) {
-                fprintf(stderr, "shux: -sx pipeline: dep_one_ctx/out alloc failed\n");
+                diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP006,
+                                      ".sx pipeline dependency context/output allocation failed", NULL);
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
                 free(out_buf);
@@ -3146,8 +3555,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             int ec_loop;
             if (asm_smoke_only) {
                 if (getenv("SHUX_ASM_DEBUG"))
-                    fprintf(stderr, "shux: dep_prerun[%d] path=%s len=%zu\n", (int)j,
-                            dep_paths[j] ? dep_paths[j] : "?", (size_t)dep_lens[j]);
+                    diag_reportf(NULL, 0, 0, "note", NULL,
+                                 "asm debug: dep_prerun[%d] path=%s len=%zu", (int)j,
+                                 dep_paths[j] ? dep_paths[j] : "?", (size_t)dep_lens[j]);
                 ec_loop = shux_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
             } else if (emit_elf_o && shux_asm_user_std_dep_skip_sx_typeck(dep_paths[j])) {
@@ -3188,7 +3598,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
             if (ec_loop != 0) {
-                fprintf(stderr, "shux: pipeline failed for import '%s' (rc=%d)\n", dep_paths[j], ec_loop);
+                diag_reportf_with_code(dep_paths[j], 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP008, NULL,
+                                       "pipeline failed for import '%s' (rc=%d)", dep_paths[j], ec_loop);
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx);
                 for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
@@ -3224,17 +3635,20 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         const char *entry_name = input_path ? strrchr(input_path, '/') : NULL;
         entry_name = entry_name ? entry_name + 1 : input_path;
         if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
-            fprintf(stderr, ">> [ASM_ENTRY_DEBUG] entry=%s n_deps=%d\n", entry_name, n_deps);
-            fflush(stderr);
+            diag_reportf(NULL, 0, 0, "note", NULL,
+                         "asm entry debug: entry=%s n_deps=%d",
+                         entry_name ? entry_name : "?", n_deps);
         }
         /* 1. 预检：当前文件长度 */
         if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
-            fprintf(stderr, ">> [ASM_ENTRY_DEBUG] src_len=%zu entry_funcs=%d\n", src_len, driver_get_module_num_funcs(module));
+            diag_reportf(NULL, 0, 0, "note", NULL,
+                         "asm entry debug: src_len=%zu entry_funcs=%d",
+                         src_len, driver_get_module_num_funcs(module));
         }
         /* 2. 调 pipeline_run_sx_pipeline */
         if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
-            fprintf(stderr, ">> [ASM_ENTRY_DEBUG] BEFORE pipeline_run_sx_pipeline\n");
-            fflush(stderr);
+            diag_report(NULL, 0, 0, "note",
+                        "asm entry debug: BEFORE pipeline_run_sx_pipeline", NULL);
         }
 #if !defined(SHUX_NO_C_FRONTEND)
         /*
@@ -3285,19 +3699,21 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         driver_sx_pipeline_skip_typeck_set(0);
         driver_sx_pipeline_skip_codegen_set(0);
         if (getenv("SHUX_ASM_ENTRY_ONLY_DEBUG")) {
-            fprintf(stderr, ">> [ASM_ENTRY_DEBUG] AFTER pipeline_run_sx_pipeline ec=%d funcs=%d out_len=%zu\n",
-                ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
-            fflush(stderr);
+            diag_reportf(NULL, 0, 0, "note", NULL,
+                         "asm entry debug: AFTER pipeline_run_sx_pipeline ec=%d funcs=%d out_len=%zu",
+                         ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
         }
         /* 3. 如果是 segfault，上面的 fprintf 不会执行；需要更前置的分段日志 */
-        if (ec != 0) {
-            fprintf(stderr, "shux: sm_diag: main pipeline returned %d\n", ec);
+        if (ec != 0 && !driver_check_diag_emitted_get()) {
+            diag_reportf(input_path, 0, 0, "note", NULL,
+                         "smoke diagnostic: main pipeline returned %d", ec);
         }
     }
     pctx->use_asm_backend = 1;
     if (getenv("SHUX_ASM_DEBUG")) {
-        fprintf(stderr, "shux: asm backend after pipeline: ec=%d num_funcs=%d out_asm_len=%zu\n",
-                ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "asm debug: backend after pipeline ec=%d num_funcs=%d out_asm_len=%zu",
+                     ec, driver_get_module_num_funcs(module), (size_t)out_buf->len);
         pipeline_debug_module_funcs(module);
     }
     if (asm_smoke_only) {
@@ -3313,10 +3729,17 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         {
             int smoke_ec = ec;
             int smoke_num_funcs = driver_get_module_num_funcs(module);
-            if (smoke_ec != 0)
-                fprintf(stderr, "shux: -sx pipeline failed (parse_into / typeck_sx_ast / codegen_sx_ast)\n");
+            int smoke_diag_emitted = driver_check_diag_emitted_get();
+            if (smoke_ec != 0 && !driver_check_diag_emitted_get())
+                diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP001, NULL,
+                             ".sx pipeline failed for '%s' (stage=parse_into/typeck_sx_ast/codegen_sx_ast)",
+                             input_path ? input_path : "?");
             else if (smoke_num_funcs <= 0)
-                fprintf(stderr, "shux: parse produced no functions for '%s'\n", input_path ? input_path : "?");
+                diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                             "parse produced no functions for '%s'", input_path ? input_path : "?");
+            else if (driver_check_only_get() && smoke_diag_emitted) {
+                /* check 已有更具体失败诊断时，不再冒充 parse/typeck 成功摘要。 */
+            }
             else if (driver_check_only_get()) {
                 driver_print_sx_smoke_summary(module, (size_t)out_buf->len);
                 if (input_path)
@@ -3334,6 +3757,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 return 1;
             }
             if (smoke_num_funcs <= 0) {
+                driver_dep_seeded_clear_all();
+                typeck_ndep = 0;
+                return 1;
+            }
+            if (driver_check_only_get() && smoke_diag_emitted) {
                 driver_dep_seeded_clear_all();
                 typeck_ndep = 0;
                 return 1;
@@ -3373,13 +3801,20 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             shux_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
             int32_t elf_ec = shux_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
             if (getenv("SHUX_ASM_DEBUG")) {
-                fprintf(stderr, "shux: asm_codegen_elf_o: elf_ec=%d elf_len=%zu\n", (int)elf_ec, (size_t)out_buf->len);
+                diag_reportf(NULL, 0, 0, "note", NULL,
+                             "asm debug: asm_codegen_elf_o elf_ec=%d elf_len=%zu",
+                             (int)elf_ec, (size_t)out_buf->len);
             }
             if (elf_ec != 0 || out_buf->len <= 0) {
-                fprintf(stderr, "shux: asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)\n",
-                        (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
+                diag_reportf_with_code(input_path, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG002, NULL,
+                                       "asm_codegen_elf_o failed (elf_ec=%d, out_len=%zu, num_funcs=%d)",
+                                       (int)elf_ec, (size_t)out_buf->len, driver_get_module_num_funcs(module));
+                if (elf_ec == SHUX_ASM_CODEGEN_ELF_EMPTY_TEXT_RC)
+                    diag_report(NULL, 0, 0, "note",
+                                "asm backend produced no object text; empty .o emission was rejected", NULL);
                 if (elf_ec != 0 && elf_ctx_ptr)
-                    pipeline_elf_ctx_diag_stderr((uint8_t *)elf_ctx_ptr);
+                    runtime_pipeline_elf_ctx_diag_note((uint8_t *)elf_ctx_ptr);
+                driver_unlink_failed_output(out_path);
                 driver_asm_fclose_asm_out(asm_out);
                 if (elf_ctx_ptr) free(elf_ctx_ptr);
                 for (j = 0; j < n_deps; j++) { free(dep_arenas[j]); free(dep_modules[j]); }
@@ -3412,7 +3847,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 lib_roots_arr, n_lib_roots);
             unlink(asm_tmp_o_path);
             if (ld_ok != 0) {
-                fprintf(stderr, "shux: ld failed (asm -> %s)\n", asm_exe_out);
+                driver_unlink_failed_output(asm_exe_out);
+                diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                             "ld failed (asm -> %s)", asm_exe_out);
                 free(out_buf);
                 pipeline_dep_ctx_heap_destroy(pctx);
                 free(arena);
@@ -3432,11 +3869,15 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             free(dep_paths[n_deps]);
         }
         if (ec != 0) {
-            fprintf(stderr, "shux: -sx pipeline failed (parse_into / typeck_sx_ast / codegen_sx_ast)\n");
+            driver_unlink_failed_output(out_path);
+            diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP001, NULL,
+                         ".sx pipeline failed for '%s' (stage=parse_into/typeck_sx_ast/codegen_sx_ast)",
+                         input_path ? input_path : "?");
         }
     }
     if (ec == 0 && emit_elf_o && driver_get_module_num_funcs(module) <= 0) {
-        fprintf(stderr, "shux: asm: parse produced no functions in '%s'\n", input_path ? input_path : "?");
+        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                     "parse produced no functions in '%s'", input_path ? input_path : "?");
         ec = -1;
     }
     driver_dep_seeded_clear_all();
@@ -3473,6 +3914,7 @@ typedef struct DriverCompileParsed {
 
 /** C 前端烟测：stderr 打印 parse OK / typeck OK（run-import、run-stdlib-import grep）。 */
 static int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
+    diag_set_file(input_path, src, src ? strlen(src) : 0);
     Lexer *lex = lexer_new(src);
     ASTModule *mod = NULL;
     int pr = parse(lex, &mod);
@@ -3480,7 +3922,6 @@ static int driver_c_frontend_smoke(const char *input_path, char *src, const char
     if (pr != 0 || !mod) {
         if (mod)
             ast_module_free(mod);
-        fprintf(stderr, "shux: parse failed for '%s' (pr=%d)\n", input_path ? input_path : "?", pr);
         return 1;
     }
     char entry_dir_buf[512];
@@ -3504,8 +3945,12 @@ static int driver_c_frontend_smoke(const char *input_path, char *src, const char
         return 1;
     }
     const char *main_name = (mod->main_func && mod->main_func->name) ? mod->main_func->name : "main";
-    fprintf(stderr, "parse OK: %s(): i32 { expr }\n", main_name);
-    fprintf(stderr, "typeck OK\n");
+    /* 双写过渡：opt-in 时为 smoke info 携带编号 SMOKE001/SMOKE002（默认 code=NULL，输出与旧版逐字节一致）。 */
+    const char *smoke_code_parse = shux_smoke_diag_enabled() ? SHUX_DIAG_CODE_SMOKE_SMOKE001 : NULL;
+    const char *smoke_code_typeck = shux_smoke_diag_enabled() ? SHUX_DIAG_CODE_SMOKE_SMOKE002 : NULL;
+    diag_reportf_with_code(NULL, 0, 0, "info", smoke_code_parse, NULL,
+                           "parse OK: %s(): i32 { expr }", main_name);
+    diag_report_with_code(NULL, 0, 0, "info", smoke_code_typeck, "typeck OK", NULL);
     while (n_all--) {
         free(all_dep_paths[n_all]);
         ast_module_free(all_dep_mods[n_all]);
@@ -3545,6 +3990,7 @@ static int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) 
 #endif
 
 static int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok) {
+    diag_set_file(input_path, src, src ? strlen(src) : 0);
     Lexer *lex = lexer_new(src);
     ASTModule *mod = NULL;
     int pr = parse(lex, &mod);
@@ -3552,7 +3998,6 @@ static int driver_c_typeck_entry(const char *input_path, char *src, const char *
     if (pr != 0 || !mod) {
         if (mod)
             ast_module_free(mod);
-        fprintf(stderr, "shux: parse failed for '%s' (pr=%d)\n", input_path ? input_path : "?", pr);
         return 1;
     }
     char entry_dir_buf[512];
@@ -3781,7 +4226,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         ShuxRuntimeFileView imp_raw_view;
         if (runtime_read_file_view(input_path, &imp_raw_view) == 0) {
             size_t imp_src_len = 0;
-            char *imp_src = SHUX_RUNTIME_PREPROCESS(imp_raw_view.data, imp_raw_view.length, NULL, 0, &imp_src_len);
+            pipeline_diag_emitted_reset();
+            char *imp_src = shux_preprocess_quiet(imp_raw_view.data, imp_raw_view.length, NULL, 0, &imp_src_len);
             runtime_release_file_view(&imp_raw_view);
             if (imp_src && driver_source_has_top_level_import(imp_src, imp_src_len))
                 want_asm_backend = 0;
@@ -3796,16 +4242,22 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
 
     ShuxRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-        fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
+        diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                               "cannot read file '%s'", input_path ? input_path : "?");
         return 1;
     }
     size_t src_len = 0;
-    char *src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, NULL, 0, &src_len);
+    pipeline_diag_emitted_reset();
+    char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path, NULL, 0, &src_len);
     runtime_release_file_view(&raw_src_view);
-    if (!src) {
-        fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
+    if (!src && !pipeline_diag_emitted_get()) {
+        diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+                     "preprocess failed for '%s'", input_path);
         return 1;
     }
+    if (!src)
+        return 1;
+    diag_set_file(input_path, src, src_len);
 #if !defined(SHUX_NO_C_FRONTEND)
     /*
      * shux check：优先 C parse+typeck（支持库模块、import -L）；SX pipeline check 待与 compile 对齐后再切回。
@@ -3834,7 +4286,6 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             if (pr != 0 || !c_mod) {
                 if (c_mod) ast_module_free(c_mod);
                 free(src);
-                fprintf(stderr, "shux: parse failed for '%s' (pr=%d)\n", input_path, pr);
                 return 1;
             }
             /*
@@ -3903,7 +4354,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                     char tmp_lib[] = "/tmp/shux_XXXXXX";
                     int fd_lib = mkstemp(tmp_lib);
                     if (fd_lib < 0) {
-                        perror("shux: mkstemp");
+                        runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp_lib);
                         while (n_all--) {
                             free(all_dep_paths[n_all]);
                             ast_module_free(all_dep_mods[n_all]);
@@ -3914,6 +4365,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                     }
                     FILE *cf_lib = fdopen(fd_lib, "w");
                     if (!cf_lib) {
+                        runtime_diag_errno_path(input_path, "build error", "fdopen", tmp_lib);
                         close(fd_lib);
                         unlink(tmp_lib);
                         while (n_all--) {
@@ -3952,7 +4404,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                     char tmp_lib_c[32];
                     snprintf(tmp_lib_c, sizeof(tmp_lib_c), "%s.c", tmp_lib);
                     if (rename(tmp_lib, tmp_lib_c) != 0) {
-                        perror("shux: rename");
+                        runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp_lib, tmp_lib_c);
                         unlink(tmp_lib);
                         while (n_all--) {
                             free(all_dep_paths[n_all]);
@@ -3966,23 +4418,25 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                         pid_t cpid = fork();
                         int cc_ok = 0;
                         if (cpid < 0) {
-                            perror("shux: fork");
+                            runtime_diag_errno_path(input_path, "build error", "fork (cc -c)", out_path);
                             cc_ok = -1;
                         } else if (cpid == 0) {
                             execlp("cc", "cc", "-std=gnu11", "-Wall", "-Wextra", "-c", "-o", (char *)out_path,
                                 tmp_lib_c, (char *)NULL);
-                            perror("shux: cc");
+                            runtime_diag_errno_path(input_path, "build error", "execlp(cc -c)", tmp_lib_c);
                             _exit(127);
                         } else {
                             int status = 0;
                             if (shu_waitpid_retry(cpid, &status) != 0 ||
                                 !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                                fprintf(stderr, "shux: cc -c failed for library module\n");
+                                diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
+                                            "cc -c failed for library module", NULL);
                                 cc_ok = -1;
                             }
                         }
                         if (cc_ok != 0)
-                            fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_lib_c);
+                            diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                                         "cc failed, keeping generated C: %s", tmp_lib_c);
                         else if (!getenv("SHUX_KEEP_C"))
                             unlink(tmp_lib_c);
                         while (n_all--) {
@@ -4000,7 +4454,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 }
                 ast_module_free(c_mod);
                 free(src);
-                fprintf(stderr, "shux: no main function (cannot emit executable)\n");
+            diag_report_with_code(NULL, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG001,
+                                  "no main function (cannot emit executable)", NULL);
                 return 1;
             }
             if (typeck_module(c_mod, ndep > 0 ? dep_mods : NULL, ndep, n_all > 0 ? all_dep_mods : NULL, n_all) != 0) {
@@ -4026,7 +4481,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             char tmp[] = "/tmp/shux_XXXXXX";
             int fd = mkstemp(tmp);
             if (fd < 0) {
-                perror("shux: mkstemp");
+                runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp);
                 while (n_all--) {
                     free(all_dep_paths[n_all]);
                     ast_module_free(all_dep_mods[n_all]);
@@ -4037,6 +4492,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             }
             FILE *cf = fdopen(fd, "w");
             if (!cf) {
+                runtime_diag_errno_path(input_path, "build error", "fdopen", tmp);
                 close(fd);
                 unlink(tmp);
                 while (n_all--) {
@@ -4102,7 +4558,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             char tmp_c[32];
             snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
             if (rename(tmp, tmp_c) != 0) {
-                perror("shux: rename");
+                runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
                 unlink(tmp);
                 while (n_all--) {
                     free(all_dep_paths[n_all]);
@@ -4163,9 +4619,11 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 const char *schema_o = shux_rel_o_path_from_argv0(argv[0], "std/schema/schema.o");
                 const char *test_o = shux_rel_o_path_from_argv0(argv[0], "std/test/test.o");
                 int cc_ret = shux_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), NULL);
-                if (cc_ret != 0)
-                    fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_c);
-                else if (!getenv("SHUX_KEEP_C"))
+                if (cc_ret != 0) {
+                    driver_unlink_failed_output(out_path);
+                    diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                                 "cc failed, keeping generated C: %s", tmp_c);
+                } else if (!getenv("SHUX_KEEP_C"))
                     unlink(tmp_c);
                 while (n_all--) {
                     free(all_dep_paths[n_all]);
@@ -4186,7 +4644,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
 #endif /* !SHUX_NO_C_FRONTEND */
     if (getenv("SHUX_DUMP_PREP")) {
         if (shux_write_path_bytes("/tmp/shux_prep_entry.bin", src, src_len) == 0) {
-            fprintf(stderr, "shux: dumped prep entry (%zu bytes) to /tmp/shux_prep_entry.bin\n", src_len);
+            diag_reportf(input_path, 0, 0, "note", NULL,
+                         "dumped prep entry (%zu bytes) to /tmp/shux_prep_entry.bin", src_len);
         }
     }
     size_t arena_sz = pipeline_sizeof_arena();
@@ -4203,7 +4662,9 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     memset(module, 0, module_sz);
     struct shux_slice_uint8_t src_slice = { (uint8_t *)src, src_len }; /* 仅 diagnostics，入口解析必须与 pipeline 一致走 parse_into_buf */
     if (src_len > (size_t)INT32_MAX) {
-        fprintf(stderr, "shux: entry source too large for parser (>%d bytes): '%s'\n", INT32_MAX, input_path);
+        diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP007, NULL,
+                               "entry source too large for parser (>%d bytes): '%s'",
+                               INT32_MAX, input_path ? input_path : "?");
         free(arena);
         free(module);
         free(src);
@@ -4212,10 +4673,24 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     parser_parse_into_init(module, arena);
     struct parser_ParseIntoResult pr = parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
     if (pr.ok != 0) {
-        fprintf(stderr, "shux: parse failed for '%s' (pr.ok=%d main_idx=%d)\n", input_path, (int)pr.ok, (int)pr.main_idx);
-        { int32_t first_tok = parser_diag_token_after_collect_imports(&src_slice, module); fprintf(stderr, "shux: first_token_after_imports=%d (1=TOKEN_FUNCTION)\n", (int)first_tok); }
+        if (runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
+            free(arena);
+            free(module);
+            free(src);
+            return 1;
+        }
+        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                     "parse failed for '%s' (pr.ok=%d main_idx=%d)",
+                     input_path, (int)pr.ok, (int)pr.main_idx);
+        {
+            int32_t first_tok = parser_diag_token_after_collect_imports(&src_slice, module);
+            diag_reportf(input_path, 0, 0, "note", NULL,
+                         "first_token_after_imports=%d (1=TOKEN_FUNCTION)", (int)first_tok);
+        }
         if (src_len > 0 && src_len < 200)
-            fprintf(stderr, "shux: src_len=%zu first_bytes=%.*s\n", src_len, (int)(src_len > 60 ? 60 : src_len), src);
+            diag_reportf(input_path, 0, 0, "note", NULL,
+                         "src_len=%zu first_bytes=%.*s",
+                         src_len, (int)(src_len > 60 ? 60 : src_len), src);
         free(arena);
         free(module);
         free(src);
@@ -4224,10 +4699,9 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     parser_parse_into_set_main_index(module, pr.main_idx);
     int32_t n_imports = parser_get_module_num_imports(module);
     if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr,
-                "shux: [SHUX_DEBUG_PIPE] driver post-parse_into_buf num_funcs=%d n_imports=%d pr_ok=%d pr_main_idx=%d "
-                "src_len=%zu\n",
-                driver_get_module_num_funcs(module), (int)n_imports, (int)pr.ok, (int)pr.main_idx, src_len);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: driver post-parse_into_buf num_funcs=%d n_imports=%d pr_ok=%d pr_main_idx=%d src_len=%zu",
+                     driver_get_module_num_funcs(module), (int)n_imports, (int)pr.ok, (int)pr.main_idx, src_len);
     char entry_dir_buf[512];
     shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
     if (n_imports > 0)
@@ -4246,10 +4720,11 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             return 1;
         }
         if (getenv("SHUX_DEBUG_PIPE")) {
-            fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] n_deps=%d", n_deps);
+            diag_reportf(NULL, 0, 0, "note", NULL,
+                         "pipeline debug: n_deps=%d", n_deps);
             for (int dj = 0; dj < n_deps; dj++)
-                fprintf(stderr, " dep[%d]=%s", dj, dep_paths[dj] ? dep_paths[dj] : "?");
-            fputc('\n', stderr);
+                diag_reportf(NULL, 0, 0, "note", NULL,
+                             "pipeline debug: dep[%d]=%s", dj, dep_paths[dj] ? dep_paths[dj] : "?");
         }
     }
     typeck_ndep = 0;
@@ -4263,13 +4738,14 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     } else {
         fd = mkstemp(tmp);
         if (fd < 0) {
-            perror("shux: mkstemp");
+            runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
             return 1;
         }
         cf = fdopen(fd, "w");
         if (!cf) {
+            runtime_diag_errno_path(input_path, "build error", "fdopen", tmp);
             close(fd);
             unlink(tmp);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -4278,6 +4754,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         }
         snprintf(tmp_c, sizeof(tmp_c), "%s.c", tmp);
         if (rename(tmp, tmp_c) != 0) {
+            runtime_diag_errno_path_pair(input_path, "build error", "rename", tmp, tmp_c);
             unlink(tmp);
             fclose(cf);
             while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -4294,7 +4771,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         dep_arenas[j] = malloc(arena_sz);
         dep_modules[j] = malloc(module_sz);
         if (!dep_arenas[j] || !dep_modules[j]) {
-            fprintf(stderr, "shux: -sx path: dep alloc failed\n");
+            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005,
+                                  ".sx path dependency allocation failed", NULL);
             while (j > 0) { j--; free(dep_arenas[j]); free(dep_modules[j]); }
             if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -4307,7 +4785,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
     struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx));
     if (!out_buf || !pctx) {
-        fprintf(stderr, "shux: -sx path (driver full): out_buf/pctx alloc failed\n");
+        diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP006,
+                              ".sx path output/context allocation failed", NULL);
         for (int jj = 0; jj < n_deps; jj++) { free(dep_arenas[jj]); free(dep_modules[jj]); }
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
         while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
@@ -4329,7 +4808,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
         int ec_dep;
         if (!one_ctx || !dep_out) {
-            fprintf(stderr, "shux: -sx path (driver full): dep_one_ctx/out alloc failed\n");
+            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP006,
+                                  ".sx path dependency context/output allocation failed", NULL);
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
             free(out_buf);
@@ -4363,8 +4843,9 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         pipeline_dep_ctx_heap_destroy(one_ctx);
         free(dep_out);
         if (ec_dep != 0) {
-            fprintf(stderr, "shux: pipeline failed for import '%s' (dep prerun rc=%d)\n",
-                    dep_paths[j] ? dep_paths[j] : "?", ec_dep);
+            diag_reportf_with_code(dep_paths[j], 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP008, NULL,
+                                   "pipeline failed for import '%s' (dep prerun rc=%d)",
+                                   dep_paths[j] ? dep_paths[j] : "?", ec_dep);
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
             for (int k = 0; k < n_deps; k++) { free(dep_arenas[k]); free(dep_modules[k]); }
@@ -4401,7 +4882,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
      * import 已解析完毕；清零后 pipeline 从同一预处理源码重建 module/arena。
      */
     if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] before entry memset arena_sz=%zu\n", arena_sz);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: before entry memset arena_sz=%zu", arena_sz);
     memset(arena, 0, arena_sz);
     memset(module, 0, module_sz);
     parser_parse_into_init(module, arena);
@@ -4410,8 +4892,9 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
         driver_deps_are_std_core_closure_only(dep_paths, n_deps))
         pctx->asm_entry_module_only = 1;
     if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] before pipeline_run entry=%s src_len=%zu\n",
-                input_path ? input_path : "?", (size_t)src_slice.length);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: before pipeline_run entry=%s src_len=%zu",
+                     input_path ? input_path : "?", (size_t)src_slice.length);
 #if !defined(SHUX_NO_C_FRONTEND)
     if (n_deps > 0 && !driver_check_only_get() &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps)) {
@@ -4461,17 +4944,21 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     int ec = shux_pipeline_run_sx_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
     driver_sx_pipeline_skip_typeck_set(0);
     if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] after pipeline_run ec=%d\n", ec);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: after pipeline_run ec=%d", ec);
     driver_dep_seeded_clear_all();
     codegen_set_dep_slots_for_sx_pipeline(NULL, NULL, 0);
     for (int j = n_deps - 1; j >= 0; j--) { free(dep_arenas[j]); free(dep_modules[j]); }
     while (n_deps > 0) { n_deps--; free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
     if (ec != 0 || (!driver_check_only_get() && out_buf->len == 0)) {
-        fprintf(stderr, "shux: pipeline failed for '%s' (ec=%d, out_len=%d)\n", input_path, ec, (int)out_buf->len);
+        diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP003, NULL,
+                     "pipeline failed for '%s' (ec=%d, out_len=%d)",
+                     input_path, ec, (int)out_buf->len);
         if (getenv("SHUX_DEBUG_PIPE") && out_buf->len > 0) {
             size_t show = (size_t)out_buf->len > 800u ? 800u : (size_t)out_buf->len;
-            fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] out (first %zu bytes):\n%.*s\n", show, (int)show,
-                    (const char *)out_buf->data);
+            diag_reportf(NULL, 0, 0, "note", NULL,
+                         "pipeline debug: out (first %zu bytes):\n%.*s", show, (int)show,
+                         (const char *)out_buf->data);
         }
         if (!emit_to_stdout) { fclose(cf); unlink(tmp_c); }
         free(arena);
@@ -4585,11 +5072,14 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             const char *test_o = shux_rel_o_path_from_argv0(argv[0], "std/test/test.o");
             int cc_ret = shux_invoke_cc(c_paths, 1, out_path, NULL, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, shux_repo_root_from_argv0(argv[0]), NULL);
             if (cc_ret != 0) {
-                fprintf(stderr, "shux: cc failed, keeping generated C: %s\n", tmp_c);
+                driver_unlink_failed_output(out_path);
+                diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                             "cc failed, keeping generated C: %s", tmp_c);
             } else if (!getenv("SHUX_KEEP_C")) {
                 unlink(tmp_c);
             } else {
-                fprintf(stderr, "shux: kept generated C: %s\n", tmp_c);
+                diag_reportf(NULL, 0, 0, "note", NULL,
+                             "kept generated C: %s", tmp_c);
             }
             free(out_buf);
             pipeline_dep_ctx_heap_destroy(pctx);
@@ -4776,8 +5266,8 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
     if (!driver_check_only_get() && p.input_path && driver_source_has_top_level_import_path(p.input_path) &&
         !driver_asm_entry_module_only_from_env()) {
         int shu_c_rc = driver_try_compile_via_shu_c_sibling((int)argc, (char **)argv);
-        if (shu_c_rc == 0)
-            return 0;
+        if (shu_c_rc >= 0)
+            return shu_c_rc;
     }
 #endif
     return driver_run_compiler_parsed(&p, (int)argc, (char **)argv);
@@ -5218,7 +5708,9 @@ void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
         spec_len = (size_t)state->target_cpu_len;
     }
     if (shu_target_cpu_resolve(spec, spec_len, &feats) != 0) {
-        fprintf(stderr, "shux: unknown -target-cpu '%.*s'; using generic baseline\n", (int)spec_len, spec);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "unknown -target-cpu '%.*s'; using generic baseline",
+                     (int)spec_len, spec ? spec : "");
         feats = shu_target_cpu_generic_for_host();
     }
     state->target_cpu_features = (int32_t)feats;
@@ -5364,6 +5856,7 @@ void driver_print_usage_c(void) {
         "  shux run file.sx                compile and run\n"
         "  shux check [paths...]           parse + typeck only\n"
         "  shux fmt [--check] [paths...]   format .sx sources\n"
+        "  shux explain <CODE>             explain a diagnostic code\n"
         "  shux test [script.sh]           run test script\n"
         "\n"
         "Common options:\n"
@@ -5374,6 +5867,7 @@ void driver_print_usage_c(void) {
         "  -target <triple>  target (e.g. aarch64-linux-gnu)\n"
         "  -target-cpu <cpu> native|generic|avx2|...\n"
         "  --print-target-cpu  print host CPU features and exit\n"
+        "  --explain <CODE>   print diagnostic code explanation and exit\n"
         "  -freestanding     nostdlib static link (Linux x86_64 ELF)\n"
         "  -legacy-f32-abi   legacy SysV f32 CALL (f64 widen; default xmm ABI)\n"
         "  -E                emit C (debug)\n"
@@ -5396,6 +5890,11 @@ void driver_print_usage_c(void) {
 int32_t driver_run_compiler_full_sx_impl_c(int32_t argc, uint8_t *argv) {
     DriverCompileStateSU *state;
     int32_t rc;
+    int explain_rc;
+
+    explain_rc = runtime_try_handle_explain_cli((int)argc, (char **)argv);
+    if (explain_rc >= 0)
+        return explain_rc;
 
     if (driver_compile_argv_is_help_c(argc, argv)) {
         driver_print_usage_c();
@@ -5451,16 +5950,9 @@ int driver_run_test(int argc, char **argv) {
     else
         snprintf(script, sizeof script, "%s/%s", root, rel);
     snprintf(cmd, sizeof cmd, "cd \"%s\" && bash \"%s\"", root, script);
-    fprintf(stderr, "shux test: %s\n", script);
-    int st = system(cmd);
-    if (st == -1) {
-        fprintf(stderr, "shux test: failed to run script\n");
-        return 1;
-    }
-    if (WIFEXITED(st))
-        return WEXITSTATUS(st) != 0 ? 1 : 0;
-    fprintf(stderr, "shux test: script terminated abnormally\n");
-    return 1;
+    diag_reportf(NULL, 0, 0, "info", NULL,
+                 "test script: %s", script);
+    return runtime_test_status_to_rc(script, system(cmd));
 }
 
 /** 扫描 argv：若存在 -sx -E <path> 则记下 path 及此前出现的 -L path，返回 1，否则返回 0。保留供未迁完时链接。 */
@@ -5509,16 +6001,22 @@ static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
     (void)setvbuf(stdout, NULL, _IONBF, 0);
     ShuxRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-        fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
+        diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                               "cannot read file '%s'", input_path ? input_path : "?");
         return 1;
     }
     size_t src_len = 0;
-    char *src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, NULL, 0, &src_len);
+    pipeline_diag_emitted_reset();
+    char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path, NULL, 0, &src_len);
     runtime_release_file_view(&raw_src_view);
-    if (!src) {
-        fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
+    if (!src && !pipeline_diag_emitted_get()) {
+        diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+                     "preprocess failed for '%s'", input_path);
         return 1;
     }
+    if (!src)
+        return 1;
+    diag_set_file(input_path, src, src_len);
     Lexer *lex = lexer_new(src);
     ASTModule *mod = NULL;
     int pr = parse(lex, &mod);
@@ -5526,7 +6024,6 @@ static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
     if (pr != 0 || !mod) {
         if (mod) ast_module_free(mod);
         free(src);
-        fprintf(stderr, "shux: -sx -E-extern parse failed for '%s'\n", input_path);
         return 1;
     }
     char entry_dir_buf[512];
@@ -5563,7 +6060,9 @@ static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
         }
         ast_module_free(mod);
         free(src);
-        fprintf(stderr, "shux: -sx -E-extern typeck failed for '%s'\n", input_path);
+        diag_reportf_with_code(input_path, 0, 0, "typeck error", SHUX_DIAG_CODE_TYPECK_T001, NULL,
+                     "-sx -E-extern type check failed for '%s'",
+                     input_path ? input_path : "?");
         return 1;
         }
     }
@@ -5579,11 +6078,11 @@ static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
     fprintf(stdout, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
     fprintf(stdout, "  if (!_ev || _ev[0] != '1') return;\n");
     fprintf(stdout, "  int _pid = (int)getpid();\n");
-    fprintf(stdout, "  fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
+    fprintf(stdout, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
     fprintf(stdout, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
     fprintf(stdout, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
     fprintf(stdout, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
-    fprintf(stdout, "      fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] bundle=%%s\\n\", _p); } } }\n");
+    fprintf(stdout, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
     fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
     fprintf(stdout, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
     fprintf(stdout, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
@@ -5620,7 +6119,8 @@ static int driver_run_sx_emit_c_extern_via_cparser(const char *input_path) {
         } else if (mod->main_func && mod->main_func->body) {
             ec = codegen_module_to_c(mod, stdout, dep_mods, (const char **)mod->import_paths, ndep, NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted);
         } else {
-            fprintf(stderr, "shux: -sx -E-extern: no main and no lib functions (cannot emit C)\n");
+            diag_report_with_code(NULL, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG001,
+                        "-sx -E-extern: no main and no lib functions (cannot emit C)", NULL);
             ec = -1;
         }
     }
@@ -5655,8 +6155,9 @@ int driver_run_sx_emit_c(void) {
 #if !defined(SHUX_NO_C_FRONTEND)
                 return driver_run_sx_emit_c_extern_via_cparser(input_path);
 #else
-                fprintf(stderr,
-                    "shux: -sx -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)\n");
+                diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
+                            "-sx -E -E-extern requires C parser/codegen (rebuild without -DSHUX_NO_C_FRONTEND)",
+                            NULL);
                 return 1;
 #endif
             }
@@ -5664,22 +6165,29 @@ int driver_run_sx_emit_c(void) {
 #endif
         ShuxRuntimeFileView raw_src_view;
         if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
-            fprintf(stderr, "Error: cannot read file '%s'\n", input_path);
+            diag_reportf_with_code(input_path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                                   "cannot read file '%s'", input_path ? input_path : "?");
             return 1;
         }
         size_t src_len = 0;
-        char *src = SHUX_RUNTIME_PREPROCESS(raw_src_view.data, raw_src_view.length, NULL, 0, &src_len);
+        pipeline_diag_emitted_reset();
+        char *src = shux_preprocess_with_path(raw_src_view.data, raw_src_view.length, input_path, NULL, 0, &src_len);
         runtime_release_file_view(&raw_src_view);
-        if (!src) {
-            fprintf(stderr, "shux: preprocess failed for '%s'\n", input_path);
+        if (!src && !pipeline_diag_emitted_get()) {
+            diag_reportf_with_code(input_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+                         "preprocess failed for '%s'", input_path);
             return 1;
         }
+        if (!src)
+            return 1;
+        diag_set_file(input_path, src, src_len);
         size_t arena_sz = pipeline_sizeof_arena();
         size_t module_sz = pipeline_sizeof_module();
         void *arena = malloc(arena_sz);
         void *module = malloc(module_sz);
         if (!arena || !module) {
-            fprintf(stderr, "shux: -sx pipeline: malloc failed\n");
+            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005,
+                                  ".sx pipeline allocation failed", NULL);
             free(arena);
             free(module);
             free(src);
@@ -5688,7 +6196,9 @@ int driver_run_sx_emit_c(void) {
         memset(arena, 0, arena_sz);
         memset(module, 0, module_sz);
         if (src_len > (size_t)INT32_MAX) {
-            fprintf(stderr, "shux: -sx -E: source too large for parser (>%d bytes): '%s'\n", INT32_MAX, input_path);
+            diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP007, NULL,
+                                   ".sx -E source too large for parser (>%d bytes): '%s'",
+                                   INT32_MAX, input_path ? input_path : "?");
             free(arena);
             free(module);
             free(src);
@@ -5699,13 +6209,34 @@ int driver_run_sx_emit_c(void) {
         struct parser_ParseIntoResult pr =
             parser_parse_into_buf(arena, module, (uint8_t *)src, (int32_t)src_len);
         if (pr.ok != 0) {
-            fprintf(stderr, "shux: -sx pipeline failed (parse_into)\n");
+            if (runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
+                free(arena);
+                free(module);
+                free(src);
+                return 1;
+            }
+            diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                         ".sx -E parse_into failed for '%s'",
+                         input_path ? input_path : "?");
             free(arena);
             free(module);
             free(src);
             return 1;
         }
         parser_parse_into_set_main_index(module, pr.main_idx);
+        if (driver_get_module_num_funcs(module) <= 0) {
+            struct shux_slice_uint8_t diag_src_slice = {(uint8_t *)src, src_len};
+            int32_t fail_tok = parser_diag_fail_at_token_kind(&diag_src_slice);
+            if (fail_tok == TOKEN_STRING) {
+                diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                                       "expected integer literal, float literal, identifier, 'true', 'false', 'if', "
+                                       "'break', 'continue', 'return', 'panic', 'match', or '('");
+                free(arena);
+                free(module);
+                free(src);
+                return 1;
+            }
+        }
         int32_t n_imports = parser_get_module_num_imports(module);
         char entry_dir_buf[512];
         shux_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
@@ -5775,7 +6306,8 @@ int driver_run_sx_emit_c(void) {
             dep_arenas[i] = malloc(arena_sz);
             dep_modules[i] = malloc(module_sz);
             if (!dep_arenas[i] || !dep_modules[i]) {
-                fprintf(stderr, "shux: -sx pipeline: dep alloc failed\n");
+                diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005,
+                                      ".sx pipeline dependency allocation failed", NULL);
                 while (i > 0) { i--; free(dep_arenas[i]); free(dep_modules[i]); }
                 while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
                 free(arena); free(module); free(src);
@@ -5787,7 +6319,8 @@ int driver_run_sx_emit_c(void) {
         struct codegen_CodegenOutBuf *out_buf = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*out_buf));
         struct ast_PipelineDepCtx *pctx_e = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*pctx_e));
         if (!out_buf || !pctx_e) {
-            fprintf(stderr, "shux: -sx -E: out_buf/pctx_e alloc failed\n");
+            diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP006,
+                                  ".sx -E output/context allocation failed", NULL);
             for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
             while (n_deps--) { free(dep_sources[n_deps]); free(dep_paths[n_deps]); }
             free(arena); free(module); free(src);
@@ -5810,7 +6343,8 @@ int driver_run_sx_emit_c(void) {
             size_t dep_len = 0;
             int ec_dep;
             if (!one_ctx || !dep_out) {
-                fprintf(stderr, "shux: -sx -E: dep_one_ctx/out alloc failed\n");
+                diag_report_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP006,
+                                      ".sx -E dependency context/output allocation failed", NULL);
                 pipeline_dep_ctx_heap_destroy(one_ctx);
                 free(dep_out);
                 for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
@@ -5822,15 +6356,16 @@ int driver_run_sx_emit_c(void) {
             }
             shux_pipeline_fill_ctx_path_buffers(one_ctx, shux_dep_prerun_entry_dir(entry_dir_buf, lib_roots_arr, n_lib_roots),
                                                 lib_roots_arr, n_lib_roots);
+            char resolved[PATH_MAX];
+            resolved[0] = '\0';
             if (asm_direct_import_only) {
                 dep_src = dep_sources[j];
                 dep_len = dep_lens[j];
             } else {
-                char resolved[PATH_MAX];
                 ShuxRuntimeFileView raw_view;
                 shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, dep_paths[j], resolved, sizeof(resolved));
                 if (runtime_read_file_view(resolved, &raw_view) != 0) {
-                    fprintf(stderr, "shux: cannot open import '%s' (tried %s)\n", dep_paths[j], resolved);
+                    pipeline_diag_import_open_fail_once(dep_paths[j], resolved);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
                     for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
@@ -5847,7 +6382,8 @@ int driver_run_sx_emit_c(void) {
                 dep_src = shux_preprocess(raw_view.data, raw_view.length, NULL, 0, &dep_len);
                 runtime_release_file_view(&raw_view);
                 if (!dep_src) {
-                    fprintf(stderr, "shux: preprocess failed for import '%s'\n", dep_paths[j]);
+                    diag_reportf_with_code(resolved, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
+                                 "preprocess failed for import '%s'", dep_paths[j]);
                     pipeline_dep_ctx_heap_destroy(one_ctx);
                     free(dep_out);
                     for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
@@ -5865,6 +6401,11 @@ int driver_run_sx_emit_c(void) {
             shux_pipeline_one_ctx_for_dep_prerun(one_ctx, j, dep_modules, dep_arenas, dep_paths, n_deps,
             (const uint8_t *)dep_src, dep_len);
             driver_set_current_dep_path_for_codegen(dep_paths[j]);
+            DiagContextSnapshot dep_diag_snapshot;
+            const char *dep_diag_file = dep_paths[j];
+            if (!asm_direct_import_only)
+                dep_diag_file = resolved;
+            diag_push_file(&dep_diag_snapshot, dep_diag_file, dep_src, dep_len);
             if (driver_sx_emit_asm_dep_parse_skip_typeck_ok(input_path, dep_paths[j])) {
                 ec_dep = shux_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
                                                                     (const uint8_t *)dep_src, dep_len,
@@ -5874,23 +6415,27 @@ int driver_run_sx_emit_c(void) {
                                                              (const uint8_t *)dep_src, dep_len);
             } else {
                 if (getenv("SHUX_DEBUG_PIPE"))
-                    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun begin j=%d path=%s\n",
-                            j, dep_paths[j] ? dep_paths[j] : "?");
+                    diag_reportf(NULL, 0, 0, "note", NULL,
+                                 "pipeline debug: dep prerun begin j=%d path=%s",
+                                 j, dep_paths[j] ? dep_paths[j] : "?");
                 ec_dep = shux_pipeline_dep_prerun_typeck_only(dep_modules[j], dep_arenas[j],
                                                               (const uint8_t *)dep_src, dep_len,
                                                               (void *)dep_out, (void *)one_ctx);
                 if (getenv("SHUX_DEBUG_PIPE"))
-                    fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep prerun end j=%d path=%s rc=%d\n",
-                            j, dep_paths[j] ? dep_paths[j] : "?", ec_dep);
+                    diag_reportf(NULL, 0, 0, "note", NULL,
+                                 "pipeline debug: dep prerun end j=%d path=%s rc=%d",
+                                 j, dep_paths[j] ? dep_paths[j] : "?", ec_dep);
             }
+            diag_restore(&dep_diag_snapshot);
             driver_set_current_dep_path_for_codegen(NULL);
             pipeline_dep_ctx_heap_destroy(one_ctx);
             free(dep_out);
             if (!asm_direct_import_only)
                 free(dep_src);
             if (ec_dep != 0) {
-                fprintf(stderr, "shux: pipeline failed for import '%s' (dep prerun rc=%d)\n",
-                        dep_paths[j] ? dep_paths[j] : "?", ec_dep);
+                diag_reportf_with_code(dep_diag_file, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP008, NULL,
+                                       "pipeline failed for import '%s' (dep prerun rc=%d)",
+                                       dep_paths[j] ? dep_paths[j] : "?", ec_dep);
                 for (int di = 0; di < n_deps; di++) { free(dep_arenas[di]); free(dep_modules[di]); }
                 while (n_deps > 0) {
                     n_deps--;
@@ -5926,10 +6471,16 @@ int driver_run_sx_emit_c(void) {
         if (ec == 0 && out_buf->len > 0) {
             /* 平台差异诊断（分析文档 4.4）：main 段输出过短时打 stderr，便于 CI/本地确认是 len 错误还是内容只写了数字 */
             if (out_buf->len < 20) {
-                fprintf(stderr, "shux: -sx -E diagnostic: out_buf.len=%d first bytes:", (int)out_buf->len);
-                for (int di = 0; di < out_buf->len && di < 16; di++)
-                    fprintf(stderr, " %02x", (unsigned char)out_buf->data[di]);
-                fprintf(stderr, "\n");
+                char hexbuf[16 * 3 + 1];
+                int hexlen = 0;
+                hexbuf[0] = '\0';
+                for (int di = 0; di < out_buf->len && di < 16 && hexlen + 4 < (int)sizeof(hexbuf); di++) {
+                    hexlen += snprintf(hexbuf + hexlen, sizeof(hexbuf) - (size_t)hexlen,
+                                       "%s%02x", di == 0 ? "" : " ", (unsigned char)out_buf->data[di]);
+                }
+                diag_reportf(input_path, 0, 0, "note", NULL,
+                             "-sx -E diagnostic: out_buf.len=%d first bytes: %s",
+                             (int)out_buf->len, hexbuf);
             }
             fwrite(out_buf->data, 1, (size_t)out_buf->len, stdout);
             fflush(stdout);
@@ -5947,16 +6498,29 @@ int driver_run_sx_emit_c(void) {
                 free(dep_paths[n_deps]);
             }
             if (ec != 0) {
-                fprintf(stderr, "shux: -sx pipeline failed\n");
+                diag_reportf_with_code(input_path, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP003, NULL,
+                             ".sx pipeline failed for '%s'",
+                             input_path ? input_path : "?");
             } else if (out_buf->len <= 0) {
+                if (driver_get_module_num_funcs(module) <= 0) {
+                    if (!runtime_report_precise_parse_failure_if_known(input_path, src, src_len)) {
+                        diag_reportf_with_code(input_path, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001, NULL,
+                                               "parse produced no functions in '%s'",
+                                               input_path ? input_path : "?");
+                    }
+                    goto sx_emit_c_done;
+                }
                 /* CI / cross-host: distinguish -sx -E 「只吐 0」与真失败——空缓冲视为 codegen 路径未写入 */
-                fprintf(stderr,
-                        "shux: -sx -E diagnostic: pipeline ok but codegen buffer empty "
-                        "(ec=0 out_buf.len=%d); check typeck/codegen/pipeline CodegenOutBuf\n",
-                        (int)out_buf->len);
+                diag_reportf_with_code(input_path, 0, 0, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG004, NULL,
+                             "-sx -E pipeline succeeded but codegen buffer is empty (ec=0 out_buf.len=%d); "
+                             "check typeck/codegen/pipeline CodegenOutBuf",
+                             (int)out_buf->len);
             }
         }
         int emit_ret = (ec != 0 || out_buf->len <= 0) ? 1 : 0;
+sx_emit_c_done:
+        if (ec == 0 && out_buf->len <= 0)
+            emit_ret = 1;
         free(out_buf);
         pipeline_dep_ctx_heap_destroy(pctx_e);
         free(arena);
@@ -5988,7 +6552,8 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
     if (path_len < 3 || strcmp(pathbuf + path_len - 3, ".sx") != 0)
         return 1;
     if (runtime_read_file_view(pathbuf, &raw_view) != 0) {
-        fprintf(stderr, "shux fmt: cannot read '%s'\n", pathbuf);
+        diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL,
+                     "cannot read '%s'", pathbuf);
         return 1;
     }
     cap = raw_view.length * 2 + 4096;
@@ -5997,14 +6562,16 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
     out = (uint8_t *)malloc(cap);
     if (!out) {
         runtime_release_file_view(&raw_view);
-        fprintf(stderr, "shux fmt: out of memory for '%s'\n", pathbuf);
+        diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL,
+                     "out of memory while formatting '%s'", pathbuf);
         return 1;
     }
     fmt_len = shu_format_sx_document((const uint8_t *)raw_view.data, (int)raw_view.length, out, (int)cap);
     if (fmt_len < 0) {
         free(out);
         runtime_release_file_view(&raw_view);
-        fprintf(stderr, "shux fmt: format failed for '%s'\n", pathbuf);
+        diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL,
+                     "format failed for '%s'", pathbuf);
         return 1;
     }
     {
@@ -6020,11 +6587,13 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
             if (shux_write_path_bytes(pathbuf, out, (size_t)fmt_len) != 0) {
                 free(out);
                 runtime_release_file_view(&raw_view);
-                fprintf(stderr, "shux fmt: write failed for '%s'\n", pathbuf);
+                diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL,
+                             "write failed for '%s'", pathbuf);
                 return 1;
             }
             /* 与 deno fmt 一致：仅在实际写回时输出路径，已规范文件保持静默。 */
-            fprintf(stderr, "fmt OK: %s\n", pathbuf);
+            diag_reportf(NULL, 0, 0, "info", NULL,
+                         "fmt OK: %s", pathbuf);
         }
     }
     free(out);
@@ -6077,16 +6646,9 @@ static int runtime_run_test_c(int argc, char **argv) {
     else
         snprintf(script, sizeof script, "%s/%s", root, rel);
     snprintf(cmd, sizeof cmd, "cd \"%s\" && bash \"%s\"", root, script);
-    fprintf(stderr, "shux test: %s\n", script);
-    int st = system(cmd);
-    if (st == -1) {
-        fprintf(stderr, "shux test: failed to run script\n");
-        return 1;
-    }
-    if (WIFEXITED(st))
-        return WEXITSTATUS(st) != 0 ? 1 : 0;
-    fprintf(stderr, "shux test: script terminated abnormally\n");
-    return 1;
+    diag_reportf(NULL, 0, 0, "info", NULL,
+                 "test script: %s", script);
+    return runtime_test_status_to_rc(script, system(cmd));
 }
 
 /** 6.3：无 .sx 入口时由 runtime 提供 main_entry 桩；链接 main.sx 时由 main.sx 的 main_entry 覆盖。
@@ -6095,6 +6657,24 @@ static int runtime_run_test_c(int argc, char **argv) {
 __attribute__((weak))
 #endif
 int main_entry(int argc, char **argv) {
+    /* --diag-json：切换为 NDJSON 诊断输出（供 CI / 工具消费）；亦可通过 SHUX_DIAG_JSON=1 启用。
+     * 作为全局标志可在任意位置出现（含子命令之前/之后），此处就地剔除 argv 以免下游误判为未知选项。 */
+    {
+        int i, j;
+        for (i = 1, j = 1; i < argc; i++) {
+            if (argv[i] && strcmp(argv[i], "--diag-json") == 0) {
+                diag_set_json_mode(1);
+                continue; /* 跳过该 token，不保留进紧凑后的 argv */
+            }
+            argv[j++] = argv[i];
+        }
+        if (j < i)
+            argv[j] = NULL; /* 收尾；下游按 argc 读取，不依赖 NULL，但保留更安全 */
+        argc = j;
+    }
+    int explain_rc = runtime_try_handle_explain_cli(argc, argv);
+    if (explain_rc >= 0)
+        return explain_rc;
     if (argc >= 2 && argv[1] && argv[1][0] != '-') {
         char **sub_argv = runtime_argv_drop_subcommand_c(argc, argv);
         if (strcmp(argv[1], "check") == 0)

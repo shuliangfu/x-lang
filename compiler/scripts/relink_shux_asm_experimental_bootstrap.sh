@@ -12,6 +12,18 @@ BSTRICT_DISPATCH="src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o 
 PARSER_ALIAS_O="$BUILD_DIR/parser_asm_link_alias.o"
 PARSER_ASM_PARTIAL="$BUILD_DIR/parser_asm_minimal_partial.o"
 
+experimental_bootstrap_info() {
+  printf 'info: relink_experimental_bootstrap: %s\n' "$*" >&2
+}
+
+experimental_bootstrap_warn() {
+  printf 'warning: relink_experimental_bootstrap: %s\n' "$*" >&2
+}
+
+experimental_bootstrap_error() {
+  printf 'build error: relink_experimental_bootstrap: %s\n' "$*" >&2
+}
+
 # codegen.c 引用 async_liveness / async_cps_codegen（与 Makefile OBJS_CORE、build_shux_asm 一致）。
 ensure_async_cps_seed_objs() {
   local src out src_pair
@@ -21,7 +33,7 @@ ensure_async_cps_seed_objs() {
     src="${src_pair%%:*}"
     out="${src_pair##*:}"
     if [ ! -f "$out" ] || [ "$src" -nt "$out" ]; then
-      echo "relink_experimental_bootstrap: cc $src -> $out"
+      experimental_bootstrap_info "cc $src -> $out"
       mkdir -p "$(dirname "$out")"
       "$CC" $CFLAGS -c -o "$out" "$src"
     fi
@@ -33,39 +45,39 @@ ensure_async_cps_seed_objs
 ensure_asm_driver_seed_c_objs() {
   mkdir -p "$SEED_O"
   if [ ! -f "$SEED_O/preprocess.o" ] || [ "src/preprocess.c" -nt "$SEED_O/preprocess.o" ]; then
-    echo "relink_experimental_bootstrap: cc $SEED_O/preprocess.o"
+    experimental_bootstrap_info "cc $SEED_O/preprocess.o"
     "$CC" $CFLAGS -DSHUX_USE_SX_PREPROCESS -c -o "$SEED_O/preprocess.o" src/preprocess.c
   fi
   if [ ! -f "$SEED_O/lexer.o" ] || [ "src/lexer/lexer.c" -nt "$SEED_O/lexer.o" ]; then
-    echo "relink_experimental_bootstrap: cc $SEED_O/lexer.o"
+    experimental_bootstrap_info "cc $SEED_O/lexer.o"
     "$CC" $CFLAGS -c -o "$SEED_O/lexer.o" src/lexer/lexer.c
   fi
   if [ ! -f "$SEED_O/ast_seed.o" ] || [ "src/ast/ast.c" -nt "$SEED_O/ast_seed.o" ]; then
-    echo "relink_experimental_bootstrap: cc $SEED_O/ast_seed.o"
+    experimental_bootstrap_info "cc $SEED_O/ast_seed.o"
     "$CC" $CFLAGS -DSHUX_USE_SX_AST -c -o "$SEED_O/ast_seed.o" src/ast/ast.c
   fi
   if [ ! -f "$SEED_O/parser.o" ] || [ "src/parser/parser.c" -nt "$SEED_O/parser.o" ]; then
-    echo "relink_experimental_bootstrap: cc $SEED_O/parser.o"
+    experimental_bootstrap_info "cc $SEED_O/parser.o"
     "$CC" $CFLAGS -c -o "$SEED_O/parser.o" src/parser/parser.c
   fi
   if [ ! -f "$SEED_O/typeck.o" ] || [ "src/typeck/typeck.c" -nt "$SEED_O/typeck.o" ]; then
-    echo "relink_experimental_bootstrap: cc $SEED_O/typeck.o"
+    experimental_bootstrap_info "cc $SEED_O/typeck.o"
     "$CC" $CFLAGS -c -o "$SEED_O/typeck.o" src/typeck/typeck.c
   fi
   if [ ! -f "$SEED_O/codegen.o" ] || [ "src/codegen/codegen.c" -nt "$SEED_O/codegen.o" ]; then
-    echo "relink_experimental_bootstrap: cc $SEED_O/codegen.o"
+    experimental_bootstrap_info "cc $SEED_O/codegen.o"
     "$CC" $CFLAGS -c -o "$SEED_O/codegen.o" src/codegen/codegen.c
   fi
   if [ ! -f "$SEED_O/autovec.o" ] || [ "src/codegen/autovec.c" -nt "$SEED_O/autovec.o" ]; then
-    echo "relink_experimental_bootstrap: cc $SEED_O/autovec.o"
+    experimental_bootstrap_info "cc $SEED_O/autovec.o"
     "$CC" $CFLAGS -c -o "$SEED_O/autovec.o" src/codegen/autovec.c
   fi
   if [ ! -f "$SEED_O/lsp_diag.o" ] || [ "src/lsp/lsp_diag.c" -nt "$SEED_O/lsp_diag.o" ]; then
-    echo "relink_experimental_bootstrap: cc $SEED_O/lsp_diag.o"
+    experimental_bootstrap_info "cc $SEED_O/lsp_diag.o"
     "$CC" $CFLAGS -c -o "$SEED_O/lsp_diag.o" src/lsp/lsp_diag.c
   fi
   if [ ! -f "$SEED_O/lsp_state.o" ] || [ "src/lsp/lsp_state.c" -nt "$SEED_O/lsp_state.o" ]; then
-    echo "relink_experimental_bootstrap: cc $SEED_O/lsp_state.o"
+    experimental_bootstrap_info "cc $SEED_O/lsp_state.o"
     "$CC" $CFLAGS -c -o "$SEED_O/lsp_state.o" src/lsp/lsp_state.c
   fi
 }
@@ -74,19 +86,19 @@ ensure_asm_driver_seed_c_objs
 # ast_pool.c / pipeline_glue.c 变更后须重编 pipeline_sx.o（glue 在 pipeline_gen.c #include 内）。
 ensure_pipeline_sx_fresh_for_ast_pool() {
   if [ -f ast_pool.c ] && { [ ! -f pipeline_sx.o ] || [ ast_pool.c -nt pipeline_sx.o ]; }; then
-    echo "relink_experimental_bootstrap: ast_pool.c newer than pipeline_sx.o — rebuild ..."
+    experimental_bootstrap_info "ast_pool.c newer than pipeline_sx.o - rebuild"
     if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
       make -s pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1 || {
-        echo "relink_experimental_bootstrap: warn: pipeline_sx.o rebuild failed" >&2
+        experimental_bootstrap_warn "pipeline_sx.o rebuild failed"
         return 1
       }
     fi
   fi
   if [ -f pipeline_glue.c ] && { [ ! -f pipeline_sx.o ] || [ pipeline_glue.c -nt pipeline_sx.o ]; }; then
-    echo "relink_experimental_bootstrap: pipeline_glue.c newer than pipeline_sx.o — rebuild ..."
+    experimental_bootstrap_info "pipeline_glue.c newer than pipeline_sx.o - rebuild"
     if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
       make -s pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1 || {
-        echo "relink_experimental_bootstrap: warn: pipeline_sx.o rebuild failed" >&2
+        experimental_bootstrap_warn "pipeline_sx.o rebuild failed"
         return 1
       }
     fi
@@ -97,13 +109,13 @@ ensure_pipeline_sx_fresh_for_ast_pool || true
 
 # experimental 链符号桥（缺则 ld 失败）。
 if [ ! -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ] || [ "src/asm/asm_experimental_symbol_bridge.c" -nt "$BUILD_DIR/asm_experimental_symbol_bridge.o" ]; then
-  echo "relink_experimental_bootstrap: cc asm_experimental_symbol_bridge.o"
+  experimental_bootstrap_info "cc asm_experimental_symbol_bridge.o"
   "$CC" $CFLAGS -c -o "$BUILD_DIR/asm_experimental_symbol_bridge.o" src/asm/asm_experimental_symbol_bridge.c
 fi
 
 # runtime_asm_build.o（首链 bootstrap-asm 产物；缺则 ld 失败）。
 if [ ! -f src/asm/runtime_asm_build.o ] || [ "src/asm/runtime_asm_build.c" -nt src/asm/runtime_asm_build.o ]; then
-  echo "relink_experimental_bootstrap: cc runtime_asm_build.o"
+  experimental_bootstrap_info "cc runtime_asm_build.o"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/runtime_asm_build.o src/asm/runtime_asm_build.c
 fi
 
@@ -111,21 +123,21 @@ fi
 ensure_runtime_abi_obj() {
   local o="src/runtime_abi.o"
   if [ ! -f "$o" ] || [ "src/runtime_abi.c" -nt "$o" ]; then
-    echo "relink_experimental_bootstrap: cc $o <- src/runtime_abi.c"
+    experimental_bootstrap_info "cc $o <- src/runtime_abi.c"
     "$CC" $CFLAGS -c -o "$o" src/runtime_abi.c
   fi
 }
 ensure_runtime_io_abi_obj() {
   local o="src/runtime_io_abi.o"
   if [ ! -f "$o" ] || [ "src/runtime_io_abi.c" -nt "$o" ]; then
-    echo "relink_experimental_bootstrap: cc $o <- src/runtime_io_abi.c"
+    experimental_bootstrap_info "cc $o <- src/runtime_io_abi.c"
     "$CC" $CFLAGS -c -o "$o" src/runtime_io_abi.c
   fi
 }
 ensure_runtime_proc_abi_obj() {
   local o="src/runtime_proc_abi.o"
   if [ ! -f "$o" ] || [ "src/runtime_proc_abi.c" -nt "$o" ]; then
-    echo "relink_experimental_bootstrap: cc $o <- src/runtime_proc_abi.c"
+    experimental_bootstrap_info "cc $o <- src/runtime_proc_abi.c"
     "$CC" $CFLAGS -c -o "$o" src/runtime_proc_abi.c
   fi
 }
@@ -135,7 +147,7 @@ ensure_runtime_driver_asm_strict_obj() {
   ensure_runtime_proc_abi_obj
   local o="src/runtime_driver_asm_strict.o"
   if [ ! -f "$o" ] || [ "src/runtime.c" -nt "$o" ]; then
-    echo "relink_experimental_bootstrap: cc $o <- src/runtime.c (-DSHUX_ASM_USE_COMPILER_IMPL_C)"
+    experimental_bootstrap_info "cc $o <- src/runtime.c (-DSHUX_ASM_USE_COMPILER_IMPL_C)"
     "$CC" $CFLAGS -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_PREPROCESS \
       -DSHUX_ASM_USE_COMPILER_IMPL_C -c -o "$o" src/runtime.c
   fi
@@ -145,19 +157,19 @@ ensure_runtime_driver_asm_strict_obj
 # pipeline_glue / pipeline_sx 引用 target_cpu / simd_enc / simd_loop（SIMD-S1–S4）。
 ensure_simd_glue_link_objs() {
   if [ ! -f src/asm/pipeline_abi_f32_xmm.o ] || [ src/asm/pipeline_abi_f32_xmm.c -nt src/asm/pipeline_abi_f32_xmm.o ]; then
-    echo "relink_experimental_bootstrap: cc pipeline_abi_f32_xmm.o"
+    experimental_bootstrap_info "cc pipeline_abi_f32_xmm.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/pipeline_abi_f32_xmm.o src/asm/pipeline_abi_f32_xmm.c
   fi
   if [ ! -f src/driver/target_cpu.o ] || [ src/driver/target_cpu.c -nt src/driver/target_cpu.o ]; then
-    echo "relink_experimental_bootstrap: cc src/driver/target_cpu.o"
+    experimental_bootstrap_info "cc src/driver/target_cpu.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/driver/target_cpu.o src/driver/target_cpu.c
   fi
   if [ ! -f src/asm/simd_enc.o ] || [ src/asm/simd_enc.c -nt src/asm/simd_enc.o ]; then
-    echo "relink_experimental_bootstrap: cc src/asm/simd_enc.o"
+    experimental_bootstrap_info "cc src/asm/simd_enc.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_enc.o src/asm/simd_enc.c
   fi
   if [ ! -f src/asm/simd_loop.o ] || [ src/asm/simd_loop.c -nt src/asm/simd_loop.o ]; then
-    echo "relink_experimental_bootstrap: cc src/asm/simd_loop.o"
+    experimental_bootstrap_info "cc src/asm/simd_loop.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_loop.o src/asm/simd_loop.c
   fi
 }
@@ -174,31 +186,31 @@ ensure_experimental_companion_objs() {
       pipeline_bootstrap_orchestration.o 2>/dev/null || true
   fi
   if [ ! -f "$BUILD_DIR/std_fs_shim.o" ] || [ "src/std_fs_shim.c" -nt "$BUILD_DIR/std_fs_shim.o" ]; then
-    echo "relink_experimental_bootstrap: cc std_fs_shim.o"
+    experimental_bootstrap_info "cc std_fs_shim.o"
     "$CC" $CFLAGS -c -o "$BUILD_DIR/std_fs_shim.o" src/std_fs_shim.c
   fi
   if [ ! -f "$BUILD_DIR/sx_seed_bridge.o" ] || [ "src/sx_seed_bridge.c" -nt "$BUILD_DIR/sx_seed_bridge.o" ]; then
-    echo "relink_experimental_bootstrap: cc sx_seed_bridge.o"
+    experimental_bootstrap_info "cc sx_seed_bridge.o"
     "$CC" $CFLAGS -c -o "$BUILD_DIR/sx_seed_bridge.o" src/sx_seed_bridge.c
   fi
   if [ ! -f "$BUILD_DIR/ast_pool_l5_bridge.o" ] || [ "src/ast_pool_l5_bridge.c" -nt "$BUILD_DIR/ast_pool_l5_bridge.o" ]; then
-    echo "relink_experimental_bootstrap: cc ast_pool_l5_bridge.o"
+    experimental_bootstrap_info "cc ast_pool_l5_bridge.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/ast_pool_l5_bridge.o" src/ast_pool_l5_bridge.c
   fi
   if [ ! -f "$BUILD_DIR/lsp_codegen_extern.o" ] || [ "src/lsp/lsp_codegen_extern.c" -nt "$BUILD_DIR/lsp_codegen_extern.o" ]; then
-    echo "relink_experimental_bootstrap: cc lsp_codegen_extern.o"
+    experimental_bootstrap_info "cc lsp_codegen_extern.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/lsp_codegen_extern.o" src/lsp/lsp_codegen_extern.c
   fi
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.sx" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
-    echo "relink_experimental_bootstrap: build_seed_asm_host (asm_backend_partial.o) ..."
+    experimental_bootstrap_info "build_seed_asm_host (asm_backend_partial.o)"
     ./scripts/build_seed_asm_host.sh
   fi
   if [ ! -f src/asm/asm_backend_compat_stubs.o ] || [ "src/asm/asm_backend_compat_stubs.c" -nt src/asm/asm_backend_compat_stubs.o ]; then
-    echo "relink_experimental_bootstrap: cc asm_backend_compat_stubs.o"
+    experimental_bootstrap_info "cc asm_backend_compat_stubs.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/asm_backend_compat_stubs.o src/asm/asm_backend_compat_stubs.c
   fi
   if [ ! -f src/asm/user_asm_seed_bridge.o ] || [ "src/asm/user_asm_seed_bridge.c" -nt src/asm/user_asm_seed_bridge.o ]; then
-    echo "relink_experimental_bootstrap: cc user_asm_seed_bridge.o"
+    experimental_bootstrap_info "cc user_asm_seed_bridge.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/user_asm_seed_bridge.o src/asm/user_asm_seed_bridge.c
   fi
 }
@@ -212,13 +224,13 @@ if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.c" -nt "$PARSER
   || [ "src/asm/parser_asm_struct_layout_slice.c" -nt "$PARSER_ASM_THIN_C" ] \
   || [ "src/asm/parser_asm_block_from_res_slice.c" -nt "$PARSER_ASM_THIN_C" ] \
   || [ "src/asm/parser_asm_if_stmt_slice.c" -nt "$PARSER_ASM_THIN_C" ]; then
-  echo "relink_experimental_bootstrap: cc parser_asm_thin_glue.o"
+  experimental_bootstrap_info "cc parser_asm_thin_glue.o"
   "$CC" $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -c -o "$PARSER_ASM_THIN_C" src/asm/parser_asm_thin_c.c
 fi
 
 # parser 别名 TU（pipeline_bootstrap_link_alias 已废弃：weak dispatch 在 pipeline_glue.c）
 if [ ! -f "$PARSER_ALIAS_O" ] || [ "src/asm/parser_asm_link_alias.c" -nt "$PARSER_ALIAS_O" ]; then
-  echo "relink_experimental_bootstrap: cc parser_asm_link_alias.o"
+  experimental_bootstrap_info "cc parser_asm_link_alias.o"
   "$CC" $CFLAGS $PARSER_ASM_LINK_ALIAS_CFLAGS -c -o "$PARSER_ALIAS_O" src/asm/parser_asm_link_alias.c
 fi
 if [ ! -f "$PARSER_ASM_PARTIAL" ] && [ -f "$BUILD_DIR/parser.o" ]; then
@@ -244,7 +256,7 @@ ensure_parser_sx_obj() {
     make -s parser_sx.o 2>/dev/null || true
   fi
   if [ ! -f parser_sx.o ] && [ -f parser_gen.c ]; then
-    echo "relink_experimental_bootstrap: cc parser_gen.c -> parser_sx.o (link_alias supplies parser_* pipeline symbols)"
+    experimental_bootstrap_info "cc parser_gen.c -> parser_sx.o (link_alias supplies parser_* pipeline symbols)"
     "$CC" $CFLAGS $(make -s -f Makefile print-PIPELINE_GEN_CFLAGS 2>/dev/null || echo "") \
       -I. -Iinclude -Isrc \
       -Dstd_io_driver_driver_read_ptr_len=shux_io_read_ptr_len \
@@ -252,7 +264,7 @@ ensure_parser_sx_obj() {
       -c parser_gen.c -o parser_sx.o
   fi
   if [ ! -f parser_sx.o ]; then
-    echo "relink_experimental_bootstrap: missing parser_sx.o (make parser_sx.o or restore parser_gen.c)" >&2
+    experimental_bootstrap_error "missing parser_sx.o (make parser_sx.o or restore parser_gen.c)"
     exit 1
   fi
 }
@@ -266,14 +278,14 @@ ensure_parser_parse_bootstrap_asm_obj() {
   mkdir -p "$BUILD_DIR"
 
   compile_parser_parse_bootstrap_cc_obj() {
-    echo "relink_experimental_bootstrap: cc parser_asm_parse_bootstrap_obj.c -> $PARSER_PARSE_BOOT_O"
+    experimental_bootstrap_info "cc parser_asm_parse_bootstrap_obj.c -> $PARSER_PARSE_BOOT_O"
     if ! "$CC" $CFLAGS -c -o "$PARSER_PARSE_BOOT_O" "$PBOOT_C_SRC"; then
-      echo "relink_experimental_bootstrap: warn: cc parser_parse_bootstrap.o failed" >&2
+      experimental_bootstrap_warn "cc parser_parse_bootstrap.o failed"
       rm -f "$PARSER_PARSE_BOOT_O"
       return 1
     fi
     if ! nm -g "$PARSER_PARSE_BOOT_O" 2>/dev/null | grep -qE '[[:space:]]parse_into_buf$'; then
-      echo "relink_experimental_bootstrap: warn: parser_parse_bootstrap.o missing parse_into_buf" >&2
+      experimental_bootstrap_warn "parser_parse_bootstrap.o missing parse_into_buf"
       rm -f "$PARSER_PARSE_BOOT_O"
       return 1
     fi
@@ -289,7 +301,7 @@ ensure_parser_parse_bootstrap_asm_obj() {
       if ! env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 ./shux -backend asm -o /tmp/shux_seed_probe.$$.o \
           $PBOOT_LIBROOT "$_min" 2>/dev/null || [ ! -s /tmp/shux_seed_probe.$$.o ]; then
         SHUX_SEED="./shux_asm2_refreshed"
-        echo "relink_experimental_bootstrap: ./shux parse probe failed — bootstrap seed=$SHUX_SEED" >&2
+        experimental_bootstrap_warn "./shux parse probe failed - bootstrap seed=$SHUX_SEED"
       fi
       rm -f "$_min" /tmp/shux_seed_probe.$$.o 2>/dev/null || true
     fi
@@ -297,30 +309,30 @@ ensure_parser_parse_bootstrap_asm_obj() {
       return 1
     fi
     if [ -f ast_pool.c ] && { [ ! -f pipeline_sx.o ] || [ ast_pool.c -nt pipeline_sx.o ]; }; then
-      echo "relink_experimental_bootstrap: ast_pool.c newer — rebuild pipeline_sx.o for parse bootstrap ..."
+      experimental_bootstrap_info "ast_pool.c newer - rebuild pipeline_sx.o for parse bootstrap"
       if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
         make -s pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1 || true
       fi
     fi
     if [ -f pipeline_sx.o ] && [ pipeline_sx.o -nt "$SHUX_SEED" ] 2>/dev/null; then
-      echo "relink_experimental_bootstrap: refresh ./shux (pipeline_sx.o for parse bootstrap emit) ..."
+      experimental_bootstrap_info "refresh ./shux (pipeline_sx.o for parse bootstrap emit)"
       if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
         make -s relink-shux 2>/dev/null || true
       fi
     fi
-    echo "relink_experimental_bootstrap: $SHUX_SEED asm parser parse bootstrap (SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT opt-in) ..."
+    experimental_bootstrap_info "$SHUX_SEED asm parser parse bootstrap (SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT opt-in)"
     ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
     if ! env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
         SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
         "$SHUX_SEED" -backend asm -o "$PARSER_PARSE_BOOT_O" $PBOOT_LIBROOT src/parser/parser.sx \
         2>"$BUILD_DIR/.parser_parse_bootstrap_err"; then
-      echo "relink_experimental_bootstrap: warn: parser parse bootstrap SX emit failed" >&2
-      tail -8 "$BUILD_DIR/.parser_parse_bootstrap_err" 2>/dev/null || true
+      experimental_bootstrap_warn "parser parse bootstrap SX emit failed"
+      tail -8 "$BUILD_DIR/.parser_parse_bootstrap_err" 2>/dev/null | sed 's/^/  /' || true
       rm -f "$PARSER_PARSE_BOOT_O"
       return 1
     fi
     if ! nm -g "$PARSER_PARSE_BOOT_O" 2>/dev/null | grep -qE '[[:space:]]parse_into_buf$'; then
-      echo "relink_experimental_bootstrap: warn: SX bootstrap .o missing parse_into_buf" >&2
+      experimental_bootstrap_warn "SX bootstrap .o missing parse_into_buf"
       rm -f "$PARSER_PARSE_BOOT_O"
       return 1
     fi
@@ -356,14 +368,14 @@ for o in pipeline_sx.o pipeline_bootstrap_orchestration.o preprocess_sx.o lexer_
   lexer_sx_link_alias.o typeck_sx_link_alias.o codegen_sx_link_alias.o \
   driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_build_sx.o driver_run_sx.o driver_compile_sx.o driver_emit_sx.o; do
   if [ ! -f "$o" ]; then
-    echo "relink_experimental_bootstrap: missing $o (make $o)" >&2
+    experimental_bootstrap_error "missing $o (make $o)"
     exit 1
   fi
 done
 
 PIPELINE_RUN_SX_ALIAS_O="src/asm/pipeline_run_sx_link_alias.o"
 if [ ! -f "$PIPELINE_RUN_SX_ALIAS_O" ] || [ "src/asm/pipeline_run_sx_link_alias.c" -nt "$PIPELINE_RUN_SX_ALIAS_O" ]; then
-  echo "relink_experimental_bootstrap: cc pipeline_run_sx_link_alias.o"
+  experimental_bootstrap_info "cc pipeline_run_sx_link_alias.o"
   "$CC" $CFLAGS -c -o "$PIPELINE_RUN_SX_ALIAS_O" src/asm/pipeline_run_sx_link_alias.c
 fi
 
@@ -373,14 +385,14 @@ if [ "$(uname -s)" = "Linux" ]; then
   PIPELINE_LIBS="-luring -lpthread"
 fi
 
-echo "relink_experimental_bootstrap: linking shux_asm.experimental ..."
+experimental_bootstrap_info "linking shux_asm.experimental"
 # seed parser/typeck/codegen/lexer 供 runtime/lsp_diag 链接；parser_sx/typeck_sx 须链在末尾压过重复 glue（build_shux_asm ST_PARSER_SX_TAIL）。
 # lsp_state.o 依赖 typeck_lsp_main_impl（与 strict_glue ensure_strict_glue_lsp_objs 一致）。
 ensure_experimental_lsp_objs() {
   GEN_DIR="$BUILD_DIR/gen_driver"
   mkdir -p "$GEN_DIR"
   if [ ! -f Makefile ] || ! command -v make >/dev/null 2>&1; then
-    echo "relink_experimental_bootstrap: warn: cannot make lsp_sx.o" >&2
+    experimental_bootstrap_warn "cannot make lsp_sx.o"
     return 1
   fi
   make -s lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c \
@@ -400,7 +412,7 @@ GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"
 PIPELINE_GEN_CFLAGS="-O2 -g -fno-strict-aliasing -DPIPELINE_GEN_STANDALONE"
 if [ ! -f "$GLUE_O" ] || [ "src/asm/pipeline_glue_standalone.c" -nt "$GLUE_O" ] \
   || [ "pipeline_glue.c" -nt "$GLUE_O" ] || [ "ast_pool.c" -nt "$GLUE_O" ]; then
-  echo "relink_experimental_bootstrap: cc pipeline_glue_standalone.o"
+  experimental_bootstrap_info "cc pipeline_glue_standalone.o"
   mkdir -p "$BUILD_DIR"
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR" -c -o "$GLUE_O" src/asm/pipeline_glue_standalone.c
 fi
@@ -457,11 +469,11 @@ fi
   -lm -lc $PIPELINE_LIBS 2>"$BUILD_DIR/.relink_experimental_bootstrap_err"
 
 if [ ! -x shux_asm.experimental ]; then
-  echo "relink_experimental_bootstrap: link failed" >&2
-  tail -n 12 "$BUILD_DIR/.relink_experimental_bootstrap_err" 2>/dev/null || true
+  experimental_bootstrap_error "link failed"
+  tail -n 12 "$BUILD_DIR/.relink_experimental_bootstrap_err" 2>/dev/null | sed 's/^/  /' || true
   exit 1
 fi
 
 cp -f shux_asm.experimental shux_asm
-echo "relink_experimental_bootstrap OK (copied to shux_asm)"
-echo "relink_experimental_bootstrap: verify: SHUX_S2_FAIL_ON_EMIT_HEAVY=1 ../tests/run-s2-typeck-emit-heavy.sh"
+experimental_bootstrap_info "OK (copied to shux_asm)"
+experimental_bootstrap_info "verify: SHUX_S2_FAIL_ON_EMIT_HEAVY=1 ../tests/run-s2-typeck-emit-heavy.sh"

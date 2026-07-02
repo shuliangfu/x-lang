@@ -15,6 +15,9 @@
 /** shux check：非 0 时 typeck 通过后跳过 codegen 与链接。 */
 void driver_check_only_set(int32_t v);
 int32_t driver_check_only_get(void);
+void driver_check_diag_emitted_reset(void);
+void driver_check_diag_emitted_note(void);
+int32_t driver_check_diag_emitted_get(void);
 
 /** `-freestanding`：用户程序 nostdlib 静态链。 */
 void driver_freestanding_set(int32_t v);

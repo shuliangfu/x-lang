@@ -51,3 +51,8 @@ RFC6455 WebSocket 握手与帧编解码（STD-031）。F-04 v3 纯 `.sx`：`std/
 # 或
 ./tests/run-std-net-ws-gate.sh
 ```
+
+
+
+
+ 必须补全的底层缺陷与安全防线1. 致命缺陷：缺少“分片帧（Fragmentation / Continuation Frame）”的组合状态机物理盲区： 在真实的 WebSocket 通信中，当发送巨型数据（如一个 50MB 的大图片或持续的流媒体）时，数据会被拆分成多个帧发送：一个 FIN=0 的起始帧，中间是若干个 Opcode=0 (CONTINUATION) 的中间帧，最后是一个 FIN=1, Opcode=0 的结束帧。现状漏洞： 你的 ws_read_frame 只能呆板地单帧读取，一旦对端（比如 Chrome 浏览器）为了节约内存对大包进行了流式分片投递，你的解析器会因为收到大量 Opcode=0 的未知帧而直接迷失，甚至拼装出残缺的数据。必须补足的 API / 常量：ws_opcode_continuation（值为 0x0）ws_read_message(stream, ...) 或在 ws_read_frame 的入参/出参中传出一个 &is_fin 的布尔指针，让应用层或标准库有能力感知并循环拼接分片。2. 安全防线：缺少“最大帧长/消息长（Max Payload Limit）”的熔断保护物理盲区： RFC 6455 允许的单帧 Payload 长度理論上由 8 个字节的扩展长度字段决定（最大可达 $2^{63}-1$ 字节）。黑客攻击： 如果黑客连入你的 shux 服务器，故意伪造一个恶意帧头，声称“我这个帧有 2GB 大小”。你的 ws_read_frame 如果直接拿着帧头里的长度去分配内存（cap 或堆分配），你的进程会瞬间因为 OOM（内存溢出）被操作系统无情击杀。必须补足的 API / 配置：ws_set_max_payload_size(stream, max_bytes)在 ws_decode_frame 或 ws_read_frame 内部，一旦解析到的 payload_len > max_allowed，必须立刻熔断，抛出错误码并向对方发射 ws_encode_close_frame。3. 控制帧的“物理插队”与强制长度约束（Control Frame Invalidation）物理盲区： RFC 6455 明确规定：PING、PONG、CLOSE 等控制帧的 Payload 不能超过 125 字节，并且它们允许在数据分片帧的中间进行“插队”投递（例如在大数据传输过程中，心跳 PING 帧可以随时插进来）。现状漏洞： 清单里没有强制校验控制帧长度。如果收到超过 125 字节的 PING，不予以拒绝就是违反 RFC 规范。必须在内部逻辑或 API 明确：ws_is_control_frame(opcode)确保解包逻辑里有严格断言：如果 opcode >= 0x8 且 len > 125，直接判定为协议错误。4. 握手期（Server端）的 “Origin 域与 Subprotocol 协议协商”能力缺失物理盲区： WebSocket 服务端安全防线最重要的就是检查 Origin 头部（防止跨站 WebSocket 劫持攻击 CSWSH）。另外，很多高级应用需要协商子协议（如 Sec-WebSocket-Protocol: v1.json）。现状漏洞： 你的 ws_validate_upgrade_request 只是干巴巴地检验了是不是 WebSocket 升级，无法让开发者在握手通过前，对跨域的 Origin 或客户端请求的 Subprotocol 进行策略抉择。建议扩展的 API：ws_extract_header(req, "origin", out, cap)ws_build_handshake_response_ex(..., const char* subprotocol)：允许服务端在回复 101 确认时，带上协商成功的子协议。

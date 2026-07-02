@@ -1,0 +1,14 @@
+(lldb) target create "./shux_asm"
+Current executable set to '/home/shu/shux/compiler/shux_asm' (arm64).
+(lldb) settings set -- target.run-args  "-backend" "asm" "-L" ".." "../std/regex/regex.sx" "-o" "../tests/probes/bootstrap-parser/regex_asm_core.o"
+(lldb) run
+Process 83845 launched: '/home/shu/shux/compiler/shux_asm' (arm64)
+Process 83845 stopped
+* thread #2, stop reason = EXC_BAD_ACCESS (code=1, address=0x619bfffd0)
+    frame #0: 0x0000000100122460 shux_asm`pipeline_arena_expr_ptr + 4
+shux_asm`pipeline_arena_expr_ptr:
+->  0x100122460 <+4>:  stp    x29, x30, [sp, #0x20]
+    0x100122464 <+8>:  add    x29, sp, #0x20
+    0x100122468 <+12>: str    x0, [sp, #0x10]
+    0x10012246c <+16>: str    w1, [sp, #0xc]
+Target 0: (shux_asm) stopped.

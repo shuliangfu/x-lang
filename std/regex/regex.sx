@@ -150,19 +150,19 @@ function regex_min_parse_prop_name(name: *u8, name_len: i32, out: *i32): i32 {
     }
     return 0;
   }
-  if (name_len == 6 && memcmp(name, &REG_LIT_LETTER[0], 6) == 0) {
+  if (name_len == 6 && unsafe { memcmp(name, &REG_LIT_LETTER[0], 6) } == 0) {
     out[0] = REGEX_PROP_LETTER;
     return 1;
   }
-  if (name_len == 6 && memcmp(name, &REG_LIT_NUMBER[0], 6) == 0) {
+  if (name_len == 6 && unsafe { memcmp(name, &REG_LIT_NUMBER[0], 6) } == 0) {
     out[0] = REGEX_PROP_NUMBER;
     return 1;
   }
-  if (name_len == 10 && memcmp(name, &REG_LIT_WHITESPACE[0], 10) == 0) {
+  if (name_len == 10 && unsafe { memcmp(name, &REG_LIT_WHITESPACE[0], 10) } == 0) {
     out[0] = REGEX_PROP_WHITESPACE;
     return 1;
   }
-  if (name_len == 5 && memcmp(name, &REG_LIT_SPACE[0], 5) == 0) {
+  if (name_len == 5 && unsafe { memcmp(name, &REG_LIT_SPACE[0], 5) } == 0) {
     out[0] = REGEX_PROP_WHITESPACE;
     return 1;
   }
@@ -275,11 +275,11 @@ function regex_min_search_literal(state: *RegexMinImpl, text: *u8, len: i32): i3
   first = state.pat[0] as u8;
   i = 0;
   while (i <= len - plen) {
-    hit = memchr(text + i, first as i32, (len - i) as usize);
+    unsafe { hit = memchr(text + i, first as i32, (len - i) as usize); }
     if (hit == 0) { return -1; }
     i = (hit - text) as i32;
     if (i + plen > len) { return -1; }
-    if (memcmp(hit, state.pat, plen) == 0) {
+    if (unsafe { memcmp(hit, state.pat, plen) } == 0) {
       if (state.caps != 0 && state.ncap > 0) {
         state.caps[0].off = i;
         state.caps[0].len = plen;
@@ -413,13 +413,13 @@ function regex_min_build_capture_meta(r: *RegexMinImpl): i32 {
   }
   r.ncap = ng + 1;
   r.cap_valid = 0;
-  r.caps = calloc(r.ncap, REGEX_MIN_CAP_SLOT_SIZE) as *RegexMinCapSlot;
+  unsafe { r.caps = calloc(r.ncap, REGEX_MIN_CAP_SLOT_SIZE) as *RegexMinCapSlot; }
   if (r.caps == 0) { return 0; }
   if (ng <= 0) {
     r.group_pat_off = 0 as *i32;
     return 1;
   }
-  r.group_pat_off = malloc((ng * 4) as usize) as *i32;
+  unsafe { r.group_pat_off = malloc((ng * 4) as usize) as *i32; }
   if (r.group_pat_off == 0) { return 0; }
   in_class = 0;
   depth = 0;
@@ -1070,19 +1070,19 @@ function regex_compile_c(pat: *u8, pat_len: i32): *u8 {
   let r: *RegexMinImpl = 0 as *RegexMinImpl;
   if (pat == 0 || pat_len <= 0) { return 0; }
   if (regex_min_valid(pat, pat_len) == 0) { return 0; }
-  r = malloc(REGEX_MIN_IMPL_SIZE) as *RegexMinImpl;
+  unsafe { r = malloc(REGEX_MIN_IMPL_SIZE) as *RegexMinImpl; }
   if (r == 0) { return 0; }
-  r.pat = malloc((pat_len + 1));
-  if (r.pat == 0) { free(r as *u8); return 0; }
-  memcpy(r.pat, pat, pat_len);
+  unsafe { r.pat = malloc((pat_len + 1)); }
+  if (r.pat == 0) { unsafe { free(r as *u8); } return 0; }
+  unsafe { memcpy(r.pat, pat, pat_len); }
   r.pat[pat_len] = 0;
   r.pat_len = pat_len;
   r.is_literal_only = is_literal_only(pat, pat_len);
   r.first_lit = first_lit(pat, pat_len);
   r.atomic_nest = 0;
   if (regex_min_build_capture_meta(r) == 0) {
-    free(r.pat);
-    free(r as *u8);
+    unsafe { free(r.pat); }
+    unsafe { free(r as *u8); }
     return 0;
   }
   return r as *u8;
@@ -1126,10 +1126,10 @@ function regex_group_length_c(re: *u8, group: i32): i32 {
 function regex_free_c(re: *u8): void {
   let r: *RegexMinImpl = regex_re_from_handle(re);
   if (r == 0) { return; }
-  free(r.pat);
-  free(r.group_pat_off as *u8);
-  free(r.caps as *u8);
-  free(r as *u8);
+  unsafe { free(r.pat); }
+  unsafe { free(r.group_pat_off as *u8); }
+  unsafe { free(r.caps as *u8); }
+  unsafe { free(r as *u8); }
 }
 
 /** C 烟测：literal / dot / class / star / question / group / alt / anchor / capture /

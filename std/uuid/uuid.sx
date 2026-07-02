@@ -56,7 +56,7 @@ function uuid_apply_v4_variant(u: *u8): void {
 /** 生成 UUID v4；成功 0，随机失败 -1。 */
 function uuid_new_v4_c(out: *u8): i32 {
   if (out == 0) { return -1; }
-  if (random_fill_bytes_c(out, 16) != 16) { return -1; }
+  unsafe { if (random_fill_bytes_c(out, 16) != 16) { return -1; } }
   uuid_apply_v4_variant(out);
   return 0;
 }
@@ -68,18 +68,18 @@ function uuid_new_v7_c(out: *u8): i32 {
   let rand_buf: u8[2] = [0, 0];
   let tail: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   if (out == 0) { return -1; }
-  ms = time_now_wall_ms_c();
+  unsafe { ms = time_now_wall_ms_c(); }
   if (ms < 0) { ms = 0; }
   if (ms == uuid_v7_last_ms) {
     uuid_v7_seq = (uuid_v7_seq + 1) & 4095;
     if (uuid_v7_seq == 0) {
       /** 同毫秒序号溢出：自旋至下一毫秒（RFC 9562 单调性）。 */
       while (ms == uuid_v7_last_ms) {
-        ms = time_now_wall_ms_c();
+        unsafe { ms = time_now_wall_ms_c(); }
         if (ms < 0) { ms = 0; }
       }
       uuid_v7_last_ms = ms;
-      if (random_fill_bytes_c(&rand_buf[0], 2) != 2) { return -1; }
+      unsafe { if (random_fill_bytes_c(&rand_buf[0], 2) != 2) { return -1; } }
       rand_a = ((rand_buf[0] as u16) | ((rand_buf[1] as u16) << 8)) & 4095;
       uuid_v7_seq = rand_a;
     } else {
@@ -87,7 +87,7 @@ function uuid_new_v7_c(out: *u8): i32 {
     }
   } else {
     uuid_v7_last_ms = ms;
-    if (random_fill_bytes_c(&rand_buf[0], 2) != 2) { return -1; }
+    unsafe { if (random_fill_bytes_c(&rand_buf[0], 2) != 2) { return -1; } }
     rand_a = ((rand_buf[0] as u16) | ((rand_buf[1] as u16) << 8)) & 4095;
     uuid_v7_seq = rand_a;
   }
@@ -99,7 +99,7 @@ function uuid_new_v7_c(out: *u8): i32 {
   out[5] = (ms & 255) as u8;
   out[6] = (112 | ((rand_a >> 8) & 15)) as u8;
   out[7] = (rand_a & 255) as u8;
-  if (random_fill_bytes_c(&tail[0], 8) != 8) { return -1; }
+  unsafe { if (random_fill_bytes_c(&tail[0], 8) != 8) { return -1; } }
   out[8] = ((tail[0] & 63) | 128) as u8;
   mem.mem_copy(out + 9, &tail[1], 7);
   return 0;

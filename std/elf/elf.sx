@@ -122,10 +122,10 @@ function elf_read_fixture_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
   let n: i64 = 0;
   if (path == 0 || out_buf == 0 || out_cap <= 0) { return -1; }
   if (cap > ELF_FIXTURE_MAX) { cap = ELF_FIXTURE_MAX; }
-  fd = fs_open_read_c(path);
+  unsafe { fd = fs_open_read_c(path); }
   if (fd < 0) { return -4; }
-  n = fs_posix_read_c(fd, out_buf, cap);
-  close(fd);
+  unsafe { n = fs_posix_read_c(fd, out_buf, cap); }
+  unsafe { close(fd); }
   if (n < 0) { return -4; }
   return n as i32;
 }
@@ -400,7 +400,7 @@ function elf64_write_min_reloc_c(buf: *u8, cap: i32, text: *u8, text_len: i32, o
   if (text_len > 0 && text == 0) { return ELF_WRITE_ERR_NULL; }
   need = elf64_write_min_reloc_size_c(text_len);
   if (need < 0 || cap < need) { return ELF_WRITE_ERR_BUFFER; }
-  memset(buf, 0, need);
+  unsafe { memset(buf, 0, need); }
   eh = buf;
   eh[0] = ELFMAG0;
   eh[1] = ELFMAG1;
@@ -418,9 +418,9 @@ function elf64_write_min_reloc_c(buf: *u8, cap: i32, text: *u8, text_len: i32, o
   elf64_put_u16le(eh + 62, 2);
   shstr_off = 64 + 3 * 64;
   text_off = shstr_off + ELF64_WRITE_SHSTR;
-  memcpy(buf + shstr_off, &shstr[0], ELF64_WRITE_SHSTR);
+  unsafe { memcpy(buf + shstr_off, &shstr[0], ELF64_WRITE_SHSTR); }
   if (text_len > 0) {
-    memcpy(buf + text_off, text, text_len);
+    unsafe { memcpy(buf + text_off, text, text_len); }
   }
   /* section[1] .text */
   sh = buf + 64 + 64;

@@ -2,7 +2,8 @@
  * process_import_alias.c — import binding `-o` 链接桩
  *
  * asm co-emit 对 `const process = import("std.process")` 生成 std_process_* 符号；
- * process.o 仅含 process.sx 的 process_*_c。本 TU 提供 std_process_* 转发（语义对齐 mod.sx）。
+ * process.o 现仅作为 alias 容器；真实 process_*_c 由 runtime_process_argv.o 与
+ * runtime_process_os_glue.o 提供。本 TU 负责 std_process_* -> process_*_c 转发。
  */
 #include <stdint.h>
 

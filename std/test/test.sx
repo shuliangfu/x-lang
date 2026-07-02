@@ -63,7 +63,7 @@ function test_io_copy_name(out: *u8, cap: i32, name: *u8, len: i32): void {
     return;
   }
   if (n >= cap) { n = cap - 1; }
-  memcpy(out, name, n);
+  unsafe { memcpy(out, name, n); }
   out[n] = 0;
 }
 
@@ -159,7 +159,7 @@ function test_io_append_name(out: *u8, pos: i32, cap: i32, name: *u8, len: i32):
 function test_io_write_stderr(buf: *u8, len: i32): i32 {
   let r: isize = 0 as isize;
   if (buf == 0 || len <= 0) { return -1; }
-  r = write(2, buf, len as usize);
+  unsafe { r = write(2, buf, len as usize); }
   if (r != len as isize) { return -1; }
   return 0;
 }
@@ -169,9 +169,9 @@ function test_fuzz_seed_c(): u32 {
   let key: u8[15] = [83, 72, 85, 88, 95, 70, 85, 90, 90, 95, 83, 69, 69, 68, 0];
   let buf: u8[64];
   let n: i32 = 0;
-  n = env_getenv_c(&key[0], 14, &buf[0], 64);
+  unsafe { n = env_getenv_c(&key[0], 14, &buf[0], 64); }
   if (n > 0) {
-    return strtoul(&buf[0], 0, 0);
+    unsafe { return strtoul(&buf[0], 0, 0); }
   }
   return 0xABCDEF01;
 }
@@ -302,7 +302,7 @@ function test_expect_ne_i32_c(a: i32, b: i32): i32 {
 /** 调用无参 fn；fn 为 0 返回 -1，否则返回 fn 的 i32 结果。 */
 function test_run_c(fn: usize): i32 {
   if (fn == 0) { return -1; }
-  return test_call_i32_void_c(fn);
+  unsafe { return test_call_i32_void_c(fn); }
 }
 
 /** 调用 fn 共 iters 次，返回纳秒耗时；非法参数 -1。 */
@@ -311,12 +311,12 @@ function test_bench_run_c(fn: usize, iters: i32): i64 {
   let t1: i64 = 0;
   let i: i32 = 0;
   if (fn == 0 || iters <= 0) { return -1 as i64; }
-  t0 = time_now_monotonic_ns_c();
+  unsafe { t0 = time_now_monotonic_ns_c(); }
   while (i < iters) {
-    test_call_i32_void_c(fn);
+    unsafe { test_call_i32_void_c(fn); }
     i = i + 1;
   }
-  t1 = time_now_monotonic_ns_c();
+  unsafe { t1 = time_now_monotonic_ns_c(); }
   return t1 - t0;
 }
 
@@ -343,7 +343,7 @@ function test_fuzz_run_c(fn: usize, iters: i32): i32 {
   state = test_fuzz_seed_c();
   while (i < iters) {
     test_fuzz_next_c(&state);
-    if (test_call_i32_void_c(fn) != 0) { return 1; }
+    unsafe { if (test_call_i32_void_c(fn) != 0) { return 1; } }
     i = i + 1;
   }
   return 0;
@@ -355,12 +355,12 @@ function test_bench_run_noop_c(iters: i32): i64 {
   let t1: i64 = 0;
   let i: i32 = 0;
   if (iters <= 0) { return -1 as i64; }
-  t0 = time_now_monotonic_ns_c();
+  unsafe { t0 = time_now_monotonic_ns_c(); }
   while (i < iters) {
     test_noop_impl();
     i = i + 1;
   }
-  t1 = time_now_monotonic_ns_c();
+  unsafe { t1 = time_now_monotonic_ns_c(); }
   return t1 - t0;
 }
 

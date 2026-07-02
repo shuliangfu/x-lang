@@ -42,6 +42,7 @@ struct ast_Type { enum ast_TypeKind kind; uint8_t name[64]; int32_t name_len; in
 struct ast_Expr { enum ast_ExprKind kind; int32_t resolved_type_ref; int32_t line; int32_t col; int32_t int_val; double float_val; uint8_t var_name[64]; int32_t var_name_len; int32_t binop_left_ref; int32_t binop_right_ref; int32_t unary_operand_ref; int32_t if_cond_ref; int32_t if_then_ref; int32_t if_else_ref; int32_t block_ref; int32_t match_matched_ref; int32_t match_arm_base; int32_t match_num_arms; int32_t field_access_base_ref; uint8_t field_access_field_name[64]; int32_t field_access_field_len; int32_t field_access_is_enum_variant; int32_t field_access_offset; int32_t field_access_soa_stride; int32_t index_base_ref; int32_t index_index_ref; int32_t index_base_is_slice; int32_t call_callee_ref; int32_t call_arg_base; int32_t call_num_args; int32_t call_num_type_args; int32_t method_call_base_ref; uint8_t method_call_name[64]; int32_t method_call_name_len; int32_t method_call_arg_base; int32_t method_call_num_args; int32_t const_folded_val; int32_t const_folded_valid; int32_t index_proven_in_bounds; uint8_t struct_lit_struct_name[64]; int32_t struct_lit_struct_name_len; int32_t struct_lit_field_base; int32_t struct_lit_num_fields; int32_t array_lit_elem_base; int32_t array_lit_num_elems; int32_t float_bits_lo; int32_t float_bits_hi; int32_t enum_variant_tag; int32_t as_operand_ref; int32_t as_target_type_ref; int32_t call_resolved_func_index; int32_t call_resolved_dep_index; };
 
 /* C-04 parser: ast_expr_init_match_enum after struct ast_Expr */
+extern void ast_expr_init_match_enum(struct ast_Expr *e);
 struct ast_ConstDecl { uint8_t name[64]; int32_t name_len; int32_t type_ref; int32_t init_ref; };
 struct ast_LetDecl { uint8_t name[64]; int32_t name_len; int32_t type_ref; int32_t init_ref; };
 struct ast_WhileLoop { int32_t cond_ref; int32_t body_ref; };
@@ -317,7 +318,7 @@ extern void ast_pipeline_block_fill_expr_stmts_from_onefunc(struct ast_ASTArena 
 extern void ast_pipeline_block_fill_stmt_order_from_onefunc(struct ast_ASTArena * arena, int32_t br, uint8_t * out, int32_t count);
 extern void lexer_lexer_next_buf_into(struct lexer_LexerResult * restrict out, struct lexer_Lexer lex, uint8_t * restrict data, int32_t len);
 extern void ast_pipeline_module_import_path_copy(struct ast_Module * module, int32_t idx, uint8_t * dst, int32_t dst_cap);
-struct parser_OneFuncResult { int ok; struct lexer_Lexer next_lex; uint8_t name[64]; int32_t name_len; int32_t num_params; int32_t num_generic_params; int32_t num_consts; int32_t num_lets; int has_if_expr; int if_cond_true; int32_t if_then_val; int32_t if_else_val; int32_t if_cond_expr_ref; int has_mul; int32_t mul_right_val; int has_binop; int32_t binop_right_val; int32_t binop_left_param_idx; int32_t binop_right_param_idx; int has_unary_neg; int32_t return_val; int has_call_expr; uint8_t call_callee_name[64]; int32_t call_callee_len; uint8_t return_var_name[64]; int32_t return_var_name_len; int32_t return_expr_ref; int has_explicit_return_kw; int32_t call_num_args; int32_t num_loops; int32_t num_for_loops; int32_t num_if_stmts; int32_t num_src_stmt_order; int32_t num_src_body_expr_stmts; int32_t func_return_type_ref; };
+struct parser_OneFuncResult { int ok; struct lexer_Lexer next_lex; uint8_t name[64]; int32_t name_len; int32_t num_params; int32_t num_generic_params; int32_t num_consts; int32_t num_lets; int has_if_expr; int if_cond_true; int32_t if_then_val; int32_t if_else_val; int32_t if_cond_expr_ref; int has_mul; int32_t mul_right_val; int has_binop; int32_t binop_right_val; int32_t binop_left_param_idx; int32_t binop_right_param_idx; int has_unary_neg; int32_t return_val; int has_call_expr; uint8_t call_callee_name[64]; int32_t call_callee_len; uint8_t return_var_name[64]; int32_t return_var_name_len; int32_t return_expr_ref; int has_final_expr; int has_explicit_return_kw; int32_t call_num_args; int32_t num_loops; int32_t num_for_loops; int32_t num_if_stmts; int32_t num_src_stmt_order; int32_t num_src_body_expr_stmts; int32_t func_return_type_ref; };
 struct parser_ParseResult { int ok; int32_t return_val; };
 struct parser_ParseIntoResult { int32_t ok; int32_t main_idx; };
 struct parser_TopLevelLetResult { int ok; struct lexer_Lexer next_lex; };
@@ -1048,6 +1049,7 @@ void parser_copy_onefunc_into(struct parser_OneFuncResult * restrict dst, struct
     ++rvni;
   }
   ((dst)->return_expr_ref = ((src)->return_expr_ref));
+  ((dst)->has_final_expr = ((src)->has_final_expr));
   ((dst)->has_explicit_return_kw = ((src)->has_explicit_return_kw));
   ((dst)->has_call_expr = ((src)->has_call_expr));
   ((dst)->call_callee_len = ((src)->call_callee_len));
@@ -2877,7 +2879,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
  } else (__tmp = 0) ; __tmp; }));
   (void)(parser_lex_from_next_into((&(lex)), r));
   struct parser_ParseBlockResult block_res_unsafe_fn = (struct parser_ParseBlockResult){ .ok = 0, .block_ref = 0, .next_lex = lex };
-  (void)(parser_parse_block_into(arena, lex, source, 0, (&(block_res_unsafe_fn))));
+  (void)(parser_parse_block_into(arena, lex, source, (out)->func_return_type_ref, (&(block_res_unsafe_fn))));
   (void)(({ int32_t __tmp = 0; if ((!(block_res_unsafe_fn).ok)) {   (void)(parser_set_onefunc_fail(out, lex));
   return;
  } else (__tmp = 0) ; __tmp; }));
@@ -3126,6 +3128,7 @@ void parser_parse_one_function_impl(struct parser_OneFuncResult * restrict out, 
   (void)(parser_onefunc_finish_impl_to_out(out, (&(impl_snap)), lex, (&((dummy_name)[0])), (func_name_len_storage)[0], return_expr_ref_storage));
   return;
  } else (__tmp = 0) ; __tmp; }));
+  ((impl_snap).has_final_expr = (1));
   (void)(({ int32_t __tmp = 0; if (((r).tok).kind == token_TokenKind_TOKEN_MATCH) {   ((impl_snap).has_explicit_return_kw = (1));
   struct lexer_Lexer match_tail_lex = parser_lex_at_token_from_result(r);
   struct parser_ParseExprResult match_tail_res = (struct parser_ParseExprResult){ .ok = 0, .expr_ref = 0, .next_lex = match_tail_lex };
@@ -4190,7 +4193,10 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * restrict a
     ((e).const_folded_valid = (0));
     ((e).index_proven_in_bounds = (0));
     (void)(ast_arena_expr_set(arena, expr_ref, e));
-    int32_t final_expr_ref = expr_ref;
+    int allow_legacy_tail_expr = (res).has_final_expr || (res).has_explicit_return_kw || (res).return_expr_ref != 0 || (res).return_var_name_len > 0;
+    int32_t final_expr_ref = 0;
+    (void)(({ int32_t __tmp = 0; if (allow_legacy_tail_expr) {   (final_expr_ref = expr_ref);
+} else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if ((res).return_expr_ref != 0) {   (final_expr_ref = ((res).return_expr_ref));
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if ((res).return_var_name_len > 0 && (res).return_expr_ref == 0) {   int32_t var_wrapped = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);
@@ -5395,7 +5401,10 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * restri
     ((e).const_folded_valid = (0));
     ((e).index_proven_in_bounds = (0));
     (void)(ast_arena_expr_set(arena, expr_ref, e));
-    int32_t final_expr_ref = expr_ref;
+    int allow_legacy_tail_expr2 = (res).has_final_expr || (res).has_explicit_return_kw || (res).return_expr_ref != 0 || (res).return_var_name_len > 0;
+    int32_t final_expr_ref = 0;
+    (void)(({ int32_t __tmp = 0; if (allow_legacy_tail_expr2) {   (final_expr_ref = expr_ref);
+} else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if ((res).return_expr_ref != 0) {   (final_expr_ref = ((res).return_expr_ref));
  } else (__tmp = 0) ; __tmp; }));
     (void)(({ int32_t __tmp = 0; if ((res).return_var_name_len > 0 && (res).return_expr_ref == 0) {   int32_t var_wrapped = parser_expr_wrap_in_return(arena, type_ref, final_expr_ref);

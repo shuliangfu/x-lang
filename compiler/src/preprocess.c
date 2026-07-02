@@ -6,20 +6,40 @@
  */
 
 #include "preprocess.h"
+#include "diag.h"
+#include "runtime_diag_codes.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #define PREPROCESS_LINE_MAX  4096
 #define PREPROCESS_OUT_GROW  65536
 #define PREPROCESS_IF_INIT   32
+#ifdef SHUX_LEGACY_C_FRONTEND_ABI
+#define PREPROCESS_MAX_DEFINES 32
+#endif
 
 /** C 路径 #if 嵌套栈（grow；SX 路径用 ast_pool preprocess_if_stack_*）。 */
 static int32_t *pp_if_stack;
 static int pp_if_cap;
 static int pp_if_len;
+/** lexer.c 提供的 #[cfg] 表达式求值；复杂条件统一走这里。 */
+extern int cfg_eval_expr_c(const char *start, int len);
+#ifdef SHUX_LEGACY_C_FRONTEND_ABI
+static char pp_defines[PREPROCESS_MAX_DEFINES][64];
+static int pp_ndefines;
+#endif
+
+static void preprocess_diag_directive_error(const char *msg) {
+    const char *code = SHUX_DIAG_CODE_PREPROCESS_PP002;
+    const char *text = msg ? msg : "preprocess failed";
+    if (msg && strcmp(msg, "unclosed #if") == 0)
+        code = SHUX_DIAG_CODE_PREPROCESS_PP001;
+    diag_report_with_code(NULL, 0, 0, "preprocess error", code, text, NULL);
+}
 
 /** 清空 #if 嵌套栈。 */
 static void pp_if_reset(void) {
@@ -30,6 +50,12 @@ static void pp_if_reset(void) {
 static int pp_if_len_get(void) {
     return pp_if_len;
 }
+
+#ifdef SHUX_LEGACY_C_FRONTEND_ABI
+int32_t preprocess_if_stack_len(void) {
+    return (int32_t)pp_if_len_get();
+}
+#endif
 
 /** 追加一层；失败返回 -1。 */
 static int pp_if_push(int32_t v) {
@@ -73,6 +99,41 @@ static int is_defined(const char *sym, const char **defines, int ndefines) {
     return 0;
 }
 
+#ifdef SHUX_LEGACY_C_FRONTEND_ABI
+static int preprocess_define_has_len(const uint8_t *sym, int32_t sym_len) {
+    int i;
+    int k;
+    if (!sym || sym_len <= 0)
+        return 0;
+    for (i = 0; i < pp_ndefines; i++) {
+        for (k = 0; k < sym_len; k++) {
+            if ((uint8_t)pp_defines[i][k] != sym[k])
+                break;
+            if (pp_defines[i][k] == '\0')
+                break;
+        }
+        if (k == sym_len && pp_defines[i][k] == '\0')
+            return 1;
+    }
+    return 0;
+}
+
+void preprocess_define_reset(void) {
+    pp_ndefines = 0;
+}
+
+void preprocess_define_add(const char *name) {
+    size_t n;
+    if (!name || pp_ndefines >= PREPROCESS_MAX_DEFINES)
+        return;
+    n = strlen(name);
+    if (n == 0 || n >= sizeof(pp_defines[0]))
+        return;
+    memcpy(pp_defines[pp_ndefines], name, n + 1);
+    pp_ndefines++;
+}
+#endif
+
 /** 从行首跳过空白，返回指向第一个非空白字符的指针 */
 static const char *skip_ws(const char *s) {
     while (*s && (*s == ' ' || *s == '\t')) s++;
@@ -82,6 +143,37 @@ static const char *skip_ws(const char *s) {
 /** 是否为行内结束符（空白或行尾），用于 CRLF 下 #endif 等指令识别 */
 static int is_ws_or_eol(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\0';
+}
+
+int preprocess_eval_condition(const char *cond, const char **defines, int ndefines) {
+    int len;
+    int i;
+    if (!cond)
+        return 0;
+    while (*cond == ' ' || *cond == '\t')
+        cond++;
+    len = (int)strlen(cond);
+    while (len > 0 && (cond[len - 1] == ' ' || cond[len - 1] == '\t'))
+        len--;
+    if (len <= 0)
+        return 0;
+    for (i = 0; i < len; i++) {
+        char c = cond[i];
+        if (c == ' ' || c == '\t' || c == '=' || c == '!' || c == '(' || c == ')')
+            return cfg_eval_expr_c(cond, len) ? 1 : 0;
+    }
+    if (defines && ndefines > 0) {
+        char sym[64];
+        size_t n = (size_t)len < sizeof(sym) - 1 ? (size_t)len : sizeof(sym) - 1;
+        memcpy(sym, cond, n);
+        sym[n] = '\0';
+        return is_defined(sym, defines, ndefines);
+    }
+#ifdef SHUX_LEGACY_C_FRONTEND_ABI
+    return preprocess_define_has_len((const uint8_t *)cond, len);
+#else
+    return 0;
+#endif
 }
 
 /**
@@ -174,15 +266,15 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
                         if (depth > 0 && pp_if_at(depth - 1) == 0)
                             v = 0;
                         else
-                            v = is_defined(sym, defines, ndefines) ? 1 : 0;
+                            v = preprocess_eval_condition(sym, defines, ndefines) ? 1 : 0;
                         if (pp_if_push(v) < 0) {
-                            fprintf(stderr, "preprocess: #if nesting too deep\n");
+                            preprocess_diag_directive_error("#if nesting too deep");
                             free(out);
                             return NULL;
                         }
                     } else if (kind == 2) {
                         if (depth == 0) {
-                            fprintf(stderr, "preprocess: #else without #if\n");
+                            preprocess_diag_directive_error("#else without #if");
                             free(out);
                             return NULL;
                         }
@@ -195,33 +287,33 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
                             /* 已选过 then/elseif，保留跳过 */
                             ;
                         } else {
-                            fprintf(stderr, "preprocess: duplicate #else\n");
+                            preprocess_diag_directive_error("duplicate #else");
                             free(out);
                             return NULL;
                         }
                     } else if (kind == 4) {
                         /* #elseif SYMBOL：与 #if/#else 同属一块，只改栈顶；若已在 #else 分支则报错 */
                         if (depth == 0) {
-                            fprintf(stderr, "preprocess: #elseif without #if\n");
+                            preprocess_diag_directive_error("#elseif without #if");
                             free(out);
                             return NULL;
                         }
                         int top = pp_if_at(depth - 1);
                         if (top == 2) {
-                            fprintf(stderr, "preprocess: #elseif after #else\n");
+                            preprocess_diag_directive_error("#elseif after #else");
                             free(out);
                             return NULL;
                         }
                         if (top == 1) {
                             pp_if_set_at(depth - 1, 3);
                         } else if (top == 0) {
-                            pp_if_set_at(depth - 1, is_defined(sym, defines, ndefines) ? 1 : 0);
+                            pp_if_set_at(depth - 1, preprocess_eval_condition(sym, defines, ndefines) ? 1 : 0);
                         } else {
                             pp_if_set_at(depth - 1, 3);
                         }
                     } else {
                         if (depth == 0) {
-                            fprintf(stderr, "preprocess: #endif without #if\n");
+                            preprocess_diag_directive_error("#endif without #if");
                             free(out);
                             return NULL;
                         }
@@ -263,7 +355,7 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
         p++;
     }
     if (pp_if_len_get() != 0) {
-        fprintf(stderr, "preprocess: unclosed #if\n");
+        preprocess_diag_directive_error("unclosed #if");
         free(out);
         return NULL;
     }
@@ -275,5 +367,34 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
 #ifndef SHUX_USE_SX_PREPROCESS
 char *preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
     return preprocess_c_fallback(source, source_len, defines, ndefines, out_length);
+}
+#endif
+
+#ifdef SHUX_LEGACY_C_FRONTEND_ABI
+int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap) {
+    const char *defines[PREPROCESS_MAX_DEFINES];
+    char *out;
+    size_t out_len;
+    int i;
+    if (!source_buf || !out_buf || source_len < 0 || out_cap <= 0)
+        return -1;
+    for (i = 0; i < pp_ndefines; i++)
+        defines[i] = pp_defines[i];
+    out_len = 0;
+    out = preprocess_c_fallback((const char *)source_buf, (size_t)source_len,
+                                pp_ndefines > 0 ? defines : NULL, pp_ndefines, &out_len);
+    if (!out)
+        return -1;
+    if (out_len > (size_t)out_cap) {
+        free(out);
+        return -1;
+    }
+    memcpy(out_buf, out, out_len);
+    free(out);
+    return (int32_t)out_len;
+}
+
+int32_t typeck_preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap) {
+    return preprocess_sx_buf(source_buf, source_len, out_buf, out_cap);
 }
 #endif

@@ -1,0 +1,14 @@
+(lldb) target create "./shux-c"
+Current executable set to '/home/shu/shux/compiler/shux-c' (arm64).
+(lldb) settings set -- target.run-args  "-E" "-L" ".." "../std/json/json.sx"
+(lldb) run
+Process 72165 launched: '/home/shu/shux/compiler/shux-c' (arm64)
+Process 72165 stopped
+* thread #1, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS (code=2, address=0x16f603ff0)
+    frame #0: 0x000000010014b434 shux-c`ast_ast_arena_init + 4
+shux-c`ast_ast_arena_init:
+->  0x10014b434 <+4>:  stp    x29, x30, [sp, #0x10]
+    0x10014b438 <+8>:  add    x29, sp, #0x10
+    0x10014b43c <+12>: str    x0, [sp, #0x8]
+    0x10014b440 <+16>: ldr    x8, [sp, #0x8]
+Target 0: (shux-c) stopped.

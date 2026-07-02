@@ -58,9 +58,9 @@ extern function arrow_column_f32_dot_c(handle_a: i64, handle_b: i64, n: i32): f3
  */
 function arrow_alloc_aligned(size: usize): *u8 {
   let out: *u8 = 0 as *u8;
-  if (posix_memalign(&out, ARROW_ALIGN, size) != 0) {
+  unsafe { if (posix_memalign(&out, ARROW_ALIGN, size) != 0) {
     return 0;
-  }
+  } }
   return out;
 }
 
@@ -74,11 +74,11 @@ function arrow_null_bitmap_alloc(capacity: i32): *u8 {
     return 0;
   }
   n = ((capacity as usize + 7) / 8);
-  bm = calloc(n, 1);
+  unsafe { bm = calloc(n, 1); }
   if (bm == 0) {
     return 0;
   }
-  memset(bm, 0xff, n);
+  unsafe { memset(bm, 0xff, n); }
   return bm;
 }
 
@@ -111,7 +111,7 @@ function arrow_column_create_typed(type_id: i32, capacity: i32, elem_size: usize
   if (capacity <= 0) {
     return 0;
   }
-  c = calloc(1, 32) as *ArrowColumnMem;
+  unsafe { c = calloc(1, 32) as *ArrowColumnMem; }
   if (c == 0) {
     return 0;
   }
@@ -120,13 +120,13 @@ function arrow_column_create_typed(type_id: i32, capacity: i32, elem_size: usize
   c.data_owned = 1;
   c.null_bitmap = arrow_null_bitmap_alloc(capacity);
   if (c.null_bitmap == 0) {
-    free(c as *u8);
+    unsafe { free(c as *u8); }
     return 0;
   }
   c.data = arrow_alloc_aligned((capacity as usize) * elem_size);
   if (c.data == 0) {
-    free(c.null_bitmap);
-    free(c as *u8);
+    unsafe { free(c.null_bitmap); }
+    unsafe { free(c as *u8); }
     return 0;
   }
   return c;
@@ -165,7 +165,7 @@ function arrow_column_adopt_f32_c(ptr: *f32, len: i32, capacity: i32): i64 {
   if (ptr == 0 || len < 0 || capacity <= 0 || len > capacity) {
     return 0 as i64;
   }
-  c = calloc(1, 32) as *ArrowColumnMem;
+  unsafe { c = calloc(1, 32) as *ArrowColumnMem; }
   if (c == 0) {
     return 0 as i64;
   }
@@ -176,7 +176,7 @@ function arrow_column_adopt_f32_c(ptr: *f32, len: i32, capacity: i32): i64 {
   c.data_owned = 0;
   c.null_bitmap = arrow_null_bitmap_alloc(capacity);
   if (c.null_bitmap == 0) {
-    free(c as *u8);
+    unsafe { free(c as *u8); }
     return 0 as i64;
   }
   return c as i64;
@@ -188,7 +188,7 @@ function arrow_column_adopt_i32_c(ptr: *i32, len: i32, capacity: i32): i64 {
   if (ptr == 0 || len < 0 || capacity <= 0 || len > capacity) {
     return 0 as i64;
   }
-  c = calloc(1, 32) as *ArrowColumnMem;
+  unsafe { c = calloc(1, 32) as *ArrowColumnMem; }
   if (c == 0) {
     return 0 as i64;
   }
@@ -199,7 +199,7 @@ function arrow_column_adopt_i32_c(ptr: *i32, len: i32, capacity: i32): i64 {
   c.data_owned = 0;
   c.null_bitmap = arrow_null_bitmap_alloc(capacity);
   if (c.null_bitmap == 0) {
-    free(c as *u8);
+    unsafe { free(c as *u8); }
     return 0 as i64;
   }
   return c as i64;
@@ -354,12 +354,12 @@ function arrow_column_destroy_c(handle: i64): void {
     return;
   }
   if (c.data != 0 && c.data_owned != 0) {
-    free(c.data);
+    unsafe { free(c.data); }
   }
   if (c.null_bitmap != 0) {
-    free(c.null_bitmap);
+    unsafe { free(c.null_bitmap); }
   }
-  free(c as *u8);
+  unsafe { free(c as *u8); }
 }
 
 /** 创建 batch。 */
@@ -368,14 +368,14 @@ function arrow_batch_create_c(max_cols: i32): i64 {
   if (max_cols <= 0) {
     return 0 as i64;
   }
-  b = calloc(1, 24) as *ArrowBatchMem;
+  unsafe { b = calloc(1, 24) as *ArrowBatchMem; }
   if (b == 0) {
     return 0 as i64;
   }
   b.cap_cols = max_cols;
-  b.cols = calloc(max_cols as usize, 8) as *u64;
+  unsafe { b.cols = calloc(max_cols as usize, 8) as *u64; }
   if (b.cols == 0) {
-    free(b as *u8);
+    unsafe { free(b as *u8); }
     return 0 as i64;
   }
   return b as i64;
@@ -423,9 +423,9 @@ function arrow_batch_destroy_c(batch: i64): void {
     i = i + 1;
   }
   if (b.cols != 0) {
-    free(b.cols as *u8);
+    unsafe { free(b.cols as *u8); }
   }
-  free(b as *u8);
+  unsafe { free(b as *u8); }
 }
 
 /**
@@ -457,10 +457,10 @@ function arrow_simd_smoke_inner(): i32 {
       || arrow_column_f32_append_c(cf2, 0.5) != 0 || arrow_column_f32_append_c(cf2, 0.5) != 0) {
     return -4;
   }
-  sum_i = arrow_column_i32_sum_valid_c(ci, 3);
-  sum_f = arrow_column_f32_sum_c(cf, 4);
-  dot = arrow_column_f32_dot_c(cf, cf2, 4);
-  sv = arrow_column_f32_sum_valid_c(cf, 4);
+  unsafe { sum_i = arrow_column_i32_sum_valid_c(ci, 3); }
+  unsafe { sum_f = arrow_column_f32_sum_c(cf, 4); }
+  unsafe { dot = arrow_column_f32_dot_c(cf, cf2, 4); }
+  unsafe { sv = arrow_column_f32_sum_valid_c(cf, 4); }
   arrow_column_destroy_c(ci);
   arrow_column_destroy_c(cf);
   arrow_column_destroy_c(cf2);

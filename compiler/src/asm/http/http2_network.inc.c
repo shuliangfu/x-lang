@@ -257,8 +257,8 @@ static int32_t read_response_stream_io(io_t *io, int32_t target_stream_id, uint8
     return resp_len;
 }
 
-#include "conn_reuse.inc.c"
-#include "server.inc.c"
+#include "http2_conn_reuse.inc.c"
+#include "http2_server.inc.c"
 
 /**
  * 在已建立 h2 的 IO 上执行单次请求（内部走 conn handshake + request）。

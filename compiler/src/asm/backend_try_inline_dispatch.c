@@ -4,9 +4,24 @@
  * M8 自举：含 Expr/Type 按值访问的 SX 真 emit 会宿主 SIGABRT；改 extern 后由本 TU 提供符号。
  */
 #include <stdint.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "diag.h"
+
+static void backend_try_inline_debugf(const char *fmt, ...) {
+  char buf[256];
+  va_list ap;
+  if (!getenv("SHUX_ASM_DEBUG"))
+    return;
+  va_start(ap, fmt);
+  (void)vsnprintf(buf, sizeof buf, fmt ? fmt : "asm try-inline debug", ap);
+  va_end(ap);
+  buf[sizeof buf - 1] = '\0';
+  diag_report(NULL, 0, 0, "note", buf, NULL);
+}
 
 /** WPO vec mono 符号最多编码 8 个 lane 常量（两向量各 4 lane）。 */
 #define GLUE_WPO_MONO_MAX_ARGS 8
@@ -1687,8 +1702,7 @@ static int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, i
     return 0;
   narg = pipeline_expr_call_num_args_at(arena, call_ref);
   if (narg != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: default_alloc call narg=%d ref=%d\n", (int)narg, (int)call_ref);
+    backend_try_inline_debugf("default alloc call narg=%d ref=%d", (int)narg, (int)call_ref);
     return 0;
   }
   callee_ref = pipeline_expr_call_callee_ref_at(arena, call_ref);
@@ -1708,13 +1722,11 @@ static int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, i
     pipeline_expr_field_access_name_into(arena, callee_ref, nm);
     if (nlen == 13 && memcmp(nm, "default_alloc", 13) == 0)
       return 1;
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: default_alloc field callee nlen=%d ref=%d\n", (int)nlen, (int)callee_ref);
+    backend_try_inline_debugf("default alloc field callee nlen=%d ref=%d", (int)nlen, (int)callee_ref);
     return 0;
   }
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: default_alloc callee kind=%d ref=%d call=%d\n",
-            (int)pipeline_expr_kind_ord_at(arena, callee_ref), (int)callee_ref, (int)call_ref);
+  backend_try_inline_debugf("default alloc callee kind=%d ref=%d call=%d",
+                            (int)pipeline_expr_kind_ord_at(arena, callee_ref), (int)callee_ref, (int)call_ref);
   return 0;
 }
 
@@ -1790,9 +1802,8 @@ static int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *aren
   if (ret_ref <= 0)
     ret_ref = backend_fold_func_return_operand_ref(arena, mod, func_idx);
   if (ret_ref <= 0 || pipeline_expr_kind_ord_at(arena, ret_ref) != GLUE_EXPR_STRUCT_LIT) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: const_struct fold miss ret fi=%d ret_ref=%d kind=%d\n", (int)func_idx, (int)ret_ref,
-              ret_ref > 0 ? (int)pipeline_expr_kind_ord_at(arena, ret_ref) : -1);
+    backend_try_inline_debugf("const struct fold miss ret fi=%d ret_ref=%d kind=%d", (int)func_idx, (int)ret_ref,
+                              ret_ref > 0 ? (int)pipeline_expr_kind_ord_at(arena, ret_ref) : -1);
     return 0;
   }
   nf = pipeline_expr_struct_lit_num_fields(arena, ret_ref);
@@ -1809,15 +1820,13 @@ static int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *aren
     /** vec_u8_new 等：Struct 末字段可为零实参 default_alloc() CALL。 */
     if (ko == GLUE_EXPR_CALL) {
       if (glue_call_is_zero_arg_default_alloc(arena, init_ref) == 0) {
-        if (getenv("SHUX_ASM_DEBUG"))
-          fprintf(stderr, "shux: const_struct fold miss call fi=%d fj=%d init=%d\n", (int)func_idx, (int)fj,
-                  (int)init_ref);
+        backend_try_inline_debugf("const struct fold miss call fi=%d fj=%d init=%d", (int)func_idx, (int)fj,
+                                  (int)init_ref);
         return 0;
       }
     } else if (ko != 0 && ko != 1 && ko != 2) {
-      if (getenv("SHUX_ASM_DEBUG"))
-        fprintf(stderr, "shux: const_struct fold miss ko fi=%d fj=%d ko=%d init=%d\n", (int)func_idx, (int)fj, (int)ko,
-                (int)init_ref);
+      backend_try_inline_debugf("const struct fold miss ko fi=%d fj=%d ko=%d init=%d", (int)func_idx, (int)fj, (int)ko,
+                                (int)init_ref);
       return 0;
     }
     fj = fj + 1;
@@ -1850,13 +1859,11 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
   if (pipeline_expr_call_num_args_at(arena, call_ref) != 0)
     return 0;
   if (glue_call_lookup_callee_mod_fi_arena(arena, call_ref, ctx, &callee_arena, &callee_mod, &fi) == 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: const_struct_call_inline miss lookup call_ref=%d\n", (int)call_ref);
+    backend_try_inline_debugf("const struct call inline miss lookup call_ref=%d", (int)call_ref);
     return 0;
   }
   if (glue_fold_func_returns_const_struct_lit(callee_arena, callee_mod, fi, &lit_ref) == 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: const_struct_call_inline miss fold fi=%d\n", (int)fi);
+    backend_try_inline_debugf("const struct call inline miss fold fi=%d", (int)fi);
     return 0;
   }
   nf = pipeline_expr_struct_lit_num_fields(callee_arena, lit_ref);
@@ -1864,8 +1871,7 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
   fj = 0;
   while (fj < nf) {
     if (glue_const_struct_lit_field_can_inline(callee_arena, callee_mod, fi, lit_ref, fj) == 0) {
-      if (getenv("SHUX_ASM_DEBUG"))
-        fprintf(stderr, "shux: const_struct_call_inline miss field fj=%d fi=%d\n", (int)fj, (int)fi);
+      backend_try_inline_debugf("const struct call inline miss field fj=%d fi=%d", (int)fj, (int)fi);
       return 0;
     }
     fj = fj + 1;
@@ -1892,8 +1898,7 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
     }
     fj = fj + 1;
   }
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: const_struct_call_inline OK lit_ref=%d nf=%d fi=%d\n", (int)lit_ref, (int)nf, (int)fi);
+  backend_try_inline_debugf("const struct call inline OK lit_ref=%d nf=%d fi=%d", (int)lit_ref, (int)nf, (int)fi);
   return 1;
 }
 

@@ -10,6 +10,8 @@
 #include "runtime_io_abi.h"
 #include "runtime_pipeline_abi.h"
 #include "runtime_abi.h"
+#include "diag.h"
+#include "runtime_diag_codes.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +30,7 @@ static char driver_ascii_toupper(char c) {
 
 /** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 SX pipeline 共用）。 */
 static int driver_check_only_flag;
+static int driver_check_diag_emitted_flag;
 
 /**
  * 设置 check-only 模式。
@@ -43,6 +46,18 @@ void driver_check_only_set(int32_t v) {
  */
 int32_t driver_check_only_get(void) {
     return driver_check_only_flag ? 1 : 0;
+}
+
+void driver_check_diag_emitted_reset(void) {
+    driver_check_diag_emitted_flag = 0;
+}
+
+void driver_check_diag_emitted_note(void) {
+    driver_check_diag_emitted_flag = 1;
+}
+
+int32_t driver_check_diag_emitted_get(void) {
+    return driver_check_diag_emitted_flag ? 1 : 0;
 }
 
 /** `-freestanding` / SHUX_FREESTANDING：用户程序 nostdlib 静态链（S4）。 */
@@ -105,8 +120,8 @@ __attribute__((weak)) int driver_check_quiet_ok_get(void) {
 void driver_print_check_ok(const char *input_path) {
     if (driver_check_quiet_ok_get())
         return;
-    fprintf(stderr, "check OK: %s\n", input_path ? input_path : "?");
-    fflush(stderr);
+    diag_reportf(NULL, 0, 0, "info", NULL,
+                 "check OK: %s", input_path ? input_path : "?");
 }
 
 /** 非 0 时 pipeline_impl_typecheck 跳过 .sx typeck。 */
@@ -180,7 +195,8 @@ void driver_set_pipeline_entry_source_len(size_t len) {
  */
 size_t driver_pipeline_entry_source_len(void) {
     if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] entry_source_len_global=%zu\n", g_pipeline_entry_source_len);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: entry_source_len_global=%zu", g_pipeline_entry_source_len);
     return g_pipeline_entry_source_len;
 }
 
@@ -191,8 +207,9 @@ size_t driver_pipeline_entry_source_len(void) {
 int32_t driver_typeck_skip_large_entry(void) {
     int32_t skip = g_pipeline_entry_source_len > 150000u ? 1 : 0;
     if (getenv("SHUX_DEBUG_PIPE"))
-        fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] typeck_skip_large_entry=%d len=%zu\n", (int)skip,
-                g_pipeline_entry_source_len);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: typeck_skip_large_entry=%d len=%zu",
+                     (int)skip, g_pipeline_entry_source_len);
     return skip;
 }
 
@@ -307,10 +324,9 @@ void driver_compile_phase_timing_flush(void) {
     if (!compile_phase_timing_enabled())
         return;
     double total = g_compile_phase_acc_ms[0] + g_compile_phase_acc_ms[1] + g_compile_phase_acc_ms[2];
-    fprintf(stderr,
-            "shux: [SHUX_COMPILE_PHASE_TIMING] parse_ms=%.3f typeck_ms=%.3f codegen_ms=%.3f total_ms=%.3f\n",
-            g_compile_phase_acc_ms[0], g_compile_phase_acc_ms[1], g_compile_phase_acc_ms[2], total);
-    fflush(stderr);
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "compile phase timing: parse_ms=%.3f typeck_ms=%.3f codegen_ms=%.3f total_ms=%.3f",
+                 g_compile_phase_acc_ms[0], g_compile_phase_acc_ms[1], g_compile_phase_acc_ms[2], total);
     memset(g_compile_phase_acc_ms, 0, sizeof(g_compile_phase_acc_ms));
     memset(g_compile_phase_active, 0, sizeof(g_compile_phase_active));
 }
@@ -376,9 +392,12 @@ extern int driver_get_module_main_func_index(void *m);
 
 /** pipeline 失败 rc 诊断；rc==-7 时打印 resolve 尝试路径。 */
 void driver_pipeline_fail_code(int rc, const uint8_t *path) {
-    fprintf(stderr, "shux: pipeline failed rc=%d\n", rc);
-    if (rc == -7 && path != NULL)
-        fprintf(stderr, "shux: resolve path tried: %s\n", (const char *)path);
+    diag_reportf_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP003, NULL,
+                           "pipeline failed rc=%d", rc);
+    if (rc == -7 && path != NULL) {
+        diag_reportf_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP004, NULL,
+                               "resolve path tried: %s", (const char *)path);
+    }
 }
 
 /**
@@ -386,18 +405,19 @@ void driver_pipeline_fail_code(int rc, const uint8_t *path) {
  * 参数：module ASTModule*；codegen_len 产出字节数（可为 0）。
  */
 void driver_print_sx_smoke_summary(void *module, size_t codegen_len) {
+    if (driver_check_diag_emitted_get())
+        return;
     int num_funcs = driver_get_module_num_funcs(module);
     int main_ix = driver_get_module_main_func_index(module);
-    fprintf(stderr, "parse OK: num_funcs=%d main_idx=%d codegen_bytes=%zu\n",
-            num_funcs, main_ix, codegen_len);
-    fflush(stderr);
+    diag_reportf(NULL, 0, 0, "info", NULL,
+                 "parse OK: num_funcs=%d main_idx=%d codegen_bytes=%zu",
+                 num_funcs, main_ix, codegen_len);
     if (num_funcs <= 0) {
-        fputs("parse fail: no functions in module\n", stderr);
-        fflush(stderr);
+        diag_report_with_code(NULL, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001,
+                    "parse produced no functions in module", NULL);
         return;
     }
-    fputs("typeck OK\n", stderr);
-    fflush(stderr);
+    diag_report(NULL, 0, 0, "info", "typeck OK", NULL);
 }
 
 /**

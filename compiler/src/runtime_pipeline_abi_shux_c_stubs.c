@@ -34,22 +34,6 @@ struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx;
 
-/** preprocess.sx 桥接；冷启动返回 -1。 */
-__attribute__((weak)) int32_t typeck_preprocess_sx_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf,
-                                                       int32_t out_cap) {
-    (void)src;
-    (void)src_len;
-    (void)out_buf;
-    (void)out_cap;
-    return -1;
-}
-
-/** driver/pipeline 统一名；转发至 typeck_preprocess_sx_buf 弱桩。 */
-__attribute__((weak)) int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
-                                                int32_t out_cap) {
-    return typeck_preprocess_sx_buf(source_buf, source_len, out_buf, out_cap);
-}
-
 /** asm 后端 ELF 生成桩；冷启动 shux-c 不走 asm 分支。 */
 __attribute__((weak)) int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ctx, void *out_buf) {
     (void)module;
@@ -58,18 +42,6 @@ __attribute__((weak)) int32_t asm_asm_codegen_elf_o(void *module, void *arena, v
     (void)elf_ctx;
     (void)out_buf;
     return -1;
-}
-
-/** preprocess define 桩（C preprocess.o 不提供 SX 符号名）。 */
-__attribute__((weak)) void preprocess_define_reset(void) {
-}
-
-__attribute__((weak)) int32_t preprocess_if_stack_len(void) {
-    return 0;
-}
-
-__attribute__((weak)) void preprocess_define_add(const char *name) {
-    (void)name;
 }
 
 /** driver 模块查询桩。 */
@@ -280,5 +252,57 @@ __attribute__((weak)) uint8_t pipeline_module_func_name_byte_at(struct ast_Modul
     (void)m;
     (void)fi;
     (void)i;
+    return 0;
+}
+
+__attribute__((weak)) void pipeline_module_func_name_copy64(struct ast_Module *m, int32_t fi, uint8_t *dst) {
+    int i;
+    (void)m;
+    (void)fi;
+    if (!dst)
+        return;
+    for (i = 0; i < 64; i++)
+        dst[i] = 0;
+}
+
+__attribute__((weak)) int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t func_index) {
+    (void)m;
+    (void)func_index;
+    return 0;
+}
+
+__attribute__((weak)) int32_t ast_ast_block_num_consts(struct ast_ASTArena *a, int32_t br) {
+    (void)a;
+    (void)br;
+    return 0;
+}
+
+__attribute__((weak)) int32_t ast_ast_block_num_lets(struct ast_ASTArena *a, int32_t br) {
+    (void)a;
+    (void)br;
+    return 0;
+}
+
+__attribute__((weak)) int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br) {
+    (void)a;
+    (void)br;
+    return 0;
+}
+
+__attribute__((weak)) int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br) {
+    (void)a;
+    (void)br;
+    return 0;
+}
+
+__attribute__((weak)) int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *a, int32_t br) {
+    (void)a;
+    (void)br;
+    return 0;
+}
+
+__attribute__((weak)) int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br) {
+    (void)a;
+    (void)br;
     return 0;
 }

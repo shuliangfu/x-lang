@@ -150,19 +150,19 @@ function config_read_file_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
   let to_read: i32 = 0;
   let extra: u8 = 0;
   if (path == 0 || out_buf == 0 || out_cap <= 0) { return -1; }
-  fd = fs_open_read_c(path);
+  unsafe { fd = fs_open_read_c(path); }
   if (fd < 0) { return -4; }
   while (total < out_cap - 1) {
     to_read = out_cap - 1 - total;
     if (to_read > chunk) { to_read = chunk; }
-    n = fs_posix_read_c(fd, out_buf + total, to_read);
-    if (n < 0) { close(fd); return -4; }
+    unsafe { n = fs_posix_read_c(fd, out_buf + total, to_read); }
+    if (n < 0) { unsafe { close(fd); } return -4; }
     if (n == 0) { break; }
     total = total + (n as i32);
-    if (total > CFG_FILE_MAX) { close(fd); return -4; }
+    if (total > CFG_FILE_MAX) { unsafe { close(fd); } return -4; }
   }
-  n = fs_posix_read_c(fd, &extra, 1);
-  close(fd);
+  unsafe { n = fs_posix_read_c(fd, &extra, 1); }
+  unsafe { close(fd); }
   if (n > 0) { return -4; }
   out_buf[total] = 0;
   return total;
@@ -170,7 +170,7 @@ function config_read_file_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
 
 /** smoke 专用 setenv（经 std.env 胶层 env_setenv_c）。 */
 function config_smoke_setenv_c(key: *u8, val: *u8): i32 {
-  return env_setenv_c(key, val, 1);
+  unsafe { return env_setenv_c(key, val, 1); }
 }
 
 /** 句柄转 store 指针；非法 0。 */
@@ -212,7 +212,7 @@ function cfg_trim(s: *u8, out_len: *i32): *u8 {
     return s;
   }
   while (s[start] != 0 && cfg_isspace(s[start]) != 0) { start = start + 1; }
-  end = strlen(s + start) as i32;
+  unsafe { end = strlen(s + start) as i32; }
   while (end > 0 && cfg_isspace(s[(start + end - 1)]) != 0) { end = end - 1; }
   if (out_len != 0) { *out_len = end; }
   return s + start;
@@ -223,7 +223,7 @@ function cfg_find_index(store: *CfgStore, key: *u8): i32 {
   let i: i32 = 0;
   if (store == 0 || key == 0) { return -1; }
   while (i < store.count) {
-    if (strcmp(&store.entries[i].key[0], key) == 0) { return i; }
+    unsafe { if (strcmp(&store.entries[i].key[0], key) == 0) { return i; } }
     i = i + 1;
   }
   return -1;
@@ -301,16 +301,16 @@ function cfg_normalize_value(raw: *u8, raw_len: i32, out: *u8, out_cap: i32): i3
   t = cfg_trim(raw, &tl);
   if (tl <= 0) { return CFG_ERR_INVALID; }
   if (t[0] == 34) { return cfg_parse_quoted(t, tl, out, out_cap); }
-  if (tl >= 4 && strncmp(t, &CFG_LIT_TRUE[0], 4) == 0 && tl == 4) {
+  unsafe { if (tl >= 4 && strncmp(t, &CFG_LIT_TRUE[0], 4) == 0 && tl == 4) {
     cfg_strncpy(out, &CFG_LIT_TRUE[0], out_cap);
     return CFG_OK;
-  }
-  if (tl >= 5 && strncmp(t, &CFG_LIT_FALSE[0], 5) == 0 && tl == 5) {
+  } }
+  unsafe { if (tl >= 5 && strncmp(t, &CFG_LIT_FALSE[0], 5) == 0 && tl == 5) {
     cfg_strncpy(out, &CFG_LIT_FALSE[0], out_cap);
     return CFG_OK;
-  }
+  } }
   if (tl >= out_cap) { return CFG_ERR_INVALID; }
-  memcpy(out, t, tl);
+  unsafe { memcpy(out, t, tl); }
   out[tl] = 0;
   return CFG_OK;
 }
@@ -321,16 +321,16 @@ function cfg_build_key_prefix(prefix: *u8, key_start: *u8, key_len: i32, out: *u
   let plen: i32 = 0;
   if (key_start == 0 || out == 0) { return CFG_ERR_NULL; }
   if (prefix != 0 && prefix[0] != 0) {
-    plen = strlen(prefix) as i32;
+    unsafe { plen = strlen(prefix) as i32; }
     if (plen + 1 + key_len >= out_cap) { return CFG_ERR_INVALID; }
-    memcpy(out, prefix, plen);
+    unsafe { memcpy(out, prefix, plen); }
     pos = plen;
     out[pos] = 46;
     pos = pos + 1;
   } else {
     if (key_len >= out_cap) { return CFG_ERR_INVALID; }
   }
-  memcpy(out + pos, key_start, key_len);
+  unsafe { memcpy(out + pos, key_start, key_len); }
   out[(pos + key_len)] = 0;
   return CFG_OK;
 }
@@ -365,9 +365,9 @@ function cfg_build_array_section(name: *u8, index: i32, out: *u8, out_cap: i32):
   let pos: i32 = 0;
   let nl: i32 = 0;
   if (name == 0 || out == 0) { return CFG_ERR_NULL; }
-  nl = strlen(name) as i32;
+  unsafe { nl = strlen(name) as i32; }
   if (nl + 2 >= out_cap) { return CFG_ERR_INVALID; }
-  memcpy(out, name, nl);
+  unsafe { memcpy(out, name, nl); }
   pos = nl;
   out[pos] = 46;
   pos = pos + 1;
@@ -383,20 +383,20 @@ function cfg_build_list_key(prefix: *u8, index: i32, field: *u8, out: *u8, out_c
   let pl: i32 = 0;
   let fl: i32 = 0;
   if (prefix == 0 || out == 0) { return CFG_ERR_NULL; }
-  pl = strlen(prefix) as i32;
+  unsafe { pl = strlen(prefix) as i32; }
   if (pl + 2 >= out_cap) { return CFG_ERR_INVALID; }
-  memcpy(out, prefix, pl);
+  unsafe { memcpy(out, prefix, pl); }
   pos = pl;
   out[pos] = 46;
   pos = pos + 1;
   pos = cfg_append_i32(out, pos, out_cap, index);
   if (pos < 0) { return CFG_ERR_INVALID; }
   if (field != 0 && field[0] != 0) {
-    fl = strlen(field) as i32;
+    unsafe { fl = strlen(field) as i32; }
     if (pos + 1 + fl >= out_cap) { return CFG_ERR_INVALID; }
     out[pos] = 46;
     pos = pos + 1;
-    memcpy(out + pos, field, fl);
+    unsafe { memcpy(out + pos, field, fl); }
     pos = pos + fl;
   }
   out[pos] = 0;
@@ -414,7 +414,7 @@ function cfg_parse_kv_line(store: *CfgStore, line: *u8, section_prefix: *u8, ove
   let val_len: i32 = 0;
   let val_part: *u8 = 0;
   if (store == 0 || line == 0) { return CFG_ERR_NULL; }
-  eq = strchr(line, 61);
+  unsafe { eq = strchr(line, 61); }
   if (eq == 0) { return CFG_OK; }
   key_start = line;
   while (key_start[0] != 0 && cfg_isspace(key_start[0]) != 0) { key_start = key_start + 1; }
@@ -496,12 +496,12 @@ function cfg_load_toml_buf_impl(store: *CfgStore, buf: *u8, len: i32, override: 
           let arr: i32 = cfg_parse_array_section(t, &parsed_array[0], CFG_KEY_MAX);
           if (arr < 0) { return CFG_ERR_INVALID; }
           if (arr == 2) {
-            if (array_index >= 0 && strcmp(&array_name[0], &parsed_array[0]) == 0) {
+            unsafe { if (array_index >= 0 && strcmp(&array_name[0], &parsed_array[0]) == 0) {
               array_index = array_index + 1;
             } else {
               array_index = 0;
               cfg_strncpy(&array_name[0], &parsed_array[0], CFG_KEY_MAX);
-            }
+            } }
             if (cfg_build_array_section(&array_name[0], array_index, &section[0], CFG_KEY_MAX) != CFG_OK) {
               return CFG_ERR_INVALID;
             }
@@ -548,16 +548,16 @@ function config_load_toml_file_c(handle: i64, path: *u8, override: i32): i32 {
   let sz: i32 = 0;
   let r: i32 = 0;
   if (path == 0) { return CFG_ERR_NULL; }
-  buf = calloc((CFG_FILE_MAX + 1), 1);
+  unsafe { buf = calloc((CFG_FILE_MAX + 1), 1); }
   if (buf == 0) { return CFG_ERR_IO; }
   sz = config_read_file_c(path, buf, CFG_FILE_MAX + 1);
-  if (sz < 0) { free(buf); return CFG_ERR_IO; }
+  if (sz < 0) { unsafe { free(buf); } return CFG_ERR_IO; }
   if (store != 0) {
     store.active_source_kind = CFG_SRC_TOML;
     cfg_strncpy(&store.active_source_label[0], path, CFG_SRC_LABEL_MAX);
   }
   r = cfg_load_toml_buf_impl(store, buf, sz, override);
-  free(buf);
+  unsafe { free(buf); }
   return r;
 }
 
@@ -570,20 +570,21 @@ function config_load_env_prefix_c(handle: i64, prefix: *u8, prefix_len: i32, ove
   let val_buf: u8[256] = [];
   let i: i32 = 0;
   if (store == 0 || prefix == 0 || prefix_len <= 0 || prefix_len >= 128) { return CFG_ERR_NULL; }
-  memcpy(&pfx[0], prefix, prefix_len);
+  unsafe { memcpy(&pfx[0], prefix, prefix_len); }
   pfx[prefix_len] = 0;
-  n = env_iter_count_c();
+  unsafe { n = env_iter_count_c(); }
   while (i < n) {
-    let r: i32 = env_iter_at_c(i, &key_buf[0], 256, &val_buf[0], 256);
+    let r: i32 = 0;
+    unsafe { r = env_iter_at_c(i, &key_buf[0], 256, &val_buf[0], 256); }
     if (r == 1) {
-      if (strncmp(&key_buf[0], &pfx[0], prefix_len) == 0) {
+      unsafe { if (strncmp(&key_buf[0], &pfx[0], prefix_len) == 0) {
         let sub: *u8 = &key_buf[prefix_len];
         if (sub[0] != 0) {
           if (cfg_set_raw_ex(store, sub, &val_buf[0], override, CFG_SRC_ENV, &key_buf[0]) == CFG_OK) {
             loaded = loaded + 1;
           }
         }
-      }
+      } }
     }
     i = i + 1;
   }
@@ -591,14 +592,15 @@ function config_load_env_prefix_c(handle: i64, prefix: *u8, prefix_len: i32, ove
 }
 
 function config_create_c(): i64 {
-  let s: *u8 = calloc(1, CFG_STORE_SIZE);
+  let s: *u8 = 0;
+  unsafe { s = calloc(1, CFG_STORE_SIZE); }
   if (s == 0) { return 0; }
   return s as i64;
 }
 
 function config_free_c(handle: i64): void {
   let s: *CfgStore = cfg_from_handle(handle);
-  if (s != 0) { free(s as *u8); }
+  if (s != 0) { unsafe { free(s as *u8); } }
 }
 
 function config_clear_c(handle: i64): void {
@@ -627,11 +629,11 @@ function config_set_string_c(handle: i64, key: *u8, key_len: i32, val: *u8, val_
   let v: u8[256] = [];
   if (store == 0 || key == 0 || key_len <= 0 || val == 0 || val_len < 0) { return CFG_ERR_NULL; }
   if (key_len >= CFG_KEY_MAX || val_len >= CFG_VAL_MAX) { return CFG_ERR_INVALID; }
-  memcpy(&k[0], key, key_len);
+  unsafe { memcpy(&k[0], key, key_len); }
   k[key_len] = 0;
   if (val_len == 0) { v[0] = 0; }
   else {
-    memcpy(&v[0], val, val_len);
+    unsafe { memcpy(&v[0], val, val_len); }
     v[val_len] = 0;
   }
   return cfg_set_raw_ex(store, &k[0], &v[0], 1, CFG_SRC_SET, &CFG_LIT_CLI[0]);
@@ -644,17 +646,17 @@ function config_get_string_c(handle: i64, key: *u8, key_len: i32, out: *u8, out_
   let len: usize = 0;
   if (store == 0 || key == 0 || key_len <= 0 || out == 0 || out_cap <= 0) { return CFG_ERR_NULL; }
   if (key_len >= CFG_KEY_MAX) { return CFG_ERR_INVALID; }
-  memcpy(&k[0], key, key_len);
+  unsafe { memcpy(&k[0], key, key_len); }
   k[key_len] = 0;
   idx = cfg_find_index(store, &k[0]);
   if (idx < 0) { return CFG_ERR_NOT_FOUND; }
-  len = strlen(&store.entries[idx].val[0]);
+  unsafe { len = strlen(&store.entries[idx].val[0]); }
   if (len as i32 >= out_cap) {
-    memcpy(out, &store.entries[idx].val[0], (out_cap - 1) as usize);
+    unsafe { memcpy(out, &store.entries[idx].val[0], (out_cap - 1) as usize); }
     out[(out_cap - 1)] = 0;
     return len as i32;
   }
-  memcpy(out, &store.entries[idx].val[0], len + 1);
+  unsafe { memcpy(out, &store.entries[idx].val[0], len + 1); }
   return len as i32;
 }
 
@@ -691,7 +693,7 @@ function config_get_i32_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32 {
   let k: u8[128] = [];
   if (store == 0 || key == 0 || key_len <= 0 || out == 0) { return CFG_ERR_NULL; }
   if (key_len >= CFG_KEY_MAX) { return CFG_ERR_INVALID; }
-  memcpy(&k[0], key, key_len);
+  unsafe { memcpy(&k[0], key, key_len); }
   k[key_len] = 0;
   idx = cfg_find_index(store, &k[0]);
   if (idx < 0) { return CFG_ERR_NOT_FOUND; }
@@ -705,21 +707,21 @@ function config_get_bool_c(handle: i64, key: *u8, key_len: i32, out: *i32): i32 
   let v: *u8 = 0;
   if (store == 0 || key == 0 || key_len <= 0 || out == 0) { return CFG_ERR_NULL; }
   if (key_len >= CFG_KEY_MAX) { return CFG_ERR_INVALID; }
-  memcpy(&k[0], key, key_len);
+  unsafe { memcpy(&k[0], key, key_len); }
   k[key_len] = 0;
   idx = cfg_find_index(store, &k[0]);
   if (idx < 0) { return CFG_ERR_NOT_FOUND; }
   v = &store.entries[idx].val[0];
-  if (strcmp(v, &CFG_LIT_TRUE[0]) == 0 || strcmp(v, &CFG_LIT_ONE[0]) == 0 ||
+  unsafe { if (strcmp(v, &CFG_LIT_TRUE[0]) == 0 || strcmp(v, &CFG_LIT_ONE[0]) == 0 ||
       strcmp(v, &CFG_LIT_YES[0]) == 0 || strcmp(v, &CFG_LIT_ON[0]) == 0) {
     out[0] = 1;
     return CFG_OK;
-  }
-  if (strcmp(v, &CFG_LIT_FALSE[0]) == 0 || strcmp(v, &CFG_LIT_ZERO[0]) == 0 ||
+  } }
+  unsafe { if (strcmp(v, &CFG_LIT_FALSE[0]) == 0 || strcmp(v, &CFG_LIT_ZERO[0]) == 0 ||
       strcmp(v, &CFG_LIT_NO[0]) == 0 || strcmp(v, &CFG_LIT_OFF[0]) == 0) {
     out[0] = 0;
     return CFG_OK;
-  }
+  } }
   return CFG_ERR_INVALID;
 }
 
@@ -730,7 +732,7 @@ function config_get_source_c(handle: i64, key: *u8, key_len: i32, out_kind: *i32
   let k: u8[128] = [];
   if (store == 0 || key == 0 || key_len <= 0 || out_kind == 0) { return CFG_ERR_NULL; }
   if (key_len >= CFG_KEY_MAX) { return CFG_ERR_INVALID; }
-  memcpy(&k[0], key, key_len);
+  unsafe { memcpy(&k[0], key, key_len); }
   k[key_len] = 0;
   idx = cfg_find_index(store, &k[0]);
   if (idx < 0) { return CFG_ERR_NOT_FOUND; }
@@ -785,7 +787,8 @@ function cfg_yaml_build_key(stack: *YamlFrame, depth: i32, local: *u8, out: *u8,
   let i: i32 = 0;
   if (local == 0 || out == 0 || out_cap <= 0) { return CFG_ERR_NULL; }
   while (i < depth) {
-    let sl: usize = strlen(&stack[i].name[0]);
+    let sl: usize = 0;
+    unsafe { sl = strlen(&stack[i].name[0]); }
     if (sl == 0) { return CFG_ERR_INVALID; }
     if (pos > 0) {
       if (pos + 1 >= out_cap) { return CFG_ERR_INVALID; }
@@ -793,7 +796,7 @@ function cfg_yaml_build_key(stack: *YamlFrame, depth: i32, local: *u8, out: *u8,
       pos = pos + 1;
     }
     if (pos + sl as i32 >= out_cap) { return CFG_ERR_INVALID; }
-    memcpy(out + pos, &stack[i].name[0], sl);
+    unsafe { memcpy(out + pos, &stack[i].name[0], sl); }
     pos = pos + sl as i32;
     i = i + 1;
   }
@@ -803,9 +806,10 @@ function cfg_yaml_build_key(stack: *YamlFrame, depth: i32, local: *u8, out: *u8,
     out[pos] = 46;
     pos = pos + 1;
   }
-  let ll: usize = strlen(local);
+  let ll: usize = 0;
+  unsafe { ll = strlen(local); }
   if (pos + ll as i32 >= out_cap) { return CFG_ERR_INVALID; }
-  memcpy(out + pos, local, ll);
+  unsafe { memcpy(out + pos, local, ll); }
   pos = pos + ll as i32;
   out[pos] = 0;
   return CFG_OK;
@@ -823,7 +827,8 @@ function cfg_yaml_frame_key(stack: *YamlFrame, depth: i32, out: *u8, out_cap: i3
   let i: i32 = 0;
   if (stack == 0 || out == 0 || out_cap <= 0 || depth <= 0) { return CFG_ERR_NULL; }
   while (i < depth) {
-    let sl: usize = strlen(&stack[i].name[0]);
+    let sl: usize = 0;
+    unsafe { sl = strlen(&stack[i].name[0]); }
     if (sl == 0) { return CFG_ERR_INVALID; }
     if (pos > 0) {
       if (pos + 1 >= out_cap) { return CFG_ERR_INVALID; }
@@ -831,7 +836,7 @@ function cfg_yaml_frame_key(stack: *YamlFrame, depth: i32, out: *u8, out_cap: i3
       pos = pos + 1;
     }
     if (pos + sl as i32 >= out_cap) { return CFG_ERR_INVALID; }
-    memcpy(out + pos, &stack[i].name[0], sl);
+    unsafe { memcpy(out + pos, &stack[i].name[0], sl); }
     pos = pos + sl as i32;
     i = i + 1;
   }
@@ -885,13 +890,13 @@ function cfg_yaml_parse_list_field(store: *CfgStore, ctx: *YamlParseCtx, line: *
     content = t + 1;
     while (content[0] == 32) { content = content + 1; }
   }
-  colon = strchr(content, 58);
+  unsafe { colon = strchr(content, 58); }
   if (colon == 0) { return CFG_ERR_INVALID; }
   key_start = content;
   key_len = (colon - key_start) as i32;
   while (key_len > 0 && cfg_isspace(key_start[(key_len - 1)]) != 0) { key_len = key_len - 1; }
   if (key_len <= 0 || key_len >= CFG_KEY_MAX) { return CFG_ERR_INVALID; }
-  memcpy(&key_local[0], key_start, key_len);
+  unsafe { memcpy(&key_local[0], key_start, key_len); }
   key_local[key_len] = 0;
   val_part = cfg_trim(colon + 1, &val_len);
   if (val_len <= 0) { return CFG_ERR_INVALID; }
@@ -938,23 +943,23 @@ function cfg_yaml_parse_line(store: *CfgStore, line: *u8, ctx: *YamlParseCtx, ov
   if (tl > 0 && t[0] == 45) {
     let after: *u8 = t + 1;
     while (after[0] == 32) { after = after + 1; }
-    if (strchr(after, 58) != 0) {
+    unsafe { if (strchr(after, 58) != 0) {
       return cfg_yaml_parse_list_field(store, ctx, line, indent, 1, override);
-    }
+    } }
     return cfg_yaml_parse_list_scalar(store, ctx, line, override);
   }
-  if (ctx.list_prefix[0] != 0 && indent > ctx.list_indent && strchr(t, 58) != 0) {
+  unsafe { if (ctx.list_prefix[0] != 0 && indent > ctx.list_indent && strchr(t, 58) != 0) {
     return cfg_yaml_parse_list_field(store, ctx, line, indent, 0, override);
-  }
+  } }
   if (ctx.list_prefix[0] != 0 && indent <= ctx.list_indent) { cfg_yaml_list_reset(ctx); }
   cfg_yaml_pop_to(&ctx.stack[0], &ctx.depth, indent);
-  colon = strchr(t, 58);
+  unsafe { colon = strchr(t, 58); }
   if (colon == 0) { return CFG_ERR_INVALID; }
   key_start = t;
   key_len = (colon - key_start) as i32;
   while (key_len > 0 && cfg_isspace(key_start[(key_len - 1)]) != 0) { key_len = key_len - 1; }
   if (key_len <= 0 || key_len >= CFG_KEY_MAX) { return CFG_ERR_INVALID; }
-  memcpy(&key_local[0], key_start, key_len);
+  unsafe { memcpy(&key_local[0], key_start, key_len); }
   key_local[key_len] = 0;
   ki = 0;
   while (ki < key_len) {
@@ -1028,16 +1033,16 @@ function config_load_yaml_file_c(handle: i64, path: *u8, override: i32): i32 {
   let sz: i32 = 0;
   let r: i32 = 0;
   if (path == 0) { return CFG_ERR_NULL; }
-  buf = calloc((CFG_FILE_MAX + 1), 1);
+  unsafe { buf = calloc((CFG_FILE_MAX + 1), 1); }
   if (buf == 0) { return CFG_ERR_IO; }
   sz = config_read_file_c(path, buf, CFG_FILE_MAX + 1);
-  if (sz < 0) { free(buf); return CFG_ERR_IO; }
+  if (sz < 0) { unsafe { free(buf); } return CFG_ERR_IO; }
   if (store != 0) {
     store.active_source_kind = CFG_SRC_YAML;
     cfg_strncpy(&store.active_source_label[0], path, CFG_SRC_LABEL_MAX);
   }
   r = cfg_load_yaml_buf_impl(store, buf, sz, override);
-  free(buf);
+  unsafe { free(buf); }
   return r;
 }
 
@@ -1056,17 +1061,17 @@ function config_yaml_smoke_c(): i32 {
   if (config_load_yaml_buf_c(cfg, &yaml_main[0], 71, 1) != CFG_OK) { return 2; }
   if (config_get_i32_c(cfg, &CFG_LIT_PORT[0], 4, &port) != CFG_OK || port != 8080) { return 3; }
   if (config_get_string_c(cfg, &CFG_LIT_DB_URL[0], 6, &url[0], 64) <= 0) { return 4; }
-  if (strcmp(&url[0], &CFG_LIT_SQLITE_MEM[0]) != 0) { return 5; }
+  unsafe { if (strcmp(&url[0], &CFG_LIT_SQLITE_MEM[0]) != 0) { return 5; } }
   if (config_get_bool_c(cfg, &CFG_LIT_DEBUG[0], 5, &dbg) != CFG_OK || dbg != 0) { return 6; }
   if (config_load_yaml_buf_c(cfg, &yaml_arr[0], 21, 1) != CFG_OK) { return 7; }
   if (config_get_i32_c(cfg, &CFG_LIT_ITEMS_0[0], 7, &port) != CFG_OK || port != 10) { return 8; }
   if (config_get_i32_c(cfg, &CFG_LIT_ITEMS_1[0], 7, &port) != CFG_OK || port != 20) { return 9; }
   if (config_load_yaml_buf_c(cfg, &yaml_obj[0], 67, 1) != CFG_OK) { return 10; }
   if (config_get_string_c(cfg, &CFG_LIT_SERVERS_0_HOST[0], 14, &host[0], 64) <= 0) { return 11; }
-  if (strcmp(&host[0], &CFG_LIT_ALPHA[0]) != 0) { return 12; }
+  unsafe { if (strcmp(&host[0], &CFG_LIT_ALPHA[0]) != 0) { return 12; } }
   if (config_get_i32_c(cfg, &CFG_LIT_SERVERS_0_PORT[0], 14, &port) != CFG_OK || port != 80) { return 13; }
   if (config_get_string_c(cfg, &CFG_LIT_SERVERS_1_HOST[0], 14, &host[0], 64) <= 0) { return 14; }
-  if (strcmp(&host[0], &CFG_LIT_BETA[0]) != 0) { return 15; }
+  unsafe { if (strcmp(&host[0], &CFG_LIT_BETA[0]) != 0) { return 15; } }
   if (config_get_i32_c(cfg, &CFG_LIT_SERVERS_1_PORT[0], 14, &port) != CFG_OK || port != 443) { return 16; }
   config_free_c(cfg);
   return 0;
@@ -1083,10 +1088,10 @@ function config_array_smoke_c(): i32 {
   if (cfg == 0) { return 1; }
   if (config_load_toml_buf_c(cfg, &toml[0], 75, 1) != CFG_OK) { return 2; }
   if (config_get_string_c(cfg, &CFG_LIT_SERVERS_0_HOST[0], 14, &h0[0], 64) <= 0) { return 3; }
-  if (strcmp(&h0[0], &CFG_LIT_ALPHA[0]) != 0) { return 4; }
+  unsafe { if (strcmp(&h0[0], &CFG_LIT_ALPHA[0]) != 0) { return 4; } }
   if (config_get_i32_c(cfg, &CFG_LIT_SERVERS_0_PORT[0], 14, &p0) != CFG_OK || p0 != 80) { return 5; }
   if (config_get_string_c(cfg, &CFG_LIT_SERVERS_1_HOST[0], 14, &h1[0], 64) <= 0) { return 6; }
-  if (strcmp(&h1[0], &CFG_LIT_BETA[0]) != 0) { return 7; }
+  unsafe { if (strcmp(&h1[0], &CFG_LIT_BETA[0]) != 0) { return 7; } }
   if (config_get_i32_c(cfg, &CFG_LIT_SERVERS_1_PORT[0], 14, &p1) != CFG_OK || p1 != 443) { return 8; }
   config_free_c(cfg);
   return 0;
@@ -1102,9 +1107,9 @@ function config_nested_smoke_c(): i32 {
   if (cfg == 0) { return 1; }
   if (config_load_toml_buf_c(cfg, &toml[0], 74, 1) != CFG_OK) { return 2; }
   if (config_get_string_c(cfg, &CFG_LIT_SERVER_HOST[0], 11, &host[0], 64) <= 0) { return 3; }
-  if (strcmp(&host[0], &CFG_LIT_LOCALHOST[0]) != 0) { return 4; }
+  unsafe { if (strcmp(&host[0], &CFG_LIT_LOCALHOST[0]) != 0) { return 4; } }
   if (config_get_string_c(cfg, &CFG_LIT_SERVER_DB_URL[0], 13, &url[0], 64) <= 0) { return 5; }
-  if (strcmp(&url[0], &CFG_LIT_SQLITE_MEM[0]) != 0) { return 6; }
+  unsafe { if (strcmp(&url[0], &CFG_LIT_SQLITE_MEM[0]) != 0) { return 6; } }
   if (config_get_i32_c(cfg, &CFG_LIT_SERVER_DB_PORT[0], 14, &port) != CFG_OK || port != 5432) { return 7; }
   config_free_c(cfg);
   return 0;
@@ -1130,13 +1135,13 @@ function config_smoke_c(): i32 {
   if (config_load_toml_buf_c(base, &toml[0], 78, 1) != CFG_OK) { return 2; }
   if (config_get_i32_c(base, &CFG_LIT_PORT[0], 4, &port) != CFG_OK || port != 8080) { return 3; }
   if (config_get_string_c(base, &CFG_LIT_DB_URL[0], 6, &host[0], 64) <= 0) { return 4; }
-  if (strcmp(&host[0], &CFG_LIT_SQLITE_MEM[0]) != 0) { return 5; }
+  unsafe { if (strcmp(&host[0], &CFG_LIT_SQLITE_MEM[0]) != 0) { return 5; } }
   if (config_smoke_setenv_c(&env_key[0], &env_val[0]) != 0) { return 6; }
   if (config_load_env_prefix_c(base, &env_prefix[0], 9, 1) < 0) { return 6; }
   if (config_get_bool_c(base, &CFG_LIT_DEBUG[0], 5, &dbg) != CFG_OK || dbg != 1) { return 7; }
   if (config_get_source_c(base, &CFG_LIT_DEBUG[0], 5, &kind, &label[0], 64) != CFG_OK) { return 71; }
   if (kind != CFG_SRC_ENV) { return 72; }
-  if (strcmp(&label[0], &CFG_LIT_SHUX_CFG_DEBUG[0]) != 0) { return 73; }
+  unsafe { if (strcmp(&label[0], &CFG_LIT_SHUX_CFG_DEBUG[0]) != 0) { return 73; } }
   if (config_get_source_c(base, &CFG_LIT_PORT[0], 4, &kind, &label[0], 64) != CFG_OK) { return 74; }
   if (kind != CFG_SRC_TOML) { return 75; }
   if (config_set_string_c(overlay, &CFG_LIT_PORT[0], 4, &CFG_LIT_N9090[0], 4) != CFG_OK) { return 8; }
@@ -1152,4 +1157,3 @@ function config_smoke_c(): i32 {
   if (ar != 0) { return 200 + ar; }
   return 0;
 }
-

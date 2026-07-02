@@ -102,6 +102,10 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
   if (tl_ix < 0)
     return;
   ic = is_const != 0 ? 1 : 0;
+  if (getenv("SHUX_PARSE_TOPLEVEL_LET")) {
+    fprintf(stderr, "note: parse top-level let debug: idx=%d const=%d name=%.*s type_ref=%d init_ref=%d\n",
+            (int)tl_ix, (int)ic, (int)name_len, (const char *)name_buf, (int)type_ref, (int)expr_res.expr_ref);
+  }
   pipeline_module_top_level_let_set(module, tl_ix, name_buf, name_len, type_ref, expr_res.expr_ref, ic);
   parser_lex_from_next_into_glue(&out->next_lex, r);
   out->ok = 1;

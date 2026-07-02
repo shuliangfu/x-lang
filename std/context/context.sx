@@ -78,8 +78,8 @@ function ctx_glue_background_c(): i64 {
   let bg: *CtxNode = 0 as *CtxNode;
   if (g_ctx_background_init == 0) {
     bg = &g_ctx_background_bytes[0] as *CtxNode;
-    memset(&g_ctx_background_bytes[0], 0, CTX_NODE_MEM_SIZE);
-    atomic_store_i32_c(&bg.cancelled, 0);
+    unsafe { memset(&g_ctx_background_bytes[0], 0, CTX_NODE_MEM_SIZE); }
+    unsafe { atomic_store_i32_c(&bg.cancelled, 0); }
     bg.deadline_ns = 0;
     bg.parent = 0;
     g_ctx_background_init = 1;
@@ -100,10 +100,10 @@ function ctx_glue_alloc_c(parent_handle: i64, deadline_ns: i64): i64 {
   let parent: *CtxNode = ctx_ptr(parent_handle);
   let child: *CtxNode = 0;
   if (parent == 0) { return 0; }
-  child = calloc(1, CTX_NODE_MEM_SIZE) as *CtxNode;
+  unsafe { child = calloc(1, CTX_NODE_MEM_SIZE) as *CtxNode; }
   if (child == 0) { return 0; }
   child.parent = parent_handle;
-  atomic_store_i32_c(&child.cancelled, 0);
+  unsafe { atomic_store_i32_c(&child.cancelled, 0); }
   if (deadline_ns > 0) {
     child.deadline_ns = deadline_ns;
   } else {
@@ -117,7 +117,7 @@ function ctx_glue_free_c(handle: i64): void {
   let n: *CtxNode = ctx_ptr(handle);
   if (n == 0) { return; }
   if (ctx_glue_is_background_c(handle) != 0) { return; }
-  free(n as *u8);
+  unsafe { free(n as *u8); }
 }
 
 /** 读取父句柄；无父 0。 */
@@ -138,7 +138,7 @@ function ctx_glue_deadline_c(handle: i64): i64 {
 function ctx_glue_cancelled_load_c(handle: i64): i32 {
   let n: *CtxNode = ctx_ptr(handle);
   if (n == 0) { return 1; }
-  return atomic_load_i32_c(&n.cancelled);
+  unsafe { return atomic_load_i32_c(&n.cancelled); }
 }
 
 /** 原子写 cancelled。 */
@@ -146,9 +146,9 @@ function ctx_glue_cancelled_store_c(handle: i64, v: i32): void {
   let n: *CtxNode = ctx_ptr(handle);
   if (n == 0) { return; }
   if (v != 0) {
-    atomic_store_i32_c(&n.cancelled, 1);
+    unsafe { atomic_store_i32_c(&n.cancelled, 1); }
   } else {
-    atomic_store_i32_c(&n.cancelled, 0);
+    unsafe { atomic_store_i32_c(&n.cancelled, 0); }
   }
 }
 
@@ -249,7 +249,7 @@ function ctx_with_timeout_c(parent_handle: i64, timeout_ns: i64): i64 {
   let now: i64 = 0;
   let dl: i64 = 0;
   if (timeout_ns <= 0) { return ctx_with_deadline_c(parent_handle, 0); }
-  now = time_now_monotonic_ns_c();
+  unsafe { now = time_now_monotonic_ns_c(); }
   if (now <= 0) { return 0; }
   dl = now + timeout_ns;
   if (dl < now) { return 0; }
@@ -282,7 +282,7 @@ function ctx_remaining_ns_c(handle: i64): i64 {
   if (ctx_chain_cancelled(handle) != 0) { return 0; }
   dl = ctx_effective_deadline(handle);
   if (dl <= 0) { return 0; }
-  now = time_now_monotonic_ns_c();
+  unsafe { now = time_now_monotonic_ns_c(); }
   if (now <= 0) { return 0; }
   rem = dl - now;
   if (rem > 0) { return rem; }

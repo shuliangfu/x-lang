@@ -1,0 +1,61 @@
+note: pipeline debug: driver_first_parse num_funcs=21 src_len=10986
+ --> ../std/csv/csv.sx
+note: pipeline debug: pipeline thread start len=10986
+ --> ../std/csv/csv.sx
+note: pipeline debug: after_entry_parse num_funcs=21
+ --> ../std/csv/csv.sx
+shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=21
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=11 tail=502 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=12 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=12 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=12 si=0 so_kind=2 so_idx=0 expr=594 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=12 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=12 tail=594 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=13 tail=996 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=14 tail=1398 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=16 tail=1461 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=21 tail=1688 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=22 tail=1968 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=23 tail=2342 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=24 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=24 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=24 si=0 so_kind=2 so_idx=0 expr=2432 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=24 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=24 tail=2432 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=25 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=25 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=25 si=0 so_kind=2 so_idx=0 expr=2474 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=25 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=25 tail=2474 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=26 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=26 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=26 si=0 so_kind=2 so_idx=0 expr=2532 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=26 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=26 tail=2532 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=27 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=27 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=27 si=0 so_kind=2 so_idx=0 expr=2574 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=27 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=27 tail=2574 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=28 fin=0 nso=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=28 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=28 si=0 so_kind=2 so_idx=0 expr=2584 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=28 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=28 tail=2584 kind=41
+shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=32 fin=0 nso=4
+shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=32 exprs=1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=32 si=0 so_kind=1 so_idx=0 expr=0 expr_kind=-1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=32 si=1 so_kind=5 so_idx=0 expr=0 expr_kind=-1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=32 si=2 so_kind=3 so_idx=0 expr=0 expr_kind=-1
+shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=32 si=3 so_kind=2 so_idx=0 expr=2718 expr_kind=28
+shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=32 kind=2
+shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=32 tail=2718 kind=28
+typeck error[SXT001]: .sx type check failed in function #13 csv_field_needs_quote (implicit tail return)
+ --> ../std/csv/csv.sx
+typeck error: return value must use explicit return statement (e.g. return 0;)
+ --> ../std/csv/csv.sx
+shux: [SHUX_DEBUG_PIPE] typeck library rc=-6 ctx=0xcf4000000 ndep=0
+note: pipeline debug: pipeline thread done ec=-6
+ --> ../std/csv/csv.sx
+pipeline error: .sx pipeline failed for '../std/csv/csv.sx' (stage=parse_into/typeck_sx_ast/codegen_sx_ast)
+ --> ../std/csv/csv.sx

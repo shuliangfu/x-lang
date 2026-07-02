@@ -94,8 +94,8 @@ function trace_gen_trace_id(out16: *u8): void {
   let t: i64 = 0;
   let i: i32 = 0;
   if (out16 == 0) { return; }
-  if (random_fill_bytes_c(out16, 16) == 16) { return; }
-  t = time_now_monotonic_ns_c();
+  unsafe { if (random_fill_bytes_c(out16, 16) == 16) { return; } }
+  unsafe { t = time_now_monotonic_ns_c(); }
   i = 0;
   while (i < 8) {
     out16[i] = ((t >> (i * 8)) & 255) as u8;
@@ -181,7 +181,8 @@ function append_i64_dec(out: *u8, out_cap: i32, pos: *i32, v: i64): i32 {
 
 /** 创建追踪会话；失败 0。 */
 function trace_create_c(): i64 {
-  let t: *TraceState = calloc(1, TRACE_STATE_SIZE) as *TraceState;
+  let t: *TraceState = 0;
+  unsafe { t = calloc(1, TRACE_STATE_SIZE) as *TraceState; }
   if (t == 0) { return 0; }
   trace_gen_trace_id(&t.trace_id[0]);
   t.next_span_id = 1;
@@ -191,14 +192,14 @@ function trace_create_c(): i64 {
 /** 释放追踪会话。 */
 function trace_free_c(handle: i64): void {
   let t: *TraceState = trace_from_handle(handle);
-  if (t != 0) { free(t as *u8); }
+  if (t != 0) { unsafe { free(t as *u8); } }
 }
 
 /** 读取 trace_id 16 字节。 */
 function trace_trace_id_c(handle: i64, out16: *u8): void {
   let t: *TraceState = trace_from_handle(handle);
   if (t == 0 || out16 == 0) { return; }
-  memcpy(out16, &t.trace_id[0], 16);
+  unsafe { memcpy(out16, &t.trace_id[0], 16); }
 }
 
 /** 当前栈顶 span_id；无则 0。 */
@@ -228,9 +229,9 @@ function trace_start_span_c(handle: i64, parent_id: i64, name: *u8, name_len: i3
   t.spans[i].parent_id = parent_id as u64;
   copy_len = name_len;
   if (copy_len >= TRACE_MAX_NAME) { copy_len = TRACE_MAX_NAME - 1; }
-  memcpy(&t.spans[i].name[0], name, copy_len);
+  unsafe { memcpy(&t.spans[i].name[0], name, copy_len); }
   t.spans[i].name[copy_len] = 0;
-  t.spans[i].start_ns = time_now_monotonic_ns_c();
+  unsafe { t.spans[i].start_ns = time_now_monotonic_ns_c(); }
   t.spans[i].end_ns = 0;
   t.spans[i].active = 1;
   t.spans[i].used = 1;
@@ -250,7 +251,7 @@ function trace_end_span_c(handle: i64, span_id: i64): i32 {
   }
   idx = trace_find_span(t, span_id as u64);
   if (idx < 0) { return TRACE_ERR_NOT_FOUND; }
-  t.spans[idx].end_ns = time_now_monotonic_ns_c();
+  unsafe { t.spans[idx].end_ns = time_now_monotonic_ns_c(); }
   t.spans[idx].active = 0;
   t.stack_depth = t.stack_depth - 1;
   return TRACE_OK;

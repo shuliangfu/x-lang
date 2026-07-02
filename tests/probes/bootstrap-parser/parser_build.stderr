@@ -1,0 +1,2354 @@
+note: parse skip at byte 70872 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 67393 (num_funcs=259, name=parse_block_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=67706 body_pos=67810 out_pos=97596 next_tok=1 next_ident_len=0
+note: parse skip at byte 159166 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 150405 (num_funcs=346, name=parse_one_function_impl, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=150881 body_pos=150954 out_pos=206329 next_tok=1 next_ident_len=0
+note: pipeline debug: driver post-parse_into_buf num_funcs=511 n_imports=4 pr_ok=0 pr_main_idx=510 src_len=357430
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=10681 body_pos=10690 out_pos=10739 next_tok=24 next_ident_len=0
+note: skip function debug: start_pos=10870 body_pos=10905 out_pos=10950 next_tok=24 next_ident_len=0
+note: skip function debug: start_pos=11074 body_pos=11142 out_pos=11207 next_tok=24 next_ident_len=0
+note: skip function debug: start_pos=11323 body_pos=11359 out_pos=11399 next_tok=1 next_ident_len=0
+note: pipeline debug: collect parse dep=std.heap pr_ok=0 n_imp=2
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=std.heap.libc pr_ok=0 n_imp=1
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=core.mem pr_ok=0 n_imp=0
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=std.heap.ops pr_ok=0 n_imp=1
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=ast pr_ok=0 n_imp=0
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=token pr_ok=0 n_imp=0
+ --> src/parser/parser.sx
+note: parse skip at byte 61216 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=lexer pr_ok=-2 n_imp=1
+ --> src/parser/parser.sx
+note: pipeline debug: n_deps=7
+ --> src/parser/parser.sx
+note: pipeline debug: dep[0]=std.heap
+ --> src/parser/parser.sx
+note: pipeline debug: dep[1]=std.heap.libc
+ --> src/parser/parser.sx
+note: pipeline debug: dep[2]=core.mem
+ --> src/parser/parser.sx
+note: pipeline debug: dep[3]=std.heap.ops
+ --> src/parser/parser.sx
+note: pipeline debug: dep[4]=ast
+ --> src/parser/parser.sx
+note: pipeline debug: dep[5]=token
+ --> src/parser/parser.sx
+note: pipeline debug: dep[6]=lexer
+ --> src/parser/parser.sx
+note: parse skip at byte 11542 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2703 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2566 (num_funcs=1, name=advance_one, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2702 body_pos=2730 out_pos=2891 next_tok=1 next_ident_len=0
+note: parse skip at byte 2989 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2891 (num_funcs=1, name=is_alpha, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2988 body_pos=3003 out_pos=3110 next_tok=1 next_ident_len=0
+note: parse skip at byte 3194 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3110 (num_funcs=1, name=is_hex_digit, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3193 body_pos=3208 out_pos=3356 next_tok=1 next_ident_len=0
+note: parse skip at byte 3427 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3356 (num_funcs=1, name=hex_digit_value, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3426 body_pos=3440 out_pos=3627 next_tok=1 next_ident_len=0
+note: parse skip at byte 3685 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3627 (num_funcs=1, name=is_digit, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3684 body_pos=3699 out_pos=3730 next_tok=1 next_ident_len=0
+note: parse skip at byte 3841 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3730 (num_funcs=1, name=is_alnum_underscore, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3840 body_pos=3855 out_pos=3894 next_tok=1 next_ident_len=0
+note: parse skip at byte 4032 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3894 (num_funcs=1, name=match_keyword, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4031 body_pos=4090 out_pos=4221 next_tok=1 next_ident_len=0
+note: parse skip at byte 4383 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4221 (num_funcs=1, name=match_keyword_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4382 body_pos=4455 out_pos=4644 next_tok=1 next_ident_len=0
+note: parse skip at byte 4880 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4644 (num_funcs=1, name=try_keyword, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4879 body_pos=4949 out_pos=19466 next_tok=1 next_ident_len=0
+note: parse skip at byte 19591 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 19466 (num_funcs=1, name=try_keyword_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=19590 body_pos=19674 out_pos=26419 next_tok=1 next_ident_len=0
+note: parse skip at byte 26659 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 26419 (num_funcs=1, name=skip_repr_c_attr_if_present, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=26658 body_pos=26691 out_pos=27163 next_tok=1 next_ident_len=0
+note: parse skip at byte 27428 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 27163 (num_funcs=1, name=skip_cfg_attr_if_present, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=27427 body_pos=27460 out_pos=28129 next_tok=1 next_ident_len=0
+note: parse skip at byte 28384 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 28129 (num_funcs=1, name=lexer_try_cfg_attr_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=28383 body_pos=28431 out_pos=29778 next_tok=1 next_ident_len=0
+note: parse skip at byte 30007 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 29778 (num_funcs=1, name=lexer_try_repr_c_attr_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=30006 body_pos=30054 out_pos=30861 next_tok=1 next_ident_len=0
+note: parse skip at byte 31014 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 30861 (num_funcs=1, name=lexer_try_repr_compatible_attr_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=31013 body_pos=31061 out_pos=32178 next_tok=1 next_ident_len=0
+note: parse skip at byte 32294 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 32178 (num_funcs=1, name=lexer_try_soa_attr_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=32293 body_pos=32341 out_pos=33112 next_tok=1 next_ident_len=0
+note: parse skip at byte 33234 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 33112 (num_funcs=1, name=lexer_try_alloc_attr_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=33233 body_pos=33281 out_pos=34162 next_tok=1 next_ident_len=0
+note: parse skip at byte 34402 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 34162 (num_funcs=1, name=skip_whitespace_and_comments, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=34401 body_pos=34434 out_pos=35589 next_tok=1 next_ident_len=0
+note: parse skip at byte 35775 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 35589 (num_funcs=1, name=skip_whitespace_and_comments_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=35774 body_pos=35816 out_pos=35931 next_tok=1 next_ident_len=0
+note: parse skip at byte 36460 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 35931 (num_funcs=1, name=lexer_next, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=36459 body_pos=36498 out_pos=37945 next_tok=1 next_ident_len=0
+note: parse skip at byte 38157 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 37945 (num_funcs=1, name=lexer_apply_optional_exponent, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=38156 body_pos=38225 out_pos=39165 next_tok=1 next_ident_len=0
+note: parse skip at byte 39337 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 39165 (num_funcs=1, name=lexer_next_body_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=39336 body_pos=39385 out_pos=53884 next_tok=1 next_ident_len=0
+note: parse skip at byte 54041 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 53884 (num_funcs=1, name=write_next_lex_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=54040 body_pos=54077 out_pos=54199 next_tok=1 next_ident_len=0
+note: parse skip at byte 54322 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 54199 (num_funcs=1, name=write_tok_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=54321 body_pos=54358 out_pos=54561 next_tok=1 next_ident_len=0
+note: parse skip at byte 54723 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 54561 (num_funcs=1, name=lexer_next_impl, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=54722 body_pos=54773 out_pos=55361 next_tok=1 next_ident_len=0
+note: parse skip at byte 55502 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 55361 (num_funcs=1, name=lexer_next_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=55501 body_pos=55552 out_pos=55589 next_tok=1 next_ident_len=0
+note: parse skip at byte 55777 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 55589 (num_funcs=1, name=lexer_next_buf_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=55776 body_pos=55836 out_pos=55936 next_tok=1 next_ident_len=0
+note: parse skip at byte 56253 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 55936 (num_funcs=1, name=lexer_next_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=56252 body_pos=56300 out_pos=56397 next_tok=1 next_ident_len=0
+note: parse skip at byte 56550 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 56397 (num_funcs=1, name=lexer_next_body, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=56549 body_pos=56586 out_pos=67989 next_tok=1 next_ident_len=0
+note: parse skip at byte 68409 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 67989 (num_funcs=1, name=main, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=68159 body_pos=68168 out_pos=69132 next_tok=0 next_ident_len=0
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=1
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: dep prerun call path=token main=-1
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=1
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+shux: [SHUX_DEBUG_PIPE] realign ndep 1 -> entry imports 0
+note: pipeline debug: dep prerun call path=token main=-1
+ --> src/parser/parser.sx
+note: parse skip at byte 44610 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 31082 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 30995 (num_funcs=4, name=ref_is_null, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=31081 body_pos=31099 out_pos=31120 next_tok=1 next_ident_len=0
+note: parse skip at byte 31724 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 31282 (num_funcs=5, name=expr_layout_prime_call_resolved, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=31483 body_pos=31493 out_pos=31794 next_tok=1 next_ident_len=0
+note: parse skip at byte 31957 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 31794 (num_funcs=5, name=func_layout_prime_generic_params, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=31918 body_pos=31928 out_pos=32218 next_tok=1 next_ident_len=0
+note: parse skip at byte 32313 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 32218 (num_funcs=5, name=ast_arena_init, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=32312 body_pos=32338 out_pos=32508 next_tok=1 next_ident_len=0
+note: parse skip at byte 32622 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 32508 (num_funcs=5, name=ast_arena_type_alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=32621 body_pos=32646 out_pos=32777 next_tok=1 next_ident_len=0
+note: parse skip at byte 32891 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 32777 (num_funcs=5, name=ast_arena_expr_alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=32890 body_pos=32915 out_pos=33046 next_tok=1 next_ident_len=0
+note: parse skip at byte 33162 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 33046 (num_funcs=5, name=ast_arena_block_alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=33161 body_pos=33186 out_pos=33318 next_tok=36 next_ident_len=0
+note: parse skip at byte 33940 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 33795 (num_funcs=5, name=expr_init_match_enum, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=33939 body_pos=33957 out_pos=34009 next_tok=36 next_ident_len=0
+note: parse skip at byte 36846 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 36812 (num_funcs=5, name=expr_init_call_resolve, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=36845 body_pos=36886 out_pos=36964 next_tok=1 next_ident_len=0
+note: parse skip at byte 37086 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 36964 (num_funcs=5, name=ast_expr_apply_call_resolve, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=37085 body_pos=37158 out_pos=37252 next_tok=36 next_ident_len=0
+note: parse skip at byte 37934 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 37792 (num_funcs=5, name=ast_name_bytes_equal, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=37933 body_pos=37987 out_pos=38179 next_tok=1 next_ident_len=0
+note: parse skip at byte 38395 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 38179 (num_funcs=5, name=ast_block_final_expr_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=38394 body_pos=38430 out_pos=38606 next_tok=36 next_ident_len=0
+note: parse skip at byte 39030 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 38885 (num_funcs=5, name=ast_expr_disallows_implicit_tail, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=39029 body_pos=39066 out_pos=39146 next_tok=1 next_ident_len=0
+note: parse skip at byte 39178 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 39146 (num_funcs=5, name=ast_block_num_consts, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=39177 body_pos=39207 out_pos=39468 next_tok=1 next_ident_len=0
+note: parse skip at byte 39498 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 39468 (num_funcs=5, name=ast_block_num_lets, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=39497 body_pos=39527 out_pos=39688 next_tok=1 next_ident_len=0
+note: parse skip at byte 39719 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 39688 (num_funcs=5, name=ast_block_num_loops, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=39718 body_pos=39748 out_pos=39913 next_tok=1 next_ident_len=0
+note: parse skip at byte 39948 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 39913 (num_funcs=5, name=ast_block_num_for_loops, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=39947 body_pos=39977 out_pos=40146 next_tok=1 next_ident_len=0
+note: parse skip at byte 40180 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 40146 (num_funcs=5, name=ast_block_num_if_stmts, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=40179 body_pos=40209 out_pos=40377 next_tok=1 next_ident_len=0
+note: parse skip at byte 40453 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 40377 (num_funcs=5, name=ast_block_num_regions, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=40452 body_pos=40482 out_pos=40646 next_tok=1 next_ident_len=0
+note: parse skip at byte 40683 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 40646 (num_funcs=5, name=ast_block_region_body_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=40682 body_pos=40721 out_pos=40792 next_tok=1 next_ident_len=0
+note: parse skip at byte 40828 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 40792 (num_funcs=5, name=ast_block_num_expr_stmts, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=40827 body_pos=40857 out_pos=41027 next_tok=1 next_ident_len=0
+note: parse skip at byte 41063 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 41027 (num_funcs=5, name=ast_block_num_stmt_order, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=41062 body_pos=41092 out_pos=41262 next_tok=1 next_ident_len=0
+note: parse skip at byte 41299 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 41262 (num_funcs=5, name=ast_block_stmt_order_kind, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=41298 body_pos=41336 out_pos=41407 next_tok=1 next_ident_len=0
+note: parse skip at byte 41443 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 41407 (num_funcs=5, name=ast_block_stmt_order_idx, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=41442 body_pos=41481 out_pos=41551 next_tok=1 next_ident_len=0
+note: parse skip at byte 41587 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 41551 (num_funcs=5, name=ast_block_const_init_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=41586 body_pos=41625 out_pos=41695 next_tok=1 next_ident_len=0
+note: parse skip at byte 41731 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 41695 (num_funcs=5, name=ast_block_const_type_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=41730 body_pos=41769 out_pos=41839 next_tok=1 next_ident_len=0
+note: parse skip at byte 41873 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 41839 (num_funcs=5, name=ast_block_let_init_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=41872 body_pos=41911 out_pos=41979 next_tok=1 next_ident_len=0
+note: parse skip at byte 42013 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 41979 (num_funcs=5, name=ast_block_let_type_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=42012 body_pos=42051 out_pos=42119 next_tok=1 next_ident_len=0
+note: parse skip at byte 42154 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 42119 (num_funcs=5, name=ast_block_expr_stmt_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=42153 body_pos=42192 out_pos=42261 next_tok=1 next_ident_len=0
+note: parse skip at byte 42297 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 42261 (num_funcs=5, name=ast_block_while_cond_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=42296 body_pos=42335 out_pos=42405 next_tok=1 next_ident_len=0
+note: parse skip at byte 42441 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 42405 (num_funcs=5, name=ast_block_while_body_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=42440 body_pos=42479 out_pos=42549 next_tok=1 next_ident_len=0
+note: parse skip at byte 42583 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 42549 (num_funcs=5, name=ast_block_for_init_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=42582 body_pos=42621 out_pos=42689 next_tok=1 next_ident_len=0
+note: parse skip at byte 42723 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 42689 (num_funcs=5, name=ast_block_for_cond_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=42722 body_pos=42761 out_pos=42829 next_tok=1 next_ident_len=0
+note: parse skip at byte 42863 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 42829 (num_funcs=5, name=ast_block_for_step_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=42862 body_pos=42901 out_pos=42969 next_tok=1 next_ident_len=0
+note: parse skip at byte 43003 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 42969 (num_funcs=5, name=ast_block_for_body_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=43002 body_pos=43041 out_pos=43109 next_tok=1 next_ident_len=0
+note: parse skip at byte 43142 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 43109 (num_funcs=5, name=ast_block_if_cond_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=43141 body_pos=43180 out_pos=43247 next_tok=1 next_ident_len=0
+note: parse skip at byte 43285 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 43247 (num_funcs=5, name=ast_block_if_then_body_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=43284 body_pos=43323 out_pos=43395 next_tok=1 next_ident_len=0
+note: parse skip at byte 43433 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 43395 (num_funcs=5, name=ast_block_if_else_body_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=43432 body_pos=43471 out_pos=43543 next_tok=1 next_ident_len=0
+note: parse skip at byte 43691 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 43543 (num_funcs=5, name=ast_block_resolve_var_to_type_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=43690 body_pos=43750 out_pos=43842 next_tok=1 next_ident_len=0
+note: parse skip at byte 44150 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 43842 (num_funcs=5, name=ast_arena_patch_block_parent_links, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=44149 body_pos=44208 out_pos=46323 next_tok=36 next_ident_len=0
+note: parse skip at byte 46623 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 46509 (num_funcs=5, name=ast_arena_func_alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=46622 body_pos=46647 out_pos=46778 next_tok=36 next_ident_len=0
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=5
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+shux: [SHUX_DEBUG_PIPE] realign ndep 1 -> entry imports 0
+note: pipeline debug: dep prerun call path=token main=-1
+ --> src/parser/parser.sx
+note: parse skip at byte 1221 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 1125 (num_funcs=0, name=heap_mem_set_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=1220 body_pos=1256 out_pos=1319 next_tok=1 next_ident_len=0
+note: parse skip at byte 1428 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 1319 (num_funcs=0, name=heap_mem_compare_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=1427 body_pos=1458 out_pos=1529 next_tok=1 next_ident_len=0
+note: parse skip at byte 1599 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 1529 (num_funcs=0, name=map_slot, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=1598 body_pos=1625 out_pos=1704 next_tok=1 next_ident_len=0
+note: parse skip at byte 1828 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 1704 (num_funcs=0, name=map_i32_i32_find_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=1827 body_pos=1881 out_pos=2265 next_tok=0 next_ident_len=0
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=0
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: dep prerun call path=core.mem main=-1
+ --> src/parser/parser.sx
+note: parse skip at byte 3444 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2136 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 1885 (num_funcs=12, name=mem_copy, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2135 body_pos=2173 out_pos=2253 next_tok=1 next_ident_len=0
+note: parse skip at byte 2360 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2253 (num_funcs=12, name=mem_set, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2359 body_pos=2397 out_pos=2475 next_tok=1 next_ident_len=0
+note: parse skip at byte 2622 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2475 (num_funcs=12, name=mem_move, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2621 body_pos=2659 out_pos=2739 next_tok=1 next_ident_len=0
+note: parse skip at byte 2931 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2739 (num_funcs=12, name=mem_compare, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2930 body_pos=2963 out_pos=3105 next_tok=1 next_ident_len=0
+note: parse skip at byte 3204 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3105 (num_funcs=12, name=mem_zero, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3203 body_pos=3231 out_pos=3255 next_tok=1 next_ident_len=0
+note: parse skip at byte 3373 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3255 (num_funcs=12, name=mem_swap, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3372 body_pos=3406 out_pos=3518 next_tok=1 next_ident_len=0
+note: parse skip at byte 3659 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3518 (num_funcs=12, name=is_alignment_power_of_two, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3658 body_pos=3676 out_pos=3787 next_tok=1 next_ident_len=0
+note: parse skip at byte 3930 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3787 (num_funcs=12, name=align_up, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3929 body_pos=3969 out_pos=4075 next_tok=1 next_ident_len=0
+note: parse skip at byte 4097 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4075 (num_funcs=12, name=align_down, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4096 body_pos=4136 out_pos=4224 next_tok=2 next_ident_len=0
+note: parse skip at byte 4506 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4421 (num_funcs=12, name=volatile_load_u8, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4505 body_pos=4521 out_pos=4570 next_tok=1 next_ident_len=0
+note: parse skip at byte 4625 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4570 (num_funcs=12, name=volatile_store_u8, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4624 body_pos=4651 out_pos=4697 next_tok=1 next_ident_len=0
+note: parse skip at byte 4778 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4697 (num_funcs=12, name=volatile_load_u16, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4777 body_pos=4794 out_pos=4872 next_tok=1 next_ident_len=0
+note: parse skip at byte 4929 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4872 (num_funcs=12, name=volatile_store_u16, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4928 body_pos=4956 out_pos=5031 next_tok=1 next_ident_len=0
+note: parse skip at byte 5112 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5031 (num_funcs=12, name=volatile_load_u32, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5111 body_pos=5128 out_pos=5206 next_tok=1 next_ident_len=0
+note: parse skip at byte 5263 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5206 (num_funcs=12, name=volatile_store_u32, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5262 body_pos=5290 out_pos=5365 next_tok=1 next_ident_len=0
+note: parse skip at byte 5745 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5593 (num_funcs=13, name=fence_acquire, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5715 body_pos=5725 out_pos=5747 next_tok=1 next_ident_len=0
+note: parse skip at byte 5833 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5747 (num_funcs=13, name=fence_release, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5803 body_pos=5813 out_pos=5835 next_tok=1 next_ident_len=0
+note: parse skip at byte 5927 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5835 (num_funcs=13, name=fence_seq_cst, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5897 body_pos=5907 out_pos=5929 next_tok=0 next_ident_len=0
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=13
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+shux: [SHUX_DEBUG_PIPE] realign ndep 1 -> entry imports 0
+note: pipeline debug: dep prerun call path=core.mem main=-1
+ --> src/parser/parser.sx
+note: parse skip at byte 1897 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 1797 (num_funcs=0, name=heap_libc_malloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=1896 body_pos=1916 out_pos=1952 next_tok=1 next_ident_len=0
+note: parse skip at byte 1977 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 1952 (num_funcs=0, name=heap_libc_free, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=1976 body_pos=1994 out_pos=2020 next_tok=1 next_ident_len=0
+note: parse skip at byte 2048 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2020 (num_funcs=0, name=heap_libc_realloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2047 body_pos=2081 out_pos=2127 next_tok=1 next_ident_len=0
+note: parse skip at byte 2154 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2127 (num_funcs=0, name=heap_libc_calloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2153 body_pos=2187 out_pos=2230 next_tok=1 next_ident_len=0
+note: parse skip at byte 2265 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2230 (num_funcs=0, name=heap_libc_posix_memalign, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2264 body_pos=2317 out_pos=2380 next_tok=1 next_ident_len=0
+note: parse skip at byte 2407 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2380 (num_funcs=0, name=heap_libc_getenv, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2406 body_pos=2424 out_pos=2460 next_tok=2 next_ident_len=0
+note: parse skip at byte 3371 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3146 (num_funcs=0, name=heap_trace_is_on, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3293 body_pos=3302 out_pos=3561 next_tok=1 next_ident_len=0
+note: parse skip at byte 3676 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3561 (num_funcs=0, name=heap_trace_note_alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3675 body_pos=3696 out_pos=3873 next_tok=1 next_ident_len=0
+note: parse skip at byte 4025 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3873 (num_funcs=0, name=heap_trace_note_free, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3963 body_pos=3973 out_pos=4085 next_tok=1 next_ident_len=0
+note: parse skip at byte 4247 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4085 (num_funcs=0, name=heap_alloc_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4246 body_pos=4266 out_pos=4409 next_tok=1 next_ident_len=0
+note: parse skip at byte 4508 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4409 (num_funcs=0, name=heap_free_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4507 body_pos=4525 out_pos=4610 next_tok=1 next_ident_len=0
+note: parse skip at byte 4773 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4610 (num_funcs=0, name=heap_realloc_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4772 body_pos=4806 out_pos=4945 next_tok=1 next_ident_len=0
+note: parse skip at byte 5069 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4945 (num_funcs=0, name=heap_alloc_zeroed_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5068 body_pos=5088 out_pos=5163 next_tok=1 next_ident_len=0
+note: parse skip at byte 5258 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5163 (num_funcs=0, name=heap_alloc_i32_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5257 body_pos=5277 out_pos=5402 next_tok=1 next_ident_len=0
+note: parse skip at byte 5521 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5402 (num_funcs=0, name=heap_realloc_i32_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5520 body_pos=5555 out_pos=5761 next_tok=1 next_ident_len=0
+note: parse skip at byte 5879 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5761 (num_funcs=0, name=heap_free_i32_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5878 body_pos=5897 out_pos=5953 next_tok=1 next_ident_len=0
+note: parse skip at byte 6046 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5953 (num_funcs=0, name=heap_alloc_u8_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=6045 body_pos=6064 out_pos=6147 next_tok=1 next_ident_len=0
+note: parse skip at byte 6264 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 6147 (num_funcs=0, name=heap_realloc_u8_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=6263 body_pos=6296 out_pos=6437 next_tok=1 next_ident_len=0
+note: parse skip at byte 6552 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 6437 (num_funcs=0, name=heap_free_u8_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=6551 body_pos=6569 out_pos=6618 next_tok=1 next_ident_len=0
+note: parse skip at byte 6732 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 6618 (num_funcs=0, name=heap_copy_i32_at_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=6731 body_pos=6790 out_pos=6925 next_tok=1 next_ident_len=0
+note: parse skip at byte 7037 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 6925 (num_funcs=0, name=heap_copy_u8_at_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=7036 body_pos=7093 out_pos=7186 next_tok=1 next_ident_len=0
+note: parse skip at byte 7301 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 7186 (num_funcs=0, name=heap_alloc_f32_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=7300 body_pos=7320 out_pos=7445 next_tok=1 next_ident_len=0
+note: parse skip at byte 7564 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 7445 (num_funcs=0, name=heap_realloc_f32_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=7563 body_pos=7598 out_pos=7804 next_tok=1 next_ident_len=0
+note: parse skip at byte 7922 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 7804 (num_funcs=0, name=heap_free_f32_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=7921 body_pos=7940 out_pos=7996 next_tok=1 next_ident_len=0
+note: parse skip at byte 8076 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 7996 (num_funcs=0, name=heap_copy_f32_at_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=8075 body_pos=8134 out_pos=8269 next_tok=1 next_ident_len=0
+note: parse skip at byte 8400 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 8269 (num_funcs=0, name=alloc_f32, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=8399 body_pos=8419 out_pos=8455 next_tok=1 next_ident_len=0
+note: parse skip at byte 8549 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 8455 (num_funcs=0, name=realloc_f32, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=8548 body_pos=8583 out_pos=8630 next_tok=1 next_ident_len=0
+note: parse skip at byte 8715 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 8630 (num_funcs=0, name=free_f32, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=8714 body_pos=8733 out_pos=8759 next_tok=1 next_ident_len=0
+note: parse skip at byte 8892 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 8759 (num_funcs=0, name=heap_alloc_aligned_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=8891 body_pos=8931 out_pos=9202 next_tok=1 next_ident_len=0
+note: parse skip at byte 9327 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 9202 (num_funcs=0, name=heap_ptr_mod_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=9326 body_pos=9357 out_pos=9438 next_tok=1 next_ident_len=0
+note: parse skip at byte 9560 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 9438 (num_funcs=0, name=heap_arena64_init_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=9559 body_pos=9591 out_pos=9889 next_tok=1 next_ident_len=0
+note: parse skip at byte 10016 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 9889 (num_funcs=0, name=heap_arena64_bump_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=10015 body_pos=10066 out_pos=10444 next_tok=1 next_ident_len=0
+note: parse skip at byte 10590 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 10444 (num_funcs=0, name=heap_arena64_alloc_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=10589 body_pos=10642 out_pos=10782 next_tok=1 next_ident_len=0
+note: parse skip at byte 10903 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 10782 (num_funcs=0, name=heap_arena64_deinit_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=10902 body_pos=10923 out_pos=11029 next_tok=1 next_ident_len=0
+note: parse skip at byte 11145 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 11029 (num_funcs=0, name=heap_alloc_u64_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=11144 body_pos=11164 out_pos=11280 next_tok=1 next_ident_len=0
+note: parse skip at byte 11359 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 11280 (num_funcs=0, name=heap_free_u64_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=11358 body_pos=11377 out_pos=11433 next_tok=1 next_ident_len=0
+note: parse skip at byte 11552 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 11433 (num_funcs=0, name=heap_realloc_u64_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=11551 body_pos=11586 out_pos=11792 next_tok=1 next_ident_len=0
+note: parse skip at byte 11893 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 11792 (num_funcs=0, name=heap_copy_u64_at_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=11892 body_pos=11951 out_pos=12086 next_tok=1 next_ident_len=0
+note: parse skip at byte 12202 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 12086 (num_funcs=0, name=heap_alloc_f64_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=12201 body_pos=12221 out_pos=12346 next_tok=1 next_ident_len=0
+note: parse skip at byte 12465 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 12346 (num_funcs=0, name=heap_realloc_f64_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=12464 body_pos=12499 out_pos=12705 next_tok=1 next_ident_len=0
+note: parse skip at byte 12805 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 12705 (num_funcs=0, name=heap_free_f64_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=12804 body_pos=12823 out_pos=12879 next_tok=1 next_ident_len=0
+note: parse skip at byte 12959 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 12879 (num_funcs=0, name=heap_copy_f64_at_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=12958 body_pos=13017 out_pos=13152 next_tok=1 next_ident_len=0
+note: parse skip at byte 13433 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 13275 (num_funcs=1, name=heap_trace_reset_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=13389 body_pos=13399 out_pos=13532 next_tok=1 next_ident_len=0
+note: parse skip at byte 13676 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 13532 (num_funcs=1, name=heap_trace_stats_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=13675 body_pos=13766 out_pos=14089 next_tok=1 next_ident_len=0
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=2
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: dep prerun call path=core.mem main=-1
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=10681 body_pos=10690 out_pos=10739 next_tok=24 next_ident_len=0
+note: skip function debug: start_pos=10870 body_pos=10905 out_pos=10950 next_tok=24 next_ident_len=0
+note: skip function debug: start_pos=11074 body_pos=11142 out_pos=11207 next_tok=24 next_ident_len=0
+note: skip function debug: start_pos=11323 body_pos=11359 out_pos=11399 next_tok=1 next_ident_len=0
+note: parse skip at byte 1778 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 1681 (num_funcs=0, name=mem_set, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=1777 body_pos=1813 out_pos=1856 next_tok=1 next_ident_len=0
+note: parse skip at byte 1926 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 1856 (num_funcs=0, name=mem_compare, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=1925 body_pos=1956 out_pos=2005 next_tok=1 next_ident_len=0
+note: parse skip at byte 2088 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2005 (num_funcs=0, name=map_find, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2087 body_pos=2141 out_pos=2207 next_tok=41 next_ident_len=5
+note: parse skip at byte 2620 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2521 (num_funcs=1, name=trace_reset, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2576 body_pos=2586 out_pos=2622 next_tok=1 next_ident_len=0
+note: parse skip at byte 2681 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2622 (num_funcs=1, name=trace_stats, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2680 body_pos=2709 out_pos=2816 next_tok=1 next_ident_len=0
+note: parse skip at byte 2909 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2816 (num_funcs=1, name=alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2908 body_pos=2928 out_pos=2974 next_tok=1 next_ident_len=0
+note: parse skip at byte 3022 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2974 (num_funcs=1, name=free, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3021 body_pos=3040 out_pos=3076 next_tok=1 next_ident_len=0
+note: parse skip at byte 3189 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3076 (num_funcs=1, name=realloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3188 body_pos=3223 out_pos=3280 next_tok=1 next_ident_len=0
+note: parse skip at byte 3368 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3280 (num_funcs=1, name=copy, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3367 body_pos=3426 out_pos=3489 next_tok=1 next_ident_len=0
+note: parse skip at byte 3585 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3489 (num_funcs=1, name=alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3584 body_pos=3604 out_pos=3650 next_tok=1 next_ident_len=0
+note: parse skip at byte 3763 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3650 (num_funcs=1, name=realloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3762 body_pos=3797 out_pos=3854 next_tok=1 next_ident_len=0
+note: parse skip at byte 3920 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3854 (num_funcs=1, name=free, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=3919 body_pos=3938 out_pos=3974 next_tok=1 next_ident_len=0
+note: parse skip at byte 4062 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 3974 (num_funcs=1, name=copy, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4061 body_pos=4120 out_pos=4183 next_tok=1 next_ident_len=0
+note: parse skip at byte 4823 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 4727 (num_funcs=4, name=from_arena, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=4822 body_pos=4848 out_pos=4903 next_tok=1 next_ident_len=0
+note: parse skip at byte 5501 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5427 (num_funcs=6, name=alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5500 body_pos=5535 out_pos=5709 next_tok=1 next_ident_len=0
+note: parse skip at byte 5773 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5709 (num_funcs=6, name=free, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5772 body_pos=5805 out_pos=5875 next_tok=1 next_ident_len=0
+note: parse skip at byte 5964 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 5875 (num_funcs=6, name=realloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=5963 body_pos=6012 out_pos=6114 next_tok=27 next_ident_len=0
+note: parse skip at byte 6307 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 6292 (num_funcs=6, name=bump, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=6306 body_pos=6341 out_pos=6369 next_tok=1 next_ident_len=0
+note: parse skip at byte 6743 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 6602 (num_funcs=7, name=arena64_init, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=6742 body_pos=6774 out_pos=6846 next_tok=1 next_ident_len=0
+note: parse skip at byte 6989 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 6846 (num_funcs=7, name=arena64_alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=6988 body_pos=7041 out_pos=7128 next_tok=1 next_ident_len=0
+note: parse skip at byte 7201 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 7128 (num_funcs=7, name=arena64_deinit, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=7200 body_pos=7221 out_pos=7283 next_tok=1 next_ident_len=0
+note: parse skip at byte 7367 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 7283 (num_funcs=7, name=ptr_mod, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=7366 body_pos=7397 out_pos=7444 next_tok=1 next_ident_len=0
+note: parse skip at byte 7539 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 7444 (num_funcs=7, name=alloc_align, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=7538 body_pos=7578 out_pos=7640 next_tok=1 next_ident_len=0
+note: parse skip at byte 7768 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 7640 (num_funcs=7, name=alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=7767 body_pos=7787 out_pos=7828 next_tok=1 next_ident_len=0
+note: parse skip at byte 7931 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 7828 (num_funcs=7, name=free, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=7930 body_pos=7948 out_pos=7980 next_tok=1 next_ident_len=0
+note: parse skip at byte 8099 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 7980 (num_funcs=7, name=realloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=8098 body_pos=8132 out_pos=8184 next_tok=1 next_ident_len=0
+note: parse skip at byte 8283 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 8184 (num_funcs=7, name=alloc_zero, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=8282 body_pos=8302 out_pos=8350 next_tok=1 next_ident_len=0
+note: parse skip at byte 8462 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 8350 (num_funcs=7, name=alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=8461 body_pos=8481 out_pos=8525 next_tok=1 next_ident_len=0
+note: parse skip at byte 8644 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 8525 (num_funcs=7, name=realloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=8643 body_pos=8678 out_pos=8733 next_tok=1 next_ident_len=0
+note: parse skip at byte 8799 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 8733 (num_funcs=7, name=free, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=8798 body_pos=8817 out_pos=8851 next_tok=1 next_ident_len=0
+note: parse skip at byte 8983 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 8851 (num_funcs=7, name=alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=8982 body_pos=9001 out_pos=9044 next_tok=1 next_ident_len=0
+note: parse skip at byte 9162 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 9044 (num_funcs=7, name=realloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=9161 body_pos=9194 out_pos=9248 next_tok=1 next_ident_len=0
+note: parse skip at byte 9338 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 9248 (num_funcs=7, name=copy, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=9337 body_pos=9396 out_pos=9459 next_tok=1 next_ident_len=0
+note: parse skip at byte 9522 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 9459 (num_funcs=7, name=copy, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=9521 body_pos=9578 out_pos=9640 next_tok=1 next_ident_len=0
+note: parse skip at byte 9756 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 9640 (num_funcs=7, name=alloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=9755 body_pos=9775 out_pos=9819 next_tok=1 next_ident_len=0
+note: parse skip at byte 9938 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 9819 (num_funcs=7, name=realloc, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=9937 body_pos=9972 out_pos=10027 next_tok=1 next_ident_len=0
+note: parse skip at byte 10093 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 10027 (num_funcs=7, name=free, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=10092 body_pos=10111 out_pos=10145 next_tok=1 next_ident_len=0
+note: parse skip at byte 10228 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 10145 (num_funcs=7, name=copy, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=10227 body_pos=10286 out_pos=10349 next_tok=1 next_ident_len=0
+note: skip function debug: start_pos=10681 body_pos=10690 out_pos=10739 next_tok=24 next_ident_len=0
+note: skip function debug: start_pos=10870 body_pos=10905 out_pos=10950 next_tok=24 next_ident_len=0
+note: skip function debug: start_pos=11074 body_pos=11142 out_pos=11207 next_tok=24 next_ident_len=0
+note: skip function debug: start_pos=11323 body_pos=11359 out_pos=11399 next_tok=1 next_ident_len=0
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=9
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: dep prerun call path=std.heap.ops main=-1
+ --> src/parser/parser.sx
+note: pipeline debug: before entry memset arena_sz=16
+ --> src/parser/parser.sx
+note: pipeline debug: before pipeline_run entry=src/parser/parser.sx src_len=357430
+ --> src/parser/parser.sx
+note: pipeline debug: pipeline thread start len=357430
+ --> src/parser/parser.sx
+note: pipeline debug: entry_source_len=357430
+ --> src/parser/parser.sx
+note: parse skip at byte 2052 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 2013 (num_funcs=0, name=parse_peek_function_name_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=2051 body_pos=2101 out_pos=2175 next_tok=36 next_ident_len=0
+note: parse skip at byte 6732 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 6684 (num_funcs=0, name=pipeline_module_reset_parse_counters, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=6731 body_pos=6756 out_pos=6808 next_tok=36 next_ident_len=0
+note: parse skip at byte 18963 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 18804 (num_funcs=3, name=onefunc_result_pool_ptr, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=18962 body_pos=18990 out_pos=19013 next_tok=41 next_ident_len=5
+note: parse skip at byte 23496 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 23460 (num_funcs=3, name=copy_lex_from_import_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=23495 body_pos=23543 out_pos=23595 next_tok=36 next_ident_len=0
+note: parse skip at byte 23974 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 23945 (num_funcs=3, name=lex_from_next_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=23973 body_pos=24010 out_pos=24054 next_tok=36 next_ident_len=0
+note: parse skip at byte 24505 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 24470 (num_funcs=3, name=lex_from_result_ptr_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=24504 body_pos=24546 out_pos=24600 next_tok=1 next_ident_len=0
+note: parse skip at byte 24627 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 24600 (num_funcs=3, name=lexer_copy_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=24626 body_pos=24667 out_pos=24758 next_tok=1 next_ident_len=0
+note: parse skip at byte 24808 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 24758 (num_funcs=3, name=lexer_copy_from_parse_expr_result_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=24807 body_pos=24855 out_pos=24961 next_tok=1 next_ident_len=0
+note: parse skip at byte 24996 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 24961 (num_funcs=3, name=parse_expr_result_reset, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=24995 body_pos=25047 out_pos=25214 next_tok=1 next_ident_len=0
+note: parse skip at byte 25267 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 25214 (num_funcs=3, name=parser_rewind_lex_for_following_stmt_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=25266 body_pos=25322 out_pos=25433 next_tok=36 next_ident_len=0
+note: parse skip at byte 25891 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 25854 (num_funcs=3, name=lex_from_onefunc_next_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=25890 body_pos=25932 out_pos=25986 next_tok=1 next_ident_len=0
+note: parse skip at byte 26142 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 25986 (num_funcs=3, name=lexer_pos_before_run, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=26141 body_pos=26180 out_pos=26269 next_tok=1 next_ident_len=0
+note: parse skip at byte 26776 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 26269 (num_funcs=3, name=lexer_token_run_len, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=26775 body_pos=26799 out_pos=27730 next_tok=36 next_ident_len=0
+note: parse skip at byte 28177 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 28142 (num_funcs=3, name=lex_at_token_from_result, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=28176 body_pos=28201 out_pos=28253 next_tok=36 next_ident_len=0
+note: parse skip at byte 29032 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 28985 (num_funcs=3, name=parser_rewind_lex_for_following_stmt, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=29031 body_pos=29071 out_pos=29143 next_tok=1 next_ident_len=0
+note: parse skip at byte 29552 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 29143 (num_funcs=3, name=parser_realign_lex_after_compound_stmt, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=29551 body_pos=29608 out_pos=29781 next_tok=1 next_ident_len=0
+note: parse skip at byte 30041 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 29781 (num_funcs=3, name=parser_rewind_lex_for_lparen_control_stmt, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=30040 body_pos=30097 out_pos=30926 next_tok=1 next_ident_len=0
+note: parse skip at byte 31175 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 30926 (num_funcs=3, name=parser_match_kw_immediately_before, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=31174 body_pos=31216 out_pos=31449 next_tok=1 next_ident_len=0
+note: parse skip at byte 31734 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 31449 (num_funcs=3, name=parser_return_kw_immediately_before, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=31733 body_pos=31775 out_pos=32121 next_tok=1 next_ident_len=0
+note: parse skip at byte 32231 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 32121 (num_funcs=3, name=parser_match_kw_immediately_before_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=32230 body_pos=32279 out_pos=32400 next_tok=36 next_ident_len=0
+note: parse skip at byte 33017 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 32974 (num_funcs=3, name=advance_past_stmt_semicolon_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=33016 body_pos=33070 out_pos=33147 next_tok=1 next_ident_len=0
+note: parse skip at byte 33316 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 33147 (num_funcs=3, name=advance_past_stmt_semicolon_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=33315 body_pos=33376 out_pos=33494 next_tok=36 next_ident_len=0
+note: parse skip at byte 33874 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 33834 (num_funcs=3, name=advance_past_cond_rparen_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=33873 body_pos=33927 out_pos=34001 next_tok=1 next_ident_len=0
+note: parse skip at byte 34161 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 34001 (num_funcs=3, name=advance_past_cond_rparen_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=34160 body_pos=34221 out_pos=34336 next_tok=1 next_ident_len=0
+note: parse skip at byte 34821 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 34336 (num_funcs=3, name=onefunc_result_layout_prime, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=34667 body_pos=34677 out_pos=35137 next_tok=1 next_ident_len=0
+note: parse skip at byte 35297 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 35137 (num_funcs=3, name=set_onefunc_fail, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=35296 body_pos=35342 out_pos=35476 next_tok=1 next_ident_len=0
+note: parse skip at byte 35519 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 35476 (num_funcs=3, name=onefunc_finish_after_return_lex, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=35518 body_pos=35669 out_pos=36400 next_tok=1 next_ident_len=0
+note: parse skip at byte 36647 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 36400 (num_funcs=3, name=onefunc_result_layout_prime_b, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=36551 body_pos=36561 out_pos=36668 next_tok=1 next_ident_len=0
+note: parse skip at byte 36990 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 36668 (num_funcs=3, name=onefunc_result_layout_prime_c, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=36774 body_pos=36784 out_pos=37017 next_tok=1 next_ident_len=0
+note: parse skip at byte 37158 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 37017 (num_funcs=3, name=onefunc_result_layout_prime_d, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=37121 body_pos=37131 out_pos=37442 next_tok=1 next_ident_len=0
+note: parse skip at byte 37615 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 37442 (num_funcs=3, name=onefunc_result_layout_prime_d_b, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=37578 body_pos=37588 out_pos=37830 next_tok=1 next_ident_len=0
+note: parse skip at byte 38062 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 37830 (num_funcs=3, name=onefunc_result_layout_prime_e, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=37959 body_pos=37969 out_pos=38085 next_tok=1 next_ident_len=0
+note: parse skip at byte 38350 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 38085 (num_funcs=3, name=onefunc_result_layout_prime_f, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=38202 body_pos=38212 out_pos=38381 next_tok=1 next_ident_len=0
+note: parse skip at byte 38554 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 38381 (num_funcs=3, name=copy_onefunc_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=38553 body_pos=38603 out_pos=41428 next_tok=1 next_ident_len=0
+note: parse skip at byte 41627 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 41428 (num_funcs=3, name=onefunc_scratch_empty, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=41581 body_pos=41600 out_pos=41755 next_tok=1 next_ident_len=0
+note: parse skip at byte 41921 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 41755 (num_funcs=3, name=onefunc_merge_pool_out_to_snap, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=41920 body_pos=41971 out_pos=42925 next_tok=1 next_ident_len=0
+note: parse skip at byte 43099 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 42925 (num_funcs=3, name=onefunc_finish_impl_to_out, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=43098 body_pos=43224 out_pos=43600 next_tok=1 next_ident_len=0
+note: parse skip at byte 43638 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 43600 (num_funcs=3, name=onefunc_res_wire_dummy_head, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=43637 body_pos=43694 out_pos=43895 next_tok=1 next_ident_len=0
+note: parse skip at byte 43939 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 43895 (num_funcs=3, name=onefunc_res_wire_dummy_const_let, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=43938 body_pos=43967 out_pos=44128 next_tok=1 next_ident_len=0
+note: parse skip at byte 44169 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 44128 (num_funcs=3, name=onefunc_res_wire_dummy_if_mul, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=44168 body_pos=44197 out_pos=44458 next_tok=1 next_ident_len=0
+note: parse skip at byte 44503 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 44458 (num_funcs=3, name=onefunc_res_wire_dummy_call_binop, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=44502 body_pos=44547 out_pos=44856 next_tok=1 next_ident_len=0
+note: parse skip at byte 44900 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 44856 (num_funcs=3, name=onefunc_res_wire_dummy_loop_call, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=44899 body_pos=44928 out_pos=45157 next_tok=1 next_ident_len=0
+note: parse skip at byte 45198 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 45157 (num_funcs=3, name=onefunc_res_wire_dummy_for_if, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=45197 body_pos=45226 out_pos=45394 next_tok=1 next_ident_len=0
+note: parse skip at byte 45635 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 45394 (num_funcs=3, name=onefunc_alloc_wired_for_parse, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=45634 body_pos=45663 out_pos=46090 next_tok=1 next_ident_len=0
+note: parse skip at byte 46232 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 46090 (num_funcs=3, name=onefunc_snap_set_return_path, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=46231 body_pos=46343 out_pos=46613 next_tok=1 next_ident_len=0
+note: parse skip at byte 46778 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 46613 (num_funcs=3, name=onefunc_push_src_stmt, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=46777 body_pos=46826 out_pos=47130 next_tok=19 next_ident_len=0
+note: parse skip at byte 47948 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 47916 (num_funcs=3, name=expr_set_common_zeros, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=47947 body_pos=47969 out_pos=48011 next_tok=1 next_ident_len=0
+note: parse skip at byte 48160 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 48011 (num_funcs=3, name=parser_alloc_true_bool_lit, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=48159 body_pos=48184 out_pos=48487 next_tok=1 next_ident_len=0
+note: parse skip at byte 48673 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 48487 (num_funcs=3, name=parser_alloc_float_lit, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=48672 body_pos=48708 out_pos=49017 next_tok=1 next_ident_len=0
+note: parse skip at byte 49321 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 49017 (num_funcs=3, name=parser_expr_wrap_in_return, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=49320 body_pos=49376 out_pos=49955 next_tok=1 next_ident_len=0
+note: parse skip at byte 50308 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 49955 (num_funcs=3, name=parser_should_wrap_func_tail_in_return, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=50307 body_pos=50369 out_pos=50586 next_tok=36 next_ident_len=0
+note: parse skip at byte 51082 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 51047 (num_funcs=3, name=parse_match_subject_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=51081 body_pos=51156 out_pos=51223 next_tok=36 next_ident_len=0
+note: parse skip at byte 51755 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 51728 (num_funcs=3, name=parse_match_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=51754 body_pos=51829 out_pos=51888 next_tok=36 next_ident_len=0
+note: parse skip at byte 52274 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 52237 (num_funcs=3, name=parse_at_simd_builtin_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=52273 body_pos=52353 out_pos=52421 next_tok=36 next_ident_len=0
+note: parse skip at byte 52841 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 52812 (num_funcs=3, name=parse_primary_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=52840 body_pos=52915 out_pos=52976 next_tok=36 next_ident_len=0
+note: parse skip at byte 53231 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 53200 (num_funcs=3, name=parse_as_suffix_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=53230 body_pos=53293 out_pos=53351 next_tok=36 next_ident_len=0
+note: parse skip at byte 53701 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 53674 (num_funcs=3, name=parse_unary_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=53700 body_pos=53775 out_pos=53834 next_tok=36 next_ident_len=0
+note: parse skip at byte 54213 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 54187 (num_funcs=3, name=parse_cast_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=54212 body_pos=54287 out_pos=54345 next_tok=36 next_ident_len=0
+note: parse skip at byte 54692 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 54666 (num_funcs=3, name=parse_term_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=54691 body_pos=54766 out_pos=54824 next_tok=36 next_ident_len=0
+note: parse skip at byte 55177 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 55149 (num_funcs=3, name=parse_addsub_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=55176 body_pos=55251 out_pos=55311 next_tok=36 next_ident_len=0
+note: parse skip at byte 55684 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 55657 (num_funcs=3, name=parse_shift_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=55683 body_pos=55758 out_pos=55817 next_tok=36 next_ident_len=0
+note: parse skip at byte 56202 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 56170 (num_funcs=3, name=parse_relcompare_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=56201 body_pos=56276 out_pos=56340 next_tok=36 next_ident_len=0
+note: parse skip at byte 56696 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 56667 (num_funcs=3, name=parse_compare_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=56695 body_pos=56770 out_pos=56831 next_tok=36 next_ident_len=0
+note: parse skip at byte 57203 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 57175 (num_funcs=3, name=parse_bitand_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=57202 body_pos=57277 out_pos=57337 next_tok=36 next_ident_len=0
+note: parse skip at byte 57679 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 57651 (num_funcs=3, name=parse_bitxor_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=57678 body_pos=57753 out_pos=57813 next_tok=36 next_ident_len=0
+note: parse skip at byte 58150 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 58123 (num_funcs=3, name=parse_bitor_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=58149 body_pos=58224 out_pos=58283 next_tok=36 next_ident_len=0
+note: parse skip at byte 58635 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 58607 (num_funcs=3, name=parse_logand_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=58634 body_pos=58709 out_pos=58769 next_tok=36 next_ident_len=0
+note: parse skip at byte 59119 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 59092 (num_funcs=3, name=parse_logor_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=59118 body_pos=59193 out_pos=59252 next_tok=36 next_ident_len=0
+note: parse skip at byte 59757 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 59728 (num_funcs=3, name=parse_ternary_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=59756 body_pos=59831 out_pos=59892 next_tok=1 next_ident_len=0
+note: parse skip at byte 60051 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 59892 (num_funcs=3, name=is_compound_assign_token, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=60050 body_pos=60075 out_pos=60722 next_tok=36 next_ident_len=0
+note: parse skip at byte 61093 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 60932 (num_funcs=3, name=compound_assign_token_to_expr_kind, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=61092 body_pos=61121 out_pos=61184 next_tok=36 next_ident_len=0
+note: parse skip at byte 61747 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 61473 (num_funcs=3, name=expr_ref_is_assign_lvalue, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=61746 body_pos=61787 out_pos=61851 next_tok=36 next_ident_len=0
+note: parse skip at byte 62363 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 62335 (num_funcs=3, name=parse_assign_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=62362 body_pos=62437 out_pos=62497 next_tok=1 next_ident_len=0
+note: parse skip at byte 62630 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 62497 (num_funcs=3, name=parse_expr_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=62629 body_pos=62704 out_pos=62752 next_tok=36 next_ident_len=0
+note: parse skip at byte 63494 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 63445 (num_funcs=3, name=finish_struct_lit_from_type_ident_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=63493 body_pos=63591 out_pos=63690 next_tok=36 next_ident_len=0
+note: parse skip at byte 64212 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 64181 (num_funcs=3, name=parse_cond_expr_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=64211 body_pos=64292 out_pos=64361 next_tok=1 next_ident_len=0
+note: parse skip at byte 64466 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 64361 (num_funcs=3, name=parse_expr_with_leading_int_as_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=64465 body_pos=64546 out_pos=64603 next_tok=1 next_ident_len=0
+note: parse skip at byte 64716 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 64603 (num_funcs=3, name=parse_expr_with_leading_int_as_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=64715 body_pos=64803 out_pos=64928 next_tok=19 next_ident_len=0
+note: parse skip at byte 65613 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 65573 (num_funcs=3, name=fill_block_const_let_from_res, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=65612 body_pos=65690 out_pos=65777 next_tok=36 next_ident_len=0
+note: parse skip at byte 66216 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 66179 (num_funcs=3, name=append_block_lets_from_res, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=66215 body_pos=66308 out_pos=66402 next_tok=36 next_ident_len=0
+note: parse skip at byte 67138 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 67109 (num_funcs=3, name=parse_if_stmt_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=67137 body_pos=67275 out_pos=67393 next_tok=1 next_ident_len=0
+note: parse skip at byte 67707 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 67393 (num_funcs=3, name=parse_block_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=67706 body_pos=67810 out_pos=97596 next_tok=1 next_ident_len=0
+note: parse skip at byte 97762 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 97596 (num_funcs=3, name=wrap_block_ref_as_expr, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=97761 body_pos=97817 out_pos=98203 next_tok=36 next_ident_len=0
+note: parse skip at byte 98733 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 98704 (num_funcs=3, name=parse_if_expr_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=98732 body_pos=98828 out_pos=98905 next_tok=1 next_ident_len=0
+note: parse skip at byte 99374 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 98905 (num_funcs=3, name=parse, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=99373 body_pos=99402 out_pos=102622 next_tok=36 next_ident_len=0
+note: parse skip at byte 102925 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 102898 (num_funcs=3, name=first_token_kind, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=102924 body_pos=102945 out_pos=102994 next_tok=1 next_ident_len=0
+note: parse skip at byte 103115 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 102994 (num_funcs=3, name=first_token_kind_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=103114 body_pos=103142 out_pos=103232 next_tok=36 next_ident_len=0
+note: parse skip at byte 103557 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 103526 (num_funcs=3, name=diag_first_ident_len, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=103556 body_pos=103577 out_pos=103630 next_tok=1 next_ident_len=0
+note: parse skip at byte 103763 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 103630 (num_funcs=3, name=diag_first_ident_len_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=103762 body_pos=103790 out_pos=103884 next_tok=36 next_ident_len=0
+note: parse skip at byte 104275 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 104240 (num_funcs=3, name=diag_skip_let_const_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=104274 body_pos=104327 out_pos=104387 next_tok=36 next_ident_len=0
+note: parse skip at byte 104755 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 104725 (num_funcs=3, name=diag_skip_let_const, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=104754 body_pos=104795 out_pos=104852 next_tok=1 next_ident_len=0
+note: parse skip at byte 105004 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 104852 (num_funcs=3, name=diag_skip_let_const_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=105003 body_pos=105051 out_pos=105149 next_tok=1 next_ident_len=0
+note: parse skip at byte 105294 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 105149 (num_funcs=3, name=diag_skip_let_const_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=105293 body_pos=105353 out_pos=105454 next_tok=36 next_ident_len=0
+note: parse skip at byte 105874 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 105831 (num_funcs=3, name=body_skip_let_const_then_if_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=105873 body_pos=105926 out_pos=105994 next_tok=36 next_ident_len=0
+note: parse skip at byte 106637 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 106586 (num_funcs=3, name=parse_body_let_bracket_compound_init_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=106636 body_pos=106797 out_pos=106913 next_tok=36 next_ident_len=0
+note: parse skip at byte 107462 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 107422 (num_funcs=3, name=parse_type_ref_for_arena_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=107461 body_pos=107529 out_pos=107612 next_tok=1 next_ident_len=0
+note: parse skip at byte 108382 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 107612 (num_funcs=3, name=parse_body_lets_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=108381 body_pos=108471 out_pos=130721 next_tok=36 next_ident_len=0
+note: parse skip at byte 131065 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 131027 (num_funcs=3, name=body_skip_let_const_then_if, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=131064 body_pos=131105 out_pos=131170 next_tok=1 next_ident_len=0
+note: parse skip at byte 131346 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 131170 (num_funcs=3, name=body_skip_let_const_then_if_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=131345 body_pos=131393 out_pos=131499 next_tok=1 next_ident_len=0
+note: parse skip at byte 131640 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 131499 (num_funcs=3, name=body_skip_let_const_then_if_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=131639 body_pos=131699 out_pos=131808 next_tok=36 next_ident_len=0
+note: parse skip at byte 132186 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 132155 (num_funcs=3, name=skip_balanced_parens, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=132185 body_pos=132220 out_pos=132278 next_tok=36 next_ident_len=0
+note: parse skip at byte 132671 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 132635 (num_funcs=3, name=skip_balanced_parens_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=132670 body_pos=132717 out_pos=132778 next_tok=1 next_ident_len=0
+note: parse skip at byte 132965 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 132778 (num_funcs=3, name=skip_balanced_parens_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=132964 body_pos=133018 out_pos=133606 next_tok=1 next_ident_len=0
+note: parse skip at byte 133729 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 133606 (num_funcs=3, name=skip_balanced_parens_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=133728 body_pos=133770 out_pos=133869 next_tok=36 next_ident_len=0
+note: parse skip at byte 134244 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 134213 (num_funcs=3, name=skip_balanced_braces, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=134243 body_pos=134278 out_pos=134336 next_tok=36 next_ident_len=0
+note: parse skip at byte 134680 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 134644 (num_funcs=3, name=skip_balanced_braces_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=134679 body_pos=134726 out_pos=134787 next_tok=1 next_ident_len=0
+note: parse skip at byte 134885 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 134787 (num_funcs=3, name=skip_balanced_braces_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=134884 body_pos=134938 out_pos=135526 next_tok=1 next_ident_len=0
+note: parse skip at byte 135738 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 135526 (num_funcs=3, name=skip_balanced_braces_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=135737 body_pos=135779 out_pos=135878 next_tok=36 next_ident_len=0
+note: parse skip at byte 136433 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 136395 (num_funcs=3, name=skip_one_function_full_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=136432 body_pos=136479 out_pos=136542 next_tok=36 next_ident_len=0
+note: parse skip at byte 136786 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 136746 (num_funcs=3, name=skip_one_top_level_const_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=136785 body_pos=136832 out_pos=136897 next_tok=36 next_ident_len=0
+note: parse skip at byte 137112 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 137068 (num_funcs=3, name=skip_one_top_level_const_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=137111 body_pos=137165 out_pos=137237 next_tok=36 next_ident_len=0
+note: parse skip at byte 137466 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 137424 (num_funcs=3, name=skip_one_top_level_let_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=137465 body_pos=137519 out_pos=137589 next_tok=36 next_ident_len=0
+note: parse skip at byte 137822 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 137789 (num_funcs=3, name=skip_one_function_full, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=137821 body_pos=137856 out_pos=137916 next_tok=1 next_ident_len=0
+note: parse skip at byte 138092 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 137916 (num_funcs=3, name=skip_one_function_full_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=138091 body_pos=138145 out_pos=138249 next_tok=1 next_ident_len=0
+note: parse skip at byte 138473 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 138249 (num_funcs=3, name=skip_one_function_full_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=138472 body_pos=138514 out_pos=138615 next_tok=36 next_ident_len=0
+note: parse skip at byte 139111 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 139084 (num_funcs=3, name=skip_one_if_core, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=139110 body_pos=139151 out_pos=139205 next_tok=36 next_ident_len=0
+note: parse skip at byte 139769 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 139737 (num_funcs=3, name=skip_one_if_statement, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=139768 body_pos=139809 out_pos=139868 next_tok=36 next_ident_len=0
+note: parse skip at byte 140266 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 140229 (num_funcs=3, name=skip_one_if_statement_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=140265 body_pos=140318 out_pos=140380 next_tok=36 next_ident_len=0
+note: parse skip at byte 140706 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 140674 (num_funcs=3, name=skip_one_if_core_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=140705 body_pos=140758 out_pos=140815 next_tok=1 next_ident_len=0
+note: parse skip at byte 141010 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 140815 (num_funcs=3, name=skip_one_if_core_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=141009 body_pos=141057 out_pos=141152 next_tok=1 next_ident_len=0
+note: parse skip at byte 141277 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 141152 (num_funcs=3, name=skip_one_if_statement_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=141276 body_pos=141324 out_pos=141424 next_tok=1 next_ident_len=0
+note: parse skip at byte 141560 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 141424 (num_funcs=3, name=skip_one_if_core_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=141559 body_pos=141619 out_pos=141717 next_tok=1 next_ident_len=0
+note: parse skip at byte 141868 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 141717 (num_funcs=3, name=skip_one_if_statement_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=141867 body_pos=141927 out_pos=142030 next_tok=36 next_ident_len=0
+note: parse skip at byte 142576 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 142543 (num_funcs=3, name=diag_lex_after_imports, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=142575 body_pos=142598 out_pos=142653 next_tok=1 next_ident_len=0
+note: parse skip at byte 142792 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 142653 (num_funcs=3, name=diag_lex_after_imports_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=142791 body_pos=142821 out_pos=142917 next_tok=36 next_ident_len=0
+note: parse skip at byte 143294 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 143252 (num_funcs=3, name=diag_after_imports_then_structs, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=143293 body_pos=143334 out_pos=143403 next_tok=1 next_ident_len=0
+note: parse skip at byte 143569 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 143403 (num_funcs=3, name=diag_after_imports_then_structs_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=143568 body_pos=143616 out_pos=143726 next_tok=36 next_ident_len=0
+note: parse skip at byte 143949 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 143915 (num_funcs=3, name=diag_fail_at_token_kind, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=143948 body_pos=143969 out_pos=144025 next_tok=1 next_ident_len=0
+note: parse skip at byte 144167 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 144025 (num_funcs=3, name=diag_fail_at_token_kind_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=144166 body_pos=144194 out_pos=144291 next_tok=1 next_ident_len=0
+note: parse skip at byte 144497 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 144291 (num_funcs=3, name=parse_into_result_empty_module_or_fail_tok, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=144496 body_pos=144530 out_pos=144690 next_tok=1 next_ident_len=0
+note: parse skip at byte 145032 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 144690 (num_funcs=3, name=copy_slice_to_name64, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=145031 body_pos=145088 out_pos=145247 next_tok=1 next_ident_len=0
+note: parse skip at byte 145420 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 145247 (num_funcs=3, name=copy_slice_to_name64_at_end, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=145419 body_pos=145478 out_pos=145578 next_tok=36 next_ident_len=0
+note: parse skip at byte 146038 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 146001 (num_funcs=3, name=struct_field_name_from_tok, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=146037 body_pos=146084 out_pos=146151 next_tok=1 next_ident_len=0
+note: parse skip at byte 146302 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 146151 (num_funcs=3, name=struct_field_name_from_tok_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=146301 body_pos=146355 out_pos=146463 next_tok=1 next_ident_len=0
+note: parse skip at byte 146642 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 146463 (num_funcs=3, name=struct_field_name_tok_kind, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=146641 body_pos=146663 out_pos=146842 next_tok=1 next_ident_len=0
+note: parse skip at byte 147118 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 146842 (num_funcs=3, name=struct_field_continues_tok_kind, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=147117 body_pos=147139 out_pos=147282 next_tok=1 next_ident_len=0
+note: parse skip at byte 147530 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 147282 (num_funcs=3, name=parser_token_is_label_start, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=147529 body_pos=147567 out_pos=147936 next_tok=1 next_ident_len=0
+note: parse skip at byte 148080 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 147936 (num_funcs=3, name=copy_slice_to_param32, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=148079 body_pos=148136 out_pos=148336 next_tok=1 next_ident_len=0
+note: parse skip at byte 148531 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 148336 (num_funcs=3, name=copy_slice_to_param32_at_end, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=148530 body_pos=148589 out_pos=148690 next_tok=1 next_ident_len=0
+note: parse skip at byte 148870 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 148690 (num_funcs=3, name=copy_slice_to_name64_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=148869 body_pos=148942 out_pos=149109 next_tok=1 next_ident_len=0
+note: parse skip at byte 149292 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 149109 (num_funcs=3, name=copy_slice_to_name64_at_end_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=149291 body_pos=149366 out_pos=149482 next_tok=1 next_ident_len=0
+note: parse skip at byte 149658 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 149482 (num_funcs=3, name=copy_slice_to_param32_at_end_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=149657 body_pos=149732 out_pos=149988 next_tok=1 next_ident_len=0
+note: parse skip at byte 150125 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 149988 (num_funcs=3, name=copy_slice_to_param32_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=150124 body_pos=150197 out_pos=150405 next_tok=1 next_ident_len=0
+note: parse skip at byte 150882 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 150405 (num_funcs=3, name=parse_one_function_impl, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=150881 body_pos=150954 out_pos=206329 next_tok=1 next_ident_len=0
+note: parse skip at byte 206542 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 206329 (num_funcs=3, name=import_path_dot_segment_len, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=206541 body_pos=206581 out_pos=206798 next_tok=36 next_ident_len=0
+note: parse skip at byte 207284 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 207154 (num_funcs=3, name=import_path_dot_segment_copy, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=207283 body_pos=207369 out_pos=207559 next_tok=1 next_ident_len=0
+note: parse skip at byte 207716 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 207559 (num_funcs=3, name=import_path_dot_segment_copy_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=207715 body_pos=207808 out_pos=207945 next_tok=1 next_ident_len=0
+note: parse skip at byte 208370 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 207945 (num_funcs=3, name=parse_into_init, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=208369 body_pos=208412 out_pos=209090 next_tok=36 next_ident_len=0
+note: parse skip at byte 209533 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 209510 (num_funcs=3, name=skip_imports, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=209532 body_pos=209567 out_pos=209617 next_tok=1 next_ident_len=0
+note: parse skip at byte 209753 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 209617 (num_funcs=3, name=skip_imports_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=209752 body_pos=209794 out_pos=209885 next_tok=36 next_ident_len=0
+note: parse skip at byte 210504 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 210478 (num_funcs=3, name=collect_imports, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=210503 body_pos=210582 out_pos=210641 next_tok=1 next_ident_len=0
+note: parse skip at byte 210797 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 210641 (num_funcs=3, name=collect_imports_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=210796 body_pos=210882 out_pos=210982 next_tok=36 next_ident_len=0
+note: parse skip at byte 211579 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 211548 (num_funcs=3, name=skip_one_struct_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=211578 body_pos=211625 out_pos=211681 next_tok=36 next_ident_len=0
+note: parse skip at byte 211894 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 211868 (num_funcs=3, name=skip_one_struct, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=211893 body_pos=211928 out_pos=211981 next_tok=36 next_ident_len=0
+note: parse skip at byte 212513 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 212342 (num_funcs=3, name=module_try_register_enum_name, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=212512 body_pos=212562 out_pos=213262 next_tok=36 next_ident_len=0
+note: parse skip at byte 213828 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 213771 (num_funcs=3, name=module_append_enum_variants_and_skip_body_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=213827 body_pos=213906 out_pos=214006 next_tok=1 next_ident_len=0
+note: parse skip at byte 214161 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 214006 (num_funcs=3, name=module_append_enum_variants_and_skip_body_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=214160 body_pos=214246 out_pos=215314 next_tok=36 next_ident_len=0
+note: parse skip at byte 215679 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 215641 (num_funcs=3, name=skip_one_enum_register_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=215678 body_pos=215742 out_pos=215813 next_tok=1 next_ident_len=0
+note: parse skip at byte 215992 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 215813 (num_funcs=3, name=skip_one_enum_register_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=215991 body_pos=216062 out_pos=216174 next_tok=1 next_ident_len=0
+note: parse skip at byte 216338 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 216174 (num_funcs=3, name=skip_one_enum_register_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=216337 body_pos=216408 out_pos=216474 next_tok=36 next_ident_len=0
+note: parse skip at byte 216972 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 216943 (num_funcs=3, name=skip_one_enum_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=216971 body_pos=217018 out_pos=217072 next_tok=36 next_ident_len=0
+note: parse skip at byte 217278 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 217254 (num_funcs=3, name=skip_one_enum, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=217277 body_pos=217312 out_pos=217363 next_tok=36 next_ident_len=0
+note: parse skip at byte 217835 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 217805 (num_funcs=3, name=skip_one_trait_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=217834 body_pos=217881 out_pos=217936 next_tok=36 next_ident_len=0
+note: parse skip at byte 218145 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 218120 (num_funcs=3, name=skip_one_trait, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=218144 body_pos=218179 out_pos=218231 next_tok=36 next_ident_len=0
+note: parse skip at byte 218719 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 218690 (num_funcs=3, name=skip_one_impl_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=218718 body_pos=218765 out_pos=218819 next_tok=36 next_ident_len=0
+note: parse skip at byte 219025 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 219001 (num_funcs=3, name=skip_one_impl, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=219024 body_pos=219059 out_pos=219110 next_tok=1 next_ident_len=0
+note: parse skip at byte 219279 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 219110 (num_funcs=3, name=skip_one_enum_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=219278 body_pos=219332 out_pos=219427 next_tok=1 next_ident_len=0
+note: parse skip at byte 219528 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 219427 (num_funcs=3, name=skip_one_enum_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=219527 body_pos=219569 out_pos=219661 next_tok=1 next_ident_len=0
+note: parse skip at byte 219796 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 219661 (num_funcs=3, name=skip_one_trait_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=219795 body_pos=219849 out_pos=219945 next_tok=1 next_ident_len=0
+note: parse skip at byte 220048 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 219945 (num_funcs=3, name=skip_one_trait_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=220047 body_pos=220089 out_pos=220182 next_tok=1 next_ident_len=0
+note: parse skip at byte 220314 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 220182 (num_funcs=3, name=skip_one_impl_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=220313 body_pos=220367 out_pos=220462 next_tok=1 next_ident_len=0
+note: parse skip at byte 220562 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 220462 (num_funcs=3, name=skip_one_impl_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=220561 body_pos=220603 out_pos=220695 next_tok=36 next_ident_len=0
+note: parse skip at byte 221198 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 221167 (num_funcs=3, name=skip_one_extern_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=221197 body_pos=221244 out_pos=221300 next_tok=36 next_ident_len=0
+note: parse skip at byte 221512 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 221486 (num_funcs=3, name=skip_one_extern, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=221511 body_pos=221546 out_pos=221599 next_tok=41 next_ident_len=5
+note: parse skip at byte 222275 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 222134 (num_funcs=3, name=extern_parse_pool_ptr, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=222274 body_pos=222306 out_pos=222329 next_tok=36 next_ident_len=0
+note: parse skip at byte 223072 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 222816 (num_funcs=3, name=write_extern_params_to_pools, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=223071 body_pos=223163 out_pos=223652 next_tok=1 next_ident_len=0
+note: parse skip at byte 223754 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 223652 (num_funcs=3, name=extern_parse_set_fail, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=223753 body_pos=223798 out_pos=224010 next_tok=36 next_ident_len=0
+note: parse skip at byte 224437 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 224400 (num_funcs=3, name=parse_one_extern_skip_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=224436 body_pos=224513 out_pos=224582 next_tok=1 next_ident_len=0
+note: parse skip at byte 224733 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 224582 (num_funcs=3, name=parse_one_extern_skip_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=224732 body_pos=224816 out_pos=224926 next_tok=1 next_ident_len=0
+note: parse skip at byte 225807 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 224926 (num_funcs=3, name=module_register_arena_func, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=225806 body_pos=225854 out_pos=226559 next_tok=36 next_ident_len=0
+note: parse skip at byte 226951 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 226911 (num_funcs=3, name=parse_one_extern_and_add_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=226950 body_pos=227036 out_pos=227120 next_tok=1 next_ident_len=0
+note: parse skip at byte 227347 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 227120 (num_funcs=3, name=skip_one_extern_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=227346 body_pos=227400 out_pos=227497 next_tok=1 next_ident_len=0
+note: parse skip at byte 227603 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 227497 (num_funcs=3, name=skip_one_extern_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=227602 body_pos=227644 out_pos=227738 next_tok=36 next_ident_len=0
+note: parse skip at byte 228299 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 228255 (num_funcs=3, name=parse_one_extern_and_add_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=228298 body_pos=228391 out_pos=228482 next_tok=41 next_ident_len=5
+note: parse skip at byte 229546 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 229513 (num_funcs=3, name=lex_from_try_skip_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=229545 body_pos=229589 out_pos=229637 next_tok=36 next_ident_len=0
+note: parse skip at byte 229944 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 229912 (num_funcs=3, name=lex_from_library_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=229943 body_pos=229989 out_pos=230038 next_tok=36 next_ident_len=0
+note: parse skip at byte 230285 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 230257 (num_funcs=3, name=lex_from_try_skip, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=230284 body_pos=230316 out_pos=230361 next_tok=36 next_ident_len=0
+note: parse skip at byte 230607 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 230580 (num_funcs=3, name=lex_from_library, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=230606 body_pos=230640 out_pos=230686 next_tok=19 next_ident_len=0
+note: parse skip at byte 231689 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 231647 (num_funcs=3, name=parse_one_function_library_scan, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=231688 body_pos=231755 out_pos=231832 next_tok=36 next_ident_len=0
+note: parse skip at byte 232267 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 232143 (num_funcs=3, name=struct_layout_name_exists_arr, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=232266 body_pos=232314 out_pos=232780 next_tok=36 next_ident_len=0
+note: parse skip at byte 233209 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 233091 (num_funcs=3, name=struct_layout_first_name_match_idx, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=233208 body_pos=233255 out_pos=233715 next_tok=36 next_ident_len=0
+note: parse skip at byte 234497 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 234200 (num_funcs=3, name=struct_layout_placeholder_idx, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=234496 body_pos=234543 out_pos=235353 next_tok=36 next_ident_len=0
+note: parse skip at byte 235952 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 235915 (num_funcs=3, name=parse_one_function_library, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=235951 body_pos=236034 out_pos=236113 next_tok=1 next_ident_len=0
+note: parse skip at byte 236404 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 236113 (num_funcs=3, name=parse_one_function_library_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=236403 body_pos=236493 out_pos=236613 next_tok=36 next_ident_len=0
+note: parse skip at byte 237053 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 237017 (num_funcs=3, name=parse_into_try_skip_allow, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=237052 body_pos=237116 out_pos=237182 next_tok=1 next_ident_len=0
+note: parse skip at byte 237319 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 237182 (num_funcs=3, name=parse_into_try_skip_allow_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=237318 body_pos=237389 out_pos=237496 next_tok=36 next_ident_len=0
+note: parse skip at byte 237764 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 237724 (num_funcs=3, name=try_skip_allow_padding_struct, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=237763 body_pos=237811 out_pos=237878 next_tok=1 next_ident_len=0
+note: parse skip at byte 238027 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 237878 (num_funcs=3, name=try_skip_allow_padding_struct_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=238026 body_pos=238081 out_pos=238189 next_tok=1 next_ident_len=0
+note: parse skip at byte 238327 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 238189 (num_funcs=3, name=skip_one_struct_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=238326 body_pos=238380 out_pos=238477 next_tok=1 next_ident_len=0
+note: parse skip at byte 238583 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 238477 (num_funcs=3, name=skip_one_struct_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=238582 body_pos=238624 out_pos=238718 next_tok=36 next_ident_len=0
+note: parse skip at byte 239293 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 239249 (num_funcs=3, name=consume_qualified_type_ident_name, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=239292 body_pos=239355 out_pos=239438 next_tok=1 next_ident_len=0
+note: parse skip at byte 239610 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 239438 (num_funcs=3, name=consume_qualified_type_ident_name_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=239609 body_pos=239679 out_pos=239803 next_tok=1 next_ident_len=0
+note: parse skip at byte 240050 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 239803 (num_funcs=3, name=is_pointee_type_token, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=240049 body_pos=240074 out_pos=240606 next_tok=36 next_ident_len=0
+note: parse skip at byte 241211 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 241169 (num_funcs=3, name=alloc_pointee_type_ref_from_tok, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=241210 body_pos=241266 out_pos=241340 next_tok=36 next_ident_len=0
+note: parse skip at byte 241811 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 241671 (num_funcs=3, name=parser_alloc_vector_type_ref, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=241810 body_pos=241862 out_pos=242318 next_tok=36 next_ident_len=0
+note: parse skip at byte 242760 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 242707 (num_funcs=3, name=parser_vector_type_ref_from_ident_spelling, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=242759 body_pos=242814 out_pos=242899 next_tok=36 next_ident_len=0
+note: parse skip at byte 243533 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 243491 (num_funcs=3, name=parse_struct_record_layout_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=243532 body_pos=243667 out_pos=243795 next_tok=36 next_ident_len=0
+note: parse skip at byte 244484 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 244446 (num_funcs=3, name=parse_one_function_buf_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=244483 body_pos=244545 out_pos=244611 next_tok=36 next_ident_len=0
+note: parse skip at byte 245077 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 245035 (num_funcs=3, name=parse_one_function_library_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=245076 body_pos=245171 out_pos=245253 next_tok=1 next_ident_len=0
+note: parse skip at byte 245423 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 245253 (num_funcs=3, name=parse_one_function_library_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=245422 body_pos=245524 out_pos=245647 next_tok=36 next_ident_len=0
+note: parse skip at byte 246028 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 245987 (num_funcs=3, name=parse_into_try_skip_allow_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=246027 body_pos=246103 out_pos=246172 next_tok=1 next_ident_len=0
+note: parse skip at byte 246340 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 246172 (num_funcs=3, name=parse_into_try_skip_allow_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=246339 body_pos=246422 out_pos=246532 next_tok=1 next_ident_len=0
+note: parse skip at byte 246912 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 246532 (num_funcs=3, name=parse_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=246911 body_pos=246979 out_pos=295286 next_tok=36 next_ident_len=0
+note: parse skip at byte 295865 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 295826 (num_funcs=3, name=parse_one_top_level_let_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=295864 body_pos=295974 out_pos=296063 next_tok=36 next_ident_len=0
+note: parse skip at byte 296362 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 296326 (num_funcs=3, name=parse_one_type_alias_into, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=296361 body_pos=296453 out_pos=296529 next_tok=1 next_ident_len=0
+note: parse skip at byte 296810 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 296529 (num_funcs=3, name=parse_primary_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=296809 body_pos=296891 out_pos=296993 next_tok=1 next_ident_len=0
+note: parse skip at byte 297068 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 296993 (num_funcs=3, name=parse_unary_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=297067 body_pos=297149 out_pos=297249 next_tok=1 next_ident_len=0
+note: parse skip at byte 297322 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 297249 (num_funcs=3, name=parse_cast_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=297321 body_pos=297403 out_pos=297502 next_tok=1 next_ident_len=0
+note: parse skip at byte 297575 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 297502 (num_funcs=3, name=parse_term_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=297574 body_pos=297656 out_pos=297755 next_tok=1 next_ident_len=0
+note: parse skip at byte 297832 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 297755 (num_funcs=3, name=parse_addsub_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=297831 body_pos=297913 out_pos=298014 next_tok=1 next_ident_len=0
+note: parse skip at byte 298089 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 298014 (num_funcs=3, name=parse_shift_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=298088 body_pos=298170 out_pos=298270 next_tok=1 next_ident_len=0
+note: parse skip at byte 298355 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 298270 (num_funcs=3, name=parse_relcompare_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=298354 body_pos=298436 out_pos=298541 next_tok=1 next_ident_len=0
+note: parse skip at byte 298620 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 298541 (num_funcs=3, name=parse_compare_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=298619 body_pos=298701 out_pos=298803 next_tok=1 next_ident_len=0
+note: parse skip at byte 298880 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 298803 (num_funcs=3, name=parse_bitand_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=298879 body_pos=298961 out_pos=299062 next_tok=1 next_ident_len=0
+note: parse skip at byte 299139 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 299062 (num_funcs=3, name=parse_bitxor_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=299138 body_pos=299220 out_pos=299321 next_tok=1 next_ident_len=0
+note: parse skip at byte 299396 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 299321 (num_funcs=3, name=parse_bitor_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=299395 body_pos=299477 out_pos=299577 next_tok=1 next_ident_len=0
+note: parse skip at byte 299654 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 299577 (num_funcs=3, name=parse_logand_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=299653 body_pos=299735 out_pos=299836 next_tok=1 next_ident_len=0
+note: parse skip at byte 299911 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 299836 (num_funcs=3, name=parse_logor_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=299910 body_pos=299992 out_pos=300092 next_tok=1 next_ident_len=0
+note: parse skip at byte 300171 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 300092 (num_funcs=3, name=parse_ternary_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=300170 body_pos=300252 out_pos=300354 next_tok=1 next_ident_len=0
+note: parse skip at byte 300431 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 300354 (num_funcs=3, name=parse_assign_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=300430 body_pos=300512 out_pos=300613 next_tok=1 next_ident_len=0
+note: parse skip at byte 300686 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 300613 (num_funcs=3, name=parse_expr_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=300685 body_pos=300767 out_pos=300866 next_tok=1 next_ident_len=0
+note: parse skip at byte 300985 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 300866 (num_funcs=3, name=finish_struct_lit_from_type_ident_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=300984 body_pos=301089 out_pos=301229 next_tok=1 next_ident_len=0
+note: parse skip at byte 301312 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 301229 (num_funcs=3, name=parse_cond_expr_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=301311 body_pos=301399 out_pos=301509 next_tok=1 next_ident_len=0
+note: parse skip at byte 301588 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 301509 (num_funcs=3, name=parse_if_stmt_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=301587 body_pos=301732 out_pos=301891 next_tok=1 next_ident_len=0
+note: parse skip at byte 301966 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 301891 (num_funcs=3, name=parse_block_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=301965 body_pos=302076 out_pos=302199 next_tok=1 next_ident_len=0
+note: parse skip at byte 302278 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 302199 (num_funcs=3, name=parse_if_expr_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=302277 body_pos=302380 out_pos=302498 next_tok=1 next_ident_len=0
+note: parse skip at byte 302589 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 302498 (num_funcs=3, name=parse_match_subject_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=302588 body_pos=302670 out_pos=302778 next_tok=1 next_ident_len=0
+note: parse skip at byte 302853 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 302778 (num_funcs=3, name=parse_match_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=302852 body_pos=302934 out_pos=303034 next_tok=1 next_ident_len=0
+note: parse skip at byte 303129 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 303034 (num_funcs=3, name=parse_at_simd_builtin_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=303128 body_pos=303215 out_pos=303324 next_tok=1 next_ident_len=0
+note: parse skip at byte 303407 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 303324 (num_funcs=3, name=parse_as_suffix_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=303406 body_pos=303476 out_pos=303575 next_tok=1 next_ident_len=0
+note: parse skip at byte 303676 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 303575 (num_funcs=3, name=parse_type_ref_for_arena_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=303675 body_pos=303750 out_pos=303874 next_tok=1 next_ident_len=0
+note: parse skip at byte 303997 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 303874 (num_funcs=3, name=parse_body_let_bracket_compound_init_ref_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=303996 body_pos=304114 out_pos=304271 next_tok=1 next_ident_len=0
+note: parse skip at byte 304376 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 304271 (num_funcs=3, name=parse_struct_record_layout_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=304375 body_pos=304517 out_pos=304686 next_tok=1 next_ident_len=0
+note: parse skip at byte 304791 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 304686 (num_funcs=3, name=parse_one_function_library_scan_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=304790 body_pos=304864 out_pos=304982 next_tok=1 next_ident_len=0
+note: parse skip at byte 305087 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 304982 (num_funcs=3, name=alloc_pointee_type_ref_from_tok_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=305086 body_pos=305149 out_pos=305264 next_tok=1 next_ident_len=0
+note: parse skip at byte 305391 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 305264 (num_funcs=3, name=parser_vector_type_ref_from_ident_spelling_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=305390 body_pos=305452 out_pos=305578 next_tok=1 next_ident_len=0
+note: parse skip at byte 305677 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 305578 (num_funcs=3, name=parse_one_top_level_let_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=305676 body_pos=305793 out_pos=305923 next_tok=1 next_ident_len=0
+note: parse skip at byte 306015 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 305923 (num_funcs=3, name=parse_one_type_alias_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=306014 body_pos=306113 out_pos=306230 next_tok=1 next_ident_len=0
+note: parse skip at byte 306397 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 306230 (num_funcs=3, name=skip_balanced_parens_slice_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=306396 body_pos=306450 out_pos=306552 next_tok=1 next_ident_len=0
+note: parse skip at byte 306719 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 306552 (num_funcs=3, name=skip_balanced_braces_slice_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=306718 body_pos=306772 out_pos=306874 next_tok=1 next_ident_len=0
+note: parse skip at byte 307097 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 306874 (num_funcs=3, name=module_append_enum_variants_and_skip_body_slice_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=307096 body_pos=307182 out_pos=307323 next_tok=1 next_ident_len=0
+note: parse skip at byte 307435 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 307323 (num_funcs=3, name=parse_one_extern_skip_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=307434 body_pos=307518 out_pos=307582 next_tok=1 next_ident_len=0
+note: parse skip at byte 307678 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 307582 (num_funcs=3, name=parse_one_extern_and_add_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=307677 body_pos=307770 out_pos=307849 next_tok=1 next_ident_len=0
+note: parse skip at byte 307996 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 307849 (num_funcs=3, name=parse_one_function_library_from_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=307995 body_pos=308085 out_pos=308159 next_tok=1 next_ident_len=0
+note: parse skip at byte 308257 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 308159 (num_funcs=3, name=parse_into_try_skip_allow_from_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=308256 body_pos=308327 out_pos=308388 next_tok=1 next_ident_len=0
+note: parse skip at byte 308627 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 308388 (num_funcs=3, name=parse_into_buf, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=308626 body_pos=308701 out_pos=352478 next_tok=36 next_ident_len=0
+note: parse skip at byte 352868 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 352832 (num_funcs=3, name=parse_into_set_main_index, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=352867 body_pos=352907 out_pos=352968 next_tok=36 next_ident_len=0
+note: parse skip at byte 353458 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 353415 (num_funcs=3, name=diag_token_after_collect_imports, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=353457 body_pos=353495 out_pos=353568 next_tok=36 next_ident_len=0
+note: parse skip at byte 354101 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 354054 (num_funcs=3, name=diag_parse_one_after_collect_imports, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=354100 body_pos=354156 out_pos=354240 next_tok=36 next_ident_len=0
+note: parse skip at byte 354719 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 354674 (num_funcs=3, name=parse_one_function_ok_for_pipeline, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=354718 body_pos=354757 out_pos=354831 next_tok=1 next_ident_len=0
+note: parse skip at byte 354965 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 354831 (num_funcs=3, name=get_module_num_imports, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=354964 body_pos=354988 out_pos=355019 next_tok=1 next_ident_len=0
+note: parse skip at byte 355178 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 355019 (num_funcs=3, name=get_module_import_path, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=355177 body_pos=355223 out_pos=355386 next_tok=1 next_ident_len=0
+note: parse skip at byte 355673 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 355386 (num_funcs=3, name=copy_module_import_path64, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=355672 body_pos=355717 out_pos=355886 next_tok=1 next_ident_len=0
+note: parse skip at byte 356270 (num_funcs=-1, name=?, mode=debug)
+ --> src/parser/parser.sx
+note: parse skip at byte 355886 (num_funcs=3, name=main, mode=debug)
+ --> src/parser/parser.sx
+note: skip function debug: start_pos=356089 body_pos=356098 out_pos=357429 next_tok=0 next_ident_len=0
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=3
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: after_entry_parse num_funcs=3
+ --> src/parser/parser.sx
+note: pipeline debug: after_entry_parse num_funcs=3 num_defined=0 num_extern=3
+ --> src/parser/parser.sx
+note: pipeline debug: after_entry_parse num_top_level_lets=0
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=3
+note: pipeline debug: before_codegen num_funcs=3 out_len=0
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] dep emit j=0 path=lexer use_asm=0 funcs=1
+shux: [SHUX_DEBUG_PIPE] skip dep emit j=0 path=lexer
+shux: [SHUX_DEBUG_PIPE] dep emit j=1 path=token use_asm=0 funcs=1
+shux: [SHUX_DEBUG_PIPE] dep emit j=2 path=ast use_asm=0 funcs=5
+shux: [SHUX_DEBUG_PIPE] skip dep emit j=2 path=ast
+shux: [SHUX_DEBUG_PIPE] dep emit j=3 path=std.heap use_asm=0 funcs=9
+shux: [SHUX_DEBUG_PIPE] std.heap probe dep_j=3 imports=2 ctx_ndep=7 arena_exprs=202
+shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[0] path=lexer funcs=1 mod=0x748220000
+shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[1] path=token funcs=1 mod=0x748220030
+shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[2] path=ast funcs=5 mod=0x748220060
+shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[3] path=std.heap funcs=9 mod=0x748220120
+shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[4] path=ast funcs=5 mod=0x748220060
+shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[5] path=token funcs=1 mod=0x748220030
+shux: [SHUX_DEBUG_PIPE] std.heap ctx dep[6] path=lexer funcs=1 mod=0x748220000
+shux: [SHUX_DEBUG_PIPE] std.heap import idx=0 kind=1 path=std.heap.ops bind=heap_ops
+shux: [SHUX_DEBUG_PIPE] std.heap import idx=1 kind=1 path=std.heap.libc bind=heap_libc
+shux: [SHUX_DEBUG_PIPE] std.heap func fi=0 name=trace_on body_ref=1 nso=1 fin=0
+shux: [SHUX_DEBUG_PIPE] std.heap func stmt si=0 kind=2 idx=0
+shux: [SHUX_DEBUG_PIPE] std.heap func expr_stmt si=0 expr_ref=10 expr_kind=41
+shux: [SHUX_DEBUG_PIPE] std.heap func return_op si=0 op_ref=8 op_kind=49 callee=0 base=0 name_len=0 var= field=
+shux: [SHUX_DEBUG_PIPE] std.heap expr expr=1 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+shux: [SHUX_DEBUG_PIPE] std.heap expr expr=3 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+shux: [SHUX_DEBUG_PIPE] std.heap expr expr=5 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+shux: [SHUX_DEBUG_PIPE] std.heap expr expr=7 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+shux: [SHUX_DEBUG_PIPE] std.heap expr expr=11 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+shux: [SHUX_DEBUG_PIPE] std.heap expr expr=13 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+shux: [SHUX_DEBUG_PIPE] std.heap expr expr=15 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+shux: [SHUX_DEBUG_PIPE] std.heap expr expr=17 kind=3 callee=0 base=0 name_len=9 var=heap_libc field= dep_ix=-1 func_ix=-1
+shux: [SHUX_DEBUG_PIPE] skip duplicate dep emit j=4 path=ast
+shux: [SHUX_DEBUG_PIPE] skip duplicate dep emit j=5 path=token
+shux: [SHUX_DEBUG_PIPE] skip duplicate dep emit j=6 path=lexer
+note: pipeline debug: pipeline thread done ec=0
+ --> src/parser/parser.sx
+note: pipeline debug: after pipeline_run ec=0
+ --> src/parser/parser.sx
+ld: warning: ignoring duplicate libraries: '-lc'
+Undefined symbols for architecture arm64:
+  "_main", referenced from:
+      <initial-undefines>
+  "_std_heap_libc_heap_trace_enabled_c", referenced from:
+      _std_heap_trace_on in shux_sx-487ae9.o
+ld: symbol(s) not found for architecture arm64
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+build error[BLD001]: cc failed (exit 1)
+ --> src/parser/parser.sx
+build error: cc failed, keeping generated C: /tmp/shux_sx.ny6eWN.c
+ --> src/parser/parser.sx

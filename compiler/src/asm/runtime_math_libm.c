@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <stdio.h>
+#include "diag.h"
 
 #if defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__))
 #include <fenv.h>
@@ -162,7 +163,9 @@ static void math_fenv_emit_cap_report(int32_t avail) {
 #elif defined(_WIN32)
   plat = "Windows";
 #endif
-  fprintf(stderr, "shux: [SHUX_MATH_FENV_CAP] platform=%s available=%d\n", plat, (int)avail);
+  diag_reportf(NULL, 0, 0, "note", NULL,
+               "math fenv cap: platform=%s available=%d",
+               plat, (int)avail);
 }
 
 /**

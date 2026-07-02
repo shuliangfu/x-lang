@@ -1,0 +1,174 @@
+note: pipeline debug: driver post-parse_into_buf num_funcs=511 n_imports=4 pr_ok=0 pr_main_idx=510 src_len=357375
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=std.heap pr_ok=0 n_imp=2
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=std.heap.libc pr_ok=0 n_imp=1
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=core.mem pr_ok=0 n_imp=0
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=std.heap.ops pr_ok=0 n_imp=1
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=ast pr_ok=0 n_imp=0
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=token pr_ok=0 n_imp=0
+ --> src/parser/parser.sx
+note: pipeline debug: collect parse dep=lexer pr_ok=-2 n_imp=1
+ --> src/parser/parser.sx
+note: pipeline debug: n_deps=7
+ --> src/parser/parser.sx
+note: pipeline debug: dep[0]=std.heap
+ --> src/parser/parser.sx
+note: pipeline debug: dep[1]=std.heap.libc
+ --> src/parser/parser.sx
+note: pipeline debug: dep[2]=core.mem
+ --> src/parser/parser.sx
+note: pipeline debug: dep[3]=std.heap.ops
+ --> src/parser/parser.sx
+note: pipeline debug: dep[4]=ast
+ --> src/parser/parser.sx
+note: pipeline debug: dep[5]=token
+ --> src/parser/parser.sx
+note: pipeline debug: dep[6]=lexer
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=1
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: dep prerun call path=token main=-1
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=0
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+shux: [SHUX_DEBUG_PIPE] realign ndep 1 -> entry imports 0
+note: pipeline debug: dep prerun call path=token main=-1
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=5
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+shux: [SHUX_DEBUG_PIPE] realign ndep 1 -> entry imports 0
+note: pipeline debug: dep prerun call path=token main=-1
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=0
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: dep prerun call path=core.mem main=-1
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=13
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+shux: [SHUX_DEBUG_PIPE] realign ndep 1 -> entry imports 0
+note: pipeline debug: dep prerun call path=core.mem main=-1
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=2
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: dep prerun call path=core.mem main=-1
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=9
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: dep prerun call path=std.heap.ops main=-1
+ --> src/parser/parser.sx
+note: pipeline debug: before entry memset arena_sz=16
+ --> src/parser/parser.sx
+note: pipeline debug: before pipeline_run entry=src/parser/parser.sx src_len=357375
+ --> src/parser/parser.sx
+note: pipeline debug: pipeline thread start len=357375
+ --> src/parser/parser.sx
+note: pipeline debug: entry_source_len=357375
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=3
+shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
+note: pipeline debug: after_entry_parse num_funcs=3
+ --> src/parser/parser.sx
+note: pipeline debug: after_entry_parse num_funcs=3 num_defined=0 num_extern=3
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=3
+note: pipeline debug: before_codegen num_funcs=3 out_len=0
+ --> src/parser/parser.sx
+shux: [SHUX_DEBUG_PIPE] dep emit j=0 path=lexer use_asm=0 funcs=1
+shux: [SHUX_DEBUG_PIPE] skip dep emit j=0 path=lexer
+shux: [SHUX_DEBUG_PIPE] dep emit j=1 path=token use_asm=0 funcs=0
+shux: [SHUX_DEBUG_PIPE] dep emit j=2 path=ast use_asm=0 funcs=5
+shux: [SHUX_DEBUG_PIPE] skip dep emit j=2 path=ast
+shux: [SHUX_DEBUG_PIPE] dep emit j=3 path=std.heap use_asm=0 funcs=9
+shux: [SHUX_DEBUG_PIPE] dep emit j=4 path=ast use_asm=0 funcs=5
+shux: [SHUX_DEBUG_PIPE] skip dep emit j=4 path=ast
+shux: [SHUX_DEBUG_PIPE] dep emit j=5 path=token use_asm=0 funcs=0
+shux: [SHUX_DEBUG_PIPE] dep emit j=6 path=lexer use_asm=0 funcs=1
+shux: [SHUX_DEBUG_PIPE] skip dep emit j=6 path=lexer
+note: pipeline debug: pipeline thread done ec=0
+ --> src/parser/parser.sx
+note: pipeline debug: after pipeline_run ec=0
+ --> src/parser/parser.sx
+/tmp/shux_sx.1hxSSg.c:196:11: error: use of undeclared identifier 'heap_libc'
+  196 |   return (heap_libc.heap_trace_enabled_c());
+      |           ^~~~~~~~~
+/tmp/shux_sx.1hxSSg.c:938:16: error: redefinition of 'p' with a different type: 'int32_t' (aka 'int') vs 'size_t' (aka 'unsigned long')
+  938 | static int32_t p;
+      |                ^
+/tmp/shux_sx.1hxSSg.c:598:15: note: previous definition is here
+  598 | static size_t p;
+      |               ^
+/tmp/shux_sx.1hxSSg.c:1068:16: error: redefinition of 'p' with a different type: 'int32_t' (aka 'int') vs 'size_t' (aka 'unsigned long')
+ 1068 | static int32_t p;
+      |                ^
+/tmp/shux_sx.1hxSSg.c:598:15: note: previous definition is here
+  598 | static size_t p;
+      |               ^
+/tmp/shux_sx.1hxSSg.c:1214:27: error: redefinition of 'res' with a different type: 'struct ParseResult' vs 'struct OneFuncResult'
+ 1214 | static struct ParseResult res;
+      |                           ^
+/tmp/shux_sx.1hxSSg.c:1126:29: note: previous definition is here
+ 1126 | static struct OneFuncResult res;
+      |                             ^
+/tmp/shux_sx.1hxSSg.c:1217:27: error: redefinition of 'res' with a different type: 'struct ParseResult' vs 'struct OneFuncResult'
+ 1217 | static struct ParseResult res;
+      |                           ^
+/tmp/shux_sx.1hxSSg.c:1126:29: note: previous definition is here
+ 1126 | static struct OneFuncResult res;
+      |                             ^
+/tmp/shux_sx.1hxSSg.c:1219:13: error: call to undeclared function 'parser_rewind_lex_for_following_stmt'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+ 1219 |   rewound = parser_rewind_lex_for_following_stmt(lex_in, r);
+      |             ^
+/tmp/shux_sx.1hxSSg.c:1219:50: error: use of undeclared identifier 'lex_in'
+ 1219 |   rewound = parser_rewind_lex_for_following_stmt(lex_in, r);
+      |                                                  ^~~~~~
+/tmp/shux_sx.1hxSSg.c:1220:8: error: use of undeclared identifier 'run_len'
+ 1220 |   rl = run_len;
+      |        ^~~~~~~
+/tmp/shux_sx.1hxSSg.c:1221:12: error: use of undeclared identifier 'end_pos'
+ 1221 |   start = (end_pos - ((size_t)(rl)));
+      |            ^~~~~~~
+/tmp/shux_sx.1hxSSg.c:1222:19: error: use of undeclared identifier 'kind'
+ 1222 |   ko = ((int32_t)(kind));
+      |                   ^~~~
+/tmp/shux_sx.1hxSSg.c:1223:50: error: use of undeclared identifier 'lex_in'
+ 1223 |   lex_out = parser_rewind_lex_for_following_stmt(lex_in, r_in);
+      |                                                  ^~~~~~
+/tmp/shux_sx.1hxSSg.c:1223:58: error: use of undeclared identifier 'r_in'
+ 1223 |   lex_out = parser_rewind_lex_for_following_stmt(lex_in, r_in);
+      |                                                          ^~~~
+/tmp/shux_sx.1hxSSg.c:1224:13: error: call to undeclared function 'lex_at_token_from_result'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+ 1224 |   lp_base = lex_at_token_from_result(r_in);
+      |             ^
+/tmp/shux_sx.1hxSSg.c:1224:38: error: use of undeclared identifier 'r_in'
+ 1224 |   lp_base = lex_at_token_from_result(r_in);
+      |                                      ^~~~
+/tmp/shux_sx.1hxSSg.c:1226:35: error: call to undeclared function 'lexer_pos_before_run'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+ 1226 |   lex_lp = (struct Lexer){ .pos = lexer_pos_before_run((lp_base.pos), back_lp), .line = ((r_in.tok).line), .col = ((r_in.tok).col) };
+      |                                   ^
+/tmp/shux_sx.1hxSSg.c:1226:91: error: use of undeclared identifier 'r_in'
+ 1226 |   lex_lp = (struct Lexer){ .pos = lexer_pos_before_run((lp_base.pos), back_lp), .line = ((r_in.tok).line), .col = ((r_in.tok).col) };
+      |                                                                                           ^~~~
+/tmp/shux_sx.1hxSSg.c:1226:117: error: use of undeclared identifier 'r_in'
+ 1226 |   lex_lp = (struct Lexer){ .pos = lexer_pos_before_run((lp_base.pos), back_lp), .line = ((r_in.tok).line), .col = ((r_in.tok).col) };
+      |                                                                                                                     ^~~~
+/tmp/shux_sx.1hxSSg.c:1227:84: error: use of undeclared identifier 'TokenKind'
+ 1227 |   r_lp = (struct LexerResult){ .next_lex = lex_lp, .tok = (struct Token){ .kind = (TokenKind.TOKEN_EOF), .line = 0, .col = 0, .int_val = 0, .float_val = 0.0, .ident = 0, .ident_len = 0 }, .token_start = 0 };
+      |                                                                                    ^~~~~~~~~
+/tmp/shux_sx.1hxSSg.c:1228:8: error: use of undeclared identifier 'ident_start'; did you mean 'int_start'?
+ 1228 |   p = (ident_start - 6);
+      |        ^~~~~~~~~~~
+      |        int_start
+/tmp/shux_sx.1hxSSg.c:762:15: note: 'int_start' declared here
+  762 | static size_t int_start;
+      |               ^
+fatal error: too many errors emitted, stopping now [-ferror-limit=]
+20 errors generated.
+build error[BLD001]: cc failed (exit 1)
+ --> src/parser/parser.sx
+build error: cc failed, keeping generated C: /tmp/shux_sx.1hxSSg.c
+ --> src/parser/parser.sx

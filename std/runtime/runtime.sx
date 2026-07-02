@@ -25,15 +25,15 @@ extern function shux_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
 
 /** STD-028：panic 钩子收集（转发弱符号 shux_crash_evidence_collect_c）。 */
 function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void {
-  shux_crash_evidence_collect_c(has_msg, msg_val);
+  unsafe { shux_crash_evidence_collect_c(has_msg, msg_val); }
 }
 
 /** 无参 panic：终止程序（noreturn）。对标 Rust panic!()、Zig @panic。 */
 function runtime_panic(): void {
-  shux_panic_(0, 0);
+  unsafe { shux_panic_(0, 0); }
 }
 
 /** 终止程序（noreturn）；与 panic 同义，对标 C abort()、Rust std::process::abort。 */
 function runtime_abort(): void {
-  shux_panic_(0, 0);
+  unsafe { shux_panic_(0, 0); }
 }

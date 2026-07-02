@@ -7,9 +7,12 @@
  */
 
 #include "runtime_proc_abi.h"
+#include "diag.h"
+#include "runtime_diag_codes.h"
 
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -29,13 +32,19 @@ int shu_waitpid_retry(pid_t pid, int *status_out) {
         }
         if (w == -1 && errno == EINTR)
             continue;
-        perror("shux: waitpid");
+        {
+            int saved_errno = errno;
+            const char *err = strerror(saved_errno);
+            diag_reportf_with_code(NULL, 0, 0, "process error", SHUX_DIAG_CODE_PROCESS_PRC001, NULL,
+                                   "waitpid failed: %s",
+                                   err ? err : "unknown error");
+        }
         return -1;
     }
 }
 
 /**
- * 仅当 path 指向已存在常规文件时返回 path，供 clang/ld argv 追加。
+ * 仅当 path 指向已存在且非空的常规文件时返回 path，供 clang/ld argv 追加。
  * 参数：见 runtime_proc_abi.h。
  */
 const char *asm_link_obj_skip_missing(const char *path) {
@@ -43,6 +52,8 @@ const char *asm_link_obj_skip_missing(const char *path) {
     if (!path || !path[0])
         return NULL;
     if (stat(path, &st) != 0 || !S_ISREG(st.st_mode))
+        return NULL;
+    if (st.st_size <= 0)
         return NULL;
     return path;
 }

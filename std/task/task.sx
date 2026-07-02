@@ -101,21 +101,21 @@ function tg_is_cancelled(g: *TaskGroupMem): i32 {
   if (g.ctx_handle == 0) {
     return 0;
   }
-  return ctx_is_cancelled_c(g.ctx_handle);
+  unsafe { return ctx_is_cancelled_c(g.ctx_handle); }
 }
 
 /** 烟测/demo 任务：返回 seed*10。 */
 function task_echo_fn_c(): i32 {
   let seed: i32 = 0;
-  if (shux_async_run_seed_valid() != 0) {
+  unsafe { if (shux_async_run_seed_valid() != 0) {
     seed = shux_async_run_seed_take_i32();
-  }
+  } }
   return seed * 10;
 }
 
 /** 返回 demo 任务函数指针（供 .sx spawn 烟测）。 */
 function task_echo_fn_ptr_c(): *u8 {
-  return shux_async_task_echo_fn_ptr_c();
+  unsafe { return shux_async_task_echo_fn_ptr_c(); }
 }
 
 /** 创建 TaskGroup；capacity 须 1..TASK_MAX。 */
@@ -126,7 +126,7 @@ function task_group_create_c(capacity: i32): i64 {
   if (cap <= 0 || cap > TASK_MAX) {
     return 0;
   }
-  raw = calloc(1, 32);
+  unsafe { raw = calloc(1, 32); }
   if (raw == 0) {
     return 0;
   }
@@ -139,7 +139,7 @@ function task_group_create_c(capacity: i32): i64 {
 function task_group_free_c(handle: i64): void {
   let g: *TaskGroupMem = tg_from_handle(handle);
   if (g != 0) {
-    free(g as *u8);
+    unsafe { free(g as *u8); }
   }
 }
 
@@ -165,7 +165,7 @@ function task_group_spawn_c(handle: i64, fn: *u8, seed: i32): i32 {
   if (g.spawned >= g.capacity) {
     return TASK_ERR_FULL;
   }
-  spawn_r = shux_async_spawn_i32(fn, seed);
+  unsafe { spawn_r = shux_async_spawn_i32(fn, seed); }
   if (spawn_r != 0) {
     if (spawn_r == -2 || tg_is_cancelled(g) != 0) {
       return TASK_ERR_CANCELLED;
@@ -193,9 +193,9 @@ function task_group_join_c(handle: i64): i32 {
     return TASK_OK;
   }
   if (g.ctx_handle != 0) {
-    shux_async_bind_context_c(g.ctx_handle);
+    unsafe { shux_async_bind_context_c(g.ctx_handle); }
   }
-  total = shux_async_run_drain_until_idle();
+  unsafe { total = shux_async_run_drain_until_idle(); }
   if (total == -3) {
     return TASK_ERR_CANCELLED;
   }
@@ -232,7 +232,7 @@ function task_group_cancel_c(handle: i64): void {
   if (g == 0 || g.ctx_handle == 0) {
     return;
   }
-  ctx_cancel_c(g.ctx_handle);
+  unsafe { ctx_cancel_c(g.ctx_handle); }
 }
 
 /** 读取上次 join 累计结果。 */
@@ -252,7 +252,7 @@ function join_set_create_c(capacity: i32): i64 {
   if (cap <= 0 || cap > TASK_MAX) {
     return 0;
   }
-  raw = calloc(1, 20);
+  unsafe { raw = calloc(1, 20); }
   if (raw == 0) {
     return 0;
   }
@@ -265,7 +265,7 @@ function join_set_create_c(capacity: i32): i64 {
 function join_set_free_c(handle: i64): void {
   let s: *JoinSetMem = js_from_handle(handle);
   if (s != 0) {
-    free(s as *u8);
+    unsafe { free(s as *u8); }
   }
 }
 
@@ -278,9 +278,9 @@ function join_set_spawn_c(handle: i64, fn: *u8, seed: i32): i32 {
   if (s.spawned >= s.capacity) {
     return TASK_ERR_FULL;
   }
-  if (shux_async_spawn_i32(fn, seed) != 0) {
+  unsafe { if (shux_async_spawn_i32(fn, seed) != 0) {
     return TASK_ERR_INVALID;
-  }
+  } }
   s.spawned = s.spawned + 1;
   s.joined = 0;
   return TASK_OK;
@@ -298,7 +298,7 @@ function join_set_join_c(handle: i64): i32 {
     s.join_total = 0 as i64;
     return TASK_OK;
   }
-  total = shux_async_run_drain_until_idle();
+  unsafe { total = shux_async_run_drain_until_idle(); }
   s.join_total = total as i64;
   s.joined = 1;
   s.spawned = 0;
@@ -325,17 +325,17 @@ function task_supervise_retry_c(fn: *u8, seed: i32, max_attempts: i32, backoff_n
     return TASK_ERR_NULL;
   }
   while (attempt < max_attempts) {
-    shux_async_run_seed_reset();
-    shux_async_queue_reset();
-    if (shux_async_spawn_i32(fn, seed) != 0) {
+    unsafe { shux_async_run_seed_reset(); }
+    unsafe { shux_async_queue_reset(); }
+    unsafe { if (shux_async_spawn_i32(fn, seed) != 0) {
       return TASK_ERR_INVALID;
-    }
-    total = shux_async_run_drain_until_idle();
+    } }
+    unsafe { total = shux_async_run_drain_until_idle(); }
     if (total >= 0) {
       return total;
     }
     if (backoff_ns > 0) {
-      time_sleep_ns_c(backoff_ns);
+      unsafe { time_sleep_ns_c(backoff_ns); }
     }
     attempt = attempt + 1;
   }
@@ -351,8 +351,8 @@ function task_smoke_c(): i32 {
   if (grp == 0 || js == 0) {
     return 1;
   }
-  shux_async_run_seed_reset();
-  shux_async_queue_reset();
+  unsafe { shux_async_run_seed_reset(); }
+  unsafe { shux_async_queue_reset(); }
   if (task_group_spawn_c(grp, echo_fn, 2) != TASK_OK) {
     return 2;
   }
@@ -369,8 +369,8 @@ function task_smoke_c(): i32 {
   if (task_group_check_leak_c(grp) != TASK_OK) {
     return 6;
   }
-  shux_async_run_seed_reset();
-  shux_async_queue_reset();
+  unsafe { shux_async_run_seed_reset(); }
+  unsafe { shux_async_queue_reset(); }
   if (join_set_spawn_c(js, echo_fn, 4) != TASK_OK) {
     return 7;
   }
@@ -378,8 +378,8 @@ function task_smoke_c(): i32 {
   if (r != 40) {
     return 8;
   }
-  shux_async_run_seed_reset();
-  shux_async_queue_reset();
+  unsafe { shux_async_run_seed_reset(); }
+  unsafe { shux_async_queue_reset(); }
   r = task_supervise_retry_c(echo_fn, 5, 3, 0);
   if (r != 50) {
     return 9;

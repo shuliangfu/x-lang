@@ -99,9 +99,9 @@ function net_ipv6_ensure_wsa_c(): i32 {
   if (net_ipv6_wsa_done != 0) {
     return 0;
   }
-  if (WSAStartup(514 as u16, 0 as *u8) != 0) {
+  unsafe { if (WSAStartup(514 as u16, 0 as *u8) != 0) {
     return -1;
-  }
+  } }
   net_ipv6_wsa_done = 1;
   return 0;
 }
@@ -137,13 +137,14 @@ extern function net_ipv6_set_addr_port_buf_c(sin: *u8, addr_16: *u8, port_u32: u
  */
 #[cfg(not(target_os = "windows"))]
 function net_ipv6_set_nonblock_c(fd: i32): i32 {
-  let flags: i32 = fcntl(fd, 3, 0);
+  let flags: i32 = 0;
+  unsafe { flags = fcntl(fd, 3, 0); }
   if (flags < 0) {
     return -1;
   }
-  if (fcntl(fd, 4, flags | O_NONBLOCK) == 0) {
+  unsafe { if (fcntl(fd, 4, flags | O_NONBLOCK) == 0) {
     return 0;
-  }
+  } }
   return -1;
 }
 
@@ -153,9 +154,9 @@ function net_ipv6_set_nonblock_c(fd: i32): i32 {
 #[cfg(target_os = "windows")]
 function net_ipv6_set_nonblock_c(fd: i32): i32 {
   let one: u32 = 1;
-  if (ioctlsocket(fd, (0x80000000 | 0x40000000) as i32, &one) == 0) {
+  unsafe { if (ioctlsocket(fd, (0x80000000 | 0x40000000) as i32, &one) == 0) {
     return 0;
-  }
+  } }
   return -1;
 }
 
@@ -173,7 +174,7 @@ function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
   p_fd[0] = fd;
   p_events[0] = POLLOUT;
   p_revents[0] = 0 as i16;
-  n = poll(pfd_ptr, 1 as u64, timeout_ms as i32);
+  unsafe { n = poll(pfd_ptr, 1 as u64, timeout_ms as i32); }
   if (n <= 0 || (p_revents[0] & (POLLERR | POLLHUP)) != 0) {
     return -1;
   }
@@ -193,7 +194,10 @@ function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
  */
 #[cfg(not(target_os = "windows"))]
 function net_ipv6_connect_retry_ok_c(): i32 {
-  let e: i32 = __errno_location()[0];
+  let ep: *i32 = 0 as *i32;
+  let e: i32 = 0;
+  unsafe { ep = __errno_location(); }
+  e = ep[0];
   if (e == ERR_INPROGRESS || e == ERR_EAGAIN) {
     return 1;
   }
@@ -223,16 +227,16 @@ function net_tcp_connect_ipv6_c(addr_16: *u8, port_u32: u32, timeout_ms: u32): i
   if (addr_16 == 0) {
     return -1;
   }
-  net_ipv6_set_addr_port_buf_c(sin_ptr, addr_16, port_u32);
-  fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+  unsafe { net_ipv6_set_addr_port_buf_c(sin_ptr, addr_16, port_u32); }
+  unsafe { fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP); }
   if (fd < 0) {
     return -1;
   }
   if (net_ipv6_set_nonblock_c(fd) != 0) {
-    close(fd);
+    unsafe { close(fd); }
     return -1;
   }
-  if (connect(fd, sin_ptr, SOCKADDR_IN6_SIZE) != 0) {
+  unsafe { if (connect(fd, sin_ptr, SOCKADDR_IN6_SIZE) != 0) {
     if (net_ipv6_connect_retry_ok_c() == 0) {
       close(fd);
       return -1;
@@ -246,7 +250,7 @@ function net_tcp_connect_ipv6_c(addr_16: *u8, port_u32: u32, timeout_ms: u32): i
       close(fd);
       return -1;
     }
-  }
+  } }
   return fd;
 }
 
@@ -264,22 +268,22 @@ function net_tcp_listen_ipv6_c(addr_16: *u8, port_u32: u32): i32 {
   if (addr_16 == 0) {
     return -1;
   }
-  net_ipv6_set_addr_port_buf_c(sin_ptr, addr_16, port_u32);
-  fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+  unsafe { net_ipv6_set_addr_port_buf_c(sin_ptr, addr_16, port_u32); }
+  unsafe { fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP); }
   if (fd < 0) {
     return -1;
   }
-  setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, 4 as u32);
-  if (bind(fd, sin_ptr, SOCKADDR_IN6_SIZE) != 0) {
+  unsafe { setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, 4 as u32); }
+  unsafe { if (bind(fd, sin_ptr, SOCKADDR_IN6_SIZE) != 0) {
     close(fd);
     return -1;
-  }
-  if (listen(fd, 128) != 0) {
+  } }
+  unsafe { if (listen(fd, 128) != 0) {
     close(fd);
     return -1;
-  }
+  } }
   if (net_ipv6_set_nonblock_c(fd) != 0) {
-    close(fd);
+    unsafe { close(fd); }
     return -1;
   }
   return fd;

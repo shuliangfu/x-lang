@@ -7,6 +7,7 @@
 #ifndef PARSER_ASM_PRIMARY_SLICE_INCLUDED
 #define PARSER_ASM_PRIMARY_SLICE_INCLUDED
 
+#include "diag.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -17,6 +18,7 @@ enum {
   PARSER_ASM_EXPR_BOOL_LIT = 2,
   PARSER_ASM_EXPR_VAR = 3,
   PARSER_ASM_EXPR_IF = 25,
+  PARSER_ASM_EXPR_BLOCK = 26,
   PARSER_ASM_EXPR_BREAK = 39,
   PARSER_ASM_EXPR_CONTINUE = 40,
   PARSER_ASM_EXPR_PANIC = 42,
@@ -38,6 +40,9 @@ extern void parser_parse_match_into(void *arena, struct parser_asm_lexer lex, st
                                     struct parser_asm_parse_expr_result *out);
 extern void parser_parse_if_expr_into(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                                        int32_t type_ref, struct parser_asm_parse_expr_result *out);
+extern void parser_parse_block_into(void *arena, struct parser_asm_lexer lex_after_lbrace,
+                                    struct parser_asm_slice_u8 *source, int32_t type_ref,
+                                    struct parser_asm_parse_block_result *out);
 extern void parser_parse_at_simd_builtin_into(void *arena, struct parser_asm_lexer_result r0,
                                               struct parser_asm_slice_u8 *source,
                                               struct parser_asm_parse_expr_result *out);
@@ -155,6 +160,9 @@ extern int32_t parser_asm_stretch_paren_expr_head_audit_c(struct parser_asm_lexe
                                                           struct parser_asm_slice_u8 *source);
 extern int32_t pipeline_expr_append_call_arg(void *arena, int32_t expr_ref, int32_t arg_ref);
 extern int32_t pipeline_expr_append_method_call_arg(void *arena, int32_t expr_ref, int32_t arg_ref);
+extern int32_t ast_ast_arena_block_alloc(void *arena);
+extern int32_t pipeline_block_append_unsafe(void *arena, int32_t block_ref, int32_t body_ref);
+extern int32_t pipeline_block_append_stmt_order(void *arena, int32_t block_ref, uint8_t kind, int32_t idx);
 extern void parser_asm_skip_generic_angle_list_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
                                                               struct parser_asm_slice_u8 *source);
 extern void parser_asm_skip_generic_angle_list_count_into_slice_c(struct parser_asm_lexer *out, int32_t *count,
@@ -164,6 +172,10 @@ extern int32_t pipeline_expr_append_array_lit_elem(void *arena, int32_t expr_ref
 extern int32_t ast_ast_arena_expr_alloc(void *arena);
 
 extern struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_lexer_result r);
+static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
+static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
+static void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
+struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
 
 /** 分配 EXPR_FLOAT_LIT 节点；与 parser.sx parser_alloc_float_lit 一致。 */
 static int32_t parser_asm_alloc_float_lit_c(void *arena, double fval) {
@@ -183,11 +195,6 @@ static int32_t parser_asm_alloc_float_lit_c(void *arena, double fval) {
   parser_asm_arena_expr_set_c(arena, ref, e);
   return ref;
 }
-
-static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
-static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
-static void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
-struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
 
 static int parser_asm_suffix_debug_enabled(void) {
   const char *v = getenv("SHUX_PARSER_ASM_DEBUG");
@@ -213,6 +220,70 @@ static void parser_asm_primary_copy_ident_to_var_c(struct parser_asm_ast_expr *e
     e->var_name[i] = 0;
     i++;
   }
+}
+
+static int32_t parser_asm_wrap_block_ref_as_expr_primary_c(void *arena, int32_t block_ref) {
+  int32_t ref;
+  struct parser_asm_ast_expr e;
+  if (!arena || block_ref == 0)
+    return 0;
+  ref = ast_ast_arena_expr_alloc(arena);
+  if (ref == 0)
+    return 0;
+  e = parser_asm_arena_expr_get_c(arena, ref);
+  parser_asm_expr_set_common_zeros_c(&e);
+  e.kind = PARSER_ASM_EXPR_BLOCK;
+  e.block_ref = block_ref;
+  e.line = 0;
+  e.col = 0;
+  parser_asm_arena_expr_set_c(arena, ref, e);
+  return ref;
+}
+
+static int32_t parser_asm_primary_ident_is_unsafe_c(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                    int32_t ident_len) {
+  if (!source || !source->data || ident_len != 6)
+    return 0;
+  if (token_start + (size_t)ident_len > source->length)
+    return 0;
+  return source->data[token_start + 0] == (uint8_t)'u' && source->data[token_start + 1] == (uint8_t)'n'
+      && source->data[token_start + 2] == (uint8_t)'s' && source->data[token_start + 3] == (uint8_t)'a'
+      && source->data[token_start + 4] == (uint8_t)'f' && source->data[token_start + 5] == (uint8_t)'e';
+}
+
+static void parser_asm_primary_parse_unsafe_expr_c(void *arena, struct parser_asm_lexer lex_after_kw,
+                                                   struct parser_asm_slice_u8 *source,
+                                                   struct parser_asm_parse_expr_result *out) {
+  struct parser_asm_lexer_result r;
+  struct parser_asm_parse_block_result block_res;
+  int32_t wrapper_block_ref;
+  int32_t unsafe_idx;
+  int32_t expr_ref;
+  if (!arena || !source || !out)
+    return;
+  out->ok = 0;
+  lexer_next_into(&r, lex_after_kw, source);
+  if (r.tok.kind != (int32_t)TOKEN_LBRACE)
+    return;
+  memset(&block_res, 0, sizeof(block_res));
+  block_res.next_lex = r.next_lex;
+  parser_parse_block_into(arena, r.next_lex, source, 0, &block_res);
+  if (!block_res.ok)
+    return;
+  wrapper_block_ref = ast_ast_arena_block_alloc(arena);
+  if (wrapper_block_ref == 0)
+    return;
+  unsafe_idx = pipeline_block_append_unsafe(arena, wrapper_block_ref, block_res.block_ref);
+  if (unsafe_idx < 0)
+    return;
+  if (pipeline_block_append_stmt_order(arena, wrapper_block_ref, 6, unsafe_idx) < 0)
+    return;
+  expr_ref = parser_asm_wrap_block_ref_as_expr_primary_c(arena, wrapper_block_ref);
+  if (expr_ref == 0)
+    return;
+  out->ok = 1;
+  out->expr_ref = expr_ref;
+  out->next_lex = block_res.next_lex;
 }
 
 /** IDENT 后 `.field` / `[idx]` / `(args)` 后缀链；失败时写 out.ok=0 或仅写 out.next_lex 后返回。 */
@@ -273,8 +344,9 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
     if (lex->pos == prev_pos && r->tok.kind == prev_tok_kind) {
       stall_count++;
       if (stall_count >= PARSER_ASM_SUFFIX_STALL_LIMIT) {
-        fprintf(stderr, "parser_asm suffix stall pos=%d tok=%d line=%d col=%d\n", lex->pos, r->tok.kind, lex->line,
-                lex->col);
+        diag_reportf(NULL, lex->line, lex->col, "parse error", NULL,
+                     "parser asm suffix loop stalled (pos=%d, tok=%d, stall_count=%d)",
+                     lex->pos, r->tok.kind, stall_count);
         out->ok = 0;
         out->next_lex = *lex;
         return;
@@ -1385,7 +1457,6 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_audit_c(lex, source));
   lexer_next_into(&r, lex, source);
-  /** 须在第二次 lexer_next 之前处理 TOKEN_STRING：否则 `foo("")` 实参被跳过、let 后 return if 落入 buf 回退失败。 */
   if (r.tok.kind == (int32_t)TOKEN_STRING) {
     size_t q0;
     size_t k;
@@ -1399,7 +1470,7 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     e.kind = PARSER_ASM_EXPR_STRING_LIT;
     e.line = r.tok.line;
     e.col = r.tok.col;
-    /** lexer.sx：TOKEN_STRING 的 token_start 已指向开引号后首字节，勿再 +1。 */
+    /* lexer.sx：TOKEN_STRING 的 token_start 已指向开引号后首字节。 */
     q0 = r.token_start;
     e.var_name_len = r.tok.ident_len;
     if (e.var_name_len > 63)
@@ -1501,6 +1572,10 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_IDENT) {
+    if (parser_asm_primary_ident_is_unsafe_c(source, r.token_start, r.tok.ident_len)) {
+      parser_asm_primary_parse_unsafe_expr_c(arena, r.next_lex, source, out);
+      return;
+    }
     ref = ast_ast_arena_expr_alloc(arena);
     if (ref == 0) {
       out->ok = 0;
@@ -1537,7 +1612,15 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
       out->ok = 0;
       return;
     }
+    /**
+     * `(expr)` 不是后缀链终点；如 `(p + i)[0]` / `(f())(...)` 仍需继续走统一 suffix loop。
+     * 之前这里直接 return，会把 `)` 后的 `[` / `(` / `.` 留给外层，导致整条 expr-stmt parse skip。
+     */
     out->next_lex = r.next_lex;
+    lex = r.next_lex;
+    lexer_next_into(&r, lex, source);
+    PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_primary_suffix_chain_probe_c(lex, source));
+    parser_asm_primary_ident_suffix_loop_c(arena, source, &lex, &r, out, 1);
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_LBRACKET) {

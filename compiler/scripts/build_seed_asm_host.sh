@@ -8,6 +8,25 @@ cd "$(dirname "$0")/.."
 OUT_DIR=build_asm/seed_host
 mkdir -p "$OUT_DIR"
 
+build_seed_asm_host_info() {
+  printf 'info: build_seed_asm_host: %s\n' "$*" >&2
+}
+
+build_seed_asm_host_warn() {
+  printf 'warning: build_seed_asm_host: %s\n' "$*" >&2
+}
+
+build_seed_asm_host_error() {
+  printf 'build error: build_seed_asm_host: %s\n' "$*" >&2
+}
+
+build_seed_asm_host_dump_tail() {
+  _file="$1"
+  _lines="${2:-10}"
+  [ -s "$_file" ] || return 0
+  tail -n "$_lines" "$_file" | sed 's/^/  /' >&2
+}
+
 _seed_os="$(uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 _seed_arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 case "$_seed_arch" in x86_64|amd64) _seed_arch="x86_64" ;; aarch64|arm64) _seed_arch="arm64" ;; esac
@@ -76,7 +95,7 @@ elif can_seed_run ./shux_asm; then
   SHUX_E=./shux_asm
 fi
 if [ ! -x "$SHUX_E" ]; then
-  echo "build_seed_asm_host: 缺少可执行 seed（shux-seed-phase1 / shux-c）" >&2
+  build_seed_asm_host_error "缺少可执行 seed（shux-seed-phase1 / shux-c）"
   exit 1
 fi
 
@@ -128,15 +147,15 @@ run_asm_sx_emit_c() {
         _peak_rss_kb="$_rss_kb"
       fi
       [ -f "$_out" ] && _bytes=$(wc -c <"$_out" | tr -d ' ')
-      echo "[$(date +%H:%M:%S)] build_seed_asm_host: ${_label} ... ${_elapsed}s, out=${_bytes} bytes, rss=$((_rss_kb / 1024)) MiB, peak=$((_peak_rss_kb / 1024)) MiB" >&2
+      build_seed_asm_host_info "[$(date +%H:%M:%S)] ${_label} ... ${_elapsed}s, out=${_bytes} bytes, rss=$((_rss_kb / 1024)) MiB, peak=$((_peak_rss_kb / 1024)) MiB"
       if [ "${_rss_limit_mb:-0}" -gt 0 ] && [ "$_rss_kb" -ge "$_rss_limit_kb" ]; then
-        echo "build_seed_asm_host: ${_label} rss limit hit (${_rss_kb} KiB >= ${_rss_limit_kb} KiB), terminate and fallback" >&2
+        build_seed_asm_host_warn "${_label} rss limit hit (${_rss_kb} KiB >= ${_rss_limit_kb} KiB), terminate and fallback"
         kill_proc_tree "$_pid"
         wait "$_pid" 2>/dev/null || true
         return 125
       fi
       if [ "${_timeout:-0}" -gt 0 ] && [ "$_elapsed" -ge "$_timeout" ]; then
-        echo "build_seed_asm_host: ${_label} timeout after ${_elapsed}s, terminate and fallback" >&2
+        build_seed_asm_host_warn "${_label} timeout after ${_elapsed}s, terminate and fallback"
         kill_proc_tree "$_pid"
         wait "$_pid" 2>/dev/null || true
         return 124
@@ -174,8 +193,8 @@ run_asm_sx_emit_c() {
   [ "$_erc" -eq 0 ] && [ -s "$_out" ] && return 0
   [ "$_erc" -eq 124 ] && return 1
   [ "$_erc" -eq 125 ] && return 1
-  echo "build_seed_asm_host: LIB_ASM -E exit=${_erc}, retry once ..." >&2
-  if [ -s "$_err" ]; then tail -10 "$_err" >&2; fi
+  build_seed_asm_host_warn "LIB_ASM -E exit=${_erc}, retry once ..."
+  build_seed_asm_host_dump_tail "$_err" 10
   rm -f "$_out" "$_err"
   _start=$(date +%s)
   _run &
@@ -185,7 +204,7 @@ run_asm_sx_emit_c() {
   if _emit_c_usable; then
     return 0
   fi
-  if [ -s "$_err" ]; then tail -20 "$_err" >&2; fi
+  build_seed_asm_host_dump_tail "$_err" 20
   return 1
 }
 
@@ -231,20 +250,20 @@ try_cc_asm_full_gen_c() {
   if $CC $CFLAGS -c "$_c" -o "$ASM_FULL_O" 2>"$OUT_DIR/cc.err"; then
     return 0
   fi
-  echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc FAILED ($(grep -c 'error:' "$OUT_DIR/cc.err" 2>/dev/null || echo 0) errors)" >&2
-  tail -15 "$OUT_DIR/cc.err" >&2
+  build_seed_asm_host_error "[$(date +%H:%M:%S)] cc FAILED ($(grep -c 'error:' "$OUT_DIR/cc.err" 2>/dev/null || echo 0) errors)"
+  build_seed_asm_host_dump_tail "$OUT_DIR/cc.err" 15
   if [ "${SHUX_ALLOW_GEN_PATCH:-0}" != "1" ]; then
     return 1
   fi
   for _retry in "${ASM_FULL_C}.pre_fix" "${ASM_FULL_C}.bak"; do
     [ -f "$_retry" ] || continue
     asm_full_gen_c_usable_for_fix "$_retry" || continue
-    echo "build_seed_asm_host: cc 失败，重试 fix+cc from ${_retry} ..." >&2
+    build_seed_asm_host_warn "cc 失败，重试 fix+cc from ${_retry} ..."
     cp -f "$_retry" "$ASM_FULL_C"
     run_fix_asm_full_c_pipeline "$ASM_FULL_C"
     rm -f "$ASM_FULL_O"
     if $CC $CFLAGS -c "$ASM_FULL_C" -o "$ASM_FULL_O" 2>"$OUT_DIR/cc.err"; then
-      echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc OK from ${_retry}" >&2
+      build_seed_asm_host_info "[$(date +%H:%M:%S)] cc OK from ${_retry}"
       return 0
     fi
   done
@@ -276,14 +295,14 @@ BACKEND_FALLBACK_SRC="src/asm/backend_seed_mega_fallback.c"
 
 build_backend_partial_from_c_fallback() {
   rm -f "$BACKEND_PARTIAL"
-  echo "build_seed_asm_host: fallback cc $BACKEND_FALLBACK_SRC -> $BACKEND_PARTIAL" >&2
+  build_seed_asm_host_warn "fallback cc $BACKEND_FALLBACK_SRC -> $BACKEND_PARTIAL"
   if ! $CC $CFLAGS -c "$BACKEND_FALLBACK_SRC" -o "$BACKEND_PARTIAL" 2>"$OUT_DIR/backend_seed_mega_fallback.err"; then
-    tail -20 "$OUT_DIR/backend_seed_mega_fallback.err" >&2
+    build_seed_asm_host_dump_tail "$OUT_DIR/backend_seed_mega_fallback.err" 20
     rm -f "$BACKEND_PARTIAL"
     return 1
   fi
   if ! has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
-    echo "build_seed_asm_host: fallback partial 缺少强 seed_mega" >&2
+    build_seed_asm_host_error "fallback partial 缺少强 seed_mega"
     rm -f "$BACKEND_PARTIAL"
     return 1
   fi
@@ -369,12 +388,12 @@ if [ ! -f "$BACKEND_PARTIAL" ] && [ -f "$SEED_PARTIAL" ] && [ -s "$SEED_PARTIAL"
     && has_real_partial_seed_mega "$SEED_PARTIAL"; then
   mkdir -p "$OUT_DIR"
   cp -f "$SEED_PARTIAL" "$BACKEND_PARTIAL"
-  echo "build_seed_asm_host: seed partial (seed_mega) <- $SEED_PARTIAL" >&2
+  build_seed_asm_host_info "seed partial (seed_mega) <- $SEED_PARTIAL"
   exit 0
 fi
 # phase1 弱桩 partial 无强符号 seed_mega，须用 shux-seed-phase1 重新 -E asm.sx
 if [ -f "$BACKEND_PARTIAL" ] && ! has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
-  echo "build_seed_asm_host: phase1 stub partial (no strong seed_mega), regen via asm.sx -E ..." >&2
+  build_seed_asm_host_warn "phase1 stub partial (no strong seed_mega), regen via asm.sx -E ..."
   rm -f "$BACKEND_PARTIAL"
 fi
 
@@ -402,27 +421,27 @@ seed_partial_needs_regen() {
 if seed_partial_needs_regen; then
   if ! darwin_seed_full_e_allowed; then
     if [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
-      echo "build_seed_asm_host: Darwin safety guard — skip asm_seed_full.sx -E, keep existing $BACKEND_PARTIAL (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)" >&2
+      build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.sx -E, keep existing $BACKEND_PARTIAL (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
       exit 0
     fi
     if build_backend_partial_from_c_fallback; then
-      echo "build_seed_asm_host: Darwin safety guard — skip asm_seed_full.sx -E, use source fallback partial (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)" >&2
+      build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.sx -E, use source fallback partial (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
       exit 0
     fi
-    echo "build_seed_asm_host: Darwin safety guard blocked asm_seed_full.sx -E, and fallback partial build failed" >&2
+    build_seed_asm_host_error "Darwin safety guard blocked asm_seed_full.sx -E, and fallback partial build failed"
     exit 1
   fi
-  echo "build_seed_asm_host: asm_seed_full.sx 全量 -E ..."
+  build_seed_asm_host_info "asm_seed_full.sx 全量 -E ..."
   ASM_TMP="$OUT_DIR/asm_full_gen.c.tmp"
   # 须全量 -E（勿 -E-extern：仅 ~100 行 typeck/asm 桩，缺 backend/peephole/platform，cc 失败或沿用陈旧 x86_64 partial.o）。
   _erc=0
   run_asm_sx_emit_c "$ASM_TMP" "$OUT_DIR/asm_full_gen.err" || _erc=$?
   if [ "$_erc" -ne 0 ]; then
-    echo "build_seed_asm_host: asm_seed_full.sx -E exit=${_erc}" >&2
+    build_seed_asm_host_warn "asm_seed_full.sx -E exit=${_erc}"
     if [ -s "$OUT_DIR/asm_full_gen.err" ]; then
-      tail -20 "$OUT_DIR/asm_full_gen.err" >&2
+      build_seed_asm_host_dump_tail "$OUT_DIR/asm_full_gen.err" 20
     else
-      echo "build_seed_asm_host: (no stderr; bootstrap may have crashed — run preflight_g06_coldstart.sh --asm-e)" >&2
+      build_seed_asm_host_warn "(no stderr; bootstrap may have crashed - run preflight_g06_coldstart.sh --asm-e)"
     fi
     # -E OOM(137)/Killed 时若已有可用 asm_full_gen.c（上次 134 落盘），继续 fix+cc
     if [ -s "$ASM_FULL_C" ] && asm_full_gen_c_usable_for_fix "$ASM_FULL_C"; then
@@ -430,26 +449,26 @@ if seed_partial_needs_regen; then
       if [ -f "${ASM_FULL_C}.bak" ] && asm_full_gen_c_usable_for_fix "${ASM_FULL_C}.bak" \
           && [ "$(wc -c <"${ASM_FULL_C}.bak" | tr -d ' ')" -gt "$(wc -c <"$ASM_FULL_C" | tr -d ' ')" ]; then
         cp -f "${ASM_FULL_C}.bak" "$ASM_FULL_C"
-        echo "build_seed_asm_host: -E 失败，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)" >&2
+        build_seed_asm_host_warn "-E 失败，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)"
       else
-        echo "build_seed_asm_host: -E 失败，沿用已有 $ASM_FULL_C ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)" >&2
+        build_seed_asm_host_warn "-E 失败，沿用已有 $ASM_FULL_C ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)"
       fi
       rm -f "$ASM_TMP"
     elif [ -f "${ASM_FULL_C}.bak" ] && asm_full_gen_c_usable_for_fix "${ASM_FULL_C}.bak"; then
       cp -f "${ASM_FULL_C}.bak" "$ASM_FULL_C"
-      echo "build_seed_asm_host: -E 失败，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)" >&2
+      build_seed_asm_host_warn "-E 失败，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)"
       rm -f "$ASM_TMP"
     elif [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
-      echo "build_seed_asm_host: asm_seed_full.sx -E 失败，沿用已有 $BACKEND_PARTIAL" >&2
+      build_seed_asm_host_warn "asm_seed_full.sx -E 失败，沿用已有 $BACKEND_PARTIAL"
       rm -f "$ASM_TMP"
       exit 0
     else
       rm -f "$ASM_TMP"
       if build_backend_partial_from_c_fallback; then
-        echo "build_seed_asm_host: asm_seed_full.sx -E 失败，改用源码 fallback partial" >&2
+        build_seed_asm_host_warn "asm_seed_full.sx -E 失败，改用源码 fallback partial"
         exit 0
       fi
-      echo "build_seed_asm_host: asm_seed_full.sx -E 失败且无已有 $ASM_FULL_C / $BACKEND_PARTIAL / fallback partial" >&2
+      build_seed_asm_host_error "asm_seed_full.sx -E 失败且无已有 $ASM_FULL_C / $BACKEND_PARTIAL / fallback partial"
       exit 1
     fi
   else
@@ -458,32 +477,32 @@ if seed_partial_needs_regen; then
   dedupe_slice "$ASM_FULL_C"
   if ! asm_full_gen_c_usable_for_fix "$ASM_FULL_C"; then
     if build_backend_partial_from_c_fallback; then
-      echo "build_seed_asm_host: $ASM_FULL_C 不可用，改用源码 fallback partial" >&2
+      build_seed_asm_host_warn "$ASM_FULL_C 不可用，改用源码 fallback partial"
       exit 0
     fi
-    echo "build_seed_asm_host: $ASM_FULL_C 不可用（畸形 -E 截断）" >&2
+    build_seed_asm_host_error "$ASM_FULL_C 不可用（畸形 -E 截断）"
     exit 1
   fi
   cp -f "$ASM_FULL_C" "${ASM_FULL_C}.pre_fix"
   _t0=$(date +%s)
   if [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ]; then
-    echo "[$(date +%H:%M:%S)] build_seed_asm_host: fix perl scripts ..." >&2
+    build_seed_asm_host_info "[$(date +%H:%M:%S)] fix perl scripts ..."
     run_fix_asm_full_c_pipeline "$ASM_FULL_C"
-    echo "[$(date +%H:%M:%S)] build_seed_asm_host: fix perl done ($(( $(date +%s) - _t0 ))s)" >&2
+    build_seed_asm_host_info "[$(date +%H:%M:%S)] fix perl done ($(( $(date +%s) - _t0 ))s)"
   else
-    echo "[$(date +%H:%M:%S)] build_seed_asm_host: gen patch disabled (SHUX_ALLOW_GEN_PATCH=1 to enable)" >&2
+    build_seed_asm_host_info "[$(date +%H:%M:%S)] gen patch disabled (SHUX_ALLOW_GEN_PATCH=1 to enable)"
   fi
   _t0=$(date +%s)
-  echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc -c asm_full_gen.c ..." >&2
+  build_seed_asm_host_info "[$(date +%H:%M:%S)] cc -c asm_full_gen.c ..."
   if ! try_cc_asm_full_gen_c "$ASM_FULL_C"; then
     if [ -f "$BACKEND_PARTIAL" ]; then
-      echo "build_seed_asm_host: cc asm_full_gen.c 失败，沿用已有 $BACKEND_PARTIAL" >&2
+      build_seed_asm_host_warn "cc asm_full_gen.c 失败，沿用已有 $BACKEND_PARTIAL"
       exit 0
     fi
-    echo "build_seed_asm_host: cc asm_full_gen.c 失败且无已有 $BACKEND_PARTIAL" >&2
+    build_seed_asm_host_error "cc asm_full_gen.c 失败且无已有 $BACKEND_PARTIAL"
     exit 1
   fi
-  echo "[$(date +%H:%M:%S)] build_seed_asm_host: cc OK ($(( $(date +%s) - _t0 ))s, $(wc -c <"$ASM_FULL_O" | tr -d ' ') bytes -> $ASM_FULL_O)" >&2
+  build_seed_asm_host_info "[$(date +%H:%M:%S)] cc OK ($(( $(date +%s) - _t0 ))s, $(wc -c <"$ASM_FULL_O" | tr -d ' ') bytes -> $ASM_FULL_O)"
   # cc 成功后保留 raw -E 落盘副本，供 OOM/cc 失败时重试
   cp -f "${ASM_FULL_C}.pre_fix" "${ASM_FULL_C}.bak" 2>/dev/null || true
   if [ "${SHUX_ALLOW_GEN_PATCH:-0}" = "1" ]; then
@@ -499,7 +518,7 @@ if seed_partial_needs_regen; then
           ASM_MERGED_ENC="$OUT_DIR/asm_full_with_enc_stubs.o"
           if ld -r "$ASM_FULL_O" "$ENC_STUB_O" -o "$ASM_MERGED_ENC" 2>/dev/null; then
             ASM_FULL_O="$ASM_MERGED_ENC"
-            echo "build_seed_asm_host: merged enc/emit weak stubs -> $ASM_FULL_O" >&2
+            build_seed_asm_host_info "merged enc/emit weak stubs -> $ASM_FULL_O"
           fi
         fi
       fi
@@ -509,7 +528,7 @@ if seed_partial_needs_regen; then
     ASM_MERGED="$OUT_DIR/asm_full_merged.o"
     if ld -r "$ASM_FULL_O" build_asm/backend.o -o "$ASM_MERGED" 2>/dev/null; then
       ASM_FULL_O="$ASM_MERGED"
-      echo "build_seed_asm_host: merged build_asm/backend.o -> $ASM_FULL_O" >&2
+      build_seed_asm_host_info "merged build_asm/backend.o -> $ASM_FULL_O"
     fi
   fi
   # 从 asm_full.o 导出 backend_/peephole_/platform_{elf,macho,coff}_*，供 codegen_sx.o 与 seed bridge 解析。
@@ -520,7 +539,7 @@ if seed_partial_needs_regen; then
               src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o \
               src/asm/pipeline_abi_f32_xmm.o; do
     if [ ! -f "$_dof" ]; then
-      echo "build_seed_asm_host: missing $_dof (make bootstrap-driver-seed 须先编 dispatch TU)" >&2
+      build_seed_asm_host_error "missing $_dof (make bootstrap-driver-seed 须先编 dispatch TU)"
       exit 1
     fi
     nm "$_dof" 2>/dev/null \
@@ -551,23 +570,23 @@ if seed_partial_needs_regen; then
     _bc=$(nm "$ASM_FULL_O" 2>/dev/null | awk '/ T / && $3 ~ /^_?backend_/ {n++} END {print n+0}')
     if [ "${_bc:-0}" -lt 180 ]; then
       if build_backend_partial_from_c_fallback; then
-        echo "build_seed_asm_host: $ASM_FULL_O 缺少 seed_mega（backend T=${_bc:-0}），改用源码 fallback partial" >&2
+        build_seed_asm_host_warn "$ASM_FULL_O 缺少 seed_mega（backend T=${_bc:-0}），改用源码 fallback partial"
         _use_c_fallback_partial=1
       else
-        echo "build_seed_asm_host: $ASM_FULL_O 缺少 backend_asm_codegen_ast_seed_mega（backend T=${_bc:-0}）" >&2
+        build_seed_asm_host_error "$ASM_FULL_O 缺少 backend_asm_codegen_ast_seed_mega（backend T=${_bc:-0}）"
         exit 1
       fi
     fi
-    [ "$_use_c_fallback_partial" -eq 0 ] && echo "build_seed_asm_host: WARN 无 seed_mega，partial 仅导出 ${_bc} 个 backend_* 符号" >&2
+    [ "$_use_c_fallback_partial" -eq 0 ] && build_seed_asm_host_warn "无 seed_mega，partial 仅导出 ${_bc} 个 backend_* 符号"
   fi
   if [ "$_use_c_fallback_partial" -eq 0 ]; then
-    echo "  ld partial export ($(wc -l <"$SYMS" | tr -d ' ') syms) -> $BACKEND_PARTIAL"
+    build_seed_asm_host_info "ld partial export ($(wc -l <"$SYMS" | tr -d ' ') syms) -> $BACKEND_PARTIAL"
     if ! ld_partial_export "$SYMS" "$BACKEND_PARTIAL" "$ASM_FULL_O"; then
       if [ -f "$BACKEND_PARTIAL" ]; then
-        echo "build_seed_asm_host: ld -r 失败，沿用已有 $BACKEND_PARTIAL" >&2
+        build_seed_asm_host_warn "ld -r 失败，沿用已有 $BACKEND_PARTIAL"
         exit 0
       fi
-      echo "build_seed_asm_host: ld -r 失败且无已有 $BACKEND_PARTIAL" >&2
+      build_seed_asm_host_error "ld -r 失败且无已有 $BACKEND_PARTIAL"
       exit 1
     fi
   fi
@@ -578,4 +597,4 @@ if [ -s "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; t
   cp -f "$BACKEND_PARTIAL" "$SEED_PARTIAL"
 fi
 
-echo "build_seed_asm_host OK ($OUT_DIR)"
+build_seed_asm_host_info "OK ($OUT_DIR)"

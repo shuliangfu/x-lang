@@ -117,7 +117,7 @@ function kv_hash_key(key: *u8, len: u32): u32 {
 
 function kv_keys_equal(a: *u8, alen: u32, b: *u8, blen: u32): i32 {
   if (alen != blen) { return 0; }
-  return memcmp(a, b, alen) == 0 ? 1 : 0;
+  unsafe { return memcmp(a, b, alen) == 0 ? 1 : 0; }
 }
 
 function kv_mt_clear(s: *KvStoreMem): void { s.mt_count = 0; }
@@ -246,16 +246,17 @@ function kv_arena_alloc(s: *KvStoreMem, n: usize, align_bytes: usize): *u8 {
 function kv_arena_reset(s: *KvStoreMem): void { s.arena_off = 0; }
 
 function kv_copy_cstr(dst: *u8, src: *u8, cap: usize): void {
-  let n: usize = strlen(src);
+  let n: usize = 0;
+  unsafe { n = strlen(src); }
   if (n + 1 > cap) { n = cap - 1; }
-  memcpy(dst, src, n);
+  unsafe { memcpy(dst, src, n); }
   dst[n] = 0;
 }
 
 function kv_build_wal_path(data_path: *u8, wal_path: *u8, wal_cap: usize): void {
   let n: usize = 0;
   kv_copy_cstr(wal_path, data_path, wal_cap);
-  n = strlen(wal_path);
+  unsafe { n = strlen(wal_path); }
   if (n + 5 <= wal_cap) {
     wal_path[n] = 46; wal_path[n + 1] = 119; wal_path[n + 2] = 97; wal_path[n + 3] = 108; wal_path[n + 4] = 0;
   }
@@ -278,7 +279,7 @@ function kv_build_sst_path(data_path: *u8, slot: u32, out: *u8, out_cap: usize):
   let n: usize = 0;
   let m: usize = 0;
   kv_copy_cstr(out, data_path, out_cap);
-  n = strlen(out);
+  unsafe { n = strlen(out); }
   if (n + 6 > out_cap) { return; }
   out[n] = 46; out[n + 1] = 115; out[n + 2] = 115; out[n + 3] = 116; out[n + 4] = 46;
   m = kv_u32_to_dec(out + (n + 5), out_cap - (n + 5), slot);
@@ -286,7 +287,7 @@ function kv_build_sst_path(data_path: *u8, slot: u32, out: *u8, out_cap: usize):
 }
 
 function kv_mmap_file(path: *u8, min_size: usize, out_size: *usize): i64 {
-  return shu_kv_mmap_file_c(path, min_size, out_size);
+  unsafe { return shu_kv_mmap_file_c(path, min_size, out_size); }
 }
 
 function kv_read_at_map(base: *u8, cap: u64, off: u64, key: *u8, key_len: u32, out: *u8, out_cap: u32): i32 {
@@ -303,7 +304,7 @@ function kv_read_at_map(base: *u8, cap: u64, off: u64, key: *u8, key_len: u32, o
   if (klen != key_len || off + 24 + (klen as u64) + (vlen as u64) > cap) { return -3; }
   if (kv_keys_equal(base + ((off + 24) as usize), klen, key, key_len) == 0) { return -4; }
   if (vlen > out_cap) { return -5; }
-  memcpy(out, base + ((off + 24 + (klen as u64)) as usize), vlen);
+  unsafe { memcpy(out, base + ((off + 24 + (klen as u64)) as usize), vlen); }
   return vlen as i32;
 }
 
@@ -346,7 +347,7 @@ function kv_rebuild_mt_from_map(s: *KvStoreMem, base: *u8, map_cap: u64, end_off
 function kv_write_record_to_map(base: *u8, cap: u64, write_pos: *u64, rec: *u8, rec_len: usize): i64 {
   let off: u64 = write_pos[0];
   if (off + (rec_len as u64) > cap) { return -1 as i64; }
-  memcpy(base + (off as usize), rec, rec_len);
+  unsafe { memcpy(base + (off as usize), rec, rec_len); }
   write_pos[0] = off + (rec_len as u64);
   return off as i64;
 }
@@ -366,8 +367,8 @@ function kv_serialize_record(s: *KvStoreMem, key: *u8, key_len: u32, val: *u8, v
   kv_write_u64_at(base, 8, ts_ns);
   kv_write_u32_at(base, 16, key_len);
   kv_write_u32_at(base, 20, val_len);
-  memcpy(base + 24, key, key_len);
-  memcpy(base + ((24 + key_len) as usize), val, val_len);
+  unsafe { memcpy(base + 24, key, key_len); }
+  unsafe { memcpy(base + ((24 + key_len) as usize), val, val_len); }
   out_rec[0] = base as i64;
   out_len[0] = rec_len as usize;
   return 0;
@@ -402,7 +403,7 @@ function kv_open_sst_slots(s: *KvStoreMem): i32 {
     s.sst_hdr[i] = s.sst_map[i];
     sh = s.sst_hdr[i] as *KvSstHeader;
     if (kv_magic_is_sst(&sh.magic[0]) == 0) {
-      memset(sh as *u8, 0, 40);
+      unsafe { memset(sh as *u8, 0, 40); }
       kv_write_magic_sst(&sh.magic[0]);
       sh.slot = i;
       sh.capacity = map_sz as u64;
@@ -440,16 +441,22 @@ function kv_sst_merge_dedup(s: *KvStoreMem, src_slot: u32, dst_slot: u32): i32 {
   kv_rebuild_mt_from_map(s, s.sst_map[dst_slot] as *u8, dst_hdr.capacity, dst_hdr.write_pos, (KV_LAYER_SST_BASE + (dst_slot as u8)) as u8);
   live_n = s.mt_count;
   if (live_n == 0) { src_hdr.write_pos = KV_SECTOR as u64; return 0; }
-  live_offs = calloc(live_n, 8) as *u64;
-  live_layers = calloc(live_n, 1);
+  unsafe { live_offs = calloc(live_n, 8) as *u64; }
+  unsafe { live_layers = calloc(live_n, 1); }
   if (live_offs == 0 || live_layers == 0) {
-    free(live_offs as *u8); free(live_layers); return -2;
+    unsafe { free(live_offs as *u8); }
+    unsafe { free(live_layers); }
+    return -2;
   }
   i = 0;
   while (i < live_n) { live_offs[i] = s.mt[i].off; live_layers[i] = s.mt[i].layer; i = i + 1; }
   out_cap = (dst_hdr.capacity - (KV_SECTOR as u64)) as usize;
-  out_buf = malloc(out_cap);
-  if (out_buf == 0) { free(live_offs as *u8); free(live_layers); return -2; }
+  unsafe { out_buf = malloc(out_cap); }
+  if (out_buf == 0) {
+    unsafe { free(live_offs as *u8); }
+    unsafe { free(live_layers); }
+    return -2;
+  }
   out_len = 0;
   i = 0;
   while (i < live_n) {
@@ -458,21 +465,22 @@ function kv_sst_merge_dedup(s: *KvStoreMem, src_slot: u32, dst_slot: u32): i32 {
       p = base + (live_offs[i] as usize);
       rlen = kv_read_u32_at(p, 4);
       if (rlen >= 24 && out_len + (rlen) <= out_cap) {
-        memcpy(out_buf + out_len, p, rlen);
+        unsafe { memcpy(out_buf + out_len, p, rlen); }
         out_len = out_len + (rlen);
       }
     }
     i = i + 1;
   }
-  free(live_offs as *u8); free(live_layers);
+  unsafe { free(live_offs as *u8); }
+  unsafe { free(live_layers); }
   dst_base = s.sst_map[dst_slot] as *u8;
-  memset(dst_base + (KV_SECTOR as usize), 0, (dst_hdr.capacity - (KV_SECTOR as u64)) as usize);
-  memcpy(dst_base + (KV_SECTOR as usize), out_buf, out_len);
-  free(out_buf);
+  unsafe { memset(dst_base + (KV_SECTOR as usize), 0, (dst_hdr.capacity - (KV_SECTOR as u64)) as usize); }
+  unsafe { memcpy(dst_base + (KV_SECTOR as usize), out_buf, out_len); }
+  unsafe { free(out_buf); }
   dst_hdr.write_pos = (KV_SECTOR as u64) + (out_len as u64);
-  memset(s.sst_map[src_slot] as *u8 + (KV_SECTOR as usize), 0, (src_hdr.capacity - (KV_SECTOR as u64)) as usize);
+  unsafe { memset(s.sst_map[src_slot] as *u8 + (KV_SECTOR as usize), 0, (src_hdr.capacity - (KV_SECTOR as u64)) as usize); }
   src_hdr.write_pos = KV_SECTOR as u64;
-  if (shu_kv_msync_c(s.sst_map[dst_slot], s.sst_map_size[dst_slot]) == 0) { return 0; }
+  unsafe { if (shu_kv_msync_c(s.sst_map[dst_slot], s.sst_map_size[dst_slot]) == 0) { return 0; } }
   return -3;
 }
 
@@ -508,7 +516,7 @@ function kv_freeze_main_to_sst(s: *KvStoreMem): i32 {
     s.sst_map_size[slot] = map_sz;
     s.sst_hdr[slot] = s.sst_map[slot];
     sh = s.sst_hdr[slot] as *KvSstHeader;
-    memset(sh as *u8, 0, 40);
+    unsafe { memset(sh as *u8, 0, 40); }
     kv_write_magic_sst(&sh.magic[0]);
     sh.slot = slot;
     sh.capacity = map_sz as u64;
@@ -518,14 +526,14 @@ function kv_freeze_main_to_sst(s: *KvStoreMem): i32 {
   sst_base = s.sst_map[slot] as *u8;
   sh = s.sst_hdr[slot] as *KvSstHeader;
   if ((KV_SECTOR as u64) + data_len > sh.capacity) { return -3; }
-  memcpy(sst_base + (KV_SECTOR as usize), main_base + (KV_SECTOR as usize), data_len as usize);
+  unsafe { memcpy(sst_base + (KV_SECTOR as usize), main_base + (KV_SECTOR as usize), data_len as usize); }
   sh.write_pos = (KV_SECTOR as u64) + data_len;
   sh.frozen_compact_gen = hdr.compact_gen;
   if (slot >= hdr.sst_count) { hdr.sst_count = slot + 1; }
-  memset(main_base + (KV_SECTOR as usize), 0, (hdr.capacity - (KV_SECTOR as u64)) as usize);
+  unsafe { memset(main_base + (KV_SECTOR as usize), 0, (hdr.capacity - (KV_SECTOR as u64)) as usize); }
   hdr.write_pos = KV_SECTOR as u64;
   hdr.record_count = 0;
-  if (shu_kv_msync_c(s.sst_map[slot], s.sst_map_size[slot]) == 0) { return 0; }
+  unsafe { if (shu_kv_msync_c(s.sst_map[slot], s.sst_map_size[slot]) == 0) { return 0; } }
   return -4;
 }
 
@@ -542,16 +550,16 @@ function kv_db_open_impl(path: *u8, capacity_bytes: u64): i64 {
   if (path == 0 || capacity_bytes < KV_SECTOR as u64) { return 0 as i64; }
   cap = capacity_bytes as usize;
   if ((cap % (KV_SECTOR as usize)) != 0) { cap = ((cap / (KV_SECTOR as usize)) + 1) * (KV_SECTOR); }
-  s = calloc(1, KV_STORE_MEM_SIZE) as *KvStoreMem;
+  unsafe { s = calloc(1, KV_STORE_MEM_SIZE) as *KvStoreMem; }
   if (s == 0) { return 0 as i64; }
   kv_copy_cstr(&s.data_path[0], path, 512);
   s.map = kv_mmap_file(path, cap, &map_sz);
-  if (s.map == 0 as i64) { free(s as *u8); return 0 as i64; }
+  if (s.map == 0 as i64) { unsafe { free(s as *u8); } return 0 as i64; }
   s.map_size = map_sz;
   s.hdr = s.map;
   hdr = s.hdr as *KvHeader;
   if (kv_magic_is_kv(&hdr.magic[0]) == 0) {
-    memset(hdr as *u8, 0, 48);
+    unsafe { memset(hdr as *u8, 0, 48); }
     kv_write_magic_kv(&hdr.magic[0]);
     hdr.version = KV_VERSION;
     hdr.sector = KV_SECTOR;
@@ -566,15 +574,15 @@ function kv_db_open_impl(path: *u8, capacity_bytes: u64): i64 {
   kv_build_wal_path(&s.data_path[0], &wal_path[0], 512);
   s.wal_map = kv_mmap_file(&wal_path[0], cap, &wal_sz);
   if (s.wal_map == 0 as i64) {
-    shu_kv_munmap_c(s.map, s.map_size);
-    free(s as *u8);
+    unsafe { shu_kv_munmap_c(s.map, s.map_size); }
+    unsafe { free(s as *u8); }
     return 0 as i64;
   }
   s.wal_map_size = wal_sz;
   s.wal_hdr = s.wal_map;
   wh = s.wal_hdr as *KvWalHeader;
   if (kv_magic_is_wal(&wh.magic[0]) == 0) {
-    memset(wh as *u8, 0, 32);
+    unsafe { memset(wh as *u8, 0, 32); }
     kv_write_magic_wal(&wh.magic[0]);
     wh.capacity = wal_sz as u64;
     wh.write_pos = KV_SECTOR as u64;
@@ -582,9 +590,9 @@ function kv_db_open_impl(path: *u8, capacity_bytes: u64): i64 {
   }
   if (wh.write_pos < KV_SECTOR as u64) { wh.write_pos = KV_SECTOR as u64; }
   if (kv_open_sst_slots(s) != 0) {
-    shu_kv_munmap_c(s.wal_map, s.wal_map_size);
-    shu_kv_munmap_c(s.map, s.map_size);
-    free(s as *u8);
+    unsafe { shu_kv_munmap_c(s.wal_map, s.wal_map_size); }
+    unsafe { shu_kv_munmap_c(s.map, s.map_size); }
+    unsafe { free(s as *u8); }
     return 0 as i64;
   }
   kv_rebuild_mt_from_map(s, s.map as *u8, hdr.capacity, hdr.write_pos, KV_LAYER_MAIN);
@@ -604,14 +612,14 @@ function kv_db_close_impl(handle: i64): i32 {
   let s: *KvStoreMem = handle as *KvStoreMem;
   let i: u32 = 0;
   if (s == 0) { return -1; }
-  if (s.wal_map != 0 as i64) { shu_kv_munmap_c(s.wal_map, s.wal_map_size); }
+  unsafe { if (s.wal_map != 0 as i64) { shu_kv_munmap_c(s.wal_map, s.wal_map_size); } }
   i = 0;
   while (i < KV_SST_SLOTS) {
-    if (s.sst_map[i] != 0 as i64) { shu_kv_munmap_c(s.sst_map[i], s.sst_map_size[i]); }
+    unsafe { if (s.sst_map[i] != 0 as i64) { shu_kv_munmap_c(s.sst_map[i], s.sst_map_size[i]); } }
     i = i + 1;
   }
-  if (s.map != 0 as i64) { shu_kv_munmap_c(s.map, s.map_size); }
-  free(s as *u8);
+  unsafe { if (s.map != 0 as i64) { shu_kv_munmap_c(s.map, s.map_size); } }
+  unsafe { free(s as *u8); }
   return 0;
 }
 
@@ -620,14 +628,14 @@ function kv_db_sync_impl(handle: i64): i32 {
   let i: u32 = 0;
   let hdr: *KvHeader = 0 as *KvHeader;
   if (s == 0 || s.map == 0 as i64) { return -1; }
-  if (s.wal_map != 0 as i64 && shu_kv_msync_c(s.wal_map, s.wal_map_size) != 0) { return -1; }
+  unsafe { if (s.wal_map != 0 as i64 && shu_kv_msync_c(s.wal_map, s.wal_map_size) != 0) { return -1; } }
   hdr = s.hdr as *KvHeader;
   i = 0;
   while (i < hdr.sst_count && i < KV_SST_SLOTS) {
-    if (s.sst_map[i] != 0 as i64 && shu_kv_msync_c(s.sst_map[i], s.sst_map_size[i]) != 0) { return -1; }
+    unsafe { if (s.sst_map[i] != 0 as i64 && shu_kv_msync_c(s.sst_map[i], s.sst_map_size[i]) != 0) { return -1; } }
     i = i + 1;
   }
-  if (shu_kv_msync_c(s.map, s.map_size) == 0) { return 0; }
+  unsafe { if (shu_kv_msync_c(s.map, s.map_size) == 0) { return 0; } }
   return -1;
 }
 
@@ -720,7 +728,7 @@ function kv_db_wal_flush_impl(handle: i64): i32 {
     rlen = kv_read_u32_at(wal_base, off + 4);
     if (rmagic != KV_REC_MAGIC || rlen < 24 || off + (rlen as u64) > wh.write_pos) { break; }
     if (off + (rlen as u64) > hdr.capacity) { return -3; }
-    memcpy(s.map as *u8 + (hdr.write_pos as usize), wal_base + (off as usize), rlen as usize);
+    unsafe { memcpy(s.map as *u8 + (hdr.write_pos as usize), wal_base + (off as usize), rlen as usize); }
     hdr.write_pos = hdr.write_pos + (rlen as u64);
     hdr.record_count = hdr.record_count + 1;
     off = off + (rlen as u64);
@@ -737,7 +745,7 @@ function kv_db_wal_flush_impl(handle: i64): i32 {
     }
     i = i + 1;
   }
-  if (shu_kv_msync_c(s.map, s.map_size) == 0) { return 0; }
+  unsafe { if (shu_kv_msync_c(s.map, s.map_size) == 0) { return 0; } }
   return -4;
 }
 
@@ -759,30 +767,30 @@ function kv_db_compact_impl(handle: i64): i32 {
   if (kv_db_wal_flush_impl(handle) != 0) { /* continue */ }
   kv_mt_clear(s);
   kv_rebuild_mt_from_map(s, s.map as *u8, hdr.capacity, hdr.write_pos, KV_LAYER_MAIN);
-  live_offs = calloc(KV_MT_CAP as usize, 8) as *u64;
+  unsafe { live_offs = calloc(KV_MT_CAP as usize, 8) as *u64; }
   if (live_offs == 0) { return -2; }
   live_n = s.mt_count;
   i = 0;
   while (i < s.mt_count) { live_offs[i] = s.mt[i].off; i = i + 1; }
   compact_cap = (hdr.write_pos - (KV_SECTOR as u64)) as usize;
-  if (compact_cap == 0) { free(live_offs as *u8); return 0; }
-  compact_buf = malloc(compact_cap);
-  if (compact_buf == 0) { free(live_offs as *u8); return -2; }
+  if (compact_cap == 0) { unsafe { free(live_offs as *u8); } return 0; }
+  unsafe { compact_buf = malloc(compact_cap); }
+  if (compact_buf == 0) { unsafe { free(live_offs as *u8); } return -2; }
   compact_len = 0;
   main_base = s.map as *u8;
   i = 0;
   while (i < live_n) {
     rlen = kv_read_u32_at(main_base, live_offs[i] + 4);
     if (rlen >= 24 && compact_len + (rlen) <= compact_cap) {
-      memcpy(compact_buf + compact_len, main_base + (live_offs[i] as usize), rlen);
+      unsafe { memcpy(compact_buf + compact_len, main_base + (live_offs[i] as usize), rlen); }
       compact_len = compact_len + (rlen);
     }
     i = i + 1;
   }
-  free(live_offs as *u8);
-  memset(main_base + (KV_SECTOR as usize), 0, (hdr.capacity - (KV_SECTOR as u64)) as usize);
-  memcpy(main_base + (KV_SECTOR as usize), compact_buf, compact_len);
-  free(compact_buf);
+  unsafe { free(live_offs as *u8); }
+  unsafe { memset(main_base + (KV_SECTOR as usize), 0, (hdr.capacity - (KV_SECTOR as u64)) as usize); }
+  unsafe { memcpy(main_base + (KV_SECTOR as usize), compact_buf, compact_len); }
+  unsafe { free(compact_buf); }
   hdr.write_pos = (KV_SECTOR as u64) + (compact_len as u64);
   hdr.record_count = live_n;
   hdr.compact_gen = hdr.compact_gen + 1;
@@ -801,7 +809,7 @@ function kv_db_compact_impl(handle: i64): i32 {
   }
   wh = s.wal_hdr as *KvWalHeader;
   if (wh != 0) { wh.write_pos = KV_SECTOR as u64; wh.record_count = 0; }
-  if (shu_kv_msync_c(s.map, s.map_size) == 0) { return 0; }
+  unsafe { if (shu_kv_msync_c(s.map, s.map_size) == 0) { return 0; } }
   return -3;
 }
 
@@ -815,12 +823,12 @@ function kv_db_smoke_impl(path: *u8): i32 {
   if (h == 0 as i64) { return -1; }
   if (kv_db_append_wal(h as *KvStoreMem, &key[0], 4, &val[0], 8, 123456789 as u64) != 0) { kv_db_close_impl(h); return -2; }
   n = kv_db_get_impl(h, &key[0], 4, &out[0], 16);
-  if (n != 8 || memcmp(&out[0], &val[0], 8) != 0) { kv_db_close_impl(h); return -3; }
+  unsafe { if (n != 8 || memcmp(&out[0], &val[0], 8) != 0) { kv_db_close_impl(h); return -3; } }
   if (kv_db_wal_flush_impl(h) != 0) { kv_db_close_impl(h); return -4; }
   if (kv_db_compact_impl(h) != 0) { kv_db_close_impl(h); return -5; }
   if (db_kv_sst_level_count_c(h) == 0) { kv_db_close_impl(h); return -8; }
   n = kv_db_get_impl(h, &key[0], 4, &out[0], 16);
-  if (n != 8 || memcmp(&out[0], &val[0], 8) != 0) { kv_db_close_impl(h); return -6; }
+  unsafe { if (n != 8 || memcmp(&out[0], &val[0], 8) != 0) { kv_db_close_impl(h); return -6; } }
   val[0] = 42;
   if (kv_db_append_wal(h as *KvStoreMem, &key[0], 4, &val[0], 8, 999 as u64) != 0) { kv_db_close_impl(h); return -9; }
   if (kv_db_wal_flush_impl(h) != 0 || kv_db_compact_impl(h) != 0) { kv_db_close_impl(h); return -10; }

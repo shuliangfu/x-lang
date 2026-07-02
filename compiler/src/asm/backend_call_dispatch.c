@@ -5,11 +5,25 @@
  * 本 TU 供 pipeline_asm_emit_call_elf_c / pipeline_asm_emit_method_call_elf_c / pipeline_asm_emit_call_args_elf_c 真 emit。
  */
 #include <stdint.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "diag.h"
 #include "runtime_pipeline_abi.h"
+
+static void backend_call_debugf(const char *fmt, ...) {
+  char buf[256];
+  va_list ap;
+  if (!getenv("SHUX_ASM_DEBUG"))
+    return;
+  va_start(ap, fmt);
+  (void)vsnprintf(buf, sizeof buf, fmt ? fmt : "asm call debug", ap);
+  va_end(ap);
+  buf[sizeof buf - 1] = '\0';
+  diag_report(NULL, 0, 0, "note", buf, NULL);
+}
 
 extern const char *driver_get_current_dep_path_for_codegen(void);
 extern int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena *a, int32_t expr_ref);
@@ -1259,8 +1273,7 @@ static int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *e
   if (rlen <= 0)
     rlen = pipeline_asm_redirect_std_c_wrapper_sym(name, name_len, redir, 64);
   if (rlen > 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: call_redirect %.*s -> %.*s\n", (int)name_len, (char *)name, (int)rlen, (char *)redir);
+    backend_call_debugf("call redirect %.*s -> %.*s", (int)name_len, (char *)name, (int)rlen, (char *)redir);
     return backend_enc_call_arch(elf_ctx, redir, rlen, ta);
   }
   return backend_enc_call_arch(elf_ctx, name, name_len, ta);
@@ -1320,10 +1333,9 @@ static int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_AST
     return 0;
   nargs = pipeline_expr_call_num_args_at(arena, call_expr_ref);
   arg_ref = (nargs == 1) ? pipeline_expr_call_arg_ref(arena, call_expr_ref, 0) : 0;
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: try_fmt_lit pre=%.*s field=%.*s nargs=%d arg_ko=%d\n", (int)pre_len,
-            pre_len > 0 ? (char *)pre_buf : "", (int)field_len, field_len > 0 ? (char *)field_name : "", (int)nargs,
-            arg_ref > 0 ? (int)pipeline_expr_kind_ord_at(arena, arg_ref) : -1);
+  backend_call_debugf("try fmt lit pre=%.*s field=%.*s nargs=%d arg_ko=%d", (int)pre_len,
+                      pre_len > 0 ? (char *)pre_buf : "", (int)field_len, field_len > 0 ? (char *)field_name : "",
+                      (int)nargs, arg_ref > 0 ? (int)pipeline_expr_kind_ord_at(arena, arg_ref) : -1);
   if (!glue_asm_prefix_is_fmt_or_debug(pre_buf, pre_len))
     return 0;
   if (field_len == 7 && memcmp(field_name, "println", 7) == 0)
@@ -1346,8 +1358,7 @@ static int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_AST
   if (sym_len <= 0)
     return -1;
   (void)is_ln;
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: fmt_string_lit_call %.*s slen=%d\n", (int)sym_len, (char *)sym_flat, (int)slen);
+  backend_call_debugf("fmt string lit call %.*s slen=%d", (int)sym_len, (char *)sym_flat, (int)slen);
   if (glue_asm_emit_jmp_skip_string_then_lea((uint8_t *)elf_ctx, ta, 0, sbuf, slen) != 0)
     return -1;
   /** arg1 = len */
@@ -1398,9 +1409,8 @@ int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform
   ly = (struct glue_AsmFuncCtxCall *)ctx;
   mod_ref = ly ? ly->module_ref : 0;
   callee_ko = pipeline_expr_kind_ord_at(arena, callee_ref);
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: emit_call_elf callee_ko=%d call_nargs=%d\n", (int)callee_ko,
-            (int)pipeline_expr_call_num_args_at(arena, expr_ref));
+  backend_call_debugf("emit call elf callee_ko=%d call_nargs=%d", (int)callee_ko,
+                      (int)pipeline_expr_call_num_args_at(arena, expr_ref));
 
   /** hello.sx：fmt.println("…") 不依赖 import 槽匹配，直接 call std_fmt_println(ptr,len)。 */
   if (callee_ko == GLUE_EXPR_FIELD_ACCESS_ORD) {
@@ -1517,30 +1527,26 @@ int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform
   nargs = pipeline_expr_call_num_args_at(arena, expr_ref);
   if (nargs < 0 || nargs > GLUE_ASM_MAX_CALL_ARGS)
     return -1;
-  if (getenv("SHUX_ASM_DEBUG") && nargs == 1)
-    fprintf(stderr, "shux: emit_call1 ref=%d callee_ko=%d\n", (int)expr_ref, (int)callee_ko);
+  if (nargs == 1)
+    backend_call_debugf("emit call1 ref=%d callee_ko=%d", (int)expr_ref, (int)callee_ko);
   inline_rc = try_inline_param0_single_field_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
   if (inline_rc != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: emit_call inline param0_field rc=%d ref=%d\n", (int)inline_rc, (int)expr_ref);
+    backend_call_debugf("emit call inline param0_field rc=%d ref=%d", (int)inline_rc, (int)expr_ref);
     return inline_rc < 0 ? -1 : 0;
   }
   inline_rc = try_inline_param0_field_sum_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
   if (inline_rc != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: emit_call inline field_sum rc=%d ref=%d\n", (int)inline_rc, (int)expr_ref);
+    backend_call_debugf("emit call inline field_sum rc=%d ref=%d", (int)inline_rc, (int)expr_ref);
     return inline_rc < 0 ? -1 : 0;
   }
   inline_rc = try_inline_x_plus_k_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
   if (inline_rc != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: emit_call inline x_plus_k rc=%d ref=%d\n", (int)inline_rc, (int)expr_ref);
+    backend_call_debugf("emit call inline x_plus_k rc=%d ref=%d", (int)inline_rc, (int)expr_ref);
     return inline_rc < 0 ? -1 : 0;
   }
   inline_rc = try_call_wpo_mono_symbol_elf(arena, elf_ctx, expr_ref, ctx, ta);
   if (inline_rc != 0) {
-    if (getenv("SHUX_ASM_DEBUG"))
-      fprintf(stderr, "shux: emit_call inline wpo_mono rc=%d ref=%d\n", (int)inline_rc, (int)expr_ref);
+    backend_call_debugf("emit call inline wpo_mono rc=%d ref=%d", (int)inline_rc, (int)expr_ref);
     return inline_rc < 0 ? -1 : 0;
   }
   inline_rc = try_call_wpo_mono_vector_lane_of_binop_call_elf(arena, elf_ctx, expr_ref, ctx, ta);
@@ -1561,8 +1567,7 @@ int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform
   clen = glue_asm_build_call_export_sym_c(arena, expr_ref, callee_ref, mod_ref, ly ? ly->dep_pipe : 0, cname, 64);
   if (clen <= 0)
     return -1;
-  if (getenv("SHUX_ASM_DEBUG"))
-    fprintf(stderr, "shux: call_elf_c %.*s nargs=%d\n", (int)clen, (char *)cname, (int)nargs);
+  backend_call_debugf("call elf c %.*s nargs=%d", (int)clen, (char *)cname, (int)nargs);
   return glue_asm_emit_call_with_cleanup(arena, elf_ctx, expr_ref, ctx, ta, nargs, cname, clen);
 }
 

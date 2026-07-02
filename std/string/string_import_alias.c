@@ -2,7 +2,8 @@
  * string_import_alias.c — import binding `-o` 链接桩
  *
  * asm co-emit 对 `const string = import("std.string")` 生成 std_string_* 符号；
- * string.o 仅导出 shux_string_* 快路径。本 TU 提供 std_string_* 实现（语义对齐 mod.sx）。
+ * string.o 由 runtime_string_fast.c 提供 shux_string_* 快路径，本 TU 提供
+ * std_string_* 实现（语义对齐 mod.sx）。
  *
  * asm `-o` ABI（x86_64）：
  * - String 栈槽为 8 字节 ShuxString*；只读调用 rdi=ShuxString*，可变调用 rdi=ShuxString**。

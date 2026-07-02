@@ -14,7 +14,7 @@
 /** h2c 客户端仅支持 http://（https:// 须用 h2_get）。 */
 #define HTTP2_ERR_H2C_SCHEME (-1235)
 
-#include "push_fetch.inc.c"
+#include "http2_push_fetch.inc.c"
 
 /** 返回 PUSH_PROMISE 帧类型常量（5）。 */
 int32_t http2_frame_push_promise_c(void) { return HTTP2_TYPE_PUSH_PROMISE; }

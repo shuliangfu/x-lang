@@ -6,7 +6,10 @@
  */
 
 #include "driver/fmt_check_cmd.h"
+#include "diag.h"
 #include "lsp/lsp_diag.h"
+#include "runtime_driver_abi.h"
+#include "runtime_io_abi.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,9 +18,6 @@
 #include <unistd.h>
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
-extern void driver_fmt_check_only_set(int32_t v);
-extern int32_t driver_fmt_check_only_get(void);
-extern void driver_check_only_set(int32_t v);
 extern int run_compiler_c(int argc, char **argv);
 #ifdef SHUX_USE_SX_PIPELINE
 extern int driver_run_compiler_full(int argc, char **argv);
@@ -58,6 +58,21 @@ static int s_n_files;
 static char s_check_lib_bufs[8][512];
 static int s_n_check_lib_bufs;
 static int s_user_passed_L;
+
+typedef enum DriverCollectMode {
+    DRIVER_COLLECT_MODE_FMT = 1,
+    DRIVER_COLLECT_MODE_CHECK = 2,
+} DriverCollectMode;
+
+static DriverCollectMode s_collect_mode = DRIVER_COLLECT_MODE_FMT;
+
+static const char *driver_collect_error_kind(void) {
+    return s_collect_mode == DRIVER_COLLECT_MODE_CHECK ? "check error" : "fmt error";
+}
+
+static const char *driver_collect_missing_path_code(void) {
+    return s_collect_mode == DRIVER_COLLECT_MODE_CHECK ? "CHK002" : "FMT001";
+}
 
 /**
  * 若 dir 下同时存在 core/ 与 std/ 子目录，则作为仓库 lib 根注入 -L（去重）。
@@ -349,7 +364,9 @@ static void collect_paths_from_arg(const char *arg) {
     if (!arg)
         return;
     if (stat(arg, &st) != 0) {
-        fprintf(stderr, "shux: cannot access '%s'\n", arg);
+        diag_reportf_with_code(arg, 0, 0, driver_collect_error_kind(),
+                               driver_collect_missing_path_code(), NULL,
+                               "cannot access path '%s'", arg);
         return;
     }
     if (S_ISDIR(st.st_mode)) {
@@ -415,6 +432,7 @@ int driver_run_fmt(int argc, char **argv) {
 
     s_n_ignore = 0;
     s_unformatted_count = 0;
+    s_collect_mode = DRIVER_COLLECT_MODE_FMT;
     file_list_clear();
 
     for (i = 1; i < argc; i++) {
@@ -447,9 +465,11 @@ int driver_run_fmt(int argc, char **argv) {
 
     if (s_n_files == 0) {
         if (any_path_arg)
-            fprintf(stderr, "shux fmt: no .sx files found under given path(s)\n");
+            diag_report_with_code(NULL, 0, 0, "fmt error", "FMT001",
+                                  "no .sx files found under given path(s)", NULL);
         else
-            fprintf(stderr, "shux fmt: no .sx files found in current directory\n");
+            diag_report_with_code(NULL, 0, 0, "fmt error", "FMT001",
+                                  "no .sx files found in current directory", NULL);
         return 1;
     }
 
@@ -475,10 +495,14 @@ int driver_run_fmt(int argc, char **argv) {
 
     if (failed && check_mode) {
         int j;
-        fprintf(stderr, "\nFound %d not formatted file%s:\n\n", s_unformatted_count, s_unformatted_count == 1 ? "" : "s");
+        diag_reportf_with_code(NULL, 0, 0, "fmt error", "FMT001", NULL,
+                               "found %d not formatted file%s",
+                               s_unformatted_count, s_unformatted_count == 1 ? "" : "s");
         for (j = 0; j < s_unformatted_count; j++)
-            fprintf(stderr, "  %s\n", s_unformatted_paths[j]);
-        fprintf(stderr, "\nRun `shux fmt` to format these files.\n");
+            diag_reportf(s_unformatted_paths[j], 0, 0, "note", NULL,
+                         "needs formatting: %s", s_unformatted_paths[j]);
+        diag_report(NULL, 0, 0, "note",
+                    "run `shux fmt` to format these files", NULL);
         return 1;
     }
 
@@ -486,7 +510,8 @@ int driver_run_fmt(int argc, char **argv) {
         return 1;
 
     if (!check_mode && formatted > 0 && getenv("SHUX_FMT_VERBOSE"))
-        fprintf(stderr, "Formatted %d file%s\n", formatted, formatted == 1 ? "" : "s");
+        diag_reportf(NULL, 0, 0, "info", NULL,
+                     "Formatted %d file%s", formatted, formatted == 1 ? "" : "s");
 
     return 0;
 }
@@ -496,11 +521,20 @@ int driver_run_fmt(int argc, char **argv) {
  */
 static int check_one_file(const char *path, int argc, char **argv) {
     char *check_argv[64];
+    ShuxRuntimeFileView diag_view = {0};
+    int have_diag_view = 0;
     int n = 0;
     int i;
     int rc;
 
+    if (runtime_read_file_view(path, &diag_view) == 0) {
+        diag_set_file(path, (const char *)diag_view.data, diag_view.length);
+        have_diag_view = 1;
+    } else {
+        diag_set_file(path, NULL, 0);
+    }
     lsp_diag_collect_begin();
+    driver_check_diag_emitted_reset();
     driver_check_set_current_file(path);
 
     /* 每个文件独立构建 check_argv；-L 缓冲须按文件重置，否则跨文件 dedup 会漏注入仓库根。 */
@@ -531,16 +565,35 @@ static int check_one_file(const char *path, int argc, char **argv) {
     driver_check_only_set(0);
 
     {
-        int nd = lsp_diag_print_stderr_human(path);
+        DiagContextSnapshot diag_snapshot;
+        int nd;
+        int nd_errors;
+        int nd_warnings;
+        int nd_infos;
+        int direct_diag_emitted;
+        if (have_diag_view)
+            diag_push_file(&diag_snapshot, path, (const char *)diag_view.data, diag_view.length);
+        else
+            diag_push_file(&diag_snapshot, path, NULL, 0);
+        nd = lsp_diag_print_stderr_human(path);
+        nd_errors = lsp_diag_count_severity(1);
+        nd_warnings = lsp_diag_count_severity(2);
+        nd_infos = lsp_diag_count_severity(3);
+        direct_diag_emitted = driver_check_diag_emitted_get();
+        diag_restore(&diag_snapshot);
         if (rc != 0) {
-            if (nd == 0)
-                fprintf(stderr, "check failed: %s\n", path);
+            if ((nd == 0 || (nd_errors == 0 && nd_warnings == 0 && nd_infos == 0))
+                && !direct_diag_emitted)
+                diag_reportf_with_code(path, 0, 0, "check error", "CHK001", NULL,
+                                       "check failed: %s", path);
         } else if (check_lint_fail_on_warnings() && lsp_diag_count_severity(2) > 0) {
             rc = 1;
         }
     }
 
     lsp_diag_collect_end();
+    if (have_diag_view)
+        runtime_release_file_view(&diag_view);
     fmt_check_dep_clear();
     return rc;
 }
@@ -557,6 +610,7 @@ int driver_run_compiler_check(int argc, char **argv) {
     int path_start = 1;
 
     s_check_quiet_ok = 1;
+    s_collect_mode = DRIVER_COLLECT_MODE_CHECK;
     file_list_clear();
 
     /* main.sx 传入 argv[1]=check；shux-c 已 drop 子命令时 argv[1] 为首个路径。 */
@@ -599,9 +653,11 @@ int driver_run_compiler_check(int argc, char **argv) {
 
     if (s_n_files == 0) {
         if (any_path)
-            fprintf(stderr, "shux check: no .sx files found under given path(s)\n");
+            diag_report_with_code(NULL, 0, 0, "check error", "CHK002",
+                                  "no .sx files found under given path(s)", NULL);
         else
-            fprintf(stderr, "shux check: no .sx files found in current directory\n");
+            diag_report_with_code(NULL, 0, 0, "check error", "CHK002",
+                                  "no .sx files found in current directory", NULL);
         return 1;
     }
 
@@ -620,7 +676,8 @@ int driver_run_compiler_check(int argc, char **argv) {
         return 1;
 
     if (!s_check_quiet_ok && checked > 0)
-        fprintf(stderr, "check OK (%d file%s)\n", checked, checked == 1 ? "" : "s");
+        diag_reportf(NULL, 0, 0, "info", NULL,
+                     "check OK (%d file%s)", checked, checked == 1 ? "" : "s");
 
     return 0;
 }

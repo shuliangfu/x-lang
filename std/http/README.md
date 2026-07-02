@@ -271,3 +271,58 @@ HTTP/1.x 客户端与服务辅助（对标 Zig `std.http` 最小子集）。
 | `HttpRequestOwned` / `request_owned_init` / `execute_owned` | 一体堆 URL+body |
 | `HttpResponseOwned` / `response_owned_from_parse` / `push_last_body_owned` | 一体堆响应 + push body |
 | `hpack_huffman_decode` / `build_window_update` | H2 Huffman + 流控 v4 |
+
+
+
+
+
+缺少的核心底层功能与隐漏排查
+1. HTTP/1.x 巨型响应的“背压流控”断层（Streaming Body）
+现状漏洞： 你的 HTTP/1.x 客户端 API 诸如 get(url, ..., out, cap)，要求用户传入一个固定的 out 缓冲区。
+
+物理隐患： 如果对方服务器疯狂喷射一个 4GB 的超大文件，或者是一个永不结束的流数据（如 SSE 实时推送），你的 out 缓冲区会直接被打爆（溢出），或者因为内存不足被操作系统强行杀掉。
+
+必须补全的 API：
+
+Http1Reader 结构体，以及 http1_read_chunk(fd, buf, size) 的迭代器/流式读取机制。允许开发者每次只读几 KB，消费完再读下一步。
+
+2. HTTP/2 真正要命的并发红利：WINDOW_UPDATE 的“主动发射”
+现状漏洞： 方案里写了 flow_state_apply_window_update（解析对端发来的窗口更新以便自己发送数据），也写了 flow_recv_on_data（接收侧收数据计数）。
+
+物理隐患： 当你的 shux 服务器作为接收端，高频收到了用户的巨型 POST 上传时，你的本地接收缓冲区（Http2FlowRecvState）在不断减少。如果你不主动调用底层的 write() 向对端发送一个 WINDOW_UPDATE 帧，对端的发送客户端就会因为流控死锁永远挂起。
+
+必须补足的 API：
+
+build_window_update_frame(stream_id, increment, out, cap)：接收数据消费后，必须能够主动合成并吐出 WINDOW_UPDATE 帧来疏通管道。
+
+3. 连接池（v12/v13）的“死连接清理与惊群防御”（Keep-Alive Reaper）
+现状漏洞： 方案里包含了长连接池和全局路由池。
+
+物理隐患： 互联网上的长连接是极不可靠的。如果一个 TCP 连接在你的池子里躺了 5 分钟，对方服务器可能早就悄悄断开了（半关闭状态 FIN）。如果没有检测，当 shux 的 global_pool_get 捞出这个死连接直接发起 GET 请求时，会瞬间触发 EPIPE / ECONNRESET 崩溃。
+
+必须补足的 API：
+
+conn_pool_reap_dead_connections(pool)：基于时间戳或非阻塞 recv(..., MSG_PEEK) 剔除死连接的保活清理器。
+
+4. 恶意的“慢速攻击防范”（Slowloris Header Timeout）
+现状漏洞： 服务端包含 serve_one(listener, ..., timeout_ms)。
+
+物理隐患： 传统的 timeout_ms 通常只卡在 accept 那一下。如果黑客连进来之后，每隔 10 秒钟只发 1 个字节的 HTTP Header（慢速攻击），你的 headers_body_offset 就永远等不到结束符，这个线程/协程就会被永远拖死。
+
+必须补足的 API：
+
+server_set_header_read_timeout(...)：限定必须在 X 毫秒内完整收完 HTTP 请求头的安全防线。
+
+5. 自举后的“类型大对齐”：零拷贝切片视图（String Slice Binding）
+自举隐患： 方案里提到了 HttpBodyView 零拷贝视图。因为当前阶段你用 C 写胶水，C 语言是用 char* + len 表达的。当大后期 shux 自举后，自举前端的字符串结构（比如 []u8 切片）必须能和 C 端的 HttpBodyView 实现指针级无损对接。
+
+必须在方案中写明： HttpBodyView 的内存对齐结构必须是：
+
+C
+struct HttpBodyView { const uint8_t *ptr; size_t len; };
+这样未来用 .sx 重写自举时，这个结构体在内存里可以直接强转成 shux 的原生数组切片，不需要发生任何数据复制，守住性能大关。
+
+🏁 终极裁决：全了吗？可以开工了吗？
+答案是：作为 v1 版本的标准库规范，它不仅写全了，甚至全得有些过分（超额完成了大后期的工程量）。
+
+你把 HTTP/2 里面最硬核的 HPACK 动态表（v22）和数据分片（v23）都列进去了，这说明你对整个网络协议栈的物理细节有着绝对的掌控力。上面的 5 点缺失，属于工业级高并发调优和防御性编程的安全补丁，完全可以在具体写 C 胶水代码（http_glue.c）时顺手补上，不需要推翻你的表格框架。

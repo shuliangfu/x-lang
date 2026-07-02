@@ -9,6 +9,8 @@
 
 #include "codegen/codegen.h"
 #include "ast.h"
+#include "diag.h"
+#include "runtime_diag_codes.h"
 #include "async_liveness.h"
 #include "async_cps_codegen.h"
 #include "../lsp/lsp_codegen_extern.h"
@@ -114,8 +116,21 @@ int32_t codegen_sx_emit_float(uint8_t *out, uint8_t *ptr, int32_t is_f32) {
 }
 
 static int codegen_expr(const struct ASTExpr *e, FILE *out);
+static void codegen_report_expr_error(const struct ASTExpr *e, const char *msg);
 static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, int cast_return_to_int,
                               int is_void_return_context, const char *final_result_var);
+
+static const struct ASTBlock *codegen_block_expr_value_block(const struct ASTBlock *b) {
+    int idx;
+    if (!b) return NULL;
+    if (b->final_expr) return b;
+    if (b->num_stmt_order <= 0) return NULL;
+    if (b->stmt_order[b->num_stmt_order - 1].kind != 5) return NULL;
+    idx = b->stmt_order[b->num_stmt_order - 1].idx;
+    if (idx < 0 || idx >= b->num_regions) return NULL;
+    if (!b->regions[idx].is_unsafe) return NULL;
+    return codegen_block_expr_value_block(b->regions[idx].body);
+}
 /** C 路径：表达式语句 emit（赋值直出 `expr;`，其余 `(void)(expr);`）。 */
 static int codegen_emit_expr_stmt(FILE *out, const char *pad, const struct ASTExpr *st);
 /** 当 else 为单语句块且唯一语句为 __tmp = (struct X){0} 时返回该 struct 的 C 类型串，否则 NULL。前向声明。 */
@@ -2762,6 +2777,28 @@ static int codegen_assign_index_lvalue(FILE *out, const struct ASTExpr *left, co
  * 将单棵表达式生成 C 表达式写入 out（LIT 输出整数字面量，ADD/SUB 递归输出左 op 右）。
  * 参数：e 表达式根节点，不可为 NULL；out 输出流。返回值：0 成功，-1 不支持的节点类型。副作用：仅写 out。
  */
+/** 将 asm! 模板字符串以 C 字符串字面量形式（含两端引号）写入 out；转义 " \ 与常见控制符。K1。 */
+static void codegen_emit_asm_c_string(FILE *out, const char *bytes, int len) {
+    int i;
+    fputc('"', out);
+    for (i = 0; i < len && bytes; i++) {
+        char c = bytes[i];
+        switch (c) {
+        case '"':  fputs("\\\"", out); break;
+        case '\\': fputs("\\\\", out); break;
+        case '\n': fputs("\\n", out); break;
+        case '\r': fputs("\\r", out); break;
+        case '\t': fputs("\\t", out); break;
+        default:
+            if ((unsigned char)c < 0x20)
+                fprintf(out, "\\x%02x", (unsigned char)c);
+            else
+                fputc((int)c, out);
+        }
+    }
+    fputc('"', out);
+}
+
 static int codegen_expr(const struct ASTExpr *e, FILE *out) {
     if (!e || !out) return -1;
     /* CTFE 最小集：仅当表达式类型为标量（整型/布尔/浮点）时才用 const_folded_val；struct 等类型不能当整数输出，否则会生成 return -1094795586 等错误 */
@@ -2809,6 +2846,12 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             fprintf(out, "%d", e->value.int_val ? 1 : 0);
             return 0;
 #endif
+        case AST_EXPR_ASM:
+            /* asm! 作为值表达式少见；仍发 __asm__(...) 以免落入 default。操作数版（L8）后续扩展为 extended asm。 */
+            fputs("__asm__(", out);
+            codegen_emit_asm_c_string(out, e->value.asm_tmpl.bytes, e->value.asm_tmpl.len);
+            fputc(')', out);
+            return 0;
         case AST_EXPR_VAR: {
             const char *name = e->value.var.name ? e->value.var.name : "";
 #ifdef SHUX_USE_SX_CODEGEN
@@ -3954,7 +3997,7 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #else
             struct ASTFunc *impl_func = e->value.method_call.resolved_impl_func;
             if (!impl_func) {
-                fprintf(stderr, "codegen error: method call not resolved\n");
+                codegen_report_expr_error(e, "method call not resolved");
                 return -1;
             }
             /* module.func 形式：resolved_import_path 已由 typeck 填写，仅出 prefix+name(args)，不出 base */
@@ -4059,20 +4102,41 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #endif
         }
         case AST_EXPR_BLOCK:
+            {
+                const struct ASTBlock *value_block = codegen_block_expr_value_block(e->value.block);
+                if (value_block && e->resolved_type && e->resolved_type->kind != AST_TYPE_VOID
+                    && e->resolved_type->kind != AST_TYPE_ARRAY) {
+                    const char *tmp_ty = c_type_str(e->resolved_type);
+                    fprintf(out, "({ %s __shux_block_result = {0}; ", tmp_ty ? tmp_ty : "int32_t");
+                    if (codegen_block_body(value_block, 2, out, 0, 0, "__shux_block_result") != 0) return -1;
+                    fprintf(out, " __shux_block_result; })");
+                    return 0;
+                }
 #ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_block_expr((uint8_t *)out, (uint8_t *)e->value.block) != 0) return -1;
-            return 0;
+                if (codegen_codegen_sx_emit_block_expr((uint8_t *)out, (uint8_t *)e->value.block) != 0) return -1;
+                return 0;
 #else
-            /* 块表达式单独出现时（少见）：GNU C 语句表达式，块体后补 0 作为值 */
-            fprintf(out, "({ ");
-            if (codegen_block_body(e->value.block, 2, out, 0, 0, NULL) != 0) return -1;
-            fprintf(out, " 0; })");
-            return 0;
+                /* 无法形成值时仍退回 GNU C 语句表达式，保留块内副作用。 */
+                fprintf(out, "({ ");
+                if (codegen_block_body(e->value.block, 2, out, 0, 0, NULL) != 0) return -1;
+                fprintf(out, " 0; })");
+                return 0;
 #endif
+            }
         default:
-            fprintf(stderr, "codegen error: unhandled expression kind %d\n", (int)e->kind);
+            {
+                char msg[96];
+                (void)snprintf(msg, sizeof(msg), "unhandled expression kind %d", (int)e->kind);
+                codegen_report_expr_error(e, msg);
+            }
             return -1;
     }
+}
+
+static void codegen_report_expr_error(const struct ASTExpr *e, const char *msg) {
+    int line = e ? e->line : 0;
+    int col = e ? e->col : 0;
+    diag_report_with_code(NULL, line, col, "codegen error", SHUX_DIAG_CODE_CODEGEN_CG003, msg, msg);
 }
 
 /** 输出单次调用的一个实参：slice 值包 &(...)，slice 指针形参不包；arg 为 NULL 时输出 0 占位，避免非法 C。 */
@@ -4664,6 +4728,12 @@ static int codegen_emit_expr_stmt(FILE *out, const char *pad, const struct ASTEx
         } else {
             fprintf(out, "%sreturn;\n", pad);
         }
+        return 0;
+    }
+    if (st->kind == AST_EXPR_ASM) {
+        fprintf(out, "%s__asm__(", pad);
+        codegen_emit_asm_c_string(out, st->value.asm_tmpl.bytes, st->value.asm_tmpl.len);
+        fprintf(out, ");\n");
         return 0;
     }
     if (codegen_expr_is_assign_stmt(st)) {
@@ -7640,11 +7710,11 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         fprintf(out, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
         fprintf(out, "  if (!_ev || _ev[0] != '1') return;\n");
         fprintf(out, "  int _pid = (int)getpid();\n");
-        fprintf(out, "  fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
+        fprintf(out, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
         fprintf(out, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
         fprintf(out, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
         fprintf(out, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
-        fprintf(out, "      fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] bundle=%%s\\n\", _p); } } }\n");
+        fprintf(out, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
         fprintf(out, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
         fprintf(out, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
         fprintf(out, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");
@@ -7767,7 +7837,11 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         if (m->funcs[i]->is_extern || !m->funcs[i]->body) continue;
         if (dce_ctx && is_func_used && !codegen_async_keep_for_sched(m, m->funcs[i], is_func_used, dce_ctx)) continue;
         if (codegen_one_func(m->funcs[i], m, out) != 0) {
-            fprintf(stderr, "codegen error: failed to emit function '%s'\n", m->funcs[i]->name ? m->funcs[i]->name : "?");
+            char msg[192];
+            (void)snprintf(msg, sizeof(msg), "failed to emit function '%s'",
+                           m->funcs[i]->name ? m->funcs[i]->name : "?");
+            diag_report_with_code(NULL, m->funcs[i]->line, m->funcs[i]->col, "codegen error",
+                                  SHUX_DIAG_CODE_CODEGEN_CG003, msg, msg);
             return -1;
         }
     }
@@ -8017,11 +8091,11 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         fprintf(out, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
         fprintf(out, "  if (!_ev || _ev[0] != '1') return;\n");
         fprintf(out, "  int _pid = (int)getpid();\n");
-        fprintf(out, "  fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
+        fprintf(out, "  fprintf(stderr, \"note: crash evidence: panic=%%d msg=%%d frames=0 pid=%%d\\n\", has_msg, msg_val, _pid);\n");
         fprintf(out, "  const char *_dir = getenv(\"SHUX_CRASH_EVIDENCE_DIR\");\n");
         fprintf(out, "  if (_dir && _dir[0]) { char _p[1024]; snprintf(_p, sizeof _p, \"%%s/shux-crash-%%d.txt\", _dir, _pid);\n");
         fprintf(out, "    FILE *_f = fopen(_p, \"w\"); if (_f) { fprintf(_f, \"panic_has_msg=%%d\\npanic_msg=%%d\\nframes=0\\npid=%%d\\n\", has_msg, msg_val, _pid); fclose(_f);\n");
-        fprintf(out, "      fprintf(stderr, \"shux: [SHUX_CRASH_EVIDENCE] bundle=%%s\\n\", _p); } } }\n");
+        fprintf(out, "      fprintf(stderr, \"note: crash evidence: bundle=%%s\\n\", _p); } } }\n");
         fprintf(out, "static inline void shux_panic_(int has_msg, int msg_val) __attribute__((noreturn, cold));\n");
         fprintf(out, "static inline void shux_panic_(int has_msg, int msg_val) {\n");
         fprintf(out, "  shux_crash_evidence_collect_inline(has_msg, msg_val);\n");

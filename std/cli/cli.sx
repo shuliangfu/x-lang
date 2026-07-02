@@ -112,12 +112,12 @@ function cli_write_usage_c(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32,
   n = cli_copy_lit(out, out_cap, 0, &u1[0], 7);
   if (n < 0) { return -1; }
   if (n + prog_len >= out_cap) { return -1; }
-  memcpy(out + n, prog, prog_len);
+  unsafe { memcpy(out + n, prog, prog_len); }
   n = n + prog_len;
   n = cli_copy_lit(out, out_cap, n, &u2[0], 24);
   if (n < 0) { return -1; }
   if (n + desc_len + 1 >= out_cap) { return -1; }
-  memcpy(out + n, desc, desc_len);
+  unsafe { memcpy(out + n, desc, desc_len); }
   n = n + desc_len;
   out[n] = 10;
   n = n + 1;
@@ -173,7 +173,7 @@ function cli_parse_args_c(argv: * *u8, lens: *i32, argc: i32,
     if (out.subcommand_len == 0 && expect_sub_len > 0 &&
         cli_bytes_eq(a, al, expect_sub, expect_sub_len) != 0) {
       if (al >= 64) { return -1; }
-      memcpy(&out.subcommand[0], a, al);
+      unsafe { memcpy(&out.subcommand[0], a, al); }
       out.subcommand[al] = 0;
       out.subcommand_len = al;
       i = i + 1;
@@ -181,7 +181,7 @@ function cli_parse_args_c(argv: * *u8, lens: *i32, argc: i32,
     }
     if (out.positional_count == 0) {
       if (al >= 128) { return -1; }
-      memcpy(&out.positional0[0], a, al);
+      unsafe { memcpy(&out.positional0[0], a, al); }
       out.positional0[al] = 0;
       out.positional0_len = al;
       out.positional_count = 1;

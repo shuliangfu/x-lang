@@ -56,7 +56,7 @@ function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n:
   if (n <= 0 || n > UDP_BATCH_MAX || out_sizes == 0 || out_addrs == 0 || out_ports == 0) {
     return -1;
   }
-  return shu_net_udp_recvmmsg2_c(fd, p0, l0, p1, l1, n, timeout_ms, out_sizes, out_addrs, out_ports);
+  unsafe { return shu_net_udp_recvmmsg2_c(fd, p0, l0, p1, l1, n, timeout_ms, out_sizes, out_addrs, out_ports); }
 }
 
 /**
@@ -77,9 +77,9 @@ function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n:
       tm = timeout_ms;
     }
     if (count == 0) {
-      got = net_udp_recv_from_c(fd, p0, l0, tm, out_addrs, out_ports);
+      unsafe { got = net_udp_recv_from_c(fd, p0, l0, tm, out_addrs, out_ports); }
     } else {
-      got = net_udp_recv_from_c(fd, p1, l1, tm, out_addrs + 1, out_ports + 1);
+      unsafe { got = net_udp_recv_from_c(fd, p1, l1, tm, out_addrs + 1, out_ports + 1); }
     }
     if (got < 0) {
       return -1;
@@ -101,7 +101,7 @@ function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a
   if (n <= 0 || n > UDP_BATCH_MAX) {
     return -1;
   }
-  return shu_net_udp_sendmmsg2_c(fd, a0, port0, p0, l0, a1, port1, p1, l1, n);
+  unsafe { return shu_net_udp_sendmmsg2_c(fd, a0, port0, p0, l0, a1, port1, p1, l1, n); }
 }
 
 /**
@@ -117,9 +117,9 @@ function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a
   i = 0;
   while (i < n) {
     if (i == 0) {
-      sent = net_udp_send_to_c(fd, a0, port0, p0, l0);
+      unsafe { sent = net_udp_send_to_c(fd, a0, port0, p0, l0); }
     } else {
-      sent = net_udp_send_to_c(fd, a1, port1, p1, l1);
+      unsafe { sent = net_udp_send_to_c(fd, a1, port1, p1, l1); }
     }
     if (sent < 0) {
       return -1;

@@ -669,9 +669,9 @@ static int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket
 #include "http_server_pool.inc.c"
 #include "http_reqresp.inc.c"
 #include "http2.inc.c"
-#include "hpack.inc.c"
-#include "client.inc.c"
-#include "network.inc.c"
+#include "http2_hpack.inc.c"
+#include "http2_client.inc.c"
+#include "http2_network.inc.c"
 
 /** HTTP/2 over TLS 多 method 请求（https:// + ALPN h2）。 */
 int32_t http_h2_request_c(uint8_t method_u8, const uint8_t *url, int32_t url_len,
@@ -995,6 +995,5 @@ int32_t http_h2c_client_smoke_c(void) {
   return 0;
 }
 
-#include "conn_pool.inc.c"
-#include "global_pool.inc.c"
-
+#include "http2_conn_pool.inc.c"
+#include "http2_global_pool.inc.c"

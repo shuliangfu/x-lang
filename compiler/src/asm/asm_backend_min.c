@@ -2,6 +2,9 @@
  * asm_backend_min.c — ARM64 汇编文本后端
  * 输出 .s 文件 → as 汇编 → ld 链接
  */
+#include "diag.h"
+#include "runtime_diag_codes.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,8 +15,25 @@ static FILE *f;
 
 static void emit(const char *s) { fprintf(f, "%s\n", s); }
 
+static int asm_backend_min_usage(const char *argv0) {
+    diag_reportf_with_code(NULL, 0, 0, "usage error", SHUX_DIAG_CODE_ARGUMENT_ARG001, NULL,
+                 "usage: %s <in.sx> [-o <out>]",
+                 argv0 ? argv0 : "asm_backend_min");
+    return 1;
+}
+
+static int asm_backend_min_errno(const char *path, const char *op) {
+    diag_reportf_with_code(path, 0, 0, "io error", SHUX_DIAG_CODE_IO_IO001, NULL,
+                 "%s failed for '%s': %s",
+                 op ? op : "file operation",
+                 path ? path : "?",
+                 strerror(errno));
+    return 1;
+}
+
 int main(int argc, char **argv) {
-    if (argc < 2) { fprintf(stderr, "Usage: %s <in.sx> [-o <out>]\n", argv[0]); return 1; }
+    if (argc < 2)
+        return asm_backend_min_usage(argv[0]);
 
     const char *in = argv[1];
     const char *out = "a.out";
@@ -22,7 +42,8 @@ int main(int argc, char **argv) {
 
     /* parse */
     FILE *fi = fopen(in, "r");
-    if (!fi) { perror(in); return 1; }
+    if (!fi)
+        return asm_backend_min_errno(in, "open");
     fseek(fi, 0, SEEK_END);
     long sz = ftell(fi); if (sz > 4095) sz = 4095;
     fseek(fi, 0, SEEK_SET);
@@ -43,7 +64,8 @@ int main(int argc, char **argv) {
     char tmp_s[256];
     snprintf(tmp_s, sizeof(tmp_s), "/tmp/shux_min_%d.s", getpid());
     f = fopen(tmp_s, "w");
-    if (!f) { perror(tmp_s); return 1; }
+    if (!f)
+        return asm_backend_min_errno(tmp_s, "open");
 
     emit(".text");
     emit(".globl _main");
@@ -64,10 +86,20 @@ int main(int argc, char **argv) {
         "-syslibroot $(xcrun --show-sdk-path) -lSystem "
         "/tmp/shux_min_%d.o 2>&1",
         getpid(), tmp_s, out, getpid());
-    printf("[min] %s\n", cmd);
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm backend min command: %s",
+                 cmd);
     int rc = system(cmd);
-    printf("[min] exit=%d\n", rc);
-    if (rc == 0) printf("[min] built %s\n", out);
-    else fprintf(stderr, "[min] FAILED\n");
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm backend min exit=%d",
+                 rc);
+    if (rc == 0)
+        diag_reportf(NULL, 0, 0, "info", NULL,
+                     "asm backend min: built %s",
+                     out);
+    else
+        diag_reportf_with_code(out, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                     "asm backend min failed to build '%s'",
+                     out);
     return rc;
 }

@@ -11,7 +11,10 @@
 #include "runtime_io_abi.h"
 #include "runtime_driver_abi.h"
 #include "runtime_abi.h"
+#include "diag.h"
+#include "runtime_diag_codes.h"
 
+#include <errno.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -28,6 +31,206 @@
 
 /** invoke_cc 子进程 realpath 缓冲池：不可共用单块 static，否则多次 push 后 argv 中旧槽指向最后被覆盖的路径。 */
 #define INVOKE_CC_ABS_POOL_SZ 80
+
+static const char *link_diag_code_for_kind(const char *kind) {
+    if (!kind)
+        return SHUX_DIAG_CODE_PROCESS_PRC001;
+    if (strcmp(kind, "build error") == 0)
+        return SHUX_DIAG_CODE_BUILD_BLD001;
+    if (strcmp(kind, "process error") == 0)
+        return SHUX_DIAG_CODE_PROCESS_PRC001;
+    return NULL;
+}
+
+static void link_diag_tool_status(const char *tool, int status) {
+    if (!tool)
+        tool = "tool";
+    if (WIFSIGNALED(status)) {
+        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                               "%s failed (signal %d)", tool, WTERMSIG(status));
+    } else {
+        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                               "%s failed (exit %d)", tool, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+    }
+}
+
+static void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint) {
+    if (!obj_name)
+        obj_name = "runtime object";
+    if (hint && hint[0] != '\0') {
+        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                               "cannot resolve compiler directory to build %s (%s)",
+                               obj_name, hint);
+    } else {
+        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                               "cannot resolve compiler directory to build %s",
+                               obj_name);
+    }
+}
+
+static void link_diag_runtime_source_missing(const char *obj_name, const char *source_path) {
+    if (!obj_name)
+        obj_name = "runtime object";
+    diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                           "%s source not found at %s",
+                           obj_name, source_path ? source_path : "?");
+}
+
+static void link_diag_runtime_source_missing_under(const char *obj_name, const char *base_dir,
+                                                   const char *suffix) {
+    if (!obj_name)
+        obj_name = "runtime object";
+    diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                           "%s source not found under %s%s",
+                           obj_name, base_dir ? base_dir : "?", suffix ? suffix : "");
+}
+
+static void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o) {
+    if (!obj_name)
+        obj_name = "runtime object";
+    diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                           "%s missing after cc -c (expected near %s)",
+                           obj_name, out_o ? out_o : "?");
+}
+
+static void link_diag_runtime_obj_build_status(const char *obj_name, int status) {
+    if (!obj_name)
+        obj_name = "runtime object";
+    if (WIFSIGNALED(status)) {
+        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                               "failed to build %s (signal %d)",
+                               obj_name, WTERMSIG(status));
+    } else {
+        diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                               "failed to build %s (exit %d)",
+                               obj_name, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+    }
+}
+
+static void link_diag_errno(const char *kind, const char *op) {
+    int saved_errno = errno;
+    const char *err = strerror(saved_errno);
+    const char *resolved_kind = kind ? kind : "process error";
+    const char *code = link_diag_code_for_kind(resolved_kind);
+    if (code) {
+        diag_reportf_with_code(NULL, 0, 0, resolved_kind, code, NULL,
+                               "%s failed: %s",
+                               op ? op : "system call",
+                               err ? err : "unknown error");
+    } else {
+        diag_reportf(NULL, 0, 0, resolved_kind, NULL,
+                     "%s failed: %s",
+                     op ? op : "system call",
+                     err ? err : "unknown error");
+    }
+}
+
+static void link_diag_errno_path(const char *kind, const char *op, const char *path) {
+    int saved_errno = errno;
+    const char *err = strerror(saved_errno);
+    const char *resolved_kind = kind ? kind : "process error";
+    const char *code = link_diag_code_for_kind(resolved_kind);
+    if (path && path[0] != '\0') {
+        if (code) {
+            diag_reportf_with_code(NULL, 0, 0, resolved_kind, code, NULL,
+                                   "%s failed for '%s': %s",
+                                   op ? op : "system call",
+                                   path,
+                                   err ? err : "unknown error");
+        } else {
+            diag_reportf(NULL, 0, 0, resolved_kind, NULL,
+                         "%s failed for '%s': %s",
+                         op ? op : "system call",
+                         path,
+                         err ? err : "unknown error");
+        }
+        return;
+    }
+    link_diag_errno(resolved_kind, op);
+}
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((unused))
+#endif
+static void link_diag_freestanding_missing(const char *obj_name, const char *symbol_name) {
+    if (symbol_name && symbol_name[0]) {
+        diag_reportf_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                     "freestanding link missing %s (user references %s)",
+                     obj_name ? obj_name : "runtime object",
+                     symbol_name);
+        return;
+    }
+    diag_reportf_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                 "freestanding link missing %s",
+                 obj_name ? obj_name : "runtime object");
+}
+
+static void link_diag_freestanding_unsupported(void) {
+    diag_report_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001,
+                "-freestanding / SHUX_FREESTANDING is only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)",
+                NULL);
+}
+
+static void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path) {
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "ld debug: push %s %s=%s",
+                 rel ? rel : "(null)",
+                 stage ? stage : "path",
+                 path ? path : "(null)");
+}
+
+static void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
+    int di;
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "ld debug: %s",
+                 label ? label : "argv");
+    if (!argv)
+        return;
+    for (di = 0; argv[di] != NULL; di++) {
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "ld debug argv[%d]=%s",
+                     di,
+                     argv[di]);
+    }
+}
+
+static void shux_link_perror(const char *msg) {
+    char op_buf[128];
+    char path_buf[160];
+    const char *text = msg;
+    const char *lparen;
+    const char *rparen;
+    size_t op_len;
+    size_t path_len;
+    if (!text || !text[0]) {
+        link_diag_errno("process error", "system call");
+        return;
+    }
+    if (strncmp(text, "shux: ", 6) == 0)
+        text += 6;
+    lparen = strrchr(text, '(');
+    rparen = strrchr(text, ')');
+    if (lparen && rparen && lparen < rparen && rparen[1] == '\0') {
+        const char *op_end = lparen;
+        while (op_end > text && op_end[-1] == ' ')
+            op_end--;
+        op_len = (size_t)(op_end - text);
+        path_len = (size_t)(rparen - lparen - 1);
+        if (op_len >= sizeof op_buf)
+            op_len = sizeof op_buf - 1;
+        if (path_len >= sizeof path_buf)
+            path_len = sizeof path_buf - 1;
+        memcpy(op_buf, text, op_len);
+        op_buf[op_len] = '\0';
+        memcpy(path_buf, lparen + 1, path_len);
+        path_buf[path_len] = '\0';
+        link_diag_errno_path("process error", op_buf, path_buf);
+        return;
+    }
+    link_diag_errno("process error", text);
+}
+
+#define perror(msg) shux_link_perror((msg))
 
 /**
  * 判断 lib root 指针可安全解引用（避开 NULL/low tag/getenv 脏值）。
@@ -944,7 +1147,7 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
         return 0;
     char comp[PATH_MAX];
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_panic.o (try: make -C compiler runtime_panic.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_panic.o", "try: make -C compiler runtime_panic.o");
         return -1;
     }
     char out_o[PATH_MAX];
@@ -969,7 +1172,7 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
 #endif
     if (!src) {
         if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_panic.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-            fprintf(stderr, "shux: runtime_panic source not found under %s/src/asm/\n", comp);
+            link_diag_runtime_source_missing_under("runtime_panic", comp, "/src/asm/");
             return -1;
         }
         src = src_c;
@@ -981,7 +1184,7 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_panic.o)");
+            perror("fork (runtime_panic.o)");
             return -1;
         }
         if (pid == 0) {
@@ -989,7 +1192,7 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
                 execlp("cc", "cc", "-c", "-o", out_o, src, (char *)NULL);
             else
                 execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src, (char *)NULL);
-            perror("shux: cc (runtime_panic.o)");
+            perror("cc (runtime_panic.o)");
             _exit(127);
         }
         {
@@ -997,13 +1200,13 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_panic.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_panic.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_panic_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_panic.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_panic.o", out_o);
         return -1;
     }
     return 0;
@@ -1041,13 +1244,13 @@ int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_asm_io_stubs_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_asm_io_stubs.o (try: make -C compiler runtime_asm_io_stubs.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_asm_io_stubs.o", "try: make -C compiler runtime_asm_io_stubs.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_asm_io_stubs.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_asm_io_stubs.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_asm_io_stubs source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_asm_io_stubs", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1056,12 +1259,12 @@ int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_asm_io_stubs.o)");
+            perror("fork (runtime_asm_io_stubs.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-fPIE", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_asm_io_stubs.o)");
+            perror("cc (runtime_asm_io_stubs.o)");
             _exit(127);
         }
         {
@@ -1069,13 +1272,13 @@ int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_asm_io_stubs.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_asm_io_stubs.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_asm_io_stubs_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_asm_io_stubs.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_asm_io_stubs.o", out_o);
         return -1;
     }
     return 0;
@@ -1095,13 +1298,13 @@ int shux_ensure_runtime_process_argv_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_process_argv_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_process_argv.o (try: make -C compiler runtime_process_argv.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_process_argv.o", "try: make -C compiler runtime_process_argv.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_process_argv.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_process_argv.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_process_argv source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_process_argv", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1110,12 +1313,12 @@ int shux_ensure_runtime_process_argv_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_process_argv.o)");
+            perror("fork (runtime_process_argv.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_process_argv.o)");
+            perror("cc (runtime_process_argv.o)");
             _exit(127);
         }
         {
@@ -1123,13 +1326,13 @@ int shux_ensure_runtime_process_argv_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_process_argv.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_process_argv.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_process_argv_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_process_argv.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_process_argv.o", out_o);
         return -1;
     }
     return 0;
@@ -1143,13 +1346,13 @@ int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_process_os_glue_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_process_os_glue.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_process_os_glue.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_process_os_glue.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_process_os_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_process_os_glue source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_process_os_glue", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1158,12 +1361,12 @@ int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_process_os_glue.o)");
+            perror("fork (runtime_process_os_glue.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_process_os_glue.o)");
+            perror("cc (runtime_process_os_glue.o)");
             _exit(127);
         }
         {
@@ -1171,13 +1374,13 @@ int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_process_os_glue.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_process_os_glue.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_process_os_glue_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_process_os_glue.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_process_os_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -1196,13 +1399,13 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_test_fn_invoke_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_test_fn_invoke.o (try: make -C compiler runtime_test_fn_invoke.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_test_fn_invoke.o", "try: make -C compiler runtime_test_fn_invoke.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_test_fn_invoke.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_test_fn_invoke.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_test_fn_invoke source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_test_fn_invoke", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1211,12 +1414,12 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_test_fn_invoke.o)");
+            perror("fork (runtime_test_fn_invoke.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_test_fn_invoke.o)");
+            perror("cc (runtime_test_fn_invoke.o)");
             _exit(127);
         }
         {
@@ -1224,13 +1427,13 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_test_fn_invoke.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_test_fn_invoke.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_test_fn_invoke_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_test_fn_invoke.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_test_fn_invoke.o", out_o);
         return -1;
     }
     return 0;
@@ -1249,13 +1452,13 @@ int shux_ensure_runtime_random_fill_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_random_fill_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_random_fill.o (try: make -C compiler runtime_random_fill.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_random_fill.o", "try: make -C compiler runtime_random_fill.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_random_fill.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_random_fill.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_random_fill source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_random_fill", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1264,12 +1467,12 @@ int shux_ensure_runtime_random_fill_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_random_fill.o)");
+            perror("fork (runtime_random_fill.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_random_fill.o)");
+            perror("cc (runtime_random_fill.o)");
             _exit(127);
         }
         {
@@ -1277,13 +1480,13 @@ int shux_ensure_runtime_random_fill_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_random_fill.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_random_fill.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_random_fill_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_random_fill.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_random_fill.o", out_o);
         return -1;
     }
     return 0;
@@ -1301,13 +1504,13 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_heap_user_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_heap_user.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_heap_user.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_heap_user.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/runtime_heap_user.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_heap_user source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_heap_user", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1316,12 +1519,12 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_heap_user.o)");
+            perror("fork (runtime_heap_user.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_heap_user.o)");
+            perror("cc (runtime_heap_user.o)");
             _exit(127);
         }
         {
@@ -1329,13 +1532,13 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_heap_user.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_heap_user.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_heap_user_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_heap_user.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_heap_user.o", out_o);
         return -1;
     }
     return 0;
@@ -1354,13 +1557,13 @@ int shux_ensure_runtime_time_os_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_time_os_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_time_os.o (try: make -C compiler runtime_time_os.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_time_os.o", "try: make -C compiler runtime_time_os.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_time_os.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_time_os.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_time_os source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_time_os", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1369,12 +1572,12 @@ int shux_ensure_runtime_time_os_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_time_os.o)");
+            perror("fork (runtime_time_os.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_time_os.o)");
+            perror("cc (runtime_time_os.o)");
             _exit(127);
         }
         {
@@ -1382,13 +1585,13 @@ int shux_ensure_runtime_time_os_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_time_os.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_time_os.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_time_os_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_time_os.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_time_os.o", out_o);
         return -1;
     }
     return 0;
@@ -1407,13 +1610,13 @@ int shux_ensure_runtime_queue_contention_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_queue_contention_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_queue_contention.o (try: make -C compiler runtime_queue_contention.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_queue_contention.o", "try: make -C compiler runtime_queue_contention.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_queue_contention.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_queue_contention.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_queue_contention source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_queue_contention", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1422,12 +1625,12 @@ int shux_ensure_runtime_queue_contention_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_queue_contention.o)");
+            perror("fork (runtime_queue_contention.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_queue_contention.o)");
+            perror("cc (runtime_queue_contention.o)");
             _exit(127);
         }
         {
@@ -1435,13 +1638,13 @@ int shux_ensure_runtime_queue_contention_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_queue_contention.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_queue_contention.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_queue_contention_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_queue_contention.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_queue_contention.o", out_o);
         return -1;
     }
     return 0;
@@ -1460,13 +1663,13 @@ int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_dynlib_os_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_dynlib_os.o (try: make -C compiler runtime_dynlib_os.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_dynlib_os.o", "try: make -C compiler runtime_dynlib_os.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_dynlib_os.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_dynlib_os.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_dynlib_os source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_dynlib_os", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1475,12 +1678,12 @@ int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_dynlib_os.o)");
+            perror("fork (runtime_dynlib_os.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_dynlib_os.o)");
+            perror("cc (runtime_dynlib_os.o)");
             _exit(127);
         }
         {
@@ -1488,13 +1691,13 @@ int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_dynlib_os.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_dynlib_os.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_dynlib_os_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_dynlib_os.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_dynlib_os.o", out_o);
         return -1;
     }
     return 0;
@@ -1513,13 +1716,13 @@ int shux_ensure_runtime_env_os_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_env_os_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_env_os.o (try: make -C compiler runtime_env_os.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_env_os.o", "try: make -C compiler runtime_env_os.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_env_os.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_env_os.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_env_os source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_env_os", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1528,12 +1731,12 @@ int shux_ensure_runtime_env_os_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_env_os.o)");
+            perror("fork (runtime_env_os.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_env_os.o)");
+            perror("cc (runtime_env_os.o)");
             _exit(127);
         }
         {
@@ -1541,13 +1744,13 @@ int shux_ensure_runtime_env_os_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_env_os.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_env_os.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_env_os_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_env_os.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_env_os.o", out_o);
         return -1;
     }
     return 0;
@@ -1566,13 +1769,13 @@ int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_backtrace_platform_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_backtrace_platform.o (try: make -C compiler runtime_backtrace_platform.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_backtrace_platform.o", "try: make -C compiler runtime_backtrace_platform.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_backtrace_platform.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_backtrace_platform.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_backtrace_platform source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_backtrace_platform", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1581,12 +1784,12 @@ int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_backtrace_platform.o)");
+            perror("fork (runtime_backtrace_platform.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_backtrace_platform.o)");
+            perror("cc (runtime_backtrace_platform.o)");
             _exit(127);
         }
         {
@@ -1594,13 +1797,13 @@ int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_backtrace_platform.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_backtrace_platform.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_backtrace_platform_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_backtrace_platform.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_backtrace_platform.o", out_o);
         return -1;
     }
     return 0;
@@ -1619,13 +1822,13 @@ int shux_ensure_runtime_log_os_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_log_os_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_log_os.o (try: make -C compiler runtime_log_os.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_log_os.o", "try: make -C compiler runtime_log_os.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_log_os.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_log_os.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_log_os source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_log_os", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1634,12 +1837,12 @@ int shux_ensure_runtime_log_os_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_log_os.o)");
+            perror("fork (runtime_log_os.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_log_os.o)");
+            perror("cc (runtime_log_os.o)");
             _exit(127);
         }
         {
@@ -1647,13 +1850,13 @@ int shux_ensure_runtime_log_os_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_log_os.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_log_os.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_log_os_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_log_os.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_log_os.o", out_o);
         return -1;
     }
     return 0;
@@ -1672,13 +1875,13 @@ int shux_ensure_runtime_math_libm_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_math_libm_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_math_libm.o (try: make -C compiler runtime_math_libm.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_math_libm.o", "try: make -C compiler runtime_math_libm.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_math_libm.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_math_libm.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_math_libm source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_math_libm", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1687,12 +1890,12 @@ int shux_ensure_runtime_math_libm_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_math_libm.o)");
+            perror("fork (runtime_math_libm.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_math_libm.o)");
+            perror("cc (runtime_math_libm.o)");
             _exit(127);
         }
         {
@@ -1700,13 +1903,13 @@ int shux_ensure_runtime_math_libm_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_math_libm.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_math_libm.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_math_libm_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_math_libm.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_math_libm.o", out_o);
         return -1;
     }
     return 0;
@@ -1725,13 +1928,13 @@ int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_atomic_glue_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_atomic_glue.o (try: make -C compiler runtime_atomic_glue.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_atomic_glue.o", "try: make -C compiler runtime_atomic_glue.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_atomic_glue.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_atomic_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_atomic_glue source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_atomic_glue", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1740,12 +1943,12 @@ int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_atomic_glue.o)");
+            perror("fork (runtime_atomic_glue.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_atomic_glue.o)");
+            perror("cc (runtime_atomic_glue.o)");
             _exit(127);
         }
         {
@@ -1753,13 +1956,13 @@ int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_atomic_glue.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_atomic_glue.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_atomic_glue_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_atomic_glue.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_atomic_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -1778,13 +1981,13 @@ int shux_ensure_runtime_channel_glue_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_channel_glue_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_channel_glue.o (try: make -C compiler runtime_channel_glue.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_channel_glue.o", "try: make -C compiler runtime_channel_glue.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_channel_glue.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_channel_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_channel_glue source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_channel_glue", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1793,12 +1996,12 @@ int shux_ensure_runtime_channel_glue_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_channel_glue.o)");
+            perror("fork (runtime_channel_glue.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_channel_glue.o)");
+            perror("cc (runtime_channel_glue.o)");
             _exit(127);
         }
         {
@@ -1806,13 +2009,13 @@ int shux_ensure_runtime_channel_glue_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_channel_glue.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_channel_glue.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_channel_glue_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_channel_glue.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_channel_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -1831,13 +2034,13 @@ int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_net_udp_batch_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_net_udp_batch.o (try: make -C compiler runtime_net_udp_batch.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_net_udp_batch.o", "try: make -C compiler runtime_net_udp_batch.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_net_udp_batch.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_net_udp_batch.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_net_udp_batch source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_net_udp_batch", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1846,12 +2049,12 @@ int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_net_udp_batch.o)");
+            perror("fork (runtime_net_udp_batch.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_net_udp_batch.o)");
+            perror("cc (runtime_net_udp_batch.o)");
             _exit(127);
         }
         {
@@ -1859,13 +2062,13 @@ int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_net_udp_batch.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_net_udp_batch.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_net_udp_batch_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_net_udp_batch.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_net_udp_batch.o", out_o);
         return -1;
     }
     return 0;
@@ -1884,13 +2087,13 @@ int shux_ensure_runtime_net_workers_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_net_workers_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_net_workers.o (try: make -C compiler runtime_net_workers.o)\n");
+        link_diag_runtime_obj_resolve_fail("runtime_net_workers.o", "try: make -C compiler runtime_net_workers.o");
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_net_workers.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_net_workers.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_net_workers source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_net_workers", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1899,12 +2102,12 @@ int shux_ensure_runtime_net_workers_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_net_workers.o)");
+            perror("fork (runtime_net_workers.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_net_workers.o)");
+            perror("cc (runtime_net_workers.o)");
             _exit(127);
         }
         {
@@ -1912,13 +2115,13 @@ int shux_ensure_runtime_net_workers_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_net_workers.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_net_workers.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_net_workers_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_net_workers.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_net_workers.o", out_o);
         return -1;
     }
     return 0;
@@ -1932,13 +2135,13 @@ int shux_ensure_runtime_sync_os_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_sync_os_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_sync_os.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_sync_os.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_sync_os.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_sync_os.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_sync_os source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_sync_os", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1947,12 +2150,12 @@ int shux_ensure_runtime_sync_os_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_sync_os.o)");
+            perror("fork (runtime_sync_os.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_sync_os.o)");
+            perror("cc (runtime_sync_os.o)");
             _exit(127);
         }
         {
@@ -1960,13 +2163,13 @@ int shux_ensure_runtime_sync_os_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_sync_os.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_sync_os.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_sync_os_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_sync_os.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_sync_os.o", out_o);
         return -1;
     }
     return 0;
@@ -1980,13 +2183,13 @@ int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_sync_lock_diag_tls_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_sync_lock_diag_tls.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_sync_lock_diag_tls.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_sync_lock_diag_tls.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_sync_lock_diag_tls.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_sync_lock_diag_tls source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_sync_lock_diag_tls", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -1995,12 +2198,12 @@ int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_sync_lock_diag_tls.o)");
+            perror("fork (runtime_sync_lock_diag_tls.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_sync_lock_diag_tls.o)");
+            perror("cc (runtime_sync_lock_diag_tls.o)");
             _exit(127);
         }
         {
@@ -2008,13 +2211,13 @@ int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_sync_lock_diag_tls.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_sync_lock_diag_tls.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_sync_lock_diag_tls_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_sync_lock_diag_tls.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_sync_lock_diag_tls.o", out_o);
         return -1;
     }
     return 0;
@@ -2028,13 +2231,13 @@ int shux_ensure_runtime_thread_glue_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_thread_glue_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_thread_glue.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_thread_glue.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_thread_glue.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_thread_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_thread_glue source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_thread_glue", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -2043,12 +2246,12 @@ int shux_ensure_runtime_thread_glue_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_thread_glue.o)");
+            perror("fork (runtime_thread_glue.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_thread_glue.o)");
+            perror("cc (runtime_thread_glue.o)");
             _exit(127);
         }
         {
@@ -2056,13 +2259,13 @@ int shux_ensure_runtime_thread_glue_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_thread_glue.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_thread_glue.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_thread_glue_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_thread_glue.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_thread_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -2076,13 +2279,13 @@ int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_scheduler_glue_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_scheduler_glue.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_scheduler_glue.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_scheduler_glue.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_scheduler_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_scheduler_glue source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_scheduler_glue", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s/src/asm", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -2091,12 +2294,12 @@ int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_scheduler_glue.o)");
+            perror("fork (runtime_scheduler_glue.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_scheduler_glue.o)");
+            perror("cc (runtime_scheduler_glue.o)");
             _exit(127);
         }
         {
@@ -2104,13 +2307,13 @@ int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_scheduler_glue.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_scheduler_glue.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_scheduler_glue_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_scheduler_glue.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_scheduler_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -2124,13 +2327,13 @@ int shux_ensure_runtime_http_glue_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_http_glue_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_http_glue.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_http_glue.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_http_glue.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/http/runtime_http_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_http_glue source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_http_glue", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s/src/asm/http", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -2139,12 +2342,12 @@ int shux_ensure_runtime_http_glue_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_http_glue.o)");
+            perror("fork (runtime_http_glue.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_http_glue.o)");
+            perror("cc (runtime_http_glue.o)");
             _exit(127);
         }
         {
@@ -2152,13 +2355,13 @@ int shux_ensure_runtime_http_glue_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_http_glue.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_http_glue.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_http_glue_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_http_glue.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_http_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -2172,13 +2375,13 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_tls_mbedtls_bio_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_tls_mbedtls_bio.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_tls_mbedtls_bio.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_tls_mbedtls_bio.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_tls_mbedtls_bio.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_tls_mbedtls_bio source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_tls_mbedtls_bio", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -2187,13 +2390,13 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_tls_mbedtls_bio.o)");
+            perror("fork (runtime_tls_mbedtls_bio.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2,
                 "-I/opt/homebrew/opt/mbedtls/include", "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_tls_mbedtls_bio.o)");
+            perror("cc (runtime_tls_mbedtls_bio.o)");
             _exit(127);
         }
         {
@@ -2202,13 +2405,13 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
                 /* 无 mbedTLS 头时由 Makefile 规则兜底；此处仅 best-effort */
-                fprintf(stderr, "shux: failed to build runtime_tls_mbedtls_bio.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_tls_mbedtls_bio.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_tls_mbedtls_bio_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_tls_mbedtls_bio.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_tls_mbedtls_bio.o", out_o);
         return -1;
     }
     return 0;
@@ -2222,13 +2425,13 @@ int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_kv_mmap_glue_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_kv_mmap_glue.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_kv_mmap_glue.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_kv_mmap_glue.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_kv_mmap_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_kv_mmap_glue source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_kv_mmap_glue", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -2237,12 +2440,12 @@ int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_kv_mmap_glue.o)");
+            perror("fork (runtime_kv_mmap_glue.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_kv_mmap_glue.o)");
+            perror("cc (runtime_kv_mmap_glue.o)");
             _exit(127);
         }
         {
@@ -2250,13 +2453,13 @@ int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_kv_mmap_glue.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_kv_mmap_glue.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_kv_mmap_glue_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_kv_mmap_glue.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_kv_mmap_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -2270,13 +2473,13 @@ int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_arrow_simd_glue_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_arrow_simd_glue.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_arrow_simd_glue.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_arrow_simd_glue.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_arrow_simd_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_arrow_simd_glue source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_arrow_simd_glue", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -2285,12 +2488,12 @@ int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_arrow_simd_glue.o)");
+            perror("fork (runtime_arrow_simd_glue.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_arrow_simd_glue.o)");
+            perror("cc (runtime_arrow_simd_glue.o)");
             _exit(127);
         }
         {
@@ -2298,13 +2501,13 @@ int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_arrow_simd_glue.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_arrow_simd_glue.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_arrow_simd_glue_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_arrow_simd_glue.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_arrow_simd_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -2318,13 +2521,13 @@ int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_sqlite_glue_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_sqlite_glue.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_sqlite_glue.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_sqlite_glue.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_sqlite_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_sqlite_glue source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_sqlite_glue", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -2333,12 +2536,12 @@ int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_sqlite_glue.o)");
+            perror("fork (runtime_sqlite_glue.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-DSHUX_DB_USE_SQLITE3", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_sqlite_glue.o)");
+            perror("cc (runtime_sqlite_glue.o)");
             _exit(127);
         }
         {
@@ -2346,13 +2549,13 @@ int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_sqlite_glue.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_sqlite_glue.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_sqlite_glue_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_sqlite_glue.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_sqlite_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -2366,13 +2569,13 @@ int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_crypto_inc_glue_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_crypto_inc_glue.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_crypto_inc_glue.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_crypto_inc_glue.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_crypto_inc_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_crypto_inc_glue source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_crypto_inc_glue", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -2381,12 +2584,12 @@ int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_crypto_inc_glue.o)");
+            perror("fork (runtime_crypto_inc_glue.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_crypto_inc_glue.o)");
+            perror("cc (runtime_crypto_inc_glue.o)");
             _exit(127);
         }
         {
@@ -2394,13 +2597,13 @@ int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_crypto_inc_glue.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_crypto_inc_glue.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_crypto_inc_glue_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_crypto_inc_glue.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_crypto_inc_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -2414,13 +2617,13 @@ int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_ed25519_ref10_glue_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build runtime_ed25519_ref10_glue.o\n");
+        link_diag_runtime_obj_resolve_fail("runtime_ed25519_ref10_glue.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_ed25519_ref10_glue.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_ed25519_ref10_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        fprintf(stderr, "shux: runtime_ed25519_ref10_glue source not found at %s\n", src_c);
+        link_diag_runtime_source_missing("runtime_ed25519_ref10_glue", src_c);
         return -1;
     }
     if ((size_t)snprintf(inc0, sizeof inc0, "%s/src/asm", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
@@ -2429,12 +2632,12 @@ int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (runtime_ed25519_ref10_glue.o)");
+            perror("fork (runtime_ed25519_ref10_glue.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("shux: cc (runtime_ed25519_ref10_glue.o)");
+            perror("cc (runtime_ed25519_ref10_glue.o)");
             _exit(127);
         }
         {
@@ -2442,13 +2645,13 @@ int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build runtime_ed25519_ref10_glue.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("runtime_ed25519_ref10_glue.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_ed25519_ref10_glue_o_path(argv0))) {
-        fprintf(stderr, "shux: runtime_ed25519_ref10_glue.o missing after cc -c (expected near %s)\n", out_o);
+        link_diag_runtime_obj_missing("runtime_ed25519_ref10_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -2468,25 +2671,25 @@ int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding) {
     if (asm_link_obj_skip_missing(shux_crt0_user_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build crt0_user.o\n");
+        link_diag_runtime_obj_resolve_fail("crt0_user.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/crt0_user.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/crt0_user_x86_64.s", comp) >= sizeof src_s
         || access(src_s, R_OK) != 0) {
-        fprintf(stderr, "shux: crt0_user source not found at %s\n", src_s);
+        link_diag_runtime_source_missing("crt0_user", src_s);
         return -1;
     }
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (crt0_user.o)");
+            perror("fork (crt0_user.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-c", "-o", out_o, src_s, (char *)NULL);
-            perror("shux: cc (crt0_user.o)");
+            perror("cc (crt0_user.o)");
             _exit(127);
         }
         {
@@ -2494,13 +2697,13 @@ int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build crt0_user.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("crt0_user.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_crt0_user_o_path(argv0))) {
-        fprintf(stderr, "shux: crt0_user.o missing after cc -c (expected %s)\n", out_o);
+        link_diag_runtime_obj_missing("crt0_user.o", out_o);
         return -1;
     }
     return 0;
@@ -2520,25 +2723,25 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
     if (asm_link_obj_skip_missing(shux_freestanding_io_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        fprintf(stderr, "shux: cannot resolve compiler directory to build freestanding_io.o\n");
+        link_diag_runtime_obj_resolve_fail("freestanding_io.o", NULL);
         return -1;
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/freestanding_io.o", comp) >= sizeof out_o)
         return -1;
     if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/freestanding_io_x86_64.s", comp) >= sizeof src_s
         || access(src_s, R_OK) != 0) {
-        fprintf(stderr, "shux: freestanding_io source not found at %s\n", src_s);
+        link_diag_runtime_source_missing("freestanding_io", src_s);
         return -1;
     }
     {
         pid_t pid = fork();
         if (pid < 0) {
-            perror("shux: fork (freestanding_io.o)");
+            perror("fork (freestanding_io.o)");
             return -1;
         }
         if (pid == 0) {
             execlp("cc", "cc", "-c", "-o", out_o, src_s, (char *)NULL);
-            perror("shux: cc (freestanding_io.o)");
+            perror("cc (freestanding_io.o)");
             _exit(127);
         }
         {
@@ -2546,13 +2749,13 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
             if (shu_waitpid_retry(pid, &st) != 0)
                 return -1;
             if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                fprintf(stderr, "shux: failed to build freestanding_io.o (exit %d)\n", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+                link_diag_runtime_obj_build_status("freestanding_io.o", st);
                 return -1;
             }
         }
     }
     if (!asm_link_obj_skip_missing(shux_freestanding_io_o_path(argv0))) {
-        fprintf(stderr, "shux: freestanding_io.o missing after cc -c (expected %s)\n", out_o);
+        link_diag_runtime_obj_missing("freestanding_io.o", out_o);
         return -1;
     }
     return 0;
@@ -3009,19 +3212,13 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
     if (!opt_level || !*opt_level) opt_level = "2";
     if (include_root && include_root[0])
         ensure_std_net_o_auto_tls(include_root);
-    if (process_o && process_o[0] && access(process_o, R_OK) == 0) {
-        if (shux_ensure_runtime_process_argv_o(NULL) != 0)
-            return -1;
-        if (shux_ensure_runtime_process_os_glue_o(NULL) != 0)
-            return -1;
-    }
     if (time_o && time_o[0] && access(time_o, R_OK) == 0) {
         if (shux_ensure_runtime_time_os_o(NULL) != 0)
             return -1;
     }
     pid_t pid = fork();
     if (pid < 0) {
-        perror("shux: fork");
+        perror("fork");
         return -1;
     }
     if (pid == 0) {
@@ -3205,7 +3402,7 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
             argv[0] = (char *)"gcc";
             execvp("gcc", argv);
 #endif
-            perror("shux: cc/gcc");
+            perror("cc/gcc");
             _exit(127);
         }
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, process_o)) {
@@ -3213,16 +3410,6 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
             if (i < argv_cap - 1)
                 argv[i++] = (char *)"-pthread";
 #endif
-            {
-                const char *rpav = shux_runtime_process_argv_o_path(NULL);
-                if (rpav && rpav[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rpav);
-            }
-            {
-                const char *rpos = shux_runtime_process_os_glue_o_path(NULL);
-                if (rpos && rpos[0])
-                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rpos);
-            }
         }
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, string_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o);
@@ -3501,7 +3688,7 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
         argv[0] = (char *)"gcc";
         execvp("gcc", argv);
 #endif
-        perror("shux: cc/gcc");
+        perror("cc/gcc");
         _exit(127);
     }
     int status;
@@ -3511,7 +3698,7 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
     shux_debug_hello_stage1_report("D", "runtime_link_abi.c:3455", "invoke_cc_wait", status, WIFSIGNALED(status) ? WTERMSIG(status) : -1, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
     /* #endregion */
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        fprintf(stderr, "shux: cc failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+        link_diag_tool_status("cc", status);
         return -1;
     }
     /* 阶段 8：非调试（-O0）时对产出执行 strip，减小体积（避免传 -s 给 cc 触发 ld 的 obsolete 警告） */
@@ -3957,11 +4144,11 @@ static int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0,
             || strcmp(rel, "compiler/runtime_process_argv.o") == 0))
         debug_runtime_obj = 1;
     if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
-        fprintf(stderr, "shux: ld push %s primary=%s\n", rel, primary ? primary : "(null)");
+        link_diag_ld_debug_push(rel, "primary", primary ? primary : "(null)");
     if (primary && primary[0])
         p = asm_link_obj_skip_missing(primary);
     if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
-        fprintf(stderr, "shux: ld push %s after-primary=%s\n", rel, p ? p : "(null)");
+        link_diag_ld_debug_push(rel, "after-primary", p ? p : "(null)");
     if (!p && rel && rel[0])
         p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, rel));
     if (!p && bank && rel && rel[0])
@@ -3977,7 +4164,7 @@ static int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0,
             return 0;
     }
     if (debug_runtime_obj && getenv("SHUX_DEBUG_LD"))
-        fprintf(stderr, "shux: ld push %s final=%s\n", rel, p ? p : "(null)");
+        link_diag_ld_debug_push(rel, "final", p ? p : "(null)");
     if (link_abi_asm_ld_argv_has_obj(argv, *la, p))
         return 0;
     argv[(*la)++] = p;
@@ -4087,15 +4274,11 @@ static int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, 
     if (la < (int)(sizeof argv / sizeof argv[0]) - 1)
         argv[la++] = "-lc";
     argv[la] = NULL;
-    if (getenv("SHUX_DEBUG_LD")) {
-        int di;
-        fprintf(stderr, "shux: SHUX_DEBUG_LD minimal gcc argv:\n");
-        for (di = 0; argv[di] != NULL; di++)
-            fprintf(stderr, "  [%d] %s\n", di, argv[di]);
-    }
+    if (getenv("SHUX_DEBUG_LD"))
+        link_diag_ld_debug_argv("minimal gcc argv", argv);
     pid = fork();
     if (pid < 0) {
-        perror("shux: fork (ld nostdlib minimal)");
+        perror("fork (ld nostdlib minimal)");
         return -1;
     }
     if (pid == 0) {
@@ -4103,16 +4286,13 @@ static int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, 
         execvp(argv[0], (char *const *)argv);
         execv("/usr/bin/gcc", (char *const *)argv);
         execv("/usr/local/bin/gcc", (char *const *)argv);
-        perror("shux: gcc (nostdlib minimal user.o)");
+        perror("gcc (nostdlib minimal user.o)");
         _exit(127);
     }
     if (shu_waitpid_retry(pid, &status) != 0)
         return -1;
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        if (WIFSIGNALED(status))
-            fprintf(stderr, "shux: ld failed (signal %d)\n", WTERMSIG(status));
-        else
-            fprintf(stderr, "shux: ld failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+        link_diag_tool_status("ld", status);
         return -1;
     }
     return 0;
@@ -4124,9 +4304,7 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
     const char *p;
     char io_stubs_o[PATH_MAX];
-    char process_argv_o[PATH_MAX];
     const char *io_stubs_p = NULL;
-    const char *process_argv_p = NULL;
     int have_process = 0;
     int have_log = 0;
     int have_crypto = 0;
@@ -4141,17 +4319,10 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
         flags->have_io = 1;
     if (shux_runtime_compiler_o_path_copy(link_argv0, "runtime_asm_io_stubs.o", io_stubs_o, sizeof io_stubs_o) == 0)
         io_stubs_p = io_stubs_o;
-    if (shux_runtime_compiler_o_path_copy(link_argv0, "runtime_process_argv.o", process_argv_o, sizeof process_argv_o) == 0)
-        process_argv_p = process_argv_o;
     link_abi_asm_ld_push_obj(io_stubs_p, link_argv0,
         "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 
-    link_abi_asm_ld_push_obj(process_argv_p, link_argv0,
-        "compiler/runtime_process_argv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/process/process.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_process);
-    link_abi_asm_ld_push_glue_after_std(have_process, shux_ensure_runtime_process_os_glue_o,
-        shux_runtime_process_os_glue_o_path(link_argv0), link_argv0,
-        "compiler/runtime_process_os_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/string/string.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/path/path.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/runtime/runtime.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
@@ -4520,7 +4691,7 @@ int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, i
     }
 #endif
     if (shux_link_freestanding_enabled(driver_freestanding) && (use_macho_o || use_coff_o)) {
-        fprintf(stderr, "shux: -freestanding / SHUX_FREESTANDING only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)\n");
+        link_diag_freestanding_unsupported();
         return -1;
     }
     /* #region debug-point E:prepare-exit */
@@ -4766,7 +4937,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la] = NULL;
             pid = fork();
             if (pid < 0) {
-                perror("shux: fork (ld)");
+                perror("fork (ld)");
                 return -1;
             }
             if (pid == 0) {
@@ -4795,12 +4966,12 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la] = NULL;
             pid = fork();
             if (pid < 0) {
-                perror("shux: fork (ld)");
+                perror("fork (ld)");
                 return -1;
             }
             if (pid == 0) {
                 execvp("ld", (char *const *)argv);
-                perror("shux: ld/clang");
+                perror("ld/clang");
                 _exit(127);
             }
             {
@@ -4808,10 +4979,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 if (shu_waitpid_retry(pid, &status) != 0)
                     return -1;
                 if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                    if (WIFSIGNALED(status))
-                        fprintf(stderr, "shux: ld failed (signal %d)\n", WTERMSIG(status));
-                    else
-                        fprintf(stderr, "shux: ld failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+                    link_diag_tool_status("ld", status);
                     return -1;
                 }
             }
@@ -4835,13 +5003,13 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la] = NULL;
             pid = fork();
             if (pid < 0) {
-                perror("shux: fork (ld)");
+                perror("fork (ld)");
                 return -1;
             }
             if (pid == 0) {
                 execvp("lld-link", (char *const *)argv);
                 execvp("link", (char *const *)argv);
-                perror("shux: lld-link/link");
+                perror("lld-link/link");
                 _exit(127);
             }
             {
@@ -4849,10 +5017,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 if (shu_waitpid_retry(pid, &status) != 0)
                     return -1;
                 if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                    if (WIFSIGNALED(status))
-                        fprintf(stderr, "shux: ld failed (signal %d)\n", WTERMSIG(status));
-                    else
-                        fprintf(stderr, "shux: ld failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+                    link_diag_tool_status("ld", status);
                     return -1;
                 }
             }
@@ -4880,21 +5045,21 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = exe_path;
             crt0_p = asm_link_obj_skip_missing(shux_crt0_user_o_path(link_eff));
             if (!crt0_p) {
-                fprintf(stderr, "shux: freestanding link missing crt0_user.o\n");
+                link_diag_freestanding_missing("crt0_user.o", NULL);
                 return -1;
             }
             panic_p = NULL;
             if (need_panic)
                 panic_p = asm_link_obj_skip_missing(shux_runtime_panic_o_path(link_eff));
             if (need_panic && !panic_p) {
-                fprintf(stderr, "shux: freestanding link missing runtime_panic.o (user references shux_panic_)\n");
+                link_diag_freestanding_missing("runtime_panic.o", "shux_panic_");
                 return -1;
             }
             io_p = NULL;
             if (need_io)
                 io_p = asm_link_obj_skip_missing(shux_freestanding_io_o_path(link_eff));
             if (need_io && !io_p) {
-                fprintf(stderr, "shux: freestanding link missing freestanding_io.o (user references shux_sys_write)\n");
+                link_diag_freestanding_missing("freestanding_io.o", "shux_sys_write");
                 return -1;
             }
             if (la < SHUX_LD_ARGV_CAP - 1)
@@ -4908,12 +5073,12 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la] = NULL;
             pid = fork();
             if (pid < 0) {
-                perror("shux: fork (ld)");
+                perror("fork (ld)");
                 return -1;
             }
             if (pid == 0) {
                 execvp("ld", (char *const *)argv);
-                perror("shux: ld (freestanding)");
+                perror("ld (freestanding)");
                 _exit(127);
             }
             {
@@ -4921,10 +5086,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 if (shu_waitpid_retry(pid, &status) != 0)
                     return -1;
                 if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                    if (WIFSIGNALED(status))
-                        fprintf(stderr, "shux: ld failed (signal %d)\n", WTERMSIG(status));
-                    else
-                        fprintf(stderr, "shux: ld failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+                    link_diag_tool_status("ld", status);
                     return -1;
                 }
             }
@@ -4964,7 +5126,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la] = NULL;
             pid = fork();
             if (pid < 0) {
-                perror("shux: fork (ld)");
+                perror("fork (ld)");
                 return -1;
             }
             if (pid == 0) {
@@ -4978,7 +5140,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 execvp("gcc", (char *const *)argv);
                 execvp("cc", (char *const *)argv);
 #endif
-                perror("shux: gcc (minimal user.o)");
+                perror("gcc (minimal user.o)");
                 _exit(127);
             }
             {
@@ -4986,10 +5148,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 if (shu_waitpid_retry(pid, &status) != 0)
                     return -1;
                 if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                    if (WIFSIGNALED(status))
-                        fprintf(stderr, "shux: ld failed (signal %d)\n", WTERMSIG(status));
-                    else
-                        fprintf(stderr, "shux: ld failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+                    link_diag_tool_status("ld", status);
                     return -1;
                 }
             }
@@ -5015,25 +5174,21 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         need_pt = ldflags.have_thread || ldflags.have_sync || ldflags.have_channel;
         shux_asm_ld_append_unix_gcc_tail_libs(compress_o, o_path, &ldflags, need_pt, (const char **)argv, &la, SHUX_LD_ARGV_CAP);
         argv[la] = NULL;
-        if (getenv("SHUX_DEBUG_LD")) {
-            int di;
-            fprintf(stderr, "shux: SHUX_DEBUG_LD gcc argv:\n");
-            for (di = 0; argv[di] != NULL; di++)
-                fprintf(stderr, "  [%d] %s\n", di, argv[di]);
-        }
+        if (getenv("SHUX_DEBUG_LD"))
+            link_diag_ld_debug_argv("gcc argv", argv);
         pid = fork();
         if (pid < 0) {
-            perror("shux: fork (ld)");
+            perror("fork (ld)");
             return -1;
         }
         if (pid == 0) {
 #if defined(__linux__)
             shux_linux_ld_child_path();
             execvp(argv[0], (char *const *)argv);
-            perror("shux: gcc");
+            perror("gcc");
 #else
             execvp("ld", (char *const *)argv);
-            perror("shux: ld");
+            perror("ld");
 #endif
             _exit(127);
         }
@@ -5042,10 +5197,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             if (shu_waitpid_retry(pid, &status) != 0)
                 return -1;
             if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                if (WIFSIGNALED(status))
-                    fprintf(stderr, "shux: ld failed (signal %d)\n", WTERMSIG(status));
-                else
-                    fprintf(stderr, "shux: ld failed (exit %d)\n", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+                link_diag_tool_status("ld", status);
                 return -1;
             }
         }
