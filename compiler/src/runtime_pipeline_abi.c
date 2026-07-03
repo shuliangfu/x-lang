@@ -935,6 +935,7 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
     free(tmp_module);
     ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
 }
+#endif /* _WIN32 */
 
 /** asm 用户程序：std.io/fs/net dep 跳过 .sx typeck（符号由并列 .o 提供）。 */
 int shux_asm_user_std_dep_skip_sx_typeck(const char *dep_path) {
