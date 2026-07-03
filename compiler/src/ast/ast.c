@@ -7,21 +7,10 @@
  * 重要约定：m 及其子节点中的字符串均由 Parser 侧 strdup/strndup，本函数负责全部 free；m 可为 NULL；调用后 m 不可再使用。
  */
 
+#include "win32_compat.h"
 #include "ast.h"
 #include <stdlib.h>
 #include <string.h>
-#ifdef _WIN32
-/* MinGW 无 strndup——提供兼容实现 */
-#include <string.h>
-static char *strndup(const char *s, size_t n) {
-    char *p = (char *)malloc(n + 1);
-    if (!p) return NULL;
-    memcpy(p, s, n);
-    p[n] = 0;
-    return p;
-}
-#endif
-
 /* ast_expr_init_match_enum：C 路径（-E-extern 生成 parser_gen.c）需要 C 侧提供；
  * SX 自举链接（shux_sx）中 ast_sx.o 已提供，通过 -DSHUX_USE_SX_AST 排除避免重复符号。 */
 #ifndef SHUX_USE_SX_AST

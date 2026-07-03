@@ -7,6 +7,7 @@
  * 重要约定：类型与变量规则以 analysis/变量类型与类型系统设计.md 为准（§4 基础标量、§九 衔接建议）；后续阶段可在此扩展 struct 布局与泛型、trait 等检查。
  */
 
+#include "win32_compat.h"
 #include "typeck/typeck.h"
 #include "ast.h"
 #include "lsp/lsp_diag.h"

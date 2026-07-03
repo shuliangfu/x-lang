@@ -7,6 +7,7 @@
  * 重要约定：read 路径失败返回 NULL/-1，不写 stderr；调用方负责 free(malloc 缓冲)。
  */
 
+#include "win32_compat.h"
 #include "runtime_io_abi.h"
 
 #include <fcntl.h>

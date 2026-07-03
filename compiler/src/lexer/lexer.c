@@ -7,23 +7,12 @@
  * 重要约定：与 compiler/docs/语法子集-阶段1与2.md 及阶段 5 import 词法一致；Token 的 line/col 为该 Token 在源码中的起始位置；ident 不拷贝，指向 source 内地址。
  */
 
+#include "win32_compat.h"
 #include "lexer.h"
 #include <limits.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
-#ifdef _WIN32
-/* MinGW 无 strndup——提供兼容实现 */
-#include <string.h>
-static char *strndup(const char *s, size_t n) {
-    char *p = (char *)malloc(n + 1);
-    if (!p) return NULL;
-    memcpy(p, s, n);
-    p[n] = 0;
-    return p;
-}
-#endif
-
 struct Lexer {
     const char *src;  /**< 当前扫描位置 */
     const char *end;  /**< 源码结尾（不含 NUL） */

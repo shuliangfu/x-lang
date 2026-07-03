@@ -6,6 +6,7 @@
  * 与其它文件的关系：仅依赖 POSIX access/realpath；不 include C 前端头。
  */
 
+#include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
 #include "runtime_driver_abi.h"
 #include "runtime_io_abi.h"

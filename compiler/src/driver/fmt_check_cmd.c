@@ -5,6 +5,7 @@
  * check：多文件/目录；诊断格式 path:line:col - error: message；全通过时无输出。
  */
 
+#include "win32_compat.h"
 #include "driver/fmt_check_cmd.h"
 #include "diag.h"
 #include "lsp/lsp_diag.h"

@@ -7,6 +7,7 @@
  * 重要约定：与 compiler/docs/语法子集-阶段1与2.md 及阶段 5 import 语法一致；所有动态分配由 ast_module_free 统一释放；语法错误时已向 stderr 打印 "parse error at line:col: msg"。
  */
 
+#include "win32_compat.h"
 #include "parser/parser.h"
 #include "lexer/lexer.h"
 #include "lsp/lsp_diag.h"
@@ -14,18 +15,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _WIN32
-/* MinGW 无 strndup——提供兼容实现 */
-#include <string.h>
-static char *strndup(const char *s, size_t n) {
-    char *p = (char *)malloc(n + 1);
-    if (!p) return NULL;
-    memcpy(p, s, n);
-    p[n] = 0;
-    return p;
-}
-#endif
-
 /**
  * 模块级 ASTFunc* 数组按需扩容；cap 为当前容量（入参出参），need 为所需下标+1。
  */

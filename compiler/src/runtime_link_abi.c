@@ -6,6 +6,7 @@
  * 与其它文件的关系：E-04 v17 起 invoke_cc 主体在本文件；main.c crt0 仍延后。
  */
 
+#include "win32_compat.h"
 #include "runtime_link_abi.h"
 #include "runtime_proc_abi.h"
 #include "runtime_io_abi.h"

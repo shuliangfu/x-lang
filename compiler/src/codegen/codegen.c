@@ -7,6 +7,7 @@
  * 重要约定：入口模块仅支持 main；生成 Hello World 的 printf，且 return 使用 main 体整数字面量的值（阶段 4 方案 B 扩展）；库模块仅输出注释（阶段 7.3 多文件占位）。
  */
 
+#include "win32_compat.h"
 #include "codegen/codegen.h"
 #include "ast.h"
 #include "diag.h"

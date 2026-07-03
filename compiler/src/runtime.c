@@ -24,6 +24,7 @@
  * 阶段 10 方向：逐步收成薄壳（入口、ABI、`-E` 桥接）；业务逻辑已迁 .sx（pipeline/driver/LSP）；日常构建入口见仓库根目录 build.sx + compiler/build_tool。
  */
 
+#include "win32_compat.h"
 #include "preprocess.h"
 #include "target_cpu.h"
 #include "lsp/lsp_diag.h"

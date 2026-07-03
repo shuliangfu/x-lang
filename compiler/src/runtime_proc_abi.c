@@ -6,6 +6,7 @@
  * 与其它文件的关系：invoke_ld 主体仍留 runtime.c；本 TU 为 E-04 v4 首拆。
  */
 
+#include "win32_compat.h"
 #include "runtime_proc_abi.h"
 #include "diag.h"
 #include "runtime_diag_codes.h"

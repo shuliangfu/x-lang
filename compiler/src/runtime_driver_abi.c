@@ -6,6 +6,7 @@
  * 与其它文件的关系：pipeline/run_compiler_c 主体仍留 runtime.c。
  */
 
+#include "win32_compat.h"
 #include "runtime_driver_abi.h"
 #include "runtime_io_abi.h"
 #include "runtime_pipeline_abi.h"
