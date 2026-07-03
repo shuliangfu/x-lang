@@ -14,7 +14,7 @@ echo "=== K6e: Multiboot2 header gate ==="
 # Check 1: .boot section is 24 bytes (0x18)
 BOOT_SIZE=$(objdump -h "$WORKDIR/mb2_gate.elf" 2>/dev/null | grep '\.boot' | awk '{print $3}')
 # objdump prints 8-hex-digit size; strip leading zeros for comparison
-BOOT_SIZE_DEC=$((16#$BOOT_SIZE))
+BOOT_SIZE_DEC=$((0x$BOOT_SIZE))
 if [ "$BOOT_SIZE_DEC" = "24" ]; then
     echo "  Check: .boot section size = 24 bytes (0x18)"
     echo "  PASS"
@@ -76,7 +76,7 @@ fi
 
 # Check 6 (K6d): .boot section at 4-byte aligned address
 BOOT_ADDR=$(objdump -h "$WORKDIR/mb2_gate.elf" 2>/dev/null | grep '\.boot' | awk '{print $4}')
-BOOT_ADDR_DEC=$((16#$BOOT_ADDR))
+BOOT_ADDR_DEC=$((0x$BOOT_ADDR))
 if [ $((BOOT_ADDR_DEC % 4)) = "0" ]; then
     echo "  Check: .boot at 4-byte aligned address (0x$BOOT_ADDR)"
     echo "  PASS"
