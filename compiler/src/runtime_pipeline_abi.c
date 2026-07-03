@@ -1728,7 +1728,6 @@ typedef struct {
 
 extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struct platform_elf_ElfCodegenCtx *elf_ctx,
     void *out_buf);
-#endif
 
 /** pthread 入口：调用 asm_asm_codegen_elf_o 并将 ec 写入 args->result。 */
 static void *shux_asm_codegen_elf_o_thread_fn(void *arg) {
@@ -1849,6 +1848,7 @@ char *shux_preprocess_quiet(const char *source, size_t source_len, const char **
 }
 
 #ifdef _WIN32
+struct platform_elf_ElfCodegenCtx; /* 前向声明 */
 /* Windows stub: parser_parse_into_init / parser_parse_into / parser_get_module_num_imports / parser_get_module_import_path */
 void parser_parse_into_init(void *module, void *arena) { (void)module; (void)arena; }
 struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source) {
@@ -1861,5 +1861,5 @@ void asm_skip_heavy_set_pipeline_ctx(void *ctx) { (void)ctx; }
 void pipeline_fill_array_lit_types_for_skipped_typeck(void *m, void *a) { (void)m; (void)a; }
 void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *a) { (void)m; (void)a; }
 void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *a) { (void)m; (void)a; }
-int32_t asm_asm_codegen_elf_o(void *m, void *a, void *c, void *e, void *o) { (void)m; (void)a; (void)c; (void)e; (void)o; return -1; }
+int32_t asm_asm_codegen_elf_o(void *m, void *a, void *c, struct platform_elf_ElfCodegenCtx *e, void *o) { (void)m; (void)a; (void)c; (void)e; (void)o; return -1; }
 #endif
