@@ -10,6 +10,17 @@
 #include "ast.h"
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+/* MinGW 无 strndup——提供兼容实现 */
+#include <string.h>
+static char *strndup(const char *s, size_t n) {
+    char *p = (char *)malloc(n + 1);
+    if (!p) return NULL;
+    memcpy(p, s, n);
+    p[n] = 0;
+    return p;
+}
+#endif
 
 /* ast_expr_init_match_enum：C 路径（-E-extern 生成 parser_gen.c）需要 C 侧提供；
  * SX 自举链接（shux_sx）中 ast_sx.o 已提供，通过 -DSHUX_USE_SX_AST 排除避免重复符号。 */
