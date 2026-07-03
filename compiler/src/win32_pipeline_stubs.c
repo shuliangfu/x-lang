@@ -38,6 +38,10 @@ int32_t pipeline_module_func_is_extern_at(void *m, int i) { (void)m; (void)i; re
 int32_t pipeline_module_func_body_ref_at(void *m, int i) { (void)m; (void)i; return 0; }
 int32_t pipeline_module_func_name_len_at(void *m, int i) { (void)m; (void)i; return 0; }
 
+/* pipeline module 查询（从 runtime_pipeline_abi.c 移出避免重定义）*/
+int32_t pipeline_module_num_funcs(void *m) { (void)m; return 0; }
+int32_t pipeline_module_func_name_len(void *m, int i) { (void)m; (void)i; return 0; }
+
 /* driver */
 void driver_print_usage_c(void) {}
 int32_t driver_get_module_num_funcs(void *m) { (void)m; return 0; }
