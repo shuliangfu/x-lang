@@ -68,7 +68,19 @@ run_smoke() {
   "$bin" -backend c -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log"
   _rc="${PIPESTATUS[0]:-1}"
   if [ "$_rc" -ne 0 ]; then
-    return 1
+    # 回退：shux-c C 前端不支持 -backend c -o，用 -E + cc 替代
+    echo "[$(date '+%H:%M:%S')] seed smoke: -backend c -o failed, trying -E + cc fallback ..."
+    "$bin" -E "$SMOKE_SRC" > "${SMOKE_OUT}.c" 2>"$_log"
+    _rc=$?
+    if [ "$_rc" -ne 0 ]; then
+      return 1
+    fi
+    cc -O2 -o "$SMOKE_OUT" "${SMOKE_OUT}.c" 2>>"$_log"
+    _rc=$?
+    rm -f "${SMOKE_OUT}.c"
+    if [ "$_rc" -ne 0 ]; then
+      return 1
+    fi
   fi
   [ -x "$SMOKE_OUT" ] || return 1
   local ec=0
