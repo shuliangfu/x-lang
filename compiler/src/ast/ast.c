@@ -154,6 +154,12 @@ void ast_expr_free(ASTExpr *e) {
             for (i = 0; i < e->value.asm_tmpl.num_clobbers; i++)
                 if (e->value.asm_tmpl.clobbers[i]) free((void *)e->value.asm_tmpl.clobbers[i]);
             if (e->value.asm_tmpl.clobbers) free(e->value.asm_tmpl.clobbers);
+            for (i = 0; i < e->value.asm_tmpl.num_options; i++)
+                if (e->value.asm_tmpl.options[i]) free((void *)e->value.asm_tmpl.options[i]);
+            if (e->value.asm_tmpl.options) free(e->value.asm_tmpl.options);
+            for (i = 0; i < e->value.asm_tmpl.num_labels; i++)
+                if (e->value.asm_tmpl.labels[i]) free((void *)e->value.asm_tmpl.labels[i]);
+            if (e->value.asm_tmpl.labels) free(e->value.asm_tmpl.labels);
             break;
         }
     }
@@ -334,6 +340,7 @@ void ast_impl_block_free(ASTImplBlock *impl) {
             }
             if (f->return_type) ast_type_free(f->return_type);
             if (f->body) ast_block_free(f->body);
+            if (f->section) free((void *)f->section);
             free(f);
         }
         free(impl->funcs);
@@ -395,6 +402,7 @@ void ast_module_free(ASTModule *m) {
             if (m->top_level_lets[i].name) free((void *)m->top_level_lets[i].name);
             if (m->top_level_lets[i].type) ast_type_free(m->top_level_lets[i].type);
             if (m->top_level_lets[i].init) ast_expr_free(m->top_level_lets[i].init);
+            if (m->top_level_lets[i].section) free((void *)m->top_level_lets[i].section);
         }
         free(m->top_level_lets);
         m->top_level_lets = NULL;
@@ -453,6 +461,7 @@ void ast_module_free(ASTModule *m) {
             }
             if (f->return_type) ast_type_free(f->return_type);
             if (f->body) ast_block_free(f->body);
+            if (f->section) free((void *)f->section);
             free(f);
         }
         free(m->funcs);

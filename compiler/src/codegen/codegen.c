@@ -177,6 +177,42 @@ static int codegen_c_need_paren_additive_child(const struct ASTExpr *e) {
         return (e->kind >= AST_EXPR_EQ && e->kind <= AST_EXPR_LOGOR);
     }
 }
+/** C 路径：比较/相等运算符的操作数若为位运算/逻辑运算/比较，须加括号（C 中 & | ^ 低于 ==）。
+ * 修 VMM bug：(a & 1) == 0 被错编为 a & 1 == 0 = a & (1==0) = a & 0 = 0（恒 false）。 */
+static int codegen_c_need_paren_compare_child(const struct ASTExpr *e) {
+    if (!e) return 0;
+    switch (e->kind) {
+    case AST_EXPR_BITAND: case AST_EXPR_BITOR: case AST_EXPR_BITXOR:
+        return 1;
+    default:
+        return (e->kind >= AST_EXPR_EQ && e->kind <= AST_EXPR_LOGOR);
+    }
+}
+
+/** C 路径：位运算(&|^)的操作数若为更低优先级运算(^|、&&、||)，须加括号。
+ *  C 优先级：& > ^ > | > && > ||，故 & 的 ^|&&操作数需括号，^ 的 |&&需括号，| 的 &&需括号。 */
+static int codegen_c_need_paren_bitwise_child(int parent_kind, const struct ASTExpr *e) {
+    if (!e) return 0;
+    /* 位运算子表达式优先级：& (8) > ^ (9) > | (10) > && (11) > || (12)
+     * 若 child 优先级数值 > parent 优先级数值 → child 更低 → 需括号 */
+    int child_prec = 0, parent_prec = 0;
+    switch (parent_kind) {
+    case AST_EXPR_BITAND:  parent_prec = 8; break;
+    case AST_EXPR_BITXOR:  parent_prec = 9; break;
+    case AST_EXPR_BITOR:   parent_prec = 10; break;
+    default: return 0;
+    }
+    switch (e->kind) {
+    case AST_EXPR_BITAND:  child_prec = 8; break;
+    case AST_EXPR_BITXOR:  child_prec = 9; break;
+    case AST_EXPR_BITOR:   child_prec = 10; break;
+    case AST_EXPR_LOGAND:  child_prec = 11; break;
+    case AST_EXPR_LOGOR:   child_prec = 12; break;
+    default: return 0;
+    }
+    return (child_prec > parent_prec) ? 1 : 0;
+}
+
 /** .sx 侧 CALL 访问器：返回 callee 子表达式指针。 */
 uint8_t *codegen_sx_call_callee(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
@@ -1056,6 +1092,7 @@ static const struct ASTModule *codegen_module_for_import_path(const char *import
 /** 链接用 C 符号：无 overload 时用原名，否则 mangled。 */
 static const char *func_link_name(const struct ASTModule *mod, const struct ASTFunc *f) {
     if (!f || !f->name) return "";
+    if (f->link_name) return f->link_name;  /* L9：#[link_name] 用指定符号名 */
     if (!mod || module_func_overload_count(mod, f->name) <= 1) return f->name;
     return overload_mangled_name(f);
 }
@@ -1358,7 +1395,10 @@ static void c_type_to_buf(const struct ASTType *ty, char *buf, size_t size) {
     if (ty->kind == AST_TYPE_PTR && ty->elem_type) {
         static char inner_buf[256];
         c_type_to_buf(ty->elem_type, inner_buf, sizeof(inner_buf));
-        snprintf(buf, size, "%s *", inner_buf);
+        if (ty->is_volatile)
+            snprintf(buf, size, "volatile %s *", inner_buf);  /* K2: 指向 volatile T 的指针，cc 不消除其读写 */
+        else
+            snprintf(buf, size, "%s *", inner_buf);
         return;
     }
     /* 数组类型 [N]T：声明时用 elem_type name[N]，此处只写元素类型（文档 §6.2） */
@@ -1607,7 +1647,7 @@ static int else_struct_type_mismatch(const char *tmp_ty_str, const struct ASTExp
  * 输出结构体字段的 C 类型+名（支持多维数组 [N][M]...，自举用：OneFuncResult 等含 [16][32]u8 字段）。
  * 参数：fty 字段类型；fname 字段名；out 输出。副作用：向 out 写入 "elem_type name[N][M]; " 或 "type name; "。
  */
-static void emit_struct_field_c_type(const struct ASTType *fty, const char *fname, FILE *out) {
+static void emit_struct_field_c_type(const struct ASTType *fty, const char *fname, FILE *out, int bitfield_width) {
     if (!fty) { fprintf(out, "int32_t %s; ", fname); return; }
     if (fty->kind == AST_TYPE_ARRAY && fty->elem_type) {
         const struct ASTType *t = fty;
@@ -1619,6 +1659,10 @@ static void emit_struct_field_c_type(const struct ASTType *fty, const char *fnam
             t = t->elem_type;
         }
         fprintf(out, "%s %s%s; ", c_type_str(t), fname, dims);
+    } else if (bitfield_width > 0) {
+        fprintf(out, "%s %s : %d; ", c_type_str(fty), fname, bitfield_width);
+    } else if (bitfield_width > 0) {
+        fprintf(out, "%s %s : %d; ", c_type_str(fty), fname, bitfield_width);
     } else {
         fprintf(out, "%s %s; ", c_type_str(fty), fname);
     }
@@ -2799,6 +2843,67 @@ static void codegen_emit_asm_c_string(FILE *out, const char *bytes, int len) {
     fputc('"', out);
 }
 
+/** 发射完整 extended asm：__asm__("tmpl" : outs : ins : clobs)。仅输出到最后一个非空段；无操作数则 __asm__("tmpl")。K1/L8。 */
+static void codegen_emit_asm_extended(FILE *out, const struct ASTExpr *e) {
+    int last = -1; /* 0=outputs 1=inputs 2=clobbers */
+    int i;
+    int is_pure = 0;  /* options(pure) → 允许编译器消除/重排；默认 asm! 为 volatile 不可消除（内核 MMIO 安全） */
+    int is_nomem = 0;  /* L8: options(nomem) → asm 不访问内存 */
+    int is_readonly = 0;  /* L8: options(readonly) → asm 只读内存 */
+    if (e->value.asm_tmpl.is_goto && e->value.asm_tmpl.num_labels > 0) last = 4;
+    else if (e->value.asm_tmpl.num_clobbers > 0) last = 2;
+    else if (e->value.asm_tmpl.num_inputs > 0) last = 1;
+    else if (e->value.asm_tmpl.num_outputs > 0) last = 0;
+    for (i = 0; i < e->value.asm_tmpl.num_options; i++)
+        if (e->value.asm_tmpl.options[i]) {
+            if (strcmp(e->value.asm_tmpl.options[i], "pure") == 0) is_pure = 1;
+            else if (strcmp(e->value.asm_tmpl.options[i], "nomem") == 0) is_nomem = 1;
+            else if (strcmp(e->value.asm_tmpl.options[i], "readonly") == 0) is_readonly = 1;
+        }
+    if (e->value.asm_tmpl.is_goto) {
+        fputs("__asm__ goto(", out);
+    } else {
+        fputs((is_pure || is_nomem || is_readonly) ? "__asm__(" : "__asm__ __volatile__(", out);
+    }
+    codegen_emit_asm_c_string(out, e->value.asm_tmpl.bytes, e->value.asm_tmpl.len);
+    if (last >= 0) {
+        fputs(" : ", out);
+        for (i = 0; i < e->value.asm_tmpl.num_outputs; i++) {
+            if (i > 0) fputs(", ", out);
+            codegen_emit_asm_c_string(out, e->value.asm_tmpl.outputs[i].constraint, (int)strlen(e->value.asm_tmpl.outputs[i].constraint));
+            fputc('(', out);
+            codegen_expr(e->value.asm_tmpl.outputs[i].expr, out);
+            fputc(')', out);
+        }
+        if (last >= 1) {
+            fputs(" : ", out);
+            for (i = 0; i < e->value.asm_tmpl.num_inputs; i++) {
+                if (i > 0) fputs(", ", out);
+                codegen_emit_asm_c_string(out, e->value.asm_tmpl.inputs[i].constraint, (int)strlen(e->value.asm_tmpl.inputs[i].constraint));
+                fputc('(', out);
+                codegen_expr(e->value.asm_tmpl.inputs[i].expr, out);
+                fputc(')', out);
+            }
+            if (last >= 2) {
+                fputs(" : ", out);
+                for (i = 0; i < e->value.asm_tmpl.num_clobbers; i++) {
+                    if (i > 0) fputs(", ", out);
+                    codegen_emit_asm_c_string(out, e->value.asm_tmpl.clobbers[i], (int)strlen(e->value.asm_tmpl.clobbers[i]));
+                }
+            }
+        }
+    }
+    /* labels section (asm goto! only) */
+    if (e->value.asm_tmpl.is_goto && last >= 4) {
+        fputs(" : ", out);
+        for (i = 0; i < e->value.asm_tmpl.num_labels; i++) {
+            if (i > 0) fputs(", ", out);
+            if (e->value.asm_tmpl.labels[i]) fputs(e->value.asm_tmpl.labels[i], out);
+        }
+    }
+    fputc(')', out);
+}
+
 static int codegen_expr(const struct ASTExpr *e, FILE *out) {
     if (!e || !out) return -1;
     /* CTFE 最小集：仅当表达式类型为标量（整型/布尔/浮点）时才用 const_folded_val；struct 等类型不能当整数输出，否则会生成 return -1094795586 等错误 */
@@ -2847,10 +2952,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
 #endif
         case AST_EXPR_ASM:
-            /* asm! 作为值表达式少见；仍发 __asm__(...) 以免落入 default。操作数版（L8）后续扩展为 extended asm。 */
-            fputs("__asm__(", out);
-            codegen_emit_asm_c_string(out, e->value.asm_tmpl.bytes, e->value.asm_tmpl.len);
-            fputc(')', out);
+            /* asm! 作为值表达式少见；extended asm 形态由 codegen_emit_asm_extended 统一发射。 */
+            codegen_emit_asm_extended(out, e);
             return 0;
         case AST_EXPR_VAR: {
             const char *name = e->value.var.name ? e->value.var.name : "";
@@ -3059,30 +3162,21 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #ifdef SHUX_USE_SX_CODEGEN
             { static const char op[] = " & "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
 #else
-            if (codegen_expr(e->value.binop.left, out) != 0) return -1;
-            fprintf(out, " & ");
-            if (codegen_expr(e->value.binop.right, out) != 0) return -1;
-            return 0;
+            { int need_l = codegen_c_need_paren_bitwise_child(AST_EXPR_BITAND, e->value.binop.left); int need_r = codegen_c_need_paren_bitwise_child(AST_EXPR_BITAND, e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " & "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_BITOR:
             if (codegen_vector_binop(e, "|", out) == 0) return 0;
 #ifdef SHUX_USE_SX_CODEGEN
             { static const char op[] = " | "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
 #else
-            if (codegen_expr(e->value.binop.left, out) != 0) return -1;
-            fprintf(out, " | ");
-            if (codegen_expr(e->value.binop.right, out) != 0) return -1;
-            return 0;
+            { int need_l = codegen_c_need_paren_bitwise_child(AST_EXPR_BITOR, e->value.binop.left); int need_r = codegen_c_need_paren_bitwise_child(AST_EXPR_BITOR, e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " | "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_BITXOR:
             if (codegen_vector_binop(e, "^", out) == 0) return 0;
 #ifdef SHUX_USE_SX_CODEGEN
             { static const char op[] = " ^ "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
 #else
-            if (codegen_expr(e->value.binop.left, out) != 0) return -1;
-            fprintf(out, " ^ ");
-            if (codegen_expr(e->value.binop.right, out) != 0) return -1;
-            return 0;
+            { int need_l = codegen_c_need_paren_bitwise_child(AST_EXPR_BITXOR, e->value.binop.left); int need_r = codegen_c_need_paren_bitwise_child(AST_EXPR_BITXOR, e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " ^ "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_ASSIGN:
 #ifdef SHUX_USE_SX_CODEGEN
@@ -3141,55 +3235,37 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #ifdef SHUX_USE_SX_CODEGEN
             { static const char op[] = " == "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
-            if (codegen_expr(e->value.binop.left, out) != 0) return -1;
-            fprintf(out, " == ");
-            if (codegen_expr(e->value.binop.right, out) != 0) return -1;
-            return 0;
+            { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " == "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_NE:
 #ifdef SHUX_USE_SX_CODEGEN
             { static const char op[] = " != "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
-            if (codegen_expr(e->value.binop.left, out) != 0) return -1;
-            fprintf(out, " != ");
-            if (codegen_expr(e->value.binop.right, out) != 0) return -1;
-            return 0;
+            { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " != "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_LT:
 #ifdef SHUX_USE_SX_CODEGEN
             { static const char op[] = " < "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
 #else
-            if (codegen_expr(e->value.binop.left, out) != 0) return -1;
-            fprintf(out, " < ");
-            if (codegen_expr(e->value.binop.right, out) != 0) return -1;
-            return 0;
+            { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " < "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_LE:
 #ifdef SHUX_USE_SX_CODEGEN
             { static const char op[] = " <= "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
-            if (codegen_expr(e->value.binop.left, out) != 0) return -1;
-            fprintf(out, " <= ");
-            if (codegen_expr(e->value.binop.right, out) != 0) return -1;
-            return 0;
+            { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " <= "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_GT:
 #ifdef SHUX_USE_SX_CODEGEN
             { static const char op[] = " > "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
 #else
-            if (codegen_expr(e->value.binop.left, out) != 0) return -1;
-            fprintf(out, " > ");
-            if (codegen_expr(e->value.binop.right, out) != 0) return -1;
-            return 0;
+            { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " > "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_GE:
 #ifdef SHUX_USE_SX_CODEGEN
             { static const char op[] = " >= "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
-            if (codegen_expr(e->value.binop.left, out) != 0) return -1;
-            fprintf(out, " >= ");
-            if (codegen_expr(e->value.binop.right, out) != 0) return -1;
-            return 0;
+            { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " >= "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_LOGAND:
 #ifdef SHUX_USE_SX_CODEGEN
@@ -4731,9 +4807,17 @@ static int codegen_emit_expr_stmt(FILE *out, const char *pad, const struct ASTEx
         return 0;
     }
     if (st->kind == AST_EXPR_ASM) {
-        fprintf(out, "%s__asm__(", pad);
-        codegen_emit_asm_c_string(out, st->value.asm_tmpl.bytes, st->value.asm_tmpl.len);
-        fprintf(out, ");\n");
+        fprintf(out, "%s", pad);
+        codegen_emit_asm_extended(out, st);
+        fprintf(out, ";\n");
+        /* asm goto!: emit C labels after the statement so GCC/clang can resolve %l[label] */
+        if (st->value.asm_tmpl.is_goto) {
+            int li;
+            for (li = 0; li < st->value.asm_tmpl.num_labels; li++) {
+                if (st->value.asm_tmpl.labels[li])
+                    fprintf(out, "%s%s: ;\n", pad, st->value.asm_tmpl.labels[li]);
+            }
+        }
         return 0;
     }
     if (codegen_expr_is_assign_stmt(st)) {
@@ -4880,7 +4964,13 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                   if (into_r == -1) return -1;
                   if (into_r == 1) break;
                 }
-                if (ety && ety->kind == AST_TYPE_PTR && ety->elem_type) fprintf(out, "%s%s * %s = ", pad, c_type_str(ety->elem_type), name);
+                if (ety && ety->kind == AST_TYPE_PTR && ety->elem_type) {
+                    /* K2：*volatile T 声明发 `volatile <elem> * name`，cc 据此不消除其解引用读写 */
+                    if (ety->is_volatile)
+                        fprintf(out, "%svolatile %s * %s = ", pad, c_type_str(ety->elem_type), name);
+                    else
+                        fprintf(out, "%s%s * %s = ", pad, c_type_str(ety->elem_type), name);
+                }
                 else if (ety && ety->kind == AST_TYPE_NAMED && ety->name) fprintf(out, "%s%s %s = ", pad, c_type_str(ety), name);
                 else if (ety && ety->kind == AST_TYPE_ARRAY && ety->elem_type) {
                     fprintf(out, "%s", pad);
@@ -5737,8 +5827,36 @@ static int count_return_exits(const struct ASTBlock *b) {
  * f 非 NULL 且为 main 且返回 i64 时，对 return 表达式包 (int) 以适配 C 的 int main()。
  * 当存在多个 return 出口且至少一个 defer 时，使用单一 shux_cleanup 标签，避免每出口重复展开 defer。
  */
+/** K3：naked 函数体仅发 asm! 语句（clang 对 __attribute__((naked)) 严格要求体内仅 asm，不接受块/return）。
+ * 递归收集块内所有 AST_EXPR_ASM（经 region/unsafe 块、expr_stmt、嵌套 block），逐条发 `__asm__(...);`。 */
+static int codegen_emit_naked_asm_in_block(const struct ASTBlock *b, FILE *out) {
+    int i;
+    if (!b) return 0;
+    for (i = 0; i < b->num_regions; i++)
+        if (b->regions[i].body && codegen_emit_naked_asm_in_block(b->regions[i].body, out) != 0) return -1;
+    for (i = 0; i < b->num_expr_stmts; i++) {
+        const struct ASTExpr *st = b->expr_stmts[i];
+        if (!st) continue;
+        if (st->kind == AST_EXPR_ASM) {
+            fputs("  ", out);
+            codegen_emit_asm_extended(out, st);
+            fputs(";\n", out);
+        } else if (st->kind == AST_EXPR_BLOCK && st->value.block) {
+            if (codegen_emit_naked_asm_in_block(st->value.block, out) != 0) return -1;
+        }
+    }
+    if (b->final_expr && b->final_expr->kind == AST_EXPR_ASM) {
+        fputs("  ", out);
+        codegen_emit_asm_extended(out, b->final_expr);
+        fputs(";\n", out);
+    }
+    return 0;
+}
+
 static int codegen_func_body(const struct ASTBlock *b, const struct ASTModule *m, FILE *out, const struct ASTFunc *f) {
     if (!b || !m || !out) return -1;
+    /* K3：naked 函数体仅 asm! 语句，避免 clang 拒绝块/return（non-ASM statement in naked function） */
+    if (f && (f->is_naked || f->is_entry)) return codegen_emit_naked_asm_in_block(b, out);  /* K5：entry 体仅 asm!（设栈/call kmain/hlt） */
     codegen_current_func = f;
     int cast_return_to_int = (f && f->name && strcmp(f->name, "main") == 0
         && f->return_type && f->return_type->kind == AST_TYPE_I64);
@@ -6183,6 +6301,9 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
         return 0;
     char fname[256];
     library_prefixed_name(func_link_name(m, f), fname, sizeof(fname));
+    if (f->is_entry) { snprintf(fname, sizeof(fname), "_start"); }  /* K5：入口符号裸名 _start，供 bootloader/linker 识别 */
+    if (f->link_name) { snprintf(fname, sizeof(fname), "%s", f->link_name); }  /* L9：#[link_name] 用指定符号名 */
+    if (f->export_name) { snprintf(fname, sizeof(fname), "%s", f->export_name); }  /* #[export_name] 用指定导出名 */
     /* C 要求 main 返回 int；若 .sx 中 main 返回 i64 则在函数体内对 return 包 (int) */
     const char *cret = (f->name && strcmp(f->name, "main") == 0) ? "int" : c_type_str(f->return_type);
     /* 入口模块的 main：生成 main(int argc, char **argv) 并保存到 std.process 全局，供 args_count/arg 使用 */
@@ -6207,9 +6328,42 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
             has_async_frame = 1;
         }
     }
+    /* K4b：#[link_section] 函数段，附在存储类前（__attribute__((section(...))) static ...） */
+    if (f->section)
+        fprintf(out, "__attribute__((section(\"%s\"))) ", f->section);
+    /* K3：#[naked] 函数无 prologue/epilogue，体须仅 asm!（ISR/入口用）；GCC/clang __attribute__((naked)) */
+    if (f->is_naked || f->is_entry)  /* K5：#[entry] 隐含 naked（bootloader 裸跳进，须无 prologue） */
+        fprintf(out, "__attribute__((naked)) ");
+    /* K5：#[entry] 入口不返回（设栈后 call kmain; hlt），noreturn */
+    if (f->is_entry)
+        fprintf(out, "__attribute__((noreturn)) ");
+    /* K10：#[used] 不被 C 编译器消除（ISR/asm! 引用的函数须 used+外部链接） */
+    if (f->is_used)
+        fprintf(out, "__attribute__((used)) ");
+    /* L9：#[no_mangle] 外部链接+不 DCE（C 前端无 mangling，但需外部链接+used 防 DCE） */
+    if (f->is_no_mangle)
+        fprintf(out, "__attribute__((used)) ");
+    /* L4：#[max_stack(N)] 栈用量上限标记（供 -fstack-usage 后处理校验） */
+    if (f->max_stack > 0)
+        fprintf(out, "/* shux_max_stack:%d */ ", f->max_stack);
+    /* A1：#[interrupt] 中断处理函数（C 编译器自动保存/恢复寄存器 + iret；
+     * GCC/clang __attribute__((interrupt)) on x86: 自动 pusha/popa + iret；
+     * 须外部链接 + 不 DCE（ISR 被 IDT 引用而非直接调用） */
+    if (f->is_interrupt)
+        fprintf(out, "__attribute__((interrupt)) ");
+    if (f->is_global_allocator)
+        fprintf(out, "__attribute__((used)) ");
+    if (f->is_cold)
+        fprintf(out, "__attribute__((cold)) ");
+    if (f->is_panic_handler)
+        fprintf(out, "__attribute__((used)) __attribute__((noreturn)) ");
+    if (f->is_inline_never)
+        fprintf(out, "__attribute__((noinline)) ");
     /* 小函数内联提示（§3.4）：入口模块内非 main、非 extern 加 static inline；
      * async CPS 函数仅 static（同 TU 可取址给 shux_async_run_i32）。 */
-    if (!codegen_library_prefix && f->name && strcmp(f->name, "main") != 0 && !f->is_extern) {
+    if (f->is_inline_always) {
+        fprintf(out, "static inline __attribute__((always_inline)) ");
+    } else if (!codegen_library_prefix && f->name && strcmp(f->name, "main") != 0 && !f->is_extern && !f->is_entry && !f->is_used && !f->is_no_mangle && !f->is_interrupt && !f->is_global_allocator && !f->is_cold && !f->is_panic_handler && !f->export_name) {
         if (has_async_frame)
             fprintf(out, "static ");
         else
@@ -6227,6 +6381,8 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
     fprintf(out, "%s %s(", cret, fname);
     if (has_async_frame)
         fprintf(out, "void");
+    else if (f->is_interrupt && f->num_params == 0)
+        fprintf(out, "void *__shux_isr_frame");  /* A1：x86 interrupt 属性须有至少一个指针参数 */
     else {
         for (int i = 0; i < f->num_params; i++) {
             if (i) fprintf(out, ", ");
@@ -6406,6 +6562,10 @@ static int func_belongs_to_module(const struct ASTModule *m, const struct ASTFun
 }
 
 /** 阶段 8.1 DCE：从表达式递归收集被调函数与单态化，加入 worklist 并标记 used_mono。 */
+/* K-fix forward decls: dce_collect_from_expr/expr_references_func now call these (defined later) */
+static void dce_collect_from_block(const struct ASTBlock *b, struct ASTModule *entry, struct ASTModule **dep_mods, int ndep, struct ASTFunc **worklist, int *n_wl, int max_wl, int *in_wl, int used_mono[][64], int used_mono_rows);
+static int block_references_func(const struct ASTBlock *b, const struct ASTFunc *func);
+
 static void dce_collect_from_expr(const struct ASTExpr *e, struct ASTModule *entry, struct ASTModule **dep_mods, int ndep,
     struct ASTFunc **worklist, int *n_wl, int max_wl, int *in_wl,
     int used_mono[][64], int used_mono_rows) {
@@ -6413,6 +6573,11 @@ static void dce_collect_from_expr(const struct ASTExpr *e, struct ASTModule *ent
     /* return expr 在 parser 中为 AST_EXPR_RETURN(operand)，须先递归 operand 才能看到其中的 CALL 并收集 callee */
     if (e->kind == AST_EXPR_RETURN && e->value.unary.operand) {
         dce_collect_from_expr(e->value.unary.operand, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
+        return;
+    }
+    /* K-fix: unsafe/region 块表达式(AST_EXPR_BLOCK)内的函数调用也须递归收集,否则 unsafe{} 内的 callee 被 DCE 误删 */
+    if (e->kind == AST_EXPR_BLOCK && e->value.block) {
+        dce_collect_from_block(e->value.block, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
         return;
     }
     if (e->kind == AST_EXPR_CALL && e->value.call.resolved_callee_func) {
@@ -6533,6 +6698,9 @@ static void dce_collect_from_expr(const struct ASTExpr *e, struct ASTModule *ent
 /** 阶段 8.1 DCE 兜底：判断表达式 e 中是否出现对 func 的调用（CALL/METHOD_CALL），含 AST_EXPR_RETURN 内层。用于 ndep==0 时 used 未收到同模块 callee 仍保留被 main 引用的函数。 */
 static int expr_references_func(const struct ASTExpr *e, const struct ASTFunc *func) {
     if (!e || !func) return 0;
+    /* K-fix: AST_EXPR_BLOCK (unsafe 块) 递归检查其 block */
+    if (e->kind == AST_EXPR_BLOCK && e->value.block)
+        return block_references_func(e->value.block, func);
     if (e->kind == AST_EXPR_CALL && e->value.call.resolved_callee_func == func) return 1;
     if (e->kind == AST_EXPR_METHOD_CALL && e->value.method_call.resolved_impl_func == func) return 1;
     if (e->kind == AST_EXPR_RETURN && e->value.unary.operand && expr_references_func(e->value.unary.operand, func)) return 1;
@@ -6655,6 +6823,15 @@ static void collect_var_names_from_expr(const struct ASTExpr *e, const char **ou
             for (int i = 0; i < e->value.method_call.num_args; i++)
                 collect_var_names_from_expr(e->value.method_call.args[i], out, n, max);
             break;
+        case AST_EXPR_ASM: {
+            /* asm! 操作数引用的变量须计入「被使用」，否则块内 DCE 会漏掉它们的 let 声明（K1/L8）。 */
+            int ai;
+            for (ai = 0; ai < e->value.asm_tmpl.num_outputs; ai++)
+                if (e->value.asm_tmpl.outputs[ai].expr) collect_var_names_from_expr(e->value.asm_tmpl.outputs[ai].expr, out, n, max);
+            for (ai = 0; ai < e->value.asm_tmpl.num_inputs; ai++)
+                if (e->value.asm_tmpl.inputs[ai].expr) collect_var_names_from_expr(e->value.asm_tmpl.inputs[ai].expr, out, n, max);
+            break;
+        }
         default: break;
     }
 }
@@ -6684,6 +6861,9 @@ static void collect_var_names_from_block(const struct ASTBlock *b, const char **
     for (int i = 0; i < b->num_labeled_stmts; i++)
         if (b->labeled_stmts[i].kind == AST_STMT_RETURN && b->labeled_stmts[i].u.return_expr)
             collect_var_names_from_expr(b->labeled_stmts[i].u.return_expr, out, n, max);
+    /* region/unsafe 块体也须递归收集，否则仅在 unsafe{ } 内使用的变量会被 DCE 漏掉（K1 asm! 操作数亦在此） */
+    for (int i = 0; i < b->num_regions; i++)
+        if (b->regions[i].body) collect_var_names_from_block(b->regions[i].body, out, n, max);
     for (int i = 0; i < b->num_expr_stmts; i++)
         collect_var_names_from_expr(b->expr_stmts[i], out, n, max);
     if (b->final_expr) collect_var_names_from_expr(b->final_expr, out, n, max);
@@ -6702,6 +6882,12 @@ static int is_var_used(const char *name, const char **used, int n_used) {
  */
 static int let_init_has_side_effects(const struct ASTExpr *init) {
     if (!init) return 0;
+    /* K2：volatile 指针的解引用（读）有副作用，不可被块内 DCE 消除（MMIO 探测读必须保留） */
+    if (init->kind == AST_EXPR_DEREF && init->value.unary.operand) {
+        const struct ASTType *ot = init->value.unary.operand->resolved_type;
+        if (ot && ot->kind == AST_TYPE_PTR && ot->is_volatile)
+            return 1;
+    }
     switch (init->kind) {
         case AST_EXPR_CALL:
         case AST_EXPR_METHOD_CALL:
@@ -6824,6 +7010,9 @@ static int block_references_func(const struct ASTBlock *b, const struct ASTFunc 
         if (b->for_loops[i].step && expr_references_func(b->for_loops[i].step, func)) return 1;
         if (block_references_func(b->for_loops[i].body, func)) return 1;
     }
+    /* K-fix: unsafe/region 块内的函数调用也须递归收集,否则 unsafe{} 内调用的 helper 被 DCE 误删 */
+    for (int i = 0; i < b->num_regions; i++)
+        if (block_references_func(b->regions[i].body, func)) return 1;
     for (int i = 0; i < b->num_labeled_stmts; i++)
         if (b->labeled_stmts[i].kind == AST_STMT_RETURN && b->labeled_stmts[i].u.return_expr
             && expr_references_func(b->labeled_stmts[i].u.return_expr, func)) return 1;
@@ -6848,6 +7037,9 @@ static void dce_collect_from_block(const struct ASTBlock *b, struct ASTModule *e
         if (b->for_loops[i].step) dce_collect_from_expr(b->for_loops[i].step, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
         dce_collect_from_block(b->for_loops[i].body, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
     }
+    /* K-fix: unsafe/region 块体也须递归 DCE 收集 */
+    for (int i = 0; i < b->num_regions; i++)
+        dce_collect_from_block(b->regions[i].body, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
     for (int i = 0; i < b->num_labeled_stmts; i++)
         if (b->labeled_stmts[i].kind == AST_STMT_RETURN && b->labeled_stmts[i].u.return_expr)
             dce_collect_from_expr(b->labeled_stmts[i].u.return_expr, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
@@ -7118,7 +7310,7 @@ int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_pat
                 for (int k = 0; k < sd->num_fields; k++) {
                     const struct ASTType *fty = sd->fields[k].type;
                     const char *fname = sd->fields[k].name ? sd->fields[k].name : "";
-                    emit_struct_field_c_type(fty, fname, out);
+                    emit_struct_field_c_type(fty, fname, out, sd->fields[k].bitfield_width);
                 }
                 if (sd->packed)
                     fprintf(out, "} __attribute__((packed));\n");
@@ -7314,13 +7506,14 @@ static void codegen_emit_module_extern_func_proto(FILE *out, const struct ASTFun
         codegen_tu_alias_register_extern_sym(name);
         return;
     }
-    fprintf(out, "extern %s %s(", c_type_str(f->return_type), name);
+    const char *emit_name = f->link_name ? f->link_name : name;  /* L9：#[link_name] 用指定符号名 */
+    fprintf(out, "extern %s %s(", c_type_str(f->return_type), emit_name);
     for (int j = 0; j < f->num_params; j++) {
         if (j) fprintf(out, ", ");
         codegen_emit_param(&f->params[j], out, NULL, j);
     }
     fprintf(out, ");\n");
-    codegen_tu_alias_register_extern_sym(name);
+    codegen_tu_alias_register_extern_sym(emit_name);
 }
 
 /** 输出 import 函数 extern 原型。 */
@@ -7572,7 +7765,7 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
                 for (int k = 0; k < sd->num_fields; k++) {
                     const struct ASTType *fty = sd->fields[k].type;
                     const char *fname = sd->fields[k].name ? sd->fields[k].name : "";
-                    emit_struct_field_c_type(fty, fname, out);
+                    emit_struct_field_c_type(fty, fname, out, sd->fields[k].bitfield_width);
                 }
                 fprintf(out, "};\n");
             }
@@ -7691,11 +7884,13 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
             else if (dce_ctx && is_type_used && !is_type_used(dce_ctx, m, sd->name)) continue;
         }
         if (emitted_type_names && n_emitted_inout && emitted_type_contains(sd->name, emitted_type_names, *n_emitted_inout)) continue;
+        if (sd->is_send || sd->is_sync)
+            fprintf(out, "/* shux_thread_safety:%s%s */ ", sd->is_send ? "send" : "", sd->is_sync ? (sd->is_send ? "+sync" : "sync") : "");
         fprintf(out, "struct %s { ", sd->name);
         for (int j = 0; j < sd->num_fields; j++) {
             const struct ASTType *fty = sd->fields[j].type;
             const char *fname = sd->fields[j].name ? sd->fields[j].name : "";
-            emit_struct_field_c_type(fty, fname, out);
+            emit_struct_field_c_type(fty, fname, out, sd->fields[j].bitfield_width);
         }
         if (sd->packed)
             fprintf(out, "} __attribute__((packed));\n");
@@ -7730,6 +7925,11 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
             const struct ASTExpr *init = m->top_level_lets[i].init;
             const struct ASTType *ety = codegen_emit_type(ty);
             if (m->top_level_lets[i].is_const) {
+                /* K4：#[link_section] → __attribute__((section(...)))，附在 static 声明前（同一行） */
+                if (m->top_level_lets[i].is_percpu)
+                    fprintf(out, "__attribute__((section(\".percpu\"))) ");
+                if (m->top_level_lets[i].section)
+                    fprintf(out, "__attribute__((section(\"%s\"))) ", m->top_level_lets[i].section);
                 /* const：一行 static const T name = init; */
                 if (ety && ety->kind == AST_TYPE_PTR && ety->elem_type)
                     fprintf(out, "static const %s * %s = ", c_type_str(ety->elem_type), name);
@@ -7748,26 +7948,44 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
                     (void)codegen_expr(init, out);
                 fprintf(out, ";\n");
             } else {
+                /* K8: 顶层 let 有初值时 emit `static T name = init;`(落 .data,bootloader 加载即有初值);
+                 * 无初值 emit `static T name;`(落 .bss,零初始化)。init_globals() 仍保留(main 调用,对普通程序冗余但无害;
+                 * 内核 _start 不调用但 .data 已有初值,故内核 let 全局变量正确初始化)。 */
+                if (m->top_level_lets[i].is_thread_local)
+                    fprintf(out, "__thread ");
+                if (m->top_level_lets[i].is_percpu)
+                    fprintf(out, "__attribute__((section(\".percpu\"))) ");
+                if (m->top_level_lets[i].section)
+                    fprintf(out, "__attribute__((section(\"%s\"))) ", m->top_level_lets[i].section);
                 if (ety && ety->kind == AST_TYPE_PTR && ety->elem_type)
-                    fprintf(out, "static %s * %s;\n", c_type_str(ety->elem_type), name);
+                    fprintf(out, "static %s * %s", c_type_str(ety->elem_type), name);
                 else if (ety && ety->kind == AST_TYPE_NAMED && ety->name)
-                    fprintf(out, "static %s %s;\n", c_type_str(ety), name);
+                    fprintf(out, "static %s %s", c_type_str(ety), name);
                 else if (ety && ety->kind == AST_TYPE_ARRAY && ety->elem_type) {
                     fprintf(out, "static ");
                     emit_local_array_decl(ety, name, "", out);
-                    fprintf(out, ";\n");
                 } else if (ety && ety->kind == AST_TYPE_SLICE && ety->elem_type) {
                     ensure_slice_struct(ety, out);
-                    fprintf(out, "static %s %s;\n", c_type_str(ety), name);
+                    fprintf(out, "static %s %s", c_type_str(ety), name);
                 } else
-                    fprintf(out, "static %s %s;\n", ety ? c_type_str(ety) : "int32_t", name);
+                    fprintf(out, "static %s %s", ety ? c_type_str(ety) : "int32_t", name);
+                if (init) {
+                    /* K8: 仅当初值为 C 常量表达式(字面量/已折叠常量)时 emit static T name = init;
+                     * 否则保留 static T name;(init_globals 赋值,兼容非恒量初值如 let b = a + 2) */
+                    int is_c_const = (init->kind == AST_EXPR_LIT || init->kind == AST_EXPR_FLOAT_LIT
+                                      || init->kind == AST_EXPR_BOOL_LIT || init->const_folded_valid);
+                    if (is_c_const) {
+                        fprintf(out, " = ");
+                        if (codegen_init(ty, init, out, NULL) != 0)
+                            (void)codegen_expr(init, out);
+                    }
+                }
+                fprintf(out, ";\n");
             }
         }
-        /* init_globals：仅对 let（非 const）生成赋值 */
-        int any_let = 0;
-        for (int i = 0; i < m->num_top_level_lets; i++)
-            if (!m->top_level_lets[i].is_const) { any_let = 1; break; }
-        if (any_let) {
+        /* init_globals：main 在 num_top_level_lets>0 时调用，故此处只要有顶层 const/let 即定义（const-only 时为空体），
+         * 避免main 调用未定义的 init_globals（K4 顺带修的预存 const-only 模块编译失败） */
+        if (m->num_top_level_lets > 0) {
             fprintf(out, "static void init_globals(void) {\n");
             for (int i = 0; i < m->num_top_level_lets; i++) {
                 if (m->top_level_lets[i].is_const) continue;
@@ -7795,7 +8013,10 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         const struct ASTFunc *f = m->funcs[i];
         if (!f || strcmp(f->name, "main") == 0 || f->num_generic_params > 0 || f->is_extern || !f->body) continue;
         if (dce_ctx && is_func_used && !codegen_async_keep_for_sched(m, f, is_func_used, dce_ctx)) continue;
-        fprintf(out, "static inline %s %s(", c_type_str(f->return_type), func_link_name(m, f));
+        if (f->is_no_mangle || f->is_used || f->is_interrupt || f->is_naked || f->is_entry || f->is_global_allocator || f->is_cold || f->is_panic_handler || f->export_name)
+            fprintf(out, "%s %s(", c_type_str(f->return_type), func_link_name(m, f));
+        else
+            fprintf(out, "static inline %s %s(", c_type_str(f->return_type), func_link_name(m, f));
         if (async_cps_func_uses_void_entry(f, m))
             fprintf(out, "void");
         else {
@@ -7835,7 +8056,7 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
     for (int i = 0; i < m->num_funcs && m->funcs; i++) {
         if (!m->funcs[i] || strcmp(m->funcs[i]->name, "main") == 0 || m->funcs[i]->num_generic_params > 0) continue;
         if (m->funcs[i]->is_extern || !m->funcs[i]->body) continue;
-        if (dce_ctx && is_func_used && !codegen_async_keep_for_sched(m, m->funcs[i], is_func_used, dce_ctx)) continue;
+        if (dce_ctx && is_func_used && !m->funcs[i]->is_entry && !m->funcs[i]->is_used && !m->funcs[i]->is_no_mangle && !m->funcs[i]->is_interrupt && !m->funcs[i]->is_global_allocator && !m->funcs[i]->is_cold && !m->funcs[i]->is_panic_handler && !codegen_async_keep_for_sched(m, m->funcs[i], is_func_used, dce_ctx)) continue;  /* K5/K10：#[entry]/#[used] 不被 DCE */
         if (codegen_one_func(m->funcs[i], m, out) != 0) {
             char msg[192];
             (void)snprintf(msg, sizeof(msg), "failed to emit function '%s'",
@@ -8076,7 +8297,7 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         for (int j = 0; j < sd->num_fields; j++) {
             const struct ASTType *fty = sd->fields[j].type;
             const char *fname = sd->fields[j].name ? sd->fields[j].name : "";
-            emit_struct_field_c_type(fty, fname, out);
+            emit_struct_field_c_type(fty, fname, out, sd->fields[j].bitfield_width);
         }
         if (sd->packed)
             fprintf(out, "} __attribute__((packed));\n");

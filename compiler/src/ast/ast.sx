@@ -302,6 +302,16 @@ struct Func {
   is_extern: i32;
   /** 1=async function（P2 原型）；await/CPS 变换待后续 sprint */
   is_async: i32;
+  /** K10：#[used] 不被 C 编译器消除，外部链接 */
+  is_used: i32;
+  /** K3：#[naked] 无 prologue/epilogue，体须仅 asm! */
+  is_naked: i32;
+  /** K5：#[entry] 内核入口 _start，naked+noreturn+外部链接 */
+  is_entry: i32;
+  /** L9：#[no_mangle] 外部链接+不 DCE */
+  is_no_mangle: i32;
+  /** A1：#[interrupt] 中断处理（C 编译器自动 push/pop + iret） */
+  is_interrupt: i32;
 }
 
 /** 结构体布局（用于 typeck 填 field_access_offset / 字段类型）：名称 + field_base/num_fields；字段名/偏移/类型在 C sidecar grow 池。 */
@@ -340,6 +350,16 @@ struct Module {
   pending_repr_c_struct: i32;
   /** parse_into：`#[repr(compatible)]` 后置 1，紧随其后的 struct 登记 MOD-02 互认标记后清零。 */
   pending_repr_compatible_struct: i32;
+  /** K10：#[used] 后置 1，紧随其后的 function 标记为 used 后清零 */
+  pending_used: i32;
+  /** K3：#[naked] 后置 1 */
+  pending_naked: i32;
+  /** K5：#[entry] 后置 1 */
+  pending_entry: i32;
+  /** L9：#[no_mangle] 后置 1 */
+  pending_no_mangle: i32;
+  /** A1：#[interrupt] 后置 1 */
+  pending_interrupt: i32;
   num_module_enums: i32;
 }
 

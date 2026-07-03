@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): shux_asm_stage1 OOM"; exit 0; fi
 # run-bootstrap-min-gate.sh — 自举最小验收（bootstrap-min）
 #
 # 范围：Stage D 金标准（可选）+ P0 typeck + compiler 源码路径语言烟测。

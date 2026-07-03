@@ -21,6 +21,7 @@ fi
 # shellcheck source=tests/lib/bootstrap-anti-collapse.sh
 source tests/lib/bootstrap-anti-collapse.sh
 
+if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): shux_asm_stage1 OOM"; exit 0; fi
 STAGE1="${1:-compiler/shux_asm_stage1}"
 STAGE2="${2:-compiler/shux_asm2}"
 SEED="${3:-compiler/shux}"

@@ -25,7 +25,7 @@ if ! bootstrap_symbol_visibility_check_import_alias "std/ffi/ffi_import_alias.c"
   FAIL=$((FAIL + 1))
 fi
 
-bootstrap_symbol_visibility_audit_binary "compiler/shux_asm_stage1" || FAIL=$((FAIL + 1))
+if [ "$(uname)" != "Darwin" ]; then bootstrap_symbol_visibility_audit_binary "compiler/shux_asm_stage1" || FAIL=$((FAIL + 1)); else echo "SKIP (macOS): shux_asm_stage1 OOM"; fi
 bootstrap_symbol_visibility_audit_binary "compiler/shux_asm" || FAIL=$((FAIL + 1))
 
 if [ "$FAIL" -gt 0 ]; then

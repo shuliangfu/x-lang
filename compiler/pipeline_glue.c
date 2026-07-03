@@ -84,6 +84,16 @@ void pipeline_module_func_set_body_ref(struct ast_Module *m, int32_t fi, int32_t
 void pipeline_module_func_set_body_expr_ref(struct ast_Module *m, int32_t fi, int32_t body_expr_ref);
 void pipeline_module_func_set_is_extern(struct ast_Module *m, int32_t fi, int32_t is_extern);
 void pipeline_module_func_set_is_async(struct ast_Module *m, int32_t fi, int32_t is_async);
+void pipeline_module_func_set_is_used(struct ast_Module *m, int32_t fi, int32_t is_used);
+int32_t pipeline_module_func_is_used_at(struct ast_Module *m, int32_t func_index);
+void pipeline_module_func_set_is_naked(struct ast_Module *m, int32_t fi, int32_t is_naked);
+int32_t pipeline_module_func_is_naked_at(struct ast_Module *m, int32_t func_index);
+void pipeline_module_func_set_is_entry(struct ast_Module *m, int32_t fi, int32_t is_entry);
+int32_t pipeline_module_func_is_entry_at(struct ast_Module *m, int32_t func_index);
+void pipeline_module_func_set_is_no_mangle(struct ast_Module *m, int32_t fi, int32_t is_no_mangle);
+int32_t pipeline_module_func_is_no_mangle_at(struct ast_Module *m, int32_t func_index);
+void pipeline_module_func_set_is_interrupt(struct ast_Module *m, int32_t fi, int32_t is_interrupt);
+int32_t pipeline_module_func_is_interrupt_at(struct ast_Module *m, int32_t func_index);
 void pipeline_module_func_ref_set(struct ast_Module *m, int32_t func_index, int32_t func_ref);
 /** ast_pool.c 提供；pipeline_backend_get_return_expr_ref 在 #include ast_pool 之前调用。 */
 int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t *enum_name, int32_t enum_len,

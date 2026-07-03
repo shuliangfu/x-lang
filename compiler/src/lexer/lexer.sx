@@ -1206,6 +1206,151 @@ function lexer_try_alloc_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32
   return 1;
 }
 
+/**
+ * K10：若 l 处为 `#[used]`，写入 TOKEN_ATTR_USED 并返回 1。
+ */
+function lexer_try_used_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
+  if (l.pos + 7 > data.length) {
+    return 0;
+  }
+  if (data[l.pos] != 35 || data[l.pos + 1] != 91) {
+    return 0;
+  }
+  if (data[l.pos + 2] != 117 || data[l.pos + 3] != 115 ||
+      data[l.pos + 4] != 101 || data[l.pos + 5] != 100 || data[l.pos + 6] != 93) {
+    return 0;
+  }
+  let line0: i32 = l.line;
+  let col0: i32 = l.col;
+  let l2: Lexer = l;
+  l2 = advance_one(l2, 35);
+  l2 = advance_one(l2, 91);
+  l2 = advance_one(l2, 117);
+  l2 = advance_one(l2, 115);
+  l2 = advance_one(l2, 101);
+  l2 = advance_one(l2, 100);
+  l2 = advance_one(l2, 93);
+  let tok: Token = Token {
+    kind: TokenKind.TOKEN_ATTR_USED,
+    line: line0,
+    col: col0,
+    int_val: 0,
+    float_val: 0.0,
+    ident: 0,
+    ident_len: 0
+  };
+  write_next_lex_into(out, l2);
+  write_tok_into(out, tok);
+  out.token_start = (0 as usize);
+  return 1;
+}
+
+/**
+ * K3：若 l 处为 `#[naked]`，写入 TOKEN_ATTR_NAKED 并返回 1。
+ */
+function lexer_try_naked_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
+  if (l.pos + 8 > data.length) { return 0; }
+  if (data[l.pos] != 35 || data[l.pos + 1] != 91) { return 0; }
+  if (data[l.pos + 2] != 110 || data[l.pos + 3] != 97 || data[l.pos + 4] != 107 ||
+      data[l.pos + 5] != 101 || data[l.pos + 6] != 100 || data[l.pos + 7] != 93) { return 0; }
+  let line0: i32 = l.line; let col0: i32 = l.col; let l2: Lexer = l;
+  l2 = advance_one(l2, 35); l2 = advance_one(l2, 91); l2 = advance_one(l2, 110);
+  l2 = advance_one(l2, 97); l2 = advance_one(l2, 107); l2 = advance_one(l2, 101);
+  l2 = advance_one(l2, 100); l2 = advance_one(l2, 93);
+  write_next_lex_into(out, l2);
+  write_tok_into(out, Token { kind: TokenKind.TOKEN_ATTR_NAKED, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 });
+  out.token_start = (0 as usize); return 1;
+}
+
+/**
+ * K5：若 l 处为 `#[entry]`，写入 TOKEN_ATTR_ENTRY 并返回 1。
+ */
+function lexer_try_entry_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
+  if (l.pos + 8 > data.length) { return 0; }
+  if (data[l.pos] != 35 || data[l.pos + 1] != 91) { return 0; }
+  if (data[l.pos + 2] != 101 || data[l.pos + 3] != 110 || data[l.pos + 4] != 116 ||
+      data[l.pos + 5] != 114 || data[l.pos + 6] != 121 || data[l.pos + 7] != 93) { return 0; }
+  let line0: i32 = l.line; let col0: i32 = l.col; let l2: Lexer = l;
+  l2 = advance_one(l2, 35); l2 = advance_one(l2, 91); l2 = advance_one(l2, 101);
+  l2 = advance_one(l2, 110); l2 = advance_one(l2, 116); l2 = advance_one(l2, 114);
+  l2 = advance_one(l2, 101); l2 = advance_one(l2, 93);
+  write_next_lex_into(out, l2);
+  write_tok_into(out, Token { kind: TokenKind.TOKEN_ATTR_ENTRY, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 });
+  out.token_start = (0 as usize); return 1;
+}
+
+/**
+ * L9：若 l 处为 `#[no_mangle]`，写入 TOKEN_ATTR_NO_MANGLE 并返回 1。
+ */
+function lexer_try_no_mangle_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
+  if (l.pos + 12 > data.length) { return 0; }
+  if (data[l.pos] != 35 || data[l.pos + 1] != 91) { return 0; }
+  if (data[l.pos + 2] != 110 || data[l.pos + 3] != 111 || data[l.pos + 4] != 95 ||
+      data[l.pos + 5] != 109 || data[l.pos + 6] != 97 || data[l.pos + 7] != 110 ||
+      data[l.pos + 8] != 103 || data[l.pos + 9] != 108 || data[l.pos + 10] != 101 || data[l.pos + 11] != 93) { return 0; }
+  let line0: i32 = l.line; let col0: i32 = l.col; let l2: Lexer = l;
+  l2 = advance_one(l2, 35); l2 = advance_one(l2, 91); l2 = advance_one(l2, 110);
+  l2 = advance_one(l2, 111); l2 = advance_one(l2, 95); l2 = advance_one(l2, 109);
+  l2 = advance_one(l2, 97); l2 = advance_one(l2, 110); l2 = advance_one(l2, 103);
+  l2 = advance_one(l2, 108); l2 = advance_one(l2, 101); l2 = advance_one(l2, 93);
+  write_next_lex_into(out, l2);
+  write_tok_into(out, Token { kind: TokenKind.TOKEN_ATTR_NO_MANGLE, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 });
+  out.token_start = (0 as usize); return 1;
+}
+
+/**
+ * A1：若 l 处为 `#[interrupt]`，写入 TOKEN_ATTR_INTERRUPT 并返回 1。
+ */
+function lexer_try_interrupt_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
+  if (l.pos + 13 > data.length) { return 0; }
+  if (data[l.pos] != 35 || data[l.pos + 1] != 91) { return 0; }
+  if (data[l.pos + 2] != 105 || data[l.pos + 3] != 110 || data[l.pos + 4] != 116 ||
+      data[l.pos + 5] != 101 || data[l.pos + 6] != 114 || data[l.pos + 7] != 114 ||
+      data[l.pos + 8] != 117 || data[l.pos + 9] != 112 || data[l.pos + 10] != 116 || data[l.pos + 11] != 93) { return 0; }
+  let line0: i32 = l.line; let col0: i32 = l.col; let l2: Lexer = l;
+  l2 = advance_one(l2, 35); l2 = advance_one(l2, 91); l2 = advance_one(l2, 105);
+  l2 = advance_one(l2, 110); l2 = advance_one(l2, 116); l2 = advance_one(l2, 101);
+  l2 = advance_one(l2, 114); l2 = advance_one(l2, 114); l2 = advance_one(l2, 117);
+  l2 = advance_one(l2, 112); l2 = advance_one(l2, 116); l2 = advance_one(l2, 93);
+  write_next_lex_into(out, l2);
+  write_tok_into(out, Token { kind: TokenKind.TOKEN_ATTR_INTERRUPT, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 });
+  out.token_start = (0 as usize); return 1;
+}
+
+/**
+ * L6：若 l 处为 `#[send]`，写入 TOKEN_ATTR_SEND 并返回 1。
+ */
+function lexer_try_send_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
+  if (l.pos + 8 > data.length) { return 0; }
+  if (data[l.pos] != 35 || data[l.pos + 1] != 91) { return 0; }
+  if (data[l.pos + 2] != 115 || data[l.pos + 3] != 101 || data[l.pos + 4] != 110 ||
+      data[l.pos + 5] != 100 || data[l.pos + 6] != 93) { return 0; }
+  let line0: i32 = l.line; let col0: i32 = l.col; let l2: Lexer = l;
+  l2 = advance_one(l2, 35); l2 = advance_one(l2, 91); l2 = advance_one(l2, 115);
+  l2 = advance_one(l2, 101); l2 = advance_one(l2, 110); l2 = advance_one(l2, 100);
+  l2 = advance_one(l2, 93);
+  write_next_lex_into(out, l2);
+  write_tok_into(out, Token { kind: TokenKind.TOKEN_ATTR_SEND, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 });
+  out.token_start = (0 as usize); return 1;
+}
+
+/**
+ * L6：若 l 处为 `#[sync]`，写入 TOKEN_ATTR_SYNC 并返回 1。
+ */
+function lexer_try_sync_attr_into(out: *LexerResult, l: Lexer, data: u8[]): i32 {
+  if (l.pos + 8 > data.length) { return 0; }
+  if (data[l.pos] != 35 || data[l.pos + 1] != 91) { return 0; }
+  if (data[l.pos + 2] != 115 || data[l.pos + 3] != 121 || data[l.pos + 4] != 110 ||
+      data[l.pos + 5] != 99 || data[l.pos + 6] != 93) { return 0; }
+  let line0: i32 = l.line; let col0: i32 = l.col; let l2: Lexer = l;
+  l2 = advance_one(l2, 35); l2 = advance_one(l2, 91); l2 = advance_one(l2, 115);
+  l2 = advance_one(l2, 121); l2 = advance_one(l2, 110); l2 = advance_one(l2, 99);
+  l2 = advance_one(l2, 93);
+  write_next_lex_into(out, l2);
+  write_tok_into(out, Token { kind: TokenKind.TOKEN_ATTR_SYNC, line: line0, col: col0, int_val: 0, float_val: 0.0, ident: 0, ident_len: 0 });
+  out.token_start = (0 as usize); return 1;
+}
+
 /** 跳过空白与注释，返回新的 Lexer 状态；若已到末尾则返回当前
 * lex。控制流仅用 if/else-if（无 continue），以满足 asm codegen 对 EXPR_CONTINUE
 * 的限制。 */
@@ -1306,6 +1451,27 @@ function lexer_next(lex: Lexer, data: u8[]): LexerResult {
   if (lexer_try_alloc_attr_into(&attr_out, l, data) != 0) {
     return attr_out;
   }
+  if (lexer_try_used_attr_into(&attr_out, l, data) != 0) {
+    return attr_out;
+  }
+  if (lexer_try_naked_attr_into(&attr_out, l, data) != 0) {
+    return attr_out;
+  }
+  if (lexer_try_entry_attr_into(&attr_out, l, data) != 0) {
+    return attr_out;
+  }
+  if (lexer_try_no_mangle_attr_into(&attr_out, l, data) != 0) {
+    return attr_out;
+  }
+  if (lexer_try_interrupt_attr_into(&attr_out, l, data) != 0) {
+    return attr_out;
+  }
+  if (lexer_try_send_attr_into(&attr_out, l, data) != 0) {
+    return attr_out;
+  }
+  if (lexer_try_sync_attr_into(&attr_out, l, data) != 0) {
+    return attr_out;
+  }
   return lexer_next_body(l, data);
 }
 
@@ -1370,6 +1536,27 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
     return;
   }
   if (lexer_try_alloc_attr_into(out, l, data) != 0) {
+    return;
+  }
+  if (lexer_try_used_attr_into(out, l, data) != 0) {
+    return;
+  }
+  if (lexer_try_naked_attr_into(out, l, data) != 0) {
+    return;
+  }
+  if (lexer_try_entry_attr_into(out, l, data) != 0) {
+    return;
+  }
+  if (lexer_try_no_mangle_attr_into(out, l, data) != 0) {
+    return;
+  }
+  if (lexer_try_interrupt_attr_into(out, l, data) != 0) {
+    return;
+  }
+  if (lexer_try_send_attr_into(out, l, data) != 0) {
+    return;
+  }
+  if (lexer_try_sync_attr_into(out, l, data) != 0) {
     return;
   }
   /** import("path") 等：字符串字面量，token_start 指向开引号后首字节，ident_len 为字节数。 */

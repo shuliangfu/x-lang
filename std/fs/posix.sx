@@ -357,19 +357,17 @@ function fs_note_last_error_posix(): void {
  * 从 PosixStatBuf 填充 FsStatOut。
  */
 function fs_fill_stat_from_st(st: *PosixStatBuf, out: *FsStatOut): void {
+  let st_mode: u32 = st[0].st_mode as u32;
   out[0].size = st[0].st_size;
-  out[0].mode = st[0].st_mode & 4095;
-  if ((st[0].st_mode & S_IFMT) == S_IFDIR) {
-    out[0].is_dir = 1;
-    out[0].is_file = 0;
-  } else if ((st[0].st_mode & S_IFMT) == S_IFREG) {
-    out[0].is_dir = 0;
-    out[0].is_file = 1;
-  } else {
-    out[0].is_dir = 0;
-    out[0].is_file = 0;
-  }
+  out[0].mode = (st_mode as u32) & 4095;
+  out[0].is_dir = 0;
+  out[0].is_file = 0;
   out[0].mtime_sec = st[0].st_mtime;
+  if ((st_mode & S_IFMT) == S_IFDIR) {
+    out[0].is_dir = 1;
+  } else if ((st_mode & S_IFMT) == S_IFREG) {
+    out[0].is_file = 1;
+  }
 }
 
 /**
@@ -379,7 +377,6 @@ function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0) {
     return 0;
   }
-  out_size[0] = 0;
   let fd: i32 = -1;
   let len: usize = 0;
   let st: PosixStatBuf;
@@ -391,7 +388,7 @@ function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
         fs_libc_usleep((50000 * retry) as u32);
       }
       fd = fs_libc_open(path, O_RDONLY, 0);
-      if (fd < 0 && fs_libc_errno_location()[0] == 13) {
+      if (fd < 0 && fs_errno_get() == 13) {
         fd = fs_libc_open(path, O_RDWR, 0);
       }
       if (fd < 0) {
@@ -424,7 +421,6 @@ function fs_mmap_ro_c(path: *u8, out_size: *usize): *u8 {
     if (fd >= 0) {
       fs_libc_close(fd);
     }
-    out_size[0] = 0;
     return 0;
   }
   let p: *u8 = fs_libc_mmap(0 as *u8, len, PROT_READ, MAP_PRIVATE, fd, 0 as i64);
@@ -455,7 +451,6 @@ function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0) {
     return 0;
   }
-  out_size[0] = 0;
   let fd: i32 = fs_libc_open(path, O_RDWR, 0);
   if (fd < 0) {
     return 0;
@@ -468,7 +463,6 @@ function fs_mmap_rw_c(path: *u8, out_size: *usize): *u8 {
   let len: usize = st.st_size as usize;
   if (len == 0) {
     fs_libc_close(fd);
-    out_size[0] = 0;
     return 0;
   }
   let p: *u8 = fs_libc_mmap(0 as *u8, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0 as i64);
@@ -991,7 +985,8 @@ function fs_dir_open_c(path: *u8): i64 {
     fs_libc_closedir(d);
     return -1;
   }
-  h[0].dir = d;
+  let dir_ptr: *u8 = d;
+  h[0].dir = dir_ptr;
   return h as i64;
 }
 
@@ -1007,7 +1002,8 @@ function fs_dir_read_c(handle: i64, name_out: *u8, name_cap: i32, is_dir_out: *i
   h = handle as *FsDirHandlePosix;
   while (1 != 0) {
     fs_errno_set(0);
-    de = fs_libc_readdir(h[0].dir);
+    let h_dir: *u8 = h[0].dir;
+    de = fs_libc_readdir(h_dir);
     if (de == 0) {
       if (fs_errno_get() != 0) {
         fs_note_last_error_posix();
@@ -1041,7 +1037,8 @@ function fs_dir_close_c(handle: i64): i32 {
     return -1;
   }
   h = handle as *FsDirHandlePosix;
-  fs_libc_closedir(h[0].dir);
+  let h_dir: *u8 = h[0].dir;
+  fs_libc_closedir(h_dir);
   fs_libc_free(h as *u8);
   return 0;
 }

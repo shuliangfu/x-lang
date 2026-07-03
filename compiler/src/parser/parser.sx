@@ -104,6 +104,13 @@ extern function pipeline_module_func_set_body_ref(module: *Module, fi: i32, body
 extern function pipeline_module_func_set_body_expr_ref(module: *Module, fi: i32, body_expr_ref: i32): void;
 extern function pipeline_module_func_set_is_extern(module: *Module, fi: i32, is_extern: i32): void;
 extern function pipeline_module_func_set_is_async(module: *Module, fi: i32, is_async: i32): void;
+extern function pipeline_module_func_set_is_used(module: *Module, fi: i32, is_used: i32): void;
+extern function pipeline_module_func_set_is_naked(module: *Module, fi: i32, is_naked: i32): void;
+extern function pipeline_module_func_set_is_entry(module: *Module, fi: i32, is_entry: i32): void;
+extern function pipeline_module_func_set_is_no_mangle(module: *Module, fi: i32, is_no_mangle: i32): void;
+extern function pipeline_module_func_set_is_interrupt(module: *Module, fi: i32, is_interrupt: i32): void;
+extern function pipeline_struct_layout_set_is_send(module: *Module, idx: i32, is_send: i32): void;
+extern function pipeline_struct_layout_set_is_sync(module: *Module, idx: i32, is_sync: i32): void;
 extern function pipeline_module_func_set_num_params(module: *Module, fi: i32, n: i32): void;
 extern function pipeline_module_func_set_num_generic_params(module: *Module, fi: i32, n: i32): void;
 extern function pipeline_block_append_const(arena: *ASTArena, br: i32, name: *u8, name_len: i32, type_ref: i32, init_ref: i32): i32;
@@ -4844,6 +4851,16 @@ function module_register_arena_func(module: *Module, func_ref: i32, f: Func): i3
   pipeline_module_func_set_body_expr_ref(module, fi, f.body_expr_ref);
   pipeline_module_func_set_is_extern(module, fi, f.is_extern);
   pipeline_module_func_set_is_async(module, fi, f.is_async);
+      pipeline_module_func_set_is_used(module, fi, module.pending_used);
+      module.pending_used = 0;
+      pipeline_module_func_set_is_naked(module, fi, module.pending_naked);
+      module.pending_naked = 0;
+      pipeline_module_func_set_is_entry(module, fi, module.pending_entry);
+      module.pending_entry = 0;
+      pipeline_module_func_set_is_no_mangle(module, fi, module.pending_no_mangle);
+      module.pending_no_mangle = 0;
+      pipeline_module_func_set_is_interrupt(module, fi, module.pending_interrupt);
+      module.pending_interrupt = 0;
   pipeline_module_func_ref_set(module, fi, func_ref);
   return fi;
 }
@@ -5343,6 +5360,34 @@ function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoR
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
         lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
+      continue;
+    }
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_USED) {
+      module.pending_used = 1;
+      lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start.pos && lex.pos < source.length) {
+        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+      }
+      continue;
+    }
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_NAKED) {
+      module.pending_naked = 1; lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      continue;
+    }
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_ENTRY) {
+      module.pending_entry = 1; lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      continue;
+    }
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_NO_MANGLE) {
+      module.pending_no_mangle = 1; lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      continue;
+    }
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_INTERRUPT) {
+      module.pending_interrupt = 1; lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start.pos && lex.pos < source.length) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     if (module.pending_cfg_skip != 0) {
@@ -6446,6 +6491,16 @@ function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoR
     pipeline_module_func_set_body_ref(module, fi, block_ref);
     pipeline_module_func_set_is_extern(module, fi, 0);
     pipeline_module_func_set_is_async(module, fi, func_is_async_storage[0]);
+      pipeline_module_func_set_is_used(module, fi, module.pending_used);
+      module.pending_used = 0;
+      pipeline_module_func_set_is_naked(module, fi, module.pending_naked);
+      module.pending_naked = 0;
+      pipeline_module_func_set_is_entry(module, fi, module.pending_entry);
+      module.pending_entry = 0;
+      pipeline_module_func_set_is_no_mangle(module, fi, module.pending_no_mangle);
+      module.pending_no_mangle = 0;
+      pipeline_module_func_set_is_interrupt(module, fi, module.pending_interrupt);
+      module.pending_interrupt = 0;
     if (is_main_storage[0] != 0) {
       main_idx = fi;
     }
@@ -6828,6 +6883,35 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
         lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
       }
+      continue;
+    }
+    /** K10：`#[used]` 下一 function 标记为 used（不被 C 编译器消除，外部链接）。 */
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_USED) {
+      module.pending_used = 1;
+      lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
+        lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
+      }
+      continue;
+    }
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_NAKED) {
+      module.pending_naked = 1; lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      continue;
+    }
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_ENTRY) {
+      module.pending_entry = 1; lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      continue;
+    }
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_NO_MANGLE) {
+      module.pending_no_mangle = 1; lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
+      continue;
+    }
+    if (r.tok.kind == TokenKind.TOKEN_ATTR_INTERRUPT) {
+      module.pending_interrupt = 1; lex_from_next_into(&lex, r);
+      if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) { lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 }; }
       continue;
     }
     if (module.pending_cfg_skip != 0) {
@@ -7784,6 +7868,16 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
     pipeline_module_func_set_body_expr_ref(module, fi_mod, 0);
     pipeline_module_func_set_is_extern(module, fi_mod, 0);
     pipeline_module_func_set_is_async(module, fi_mod, func_is_async_buf[0]);
+      pipeline_module_func_set_is_used(module, fi_mod, module.pending_used);
+      module.pending_used = 0;
+      pipeline_module_func_set_is_naked(module, fi_mod, module.pending_naked);
+      module.pending_naked = 0;
+      pipeline_module_func_set_is_entry(module, fi_mod, module.pending_entry);
+      module.pending_entry = 0;
+      pipeline_module_func_set_is_no_mangle(module, fi_mod, module.pending_no_mangle);
+      module.pending_no_mangle = 0;
+      pipeline_module_func_set_is_interrupt(module, fi_mod, module.pending_interrupt);
+      module.pending_interrupt = 0;
     let p_copy: i32 = 0;
     let mod_pool_buf: *u8 = onefunc_result_pool_ptr(&res);
     while (p_copy < res.num_params) {

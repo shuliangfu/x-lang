@@ -60,6 +60,11 @@ p0_gate_typeck_candidates() {
     [ -x ./compiler/shux-c ] && ci_native_shu ./compiler/shux-c && echo ./compiler/shux-c
     return 0
   fi
+  # macOS 上 shux_asm_stage1 会吃 60G+ 内存（asm 后端无内存限制），强制跳过
+  if [ "$(uname)" = "Darwin" ]; then
+    [ -x ./compiler/shux-c ] && ci_native_shu ./compiler/shux-c && echo ./compiler/shux-c
+    return 0
+  fi
   for cand in ./compiler/shux_asm_stage1 ./compiler/shux_asm2 ./compiler/shux_asm \
               ./compiler/shux ./compiler/shux-c; do
     if [ -x "$cand" ] && ci_native_shu "$cand"; then

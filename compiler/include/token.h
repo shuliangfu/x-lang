@@ -42,6 +42,24 @@ typedef enum TokenKind {
     TOKEN_ATTR_REPR_C, /**< 属性 #[repr(C)]（下一 struct 按 C ABI 布局，允许隐式 padding） */
     TOKEN_ATTR_REPR_COMPATIBLE, /**< 属性 #[repr(compatible)]（允许与同布局 struct 指针互认） */
     TOKEN_ATTR_ALLOC,  /**< 属性 #[alloc]（MEM-C1：下一 function 为 Allocator 自动注入 API） */
+    TOKEN_ATTR_LINK_SECTION, /**< 属性 #[link_section("name")]（K4：下一 const/let/function 落入指定段；value.ident/ident_len 为段名） */
+    TOKEN_ATTR_NAKED,       /**< 属性 #[naked]（K3：下一 function 无 prologue/epilogue，体须仅 asm!；ISR/入口用） */
+    TOKEN_ATTR_ENTRY,       /**< 属性 #[entry]（K5：下一 function 为内核入口 _start，naked+noreturn+外部链接） */
+    TOKEN_ATTR_USED,        /**< 属性 #[used]（K10：下一 function 不被 C 编译器消除，外部链接；ISR/asm! 引用的函数用） */
+    TOKEN_ATTR_NO_MANGLE,   /**< 属性 #[no_mangle]（L9：下一 function 外部链接+不 DCE；C 前端名字透传） */
+    TOKEN_ATTR_LINK_NAME,   /**< 属性 #[link_name("name")]（L9：下一 function/extern 用指定符号名；value.ident/ident_len 为符号名） */
+    TOKEN_ATTR_MAX_STACK,  /**< 属性 #[max_stack(N)]（L4：下一 function 栈用量上限，编译期分析+告警；value.int_val 为 N） */
+    TOKEN_ATTR_INTERRUPT, /**< 属性 #[interrupt]（A1：下一 function 为中断处理，C 编译器自动保存/恢复寄存器+iret） */
+    TOKEN_ATTR_SEND,      /**< 属性 #[send]（L6：下一 struct 可安全跨线程传递；设计决策标记，C 前端不强制） */
+    TOKEN_ATTR_SYNC,      /**< 属性 #[sync]（L6：下一 struct 可安全跨线程共享；设计决策标记，C 前端不强制） */
+    TOKEN_ATTR_GLOBAL_ALLOCATOR, /**< 属性 #[global_allocator]（L1：下一 function 为全局分配器入口） */
+    TOKEN_ATTR_COLD,       /**< 属性 #[cold]（冷路径优化提示） */
+    TOKEN_ATTR_INLINE_NEVER,  /**< 属性 #[inline(never)]（禁止内联） */
+    TOKEN_ATTR_INLINE_ALWAYS, /**< 属性 #[inline(always)]（强制内联） */
+    TOKEN_ATTR_EXPORT_NAME,   /**< 属性 #[export_name("name")]（导出符号名） */
+    TOKEN_ATTR_PANIC_HANDLER, /**< 属性 #[panic_handler]（panic 处理函数） */
+    TOKEN_ATTR_THREAD_LOCAL,  /**< 属性 #[thread_local]（线程局部存储） */
+    TOKEN_ATTR_PERCPU,        /**< 属性 #[percpu]（per-CPU 数据段） */
     TOKEN_ALIGN,    /**< 关键字 align（DOD-CL：struct 字段 align(N) cache line 对齐） */
     TOKEN_ENUM,     /**< 关键字 enum（枚举定义，§7） */
     TOKEN_GOTO,     /**< 关键字 goto（跳转） */

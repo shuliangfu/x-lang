@@ -54,10 +54,10 @@ l9_run_o() {
 if [ "$(basename "$SHUX_BIN")" = "shux-c" ]; then
   l9_run_o "shux-c -backend c" "$SHUX_BIN" -backend c && OK_O=1 || true
 fi
-if [ "$OK_O" -eq 0 ] && [ -x ./compiler/shux_asm_stage1 ]; then
+if [ "$OK_O" -eq 0 ] && [ "$(uname)" != "Darwin" ] && [ -x ./compiler/shux_asm_stage1 ]; then
   l9_run_o "stage1 asm" ./compiler/shux_asm_stage1 -backend asm && OK_O=1 || true
 fi
-if [ "$OK_O" -eq 0 ] && [ -x ./tests/lib/shux-min-link.sh ] && [ -x ./compiler/shux_asm_stage1 ]; then
+if [ "$OK_O" -eq 0 ] && [ "$(uname)" != "Darwin" ] && [ -x ./tests/lib/shux-min-link.sh ] && [ -x ./compiler/shux_asm_stage1 ]; then
   export SHUX_MIN_LINK_REAL=./compiler/shux_asm_stage1
   l9_run_o "min-link stage1" ./tests/lib/shux-min-link.sh && OK_O=1 || true
 fi

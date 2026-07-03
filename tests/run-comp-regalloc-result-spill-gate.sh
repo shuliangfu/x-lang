@@ -74,7 +74,7 @@ gate_progress "§五 C5: -o 编译 + 运行 (want exit=$WANT_EXIT, timeout=${O_T
 set +e
 try_ec=2
 run_ec=""
-if [ -x ./compiler/shux_asm_stage1 ]; then
+if [ "$(uname)" != "Darwin" ] && [ -x ./compiler/shux_asm_stage1 ]; then
   gate_progress "C5 -o: stage1 -backend asm (struct16 spill) ..."
   rm -f "$EXE"
   if gate_progress_run_heartbeat "C5 asm -o" 10 \

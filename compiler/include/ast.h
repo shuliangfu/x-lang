@@ -48,6 +48,7 @@ typedef struct ASTType {
     struct ASTType *elem_type;  /**< 对于 AST_TYPE_PTR / AST_TYPE_ARRAY 为元素类型，其它为 NULL */
     int array_size;    /**< 对于 AST_TYPE_ARRAY 为编译期常量长度 N，其它为 0 */
     const char *region_label;  /**< M-3：仅 AST_TYPE_SLICE；域标签（T[]<label>），NULL 表示未绑定域 */
+    int is_volatile;            /**< K2：仅 AST_TYPE_PTR；1 表示指向 volatile（`*volatile T`），解引用不可被 DCE/GVN/autovec 消除（MMIO）。默认 0 */
 } ASTType;
 
 /** 表达式节点类型：字面量、变量引用、二元运算、一元运算 */
@@ -220,6 +221,11 @@ typedef struct ASTExpr {
             int num_inputs;
             char **clobbers;        /**< clobber 列表（strdup 数组，由 ast_expr_free 释放） */
             int num_clobbers;
+            char **options;         /**< options 列表（strdup 裸标识符；由 ast_expr_free 释放）。K1c */
+            int num_options;
+            int is_goto;            /**< asm goto! 标志：1=asm goto（第五段为 label 列表） */
+            char **labels;          /**< asm goto! label 列表（strdup 裸标识符；由 ast_expr_free 释放） */
+            int num_labels;
         } asm_tmpl;
         struct {
             struct ASTExpr *callee;  /**< 被调用表达式（当前仅 VAR 标识符）；由 ast_expr_free 释放 */
@@ -278,6 +284,7 @@ typedef struct ASTLabeledStmt {
 typedef struct ASTStructField {
     char *name;           /**< 字段名（strdup，由 ast_struct_def_free 释放） */
     struct ASTType *type; /**< 字段类型，不可为 NULL */
+    int bitfield_width;   /**< 位域宽度（>0 表示位域，0 表示普通字段） */
 } ASTStructField;
 
 /** 单结构体最大字段数（与 parser MAX_STRUCT_FIELDS_DEF 一致），用于布局偏移数组 */
@@ -303,6 +310,8 @@ typedef struct ASTStructDef {
     int field_min_align[AST_STRUCT_MAX_FIELDS]; /**< DOD-CL：align(N) 最小对齐；0 表示未指定 */
     int struct_size;   /**< 结构体总大小（字节），含末尾对齐；未计算时为 0 */
     int struct_align;  /**< 结构体对齐要求（字节）；未计算时为 0 */
+    int is_send;   /**< L6：#[send] 可安全跨线程传递（设计决策标记） */
+    int is_sync;   /**< L6：#[sync] 可安全跨线程共享（设计决策标记） */
 } ASTStructDef;
 
 /** 单枚举最大变体数（与 parser 一致） */
@@ -328,6 +337,9 @@ typedef struct ASTLetDecl {
     struct ASTType *type;   /**< 如 i32/bool/u8 等，或用户自定义类型名 */
     struct ASTExpr *init;
     int is_const;           /**< 仅顶层有效：1=const，0=let；块内 const 用 ASTBlock::const_decls */
+    const char *section;    /**< K4：#[link_section("name")] 段名（strdup，仅顶层 const/let；ast_module_free 释放）；NULL 表示默认段 */
+    int is_thread_local;  /**< #[thread_local] 线程局部存储 */
+    int is_percpu;        /**< #[percpu] per-CPU 数据段 */
 } ASTLetDecl;
 
 /** 类型别名：type Alias = TargetType;（纯 typeck 别名，codegen 输出 typedef） */
@@ -439,9 +451,25 @@ typedef struct ASTFunc {
     int is_extern;     /**< 1 表示 extern "C" 声明，无体，由链接器解析 C 符号；0 表示普通 .sx 函数 */
     int is_async;      /**< 1 表示 async function（P2）；await 仅允许在其体内（A2c） */
     int is_alloc_attr; /**< MEM-C1：1 表示 #[alloc] 标记（块内 scope / 块外 heap 注入，见 analysis §3.4 AL-01/02） */
+    int is_naked;      /**< K3：1 表示 #[naked]（无 prologue/epilogue，体须仅 asm!；ISR/入口用） */
+    int is_entry;      /**< K5：1 表示 #[entry]（内核入口 _start：naked+noreturn+外部链接，codegen 改名 _start） */
+    int is_used;       /**< K10：1 表示 #[used]（不被 C 编译器消除，外部链接；ISR/asm! 引用的函数用） */
+    int is_no_mangle;  /**< L9：1 表示 #[no_mangle]（外部链接+不 DCE，C 前端名字透传无 mangling） */
+    const char *link_name; /**< L9：#[link_name("name")] 外部符号名（strdup，ast_module_free 释放）；NULL 表示用原名 */
+    int max_stack;      /**< L4：#[max_stack(N)] 栈用量上限（0=未设）；编译期分析超限则告警 */
+    int is_interrupt;   /**< A1：#[interrupt] 中断处理函数（C 编译器自动 push/pop + iret） */
+    int is_global_allocator; /**< L1：#[global_allocator] 全局分配器入口函数 */
+    int is_thread_local;  /**< #[thread_local] 线程局部存储（仅 let/const） */
+    int is_percpu;        /**< #[percpu] per-CPU 数据段（仅 let/const） */
+    int is_cold;          /**< #[cold] 冷路径优化提示 */
+    int is_inline_never;  /**< #[inline(never)] 禁止内联 */
+    int is_inline_always; /**< #[inline(always)] 强制内联 */
+    const char *export_name; /**< #[export_name("name")] 导出符号名 */
+    int is_panic_handler; /**< #[panic_handler] panic 处理函数 */
     /** 以下仅当本函数为 impl 块内方法时非 NULL；codegen 用于生成 mangle 名（阶段 7.2） */
     const char *impl_for_trait; /**< 所属 trait 名，NULL 表示顶层函数 */
     const char *impl_for_type;  /**< 实现类型名（如 i32、Foo），NULL 表示顶层函数 */
+    const char *section;     /**< K4b：#[link_section("name")] 段名（strdup，ast_module_free 释放）；NULL 表示默认 .text */
 } ASTFunc;
 
 /** trait 内单条方法签名：方法名 + 返回类型（形参仅要求 impl 时首参为 self: Type，阶段 7.2 最小） */

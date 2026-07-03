@@ -963,6 +963,143 @@ static int lexer_lex_repr_compatible_attr(Lexer *l, Token *out) {
 }
 
 /**
+ * K4：若当前位置为 #[link_section("name")]，消费整段并写入 TOKEN_ATTR_LINK_SECTION；
+ * value.ident/ident_len 为段名（解码后存入 l->str_buf，调用方须在使用前 strndup）。成功返回 1。
+ */
+static int lexer_lex_link_section_attr(Lexer *l, Token *out) {
+    static const char prefix[] = "#[link_section(";
+    int line, col, off = 0;
+    size_t plen = sizeof(prefix) - 1;
+    if (!l || !l->src || !out || (size_t)(l->end - l->src) < plen + 4)
+        return 0;
+    if (memcmp(l->src, prefix, plen) != 0)
+        return 0;
+    line = l->line; col = l->col;
+    for (size_t i = 0; i < plen; i++)
+        lexer_advance(l);
+    if (l->src >= l->end || lexer_peek(l) != '"')
+        return 0;
+    lexer_advance(l);  /* opening " */
+    while (l->src < l->end && lexer_peek(l) != '"') {
+        int ch = lexer_advance(l);
+        if (ch == '\\' && l->src < l->end) {
+            int esc = lexer_advance(l);
+            if (off < (int)sizeof(l->str_buf) - 1)
+                l->str_buf[off++] = (char)esc;
+            continue;
+        }
+        if (off < (int)sizeof(l->str_buf) - 1)
+            l->str_buf[off++] = (char)ch;
+    }
+    if (l->src >= l->end || lexer_peek(l) != '"')
+        return 0;
+    lexer_advance(l);  /* closing " */
+    if (l->src >= l->end || lexer_peek(l) != ')')
+        return 0;
+    lexer_advance(l);  /* ) */
+    if (l->src >= l->end || lexer_peek(l) != ']')
+        return 0;
+    lexer_advance(l);  /* ] */
+    l->str_buf[off] = '\0';
+    out->kind = TOKEN_ATTR_LINK_SECTION;
+    out->line = line; out->col = col;
+    out->value.ident = l->str_buf;
+    out->ident_len = off;
+    return 1;
+}
+
+/**
+ * #[export_name("name")] — 导出符号名（与 #[link_name] 相同模式）。
+ */
+static int lexer_lex_export_name_attr(Lexer *l, Token *out) {
+    static const char prefix[] = "#[export_name(";
+    int line, col, off = 0;
+    size_t plen = sizeof(prefix) - 1;
+    if (!l || !l->src || !out || (size_t)(l->end - l->src) < plen + 4)
+        return 0;
+    if (memcmp(l->src, prefix, plen) != 0)
+        return 0;
+    line = l->line; col = l->col;
+    for (size_t i = 0; i < plen; i++)
+        lexer_advance(l);
+    if (l->src >= l->end || lexer_peek(l) != '"')
+        return 0;
+    lexer_advance(l);
+    while (l->src < l->end && lexer_peek(l) != '"') {
+        int ch = lexer_advance(l);
+        if (ch == '\\' && l->src < l->end) {
+            int esc = lexer_advance(l);
+            if (off < (int)sizeof(l->str_buf) - 1)
+                l->str_buf[off++] = (char)esc;
+            continue;
+        }
+        if (off < (int)sizeof(l->str_buf) - 1)
+            l->str_buf[off++] = (char)ch;
+    }
+    if (l->src >= l->end || lexer_peek(l) != '"')
+        return 0;
+    lexer_advance(l);
+    if (l->src >= l->end || lexer_peek(l) != ')')
+        return 0;
+    lexer_advance(l);
+    if (l->src >= l->end || lexer_peek(l) != ']')
+        return 0;
+    lexer_advance(l);
+    l->str_buf[off] = '\0';
+    out->kind = TOKEN_ATTR_EXPORT_NAME;
+    out->line = line; out->col = col;
+    out->value.ident = l->str_buf;
+    out->ident_len = off;
+    return 1;
+}
+
+/**
+ * L9：若当前位置为 #[link_name("name")]，消费整段并写入 TOKEN_ATTR_LINK_NAME；
+ * value.ident/ident_len 为符号名（解码后存入 l->str_buf，调用方须在使用前 strndup）。成功返回 1。
+ */
+static int lexer_lex_link_name_attr(Lexer *l, Token *out) {
+    static const char prefix[] = "#[link_name(";
+    int line, col, off = 0;
+    size_t plen = sizeof(prefix) - 1;
+    if (!l || !l->src || !out || (size_t)(l->end - l->src) < plen + 4)
+        return 0;
+    if (memcmp(l->src, prefix, plen) != 0)
+        return 0;
+    line = l->line; col = l->col;
+    for (size_t i = 0; i < plen; i++)
+        lexer_advance(l);
+    if (l->src >= l->end || lexer_peek(l) != '"')
+        return 0;
+    lexer_advance(l);  /* opening " */
+    while (l->src < l->end && lexer_peek(l) != '"') {
+        int ch = lexer_advance(l);
+        if (ch == '\\' && l->src < l->end) {
+            int esc = lexer_advance(l);
+            if (off < (int)sizeof(l->str_buf) - 1)
+                l->str_buf[off++] = (char)esc;
+            continue;
+        }
+        if (off < (int)sizeof(l->str_buf) - 1)
+            l->str_buf[off++] = (char)ch;
+    }
+    if (l->src >= l->end || lexer_peek(l) != '"')
+        return 0;
+    lexer_advance(l);  /* closing " */
+    if (l->src >= l->end || lexer_peek(l) != ')')
+        return 0;
+    lexer_advance(l);  /* ) */
+    if (l->src >= l->end || lexer_peek(l) != ']')
+        return 0;
+    lexer_advance(l);  /* ] */
+    l->str_buf[off] = '\0';
+    out->kind = TOKEN_ATTR_LINK_NAME;
+    out->line = line; out->col = col;
+    out->value.ident = l->str_buf;
+    out->ident_len = off;
+    return 1;
+}
+
+/**
  * B-01 v1：若当前位置为 #[cfg(...)]，求值 host 匹配并写入 out（TOKEN_ATTR_CFG）；成功返回 1。
  */
 static int lexer_lex_cfg_attr(Lexer *l, Token *out) {
@@ -1056,6 +1193,12 @@ void lexer_next(Lexer *l, Token *out) {
     /* MOD-02：#[repr(compatible)] → TOKEN_ATTR_REPR_COMPATIBLE。 */
     if (c == '#' && l->src + 1 < l->end && l->src[1] == '[' && lexer_lex_repr_compatible_attr(l, out))
         return;
+    /* K4：#[link_section("name")] → TOKEN_ATTR_LINK_SECTION。 */
+    if (c == '#' && l->src + 1 < l->end && l->src[1] == '[' && lexer_lex_link_section_attr(l, out))
+        return;
+    /* L9：#[link_name("name")] → TOKEN_ATTR_LINK_NAME。 */
+    if (c == '#' && l->src + 1 < l->end && l->src[1] == '[' && lexer_lex_link_name_attr(l, out))
+        return;
     /* DOD-S1：#[soa] 属性 token */
     if (c == '#' && l->src + 6 <= l->end && l->src[1] == '[' && l->src[2] == 's' && l->src[3] == 'o'
         && l->src[4] == 'a' && l->src[5] == ']') {
@@ -1089,6 +1232,210 @@ void lexer_next(Lexer *l, Token *out) {
         out->line = line;
         out->col = col;
         out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    /* K3：#[naked] 属性 token（下一 function 无 prologue/epilogue，体须仅 asm!）。 */
+    if (c == '#' && l->src + 8 <= l->end && l->src[1] == '[' && l->src[2] == 'n' && l->src[3] == 'a'
+        && l->src[4] == 'k' && l->src[5] == 'e' && l->src[6] == 'd' && l->src[7] == ']') {
+        int line = l->line, col = l->col;
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        out->kind = TOKEN_ATTR_NAKED;
+        out->line = line;
+        out->col = col;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    /* K5：#[entry] 属性 token（下一 function 为内核入口 _start）。 */
+    if (c == '#' && l->src + 8 <= l->end && l->src[1] == '[' && l->src[2] == 'e' && l->src[3] == 'n'
+        && l->src[4] == 't' && l->src[5] == 'r' && l->src[6] == 'y' && l->src[7] == ']') {
+        int line = l->line, col = l->col;
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        out->kind = TOKEN_ATTR_ENTRY;
+        out->line = line;
+        out->col = col;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    /* K10：#[used] 属性 token（下一 function 不被 C 编译器消除，外部链接；ISR/asm! 引用用）。 */
+    if (c == '#' && l->src + 7 <= l->end && l->src[1] == '[' && l->src[2] == 'u' && l->src[3] == 's'
+        && l->src[4] == 'e' && l->src[5] == 'd' && l->src[6] == ']') {
+        int line = l->line, col = l->col;
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        lexer_advance(l);
+        out->kind = TOKEN_ATTR_USED;
+        out->line = line;
+        out->col = col;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    /* #[export_name("name")] — reuse link_name scanner pattern */
+    if (c == '#' && l->src + 1 < l->end && l->src[1] == '[' && lexer_lex_export_name_attr(l, out))
+        return;
+    /* L9：#[no_mangle] 属性 token（下一 function 外部链接+不 DCE；C 前端名字透传）。 */
+    if (c == '#' && l->src + 12 <= l->end && l->src[1] == '[' && l->src[2] == 'n' && l->src[3] == 'o'
+        && l->src[4] == '_' && l->src[5] == 'm' && l->src[6] == 'a' && l->src[7] == 'n'
+        && l->src[8] == 'g' && l->src[9] == 'l' && l->src[10] == 'e' && l->src[11] == ']') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 12; i++) lexer_advance(l);
+        out->kind = TOKEN_ATTR_NO_MANGLE;
+        out->line = line;
+        out->col = col;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    /* A1：#[interrupt] 属性 token（下一 function 为中断处理，C 编译器自动保存/恢复寄存器+iret）。 */
+    if (c == '#' && l->src + 13 <= l->end && l->src[1] == '[' && l->src[2] == 'i' && l->src[3] == 'n'
+        && l->src[4] == 't' && l->src[5] == 'e' && l->src[6] == 'r' && l->src[7] == 'r'
+        && l->src[8] == 'u' && l->src[9] == 'p' && l->src[10] == 't' && l->src[11] == ']') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 12; i++) lexer_advance(l);
+        out->kind = TOKEN_ATTR_INTERRUPT;
+        out->line = line;
+        out->col = col;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    /* L6：#[send] 属性 token（下一 struct 可安全跨线程传递；设计决策标记）。 */
+    if (c == '#' && l->src + 8 <= l->end && l->src[1] == '[' && l->src[2] == 's' && l->src[3] == 'e'
+        && l->src[4] == 'n' && l->src[5] == 'd' && l->src[6] == ']') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 7; i++) lexer_advance(l);
+        out->kind = TOKEN_ATTR_SEND;
+        out->line = line;
+        out->col = col;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    /* L6：#[sync] 属性 token（下一 struct 可安全跨线程共享；设计决策标记）。 */
+    if (c == '#' && l->src + 8 <= l->end && l->src[1] == '[' && l->src[2] == 's' && l->src[3] == 'y'
+        && l->src[4] == 'n' && l->src[5] == 'c' && l->src[6] == ']') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 7; i++) lexer_advance(l);
+        out->kind = TOKEN_ATTR_SYNC;
+        out->line = line;
+        out->col = col;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    /* L1：#[global_allocator] 属性 token（下一 function 为全局分配器入口）。 */
+    if (c == '#' && l->src + 20 <= l->end && l->src[1] == '[' && l->src[2] == 'g' && l->src[3] == 'l'
+        && l->src[4] == 'o' && l->src[5] == 'b' && l->src[6] == 'a' && l->src[7] == 'l'
+        && l->src[8] == '_' && l->src[9] == 'a' && l->src[10] == 'l' && l->src[11] == 'l'
+        && l->src[12] == 'o' && l->src[13] == 'c' && l->src[14] == 'a' && l->src[15] == 't'
+        && l->src[16] == 'o' && l->src[17] == 'r' && l->src[18] == ']') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 19; i++) lexer_advance(l);
+        out->kind = TOKEN_ATTR_GLOBAL_ALLOCATOR;
+        out->line = line;
+        out->col = col;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    /* #[cold] — 冷路径优化提示 */
+    if (c == '#' && l->src + 7 <= l->end && l->src[1] == '[' && l->src[2] == 'c' && l->src[3] == 'o'
+        && l->src[4] == 'l' && l->src[5] == 'd' && l->src[6] == ']') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 7; i++) lexer_advance(l);
+        out->kind = TOKEN_ATTR_COLD; out->line = line; out->col = col;
+        out->value.ident = NULL; out->ident_len = 0; return;
+    }
+    /* #[panic_handler] — panic 处理函数 */
+    if (c == '#' && l->src + 16 <= l->end && l->src[1] == '[' && l->src[2] == 'p' && l->src[3] == 'a'
+        && l->src[4] == 'n' && l->src[5] == 'i' && l->src[6] == 'c' && l->src[7] == '_'
+        && l->src[8] == 'h' && l->src[9] == 'a' && l->src[10] == 'n' && l->src[11] == 'd'
+        && l->src[12] == 'l' && l->src[13] == 'e' && l->src[14] == 'r' && l->src[15] == ']') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 16; i++) lexer_advance(l);
+        out->kind = TOKEN_ATTR_PANIC_HANDLER; out->line = line; out->col = col;
+        out->value.ident = NULL; out->ident_len = 0; return;
+    }
+    /* #[inline(never)] — 禁止内联 */
+    if (c == '#' && l->src + 15 <= l->end && l->src[1] == '[' && l->src[2] == 'i' && l->src[3] == 'n'
+        && l->src[4] == 'l' && l->src[5] == 'i' && l->src[6] == 'n' && l->src[7] == 'e'
+        && l->src[8] == '(' && l->src[9] == 'n' && l->src[10] == 'e' && l->src[11] == 'v'
+        && l->src[12] == 'e' && l->src[13] == 'r' && l->src[14] == ')') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 15; i++) lexer_advance(l);
+        if (l->src < l->end && lexer_peek(l) == ']') { lexer_advance(l); }
+        out->kind = TOKEN_ATTR_INLINE_NEVER; out->line = line; out->col = col;
+        out->value.ident = NULL; out->ident_len = 0; return;
+    }
+    /* #[inline(always)] — 强制内联 */
+    if (c == '#' && l->src + 17 <= l->end && l->src[1] == '[' && l->src[2] == 'i' && l->src[3] == 'n'
+        && l->src[4] == 'l' && l->src[5] == 'i' && l->src[6] == 'n' && l->src[7] == 'e'
+        && l->src[8] == '(' && l->src[9] == 'a' && l->src[10] == 'l' && l->src[11] == 'w'
+        && l->src[12] == 'a' && l->src[13] == 'y' && l->src[14] == 's' && l->src[15] == ')') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 16; i++) lexer_advance(l);
+        if (l->src < l->end && lexer_peek(l) == ']') { lexer_advance(l); }
+        out->kind = TOKEN_ATTR_INLINE_ALWAYS; out->line = line; out->col = col;
+        out->value.ident = NULL; out->ident_len = 0; return;
+    }
+    /* #[thread_local] — 线程局部存储 */
+    if (c == '#' && l->src + 15 <= l->end && l->src[1] == '[' && l->src[2] == 't' && l->src[3] == 'h'
+        && l->src[4] == 'r' && l->src[5] == 'e' && l->src[6] == 'a' && l->src[7] == 'd'
+        && l->src[8] == '_' && l->src[9] == 'l' && l->src[10] == 'o' && l->src[11] == 'c'
+        && l->src[12] == 'a' && l->src[13] == 'l' && l->src[14] == ']') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 15; i++) lexer_advance(l);
+        out->kind = TOKEN_ATTR_THREAD_LOCAL; out->line = line; out->col = col;
+        out->value.ident = NULL; out->ident_len = 0; return;
+    }
+    /* #[percpu] — per-CPU 数据段 */
+    if (c == '#' && l->src + 10 <= l->end && l->src[1] == '[' && l->src[2] == 'p' && l->src[3] == 'e'
+        && l->src[4] == 'r' && l->src[5] == 'c' && l->src[6] == 'p' && l->src[7] == 'u'
+        && l->src[8] == ']') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 9; i++) lexer_advance(l);
+        out->kind = TOKEN_ATTR_PERCPU; out->line = line; out->col = col;
+        out->value.ident = NULL; out->ident_len = 0; return;
+    }
+    /* L4：#[max_stack(N)] 属性 token（下一 function 栈用量上限；value.int_val 为 N）。 */
+    if (c == '#' && l->src + 14 <= l->end && l->src[1] == '[' && l->src[2] == 'm' && l->src[3] == 'a'
+        && l->src[4] == 'x' && l->src[5] == '_' && l->src[6] == 's' && l->src[7] == 't'
+        && l->src[8] == 'a' && l->src[9] == 'c' && l->src[10] == 'k' && l->src[11] == '(') {
+        int line = l->line, col = l->col;
+        for (int i = 0; i < 12; i++) lexer_advance(l); /* #[max_stack( */
+        int n = 0;
+        while (l->src < l->end && lexer_peek(l) >= '0' && lexer_peek(l) <= '9') {
+            n = n * 10 + (lexer_advance(l) - '0');
+        }
+        if (l->src >= l->end || lexer_peek(l) != ')') return; /* parse error */
+        lexer_advance(l); /* ) */
+        if (l->src >= l->end || lexer_peek(l) != ']') return;
+        lexer_advance(l); /* ] */
+        out->kind = TOKEN_ATTR_MAX_STACK;
+        out->line = line;
+        out->col = col;
+        out->value.int_val = n;
         out->ident_len = 0;
         return;
     }

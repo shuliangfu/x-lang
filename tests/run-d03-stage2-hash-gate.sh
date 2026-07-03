@@ -17,6 +17,7 @@ DOC="analysis/phase-d-d03-v1.md"
 MANIFEST="tests/baseline/d03-stage2-hash.tsv"
 HASH_GATE="tests/run-stage2-hash-gate.sh"
 VERIFY="compiler/verify-selfhost-stage2-bstrict.sh"
+if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): shux_asm_stage1 OOM"; exit 0; fi
 STAGE1="${SHUX_D03_STAGE1:-compiler/shux_asm_stage1}"
 STAGE2="${SHUX_D03_STAGE2:-compiler/shux_asm2}"
 

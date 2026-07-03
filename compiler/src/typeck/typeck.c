@@ -2599,13 +2599,32 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             if (e->value.unary.operand)
                 return typeck_expr_sym(e->value.unary.operand, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m);
             return 0;
-        case AST_EXPR_ASM:
+        case AST_EXPR_ASM: {
+            int ai;
             if (!typeck_fill_only && typeck_unsafe_depth <= 0) {
                 TYPECK_ERR(e, "asm! requires unsafe block");
                 return -1;
             }
+            /* output 操作数须为左值（可赋值），并递归 typeck */
+            for (ai = 0; ai < e->value.asm_tmpl.num_outputs; ai++) {
+                struct ASTExpr *oe = e->value.asm_tmpl.outputs[ai].expr;
+                if (!oe) continue;
+                if (typeck_expr_sym(oe, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+                if (!typeck_fill_only && oe->kind != AST_EXPR_VAR && oe->kind != AST_EXPR_INDEX
+                    && oe->kind != AST_EXPR_FIELD_ACCESS && oe->kind != AST_EXPR_DEREF) {
+                    TYPECK_ERR(oe, "asm! output operand must be an lvalue (variable/index/field/deref)");
+                    return -1;
+                }
+            }
+            /* input 操作数递归 typeck */
+            for (ai = 0; ai < e->value.asm_tmpl.num_inputs; ai++) {
+                struct ASTExpr *ie = e->value.asm_tmpl.inputs[ai].expr;
+                if (!ie) continue;
+                if (typeck_expr_sym(ie, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+            }
             ((struct ASTExpr *)e)->resolved_type = &static_type_void;
             return 0;
+        }
         case AST_EXPR_MATCH: {
             if (typeck_expr_sym(e->value.match_expr.matched_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
             int match_kind;
@@ -4167,8 +4186,16 @@ int typeck_one_function(struct ASTModule *m, struct ASTModule **dep_mods, int nu
         int tl_n = 0;
         for (int i = 0; i < m->num_top_level_lets; i++) {
             if (tl_n >= MAX_SYMTAB) return -1;
-            if (typeck_expr_sym(m->top_level_lets[i].init, tl_names, tl_type_kinds, tl_type_names, tl_n, tl_type_ptrs, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m) != 0)
-                return -1;
+            /* K6：顶层 const/let 的 struct 字面量 { ... } 须从声明类型补 struct_name；
+             * 与块内 let(3706)一致，typeck 前设 typeck_ctx_expected_return 为声明类型。 */
+            {
+                const struct ASTType *prev_ret = typeck_ctx_expected_return;
+                typeck_ctx_expected_return = m->top_level_lets[i].type;
+                int rcr = typeck_expr_sym(m->top_level_lets[i].init, tl_names, tl_type_kinds, tl_type_names, tl_n, tl_type_ptrs, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m);
+                typeck_ctx_expected_return = prev_ret;
+                if (rcr != 0)
+                    return -1;
+            }
             typeck_coerce_top_level_let_init(m->top_level_lets[i].type, (struct ASTExpr *)m->top_level_lets[i].init);
             if (m->top_level_lets[i].type && m->top_level_lets[i].init->resolved_type
                 && !type_equal(m->top_level_lets[i].type, m->top_level_lets[i].init->resolved_type))
@@ -4526,8 +4553,15 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
                 TYPECK_ERR_AT(0, 0, "too many top-level lets");
                 return -1;
             }
-            if (typeck_expr_sym(m->top_level_lets[i].init, tl_names, tl_type_kinds, tl_type_names, tl_n, tl_type_ptrs, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m) != 0)
-                return -1;
+            /* K6：顶层 const/let struct 字面量补 struct_name（与 4189 一致，设 ctx 为声明类型） */
+            {
+                const struct ASTType *prev_ret2 = typeck_ctx_expected_return;
+                typeck_ctx_expected_return = m->top_level_lets[i].type;
+                int rcr2 = typeck_expr_sym(m->top_level_lets[i].init, tl_names, tl_type_kinds, tl_type_names, tl_n, tl_type_ptrs, 0, m->struct_defs, m->num_structs, m->enum_defs, m->num_enums, m);
+                typeck_ctx_expected_return = prev_ret2;
+                if (rcr2 != 0)
+                    return -1;
+            }
             typeck_coerce_top_level_let_init(m->top_level_lets[i].type, (struct ASTExpr *)m->top_level_lets[i].init);
             if (m->top_level_lets[i].type && m->top_level_lets[i].init->resolved_type
                 && !typeck_let_init_matches(m->top_level_lets[i].type, m->top_level_lets[i].init)

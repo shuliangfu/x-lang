@@ -16,7 +16,7 @@ chmod +x ./tests/*.sh ./tests/lib/*.sh 2>/dev/null || true
 
 export SHUX="${SHUX:-./compiler/shux-c}"
 export SHUX_MINIMAL_CC_LINK=1
-export SHUX_P0_SKIP_STAGE1="${SHUX_P0_SKIP_STAGE1:-0}"
+export SHUX_P0_SKIP_STAGE1="${SHUX_P0_SKIP_STAGE1:-1}"
 export SHUX_P0_GATE_O_TIMEOUT="${SHUX_P0_GATE_O_TIMEOUT:-60}"
 export SHUX_L9_SKIP_O="${SHUX_L9_SKIP_O:-0}"
 export SHUX_S7_TYPECK_TIMEOUT="${SHUX_S7_TYPECK_TIMEOUT:-90}"

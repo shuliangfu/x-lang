@@ -18,6 +18,21 @@ cd "$(dirname "$0")/.."
 source tests/lib/gate-progress.sh
 # shellcheck source=tests/lib/p0-gate-shux.sh
 source tests/lib/p0-gate-shux.sh
+
+# macOS 守卫：shux_asm_stage1 在 macOS 上会吃 60G+ 内存（asm 后端无限内存），
+# 所有直接调用 shux_asm_stage1 的 gate 在 macOS 上自动 SKIP。
+SHUX_IS_MACOS=0
+if [ "$(uname)" = "Darwin" ]; then
+  SHUX_IS_MACOS=1
+fi
+# macOS 上跳过依赖 shux_asm_stage1 的 gate
+skip_stage1_gate() {
+  if [ "$SHUX_IS_MACOS" = "1" ]; then
+    gate_progress "SKIP (macOS): $1 — shux_asm_stage1 会 OOM"
+    return 0
+  fi
+  return 1
+}
 gate_progress "自举前必须清单 gate 加载完成（§三→§九 顺序）"
 if [ -z "${SHUX:-}" ] && seed="$(p0_gate_default_seed 2>/dev/null || true)" && [ -n "$seed" ]; then
   export SHUX="$seed"

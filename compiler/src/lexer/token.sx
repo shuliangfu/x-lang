@@ -55,6 +55,26 @@ enum TokenKind {
   TOKEN_ATTR_REPR_COMPATIBLE,
   /** MEM-C1：#[alloc]；下一 function 为 Allocator 自动注入 API */
   TOKEN_ATTR_ALLOC,
+  /** K4：#[link_section("name")]；下一 const/let/function 落入指定段 */
+  TOKEN_ATTR_LINK_SECTION,
+  /** K3：#[naked]；下一 function 无 prologue/epilogue，体须仅 asm! */
+  TOKEN_ATTR_NAKED,
+  /** K5：#[entry]；下一 function 为内核入口 _start */
+  TOKEN_ATTR_ENTRY,
+  /** K10：#[used]；下一 function 不被 C 编译器消除，外部链接 */
+  TOKEN_ATTR_USED,
+  /** L9：#[no_mangle]；下一 function 外部链接+不 DCE */
+  TOKEN_ATTR_NO_MANGLE,
+  /** L9：#[link_name("name")]；下一 function/extern 用指定符号名 */
+  TOKEN_ATTR_LINK_NAME,
+  /** L4：#[max_stack(N)]；下一 function 栈用量上限 */
+  TOKEN_ATTR_MAX_STACK,
+  /** A1：#[interrupt]；下一 function 为中断处理（C 编译器自动 push/pop + iret） */
+  TOKEN_ATTR_INTERRUPT,
+  /** L6：#[send]；下一 struct 可安全跨线程传递 */
+  TOKEN_ATTR_SEND,
+  /** L6：#[sync]；下一 struct 可安全跨线程共享 */
+  TOKEN_ATTR_SYNC,
   /** DOD-CL：struct 字段 align(N) cache line 对齐 */
   TOKEN_ALIGN,
   TOKEN_ENUM,

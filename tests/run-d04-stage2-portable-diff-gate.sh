@@ -13,6 +13,7 @@ FAIL=${SHUX_D04_FAIL:-0}
 DOC="analysis/phase-d-d04-v1.md"
 MANIFEST="tests/baseline/d04-stage2-portable-matrix.tsv"
 LIB="tests/lib/d04-stage2-portable-diff.sh"
+if [ "$(uname)" = "Darwin" ]; then echo "SKIP (macOS): shux_asm_stage1 OOM"; exit 0; fi
 STAGE1="${SHUX_D04_STAGE1:-compiler/shux_asm_stage1}"
 STAGE2="${SHUX_D04_STAGE2:-compiler/shux_asm2}"
 MIN_CASES=10

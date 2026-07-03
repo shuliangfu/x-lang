@@ -115,6 +115,11 @@ extern function pipeline_dep_ctx_empty_param_backup(ctx: *PipelineDepCtx): void;
 extern function pipeline_dep_ctx_empty_param_restore(ctx: *PipelineDepCtx): void;
 extern function pipeline_module_func_body_expr_ref_at(module: *Module, fi: i32): i32;
 extern function pipeline_module_func_is_extern_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_is_used_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_is_naked_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_is_entry_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_is_no_mangle_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_is_interrupt_at(module: *Module, fi: i32): i32;
 extern function pipeline_module_func_param_type_ref_at(module: *Module, fi: i32, pi: i32): i32;
 /** Block 池读（ast_pool.c）；emit_block 经 glue 访问 const/let/if/expr。 */
 extern function pipeline_block_const_name_copy64(arena: *ASTArena, br: i32, ci: i32, dst: *u8): void;
@@ -5944,6 +5949,26 @@ function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module, fi: i
   let fn_local: u8[64] = [];
   codegen_copy_func_name64_from_module(module, fi, &fn_local[0]);
   let fn_len: i32 = pipeline_module_func_name_len_at(module, fi);
+  /* K10：#[used] 不被 C 编译器消除，外部链接 */
+  if (pipeline_module_func_is_used_at(module, fi) != 0) {
+    let used_attr: u8[27] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 115, 101, 100, 41, 41, 32, 0, 0, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &used_attr[0], 22) != 0) { return -1; }
+  }
+  /* K3：#[naked] 无 prologue/epilogue */
+  if (pipeline_module_func_is_naked_at(module, fi) != 0) {
+    let naked_attr: u8[29] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 110, 97, 107, 101, 100, 41, 41, 32, 0, 0, 0, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &naked_attr[0], 23) != 0) { return -1; }
+  }
+  /* K5：#[entry] 入口不返回 */
+  if (pipeline_module_func_is_entry_at(module, fi) != 0) {
+    let entry_attr: u8[30] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 110, 111, 114, 101, 116, 117, 114, 110, 41, 41, 32, 0, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &entry_attr[0], 26) != 0) { return -1; }
+  }
+  /* A1：#[interrupt] 中断处理 */
+  if (pipeline_module_func_is_interrupt_at(module, fi) != 0) {
+    let int_attr: u8[31] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 105, 110, 116, 101, 114, 114, 117, 112, 116, 41, 41, 32, 0, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &int_attr[0], 27) != 0) { return -1; }
+  }
   if (emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) != 0) {
     return -1;
   }
@@ -6256,6 +6281,26 @@ function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutBuf, mod
   let kw: u8[8] = [101, 120, 116, 101, 114, 110, 32, 0];
   if (emit_bytes_from_ptr(out, &kw[0], 7) != 0) {
     return -1;
+  }
+  /* K10：#[used] 不被 C 编译器消除，外部链接 */
+  if (pipeline_module_func_is_used_at(module, fi) != 0) {
+    let used_attr: u8[27] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 117, 115, 101, 100, 41, 41, 32, 0, 0, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &used_attr[0], 22) != 0) { return -1; }
+  }
+  /* K3：#[naked] 无 prologue/epilogue */
+  if (pipeline_module_func_is_naked_at(module, fi) != 0) {
+    let naked_attr: u8[29] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 110, 97, 107, 101, 100, 41, 41, 32, 0, 0, 0, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &naked_attr[0], 23) != 0) { return -1; }
+  }
+  /* K5：#[entry] 入口不返回 */
+  if (pipeline_module_func_is_entry_at(module, fi) != 0) {
+    let entry_attr: u8[30] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 110, 111, 114, 101, 116, 117, 114, 110, 41, 41, 32, 0, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &entry_attr[0], 26) != 0) { return -1; }
+  }
+  /* A1：#[interrupt] 中断处理 */
+  if (pipeline_module_func_is_interrupt_at(module, fi) != 0) {
+    let int_attr: u8[31] = [95, 95, 97, 116, 116, 114, 105, 98, 117, 116, 101, 95, 95, 40, 40, 105, 110, 116, 101, 114, 114, 117, 112, 116, 41, 41, 32, 0, 0, 0, 0];
+    if (emit_bytes_from_ptr(out, &int_attr[0], 27) != 0) { return -1; }
   }
   if (emit_type(arena, out, pipeline_module_func_return_type_at(module, fi), prefix, prefix_len, ctx) != 0) {
     return -1;

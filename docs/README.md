@@ -15,12 +15,24 @@
 | [07-内置与标准库](./07-内置与标准库.md) | core.* / std.* 模块、内建占位与常用 API |
 | [08-语法规范](./08-语法规范.md) | 缩进、分号、块与 `}`、命名、空格等书写规范 |
 | [09-条件编译](./09-条件编译.md) | `#if` 与 `#[cfg(...)]` 选用、`target_os` / `-target`、标准库模式 |
+| [10-内核级特性](./10-内核级特性.md) | 内联汇编 `asm!`/`asm goto!`、volatile 指针、位域、内核属性、构建链、QEMU 测试套件（30 项） |
 
 ## 约定
 
 - **文件后缀**：`.sx`
 - **入口**：含 `main` 的模块为可执行程序；无 `main` 的模块可作为库被 `import`
 - **风格**：表达式为主；语句后加分号（如 `const`/`let`/`return`/`goto` 等）
+
+## 内核开发工具链
+
+```sh
+make kernel              # 跑全部 30 个 QEMU 内核测试
+make kernel-build SX=tests/kernel/shuxos.sx  # 构建单个内核 ELF
+make kernel-longmode    # x86_64 长模式 QEMU 启动
+make kernel-ist          # IST 结构验证
+```
+
+依赖：`zig cc`（交叉编译）、`qemu-system-x86_64`（QEMU 测试）。详见 [10-内核级特性](./10-内核级特性.md)。
 
 ## 文档维护
 

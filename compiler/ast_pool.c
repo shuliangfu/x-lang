@@ -1200,6 +1200,70 @@ void pipeline_module_func_set_is_async(struct ast_Module *m, int32_t fi, int32_t
     f->is_async = is_async;
 }
 
+/** K10：设置 module 第 fi 个函数是否为 #[used]（不被 C 编译器消除，外部链接）。 */
+void pipeline_module_func_set_is_used(struct ast_Module *m, int32_t fi, int32_t is_used) {
+  struct ast_Func *f = module_func_at(m, fi);
+  if (f)
+    f->is_used = is_used;
+}
+
+/** K10：读取 module 第 fi 个函数是否为 #[used]。 */
+int32_t pipeline_module_func_is_used_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0 || func_index >= m->num_funcs)
+    return 0;
+  f = module_func_at(m, func_index);
+  return f ? (int32_t)f->is_used : 0;
+}
+
+/** K3：设置 module 第 fi 个函数是否为 #[naked]。 */
+void pipeline_module_func_set_is_naked(struct ast_Module *m, int32_t fi, int32_t is_naked) {
+  struct ast_Func *f = module_func_at(m, fi);
+  if (f) f->is_naked = is_naked;
+}
+int32_t pipeline_module_func_is_naked_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0 || func_index >= m->num_funcs) return 0;
+  f = module_func_at(m, func_index);
+  return f ? (int32_t)f->is_naked : 0;
+}
+
+/** K5：设置 module 第 fi 个函数是否为 #[entry]。 */
+void pipeline_module_func_set_is_entry(struct ast_Module *m, int32_t fi, int32_t is_entry) {
+  struct ast_Func *f = module_func_at(m, fi);
+  if (f) f->is_entry = is_entry;
+}
+int32_t pipeline_module_func_is_entry_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0 || func_index >= m->num_funcs) return 0;
+  f = module_func_at(m, func_index);
+  return f ? (int32_t)f->is_entry : 0;
+}
+
+/** L9：设置 module 第 fi 个函数是否为 #[no_mangle]。 */
+void pipeline_module_func_set_is_no_mangle(struct ast_Module *m, int32_t fi, int32_t is_no_mangle) {
+  struct ast_Func *f = module_func_at(m, fi);
+  if (f) f->is_no_mangle = is_no_mangle;
+}
+int32_t pipeline_module_func_is_no_mangle_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0 || func_index >= m->num_funcs) return 0;
+  f = module_func_at(m, func_index);
+  return f ? (int32_t)f->is_no_mangle : 0;
+}
+
+/** A1：设置 module 第 fi 个函数是否为 #[interrupt]。 */
+void pipeline_module_func_set_is_interrupt(struct ast_Module *m, int32_t fi, int32_t is_interrupt) {
+  struct ast_Func *f = module_func_at(m, fi);
+  if (f) f->is_interrupt = is_interrupt;
+}
+int32_t pipeline_module_func_is_interrupt_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0 || func_index >= m->num_funcs) return 0;
+  f = module_func_at(m, func_index);
+  return f ? (int32_t)f->is_interrupt : 0;
+}
+
 int32_t pipeline_module_func_is_async_at(struct ast_Module *m, int32_t func_index) {
   struct ast_Func *f;
   if (!m || func_index < 0 || func_index >= m->num_funcs)
