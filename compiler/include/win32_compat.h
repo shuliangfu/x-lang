@@ -137,7 +137,7 @@ static inline int asm_asm_codegen_elf_o(void *m, void *a, void *c, void *e, void
 
 /* parser 模块查询桩——shux-c C 前端不需要 import 解析 */
 static inline int parser_get_module_num_imports(void *m) { (void)m; return 0; }
-static inline int parser_get_module_import_path(void *m, int i, char *dst, int cap) { (void)m; (void)i; (void)dst; (void)cap; return 0; }
+static inline void parser_get_module_import_path(void *m, int i, unsigned char *path_buf) { (void)m; (void)i; if(path_buf) path_buf[0] = 0; }
 
 #endif /* _WIN32 */
 #endif /* SHUX_WIN32_COMPAT_H */

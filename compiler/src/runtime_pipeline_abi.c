@@ -1258,8 +1258,10 @@ int shux_merge_deps_path_already_out(const char *path, char *out_paths[], int n_
 }
 
 /** parser.sx：读 module import 路径与 parse_into（dep 传递闭包收集用）。 */
+#ifndef _WIN32
 extern int32_t parser_get_module_num_imports(void *module);
 extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf);
+#endif
 
 /**
  * build_shux_asm（ENTRY_MODULE_ONLY + SKIP_TYPECK）：仅读入口 direct import 源码（不递归传递闭包），
