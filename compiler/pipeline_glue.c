@@ -39,6 +39,7 @@
 #include "simd_enc.h"
 #include "simd_loop.h"
 #include "async_asm_pool.h"
+#include "ast.h"
 
 struct shux_slice_uint8_t {
   uint8_t *data;
