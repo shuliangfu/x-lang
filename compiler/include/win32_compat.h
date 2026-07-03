@@ -71,6 +71,14 @@ static inline char *realpath(const char *path, char *resolved) {
 #define access _access
 #endif
 
+/* setenv — MinGW 无此函数 */
+static inline int setenv(const char *name, const char *value, int overwrite) {
+    (void)overwrite; return _putenv_s(name, value) == 0 ? 0 : -1;
+}
+static inline int unsetenv(const char *name) {
+    return _putenv_s(name, "") == 0 ? 0 : -1;
+}
+
 /* strtok_r — MinGW 有 strtok_s */
 #ifndef strtok_r
 #define strtok_r strtok_s
