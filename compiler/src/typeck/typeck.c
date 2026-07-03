@@ -3545,7 +3545,7 @@ static int typeck_coerce_array_var_to_slice_type(struct ASTExpr *init, const str
  */
 static void typeck_bce_push_lt_cond(const struct ASTExpr *cond,
                                     const char *const *names, int n,
-                                    int const_start, int n_consts, const int *const_values)
+                                    int const_start, int n_consts, const int64_t *const_values)
 {
     const struct ASTExpr *left;
     const struct ASTExpr *right;
