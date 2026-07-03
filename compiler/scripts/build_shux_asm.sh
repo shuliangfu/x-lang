@@ -3864,8 +3864,12 @@ ensure_asm_link_objs() {
     printf '#include <stddef.h>\nint atoi(const char *n) { int v=0; while(*n>=48&&*n<=57){v=v*10+(*n-48);n++;} return v; }\n' > /tmp/atoi_stub_$$.c
     "$CC" $CFLAGS -c -o atoi_stub.o /tmp/atoi_stub_$$.c
     rm -f /tmp/atoi_stub_$$.c
+    # 合并 atoi_stub 到 runtime_panic.o（确保所有链接路径都有 atoi 符号）
+    if [ -f runtime_panic.o ] && [ -f atoi_stub.o ]; then
+      cp runtime_panic.o runtime_panic_no_atoi.o
+      ld -r -o runtime_panic.o runtime_panic_no_atoi.o atoi_stub.o 2>/dev/null && rm -f runtime_panic_no_atoi.o || cp runtime_panic_no_atoi.o runtime_panic.o
+    fi
   fi
-  export SHUX_ATOI_STUB="atoi_stub.o"
 }
 
 # 用户程序 asm 链预编译 runtime 对象（nostdlib shux_asm 无 fork+cc，须在 build 阶段产出）。
