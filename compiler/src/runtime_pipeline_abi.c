@@ -868,6 +868,9 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
     if (!ctx)
         return;
     ctx->use_asm_backend = 0;
+#ifdef _WIN32
+    return; /* Windows: import 解析不支持，跳过整个函数 */
+#else
     if (!dep_mods || !dep_ars || !dep_paths || ndep <= 0) {
         ast_pipeline_dep_ctx_set_ndep(ctx, 0);
         return;
@@ -886,15 +889,11 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
     }
     memset(tmp_arena, 0, pipeline_sizeof_arena());
     memset(tmp_module, 0, pipeline_sizeof_module());
-#ifndef _WIN32
     parser_parse_into_init(tmp_module, tmp_arena);
     {
         struct shux_slice_uint8_t dep_slice = { (uint8_t *)dep_src, dep_src_len };
         struct parser_ParseIntoResult pr = parser_parse_into(tmp_arena, tmp_module, &dep_slice);
         n_imp = parser_get_module_num_imports(tmp_module);
-#else
-    n_imp = 0; /* Windows: 无 import 解析 */
-#endif
     if (pr.ok != 0 && pr.ok != -2) {
             free(tmp_arena);
             free(tmp_module);
