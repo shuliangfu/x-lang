@@ -10,7 +10,47 @@
 #include "lsp/lsp_diag.h"
 #include "runtime_driver_abi.h"
 #include "runtime_io_abi.h"
+#ifdef _WIN32
+/* MinGW 无 dirent.h 的 d_type/DT_REG——用 _findfirst/_findnext 兼容层 */
+#include <io.h>
+#include <direct.h>
+#define DT_DIR _A_SUBDIR
+#define DT_REG _A_NORMAL
+#define DT_UNKNOWN 0
+struct dirent {
+    char d_name[260];
+    unsigned char d_type;
+};
+typedef struct { intptr_t handle; struct _finddata_t fd; int first; struct dirent ent; } DIR;
+static DIR *opendir_win(const char *name) {
+    char pattern[512];
+    DIR *d = (DIR *)calloc(1, sizeof(DIR));
+    if (!d) return NULL;
+    snprintf(pattern, sizeof(pattern), "%s/*", name);
+    d->handle = _findfirst(pattern, &d->fd);
+    if (d->handle == -1) { free(d); return NULL; }
+    d->first = 1;
+    return d;
+}
+static struct dirent *readdir_win(DIR *d) {
+    if (!d || d->handle == -1) return NULL;
+    if (d->first) { d->first = 0; }
+    else { if (_findnext(d->handle, &d->fd) != 0) return NULL; }
+    strncpy(d->ent.d_name, d->fd.name, sizeof(d->ent.d_name) - 1);
+    d->ent.d_name[sizeof(d->ent.d_name) - 1] = 0;
+    d->ent.d_type = (d->fd.attrib & _A_SUBDIR) ? DT_DIR : DT_REG;
+    return &d->ent;
+}
+static void closedir_win(DIR *d) {
+    if (d && d->handle != -1) _findclose(d->handle);
+    free(d);
+}
+#define opendir opendir_win
+#define readdir readdir_win
+#define closedir closedir_win
+#else
 #include <dirent.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
