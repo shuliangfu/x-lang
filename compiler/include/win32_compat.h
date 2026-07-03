@@ -1,6 +1,4 @@
-/* win32_compat.h — MinGW POSIX 兼容层
- * 提供 MinGW 缺失的 POSIX 头文件、宏、函数声明。
- * 在 .c 文件中 #include 此文件即可（仅在 _WIN32 下生效）。 */
+/* win32_compat.h — MinGW POSIX 兼容层 */
 #ifndef SHUX_WIN32_COMPAT_H
 #define SHUX_WIN32_COMPAT_H
 
@@ -21,25 +19,20 @@ static inline char *strndup(const char *s, size_t n) {
 }
 
 /* waitpid 宏 — Windows 无 sys/wait.h */
+#ifndef WIFEXITED
 #define WIFEXITED(s) 1
 #define WEXITSTATUS(s) ((s) & 0xFF)
 #define WIFSIGNALED(s) 0
 #define WTERMSIG(s) 0
 #define WIFSTOPPED(s) 0
-typedef int pid_t;
-static inline int waitpid(pid_t pid, int *status, int options) {
-    (void)pid; (void)options;
-    if (status) *status = 0;
-    return 0;
+static inline int waitpid(int pid, int *status, int options) {
+    (void)pid; (void)options; if (status) *status = 0; return 0;
 }
-static inline int kill(pid_t pid, int sig) {
-    (void)pid; (void)sig; return 0;
-}
+static inline int kill(int pid, int sig) { (void)pid; (void)sig; return 0; }
+#endif
 
-/* fork/exec — Windows 用 _spawnvp 替代 */
-static inline pid_t fork(void) { return -1; }
-static inline int execlp(const char *p, ...) { (void)p; return -1; }
-static inline int execv(const char *p, char *const av[]) { (void)p; (void)av; return -1; }
+/* fork — Windows 无；返回 -1 表示不支持 */
+static inline int fork(void) { return -1; }
 
 /* sys/resource.h — Windows 无 */
 struct rusage { int ru_utime; int ru_stime; };
@@ -50,25 +43,33 @@ static inline int getrusage(int who, struct rusage *ru) { (void)who; if(ru) mems
 struct utsname { char sysname[128]; char nodename[128]; char release[128]; char version[128]; char machine[128]; };
 static inline int uname(struct utsname *buf) {
     if (!buf) return -1;
-    strncpy(buf->sysname, "Windows", sizeof(buf->sysname));
-    strncpy(buf->machine, "x86_64", sizeof(buf->machine));
+    strncpy(buf->sysname, "Windows", sizeof(buf->sysname)-1);
+    strncpy(buf->machine, "x86_64", sizeof(buf->machine)-1);
     buf->nodename[0] = 0; buf->release[0] = 0; buf->version[0] = 0;
     return 0;
 }
 
-/* fcntl.h — 简化 */
+/* realpath — MinGW 无 */
+static inline char *realpath(const char *path, char *resolved) {
+    if (!path) return NULL;
+    if (!resolved) resolved = (char *)malloc(260);
+    if (!resolved) return NULL;
+    _fullpath(resolved, path, 260);
+    return resolved;
+}
+
+/* fcntl.h */
+#ifndef F_OK
 #define F_OK 0
 #define W_OK 2
 #define R_OK 4
 #define X_OK 4
+#endif
 
 /* access — MinGW 有 _access */
 #ifndef access
 #define access _access
 #endif
-
-/* readlink — Windows 无 */
-static inline ssize_t readlink(const char *p, char *buf, size_t sz) { (void)p; (void)buf; (void)sz; return -1; }
 
 /* strtok_r — MinGW 有 strtok_s */
 #ifndef strtok_r
