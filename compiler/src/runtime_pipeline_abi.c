@@ -829,8 +829,16 @@ struct parser_ParseIntoResult {
 };
 extern void parser_parse_into_init(void *module, void *arena);
 extern struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source);
+#ifndef _WIN32
+#ifndef _WIN32
 extern int32_t parser_get_module_num_imports(void *module);
+#endif
+#endif
+#ifndef _WIN32
+#ifndef _WIN32
 extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf);
+#endif
+#endif
 
 /**
  * 单 dep 预跑 ctx：按 dep 自身 import 表过滤 ctx 槽（import_idx 与 ctx 下标一一对应）。
