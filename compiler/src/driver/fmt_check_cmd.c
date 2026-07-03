@@ -11,6 +11,7 @@
 #include "runtime_driver_abi.h"
 #include "runtime_io_abi.h"
 #ifdef _WIN32
+#include <stdlib.h>
 /* MinGW 无 dirent.h 的 d_type/DT_REG——用 _findfirst/_findnext 兼容层 */
 #include <io.h>
 #include <direct.h>
