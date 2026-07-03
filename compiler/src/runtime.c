@@ -2041,11 +2041,19 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     return 1;
                 }
                 {
-                    #ifdef _WIN32
-        runtime_diag("build error", "fork not supported on Windows", input_path); return -1;
-#else
-        pid_t cpid = fork();
                     int cc_ok = 0;
+#ifdef _WIN32
+                    /* Windows: 用 _spawnvp 替代 fork+execlp */
+                    const char *cc_args[] = {"gcc", "-std=gnu11", "-Wall", "-Wextra", "-c", "-o",
+                                             (char *)out_path, tmp_lib_c, NULL};
+                    intptr_t spawn_rc = _spawnvp(_P_WAIT, "gcc", cc_args);
+                    if (spawn_rc != 0) {
+                        diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
+                                    "cc -c failed for library module", NULL);
+                        cc_ok = -1;
+                    }
+#else
+                    pid_t cpid = fork();
                     if (cpid < 0) {
                         runtime_diag_errno_path(input_path, "build error", "fork (cc -c)", out_path);
                         cc_ok = -1;
@@ -2056,7 +2064,6 @@ int RUN_CC_FUNC(int argc, char **argv) {
                         _exit(127);
                     } else {
                         int status = 0;
-                        #endif
                         if (shu_waitpid_retry(cpid, &status) != 0 ||
                             !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
                             diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
@@ -2064,6 +2071,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                             cc_ok = -1;
                         }
                     }
+#endif
                     if (cc_ok != 0)
                         diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
                                      "cc failed, keeping generated C: %s", tmp_lib_c);
