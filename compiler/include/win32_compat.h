@@ -5,6 +5,7 @@
 #ifdef _WIN32
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <io.h>
 #include <direct.h>
@@ -145,8 +146,14 @@ static inline void parser_get_module_import_path(void *m, int i, unsigned char *
 /* pipeline_debug_trace_named_func_bodies — 实际定义在 runtime_pipeline_abi.c 中 */
 
 
+#ifndef SHUX_SLICE_UINT8_T_DEFINED
+#define SHUX_SLICE_UINT8_T_DEFINED
 struct shux_slice_uint8_t { uint8_t *data; size_t length; };
+#endif
+#ifndef SHUX_PARSER_PARSE_INTO_RESULT_DEFINED
+#define SHUX_PARSER_PARSE_INTO_RESULT_DEFINED
 struct parser_ParseIntoResult { int32_t ok; int32_t main_idx; };
+#endif
 static inline void parser_parse_into_init(void *m, void *a) { (void)m; (void)a; }
 static inline struct parser_ParseIntoResult parser_parse_into(void *a, void *m, void *s) { struct parser_ParseIntoResult r = {-1,-1}; (void)a; (void)m; (void)s; return r; }
 
