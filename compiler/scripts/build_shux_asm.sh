@@ -3958,7 +3958,7 @@ bootstrap_link_tail_driver() {
 # NL-07 v5：nostdlib 静态链不链 libpthread（libpthread 依赖 libc；桩见 bootstrap_nostdlib_stubs.c）。
 bootstrap_pipeline_libs() {
   if bootstrap_wants_nostdlib; then
-    echo "-lc"
+    echo "-lc -lgcc"
   elif [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
     echo "-luring -lpthread"
   else
