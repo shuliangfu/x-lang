@@ -75,7 +75,7 @@ run_smoke() {
     if [ "$_rc" -ne 0 ]; then
       return 1
     fi
-    cc -O2 -o "$SMOKE_OUT" "${SMOKE_OUT}.c" 2>>"$_log"
+    ${CC:-cc} -O2 -o "$SMOKE_OUT" "${SMOKE_OUT}.c" 2>>"$_log"
     _rc=$?
     rm -f "${SMOKE_OUT}.c"
     if [ "$_rc" -ne 0 ]; then
