@@ -1330,7 +1330,7 @@ fi
 fi
 
 # 链接：仅当 main.o 与 pipeline.o 均来自 asm 时，用 asm 版链接。
-# 优先尝试「无 C 桩」路径（仅 Linux）：crt0_x86_64.o + typeck_f64_bits.o + runtime_panic.o + build_asm/*.o + libc/libm；
+# 优先尝试「无 C 桩」路径（仅 Linux）：crt0_x86_64.o + typeck_f64_bits.o + runtime_panic.o atoi_stub.o + build_asm/*.o + libc/libm；
 # 失败或非 Linux 时回退到 runtime_asm_build.o + runtime_driver.o + -E 流水线 .o + C 种子（不并 build_asm/*.o，见上文）。
 #
 # 下列用 cc 直接编译，不调用 make，以便在「仅 bootstrap.sh + build_tool」环境下完成 asm 链接（朝去掉 Makefile 走一步）。
@@ -3838,26 +3838,33 @@ ensure_typeck_asm_bare_link_alias_obj() {
   fi
 }
 
-# 确保 runtime_panic.o / crt0 / typeck_f64_bits 存在（逻辑与 compiler/Makefile 中对应规则一致）
+# 确保 runtime_panic.o atoi_stub.o / crt0 / typeck_f64_bits 存在（逻辑与 compiler/Makefile 中对应规则一致）
 ensure_asm_link_objs() {
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
   ALPINE=0
   test -f /etc/alpine-release && ALPINE=1
   if [ "$UNAME_S" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
-    echo "  cc -c runtime_panic.o <- src/asm/runtime_panic_x86_64.s"
-    "$CC" -c -o runtime_panic.o src/asm/runtime_panic_x86_64.s
+    echo "  cc -c runtime_panic.o atoi_stub.o <- src/asm/runtime_panic_x86_64.s"
+    "$CC" -c -o runtime_panic.o atoi_stub.o src/asm/runtime_panic_x86_64.s
   elif [ -f src/asm/runtime_panic_arm64.c ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
-    echo "  cc -c runtime_panic.o <- src/asm/runtime_panic_arm64.c"
-    "$CC" $CFLAGS -c -o runtime_panic.o src/asm/runtime_panic_arm64.c
+    echo "  cc -c runtime_panic.o atoi_stub.o <- src/asm/runtime_panic_arm64.c"
+    "$CC" $CFLAGS -c -o runtime_panic.o atoi_stub.o src/asm/runtime_panic_arm64.c
   else
-    echo "  cc -c runtime_panic.o <- src/asm/runtime_panic.c"
-    "$CC" $CFLAGS -c -o runtime_panic.o src/asm/runtime_panic.c
+    echo "  cc -c runtime_panic.o atoi_stub.o <- src/asm/runtime_panic.c"
+    "$CC" $CFLAGS -c -o runtime_panic.o atoi_stub.o src/asm/runtime_panic.c
   fi
   if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
     echo "  cc -c src/asm/crt0_x86_64.o <- src/asm/crt0_x86_64.s"
     "$CC" -c -o src/asm/crt0_x86_64.o src/asm/crt0_x86_64.s
   fi
   ensure_typeck_f64_bits_obj
+  # atoi stub: 生成的 pipeline 代码调用 atoi（libc），nostdlib 链接缺此符号
+  if [ ! -f atoi_stub.o ]; then
+    echo '  cc -c atoi_stub.o (atoi stub for nostdlib link)'
+    printf '#include <stddef.h>\nint atoi(const char *n) { int v=0; while(*n>=48&&*n<=57){v=v*10+(*n-48);n++;} return v; }\n' > /tmp/atoi_stub_$$.c
+    "$CC" $CFLAGS -c -o atoi_stub.o /tmp/atoi_stub_$$.c
+    rm -f /tmp/atoi_stub_$$.c
+  fi
 }
 
 # 用户程序 asm 链预编译 runtime 对象（nostdlib shux_asm 无 fork+cc，须在 build 阶段产出）。
@@ -4097,8 +4104,8 @@ shux_asm_bstrict_relink_runtime_only() {
   ST_LAYOUT_PARTIAL=""
   ST_PIPELINE_ALIAS=""
   ST_STRICT_FB_SX_TAIL=""
-  if [ -f runtime_panic.o ]; then
-    ST_RUNTIME_PANIC="runtime_panic.o"
+  if [ -f runtime_panic.o atoi_stub.o ]; then
+    ST_RUNTIME_PANIC="runtime_panic.o atoi_stub.o"
   fi
   refresh_build_asm_ci_text_stubs_for_strict_link || true
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] \
@@ -4216,7 +4223,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # B-strict（SKIP_GEN）须 asm_only_strict（含 runtime_driver）；crt0 链无 driver，成功反而会触发末尾 bstrict 失败。
   if [ -n "${SHUX_ASM_EXPERIMENTAL_SKIP_GEN:-}" ]; then
     build_shux_asm_info "SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 - skip crt0 link (use asm_only_strict; crt0 见 make bootstrap-driver-crt0)"
-  elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ] && [ -f src/typeck/typeck_f64_bits.o ] && [ -f runtime_panic.o ]; then
+  elif [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/crt0_x86_64.o ] && [ -f src/typeck/typeck_f64_bits.o ] && [ -f runtime_panic.o atoi_stub.o ]; then
     echo "  linking shux_asm (crt0 + typeck_f64_bits + runtime_panic + asm*.o, no runtime_driver) ..."
     CRT0_ASM=""
     for _co in $NONEMPTY_ASM; do
@@ -4237,7 +4244,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
       BOOT_CRT0_TAIL=$(bootstrap_link_tail_crt0)
       build_shux_asm_info "trying bootstrap nostdlib crt0 link (SHUX_BOOTSTRAP_NOSTDLIB=1)"
       # shellcheck disable=SC2086
-      "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o \
+      "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o atoi_stub.o \
         $CRT0_ASM $BOOT_CRT0_TAIL 2>"$BUILD_DIR/.bootstrap_nostdlib_link_err"
       CRT_RC=$?
       if [ "$CRT_RC" -ne 0 ]; then
@@ -4253,7 +4260,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
       # F-no-libc track：默认 crt0 链仍须 libc/libm；用户 freestanding 走 runtime NL-05 无 libc。
       BOOT_CRT0_TAIL=$(bootstrap_link_tail_crt0)
       # shellcheck disable=SC2086
-      "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o $CRT0_ASM $BOOT_CRT0_TAIL
+      "$CC" $CFLAGS -o shux_asm src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o runtime_panic.o atoi_stub.o $CRT0_ASM $BOOT_CRT0_TAIL
       CRT_RC=$?
     fi
     # F-no-libc NL-07 END
@@ -4591,7 +4598,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
               ensure_asm_strict_link_extra_objs
               ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
               ensure_asm_link_objs
-              ST_RUNTIME_PANIC="runtime_panic.o"
+              ST_RUNTIME_PANIC="runtime_panic.o atoi_stub.o"
               ST_BRIDGE_OBJ=""
               ST_SEED_PARSER_TCK=""
               ST_SEED_PREPROCESS_LINK=""
