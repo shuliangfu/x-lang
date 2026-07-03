@@ -110,5 +110,17 @@ static inline int munmap(void *addr, size_t length) { (void)length; free(addr); 
 
 /* fork 返回 -1（不支持）已在上面定义 */
 
+
+/* posix_memalign — MinGW 无 */
+static inline int posix_memalign(void **memptr, size_t alignment, size_t size) {
+    *memptr = _aligned_malloc(size, alignment);
+    return *memptr ? 0 : -1;
+}
+
+/* pthread_attr_setguardsize — MinGW 无 */
+static inline int pthread_attr_setguardsize(void *attr, size_t guardsize) {
+    (void)attr; (void)guardsize; return 0;
+}
+
 #endif /* _WIN32 */
 #endif /* SHUX_WIN32_COMPAT_H */
