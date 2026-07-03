@@ -7,7 +7,7 @@
 #   comp_link_sym_classify "$(cat ci.log)"
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 PATTERNS="${SHUX_LINK_SYM_PATTERNS:-$ROOT/tests/baseline/comp-link-sym-patterns.tsv}"
 
 # 剥 Mach-O 前导下划线，便于与 manifest 期望比对。

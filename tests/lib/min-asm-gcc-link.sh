@@ -8,7 +8,7 @@
 #   min_asm_gcc_link ./compiler/shux_asm tests/typeck/ctfe/i64_min_not_zero.sx /tmp/i64_exe
 
 # shellcheck source=tests/lib/build-std-c-o.sh
-. "$(dirname "${BASH_SOURCE[0]}")/build-std-c-o.sh"
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/build-std-c-o.sh"
 
 # 解析 gcc 可执行路径（Docker gcc 镜像优先 /usr/local/bin/gcc）。
 min_asm_pick_gcc() {

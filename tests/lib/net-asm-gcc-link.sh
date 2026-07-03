@@ -9,7 +9,7 @@
 #   net_asm_gcc_link tests/net/main.sx /tmp/shux_net
 
 # shellcheck source=tests/lib/build-std-c-o.sh
-. "$(dirname "${BASH_SOURCE[0]}")/build-std-c-o.sh"
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/build-std-c-o.sh"
 
 # 用 shux_asm emit 用户 .o（-o *.o 只生成对象，不触发旧 link_abi 缺陷路径）。
 net_asm_emit_user_o() {

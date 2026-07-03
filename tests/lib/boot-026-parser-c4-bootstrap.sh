@@ -7,7 +7,7 @@
 #   boot026_emit_report status c4_minimal_ok c4_sx_probe skip
 
 BOOT026_PREFIX="${SHUX_BOOT026_PREFIX:-shux: [SHUX_BOOT026]}"
-_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")"
+_LIB_DIR="$(dirname "${BASH_SOURCE[0]:-$0}")"
 # shellcheck source=tests/lib/comp-riscv64.sh
 . "$_LIB_DIR/comp-riscv64.sh"
 # shellcheck source=tests/lib/ci-host.sh

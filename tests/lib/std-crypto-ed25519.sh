@@ -3,7 +3,7 @@
 
 STD_CRYPTO_ED25519_PREFIX="${SHUX_STD126_CRYPTO_ED25519_PREFIX:-shux: [SHUX_STD126_CRYPTO_ED25519]}"
 # shellcheck source=tests/lib/std-crypto.sh
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/std-crypto.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/std-crypto.sh"
 
 # 校验 manifest 中 api/const/symbol/file/smoke 条目是否存在于对应文件。
 std_crypto_ed25519_symbols_ok() {

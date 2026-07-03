@@ -3,7 +3,7 @@
 
 STD_CRYPTO_SHA512_HMAC_PREFIX="${SHUX_STD_CRYPTO_SHA512_HMAC_PREFIX:-shux: [SHUX_STD_CRYPTO_SHA512_HMAC]}"
 # shellcheck source=tests/lib/std-crypto.sh
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/std-crypto.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/std-crypto.sh"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke 锚点。
 std_crypto_sha512_hmac_symbols_ok() {

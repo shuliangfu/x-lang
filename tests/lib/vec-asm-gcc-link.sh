@@ -9,7 +9,7 @@
 #   vec_link_exe ./compiler/shux_asm tests/vec/main.sx /tmp/shux_vec
 
 # shellcheck source=tests/lib/build-std-c-o.sh
-. "$(dirname "${BASH_SOURCE[0]}")/build-std-c-o.sh"
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/build-std-c-o.sh"
 
 # 用 shux_asm emit 用户 .o（-o *.o 只生成对象，不触发旧 link_abi 缺陷路径）。
 vec_asm_emit_user_o() {

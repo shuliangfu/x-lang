@@ -3,7 +3,7 @@
 
 STD_CRYPTO_CHACHA_PREFIX="${SHUX_STD113_CRYPTO_CHACHA_PREFIX:-shux: [SHUX_STD113_CRYPTO_CHACHA]}"
 # shellcheck source=tests/lib/std-crypto.sh
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/std-crypto.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/std-crypto.sh"
 
 std_crypto_chacha_symbols_ok() {
   local mod_sx="$1"

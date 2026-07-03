@@ -9,9 +9,9 @@
 #   p0_gate_try_run_o "$bin" "$sx" "$exe"
 
 # shellcheck source=tests/lib/ci-host.sh
-. "$(dirname "${BASH_SOURCE[0]}")/ci-host.sh"
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/ci-host.sh"
 # shellcheck source=tests/lib/gate-progress.sh
-. "$(dirname "${BASH_SOURCE[0]}")/gate-progress.sh" 2>/dev/null || true
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/gate-progress.sh" 2>/dev/null || true
 
 p0_gate_log() {
   if declare -F gate_progress >/dev/null 2>&1; then
@@ -148,7 +148,7 @@ p0_gate_try_run_o() {
   if [ "$ec" -ne 0 ] || [ ! -x "$exe" ]; then
     p0_gate_log "-o 直链失败 ec=$ec，尝试 min-link ..."
     local min_wrap root
-    root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+    root="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
     min_wrap="$root/tests/lib/shux-min-link.sh"
     if [ -x "$min_wrap" ] && [ -x "$bin" ]; then
       export SHUX_MIN_LINK_REAL="$bin"

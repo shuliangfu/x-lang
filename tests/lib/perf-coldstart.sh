@@ -4,7 +4,7 @@
 # 读取 coldstart-perf.tsv cap、判断 native shux。
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 CAP_FILE="${SHUX_PERF_COLDSTART_CAP:-$ROOT/tests/baseline/coldstart-perf.tsv}"
 
 # 本机可执行 shux（与 perf-compile-dogfood gate 一致）。

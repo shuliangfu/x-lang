@@ -12,7 +12,7 @@ COMP015_PREFIX="${SHUX_COMP015_PREFIX:-shux: [SHUX_COMP015_WPO_PROD]}"
 comp_wpo_prod_linux_asm() {
   [ "$(uname -s 2>/dev/null)" = "Linux" ] || return 1
   # shellcheck source=tests/lib/comp-wpo.sh
-  . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/tests/lib/comp-wpo.sh"
+  . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)/tests/lib/comp-wpo.sh"
   comp_wpo_native_exe ./compiler/shux_asm \
     || comp_wpo_native_exe ./compiler/shux_asm.experimental \
     || comp_wpo_native_exe ./compiler/shux_asm.strict

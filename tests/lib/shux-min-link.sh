@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 # shellcheck source=tests/lib/min-asm-gcc-link.sh
 . "$ROOT/tests/lib/min-asm-gcc-link.sh"
 

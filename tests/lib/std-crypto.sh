@@ -111,7 +111,7 @@ std_crypto_c_link_objs() {
 # 确保 crypto runtime 胶层 .o 已编译。
 std_crypto_ensure_runtime_glue_o() {
   # shellcheck source=tests/lib/build-std-c-o.sh
-  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/build-std-c-o.sh"
+  . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/build-std-c-o.sh"
   ensure_runtime_ed25519_ref10_glue_o
   ensure_runtime_crypto_inc_glue_o
 }

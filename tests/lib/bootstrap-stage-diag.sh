@@ -19,7 +19,7 @@
 #   SHUX_BOOT_STAGE_PATTERNS — 覆盖模式表路径
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 PATTERNS="${SHUX_BOOT_STAGE_PATTERNS:-$ROOT/tests/baseline/bootstrap-stage-patterns.tsv}"
 
 read_log() {
@@ -88,6 +88,6 @@ main() {
 }
 
 # 被 source 时不自动执行。
-if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+if [ "${BASH_SOURCE[0]:-$0}" = "${0}" ]; then
   main "$@"
 fi

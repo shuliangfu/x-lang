@@ -5,7 +5,7 @@
 #   tool_deps_sha256_file PATH
 #   tool_deps_relpath_from_repo ABS_PATH [REPO_ROOT]
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 
 # 计算文件 sha256（小写 hex）；Linux 用 sha256sum，macOS 用 shasum。
 tool_deps_sha256_file() {

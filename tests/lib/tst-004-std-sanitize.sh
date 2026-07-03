@@ -10,14 +10,14 @@
 TST004_SAN_PREFIX="${SHUX_TST004_SANITIZE_PREFIX:-shux: [SHUX_TST004_SANITIZE]}"
 
 # shellcheck source=tests/lib/safe-leak.sh
-. "$(dirname "${BASH_SOURCE[0]}")/safe-leak.sh"
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/safe-leak.sh"
 
 # 按需构建 std C .o（相对 compiler/Makefile）。
 tst004_sanitize_ensure_o() {
   local rel="$1"
   [ -z "$rel" ] || [ "$rel" = "-" ] && return 0
   # shellcheck source=tests/lib/build-std-c-o.sh
-  . "$(dirname "${BASH_SOURCE[0]}")/build-std-c-o.sh"
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/build-std-c-o.sh"
   ensure_std_c_o "$rel"
 }
 

@@ -4,7 +4,7 @@
 # 校验边界符号在源码中存在，并可选检查 payload 类型名。
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 BOUNDARY="${SHUX_FEB_CONTRACT_BOUNDARY:-$ROOT/tests/baseline/comp-feb-contract-boundary.tsv}"
 
 # 在源码文件中查找符号定义或声明（function / extern function）。

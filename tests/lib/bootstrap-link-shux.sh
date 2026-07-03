@@ -3,7 +3,7 @@
 # 用法：在 run-*.sh 中 `. "$(dirname "$0")/lib/bootstrap-link-shux.sh"` 后使用 $RUN_SHUX。
 
 # shellcheck source=tests/lib/ci-host.sh
-. "$(dirname "${BASH_SOURCE[0]}")/ci-host.sh"
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/ci-host.sh"
 
 # 默认与 SHUX 相同；run-all 会 export SHUX_LINK_SHUX=./compiler/shux-c。
 # bootstrap（SHUX_RUN_ALL_BOOTSTRAP_SHUX=1）：-o 链接默认 shux-c；seed shux 仍由各脚本 $SHUX 做 check/typeck。
@@ -65,7 +65,7 @@ export TYPECK_SHUX RUN_SHUX SHUX_LINK_BACKEND_ARGS
 
 # bootstrap-min：-o 经 shux-min-link 包装（旧 link_abi 无 /usr/local/bin/gcc 时 gcc 回退）。
 if [ -n "${SHUX_BOOTSTRAP_MIN:-}" ] && [ -z "${SHUX_BOOTSTRAP_MIN_NO_WRAP:-}" ]; then
-  _min_wrap="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/shux-min-link.sh"
+  _min_wrap="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/shux-min-link.sh"
   if [ -x "$_min_wrap" ]; then
     _min_real="${SHUX_MIN_LINK_REAL:-${SHUX_LINK_SHUX:-./compiler/shux_asm}}"
     export SHUX_MIN_LINK_REAL="$_min_real"

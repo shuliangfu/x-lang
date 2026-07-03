@@ -6,7 +6,7 @@
 #   boot025_emit_report status gen12_ok dogfood_ok skip
 
 BOOT025_PREFIX="${SHUX_BOOT025_PREFIX:-shux: [SHUX_BOOT025]}"
-_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")"
+_LIB_DIR="$(dirname "${BASH_SOURCE[0]:-$0}")"
 # shellcheck source=tests/lib/comp-riscv64.sh
 . "$_LIB_DIR/comp-riscv64.sh"
 # shellcheck source=tests/lib/ci-host.sh

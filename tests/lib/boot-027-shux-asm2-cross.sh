@@ -7,7 +7,7 @@
 #   boot027_emit_report status c5_ok c5_smoke skip
 
 BOOT027_PREFIX="${SHUX_BOOT027_PREFIX:-shux: [SHUX_BOOT027]}"
-_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")"
+_LIB_DIR="$(dirname "${BASH_SOURCE[0]:-$0}")"
 # shellcheck source=tests/lib/ci-host.sh
 . "$_LIB_DIR/ci-host.sh"
 

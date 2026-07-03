@@ -5,7 +5,7 @@
 #   ./tests/lib/lang-const-eval.sh           # 全量 case（需 native shux）
 #   ./tests/lib/lang-const-eval.sh case_id   # 单 case（manifest item_id）
 set -e
-cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.."
 
 MANIFEST="${SHUX_LANG_CONST_EVAL_MANIFEST:-tests/baseline/lang-const-eval.tsv}"
 ONE="${1:-}"
@@ -132,7 +132,7 @@ lang_const_eval_main() {
   return 0
 }
 
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]:-$0}" == "${0}" ]]; then
   lang_const_eval_main "${1:-}"
   exit $?
 fi

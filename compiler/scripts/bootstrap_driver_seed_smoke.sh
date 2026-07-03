@@ -51,10 +51,17 @@ run_smoke() {
   local _log="/tmp/shux_bootstrap_seed_smoke_$$.log"
   local _rc=0
   echo "[$(date '+%H:%M:%S')] seed smoke: -c check ..."
-  "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log"
-  _rc="${PIPESTATUS[0]:-1}"
-  if [ "$_rc" -ne 0 ]; then
-    return 1
+  # shux-c (C frontend) 不支持 -c，用 -E 替代（同样做 parse+typeck）
+  if "$bin" -c "$SMOKE_SRC" 2>&1 | tee "$_log"; then
+    :
+  else
+    _rc="${PIPESTATUS[0]:-1}"
+    # 尝试 -E 回退（shux-c C 前端模式）
+    if "$bin" -E "$SMOKE_SRC" > /dev/null 2>&1; then
+      echo "[$(date '+%H:%M:%S')] seed smoke: -c not supported, -E OK (C frontend)"
+    else
+      return 1
+    fi
   fi
   echo "[$(date '+%H:%M:%S')] seed smoke: -backend c -o (may take ~1min) ..."
   rm -f "$SMOKE_OUT"

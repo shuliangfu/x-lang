@@ -4,7 +4,7 @@
 # 读取 matrix TSV，统计 file_bytes / text_bytes，输出 distribution report。
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 MATRIX="${SHUX_SIZE_ATTRIB_MATRIX:-$ROOT/tests/baseline/comp-size-attrib-matrix.tsv}"
 
 # 返回文件字节数（跨 Darwin/Linux stat）。

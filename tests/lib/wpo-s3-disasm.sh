@@ -4,7 +4,7 @@
 #   wpo_s3_main_has_helper_calls /path/to/binary
 
 # shellcheck source=tests/lib/wpo-main-disasm.sh
-. "$(dirname "${BASH_SOURCE[0]}")/wpo-main-disasm.sh"
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/wpo-main-disasm.sh"
 
 # _main 是否仍 call/bl 到 make_pair 与 sum_pair（回归探测：内联失败时仍为 1）。
 wpo_s3_main_has_helper_calls() {

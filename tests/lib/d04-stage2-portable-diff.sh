@@ -8,7 +8,7 @@
 #   d04_emit_report status cases_ok cases_fail skip
 
 D04_PREFIX="${SHUX_D04_PREFIX:-shux: [SHUX_D04]}"
-_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")"
+_LIB_DIR="$(dirname "${BASH_SOURCE[0]:-$0}")"
 # shellcheck source=tests/lib/boot-019-stage2-dogfood.sh
 . "$_LIB_DIR/boot-019-stage2-dogfood.sh"
 # shellcheck source=tests/lib/comp-riscv64.sh

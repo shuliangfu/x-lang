@@ -3,7 +3,7 @@
 
 STD_CRYPTO_AES_GCM_PREFIX="${SHUX_STD_CRYPTO_AES_GCM_PREFIX:-shux: [SHUX_STD_CRYPTO_AES_GCM]}"
 # shellcheck source=tests/lib/std-crypto.sh
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/std-crypto.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/std-crypto.sh"
 
 std_crypto_aes_gcm_symbols_ok() {
   local mod_sx="$1"

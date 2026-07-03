@@ -8,7 +8,7 @@
 #   boot028_emit_report status c6_matrix_ok c6_smoke skip
 
 # shellcheck source=tests/lib/boot-027-shux-asm2-cross.sh
-_BOOT028_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_BOOT028_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$_BOOT028_LIB_DIR/boot-027-shux-asm2-cross.sh"
 
 BOOT028_PREFIX="${SHUX_BOOT028_PREFIX:-shux: [SHUX_BOOT028]}"

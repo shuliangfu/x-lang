@@ -21,7 +21,7 @@ bootstrap_anti_collapse_audit_dir() {
     return 0
   fi
   local root
-  root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  root="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
   echo "$root/logs"
 }
 
@@ -67,7 +67,7 @@ bootstrap_hash_file() {
 # bootstrap_host_pinned_seed — 按宿主 OS/arch 返回 seeds/bootstrap_shuxc 路径。
 bootstrap_host_pinned_seed() {
   local os arch root
-  root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  root="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
   os="$(uname -s | tr '[:upper:]' '[:lower:]')"
   arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
   case "$arch" in

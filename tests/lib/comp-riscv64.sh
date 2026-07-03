@@ -4,7 +4,7 @@
 # native shux 探测、.s 文本检查、ELF .o 校验、可选 riscv ld。
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 RISCV_TARGET="${SHUX_RISCV_TARGET:-riscv64}"
 
 # 本机可执行 shux。

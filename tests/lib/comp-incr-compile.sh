@@ -4,7 +4,7 @@
 # 二次编译计时、ratio 计算、native shux 探测。
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 
 # shellcheck source=tests/lib/ci-host.sh
 . "${ROOT}/tests/lib/ci-host.sh"

@@ -7,7 +7,7 @@
 #   boot022_emit_report status promote_emit emit_lead skip
 
 BOOT022_PREFIX="${SHUX_BOOT022_PREFIX:-shux: [SHUX_BOOT022]}"
-_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")"
+_LIB_DIR="$(dirname "${BASH_SOURCE[0]:-$0}")"
 # shellcheck source=tests/lib/comp-riscv64.sh
 . "$_LIB_DIR/comp-riscv64.sh"
 # shellcheck source=tests/lib/ci-host.sh

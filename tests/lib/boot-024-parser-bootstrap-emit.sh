@@ -7,7 +7,7 @@
 #   boot024_emit_report status bootstrap_minimal_ok bootstrap_full_emit skip
 
 BOOT024_PREFIX="${SHUX_BOOT024_PREFIX:-shux: [SHUX_BOOT024]}"
-_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")"
+_LIB_DIR="$(dirname "${BASH_SOURCE[0]:-$0}")"
 # shellcheck source=tests/lib/comp-riscv64.sh
 . "$_LIB_DIR/comp-riscv64.sh"
 # shellcheck source=tests/lib/ci-host.sh

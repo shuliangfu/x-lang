@@ -4,7 +4,7 @@
 # 用法：source tests/lib/c07-frontend-parity.sh
 
 # shellcheck source=tests/lib/ci-host.sh
-. "$(dirname "${BASH_SOURCE[0]}")/ci-host.sh"
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/ci-host.sh"
 
 # 判断可执行文件是否可在当前宿主运行（Mach-O/ELF 架构匹配）。
 # 参数：$1 = 编译器二进制路径；返回 0 可运行，1 不可。

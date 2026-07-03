@@ -6,7 +6,7 @@ STD_XPLAT_DEEP_PREFIX="${SHUX_STD138_XPLAT_DEEP_BOUNDARY_PREFIX:-shux: [SHUX_STD
 # 按当前宿主返回 linux/macos/windows 列策略。
 xplat_deep_platform_policy() {
   # shellcheck source=tests/lib/ci-host.sh
-  . "$(dirname "${BASH_SOURCE[0]}")/ci-host.sh"
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/ci-host.sh"
   local linux="$1"
   local macos="$2"
   local windows="$3"

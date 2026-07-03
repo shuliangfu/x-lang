@@ -4,7 +4,7 @@
 # MSYS 探测、native shux、COFF 对象粗校验。
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
 WIN_TRIPLE="${SHUX_WIN_TARGET:-x86_64-pc-windows-msvc}"
 
 # 是否 Windows MSYS/MINGW 环境（可 link+run）。
