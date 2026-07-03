@@ -32,7 +32,7 @@ fi
 # shux-c -E + cc 回退（无 asm/c backend 时）
 if [ "$_compile_ec" -ne 0 ] && [ -x ./compiler/shux-c ]; then
   ./compiler/shux-c -E tests/compound-assign/main.sx > /tmp/shux_ca_fallback.c 2>&1
-  cc -O2 -o /tmp/shux_compound_assign /tmp/shux_ca_fallback.c 2>&1
+  ${CC:-cc} -O2 -o /tmp/shux_compound_assign /tmp/shux_ca_fallback.c 2>&1
   _compile_ec=$?
 fi
 set -e

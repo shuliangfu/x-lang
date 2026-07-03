@@ -40,7 +40,7 @@ struct_link_o() {
   # shux-c -E + cc 回退（无 -o 能力时）
   if [ "$ec" -ne 0 ] && [ -x ./compiler/shux-c ]; then
     ./compiler/shux-c -E -L . "$sx" > /tmp/shux_struct_fallback.c 2>&1
-    cc -O2 -o "$out" /tmp/shux_struct_fallback.c 2>&1
+    ${CC:-cc} -O2 -o "$out" /tmp/shux_struct_fallback.c 2>&1
     ec=$?
   fi
   return "$ec"
