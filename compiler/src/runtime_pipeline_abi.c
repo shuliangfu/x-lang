@@ -884,18 +884,17 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
         shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
         return;
     }
-#ifdef _WIN32
-    return -1; /* Windows: import 解析不支持 */
-#else
     memset(tmp_arena, 0, pipeline_sizeof_arena());
     memset(tmp_module, 0, pipeline_sizeof_module());
+#ifndef _WIN32
     parser_parse_into_init(tmp_module, tmp_arena);
     {
         struct shux_slice_uint8_t dep_slice = { (uint8_t *)dep_src, dep_src_len };
         struct parser_ParseIntoResult pr = parser_parse_into(tmp_arena, tmp_module, &dep_slice);
         n_imp = parser_get_module_num_imports(tmp_module);
-        /* ok=-2：与 collect_deps 一致，import 已收集即可过滤 ctx，勿回退 entry 全量 dep 表。 */
-    #endif
+#else
+    n_imp = 0; /* Windows: 无 import 解析 */
+#endif
     if (pr.ok != 0 && pr.ok != -2) {
             free(tmp_arena);
             free(tmp_module);
@@ -1085,12 +1084,12 @@ int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
     struct parser_ParseIntoResult pr;
     if (!slice.data)
         return -1;
-#ifdef _WIN32
-    return -1;
-#else
+#ifndef _WIN32
     parser_parse_into_init(module, arena);
     pr = parser_parse_into(arena, module, &slice);
     return pr.ok == 0 ? 0 : -1;
+#else
+    return -1; /* Windows: import 解析不支持 */
 #endif
 }
 
@@ -1460,6 +1459,10 @@ int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports,
 int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps) {
+#ifdef _WIN32
+    if (n_deps) *n_deps = 0;
+    return 0; /* Windows: import 传递闭包不支持 */
+#else
     int n = 0;
     char *to_load[SHUX_DRIVER_DEP_SLOT_MAX];
     int to_load_n = 0;
@@ -1592,6 +1595,7 @@ fail_to_load:
         free(dep_paths[n]);
     }
     return 1;
+#endif /* _WIN32 */
 }
 
 int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
