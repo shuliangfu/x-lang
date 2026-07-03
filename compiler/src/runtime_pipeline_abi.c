@@ -827,16 +827,28 @@ struct parser_ParseIntoResult {
     int32_t ok;
     int32_t main_idx;
 };
+#ifndef _WIN32
 extern void parser_parse_into_init(void *module, void *arena);
+#endif
+#ifndef _WIN32
 extern struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source);
+#endif
+#ifndef _WIN32
+#ifndef _WIN32
 #ifndef _WIN32
 #ifndef _WIN32
 extern int32_t parser_get_module_num_imports(void *module);
 #endif
 #endif
+#endif
+#endif
+#ifndef _WIN32
+#ifndef _WIN32
 #ifndef _WIN32
 #ifndef _WIN32
 extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf);
+#endif
+#endif
 #endif
 #endif
 
