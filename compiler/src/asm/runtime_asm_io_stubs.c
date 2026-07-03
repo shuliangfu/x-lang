@@ -11,7 +11,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #if defined(__unix__) || defined(__APPLE__)
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #endif
 
 /**

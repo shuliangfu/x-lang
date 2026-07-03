@@ -21,8 +21,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif

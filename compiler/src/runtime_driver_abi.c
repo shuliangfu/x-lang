@@ -20,7 +20,9 @@
 #ifndef _WIN32
 #include <sys/time.h>
 #include <sys/utsname.h>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
 #endif
 #include <pthread.h>
 
@@ -438,6 +440,7 @@ int driver_peek_source_file(const char *path, char *content, size_t cap) {
  * NL-07 nostdlib：pthread 大栈桩无效，须把主线程软上限抬到 256MiB 以免 -o 编译栈溢出 SIGSEGV。
  */
 void driver_bump_stack_limit(void) {
+    #ifndef _WIN32
     struct rlimit rl;
     rlim_t want = (rlim_t)(512 * 1024 * 1024);
     const char *mb_env = getenv("SHUX_STACK_LIMIT_MB");

@@ -5,7 +5,9 @@
  */
 #include <stddef.h>
 #include <stdint.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>

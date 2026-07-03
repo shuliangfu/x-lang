@@ -8,9 +8,13 @@
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdint.h>
+#ifndef _WIN32
 #include <sys/mman.h>
+#endif
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 /**
  * mmap 映射文件（O_RDWR|O_CREAT；不足 min_size 则 ftruncate）。

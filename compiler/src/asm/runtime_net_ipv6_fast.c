@@ -10,7 +10,9 @@ static int net_ipv6_wsa_done = 0;
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #endif
 
 extern void net_ipv6_set_addr_port_buf_c(uint8_t *sin, uint8_t *addr_16, uint32_t port_u32);

@@ -84,5 +84,31 @@ static inline int unsetenv(const char *name) {
 #define strtok_r strtok_s
 #endif
 
+
+/* gettimeofday — MinGW 有但需要正确头文件 */
+#include <time.h>
+
+/* sys/resource.h — rlimit/getrlimit */
+struct rlimit { unsigned long rlim_cur; unsigned long rlim_max; };
+typedef unsigned long rlim_t;
+#define RLIMIT_STACK 3
+#define RLIM_INFINITY (~0UL)
+static inline int getrlimit(int resource, struct rlimit *rl) {
+    (void)resource; if (rl) { rl->rlim_cur = 8*1024*1024; rl->rlim_max = RLIM_INFINITY; } return 0;
+}
+
+/* sys/mman.h — Windows 用 VirtualAlloc 替代 mmap */
+#define PROT_READ 0x1
+#define PROT_WRITE 0x2
+#define MAP_PRIVATE 0x02
+#define MAP_FAILED ((void*)-1)
+static inline void *mmap(void *addr, size_t length, int prot, int flags, int fd, long offset) {
+    (void)addr; (void)prot; (void)flags; (void)fd; (void)offset;
+    return malloc(length);
+}
+static inline int munmap(void *addr, size_t length) { (void)length; free(addr); return 0; }
+
+/* fork 返回 -1（不支持）已在上面定义 */
+
 #endif /* _WIN32 */
 #endif /* SHUX_WIN32_COMPAT_H */

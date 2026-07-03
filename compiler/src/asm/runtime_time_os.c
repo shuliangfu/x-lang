@@ -13,7 +13,9 @@
 #define UNIX_EPOCH_100NS 116444736000000000ULL
 #else
 #include <time.h>
+#ifndef _WIN32
 #include <sys/time.h>
+#endif
 #include <unistd.h>
 #endif
 

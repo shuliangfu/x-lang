@@ -14,7 +14,9 @@
 #define STDERR_FILENO 2
 static int log_write_fd(int fd, const void *buf, size_t len) { return (int)_write((int)fd, buf, (unsigned)len); }
 #else
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <fcntl.h>
 #include <sys/stat.h>
 static int log_write_fd(int fd, const void *buf, size_t len) { return (int)write(fd, buf, len); }

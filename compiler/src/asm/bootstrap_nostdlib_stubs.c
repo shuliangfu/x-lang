@@ -21,12 +21,20 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 #include <sys/time.h>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
+#ifndef _WIN32
 #include <sys/utsname.h>
+#endif
 #include <pthread.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 /** bootstrap opendir 用最小 dirent（勿链 libc libdl）。 */
 struct dirent {

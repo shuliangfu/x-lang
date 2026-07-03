@@ -7,7 +7,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #if defined(__unix__) || defined(__APPLE__)
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #endif
 
 /** sx_seed_bridge.o 已提供 io_read/io_write；本 TU 仅声明。 */

@@ -13,7 +13,9 @@
 #include <string.h>
 
 #if defined(__linux__)
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #endif
 
 #if defined(__APPLE__)

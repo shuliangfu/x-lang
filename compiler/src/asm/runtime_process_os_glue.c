@@ -42,10 +42,14 @@
 #else
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <signal.h>
 #include <sys/types.h>
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #if defined(__APPLE__)

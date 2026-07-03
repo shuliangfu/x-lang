@@ -18,7 +18,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 /** preprocess.sx 生成；pipeline/import 与 runtime preprocess() 共用。 */
 extern int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);

@@ -16,7 +16,9 @@
 #include <stdlib.h>
 #include "diag.h"
 #if defined(__unix__) || defined(__APPLE__)
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #endif
 
 #define BACKTRACE_SYM_NAME_LEN 128

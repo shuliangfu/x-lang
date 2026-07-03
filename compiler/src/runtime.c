@@ -195,9 +195,13 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
 #include <sys/wait.h>
 #endif
 #include <fcntl.h>
+#ifndef _WIN32
 #include <sys/resource.h>
+#endif
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <sys/time.h>
+#endif
 #endif
 #include <sys/stat.h>
 #include <pthread.h>
@@ -786,7 +790,9 @@ int run_compiler_c(int argc, char **argv) {
 #ifndef _WIN32
 #include <unistd.h>
 #include <sys/wait.h>
+#ifndef _WIN32
 #include <sys/utsname.h>
+#endif
 #endif
 
 #define MAX_ALL_DEPS 128

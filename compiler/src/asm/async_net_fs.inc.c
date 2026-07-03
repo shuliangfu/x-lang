@@ -7,7 +7,9 @@
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #endif
 
 /** 与 std.io IO_ASYNC_NOT_READY 一致。 */

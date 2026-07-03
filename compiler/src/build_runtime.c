@@ -12,7 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #include "diag.h"
 

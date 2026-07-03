@@ -1,5 +1,7 @@
 #include <stdlib.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 extern int main_entry(int argc, char **argv);
 

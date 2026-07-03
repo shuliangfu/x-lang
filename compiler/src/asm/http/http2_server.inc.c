@@ -7,7 +7,9 @@
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <poll.h>
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 #endif
 
 /** h2c server 协议错误（-1240）。 */

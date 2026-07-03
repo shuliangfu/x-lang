@@ -6,7 +6,9 @@
 #include <string.h>
 
 #if !defined(_WIN32)
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #endif
 
 typedef struct DiagContext {

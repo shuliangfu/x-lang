@@ -57,7 +57,9 @@ static void closedir_win(DIR *d) {
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
 extern int run_compiler_c(int argc, char **argv);

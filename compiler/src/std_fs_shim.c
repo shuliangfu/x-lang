@@ -15,7 +15,9 @@
 #define write(fd, buf, count) _write((fd), (buf), (unsigned)(count))
 #define close(fd) _close(fd)
 #else
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <fcntl.h>
 #include <sys/stat.h>
 #endif

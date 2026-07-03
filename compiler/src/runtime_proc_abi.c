@@ -15,7 +15,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 #include <unistd.h>
 
 /**

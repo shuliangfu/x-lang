@@ -229,7 +229,9 @@ int32_t http2_global_pool_smoke_c(void) {
 int32_t http2_global_pool_is_available_c(void) { return 1; }
 
 #if !defined(_WIN32) && !defined(_WIN64)
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 #endif
 
 /**

@@ -19,7 +19,9 @@
 #if defined(__APPLE__)
 #include <sys/random.h>
 #else
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #endif
 #include <errno.h>
 #ifndef GETENTROPY_MAX

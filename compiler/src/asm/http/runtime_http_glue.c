@@ -20,7 +20,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <errno.h>
 #define SHUX_HTTP_CLOSE(fd) close(fd)
 #define SHUX_HTTP_ERRNO errno
@@ -326,7 +328,9 @@ int32_t http_request_method_c(uint8_t method_u8, const uint8_t *url, int32_t url
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <fcntl.h>
 #include <poll.h>
+#ifndef _WIN32
 #include <sys/time.h>
+#endif
 #endif
 
 /** 为 fd 设置收发超时（毫秒）；0 表示不设。 */
@@ -625,7 +629,9 @@ int32_t http_https_smoke_c(void) {
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <signal.h>
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 #endif
 
 /** 读并丢弃客户端请求头（至 \\r\\n\\r\\n）。 */

@@ -3,7 +3,9 @@
  * SAFE-007：弱符号证据收集，强符号由 runtime_backtrace_platform.o 提供。 */
 #include <stdlib.h>
 #include <stdio.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 /** Linux ld：标记非可执行栈，消除 missing .note.GNU-stack 链接警告（macOS 勿用 %progbits 语法）。 */
 #if defined(__GNUC__) && defined(__linux__)

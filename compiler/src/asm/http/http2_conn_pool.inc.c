@@ -8,7 +8,9 @@
 #include <stdlib.h>
 
 #if !defined(_WIN32) && !defined(_WIN64)
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
 #endif
 
 /** H2 连接池最大 idle 连接数。 */

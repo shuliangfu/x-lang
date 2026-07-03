@@ -1,5 +1,7 @@
 /* runtime_panic_arm64.c — ARM64/macOS 用最小 panic 实现。提供 shux_panic_ 符号供链接。 */
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 
