@@ -1,6 +1,6 @@
 # Shux Kernel Test Suite
 
-26 QEMU-verified kernel tests + 10 gate scripts = 60 total checks, all passing.
+30 QEMU-verified kernel tests + 14 gate scripts = 83 total checks, all passing.
 
 ## Quick Start
 
