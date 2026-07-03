@@ -144,5 +144,11 @@ static inline void parser_get_module_import_path(void *m, int i, unsigned char *
 /* parser_parse_into / parser_parse_into_init — 在 _WIN32 下整个函数体被跳过 */
 /* pipeline_debug_trace_named_func_bodies — 实际定义在 runtime_pipeline_abi.c 中 */
 
+
+struct shux_slice_uint8_t { uint8_t *data; size_t length; };
+struct parser_ParseIntoResult { int32_t ok; int32_t main_idx; };
+static inline void parser_parse_into_init(void *m, void *a) { (void)m; (void)a; }
+static inline struct parser_ParseIntoResult parser_parse_into(void *a, void *m, void *s) { struct parser_ParseIntoResult r = {-1,-1}; (void)a; (void)m; (void)s; return r; }
+
 #endif /* _WIN32 */
 #endif /* SHUX_WIN32_COMPAT_H */

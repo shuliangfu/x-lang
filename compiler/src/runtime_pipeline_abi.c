@@ -827,13 +827,8 @@ struct parser_ParseIntoResult {
     int32_t ok;
     int32_t main_idx;
 };
-#ifndef _WIN32
 extern void parser_parse_into_init(void *module, void *arena);
-#endif
-#ifndef _WIN32
 extern struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source);
-#endif
-#ifndef _WIN32
 #ifndef _WIN32
 #ifndef _WIN32
 #ifndef _WIN32
@@ -841,13 +836,10 @@ extern int32_t parser_get_module_num_imports(void *module);
 #endif
 #endif
 #endif
-#endif
-#ifndef _WIN32
 #ifndef _WIN32
 #ifndef _WIN32
 #ifndef _WIN32
 extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf);
-#endif
 #endif
 #endif
 #endif
@@ -868,9 +860,6 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
     if (!ctx)
         return;
     ctx->use_asm_backend = 0;
-#ifdef _WIN32
-    return; /* Windows: import 解析不支持，跳过整个函数 */
-#else
     if (!dep_mods || !dep_ars || !dep_paths || ndep <= 0) {
         ast_pipeline_dep_ctx_set_ndep(ctx, 0);
         return;
@@ -935,7 +924,6 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
     free(tmp_module);
     ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
 }
-#endif /* _WIN32 */
 
 /** asm 用户程序：std.io/fs/net dep 跳过 .sx typeck（符号由并列 .o 提供）。 */
 int shux_asm_user_std_dep_skip_sx_typeck(const char *dep_path) {
@@ -1084,13 +1072,9 @@ int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
     struct parser_ParseIntoResult pr;
     if (!slice.data)
         return -1;
-#ifndef _WIN32
     parser_parse_into_init(module, arena);
     pr = parser_parse_into(arena, module, &slice);
     return pr.ok == 0 ? 0 : -1;
-#else
-    return -1; /* Windows: import 解析不支持 */
-#endif
 }
 
 /** pipeline_run_sx_pipeline 大栈线程参数。 */
@@ -1459,10 +1443,6 @@ int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports,
 int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps) {
-#ifdef _WIN32
-    if (n_deps) *n_deps = 0;
-    return 0; /* Windows: import 传递闭包不支持 */
-#else
     int n = 0;
     char *to_load[SHUX_DRIVER_DEP_SLOT_MAX];
     int to_load_n = 0;
@@ -1595,7 +1575,6 @@ fail_to_load:
         free(dep_paths[n]);
     }
     return 1;
-#endif /* _WIN32 */
 }
 
 int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
