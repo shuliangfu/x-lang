@@ -884,6 +884,9 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
         shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
         return;
     }
+#ifdef _WIN32
+    return -1; /* Windows: import 解析不支持 */
+#else
     memset(tmp_arena, 0, pipeline_sizeof_arena());
     memset(tmp_module, 0, pipeline_sizeof_module());
     parser_parse_into_init(tmp_module, tmp_arena);
@@ -892,7 +895,8 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
         struct parser_ParseIntoResult pr = parser_parse_into(tmp_arena, tmp_module, &dep_slice);
         n_imp = parser_get_module_num_imports(tmp_module);
         /* ok=-2：与 collect_deps 一致，import 已收集即可过滤 ctx，勿回退 entry 全量 dep 表。 */
-        if (pr.ok != 0 && pr.ok != -2) {
+    #endif
+    if (pr.ok != 0 && pr.ok != -2) {
             free(tmp_arena);
             free(tmp_module);
             shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
@@ -1081,9 +1085,13 @@ int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
     struct parser_ParseIntoResult pr;
     if (!slice.data)
         return -1;
+#ifdef _WIN32
+    return -1;
+#else
     parser_parse_into_init(module, arena);
     pr = parser_parse_into(arena, module, &slice);
     return pr.ok == 0 ? 0 : -1;
+#endif
 }
 
 /** pipeline_run_sx_pipeline 大栈线程参数。 */

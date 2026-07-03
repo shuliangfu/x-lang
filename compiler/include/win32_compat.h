@@ -141,9 +141,8 @@ static inline void parser_get_module_import_path(void *m, int i, unsigned char *
 
 
 /* parser 解析桩——shux-c C 前端不需要 .sx 解析 */
-static inline int parser_parse_into(void *m, void *a, void *t, void *ctx) { (void)m; (void)a; (void)t; (void)ctx; return -1; }
-static inline int parser_parse_into_init(void *m, void *a, void *t, void *ctx, void *init) { (void)m; (void)a; (void)t; (void)ctx; (void)init; return -1; }
-static inline int pipeline_debug_trace_named_func_bodies(const char *s, void *m, void *a) { (void)s; (void)m; (void)a; return 0; }
+/* parser_parse_into / parser_parse_into_init — 在 _WIN32 下整个函数体被跳过 */
+/* pipeline_debug_trace_named_func_bodies — 实际定义在 runtime_pipeline_abi.c 中 */
 
 #endif /* _WIN32 */
 #endif /* SHUX_WIN32_COMPAT_H */
