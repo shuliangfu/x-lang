@@ -783,9 +783,11 @@ int run_compiler_c(int argc, char **argv) {
 
 #endif /* SHUX_USE_SX_PIPELINE */
 
+#ifndef _WIN32
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/utsname.h>
+#endif
 
 #define MAX_ALL_DEPS 128
 
