@@ -838,7 +838,7 @@ static int type_assignable_to(const struct ASTType *actual, const struct ASTType
         if (formal->kind == AST_TYPE_I64 && arg_expr->kind == AST_EXPR_LIT)
             return 1;
         if (formal->kind == AST_TYPE_U8 && arg_expr->kind == AST_EXPR_LIT) {
-            int v = arg_expr->value.int_val;
+            int64_t v = arg_expr->value.int_val;
             if (v >= 0 && v <= 255) return 1;
         }
         /* 字面量 0 作 null 指针实参（*u8 与 usize 交替时避免裸 0 被解析为 i32）。 */
