@@ -126,8 +126,12 @@ static inline int pthread_attr_setguardsize(void *attr, size_t guardsize) {
 /* asm 后端桩——shux-c C 前端不需要 asm codegen */
 static inline void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *a) { (void)m; (void)a; }
 static inline void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *a) { (void)m; (void)a; }
-static inline int asm_asm_codegen_elf_o(void *m, void *a, void *c, void *e, void *o, int *ol) {
-    (void)m; (void)a; (void)c; (void)e; (void)o; (void)ol; return -1;
+static inline void pipeline_fill_array_lit_types_for_skipped_typeck(void *m, void *a) { (void)m; (void)a; }
+static inline void asm_skip_heavy_set_pipeline_ctx(void *ctx) { (void)ctx; }
+/* 注意：真实签名有 6 参数（module, arena, ctx, elf_ctx, out_buf, out_len_ptr）
+ * 但 runtime_pipeline_abi.c 调用时可能只传 5 个。桩接受 5 个匹配调用。 */
+static inline int asm_asm_codegen_elf_o(void *m, void *a, void *c, void *e, void *o) {
+    (void)m; (void)a; (void)c; (void)e; (void)o; return -1;
 }
 
 #endif /* _WIN32 */
