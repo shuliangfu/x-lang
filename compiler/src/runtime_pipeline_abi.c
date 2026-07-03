@@ -1864,6 +1864,4 @@ void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *a) { (void)m; (
 int32_t asm_asm_codegen_elf_o(void *m, void *a, void *c, struct platform_elf_ElfCodegenCtx *e, void *o) { (void)m; (void)a; (void)c; (void)e; (void)o; return -1; }
 /* 更多 pipeline stub */
 int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *m, struct ast_ASTArena *a, uint8_t *d, int32_t len) { (void)m; (void)a; (void)d; (void)len; return 0; }
-int32_t pipeline_module_num_funcs(void *m) { (void)m; return 0; }
-int32_t pipeline_module_func_name_len(void *m, int i) { (void)m; (void)i; return 0; }
 #endif

@@ -27,12 +27,11 @@ void ast_pipeline_dep_ctx_set_import_path(void *ctx, int idx, const uint8_t *pat
 void ast_pipeline_dep_ctx_set_module(void *ctx, int idx, void *mod) { (void)ctx; (void)idx; (void)mod; }
 void ast_pipeline_dep_ctx_set_ndep(void *ctx, int ndep) { (void)ctx; (void)ndep; }
 int32_t ast_pipeline_dep_ctx_ndep(void *ctx) { (void)ctx; return 0; }
+int32_t pipeline_dep_ctx_ndep(void *ctx) { (void)ctx; return 0; }
 void pipeline_dep_ctx_import_path_copy64(void *ctx, int idx, uint8_t *dst) { (void)ctx; (void)idx; if(dst) dst[0]=0; }
 
 /* pipeline module 查询 */
-int32_t pipeline_module_num_funcs(void *m) { (void)m; return 0; }
 int32_t pipeline_module_main_func_index(void *m) { (void)m; return -1; }
-int32_t pipeline_module_func_name_len(void *m, int i) { (void)m; (void)i; return 0; }
 void pipeline_module_func_name_byte_at(void *m, int fi, int off, uint8_t *out) { (void)m; (void)fi; (void)off; (void)out; }
 void pipeline_module_func_name_copy64(void *m, int fi, uint8_t *dst) { (void)m; (void)fi; if(dst) dst[0]=0; }
 int32_t pipeline_module_func_is_extern_at(void *m, int i) { (void)m; (void)i; return 0; }
