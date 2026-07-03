@@ -38,7 +38,7 @@ static int typeck_unsafe_depth;
  * 默认保持关闭，由 runtime 在 `-E` 兼容路径中显式开启，避免用户态 check/compile 永久绕开语义规则。
  */
 static int typeck_allow_legacy_extern_calls;
-static int bce_bound_val[MAX_BCE_RANGES];
+static int64_t bce_bound_val[MAX_BCE_RANGES];
 static const struct ASTExpr *bce_bound_base[MAX_BCE_RANGES];
 static int bce_n;
 
