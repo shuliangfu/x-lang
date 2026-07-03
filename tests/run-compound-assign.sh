@@ -24,9 +24,18 @@ set +e
 $LINK_SHUX $LINK_BACKEND_ARGS tests/compound-assign/main.sx -o /tmp/shux_compound_assign 2>&1
 _compile_ec=$?
 set -e
+set +e
 if [ "$_compile_ec" -ne 0 ] && [ "$LINK_SHUX" != "./compiler/shux" ]; then
   ./compiler/shux -backend c tests/compound-assign/main.sx -o /tmp/shux_compound_assign 2>&1
+  _compile_ec=$?
 fi
+# shux-c -E + cc 回退（无 asm/c backend 时）
+if [ "$_compile_ec" -ne 0 ] && [ -x ./compiler/shux-c ]; then
+  ./compiler/shux-c -E tests/compound-assign/main.sx > /tmp/shux_ca_fallback.c 2>&1
+  cc -O2 -o /tmp/shux_compound_assign /tmp/shux_ca_fallback.c 2>&1
+  _compile_ec=$?
+fi
+set -e
 
 exitcode=0
 /tmp/shux_compound_assign >/dev/null 2>&1 || exitcode=$?
