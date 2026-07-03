@@ -54,7 +54,7 @@ int32_t pipeline_load_and_sync_direct_import_deps_c(void *m, void *a, void *ctx,
 int32_t pipeline_asm_user_dep_skip_sx_typeck(const uint8_t *path) { (void)path; return 0; }
 const char *pipeline_asm_user_std_net_dep_path(void) { return "std.net"; }
 int32_t pipeline_codegen_path_is_std_io_driver_bytes(const uint8_t *p, int len) { (void)p; (void)len; return 0; }
-void codegen_emit_fmt_json_helpers_once(void) {}
+/* codegen_emit_fmt_json_helpers_once — 已由 runtime_pipeline_abi_shux_c_stubs.o 提供 */
 int32_t bootstrap_nostdlib_pthread_is_stub(void) { return 1; }
 
 #endif /* _WIN32 */
