@@ -104,8 +104,19 @@ static inline int getrlimit(int resource, struct rlimit *rl) {
 #define MAP_PRIVATE 0x02
 #define MAP_FAILED ((void*)-1)
 static inline void *mmap(void *addr, size_t length, int prot, int flags, int fd, long offset) {
-    (void)addr; (void)prot; (void)flags; (void)fd; (void)offset;
-    return malloc(length);
+    (void)addr; (void)prot; (void)flags;
+    /* Windows: malloc + read(fd) 替代 mmap */
+    void *buf = malloc(length);
+    if (!buf) return MAP_FAILED;
+    _lseek(fd, (long)offset, SEEK_SET);
+    size_t total = 0;
+    while (total < length) {
+        ssize_t n = _read(fd, (char*)buf + total, length - total);
+        if (n <= 0) break;
+        total += (size_t)n;
+    }
+    if (total != length) { free(buf); return MAP_FAILED; }
+    return buf;
 }
 static inline int munmap(void *addr, size_t length) { (void)length; free(addr); return 0; }
 
