@@ -1443,7 +1443,7 @@ int32_t pipeline_module_func_return_type_at(struct ast_Module *m, int32_t fi) {
 }
 
 /** 比较 module 函数名与外部 name 字节序列；相等返回 1。 */
-int32_t pipeline_module_func_name_equal_at(struct ast_Module *m, int32_t fi, const uint8_t *name, int32_t name_len) {
+int32_t pipeline_module_func_name_equal_at(struct ast_Module *m, int32_t fi, uint8_t *name, int32_t name_len) {
   struct ast_Func *f;
   if (!m || !name || name_len <= 0 || name_len > 64)
     return 0;
@@ -5413,7 +5413,7 @@ static int32_t pipeline_resolve_path_try_entry_dir_c(struct ast_PipelineDepCtx *
 }
 
 /** SX 真 emit 或 weak 默认；_c 经此 dispatch（build_asm pipeline.o 强符号覆盖 weak）。 */
-extern int32_t pipeline_resolve_path_sx(struct ast_PipelineDepCtx *ctx, uint8_t *import_path, int32_t path_len);
+extern int32_t pipeline_resolve_path_sx(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len);
 extern int32_t pipeline_read_file_sx(struct ast_PipelineDepCtx *ctx);
 
 /**
