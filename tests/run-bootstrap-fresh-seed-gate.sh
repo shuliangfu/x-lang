@@ -18,6 +18,11 @@ if [ "${SHUX_CI_DOCKER:-0}" != "1" ]; then
   os="$(uname -s 2>/dev/null || true)"
   arch="$(uname -m 2>/dev/null || true)"
   case "$arch" in x86_64|amd64) : ;; *) arch="non-x86_64" ;; esac
+  # Windows（MINGW/MSYS）跳过 docker——直接用本地 shux-c
+  case "$os" in MINGW*|MSYS*|CYGWIN*)
+    gate_progress "V6: Windows native (skip docker)"
+    ;;
+  *)
   if [ "$os" != "Linux" ] || [ "$arch" = "non-x86_64" ]; then
     gate_progress "V6: run in docker linux/amd64 ..."
     cmd="SHUX_BOOTSTRAP_FRESH_SEED_SKIP=${SHUX_BOOTSTRAP_FRESH_SEED_SKIP:-0} "
@@ -28,6 +33,8 @@ if [ "${SHUX_CI_DOCKER:-0}" != "1" ]; then
     cmd="${cmd}./tests/run-bootstrap-fresh-seed-gate.sh"
     exec ./tests/lib/docker-linux-run.sh "$cmd"
   fi
+  ;;
+  esac
 fi
 
 DOC="analysis/自举前必须清单.md"
