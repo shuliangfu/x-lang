@@ -8,6 +8,11 @@
 #include <stdint.h>
 #include <string.h>
 #include <io.h>
+#ifndef SEEK_SET
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+#endif
 #include <direct.h>
 #include <process.h>
 #include <sys/stat.h>
