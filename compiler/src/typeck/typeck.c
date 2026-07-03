@@ -2162,7 +2162,11 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 return typeck_expr_sym(e->value.unary.operand, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m);
             return 0;  /* return; 的 void 检查在 typeck_block 中根据 func_return_type 完成 */
         case AST_EXPR_LIT:
-            ((struct ASTExpr *)e)->resolved_type = &static_type_i32;
+            /* i32 范围外的整数字面量自动推断为 i64（避免大整数截断） */
+            if (e->value.int_val > 2147483647LL || e->value.int_val < -2147483648LL)
+                ((struct ASTExpr *)e)->resolved_type = &static_type_i64;
+            else
+                ((struct ASTExpr *)e)->resolved_type = &static_type_i32;
             return 0;
         case AST_EXPR_BOOL_LIT:
             ((struct ASTExpr *)e)->resolved_type = &static_type_bool;
