@@ -158,7 +158,7 @@ static int expr_is_assign_or_compound(const struct ASTExpr *e);
 /** 前向声明：typeck_block 在文件后部定义，供 AST_EXPR_BLOCK 的 typeck 调用。 */
 static int typeck_block(const struct ASTBlock *b, const char **parent_names,
     const int *parent_type_kinds, const char **parent_type_names, const struct ASTType **parent_type_ptrs, int parent_n,
-    const int *parent_const_values, int parent_n_consts, int inside_loop,
+    const int64_t *parent_const_values, int parent_n_consts, int inside_loop,
     struct ASTStructDef **struct_defs, int num_structs, struct ASTEnumDef **enum_defs, int num_enums, const struct ASTModule *m,
     const struct ASTType *func_return_type, const char *scope_region);
 
@@ -1575,7 +1575,7 @@ static int is_const_expr(const struct ASTExpr *e, const char **names, int n) {
  * CTFE 最小集：对常量表达式求值，返回整型结果（用于 const 初值及折叠）。
  * 要求 e 已通过 is_const_expr；names/const_values 为当前作用域 const 名与已求值；n 为 const 个数。
  */
-static int eval_const_int(const struct ASTExpr *e, const char **names, const int *const_values, int n) {
+static int64_t eval_const_int(const struct ASTExpr *e, const char **names, const int64_t *const_values, int n) {
     if (!e) return 0;
     switch (e->kind) {
         case AST_EXPR_LIT:
@@ -1591,53 +1591,53 @@ static int eval_const_int(const struct ASTExpr *e, const char **names, const int
             return 0;
         }
         case AST_EXPR_ADD: {
-            int l = eval_const_int(e->value.binop.left, names, const_values, n);
-            int r = eval_const_int(e->value.binop.right, names, const_values, n);
+            int64_t l = eval_const_int(e->value.binop.left, names, const_values, n);
+            int64_t r = eval_const_int(e->value.binop.right, names, const_values, n);
             return l + r;
         }
         case AST_EXPR_SUB: {
-            int l = eval_const_int(e->value.binop.left, names, const_values, n);
-            int r = eval_const_int(e->value.binop.right, names, const_values, n);
+            int64_t l = eval_const_int(e->value.binop.left, names, const_values, n);
+            int64_t r = eval_const_int(e->value.binop.right, names, const_values, n);
             return l - r;
         }
         case AST_EXPR_MUL: {
-            int l = eval_const_int(e->value.binop.left, names, const_values, n);
-            int r = eval_const_int(e->value.binop.right, names, const_values, n);
+            int64_t l = eval_const_int(e->value.binop.left, names, const_values, n);
+            int64_t r = eval_const_int(e->value.binop.right, names, const_values, n);
             return l * r;
         }
         case AST_EXPR_DIV: {
-            int l = eval_const_int(e->value.binop.left, names, const_values, n);
-            int r = eval_const_int(e->value.binop.right, names, const_values, n);
+            int64_t l = eval_const_int(e->value.binop.left, names, const_values, n);
+            int64_t r = eval_const_int(e->value.binop.right, names, const_values, n);
             return (r != 0) ? (l / r) : 0;
         }
         case AST_EXPR_MOD: {
-            int l = eval_const_int(e->value.binop.left, names, const_values, n);
-            int r = eval_const_int(e->value.binop.right, names, const_values, n);
+            int64_t l = eval_const_int(e->value.binop.left, names, const_values, n);
+            int64_t r = eval_const_int(e->value.binop.right, names, const_values, n);
             return (r != 0) ? (l % r) : 0;
         }
         case AST_EXPR_SHL: {
-            int l = eval_const_int(e->value.binop.left, names, const_values, n);
-            int r = eval_const_int(e->value.binop.right, names, const_values, n);
+            int64_t l = eval_const_int(e->value.binop.left, names, const_values, n);
+            int64_t r = eval_const_int(e->value.binop.right, names, const_values, n);
             return (int)((unsigned int)l << (r & 31));
         }
         case AST_EXPR_SHR: {
-            int l = eval_const_int(e->value.binop.left, names, const_values, n);
-            int r = eval_const_int(e->value.binop.right, names, const_values, n);
+            int64_t l = eval_const_int(e->value.binop.left, names, const_values, n);
+            int64_t r = eval_const_int(e->value.binop.right, names, const_values, n);
             return (int)((unsigned int)l >> (r & 31));
         }
         case AST_EXPR_BITAND: {
-            int l = eval_const_int(e->value.binop.left, names, const_values, n);
-            int r = eval_const_int(e->value.binop.right, names, const_values, n);
+            int64_t l = eval_const_int(e->value.binop.left, names, const_values, n);
+            int64_t r = eval_const_int(e->value.binop.right, names, const_values, n);
             return l & r;
         }
         case AST_EXPR_BITOR: {
-            int l = eval_const_int(e->value.binop.left, names, const_values, n);
-            int r = eval_const_int(e->value.binop.right, names, const_values, n);
+            int64_t l = eval_const_int(e->value.binop.left, names, const_values, n);
+            int64_t r = eval_const_int(e->value.binop.right, names, const_values, n);
             return l | r;
         }
         case AST_EXPR_BITXOR: {
-            int l = eval_const_int(e->value.binop.left, names, const_values, n);
-            int r = eval_const_int(e->value.binop.right, names, const_values, n);
+            int64_t l = eval_const_int(e->value.binop.left, names, const_values, n);
+            int64_t r = eval_const_int(e->value.binop.right, names, const_values, n);
             return l ^ r;
         }
         case AST_EXPR_EQ:  return eval_const_int(e->value.binop.left, names, const_values, n) == eval_const_int(e->value.binop.right, names, const_values, n) ? 1 : 0;
@@ -1672,7 +1672,7 @@ static int eval_const_int(const struct ASTExpr *e, const char **names, const int
  * 若 e 为整型/布尔常量表达式，则求值并设置 const_folded_val/const_folded_valid（CTFE 最小集）。
  * const_start：当前块 const 在 names 中的起始下标；parent_n_consts：父块 const 个数（names[0..parent_n_consts) 有父 const 值）。
  */
-static void fold_expr(struct ASTExpr *e, const char **names, const int *const_values, int n_consts, int const_start, int parent_n_consts) {
+static void fold_expr(struct ASTExpr *e, const char **names, const int64_t *const_values, int n_consts, int const_start, int parent_n_consts) {
     if (!e || !names) return;
     e->const_folded_valid = 0; /* 默认未折叠，避免 malloc 分配的节点残留垃圾 */
     switch (e->kind) {
@@ -3590,7 +3590,7 @@ static void typeck_bce_push_lt_cond(const struct ASTExpr *cond,
  */
 static int typeck_block(const struct ASTBlock *b, const char **parent_names,
     const int *parent_type_kinds, const char **parent_type_names, const struct ASTType **parent_type_ptrs, int parent_n,
-    const int *parent_const_values, int parent_n_consts,
+    const int64_t *parent_const_values, int parent_n_consts,
     int inside_loop,
     struct ASTStructDef **struct_defs, int num_structs, struct ASTEnumDef **enum_defs, int num_enums, const struct ASTModule *m,
     const struct ASTType *func_return_type, const char *scope_region) {
@@ -3604,7 +3604,7 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
     int type_kinds[MAX_SYMTAB];
     const char *type_names[MAX_SYMTAB];
     const struct ASTType *type_ptrs[MAX_SYMTAB];
-    int const_values[MAX_SYMTAB]; /* CTFE：当前作用域 const 的求值结果，仅 names[0..n_consts) 为 const */
+    int64_t const_values[MAX_SYMTAB]; /* CTFE：当前作用域 const 的求值结果，仅 names[0..n_consts) 为 const */
     int n = parent_n < MAX_SYMTAB ? parent_n : 0;
     for (int i = 0; i < n && parent_names; i++) {
         names[i] = parent_names[i];
