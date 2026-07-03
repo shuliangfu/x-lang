@@ -829,20 +829,8 @@ struct parser_ParseIntoResult {
 };
 extern void parser_parse_into_init(void *module, void *arena);
 extern struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source);
-#ifndef _WIN32
-#ifndef _WIN32
-#ifndef _WIN32
 extern int32_t parser_get_module_num_imports(void *module);
-#endif
-#endif
-#endif
-#ifndef _WIN32
-#ifndef _WIN32
-#ifndef _WIN32
 extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf);
-#endif
-#endif
-#endif
 
 /**
  * 单 dep 预跑 ctx：按 dep 自身 import 表过滤 ctx 槽（import_idx 与 ctx 下标一一对应）。
@@ -1261,10 +1249,8 @@ int shux_merge_deps_path_already_out(const char *path, char *out_paths[], int n_
 }
 
 /** parser.sx：读 module import 路径与 parse_into（dep 传递闭包收集用）。 */
-#ifndef _WIN32
 extern int32_t parser_get_module_num_imports(void *module);
 extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf);
-#endif
 
 /**
  * build_shux_asm（ENTRY_MODULE_ONLY + SKIP_TYPECK）：仅读入口 direct import 源码（不递归传递闭包），
@@ -1714,14 +1700,10 @@ fail_to_load:
 }
 
 /** asm emit 桩判定与 ARRAY_LIT/SoA 补类型（ast_pool.c / pipeline_glue.c）。 */
-#ifndef _WIN32
 extern void asm_skip_heavy_set_pipeline_ctx(void *ctx);
 extern void pipeline_fill_array_lit_types_for_skipped_typeck(void *m, void *arena);
-#endif
-#ifndef _WIN32
 extern void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *arena);
 extern void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *arena);
-#endif
 
 /** asm_codegen_elf_o 前：设置 skip_heavy 上下文并为 ARRAY_LIT / SoA field 补类型。 */
 void shux_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pctx) {
@@ -1744,7 +1726,6 @@ typedef struct {
     int32_t result;
 } ShuxAsmCodegenElfLargeArgs;
 
-#ifndef _WIN32
 extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struct platform_elf_ElfCodegenCtx *elf_ctx,
     void *out_buf);
 #endif
