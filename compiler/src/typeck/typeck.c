@@ -1720,8 +1720,8 @@ static void fold_expr(struct ASTExpr *e, const char **names, const int64_t *cons
                     case AST_EXPR_MUL: e->const_folded_val = l * r; break;
                     case AST_EXPR_DIV: e->const_folded_val = (r != 0) ? (l / r) : 0; break;
                     case AST_EXPR_MOD: e->const_folded_val = (r != 0) ? (l % r) : 0; break;
-                    case AST_EXPR_SHL: e->const_folded_val = (int)((unsigned int)l << (r & 31)); break;
-                    case AST_EXPR_SHR: e->const_folded_val = (int)((unsigned int)l >> (r & 31)); break;
+                    case AST_EXPR_SHL: e->const_folded_val = (e->resolved_type && (e->resolved_type->kind == AST_TYPE_I64 || e->resolved_type->kind == AST_TYPE_U64 || e->resolved_type->kind == AST_TYPE_USIZE || e->resolved_type->kind == AST_TYPE_ISIZE)) ? (int64_t)((uint64_t)l << (r & 63)) : (int)((unsigned int)l << (r & 31)); break;
+                    case AST_EXPR_SHR: e->const_folded_val = (e->resolved_type && (e->resolved_type->kind == AST_TYPE_I64 || e->resolved_type->kind == AST_TYPE_U64 || e->resolved_type->kind == AST_TYPE_USIZE || e->resolved_type->kind == AST_TYPE_ISIZE)) ? (int64_t)((uint64_t)l >> (r & 63)) : (int)((unsigned int)l >> (r & 31)); break;
                     case AST_EXPR_BITAND: e->const_folded_val = l & r; break;
                     case AST_EXPR_BITOR: e->const_folded_val = l | r; break;
                     case AST_EXPR_BITXOR: e->const_folded_val = l ^ r; break;
