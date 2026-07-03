@@ -2913,7 +2913,10 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
         if (codegen_codegen_sx_format_int_lit((uint8_t *)out, (int32_t)e->const_folded_val) != 0) return -1;
         return 0;
 #else
-        fprintf(out, "%d", e->const_folded_val);
+        if (e->resolved_type && (e->resolved_type->kind == AST_TYPE_I64 || e->resolved_type->kind == AST_TYPE_USIZE || e->resolved_type->kind == AST_TYPE_ISIZE || e->resolved_type->kind == AST_TYPE_U64))
+            fprintf(out, "%lld", (long long)e->const_folded_val);
+        else
+            fprintf(out, "%d", (int)e->const_folded_val);
         return 0;
 #endif
     }

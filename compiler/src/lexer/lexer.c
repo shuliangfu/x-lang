@@ -565,7 +565,7 @@ static void lex_hex_number(Lexer *l, Token *out, int line0, int col0) {
     out->kind = TOKEN_INT;
     out->line = line0;
     out->col = col0;
-    out->value.int_val = (int)(unsigned)(val & 0xFFFFFFFFUL);
+    out->value.int_val = (int64_t)val;
     out->ident_len = 0;
 }
 
@@ -584,7 +584,7 @@ static void lex_number(Lexer *l, Token *out) {
             return;
         }
     }
-    int ival = 0;
+    int64_t ival = 0;
     while (l->src < l->end && isdigit((unsigned char)*l->src))
         ival = ival * 10 + (lexer_advance(l) - '0');
     /* 仅当 '.' 后接数字时才解析为浮点，避免 21.double() 被吞成 FLOAT(21.) */

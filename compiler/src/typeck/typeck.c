@@ -1713,7 +1713,7 @@ static void fold_expr(struct ASTExpr *e, const char **names, const int *const_va
                 (e->resolved_type->kind == AST_TYPE_I32 || e->resolved_type->kind == AST_TYPE_BOOL ||
                  e->resolved_type->kind == AST_TYPE_U8 || e->resolved_type->kind == AST_TYPE_U32 ||
                  e->resolved_type->kind == AST_TYPE_I64 || e->resolved_type->kind == AST_TYPE_USIZE || e->resolved_type->kind == AST_TYPE_ISIZE)) {
-                int l = e->value.binop.left->const_folded_val, r = e->value.binop.right->const_folded_val;
+                int64_t l = e->value.binop.left->const_folded_val, r = e->value.binop.right->const_folded_val;
                 switch (e->kind) {
                     case AST_EXPR_ADD: e->const_folded_val = l + r; break;
                     case AST_EXPR_SUB: e->const_folded_val = l - r; break;
@@ -1746,7 +1746,7 @@ static void fold_expr(struct ASTExpr *e, const char **names, const int *const_va
                 (e->resolved_type->kind == AST_TYPE_I32 || e->resolved_type->kind == AST_TYPE_BOOL ||
                  e->resolved_type->kind == AST_TYPE_U8 || e->resolved_type->kind == AST_TYPE_U32 ||
                  e->resolved_type->kind == AST_TYPE_I64 || e->resolved_type->kind == AST_TYPE_USIZE || e->resolved_type->kind == AST_TYPE_ISIZE)) {
-                int o = e->value.unary.operand->const_folded_val;
+                int64_t o = e->value.unary.operand->const_folded_val;
                 if (e->kind == AST_EXPR_NEG) e->const_folded_val = -o;
                 else if (e->kind == AST_EXPR_BITNOT) e->const_folded_val = ~o;
                 else e->const_folded_val = !o ? 1 : 0;
