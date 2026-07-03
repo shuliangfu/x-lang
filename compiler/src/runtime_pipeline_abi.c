@@ -1701,10 +1701,14 @@ fail_to_load:
 }
 
 /** asm emit 桩判定与 ARRAY_LIT/SoA 补类型（ast_pool.c / pipeline_glue.c）。 */
+#ifndef _WIN32
 extern void asm_skip_heavy_set_pipeline_ctx(void *ctx);
 extern void pipeline_fill_array_lit_types_for_skipped_typeck(void *m, void *arena);
+#endif
+#ifndef _WIN32
 extern void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *arena);
 extern void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *arena);
+#endif
 
 /** asm_codegen_elf_o 前：设置 skip_heavy 上下文并为 ARRAY_LIT / SoA field 补类型。 */
 void shux_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pctx) {
@@ -1727,8 +1731,10 @@ typedef struct {
     int32_t result;
 } ShuxAsmCodegenElfLargeArgs;
 
+#ifndef _WIN32
 extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struct platform_elf_ElfCodegenCtx *elf_ctx,
     void *out_buf);
+#endif
 
 /** pthread 入口：调用 asm_asm_codegen_elf_o 并将 ec 写入 args->result。 */
 static void *shux_asm_codegen_elf_o_thread_fn(void *arg) {
