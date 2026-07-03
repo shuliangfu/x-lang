@@ -188,12 +188,17 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#ifndef _WIN32
+#ifndef _WIN32
 #include <unistd.h>
 #include <sys/wait.h>
+#endif
 #include <fcntl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#endif
+#include <sys/stat.h>
 #include <pthread.h>
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
@@ -2033,7 +2038,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
                     return 1;
                 }
                 {
-                    pid_t cpid = fork();
+                    #ifdef _WIN32
+        runtime_diag("build error", "fork not supported on Windows", input_path); return -1;
+#else
+        pid_t cpid = fork();
                     int cc_ok = 0;
                     if (cpid < 0) {
                         runtime_diag_errno_path(input_path, "build error", "fork (cc -c)", out_path);
@@ -2045,6 +2053,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                         _exit(127);
                     } else {
                         int status = 0;
+                        #endif
                         if (shu_waitpid_retry(cpid, &status) != 0 ||
                             !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
                             diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
@@ -4415,7 +4424,10 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                         return 1;
                     }
                     {
-                        pid_t cpid = fork();
+                        #ifdef _WIN32
+        runtime_diag("build error", "fork not supported on Windows", input_path); return -1;
+#else
+        pid_t cpid = fork();
                         int cc_ok = 0;
                         if (cpid < 0) {
                             runtime_diag_errno_path(input_path, "build error", "fork (cc -c)", out_path);
@@ -4427,7 +4439,8 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                             _exit(127);
                         } else {
                             int status = 0;
-                            if (shu_waitpid_retry(cpid, &status) != 0 ||
+                            #endif
+                        if (shu_waitpid_retry(cpid, &status) != 0 ||
                                 !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
                                 diag_report_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001,
                                             "cc -c failed for library module", NULL);
