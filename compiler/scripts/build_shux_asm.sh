@@ -4105,7 +4105,7 @@ shux_asm_bstrict_relink_runtime_only() {
   ST_PIPELINE_ALIAS=""
   ST_STRICT_FB_SX_TAIL=""
   if [ -f runtime_panic.o ]; then
-    ST_RUNTIME_PANIC="runtime_panic.o"
+    ST_RUNTIME_PANIC="runtime_panic.o atoi_stub.o"
   fi
   refresh_build_asm_ci_text_stubs_for_strict_link || true
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] \
@@ -4598,7 +4598,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
               ensure_asm_strict_link_extra_objs
               ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
               ensure_asm_link_objs
-              ST_RUNTIME_PANIC="runtime_panic.o"
+              ST_RUNTIME_PANIC="runtime_panic.o atoi_stub.o"
               ST_BRIDGE_OBJ=""
               ST_SEED_PARSER_TCK=""
               ST_SEED_PREPROCESS_LINK=""
