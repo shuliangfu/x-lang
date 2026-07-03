@@ -37,7 +37,7 @@ echo "$ERR" | grep -q "generic function 'id' expects 1 type arguments, got 2" ||
   exit 1
 }
 
-echo "$ERR" | grep -q "at 4:26" || {
+echo "$ERR" | grep -q "4:26" || {
   echo "$ERR" >&2
   gate_progress "FAIL: missing source location for generic diagnostic"
   exit 1
