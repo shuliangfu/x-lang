@@ -122,5 +122,13 @@ static inline int pthread_attr_setguardsize(void *attr, size_t guardsize) {
     (void)attr; (void)guardsize; return 0;
 }
 
+
+/* asm 后端桩——shux-c C 前端不需要 asm codegen */
+static inline void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *a) { (void)m; (void)a; }
+static inline void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *a) { (void)m; (void)a; }
+static inline int asm_asm_codegen_elf_o(void *m, void *a, void *c, void *e, void *o, int *ol) {
+    (void)m; (void)a; (void)c; (void)e; (void)o; (void)ol; return -1;
+}
+
 #endif /* _WIN32 */
 #endif /* SHUX_WIN32_COMPAT_H */
