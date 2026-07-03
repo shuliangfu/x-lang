@@ -21,6 +21,7 @@ if [ "${SHUX_CI_DOCKER:-0}" != "1" ]; then
   # Windows（MINGW/MSYS）跳过 docker——直接用本地 shux-c
   case "$os" in MINGW*|MSYS*|CYGWIN*)
     gate_progress "V6: Windows native (skip docker)"
+    export CC=gcc
     ;;
   *)
   if [ "$os" != "Linux" ] || [ "$arch" = "non-x86_64" ]; then
