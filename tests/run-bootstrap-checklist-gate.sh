@@ -131,6 +131,8 @@ run_section_4() {
 # ── §五 编译器与工具链（C2/C5/C6/C9 + §9.1 语义债）──
 run_section_5() {
   should_run_section 5 || return 0
+  export SHUX_C2_BIN="${SHUX_C2_BIN:-$SHUX}"
+  export SHUX_C9_BIN="${SHUX_C9_BIN:-$SHUX}"
   section_banner 5 "编译器与工具链（C2 diag / C5 spill / C6 asm -o / C9 stdout / §9.1）"
   gate_progress "C2: 泛型 wrong_type_args 诊断 ..."
   if run_gate_script run-typeck-generic-args-gate.sh; then
