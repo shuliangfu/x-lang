@@ -298,7 +298,11 @@ static int compile_phase_timing_enabled(void) {
 /** 单调 wall-clock 秒（gettimeofday）。 */
 static double compile_phase_now_sec(void) {
     struct timeval tv;
+    #ifndef _WIN32
     gettimeofday(&tv, NULL);
+#else
+    time_t t = time(NULL); tv.tv_sec = (long)t; tv.tv_usec = 0;
+#endif
     return (double)tv.tv_sec + (double)tv.tv_usec * 1e-6;
 }
 
@@ -457,6 +461,7 @@ void driver_bump_stack_limit(void) {
             rl.rlim_cur = rl.rlim_max;
         (void)setrlimit(RLIMIT_STACK, &rl);
     }
+    #endif
 }
 
 /** pthread 大栈调用参数（trampoline 解包 fn/arg）。 */
