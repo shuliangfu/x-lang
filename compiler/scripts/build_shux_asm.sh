@@ -3865,6 +3865,7 @@ ensure_asm_link_objs() {
     "$CC" $CFLAGS -c -o atoi_stub.o /tmp/atoi_stub_$$.c
     rm -f /tmp/atoi_stub_$$.c
   fi
+  export SHUX_ATOI_STUB="atoi_stub.o"
 }
 
 # 用户程序 asm 链预编译 runtime 对象（nostdlib shux_asm 无 fork+cc，须在 build 阶段产出）。
@@ -4154,7 +4155,7 @@ shux_asm_bstrict_relink_runtime_only() {
     "$LSP_DIAG_SEED_O" \
     "$SEED_O/lsp_state.o" \
     src/lsp/lsp_diag_pipeline_sizes.o \
-    $ST_RUNTIME_PANIC \
+    $ST_RUNTIME_PANIC $SHUX_ATOI_STUB \
     $ST_RUNTIME_EXTRA \
     $ST_LAYOUT_PARTIAL \
     $ST_PIPELINE_ALIAS \
@@ -4787,7 +4788,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 "$LSP_DIAG_SEED_O" \
                 "$SEED_O/lsp_state.o" \
                 src/lsp/lsp_diag_pipeline_sizes.o \
-                $ST_RUNTIME_PANIC \
+                $ST_RUNTIME_PANIC $SHUX_ATOI_STUB \
                 $ST_RUNTIME_EXTRA \
                 $ST_LAYOUT_PARTIAL \
                 $ST_PIPELINE_ALIAS \
