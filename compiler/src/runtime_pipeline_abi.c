@@ -1862,4 +1862,8 @@ void pipeline_fill_array_lit_types_for_skipped_typeck(void *m, void *a) { (void)
 void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *a) { (void)m; (void)a; }
 void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *a) { (void)m; (void)a; }
 int32_t asm_asm_codegen_elf_o(void *m, void *a, void *c, struct platform_elf_ElfCodegenCtx *e, void *o) { (void)m; (void)a; (void)c; (void)e; (void)o; return -1; }
+/* 更多 pipeline stub */
+void pipeline_parse_set_main_from_buf_c(void *m, void *b, int s) { (void)m; (void)b; (void)s; }
+int32_t pipeline_module_num_funcs(void *m) { (void)m; return 0; }
+int32_t pipeline_module_func_name_len(void *m, int i) { (void)m; (void)i; return 0; }
 #endif
