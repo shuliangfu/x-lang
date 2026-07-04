@@ -9,7 +9,7 @@
 
 | ID | 交付 |
 |----|------|
-| STD-143 | `.sx` 侧可调用 `bench_run_noop` / `fuzz_run_noop`（无需函数指针）+ 端到端烟测 |
+| STD-143 | `.x` 侧可调用 `bench_run_noop` / `fuzz_run_noop`（无需函数指针）+ 端到端烟测 |
 
 ---
 
@@ -20,13 +20,13 @@
 | `bench_run_noop(iters): i64` | 对 C 内置 noop 跑 `bench_run`，返回纳秒 |
 | `fuzz_run_noop(iters): i32` | 对 C 内置 noop 跑 `fuzz_run`，推进 PRNG |
 
-底层仍用 `test_bench_run_c` / `test_fuzz_run_c`；v1 不向 .sx 暴露函数指针 cast。
+底层仍用 `test_bench_run_c` / `test_fuzz_run_c`；v1 不向 .x 暴露函数指针 cast。
 
 ---
 
 ## 3. 烟测
 
-`tests/std-test/bench_fuzz_exec.sx`：
+`tests/std-test/bench_fuzz_exec.x`：
 
 1. `fuzz_seed` + `fuzz_next` 序列可复现  
 2. `bench_run_noop` 返回 `ns >= 0`  

@@ -11,12 +11,12 @@ FAIL=0
 echo "=== A3: Cross-architecture kernel target gate ==="
 
 # Simple arch-neutral kernel (no arch-specific asm in body)
-cat > "$WORKDIR/cross_arch.sx" << 'SXEOF'
+cat > "$WORKDIR/cross_arch.x" << 'XEOF'
 function kmain(): i32 { return 42; }
 function main(): i32 { return kmain(); }
-SXEOF
+XEOF
 
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/cross_arch.sx" > "$WORKDIR/cross_arch.c" 2>/dev/null
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/cross_arch.x" > "$WORKDIR/cross_arch.c" 2>/dev/null
 
 # Test x86 (32-bit)
 echo "  Check: x86 (i386) compilation"

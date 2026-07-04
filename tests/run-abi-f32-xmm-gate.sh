@@ -54,10 +54,10 @@ abi_f32_xmm_run_smoke() {
   echo "abi-f32-xmm: ${tag} exit=${want_rc} OK"
 }
 
-abi_f32_xmm_run_smoke "tests/abi/f32_call_xmm_smoke.sx" "pure_f32" 6
-abi_f32_xmm_run_smoke "tests/abi/f32_xmm_mixed_call_smoke.sx" "mixed_ptr_f32" 6
-abi_f32_xmm_run_smoke "tests/abi/f32_xmm_mixed_field_read_smoke.sx" "mixed_field_read" 6
-abi_f32_xmm_run_smoke "tests/abi/f32_tri_field_read_smoke.sx" "tri_field_read" 6
+abi_f32_xmm_run_smoke "tests/abi/f32_call_xmm_smoke.x" "pure_f32" 6
+abi_f32_xmm_run_smoke "tests/abi/f32_xmm_mixed_call_smoke.x" "mixed_ptr_f32" 6
+abi_f32_xmm_run_smoke "tests/abi/f32_xmm_mixed_field_read_smoke.x" "mixed_field_read" 6
+abi_f32_xmm_run_smoke "tests/abi/f32_tri_field_read_smoke.x" "tri_field_read" 6
 
 if command -v objdump >/dev/null 2>&1; then
   for tag in mixed_ptr_f32 mixed_field_read; do
@@ -80,8 +80,8 @@ echo "=== ABI f32 xmm: CLI -legacy-f32-abi ==="
 CLI_BIN="/tmp/shux_abi_f32_xmm_cli_legacy"
 CLI_OBJ="/tmp/shux_abi_f32_xmm_cli_legacy.o"
 rm -f "$CLI_BIN" "$CLI_OBJ"
-if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -backend asm -L . -legacy-f32-abi tests/abi/f32_call_xmm_smoke.sx -o "$CLI_BIN" 2>/dev/null; then
-  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -backend asm -L . -legacy-f32-abi tests/abi/f32_call_xmm_smoke.sx -o "$CLI_OBJ"; then
+if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -backend asm -L . -legacy-f32-abi tests/abi/f32_call_xmm_smoke.x -o "$CLI_BIN" 2>/dev/null; then
+  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -backend asm -L . -legacy-f32-abi tests/abi/f32_call_xmm_smoke.x -o "$CLI_OBJ"; then
     echo "abi-f32-xmm FAIL: compile with -legacy-f32-abi" >&2
     exit 1
   fi

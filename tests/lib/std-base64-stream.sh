@@ -5,7 +5,7 @@ STD_BASE64_STREAM_PREFIX="${SHUX_STD109_BASE64_STREAM_PREFIX:-shux: [SHUX_STD109
 
 # 校验 manifest 中 api/symbol/file。
 std_base64_stream_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local b64_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,7 +15,7 @@ std_base64_stream_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-base64-stream FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -23,7 +23,7 @@ std_base64_stream_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/base64/base64.c|std/base64/base64.sx) path="$b64_c" ;;
+          std/base64/base64.c|std/base64/base64.x) path="$b64_c" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-base64-stream FAIL: missing '$anchor' in $path" >&2
@@ -42,8 +42,8 @@ std_base64_stream_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
-std_base64_stream_run_sx_smoke() {
+# 编译并运行 .x 烟测。
+std_base64_stream_run_x_smoke() {
   local shux="$1"
   local src="$2"
   local tag="${3:-stream}"
@@ -99,5 +99,5 @@ std_base64_stream_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_BASE64_STREAM_PREFIX} status=${status} c=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_BASE64_STREAM_PREFIX} status=${status} c=${c_ok} x=${su_ok} skip=${skip}"
 }

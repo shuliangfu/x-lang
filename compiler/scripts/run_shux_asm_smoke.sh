@@ -8,7 +8,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-# main.sx EMIT_HEAVY + asm pipeline 深递归；默认 8MB 栈会导致 compile/SIGSEGV（与 build_shux_asm ulimit 对齐）。
+# main.x EMIT_HEAVY + asm pipeline 深递归；默认 8MB 栈会导致 compile/SIGSEGV（与 build_shux_asm ulimit 对齐）。
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 if [ ! -x ./shux_asm ]; then
@@ -16,7 +16,7 @@ if [ ! -x ./shux_asm ]; then
   exit 1
 fi
 
-RV="../tests/return-value/main.sx"
+RV="../tests/return-value/main.x"
 if [ ! -f "$RV" ]; then
   echo "run_shux_asm_smoke: $RV missing"
   exit 1

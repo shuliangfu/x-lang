@@ -55,7 +55,7 @@ cursor_object_next → parse_string_view（无转义字段零拷贝）
 
 ## 4. 烟测
 
-`tests/json/object_array_parse.sx`：
+`tests/json/object_array_parse.x`：
 
 - `skip_value` 整文档
 - 遍历 `{"name":"alice","age":30,"tags":["a","b"]}`

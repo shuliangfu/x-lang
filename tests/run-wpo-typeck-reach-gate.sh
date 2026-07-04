@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S5：typeck_wpo.o WPO reach 门禁（typeck_sx_ast / check_block / check_expr 须已定义）。
+# S5：typeck_wpo.o WPO reach 门禁（typeck_x_ast / check_block / check_expr 须已定义）。
 # 用法：
 #   ./tests/run-wpo-typeck-reach-gate.sh
 #   SHUX_WPO_TYPECK_REACH_FAIL=1 ./tests/run-wpo-typeck-reach-gate.sh
@@ -15,8 +15,8 @@ if [ ! -f "$TYPECK_O" ]; then
   exit 0
 fi
 
-if ! nm "$TYPECK_O" 2>/dev/null | grep -qE ' T (_)?typeck_sx_ast'; then
-  echo "run-wpo-typeck-reach-gate FAIL: $TYPECK_O missing typeck_sx_ast export" >&2
+if ! nm "$TYPECK_O" 2>/dev/null | grep -qE ' T (_)?typeck_x_ast'; then
+  echo "run-wpo-typeck-reach-gate FAIL: $TYPECK_O missing typeck_x_ast export" >&2
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
@@ -47,4 +47,4 @@ if [ "$gate_fail" -ne 0 ]; then
   exit 0
 fi
 
-echo "run-wpo-typeck-reach-gate OK (typeck_sx_ast+check_block/check_expr defined, exports=${EXPORTS})"
+echo "run-wpo-typeck-reach-gate OK (typeck_x_ast+check_block/check_expr defined, exports=${EXPORTS})"

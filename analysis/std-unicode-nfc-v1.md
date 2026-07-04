@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§3 |
 | 2 | `tests/baseline/std-unicode-nfc.tsv` |
 | 3 | `./tests/run-std-unicode-nfc-gate.sh` |
-| 4 | 金样：`tests/unicode/nfc_gold.sx` |
+| 4 | 金样：`tests/unicode/nfc_gold.x` |
 
 ---
 
@@ -23,7 +23,7 @@
 |-----|------|
 | `nfc_buf(in, in_len, out, out_cap)` | 缓冲 NFC（v1 **拉丁预组合子集**） |
 
-**金样向量**（`nfc_gold.sx`）：
+**金样向量**（`nfc_gold.x`）：
 
 | 输入 | 期望 NFC 输出 |
 |------|----------------|

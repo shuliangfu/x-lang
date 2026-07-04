@@ -10,7 +10,7 @@
 
 | 步骤 | 动作 |
 |------|------|
-| 1 | 读 `std/backtrace/mod.sx`：`collect_crash_evidence` |
+| 1 | 读 `std/backtrace/mod.x`：`collect_crash_evidence` |
 | 2 | 读本文 §2–§4（证据字段、环境变量、panic 挂钩） |
 | 3 | `./tests/run-safe-crash-evidence-gate.sh` |
 
@@ -56,8 +56,8 @@ shux: [SHUX_CRASH_EVIDENCE] bundle=/tmp/.../shux-crash-12345.txt
 
 | case | 路径 | 说明 |
 |------|------|------|
-| `case_manual` | `tests/crash/evidence_manual.sx` | 显式 `collect_crash_evidence` |
-| `case_panic` | `tests/ub/div_zero.sx` | 除零 → panic 自动收集 |
+| `case_manual` | `tests/crash/evidence_manual.x` | 显式 `collect_crash_evidence` |
+| `case_panic` | `tests/ub/div_zero.x` | 除零 → panic 自动收集 |
 
 联动：`tests/run-ub.sh`（UB 收窄 panic 回归）。
 

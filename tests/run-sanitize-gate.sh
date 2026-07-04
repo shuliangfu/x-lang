@@ -19,7 +19,7 @@ if [ -z "$SHUX_BIN" ]; then
   fi
 fi
 
-SRC="tests/sanitize/bounds_literal_ok.sx"
+SRC="tests/sanitize/bounds_literal_ok.x"
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
 NORM_OUT="$OUT_DIR/shux_sanitize_norm.c"
@@ -53,8 +53,8 @@ echo "sanitize: -fsanitize=address emit bounds OK"
 # OOB 仍 panic（与 run-ub.sh 一致）
 UB_OUT="$OUT_DIR/shux_sanitize_oob"
 rm -f "$UB_OUT"
-if ! "$SHUX_BIN" -fsanitize=address tests/ub/bounds_array.sx -o "$UB_OUT" 2>/dev/null; then
-  echo "sanitize gate FAIL: compile bounds_array.sx" >&2
+if ! "$SHUX_BIN" -fsanitize=address tests/ub/bounds_array.x -o "$UB_OUT" 2>/dev/null; then
+  echo "sanitize gate FAIL: compile bounds_array.x" >&2
   exit 1
 fi
 RC=0

@@ -87,8 +87,8 @@ elif can_seed_run ./shux-c; then
   SHUX_E=./shux-c
 elif can_seed_run ./shux-seed-phase1; then
   SHUX_E=./shux-seed-phase1
-elif can_seed_run ./shux-sx; then
-  SHUX_E=./shux-sx
+elif can_seed_run ./shux-x; then
+  SHUX_E=./shux-x
 elif can_seed_run ./shux; then
   SHUX_E=./shux
 elif can_seed_run ./shux_asm; then
@@ -99,13 +99,13 @@ if [ ! -x "$SHUX_E" ]; then
   exit 1
 fi
 
-# `asm_seed_full.sx -E` 当前会触发 `shux-sx` 的 parser 资源失控；同一输入下 `shux-c`
-# 可稳定产出完整 C，因此 seed partial 生成优先走 `shux-c`，仅在缺失时才回退到 `shux-sx` / `shux`。
+# `asm_seed_full.x -E` 当前会触发 `shux-x` 的 parser 资源失控；同一输入下 `shux-c`
+# 可稳定产出完整 C，因此 seed partial 生成优先走 `shux-c`，仅在缺失时才回退到 `shux-x` / `shux`。
 SHUX_ASM_E="${SHUX_ASM_E:-$SHUX_E}"
 if can_seed_run ./shux-c; then
   SHUX_ASM_E=./shux-c
-elif can_seed_run ./shux-sx; then
-  SHUX_ASM_E=./shux-sx
+elif can_seed_run ./shux-x; then
+  SHUX_ASM_E=./shux-x
 elif can_seed_run ./shux; then
   SHUX_ASM_E=./shux
 fi
@@ -119,18 +119,18 @@ fi
 LIB_ASM="-L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline -L src/codegen"
 LIB_ASM_MIN="-L src/asm"
 
-# asm_seed_full.sx -E：seed partial 专用 full 入口；普通 runtime `asm.sx` 已瘦成薄桥，不再适合作为 partial 源。
+# asm_seed_full.x -E：seed partial 专用 full 入口；普通 runtime `asm.x` 已瘦成薄桥，不再适合作为 partial 源。
 # 长任务心跳，避免 Docker 内静默数分钟像卡住。
-run_asm_sx_emit_c() {
+run_asm_x_emit_c() {
   _out="$1"
   _err="$2"
   _start=$(date +%s)
   _run() {
-    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-256}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.sx >"$_out" 2>"$_err"
+    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-256}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.x >"$_out" 2>"$_err"
   }
   _run_bg() {
     # 回退仍须全量 -L；仅 -L src/asm 无法 resolve import codegen/ast 等。
-    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-256}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.sx >"$_out" 2>"$_err"
+    SHUX_STACK_LIMIT_MB="${SHUX_STACK_LIMIT_MB:-256}" "$SHUX_ASM_E" $LIB_ASM -E src/asm/asm_seed_full.x >"$_out" 2>"$_err"
   }
   _wait_with_heartbeat() {
     _pid=$1
@@ -186,7 +186,7 @@ run_asm_sx_emit_c() {
   _run &
   _pid=$!
   _erc=0
-  _wait_with_heartbeat "$_pid" "asm.sx -E LIB_ASM" || _erc=$?
+  _wait_with_heartbeat "$_pid" "asm.x -E LIB_ASM" || _erc=$?
   if _emit_c_usable; then
     return 0
   fi
@@ -200,7 +200,7 @@ run_asm_sx_emit_c() {
   _run &
   _pid=$!
   _erc=0
-  _wait_with_heartbeat "$_pid" "asm.sx -E retry" || _erc=$?
+  _wait_with_heartbeat "$_pid" "asm.x -E retry" || _erc=$?
   if _emit_c_usable; then
     return 0
   fi
@@ -366,13 +366,13 @@ ld_partial_export() {
   localize_elf_partial_non_exported "$_out_o" "$_syms"
 }
 
-# asm.sx 全量 -E：ld -r 仅导出 backend/peephole/platform 入口，避免与 pipeline_sx.o / codegen_sx.o 重复符号
+# asm.x 全量 -E：ld -r 仅导出 backend/peephole/platform 入口，避免与 pipeline_x.o / codegen_x.o 重复符号
 ASM_FULL_C="$OUT_DIR/asm_full_gen.c"
 ASM_FULL_O="$OUT_DIR/asm_full.o"
 BACKEND_PARTIAL="$OUT_DIR/asm_backend_partial.o"
 SYMS="$OUT_DIR/asm_backend_export.txt"
 
-# G-06：冷启动种子 partial（make clean 后 asm.sx -E 可能失败时沿用）
+# G-06：冷启动种子 partial（make clean 后 asm.x -E 可能失败时沿用）
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 case "$arch" in x86_64|amd64) arch="x86_64" ;; aarch64|arm64) arch="arm64" ;; esac
@@ -391,28 +391,28 @@ if [ ! -f "$BACKEND_PARTIAL" ] && [ -f "$SEED_PARTIAL" ] && [ -s "$SEED_PARTIAL"
   build_seed_asm_host_info "seed partial (seed_mega) <- $SEED_PARTIAL"
   exit 0
 fi
-# phase1 弱桩 partial 无强符号 seed_mega，须用 shux-seed-phase1 重新 -E asm.sx
+# phase1 弱桩 partial 无强符号 seed_mega，须用 shux-seed-phase1 重新 -E asm.x
 if [ -f "$BACKEND_PARTIAL" ] && ! has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
-  build_seed_asm_host_warn "phase1 stub partial (no strong seed_mega), regen via asm.sx -E ..."
+  build_seed_asm_host_warn "phase1 stub partial (no strong seed_mega), regen via asm.x -E ..."
   rm -f "$BACKEND_PARTIAL"
 fi
 
-# `asm.sx` 现已是极薄桥接层；seed partial 的真实实现来自 backend/peephole/platform/arch。
-# 因此不要再因为 `asm.sx` 或上次落盘的 `asm_full_gen.c` 较新就强制重建 partial，
+# `asm.x` 现已是极薄桥接层；seed partial 的真实实现来自 backend/peephole/platform/arch。
+# 因此不要再因为 `asm.x` 或上次落盘的 `asm_full_gen.c` 较新就强制重建 partial，
 # 否则会把已有真实 partial 误判为过期，并尝试从 thin bridge 重新生成而失败。
 seed_partial_needs_regen() {
   [ ! -f "$BACKEND_PARTIAL" ] && return 0
-  [ "src/asm/asm_seed_full.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/asm_seed_full.x" -nt "$BACKEND_PARTIAL" ] && return 0
   [ "$BACKEND_FALLBACK_SRC" -nt "$BACKEND_PARTIAL" ] && return 0
-  [ "src/asm/backend.sx" -nt "$BACKEND_PARTIAL" ] && return 0
-  [ "src/asm/peephole.sx" -nt "$BACKEND_PARTIAL" ] && return 0
-  [ "src/asm/platform/elf.sx" -nt "$BACKEND_PARTIAL" ] && return 0
-  [ "src/asm/arch/arm64_enc.sx" -nt "$BACKEND_PARTIAL" ] && return 0
-  [ "src/asm/arch/arm64.sx" -nt "$BACKEND_PARTIAL" ] && return 0
-  [ "src/asm/arch/x86_64_enc.sx" -nt "$BACKEND_PARTIAL" ] && return 0
-  [ "src/asm/arch/x86_64.sx" -nt "$BACKEND_PARTIAL" ] && return 0
-  [ "src/asm/arch/riscv64_enc.sx" -nt "$BACKEND_PARTIAL" ] && return 0
-  [ "src/asm/arch/riscv64.sx" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/backend.x" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/peephole.x" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/platform/elf.x" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/arm64_enc.x" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/arm64.x" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/x86_64_enc.x" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/x86_64.x" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/riscv64_enc.x" -nt "$BACKEND_PARTIAL" ] && return 0
+  [ "src/asm/arch/riscv64.x" -nt "$BACKEND_PARTIAL" ] && return 0
   [ "src/asm/backend_enc_dispatch.o" -nt "$BACKEND_PARTIAL" ] && return 0
   [ "src/asm/backend_arch_emit_dispatch.o" -nt "$BACKEND_PARTIAL" ] && return 0
   return 1
@@ -421,23 +421,23 @@ seed_partial_needs_regen() {
 if seed_partial_needs_regen; then
   if ! darwin_seed_full_e_allowed; then
     if [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
-      build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.sx -E, keep existing $BACKEND_PARTIAL (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
+      build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.x -E, keep existing $BACKEND_PARTIAL (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
       exit 0
     fi
     if build_backend_partial_from_c_fallback; then
-      build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.sx -E, use source fallback partial (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
+      build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.x -E, use source fallback partial (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
       exit 0
     fi
-    build_seed_asm_host_error "Darwin safety guard blocked asm_seed_full.sx -E, and fallback partial build failed"
+    build_seed_asm_host_error "Darwin safety guard blocked asm_seed_full.x -E, and fallback partial build failed"
     exit 1
   fi
-  build_seed_asm_host_info "asm_seed_full.sx 全量 -E ..."
+  build_seed_asm_host_info "asm_seed_full.x 全量 -E ..."
   ASM_TMP="$OUT_DIR/asm_full_gen.c.tmp"
   # 须全量 -E（勿 -E-extern：仅 ~100 行 typeck/asm 桩，缺 backend/peephole/platform，cc 失败或沿用陈旧 x86_64 partial.o）。
   _erc=0
-  run_asm_sx_emit_c "$ASM_TMP" "$OUT_DIR/asm_full_gen.err" || _erc=$?
+  run_asm_x_emit_c "$ASM_TMP" "$OUT_DIR/asm_full_gen.err" || _erc=$?
   if [ "$_erc" -ne 0 ]; then
-    build_seed_asm_host_warn "asm_seed_full.sx -E exit=${_erc}"
+    build_seed_asm_host_warn "asm_seed_full.x -E exit=${_erc}"
     if [ -s "$OUT_DIR/asm_full_gen.err" ]; then
       build_seed_asm_host_dump_tail "$OUT_DIR/asm_full_gen.err" 20
     else
@@ -459,16 +459,16 @@ if seed_partial_needs_regen; then
       build_seed_asm_host_warn "-E 失败，沿用 ${ASM_FULL_C}.bak ($(wc -c <"$ASM_FULL_C" | tr -d ' ') bytes)"
       rm -f "$ASM_TMP"
     elif [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
-      build_seed_asm_host_warn "asm_seed_full.sx -E 失败，沿用已有 $BACKEND_PARTIAL"
+      build_seed_asm_host_warn "asm_seed_full.x -E 失败，沿用已有 $BACKEND_PARTIAL"
       rm -f "$ASM_TMP"
       exit 0
     else
       rm -f "$ASM_TMP"
       if build_backend_partial_from_c_fallback; then
-        build_seed_asm_host_warn "asm_seed_full.sx -E 失败，改用源码 fallback partial"
+        build_seed_asm_host_warn "asm_seed_full.x -E 失败，改用源码 fallback partial"
         exit 0
       fi
-      build_seed_asm_host_error "asm_seed_full.sx -E 失败且无已有 $ASM_FULL_C / $BACKEND_PARTIAL / fallback partial"
+      build_seed_asm_host_error "asm_seed_full.x -E 失败且无已有 $ASM_FULL_C / $BACKEND_PARTIAL / fallback partial"
       exit 1
     fi
   else
@@ -509,7 +509,7 @@ if seed_partial_needs_regen; then
     ENC_STUB_C="$OUT_DIR/asm_full_enc_link_stubs.c"
     ENC_STUB_O="$OUT_DIR/asm_full_enc_link_stubs.o"
     _stub_scan="$ASM_FULL_O"
-    for _so in pipeline_sx.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o; do
+    for _so in pipeline_x.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o; do
       [ -f "$_so" ] && _stub_scan="$_stub_scan $_so"
     done
     if perl scripts/gen_asm_full_link_stubs.pl "$ENC_STUB_C" $_stub_scan 2>/dev/null; then
@@ -531,7 +531,7 @@ if seed_partial_needs_regen; then
       build_seed_asm_host_info "merged build_asm/backend.o -> $ASM_FULL_O"
     fi
   fi
-  # 从 asm_full.o 导出 backend_/peephole_/platform_{elf,macho,coff}_*，供 codegen_sx.o 与 seed bridge 解析。
+  # 从 asm_full.o 导出 backend_/peephole_/platform_{elf,macho,coff}_*，供 codegen_x.o 与 seed bridge 解析。
   # 剔除 backend_*_dispatch.c 已提供的符号，避免与 USER_ASM_LINK 重复定义（须四份 dispatch .o 均已编译）。
   collect_backend_export_syms "$ASM_FULL_O" "$SYMS"
   : >"$OUT_DIR/asm_dispatch_syms.txt"

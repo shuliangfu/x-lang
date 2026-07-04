@@ -11,24 +11,24 @@ source tests/lib/gate-progress.sh
 
 SHU="${SHUX_C9_BIN:-./compiler/shux}"
 TIMEOUT_SEC="${SHUX_C9_TIMEOUT:-20}"
-TMP_SX="/tmp/shux_c9_non_tty_$$.sx"
+TMP_X="/tmp/shux_c9_non_tty_$$.x"
 TMP_OUT="/tmp/shux_c9_non_tty_$$.o"
 TMP_LOG="/tmp/shux_c9_non_tty_$$.log"
 
 [ -x "$SHU" ] || { gate_progress "FAIL: missing compiler $SHU"; exit 1; }
 
 cleanup() {
-  rm -f "$TMP_SX" "$TMP_OUT" "$TMP_LOG"
+  rm -f "$TMP_X" "$TMP_OUT" "$TMP_LOG"
 }
 trap cleanup EXIT
 
-cat > "$TMP_SX" <<'EOF'
+cat > "$TMP_X" <<'EOF'
 const path = import("std.path");
 function main(): i32 { return 0; }
 EOF
 
 set +e
-timeout "$TIMEOUT_SEC" "$SHU" -L . "$TMP_SX" -o "$TMP_OUT" >"$TMP_LOG" 2>&1
+timeout "$TIMEOUT_SEC" "$SHU" -L . "$TMP_X" -o "$TMP_OUT" >"$TMP_LOG" 2>&1
 ec=$?
 set -e
 

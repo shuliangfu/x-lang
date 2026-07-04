@@ -23,7 +23,7 @@
 | NULL / 空 BLOB | 返回 **0**（不写缓冲） |
 | 缓冲不足 | `DB_ERR_EXEC` |
 
-烟测入口：`db_sqlite_row_col_blob_smoke_c`（C）、`row_col_blob_roundtrip.sx`（.sx）。
+烟测入口：`db_sqlite_row_col_blob_smoke_c`（C）、`row_col_blob_roundtrip.x`（.x）。
 
 ---
 
@@ -46,7 +46,7 @@
 ```
 
 ```
-shux: [SHUX_STD069_DB_BLOB_COL] status=ok blob_c=1 blob_sx=0 skip=1
+shux: [SHUX_STD069_DB_BLOB_COL] status=ok blob_c=1 blob_x=0 skip=1
 ```
 
 无 `libsqlite3` 时 manifest 仍过，烟测 **SKIP**。

@@ -37,22 +37,22 @@ if [ -z "$CHECK_SHUX" ]; then
   fi
 fi
 
-SX="tests/wpo/stack_promote_smoke.sx"
+X="tests/wpo/stack_promote_smoke.x"
 OUT="/tmp/shux_wpo_stack_promote_smoke"
 
 echo "=== WPO-S3: stack_promote_smoke check ($CHECK_SHUX) ==="
-"$CHECK_SHUX" check "$SX" >/dev/null
+"$CHECK_SHUX" check "$X" >/dev/null
 
 echo "=== WPO-S3: stack_promote_cross typeck (import struct helpers) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_cross.sx >/dev/null
+"$CHECK_SHUX" check tests/wpo/stack_promote_cross.x >/dev/null
 echo "=== WPO-S3: stack_promote_cross_ret typeck (field sum, no sum_pair) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_cross_ret.sx >/dev/null
+"$CHECK_SHUX" check tests/wpo/stack_promote_cross_ret.x >/dev/null
 echo "=== WPO-S3: stack_promote_escape typeck (&p escape) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_escape.sx >/dev/null
+"$CHECK_SHUX" check tests/wpo/stack_promote_escape.x >/dev/null
 echo "=== WPO-S3: stack_promote_escape_cross typeck (import &p escape) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_escape_cross.sx >/dev/null
+"$CHECK_SHUX" check tests/wpo/stack_promote_escape_cross.x >/dev/null
 echo "=== WPO-S3: stack_promote_escape_global typeck (expect struct stack escape) ==="
-neg_global=$("$CHECK_SHUX" check tests/wpo/stack_promote_escape_global.sx 2>&1) && {
+neg_global=$("$CHECK_SHUX" check tests/wpo/stack_promote_escape_global.x 2>&1) && {
   echo "wpo-s3 escape_global FAIL: expected typeck reject" >&2
   exit 1
 }
@@ -63,15 +63,15 @@ echo "$neg_global" | grep -q "struct stack escape" || {
 }
 echo "wpo-s3 escape_global reject OK"
 echo "=== WPO-S3: stack_promote_await typeck (struct 跨 await 占位) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_await.sx >/dev/null
+"$CHECK_SHUX" check tests/wpo/stack_promote_await.x >/dev/null
 echo "=== WPO-S3: stack_promote_await_yield typeck (struct 跨 await + 双 poll) ==="
-"$CHECK_SHUX" check tests/wpo/stack_promote_await_yield.sx >/dev/null
+"$CHECK_SHUX" check tests/wpo/stack_promote_await_yield.x >/dev/null
 echo "wpo-s3 cross/cross_ret/escape/await/await_yield typeck OK"
 
 if wpo_host_asm_run_na; then
   echo "wpo-s3 asm smoke N/A on $(uname -s)-$(uname -m) (refresh shux_asm asm stub; x86_64 covers)"
 elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
-  "$SHUX_ASM_BIN" "$SX" -o "$OUT" 2>/dev/null
+  "$SHUX_ASM_BIN" "$X" -o "$OUT" 2>/dev/null
   EX=0
   "$OUT" >/dev/null 2>&1 || EX=$?
   if [ "$EX" -ne 7 ]; then
@@ -93,7 +93,7 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
 
   # 跨模块 asm：co-emit dep + 链接 exe；main 应 call 导入的 make_pair/sum_pair（stack promotion 前基线）
   CROSS_OUT="/tmp/shux_wpo_stack_promote_cross"
-  "$SHUX_ASM_BIN" -backend asm tests/wpo/stack_promote_cross.sx -o "$CROSS_OUT" 2>/tmp/shux_wpo_s3_cross_build.log
+  "$SHUX_ASM_BIN" -backend asm tests/wpo/stack_promote_cross.x -o "$CROSS_OUT" 2>/tmp/shux_wpo_s3_cross_build.log
   if [ ! -x "$CROSS_OUT" ]; then
     echo "wpo-s3 cross asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_cross_build.log)" >&2
     tail -8 /tmp/shux_wpo_s3_cross_build.log 2>/dev/null || true
@@ -114,7 +114,7 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
 
   # 跨模块 field-sum（无 sum_pair call）：make_pair 内联 + main 直读 p.a/p.b
   CROSS_RET_OUT="/tmp/shux_wpo_stack_promote_cross_ret"
-  "$SHUX_ASM_BIN" -backend asm tests/wpo/stack_promote_cross_ret.sx -o "$CROSS_RET_OUT" 2>/tmp/shux_wpo_s3_cross_ret_build.log
+  "$SHUX_ASM_BIN" -backend asm tests/wpo/stack_promote_cross_ret.x -o "$CROSS_RET_OUT" 2>/tmp/shux_wpo_s3_cross_ret_build.log
   if [ ! -x "$CROSS_RET_OUT" ]; then
     echo "wpo-s3 cross_ret asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_cross_ret_build.log)" >&2
     tail -8 /tmp/shux_wpo_s3_cross_ret_build.log 2>/dev/null || true
@@ -135,7 +135,7 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
 
   # 同模块 &p 逃逸：make_pair 须直写栈槽，sum_via_ptr 可读有效指针
   ESC_OUT="/tmp/shux_wpo_stack_promote_escape"
-  "$SHUX_ASM_BIN" tests/wpo/stack_promote_escape.sx -o "$ESC_OUT" 2>/tmp/shux_wpo_s3_escape_build.log
+  "$SHUX_ASM_BIN" tests/wpo/stack_promote_escape.x -o "$ESC_OUT" 2>/tmp/shux_wpo_s3_escape_build.log
   if [ ! -x "$ESC_OUT" ]; then
     echo "wpo-s3 escape asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_escape_build.log)" >&2
     tail -8 /tmp/shux_wpo_s3_escape_build.log 2>/dev/null || true
@@ -156,7 +156,7 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
 
   # 跨模块 &p → import read_pair_ptr：make_pair 内联 + 指针实参 call helper
   ESC_CROSS_OUT="/tmp/shux_wpo_stack_promote_escape_cross"
-  "$SHUX_ASM_BIN" -backend asm tests/wpo/stack_promote_escape_cross.sx -o "$ESC_CROSS_OUT" 2>/tmp/shux_wpo_s3_escape_cross_build.log
+  "$SHUX_ASM_BIN" -backend asm tests/wpo/stack_promote_escape_cross.x -o "$ESC_CROSS_OUT" 2>/tmp/shux_wpo_s3_escape_cross_build.log
   if [ ! -x "$ESC_CROSS_OUT" ]; then
     echo "wpo-s3 escape_cross asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_escape_cross_build.log)" >&2
     tail -8 /tmp/shux_wpo_s3_escape_cross_build.log 2>/dev/null || true
@@ -177,7 +177,7 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
 
   # struct 跨 await：asm sync stub / C CPS 帧保留 Pair（exit 10 = 3+4+3）
   AWAIT_OUT="/tmp/shux_wpo_stack_promote_await"
-  "$SHUX_ASM_BIN" tests/wpo/stack_promote_await.sx -o "$AWAIT_OUT" 2>/tmp/shux_wpo_s3_await_build.log
+  "$SHUX_ASM_BIN" tests/wpo/stack_promote_await.x -o "$AWAIT_OUT" 2>/tmp/shux_wpo_s3_await_build.log
   if [ ! -x "$AWAIT_OUT" ]; then
     echo "wpo-s3 await asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_await_build.log)" >&2
     tail -8 /tmp/shux_wpo_s3_await_build.log 2>/dev/null || true
@@ -194,7 +194,7 @@ elif [ "$SHUX_ASM_NATIVE" = "1" ]; then
   # struct 跨 await + SHUX_ASYNC_YIELD 双 poll：帧须保留 Pair，resume 后 exit 0
   make -C compiler ../std/async/scheduler.o -q 2>/dev/null || make -C compiler ../std/async/scheduler.o
   AWAIT_YIELD_OUT="/tmp/shux_wpo_stack_promote_await_yield"
-  SHUX_ASYNC_YIELD=1 "$SHUX_ASM_BIN" -L . tests/wpo/stack_promote_await_yield.sx -o "$AWAIT_YIELD_OUT" 2>/tmp/shux_wpo_s3_await_yield_build.log
+  SHUX_ASYNC_YIELD=1 "$SHUX_ASM_BIN" -L . tests/wpo/stack_promote_await_yield.x -o "$AWAIT_YIELD_OUT" 2>/tmp/shux_wpo_s3_await_yield_build.log
   if [ ! -x "$AWAIT_YIELD_OUT" ]; then
     echo "wpo-s3 await_yield asm FAIL: link/exe missing (see /tmp/shux_wpo_s3_await_yield_build.log)" >&2
     tail -8 /tmp/shux_wpo_s3_await_yield_build.log 2>/dev/null || true

@@ -34,7 +34,7 @@
 
 ### 2.3 金样烟测
 
-`tests/process/spawn_pipe_echo.sx`：
+`tests/process/spawn_pipe_echo.x`：
 
 1. `pipe` 得 read/write fd  
 2. `spawn_io(/bin/echo, argv, stdout=write_fd)`  
@@ -47,10 +47,10 @@
 
 | 用例 | 脚本 | linux | macos | windows |
 |------|------|-------|-------|---------|
-| `spawn_wait_posix` | `spawn_wait.sx` | must | must | skip |
-| `spawn_wait_win` | `spawn_wait_win.sx` | skip | skip | must |
+| `spawn_wait_posix` | `spawn_wait.x` | must | must | skip |
+| `spawn_wait_win` | `spawn_wait_win.x` | skip | skip | must |
 
-`spawn_wait_win.sx`：`cmd.exe /c exit 0` + `waitpid` → 0。
+`spawn_wait_win.x`：`cmd.exe /c exit 0` + `waitpid` → 0。
 
 ---
 

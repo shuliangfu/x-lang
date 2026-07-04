@@ -15,7 +15,7 @@
 ## 仍留 runtime.c
 
 - `load_one_import` / `resolve_and_load_imports`（C 前端耦合）
-- `run_compiler_c` / `run_compiler_sx_path` 主体
+- `run_compiler_c` / `run_compiler_x_path` 主体
 - driver 诊断 `driver_diagnostic_*` 大块
 
 ## 复现

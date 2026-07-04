@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# F-log v1：std.log 去 C（log.c → log.sx + runtime_log_os.c）。
+# F-log v1：std.log 去 C（log.c → log.x + runtime_log_os.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_LOG_V1_FAIL:-0}
 DOC="analysis/phase-f-log-v1.md"
 MANIFEST="tests/baseline/f-log-v1-closure.tsv"
 die() { echo "f-log-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-echo "=== F-log v1: log.c → log.sx ==="
+echo "=== F-log v1: log.c → log.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-log v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
-[ -f std/log/log.sx ] || die "missing log.sx"
+[ -f std/log/log.x ] || die "missing log.x"
 [ -f compiler/src/asm/runtime_log_os.c ] || die "missing runtime_log_os.c"
 [ ! -f std/log/log_os_glue.c ] || die "log_os_glue.c should be deleted"
 [ ! -f std/log/log.c ] || die "log.c should be deleted"

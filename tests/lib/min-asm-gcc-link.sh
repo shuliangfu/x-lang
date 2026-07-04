@@ -5,7 +5,7 @@
 #
 # 用法（仓库根）：
 #   . tests/lib/min-asm-gcc-link.sh
-#   min_asm_gcc_link ./compiler/shux_asm tests/typeck/ctfe/i64_min_not_zero.sx /tmp/i64_exe
+#   min_asm_gcc_link ./compiler/shux_asm tests/typeck/ctfe/i64_min_not_zero.x /tmp/i64_exe
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/build-std-c-o.sh"
@@ -30,16 +30,16 @@ min_asm_pick_gcc() {
 # 用 link_shux emit 用户 .o；透传 SHUX_LINK_BACKEND_ARGS（shux-c 须 -backend asm）。
 min_asm_emit_user_o() {
   local link_shux="$1"
-  local sx="$2"
+  local x="$2"
   local user_o="$3"
   # shellcheck disable=SC2086
-  "$link_shux" ${SHUX_LINK_BACKEND_ARGS:-} -L . "$sx" -o "$user_o"
+  "$link_shux" ${SHUX_LINK_BACKEND_ARGS:-} -L . "$x" -o "$user_o"
 }
 
 # gcc -fPIE 链最小 runtime + 可选 base64/encoding（link_abi minimal 路径对齐）。
 min_asm_gcc_link() {
   local link_shux="$1"
-  local sx="$2"
+  local x="$2"
   local exe="$3"
   local user_o="${4:-/tmp/shux_min_user.$$.o}"
   local gcc_bin
@@ -48,7 +48,7 @@ min_asm_gcc_link() {
 
   ensure_runtime_panic_o
   ensure_runtime_process_argv_o
-  min_asm_emit_user_o "$link_shux" "$sx" "$user_o"
+  min_asm_emit_user_o "$link_shux" "$x" "$user_o"
   if [ ! -s "$user_o" ]; then
     echo "min_asm_gcc_link: empty user.o from $link_shux" >&2
     return 1
@@ -76,10 +76,10 @@ min_asm_gcc_link() {
 # shux_asm -o 直链失败时回退 gcc（单文件简写）。
 min_link_exe() {
   local link_shux="$1"
-  local sx="$2"
+  local x="$2"
   local exe="$3"
   # shellcheck disable=SC2086
-  min_link_exe_args "$link_shux" ${SHUX_LINK_BACKEND_ARGS:-} -L . "$sx" -o "$exe"
+  min_link_exe_args "$link_shux" ${SHUX_LINK_BACKEND_ARGS:-} -L . "$x" -o "$exe"
 }
 
 # 保留完整 argv（-L / -backend 等）尝试直链；失败时对 shux/shux_asm/shux-c 回退 gcc。
@@ -87,7 +87,7 @@ min_link_exe_args() {
   local link_shux="$1"
   shift
   local errf="/tmp/shux_min_link_err.$$"
-  local sx=""
+  local x=""
   local exe=""
   local args=("$@")
   local arg i
@@ -97,13 +97,13 @@ min_link_exe_args() {
     if [ "$arg" = "-o" ] && [ $((i + 1)) -lt ${#args[@]} ]; then
       exe="${args[$((i + 1))]}"
     fi
-    if [[ "$arg" == *.sx ]] && [ -z "$sx" ]; then
-      sx="$arg"
+    if [[ "$arg" == *.x ]] && [ -z "$x" ]; then
+      x="$arg"
     fi
   done
 
-  if [ -z "$sx" ] || [ -z "$exe" ]; then
-    echo "min_link_exe_args: missing .sx or -o exe in argv" >&2
+  if [ -z "$x" ] || [ -z "$exe" ]; then
+    echo "min_link_exe_args: missing .x or -o exe in argv" >&2
     return 1
   fi
 
@@ -113,10 +113,10 @@ min_link_exe_args() {
   fi
 
   if case "$(basename "$link_shux")" in shux_asm|shux|shux-c|shux_asm2|shux_asm_stage1) true ;; *) false ;; esac; then
-    echo "min: $link_shux -o failed, fallback min_asm_gcc_link ($sx -> $exe)" >&2
+    echo "min: $link_shux -o failed, fallback min_asm_gcc_link ($x -> $exe)" >&2
     cat "$errf" >&2 || true
     rm -f "$errf"
-    min_asm_gcc_link "$link_shux" "$sx" "$exe"
+    min_asm_gcc_link "$link_shux" "$x" "$exe"
     return $?
   fi
 

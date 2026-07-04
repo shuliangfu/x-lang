@@ -1,7 +1,7 @@
 /**
  * runtime_asm_io_stubs.c — seed asm 用户程序链接桩
  *
- * std.io 族 .sx 模块在 pipeline/asm_codegen_elf_o 中跳过机器码生成；
+ * std.io 族 .x 模块在 pipeline/asm_codegen_elf_o 中跳过机器码生成；
  * 本 TU 提供 print_* / write_* / read_ptr 等 C ABI 符号，与 ../std/io/io.o 一并链入用户可执行文件。
  */
 #if defined(__linux__)
@@ -41,7 +41,7 @@ static long seed_io_syscall_read(int fd, void *buf, unsigned long count) {
 }
 #endif
 
-/** F-03：sync.sx 机器码不在 io.o；本 TU 提供 io_write/io_read 同步 ABI。 */
+/** F-03：sync.x 机器码不在 io.o；本 TU 提供 io_write/io_read 同步 ABI。 */
 ptrdiff_t io_write(int fd, const uint8_t *buf, size_t count, unsigned timeout_ms) {
   long n;
   (void)timeout_ms;
@@ -192,7 +192,7 @@ int32_t std_io_read_ptr_len(void) {
   return std_io_ptr_len();
 }
 
-/** M-5：u8[] slice ABI（与 mod.sx / read_ptr.sx ShuxSliceU8 一致）。 */
+/** M-5：u8[] slice ABI（与 mod.x / read_ptr.x ShuxSliceU8 一致）。 */
 typedef struct ShuxSliceU8 {
   uint8_t *data;
   size_t length;
@@ -245,7 +245,7 @@ ptrdiff_t io_write_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t
   return io_write(fd, p0, l0, timeout_ms);
 }
 
-/** driver.Buffer 批读写：与 std/io/sync.sx 的 IoBatchBuf 布局一致（ptr+len 对）。 */
+/** driver.Buffer 批读写：与 std/io/sync.x 的 IoBatchBuf 布局一致（ptr+len 对）。 */
 typedef struct ShuxIoBatchBuf {
   uint8_t *ptr;
   size_t len;
@@ -269,7 +269,7 @@ ptrdiff_t io_read_batch_buf(int32_t fd, const ShuxIoBatchBuf *bufs, int32_t n, u
 }
 
 /**
- * io_read_batch_provided 弱桩：io_batch.sx 链 net.o 时解析；seed 路径返回 -1（无 io_uring provided）。
+ * io_read_batch_provided 弱桩：io_batch.x 链 net.o 时解析；seed 路径返回 -1（无 io_uring provided）。
  */
 __attribute__((weak)) int32_t io_read_batch_provided(int32_t fd, int32_t n, uint32_t timeout_ms, uint32_t *out_bids,
                                                      uint32_t *out_lens) {
@@ -282,7 +282,7 @@ __attribute__((weak)) int32_t io_read_batch_provided(int32_t fd, int32_t n, uint
 }
 
 /**
- * tcp.sx Linux cfg 引用 io_uring_*；std.io 尚无独立 io.o 时由弱桩满足 net.o 合并后的 U 符号。
+ * tcp.x Linux cfg 引用 io_uring_*；std.io 尚无独立 io.o 时由弱桩满足 net.o 合并后的 U 符号。
  * 真 io_uring 实现链入后覆盖弱符号。
  */
 __attribute__((weak)) int32_t io_uring_connect(uint32_t addr_u32, uint32_t port_u32, uint32_t timeout_ms) {

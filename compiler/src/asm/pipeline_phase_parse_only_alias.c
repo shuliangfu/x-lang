@@ -20,7 +20,7 @@ struct parser_ParseIntoResult {
 
 /** ast_pool.c：等价 parser parse_into_init，重置 sidecar grow 池。 */
 extern void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct ast_Module *module);
-/** pipeline_parse_sx_partial.o 提供。 */
+/** pipeline_parse_x_partial.o 提供。 */
 extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module,
                                                              uint8_t *data, int32_t len);
 extern void parser_parse_into_set_main_index(struct ast_Module *module, int32_t main_idx);
@@ -30,7 +30,7 @@ extern void driver_diagnostic_after_entry_parse_module(struct ast_Module *module
 extern void driver_diagnostic_entry_module(struct ast_Module *module, struct ast_ASTArena *arena);
 
 /**
- * 解析 + 诊断（不含 load deps）；与 pipeline.sx pipeline_impl_phase_parse_only 语义一致。
+ * 解析 + 诊断（不含 load deps）；与 pipeline.x pipeline_impl_phase_parse_only 语义一致。
  */
 __attribute__((noinline)) int32_t pipeline_impl_phase_parse_only(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                    uint8_t *source_data, size_t source_len,

@@ -16,7 +16,7 @@ fi
 # shellcheck source=tests/lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 make -C compiler -q ../std/map/map.o 2>/dev/null || make -C compiler ../std/map/map.o
-if ! "$SHUX" check -L . tests/map/main.sx 2>&1; then
+if ! "$SHUX" check -L . tests/map/main.x 2>&1; then
   echo "map test: typeck failed"
   exit 1
 fi
@@ -24,7 +24,7 @@ if ! nm std/map/map.o 2>/dev/null | grep -q 'std_map_empty_size'; then
   echo "map test: missing std_map_empty_size in map.o"
   exit 1
 fi
-# 链入 map_import_alias 烟测：empty_size() 恒 0（mod.sx 全量 emit 暂走 alias 回退）
+# 链入 map_import_alias 烟测：empty_size() 恒 0（mod.x 全量 emit 暂走 alias 回退）
 exe="/tmp/shux_map_$$"
 smoke_c="/tmp/shux_map_smoke_$$.c"
 cat > "$smoke_c" <<'EOF'

@@ -11,7 +11,7 @@
 | `wall_local_offset_min` | 本地相对 UTC 偏移（分钟） |
 | `format_timezone_smoke` | C 金样 |
 
-C 层委托 `datetime_format_rfc3339_c` / `datetime_local_offset_min_c`，避免 `.sx` 循环 import。
+C 层委托 `datetime_format_rfc3339_c` / `datetime_local_offset_min_c`，避免 `.x` 循环 import。
 
 ## 门禁
 

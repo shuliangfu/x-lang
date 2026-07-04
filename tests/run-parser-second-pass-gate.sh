@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # build_asm/parser.o 第二遍烟测：ENTRY_MODULE_ONLY + SKIP_TYPECK 须产出非空 __text（ast_pool 截断模块桩化）。
-# strict 链仍靠 parser_sx.o；本门禁保证 experimental/second pass 不回归空 parser.o。
+# strict 链仍靠 parser_x.o；本门禁保证 experimental/second pass 不回归空 parser.o。
 # 用法：
 #   ./tests/run-parser-second-pass-gate.sh
 #   SHUX_PARSER_SECOND_PASS_FAIL=1 ./tests/run-parser-second-pass-gate.sh
 set -e
 cd "$(dirname "$0")/.."
 
-# sx_len 须与符号名等长；偏差时 safe_helper 不命中，combined 指标回归无感知。
+# x_len 须与符号名等长；偏差时 safe_helper 不命中，combined 指标回归无感知。
 if [ "${SHUX_PARSER_SAFE_HELPER_LEN_GATE:-1}" = "1" ]; then
   chmod +x tests/run-parser-safe-helper-len-gate.sh 2>/dev/null || true
   ./tests/run-parser-safe-helper-len-gate.sh
@@ -26,10 +26,10 @@ EMIT_HEAVY=${SHUX_PARSER_SECOND_PASS_EMIT_HEAVY:-0}
 WPO_DCE=${SHUX_PARSER_SECOND_PASS_WPO_DCE:-0}
 if [ "$EMIT_HEAVY" = "1" ]; then
   # parser.o：slice 委托 + safe_helper 真 emit 回归下限。
-  # combined：parser.o + thin_glue（深循环 C glue）；全量 parser_sx 链入后 thin_glue 不再含 seed parse_into_buf C（~9KB），故默认 125KB。
+  # combined：parser.o + thin_glue（深循环 C glue）；全量 parser_x 链入后 thin_glue 不再含 seed parse_into_buf C（~9KB），故默认 125KB。
   MIN_TEXT="${SHUX_PARSER_SECOND_PASS_MIN_TEXT:-10000}"
   MIN_COMBINED="${SHUX_PARSER_SECOND_PASS_MIN_COMBINED:-125000}"
-  # stretch：含 parser_sx.o 侧 parse_into_buf C 体积的审计指标（9434B ≈ seed slice 差值；非链接对象）。
+  # stretch：含 parser_x.o 侧 parse_into_buf C 体积的审计指标（9434B ≈ seed slice 差值；非链接对象）。
   STRETCH_COMBINED="${SHUX_PARSER_SECOND_PASS_STRETCH_COMBINED:-150000}"
   SEED_PARSE_METRIC_BYTES="${SHUX_PARSER_SECOND_PASS_SEED_METRIC_BYTES:-9434}"
 else
@@ -41,7 +41,7 @@ fi
 EH_SUFFIX=""
 [ "$EMIT_HEAVY" = "1" ] && EH_SUFFIX=", EMIT_HEAVY"
 [ "$EMIT_HEAVY" = "1" ] && [ "$WPO_DCE" = "1" ] && EH_SUFFIX="${EH_SUFFIX}, WPO_DCE=1"
-# 与 build_shux_asm compile_sx 一致（须在 compiler/ 目录下执行）。
+# 与 build_shux_asm compile_x 一致（须在 compiler/ 目录下执行）。
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
@@ -71,7 +71,7 @@ fi
 TMP="/tmp/shux_parser_second_pass_gate.$$.o"
 rm -f "$TMP" 2>/dev/null || true
 
-echo "parser-second-pass-gate: compile parser.sx (ENTRY_MODULE_ONLY + SKIP_TYPECK${EH_SUFFIX}) with compiler/$COMP_IN ..."
+echo "parser-second-pass-gate: compile parser.x (ENTRY_MODULE_ONLY + SKIP_TYPECK${EH_SUFFIX}) with compiler/$COMP_IN ..."
 PASS_ENV="env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1"
 if [ "$EMIT_HEAVY" = "1" ]; then
   PASS_ENV="$PASS_ENV SHUX_ASM_ENTRY_EMIT_HEAVY=1"
@@ -84,7 +84,7 @@ fi
 if ! (
   cd compiler
   $PASS_ENV \
-    "$COMP_IN" -backend asm -o "$TMP" $LIBROOT src/parser/parser.sx
+    "$COMP_IN" -backend asm -o "$TMP" $LIBROOT src/parser/parser.x
 ) > /tmp/shux_parser_sp_gate.log 2>&1; then
   echo "parser-second-pass-gate FAIL: compile command failed" >&2
   tail -n 12 /tmp/shux_parser_sp_gate.log 2>/dev/null || true
@@ -124,7 +124,7 @@ if [ "$EMIT_HEAVY" = "1" ] && [ -f "$GLUE_OBJ" ]; then
   fi
   GLUE_TEXT=$(perl -e 'print hex(shift)' "$GLUE_HEX" 2>/dev/null || echo 0)
 fi
-# audit：动态度量 seed parse_into_buf C 体积（thin_glue 含/不含 NO_SEED 差值；bootstrap 侧由 parser_sx.o 提供）。
+# audit：动态度量 seed parse_into_buf C 体积（thin_glue 含/不含 NO_SEED 差值；bootstrap 侧由 parser_x.o 提供）。
 if [ "$EMIT_HEAVY" = "1" ] && [ "${SHUX_PARSER_SECOND_PASS_SEED_METRIC_DYNAMIC:-1}" = "1" ]; then
   SEED_METRIC_TMP="/tmp/shux_parser_seed_metric.$$.o"
   SEED_METRIC_TMP2="/tmp/shux_parser_seed_metric_noseed.$$.o"

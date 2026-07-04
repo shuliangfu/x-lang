@@ -5,7 +5,7 @@ STD_MATH_FENV_PREFIX="${SHUX_STD_MATH_FENV_PREFIX:-shux: [SHUX_STD_MATH_FENV]}"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
 std_math_fenv_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local math_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,13 +15,13 @@ std_math_fenv_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-math-fenv FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_x" 2>/dev/null; then
           echo "std-math-fenv FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -30,7 +30,7 @@ std_math_fenv_symbols_ok() {
         local path="$mod_path"
         case "$path" in
           std/math/math.c|std/math/math_libm_glue.c|compiler/src/asm/runtime_math_libm.c) path="$math_c" ;;
-          std/math/math.sx) path="std/math/math.sx" ;;
+          std/math/math.x) path="std/math/math.x" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-math-fenv FAIL: missing '$anchor' in $path" >&2
@@ -78,7 +78,7 @@ std_math_fenv_run_c_smoke() {
   return 0
 }
 
-# .sx 烟测（sx pipeline 暂不能稳定 emit import 调用，typeck 通过即 OK）。
+# .x 烟测（x pipeline 暂不能稳定 emit import 调用，typeck 通过即 OK）。
 std_math_fenv_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -97,5 +97,5 @@ std_math_fenv_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_MATH_FENV_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_MATH_FENV_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
 }

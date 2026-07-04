@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 MANIFEST="tests/baseline/link-hardening.tsv"
-SRC="tests/link_hardening_smoke.sx"
+SRC="tests/link_hardening_smoke.x"
 
 echo "=== P1-7: link hardening manifest ==="
 for f in "$MANIFEST" "$SRC"; do

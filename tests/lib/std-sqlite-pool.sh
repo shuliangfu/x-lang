@@ -9,7 +9,7 @@ std_sqlite_pool_source_sqlite() {
 }
 
 std_sqlite_pool_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local db_c="$2"
   local tsv="$3"
   local miss=0
@@ -19,14 +19,14 @@ std_sqlite_pool_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-sqlite-pool FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/db/sqlite/sqlite.sx" ]; then path="$db_c"; fi
+        if [ "$path" = "std/db/sqlite/sqlite.x" ]; then path="$db_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-sqlite-pool FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -78,7 +78,7 @@ std_sqlite_pool_run_c_smoke() {
 std_sqlite_pool_emit_report() {
   local status="$1"
   local pool_c="$2"
-  local pool_sx="$3"
+  local pool_x="$3"
   local skip="$4"
-  echo "${STD_DB_POOL_PREFIX} status=${status} pool_c=${pool_c} pool_sx=${pool_sx} skip=${skip}"
+  echo "${STD_DB_POOL_PREFIX} status=${status} pool_c=${pool_c} pool_x=${pool_x} skip=${skip}"
 }

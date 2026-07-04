@@ -1,10 +1,10 @@
 /**
  * runtime_abi.h — 编译器 C 侧 ABI 薄壳声明（Phase E-04 v2+）
  *
- * 文件职责：声明须保留在 C 的极薄原语（argv 拷贝、子命令 argv 调整、默认 target_arch），供 main.sx / compile.sx 经 extern 调用。
+ * 文件职责：声明须保留在 C 的极薄原语（argv 拷贝、子命令 argv 调整、默认 target_arch），供 main.x / compile.x 经 extern 调用。
  * 所属模块：compiler 运行时 ABI；实现于 runtime_abi.c。
  * 与其它文件的关系：runtime.c 业务逻辑仍在本 TU；本头仅暴露稳定 FFI 符号，不依赖 lexer/parser/ast。
- * 重要约定：argv 在 ABI 上与 char** 同址；.sx 侧为 *u8，须经 driver_get_argv_i 逐项拷贝字符串。
+ * 重要约定：argv 在 ABI 上与 char** 同址；.x 侧为 *u8，须经 driver_get_argv_i 逐项拷贝字符串。
  */
 
 #ifndef SHUX_RUNTIME_ABI_H
@@ -20,7 +20,7 @@
 int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max);
 
 /**
- * main.sx 子命令路由：去掉 argv[1]（子命令名），保留 argv[0] 与原 argv[2..]。
+ * main.x 子命令路由：去掉 argv[1]（子命令名），保留 argv[0] 与原 argv[2..]。
  * 参数：argc/argv_opaque 与 main 一致（argv_opaque 与 char** 同址）。
  * 返回值：调整后的 argv 指针（静态槽，单次 main 内单线程安全）；argc<2 时原样返回 argv_opaque。
  */
@@ -34,7 +34,7 @@ uint8_t *driver_argv_drop_subcommand(int argc, uint8_t *argv_opaque);
 int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_flag);
 
 /**
- * C 程序入口薄转发：main.c / runtime_asm_build.c 的 main() 统一经本符号进入 main.sx 的 main_entry。
+ * C 程序入口薄转发：main.c / runtime_asm_build.c 的 main() 统一经本符号进入 main.x 的 main_entry。
  * 参数：argc/argv 与 C main 一致。
  * 返回值：main_entry 的退出码。
  * 说明：Linux x86_64 bootstrap 默认 crt0 直调 main_entry（E-04 v19）；non-Linux 经 shux_forward_main_to_main_entry。

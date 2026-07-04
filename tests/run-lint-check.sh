@@ -38,11 +38,11 @@ fi
 
 make -C compiler -q 2>/dev/null || make -C compiler
 
-CLEAN=tests/lint/lint_clean_ok.sx
-ERR=tests/lint/lint_error_assign.sx
-PAD=tests/lint/lint_warn_pad.sx
-REORDER=tests/lint/lint_warn_reorder.sx
-UNUSED=tests/lint/lint_unused_hint.sx
+CLEAN=tests/lint/lint_clean_ok.x
+ERR=tests/lint/lint_error_assign.x
+PAD=tests/lint/lint_warn_pad.x
+REORDER=tests/lint/lint_warn_reorder.x
+UNUSED=tests/lint/lint_unused_hint.x
 
 tool_lint_expect_check_silent "$SHUX_BIN" "$CLEAN"
 echo "lint-check OK: clean silent"

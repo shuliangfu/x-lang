@@ -9,8 +9,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_NOLIBC_SOCKET_FAIL:-0}
-SX="tests/sys/linux_socket_invoke_smoke.sx"
-NET_MOD="std/net/freestanding_linux.sx"
+X="tests/sys/linux_socket_invoke_smoke.x"
+NET_MOD="std/net/freestanding_linux.x"
 ASM="compiler/src/asm/freestanding_io_x86_64.s"
 OUT="/tmp/shux_nolibc_socket.$$.out"
 
@@ -21,7 +21,7 @@ die() {
 }
 
 echo "=== NL-02: freestanding socket syscall (zero libc) ==="
-for f in "$SX" "$NET_MOD" "$ASM"; do
+for f in "$X" "$NET_MOD" "$ASM"; do
   [ -f "$f" ] || die "missing $f"
 done
 for sym in shux_sys_socket shux_sys_connect shux_sys_bind shux_sys_listen shux_sys_accept; do
@@ -43,9 +43,9 @@ if [ ! -x "$SHUX" ]; then
 fi
 
 rm -f "$OUT" 2>/dev/null || true
-if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$SX" 2>/tmp/shux_nolibc_socket.log; then
+if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$X" 2>/tmp/shux_nolibc_socket.log; then
   tail -n 12 /tmp/shux_nolibc_socket.log 2>/dev/null || true
-  die "compile $SX failed"
+  die "compile $X failed"
 fi
 [ -x "$OUT" ] || die "no executable $OUT"
 

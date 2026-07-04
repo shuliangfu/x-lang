@@ -91,7 +91,7 @@ if ($is_pipeline_gen2) {
     next if $seen{"abx_$suffix"}++;
     push @fwd_lines, "#define ast_$suffix ast_ast_$suffix\n";
   }
-  # inject 的 extern ast_block_* / ast_arena_*（单 ast_ 前缀）→ pipeline_sx.o 中 ast_ast_*。
+  # inject 的 extern ast_block_* / ast_arena_*（单 ast_ 前缀）→ pipeline_x.o 中 ast_ast_*。
   while ($src =~ /^extern\s+${extern_ret}ast_(block_\w+|expr_\w+)\s*\(/mg) {
     my $suffix = $1;
     next if $seen{"abx1_$suffix"}++;
@@ -119,16 +119,16 @@ if ($path =~ /parser_gen(?:2)?\.c$/) {
   $src =~ s/\n\/\* parser extern ast helpers \*\/\n(?:extern )?void ast_expr_init_match_enum\([^\n]*\n//s;
   $src =~ s/^void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n//m;
   $src =~ s/^extern void ast_expr_init_match_enum\(struct ast_Expr \*e\);\n//m;
-  # -E-extern 误导出 lexer_lexer_*，生成体调用 lexer_*；补与 lexer_sx.o 一致的声明。
+  # -E-extern 误导出 lexer_lexer_*，生成体调用 lexer_*；补与 lexer_x.o 一致的声明。
   $src =~ s/^#define lexer_next_into lexer_lexer_next_into\n//mg;
   $src =~ s/^#define lexer_init lexer_lexer_init\n//mg;
   $src =~ s/^#define lexer_next_buf lexer_lexer_next_buf\n//mg;
-  $src =~ s/\n\/\* parser lexer single-prefix externs \(lexer_sx\.o\) \*\/\nextern struct lexer_Lexer lexer_init\(void\);\nextern void lexer_next_into\([^\n]*\nextern struct lexer_LexerResult lexer_next_buf\([^\n]*\n\n//s;
+  $src =~ s/\n\/\* parser lexer single-prefix externs \(lexer_x\.o\) \*\/\nextern struct lexer_Lexer lexer_init\(void\);\nextern void lexer_next_into\([^\n]*\nextern struct lexer_LexerResult lexer_next_buf\([^\n]*\n\n//s;
 }
 
 # ast_gen2.c：与 pipeline_glue.c 同链时辅助符号须 weak，避免 duplicate symbol（verify-selfhost-stage2）。
 if ($path =~ /ast_gen2\.c$/) {
-  # ast.sx 自身 TU 的 arena helper 真链接名是 ast_ast_*；若生成后残留 ast_ast_ast_*，会在单文件编译时变成不存在的三级前缀。
+  # ast.x 自身 TU 的 arena helper 真链接名是 ast_ast_*；若生成后残留 ast_ast_ast_*，会在单文件编译时变成不存在的三级前缀。
   $src =~ s/\bast_ast_ast_/ast_ast_/g;
   $src =~ s{^extern\s+(.+?\s+)ast_arena_(\w+)\s*\(([^)]*)\);\n}{
     my ($ret, $suffix, $args) = ($1, $2, $3);
@@ -144,7 +144,7 @@ if ($path =~ /ast_gen2\.c$/) {
   }
 }
 
-# parser_gen2.c：-E-extern 导出 lexer_lexer_*，生成体调 lexer_*；链 lexer_sx2.o（单前缀）时统一改声明名。
+# parser_gen2.c：-E-extern 导出 lexer_lexer_*，生成体调 lexer_*；链 lexer_x2.o（单前缀）时统一改声明名。
 if ($path =~ /parser_gen2\.c$/) {
   $src =~ s/^#define lexer_next_into lexer_lexer_next_into\n//mg;
   $src =~ s/^#define lexer_init lexer_lexer_init\n//mg;
@@ -272,7 +272,7 @@ sub append_ast_gen2_link_aliases {
   return $src;
 }
 
-# parser 调用 lexer_init / lexer_next_into；lexer_gen.c 导出单前缀符号（lexer_sx.o）。
+# parser 调用 lexer_init / lexer_next_into；lexer_gen.c 导出单前缀符号（lexer_x.o）。
 sub inject_lexer_gen_single_prefix_externs {
   my ($src, $dir) = @_;
   # Stage2 仅生成 lexer_gen2.c；bootstrap 用 lexer_gen.c。

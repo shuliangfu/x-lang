@@ -7,7 +7,7 @@
 | 项 | 说明 |
 |----|------|
 | `bootstrap-driver-bstrict-windows` | Makefile 目标 |
-| `build_shux_asm_is_msys` | SKIP_GEN experimental SX-only |
+| `build_shux_asm_is_msys` | SKIP_GEN experimental X-only |
 | `run-bootstrap-bstrict-windows-gate.sh` | `SHUX_WIN_BSTRICT=1` 审计 pipeline_gen=0 |
 
 ## 默认仍 B-hybrid

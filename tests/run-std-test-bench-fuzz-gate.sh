@@ -8,12 +8,12 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_TEST_BENCH_FUZZ_DOC:-analysis/std-test-bench-fuzz-v1.md}"
 MANIFEST="${SHUX_STD_TEST_BENCH_FUZZ_TSV:-tests/baseline/std-test-bench-fuzz.tsv}"
 VECTORS="${SHUX_STD_TEST_BENCH_FUZZ_VECTORS:-tests/baseline/std-test-bench-fuzz-vectors.tsv}"
-MOD_SX="std/test/mod.sx"
-TEST_SX="std/test/test.sx"
+MOD_X="std/test/mod.x"
+TEST_X="std/test/test.x"
 LIB="tests/lib/std-test-bench-fuzz.sh"
-SMOKE_BENCH="tests/std-test/bench_smoke.sx"
-SMOKE_FUZZ="tests/std-test/fuzz_smoke.sx"
-SMOKE_REGRESS="tests/stdtest/main.sx"
+SMOKE_BENCH="tests/std-test/bench_smoke.x"
+SMOKE_FUZZ="tests/std-test/fuzz_smoke.x"
+SMOKE_REGRESS="tests/stdtest/main.x"
 SMOKE_C="tests/std-test/bench_fuzz_ok.c"
 MIN_APIS=5
 
@@ -21,7 +21,7 @@ MIN_APIS=5
 . "$LIB"
 
 echo "=== STD-054: test bench/fuzz manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$TEST_SX" \
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$TEST_X" \
   "$SMOKE_BENCH" "$SMOKE_FUZZ" "$SMOKE_REGRESS" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-test-bench-fuzz gate FAIL: missing $f" >&2
@@ -55,7 +55,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
         echo "std-test-bench-fuzz gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -74,7 +74,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_test_bench_fuzz_symbols_ok "$MOD_SX" "$TEST_SX" "$MANIFEST" || true)"
+sym_miss="$(std_test_bench_fuzz_symbols_ok "$MOD_X" "$TEST_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_test_bench_fuzz_emit_report "fail" 0 0 0 0
   echo "std-test-bench-fuzz gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -116,7 +116,7 @@ elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux ||
 fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-054: .sx smoke (SHUX=$SHUX_BIN) ==="
+  echo "=== STD-054: .x smoke (SHUX=$SHUX_BIN) ==="
   for smoke in "$SMOKE_BENCH" "$SMOKE_FUZZ" "$SMOKE_REGRESS"; do
     if ! "$SHUX_BIN" check -L . "$smoke" >/dev/null 2>&1; then
       echo "std-test-bench-fuzz gate FAIL: typeck $smoke" >&2
@@ -142,7 +142,7 @@ if [ -n "$SHUX_BIN" ]; then
     exit 1
   fi
 else
-  echo "std-test-bench-fuzz gate SKIP .sx smoke (no native shux)" >&2
+  echo "std-test-bench-fuzz gate SKIP .x smoke (no native shux)" >&2
   SKIP=1
 fi
 

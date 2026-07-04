@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 全量回归套件：运行所有 run-*.sh（与 compiler/Makefile 的 test 目标一致）。
-# 自举测试不跑：run-sx-pipeline、run-sx-multi-file、run-asm、run-without-c、run-bootstrap-verify 均不执行。
-# 入口：./tests/run-all.sh；不设 SHU 时 make all 后优先 export SHUX=./compiler/shux-c（与 Makefile test_c 一致），避免本机 compiler/shux 为 seed 时子脚本误用 .sx 路径。
+# 自举测试不跑：run-x-pipeline、run-x-multi-file、run-asm、run-without-c、run-bootstrap-verify 均不执行。
+# 入口：./tests/run-all.sh；不设 SHU 时 make all 后优先 export SHUX=./compiler/shux-c（与 Makefile test_c 一致），避免本机 compiler/shux 为 seed 时子脚本误用 .x 路径。
 
 set -e
 cd "$(dirname "$0")/.."
@@ -30,7 +30,7 @@ if [ -n "$SHUX" ]; then
         # 非白名单脚本仍走 shux-c，须确保 shux-c 已构建。
         make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
     else
-    # 子脚本内 `make -C compiler` 走 bootstrap-driver-seed，避免默认 all 用 C-only shux 覆盖 .sx pipeline 链。
+    # 子脚本内 `make -C compiler` 走 bootstrap-driver-seed，避免默认 all 用 C-only shux 覆盖 .x pipeline 链。
     export SHUX_RUN_ALL_BOOTSTRAP_SHUX=1
     # 子脚本不再各自 make，避免长回归中反复链接 shux 产生竞态；入口统一构建一次 seed。
     make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
@@ -60,7 +60,7 @@ else
     export RUN_ALL_USE_C=1
     make -C compiler -q all 2>/dev/null || make -C compiler all
     # 与 Makefile test_c 一致：子脚本用 shux-c 走纯 C 前端，避免本机 compiler/shux 已是
-    # bootstrap-driver-seed（链 .sx pipeline）时仍当「默认 C 回归」却误走 .sx typeck 失败
+    # bootstrap-driver-seed（链 .x pipeline）时仍当「默认 C 回归」却误走 .x typeck 失败
     if [ -x "./compiler/shux-c" ]; then
         export SHUX=./compiler/shux-c
     fi
@@ -103,7 +103,7 @@ run_shu_for_script() {
             ;;
         esac
     fi
-    # 非 x86_64 bootstrap：可执行 -o 优先 shux-c；typeck/check/lexer 仍用 seed SHU 验 .sx 流水线。
+    # 非 x86_64 bootstrap：可执行 -o 优先 shux-c；typeck/check/lexer 仍用 seed SHU 验 .x 流水线。
     case "$(uname -m 2>/dev/null)" in
       x86_64|amd64) ;;
       *)
@@ -225,7 +225,7 @@ run run-multi-file-generic.sh
 run run-binary-expr.sh
 run run-compound-assign.sh
 run run-let-const.sh
-# toplevel let：C 与 .sx 流水线均已支持，自举后始终跑
+# toplevel let：C 与 .x 流水线均已支持，自举后始终跑
 run run-toplevel-let.sh
 run run-bool.sh
 run run-if-expr.sh
@@ -277,10 +277,10 @@ run run-panic.sh
 run run-defer.sh
 run run-goto.sh
 run run-preprocess.sh
-# 自举测试不执行：run-sx-pipeline / run-sx-multi-file / run-asm / run-without-c / run-bootstrap-verify 已全部排除
+# 自举测试不执行：run-x-pipeline / run-x-multi-file / run-asm / run-without-c / run-bootstrap-verify 已全部排除
 run run-vector.sh
-# asm 反汇编门禁须 seed/asm 后端；test_c（RUN_ALL_USE_C + shux-c）仅验 C 流水线语义，见 test_sx / linux-asm-smoke
-# 非 x86_64 无 host asm 对象链，跳过 disasm 门禁（ARM64 CI test_sx 仍验 .sx 语义）。
+# asm 反汇编门禁须 seed/asm 后端；test_c（RUN_ALL_USE_C + shux-c）仅验 C 流水线语义，见 test_x / linux-asm-smoke
+# 非 x86_64 无 host asm 对象链，跳过 disasm 门禁（ARM64 CI test_x 仍验 .x 语义）。
 # RUN_ALL_PORTABLE：便携全平台回归不含 asm 专测。
 if [ -z "${RUN_ALL_USE_C:-}" ] && [ -z "${RUN_ALL_PORTABLE:-}" ]; then
 case "$(uname -m 2>/dev/null)" in

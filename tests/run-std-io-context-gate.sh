@@ -6,8 +6,8 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SX="std/io/mod.sx"
-SMOKE="tests/io/context_read_write.sx"
+MOD_X="std/io/mod.x"
+SMOKE="tests/io/context_read_write.x"
 PREFIX="shux: [SHUX_STD091_IO_CTX]"
 
 stdlib_cm_native_shu() {
@@ -23,7 +23,7 @@ stdlib_cm_native_shu() {
 }
 
 echo "=== STD-091: io-context manifest ==="
-for f in "$MOD_SX" "$SMOKE"; do
+for f in "$MOD_X" "$SMOKE"; do
   if [ ! -f "$f" ]; then
     echo "io-context gate FAIL: missing $f" >&2
     exit 1
@@ -32,13 +32,13 @@ done
 for sym in timeout_from_ctx read_ctx write_ctx IO_CTX_MS_CANCELLED IO_CTX_MS_EXPIRED; do
   case "$sym" in
     IO_CTX_MS_*)
-      if ! grep -qF "const ${sym}:" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qF "const ${sym}:" "$MOD_X" 2>/dev/null; then
         echo "io-context gate FAIL: missing const $sym" >&2
         exit 1
       fi
       ;;
     *)
-      if ! grep -qE "function ${sym}\\(" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qE "function ${sym}\\(" "$MOD_X" 2>/dev/null; then
         echo "io-context gate FAIL: missing api $sym" >&2
         exit 1
       fi
@@ -59,7 +59,7 @@ elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux ||
   :
 fi
 
-SX_OK=0
+X_OK=0
 SKIP=0
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-091: smoke (SHUX=$SHUX_BIN) ==="
@@ -81,11 +81,11 @@ if [ -n "$SHUX_BIN" ]; then
     echo "io-context gate FAIL: run exit=$ec" >&2
     exit 1
   fi
-  SX_OK=1
+  X_OK=1
 else
-  echo "io-context gate SKIP .sx (no native shux)" >&2
+  echo "io-context gate SKIP .x (no native shux)" >&2
   SKIP=1
 fi
 
-echo "${PREFIX} status=ok sx=${SX_OK} skip=${SKIP} host=$(ci_host_summary)"
+echo "${PREFIX} status=ok x=${X_OK} skip=${SKIP} host=$(ci_host_summary)"
 echo "std-io-context gate OK"

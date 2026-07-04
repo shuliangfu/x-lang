@@ -37,7 +37,7 @@ if [ -n "${SHUX_WPO_PGO_HOT:-}" ]; then
     echo "wpo-s4: readelf missing; skip PGO section check"
   else
     PGO_O="/tmp/shux_wpo_pgo_hot_smoke.o"
-    PGO_SRC="tests/wpo/pgo_hot_smoke.sx"
+    PGO_SRC="tests/wpo/pgo_hot_smoke.x"
     rm -f "$PGO_O"
     if ! SHUX_WPO_PGO_HOT=1 SHUX="$SHUX_ASM" "$SHUX_ASM_ABS" "$PGO_SRC" -o "$PGO_O"; then
       echo "wpo-s4 FAIL: compile $PGO_SRC with SHUX_WPO_PGO_HOT=1" >&2

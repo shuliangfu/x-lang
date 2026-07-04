@@ -71,9 +71,9 @@ if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
 fi
 
 echo "fmt wrap regression:"
-run_one_case tests/fmt/fmt_wrap_cases.sx "$ROOT/tests/fmt/.fmt_wrap_out.sx" || exit 1
-run_one_case tests/fmt/fmt_comprehensive.sx "$ROOT/tests/fmt/.fmt_comprehensive_out.sx" || exit 1
-run_one_case tests/fmt/fmt_semicolon_space.sx "$ROOT/tests/fmt/.fmt_semicolon_space_out.sx" || exit 1
-run_one_case tests/fmt/fmt_operator_space.sx "$ROOT/tests/fmt/.fmt_operator_space_out.sx" || exit 1
-run_one_case tests/fmt/fmt_array_comma_space.sx "$ROOT/tests/fmt/.fmt_array_comma_space_out.sx" || exit 1
+run_one_case tests/fmt/fmt_wrap_cases.x "$ROOT/tests/fmt/.fmt_wrap_out.x" || exit 1
+run_one_case tests/fmt/fmt_comprehensive.x "$ROOT/tests/fmt/.fmt_comprehensive_out.x" || exit 1
+run_one_case tests/fmt/fmt_semicolon_space.x "$ROOT/tests/fmt/.fmt_semicolon_space_out.x" || exit 1
+run_one_case tests/fmt/fmt_operator_space.x "$ROOT/tests/fmt/.fmt_operator_space_out.x" || exit 1
+run_one_case tests/fmt/fmt_array_comma_space.x "$ROOT/tests/fmt/.fmt_array_comma_space_out.x" || exit 1
 echo "fmt wrap test OK (all cases)"

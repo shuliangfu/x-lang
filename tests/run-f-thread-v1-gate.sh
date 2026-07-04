@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# F-thread v1：std.thread 去 C（thread.sx + runtime_thread_glue.c）。
+# F-thread v1：std.thread 去 C（thread.x + runtime_thread_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_THREAD_V1_FAIL:-0}
 DOC="analysis/phase-f-thread-v1.md"
 MANIFEST="tests/baseline/f-thread-v1-closure.tsv"
 die() { echo "f-thread-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-echo "=== F-thread v1: thread.c → thread.sx ==="
+echo "=== F-thread v1: thread.c → thread.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 [ -f "$MANIFEST" ] || die "missing manifest"
-[ -f std/thread/thread.sx ] || die "missing thread.sx"
+[ -f std/thread/thread.x ] || die "missing thread.x"
 [ -f compiler/src/asm/runtime_thread_glue.c ] || die "missing runtime_thread_glue.c"
 [ ! -f std/thread/thread_glue.c ] || die "thread_glue.c should be deleted"
 [ ! -f std/thread/thread.c ] || die "thread.c should be deleted"

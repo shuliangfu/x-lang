@@ -9,20 +9,20 @@ layer_m1	layers	M1-gzip	analysis/std-compress-v1.md	v1	gzip
 layer_m2	layers	M2-zstd	analysis/std-compress-v1.md	v1	zstd
 layer_m3	layers	M3-zlib	analysis/std-compress-v1.md	v1	deflate
 layer_m4	layers	M4-skip	analysis/std-compress-v1.md	v1	-1 skip
-api_gzip_c	api	gzip_compress	std/compress/mod.sx	core	gzip 压
-api_gzip_d	api	gzip_decompress	std/compress/mod.sx	core	gzip 解
-api_zstd_c	api	zstd_compress	std/compress/mod.sx	core	zstd 压
-api_zstd_d	api	zstd_decompress	std/compress/mod.sx	core	zstd 解
-impl_zlib	file	std/compress/zlib/libz.sx	std/compress/zlib/libz.sx	impl	zlib .sx
-impl_gzip	file	std/compress/gzip/libz.sx	std/compress/gzip/libz.sx	impl	gzip .sx
-impl_brotli	file	std/compress/brotli/lib.sx	std/compress/brotli/lib.sx	impl	brotli .sx
-impl_zstd	file	std/compress/zstd/lib.sx	std/compress/zstd/lib.sx	impl	zstd .sx
-impl_common	file	std/compress/common.sx	std/compress/common.sx	impl	共用魔数/流头（零 .h）
+api_gzip_c	api	gzip_compress	std/compress/mod.x	core	gzip 压
+api_gzip_d	api	gzip_decompress	std/compress/mod.x	core	gzip 解
+api_zstd_c	api	zstd_compress	std/compress/mod.x	core	zstd 压
+api_zstd_d	api	zstd_decompress	std/compress/mod.x	core	zstd 解
+impl_zlib	file	std/compress/zlib/libz.x	std/compress/zlib/libz.x	impl	zlib .x
+impl_gzip	file	std/compress/gzip/libz.x	std/compress/gzip/libz.x	impl	gzip .x
+impl_brotli	file	std/compress/brotli/lib.x	std/compress/brotli/lib.x	impl	brotli .x
+impl_zstd	file	std/compress/zstd/lib.x	std/compress/zstd/lib.x	impl	zstd .x
+impl_common	file	std/compress/common.x	std/compress/common.x	impl	共用魔数/流头（零 .h）
 make_zstd	target	compress-o-zlib-zstd	compiler/Makefile	v1	构建目标
 lib	script	lib/std-compress.sh	tests/lib/std-compress.sh	-	共享库
 gate	script	run-std-compress-gate.sh	tests/run-std-compress-gate.sh	-	manifest
 hook_compress	hook_script	run-compress.sh	tests/run-compress.sh	-	回归
-smoke_gzip	smoke	tests/std-compress/gzip_roundtrip.sx	tests/std-compress/gzip_roundtrip.sx	-	gzip 往返
-smoke_zstd	smoke	tests/std-compress/zstd_roundtrip.sx	tests/std-compress/zstd_roundtrip.sx	-	zstd 往返
-smoke_legacy	smoke	tests/compress/main.sx	tests/compress/main.sx	-	legacy
+smoke_gzip	smoke	tests/std-compress/gzip_roundtrip.x	tests/std-compress/gzip_roundtrip.x	-	gzip 往返
+smoke_zstd	smoke	tests/std-compress/zstd_roundtrip.x	tests/std-compress/zstd_roundtrip.x	-	zstd 往返
+smoke_legacy	smoke	tests/compress/main.x	tests/compress/main.x	-	legacy
 cross_readme	cross_ref	std/compress/README.md	std/compress/README.md	-	README

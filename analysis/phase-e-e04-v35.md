@@ -12,9 +12,9 @@
 
 ## 仍留 runtime.c
 
-- `run_compiler_c` / `run_compiler_sx_path` 主体
+- `run_compiler_c` / `run_compiler_x_path` 主体
 - `driver_run_asm_backend` / `driver_run_compiler_parsed` 编排
-- `driver_run_sx_emit_c` 与 SX emit 路径
+- `driver_run_x_emit_c` 与 X emit 路径
 
 ## 复现
 

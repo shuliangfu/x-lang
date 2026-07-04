@@ -24,7 +24,7 @@ run_one() {
       make -C compiler clean &&
       make -C compiler OPT=1 all &&
       make -C compiler test_c &&
-      make -C compiler test_sx &&
+      make -C compiler test_x &&
       chmod +x tests/run-bootstrap-bstrict-ci.sh tests/run-freestanding-hello.sh &&
       ./tests/run-bootstrap-bstrict-ci.sh &&
       make -C compiler bootstrap-verify &&
@@ -32,7 +32,7 @@ run_one() {
     '
 }
 
-# P5 + refresh shux_asm（Mac 复现 Linux SX 路径 region/linear/asm）
+# P5 + refresh shux_asm（Mac 复现 Linux X 路径 region/linear/asm）
 run_ubuntu_gates() {
   echo "===== Docker CI: ubuntu-gates (P5 + refresh shux_asm, linux/amd64) ====="
   docker run --rm --platform linux/amd64 -e CI=1 -e SHUX_CC_EXTRA="-std=gnu11" \

@@ -1,0 +1,108 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std/string/string.x — 长串快路径（F-string v1；替代 string.c）
+//
+// 【文件职责】memcmp/memcpy/memchr/memmem 快路径；供 mod.x len≥阈值时调用。
+// memmem 便携实现（全平台一致，不依赖 GNU memmem）。
+
+extern function memcmp(a: *u8, b: *u8, n: usize): i32;
+extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern function memchr(ptr: *u8, c: i32, n: usize): *u8;
+
+/** 返回 ptr + off；供 StrView 子视图与 arena concat。 */
+function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8 {
+  return ptr + off;
+}
+
+/** 与 memcmp 一致：<0 / 0 / >0。 */
+function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
+  let r: i32 = 0;
+  if (n <= 0) { return 0; }
+  unsafe { r = memcmp(a, b, n); }
+  if (r < 0) { return -1; }
+  if (r > 0) { return 1; }
+  return 0;
+}
+
+/** 比较 a[off..off+n-1] 与 b[0..n-1]；相等 0，否则非 0。 */
+function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
+  let p: *u8 = 0 as *u8;
+  if (n <= 0) { return 0; }
+  p = a + off;
+  unsafe { return memcmp(p, b, n); }
+}
+
+/** 块拷贝 dst[0..n-1] = src[0..n-1]；n<=0 不写。 */
+function shux_string_copy_c(dst: *u8, src: *u8, n: i32): void {
+  if (n <= 0) { return; }
+  unsafe { memcpy(dst, src, n); }
+}
+
+/** 在 ptr[0..n-1] 中找字节 c 首次出现；无则 -1。 */
+function shux_string_memchr_c(ptr: *u8, c: u8, n: i32): i32 {
+  let p: *u8 = 0 as *u8;
+  if (n <= 0) { return -1; }
+  unsafe { p = memchr(ptr, c as i32, n); }
+  if (p == 0) { return -1; }
+  return (p - ptr) as i32;
+}
+
+/** 在 ptr[0..n-1] 中找字节 c 最后一次出现；无则 -1。 */
+function shux_string_memrchr_c(ptr: *u8, c: u8, n: i32): i32 {
+  let i: i32 = 0;
+  if (n <= 0) { return -1; }
+  i = n - 1;
+  while (i >= 0) {
+    if (ptr[i] == c) { return i; }
+    i = i - 1;
+  }
+  return -1;
+}
+
+/** 便携 memmem：hay 中找 needle 首次出现；无则 -1。 */
+function shux_string_portable_memmem(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
+  let i: i32 = 0;
+  let j: i32 = 0;
+  let ok: i32 = 0;
+  if (needle_len <= 0) { return 0; }
+  if (hay_len < needle_len) { return -1; }
+  if (needle_len == 1) {
+    return shux_string_memchr_c(hay, needle[0], hay_len);
+  }
+  i = 0;
+  while (i <= hay_len - needle_len) {
+    ok = 1;
+    j = 0;
+    while (j < needle_len) {
+      if (hay[i + j] != needle[j]) { ok = 0; break; }
+      j = j + 1;
+    }
+    if (ok != 0) { return i; }
+    i = i + 1;
+  }
+  return -1;
+}
+
+/** 在 hay 中找 needle 首次出现；无则 -1。needle_len==1 走 memchr。 */
+function shux_string_memmem_c(hay: *u8, hay_len: i32, needle: *u8, needle_len: i32): i32 {
+  if (needle_len <= 0) { return 0; }
+  if (hay_len < needle_len) { return -1; }
+  if (needle_len == 1) {
+    return shux_string_memchr_c(hay, needle[0], hay_len);
+  }
+  return shux_string_portable_memmem(hay, hay_len, needle, needle_len);
+}

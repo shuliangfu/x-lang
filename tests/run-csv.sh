@@ -11,7 +11,7 @@ SHUX="${SHUX:-./compiler/shux}"
 LINK_SHUX="$RUN_SHUX"
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 exe="/tmp/shux_csv_$$"
-if ! $LINK_SHUX -L . tests/csv/main.sx -o "$exe" 2>&1; then echo "csv test: compile failed"; rm -f "$exe"; exit 1; fi
+if ! $LINK_SHUX -L . tests/csv/main.x -o "$exe" 2>&1; then echo "csv test: compile failed"; rm -f "$exe"; exit 1; fi
 set +e
 $exe 2>/dev/null
 exitcode=$?

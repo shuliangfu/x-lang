@@ -15,7 +15,7 @@ if [ -z "$SHUX" ] || [ ! -x "$SHUX" ]; then
 fi
 # shellcheck source=tests/lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-if ! "$SHUX" check -L . tests/math/main.sx 2>&1; then
+if ! "$SHUX" check -L . tests/math/main.x 2>&1; then
   echo "math test: typeck failed"
   exit 1
 fi

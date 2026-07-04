@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_CORE_DEBUG_ASSERT_EXTEND_DOC:-analysis/core-debug-assert-extend-v1.md}"
 MANIFEST="${SHUX_CORE_DEBUG_ASSERT_EXTEND_TSV:-tests/baseline/core-debug-assert-extend.tsv}"
-DEBUG_SX="core/debug/mod.sx"
+DEBUG_X="core/debug/mod.x"
 LIB="tests/lib/core-debug-assert-extend.sh"
-SMOKE="tests/debug/assert_extend.sx"
-REGRESS="tests/debug/main.sx"
+SMOKE="tests/debug/assert_extend.x"
+REGRESS="tests/debug/main.x"
 MIN_SYMBOLS=6
 
 # shellcheck source=tests/lib/core-debug-assert-extend.sh
@@ -29,7 +29,7 @@ native_shu() {
 }
 
 echo "=== CORE-012: debug assert extend manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$DEBUG_SX" "$SMOKE" "$REGRESS"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$DEBUG_X" "$SMOKE" "$REGRESS"; do
   if [ ! -f "$f" ]; then
     echo "core-debug-assert-extend gate FAIL: missing $f" >&2
     exit 1
@@ -77,7 +77,7 @@ if [ "$SYM_N" -lt "$MIN_SYMBOLS" ] || [ "$MISS" -gt 0 ]; then
   exit 1
 fi
 
-sym_miss="$(core_debug_assert_extend_symbols_ok "$DEBUG_SX" "$MANIFEST" || true)"
+sym_miss="$(core_debug_assert_extend_symbols_ok "$DEBUG_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   core_debug_assert_extend_emit_report "fail" 0 1
   exit 1

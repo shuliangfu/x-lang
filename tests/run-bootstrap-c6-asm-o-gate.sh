@@ -18,7 +18,7 @@ if [ "${SHUX_BOOTSTRAP_C6_SKIP:-0}" = "1" ]; then
 fi
 
 DOC="analysis/自举前必须清单.md"
-RV="tests/return-value/main.sx"
+RV="tests/return-value/main.x"
 ASM="./compiler/shux_asm"
 for f in "$DOC" "$RV"; do
   [ -f "$f" ] || { gate_progress "FAIL: missing $f"; exit 1; }

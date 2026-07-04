@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
-> 关联：`NEXT.md` CORE-013、`core/types/mod.sx`、`compiler/src/typeck/typeck.c`、`compiler/src/codegen/codegen.c`
+> 关联：`NEXT.md` CORE-013、`core/types/mod.x`、`compiler/src/typeck/typeck.c`、`compiler/src/codegen/codegen.c`
 
 ---
 
@@ -45,11 +45,11 @@
 
 ## 4. 金样
 
-`tests/core-types-size/i16_u16_width.sx`：
+`tests/core-types-size/i16_u16_width.x`：
 
 - `size_of_i16() == size_of_u16() == 2`
 - `align_of_i16() == align_of_u16() == 2`
-- 与 `main.sx` 标量回归联动
+- 与 `main.x` 标量回归联动
 
 ---
 

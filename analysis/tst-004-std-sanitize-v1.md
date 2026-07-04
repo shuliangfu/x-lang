@@ -21,7 +21,7 @@
 
 | 项 | 说明 |
 |----|------|
-| 编译 | `shux -fsanitize=address -L . <case>.sx -o exe` |
+| 编译 | `shux -fsanitize=address -L . <case>.x -o exe` |
 | 运行 | `ASAN_OPTIONS=detect_leaks=1:exitcode=23:halt_on_error=1` |
 | 探测器 | 复用 `tests/lib/safe-leak.sh`（与 SAFE-005 一致） |
 | 与 M-6 | `tests/run-sanitize-gate.sh` 管 **INDEX 边界插桩**；本任务管 **std 模块运行时泄漏** |
@@ -35,11 +35,11 @@ v1 聚焦 **std.heap**、**std.channel**；后续可追加 `std.string` / `std.f
 
 | case_id | 模块 | 烟测 | needs_o |
 |---------|------|------|---------|
-| `case_heap_std` | `std.heap` | `tests/sanitize/std_heap_asan.sx` | `../std/heap/heap.o` |
-| `case_channel_std` | `std.channel` | `tests/sanitize/std_channel_asan.sx` | `../std/channel/channel.o` |
+| `case_heap_std` | `std.heap` | `tests/sanitize/std_heap_asan.x` | `../std/heap/heap.o` |
+| `case_channel_std` | `std.channel` | `tests/sanitize/std_channel_asan.x` | `../std/channel/channel.o` |
 
 **heap**：`alloc` / `alloc_zero` / `realloc` / `Arena64` 成对释放。  
-**channel**：有界 `send`/`recv`/`close`/`free`；Windows stub 创建失败时返回 0（与 `tests/channel/main.sx` 一致）。
+**channel**：有界 `send`/`recv`/`close`/`free`；Windows stub 创建失败时返回 0（与 `tests/channel/main.x` 一致）。
 
 ---
 
@@ -74,6 +74,6 @@ shux: [SHUX_TST004_SANITIZE] status=ok cases_ok=2 cases_fail=0 skip=0
 
 新增 std ASAN case 时：
 
-1. 在 `tests/sanitize/` 添加 `.sx`
+1. 在 `tests/sanitize/` 添加 `.x`
 2. 向 `tst-004-std-sanitize.tsv` 增加 `case_*` 行（含 `needs_o`）
 3. 更新 `min_cases` 与本文 §3

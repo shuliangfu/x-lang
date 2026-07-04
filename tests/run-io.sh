@@ -20,49 +20,49 @@ fi
 make -C compiler -q ../std/process/process.o 2>/dev/null \
   || make -C compiler ../std/process/process.o 2>/dev/null \
   || true
-# F-03 v3：io 纯 .sx，不再 build ../std/io/io.o
+# F-03 v3：io 纯 .x，不再 build ../std/io/io.o
 
-$SHUX -L . tests/io/main.sx -o /tmp/shux_io 2>&1
+$SHUX -L . tests/io/main.x -o /tmp/shux_io 2>&1
 out=$(/tmp/shux_io 2>&1)
 echo "$out" | grep -q "42" || { echo "expected stdout to contain 42, got: $out"; exit 1; }
 
-$SHUX -L . tests/io/print_u32.sx -o /tmp/shux_io_u32 2>&1
+$SHUX -L . tests/io/print_u32.x -o /tmp/shux_io_u32 2>&1
 out=$(/tmp/shux_io_u32 2>&1)
 echo "$out" | grep -q "100" || { echo "expected stdout to contain 100 (print_u32), got: $out"; exit 1; }
 
-$SHUX -L . tests/io/print_i64.sx -o /tmp/shux_io_i64 2>&1
+$SHUX -L . tests/io/print_i64.x -o /tmp/shux_io_i64 2>&1
 out=$(/tmp/shux_io_i64 2>&1)
 echo "$out" | grep -q "123" || { echo "expected stdout to contain 123 (print_i64), got: $out"; exit 1; }
 
-$SHUX -L . tests/io/write_stdout.sx -o /tmp/shux_io_write 2>&1
+$SHUX -L . tests/io/write_stdout.x -o /tmp/shux_io_write 2>&1
 out=$(/tmp/shux_io_write 2>&1)
 echo "$out" | grep -q "Hi" || { echo "expected stdout to contain Hi (write_stdout), got: $out"; exit 1; }
 ec=0; /tmp/shux_io_write >/dev/null 2>&1 || ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (write_stdout), got $ec"; exit 1; }
 
-$SHUX -L . tests/io/write_with_timeout.sx -o /tmp/shux_io_wto 2>&1
+$SHUX -L . tests/io/write_with_timeout.x -o /tmp/shux_io_wto 2>&1
 out=$(/tmp/shux_io_wto 2>&1)
 echo "$out" | grep -q "Hi" || { echo "expected stdout to contain Hi (write_with_timeout), got: $out"; exit 1; }
 ec=0; /tmp/shux_io_wto >/dev/null 2>&1 || ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (write_with_timeout), got $ec"; exit 1; }
 
-$SHUX -L . tests/io/print_str.sx -o /tmp/shux_io_print_str 2>&1
+$SHUX -L . tests/io/print_str.x -o /tmp/shux_io_print_str 2>&1
 out=$(/tmp/shux_io_print_str 2>&1)
 echo "$out" | grep -q "ok" || { echo "expected stdout to contain ok (print_str), got: $out"; exit 1; }
 
 # 零拷贝读 read_stdin_ptr / read_ptr_len（管道喂入 "AB"）
-$SHUX -L . tests/io/read_ptr.sx -o /tmp/shux_io_read_ptr 2>&1
+$SHUX -L . tests/io/read_ptr.x -o /tmp/shux_io_read_ptr 2>&1
 echo -n "AB" | /tmp/shux_io_read_ptr
 ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (read_stdin_ptr), got $ec"; exit 1; }
 
 # M-5：read_ptr_slice / read_stdin_ptr_slice（管道喂入 "AB"）
-$SHUX -L . tests/io/read_ptr_slice.sx -o /tmp/shux_io_read_ptr_slice 2>&1
+$SHUX -L . tests/io/read_ptr_slice.x -o /tmp/shux_io_read_ptr_slice 2>&1
 echo -n "AB" | /tmp/shux_io_read_ptr_slice
 ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (read_stdin_ptr_slice), got $ec"; exit 1; }
 
-$SHUX -L . tests/io/read_ptr_slice_param.sx -o /tmp/shux_io_read_ptr_slice_param 2>&1
+$SHUX -L . tests/io/read_ptr_slice_param.x -o /tmp/shux_io_read_ptr_slice_param 2>&1
 echo -n "AB" | /tmp/shux_io_read_ptr_slice_param
 ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (read_ptr_slice_param), got $ec"; exit 1; }

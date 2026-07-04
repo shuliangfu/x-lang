@@ -43,9 +43,9 @@
 
 | case_id | bench_src | max_malloc | max_calloc | max_realloc |
 |---------|-----------|------------|------------|-------------|
-| `string_arena_concat` | `tests/bench/string_arena_concat.sx` | 0 | 0 | 0 |
-| `cl_arena64_smoke` | `tests/dod/cl_arena64_smoke.sx` | 0 | 0 | 0 |
-| `with_arena_vec_push` | `tests/bench/with_arena_vec_push.sx` | 0 | 0 | 0 |
+| `string_arena_concat` | `tests/bench/string_arena_concat.x` | 0 | 0 | 0 |
+| `cl_arena64_smoke` | `tests/dod/cl_arena64_smoke.x` | 0 | 0 | 0 |
+| `with_arena_vec_push` | `tests/bench/with_arena_vec_push.x` | 0 | 0 | 0 |
 
 ---
 

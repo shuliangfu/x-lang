@@ -5,11 +5,11 @@ read_path	section	## 1. 阅读路径	15min
 strategy	section	## 2. 策略表	BYTES_OWN
 workflow	section	## 3. Arena 工作流	arena64
 verify	section	## 4. Gate	gate
-api_from_external	api	from_external	std/bytes/mod.sx	外部绑定
-api_is_owned	api	is_owned	std/bytes/mod.sx	拥有探测
-api_recommend	api	recommend_bytes_alloc	std/bytes/mod.sx	策略
-api_recommend_arena	api	recommend_bytes_alloc_arena	std/bytes/mod.sx	Arena 常量
-symbol_own_heap	symbol	BYTES_OWN_HEAP	std/bytes/mod.sx	常量
-smoke_arena	smoke	tests/std-bytes/arena_external.sx	Arena 烟测
+api_from_external	api	from_external	std/bytes/mod.x	外部绑定
+api_is_owned	api	is_owned	std/bytes/mod.x	拥有探测
+api_recommend	api	recommend_bytes_alloc	std/bytes/mod.x	策略
+api_recommend_arena	api	recommend_bytes_alloc_arena	std/bytes/mod.x	Arena 常量
+symbol_own_heap	symbol	BYTES_OWN_HEAP	std/bytes/mod.x	常量
+smoke_arena	smoke	tests/std-bytes/arena_external.x	Arena 烟测
 lib	script	tests/lib/std-bytes-arena.sh	tests/lib/std-bytes-arena.sh
 gate	script	tests/run-std-bytes-arena-gate.sh	tests/run-std-bytes-arena-gate.sh

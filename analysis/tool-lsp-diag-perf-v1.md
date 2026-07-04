@@ -33,7 +33,7 @@
 **路径说明**：
 
 - `completion` / `definition` / `hover`（C 路径）走 `lsp_ensure_module`，**命中 P1–P6**。
-- `textDocument/diagnostic`（`.sx` 路径 `lsp_build_diagnostics_response`）v1 每次 `invalidate` 后全量 pipeline；大文件性能靠 **P4 同类 buffer 复用**（`lsp_diag_sx_reset_parse_buffers`）与后续 v1.1 诊断缓存收敛。
+- `textDocument/diagnostic`（`.x` 路径 `lsp_build_diagnostics_response`）v1 每次 `invalidate` 后全量 pipeline；大文件性能靠 **P4 同类 buffer 复用**（`lsp_diag_x_reset_parse_buffers`）与后续 v1.1 诊断缓存收敛。
 
 ---
 
@@ -41,7 +41,7 @@
 
 | 指标 | 阈值（`ci-default`） | 说明 |
 |------|----------------------|------|
-| `min_large_funcs` | 30 | 金样 `diag_large_ok.sx` 顶层函数数 |
+| `min_large_funcs` | 30 | 金样 `diag_large_ok.x` 顶层函数数 |
 | `max_wall_ms` | 15000 | 大文件 LSP 会话墙钟上限（ms） |
 | `warm_same_items` | 1 | 同文档连续两次 completion 条数一致（缓存正确性） |
 
@@ -57,8 +57,8 @@ tool-lsp-diag-perf report wall_ms=1234 funcs=40 warm_items=52/52 large=OK
 
 | case_id | 文件 | 场景 |
 |---------|------|------|
-| `case_large` | `tests/lsp/diag_large_ok.sx` | 40 个 `fN` + `main`；diagnostic + 双次 completion |
-| `case_small` | `tests/lsp/main.sx` | 对照小文件（`run-lsp.sh` 已覆盖） |
+| `case_large` | `tests/lsp/diag_large_ok.x` | 40 个 `fN` + `main`；diagnostic + 双次 completion |
+| `case_small` | `tests/lsp/main.x` | 对照小文件（`run-lsp.sh` 已覆盖） |
 
 烟测：`initialize` → `didOpen` large → `textDocument/diagnostic` → 两次 `textDocument/completion`（同光标）。
 

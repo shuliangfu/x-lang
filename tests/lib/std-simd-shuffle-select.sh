@@ -2,14 +2,14 @@
 # std-simd-shuffle-select.sh — STD-047 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_simd_ss_symbols_ok MOD_SX TSV
-#   std_simd_ss_run_smoke SHUX_BIN SX TAG
+#   std_simd_ss_symbols_ok MOD_X TSV
+#   std_simd_ss_run_smoke SHUX_BIN X TAG
 #   std_simd_ss_emit_report status shuffle_ok select_ok s4_ok skip
 
 STD_SIMD_SS_PREFIX="${SHUX_STD_SIMD_SHUFFLE_SELECT_PREFIX:-shux: [SHUX_STD_SIMD_SHUFFLE_SELECT]}"
 
 std_simd_ss_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor
@@ -18,8 +18,8 @@ std_simd_ss_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
-          echo "std-simd-shuffle-select FAIL: missing api '$anchor' in $mod_sx" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
+          echo "std-simd-shuffle-select FAIL: missing api '$anchor' in $mod_x" >&2
           miss=$((miss + 1))
         fi
         ;;

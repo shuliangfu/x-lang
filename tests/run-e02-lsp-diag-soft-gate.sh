@@ -33,7 +33,7 @@ grep -q 'ensure_lsp_diag_seed_obj' "$BUILD" || die "build_shux_asm missing ensur
 grep -q 'Phase E soft-retired' "$LSP_C" || die "lsp_diag.c missing Phase E marker"
 
 # bootstrap 链接行不得硬编码 lsp_diag.o（须 $(LSP_DIAG_LINK_O)）
-if grep -E 'bootstrap-driver-seed:|relink-shux:|^shux-sx:' "$MF" | grep -q 'src/lsp/lsp_diag\.o'; then
+if grep -E 'bootstrap-driver-seed:|relink-shux:|^shux-x:' "$MF" | grep -q 'src/lsp/lsp_diag\.o'; then
   die "Makefile bootstrap link still hardcodes src/lsp/lsp_diag.o"
 fi
 
@@ -49,10 +49,10 @@ if [ "${SHUX_E02_MANIFEST_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-if [ -f tests/run-c05-lsp-sx-gate.sh ]; then
-  echo "=== E-02: delegate run-c05-lsp-sx-gate (manifest) ==="
-  chmod +x tests/run-c05-lsp-sx-gate.sh
-  SHUX_C05_MANIFEST_ONLY=1 SHUX_C05_FAIL="$FAIL" ./tests/run-c05-lsp-sx-gate.sh || die "C-05 manifest failed"
+if [ -f tests/run-c05-lsp-x-gate.sh ]; then
+  echo "=== E-02: delegate run-c05-lsp-x-gate (manifest) ==="
+  chmod +x tests/run-c05-lsp-x-gate.sh
+  SHUX_C05_MANIFEST_ONLY=1 SHUX_C05_FAIL="$FAIL" ./tests/run-c05-lsp-x-gate.sh || die "C-05 manifest failed"
 fi
 
 echo "e02 lsp-diag soft-retire gate OK (default LSP_DIAG_LINK_O=stubs; LEGACY=SHUX_LEGACY_LSP_DIAG_C=1)"

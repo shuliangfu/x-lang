@@ -30,14 +30,14 @@ native_shu() {
 # manifest：case_id 与源路径（bash 3.2 兼容，不用关联数组）。
 compile_dogfood_case_src() {
   case "$1" in
-    loop_i32) echo tests/bench/loop_i32.sx ;;
-    mem_copy) echo tests/bench/mem_copy.sx ;;
-    struct_param) echo tests/bench/struct_param.sx ;;
-    call_boundary) echo tests/bench/call_boundary.sx ;;
-    perf_main) echo tests/perf-baseline/main.sx ;;
-    check_backend) echo compiler/src/asm/backend.sx ;;
-    check_parser) echo compiler/src/parser/parser.sx ;;
-    check_typeck) echo compiler/src/typeck/typeck.sx ;;
+    loop_i32) echo tests/bench/loop_i32.x ;;
+    mem_copy) echo tests/bench/mem_copy.x ;;
+    struct_param) echo tests/bench/struct_param.x ;;
+    call_boundary) echo tests/bench/call_boundary.x ;;
+    perf_main) echo tests/perf-baseline/main.x ;;
+    check_backend) echo compiler/src/asm/backend.x ;;
+    check_parser) echo compiler/src/parser/parser.x ;;
+    check_typeck) echo compiler/src/typeck/typeck.x ;;
     *) return 1 ;;
   esac
 }

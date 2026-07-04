@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_CFG_ATTR_SKIP_FAIL:-0}
-SX="tests/lexer/cfg_attribute_skip.sx"
+X="tests/lexer/cfg_attribute_skip.x"
 OUT="/tmp/shux_cfg_attr_skip.$$.out"
 SHUX="${SHUX:-./compiler/shux-c}"
 
@@ -34,8 +34,8 @@ esac
 
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -o "$OUT" "$SX" 2>/tmp/shux_cfg_attr_skip.log; then
-  echo "cfg-attribute-skip-gate FAIL: compile $SX" >&2
+if ! "$SHUX" -o "$OUT" "$X" 2>/tmp/shux_cfg_attr_skip.log; then
+  echo "cfg-attribute-skip-gate FAIL: compile $X" >&2
   tail -n 8 /tmp/shux_cfg_attr_skip.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

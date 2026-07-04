@@ -7,15 +7,15 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_CORE_FMT_WIDTHS_DOC:-analysis/core-fmt-widths-v1.md}"
 MANIFEST="${SHUX_CORE_FMT_WIDTHS_TSV:-tests/baseline/core-fmt-widths.tsv}"
-FMT_SX="core/fmt/mod.sx"
+FMT_X="core/fmt/mod.x"
 LIB="tests/lib/core-fmt-widths.sh"
-SMOKE="tests/fmt/widths.sx"
+SMOKE="tests/fmt/widths.x"
 
 # shellcheck source=tests/lib/core-fmt-widths.sh
 . tests/lib/core-fmt-widths.sh
 
 echo "=== CORE-010: fmt usize/isize/ptr manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$FMT_SX" "$SMOKE"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$FMT_X" "$SMOKE"; do
   if [ ! -f "$f" ]; then
     echo "core-fmt-widths gate FAIL: missing $f" >&2
     exit 1
@@ -29,7 +29,7 @@ for kw in fmt_usize_to_buf fmt_isize_to_buf fmt_ptr_to_buf 0x0; do
   fi
 done
 
-sym_miss="$(core_fmt_widths_symbols_ok "$FMT_SX" "$MANIFEST" || true)"
+sym_miss="$(core_fmt_widths_symbols_ok "$FMT_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   core_fmt_widths_emit_report "fail" 0 0 0
   echo "core-fmt-widths gate FAIL: symbol_miss=${sym_miss}" >&2

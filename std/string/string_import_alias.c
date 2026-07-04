@@ -3,7 +3,7 @@
  *
  * asm co-emit 对 `const string = import("std.string")` 生成 std_string_* 符号；
  * string.o 由 runtime_string_fast.c 提供 shux_string_* 快路径，本 TU 提供
- * std_string_* 实现（语义对齐 mod.sx）。
+ * std_string_* 实现（语义对齐 mod.x）。
  *
  * asm `-o` ABI（x86_64）：
  * - String 栈槽为 8 字节 ShuxString*；只读调用 rdi=ShuxString*，可变调用 rdi=ShuxString**。
@@ -14,13 +14,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-/** 与 mod.sx String 布局一致。 */
+/** 与 mod.x String 布局一致。 */
 typedef struct ShuxString {
   uint8_t data[256];
   int32_t len;
 } ShuxString;
 
-/** 与 mod.sx StrView 布局一致。 */
+/** 与 mod.x StrView 布局一致。 */
 typedef struct ShuxStrView {
   uint8_t *ptr;
   int32_t len;

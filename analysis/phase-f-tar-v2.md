@@ -1,14 +1,14 @@
-# 阶段 F-tar v2（std.tar 逻辑 .sx 下沉）
+# 阶段 F-tar v2（std.tar 逻辑 .x 下沉）
 
-> **F-tar v2**：UStar/Pax 读写/遍历/烟测全量迁入 **`tar.sx`**；**纯 .sx**（无 OS/pthread/malloc；仅 extern memcpy/memcmp/memset）。
+> **F-tar v2**：UStar/Pax 读写/遍历/烟测全量迁入 **`tar.x`**；**纯 .x**（无 OS/pthread/malloc；仅 extern memcpy/memcmp/memset）。
 
 ## 变更
 
 | 项 | v1 | v2 |
 |----|----|-----|
-| UStar/Pax 实现 | `tar_glue.c`（~478 行） | **`tar.sx`** |
-| `tar.o` | `ld -r` glue + sx | **仅 sx（`tar_main.o`）** |
-| mod.sx | extern tar_*_c | **不变** |
+| UStar/Pax 实现 | `tar_glue.c`（~478 行） | **`tar.x`** |
+| `tar.o` | `ld -r` glue + x | **仅 x（`tar_main.o`）** |
+| mod.x | extern tar_*_c | **不变** |
 
 ## 门禁
 

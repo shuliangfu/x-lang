@@ -8,7 +8,7 @@ WORKDIR="${TMPDIR:-/tmp}"
 echo "=== G5: QEMU SMP gate ==="
 
 # Build showcase kernel
-sh "$SCRIPT_DIR/build-kernel.sh" "$SCRIPT_DIR/showcase.sx" "$WORKDIR/smp_gate.elf" 2>&1
+sh "$SCRIPT_DIR/build-kernel.sh" "$SCRIPT_DIR/showcase.x" "$WORKDIR/smp_gate.elf" 2>&1
 
 # Run with -smp 2
 rm -f "$WORKDIR/smp_serial.log"

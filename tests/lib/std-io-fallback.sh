@@ -2,7 +2,7 @@
 # std-io-fallback.sh — STD-026：三平台 read/write 回退矩阵 manifest 辅助
 #
 # 用法（source 后）：
-#   std_io_fallback_manifest_ok DOC README IO_C MOD_SX TSV
+#   std_io_fallback_manifest_ok DOC README IO_C MOD_X TSV
 #   std_io_fallback_emit_report status matrix_ok code_ok readme_ok check_ok skip
 
 STD_IO_FALLBACK_PREFIX="${SHUX_STD_IO_FALLBACK_PREFIX:-shux: [SHUX_STD_IO_FALLBACK]}"
@@ -12,7 +12,7 @@ std_io_fallback_manifest_ok() {
   local doc="$1"
   local readme="$2"
   local io_c="$3"
-  local mod_sx="$4"
+  local mod_x="$4"
   local tsv="$5"
   local matrix_miss=0
   local code_miss=0
@@ -61,8 +61,8 @@ std_io_fallback_manifest_ok() {
         fi
         ;;
       symbol)
-        if ! grep -qE "function ${code_anchor}\\(" "$mod_sx" 2>/dev/null; then
-          echo "std-io-fallback FAIL: missing function ${code_anchor} in $mod_sx" >&2
+        if ! grep -qE "function ${code_anchor}\\(" "$mod_x" 2>/dev/null; then
+          echo "std-io-fallback FAIL: missing function ${code_anchor} in $mod_x" >&2
           matrix_miss=$((matrix_miss + 1))
         fi
         ;;

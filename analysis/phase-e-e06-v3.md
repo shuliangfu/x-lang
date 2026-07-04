@@ -1,16 +1,16 @@
-# 阶段 E-06 v3（strict 第二遍重链 SX-only，不再考古 SEED C 前端）
+# 阶段 E-06 v3（strict 第二遍重链 X-only，不再考古 SEED C 前端）
 
-> **E-06 v3**：在 E-06 v2 experimental 跳过 seed 前端 `cc -c` 基础上，**strict 第二遍重链**同样不再因缺 `parser.o` 等触发 `ensure_asm_driver_seed_frontend_c_objs`；`ST_SEED_PARSER_TCK` 仅保留 async seed + SX glue，`parser_sx.o` 在 `ST_PARSER_SX_TAIL` 压符号。
+> **E-06 v3**：在 E-06 v2 experimental 跳过 seed 前端 `cc -c` 基础上，**strict 第二遍重链**同样不再因缺 `parser.o` 等触发 `ensure_asm_driver_seed_frontend_c_objs`；`ST_SEED_PARSER_TCK` 仅保留 async seed + X glue，`parser_x.o` 在 `ST_PARSER_X_TAIL` 压符号。
 
 ## v3 完成（✅）
 
 | 机制 | 说明 |
 |------|------|
 | `asm_seed_st_async_support_link` | strict 链仅 async_liveness + async_cps_codegen seed |
-| `asm_seed_st_preprocess_link` | SX 路径 omit `$SEED_O/preprocess.o`（用 preprocess_sx.o） |
+| `asm_seed_st_preprocess_link` | X 路径 omit `$SEED_O/preprocess.o`（用 preprocess_x.o） |
 | `ensure_asm_driver_seed_c_objs` | 移除「缺 parser.o → 考古 cc -c」回退 |
-| strict `ST_SEED_PARSER_TCK` | 各分支按 `asm_seed_use_sx_frontend` 选 SX-only / legacy |
-| strict fallback 重链 | SX 路径用 async + SX tail；legacy 仍全量 SEED |
+| strict `ST_SEED_PARSER_TCK` | 各分支按 `asm_seed_use_x_frontend` 选 X-only / legacy |
+| strict fallback 重链 | X 路径用 async + X tail；legacy 仍全量 SEED |
 
 ## 仍 track / 延后（E-06 v4+）
 

@@ -45,14 +45,14 @@ pick_free_port() {
   fi
 }
 
-compile_shux_sx() {
+compile_shux_x() {
   local src_template="$1"
   local port_marker="$2"
   local port="$3"
   local out="$4"
   rm -f "$out"
-  sed -e "s/${port_marker}/${port}/g" "$src_template" >"/tmp/bench_net_src_${port}.sx"
-  if ! ./compiler/shux -L . "/tmp/bench_net_src_${port}.sx" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
+  sed -e "s/${port_marker}/${port}/g" "$src_template" >"/tmp/bench_net_src_${port}.x"
+  if ! ./compiler/shux -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     return 1
   fi
@@ -67,8 +67,8 @@ compile_shu_accept() {
   rm -f "$out"
   sed -e "s/${NET_BENCH_PORT_DEFAULT}/${port}/g" \
       -e "s/net_bench_conns: i32 = 4096/net_bench_conns: i32 = ${NET_BENCH_CONNS}/" \
-      "$src_template" >"/tmp/bench_net_src_${port}.sx"
-  if ! ./compiler/shux -L . "/tmp/bench_net_src_${port}.sx" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
+      "$src_template" >"/tmp/bench_net_src_${port}.x"
+  if ! ./compiler/shux -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     return 1
   fi
@@ -84,8 +84,8 @@ compile_shu_udp() {
   sed -e "s/${NET_UDP_PORT_DEFAULT}/${port}/g" \
       -e "s/udp_pkts: i32 = 4096/udp_pkts: i32 = ${NET_UDP_PKTS}/" \
       -e "s/batch, 5000/batch, 200/" \
-      "$src_template" >"/tmp/bench_net_src_${port}.sx"
-  if ! ./compiler/shux -L . "/tmp/bench_net_src_${port}.sx" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
+      "$src_template" >"/tmp/bench_net_src_${port}.x"
+  if ! ./compiler/shux -L . "/tmp/bench_net_src_${port}.x" -o "$out" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     return 1
   fi
@@ -139,8 +139,8 @@ median_accept_pair() {
   vals=""
   shu_exe="/tmp/bench_net_shu_${tag}"
   sed -e "s/net_bench_conns: i32 = 4096/net_bench_conns: i32 = ${NET_BENCH_CONNS}/" \
-      "$su_template" >"/tmp/bench_net_accept.sx"
-  if ! ./compiler/shux -L . "/tmp/bench_net_accept.sx" -o "$shu_exe" >/tmp/bench_net_compile.log 2>&1; then
+      "$su_template" >"/tmp/bench_net_accept.x"
+  if ! ./compiler/shux -L . "/tmp/bench_net_accept.x" -o "$shu_exe" >/tmp/bench_net_compile.log 2>&1; then
     cat /tmp/bench_net_compile.log >&2
     echo "nan"
     return 1
@@ -265,7 +265,7 @@ check_net_zig() {
 
 bench_net_accept_case() {
   local name="$1"
-  local sx="$2"
+  local x="$2"
   local c_server="$3"
   local tag="${name}_"
   local SHUX_MED="nan"
@@ -284,7 +284,7 @@ bench_net_accept_case() {
     echo "C -O2 accept loop ${name} median real: ${C_MED}s"
   fi
 
-  SHUX_MED=$(median_accept_pair "$sx" "$c_server" "$tag" "$CLIENT")
+  SHUX_MED=$(median_accept_pair "$x" "$c_server" "$tag" "$CLIENT")
   echo "Shu (default asm) ${name} median real: ${SHUX_MED}s"
 
   printf '\n'
@@ -582,7 +582,7 @@ bench_net_echo_provided_case() {
         prov_cycles="$perf_nz_cycles"
         nz_cpm_prov=$(perf_nz_cycles_per_mib "$prov_cycles" 33554432)
         batch_exe="/tmp/bench_net_shu_nz_batch_$$"
-        if ./compiler/shux -L . tests/bench/net_echo_throughput.sx -o "$batch_exe" 2>/dev/null \
+        if ./compiler/shux -L . tests/bench/net_echo_throughput.x -o "$batch_exe" 2>/dev/null \
           && [ -x "$batch_exe" ]; then
           port=$(pick_free_port)
           if perf_nz_run_echo_cycles "$batch_exe" "$c_server" "$port"; then
@@ -639,8 +639,8 @@ median_udp_pair() {
     exe="/tmp/bench_net_shu_${tag}"
     sed -e "s/udp_pkts: i32 = 4096/udp_pkts: i32 = ${NET_UDP_PKTS}/" \
         -e "s/batch, 5000/batch, 200/" \
-        "$su_template" >"/tmp/bench_udp.sx"
-    if ! ./compiler/shux -L . "/tmp/bench_udp.sx" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
+        "$su_template" >"/tmp/bench_udp.x"
+    if ! ./compiler/shux -L . "/tmp/bench_udp.x" -o "$exe" >/tmp/bench_net_compile.log 2>&1; then
       cat /tmp/bench_net_compile.log >&2
       echo "nan"
       return 1
@@ -671,7 +671,7 @@ median_udp_pair() {
 
 bench_net_udp_case() {
   local name="$1"
-  local sx="$2"
+  local x="$2"
   local c_server="$3"
   local tag="${name}_"
   local SHUX_MED="nan"
@@ -685,10 +685,10 @@ bench_net_udp_case() {
     exit 1
   fi
 
-  C_MED=$(median_udp_pair "$sx" "$c_server" "${tag}c_" "$CLIENT" 0)
+  C_MED=$(median_udp_pair "$x" "$c_server" "${tag}c_" "$CLIENT" 0)
   echo "C -O2 recvmmsg/sendmmsg ${name} median real: ${C_MED}s"
 
-  SHUX_MED=$(median_udp_pair "$sx" "$c_server" "$tag" "$CLIENT" 1)
+  SHUX_MED=$(median_udp_pair "$x" "$c_server" "$tag" "$CLIENT" 1)
   echo "Shu (udp_*_many_buf) ${name} median real: ${SHUX_MED}s"
 
   printf '\n'
@@ -709,10 +709,10 @@ fi
 
 BASELINE="${SHUX_PERF_NET_BASELINE:-tests/baseline/net-perf.tsv}"
 LAT_BASELINE="${SHUX_PERF_NET_LATENCY_BASELINE:-tests/baseline/net-perf-latency.tsv}"
-bench_net_accept_case net_accept_many tests/bench/net_accept_many.sx tests/bench/net_accept_many_server.c
-bench_net_echo_case net_echo_throughput tests/bench/net_echo_throughput.sx \
+bench_net_accept_case net_accept_many tests/bench/net_accept_many.x tests/bench/net_accept_many_server.c
+bench_net_echo_case net_echo_throughput tests/bench/net_echo_throughput.x \
   tests/bench/net_echo_throughput_server.c tests/bench/net_echo_throughput.c
-bench_net_mixed_case net_mixed_conns_requests tests/bench/net_mixed_conns_requests.sx \
+bench_net_mixed_case net_mixed_conns_requests tests/bench/net_mixed_conns_requests.x \
   tests/bench/net_mixed_conns_requests_server.c tests/bench/net_mixed_conns_requests.c
 if [ "$(uname -s)" = "Linux" ]; then
   # shellcheck source=tests/lib/io-uring-probe.sh
@@ -720,13 +720,13 @@ if [ "$(uname -s)" = "Linux" ]; then
   if io_uring_available; then
     chmod +x tests/run-provided-buffers.sh 2>/dev/null || true
     ./tests/run-provided-buffers.sh
-    bench_net_echo_provided_case net_echo_throughput_provided tests/bench/net_echo_throughput_provided.sx \
+    bench_net_echo_provided_case net_echo_throughput_provided tests/bench/net_echo_throughput_provided.x \
       tests/bench/net_echo_throughput_server.c
   else
     echo "ZC-1 provided bench SKIP (io_uring unavailable on this kernel; e.g. Mac Docker linuxkit)"
   fi
 fi
-bench_net_udp_case net_udp_many tests/bench/net_udp_many.sx tests/bench/net_udp_many_server.c
+bench_net_udp_case net_udp_many tests/bench/net_udp_many.x tests/bench/net_udp_many_server.c
 
 if [ "${SHUX_PERF_UPDATE_NET_BASELINE:-0}" = "1" ]; then
   {

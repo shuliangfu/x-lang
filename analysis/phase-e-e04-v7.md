@@ -20,4 +20,4 @@ make -C compiler src/runtime_link_abi.o src/runtime_driver_no_c.o
 
 - ~~compiler 目录 / asm ld argv0~~ → ✅ E-04 v8
 - `asm_invoke_ld_platform` / `invoke_ld` / `invoke_cc` 主体
-- `main.c` → crt0 / main.sx 全入口
+- `main.c` → crt0 / main.x 全入口

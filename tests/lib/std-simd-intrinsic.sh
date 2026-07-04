@@ -4,7 +4,7 @@
 STD_SIMD_INTRINSIC_PREFIX="${SHUX_STD_SIMD_INTRINSIC_PREFIX:-shux: [SHUX_STD_SIMD_INTRINSIC]}"
 
 std_simd_intrinsic_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor
@@ -13,7 +13,7 @@ std_simd_intrinsic_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null || miss=$((miss + 1))
+        grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null || miss=$((miss + 1))
         ;;
       smoke)
         [ -f "$anchor" ] || miss=$((miss + 1))
@@ -24,7 +24,7 @@ std_simd_intrinsic_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译 .sx 烟测（asm 后端；与 STD-047 相同策略）。
+# 编译 .x 烟测（asm 后端；与 STD-047 相同策略）。
 std_simd_intrinsic_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -54,5 +54,5 @@ std_simd_intrinsic_run_smoke() {
 }
 
 std_simd_intrinsic_emit_report() {
-  echo "${STD_SIMD_INTRINSIC_PREFIX} status=$1 sx=$2 skip=$3"
+  echo "${STD_SIMD_INTRINSIC_PREFIX} status=$1 x=$2 skip=$3"
 }

@@ -24,15 +24,15 @@ void lsp_diag_collect_begin(void);
 /** 结束诊断收集会话。 */
 void lsp_diag_collect_end(void);
 
-/** .sx 诊断路径：arena/module/PipelineDepCtx 一次性分配（体积大），指针在进程内常驻。 */
-void *lsp_diag_sx_arena_ptr(void);
-void *lsp_diag_sx_module_ptr(void);
-void *lsp_diag_sx_ctx_ptr(void);
+/** .x 诊断路径：arena/module/PipelineDepCtx 一次性分配（体积大），指针在进程内常驻。 */
+void *lsp_diag_x_arena_ptr(void);
+void *lsp_diag_x_module_ptr(void);
+void *lsp_diag_x_ctx_ptr(void);
 
 /** 复位上述三块缓冲为全零，便于重复 parse_into/typeck（勿对池化 AST 调 ast_module_free）。 */
-void lsp_diag_sx_reset_parse_buffers(void);
+void lsp_diag_x_reset_parse_buffers(void);
 
-/** 为 .sx pipeline LSP 路径配置 PipelineDepCtx（libRoots + entry_dir）。 */
+/** 为 .x pipeline LSP 路径配置 PipelineDepCtx（libRoots + entry_dir）。 */
 void lsp_diag_prepare_pipeline_ctx(void *ctx_void);
 
 /** 文档变更时由 lsp_io 调用，使模块与诊断缓存失效，避免旧模块指向已释放的文档缓冲。 */
@@ -58,9 +58,9 @@ void lsp_diag_report_typeck(int line, int col, const char *fmt, ...);
 void lsp_diag_report_typeck_code(const char *code, int line, int col, const char *fmt, ...);
 
 /**
- * 对 source[0..source_len-1] 跑 .sx parse_into_buf + typeck_sx_ast，收集诊断，构建完整 JSON-RPC 响应正文：
+ * 对 source[0..source_len-1] 跑 .x parse_into_buf + typeck_x_ast，收集诊断，构建完整 JSON-RPC 响应正文：
  * {"jsonrpc":"2.0","id":<id_val>,"result":<Diagnostic[] 的 JSON>}。
- * 实现位于 lsp_diag.sx（-E 生成 lsp_diag_gen.c）；与 C 缓存的 definition/hover 路径独立，调用前会使缓存失效。
+ * 实现位于 lsp_diag.x（-E 生成 lsp_diag_gen.c）；与 C 缓存的 definition/hover 路径独立，调用前会使缓存失效。
  * 写入 out_buf，返回长度，失败或越界返回 -1。
  */
 int lsp_build_diagnostics_response(int id_val, const uint8_t *source, int source_len,
@@ -94,10 +94,10 @@ int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len, cons
 int lsp_build_formatting_response(int id_val, const uint8_t *body, int body_len, const uint8_t *doc_buf, int doc_len, uint8_t *out_buf, int out_cap);
 
 /**
- * shux fmt CLI：对 .sx 源码做与 LSP formatting 相同的缩进/换行规范（tabSize=2、空格缩进、maxLineLength=100）。
+ * shux fmt CLI：对 .x 源码做与 LSP formatting 相同的缩进/换行规范（tabSize=2、空格缩进、maxLineLength=100）。
  * 写入 out_buf，返回格式化后字节数；失败或越界返回 -1。
  */
-int shu_format_sx_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap);
+int shu_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap);
 
 /** textDocument/completion：返回 CompletionItem[] JSON；无模块或失败时 result 为 []。 */
 int lsp_build_completion_response(int id_val, const uint8_t *body, int body_len,

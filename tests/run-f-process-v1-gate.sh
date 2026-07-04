@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-process v1：std.process 去 C（process.sx + runtime 胶层）。
+# F-process v1：std.process 去 C（process.x + runtime 胶层）。
 #
 # 用法：./tests/run-f-process-v1-gate.sh
 # 环境：SHUX_F_PROCESS_V1_FAIL=1 — 失败时硬退出
@@ -16,11 +16,11 @@ die() {
   exit 0
 }
 
-echo "=== F-process v1: std.process process.sx + runtime glue ==="
+echo "=== F-process v1: std.process process.x + runtime glue ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-process v1' "$DOC" || die "doc missing F-process v1 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
-[ -f std/process/process.sx ] || die "missing std/process/process.sx"
+[ -f std/process/process.x ] || die "missing std/process/process.x"
 [ -f compiler/src/asm/runtime_process_argv.c ] || die "missing runtime_process_argv.c"
 [ -f compiler/src/asm/runtime_process_os_glue.c ] || die "missing runtime_process_os_glue.c"
 [ ! -f std/process/process_os_glue.c ] || die "process_os_glue.c should be deleted (F-ZC)"
@@ -40,7 +40,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-grep -q 'process.sx' compiler/Makefile || die "Makefile missing process.sx rule"
+grep -q 'process.x' compiler/Makefile || die "Makefile missing process.x rule"
 grep -q 'runtime_process_argv' compiler/Makefile || die "Makefile missing runtime_process_argv.o rule"
 grep -q 'runtime_process_os_glue' compiler/Makefile || die "Makefile missing runtime_process_os_glue.o rule"
 if grep -q 'std/process/process\.c' compiler/Makefile 2>/dev/null; then

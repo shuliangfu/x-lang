@@ -7,7 +7,7 @@ WORKDIR="${TMPDIR:-/tmp}"
 PASS=0
 FAIL=0
 
-sh "$SCRIPT_DIR/build-kernel.sh" "$SCRIPT_DIR/multiboot2.sx" "$WORKDIR/mb2_gate.elf" 2>&1
+sh "$SCRIPT_DIR/build-kernel.sh" "$SCRIPT_DIR/multiboot2.x" "$WORKDIR/mb2_gate.elf" 2>&1
 
 echo "=== K6e: Multiboot2 header gate ==="
 

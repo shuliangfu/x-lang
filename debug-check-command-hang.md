@@ -1,7 +1,7 @@
 # [OPEN] Debug Session: check-command-hang
 
 ## 背景
-- 现象：执行 `./compiler/shux check std` 后，已经输出 `std/io/stubs.sx` 的 `typeck error[T001]`，但进程没有自行退出，需要手动 `^C`。
+- 现象：执行 `./compiler/shux check std` 后，已经输出 `std/io/stubs.x` 的 `typeck error[T001]`，但进程没有自行退出，需要手动 `^C`。
 - 期望：一旦 `check` 已经确定失败并输出错误，主进程应尽快返回非零退出码，而不是继续挂住。
 
 ## 当前假设
@@ -18,8 +18,8 @@
 
 ## 首轮证据
 - 单文件坏例子：
-  - `perl -e 'alarm shift; exec @ARGV' 12 ./compiler/shux check std/io/stubs.sx`
-  - 结果：`RC=1`，打印 `std/io/stubs.sx:54` 的 `typeck error[T001]` 后立刻退出。
+  - `perl -e 'alarm shift; exec @ARGV' 12 ./compiler/shux check std/io/stubs.x`
+  - 结果：`RC=1`，打印 `std/io/stubs.x:54` 的 `typeck error[T001]` 后立刻退出。
 - 目录模式：
   - `perl -e 'alarm shift; exec @ARGV' 12 /bin/sh -c './compiler/shux check std >... 2>...'`
   - 结果：stderr 很快就稳定在 7 行，同样已经打印：
@@ -31,7 +31,7 @@
   - `sample` 栈显示主线程在：
     - `main_entry -> driver_cmd_check -> driver_run_compiler_check -> check_one_file -> fmt_check_invoke_compile`
     - 主线程 `pthread_join`
-    - 工作线程落在 `pipeline_typeck_sx_stack_escape_gate_from_src_c -> parser_parse_into_buf -> parser_parse_one_function_impl`
+    - 工作线程落在 `pipeline_typeck_x_stack_escape_gate_from_src_c -> parser_parse_into_buf -> parser_parse_one_function_impl`
   - 说明报错后它仍在继续做编译/解析工作，而不是已经准备退出却卡在 stderr flush。
 - `--fail-fast` 对照：
   - `perl -e 'alarm shift; exec @ARGV' 12 ./compiler/shux check --fail-fast std`

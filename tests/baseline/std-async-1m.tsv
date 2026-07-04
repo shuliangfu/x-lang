@@ -1,5 +1,5 @@
 # STD-004 async 1M task stress matrix
 # Format: case_id<TAB>script<TAB>linux<TAB>macos<TAB>windows<TAB>expected_exit<TAB>notes
-async_switch	async_switch.sx	must	must	must	0	2M steps manual frames
-async_1m_coop	async_1m_coop.sx	must	must	must	0	4M steps via std.async
-async_switch_sched	async_switch_sched.sx	must	skip	skip	0	jmp extern Linux x86_64 asm
+async_switch	async_switch.x	must	must	must	0	2M steps manual frames
+async_1m_coop	async_1m_coop.x	must	must	must	0	4M steps via std.async
+async_switch_sched	async_switch_sched.x	must	skip	skip	0	jmp extern Linux x86_64 asm

@@ -4,7 +4,7 @@
 # 用法（source 后）：
 #   tool_fmt_case_count [manifest_tsv]
 #   tool_fmt_rule_count [manifest_tsv]
-#   tool_fmt_golden_idempotent SHUX_BIN golden_sx
+#   tool_fmt_golden_idempotent SHUX_BIN golden_x
 
 # 统计 manifest 中 case 行数。
 tool_fmt_case_count() {
@@ -23,7 +23,7 @@ tool_fmt_golden_idempotent() {
   local shux="$1"
   local src="$2"
   local tag="${3:-golden}"
-  local tmp="/tmp/shux_tool_fmt_${tag}_$$.sx"
+  local tmp="/tmp/shux_tool_fmt_${tag}_$$.x"
   if [ ! -f "$src" ]; then
     echo "tool-fmt FAIL: missing $src" >&2
     return 1

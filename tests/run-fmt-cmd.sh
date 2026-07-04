@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shux fmt 子命令：格式化 .sx 后仍能通过 check。
+# shux fmt 子命令：格式化 .x 后仍能通过 check。
 set -e
 cd "$(dirname "$0")/.."
 SHUX=${SHUX:-./compiler/shux}
@@ -31,10 +31,10 @@ if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   fi
 fi
 
-FMT_TMP="${TMPDIR:-/tmp}/shux_fmt_cmd_test.sx"
+FMT_TMP="${TMPDIR:-/tmp}/shux_fmt_cmd_test.x"
 # MSYS2：固定 Unix 路径，避免 Windows 短路径/混用斜杠导致 shux 打不开临时文件。
 case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*) FMT_TMP="/tmp/shux_fmt_cmd_test.sx" ;;
+  MINGW*|MSYS*) FMT_TMP="/tmp/shux_fmt_cmd_test.x" ;;
 esac
 mkdir -p "$(dirname "$FMT_TMP")" 2>/dev/null || true
 # 故意错误缩进；fmt 写回后应打印 fmt OK 且 check 仍通过（须含分号）

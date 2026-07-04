@@ -8,7 +8,7 @@ make -C compiler -q 2>/dev/null || make -C compiler
 ensure_std_c_o ../std/http/http.o
 SHUX="${SHUX:-./compiler/shux}"
 exe="/tmp/shux_http_$$"
-if ! $SHUX -L . tests/http/main.sx -o "$exe" 2>&1; then echo "http test: compile failed"; rm -f "$exe"; exit 1; fi
+if ! $SHUX -L . tests/http/main.x -o "$exe" 2>&1; then echo "http test: compile failed"; rm -f "$exe"; exit 1; fi
 $exe 2>/dev/null; exitcode=$?
 rm -f "$exe"
 if [ "$exitcode" -ne 0 ]; then echo "http test: expected exit 0, got $exitcode"; exit 1; fi

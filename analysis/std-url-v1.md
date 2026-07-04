@@ -31,7 +31,7 @@ IPv6 host 解析时去掉 `[` `]`，build 时自动加 bracket。
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_URL] status=ok c_smoke=1 sx=1 skip=0
+shux: [SHUX_STD_URL] status=ok c_smoke=1 x=1 skip=0
 std-url gate OK
 ```
 

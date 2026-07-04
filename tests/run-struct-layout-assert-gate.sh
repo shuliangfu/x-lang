@@ -10,7 +10,7 @@ FAIL=0
 echo "=== X5: Struct layout static assert gate ==="
 
 # Test 1: Basic struct sizes
-cat > "$WORKDIR/struct_layout.sx" << 'SXEOF'
+cat > "$WORKDIR/struct_layout.x" << 'XEOF'
 #[repr(C)]
 struct Layout8 { a: u8; b: u8; }
 #[repr(C)]
@@ -28,10 +28,10 @@ struct LayoutMixed { a: u8; b: u32; c: u8; }
 #[used] function get_a64(s: Layout64): i64 { return s.a as i64; }
 #[used] function get_mix(s: LayoutMixed): i32 { return s.a as i32; }
 function main(): i32 { return 0; }
-SXEOF
+XEOF
 
 echo "  Check: struct definitions emitted in C output"
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/struct_layout.sx" > "$WORKDIR/struct_layout.c" 2>&1
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/struct_layout.x" > "$WORKDIR/struct_layout.c" 2>&1
 if grep -q "struct Layout8 {" "$WORKDIR/struct_layout.c" && grep -q "struct Layout32 {" "$WORKDIR/struct_layout.c"; then
     echo "    PASS"
     PASS=$((PASS + 1))
@@ -61,7 +61,7 @@ fi
 
 # Test 2: Kernel struct layouts (x86 cross-compile)
 echo "  Check: kernel struct layout stable on x86-linux target"
-cat > "$WORKDIR/struct_x86.sx" << 'SXEOF'
+cat > "$WORKDIR/struct_x86.x" << 'XEOF'
 #[repr(C)]
 struct IDTEntry { offset_low: u16; selector: u16; zero: u8; flags: u8; offset_high: u16; }
 #[repr(C)]
@@ -72,8 +72,8 @@ struct Context { sp: u32; }
 #[used] function mb1_magic(s: MB1Header): i32 { return s.magic as i32; }
 #[used] function ctx_sp(s: Context): i32 { return s.sp as i32; }
 function main(): i32 { return 0; }
-SXEOF
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/struct_x86.sx" > "$WORKDIR/struct_x86.c" 2>&1
+XEOF
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/struct_x86.x" > "$WORKDIR/struct_x86.c" 2>&1
 cat >> "$WORKDIR/struct_x86.c" << 'CEOF'
 #include <assert.h>
 #include <stddef.h>
@@ -94,12 +94,12 @@ fi
 
 # Test 3: Packed struct (no padding)
 echo "  Check: packed struct has no padding"
-cat > "$WORKDIR/packed.sx" << 'SXEOF'
+cat > "$WORKDIR/packed.x" << 'XEOF'
 struct PackedMixed packed { a: u8; b: u32; c: u8; }
 #[used] function pk_a(s: PackedMixed): i32 { return s.a as i32; }
 function main(): i32 { return 0; }
-SXEOF
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/packed.sx" > "$WORKDIR/packed.c" 2>&1
+XEOF
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/packed.x" > "$WORKDIR/packed.c" 2>&1
 cat >> "$WORKDIR/packed.c" << 'CEOF'
 #include <assert.h>
 #include <stddef.h>
@@ -115,13 +115,13 @@ fi
 
 # Test 4: Bitfield struct layout
 echo "  Check: bitfield struct layout"
-cat > "$WORKDIR/bf.sx" << 'SXEOF'
+cat > "$WORKDIR/bf.x" << 'XEOF'
 #[repr(C)]
 struct BF3 { a: u32 : 3; b: u32 : 5; c: u32 : 24; }
 #[used] function bf_a(s: BF3): i32 { return s.a as i32; }
 function main(): i32 { return 0; }
-SXEOF
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/bf.sx" > "$WORKDIR/bf.c" 2>&1
+XEOF
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/bf.x" > "$WORKDIR/bf.c" 2>&1
 cat >> "$WORKDIR/bf.c" << 'CEOF'
 #include <assert.h>
 #include <stddef.h>

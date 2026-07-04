@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_COMPRESS_STREAM_DOC:-analysis/std-compress-stream-v1.md}"
 MANIFEST="${SHUX_STD_COMPRESS_STREAM_TSV:-tests/baseline/std-compress-stream.tsv}"
-MOD_SX="std/compress/mod.sx"
-COMPRESS_C="std/compress/gzip/libz.sx"
+MOD_X="std/compress/mod.x"
+COMPRESS_C="std/compress/gzip/libz.x"
 LIB="tests/lib/std-compress-stream.sh"
-STREAM_SX="tests/std-compress/gzip_stream_roundtrip.sx"
+STREAM_X="tests/std-compress/gzip_stream_roundtrip.x"
 MIN_APIS=6
 
 # shellcheck source=tests/lib/std-compress-stream.sh
@@ -19,7 +19,7 @@ MIN_APIS=6
 . tests/lib/std-compress.sh
 
 echo "=== STD-039: compress stream manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$COMPRESS_C" "$STREAM_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$COMPRESS_C" "$STREAM_X"; do
   if [ ! -f "$f" ]; then
     echo "std-compress-stream gate FAIL: missing $f" >&2
     exit 1
@@ -47,7 +47,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
         echo "std-compress-stream gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -66,7 +66,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_compress_stream_symbols_ok "$MOD_SX" "$COMPRESS_C" "$MANIFEST" || true)"
+sym_miss="$(std_compress_stream_symbols_ok "$MOD_X" "$COMPRESS_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_compress_stream_emit_report "fail" 0 0
   echo "std-compress-stream gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -80,14 +80,14 @@ if SHUX_BIN="$(std_compress_resolve_shu)"; then
   echo "=== STD-039: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q 2>/dev/null || make -C compiler
   std_compress_try_libs
-  # F-04 v7+：compress 纯 .sx，不再 ensure compress.o
-  if ! "$SHUX_BIN" check -L . "$STREAM_SX" >/dev/null 2>&1; then
-    echo "std-compress-stream gate FAIL: typeck $STREAM_SX" >&2
-    "$SHUX_BIN" check -L . "$STREAM_SX" 2>&1 | tail -10 >&2 || true
+  # F-04 v7+：compress 纯 .x，不再 ensure compress.o
+  if ! "$SHUX_BIN" check -L . "$STREAM_X" >/dev/null 2>&1; then
+    echo "std-compress-stream gate FAIL: typeck $STREAM_X" >&2
+    "$SHUX_BIN" check -L . "$STREAM_X" 2>&1 | tail -10 >&2 || true
     std_compress_stream_emit_report "fail" 0 0
     exit 1
   fi
-  if std_compress_stream_run_smoke "$SHUX_BIN" "$STREAM_SX" "gzip_stream"; then
+  if std_compress_stream_run_smoke "$SHUX_BIN" "$STREAM_X" "gzip_stream"; then
     STREAM_OK=1
     SKIP=0
   else

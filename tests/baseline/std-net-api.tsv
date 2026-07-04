@@ -1,5 +1,5 @@
 # std.net Tier-S stable public API (import std.net)
-# One symbol per line; run-std-net-api-gate.sh greps std/net/mod.sx
+# One symbol per line; run-std-net-api-gate.sh greps std/net/mod.x
 # Updated: 2026-06-27 (API shorten)
 addr_to_packed
 packed_to_ipv4

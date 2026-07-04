@@ -22,89 +22,89 @@ extern int32_t driver_sanitize_address_get(void);
 #include <string.h>
 #include <limits.h>
 #include <stdint.h>
-/* std.io.driver 的 driver_read_ptr_len/driver_read_ptr 由 codegen 与 .sx 无条件跳过，不依赖 runtime 标志。 */
-#ifdef SHUX_USE_SX_CODEGEN
-/** .sx 侧整数字面量格式化入口：向 out（FILE* 不透明）逐字节输出 val 的十进制表示；由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_format_int_lit(uint8_t *out, int32_t val);
-/** .sx 侧布尔字面量输出：向 out 输出 '0' 或 '1'（val 非 0 为 1）；由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_format_bool_lit(uint8_t *out, int32_t val);
-/** .sx 侧 C 字符串输出：向 out 逐字节输出 ptr[0..len-1]；由 codegen.sx 实现，用于 VAR 变量名等。 */
-extern int32_t codegen_codegen_sx_emit_c_string(uint8_t *out, uint8_t *ptr, int32_t len);
-/** .sx 侧浮点字面量输出：ptr 指向 double，is_f32 非 0 为 f32；由 codegen.sx 转调 C 的 codegen_sx_emit_float。 */
-extern int32_t codegen_codegen_sx_emit_float_lit(uint8_t *out, uint8_t *ptr, int32_t is_f32);
-/** .sx 侧二元运算输出：左/右子表达式与运算符串；need_l/need_r 非 0 时在对应子表达式外加括号。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_binop(uint8_t *out, uint8_t *left, uint8_t *right, uint8_t *op_ptr, int32_t op_len, int32_t need_l, int32_t need_r);
-/** .sx 侧一元运算输出：左括号+前缀串、子表达式、右括号。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_unary(uint8_t *out, uint8_t *operand, uint8_t *prefix_ptr, int32_t prefix_len);
-/** .sx 侧赋值表达式输出：( left = right )。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_assign(uint8_t *out, uint8_t *left, uint8_t *right);
-/** .sx 侧 DIV 表达式：is_int 非 0 时走整数除零检查，否则为浮点 /。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_div_expr(uint8_t *out, uint8_t *left, uint8_t *right, int32_t is_int);
-/** .sx 侧 MOD 表达式：is_int 非 0 时走整数取模零检查，否则为浮点 %。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_mod_expr(uint8_t *out, uint8_t *left, uint8_t *right, int32_t is_int);
-/** .sx 侧三元表达式内层：cond、op_q（" ? "）、then_e、op_c（" : "）、else_e；C 外包括号。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_ternary_inner(uint8_t *out, uint8_t *cond, uint8_t *then_e, uint8_t *else_e, uint8_t *op_q, int32_t len_q, uint8_t *op_c, int32_t len_c);
-/** .sx 侧字段访问统一入口：枚举变体走 C 的 full，结构体字段走 .sx 的 (base).field。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_field_access_expr(uint8_t *out, uint8_t *expr);
-/** .sx 侧函数调用统一入口：按 dispatch 调 C 的 import/library_same/library_dep/mono full 或 fallback callee(args)。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_call_expr(uint8_t *out, uint8_t *expr);
-/** .sx 侧 panic 输出：has_operand 非 0 时 shux_panic_(1, operand)，否则 shux_panic_(0, 0)。由 codegen.sx 转调 C 的 codegen_sx_emit_panic_*。 */
-extern int32_t codegen_codegen_sx_emit_panic(uint8_t *out, int32_t has_operand, uint8_t *operand);
-/** .sx 侧下标 fallback：(base)[index] 或 (base).data[index]。is_slice 非 0 为 .data 形式。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_index_fallback(uint8_t *out, uint8_t *base, uint8_t *index, int32_t is_slice);
-/** .sx 侧块表达式：输出 ({  + block_body +  0; })；C 提供 codegen_sx_block_body。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_block_expr(uint8_t *out, uint8_t *block);
-/** .sx 侧方法调用：c_name(base, arg0, ...)；C 提供 method_call 访问器。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_method_call(uint8_t *out, uint8_t *expr);
-/** .sx 侧下标完整：按类型/BCE 分发到 fallback 或边界检查；C 提供 index 访问器与 slice/array bounds 输出。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_index(uint8_t *out, uint8_t *expr);
-/** .sx 侧 match：switch 或三元链；C 提供 match 访问器与 next_id。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_match(uint8_t *out, uint8_t *expr);
-/** .sx 侧结构体字面量：入口在 .sx，转调 C 的 codegen_sx_emit_struct_lit_full。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_struct_lit(uint8_t *out, uint8_t *expr);
-/** .sx 侧数组字面量：入口在 .sx，转调 C 的 codegen_sx_emit_array_lit_full。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_array_lit(uint8_t *out, uint8_t *expr);
-/** .sx 侧 if 表达式：语句表达式或三元；入口在 .sx，转调 C 的 codegen_sx_emit_if_expr_full。由 codegen.sx 实现。 */
-extern int32_t codegen_codegen_sx_emit_if_expr(uint8_t *out, uint8_t *expr);
-/** .sx 侧单条 while 循环输出：indent + while ( cond ) { body }。 */
-extern int32_t codegen_codegen_sx_emit_one_while_loop(uint8_t *out, uint8_t *cond, uint8_t *body, int32_t indent, int32_t cast_return);
-/** .sx 侧单条 for 循环输出：indent + for ( init; cond 或 1; step ) { body }。 */
-extern int32_t codegen_codegen_sx_emit_one_for_loop(uint8_t *out, uint8_t *init, uint8_t *cond, uint8_t *step, uint8_t *body, int32_t indent, int32_t cast_return);
-/** .sx 侧语句输出：continue;/break;/return;/return expr;/(void)(expr); */
-extern int32_t codegen_codegen_sx_emit_continue_stmt(uint8_t *out, int32_t indent);
-extern int32_t codegen_codegen_sx_emit_break_stmt(uint8_t *out, int32_t indent);
-extern int32_t codegen_codegen_sx_emit_return_no_val(uint8_t *out, int32_t indent);
-extern int32_t codegen_codegen_sx_emit_return_expr(uint8_t *out, int32_t indent, uint8_t *expr);
-extern int32_t codegen_codegen_sx_emit_void_expr_stmt(uint8_t *out, int32_t indent, uint8_t *expr);
-/** .sx 侧 label 输出：indent + label 字符串（ptr[0..len-1]）+ ":\n"。 */
-extern int32_t codegen_codegen_sx_emit_label(uint8_t *out, int32_t indent, uint8_t *label_ptr, int32_t label_len);
-/** .sx 侧 goto 输出：indent + "goto " + target 字符串 + ";\n"。 */
-extern int32_t codegen_codegen_sx_emit_goto(uint8_t *out, int32_t indent, uint8_t *target_ptr, int32_t target_len);
-/** .sx 侧 cleanup 相关：goto shux_cleanup; / shux_cleanup: / exit_kind=1; goto cleanup / ret_val=0; exit_kind=1; goto cleanup / if(exit_kind) return ret_val; / 声明 exit_kind / 声明 ret_val。 */
-extern int32_t codegen_codegen_sx_emit_goto_shux_cleanup(uint8_t *out, int32_t indent);
-extern int32_t codegen_codegen_sx_emit_shux_cleanup_label(uint8_t *out, int32_t indent);
-extern int32_t codegen_codegen_sx_emit_exit_kind_goto_cleanup(uint8_t *out, int32_t indent);
-extern int32_t codegen_codegen_sx_emit_ret_val_zero_exit_goto_cleanup(uint8_t *out, int32_t indent);
-extern int32_t codegen_codegen_sx_emit_if_exit_kind_return_ret_val(uint8_t *out, int32_t indent);
-extern int32_t codegen_codegen_sx_emit_cleanup_decl_exit_kind(uint8_t *out, int32_t indent);
-extern int32_t codegen_codegen_sx_emit_cleanup_decl_ret_val(uint8_t *out, int32_t indent, uint8_t *ret_ctype_ptr, int32_t ret_ctype_len);
-/** .sx 侧 defer 逆序执行：对 block 的 num_defers 从高到低依次输出各 defer 块体。 */
-extern int32_t codegen_codegen_sx_run_defers(uint8_t *out, uint8_t *block, int32_t indent);
-/** .sx 侧块 const/let 声明批量输出：const_decls 全量；let_decls 按 [start,end) 区间。 */
-extern int32_t codegen_codegen_sx_emit_block_const_decls(uint8_t *out, uint8_t *block, int32_t indent);
-extern int32_t codegen_codegen_sx_emit_block_let_decls_range(uint8_t *out, uint8_t *block, int32_t indent, int32_t start, int32_t end);
+/* std.io.driver 的 driver_read_ptr_len/driver_read_ptr 由 codegen 与 .x 无条件跳过，不依赖 runtime 标志。 */
+#ifdef SHUX_USE_X_CODEGEN
+/** .x 侧整数字面量格式化入口：向 out（FILE* 不透明）逐字节输出 val 的十进制表示；由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_format_int_lit(uint8_t *out, int32_t val);
+/** .x 侧布尔字面量输出：向 out 输出 '0' 或 '1'（val 非 0 为 1）；由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_format_bool_lit(uint8_t *out, int32_t val);
+/** .x 侧 C 字符串输出：向 out 逐字节输出 ptr[0..len-1]；由 codegen.x 实现，用于 VAR 变量名等。 */
+extern int32_t codegen_codegen_x_emit_c_string(uint8_t *out, uint8_t *ptr, int32_t len);
+/** .x 侧浮点字面量输出：ptr 指向 double，is_f32 非 0 为 f32；由 codegen.x 转调 C 的 codegen_x_emit_float。 */
+extern int32_t codegen_codegen_x_emit_float_lit(uint8_t *out, uint8_t *ptr, int32_t is_f32);
+/** .x 侧二元运算输出：左/右子表达式与运算符串；need_l/need_r 非 0 时在对应子表达式外加括号。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_binop(uint8_t *out, uint8_t *left, uint8_t *right, uint8_t *op_ptr, int32_t op_len, int32_t need_l, int32_t need_r);
+/** .x 侧一元运算输出：左括号+前缀串、子表达式、右括号。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_unary(uint8_t *out, uint8_t *operand, uint8_t *prefix_ptr, int32_t prefix_len);
+/** .x 侧赋值表达式输出：( left = right )。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_assign(uint8_t *out, uint8_t *left, uint8_t *right);
+/** .x 侧 DIV 表达式：is_int 非 0 时走整数除零检查，否则为浮点 /。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_div_expr(uint8_t *out, uint8_t *left, uint8_t *right, int32_t is_int);
+/** .x 侧 MOD 表达式：is_int 非 0 时走整数取模零检查，否则为浮点 %。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_mod_expr(uint8_t *out, uint8_t *left, uint8_t *right, int32_t is_int);
+/** .x 侧三元表达式内层：cond、op_q（" ? "）、then_e、op_c（" : "）、else_e；C 外包括号。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_ternary_inner(uint8_t *out, uint8_t *cond, uint8_t *then_e, uint8_t *else_e, uint8_t *op_q, int32_t len_q, uint8_t *op_c, int32_t len_c);
+/** .x 侧字段访问统一入口：枚举变体走 C 的 full，结构体字段走 .x 的 (base).field。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_field_access_expr(uint8_t *out, uint8_t *expr);
+/** .x 侧函数调用统一入口：按 dispatch 调 C 的 import/library_same/library_dep/mono full 或 fallback callee(args)。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_call_expr(uint8_t *out, uint8_t *expr);
+/** .x 侧 panic 输出：has_operand 非 0 时 shux_panic_(1, operand)，否则 shux_panic_(0, 0)。由 codegen.x 转调 C 的 codegen_x_emit_panic_*。 */
+extern int32_t codegen_codegen_x_emit_panic(uint8_t *out, int32_t has_operand, uint8_t *operand);
+/** .x 侧下标 fallback：(base)[index] 或 (base).data[index]。is_slice 非 0 为 .data 形式。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_index_fallback(uint8_t *out, uint8_t *base, uint8_t *index, int32_t is_slice);
+/** .x 侧块表达式：输出 ({  + block_body +  0; })；C 提供 codegen_x_block_body。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_block_expr(uint8_t *out, uint8_t *block);
+/** .x 侧方法调用：c_name(base, arg0, ...)；C 提供 method_call 访问器。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_method_call(uint8_t *out, uint8_t *expr);
+/** .x 侧下标完整：按类型/BCE 分发到 fallback 或边界检查；C 提供 index 访问器与 slice/array bounds 输出。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_index(uint8_t *out, uint8_t *expr);
+/** .x 侧 match：switch 或三元链；C 提供 match 访问器与 next_id。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_match(uint8_t *out, uint8_t *expr);
+/** .x 侧结构体字面量：入口在 .x，转调 C 的 codegen_x_emit_struct_lit_full。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_struct_lit(uint8_t *out, uint8_t *expr);
+/** .x 侧数组字面量：入口在 .x，转调 C 的 codegen_x_emit_array_lit_full。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_array_lit(uint8_t *out, uint8_t *expr);
+/** .x 侧 if 表达式：语句表达式或三元；入口在 .x，转调 C 的 codegen_x_emit_if_expr_full。由 codegen.x 实现。 */
+extern int32_t codegen_codegen_x_emit_if_expr(uint8_t *out, uint8_t *expr);
+/** .x 侧单条 while 循环输出：indent + while ( cond ) { body }。 */
+extern int32_t codegen_codegen_x_emit_one_while_loop(uint8_t *out, uint8_t *cond, uint8_t *body, int32_t indent, int32_t cast_return);
+/** .x 侧单条 for 循环输出：indent + for ( init; cond 或 1; step ) { body }。 */
+extern int32_t codegen_codegen_x_emit_one_for_loop(uint8_t *out, uint8_t *init, uint8_t *cond, uint8_t *step, uint8_t *body, int32_t indent, int32_t cast_return);
+/** .x 侧语句输出：continue;/break;/return;/return expr;/(void)(expr); */
+extern int32_t codegen_codegen_x_emit_continue_stmt(uint8_t *out, int32_t indent);
+extern int32_t codegen_codegen_x_emit_break_stmt(uint8_t *out, int32_t indent);
+extern int32_t codegen_codegen_x_emit_return_no_val(uint8_t *out, int32_t indent);
+extern int32_t codegen_codegen_x_emit_return_expr(uint8_t *out, int32_t indent, uint8_t *expr);
+extern int32_t codegen_codegen_x_emit_void_expr_stmt(uint8_t *out, int32_t indent, uint8_t *expr);
+/** .x 侧 label 输出：indent + label 字符串（ptr[0..len-1]）+ ":\n"。 */
+extern int32_t codegen_codegen_x_emit_label(uint8_t *out, int32_t indent, uint8_t *label_ptr, int32_t label_len);
+/** .x 侧 goto 输出：indent + "goto " + target 字符串 + ";\n"。 */
+extern int32_t codegen_codegen_x_emit_goto(uint8_t *out, int32_t indent, uint8_t *target_ptr, int32_t target_len);
+/** .x 侧 cleanup 相关：goto shux_cleanup; / shux_cleanup: / exit_kind=1; goto cleanup / ret_val=0; exit_kind=1; goto cleanup / if(exit_kind) return ret_val; / 声明 exit_kind / 声明 ret_val。 */
+extern int32_t codegen_codegen_x_emit_goto_shux_cleanup(uint8_t *out, int32_t indent);
+extern int32_t codegen_codegen_x_emit_shux_cleanup_label(uint8_t *out, int32_t indent);
+extern int32_t codegen_codegen_x_emit_exit_kind_goto_cleanup(uint8_t *out, int32_t indent);
+extern int32_t codegen_codegen_x_emit_ret_val_zero_exit_goto_cleanup(uint8_t *out, int32_t indent);
+extern int32_t codegen_codegen_x_emit_if_exit_kind_return_ret_val(uint8_t *out, int32_t indent);
+extern int32_t codegen_codegen_x_emit_cleanup_decl_exit_kind(uint8_t *out, int32_t indent);
+extern int32_t codegen_codegen_x_emit_cleanup_decl_ret_val(uint8_t *out, int32_t indent, uint8_t *ret_ctype_ptr, int32_t ret_ctype_len);
+/** .x 侧 defer 逆序执行：对 block 的 num_defers 从高到低依次输出各 defer 块体。 */
+extern int32_t codegen_codegen_x_run_defers(uint8_t *out, uint8_t *block, int32_t indent);
+/** .x 侧块 const/let 声明批量输出：const_decls 全量；let_decls 按 [start,end) 区间。 */
+extern int32_t codegen_codegen_x_emit_block_const_decls(uint8_t *out, uint8_t *block, int32_t indent);
+extern int32_t codegen_codegen_x_emit_block_let_decls_range(uint8_t *out, uint8_t *block, int32_t indent, int32_t start, int32_t end);
 #endif
-/** .sx 侧通过 extern 调用的写单字节接口；out 为 FILE* 的不透明指针，b 为要输出的字节（0..255）。返回 0 成功，非 0 失败。始终编译进 codegen.o 以便 bootstrap-codegen 链接时解析。 */
-int32_t codegen_sx_emit_byte(uint8_t *out, int32_t b) {
+/** .x 侧通过 extern 调用的写单字节接口；out 为 FILE* 的不透明指针，b 为要输出的字节（0..255）。返回 0 成功，非 0 失败。始终编译进 codegen.o 以便 bootstrap-codegen 链接时解析。 */
+int32_t codegen_x_emit_byte(uint8_t *out, int32_t b) {
     int c = (unsigned char)(b & 0xff);
     return (fputc(c, (FILE *)out) == c) ? 0 : -1;
 }
-/** .sx 侧通过 extern 调用的读单字节接口：返回 ptr[i] 的 0..255 值，供 .sx 逐字节输出 C 字符串用。 */
-int32_t codegen_sx_char_at(uint8_t *ptr, int32_t i) {
+/** .x 侧通过 extern 调用的读单字节接口：返回 ptr[i] 的 0..255 值，供 .x 逐字节输出 C 字符串用。 */
+int32_t codegen_x_char_at(uint8_t *ptr, int32_t i) {
     return (int32_t)(unsigned char)ptr[i];
 }
-/** .sx 侧通过 extern 调用的浮点字面量输出：ptr 指向 double，is_f32 非 0 时输出 f32 后缀；0.0 输出 "0.0"/"0.0f"，否则 %g/%gf。返回 0 成功。 */
-int32_t codegen_sx_emit_float(uint8_t *out, uint8_t *ptr, int32_t is_f32) {
+/** .x 侧通过 extern 调用的浮点字面量输出：ptr 指向 double，is_f32 非 0 时输出 f32 后缀；0.0 输出 "0.0"/"0.0f"，否则 %g/%gf。返回 0 成功。 */
+int32_t codegen_x_emit_float(uint8_t *out, uint8_t *ptr, int32_t is_f32) {
     double v;
     memcpy(&v, ptr, sizeof(double));
     if (v == 0.0)
@@ -141,7 +141,7 @@ static const char *struct_lit_c_type_str(const struct ASTExpr *e, char *buf, siz
 /** 递归求表达式可能产生的 struct 类型 C 串；前向声明。 */
 static const char *expr_struct_type_str(const struct ASTExpr *e, char *buf, size_t bufsize);
 static const char *impl_method_c_name(const struct ASTFunc *f);
-/** CALL 四条分支的 C 内实现，供 .sx 统一入口转调；需在 codegen_expr 之后定义。 */
+/** CALL 四条分支的 C 内实现，供 .x 统一入口转调；需在 codegen_expr 之后定义。 */
 static int codegen_emit_one_call_arg(FILE *out, const struct ASTExpr *arg);
 static int codegen_emit_io_driver_arg0_for_func(FILE *out, const struct ASTFunc *f, const char *import_path,
                                                 int arg_index, const struct ASTExpr *arg);
@@ -149,20 +149,20 @@ static int codegen_emit_call_import_path_impl(FILE *out, const struct ASTExpr *e
 static int codegen_emit_call_library_same_impl(FILE *out, const struct ASTExpr *e);
 static int codegen_emit_call_library_dep_impl(FILE *out, const struct ASTExpr *e);
 static int codegen_emit_call_mono_impl(FILE *out, const struct ASTExpr *e);
-/** 用于生成唯一 match 临时变量名；需在 codegen_sx_match_next_id 前可见。 */
+/** 用于生成唯一 match 临时变量名；需在 codegen_x_match_next_id 前可见。 */
 static int codegen_match_id;
 
-/** .sx 侧通过 extern 调用的“输出整棵表达式”接口：递归调用 codegen_expr，供 .sx 在二元运算等中输出子表达式。返回 0 成功，-1 失败。 */
-int32_t codegen_sx_emit_expr(uint8_t *out, uint8_t *expr) {
+/** .x 侧通过 extern 调用的“输出整棵表达式”接口：递归调用 codegen_expr，供 .x 在二元运算等中输出子表达式。返回 0 成功，-1 失败。 */
+int32_t codegen_x_emit_expr(uint8_t *out, uint8_t *expr) {
     return (int32_t)codegen_expr((const struct ASTExpr *)expr, (FILE *)out);
 }
-/** .sx 侧判断子表达式是否需加括号（比较/逻辑运算符作为加减操作数时）：kind 在 [AST_EXPR_EQ, AST_EXPR_LOGOR] 返回 1。 */
-int32_t codegen_sx_expr_needs_compare_parens(uint8_t *expr) {
+/** .x 侧判断子表达式是否需加括号（比较/逻辑运算符作为加减操作数时）：kind 在 [AST_EXPR_EQ, AST_EXPR_LOGOR] 返回 1。 */
+int32_t codegen_x_expr_needs_compare_parens(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && e->kind >= AST_EXPR_EQ && e->kind <= AST_EXPR_LOGOR) ? 1 : 0;
 }
-/** .sx 侧判断子表达式是否需加括号（加减作为乘除操作数时）：kind 为 ADD 或 SUB 返回 1。 */
-int32_t codegen_sx_expr_needs_addsub_parens(uint8_t *expr) {
+/** .x 侧判断子表达式是否需加括号（加减作为乘除操作数时）：kind 为 ADD 或 SUB 返回 1。 */
+int32_t codegen_x_expr_needs_addsub_parens(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && (e->kind == AST_EXPR_ADD || e->kind == AST_EXPR_SUB)) ? 1 : 0;
 }
@@ -214,155 +214,155 @@ static int codegen_c_need_paren_bitwise_child(int parent_kind, const struct ASTE
     return (child_prec > parent_prec) ? 1 : 0;
 }
 
-/** .sx 侧 CALL 访问器：返回 callee 子表达式指针。 */
-uint8_t *codegen_sx_call_callee(uint8_t *expr) {
+/** .x 侧 CALL 访问器：返回 callee 子表达式指针。 */
+uint8_t *codegen_x_call_callee(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && e->kind == AST_EXPR_CALL && e->value.call.callee) ? (uint8_t *)e->value.call.callee : NULL;
 }
-/** .sx 侧 CALL 访问器：返回实参个数。 */
-int32_t codegen_sx_call_num_args(uint8_t *expr) {
+/** .x 侧 CALL 访问器：返回实参个数。 */
+int32_t codegen_x_call_num_args(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && e->kind == AST_EXPR_CALL) ? (int32_t)e->value.call.num_args : 0;
 }
-/** .sx 侧 CALL 访问器：返回第 i 个实参表达式指针，i 从 0 起。 */
-uint8_t *codegen_sx_call_arg(uint8_t *expr, int32_t i) {
+/** .x 侧 CALL 访问器：返回第 i 个实参表达式指针，i 从 0 起。 */
+uint8_t *codegen_x_call_arg(uint8_t *expr, int32_t i) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_CALL || !e->value.call.args || i < 0 || i >= e->value.call.num_args) return NULL;
     return (uint8_t *)e->value.call.args[i];
 }
-/** .sx 侧 panic 无参：输出 shux_panic_(0, 0)。 */
-int32_t codegen_sx_emit_panic_no_arg(uint8_t *out) {
+/** .x 侧 panic 无参：输出 shux_panic_(0, 0)。 */
+int32_t codegen_x_emit_panic_no_arg(uint8_t *out) {
     return fprintf((FILE *)out, "shux_panic_(0, 0)") < 0 ? -1 : 0;
 }
-/** .sx 侧 panic 有参：输出 shux_panic_(1, expr)。 */
-int32_t codegen_sx_emit_panic_with_arg(uint8_t *out, uint8_t *operand) {
+/** .x 侧 panic 有参：输出 shux_panic_(1, expr)。 */
+int32_t codegen_x_emit_panic_with_arg(uint8_t *out, uint8_t *operand) {
     if (fprintf((FILE *)out, "shux_panic_(1, ") < 0) return -1;
     if (codegen_expr((const struct ASTExpr *)operand, (FILE *)out) != 0) return -1;
     return fprintf((FILE *)out, ")") < 0 ? -1 : 0;
 }
-/** .sx 侧块体输出（无 final_result_var）：块表达式用，传 NULL 给 codegen_block_body。 */
-int32_t codegen_sx_block_body_no_result(uint8_t *out, uint8_t *block, int32_t indent, int32_t cast_return_to_int) {
+/** .x 侧块体输出（无 final_result_var）：块表达式用，传 NULL 给 codegen_block_body。 */
+int32_t codegen_x_block_body_no_result(uint8_t *out, uint8_t *block, int32_t indent, int32_t cast_return_to_int) {
     return codegen_block_body((const struct ASTBlock *)block, (int)indent, (FILE *)out, (int)cast_return_to_int, 0, NULL) != 0 ? -1 : 0;
 }
-/** .sx 侧块体输出（带 final_result_var "__tmp"）：供 if 语句表达式 then/else 块用。 */
-int32_t codegen_sx_block_body_with_result_var(uint8_t *out, uint8_t *block, int32_t indent, int32_t cast_return_to_int) {
+/** .x 侧块体输出（带 final_result_var "__tmp"）：供 if 语句表达式 then/else 块用。 */
+int32_t codegen_x_block_body_with_result_var(uint8_t *out, uint8_t *block, int32_t indent, int32_t cast_return_to_int) {
     return codegen_block_body((const struct ASTBlock *)block, (int)indent, (FILE *)out, (int)cast_return_to_int, 0, "__tmp") != 0 ? -1 : 0;
 }
-/** .sx 侧块 defer 访问器：块内 defer 数量；供 run_defers 逆序遍历。 */
-int32_t codegen_sx_block_num_defers(uint8_t *block) {
+/** .x 侧块 defer 访问器：块内 defer 数量；供 run_defers 逆序遍历。 */
+int32_t codegen_x_block_num_defers(uint8_t *block) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     return (b && b->defer_blocks) ? (int32_t)b->num_defers : 0;
 }
-/** .sx 侧块 defer 访问器：第 i 个 defer 子块（i 从 0 到 num_defers-1）；逆序时从 num_defers-1 到 0。 */
-uint8_t *codegen_sx_block_defer_block(uint8_t *block, int32_t i) {
+/** .x 侧块 defer 访问器：第 i 个 defer 子块（i 从 0 到 num_defers-1）；逆序时从 num_defers-1 到 0。 */
+uint8_t *codegen_x_block_defer_block(uint8_t *block, int32_t i) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->defer_blocks || i < 0 || i >= b->num_defers) return NULL;
     return (uint8_t *)b->defer_blocks[i];
 }
-/** .sx 侧块 const/let 访问器：数量与 early_lets 分界，供 .sx 循环输出声明。 */
-int32_t codegen_sx_block_num_consts(uint8_t *block) {
+/** .x 侧块 const/let 访问器：数量与 early_lets 分界，供 .x 循环输出声明。 */
+int32_t codegen_x_block_num_consts(uint8_t *block) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     return b ? (int32_t)b->num_consts : 0;
 }
-int32_t codegen_sx_block_num_lets(uint8_t *block) {
+int32_t codegen_x_block_num_lets(uint8_t *block) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     return b ? (int32_t)b->num_lets : 0;
 }
-int32_t codegen_sx_block_num_early_lets(uint8_t *block) {
+int32_t codegen_x_block_num_early_lets(uint8_t *block) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || b->num_early_lets <= 0 || b->num_early_lets > b->num_lets) return 0;
     return (int32_t)b->num_early_lets;
 }
-/** .sx 用：stmt_order 条数；>0 时 .sx 按序输出 const/let/expr_stmt/loop/for。 */
-int32_t codegen_sx_block_num_stmt_order(uint8_t *block) {
+/** .x 用：stmt_order 条数；>0 时 .x 按序输出 const/let/expr_stmt/loop/for。 */
+int32_t codegen_x_block_num_stmt_order(uint8_t *block) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     return b ? (int32_t)b->num_stmt_order : 0;
 }
-/** .sx 用：第 i 条 stmt_order 的 kind：0=const, 1=let, 2=expr_stmt, 3=loop, 4=for。 */
-int32_t codegen_sx_block_stmt_order_kind(uint8_t *block, int32_t i) {
+/** .x 用：第 i 条 stmt_order 的 kind：0=const, 1=let, 2=expr_stmt, 3=loop, 4=for。 */
+int32_t codegen_x_block_stmt_order_kind(uint8_t *block, int32_t i) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || i < 0 || i >= b->num_stmt_order) return -1;
     return (int32_t)(unsigned char)b->stmt_order[i].kind;
 }
-/** .sx 用：第 i 条 stmt_order 的 idx（对应 const_decls/let_decls/expr_stmts/loops/for_loops 下标）。 */
-int32_t codegen_sx_block_stmt_order_idx(uint8_t *block, int32_t i) {
+/** .x 用：第 i 条 stmt_order 的 idx（对应 const_decls/let_decls/expr_stmts/loops/for_loops 下标）。 */
+int32_t codegen_x_block_stmt_order_idx(uint8_t *block, int32_t i) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || i < 0 || i >= b->num_stmt_order) return -1;
     return b->stmt_order[i].idx;
 }
-/** .sx 用：块内第 idx 条表达式语句（expr_stmts[idx]），供 emit_void_expr_stmt 等。 */
-uint8_t *codegen_sx_block_expr_stmt(uint8_t *block, int32_t idx) {
+/** .x 用：块内第 idx 条表达式语句（expr_stmts[idx]），供 emit_void_expr_stmt 等。 */
+uint8_t *codegen_x_block_expr_stmt(uint8_t *block, int32_t idx) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->expr_stmts || idx < 0 || idx >= b->num_expr_stmts) return NULL;
     return (uint8_t *)b->expr_stmts[idx];
 }
-/** .sx 用：块内第 idx 条 while 的 cond/body。 */
-uint8_t *codegen_sx_block_loop_cond(uint8_t *block, int32_t idx) {
+/** .x 用：块内第 idx 条 while 的 cond/body。 */
+uint8_t *codegen_x_block_loop_cond(uint8_t *block, int32_t idx) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->loops || idx < 0 || idx >= b->num_loops) return NULL;
     return (uint8_t *)b->loops[idx].cond;
 }
-uint8_t *codegen_sx_block_loop_body(uint8_t *block, int32_t idx) {
+uint8_t *codegen_x_block_loop_body(uint8_t *block, int32_t idx) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->loops || idx < 0 || idx >= b->num_loops) return NULL;
     return (uint8_t *)b->loops[idx].body;
 }
-/** .sx 用：块内第 idx 条 for 的 init/cond/step/body。 */
-uint8_t *codegen_sx_block_for_init(uint8_t *block, int32_t idx) {
+/** .x 用：块内第 idx 条 for 的 init/cond/step/body。 */
+uint8_t *codegen_x_block_for_init(uint8_t *block, int32_t idx) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->for_loops || idx < 0 || idx >= b->num_for_loops) return NULL;
     return (uint8_t *)b->for_loops[idx].init;
 }
-uint8_t *codegen_sx_block_for_cond(uint8_t *block, int32_t idx) {
+uint8_t *codegen_x_block_for_cond(uint8_t *block, int32_t idx) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->for_loops || idx < 0 || idx >= b->num_for_loops) return NULL;
     return (uint8_t *)b->for_loops[idx].cond;
 }
-uint8_t *codegen_sx_block_for_step(uint8_t *block, int32_t idx) {
+uint8_t *codegen_x_block_for_step(uint8_t *block, int32_t idx) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->for_loops || idx < 0 || idx >= b->num_for_loops) return NULL;
     return (uint8_t *)b->for_loops[idx].step;
 }
-uint8_t *codegen_sx_block_for_body(uint8_t *block, int32_t idx) {
+uint8_t *codegen_x_block_for_body(uint8_t *block, int32_t idx) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->for_loops || idx < 0 || idx >= b->num_for_loops) return NULL;
     return (uint8_t *)b->for_loops[idx].body;
 }
-/** .sx 侧 METHOD_CALL：返回 impl 方法的 C 名（Trait_Type_method）指针；非 method_call 或未解析返回 NULL。 */
-uint8_t *codegen_sx_method_call_c_name_ptr(uint8_t *expr) {
+/** .x 侧 METHOD_CALL：返回 impl 方法的 C 名（Trait_Type_method）指针；非 method_call 或未解析返回 NULL。 */
+uint8_t *codegen_x_method_call_c_name_ptr(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_METHOD_CALL || !e->value.method_call.resolved_impl_func) return NULL;
     return (uint8_t *)impl_method_c_name(e->value.method_call.resolved_impl_func);
 }
-/** .sx 侧 METHOD_CALL：返回 C 名长度（strlen）。 */
-int32_t codegen_sx_method_call_c_name_len(uint8_t *expr) {
-    const char *p = (const char *)codegen_sx_method_call_c_name_ptr(expr);
+/** .x 侧 METHOD_CALL：返回 C 名长度（strlen）。 */
+int32_t codegen_x_method_call_c_name_len(uint8_t *expr) {
+    const char *p = (const char *)codegen_x_method_call_c_name_ptr(expr);
     return p ? (int32_t)strlen(p) : 0;
 }
-/** .sx 侧 METHOD_CALL：base、num_args、第 i 个实参。 */
-uint8_t *codegen_sx_method_call_base(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_METHOD_CALL && e->value.method_call.base) ? (uint8_t *)e->value.method_call.base : NULL; }
-int32_t codegen_sx_method_call_num_args(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_METHOD_CALL) ? (int32_t)e->value.method_call.num_args : 0; }
-uint8_t *codegen_sx_method_call_arg(uint8_t *expr, int32_t i) {
+/** .x 侧 METHOD_CALL：base、num_args、第 i 个实参。 */
+uint8_t *codegen_x_method_call_base(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_METHOD_CALL && e->value.method_call.base) ? (uint8_t *)e->value.method_call.base : NULL; }
+int32_t codegen_x_method_call_num_args(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_METHOD_CALL) ? (int32_t)e->value.method_call.num_args : 0; }
+uint8_t *codegen_x_method_call_arg(uint8_t *expr, int32_t i) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_METHOD_CALL || !e->value.method_call.args || i < 0 || i >= e->value.method_call.num_args) return NULL;
     return (uint8_t *)e->value.method_call.args[i];
 }
-/** .sx 侧 INDEX：base、index、base_is_slice、skip_bounds；base 的 resolved_type kind 与 array_size。 */
-uint8_t *codegen_sx_index_base(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_INDEX && e->value.index.base) ? (uint8_t *)e->value.index.base : NULL; }
-uint8_t *codegen_sx_index_index(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_INDEX && e->value.index.index_expr) ? (uint8_t *)e->value.index.index_expr : NULL; }
-int32_t codegen_sx_index_base_is_slice(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_INDEX && e->value.index.base_is_slice) ? 1 : 0; }
-int32_t codegen_sx_index_skip_bounds(uint8_t *expr) {
+/** .x 侧 INDEX：base、index、base_is_slice、skip_bounds；base 的 resolved_type kind 与 array_size。 */
+uint8_t *codegen_x_index_base(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_INDEX && e->value.index.base) ? (uint8_t *)e->value.index.base : NULL; }
+uint8_t *codegen_x_index_index(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_INDEX && e->value.index.index_expr) ? (uint8_t *)e->value.index.index_expr : NULL; }
+int32_t codegen_x_index_base_is_slice(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_INDEX && e->value.index.base_is_slice) ? 1 : 0; }
+int32_t codegen_x_index_skip_bounds(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (driver_sanitize_address_get() != 0)
         return 0;
     return (e && e->kind == AST_EXPR_INDEX && e->index_proven_in_bounds) ? 1 : 0;
 }
-/** .sx 侧 FIELD_ACCESS：base 表达式、字段名指针、字段名长度（strlen），供 .sx 输出 (base).field。 */
-uint8_t *codegen_sx_field_access_base(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_FIELD_ACCESS && e->value.field_access.base) ? (uint8_t *)e->value.field_access.base : NULL; }
-uint8_t *codegen_sx_field_access_field_name(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_FIELD_ACCESS && e->value.field_access.field_name) ? (uint8_t *)e->value.field_access.field_name : (uint8_t *)""; }
-int32_t codegen_sx_field_access_field_len(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; const char *fn = (e && e->kind == AST_EXPR_FIELD_ACCESS && e->value.field_access.field_name) ? e->value.field_access.field_name : ""; return (int32_t)strlen(fn); }
-/** .sx 侧 FIELD_ACCESS：base 是否为指针类型，或 slice 形参（按指针传）；局部 slice 值类型用 `.`。 */
-int32_t codegen_sx_field_access_base_is_pointer(uint8_t *expr) {
+/** .x 侧 FIELD_ACCESS：base 表达式、字段名指针、字段名长度（strlen），供 .x 输出 (base).field。 */
+uint8_t *codegen_x_field_access_base(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_FIELD_ACCESS && e->value.field_access.base) ? (uint8_t *)e->value.field_access.base : NULL; }
+uint8_t *codegen_x_field_access_field_name(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_FIELD_ACCESS && e->value.field_access.field_name) ? (uint8_t *)e->value.field_access.field_name : (uint8_t *)""; }
+int32_t codegen_x_field_access_field_len(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; const char *fn = (e && e->kind == AST_EXPR_FIELD_ACCESS && e->value.field_access.field_name) ? e->value.field_access.field_name : ""; return (int32_t)strlen(fn); }
+/** .x 侧 FIELD_ACCESS：base 是否为指针类型，或 slice 形参（按指针传）；局部 slice 值类型用 `.`。 */
+int32_t codegen_x_field_access_base_is_pointer(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_FIELD_ACCESS || !e->value.field_access.base) return 0;
     const struct ASTExpr *base = e->value.field_access.base;
@@ -370,10 +370,10 @@ int32_t codegen_sx_field_access_base_is_pointer(uint8_t *expr) {
     if (base->resolved_type->kind == AST_TYPE_PTR) return 1;
     return 0;
 }
-int32_t codegen_sx_expr_type_kind(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->resolved_type) ? (int32_t)e->resolved_type->kind : -1; }
-int32_t codegen_sx_expr_type_array_size(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->resolved_type && e->resolved_type->kind == AST_TYPE_ARRAY) ? (int32_t)e->resolved_type->array_size : 0; }
-/** .sx 侧 INDEX 数组边界检查：((idx)<0||(idx)>=N ? (shux_panic_(1,0),(base)[0]) : (base)[(idx)])。 */
-int32_t codegen_sx_emit_index_array_bounds_check(uint8_t *out, uint8_t *base, uint8_t *idx, int32_t array_size) {
+int32_t codegen_x_expr_type_kind(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->resolved_type) ? (int32_t)e->resolved_type->kind : -1; }
+int32_t codegen_x_expr_type_array_size(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->resolved_type && e->resolved_type->kind == AST_TYPE_ARRAY) ? (int32_t)e->resolved_type->array_size : 0; }
+/** .x 侧 INDEX 数组边界检查：((idx)<0||(idx)>=N ? (shux_panic_(1,0),(base)[0]) : (base)[(idx)])。 */
+int32_t codegen_x_emit_index_array_bounds_check(uint8_t *out, uint8_t *base, uint8_t *idx, int32_t array_size) {
     FILE *f = (FILE *)out;
     if (fprintf(f, "(") < 0) return -1;
     if (codegen_expr((const struct ASTExpr *)idx, f) != 0) return -1;
@@ -387,15 +387,15 @@ int32_t codegen_sx_emit_index_array_bounds_check(uint8_t *out, uint8_t *base, ui
     if (codegen_expr((const struct ASTExpr *)idx, f) != 0) return -1;
     return fprintf(f, "])") < 0 ? -1 : 0;
 }
-/** .sx 侧 MATCH：matched_expr、num_arms、arm is_wildcard/is_enum_variant/variant_index/lit_val/result；use_switch(expr)、next_id()。 */
-uint8_t *codegen_sx_match_matched(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_MATCH && e->value.match_expr.matched_expr) ? (uint8_t *)e->value.match_expr.matched_expr : NULL; }
-int32_t codegen_sx_match_num_arms(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_MATCH) ? (int32_t)e->value.match_expr.num_arms : 0; }
-int32_t codegen_sx_match_arm_is_wildcard(uint8_t *expr, int32_t i) { const struct ASTExpr *e = (const struct ASTExpr *)expr; if (!e || e->kind != AST_EXPR_MATCH || !e->value.match_expr.arms || i < 0 || i >= e->value.match_expr.num_arms) return 0; return e->value.match_expr.arms[i].is_wildcard ? 1 : 0; }
-int32_t codegen_sx_match_arm_is_enum_variant(uint8_t *expr, int32_t i) { const struct ASTExpr *e = (const struct ASTExpr *)expr; if (!e || e->kind != AST_EXPR_MATCH || !e->value.match_expr.arms || i < 0 || i >= e->value.match_expr.num_arms) return 0; return e->value.match_expr.arms[i].is_enum_variant ? 1 : 0; }
-int32_t codegen_sx_match_arm_variant_index(uint8_t *expr, int32_t i) { const struct ASTExpr *e = (const struct ASTExpr *)expr; if (!e || e->kind != AST_EXPR_MATCH || !e->value.match_expr.arms || i < 0 || i >= e->value.match_expr.num_arms) return 0; return (int32_t)e->value.match_expr.arms[i].variant_index; }
-int32_t codegen_sx_match_arm_lit_val(uint8_t *expr, int32_t i) { const struct ASTExpr *e = (const struct ASTExpr *)expr; if (!e || e->kind != AST_EXPR_MATCH || !e->value.match_expr.arms || i < 0 || i >= e->value.match_expr.num_arms) return 0; return (int32_t)e->value.match_expr.arms[i].lit_val; }
-uint8_t *codegen_sx_match_arm_result(uint8_t *expr, int32_t i) { const struct ASTExpr *e = (const struct ASTExpr *)expr; if (!e || e->kind != AST_EXPR_MATCH || !e->value.match_expr.arms || i < 0 || i >= e->value.match_expr.num_arms) return NULL; return (uint8_t *)e->value.match_expr.arms[i].result; }
-int32_t codegen_sx_match_use_switch(uint8_t *expr) {
+/** .x 侧 MATCH：matched_expr、num_arms、arm is_wildcard/is_enum_variant/variant_index/lit_val/result；use_switch(expr)、next_id()。 */
+uint8_t *codegen_x_match_matched(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_MATCH && e->value.match_expr.matched_expr) ? (uint8_t *)e->value.match_expr.matched_expr : NULL; }
+int32_t codegen_x_match_num_arms(uint8_t *expr) { const struct ASTExpr *e = (const struct ASTExpr *)expr; return (e && e->kind == AST_EXPR_MATCH) ? (int32_t)e->value.match_expr.num_arms : 0; }
+int32_t codegen_x_match_arm_is_wildcard(uint8_t *expr, int32_t i) { const struct ASTExpr *e = (const struct ASTExpr *)expr; if (!e || e->kind != AST_EXPR_MATCH || !e->value.match_expr.arms || i < 0 || i >= e->value.match_expr.num_arms) return 0; return e->value.match_expr.arms[i].is_wildcard ? 1 : 0; }
+int32_t codegen_x_match_arm_is_enum_variant(uint8_t *expr, int32_t i) { const struct ASTExpr *e = (const struct ASTExpr *)expr; if (!e || e->kind != AST_EXPR_MATCH || !e->value.match_expr.arms || i < 0 || i >= e->value.match_expr.num_arms) return 0; return e->value.match_expr.arms[i].is_enum_variant ? 1 : 0; }
+int32_t codegen_x_match_arm_variant_index(uint8_t *expr, int32_t i) { const struct ASTExpr *e = (const struct ASTExpr *)expr; if (!e || e->kind != AST_EXPR_MATCH || !e->value.match_expr.arms || i < 0 || i >= e->value.match_expr.num_arms) return 0; return (int32_t)e->value.match_expr.arms[i].variant_index; }
+int32_t codegen_x_match_arm_lit_val(uint8_t *expr, int32_t i) { const struct ASTExpr *e = (const struct ASTExpr *)expr; if (!e || e->kind != AST_EXPR_MATCH || !e->value.match_expr.arms || i < 0 || i >= e->value.match_expr.num_arms) return 0; return (int32_t)e->value.match_expr.arms[i].lit_val; }
+uint8_t *codegen_x_match_arm_result(uint8_t *expr, int32_t i) { const struct ASTExpr *e = (const struct ASTExpr *)expr; if (!e || e->kind != AST_EXPR_MATCH || !e->value.match_expr.arms || i < 0 || i >= e->value.match_expr.num_arms) return NULL; return (uint8_t *)e->value.match_expr.arms[i].result; }
+int32_t codegen_x_match_use_switch(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_MATCH || !e->value.match_expr.arms) return 0;
     int num_arms = e->value.match_expr.num_arms;
@@ -412,10 +412,10 @@ int32_t codegen_sx_match_use_switch(uint8_t *expr) {
     double density = (range > 0 && lit_count > 0) ? (double)lit_count / (double)range : 0.0;
     return (density > 0.7 && lit_count > 0) ? 1 : 0;
 }
-int32_t codegen_sx_match_next_id(void) { return (int32_t)codegen_match_id++; }
+int32_t codegen_x_match_next_id(void) { return (int32_t)codegen_match_id++; }
 
-/** .sx 侧整数除法输出（含除零检查）：( r==0 ? (shux_panic_(1,0), l) : (l/r) )，l/r 按需加括号。 */
-int32_t codegen_sx_emit_int_div(uint8_t *out, uint8_t *left, uint8_t *right) {
+/** .x 侧整数除法输出（含除零检查）：( r==0 ? (shux_panic_(1,0), l) : (l/r) )，l/r 按需加括号。 */
+int32_t codegen_x_emit_int_div(uint8_t *out, uint8_t *left, uint8_t *right) {
     const struct ASTExpr *l = (const struct ASTExpr *)left, *r = (const struct ASTExpr *)right;
     FILE *f = (FILE *)out;
     int need_l = (l && (l->kind == AST_EXPR_ADD || l->kind == AST_EXPR_SUB));
@@ -440,8 +440,8 @@ int32_t codegen_sx_emit_int_div(uint8_t *out, uint8_t *left, uint8_t *right) {
     return 0;
 }
 
-/** .sx 侧整数取模输出（含取模零检查）：( r==0 ? (shux_panic_(1,0), l) : (l %% r) )。 */
-int32_t codegen_sx_emit_int_mod(uint8_t *out, uint8_t *left, uint8_t *right) {
+/** .x 侧整数取模输出（含取模零检查）：( r==0 ? (shux_panic_(1,0), l) : (l %% r) )。 */
+int32_t codegen_x_emit_int_mod(uint8_t *out, uint8_t *left, uint8_t *right) {
     const struct ASTExpr *l = (const struct ASTExpr *)left, *r = (const struct ASTExpr *)right;
     FILE *f = (FILE *)out;
     fprintf(f, "(");
@@ -783,7 +783,7 @@ static int codegen_async_keep_for_sched(const struct ASTModule *m, const struct 
 static int codegen_preamble_has_core_option_result = 0;
 void codegen_set_preamble_has_core_option_result(int on) { codegen_preamble_has_core_option_result = on ? 1 : 0; }
 
-/** codegen.sx emit 与 write_io_net_abi_inline 重叠段时 OR 入；pipeline 完成后 runtime 读此 mask 跳过 preamble 行。 */
+/** codegen.x emit 与 write_io_net_abi_inline 重叠段时 OR 入；pipeline 完成后 runtime 读此 mask 跳过 preamble 行。 */
 static unsigned codegen_preamble_skip_mask = 0;
 void codegen_reset_preamble_skip_mask(void) { codegen_preamble_skip_mask = 0; }
 void codegen_or_preamble_skip_mask(unsigned mask) { codegen_preamble_skip_mask |= mask; }
@@ -814,14 +814,14 @@ static struct ASTModule **codegen_dep_mods;
 static const char **codegen_dep_paths;
 static int codegen_ndep;
 
-void codegen_set_dep_slots_for_sx_pipeline(struct ASTModule **mods, const char **paths, int n) {
+void codegen_set_dep_slots_for_x_pipeline(struct ASTModule **mods, const char **paths, int n) {
     codegen_dep_mods = (n > 0 && mods && paths) ? mods : NULL;
     codegen_dep_paths = (n > 0 && mods && paths) ? paths : NULL;
     codegen_ndep = (n > 0 && mods && paths) ? n : 0;
 }
 
-/** .sx 侧 FIELD_ACCESS：是否为枚举变体输出路径（Type.Variant 或库模块枚举），非 0 时 .sx 转调 emit_field_access_enum_variant_full。需在 codegen_library_prefix 等声明之后。 */
-int32_t codegen_sx_field_access_is_enum_variant(uint8_t *expr) {
+/** .x 侧 FIELD_ACCESS：是否为枚举变体输出路径（Type.Variant 或库模块枚举），非 0 时 .x 转调 emit_field_access_enum_variant_full。需在 codegen_library_prefix 等声明之后。 */
+int32_t codegen_x_field_access_is_enum_variant(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_FIELD_ACCESS || !e->value.field_access.base) return 0;
     if (e->value.field_access.is_enum_variant && e->value.field_access.base->kind == AST_EXPR_VAR) return 1;
@@ -1739,14 +1739,14 @@ static int expr_is_ptr_or_slice_param(const struct ASTExpr *e) {
     return 0;
 }
 
-/** .sx 侧：base 是否为 slice 形参（C 中按指针传，用 ->）；否则为局部/全局 struct 用 .；无当前函数时保守返回 0。 */
-int32_t codegen_sx_expr_is_slice_ptr_param(uint8_t *expr) {
+/** .x 侧：base 是否为 slice 形参（C 中按指针传，用 ->）；否则为局部/全局 struct 用 .；无当前函数时保守返回 0。 */
+int32_t codegen_x_expr_is_slice_ptr_param(uint8_t *expr) {
     return (codegen_current_func && expr_is_slice_ptr_param((const struct ASTExpr *)expr)) ? 1 : 0;
 }
-/** .sx 侧 INDEX 切片边界检查：((idx)<0||(size_t)(idx)>=(base).length 或 (base)->length ? ...）。仅形参用 ->。 */
-int32_t codegen_sx_emit_index_slice_bounds_check(uint8_t *out, uint8_t *base, uint8_t *idx) {
+/** .x 侧 INDEX 切片边界检查：((idx)<0||(size_t)(idx)>=(base).length 或 (base)->length ? ...）。仅形参用 ->。 */
+int32_t codegen_x_emit_index_slice_bounds_check(uint8_t *out, uint8_t *base, uint8_t *idx) {
     FILE *f = (FILE *)out;
-    int use_arrow = codegen_sx_expr_is_slice_ptr_param(base);
+    int use_arrow = codegen_x_expr_is_slice_ptr_param(base);
     const char *da = use_arrow ? ")->" : ").";
     if (fprintf(f, "(") < 0) return -1;
     if (codegen_expr((const struct ASTExpr *)idx, f) != 0) return -1;
@@ -1868,7 +1868,7 @@ static void ensure_slice_struct(const struct ASTType *ty, FILE *out) {
     fprintf(out, "struct shux_slice_%s { %s *data; size_t length; };\n", name_part, key);
 }
 
-/** FIELD_ACCESS 枚举变体完整输出：Type.Variant → prefix_Enum_Variant；依赖/库前缀查找在 C 内完成，供 .sx 统一入口转调。 */
+/** FIELD_ACCESS 枚举变体完整输出：Type.Variant → prefix_Enum_Variant；依赖/库前缀查找在 C 内完成，供 .x 统一入口转调。 */
 static int codegen_emit_field_access_enum_variant_impl(FILE *out, const struct ASTExpr *e) {
     /* 库模块未做 typeck 时 is_enum_variant 可能为 0；若 base 为当前库模块枚举类型名则按枚举变体输出 */
     if (codegen_library_prefix && *codegen_library_prefix && codegen_library_module && codegen_library_module->enum_defs
@@ -1922,8 +1922,8 @@ static int codegen_emit_field_access_enum_variant_impl(FILE *out, const struct A
     return 0;
 }
 
-/** .sx 侧 FIELD_ACCESS 枚举变体：仅将「前缀」写入 out，供 .sx 自实现时拼 prefix+enum_name+'_'+variant_name。返回 0 成功，-1 失败。 */
-int32_t codegen_sx_emit_enum_variant_prefix(uint8_t *out, uint8_t *expr) {
+/** .x 侧 FIELD_ACCESS 枚举变体：仅将「前缀」写入 out，供 .x 自实现时拼 prefix+enum_name+'_'+variant_name。返回 0 成功，-1 失败。 */
+int32_t codegen_x_emit_enum_variant_prefix(uint8_t *out, uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_FIELD_ACCESS || !e->value.field_access.base
         || e->value.field_access.base->kind != AST_EXPR_VAR) return -1;
@@ -1956,8 +1956,8 @@ int32_t codegen_sx_emit_enum_variant_prefix(uint8_t *out, uint8_t *expr) {
     return 0; /* 无前缀 */
 }
 
-/** .sx 侧 FIELD_ACCESS：base 为 VAR 时返回类型名（枚举名）指针，否则 NULL。 */
-uint8_t *codegen_sx_field_access_base_var_name(uint8_t *expr) {
+/** .x 侧 FIELD_ACCESS：base 为 VAR 时返回类型名（枚举名）指针，否则 NULL。 */
+uint8_t *codegen_x_field_access_base_var_name(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_FIELD_ACCESS || !e->value.field_access.base
         || e->value.field_access.base->kind != AST_EXPR_VAR) return NULL;
@@ -1965,14 +1965,14 @@ uint8_t *codegen_sx_field_access_base_var_name(uint8_t *expr) {
     return (uint8_t *)(n ? n : "");
 }
 
-/** .sx 侧 FIELD_ACCESS：base 为 VAR 时返回类型名（枚举名）长度。 */
-int32_t codegen_sx_field_access_base_var_name_len(uint8_t *expr) {
-    const char *n = (const char *)codegen_sx_field_access_base_var_name(expr);
+/** .x 侧 FIELD_ACCESS：base 为 VAR 时返回类型名（枚举名）长度。 */
+int32_t codegen_x_field_access_base_var_name_len(uint8_t *expr) {
+    const char *n = (const char *)codegen_x_field_access_base_var_name(expr);
     return (int32_t)(n ? strlen(n) : 0);
 }
 
-/** .sx 侧 FIELD_ACCESS 枚举变体全量输出：供 codegen.sx 的 emit_field_access_expr 转调（fallback）。 */
-int32_t codegen_sx_emit_field_access_enum_variant_full(uint8_t *out, uint8_t *expr) {
+/** .x 侧 FIELD_ACCESS 枚举变体全量输出：供 codegen.x 的 emit_field_access_expr 转调（fallback）。 */
+int32_t codegen_x_emit_field_access_enum_variant_full(uint8_t *out, uint8_t *expr) {
     return codegen_emit_field_access_enum_variant_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0;
 }
 
@@ -2076,8 +2076,8 @@ static int codegen_try_emit_import_module_const(FILE *out, const struct ASTExpr 
     return -1;
 }
 
-/** .sx emit_expr：binding.CONST 常量访问（先于 (base).field 回落）。 */
-int32_t codegen_sx_try_emit_import_module_const(uint8_t *out, uint8_t *expr) {
+/** .x emit_expr：binding.CONST 常量访问（先于 (base).field 回落）。 */
+int32_t codegen_x_try_emit_import_module_const(uint8_t *out, uint8_t *expr) {
     if (!out || !expr) return -1;
     return codegen_try_emit_import_module_const((FILE *)out, (const struct ASTExpr *)expr) == 0 ? 0 : -1;
 }
@@ -2352,7 +2352,7 @@ static int codegen_emit_struct_lit_name_prefix(FILE *out, const struct ASTExpr *
     return 0;
 }
 
-/** 结构体字面量完整输出（C 路径保留，供非 .sx 或 fallback）；字段循环与 .sx 自实现一致。
+/** 结构体字面量完整输出（C 路径保留，供非 .x 或 fallback）；字段循环与 .x 自实现一致。
  * 当存在任意数组类型字段时 C 不允许在复合字面量中直接赋数组（含变量或部分字面量），故改用块形式：临时变量 + 逐字段赋值 + memcpy。 */
 static int codegen_emit_struct_lit_impl(FILE *out, const struct ASTExpr *e) {
     const char *sname = e->value.struct_lit.struct_name ? e->value.struct_lit.struct_name : "";
@@ -2451,58 +2451,58 @@ static int codegen_emit_struct_lit_impl(FILE *out, const struct ASTExpr *e) {
     return 0;
 }
 
-/** .sx 侧仅写 "(struct X){ "，供 .sx 自己实现 struct_lit 时调用。 */
-int32_t codegen_sx_emit_struct_lit_c_name_prefix(uint8_t *out, uint8_t *expr) {
+/** .x 侧仅写 "(struct X){ "，供 .x 自己实现 struct_lit 时调用。 */
+int32_t codegen_x_emit_struct_lit_c_name_prefix(uint8_t *out, uint8_t *expr) {
     return codegen_emit_struct_lit_name_prefix((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0;
 }
 
-/** .sx 侧 STRUCT_LIT 访问器：字段数、第 i 个字段名（ptr/len）、第 i 个初值表达式。 */
-int32_t codegen_sx_struct_lit_num_fields(uint8_t *expr) {
+/** .x 侧 STRUCT_LIT 访问器：字段数、第 i 个字段名（ptr/len）、第 i 个初值表达式。 */
+int32_t codegen_x_struct_lit_num_fields(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && e->kind == AST_EXPR_STRUCT_LIT) ? (int32_t)e->value.struct_lit.num_fields : 0;
 }
-uint8_t *codegen_sx_struct_lit_field_name(uint8_t *expr, int32_t i) {
+uint8_t *codegen_x_struct_lit_field_name(uint8_t *expr, int32_t i) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_STRUCT_LIT || !e->value.struct_lit.field_names || i < 0 || i >= e->value.struct_lit.num_fields)
         return (uint8_t *)"";
     return (uint8_t *)(e->value.struct_lit.field_names[i] ? e->value.struct_lit.field_names[i] : "");
 }
-int32_t codegen_sx_struct_lit_field_name_len(uint8_t *expr, int32_t i) {
-    const char *fn = (const char *)codegen_sx_struct_lit_field_name(expr, i);
+int32_t codegen_x_struct_lit_field_name_len(uint8_t *expr, int32_t i) {
+    const char *fn = (const char *)codegen_x_struct_lit_field_name(expr, i);
     return (int32_t)strlen(fn);
 }
-uint8_t *codegen_sx_struct_lit_init(uint8_t *expr, int32_t i) {
+uint8_t *codegen_x_struct_lit_init(uint8_t *expr, int32_t i) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_STRUCT_LIT || !e->value.struct_lit.inits || i < 0 || i >= e->value.struct_lit.num_fields)
         return NULL;
     return (uint8_t *)e->value.struct_lit.inits[i];
 }
 
-/** .sx 侧表达式 kind（AST_EXPR_*），用于 .sx 判断是否为 ARRAY_LIT 等。 */
-int32_t codegen_sx_expr_kind(uint8_t *expr) {
+/** .x 侧表达式 kind（AST_EXPR_*），用于 .x 判断是否为 ARRAY_LIT 等。 */
+int32_t codegen_x_expr_kind(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return e ? (int32_t)e->kind : -1;
 }
-int32_t codegen_sx_expr_kind_array_lit(void) { return (int32_t)AST_EXPR_ARRAY_LIT; }
+int32_t codegen_x_expr_kind_array_lit(void) { return (int32_t)AST_EXPR_ARRAY_LIT; }
 
-/** .sx 侧 ARRAY_LIT 访问器：元素个数、第 j 个元素表达式。 */
-int32_t codegen_sx_array_lit_num_elems(uint8_t *expr) {
+/** .x 侧 ARRAY_LIT 访问器：元素个数、第 j 个元素表达式。 */
+int32_t codegen_x_array_lit_num_elems(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && e->kind == AST_EXPR_ARRAY_LIT) ? (int32_t)e->value.array_lit.num_elems : 0;
 }
-uint8_t *codegen_sx_array_lit_elem(uint8_t *expr, int32_t j) {
+uint8_t *codegen_x_array_lit_elem(uint8_t *expr, int32_t j) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_ARRAY_LIT || !e->value.array_lit.elems || j < 0 || j >= e->value.array_lit.num_elems)
         return NULL;
     return (uint8_t *)e->value.array_lit.elems[j];
 }
 
-/** .sx 侧结构体字面量全量输出：供 codegen.sx 在未自实现时转调（fallback）。 */
-int32_t codegen_sx_emit_struct_lit_full(uint8_t *out, uint8_t *expr) {
+/** .x 侧结构体字面量全量输出：供 codegen.x 在未自实现时转调（fallback）。 */
+int32_t codegen_x_emit_struct_lit_full(uint8_t *out, uint8_t *expr) {
     return codegen_emit_struct_lit_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0;
 }
 
-/** 数组字面量完整输出（供 .sx 转调）：slice 或 (elem_ty[]){ ... }。 */
+/** 数组字面量完整输出（供 .x 转调）：slice 或 (elem_ty[]){ ... }。 */
 static int codegen_emit_array_lit_impl(FILE *out, const struct ASTExpr *e) {
     const struct ASTType *aty = e->resolved_type;
     const struct ASTType *elem_ty = (aty && (aty->kind == AST_TYPE_ARRAY || aty->kind == AST_TYPE_SLICE)) ? aty->elem_type : NULL;
@@ -2535,13 +2535,13 @@ static int codegen_emit_array_lit_impl(FILE *out, const struct ASTExpr *e) {
     fprintf(out, " }");
     return 0;
 }
-/** .sx 侧数组字面量全量输出：供 codegen.sx 在未自实现时转调（fallback）。 */
-int32_t codegen_sx_emit_array_lit_full(uint8_t *out, uint8_t *expr) {
+/** .x 侧数组字面量全量输出：供 codegen.x 在未自实现时转调（fallback）。 */
+int32_t codegen_x_emit_array_lit_full(uint8_t *out, uint8_t *expr) {
     return codegen_emit_array_lit_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0;
 }
 
-/** .sx 侧 ARRAY_LIT 自实现用：是否为 slice 分支（resolved_type 为 SLICE 且有 elem_ty）。 */
-int32_t codegen_sx_array_lit_is_slice(uint8_t *expr) {
+/** .x 侧 ARRAY_LIT 自实现用：是否为 slice 分支（resolved_type 为 SLICE 且有 elem_ty）。 */
+int32_t codegen_x_array_lit_is_slice(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_ARRAY_LIT || !e->resolved_type || e->resolved_type->kind != AST_TYPE_SLICE)
         return 0;
@@ -2552,8 +2552,8 @@ int32_t codegen_sx_array_lit_is_slice(uint8_t *expr) {
     return 0;
 }
 
-/** .sx 侧只写 slice 前缀：ensure_slice_struct + "(slice_ty){ .data = (elem_ty[]){ "。 */
-int32_t codegen_sx_emit_array_lit_slice_prefix(uint8_t *out, uint8_t *expr) {
+/** .x 侧只写 slice 前缀：ensure_slice_struct + "(slice_ty){ .data = (elem_ty[]){ "。 */
+int32_t codegen_x_emit_array_lit_slice_prefix(uint8_t *out, uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     const struct ASTType *aty = e->resolved_type;
     const struct ASTType *elem_ty = (aty && aty->kind == AST_TYPE_SLICE && aty->elem_type) ? aty->elem_type : NULL;
@@ -2569,14 +2569,14 @@ int32_t codegen_sx_emit_array_lit_slice_prefix(uint8_t *out, uint8_t *expr) {
     return 0;
 }
 
-/** .sx 侧只写 slice 后缀：" }, .length = n }"。 */
-int32_t codegen_sx_emit_array_lit_slice_suffix(uint8_t *out, int32_t n_elems) {
+/** .x 侧只写 slice 后缀：" }, .length = n }"。 */
+int32_t codegen_x_emit_array_lit_slice_suffix(uint8_t *out, int32_t n_elems) {
     fprintf((FILE *)out, " }, .length = %d }", (int)n_elems);
     return 0;
 }
 
-/** .sx 侧只写数组字面量前缀："(elem_ty[size]){ " 或 "(elem_ty[]){ "。 */
-int32_t codegen_sx_emit_array_lit_array_prefix(uint8_t *out, uint8_t *expr) {
+/** .x 侧只写数组字面量前缀："(elem_ty[size]){ " 或 "(elem_ty[]){ "。 */
+int32_t codegen_x_emit_array_lit_array_prefix(uint8_t *out, uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     const struct ASTType *aty = e->resolved_type;
     const struct ASTType *elem_ty = (aty && (aty->kind == AST_TYPE_ARRAY || aty->kind == AST_TYPE_SLICE)) ? aty->elem_type : NULL;
@@ -2593,8 +2593,8 @@ int32_t codegen_sx_emit_array_lit_array_prefix(uint8_t *out, uint8_t *expr) {
     return 0;
 }
 
-/** .sx 侧只写数组字面量后缀：" }"。 */
-int32_t codegen_sx_emit_array_lit_array_suffix(uint8_t *out) {
+/** .x 侧只写数组字面量后缀：" }"。 */
+int32_t codegen_x_emit_array_lit_array_suffix(uint8_t *out) {
     fprintf((FILE *)out, " }");
     return 0;
 }
@@ -2909,8 +2909,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
     if (!e || !out) return -1;
     /* CTFE 最小集：仅当表达式类型为标量（整型/布尔/浮点）时才用 const_folded_val；struct 等类型不能当整数输出，否则会生成 return -1094795586 等错误 */
     if (e->const_folded_valid && expr_type_is_foldable_scalar(e)) {
-#ifdef SHUX_USE_SX_CODEGEN
-        if (codegen_codegen_sx_format_int_lit((uint8_t *)out, (int32_t)e->const_folded_val) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+        if (codegen_codegen_x_format_int_lit((uint8_t *)out, (int32_t)e->const_folded_val) != 0) return -1;
         return 0;
 #else
         if (e->resolved_type && (e->resolved_type->kind == AST_TYPE_I64 || e->resolved_type->kind == AST_TYPE_USIZE || e->resolved_type->kind == AST_TYPE_ISIZE || e->resolved_type->kind == AST_TYPE_U64))
@@ -2922,9 +2922,9 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
     }
     switch (e->kind) {
         case AST_EXPR_LIT:
-#ifdef SHUX_USE_SX_CODEGEN
-            /* 整数字面量输出由 .sx 侧 codegen_sx_format_int_lit 实现（自举 codegen 首块迁入）。 */
-            if (codegen_codegen_sx_format_int_lit((uint8_t *)out, (int32_t)e->value.int_val) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            /* 整数字面量输出由 .x 侧 codegen_x_format_int_lit 实现（自举 codegen 首块迁入）。 */
+            if (codegen_codegen_x_format_int_lit((uint8_t *)out, (int32_t)e->value.int_val) != 0) return -1;
             return 0;
 #else
             if (e->resolved_type && (e->resolved_type->kind == AST_TYPE_I64 || e->resolved_type->kind == AST_TYPE_USIZE || e->resolved_type->kind == AST_TYPE_ISIZE || e->resolved_type->kind == AST_TYPE_U64))
@@ -2934,9 +2934,9 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
 #endif
         case AST_EXPR_FLOAT_LIT: {
-#ifdef SHUX_USE_SX_CODEGEN
+#ifdef SHUX_USE_X_CODEGEN
             int is_f32 = (e->resolved_type && e->resolved_type->kind == AST_TYPE_F32) ? 1 : 0;
-            if (codegen_codegen_sx_emit_float_lit((uint8_t *)out, (uint8_t *)&e->value.float_val, is_f32) != 0) return -1;
+            if (codegen_codegen_x_emit_float_lit((uint8_t *)out, (uint8_t *)&e->value.float_val, is_f32) != 0) return -1;
             return 0;
 #else
             double v = e->value.float_val;
@@ -2950,9 +2950,9 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #endif
         }
         case AST_EXPR_BOOL_LIT:
-#ifdef SHUX_USE_SX_CODEGEN
-            /* 布尔字面量输出由 .sx 侧 codegen_sx_format_bool_lit 实现。 */
-            if (codegen_codegen_sx_format_bool_lit((uint8_t *)out, e->value.int_val ? 1 : 0) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            /* 布尔字面量输出由 .x 侧 codegen_x_format_bool_lit 实现。 */
+            if (codegen_codegen_x_format_bool_lit((uint8_t *)out, e->value.int_val ? 1 : 0) != 0) return -1;
             return 0;
 #else
             fprintf(out, "%d", e->value.int_val ? 1 : 0);
@@ -2986,9 +2986,9 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
         case AST_EXPR_VAR: {
             const char *name = e->value.var.name ? e->value.var.name : "";
-#ifdef SHUX_USE_SX_CODEGEN
-            /* 变量名输出由 .sx 侧 codegen_sx_emit_c_string 逐字节实现。 */
-            if (codegen_codegen_sx_emit_c_string((uint8_t *)out, (uint8_t *)name, (int32_t)strlen(name)) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            /* 变量名输出由 .x 侧 codegen_x_emit_c_string 逐字节实现。 */
+            if (codegen_codegen_x_emit_c_string((uint8_t *)out, (uint8_t *)name, (int32_t)strlen(name)) != 0) return -1;
             return 0;
 #else
             /* 库模块 -E 时顶层 let/const 已带前缀输出，此处引用须一致 */
@@ -3028,7 +3028,7 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #endif
         }
         case AST_EXPR_ENUM_VARIANT: {
-            /* C 中枚举值为 EnumName_VariantName；跨模块或库模块时加 prefix；结果写入 buf 后由 .sx emit_c_string 或 fprintf 输出。 */
+            /* C 中枚举值为 EnumName_VariantName；跨模块或库模块时加 prefix；结果写入 buf 后由 .x emit_c_string 或 fprintf 输出。 */
             const char *en = e->value.enum_variant.enum_name ? e->value.enum_variant.enum_name : "";
             const char *vn = e->value.enum_variant.variant_name ? e->value.enum_variant.variant_name : "";
             char enum_buf[256];
@@ -3065,8 +3065,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
                 n = snprintf(enum_buf, sizeof(enum_buf), "%s_%s", en, vn);
         enum_emit:
             if (n <= 0 || (size_t)n >= sizeof(enum_buf)) n = 0;
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_c_string((uint8_t *)out, (uint8_t *)enum_buf, (int32_t)n) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_c_string((uint8_t *)out, (uint8_t *)enum_buf, (int32_t)n) != 0) return -1;
             return 0;
 #else
             fprintf(out, "%s", enum_buf);
@@ -3076,8 +3076,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
         case AST_EXPR_ADD: {
             if (codegen_vector_binop(e, "+", out) == 0) return 0;
             const struct ASTExpr *l = e->value.binop.left, *r = e->value.binop.right;
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " + "; int nl = codegen_sx_expr_needs_compare_parens((uint8_t *)l); int nr = codegen_sx_expr_needs_compare_parens((uint8_t *)r); if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, (uint8_t *)op, 3, nl, nr) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " + "; int nl = codegen_x_expr_needs_compare_parens((uint8_t *)l); int nr = codegen_x_expr_needs_compare_parens((uint8_t *)r); if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, (uint8_t *)op, 3, nl, nr) != 0) return -1; return 0; }
 #else
             { int need_l = codegen_c_need_paren_additive_child(l); int need_r = codegen_c_need_paren_additive_child(r); if (need_l) fprintf(out, "("); if (codegen_expr(l, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " + "); if (need_r) fprintf(out, "("); if (codegen_expr(r, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
@@ -3085,8 +3085,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
         case AST_EXPR_SUB: {
             if (codegen_vector_binop(e, "-", out) == 0) return 0;
             const struct ASTExpr *l = e->value.binop.left, *r = e->value.binop.right;
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " - "; int nl = codegen_sx_expr_needs_compare_parens((uint8_t *)l); int nr = codegen_sx_expr_needs_compare_parens((uint8_t *)r); if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, (uint8_t *)op, 3, nl, nr) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " - "; int nl = codegen_x_expr_needs_compare_parens((uint8_t *)l); int nr = codegen_x_expr_needs_compare_parens((uint8_t *)r); if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, (uint8_t *)op, 3, nl, nr) != 0) return -1; return 0; }
 #else
             { int need_l = codegen_c_need_paren_additive_child(l); int need_r = codegen_c_need_paren_additive_child(r); if (need_l) fprintf(out, "("); if (codegen_expr(l, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " - "); if (need_r) fprintf(out, "("); if (codegen_expr(r, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
@@ -3094,8 +3094,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
         case AST_EXPR_MUL: {
             if (codegen_vector_binop(e, "*", out) == 0) return 0;
             const struct ASTExpr *l = e->value.binop.left, *r = e->value.binop.right;
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " * "; int nl = codegen_sx_expr_needs_addsub_parens((uint8_t *)l); int nr = codegen_sx_expr_needs_addsub_parens((uint8_t *)r); if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, (uint8_t *)op, 3, nl, nr) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " * "; int nl = codegen_x_expr_needs_addsub_parens((uint8_t *)l); int nr = codegen_x_expr_needs_addsub_parens((uint8_t *)r); if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, (uint8_t *)op, 3, nl, nr) != 0) return -1; return 0; }
 #else
             { int need_l = (l->kind == AST_EXPR_ADD || l->kind == AST_EXPR_SUB); int need_r = (r->kind == AST_EXPR_ADD || r->kind == AST_EXPR_SUB); if (need_l) fprintf(out, "("); if (codegen_expr(l, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " * "); if (need_r) fprintf(out, "("); if (codegen_expr(r, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
@@ -3103,8 +3103,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
         case AST_EXPR_DIV: {
             if (codegen_vector_binop(e, "/", out) == 0) return 0;
             const struct ASTExpr *l = e->value.binop.left, *r = e->value.binop.right;
-#ifdef SHUX_USE_SX_CODEGEN
-            { int is_int = (e->resolved_type && is_integer_type(e->resolved_type)) ? 1 : 0; if (codegen_codegen_sx_emit_div_expr((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, is_int) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { int is_int = (e->resolved_type && is_integer_type(e->resolved_type)) ? 1 : 0; if (codegen_codegen_x_emit_div_expr((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, is_int) != 0) return -1; return 0; }
 #else
             /* 整数除零：运行时检查，除数为 0 时 panic（UB 收窄为定义行为，见 UB与未定义行为.md） */
             if (e->resolved_type && is_integer_type(e->resolved_type)) {
@@ -3144,8 +3144,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
         case AST_EXPR_MOD: {
             if (codegen_vector_binop(e, "%%", out) == 0) return 0;
             const struct ASTExpr *l = e->value.binop.left, *r = e->value.binop.right;
-#ifdef SHUX_USE_SX_CODEGEN
-            { int is_int = (e->resolved_type && is_integer_type(e->resolved_type)) ? 1 : 0; if (codegen_codegen_sx_emit_mod_expr((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, is_int) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { int is_int = (e->resolved_type && is_integer_type(e->resolved_type)) ? 1 : 0; if (codegen_codegen_x_emit_mod_expr((uint8_t *)out, (uint8_t *)l, (uint8_t *)r, is_int) != 0) return -1; return 0; }
 #else
             /* 整数取模零：运行时检查（UB 收窄为定义行为） */
             if (e->resolved_type && is_integer_type(e->resolved_type)) {
@@ -3168,8 +3168,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
         }
         case AST_EXPR_SHL:
             if (codegen_vector_binop(e, "<<", out) == 0) return 0;
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " << "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " << "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
             if (codegen_expr(e->value.binop.left, out) != 0) return -1;
             fprintf(out, " << ");
@@ -3178,8 +3178,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #endif
         case AST_EXPR_SHR:
             if (codegen_vector_binop(e, ">>", out) == 0) return 0;
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " >> "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " >> "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
             if (codegen_expr(e->value.binop.left, out) != 0) return -1;
             fprintf(out, " >> ");
@@ -3188,28 +3188,28 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #endif
         case AST_EXPR_BITAND:
             if (codegen_vector_binop(e, "&", out) == 0) return 0;
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " & "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " & "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
 #else
             { int need_l = codegen_c_need_paren_bitwise_child(AST_EXPR_BITAND, e->value.binop.left); int need_r = codegen_c_need_paren_bitwise_child(AST_EXPR_BITAND, e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " & "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_BITOR:
             if (codegen_vector_binop(e, "|", out) == 0) return 0;
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " | "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " | "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
 #else
             { int need_l = codegen_c_need_paren_bitwise_child(AST_EXPR_BITOR, e->value.binop.left); int need_r = codegen_c_need_paren_bitwise_child(AST_EXPR_BITOR, e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " | "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_BITXOR:
             if (codegen_vector_binop(e, "^", out) == 0) return 0;
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " ^ "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " ^ "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
 #else
             { int need_l = codegen_c_need_paren_bitwise_child(AST_EXPR_BITXOR, e->value.binop.left); int need_r = codegen_c_need_paren_bitwise_child(AST_EXPR_BITXOR, e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " ^ "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_ASSIGN:
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_assign((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_assign((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right) != 0) return -1;
             return 0;
 #else
             /* 赋值表达式：左端为 FIELD_ACCESS(INDEX) 或 INDEX 时生成可赋值的边界检查形式，避免 (ternary)=z 非左值 */
@@ -3261,44 +3261,44 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
         }
         case AST_EXPR_EQ:
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " == "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " == "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
             { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " == "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_NE:
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " != "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " != "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
             { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " != "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_LT:
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " < "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " < "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
 #else
             { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " < "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_LE:
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " <= "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " <= "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
             { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " <= "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_GT:
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " > "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " > "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 3, 0, 0) != 0) return -1; return 0; }
 #else
             { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " > "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_GE:
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " >= "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " >= "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
             { int need_l = codegen_c_need_paren_compare_child(e->value.binop.left); int need_r = codegen_c_need_paren_compare_child(e->value.binop.right); if (need_l) fprintf(out, "("); if (codegen_expr(e->value.binop.left, out) != 0) return -1; if (need_l) fprintf(out, ")"); fprintf(out, " >= "); if (need_r) fprintf(out, "("); if (codegen_expr(e->value.binop.right, out) != 0) return -1; if (need_r) fprintf(out, ")"); return 0; }
 #endif
         case AST_EXPR_LOGAND:
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " && "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " && "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
             if (codegen_expr(e->value.binop.left, out) != 0) return -1;
             fprintf(out, " && ");
@@ -3306,8 +3306,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
 #endif
         case AST_EXPR_LOGOR:
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char op[] = " || "; if (codegen_codegen_sx_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char op[] = " || "; if (codegen_codegen_x_emit_binop((uint8_t *)out, (uint8_t *)e->value.binop.left, (uint8_t *)e->value.binop.right, (uint8_t *)op, 4, 0, 0) != 0) return -1; return 0; }
 #else
             if (codegen_expr(e->value.binop.left, out) != 0) return -1;
             fprintf(out, " || ");
@@ -3315,8 +3315,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
 #endif
         case AST_EXPR_NEG:
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char pre[] = "(-"; if (codegen_codegen_sx_emit_unary((uint8_t *)out, (uint8_t *)e->value.unary.operand, (uint8_t *)pre, 2) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char pre[] = "(-"; if (codegen_codegen_x_emit_unary((uint8_t *)out, (uint8_t *)e->value.unary.operand, (uint8_t *)pre, 2) != 0) return -1; return 0; }
 #else
             fprintf(out, "(-");
             if (codegen_expr(e->value.unary.operand, out) != 0) return -1;
@@ -3324,8 +3324,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
 #endif
         case AST_EXPR_BITNOT:
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char pre[] = "(~"; if (codegen_codegen_sx_emit_unary((uint8_t *)out, (uint8_t *)e->value.unary.operand, (uint8_t *)pre, 2) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char pre[] = "(~"; if (codegen_codegen_x_emit_unary((uint8_t *)out, (uint8_t *)e->value.unary.operand, (uint8_t *)pre, 2) != 0) return -1; return 0; }
 #else
             fprintf(out, "(~");
             if (codegen_expr(e->value.unary.operand, out) != 0) return -1;
@@ -3333,8 +3333,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
 #endif
         case AST_EXPR_LOGNOT:
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char pre[] = "(!"; if (codegen_codegen_sx_emit_unary((uint8_t *)out, (uint8_t *)e->value.unary.operand, (uint8_t *)pre, 2) != 0) return -1; return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char pre[] = "(!"; if (codegen_codegen_x_emit_unary((uint8_t *)out, (uint8_t *)e->value.unary.operand, (uint8_t *)pre, 2) != 0) return -1; return 0; }
 #else
             fprintf(out, "(!");
             if (codegen_expr(e->value.unary.operand, out) != 0) return -1;
@@ -3482,8 +3482,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
         }
         case AST_EXPR_IF: {
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_if_expr((uint8_t *)out, (uint8_t *)e) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_if_expr((uint8_t *)out, (uint8_t *)e) != 0) return -1;
             return 0;
 #else
             const struct ASTExpr *then_e = e->value.if_expr.then_expr;
@@ -3812,8 +3812,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
         }
         case AST_EXPR_TERNARY: {
             /* cond ? then : else → C 三元运算符 */
-#ifdef SHUX_USE_SX_CODEGEN
-            { static const char q[] = " ? ", c[] = " : "; fprintf(out, "("); if (codegen_codegen_sx_emit_ternary_inner((uint8_t *)out, (uint8_t *)e->value.if_expr.cond, (uint8_t *)e->value.if_expr.then_expr, (uint8_t *)e->value.if_expr.else_expr, (uint8_t *)q, 3, (uint8_t *)c, 3) != 0) return -1; fprintf(out, ")"); return 0; }
+#ifdef SHUX_USE_X_CODEGEN
+            { static const char q[] = " ? ", c[] = " : "; fprintf(out, "("); if (codegen_codegen_x_emit_ternary_inner((uint8_t *)out, (uint8_t *)e->value.if_expr.cond, (uint8_t *)e->value.if_expr.then_expr, (uint8_t *)e->value.if_expr.else_expr, (uint8_t *)q, 3, (uint8_t *)c, 3) != 0) return -1; fprintf(out, ")"); return 0; }
 #else
             fprintf(out, "(");
             if (codegen_expr(e->value.if_expr.cond, out) != 0) return -1;
@@ -3826,8 +3826,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #endif
         }
         case AST_EXPR_PANIC:
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_panic((uint8_t *)out, e->value.unary.operand ? 1 : 0, (uint8_t *)e->value.unary.operand) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_panic((uint8_t *)out, e->value.unary.operand ? 1 : 0, (uint8_t *)e->value.unary.operand) != 0) return -1;
             return 0;
 #else
             /* 冷路径：通过辅助函数标记 noreturn+cold，避免污染 ICache（控制流清单 §8.3、§8.4） */
@@ -3844,9 +3844,9 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             /* binding.CONST：依赖模块顶层 const（如 async_mod.POLL_PENDING） */
             if (codegen_try_emit_import_module_const(out, e) == 0)
                 return 0;
-            /* 统一由 .sx 入口分发：枚举变体转调 C 的 emit_field_access_enum_variant_full，结构体字段由 .sx 输出 (base).field */
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_field_access_expr((uint8_t *)out, (uint8_t *)e) != 0) return -1;
+            /* 统一由 .x 入口分发：枚举变体转调 C 的 emit_field_access_enum_variant_full，结构体字段由 .x 输出 (base).field */
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_field_access_expr((uint8_t *)out, (uint8_t *)e) != 0) return -1;
             return 0;
 #else
             /* Type.Variant 枚举变体（typeck 已设 is_enum_variant）与 base.field 结构体字段（§7.4）；跨模块时用 prefix_Enum_Variant */
@@ -3913,9 +3913,9 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             return 0;
 #endif
         case AST_EXPR_STRUCT_LIT: {
-#ifdef SHUX_USE_SX_CODEGEN
-            /* 直接调 C 的 full 实现，避免 .sx 再 extern 回 C；.sx 主路径走 emit_expr 占位。 */
-            if (codegen_sx_emit_struct_lit_full((uint8_t *)out, (uint8_t *)e) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            /* 直接调 C 的 full 实现，避免 .x 再 extern 回 C；.x 主路径走 emit_expr 占位。 */
+            if (codegen_x_emit_struct_lit_full((uint8_t *)out, (uint8_t *)e) != 0) return -1;
             return 0;
 #else
             /* 统一走 codegen_emit_struct_lit_impl：含数组字段时用块形式（临时变量 + memcpy），避免 C 复合字面量中数组赋值非法 */
@@ -3923,9 +3923,9 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #endif
         }
         case AST_EXPR_ARRAY_LIT: {
-#ifdef SHUX_USE_SX_CODEGEN
-            /* 直接调 C 的 full 实现，避免 .sx 再 extern 回 C；.sx 主路径走 emit_expr 占位。 */
-            if (codegen_sx_emit_array_lit_full((uint8_t *)out, (uint8_t *)e) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            /* 直接调 C 的 full 实现，避免 .x 再 extern 回 C；.x 主路径走 emit_expr 占位。 */
+            if (codegen_x_emit_array_lit_full((uint8_t *)out, (uint8_t *)e) != 0) return -1;
             return 0;
 #else
             /* 数组字面量 [e1, e2, ...]：实参期望 slice 时生成 (struct shux_slice_X){ .data = (elem[]){ ... }, .length = N }，否则 (elem_ty[]){ ... }（文档 §6.2） */
@@ -3968,8 +3968,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #endif
         }
         case AST_EXPR_INDEX: {
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_index((uint8_t *)out, (uint8_t *)e) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_index((uint8_t *)out, (uint8_t *)e) != 0) return -1;
             return 0;
 #else
             /* 数组 base[i] → (base)[i]；切片 base[i] → (base).data[i]；指针 base[i] → (base)[i]（无界检，与 C 一致） */
@@ -4049,9 +4049,9 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #endif
         }
         case AST_EXPR_CALL: {
-            /* 统一由 .sx 入口 codegen_sx_emit_call_expr 分发：import_path / library_same / library_dep / mono 转调 C 的 full，否则 fallback callee(args)。 */
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_call_expr((uint8_t *)out, (uint8_t *)e) != 0) return -1;
+            /* 统一由 .x 入口 codegen_x_emit_call_expr 分发：import_path / library_same / library_dep / mono 转调 C 的 full，否则 fallback callee(args)。 */
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_call_expr((uint8_t *)out, (uint8_t *)e) != 0) return -1;
             return 0;
 #else
             if (e->value.call.resolved_import_path && e->value.call.resolved_callee_func) {
@@ -4096,8 +4096,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #endif
         }
         case AST_EXPR_METHOD_CALL: {
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_method_call((uint8_t *)out, (uint8_t *)e) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_method_call((uint8_t *)out, (uint8_t *)e) != 0) return -1;
             return 0;
 #else
             struct ASTFunc *impl_func = e->value.method_call.resolved_impl_func;
@@ -4141,8 +4141,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 #endif
         }
         case AST_EXPR_MATCH: {
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_match((uint8_t *)out, (uint8_t *)e) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_match((uint8_t *)out, (uint8_t *)e) != 0) return -1;
             return 0;
 #else
             /* 按控制流清单 §8.6：密度 > 0.7 时生成 switch，否则三元链；支持整数字面量与枚举变体（§7.4） */
@@ -4163,26 +4163,26 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
 
             if (use_switch) {
                 int id = codegen_match_id++;
-                fprintf(out, "({ int _sx_m%d = (", id);
+                fprintf(out, "({ int _x_m%d = (", id);
                 if (codegen_expr(me, out) != 0) return -1;
-                fprintf(out, "); int _sx_r; switch (_sx_m%d) { ", id);
+                fprintf(out, "); int _x_r; switch (_x_m%d) { ", id);
                 for (int i = 0; i < num_arms; i++) {
                     if (arms[i].is_wildcard) {
-                        fprintf(out, "default: _sx_r = (");
+                        fprintf(out, "default: _x_r = (");
                         if (codegen_expr(arms[i].result, out) != 0) return -1;
                         fprintf(out, "); break; ");
                         break;
                     }
                     {
                         int case_val = arms[i].is_enum_variant ? arms[i].variant_index : arms[i].lit_val;
-                        fprintf(out, "case %d: _sx_r = (", case_val);
+                        fprintf(out, "case %d: _x_r = (", case_val);
                     }
                     if (codegen_expr(arms[i].result, out) != 0) return -1;
                     fprintf(out, "); break; ");
                 }
                 if (num_arms && !arms[num_arms - 1].is_wildcard)
-                    fprintf(out, "default: _sx_r = 0; break; ");
-                fprintf(out, "} _sx_r; })");
+                    fprintf(out, "default: _x_r = 0; break; ");
+                fprintf(out, "} _x_r; })");
             } else {
                 fprintf(out, "(");
                 for (int i = 0; i < num_arms; i++) {
@@ -4217,8 +4217,8 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
                     fprintf(out, " __shux_block_result; })");
                     return 0;
                 }
-#ifdef SHUX_USE_SX_CODEGEN
-                if (codegen_codegen_sx_emit_block_expr((uint8_t *)out, (uint8_t *)e->value.block) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+                if (codegen_codegen_x_emit_block_expr((uint8_t *)out, (uint8_t *)e->value.block) != 0) return -1;
                 return 0;
 #else
                 /* 无法形成值时仍退回 GNU C 语句表达式，保留块内副作用。 */
@@ -4343,7 +4343,7 @@ static int codegen_emit_call_import_path_impl(FILE *out, const struct ASTExpr *e
     import_path_to_c_prefix(e->value.call.resolved_import_path, pre, sizeof(pre));
     const struct ASTFunc *f = e->value.call.resolved_callee_func;
     char full_name[256];
-    /* extern 或无 .sx 函数体：C 符号即为 f->name，不加模块前缀 */
+    /* extern 或无 .x 函数体：C 符号即为 f->name，不加模块前缀 */
     if (f->is_extern || !f->body) {
         if (e->value.call.num_type_args > 0 && e->value.call.type_args)
             (void)snprintf(full_name, sizeof(full_name), "%s", mono_instance_mangled_name_ex(
@@ -4496,8 +4496,8 @@ static int codegen_emit_call_mono_impl(FILE *out, const struct ASTExpr *e) {
     return -1;
 }
 
-/** .sx 侧 CALL 分发：1=import_path，2=library_same，3=library_dep，4=mono，0=fallback。供 codegen.sx 的 emit_call_expr 统一入口。 */
-int32_t codegen_sx_call_dispatch_kind(uint8_t *expr) {
+/** .x 侧 CALL 分发：1=import_path，2=library_same，3=library_dep，4=mono，0=fallback。供 codegen.x 的 emit_call_expr 统一入口。 */
+int32_t codegen_x_call_dispatch_kind(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_CALL) return 0;
     if (e->value.call.resolved_import_path && e->value.call.resolved_callee_func) return 1;
@@ -4547,8 +4547,8 @@ int32_t codegen_sx_call_dispatch_kind(uint8_t *expr) {
     return 0;
 }
 
-/** .sx 自实现 CALL 用：仅将「调用目标」prefix+name 写入 out，不写 '(' 与实参。返回 0 成功，-1 失败。 */
-int32_t codegen_sx_emit_call_import_path_target(uint8_t *out, uint8_t *expr) {
+/** .x 自实现 CALL 用：仅将「调用目标」prefix+name 写入 out，不写 '(' 与实参。返回 0 成功，-1 失败。 */
+int32_t codegen_x_emit_call_import_path_target(uint8_t *out, uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_CALL || !e->value.call.resolved_import_path || !e->value.call.resolved_callee_func) return -1;
     char pre[256];
@@ -4568,7 +4568,7 @@ int32_t codegen_sx_emit_call_import_path_target(uint8_t *out, uint8_t *expr) {
     }
     return 0;
 }
-int32_t codegen_sx_emit_call_library_same_target(uint8_t *out, uint8_t *expr) {
+int32_t codegen_x_emit_call_library_same_target(uint8_t *out, uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_CALL || !codegen_library_prefix || !*codegen_library_prefix || !codegen_library_module
         || !e->value.call.callee || e->value.call.callee->kind != AST_EXPR_VAR) return -1;
@@ -4591,7 +4591,7 @@ int32_t codegen_sx_emit_call_library_same_target(uint8_t *out, uint8_t *expr) {
     fprintf((FILE *)out, "%s", cname);
     return 0;
 }
-int32_t codegen_sx_emit_call_library_dep_target(uint8_t *out, uint8_t *expr) {
+int32_t codegen_x_emit_call_library_dep_target(uint8_t *out, uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_CALL || !codegen_ndep || !codegen_dep_mods || !codegen_dep_paths
         || !e->value.call.callee || e->value.call.callee->kind != AST_EXPR_VAR) return -1;
@@ -4617,7 +4617,7 @@ int32_t codegen_sx_emit_call_library_dep_target(uint8_t *out, uint8_t *expr) {
     }
     return -1;
 }
-int32_t codegen_sx_emit_call_mono_target(uint8_t *out, uint8_t *expr) {
+int32_t codegen_x_emit_call_mono_target(uint8_t *out, uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_CALL || !codegen_current_module || !e->value.call.callee || e->value.call.callee->kind != AST_EXPR_VAR) return -1;
     const char *callee_name = e->value.call.callee->value.var.name;
@@ -4645,10 +4645,10 @@ int32_t codegen_sx_emit_call_mono_target(uint8_t *out, uint8_t *expr) {
     return -1;
 }
 
-int32_t codegen_sx_emit_call_import_path_full(uint8_t *out, uint8_t *expr) { return codegen_emit_call_import_path_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0; }
-int32_t codegen_sx_emit_call_library_same_full(uint8_t *out, uint8_t *expr) { return codegen_emit_call_library_same_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0; }
-int32_t codegen_sx_emit_call_library_dep_full(uint8_t *out, uint8_t *expr) { return codegen_emit_call_library_dep_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0; }
-int32_t codegen_sx_emit_call_mono_full(uint8_t *out, uint8_t *expr) { return codegen_emit_call_mono_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0; }
+int32_t codegen_x_emit_call_import_path_full(uint8_t *out, uint8_t *expr) { return codegen_emit_call_import_path_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0; }
+int32_t codegen_x_emit_call_library_same_full(uint8_t *out, uint8_t *expr) { return codegen_emit_call_library_same_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0; }
+int32_t codegen_x_emit_call_library_dep_full(uint8_t *out, uint8_t *expr) { return codegen_emit_call_library_dep_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0; }
+int32_t codegen_x_emit_call_mono_full(uint8_t *out, uint8_t *expr) { return codegen_emit_call_mono_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0; }
 
 /** 阶段 8.1 块内 DCE 前向声明：收集块内被引用变量名、判断是否在 used 集合中。 */
 static void collect_var_names_from_block(const struct ASTBlock *b, const char **out, int *n, int max);
@@ -4878,9 +4878,9 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
     collect_var_names_from_block(b, used_buf, &n_used, MAX_BLOCK_USED_VARS);
     /* 有 stmt_order 时一律按源码顺序输出 const/let/expr/loop/for，保证 skip_whitespace 等「while; continue」与 copy_onefunc_into「let; while; expr」顺序正确。 */
     int use_stmt_order = (b->num_stmt_order > 0) ? 1 : 0;
-#ifdef SHUX_USE_SX_CODEGEN
+#ifdef SHUX_USE_X_CODEGEN
     if (b->num_stmt_order > 0 && use_stmt_order) {
-        if (codegen_codegen_sx_emit_block_stmt_order((uint8_t *)out, (uint8_t *)b, indent, cast_return_to_int) != 0) return -1;
+        if (codegen_codegen_x_emit_block_stmt_order((uint8_t *)out, (uint8_t *)b, indent, cast_return_to_int) != 0) return -1;
     } else {
 #else
     if (b->num_stmt_order > 0 && use_stmt_order) {
@@ -5028,9 +5028,9 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
             case 2: { /* expr_stmt */
                 if (idx >= b->num_expr_stmts) break;
                 const struct ASTExpr *st = b->expr_stmts[idx];
-#ifdef SHUX_USE_SX_CODEGEN
-                if (st->kind == AST_EXPR_CONTINUE) { if (codegen_codegen_sx_emit_continue_stmt((uint8_t *)out, 2) != 0) return -1; }
-                else if (st->kind == AST_EXPR_BREAK) { if (codegen_codegen_sx_emit_break_stmt((uint8_t *)out, 2) != 0) return -1; }
+#ifdef SHUX_USE_X_CODEGEN
+                if (st->kind == AST_EXPR_CONTINUE) { if (codegen_codegen_x_emit_continue_stmt((uint8_t *)out, 2) != 0) return -1; }
+                else if (st->kind == AST_EXPR_BREAK) { if (codegen_codegen_x_emit_break_stmt((uint8_t *)out, 2) != 0) return -1; }
                 else if (st->kind == AST_EXPR_RETURN) {
                     if (st->value.unary.operand) {
                         if (is_void_return_context) {
@@ -5044,7 +5044,7 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                         }
                     }
                     else fprintf(out, "%sreturn;\n", pad);
-                } else { if (codegen_codegen_sx_emit_void_expr_stmt((uint8_t *)out, 2, (uint8_t *)st) != 0) return -1; }
+                } else { if (codegen_codegen_x_emit_void_expr_stmt((uint8_t *)out, 2, (uint8_t *)st) != 0) return -1; }
 #else
                 if (codegen_emit_expr_stmt(out, pad, st) != 0) return -1;
 #endif
@@ -5084,10 +5084,10 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
     } else {
 #endif
         /* 无 stmt_order：原逻辑 — const → early lets → expr/loops → late lets */
-#ifdef SHUX_USE_SX_CODEGEN
-        if (codegen_codegen_sx_emit_block_const_decls((uint8_t *)out, (uint8_t *)b, indent) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+        if (codegen_codegen_x_emit_block_const_decls((uint8_t *)out, (uint8_t *)b, indent) != 0) return -1;
         int n_early = (b->num_early_lets > 0 && b->num_early_lets <= b->num_lets) ? b->num_early_lets : b->num_lets;
-        if (codegen_codegen_sx_emit_block_let_decls_range((uint8_t *)out, (uint8_t *)b, indent, 0, (int32_t)n_early) != 0) return -1;
+        if (codegen_codegen_x_emit_block_let_decls_range((uint8_t *)out, (uint8_t *)b, indent, 0, (int32_t)n_early) != 0) return -1;
 #else
         for (int i = 0; i < b->num_consts; i++) {
             const char *name = b->const_decls[i].name ? b->const_decls[i].name : "";
@@ -5160,11 +5160,11 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
         if (reorder_safe) {
             for (int i = 0; i < b->num_expr_stmts; i++) {
                 const struct ASTExpr *st = b->expr_stmts[i];
-#ifdef SHUX_USE_SX_CODEGEN
-                if (st->kind == AST_EXPR_CONTINUE) { if (codegen_codegen_sx_emit_continue_stmt((uint8_t *)out, indent) != 0) return -1; }
-                else if (st->kind == AST_EXPR_BREAK) { if (codegen_codegen_sx_emit_break_stmt((uint8_t *)out, indent) != 0) return -1; }
-                else if (st->kind == AST_EXPR_RETURN) { if (st->value.unary.operand) { if (codegen_codegen_sx_emit_return_expr((uint8_t *)out, indent, (uint8_t *)st->value.unary.operand) != 0) return -1; } else { if (codegen_codegen_sx_emit_return_no_val((uint8_t *)out, indent) != 0) return -1; } }
-                else { if (codegen_codegen_sx_emit_void_expr_stmt((uint8_t *)out, indent, (uint8_t *)st) != 0) return -1; }
+#ifdef SHUX_USE_X_CODEGEN
+                if (st->kind == AST_EXPR_CONTINUE) { if (codegen_codegen_x_emit_continue_stmt((uint8_t *)out, indent) != 0) return -1; }
+                else if (st->kind == AST_EXPR_BREAK) { if (codegen_codegen_x_emit_break_stmt((uint8_t *)out, indent) != 0) return -1; }
+                else if (st->kind == AST_EXPR_RETURN) { if (st->value.unary.operand) { if (codegen_codegen_x_emit_return_expr((uint8_t *)out, indent, (uint8_t *)st->value.unary.operand) != 0) return -1; } else { if (codegen_codegen_x_emit_return_no_val((uint8_t *)out, indent) != 0) return -1; } }
+                else { if (codegen_codegen_x_emit_void_expr_stmt((uint8_t *)out, indent, (uint8_t *)st) != 0) return -1; }
 #else
                 if (st->kind == AST_EXPR_CONTINUE) fprintf(out, "%scontinue;\n", pad);
                 else if (st->kind == AST_EXPR_BREAK) fprintf(out, "%sbreak;\n", pad);
@@ -5172,8 +5172,8 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 else if (codegen_emit_expr_stmt(out, pad, st) != 0) return -1;
 #endif
             }
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_block_let_decls_range((uint8_t *)out, (uint8_t *)b, indent, (int32_t)b->num_early_lets, (int32_t)b->num_lets) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_block_let_decls_range((uint8_t *)out, (uint8_t *)b, indent, (int32_t)b->num_early_lets, (int32_t)b->num_lets) != 0) return -1;
 #else
             for (int i = b->num_early_lets; i < b->num_lets; i++) {
                 char let_place_late[32];
@@ -5241,11 +5241,11 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
         } else {
             for (int i = 0; i < b->num_expr_stmts; i++) {
                 const struct ASTExpr *st = b->expr_stmts[i];
-#ifdef SHUX_USE_SX_CODEGEN
-                if (st->kind == AST_EXPR_CONTINUE) { if (codegen_codegen_sx_emit_continue_stmt((uint8_t *)out, indent) != 0) return -1; }
-                else if (st->kind == AST_EXPR_BREAK) { if (codegen_codegen_sx_emit_break_stmt((uint8_t *)out, indent) != 0) return -1; }
-                else if (st->kind == AST_EXPR_RETURN) { if (st->value.unary.operand) { if (codegen_codegen_sx_emit_return_expr((uint8_t *)out, indent, (uint8_t *)st->value.unary.operand) != 0) return -1; } else { if (codegen_codegen_sx_emit_return_no_val((uint8_t *)out, indent) != 0) return -1; } }
-                else { if (codegen_codegen_sx_emit_void_expr_stmt((uint8_t *)out, indent, (uint8_t *)st) != 0) return -1; }
+#ifdef SHUX_USE_X_CODEGEN
+                if (st->kind == AST_EXPR_CONTINUE) { if (codegen_codegen_x_emit_continue_stmt((uint8_t *)out, indent) != 0) return -1; }
+                else if (st->kind == AST_EXPR_BREAK) { if (codegen_codegen_x_emit_break_stmt((uint8_t *)out, indent) != 0) return -1; }
+                else if (st->kind == AST_EXPR_RETURN) { if (st->value.unary.operand) { if (codegen_codegen_x_emit_return_expr((uint8_t *)out, indent, (uint8_t *)st->value.unary.operand) != 0) return -1; } else { if (codegen_codegen_x_emit_return_no_val((uint8_t *)out, indent) != 0) return -1; } }
+                else { if (codegen_codegen_x_emit_void_expr_stmt((uint8_t *)out, indent, (uint8_t *)st) != 0) return -1; }
 #else
                 if (st->kind == AST_EXPR_CONTINUE) fprintf(out, "%scontinue;\n", pad);
                 else if (st->kind == AST_EXPR_BREAK) fprintf(out, "%sbreak;\n", pad);
@@ -5254,8 +5254,8 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
 #endif
             }
             for (int i = 0; i < b->num_loops; i++) {
-#ifdef SHUX_USE_SX_CODEGEN
-                if (codegen_codegen_sx_emit_one_while_loop((uint8_t *)out, (uint8_t *)b->loops[i].cond, (uint8_t *)b->loops[i].body, indent, cast_return_to_int) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+                if (codegen_codegen_x_emit_one_while_loop((uint8_t *)out, (uint8_t *)b->loops[i].cond, (uint8_t *)b->loops[i].body, indent, cast_return_to_int) != 0) return -1;
 #else
                 fprintf(out, "%swhile (", pad);
                 if (codegen_expr(b->loops[i].cond, out) != 0) return -1;
@@ -5265,8 +5265,8 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
 #endif
             }
             for (int i = 0; i < b->num_for_loops; i++) {
-#ifdef SHUX_USE_SX_CODEGEN
-                if (codegen_codegen_sx_emit_one_for_loop((uint8_t *)out,
+#ifdef SHUX_USE_X_CODEGEN
+                if (codegen_codegen_x_emit_one_for_loop((uint8_t *)out,
                     (uint8_t *)b->for_loops[i].init, (uint8_t *)b->for_loops[i].cond, (uint8_t *)b->for_loops[i].step,
                     (uint8_t *)b->for_loops[i].body, indent, cast_return_to_int) != 0) return -1;
 #else
@@ -5281,9 +5281,9 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 fprintf(out, "%s}\n", pad);
 #endif
             }
-#ifdef SHUX_USE_SX_CODEGEN
+#ifdef SHUX_USE_X_CODEGEN
             if (b->num_early_lets > 0 && b->num_early_lets < b->num_lets)
-                if (codegen_codegen_sx_emit_block_let_decls_range((uint8_t *)out, (uint8_t *)b, indent, (int32_t)b->num_early_lets, (int32_t)b->num_lets) != 0) return -1;
+                if (codegen_codegen_x_emit_block_let_decls_range((uint8_t *)out, (uint8_t *)b, indent, (int32_t)b->num_early_lets, (int32_t)b->num_lets) != 0) return -1;
 #else
             if (b->num_early_lets > 0 && b->num_early_lets < b->num_lets) {
                 for (int i = b->num_early_lets; i < b->num_lets; i++) {
@@ -5341,23 +5341,23 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
     }
     for (int i = 0; i < b->num_labeled_stmts; i++) {
         if (b->labeled_stmts[i].label) {
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_label((uint8_t *)out, indent, (uint8_t *)b->labeled_stmts[i].label, (int32_t)strlen(b->labeled_stmts[i].label)) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_label((uint8_t *)out, indent, (uint8_t *)b->labeled_stmts[i].label, (int32_t)strlen(b->labeled_stmts[i].label)) != 0) return -1;
 #else
             fprintf(out, "%s%s:\n", pad, b->labeled_stmts[i].label);
 #endif
         }
         if (b->labeled_stmts[i].kind == AST_STMT_GOTO) {
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_run_defers((uint8_t *)out, (uint8_t *)b, indent) != 0) return -1;
-            if (codegen_codegen_sx_emit_goto((uint8_t *)out, indent, (uint8_t *)b->labeled_stmts[i].u.goto_target, (int32_t)strlen(b->labeled_stmts[i].u.goto_target)) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_run_defers((uint8_t *)out, (uint8_t *)b, indent) != 0) return -1;
+            if (codegen_codegen_x_emit_goto((uint8_t *)out, indent, (uint8_t *)b->labeled_stmts[i].u.goto_target, (int32_t)strlen(b->labeled_stmts[i].u.goto_target)) != 0) return -1;
 #else
             if (codegen_run_defers(out, b, indent) != 0) return -1;
             fprintf(out, "%sgoto %s;\n", pad, b->labeled_stmts[i].u.goto_target);
 #endif
         } else {
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_run_defers((uint8_t *)out, (uint8_t *)b, indent) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_run_defers((uint8_t *)out, (uint8_t *)b, indent) != 0) return -1;
 #else
             if (codegen_run_defers(out, b, indent) != 0) return -1;
 #endif
@@ -5406,23 +5406,23 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
             }
         }
     }
-#ifdef SHUX_USE_SX_CODEGEN
-    if (codegen_codegen_sx_run_defers((uint8_t *)out, (uint8_t *)b, indent) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+    if (codegen_codegen_x_run_defers((uint8_t *)out, (uint8_t *)b, indent) != 0) return -1;
 #else
     if (codegen_run_defers(out, b, indent) != 0) return -1;
 #endif
     if (!b->final_expr) return 0;  /* 块以 return/goto 结尾，无需 final_expr */
     if (b->final_expr->kind == AST_EXPR_BREAK) {
-#ifdef SHUX_USE_SX_CODEGEN
-        if (codegen_codegen_sx_emit_break_stmt((uint8_t *)out, indent) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+        if (codegen_codegen_x_emit_break_stmt((uint8_t *)out, indent) != 0) return -1;
 #else
         fprintf(out, "%sbreak;\n", pad);
 #endif
         return 0;
     }
     if (b->final_expr->kind == AST_EXPR_CONTINUE) {
-#ifdef SHUX_USE_SX_CODEGEN
-        if (codegen_codegen_sx_emit_continue_stmt((uint8_t *)out, indent) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+        if (codegen_codegen_x_emit_continue_stmt((uint8_t *)out, indent) != 0) return -1;
 #else
         fprintf(out, "%scontinue;\n", pad);
 #endif
@@ -5431,8 +5431,8 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
     if (b->final_expr->kind == AST_EXPR_RETURN) {
         const struct ASTExpr *op = b->final_expr->value.unary.operand;
         if (!op) {
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_return_no_val((uint8_t *)out, indent) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_return_no_val((uint8_t *)out, indent) != 0) return -1;
 #else
             codegen_async_cps_before_return(out, pad);
             fprintf(out, "%sreturn;\n", pad);
@@ -5555,7 +5555,7 @@ static const char *struct_type_from_else_block(const struct ASTExpr *else_e) {
     return NULL;
 }
 
-/** if 表达式完整输出（供 .sx 转调）：语句表达式 ({ __tmp; if(cond) ... else ...; __tmp; }) 或三元 cond ? then : else。 */
+/** if 表达式完整输出（供 .x 转调）：语句表达式 ({ __tmp; if(cond) ... else ...; __tmp; }) 或三元 cond ? then : else。 */
 static int codegen_emit_if_expr_impl(FILE *out, const struct ASTExpr *e) {
     const struct ASTExpr *then_e = e->value.if_expr.then_expr;
     const struct ASTExpr *else_e = e->value.if_expr.else_expr;
@@ -5747,13 +5747,13 @@ static int codegen_emit_if_expr_impl(FILE *out, const struct ASTExpr *e) {
     fprintf(out, ")");
     return 0;
 }
-/** .sx 侧 if 表达式全量输出：供 codegen.sx 在需要语句表达式时转调。 */
-int32_t codegen_sx_emit_if_expr_full(uint8_t *out, uint8_t *expr) {
+/** .x 侧 if 表达式全量输出：供 codegen.x 在需要语句表达式时转调。 */
+int32_t codegen_x_emit_if_expr_full(uint8_t *out, uint8_t *expr) {
     return codegen_emit_if_expr_impl((FILE *)out, (const struct ASTExpr *)expr) != 0 ? -1 : 0;
 }
 
-/** .sx 侧 IF 表达式：是否需要语句表达式（then/else 为 BLOCK 或 continue/break/return），非 0 时 .sx 转调 full。 */
-int32_t codegen_sx_if_expr_need_stmt_expr(uint8_t *expr) {
+/** .x 侧 IF 表达式：是否需要语句表达式（then/else 为 BLOCK 或 continue/break/return），非 0 时 .x 转调 full。 */
+int32_t codegen_x_if_expr_need_stmt_expr(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_IF) return 0;
     const struct ASTExpr *then_e = e->value.if_expr.then_expr;
@@ -5763,29 +5763,29 @@ int32_t codegen_sx_if_expr_need_stmt_expr(uint8_t *expr) {
     return (then_block || else_block) ? 1 : 0;
 }
 
-/** .sx 侧 IF 表达式：三元分支时 then 是否为 PANIC（生成 __builtin_expect）。 */
-int32_t codegen_sx_if_expr_then_is_panic(uint8_t *expr) {
+/** .x 侧 IF 表达式：三元分支时 then 是否为 PANIC（生成 __builtin_expect）。 */
+int32_t codegen_x_if_expr_then_is_panic(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_IF || !e->value.if_expr.then_expr) return 0;
     return e->value.if_expr.then_expr->kind == AST_EXPR_PANIC ? 1 : 0;
 }
 
-/** .sx 侧 IF 表达式访问器：cond、then、else。 */
-uint8_t *codegen_sx_if_expr_cond(uint8_t *expr) {
+/** .x 侧 IF 表达式访问器：cond、then、else。 */
+uint8_t *codegen_x_if_expr_cond(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && e->kind == AST_EXPR_IF && e->value.if_expr.cond) ? (uint8_t *)e->value.if_expr.cond : NULL;
 }
-uint8_t *codegen_sx_if_expr_then(uint8_t *expr) {
+uint8_t *codegen_x_if_expr_then(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && e->kind == AST_EXPR_IF) ? (uint8_t *)e->value.if_expr.then_expr : NULL;
 }
-uint8_t *codegen_sx_if_expr_else(uint8_t *expr) {
+uint8_t *codegen_x_if_expr_else(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && e->kind == AST_EXPR_IF) ? (uint8_t *)e->value.if_expr.else_expr : NULL;
 }
 
-/** .sx 自实现 if 语句表达式用：将 __tmp 的 C 类型写入 out（如 int32_t 或 struct X）。 */
-int32_t codegen_sx_emit_if_expr_tmp_type(uint8_t *out, uint8_t *expr) {
+/** .x 自实现 if 语句表达式用：将 __tmp 的 C 类型写入 out（如 int32_t 或 struct X）。 */
+int32_t codegen_x_emit_if_expr_tmp_type(uint8_t *out, uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_IF) return -1;
     const struct ASTType *tmp_ty = e->resolved_type;
@@ -5793,8 +5793,8 @@ int32_t codegen_sx_emit_if_expr_tmp_type(uint8_t *out, uint8_t *expr) {
     fprintf((FILE *)out, "%s", s);
     return 0;
 }
-/** .sx 自实现 if 语句表达式用：将默认值写入 out（0 或 (struct X){0}）。 */
-int32_t codegen_sx_emit_if_expr_default_val(uint8_t *out, uint8_t *expr) {
+/** .x 自实现 if 语句表达式用：将默认值写入 out（0 或 (struct X){0}）。 */
+int32_t codegen_x_emit_if_expr_default_val(uint8_t *out, uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_IF) return -1;
     const struct ASTType *tmp_ty = e->resolved_type;
@@ -5805,18 +5805,18 @@ int32_t codegen_sx_emit_if_expr_default_val(uint8_t *out, uint8_t *expr) {
         fprintf((FILE *)out, "0");
     return 0;
 }
-/** .sx 表达式 kind 常量：BLOCK、CONTINUE、BREAK、RETURN，供 if 语句表达式分支判断。 */
-int32_t codegen_sx_expr_kind_block(void) { return (int32_t)AST_EXPR_BLOCK; }
-int32_t codegen_sx_expr_kind_continue(void) { return (int32_t)AST_EXPR_CONTINUE; }
-int32_t codegen_sx_expr_kind_break(void) { return (int32_t)AST_EXPR_BREAK; }
-int32_t codegen_sx_expr_kind_return(void) { return (int32_t)AST_EXPR_RETURN; }
-/** .sx 自实现用：expr 为 BLOCK 时返回块指针，否则 NULL。 */
-uint8_t *codegen_sx_expr_block_ptr(uint8_t *expr) {
+/** .x 表达式 kind 常量：BLOCK、CONTINUE、BREAK、RETURN，供 if 语句表达式分支判断。 */
+int32_t codegen_x_expr_kind_block(void) { return (int32_t)AST_EXPR_BLOCK; }
+int32_t codegen_x_expr_kind_continue(void) { return (int32_t)AST_EXPR_CONTINUE; }
+int32_t codegen_x_expr_kind_break(void) { return (int32_t)AST_EXPR_BREAK; }
+int32_t codegen_x_expr_kind_return(void) { return (int32_t)AST_EXPR_RETURN; }
+/** .x 自实现用：expr 为 BLOCK 时返回块指针，否则 NULL。 */
+uint8_t *codegen_x_expr_block_ptr(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && e->kind == AST_EXPR_BLOCK && e->value.block) ? (uint8_t *)e->value.block : NULL;
 }
-/** .sx 自实现用：expr 为 RETURN 时返回 return 的操作数表达式，否则 NULL。 */
-uint8_t *codegen_sx_return_operand(uint8_t *expr) {
+/** .x 自实现用：expr 为 RETURN 时返回 return 的操作数表达式，否则 NULL。 */
+uint8_t *codegen_x_return_operand(uint8_t *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && e->kind == AST_EXPR_RETURN) ? (uint8_t *)e->value.unary.operand : NULL;
 }
@@ -5993,17 +5993,17 @@ static int codegen_func_body(const struct ASTBlock *b, const struct ASTModule *m
         fprintf(out, ";\n");
     }
     if (use_cleanup) {
-#ifdef SHUX_USE_SX_CODEGEN
-        if (codegen_codegen_sx_emit_cleanup_decl_exit_kind((uint8_t *)out, 2) != 0) return -1;
-        if (codegen_codegen_sx_emit_cleanup_decl_ret_val((uint8_t *)out, 2, (uint8_t *)ret_ctype, (int32_t)strlen(ret_ctype)) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+        if (codegen_codegen_x_emit_cleanup_decl_exit_kind((uint8_t *)out, 2) != 0) return -1;
+        if (codegen_codegen_x_emit_cleanup_decl_ret_val((uint8_t *)out, 2, (uint8_t *)ret_ctype, (int32_t)strlen(ret_ctype)) != 0) return -1;
 #else
         fprintf(out, "%sint shux_exit_kind = 0;\n", pad);
         fprintf(out, "%s%s shux_ret_val = 0;\n", pad, ret_ctype);
 #endif
     }
     for (int i = 0; i < b->num_loops; i++) {
-#ifdef SHUX_USE_SX_CODEGEN
-        if (codegen_codegen_sx_emit_one_while_loop((uint8_t *)out, (uint8_t *)b->loops[i].cond, (uint8_t *)b->loops[i].body, 2, cast_return_to_int) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+        if (codegen_codegen_x_emit_one_while_loop((uint8_t *)out, (uint8_t *)b->loops[i].cond, (uint8_t *)b->loops[i].body, 2, cast_return_to_int) != 0) return -1;
 #else
         fprintf(out, "%swhile (", pad);
         if (codegen_expr(b->loops[i].cond, out) != 0) return -1;
@@ -6013,8 +6013,8 @@ static int codegen_func_body(const struct ASTBlock *b, const struct ASTModule *m
 #endif
     }
     for (int i = 0; i < b->num_for_loops; i++) {
-#ifdef SHUX_USE_SX_CODEGEN
-        if (codegen_codegen_sx_emit_one_for_loop((uint8_t *)out,
+#ifdef SHUX_USE_X_CODEGEN
+        if (codegen_codegen_x_emit_one_for_loop((uint8_t *)out,
             (uint8_t *)b->for_loops[i].init, (uint8_t *)b->for_loops[i].cond, (uint8_t *)b->for_loops[i].step,
             (uint8_t *)b->for_loops[i].body, 2, cast_return_to_int) != 0) return -1;
 #else
@@ -6040,16 +6040,16 @@ static int codegen_func_body(const struct ASTBlock *b, const struct ASTModule *m
 func_body_after_block:
     for (int i = 0; i < b->num_labeled_stmts; i++) {
         if (b->labeled_stmts[i].label) {
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_label((uint8_t *)out, 2, (uint8_t *)b->labeled_stmts[i].label, (int32_t)strlen(b->labeled_stmts[i].label)) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_label((uint8_t *)out, 2, (uint8_t *)b->labeled_stmts[i].label, (int32_t)strlen(b->labeled_stmts[i].label)) != 0) return -1;
 #else
             fprintf(out, "%s%s:\n", pad, b->labeled_stmts[i].label);
 #endif
         }
         if (b->labeled_stmts[i].kind == AST_STMT_GOTO) {
             if (codegen_run_defers(out, b, 2) != 0) return -1;
-#ifdef SHUX_USE_SX_CODEGEN
-            if (codegen_codegen_sx_emit_goto((uint8_t *)out, 2, (uint8_t *)b->labeled_stmts[i].u.goto_target, (int32_t)strlen(b->labeled_stmts[i].u.goto_target)) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+            if (codegen_codegen_x_emit_goto((uint8_t *)out, 2, (uint8_t *)b->labeled_stmts[i].u.goto_target, (int32_t)strlen(b->labeled_stmts[i].u.goto_target)) != 0) return -1;
 #else
             fprintf(out, "%sgoto %s;\n", pad, b->labeled_stmts[i].u.goto_target);
 #endif
@@ -6057,14 +6057,14 @@ func_body_after_block:
             const struct ASTExpr *ret_e = b->labeled_stmts[i].u.return_expr;
                 if (!ret_e) {
                 if (use_cleanup) {
-#ifdef SHUX_USE_SX_CODEGEN
-                    if (codegen_codegen_sx_emit_exit_kind_goto_cleanup((uint8_t *)out, 2) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+                    if (codegen_codegen_x_emit_exit_kind_goto_cleanup((uint8_t *)out, 2) != 0) return -1;
 #else
                     fprintf(out, "%sshux_exit_kind = 1; goto shux_cleanup;\n", pad);
 #endif
                 } else {
-#ifdef SHUX_USE_SX_CODEGEN
-                    if (codegen_codegen_sx_run_defers((uint8_t *)out, (uint8_t *)b, 2) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+                    if (codegen_codegen_x_run_defers((uint8_t *)out, (uint8_t *)b, 2) != 0) return -1;
 #else
                     if (codegen_run_defers(out, b, 2) != 0) return -1;
 #endif
@@ -6081,14 +6081,14 @@ func_body_after_block:
                     fprintf(out, ") {\n");
                     fprintf(out, "%s  ", pad);
                     if (codegen_expr(ret_e->value.if_expr.then_expr, out) != 0) return -1;
-#ifdef SHUX_USE_SX_CODEGEN
+#ifdef SHUX_USE_X_CODEGEN
                     fprintf(out, ";\n");
-                    if (codegen_codegen_sx_emit_ret_val_zero_exit_goto_cleanup((uint8_t *)out, 2) != 0) return -1;
+                    if (codegen_codegen_x_emit_ret_val_zero_exit_goto_cleanup((uint8_t *)out, 2) != 0) return -1;
                     fprintf(out, "%s} else {\n", pad);
                     if (cast_return_to_int) fprintf(out, "%s  shux_ret_val = (int)(", pad); else fprintf(out, "%s  shux_ret_val = ", pad);
                     if (codegen_expr(ret_e->value.if_expr.else_expr, out) != 0) return -1;
                     fprintf(out, cast_return_to_int ? ");\n" : ";\n");
-                    if (codegen_codegen_sx_emit_exit_kind_goto_cleanup((uint8_t *)out, 4) != 0) return -1;
+                    if (codegen_codegen_x_emit_exit_kind_goto_cleanup((uint8_t *)out, 4) != 0) return -1;
                     fprintf(out, "%s}\n", pad);
 #else
                     fprintf(out, ";\n%sshux_ret_val = 0; shux_exit_kind = 1; goto shux_cleanup;\n%s} else {\n", pad, pad);
@@ -6100,9 +6100,9 @@ func_body_after_block:
                 } else if (ret_e && ret_e->kind == AST_EXPR_PANIC) {
                     fprintf(out, "%s", pad);
                     if (codegen_expr(ret_e, out) != 0) return -1;
-#ifdef SHUX_USE_SX_CODEGEN
+#ifdef SHUX_USE_X_CODEGEN
                     fprintf(out, ";\n");
-                    if (codegen_codegen_sx_emit_ret_val_zero_exit_goto_cleanup((uint8_t *)out, 2) != 0) return -1;
+                    if (codegen_codegen_x_emit_ret_val_zero_exit_goto_cleanup((uint8_t *)out, 2) != 0) return -1;
 #else
                     fprintf(out, ";\n%sshux_ret_val = 0; shux_exit_kind = 1; goto shux_cleanup;\n", pad);
 #endif
@@ -6110,15 +6110,15 @@ func_body_after_block:
                     if (cast_return_to_int) fprintf(out, "%sshux_ret_val = (int)(", pad); else fprintf(out, "%sshux_ret_val = ", pad);
                     if (codegen_expr(ret_e, out) != 0) return -1;
                     fprintf(out, cast_return_to_int ? ");\n" : ";\n");
-#ifdef SHUX_USE_SX_CODEGEN
-                    if (codegen_codegen_sx_emit_exit_kind_goto_cleanup((uint8_t *)out, 2) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+                    if (codegen_codegen_x_emit_exit_kind_goto_cleanup((uint8_t *)out, 2) != 0) return -1;
 #else
                     fprintf(out, "%sshux_exit_kind = 1; goto shux_cleanup;\n", pad);
 #endif
                 }
             } else {
-#ifdef SHUX_USE_SX_CODEGEN
-                if (codegen_codegen_sx_run_defers((uint8_t *)out, (uint8_t *)b, 2) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+                if (codegen_codegen_x_run_defers((uint8_t *)out, (uint8_t *)b, 2) != 0) return -1;
 #else
                 if (codegen_run_defers(out, b, 2) != 0) return -1;
 #endif
@@ -6148,21 +6148,21 @@ func_body_after_block:
     if (!used_block_body_order) {
     for (int i = 0; i < b->num_expr_stmts; i++) {
         const struct ASTExpr *st = b->expr_stmts[i];
-#ifdef SHUX_USE_SX_CODEGEN
-        if (st->kind == AST_EXPR_CONTINUE) { if (codegen_codegen_sx_emit_continue_stmt((uint8_t *)out, 2) != 0) return -1; }
-        else if (st->kind == AST_EXPR_BREAK) { if (codegen_codegen_sx_emit_break_stmt((uint8_t *)out, 2) != 0) return -1; }
+#ifdef SHUX_USE_X_CODEGEN
+        if (st->kind == AST_EXPR_CONTINUE) { if (codegen_codegen_x_emit_continue_stmt((uint8_t *)out, 2) != 0) return -1; }
+        else if (st->kind == AST_EXPR_BREAK) { if (codegen_codegen_x_emit_break_stmt((uint8_t *)out, 2) != 0) return -1; }
         else if (st->kind == AST_EXPR_RETURN) {
             if (st->value.unary.operand) {
                 if (is_void) {
                     fprintf(out, "%s(void)(", pad);
                     if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
                     fprintf(out, ");\n%sreturn;\n", pad);
-                } else if (codegen_codegen_sx_emit_return_expr((uint8_t *)out, 2, (uint8_t *)st->value.unary.operand) != 0) return -1;
+                } else if (codegen_codegen_x_emit_return_expr((uint8_t *)out, 2, (uint8_t *)st->value.unary.operand) != 0) return -1;
             } else {
-                if (codegen_codegen_sx_emit_return_no_val((uint8_t *)out, 2) != 0) return -1;
+                if (codegen_codegen_x_emit_return_no_val((uint8_t *)out, 2) != 0) return -1;
             }
         }
-        else { if (codegen_codegen_sx_emit_void_expr_stmt((uint8_t *)out, 2, (uint8_t *)st) != 0) return -1; }
+        else { if (codegen_codegen_x_emit_void_expr_stmt((uint8_t *)out, 2, (uint8_t *)st) != 0) return -1; }
 #else
         if (st->kind == AST_EXPR_CONTINUE) {
             fprintf(out, "%scontinue;\n", pad);
@@ -6184,24 +6184,24 @@ func_body_after_block:
 #endif
     }
     if (use_cleanup) {
-#ifdef SHUX_USE_SX_CODEGEN
-        if (codegen_codegen_sx_emit_goto_shux_cleanup((uint8_t *)out, 2) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+        if (codegen_codegen_x_emit_goto_shux_cleanup((uint8_t *)out, 2) != 0) return -1;
 #else
         fprintf(out, "%sgoto shux_cleanup;\n", pad);
 #endif
     } else {
-#ifdef SHUX_USE_SX_CODEGEN
-        if (codegen_codegen_sx_run_defers((uint8_t *)out, (uint8_t *)b, 2) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+        if (codegen_codegen_x_run_defers((uint8_t *)out, (uint8_t *)b, 2) != 0) return -1;
 #else
         if (codegen_run_defers(out, b, 2) != 0) return -1;
 #endif
     }
     }  /* end if (!used_block_body_order): expr_stmts + goto/run_defers */
     if (use_cleanup) {
-#ifdef SHUX_USE_SX_CODEGEN
-        if (codegen_codegen_sx_emit_shux_cleanup_label((uint8_t *)out, 2) != 0) return -1;
-        if (codegen_codegen_sx_run_defers((uint8_t *)out, (uint8_t *)b, 2) != 0) return -1;
-        if (codegen_codegen_sx_emit_if_exit_kind_return_ret_val((uint8_t *)out, 2) != 0) return -1;
+#ifdef SHUX_USE_X_CODEGEN
+        if (codegen_codegen_x_emit_shux_cleanup_label((uint8_t *)out, 2) != 0) return -1;
+        if (codegen_codegen_x_run_defers((uint8_t *)out, (uint8_t *)b, 2) != 0) return -1;
+        if (codegen_codegen_x_emit_if_exit_kind_return_ret_val((uint8_t *)out, 2) != 0) return -1;
 #else
         fprintf(out, "%sshux_cleanup:\n", pad);
         if (codegen_run_defers(out, b, 2) != 0) return -1;
@@ -6333,7 +6333,7 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
     if (f->is_entry) { snprintf(fname, sizeof(fname), "_start"); }  /* K5：入口符号裸名 _start，供 bootloader/linker 识别 */
     if (f->link_name) { snprintf(fname, sizeof(fname), "%s", f->link_name); }  /* L9：#[link_name] 用指定符号名 */
     if (f->export_name) { snprintf(fname, sizeof(fname), "%s", f->export_name); }  /* #[export_name] 用指定导出名 */
-    /* C 要求 main 返回 int；若 .sx 中 main 返回 i64 则在函数体内对 return 包 (int) */
+    /* C 要求 main 返回 int；若 .x 中 main 返回 i64 则在函数体内对 return 包 (int) */
     const char *cret = (f->name && strcmp(f->name, "main") == 0) ? "int" : c_type_str(f->return_type);
     /* 入口模块的 main：生成 main(int argc, char **argv) 并保存到 std.process 全局，供 args_count/arg 使用 */
     if (!codegen_library_prefix && f->name && strcmp(f->name, "main") == 0) {
@@ -6943,8 +6943,8 @@ static int codegen_emit_unused_let_side_effect(FILE *out, const char *pad, const
     return 1;
 }
 
-/** .sx 用原语：块中第 idx 条 const 是否被引用（1=是 0=否），.sx 据此决定是否输出。 */
-int32_t codegen_sx_block_const_is_used(uint8_t *block, int32_t idx) {
+/** .x 用原语：块中第 idx 条 const 是否被引用（1=是 0=否），.x 据此决定是否输出。 */
+int32_t codegen_x_block_const_is_used(uint8_t *block, int32_t idx) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->const_decls || idx < 0 || idx >= b->num_consts) return 0;
     const char *used_buf[MAX_BLOCK_USED_VARS];
@@ -6954,8 +6954,8 @@ int32_t codegen_sx_block_const_is_used(uint8_t *block, int32_t idx) {
     return is_var_used(name, used_buf, n_used) ? 1 : 0;
 }
 
-/** .sx 用原语：只写 const 声明前缀（indent + "const " + type + name + " = "），不写初值与分号。 */
-int32_t codegen_sx_emit_const_decl_prefix(uint8_t *out, uint8_t *block, int32_t idx, int32_t indent) {
+/** .x 用原语：只写 const 声明前缀（indent + "const " + type + name + " = "），不写初值与分号。 */
+int32_t codegen_x_emit_const_decl_prefix(uint8_t *out, uint8_t *block, int32_t idx, int32_t indent) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     FILE *f = (FILE *)out;
     if (!b || !f || !b->const_decls || idx < 0 || idx >= b->num_consts) return -1;
@@ -6974,16 +6974,16 @@ int32_t codegen_sx_emit_const_decl_prefix(uint8_t *out, uint8_t *block, int32_t 
     return 0;
 }
 
-/** .sx 用原语：只写 const 声明的初值部分（不写前缀与 ";\n"）。 */
-int32_t codegen_sx_emit_const_decl_init(uint8_t *out, uint8_t *block, int32_t idx) {
+/** .x 用原语：只写 const 声明的初值部分（不写前缀与 ";\n"）。 */
+int32_t codegen_x_emit_const_decl_init(uint8_t *out, uint8_t *block, int32_t idx) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     FILE *f = (FILE *)out;
     if (!b || !f || !b->const_decls || idx < 0 || idx >= b->num_consts) return -1;
     return codegen_init(b->const_decls[idx].type, b->const_decls[idx].init, f, b) != 0 ? -1 : 0;
 }
 
-/** .sx 用原语：块中第 idx 条 let 是否被引用（1=是 0=否）。 */
-int32_t codegen_sx_block_let_is_used(uint8_t *block, int32_t idx) {
+/** .x 用原语：块中第 idx 条 let 是否被引用（1=是 0=否）。 */
+int32_t codegen_x_block_let_is_used(uint8_t *block, int32_t idx) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->let_decls || idx < 0 || idx >= b->num_lets) return 0;
     const char *used_buf[MAX_BLOCK_USED_VARS];
@@ -6994,8 +6994,8 @@ int32_t codegen_sx_block_let_is_used(uint8_t *block, int32_t idx) {
     return is_var_used(name, used_buf, n_used) ? 1 : 0;
 }
 
-/** .sx 用原语：只写 let 声明前缀（indent + type + name + " = "）。 */
-int32_t codegen_sx_emit_let_decl_prefix(uint8_t *out, uint8_t *block, int32_t idx, int32_t indent) {
+/** .x 用原语：只写 let 声明前缀（indent + type + name + " = "）。 */
+int32_t codegen_x_emit_let_decl_prefix(uint8_t *out, uint8_t *block, int32_t idx, int32_t indent) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     FILE *f = (FILE *)out;
     if (!b || !f || !b->let_decls || idx < 0 || idx >= b->num_lets) return -1;
@@ -7016,8 +7016,8 @@ int32_t codegen_sx_emit_let_decl_prefix(uint8_t *out, uint8_t *block, int32_t id
     return 0;
 }
 
-/** .sx 用原语：只写 let 声明的初值部分。 */
-int32_t codegen_sx_emit_let_decl_init(uint8_t *out, uint8_t *block, int32_t idx) {
+/** .x 用原语：只写 let 声明的初值部分。 */
+int32_t codegen_x_emit_let_decl_init(uint8_t *out, uint8_t *block, int32_t idx) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     FILE *f = (FILE *)out;
     if (!b || !f || !b->let_decls || idx < 0 || idx >= b->num_lets) return -1;
@@ -7077,7 +7077,7 @@ static void dce_collect_from_block(const struct ASTBlock *b, struct ASTModule *e
     if (b->final_expr) dce_collect_from_expr(b->final_expr, entry, dep_mods, ndep, worklist, n_wl, max_wl, in_wl, used_mono, used_mono_rows);
 }
 
-/** 入口根函数：main_func，或同模块内名为 entry/main 的顶层函数（main.sx 用 entry）。 */
+/** 入口根函数：main_func，或同模块内名为 entry/main 的顶层函数（main.x 用 entry）。 */
 struct ASTFunc *codegen_entry_root_func(struct ASTModule *entry) {
     if (!entry) return NULL;
     if (entry->main_func) return entry->main_func;
@@ -7284,7 +7284,7 @@ void codegen_compute_used_types(struct ASTModule *entry, struct ASTModule **dep_
 static void codegen_emit_slim_arena_glue_protos(FILE *out);
 
 /** parser -E-extern 专用 hook（定义见 TU 别名区；此处前向声明供 dep/entry struct emit 调用）。 */
-static int codegen_emit_path_is_parser_sx(const char *path);
+static int codegen_emit_path_is_parser_x(const char *path);
 static void codegen_parser_eextern_after_dep_struct(FILE *out, const char *prefix, const char *struct_name);
 
 /**
@@ -7373,7 +7373,7 @@ static void codegen_emit_slim_arena_glue_protos(FILE *out) {
 
 /**
  * C-04 v1：-E-extern 时 import 绑定前缀与链接符号前缀不一致则返回链接前缀。
- * 例：lsp.sx import("lsp_io") 调用 lsp_io_*，lsp_io.sx 产出 typeck_*（entry_lib_name 默认 typeck）。
+ * 例：lsp.x import("lsp_io") 调用 lsp_io_*，lsp_io.x 产出 typeck_*（entry_lib_name 默认 typeck）。
  */
 static void import_path_to_eextern_link_prefix(const char *import_path, char *buf, size_t size) {
     if (!buf || size == 0) return;
@@ -7389,7 +7389,7 @@ static void import_path_to_eextern_link_prefix(const char *import_path, char *bu
 #define CODEGEN_TU_ALIAS_LINE_MAX 128
 static char codegen_tu_alias_lines[CODEGEN_TU_ALIAS_MAX][CODEGEN_TU_ALIAS_LINE_MAX];
 static int codegen_tu_alias_n;
-/** C-04：-E-extern 入口路径（parser.sx 等）；由 runtime 在 emit dep 前设置。 */
+/** C-04：-E-extern 入口路径（parser.x 等）；由 runtime 在 emit dep 前设置。 */
 static const char *codegen_eextern_entry_path;
 /** parser -E-extern：已在 struct ast_Expr 后输出 ast_expr_init_match_enum，import 阶段跳过重复。 */
 static int codegen_parser_post_struct_expr_init_emitted;
@@ -7403,7 +7403,7 @@ void codegen_set_eextern_entry_path(const char *entry_path) {
 /** parser import extern 是否跳过 expr_init_match_enum（已在 dep 阶段 struct ast_Expr 后声明）。 */
 static int codegen_skip_parser_expr_init_match_enum_import(const char *import_path,
     const struct ASTFunc *f) {
-    if (!codegen_eextern_entry_path || !codegen_emit_path_is_parser_sx(codegen_eextern_entry_path))
+    if (!codegen_eextern_entry_path || !codegen_emit_path_is_parser_x(codegen_eextern_entry_path))
         return 0;
     if (!f || !f->name || strcmp(f->name, "expr_init_match_enum") != 0)
         return 0;
@@ -7471,7 +7471,7 @@ static void codegen_tu_alias_register_extern_sym(const char *sym) {
 
 /** parser -E-extern：onefunc const 池 API 的 pipeline→ast_pipeline TU 别名（原 fix_parser_pool perl）。 */
 static void codegen_tu_alias_flush_parser_onefunc_const(FILE *out) {
-    if (!out || !codegen_eextern_entry_path || !codegen_emit_path_is_parser_sx(codegen_eextern_entry_path))
+    if (!out || !codegen_eextern_entry_path || !codegen_emit_path_is_parser_x(codegen_eextern_entry_path))
         return;
     fprintf(out, "extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);\n");
     fprintf(out, "extern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);\n");
@@ -7491,9 +7491,9 @@ static void codegen_tu_alias_flush(FILE *out) {
     fprintf(out, "\n");
 }
 
-/** 判定 entry 是否为 parser.sx -E-extern 路径。 */
-static int codegen_emit_path_is_parser_sx(const char *path) {
-    return path && strstr(path, "parser.sx") != NULL;
+/** 判定 entry 是否为 parser.x -E-extern 路径。 */
+static int codegen_emit_path_is_parser_x(const char *path) {
+    return path && strstr(path, "parser.x") != NULL;
 }
 
 /**
@@ -7502,7 +7502,7 @@ static int codegen_emit_path_is_parser_sx(const char *path) {
  */
 static void codegen_parser_eextern_after_dep_struct(FILE *out, const char *prefix, const char *struct_name) {
     if (!out || !prefix || !struct_name || !codegen_eextern_entry_path
-        || !codegen_emit_path_is_parser_sx(codegen_eextern_entry_path))
+        || !codegen_emit_path_is_parser_x(codegen_eextern_entry_path))
         return;
     if (strcmp(prefix, "ast_") != 0 || strcmp(struct_name, "Expr") != 0)
         return;
@@ -7519,8 +7519,8 @@ static int codegen_param_is_u8_array(const struct ASTParam *p, int array_size) {
 }
 
 /**
- * 输出模块内显式 extern 函数原型（pipeline.sx 的 extern function 等）。
- * copy_module_import_path64 第三参强制 out[64]（与 parser.sx 实现一致，避免 uint8_t* 与数组形参冲突）。
+ * 输出模块内显式 extern 函数原型（pipeline.x 的 extern function 等）。
+ * copy_module_import_path64 第三参强制 out[64]（与 parser.x 实现一致，避免 uint8_t* 与数组形参冲突）。
  */
 static void codegen_emit_module_extern_func_proto(FILE *out, const struct ASTFunc *f) {
     if (!f || !out) return;
@@ -7748,7 +7748,7 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
     fprintf(out, "#include <stdlib.h>\n");
     fprintf(out, "#include <stdint.h>\n");
     fprintf(out, "#include <stddef.h>\n");
-    fprintf(out, "#include <string.h>\n"); /* memcpy 用于数组拷贝（自举 parser.sx 中 let/const 数组 = 变量） */
+    fprintf(out, "#include <string.h>\n"); /* memcpy 用于数组拷贝（自举 parser.x 中 let/const 数组 = 变量） */
     /* std.process：入口 main 写 argc/argv；weak 供 minimal 链，process.o 强符号覆盖。 */
     fprintf(out, "__attribute__((weak)) int shux_process_argc = 0;\n");
     fprintf(out, "__attribute__((weak)) char **shux_process_argv = NULL;\n");
@@ -8118,10 +8118,10 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
 }
 
 /**
- * 是否为 lsp_io.sx 的 -E-extern 入口路径（生成 lsp_io_gen.c）。
+ * 是否为 lsp_io.x 的 -E-extern 入口路径（生成 lsp_io_gen.c）。
  */
-static int codegen_emit_path_is_lsp_io_sx(const char *p) {
-    return lsp_codegen_emit_path_is_lsp_io_sx(p);
+static int codegen_emit_path_is_lsp_io_x(const char *p) {
+    return lsp_codegen_emit_path_is_lsp_io_x(p);
 }
 
 /**
@@ -8158,7 +8158,7 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         codegen_slice_emitted_n = 0;
 
     /* C-04 v0/v1：-E-extern 入口；lsp_io 保留 heap 别名，lsp_gen 桥接改 import extern 自动生成。 */
-    if (emitted_type_names && emit_entry_path && codegen_emit_path_is_lsp_io_sx(emit_entry_path))
+    if (emitted_type_names && emit_entry_path && codegen_emit_path_is_lsp_io_x(emit_entry_path))
         lsp_codegen_emit_heap_alias_block(out);
 
     /* 单文件模式时 include 与 panic 已由 driver 在写库前统一输出，此处不再输出；仅多文件（无 emitted_type_names）时每个库自己输出 include */
@@ -8171,7 +8171,7 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         fprintf(out, "#include <string.h>\n"); /* memcpy 用于数组拷贝 */
     }
 
-    /* 库模块顶层 let/const：带前缀的 static [const] T name = init;，供单文件 -E 时引用（如 lsp.sx 的 LSP_BODY_CAP） */
+    /* 库模块顶层 let/const：带前缀的 static [const] T name = init;，供单文件 -E 时引用（如 lsp.x 的 LSP_BODY_CAP） */
     if (m->num_top_level_lets > 0 && m->top_level_lets) {
         for (int i = 0; i < m->num_top_level_lets; i++) {
             char pname[256];
@@ -8235,13 +8235,13 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
     /* C-04 v0：-E-extern 入口模块对 import（std.io 等）的 extern 声明 */
     if (emitted_type_names && emit_entry_path) {
         static const char *skip_std_heap[] = { "std.heap" };
-        int skip_n = codegen_emit_path_is_lsp_io_sx(emit_entry_path) ? 1 : 0;
+        int skip_n = codegen_emit_path_is_lsp_io_x(emit_entry_path) ? 1 : 0;
         codegen_emit_module_import_extern_decls(m, out, 1, skip_std_heap, skip_n);
     }
 
     /* 本库对 lib_dep 的调用：收集后生成 extern，避免 C 编译 undeclared */
     if (codegen_ndep > 0 && lib_dep_mods && lib_dep_paths
-        && !(emitted_type_names && emit_entry_path && codegen_emit_path_is_lsp_io_sx(emit_entry_path))) {
+        && !(emitted_type_names && emit_entry_path && codegen_emit_path_is_lsp_io_x(emit_entry_path))) {
         const char *ext_paths[MAX_IMPORT_DECLS];
         struct ASTFunc *ext_funcs[MAX_IMPORT_DECLS];
         int n_ext = 0;
@@ -8354,7 +8354,7 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         fprintf(out, "}\n");
     }
 
-    /* extern 函数：仅生成 C 的 extern 声明，符号名为 .sx 中的函数名（与 C 一致），无定义 */
+    /* extern 函数：仅生成 C 的 extern 声明，符号名为 .x 中的函数名（与 C 一致），无定义 */
     for (int i = 0; i < m->num_funcs && m->funcs; i++) {
         const struct ASTFunc *f = m->funcs[i];
         if (!f || !f->is_extern) continue;

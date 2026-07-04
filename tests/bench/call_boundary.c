@@ -1,4 +1,4 @@
-/* call_boundary.c — 与 tests/bench/call_boundary.sx 对齐 */
+/* call_boundary.c — 与 tests/bench/call_boundary.x 对齐 */
 #include <stdint.h>
 
 static int32_t f0(int32_t x) { return x + 1; }

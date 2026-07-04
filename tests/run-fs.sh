@@ -5,16 +5,16 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 SHUX=${SHUX:-./compiler/shux}
 
-$SHUX -L . tests/fs/main.sx -o /tmp/shux_fs 2>&1
+$SHUX -L . tests/fs/main.x -o /tmp/shux_fs 2>&1
 exitcode=0; /tmp/shux_fs >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (fs_invalid_handle == -1), got $exitcode"; exit 1; }
 
-$SHUX -L . tests/fs/write_read.sx -o /tmp/shux_fs_wr 2>&1
+$SHUX -L . tests/fs/write_read.x -o /tmp/shux_fs_wr 2>&1
 exitcode=0; /tmp/shux_fs_wr >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (fs_open_write/write/read), got $exitcode"; exit 1; }
 
 rm -f tests/fs/.mmap_ro_tmp
-$SHUX -L . tests/fs/mmap_ro.sx -o /tmp/shux_fs_mmap 2>&1
+$SHUX -L . tests/fs/mmap_ro.x -o /tmp/shux_fs_mmap 2>&1
 exitcode=0; /tmp/shux_fs_mmap >/dev/null 2>/tmp/shux_fs_mmap_err || exitcode=$?
 if [ "$exitcode" -ne 0 ]; then
   echo "expected exit 0 (fs_mmap_ro/fs_munmap), got $exitcode"
@@ -25,7 +25,7 @@ if [ "$exitcode" -ne 0 ]; then
 fi
 rm -f tests/fs/.mmap_ro_tmp /tmp/shux_fs_mmap_err
 
-$SHUX -L . tests/fs/readv_writev_buf.sx -o /tmp/shux_fs_rwbuf 2>&1
+$SHUX -L . tests/fs/readv_writev_buf.x -o /tmp/shux_fs_rwbuf 2>&1
 exitcode=0; /tmp/shux_fs_rwbuf >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (fs_readv_buf/fs_writev_buf), got $exitcode"; exit 1; }
 

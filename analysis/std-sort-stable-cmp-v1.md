@@ -29,7 +29,7 @@
 
 与 `std.test` 的 `bench_run(fn: usize)` 一致：
 
-- `.sx` 侧比较器以 **`usize`** 承载 C 函数指针
+- `.x` 侧比较器以 **`usize`** 承载 C 函数指针
 - C 签名：`int32_t (*)(const void *a, const void *b)`，语义同 `qsort`
 - v1 **仅 i32 元素**；泛型 / `elem_size` 参数留待后续
 
@@ -42,7 +42,7 @@
 | `stable_dup` | keys `3,1,3,2` + seq `0,1,2,3` | 相等 key 的 seq 保持 `0` 在 `2` 前 |
 | `cmp_desc` | `3,1,4,2` + 降序 cmp | `4,3,2,1` |
 
-烟测：`tests/std-sort/stable_smoke_ok.c`、`stable_i32.sx`、`cmp_desc.sx`。
+烟测：`tests/std-sort/stable_smoke_ok.c`、`stable_i32.x`、`cmp_desc.x`。
 
 ---
 

@@ -12,7 +12,7 @@ FAIL=0
 echo "=== K11/L10: 64-bit kernel code model gate (T1) ==="
 
 # Compile test kernel as x86_64 with kernel code model + no red zone
-SX_FILE="$SCRIPT_DIR/kernel64_check.sx"
+X_FILE="$SCRIPT_DIR/kernel64_check.x"
 C_FILE="$WORKDIR/kernel64_check.c"
 OBJ_FILE="$WORKDIR/kernel64_check.o"
 ELF_FILE="$WORKDIR/kernel64_check.elf"
@@ -23,7 +23,7 @@ XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
     zig cc -target x86_64-linux-gnu -ffreestanding -fno-sanitize=all -c -o "$STUBS_O" "$SCRIPT_DIR/freestanding_stubs.c"
 
 # 1. shux-c -E
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$SX_FILE" > "$C_FILE"
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$X_FILE" > "$C_FILE"
 
 # 2. zig cc: compile as x86_64 with -mcmodel=kernel -mno-red-zone
 echo "  Check: compilation with -mcmodel=kernel -mno-red-zone"

@@ -8,8 +8,8 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/安全与性能.md"
 MANIFEST="tests/baseline/lexer-bounds.tsv"
-LONG_IDENT="/tmp/shux_lexer_long_ident_$$.sx"
-LONG_NUM="/tmp/shux_lexer_long_num_$$.sx"
+LONG_IDENT="/tmp/shux_lexer_long_ident_$$.x"
+LONG_NUM="/tmp/shux_lexer_long_num_$$.x"
 
 echo "=== P1-3: lexer bounds manifest ==="
 for f in "$DOC" "$MANIFEST" compiler/src/lexer/lexer.c; do

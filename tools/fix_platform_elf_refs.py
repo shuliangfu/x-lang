@@ -10,16 +10,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # (path, needs_elf_binding_import, needs_elfcodegenctx_destruct)
 TARGETS: list[tuple[str, bool, bool]] = [
-    ("compiler/src/asm/platform/macho.sx", True, False),
-    ("compiler/src/asm/platform/coff.sx", True, False),
-    ("compiler/src/asm/peephole.sx", True, True),
-    ("compiler/src/asm/backend.sx", True, True),
-    ("compiler/src/asm/asm.sx", True, False),
-    ("compiler/src/asm/arch/x86_64_enc.sx", True, False),
-    ("compiler/src/asm/arch/riscv64_enc.sx", True, False),
-    ("compiler/src/asm/arch/arm64_enc.sx", True, False),
-    ("compiler/src/asm/arch/arm64_enc_repro.sx", True, True),
-    ("tests/parser/arm64_enc_repro.sx", True, True),
+    ("compiler/src/asm/platform/macho.x", True, False),
+    ("compiler/src/asm/platform/coff.x", True, False),
+    ("compiler/src/asm/peephole.x", True, True),
+    ("compiler/src/asm/backend.x", True, True),
+    ("compiler/src/asm/asm.x", True, False),
+    ("compiler/src/asm/arch/x86_64_enc.x", True, False),
+    ("compiler/src/asm/arch/riscv64_enc.x", True, False),
+    ("compiler/src/asm/arch/arm64_enc.x", True, False),
+    ("compiler/src/asm/arch/arm64_enc_repro.x", True, True),
+    ("tests/parser/arm64_enc_repro.x", True, True),
 ]
 
 

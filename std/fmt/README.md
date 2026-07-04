@@ -1,6 +1,6 @@
 # std.fmt — 格式化与标准输出
 
-**模块路径**：`std/fmt/mod.sx`  
+**模块路径**：`std/fmt/mod.x`  
 **依赖**：core.fmt、std.io。  
 **对标**：Zig std.fmt、Rust std::fmt。
 

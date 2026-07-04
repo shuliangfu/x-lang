@@ -2,7 +2,7 @@
  * http_import_alias.c — import binding `-o` 链接桩
  *
  * asm co-emit 对 `const http = import("std.http")` 生成 std_http_* 符号；
- * http.o 仅含 http.sx 锚点，mod.sx 门面未 co-emit。本 TU 提供 std_http_* 转发至
+ * http.o 仅含 http.x 锚点，mod.x 门面未 co-emit。本 TU 提供 std_http_* 转发至
  * runtime_http_glue.c 中的 http_*_c。
  */
 #include <stdint.h>

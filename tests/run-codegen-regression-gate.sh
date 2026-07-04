@@ -2,7 +2,7 @@
 # COMP-003：codegen 稳定性回归门禁
 #
 # 读取 tests/baseline/codegen-regression-matrix.tsv：
-#   policy=run  — 编译运行 .sx
+#   policy=run  — 编译运行 .x
 #   policy=hook — 调用 tests/run-*.sh
 #
 # 用法：./tests/run-codegen-regression-gate.sh
@@ -66,11 +66,11 @@ if [ -z "$SHUX_BIN" ]; then
   exit 0
 fi
 
-run_sx_case() {
+run_x_case() {
   local src="$1"
   local want_ec="$2"
   local out="/tmp/shux_codegen_${src##*/}"
-  out="${out%.sx}"
+  out="${out%.x}"
   if [ ! -f "$src" ]; then
     echo "codegen-regression FAIL: missing $src" >&2
     return 1
@@ -101,7 +101,7 @@ while IFS=$'\t' read -r case_id src arch policy want_ec notes; do
   echo "── $case_id: $notes ──"
   case "$policy" in
     run)
-      if run_sx_case "$src" "${want_ec:-0}"; then
+      if run_x_case "$src" "${want_ec:-0}"; then
         echo "codegen-regression OK $case_id"
       else
         FAILS=$((FAILS + 1))

@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	notes
 fsio2_doc	doc	analysis/phase-f-socketio-v2.md	F-socketio v2
 fsio2_gate	gate	tests/run-f-socketio-v2-gate.sh	逻辑下沉门禁
-sio_sx	file	std/socketio/socketio.sx	全量协议逻辑
-sio_mod	file	std/socketio/mod.sx	对外 API
+sio_x	file	std/socketio/socketio.x	全量协议逻辑
+sio_mod	file	std/socketio/mod.x	对外 API
 sio_glue_v1_absent	absent	std/socketio/socketio_glue.c	v1 胶层已删除
 makefile	makefile	compiler/Makefile	socketio.o ld -r merge

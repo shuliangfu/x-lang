@@ -13,7 +13,7 @@ echo "=== IST (Interrupt Stack Table) gate ==="
 # 1. shux-c generates IST structs
 echo "  Check: shux-c generates TSS64 + IDTGate64 structs"
 if XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
-    "$SHUX_C" -E "$SCRIPT_DIR/ist.sx" > "$WORKDIR/ist_gate.c" 2>&1; then
+    "$SHUX_C" -E "$SCRIPT_DIR/ist.x" > "$WORKDIR/ist_gate.c" 2>&1; then
     if grep -q "struct TSS64" "$WORKDIR/ist_gate.c" && \
        grep -q "struct IDTGate64" "$WORKDIR/ist_gate.c" && \
        grep -q "ist1_low" "$WORKDIR/ist_gate.c"; then
@@ -43,7 +43,7 @@ fi
 # 3. Run host test (verify IST struct construction logic)
 echo "  Check: IST struct construction returns correct values"
 if XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
-    "$SHUX_C" -E "$SCRIPT_DIR/ist.sx" > "$WORKDIR/ist_host.c" 2>&1 && \
+    "$SHUX_C" -E "$SCRIPT_DIR/ist.x" > "$WORKDIR/ist_host.c" 2>&1 && \
     cc -O2 -o "$WORKDIR/ist_host" "$WORKDIR/ist_host.c" 2>&1 && \
     "$WORKDIR/ist_host"; then
     RC=$?

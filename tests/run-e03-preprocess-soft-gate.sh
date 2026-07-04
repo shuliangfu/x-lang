@@ -45,7 +45,7 @@ if ! awk '/^ifeq \(\$\(SHUX_LEGACY_PREPROCESS_C\),1\)/,/^endif/' "$MF" | grep -q
 fi
 
 # bootstrap 链接行不得硬编码 preprocess_for_driver.o
-if grep -E 'bootstrap-driver-seed:|^shux-sx:' "$MF" | grep -q 'preprocess_for_driver\.o'; then
+if grep -E 'bootstrap-driver-seed:|^shux-x:' "$MF" | grep -q 'preprocess_for_driver\.o'; then
   die "Makefile bootstrap link still hardcodes preprocess_for_driver.o"
 fi
 

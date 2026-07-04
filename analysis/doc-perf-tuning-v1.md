@@ -49,7 +49,7 @@
 ### 3.1 阶段拆分（OBS-001）
 
 ```bash
-SHUX_COMPILE_PHASE_TIMING=1 ./compiler/shux-c check compiler/src/parser/parser.sx
+SHUX_COMPILE_PHASE_TIMING=1 ./compiler/shux-c check compiler/src/parser/parser.x
 ```
 
 期望 stderr 一行：

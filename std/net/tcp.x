@@ -1,0 +1,482 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.net.tcp — F-04 v13：IPv4 TCP connect/listen/accept（含 Linux io_uring）
+//
+// 【文件职责】
+// 从 net.c 迁出 net_tcp_connect_c / net_tcp_connect_blocking_c / net_tcp_listen_c /
+// net_accept_c / net_accept_many_c / net_connect_many_c。
+//
+// 【依赖】libc socket；Linux io.o io_uring_*；sock.x net_set_blocking_c
+//
+// 【shux_asm 约束】函数体内 #[cfg]、struct 字面量、&buf[0] 作 call 实参均会触发 parse/emit 失败；
+// 见 udp.x / addr.x 的 u8 缓冲 + 顶层 cfg 分函数模式。
+
+const AF_INET: i32 = 2;
+const SOCK_STREAM: i32 = 1;
+const IPPROTO_TCP: i32 = 6;
+const SOL_SOCKET: i32 = 1;
+const SO_REUSEADDR: i32 = 2;
+const SO_ERROR: i32 = 4;
+const O_NONBLOCK: i32 = 2048;
+const POLLIN: i16 = 1;
+const POLLOUT: i16 = 4;
+const POLLERR: i16 = 8;
+const POLLHUP: i16 = 16;
+
+#[cfg(target_os = "linux")]
+const ERR_INPROGRESS: i32 = 115;
+
+#[cfg(target_os = "macos")]
+const ERR_INPROGRESS: i32 = 36;
+
+/** IPv4 sockaddr 前缀（文档用；运行时用 u8[16] 缓冲）。 */
+allow(padding) struct SockAddrIn {
+  sin_family: u16;
+  sin_port: u16;
+  sin_addr: u32;
+}
+
+#[cfg(not(target_os = "windows"))]
+allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
+
+extern function socket(domain: i32, type: i32, protocol: i32): i32;
+extern function connect(fd: i32, addr: *u8, addrlen: u32): i32;
+extern function bind(fd: i32, addr: *u8, addrlen: u32): i32;
+extern function listen(fd: i32, backlog: i32): i32;
+extern function accept(fd: i32, addr: *u8, addrlen: *u32): i32;
+extern function setsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: u32): i32;
+extern function getsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: *u32): i32;
+extern function htonl(hostlong: u32): u32;
+extern function htons(hostshort: u16): u16;
+
+extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
+
+extern function net_close_socket_c(fd: i32): i32;
+
+#[cfg(not(target_os = "windows"))]
+extern function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+
+#[cfg(not(target_os = "windows"))]
+extern function poll(fds: *u8, nfds: u64, timeout: i32): i32;
+
+#[cfg(not(target_os = "windows"))]
+extern function __errno_location(): *i32;
+
+#[cfg(target_os = "linux")]
+extern function io_uring_connect(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
+
+#[cfg(target_os = "linux")]
+extern function io_uring_accept(listener_fd: i32, timeout_ms: u32): i32;
+
+#[cfg(target_os = "linux")]
+extern function io_uring_accept_many(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
+
+#[cfg(target_os = "linux")]
+extern function io_uring_connect_many(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32;
+
+#[cfg(target_os = "linux")]
+extern function io_uring_prefetch_fd(fd: i32): i32;
+
+#[cfg(target_os = "windows")]
+extern function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
+
+#[cfg(target_os = "windows")]
+extern function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
+
+#[cfg(target_os = "windows")]
+extern function closesocket(fd: i32): i32;
+
+#[cfg(target_os = "windows")]
+let net_tcp_wsa_done: i32 = 0;
+
+/**
+ * Windows：一次性 WSAStartup。
+ */
+#[cfg(target_os = "windows")]
+function net_tcp_ensure_wsa_c(): i32 {
+  if (net_tcp_wsa_done != 0) {
+    return 0;
+  }
+  unsafe { if (WSAStartup(514 as u16, 0 as *u8) != 0) {
+    return -1;
+  } }
+  net_tcp_wsa_done = 1;
+  return 0;
+}
+
+/**
+ * Windows：connect/listen 前确保 WSA；非 Windows 恒为 0（顶层 cfg，避免函数体内 #[cfg] parse skip）。
+ */
+#[cfg(target_os = "windows")]
+function net_tcp_maybe_wsa_fail_c(): i32 {
+  if (net_tcp_ensure_wsa_c() != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+#[cfg(not(target_os = "windows"))]
+function net_tcp_maybe_wsa_fail_c(): i32 {
+  return 0;
+}
+
+/**
+ * 取栈上 sockaddr/pollfd 缓冲首地址（seed emit 不支持 call 实参内联 &buf[0]）。
+ */
+function net_tcp_sin_buf_ptr_c(p: *u8): *u8 {
+  return p;
+}
+
+/** IPv4 sockaddr 填充；实现见 net_import_alias.c（规避 asm u16 间接 store codegen 缺陷）。 */
+extern function net_tcp_set_addr_port_buf_c(sin: *u8, addr_u32: u32, port_u32: u32): void;
+
+/**
+ * 设 TCP socket 非阻塞（Unix）。
+ */
+#[cfg(not(target_os = "windows"))]
+function net_tcp_set_nonblock_c(fd: i32): i32 {
+  let flags: i32 = 0;
+  unsafe { flags = fcntl(fd, 3, 0); }
+  if (flags < 0) {
+    return -1;
+  }
+  unsafe { if (fcntl(fd, 4, flags | O_NONBLOCK) == 0) {
+    return 0;
+  } }
+  return -1;
+}
+
+/**
+ * 设 TCP socket 非阻塞（Windows）。
+ */
+#[cfg(target_os = "windows")]
+function net_tcp_set_nonblock_c(fd: i32): i32 {
+  let one: u32 = 1;
+  unsafe { if (ioctlsocket(fd, (0x80000000 | 0x40000000) as i32, &one) == 0) {
+    return 0;
+  } }
+  return -1;
+}
+
+/**
+ * poll 可写（Unix）；失败 -1。
+ */
+#[cfg(not(target_os = "windows"))]
+function net_tcp_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
+  let pfd_mem: u8[8] = [];
+  let pfd_ptr: *u8 = net_tcp_sin_buf_ptr_c(&pfd_mem[0]);
+  let p_fd: *i32 = (pfd_ptr + 0) as *i32;
+  let p_events: *i16 = (pfd_ptr + 4) as *i16;
+  let p_revents: *i16 = (pfd_ptr + 6) as *i16;
+  let to: i32 = (0 - 1);
+  let n: i32 = 0;
+  p_fd[0] = fd;
+  p_events[0] = POLLOUT;
+  p_revents[0] = 0 as i16;
+  if (timeout_ms != 0) {
+    to = timeout_ms as i32;
+  }
+  unsafe { n = poll(pfd_ptr, 1 as u64, to); }
+  if (n <= 0 || (p_revents[0] & (POLLERR | POLLHUP)) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * poll 可写（Windows 桩：恒成功）。
+ */
+#[cfg(target_os = "windows")]
+function net_tcp_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
+  return 0;
+}
+
+/**
+ * poll 可读（Unix）；失败 -1。
+ */
+#[cfg(not(target_os = "windows"))]
+function net_tcp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
+  let pfd_mem: u8[8] = [];
+  let pfd_ptr: *u8 = net_tcp_sin_buf_ptr_c(&pfd_mem[0]);
+  let p_fd: *i32 = (pfd_ptr + 0) as *i32;
+  let p_events: *i16 = (pfd_ptr + 4) as *i16;
+  let p_revents: *i16 = (pfd_ptr + 6) as *i16;
+  let to: i32 = (0 - 1);
+  let n: i32 = 0;
+  p_fd[0] = fd;
+  p_events[0] = POLLIN;
+  p_revents[0] = 0 as i16;
+  if (timeout_ms != 0) {
+    to = timeout_ms as i32;
+  }
+  unsafe { n = poll(pfd_ptr, 1 as u64, to); }
+  if (n <= 0 || (p_revents[0] & (POLLERR | POLLHUP)) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * poll 可读（Windows 桩：恒成功）。
+ */
+#[cfg(target_os = "windows")]
+function net_tcp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
+  return 0;
+}
+
+/**
+ * connect 非 EINPROGRESS 判定（Unix）；1=应失败关闭 fd。
+ */
+#[cfg(not(target_os = "windows"))]
+function net_tcp_connect_not_inprogress_c(): i32 {
+  let ep: *i32 = 0 as *i32;
+  unsafe { ep = __errno_location(); }
+  if (ep[0] != ERR_INPROGRESS) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * connect 非 EINPROGRESS 判定（Windows 桩：恒为 in-progress 路径）。
+ */
+#[cfg(target_os = "windows")]
+function net_tcp_connect_not_inprogress_c(): i32 {
+  return 0;
+}
+
+/**
+ * Linux：io_uring prefetch fd。
+ */
+#[cfg(target_os = "linux")]
+function net_tcp_prefetch_fd_c(fd: i32): void {
+  if (fd >= 0) {
+    unsafe { io_uring_prefetch_fd(fd); }
+  }
+}
+
+/**
+ * 非 Linux：prefetch 为 no-op（顶层 cfg，避免函数体内 #[cfg] parse skip）。
+ */
+#[cfg(not(target_os = "linux"))]
+function net_tcp_prefetch_fd_c(fd: i32): void {
+}
+
+/**
+ * POSIX connect 完成路径（poll + SO_ERROR）。
+ */
+function net_tcp_connect_finish_c(fd: i32, timeout_ms: u32): i32 {
+  let err: i32 = 0;
+  let errlen: u32 = 4;
+  if (net_tcp_poll_writable_c(fd, timeout_ms) != 0) {
+    unsafe { net_close_socket_c(fd); }
+    return -1;
+  }
+  unsafe { if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &errlen) != 0 || err != 0) {
+    net_close_socket_c(fd);
+    return -1;
+  } }
+  return fd;
+}
+
+/**
+ * TCP 非阻塞 connect（Linux io_uring 快路径）。
+ */
+#[cfg(target_os = "linux")]
+function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
+  let fd: i32 = 0;
+  unsafe { fd = io_uring_connect(addr_u32, port_u32, timeout_ms); }
+  if (fd >= 0) {
+    net_tcp_prefetch_fd_c(fd);
+  }
+  return fd;
+}
+
+/**
+ * TCP 非阻塞 connect（非 Linux：socket + poll 完成路径）；失败 -1。
+ */
+#[cfg(not(target_os = "linux"))]
+function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
+  let sin_mem: u8[16] = [];
+  let sin_ptr: *u8 = net_tcp_sin_buf_ptr_c(&sin_mem[0]);
+  let fd: i32 = 0;
+  if (net_tcp_maybe_wsa_fail_c() != 0) {
+    return -1;
+  }
+  unsafe { net_tcp_set_addr_port_buf_c(sin_ptr, addr_u32, port_u32); }
+  unsafe { fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); }
+  if (fd < 0) {
+    return -1;
+  }
+  if (net_tcp_set_nonblock_c(fd) != 0) {
+    unsafe { net_close_socket_c(fd); }
+    return -1;
+  }
+  unsafe { if (connect(fd, sin_ptr, 16 as u32) != 0) {
+    if (net_tcp_connect_not_inprogress_c() != 0) {
+      net_close_socket_c(fd);
+      return -1;
+    }
+    return net_tcp_connect_finish_c(fd, timeout_ms);
+  } }
+  return fd;
+}
+
+/**
+ * 阻塞 TCP connect（bulk 快路径）。
+ */
+function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
+  let sin_mem: u8[16] = [];
+  let sin_ptr: *u8 = net_tcp_sin_buf_ptr_c(&sin_mem[0]);
+  let fd: i32 = 0;
+  if (net_tcp_maybe_wsa_fail_c() != 0) {
+    return -1;
+  }
+  unsafe { net_tcp_set_addr_port_buf_c(sin_ptr, addr_u32, port_u32); }
+  if (timeout_ms != 0) {
+    fd = net_tcp_connect_c(addr_u32, port_u32, timeout_ms);
+    if (fd < 0) {
+      return -1;
+    }
+    if (unsafe { net_set_blocking_c(fd, 1) } != 0) {
+      unsafe { net_close_socket_c(fd); }
+      return -1;
+    }
+    net_tcp_prefetch_fd_c(fd);
+    return fd;
+  }
+  unsafe { fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); }
+  if (fd < 0) {
+    return -1;
+  }
+  unsafe { if (connect(fd, sin_ptr, 16 as u32) != 0) {
+    net_close_socket_c(fd);
+    return -1;
+  } }
+  net_tcp_prefetch_fd_c(fd);
+  return fd;
+}
+
+/**
+ * TCP listen；非阻塞 listener fd。
+ * 实现见 net_import_alias.c（规避 asm socket/bind/listen 字面量实参 codegen 缺陷）。
+ */
+extern function net_tcp_listen_c(addr_u32: u32, port_u32: u32): i32;
+
+/**
+ * accept 单连接（Linux io_uring）；非阻塞 client fd。
+ */
+#[cfg(target_os = "linux")]
+function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
+  unsafe { return io_uring_accept(listener_fd, timeout_ms); }
+}
+
+/**
+ * accept 单连接（非 Linux：poll + accept）；非阻塞 client fd。
+ */
+#[cfg(not(target_os = "linux"))]
+function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
+  let peer_mem: u8[16] = [];
+  let peer_ptr: *u8 = net_tcp_sin_buf_ptr_c(&peer_mem[0]);
+  let peer_len: u32 = 16;
+  let fd: i32 = 0;
+  if (timeout_ms != 0) {
+    if (net_tcp_poll_readable_c(listener_fd, timeout_ms) != 0) {
+      return -1;
+    }
+  }
+  unsafe { fd = accept(listener_fd, peer_ptr, &peer_len); }
+  if (fd < 0) {
+    return -1;
+  }
+  if (net_tcp_set_nonblock_c(fd) != 0) {
+    unsafe { net_close_socket_c(fd); }
+    return -1;
+  }
+  return fd;
+}
+
+/**
+ * 批量 accept（Linux io_uring）。
+ */
+#[cfg(target_os = "linux")]
+function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
+  if (n <= 0 || out_fds == 0) {
+    return 0;
+  }
+  unsafe { return io_uring_accept_many(listener_fd, out_fds, n, timeout_ms); }
+}
+
+/**
+ * 批量 accept（非 Linux：循环 net_accept_c）。
+ */
+#[cfg(not(target_os = "linux"))]
+function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
+  let i: i32 = 0;
+  let fd: i32 = 0;
+  let tm: u32 = 0;
+  if (n <= 0 || out_fds == 0) {
+    return 0;
+  }
+  i = 0;
+  while (i < n) {
+    tm = 0;
+    if (i == 0) {
+      tm = timeout_ms;
+    }
+    fd = net_accept_c(listener_fd, tm);
+    if (fd < 0) {
+      return i;
+    }
+    out_fds[i] = fd;
+    i = i + 1;
+  }
+  return n;
+}
+
+/**
+ * 批量 connect（Linux io_uring）。
+ */
+#[cfg(target_os = "linux")]
+function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
+  if (n <= 0 || out_fds == 0) {
+    return 0;
+  }
+  unsafe { return io_uring_connect_many(addr_u32, port_u32, out_fds, n, timeout_ms); }
+}
+
+/**
+ * 批量 connect（非 Linux：循环 net_tcp_connect_c）。
+ */
+#[cfg(not(target_os = "linux"))]
+function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
+  let i: i32 = 0;
+  let fd: i32 = 0;
+  if (n <= 0 || out_fds == 0) {
+    return 0;
+  }
+  i = 0;
+  while (i < n) {
+    fd = net_tcp_connect_c(addr_u32, port_u32, timeout_ms);
+    if (fd < 0) {
+      return i;
+    }
+    out_fds[i] = fd;
+    i = i + 1;
+  }
+  return n;
+}

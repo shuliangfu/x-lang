@@ -43,7 +43,7 @@ static char driver_ascii_toupper(char c) {
     return c;
 }
 
-/** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 SX pipeline 共用）。 */
+/** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 X pipeline 共用）。 */
 static int driver_check_only_flag;
 static int driver_check_diag_emitted_flag;
 
@@ -123,7 +123,7 @@ int32_t driver_fmt_check_only_get(void) {
     return driver_fmt_check_only_flag ? 1 : 0;
 }
 
-/** 非 SX 链或未链 fmt_check_cmd 时弱符号默认 0（保留逐文件 check OK）。 */
+/** 非 X 链或未链 fmt_check_cmd 时弱符号默认 0（保留逐文件 check OK）。 */
 SHUX_WEAK int driver_check_quiet_ok_get(void) {
     return 0;
 }
@@ -139,34 +139,34 @@ void driver_print_check_ok(const char *input_path) {
                  "check OK: %s", input_path ? input_path : "?");
 }
 
-/** 非 0 时 pipeline_impl_typecheck 跳过 .sx typeck。 */
-static int driver_sx_pipeline_skip_typeck_flag;
+/** 非 0 时 pipeline_impl_typecheck 跳过 .x typeck。 */
+static int driver_x_pipeline_skip_typeck_flag;
 
-/** 供 pipeline.sx 读取：是否跳过 SX typeck。 */
-int32_t driver_sx_pipeline_skip_typeck_get(void) {
-    return driver_sx_pipeline_skip_typeck_flag ? 1 : 0;
+/** 供 pipeline.x 读取：是否跳过 X typeck。 */
+int32_t driver_x_pipeline_skip_typeck_get(void) {
+    return driver_x_pipeline_skip_typeck_flag ? 1 : 0;
 }
 
-/** 设置 SX typeck 跳过标志（C 预检后由 runtime 置位/清位）。 */
-void driver_sx_pipeline_skip_typeck_set(int32_t v) {
-    driver_sx_pipeline_skip_typeck_flag = (v != 0);
+/** 设置 X typeck 跳过标志（C 预检后由 runtime 置位/清位）。 */
+void driver_x_pipeline_skip_typeck_set(int32_t v) {
+    driver_x_pipeline_skip_typeck_flag = (v != 0);
 }
 
-/** 非 0 时 pipeline_impl_run_all 跳过 .sx C codegen。 */
-static int driver_sx_pipeline_skip_codegen_flag;
+/** 非 0 时 pipeline_impl_run_all 跳过 .x C codegen。 */
+static int driver_x_pipeline_skip_codegen_flag;
 
-/** 供 pipeline.sx 读取：是否跳过 SX C codegen。 */
-int32_t driver_sx_pipeline_skip_codegen_get(void) {
-    return driver_sx_pipeline_skip_codegen_flag ? 1 : 0;
+/** 供 pipeline.x 读取：是否跳过 X C codegen。 */
+int32_t driver_x_pipeline_skip_codegen_get(void) {
+    return driver_x_pipeline_skip_codegen_flag ? 1 : 0;
 }
 
-/** 设置 SX C codegen 跳过标志。 */
-void driver_sx_pipeline_skip_codegen_set(int32_t v) {
-    driver_sx_pipeline_skip_codegen_flag = (v != 0);
+/** 设置 X C codegen 跳过标志。 */
+void driver_x_pipeline_skip_codegen_set(int32_t v) {
+    driver_x_pipeline_skip_codegen_flag = (v != 0);
 }
 
 /**
- * 非 0 时入口模块 typeck 走 C 的 typeck_module（大模块 asm 构建时避免 .sx typeck 栈过深）。
+ * 非 0 时入口模块 typeck 走 C 的 typeck_module（大模块 asm 构建时避免 .x typeck 栈过深）。
  * 返回值：1 表示 SHUX_TYPECK_FORCE_C 已启用。
  */
 int32_t driver_typeck_force_c_enabled(void) {
@@ -193,7 +193,7 @@ void driver_large_stack_thread_mark(int on) {
     g_driver_on_large_stack_thread = on ? 1 : 0;
 }
 
-/** 当前 pipeline 入口源码长度；供 .sx 按体积跳过大库 merge/typeck。 */
+/** 当前 pipeline 入口源码长度；供 .x 按体积跳过大库 merge/typeck。 */
 static size_t g_pipeline_entry_source_len;
 
 /**
@@ -216,7 +216,7 @@ size_t driver_pipeline_entry_source_len(void) {
 }
 
 /**
- * 非 0 表示入口源码过大，应跳过 merge/library 全量 typeck（.sx 路径上易 segfault）。
+ * 非 0 表示入口源码过大，应跳过 merge/library 全量 typeck（.x 路径上易 segfault）。
  * 返回值：len > 150000 时为 1，否则 0。
  */
 int32_t driver_typeck_skip_large_entry(void) {
@@ -229,7 +229,7 @@ int32_t driver_typeck_skip_large_entry(void) {
 }
 
 /**
- * build_shux_asm 单模块 -o：SHUX_ASM_BUILD_SKIP_TYPECK=1 时跳过 .sx typeck。
+ * build_shux_asm 单模块 -o：SHUX_ASM_BUILD_SKIP_TYPECK=1 时跳过 .x typeck。
  * 返回值：环境变量非空且非 '0' 时为 1。
  */
 int32_t driver_asm_build_skip_typeck(void) {
@@ -272,12 +272,12 @@ void driver_skip_codegen_dep_0_set(int32_t v) {
     driver_skip_codegen_dep_0_flag = (v != 0);
 }
 
-/** 查询 skip_codegen_dep_0；pipeline.sx dep_j==0 时读取。 */
+/** 查询 skip_codegen_dep_0；pipeline.x dep_j==0 时读取。 */
 int32_t driver_skip_codegen_dep_0_get(void) {
     return driver_skip_codegen_dep_0_flag ? 1 : 0;
 }
 
-/** 当前 codegen 的 dep 逻辑路径（如 std.io.driver），供 .sx codegen 前缀 C 符号。 */
+/** 当前 codegen 的 dep 逻辑路径（如 std.io.driver），供 .x codegen 前缀 C 符号。 */
 static const char *driver_current_dep_path_for_codegen;
 
 /**
@@ -317,7 +317,7 @@ static double compile_phase_now_sec(void) {
 }
 
 /**
- * 标记编译阶段开始；由 pipeline.sx run_sx_pipeline_impl 调用。
+ * 标记编译阶段开始；由 pipeline.x run_x_pipeline_impl 调用。
  * 参数：phase 0..2。
  */
 void driver_compile_phase_timing_begin(int32_t phase) {
@@ -405,25 +405,25 @@ int driver_argv_collect_defines(int argc, char **argv, const char **defines, int
     return ndefines;
 }
 
-/** pipeline_gen.c / main.sx：module num_funcs 与 main 下标。 */
+/** pipeline_gen.c / main.x：module num_funcs 与 main 下标。 */
 extern int driver_get_module_num_funcs(void *m);
 extern int driver_get_module_main_func_index(void *m);
 
 /** pipeline 失败 rc 诊断；rc==-7 时打印 resolve 尝试路径。 */
 void driver_pipeline_fail_code(int rc, const uint8_t *path) {
-    diag_reportf_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP003, NULL,
+    diag_reportf_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP003, NULL,
                            "pipeline failed rc=%d", rc);
     if (rc == -7 && path != NULL) {
-        diag_reportf_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP004, NULL,
+        diag_reportf_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP004, NULL,
                                "resolve path tried: %s", (const char *)path);
     }
 }
 
 /**
- * .sx pipeline 烟测 stderr 摘要；保留 parse OK / typeck OK 前缀供 run-import gate grep。
+ * .x pipeline 烟测 stderr 摘要；保留 parse OK / typeck OK 前缀供 run-import gate grep。
  * 参数：module ASTModule*；codegen_len 产出字节数（可为 0）。
  */
-void driver_print_sx_smoke_summary(void *module, size_t codegen_len) {
+void driver_print_x_smoke_summary(void *module, size_t codegen_len) {
     if (driver_check_diag_emitted_get())
         return;
     int num_funcs = driver_get_module_num_funcs(module);
@@ -596,7 +596,7 @@ int driver_source_has_top_level_import(const char *src, size_t src_len) {
 }
 
 /**
- * 读入口 .sx 并检测预处理后是否含顶层 import（compile.sx asm 分派降级 C 后端用）。
+ * 读入口 .x 并检测预处理后是否含顶层 import（compile.x asm 分派降级 C 后端用）。
  * 参数：path 源文件路径。
  * 返回值：1 含顶层 import；0 否或读/预处理失败。
  */

@@ -2,8 +2,8 @@
 # std-sync-rwlock-condvar.sh — STD-045 manifest 与烟测辅助（F-sync v1：sync_os_glue.c）
 #
 # 用法（source 后）：
-#   std_sync_rc_symbols_ok MOD_SX SYNC_OS_GLUE TSV
-#   std_sync_rc_run_smoke SHUX_BIN SX TAG
+#   std_sync_rc_symbols_ok MOD_X SYNC_OS_GLUE TSV
+#   std_sync_rc_run_smoke SHUX_BIN X TAG
 #   std_sync_rc_try_tsan SYNC_OS_GLUE
 #   std_sync_rc_emit_report status rwlock_ok condvar_ok main_ok tsan_ok skip
 
@@ -11,7 +11,7 @@ STD_SYNC_RC_PREFIX="${SHUX_STD_SYNC_RWLOCK_CONDVAR_PREFIX:-shux: [SHUX_STD_SYNC_
 
 # 校验 manifest；C symbol 在 sync_os_glue.c。
 std_sync_rc_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local sync_os_glue="$2"
   local tsv="$3"
   local miss=0
@@ -21,15 +21,15 @@ std_sync_rc_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
-          echo "std-sync-rwlock-condvar FAIL: missing api '$anchor' in $mod_sx" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
+          echo "std-sync-rwlock-condvar FAIL: missing api '$anchor' in $mod_x" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         case "$mod_path" in
           std/sync/sync.c|std/sync/sync_os_glue.c|compiler/src/asm/runtime_sync_os.c) mod_path="$sync_os_glue" ;;
-          *) mod_path="$mod_sx" ;;
+          *) mod_path="$mod_x" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-sync-rwlock-condvar FAIL: missing '$anchor' in $mod_path" >&2
@@ -48,7 +48,7 @@ std_sync_rc_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
+# 编译并运行 .x 烟测。
 std_sync_rc_run_smoke() {
   local shux="$1"
   local src="$2"

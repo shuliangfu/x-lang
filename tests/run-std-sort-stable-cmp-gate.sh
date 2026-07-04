@@ -8,11 +8,11 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_SORT_STABLE_CMP_DOC:-analysis/std-sort-stable-cmp-v1.md}"
 MANIFEST="${SHUX_STD_SORT_STABLE_CMP_TSV:-tests/baseline/std-sort-stable-cmp.tsv}"
 VECTORS="${SHUX_STD_SORT_STABLE_CMP_VECTORS:-tests/baseline/std-sort-stable-cmp-vectors.tsv}"
-MOD_SX="std/sort/mod.sx"
-SORT_SX="std/sort/sort.sx"
+MOD_X="std/sort/mod.x"
+SORT_X="std/sort/sort.x"
 LIB="tests/lib/std-sort-stable-cmp.sh"
-SMOKE_STABLE="tests/std-sort/stable_i32.sx"
-SMOKE_CMP="tests/std-sort/cmp_desc.sx"
+SMOKE_STABLE="tests/std-sort/stable_i32.x"
+SMOKE_CMP="tests/std-sort/cmp_desc.x"
 SMOKE_C="tests/std-sort/stable_smoke_ok.c"
 MIN_APIS=3
 
@@ -20,7 +20,7 @@ MIN_APIS=3
 . "$LIB"
 
 echo "=== STD-060: sort stable/cmp manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$SORT_SX" "$SMOKE_STABLE" "$SMOKE_CMP" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$SORT_X" "$SMOKE_STABLE" "$SMOKE_CMP" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-sort-stable-cmp gate FAIL: missing $f" >&2
     exit 1
@@ -53,7 +53,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
         echo "std-sort-stable-cmp gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -74,7 +74,7 @@ fi
 
 [ ! -f std/sort/sort.c ] || { echo "std-sort-stable-cmp gate FAIL: sort.c should be deleted" >&2; exit 1; }
 
-sym_miss="$(std_sort_stable_cmp_symbols_ok "$MOD_SX" "$SORT_SX" "$MANIFEST" || true)"
+sym_miss="$(std_sort_stable_cmp_symbols_ok "$MOD_X" "$SORT_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_sort_stable_cmp_emit_report "fail" 0 0 0
   echo "std-sort-stable-cmp gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -96,17 +96,17 @@ fi
 
 C_OK=0
 if [ -f std/sort/sort.o ] && strings std/sort/sort.o 2>/dev/null | grep -q 'sort_stable_smoke'; then
-  if std_sort_stable_cmp_run_c_smoke "$SORT_SX"; then
+  if std_sort_stable_cmp_run_c_smoke "$SORT_X"; then
     C_OK=1
   else
     std_sort_stable_cmp_emit_report "fail" 0 0 0
     exit 1
   fi
 else
-  echo "std-sort-stable-cmp SKIP c smoke (sort.o missing .sx symbols; need shux-c)" >&2
+  echo "std-sort-stable-cmp SKIP c smoke (sort.o missing .x symbols; need shux-c)" >&2
 fi
 
-SX_OK=0
+X_OK=0
 SKIP=0
 SHUX_BIN=""
 stdlib_cm_native_shu() {
@@ -127,24 +127,24 @@ elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux ||
 fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-060: .sx smoke (SHUX=$SHUX_BIN) ==="
-  for sx in "$SMOKE_STABLE" "$SMOKE_CMP"; do
-    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
-      echo "std-sort-stable-cmp gate FAIL: typeck $sx" >&2
-      "$SHUX_BIN" check -L . "$sx" 2>&1 | tail -10 >&2 || true
+  echo "=== STD-060: .x smoke (SHUX=$SHUX_BIN) ==="
+  for x in "$SMOKE_STABLE" "$SMOKE_CMP"; do
+    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+      echo "std-sort-stable-cmp gate FAIL: typeck $x" >&2
+      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
       std_sort_stable_cmp_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
-    if ! std_sort_stable_cmp_run_smoke "$SHUX_BIN" "$sx" "$(basename "$sx" .sx)"; then
+    if ! std_sort_stable_cmp_run_smoke "$SHUX_BIN" "$x" "$(basename "$x" .x)"; then
       std_sort_stable_cmp_emit_report "fail" "$C_OK" 0 0
       exit 1
     fi
   done
-  SX_OK=1
+  X_OK=1
 else
-  echo "std-sort-stable-cmp gate SKIP .sx smoke (no native shux)" >&2
+  echo "std-sort-stable-cmp gate SKIP .x smoke (no native shux)" >&2
   SKIP=1
 fi
 
-std_sort_stable_cmp_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
+std_sort_stable_cmp_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
 echo "std-sort-stable-cmp gate OK"

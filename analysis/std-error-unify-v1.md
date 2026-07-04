@@ -39,8 +39,8 @@
 
 ## 4. 验收
 
-- API：`std/error/mod.sx`（`error_base_*` / `<mod>_err_*` / helper）
-- 烟测：`tests/std/error_unify_smoke.sx`
+- API：`std/error/mod.x`（`error_base_*` / `<mod>_err_*` / helper）
+- 烟测：`tests/std/error_unify_smoke.x`
 - 门禁：`tests/run-std-error-unify-gate.sh`
 - 报告：`std-error-unify gate OK`
 

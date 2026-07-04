@@ -43,14 +43,14 @@
 
 ## 测试
 
-- `tests/path/main.sx` — path_empty_len
-- `tests/path/join_basename.sx` — path_join、path_basename、path_dirname
-- `tests/path/extension_stem_abs_clean.sx` — path_extension、path_stem、path_is_absolute、path_sep、path_clean
+- `tests/path/main.x` — path_empty_len
+- `tests/path/join_basename.x` — path_join、path_basename、path_dirname
+- `tests/path/extension_stem_abs_clean.x` — path_extension、path_stem、path_is_absolute、path_sep、path_clean
 
 ## F-path v1（去 C）
 
-- **`path.c` 已删除**；`path_sep_c` 内联于 `mod.sx`（`#[cfg(target_os = "windows")]`）
-- 构建：`make -C compiler ../std/path/path.o`（`shux -backend asm mod.sx`）
+- **`path.c` 已删除**；`path_sep_c` 内联于 `mod.x`（`#[cfg(target_os = "windows")]`）
+- 构建：`make -C compiler ../std/path/path.o`（`shux -backend asm mod.x`）
 - 门禁：`./tests/run-f-path-v1-gate.sh`
 
 运行：`./tests/run-path.sh`

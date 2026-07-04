@@ -8,21 +8,21 @@ physical_map	section	## 4. 物理路径映射（Tier-S 样例）	-	tier-s
 abi_link	section	## 5. C `.o` 按需链接（ABI）	-	extern
 tool_cross	section	## 6. TOOL-007/008 联动	-	pkgmgr
 verify	section	## 7. 验证与门禁	-	gate
-resolve_std.io	resolve	std.io	std/io/mod.sx	mod.sx
-resolve_std.fs	resolve	std.fs	std/fs/mod.sx	mod.sx
-resolve_std.net	resolve	std.net	std/net/mod.sx	mod.sx
-resolve_std.path	resolve	std.path	std/path/mod.sx	mod.sx
-resolve_std.string	resolve	std.string	std/string/mod.sx	mod.sx
-resolve_std.http	resolve	std.http	std/http/mod.sx	mod.sx
-resolve_std.json	resolve	std.json	std/json/mod.sx	mod.sx
-resolve_std.process	resolve	std.process	std/process/mod.sx	mod.sx
-resolve_std.heap	resolve	std.heap	std/heap/mod.sx	mod.sx
-resolve_std.error	resolve	std.error	std/error/mod.sx	mod.sx
-resolve_core.types	resolve	core.types	core/types/mod.sx	core
-resolve_core.mem	resolve	core.mem	core/mem/mod.sx	core
+resolve_std.io	resolve	std.io	std/io/mod.x	mod.x
+resolve_std.fs	resolve	std.fs	std/fs/mod.x	mod.x
+resolve_std.net	resolve	std.net	std/net/mod.x	mod.x
+resolve_std.path	resolve	std.path	std/path/mod.x	mod.x
+resolve_std.string	resolve	std.string	std/string/mod.x	mod.x
+resolve_std.http	resolve	std.http	std/http/mod.x	mod.x
+resolve_std.json	resolve	std.json	std/json/mod.x	mod.x
+resolve_std.process	resolve	std.process	std/process/mod.x	mod.x
+resolve_std.heap	resolve	std.heap	std/heap/mod.x	mod.x
+resolve_std.error	resolve	std.error	std/error/mod.x	mod.x
+resolve_core.types	resolve	core.types	core/types/mod.x	core
+resolve_core.mem	resolve	core.mem	core/mem/mod.x	core
 cross_tool007	cross_ref	analysis/tool-pkgmgr-v1.md	TOOL-007	K1-K6
 cross_tool008	cross_ref	tests/baseline/tool-deps-lock.tsv	TOOL-008	lock
 cross_stbl001	cross_ref	tests/baseline/stbl-tier-s-registry.tsv	STBL-001	tier-s
-smoke	smoke	tests/import-std-layout/check_imports.sx	multi	typeck
+smoke	smoke	tests/import-std-layout/check_imports.x	multi	typeck
 lib	script	tests/lib/stbl-import-std-layout.sh	shared	-
 gate	script	tests/run-stbl-004-import-std-layout-gate.sh	manifest	-

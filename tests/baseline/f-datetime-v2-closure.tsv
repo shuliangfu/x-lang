@@ -2,9 +2,9 @@
 # 列：item_id	kind	anchor	notes
 fdt2_doc	doc	analysis/phase-f-datetime-v2.md	F-datetime v2
 fdt2_gate	gate	tests/run-f-datetime-v2-gate.sh	逻辑下沉门禁
-dt_sx	file	std/datetime/datetime.sx	RFC3339/IANA + 本地偏移
+dt_x	file	std/datetime/datetime.x	RFC3339/IANA + 本地偏移
 dt_tz_glue_absent	absent	std/datetime/datetime_tz_glue.c	F-ZC 已删除
-dt_mod	file	std/datetime/mod.sx	对外 API
+dt_mod	file	std/datetime/mod.x	对外 API
 dt_glue_v1_absent	absent	std/datetime/datetime_glue.c	v1 胶层已删除
-dt_inc_absent	absent	std/datetime/timezone_iana.inc.c	已迁入 datetime.sx
-makefile	makefile	compiler/Makefile	datetime.o 纯 .sx
+dt_inc_absent	absent	std/datetime/timezone_iana.inc.c	已迁入 datetime.x
+makefile	makefile	compiler/Makefile	datetime.o 纯 .x

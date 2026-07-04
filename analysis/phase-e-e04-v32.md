@@ -6,13 +6,13 @@
 
 | 符号 | 说明 |
 |------|------|
-| `shux_preprocess` | SX preprocess.sx 路径（默认）或 `preprocess_c_fallback`（LEGACY） |
+| `shux_preprocess` | X preprocess.x 路径（默认）或 `preprocess_c_fallback`（LEGACY） |
 | `SHUX_RUNTIME_PREPROCESS` | runtime.c 宏：driver 用 `shux_preprocess`，shux-c 用 `preprocess()` |
-| `RUNTIME_PIPELINE_ABI_CFLAGS` | Makefile 为 pipeline_abi.o 注入 `-DSHUX_USE_SX_PIPELINE` |
+| `RUNTIME_PIPELINE_ABI_CFLAGS` | Makefile 为 pipeline_abi.o 注入 `-DSHUX_USE_X_PIPELINE` |
 
 ## 仍留 runtime.c
 
-- `run_compiler_c` / `run_compiler_sx_path` 主体
+- `run_compiler_c` / `run_compiler_x_path` 主体
 - driver 诊断 `driver_diagnostic_*` 大块
 
 ## 复现

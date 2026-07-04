@@ -18,7 +18,7 @@ case_dup_glue	case	case_dup_glue	tests/fixtures/comp-link-sym/duplicate_glue_typ
 case_dup_macho	case	case_dup_macho	tests/fixtures/comp-link-sym/duplicate_darwin.log	dup	main
 case_wpo	case	case_wpo_undef	tests/fixtures/comp-link-sym/undefined_wpo.log	wpo	strict
 case_failed	case	case_link_failed	tests/fixtures/comp-link-sym/linker_failed_generic.log	failed	generic
-case_parser	case	case_parser_dup	tests/fixtures/comp-link-sym/duplicate_parser_sx.log	dup	parser
+case_parser	case	case_parser_dup	tests/fixtures/comp-link-sym/duplicate_parser_x.log	dup	parser
 hook_boot	hook_ref	run-bootstrap-stage-diag-gate.sh	tests/run-bootstrap-stage-diag-gate.sh	coarse	BOOT-004
 hook_wpo	hook_ref	run-wpo-strict-link-gate.sh	tests/run-wpo-strict-link-gate.sh	strict	WPO
 gate	script	run-comp-link-sym-gate.sh	tests/run-comp-link-sym-gate.sh	-	manifest

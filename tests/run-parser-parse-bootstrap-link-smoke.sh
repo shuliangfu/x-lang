@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# experimental 链 + parser_parse_bootstrap.o（C seed TU）须能 asm 编任意 .sx（parse_into_buf 强符号）。
+# experimental 链 + parser_parse_bootstrap.o（C seed TU）须能 asm 编任意 .x（parse_into_buf 强符号）。
 # 用法：
 #   ./tests/run-parser-parse-bootstrap-link-smoke.sh
 #   SHUX_PARSER_PARSE_BOOTSTRAP_LINK_FAIL=1 ./tests/run-parser-parse-bootstrap-link-smoke.sh
@@ -49,7 +49,7 @@ if [ -x "compiler/$COMP_IN" ]; then
   fi
 fi
 
-SRC="/tmp/shux_parser_boot_link_smoke.$$.sx"
+SRC="/tmp/shux_parser_boot_link_smoke.$$.x"
 OUT="/tmp/shux_parser_boot_link_smoke.$$.o"
 LOG="/tmp/shux_parser_boot_link_smoke.log"
 rm -f "$SRC" "$OUT" "$LOG" 2>/dev/null || true
@@ -57,7 +57,7 @@ printf 'function main(): i32 { return 42; }\n' > "$SRC"
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
-echo "parser-parse-bootstrap-link-smoke: asm compile minimal .sx with compiler/$COMP_IN ..."
+echo "parser-parse-bootstrap-link-smoke: asm compile minimal .x with compiler/$COMP_IN ..."
 if ! (
   cd compiler
   env -u SHUX_ASM_START_FUNC SHUX_ASM_BUILD_SKIP_TYPECK=1 \

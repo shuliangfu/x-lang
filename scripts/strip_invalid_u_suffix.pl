@@ -16,7 +16,7 @@ sub fix_text {
 
 sub process_file {
     my ($path) = @_;
-    return unless $path =~ /\.sx\z/;
+    return unless $path =~ /\.x\z/;
     open my $fh, '<', $path or return;
     local $/; my $t = <$fh>; close $fh;
     my ($new, $c) = fix_text($t);

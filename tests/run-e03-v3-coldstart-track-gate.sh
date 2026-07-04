@@ -125,10 +125,10 @@ if [ "${SHUX_E03_V3_MANIFEST_ONLY:-0}" = "1" ]; then
   exit 0
 fi
 
-if [ -f tests/run-c06-sx-frontend-default-gate.sh ]; then
-  echo "=== E-03 v3: delegate C-06 sx frontend default (contrast) ==="
-  chmod +x tests/run-c06-sx-frontend-default-gate.sh
-  SHUX_C06_FAIL="$FAIL" ./tests/run-c06-sx-frontend-default-gate.sh || die "C-06 delegate failed"
+if [ -f tests/run-c06-x-frontend-default-gate.sh ]; then
+  echo "=== E-03 v3: delegate C-06 x frontend default (contrast) ==="
+  chmod +x tests/run-c06-x-frontend-default-gate.sh
+  SHUX_C06_FAIL="$FAIL" ./tests/run-c06-x-frontend-default-gate.sh || die "C-06 delegate failed"
 fi
 
 echo "e03-v3 coldstart track gate OK (OBJS_CORE/SEED track-only; default DRIVER_SEED soft-retired)"

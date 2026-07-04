@@ -57,8 +57,8 @@ fi
 echo "=== E-soft: delegate E-01 extern .h ==="
 run_sub tests/run-e01-extern-h-soft-gate.sh SHUX_E01_FAIL
 
-echo "=== E-soft: delegate C-06 sx frontend default ==="
-run_sub tests/run-c06-sx-frontend-default-gate.sh SHUX_C06_FAIL
+echo "=== E-soft: delegate C-06 x frontend default ==="
+run_sub tests/run-c06-x-frontend-default-gate.sh SHUX_C06_FAIL
 
 echo "=== E-soft: delegate C-09 parser no C fallback ==="
 run_sub tests/run-c09-parser-no-c-fallback-gate.sh SHUX_C09_FAIL

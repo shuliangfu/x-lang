@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# std-sync-lock-diag.sh — STD-111 manifest 与烟测辅助（F-sync-lock-diag v2：逻辑在 sync.sx）
+# std-sync-lock-diag.sh — STD-111 manifest 与烟测辅助（F-sync-lock-diag v2：逻辑在 sync.x）
 
 STD_SYNC_LOCK_DIAG_PREFIX="${SHUX_STD111_SYNC_LOCK_DIAG_PREFIX:-shux: [SHUX_STD111_SYNC_LOCK_DIAG]}"
 
-# 校验 manifest 中 api/symbol/file；symbol 可在 sync.sx 或 tls glue。
+# 校验 manifest 中 api/symbol/file；symbol 可在 sync.x 或 tls glue。
 std_sync_lock_diag_symbols_ok() {
-  local mod_sx="$1"
-  local sync_diag_sx="$2"
+  local mod_x="$1"
+  local sync_diag_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,7 +15,7 @@ std_sync_lock_diag_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-sync-lock-diag FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -23,7 +23,7 @@ std_sync_lock_diag_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/sync/sync.c|std/sync/sync_lock_diag_glue.c|std/sync/sync.sx) path="$sync_diag_sx" ;;
+          std/sync/sync.c|std/sync/sync_lock_diag_glue.c|std/sync/sync.x) path="$sync_diag_x" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-sync-lock-diag FAIL: missing '$anchor' in $path" >&2
@@ -42,8 +42,8 @@ std_sync_lock_diag_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
-std_sync_lock_diag_run_sx_smoke() {
+# 编译并运行 .x 烟测。
+std_sync_lock_diag_run_x_smoke() {
   local shux="$1"
   local src="$2"
   local tag="${3:-lock_diag}"
@@ -108,5 +108,5 @@ std_sync_lock_diag_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_SYNC_LOCK_DIAG_PREFIX} status=${status} c=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_SYNC_LOCK_DIAG_PREFIX} status=${status} c=${c_ok} x=${su_ok} skip=${skip}"
 }

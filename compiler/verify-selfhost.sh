@@ -1,5 +1,5 @@
 #!/bin/sh
-# verify-selfhost.sh — Shux 语义自举验证（Stage2 SX；完全自举 = D+E+F，见 SELFHOST.md）
+# verify-selfhost.sh — Shux 语义自举验证（Stage2 X；完全自举 = D+E+F，见 SELFHOST.md）
 # 用法: cd compiler && sh verify-selfhost.sh
 
 set -e
@@ -12,7 +12,7 @@ echo "============================================"
 # ── Step 0: Cold Bootstrap ──────────────────
 echo ""
 echo "── Step 0: 冷启动 ──"
-rm -f *.o src/*.o src/*/*.o _sx_stubs.* _shux2_* shux shux-c shux-sx *_gen.c *_sx.o 2>/dev/null || true
+rm -f *.o src/*.o src/*/*.o _x_stubs.* _shux2_* shux shux-c shux-x *_gen.c *_x.o 2>/dev/null || true
 
 SRCS="src/main.c src/runtime.c src/preprocess.c src/lexer/lexer.c src/ast/ast.c src/parser/parser.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_diag.c"
 OBJS=""
@@ -32,36 +32,36 @@ else
 fi
 echo "runtime_panic.o ready"
 
-# ── Step 1: Generate all SX _gen.c ──────────
+# ── Step 1: Generate all X _gen.c ──────────
 echo ""
-echo "── Step 1: 生成所有 SX 模块 _gen.c ──"
+echo "── Step 1: 生成所有 X 模块 _gen.c ──"
 
 echo "  token..."
-./shux -L src/lexer -E -E-extern src/lexer/token.sx > token_gen.c && echo "    $(wc -l < token_gen.c) lines"
+./shux -L src/lexer -E -E-extern src/lexer/token.x > token_gen.c && echo "    $(wc -l < token_gen.c) lines"
 
 echo "  ast..."
-./shux -E -E-extern src/ast/ast.sx > ast_gen.c && echo "    $(wc -l < ast_gen.c) lines"
+./shux -E -E-extern src/ast/ast.x > ast_gen.c && echo "    $(wc -l < ast_gen.c) lines"
 
 echo "  lexer..."
-./shux -L src/lexer -E -E-extern src/lexer/lexer.sx > lexer_gen.c && echo "    $(wc -l < lexer_gen.c) lines"
+./shux -L src/lexer -E -E-extern src/lexer/lexer.x > lexer_gen.c && echo "    $(wc -l < lexer_gen.c) lines"
 
 echo "  parser..."
-./shux -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.sx > parser_gen.c && echo "    $(wc -l < parser_gen.c) lines"
+./shux -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c && echo "    $(wc -l < parser_gen.c) lines"
 
 echo "  typeck..."
-./shux -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.sx > typeck_gen.c && echo "    $(wc -l < typeck_gen.c) lines"
+./shux -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.x > typeck_gen.c && echo "    $(wc -l < typeck_gen.c) lines"
 
 echo "  codegen..."
-./shux -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.sx > codegen_gen.c && echo "    $(wc -l < codegen_gen.c) lines"
+./shux -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > codegen_gen.c && echo "    $(wc -l < codegen_gen.c) lines"
 
 echo "  preprocess..."
-./shux -L src/lexer -E -E-extern src/preprocess/preprocess.sx > preprocess_gen.c && echo "    $(wc -l < preprocess_gen.c) lines"
+./shux -L src/lexer -E -E-extern src/preprocess/preprocess.x > preprocess_gen.c && echo "    $(wc -l < preprocess_gen.c) lines"
 
 echo "  pipeline..."
-./shux -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/asm -E -E-extern src/pipeline/pipeline.sx > pipeline_gen.c && echo "    $(wc -l < pipeline_gen.c) lines"
+./shux -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/asm -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c && echo "    $(wc -l < pipeline_gen.c) lines"
 
-echo "  driver (main.sx)..."
-./shux -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.sx > driver_gen.c && echo "    $(wc -l < driver_gen.c) lines"
+echo "  driver (main.x)..."
+./shux -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.x > driver_gen.c && echo "    $(wc -l < driver_gen.c) lines"
 
 # ── Step 2: Fix generated C files ───────────
 echo ""
@@ -79,43 +79,43 @@ perl -i -pe 's/^(static inline void shux_panic_.*__attribute__)/extern struct pa
 echo "  pipeline_gen.c: ensured parser_parse_into_buf extern at top"
 echo "  修复完成"
 
-# ── Step 3: Compile all _sx.o ──────────────
+# ── Step 3: Compile all _x.o ──────────────
 echo ""
-echo "── Step 3: 编译 _sx.o (fno-stack-protector) ──"
+echo "── Step 3: 编译 _x.o (fno-stack-protector) ──"
 CFLAGS="-fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w"
 
-echo "  token_sx.o..."
-cc $CFLAGS -c token_gen.c -o token_sx.o
+echo "  token_x.o..."
+cc $CFLAGS -c token_gen.c -o token_x.o
 
-echo "  ast_sx.o..."
-cc $CFLAGS -c ast_gen.c -o ast_sx.o
+echo "  ast_x.o..."
+cc $CFLAGS -c ast_gen.c -o ast_x.o
 
-echo "  lexer_sx.o..."
-cc $CFLAGS -c lexer_gen.c -o lexer_sx.o
+echo "  lexer_x.o..."
+cc $CFLAGS -c lexer_gen.c -o lexer_x.o
 
-echo "  parser_sx.o (-include ast.h)..."
-cc $CFLAGS -include ast.h -c parser_gen.c -o parser_sx.o
+echo "  parser_x.o (-include ast.h)..."
+cc $CFLAGS -include ast.h -c parser_gen.c -o parser_x.o
 
-echo "  typeck_sx.o..."
-cc $CFLAGS -c typeck_gen.c -o typeck_sx.o
+echo "  typeck_x.o..."
+cc $CFLAGS -c typeck_gen.c -o typeck_x.o
 
-echo "  codegen_sx.o..."
-cc $CFLAGS -c codegen_gen.c -o codegen_sx.o
+echo "  codegen_x.o..."
+cc $CFLAGS -c codegen_gen.c -o codegen_x.o
 
-echo "  preprocess_sx.o..."
-cc $CFLAGS -c preprocess_gen.c -o preprocess_sx.o
+echo "  preprocess_x.o..."
+cc $CFLAGS -c preprocess_gen.c -o preprocess_x.o
 
-echo "  pipeline_sx.o..."
+echo "  pipeline_x.o..."
 perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' pipeline_gen.c 2>/dev/null || true
-cc $CFLAGS -c pipeline_gen.c -o pipeline_sx.o
+cc $CFLAGS -c pipeline_gen.c -o pipeline_x.o
 
-echo "  driver_sx.o..."
-cc $CFLAGS -c driver_gen.c -o driver_sx.o
+echo "  driver_x.o..."
+cc $CFLAGS -c driver_gen.c -o driver_x.o
 
 # 编译 C 侧模块
 echo ""
 echo "  编译 C 侧模块..."
-cc $CFLAGS -DSHUX_USE_SX_AST -c src/ast/ast.c -o ast_c.o
+cc $CFLAGS -DSHUX_USE_X_AST -c src/ast/ast.c -o ast_c.o
 cc $CFLAGS -c src/lexer/lexer.c -o lexer_c.o
 cc $CFLAGS -c src/parser/parser.c -o parser_c.o
 cc $CFLAGS -c src/typeck/typeck.c -o typeck_c.o
@@ -125,7 +125,7 @@ cc $CFLAGS -c src/std_fs_shim.c -o std_fs_shim_c.o
 
 # 编译桩文件
 echo "  编译桩文件..."
-cat > _sx_stubs.c << 'STUBEOF'
+cat > _x_stubs.c << 'STUBEOF'
 #include <stdint.h>
 #include <stddef.h>
 int asm_asm_codegen_ast(void *a, void *b, void *c, void *d) { return -1; }
@@ -133,31 +133,31 @@ int asm_asm_codegen_elf_o(void *a, void *b, void *c, void *d, void *e) { return 
 int io_read_batch_buf(void) { return -1; }
 int io_write_batch_buf(void) { return -1; }
 int typeck_lsp_main(void) { return -1; }
-extern int32_t typeck_preprocess_sx_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap);
-int32_t preprocess_sx_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap) {
-    return typeck_preprocess_sx_buf(src, src_len, out_buf, out_cap);
+extern int32_t typeck_preprocess_x_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap);
+int32_t preprocess_x_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap) {
+    return typeck_preprocess_x_buf(src, src_len, out_buf, out_cap);
 }
 STUBEOF
-cc $CFLAGS -c _sx_stubs.c -o _sx_stubs.o
+cc $CFLAGS -c _x_stubs.c -o _x_stubs.o
 
 # ── Step 4: Compile runtime_driver ──────────
 echo ""
 echo "── Step 4: 编译 runtime_driver ──"
-cc $CFLAGS -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_FRONTEND -DSHUX_USE_SX_PREPROCESS \
+cc $CFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS \
   -c src/runtime.c -o runtime_driver.o
-cc $CFLAGS -DSHUX_USE_SX_PREPROCESS -c src/preprocess.c -o preprocess_fallback.o
+cc $CFLAGS -DSHUX_USE_X_PREPROCESS -c src/preprocess.c -o preprocess_fallback.o
 cc $CFLAGS -c src/main.c -o main.o
 
-# ── Step 5: Link shux-sx ─────────────────────
+# ── Step 5: Link shux-x ─────────────────────
 echo ""
-echo "── Step 5: 链接 shux-sx ──"
-cc -fno-stack-protector -o shux-sx \
+echo "── Step 5: 链接 shux-x ──"
+cc -fno-stack-protector -o shux-x \
   main.o runtime_driver.o preprocess_fallback.o \
   lexer_c.o ast_c.o parser_c.o typeck_c.o codegen_c.o lsp_diag_c.o std_fs_shim_c.o \
-  token_sx.o ast_sx.o lexer_sx.o parser_sx.o typeck_sx.o codegen_sx.o preprocess_sx.o pipeline_sx.o driver_sx.o \
-  _sx_stubs.o
+  token_x.o ast_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o preprocess_x.o pipeline_x.o driver_x.o \
+  _x_stubs.o
 
-echo "shux-sx linked: $(ls -lh shux-sx | awk '{print $5}')"
+echo "shux-x linked: $(ls -lh shux-x | awk '{print $5}')"
 
 # ── Step 6: Typeck 测试 ─────────────────────
 echo ""
@@ -166,12 +166,12 @@ echo "── Step 6: Typeck 测试 ──"
 echo "============================================"
 
 # 测试 1: 简单程序编译
-cat > /tmp/hello.sx << 'EOF'
+cat > /tmp/hello.x << 'EOF'
 function main(): i32 { return 42; }
 EOF
 
-echo "Test: C 编译器编译 hello.sx"
-./shux /tmp/hello.sx -o /tmp/hello_c
+echo "Test: C 编译器编译 hello.x"
+./shux /tmp/hello.x -o /tmp/hello_c
 chmod +x /tmp/hello_c 2>/dev/null || true
 set +e
 /tmp/hello_c >/dev/null 2>&1
@@ -183,11 +183,11 @@ if [ "$r1" = "42" ]; then echo "  ✓"; else echo "  ✗"; fi
 # 测试 2: 类型错误检测
 echo ""
 echo "Test: 类型错误检测"
-cat > /tmp/test_bad.sx << 'EOF'
+cat > /tmp/test_bad.x << 'EOF'
 function main(): i32 { let x: i32 = true; return 0; }
 EOF
 
-./shux /tmp/test_bad.sx -o /tmp/test_bad_c 2>/tmp/test_bad_stderr; rc=$?
+./shux /tmp/test_bad.x -o /tmp/test_bad_c 2>/tmp/test_bad_stderr; rc=$?
 if [ $rc -ne 0 ] && (grep -q "typeck error" /tmp/test_bad_stderr 2>/dev/null || [ $rc -ne 0 ]); then
   echo "  ✓ C compiler: type error caught (rc=$rc)"
 else
@@ -195,13 +195,13 @@ else
   head -3 /tmp/test_bad_stderr 2>/dev/null || true
 fi
 
-# 测试 3: SX 管线编译
+# 测试 3: X 管线编译
 echo ""
-echo "Test: SX 管线编译 hello.sx"
-./shux-sx -sx -E /tmp/hello.sx > /tmp/hello_sx_E 2>/tmp/hello_sx_stderr; rc=$?
-echo "  -sx -E: rc=$rc output=$(wc -c < /tmp/hello_sx_E 2>/dev/null || echo 0) bytes"
+echo "Test: X 管线编译 hello.x"
+./shux-x -x -E /tmp/hello.x > /tmp/hello_x_E 2>/tmp/hello_x_stderr; rc=$?
+echo "  -x -E: rc=$rc output=$(wc -c < /tmp/hello_x_E 2>/dev/null || echo 0) bytes"
 if [ $rc -ne 0 ]; then
-  echo "  stderr: $(head -3 /tmp/hello_sx_stderr 2>/dev/null || true)"
+  echo "  stderr: $(head -3 /tmp/hello_x_stderr 2>/dev/null || true)"
 fi
 
 # ── Summary ─────────────────────────────────
@@ -211,7 +211,7 @@ echo " 自举验证完成"
 echo "============================================"
 echo " 编译器:"
 echo "   shux      — C 编译器 ($(ls -lh shux 2>/dev/null | awk '{print $5}' || echo 'N/A'))"
-echo "   shux-sx   — SX 自举编译器 ($(ls -lh shux-sx 2>/dev/null | awk '{print $5}' || echo 'N/A'))"
+echo "   shux-x   — X 自举编译器 ($(ls -lh shux-x 2>/dev/null | awk '{print $5}' || echo 'N/A'))"
 echo ""
-echo " 下一步: 逐阶段调试 shux-sx -sx 管线"
+echo " 下一步: 逐阶段调试 shux-x -x 管线"
 echo "============================================"

@@ -11,11 +11,11 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_BACKTRACE_SYM_DOC:-analysis/std-backtrace-symbolicate-v1.md}"
 MANIFEST="${SHUX_STD_BACKTRACE_SYM_TSV:-tests/baseline/std-backtrace-symbolicate.tsv}"
 VECTORS="${SHUX_STD_BACKTRACE_SYM_VECTORS:-tests/baseline/std-backtrace-symbolicate-vectors.tsv}"
-MOD_SX="std/backtrace/mod.sx"
+MOD_X="std/backtrace/mod.x"
 BT_RUNTIME="compiler/src/asm/runtime_backtrace_platform.c"
-BT_SX="std/backtrace/backtrace.sx"
+BT_X="std/backtrace/backtrace.x"
 LIB="tests/lib/std-backtrace-symbolicate.sh"
-SMOKE_SX="tests/backtrace/symbolicate_known.sx"
+SMOKE_X="tests/backtrace/symbolicate_known.x"
 SMOKE_C="tests/backtrace/symbolicate_gold.c"
 MIN_APIS=2
 
@@ -23,7 +23,7 @@ MIN_APIS=2
 . "$LIB"
 
 echo "=== STD-052: backtrace symbolicate manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$BT_SX" "$BT_RUNTIME" "$SMOKE_SX" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$BT_X" "$BT_RUNTIME" "$SMOKE_X" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-backtrace-symbolicate gate FAIL: missing $f" >&2
     exit 1
@@ -56,7 +56,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
         echo "std-backtrace-symbolicate gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -75,7 +75,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_backtrace_sym_symbols_ok "$MOD_SX" "$BT_RUNTIME" "$MANIFEST" || true)"
+sym_miss="$(std_backtrace_sym_symbols_ok "$MOD_X" "$BT_RUNTIME" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_backtrace_sym_emit_report "fail" 0 0 0 "$(ci_host_summary)"
   echo "std-backtrace-symbolicate gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -84,7 +84,7 @@ fi
 echo "std-backtrace-symbolicate manifest OK"
 
 C_OK=0
-SX_OK=0
+X_OK=0
 SKIP=0
 SKIP_GOLD=0
 SHUX_BIN=""
@@ -125,23 +125,23 @@ if [ -n "$SHUX_BIN" ]; then
     SKIP_GOLD=1
   fi
 
-  echo "=== STD-052: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-    echo "std-backtrace-symbolicate gate FAIL: typeck $SMOKE_SX" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+  echo "=== STD-052: .x smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    echo "std-backtrace-symbolicate gate FAIL: typeck $SMOKE_X" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_backtrace_sym_emit_report "fail" "$C_OK" 0 0 "$(ci_host_summary)"
     exit 1
   fi
-  if std_backtrace_sym_run_smoke "$SHUX_BIN" "$SMOKE_SX" "known"; then
-    SX_OK=1
+  if std_backtrace_sym_run_smoke "$SHUX_BIN" "$SMOKE_X" "known"; then
+    X_OK=1
   else
     std_backtrace_sym_emit_report "fail" "$C_OK" 0 0 "$(ci_host_summary)"
     exit 1
   fi
 else
-  echo "std-backtrace-symbolicate gate SKIP C/.sx smoke (no native shux-c)" >&2
+  echo "std-backtrace-symbolicate gate SKIP C/.x smoke (no native shux-c)" >&2
   SKIP=1
 fi
 
-std_backtrace_sym_emit_report "ok" "$C_OK" "$SX_OK" "$((SKIP + SKIP_GOLD))" "$(ci_host_summary)"
+std_backtrace_sym_emit_report "ok" "$C_OK" "$X_OK" "$((SKIP + SKIP_GOLD))" "$(ci_host_summary)"
 echo "std-backtrace-symbolicate gate OK"

@@ -9,8 +9,8 @@ cd "$(dirname "$0")/.."
 . tests/lib/tool-lsp-diag-perf.sh
 
 SHUX="${SHUX:-./compiler/shux}"
-FIXTURE=tests/lsp/diag_large_ok.sx
-URI="file:///$(pwd)/tests/lsp/diag_large_ok.sx"
+FIXTURE=tests/lsp/diag_large_ok.x
+URI="file:///$(pwd)/tests/lsp/diag_large_ok.x"
 MAX_WALL_MS="${SHUX_LSP_DIAG_MAX_WALL_MS:-15000}"
 MIN_FUNCS="${SHUX_LSP_DIAG_MIN_FUNCS:-30}"
 

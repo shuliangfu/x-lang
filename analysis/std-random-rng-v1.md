@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-19  
 > 状态：**定版（v1）**  
-> 关联：`NEXT.md` STD-130、`std/random/mod.sx`、`std/random/random.c`
+> 关联：`NEXT.md` STD-130、`std/random/mod.x`、`std/random/random.c`
 
 ---
 
@@ -30,7 +30,7 @@
 ## 3. 门禁
 
 - Manifest：`tests/baseline/std-random-rng-manifest.tsv`
-- 烟测：`tests/random/rng_roundtrip.sx`
+- 烟测：`tests/random/rng_roundtrip.x`
 - Gate：`tests/run-std-random-rng-gate.sh`
 
 ---

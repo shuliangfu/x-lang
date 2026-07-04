@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # P5 push 前自检：M-3/M-4 typeck + M-5 IO + ZC-3 slice/option + WPO DCE + ZC-1/IO-A6 SKIP 烟测（跨平台 shux-c）。
-# Linux 额外跑 refresh shux_asm gate（SX 路径 region/linear）。
+# Linux 额外跑 refresh shux_asm gate（X 路径 region/linear）。
 # 用法：./tests/run-pre-push-p5.sh
 # Mac 无 refresh：./scripts/docker-ci-local.sh ubuntu-gates
 set -e
@@ -21,9 +21,9 @@ chmod +x tests/run-bcmp-gate.sh
 ./tests/run-bcmp-gate.sh | tee /tmp/shux_bcmp_p5.log
 grep -q 'bcmp gate OK' /tmp/shux_bcmp_p5.log
 
-echo "=== P5: migrate SX gen gate ==="
-chmod +x tests/run-migrate-sx-gen-gate.sh
-./tests/run-migrate-sx-gen-gate.sh
+echo "=== P5: migrate X gen gate ==="
+chmod +x tests/run-migrate-x-gen-gate.sh
+./tests/run-migrate-x-gen-gate.sh
 
 echo "=== P5: M-4 linear typeck ==="
 chmod +x tests/run-typeck-linear.sh
@@ -145,14 +145,14 @@ chmod +x tests/run-zc1-gate.sh tests/run-iocp-gate.sh tests/run-perf-iocp.sh
 ./tests/run-iocp-gate.sh
 
 if [ "$(uname -s)" = "Linux" ]; then
-  echo "=== P5: refresh shux_asm gate (Linux SX path) ==="
+  echo "=== P5: refresh shux_asm gate (Linux X path) ==="
   make -C compiler -q OPT=1 2>/dev/null || make -C compiler OPT=1
   chmod +x tests/run-refresh-shux-asm-gate.sh tests/run-size-shux-asm-gate.sh
   ./tests/run-refresh-shux-asm-gate.sh
   if [ -x ./compiler/shux_asm ]; then
     echo "=== P5: B-SIZE shux_asm stripped (advisory, ENG-002) ==="
     ./tests/run-size-shux-asm-gate.sh
-    echo "=== P5: S3 pipeline SX emit gate (parse_entry_do_parse + EMIT_HEAVY) ==="
+    echo "=== P5: S3 pipeline X emit gate (parse_entry_do_parse + EMIT_HEAVY) ==="
     chmod +x tests/run-s3-pipeline-gate.sh tests/run-s3-pipeline-sync-build-o.sh
     ./tests/run-s3-pipeline-sync-build-o.sh
     SHUX_S3_FAIL_ON_REGRESSION=1 ./tests/run-s3-pipeline-gate.sh

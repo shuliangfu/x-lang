@@ -28,8 +28,8 @@ run_one() {
   echo "dynlib test OK ($label)"
 }
 
-run_one tests/dynlib/main.sx null
-run_one tests/dynlib/open_sym_close.sx open_sym_close
-run_one tests/dynlib/last_error.sx last_error
+run_one tests/dynlib/main.x null
+run_one tests/dynlib/open_sym_close.x open_sym_close
+run_one tests/dynlib/last_error.x last_error
 echo "dynlib test OK (all)"
 rm -f /tmp/shux_dynlib_$$_*

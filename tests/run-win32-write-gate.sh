@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_WIN32_WRITE_FAIL:-0}
-SX="tests/sys/win32_write_smoke.sx"
+X="tests/sys/win32_write_smoke.x"
 OUT="/tmp/shux_win32_write.$$.exe"
 SHUX="${SHUX:-./compiler/shux-c}"
 
@@ -26,8 +26,8 @@ fi
 
 rm -f "$OUT" 2>/dev/null || true
 # F-02 v2：kernel32 由链接器解析；无 win32.inc.c / win32.o。
-if ! "$SHUX" -L . -o "$OUT" "$SX" 2>/tmp/shux_win32_write.log; then
-  echo "win32-write-gate FAIL: compile $SX" >&2
+if ! "$SHUX" -L . -o "$OUT" "$X" 2>/tmp/shux_win32_write.log; then
+  echo "win32-write-gate FAIL: compile $X" >&2
   tail -n 10 /tmp/shux_win32_write.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

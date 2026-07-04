@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_WIN32_READ_FILE_FAIL:-0}
-SX="tests/sys/win32_read_file_smoke.sx"
+X="tests/sys/win32_read_file_smoke.x"
 GATE_FILE="/tmp/shux_win32_read_gate.txt"
 OUT="/tmp/shux_win32_read_file.$$.exe"
 SHUX="${SHUX:-./compiler/shux-c}"
@@ -28,8 +28,8 @@ fi
 printf 'WIN' >"$GATE_FILE"
 rm -f "$OUT" 2>/dev/null || true
 # F-02 v2：kernel32 由链接器解析；无 win32.inc.c / win32.o。
-if ! "$SHUX" -L . -o "$OUT" "$SX" 2>/tmp/shux_win32_read_file.log; then
-  echo "win32-read-file-gate FAIL: compile $SX" >&2
+if ! "$SHUX" -L . -o "$OUT" "$X" 2>/tmp/shux_win32_read_file.log; then
+  echo "win32-read-file-gate FAIL: compile $X" >&2
   tail -n 10 /tmp/shux_win32_read_file.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

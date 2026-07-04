@@ -42,7 +42,7 @@
 ## 4. 验收
 
 - manifest：`tests/baseline/std-map-vec-extend.tsv`
-- typeck：`tests/map/boundary.sx`、`tests/vec/append_roundtrip.sx`
+- typeck：`tests/map/boundary.x`、`tests/vec/append_roundtrip.x`
 - runnable：`tests/run-std-map-vec-extend-gate.sh`
 - 报告：`shux: [SHUX_STD_MAP_VEC_EXTEND] status=ok`
 

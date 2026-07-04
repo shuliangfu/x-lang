@@ -1,7 +1,7 @@
 /**
  * runtime_env_os.c — 环境变量 OS 胶层（F-ZC：自 std/env/env_os_glue.c 迁入）
  *
- * getenv/setenv/unsetenv/temp_dir/env_iter；env.sx 经 extern 调用；与 env.o 一并链入。
+ * getenv/setenv/unsetenv/temp_dir/env_iter；env.x 经 extern 调用；与 env.o 一并链入。
  */
 #include <stdint.h>
 #include <stdlib.h>

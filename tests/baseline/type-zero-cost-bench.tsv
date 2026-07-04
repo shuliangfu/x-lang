@@ -1,9 +1,9 @@
 # TYPE-005 zero-cost abstraction bench matrix
 # 列：bench_id	su_file	c_ref	policy	notes
 # min_benches	6
-bench_loop	loop_i32.sx	loop_i32.c	bcmp	scalar loop
-bench_mem	mem_copy.sx	mem_copy.c	bcmp	memcpy hot
-bench_struct	struct_param.sx	struct_param.c	bcmp	small struct byval
-bench_call	call_boundary.sx	call_boundary.c	bcmp	call depth
-bench_generic	generic_id_i32.sx	-	compile	monomorph smoke
-bench_linear	move_ok.sx	-	typeck	Linear ABI
+bench_loop	loop_i32.x	loop_i32.c	bcmp	scalar loop
+bench_mem	mem_copy.x	mem_copy.c	bcmp	memcpy hot
+bench_struct	struct_param.x	struct_param.c	bcmp	small struct byval
+bench_call	call_boundary.x	call_boundary.c	bcmp	call depth
+bench_generic	generic_id_i32.x	-	compile	monomorph smoke
+bench_linear	move_ok.x	-	typeck	Linear ABI

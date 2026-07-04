@@ -1,0 +1,212 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.elf — ELF64 只读解析与最小写入（STD-058/063/064/103/121）
+//
+// 【文件职责】对接 std/elf/elf.x；工具链与测试烟测用。
+// 【依赖】core + std.fs（fixture 读）；解析/写入逻辑于 elf.x。
+
+const ELF_OK: i32 = 0;
+const ELF_ERR_NULL: i32 = -1;
+const ELF_ERR_SHORT: i32 = -2;
+const ELF_ERR_MAGIC: i32 = -3;
+const ELF_ERR_CLASS: i32 = -4;
+const ELF_ERR_ENDIAN: i32 = -5;
+const ELF_ERR_INDEX: i32 = -6;
+const ELF_ERR_NOT_FOUND: i32 = -7;
+
+const ELF_MACHINE_X86_64: i32 = 62;
+const ELF_TYPE_EXEC: i32 = 2;
+const ELF_PT_LOAD: i32 = 1;
+const ELF_SHT_PROGBITS: i32 = 1;
+const ELF_SHT_SYMTAB: i32 = 2;
+const ELF_R_X86_64_64: i32 = 1;
+
+allow(padding) struct Elf64Hdr {
+  e_type: i32
+  machine: i32
+  entry: u64
+  phoff: u64
+  phnum: i32
+  shnum: i32
+  shoff: u64
+  shstrndx: i32
+}
+
+allow(padding) struct Elf64Phdr {
+  p_type: i32
+  p_flags: i32
+  offset: u64
+  vaddr: u64
+  filesz: u64
+  memsz: u64
+}
+
+allow(padding) struct Elf64Sec {
+  name_off: i32
+  sh_type: i32
+  addr: u64
+  offset: u64
+  size: u64
+}
+
+allow(padding) struct Elf64Sym {
+  name_off: i32
+  bind: i32
+  sym_type: i32
+  shndx: i32
+  value: u64
+  size: u64
+}
+
+allow(padding) struct Elf64Rela {
+  offset: u64
+  sym_idx: i32
+  reloc_type: i32
+  addend: i64
+}
+
+extern function elf64_parse_hdr_c(ptr: *u8, len: i32, out: *Elf64Hdr): i32;
+extern function elf64_read_phdr_c(ptr: *u8, len: i32, phoff: u64, phnum: i32, idx: i32, out: *Elf64Phdr): i32;
+extern function elf64_read_shdr_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, idx: i32, out: *Elf64Sec): i32;
+extern function elf64_sec_name_c(ptr: *u8, len: i32, str_off: u64, str_size: u64, name_off: i32, buf: *u8, buf_len: i32): i32;
+extern function elf64_find_section_c(ptr: *u8, len: i32, shoff: u64, shnum: i32, shstrndx: i32, want: *u8, out_idx: *i32): i32;
+extern function elf64_read_sec_byte_c(ptr: *u8, len: i32, sec_off: u64, sec_size: u64, at: u64, out: *u8): i32;
+extern function elf64_read_sym_c(ptr: *u8, len: i32, sym_off: u64, sym_size: u64, idx: i32, out: *Elf64Sym): i32;
+extern function elf64_read_rela_c(ptr: *u8, len: i32, rela_off: u64, rela_size: u64, idx: i32, out: *Elf64Rela): i32;
+extern function elf64_write_min_reloc_size_c(text_len: i32): i32;
+extern function elf64_write_min_reloc_c(buf: *u8, cap: i32, text: *u8, text_len: i32, out_len: *i32): i32;
+extern function elf64_write_smoke_c(): i32;
+extern function elf64_parse_smoke_c(): i32;
+
+/** ELF 模块已实现（对接 elf.x）。 */
+function is_implemented(): i32 { return 1; }
+
+/** 解析 ELF64 文件头。 */
+function parse_hdr(ptr: *u8, len: i32, out: *Elf64Hdr): i32 {
+  unsafe {
+    return elf64_parse_hdr_c(ptr, len, out);
+  }
+}
+
+/** 读取第 idx 个 section 头。 */
+function read_section(ptr: *u8, len: i32, hdr: *Elf64Hdr, idx: i32, out: *Elf64Sec): i32 {
+  unsafe {
+    return elf64_read_shdr_c(ptr, len, hdr.shoff, hdr.shnum, idx, out);
+  }
+}
+
+/** 从 shstrtab 取节名。 */
+function sec_name(ptr: *u8, len: i32, strtab: *Elf64Sec, name_off: i32, buf: *u8, buf_len: i32): i32 {
+  unsafe {
+    return elf64_sec_name_c(ptr, len, strtab.offset, strtab.size, name_off, buf, buf_len);
+  }
+}
+
+/** 按节名查找索引。 */
+function find_section_idx(ptr: *u8, len: i32, hdr: *Elf64Hdr, want: *u8, out_idx: *i32): i32 {
+  unsafe {
+    return elf64_find_section_c(ptr, len, hdr.shoff, hdr.shnum, hdr.shstrndx, want, out_idx);
+  }
+}
+
+/** 读取节体内字节。 */
+function read_sec_byte(ptr: *u8, len: i32, sec: *Elf64Sec, at: u64, out: *u8): i32 {
+  unsafe {
+    return elf64_read_sec_byte_c(ptr, len, sec.offset, sec.size, at, out);
+  }
+}
+
+/** 读取 program 头。 */
+function read_phdr(ptr: *u8, len: i32, hdr: *Elf64Hdr, idx: i32, out: *Elf64Phdr): i32 {
+  unsafe {
+    return elf64_read_phdr_c(ptr, len, hdr.phoff, hdr.phnum, idx, out);
+  }
+}
+
+/** 读取 symtab 条目。 */
+function read_sym(ptr: *u8, len: i32, sec: *Elf64Sec, idx: i32, out: *Elf64Sym): i32 {
+  unsafe {
+    return elf64_read_sym_c(ptr, len, sec.offset, sec.size, idx, out);
+  }
+}
+
+/** 从 strtab 节取符号名。 */
+function sym_name(ptr: *u8, len: i32, strtab: *Elf64Sec, name_off: i32, buf: *u8, buf_len: i32): i32 {
+  unsafe {
+    return elf64_sec_name_c(ptr, len, strtab.offset, strtab.size, name_off, buf, buf_len);
+  }
+}
+
+/** symtab 条目数（每符号 24 字节）。 */
+function symtab_entry_count(sec: *Elf64Sec): i32 {
+  let sz: u64 = 0;
+  unsafe {
+    sz = sec.size;
+  }
+  let n: i64 = sz / 24;
+  return n as i32;
+}
+
+/** 读取 rela 条目。 */
+function read_rela(ptr: *u8, len: i32, sec: *Elf64Sec, idx: i32, out: *Elf64Rela): i32 {
+  unsafe {
+    return elf64_read_rela_c(ptr, len, sec.offset, sec.size, idx, out);
+  }
+}
+
+/** rela 条目数。 */
+function rela_entry_count(sec: *Elf64Sec): i32 {
+  let sz: u64 = 0;
+  unsafe {
+    sz = sec.size;
+  }
+  let n: i64 = sz / 24;
+  return n as i32;
+}
+
+/** write_min_reloc 成功码。 */
+function write_err_ok(): i32 {
+  return ELF_OK;
+}
+
+/** 计算 write_min_reloc 所需缓冲容量。 */
+function write_min_reloc_size(text_len: i32): i32 {
+  unsafe {
+    return elf64_write_min_reloc_size_c(text_len);
+  }
+}
+
+/** 写入带最小重定位表的 ELF64 可执行镜像。 */
+function write_min_reloc(buf: *u8, cap: i32, text: *u8, text_len: i32, out_len: *i32): i32 {
+  unsafe {
+    return elf64_write_min_reloc_c(buf, cap, text, text_len, out_len);
+  }
+}
+
+/** C 层写入 round-trip 烟测；0 通过。 */
+function write_smoke(): i32 {
+  unsafe {
+    return elf64_write_smoke_c();
+  }
+}
+
+/** C 层解析烟测；0 通过。 */
+function parse_smoke(): i32 {
+  unsafe {
+    return elf64_parse_smoke_c();
+  }
+}

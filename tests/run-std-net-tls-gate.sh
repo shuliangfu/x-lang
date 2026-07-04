@@ -7,11 +7,11 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_NET_TLS_DOC:-analysis/std-net-tls-v1.md}"
 MANIFEST="${SHUX_STD_NET_TLS_TSV:-tests/baseline/std-net-tls.tsv}"
-NET_SX="std/net/mod.sx"
-TLS_STUB_SX="std/net/tls_stub.sx"
+NET_X="std/net/mod.x"
+TLS_STUB_X="std/net/tls_stub.x"
 LIB="tests/lib/std-net-tls.sh"
-STUB_SX="tests/net/tls_stub.sx"
-RUNTIME_SX="tests/net/tls_runtime_link_smoke.sx"
+STUB_X="tests/net/tls_stub.x"
+RUNTIME_X="tests/net/tls_runtime_link_smoke.x"
 SMOKE_C="tests/net/tls_openssl_smoke_ok.c"
 MBEDTLS_SMOKE_C="tests/net/tls_mbedtls_smoke_ok.c"
 MIN_APIS=7
@@ -20,7 +20,7 @@ MIN_APIS=7
 . "$LIB"
 
 echo "=== STD-030: net TLS prereq manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$NET_SX" "$TLS_STUB_SX" "$STUB_SX" "$RUNTIME_SX" "$SMOKE_C" "$MBEDTLS_SMOKE_C" std/net/tls_openssl.sx std/net/tls_mbedtls.sx std/net/tls_stub.sx; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$NET_X" "$TLS_STUB_X" "$STUB_X" "$RUNTIME_X" "$SMOKE_C" "$MBEDTLS_SMOKE_C" std/net/tls_openssl.x std/net/tls_mbedtls.x std/net/tls_stub.x; do
   if [ ! -f "$f" ]; then
     echo "std-net-tls gate FAIL: missing $f" >&2
     exit 1
@@ -61,7 +61,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_net_tls_symbols_ok "$NET_SX" "$TLS_STUB_SX" "$MANIFEST" || true)"
+sym_miss="$(std_net_tls_symbols_ok "$NET_X" "$TLS_STUB_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_net_tls_emit_report "fail" 0 0 1 0 0
   echo "std-net-tls gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -98,16 +98,16 @@ if [ -n "$SHUX_BIN" ]; then
   . tests/lib/build-std-c-o.sh
   make -C compiler net-o-stub >/dev/null 2>&1 || ensure_std_c_o ../std/net/net.o
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$STUB_SX" >/dev/null 2>&1; then
-    echo "std-net-tls gate FAIL: typeck $STUB_SX" >&2
-    "$SHUX_BIN" check -L . "$STUB_SX" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$STUB_X" >/dev/null 2>&1; then
+    echo "std-net-tls gate FAIL: typeck $STUB_X" >&2
+    "$SHUX_BIN" check -L . "$STUB_X" 2>&1 | tail -10 >&2 || true
     std_net_tls_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
   TYPECK_OK=1
   exe="/tmp/shux_std_net_tls_stub_$$"
   set +e
-  link_log=$(SHUX_NET_TLS=stub "$SHUX_BIN" -L . "$STUB_SX" -o "$exe" 2>&1)
+  link_log=$(SHUX_NET_TLS=stub "$SHUX_BIN" -L . "$STUB_X" -o "$exe" 2>&1)
   link_ec=$?
   set -e
   if [ "$link_ec" -eq 0 ]; then
@@ -129,7 +129,7 @@ if [ -n "$SHUX_BIN" ]; then
     STUB_OK=0
     SKIP=1
   else
-    echo "std-net-tls gate FAIL: link $STUB_SX" >&2
+    echo "std-net-tls gate FAIL: link $STUB_X" >&2
     echo "$link_log" | tail -8 >&2 || true
     std_net_tls_emit_report "fail" 0 "$TYPECK_OK" 0
     exit 1

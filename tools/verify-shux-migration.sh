@@ -24,7 +24,7 @@ if [ ! -x ./compiler/shux ]; then
   bad "compiler/shux missing (run make -C compiler bootstrap-driver-seed)"
 else
   ./compiler/shux --help 2>&1 | head -3
-  ./compiler/shux --help 2>&1 | grep -q '\.sx' || bad "shux --help missing .sx"
+  ./compiler/shux --help 2>&1 | grep -q '\.x' || bad "shux --help missing .x"
 fi
 
 note "── §12.4 stage2 selfhost ──"

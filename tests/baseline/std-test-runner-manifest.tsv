@@ -2,12 +2,12 @@
 # 列：item_id	kind	anchor	mod_path	notes
 read_path	section	## 1. 目标	analysis/std-test-runner-v1.md
 api_doc	section	## 2. Runner API	analysis/std-test-runner-v1.md
-api_runner_reset	api	runner_reset	std/test/mod.sx	重置计数
-api_runner_case	api	runner_case	std/test/mod.sx	报告用例
-api_runner_skip	api	runner_skip	std/test/mod.sx	报告 skip
-api_runner_finish	api	runner_finish	std/test/mod.sx	汇总
-sym_report_case	symbol	test_runner_report_case_c	std/test/test.sx	runner 逻辑
-smoke_sx	smoke	tests/std-test/runner_smoke.sx	烟测
+api_runner_reset	api	runner_reset	std/test/mod.x	重置计数
+api_runner_case	api	runner_case	std/test/mod.x	报告用例
+api_runner_skip	api	runner_skip	std/test/mod.x	报告 skip
+api_runner_finish	api	runner_finish	std/test/mod.x	汇总
+sym_report_case	symbol	test_runner_report_case_c	std/test/test.x	runner 逻辑
+smoke_x	smoke	tests/std-test/runner_smoke.x	烟测
 gate_base	gate	tests/run-std-test-executable-gate.sh	STD-143
 lib	script	tests/lib/std-test-runner.sh	lib
 gate	script	tests/run-std-test-runner-gate.sh	gate

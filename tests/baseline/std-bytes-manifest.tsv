@@ -4,23 +4,23 @@
 read_path	section	## 1. 阅读路径	analysis/std-bytes-v1.md
 api_doc	section	## 2. API	analysis/std-bytes-v1.md
 verify	section	## 3. Gate	analysis/std-bytes-v1.md
-api_new	api	new	std/bytes/mod.sx	创建
-api_append_byte	api	append_byte	std/bytes/mod.sx	追加
-api_extend	api	extend	std/bytes/mod.sx	切片
-api_len	api	len	std/bytes/mod.sx	长度
-api_cap	api	capacity	std/bytes/mod.sx	容量
-api_clear	api	clear	std/bytes/mod.sx	清空
-api_reserve	api	reserve	std/bytes/mod.sx	扩容
-api_grow	api	grow	std/bytes/mod.sx	大块
-api_deinit	api	deinit	std/bytes/mod.sx	释放
-api_as_view	api	as_view	std/bytes/mod.sx	StrView
-api_from_view	api	from_view	std/bytes/mod.sx	拷贝
-api_as_buffer	api	as_buffer	std/bytes/mod.sx	Buffer
-api_reader_read	api	read	std/bytes/mod.sx	读
-api_reader_seek	api	seek	std/bytes/mod.sx	seek
-api_writer_write	api	write	std/bytes/mod.sx	写
-impl_sx	file	std/bytes/mod.sx	std/bytes/mod.sx
-smoke_sx	smoke	tests/std-bytes/roundtrip.sx	round-trip
+api_new	api	new	std/bytes/mod.x	创建
+api_append_byte	api	append_byte	std/bytes/mod.x	追加
+api_extend	api	extend	std/bytes/mod.x	切片
+api_len	api	len	std/bytes/mod.x	长度
+api_cap	api	capacity	std/bytes/mod.x	容量
+api_clear	api	clear	std/bytes/mod.x	清空
+api_reserve	api	reserve	std/bytes/mod.x	扩容
+api_grow	api	grow	std/bytes/mod.x	大块
+api_deinit	api	deinit	std/bytes/mod.x	释放
+api_as_view	api	as_view	std/bytes/mod.x	StrView
+api_from_view	api	from_view	std/bytes/mod.x	拷贝
+api_as_buffer	api	as_buffer	std/bytes/mod.x	Buffer
+api_reader_read	api	read	std/bytes/mod.x	读
+api_reader_seek	api	seek	std/bytes/mod.x	seek
+api_writer_write	api	write	std/bytes/mod.x	写
+impl_x	file	std/bytes/mod.x	std/bytes/mod.x
+smoke_x	smoke	tests/std-bytes/roundtrip.x	round-trip
 vectors	file	tests/baseline/std-bytes-vectors.tsv	向量
 lib	script	lib/std-bytes.sh	tests/lib/std-bytes.sh
 gate	script	run-std-bytes-gate.sh	tests/run-std-bytes-gate.sh

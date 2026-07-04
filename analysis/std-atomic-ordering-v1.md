@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-atomic-ordering.tsv` |
 | 3 | `./tests/run-std-atomic-ordering-gate.sh` |
-| 4 | 烟测：`tests/atomic/ordering_fence.sx` |
+| 4 | 烟测：`tests/atomic/ordering_fence.x` |
 
 ---
 
@@ -33,7 +33,7 @@ Shux **v1 原子语义**与 **C11 / LLVM `__ATOMIC_*`** 一致：
 
 ## 3. Ordering 常量（STD-046）
 
-`std/atomic/mod.sx` 导出与 C11 数值对齐的常量（供文档与未来 `*_order` API）：
+`std/atomic/mod.x` 导出与 C11 数值对齐的常量（供文档与未来 `*_order` API）：
 
 | 常量 | 值 | 含义 |
 |------|-----|------|
@@ -69,7 +69,7 @@ fence_acquire();
 let v = load_i32(&data);
 ```
 
-v1 烟测验证 fence 可链接、常量与文档一致；`tests/atomic/main.sx` 回归既有原子算子。
+v1 烟测验证 fence 可链接、常量与文档一致；`tests/atomic/main.x` 回归既有原子算子。
 
 ---
 

@@ -184,7 +184,7 @@ def migrate_file_text(text: str, root: Path) -> tuple[str, bool, list[str]]:
 
 
 def process_file(path: Path, root: Path, write: bool) -> int:
-    """处理单个 .sx 文件。"""
+    """处理单个 .x 文件。"""
     if path in SKIP_FILES:
         return 0
     text = path.read_text(encoding="utf-8")
@@ -211,7 +211,7 @@ def main() -> int:
     for p in args.paths:
         path = Path(p)
         if path.is_dir():
-            files.extend(sorted(path.rglob("*.sx")))
+            files.extend(sorted(path.rglob("*.x")))
         elif path.is_file():
             files.append(path)
 

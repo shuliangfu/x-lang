@@ -17,8 +17,8 @@ MIN_CASES=6
 echo "=== COMP-012: riscv64 regression manifest ==="
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   tests/lib/comp-riscv64.sh tests/run-comp-riscv64.sh \
-  compiler/src/asm/arch/riscv64.sx compiler/src/asm/arch/riscv64_enc.sx \
-  compiler/src/asm/backend.sx tests/asm/riscv64_min.sx tests/run-asm.sh; do
+  compiler/src/asm/arch/riscv64.x compiler/src/asm/arch/riscv64_enc.x \
+  compiler/src/asm/backend.x tests/asm/riscv64_min.x tests/run-asm.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-riscv64 gate FAIL: missing $f" >&2
     exit 1
@@ -137,8 +137,8 @@ for kw in riscv64 regression ELF runnable report stable; do
   fi
 done
 
-if ! grep -q 'ta == 2' compiler/src/asm/backend.sx 2>/dev/null; then
-  echo "comp-riscv64 gate FAIL: backend.sx missing riscv64 dispatch" >&2
+if ! grep -q 'ta == 2' compiler/src/asm/backend.x 2>/dev/null; then
+  echo "comp-riscv64 gate FAIL: backend.x missing riscv64 dispatch" >&2
   exit 1
 fi
 

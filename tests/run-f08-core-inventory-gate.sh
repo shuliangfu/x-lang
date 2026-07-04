@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-08 v1：core/ 手写 C 存量确认（4 文件 + mod.sx + 专 gate）。
+# F-08 v1：core/ 手写 C 存量确认（4 文件 + mod.x + 专 gate）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F08_CORE_INVENTORY_FAIL:-0}

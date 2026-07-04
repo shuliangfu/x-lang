@@ -2,7 +2,7 @@
 # OBS-001：编译阶段耗时埋点 manifest + 烟测门禁
 #
 # 1) obs-compile-phase-timing-v1.md + manifest
-# 2) runtime.c / pipeline.sx 符号与 env 锚点
+# 2) runtime.c / pipeline.x 符号与 env 锚点
 # 3) native shux：SHUX_COMPILE_PHASE_TIMING=1 check 须输出汇总行
 #
 # 用法：./tests/run-obs-compile-phase-timing-gate.sh
@@ -12,10 +12,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_OBS_PHASE_TIMING_DOC:-analysis/obs-compile-phase-timing-v1.md}"
 MANIFEST="${SHUX_OBS_PHASE_TIMING_TSV:-tests/baseline/obs-compile-phase-timing.tsv}"
 RUNTIME="${SHUX_OBS_PHASE_TIMING_RUNTIME:-compiler/src/runtime_driver_abi.c}"
-PIPELINE="${SHUX_OBS_PHASE_TIMING_PIPELINE:-compiler/src/pipeline/pipeline.sx}"
+PIPELINE="${SHUX_OBS_PHASE_TIMING_PIPELINE:-compiler/src/pipeline/pipeline.x}"
 MIN_ITEMS=6
 OUTPUT_PREFIX="shux: [SHUX_COMPILE_PHASE_TIMING]"
-SMOKE_FIX="tests/bench/loop_i32.sx"
+SMOKE_FIX="tests/bench/loop_i32.x"
 
 # shellcheck source=tests/lib/ci-host.sh
 . tests/lib/ci-host.sh
@@ -131,7 +131,7 @@ if ! SHUX_COMPILE_PHASE_TIMING=1 "$SHUX_BIN" check "$SMOKE_FIX" >"$LOG" 2>&1; th
   exit 1
 fi
 if ! grep -qF "$OUTPUT_PREFIX" "$LOG"; then
-  # C-only shux-c（无 SHUX_USE_SX_PIPELINE）check 路径不输出阶段计时；manifest 仍须绿。
+  # C-only shux-c（无 SHUX_USE_X_PIPELINE）check 路径不输出阶段计时；manifest 仍须绿。
   echo "obs-compile-phase-timing gate SKIP smoke (phase timing unavailable; seed/C-only shux-c)" >&2
   echo "obs-compile-phase-timing gate OK"
   exit 0

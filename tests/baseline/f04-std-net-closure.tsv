@@ -9,21 +9,21 @@ glue_batch_absent	absent	std/net/udp_batch_glue.c	已迁入 runtime
 glue_workers_absent	absent	std/net/workers_glue.c	已迁入 runtime
 glue_mbedtls_c	file	compiler/src/asm/runtime_tls_mbedtls_bio.c	BIO 胶层 runtime
 glue_mbedtls_absent	absent	std/net/tls_mbedtls_bio.c	已迁入 runtime
-sx_alpn	file	std/net/alpn.sx	v10
-sx_dns	file	std/net/dns.sx	v10
-sx_addr	file	std/net/addr.sx	v11
-sx_ipv6	file	std/net/ipv6.sx	v11
-sx_io_batch	file	std/net/io_batch.sx	v11
-sx_sock	file	std/net/sock.sx	v12
-sx_udp	file	std/net/udp.sx	v12
-sx_tcp	file	std/net/tcp.sx	v13
-sx_udp_batch	file	std/net/udp_batch.sx	v13b
-sx_workers	file	std/net/workers.sx	v14
-sx_tls_stub	file	std/net/tls_stub.sx	v1
-sx_tls_openssl	file	std/net/tls_openssl.sx	v8
-sx_tls_mbedtls	file	std/net/tls_mbedtls.sx	v9
-sx_tcp_pool	file	std/net/tcp_pool.sx	v2
-sx_ws_codec	file	std/net/ws_codec.sx	v3
-sx_ws_io	file	std/net/ws_io.sx	v3
-makefile_net_o	script	compiler/Makefile	net.o 纯 .sx + runtime_net_*.o
+x_alpn	file	std/net/alpn.x	v10
+x_dns	file	std/net/dns.x	v10
+x_addr	file	std/net/addr.x	v11
+x_ipv6	file	std/net/ipv6.x	v11
+x_io_batch	file	std/net/io_batch.x	v11
+x_sock	file	std/net/sock.x	v12
+x_udp	file	std/net/udp.x	v12
+x_tcp	file	std/net/tcp.x	v13
+x_udp_batch	file	std/net/udp_batch.x	v13b
+x_workers	file	std/net/workers.x	v14
+x_tls_stub	file	std/net/tls_stub.x	v1
+x_tls_openssl	file	std/net/tls_openssl.x	v8
+x_tls_mbedtls	file	std/net/tls_mbedtls.x	v9
+x_tcp_pool	file	std/net/tcp_pool.x	v2
+x_ws_codec	file	std/net/ws_codec.x	v3
+x_ws_io	file	std/net/ws_io.x	v3
+makefile_net_o	script	compiler/Makefile	net.o 纯 .x + runtime_net_*.o
 f07_net_absent	manifest	tests/baseline/f07-no-cc-std-migrated.tsv	net.c F-07 v2

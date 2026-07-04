@@ -1,9 +1,9 @@
 # F-04 v7 std.compress zstd manifest
 # 列：item_id	kind	anchor	mod_path	notes
-symbol_compress	symbol	compress_zstd_compress_c	std/compress/zstd/lib.sx	块压
-symbol_stream	symbol	compress_zstd_stream_compress_c	std/compress/zstd/lib.sx	流压
-symbol_marker	symbol	shu_compress_zstd_marker	std/compress/zstd/lib.sx	-lzstd marker
-import_lib	symbol	import("std.compress.zstd.lib")	std/compress/zstd/mod.sx	import 转发
+symbol_compress	symbol	compress_zstd_compress_c	std/compress/zstd/lib.x	块压
+symbol_stream	symbol	compress_zstd_stream_compress_c	std/compress/zstd/lib.x	流压
+symbol_marker	symbol	shu_compress_zstd_marker	std/compress/zstd/lib.x	-lzstd marker
+import_lib	symbol	import("std.compress.zstd.lib")	std/compress/zstd/mod.x	import 转发
 make_target	target	compress-o-zlib-zstd	compiler/Makefile	兼容 target
 absent_c	absent	std/compress/zstd/zstd.c	删除 zstd.c
 absent_compress_o	absent	std/compress/compress.o	不再构建 compress.o

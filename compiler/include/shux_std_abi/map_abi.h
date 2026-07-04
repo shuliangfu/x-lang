@@ -3,7 +3,7 @@
  *
  * 【职责】map 查找与 empty_size 宏；canonical 副本供 LANG-005。
  * 【codegen】runtime.c write_fs_path_map_error_abi_inline 内联写入生成 C。
- * map_i32_i32_find_c 实现在 std/heap/ops.sx（F-03 v1）。
+ * map_i32_i32_find_c 实现在 std/heap/ops.x（F-03 v1）。
  */
 #ifndef SHUX_STD_ABI_MAP_ABI_H
 #define SHUX_STD_ABI_MAP_ABI_H

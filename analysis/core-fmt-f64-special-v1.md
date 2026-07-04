@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
-> 关联：`NEXT.md` CORE-011、`core/fmt/mod.sx`、`std/fmt/mod.sx`
+> 关联：`NEXT.md` CORE-011、`core/fmt/mod.x`、`std/fmt/mod.x`
 
 ---
 
@@ -55,7 +55,7 @@ NaN/Inf 检测不依赖 `std.math` 或 OS；烟测用 `0.0/0.0` 与 `1e200*1e200
 ## 5. Gate
 
 - manifest：`tests/baseline/core-fmt-f64-special.tsv`
-- typeck：`shux check tests/fmt/f64_special.sx`
+- typeck：`shux check tests/fmt/f64_special.x`
 - 报告：`shux: [SHUX_CORE_FMT_F64_SPECIAL] status=ok`
 
 ---

@@ -2,8 +2,8 @@
  * set_import_alias.c — import binding `-o` 链接桩
  *
  * asm co-emit 对 `const set = import("std.set")` 生成 std_set_* 符号；
- * mod.sx 在自举 slice 下暂不能稳定 emit 为 .o（reserve_one 等 typeck/codegen 缺陷）。
- * 本 TU 提供 std_set_set_i32_* 实现（线性探测哈希，语义对齐 mod.sx）。
+ * mod.x 在自举 slice 下暂不能稳定 emit 为 .o（reserve_one 等 typeck/codegen 缺陷）。
+ * 本 TU 提供 std_set_set_i32_* 实现（线性探测哈希，语义对齐 mod.x）。
  */
 #include <stdint.h>
 #include <string.h>
@@ -13,7 +13,7 @@ extern uint8_t *std_heap_alloc_u8(int32_t count);
 extern void std_heap_free_i32(int32_t *ptr);
 extern void std_heap_free_u8(uint8_t *ptr);
 
-/** 与 mod.sx Set_i32 布局一致。 */
+/** 与 mod.x Set_i32 布局一致。 */
 typedef struct ShuxSetI32 {
   int32_t *keys;
   uint8_t *occupied;

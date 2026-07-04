@@ -31,7 +31,7 @@ extern int32_t parser_asm_stretch_if_expr_branch_audit_c(struct parser_asm_lexer
                                                          struct parser_asm_slice_u8 *source);
 extern int32_t parser_asm_stretch_else_if_chain_audit_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 
-/** expr_set_common_zeros：与 parser.sx 字段清零顺序一致。 */
+/** expr_set_common_zeros：与 parser.x 字段清零顺序一致。 */
 static void parser_asm_if_expr_common_zeros_c(struct ast_Expr *e) {
   if (!e)
     return;

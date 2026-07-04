@@ -1,7 +1,7 @@
 /**
  * fmt_check_cmd.h — shux fmt / shux check 子命令（对标 deno fmt、deno check 的 CLI 行为）
  *
- * fmt：无参数时递归格式化当前目录下 .sx；--check 仅校验；--fail-fast；--ignore=前缀列表。
+ * fmt：无参数时递归格式化当前目录下 .x；--check 仅校验；--fail-fast；--ignore=前缀列表。
  * check：支持多文件/目录；收集诊断并以 path:line:col - error: 输出。
  */
 

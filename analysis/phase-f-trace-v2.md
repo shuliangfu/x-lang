@@ -1,13 +1,13 @@
-# 阶段 F-trace v2（std.trace 逻辑 .sx 下沉）
+# 阶段 F-trace v2（std.trace 逻辑 .x 下沉）
 
-> **F-trace v2**：**span 栈 / trace_id / text 导出** 全量在 **`trace.sx`**；**删除 `trace_span_glue.c`**；`trace.o` 纯 `.sx` 编译（同 cache v2）。
+> **F-trace v2**：**span 栈 / trace_id / text 导出** 全量在 **`trace.x`**；**删除 `trace_span_glue.c`**；`trace.o` 纯 `.x` 编译（同 cache v2）。
 
 ## 变更
 
 | 项 | v1 | v2 |
 |----|----|-----|
-| span/export 实现 | `trace_span_glue.c`（194 行） | **`trace.sx`** |
-| `trace.o` | `ld -r` glue + sx | **纯 shux → trace.o** |
+| span/export 实现 | `trace_span_glue.c`（194 行） | **`trace.x`** |
+| `trace.o` | `ld -r` glue + x | **纯 shux → trace.o** |
 | text 导出 | glue `snprintf` | **`u8_to_hex2` + `append_u64_dec`** |
 | 单调时钟/随机 | glue 链 time.o + random.o | `extern time_now_monotonic_ns_c` / `random_fill_bytes_c` |
 

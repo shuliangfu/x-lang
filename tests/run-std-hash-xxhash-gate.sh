@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD105_DOC:-analysis/std-hash-xxhash-v1.md}"
 MANIFEST="${SHUX_STD105_TSV:-tests/baseline/std-hash-xxhash.tsv}"
 VECTORS="${SHUX_STD105_VECTORS:-tests/baseline/std-hash-xxhash-vectors.tsv}"
-MOD_SX="std/hash/mod.sx"
-HASH_SX="std/hash/hash.sx"
+MOD_X="std/hash/mod.x"
+HASH_X="std/hash/hash.x"
 LIB="tests/lib/std-hash-xxhash.sh"
-SMOKE_SX="tests/std-hash/xxhash64.sx"
+SMOKE_X="tests/std-hash/xxhash64.x"
 SMOKE_C="tests/std-hash/xxhash64_smoke_ok.c"
 MIN_APIS=2
 
@@ -19,7 +19,7 @@ MIN_APIS=2
 . "$LIB"
 
 echo "=== STD-105: hash xxhash manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$HASH_SX" "$SMOKE_SX" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$HASH_X" "$SMOKE_X" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-hash-xxhash gate FAIL: missing $f" >&2
     exit 1
@@ -62,7 +62,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_hash_xxhash_symbols_ok "$MOD_SX" "$HASH_SX" "$MANIFEST" || true)"
+sym_miss="$(std_hash_xxhash_symbols_ok "$MOD_X" "$HASH_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_hash_xxhash_emit_report "fail" 0 0 0
   exit 1
@@ -70,7 +70,7 @@ fi
 echo "std-hash-xxhash manifest OK"
 
 C_OK=0
-SX_OK=0
+X_OK=0
 SKIP=0
 SHUX_BIN=""
 stdlib_cm_native_shu() {
@@ -94,29 +94,29 @@ if [ -n "$SHUX_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/hash/hash.o
-  if std_hash_xxhash_run_c_smoke "$HASH_SX"; then
+  if std_hash_xxhash_run_c_smoke "$HASH_X"; then
     C_OK=1
   else
     std_hash_xxhash_emit_report "fail" 0 0 0
     exit 1
   fi
-  echo "=== STD-105: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-    echo "std-hash-xxhash gate FAIL: typeck $SMOKE_SX" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+  echo "=== STD-105: .x smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    echo "std-hash-xxhash gate FAIL: typeck $SMOKE_X" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_hash_xxhash_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_hash_xxhash_run_sx_smoke "$SHUX_BIN" "$SMOKE_SX" "xxhash"; then
-    SX_OK=1
+  if std_hash_xxhash_run_x_smoke "$SHUX_BIN" "$SMOKE_X" "xxhash"; then
+    X_OK=1
   else
     std_hash_xxhash_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-hash-xxhash gate SKIP c/sx smoke (no native shux-c)" >&2
+  echo "std-hash-xxhash gate SKIP c/x smoke (no native shux-c)" >&2
   SKIP=1
 fi
 
-std_hash_xxhash_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
+std_hash_xxhash_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
 echo "std-hash-xxhash gate OK"

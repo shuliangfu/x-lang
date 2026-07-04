@@ -9,9 +9,9 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_NOLIBC_HEAP_FAIL:-0}
-SX="tests/sys/linux_heap_mmap_smoke.sx"
+X="tests/sys/linux_heap_mmap_smoke.x"
 OUT="/tmp/shux_nolibc_heap.$$.out"
-PAGE_MMAP="std/heap/page_mmap.sx"
+PAGE_MMAP="std/heap/page_mmap.x"
 
 die() {
   echo "nolibc-heap gate FAIL: $*" >&2
@@ -20,9 +20,9 @@ die() {
 }
 
 echo "=== NL-03: freestanding mmap heap (zero libc) ==="
-[ -f "$SX" ] || die "missing $SX"
+[ -f "$X" ] || die "missing $X"
 [ -f "$PAGE_MMAP" ] || die "missing $PAGE_MMAP"
-grep -q 'page_mmap_heap_init' "$PAGE_MMAP" || die "page_mmap.sx missing init"
+grep -q 'page_mmap_heap_init' "$PAGE_MMAP" || die "page_mmap.x missing init"
 
 if [ "$(uname -s 2>/dev/null)" != "Linux" ] || [ "$(uname -m 2>/dev/null)" != "x86_64" ]; then
   echo "nolibc-heap gate: N/A (Linux x86_64 freestanding only; manifest OK)"
@@ -39,9 +39,9 @@ if [ ! -x "$SHUX" ]; then
 fi
 
 rm -f "$OUT" 2>/dev/null || true
-if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$SX" 2>/tmp/shux_nolibc_heap.log; then
+if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$X" 2>/tmp/shux_nolibc_heap.log; then
   tail -n 12 /tmp/shux_nolibc_heap.log 2>/dev/null || true
-  die "compile $SX failed"
+  die "compile $X failed"
 fi
 [ -x "$OUT" ] || die "no executable $OUT"
 

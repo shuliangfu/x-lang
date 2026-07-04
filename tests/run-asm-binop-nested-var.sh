@@ -29,7 +29,7 @@ run_case() {
   fi
 }
 
-run_case tests/asm/binop_nested_var_return.sx /tmp/shux_asm_binop_nested_var 20 8
-run_case tests/asm/binop_nested_mul_return.sx /tmp/shux_asm_binop_nested_mul 120 8
+run_case tests/asm/binop_nested_var_return.x /tmp/shux_asm_binop_nested_var 20 8
+run_case tests/asm/binop_nested_mul_return.x /tmp/shux_asm_binop_nested_mul 120 8
 
 echo "asm binop nested var OK"

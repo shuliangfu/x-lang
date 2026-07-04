@@ -72,7 +72,7 @@ sub strip_text {
 
 sub process_file {
     my ($path) = @_;
-    return unless $path =~ /\.sx\z/;
+    return unless $path =~ /\.x\z/;
     open my $fh, '<', $path or return;
     local $/; my $text = <$fh>;
     close $fh;

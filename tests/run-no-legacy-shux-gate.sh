@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shux 硬切验收：禁止 .su / Shulang / shu-c / SHU_ 等遗留品牌（§12、§13）。
-# 合法名：Shux、.sx、compiler/shux、shux-c、SX 流水线 gate（run-all-sx 等）。
+# 合法名：Shux、.x、compiler/shux、shux-c、X 流水线 gate（run-all-x 等）。
 # 纳入 run-all；失败即 exit 1。
 
 set -e
@@ -10,7 +10,7 @@ fail=0
 note() { echo "run-no-legacy-shux-gate: $*"; }
 bad() { note "FAIL: $*"; fail=1; }
 
-# 1) 源文件后缀：仅 .sx
+# 1) 源文件后缀：仅 .x
 su_files=$(find . -name '*.su' -not -path './.git/*' 2>/dev/null | head -20)
 if [ -n "$su_files" ]; then
   bad "found .su files (expect 0):"
@@ -51,13 +51,13 @@ fi
   if rg -q '\bshu_io_|\b__shu_frame\b|\bshu_async_' \
   --glob '!*_gen*.c' --glob '!*.base' --glob '!tests/baseline/*' --glob '!tests/run-no-legacy-shux-gate.sh' \
   --glob '!std/标准库api命名规范.md' --glob '!core/核心库api命名规范.md' \
-  --glob '!std/async/mod.sx' --glob '!compiler/src/asm/runtime_scheduler_glue.c' \
+  --glob '!std/async/mod.x' --glob '!compiler/src/asm/runtime_scheduler_glue.c' \
   compiler core std tests scripts tools editors 2>/dev/null; then
   bad "legacy shu_io / __shu_frame / shu_async ABI names remain (non-doc)"
   rg -n '\bshu_io_|\b__shu_frame\b|\bshu_async_' \
     --glob '!*_gen*.c' --glob '!*.base' --glob '!tests/baseline/*' --glob '!tests/run-no-legacy-shux-gate.sh' \
     --glob '!std/标准库api命名规范.md' --glob '!core/核心库api命名规范.md' \
-    --glob '!std/async/mod.sx' --glob '!compiler/src/asm/runtime_scheduler_glue.c' \
+    --glob '!std/async/mod.x' --glob '!compiler/src/asm/runtime_scheduler_glue.c' \
     compiler core std tests scripts tools editors 2>/dev/null | head -20 | sed 's/^/  /'
 fi
 
@@ -72,7 +72,7 @@ if [ -f editors/vscode/grammars/su.tmLanguage.json ] || [ -f editors/vscode/snip
   bad "legacy su.tmLanguage.json or snippets/su.json still on disk"
 fi
 
-# 8) 旧 SU 流水线路径（SU→SX 后应不存在 su-pipeline / run-all-su 等）
+# 8) 旧 SU 流水线路径（SU→X 后应不存在 su-pipeline / run-all-su 等）
 legacy_test_paths=(
   tests/run-all-su.sh
   tests/run-parser-su-strict-gate.sh

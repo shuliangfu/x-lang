@@ -2,9 +2,9 @@
 # K11/L10: Build a shux kernel for x86_64 (high-half, kernel code model, no red zone).
 # Produces a 64-bit ELF. For QEMU boot, needs 32-bit multiboot1 entry that
 # switches to long mode (see boot64.s).
-# Usage: build-kernel64.sh input.sx output.elf [boot32.o]
+# Usage: build-kernel64.sh input.x output.elf [boot32.o]
 set -e
-SX="$1"
+X="$1"
 ELF="${2:-kernel64.elf}"
 BOOT32="${3:-}"  # optional 32-bit boot object
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -22,8 +22,8 @@ if [ ! -f "$STUBS_O" ]; then
         zig cc -target x86_64-linux-gnu -ffreestanding -fno-sanitize=all -c -o "$STUBS_O" "$SCRIPT_DIR/freestanding_stubs.c"
 fi
 
-# 1. shux-c -E: .sx → C
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$SX" > "$C_FILE"
+# 1. shux-c -E: .x → C
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$X" > "$C_FILE"
 
 # 2. zig cc: C → .o (64-bit x86_64, kernel code model, no red zone)
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \

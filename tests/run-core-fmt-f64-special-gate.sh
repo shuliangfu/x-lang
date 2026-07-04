@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_CORE_FMT_F64_SPECIAL_DOC:-analysis/core-fmt-f64-special-v1.md}"
 MANIFEST="${SHUX_CORE_FMT_F64_SPECIAL_TSV:-tests/baseline/core-fmt-f64-special.tsv}"
-FMT_SX="core/fmt/mod.sx"
-STD_FMT_SX="std/fmt/mod.sx"
+FMT_X="core/fmt/mod.x"
+STD_FMT_X="std/fmt/mod.x"
 LIB="tests/lib/core-fmt-f64-special.sh"
-SMOKE="tests/fmt/f64_special.sx"
+SMOKE="tests/fmt/f64_special.x"
 MIN_SYMBOLS=6
 
 # shellcheck source=tests/lib/core-fmt-f64-special.sh
@@ -29,7 +29,7 @@ native_shu() {
 }
 
 echo "=== CORE-011: f64 NaN/Inf/prec manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$FMT_SX" "$STD_FMT_SX" "$SMOKE"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$FMT_X" "$STD_FMT_X" "$SMOKE"; do
   if [ ! -f "$f" ]; then
     echo "core-fmt-f64-special gate FAIL: missing $f" >&2
     exit 1
@@ -77,7 +77,7 @@ if [ "$SYM_N" -lt "$MIN_SYMBOLS" ] || [ "$MISS" -gt 0 ]; then
   exit 1
 fi
 
-sym_miss="$(core_fmt_f64_special_symbols_ok "$FMT_SX" "$STD_FMT_SX" "$MANIFEST" || true)"
+sym_miss="$(core_fmt_f64_special_symbols_ok "$FMT_X" "$STD_FMT_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   core_fmt_f64_special_emit_report "fail" 0 1
   exit 1

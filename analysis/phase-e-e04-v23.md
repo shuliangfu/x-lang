@@ -10,7 +10,7 @@
 | `shux_output_want_exe` | `-o` 是否表示可执行文件名（非 `.o`/`.obj`/`.s`） |
 | `shux_invoke_ld_for_exe` | prepare + `shux_asm_invoke_ld_platform`；freestanding 取自 `driver_freestanding_get` |
 
-`driver_asm_output_want_exe`（compile.sx extern）保留为薄转发至 `shux_output_want_exe`。
+`driver_asm_output_want_exe`（compile.x extern）保留为薄转发至 `shux_output_want_exe`。
 
 ## 复现
 

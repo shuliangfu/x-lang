@@ -1,14 +1,14 @@
 # COMP-012 riscv64 regression matrix
 # 列：case_id	sample	check_kind	expect	policy	notes
 # min_cases	11
-case_riscv_min	riscv64_min.sx	asm_text_elf	.text,main,ret	required	COMP-012 min
-case_main	main.sx	asm_text	.text,main,ret	required	run-asm
-case_expr	expr.sx	asm_text	.text,main,ret	required	run-asm
-case_local	local.sx	asm_text	.text,main,ret	required	run-asm
-case_elf_main	main.sx	elf_o	ELF_relocatable	linux_hard	-o .o
+case_riscv_min	riscv64_min.x	asm_text_elf	.text,main,ret	required	COMP-012 min
+case_main	main.x	asm_text	.text,main,ret	required	run-asm
+case_expr	expr.x	asm_text	.text,main,ret	required	run-asm
+case_local	local.x	asm_text	.text,main,ret	required	run-asm
+case_elf_main	main.x	elf_o	ELF_relocatable	linux_hard	-o .o
 case_run_asm	run-asm.sh	hook_ref	riscv64_section	doc	既有段
-case_wave_binop	binop_return_four_add.sx	asm_text	.text,main,ret	wave	COMP-016 加链
-case_wave_cfg	binop_if_plus_eq_merge.sx	asm_text	.text,main,ret	wave	COMP-016 cfg
-case_wave_index	binop_field_index_fast.sx	asm_text	.text,main,ret	wave	COMP-016 index
-case_qemu_min	riscv64_min.sx	qemu_run	exit_42	qemu	COMP-018 min
-case_qemu_binop	binop_return_four_add.sx	qemu_run	exit_10	qemu	COMP-018 binop
+case_wave_binop	binop_return_four_add.x	asm_text	.text,main,ret	wave	COMP-016 加链
+case_wave_cfg	binop_if_plus_eq_merge.x	asm_text	.text,main,ret	wave	COMP-016 cfg
+case_wave_index	binop_field_index_fast.x	asm_text	.text,main,ret	wave	COMP-016 index
+case_qemu_min	riscv64_min.x	qemu_run	exit_42	qemu	COMP-018 min
+case_qemu_binop	binop_return_four_add.x	qemu_run	exit_10	qemu	COMP-018 binop

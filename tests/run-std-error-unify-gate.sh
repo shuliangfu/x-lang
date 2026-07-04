@@ -3,7 +3,7 @@
 #
 # 1) std-error-unify-v1.md + matrix
 # 2) error_base_* / <mod>_err_* 符号；sidecar 存在
-# 3) native shux：tests/std/error_unify_smoke.sx
+# 3) native shux：tests/std/error_unify_smoke.x
 #
 # 用法：./tests/run-std-error-unify-gate.sh
 set -e
@@ -11,9 +11,9 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
 MATRIX="${SHUX_STD_ERROR_UNIFY_TSV:-tests/baseline/std-error-unify.tsv}"
-ERR_MOD="${SHUX_STD_ERROR_MOD:-std/error/mod.sx}"
+ERR_MOD="${SHUX_STD_ERROR_MOD:-std/error/mod.x}"
 MIN_MOD=6
-SMOKE="tests/std/error_unify_smoke.sx"
+SMOKE="tests/std/error_unify_smoke.x"
 
 native_shu() {
   local f="$1"

@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# STD-118：std.trace 关键路径挂钩门禁（F-trace v2：纯 trace.sx）
+# STD-118：std.trace 关键路径挂钩门禁（F-trace v2：纯 trace.x）
 set -e
 cd "$(dirname "$0")/.."
 
 DOC="analysis/std-trace-hooks-v1.md"
 MANIFEST="tests/baseline/std-trace-hooks-manifest.tsv"
 VECTORS="tests/baseline/std-trace-hooks-vectors.tsv"
-MOD_SX="std/trace/mod.sx"
-TRACE_SX="std/trace/trace.sx"
+MOD_X="std/trace/mod.x"
+TRACE_X="std/trace/trace.x"
 LIB="tests/lib/std-trace-hooks.sh"
-SMOKE_SX="tests/std-trace/hooks_smoke.sx"
+SMOKE_X="tests/std-trace/hooks_smoke.x"
 SMOKE_C="tests/std-trace/hooks_smoke_ok.c"
 MIN_APIS=6
 
 # shellcheck source=tests/lib/std-trace-hooks.sh
 . "$LIB"
 
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$TRACE_SX" "$SMOKE_SX" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$TRACE_X" "$SMOKE_X" "$SMOKE_C"; do
   [ -f "$f" ] || { echo "std-trace-hooks gate FAIL: missing $f" >&2; exit 1; }
 done
 
@@ -34,16 +34,16 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  grep -qE "function ${anchor}\\(" "$MOD_SX" || exit 1
+  grep -qE "function ${anchor}\\(" "$MOD_X" || exit 1
 done < "$MANIFEST"
 
 [ "$API_N" -ge "$MIN_APIS" ] || exit 1
 
-sym_miss="$(std_trace_hooks_symbols_ok "$MOD_SX" "$TRACE_SX" "$MANIFEST" || true)"
+sym_miss="$(std_trace_hooks_symbols_ok "$MOD_X" "$TRACE_X" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 
 C_OK=0
-SX_OK=0
+X_OK=0
 SKIP=0
 
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
@@ -66,11 +66,11 @@ fi
 
 if [ -x ./compiler/shux-c ]; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  ./compiler/shux-c check -L . "$SMOKE_SX" >/dev/null
-  std_trace_hooks_run_sx_smoke ./compiler/shux-c "$SMOKE_SX" && SX_OK=1 || exit 1
+  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
+  std_trace_hooks_run_x_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi
 
-std_trace_hooks_emit_report ok "$C_OK" "$SX_OK" "$SKIP"
+std_trace_hooks_emit_report ok "$C_OK" "$X_OK" "$SKIP"
 echo "std-trace-hooks gate OK"

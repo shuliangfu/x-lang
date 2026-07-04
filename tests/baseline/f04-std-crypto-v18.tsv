@@ -1,7 +1,7 @@
-# F-04 v18 std.crypto chacha20_poly1305.inc.c → chacha20_poly1305.sx manifest
+# F-04 v18 std.crypto chacha20_poly1305.inc.c → chacha20_poly1305.x manifest
 # 列：item_id	kind	anchor	mod_path	notes
-symbol_chacha_seal	symbol	crypto_chacha20_poly1305_seal_c	std/crypto/chacha20_poly1305.sx	AEAD seal
-symbol_chacha_open	symbol	crypto_chacha20_poly1305_open_c	std/crypto/chacha20_poly1305.sx	AEAD open
-symbol_chacha_smoke	symbol	crypto_chacha20_poly1305_smoke_c	std/crypto/chacha20_poly1305.sx	C 烟测
-symbol_poly1305_ctx	symbol	Poly1305Ctx	std/crypto/chacha20_poly1305.sx	Poly1305 状态
+symbol_chacha_seal	symbol	crypto_chacha20_poly1305_seal_c	std/crypto/chacha20_poly1305.x	AEAD seal
+symbol_chacha_open	symbol	crypto_chacha20_poly1305_open_c	std/crypto/chacha20_poly1305.x	AEAD open
+symbol_chacha_smoke	symbol	crypto_chacha20_poly1305_smoke_c	std/crypto/chacha20_poly1305.x	C 烟测
+symbol_poly1305_ctx	symbol	Poly1305Ctx	std/crypto/chacha20_poly1305.x	Poly1305 状态
 absent_inc	absent	std/crypto/chacha20_poly1305.inc.c	删除 inc.c

@@ -8,16 +8,16 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD110_DOC:-analysis/std-codec-stream-v1.md}"
 MANIFEST="${SHUX_STD110_TSV:-tests/baseline/std-codec-stream.tsv}"
 VECTORS="${SHUX_STD110_VECTORS:-tests/baseline/std-codec-stream-vectors.tsv}"
-MOD_SX="std/codec/mod.sx"
+MOD_X="std/codec/mod.x"
 LIB="tests/lib/std-codec-stream.sh"
-SMOKE_SX="tests/std-codec/stream_roundtrip.sx"
+SMOKE_X="tests/std-codec/stream_roundtrip.x"
 MIN_APIS=8
 
 # shellcheck source=tests/lib/std-codec-stream.sh
 . "$LIB"
 
 echo "=== STD-110: std.codec stream manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$SMOKE_SX"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$SMOKE_X"; do
   if [ ! -f "$f" ]; then
     echo "std-codec-stream gate FAIL: missing $f" >&2
     exit 1
@@ -60,29 +60,29 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_codec_stream_symbols_ok "$MOD_SX" "$MANIFEST" || true)"
+sym_miss="$(std_codec_stream_symbols_ok "$MOD_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_codec_stream_emit_report "fail" 0 0
   exit 1
 fi
 echo "std-codec-stream manifest OK"
 
-SX_OK=0
+X_OK=0
 SKIP=0
 SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-110: .sx smoke (SHUX=$SHUX_BIN) ==="
+  echo "=== STD-110: .x smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-    echo "std-codec-stream gate FAIL: typeck $SMOKE_SX" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    echo "std-codec-stream gate FAIL: typeck $SMOKE_X" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_codec_stream_emit_report "fail" 0 0
     exit 1
   fi
-  if std_codec_stream_run_smoke "$SHUX_BIN" "$SMOKE_SX" "stream"; then
-    SX_OK=1
+  if std_codec_stream_run_smoke "$SHUX_BIN" "$SMOKE_X" "stream"; then
+    X_OK=1
   else
     std_codec_stream_emit_report "fail" 0 0
     exit 1
@@ -91,5 +91,5 @@ else
   SKIP=1
 fi
 
-std_codec_stream_emit_report "ok" "$SX_OK" "$SKIP"
+std_codec_stream_emit_report "ok" "$X_OK" "$SKIP"
 echo "std-codec-stream gate OK"

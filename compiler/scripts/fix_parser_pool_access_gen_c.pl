@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# parser.sx -E/-E-extern 产物：slim ASTArena 无 exprs/types/blocks/funcs 数组，
+# parser.x -E/-E-extern 产物：slim ASTArena 无 exprs/types/blocks/funcs 数组，
 # 将 memcpy(&v, &arena->pool[idx-1], ...) 改写为 ast_arena_*_get(arena, idx) API 调用。
 use strict;
 use warnings;
@@ -96,7 +96,7 @@ POOL_EXT
     $src =~ s/(struct ast_ASTArena \{[^\}]+\};\n)/$1$pool_ext/s
       or warn "fix_parser_pool_access_gen_c: ast_ast_arena pool extern anchor not found\n";
   }
-  # ast 辅助与 heap：parser -E 生成体直接调用，单 TU 须 extern（链 ast_gen2 weak / sx_seed_bridge）。
+  # ast 辅助与 heap：parser -E 生成体直接调用，单 TU 须 extern（链 ast_gen2 weak / x_seed_bridge）。
   if (index($src, 'ast_ref_is_null(') >= 0 && index($src, 'extern int ast_ref_is_null') < 0) {
     $src =~ s/(struct shux_slice_uint8_t \{[^\}]+\};\n)/$1extern int ast_ref_is_null(int32_t ref);\n/s
       or warn "fix_parser_pool_access_gen_c: ast_ref_is_null anchor not found\n";
@@ -111,7 +111,7 @@ POOL_EXT
   }
 }
 
-# parser.sx 新增 onefunc const 池 API：补 #define 使 parser_gen.c 链到 ast_pipeline_* glue。
+# parser.x 新增 onefunc const 池 API：补 #define 使 parser_gen.c 链到 ast_pipeline_* glue。
 my @pipeline_const_aliases = (
   [ 'pipeline_onefunc_append_const',    'ast_pipeline_onefunc_append_const' ],
   [ 'pipeline_onefunc_const_init_ref',  'ast_pipeline_onefunc_const_init_ref' ],

@@ -1,14 +1,14 @@
 # 阶段 F-04 v3（std.net WebSocket 去 C）
 
-> **F-04 v3**：**`ws.inc.c`** → **`ws_codec.sx`** + **`ws_io.sx`**；`std.websocket/mod.sx` import 转发。
+> **F-04 v3**：**`ws.inc.c`** → **`ws_codec.x`** + **`ws_io.x`**；`std.websocket/mod.x` import 转发。
 
 ## v3 完成（✅ manifest）
 
 | 项 | 说明 |
 |----|------|
-| `ws_codec.sx` | SHA-1 Accept、帧编解码、握手 HTTP、URL 解析、Upgrade 校验 |
-| `ws_io.sx` | connect/读写、服务端 101、poll+send/recv |
-| `std/websocket/mod.sx` | import ws_codec + ws_io + tls_stub |
+| `ws_codec.x` | SHA-1 Accept、帧编解码、握手 HTTP、URL 解析、Upgrade 校验 |
+| `ws_io.x` | connect/读写、服务端 101、poll+send/recv |
+| `std/websocket/mod.x` | import ws_codec + ws_io + tls_stub |
 | `net.c` | 不再 `#include ws.inc.c` |
 | 删除 | `std/net/ws.inc.c` |
 | 存量 | F-01 total **101**（较 102 减 1） |

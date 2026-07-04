@@ -96,33 +96,33 @@ if [ -n "$SHUX_BIN" ]; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   make -C compiler -q ../std/net/net.o 2>/dev/null \
     || make -C compiler ../std/net/net.o 2>/dev/null || true
-  for sx in tests/io/boundary.sx tests/fs/boundary.sx tests/net/boundary.sx tests/string/boundary.sx; do
-    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
-      echo "tst-001-boundary gate FAIL: typeck $sx" >&2
-      "$SHUX_BIN" check -L . "$sx" 2>&1 | tail -8 >&2 || true
+  for x in tests/io/boundary.x tests/fs/boundary.x tests/net/boundary.x tests/string/boundary.x; do
+    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+      echo "tst-001-boundary gate FAIL: typeck $x" >&2
+      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -8 >&2 || true
       tst001_emit_report "fail" "$IO_OK" "$FS_OK" "$NET_OK" "$STR_OK" 0
       exit 1
     fi
   done
-  if tst001_run_boundary "$SHUX_BIN" tests/io/boundary.sx /tmp/shux_tst001_io; then
+  if tst001_run_boundary "$SHUX_BIN" tests/io/boundary.x /tmp/shux_tst001_io; then
     IO_OK=1
   else
     tst001_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if tst001_run_boundary "$SHUX_BIN" tests/fs/boundary.sx /tmp/shux_tst001_fs; then
+  if tst001_run_boundary "$SHUX_BIN" tests/fs/boundary.x /tmp/shux_tst001_fs; then
     FS_OK=1
   else
     tst001_emit_report "fail" "$IO_OK" 0 0 0 0
     exit 1
   fi
-  if tst001_run_boundary "$SHUX_BIN" tests/net/boundary.sx /tmp/shux_tst001_net; then
+  if tst001_run_boundary "$SHUX_BIN" tests/net/boundary.x /tmp/shux_tst001_net; then
     NET_OK=1
   else
     tst001_emit_report "fail" "$IO_OK" "$FS_OK" 0 0 0
     exit 1
   fi
-  if tst001_run_boundary "$SHUX_BIN" tests/string/boundary.sx /tmp/shux_tst001_str; then
+  if tst001_run_boundary "$SHUX_BIN" tests/string/boundary.x /tmp/shux_tst001_str; then
     STR_OK=1
   else
     tst001_emit_report "fail" "$IO_OK" "$FS_OK" "$NET_OK" 0 0

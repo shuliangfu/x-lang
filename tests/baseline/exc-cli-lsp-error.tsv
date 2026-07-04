@@ -12,6 +12,6 @@ format_cli_typeck	pattern	typeck error: %s at %d:%d	compiler/src/lsp/lsp_diag.c	
 format_cli_parse	pattern	parse error at %d:%d:	compiler/src/parser/parser.c	CLI parse
 format_check	pattern	 - %s: %s	compiler/src/lsp/lsp_diag.c	check 行
 macro_typeck	pattern	TYPECK_ERR(	compiler/src/typeck/typeck.c	C 宏
-fixture_assign	golden	type_mismatch_assign.sx	tests/typeck/type_mismatch_assign.sx	assignment type mismatch: expected i32, found bool
-fixture_return	golden	return_operand_type_mismatch.sx	tests/typeck/return_operand_type_mismatch.sx	return expression type mismatch
+fixture_assign	golden	type_mismatch_assign.x	tests/typeck/type_mismatch_assign.x	assignment type mismatch: expected i32, found bool
+fixture_return	golden	return_operand_type_mismatch.x	tests/typeck/return_operand_type_mismatch.x	return expression type mismatch
 hook_check	hook_script	run-check.sh	tests/run-check.sh	check 烟测

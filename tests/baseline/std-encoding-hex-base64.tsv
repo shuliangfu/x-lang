@@ -6,17 +6,17 @@ division	section	## 2. 与 std.base64 职责划分	std.base64
 hex_api	section	## 3.1 十六进制	hex_encode
 string_api	section	## 3.2 String 互操作	encode_hex_string
 verify	section	## 4. 验证与门禁	gate
-api_hex_enc	api	hex_encode	std/encoding/mod.sx	缓冲 hex 编
-api_hex_dec	api	hex_decode	std/encoding/mod.sx	缓冲 hex 解
-api_hex_str	api	encode_hex_string	std/encoding/mod.sx	String hex
-api_hex_dec_str	api	decode_hex_string	std/encoding/mod.sx	StrView hex
-api_b64_str	api	encode_base64_string	std/encoding/mod.sx	String b64
-api_b64_dec_str	api	decode_base64_string	std/encoding/mod.sx	StrView b64
-api_hex_len	api	hex_encoded_len	std/encoding/mod.sx	长度辅助
-api_hex_dec_len	api	hex_decoded_len	std/encoding/mod.sx	解码长度
-symbol_hex_enc_c	symbol	encoding_hex_encode_c	std/encoding/encoding.sx	hex 编
-symbol_hex_dec_c	symbol	encoding_hex_decode_c	std/encoding/encoding.sx	hex 解
-smoke_hex_b64	smoke	tests/encoding/hex_base64_string.sx	金样
-smoke_main	smoke	tests/encoding/main.sx	UTF-8 回归
+api_hex_enc	api	hex_encode	std/encoding/mod.x	缓冲 hex 编
+api_hex_dec	api	hex_decode	std/encoding/mod.x	缓冲 hex 解
+api_hex_str	api	encode_hex_string	std/encoding/mod.x	String hex
+api_hex_dec_str	api	decode_hex_string	std/encoding/mod.x	StrView hex
+api_b64_str	api	encode_base64_string	std/encoding/mod.x	String b64
+api_b64_dec_str	api	decode_base64_string	std/encoding/mod.x	StrView b64
+api_hex_len	api	hex_encoded_len	std/encoding/mod.x	长度辅助
+api_hex_dec_len	api	hex_decoded_len	std/encoding/mod.x	解码长度
+symbol_hex_enc_c	symbol	encoding_hex_encode_c	std/encoding/encoding.x	hex 编
+symbol_hex_dec_c	symbol	encoding_hex_decode_c	std/encoding/encoding.x	hex 解
+smoke_hex_b64	smoke	tests/encoding/hex_base64_string.x	金样
+smoke_main	smoke	tests/encoding/main.x	UTF-8 回归
 lib	script	lib/std-encoding-hex-base64.sh	tests/lib/std-encoding-hex-base64.sh
 gate	script	run-std-encoding-hex-base64-gate.sh	tests/run-std-encoding-hex-base64-gate.sh

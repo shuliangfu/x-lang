@@ -19,7 +19,7 @@
 
 ## 2. 类型族
 
-### 2.1 Option（`core/option/mod.sx`）
+### 2.1 Option（`core/option/mod.x`）
 
 | 类型 | 用途 |
 |------|------|
@@ -27,7 +27,7 @@
 | `Option_u8` | 可空 u8（切片 get） |
 | `Option_ptr_u8` | 可空 `*u8` 指针 |
 
-### 2.2 Result（`core/result/mod.sx`）
+### 2.2 Result（`core/result/mod.x`）
 
 | 类型 | 用途 |
 |------|------|
@@ -61,7 +61,7 @@ function unwrap_or<T>(is_some: bool, value: T, default_val: T): T
 ## 4. 验收
 
 - manifest：`tests/baseline/core-option-result.tsv`
-- typeck：`shux check tests/option/main.sx`、`tests/result/main.sx`
+- typeck：`shux check tests/option/main.x`、`tests/result/main.x`
 - runnable：`tests/run-option.sh`、`tests/run-result.sh`（本机可链接时）
 - 报告：`shux: [SHUX_CORE_OPTION_RESULT] status=ok`
 

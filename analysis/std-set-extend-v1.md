@@ -47,7 +47,7 @@
 ## 4. 验收
 
 - manifest：`tests/baseline/std-set-extend.tsv`
-- typeck：`tests/set/extend.sx`
+- typeck：`tests/set/extend.x`
 - 报告：`shux: [SHUX_STD_SET_EXTEND] status=ok`
 
 ---

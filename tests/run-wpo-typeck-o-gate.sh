@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S5：build_asm/typeck_wpo.o WPO 生产链硬门禁（WPO 压缩 typeck.sx dogfood）。
+# S5：build_asm/typeck_wpo.o WPO 生产链硬门禁（WPO 压缩 typeck.x dogfood）。
 # strict 链仍用全量 build_asm/typeck.o；本门禁仅验 typeck_wpo.o。
 # 用法：
 #   ./tests/run-wpo-typeck-o-gate.sh
@@ -31,8 +31,8 @@ TXT=$(wpo_ab_text_bytes "$TYPECK_O") || {
   exit 1
 }
 
-if ! nm "$TYPECK_O" 2>/dev/null | grep -q 'typeck_sx_ast'; then
-  echo "run-wpo-typeck-o-gate FAIL: $TYPECK_O missing typeck_sx_ast" >&2
+if ! nm "$TYPECK_O" 2>/dev/null | grep -q 'typeck_x_ast'; then
+  echo "run-wpo-typeck-o-gate FAIL: $TYPECK_O missing typeck_x_ast" >&2
   exit 1
 fi
 if ! nm "$TYPECK_O" 2>/dev/null | grep -q 'check_block'; then
@@ -59,4 +59,4 @@ if [ -x "$(dirname "$0")/run-wpo-typeck-reach-gate.sh" ]; then
   }
 fi
 
-echo "wpo typeck_wpo.o gate OK (__text=${TXT}B <= ${MAX_TEXT}B, save=${SAVE}B, typeck_sx_ast+check_block present)"
+echo "wpo typeck_wpo.o gate OK (__text=${TXT}B <= ${MAX_TEXT}B, save=${SAVE}B, typeck_x_ast+check_block present)"

@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-LIVE_SX="tests/socketio/live_handshake.sx"
+LIVE_X="tests/socketio/live_handshake.x"
 MOCK_JS="tests/socketio/mock_eio_polling_server.js"
 PORT="${SHUX_SOCKETIO_LIVE_PORT:-13001}"
 
@@ -41,7 +41,7 @@ else
   exit 0
 fi
 
-for f in "$LIVE_SX" "$MOCK_JS"; do
+for f in "$LIVE_X" "$MOCK_JS"; do
   if [ ! -f "$f" ]; then
     echo "std-socketio live FAIL: missing $f" >&2
     exit 1
@@ -67,13 +67,13 @@ MOCK_PID=$!
 sleep 0.5
 
 echo "=== STD-SOCKETIO-001: live polling handshake (port=$PORT) ==="
-if ! "$SHUX_BIN" check -L . "$LIVE_SX" >/dev/null 2>&1; then
-  echo "std-socketio live FAIL: typeck $LIVE_SX" >&2
+if ! "$SHUX_BIN" check -L . "$LIVE_X" >/dev/null 2>&1; then
+  echo "std-socketio live FAIL: typeck $LIVE_X" >&2
   exit 1
 fi
 
 exe="/tmp/shux_std_socketio_live_$$"
-if ! "$SHUX_BIN" -L . "$LIVE_SX" -o "$exe" 2>/tmp/shux_socketio_live_link_$$.log; then
+if ! "$SHUX_BIN" -L . "$LIVE_X" -o "$exe" 2>/tmp/shux_socketio_live_link_$$.log; then
   echo "std-socketio live FAIL: link" >&2
   tail -8 /tmp/shux_socketio_live_link_$$.log >&2 || true
   exit 1

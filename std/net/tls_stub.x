@@ -1,0 +1,169 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.net.tls_stub — F-04 v1：TLS 桩后端（无 mbedTLS/OpenSSL 链入）
+//
+// 【文件职责】
+// 从 tls_stub.inc.c 迁出的 STD-030 TLS 桩：connect/read/write 返回 TLS_NOT_IMPL（-9）；
+// 供 mod.x 链接符号 net_tls_*_c（net.c 不再含 ws.inc.c）。
+//
+// 【限制】
+// OpenSSL/mbedTLS 仍由 net.c 内 tls_*.inc.c 提供（F-04 v2+）；本模块为默认 stub 路径。
+
+/** TLS 线程局部最后错误码（桩路径；OpenSSL/mbedTLS 仍用 net.c 内 shu_tls_last_error）。 */
+let shu_tls_last_error: i32 = 0;
+
+/** 后端名称 "stub"（NUL 结尾）。 */
+let TLS_STUB_BACKEND_NAME: u8[5] = [115, 116, 117, 98, 0];
+
+/**
+ * TLS 后端是否可用；桩恒为 0（不可用）。
+ * 返回值：1 可用，0 桩。
+ */
+function net_tls_is_available_c(): i32 {
+  return 0;
+}
+
+/**
+ * TLS 后端名称（NUL 结尾）；桩为 "stub"。
+ */
+function net_tls_backend_name_c(): *u8 {
+  return &TLS_STUB_BACKEND_NAME[0];
+}
+
+/**
+ * TLS 客户端握手（桩）；恒失败并写 shu_tls_last_error。
+ * fd<0 写 -2；否则 -9（TLS_NOT_IMPL）。
+ */
+function net_tls_connect_client_c(fd: i32, sni: *u8): i64 {
+  let _ign_sni: *u8 = sni;
+  shu_tls_last_error = 0;
+  if (fd < 0) {
+    shu_tls_last_error = -2;
+    return 0 as i64;
+  }
+  shu_tls_last_error = -9;
+  return 0 as i64;
+}
+
+/**
+ * 关闭 TLS 会话（桩）；恒成功 0。
+ */
+function net_tls_close_c(ctx_handle: i64): i32 {
+  let _ign: i64 = ctx_handle;
+  shu_tls_last_error = 0;
+  return 0;
+}
+
+/**
+ * TLS 读（桩）；返回 -9（TLS_NOT_IMPL）。
+ */
+function net_tls_read_c(ctx_handle: i64, buf: *u8, cap: i32): i32 {
+  let _ign0: i64 = ctx_handle;
+  let _ign1: *u8 = buf;
+  let _ign2: i32 = cap;
+  shu_tls_last_error = -9;
+  return -9;
+}
+
+/**
+ * TLS 写（桩）；返回 -9（TLS_NOT_IMPL）。
+ */
+function net_tls_write_c(ctx_handle: i64, buf: *u8, len: i32): i32 {
+  let _ign0: i64 = ctx_handle;
+  let _ign1: *u8 = buf;
+  let _ign2: i32 = len;
+  shu_tls_last_error = -9;
+  return -9;
+}
+
+/**
+ * OpenSSL 烟测（桩）；恒 -9。
+ */
+function net_tls_openssl_smoke_c(): i32 {
+  return -9;
+}
+
+/**
+ * mbedTLS 烟测（桩）；恒 -9。
+ */
+function net_tls_mbedtls_smoke_c(): i32 {
+  return -9;
+}
+
+/**
+ * ALPN 握手（桩）；委托 net_tls_connect_client_c。
+ */
+function net_tls_connect_client_alpn_c(fd: i32, sni: *u8, alpn_wire: *u8, alpn_wire_len: i32): i64 {
+  let _ign0: *u8 = alpn_wire;
+  let _ign1: i32 = alpn_wire_len;
+  return net_tls_connect_client_c(fd, sni);
+}
+
+/**
+ * 读取协商 ALPN（桩）；无协议，返回 0。
+ */
+function net_tls_alpn_selected_c(ctx_handle: i64, out: *u8, out_cap: i32): i32 {
+  let _ign0: i64 = ctx_handle;
+  let _ign1: *u8 = out;
+  let _ign2: i32 = out_cap;
+  shu_tls_last_error = 0;
+  return 0;
+}
+
+/**
+ * 协商协议是否为 h2（桩）；恒 0。
+ */
+function net_tls_alpn_is_h2_c(ctx_handle: i64): i32 {
+  let _ign: i64 = ctx_handle;
+  return 0;
+}
+
+/**
+ * TLS 服务端上下文（桩）；不可用，写 -9。
+ */
+function net_tls_server_ctx_create_mem_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
+  let _ign0: *u8 = cert_pem;
+  let _ign1: i32 = cert_len;
+  let _ign2: *u8 = key_pem;
+  let _ign3: i32 = key_len;
+  shu_tls_last_error = -9;
+  return 0 as i64;
+}
+
+/**
+ * 销毁 TLS 服务端上下文（桩）；无操作。
+ */
+function net_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
+  let _ign: i64 = srv_ctx_h;
+}
+
+/**
+ * TLS 服务端 accept（桩）；不可用，写 -9。
+ */
+function net_tls_accept_server_c(srv_ctx_h: i64, fd: i32): i64 {
+  let _ign0: i64 = srv_ctx_h;
+  let _ign1: i32 = fd;
+  shu_tls_last_error = -9;
+  return 0 as i64;
+}
+
+/**
+ * 读取 TLS 最后一次错误码（桩路径）。
+ */
+function net_tls_last_error_c(): i32 {
+  return shu_tls_last_error;
+}

@@ -2,7 +2,7 @@
 # 列：item_id	kind	getter	obj_rel	trigger	ld_flag	notes
 min_always	42
 min_on_demand	2
-io	std_sx	get_io_o_path	-	-lc	F-03 v2/v3 pure .sx
+io	std_x	get_io_o_path	-	-lc	F-03 v2/v3 pure .x
 asm_stubs	compiler	get_runtime_asm_io_stubs_o_path	runtime_asm_io_stubs.o	-	-	ASM IO
 process_argv	compiler	shux_runtime_process_argv_o_path	runtime_process_argv.o	-	-	F-ZC argc/argv
 process_os	compiler	shux_runtime_process_os_glue_o_path	runtime_process_os_glue.o	std/process/process.o	-	F-ZC getenv/spawn/getcwd
@@ -13,10 +13,10 @@ queue_contention	compiler	shux_runtime_queue_contention_o_path	runtime_queue_con
 dynlib_os	compiler	shux_runtime_dynlib_os_o_path	runtime_dynlib_os.o	std/dynlib/dynlib.o	-ldl	F-ZC dlopen
 env_os	compiler	shux_runtime_env_os_o_path	runtime_env_os.o	std/env/env.o	-	F-ZC getenv/setenv
 backtrace_platform	compiler	shux_runtime_backtrace_platform_o_path	runtime_backtrace_platform.o	std/backtrace/backtrace.o	-rdynamic/-ldl	F-ZC capture
-fs	std_sx	get_std_fs_o_path	-	-lc	F-03 v2 pure .sx
+fs	std_x	get_std_fs_o_path	-	-lc	F-03 v2 pure .x
 process	std_always	get_std_process_o_path	std/process/process.o	-	-	
 string	std_always	get_std_string_o_path	std/string/string.o	-	-	
-heap	std_sx	get_std_heap_o_path	-	-lc	F-03 v2 pure .sx
+heap	std_x	get_std_heap_o_path	-	-lc	F-03 v2 pure .x
 path	std_always	get_std_path_o_path	std/path/path.o	-	-	
 runtime	std_always	get_std_runtime_o_path	std/runtime/runtime.o	-	-	
 panic	compiler	get_runtime_panic_o_path	runtime_panic.o	-	-	
@@ -51,7 +51,7 @@ ffi	std_always	get_std_ffi_o_path	std/ffi/ffi.o	-	-
 json	std_always	get_std_json_o_path	std/json/json.o	-	-	
 csv	std_always	get_std_csv_o_path	std/csv/csv.o	-	-	
 regex	std_always	get_std_regex_o_path	std/regex/regex.o	-	-	
-compress	std_sx	shux_std_compress_o_path	-	-lz/-lzstd/-lbrotli*	user_o	F-04 v7 + F-06 v1 pure .sx
+compress	std_x	shux_std_compress_o_path	-	-lz/-lzstd/-lbrotli*	user_o	F-04 v7 + F-06 v1 pure .x
 unicode	std_always	get_std_unicode_o_path	std/unicode/unicode.o	-	-	
 dynlib	std_always	get_std_dynlib_o_path	std/dynlib/dynlib.o	-	-ldl	have_dynlib
 http	std_always	get_std_http_o_path	std/http/http.o	-	-	
@@ -70,10 +70,10 @@ db_kv_glue	compiler	shux_runtime_kv_mmap_glue_o_path	runtime_kv_mmap_glue.o	std/
 c_db_arrow_on_demand	c_backend	generated_c_needs_db_arrow	std/db/arrow/arrow.o	arrow_column_i32_create_c	-	invoke_cc C
 db_arrow_glue	compiler	shux_runtime_arrow_simd_glue_o_path	runtime_arrow_simd_glue.o	std/db/arrow/arrow.o	-	F-ZC SIMD
 db_sqlite_glue	compiler	shux_runtime_sqlite_glue_o_path	runtime_sqlite_glue.o	std/db/sqlite/sqlite.o	-lsqlite3	F-ZC sqlite3
-hook_kv	smoke	tests/std-db/kv_tick_smoke.sx	std/db/kv/kv.o	db_kv_open_c	-	on_demand
-hook_arrow	smoke	tests/std-db/arrow_column_smoke.sx	std/db/arrow/arrow.o	arrow_column_f32_create_c	-	on_demand
-hook_json	smoke	tests/json/object_array_parse.sx	std/json/json.o	-	-	link smoke
-hook_async	smoke	tests/async/await_scheduler_mod.sx	std/async/scheduler.o	-	-	on_demand smoke
-hook_core_mem	smoke	tests/core-mem/volatile_fence.sx	core/mem/mem.o	-	-	on_demand smoke
+hook_kv	smoke	tests/std-db/kv_tick_smoke.x	std/db/kv/kv.o	db_kv_open_c	-	on_demand
+hook_arrow	smoke	tests/std-db/arrow_column_smoke.x	std/db/arrow/arrow.o	arrow_column_f32_create_c	-	on_demand
+hook_json	smoke	tests/json/object_array_parse.x	std/json/json.o	-	-	link smoke
+hook_async	smoke	tests/async/await_scheduler_mod.x	std/async/scheduler.o	-	-	on_demand smoke
+hook_core_mem	smoke	tests/core-mem/volatile_fence.x	core/mem/mem.o	-	-	on_demand smoke
 doc	file	analysis/boot-std-link-contract-v1.md	analysis/boot-std-link-contract-v1.md	-	-	RFC
 gate	script	run-boot-std-link-contract-gate.sh	tests/run-boot-std-link-contract-gate.sh	-	-	manifest

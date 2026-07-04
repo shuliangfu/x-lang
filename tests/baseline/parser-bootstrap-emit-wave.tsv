@@ -6,4 +6,4 @@
 boot_c1	C1	run-parser-parse-bootstrap-gate.sh	seed	C TU parse_into_buf
 boot_c2	C2	run-parser-parse-bootstrap-link-smoke.sh	link	experimental 链
 boot_bisect	C2	run-parser-parse-bootstrap-bisect-gate.sh	bisect	MINIMAL+FULL
-boot_sx_emit	C3	run-parser-parse-bootstrap-sx-emit-gate.sh	probe	SU emit 轨道
+boot_x_emit	C3	run-parser-parse-bootstrap-x-emit-gate.sh	probe	SU emit 轨道

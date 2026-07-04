@@ -1,0 +1,7 @@
+// const_hex.x — 烟测：顶层 const 与表达式中的 0x 十六进制整数字面量
+const MAGIC: i32 = 0x41535700;
+
+/** 入口：返回 MAGIC（1095980800 = 0x41535700）。 */
+function main(): i32 {
+  return MAGIC;
+}

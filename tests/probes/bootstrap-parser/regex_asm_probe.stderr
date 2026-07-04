@@ -1,9 +1,9 @@
 note: pipeline debug: driver_first_parse num_funcs=45 src_len=45873
- --> ../std/regex/regex.sx
+ --> ../std/regex/regex.x
 note: pipeline debug: pipeline thread start len=45873
- --> ../std/regex/regex.sx
+ --> ../std/regex/regex.x
 note: pipeline debug: after_entry_parse num_funcs=45
- --> ../std/regex/regex.sx
+ --> ../std/regex/regex.x
 shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=45
 shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=1 fin=0 nso=1
 shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=1 exprs=1
@@ -50,4 +50,4 @@ shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=339 tail=30306 kind=41
 shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=343 tail=30515 kind=41
 shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=409 tail=39372 kind=41
 note: pipeline debug: pipeline thread done ec=0
- --> ../std/regex/regex.sx
+ --> ../std/regex/regex.x

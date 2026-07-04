@@ -4,7 +4,7 @@
  * 【文件职责】
  * 实现 sync_mutex_*、sync_rwlock_*、sync_condvar_* 及竞争烟测；
  * POSIX 使用 pthread；Windows 使用 CRITICAL_SECTION / SRWLOCK / CONDITION_VARIABLE。
- * 加解锁时调用 sync.sx 中的诊断钩子。
+ * 加解锁时调用 sync.x 中的诊断钩子。
  *
  * 【所属模块】std.sync；与 sync.o、runtime_sync_lock_diag_tls.o 一并链入 exe。
  */
@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-/** 锁诊断钩子（sync.sx）。 */
+/** 锁诊断钩子（sync.x）。 */
 extern int32_t sync_lock_diag_before_lock(void *m);
 extern void sync_lock_diag_after_lock(void *m);
 extern int32_t sync_lock_diag_before_unlock(void *m);

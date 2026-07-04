@@ -11,7 +11,7 @@ ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 GENERIC_OUT="${TMPDIR:-/tmp}/shux_generic"
 
-$LINK_SHUX -L . tests/generic/main.sx -o "$GENERIC_OUT" 2>&1
+$LINK_SHUX -L . tests/generic/main.x -o "$GENERIC_OUT" 2>&1
 exitcode=0
 "$GENERIC_OUT" >/dev/null 2>&1 || exitcode=$?
 if [ "$exitcode" -ne 42 ]; then
@@ -19,7 +19,7 @@ if [ "$exitcode" -ne 42 ]; then
     exit 1
 fi
 
-GENERIC_ERR=$("$LINK_SHUX" -L . tests/generic/wrong_type_args.sx -o "${TMPDIR:-/tmp}/shux_generic_wrong" 2>&1 || true)
+GENERIC_ERR=$("$LINK_SHUX" -L . tests/generic/wrong_type_args.x -o "${TMPDIR:-/tmp}/shux_generic_wrong" 2>&1 || true)
 echo "$GENERIC_ERR" | grep -q "expects 1 type arguments, got 2" || {
     echo "expected generic type-arg count diagnostic, got: $GENERIC_ERR"
     exit 1

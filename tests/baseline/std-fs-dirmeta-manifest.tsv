@@ -4,19 +4,19 @@
 read_path	section	## 1. 阅读路径	analysis/std-fs-dirmeta-v1.md
 api_doc	section	## 2. 目录/元数据 API	analysis/std-fs-dirmeta-v1.md
 verify	section	## 3. Gate	analysis/std-fs-dirmeta-v1.md
-api_stat	api	stat	std/fs/mod.sx	stat
-api_chmod	api	chmod	std/fs/mod.sx	chmod
-api_mkdir	api	mkdir	std/fs/mod.sx	mkdir
-api_unlink	api	remove_file	std/fs/mod.sx	unlink
-api_rmdir	api	remove_dir	std/fs/mod.sx	rmdir
-api_dir_open	api	dir_open	std/fs/mod.sx	opendir
-api_dir_read	api	dir_read	std/fs/mod.sx	readdir
-api_dir_close	api	dir_close	std/fs/mod.sx	closedir
-api_mode_file	api	mode_file_default	std/fs/mod.sx	0644
-api_mode_dir	api	mode_dir_default	std/fs/mod.sx	0755
-symbol_stat_c	symbol	fs_stat_c	std/fs/posix.sx	POSIX stat
-symbol_dir_open_c	symbol	fs_dir_open_c	std/fs/posix.sx	POSIX opendir
-smoke_sx	smoke	tests/fs/dirmeta_roundtrip.sx	.sx烟测
+api_stat	api	stat	std/fs/mod.x	stat
+api_chmod	api	chmod	std/fs/mod.x	chmod
+api_mkdir	api	mkdir	std/fs/mod.x	mkdir
+api_unlink	api	remove_file	std/fs/mod.x	unlink
+api_rmdir	api	remove_dir	std/fs/mod.x	rmdir
+api_dir_open	api	dir_open	std/fs/mod.x	opendir
+api_dir_read	api	dir_read	std/fs/mod.x	readdir
+api_dir_close	api	dir_close	std/fs/mod.x	closedir
+api_mode_file	api	mode_file_default	std/fs/mod.x	0644
+api_mode_dir	api	mode_dir_default	std/fs/mod.x	0755
+symbol_stat_c	symbol	fs_stat_c	std/fs/posix.x	POSIX stat
+symbol_dir_open_c	symbol	fs_dir_open_c	std/fs/posix.x	POSIX opendir
+smoke_x	smoke	tests/fs/dirmeta_roundtrip.x	.x烟测
 smoke_c	smoke	tests/fs/dirmeta_smoke_ok.c	C烟测
 lib	script	lib/std-fs-dirmeta.sh	tests/lib/std-fs-dirmeta.sh
 gate	script	run-std-fs-dirmeta-gate.sh	tests/run-std-fs-dirmeta-gate.sh

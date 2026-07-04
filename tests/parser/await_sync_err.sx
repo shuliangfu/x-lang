@@ -1,8 +1,0 @@
-// await_sync_err.sx — 负例：非 async 函数内使用 await 应 typeck 报错
-function bad(): i32 {
-  return await 1;
-}
-
-function main(): i32 {
-  return 0;
-}

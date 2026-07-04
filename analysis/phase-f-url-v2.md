@@ -1,14 +1,14 @@
-# 阶段 F-url v2（std.url 逻辑 .sx 下沉 + F-ZC）
+# 阶段 F-url v2（std.url 逻辑 .x 下沉 + F-ZC）
 
-> **F-url v2**：**parse/build/query/resolve** 迁入 **`url.sx`**；**F-ZC** 删除 **`url_glue.c`**，IPv6 转换经 **`inet_pton` / `inet_ntop` extern**。
+> **F-url v2**：**parse/build/query/resolve** 迁入 **`url.x`**；**F-ZC** 删除 **`url_glue.c`**，IPv6 转换经 **`inet_pton` / `inet_ntop` extern**。
 
 ## 变更
 
 | 项 | v1 | v2 | F-ZC |
 |----|----|-----|------|
-| URL 逻辑 | `url_glue.c`（456 行） | **`url.sx`** | 同 v2 |
-| IPv6 文本转换 | glue 内联 | `url_glue.c` | **`.sx` + libc extern** |
-| `url.o` | `ld -r` glue + sx | `ld -r` inet glue + sx | **纯 `.sx`** |
+| URL 逻辑 | `url_glue.c`（456 行） | **`url.x`** | 同 v2 |
+| IPv6 文本转换 | glue 内联 | `url_glue.c` | **`.x` + libc extern** |
+| `url.o` | `ld -r` glue + x | `ld -r` inet glue + x | **纯 `.x`** |
 
 ## 门禁
 

@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 诊断层 E1–E6 |
 | 2 | 打开 `tests/baseline/lang-lifetime-diag-cases.tsv` |
 | 3 | `./tests/run-lang-lifetime-diag-gate.sh` |
-| 4 | `shux check tests/typeck/slice_lifetime/region_assign_escape.sx` |
+| 4 | `shux check tests/typeck/slice_lifetime/region_assign_escape.x` |
 
 ---
 
@@ -36,7 +36,7 @@
 2. **可读文案**：消息含 `slice region escape` / `slice region mismatch` 与域标签 `<ra>` 等。
 3. **LSP 一致**：CLI 与 LSP 收集共用 `lsp_diag_report_typeck` 格式化。
 
-示例（`region_assign_escape.sx` 第 8 行）：
+示例（`region_assign_escape.x` 第 8 行）：
 
 ```text
 typeck error: slice region escape: cannot assign <ra> slice to unbound T[] at 8:5
@@ -50,10 +50,10 @@ typeck error: slice region escape: cannot assign <ra> slice to unbound T[] at 8:
 
 | case_id | 文件 | 子串 | 期望行 |
 |---------|------|------|--------|
-| `diag_escape_assign` | `region_assign_escape.sx` | `slice region escape` | **8** |
-| `diag_mismatch` | `region_mismatch.sx` | `slice region mismatch` | **6** |
-| `diag_return_escape` | `region_return_escape.sx` | `slice region escape` | **7** |
-| `diag_call_escape` | `region_call_escape.sx` | `slice region escape` | **8** |
+| `diag_escape_assign` | `region_assign_escape.x` | `slice region escape` | **8** |
+| `diag_mismatch` | `region_mismatch.x` | `slice region mismatch` | **6** |
+| `diag_return_escape` | `region_return_escape.x` | `slice region escape` | **7** |
+| `diag_call_escape` | `region_call_escape.x` | `slice region escape` | **8** |
 
 正例回归仍由 `tests/run-typeck-region.sh`（12 case）覆盖。
 

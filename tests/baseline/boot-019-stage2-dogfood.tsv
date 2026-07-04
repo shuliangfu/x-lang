@@ -4,12 +4,12 @@
 section_goal	section	## 1. 目标	bootstrap-verify 扩面
 section_subset	section	## 2. bootstrap-verify 子集	parser typeck
 section_gate	section	## 4. Gate	boot-019 gate
-smoke_parser_semi	smoke	tests/parser/semicolon_required.sx	分号正例
-smoke_parser_two	smoke	tests/parser/two_functions.sx	多函数
-smoke_parser_bin	smoke	tests/parser/binary_expr_return.sx	二元表达式
-smoke_typeck_option	smoke	tests/option/main.sx	Option 类型族
-smoke_typeck_result	smoke	tests/result/main.sx	Result 类型族
-smoke_typeck_generic	smoke	tests/generic/main.sx	泛型 id
+smoke_parser_semi	smoke	tests/parser/semicolon_required.x	分号正例
+smoke_parser_two	smoke	tests/parser/two_functions.x	多函数
+smoke_parser_bin	smoke	tests/parser/binary_expr_return.x	二元表达式
+smoke_typeck_option	smoke	tests/option/main.x	Option 类型族
+smoke_typeck_result	smoke	tests/result/main.x	Result 类型族
+smoke_typeck_generic	smoke	tests/generic/main.x	泛型 id
 hook_runner	hook_script	run-bootstrap-stage2-dogfood-parser-typeck.sh	subset runner
 hook_parser	hook_script	run-parser.sh	parser regression
 hook_typeck	hook_script	run-typeck.sh	typeck regression

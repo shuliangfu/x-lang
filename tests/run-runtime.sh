@@ -28,7 +28,7 @@ run_one() {
   echo "runtime test OK ($label)"
 }
 
-run_one tests/runtime/main.sx ready
-run_one tests/exc/panic_hook_align.sx panic_hook
+run_one tests/runtime/main.x ready
+run_one tests/exc/panic_hook_align.x panic_hook
 echo "runtime test OK (all)"
 rm -f /tmp/shux_runtime_$$_*

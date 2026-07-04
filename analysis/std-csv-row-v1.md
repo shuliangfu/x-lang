@@ -30,20 +30,20 @@
 
 ## 3. 边界向量（金样）
 
-`tests/csv/row_roundtrip.sx`：
+`tests/csv/row_roundtrip.x`：
 
 1. `alice,bob,1` write → parse round-trip  
 2. 含逗号字段 `a,b` 引号包裹  
 3. 空字段 `a,,b`
 
-既有 `tests/csv/main.sx` 覆盖 `next_field` / `escape` / `unescape` 回归。
+既有 `tests/csv/main.x` 覆盖 `next_field` / `escape` / `unescape` 回归。
 
 ---
 
 ## 4. 实现
 
-- 实现：`std/csv/csv.sx`（F-csv v1 纯 .sx）
-- `.sx`：`std/csv/mod.sx` extern 门面
+- 实现：`std/csv/csv.x`（F-csv v1 纯 .x）
+- `.x`：`std/csv/mod.x` extern 门面
 - 链接：与既有 `csv.o` 相同（`ensure_std_c_o`）
 
 ---

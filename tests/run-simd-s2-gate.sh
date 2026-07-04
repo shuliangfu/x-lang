@@ -43,7 +43,7 @@ if [ -z "$SHUX_ABS" ] || ! simd_s2_native_exe "$SHUX_ABS"; then
   exit 0
 fi
 
-SMOKE_SRC="tests/simd/vec4f_vec8i_smoke.sx"
+SMOKE_SRC="tests/simd/vec4f_vec8i_smoke.x"
 SMOKE_O="/tmp/shux_simd_s2_smoke.o"
 rm -f "$SMOKE_O"
 

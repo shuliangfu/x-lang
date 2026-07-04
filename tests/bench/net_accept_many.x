@@ -1,0 +1,52 @@
+// net_accept_many.x — L0 基线：accept_many 批量接受建连（与 run-perf-net.sh 配套）
+// 监听 127.0.0.1；接受 4096 连接后立即 close；argv[1] 为动态端口（默认 38456）。
+const net = import("std.net");
+const process = import("std.process");
+
+/** 解析十进制 u32 端口；非法返回 default_port。 */
+function bench_parse_port(s: *u8, default_port: u32): u32 {
+  if (s == 0 as *u8) { return default_port; }
+  let n: u32 = 0;
+  let i: i32 = 0;
+  while (true) {
+    let c: u8 = s[i];
+    if (c == 0) { break; }
+    if (c < 48 || c > 57) { return default_port; }
+    n = n * 10 + ((c - 48) as u32);
+    i = i + 1;
+  }
+  if (i <= 0) { return default_port; }
+  return n;
+}
+
+function main(): i32 {
+  /** 与 net_accept_many_client.c / run-perf-net.sh 一致；argv[1] 为动态端口。 */
+  let net_bench_port: u32 = 38456;
+  if (process.args_count() >= 2) {
+    net_bench_port = bench_parse_port(process.arg(1), net_bench_port);
+  }
+  let net_bench_conns: i32 = 4096;
+  let addr: Ipv4Addr = Ipv4Addr { a: 127, b: 0, c: 0, d: 1 };
+  let listener: TcpListener = net.listen(addr, net_bench_port);
+  if (listener.fd < 0) { return 1; }
+  let out_buf: TcpStream[64] = 0;
+  let out: TcpStream[] = out_buf;
+  let total: i32 = 0;
+  /** 每轮最多 net_batch_max()=64；timeout 5s 防止 client 未就绪时永久阻塞。 */
+  while (total < net_bench_conns) {
+    let n: u32 = net.accept_many(listener, out, 5000);
+    if (n == 0) {
+      net.close_listener(listener);
+      return 2;
+    }
+    let j: u32 = 0;
+    while (j < n) {
+      net.close_stream(out[j]);
+      j = j + 1;
+    }
+    total = total + (n as i32);
+  }
+  if (net.close_listener(listener) != 0) { return 3; }
+  if (total != net_bench_conns) { return 4; }
+  return 0;
+}

@@ -14,12 +14,12 @@ layer_b5	layers	B5-false-positive	analysis/type-borrow-conflict-v1.md	false	pos
 layer_b6	layers	B6-unified-cli	compiler/src/lsp/lsp_diag.c	cli	at
 sym_region_check	symbol	typeck_check_slice_region_assign	compiler/src/typeck/typeck.c	region	前置
 sym_linear	symbol	linear value used after move	compiler/src/typeck/typeck.c	linear	文案
-case_fp_region	case	fp_region_same	tests/typeck/slice_lifetime/region_same_ok.sx	pos	ok
-case_fp_block	case	fp_region_block	tests/typeck/borrow/fp_region_block_reassign_ok.sx	pos	ok
-case_fp_linear	case	fp_linear_two	tests/typeck/borrow/fp_linear_two_bindings_ok.sx	pos	ok
-case_neg_escape	case	conflict_region_escape	tests/typeck/slice_lifetime/region_assign_escape.sx	neg	8
-case_neg_mismatch	case	conflict_region_mismatch	tests/typeck/slice_lifetime/region_mismatch.sx	neg	6
-case_neg_linear	case	conflict_linear_move	tests/typeck/linear/double_move.sx	neg	move
+case_fp_region	case	fp_region_same	tests/typeck/slice_lifetime/region_same_ok.x	pos	ok
+case_fp_block	case	fp_region_block	tests/typeck/borrow/fp_region_block_reassign_ok.x	pos	ok
+case_fp_linear	case	fp_linear_two	tests/typeck/borrow/fp_linear_two_bindings_ok.x	pos	ok
+case_neg_escape	case	conflict_region_escape	tests/typeck/slice_lifetime/region_assign_escape.x	neg	8
+case_neg_mismatch	case	conflict_region_mismatch	tests/typeck/slice_lifetime/region_mismatch.x	neg	6
+case_neg_linear	case	conflict_linear_move	tests/typeck/linear/double_move.x	neg	move
 gate	script	run-type-borrow-conflict-gate.sh	tests/run-type-borrow-conflict-gate.sh	-	manifest
 hook_borrow	hook_script	run-type-borrow-conflict.sh	run-type-borrow-conflict.sh	-	烟测
 hook_region	hook_script	run-typeck-region.sh	run-typeck-region.sh	-	region

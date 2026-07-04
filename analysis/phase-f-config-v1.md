@@ -1,12 +1,12 @@
 # 阶段 F-config v1（std.config 去 C）
 
-> **F-config v1**：删除 **`config.c`**；锚点 **`config.sx`**；TOML/YAML/ENV 在 **`config_glue.c`**。
+> **F-config v1**：删除 **`config.c`**；锚点 **`config.x`**；TOML/YAML/ENV 在 **`config_glue.c`**。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `config.c`（1070 行） | `config.sx` + `config_glue.c` |
+| 实现 | `config.c`（1070 行） | `config.x` + `config_glue.c` |
 | `config.o` | `cc -c` | `ld -r` 合并 |
 
 ## 门禁

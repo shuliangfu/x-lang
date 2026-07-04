@@ -2,7 +2,7 @@
  * net_import_alias.c — import binding `-o` 链接桩
  *
  * asm co-emit 对 `const net = import("std.net")` 生成 std_net_* 符号；
- * net.o 仅含 net_*.sx 的 net_*_c，mod.sx 门面未 co-emit。本 TU 提供 std_net_* 实现（语义对齐 mod.sx）。
+ * net.o 仅含 net_*.x 的 net_*_c，mod.x 门面未 co-emit。本 TU 提供 std_net_* 实现（语义对齐 mod.x）。
  */
 #include <stdint.h>
 #include <string.h>
@@ -15,7 +15,7 @@
 #include <unistd.h>
 #endif
 
-/** 与 mod.sx Ipv4Addr 布局一致。 */
+/** 与 mod.x Ipv4Addr 布局一致。 */
 typedef struct ShuxIpv4Addr {
   uint8_t a;
   uint8_t b;
@@ -23,7 +23,7 @@ typedef struct ShuxIpv4Addr {
   uint8_t d;
 } ShuxIpv4Addr;
 
-/** 与 mod.sx TcpListener / TcpStream / UdpSocket 布局一致。 */
+/** 与 mod.x TcpListener / TcpStream / UdpSocket 布局一致。 */
 typedef struct ShuxTcpListener {
   int32_t fd;
 } ShuxTcpListener;
@@ -194,7 +194,7 @@ int32_t net_udp_send_many_buf_c(int32_t fd, uint32_t *addrs, uint32_t *ports, Sh
 #endif
 }
 
-/** sock.sx 单文件 co-emit 时 net_close_socket_c 可能被 WPO 剔除；C 桩保证 net.o 可链。 */
+/** sock.x 单文件 co-emit 时 net_close_socket_c 可能被 WPO 剔除；C 桩保证 net.o 可链。 */
 int32_t net_close_socket_c(int32_t fd) {
   if (fd < 0)
     return 0;
@@ -205,7 +205,7 @@ int32_t net_close_socket_c(int32_t fd) {
 #endif
 }
 
-/** Ipv4Addr → u32 大端；对齐 mod.sx addr_to_packed。 */
+/** Ipv4Addr → u32 大端；对齐 mod.x addr_to_packed。 */
 static uint32_t net_addr_to_u32_val(ShuxIpv4Addr addr) {
   return ((uint32_t)addr.a << 24) | ((uint32_t)addr.b << 16) | ((uint32_t)addr.c << 8) | (uint32_t)addr.d;
 }

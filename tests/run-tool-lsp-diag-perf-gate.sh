@@ -29,7 +29,7 @@ native_shu() {
 }
 
 echo "=== TOOL-004: LSP diag perf manifest ==="
-for f in "$DOC" "$MANIFEST" compiler/src/lsp/lsp_diag.c compiler/src/lsp/lsp_diag.sx; do
+for f in "$DOC" "$MANIFEST" compiler/src/lsp/lsp_diag.c compiler/src/lsp/lsp_diag.x; do
   if [ ! -f "$f" ]; then
     echo "tool-lsp-diag-perf gate FAIL: missing $f" >&2
     exit 1
@@ -107,7 +107,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
   esac
 done < "$MANIFEST"
 
-LARGE_FUNCS=$(tool_lsp_count_funcs tests/lsp/diag_large_ok.sx)
+LARGE_FUNCS=$(tool_lsp_count_funcs tests/lsp/diag_large_ok.x)
 if [ "$OPT_N" -lt "$MIN_OPTS" ]; then
   echo "tool-lsp-diag-perf gate FAIL: opts=${OPT_N} < min ${MIN_OPTS}" >&2
   exit 1

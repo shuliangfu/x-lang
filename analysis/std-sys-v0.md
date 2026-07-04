@@ -47,9 +47,9 @@ Darwin + 常规 `-o exe`：`macos_write_stdout` 烟测。
 ## 5. 自举路线
 
 1. ✅ **v0**（本 RFC）：freestanding write 门面  
-2. ✅ **v1**：`std/sys/linux.sx` syscall 号表（x86_64 + aarch64）+ `linux_syscall_nr_*` 薄转发  
-3. ✅ **v2（macOS）**：`std/sys/macos.sx` → libSystem `write(2)`  
-4. **v2（Windows）**：`std/sys/win32.sx` → `WriteFile`  
+2. ✅ **v1**：`std/sys/linux.x` syscall 号表（x86_64 + aarch64）+ `linux_syscall_nr_*` 薄转发  
+3. ✅ **v2（macOS）**：`std/sys/macos.x` → libSystem `write(2)`  
+4. **v2（Windows）**：`std/sys/win32.x` → `WriteFile`  
 5. **v3**：编译器读源码改走 `std.sys` 而非 C `fopen`
 
 ---
@@ -62,8 +62,8 @@ Darwin + 常规 `-o exe`：`macos_write_stdout` 烟测。
 | `linux_syscall_table_available()` | mod + linux 子模块探测 |
 | `linux_syscall_nr_write_amd64()` | 恒 1（与 `freestanding_io_x86_64.s` 一致） |
 
-烟测：`tests/sys/linux_syscall_nr_smoke.sx`（typeck + 常量断言）。  
-实际 syscall invoke 仍由汇编桩完成；`.sx` 内联 asm 为后续项。
+烟测：`tests/sys/linux_syscall_nr_smoke.x`（typeck + 常量断言）。  
+实际 syscall invoke 仍由汇编桩完成；`.x` 内联 asm 为后续项。
 
 ---
 
@@ -75,5 +75,5 @@ Darwin + 常规 `-o exe`：`macos_write_stdout` 烟测。
 | `macos_write_available()` | mod + macos 子模块探测 |
 | `extern write` | libSystem POSIX write(2) |
 
-烟测：`tests/sys/macos_posix_write_smoke.sx`（Darwin `-o exe` 运行）。  
+烟测：`tests/sys/macos_posix_write_smoke.x`（Darwin `-o exe` 运行）。  
 与 `os_write`（freestanding Linux）并存；无 `#[cfg]` 时由调用方选择路径。

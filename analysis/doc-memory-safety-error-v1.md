@@ -43,11 +43,11 @@ Shux **默认路径**在 S0 内运行，无需 `unsafe` 块（v1 尚无 `unsafe 
 
 ```
 需要与 C struct 布局逐字节一致？
-├─ 是 → U1 allow(padding) struct（见 tests/unsafe/allow_padding_ok.sx）
+├─ 是 → U1 allow(padding) struct（见 tests/unsafe/allow_padding_ok.x）
 └─ 否 → 需要裸地址 / null？
-         ├─ 是 → U2 *T（解引用与长度自证，见 `tests/unsafe/raw_ptr_null.sx`）
+         ├─ 是 → U2 *T（解引用与长度自证，见 `tests/unsafe/raw_ptr_null.x`）
          └─ 否 → 需要链接 C 符号？
-                  └─ 是 → U3 extern function（见 extern_putchar.sx）
+                  └─ 是 → U3 extern function（见 extern_putchar.x）
 ```
 
 ### 3.2 规则摘要
@@ -113,7 +113,7 @@ let t: Result_i32 = err_i32(io_err_timeout());
 // if (fs_open(path, flags) == -1) { let e: i32 = fs_last_error(); ... }
 ```
 
-烟测：`tests/exc/recoverable_result.sx`、`tests/exc/layer_c_recoverable.sx`、`tests/exc/error_code_layer.sx`。
+烟测：`tests/exc/recoverable_result.x`、`tests/exc/layer_c_recoverable.x`、`tests/exc/error_code_layer.x`。
 
 ---
 
@@ -161,11 +161,11 @@ let t: Result_i32 = err_i32(io_err_timeout());
 
 | 主题 | 示例 | 门禁 |
 |------|------|------|
-| Result | `tests/result/main.sx` | `run-result.sh` |
-| Error | `tests/error/main.sx` | `run-error.sh` |
-| panic 边界 | `tests/exc/*.sx` | `run-exc-panic-abort-gate.sh` |
-| 错误码分层 | `tests/exc/error_code_layer.sx` | `run-exc-error-code-layer-gate.sh` |
-| unsafe 模式 | `tests/unsafe/*.sx` | `run-lang-unsafe-gate.sh` |
+| Result | `tests/result/main.x` | `run-result.sh` |
+| Error | `tests/error/main.x` | `run-error.sh` |
+| panic 边界 | `tests/exc/*.x` | `run-exc-panic-abort-gate.sh` |
+| 错误码分层 | `tests/exc/error_code_layer.x` | `run-exc-error-code-layer-gate.sh` |
+| unsafe 模式 | `tests/unsafe/*.x` | `run-lang-unsafe-gate.sh` |
 | unsafe 清单 | — | `run-safe-unsafe-api-gate.sh` |
 | sanitizer | `tests/sanitize/` | `run-sanitize-gate.sh` |
 

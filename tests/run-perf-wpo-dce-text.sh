@@ -64,7 +64,7 @@ ON_O="/tmp/shux_wpo_dce_text_on.o"
 
 echo "=== wpo dce __text A/B (SHUX=$SHUX_BIN) ==="
 
-if ! compile_ab tests/wpo/dead_user.sx "$OFF_O" "$ON_O"; then
+if ! compile_ab tests/wpo/dead_user.x "$OFF_O" "$ON_O"; then
   echo "run-perf-wpo-dce-text: SKIP (asm compile failed)"
   exit 0
 fi

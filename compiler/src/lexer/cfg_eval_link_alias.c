@@ -1,9 +1,9 @@
 /**
- * cfg_eval_link_alias.c — G-02-B1：cfg_eval.sx -E-extern 符号前缀转发
+ * cfg_eval_link_alias.c — G-02-B1：cfg_eval.x -E-extern 符号前缀转发
  *
  * cfg_eval_gen.c 导出 lexer_cfg_eval_expr_c 等；lexer/preprocess/runtime 仍期望
  * 裸名 cfg_eval_expr_c、cfg_apply_compile_target_from_triple、cfg_reset_compile_target。
- * 本 TU 仅做链接别名，逻辑在 cfg_eval.sx 生成物中。
+ * 本 TU 仅做链接别名，逻辑在 cfg_eval.x 生成物中。
  */
 #include <stdint.h>
 

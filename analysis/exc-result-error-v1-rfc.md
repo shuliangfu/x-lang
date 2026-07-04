@@ -222,7 +222,7 @@ if (is_err_i32(r)) { let c: i32 = r.err; ... }
 **审阅通过条件**：
 
 - 本文档定版 ✅  
-- `core/result/mod.sx`、`std/error/mod.sx` 与 §3–§7 一致  
+- `core/result/mod.x`、`std/error/mod.x` 与 §3–§7 一致  
 - 标准库模块注释遵循 §7 选型表  
 
 ---
@@ -244,10 +244,10 @@ if (is_err_i32(r)) { let c: i32 = r.err; ... }
 | 资源 | 路径 |
 |------|------|
 | Result ABI | `analysis/Result寄存器化.md` |
-| core.result | `core/result/mod.sx` |
-| std.error | `std/error/mod.sx` |
-| panic 运行时 | `std/runtime/mod.sx` |
-| 测试 | `tests/result/main.sx`、`tests/error/main.sx` |
+| core.result | `core/result/mod.x` |
+| std.error | `std/error/mod.x` |
+| panic 运行时 | `std/runtime/mod.x` |
+| 测试 | `tests/result/main.x`、`tests/error/main.x` |
 | 路线图 | `NEXT.md` EXC-001 / EXC-002 |
 
 **EXC-001 状态：定版 ✅**（Layer C 热路径保留为 documented exception；新 API 优先 Layer A。）

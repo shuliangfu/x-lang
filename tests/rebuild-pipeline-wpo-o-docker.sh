@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # S5：在 Linux amd64 容器内重编 pipeline_wpo.o（ast_pool WPO reach 修复后须跑本脚本）。
-# build_asm/*.sx dogfood 用 shux_asm.experimental（含 pipeline_sx.o）；用户编译用 strict_glue。
+# build_asm/*.x dogfood 用 shux_asm.experimental（含 pipeline_x.o）；用户编译用 strict_glue。
 # 用法（仓库根目录）：
 #   ./tests/rebuild-pipeline-wpo-o-docker.sh
 #   ./tests/rebuild-pipeline-wpo-o-docker.sh --full-bootstrap   # 全量 make + build_shux_asm（慢）
@@ -19,8 +19,8 @@ if [ '$FULL' = '1' ]; then
   make OPT=1 -C /src/compiler all
   ./scripts/build_shux_asm.sh 2>&1 | tail -30
 else
-  echo '=== pipeline_sx.o + experimental relink + pipeline_wpo.o ==='
-  make pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1 2>&1 | tail -5
+  echo '=== pipeline_x.o + experimental relink + pipeline_wpo.o ==='
+  make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 2>&1 | tail -5
   ./scripts/relink_shux_asm_experimental_bootstrap.sh 2>&1 | tail -5
   SHUX_WPO_REBUILD_ARTIFACTS_ONLY=1 ./scripts/build_shux_asm.sh 2>&1 | tail -20
 fi

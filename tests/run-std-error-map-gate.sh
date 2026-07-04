@@ -8,9 +8,9 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_ERROR_MAP_DOC:-analysis/std-error-map-v1.md}"
 UNIFY_DOC="${SHUX_STD_ERROR_UNIFY_DOC:-analysis/std-error-unify-v1.md}"
 MANIFEST="${SHUX_STD_ERROR_MAP_TSV:-tests/baseline/std-error-map.tsv}"
-ERR_MOD="${SHUX_STD_ERROR_MOD:-std/error/mod.sx}"
+ERR_MOD="${SHUX_STD_ERROR_MOD:-std/error/mod.x}"
 LIB="tests/lib/std-error-map.sh"
-SMOKE="tests/std/error_map_smoke.sx"
+SMOKE="tests/std/error_map_smoke.x"
 
 # shellcheck source=tests/lib/std-error-map.sh
 . tests/lib/std-error-map.sh

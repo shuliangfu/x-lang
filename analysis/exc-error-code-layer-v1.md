@@ -67,7 +67,7 @@
 **新模块流程**：
 
 1. 在 `tests/baseline/exc-error-code-layer.tsv` 登记 `base`  
-2. 在 `std/error/mod.sx` 增加 `error_base_*` 与首批 `<mod>_err_*`  
+2. 在 `std/error/mod.x` 增加 `error_base_*` 与首批 `<mod>_err_*`  
 3. 模块 README 引用本文件 §4  
 
 ### 3.3 System（S 层）
@@ -133,7 +133,7 @@ let t: Result_i32 = err_i32(io_err_timeout());
 |------|------|
 | `tests/run-error.sh` | 全局 `error_ok` |
 | `tests/run-exc-error-code-layer-gate.sh` | manifest + 区间烟测 |
-| `tests/exc/error_code_layer.sx` | base 顺序 + span  helper |
+| `tests/exc/error_code_layer.x` | base 顺序 + span  helper |
 
 ---
 
@@ -143,7 +143,7 @@ let t: Result_i32 = err_i32(io_err_timeout());
 |------|------|
 | 矩阵 | `tests/baseline/exc-error-code-layer.tsv` |
 | 门禁 | `tests/run-exc-error-code-layer-gate.sh` |
-| 实现 | `std/error/mod.sx` |
+| 实现 | `std/error/mod.x` |
 | EXC-001 | `analysis/exc-result-error-v1-rfc.md` |
 
 **EXC-003 状态：定版 ✅**（v1 登记五段 base；S 层仅侧车；R 层预留。）

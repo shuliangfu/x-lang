@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	notes
 fbase64_doc	doc	analysis/phase-f-base64-v1.md	F-base64 v1
 fbase64_gate	gate	tests/run-f-base64-v1-gate.sh	聚合门禁
-base64_sx	file	std/base64/base64.sx	纯 .sx 实现
-base64_mod	file	std/base64/mod.sx	对外 API
+base64_x	file	std/base64/base64.x	纯 .x 实现
+base64_mod	file	std/base64/mod.x	对外 API
 base64_c_absent	absent	std/base64/base64.c	已删除
-makefile	makefile	compiler/Makefile	base64.o from base64.sx
+makefile	makefile	compiler/Makefile	base64.o from base64.x

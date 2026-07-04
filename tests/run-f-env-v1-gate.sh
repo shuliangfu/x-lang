@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# F-env v1：std.env 去 C（env.c → env.sx + runtime_env_os.c）。
+# F-env v1：std.env 去 C（env.c → env.x + runtime_env_os.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_ENV_V1_FAIL:-0}
 DOC="analysis/phase-f-env-v1.md"
 MANIFEST="tests/baseline/f-env-v1-closure.tsv"
 die() { echo "f-env-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-echo "=== F-env v1: env.c → env.sx ==="
+echo "=== F-env v1: env.c → env.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-env v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
-[ -f std/env/env.sx ] || die "missing env.sx"
+[ -f std/env/env.x ] || die "missing env.x"
 [ -f compiler/src/asm/runtime_env_os.c ] || die "missing runtime_env_os.c"
 [ ! -f std/env/env_os_glue.c ] || die "env_os_glue.c should be deleted"
 [ ! -f std/env/env.c ] || die "env.c should be deleted"

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-检查 .sx 中「上一行是 // 注释、下一行却无 // 且像中文续行」的折断注释。
+检查 .x 中「上一行是 // 注释、下一行却无 // 且像中文续行」的折断注释。
 退出码 0 表示未发现；否则打印路径并返回 1。
 
 用法（仓库根）：
@@ -27,7 +27,7 @@ def is_broken_continuation(line: str) -> bool:
         return False
     if CODE_START.match(s):
         return False
-    # fmt 折断的「// … submit ———」续行（如 std/io/mod.sx）
+    # fmt 折断的「// … submit ———」续行（如 std/io/mod.x）
     if re.search(r"———", s) and not s.startswith("*"):
         return True
     if re.match(r"^(submit|timeout_ms|毫秒)\b", s, re.I):
@@ -52,18 +52,18 @@ def scan_file(path: str) -> list[tuple[int, str]]:
 
 
 def main() -> None:
-    roots = sys.argv[1:] if len(sys.argv) > 1 else ["compiler", "core", "std", "tests", "examples", "build.sx"]
+    roots = sys.argv[1:] if len(sys.argv) > 1 else ["compiler", "core", "std", "tests", "examples", "build.x"]
     skip = {".git", "build_asm", "node_modules", ".cursor", "build"}
     total = 0
     for root in roots:
-        if os.path.isfile(root) and root.endswith(".sx"):
+        if os.path.isfile(root) and root.endswith(".x"):
             paths = [root]
         elif os.path.isdir(root):
             paths = []
             for dp, dns, fns in os.walk(root):
                 dns[:] = [d for d in dns if d not in skip]
                 for fn in fns:
-                    if fn.endswith(".sx"):
+                    if fn.endswith(".x"):
                         paths.append(os.path.join(dp, fn))
         else:
             continue

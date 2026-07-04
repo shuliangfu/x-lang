@@ -33,7 +33,7 @@ if [ "$CNT" -gt "$MAX_COUNT" ]; then
   exit 1
 fi
 
-if ! grep -qF 'tests/stdlib-import/main.sx' "$DOC" 2>/dev/null; then
+if ! grep -qF 'tests/stdlib-import/main.x' "$DOC" 2>/dev/null; then
   echo "placeholder-inventory gate FAIL: doc missing smoke ref" >&2
   exit 1
 fi

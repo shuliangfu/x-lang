@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # capture_asm_partial_seed_legacy.sh — 用 LEGACY C 前端 shux-c 生成 asm_backend_partial seed（G-06 破蛋）
 #
-# bootstrap_shuxc 种子无法可靠 -E asm.sx；本脚本在 Linux x86_64 上用 gcc 链 LEGACY shux-c 再跑 build_seed_asm_host。
+# bootstrap_shuxc 种子无法可靠 -E asm.x；本脚本在 Linux x86_64 上用 gcc 链 LEGACY shux-c 再跑 build_seed_asm_host。
 #
 # 用法（compiler 目录，Linux x86_64 / Docker 内）：
 #   ./scripts/capture_asm_partial_seed_legacy.sh

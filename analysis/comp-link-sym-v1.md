@@ -27,7 +27,7 @@
 | **L2-duplicate** | 重复定义 | `duplicate symbol` / `multiple definition of` | fixture `duplicate_glue_typeck.log` |
 | **L3-platform** | Mach-O vs ELF 文案 | Darwin `_sym` / GNU `sym` 归一化 | `comp-link-sym-patterns.tsv` |
 | **L4-object** | 冲突 .o 归因 | log 中 `build_asm/*.o` / `*_glue.o` 路径 | fixture `duplicate_glue_typeck.log` |
-| **L5-known** | 已知拓扑模式 | typeck∩glue、parser_sx 双链、WPO strict | `relink_shux_asm_strict_glue.sh` |
+| **L5-known** | 已知拓扑模式 | typeck∩glue、parser_x 双链、WPO strict | `relink_shux_asm_strict_glue.sh` |
 | **L6-repro** | 复现 case 建议 | 输出 `SHUX_LINK_REPRO` | `comp-link-sym-cases.tsv` |
 
 **attribution 原则**：
@@ -50,9 +50,9 @@
 | `case_undef_parser` | `undefined_parser.log` | undefined | `parser_parse_into_buf` | `missing_export` | `bstrict_build` |
 | `case_dup_glue` | `duplicate_glue_typeck.log` | duplicate | `ast_pool_alloc` | `typeck_glue_dup` | `bstrict_build` |
 | `case_dup_macho` | `duplicate_darwin.log` | duplicate | `main_entry` | `double_main` | `bstrict_build` |
-| `case_wpo_undef` | `undefined_wpo.log` | undefined | `run_sx_pipeline_impl` | `wpo_orchestration` | `wpo_strict_link` |
+| `case_wpo_undef` | `undefined_wpo.log` | undefined | `run_x_pipeline_impl` | `wpo_orchestration` | `wpo_strict_link` |
 | `case_link_failed` | `linker_failed_generic.log` | link_failed | — | `generic_ld` | `bstrict_build` |
-| `case_parser_dup` | `duplicate_parser_sx.log` | duplicate | `parse_into_buf` | `parser_double_link` | `parser_second_pass` |
+| `case_parser_dup` | `duplicate_parser_x.log` | duplicate | `parse_into_buf` | `parser_double_link` | `parser_second_pass` |
 
 ---
 

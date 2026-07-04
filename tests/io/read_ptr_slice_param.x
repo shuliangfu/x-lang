@@ -1,0 +1,22 @@
+// M-5 codegen 烟测：局部 slice 字段用 `.`，形参 slice 用 `->`（与 read_ptr_slice.x 互补）
+const io = import("std.io");
+
+/** 形参 slice：codegen 应对 buf 生成 `->length`。 */
+function slice_len(buf: u8[]<io_read_ptr>): i32 {
+  return buf.length as i32;
+}
+
+function main(): i32 {
+  let s: u8[]<io_read_ptr> = io.stdin_ptr_slice();
+  if (s.length <= 0) {
+    return 1;
+  }
+  let n: i32 = slice_len(s);
+  if (n != s.length as i32) {
+    return 2;
+  }
+  if (s.data[0] != 65) {
+    return 3;
+  }
+  return 0;
+}

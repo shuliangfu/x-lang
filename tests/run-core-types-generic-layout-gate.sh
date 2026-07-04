@@ -7,16 +7,16 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_CORE_TYPES_GL_DOC:-analysis/core-types-generic-layout-v1.md}"
 MANIFEST="${SHUX_CORE_TYPES_GL_TSV:-tests/baseline/core-types-generic-layout.tsv}"
-TYPES_SX="core/types/mod.sx"
+TYPES_X="core/types/mod.x"
 LIB="tests/lib/core-types-generic-layout.sh"
-GENERIC_SX="tests/core-types-size/generic_layout.sx"
-SCALAR_SX="tests/core-types-size/main.sx"
+GENERIC_X="tests/core-types-size/generic_layout.x"
+SCALAR_X="tests/core-types-size/main.x"
 
 # shellcheck source=tests/lib/core-types-generic-layout.sh
 . "$LIB"
 
 echo "=== CORE-001: generic layout manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$TYPES_SX" "$GENERIC_SX" "$SCALAR_SX" \
+for f in "$DOC" "$MANIFEST" "$LIB" "$TYPES_X" "$GENERIC_X" "$SCALAR_X" \
   compiler/src/typeck/typeck.c compiler/src/codegen/codegen.c; do
   if [ ! -f "$f" ]; then
     echo "core-types-generic-layout gate FAIL: missing $f" >&2
@@ -36,7 +36,7 @@ if ! grep -q 'CORE-001' compiler/src/typeck/typeck.c && ! grep -q 'CORE-001' com
   exit 1
 fi
 
-sym_miss="$(core_types_gl_symbols_ok "$TYPES_SX" "$MANIFEST" || true)"
+sym_miss="$(core_types_gl_symbols_ok "$TYPES_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   core_types_gl_emit_report "fail" 0 0 1
   echo "core-types-generic-layout gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -70,20 +70,20 @@ fi
 if [ -n "$SHUX_BIN" ]; then
   echo "=== CORE-001: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$GENERIC_SX" >/dev/null 2>&1; then
-    echo "core-types-generic-layout gate FAIL: typeck $GENERIC_SX" >&2
-    "$SHUX_BIN" check -L . "$GENERIC_SX" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$GENERIC_X" >/dev/null 2>&1; then
+    echo "core-types-generic-layout gate FAIL: typeck $GENERIC_X" >&2
+    "$SHUX_BIN" check -L . "$GENERIC_X" 2>&1 | tail -10 >&2 || true
     core_types_gl_emit_report "fail" 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SCALAR_SX" >/dev/null 2>&1; then
-    echo "core-types-generic-layout gate FAIL: typeck $SCALAR_SX" >&2
+  if ! "$SHUX_BIN" check -L . "$SCALAR_X" >/dev/null 2>&1; then
+    echo "core-types-generic-layout gate FAIL: typeck $SCALAR_X" >&2
     core_types_gl_emit_report "fail" 0 0 0
     exit 1
   fi
   SCALAR_OK=1
   tmp="/tmp/shux_core_types_gl_$$"
-  if "$SHUX_BIN" -L . "$GENERIC_SX" -o "$tmp" && "$tmp"; then
+  if "$SHUX_BIN" -L . "$GENERIC_X" -o "$tmp" && "$tmp"; then
     GENERIC_OK=1
   else
     echo "core-types-generic-layout gate FAIL: generic_layout smoke" >&2

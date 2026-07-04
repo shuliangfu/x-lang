@@ -1,5 +1,5 @@
 # 文件职责：bootstrap run-all 下选择用于 -o 链接/运行的编译器。
-# seed（SHUX）负责 .sx typeck/check；可执行与跨模块符号由 shux-c 承担（若存在）。
+# seed（SHUX）负责 .x typeck/check；可执行与跨模块符号由 shux-c 承担（若存在）。
 # 用法：在 run-*.sh 中 `. "$(dirname "$0")/lib/bootstrap-link-shux.sh"` 后使用 $RUN_SHUX。
 
 # shellcheck source=tests/lib/ci-host.sh
@@ -43,7 +43,7 @@ if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux-c ] && ci_n
     *) TYPECK_SHUX=./compiler/shux-c ;;
   esac
 fi
-# shux-c（SHUX_LEGACY_C_FRONTEND=1 构建，无 SHUX_USE_SX_PIPELINE）不支持 -backend 参数
+# shux-c（SHUX_LEGACY_C_FRONTEND=1 构建，无 SHUX_USE_X_PIPELINE）不支持 -backend 参数
 # （runtime.c:1219 报 "build error[BLD001]: -backend asm not available"）。
 # 只有 shux_asm/shux_asm_stage1 等真正链了 asm 后端 .o 的构建才支持 -backend asm。
 # 故 shux-c 走默认 C 后端 -o（fork gcc 链）；struct/inline SIGSEGV 由各 gate 的 fallback 处理。

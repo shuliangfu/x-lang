@@ -7,16 +7,16 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-simd-intrinsic-v1.md"
 MANIFEST="tests/baseline/std-simd-intrinsic.tsv"
-MOD_SX="std/simd/mod.sx"
+MOD_X="std/simd/mod.x"
 LIB="tests/lib/std-simd-intrinsic.sh"
-SMOKE_SX="tests/simd/intrinsic_binop_dot.sx"
+SMOKE_X="tests/simd/intrinsic_binop_dot.x"
 MIN_APIS=11
 
 # shellcheck source=tests/lib/std-simd-intrinsic.sh
 . "$LIB"
 
 echo "=== STD-SIMD-INTRINSIC: manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$SMOKE_SX" std/simd/README.md; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$SMOKE_X" std/simd/README.md; do
   [ -f "$f" ] || { echo "std-simd-intrinsic gate FAIL: missing $f" >&2; exit 1; }
 done
 
@@ -48,7 +48,7 @@ done < "$MANIFEST"
   exit 1
 }
 
-sym_miss="$(std_simd_intrinsic_symbols_ok "$MOD_SX" "$MANIFEST" || true)"
+sym_miss="$(std_simd_intrinsic_symbols_ok "$MOD_X" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || {
   std_simd_intrinsic_emit_report fail 0 0
   echo "std-simd-intrinsic gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -72,7 +72,7 @@ stdlib_cm_native_simd_asm() {
   local f="$1"
   stdlib_cm_native_shu "$f" || return 1
   case "$f" in
-    */shux-c|*/shux-sx*) return 1 ;;
+    */shux-c|*/shux-x*) return 1 ;;
   esac
   return 0
 }
@@ -88,7 +88,7 @@ stdlib_cm_pick_shux_asm() {
   return 1
 }
 
-SX_OK=0
+X_OK=0
 SKIP=1
 SHUX_ASM=""
 SHUX_TYPECK=""
@@ -103,16 +103,16 @@ for cand in ./compiler/shux-c ./compiler/shux; do
 done
 
 if [ -n "$SHUX_TYPECK" ]; then
-  "$SHUX_TYPECK" check -L . "$SMOKE_SX" >/dev/null
+  "$SHUX_TYPECK" check -L . "$SMOKE_X" >/dev/null
 else
   echo "std-simd-intrinsic gate SKIP typeck (no native shux)" >&2
 fi
 
 if [ -n "$SHUX_ASM" ]; then
   rc=0
-  std_simd_intrinsic_run_smoke "$SHUX_ASM" "$SMOKE_SX" || rc=$?
+  std_simd_intrinsic_run_smoke "$SHUX_ASM" "$SMOKE_X" || rc=$?
   if [ "$rc" -eq 0 ]; then
-    SX_OK=1
+    X_OK=1
     SKIP=0
   elif [ "$rc" -eq 2 ]; then
     echo "std-simd-intrinsic WARN: asm runtime smoke failed; manifest+typeck OK (skip)" >&2
@@ -125,5 +125,5 @@ else
   echo "std-simd-intrinsic gate SKIP smoke (no asm shux)" >&2
 fi
 
-std_simd_intrinsic_emit_report ok "$SX_OK" "$SKIP"
+std_simd_intrinsic_emit_report ok "$X_OK" "$SKIP"
 echo "std-simd-intrinsic gate OK"

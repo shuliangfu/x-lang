@@ -1,16 +1,16 @@
 /**
- * parser_asm_parse_expr_link.c — parser_asm_thin 与 parser_sx.o 的 parse_expr_into 链接桥。
+ * parser_asm_parse_expr_link.c — parser_asm_thin 与 parser_x.o 的 parse_expr_into 链接桥。
  *
  * thin_c 切片期望裸名 parse_expr_into（parser_asm_lexer / parser_asm_slice_u8）；
  * parser_gen.c 导出 parser_parse_expr_into（lexer_Lexer / shux_slice_uint8_t）。
- * 布局与 parser.sx ParseExprResult 一致，此处做字段拷贝转发。
+ * 布局与 parser.x ParseExprResult 一致，此处做字段拷贝转发。
  */
 #include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-/** 与 parser_asm / lexer.sx Lexer 布局一致。 */
+/** 与 parser_asm / lexer.x Lexer 布局一致。 */
 struct parser_asm_lexer {
   size_t pos;
   int32_t line;
@@ -92,7 +92,7 @@ static void parser_asm_parse_expr_debug_snippet_c(struct parser_asm_slice_u8 *so
 }
 
 /**
- * asm thin 切片入口：转发至 parser_sx.o 的 parser_parse_expr_into。
+ * asm thin 切片入口：转发至 parser_x.o 的 parser_parse_expr_into。
  */
 void parse_expr_into(void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source,
                      struct parser_asm_parse_expr_result *out) {

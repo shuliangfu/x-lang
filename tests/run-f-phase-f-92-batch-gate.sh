@@ -13,7 +13,7 @@ GATES=(
   run-f07-no-cc-std-migrated-gate.sh
   run-f08-core-inventory-gate.sh
   run-no-handwritten-c-gate.sh
-  run-f10-test-sx-portable-gate.sh
+  run-f10-test-x-portable-gate.sh
   run-f11-selfhost-release-prep-gate.sh
   run-f12-selfhost-doc-unified-gate.sh
   run-f-std-zero-c-track-gate.sh
@@ -45,8 +45,8 @@ for g in "${GATES[@]}"; do
     run-no-handwritten-c-gate.sh)
       if ! SHUX_NO_HANDWRITTEN_C_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
       ;;
-    run-f10-test-sx-portable-gate.sh)
-      if ! SHUX_F10_TEST_SX_PORTABLE_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
+    run-f10-test-x-portable-gate.sh)
+      if ! SHUX_F10_TEST_X_PORTABLE_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi
       ;;
     run-f11-selfhost-release-prep-gate.sh)
       if ! SHUX_F11_SELFHOST_RELEASE_PREP_FAIL="$FAIL" "tests/$g"; then die "$g failed"; fi

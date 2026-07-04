@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-27  
 > 状态：**定版（v1）**  
-> 关联：`tests/baseline/std-codec-stream.tsv`、`tests/std-codec/stream_roundtrip.sx`
+> 关联：`tests/baseline/std-codec-stream.tsv`、`tests/std-codec/stream_roundtrip.x`
 
 ---
 

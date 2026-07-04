@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WPO-S1 compiler self：从 main.sx(entry) 导出全程序 call graph，验证 dead export ≥ min%（NEXT §4.1）
+# WPO-S1 compiler self：从 main.x(entry) 导出全程序 call graph，验证 dead export ≥ min%（NEXT §4.1）
 # 用法：./tests/run-wpo-compiler-self.sh
 # 门禁：SHUX_WPO_FAIL_ON_COMPILER_SELF=1 — dead% 须 ≥ baseline min_dead_pct
 set -e
@@ -13,7 +13,7 @@ MIN_PCT=$(awk -F'\t' '$1=="min_dead_pct" && $1 !~ /^#/ { print $2; exit }' "$BAS
 MIN_PCT=${MIN_PCT:-5}
 
 rm -f "$GRAPH"
-SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" ./compiler/shux-c check compiler/src/main.sx >/dev/null
+SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" ./compiler/shux-c check compiler/src/main.x >/dev/null
 [ -s "$GRAPH" ] || { echo "wpo compiler self: graph not written"; exit 1; }
 grep -qE '"root": [0-9]+' "$GRAPH" || { echo "wpo compiler self: invalid root in graph"; exit 1; }
 

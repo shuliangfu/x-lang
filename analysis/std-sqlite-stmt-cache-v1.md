@@ -28,7 +28,7 @@
 | `stmt_cache_clear` | 清空连接缓存 |
 | `stmt_col_i32` / `stmt_col_text` | 读当前行列值 |
 
-烟测：`db_sqlite_stmt_bind_smoke_c`（C）、`stmt_bind_roundtrip.sx`（.sx）。
+烟测：`db_sqlite_stmt_bind_smoke_c`（C）、`stmt_bind_roundtrip.x`（.x）。
 
 ---
 
@@ -51,7 +51,7 @@
 ```
 
 ```
-shux: [SHUX_STD070_DB_STMT] status=ok bind_c=1 bind_sx=1 skip=0
+shux: [SHUX_STD070_DB_STMT] status=ok bind_c=1 bind_x=1 skip=0
 ```
 
 无 `libsqlite3` 时 manifest 仍过，烟测 **SKIP**。

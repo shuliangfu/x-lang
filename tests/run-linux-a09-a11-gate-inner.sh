@@ -179,13 +179,13 @@ fi
 progress "A-11 typeck parse count OK"
 progress "=== A-12 cross-module symbols strict ==="
 SHUX_A12_CROSS_MODULE_FAIL=1 ./tests/run-a12-cross-module-symbols-gate.sh
-progress "=== ensure std .sx .o (hello + A-10 最小集, best-effort) ==="
+progress "=== ensure std .x .o (hello + A-10 最小集, best-effort) ==="
 cd compiler
 # path/net 在 Docker bridge 下 -backend asm 可能长时间挂起；timeout 失败不阻断 A-09~A-12（已跑完）。
-STD_SX_OK=1
-# path：单 mod.sx；-backend asm 可能挂起，timeout 后 best-effort。
+STD_X_OK=1
+# path：单 mod.x；-backend asm 可能挂起，timeout 后 best-effort。
 o=../std/path/path.o
-sx=../std/path/mod.sx
+x=../std/path/mod.x
 rm -f "$o"
 if [ -x ./shux_asm2 ]; then
   SHUX_ASM_O=./shux_asm2
@@ -198,30 +198,30 @@ else
 fi
 if [ -n "$SHUX_ASM_O" ]; then
   if command -v timeout >/dev/null 2>&1; then
-    timeout "${SHUX_STD_SX_COMPILE_TIMEOUT:-120}" env SHUX_ASM_WPO_DCE=0 "$SHUX_ASM_O" -backend asm -L .. "$sx" -o "$o" 2>/dev/null || rm -f "$o"
+    timeout "${SHUX_STD_X_COMPILE_TIMEOUT:-120}" env SHUX_ASM_WPO_DCE=0 "$SHUX_ASM_O" -backend asm -L .. "$x" -o "$o" 2>/dev/null || rm -f "$o"
   else
-    env SHUX_ASM_WPO_DCE=0 "$SHUX_ASM_O" -backend asm -L .. "$sx" -o "$o" 2>/dev/null || rm -f "$o"
+    env SHUX_ASM_WPO_DCE=0 "$SHUX_ASM_O" -backend asm -L .. "$x" -o "$o" 2>/dev/null || rm -f "$o"
   fi
 fi
 if [ ! -s "$o" ] && [ -x ./shux-c ]; then
   progress "WARN: path.o empty after shux; fallback shux-c (timeout)"
   if command -v timeout >/dev/null 2>&1; then
-    timeout "${SHUX_STD_SX_COMPILE_TIMEOUT:-120}" ./shux-c -L .. "$sx" -o "$o" 2>/dev/null || rm -f "$o"
+    timeout "${SHUX_STD_X_COMPILE_TIMEOUT:-120}" ./shux-c -L .. "$x" -o "$o" 2>/dev/null || rm -f "$o"
   else
-    ./shux-c -L .. "$sx" -o "$o" 2>/dev/null || rm -f "$o"
+    ./shux-c -L .. "$x" -o "$o" 2>/dev/null || rm -f "$o"
   fi
 fi
 if [ -s "$o" ]; then
   progress "OK $o ($(wc -c <"$o" | tr -d ' ') bytes)"
 else
   progress "WARN: skip $o (compile timeout/hang; A-10 子项可能 SKIP)"
-  STD_SX_OK=0
+  STD_X_OK=0
 fi
-# net：多 .sx 合并；走 Makefile 规则。
+# net：多 .x 合并；走 Makefile 规则。
 o=../std/net/net.o
 rm -f "$o"
 if command -v timeout >/dev/null 2>&1; then
-  timeout "${SHUX_STD_SX_COMPILE_TIMEOUT:-120}" make -s "$o" 2>/dev/null || rm -f "$o"
+  timeout "${SHUX_STD_X_COMPILE_TIMEOUT:-120}" make -s "$o" 2>/dev/null || rm -f "$o"
 else
   make -s "$o" 2>/dev/null || rm -f "$o"
 fi
@@ -229,7 +229,7 @@ if [ -s "$o" ]; then
   progress "OK $o ($(wc -c <"$o" | tr -d ' ') bytes)"
 else
   progress "WARN: skip $o (compile timeout/hang; A-10 子项可能 SKIP)"
-  STD_SX_OK=0
+  STD_X_OK=0
 fi
 make -s runtime_test_fn_invoke.o runtime_panic.o
 cd ..

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# 自举 parse 回归：编 typeck.sx 时 pipeline 报告的 num_funcs 不应远低于源文件 function 数。
+# 自举 parse 回归：编 typeck.x 时 pipeline 报告的 num_funcs 不应远低于源文件 function 数。
 # 用法（仓库根）：./compiler/scripts/check_parse_func_count.sh
 set -e
 cd "$(dirname "$0")/../.."
 SHUX="${SHUX:-./compiler/shux}"
-TCK="compiler/src/typeck/typeck.sx"
+TCK="compiler/src/typeck/typeck.x"
 MIN_FUNCS="${SHUX_PARSE_MIN_TYPECK_FUNCS:-80}"
 OUT="/tmp/shux_parse_count_typeck.o"
 
@@ -14,7 +14,7 @@ if [ ! -x "$SHUX" ]; then
 fi
 
 src_count=$(grep -c '^function ' "$TCK" || true)
-echo "check_parse_func_count: source functions in typeck.sx: $src_count (min gate $MIN_FUNCS)"
+echo "check_parse_func_count: source functions in typeck.x: $src_count (min gate $MIN_FUNCS)"
 
 rm -f "$OUT" /tmp/shux_parse_count.log
 if ! SHUX_DEBUG_PIPE=1 "$SHUX" -backend asm -o "$OUT" "$TCK" 2>&1 | tee /tmp/shux_parse_count.log; then

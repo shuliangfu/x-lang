@@ -5,7 +5,7 @@ STD_TIME_BENCH_TIMER_PREFIX="${SHUX_STD133_TIME_BENCH_TIMER_PREFIX:-shux: [SHUX_
 
 # 校验 manifest 条目；echo 缺失数。
 std_time_bench_timer_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor mod_path _notes
@@ -14,13 +14,13 @@ std_time_bench_timer_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}" "$mod_x" 2>/dev/null; then
           echo "std-time-bench-timer FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       struct_timer)
-        if ! grep -qE "struct ${anchor}" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "struct ${anchor}" "$mod_x" 2>/dev/null; then
           echo "std-time-bench-timer FAIL: missing struct '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -37,7 +37,7 @@ std_time_bench_timer_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
+# 编译并运行 .x 烟测。
 std_time_bench_timer_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -61,5 +61,5 @@ std_time_bench_timer_run_smoke() {
 
 # 输出 gate 报告。
 std_time_bench_timer_emit_report() {
-  echo "${STD_TIME_BENCH_TIMER_PREFIX} status=$1 sx=$2 skip=$3"
+  echo "${STD_TIME_BENCH_TIMER_PREFIX} status=$1 x=$2 skip=$3"
 }

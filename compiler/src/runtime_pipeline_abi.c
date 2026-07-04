@@ -22,8 +22,8 @@
 #include <unistd.h>
 #endif
 
-/** preprocess.sx 生成；pipeline/import 与 runtime preprocess() 共用。 */
-extern int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
+/** preprocess.x 生成；pipeline/import 与 runtime preprocess() 共用。 */
+extern int32_t preprocess_x_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
 extern void preprocess_define_reset(void);
 extern int32_t preprocess_if_stack_len(void);
 extern void preprocess_define_add(const char *name);
@@ -72,7 +72,7 @@ static void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
 static void pipeline_diag_preprocess_fail(const char *path_diag) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
-                 ".sx preprocess failed for '%s'",
+                 ".x preprocess failed for '%s'",
                  path_diag ? path_diag : "?");
 }
 
@@ -86,8 +86,8 @@ static void pipeline_diag_import_preprocess_fail(const char *import_path, const 
 
 static void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what) {
     pipeline_diag_emitted_note();
-    diag_reportf_with_code(path_diag, 0, 0, "pipeline error", SHUX_DIAG_CODE_SX_PIPELINE_SXP005, NULL,
-                 "%s allocation failed during .sx preprocess",
+    diag_reportf_with_code(path_diag, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005, NULL,
+                 "%s allocation failed during .x preprocess",
                  what ? what : "buffer");
 }
 
@@ -178,28 +178,28 @@ void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, voi
     }
 }
 
-void pipeline_debug_trace_body_sx_mega_pre_reset(void *module, void *arena) {
-    pipeline_debug_trace_named_func_bodies("sx_mega_pre_reset", module, arena);
+void pipeline_debug_trace_body_x_mega_pre_reset(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("x_mega_pre_reset", module, arena);
 }
 
-void pipeline_debug_trace_body_sx_mega_post_reset(void *module, void *arena) {
-    pipeline_debug_trace_named_func_bodies("sx_mega_post_reset", module, arena);
+void pipeline_debug_trace_body_x_mega_post_reset(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_reset", module, arena);
 }
 
-void pipeline_debug_trace_body_sx_mega_post_params(void *module, void *arena) {
-    pipeline_debug_trace_named_func_bodies("sx_mega_post_params", module, arena);
+void pipeline_debug_trace_body_x_mega_post_params(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_params", module, arena);
 }
 
-void pipeline_debug_trace_body_sx_mega_post_frame(void *module, void *arena) {
-    pipeline_debug_trace_named_func_bodies("sx_mega_post_frame", module, arena);
+void pipeline_debug_trace_body_x_mega_post_frame(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_frame", module, arena);
 }
 
-void pipeline_debug_trace_body_sx_mega_post_locals(void *module, void *arena) {
-    pipeline_debug_trace_named_func_bodies("sx_mega_post_locals", module, arena);
+void pipeline_debug_trace_body_x_mega_post_locals(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_locals", module, arena);
 }
 
-void pipeline_debug_trace_body_sx_mega_pre_emit(void *module, void *arena) {
-    pipeline_debug_trace_named_func_bodies("sx_mega_pre_emit", module, arena);
+void pipeline_debug_trace_body_x_mega_pre_emit(void *module, void *arena) {
+    pipeline_debug_trace_named_func_bodies("x_mega_pre_emit", module, arena);
 }
 
 static int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
@@ -212,7 +212,7 @@ static int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t r
     if (raw_len > (size_t)SHUX_PIPELINE_CTX_BUF_SIZE) {
         if (emit_diag) {
             diag_reportf_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
-                         "entry file too large for .sx preprocessor (%zu > %d): '%s'",
+                         "entry file too large for .x preprocessor (%zu > %d): '%s'",
                          raw_len,
                          SHUX_PIPELINE_CTX_BUF_SIZE,
                          path_diag ? path_diag : "?");
@@ -229,7 +229,7 @@ static int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t r
     for (di = 0; di < ndefines; di++)
         if (defines && defines[di])
             preprocess_define_add(defines[di]);
-    int32_t n = preprocess_sx_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)SHUX_PIPELINE_CTX_BUF_SIZE);
+    int32_t n = preprocess_x_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)SHUX_PIPELINE_CTX_BUF_SIZE);
     if (n < 0) {
         free(scratch);
         if (emit_diag) {
@@ -309,7 +309,7 @@ void *typeck_get_dep_arena(int32_t i) {
     return get_dep_arena(i);
 }
 
-/** 写入单 dep 槽（pipeline.sx 编排 import 加载时调用）。 */
+/** 写入单 dep 槽（pipeline.x 编排 import 加载时调用）。 */
 void pipeline_set_dep(int32_t i, void *mod, void *arena) {
     if (i < 0 || i >= 32)
         return;
@@ -323,7 +323,7 @@ void pipeline_set_ndep(int32_t n) {
 }
 
 /**
- * 对原始 .sx 做 preprocess.sx 条件编译扫描，写入新分配缓冲 NUL 结尾字符串。
+ * 对原始 .x 做 preprocess.x 条件编译扫描，写入新分配缓冲 NUL 结尾字符串。
  * 参数：path_diag 用于错误信息；defines/ndefines 注入 -D 宏。
  * 返回值：0 成功；否则写 stderr、不分配 *out_src。
  */
@@ -333,7 +333,7 @@ int shux_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char
 }
 
 /**
- * 将逻辑 import 路径转为 lib_root 下的 .sx 文件路径（'.' → '/'）。
+ * 将逻辑 import 路径转为 lib_root 下的 .x 文件路径（'.' → '/'）。
  * 参数：见 runtime_pipeline_abi.h。
  * 副作用：写入 path，保证 NUL 结尾（path_size>0 时）。
  */
@@ -347,11 +347,11 @@ void shux_import_path_to_file_path(const char *lib_root, const char *import_path
             path[off++] = *s;
     }
     if (off + 4 <= path_size)
-        snprintf(path + off, path_size - off, ".sx");
+        snprintf(path + off, path_size - off, ".x");
 }
 
 /**
- * 从入口 .sx 路径得到所在目录；无目录时写入 "."。
+ * 从入口 .x 路径得到所在目录；无目录时写入 "."。
  * 参数：见 runtime_pipeline_abi.h。
  */
 void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
@@ -373,7 +373,7 @@ void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
 }
 
 /**
- * 判断 import 是否为文件路径（相对/绝对/.sx），而非逻辑模块名 std.io。
+ * 判断 import 是否为文件路径（相对/绝对/.x），而非逻辑模块名 std.io。
  * 返回值：非 0 表示文件路径形式。
  */
 int shux_import_path_is_file_path(const char *import_path) {
@@ -384,13 +384,13 @@ int shux_import_path_is_file_path(const char *import_path) {
     if (strchr(import_path, '/') != NULL)
         return 1;
     size_t n = strlen(import_path);
-    if (n >= 3 && strcmp(import_path + n - 3, ".sx") == 0)
+    if (n >= 3 && strcmp(import_path + n - 3, ".x") == 0)
         return 1;
     return 0;
 }
 
 /**
- * 将相对/绝对文件路径解析为可打开的 .sx 路径（相对 entry_dir）。
+ * 将相对/绝对文件路径解析为可打开的 .x 路径（相对 entry_dir）。
  * 参数：见 runtime_pipeline_abi.h。
  */
 void shux_resolve_file_import_path(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
@@ -415,7 +415,7 @@ void shux_resolve_file_import_path(const char *entry_dir, const char *import_pat
 }
 
 /**
- * 在 lib_roots 与 entry_dir 下解析 import 到可读 .sx 路径。
+ * 在 lib_roots 与 entry_dir 下解析 import 到可读 .x 路径。
  * 参数：见 runtime_pipeline_abi.h；未找到时 path 仍写入最后一次尝试路径。
  */
 void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir,
@@ -435,11 +435,11 @@ void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots
         shux_import_path_to_file_path(lib_root, import_path, path, path_size);
         if (access(path, R_OK) == 0)
             return;
-        /* 单段 import（如 preprocess）：再试 lib_root/import/import.sx */
+        /* 单段 import（如 preprocess）：再试 lib_root/import/import.x */
         if (strchr(import_path, '.') == NULL && path_size >= 16) {
             int n = (int)strlen(import_path);
             if (n > 0 && n < 64) {
-                (void)snprintf(path, path_size, "%s/%.64s/%.64s.sx", lib_root, import_path, import_path);
+                (void)snprintf(path, path_size, "%s/%.64s/%.64s.x", lib_root, import_path, import_path);
                 if (access(path, R_OK) == 0)
                     return;
             }
@@ -449,7 +449,7 @@ void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots
             for (const char *s = import_path; *s && off + 1 < path_size; s++)
                 path[off++] = (char)(*s == '.' ? '/' : *s);
             if (off + 9 <= path_size)
-                (void)snprintf(path + off, path_size - off, "/mod.sx");
+                (void)snprintf(path + off, path_size - off, "/mod.x");
             if (access(path, R_OK) == 0)
                 return;
             shux_import_path_to_file_path(lib_root, import_path, path, path_size);
@@ -459,7 +459,7 @@ void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots
     }
     /* 入口同目录的单段 fallback */
     if (entry_dir && entry_dir[0] && strchr(import_path, '.') == NULL) {
-        (void)snprintf(path, path_size, "%s/%.255s.sx", entry_dir, import_path);
+        (void)snprintf(path, path_size, "%s/%.255s.x", entry_dir, import_path);
         if (access(path, R_OK) == 0)
             return;
     }
@@ -478,11 +478,11 @@ void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots
         for (const char *s = eff; *s && off + 1 < path_size; s++)
             path[off++] = (char)(*s == '.' ? '/' : *s);
         if (off + 5 <= path_size)
-            snprintf(path + off, path_size - off, ".sx");
+            snprintf(path + off, path_size - off, ".x");
         if (access(path, R_OK) == 0)
             return;
         if (off + (size_t)8 <= path_size)
-            (void)snprintf(path + off, path_size - off, "/mod.sx");
+            (void)snprintf(path + off, path_size - off, "/mod.x");
         if (access(path, R_OK) == 0)
             return;
     }
@@ -509,7 +509,7 @@ int32_t driver_dep_seeded_get(int32_t i) {
 }
 
 /**
- * 设置 dep 槽 seeded 标志（run_compiler_sx_path 预填后调用）。
+ * 设置 dep 槽 seeded 标志（run_compiler_x_path 预填后调用）。
  * 参数：i 槽下标；v 非 0 表示 seeded。
  */
 void driver_dep_seeded_set(int32_t i, int32_t v) {
@@ -609,12 +609,12 @@ uint8_t *driver_dep_module_buf(int32_t i) {
     return (uint8_t *)driver_dep_module_ptrs[i];
 }
 
-/** typeck.sx 导出名：转发 driver_dep_module_buf。 */
+/** typeck.x 导出名：转发 driver_dep_module_buf。 */
 uint8_t *typeck_driver_dep_module_buf(int32_t i) {
     return driver_dep_module_buf(i);
 }
 
-/** typeck.sx 导出名：转发 driver_dep_seeded_get。 */
+/** typeck.x 导出名：转发 driver_dep_seeded_get。 */
 int32_t typeck_driver_dep_seeded_get(int32_t i) {
     return driver_dep_seeded_get(i);
 }
@@ -644,7 +644,7 @@ const char *shux_dep_prerun_entry_dir(const char *main_entry_dir, const char **l
 
 /**
  * 从入口文件路径推导 -E 时库模块的 C 前缀。
- * 参数：input_path 入口 .sx 路径。
+ * 参数：input_path 入口 .x 路径。
  * 返回值：静态字符串字面量前缀名。
  */
 const char *shux_entry_lib_name_from_path(const char *input_path) {
@@ -675,13 +675,13 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
         return "lexer";
     if (strstr(input_path, "ast") != NULL)
         return "ast";
-    /* std/json/json.sx 等：basename 去 .sx/.su 作为库前缀（json_ → json_*_c 符号）。 */
+    /* std/json/json.x 等：basename 去 .x/.su 作为库前缀（json_ → json_*_c 符号）。 */
     base = strrchr(input_path, '/');
     if (!base)
         base = strrchr(input_path, '\\');
     base = base ? base + 1 : input_path;
     dot = strrchr(base, '.');
-    if (dot && dot > base && (strcmp(dot, ".sx") == 0 || strcmp(dot, ".su") == 0)) {
+    if (dot && dot > base && (strcmp(dot, ".x") == 0 || strcmp(dot, ".su") == 0)) {
         stem_len = (size_t)(dot - base);
         if (stem_len > 0 && stem_len < sizeof(stem_buf)) {
             memcpy(stem_buf, base, stem_len);
@@ -692,7 +692,7 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
     return "typeck";
 }
 
-/** -E 且入口为 pipeline.sx 时输出 pipeline_glue.c include 行。 */
+/** -E 且入口为 pipeline.x 时输出 pipeline_glue.c include 行。 */
 void shux_emit_pipeline_glue_include(void) {
     fputs("\n#include \"pipeline_glue.c\"\n", stdout);
 }
@@ -725,7 +725,7 @@ int shux_asm_out_buf_is_object(const unsigned char *data, size_t len) {
     return 0;
 }
 
-/** ast.sx pipeline_dep_ctx_* 与 lib_root sidecar（由 ast_pool.c 提供）。 */
+/** ast.x pipeline_dep_ctx_* 与 lib_root sidecar（由 ast_pool.c 提供）。 */
 extern void ast_pipeline_dep_ctx_reset(struct ast_PipelineDepCtx *ctx);
 extern int32_t ast_pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint8_t *path, int32_t len);
 extern void ast_pipeline_dep_ctx_set_module(struct ast_PipelineDepCtx *ctx, int32_t idx, struct ast_Module *m);
@@ -733,13 +733,13 @@ extern void ast_pipeline_dep_ctx_set_arena(struct ast_PipelineDepCtx *ctx, int32
 extern void ast_pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx *ctx, int32_t n);
 extern void ast_pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes, int32_t len);
 
-/** pipeline.sx asm 用户 dep 路径判定（符号由 pipeline_gen.c / pipeline_sx.o 提供）。 */
-extern int32_t pipeline_asm_user_dep_skip_sx_typeck(uint8_t *path);
+/** pipeline.x asm 用户 dep 路径判定（符号由 pipeline_gen.c / pipeline_x.o 提供）。 */
+extern int32_t pipeline_asm_user_dep_skip_x_typeck(uint8_t *path);
 extern int32_t pipeline_asm_user_std_net_dep_path(uint8_t *path);
 extern int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path);
 
 /**
- * 填充 ctx 的 entry_dir_buf、lib_root sidecar，供 .sx 内 resolve_path_sx 使用。
+ * 填充 ctx 的 entry_dir_buf、lib_root sidecar，供 .x 内 resolve_path_x 使用。
  * 参数：ctx 非 NULL；entry_dir 入口目录；lib_roots/n_lib_roots 与 -L 一致。
  */
 void shux_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
@@ -769,7 +769,7 @@ void shux_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const c
 }
 
 /**
- * 将 C 侧 dep 槽写入 PipelineDepCtx sidecar（与 ast.sx pipeline_dep_ctx_* 对齐）。
+ * 将 C 侧 dep 槽写入 PipelineDepCtx sidecar（与 ast.x pipeline_dep_ctx_* 对齐）。
  * 参数：dep_mods/dep_ar/import_paths 长度 n；ctx 输出 sidecar。
  */
 void shux_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
@@ -822,7 +822,7 @@ static void shux_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepC
     ast_pipeline_dep_ctx_set_ndep(ctx, n);
 }
 
-/** parser.sx 符号（dep 预跑 import 扫描与 pipeline_parse_into_loaded_import 共用）。 */
+/** parser.x 符号（dep 预跑 import 扫描与 pipeline_parse_into_loaded_import 共用）。 */
 struct parser_ParseIntoResult {
     int32_t ok;
     int32_t main_idx;
@@ -913,11 +913,11 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
     ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
 }
 
-/** asm 用户程序：std.io/fs/net dep 跳过 .sx typeck（符号由并列 .o 提供）。 */
-int shux_asm_user_std_dep_skip_sx_typeck(const char *dep_path) {
+/** asm 用户程序：std.io/fs/net dep 跳过 .x typeck（符号由并列 .o 提供）。 */
+int shux_asm_user_std_dep_skip_x_typeck(const char *dep_path) {
     if (!dep_path || dep_path[0] == '\0')
         return 0;
-    return pipeline_asm_user_dep_skip_sx_typeck((uint8_t *)dep_path) != 0;
+    return pipeline_asm_user_dep_skip_x_typeck((uint8_t *)dep_path) != 0;
 }
 
 /** std.net dep：须 co-emit listen/accept_many，seed typeck 对 stream_* 假阳性。 */
@@ -939,7 +939,7 @@ int shux_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
     return shux_asm_user_std_net_dep_path(dep_path) || shux_asm_user_std_io_driver_dep_path(dep_path);
 }
 
-/** pipeline.sx 编排：entry_dir / resolved / loaded import 与 dep arena/module 槽。 */
+/** pipeline.x 编排：entry_dir / resolved / loaded import 与 dep arena/module 槽。 */
 static char pipeline_entry_dir_buf[512];
 static const char *pipeline_entry_dir = ".";
 static char pipeline_resolved_path_buf[512];
@@ -949,8 +949,8 @@ static char *pipeline_loaded_import_buf;
 static size_t pipeline_loaded_import_len;
 static size_t pipeline_loaded_import_cap;
 
-/** pipeline_run_sx_pipeline 由 pipeline_sx.o / pipeline_gen.c 提供。 */
-extern int pipeline_run_sx_pipeline(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+/** pipeline_run_x_pipeline 由 pipeline_x.o / pipeline_gen.c 提供。 */
+extern int pipeline_run_x_pipeline(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx);
 extern int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *data,
                                                   int32_t len);
@@ -1065,7 +1065,7 @@ int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
     return pr.ok == 0 ? 0 : -1;
 }
 
-/** pipeline_run_sx_pipeline 大栈线程参数。 */
+/** pipeline_run_x_pipeline 大栈线程参数。 */
 typedef struct {
     void *module;
     void *arena;
@@ -1076,22 +1076,22 @@ typedef struct {
     int result;
 } PipelineRunSuArgs;
 
-/** pthread 入口：跑 pipeline_run_sx_pipeline 并写回 ec。 */
-static void *pipeline_run_sx_thread_fn(void *arg) {
+/** pthread 入口：跑 pipeline_run_x_pipeline 并写回 ec。 */
+static void *pipeline_run_x_thread_fn(void *arg) {
     PipelineRunSuArgs *a = (PipelineRunSuArgs *)arg;
     driver_set_pipeline_entry_source_len(a->source_len);
     if (getenv("SHUX_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: pipeline thread start len=%zu", a->source_len);
-    a->result = pipeline_run_sx_pipeline(a->module, a->arena, a->source_data, a->source_len, a->out_buf, a->ctx);
+    a->result = pipeline_run_x_pipeline(a->module, a->arena, a->source_data, a->source_len, a->out_buf, a->ctx);
     if (getenv("SHUX_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: pipeline thread done ec=%d", a->result);
     return NULL;
 }
 
-/** 大栈 pthread 上调用 pipeline_run_sx_pipeline；pthread 失败时回退当前线程。 */
-int shux_pipeline_run_sx_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+/** 大栈 pthread 上调用 pipeline_run_x_pipeline；pthread 失败时回退当前线程。 */
+int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx) {
     PipelineRunSuArgs args;
     driver_set_pipeline_entry_source_len(source_len);
@@ -1102,9 +1102,9 @@ int shux_pipeline_run_sx_pipeline_large_stack(void *module, void *arena, const u
     args.out_buf = out_buf;
     args.ctx = ctx;
     args.result = -99;
-    driver_run_thread_on_large_stack(pipeline_run_sx_thread_fn, &args);
+    driver_run_thread_on_large_stack(pipeline_run_x_thread_fn, &args);
     if (args.result == -99)
-        return pipeline_run_sx_pipeline(module, arena, source_data, source_len, out_buf, ctx);
+        return pipeline_run_x_pipeline(module, arena, source_data, source_len, out_buf, ctx);
     return args.result;
 }
 
@@ -1120,18 +1120,18 @@ int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, c
         saved_entry_only = pctx->asm_entry_module_only;
         pctx->asm_entry_module_only = 1;
     }
-    driver_sx_pipeline_skip_typeck_set(1);
-    driver_sx_pipeline_skip_codegen_set(1);
-    ec = shux_pipeline_run_sx_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
-    driver_sx_pipeline_skip_codegen_set(0);
-    driver_sx_pipeline_skip_typeck_set(0);
+    driver_x_pipeline_skip_typeck_set(1);
+    driver_x_pipeline_skip_codegen_set(1);
+    ec = shux_pipeline_run_x_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    driver_x_pipeline_skip_codegen_set(0);
+    driver_x_pipeline_skip_typeck_set(0);
     if (pctx)
         pctx->asm_entry_module_only = saved_entry_only;
     driver_check_only_set(saved ? 1 : 0);
     return ec;
 }
 
-/** dep 预跑：parse+typeck（C glue 直调），跳过 codegen；勿走 SX run_sx_pipeline_impl（大模块 ctx 易丢）。 */
+/** dep 预跑：parse+typeck（C glue 直调），跳过 codegen；勿走 X run_x_pipeline_impl（大模块 ctx 易丢）。 */
 int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
     void *one_ctx) {
     int32_t len_i32;
@@ -1183,7 +1183,7 @@ int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const u
 /**
  * dep 预跑：仅 parse，不做全量 typeck。
  * 须走 pipeline_parse_set_main_from_buf_c（parse_into_with_init_buf）；直调 parser_parse_into 的 slice
- * 路径对大库模块（如 std/string/mod.sx）常 ok=-2 且仅 ~2 func，co-emit 缺 std_string_* 符号。
+ * 路径对大库模块（如 std/string/mod.x）常 ok=-2 且仅 ~2 func，co-emit 缺 std_string_* 符号。
  */
 int shux_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
     int32_t parse_rc;
@@ -1212,7 +1212,7 @@ int shux_pipeline_dep_prerun_for_asm_module_o(void *dep_mod, void *dep_arena, co
     return shux_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
 }
 
-/** ast.sx 模块释放；LSP import 列表清理用。 */
+/** ast.x 模块释放；LSP import 列表清理用。 */
 extern void ast_module_free(struct ast_Module *mod);
 
 /** 从绝对/相对源文件 path 提取所在目录写入 dep_dir；供 load_one_import 递归 import 切换 dep_dir。 */
@@ -1248,7 +1248,7 @@ int shux_merge_deps_path_already_out(const char *path, char *out_paths[], int n_
     return 0;
 }
 
-/** parser.sx：读 module import 路径与 parse_into（dep 传递闭包收集用）。 */
+/** parser.x：读 module import 路径与 parse_into（dep 传递闭包收集用）。 */
 extern int32_t parser_get_module_num_imports(void *module);
 extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf);
 
@@ -1788,7 +1788,7 @@ void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_de
 }
 
 /**
- * 对 .sx 源码做条件编译预处理；默认 bootstrap 走 preprocess.sx，LEGACY 或 shux-c 冷路径走 C fallback。
+ * 对 .x 源码做条件编译预处理；默认 bootstrap 走 preprocess.x，LEGACY 或 shux-c 冷路径走 C fallback。
  * 参数：与 preprocess.h preprocess() 一致。
  * 返回值：malloc 字符串（调用方 free）；失败 NULL。
  */
@@ -1804,7 +1804,7 @@ char *shux_preprocess_with_path(const char *source, size_t source_len, const cha
         *out_length = 0;
     if (!source)
         return NULL;
-#if defined(SHUX_USE_SX_PIPELINE) && !defined(SHUX_LEGACY_PREPROCESS_C)
+#if defined(SHUX_USE_X_PIPELINE) && !defined(SHUX_LEGACY_PREPROCESS_C)
     slen = source_len ? source_len : strlen(source);
     {
         char *out = NULL;
@@ -1829,7 +1829,7 @@ char *shux_preprocess_quiet(const char *source, size_t source_len, const char **
         *out_length = 0;
     if (!source)
         return NULL;
-#if defined(SHUX_USE_SX_PIPELINE) && !defined(SHUX_LEGACY_PREPROCESS_C)
+#if defined(SHUX_USE_X_PIPELINE) && !defined(SHUX_LEGACY_PREPROCESS_C)
     slen = source_len ? source_len : strlen(source);
     {
         char *out = NULL;

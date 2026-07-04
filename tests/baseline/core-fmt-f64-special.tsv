@@ -1,17 +1,17 @@
 # CORE-011 core.fmt f64 NaN/Inf 与精度 manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_symbols	6
-fmt_default_prec	symbol	FMT_F64_DEFAULT_PREC	core/fmt/mod.sx	默认 6 位
-fmt_is_nan	symbol	fmt_f64_is_nan	core/fmt/mod.sx	NaN 检测
-fmt_is_inf	symbol	fmt_f64_is_inf	core/fmt/mod.sx	Inf 检测
-fmt_prec	symbol	fmt_f64_to_buf_prec	core/fmt/mod.sx	可配置精度
-fmt_f64	symbol	fmt_f64_to_buf	core/fmt/mod.sx	默认精度入口
-std_reexport	symbol	to_buf_prec	std/fmt/mod.sx	std 重导出
+fmt_default_prec	symbol	FMT_F64_DEFAULT_PREC	core/fmt/mod.x	默认 6 位
+fmt_is_nan	symbol	fmt_f64_is_nan	core/fmt/mod.x	NaN 检测
+fmt_is_inf	symbol	fmt_f64_is_inf	core/fmt/mod.x	Inf 检测
+fmt_prec	symbol	fmt_f64_to_buf_prec	core/fmt/mod.x	可配置精度
+fmt_f64	symbol	fmt_f64_to_buf	core/fmt/mod.x	默认精度入口
+std_reexport	symbol	to_buf_prec	std/fmt/mod.x	std 重导出
 section_special	section	## 2. 特殊值金样	docs
 section_prec	section	## 3. 精度策略	docs
-smoke_nan	smoke	NaN	tests/fmt/f64_special.sx	金样
-smoke_inf	smoke	Inf	tests/fmt/f64_special.sx	金样
-smoke_prec	smoke	to_buf_prec	tests/fmt/f64_special.sx	精度
-test_smoke	file	tests/fmt/f64_special.sx	tests/fmt/f64_special.sx	边界烟测
+smoke_nan	smoke	NaN	tests/fmt/f64_special.x	金样
+smoke_inf	smoke	Inf	tests/fmt/f64_special.x	金样
+smoke_prec	smoke	to_buf_prec	tests/fmt/f64_special.x	精度
+test_smoke	file	tests/fmt/f64_special.x	tests/fmt/f64_special.x	边界烟测
 doc	file	analysis/core-fmt-f64-special-v1.md	analysis/core-fmt-f64-special-v1.md	RFC
 gate	script	tests/run-core-fmt-f64-special-gate.sh	tests/run-core-fmt-f64-special-gate.sh	manifest

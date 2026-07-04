@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# 【文件职责】std.sync 模块的回归测试脚本；编译并运行 tests/sync/main.sx，校验退出码。
+# 【文件职责】std.sync 模块的回归测试脚本；编译并运行 tests/sync/main.x，校验退出码。
 # 【测试目的】覆盖 mutex_new、mutex_lock、mutex_try_lock、mutex_unlock、mutex_free，确保 API 行为符合预期。
 # 【运行方式】在仓库根目录执行 bash tests/run-sync.sh 或 ./tests/run-sync.sh；可选环境变量 SHUX 指定编译器路径。
 #
@@ -21,7 +21,7 @@ SHUX="${SHUX:-./compiler/shux}"
 LINK_SHUX="$RUN_SHUX"
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 exe="/tmp/shux_sync_$$_main"
-if ! $LINK_SHUX -L . tests/sync/main.sx -o "$exe" 2>&1; then
+if ! $LINK_SHUX -L . tests/sync/main.x -o "$exe" 2>&1; then
   echo "sync test: compile failed"
   rm -f "$exe"
   exit 1

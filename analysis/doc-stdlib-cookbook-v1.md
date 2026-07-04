@@ -21,20 +21,20 @@
 
 ## 2. IO 食谱（STD-001）
 
-### IO-01：`examples/cookbook/io_batch_rw.sx`
+### IO-01：`examples/cookbook/io_batch_rw.x`
 
 `write_batch_fd` + `read_batch_fd` 两段环回；全平台走 `std.io` 后端分派。
 
 ```bash
-SHUX=./compiler/shux-c ./compiler/shux-c -L . examples/cookbook/io_batch_rw.sx -o /tmp/cb_io_batch
+SHUX=./compiler/shux-c ./compiler/shux-c -L . examples/cookbook/io_batch_rw.x -o /tmp/cb_io_batch
 /tmp/cb_io_batch; echo exit=$?
 ```
 
-### IO-02：`examples/cookbook/io_read_chunk.sx`
+### IO-02：`examples/cookbook/io_read_chunk.x`
 
 大块 `fs_read` 顺序读；适合无 mmap 的便携路径。
 
-### IO-03：`examples/cookbook/io_mmap_read.sx`
+### IO-03：`examples/cookbook/io_mmap_read.x`
 
 `read_ptr` 绝对视图读文件（ZC-2 与 IO 交叉）。
 
@@ -44,18 +44,18 @@ SHUX=./compiler/shux-c ./compiler/shux-c -L . examples/cookbook/io_batch_rw.sx -
 
 ## 3. NET 食谱（STD-002）
 
-### NET-01：`examples/cookbook/net_listen_bind.sx`
+### NET-01：`examples/cookbook/net_listen_bind.x`
 
 `listen` + `close_listener` 烟测（避免单线程自 accept 卡死）。
 
-### NET-02：`examples/cookbook/net_udp_bind.sx`
+### NET-02：`examples/cookbook/net_udp_bind.x`
 
 `udp_bind` + `close_udp`。
 
-### NET-03：`examples/cookbook/net_stream_write.sx`
+### NET-03：`examples/cookbook/net_stream_write.x`
 
 `connect_blocking` + `stream_write_batch`；无 server 时 exit=2 属预期。  
-吞吐对标见 `tests/bench/net_echo_throughput.sx` + `tests/run-perf-net.sh`。
+吞吐对标见 `tests/bench/net_echo_throughput.x` + `tests/run-perf-net.sh`。
 
 深潜：`std/net/README.md`、`tests/run-std-net-api-gate.sh`。
 
@@ -63,15 +63,15 @@ SHUX=./compiler/shux-c ./compiler/shux-c -L . examples/cookbook/io_batch_rw.sx -
 
 ## 4. 零拷贝（ZC）食谱（ZC-006）
 
-### ZC-01：`examples/cookbook/zc_arena_concat.sx`
+### ZC-01：`examples/cookbook/zc_arena_concat.x`
 
 Arena64 + `string_view_concat_arena`（ZC-4）。
 
-### ZC-02：`examples/cookbook/zc_read_ptr_slice.sx`
+### ZC-02：`examples/cookbook/zc_read_ptr_slice.x`
 
 `read_ptr_view` + `read_ptr_view_valid`（ZC-2/ZC-3）。
 
-### ZC-03：`examples/cookbook/zc_provided_buffers.sx`
+### ZC-03：`examples/cookbook/zc_provided_buffers.x`
 
 `register_provided_buffers`（ZC-1，Linux io_uring）。
 
@@ -81,15 +81,15 @@ Arena64 + `string_view_concat_arena`（ZC-4）。
 
 ## 5. ASYNC 食谱（STD-004）
 
-### ASYNC-01：`examples/cookbook/async_mod_import.sx`
+### ASYNC-01：`examples/cookbook/async_mod_import.x`
 
 `import("std.async")` 符号链烟测。
 
-### ASYNC-02：`examples/cookbook/async_drain_idle.sx`
+### ASYNC-02：`examples/cookbook/async_drain_idle.x`
 
 `shu_async_run_drain_until_idle` 空转 drain。
 
-### ASYNC-03：`examples/cookbook/async_channel_ping.sx`
+### ASYNC-03：`examples/cookbook/async_channel_ping.x`
 
 `std.channel` 有界 send/recv（与调度器配套）。
 
@@ -104,7 +104,7 @@ Arena64 + `string_view_concat_arena`（ZC-4）。
 ./tests/run-doc-stdlib-cookbook-gate.sh
 
 # 单食谱 typeck
-./compiler/shux-c check -L . examples/cookbook/io_batch_rw.sx
+./compiler/shux-c check -L . examples/cookbook/io_batch_rw.x
 
 # 领域烟测（native shux 时）
 ./tests/run-std-io-api-gate.sh
@@ -113,7 +113,7 @@ Arena64 + `string_view_concat_arena`（ZC-4）。
 ./tests/run-std-async-api-gate.sh
 ```
 
-食谱清单：`tests/baseline/doc-stdlib-cookbook.tsv`（12 个 `examples/cookbook/*.sx` recipe）。
+食谱清单：`tests/baseline/doc-stdlib-cookbook.tsv`（12 个 `examples/cookbook/*.x` recipe）。
 
 ---
 

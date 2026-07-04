@@ -1,0 +1,7 @@
+// tests/exc/runtime_ready.x — EXC-002：std.runtime 门面（ready 不 panic）
+const runtime = import("std.runtime");
+
+function main(): i32 {
+  if (runtime.ready() != 0) { return 1; }
+  return 0;
+}

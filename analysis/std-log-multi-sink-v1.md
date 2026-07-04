@@ -89,7 +89,7 @@ INFO 被丢弃（返回 0、无输出）。烟测金样：`filtered` 在 `min=WA
 ```
 
 ```
-shux: [SHUX_STD_LOG_MULTI_SINK] status=ok c_smoke=1 sx=1 skip=0
+shux: [SHUX_STD_LOG_MULTI_SINK] status=ok c_smoke=1 x=1 skip=0
 ```
 
 ---

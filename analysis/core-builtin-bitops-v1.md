@@ -2,13 +2,13 @@
 
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
-> 关联：`NEXT.md` CORE-009、`core/builtin/mod.sx`、`core/builtin/builtin.c`
+> 关联：`NEXT.md` CORE-009、`core/builtin/mod.x`、`core/builtin/builtin.c`
 
 ---
 
 ## 1. 目标
 
-`clz_u32` / `ctz_u32` / `popcount_u32` 跨模块 import 调用时，生成 C 直达 `shux_builtin_*`（内部 `__builtin_clz/ctz/popcount`），优于 `.sx` 逐位循环。
+`clz_u32` / `ctz_u32` / `popcount_u32` 跨模块 import 调用时，生成 C 直达 `shux_builtin_*`（内部 `__builtin_clz/ctz/popcount`），优于 `.x` 逐位循环。
 
 | API | C 符号（调用点） | 实现 |
 |-----|------------------|------|
@@ -42,7 +42,7 @@
 ## 4. 验收
 
 - manifest：`tests/baseline/core-builtin-bitops.tsv`
-- 语义：`tests/builtin/main.sx`、`tests/run-builtin.sh`
+- 语义：`tests/builtin/main.x`、`tests/run-builtin.sh`
 - emit：`SHUX_DEBUG_C=1` 生成 C 含 `shux_builtin_*`
 - 报告：`shux: [SHUX_CORE_BUILTIN_BITOPS] status=ok emit=3/3`
 

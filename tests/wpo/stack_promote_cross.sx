@@ -1,7 +1,0 @@
-// stack_promote_cross.sx — WPO-S3 跨模块 smoke：import lib 后按值 struct 传参/返回
-const stack_promote_lib = import("stack_promote_lib");
-
-function main(): i32 {
-  let p: Pair = make_pair(3, 4);
-  return sum_pair(p);
-}

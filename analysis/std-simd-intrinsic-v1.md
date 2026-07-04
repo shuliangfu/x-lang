@@ -2,7 +2,7 @@
 
 ## 1. 阅读路径（15min）
 
-- `std/simd/mod.sx` — `vec4f_mul/sub/dot`、`vec8i_mul/sub`
+- `std/simd/mod.x` — `vec4f_mul/sub/dot`、`vec8i_mul/sub`
 - `compiler/pipeline_glue.c` — `pipeline_asm_simd_try_inline_fma3_call_elf_c`
 - `tests/run-simd-s3-gate.sh` — 硬件 mulps/pmulld 烟测
 

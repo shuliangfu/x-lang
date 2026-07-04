@@ -1,7 +1,7 @@
 /**
  * runtime_sqlite_glue.c — F-ZC：自 std/db 胶层迁入
  *
- * 从 sqlite.c 迁出 sqlite3 调用；业务逻辑见 std/db/sqlite/sqlite.sx。
+ * 从 sqlite.c 迁出 sqlite3 调用；业务逻辑见 std/db/sqlite/sqlite.x。
  * -DSHUX_DB_USE_SQLITE3：真实 libsqlite3；否则 stub（无 sqlite3.h）。
  */
 

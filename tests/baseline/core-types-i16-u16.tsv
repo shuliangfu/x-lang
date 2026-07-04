@@ -1,17 +1,17 @@
 # CORE-013 core.types i16/u16 宽度 manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_symbols	4
-size_of_i16	symbol	size_of_i16	core/types/mod.sx	2 字节
-size_of_u16	symbol	size_of_u16	core/types/mod.sx	2 字节
-align_of_i16	symbol	align_of_i16	core/types/mod.sx	对齐 2
-align_of_u16	symbol	align_of_u16	core/types/mod.sx	对齐 2
+size_of_i16	symbol	size_of_i16	core/types/mod.x	2 字节
+size_of_u16	symbol	size_of_u16	core/types/mod.x	2 字节
+align_of_i16	symbol	align_of_i16	core/types/mod.x	对齐 2
+align_of_u16	symbol	align_of_u16	core/types/mod.x	对齐 2
 section_table	section	## 2. 标量宽度表	docs
 section_hooks	section	## 3. 编译器挂钩	docs
 typeck_hook	cross_ref	CORE-013	compiler/src/typeck/typeck.c	NAMED i16/u16
 codegen_hook	cross_ref	CORE-013	compiler/src/codegen/codegen.c	NAMED i16/u16
-smoke_i16	smoke	size_of_i16	tests/core-types-size/i16_u16_width.sx	金样
-smoke_u16	smoke	size_of_u16	tests/core-types-size/i16_u16_width.sx	金样
-test_smoke	file	tests/core-types-size/i16_u16_width.sx	tests/core-types-size/i16_u16_width.sx	烟测
-test_scalar	file	tests/core-types-size/main.sx	tests/core-types-size/main.sx	标量回归
+smoke_i16	smoke	size_of_i16	tests/core-types-size/i16_u16_width.x	金样
+smoke_u16	smoke	size_of_u16	tests/core-types-size/i16_u16_width.x	金样
+test_smoke	file	tests/core-types-size/i16_u16_width.x	tests/core-types-size/i16_u16_width.x	烟测
+test_scalar	file	tests/core-types-size/main.x	tests/core-types-size/main.x	标量回归
 doc	file	analysis/core-types-i16-u16-v1.md	analysis/core-types-i16-u16-v1.md	RFC
 gate	script	tests/run-core-types-i16-u16-gate.sh	tests/run-core-types-i16-u16-gate.sh	manifest

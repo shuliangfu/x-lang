@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BOOT-017：标准库 .sx 前端编译 dogfood 指标门禁
+# BOOT-017：标准库 .x 前端编译 dogfood 指标门禁
 #
 # 用法：./tests/run-boot-017-stdlib-dogfood-gate.sh
 set -e

@@ -1,6 +1,6 @@
-# std.regex — 最小正则（纯 .sx 引擎）
+# std.regex — 最小正则（纯 .x 引擎）
 
-**模块路径**：`std/regex/mod.sx` + `std/regex/regex.sx`（F-regex v2 纯 .sx）  
+**模块路径**：`std/regex/mod.x` + `std/regex/regex.x`（F-regex v2 纯 .x）  
 **对标**：Rust `regex` 子集；全平台无 `regex.h` 依赖。
 
 ## API

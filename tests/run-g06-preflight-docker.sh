@@ -3,7 +3,7 @@
 #
 # 用法（仓库根）：
 #   ./tests/run-g06-preflight-docker.sh           # seed 清单（秒级）
-#   ./tests/run-g06-preflight-docker.sh --asm-e   # + asm.sx -E 烟测（默认 300s timeout）
+#   ./tests/run-g06-preflight-docker.sh --asm-e   # + asm.x -E 烟测（默认 300s timeout）
 #
 # 首次：./tests/docker/build-linux-dev-image.sh（一次，约 2～5 分钟，有逐步输出）
 # 另开终端看日志：tail -f /tmp/shux-g06-preflight.log

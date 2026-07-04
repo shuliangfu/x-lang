@@ -12,8 +12,8 @@ source tests/lib/gate-progress.sh
 source tests/lib/p0-gate-shux.sh
 
 DOC="analysis/自举前必须清单.md"
-REQUIRED=( "std/sys/mod.sx" "std/path/mod.sx" )
-OPTIONAL=( "std/fs/mod.sx" "std/heap/mod.sx" )
+REQUIRED=( "std/sys/mod.x" "std/path/mod.x" )
+OPTIONAL=( "std/fs/mod.x" "std/heap/mod.x" )
 TYPECK_TO="${SHUX_S7_TYPECK_TIMEOUT:-90}"
 
 [ -f "$DOC" ] || { gate_progress "FAIL: missing $DOC"; exit 1; }

@@ -10,14 +10,14 @@ source tests/lib/gate-progress.sh
 # shellcheck source=tests/lib/p0-gate-shux.sh
 source tests/lib/p0-gate-shux.sh
 
-SRC="tests/memory-contract/arena_align.sx"
+SRC="tests/memory-contract/arena_align.x"
 WANT_EXIT=0
 O_TIMEOUT="${SHUX_L9_O_TIMEOUT:-45}"
 
 gate_progress "§三 L9: 检查 manifest ..."
 [ -f "$SRC" ] || { gate_progress "FAIL: missing $SRC"; exit 1; }
-grep -q 'mem.align_up' std/heap/page_mmap.sx || { gate_progress "FAIL: page_mmap 无 align_up"; exit 1; }
-gate_progress "OK: page_mmap.sx 含 mem.align_up"
+grep -q 'mem.align_up' std/heap/page_mmap.x || { gate_progress "FAIL: page_mmap 无 align_up"; exit 1; }
+gate_progress "OK: page_mmap.x 含 mem.align_up"
 
 export SHUX_P0_SKIP_STAGE1="${SHUX_P0_SKIP_STAGE1:-1}"
 export SHUX_MINIMAL_CC_LINK=1

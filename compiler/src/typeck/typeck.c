@@ -33,8 +33,8 @@ static int bce_bound_const[MAX_BCE_RANGES];   /* 1 表示上界为常数 bce_bou
 /** LANG-007 v2：S0 内 *T 解引用与 extern 调用须在 unsafe { } 内；嵌套 unsafe 块递增。 */
 static int typeck_unsafe_depth;
 /**
- * 自举兼容：旧 C typeck 仍承担 shux-c 的 `-E` 生成职责，而编译器内部 `.sx` 大量通过 C glue 调 extern。
- * 最终语言语义以 `.sx` typeck 为准，因此这里放宽“extern 调用必须 unsafe”只用于 bootstrap 生成链，
+ * 自举兼容：旧 C typeck 仍承担 shux-c 的 `-E` 生成职责，而编译器内部 `.x` 大量通过 C glue 调 extern。
+ * 最终语言语义以 `.x` typeck 为准，因此这里放宽“extern 调用必须 unsafe”只用于 bootstrap 生成链，
  * 默认保持关闭，由 runtime 在 `-E` 兼容路径中显式开启，避免用户态 check/compile 永久绕开语义规则。
  */
 static int typeck_allow_legacy_extern_calls;
@@ -149,10 +149,10 @@ static int import_exports_name(const struct ASTModule *m, int j, const char *nam
     return 0;
 }
 
-/** 全面自举：仅填 resolved_type，不做语义检查；.sx 用访问器遍历 AST 并做检查（重写实现）。 */
+/** 全面自举：仅填 resolved_type，不做语义检查；.x 用访问器遍历 AST 并做检查（重写实现）。 */
 static int typeck_fill_only;
 
-/** 前向声明：判断表达式是否为赋值或复合赋值（供 typeck 与 typeck_sx 访问器使用）。 */
+/** 前向声明：判断表达式是否为赋值或复合赋值（供 typeck 与 typeck_x 访问器使用）。 */
 static int expr_is_assign_or_compound(const struct ASTExpr *e);
 
 /** 前向声明：typeck_block 在文件后部定义，供 AST_EXPR_BLOCK 的 typeck 调用。 */
@@ -933,7 +933,7 @@ static int typeck_let_init_matches(const struct ASTType *decl, const struct ASTE
 }
 
 /**
- * let 初值：整数字面量按声明类型收窄/零初始化（与 typeck.sx 一致）。
+ * let 初值：整数字面量按声明类型收窄/零初始化（与 typeck.x 一致）。
  */
 static int typeck_coerce_let_int_lit(const struct ASTType *decl, struct ASTExpr *init) {
     int64_t iv;
@@ -1337,7 +1337,7 @@ static int type_size_of(const struct ASTType *ty, struct ASTStructDef **struct_d
             const struct ASTStructDef *sd = find_struct_def_with_deps(struct_defs, num_structs, ty->name);
             if (sd && sd->struct_size > 0) return sd->struct_size;
             if (find_enum_def(enum_defs, num_enums, ty->name)) return 4;  /* 枚举按 int */
-            /* 自举：.sx 中 [N]i32 等会解析为 NAMED "i32"，按内建类型给大小 */
+            /* 自举：.x 中 [N]i32 等会解析为 NAMED "i32"，按内建类型给大小 */
             if (ty->name && strcmp(ty->name, "i32") == 0) return 4;
             if (ty->name && strcmp(ty->name, "u32") == 0) return 4;
             if (ty->name && strcmp(ty->name, "bool") == 0) return 4;
@@ -1788,7 +1788,7 @@ static int get_expr_type(const struct ASTExpr *e, const char **names, const int 
     if (!e || !out_kind || !out_name) return -1;
     *out_name = NULL;
     if (out_elem_type) *out_elem_type = NULL;
-    /* SX parser 的 match 1 { … } 等：matched 常为 EXPR_LIT，须能推断类型（与 typeck_expr_sym 中 i32 默认一致）。 */
+    /* X parser 的 match 1 { … } 等：matched 常为 EXPR_LIT，须能推断类型（与 typeck_expr_sym 中 i32 默认一致）。 */
     if (e->kind == AST_EXPR_LIT) {
         if (e->resolved_type) {
             *out_kind = e->resolved_type->kind;
@@ -2233,7 +2233,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             {
                 const struct ASTType *lt = e->value.binop.left->resolved_type;
                 const struct ASTType *rt = e->value.binop.right->resolved_type;
-                /* [a,b,c,d] + [e,f,g,h]：数组字面量按 lanes 推断向量类型（vec_add_lit.sx） */
+                /* [a,b,c,d] + [e,f,g,h]：数组字面量按 lanes 推断向量类型（vec_add_lit.x） */
                 if (e->value.binop.left->kind == AST_EXPR_ARRAY_LIT &&
                     e->value.binop.right->kind == AST_EXPR_ARRAY_LIT) {
                     const struct ASTExpr *ll = e->value.binop.left;
@@ -2561,7 +2561,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     }
                 }
                 if (!allow_u8_lit && !allow_ptr_zero && !allow_int_lit && !typeck_fill_only) {
-                    /* f32 赋值：右端 f64 浮点字面量允许窄化（sum = sum + 1.0；simd_dot.sx） */
+                    /* f32 赋值：右端 f64 浮点字面量允许窄化（sum = sum + 1.0；simd_dot.x） */
                     int allow_f32_narrow = 0;
                     if (lt && lt->kind == AST_TYPE_F32 && rt && rt->kind == AST_TYPE_F64 &&
                         e->value.binop.right->kind == AST_EXPR_FLOAT_LIT) {
@@ -3307,7 +3307,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 if (!ok && param_type && param_type->kind == AST_TYPE_PTR && arg_type && arg_type->kind == AST_TYPE_ARRAY
                     && param_type->elem_type && arg_type->elem_type && type_equal(param_type->elem_type, arg_type->elem_type))
                     ok = 1;
-                /* 允许任意指针 *T 传给 *u8 参数（extern 中 *u8 表示 C 的 void*，如 pipeline_run_sx_pipeline 的 out_buf/ctx） */
+                /* 允许任意指针 *T 传给 *u8 参数（extern 中 *u8 表示 C 的 void*，如 pipeline_run_x_pipeline 的 out_buf/ctx） */
                 if (!ok && param_type && param_type->kind == AST_TYPE_PTR && param_type->elem_type && param_type->elem_type->kind == AST_TYPE_U8
                     && arg_type && arg_type->kind == AST_TYPE_PTR)
                     ok = 1;
@@ -3315,7 +3315,7 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 if (!ok && param_type && param_type->kind == AST_TYPE_PTR && param_type->elem_type && param_type->elem_type->kind == AST_TYPE_U8
                     && e->value.call.args[i]->kind == AST_EXPR_ADDR_OF)
                     ok = 1;
-                /* 取址 &expr 可传给 *T 参数：要求 expr 的类型与 T 一致（如 driver_argv_parse_sx(..., &state)） */
+                /* 取址 &expr 可传给 *T 参数：要求 expr 的类型与 T 一致（如 driver_argv_parse_x(..., &state)） */
                 if (!ok && param_type && e->value.call.args[i]->kind == AST_EXPR_ADDR_OF) {
                     const struct ASTExpr *operand = e->value.call.args[i]->value.unary.operand;
                     if (operand->resolved_type && type_equal(param_type->elem_type, operand->resolved_type))
@@ -3654,7 +3654,7 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
             b->const_decls[i].init && b->const_decls[i].init->kind == AST_EXPR_ARRAY_LIT) {
             int narr = b->const_decls[i].init->value.array_lit.num_elems;
             int decl_size = b->const_decls[i].type->array_size;
-            /* 自举：允许 64 元素字面量（parser.sx）；narr>64 时仍报错 */
+            /* 自举：允许 64 元素字面量（parser.x）；narr>64 时仍报错 */
             if (narr > decl_size && narr > 64) {
                 TYPECK_ERR_AT(0, 0, "array literal length exceeds declaration size");
                 return -1;
@@ -3729,7 +3729,7 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
         if (!typeck_fill_only && b->let_decls[i].type && b->let_decls[i].type->kind == AST_TYPE_SLICE && b->let_decls[i].init &&
             typeck_coerce_array_var_to_slice_type((struct ASTExpr *)b->let_decls[i].init, b->let_decls[i].type, names, n, type_ptrs) != 0)
             return -1;
-        /* f32/f64 初值须在 let type mismatch 之前：浮点字面量默认为 f64，如 let sum: f32 = 0.0（simd_dot.sx） */
+        /* f32/f64 初值须在 let type mismatch 之前：浮点字面量默认为 f64，如 let sum: f32 = 0.0（simd_dot.x） */
         if (b->let_decls[i].type && (b->let_decls[i].type->kind == AST_TYPE_F32 || b->let_decls[i].type->kind == AST_TYPE_F64) && b->let_decls[i].init) {
             const struct ASTExpr *init = b->let_decls[i].init;
             if (init->kind == AST_EXPR_FLOAT_LIT)
@@ -3784,7 +3784,7 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
             b->let_decls[i].init && b->let_decls[i].init->kind == AST_EXPR_ARRAY_LIT) {
             int narr = b->let_decls[i].init->value.array_lit.num_elems;
             int decl_size = b->let_decls[i].type->array_size;
-            /* 自举：允许 64 元素字面量（parser.sx）；narr>64 时仍报错 */
+            /* 自举：允许 64 元素字面量（parser.x）；narr>64 时仍报错 */
             if (narr > decl_size && narr > 64) {
                 TYPECK_ERR_AT(0, 0, "array literal length exceeds declaration size");
                 return -1;
@@ -3930,111 +3930,111 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
     return 0;
 }
 
-/* ---------- .sx typeck 查询 API：供 typeck.sx 读取 AST，实现 main 等检查迁入 .sx ---------- */
-void *typeck_sx_get_main_func(void *mod) {
+/* ---------- .x typeck 查询 API：供 typeck.x 读取 AST，实现 main 等检查迁入 .x ---------- */
+void *typeck_x_get_main_func(void *mod) {
     struct ASTModule *m = (struct ASTModule *)mod;
     return m ? (void *)m->main_func : NULL;
 }
-int typeck_sx_func_return_kind(void *func) {
+int typeck_x_func_return_kind(void *func) {
     const struct ASTFunc *f = (const struct ASTFunc *)func;
     if (!f || !f->return_type) return -1;
     return f->return_type->kind;
 }
-int typeck_sx_func_is_extern(void *func) {
+int typeck_x_func_is_extern(void *func) {
     const struct ASTFunc *f = (const struct ASTFunc *)func;
     return f ? f->is_extern : 0;
 }
-int typeck_sx_func_has_body(void *func) {
+int typeck_x_func_has_body(void *func) {
     const struct ASTFunc *f = (const struct ASTFunc *)func;
     return (f && f->body) ? 1 : 0;
 }
-int typeck_sx_func_is_generic(void *func) {
+int typeck_x_func_is_generic(void *func) {
     const struct ASTFunc *f = (const struct ASTFunc *)func;
     return (f && f->num_generic_params > 0) ? 1 : 0;
 }
-void *typeck_sx_func_body(void *func) {
+void *typeck_x_func_body(void *func) {
     const struct ASTFunc *f = (const struct ASTFunc *)func;
     return f ? (void *)f->body : NULL;
 }
-int typeck_sx_block_has_implicit_return(const void *block) {
+int typeck_x_block_has_implicit_return(const void *block) {
     return block_has_implicit_return((const struct ASTBlock *)block);
 }
-int typeck_sx_ast_type_i32(void) { return AST_TYPE_I32; }
-int typeck_sx_ast_type_i64(void) { return AST_TYPE_I64; }
+int typeck_x_ast_type_i32(void) { return AST_TYPE_I32; }
+int typeck_x_ast_type_i64(void) { return AST_TYPE_I64; }
 
 /**
- * 全面自举（重写实现）：仅填 resolved_type，不做任何语义检查；.sx 用访问器遍历并做检查。
+ * 全面自举（重写实现）：仅填 resolved_type，不做任何语义检查；.x 用访问器遍历并做检查。
  * 返回与 typeck_module 相同（0 成功填类型，-1 推导失败等）。
  */
-int typeck_sx_fill_resolved_types(void *mod, void *dep_mods, int num_deps) {
+int typeck_x_fill_resolved_types(void *mod, void *dep_mods, int num_deps) {
     typeck_fill_only = 1;
     int r = typeck_module((struct ASTModule *)mod, (struct ASTModule **)dep_mods, num_deps, NULL, 0);
     typeck_fill_only = 0;
     return r;
 }
 
-/** 全面自举：块访问器，供 .sx 遍历并检查条件须为 bool。 */
-int typeck_sx_block_num_loops(const void *block) {
+/** 全面自举：块访问器，供 .x 遍历并检查条件须为 bool。 */
+int typeck_x_block_num_loops(const void *block) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     return b ? b->num_loops : 0;
 }
-void *typeck_sx_block_loop_cond(const void *block, int i) {
+void *typeck_x_block_loop_cond(const void *block, int i) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->loops || i < 0 || i >= b->num_loops) return NULL;
     return (void *)b->loops[i].cond;
 }
-void *typeck_sx_block_loop_body(const void *block, int i) {
+void *typeck_x_block_loop_body(const void *block, int i) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->loops || i < 0 || i >= b->num_loops) return NULL;
     return (void *)b->loops[i].body;
 }
-int typeck_sx_block_num_for_loops(const void *block) {
+int typeck_x_block_num_for_loops(const void *block) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     return b ? b->num_for_loops : 0;
 }
-void *typeck_sx_block_for_cond(const void *block, int i) {
+void *typeck_x_block_for_cond(const void *block, int i) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->for_loops || i < 0 || i >= b->num_for_loops) return NULL;
     return (void *)b->for_loops[i].cond;
 }
-void *typeck_sx_block_for_body(const void *block, int i) {
+void *typeck_x_block_for_body(const void *block, int i) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->for_loops || i < 0 || i >= b->num_for_loops) return NULL;
     return (void *)b->for_loops[i].body;
 }
 /** 表达式 resolved_type 的 kind；无类型或 expr 为空返回 -1。 */
-int typeck_sx_expr_type_kind(const void *expr) {
+int typeck_x_expr_type_kind(const void *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return (e && e->resolved_type) ? (int)e->resolved_type->kind : -1;
 }
-int typeck_sx_ast_type_bool(void) { return AST_TYPE_BOOL; }
+int typeck_x_ast_type_bool(void) { return AST_TYPE_BOOL; }
 
-/** 块内表达式语句个数与第 i 个、最终表达式；供 .sx 遍历 if/三元。 */
-int typeck_sx_block_num_expr_stmts(const void *block) {
+/** 块内表达式语句个数与第 i 个、最终表达式；供 .x 遍历 if/三元。 */
+int typeck_x_block_num_expr_stmts(const void *block) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     return b ? b->num_expr_stmts : 0;
 }
-void *typeck_sx_block_expr_stmt(const void *block, int i) {
+void *typeck_x_block_expr_stmt(const void *block, int i) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->expr_stmts || i < 0 || i >= b->num_expr_stmts) return NULL;
     return (void *)b->expr_stmts[i];
 }
-void *typeck_sx_block_final_expr(const void *block) {
+void *typeck_x_block_final_expr(const void *block) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     return b ? (void *)b->final_expr : NULL;
 }
 
-/** .sx 自实现 typeck 用：块内 const/let 个数及「声明类型与初值类型一致」检查。 */
-int typeck_sx_block_num_consts(const void *block) {
+/** .x 自实现 typeck 用：块内 const/let 个数及「声明类型与初值类型一致」检查。 */
+int typeck_x_block_num_consts(const void *block) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     return b ? b->num_consts : 0;
 }
-int typeck_sx_block_num_lets(const void *block) {
+int typeck_x_block_num_lets(const void *block) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     return b ? b->num_lets : 0;
 }
 /** 返回 1 表示第 i 个 const 的声明类型与初值表达式 resolved_type 一致，0 表示不一致或无效。 */
-int typeck_sx_block_const_type_matches_init(const void *block, int i) {
+int typeck_x_block_const_type_matches_init(const void *block, int i) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->const_decls || i < 0 || i >= b->num_consts) return 0;
     const struct ASTType *ty = b->const_decls[i].type;
@@ -4044,7 +4044,7 @@ int typeck_sx_block_const_type_matches_init(const void *block, int i) {
     return type_equal(ty, init->resolved_type) ? 1 : 0;
 }
 /** 返回 1 表示第 i 个 let 的声明类型与初值表达式 resolved_type 一致，0 表示不一致或无效。 */
-int typeck_sx_block_let_type_matches_init(const void *block, int i) {
+int typeck_x_block_let_type_matches_init(const void *block, int i) {
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!b || !b->let_decls || i < 0 || i >= b->num_lets) return 0;
     const struct ASTType *ty = b->let_decls[i].type;
@@ -4055,51 +4055,51 @@ int typeck_sx_block_let_type_matches_init(const void *block, int i) {
 }
 
 /** 表达式节点 kind（ASTExprKind）；IF/TERNARY 共用 if_expr 字段。 */
-int typeck_sx_expr_kind(const void *expr) {
+int typeck_x_expr_kind(const void *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     return e ? (int)e->kind : -1;
 }
-void *typeck_sx_expr_if_cond(const void *expr) {
+void *typeck_x_expr_if_cond(const void *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || (e->kind != AST_EXPR_IF && e->kind != AST_EXPR_TERNARY)) return NULL;
     return (void *)e->value.if_expr.cond;
 }
-void *typeck_sx_expr_if_then(const void *expr) {
+void *typeck_x_expr_if_then(const void *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || (e->kind != AST_EXPR_IF && e->kind != AST_EXPR_TERNARY)) return NULL;
     return (void *)e->value.if_expr.then_expr;
 }
-void *typeck_sx_expr_if_else(const void *expr) {
+void *typeck_x_expr_if_else(const void *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || (e->kind != AST_EXPR_IF && e->kind != AST_EXPR_TERNARY)) return NULL;
     return (void *)e->value.if_expr.else_expr;
 }
-void *typeck_sx_expr_block(const void *expr) {
+void *typeck_x_expr_block(const void *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!e || e->kind != AST_EXPR_BLOCK) return NULL;
     return (void *)e->value.block;
 }
-int typeck_sx_expr_kind_if(void) { return AST_EXPR_IF; }
-int typeck_sx_expr_kind_ternary(void) { return AST_EXPR_TERNARY; }
-int typeck_sx_expr_kind_block(void) { return AST_EXPR_BLOCK; }
-int typeck_sx_expr_kind_assign(void) { return AST_EXPR_ASSIGN; }
+int typeck_x_expr_kind_if(void) { return AST_EXPR_IF; }
+int typeck_x_expr_kind_ternary(void) { return AST_EXPR_TERNARY; }
+int typeck_x_expr_kind_block(void) { return AST_EXPR_BLOCK; }
+int typeck_x_expr_kind_assign(void) { return AST_EXPR_ASSIGN; }
 static int expr_is_assign_or_compound(const struct ASTExpr *e) {
     return e && (e->kind == AST_EXPR_ASSIGN || e->kind == AST_EXPR_ADD_ASSIGN || e->kind == AST_EXPR_SUB_ASSIGN
         || e->kind == AST_EXPR_MUL_ASSIGN || e->kind == AST_EXPR_DIV_ASSIGN || e->kind == AST_EXPR_MOD_ASSIGN
         || e->kind == AST_EXPR_BITAND_ASSIGN || e->kind == AST_EXPR_BITOR_ASSIGN || e->kind == AST_EXPR_BITXOR_ASSIGN
         || e->kind == AST_EXPR_SHL_ASSIGN || e->kind == AST_EXPR_SHR_ASSIGN);
 }
-void *typeck_sx_expr_assign_left(const void *expr) {
+void *typeck_x_expr_assign_left(const void *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!expr_is_assign_or_compound(e)) return NULL;
     return (void *)e->value.binop.left;
 }
-void *typeck_sx_expr_assign_right(const void *expr) {
+void *typeck_x_expr_assign_right(const void *expr) {
     const struct ASTExpr *e = (const struct ASTExpr *)expr;
     if (!expr_is_assign_or_compound(e)) return NULL;
     return (void *)e->value.binop.right;
 }
-int typeck_sx_types_equal(const void *expr_a, const void *expr_b) {
+int typeck_x_types_equal(const void *expr_a, const void *expr_b) {
     const struct ASTExpr *a = (const struct ASTExpr *)expr_a;
     const struct ASTExpr *b = (const struct ASTExpr *)expr_b;
     if (!a || !b || !a->resolved_type || !b->resolved_type) return 0;
@@ -4107,12 +4107,12 @@ int typeck_sx_types_equal(const void *expr_a, const void *expr_b) {
 }
 
 /**
- * .sx 自实现 typeck 用：块体的「结果类型」是否与函数声明的返回类型一致。
+ * .x 自实现 typeck 用：块体的「结果类型」是否与函数声明的返回类型一致。
  * 非 void 函数：块 final_expr 须为表达式或 return expr，其 resolved_type 与 func->return_type 一致。
  * void 函数：块 final_expr 不得为「带操作数的 return」。
  * 返回 1 一致，0 不一致或无效。
  */
-int typeck_sx_block_result_matches_func_return(const void *func, const void *block) {
+int typeck_x_block_result_matches_func_return(const void *func, const void *block) {
     const struct ASTFunc *f = (const struct ASTFunc *)func;
     const struct ASTBlock *b = (const struct ASTBlock *)block;
     if (!f || !f->return_type || !b) return 0;
@@ -4132,27 +4132,27 @@ int typeck_sx_block_result_matches_func_return(const void *func, const void *blo
 }
 
 /** 模块内函数个数；mod 为空返回 0。 */
-int typeck_sx_module_num_funcs(const void *mod) {
+int typeck_x_module_num_funcs(const void *mod) {
     const struct ASTModule *m = (const struct ASTModule *)mod;
     return m ? m->num_funcs : 0;
 }
 /** 模块内第 i 个函数；越界或 mod 为空返回 NULL。 */
-void *typeck_sx_module_func(const void *mod, int i) {
+void *typeck_x_module_func(const void *mod, int i) {
     const struct ASTModule *m = (const struct ASTModule *)mod;
     if (!m || !m->funcs || i < 0 || i >= m->num_funcs) return NULL;
     return (void *)m->funcs[i];
 }
 /** impl 块内函数：impl_blocks[k].funcs[j]；越界返回 NULL。 */
-int typeck_sx_module_num_impl_blocks(const void *mod) {
+int typeck_x_module_num_impl_blocks(const void *mod) {
     const struct ASTModule *m = (const struct ASTModule *)mod;
     return m ? m->num_impl_blocks : 0;
 }
-int typeck_sx_impl_block_num_funcs(const void *mod, int k) {
+int typeck_x_impl_block_num_funcs(const void *mod, int k) {
     const struct ASTModule *m = (const struct ASTModule *)mod;
     if (!m || !m->impl_blocks || k < 0 || k >= m->num_impl_blocks) return 0;
     return m->impl_blocks[k]->num_funcs;
 }
-void *typeck_sx_impl_block_func(const void *mod, int k, int j) {
+void *typeck_x_impl_block_func(const void *mod, int k, int j) {
     const struct ASTModule *m = (const struct ASTModule *)mod;
     if (!m || !m->impl_blocks || k < 0 || k >= m->num_impl_blocks) return NULL;
     const struct ASTImplBlock *impl = m->impl_blocks[k];
@@ -4626,8 +4626,8 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
         return 0;
     }
 
-#ifndef SHUX_USE_SX_TYPECK
-    /* 未使用 .sx typeck 入口时，在此做 main 校验；使用 .sx 时由 typeck.sx 在调用 typeck_module 前完成。 */
+#ifndef SHUX_USE_X_TYPECK
+    /* 未使用 .x typeck 入口时，在此做 main 校验；使用 .x 时由 typeck.x 在调用 typeck_module 前完成。 */
     if (!m->main_func->return_type ||
         (m->main_func->return_type->kind != AST_TYPE_I32 && m->main_func->return_type->kind != AST_TYPE_I64)) {
         TYPECK_ERR_AT(0, 0, "main must return i32 or i64");
@@ -4804,14 +4804,14 @@ int typeck_module(struct ASTModule *m, struct ASTModule **dep_mods, int num_deps
     return 0;
 }
 
-/** double 的 64 位位模式低 32 位，供 .sx typeck 填写 EXPR_FLOAT_LIT（asm 后端用）。 */
+/** double 的 64 位位模式低 32 位，供 .x typeck 填写 EXPR_FLOAT_LIT（asm 后端用）。 */
 int typeck_float64_bits_lo(double d) {
     union { double d; unsigned long long u; } u;
     u.d = d;
     return (int)(u.u & 0xFFFFFFFFULL);
 }
 
-/** double 的 64 位位模式高 32 位，供 .sx typeck 填写 EXPR_FLOAT_LIT（asm 后端用）。 */
+/** double 的 64 位位模式高 32 位，供 .x typeck 填写 EXPR_FLOAT_LIT（asm 后端用）。 */
 int typeck_float64_bits_hi(double d) {
     union { double d; unsigned long long u; } u;
     u.d = d;

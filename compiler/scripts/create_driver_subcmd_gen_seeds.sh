@@ -12,7 +12,7 @@ write_stub() {
   body="$2"
   out="seeds/driver_${sub}_gen.linux.x86_64.c"
   cat > "$out" <<EOF
-/* G-06 cold-start seed stub for driver/${sub}.sx */
+/* G-06 cold-start seed stub for driver/${sub}.x */
 #include <stdint.h>
 ${body}
 EOF

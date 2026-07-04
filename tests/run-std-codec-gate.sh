@@ -8,16 +8,16 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_CODEC_DOC:-analysis/std-codec-v1.md}"
 MANIFEST="${SHUX_STD_CODEC_MANIFEST:-tests/baseline/std-codec-manifest.tsv}"
 VECTORS="${SHUX_STD_CODEC_VECTORS:-tests/baseline/std-codec-vectors.tsv}"
-MOD_SX="std/codec/mod.sx"
+MOD_X="std/codec/mod.x"
 LIB="tests/lib/std-codec.sh"
-SMOKE_SX="tests/std-codec/roundtrip.sx"
+SMOKE_X="tests/std-codec/roundtrip.x"
 MIN_APIS=10
 
 # shellcheck source=tests/lib/std-codec.sh
 . "$LIB"
 
 echo "=== STD-073: std.codec manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$SMOKE_SX" std/codec/README.md; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$SMOKE_X" std/codec/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-codec gate FAIL: missing $f" >&2
     exit 1
@@ -44,7 +44,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+  if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
     echo "std-codec gate FAIL: missing api $anchor" >&2
     exit 1
   fi
@@ -55,7 +55,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_codec_symbols_ok "$MOD_SX" "$MANIFEST" || true)"
+sym_miss="$(std_codec_symbols_ok "$MOD_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_codec_emit_report "fail" 0 0
   exit 1
@@ -69,31 +69,31 @@ if [ "${SHUX_STD_CODEC_MANIFEST_ONLY:-0}" = "1" ]; then
 fi
 
 # F-04 v7+：codec 烟测经 shux 按需 -lz，不再 ensure compress.o
-SX_OK=0
+X_OK=0
 SKIP=0
 
 SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-073: .sx smoke (SHUX=$SHUX_BIN) ==="
+  echo "=== STD-073: .x smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-codec gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_codec_emit_report "fail" 0 0
     exit 1
   fi
-  if std_codec_run_smoke "$SHUX_BIN" "$SMOKE_SX" "roundtrip"; then
-    SX_OK=1
+  if std_codec_run_smoke "$SHUX_BIN" "$SMOKE_X" "roundtrip"; then
+    X_OK=1
   else
     std_codec_emit_report "fail" 0 0
     exit 1
   fi
 else
-  echo "std-codec gate SKIP .sx smoke (no shux)" >&2
+  echo "std-codec gate SKIP .x smoke (no shux)" >&2
   SKIP=1
 fi
 
-std_codec_emit_report "ok" "$SX_OK" "$SKIP"
+std_codec_emit_report "ok" "$X_OK" "$SKIP"
 echo "std-codec gate OK"

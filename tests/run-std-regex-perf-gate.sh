@@ -12,8 +12,8 @@ DOC="${SHUX_STD062_DOC:-analysis/std-regex-perf-v1.md}"
 WAVE="${SHUX_STD062_WAVE_TSV:-tests/baseline/std-regex-perf-wave.tsv}"
 XPLAT="${SHUX_STD062_XPLAT:-tests/baseline/std-regex-perf-xplat.tsv}"
 PARENT_DOC="${SHUX_STD_REGEX_DOC:-analysis/std-regex-v1.md}"
-MIN_INC="std/regex/regex.sx"
-MOD_SX="std/regex/mod.sx"
+MIN_INC="std/regex/regex.x"
+MOD_X="std/regex/mod.x"
 LIB="tests/lib/std-regex-perf.sh"
 MIN_BENCHES=3
 
@@ -21,7 +21,7 @@ MIN_BENCHES=3
 . "$LIB"
 
 echo "=== STD-062: regex perf manifest ==="
-for f in "$DOC" "$WAVE" "$XPLAT" "$LIB" "$PARENT_DOC" "$MIN_INC" "$MOD_SX" \
+for f in "$DOC" "$WAVE" "$XPLAT" "$LIB" "$PARENT_DOC" "$MIN_INC" "$MOD_X" \
   tests/bench/regex_match_bench.c tests/bench/regex_match_naive_stub.c \
   tests/run-perf-regex-match.sh; do
   if [ ! -f "$f" ]; then
@@ -52,8 +52,8 @@ if ! grep -qF 'first_lit' "$MIN_INC" 2>/dev/null; then
   echo "std-regex-perf gate FAIL: missing first_lit in $MIN_INC" >&2
   exit 1
 fi
-if ! grep -qF 'STD-062' "$MOD_SX" 2>/dev/null; then
-  echo "std-regex-perf gate FAIL: missing STD-062 anchor in $MOD_SX" >&2
+if ! grep -qF 'STD-062' "$MOD_X" 2>/dev/null; then
+  echo "std-regex-perf gate FAIL: missing STD-062 anchor in $MOD_X" >&2
   exit 1
 fi
 echo "std-regex-perf OK engine opts + mod anchor"

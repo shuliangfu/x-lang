@@ -20,7 +20,7 @@
 
 | 能力 | `core.mem` | `std.mem` | 实现路径 |
 |------|------------|-----------|----------|
-| 字节拷贝（不重叠） | `mem_copy` | `copy` | core：`.sx` 循环 → `__builtin_memcpy`；std：`heap.copy` → `memcpy` |
+| 字节拷贝（不重叠） | `mem_copy` | `copy` | core：`.x` 循环 → `__builtin_memcpy`；std：`heap.copy` → `memcpy` |
 | 字节填充 | `mem_set` / `mem_zero` | `set` | core：内建 `memset`；std：`heap_mem_set_c` |
 | 字节比较 | `mem_compare` | `compare` | core：内建 `memcmp`；std：`heap_mem_compare_c` |
 | 重叠拷贝 | `mem_move` | — | **仅 core** |
@@ -47,9 +47,9 @@
 
 | 脚本 | 覆盖 |
 |------|------|
-| `tests/mem/main.sx` | core.mem 全原语（`run-mem.sh`） |
-| `tests/mem/std_mem_boundary.sx` | std.mem copy/set/compare |
-| `tests/mem/buffer.sx` | Buffer + register_buffer |
+| `tests/mem/main.x` | core.mem 全原语（`run-mem.sh`） |
+| `tests/mem/std_mem_boundary.x` | std.mem copy/set/compare |
+| `tests/mem/buffer.x` | Buffer + register_buffer |
 
 ---
 

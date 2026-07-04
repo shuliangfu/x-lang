@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# F-channel v1：std.channel 去 C（channel.c → channel.sx + runtime_channel_glue.c）。
+# F-channel v1：std.channel 去 C（channel.c → channel.x + runtime_channel_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_CHANNEL_V1_FAIL:-0}
 DOC="analysis/phase-f-channel-v1.md"
 MANIFEST="tests/baseline/f-channel-v1-closure.tsv"
 die() { echo "f-channel-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-echo "=== F-channel v1: channel.c → channel.sx ==="
+echo "=== F-channel v1: channel.c → channel.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-channel v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
-[ -f std/channel/channel.sx ] || die "missing channel.sx"
+[ -f std/channel/channel.x ] || die "missing channel.x"
 [ -f compiler/src/asm/runtime_channel_glue.c ] || die "missing runtime_channel_glue.c"
 [ ! -f std/channel/channel_glue.c ] || die "channel_glue.c should be deleted"
 [ ! -f std/channel/channel.c ] || die "channel.c should be deleted"

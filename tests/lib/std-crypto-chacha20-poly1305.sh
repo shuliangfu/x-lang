@@ -6,7 +6,7 @@ STD_CRYPTO_CHACHA_PREFIX="${SHUX_STD113_CRYPTO_CHACHA_PREFIX:-shux: [SHUX_STD113
 . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/std-crypto.sh"
 
 std_crypto_chacha_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local crypto_c="$2"
   local tsv="$3"
   local miss=0
@@ -16,7 +16,7 @@ std_crypto_chacha_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api|const)
-        if ! grep -qE "(function|const) ${anchor}" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "(function|const) ${anchor}" "$mod_x" 2>/dev/null; then
           echo "std-crypto-chacha FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -80,5 +80,5 @@ std_crypto_chacha_run_c_smoke() {
 }
 
 std_crypto_chacha_emit_report() {
-  echo "${STD_CRYPTO_CHACHA_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
+  echo "${STD_CRYPTO_CHACHA_PREFIX} status=$1 c=$2 x=$3 skip=$4"
 }

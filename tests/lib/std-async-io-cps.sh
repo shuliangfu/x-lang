@@ -2,17 +2,17 @@
 # std-async-io-cps.sh — STD-042 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_async_io_cps_symbols_ok MOD_SX IO_SX SCHED_C IO_C TSV
-#   std_async_io_cps_run_smoke SHUX_BIN SX TAG
-#   std_async_io_cps_check_emit SHUX_BIN SX
+#   std_async_io_cps_symbols_ok MOD_X IO_X SCHED_C IO_C TSV
+#   std_async_io_cps_run_smoke SHUX_BIN X TAG
+#   std_async_io_cps_check_emit SHUX_BIN X
 #   std_async_io_cps_emit_report status align_ok io_uring_ok emit_ok skip
 
 STD_ASYNC_IO_CPS_PREFIX="${SHUX_STD_ASYNC_IO_CPS_PREFIX:-shux: [SHUX_STD_ASYNC_IO_CPS]}"
 
 # 校验 manifest symbol/file；echo 缺失数。
 std_async_io_cps_symbols_ok() {
-  local mod_sx="$1"
-  local io_sx="$2"
+  local mod_x="$1"
+  local io_x="$2"
   local sched_c="$3"
   local io_c="$4"
   local tsv="$5"
@@ -24,10 +24,10 @@ std_async_io_cps_symbols_ok() {
     case "$kind" in
       symbol)
         case "$mod_path" in
-          std/async/mod.sx) mod_path="$mod_sx" ;;
-          std/io/mod.sx) mod_path="$io_sx" ;;
+          std/async/mod.x) mod_path="$mod_x" ;;
+          std/io/mod.x) mod_path="$io_x" ;;
           compiler/src/asm/runtime_scheduler_glue.c) mod_path="$sched_c" ;;
-          std/io/mod.sx) mod_path="$io_sx" ;;
+          std/io/mod.x) mod_path="$io_x" ;;
           std/io/io.c) mod_path="$io_c" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
@@ -47,7 +47,7 @@ std_async_io_cps_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .sx。
+# 编译并运行烟测 .x。
 std_async_io_cps_run_smoke() {
   local shux="$1"
   local src="$2"

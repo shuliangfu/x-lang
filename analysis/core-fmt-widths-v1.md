@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
-> 关联：`NEXT.md` CORE-010、`core/fmt/mod.sx`、`std/fmt/mod.sx`
+> 关联：`NEXT.md` CORE-010、`core/fmt/mod.x`、`std/fmt/mod.x`
 
 ---
 
@@ -43,7 +43,7 @@
 ## 4. 验收
 
 - manifest：`tests/baseline/core-fmt-widths.tsv`
-- typeck：`shux check tests/fmt/widths.sx`
+- typeck：`shux check tests/fmt/widths.x`
 - runnable：gate 内链接烟测
 - 报告：`shux: [SHUX_CORE_FMT_WIDTHS] status=ok`
 

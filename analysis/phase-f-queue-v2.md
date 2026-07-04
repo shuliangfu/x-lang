@@ -1,19 +1,19 @@
-# 阶段 F-queue v2（std.queue 竞争烟测 .sx 下沉）
+# 阶段 F-queue v2（std.queue 竞争烟测 .x 下沉）
 
-> **F-queue v2 / F-ZC**：STD-048 双线程 push 烟测在 **`queue.sx`**；**`queue_contention_os_glue.c` 已删除**；pthread 在 **`runtime_queue_contention.c`**（compiler runtime）。
+> **F-queue v2 / F-ZC**：STD-048 双线程 push 烟测在 **`queue.x`**；**`queue_contention_os_glue.c` 已删除**；pthread 在 **`runtime_queue_contention.c`**（compiler runtime）。
 
 ## 变更
 
 | 项 | v1 | v2 / F-ZC |
 |----|----|-----|
-| 烟测逻辑 | `queue_glue.c` | **`queue.sx`** |
+| 烟测逻辑 | `queue_glue.c` | **`queue.x`** |
 | OS 线程/mutex | glue 内联 | **`runtime_queue_contention.c`** |
-| `queue.o` | `ld -r` sx + glue | **纯 `.sx`** |
+| `queue.o` | `ld -r` x + glue | **纯 `.x`** |
 
 ## 符号
 
 - `queue_os_mutex_*_c` / `queue_os_run_two_workers_c` — compiler runtime
-- `queue_contention_worker_push_c` / `sync_queue_contention_smoke_c` — `queue.sx`
+- `queue_contention_worker_push_c` / `sync_queue_contention_smoke_c` — `queue.x`
 
 ## 门禁
 

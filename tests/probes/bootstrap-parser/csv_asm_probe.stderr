@@ -1,9 +1,9 @@
 note: pipeline debug: driver_first_parse num_funcs=21 src_len=10986
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
 note: pipeline debug: pipeline thread start len=10986
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
 note: pipeline debug: after_entry_parse num_funcs=21
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
 shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=21
 shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=11 tail=502 kind=41
 shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=12 fin=0 nso=1
@@ -50,12 +50,12 @@ shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=32 si=2 so_kind=3 so_idx=0 expr=
 shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=32 si=3 so_kind=2 so_idx=0 expr=2718 expr_kind=28
 shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=32 kind=2
 shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=32 tail=2718 kind=28
-typeck error[SXT001]: .sx type check failed in function #13 csv_field_needs_quote (implicit tail return)
- --> ../std/csv/csv.sx
+typeck error[XT001]: .x type check failed in function #13 csv_field_needs_quote (implicit tail return)
+ --> ../std/csv/csv.x
 typeck error: return value must use explicit return statement (e.g. return 0;)
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
 shux: [SHUX_DEBUG_PIPE] typeck library rc=-6 ctx=0xcf4000000 ndep=0
 note: pipeline debug: pipeline thread done ec=-6
- --> ../std/csv/csv.sx
-pipeline error: .sx pipeline failed for '../std/csv/csv.sx' (stage=parse_into/typeck_sx_ast/codegen_sx_ast)
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
+pipeline error: .x pipeline failed for '../std/csv/csv.x' (stage=parse_into/typeck_x_ast/codegen_x_ast)
+ --> ../std/csv/csv.x

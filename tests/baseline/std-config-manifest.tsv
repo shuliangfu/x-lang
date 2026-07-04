@@ -4,25 +4,25 @@
 read_path	section	## 1. 阅读路径	analysis/std-config-v1.md
 api_doc	section	## 2. API	analysis/std-config-v1.md
 verify	section	## 3. Gate	analysis/std-config-v1.md
-api_new	api	new	std/config/mod.sx	创建
-api_free	api	free	std/config/mod.sx	释放
-api_clear	api	clear	std/config/mod.sx	清空
-api_toml_buf	api	load_toml_buf	std/config/mod.sx	内存TOML
-api_toml_file	api	load_toml_file	std/config/mod.sx	文件TOML
-api_env	api	load_env_prefix	std/config/mod.sx	ENV前缀
-api_merge	api	merge	std/config/mod.sx	合并
-api_set	api	set_string	std/config/mod.sx	设置
-api_get_str	api	get_string	std/config/mod.sx	字符串
-api_get_i32	api	get_i32	std/config/mod.sx	整数
-api_get_bool	api	get_bool	std/config/mod.sx	布尔
-api_source	api	get_source	std/config/mod.sx	来源meta
-api_i32_meta	api	get_i32_meta	std/config/mod.sx	i32+来源
-api_bool_meta	api	get_bool_meta	std/config/mod.sx	bool+来源
-api_str_meta	api	get_string_meta	std/config/mod.sx	str+来源
-api_src_toml	api	source_toml	std/config/mod.sx	来源常量
-symbol_smoke	symbol	config_smoke_c	std/config/config.sx	C烟测
-impl_sx	file	std/config/config.sx	std/config/config.sx
-smoke_sx	smoke	tests/std-config/layer_smoke.sx	.sx烟测
+api_new	api	new	std/config/mod.x	创建
+api_free	api	free	std/config/mod.x	释放
+api_clear	api	clear	std/config/mod.x	清空
+api_toml_buf	api	load_toml_buf	std/config/mod.x	内存TOML
+api_toml_file	api	load_toml_file	std/config/mod.x	文件TOML
+api_env	api	load_env_prefix	std/config/mod.x	ENV前缀
+api_merge	api	merge	std/config/mod.x	合并
+api_set	api	set_string	std/config/mod.x	设置
+api_get_str	api	get_string	std/config/mod.x	字符串
+api_get_i32	api	get_i32	std/config/mod.x	整数
+api_get_bool	api	get_bool	std/config/mod.x	布尔
+api_source	api	get_source	std/config/mod.x	来源meta
+api_i32_meta	api	get_i32_meta	std/config/mod.x	i32+来源
+api_bool_meta	api	get_bool_meta	std/config/mod.x	bool+来源
+api_str_meta	api	get_string_meta	std/config/mod.x	str+来源
+api_src_toml	api	source_toml	std/config/mod.x	来源常量
+symbol_smoke	symbol	config_smoke_c	std/config/config.x	C烟测
+impl_x	file	std/config/config.x	std/config/config.x
+smoke_x	smoke	tests/std-config/layer_smoke.x	.x烟测
 vectors	file	tests/baseline/std-config-vectors.tsv	向量
 lib	script	lib/std-config.sh	tests/lib/std-config.sh
 gate	script	run-std-config-gate.sh	tests/run-std-config-gate.sh

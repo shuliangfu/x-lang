@@ -3,14 +3,14 @@
 
 STD_SQLITE_PREFIX="${SHUX_STD_SQLITE_PREFIX:-shux: [SHUX_STD_SQLITE]}"
 
-# 检查 mod.sx 是否导出指定函数。
+# 检查 mod.x 是否导出指定函数。
 std_sqlite_has_api() {
   local mod="$1"
   local fn="$2"
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
-# 对草案 .sx 跑 shux check；失败返回 1。
+# 对草案 .x 跑 shux check；失败返回 1。
 std_sqlite_run_typeck() {
   local shux="$1"
   local src="$2"

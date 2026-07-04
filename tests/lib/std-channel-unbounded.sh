@@ -2,15 +2,15 @@
 # std-channel-unbounded.sh — STD-044 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_channel_unbounded_symbols_ok MOD_SX CHANNEL_C TSV
-#   std_channel_unbounded_run_smoke SHUX_BIN SX TAG
+#   std_channel_unbounded_symbols_ok MOD_X CHANNEL_C TSV
+#   std_channel_unbounded_run_smoke SHUX_BIN X TAG
 #   std_channel_unbounded_emit_report status unbounded_ok main_ok skip
 
 STD_CHANNEL_UNBOUNDED_PREFIX="${SHUX_STD_CHANNEL_UNBOUNDED_PREFIX:-shux: [SHUX_STD_CHANNEL_UNBOUNDED]}"
 
 # 校验 manifest symbol/api；echo 缺失数。
 std_channel_unbounded_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local channel_c="$2"
   local tsv="$3"
   local miss=0
@@ -20,15 +20,15 @@ std_channel_unbounded_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
-          echo "std-channel-unbounded FAIL: missing api '$anchor' in $mod_sx" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
+          echo "std-channel-unbounded FAIL: missing api '$anchor' in $mod_x" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         case "$mod_path" in
           std/channel/channel_glue.c|compiler/src/asm/runtime_channel_glue.c) mod_path="$channel_c" ;;
-          *) mod_path="$mod_sx" ;;
+          *) mod_path="$mod_x" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-channel-unbounded FAIL: missing '$anchor' in $mod_path" >&2
@@ -47,7 +47,7 @@ std_channel_unbounded_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .sx。
+# 编译并运行烟测 .x。
 std_channel_unbounded_run_smoke() {
   local shux="$1"
   local src="$2"

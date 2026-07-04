@@ -1,14 +1,14 @@
-# 阶段 F-json v2（std.json 逻辑 .sx 下沉）
+# 阶段 F-json v2（std.json 逻辑 .x 下沉）
 
-> **F-json v2**：解析/游标/序列化/类型化 decode 全量迁入 **`json.sx`**；**纯 .sx**（无 OS/pthread/malloc；仅 extern memcmp）。
+> **F-json v2**：解析/游标/序列化/类型化 decode 全量迁入 **`json.x`**；**纯 .x**（无 OS/pthread/malloc；仅 extern memcmp）。
 
 ## 变更
 
 | 项 | v1 | v2 |
 |----|----|-----|
-| 解析/游标/序列化 | `json_parse_glue.c`（~883 行） | **`json.sx`** |
-| `json.o` | `ld -r` glue + sx | **仅 sx（`json_main.o`）** |
-| mod.sx | extern json_*_c | **不变** |
+| 解析/游标/序列化 | `json_parse_glue.c`（~883 行） | **`json.x`** |
+| `json.o` | `ld -r` glue + x | **仅 x（`json_main.o`）** |
+| mod.x | extern json_*_c | **不变** |
 
 ## 门禁
 

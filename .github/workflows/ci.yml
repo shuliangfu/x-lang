@@ -1,4 +1,4 @@
-# Shux CI: multi-platform build, C test suite, and self-host (.sx) tests
+# Shux CI: multi-platform build, C test suite, and self-host (.x) tests
 # 全平台统一跑 tests/run-ci-full-suite.sh（Tier P 便携 + Tier B DOD/IO + Tier A asm/bstrict 按平台）。
 #
 # TEMP: push/PR 自动 CI 已暂停（bootstrap-gold 调试中）；gold 绿后恢复 on 块注释。
@@ -64,7 +64,7 @@ jobs:
           echo "=== run_shu2.log (last 200 lines) ==="
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
           echo "=== Kept generated C (head 120 lines each) ==="
-          for f in /tmp/shux_sx.*.c; do
+          for f in /tmp/shux_x.*.c; do
             [ -f "$f" ] || continue
             echo "--- $f ---" && head -120 "$f" && echo ""
           done
@@ -140,7 +140,7 @@ jobs:
           tail -120 /tmp/build_bstrict.log 2>/dev/null || true
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
-          for f in /tmp/shux_sx.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
+          for f in /tmp/shux_x.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
 
   mac:
     name: macOS (${{ matrix.os }})
@@ -186,7 +186,7 @@ jobs:
           tail -120 /tmp/build_bstrict.log 2>/dev/null || true
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
-          for f in /tmp/shux_sx.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
+          for f in /tmp/shux_x.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
 
   windows:
     name: Windows (MSYS2)
@@ -242,7 +242,7 @@ jobs:
           tail -200 /tmp/run_shu1.log 2>/dev/null || true
           echo "=== run_shu2.log (last 200 lines) ==="
           tail -200 /tmp/run_shu2.log 2>/dev/null || true
-          for f in /tmp/shux_sx.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
+          for f in /tmp/shux_x.*.c; do [ -f "$f" ] || continue; echo "--- $f ---" && head -120 "$f"; done
 
   linux-option-asan:
     name: Linux (ASan repro run-option)
@@ -268,7 +268,7 @@ jobs:
       - name: Reproduce run-option (capture ASan output)
         run: |
           ulimit -s 16384 2>/dev/null || true
-          ./compiler/shux -L . tests/option/main.sx -o /tmp/shux_option 2>&1 || true
+          ./compiler/shux -L . tests/option/main.x -o /tmp/shux_option 2>&1 || true
           echo "--- exit code above ---"
 
   docker-distro:

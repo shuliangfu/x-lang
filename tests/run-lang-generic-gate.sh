@@ -17,9 +17,9 @@ MIN_CAPS=4
 
 echo "=== LANG-003: generic monomorph manifest ==="
 for f in "$DOC" "$MANIFEST" "$PROTOTYPE" \
-  tests/generic/main.sx tests/generic/wrong_type_args.sx \
-  tests/multi-file-generic/main.sx tests/multi-file-generic/foo.sx \
-  tests/bench/generic_id_i32.sx \
+  tests/generic/main.x tests/generic/wrong_type_args.x \
+  tests/multi-file-generic/main.x tests/multi-file-generic/foo.x \
+  tests/bench/generic_id_i32.x \
   compiler/src/codegen/codegen.c compiler/src/typeck/typeck.c; do
   if [ ! -f "$f" ]; then
     echo "lang-generic gate FAIL: missing $f" >&2

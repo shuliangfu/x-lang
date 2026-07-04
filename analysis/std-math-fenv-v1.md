@@ -51,7 +51,7 @@
 | `clear_exceptions(FENV_INVALID)` | 清除成功 |
 | `raise_exceptions(FENV_OVERFLOW)` | `FE_OVERFLOW` 置位 |
 
-烟测：`tests/std-math/fenv_smoke_ok.c`（C）、`fenv_clear.sx`（clear/test 路径）。
+烟测：`tests/std-math/fenv_smoke_ok.c`（C）、`fenv_clear.x`（clear/test 路径）。
 
 ---
 

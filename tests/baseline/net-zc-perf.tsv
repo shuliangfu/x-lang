@@ -1,6 +1,6 @@
 # PERF-009 网络零拷贝 CPU/byte 基线（cycles/MiB 上限）
 # 列：case_id	bench_src	server_c	bytes_xfer	max_cycles_per_mib	zc_lt_ref	needs_io_uring	notes
 # cycles/MiB = perf stat cycles × 1048576 / bytes_xfer；zc_lt_ref 路径须低于 ref
-net_echo_throughput_provided	tests/bench/net_echo_throughput_provided.sx	tests/bench/net_echo_throughput_server.c	33554432	1500000000	net_echo_throughput	1	ZC-1 provided read
-net_echo_throughput	tests/bench/net_echo_throughput.sx	tests/bench/net_echo_throughput_server.c	33554432	1800000000	-	0	batch readv 对照
-net_mixed_conns_requests	tests/bench/net_mixed_conns_requests.sx	tests/bench/net_mixed_conns_requests_server.c	4194304	2500000000	-	0	256×16×512B 高并发
+net_echo_throughput_provided	tests/bench/net_echo_throughput_provided.x	tests/bench/net_echo_throughput_server.c	33554432	1500000000	net_echo_throughput	1	ZC-1 provided read
+net_echo_throughput	tests/bench/net_echo_throughput.x	tests/bench/net_echo_throughput_server.c	33554432	1800000000	-	0	batch readv 对照
+net_mixed_conns_requests	tests/bench/net_mixed_conns_requests.x	tests/bench/net_mixed_conns_requests_server.c	4194304	2500000000	-	0	256×16×512B 高并发

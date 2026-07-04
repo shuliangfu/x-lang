@@ -25,14 +25,14 @@
 | `export_text` | OTLP 风格简化 text |
 | `attach_to_context` / `from_context` | 与 std.context 集成 |
 
-实现：`std/trace/mod.sx` + `std/trace/trace.sx`（F-trace v2 纯 .sx，无 glue）。
+实现：`std/trace/mod.x` + `std/trace/trace.x`（F-trace v2 纯 .x，无 glue）。
 
 ---
 
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_TRACE] status=ok c_smoke=1 sx=1 skip=0
+shux: [SHUX_STD_TRACE] status=ok c_smoke=1 x=1 skip=0
 std-trace gate OK
 ```
 

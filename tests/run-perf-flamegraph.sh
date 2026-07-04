@@ -34,8 +34,8 @@ native_shu() {
 }
 
 # 解析 manifest anchor 为 perf 采样的 shux 子命令（不含 perf 本身）。
-# check：anchor 形如 "check path/to.sx"
-# compile：anchor 形如 "compile path/to.sx -o /tmp/out"
+# check：anchor 形如 "check path/to.x"
+# compile：anchor 形如 "compile path/to.x -o /tmp/out"
 fg_run_profile_case() {
   local item_id="$1"
   local anchor="$2"

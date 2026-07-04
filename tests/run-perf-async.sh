@@ -30,17 +30,17 @@ perf_async_is_linux_x64_asm() {
 
 # 编译 bench 可执行：x86_64 Linux 默认 asm；其它 host 用 shux-c 或 seed -backend c。
 perf_async_compile_bench() {
-  local sx="$1"
+  local x="$1"
   local out="$2"
   rm -f "$out"
   if perf_async_is_linux_x64_asm; then
-    "$SHUX" -L . "$sx" -o "$out"
+    "$SHUX" -L . "$x" -o "$out"
   elif [ -x ./compiler/shux-c ]; then
-    ./compiler/shux-c -L . "$sx" -o "$out"
+    ./compiler/shux-c -L . "$x" -o "$out"
   elif [ -x ./compiler/shux ]; then
-    ./compiler/shux -L . "$sx" -backend c -o "$out"
+    ./compiler/shux -L . "$x" -backend c -o "$out"
   else
-    "$SHUX" -L . "$sx" -o "$out"
+    "$SHUX" -L . "$x" -o "$out"
   fi
 }
 
@@ -91,10 +91,10 @@ check_async_regress() {
 
 # 编译并链接可执行文件（scheduler.o 由 runtime 按需链入，无需手工 cc）。
 link_with_scheduler() {
-  local sx="$1"
+  local x="$1"
   local out="$2"
   rm -f "$out"
-  if ! "$SHUX" -L . "$sx" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
+  if ! "$SHUX" -L . "$x" -backend asm -o "$out" >/tmp/async_compile.log 2>&1; then
     cat /tmp/async_compile.log >&2
     return 1
   fi
@@ -103,20 +103,20 @@ link_with_scheduler() {
 
 bench_async_case() {
   local name="$1"
-  local sx="$2"
+  local x="$2"
   local exe="/tmp/bench_async_${name}"
   local med="nan"
   local ns_per_op="nan"
 
   echo "=== tests/bench/${name} (1M ping-pong rounds, 2M task steps) ==="
 
-  if [[ "$sx" == *sched* ]]; then
-    if ! link_with_scheduler "$sx" "$exe"; then
-      echo "compile/link FAIL: $sx" >&2
+  if [[ "$x" == *sched* ]]; then
+    if ! link_with_scheduler "$x" "$exe"; then
+      echo "compile/link FAIL: $x" >&2
       return 1
     fi
   else
-    if ! perf_async_compile_bench "$sx" "$exe" >/tmp/async_compile.log 2>&1; then
+    if ! perf_async_compile_bench "$x" "$exe" >/tmp/async_compile.log 2>&1; then
       cat /tmp/async_compile.log >&2
       return 1
     fi
@@ -140,10 +140,10 @@ if [ "$DO_BENCH" -eq 0 ]; then
   exit 0
 fi
 
-bench_async_case async_switch tests/bench/async_switch.sx
+bench_async_case async_switch tests/bench/async_switch.x
 # scheduler jmp 烟测仅 Linux x86_64 seed asm；macOS/ARM64/Windows 记 N/A。
 if perf_async_is_linux_x64_asm; then
-  bench_async_case async_switch_jmp tests/bench/async_switch_sched.sx
+  bench_async_case async_switch_jmp tests/bench/async_switch_sched.x
 else
   echo "async_switch_jmp N/A (scheduler jmp asm requires Linux x86_64)"
 fi

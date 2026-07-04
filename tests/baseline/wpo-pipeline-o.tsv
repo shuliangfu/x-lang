@@ -1,4 +1,4 @@
-# build_asm/pipeline_wpo.o WPO 生产链：run_sx_pipeline_impl root + reach DCE
+# build_asm/pipeline_wpo.o WPO 生产链：run_x_pipeline_impl root + reach DCE
 # 参考 dce_off proxy：pipeline_dce_off_text（全量 EMIT_HEAVY ~11588B）
 # reach 修复后 export 数上升、__text 可能 >2048B；save 仍应显著低于 proxy off。
 pipeline_wpo_max_text_bytes	12288

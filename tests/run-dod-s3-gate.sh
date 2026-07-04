@@ -34,8 +34,8 @@ if [ -z "$CHECK_SHUX" ] && [ -x ./compiler/shux-c ]; then
   CHECK_SHUX=./compiler/shux-c
 fi
 
-CROSS_SRC="tests/dod/soa_cross.sx"
-UPGRADE_SRC="tests/dod/soa_upgrade.sx"
+CROSS_SRC="tests/dod/soa_cross.x"
+UPGRADE_SRC="tests/dod/soa_upgrade.x"
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
 CROSS_OUT="$OUT_DIR/shux_dod_s3_cross"

@@ -1,9 +1,9 @@
 #!/usr/bin/env perl
-# 为 socketio.sx 中「if (cond)\n    stmt;」补花括号，满足 .sx parser 要求。
+# 为 socketio.x 中「if (cond)\n    stmt;」补花括号，满足 .x parser 要求。
 use strict;
 use warnings;
 
-my $path = shift // 'std/socketio/socketio.sx';
+my $path = shift // 'std/socketio/socketio.x';
 open my $fh, '<', $path or die $!;
 my @lines = <$fh>;
 close $fh;

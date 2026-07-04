@@ -3,7 +3,7 @@
  *
  * 文件职责：定义 Lexer 产出的 Token 种类（TokenKind）与单个 Token 结构（含 kind、位置、可选值），供 Parser 消费。
  * 所属模块：编译器前端，compiler/include/；被 src/lexer、src/parser、src/main 引用。
- * 与其它文件的关系：Lexer 根据 .sx 源码填充 Token；Parser 按 Token 流递归下降构建 AST；main 打印 Token 时使用 token_kind_str。
+ * 与其它文件的关系：Lexer 根据 .x 源码填充 Token；Parser 按 Token 流递归下降构建 AST；main 打印 Token 时使用 token_kind_str。
  * 重要约定：与 compiler/docs/语法子集-阶段1与2.md 词法一致；value.ident 指向源码片段不拷贝，生命周期由调用方保证；IDENT/I32 须配合 ident_len 使用。阶段 7 将增加 TOKEN_LANGLE/TOKEN_RANGLE。
  */
 

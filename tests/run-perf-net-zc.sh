@@ -110,7 +110,7 @@ while IFS=$'\t' read -r case_id bench_src server_c bytes_xfer _cap_mib _ref_case
 done < "$BASELINE"
 
 # 第二遍：cap + zc_lt_ref 校验并 emit。
-while IFS=$'\t' read -r case_id _sx _srv bytes_xfer cap_mib ref_case needs_uring _notes; do
+while IFS=$'\t' read -r case_id _x _srv bytes_xfer cap_mib ref_case needs_uring _notes; do
   [ -z "${case_id:-}" ] && continue
   case "$case_id" in \#*) continue ;; esac
   [ -n "${NZ_CPM[$case_id]:-}" ] || continue

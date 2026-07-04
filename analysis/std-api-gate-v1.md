@@ -12,7 +12,7 @@
 | STD-136 | 60 个 `std.*` 模块均注册 baseline manifest + 专项 gate |
 | 验收 | `run-std-api-gate.sh` 全绿 |
 
-v1 验收**注册表完整性**（manifest / mod.sx / gate 脚本存在）；符号深度校验沿用各模块专项 gate。
+v1 验收**注册表完整性**（manifest / mod.x / gate 脚本存在）；符号深度校验沿用各模块专项 gate。
 
 ---
 

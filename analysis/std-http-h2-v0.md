@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-http-h2.tsv` |
 | 3 | `./tests/run-std-http-h2-gate.sh` |
-| 4 | 烟测：`tests/http/wire.sx` |
+| 4 | 烟测：`tests/http/wire.x` |
 
 ---
 
@@ -93,7 +93,7 @@ v1 支持多 stream HEADERS 帧组装（烟测 stream 1/3）；不含 Huffman。
 | `hpack_dyn_smoke` | 动态表复用烟测 |
 | `h2_request` / `client_request_h2` | HTTPS+h2 全 method（POST/PUT/PATCH 须 body） |
 
-烟测：`tests/http/hpack_dyn.sx`；网络层 `http2_session_request_tls_c` 发 HEADERS+DATA。
+烟测：`tests/http/hpack_dyn.x`；网络层 `http2_session_request_tls_c` 发 HEADERS+DATA。
 
 ---
 
@@ -133,7 +133,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 
 `h2_get` / `h2_request` 流程：TCP → TLS+ALPN(h2) → preface → HEADERS(+DATA) → 读 DATA → 格式化为 HTTP/1 风格响应。
 
-烟测：`tests/http/network.sx`（离线）。
+烟测：`tests/http/network.x`（离线）。
 
 ---
 
@@ -151,7 +151,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `err_flow_blocked()` | 背压错误码（-1232） |
 | `flow_state_smoke` | 离线烟测 |
 
-烟测：`tests/http/flow_state.sx`。网络层发 DATA 前检查窗口（`http2_session_request_tls_c`）。
+烟测：`tests/http/flow_state.x`。网络层发 DATA 前检查窗口（`http2_session_request_tls_c`）。
 
 ---
 
@@ -170,7 +170,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `err_push_not_impl()` / `err_h2c_not_impl()` | -1233 / -1234 |
 | `push_h2c_smoke` | push/h2c wire 烟测 |
 
-烟测：`tests/http/flow_recv_push_h2c.sx`。`read_response_stream1` 收 DATA 后自动发 WINDOW_UPDATE。
+烟测：`tests/http/flow_recv_push_h2c.x`。`read_response_stream1` 收 DATA 后自动发 WINDOW_UPDATE。
 
 ---
 
@@ -207,7 +207,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `Http2StreamRegistry` / `init` / `open` | 连接级 stream id 分配/跟踪（8 槽，奇数 client-initiated） |
 | `registry_smoke` | 多 stream 注册表烟测 |
 
-烟测：`tests/http/h2c_client.sx`、`tests/http/stream_registry.sx`。
+烟测：`tests/http/h2c_client.x`、`tests/http/stream_registry.x`。
 
 ---
 
@@ -224,7 +224,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 
 网络：`session_request_*` 发 client SETTINGS；读路径解析 server SETTINGS 并 ACK。
 
-烟测：`tests/http/multistream_client.sx`。
+烟测：`tests/http/multistream_client.x`。
 
 ---
 
@@ -241,7 +241,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 
 `http_h2_request_c` / `session_request_*` 内部复用 conn 路径（单次请求仍一次 handshake）。
 
-烟测：`tests/http/conn_reuse.sx`。
+烟测：`tests/http/conn_reuse.x`。
 
 ---
 
@@ -256,7 +256,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `err_pool_scheme()` | URL scheme 与池不匹配 -1238 |
 | `conn_pool_smoke` | 烟测 |
 
-烟测：`tests/http/conn_pool.sx`。
+烟测：`tests/http/conn_pool.x`。
 
 ---
 
@@ -270,7 +270,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `err_global_pool_full()` | host:port 条目已满 -1239 |
 | `global_pool_smoke` | 烟测 |
 
-烟测：`tests/http/global_pool.sx`。
+烟测：`tests/http/global_pool.x`。
 
 ---
 
@@ -284,7 +284,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `err_server()` | server 协议错误 -1240 |
 | `server_smoke` | 烟测（含 fork 集成） |
 
-烟测：`tests/http/server.sx`。
+烟测：`tests/http/server.x`。
 
 ---
 
@@ -309,7 +309,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `serve_h2_multi_one` / `server_serve_h2_multi` | TLS h2 同上 |
 | `server_multistream_smoke` | 双 stream 集成烟测 |
 
-烟测：`tests/http/server_multistream.sx`。
+烟测：`tests/http/server_multistream.x`。
 
 ---
 
@@ -321,7 +321,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `err_server_push()` | push 参数非法 -1242 |
 | `server_push_smoke` | 离线 PUSH_PROMISE 线格式 + fork 集成烟测 |
 
-烟测：`tests/http/server_push.sx`。
+烟测：`tests/http/server_push.x`。
 
 ---
 
@@ -332,7 +332,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `serve_h2_one_with_push` / `server_serve_h2_with_push` | ALPN h2 TLS GET 响应前发 PUSH_PROMISE + push 资源 |
 | `server_push_tls_smoke` | fork + 自签 PEM TLS push 集成烟测 |
 
-烟测：`tests/http/server_push_tls.sx`。
+烟测：`tests/http/server_push_tls.x`。
 
 ---
 
@@ -344,7 +344,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `serve_h2_multi_one_with_push` / `server_serve_h2_multi_with_push` | TLS h2 同上 |
 | `server_multistream_push_smoke` | fork 双 GET + 双 push 烟测 |
 
-烟测：`tests/http/server_multistream_push.sx`。
+烟测：`tests/http/server_multistream_push.x`。
 
 ---
 
@@ -359,7 +359,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `err_server_push_disabled()` | 软拒绝语义码 -1243 |
 | `server_push_settings_smoke` | fork 烟测（无 PUSH_PROMISE + 主 200） |
 
-烟测：`tests/http/server_push_settings.sx`。
+烟测：`tests/http/server_push_settings.x`。
 
 ---
 
@@ -372,7 +372,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `build_server_settings` | server 5 项 SETTINGS 帧（39 字节） |
 | `server_settings_full_smoke` | fork 读 server SETTINGS 烟测 |
 
-烟测：`tests/http/server_settings_full.sx`。
+烟测：`tests/http/server_settings_full.x`。
 
 ---
 
@@ -385,7 +385,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `hpack_server_encode_status` | server 响应 :status（200 静态 indexed；其它码写入动态表并复用） |
 | `hpack_server_dyn_smoke` / `server_hpack_dyn_smoke` | 离线 + h2c 多 stream 集成烟测 |
 
-烟测：`tests/http/server_hpack_dyn.sx`。
+烟测：`tests/http/server_hpack_dyn.x`。
 
 ---
 
@@ -398,7 +398,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `build_client_settings_with_max_frame` / `conn_handshake_with_max_frame` | client 声明 MAX_FRAME_SIZE |
 | `frame_capped_smoke` / `server_max_frame_smoke` | 离线 + h2c 16385B/16384 分片集成烟测 |
 
-烟测：`tests/http/server_max_frame.sx`。
+烟测：`tests/http/server_max_frame.x`。
 
 ---
 
@@ -413,7 +413,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `serve_h2c_one_with_goaway` / `server_serve_h2c_with_goaway` | server 响应后发 GOAWAY |
 | `goaway_smoke` / `conn_goaway_smoke` | 离线 + h2c fork 集成烟测 |
 
-烟测：`tests/http/conn_goaway.sx`。
+烟测：`tests/http/conn_goaway.x`。
 
 ---
 
@@ -427,7 +427,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `serve_h2c_one_ping_echo` / `server_serve_h2c_ping_echo` | server 回 PONG |
 | `ping_smoke` / `conn_ping_smoke` | 离线 + h2c fork 集成烟测 |
 
-烟测：`tests/http/conn_ping.sx`。
+烟测：`tests/http/conn_ping.x`。
 
 ---
 
@@ -439,7 +439,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `conn_pool_connect_count` | 池累计新建连接次数 |
 | `conn_pool_goaway_smoke` | 离线 + fork 双 TCP 集成烟测 |
 
-烟测：`tests/http/conn_pool_goaway.sx`。
+烟测：`tests/http/conn_pool_goaway.x`。
 
 ---
 
@@ -452,7 +452,7 @@ HTTP/2 v1 生产子集已于 v27 收口（见 §32–33）。以下为**非** st
 | `global_pool_connect_count` | 全局池累计新建连接 |
 | `complete_smoke` | v1 收口烟测 |
 
-烟测：`tests/http/http2_complete.sx`。
+烟测：`tests/http/http2_complete.x`。
 
 ---
 

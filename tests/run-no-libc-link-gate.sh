@@ -13,7 +13,7 @@ FAIL=${SHUX_NOLIBC_LINK_FAIL:-0}
 DOC="analysis/phase-f-no-libc-v1.md"
 POLICY="tests/baseline/no-libc-link-policy.tsv"
 RT="compiler/src/runtime_link_abi.c"
-DRIVER="compiler/src/driver/compile.sx"
+DRIVER="compiler/src/driver/compile.x"
 BUILD_ASM="compiler/scripts/build_shux_asm.sh"
 
 die() {
@@ -35,7 +35,7 @@ if ! nolibc_audit_runtime_freestanding_block "$RT"; then
 fi
 echo "nolibc-link OK: runtime NL-05 block has -nostdlib, no -lc"
 
-grep -q 'freestanding' "$DRIVER" || die "driver compile.sx missing -freestanding"
+grep -q 'freestanding' "$DRIVER" || die "driver compile.x missing -freestanding"
 
 TRACK=$(nolibc_track_compiler_lc_mentions)
 echo "nolibc-link track: compiler bootstrap files with -lc mentions = $TRACK (expected until F-07; not blocking v1)"

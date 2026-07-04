@@ -25,7 +25,7 @@
 |------|------|------|
 | **L1-lock-file** | 锁文件 `shux.pkg.lock.tsv` 与 manifest 同目录 | v1 TSV |
 | **L2-content-digest** | 每条 `locked` 含 `sha256` 内容摘要 | `shasum -a 256` |
-| **L3-relpath** | 记录仓库相对路径（可重复解析） | `core/mem/mod.sx` |
+| **L3-relpath** | 记录仓库相对路径（可重复解析） | `core/mem/mod.x` |
 | **L4-gen-lock** | `shux-deps-lock.sh` 由 manifest 生成锁 | `scripts/shux-deps-lock.sh` |
 | **L5-verify-lock** | `shux-deps-verify.sh` 校验锁与磁盘一致 | `scripts/shux-deps-verify.sh` |
 | **L6-replay** | 同锁文件重复 verify → 相同 report | CI gate |
@@ -48,8 +48,8 @@
 meta	lock_version	1	-	-
 meta	name	demo-app	-	-
 lib_root	.	../../..	-	-
-locked	core.mem	bundled	core/mem/mod.sx	<64-hex>
-locked	core.types	bundled	core/types/mod.sx	<64-hex>
+locked	core.mem	bundled	core/mem/mod.x	<64-hex>
+locked	core.types	bundled	core/types/mod.x	<64-hex>
 ```
 
 `sha256` 为文件**内容**哈希（不含路径）；变更依赖须重新 `shux-deps-lock.sh` 并评审锁 diff。

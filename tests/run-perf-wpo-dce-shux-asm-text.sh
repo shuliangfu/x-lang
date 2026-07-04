@@ -123,10 +123,10 @@ compile_main_ab() {
   rm -f "$MAIN_OFF" "$MAIN_ON"
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=0 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$MAIN_OFF" src/main.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$MAIN_OFF" src/main.x >/dev/null 2>&1 ) || return 1
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=0 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$MAIN_ON" src/main.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$MAIN_ON" src/main.x >/dev/null 2>&1 ) || return 1
   [ -s "$MAIN_OFF" ] && [ -s "$MAIN_ON" ]
 }
 
@@ -134,10 +134,10 @@ compile_driver_ab() {
   rm -f "$DRIVER_OFF" "$DRIVER_ON"
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$DRIVER_OFF" src/driver/compile.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$DRIVER_OFF" src/driver/compile.x >/dev/null 2>&1 ) || return 1
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$DRIVER_ON" src/driver/compile.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$DRIVER_ON" src/driver/compile.x >/dev/null 2>&1 ) || return 1
   [ -s "$DRIVER_OFF" ] && [ -s "$DRIVER_ON" ]
 }
 
@@ -145,10 +145,10 @@ compile_pipeline_ab() {
   rm -f "$PIPE_OFF" "$PIPE_ON"
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$PIPE_OFF" src/pipeline/pipeline.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$PIPE_OFF" src/pipeline/pipeline.x >/dev/null 2>&1 ) || return 1
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$PIPE_ON" src/pipeline/pipeline.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$PIPE_ON" src/pipeline/pipeline.x >/dev/null 2>&1 ) || return 1
   [ -s "$PIPE_OFF" ] && [ -s "$PIPE_ON" ]
 }
 
@@ -156,10 +156,10 @@ compile_typeck_ab() {
   rm -f "$TCK_OFF" "$TCK_ON"
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$TCK_OFF" src/typeck/typeck.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$TCK_OFF" src/typeck/typeck.x >/dev/null 2>&1 ) || return 1
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$TCK_ON" src/typeck/typeck.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$TCK_ON" src/typeck/typeck.x >/dev/null 2>&1 ) || return 1
   [ -s "$TCK_OFF" ] && [ -s "$TCK_ON" ]
 }
 
@@ -167,10 +167,10 @@ compile_backend_ab() {
   rm -f "$BE_OFF" "$BE_ON"
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$BE_OFF" src/asm/backend.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$BE_OFF" src/asm/backend.x >/dev/null 2>&1 ) || return 1
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$BE_ON" src/asm/backend.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$BE_ON" src/asm/backend.x >/dev/null 2>&1 ) || return 1
   [ -s "$BE_OFF" ] && [ -s "$BE_ON" ]
 }
 
@@ -223,11 +223,11 @@ fi
 echo "| metric | dce_on (now) | dce_off (proxy) | save (B) | save (%) |"
 echo "| shux_asm .text | $TEXT_ON | $TEXT_OFF_PROXY | $BINARY_SAVE | ${BINARY_PCT}% |"
 echo "| wpo-eligible TU | $ELIGIBLE_ON | $ELIGIBLE_OFF | $ELIGIBLE_SAVE | — |"
-echo "| main.sx TU | $MON | $MOFF | $((MOFF - MON)) | — |"
-echo "| driver/compile.sx TU | $DON | $DOFF | $((DOFF - DON)) | — |"
-echo "| pipeline/pipeline.sx TU | $PON | $POFF | $((POFF - PON)) | — |"
-echo "| typeck/typeck.sx TU | $TON | $TOFF | $((TOFF - TON)) | — |"
-echo "| asm/backend.sx TU | $BON | $BOFF | $((BOFF - BON)) | — |"
+echo "| main.x TU | $MON | $MOFF | $((MOFF - MON)) | — |"
+echo "| driver/compile.x TU | $DON | $DOFF | $((DOFF - DON)) | — |"
+echo "| pipeline/pipeline.x TU | $PON | $POFF | $((POFF - PON)) | — |"
+echo "| typeck/typeck.x TU | $TON | $TOFF | $((TOFF - TON)) | — |"
+echo "| asm/backend.x TU | $BON | $BOFF | $((BOFF - BON)) | — |"
 
 fail=0
 if [ "$ELIGIBLE_SAVE" -lt "$MIN_ELIGIBLE_BYTES" ]; then

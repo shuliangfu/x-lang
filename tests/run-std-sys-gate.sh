@@ -7,27 +7,27 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_SYS_DOC:-analysis/std-sys-v0.md}"
 MANIFEST="${SHUX_STD_SYS_TSV:-tests/baseline/std-sys-manifest.tsv}"
-MOD_SX="std/sys/mod.sx"
-SMOKE_SX="tests/sys/sys_write_freestanding.sx"
+MOD_X="std/sys/mod.x"
+SMOKE_X="tests/sys/sys_write_freestanding.x"
 MIN_APIS=5
 PREFIX="shux: [SHUX_BOOT029_STD_SYS]"
 
-LINUX_MOD="std/sys/linux.sx"
-MACOS_MOD="std/sys/macos.sx"
-FREEBSD_MOD="std/sys/freebsd.sx"
-SMOKE_LINUX="tests/sys/linux_syscall_nr_smoke.sx"
-SMOKE_MACOS="tests/sys/macos_posix_write_smoke.sx"
-SMOKE_FREEBSD="tests/sys/freebsd_posix_write_smoke.sx"
+LINUX_MOD="std/sys/linux.x"
+MACOS_MOD="std/sys/macos.x"
+FREEBSD_MOD="std/sys/freebsd.x"
+SMOKE_LINUX="tests/sys/linux_syscall_nr_smoke.x"
+SMOKE_MACOS="tests/sys/macos_posix_write_smoke.x"
+SMOKE_FREEBSD="tests/sys/freebsd_posix_write_smoke.x"
 
 echo "=== BOOT-029: std.sys manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SX" "$LINUX_MOD" "$MACOS_MOD" "$FREEBSD_MOD" "$SMOKE_SX" "$SMOKE_LINUX" "$SMOKE_MACOS" "$SMOKE_FREEBSD" std/sys/README.md; do
+for f in "$DOC" "$MANIFEST" "$MOD_X" "$LINUX_MOD" "$MACOS_MOD" "$FREEBSD_MOD" "$SMOKE_X" "$SMOKE_LINUX" "$SMOKE_MACOS" "$SMOKE_FREEBSD" std/sys/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-sys gate FAIL: missing $f" >&2
     exit 1
   fi
 done
 
-for kw in BOOT-029 os_write shux_sys_write freestanding linux.sx macos.sx macos_write; do
+for kw in BOOT-029 os_write shux_sys_write freestanding linux.x macos.x macos_write; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "std-sys gate FAIL: doc missing '$kw'" >&2
     exit 1
@@ -42,7 +42,7 @@ while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
         echo "std-sys FAIL: missing api $anchor" >&2
         MISS=$((MISS + 1))
       fi
@@ -83,7 +83,7 @@ fi
 if [ -n "$SHUX_BIN" ] && [ -x "$SHUX_BIN" ]; then
   TYPECK_FAIL=0
   # 公共烟测：os_write_stdout 双平台 #[cfg] 均有定义。
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     TYPECK_FAIL=1
   fi
   HOSTOS="$(uname -s 2>/dev/null)"
@@ -112,7 +112,7 @@ if [ -n "$SHUX_BIN" ] && [ -x "$SHUX_BIN" ]; then
     echo "std-sys typeck OK"
   else
     echo "std-sys gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -5 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -5 >&2 || true
     if [ "$HOSTOS" = "Linux" ]; then
       "$SHUX_BIN" check -L . "$SMOKE_LINUX" 2>&1 | tail -5 >&2 || true
     fi
@@ -126,7 +126,7 @@ if [ -n "$SHUX_BIN" ] && [ -x "$SHUX_BIN" ]; then
 fi
 
 if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] \
-   && [ -n "$SHUX_BIN" ] && "$SHUX_BIN" -freestanding -backend asm "$SMOKE_SX" -o /tmp/shux_sys_write_smoke 2>/dev/null \
+   && [ -n "$SHUX_BIN" ] && "$SHUX_BIN" -freestanding -backend asm "$SMOKE_X" -o /tmp/shux_sys_write_smoke 2>/dev/null \
    && [ -x /tmp/shux_sys_write_smoke ]; then
   SKIP_LINUX=0
   set +e

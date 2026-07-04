@@ -6,10 +6,10 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SX="std/async/mod.sx"
+MOD_X="std/async/mod.x"
 SCHED_C="compiler/src/asm/runtime_scheduler_glue.c"
-SMOKE_CANCEL="tests/async/context_cancel_drain.sx"
-SMOKE_SPAWN="tests/async/spawn_context_inherit.sx"
+SMOKE_CANCEL="tests/async/context_cancel_drain.x"
+SMOKE_SPAWN="tests/async/spawn_context_inherit.x"
 PREFIX="shux: [SHUX_STD090_ASYNC_CTX]"
 
 stdlib_cm_native_shu() {
@@ -25,7 +25,7 @@ stdlib_cm_native_shu() {
 }
 
 echo "=== STD-090/093: async-context manifest ==="
-for f in "$MOD_SX" "$SCHED_C" "$SMOKE_CANCEL" "$SMOKE_SPAWN"; do
+for f in "$MOD_X" "$SCHED_C" "$SMOKE_CANCEL" "$SMOKE_SPAWN"; do
   if [ ! -f "$f" ]; then
     echo "async-context gate FAIL: missing $f" >&2
     exit 1
@@ -42,7 +42,7 @@ for sym in bind_ctx err_ctx_abort runtime runtime_reset drain \
       fi
       ;;
     *)
-      if ! grep -qE "function ${sym}\\(" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qE "function ${sym}\\(" "$MOD_X" 2>/dev/null; then
         echo "async-context gate FAIL: missing api $sym" >&2
         exit 1
       fi
@@ -91,13 +91,13 @@ elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux ||
   :
 fi
 
-SX_OK=0
+X_OK=0
 SKIP=0
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-090/093: smoke (SHUX=$SHUX_BIN) ==="
-  for sx in "$SMOKE_CANCEL" "$SMOKE_SPAWN"; do
-    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
-      echo "async-context gate FAIL: typeck $sx" >&2
+  for x in "$SMOKE_CANCEL" "$SMOKE_SPAWN"; do
+    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+      echo "async-context gate FAIL: typeck $x" >&2
       exit 1
     fi
   done
@@ -117,11 +117,11 @@ if [ -n "$SHUX_BIN" ]; then
       exit 1
     fi
   fi
-  SX_OK=1
+  X_OK=1
 else
-  echo "async-context gate SKIP .sx (no native shux)" >&2
+  echo "async-context gate SKIP .x (no native shux)" >&2
   SKIP=1
 fi
 
-echo "${PREFIX} status=ok sx=${SX_OK} skip=${SKIP} host=$(ci_host_summary)"
+echo "${PREFIX} status=ok x=${X_OK} skip=${SKIP} host=$(ci_host_summary)"
 echo "std-async-context gate OK"

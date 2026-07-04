@@ -92,7 +92,7 @@ SHUX_WEAK char *preprocess(const char *source, size_t source_len, const char **d
 }
 
 SHUX_WEAK void driver_print_usage_c(void) {
-  fputs("Shux (stub)\nUsage: shux [options] file.sx\n", stdout);
+  fputs("Shux (stub)\nUsage: shux [options] file.x\n", stdout);
 }
 
 SHUX_WEAK int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,

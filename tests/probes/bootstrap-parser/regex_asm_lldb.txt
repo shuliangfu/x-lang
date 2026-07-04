@@ -1,13 +1,13 @@
 (lldb) target create "./shux_asm"
 Current executable set to '/home/shu/shux/compiler/shux_asm' (arm64).
-(lldb) settings set -- target.run-args  "-backend" "asm" "-L" ".." "../std/regex/regex.sx" "-o" "../tests/probes/bootstrap-parser/regex_asm_core.o"
+(lldb) settings set -- target.run-args  "-backend" "asm" "-L" ".." "../std/regex/regex.x" "-o" "../tests/probes/bootstrap-parser/regex_asm_core.o"
 (lldb) run
 [1;34mnote[0m: pipeline debug: driver_first_parse num_funcs=45 src_len=45873
-[34m --> ../std/regex/regex.sx[0m
+[34m --> ../std/regex/regex.x[0m
 [1;34mnote[0m: pipeline debug: pipeline thread start len=45873
-[34m --> ../std/regex/regex.sx[0m
+[34m --> ../std/regex/regex.x[0m
 [1;34mnote[0m: pipeline debug: after_entry_parse num_funcs=45
-[34m --> ../std/regex/regex.sx[0m
+[34m --> ../std/regex/regex.x[0m
 shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=45
 shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=1 fin=0 nso=1
 shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=1 exprs=1
@@ -54,7 +54,7 @@ shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=339 tail=30306 kind=41
 shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=343 tail=30515 kind=41
 shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=409 tail=39372 kind=41
 [1;34mnote[0m: pipeline debug: pipeline thread done ec=0
-[34m --> ../std/regex/regex.sx[0m
+[34m --> ../std/regex/regex.x[0m
 Process 83442 launched: '/home/shu/shux/compiler/shux_asm' (arm64)
 Process 83442 stopped
 * thread #2, stop reason = EXC_BAD_ACCESS (code=1, address=0x4b7bfffd0)

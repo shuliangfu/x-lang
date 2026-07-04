@@ -10,7 +10,7 @@
 
 | 步骤 | 动作 |
 |------|------|
-| 1 | 读 `examples/hello.sx`，确认工具链可用 |
+| 1 | 读 `examples/hello.x`，确认工具链可用 |
 | 2 | 浏览 `examples/cookbook/`（DOC-001 12 食谱） |
 | 3 | 打开 `tests/baseline/std-examples-catalog.tsv` 按 category 选示例 |
 | 4 | `./tests/run-std-examples.sh` 打印全量索引 |
@@ -22,10 +22,10 @@
 
 ```
 examples/
-  hello.sx              # 入门
+  hello.x              # 入门
   cookbook/             # DOC-001 食谱（IO/NET/ZC/ASYNC）
 tests/
-  <module>/main.sx      # 标准库领域烟测（编入 catalog）
+  <module>/main.x      # 标准库领域烟测（编入 catalog）
 tests/baseline/
   std-examples-catalog.tsv   # 全量目录（35+）
   std-examples-manifest.tsv  # 门禁 manifest
@@ -37,10 +37,10 @@ tests/baseline/
 
 | 前缀 | 数量 | 路径 |
 |------|------|------|
-| `ex_cb_*` | 12 | `examples/cookbook/*.sx` |
+| `ex_cb_*` | 12 | `examples/cookbook/*.x` |
 | 门禁 | — | `tests/run-doc-stdlib-cookbook-gate.sh` |
 
-Cookbook 是示例体系的**教程层**；全量 catalog 还收录 `tests/*/main.sx` 等**回归层**示例。
+Cookbook 是示例体系的**教程层**；全量 catalog 还收录 `tests/*/main.x` 等**回归层**示例。
 
 ---
 
@@ -58,12 +58,12 @@ Cookbook 是示例体系的**教程层**；全量 catalog 还收录 `tests/*/mai
 
 | id | category | path |
 |----|----------|------|
-| `ex_hello` | hello | `examples/hello.sx` |
-| `ex_cb_io_batch` | io | `examples/cookbook/io_batch_rw.sx` |
-| `ex_io_batch_smoke` | io | `tests/io/batch_rw_smoke.sx` |
-| `ex_net_main` | net | `tests/net/main.sx` |
-| `ex_cb_zc_arena` | zc | `examples/cookbook/zc_arena_concat.sx` |
-| `ex_cb_async_import` | async | `examples/cookbook/async_mod_import.sx` |
+| `ex_hello` | hello | `examples/hello.x` |
+| `ex_cb_io_batch` | io | `examples/cookbook/io_batch_rw.x` |
+| `ex_io_batch_smoke` | io | `tests/io/batch_rw_smoke.x` |
+| `ex_net_main` | net | `tests/net/main.x` |
+| `ex_cb_zc_arena` | zc | `examples/cookbook/zc_arena_concat.x` |
+| `ex_cb_async_import` | async | `examples/cookbook/async_mod_import.x` |
 
 完整列表见 catalog TSV 或 `./tests/run-std-examples.sh`。
 
@@ -79,7 +79,7 @@ Cookbook 是示例体系的**教程层**；全量 catalog 还收录 `tests/*/mai
 ./tests/run-std-examples.sh
 
 # 单示例 typeck
-./compiler/shux-c check -L . examples/hello.sx
+./compiler/shux-c check -L . examples/hello.x
 ```
 
 | 脚本 | 角色 |
@@ -90,7 +90,7 @@ Cookbook 是示例体系的**教程层**；全量 catalog 还收录 `tests/*/mai
 
 新增示例流程：
 
-1. 添加 `.sx` 到 `examples/` 或确认 `tests/` 烟测稳定  
+1. 添加 `.x` 到 `examples/` 或确认 `tests/` 烟测稳定  
 2. 在 `std-examples-catalog.tsv` 增加一行  
 3. 在本文 §4 或 category 小节补一句说明  
 4. 跑 `run-std-examples-gate.sh`

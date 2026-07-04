@@ -55,7 +55,7 @@
 ### 通用
 
 - **真正异步**：当前 std.io 为「submit + 等一次完成」的同步风格；可暴露 submit 与 wait 分离、多请求 in-flight，重叠 I/O 与计算。
-- **批量段数**：read_batch_fd/write_batch_fd 目前最多 4 段；io.c 内部已有 8 段路径，可对 .sx API 开放 8 段或更多。
+- **批量段数**：read_batch_fd/write_batch_fd 目前最多 4 段；io.c 内部已有 8 段路径，可对 .x API 开放 8 段或更多。
 - **固定 buffer 池**：Linux 下 io_uring_register_buffers 已预留；可对高频路径使用 fixed buffer，减少拷贝/注册开销。
 
 ### Linux

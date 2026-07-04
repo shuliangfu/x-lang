@@ -1,0 +1,209 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std/uuid/uuid.x — UUID v4/v7 生成、解析、格式化（F-uuid v1；替代 uuid.c）
+//
+// 【文件职责】
+// 128-bit UUID 布局；v4（CSPRNG）、v7（Unix 毫秒 + 随机）；
+// 标准字符串 parse/format；相等比较与烟测入口 uuid_smoke_c。
+//
+// 【依赖】std/random、std/time 符号（extern；F-random/F-time v1 已迁 .x+胶层）。
+
+const mem = import("core.mem");
+
+/** 密码学随机字节（链入 random.o）。 */
+extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
+/** 墙钟毫秒（链入 time.o）。 */
+extern function time_now_wall_ms_c(): i64;
+
+/** v7 上次生成的 Unix 毫秒；同毫秒内 uuid_v7_seq 单调递增 rand_a。 */
+let uuid_v7_last_ms: i64 = -1;
+let uuid_v7_seq: u16 = 0;
+
+/** 十六进制字符 → 数值；-1 非法。 */
+function uuid_hex_val(c: u8): i32 {
+  if (c >= 48 && c <= 57) { return (c - 48) as i32; }
+  if (c >= 97 && c <= 102) { return (c - 97 + 10) as i32; }
+  if (c >= 65 && c <= 70) { return (c - 65 + 10) as i32; }
+  return -1;
+}
+
+/** 半字节 → 小写 hex ASCII。 */
+function uuid_nibble_hex(d: u8): u8 {
+  if (d < 10) { return (d + 48) as u8; }
+  return (d - 10 + 97) as u8;
+}
+
+/** 写入 UUID v4 随机版本与 variant 位。 */
+function uuid_apply_v4_variant(u: *u8): void {
+  u[6] = (u[6] & 15) | 64;
+  u[8] = (u[8] & 63) | 128;
+}
+
+/** 生成 UUID v4；成功 0，随机失败 -1。 */
+function uuid_new_v4_c(out: *u8): i32 {
+  if (out == 0) { return -1; }
+  unsafe { if (random_fill_bytes_c(out, 16) != 16) { return -1; } }
+  uuid_apply_v4_variant(out);
+  return 0;
+}
+
+/** 生成 UUID v7（48-bit Unix 毫秒 + 12-bit 序号/随机 + 62-bit 随机）；成功 0。 */
+function uuid_new_v7_c(out: *u8): i32 {
+  let ms: i64 = 0;
+  let rand_a: u16 = 0;
+  let rand_buf: u8[2] = [0, 0];
+  let tail: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
+  if (out == 0) { return -1; }
+  unsafe { ms = time_now_wall_ms_c(); }
+  if (ms < 0) { ms = 0; }
+  if (ms == uuid_v7_last_ms) {
+    uuid_v7_seq = (uuid_v7_seq + 1) & 4095;
+    if (uuid_v7_seq == 0) {
+      /** 同毫秒序号溢出：自旋至下一毫秒（RFC 9562 单调性）。 */
+      while (ms == uuid_v7_last_ms) {
+        unsafe { ms = time_now_wall_ms_c(); }
+        if (ms < 0) { ms = 0; }
+      }
+      uuid_v7_last_ms = ms;
+      unsafe { if (random_fill_bytes_c(&rand_buf[0], 2) != 2) { return -1; } }
+      rand_a = ((rand_buf[0] as u16) | ((rand_buf[1] as u16) << 8)) & 4095;
+      uuid_v7_seq = rand_a;
+    } else {
+      rand_a = uuid_v7_seq;
+    }
+  } else {
+    uuid_v7_last_ms = ms;
+    unsafe { if (random_fill_bytes_c(&rand_buf[0], 2) != 2) { return -1; } }
+    rand_a = ((rand_buf[0] as u16) | ((rand_buf[1] as u16) << 8)) & 4095;
+    uuid_v7_seq = rand_a;
+  }
+  out[0] = ((ms >> 40) & 255) as u8;
+  out[1] = ((ms >> 32) & 255) as u8;
+  out[2] = ((ms >> 24) & 255) as u8;
+  out[3] = ((ms >> 16) & 255) as u8;
+  out[4] = ((ms >> 8) & 255) as u8;
+  out[5] = (ms & 255) as u8;
+  out[6] = (112 | ((rand_a >> 8) & 15)) as u8;
+  out[7] = (rand_a & 255) as u8;
+  unsafe { if (random_fill_bytes_c(&tail[0], 8) != 8) { return -1; } }
+  out[8] = ((tail[0] & 63) | 128) as u8;
+  mem.mem_copy(out + 9, &tail[1], 7);
+  return 0;
+}
+
+/** 解析 UUID 字符串（36 带连字符或 32 纯 hex）；成功 0。 */
+function uuid_parse_c(ptr: *u8, len: i32, out: *u8): i32 {
+  let i: i32 = 0;
+  let pos: i32 = 0;
+  let digit: i32 = 0;
+  let hi: i32 = 0;
+  if (ptr == 0 || out == 0 || len <= 0) { return -1; }
+  i = 0;
+  while (i < 16) {
+    if (pos < len && ptr[pos] == 45) { pos = pos + 1; }
+    if (pos + 1 >= len) { return -1; }
+    hi = uuid_hex_val(ptr[pos]);
+    if (hi < 0) { return -1; }
+    digit = hi * 16;
+    hi = uuid_hex_val(ptr[pos + 1]);
+    if (hi < 0) { return -1; }
+    digit = digit + hi;
+    out[i] = digit as u8;
+    pos = pos + 2;
+    i = i + 1;
+  }
+  while (pos < len && ptr[pos] == 45) { pos = pos + 1; }
+  if (pos != len) { return -1; }
+  return 0;
+}
+
+/** 格式化为标准小写连字符形式；返回 36，失败 -1。 */
+function uuid_format_c(u: *u8, out: *u8, out_cap: i32): i32 {
+  let i: i32 = 0;
+  let o: i32 = 0;
+  if (u == 0 || out == 0 || out_cap < 37) { return -1; }
+  while (i < 16) {
+    if (o + 2 > out_cap) { return -1; }
+    out[o] = uuid_nibble_hex(((u[i] >> 4) & 15) as u8);
+    out[o + 1] = uuid_nibble_hex((u[i] & 15) as u8);
+    o = o + 2;
+    if (i == 3 || i == 5 || i == 7 || i == 9) {
+      if (o >= out_cap) { return -1; }
+      out[o] = 45;
+      o = o + 1;
+    }
+    i = i + 1;
+  }
+  if (o != 36) { return -1; }
+  return 36;
+}
+
+/** 128-bit 相等：1 相等，0 不等。 */
+function uuid_eq_c(a: *u8, b: *u8): i32 {
+  if (a == 0 || b == 0) { return 0; }
+  if (mem.mem_compare(a, b, 16) == 0) { return 1; }
+  return 0;
+}
+
+/** 取版本号 nibble（4/7/等）；非法布局仍返回位值。 */
+function uuid_version_c(u: *u8): i32 {
+  if (u == 0) { return -1; }
+  return ((u[6] >> 4) & 15) as i32;
+}
+
+/** C 烟测：已知向量 parse/format/eq/v4/v7（STD-075 门禁）。 */
+function uuid_smoke_c(): i32 {
+  let known: u8[37] = [
+    53, 48, 48, 101, 56, 52, 48, 48, 45, 101, 50, 57, 98, 45, 52, 49, 100, 52,
+    45, 97, 55, 49, 54, 45, 52, 52, 54, 54, 53, 53, 52, 52, 48, 48, 48, 48, 0
+  ];
+  let u: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let buf: u8[40] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let v4: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let v7: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let plain: u8[33] = [
+    53, 48, 48, 101, 56, 52, 48, 48, 101, 50, 57, 98, 52, 49, 100, 52, 97, 55,
+    49, 54, 52, 52, 54, 54, 53, 53, 52, 52, 48, 48, 48, 48, 0
+  ];
+  let u2: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let v7b: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let prev: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let cur: u8[16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let k: i32 = 0;
+  if (uuid_parse_c(&known[0], 36, &u[0]) != 0) { return 1; }
+  if (uuid_format_c(&u[0], &buf[0], 40) != 36) { return 2; }
+  if (mem.mem_compare(&buf[0], &known[0], 36) != 0) { return 3; }
+  if (uuid_eq_c(&u[0], &u[0]) != 1) { return 4; }
+  if (uuid_parse_c(&plain[0], 32, &u2[0]) != 0) { return 5; }
+  if (uuid_eq_c(&u[0], &u2[0]) != 1) { return 6; }
+  if (uuid_new_v4_c(&v4[0]) != 0) { return 7; }
+  if (uuid_version_c(&v4[0]) != 4) { return 8; }
+  if (uuid_new_v7_c(&v7[0]) != 0) { return 9; }
+  if (uuid_version_c(&v7[0]) != 7) { return 10; }
+  if (uuid_new_v7_c(&v7b[0]) != 0) { return 11; }
+  if (mem.mem_compare(&v7[0], &v7b[0], 16) >= 0) { return 12; }
+  mem.mem_copy(&prev[0], &v7[0], 16);
+  k = 0;
+  while (k < 8) {
+    if (uuid_new_v7_c(&cur[0]) != 0) { return 13; }
+    if (mem.mem_compare(&prev[0], &cur[0], 16) >= 0) { return 14; }
+    mem.mem_copy(&prev[0], &cur[0], 16);
+    k = k + 1;
+  }
+  return 0;
+}

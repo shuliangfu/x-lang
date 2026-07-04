@@ -13,7 +13,7 @@ make -C compiler bootstrap-driver-seed   # 或已有 ./compiler/shux
 
 ## P0 用例（`tests/bench/`）
 
-| 用例 | 说明 | `.sx` | `.c` | `.zig` |
+| 用例 | 说明 | `.x` | `.c` | `.zig` |
 |------|------|-------|------|--------|
 | `loop_i32` | 10⁹ 次计数循环 | ✅ | ✅ | ✅ |
 | `mem_copy` | 4KiB fill + sum 两遍扫描 | ✅ | ✅ | ✅ |
@@ -48,12 +48,12 @@ SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-compile-dogfood.sh   # 有意优化
 | case | 说明 |
 |------|------|
 | `loop_i32` … `call_boundary` | P0 bench `-o` |
-| `perf_main` | `tests/perf-baseline/main.sx -o` |
+| `perf_main` | `tests/perf-baseline/main.x -o` |
 | `check_backend` / `check_parser` | 编译器 asm/parser 前端 dogfood |
 
 ## 备注
 
 - 仅优化**用户默认** `-backend asm -o` 路径；改 backend/typeck 自举桩不计入用户 perf。
-- `while` 计数循环折叠见 `backend.sx` `try_fold_count_up_while`（主要惠及 `loop_i32`）。
-- `add_pair(p)` 运行时内联见 `try_inline_param0_field_sum_call_elf`（`tests/boundary/struct_add_pair_inline.sx`）。
+- `while` 计数循环折叠见 `backend.x` `try_fold_count_up_while`（主要惠及 `loop_i32`）。
+- `add_pair(p)` 运行时内联见 `try_inline_param0_field_sum_call_elf`（`tests/boundary/struct_add_pair_inline.x`）。
 - **Linux CI**（`.github/workflows/ci.yml`）在 runner 有 `zig` 时跑 `SHUX_PERF_FAIL_ON_ZIG=1` / `SHUX_PERF_FAIL_ON_IO_ZIG=1`；无 zig 时跳过 Zig 列（与 P2 同模式）。本地 median 填入上表。

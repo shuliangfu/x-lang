@@ -28,4 +28,4 @@ make -C compiler src/runtime_link_abi.o src/runtime_driver_no_c.o
 
 - ~~compress/net TLS 链接辅助~~ → ✅ E-04 v6
 - `invoke_cc` / `invoke_ld` / `asm_invoke_ld_platform` 主体
-- `main.c` → crt0 / main.sx 全入口
+- `main.c` → crt0 / main.x 全入口

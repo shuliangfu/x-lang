@@ -29,7 +29,7 @@ native_shu() {
 }
 
 echo "=== TOOL-006: project scaffold manifest ==="
-for f in "$DOC" "$MANIFEST" "$TEMPLATE/main.sx" "$TEMPLATE/README.md" scripts/shux-new.sh; do
+for f in "$DOC" "$MANIFEST" "$TEMPLATE/main.x" "$TEMPLATE/README.md" scripts/shux-new.sh; do
   if [ ! -f "$f" ]; then
     echo "tool-scaffold gate FAIL: missing $f" >&2
     exit 1
@@ -107,7 +107,7 @@ if [ "$TPL_N" -lt "$MIN_TEMPLATE_FILES" ] || [ "${FILES_N:-0}" -lt "$MIN_TEMPLAT
   exit 1
 fi
 
-if ! grep -q 'function main(): i32' "$TEMPLATE/main.sx" 2>/dev/null; then
+if ! grep -q 'function main(): i32' "$TEMPLATE/main.x" 2>/dev/null; then
   echo "tool-scaffold gate FAIL: template missing main()" >&2
   exit 1
 fi
@@ -146,8 +146,8 @@ if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   DEMO="/tmp/shux_new_demo_$$"
   rm -rf "$DEMO"
   ./scripts/shux-new.sh "$DEMO"
-  if [ ! -f "$DEMO/main.sx" ]; then
-    echo "tool-scaffold FAIL: shux-new did not create main.sx" >&2
+  if [ ! -f "$DEMO/main.x" ]; then
+    echo "tool-scaffold FAIL: shux-new did not create main.x" >&2
     rm -rf "$DEMO"
     exit 1
   fi

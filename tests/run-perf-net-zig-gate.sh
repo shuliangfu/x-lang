@@ -36,7 +36,7 @@ for f in \
   tests/bench/net_echo_throughput.zig \
   tests/bench/net_mixed_conns_requests.c \
   tests/bench/net_mixed_conns_requests.zig \
-  tests/bench/net_mixed_conns_requests.sx \
+  tests/bench/net_mixed_conns_requests.x \
   tests/bench/net_mixed_conns_requests_server.c; do
   if [ ! -f "$f" ]; then
     echo "perf-net-zig gate FAIL: missing $f" >&2

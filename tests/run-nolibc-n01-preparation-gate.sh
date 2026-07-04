@@ -40,8 +40,8 @@ fi
 if ! nolibc_n01_audit_asm_syms "$ASM_IO" "$NOLIBC_N01_P0_SYSCALLS $NOLIBC_N01_SOCKET_SYSCALLS"; then
   die "freestanding_io syscall symbol audit failed"
 fi
-if ! nolibc_n01_audit_sys_linux std/sys/linux.sx; then
-  die "std/sys/linux.sx audit failed"
+if ! nolibc_n01_audit_sys_linux std/sys/linux.x; then
+  die "std/sys/linux.x audit failed"
 fi
 if ! nolibc_audit_runtime_freestanding_block compiler/src/runtime_link_abi.c; then
   die "runtime NL-05 freestanding block audit failed"

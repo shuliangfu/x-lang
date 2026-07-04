@@ -131,7 +131,7 @@ perf_nz_read_caps() {
   perf_nz_xfer_bytes=""
   perf_nz_zc_lt_ref=""
   perf_nz_needs_io_uring=""
-  while IFS=$'\t' read -r cid _sx _srv bytes cap_mib ref needs_uring _notes; do
+  while IFS=$'\t' read -r cid _x _srv bytes cap_mib ref needs_uring _notes; do
     [ -z "${cid:-}" ] && continue
     case "$cid" in \#*) continue ;; esac
     if [ "$cid" = "$case_id" ]; then

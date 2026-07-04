@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_COMPRESS_DOC:-analysis/std-compress-v1.md}"
 MANIFEST="${SHUX_STD_COMPRESS_MANIFEST:-tests/baseline/std-compress-manifest.tsv}"
-MOD_SX="${SHUX_STD_COMPRESS_MOD:-std/compress/mod.sx}"
+MOD_X="${SHUX_STD_COMPRESS_MOD:-std/compress/mod.x}"
 MIN_APIS=4
 MIN_LAYERS=4
 
@@ -15,8 +15,8 @@ MIN_LAYERS=4
 . tests/lib/std-compress.sh
 
 echo "=== STD-007: std.compress manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SX" std/compress/common.sx \
-  std/compress/zlib/libz.sx std/compress/gzip/libz.sx std/compress/brotli/lib.sx std/compress/zstd/lib.sx \
+for f in "$DOC" "$MANIFEST" "$MOD_X" std/compress/common.x \
+  std/compress/zlib/libz.x std/compress/gzip/libz.x std/compress/brotli/lib.x std/compress/zstd/lib.x \
   tests/lib/std-compress.sh; do
   if [ ! -f "$f" ]; then
     echo "std-compress gate FAIL: missing $f" >&2
@@ -61,7 +61,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier notes; do
       ;;
     api)
       API_N=$((API_N + 1))
-      if ! std_compress_has_api "$MOD_SX" "$anchor"; then
+      if ! std_compress_has_api "$MOD_X" "$anchor"; then
         echo "std-compress FAIL: missing API $anchor" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$anchor" "$DOC" 2>/dev/null; then

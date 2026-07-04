@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
-> 关联：`NEXT.md` CORE-012、`core/debug/mod.sx`
+> 关联：`NEXT.md` CORE-012、`core/debug/mod.x`
 
 ---
 
@@ -46,7 +46,7 @@
 ## 4. Gate
 
 - manifest：`tests/baseline/core-debug-assert-extend.tsv`
-- typeck：`shux check tests/debug/assert_extend.sx`
+- typeck：`shux check tests/debug/assert_extend.x`
 - 报告：`shux: [SHUX_CORE_DEBUG_ASSERT_EXTEND] status=ok`
 
 ---

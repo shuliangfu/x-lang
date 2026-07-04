@@ -9,8 +9,8 @@ echo "=== B-06: ast_pool / pool limits ==="
 for f in compiler/ast_pool.c tests/run-pool-limits.sh; do
   [ -f "$f" ] || { echo "b06 gate FAIL: missing $f" >&2; exit 1; }
 done
-grep -q 'ast_pool' compiler/src/parser/parser.sx || grep -q 'ast_pool' compiler/src/pipeline/pipeline.sx || {
-  echo "b06 gate FAIL: .sx pipeline missing ast_pool ref" >&2
+grep -q 'ast_pool' compiler/src/parser/parser.x || grep -q 'ast_pool' compiler/src/pipeline/pipeline.x || {
+  echo "b06 gate FAIL: .x pipeline missing ast_pool ref" >&2
   exit 1
 }
 chmod +x tests/run-pool-limits.sh

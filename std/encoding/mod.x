@@ -1,0 +1,276 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.encoding — UTF-8/ASCII 编解码与校验（对标 Zig/Rust，性能压榨）
+//
+// 【文件职责】UTF-8 单遍校验/码点计数/rune 编解码；ASCII
+// 分类与大小写；hex 编解码与 std.string 门面（STD-040）。无堆分配，表驱动。
+// 【依赖】core；std.base64；std.string；与 std/encoding/encoding.x 同属一模块（F-encoding v1）。
+
+const base64_mod = import("std.base64");
+const string_mod = import("std.string");
+
+extern function encoding_utf8_valid_c(p: *u8, len: i32): i32;
+extern function encoding_utf8_len_chars_c(p: *u8, len: i32): i32;
+extern function encoding_utf8_encode_rune_c(r: u32, out: *u8): i32;
+extern function encoding_utf8_decode_rune_c(p: *u8, len: i32, out_r: *u32): i32;
+extern function encoding_ascii_is_alpha_c(c: u8): i32;
+extern function encoding_ascii_is_digit_c(c: u8): i32;
+extern function encoding_ascii_is_alnum_c(c: u8): i32;
+extern function encoding_ascii_is_lower_c(c: u8): i32;
+extern function encoding_ascii_is_upper_c(c: u8): i32;
+extern function encoding_ascii_to_lower_c(c: u8): u8;
+extern function encoding_ascii_to_upper_c(c: u8): u8;
+extern function encoding_hex_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_hex_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_hex_encoded_len_c(src_len: i32): i32;
+extern function encoding_base32_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_base32_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_percent_encode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_percent_decode_c(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32;
+extern function encoding_extra_smoke_c(): i32;
+
+/** UTF-8 校验 ptr[0..len)；合法返回 1，非法返回 0。单遍、表驱动。 */
+function utf8_valid(ptr: *u8, len: i32): i32 {
+  unsafe {
+    return encoding_utf8_valid_c(ptr, len);
+  }
+}
+
+/** UTF-8 码点个数；非法序列返回 -1。 */
+function utf8_len_chars(ptr: *u8, len: i32): i32 {
+  unsafe {
+    return encoding_utf8_len_chars_c(ptr, len);
+  }
+}
+
+/** 将码点 r 编码到 out，返回写入字节数 1..4，非法 r 返回 0。 */
+function utf8_encode_rune(r: u32, out: *u8): i32 {
+  unsafe {
+    return encoding_utf8_encode_rune_c(r, out);
+  }
+}
+
+/** 从 ptr 解码一个 rune 到 *out_r，返回消费字节数 1..4，非法返回 0。 */
+function utf8_decode_rune(ptr: *u8, len: i32, out_r: *u32): i32 {
+  unsafe {
+    return encoding_utf8_decode_rune_c(ptr, len, out_r);
+  }
+}
+
+/** ASCII 字母判定。 */
+function ascii_is_alpha(c: u8): i32 {
+  unsafe {
+    return encoding_ascii_is_alpha_c(c);
+  }
+}
+
+/** ASCII 数字判定。 */
+function ascii_is_digit(c: u8): i32 {
+  unsafe {
+    return encoding_ascii_is_digit_c(c);
+  }
+}
+
+/** ASCII 字母或数字判定。 */
+function ascii_is_alnum(c: u8): i32 {
+  unsafe {
+    return encoding_ascii_is_alnum_c(c);
+  }
+}
+
+/** ASCII 小写字母判定。 */
+function ascii_is_lower(c: u8): i32 {
+  unsafe {
+    return encoding_ascii_is_lower_c(c);
+  }
+}
+
+/** ASCII 大写字母判定。 */
+function ascii_is_upper(c: u8): i32 {
+  unsafe {
+    return encoding_ascii_is_upper_c(c);
+  }
+}
+
+/** ASCII 转小写。 */
+function ascii_to_lower(c: u8): u8 {
+  unsafe {
+    return encoding_ascii_to_lower_c(c);
+  }
+}
+
+/** ASCII 转大写。 */
+function ascii_to_upper(c: u8): u8 {
+  unsafe {
+    return encoding_ascii_to_upper_c(c);
+  }
+}
+
+/** 原始字节缓冲 hex 编码（小写）；返回写入字符数或 -1（STD-040）。 */
+function hex_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return encoding_hex_encode_c(src, src_len, out, out_cap);
+  }
+}
+
+/** hex 解码；返回写入字节数，非法输入 -1。 */
+function hex_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return encoding_hex_decode_c(src, src_len, out, out_cap);
+  }
+}
+
+/** hex 编码输出长度上界（src_len 为输入字节数）。 */
+function hex_encoded_len(src_len: i32): i32 {
+  unsafe {
+    return encoding_hex_encoded_len_c(src_len);
+  }
+}
+
+/** hex 解码输出字节数上界（hex_len 为 hex 字符数；奇数或负返回 -1）。 */
+function hex_decoded_len(hex_len: i32): i32 {
+  if (hex_len < 0 || (hex_len & 1) != 0) {
+    return -1;
+  }
+  return hex_len / 2;
+}
+
+/** 将原始字节 hex 编码写入 String（清空后写入）；成功 0，失败 -1（STD-040）。 */
+function encode_hex_string(src: *u8, src_len: i32, out: *String): i32 {
+  let need: i32 = hex_encoded_len(src_len);
+  let cap: i32 = string_mod.string_capacity();
+  if (need < 0 || need > cap) {
+    return -1;
+  }
+  string_mod.string_clear(out);
+  let n: i32 = hex_encode(src, src_len, string_mod.string_data_ptr(out), cap);
+  if (n < 0) {
+    return -1;
+  }
+  unsafe {
+    out.len = n;
+  }
+  return 0;
+}
+
+/** 从 StrView hex 解码到 out 缓冲；返回写入字节数，非法 -1（STD-040）。 */
+function decode_hex_string(hex: StrView, out: *u8, out_cap: i32): i32 {
+  return hex_decode(hex.ptr, hex.len, out, out_cap);
+}
+
+/** 将原始字节标准 Base64 编码写入 String；成功 0，失败 -1（委托 std.base64）。 */
+function encode_base64_string(src: *u8, src_len: i32, out: *String): i32 {
+  let cap: i32 = string_mod.string_capacity();
+  if (src_len < 0) {
+    return -1;
+  }
+  string_mod.string_clear(out);
+  let n: i32 = base64_mod.encode_standard(src, src_len, string_mod.string_data_ptr(out), cap);
+  if (n < 0) {
+    return -1;
+  }
+  unsafe {
+    out.len = n;
+  }
+  return 0;
+}
+
+/** 从 StrView 标准 Base64 解码；返回写入字节数，非法 -1（委托 std.base64）。 */
+function decode_base64_string(b64: StrView, out: *u8, out_cap: i32): i32 {
+  return base64_mod.decode_standard(b64.ptr, b64.len, out, out_cap);
+}
+
+/* --- STD-127：Base32 / percent / URL-Base64 门面 --- */
+
+/** RFC 4648 Base32 编码（含填充）；返回写入字符数，失败 -1。 */
+function base32_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return encoding_base32_encode_c(src, src_len, out, out_cap);
+  }
+}
+
+/** RFC 4648 Base32 解码；返回写入字节数，非法 -1。 */
+function base32_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return encoding_base32_decode_c(src, src_len, out, out_cap);
+  }
+}
+
+/** percent 编码（unreserved 保留）；返回写入长度，失败 -1。 */
+function percent_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return encoding_percent_encode_c(src, src_len, out, out_cap);
+  }
+}
+
+/** percent 解码；返回写入字节数，非法 -1。 */
+function percent_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return encoding_percent_decode_c(src, src_len, out, out_cap);
+  }
+}
+
+/** 将原始字节 Base32 编码写入 String；成功 0，失败 -1。 */
+function encode_base32_string(src: *u8, src_len: i32, out: *String): i32 {
+  let cap: i32 = string_mod.string_capacity();
+  if (src_len < 0) {
+    return -1;
+  }
+  string_mod.string_clear(out);
+  let n: i32 = base32_encode(src, src_len, string_mod.string_data_ptr(out), cap);
+  if (n < 0) {
+    return -1;
+  }
+  unsafe {
+    out.len = n;
+  }
+  return 0;
+}
+
+/** 从 StrView Base32 解码；返回写入字节数，非法 -1。 */
+function decode_base32_string(b32: StrView, out: *u8, out_cap: i32): i32 {
+  return base32_decode(b32.ptr, b32.len, out, out_cap);
+}
+
+/** 将原始字节 URL Base64 编码写入 String；成功 0，失败 -1。 */
+function encode_url_base64_string(src: *u8, src_len: i32, out: *String): i32 {
+  let cap: i32 = string_mod.string_capacity();
+  if (src_len < 0) {
+    return -1;
+  }
+  string_mod.string_clear(out);
+  let n: i32 = base64_mod.encode_url(src, src_len, string_mod.string_data_ptr(out), cap);
+  if (n < 0) {
+    return -1;
+  }
+  unsafe {
+    out.len = n;
+  }
+  return 0;
+}
+
+/** 从 StrView URL Base64 解码；返回写入字节数，非法 -1。 */
+function decode_url_base64_string(b64: StrView, out: *u8, out_cap: i32): i32 {
+  return base64_mod.decode_url(b64.ptr, b64.len, out, out_cap);
+}
+
+/** STD-127 C 烟测门面；成功 0。 */
+function extra_smoke(): i32 {
+  unsafe {
+    return encoding_extra_smoke_c();
+  }
+}

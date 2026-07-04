@@ -11,7 +11,7 @@ else
   make -C compiler -q shux-c 2>/dev/null || true
 fi
 ensure_std_c_o ../std/net/net.o
-# net.o 合并 workers.sx，链入时依赖 thread.o
+# net.o 合并 workers.x，链入时依赖 thread.o
 ensure_std_c_o ../std/thread/thread.o
 # Linux UDP batch / accept workers 胶层（net.o 内引用 shu_net_* / thread_create_c）
 ensure_runtime_net_udp_batch_o
@@ -30,10 +30,10 @@ LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
 
 # shux_asm -o 直链失败时（旧 link_abi 未按需链 net.o）回退 gcc 手动链。
 net_link_exe() {
-  local sx="$1"
+  local x="$1"
   local exe="$2"
   local errf="/tmp/shux_net_link_err.$$"
-  if "$LINK_SHUX" -L . "$sx" -o "$exe" 2>"$errf"; then
+  if "$LINK_SHUX" -L . "$x" -o "$exe" 2>"$errf"; then
     rm -f "$errf"
     return 0
   fi
@@ -41,7 +41,7 @@ net_link_exe() {
     echo "run-net: $LINK_SHUX -o failed, fallback net_asm_gcc_link" >&2
     cat "$errf" >&2 || true
     rm -f "$errf"
-    net_asm_gcc_link "$LINK_SHUX" "$sx" "$exe"
+    net_asm_gcc_link "$LINK_SHUX" "$x" "$exe"
     return $?
   fi
   cat "$errf" >&2
@@ -49,11 +49,11 @@ net_link_exe() {
   return 1
 }
 
-net_link_exe tests/net/main.sx /tmp/shux_net
+net_link_exe tests/net/main.x /tmp/shux_net
 exitcode=0; /tmp/shux_net >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0, got $exitcode"; exit 1; }
 
-net_link_exe tests/net/udp_batch_buf.sx /tmp/shux_net_udp
+net_link_exe tests/net/udp_batch_buf.x /tmp/shux_net_udp
 exitcode=0; /tmp/shux_net_udp >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (udp_recv_many_buf/udp_send_many_buf), got $exitcode"; exit 1; }
 

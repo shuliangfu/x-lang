@@ -1,5 +1,5 @@
 # std.fs Tier-S stable public API (import std.fs)
-# One symbol per line; run-std-fs-api-gate.sh greps std/fs/mod.sx
+# One symbol per line; run-std-fs-api-gate.sh greps std/fs/mod.x
 # Updated: 2026-06-27 (S9 API 简写)
 invalid
 chunk_size

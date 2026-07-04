@@ -2,8 +2,8 @@
 # 列：item_id	kind	anchor	notes
 fcache_doc	doc	analysis/phase-f-cache-v1.md	F-cache v1
 fcache_gate	gate	tests/run-f-cache-v1-gate.sh	聚合门禁
-ca_sx	file	std/cache/cache.sx	模块 .sx
+ca_x	file	std/cache/cache.x	模块 .x
 ca_glue_absent	absent	std/cache/cache_glue.c	v2 已删
-ca_mod	file	std/cache/mod.sx	对外 API
+ca_mod	file	std/cache/mod.x	对外 API
 ca_c_absent	absent	std/cache/cache.c	已删除
-makefile	makefile	compiler/Makefile	cache.o 纯 .sx
+makefile	makefile	compiler/Makefile	cache.o 纯 .x

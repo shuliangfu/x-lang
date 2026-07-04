@@ -18,4 +18,4 @@ make -C compiler src/runtime_link_abi.o src/runtime_driver_no_c.o
 ## 延后（E-04 v17+）
 
 - `invoke_cc` fork/exec 主体迁入 `runtime_link_abi`
-- `main.c` → crt0 / main.sx 全入口
+- `main.c` → crt0 / main.x 全入口

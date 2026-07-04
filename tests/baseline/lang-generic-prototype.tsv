@@ -1,7 +1,7 @@
 # LANG-003 generic prototype catalog
 # 列：capability	pipeline	status	notes
 # min_capabilities	4
-mono_local	shux|shux-c	done	tests/generic/main.sx
-typeck_arity	shux|shux-c	done	wrong_type_args.sx
+mono_local	shux|shux-c	done	tests/generic/main.x
+typeck_arity	shux|shux-c	done	wrong_type_args.x
 mono_import	shux-c	done	multi-file-generic
-bench_loop	shux|shux-c	prototype	generic_id_i32.sx
+bench_loop	shux|shux-c	prototype	generic_id_i32.x

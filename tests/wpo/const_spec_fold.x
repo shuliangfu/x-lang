@@ -1,0 +1,9 @@
+// const_spec_fold.x — WPO-S2 asm：scale(1024,64) 应编译期 fold，_main 无 bl _scale
+/** 两参标量 binop；main 直接 return 其 fold 结果减 65536。 */
+function scale(n: i32, k: i32): i32 {
+  return n * k;
+}
+
+function main(): i32 {
+  return scale(1024, 64) - 65536;
+}

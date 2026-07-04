@@ -1,8 +1,8 @@
 /**
  * csv_import_alias.c — import binding `-o` 链接桩
  *
- * csv.sx 已导出 std_csv_next_field / std_csv_unescape；
- * mod.sx 的 escape 仍未 co-emit，本 TU 仅保留 std_csv_escape 补位。
+ * csv.x 已导出 std_csv_next_field / std_csv_unescape；
+ * mod.x 的 escape 仍未 co-emit，本 TU 仅保留 std_csv_escape 补位。
  */
 #include <stdint.h>
 

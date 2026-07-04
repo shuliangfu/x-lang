@@ -1,7 +1,7 @@
 /**
  * runtime_math_libm.c — libm / fenv 胶层（F-ZC：自 std/math/math_libm_glue.c 迁入）
  *
- * floor/sin/sqrt/erf 等 libm 转发与 fenv；常量/signum/special_smoke 在 math.sx；与 math.o 一并链入（须 -lm）。
+ * floor/sin/sqrt/erf 等 libm 转发与 fenv；常量/signum/special_smoke 在 math.x；与 math.o 一并链入（须 -lm）。
  */
 #include <stdint.h>
 #include <math.h>
@@ -71,7 +71,7 @@ double math_log_c(double x) { return log(x); }
 /** libm：绝对值。 */
 double math_fabs_c(double x) { return fabs(x); }
 
-/** signum：x>0→1，x<0→-1，x==0→0（自 math.sx 迁至 libm 胶层，供 -E 构建 math.o）。 */
+/** signum：x>0→1，x<0→-1，x==0→0（自 math.x 迁至 libm 胶层，供 -E 构建 math.o）。 */
 double math_signum_c(double x) {
   if (x > 0.0) {
     return 1.0;

@@ -1,9 +1,9 @@
 #!/usr/bin/env perl
-# socketio.sx 语法迁移：++/-- → x = x ± 1；for step i++；字符字面量 → 数字 as u8。
+# socketio.x 语法迁移：++/-- → x = x ± 1；for step i++；字符字面量 → 数字 as u8。
 use strict;
 use warnings;
 
-my $path = shift // 'std/socketio/socketio.sx';
+my $path = shift // 'std/socketio/socketio.x';
 open my $fh, '<', $path or die $!;
 my $src = do { local $/; <$fh> };
 close $fh;

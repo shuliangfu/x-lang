@@ -7,8 +7,8 @@ SHUX="${SHUX:-./compiler/shux-c}"
 
 check_ctfe() {
   local src="$1"
-  local out="/tmp/shux_ctfe_$(basename "$src" .sx)"
-  local log="/tmp/shux_ctfe_$(basename "$src" .sx).log"
+  local out="/tmp/shux_ctfe_$(basename "$src" .x)"
+  local log="/tmp/shux_ctfe_$(basename "$src" .x).log"
   rm -f "$out"
   if ! SHUX_KEEP_C=1 "$SHUX" "$src" -o "$out" >"$log" 2>&1; then
     echo "sroa-ctfe-gate FAIL: compile $src" >&2
@@ -44,7 +44,7 @@ check_ctfe() {
   echo "sroa-ctfe-gate OK $src"
 }
 
-check_ctfe tests/mem/sroa_ctfe_chain.sx
-check_ctfe tests/mem/sroa_ctfe_chain_alias.sx
+check_ctfe tests/mem/sroa_ctfe_chain.x
+check_ctfe tests/mem/sroa_ctfe_chain_alias.x
 
 echo "sroa-ctfe-gate OK (MEM-D3 CTFE chain fold)"

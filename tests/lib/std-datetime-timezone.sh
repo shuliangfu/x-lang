@@ -5,8 +5,8 @@ STD_DATETIME_TIMEZONE_PREFIX="${SHUX_STD135_DATETIME_TIMEZONE_PREFIX:-shux: [SHU
 
 # 校验 manifest 条目；echo 缺失数。
 std_datetime_timezone_symbols_ok() {
-  local mod_sx="$1"
-  local dt_sx="$2"
+  local mod_x="$1"
+  local dt_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path _notes
@@ -15,13 +15,13 @@ std_datetime_timezone_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}" "$mod_x" 2>/dev/null; then
           echo "std-datetime-timezone FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       struct_tz)
-        if ! grep -qE "struct ${anchor}" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "struct ${anchor}" "$mod_x" 2>/dev/null; then
           echo "std-datetime-timezone FAIL: missing struct '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -29,7 +29,7 @@ std_datetime_timezone_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/datetime/datetime_glue.c|std/datetime/datetime.sx) path="$dt_sx" ;;
+          std/datetime/datetime_glue.c|std/datetime/datetime.x) path="$dt_x" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-datetime-timezone FAIL: missing '$anchor' in $path" >&2
@@ -48,7 +48,7 @@ std_datetime_timezone_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
+# 编译并运行 .x 烟测。
 std_datetime_timezone_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -93,5 +93,5 @@ std_datetime_timezone_run_c_smoke() {
 
 # 输出 gate 报告。
 std_datetime_timezone_emit_report() {
-  echo "${STD_DATETIME_TIMEZONE_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
+  echo "${STD_DATETIME_TIMEZONE_PREFIX} status=$1 c=$2 x=$3 skip=$4"
 }

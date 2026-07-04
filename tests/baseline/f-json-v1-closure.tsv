@@ -2,8 +2,8 @@
 # 列：item_id	kind	anchor	notes
 fjson_doc	doc	analysis/phase-f-json-v1.md	F-json v1
 fjson_gate	gate	tests/run-f-json-v1-gate.sh	聚合门禁
-json_sx	file	std/json/json.sx	模块锚点 .sx
-json_mod	file	std/json/mod.sx	对外 API
+json_x	file	std/json/json.x	模块锚点 .x
+json_mod	file	std/json/mod.x	对外 API
 json_c_absent	absent	std/json/json.c	已删除
-json_glue_v1_absent	absent	std/json/json_parse_glue.c	v1 胶层已删（v2 纯 sx）
+json_glue_v1_absent	absent	std/json/json_parse_glue.c	v1 胶层已删（v2 纯 x）
 makefile	makefile	compiler/Makefile	json.o ld -r merge

@@ -30,7 +30,7 @@ function main(): i32 {
 }
 ```
 
-零拷贝读（注意生命周期，见 mod.sx 文件头）：
+零拷贝读（注意生命周期，见 mod.x 文件头）：
 
 ```su
 let s: u8[]<io_read_ptr> = stdin_ptr_slice();

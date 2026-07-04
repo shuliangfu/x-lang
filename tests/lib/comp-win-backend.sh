@@ -35,7 +35,7 @@ comp_win_backend_native_shu() {
 # 探测 shux 是否支持 -backend asm -target Windows MSVC（C-only seed 返回 not available）。
 comp_win_backend_asm_capable() {
   local shux="$1"
-  local sample="${2:-$ROOT/tests/asm/windows_min.sx}"
+  local sample="${2:-$ROOT/tests/asm/windows_min.x}"
   local err=""
   [ -x "$shux" ] && [ -f "$sample" ] || return 1
   err="$("$shux" -backend asm -target "$WIN_TRIPLE" "$sample" 2>&1 >/dev/null || true)"
@@ -83,10 +83,10 @@ comp_win_backend_is_coff_obj() {
 # 编译 Windows COFF .obj；成功时 echo 输出路径。
 comp_win_backend_emit_coff() {
   local shux="$1"
-  local sx="$2"
+  local x="$2"
   local out="$3"
   rm -f "$out" 2>/dev/null || true
-  if ! "$shux" -backend asm -target "$WIN_TRIPLE" -o "$out" "$sx" 2>/dev/null; then
+  if ! "$shux" -backend asm -target "$WIN_TRIPLE" -o "$out" "$x" 2>/dev/null; then
     return 1
   fi
   if ! comp_win_backend_is_coff_obj "$out"; then

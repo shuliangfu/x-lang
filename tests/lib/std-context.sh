@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# std-context.sh — STD-071 manifest 与烟测辅助（F-context v2：纯 context.sx）
+# std-context.sh — STD-071 manifest 与烟测辅助（F-context v2：纯 context.x）
 
 STD_CONTEXT_PREFIX="${SHUX_STD_CONTEXT_PREFIX:-shux: [SHUX_STD_CONTEXT]}"
 
-# 遍历 manifest 校验 symbol/file/smoke；symbol 在 context.sx。
+# 遍历 manifest 校验 symbol/file/smoke；symbol 在 context.x。
 std_context_symbols_ok() {
-  local mod_sx="$1"
-  local ctx_sx="$2"
+  local mod_x="$1"
+  local ctx_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,7 +15,7 @@ std_context_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-context FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -23,7 +23,7 @@ std_context_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/context/context.c|std/context/context.sx|std/context/context_node_glue.c) path="$ctx_sx" ;;
+          std/context/context.c|std/context/context.x|std/context/context_node_glue.c) path="$ctx_x" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-context FAIL: missing '$anchor' in $path" >&2
@@ -44,11 +44,11 @@ std_context_symbols_ok() {
 
 # C 烟测：context.o + time.o（需 shux-c 产出 context.o）。
 std_context_run_c_smoke() {
-  local ctx_sx="$1"
+  local ctx_x="$1"
   local src="tests/std-context/context_smoke_ok.c"
   local out="/tmp/shux_std_context_$$"
   local ctx_o time_o
-  ctx_o="$(dirname "$ctx_sx")/context.o"
+  ctx_o="$(dirname "$ctx_x")/context.o"
   time_o="std/time/time.o"
   if [ ! -f "$ctx_o" ]; then
     echo "std-context FAIL: missing $ctx_o" >&2
@@ -74,7 +74,7 @@ std_context_run_c_smoke() {
   return 0
 }
 
-# 编译并运行 .sx 烟测。
+# 编译并运行 .x 烟测。
 std_context_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -103,5 +103,5 @@ std_context_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_CONTEXT_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_CONTEXT_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
 }

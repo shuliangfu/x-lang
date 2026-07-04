@@ -1,0 +1,22 @@
+// struct_mk_while_let_inline.x — while 体内 let p: Pair = mk(...); 后接赋值/累加
+struct Pair {
+  a: i32
+  b: i32
+}
+
+/** 由形参构造小 struct 按值返回。 */
+function mk(a: i32, b: i32): Pair {
+  return Pair { a: a, b: b };
+}
+
+function main(): i32 {
+  let n: i32 = 3;
+  let s: i32 = 0;
+  let i: i32 = 0;
+  while (i < n) {
+    let p: Pair = mk(i, 2);
+    s = s + p.a + p.b;
+    i = i + 1;
+  }
+  return s;
+}

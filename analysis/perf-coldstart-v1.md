@@ -26,7 +26,7 @@
 | **T1-exec-latency** | 进程冷启动 startup | strip 后 `hello` 执行 median μs | `hello_stripped_us` | `run-perf-coldstart.sh` |
 | **T2-fs-min** | 最小 freestanding | `return42` 无 std | `fs_return42_stripped_us` | 同上 |
 | **T3-fs-io** | freestanding + syscall | `tests/freestanding/hello` | `fs_hello_stripped_*` | 同上 |
-| **T4-first-compile** | 首编译耗时 | 编译器编 `.sx` median s | `compile-dogfood.tsv` | `PERF-004` |
+| **T4-first-compile** | 首编译耗时 | 编译器编 `.x` median s | `compile-dogfood.tsv` | `PERF-004` |
 | **T5-stripped-size** | 冷启动体积 | stripped bytes cap | `*_stripped_bytes` | 同上 |
 | **T6-ci-wire** | CI 回归 | `run-ci-full-suite.sh` B-BOOT 段 | registry | `ENG-001` |
 
@@ -45,10 +45,10 @@
 
 | metric_id | cap | 样例 |
 |-----------|-----|------|
-| `hello_stripped_us` | 15000 μs | `examples/hello.sx` |
-| `fs_return42_stripped_us` | 1500 μs | `tests/freestanding/return42/main.sx` |
+| `hello_stripped_us` | 15000 μs | `examples/hello.x` |
+| `fs_return42_stripped_us` | 1500 μs | `tests/freestanding/return42/main.x` |
 | `fs_return42_stripped_bytes` | 65536 B | 同上 |
-| `fs_hello_stripped_us` | 2000 μs | `tests/freestanding/hello/main.sx` |
+| `fs_hello_stripped_us` | 2000 μs | `tests/freestanding/hello/main.x` |
 | `fs_hello_stripped_bytes` | 131072 B | 同上 |
 
 更新（须 PR 评审）：

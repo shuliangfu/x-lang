@@ -20,7 +20,7 @@
 |----|------|------|
 | crt0 | `compiler/src/asm/crt0_user_x86_64.s` | 用户 `_start` |
 | syscall .s | `compiler/src/asm/freestanding_io_x86_64.s` | IO/mmap/socket |
-| sys 门面 | `std/sys/linux.sx`、`std/sys/mod.sx` | extern + 薄封装 |
+| sys 门面 | `std/sys/linux.x`、`std/sys/mod.x` | extern + 薄封装 |
 | S4 烟测 | `tests/run-freestanding-hello.sh` | 基线 freestanding |
 
 ## 子 gate 委托链（NL-01 聚合，非 NL-01 本体）

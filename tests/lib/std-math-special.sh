@@ -5,7 +5,7 @@ STD_MATH_SPECIAL_PREFIX="${SHUX_STD115_MATH_SPECIAL_PREFIX:-shux: [SHUX_STD115_M
 
 # 校验 manifest 中 api/symbol/file/smoke。
 std_math_special_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local math_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,7 +15,7 @@ std_math_special_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-math-special FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -24,7 +24,7 @@ std_math_special_symbols_ok() {
         local path="$mod_path"
         case "$path" in
           std/math/math.c|std/math/math_libm_glue.c|compiler/src/asm/runtime_math_libm.c) path="$math_c" ;;
-          std/math/math.sx) path="std/math/math.sx" ;;
+          std/math/math.x) path="std/math/math.x" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-math-special FAIL: missing '$anchor' in $path" >&2
@@ -43,8 +43,8 @@ std_math_special_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测（sx pipeline 暂不能稳定 emit import 调用，typeck 通过即 OK）。
-std_math_special_run_sx_smoke() {
+# 编译并运行 .x 烟测（x pipeline 暂不能稳定 emit import 调用，typeck 通过即 OK）。
+std_math_special_run_x_smoke() {
   local shux="$1"
   local src="$2"
   if ! "$shux" check -L . "$src" >/dev/null 2>&1; then
@@ -81,5 +81,5 @@ std_math_special_run_c_smoke() {
 }
 
 std_math_special_emit_report() {
-  echo "${STD_MATH_SPECIAL_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
+  echo "${STD_MATH_SPECIAL_PREFIX} status=$1 c=$2 x=$3 skip=$4"
 }

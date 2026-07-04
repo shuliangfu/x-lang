@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_LINUX_OPEN_READ_FAIL:-0}
-SX="tests/sys/linux_open_read_smoke.sx"
+X="tests/sys/linux_open_read_smoke.x"
 GATE_FILE="/tmp/shux_linux_open_read_gate.txt"
 OUT="/tmp/shux_linux_open_read.$$.out"
 SHUX="${SHUX:-./compiler/shux-c}"
@@ -27,8 +27,8 @@ fi
 printf 'OK' >"$GATE_FILE"
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$SX" 2>/tmp/shux_linux_open_read.log; then
-  echo "linux-open-read-gate FAIL: compile $SX" >&2
+if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$X" 2>/tmp/shux_linux_open_read.log; then
+  echo "linux-open-read-gate FAIL: compile $X" >&2
   tail -n 10 /tmp/shux_linux_open_read.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

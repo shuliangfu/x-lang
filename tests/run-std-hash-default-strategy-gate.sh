@@ -8,17 +8,17 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-hash-default-strategy-v1.md"
 MANIFEST="tests/baseline/std-hash-default-strategy-manifest.tsv"
 VECTORS="tests/baseline/std-hash-default-strategy.tsv"
-MOD_SX="std/hash/mod.sx"
-HASH_SX="std/hash/hash.sx"
+MOD_X="std/hash/mod.x"
+HASH_X="std/hash/hash.x"
 LIB="tests/lib/std-hash-default-strategy.sh"
-SMOKE_SX="tests/std-hash/default_strategy.sx"
+SMOKE_X="tests/std-hash/default_strategy.x"
 SMOKE_C="tests/std-hash/default_strategy_ok.c"
 
 # shellcheck source=tests/lib/std-hash-default-strategy.sh
 . "$LIB"
 
 echo "=== STD-148: hash default strategy manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$HASH_SX" "$SMOKE_SX" "$SMOKE_C" std/hash/README.md; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$HASH_X" "$SMOKE_X" "$SMOKE_C" std/hash/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-hash-default-strategy gate FAIL: missing $f" >&2
     exit 1
@@ -37,7 +37,7 @@ if ! grep -qF "recommend_hasher_fast" std/hash/README.md 2>/dev/null; then
   exit 1
 fi
 
-sym_miss="$(std_hash_default_strategy_symbols_ok "$MOD_SX" "$HASH_SX" "$MANIFEST" || true)"
+sym_miss="$(std_hash_default_strategy_symbols_ok "$MOD_X" "$HASH_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_hash_default_strategy_emit_report "fail" 0 0 0
   exit 1
@@ -50,7 +50,7 @@ fi
 echo "std-hash-default-strategy registry OK"
 
 C_OK=0
-SX_OK=0
+X_OK=0
 SKIP=0
 SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
@@ -62,28 +62,28 @@ if [ -n "$SHUX_BIN" ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/hash/hash.o
   HASH_O="$(cd compiler && pwd)/../std/hash/hash.o"
-  if std_hash_default_strategy_run_c_smoke "$HASH_SX"; then
+  if std_hash_default_strategy_run_c_smoke "$HASH_X"; then
     C_OK=1
   else
     std_hash_default_strategy_emit_report "fail" 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-hash-default-strategy gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_hash_default_strategy_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_hash_default_strategy_run_sx_smoke "$SHUX_BIN" "$SMOKE_SX" "$HASH_O"; then
-    SX_OK=1
+  if std_hash_default_strategy_run_x_smoke "$SHUX_BIN" "$SMOKE_X" "$HASH_O"; then
+    X_OK=1
   else
     std_hash_default_strategy_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-hash-default-strategy gate SKIP c/sx smoke (no native shux-c)" >&2
+  echo "std-hash-default-strategy gate SKIP c/x smoke (no native shux-c)" >&2
   SKIP=1
 fi
 
-std_hash_default_strategy_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
+std_hash_default_strategy_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
 echo "std-hash-default-strategy gate OK"

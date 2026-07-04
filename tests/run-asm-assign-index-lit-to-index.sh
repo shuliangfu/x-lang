@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 SHUX=${SHUX:-./compiler/shux}
 
-$SHUX tests/asm/assign_index_lit_to_index.sx -o /tmp/shux_asm_assign_index_lit_to_index 2>&1
+$SHUX tests/asm/assign_index_lit_to_index.x -o /tmp/shux_asm_assign_index_lit_to_index 2>&1
 exitcode=0
 /tmp/shux_asm_assign_index_lit_to_index >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 15 ] && { echo "run-asm-assign-index-lit-to-index FAIL: expected exit 15, got $exitcode"; exit 1; }

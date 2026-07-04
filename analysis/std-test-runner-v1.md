@@ -9,7 +9,7 @@
 
 | ID | 交付 |
 |----|------|
-| STD-145 | 统一用例报告格式 + 汇总行 + `.sx` runner API + gate |
+| STD-145 | 统一用例报告格式 + 汇总行 + `.x` runner API + gate |
 
 v1 不自动扫描文件系统；用例由测试 `main` 显式调用 `runner_case` / `runner_skip`，脚本 gate 可 grep 统一行。
 
@@ -24,7 +24,7 @@ v1 不自动扫描文件系统；用例由测试 `main` 显式调用 `runner_cas
 | `runner_skip(name, name_len)` | 输出 `status=skip` |
 | `runner_finish()` | 输出 `shux: [SHUX_TEST_SUMMARY] total=… pass=… fail=… skip=…`；返回 fail 数 |
 
-C 层另有 `test_runner_run_case_c(name, fn)` 供纯 C 烟测；v1 不向 .sx 暴露函数指针 cast。
+C 层另有 `test_runner_run_case_c(name, fn)` 供纯 C 烟测；v1 不向 .x 暴露函数指针 cast。
 
 ---
 
@@ -44,6 +44,6 @@ shux: [SHUX_TEST_SUMMARY] total=2 pass=1 fail=0 skip=1
 ./tests/run-std-test-runner-gate.sh
 ```
 
-烟测：`tests/std-test/runner_smoke.sx`
+烟测：`tests/std-test/runner_smoke.x`
 
 报告：`shux: [SHUX_STD145_TEST_RUNNER]`

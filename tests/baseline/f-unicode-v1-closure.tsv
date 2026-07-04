@@ -2,8 +2,8 @@
 # 列：item_id	kind	anchor	notes
 funicode_doc	doc	analysis/phase-f-unicode-v1.md	F-unicode v1
 funicode_gate	gate	tests/run-f-unicode-v1-gate.sh	聚合门禁
-unicode_sx	file	std/unicode/unicode.sx	模块 .sx
+unicode_x	file	std/unicode/unicode.x	模块 .x
 unicode_glue_absent	absent	std/unicode/unicode_glue.c	v2 已删
-unicode_mod	file	std/unicode/mod.sx	对外 API
+unicode_mod	file	std/unicode/mod.x	对外 API
 unicode_c_absent	absent	std/unicode/unicode.c	已删除
-makefile	makefile	compiler/Makefile	unicode.o 纯 .sx
+makefile	makefile	compiler/Makefile	unicode.o 纯 .x

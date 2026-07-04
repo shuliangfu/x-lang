@@ -1,7 +1,7 @@
 # F-04 v16 std.crypto crypto.c shell manifest
 # 列：item_id	kind	anchor	mod_path	notes
-symbol_mem_eq	symbol	crypto_mem_eq_c	std/crypto/core.sx	常量时间比较
-symbol_sha256	symbol	crypto_sha256_c	std/crypto/core.sx	SHA-256
-symbol_hmac256	symbol	crypto_hmac_sha256_c	std/crypto/core.sx	HMAC-SHA256
+symbol_mem_eq	symbol	crypto_mem_eq_c	std/crypto/core.x	常量时间比较
+symbol_sha256	symbol	crypto_sha256_c	std/crypto/core.x	SHA-256
+symbol_hmac256	symbol	crypto_hmac_sha256_c	std/crypto/core.x	HMAC-SHA256
 symbol_sha512	symbol	crypto_sha512_c	std/crypto/crypto_inc_glue.c	SHA-512 glue
 absent_c	absent	std/crypto/crypto.c	删除 crypto.c

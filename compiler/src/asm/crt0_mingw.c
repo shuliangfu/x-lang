@@ -3,7 +3,7 @@
  *
  * 文件职责：Win64 PE 由默认 CRT 解析命令行后调 main；本 TU 替代 main.c / main_driver.o。
  * 所属模块：compiler asm 运行时；bootstrap-driver-seed 在 Windows/MinGW/MSYS 默认链入。
- * 重要约定：经 runtime_abi 转发至 main.sx 的 main_entry；driver_get_argv_i 仍由 runtime_abi.c 提供。
+ * 重要约定：经 runtime_abi 转发至 main.x 的 main_entry；driver_get_argv_i 仍由 runtime_abi.c 提供。
  */
 #include "runtime_abi.h"
 

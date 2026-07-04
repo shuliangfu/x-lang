@@ -5,7 +5,7 @@ STD_SORT_STABLE_CMP_PREFIX="${SHUX_STD_SORT_STABLE_CMP_PREFIX:-shux: [SHUX_STD_S
 
 # 遍历 manifest TSV，校验 api/symbol/file/smoke。
 std_sort_stable_cmp_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local sort_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,14 +15,14 @@ std_sort_stable_cmp_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-sort-stable-cmp FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ -z "$path" ] || [ "$path" = "std/sort/sort.c" ] || [ "$path" = "std/sort/sort.sx" ]; then
+        if [ -z "$path" ] || [ "$path" = "std/sort/sort.c" ] || [ "$path" = "std/sort/sort.x" ]; then
           path="$sort_c"
         fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
@@ -75,7 +75,7 @@ std_sort_stable_cmp_run_c_smoke() {
   return 0
 }
 
-# .sx 烟测。
+# .x 烟测。
 std_sort_stable_cmp_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -105,5 +105,5 @@ std_sort_stable_cmp_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_SORT_STABLE_CMP_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_SORT_STABLE_CMP_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
 }

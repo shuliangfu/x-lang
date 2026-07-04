@@ -38,22 +38,22 @@ extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t 
 extern int32_t pipeline_asm_block_final_expr_ref_at(struct ast_ASTArena *a, int32_t br);
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *a, int32_t type_ref);
 extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *a, int32_t type_ref, uint8_t *out);
-extern int32_t typeck_sx_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t layout_idx, int32_t depth);
 extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module *m, int32_t idx);
 extern uint8_t pipeline_module_struct_layout_name_byte_at(struct ast_Module *m, int32_t idx, int32_t bi);
 
-/** C AST_EXPR_AWAIT(54) 与 SX EXPR_AS(54) 碰撞；SX EXPR_AWAIT=55。 */
+/** C AST_EXPR_AWAIT(54) 与 X EXPR_AS(54) 碰撞；X EXPR_AWAIT=55。 */
 #define ASM_POOL_KIND_ORD54 54
-#define ASM_POOL_KIND_SX_AWAIT 55
+#define ASM_POOL_KIND_X_AWAIT 55
 
-/** SX pool EXPR_AWAIT(55) 或 C parser await（序 54 且非 as cast）。 */
+/** X pool EXPR_AWAIT(55) 或 C parser await（序 54 且非 as cast）。 */
 static int32_t asm_pool_expr_is_await(struct ast_ASTArena *a, int32_t er) {
     int32_t ko, uop;
     if (!a || er <= 0)
         return 0;
     ko = pipeline_expr_kind_ord_at(a, er);
-    if (ko == ASM_POOL_KIND_SX_AWAIT) {
+    if (ko == ASM_POOL_KIND_X_AWAIT) {
         uop = pipeline_expr_unary_operand_ref_at(a, er);
         return uop > 0 ? 1 : 0;
     }
@@ -76,7 +76,7 @@ static int32_t asm_pool_expr_has_await(struct ast_ASTArena *a, int32_t er) {
     if (ko >= 4 && ko <= 21)
         return asm_pool_expr_has_await(a, pipeline_expr_binop_left_ref_at(a, er)) ||
                asm_pool_expr_has_await(a, pipeline_expr_binop_right_ref_at(a, er));
-    if (ko == 22 || ko == 23 || ko == 24 || ko == ASM_POOL_KIND_ORD54 || ko == ASM_POOL_KIND_SX_AWAIT ||
+    if (ko == 22 || ko == 23 || ko == 24 || ko == ASM_POOL_KIND_ORD54 || ko == ASM_POOL_KIND_X_AWAIT ||
         ko == 51 || ko == 52)
         return asm_pool_expr_has_await(a, pipeline_expr_unary_operand_ref_at(a, er));
     if (ko == 44)
@@ -118,7 +118,7 @@ static int32_t asm_pool_expr_refs_name(struct ast_ASTArena *a, int32_t er, const
     if (ko >= 4 && ko <= 21)
         return asm_pool_expr_refs_name(a, pipeline_expr_binop_left_ref_at(a, er), name, nlen) ||
                asm_pool_expr_refs_name(a, pipeline_expr_binop_right_ref_at(a, er), name, nlen);
-    if (ko == 22 || ko == 23 || ko == 24 || ko == ASM_POOL_KIND_ORD54 || ko == ASM_POOL_KIND_SX_AWAIT ||
+    if (ko == 22 || ko == 23 || ko == 24 || ko == ASM_POOL_KIND_ORD54 || ko == ASM_POOL_KIND_X_AWAIT ||
         ko == 51 || ko == 52)
         return asm_pool_expr_refs_name(a, pipeline_expr_unary_operand_ref_at(a, er), name, nlen);
     if (ko == 44)
@@ -190,7 +190,7 @@ static int32_t asm_pool_type_size_bytes(struct ast_ASTArena *a, struct ast_Modul
                 }
             }
             if (eq) {
-                int32_t sz = typeck_sx_type_size_from_layout_glue(m, a, k, 0);
+                int32_t sz = typeck_x_type_size_from_layout_glue(m, a, k, 0);
                 return sz > 0 ? sz : 8;
             }
         }

@@ -18,7 +18,7 @@ echo "=== LANG-008: lifetime diagnostic manifest ==="
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   analysis/type-region-v1-rfc.md \
   compiler/src/lsp/lsp_diag.c compiler/src/typeck/typeck.c \
-  tests/typeck/slice_lifetime/region_assign_escape.sx; do
+  tests/typeck/slice_lifetime/region_assign_escape.x; do
   if [ ! -f "$f" ]; then
     echo "lang-lifetime-diag gate FAIL: missing $f" >&2
     exit 1

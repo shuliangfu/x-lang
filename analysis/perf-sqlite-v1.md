@@ -14,8 +14,8 @@
 
 ## 2. 用例
 
-- bench：`tests/bench/sqlite_is_available_loop.sx`（100k 次调用）
-- stub 烟测：`tests/stub/sqlite_net_stub.sx`
+- bench：`tests/bench/sqlite_is_available_loop.x`（100k 次调用）
+- stub 烟测：`tests/stub/sqlite_net_stub.x`
 - baseline：`tests/baseline/perf-sqlite.tsv`（`sqlite_is_available_loop` 中位数秒数上限）
 
 ---

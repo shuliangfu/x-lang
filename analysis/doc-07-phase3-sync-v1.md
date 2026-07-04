@@ -30,10 +30,10 @@
 
 | ID | 路径 |
 |----|------|
-| ASYNC-04 | `examples/cookbook/async_net_fs.sx` |
-| DT-01 | `examples/cookbook/datetime_iana.sx` |
-| CMP-02 | `examples/cookbook/compress_stream_br_zs.sx` |
-| DB-02 | `examples/cookbook/sqlite_blob_stream.sx` |
+| ASYNC-04 | `examples/cookbook/async_net_fs.x` |
+| DT-01 | `examples/cookbook/datetime_iana.x` |
+| CMP-02 | `examples/cookbook/compress_stream_br_zs.x` |
+| DB-02 | `examples/cookbook/sqlite_blob_stream.x` |
 
 ---
 

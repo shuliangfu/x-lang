@@ -47,9 +47,9 @@ if [ -f compiler/build_asm/.asm_text_quality ]; then
   fi
 fi
 
-# crt0 产物烟测：return-value（无 SX driver，能力子集）
+# crt0 产物烟测：return-value（无 X driver，能力子集）
 echo "run-bootstrap-bstrict-linux: smoke return-value via crt0 shux_asm ..."
-if ! compiler/shux_asm tests/return-value/main.sx -o /tmp/shux_crt0_rv 2>/dev/null; then
+if ! compiler/shux_asm tests/return-value/main.x -o /tmp/shux_crt0_rv 2>/dev/null; then
   echo "run-bootstrap-bstrict-linux: crt0 shux_asm compile return-value failed (expected on some hosts)" >&2
   exit 1
 fi

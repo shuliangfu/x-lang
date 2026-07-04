@@ -1,10 +1,10 @@
 #!/bin/sh
 # shux-build.sh — 统一构建入口（G-05: 替代 Makefile）
 # 用法: ./shux-build.sh <target>
-# 目标: all, clean, test, test_c, test_sx, kernel, kernel-*, bootstrap-*
+# 目标: all, clean, test, test_c, test_x, kernel, kernel-*, bootstrap-*
 #
-# build.sx + build_tool 处理编译器构建；本脚本处理测试与内核 gate。
-# 最终目标：Makefile 可删除，本脚本 + build.sx 为唯一入口。
+# build.x + build_tool 处理编译器构建；本脚本处理测试与内核 gate。
+# 最终目标：Makefile 可删除，本脚本 + build.x 为唯一入口。
 
 set -e
 cd "$(dirname "$0")"
@@ -27,8 +27,8 @@ case "$TARGET" in
   test_c)
     make -C compiler test_c
     ;;
-  test_sx)
-    make -C compiler test_sx
+  test_x)
+    make -C compiler test_x
     ;;
   bootstrap-lexer)
     make -C compiler bootstrap-lexer
@@ -42,9 +42,9 @@ case "$TARGET" in
     sh tests/kernel/run-kernel-gate.sh
     ;;
   kernel-build)
-    : ${SX:?Usage: shux-build.sh kernel-build SX=file.sx [ELF=out.elf]}
+    : ${X:?Usage: shux-build.sh kernel-build X=file.x [ELF=out.elf]}
     : ${ELF:=kernel.elf}
-    sh tests/kernel/build-kernel.sh "$SX" "$ELF"
+    sh tests/kernel/build-kernel.sh "$X" "$ELF"
     ;;
   kernel-check)
     sh tests/kernel/static-check-gate.sh
@@ -109,11 +109,11 @@ case "$TARGET" in
     echo "  clean            清理构建产物"
     echo "  test             全量测试"
     echo "  test_c           C 前端测试"
-    echo "  test_sx          .sx 自举测试"
+    echo "  test_x          .x 自举测试"
     echo ""
     echo "内核 (QEMU):"
     echo "  kernel           跑全部 30 个 QEMU 内核测试"
-    echo "  kernel-build SX= 构建单个内核 ELF"
+    echo "  kernel-build X= 构建单个内核 ELF"
     echo "  kernel-check     ELF 静态检查"
     echo "  kernel-longmode  x86_64 长模式启动"
     echo "  kernel-multiboot2 Multiboot2 头验证"

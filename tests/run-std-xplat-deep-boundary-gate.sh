@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-xplat-deep-boundary-v1.md"
 MANIFEST="tests/baseline/std-xplat-deep-boundary.tsv"
 LIB="tests/lib/std-xplat-deep-boundary.sh"
-SMOKE="tests/xplat/deep_boundary.sx"
+SMOKE="tests/xplat/deep_boundary.x"
 MIN_ROWS=8
 MIN_SMOKE_CASES=6
 . "$LIB"

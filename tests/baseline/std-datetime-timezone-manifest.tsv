@@ -1,11 +1,11 @@
 # STD-135 std.datetime timezone manifest
 min_apis	6
-struct_tz	symbol	TimeZone	std/datetime/mod.sx
-api_from_name	api	timezone_from_name	std/datetime/mod.sx
-api_parse_offset	api	parse_offset_min	std/datetime/mod.sx
-api_to_zoned	api	to_zoned_fields	std/datetime/mod.sx
-api_from_zoned	api	from_zoned_fields	std/datetime/mod.sx
-api_smoke	api	timezone_smoke	std/datetime/mod.sx
-symbol_smoke_c	symbol	datetime_timezone_smoke_c	std/datetime/datetime.sx
-smoke_sx	smoke	tests/std-datetime/timezone.sx
+struct_tz	symbol	TimeZone	std/datetime/mod.x
+api_from_name	api	timezone_from_name	std/datetime/mod.x
+api_parse_offset	api	parse_offset_min	std/datetime/mod.x
+api_to_zoned	api	to_zoned_fields	std/datetime/mod.x
+api_from_zoned	api	from_zoned_fields	std/datetime/mod.x
+api_smoke	api	timezone_smoke	std/datetime/mod.x
+symbol_smoke_c	symbol	datetime_timezone_smoke_c	std/datetime/datetime.x
+smoke_x	smoke	tests/std-datetime/timezone.x
 gate	script	run-std-datetime-timezone-gate.sh	tests/run-std-datetime-timezone-gate.sh

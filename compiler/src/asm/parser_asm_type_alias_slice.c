@@ -7,7 +7,7 @@
 #ifndef PARSER_ASM_TYPE_ALIAS_SLICE_INCLUDED
 #define PARSER_ASM_TYPE_ALIAS_SLICE_INCLUDED
 
-/** 与 parser.sx TypeAliasResult（allow(padding)）布局一致。 */
+/** 与 parser.x TypeAliasResult（allow(padding)）布局一致。 */
 struct parser_asm_type_alias_result {
   int32_t ok;
   uint8_t _pad[4];

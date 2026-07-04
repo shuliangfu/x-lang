@@ -1,14 +1,14 @@
 # 阶段 F-ffi v1（std.ffi 去 C + F-ZC）
 
-> **F-ffi v1**：删除 **`ffi.c`**；CString/point/回调在 **`ffi.sx`**；**F-ZC** 删除 **`ffi_cb_glue.c`**，回调经 **句柄 dispatch**（`FFI_CB_HANDLE_DOUBLE_I32`）。
+> **F-ffi v1**：删除 **`ffi.c`**；CString/point/回调在 **`ffi.x`**；**F-ZC** 删除 **`ffi_cb_glue.c`**，回调经 **句柄 dispatch**（`FFI_CB_HANDLE_DOUBLE_I32`）。
 
 ## 变更
 
 | 项 | 前 | v1 | F-ZC |
 |----|----|-----|------|
-| 实现 | `ffi.c` | `ffi.sx` + glue | **纯 `.sx`** |
+| 实现 | `ffi.c` | `ffi.x` + glue | **纯 `.x`** |
 | 回调 invoke | C fn-ptr | `ffi_cb_glue.c` | **handle dispatch** |
-| `ffi.o` | `cc -c ffi.c` | `ld -r` | **纯 `.sx`** |
+| `ffi.o` | `cc -c ffi.c` | `ld -r` | **纯 `.x`** |
 
 ## 门禁
 

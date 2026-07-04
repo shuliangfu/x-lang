@@ -1,13 +1,13 @@
 # CORE-007 core.str manifest
 # 列：item_id	kind	anchor	notes
 min_view_apis	1
-bytes_view_struct	symbol	BytesView	core/str/mod.sx
-bytes_view	symbol	bytes_view	core/str/mod.sx
-bytes_view_from_slice	symbol	bytes_view_from_slice	core/str/mod.sx
-bytes_view_subview	symbol	bytes_view_subview	core/str/mod.sx
-bytes_view_eq	symbol	bytes_view_eq	core/str/mod.sx
-bytes_view_eq_bytes	symbol	bytes_view_eq_bytes	core/str/mod.sx
-test_smoke	file	tests/str/bytes_view.sx	烟测
+bytes_view_struct	symbol	BytesView	core/str/mod.x
+bytes_view	symbol	bytes_view	core/str/mod.x
+bytes_view_from_slice	symbol	bytes_view_from_slice	core/str/mod.x
+bytes_view_subview	symbol	bytes_view_subview	core/str/mod.x
+bytes_view_eq	symbol	bytes_view_eq	core/str/mod.x
+bytes_view_eq_bytes	symbol	bytes_view_eq_bytes	core/str/mod.x
+test_smoke	file	tests/str/bytes_view.x	烟测
 doc	file	core-str-view-v1.md	analysis/core-str-view-v1.md	RFC
 cross_std_strview	cross_ref	std-strview-zc4-v1.md	STD-016 对齐
 gate	script	run-core-str-view-gate.sh	tests/run-core-str-view-gate.sh	manifest

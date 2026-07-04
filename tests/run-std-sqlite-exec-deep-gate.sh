@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD065_DOC:-analysis/std-sqlite-exec-deep-v1.md}"
 MANIFEST="${SHUX_STD065_TSV:-tests/baseline/std-sqlite-exec-deep.tsv}"
 VECTORS="${SHUX_STD065_VECTORS:-tests/baseline/std-sqlite-exec-deep-vectors.tsv}"
-MOD_SX="std/db/sqlite/mod.sx"
-DB_C="std/db/sqlite/sqlite.sx"
+MOD_X="std/db/sqlite/mod.x"
+DB_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-exec-deep.sh"
-SMOKE_SX="tests/std-sqlite/exec_tx_roundtrip.sx"
+SMOKE_X="tests/std-sqlite/exec_tx_roundtrip.x"
 SMOKE_C="tests/std-sqlite/exec_tx_roundtrip_ok.c"
 MIN_TX=3
 
@@ -20,7 +20,7 @@ MIN_TX=3
 std_sqlite_exec_deep_source_sqlite
 
 echo "=== STD-065: db exec deep manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$DB_C" "$SMOKE_SX" "$SMOKE_C" \
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
   analysis/std-sqlite-v1.md tests/run-std-sqlite-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-exec-deep gate FAIL: missing $f" >&2
@@ -69,7 +69,7 @@ if [ "$API_N" -lt "$MIN_TX" ]; then
   exit 1
 fi
 
-sym_miss="$(std_sqlite_exec_deep_symbols_ok "$MOD_SX" "$DB_C" "$MANIFEST" || true)"
+sym_miss="$(std_sqlite_exec_deep_symbols_ok "$MOD_X" "$DB_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_sqlite_exec_deep_emit_report "fail" 0 0 0
   exit 1
@@ -87,7 +87,7 @@ chmod +x tests/run-std-sqlite-gate.sh
 SHUX_STD_SQLITE_SQLITE_MANIFEST_ONLY=1 ./tests/run-std-sqlite-gate.sh
 
 TX_C=0
-TX_SX=0
+TX_X=0
 SKIP=1
 
 if std_sqlite_probe_libs; then
@@ -123,19 +123,19 @@ if std_sqlite_probe_libs; then
   fi
 
   if [ -n "$SHUX_BIN" ]; then
-    echo "=== STD-065: .sx tx smoke (SHUX=$SHUX_BIN) ==="
-    if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-      echo "std-sqlite-exec-deep gate SKIP .sx smoke (typeck fail)" >&2
+    echo "=== STD-065: .x tx smoke (SHUX=$SHUX_BIN) ==="
+    if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+      echo "std-sqlite-exec-deep gate SKIP .x smoke (typeck fail)" >&2
       SKIP=1
-    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SX" "tx"; then
-      TX_SX=1
+    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "tx"; then
+      TX_X=1
       SKIP=0
     else
-      echo "std-sqlite-exec-deep gate SKIP .sx smoke (link/compile)" >&2
+      echo "std-sqlite-exec-deep gate SKIP .x smoke (link/compile)" >&2
       SKIP=1
     fi
   else
-    echo "std-sqlite-exec-deep gate SKIP .sx smoke (no native shux)" >&2
+    echo "std-sqlite-exec-deep gate SKIP .x smoke (no native shux)" >&2
     SKIP=1
   fi
   std_sqlite_restore_default_o
@@ -146,5 +146,5 @@ else
   ensure_std_c_o ../std/db/sqlite/sqlite.o
 fi
 
-std_sqlite_exec_deep_emit_report "ok" "$TX_C" "$TX_SX" "$SKIP"
+std_sqlite_exec_deep_emit_report "ok" "$TX_C" "$TX_X" "$SKIP"
 echo "std-sqlite-exec-deep gate OK"

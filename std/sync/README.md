@@ -1,7 +1,7 @@
 # std.sync — 互斥锁与同步原语
 
-**模块路径**：`std/sync/`（mod.sx + sync.sx + sync_os_glue.c + sync_lock_diag_tls_glue.c）  
-**依赖**：core（extern C），无其它 .sx 模块。与 std.thread 配合使用。  
+**模块路径**：`std/sync/`（mod.x + sync.x + sync_os_glue.c + sync_lock_diag_tls_glue.c）  
+**依赖**：core（extern C），无其它 .x 模块。与 std.thread 配合使用。  
 **对标**：Rust std::sync::Mutex、Zig Thread.Mutex。
 
 ## API 概览

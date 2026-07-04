@@ -60,7 +60,7 @@ xplat_deep_matrix_rows() {
   echo "$n"
 }
 
-# 编译并运行 .sx 烟测。
+# 编译并运行 .x 烟测。
 xplat_deep_run_smoke() {
   local shux="$1"
   local src="$2"

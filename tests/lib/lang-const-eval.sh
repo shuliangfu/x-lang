@@ -39,8 +39,8 @@ lang_const_eval_resolve_shu() {
   return 2
 }
 
-# 编译运行 .sx 并校验退出码
-lang_const_eval_run_sx() {
+# 编译运行 .x 并校验退出码
+lang_const_eval_run_x() {
   local shux="$1"
   local src="$2"
   local want="$3"
@@ -97,7 +97,7 @@ lang_const_eval_main() {
         want="$(lang_const_eval_want_exit "${notes:-}")"
         RAN=$((RAN + 1))
         echo "── lang-const-eval $item_id (want=$want) ──"
-        if lang_const_eval_run_sx "$SHUX_BIN" "$src" "$want" "$item_id"; then
+        if lang_const_eval_run_x "$SHUX_BIN" "$src" "$want" "$item_id"; then
           echo "lang-const-eval OK $item_id"
         else
           FAILS=$((FAILS + 1))

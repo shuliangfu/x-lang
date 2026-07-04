@@ -37,7 +37,7 @@
 
 **推荐模式**：启动时 `if (sqlite_is_available() == 0) { /* 降级或跳过 DB 功能 */ }`。
 
-烟测：`db_sqlite_stub_smoke_c`（C）、`stub_behavior.sx`（.sx 双模式）。
+烟测：`db_sqlite_stub_smoke_c`（C）、`stub_behavior.x`（.x 双模式）。
 
 ---
 
@@ -48,7 +48,7 @@
 ```
 
 ```
-shux: [SHUX_STD139_DB_STUB] status=ok stub_c=1 stub_sx=1 doc=1
+shux: [SHUX_STD139_DB_STUB] status=ok stub_c=1 stub_x=1 doc=1
 ```
 
 ---

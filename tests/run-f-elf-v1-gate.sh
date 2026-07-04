@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# F-elf v1：std.elf 去 C（elf.c → elf.sx + elf_io_glue.c）。
+# F-elf v1：std.elf 去 C（elf.c → elf.x + elf_io_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_ELF_V1_FAIL:-0}
 DOC="analysis/phase-f-elf-v1.md"
 MANIFEST="tests/baseline/f-elf-v1-closure.tsv"
 die() { echo "f-elf-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-echo "=== F-elf v1: elf.c → elf.sx + io glue ==="
+echo "=== F-elf v1: elf.c → elf.x + io glue ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-elf v1' "$DOC" || die "doc marker"
-[ -f std/elf/elf.sx ] || die "missing elf.sx"
+[ -f std/elf/elf.x ] || die "missing elf.x"
 [ ! -f std/elf/elf_io_glue.c ] || die "elf_io_glue.c should be deleted (F-ZC)"
 [ ! -f std/elf/elf.c ] || die "elf.c should be deleted"
 while IFS=$'\t' read -r item_id kind anchor _n; do
@@ -20,7 +20,7 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
     absent) [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)" ;;
   esac
 done < "$MANIFEST"
-grep -q 'elf.sx' compiler/Makefile || die "Makefile missing elf.sx"
+grep -q 'elf.x' compiler/Makefile || die "Makefile missing elf.x"
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
   make -C compiler ../std/elf/elf.o >/dev/null 2>&1 || die "make elf.o failed"
 else

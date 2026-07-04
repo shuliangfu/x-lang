@@ -3,7 +3,7 @@
 #
 # 1) exc-error-chain-v1.md + manifest
 # 2) std/error ErrorChain API 符号
-# 3) native shux：tests/exc/error_chain_smoke.sx
+# 3) native shux：tests/exc/error_chain_smoke.x
 #
 # 用法：./tests/run-exc-error-chain-gate.sh
 set -e
@@ -11,9 +11,9 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_EXC_ERROR_CHAIN_DOC:-analysis/exc-error-chain-v1.md}"
 MATRIX="${SHUX_EXC_ERROR_CHAIN_TSV:-tests/baseline/exc-error-chain.tsv}"
-ERR_MOD="${SHUX_STD_ERROR_MOD:-std/error/mod.sx}"
+ERR_MOD="${SHUX_STD_ERROR_MOD:-std/error/mod.x}"
 MIN_ITEMS=8
-SMOKE="tests/exc/error_chain_smoke.sx"
+SMOKE="tests/exc/error_chain_smoke.x"
 
 native_shu() {
   local f="$1"

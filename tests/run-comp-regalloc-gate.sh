@@ -18,8 +18,8 @@ MIN_METRICS=9
 echo "=== COMP-005: regalloc strategy manifest ==="
 for f in "$DOC" "$MANIFEST" "$QUALITY" \
   compiler/pipeline_glue.c compiler/src/asm/README.md \
-  tests/asm/binop_return_four_mul.sx tests/asm/binop_return_seven_add.sx \
-  tests/asm/binop_return_fourteen_add.sx tests/asm/binop_if_return_twelve_add.sx \
+  tests/asm/binop_return_four_mul.x tests/asm/binop_return_seven_add.x \
+  tests/asm/binop_return_fourteen_add.x tests/asm/binop_if_return_twelve_add.x \
   tests/run-asm-73-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-regalloc gate FAIL: missing $f" >&2

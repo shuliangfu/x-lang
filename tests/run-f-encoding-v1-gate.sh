@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-encoding v1：std.encoding 去 C（encoding.c → encoding.sx）。
+# F-encoding v1：std.encoding 去 C（encoding.c → encoding.x）。
 #
 # 用法：./tests/run-f-encoding-v1-gate.sh
 # 环境：SHUX_F_ENCODING_V1_FAIL=1 — 失败时硬退出
@@ -16,11 +16,11 @@ die() {
   exit 0
 }
 
-echo "=== F-encoding v1: std.encoding encoding.c → encoding.sx ==="
+echo "=== F-encoding v1: std.encoding encoding.c → encoding.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-encoding v1' "$DOC" || die "doc missing F-encoding v1 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
-[ -f std/encoding/encoding.sx ] || die "missing std/encoding/encoding.sx"
+[ -f std/encoding/encoding.x ] || die "missing std/encoding/encoding.x"
 [ ! -f std/encoding/encoding.c ] || die "std/encoding/encoding.c should be deleted"
 
 while IFS=$'\t' read -r item_id kind anchor _notes; do
@@ -36,7 +36,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-grep -q 'encoding.sx' compiler/Makefile || die "Makefile missing encoding.sx rule"
+grep -q 'encoding.x' compiler/Makefile || die "Makefile missing encoding.x rule"
 if grep -q 'std/encoding/encoding\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/encoding/encoding.c"
 fi

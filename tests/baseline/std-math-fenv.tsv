@@ -5,14 +5,14 @@ read_path	section	## 1. 阅读路径	15min
 fenv_doc	section	## 2. fenv API	fetestexcept
 mask_doc	section	## 3. 异常掩码	FENV_INVALID
 verify	section	## 5. 门禁	gate
-api_test	api	test_exceptions	std/math/mod.sx	读标志
-api_clear	api	clear_exceptions	std/math/mod.sx	清除
-api_raise	api	raise_exceptions	std/math/mod.sx	置位
-const_inv	const	FENV_INVALID	std/math/mod.sx	1
-const_all	const	FENV_ALL	std/math/mod.sx	31
+api_test	api	test_exceptions	std/math/mod.x	读标志
+api_clear	api	clear_exceptions	std/math/mod.x	清除
+api_raise	api	raise_exceptions	std/math/mod.x	置位
+const_inv	const	FENV_INVALID	std/math/mod.x	1
+const_all	const	FENV_ALL	std/math/mod.x	31
 symbol_test_c	symbol	math_fenv_test_c	compiler/src/asm/runtime_math_libm.c	C test
 symbol_smoke_c	symbol	math_fenv_smoke_c	compiler/src/asm/runtime_math_libm.c	C 烟测
 smoke_c	file	tests/std-math/fenv_smoke_ok.c	C 入口
-smoke_sx	smoke	tests/std-math/fenv_clear.sx	.sx clear
+smoke_x	smoke	tests/std-math/fenv_clear.x	.x clear
 lib	script	lib/std-math-fenv.sh	tests/lib/std-math-fenv.sh
 gate	script	run-std-math-fenv-gate.sh	tests/run-std-math-fenv-gate.sh

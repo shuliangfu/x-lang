@@ -43,16 +43,16 @@
 
 ## 新证据：bootstrap-typeck 不是“纯卡死”，而是配方参数失配
 - 以 `8s` 硬超时执行：
-  - `./shux src/typeck/typeck.sx -E > /tmp/typeck_probe.out`
+  - `./shux src/typeck/typeck.x -E > /tmp/typeck_probe.out`
   - 结果：`Alarm clock`，退出码 `142`，stdout/stderr 都是 `0B`
 - 对照正常生成规则执行：
-  - `./shux-c -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.sx -E-extern > /tmp/typeck_probe_extern.out`
+  - `./shux-c -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.x -E-extern > /tmp/typeck_probe_extern.out`
   - 结果：退出 `0`，stdout 约 `304289 bytes`
 - 再用当前 `./shux` 验证兼容参数：
-  - `./shux -L .. -L src -L src/lexer -L src/ast -L src/parser -E -E-extern src/typeck/typeck.sx > /tmp/typeck_probe_target.out`
+  - `./shux -L .. -L src -L src/lexer -L src/ast -L src/parser -E -E-extern src/typeck/typeck.x > /tmp/typeck_probe_target.out`
   - 结果：退出 `0`，stdout 约 `304289 bytes`
-- `codegen.sx` 同样成立：
-  - `./shux -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.sx`
+- `codegen.x` 同样成立：
+  - `./shux -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x`
   - 结果：退出 `0`，stdout 约 `292323 bytes`
 
 ## 结论更新
@@ -65,11 +65,11 @@
    - 使用 `./$(SHUX_C)` 生成 `typeck_gen.c` / `codegen_gen.c`
    - 保留临时文件原子替换，避免失败时污染正式生成物
 6. 继续向前验证后，`bootstrap-typeck` 已越过生成链，新的停点前推到链接阶段。
-7. `nm -u typeck_sx.o` 证据显示仅缺 4 个符号：
+7. `nm -u typeck_x.o` 证据显示仅缺 4 个符号：
    - `typeck_scratch64_slot`
    - `typeck_soa_array_storage_size_glue`
-   - `typeck_sx_type_align_from_layout_glue`
-   - `typeck_sx_type_size_from_layout_glue`
+   - `typeck_x_type_align_from_layout_glue`
+   - `typeck_x_type_size_from_layout_glue`
 8. provider 已确认：
    - `src/ast_pool_l5_bridge.o` 提供 `typeck_scratch64_slot`
    - `build_asm/pipeline_glue_strict_minimal.o` 提供其余 3 个 layout/soa glue
@@ -80,27 +80,27 @@
 ## 最新停点
 - `bootstrap-typeck` 继续前推后，最小补 provider 仍不足，新的未定义显示它实际需要的是更完整的 seed/pipeline link base，而不是散补若干对象。
 - 已确认：
-  - `pipeline_sx.o` 导出
+  - `pipeline_x.o` 导出
     - `pipeline_type_region_label_len_at`
     - `pipeline_typeck_set_active_ctx_c`
     - `pipeline_typeck_func_body_has_implicit_return_tail_c`
     - `pipeline_typeck_ptr_for_addr_of_operand_c`
     - `typeck_soa_array_storage_size_glue`
-    - `typeck_sx_type_size_from_layout_glue`
-    - `typeck_sx_type_align_from_layout_glue`
-  - `typeck_sx_link_alias.o` 导出
-    - `typeck_typeck_sx_ast`
-    - `typeck_typeck_sx_ast_library`
+    - `typeck_x_type_size_from_layout_glue`
+    - `typeck_x_type_align_from_layout_glue`
+  - `typeck_x_link_alias.o` 导出
+    - `typeck_typeck_x_ast`
+    - `typeck_typeck_x_ast_library`
     - 弱版 `pipeline_typeck_set_active_ctx_c`
     - 弱版 `pipeline_typeck_ptr_for_addr_of_operand_c`
 - `Makefile` 现有 `DRIVER_SEED_OBJS` / `DRIVER_SEED_LINK_BASE` 已经包含：
-  - `parser_sx.o lexer_sx.o lexer_sx_link_alias.o typeck_sx.o codegen_sx.o typeck_sx_link_alias.o codegen_sx_link_alias.o`
+  - `parser_x.o lexer_x.o lexer_x_link_alias.o typeck_x.o codegen_x.o typeck_x_link_alias.o codegen_x_link_alias.o`
   - `$(AST_POOL_L5_BRIDGE_O)`
-  - 并配套 `pipeline_sx.o` / `pipeline_bootstrap_orchestration.o`
+  - 并配套 `pipeline_x.o` / `pipeline_bootstrap_orchestration.o`
 
 ## 下一步建议
 1. 不再继续给 `bootstrap-typeck` 散补零碎 provider。
-2. 直接把 `bootstrap-typeck` / `bootstrap-codegen` 的最终链接阶段改为复用成熟的 `seed-compatible` link base（至少要纳入 `pipeline_sx.o + typeck_sx_link_alias.o + DRIVER_SEED_OBJS` 这一套闭环）。
+2. 直接把 `bootstrap-typeck` / `bootstrap-codegen` 的最终链接阶段改为复用成熟的 `seed-compatible` link base（至少要纳入 `pipeline_x.o + typeck_x_link_alias.o + DRIVER_SEED_OBJS` 这一套闭环）。
 3. 继续保持 `15s` 以内硬超时，避免扩大机器负担。
 
 ## 新证据：下一真实停点已前推到 bootstrap-driver-seed
@@ -121,7 +121,7 @@
 ## 新证据：driver-seed 预算主要被 pipeline_gen 伪目标链吃掉
 - 对 `bootstrap-driver-seed` 做 `make -n` 后，发现 `build-seed-asm-host` 本体并不重；真正会拉起整段 legacy `shux-c` 强制重编的是：
   - `build_asm/seed_host/asm_full_link_stubs.o`
-  - `-> pipeline_sx.o`
+  - `-> pipeline_x.o`
   - `-> pipeline_gen.c`
   - `-> bootstrap-pipeline`
   - `-> legacy-shux-c-ready`
@@ -139,9 +139,9 @@
      - `pipeline_gen.c: bootstrap-pipeline`
      - `bootstrap-pipeline` 同时被列入 `LEGACY_SHUX_C_READY_TARGETS`
 - 判断：
-  1. 即使 `pipeline_gen.c` 已存在且走 pinned 分支，凡是经 `pipeline_sx.o` 间接依赖到 `pipeline_gen.c` 的目标，仍会先跑一遍 `bootstrap-pipeline` 这条伪目标链。
+  1. 即使 `pipeline_gen.c` 已存在且走 pinned 分支，凡是经 `pipeline_x.o` 间接依赖到 `pipeline_gen.c` 的目标，仍会先跑一遍 `bootstrap-pipeline` 这条伪目标链。
   2. 这条伪目标链又会无条件触发一次 legacy `shux-c` 的 `-B` 强刷，因此在 Darwin 安全模式下形成“明明没重生 `pipeline_gen.c`，却反复重编 `shux-c`”的额外成本。
-  3. 当前更像是 Makefile 依赖建模问题，而不是 `build_seed_asm_host.sh` 自身在 Darwin 上真的跑了重型 `asm_seed_full.sx -E`。
+  3. 当前更像是 Makefile 依赖建模问题，而不是 `build_seed_asm_host.sh` 自身在 Darwin 上真的跑了重型 `asm_seed_full.x -E`。
 
 ## 新证据：driver/bstrict 链已在 15s 预算内打通
 - 本轮继续沿活跃链把无意义的 legacy `shux-c` 强刷从 `driver_gen.c`、`lsp_*_gen.c`、`driver_*_gen.c`、`preprocess_gen.c`、`ast_gen2.c`、`parser_gen.c`、`lexer_gen.c`、`typeck_gen.c`、`codegen_gen.c`、`cfg_eval.o` 等 pinned 目标上移除，做法与 `pipeline_gen.c` 一致：仅在真正 fallback 到 `shux-c -E/-E-extern` 重生时才显式 `make -B SHUX_LEGACY_C_FRONTEND=1 shux-c`。
@@ -152,11 +152,11 @@
   - `perl -e 'alarm shift; exec @ARGV' 15 make bootstrap-driver-bstrict >/tmp/bootstrap-driver-bstrict.log 2>&1`
   - 日志尾部已稳定出现：
     - `info: build_shux_asm: shux_asm strict OK (...)`
-    - `info: build_shux_asm: B-strict OK - LINK_MODE=asm_only_strict, no pipeline_sx.o in final link`
+    - `info: build_shux_asm: B-strict OK - LINK_MODE=asm_only_strict, no pipeline_x.o in final link`
     - `info: build_shux_asm: M11 OK - full_asm topology + asm_only_strict ...`
     - `shux_asm_postlink_smoke: OK ./shux_asm (-c + -backend c -o exit=42)`
     - `relink-shux OK (shux-c synced)`
-    - `refresh-shux-asm-gate OK (shux_asm <- seed+migrate-sx-objs)`
+    - `refresh-shux-asm-gate OK (shux_asm <- seed+migrate-x-objs)`
     - `bootstrap-driver-bstrict OK (shux_asm -> shux, release default B-strict)`
 - 当前判断：
   1. 当前 `bootstrap-driver-seed` / `bootstrap-driver-bstrict` 已不再是活跃阻塞点。

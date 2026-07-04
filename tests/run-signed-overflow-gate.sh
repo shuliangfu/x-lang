@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/UB与未定义行为.md"
 MANIFEST="tests/baseline/signed-overflow.tsv"
-CASE="tests/ub/unsigned_wrap_ok.sx"
+CASE="tests/ub/unsigned_wrap_ok.x"
 
 echo "=== P1-2: signed overflow policy manifest ==="
 for f in "$DOC" "$MANIFEST" "$CASE"; do
@@ -22,7 +22,7 @@ for kw in "有符号溢出" "无符号整数" "wrapping"; do
     exit 1
   fi
 done
-if ! grep -qF "unsigned_wrap_ok.sx" "$MANIFEST" 2>/dev/null; then
+if ! grep -qF "unsigned_wrap_ok.x" "$MANIFEST" 2>/dev/null; then
   echo "signed-overflow gate FAIL: baseline missing case" >&2
   exit 1
 fi

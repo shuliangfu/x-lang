@@ -2,7 +2,7 @@
  * runtime_time_os.c — 时间与睡眠 OS 胶层（F-ZC：自 std/time/time_os_glue.c 迁入）
  *
  * 提供 time_now_monotonic_ns_c / wall / sleep / RFC3339 / 时区偏移；
- * time.sx 经 extern 调用；与 time.o 一并链入。
+ * time.x 经 extern 调用；与 time.o 一并链入。
  */
 #include <stdint.h>
 #include <stdio.h>

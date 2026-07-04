@@ -1,7 +1,7 @@
 # std.time — 时间与睡眠
 
-**模块路径**：`std/time/`（mod.sx + time.c）  
-**依赖**：core（extern C），无其它 .sx 模块。  
+**模块路径**：`std/time/`（mod.x + time.c）  
+**依赖**：core（extern C），无其它 .x 模块。  
 **对标**：Zig std.time、Rust std::time::Instant/SystemTime/Duration。
 
 ## API 概览
@@ -27,7 +27,7 @@
 - **单调时钟**：Linux/macOS 使用 `clock_gettime(CLOCK_MONOTONIC)`；Windows 使用 `QueryPerformanceCounter`。
 - **墙钟**：Linux/macOS 使用 `clock_gettime(CLOCK_REALTIME)`；Windows 使用 `GetSystemTimePreciseAsFileTime`（100ns 粒度）。
 - **睡眠**：POSIX `nanosleep`；Windows `Sleep(ms)`，不足 1ms 按 1ms 处理。
-- 全平台一套 .sx API，内部由 time.c 条件编译适配。
+- 全平台一套 .x API，内部由 time.c 条件编译适配。
 
 ## 功能完整性（P1 规格）
 

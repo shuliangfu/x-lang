@@ -45,7 +45,7 @@ v1 **不**做覆盖率反馈；仅提供可复现种子与 runner 钩子。
 |----|------|
 | `bench_report_line` | stderr 含 `shux: [SHUX_BENCH] name=smoke` |
 | `fuzz_next_nz` | `fuzz_next` 非零 |
-| `expect_regress` | 既有 `tests/stdtest/main.sx` 仍通过 |
+| `expect_regress` | 既有 `tests/stdtest/main.x` 仍通过 |
 
 ---
 
@@ -56,7 +56,7 @@ v1 **不**做覆盖率反馈；仅提供可复现种子与 runner 钩子。
 ```
 
 ```
-shux: [SHUX_STD_TEST_BENCH_FUZZ] status=ok c_smoke=1 bench_sx=1 fuzz_sx=1 skip=0
+shux: [SHUX_STD_TEST_BENCH_FUZZ] status=ok c_smoke=1 bench_x=1 fuzz_x=1 skip=0
 ```
 
 ---

@@ -1,7 +1,7 @@
 /**
  * runtime_arrow_simd_glue.c — F-ZC：自 std/db 胶层迁入
  *
- * SSE2 / NEON 内核暂留 C；列/batch 生命周期见 std/db/arrow/arrow.sx。
+ * SSE2 / NEON 内核暂留 C；列/batch 生命周期见 std/db/arrow/arrow.x。
  */
 
 #include <stddef.h>
@@ -16,7 +16,7 @@
 #define ARROW_HAVE_NEON 1
 #endif
 
-/** 列内存布局（与 arrow.sx ArrowColumnMem ABI 一致）。 */
+/** 列内存布局（与 arrow.x ArrowColumnMem ABI 一致）。 */
 typedef struct {
     int32_t type_id;
     int32_t length;

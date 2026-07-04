@@ -62,7 +62,7 @@
 |---------|------|------|
 | `case_layout` | `tests/abi/layout_abi.c` | cc 编译运行 exit **0** |
 | `case_slice` | `layout_abi.c` §slice | sizeof=16, offsetof 0/8 |
-| `case_f32_xmm` | `tests/abi/f32_call_xmm_smoke.sx` | xmm gate exit **6**（Linux x86_64） |
+| `case_f32_xmm` | `tests/abi/f32_call_xmm_smoke.x` | xmm gate exit **6**（Linux x86_64） |
 
 ---
 

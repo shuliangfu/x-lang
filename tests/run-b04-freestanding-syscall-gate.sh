@@ -6,10 +6,10 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "=== B-04: freestanding syscall (extern→.s) ==="
-for f in std/sys/linux.sx compiler/src/asm/freestanding_io_x86_64.s analysis/phase-b-completion-v1.md; do
+for f in std/sys/linux.x compiler/src/asm/freestanding_io_x86_64.s analysis/phase-b-completion-v1.md; do
   [ -f "$f" ] || { echo "b04 gate FAIL: missing $f" >&2; exit 1; }
 done
-grep -q 'extern function shux_sys_write' std/sys/mod.sx || { echo "b04 gate FAIL: mod.sx missing extern write" >&2; exit 1; }
+grep -q 'extern function shux_sys_write' std/sys/mod.x || { echo "b04 gate FAIL: mod.x missing extern write" >&2; exit 1; }
 
 if [ "$(uname -s)" = "Linux" ]; then
   chmod +x tests/run-linux-syscall-invoke-gate.sh

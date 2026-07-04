@@ -7,21 +7,21 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_ASYNC_IO_CPS_DOC:-analysis/std-async-io-cps-v1.md}"
 MANIFEST="${SHUX_STD_ASYNC_IO_CPS_TSV:-tests/baseline/std-async-io-cps.tsv}"
-MOD_SX="std/async/mod.sx"
-IO_SX="std/io/mod.sx"
+MOD_X="std/async/mod.x"
+IO_X="std/io/mod.x"
 SCHED_C="compiler/src/asm/runtime_scheduler_glue.c"
-IO_C="std/io/mod.sx"
+IO_C="std/io/mod.x"
 LIB="tests/lib/std-async-io-cps.sh"
-ALIGN_SX="tests/async/io_cps_align.sx"
-IO_URING_SX="tests/async/io_uring_facade.sx"
-EMIT_SX="tests/parser/async_await_io.sx"
+ALIGN_X="tests/async/io_cps_align.x"
+IO_URING_X="tests/async/io_uring_facade.x"
+EMIT_X="tests/parser/async_await_io.x"
 MIN_SYMS=4
 
 # shellcheck source=tests/lib/std-async-io-cps.sh
 . "$LIB"
 
 echo "=== STD-042: async IO CPS manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$IO_SX" "$SCHED_C" "$IO_C" "$ALIGN_SX" "$IO_URING_SX" "$EMIT_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$IO_X" "$SCHED_C" "$IO_C" "$ALIGN_X" "$IO_URING_X" "$EMIT_X"; do
   if [ ! -f "$f" ]; then
     echo "std-async-io-cps gate FAIL: missing $f" >&2
     exit 1
@@ -64,7 +64,7 @@ if [ "$SYM_N" -lt "$MIN_SYMS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_async_io_cps_symbols_ok "$MOD_SX" "$IO_SX" "$SCHED_C" "$IO_C" "$MANIFEST" || true)"
+sym_miss="$(std_async_io_cps_symbols_ok "$MOD_X" "$IO_X" "$SCHED_C" "$IO_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_async_io_cps_emit_report "fail" 0 0 0 0
   echo "std-async-io-cps gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -100,31 +100,31 @@ if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-042: typeck + smoke + emit (SHUX=$SHUX_BIN) ==="
   make -C compiler -q ../std/async/scheduler.o 2>/dev/null || make -C compiler ../std/async/scheduler.o 2>/dev/null || true
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$ALIGN_SX" >/dev/null 2>&1; then
-    echo "std-async-io-cps gate FAIL: typeck $ALIGN_SX" >&2
-    "$SHUX_BIN" check -L . "$ALIGN_SX" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$ALIGN_X" >/dev/null 2>&1; then
+    echo "std-async-io-cps gate FAIL: typeck $ALIGN_X" >&2
+    "$SHUX_BIN" check -L . "$ALIGN_X" 2>&1 | tail -10 >&2 || true
     std_async_io_cps_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if ! "$SHUX_BIN" check -L . "$IO_URING_SX" >/dev/null 2>&1; then
-    echo "std-async-io-cps gate FAIL: typeck $IO_URING_SX" >&2
-    "$SHUX_BIN" check -L . "$IO_URING_SX" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$IO_URING_X" >/dev/null 2>&1; then
+    echo "std-async-io-cps gate FAIL: typeck $IO_URING_X" >&2
+    "$SHUX_BIN" check -L . "$IO_URING_X" 2>&1 | tail -10 >&2 || true
     std_async_io_cps_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_async_io_cps_run_smoke "$SHUX_BIN" "$ALIGN_SX" "align"; then
+  if std_async_io_cps_run_smoke "$SHUX_BIN" "$ALIGN_X" "align"; then
     ALIGN_OK=1
   else
     std_async_io_cps_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_async_io_cps_run_smoke "$SHUX_BIN" "$IO_URING_SX" "io_uring"; then
+  if std_async_io_cps_run_smoke "$SHUX_BIN" "$IO_URING_X" "io_uring"; then
     IO_URING_OK=1
   else
     std_async_io_cps_emit_report "fail" "$ALIGN_OK" 0 0 0
     exit 1
   fi
-  if std_async_io_cps_check_emit "$SHUX_BIN" "$EMIT_SX"; then
+  if std_async_io_cps_check_emit "$SHUX_BIN" "$EMIT_X"; then
     EMIT_OK=1
   else
     std_async_io_cps_emit_report "fail" "$ALIGN_OK" "$IO_URING_OK" 0 0

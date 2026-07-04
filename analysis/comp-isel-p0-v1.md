@@ -19,10 +19,10 @@
 
 | case_id | 文件 | exit | hook | isel 层 |
 |---------|------|------|------|---------|
-| `case_field_p0` | `binop_field_index_fast.sx` | **205** | `run-asm-binop-field-index.sh` | I7 FIELD+INDEX |
-| `case_nested_p0` | `binop_nested_var_return.sx` | **20** | `run-asm-binop-nested-var.sh` | I8 nested VAR |
-| `case_div_index_p0` | `binop_div_index_binop.sx` | **2** | `run-asm-binop-div-index.sh` | I5 div/index |
-| `case_cfg_p0` | `binop_if_plus_eq_merge.sx` | **13** | `run-asm-binop-cfg-merge.sh` | I3 cmp+phi |
+| `case_field_p0` | `binop_field_index_fast.x` | **205** | `run-asm-binop-field-index.sh` | I7 FIELD+INDEX |
+| `case_nested_p0` | `binop_nested_var_return.x` | **20** | `run-asm-binop-nested-var.sh` | I8 nested VAR |
+| `case_div_index_p0` | `binop_div_index_binop.x` | **2** | `run-asm-binop-div-index.sh` | I5 div/index |
+| `case_cfg_p0` | `binop_if_plus_eq_merge.x` | **13** | `run-asm-binop-cfg-merge.sh` | I3 cmp+phi |
 
 bench 扩展见 `comp-isel-bench.tsv`（`bench_field_p0`、`bench_nested_p0`、`bench_div_index_p0`）。
 

@@ -19,7 +19,7 @@
 | **Tier** | S（稳定）/ 实验 / 内部 |
 | **manifest** | `tests/baseline/<name>.tsv` |
 | **gate** | `tests/run-<name>-gate.sh` |
-| **烟测** | `tests/<module>/*.sx` |
+| **烟测** | `tests/<module>/*.x` |
 
 ---
 
@@ -70,7 +70,7 @@ import("std.xxx");
 
 | 项 | 约定 |
 |----|------|
-| **实现语言** | 纯 `.sx` / `xxx.c` + `xxx.o` |
+| **实现语言** | 纯 `.x` / `xxx.c` + `xxx.o` |
 | **C 符号** | `std_xxx_*` / 裸名别名 |
 | **链接** | `ensure_std_c_o` / `STD_AND_PANIC_O` / 按需 |
 | **runtime.c** | 须/无须登记 `*.o` 路径 |
@@ -110,7 +110,7 @@ import("std.xxx");
 **规则核对**
 
 - [ ] 热路径 `-1` 不与比较 API `-1/0/1` 混淆
-- [ ] 新 Layer B 码在 `std/error/mod.sx` 有 `error_base_*`
+- [ ] 新 Layer B 码在 `std/error/mod.x` 有 `error_base_*`
 - [ ] `tests/baseline/std-error-unify.tsv` 已更新（若改错误语义）
 
 ---
@@ -119,8 +119,8 @@ import("std.xxx");
 
 | 类型 | 路径 | 说明 |
 |------|------|------|
-| 烟测 | `tests/.../main.sx` | |
-| 边界 | `tests/.../boundary.sx` | ≥8 case（P0 模块） |
+| 烟测 | `tests/.../main.x` | |
+| 边界 | `tests/.../boundary.x` | ≥8 case（P0 模块） |
 | round-trip | | 若适用 |
 | manifest | `tests/baseline/....tsv` | |
 | gate | `tests/run-...-gate.sh` | |

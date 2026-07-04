@@ -1,4 +1,4 @@
-# 可选：更严自举对比（shux-sx -sx -E 生成 _gen2.c 链 shux-sx2）。
+# 可选：更严自举对比（shux-x -x -E 生成 _gen2.c 链 shux-x2）。
 # 默认不阻塞 PR；手动 workflow_dispatch 或每周 schedule 触发。
 #
 # TEMP: schedule 已暂停（bootstrap-gold 调试中）。
@@ -12,7 +12,7 @@ on:
 
 jobs:
   stage2:
-    name: verify-selfhost-stage2 (shux-sx -sx -E)
+    name: verify-selfhost-stage2 (shux-x -x -E)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

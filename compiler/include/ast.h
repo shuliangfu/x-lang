@@ -2,7 +2,7 @@
  * ast.h — 抽象语法树（AST）节点定义
  *
  * 文件职责：
- *   定义 .sx 源码对应的 AST 节点类型（表达式、函数、模块），供 Parser 构建、Typeck/Codegen 消费。
+ *   定义 .x 源码对应的 AST 节点类型（表达式、函数、模块），供 Parser 构建、Typeck/Codegen 消费。
  * 所属模块：
  *   编译器前端，compiler/include/；被 src/parser、src/typeck、src/codegen、src/ast 引用。
  * 与其它文件的关系：
@@ -389,7 +389,7 @@ typedef struct ASTTryCatchBlock {
 
 /** 块内语句顺序：kind 0=const, 1=let, 2=expr_stmt, 3=loop, 4=for, 5=region, 6=with_arena, 7=try_catch；idx 为对应数组下标；codegen 按此顺序生成保证 let/expr/loop 交错正确。
  * 需足够大以容纳 parse_into 等大块（成功路径含大量 let/loop/expr_stmt），否则写回 block_set/num_funcs++/lex 等被截断。 */
-/** 大函数体（如 typeck.sx check_expr_impl）须 ≥ 语句条数，否则 parse 写回截断。 */
+/** 大函数体（如 typeck.x check_expr_impl）须 ≥ 语句条数，否则 parse 写回截断。 */
 #define MAX_BLOCK_STMT_ORDER 512
 typedef struct ASTBlockStmtOrder {
     unsigned char kind;
@@ -427,7 +427,7 @@ typedef struct ASTBlock {
 } ASTBlock;
 
 /** 函数形参：名称与类型（与 analysis/自举前路线分析.md 多函数 一致）；is_restrict 供 noalias 传递生成 C restrict。 */
-/** C parser 形参/实参数组初始容量；无固定个数上限，按需 realloc grow（与 SX grow 池对齐）。 */
+/** C parser 形参/实参数组初始容量；无固定个数上限，按需 realloc grow（与 X grow 池对齐）。 */
 #define AST_FUNC_PARAMS_INIT 16
 /** @deprecated 旧名；仅表示初始容量，非硬顶。 */
 #define AST_FUNC_MAX_PARAMS AST_FUNC_PARAMS_INIT
@@ -448,7 +448,7 @@ typedef struct ASTFunc {
     int num_params;
     struct ASTType *return_type;
     ASTBlock *body;    /**< 函数体（块）；extern 时为 NULL；普通函数不可为 NULL（main 至少含 final_expr） */
-    int is_extern;     /**< 1 表示 extern "C" 声明，无体，由链接器解析 C 符号；0 表示普通 .sx 函数 */
+    int is_extern;     /**< 1 表示 extern "C" 声明，无体，由链接器解析 C 符号；0 表示普通 .x 函数 */
     int is_async;      /**< 1 表示 async function（P2）；await 仅允许在其体内（A2c） */
     int is_alloc_attr; /**< MEM-C1：1 表示 #[alloc] 标记（块内 scope / 块外 heap 注入，见 analysis §3.4 AL-01/02） */
     int is_naked;      /**< K3：1 表示 #[naked]（无 prologue/epilogue，体须仅 asm!；ISR/入口用） */
@@ -615,7 +615,7 @@ void ast_expr_free(ASTExpr *e);
 
 /**
  * 初始化 EXPR_MATCH 节点的 arms 子结构（num_arms=0，arms=NULL，matched_expr=NULL）。
- * 供 parser 在 .sx 中调用（ast.expr_init_match_enum），确保未初始化字段不会导致
+ * 供 parser 在 .x 中调用（ast.expr_init_match_enum），确保未初始化字段不会导致
  * typeck/codegen 访问垃圾值崩溃。
  * 参数：e 待初始化的 EXPR_MATCH 节点。
  */
@@ -628,8 +628,8 @@ void ast_expr_init_match_enum(ASTExpr *e);
 void ast_type_free(ASTType *t);
 
 /* -------------------------------------------------------------------------- */
-/* Pipeline / .sx AST 竞技场 ABI（struct ast_*）：与 pipeline_gen.c 自举单文件一致。
- * ast_ast_arena_{type,expr,block}_get 由 SX 编译产物按值返回大结构体，在 ARM64 macOS 上
+/* Pipeline / .x AST 竞技场 ABI（struct ast_*）：与 pipeline_gen.c 自举单文件一致。
+ * ast_ast_arena_{type,expr,block}_get 由 X 编译产物按值返回大结构体，在 ARM64 macOS 上
  * 与其它 TU 交错调用时 ABI 不可靠；下列 *_into 由宿主 C 编译器编译，写入调用方缓冲区。
  * 完整定义见 pipeline_gen.c；此处仅为 ast.c 实现的调用约定前置声明。 */
 #endif /* SHUX_AST_H */

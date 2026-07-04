@@ -1,6 +1,6 @@
 (lldb) target create "./shux_asm"
 Current executable set to '/home/shu/shux/compiler/shux_asm' (arm64).
-(lldb) settings set -- target.run-args  "-backend" "asm" "-L" ".." "../std/regex/regex.sx" "-o" "../tests/probes/bootstrap-parser/regex_asm_core.o"
+(lldb) settings set -- target.run-args  "-backend" "asm" "-L" ".." "../std/regex/regex.x" "-o" "../tests/probes/bootstrap-parser/regex_asm_core.o"
 (lldb) run
 Process 83845 launched: '/home/shu/shux/compiler/shux_asm' (arm64)
 Process 83845 stopped

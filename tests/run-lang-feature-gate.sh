@@ -39,8 +39,8 @@ fi
 make -C compiler -q 2>/dev/null || make -C compiler
 chmod +x scripts/shux-lang-edition.sh
 
-ED_STABLE=tests/lang-feature/edition_stable.sx
-FEAT=tests/lang-feature/feature_match.sx
+ED_STABLE=tests/lang-feature/edition_stable.x
+FEAT=tests/lang-feature/feature_match.x
 EXE="/tmp/shux_lang_feat_$$"
 
 run_expect() {

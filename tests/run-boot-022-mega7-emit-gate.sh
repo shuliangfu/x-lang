@@ -62,8 +62,8 @@ while IFS=$'\t' read -r emit_id mega_fn role hook _notes; do
     echo "boot-022 FAIL: doc missing $emit_id" >&2
     MISS=$((MISS + 1))
   fi
-  if ! grep -qE "function ${mega_fn}\\(" compiler/src/parser/parser.sx 2>/dev/null; then
-    echo "boot-022 FAIL: parser.sx missing $mega_fn" >&2
+  if ! grep -qE "function ${mega_fn}\\(" compiler/src/parser/parser.x 2>/dev/null; then
+    echo "boot-022 FAIL: parser.x missing $mega_fn" >&2
     MISS=$((MISS + 1))
   fi
   if [ ! -f "tests/$hook" ]; then

@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # migrate_array_slice_syntax.pl — 将类型语法 T[N] / T[] 批量改为 T[N] / T[]（C 风格）。
 # 不修改数组字面量 [1, 2, 3]、下标 arr[i]、空字面量 = []。
-# 支持 .sx / .md / .c / .h / .sh / .py 等文本源。
+# 支持 .x / .md / .c / .h / .sh / .py 等文本源。
 # 用法：perl scripts/migrate_array_slice_syntax.pl [--check] [path...]
 use strict;
 use warnings;
@@ -18,7 +18,7 @@ for (@ARGV) {
 my @TYPE_KW = qw(u8 i32 i64 u32 u64 usize isize bool f32 f64 void);
 my $tk = join '|', @TYPE_KW;
 
-my @EXT = qw(sx md c h sh py tsv pl mdc);
+my @EXT = qw(x md c h sh py tsv pl mdc);
 my $ext_re = join '|', @EXT;
 
 sub suffix_dims {

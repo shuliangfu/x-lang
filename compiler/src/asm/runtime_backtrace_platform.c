@@ -2,7 +2,7 @@
  * runtime_backtrace_platform.c — 调用栈平台胶层（F-ZC：自 std/backtrace/backtrace_platform_glue.c 迁入）
  *
  * execinfo/dladdr/DbgHelp capture/symbolicate；noinline gold_anchor；
- * SAFE-007 crash evidence 落盘。帧辅助与烟测编排在 backtrace.sx；与 backtrace.o 一并链入。
+ * SAFE-007 crash evidence 落盘。帧辅助与烟测编排在 backtrace.x；与 backtrace.o 一并链入。
  */
 
 #if defined(__linux__) && !defined(_GNU_SOURCE)
@@ -23,7 +23,7 @@
 
 #define BACKTRACE_SYM_NAME_LEN 128
 
-/** 烟测全局状态（原 backtrace.sx 全局 let；seed asm 不支持全局写）。 */
+/** 烟测全局状态（原 backtrace.x 全局 let；seed asm 不支持全局写）。 */
 static int32_t g_sym_capture_mode = 0;
 static int32_t g_sym_capture_result = 0;
 
@@ -251,7 +251,7 @@ int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_t len, uint8_t *out_pt
   return ok;
 }
 
-/** .sx 导出：金样锚点函数地址（烟测 symbolicate 用）。 */
+/** .x 导出：金样锚点函数地址（烟测 symbolicate 用）。 */
 void *backtrace_gold_anchor_addr_c(void) {
   return (void *)&backtrace_gold_anchor_c;
 }

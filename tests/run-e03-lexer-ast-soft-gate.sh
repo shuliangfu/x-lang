@@ -45,7 +45,7 @@ if ! awk '/^else$/,/^endif/' "$MF" | grep -q '^LEXER_LINK_O =$'; then
 fi
 
 # bootstrap 链接行不得硬编码 lexer.o / ast_seed.o
-if grep -E 'bootstrap-driver-seed:|^shux-sx:' "$MF" | grep -qE 'src/lexer/lexer\.o|src/ast/ast_seed\.o'; then
+if grep -E 'bootstrap-driver-seed:|^shux-x:' "$MF" | grep -qE 'src/lexer/lexer\.o|src/ast/ast_seed\.o'; then
   die "Makefile bootstrap link still hardcodes lexer.o or ast_seed.o"
 fi
 

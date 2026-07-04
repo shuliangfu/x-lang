@@ -3,10 +3,10 @@
  *
  * 【文件职责】
  * getenv/setenv、getpid/getppid、getcwd/chdir、self_exe_path、spawn/exec/waitpid/pipe。
- * argc/argv 全局与 args 薄封装见 runtime_process_argv.c + process.sx。
+ * argc/argv 全局与 args 薄封装见 runtime_process_argv.c + process.x。
  *
  * 【所属模块/组件】
- * 标准库 std.process；与 std/process/mod.sx 同目录，mod.sx 为对外 API 层。
+ * 标准库 std.process；与 std/process/mod.x 同目录，mod.x 为对外 API 层。
  *
  * 【与其它文件的关系】
  * - 被依赖：ld -r 合并为 process.o 后由 runtime 链入用户 exe。
@@ -425,7 +425,7 @@ int32_t process_spawn_simple_c(uint8_t *program) {
     return process_spawn_c(program, (uint8_t *)(void *)argv);
 }
 
-/** spawn_io 与 mod.sx SpawnIo 布局一致（三 i32 fd）。 */
+/** spawn_io 与 mod.x SpawnIo 布局一致（三 i32 fd）。 */
 typedef struct {
     int32_t stdin_fd;
     int32_t stdout_fd;

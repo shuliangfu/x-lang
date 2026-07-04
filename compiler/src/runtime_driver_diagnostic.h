@@ -1,7 +1,7 @@
 /**
  * runtime_driver_diagnostic.h — pipeline/typeck/asm 诊断 ABI 声明（Phase E-04 v34）
  *
- * 文件职责：声明 driver_diagnostic_*、parser_diag_*、typeck 诊断 scratch；供 pipeline.sx / typeck.sx / C typeck 链接。
+ * 文件职责：声明 driver_diagnostic_*、parser_diag_*、typeck 诊断 scratch；供 pipeline.x / typeck.x / C typeck 链接。
  * 所属模块：compiler 运行时 driver 诊断；实现于 runtime_driver_diagnostic.c。
  * 与其它文件的关系：依赖 lsp_diag、runtime_driver_abi；不依赖 C 前端头。
  */
@@ -59,7 +59,7 @@ void driver_diagnostic_typeck_import_const_must_be_qualified(int32_t line, int32
                                                              int32_t name_len, const uint8_t *binding,
                                                              int32_t binding_len);
 
-/** typeck.sx 诊断 scratch（勿嵌套于 driver_diagnostic 实参）。 */
+/** typeck.x 诊断 scratch（勿嵌套于 driver_diagnostic 实参）。 */
 uint8_t *driver_typeck_diag_scratch_expect(void);
 uint8_t *driver_typeck_diag_scratch_found(void);
 

@@ -1,7 +1,7 @@
 # COMP-007 编译缓存 / 增量编译策略 v1
 
 > 更新时间：2026-06-17  
-> 状态：**定版（v1 策略 + 原型登记）** — 可测量二次编译；全量 `.sx.dep.o` 缓存为 v2  
+> 状态：**定版（v1 策略 + 原型登记）** — 可测量二次编译；全量 `.x.dep.o` 缓存为 v2  
 > 关联：`OBS-001`（阶段计时）、`PERF-004`（dogfood）、`PERF-010`（冷编译优化）、`COMP-009`（FE/BE 契约）
 
 ---
@@ -46,7 +46,7 @@
 
 | proto_id | 能力 | status | 文件 |
 |----------|------|--------|------|
-| `proto_dep_seed` | dep 预跑跳过 parse | done | `pipeline.sx` |
+| `proto_dep_seed` | dep 预跑跳过 parse | done | `pipeline.x` |
 | `proto_lsp_cache` | 源 hash 模块 cache | done | `lsp_diag.c` |
 | `proto_asm_preserve` | build_asm __text 保留 | done | `build_shux_asm.sh` |
 | `proto_std_prelink` | std 预链 .o | done | `runtime.c` |
@@ -61,11 +61,11 @@
 
 | bench_id | 用例 | 命令 | v1 阈值 |
 |----------|------|------|---------|
-| `bench_double_check` | `loop_i32.sx` | `check` ×2 | second/first ≤ **1.0** |
-| `bench_double_o` | `loop_i32.sx` | `-o` ×2 | second/first ≤ **1.0** |
+| `bench_double_check` | `loop_i32.x` | `check` ×2 | second/first ≤ **1.0** |
+| `bench_double_o` | `loop_i32.x` | `-o` ×2 | second/first ≤ **1.0** |
 | `bench_timing` | 同上 | `SHUX_COMPILE_PHASE_TIMING=1` | 须输出 timing 行 |
 | `bench_make_q` | `compiler/` | `make -q` | exit 0（构建 cache 代理） |
-| `bench_dogfood_check` | `tests/wpo/dead_fn.sx` | `check` ×2 | second/first ≤ **1.1**（扩面 v1） |
+| `bench_dogfood_check` | `tests/wpo/dead_fn.x` | `check` ×2 | second/first ≤ **1.1**（扩面 v1） |
 
 **report 行**：
 
@@ -77,7 +77,7 @@ comp-incr-compile: bench_double_check ratio=0.92 first_ms=120 second_ms=110 OK
 
 ## 5. 非目标（v1）
 
-- 全仓库 `.sx.dep.o` 内容寻址缓存
+- 全仓库 `.x.dep.o` 内容寻址缓存
 - 分布式编译缓存 / 远程 cache
 - Windows 专用增量链接器集成
 

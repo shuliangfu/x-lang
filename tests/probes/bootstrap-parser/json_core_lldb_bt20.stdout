@@ -1,6 +1,6 @@
 (lldb) target create "./shux-c"
 Current executable set to '/home/shu/shux/compiler/shux-c' (arm64).
-(lldb) settings set -- target.run-args  "-E" "-L" ".." "../std/json/json.sx"
+(lldb) settings set -- target.run-args  "-E" "-L" ".." "../std/json/json.x"
 (lldb) run
 Process 72574 launched: '/home/shu/shux/compiler/shux-c' (arm64)
 Process 72574 stopped

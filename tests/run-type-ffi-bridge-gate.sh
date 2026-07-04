@@ -18,7 +18,7 @@ MIN_MAPPINGS=12
 echo "=== TYPE-004: FFI type bridge manifest ==="
 for f in "$DOC" "$MANIFEST" "$MAP" \
   compiler/src/codegen/codegen.c compiler/src/typeck/typeck.c \
-  tests/ffi/putchar.sx tests/ffi/main.sx \
+  tests/ffi/putchar.x tests/ffi/main.x \
   analysis/safe-ffi-contract-v1.md; do
   if [ ! -f "$f" ]; then
     echo "type-ffi-bridge gate FAIL: missing $f" >&2

@@ -17,7 +17,7 @@ export SHUX_NO_MARCH_NATIVE=1
 export CI="${CI:-1}"
 
 compile_out=""
-compile_out=$($RUN_SHUX -L . tests/builtin/main.sx -o /tmp/shux_builtin 2>&1) || {
+compile_out=$($RUN_SHUX -L . tests/builtin/main.x -o /tmp/shux_builtin 2>&1) || {
   gen_c=""
   gen_c=$(echo "$compile_out" | sed -n 's/.*keeping generated C: //p' | tail -1)
   if [ -z "$gen_c" ] || [ ! -f "$gen_c" ]; then
@@ -28,12 +28,12 @@ compile_out=$($RUN_SHUX -L . tests/builtin/main.sx -o /tmp/shux_builtin 2>&1) ||
     gcc -std=gnu11 -O0 -o /tmp/shux_builtin "$gen_c" -lc 2>/dev/null \
       || cc -std=gnu11 -O0 -o /tmp/shux_builtin "$gen_c" -lc || {
       echo "$compile_out" >&2
-      echo "run-builtin FAIL: compile tests/builtin/main.sx" >&2
+      echo "run-builtin FAIL: compile tests/builtin/main.x" >&2
       exit 1
     }
   else
     echo "$compile_out" >&2
-    echo "run-builtin FAIL: compile tests/builtin/main.sx" >&2
+    echo "run-builtin FAIL: compile tests/builtin/main.x" >&2
     exit 1
   fi
 }

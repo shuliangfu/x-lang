@@ -1,12 +1,12 @@
 # 阶段 F-csv v1（std.csv 去 C）
 
-> **F-csv v1**：删除 **`csv.c`**；RFC 4180 解析/写回/流式 smoke 全量在 **`csv.sx`**（零胶层）。
+> **F-csv v1**：删除 **`csv.c`**；RFC 4180 解析/写回/流式 smoke 全量在 **`csv.x`**（零胶层）。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `csv.c`（271 行） | `csv.sx` |
+| 实现 | `csv.c`（271 行） | `csv.x` |
 | `csv.o` | `cc -c` | `shux -backend asm` |
 
 ## 门禁

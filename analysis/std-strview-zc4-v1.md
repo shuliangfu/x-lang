@@ -10,7 +10,7 @@
 
 统一 **StrView 零拷贝视图**与 **ZC-4**（Arena64 / SSO_STACK / subview）的 API 与**生命周期契约**，供 std/fs/path/json 等模块选型。
 
-验收：**生命周期文档** + **manifest gate** + **整合烟测**（`view_lifecycle.sx`）+ 复用 ZC-4 烟测。
+验收：**生命周期文档** + **manifest gate** + **整合烟测**（`view_lifecycle.x`）+ 复用 ZC-4 烟测。
 
 ---
 
@@ -55,7 +55,7 @@
 ## 5. 验收
 
 - manifest：`tests/baseline/std-strview-zc4.tsv`
-- 烟测：`tests/string/view_lifecycle.sx` + ZC-4 三件套（subview / arena / SSO）
+- 烟测：`tests/string/view_lifecycle.x` + ZC-4 三件套（subview / arena / SSO）
 - 门禁：`tests/run-std-strview-zc4-gate.sh`（`SHUX_STD_STRVIEW_ZC4`）
 - 深度回归：`tests/run-zc4-gate.sh`（runnable 时）
 

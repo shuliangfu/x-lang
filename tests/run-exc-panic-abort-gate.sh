@@ -2,7 +2,7 @@
 # EXC-002：panic/abort 与可恢复错误边界门禁
 #
 # 读取 tests/baseline/exc-panic-abort.tsv：
-#   policy=run  — 编译运行 .sx，须 expected_exit
+#   policy=run  — 编译运行 .x，须 expected_exit
 #   policy=hook — 调用 tests/run-*.sh
 #
 # 用法：./tests/run-exc-panic-abort-gate.sh
@@ -28,8 +28,8 @@ for f in \
   analysis/exc-panic-abort-v1-rfc.md \
   analysis/exc-result-error-v1-rfc.md \
   "$MATRIX" \
-  tests/exc/recoverable_result.sx \
-  tests/exc/layer_c_recoverable.sx; do
+  tests/exc/recoverable_result.x \
+  tests/exc/layer_c_recoverable.x; do
   if [ ! -f "$f" ]; then
     echo "exc-panic-abort gate FAIL: missing $f" >&2
     exit 1
@@ -54,11 +54,11 @@ if [ -z "$SHUX_BIN" ]; then
   exit 0
 fi
 
-run_sx_case() {
+run_x_case() {
   local script="$1"
   local want_ec="$2"
   local src="tests/exc/${script}"
-  local out="/tmp/shux_exc_${script%.sx}"
+  local out="/tmp/shux_exc_${script%.x}"
   if [ ! -f "$src" ]; then
     echo "exc FAIL: missing $src" >&2
     return 1
@@ -87,7 +87,7 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
   echo "── $case_id: $notes ──"
   case "$policy" in
     run)
-      if run_sx_case "$script" "${want_ec:-0}"; then
+      if run_x_case "$script" "${want_ec:-0}"; then
         echo "exc OK $case_id"
       else
         echo "exc FAIL $case_id ($script)" >&2

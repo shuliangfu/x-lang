@@ -45,9 +45,9 @@ make -C compiler compress-o-zlib-zstd # gzip + zstd（STD-007 推荐）
 
 | case_id | 文件 | 期望 |
 |---------|------|------|
-| `smoke_gzip` | `tests/std-compress/gzip_roundtrip.sx` | 往返一致或 SKIP（-1） |
-| `smoke_zstd` | `tests/std-compress/zstd_roundtrip.sx` | 往返一致或 SKIP（-1） |
-| `smoke_legacy` | `tests/compress/main.sx` | gzip+brotli 回归 |
+| `smoke_gzip` | `tests/std-compress/gzip_roundtrip.x` | 往返一致或 SKIP（-1） |
+| `smoke_zstd` | `tests/std-compress/zstd_roundtrip.x` | 往返一致或 SKIP（-1） |
+| `smoke_legacy` | `tests/compress/main.x` | gzip+brotli 回归 |
 | `hook_compress` | `tests/run-compress.sh` | hook |
 
 ---

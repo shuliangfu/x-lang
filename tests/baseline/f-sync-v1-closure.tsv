@@ -2,12 +2,12 @@
 # 列：item_id	kind	anchor	notes
 fsync_doc	doc	analysis/phase-f-sync-v1.md	F-sync v1
 fsync_gate	gate	tests/run-f-sync-v1-gate.sh	聚合门禁
-sync_sx	file	std/sync/sync.sx	模块逻辑 .sx
+sync_x	file	std/sync/sync.x	模块逻辑 .x
 sync_os_runtime	file	compiler/src/asm/runtime_sync_os.c	OS 互斥/RwLock/Condvar
 sync_tls_runtime	file	compiler/src/asm/runtime_sync_lock_diag_tls.c	锁诊断 TLS
-sync_mod	file	std/sync/mod.sx	对外 API
+sync_mod	file	std/sync/mod.x	对外 API
 sync_os_absent	absent	std/sync/sync_os_glue.c	已迁入 runtime
 sync_tls_absent	absent	std/sync/sync_lock_diag_tls_glue.c	已迁入 runtime
 sync_c_absent	absent	std/sync/sync.c	已删除
 sync_diag_glue_v1_absent	absent	std/sync/sync_lock_diag_glue.c	v1 诊断胶层已删除
-makefile	makefile	compiler/Makefile	sync.o 纯 .sx + runtime_sync_*.o
+makefile	makefile	compiler/Makefile	sync.o 纯 .x + runtime_sync_*.o

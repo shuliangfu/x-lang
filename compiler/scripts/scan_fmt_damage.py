@@ -110,14 +110,14 @@ def main() -> None:
     total = 0
     files = 0
     for root in roots:
-        if os.path.isfile(root) and root.endswith(".sx"):
+        if os.path.isfile(root) and root.endswith(".x"):
             paths = [root]
         elif os.path.isdir(root):
             paths = []
             for dp, dns, fns in os.walk(root):
                 dns[:] = [d for d in dns if d not in SKIP_DIRS]
                 for fn in fns:
-                    if fn.endswith(".sx"):
+                    if fn.endswith(".x"):
                         paths.append(os.path.join(dp, fn))
         else:
             continue

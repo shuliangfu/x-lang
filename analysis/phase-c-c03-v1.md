@@ -17,7 +17,7 @@
 |----|------|
 | **Windows MSYS2** | 仍 **B-hybrid**，日志可能含 `cc -c pipeline_gen.c`；`run-bootstrap-bstrict-windows-gate.sh` track 计数 |
 | **bootstrap-pipeline** | 开发/联调仍可用 `-E` 生成 `pipeline_gen.c`（非 release B-strict 默认路径） |
-| **PIPELINE_SX_FORCE_COMPILE** | 显式强制从 pipeline_gen.c 重编 pipeline_sx.o（非默认） |
+| **PIPELINE_X_FORCE_COMPILE** | 显式强制从 pipeline_gen.c 重编 pipeline_x.o（非默认） |
 
 ## 复现
 

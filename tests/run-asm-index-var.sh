@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 SHUX=${SHUX:-./compiler/shux}
 
-$SHUX tests/asm/index_var_fast.sx -o /tmp/shux_asm_index_var 2>&1
+$SHUX tests/asm/index_var_fast.x -o /tmp/shux_asm_index_var 2>&1
 exitcode=0
 /tmp/shux_asm_index_var >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 10 ] && { echo "run-asm-index-var FAIL: expected exit 10, got $exitcode"; exit 1; }

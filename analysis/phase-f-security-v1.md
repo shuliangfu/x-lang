@@ -1,12 +1,12 @@
 # 阶段 F-security v1（std.security 去 C + F-ZC）
 
-> **F-security v1**：删除 **`security.c`**；HKDF/secure_zero/烟测/mlock 均在 **`security.sx`**（**F-ZC** 删除 **`security_os_glue.c`**，mlock 经 **`extern mlock/munlock`**）。
+> **F-security v1**：删除 **`security.c`**；HKDF/secure_zero/烟测/mlock 均在 **`security.x`**（**F-ZC** 删除 **`security_os_glue.c`**，mlock 经 **`extern mlock/munlock`**）。
 
 ## 变更
 
 | 项 | v1 前 | v1 | F-ZC |
 |----|-------|-----|------|
-| 实现 | `security.c` | `security.sx` + glue | **纯 `.sx`** |
+| 实现 | `security.c` | `security.x` + glue | **纯 `.x`** |
 | mlock | C 内联 | `security_os_glue.c` | **libc extern** |
 
 ## 门禁

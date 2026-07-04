@@ -10,11 +10,11 @@ boot016_std_symbols	build	run-boot-016-std-asm-symbols-gate.sh	any	Top-12 std .o
 boot018_decouple	manifest	run-boot-018-parser-std-decouple-gate.sh	any	parser/std 双轨
 bstrict_build	build	run-bootstrap-repro-build.sh	any	make bootstrap-driver-bstrict 隔离
 strict_smoke	build	run-strict-smoke-gate.sh	any	B-strict 无 experimental fallback
-shux_asm_gate	compile	run-shux-asm-gate.sh	any	shux_asm 编用户 .sx
+shux_asm_gate	compile	run-shux-asm-gate.sh	any	shux_asm 编用户 .x
 asm_73	compile	run-asm-73-gate.sh	!docker	asm binop/cfg-merge（Docker 内 SKIP）
 run_all_bstrict	run	run-all-bstrict.sh	any	B-strict 白名单 107 项
 boot025_stage2_gen12	selfhost	run-boot-025-parser-gen12-consistency-gate.sh	linux	BOOT-025 gen1/gen2 C3
-boot026_sx_c4	selfhost	run-boot-026-parser-c4-bootstrap-gate.sh	linux	BOOT-026 C4 SU bootstrap
+boot026_x_c4	selfhost	run-boot-026-parser-c4-bootstrap-gate.sh	linux	BOOT-026 C4 SU bootstrap
 boot027_shux_asm2_cross	selfhost	run-boot-027-shux-asm2-cross-gate.sh	linux	BOOT-027 C5 shux_asm2
 boot028_shux_asm2_ci_matrix	selfhost	run-boot-028-shux-asm2-ci-matrix-gate.sh	any	BOOT-028 C6 CI 矩阵
 stage2_bstrict	selfhost	run-stage2-bstrict-gate.sh	linux	gen1 shux_asm → gen2
@@ -85,11 +85,11 @@ e03_v3_coldstart	selfhost	run-e03-v3-coldstart-track-gate.sh	any	E-03 v3 OBJS_CO
 e04_runtime	selfhost	run-e04-runtime-soft-gate.sh	any	E-04 v1 runtime path audit
 e06_no_frontend_cc	selfhost	run-e06-no-compiler-frontend-cc-gate.sh	any	E-06 v1 no frontend cc -c
 e05_include	selfhost	run-e05-include-soft-gate.sh	any	E-05 v1 header inventory
-c05_lsp_sx	lsp	run-c05-lsp-sx-gate.sh	any	C-05 v1 lsp_diag.sx + --lsp smoke
-c06_sx_frontend_default	makefile	run-c06-sx-frontend-default-gate.sh	any	C-06 default *_sx.o seed link
+c05_lsp_x	lsp	run-c05-lsp-x-gate.sh	any	C-05 v1 lsp_diag.x + --lsp smoke
+c06_x_frontend_default	makefile	run-c06-x-frontend-default-gate.sh	any	C-06 default *_x.o seed link
 c07_frontend_parity	compile	run-c07-frontend-parity-gate.sh	any	C-07 shux-c vs shux_asm parity
-c08_runtime_driver	build	run-c08-runtime-driver-gate.sh	any	C-08 main/driver/build.sx v1
-c09_parser_no_c_fallback	parser	run-c09-parser-no-c-fallback-gate.sh	any	C-09 default parser_sx.o + strict override manifest
+c08_runtime_driver	build	run-c08-runtime-driver-gate.sh	any	C-08 main/driver/build.x v1
+c09_parser_no_c_fallback	parser	run-c09-parser-no-c-fallback-gate.sh	any	C-09 default parser_x.o + strict override manifest
 a12_cross_module	selfhost	run-a12-cross-module-symbols-gate.sh	linux	A-12 arch_* undefined
 parser_second_pass	parser	run-parser-second-pass-gate.sh	any	second-pass emit 硬门禁
 parser_symbol_integrity	parser	run-parser-thin-glue-symbol-integrity-gate.sh	any	thin glue 符号完整性

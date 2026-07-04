@@ -28,7 +28,7 @@ native_shu() {
 
 echo "=== TOOL-007: pkgmgr manifest ==="
 for f in "$DOC" "$MANIFEST" "$CATALOG" scripts/shux-deps-resolve.sh \
-  tests/fixtures/pkgmgr/shux.pkg.tsv tests/fixtures/pkgmgr/main.sx; do
+  tests/fixtures/pkgmgr/shux.pkg.tsv tests/fixtures/pkgmgr/main.x; do
   if [ ! -f "$f" ]; then
     echo "tool-pkgmgr gate FAIL: missing $f" >&2
     exit 1

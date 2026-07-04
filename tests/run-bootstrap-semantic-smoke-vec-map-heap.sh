@@ -39,7 +39,7 @@ CHECK_FAIL=0
 LINK_OK=0
 LINK_SKIP=0
 for mod in vec map heap; do
-  src="tests/${mod}/main.sx"
+  src="tests/${mod}/main.x"
   if ! boot015_check_one "$SHUX" "$src"; then
     echo "bootstrap-semantic-smoke FAIL: check $mod" >&2
     CHECK_FAIL=$((CHECK_FAIL + 1))

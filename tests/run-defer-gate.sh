@@ -28,9 +28,9 @@ run_case() {
   echo "defer-gate OK $src exit=$expect"
 }
 
-run_case tests/defer/main.sx 42
-run_case tests/defer/order_lifo.sx 21
-run_case tests/defer/nested_if.sx 111
-run_case tests/defer/multi_return.sx 30
+run_case tests/defer/main.x 42
+run_case tests/defer/order_lifo.x 21
+run_case tests/defer/nested_if.x 111
+run_case tests/defer/multi_return.x 30
 
 echo "defer-gate OK (MEM-B0 defer smoke)"

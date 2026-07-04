@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SX PARSE_BOOTSTRAP_EMIT 二分门禁：MINIMAL 白名单应可编；全量仍 139（根因在 parse_into_buf/parse_into mega emit）。
+# X PARSE_BOOTSTRAP_EMIT 二分门禁：MINIMAL 白名单应可编；全量仍 139（根因在 parse_into_buf/parse_into mega emit）。
 # 用法：
 #   ./tests/run-parser-parse-bootstrap-bisect-gate.sh
 #   SHUX_PARSER_PARSE_BOOTSTRAP_BISECT_FAIL=1 ./tests/run-parser-parse-bootstrap-bisect-gate.sh
@@ -42,11 +42,11 @@ probe_bootstrap() {
       env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
         SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL=1 \
         SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
-        ./shux -backend asm -o "$out" $LIBROOT src/parser/parser.sx
+        ./shux -backend asm -o "$out" $LIBROOT src/parser/parser.x
     else
       env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
         SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
-        ./shux -backend asm -o "$out" $LIBROOT src/parser/parser.sx
+        ./shux -backend asm -o "$out" $LIBROOT src/parser/parser.x
     fi
   ) > "$log" 2>&1
   ec=$?
@@ -91,7 +91,7 @@ if [ "$FULL_EC" -eq 0 ] && [ "$FULL_BUF_SZ" -gt 4096 ]; then
   exit 0
 fi
 if [ "$FULL_EC" -eq 139 ] || [ "$FULL_EC" -eq 134 ] || [ "$FULL_EC" -ne 0 ]; then
-  echo "parser-parse-bootstrap-bisect-gate: FULL PASS (known fail ec=$FULL_EC; root cause: mega parse_into* SX emit)"
+  echo "parser-parse-bootstrap-bisect-gate: FULL PASS (known fail ec=$FULL_EC; root cause: mega parse_into* X emit)"
 else
   echo "parser-parse-bootstrap-bisect-gate: FULL PASS (ec=$FULL_EC has_o=$FULL_O; use C TU for production)"
 fi

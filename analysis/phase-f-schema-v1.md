@@ -1,12 +1,12 @@
 # 阶段 F-schema v1（std.schema 去 C）
 
-> **F-schema v1**：删除 **`schema.c`**；锚点 **`schema.sx`**；typed decode 在 **`schema_glue.c`**。
+> **F-schema v1**：删除 **`schema.c`**；锚点 **`schema.x`**；typed decode 在 **`schema_glue.c`**。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `schema.c`（680 行） | `schema.sx` + `schema_glue.c` |
+| 实现 | `schema.c`（680 行） | `schema.x` + `schema_glue.c` |
 | `schema.o` | `cc -c` | `ld -r` 合并 |
 
 ## 门禁

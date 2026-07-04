@@ -1,0 +1,525 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// macho.x — Mach-O 64 位可重定位 .o 写出（macOS 目标文件）
+//
+// 职责：将 backend 已填充的 ElfCodegenCtx（code/syms/relocs）写出为 Mach-O 64 位
+// MH_OBJECT，
+//      供 macOS 下 -backend asm -o xxx.o 使用；与 write_elf_o_to_buf 二选一，由 ctx 侧
+// use_macho_o 决定。
+//
+// 依赖：codegen_outbuf_abi（CodegenOutBuf）、elf（ElfCodegenCtx、elf_sym_name_ptr、elf_to_u8、elf_name_
+// eq_arr_to_pool）。
+
+const codegen_outbuf_abi = import("codegen_outbuf_abi");
+const elf = import("platform.elf");
+
+/** 诊断：Mach-O 写出时遇到空外部符号名。 */
+extern function driver_diagnostic_asm_macho_empty_reloc(reloc_idx: i32): void;
+/** 诊断：写出 relocation_info 时未定义符号未在 und 池中找到。 */
+extern function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void;
+/** elf sidecar：reloc_sym_names 行读写（定义在 ast_pool.c）。 */
+extern function pipeline_elf_ctx_reloc_sym_name_ptr(ctx: *u8, idx: i32): *u8;
+extern function pipeline_elf_ctx_reloc_sym_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
+extern function pipeline_elf_ctx_reloc_name_len(ctx: *u8, idx: i32): i32;
+extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
+
+/** 向 out 追加 ptr[0..n-1]，返回 0 成功，-1 缓冲区满。 */
+function macho_append(out: *CodegenOutBuf, ptr: *u8, n: i32): i32 {
+  let i: i32 = 0;
+  /** 与 elf.elf_append 上限一致，避免大型
+  * .text+重定位表写出时中途截断返回 -1。 */
+  while (i < n && out.len < 8388608) {
+    out.data[out.len] = ptr[i];
+    out.len = out.len + 1;
+    i = i + 1;
+  }
+  if (i < n) { return -1; }
+  return 0;
+}
+
+/** reloc 符号名拷到栈上 u8[64]，供 elf_name_eq_arr_to_pool / macho_rel_name_eq。 */
+function macho_reloc_sym_name_buf(ctx: *ElfCodegenCtx, idx: i32, out: *u8): void {
+  pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, idx, out);
+}
+
+/** reloc r 是否在 ctx.syms 中有同名定义（有则 Mach-O r_symbolnum 指向该 nlist）。
+*/
+function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
+  let m: i32 = 0;
+  let sym_buf: u8[64] = [];
+  macho_reloc_sym_name_buf(ctx, r, &sym_buf[0]);
+  while (m < ctx.num_syms) {
+    /** 与 elf_resolve_rela、write_macho 写入阶段一致：符号字节在
+    * reloc_sym_names[r]，非 relocs[r].name（后者已无 name 字段）。 */
+    if (elf.elf_name_eq_arr_to_pool(sym_buf, pipeline_elf_ctx_reloc_name_len(ctx as *u8,
+    r), elf.elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
+      return 1;
+    }
+    m = m + 1;
+  }
+  return 0;
+}
+
+/** 比较两段名字（与 elf_name_eq 同语义）；b 指向 und_names 中一行首字节。 */
+function macho_rel_name_eq(a: u8[64], a_len: i32, b_ptr: *u8, b_len: i32): i32 {
+  if (a_len != b_len) {
+    return 0;
+  }
+  let i: i32 = 0;
+  while (i < a_len) {
+    if (a[i] != b_ptr[i]) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+* Mach-O C 链接名：Darwin strtab 须为 _name（首字节 95），与 clang ld 查找 _main
+* 一致。
+* 若已有前缀则返回 0，否则返回 1（须多写一字节 '_'）。
+*/
+function macho_link_name_extra_byte(name_ptr: *u8): i32 {
+  if (name_ptr[0] != 95) {
+    return 1;
+  }
+  return 0;
+}
+
+/** 将 Mach-O 64 位可重定位 .o 写入 out；写入前再次 resolve（与 asm_codegen_elf_o
+* 双保险，避免 cbz 0x34 占位残留）。返回写入字节数，失败 -1。 */
+function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): i32 {
+  if (elf.elf_resolve_patches(ctx) != 0) {
+    return -1;
+  }
+  let code_len: i32 = ctx.code_len;
+  /** 外部 bl/jal：收集唯一未解析符号；strtab 字节从 ctx.relocs[und_src_reloc[i]]
+  * 拷贝（与 nlist n_strx 一致）。 */
+  /** 曾用栈上 und_pool/und_names[][]，在部分 X→C 栈布局下 strtab
+  * 阶段读到全零；改用 relocs 槽位指针更稳。 */
+  /** 唯一未定义外部符号下标；大型 TU 调用数可超旧上限 128，须与 elf 侧
+  * relocs 上限同量级。 */
+  let und_src_reloc: i32[2048] = [];
+  let und_lens: i32[2048] = [];
+  let nu: i32 = 0;
+  let rx: i32 = 0;
+  while (rx < ctx.num_relocs) {
+    if (macho_reloc_sym_defined(ctx, rx) != 0) {
+      rx = rx + 1;
+      continue;
+    }
+    let dup: i32 = -1;
+    let us: i32 = 0;
+    while (us < nu) {
+      let sr: i32 = und_src_reloc[us];
+      let rx_buf: u8[64] = [];
+      let sr_buf: u8[64] = [];
+      macho_reloc_sym_name_buf(ctx, rx, &rx_buf[0]);
+      macho_reloc_sym_name_buf(ctx, sr, &sr_buf[0]);
+      if (macho_rel_name_eq(rx_buf, pipeline_elf_ctx_reloc_name_len(ctx as *u8, rx), &sr_buf[0],
+      und_lens[us]) != 0) {
+        dup = us;
+        break;
+      }
+      us = us + 1;
+    }
+    if (dup >= 0) {
+      rx = rx + 1;
+      continue;
+    }
+    if (nu >= 2048) {
+      return -1;
+    }
+    let nlen: i32 = pipeline_elf_ctx_reloc_name_len(ctx as *u8, rx);
+    /** 与 elf_add_reloc 一致：外部符号 strtab 不得为空串，否则 nlist
+    * 指向空名。 */
+    if (nlen <= 0) {
+      driver_diagnostic_asm_macho_empty_reloc(rx);
+      return -1;
+    }
+    und_src_reloc[nu] = rx;
+    und_lens[nu] = nlen;
+    nu = nu + 1;
+    rx = rx + 1;
+  }
+  let strtab_size: i32 = 1;
+  let s: i32 = 0;
+  while (s < ctx.num_syms) {
+    let extra: i32 = macho_link_name_extra_byte(elf.elf_sym_name_ptr(ctx, s));
+    strtab_size = strtab_size + ctx.syms[s].name_len + extra + 1;
+    s = s + 1;
+  }
+  let ui: i32 = 0;
+  while (ui < nu) {
+    let sr: i32 = und_src_reloc[ui];
+    let extra: i32 = macho_link_name_extra_byte(pipeline_elf_ctx_reloc_sym_name_ptr(ctx as *u8,
+    sr));
+    strtab_size = strtab_size + und_lens[ui] + extra + 1;
+    ui = ui + 1;
+  }
+  /**
+  * ld64 约定：symtab[0] 为保留空项（n_strx=0、全 0），真实符号自索引 1 起；
+  * 否则 r_symbolnum=0 会与「空名未定义符号」冲突，链接报错 Undefined "".
+  */
+  let symtab_ents: i32 = ctx.num_syms + nu + 1;
+  let symtab_size: i32 = symtab_ents * 16;
+  let reloc_size: i32 = ctx.num_relocs * 8;
+  /** LC_SEGMENT_64(152) + LC_BUILD_VERSION(24) + LC_SYMTAB(24)；缺 platform load command 时 ld
+  * 报 assuming macOS。 */
+  let lc_build_size: i32 = 24;
+  let sizeofcmds: i32 = 152 + lc_build_size + 24;
+  let off_text: i32 = 32 + sizeofcmds;
+  let off_sym: i32 = (off_text + code_len + 3) & 4294967292;
+  let off_str: i32 = off_sym + symtab_size;
+  let off_reloc: i32 = off_str + strtab_size;
+  
+  out.len = 0;
+  /* CPU_TYPE_X86_64 = 0x01000007；CPU_TYPE_ARM64 = 0x0100000C（原 16777223 实为
+  x86，链器会拒）。 */
+  let cputype: i32 = 16777223;
+  let cpusubtype: i32 = 3;
+  if (ctx.e_machine == 183) {
+    cputype = 16777228;
+    cpusubtype = 0;
+  }
+  /* mach_header_64：32 字节；须写满
+  magic/cputype/cpusubtype/filetype/ncmds/sizeofcmds/flags/reserved。 */
+  let hdr: u8[32] = [];
+  let hz: i32 = 0;
+  while (hz < 32) {
+    hdr[hz] = 0;
+    hz = hz + 1;
+  }
+  hdr[0] = elf.elf_to_u8(207);
+  hdr[1] = elf.elf_to_u8(250);
+  hdr[2] = elf.elf_to_u8(237);
+  hdr[3] = elf.elf_to_u8(254);
+  hdr[4] = elf.elf_to_u8(cputype);
+  hdr[5] = elf.elf_to_u8(cputype >> 8);
+  hdr[6] = elf.elf_to_u8(cputype >> 16);
+  hdr[7] = elf.elf_to_u8(cputype >> 24);
+  hdr[8] = elf.elf_to_u8(cpusubtype);
+  hdr[9] = elf.elf_to_u8(cpusubtype >> 8);
+  hdr[10] = elf.elf_to_u8(cpusubtype >> 16);
+  hdr[11] = elf.elf_to_u8(cpusubtype >> 24);
+  /* MH_OBJECT = 1（可重定位 .o） */
+  hdr[12] = 1;
+  hdr[13] = 0;
+  hdr[14] = 0;
+  hdr[15] = 0;
+  /* ncmds = 3：__TEXT + LC_BUILD_VERSION + LC_SYMTAB */
+  hdr[16] = 3;
+  hdr[17] = 0;
+  hdr[18] = 0;
+  hdr[19] = 0;
+  hdr[20] = elf.elf_to_u8(sizeofcmds);
+  hdr[21] = elf.elf_to_u8(sizeofcmds >> 8);
+  hdr[22] = elf.elf_to_u8(sizeofcmds >> 16);
+  hdr[23] = elf.elf_to_u8(sizeofcmds >> 24);
+  /* flags、reserved 保持 0 */
+  if (macho_append(out, hdr, 32) != 0) { return -1; }
+  
+  let seg: u8[152] = [];
+  let sz: i32 = 0;
+  while (sz < 152) {
+    seg[sz] = 0;
+    sz = sz + 1;
+  }
+  /* LC_SEGMENT_64：cmd=0x19，cmdsize=152；segname 须从字节 8 起，勿占用 cmdsize
+  高字节（否则 ld 报 0x5F5F0098）。 */
+  seg[0] = elf.elf_to_u8(25);
+  seg[4] = elf.elf_to_u8(152);
+  seg[5] = elf.elf_to_u8(152 >> 8);
+  seg[8] = 95;
+  seg[9] = 95;
+  seg[10] = 84;
+  seg[11] = 69;
+  seg[12] = 88;
+  seg[13] = 84;
+  /* vmaddr 24–31 已为 0；vmsize 32–39 = code_len */
+  seg[32] = elf.elf_to_u8(code_len);
+  seg[33] = elf.elf_to_u8(code_len >> 8);
+  seg[34] = elf.elf_to_u8(code_len >> 16);
+  seg[35] = elf.elf_to_u8(code_len >> 24);
+  seg[40] = elf.elf_to_u8(off_text);
+  seg[41] = elf.elf_to_u8(off_text >> 8);
+  seg[42] = elf.elf_to_u8(off_text >> 16);
+  seg[43] = elf.elf_to_u8(off_text >> 24);
+  seg[48] = elf.elf_to_u8(code_len);
+  seg[49] = elf.elf_to_u8(code_len >> 8);
+  seg[50] = elf.elf_to_u8(code_len >> 16);
+  seg[51] = elf.elf_to_u8(code_len >> 24);
+  /* maxprot / initprot：VM_PROT_READ|WRITE|EXEC = 7 */
+  seg[56] = 7;
+  seg[60] = 7;
+  seg[64] = 1;
+  seg[65] = 0;
+  seg[66] = 0;
+  seg[67] = 0;
+  seg[72] = 95;
+  seg[73] = 95;
+  seg[74] = 116;
+  seg[75] = 101;
+  seg[76] = 120;
+  seg[77] = 116;
+  seg[88] = 95;
+  seg[89] = 95;
+  seg[90] = 84;
+  seg[91] = 69;
+  seg[92] = 88;
+  seg[93] = 84;
+  seg[120] = elf.elf_to_u8(off_text);
+  seg[121] = elf.elf_to_u8(off_text >> 8);
+  seg[122] = elf.elf_to_u8(off_text >> 16);
+  seg[123] = elf.elf_to_u8(off_text >> 24);
+  seg[112] = elf.elf_to_u8(code_len);
+  seg[113] = elf.elf_to_u8(code_len >> 8);
+  seg[114] = elf.elf_to_u8(code_len >> 16);
+  seg[115] = elf.elf_to_u8(code_len >> 24);
+  seg[128] = elf.elf_to_u8(off_reloc);
+  seg[129] = elf.elf_to_u8(off_reloc >> 8);
+  seg[130] = elf.elf_to_u8(off_reloc >> 16);
+  seg[131] = elf.elf_to_u8(off_reloc >> 24);
+  seg[132] = elf.elf_to_u8(ctx.num_relocs);
+  seg[133] = elf.elf_to_u8(ctx.num_relocs >> 8);
+  seg[136] = 0;
+  seg[137] = 0;
+  seg[138] = 4;
+  seg[139] = 128;
+  if (macho_append(out, seg, 152) != 0) { return -1; }
+  
+  /** LC_BUILD_VERSION：platform=macOS(1)，minos/sdk=11.0.0（0x000B0000），ntools=0。 */
+  let lc_bv: u8[24] = [];
+  let bvz: i32 = 0;
+  while (bvz < 24) {
+    lc_bv[bvz] = 0;
+    bvz = bvz + 1;
+  }
+  /* LC_BUILD_VERSION = 0x32 */
+  lc_bv[0] = elf.elf_to_u8(50);
+  lc_bv[4] = elf.elf_to_u8(lc_build_size);
+  lc_bv[5] = elf.elf_to_u8(lc_build_size >> 8);
+  /* platform PLATFORM_MACOS = 1 */
+  lc_bv[8] = 1;
+  /* minos 11.0.0 = (11 << 16) */
+  lc_bv[12] = elf.elf_to_u8(720896);
+  lc_bv[13] = elf.elf_to_u8(720896 >> 8);
+  lc_bv[14] = elf.elf_to_u8(720896 >> 16);
+  lc_bv[15] = elf.elf_to_u8(720896 >> 24);
+  /* sdk 11.0.0 */
+  lc_bv[16] = elf.elf_to_u8(720896);
+  lc_bv[17] = elf.elf_to_u8(720896 >> 8);
+  lc_bv[18] = elf.elf_to_u8(720896 >> 16);
+  lc_bv[19] = elf.elf_to_u8(720896 >> 24);
+  /* ntools = 0 */
+  if (macho_append(out, lc_bv, lc_build_size) != 0) { return -1; }
+  
+  /* LC_SYMTAB：逐字节写入前先落到标量，避免 X→C
+  对数组下标赋值的逗号包装把值写到临时副本（尤其 n_strx 等字段）。 */
+  let lc_sym: u8[24] = [];
+  let lz: i32 = 0;
+  while (lz < 24) {
+    lc_sym[lz] = 0;
+    lz = lz + 1;
+  }
+  /* LC_SYMTAB = 2，cmdsize = 24 */
+  let lc_cmd: u8 = 2 as u8;
+  lc_sym[0] = lc_cmd;
+  let lc_cmdsize_b0: u8 = 24 as u8;
+  lc_sym[4] = lc_cmdsize_b0;
+  let lc_offsym_0: u8 = elf.elf_to_u8(off_sym);
+  let lc_offsym_1: u8 = elf.elf_to_u8(off_sym >> 8);
+  let lc_offsym_2: u8 = elf.elf_to_u8(off_sym >> 16);
+  let lc_offsym_3: u8 = elf.elf_to_u8(off_sym >> 24);
+  lc_sym[8] = lc_offsym_0;
+  lc_sym[9] = lc_offsym_1;
+  lc_sym[10] = lc_offsym_2;
+  lc_sym[11] = lc_offsym_3;
+  let lc_nsyms_0: u8 = elf.elf_to_u8(symtab_ents);
+  let lc_nsyms_1: u8 = elf.elf_to_u8(symtab_ents >> 8);
+  lc_sym[12] = lc_nsyms_0;
+  lc_sym[13] = lc_nsyms_1;
+  let lc_offstr_0: u8 = elf.elf_to_u8(off_str);
+  let lc_offstr_1: u8 = elf.elf_to_u8(off_str >> 8);
+  let lc_offstr_2: u8 = elf.elf_to_u8(off_str >> 16);
+  let lc_offstr_3: u8 = elf.elf_to_u8(off_str >> 24);
+  lc_sym[16] = lc_offstr_0;
+  lc_sym[17] = lc_offstr_1;
+  lc_sym[18] = lc_offstr_2;
+  lc_sym[19] = lc_offstr_3;
+  let lc_strsz_0: u8 = elf.elf_to_u8(strtab_size);
+  let lc_strsz_1: u8 = elf.elf_to_u8(strtab_size >> 8);
+  lc_sym[20] = lc_strsz_0;
+  lc_sym[21] = lc_strsz_1;
+  if (macho_append(out, lc_sym, 24) != 0) { return -1; }
+  
+  if (macho_append(out, &ctx.code_data[0], code_len) != 0) { return -1; }
+  /* 须写成 off_sym - off_text - code_len：若写 off_sym - (off_text + code_len)，-E 到 C
+  会变成 off_sym - off_text + code_len，pad 暴增，symtab 与 LC 声明偏移错位。 */
+  let pad: i32 = off_sym - off_text - code_len;
+  let zero: u8[1] = [0];
+  let z: i32 = 0;
+  while (z < pad) {
+    if (macho_append(out, zero, 1) != 0) { return -1; }
+    z = z + 1;
+  }
+  
+  /** 索引 0：16 字节全 0 nlist（与 strtab[0]=0 对应；ld64 要求保留项）。 */
+  let nlist0: u8[16] = [];
+  if (macho_append(out, &nlist0[0], 16) != 0) { return -1; }
+  let str_off: i32 = 1;
+  s = 0;
+  while (s < ctx.num_syms) {
+    let ent: u8[16] = [];
+    /* n_type = N_SECT(0x0e) | N_EXT(0x01) = 15；n_sect = 1（__text section） */
+    let ent_ntype: u8 = 15 as u8;
+    let ent_nsect: u8 = 1 as u8;
+    ent[4] = ent_ntype;
+    ent[5] = ent_nsect;
+    let ent_nstrx_0: u8 = elf.elf_to_u8(str_off);
+    let ent_nstrx_1: u8 = elf.elf_to_u8(str_off >> 8);
+    let ent_nstrx_2: u8 = elf.elf_to_u8(str_off >> 16);
+    let ent_nstrx_3: u8 = elf.elf_to_u8(str_off >> 24);
+    ent[0] = ent_nstrx_0;
+    ent[1] = ent_nstrx_1;
+    ent[2] = ent_nstrx_2;
+    ent[3] = ent_nstrx_3;
+    let sym_va: i32 = ctx.syms[s].offset;
+    let ent_nval_0: u8 = elf.elf_to_u8(sym_va);
+    let ent_nval_1: u8 = elf.elf_to_u8(sym_va >> 8);
+    let ent_nval_2: u8 = elf.elf_to_u8(sym_va >> 16);
+    let ent_nval_3: u8 = elf.elf_to_u8(sym_va >> 24);
+    ent[8] = ent_nval_0;
+    ent[9] = ent_nval_1;
+    ent[10] = ent_nval_2;
+    ent[11] = ent_nval_3;
+    if (macho_append(out, ent, 16) != 0) { return -1; }
+    str_off = str_off + ctx.syms[s].name_len +
+    macho_link_name_extra_byte(elf.elf_sym_name_ptr(ctx, s)) + 1;
+    s = s + 1;
+  }
+  
+  let uu: i32 = 0;
+  while (uu < nu) {
+    let entu: u8[16] = [];
+    let entu_nstrx_0: u8 = elf.elf_to_u8(str_off);
+    let entu_nstrx_1: u8 = elf.elf_to_u8(str_off >> 8);
+    let entu_nstrx_2: u8 = elf.elf_to_u8(str_off >> 16);
+    let entu_nstrx_3: u8 = elf.elf_to_u8(str_off >> 24);
+    entu[0] = entu_nstrx_0;
+    entu[1] = entu_nstrx_1;
+    entu[2] = entu_nstrx_2;
+    entu[3] = entu_nstrx_3;
+    /* N_UNDF(0) | N_EXT(1)：未定义外部符号，链器从其它 .o 解析 */
+    let entu_ntype: u8 = 1 as u8;
+    let entu_ndesc: u8 = 0 as u8;
+    entu[4] = entu_ntype;
+    entu[6] = entu_ndesc;
+    if (macho_append(out, entu, 16) != 0) { return -1; }
+    str_off = str_off + und_lens[uu] +
+    macho_link_name_extra_byte(pipeline_elf_ctx_reloc_sym_name_ptr(ctx as *u8, und_src_reloc[uu]))
+    + 1;
+    uu = uu + 1;
+  }
+  
+  if (macho_append(out, zero, 1) != 0) { return -1; }
+  s = 0;
+  while (s < ctx.num_syms) {
+    let nm_ptr: *u8 = elf.elf_sym_name_ptr(ctx, s);
+    if (macho_link_name_extra_byte(nm_ptr) != 0) {
+      let uscore: u8[1] = [95];
+      if (macho_append(out, &uscore[0], 1) != 0) { return -1; }
+    }
+    if (macho_append(out, nm_ptr, ctx.syms[s].name_len) != 0) { return -1; }
+    if (macho_append(out, zero, 1) != 0) { return -1; }
+    s = s + 1;
+  }
+  uu = 0;
+  while (uu < nu) {
+    let sr: i32 = und_src_reloc[uu];
+    let und_ptr: *u8 = pipeline_elf_ctx_reloc_sym_name_ptr(ctx as *u8, sr);
+    if (macho_link_name_extra_byte(und_ptr) != 0) {
+      let uscore: u8[1] = [95];
+      if (macho_append(out, &uscore[0], 1) != 0) { return -1; }
+    }
+    if (macho_append(out, und_ptr, und_lens[uu]) != 0) { return -1; }
+    if (macho_append(out, zero, 1) != 0) { return -1; }
+    uu = uu + 1;
+  }
+  
+  let rel_type: i32 = 2;
+  let rel_len: i32 = 2;
+  if (ctx.e_machine == 183) { rel_type = 2; rel_len = 2; }
+  let r: i32 = 0;
+  while (r < ctx.num_relocs) {
+    let ri: u8[8] = [];
+    let sym_idx: i32 = 0;
+    let m: i32 = 0;
+    let found_def: i32 = 0;
+    let r_sym_buf2: u8[64] = [];
+    macho_reloc_sym_name_buf(ctx, r, &r_sym_buf2[0]);
+    while (m < ctx.num_syms) {
+      if (elf.elf_name_eq_arr_to_pool(r_sym_buf2, pipeline_elf_ctx_reloc_name_len(ctx as
+      *u8, r), elf.elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
+        /** symtab：索引 0 保留；导出符号 m 在 nlist 中下标为 m+1。 */
+        sym_idx = m;
+        found_def = 1;
+        break;
+      }
+      m = m + 1;
+    }
+    if (found_def == 0) {
+      let uslot: i32 = -1;
+      let us2: i32 = 0;
+      while (us2 < nu) {
+        let sr2: i32 = und_src_reloc[us2];
+        let sr2_buf: u8[64] = [];
+        macho_reloc_sym_name_buf(ctx, sr2, &sr2_buf[0]);
+        if (macho_rel_name_eq(r_sym_buf2, pipeline_elf_ctx_reloc_name_len(ctx as *u8, r),
+        &sr2_buf[0], und_lens[us2]) != 0) {
+          uslot = us2;
+          break;
+        }
+        us2 = us2 + 1;
+      }
+      if (uslot < 0) {
+        driver_diagnostic_asm_macho_missing_und_reloc(r);
+        return -1;
+      }
+      sym_idx = ctx.num_syms + uslot;
+    }
+    /* relocation_info：r_symbolnum 须含 symtab[0] 保留项，故在逻辑下标上加 1。 */
+    let r_sym: i32 = sym_idx + 1;
+    /* 第二字（LE）：低 24 位 r_symbolnum，bit24 r_pcrel，25-26 r_length，bit27
+    r_extern，28-31 r_type */
+    let word2: i32 = (r_sym & 16777215) | (1 << 24) | (rel_len << 25) | (1 << 27) | (rel_type <<
+    28);
+    let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx as *u8, r);
+    ri[0] = elf.elf_to_u8(roff);
+    ri[1] = elf.elf_to_u8(roff >> 8);
+    ri[2] = elf.elf_to_u8(roff >> 16);
+    ri[3] = elf.elf_to_u8(roff >> 24);
+    ri[4] = elf.elf_to_u8(word2);
+    ri[5] = elf.elf_to_u8(word2 >> 8);
+    ri[6] = elf.elf_to_u8(word2 >> 16);
+    ri[7] = elf.elf_to_u8(word2 >> 24);
+    if (macho_append(out, ri, 8) != 0) { return -1; }
+    r = r + 1;
+  }
+  return out.len;
+}

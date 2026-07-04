@@ -1,19 +1,19 @@
-# 阶段 F-dynlib v2（std.dynlib 逻辑 .sx 下沉）
+# 阶段 F-dynlib v2（std.dynlib 逻辑 .x 下沉）
 
-> **F-dynlib v2 / F-ZC**：open/sym/close 包装、last_error 与烟测在 **`dynlib.sx`**；**`dynlib_os_glue.c` 已删除**；dlopen 在 **`runtime_dynlib_os.c`**（compiler runtime）。
+> **F-dynlib v2 / F-ZC**：open/sym/close 包装、last_error 与烟测在 **`dynlib.x`**；**`dynlib_os_glue.c` 已删除**；dlopen 在 **`runtime_dynlib_os.c`**（compiler runtime）。
 
 ## 变更
 
 | 项 | v1 | v2 / F-ZC |
 |----|----|-----|
-| open/sym/last_error | `dynlib_glue.c` | **`dynlib.sx`** |
+| open/sym/last_error | `dynlib_glue.c` | **`dynlib.x`** |
 | OS dlopen/LoadLibrary | glue 内联 | **`runtime_dynlib_os.c`** |
-| `dynlib.o` | `ld -r` sx + glue | **纯 `.sx`** |
+| `dynlib.o` | `ld -r` x + glue | **纯 `.x`** |
 
 ## 符号
 
 - `dynlib_os_*_c` — compiler runtime（POSIX `-ldl` / Win32 API）
-- `dynlib_open_c` / `dynlib_last_error_copy_c` — `dynlib.sx`
+- `dynlib_open_c` / `dynlib_last_error_copy_c` — `dynlib.x`
 
 ## 门禁
 

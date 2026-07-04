@@ -19,16 +19,16 @@
 
 | rule_id | 锚点 | 金样 | 说明 |
 |---------|------|------|------|
-| `rule_import` | `keyword.control.import` | `import_core.sx` | import 行分色 |
-| `rule_struct` | `meta.block.struct` | `match_arm.sx` | struct/enum 体 |
-| `rule_generic` | `meta.type.generic` | `option_generic.sx` | `Option<i32>` / `Result<T,E>` |
-| `rule_async` | `\\b(async\|await)\\b` | `async_await.sx` | async/await 关键字 |
-| `rule_unsafe` | `\\b(unsafe)\\b` | `unsafe_ptr.sx` | unsafe 块 |
-| `rule_match` | `(if\|else\|match)` | `match_arm.sx` | match 控制流 |
+| `rule_import` | `keyword.control.import` | `import_core.x` | import 行分色 |
+| `rule_struct` | `meta.block.struct` | `match_arm.x` | struct/enum 体 |
+| `rule_generic` | `meta.type.generic` | `option_generic.x` | `Option<i32>` / `Result<T,E>` |
+| `rule_async` | `\\b(async\|await)\\b` | `async_await.x` | async/await 关键字 |
+| `rule_unsafe` | `\\b(unsafe)\\b` | `unsafe_ptr.x` | unsafe 块 |
+| `rule_match` | `(if\|else\|match)` | `match_arm.x` | match 控制流 |
 | `rule_trait` | `\\btrait\\b` | grammar 内嵌 | trait/impl |
-| `rule_primitives` | `support.type.primitive` | `option_generic.sx` | i32/u8/… 基元 |
+| `rule_primitives` | `support.type.primitive` | `option_generic.x` | i32/u8/… 基元 |
 
-grammar 文件：`editors/vscode/grammars/sx.tmLanguage.json`。
+grammar 文件：`editors/vscode/grammars/x.tmLanguage.json`。
 
 ---
 

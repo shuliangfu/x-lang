@@ -45,11 +45,11 @@ with open(p,'wb') as f:
 
 bench_one() {
   local label="$1"
-  local sx="$2"
+  local x="$2"
   local ring="$3"
   local out="/tmp/bench_io_ring_ab_${label}"
   export SHUX_IO_URING_RING_ENTRIES="$ring"
-  ./compiler/shux -L . "$sx" -o "$out" 2>&1
+  ./compiler/shux -L . "$x" -o "$out" 2>&1
   if [ ! -x "$out" ]; then
     echo "nan"
     return
@@ -64,9 +64,9 @@ if [ "$(uname -s)" != "Linux" ]; then
   echo "note: ring size A/B 仅在 Linux io_uring 生效；本机 $(uname -s) 仍跑 fixed vs 普通对照。"
 fi
 
-M512=$(bench_one "512" tests/bench/io_batch_readv.sx 512)
-M2048=$(bench_one "2048" tests/bench/io_batch_readv.sx 2048)
-MFIX=$(bench_one "fixed512" tests/bench/io_batch_readv_fixed.sx 512)
+M512=$(bench_one "512" tests/bench/io_batch_readv.x 512)
+M2048=$(bench_one "2048" tests/bench/io_batch_readv.x 2048)
+MFIX=$(bench_one "fixed512" tests/bench/io_batch_readv_fixed.x 512)
 
 printf '\n| 配置 | median real (s) |\n'
 printf '|---|----------------|\n'

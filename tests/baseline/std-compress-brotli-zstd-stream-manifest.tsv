@@ -1,8 +1,8 @@
 # STD-136 std.compress brotli/zstd stream manifest
-api_format_br	api	format_brotli	std/compress/mod.sx
-api_format_zs	api	format_zstd	std/compress/mod.sx
-api_state_for	api	compress_state_bytes_for	std/compress/mod.sx
-smoke_sx	smoke	tests/std-compress/brotli_zstd_stream_smoke.sx
-symbol_br_stream_c	symbol	compress_brotli_stream_compress_c	std/compress/brotli/lib.sx
-symbol_zs_stream_c	symbol	compress_zstd_stream_compress_c	std/compress/zstd/lib.sx
+api_format_br	api	format_brotli	std/compress/mod.x
+api_format_zs	api	format_zstd	std/compress/mod.x
+api_state_for	api	compress_state_bytes_for	std/compress/mod.x
+smoke_x	smoke	tests/std-compress/brotli_zstd_stream_smoke.x
+symbol_br_stream_c	symbol	compress_brotli_stream_compress_c	std/compress/brotli/lib.x
+symbol_zs_stream_c	symbol	compress_zstd_stream_compress_c	std/compress/zstd/lib.x
 gate	script	run-std-compress-brotli-zstd-stream-gate.sh	tests/run-std-compress-brotli-zstd-stream-gate.sh

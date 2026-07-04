@@ -18,12 +18,12 @@
 
 | 领域 | 烟测 | 预期 |
 |------|------|------|
-| **parser** | `tests/parser/semicolon_required.sx` | 分号正例 typeck OK |
-| **parser** | `tests/parser/two_functions.sx` | 多函数 parse/typeck |
-| **parser** | `tests/parser/binary_expr_return.sx` | 二元表达式返回 |
-| **typeck** | `tests/option/main.sx` | `Option_i32` 组合子 |
-| **typeck** | `tests/result/main.sx` | `Result_i32/u8` 组合子 |
-| **typeck** | `tests/generic/main.sx` | `id<i32>` 泛型单态化 |
+| **parser** | `tests/parser/semicolon_required.x` | 分号正例 typeck OK |
+| **parser** | `tests/parser/two_functions.x` | 多函数 parse/typeck |
+| **parser** | `tests/parser/binary_expr_return.x` | 二元表达式返回 |
+| **typeck** | `tests/option/main.x` | `Option_i32` 组合子 |
+| **typeck** | `tests/result/main.x` | `Result_i32/u8` 组合子 |
+| **typeck** | `tests/generic/main.x` | `id<i32>` 泛型单态化 |
 
 Runner：`tests/run-bootstrap-stage2-dogfood-parser-typeck.sh`（`SHUX=` 指定代际）。  
 全量回归：`tests/run-parser.sh`、`tests/run-typeck.sh`、`tests/run-option.sh`、`tests/run-result.sh`、`tests/run-generic.sh`。

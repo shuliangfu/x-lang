@@ -2,12 +2,12 @@
  * parser_asm_if_stmt_slice.c — parse_if_stmt_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * 单条 if（含 else / else if 链）；回调 parse_cond_expr / parse_block SX mega，勿 SX emit 本函数体。
+ * 单条 if（含 else / else if 链）；回调 parse_cond_expr / parse_block X mega，勿 X emit 本函数体。
  */
 #ifndef PARSER_ASM_IF_STMT_SLICE_INCLUDED
 #define PARSER_ASM_IF_STMT_SLICE_INCLUDED
 
-/** 与 parser.sx ParseBlockResult 布局一致（bool→i32）。 */
+/** 与 parser.x ParseBlockResult 布局一致（bool→i32）。 */
 struct parser_asm_parse_block_result {
   int32_t ok;
   int32_t block_ref;

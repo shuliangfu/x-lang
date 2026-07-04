@@ -1,7 +1,7 @@
 # std.env — 环境变量与临时目录
 
-**模块路径**：`std/env/`（mod.sx + env.c）  
-**依赖**：core（extern C），无其它 .sx 模块。  
+**模块路径**：`std/env/`（mod.x + env.c）  
+**依赖**：core（extern C），无其它 .x 模块。  
 **对标**：Zig 通过 std.process 等、Rust std::env。
 
 ## API 概览

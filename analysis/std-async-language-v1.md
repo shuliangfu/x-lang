@@ -18,7 +18,7 @@
 ## 2. 分层对接
 
 ```
-.sx 源码
+.x 源码
   async function f(...) { await ... }
   run f(args)  /  spawn f(args)
         ↓ codegen (async_cps_codegen.c)
@@ -49,7 +49,7 @@
 | `scheduler_reset()` | `shu_async_run_seed_reset` + `shu_async_queue_reset` |
 | `drain_idle()` | `shu_async_run_drain_until_idle`（spawn 后批量完成） |
 
-**extern 重声明注意**：含 `run`/`spawn` 的 `.sx` 与 `import("std.async")` **同文件**时，codegen 会 emit `int32_t (*)(void)` 形参的 `shu_async_run_i32` 等，与 `mod.sx` 中 `*u8` extern **冲突**。v1 约定：
+**extern 重声明注意**：含 `run`/`spawn` 的 `.x` 与 `import("std.async")` **同文件**时，codegen 会 emit `int32_t (*)(void)` 形参的 `shu_async_run_i32` 等，与 `mod.x` 中 `*u8` extern **冲突**。v1 约定：
 
 - **语言烟测**（`run`/`spawn`）：单 TU 不 `import("std.async")`，或仅本地 `extern` drain/reset。
 - **模块烟测**（`import("std.async")`）：调用门面函数，不在同文件使用 `run`/`spawn`。
@@ -62,8 +62,8 @@
 
 | 脚本 | 验证 |
 |------|------|
-| `tests/async/await_scheduler_run.sx` | `run add_two` 双 await + seed 队列 → 42 |
-| `tests/async/await_scheduler_mod.sx` | `import("std.async")` + `scheduler_reset` + `coop_pingpong` |
+| `tests/async/await_scheduler_run.x` | `run add_two` 双 await + seed 队列 → 42 |
+| `tests/async/await_scheduler_mod.x` | `import("std.async")` + `scheduler_reset` + `coop_pingpong` |
 
 ---
 

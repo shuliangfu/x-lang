@@ -10,7 +10,7 @@ SHUX=${SHUX:-./compiler/shux}
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 RESULT_LINK_SHUX="${RUN_SHUX:-$SHUX}"
 
-# 尝试编译 result 回归；main.sx 在 ubuntu-22.04/Alpine 等宿主 shux-c -o 偶发 SIGSEGV。
+# 尝试编译 result 回归；main.x 在 ubuntu-22.04/Alpine 等宿主 shux-c -o 偶发 SIGSEGV。
 _result_try_compile() {
   local comp="$1"
   local src="$2"
@@ -19,14 +19,14 @@ _result_try_compile() {
 }
 
 set +e
-_result_try_compile "$RESULT_LINK_SHUX" tests/result/main.sx
+_result_try_compile "$RESULT_LINK_SHUX" tests/result/main.x
 _compile_ec=$?
 set -e
 _RESULT_NOTE=""
 if [ "$_compile_ec" -ne 0 ]; then
   if [ "$_compile_ec" -eq 139 ]; then
     for comp in "$SHUX" ./compiler/shux; do
-      if _result_try_compile "$comp" tests/exc/result_suite_smoke.sx; then
+      if _result_try_compile "$comp" tests/exc/result_suite_smoke.x; then
         _compile_ec=0
         _RESULT_NOTE=" (exc/result_suite_smoke fallback)"
         break

@@ -2,9 +2,9 @@
  * runtime_pipeline_abi_shux_c_stubs.c — shux-c 冷启动链接桩（NL-07 v4 / E-04）
  *
  * 【职责】
- * shux-c（OBJS_CORE + C 前端）不含 parser_sx.o / pipeline_sx.o / ast_pool 胶层，
- * 但 runtime_pipeline_abi.o / runtime_driver_abi.o 仍引用 SX 管线符号。
- * 弱桩供 build_tool / 首次 shux-c 链入；bootstrap-driver-seed 链 SX 前端时由真符号覆盖。
+ * shux-c（OBJS_CORE + C 前端）不含 parser_x.o / pipeline_x.o / ast_pool 胶层，
+ * 但 runtime_pipeline_abi.o / runtime_driver_abi.o 仍引用 X 管线符号。
+ * 弱桩供 build_tool / 首次 shux-c 链入；bootstrap-driver-seed 链 X 前端时由真符号覆盖。
  *
  * 【范围】
  * 仅满足链接；调用返回失败/空，shux-c 冷路径不走 asm pipeline 分支。
@@ -24,7 +24,7 @@
 #endif
 #endif
 
-/** codegen.sx 辅助 emit；C 前端 shux-c 冷启动弱桩。 */
+/** codegen.x 辅助 emit；C 前端 shux-c 冷启动弱桩。 */
 SHUX_WEAK void codegen_emit_fmt_json_helpers_once(FILE *out) {
     (void)out;
 }
@@ -107,8 +107,8 @@ SHUX_WEAK struct parser_ParseIntoResult parser_parse_into(void *arena, void *mod
     return pr;
 }
 
-/** pipeline SX 入口桩。 */
-SHUX_WEAK int pipeline_run_sx_pipeline(void *module, void *arena, const uint8_t *source_data,
+/** pipeline X 入口桩。 */
+SHUX_WEAK int pipeline_run_x_pipeline(void *module, void *arena, const uint8_t *source_data,
                                                    size_t source_len, void *out_buf, void *ctx) {
     (void)module;
     (void)arena;
@@ -159,7 +159,7 @@ SHUX_WEAK void ast_pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *c
     (void)len;
 }
 
-SHUX_WEAK int32_t pipeline_asm_user_dep_skip_sx_typeck(uint8_t *path) {
+SHUX_WEAK int32_t pipeline_asm_user_dep_skip_x_typeck(uint8_t *path) {
     (void)path;
     return 0;
 }
@@ -200,7 +200,7 @@ SHUX_WEAK void ast_module_free(struct ast_Module *mod) {
     (void)mod;
 }
 
-/** pipeline 解析/typeck 依赖；冷启动 C 前端 check 不走 SX dep prerun，弱桩返回失败。 */
+/** pipeline 解析/typeck 依赖；冷启动 C 前端 check 不走 X dep prerun，弱桩返回失败。 */
 SHUX_WEAK int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                  uint8_t *data, int32_t len) {
     (void)module;

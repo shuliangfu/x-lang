@@ -1,13 +1,13 @@
 # 阶段 F-atomic v1（std.atomic 去 C）
 
-> **F-atomic v1**：删除 **`atomic.c`**；**`atomic.sx`** + **`compiler/src/asm/runtime_atomic_glue.c`**（F-ZC）。
+> **F-atomic v1**：删除 **`atomic.c`**；**`atomic.x`** + **`compiler/src/asm/runtime_atomic_glue.c`**（F-ZC）。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `atomic.c`（357 行） | `atomic.sx` + `runtime_atomic_glue.c` |
-| `atomic.o` | `ld -r` 合并 | 纯 `.sx` |
+| 实现 | `atomic.c`（357 行） | `atomic.x` + `runtime_atomic_glue.c` |
+| `atomic.o` | `ld -r` 合并 | 纯 `.x` |
 | 原子胶层 | `std/atomic/atomic_glue.c` | `compiler/runtime_atomic_glue.o` |
 
 ## 门禁

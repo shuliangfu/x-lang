@@ -29,22 +29,22 @@ tier_u_source_symbol() {
   local sym="$1"
   local src="$2"
   case "$src:$sym" in
-    std/heap/mod.sx:alloc_aligned) echo "alloc_align" ;;
-    std/heap/mod.sx:alloc_i32|std/heap/mod.sx:alloc_u8) echo "alloc" ;;
-    std/heap/mod.sx:free_i32|std/heap/mod.sx:free_u8) echo "free" ;;
-    std/heap/mod.sx:realloc_i32|std/heap/mod.sx:realloc_u8) echo "realloc" ;;
-    std/heap/mod.sx:copy_i32_at|std/heap/mod.sx:copy_u8_at) echo "copy" ;;
-    std/io/mod.sx:read_ptr_len) echo "ptr_len" ;;
-    std/io/mod.sx:read_ptr_slice) echo "ptr_slice" ;;
-    std/io/mod.sx:read_ptr_gen) echo "ptr_gen" ;;
-    std/io/mod.sx:read_ptr_view) echo "ptr_view" ;;
-    std/fs/mod.sx:fs_read) echo "read" ;;
-    std/fs/mod.sx:fs_write) echo "write" ;;
-    std/fs/mod.sx:fs_pread) echo "pread" ;;
-    std/fs/mod.sx:fs_pwrite) echo "pwrite" ;;
-    std/fs/mod.sx:fs_mmap_ro) echo "mmap_ro" ;;
-    std/fs/mod.sx:fs_mmap_rw) echo "mmap_rw" ;;
-    std/fs/mod.sx:fs_munmap) echo "munmap" ;;
+    std/heap/mod.x:alloc_aligned) echo "alloc_align" ;;
+    std/heap/mod.x:alloc_i32|std/heap/mod.x:alloc_u8) echo "alloc" ;;
+    std/heap/mod.x:free_i32|std/heap/mod.x:free_u8) echo "free" ;;
+    std/heap/mod.x:realloc_i32|std/heap/mod.x:realloc_u8) echo "realloc" ;;
+    std/heap/mod.x:copy_i32_at|std/heap/mod.x:copy_u8_at) echo "copy" ;;
+    std/io/mod.x:read_ptr_len) echo "ptr_len" ;;
+    std/io/mod.x:read_ptr_slice) echo "ptr_slice" ;;
+    std/io/mod.x:read_ptr_gen) echo "ptr_gen" ;;
+    std/io/mod.x:read_ptr_view) echo "ptr_view" ;;
+    std/fs/mod.x:fs_read) echo "read" ;;
+    std/fs/mod.x:fs_write) echo "write" ;;
+    std/fs/mod.x:fs_pread) echo "pread" ;;
+    std/fs/mod.x:fs_pwrite) echo "pwrite" ;;
+    std/fs/mod.x:fs_mmap_ro) echo "mmap_ro" ;;
+    std/fs/mod.x:fs_mmap_rw) echo "mmap_rw" ;;
+    std/fs/mod.x:fs_munmap) echo "munmap" ;;
     *) echo "$sym" ;;
   esac
 }

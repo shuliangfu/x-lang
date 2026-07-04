@@ -24,8 +24,8 @@
 | 项 | 说明 |
 |----|------|
 | 工具 | Linux `perf stat`（L1-dcache-loads/misses，回落 cache-references/misses） |
-| Bench | `tests/bench/dod_soa_sum_x.sx` vs `dod_aos_sum_x.sx` |
-| f32 | `dod_f32_soa_sum_x.sx` vs `dod_f32_aos_sum_x.sx` |
+| Bench | `tests/bench/dod_soa_sum_x.x` vs `dod_aos_sum_x.x` |
+| f32 | `dod_f32_soa_sum_x.x` vs `dod_f32_aos_sum_x.x` |
 | 默认 N | `SHUX_DOD_BENCH_N=4096` |
 
 环境：

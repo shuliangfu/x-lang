@@ -2,13 +2,13 @@
 # boot-015-semantic-smoke.sh — BOOT-015：vec/map/heap 语义自举 smoke 辅助
 #
 # 用法（source 后）：
-#   boot015_check_one SHU tests/vec/main.sx
-#   boot015_link_run_one SHU tests/vec/main.sx OUT_PATH
+#   boot015_check_one SHU tests/vec/main.x
+#   boot015_link_run_one SHU tests/vec/main.x OUT_PATH
 #   boot015_emit_report status check_ok link_ok skip
 
 BOOT015_PREFIX="${SHUX_BOOT015_PREFIX:-shux: [SHUX_BOOT015]}"
 
-# 对单个 .sx 跑 shux check；失败返回 1。
+# 对单个 .x 跑 shux check；失败返回 1。
 boot015_check_one() {
   local shux="$1"
   local src="$2"

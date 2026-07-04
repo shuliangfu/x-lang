@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # bootstrap shux（driver 链 / bootstrap-driver-seed）子集门禁：hello + while + typeck + option + import + compound-assign。
-# 用于 CI 与本地快速确认 .sx pipeline 驱动编译器仍可用，不替代全量 run-all-c。
+# 用于 CI 与本地快速确认 .x pipeline 驱动编译器仍可用，不替代全量 run-all-c。
 # 用法：./tests/run-bootstrap-shux-gate.sh；或 SHUX=./compiler/shux ./tests/run-bootstrap-shux-gate.sh（跳过重建）。
 
 set -e
 cd "$(dirname "$0")/.."
 SHUX="${SHUX:-./compiler/shux}"
 
-# 默认重建 bootstrap driver（.sx pipeline 链 shux）；CI 与本地门禁一致。
+# 默认重建 bootstrap driver（.x pipeline 链 shux）；CI 与本地门禁一致。
 if [ -z "${SKIP_BOOTSTRAP_DRIVER_SEED:-}" ]; then
   make -C compiler bootstrap-driver-seed
   SHUX=./compiler/shux

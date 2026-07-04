@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S5：pipeline_wpo.o 编排链 reach 门禁（run_sx_pipeline_impl 不应 U 其 direct callee）。
+# S5：pipeline_wpo.o 编排链 reach 门禁（run_x_pipeline_impl 不应 U 其 direct callee）。
 # ast_pool.c fixpoint + strict preserve 后须重编 pipeline_wpo.o（build_shux_asm post-strict）。
 # 用法：
 #   ./tests/run-wpo-pipeline-reach-gate.sh
@@ -16,19 +16,19 @@ if [ ! -f "$PIPE_O" ]; then
   exit 0
 fi
 
-if ! nm "$PIPE_O" 2>/dev/null | grep -q 'run_sx_pipeline_impl'; then
-  echo "run-wpo-pipeline-reach-gate FAIL: $PIPE_O missing run_sx_pipeline_impl" >&2
+if ! nm "$PIPE_O" 2>/dev/null | grep -q 'run_x_pipeline_impl'; then
+  echo "run-wpo-pipeline-reach-gate FAIL: $PIPE_O missing run_x_pipeline_impl" >&2
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
 
-# run_sx_pipeline_impl 直接 callee：WPO reach 修复后须在 pipeline_wpo.o 内定义（非 U）。
+# run_x_pipeline_impl 直接 callee：WPO reach 修复后须在 pipeline_wpo.o 内定义（非 U）。
 MISSING=""
 for sym in \
-  run_sx_pipeline_parse_entry_if_needed \
-  run_sx_pipeline_typecheck_entry \
-  run_sx_pipeline_codegen_deps \
-  run_sx_pipeline_codegen_entry; do
+  run_x_pipeline_parse_entry_if_needed \
+  run_x_pipeline_typecheck_entry \
+  run_x_pipeline_codegen_deps \
+  run_x_pipeline_codegen_entry; do
   if nm "$PIPE_O" 2>/dev/null | grep -q " U ${sym}$"; then
     MISSING="${MISSING} ${sym}"
   fi
@@ -40,7 +40,7 @@ echo "run-wpo-pipeline-reach-gate: $PIPE_O exports=${EXPORTS} (min=${MIN_EXPORTS
 
 gate_fail=0
 if [ -n "$MISSING" ]; then
-  echo "run-wpo-pipeline-reach-gate FAIL: run_sx_pipeline_impl undefined callee(s):${MISSING}" >&2
+  echo "run-wpo-pipeline-reach-gate FAIL: run_x_pipeline_impl undefined callee(s):${MISSING}" >&2
   echo "  hint: touch compiler/ast_pool.c && SHUX_WPO_REBUILD_ARTIFACTS_ONLY=1 ./compiler/scripts/build_shux_asm.sh" >&2
   gate_fail=1
 fi

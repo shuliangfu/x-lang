@@ -17,7 +17,7 @@ MIN_RULES=4
 
 echo "=== LANG-004: trait interface manifest ==="
 for f in "$DOC" "$MANIFEST" "$TYPECK" \
-  tests/trait/main.sx tests/trait/method_no_impl.sx tests/trait/impl_missing_method.sx \
+  tests/trait/main.x tests/trait/method_no_impl.x tests/trait/impl_missing_method.x \
   compiler/src/typeck/typeck.c compiler/src/parser/parser.c; do
   if [ ! -f "$f" ]; then
     echo "lang-trait gate FAIL: missing $f" >&2

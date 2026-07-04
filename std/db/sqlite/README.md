@@ -7,7 +7,7 @@
 
 | 模式 | 命令 | 行为 |
 |------|------|------|
-| **默认（SQLite3）** | `make -C compiler ../std/db/sqlite/sqlite.o` | `sqlite.sx` + `sqlite_glue.c`（`-DSHUX_DB_USE_SQLITE3`）+ 链接 `-lsqlite3` |
+| **默认（SQLite3）** | `make -C compiler ../std/db/sqlite/sqlite.o` | `sqlite.x` + `sqlite_glue.c`（`-DSHUX_DB_USE_SQLITE3`）+ 链接 `-lsqlite3` |
 | **stub（无 libsqlite3）** | `make -C compiler sqlite-o-stub` | 同上但 glue 无 `SHUX_DB_USE_SQLITE3`；运行时返回 **`DB_NOT_IMPL`（-9）** |
 
 ## API 概要

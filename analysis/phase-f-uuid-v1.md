@@ -1,13 +1,13 @@
 # 阶段 F-uuid v1（std.uuid 去 C）
 
-> **F-uuid v1**：删除 **`uuid.c`**；v4/v7/parse/format 全在 **`uuid.sx`**；仍链 **random.o + time.o**（extern）。
+> **F-uuid v1**：删除 **`uuid.c`**；v4/v7/parse/format 全在 **`uuid.x`**；仍链 **random.o + time.o**（extern）。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `uuid.c` + extern | `uuid.sx` |
-| `uuid.o` | `cc -c uuid.c` | `shux -backend asm uuid.sx` |
+| 实现 | `uuid.c` + extern | `uuid.x` |
+| `uuid.o` | `cc -c uuid.c` | `shux -backend asm uuid.x` |
 | 存量 | std 90 `.c` | std **89** `.c` |
 
 ## 已删除（须保持 absent）
@@ -20,8 +20,8 @@
 
 | 模块 | 原因 |
 |------|------|
-| `std/random/random.sx` + `runtime_random_fill.c` | CSPRNG `random_fill_bytes_c` |
-| `std/time/time.sx` + `runtime_time_os.c` | 墙钟 `time_now_wall_ms_c` |
+| `std/random/random.x` + `runtime_random_fill.c` | CSPRNG `random_fill_bytes_c` |
+| `std/time/time.x` + `runtime_time_os.c` | 墙钟 `time_now_wall_ms_c` |
 
 ## 构建
 
@@ -38,5 +38,5 @@ SHUX_F_UUID_V1_FAIL=1 ./tests/run-f-uuid-v1-gate.sh
 
 ## 下一项
 
-- **F-process v1**：`process.c` → `.sx` + OS FFI 胶层
+- **F-process v1**：`process.c` → `.x` + OS FFI 胶层
 - **random/time 去 C**：解除 uuid 对 C 的间接依赖

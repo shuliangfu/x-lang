@@ -10,7 +10,7 @@
 
 | 目标 | 说明 |
 |------|------|
-| **阶段性方案** | mega 7 从 ret0/C glue → SX 真 emit 的 A/B/C 三阶段可执行计划 |
+| **阶段性方案** | mega 7 从 ret0/C glue → X 真 emit 的 A/B/C 三阶段可执行计划 |
 | **能力先行** | 阶段 A 补齐 emit 能力（切片、符号完整性）再迁 mega |
 | **逐项 bisect** | 每项 mega 独立 `SHUX_ASM_PARSER_MEGA_BISECT`，禁止 batch |
 | **质量门禁** | 符号完整性 + second-pass + mega bisect 基线联动 |
@@ -65,7 +65,7 @@
 |----|------|------|
 | C1 | C seed `parse_into_buf` TU | `run-parser-parse-bootstrap-gate.sh` |
 | C2 | experimental 链 link smoke | `run-parser-parse-bootstrap-link-smoke.sh` |
-| C3 | 139 func SX emit（无 ret0） | `SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1`（后续） |
+| C3 | 139 func X emit（无 ret0） | `SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1`（后续） |
 
 ---
 
@@ -88,7 +88,7 @@
 `tests/run-comp-parser-mega7-gate.sh`：
 
 1. manifest：RFC + matrix + `boot-mega7-gap.md` + `parser-mega-bisect.tsv`  
-2. mega 7 函数须在 `parser.sx` 存在  
+2. mega 7 函数须在 `parser.x` 存在  
 3. matrix：`phase A` ≥2 行、`mega7` 7 行、`capability` done ≥ `min_slice_done`  
 4. hook：symbol-integrity（Linux）；mega bisect sweep baseline 行数=7  
 

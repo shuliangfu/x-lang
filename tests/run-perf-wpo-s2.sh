@@ -13,8 +13,8 @@ SHUX=${SHUX:-./compiler/shux_asm}
 if [ ! -x "$SHUX" ]; then
   make -C compiler bootstrap-driver-seed 2>/dev/null || make -C compiler shux-c
 fi
-SRC="tests/bench/wpo_scale_loop.sx"
-SRC_VEC="tests/bench/wpo_vec_lane0_loop.sx"
+SRC="tests/bench/wpo_scale_loop.x"
+SRC_VEC="tests/bench/wpo_vec_lane0_loop.x"
 # 热循环次数：默认 10M；CI 可 SHUX_WPO_S2_LIMIT=1000000 缩短门禁（fold/no-fold 同 limit，ratio 仍可比）
 # compile-only（Mac Docker Rosetta）：未显式 limit 时用 1000，避免 4×bench 耗时过长
 if [ "${SHUX_WPO_S2_COMPILE_ONLY:-0}" = "1" ]; then
@@ -22,8 +22,8 @@ if [ "${SHUX_WPO_S2_COMPILE_ONLY:-0}" = "1" ]; then
 else
   WPO_S2_LIMIT="${SHUX_WPO_S2_LIMIT:-10000000}"
 fi
-BENCH_SCALE="/tmp/shux_wpo_scale_loop_bench.sx"
-BENCH_VEC="/tmp/shux_wpo_vec_lane0_loop_bench.sx"
+BENCH_SCALE="/tmp/shux_wpo_scale_loop_bench.x"
+BENCH_VEC="/tmp/shux_wpo_vec_lane0_loop_bench.x"
 OUT_FOLD="/tmp/shux_wpo_scale_fold"
 OUT_CALL="/tmp/shux_wpo_scale_call"
 OUT_VEC_FOLD="/tmp/shux_wpo_vec_lane0_fold"

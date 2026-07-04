@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # run-portable-suite.sh — Tier P 便携测试套件（全平台必过）。
 #
-# 统一 .sx / shux-c 测试，不区分平台写业务代码；平台专有能力在子脚本内自动 N/A。
+# 统一 .x / shux-c 测试，不区分平台写业务代码；平台专有能力在子脚本内自动 N/A。
 # 由 tests/run-ci-full-suite.sh 在所有 job 上调用。
 #
 # 用法：./tests/run-portable-suite.sh [--with-c-regression]
@@ -45,9 +45,9 @@ echo "── M-3 region typeck ──"
 chmod +x tests/run-typeck-region.sh
 run_grep /tmp/typeck_region.log 'region typeck OK' ./tests/run-typeck-region.sh
 
-echo "── migrate sx gen gate ──"
-chmod +x tests/run-migrate-sx-gen-gate.sh
-run_grep /tmp/migrate_sx_gen.log 'migrate sx gen gate OK' ./tests/run-migrate-sx-gen-gate.sh
+echo "── migrate x gen gate ──"
+chmod +x tests/run-migrate-x-gen-gate.sh
+run_grep /tmp/migrate_x_gen.log 'migrate x gen gate OK' ./tests/run-migrate-x-gen-gate.sh
 
 echo "── M-4 linear typeck ──"
 chmod +x tests/run-typeck-linear.sh
@@ -628,7 +628,7 @@ echo "── TST-004 std sanitizer nightly ──"
 chmod +x tests/run-tst-004-std-sanitize-gate.sh tests/run-tst-004-std-sanitize-nightly.sh tests/lib/tst-004-std-sanitize.sh
 run_grep /tmp/tst004_sanitize_gate.log 'tst-004-std-sanitize gate OK' ./tests/run-tst-004-std-sanitize-gate.sh
 
-echo "── IO unified gate (同一套 .sx 全平台) ──"
+echo "── IO unified gate (同一套 .x 全平台) ──"
 chmod +x tests/run-io-unified-gate.sh
 ./tests/run-io-unified-gate.sh | tee /tmp/io_unified_gate.log
 grep -q 'io unified gate OK' /tmp/io_unified_gate.log
@@ -1209,7 +1209,7 @@ chmod +x tests/run-boot-025-parser-gen12-consistency-gate.sh tests/lib/boot-025-
 ./tests/run-boot-025-parser-gen12-consistency-gate.sh | tee /tmp/boot025_gen12.log
 grep -q 'boot-025-parser-gen12-consistency gate OK' /tmp/boot025_gen12.log
 
-echo "── BOOT-026 parser C4 SX bootstrap ──"
+echo "── BOOT-026 parser C4 X bootstrap ──"
 chmod +x tests/run-boot-026-parser-c4-bootstrap-gate.sh tests/lib/boot-026-parser-c4-bootstrap.sh
 ./tests/run-boot-026-parser-c4-bootstrap-gate.sh | tee /tmp/boot026_c4.log
 grep -q 'boot-026-parser-c4-bootstrap gate OK' /tmp/boot026_c4.log

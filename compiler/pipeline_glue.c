@@ -5,29 +5,29 @@
  * 编译 pipeline_gen.c 时由 cc 在同一 TU 内包含本文件，故可直接使用上方已定义的 ast_* / codegen_* 等类型。
  * 不单独编译；无补丁、无 sed，所有逻辑在此源文件内从根源提供。
  *
- * parser.sx 聚合 -o 可执行时，runtime 在含入前 #define SHUX_PARSER_EXE_PIPELINE_GLUE：省略依赖
+ * parser.x 聚合 -o 可执行时，runtime 在含入前 #define SHUX_PARSER_EXE_PIPELINE_GLUE：省略依赖
  * platform_elf_ElfCodegenCtx 完整定义与 codegen.o 转发符号的片段，避免单文件 TU 编译失败。
  *
  * ── extern 消费者索引（10.4.2 自举；删函数前 grep 本表）────────────────────────────
  * | 符号 | 消费者 |
  * |------|--------|
- * | parser_slice_from_buf / lexer_parser_slice_from_buf / pipeline_source_slice | parser.sx, lexer.sx, pipeline.sx |
- * | parser_lex_from_lexer_result_ptr_into | parser.sx（*LexerResult → *Lexer，避 typeck 链式 FIELD_ACCESS） |
- * | pipeline_run_sx_pipeline | runtime.c（C 包装 buf+len） |
- * | pipeline_sizeof_* / pipeline_arena_offset_num_types | parser.sx, lsp_diag.sx；**PipelineDepCtx 增字段时须同步** runtime.c / lsp_diag_pipeline_sizes.c / ast.sx |
- * | pipeline_expr_ref_is_assign_lvalue | parser.sx |
- * | compound_assign_token_to_expr_kind_from_glue | parser.sx |
- * | pipeline_expr_* / ast_pipeline_expr_* / implicit_tail_expr_disallowed_by_glue | ast.sx, typeck.sx |
- * | pipeline_type_* / pipeline_module_struct_layout_* | typeck.sx, codegen.sx |
- * | pipeline_module_func_* / pipeline_arena_func_* | parser.sx |
- * | pipeline_asm_array_lit_elem_type_ref | asm/backend.sx |
- * | pipeline_asm_cmp_cc_for_expr_kind_ord / pipeline_asm_arm64_cset_cond_enc_from_cc | asm/backend.sx, arch/arm64_enc.sx |
- * | pipeline_module_func_is_extern_at / pipeline_module_func_body_ref_at / pipeline_module_func_name_len_at | asm/backend.sx, arch/arm64.sx |
- * | pipeline_backend_get_return_expr_ref_at / pipeline_arm64_get_return_lit_ref_at | asm/backend.sx, arch/arm64.sx |
+ * | parser_slice_from_buf / lexer_parser_slice_from_buf / pipeline_source_slice | parser.x, lexer.x, pipeline.x |
+ * | parser_lex_from_lexer_result_ptr_into | parser.x（*LexerResult → *Lexer，避 typeck 链式 FIELD_ACCESS） |
+ * | pipeline_run_x_pipeline | runtime.c（C 包装 buf+len） |
+ * | pipeline_sizeof_* / pipeline_arena_offset_num_types | parser.x, lsp_diag.x；**PipelineDepCtx 增字段时须同步** runtime.c / lsp_diag_pipeline_sizes.c / ast.x |
+ * | pipeline_expr_ref_is_assign_lvalue | parser.x |
+ * | compound_assign_token_to_expr_kind_from_glue | parser.x |
+ * | pipeline_expr_* / ast_pipeline_expr_* / implicit_tail_expr_disallowed_by_glue | ast.x, typeck.x |
+ * | pipeline_type_* / pipeline_module_struct_layout_* | typeck.x, codegen.x |
+ * | pipeline_module_func_* / pipeline_arena_func_* | parser.x |
+ * | pipeline_asm_array_lit_elem_type_ref | asm/backend.x |
+ * | pipeline_asm_cmp_cc_for_expr_kind_ord / pipeline_asm_arm64_cset_cond_enc_from_cc | asm/backend.x, arch/arm64_enc.x |
+ * | pipeline_module_func_is_extern_at / pipeline_module_func_body_ref_at / pipeline_module_func_name_len_at | asm/backend.x, arch/arm64.x |
+ * | pipeline_backend_get_return_expr_ref_at / pipeline_arm64_get_return_lit_ref_at | asm/backend.x, arch/arm64.x |
  * | std_io_driver_submit_*_batch_buf | pipeline_gen.c 同 TU（io.o 批量读写） |
  * | driver_get_module_num_funcs / driver_get_module_main_func_index | runtime.c 烟测 |
- * | driver_diagnostic_entry_* | pipeline.sx（日常 no-op） |
- * 原因：SX/asm 对大 struct 按值读写字段或 enum 比较易撕裂/ typeck 失败，暂保留 C 指针读池。
+ * | driver_diagnostic_entry_* | pipeline.x（日常 no-op） |
+ * 原因：X/asm 对大 struct 按值读写字段或 enum 比较易撕裂/ typeck 失败，暂保留 C 指针读池。
  */
 
 #include <stddef.h>
@@ -101,7 +101,7 @@ int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t
 
 /** 当前 asm_codegen_ast_to_elf 正在发射的 module（定义见本文件后部 pipeline_asm_emit_set_module）。 */
 static struct ast_Module *g_pipeline_asm_emit_module;
-/** 当前 asm emit 函数下标；供形参 *T 槽 load/leа 判定（driver compile.sx state 等）。 */
+/** 当前 asm emit 函数下标；供形参 *T 槽 load/leа 判定（driver compile.x state 等）。 */
 static int32_t g_pipeline_asm_emit_func_index = -1;
 /** 当前 emit 用的 AST arena（param homing 形参 kind 查询）。 */
 static struct ast_ASTArena *g_pipeline_asm_emit_arena;
@@ -164,9 +164,9 @@ extern int typeck_float64_bits_hi(double d);
 /** 模块顶层 const 字面量回落（非 hoist 目标函数内 VAR AF_INET 等）；定义见 ast_pool.c。 */
 extern int32_t asm_module_top_level_const_lit_i32(struct ast_Module *m, struct ast_ASTArena *a, uint8_t *name,
                                                    int32_t name_len, int32_t *out_imm);
-extern int32_t typeck_sx_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t li, int32_t depth);
-extern int32_t typeck_sx_type_align_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                      int32_t li, int32_t depth);
 int32_t pipeline_module_struct_layout_num_fields(struct ast_Module *m, int32_t idx);
 int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m);
@@ -217,7 +217,7 @@ int32_t pipeline_asm_wpo_pgo_emit_order_at(struct ast_Module *m, int32_t order_i
 int32_t asm_diag_start_func_skip(void);
 int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTArena *arena, int32_t func_index);
 extern void driver_diagnostic_asm_set_current_func(const uint8_t *name, int32_t len);
-/** pipeline.sx：PipelineDepCtx / CodegenOutBuf 字段 glue（ast_pool.c）。 */
+/** pipeline.x：PipelineDepCtx / CodegenOutBuf 字段 glue（ast_pool.c）。 */
 int32_t pipeline_dep_ctx_entry_already_parsed(struct ast_PipelineDepCtx *ctx);
 int32_t pipeline_module_num_funcs(struct ast_Module *m);
 int32_t pipeline_module_main_func_index(struct ast_Module *m);
@@ -279,7 +279,7 @@ static void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_f
                                        block_num_stmt_order, final_expr_ref);
 }
 
-/** 从 (data, len) 构造 slice，供 parser.sx 内 parse_into_buf 调 parse_one_function_impl 时使用。 */
+/** 从 (data, len) 构造 slice，供 parser.x 内 parse_into_buf 调 parse_one_function_impl 时使用。 */
 struct shux_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len) {
   struct shux_slice_uint8_t s;
   s.data = data;
@@ -287,7 +287,7 @@ struct shux_slice_uint8_t parser_slice_from_buf(uint8_t *data, int32_t len) {
   return s;
 }
 
-/** parser.sx：usize 起点回溯；asm 自 typecheck 对 usize/i32 混算失败，保留薄 C sidecar。 */
+/** parser.x：usize 起点回溯；asm 自 typecheck 对 usize/i32 混算失败，保留薄 C sidecar。 */
 size_t parser_lexer_pos_before(size_t end_pos, int32_t run_len) {
   if (run_len <= 0)
     return end_pos;
@@ -295,7 +295,7 @@ size_t parser_lexer_pos_before(size_t end_pos, int32_t run_len) {
 }
 
 /**
- * lexer.sx 内的 extern：Codegen 会带 lexer_ 模块前缀，否则会链接到不存在的 lexer_parser_slice_from_buf。
+ * lexer.x 内的 extern：Codegen 会带 lexer_ 模块前缀，否则会链接到不存在的 lexer_parser_slice_from_buf。
  * 与 parser_slice_from_buf 等价，仅别名。
  */
 struct shux_slice_uint8_t lexer_parser_slice_from_buf(uint8_t *data, int32_t len) {
@@ -303,7 +303,7 @@ struct shux_slice_uint8_t lexer_parser_slice_from_buf(uint8_t *data, int32_t len
 }
 
 /**
- * parser.sx：从 *LexerResult 拷贝 next_lex 三字段到 *Lexer。
+ * parser.x：从 *LexerResult 拷贝 next_lex 三字段到 *Lexer。
  * 避免 `r.next_lex.pos` 等 *T 链式 FIELD_ACCESS 在 typeck 上 RHS 解析为 ?。
  */
 void parser_lex_from_lexer_result_ptr_into(struct lexer_Lexer *out, struct lexer_LexerResult *r) {
@@ -341,7 +341,7 @@ void parser_lex_from_onefunc_result_ptr_into(struct lexer_Lexer *out, struct par
   out->col = res->next_lex.col;
 }
 
-/** 与 parser.sx ExternParseResult 布局一致；glue TU 内局部 typedef，勿与 -E 生成符号混用。 */
+/** 与 parser.x ExternParseResult 布局一致；glue TU 内局部 typedef，勿与 -E 生成符号混用。 */
 typedef struct {
   struct lexer_Lexer next_lex;
   uint8_t name[64];
@@ -350,7 +350,7 @@ typedef struct {
   int32_t num_params;
 } pipeline_glue_ExternParseResult;
 
-/** *ExternParseResult.next_lex → *Lexer；parse_one_extern_and_add_into SX emit 勿写 lex_out.pos=…（kind=28）。 */
+/** *ExternParseResult.next_lex → *Lexer；parse_one_extern_and_add_into X emit 勿写 lex_out.pos=…（kind=28）。 */
 void parser_lex_from_extern_parse_result_ptr_into(struct lexer_Lexer *out, void *res_raw) {
   pipeline_glue_ExternParseResult *res = (pipeline_glue_ExternParseResult *)res_raw;
   if (out == NULL || res == NULL)
@@ -360,7 +360,7 @@ void parser_lex_from_extern_parse_result_ptr_into(struct lexer_Lexer *out, void 
   out->col = res->next_lex.col;
 }
 
-/** 将 extern 解析失败快照写入 out（name_len=-1）；SX `out.name[ni]=` INDEX ASSIGN 会 asm fail。 */
+/** 将 extern 解析失败快照写入 out（name_len=-1）；X `out.name[ni]=` INDEX ASSIGN 会 asm fail。 */
 void pipeline_parser_extern_parse_set_fail_c(void *res_raw, struct lexer_Lexer lex) {
   pipeline_glue_ExternParseResult *res = (pipeline_glue_ExternParseResult *)res_raw;
   if (res == NULL)
@@ -372,7 +372,7 @@ void pipeline_parser_extern_parse_set_fail_c(void *res_raw, struct lexer_Lexer l
   memset(res->name, 0, sizeof(res->name));
 }
 
-/** 与 parser.sx LibraryParseResult（allow(padding)）布局一致。 */
+/** 与 parser.x LibraryParseResult（allow(padding)）布局一致。 */
 typedef struct {
   int32_t ok;
   uint8_t _pad[4];
@@ -382,7 +382,7 @@ typedef struct {
   uint8_t _pad_tail[4];
 } pipeline_glue_LibraryParseResult;
 
-/** *LibraryParseResult 从栈上临时结果拷贝；避免 SX out.name[nli]=res.name[nli] INDEX ASSIGN。 */
+/** *LibraryParseResult 从栈上临时结果拷贝；避免 X out.name[nli]=res.name[nli] INDEX ASSIGN。 */
 void pipeline_parser_library_result_copy_into_c(void *out_raw, void *res_raw) {
   pipeline_glue_LibraryParseResult *out = (pipeline_glue_LibraryParseResult *)out_raw;
   pipeline_glue_LibraryParseResult *res = (pipeline_glue_LibraryParseResult *)res_raw;
@@ -396,14 +396,14 @@ void pipeline_parser_library_result_copy_into_c(void *out_raw, void *res_raw) {
   memcpy(out->_pad_tail, res->_pad_tail, sizeof(out->_pad_tail));
 }
 
-/** 与 parser.sx TrySkipAllowResult（allow(padding)）布局一致。 */
+/** 与 parser.x TrySkipAllowResult（allow(padding)）布局一致。 */
 typedef struct {
   struct lexer_Lexer lex;
   int32_t skipped;
   uint8_t _pad[4];
 } pipeline_glue_TrySkipAllowResult;
 
-/** *TrySkipAllowResult 从栈上临时结果拷贝；避免 SX out.lex.pos= / out._pad[i]= INDEX ASSIGN。 */
+/** *TrySkipAllowResult 从栈上临时结果拷贝；避免 X out.lex.pos= / out._pad[i]= INDEX ASSIGN。 */
 void pipeline_parser_try_skip_result_copy_into_c(void *out_raw, void *res_raw) {
   pipeline_glue_TrySkipAllowResult *out = (pipeline_glue_TrySkipAllowResult *)out_raw;
   pipeline_glue_TrySkipAllowResult *res = (pipeline_glue_TrySkipAllowResult *)res_raw;
@@ -414,7 +414,7 @@ void pipeline_parser_try_skip_result_copy_into_c(void *out_raw, void *res_raw) {
   memcpy(out->_pad, res->_pad, sizeof(out->_pad));
 }
 
-/** TrySkipAllowResult.lex → *Lexer（按值参）；lex_from_try_skip_into SX emit 勿 out.pos=。 */
+/** TrySkipAllowResult.lex → *Lexer（按值参）；lex_from_try_skip_into X emit 勿 out.pos=。 */
 void parser_lex_from_try_skip_result_val_into(struct lexer_Lexer *out, pipeline_glue_TrySkipAllowResult t) {
   if (out == NULL)
     return;
@@ -423,7 +423,7 @@ void parser_lex_from_try_skip_result_val_into(struct lexer_Lexer *out, pipeline_
   out->col = t.lex.col;
 }
 
-/** LibraryParseResult.next_lex → *Lexer（按值参）；lex_from_library_into SX emit 勿 out.pos=。 */
+/** LibraryParseResult.next_lex → *Lexer（按值参）；lex_from_library_into X emit 勿 out.pos=。 */
 void parser_lex_from_library_result_val_into(struct lexer_Lexer *out, pipeline_glue_LibraryParseResult lib) {
   if (out == NULL)
     return;
@@ -432,7 +432,7 @@ void parser_lex_from_library_result_val_into(struct lexer_Lexer *out, pipeline_g
   out->col = lib.next_lex.col;
 }
 
-/** 与 parser.sx OneFuncResult（allow(padding)）布局一致；仅 glue 内使用。 */
+/** 与 parser.x OneFuncResult（allow(padding)）布局一致；仅 glue 内使用。 */
 typedef struct {
   int32_t ok;
   struct lexer_Lexer next_lex;
@@ -470,7 +470,7 @@ typedef struct {
   int32_t func_return_type_ref;
 } pipeline_glue_OneFuncResult;
 
-/** 写失败 OneFuncResult（等价 set_onefunc_fail；force_stub 勿 SX emit 本函数体）。 */
+/** 写失败 OneFuncResult（等价 set_onefunc_fail；force_stub 勿 X emit 本函数体）。 */
 void pipeline_parser_set_onefunc_fail_c(void *out_raw, struct lexer_Lexer lex) {
   pipeline_glue_OneFuncResult *out = (pipeline_glue_OneFuncResult *)out_raw;
   if (out == NULL)
@@ -479,7 +479,7 @@ void pipeline_parser_set_onefunc_fail_c(void *out_raw, struct lexer_Lexer lex) {
   out->next_lex = lex;
 }
 
-/** parse_one_function_buf_into 成功路径：写 ok/next_lex/name/return_val，勿 SX name[] INDEX ASSIGN。 */
+/** parse_one_function_buf_into 成功路径：写 ok/next_lex/name/return_val，勿 X name[] INDEX ASSIGN。 */
 void pipeline_parser_onefunc_buf_into_set_success_c(void *out_raw, struct lexer_Lexer lex, const uint8_t *name,
                                                     int32_t name_len, int32_t ret_val) {
   pipeline_glue_OneFuncResult *out = (pipeline_glue_OneFuncResult *)out_raw;
@@ -492,23 +492,23 @@ void pipeline_parser_onefunc_buf_into_set_success_c(void *out_raw, struct lexer_
   out->return_val = ret_val;
 }
 
-/** 供 pipeline.sx run_sx_pipeline_impl 使用：与 parser_slice_from_buf 相同，避免 -E 对 parser_* 符号双重前缀。 */
+/** 供 pipeline.x run_x_pipeline_impl 使用：与 parser_slice_from_buf 相同，避免 -E 对 parser_* 符号双重前缀。 */
 struct shux_slice_uint8_t pipeline_source_slice(uint8_t *data, int32_t len) {
   return parser_slice_from_buf(data, len);
 }
 
 #ifndef SHUX_PARSER_EXE_PIPELINE_GLUE
 /* C 包装：以 (data, len) 形式调用 pipeline，impl 内用 parse_into_with_init_buf 解析，无需组 slice。 */
-extern int32_t pipeline_run_sx_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data, size_t source_len, struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data, size_t source_len, struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx);
 
-int32_t pipeline_run_sx_pipeline(struct ast_Module *module, struct ast_ASTArena *arena, const uint8_t *source_data, size_t source_len, struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx) {
-  return pipeline_run_sx_pipeline_impl(module, arena, (uint8_t *)source_data, source_len, out_buf, ctx);
+int32_t pipeline_run_x_pipeline(struct ast_Module *module, struct ast_ASTArena *arena, const uint8_t *source_data, size_t source_len, struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx) {
+  return pipeline_run_x_pipeline_impl(module, arena, (uint8_t *)source_data, source_len, out_buf, ctx);
 }
 #endif /* !SHUX_PARSER_EXE_PIPELINE_GLUE */
 
 size_t pipeline_sizeof_arena(void) { return sizeof(struct ast_ASTArena); }
 size_t pipeline_sizeof_module(void) { return sizeof(struct ast_Module); }
-/** LSP / lsp_diag.sx：PipelineDepCtx 体量大（含 4MiB×2 缓冲），一次性 calloc 后 memset 复用。 */
+/** LSP / lsp_diag.x：PipelineDepCtx 体量大（含 4MiB×2 缓冲），一次性 calloc 后 memset 复用。 */
 size_t pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_PipelineDepCtx); }
 /** parser OneFuncResult 体量大（256×64 let 名等）；parse_block_into 堆分配 scratch，避免递归块解析栈溢出。 */
 size_t pipeline_sizeof_onefunc_result(void) { return (size_t)8192; }
@@ -538,7 +538,7 @@ int driver_get_module_num_funcs(void *m) {
   return m ? (int)((struct ast_Module *)m)->num_funcs : 0;
 }
 
-/** 供 runtime.c 烟测摘要：解析后 module.main_func_index（无 main 为 -1，与 pipeline.sx parse_into_set_main_index 一致）。 */
+/** 供 runtime.c 烟测摘要：解析后 module.main_func_index（无 main 为 -1，与 pipeline.x parse_into_set_main_index 一致）。 */
 int driver_get_module_main_func_index(void *m) {
   return m ? (int)((struct ast_Module *)m)->main_func_index : -2;
 }
@@ -550,7 +550,7 @@ int32_t ast_ast_block_num_stmt_order(struct ast_ASTArena *a, int32_t br);
 int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br);
 void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena);
 
-/** 诊断：解析 entry 后打印 main 的 body_ref；日常构建关闭，排查 main 空体时取消下方注释。由 pipeline.sx 在 parse 后 / codegen 前调用。 */
+/** 诊断：解析 entry 后打印 main 的 body_ref；日常构建关闭，排查 main 空体时取消下方注释。由 pipeline.x 在 parse 后 / codegen 前调用。 */
 void driver_diagnostic_entry_module(struct ast_Module *mod, struct ast_ASTArena *a) {
   const char *list_env;
   int32_t i;
@@ -593,7 +593,7 @@ void driver_diagnostic_entry_module(struct ast_Module *mod, struct ast_ASTArena 
   } */
 }
 
-/** pipeline.sx -E 产出 typeck_ 前缀；实现于 runtime.c（pipeline_sx.o 编译期须可见声明）。 */
+/** pipeline.x -E 产出 typeck_ 前缀；实现于 runtime.c（pipeline_x.o 编译期须可见声明）。 */
 extern void driver_diagnostic_after_entry_parse(int32_t num_funcs);
 extern size_t driver_pipeline_entry_source_len(void);
 extern int32_t driver_typeck_skip_large_entry(void);
@@ -603,14 +603,14 @@ void typeck_driver_diagnostic_after_entry_parse(int32_t num_funcs) {
   driver_diagnostic_after_entry_parse(num_funcs);
 }
 
-/** pipeline.sx 经 typeck_ 前缀调用；实现于 runtime.c。 */
+/** pipeline.x 经 typeck_ 前缀调用；实现于 runtime.c。 */
 extern void driver_diagnostic_pipe_marker(int32_t id);
 
 void typeck_driver_diagnostic_pipe_marker(int32_t id) {
   driver_diagnostic_pipe_marker(id);
 }
 
-/** typeck.sx / pipeline.sx：入口源码长度（runtime.c）。 */
+/** typeck.x / pipeline.x：入口源码长度（runtime.c）。 */
 size_t typeck_driver_pipeline_entry_source_len(void) {
   return driver_pipeline_entry_source_len();
 }
@@ -646,16 +646,16 @@ int32_t pipeline_driver_typeck_skip_large_entry(void) {
   return driver_typeck_skip_large_entry();
 }
 
-/** build_shux_asm：SHUX_ASM_BUILD_SKIP_TYPECK=1 时 pipeline 跳过 .sx typeck。 */
+/** build_shux_asm：SHUX_ASM_BUILD_SKIP_TYPECK=1 时 pipeline 跳过 .x typeck。 */
 int32_t pipeline_driver_asm_build_skip_typeck(void) {
   return driver_asm_build_skip_typeck();
 }
 
-extern int32_t driver_sx_pipeline_skip_typeck_get(void);
+extern int32_t driver_x_pipeline_skip_typeck_get(void);
 
-/** asm -o：C typeck 预检已通过时跳过重复 .sx typeck（见 driver_run_asm_backend）。 */
-int32_t pipeline_driver_sx_pipeline_skip_typeck(void) {
-  return driver_sx_pipeline_skip_typeck_get();
+/** asm -o：C typeck 预检已通过时跳过重复 .x typeck（见 driver_run_asm_backend）。 */
+int32_t pipeline_driver_x_pipeline_skip_typeck(void) {
+  return driver_x_pipeline_skip_typeck_get();
 }
 
 /** 诊断：解析后打印 main 对应 body block 的 num_stmt_order（C 侧调用）；日常构建保留实现不调用，排查时在 runtime.c 恢复调用。 */
@@ -681,7 +681,7 @@ void driver_diagnostic_entry_block_after_parse(void *mod, void *arena) {
 
 struct std_io_driver_Buffer;
 
-/* std.io.driver 批量读写桩：pipeline_gen.c 同 TU 已定义 struct std_io_driver_Buffer；io.o 提供 io_read_batch_buf/io_write_batch_buf，供 shux_sx 链接时解析。 */
+/* std.io.driver 批量读写桩：pipeline_gen.c 同 TU 已定义 struct std_io_driver_Buffer；io.o 提供 io_read_batch_buf/io_write_batch_buf，供 shux_x 链接时解析。 */
 extern ptrdiff_t io_read_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
 extern ptrdiff_t io_write_batch_buf(int fd, const struct std_io_driver_Buffer *bufs, int n, unsigned timeout_ms);
 
@@ -711,7 +711,7 @@ int32_t std_io_driver_submit_write_batch_buf(size_t handle, struct std_io_driver
   return (r < 0) ? -1 : (int32_t)r;
 }
 
-/** 读池中 expr.kind；仅供本文件与 glue 导出函数使用（SX 无法用 Expr 局部安全 typeck）。 */
+/** 读池中 expr.kind；仅供本文件与 glue 导出函数使用（X 无法用 Expr 局部安全 typeck）。 */
 static enum ast_ExprKind glue_arena_expr_kind_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex;
   if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
@@ -721,8 +721,8 @@ static enum ast_ExprKind glue_arena_expr_kind_at_ref(struct ast_ASTArena *a, int
 }
 
 /**
- * parser.sx expr_ref_is_assign_lvalue：与 shux-c 生成码对 struct 直读一致。
- * SX 中对「let e: Expr = ast_arena_expr_get(...)」再写 e.kind == … 会在 .sx typeck 路径失败（见 ast.sx 注释）；由 C 从池读 kind / is_enum_variant。
+ * parser.x expr_ref_is_assign_lvalue：与 shux-c 生成码对 struct 直读一致。
+ * X 中对「let e: Expr = ast_arena_expr_get(...)」再写 e.kind == … 会在 .x typeck 路径失败（见 ast.x 注释）；由 C 从池读 kind / is_enum_variant。
  * 返回 1 表示可作为赋值左值，0 表示否。
  */
 int32_t pipeline_expr_ref_is_assign_lvalue(struct ast_ASTArena *a, int32_t expr_ref) {
@@ -743,9 +743,9 @@ int32_t pipeline_expr_ref_is_assign_lvalue(struct ast_ASTArena *a, int32_t expr_
 }
 
 /**
- * parser.sx compound_assign_token_to_expr_kind：在 C 内完成 TokenKind→ExprKind 映射，
- * 避免 .sx 中 `return ExprKind.*` 与枚举比较在 typeck 下失败；符号名供 parser extern 原样链接。
- * 参数用 int32_t + include/token.h 的 TokenKind 常量：lexer_sx.o 与 token.h 一致，
+ * parser.x compound_assign_token_to_expr_kind：在 C 内完成 TokenKind→ExprKind 映射，
+ * 避免 .x 中 `return ExprKind.*` 与枚举比较在 typeck 下失败；符号名供 parser extern 原样链接。
+ * 参数用 int32_t + include/token.h 的 TokenKind 常量：lexer_x.o 与 token.h 一致，
  * pipeline_gen 内嵌的 token_TokenKind 可能滞后（缺 TOKEN_TRY 等），不可直接比较。
  */
 enum ast_ExprKind compound_assign_token_to_expr_kind_from_glue(int32_t kind) {
@@ -808,10 +808,10 @@ static int32_t glue_codegen_out_append_byte(struct codegen_CodegenOutBuf *out, u
 }
 
 /**
- * let s: T[] = arr：写出 { .data = arr, .length = N }（对齐 codegen.c codegen_init / codegen.sx）。
+ * let s: T[] = arr：写出 { .data = arr, .length = N }（对齐 codegen.c codegen_init / codegen.x）。
  * @return 1 已写出；0 不适用；-1 失败。
  */
-#if !defined(SHUX_PIPELINE_GLUE_STANDALONE_TU) && !defined(SHUX_PIPELINE_GLUE_OMIT_SX_DUP_EXPORTS)
+#if !defined(SHUX_PIPELINE_GLUE_STANDALONE_TU) && !defined(SHUX_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
 int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                    int32_t block_ref, int32_t let_idx, int32_t let_type_ref,
                                                    int32_t linit_ref) {
@@ -875,10 +875,10 @@ int32_t codegen_try_emit_slice_init_from_array_var(struct ast_ASTArena *arena, s
 #endif
 
 /**
- * ast.sx extern：块末若为 RETURN/PANIC/BREAK/CONTINUE，返回 1（禁止隐式尾）；非法 ref 视为 1。
- * 符号名 deliberately 无前缀，供 SX「extern function」原样映射，避免与其它 ast_ast_* extern 串联重复前缀。
+ * ast.x extern：块末若为 RETURN/PANIC/BREAK/CONTINUE，返回 1（禁止隐式尾）；非法 ref 视为 1。
+ * 符号名 deliberately 无前缀，供 X「extern function」原样映射，避免与其它 ast_ast_* extern 串联重复前缀。
  */
-/** ast.sx：池槽 CALL 解析占位 -1（避免 SX 对 Expr 尾字段 FIELD_ACCESS 缺 layout）。 */
+/** ast.x：池槽 CALL 解析占位 -1（避免 X 对 Expr 尾字段 FIELD_ACCESS 缺 layout）。 */
 void pipeline_expr_init_call_resolve_at_ref(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex;
   if (!a || expr_ref <= 0 || expr_ref > a->num_exprs)
@@ -890,7 +890,7 @@ void pipeline_expr_init_call_resolve_at_ref(struct ast_ASTArena *a, int32_t expr
   ex->call_resolved_dep_index = -1;
 }
 
-/** ast.sx / typeck.sx：typeck 命中后写入 call_resolved_*。 */
+/** ast.x / typeck.x：typeck 命中后写入 call_resolved_*。 */
 void pipeline_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t expr_ref, int32_t dep_ix,
                                     int32_t func_ix) {
   struct ast_Expr *ex;
@@ -903,7 +903,7 @@ void pipeline_expr_apply_call_resolve(struct ast_ASTArena *a, int32_t expr_ref, 
   ex->call_resolved_func_index = func_ix;
 }
 
-/** parser.sx expr_set_common_zeros：对堆/池上 Expr 指针写 call_resolved 占位。 */
+/** parser.x expr_set_common_zeros：对堆/池上 Expr 指针写 call_resolved 占位。 */
 void pipeline_expr_ptr_init_call_resolve(struct ast_Expr *e) {
   if (!e)
     return;
@@ -1078,8 +1078,8 @@ int32_t pipeline_type_elem_ref_at(struct ast_ASTArena *arena, int32_t ref) {
 }
 
 /**
- * asm/backend.sx asm_expr_array_elem_store_sz_bytes：从数组字面量 expr 池 ref 取 TYPE_ARRAY 的 elem_type_ref。
- * 无效、非数组或 elem 缺失时返回 0。在 C 内读池，避免 .sx 中 `let e: Expr = ast_arena_expr_get` 后字段访问触发 typeck 失败，
+ * asm/backend.x asm_expr_array_elem_store_sz_bytes：从数组字面量 expr 池 ref 取 TYPE_ARRAY 的 elem_type_ref。
+ * 无效、非数组或 elem 缺失时返回 0。在 C 内读池，避免 .x 中 `let e: Expr = ast_arena_expr_get` 后字段访问触发 typeck 失败，
  * 亦避免 backend import codegen 时 pipeline_type_* 调用被编成 codegen_ 前缀导致链接未定义。
  */
 int32_t pipeline_asm_array_lit_elem_type_ref(struct ast_ASTArena *arena, int32_t array_lit_expr_ref) {
@@ -1102,7 +1102,7 @@ int32_t pipeline_asm_array_lit_elem_type_ref(struct ast_ASTArena *arena, int32_t
 
 /**
  * 比较表达式 ExprKind 序数 → enc_cmp_setcc 的 cc（0=eq, 1=ne, 2=lt, 3=le, 4=gt, 5=ge）。
- * backend.sx 多路 `if (kind==…) cc=N` 经 shux-c -E 后可能全部执行，须在 C 内 switch 一次性映射。
+ * backend.x 多路 `if (kind==…) cc=N` 经 shux-c -E 后可能全部执行，须在 C 内 switch 一次性映射。
  */
 int32_t pipeline_asm_cmp_cc_for_expr_kind_ord(int32_t kind_ord) {
   switch (kind_ord) {
@@ -1167,11 +1167,11 @@ extern int32_t asm_parser_m8_tail_thin_delegate_c_name(struct ast_Module *m, int
                                                           int32_t out_cap, int32_t *out_len);
 extern int32_t asm_driver_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
                                                         int32_t out_cap, int32_t *out_len);
-/** typeck EMIT_HEAVY 第二遍：桩路径 bl→typeck_sx.o 同名符号（扩 __text，避免 mega SX emit Abort）。 */
+/** typeck EMIT_HEAVY 第二遍：桩路径 bl→typeck_x.o 同名符号（扩 __text，避免 mega X emit Abort）。 */
 extern int32_t asm_typeck_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
                                                         int32_t out_cap, int32_t *out_len);
 extern int32_t backend_enc_mov_imm32_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, int32_t ta);
-/** EXPR_FLOAT_LIT 64 位立即数入 rax/x0（backend.sx backend_enc_mov_imm64_to_rax_arch）。 */
+/** EXPR_FLOAT_LIT 64 位立即数入 rax/x0（backend.x backend_enc_mov_imm64_to_rax_arch）。 */
 extern int32_t backend_enc_mov_imm64_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lo, int32_t hi,
                                                    int32_t ta);
 extern int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -1622,7 +1622,7 @@ static int32_t glue_try_index_var_minus_add3_mul_lit_eff_addr_rax_elf_c(struct a
                                                                            int32_t esz);
 
 /**
- * 压入嵌套循环 break/continue 标签栈；与 backend.sx ctx_push_loop_labels 一致。
+ * 压入嵌套循环 break/continue 标签栈；与 backend.x ctx_push_loop_labels 一致。
  * C glue 真实现：避免 partial 与 mega_body 栈上 AsmFuncCtx 布局漂移时误读 loop_label_depth。
  */
 int32_t backend_ctx_push_loop_labels(struct backend_AsmFuncCtx *ctx, uint8_t *exit_buf, int32_t exit_len,
@@ -1668,7 +1668,7 @@ int32_t backend_ctx_push_loop_labels(struct backend_AsmFuncCtx *ctx, uint8_t *ex
   return 0;
 }
 
-/** 弹出循环标签栈顶；与 backend.sx ctx_pop_loop_labels 一致。 */
+/** 弹出循环标签栈顶；与 backend.x ctx_pop_loop_labels 一致。 */
 void backend_ctx_pop_loop_labels(struct backend_AsmFuncCtx *ctx) {
   pipeline_glue_AsmFuncCtxLayout *ly;
   int32_t d;
@@ -1789,16 +1789,16 @@ static int32_t pipeline_asm_emit_lognot_elf_impl(struct ast_ASTArena *arena,
   return backend_enc_setz_movzbl_eax_arch(elf_ctx, ta);
 }
 
-/** C ASTExprKind 与 SX ast_ExprKind 在序 54 碰撞：C AWAIT=54，SX EXPR_AS=54；SX EXPR_AWAIT=55。 */
+/** C ASTExprKind 与 X ast_ExprKind 在序 54 碰撞：C AWAIT=54，X EXPR_AS=54；X EXPR_AWAIT=55。 */
 #define GLUE_EXPR_KIND_ORD54 54
-#define GLUE_EXPR_KIND_SX_AWAIT 55
-/** SX pool：ERR-01 Result `?` 传播（C ast.h AST_EXPR_TRY_PROPAGATE=57，SX EXPR_SPAWN=57 后插入=58）。 */
+#define GLUE_EXPR_KIND_X_AWAIT 55
+/** X pool：ERR-01 Result `?` 传播（C ast.h AST_EXPR_TRY_PROPAGATE=57，X EXPR_SPAWN=57 后插入=58）。 */
 #define GLUE_EXPR_KIND_TRY_PROPAGATE 58
 #define GLUE_EXPR_KIND_C_TRY_PROPAGATE 57
 
 /**
  * pool/C parser 上的 await 表达式。
- * SX pool：kind==EXPR_AWAIT(55) 且 unary 操作数有效。
+ * X pool：kind==EXPR_AWAIT(55) 且 unary 操作数有效。
  * C partial：kind==54 且非 as cast（unary 有效、as_* 字段为空）。
  */
 static int32_t glue_expr_is_await_at_c(struct ast_ASTArena *arena, int32_t expr_ref) {
@@ -1806,7 +1806,7 @@ static int32_t glue_expr_is_await_at_c(struct ast_ASTArena *arena, int32_t expr_
   if (!arena || expr_ref <= 0)
     return 0;
   ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (ko == GLUE_EXPR_KIND_SX_AWAIT) {
+  if (ko == GLUE_EXPR_KIND_X_AWAIT) {
     uop = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
     return uop > 0 ? 1 : 0;
   }
@@ -1819,8 +1819,8 @@ static int32_t glue_expr_is_await_at_c(struct ast_ASTArena *arena, int32_t expr_
   return uop > 0 ? 1 : 0;
 }
 
-/** kind 序 54 且为 SX pool EXPR_AS（as_operand 有效；非 C await）。 */
-static int32_t glue_expr_is_sx_as_cast_at_c(struct ast_ASTArena *arena, int32_t expr_ref) {
+/** kind 序 54 且为 X pool EXPR_AS（as_operand 有效；非 C await）。 */
+static int32_t glue_expr_is_x_as_cast_at_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int32_t ko;
   if (!arena || expr_ref <= 0)
     return 0;
@@ -2272,8 +2272,8 @@ int32_t pipeline_asm_emit_expr_if_arm_elf_c(struct ast_ASTArena *arena,
 }
 
 /**
- * 表达式级 if/三元 ELF 发射（C 实现）：避免 seed partial 中 backend.sx EXPR_IF 经 -E 后漏打 else 标签（.L_else_N offset=-1）。
- * backend.sx::emit_expr_elf 在 ek 25/27 时 extern 调用本函数。
+ * 表达式级 if/三元 ELF 发射（C 实现）：避免 seed partial 中 backend.x EXPR_IF 经 -E 后漏打 else 标签（.L_else_N offset=-1）。
+ * backend.x::emit_expr_elf 在 ek 25/27 时 extern 调用本函数。
  */
 /**
  * STRUCT_LIT 单字段 store 宽度：与 glue_field_access_load_bytes_for_type_ref 一致（i32=4，bool/u8=1）。
@@ -2293,7 +2293,7 @@ static int32_t glue_struct_lit_field_store_sz(struct ast_ASTArena *arena, int32_
   return 8;
 }
 
-/** SX/asm partial 可调用的 STRUCT_LIT 字段 store 宽度（勿在 backend.sx 直链 pipeline_type_kind_ord_at）。 */
+/** X/asm partial 可调用的 STRUCT_LIT 字段 store 宽度（勿在 backend.x 直链 pipeline_type_kind_ord_at）。 */
 int32_t pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, struct ast_Module *m, int32_t expr_ref,
                                                 int32_t field_ix) {
   struct ast_Module *prev;
@@ -2516,7 +2516,7 @@ static int32_t glue_vector_let_init_uses_direct_slot(struct ast_ASTArena *arena,
   return glue_is_vector_lane_scalar_binop_ko(ko);
 }
 
-/** TYPE_ARRAY 在 TypeKind 序数表中的值（与 ast.sx / pipeline_type_kind_ord_at 一致）。 */
+/** TYPE_ARRAY 在 TypeKind 序数表中的值（与 ast.x / pipeline_type_kind_ord_at 一致）。 */
 #define GLUE_TYPE_KIND_ARRAY 10
 int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t ref);
 /** TYPE_F32 在 TypeKind 序数表中的值（与 pipeline_asm_index_elem_byte_sz_c 一致）。 */
@@ -3771,7 +3771,7 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
 static int32_t glue_field_access_effective_offset_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    int32_t fa_ref);
 
-/** AsmFuncCtx.module_ref 在 SX/C 布局中的字节偏移（与 backend.sx fill_param_slots 一致）。 */
+/** AsmFuncCtx.module_ref 在 X/C 布局中的字节偏移（与 backend.x fill_param_slots 一致）。 */
 #define GLUE_ASM_CTX_MODULE_REF_OFF 16
 
 /**
@@ -4059,7 +4059,7 @@ static int32_t glue_field_access_field_type_ref_c(struct ast_ASTArena *arena, st
   return 0;
 }
 
-/** 由类型 ref 推断 INDEX 元素字节宽（*f32→4，*u8→1；TYPE_F32=14 须与 ast.sx TypeKind 一致）。 */
+/** 由类型 ref 推断 INDEX 元素字节宽（*f32→4，*u8→1；TYPE_F32=14 须与 ast.x TypeKind 一致）。 */
 static int32_t glue_index_elem_byte_sz_from_type_ref_c(struct ast_ASTArena *arena, int32_t tr) {
   int32_t kind_ord;
   int32_t pointee;
@@ -7552,7 +7552,7 @@ static void glue_asm_if_merge_live_union_from_ends(struct ast_ASTArena *arena, s
  * 第八步（已接）：全块 live 快照建干涉边 + 贪心 Chaitin（K=4→x10–x13 固定家园）；pin 按色保护。
  * 第九步（已接）：子块干涉图 push/pop 合并；cfg 汇合 live 仅记峰值不加假边。
  * 第十步（已接）：|live|max≥8 时第五 spill x14；Chaitin K=5；pin 可被更近 next-use 抢占。
- * 第十一步（已接）：peephole_elf 消除 x10–x14↔x0/x1 连续往返 mov（8 字节对，见 peephole.sx）。
+ * 第十一步（已接）：peephole_elf 消除 x10–x14↔x0/x1 连续往返 mov（8 字节对，见 peephole.x）。
  * 第十二步（已接）：Chaitin 无法着色 → which=6；线性块 |live|max≥15 时栈帧 spill（push rax/rbx）；十～十四元走 x10–x15 驱逐。
  * 第十三步（已接）：cfg_peak_live 仅 final_expr 快照（Chaitin/阈值更准）；binop_if_return_twelve_add。
  * 第十四步（已接）：|live|max≥9 时第六 spill x15；Chaitin K=6；栈帧家园 which=6；线性 |live|max≥15 栈帧 spill。
@@ -9023,7 +9023,7 @@ int32_t pipeline_asm_emit_assign_elf_c(struct ast_ASTArena *arena, struct platfo
 }
 
 /**
- * ARRAY_LIT 元素标量字节宽（T[N] 的 T）；与 backend.sx asm_array_lit_elem_byte_sz 一致。
+ * ARRAY_LIT 元素标量字节宽（T[N] 的 T）；与 backend.x asm_array_lit_elem_byte_sz 一致。
  */
 static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int32_t elem_ty;
@@ -9040,7 +9040,7 @@ static int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena,
 }
 
 /**
- * let/const 初值为 `[]` 的空 ARRAY_LIT：与 backend.sx asm_init_is_empty_array_lit 一致，stmt_order 路径须跳过 rec emit。
+ * let/const 初值为 `[]` 的空 ARRAY_LIT：与 backend.x asm_init_is_empty_array_lit 一致，stmt_order 路径须跳过 rec emit。
  */
 static int32_t glue_init_is_empty_array_lit(struct ast_ASTArena *arena, int32_t init_ref) {
   if (init_ref <= 0)
@@ -9852,7 +9852,7 @@ static int32_t glue_try_binop_load_operand_elf_c(struct ast_ASTArena *arena,
       return -2;
     return glue_try_binop_load_operand_elf_c(arena, elf_ctx, await_op, ctx, ta, to_rbx);
   }
-  if (glue_expr_is_sx_as_cast_at_c(arena, expr_ref)) {
+  if (glue_expr_is_x_as_cast_at_c(arena, expr_ref)) {
     int32_t op_ref;
     op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
     if (op_ref <= 0)
@@ -9875,7 +9875,7 @@ static int32_t glue_binop_operand_index_addr_clobbers_rbx_elf_c(struct ast_ASTAr
     op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
     return op_ref > 0 ? glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref) : 0;
   }
-  if (glue_expr_is_sx_as_cast_at_c(arena, expr_ref)) {
+  if (glue_expr_is_x_as_cast_at_c(arena, expr_ref)) {
     op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
     return op_ref > 0 ? glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena, op_ref) : 0;
   }
@@ -9912,7 +9912,7 @@ static int32_t glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(struct ast_ASTA
     op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
     return op_ref > 0 ? glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(arena, op_ref) : 1;
   }
-  if (glue_expr_is_sx_as_cast_at_c(arena, expr_ref)) {
+  if (glue_expr_is_x_as_cast_at_c(arena, expr_ref)) {
     op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
     return op_ref > 0 ? glue_binop_operand_load_to_rbx_clobbers_rax_elf_c(arena, op_ref) : 1;
   }
@@ -9937,7 +9937,7 @@ static int32_t glue_expr_emit_may_clobber_rbx_elf_c(struct ast_ASTArena *arena, 
     op_ref = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
     return op_ref > 0 ? glue_expr_emit_may_clobber_rbx_elf_c(arena, op_ref) : 1;
   }
-  if (glue_expr_is_sx_as_cast_at_c(arena, expr_ref)) {
+  if (glue_expr_is_x_as_cast_at_c(arena, expr_ref)) {
     op_ref = pipeline_expr_as_operand_ref_at(arena, expr_ref);
     return op_ref > 0 ? glue_expr_emit_may_clobber_rbx_elf_c(arena, op_ref) : 1;
   }
@@ -10804,7 +10804,7 @@ static int32_t pipeline_asm_emit_expr_elf_rec(struct ast_ASTArena *arena, struct
     out_rc = pipeline_asm_emit_lognot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   else if (glue_expr_is_await_at_c(arena, expr_ref))
     out_rc = pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
-  else if (glue_expr_is_sx_as_cast_at_c(arena, expr_ref))
+  else if (glue_expr_is_x_as_cast_at_c(arena, expr_ref))
     out_rc = pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   else if (ko == GLUE_EXPR_KIND_TRY_PROPAGATE || ko == GLUE_EXPR_KIND_C_TRY_PROPAGATE)
     out_rc = pipeline_asm_emit_try_propagate_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
@@ -10912,7 +10912,7 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_text_c(struct ast_ASTArena *arena, str
 }
 
 /**
- * INDEX 左值 base 有效地址入 rax/x0（ELF）；与 backend.sx 原 emit_index_eff_addr_elf 语义一致。
+ * INDEX 左值 base 有效地址入 rax/x0（ELF）；与 backend.x 原 emit_index_eff_addr_elf 语义一致。
  */
 static int32_t glue_emit_index_eff_addr_base_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ix_ref,
@@ -11087,37 +11087,37 @@ int32_t pipeline_asm_emit_index_eff_addr_text_c(struct ast_ASTArena *arena, stru
   return backend_arch_emit_rax_plus_rbx_scale4(out, ta);
 }
 
-/** EXPR_RETURN ELF 发射（SX emit_expr_elf 单行委托）。 */
+/** EXPR_RETURN ELF 发射（X emit_expr_elf 单行委托）。 */
 int32_t pipeline_asm_emit_return_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                        int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   return pipeline_asm_emit_return_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
 }
 
-/** EXPR_BREAK ELF 发射（SX emit_expr_elf 单行委托）。 */
+/** EXPR_BREAK ELF 发射（X emit_expr_elf 单行委托）。 */
 int32_t pipeline_asm_emit_break_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                       struct backend_AsmFuncCtx *ctx, int32_t ta) {
   return pipeline_asm_emit_break_elf_impl(arena, elf_ctx, ctx, ta);
 }
 
-/** EXPR_CONTINUE ELF 发射（SX emit_expr_elf 单行委托）。 */
+/** EXPR_CONTINUE ELF 发射（X emit_expr_elf 单行委托）。 */
 int32_t pipeline_asm_emit_continue_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                          struct backend_AsmFuncCtx *ctx, int32_t ta) {
   return pipeline_asm_emit_continue_elf_impl(arena, elf_ctx, ctx, ta);
 }
 
-/** EXPR_NEG ELF 发射（SX emit_expr_elf 单行委托）。 */
+/** EXPR_NEG ELF 发射（X emit_expr_elf 单行委托）。 */
 int32_t pipeline_asm_emit_neg_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                     int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   return pipeline_asm_emit_neg_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
 }
 
-/** EXPR_LOGNOT ELF 发射（SX emit_expr_elf 单行委托）。 */
+/** EXPR_LOGNOT ELF 发射（X emit_expr_elf 单行委托）。 */
 int32_t pipeline_asm_emit_lognot_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                        int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   return pipeline_asm_emit_lognot_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
 }
 
-/** EXPR_AS ELF 发射（SX emit_expr_elf 单行委托）。 */
+/** EXPR_AS ELF 发射（X emit_expr_elf 单行委托）。 */
 int32_t pipeline_asm_emit_as_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                    int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   return pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
@@ -11156,7 +11156,7 @@ static int32_t glue_type_ref_is_named_struct_layout_elf_c(struct ast_ASTArena *a
   return 0;
 }
 
-/** 与 typeck.sx typeck_sx_type_size 一致（前向声明，定义见本文件后部）。 */
+/** 与 typeck.x typeck_x_type_size 一致（前向声明，定义见本文件后部）。 */
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 
 /**
@@ -11278,7 +11278,7 @@ static int32_t glue_type_named_layout_size_any_module_elf_c(struct ast_ASTArena 
             break;
         }
         if (j == nlen) {
-          sz = typeck_sx_type_size_from_layout_glue(dm, arena, k, 1);
+          sz = typeck_x_type_size_from_layout_glue(dm, arena, k, 1);
           if (sz > 8)
             return sz;
         }
@@ -12105,7 +12105,7 @@ static int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *ar
   /** DOD-S1：SoA `arr[i].field` 读路径（列基址 + index*stride；失败/无 stride 时回落 lvalue 寻址）。 */
   if (fa_base2 > 0 && pipeline_expr_kind_ord_at(arena, fa_base2) == 47) {
     int32_t load_sz;
-    /** emit 时 stride 仍缺：再跑 SoA typeck（skip .sx typeck / 形参 T[N] 回填遗漏）。 */
+    /** emit 时 stride 仍缺：再跑 SoA typeck（skip .x typeck / 形参 T[N] 回填遗漏）。 */
     if (pipeline_expr_field_access_soa_stride(arena, expr_ref) <= 0 && g_pipeline_asm_emit_module != NULL)
       (void)pipeline_typeck_field_soa_index_c(g_pipeline_asm_emit_module, arena, expr_ref, fa_base2);
     if (pipeline_expr_field_access_soa_stride(arena, expr_ref) > 0) {
@@ -12191,7 +12191,7 @@ static int32_t pipeline_asm_emit_field_access_elf_fast_c(struct ast_ASTArena *ar
 }
 
 /**
- * emit_expr_elf 统一 C 入口（fast + rec）；供日后 SX 薄包装，勿在 rec 内再回调本符号。
+ * emit_expr_elf 统一 C 入口（fast + rec）；供日后 X 薄包装，勿在 rec 内再回调本符号。
  */
 int32_t pipeline_asm_emit_expr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -12199,7 +12199,7 @@ int32_t pipeline_asm_emit_expr_elf_c(struct ast_ASTArena *arena, struct platform
 }
 
 /**
- * emit_expr_elf 快速路径：LIT/const_fold/RETURN/算术二元；未命中返回 -99 由 .sx 尾 return 结束函数。
+ * emit_expr_elf 快速路径：LIT/const_fold/RETURN/算术二元；未命中返回 -99 由 .x 尾 return 结束函数。
  */
 int32_t pipeline_asm_emit_expr_elf_fast(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                         int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -12300,7 +12300,7 @@ int32_t pipeline_type_array_size_at(struct ast_ASTArena *arena, int32_t ref) {
 
 /**
  * 将 src 前 n 字节（最多 src_cap）复制到 dst[0..63]，余下清零。
- * parse_one_function_library SX 真 emit 时勿对局部 Type/Expr 数组逐元素 ASSIGN（asm INDEX 发射失败）。
+ * parse_one_function_library X 真 emit 时勿对局部 Type/Expr 数组逐元素 ASSIGN（asm INDEX 发射失败）。
  */
 void pipeline_module_fill_u8_64_from_src_c(uint8_t *dst, const uint8_t *src, int32_t n, int32_t src_cap) {
   int32_t i;
@@ -12318,7 +12318,7 @@ void pipeline_module_fill_u8_64_from_src_c(uint8_t *dst, const uint8_t *src, int
   }
 }
 
-/** parse_one_function_library SX emit：在 arena 写 TYPE_BOOL，避免 SX 局部 Type 大结构体 get/set。 */
+/** parse_one_function_library X emit：在 arena 写 TYPE_BOOL，避免 X 局部 Type 大结构体 get/set。 */
 void pipeline_parser_library_init_bool_type_c(struct ast_ASTArena *arena, int32_t type_ref) {
   struct ast_Type *t;
   if (!arena || type_ref <= 0)
@@ -12332,7 +12332,7 @@ void pipeline_parser_library_init_bool_type_c(struct ast_ASTArena *arena, int32_
   t->array_size = 0;
 }
 
-/** parse_one_function_library SX emit：在 arena 写 TYPE_NAMED + 名字节。 */
+/** parse_one_function_library X emit：在 arena 写 TYPE_NAMED + 名字节。 */
 void pipeline_parser_library_init_named_type_c(struct ast_ASTArena *arena, int32_t type_ref, const uint8_t *name,
                                                int32_t name_len) {
   struct ast_Type *t;
@@ -12348,7 +12348,7 @@ void pipeline_parser_library_init_named_type_c(struct ast_ASTArena *arena, int32
   t->array_size = 0;
 }
 
-/** parse_one_function_library SX emit：VAR Expr + param 名。 */
+/** parse_one_function_library X emit：VAR Expr + param 名。 */
 void pipeline_parser_library_init_var_expr_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t type_ref,
                                             const uint8_t *param_name, int32_t param_name_len) {
   struct ast_Expr *ve;
@@ -12371,7 +12371,7 @@ void pipeline_parser_library_init_var_expr_c(struct ast_ASTArena *arena, int32_t
   ve->field_access_offset = 0;
 }
 
-/** parse_one_function_library SX emit：FIELD_ACCESS Expr。 */
+/** parse_one_function_library X emit：FIELD_ACCESS Expr。 */
 void pipeline_parser_library_init_field_access_expr_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t base_ref,
                                                      const uint8_t *field_name, int32_t field_len) {
   struct ast_Expr *fe;
@@ -12395,7 +12395,7 @@ void pipeline_parser_library_init_field_access_expr_c(struct ast_ASTArena *arena
   fe->binop_right_ref = 0;
 }
 
-/** parse_one_function_library SX emit：ENUM_VARIANT 占位 Expr。 */
+/** parse_one_function_library X emit：ENUM_VARIANT 占位 Expr。 */
 void pipeline_parser_library_init_enum_variant_expr_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   struct ast_Expr *ene;
   if (!arena || expr_ref <= 0)
@@ -12413,7 +12413,7 @@ void pipeline_parser_library_init_enum_variant_expr_c(struct ast_ASTArena *arena
   ene->field_access_field_len = 0;
 }
 
-/** parse_one_function_library SX emit：EQ binop Expr。 */
+/** parse_one_function_library X emit：EQ binop Expr。 */
 void pipeline_parser_library_init_eq_expr_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t bool_type_ref,
                                              int32_t left_ref, int32_t right_ref) {
   struct ast_Expr *eqe;
@@ -12434,7 +12434,7 @@ void pipeline_parser_library_init_eq_expr_c(struct ast_ASTArena *arena, int32_t 
   eqe->field_access_field_len = 0;
 }
 
-/** parse_one_function_library SX emit：library 形态 labeled return Block。 */
+/** parse_one_function_library X emit：library 形态 labeled return Block。 */
 int32_t pipeline_parser_library_init_labeled_block_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t eq_ref) {
   struct ast_Block *b;
   if (!arena || block_ref <= 0)
@@ -12461,7 +12461,7 @@ int32_t pipeline_parser_library_init_labeled_block_c(struct ast_ASTArena *arena,
 }
 
 /**
- * parse_one_extern_and_add_into SX emit：写 arena Func 槽并登记 module，避免 SX `f.name[i]` INDEX ASSIGN。
+ * parse_one_extern_and_add_into X emit：写 arena Func 槽并登记 module，避免 X `f.name[i]` INDEX ASSIGN。
  * 返回 module func 下标；池满或参数非法时返回 -1。
  */
 int32_t pipeline_parser_extern_init_arena_func_and_register_c(struct ast_ASTArena *arena, struct ast_Module *module,
@@ -12516,7 +12516,7 @@ void pipeline_module_func_name_write(struct ast_Module *m, int32_t func_index, u
     memcpy(f->name, name_bytes, (size_t)name_len);
 }
 
-/** 自举 codegen：将 module->funcs[fi].name[64] 拷入 dst，避免 .sx 对嵌套大数组下标 typeck/asm GEP 失败。 */
+/** 自举 codegen：将 module->funcs[fi].name[64] 拷入 dst，避免 .x 对嵌套大数组下标 typeck/asm GEP 失败。 */
 void pipeline_module_func_name_copy64(struct ast_Module *m, int32_t func_index, uint8_t *dst) {
   struct ast_Func *f;
   if (!m || !dst || func_index < 0)
@@ -12645,7 +12645,7 @@ void pipeline_typeck_const_init_not_constant_c(int32_t line, int32_t col) {
   lsp_diag_report_typeck((int)line, (int)col, "const init must be constant expression");
 }
 
-/** 读 struct_lit 字段数；避免 SX 内 `let e: Expr = ast_arena_expr_get` 后字段访问 typeck 失败。 */
+/** 读 struct_lit 字段数；避免 X 内 `let e: Expr = ast_arena_expr_get` 后字段访问 typeck 失败。 */
 int32_t pipeline_expr_struct_lit_num_fields(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
   return ex ? ex->struct_lit_num_fields : 0;
@@ -12680,8 +12680,8 @@ static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena 
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth);
 
 /**
- * C 版 struct_layout_metrics：与 typeck.sx typeck_struct_layout_metrics 语义一致。
- * asm 栈槽宽 / frame_size 热路径走此实现，避免 gen2 自举 SX metrics 在 Stage2 上极慢挂死。
+ * C 版 struct_layout_metrics：与 typeck.x typeck_struct_layout_metrics 语义一致。
+ * asm 栈槽宽 / frame_size 热路径走此实现，避免 gen2 自举 X metrics 在 Stage2 上极慢挂死。
  */
 static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
                                             int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
@@ -12703,7 +12703,7 @@ static int32_t glue_struct_layout_metrics_c(struct ast_Module *module, struct as
   pipeline_module_struct_layout_name_into(module, li, layout_nm);
   current = 0;
   max_align = 1;
-  /** packed：无隐式 padding，结构体对齐 1（与 typeck.sx typeck_struct_layout_metrics 一致）。 */
+  /** packed：无隐式 padding，结构体对齐 1（与 typeck.x typeck_struct_layout_metrics 一致）。 */
   if (pipeline_module_struct_layout_packed_at(module, li)) {
     for (j = 0; j < nf; j++) {
       int32_t ftr;
@@ -12889,7 +12889,7 @@ void pipeline_typeck_hot_reorder_warn_layout(struct ast_Module *module, struct a
   }
 }
 
-/** 与 typeck.sx typeck_sx_type_align 一致（§11.1 布局步进）。 */
+/** 与 typeck.x typeck_x_type_align 一致（§11.1 布局步进）。 */
 static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth) {
   int32_t kind_ord;
   if (!a || ty_ref <= 0 || ty_ref > a->num_types || depth > 64)
@@ -12904,7 +12904,7 @@ static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena 
     return 8;
   if (kind_ord == 11)
     return 8;
-  /** ARRAY / LINEAR / VECTOR：对齐取 elem（与 typeck.sx ko==10/12/13 一致）。 */
+  /** ARRAY / LINEAR / VECTOR：对齐取 elem（与 typeck.x ko==10/12/13 一致）。 */
   if (kind_ord == 10 || kind_ord == 12 || kind_ord == 13) {
     int32_t elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
     if (elem_ref <= 0)
@@ -12947,7 +12947,7 @@ static int32_t glue_type_align_simple(struct ast_Module *m, struct ast_ASTArena 
 extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                   int32_t elem_type_ref, int32_t array_len, int32_t depth);
 
-/** 与 typeck.sx typeck_sx_type_size 一致。 */
+/** 与 typeck.x typeck_x_type_size 一致。 */
 static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *a, int32_t ty_ref, int32_t depth) {
   int32_t kind_ord;
   if (!a || ty_ref <= 0 || ty_ref > a->num_types || depth > 64)
@@ -12997,7 +12997,7 @@ static int32_t glue_type_size_simple(struct ast_Module *m, struct ast_ASTArena *
       }
       if (!eq)
         continue;
-      return typeck_sx_type_size_from_layout_glue(m, a, k, depth + 1);
+      return typeck_x_type_size_from_layout_glue(m, a, k, depth + 1);
     }
     return 4;
   }
@@ -13212,7 +13212,7 @@ static int32_t glue_struct_layout_compute_field_offset_c(struct ast_Module *m, s
 
 /**
  * 将 module 各 struct layout 的 field_offset 同步为 glue_struct_layout_compute_field_offset_c 结果。
- * skip .sx typeck 的 asm emit 前调用，使 align(64) 等字段偏移落盘（DOD-CL-S1）。
+ * skip .x typeck 的 asm emit 前调用，使 align(64) 等字段偏移落盘（DOD-CL-S1）。
  */
 static void glue_sync_struct_layout_field_offsets_c(struct ast_Module *m, struct ast_ASTArena *a) {
   int32_t li;
@@ -13501,7 +13501,7 @@ int64_t pipeline_expr_int64_val_at(struct ast_ASTArena *a, int32_t expr_ref) {
 
 /**
  * EXPR_LIT 默认 resolved 类型：|v|≤i32 用 i32，否则 i64。
- * typeck_gen seed 与 typeck.sx 共用，避免 seed 漂移时大整数字面量误推 i32。
+ * typeck_gen seed 与 typeck.x 共用，避免 seed 漂移时大整数字面量误推 i32。
  */
 int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   struct ast_Expr *ex;
@@ -13525,7 +13525,7 @@ int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t
 
 /**
  * 读 expr.unary_operand_ref；无效 ref 返回 0。
- * typeck.sx check_block_impl 块末 `return;` 判定须用此 glue，勿 `let fin_ex: Expr = ast_arena_expr_get` 再读字段（自举 asm FIELD_ACCESS 失败）。
+ * typeck.x check_block_impl 块末 `return;` 判定须用此 glue，勿 `let fin_ex: Expr = ast_arena_expr_get` 再读字段（自举 asm FIELD_ACCESS 失败）。
  */
 int32_t pipeline_expr_unary_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
@@ -13619,7 +13619,7 @@ int32_t pipeline_expr_binop_right_ref_at(struct ast_ASTArena *a, int32_t expr_re
 }
 
 /**
- * 比较表达式 ELF 发射（EQ/NE/LT/LE/GT/GE 全在 C 内，避免 backend.sx 经 shux-c -E 后
+ * 比较表达式 ELF 发射（EQ/NE/LT/LE/GT/GE 全在 C 内，避免 backend.x 经 shux-c -E 后
  * EXPR_NE(15) 与字面量/分支条件误合并，导致 != 恒与 0 比较）。
  */
 /** 比较 TypeKind 变体名；flen 允许多 1 尾字节，与 glue_enum_field_name_equal 一致。 */
@@ -13661,7 +13661,7 @@ static int32_t pipeline_asm_typekind_variant_tag(const uint8_t *field_buf, int32
   return -1;
 }
 
-/** 右操作数为 TypeKind/ExprKind 枚举 FIELD_ACCESS 时返回 tag，否则 -1（不查 module 字段，避免 typeck_sx_ast 中 module.x 误触）。 */
+/** 右操作数为 TypeKind/ExprKind 枚举 FIELD_ACCESS 时返回 tag，否则 -1（不查 module 字段，避免 typeck_x_ast 中 module.x 误触）。 */
 static int32_t pipeline_asm_cmp_enum_rhs_tag_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   struct ast_Expr *ex;
   uint8_t base_buf[32];
@@ -14329,7 +14329,7 @@ static int32_t glue_emit_with_arena_deinit_elf(struct platform_elf_ElfCodegenCtx
 }
 
 /**
- * 按 stmt_order 同步发射块体（C for 循环）：避免 shux-c -E 使 backend.sx 内 while(i<nso) 只跑一轮，
+ * 按 stmt_order 同步发射块体（C for 循环）：避免 shux-c -E 使 backend.x 内 while(i<nso) 只跑一轮，
  * 导致 while 体内仅首条 if/赋值被发射（escape 的 else 与 j++ 丢失）。
  */
 int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -14737,12 +14737,12 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
 }
 
 /**
- * backend.sx emit_block_body_elf 入口：转发 C 同步块体发射（避免 SX while 在自举 asm 下只跑一轮）。
+ * backend.x emit_block_body_elf 入口：转发 C 同步块体发射（避免 X while 在自举 asm 下只跑一轮）。
  */
 int32_t backend_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                          int32_t block_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   pipeline_glue_AsmFuncCtxLayout *ly = pipeline_asm_ctx_layout(ctx);
-  /** 供 FIELD_ACCESS layout 查表；与 backend.sx ctx.module_ref / dep_pipe 对齐。 */
+  /** 供 FIELD_ACCESS layout 查表；与 backend.x ctx.module_ref / dep_pipe 对齐。 */
   if (ly && ly->module_ref)
     g_pipeline_asm_emit_module = ly->module_ref;
   if (ly && ly->dep_pipe)
@@ -14750,13 +14750,13 @@ int32_t backend_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct plat
   return pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, block_ref, ctx, ta);
 }
 
-/** backend.sx：读 Block.final_expr_ref（勿 ast_arena_block_get 按值拷贝）。 */
+/** backend.x：读 Block.final_expr_ref（勿 ast_arena_block_get 按值拷贝）。 */
 int32_t pipeline_asm_block_final_expr_ref_at(struct ast_ASTArena *a, int32_t br) {
   struct ast_Block *blk = pipeline_arena_block_ptr(a, br);
   return blk ? blk->final_expr_ref : 0;
 }
 
-/** backend.sx：读 Block.num_stmt_order（与 ast_ast_block_num_stmt_order 一致）。 */
+/** backend.x：读 Block.num_stmt_order（与 ast_ast_block_num_stmt_order 一致）。 */
 int32_t pipeline_asm_block_num_stmt_order_at(struct ast_ASTArena *a, int32_t br) {
   return ast_ast_block_num_stmt_order(a, br);
 }
@@ -14767,7 +14767,7 @@ int32_t pipeline_asm_block_stmt_order_has_return(struct ast_ASTArena *a, int32_t
 }
 
 /**
- * 块级 if ELF 发射（then-first + jz）：避免 backend.sx 经 shux-c -E 后 jnz/else/then 顺序错乱，
+ * 块级 if ELF 发射（then-first + jz）：避免 backend.x 经 shux-c -E 后 jnz/else/then 顺序错乱，
  * 导致 cond 为真时跳进错误分支（escape/unescape 等 while 内 if 返回 -1）。
  */
 int32_t pipeline_asm_emit_block_if_stmt_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -14853,7 +14853,7 @@ int32_t pipeline_asm_emit_block_if_stmt_elf(struct ast_ASTArena *arena, struct p
   return 0;
 }
 
-/** EXPR_FLOAT_LIT 低 32 位；emit 时从 float_val 重算，避免 SX parser 未持久化 float_bits_*。 */
+/** EXPR_FLOAT_LIT 低 32 位；emit 时从 float_val 重算，避免 X parser 未持久化 float_bits_*。 */
 int32_t pipeline_expr_float_bits_lo_at(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
   if (!ex)
@@ -14885,7 +14885,7 @@ int32_t pipeline_expr_as_operand_ref_at(struct ast_ASTArena *a, int32_t expr_ref
   return ex ? ex->as_operand_ref : 0;
 }
 
-/** EXPR_AS 目标类型池 ref；无效 ref 返回 0（typeck return 分支 SX emit 用）。 */
+/** EXPR_AS 目标类型池 ref；无效 ref 返回 0（typeck return 分支 X emit 用）。 */
 int32_t pipeline_expr_as_target_type_ref_at(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
   return ex ? ex->as_target_type_ref : 0;
@@ -14976,7 +14976,7 @@ static enum ast_TypeKind glue_type_kind_from_ord(int32_t ord) {
   return (enum ast_TypeKind)ord;
 }
 
-/** 查找或分配仅含 kind 的 primitive type；避免 SX 内 ti.kind = TypeKind.* assignment typeck 失败。 */
+/** 查找或分配仅含 kind 的 primitive type；避免 X 内 ti.kind = TypeKind.* assignment typeck 失败。 */
 int32_t pipeline_type_ensure_by_kind_ord(struct ast_ASTArena *a, int32_t kind_ord) {
   int32_t k;
   enum ast_TypeKind kind;
@@ -15001,8 +15001,8 @@ int32_t pipeline_type_ensure_by_kind_ord(struct ast_ASTArena *a, int32_t kind_or
 }
 
 /**
- * SX typeck_ensure_primitive_by_kind_ord：写新分配 primitive 槽（memset+kind）；
- * 查找去重循环在 typeck.sx 真 emit，避免 ensure_* 单行 wrapper bl→pipeline_type_ensure_by_kind_ord。
+ * X typeck_ensure_primitive_by_kind_ord：写新分配 primitive 槽（memset+kind）；
+ * 查找去重循环在 typeck.x 真 emit，避免 ensure_* 单行 wrapper bl→pipeline_type_ensure_by_kind_ord。
  */
 int32_t pipeline_type_init_primitive_kind_at(struct ast_ASTArena *a, int32_t ref, int32_t kind_ord) {
   struct ast_Type *t;
@@ -15017,8 +15017,8 @@ int32_t pipeline_type_init_primitive_kind_at(struct ast_ASTArena *a, int32_t ref
 }
 
 /**
- * SX find_or_alloc_named_type_ref：写新分配 TYPE_NAMED 槽（memset+kind+name memcpy）；
- * 按名扫描去重在 typeck.sx 真 emit。
+ * X find_or_alloc_named_type_ref：写新分配 TYPE_NAMED 槽（memset+kind+name memcpy）；
+ * 按名扫描去重在 typeck.x 真 emit。
  */
 int32_t pipeline_type_init_named_at(struct ast_ASTArena *a, int32_t ref, uint8_t *name, int32_t name_len) {
   struct ast_Type *t;
@@ -15035,8 +15035,8 @@ int32_t pipeline_type_init_named_at(struct ast_ASTArena *a, int32_t ref, uint8_t
 }
 
 /**
- * SX typeck_find_or_alloc_compound_type_ref：写新分配复合 type 槽；
- * 查找 loop（kind+elem+array_size+name_len==0）在 typeck.sx 真 emit。
+ * X typeck_find_or_alloc_compound_type_ref：写新分配复合 type 槽；
+ * 查找 loop（kind+elem+array_size+name_len==0）在 typeck.x 真 emit。
  */
 int32_t pipeline_type_init_compound_kind_at(struct ast_ASTArena *a, int32_t ref, int32_t kind_ord,
                                             int32_t elem_ref, int32_t array_size) {
@@ -15053,7 +15053,7 @@ int32_t pipeline_type_init_compound_kind_at(struct ast_ASTArena *a, int32_t ref,
   return 1;
 }
 
-/** 查找或分配 TYPE_NAMED；name 经 memcpy 写入，避免 SX 对 Type 局部副本写字段。 */
+/** 查找或分配 TYPE_NAMED；name 经 memcpy 写入，避免 X 对 Type 局部副本写字段。 */
 int32_t pipeline_type_find_or_alloc_named(struct ast_ASTArena *a, uint8_t *name, int32_t name_len) {
   int32_t k;
   struct ast_Type *t;
@@ -15107,7 +15107,7 @@ int32_t pipeline_type_find_or_alloc_compound(struct ast_ASTArena *a, int32_t kin
 }
 
 /**
- * backend.sx get_return_expr_ref：在 C 内读 Block/LabeledStmt/Expr 池，避免 SX 自举 asm 对
+ * backend.x get_return_expr_ref：在 C 内读 Block/LabeledStmt/Expr 池，避免 X 自举 asm 对
  * stmt.is_goto / block.final_expr_ref 等 struct 字段 FIELD_ACCESS codegen 失败（fail_at=55）。
  */
 int32_t pipeline_backend_get_return_expr_ref(struct ast_ASTArena *a, struct ast_Func *f) {
@@ -15153,7 +15153,7 @@ int32_t pipeline_backend_get_return_expr_ref(struct ast_ASTArena *a, struct ast_
   return 0;
 }
 
-/** backend.sx get_return_expr_ref：按 module 下标在 C 内读 Func.body_ref，勿传 SX 侧按值拷贝的 *Func。 */
+/** backend.x get_return_expr_ref：按 module 下标在 C 内读 Func.body_ref，勿传 X 侧按值拷贝的 *Func。 */
 int32_t pipeline_backend_get_return_expr_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
                                                 int32_t func_index) {
   struct ast_Func *f;
@@ -15168,7 +15168,7 @@ int32_t pipeline_backend_get_return_expr_ref_at(struct ast_ASTArena *a, struct a
 }
 
 /**
- * arm64.sx get_return_lit_ref：同上，最小集返回值 ref 查找。
+ * arm64.x get_return_lit_ref：同上，最小集返回值 ref 查找。
  */
 int32_t pipeline_arm64_get_return_lit_ref(struct ast_ASTArena *a, struct ast_Func *f) {
   struct ast_Block *blk;
@@ -15194,7 +15194,7 @@ int32_t pipeline_arm64_get_return_lit_ref(struct ast_ASTArena *a, struct ast_Fun
   return 0;
 }
 
-/** arm64.sx get_return_lit_ref：按 module 下标在 C 内读 Func.body_ref。 */
+/** arm64.x get_return_lit_ref：按 module 下标在 C 内读 Func.body_ref。 */
 int32_t pipeline_arm64_get_return_lit_ref_at(struct ast_ASTArena *a, struct ast_Module *m,
                                              int32_t func_index) {
   struct ast_Func *f;
@@ -15230,7 +15230,7 @@ int32_t pipeline_expr_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref
 }
 
 /**
- * 写 arena.exprs[expr_ref].resolved_type_ref；供 typeck.sx EMIT_HEAVY 真 emit，避免 Expr 按值 get/set 撕裂。
+ * 写 arena.exprs[expr_ref].resolved_type_ref；供 typeck.x EMIT_HEAVY 真 emit，避免 Expr 按值 get/set 撕裂。
  */
 void pipeline_expr_set_resolved_type_ref(struct ast_ASTArena *a, int32_t expr_ref, int32_t type_ref) {
   struct ast_Expr *ex;
@@ -15279,7 +15279,7 @@ void pipeline_expr_set_index_proven_in_bounds(struct ast_ASTArena *a, int32_t ex
   ex->index_proven_in_bounds = v;
 }
 
-/** 从 float_val 重算并写入 float_bits_lo/hi；typeck EXPR_FLOAT_LIT SX emit 用（勿 Expr 按值 set）。 */
+/** 从 float_val 重算并写入 float_bits_lo/hi；typeck EXPR_FLOAT_LIT X emit 用（勿 Expr 按值 set）。 */
 void pipeline_expr_typeck_set_float_bits_from_val(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex;
 
@@ -15292,25 +15292,25 @@ void pipeline_expr_typeck_set_float_bits_from_val(struct ast_ASTArena *a, int32_
   ex->float_bits_hi = typeck_float64_bits_hi(ex->float_val);
 }
 
-/** 读 expr.line；break/continue 诊断 SX emit 用。 */
+/** 读 expr.line；break/continue 诊断 X emit 用。 */
 int32_t pipeline_expr_line_at(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
   return ex ? ex->line : 0;
 }
 
-/** 读 expr.col；break/continue 诊断 SX emit 用。 */
+/** 读 expr.col；break/continue 诊断 X emit 用。 */
 int32_t pipeline_expr_col_at(struct ast_ASTArena *a, int32_t expr_ref) {
   struct ast_Expr *ex = glue_arena_expr_at_ref(a, expr_ref);
   return ex ? ex->col : 0;
 }
 
-/** 读 ctx.typeck_loop_depth；break/continue SX emit 勿直接读 PipelineDepCtx 字段（自举 asm SIGSEGV）。 */
+/** 读 ctx.typeck_loop_depth；break/continue X emit 勿直接读 PipelineDepCtx 字段（自举 asm SIGSEGV）。 */
 int32_t pipeline_dep_ctx_typeck_loop_depth_at(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->typeck_loop_depth : 0;
 }
 
 /**
- * 写 expr.field_access_is_enum_variant 与 enum_variant_tag；供 typeck_coerce_init_expr_to_decl SX emit。
+ * 写 expr.field_access_is_enum_variant 与 enum_variant_tag；供 typeck_coerce_init_expr_to_decl X emit。
  */
 void pipeline_expr_set_field_access_enum_variant(struct ast_ASTArena *a, int32_t expr_ref, int32_t tag) {
   struct ast_Expr *ex;
@@ -15349,7 +15349,7 @@ void pipeline_expr_set_field_access_soa_stride(struct ast_ASTArena *a, int32_t e
     ex->field_access_soa_stride = stride;
 }
 
-/** typeck.sx get_field_offset_from_layout_deps；asm emit 跨模块 struct 字段偏移回落。 */
+/** typeck.x get_field_offset_from_layout_deps；asm emit 跨模块 struct 字段偏移回落。 */
 extern int32_t typeck_get_field_offset_from_layout_deps(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
                                                         uint8_t *type_name, int32_t type_name_len, uint8_t *field_name,
                                                         int32_t field_name_len);
@@ -15584,7 +15584,7 @@ int32_t pipeline_expr_field_access_layout_offset(struct ast_ASTArena *a, struct 
 
 /**
  * 按类型 ref 返回 FIELD_ACCESS 加载宽度（bool/u8=1，i32/u32/f32=4，i64/指针=8）。
- * 与 backend.sx asm_field_access_load_byte_sz 中 TypeKind 分支一致。
+ * 与 backend.x asm_field_access_load_byte_sz 中 TypeKind 分支一致。
  */
 static int32_t glue_field_access_load_bytes_for_type_ref(struct ast_ASTArena *a, int32_t ty_ref) {
   int32_t kind_ord;
@@ -15715,7 +15715,7 @@ int32_t pipeline_expr_field_access_is_enum_variant(struct ast_ASTArena *a, int32
  * TokenKind.TOKEN_EOF 等经 module enum sidecar（pipeline_expr_enum_field_tag_via_module）。
  */
 static int32_t pipeline_token_kind_variant_tag(const uint8_t *variant_name, int32_t variant_len) {
-  /** 与 include/token.h TokenKind 枚举序一致；import token.sx 未登记 sidecar 时 asm 快路径回落。 */
+  /** 与 include/token.h TokenKind 枚举序一致；import token.x 未登记 sidecar 时 asm 快路径回落。 */
   static const char *const names[] = {
       "TOKEN_EOF",       "TOKEN_FUNCTION",  "TOKEN_LET",         "TOKEN_CONST",      "TOKEN_IF",
       "TOKEN_ELSE",      "TOKEN_WHILE",     "TOKEN_LOOP",        "TOKEN_FOR",        "TOKEN_BREAK",
@@ -15841,7 +15841,7 @@ int32_t pipeline_expr_enum_namespace_field_tag(struct ast_ASTArena *a, int32_t e
     if (glue_enum_field_name_equal(field_buf, flen, "TYPE_VOID"))
       return 15;
   }
-  /** import token.sx 的 TokenKind：快路径 pipeline_token_kind_variant_tag 处理；此处仅 module sidecar 回落。 */
+  /** import token.x 的 TokenKind：快路径 pipeline_token_kind_variant_tag 处理；此处仅 module sidecar 回落。 */
   if (blen == 9 && memcmp(base_buf, "TokenKind", 9) == 0) {
     int32_t tk = pipeline_token_kind_variant_tag(field_buf, flen);
     if (tk >= 0)
@@ -15877,7 +15877,7 @@ struct ast_PipelineDepCtx *pipeline_asm_emit_dep_pipe_c(void) {
   return g_pipeline_asm_emit_dep_pipe;
 }
 
-/** 绑定 emit 期 arena；backend.sx 主循环每函数 emit 前调用。 */
+/** 绑定 emit 期 arena；backend.x 主循环每函数 emit 前调用。 */
 void pipeline_asm_emit_set_arena(struct ast_ASTArena *arena) {
   g_pipeline_asm_emit_arena = arena;
 }
@@ -15903,7 +15903,7 @@ int32_t pipeline_asm_emit_call_arg_active_c(void) {
   return g_glue_emit_call_arg_depth > 0 ? 1 : 0;
 }
 
-/** 记录当前 emit 函数下标；backend.sx 主循环每函数 emit 前调用。 */
+/** 记录当前 emit 函数下标；backend.x 主循环每函数 emit 前调用。 */
 void pipeline_asm_emit_set_func_index(int32_t func_index) {
   g_pipeline_asm_emit_func_index = func_index;
   /** PGO-Lite：与 enc_label 同序切换 .text / .text.hot（partial mega 亦走此路径）。 */
@@ -15924,7 +15924,7 @@ int32_t pipeline_asm_emit_func_index_c(void) {
 
 /**
  * 按形参名查当前 emit 函数 *T 形参（module 形参表 + TYPE_PTR）。
- * backend.sx SX 路径在 resolved_type 缺失时调用。
+ * backend.x X 路径在 resolved_type 缺失时调用。
  */
 int32_t pipeline_asm_emit_func_param_is_ptr_by_name_c(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                       uint8_t *vname, int32_t vlen) {
@@ -15976,7 +15976,7 @@ int32_t pipeline_backend_type_kind_ord_at(struct ast_ASTArena *a, int32_t ref) {
 }
 
 /**
- * backend.sx asm 主循环 / fill_param_slots：仅 backend 模块声明 extern，转发至无前缀 pipeline_module_func_*，
+ * backend.x asm 主循环 / fill_param_slots：仅 backend 模块声明 extern，转发至无前缀 pipeline_module_func_*，
  * 避免经 codegen import 产生 codegen_ 前缀未定义符号。
  */
 int32_t pipeline_asm_module_func_is_extern_at(struct ast_Module *m, int32_t func_index) {
@@ -16097,7 +16097,7 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, struct ast_ASTAren
 }
 
 /**
- * 将函数形参填入 asm 局部 sidecar（偏移 8,16,…）；与 backend.sx fill_param_slots 一致。
+ * 将函数形参填入 asm 局部 sidecar（偏移 8,16,…）；与 backend.x fill_param_slots 一致。
  */
 void pipeline_asm_fill_param_slots(struct backend_AsmFuncCtx *ctx, struct ast_Module *mod, int32_t func_index) {
   int32_t off;
@@ -16248,7 +16248,7 @@ int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *el
   int32_t off;
   if (!elf_ctx || !ctx || !mod || func_index < 0)
     return -1;
-  /** seed partial mega 可能未调 backend.sx 的 emit_set_func_index；形参 *T field 识别依赖此下标。 */
+  /** seed partial mega 可能未调 backend.x 的 emit_set_func_index；形参 *T field 识别依赖此下标。 */
   pipeline_asm_emit_set_func_index(func_index);
   np = pipeline_asm_module_func_num_params_at(mod, func_index);
   /** SysV >16B sret：incoming rdi 为 hidden dest；与形参个数无关须先于 homing 保存。 */
@@ -16298,7 +16298,7 @@ int32_t pipeline_asm_emit_param_home_elf_c(struct platform_elf_ElfCodegenCtx *el
 }
 
 /**
- * 将块内 const/let 填入 asm 局部 sidecar；与 backend.sx fill_local_slots 一致（+8 槽 + lit temp 预留）。
+ * 将块内 const/let 填入 asm 局部 sidecar；与 backend.x fill_local_slots 一致（+8 槽 + lit temp 预留）。
  */
 void pipeline_asm_fill_local_slots(struct backend_AsmFuncCtx *ctx, struct ast_ASTArena *arena, int32_t block_ref) {
   int32_t off;
@@ -16423,7 +16423,7 @@ int32_t pipeline_asm_emit_next_label_c(struct backend_AsmFuncCtx *ctx, uint8_t *
 }
 
 /**
- * 将 label 序号格式化为 ".L_<id>" 写入 buf；与 backend.sx format_label_id 一致（不推进 label_counter）。
+ * 将 label 序号格式化为 ".L_<id>" 写入 buf；与 backend.x format_label_id 一致（不推进 label_counter）。
  */
 int32_t pipeline_asm_format_label_id_c(uint8_t *buf, int32_t buf_size, int32_t id) {
   int32_t n;
@@ -16439,7 +16439,7 @@ int32_t pipeline_asm_format_label_id_c(uint8_t *buf, int32_t buf_size, int32_t i
 }
 
 /**
- * if 语句 then 块 ELF 发射：暂存/恢复 locals，fill + sync block body；与 backend.sx emit_if_then_block_body_elf 一致。
+ * if 语句 then 块 ELF 发射：暂存/恢复 locals，fill + sync block body；与 backend.x emit_if_then_block_body_elf 一致。
  */
 int32_t pipeline_asm_emit_if_then_block_body_elf_c(struct ast_ASTArena *arena,
                                                    struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -16929,7 +16929,7 @@ static int32_t glue_is_assign_u8_index_store_cast_i_c(struct ast_ASTArena *arena
     return 0;
   if (!glue_fold_expr_var_refs_same_c(arena, pipeline_expr_index_index_ref(arena, left_ref), i_ref))
     return 0;
-  if (!glue_expr_is_sx_as_cast_at_c(arena, right_ref))
+  if (!glue_expr_is_x_as_cast_at_c(arena, right_ref))
     return 0;
   as_op = pipeline_expr_as_operand_ref_at(arena, right_ref);
   if (!glue_fold_expr_var_refs_same_c(arena, as_op, i_ref))
@@ -16957,7 +16957,7 @@ static int32_t glue_is_assign_sum_plus_u8_index_cast_c(struct ast_ASTArena *aren
   as_op = pipeline_expr_binop_right_ref_at(arena, right_ref);
   if (!glue_fold_expr_var_refs_same_c(arena, add_l, left_ref))
     return 0;
-  if (!glue_expr_is_sx_as_cast_at_c(arena, as_op))
+  if (!glue_expr_is_x_as_cast_at_c(arena, as_op))
     return 0;
   ix_ref = pipeline_expr_as_operand_ref_at(arena, as_op);
   if (pipeline_expr_kind_ord_at(arena, ix_ref) != 47)
@@ -18300,7 +18300,7 @@ int32_t backend_try_fold_count_up_while_elf(struct ast_ASTArena *arena, struct p
 }
 
 /**
- * ELF while 循环；C glue 真实现（与 backend.sx emit_while_loop_elf 语义一致）。
+ * ELF while 循环；C glue 真实现（与 backend.x emit_while_loop_elf 语义一致）。
  */
 int32_t backend_emit_while_loop_elf_sync(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                          int32_t block_ref, int32_t loop_idx, struct backend_AsmFuncCtx *ctx,
@@ -18400,7 +18400,7 @@ int32_t backend_emit_while_loop_elf_sync(struct ast_ASTArena *arena, struct plat
 }
 
 /**
- * ELF for 循环；C glue 真实现（与 backend.sx emit_for_loop_elf 语义一致）。
+ * ELF for 循环；C glue 真实现（与 backend.x emit_for_loop_elf 语义一致）。
  */
 int32_t backend_emit_for_loop_elf_sync(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                        int32_t block_ref, int32_t for_idx, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -18588,9 +18588,9 @@ int32_t arch_arm64_pipeline_asm_get_return_lit_ref_at(struct ast_ASTArena *a, st
   return pipeline_asm_get_return_lit_ref_at(a, m, func_index);
 }
 
-/** ast.sx 池 init/alloc：须在 #include ast_pool.c 之前（ast_pool 内 strict parse 调 ast_ast_arena_init）。 */
+/** ast.x 池 init/alloc：须在 #include ast_pool.c 之前（ast_pool 内 strict parse 调 ast_ast_arena_init）。 */
 void ast_expr_layout_prime_call_resolved(void) {
-  /* ast.sx expr_layout_prime_call_resolved；C glue 侧无额外状态。 */
+  /* ast.x expr_layout_prime_call_resolved；C glue 侧无额外状态。 */
 }
 void ast_ast_arena_init(struct ast_ASTArena *arena) {
   if (!arena)
@@ -18626,9 +18626,9 @@ struct ast_Module *pipeline_asm_glue_emit_module_ref(void) {
   return g_pipeline_asm_emit_module;
 }
 
-extern int32_t typeck_sx_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t li, int32_t depth);
-extern int32_t typeck_sx_type_align_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                      int32_t li, int32_t depth);
 
 extern int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap);
@@ -18747,7 +18747,7 @@ int32_t pipeline_asm_emit_wpo_mono_thunks_elf_c(struct ast_Module *entry, struct
 }
 
 /**
- * 重置 per-func AsmFuncCtx；等价 backend.sx ctx_reset（label_counter 保留以免 .L_N 重名）。
+ * 重置 per-func AsmFuncCtx；等价 backend.x ctx_reset（label_counter 保留以免 .L_N 重名）。
  */
 static void pipeline_asm_ctx_reset_for_func_c(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
   if (!ctx)
@@ -18766,7 +18766,7 @@ static void pipeline_asm_ctx_reset_for_func_c(pipeline_glue_AsmFuncCtxLayout *ct
 
 /**
  * M8-tail ELF mega 主循环 C 体：打破 seed_mega→backend_asm_codegen_ast_to_elf→pipeline 递归 SIGSEGV。
- * 端口 backend.sx asm_codegen_ast_to_elf_seed_mega（2517+）。
+ * 端口 backend.x asm_codegen_ast_to_elf_seed_mega（2517+）。
  */
 /** co-emit dep 导出符号前缀；定义见 backend_call_dispatch.c。 */
 extern int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, uint8_t *out, int32_t out_cap);
@@ -18925,14 +18925,14 @@ extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTAren
 extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module,
                                                             uint8_t *data, int32_t len);
 extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t idx, uint8_t out[64]);
-extern int32_t preprocess_sx_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
+extern int32_t preprocess_x_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
                                              int32_t out_cap);
 extern uint8_t *driver_dep_arena_buf(int32_t i);
 extern uint8_t *driver_dep_module_buf(int32_t i);
 
 /**
  * M8-tail strict 回退（pipeline.o 未 EMIT_HEAVY 时由 ast_pool/pipeline_glue 提供）：
- * - parse_into_buf / load_import / sync_dep_slots / resolve_path_sx / read_file_sx / parse_into_with_init_buf：SX 真 emit；_c 经 weak→强符号 dispatch（build_asm 覆盖）。
+ * - parse_into_buf / load_import / sync_dep_slots / resolve_path_x / read_file_x / parse_into_with_init_buf：X 真 emit；_c 经 weak→强符号 dispatch（build_asm 覆盖）。
  * - lsp / typeck_after / parse_entry_do_parse / typecheck_emit / parse_into_with_init_c：C mega 仍须保留。
  */
 extern void pipeline_module_fixup_with_arena_stmt_orders(struct ast_Module *m, struct ast_ASTArena *a);
@@ -18954,14 +18954,14 @@ int32_t pipeline_parse_into_buf_impl_c(struct ast_ASTArena *arena, struct ast_Mo
   return pr.ok == 0 ? 0 : -1;
 }
 
-/** M8-tail：EMIT_HEAVY SX 薄包装 return _c；勿 dispatch 回 SX（let struct init Abort）。 */
+/** M8-tail：EMIT_HEAVY X 薄包装 return _c；勿 dispatch 回 X（let struct init Abort）。 */
 int32_t pipeline_parse_into_buf_c(struct ast_ASTArena *arena, struct ast_Module *module, uint8_t *buf,
                                    int32_t buf_len) {
   return pipeline_parse_into_buf_impl_c(arena, module, buf, buf_len);
 }
 
 /**
- * strict 回退：单 import resolve/read/preprocess/parse（C 路径，与 SX 版语义对齐）。
+ * strict 回退：单 import resolve/read/preprocess/parse（C 路径，与 X 版语义对齐）。
  * build_asm/pipeline.o 链入时由强符号 pipeline_load_import_from_disk 覆盖 weak 默认。
  */
 int32_t pipeline_load_import_from_disk_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -18975,9 +18975,9 @@ int32_t pipeline_load_import_from_disk_impl_c(struct ast_Module *module, struct 
     return -1;
   memset(path_buf, 0, sizeof(path_buf));
   path_len = parser_copy_module_import_path64(module, import_idx, path_buf);
-  if (pipeline_resolve_path_sx(ctx, path_buf, path_len) != 0)
+  if (pipeline_resolve_path_x(ctx, path_buf, path_len) != 0)
     return -7;
-  if (pipeline_read_file_sx(ctx) != 0)
+  if (pipeline_read_file_x(ctx) != 0)
     return -8;
   if (pipeline_preprocess_loaded_into_ctx(ctx) != 0)
     return -9;
@@ -18993,7 +18993,7 @@ int32_t pipeline_load_import_from_disk_impl_c(struct ast_Module *module, struct 
 extern int32_t pipeline_sync_one_dep_slot(struct ast_Module *module, struct ast_PipelineDepCtx *ctx, int32_t dep_i);
 
 /**
- * strict 回退：各 dep 槽与 driver seed 对齐；build_asm 链入时由 SX 强符号覆盖 weak 默认。
+ * strict 回退：各 dep 槽与 driver seed 对齐；build_asm 链入时由 X 强符号覆盖 weak 默认。
  */
 int32_t pipeline_sync_dep_slots_from_driver_impl_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
   int32_t dep_sync_nd;
@@ -19037,7 +19037,7 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct as
 }
 
 #ifdef SHUX_PIPELINE_GLUE_STANDALONE_TU
-/** weak 默认：standalone glue 链；build_asm pipeline.o 链入时被 SX 强符号覆盖。 */
+/** weak 默认：standalone glue 链；build_asm pipeline.o 链入时被 X 强符号覆盖。 */
 __attribute__((weak)) int32_t pipeline_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module,
                                                        uint8_t *buf, int32_t buf_len) {
   return pipeline_parse_into_buf_impl_c(arena, module, buf, buf_len);
@@ -19053,16 +19053,16 @@ __attribute__((weak)) int32_t pipeline_sync_dep_slots_from_driver(struct ast_Mod
   return pipeline_sync_dep_slots_from_driver_impl_c(module, ctx);
 }
 
-__attribute__((weak)) int32_t pipeline_resolve_path_sx(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64],
+__attribute__((weak)) int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64],
                                                         int32_t path_len) {
-  return pipeline_resolve_path_sx_impl_c(ctx, import_path, path_len);
+  return pipeline_resolve_path_x_impl_c(ctx, import_path, path_len);
 }
 
-__attribute__((weak)) int32_t pipeline_read_file_sx(struct ast_PipelineDepCtx *ctx) {
-  return pipeline_read_file_sx_impl_c(ctx);
+__attribute__((weak)) int32_t pipeline_read_file_x(struct ast_PipelineDepCtx *ctx) {
+  return pipeline_read_file_x_impl_c(ctx);
 }
 
-/** weak 默认：parse_into_with_init / lsp / typeck 薄编排（standalone；build_asm pipeline.o SX 强符号覆盖）。 */
+/** weak 默认：parse_into_with_init / lsp / typeck 薄编排（standalone；build_asm pipeline.o X 强符号覆盖）。 */
 __attribute__((weak)) struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena *arena,
                                                                                        struct ast_Module *module,
                                                                                        uint8_t *data, int32_t len) {
@@ -19070,14 +19070,14 @@ __attribute__((weak)) struct parser_ParseIntoResult pipeline_parse_into_with_ini
 }
 #endif
 
-/** M8-tail：优先 dispatch 至 pipeline_load_import_from_disk（SX 或 weak impl_c）。 */
+/** M8-tail：优先 dispatch 至 pipeline_load_import_from_disk（X 或 weak impl_c）。 */
 int32_t pipeline_load_import_from_disk_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                           struct ast_PipelineDepCtx *ctx, int32_t import_idx) {
   return pipeline_load_import_from_disk(module, arena, ctx, import_idx);
 }
 
 /**
- * M8-tail：优先 dispatch 至 pipeline_parse_into_with_init_buf（SX 或 weak impl_c）。
+ * M8-tail：优先 dispatch 至 pipeline_parse_into_with_init_buf（X 或 weak impl_c）。
  */
 struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_c(struct ast_ASTArena *arena, struct ast_Module *module,
                                                                    uint8_t *data, int32_t len) {
@@ -19086,14 +19086,14 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_c(struct ast_AST
 
 extern int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module *module, struct ast_ASTArena *arena,
                                                           struct ast_PipelineDepCtx *ctx);
-extern int32_t typeck_typeck_sx_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_typeck_x_ast(struct ast_Module *module, struct ast_ASTArena *arena,
                                      struct ast_PipelineDepCtx *ctx);
-extern int32_t typeck_typeck_sx_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
                                              struct ast_PipelineDepCtx *ctx);
 extern void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 extern void driver_diagnostic_typeck_fail(void);
 
-/** M8-tail：优先 dispatch 至 pipeline_sync_dep_slots_from_driver（SX 或 weak impl_c）。 */
+/** M8-tail：优先 dispatch 至 pipeline_sync_dep_slots_from_driver（X 或 weak impl_c）。 */
 int32_t pipeline_sync_dep_slots_from_driver_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
   return pipeline_sync_dep_slots_from_driver(module, ctx);
 }
@@ -19115,11 +19115,11 @@ int32_t pipeline_lsp_diag_parse_entry_buf_impl_c(struct ast_Module *module, stru
   return lsp_diag_parse_entry_buf_c(module, arena, source_data, source_len);
 }
 
-/** SX 或 weak impl_c；_c dispatch 前向声明。 */
+/** X 或 weak impl_c；_c dispatch 前向声明。 */
 int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data,
                                             int32_t source_len, struct ast_PipelineDepCtx *ctx);
 
-/** M8-tail：优先 dispatch 至 pipeline_lsp_diag_parse_typeck_buf（SX 或 weak impl_c）。 */
+/** M8-tail：优先 dispatch 至 pipeline_lsp_diag_parse_typeck_buf（X 或 weak impl_c）。 */
 int32_t pipeline_lsp_diag_parse_typeck_buf_c(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data,
                                               int32_t source_len, struct ast_PipelineDepCtx *ctx) {
   return pipeline_lsp_diag_parse_typeck_buf(module, arena, source_data, source_len, ctx);
@@ -19131,7 +19131,7 @@ extern struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena *aren
                                                         struct shux_slice_uint8_t *source);
 
 /**
- * strict 回退：slice parse_into_with_init + typeck；SX 薄编排调用 _c（勿 _c→裸名 dispatch，避免 SX 薄包装递归）。
+ * strict 回退：slice parse_into_with_init + typeck；X 薄编排调用 _c（勿 _c→裸名 dispatch，避免 X 薄包装递归）。
  */
 struct parser_ParseIntoResult pipeline_parse_into_with_init_c(struct ast_ASTArena *arena, struct ast_Module *module,
                                                                struct shux_slice_uint8_t *source) {
@@ -19170,7 +19170,7 @@ int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct
             (int)pipeline_module_num_struct_layouts_at(module));
   }
   if (pipeline_module_main_func_index(module) < 0) {
-    tc = typeck_typeck_sx_ast_library(module, arena, ctx);
+    tc = typeck_typeck_x_ast_library(module, arena, ctx);
     if (tc != 0) {
       driver_diagnostic_typeck_fail();
       return tc;
@@ -19181,7 +19181,7 @@ int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct
     }
     return tc;
   }
-  tc = typeck_typeck_sx_ast(module, arena, ctx);
+  tc = typeck_typeck_x_ast(module, arena, ctx);
   if (tc != 0) {
     driver_diagnostic_typeck_fail();
     return tc;
@@ -19203,8 +19203,8 @@ int32_t pipeline_typeck_after_parse_ok_buf_impl_c(struct ast_ASTArena *arena, st
   return pipeline_typeck_after_parse_ok_impl_c(arena, module, &source, ctx);
 }
 
-/** shux check 后 WPO-S3 SX 栈逃逸 gate（strict parse + post-scan；C typeck 已通过）。 */
-int32_t pipeline_typeck_sx_stack_escape_gate_from_src_c(uint8_t *src, int32_t src_len) {
+/** shux check 后 WPO-S3 X 栈逃逸 gate（strict parse + post-scan；C typeck 已通过）。 */
+int32_t pipeline_typeck_x_stack_escape_gate_from_src_c(uint8_t *src, int32_t src_len) {
   size_t asz;
   size_t msz;
   void *arena_heap;
@@ -19242,17 +19242,17 @@ int32_t pipeline_typeck_sx_stack_escape_gate_from_src_c(uint8_t *src, int32_t sr
   return (rc == 0) ? 0 : -1;
 }
 
-/** SX 或 weak impl_c；_c dispatch 前向声明。 */
+/** X 或 weak impl_c；_c dispatch 前向声明。 */
 int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
                                         struct shux_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx);
 
-/** M8-tail：优先 dispatch 至 pipeline_typeck_after_parse_ok（SX 或 weak impl_c）。 */
+/** M8-tail：优先 dispatch 至 pipeline_typeck_after_parse_ok（X 或 weak impl_c）。 */
 int32_t pipeline_typeck_after_parse_ok_c(struct ast_ASTArena *arena, struct ast_Module *module,
                                           struct shux_slice_uint8_t *source, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_after_parse_ok(arena, module, source, ctx);
 }
 
-/** weak 默认：lsp / typeck 诊断路径（standalone；build_asm pipeline.o SX 强符号覆盖）。 */
+/** weak 默认：lsp / typeck 诊断路径（standalone；build_asm pipeline.o X 强符号覆盖）。 */
 #ifdef SHUX_PIPELINE_GLUE_STANDALONE_TU
 __attribute__((weak)) int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                   uint8_t *source_data, int32_t source_len,
@@ -19357,7 +19357,7 @@ static int32_t glue_expr_in_scope_block_c(struct ast_ASTArena *arena, int32_t ex
 }
 
 /**
- * 为函数形参同名 EXPR_VAR 回填 resolved_type_ref（skip .sx typeck 时 SoA `arr[i].field` 须 T[N]）。
+ * 为函数形参同名 EXPR_VAR 回填 resolved_type_ref（skip .x typeck 时 SoA `arr[i].field` 须 T[N]）。
  * 仅当 resolved_type 尚未设置时写入，避免多函数同名形参（如 v）后者覆盖前者。
  */
 static void glue_fill_var_types_from_params_for_func(struct ast_Module *m, struct ast_ASTArena *arena,
@@ -19392,7 +19392,7 @@ static void glue_fill_var_types_from_params_for_func(struct ast_Module *m, struc
   }
 }
 
-/** 为块内 let 同名 EXPR_VAR 回填 resolved_type_ref（跳过 .sx typeck 时 arr[i] 等 INDEX 需 base 类型）。 */
+/** 为块内 let 同名 EXPR_VAR 回填 resolved_type_ref（跳过 .x typeck 时 arr[i] 等 INDEX 需 base 类型）。 */
 static void glue_fill_var_types_from_lets_in_block(struct ast_ASTArena *arena, int32_t block_ref) {
   int32_t nlet;
   int32_t li;
@@ -19422,7 +19422,7 @@ static void glue_fill_var_types_from_lets_in_block(struct ast_ASTArena *arena, i
   }
 }
 
-/** 遍历块内 let，为跳过 .sx typeck 的 asm 路径补齐 ARRAY_LIT 类型（hello u8[12] 等）。 */
+/** 遍历块内 let，为跳过 .x typeck 的 asm 路径补齐 ARRAY_LIT 类型（hello u8[12] 等）。 */
 static void glue_fill_array_lit_types_in_block(struct ast_ASTArena *arena, int32_t block_ref) {
   int32_t nlet;
   int32_t i;
@@ -19437,7 +19437,7 @@ static void glue_fill_array_lit_types_in_block(struct ast_ASTArena *arena, int32
 }
 
 /**
- * C 预检后跳过 .sx typeck 时：为各函数体块内 `let buf: u8[N] = [..]` 回填 ARRAY_LIT 的 resolved_type_ref，
+ * C 预检后跳过 .x typeck 时：为各函数体块内 `let buf: u8[N] = [..]` 回填 ARRAY_LIT 的 resolved_type_ref，
  * 使 pipeline_asm_array_lit_elem_type_ref 能取 u8 步长（避免 Hello 打成 H\\0e\\0…）。
  */
 void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, struct ast_ASTArena *arena) {
@@ -19498,7 +19498,7 @@ int32_t platform_elf_pipeline_elf_write_o_pgo_to_buf(uint8_t *ctx_bytes, struct 
   return pipeline_elf_write_o_pgo_to_buf(ctx_bytes, out);
 }
 
-/** pipeline.sx 经 import codegen 解析 extern 时带 codegen_ 前缀。 */
+/** pipeline.x 经 import codegen 解析 extern 时带 codegen_ 前缀。 */
 int32_t codegen_codegen_out_buf_len(struct codegen_CodegenOutBuf *out) {
   return codegen_out_buf_len(out);
 }
@@ -19512,7 +19512,7 @@ void pipeline_codegen_out_buf_set_len(struct codegen_CodegenOutBuf *out, int32_t
   codegen_out_buf_set_len(out, n);
 }
 
-/** asm.sx 经 import codegen 解析 extern 时带 codegen_ 前缀；转发 ast_pool scratch。 */
+/** asm.x 经 import codegen 解析 extern 时带 codegen_ 前缀；转发 ast_pool scratch。 */
 uint8_t *codegen_pipeline_scratch_buf64(void) {
   return pipeline_scratch_buf64();
 }
@@ -19521,7 +19521,7 @@ uint8_t *codegen_pipeline_scratch_buf64_slot(int32_t slot) {
 }
 
 /*
- * ast.sx 中 extern pipeline_* 经 codegen 调用时带 ast_ 模块前缀（如 ast_pipeline_block_append_if），
+ * ast.x 中 extern pipeline_* 经 codegen 调用时带 ast_ 模块前缀（如 ast_pipeline_block_append_if），
  * 实现体在 ast_pool.c 为无前缀 C 符号；此处转发以满足链接。
  */
 int32_t ast_pipeline_module_func_alloc_slot(struct ast_Module *m) {
@@ -19570,7 +19570,7 @@ int32_t ast_pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint8_t
 void ast_pipeline_dep_ctx_reset(struct ast_PipelineDepCtx *ctx) {
   pipeline_dep_ctx_reset(ctx);
 }
-/** ast.sx extern pipeline_dep_ctx_*；typeck 经 ast_pipeline_* 前缀调用（ast_pool.c 实现 pipeline_*）。 */
+/** ast.x extern pipeline_dep_ctx_*；typeck 经 ast_pipeline_* 前缀调用（ast_pool.c 实现 pipeline_*）。 */
 int32_t ast_pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx *ctx) {
   return pipeline_dep_ctx_ndep(ctx);
 }
@@ -19801,7 +19801,7 @@ void ast_pipeline_ctx_lib_root_copy(struct ast_PipelineDepCtx *ctx, int32_t i, u
 
 /**
  * 将 lib_root[lib_idx] 拷入 dst[0..255]（先清零）；返回 lib_root 字节长度。
- * 避免 resolve_path_sx 内 `let buf: u8[256] = []` 触发 parse_into_buf 跳过大函数体。
+ * 避免 resolve_path_x 内 `let buf: u8[256] = []` 触发 parse_into_buf 跳过大函数体。
  */
 int32_t pipeline_copy_lib_root_to_buf256(struct ast_PipelineDepCtx *ctx, int32_t lib_idx, uint8_t *dst) {
   int32_t i;
@@ -19833,16 +19833,16 @@ int32_t ast_pipeline_block_append_if(struct ast_ASTArena *a, int32_t br, int32_t
                                      int32_t else_ref) {
   return pipeline_block_append_if(a, br, cond_ref, then_ref, else_ref);
 }
-/** M-3：parser.sx import ast 前缀 → ast_pool pipeline_block_append_region。 */
+/** M-3：parser.x import ast 前缀 → ast_pool pipeline_block_append_region。 */
 int32_t ast_pipeline_block_append_region(struct ast_ASTArena *a, int32_t br, uint8_t *label, int32_t label_len,
                                          int32_t body_ref) {
   return pipeline_block_append_region(a, br, label, label_len, body_ref);
 }
-/** LANG-007 v2：parser.sx → ast_pool pipeline_block_append_unsafe。 */
+/** LANG-007 v2：parser.x → ast_pool pipeline_block_append_unsafe。 */
 int32_t ast_pipeline_block_append_unsafe(struct ast_ASTArena *a, int32_t br, int32_t body_ref) {
   return pipeline_block_append_unsafe(a, br, body_ref);
 }
-/** MEM-C1：parser.sx → ast_pool pipeline_block_append_with_arena。 */
+/** MEM-C1：parser.x → ast_pool pipeline_block_append_with_arena。 */
 int32_t ast_pipeline_block_append_with_arena(struct ast_ASTArena *a, int32_t br, int32_t cap_ref, int32_t body_ref) {
   return pipeline_block_append_with_arena(a, br, cap_ref, body_ref);
 }
@@ -20064,7 +20064,7 @@ int32_t ast_pipeline_block_append_stmt_order(struct ast_ASTArena *a, int32_t br,
   return pipeline_block_append_stmt_order(a, br, kind, idx);
 }
 
-/** parser.sx：块首 let 乱序时重排 stmt_order（with_arena_vec gate）。 */
+/** parser.x：块首 let 乱序时重排 stmt_order（with_arena_vec gate）。 */
 void ast_pipeline_block_stmt_order_fix_prefix_lets(struct ast_ASTArena *a, int32_t br, int32_t prefix_n) {
   pipeline_block_stmt_order_fix_prefix_lets(a, br, prefix_n);
 }
@@ -20154,7 +20154,7 @@ int32_t ast_pipeline_arena_block_alloc(struct ast_ASTArena *a) { return pipeline
 int32_t ast_pipeline_arena_func_alloc(struct ast_ASTArena *a) { return pipeline_arena_func_alloc(a); }
 
 /**
- * ast.sx 中 ast_arena_*_get/set 仅作 extern 声明；实现在此，避免 shux-c -E 将 get 错误 lowering 为
+ * ast.x 中 ast_arena_*_get/set 仅作 extern 声明；实现在此，避免 shux-c -E 将 get 错误 lowering 为
  * arena->exprs[] / blocks[] 直访（slim ASTArena 已无内嵌数组）。
  * ast_ast_arena_* 供 ast 模块 hoisted 声明；ast_arena_* 供 import ast 的其他模块链接。
  */
@@ -20284,7 +20284,7 @@ int32_t ast_ast_block_num_if_stmts(struct ast_ASTArena *a, int32_t br) {
   blk = ast_ast_arena_block_get(a, br);
   return blk.num_if_stmts;
 }
-/** M-3：typeck/codegen.sx 经 ast_ 前缀读 Block.num_regions。 */
+/** M-3：typeck/codegen.x 经 ast_ 前缀读 Block.num_regions。 */
 int32_t ast_ast_block_num_regions(struct ast_ASTArena *a, int32_t br) {
   struct ast_Block blk;
   if (!a || br <= 0 || br > a->num_blocks)
@@ -20339,8 +20339,8 @@ int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br) {
 }
 
 /**
- * typeck.sx::func_body_tail_expr_ref_for_implicit_rule 的 C 委托：读块 final_expr / stmt_order 尾表达式。
- * SX 真 emit 在 asm 后端失败；EMIT_HEAVY 桩 bl 本符号，避免依赖 typeck_sx.o 同名实现。
+ * typeck.x::func_body_tail_expr_ref_for_implicit_rule 的 C 委托：读块 final_expr / stmt_order 尾表达式。
+ * X 真 emit 在 asm 后端失败；EMIT_HEAVY 桩 bl 本符号，避免依赖 typeck_x.o 同名实现。
  */
 int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_ASTArena *arena, int32_t body_ref) {
   int32_t fin_ref;
@@ -20348,7 +20348,7 @@ int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_A
   int32_t nes2;
   const uint8_t stmt_order_kind_expr_stmt = 2;
   const uint8_t stmt_order_kind_region_c_parser = 5;
-  const uint8_t stmt_order_kind_region_sx_parser = 6;
+  const uint8_t stmt_order_kind_region_x_parser = 6;
 
   fin_ref = ast_ast_block_final_expr_ref(arena, body_ref);
   if (!ast_ref_is_null(fin_ref))
@@ -20390,7 +20390,7 @@ int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_A
       if (idx >= 0 && idx < nes)
         return pipeline_block_expr_stmt_ref(arena, body_ref, idx);
     }
-    if (last_k == stmt_order_kind_region_c_parser || last_k == stmt_order_kind_region_sx_parser) {
+    if (last_k == stmt_order_kind_region_c_parser || last_k == stmt_order_kind_region_x_parser) {
       int32_t is_unsafe;
       idx = pipeline_block_stmt_order_idx(arena, body_ref, nso - 1);
       nes = ast_ast_block_num_regions(arena, body_ref);
@@ -20413,7 +20413,7 @@ int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_A
 }
 
 /**
- * typeck.sx::func_body_has_implicit_return_tail 的 C 委托：判定块末是否存在不允许的隐式尾返回。
+ * typeck.x::func_body_has_implicit_return_tail 的 C 委托：判定块末是否存在不允许的隐式尾返回。
  */
 int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena *arena, int32_t body_ref) {
   int32_t tail_ref;
@@ -20434,7 +20434,7 @@ int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena
 }
 
 /**
- * typeck.sx::typeck_patch_all_body_parent_links 的 C 委托：为 module 各函数体块 patch parent 链。
+ * typeck.x::typeck_patch_all_body_parent_links 的 C 委托：为 module 各函数体块 patch parent 链。
  */
 void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module *module, struct ast_ASTArena *arena) {
   int32_t i;
@@ -20452,7 +20452,7 @@ void pipeline_typeck_patch_all_body_parent_links_c(struct ast_Module *module, st
 /** 前向声明：typeck_glue_type_refs_equal_impl 递归比较 elem 类型。 */
 int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b);
 
-/** 比较两个 NAMED 类型名（与 typeck.sx::type_refs_equal_named 一致；含限定名/短名末段对齐）。 */
+/** 比较两个 NAMED 类型名（与 typeck.x::type_refs_equal_named 一致；含限定名/短名末段对齐）。 */
 static int32_t typeck_named_unqual_offset_c(const uint8_t *buf, int32_t len) {
   int32_t i;
   for (i = len - 1; i > 0; i--) {
@@ -20500,7 +20500,7 @@ static int32_t typeck_glue_type_refs_equal_named(struct ast_ASTArena *arena, int
   return 1;
 }
 
-/** type_refs_equal_named 薄委托（与 typeck.sx 拆分 helper 一致）。 */
+/** type_refs_equal_named 薄委托（与 typeck.x 拆分 helper 一致）。 */
 int32_t pipeline_typeck_type_refs_equal_named_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   if (!arena || a <= 0 || b <= 0)
     return 0;
@@ -20508,7 +20508,7 @@ int32_t pipeline_typeck_type_refs_equal_named_c(struct ast_ASTArena *arena, int3
 }
 
 /**
- * kind 已相等时的复合类型比较（与 typeck.sx::type_refs_equal_same_kind 一致；EMIT_HEAVY 薄委托）。
+ * kind 已相等时的复合类型比较（与 typeck.x::type_refs_equal_same_kind 一致；EMIT_HEAVY 薄委托）。
  */
 int32_t pipeline_typeck_type_refs_equal_same_kind_c(struct ast_ASTArena *arena, int32_t a, int32_t b,
                                                     int32_t kind_ord) {
@@ -20529,7 +20529,7 @@ int32_t pipeline_typeck_type_refs_equal_same_kind_c(struct ast_ASTArena *arena, 
   return 1;
 }
 
-/** 内部：a/b 已非 null 且 a!=b；读 kind 后委托 same_kind（与 typeck.sx::type_refs_equal_impl 一致）。 */
+/** 内部：a/b 已非 null 且 a!=b；读 kind 后委托 same_kind（与 typeck.x::type_refs_equal_impl 一致）。 */
 static int32_t typeck_glue_type_refs_equal_impl(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   int32_t ka;
   int32_t kb;
@@ -20550,7 +20550,7 @@ extern int32_t pipeline_module_type_alias_name_len(struct ast_Module *m, int32_t
 extern uint8_t pipeline_module_type_alias_name_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
 extern int32_t pipeline_module_type_alias_target_ref(struct ast_Module *m, int32_t idx);
 
-/** 比较两个类型池 ref 是否相等（与 typeck.sx::type_refs_equal 一致；EMIT_HEAVY 薄委托）。 */
+/** 比较两个类型池 ref 是否相等（与 typeck.x::type_refs_equal 一致；EMIT_HEAVY 薄委托）。 */
 static int32_t pipeline_typeck_resolve_type_alias_ref_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                              int32_t type_ref, int32_t depth);
 
@@ -20611,12 +20611,12 @@ int32_t pipeline_typeck_type_refs_equal_impl_c(struct ast_ASTArena *arena, int32
   return typeck_glue_type_refs_equal_impl(arena, a, b);
 }
 
-/** 判断 type_ref 是否为 bool（内部；与 typeck.sx::type_ref_is_bool_impl 一致）。 */
+/** 判断 type_ref 是否为 bool（内部；与 typeck.x::type_ref_is_bool_impl 一致）。 */
 int32_t pipeline_typeck_type_ref_is_bool_impl_c(struct ast_ASTArena *arena, int32_t type_ref) {
   return pipeline_type_kind_ord_at(arena, type_ref) == (int32_t)ast_TypeKind_TYPE_BOOL;
 }
 
-/** 判断 type_ref 是否为 bool（与 typeck.sx::type_ref_is_bool 一致；EMIT_HEAVY 薄委托）。 */
+/** 判断 type_ref 是否为 bool（与 typeck.x::type_ref_is_bool 一致；EMIT_HEAVY 薄委托）。 */
 int32_t pipeline_typeck_type_ref_is_bool_c(struct ast_ASTArena *arena, int32_t type_ref) {
   if (ast_ref_is_null(type_ref) || type_ref <= 0 || !arena || type_ref > arena->num_types)
     return 0;
@@ -20624,14 +20624,14 @@ int32_t pipeline_typeck_type_ref_is_bool_c(struct ast_ASTArena *arena, int32_t t
 }
 
 /**
- * typeck.sx::expr_type_ref_impl 的 C 委托：读 expr.resolved_type_ref（glue 指针读，避免 Expr 按值撕裂）。
+ * typeck.x::expr_type_ref_impl 的 C 委托：读 expr.resolved_type_ref（glue 指针读，避免 Expr 按值撕裂）。
  */
 int32_t pipeline_typeck_expr_type_ref_impl_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   return pipeline_expr_resolved_type_ref(arena, expr_ref);
 }
 
 /**
- * typeck.sx::expr_type_ref 的 C 委托：带 null/边界检查的 resolved_type_ref 读取。
+ * typeck.x::expr_type_ref 的 C 委托：带 null/边界检查的 resolved_type_ref 读取。
  */
 int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   if (ast_ref_is_null(expr_ref))
@@ -20641,7 +20641,7 @@ int32_t pipeline_typeck_expr_type_ref_c(struct ast_ASTArena *arena, int32_t expr
   return pipeline_typeck_expr_type_ref_impl_c(arena, expr_ref);
 }
 
-/** 诊断缓冲追加字面量（与 typeck.sx::typeck_diag_append_lit 一致）。 */
+/** 诊断缓冲追加字面量（与 typeck.x::typeck_diag_append_lit 一致）。 */
 int32_t pipeline_typeck_diag_append_lit_c(uint8_t *out, int32_t pos, int32_t cap, uint8_t *lit, int32_t lit_len) {
   int32_t p;
   int32_t i;
@@ -20656,7 +20656,7 @@ int32_t pipeline_typeck_diag_append_lit_c(uint8_t *out, int32_t pos, int32_t cap
   return p;
 }
 
-/** 诊断缓冲追加十进制 u32（与 typeck.sx::typeck_diag_append_u32_dec 一致）。 */
+/** 诊断缓冲追加十进制 u32（与 typeck.x::typeck_diag_append_u32_dec 一致）。 */
 int32_t pipeline_typeck_diag_append_u32_dec_c(uint8_t *out, int32_t pos, int32_t cap, int32_t v) {
   int32_t p;
   int32_t cnt;
@@ -20693,7 +20693,7 @@ int32_t pipeline_typeck_diag_append_u32_dec_c(uint8_t *out, int32_t pos, int32_t
 }
 
 /**
- * typeck.sx::typeck_diag_fmt_type_at 的 C 委托：将类型 ref 格式化为可读 ASCII（不写 NUL）。
+ * typeck.x::typeck_diag_fmt_type_at 的 C 委托：将类型 ref 格式化为可读 ASCII（不写 NUL）。
  */
 int32_t pipeline_typeck_diag_fmt_type_at_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out, int32_t cur,
                                            int32_t cap) {
@@ -20788,12 +20788,12 @@ int32_t pipeline_typeck_diag_fmt_type_at_c(struct ast_ASTArena *arena, int32_t r
   return pipeline_typeck_diag_append_lit_c(out, cur, cap, (uint8_t *)qmk, 1);
 }
 
-/** typeck.sx::typeck_diag_fmt_type_into 的 C 委托。 */
+/** typeck.x::typeck_diag_fmt_type_into 的 C 委托。 */
 int32_t pipeline_typeck_diag_fmt_type_into_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out, int32_t cap) {
   return pipeline_typeck_diag_fmt_type_at_c(arena, ref, out, 0, cap);
 }
 
-/** typeck.sx::typeck_diag_fmt_type_or_question 的 C 委托。 */
+/** typeck.x::typeck_diag_fmt_type_or_question 的 C 委托。 */
 int32_t pipeline_typeck_diag_fmt_type_or_question_c(struct ast_ASTArena *arena, int32_t ref, uint8_t *out) {
   static const uint8_t qmk[1] = { 63 };
 
@@ -20825,7 +20825,7 @@ static int32_t pipeline_typeck_integer_widen_ok_c(int32_t dest_kind, int32_t src
 }
 
 /**
- * typeck.sx::typeck_return_operand_matches 的 C 委托：return 操作数与期望返回类型是否匹配。
+ * typeck.x::typeck_return_operand_matches 的 C 委托：return 操作数与期望返回类型是否匹配。
  */
 int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref) {
   int32_t got;
@@ -20863,7 +20863,7 @@ int32_t pipeline_typeck_return_operand_matches_c(struct ast_ASTArena *arena, int
 }
 
 /**
- * typeck.sx::typeck_ret_coerce_integral_to_expect_i32 的 C 委托：i32 返回时对 u8/usize 操作数写回 resolved_type_ref。
+ * typeck.x::typeck_ret_coerce_integral_to_expect_i32 的 C 委托：i32 返回时对 u8/usize 操作数写回 resolved_type_ref。
  */
 void pipeline_typeck_ret_coerce_integral_to_expect_i32_c(struct ast_ASTArena *arena, int32_t op_ref,
                                                          int32_t expect_ref) {
@@ -20886,7 +20886,7 @@ void pipeline_typeck_ret_coerce_integral_to_expect_i32_c(struct ast_ASTArena *ar
 }
 
 /**
- * typeck.sx::typeck_ret_coerce_integral_widen 的 C 委托：较宽返回类型时对较小整型写回 resolved_type_ref。
+ * typeck.x::typeck_ret_coerce_integral_widen 的 C 委托：较宽返回类型时对较小整型写回 resolved_type_ref。
  */
 void pipeline_typeck_ret_coerce_integral_widen_c(struct ast_ASTArena *arena, int32_t op_ref, int32_t expect_ref) {
   int32_t got_ref;
@@ -20927,7 +20927,7 @@ int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTAr
 extern void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col);
 
 /**
- * typeck.sx::typeck_check_expr_panic 的 C 委托：检查 operand；发散表达式写 resolved 为期望返回类型。
+ * typeck.x::typeck_check_expr_panic 的 C 委托：检查 operand；发散表达式写 resolved 为期望返回类型。
  */
 int32_t pipeline_typeck_check_expr_panic_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
@@ -20945,7 +20945,7 @@ int32_t pipeline_typeck_check_expr_panic_c(struct ast_Module *module, struct ast
 }
 
 /**
- * typeck.sx::typeck_check_expr_match 的 C 委托：检查 matched 与各 arm result；迭代遍历 arm 避免 SX 递归 SIGSEGV。
+ * typeck.x::typeck_check_expr_match 的 C 委托：检查 matched 与各 arm result；迭代遍历 arm 避免 X 递归 SIGSEGV。
  */
 int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
@@ -20988,7 +20988,7 @@ int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast
 }
 
 /**
- * typeck.sx::typeck_check_expr_return 的 C 委托：裸 return / return expr 与函数签名匹配。
+ * typeck.x::typeck_check_expr_return 的 C 委托：裸 return / return expr 与函数签名匹配。
  */
 int32_t pipeline_typeck_coerce_init_struct_lit_to_decl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                          int32_t init_ref, int32_t decl_ty_ref);
@@ -21114,11 +21114,11 @@ int32_t pipeline_typeck_check_expr_return_c(struct ast_Module *module, struct as
   return 0;
 }
 
-/** typeck.o / typeck_sx：按元素类型分配或复用 *T Type ref。 */
+/** typeck.o / typeck_x：按元素类型分配或复用 *T Type ref。 */
 extern int32_t find_or_alloc_ptr_type_ref(struct ast_ASTArena *arena, int32_t elem_ref);
 
 /**
- * typeck.sx::typeck_check_expr_unary 的 C 委托：NEG/BITNOT/LOGNOT 检查操作数并写 resolved_type。
+ * typeck.x::typeck_check_expr_unary 的 C 委托：NEG/BITNOT/LOGNOT 检查操作数并写 resolved_type。
  */
 int32_t pipeline_typeck_check_expr_unary_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
@@ -21150,7 +21150,7 @@ int32_t pipeline_typeck_ptr_for_addr_of_operand_c(struct ast_ASTArena *arena, in
                                                   struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
 
 /**
- * typeck.sx::typeck_check_expr_addr_of 的 C 委托：操作数类型 T，表达式类型 *T。
+ * typeck.x::typeck_check_expr_addr_of 的 C 委托：操作数类型 T，表达式类型 *T。
  */
 int32_t pipeline_typeck_check_expr_addr_of_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                              int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
@@ -21183,7 +21183,7 @@ int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena *a, int32_t br, int3
 int32_t pipeline_dep_ctx_typeck_unsafe_depth_at(struct ast_PipelineDepCtx *ctx);
 
 /**
- * typeck.sx::typeck_check_expr_deref 的 C 委托：操作数须为 *T，表达式类型 T。
+ * typeck.x::typeck_check_expr_deref 的 C 委托：操作数须为 *T，表达式类型 T。
  * LANG-007 v2：S0 内须在 unsafe { } 块内解引用。
  */
 /** LANG-007 v2：unsafe { } 嵌套深度侧车（不扩 PipelineDepCtx，避免 seed 结构体漂移）。 */
@@ -21241,7 +21241,7 @@ static int32_t pipeline_typeck_lit_fits_named_i16_u16_c(struct ast_ASTArena *are
 }
 
 /**
- * typeck.sx::typeck_check_expr_assign 的 C 委托：EXPR_ASSIGN / 复合赋值左右子式 check、字面量收窄与 mismatch 诊断。
+ * typeck.x::typeck_check_expr_assign 的 C 委托：EXPR_ASSIGN / 复合赋值左右子式 check、字面量收窄与 mismatch 诊断。
  */
 int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena, int32_t site_expr_ref,
                                                     int32_t expect_ref, int32_t src_ref);
@@ -21420,12 +21420,12 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
 /* EXPR_FIELD_ACCESS 子逻辑（prebind/known_ptr/layout/slice/fallback）见 pipeline_typeck_field_access.c */
 #include "pipeline_typeck_soa.c"
 
-/** skip typeck 时从 STRUCT_LIT 补登记 module.struct_layouts（typeck.sx ensure_struct_layout_from_struct_lit）。 */
+/** skip typeck 时从 STRUCT_LIT 补登记 module.struct_layouts（typeck.x ensure_struct_layout_from_struct_lit）。 */
 extern int32_t typeck_ensure_struct_layout_from_struct_lit(struct ast_Module *module, struct ast_ASTArena *arena,
                                                            int32_t expr_ref);
 
 /**
- * asm emit 前：为 `arr[i].field` SoA 读/写补 col_base + stride（C/SX typeck 遗漏或 skip 时）。
+ * asm emit 前：为 `arr[i].field` SoA 读/写补 col_base + stride（C/X typeck 遗漏或 skip 时）。
  * 须在 glue_fill_var_types_from_lets 之后（INDEX 基址须 resolved T[N]）。
  */
 void pipeline_fill_soa_field_access_for_asm_emit(struct ast_Module *m, struct ast_ASTArena *arena) {
@@ -21507,7 +21507,7 @@ void pipeline_fill_soa_field_access_for_asm_emit(struct ast_Module *m, struct as
 #include "pipeline_typeck_field_access.c"
 
 /**
- * typeck.sx::typeck_check_expr_index 的 C 委托：检查 base/index 下标，写元素类型与 slice/bounds 标记。
+ * typeck.x::typeck_check_expr_index 的 C 委托：检查 base/index 下标，写元素类型与 slice/bounds 标记。
  */
 int32_t pipeline_typeck_check_expr_index_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
@@ -21564,7 +21564,7 @@ int32_t pipeline_typeck_check_expr_index_c(struct ast_Module *module, struct ast
   return 0;
 }
 
-/** typeck_sx_no_layout_partial：顶层 let 名比较。 */
+/** typeck_x_no_layout_partial：顶层 let 名比较。 */
 extern int32_t typeck_top_level_let_name_equal(struct ast_Module *module, int32_t tl_idx, uint8_t *name,
                                                int32_t name_len);
 extern int32_t typeck_name_equal(uint8_t *a, int32_t a_len, uint8_t *b, int32_t b_len);
@@ -21572,7 +21572,7 @@ extern int32_t typeck_find_or_alloc_named_type_ref(struct ast_ASTArena *arena, u
 extern int32_t pipeline_module_top_level_let_type_ref(struct ast_Module *module, int32_t idx);
 
 /**
- * typeck.sx::typeck_check_expr_var 的 C 委托：块 symtab / 顶层 let / 形参 / TokenKind·TypeKind 限定名。
+ * typeck.x::typeck_check_expr_var 的 C 委托：块 symtab / 顶层 let / 形参 / TokenKind·TypeKind 限定名。
  */
 int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                        struct ast_PipelineDepCtx *ctx) {
@@ -21685,7 +21685,7 @@ int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_A
 }
 
 /**
- * typeck.sx::typeck_import_segment_at 的 C 委托：取 import 路径第 want_seg 段偏移与长度。
+ * typeck.x::typeck_import_segment_at 的 C 委托：取 import 路径第 want_seg 段偏移与长度。
  */
 static int32_t pipeline_typeck_module_num_imports_c(struct ast_Module *module);
 int32_t pipeline_typeck_import_segment_at_c(struct ast_Module *module, int32_t imp_ix, int32_t want_seg,
@@ -21845,7 +21845,7 @@ static int32_t pipeline_typeck_map_import_binding_named_to_caller_c(struct ast_M
 }
 
 /**
- * typeck.sx::dep_return_type_to_caller_arena 的 C 实现：dep 侧 return_type_ref 递归映到 caller arena。
+ * typeck.x::dep_return_type_to_caller_arena 的 C 实现：dep 侧 return_type_ref 递归映到 caller arena。
  */
 static int32_t pipeline_typeck_dep_return_type_to_caller_arena_impl(struct ast_ASTArena *dep_arena,
                                                                     int32_t dep_return_type_ref,
@@ -21910,13 +21910,13 @@ static int32_t pipeline_typeck_dep_return_type_to_caller_arena_impl(struct ast_A
   return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
 }
 
-/** typeck.sx::dep_return_type_to_caller_arena 的 C 委托（EMIT_HEAVY 薄包装入口）。 */
+/** typeck.x::dep_return_type_to_caller_arena 的 C 委托（EMIT_HEAVY 薄包装入口）。 */
 int32_t pipeline_typeck_dep_return_type_to_caller_arena_c(struct ast_ASTArena *dep_arena, int32_t dep_return_type_ref,
                                                           struct ast_ASTArena *caller_arena) {
   return pipeline_typeck_dep_return_type_to_caller_arena_impl(dep_arena, dep_return_type_ref, caller_arena);
 }
 
-/** typeck.sx::get_dep_return_type_in_caller_arena 的 C 委托。 */
+/** typeck.x::get_dep_return_type_in_caller_arena 的 C 委托。 */
 int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index, int32_t dep_return_type_ref,
                                                               struct ast_ASTArena *caller_arena,
                                                               struct ast_PipelineDepCtx *ctx) {
@@ -21950,7 +21950,7 @@ int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_i
   return pipeline_typeck_dep_return_type_to_caller_arena_impl(dep_arena, dep_return_type_ref, caller_arena);
 }
 
-/** typeck.sx::expr_var_name_equal_func 的 C 委托：VAR callee 名与 module.funcs[j] 名逐字节相等。 */
+/** typeck.x::expr_var_name_equal_func 的 C 委托：VAR callee 名与 module.funcs[j] 名逐字节相等。 */
 int32_t pipeline_typeck_expr_var_name_equal_func_c(struct ast_ASTArena *arena, int32_t callee_expr_ref,
                                                    struct ast_Module *mod, int32_t func_index) {
   uint8_t vbuf[64];
@@ -21978,7 +21978,7 @@ int32_t pipeline_typeck_expr_var_name_equal_func_c(struct ast_ASTArena *arena, i
   return 1;
 }
 
-/** typeck.sx::find_func_return_type_in_module_by_name 的 C 委托。 */
+/** typeck.x::find_func_return_type_in_module_by_name 的 C 委托。 */
 int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
     struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len,
     int32_t from_dep_index, struct ast_PipelineDepCtx *ctx, int32_t *func_index_out) {
@@ -22022,7 +22022,7 @@ int32_t pipeline_typeck_find_func_return_type_in_module_by_name_c(
   return 0;
 }
 
-/** typeck.sx::find_func_return_type_in_module 的 C 委托。 */
+/** typeck.x::find_func_return_type_in_module 的 C 委托。 */
 int32_t pipeline_typeck_find_func_return_type_in_module_c(
     struct ast_Module *mod, struct ast_ASTArena *mod_arena, struct ast_ASTArena *caller_arena,
     struct ast_ASTArena *callee_arena, int32_t callee_expr_ref, int32_t from_dep_index,
@@ -22048,19 +22048,19 @@ int32_t pipeline_typeck_find_func_return_type_in_module_c(
   return 0;
 }
 
-/** typeck.sx::typeck_expr_apply_call_resolve 的 C 委托：写入 CALL 结点的 resolved dep/func 下标。 */
+/** typeck.x::typeck_expr_apply_call_resolve 的 C 委托：写入 CALL 结点的 resolved dep/func 下标。 */
 void pipeline_typeck_expr_apply_call_resolve_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t dep_ix,
                                                int32_t func_ix) {
   pipeline_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix);
 }
 
-/** typeck ImportKind.IMPORT_BINDING / IMPORT_SELECT（与 ast.sx 序数一致）。 */
+/** typeck ImportKind.IMPORT_BINDING / IMPORT_SELECT（与 ast.x 序数一致）。 */
 enum {
   GLUE_TYPECK_IMPORT_BINDING = 1,
   GLUE_TYPECK_IMPORT_SELECT = 2,
 };
 
-/** typeck.sx::typeck_import_path_segment_count 的静态辅助：统计 import 路径 `.` 分段数。 */
+/** typeck.x::typeck_import_path_segment_count 的静态辅助：统计 import 路径 `.` 分段数。 */
 static int32_t pipeline_typeck_import_path_segment_count_impl(const uint8_t *path, int32_t path_len) {
   int32_t n;
   int32_t ii;
@@ -22077,7 +22077,7 @@ static int32_t pipeline_typeck_import_path_segment_count_impl(const uint8_t *pat
   return n;
 }
 
-/** typeck.sx::typeck_import_path_slice_equal 的静态辅助。 */
+/** typeck.x::typeck_import_path_slice_equal 的静态辅助。 */
 static int32_t pipeline_typeck_import_path_slice_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t off,
                                                             int32_t seg_len, uint8_t *nm, int32_t nm_len) {
   int32_t i;
@@ -22093,7 +22093,7 @@ static int32_t pipeline_typeck_import_path_slice_equal_impl(struct ast_Module *m
   return 1;
 }
 
-/** typeck.sx::typeck_import_binding_name_equal 的静态辅助。 */
+/** typeck.x::typeck_import_binding_name_equal 的静态辅助。 */
 static int32_t pipeline_typeck_import_binding_name_equal_impl(struct ast_Module *module, int32_t imp_ix, uint8_t *nm,
                                                               int32_t nm_len) {
   int32_t bl;
@@ -22111,7 +22111,7 @@ static int32_t pipeline_typeck_import_binding_name_equal_impl(struct ast_Module 
   return 1;
 }
 
-/** typeck.sx::typeck_import_select_name_equal 的静态辅助。 */
+/** typeck.x::typeck_import_select_name_equal 的静态辅助。 */
 static int32_t pipeline_typeck_import_select_name_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t sel,
                                                              uint8_t *nm, int32_t nm_len) {
   int32_t sl;
@@ -22130,7 +22130,7 @@ static int32_t pipeline_typeck_import_select_name_equal_impl(struct ast_Module *
 }
 
 /**
- * typeck.sx::resolve_whole_import_qualified_call_return_type 的 C 委托：
+ * typeck.x::resolve_whole_import_qualified_call_return_type 的 C 委托：
  * `platform.elf.fn(args)` 整包 import callee 返回类型解析。
  */
 int32_t pipeline_typeck_resolve_whole_import_call_ret_c(
@@ -22257,7 +22257,7 @@ int32_t pipeline_typeck_resolve_whole_import_call_ret_c(
 }
 
 /**
- * typeck.sx::resolve_call_callee_return_type 的 C 委托：
+ * typeck.x::resolve_call_callee_return_type 的 C 委托：
  * 解析 CALL callee 返回类型（本模块 / dep / 整包 / 绑定 / 解构 import）。
  */
 int32_t pipeline_typeck_resolve_call_callee_return_type_c(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -22452,7 +22452,7 @@ extern int32_t typeck_check_block_final(struct ast_Module *module, struct ast_AS
                                         int32_t return_type_ref, struct ast_PipelineDepCtx *ctx, int32_t fin0);
 extern void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, int32_t n_const, int32_t n_let,
                                                  int32_t n_loop, int32_t n_for, int32_t n_expr, int32_t final_ref);
-/** typeck.o 简单 kind helper；pipeline_typeck_check_expr_impl_c 与 check_expr_impl SX 共用。 */
+/** typeck.o 简单 kind helper；pipeline_typeck_check_expr_impl_c 与 check_expr_impl X 共用。 */
 extern int32_t typeck_check_expr_float_lit(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t typeck_check_expr_int_lit(struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref);
 extern int32_t typeck_check_expr_bool_lit(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -22465,7 +22465,7 @@ extern int32_t typeck_check_expr_if_ternary(struct ast_Module *module, struct as
                                             struct ast_PipelineDepCtx *ctx);
 extern int32_t typeck_check_expr_block(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                        int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-/** typeck.o / typeck_sx_no_layout 子 helper；kind 分派经 pipeline_typeck_check_expr_impl_mega_c 调用。 */
+/** typeck.o / typeck_x_no_layout 子 helper；kind 分派经 pipeline_typeck_check_expr_impl_mega_c 调用。 */
 extern int32_t typeck_check_expr_return(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                         int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 extern int32_t typeck_check_expr_panic(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
@@ -22508,7 +22508,7 @@ extern int32_t check_block_impl(struct ast_Module *module, struct ast_ASTArena *
                                 int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 extern void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break);
 
-/** typeck.sx::typeck_validate_struct_layouts_zero_padding 的 C 委托。 */
+/** typeck.x::typeck_validate_struct_layouts_zero_padding 的 C 委托。 */
 int32_t pipeline_typeck_validate_struct_layouts_zero_padding_c(struct ast_Module *module, struct ast_ASTArena *arena) {
   return typeck_validate_struct_layouts_zero_padding_glue(module, arena);
 }
@@ -22552,7 +22552,7 @@ static int32_t pipeline_typeck_slice_region_escape_c(struct ast_ASTArena *arena,
 }
 
 /**
- * M-3：.sx typeck 统一 slice 域 assign/let/实参检查；与 typeck.c typeck_check_slice_region_assign 措辞一致。
+ * M-3：.x typeck 统一 slice 域 assign/let/实参检查；与 typeck.c typeck_check_slice_region_assign 措辞一致。
  * site_expr_ref 用于 line/col；返回 0 可接受，-1 已打印 typeck error。
  */
 static void pipeline_typeck_expr_diag_line_col_c(struct ast_ASTArena *a, int32_t expr_ref, int32_t *line,
@@ -22604,7 +22604,7 @@ static int32_t g_typeck_linear_moved_lens[TYPECK_LINEAR_MOVED_MAX];
 /** WPO-S3：typeck 活跃 module/ctx（call slice 检查等 C glue 无 ctx 参数时回落）。 */
 static struct ast_PipelineDepCtx *g_typeck_active_ctx;
 
-/** WPO-S3：进入函数 typeck 前设置活跃 ctx（typeck_sx_ast 每函数调用）。 */
+/** WPO-S3：进入函数 typeck 前设置活跃 ctx（typeck_x_ast 每函数调用）。 */
 void pipeline_typeck_set_active_ctx_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
   g_typeck_active_module = module;
   g_typeck_active_ctx = ctx;
@@ -23629,7 +23629,7 @@ int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena) 
 }
 
 /**
- * M-3：.sx typeck return 路径 slice 域逃逸 / 不一致；ret_site_ref 用于 line/col。
+ * M-3：.x typeck return 路径 slice 域逃逸 / 不一致；ret_site_ref 用于 line/col。
  */
 int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena, int32_t ret_site_ref,
                                                     int32_t op_ref, int32_t func_return_ref) {
@@ -24167,7 +24167,7 @@ static int32_t typeck_check_call_ptr_struct_compat_c(struct ast_Module *module, 
 }
 
 /**
- * M-3：.sx typeck CALL 实参 slice 域检查；解析 callee 后逐实参对照形参域标签。
+ * M-3：.x typeck CALL 实参 slice 域检查；解析 callee 后逐实参对照形参域标签。
  */
 int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                   int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx) {
@@ -24315,7 +24315,7 @@ static int32_t pipeline_typeck_bytes_equal_c(uint8_t *a, int32_t a_len, uint8_t 
 }
 
 /**
- * typeck.sx::typeck_coerce_init_lit_to_decl 的 C 委托（整型字面量分支）。
+ * typeck.x::typeck_coerce_init_lit_to_decl 的 C 委托（整型字面量分支）。
  */
 int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref, int32_t decl_ty_ref,
                                                   int32_t decl_kind, int32_t init_kind) {
@@ -24365,7 +24365,7 @@ int32_t pipeline_typeck_coerce_init_lit_to_decl_c(struct ast_ASTArena *arena, in
   return 0;
 }
 
-/** typeck.sx::typeck_coerce_init_float_lit_to_decl 的 C 委托。 */
+/** typeck.x::typeck_coerce_init_float_lit_to_decl 的 C 委托。 */
 int32_t pipeline_typeck_coerce_init_float_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                         int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   struct ast_Expr *init_ex;
@@ -24382,7 +24382,7 @@ int32_t pipeline_typeck_coerce_init_float_lit_to_decl_c(struct ast_ASTArena *are
   return 1;
 }
 
-/** typeck.sx::typeck_coerce_init_enum_field_to_decl 的 C 委托（枚举 variant 字段访问）。 */
+/** typeck.x::typeck_coerce_init_enum_field_to_decl 的 C 委托（枚举 variant 字段访问）。 */
 int32_t pipeline_typeck_coerce_init_enum_field_to_decl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                          int32_t init_ref, int32_t decl_ty_ref, int32_t decl_kind,
                                                          int32_t init_kind) {
@@ -24432,7 +24432,7 @@ int32_t pipeline_typeck_coerce_init_enum_field_to_decl_c(struct ast_Module *modu
   return 0;
 }
 
-/** typeck.sx::typeck_coerce_init_named_call_to_decl 的 C 委托。 */
+/** typeck.x::typeck_coerce_init_named_call_to_decl 的 C 委托。 */
 int32_t pipeline_typeck_coerce_init_named_call_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                          int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   struct ast_Expr *init_ex;
@@ -24449,7 +24449,7 @@ int32_t pipeline_typeck_coerce_init_named_call_to_decl_c(struct ast_ASTArena *ar
   return 1;
 }
 
-/** typeck.sx::typeck_coerce_init_array_vector_lit_to_decl 的 C 委托。 */
+/** typeck.x::typeck_coerce_init_array_vector_lit_to_decl 的 C 委托。 */
 int32_t pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                                int32_t decl_ty_ref, int32_t decl_kind,
                                                                int32_t init_kind) {
@@ -24477,7 +24477,7 @@ int32_t pipeline_typeck_coerce_init_array_vector_lit_to_decl_c(struct ast_ASTAre
   return 0;
 }
 
-/** typeck.sx::typeck_coerce_init_vector_binop_to_decl 的 C 委托。 */
+/** typeck.x::typeck_coerce_init_vector_binop_to_decl 的 C 委托。 */
 int32_t pipeline_typeck_coerce_init_vector_binop_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
                                                            int32_t decl_ty_ref, int32_t decl_kind, int32_t init_kind) {
   struct ast_Expr *init_ex;
@@ -24516,7 +24516,7 @@ int32_t pipeline_typeck_coerce_init_vector_binop_to_decl_c(struct ast_ASTArena *
 }
 
 /**
- * typeck.sx::typeck_coerce_init_int_binop_to_decl 的 C 委托：
+ * typeck.x::typeck_coerce_init_int_binop_to_decl 的 C 委托：
  * let 标量整型声明 + 算术二元初值时提升到声明类型（INT64_MIN 等 i64 表达式）。
  */
 int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena, int32_t init_ref,
@@ -24579,7 +24579,7 @@ int32_t pipeline_typeck_coerce_init_struct_lit_to_decl_c(struct ast_Module *modu
   return 1;
 }
 
-/** typeck.sx::typeck_coerce_init_slice_from_array 的 C 委托。 */
+/** typeck.x::typeck_coerce_init_slice_from_array 的 C 委托。 */
 int32_t pipeline_typeck_coerce_init_slice_from_array_c(struct ast_ASTArena *arena, int32_t init_ref, int32_t decl_ty_ref,
                                                        int32_t decl_kind) {
   struct ast_Expr *init_ex;
@@ -24610,7 +24610,7 @@ int32_t pipeline_typeck_coerce_init_slice_from_array_c(struct ast_ASTArena *aren
 }
 
 /**
- * typeck.sx::typeck_coerce_init_expr_to_decl 的 C 委托（薄分发，对齐 SX 子 helper 调用序）：
+ * typeck.x::typeck_coerce_init_expr_to_decl 的 C 委托（薄分发，对齐 X 子 helper 调用序）：
  * let/const 初值类型与声明对齐；用指针写 Expr 池，避免 ast_arena_expr_get 按值拷贝。
  */
 int32_t pipeline_typeck_coerce_init_expr_to_decl_c(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -24651,7 +24651,7 @@ int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTAr
 int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
                                       int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
-/** 判定 ExprKind 是否为赋值/复合赋值（与 typeck.sx check_block 块尾推断一致）。 */
+/** 判定 ExprKind 是否为赋值/复合赋值（与 typeck.x check_block 块尾推断一致）。 */
 static int32_t pipeline_typeck_expr_is_any_assign_kind_c(int32_t kind_ord) {
   if (kind_ord == (int32_t)ast_ExprKind_EXPR_ASSIGN)
     return 1;
@@ -24660,7 +24660,7 @@ static int32_t pipeline_typeck_expr_is_any_assign_kind_c(int32_t kind_ord) {
   return 0;
 }
 
-/** typeck.o / typeck_sx_no_layout 子 helper；kind 分派经 pipeline_typeck_check_expr_impl_mega_c 调用。 */
+/** typeck.o / typeck_x_no_layout 子 helper；kind 分派经 pipeline_typeck_check_expr_impl_mega_c 调用。 */
 extern int32_t typeck_check_expr_try_propagate(struct ast_Module *module, struct ast_ASTArena *arena,
                                                int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
@@ -24785,7 +24785,7 @@ int32_t typeck_check_expr_try_propagate(struct ast_Module *module, struct ast_AS
 }
 
 /**
- * ERR-01 C codegen：GNU 语句表达式 desugar `expr?` → err 早退 + unwrap value（烟测 C 路径 codegen_sx_ast）。
+ * ERR-01 C codegen：GNU 语句表达式 desugar `expr?` → err 早退 + unwrap value（烟测 C 路径 codegen_x_ast）。
  */
 int32_t pipeline_codegen_emit_expr_try_propagate_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                    int32_t expr_ref, struct ast_PipelineDepCtx *ctx) {
@@ -25077,7 +25077,7 @@ static void pipeline_typeck_bootstrap_expr_fixup_c(struct ast_Module *module, st
 }
 
 /**
- * EXPR_CALL：委托 typeck_sx.o 后做泛型返回类型单态化 fixup（bootstrap parser 未存 call type_args）。
+ * EXPR_CALL：委托 typeck_x.o 后做泛型返回类型单态化 fixup（bootstrap parser 未存 call type_args）。
  * LANG-007 v2：S0 内 extern 调用须位于 unsafe { } 块内。
  */
 extern void driver_diagnostic_typeck_extern_call_outside_unsafe(int32_t line, int32_t col);
@@ -25205,8 +25205,8 @@ int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_
   return 0;
 }
 
-/** 非 standalone TU 保留旧 glue wrapper；strict_glue 改由 typeck_sx.o 作为唯一导出方。 */
-#if !defined(SHUX_PIPELINE_GLUE_STANDALONE_TU) && !defined(SHUX_PIPELINE_GLUE_OMIT_SX_DUP_EXPORTS)
+/** 非 standalone TU 保留旧 glue wrapper；strict_glue 改由 typeck_x.o 作为唯一导出方。 */
+#if !defined(SHUX_PIPELINE_GLUE_STANDALONE_TU) && !defined(SHUX_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS)
 int32_t typeck_check_expr_call(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
@@ -25224,8 +25224,8 @@ int32_t typeck_check_expr_method_call(struct ast_Module *module, struct ast_ASTA
 #endif
 
 /**
- * typeck.sx::check_expr_impl_mega 的 C 委托：按 ExprKind 分派至 typeck_check_expr_* 子 helper；
- * strict+pipeline 链不链整颗 typeck.o 时子 helper 来自 typeck_sx_no_layout。
+ * typeck.x::check_expr_impl_mega 的 C 委托：按 ExprKind 分派至 typeck_check_expr_* 子 helper；
+ * strict+pipeline 链不链整颗 typeck.o 时子 helper 来自 typeck_x_no_layout。
  */
 int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t expr_ref, int32_t return_type_ref,
@@ -25310,7 +25310,7 @@ int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module, struct
 extern int32_t typeck_check_expr_impl_mega(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                          int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
-/** glue-only 链无 typeck.o 时回退 mega_c；自举 typeck_sx.o 提供 typeck_check_expr_impl_mega 覆盖。 */
+/** glue-only 链无 typeck.o 时回退 mega_c；自举 typeck_x.o 提供 typeck_check_expr_impl_mega 覆盖。 */
 __attribute__((weak)) int32_t check_expr_impl_mega(struct ast_Module *module, struct ast_ASTArena *arena,
                                                    int32_t expr_ref, int32_t return_type_ref,
                                                    struct ast_PipelineDepCtx *ctx) {
@@ -25318,8 +25318,8 @@ __attribute__((weak)) int32_t check_expr_impl_mega(struct ast_Module *module, st
 }
 
 /**
- * typeck.sx::check_expr_impl 的 C 委托：简单 kind→typeck_check_expr_*；mega→check_expr_impl_mega。
- * EMIT_HEAVY 第二遍 check_expr_impl 仍 bl 本符号（勿 SX 真 emit if+递归 check_expr）。
+ * typeck.x::check_expr_impl 的 C 委托：简单 kind→typeck_check_expr_*；mega→check_expr_impl_mega。
+ * EMIT_HEAVY 第二遍 check_expr_impl 仍 bl 本符号（勿 X 真 emit if+递归 check_expr）。
  */
 int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                           int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
@@ -25354,7 +25354,7 @@ __attribute__((weak)) int32_t check_expr_impl(struct ast_Module *module, struct 
   return pipeline_typeck_check_expr_impl_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 
-/** typeck.sx::check_expr 的 C 委托：边界检查后委托 pipeline_typeck_check_expr_impl_c（简单 kind C 处理 + mega 回退）。 */
+/** typeck.x::check_expr 的 C 委托：边界检查后委托 pipeline_typeck_check_expr_impl_c（简单 kind C 处理 + mega 回退）。 */
 int32_t pipeline_typeck_check_expr_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref,
                                      int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   int32_t rc;
@@ -25437,7 +25437,7 @@ void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t 
   g_typeck_unsafe_depth = saved_unsafe_depth;
 }
 
-/** 写 ctx.typeck_loop_depth；typeck_loop_depth_push/pop SX emit 用。 */
+/** 写 ctx.typeck_loop_depth；typeck_loop_depth_push/pop X emit 用。 */
 void pipeline_typeck_loop_depth_set_c(struct ast_PipelineDepCtx *ctx, int32_t depth) {
   if (!ctx)
     return;
@@ -25466,8 +25466,8 @@ static int32_t pipeline_typeck_check_block_one_if_dbg_c(struct ast_Module *modul
 }
 
 /**
- * typeck.sx::check_block_impl 的 C 委托：stmt_order/legacy 编排（C while）+ typeck.o one_* / final。
- * strict+pipeline 链不链整颗 typeck.o 时须自包含，不可 extern SX 递归 walker。
+ * typeck.x::check_block_impl 的 C 委托：stmt_order/legacy 编排（C while）+ typeck.o one_* / final。
+ * strict+pipeline 链不链整颗 typeck.o 时须自包含，不可 extern X 递归 walker。
  */
 int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
                                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
@@ -25639,7 +25639,7 @@ __attribute__((weak)) int32_t check_block_impl(struct ast_Module *module, struct
 extern int32_t typeck_check_block(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
                                   int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
-/** typeck.sx::check_block 的 C 委托：边界检查后委托 typeck_sx.o::typeck_check_block（与嵌套 if/while 同一路径，勿混用 glue monolithic impl）。 */
+/** typeck.x::check_block 的 C 委托：边界检查后委托 typeck_x.o::typeck_check_block（与嵌套 if/while 同一路径，勿混用 glue monolithic impl）。 */
 int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref,
                                       int32_t return_type_ref, struct ast_PipelineDepCtx *ctx) {
   if (ast_ref_is_null(block_ref))
@@ -25649,7 +25649,7 @@ int32_t pipeline_typeck_check_block_c(struct ast_Module *module, struct ast_ASTA
   return typeck_check_block(module, arena, block_ref, return_type_ref, ctx);
 }
 
-/** typeck.sx::check_block_as_loop_body 的 C 委托：loop_depth push/pop + check_block（无 typeck.o 时自包含）。 */
+/** typeck.x::check_block_as_loop_body 的 C 委托：loop_depth push/pop + check_block（无 typeck.o 时自包含）。 */
 int32_t pipeline_typeck_check_block_as_loop_body_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                    int32_t body_ref, int32_t return_type_ref,
                                                    struct ast_PipelineDepCtx *ctx) {
@@ -25668,9 +25668,9 @@ extern int32_t check_block(struct ast_Module *module, struct ast_ASTArena *arena
                            int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
 
 /**
- * typeck.sx::typeck_sx_ast_check_one_func 的 C 委托：有 typeck.o 时由 SX 强符号覆盖；否则 glue 调 pipeline_typeck_check_block_c。
+ * typeck.x::typeck_x_ast_check_one_func 的 C 委托：有 typeck.o 时由 X 强符号覆盖；否则 glue 调 pipeline_typeck_check_block_c。
  */
-int32_t pipeline_typeck_sx_ast_check_one_func_c(struct ast_Module *module, struct ast_ASTArena *arena,
+int32_t pipeline_typeck_x_ast_check_one_func_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                 struct ast_PipelineDepCtx *ctx, int32_t func_idx) {
   int32_t body_ref;
   int32_t ret_ty_ref;
@@ -25706,9 +25706,9 @@ int32_t pipeline_typeck_sx_ast_check_one_func_c(struct ast_Module *module, struc
 }
 
 /**
- * typeck.sx::typeck_sx_ast_impl 的 C 委托：遍历有体函数（无 typeck.o 时 glue while 自包含）。
+ * typeck.x::typeck_x_ast_impl 的 C 委托：遍历有体函数（无 typeck.o 时 glue while 自包含）。
  */
-int32_t pipeline_typeck_sx_ast_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
+int32_t pipeline_typeck_x_ast_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                       struct ast_PipelineDepCtx *ctx) {
   int32_t mi;
   int32_t ret_kind;
@@ -25784,14 +25784,14 @@ int32_t pipeline_typeck_sx_ast_impl_c(struct ast_Module *module, struct ast_ASTA
   return 0;
 }
 
-/** typeck.sx::typeck_sx_ast_library 的 C 委托：库模块无 main（无 typeck.o 时 glue while 自包含）。 */
-int32_t pipeline_typeck_sx_ast_library_c(struct ast_Module *module, struct ast_ASTArena *arena,
+/** typeck.x::typeck_x_ast_library 的 C 委托：库模块无 main（无 typeck.o 时 glue while 自包含）。 */
+int32_t pipeline_typeck_x_ast_library_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                          struct ast_PipelineDepCtx *ctx) {
   int32_t i;
 
   if (!module || !arena || !ctx) {
     if (getenv("SHUX_DEBUG_PIPE"))
-      fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] typeck_sx_ast_library_c null arg m=%p a=%p ctx=%p\n", (void *)module,
+      fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] typeck_x_ast_library_c null arg m=%p a=%p ctx=%p\n", (void *)module,
               (void *)arena, (void *)ctx);
     return -5;
   }
@@ -25856,7 +25856,7 @@ int32_t pipeline_typeck_sx_ast_library_c(struct ast_Module *module, struct ast_A
 
 /**
  * dep prerun 专用 typeck：仅 struct padding 校验 + parent link 补丁，不遍历函数体。
- * 避免 codegen.sx 等大库模块在 dep prerun 阶段全量 check_block 失败（entry 阶段再完整 typeck）。
+ * 避免 codegen.x 等大库模块在 dep prerun 阶段全量 check_block 失败（entry 阶段再完整 typeck）。
  */
 int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                             struct ast_PipelineDepCtx *ctx) {
@@ -25868,8 +25868,8 @@ int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, struct as
   return 0;
 }
 
-/** typeck.sx::typeck_sx_ast 的 C 委托：校验 main 下标后委托 impl_c。 */
-int32_t pipeline_typeck_sx_ast_c(struct ast_Module *module, struct ast_ASTArena *arena,
+/** typeck.x::typeck_x_ast 的 C 委托：校验 main 下标后委托 impl_c。 */
+int32_t pipeline_typeck_x_ast_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                  struct ast_PipelineDepCtx *ctx) {
   int32_t mi;
 
@@ -25880,7 +25880,7 @@ int32_t pipeline_typeck_sx_ast_c(struct ast_Module *module, struct ast_ASTArena 
     return -10;
   if (mi >= module->num_funcs)
     return -11;
-  return pipeline_typeck_sx_ast_impl_c(module, arena, ctx);
+  return pipeline_typeck_x_ast_impl_c(module, arena, ctx);
 }
 
 int32_t ast_ast_block_while_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t wi) {
@@ -25957,7 +25957,7 @@ int32_t codegen_pipeline_module_func_param_type_ref_at(struct ast_Module *m, int
   return pipeline_module_func_param_type_ref_at(m, func_index, param_index);
 }
 
-/** ast.sx / typeck / codegen / backend / parser 经 import 前缀调用的 Expr 侧车池符号转发。 */
+/** ast.x / typeck / codegen / backend / parser 经 import 前缀调用的 Expr 侧车池符号转发。 */
 int32_t ast_pipeline_expr_append_call_arg(struct ast_ASTArena *a, int32_t expr_ref, int32_t arg_ref) {
   return pipeline_expr_append_call_arg(a, expr_ref, arg_ref);
 }
@@ -26132,7 +26132,7 @@ int32_t backend_pipeline_expr_struct_lit_field_store_sz(struct ast_ASTArena *a, 
 }
 
 /**
- * typeck.sx / asm glue 统一入口：委托 C metrics，勿再调 gen2 自举 SX typeck_struct_layout_metrics。
+ * typeck.x / asm glue 统一入口：委托 C metrics，勿再调 gen2 自举 X typeck_struct_layout_metrics。
  */
 int32_t typeck_typeck_struct_layout_metrics(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
                                             int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
@@ -26154,8 +26154,8 @@ int32_t typeck_validate_struct_layouts_zero_padding_glue(struct ast_Module *modu
   return 0;
 }
 
-/** TYPE_NAMED 且命中 struct_layout 时算 size；C 栈 out 参数，.sx check_block 勿 &local。 */
-int32_t typeck_sx_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
+/** TYPE_NAMED 且命中 struct_layout 时算 size；C 栈 out 参数，.x check_block 勿 &local。 */
+int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
     int32_t depth) {
   int32_t z2 = 0;
   int32_t al2 = 1;
@@ -26166,8 +26166,8 @@ int32_t typeck_sx_type_size_from_layout_glue(struct ast_Module *module, struct a
   return z2;
 }
 
-/** TYPE_NAMED 且命中 struct_layout 时算 align；与 typeck.sx typeck_sx_type_align ko==8 分支一致。 */
-int32_t typeck_sx_type_align_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
+/** TYPE_NAMED 且命中 struct_layout 时算 align；与 typeck.x typeck_x_type_align ko==8 分支一致。 */
+int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena, int32_t li,
     int32_t depth) {
   int32_t z2 = 0;
   int32_t al2 = 1;

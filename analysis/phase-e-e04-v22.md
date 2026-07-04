@@ -9,7 +9,7 @@
 | `driver_check_only_*` / `driver_freestanding_*` | CLI 模式标志 |
 | `driver_sanitize_address_*` | ASan 边界检查开关 |
 | `driver_fmt_check_only_*` / `driver_print_check_ok` | fmt/check 输出 |
-| `driver_sx_pipeline_skip_*` | SX pipeline 跳过 typeck/codegen |
+| `driver_x_pipeline_skip_*` | X pipeline 跳过 typeck/codegen |
 | `driver_typeck_force_c_enabled` | SHUX_TYPECK_FORCE_C |
 | `driver_is_large_stack_thread` / `driver_large_stack_thread_mark` | 大栈 pthread 上下文 |
 

@@ -11,7 +11,7 @@
 | 步骤 | 动作 |
 |------|------|
 | 1 | 读本文 §2–§4（零拷贝语义、大对象模式、拷贝回退） |
-| 2 | 打开 `std/json/mod.sx` 看 `parse_string_view` |
+| 2 | 打开 `std/json/mod.x` 看 `parse_string_view` |
 | 3 | `./tests/run-std-json-gate.sh` |
 | 4 | 大 JSON 留在 `read_ptr` / `mmap` 缓冲内，用 view 读字段 |
 
@@ -84,7 +84,7 @@ if (vp != 0 as *u8) {
 
 - `escape_string`、`append_null`、`append_bool`、`append_number`
 
-实现：`std/json/mod.sx` + `json_parse_string_view_c` in `std/json/json_parse_glue.c`。
+实现：`std/json/mod.x` + `json_parse_string_view_c` in `std/json/json_parse_glue.c`。
 
 ---
 
@@ -101,7 +101,7 @@ if (vp != 0 as *u8) {
 | manifest | `tests/baseline/std-json-manifest.tsv` |
 | 库 | `tests/lib/std-json.sh` |
 | 门禁 | `tests/run-std-json-gate.sh` |
-| 烟测 | `tests/json/main.sx`、`tests/json/zc_parse_string_view.sx` |
+| 烟测 | `tests/json/main.x`、`tests/json/zc_parse_string_view.x` |
 | ZC 交叉 | `tests/baseline/zc-semantics.tsv` |
 
 **STD-008 状态：定版 ✅**

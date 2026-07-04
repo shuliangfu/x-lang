@@ -1,14 +1,14 @@
 # 阶段 F-crypto v1（std.crypto 纳入 F 聚合 batch）
 
-> **F-crypto v1**：`crypto.c` 已在 **F-04 v16～v21** 删除；实现为 **4× `.sx` + 2 胶层**（`crypto_inc_glue.c`、`ed25519_ref10_glue.c`）；本 gate 将 F-04 闭合纳入 **§9 F 聚合 batch**。
+> **F-crypto v1**：`crypto.c` 已在 **F-04 v16～v21** 删除；实现为 **4× `.x` + 2 胶层**（`crypto_inc_glue.c`、`ed25519_ref10_glue.c`）；本 gate 将 F-04 闭合纳入 **§9 F 聚合 batch**。
 
 ## 现状（F-04 已闭合）
 
 | 项 | 路径 |
 |----|------|
-| 核心 | `core.sx` |
-| AEAD | `aes_gcm.sx`、`chacha20_poly1305.sx` |
-| 签名 | `ed25519.sx` |
+| 核心 | `core.x` |
+| AEAD | `aes_gcm.x`、`chacha20_poly1305.x` |
+| 签名 | `ed25519.x` |
 | 胶层 | `crypto_inc_glue.c`、`ed25519_ref10_glue.c` |
 | `crypto.o` | `ld -r` 合并 |
 

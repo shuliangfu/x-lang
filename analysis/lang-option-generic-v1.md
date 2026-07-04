@@ -48,8 +48,8 @@ allow(padding) struct Option<T> {
 
 | case | 文件 | 期望 |
 |------|------|------|
-| `option_three` | `tests/lang-option-generic/option_three.sx` | typeck OK；run exit 0 |
-| `with_core_import` | `tests/lang-option-generic/with_core_import.sx` | 与 `Option_i32` API 并存 |
+| `option_three` | `tests/lang-option-generic/option_three.x` | typeck OK；run exit 0 |
+| `with_core_import` | `tests/lang-option-generic/with_core_import.x` | 与 `Option_i32` API 并存 |
 
 ---
 

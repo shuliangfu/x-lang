@@ -5,7 +5,7 @@ STD146_PREFIX="${SHUX_STD146_ATOMIC_WIDEN_PREFIX:-shux: [SHUX_STD146_ATOMIC_WIDE
 
 # 校验 manifest；echo 缺失数。
 std_atomic_widen_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local atomic_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,7 +15,7 @@ std_atomic_widen_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-atomic-widen FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi

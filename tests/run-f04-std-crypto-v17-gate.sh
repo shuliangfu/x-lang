@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-04 v17：std.crypto aes_gcm.inc.c → aes_gcm.sx 门禁。
+# F-04 v17：std.crypto aes_gcm.inc.c → aes_gcm.x 门禁。
 #
 # 用法：./tests/run-f04-std-crypto-v17-gate.sh
 # 环境：SHUX_F04_CRYPTO_V17_FAIL=1 — 失败时硬退出
@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_F04_CRYPTO_V17_FAIL:-0}
 DOC="analysis/phase-f-f04-v17.md"
-AES_GCM="std/crypto/aes_gcm.sx"
+AES_GCM="std/crypto/aes_gcm.x"
 GLUE="compiler/src/asm/runtime_crypto_inc_glue.c"
 
 # shellcheck source=tests/lib/std-crypto.sh
@@ -20,16 +20,16 @@ die() {
   exit 0
 }
 
-echo "=== F-04 v17: std.crypto aes_gcm.inc.c → aes_gcm.sx ==="
+echo "=== F-04 v17: std.crypto aes_gcm.inc.c → aes_gcm.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-04 v17' "$DOC" || die "doc missing F-04 v17 marker"
 [ ! -f std/crypto/aes_gcm.inc.c ] || die "aes_gcm.inc.c should be deleted"
-[ -f "$AES_GCM" ] || die "missing aes_gcm.sx"
+[ -f "$AES_GCM" ] || die "missing aes_gcm.x"
 [ -f "$GLUE" ] || die "missing crypto_inc_glue.c"
 grep -q 'crypto_aes_gcm_seal_c' "$AES_GCM" || die "aes_gcm missing seal"
 grep -q 'crypto_aes_gcm_open_c' "$AES_GCM" || die "aes_gcm missing open"
 grep -q 'CRYPTO_AES_SBOX' "$AES_GCM" || die "aes_gcm missing sbox"
-grep -q 'aes_gcm.sx' compiler/Makefile || die "Makefile missing aes_gcm.sx build"
+grep -q 'aes_gcm.x' compiler/Makefile || die "Makefile missing aes_gcm.x build"
 if grep -q 'aes_gcm.inc.c' "$GLUE" 2>/dev/null; then
   die "glue still includes aes_gcm.inc.c"
 fi
@@ -55,7 +55,7 @@ make -C compiler ../std/crypto/crypto.o >/dev/null 2>&1 || die "make crypto.o fa
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-if std_crypto_o_has_sx_symbols std/crypto/crypto.o; then
+if std_crypto_o_has_x_symbols std/crypto/crypto.o; then
   if nm std/crypto/crypto.o 2>/dev/null | grep -qE ' crypto_aes_gcm_seal_c$'; then
     cat >"$TMP/aes_gcm_smoke_main.c" <<'EOF'
 #include <stdint.h>
@@ -87,7 +87,7 @@ EOF
     echo "f04 crypto aes_gcm smoke SKIP (crypto.o missing aes_gcm symbols)"
   fi
 else
-  echo "f04 crypto aes_gcm smoke SKIP (crypto.o missing .sx symbols; need shux-c)"
+  echo "f04 crypto aes_gcm smoke SKIP (crypto.o missing .x symbols; need shux-c)"
 fi
 
 if [ -f tests/run-std-crypto-gate.sh ]; then

@@ -20,7 +20,7 @@ echo "=== COMP-007: incremental compile manifest ==="
 for f in "$DOC" "$MANIFEST" "$PROTOS" "$BENCH" \
   tests/lib/comp-incr-compile.sh tests/run-comp-incr-compile.sh \
   analysis/obs-compile-phase-timing-v1.md tests/run-obs-compile-phase-timing-gate.sh \
-  compiler/src/pipeline/pipeline.sx compiler/src/lsp/lsp_diag.c; do
+  compiler/src/pipeline/pipeline.x compiler/src/lsp/lsp_diag.c; do
   if [ ! -f "$f" ]; then
     echo "comp-incr-compile gate FAIL: missing $f" >&2
     exit 1

@@ -1,7 +1,7 @@
 /**
  * tests/bench/async_run_io_spawn_parallel.c — IO-A5 v5 spawn 并行 IO + drain_until_idle
  *
- * 模拟 .sx：queue_reset → submit ×2（各任务 ctx 预设 fd）→ drain_until_idle。
+ * 模拟 .x：queue_reset → submit ×2（各任务 ctx 预设 fd）→ drain_until_idle。
  * 双 pipe 并行 in-flight read async，校验总字节 2+3=5。
  *
  * 编译：cc -std=c11 -o async_run_io_spawn_parallel \

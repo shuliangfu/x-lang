@@ -1,0 +1,12 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// 极薄 ABI：仅提供 asm/elf 路径所需的 CodegenOutBuf 布局，避免 `asm.x -E`
+// 为一个输出缓冲类型解析整份 `codegen.x`。
+
+/** 代码生成输出缓冲区：data 为已写内容，len 为长度。 */
+/* 9MiB：须与 codegen.x / runtime.c / ast_pool PIPELINE_CODEGEN_OUTBUF_CAP 同步。 */
+struct CodegenOutBuf {
+  data: u8[9437184];
+  len: i32;
+}

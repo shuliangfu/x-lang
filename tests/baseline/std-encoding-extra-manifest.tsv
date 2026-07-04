@@ -1,11 +1,11 @@
 # STD-127 std.encoding Base32/percent manifest
 min_apis	6
-api_base32_encode	api	base32_encode	std/encoding/mod.sx
-api_base32_decode	api	base32_decode	std/encoding/mod.sx
-api_percent_encode	api	percent_encode	std/encoding/mod.sx
-api_percent_decode	api	percent_decode	std/encoding/mod.sx
-api_encode_b32_str	api	encode_base32_string	std/encoding/mod.sx
-api_smoke	api	extra_smoke	std/encoding/mod.sx
-symbol_b32_c	symbol	encoding_base32_encode_c	std/encoding/encoding.sx
-smoke_sx	smoke	tests/encoding/base32_percent_string.sx
+api_base32_encode	api	base32_encode	std/encoding/mod.x
+api_base32_decode	api	base32_decode	std/encoding/mod.x
+api_percent_encode	api	percent_encode	std/encoding/mod.x
+api_percent_decode	api	percent_decode	std/encoding/mod.x
+api_encode_b32_str	api	encode_base32_string	std/encoding/mod.x
+api_smoke	api	extra_smoke	std/encoding/mod.x
+symbol_b32_c	symbol	encoding_base32_encode_c	std/encoding/encoding.x
+smoke_x	smoke	tests/encoding/base32_percent_string.x
 gate	script	run-std-encoding-extra-gate.sh	tests/run-std-encoding-extra-gate.sh

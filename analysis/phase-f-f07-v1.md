@@ -1,6 +1,6 @@
 # 阶段 F-07 v1（已迁移 std 模块硬禁 cc -c）
 
-> **F-07 v1**：F-03（io/fs/heap）与 F-04（compress 全格式）已纯 `.sx` 后，**禁止**再经 `cc -c` 构建对应 `.o`。
+> **F-07 v1**：F-03（io/fs/heap）与 F-04（compress 全格式）已纯 `.x` 后，**禁止**再经 `cc -c` 构建对应 `.o`。
 
 ## v1 完成（✅ manifest）
 

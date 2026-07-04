@@ -7,18 +7,18 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_ENCODING_HEX_B64_DOC:-analysis/std-encoding-hex-base64-v1.md}"
 MANIFEST="${SHUX_STD_ENCODING_HEX_B64_TSV:-tests/baseline/std-encoding-hex-base64.tsv}"
-MOD_SX="std/encoding/mod.sx"
-ENCODING_SX="${SHUX_STD_ENCODING_IMPL:-std/encoding/encoding.sx}"
+MOD_X="std/encoding/mod.x"
+ENCODING_X="${SHUX_STD_ENCODING_IMPL:-std/encoding/encoding.x}"
 LIB="tests/lib/std-encoding-hex-base64.sh"
-SMOKE_SX="tests/encoding/hex_base64_string.sx"
-MAIN_SX="tests/encoding/main.sx"
+SMOKE_X="tests/encoding/hex_base64_string.x"
+MAIN_X="tests/encoding/main.x"
 MIN_APIS=8
 
 # shellcheck source=tests/lib/std-encoding-hex-base64.sh
 . "$LIB"
 
 echo "=== STD-040: encoding hex/base64 string manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$ENCODING_SX" "$SMOKE_SX" "$MAIN_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$ENCODING_X" "$SMOKE_X" "$MAIN_X"; do
   if [ ! -f "$f" ]; then
     echo "std-encoding-hex-b64 gate FAIL: missing $f" >&2
     exit 1
@@ -46,7 +46,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
         echo "std-encoding-hex-b64 gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -65,7 +65,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_encoding_hex_b64_symbols_ok "$MOD_SX" "$ENCODING_SX" "$MANIFEST" || true)"
+sym_miss="$(std_encoding_hex_b64_symbols_ok "$MOD_X" "$ENCODING_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_encoding_hex_b64_emit_report "fail" 0 0 0 0
   echo "std-encoding-hex-b64 gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -105,20 +105,20 @@ if [ -n "$SHUX_BIN" ]; then
   ensure_std_c_o ../std/encoding/encoding.o
   ensure_std_c_o ../std/base64/base64.o
   ensure_std_c_o ../std/string/string.o
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-    echo "std-encoding-hex-b64 gate FAIL: typeck $SMOKE_SX" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -12 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    echo "std-encoding-hex-b64 gate FAIL: typeck $SMOKE_X" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -12 >&2 || true
     std_encoding_hex_b64_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_encoding_hex_b64_run_smoke "$SHUX_BIN" "$SMOKE_SX" "hex_b64"; then
+  if std_encoding_hex_b64_run_smoke "$SHUX_BIN" "$SMOKE_X" "hex_b64"; then
     HEX_OK=1
     B64_OK=1
   else
     std_encoding_hex_b64_emit_report "fail" 0 0 0 0
     exit 1
   fi
-  if std_encoding_hex_b64_run_smoke "$SHUX_BIN" "$MAIN_SX" "main"; then
+  if std_encoding_hex_b64_run_smoke "$SHUX_BIN" "$MAIN_X" "main"; then
     MAIN_OK=1
   else
     std_encoding_hex_b64_emit_report "fail" "$HEX_OK" "$B64_OK" 0 0

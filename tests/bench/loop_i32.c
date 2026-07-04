@@ -1,4 +1,4 @@
-/* loop_i32.c — 与 tests/bench/loop_i32.sx 对齐（LCG 混合，无 I/O） */
+/* loop_i32.c — 与 tests/bench/loop_i32.x 对齐（LCG 混合，无 I/O） */
 #include <stdint.h>
 
 int main(void) {

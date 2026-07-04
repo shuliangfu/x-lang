@@ -36,10 +36,10 @@ std_regex_atomic_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-std_regex_atomic_run_sx_smoke() {
+std_regex_atomic_run_x_smoke() {
   local shux="$1"
   local src="$2"
-  local exe="/tmp/shux_std_regex_atomic_sx_$$"
+  local exe="/tmp/shux_std_regex_atomic_x_$$"
   "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1
@@ -50,5 +50,5 @@ std_regex_atomic_run_sx_smoke() {
 }
 
 std_regex_atomic_emit_report() {
-  echo "${STD_REGEX_ATOMIC_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
+  echo "${STD_REGEX_ATOMIC_PREFIX} status=$1 c=$2 x=$3 skip=$4"
 }

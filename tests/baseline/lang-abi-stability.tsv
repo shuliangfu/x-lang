@@ -16,7 +16,7 @@ layer_a6	layers	A6-stdlib-abi	compiler/include/shux_std_abi/fs_abi.h	stable	头�
 sym_padding	symbol	implicit padding	compiler/src/typeck/typeck.c	typeck	struct
 case_layout	case	case_layout	tests/abi/layout_abi.c	stable	cc
 case_slice	case	case_slice	tests/abi/layout_abi.c	slice	offsetof
-case_f32	case	case_f32_xmm	tests/abi/f32_call_xmm_smoke.sx	xmm	6
+case_f32	case	case_f32_xmm	tests/abi/f32_call_xmm_smoke.x	xmm	6
 doc_f32	docs	SHUX_ABI_F32_XMM	compiler/docs/F32_XMM_ABI.md	xmm	细则
 gate	script	run-lang-abi-stability-gate.sh	tests/run-lang-abi-stability-gate.sh	-	manifest
 hook_abi	hook_script	run-lang-abi-stability.sh	run-lang-abi-stability.sh	-	烟测

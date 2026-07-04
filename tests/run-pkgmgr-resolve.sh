@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 MANIFEST=tests/fixtures/pkgmgr/shux.pkg.tsv
-MAIN=tests/fixtures/pkgmgr/main.sx
+MAIN=tests/fixtures/pkgmgr/main.x
 
 chmod +x scripts/shux-deps-resolve.sh
 ./scripts/shux-deps-resolve.sh "$MANIFEST"

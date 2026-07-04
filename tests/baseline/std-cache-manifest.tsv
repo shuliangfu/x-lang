@@ -4,22 +4,22 @@
 read_path	section	## 1. 阅读路径	analysis/std-cache-v1.md
 api_doc	section	## 2. API	analysis/std-cache-v1.md
 verify	section	## 3. Gate	analysis/std-cache-v1.md
-api_lru_new	api	lru_new	std/cache/mod.sx	LRU
-api_lru_get	api	lru_get	std/cache/mod.sx	读
-api_lru_put	api	lru_put	std/cache/mod.sx	写
-api_lru_remove	api	lru_remove	std/cache/mod.sx	删
-api_lru_purge	api	lru_purge_expired	std/cache/mod.sx	TTL
-api_lru_stats	api	lru_stats	std/cache/mod.sx	统计
-api_pool_new	api	new	std/cache/mod.sx	池
-api_pool_add	api	add	std/cache/mod.sx	注册
-api_pool_acquire	api	acquire	std/cache/mod.sx	借
-api_pool_release	api	release	std/cache/mod.sx	还
-api_pool_health	api	mark_unhealthy	std/cache/mod.sx	health
-api_pool_idle	api	idle	std/cache/mod.sx	空闲
-api_pool_stats	api	stats	std/cache/mod.sx	池统计
-symbol_smoke	symbol	cache_smoke_c	std/cache/cache.sx	烟测
-impl_sx	file	std/cache/cache.sx	std/cache/cache.sx
-smoke_sx	smoke	tests/std-cache/lru_pool_smoke.sx	.sx烟测
+api_lru_new	api	lru_new	std/cache/mod.x	LRU
+api_lru_get	api	lru_get	std/cache/mod.x	读
+api_lru_put	api	lru_put	std/cache/mod.x	写
+api_lru_remove	api	lru_remove	std/cache/mod.x	删
+api_lru_purge	api	lru_purge_expired	std/cache/mod.x	TTL
+api_lru_stats	api	lru_stats	std/cache/mod.x	统计
+api_pool_new	api	new	std/cache/mod.x	池
+api_pool_add	api	add	std/cache/mod.x	注册
+api_pool_acquire	api	acquire	std/cache/mod.x	借
+api_pool_release	api	release	std/cache/mod.x	还
+api_pool_health	api	mark_unhealthy	std/cache/mod.x	health
+api_pool_idle	api	idle	std/cache/mod.x	空闲
+api_pool_stats	api	stats	std/cache/mod.x	池统计
+symbol_smoke	symbol	cache_smoke_c	std/cache/cache.x	烟测
+impl_x	file	std/cache/cache.x	std/cache/cache.x
+smoke_x	smoke	tests/std-cache/lru_pool_smoke.x	.x烟测
 vectors	file	tests/baseline/std-cache-vectors.tsv	向量
 lib	script	lib/std-cache.sh	tests/lib/std-cache.sh
 gate	script	run-std-cache-gate.sh	tests/run-std-cache-gate.sh

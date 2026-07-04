@@ -9,7 +9,7 @@
 
 STBL_TIER_S_PREFIX="${SHUX_STBL_TIER_S_PREFIX:-shux: [SHUX_STBL_TIER_S]}"
 
-# api 型 manifest：每行一个符号，须在 mod.sx 存在 function 定义。
+# api 型 manifest：每行一个符号，须在 mod.x 存在 function 定义。
 stbl_tier_s_validate_api_manifest() {
   local mod="$1"
   local tsv="$2"
@@ -102,7 +102,7 @@ stbl_tier_s_validate_feature_manifest() {
     esac
   done < "$tsv"
 
-  # std-error-unify 专用：module 行 base_fn 在 std/error/mod.sx。
+  # std-error-unify 专用：module 行 base_fn 在 std/error/mod.x。
   if grep -q '^std\.io' "$tsv" 2>/dev/null; then
     local module_id exc_layer base_fn sidecar_fn src
     while IFS=$'\t' read -r module_id exc_layer base_fn sidecar_fn src _rest; do

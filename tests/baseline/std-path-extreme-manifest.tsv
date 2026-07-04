@@ -3,9 +3,9 @@
 read_path	section	## 1. 目标	analysis/std-path-extreme-v1.md
 behavior	section	## 2. v1 行为备忘	analysis/std-path-extreme-v1.md
 vectors	file	tests/baseline/std-path-extreme.tsv	向量
-api_clean	api	clean	std/path/mod.sx	规范化
-api_resolve	api	resolve	std/path/mod.sx	相对解析
-api_ext_stem	api	extension_and_stem	std/path/mod.sx	双扩展
-smoke_sx	smoke	tests/path/extreme_clean.sx	烟测
+api_clean	api	clean	std/path/mod.x	规范化
+api_resolve	api	resolve	std/path/mod.x	相对解析
+api_ext_stem	api	extension_and_stem	std/path/mod.x	双扩展
+smoke_x	smoke	tests/path/extreme_clean.x	烟测
 lib	script	tests/lib/std-path-extreme.sh	lib
 gate	script	tests/run-std-path-extreme-gate.sh	gate

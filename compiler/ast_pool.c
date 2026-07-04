@@ -18,7 +18,7 @@
 /** 多 Module 共用 elf_ctx 时分配 tail_join 等局部标签 scope（定义见本文件后部）。 */
 void pipeline_elf_label_mod_scope_begin_module(void);
 
-/** 无实际上限：grow 直至 OOM；cap API 仅兼容旧 .sx 边界检查。 */
+/** 无实际上限：grow 直至 OOM；cap API 仅兼容旧 .x 边界检查。 */
 #define AST_POOL_NO_LIMIT 2147483647
 
 /** Module import 槽（C 侧 grow pool；路径最长 255 字节）。 */
@@ -278,7 +278,7 @@ typedef struct {
   GrowVec empty_param_backup;
 } DepCtxSidecar;
 
-/** driver -sx -E  argv 解析：DriverSxEmitState* 键控 lib_root grow 池。 */
+/** driver -x -E  argv 解析：DriverXEmitState* 键控 lib_root grow 池。 */
 typedef struct {
   void *state;
   int used;
@@ -750,7 +750,7 @@ void pipeline_arena_expr_set_copy(struct ast_ASTArena *a, int32_t ref, struct as
 }
 
 /**
- * 在 C 侧初始化 EXPR_VAR，避免 SX→C 整结构 ast_arena_expr_set 拷贝导致 kind 等字段错位。
+ * 在 C 侧初始化 EXPR_VAR，避免 X→C 整结构 ast_arena_expr_set 拷贝导致 kind 等字段错位。
  */
 void pipeline_arena_expr_write_var(struct ast_ASTArena *a, int32_t ref, uint8_t *name, int32_t name_len) {
   struct ast_Expr *ep;
@@ -772,7 +772,7 @@ void pipeline_arena_expr_write_var(struct ast_ASTArena *a, int32_t ref, uint8_t 
 }
 
 /**
- * 在 C 侧初始化二元运算节点（kind 为 ast_ExprKind 序数值，与 .sx ExprKind 一致）。
+ * 在 C 侧初始化二元运算节点（kind 为 ast_ExprKind 序数值，与 .x ExprKind 一致）。
  */
 void pipeline_arena_expr_write_binop(struct ast_ASTArena *a, int32_t ref, int32_t kind_ord, int32_t left_ref,
                                      int32_t right_ref) {
@@ -1168,7 +1168,7 @@ struct ast_Func *pipeline_module_func_ptr(struct ast_Module *m, int32_t func_ind
   return module_func_at(m, func_index);
 }
 
-/** 写 module 函数字段（替代 .sx 直接写 module.funcs[i]）。 */
+/** 写 module 函数字段（替代 .x 直接写 module.funcs[i]）。 */
 void pipeline_module_func_set_return_type(struct ast_Module *m, int32_t fi, int32_t type_ref) {
   struct ast_Func *f = module_func_at(m, fi);
   if (f)
@@ -1453,12 +1453,12 @@ int32_t pipeline_module_func_name_equal_at(struct ast_Module *m, int32_t fi, uin
   return memcmp(f->name, name, (size_t)name_len) == 0 ? 1 : 0;
 }
 
-/** pipeline.sx：读 module.num_funcs，避免 asm 对 Module 字段 FIELD_ACCESS。 */
+/** pipeline.x：读 module.num_funcs，避免 asm 对 Module 字段 FIELD_ACCESS。 */
 int32_t pipeline_module_num_funcs(struct ast_Module *m) {
   return m ? (int32_t)m->num_funcs : 0;
 }
 
-/** pipeline.sx：读 module.main_func_index。 */
+/** pipeline.x：读 module.main_func_index。 */
 int32_t pipeline_module_main_func_index(struct ast_Module *m) {
   return m ? (int32_t)m->main_func_index : -1;
 }
@@ -1472,7 +1472,7 @@ void pipeline_module_set_main_func_index(struct ast_Module *m, int32_t idx) {
 }
 
 /**
- * M8-tail：parser.sx pipeline_module_reset_parse_counters 的 C 实现；SKIP/EMIT_HEAVY 薄包装 bl 目标。
+ * M8-tail：parser.x pipeline_module_reset_parse_counters 的 C 实现；SKIP/EMIT_HEAVY 薄包装 bl 目标。
  * 避免 *Module 字段 FIELD_ACCESS 在 shux_asm emit 失败。
  */
 void pipeline_module_reset_parse_counters_c(struct ast_Module *module) {
@@ -1497,7 +1497,7 @@ extern void ast_arena_init(struct ast_ASTArena *arena);
 extern void pipeline_parser_set_match_module(struct ast_Module *m);
 
 /**
- * strict asm 链：parse 前重置 arena/module（等价 parser.sx parse_into_init）。
+ * strict asm 链：parse 前重置 arena/module（等价 parser.x parse_into_init）。
  * build_asm/parser.o 的 parse_into_init 不重置 sidecar grow 池，二次 parse 会累积 funcs。
  */
 void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct ast_Module *module) {
@@ -1528,7 +1528,7 @@ void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct ast_Modu
   }
 }
 
-/** pipeline.sx：读 arena.num_types（诊断 parse fail）。 */
+/** pipeline.x：读 arena.num_types（诊断 parse fail）。 */
 int32_t pipeline_arena_num_types(struct ast_ASTArena *a) {
   return a ? (int32_t)a->num_types : 0;
 }
@@ -2156,7 +2156,7 @@ int32_t pipeline_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int3
 
 /**
  * 为嵌套块补 parent_block_ref（while/for/if 体）；显式栈遍历，避免递归栈溢出。
- * 与 ast.sx::ast_arena_patch_block_parent_links 一致；typeck 在 check_block 前调用。
+ * 与 ast.x::ast_arena_patch_block_parent_links 一致；typeck 在 check_block 前调用。
  */
 void pipeline_patch_block_parent_links(struct ast_ASTArena *a, int32_t block_ref, int32_t parent_ref) {
   int32_t stack_blk[256];
@@ -2952,7 +2952,7 @@ int32_t pipeline_module_struct_layout_repr_compatible_at(struct ast_Module *m, i
   return sl ? sl->repr_compatible : 0;
 }
 
-/** typeck.sx：读 module.num_struct_layouts；勿 SX 内 Module 字段访问（check_block 失败）。 */
+/** typeck.x：读 module.num_struct_layouts；勿 X 内 Module 字段访问（check_block 失败）。 */
 int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m) {
   return m ? m->num_struct_layouts : 0;
 }
@@ -3543,7 +3543,7 @@ int32_t pipeline_backend_asm_codegen_ast_c(struct ast_Module *m, struct ast_ASTA
   return backend_asm_codegen_ast_seed_mega(m, a, out, pipeline_ctx);
 }
 
-/** skip .sx typeck 时 dep/entry 各模块 emit 前补 ARRAY_LIT / SoA 字段类型（定义见 pipeline_glue.c 后部）。 */
+/** skip .x typeck 时 dep/entry 各模块 emit 前补 ARRAY_LIT / SoA 字段类型（定义见 pipeline_glue.c 后部）。 */
 void pipeline_fill_array_lit_types_for_skipped_typeck(struct ast_Module *m, struct ast_ASTArena *arena);
 void pipeline_fill_soa_field_access_for_asm_emit(struct ast_Module *m, struct ast_ASTArena *arena);
 extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena);
@@ -3567,7 +3567,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   if (m->num_top_level_lets > 0)
     pipeline_module_hoist_top_level_lets_into_main(m, a);
   pipeline_debug_trace_named_func_bodies("backend_post_hoist_top_level_lets", m, a);
-  /** DOD-S3：skip .sx typeck 时仍须 dep SoA layout 并入 entry + 全图升档，再 fill stride。 */
+  /** DOD-S3：skip .x typeck 时仍须 dep SoA layout 并入 entry + 全图升档，再 fill stride。 */
   pipeline_debug_trace_named_func_bodies("backend_pre_merge_dep_layouts", m, a);
   typeck_typeck_merge_dep_struct_layouts_into_entry(m, a, pipeline_ctx);
   pipeline_debug_trace_named_func_bodies("backend_post_merge_dep_layouts", m, a);
@@ -3582,7 +3582,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *m, struct a
   glue_wpo_mono_reset_pending();
   /** dep+entry 顺序写入同一 elf_ctx：为 tail_join/loop 等局部标签分配唯一 scope。 */
   pipeline_elf_label_mod_scope_begin_module();
-  /** WPO-S3：import struct FIELD_ACCESS 查 layout 时须可见 dep 池（backend.sx mega 亦会设置）。 */
+  /** WPO-S3：import struct FIELD_ACCESS 查 layout 时须可见 dep 池（backend.x mega 亦会设置）。 */
   pipeline_asm_emit_set_module(m);
   pipeline_asm_emit_set_arena(a);
   pipeline_asm_emit_set_elf_ctx(elf_ctx);
@@ -4816,7 +4816,7 @@ void pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx *ctx, int32_t n) {
     ctx->ndep = n > 0 ? n : 0;
 }
 
-/** codegen.sx：读 current_codegen_prefix_len，避免 asm 对大 PipelineDepCtx 字段 FIELD_ACCESS。 */
+/** codegen.x：读 current_codegen_prefix_len，避免 asm 对大 PipelineDepCtx 字段 FIELD_ACCESS。 */
 int32_t pipeline_dep_ctx_codegen_prefix_len(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->current_codegen_prefix_len : 0;
 }
@@ -4854,7 +4854,7 @@ void pipeline_dep_ctx_set_codegen_prefix_mirror(struct ast_PipelineDepCtx *ctx, 
   ctx->current_codegen_prefix_len = n;
 }
 
-/** pipeline.sx：返回 path_buf 首地址，供 fs_open_read 等 *u8 API。 */
+/** pipeline.x：返回 path_buf 首地址，供 fs_open_read 等 *u8 API。 */
 uint8_t *pipeline_dep_ctx_path_buf_ptr(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->path_buf : NULL;
 }
@@ -4873,7 +4873,7 @@ void pipeline_dep_ctx_set_path_buf_byte(struct ast_PipelineDepCtx *ctx, int32_t 
   ctx->path_buf[off] = b;
 }
 
-/** pipeline.sx：读 entry_dir_len。 */
+/** pipeline.x：读 entry_dir_len。 */
 int32_t pipeline_dep_ctx_entry_dir_len(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->entry_dir_len : 0;
 }
@@ -4950,10 +4950,10 @@ int32_t pipeline_resolve_path_import_has_dot_c(uint8_t *import_path, int32_t pat
   return 0;
 }
 
-/** CodegenOutBuf.len 读写（pipeline.sx 避免 *CodegenOutBuf 字段 FIELD_ACCESS；layout 与 codegen.sx 一致）。 */
+/** CodegenOutBuf.len 读写（pipeline.x 避免 *CodegenOutBuf 字段 FIELD_ACCESS；layout 与 codegen.x 一致）。 */
 struct codegen_CodegenOutBuf;
 
-/** 与 codegen.sx CodegenOutBuf.data 维度一致；len 紧跟 data 之后。 */
+/** 与 codegen.x CodegenOutBuf.data 维度一致；len 紧跟 data 之后。 */
 #define PIPELINE_CODEGEN_OUTBUF_CAP 9437184
 
 int32_t codegen_out_buf_len(struct codegen_CodegenOutBuf *out) {
@@ -4971,7 +4971,7 @@ void codegen_out_buf_set_len(struct codegen_CodegenOutBuf *out, int32_t n) {
 
 #define PIPELINE_SOURCE_BUF_CAP 4194304
 
-/** 源缓冲内嵌于 ast.sx PipelineDepCtx（loaded_buf/preprocess_buf 各 4MiB）；无需堆分配。 */
+/** 源缓冲内嵌于 ast.x PipelineDepCtx（loaded_buf/preprocess_buf 各 4MiB）；无需堆分配。 */
 int32_t pipeline_dep_ctx_ensure_source_buffers(struct ast_PipelineDepCtx *ctx) {
   return ctx ? 0 : -1;
 }
@@ -4992,14 +4992,14 @@ void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx) {
   free(ctx);
 }
 
-/** pipeline.sx：返回 loaded_buf 首地址，供 fs_read 等 *u8 API。 */
+/** pipeline.x：返回 loaded_buf 首地址，供 fs_read 等 *u8 API。 */
 uint8_t *pipeline_dep_ctx_loaded_buf_ptr(struct ast_PipelineDepCtx *ctx) {
   if (!ctx)
     return NULL;
   return ctx->loaded_buf;
 }
 
-/** pipeline.sx：返回 preprocess_buf 首地址，供 dep parse_into_with_init_buf 使用。 */
+/** pipeline.x：返回 preprocess_buf 首地址，供 dep parse_into_with_init_buf 使用。 */
 uint8_t *pipeline_dep_ctx_preprocess_buf_ptr(struct ast_PipelineDepCtx *ctx) {
   if (!ctx)
     return NULL;
@@ -5023,7 +5023,7 @@ int32_t pipeline_dep_ctx_asm_entry_module_only(struct ast_PipelineDepCtx *ctx) {
 
 extern int32_t driver_check_only_get(void);
 
-/** shux check 标志在 runtime driver 槽；PipelineDepCtx 无该字段（与 ast.sx 布局一致）。 */
+/** shux check 标志在 runtime driver 槽；PipelineDepCtx 无该字段（与 ast.x 布局一致）。 */
 int32_t pipeline_dep_ctx_check_only_mode(struct ast_PipelineDepCtx *ctx) {
   (void)ctx;
   return driver_check_only_get();
@@ -5071,7 +5071,7 @@ int32_t pipeline_dep_ctx_current_func_index(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->current_func_index : -1;
 }
 
-/** typeck EXPR_VAR：读 ctx.current_block_ref（EMIT_HEAVY 勿 SX 直接写字段）。 */
+/** typeck EXPR_VAR：读 ctx.current_block_ref（EMIT_HEAVY 勿 X 直接写字段）。 */
 int32_t pipeline_dep_ctx_current_block_ref_at(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->current_block_ref : 0;
 }
@@ -5161,16 +5161,16 @@ void pipeline_ctx_lib_root_copy(struct ast_PipelineDepCtx *ctx, int32_t i, uint8
 extern int32_t std_fs_fs_open_read(uint8_t *path);
 extern int32_t std_fs_fs_close(int32_t fd);
 extern ptrdiff_t std_fs_fs_read(int32_t fd, uint8_t *buf, size_t count);
-/** B-20：POSIX 读文件到缓冲（runtime.c）；pipeline_read_file_sx_impl_c 回退。 */
+/** B-20：POSIX 读文件到缓冲（runtime.c）；pipeline_read_file_x_impl_c 回退。 */
 extern int shux_read_file_into_path(const char *path, void *buf, size_t cap);
 /** pipeline_glue.c 在 #include ast_pool.c 之后定义；此处前向声明供 resolve C glue 调用。 */
 int32_t pipeline_copy_lib_root_to_buf256(struct ast_PipelineDepCtx *ctx, int32_t lib_idx, uint8_t *dst);
 
 /**
- * 在 ctx.path_buf 前缀后于 off 处尝试 `.sx` 与 `/mod.sx` 并 fs_open_read 探测。
+ * 在 ctx.path_buf 前缀后于 off 处尝试 `.x` 与 `/mod.x` 并 fs_open_read 探测。
  * 成功返回 0，失败返回 -1。
  */
-static int32_t pipeline_resolve_path_probe_dot_sx_and_mod_c(struct ast_PipelineDepCtx *ctx, int32_t off) {
+static int32_t pipeline_resolve_path_probe_dot_x_and_mod_c(struct ast_PipelineDepCtx *ctx, int32_t off) {
   int32_t fd;
 
   if (!ctx)
@@ -5204,11 +5204,11 @@ static int32_t pipeline_resolve_path_probe_dot_sx_and_mod_c(struct ast_PipelineD
   return -1;
 }
 
-/** EMIT_HEAVY SX resolve 编排：path_buf off sidecar（避免 let off=CALL assign tear patch）。 */
+/** EMIT_HEAVY X resolve 编排：path_buf off sidecar（避免 let off=CALL assign tear patch）。 */
 static int32_t g_pipeline_resolve_path_off_sidecar;
 
 /**
- * 读取 resolve path 编排 sidecar off（C glue 写入，SX if(probe(ctx, get())) 用）。
+ * 读取 resolve path 编排 sidecar off（C glue 写入，X if(probe(ctx, get())) 用）。
  */
 int32_t pipeline_resolve_path_last_off_get_c(void) {
   return g_pipeline_resolve_path_off_sidecar;
@@ -5278,7 +5278,7 @@ int32_t pipeline_resolve_path_entry_dir_prefix_off_c(struct ast_PipelineDepCtx *
 }
 
 /**
- * 扁平单段 import 路径 lib_root/name/name.sx 写入 ctx.path_buf；0 成功 -1 失败。
+ * 扁平单段 import 路径 lib_root/name/name.x 写入 ctx.path_buf；0 成功 -1 失败。
  */
 int32_t pipeline_flat_import_build_path_c(struct ast_PipelineDepCtx *ctx, int32_t lib_idx, uint8_t *import_path,
                                           int32_t path_len) {
@@ -5324,12 +5324,12 @@ int32_t pipeline_flat_import_probe_open_c(struct ast_PipelineDepCtx *ctx) {
   return -1;
 }
 
-/** SX extern：resolve_path_probe_dot_sx_and_mod 薄包装 bl 目标。 */
+/** X extern：resolve_path_probe_dot_x_and_mod 薄包装 bl 目标。 */
 int32_t pipeline_resolve_path_probe_export_c(struct ast_PipelineDepCtx *ctx, int32_t off) {
-  return pipeline_resolve_path_probe_dot_sx_and_mod_c(ctx, off);
+  return pipeline_resolve_path_probe_dot_x_and_mod_c(ctx, off);
 }
 
-/** 单段 import 在 lib_root 下再试 lib_root/name/name.sx。 */
+/** 单段 import 在 lib_root 下再试 lib_root/name/name.x。 */
 static int32_t pipeline_resolve_path_try_flat_import_under_lib_c(struct ast_PipelineDepCtx *ctx, int32_t lib_idx,
                                                                   uint8_t *import_path, int32_t path_len) {
   uint8_t lr_buf[256];
@@ -5363,7 +5363,7 @@ static int32_t pipeline_resolve_path_try_flat_import_under_lib_c(struct ast_Pipe
   return -1;
 }
 
-/** 在单个 lib_root 下拼接 import 并探测 .sx / mod.sx / 扁平单段路径。 */
+/** 在单个 lib_root 下拼接 import 并探测 .x / mod.x / 扁平单段路径。 */
 static int32_t pipeline_resolve_path_try_one_lib_root_c(struct ast_PipelineDepCtx *ctx, int32_t lib_idx,
                                                          uint8_t *import_path, int32_t path_len) {
   uint8_t lr_buf[256];
@@ -5381,7 +5381,7 @@ static int32_t pipeline_resolve_path_try_one_lib_root_c(struct ast_PipelineDepCt
     off = off + 1;
   }
   off = pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
-  if (pipeline_resolve_path_probe_dot_sx_and_mod_c(ctx, off) == 0)
+  if (pipeline_resolve_path_probe_dot_x_and_mod_c(ctx, off) == 0)
     return 0;
   if (path_len > 0 && path_len < 64 && pipeline_resolve_path_import_has_dot_c(import_path, path_len) == 0) {
     if (pipeline_resolve_path_try_flat_import_under_lib_c(ctx, lib_idx, import_path, path_len) == 0)
@@ -5390,7 +5390,7 @@ static int32_t pipeline_resolve_path_try_one_lib_root_c(struct ast_PipelineDepCt
   return -1;
 }
 
-/** 在 entry_dir 下拼接单段 import 并探测 .sx / mod.sx。 */
+/** 在 entry_dir 下拼接单段 import 并探测 .x / mod.x。 */
 static int32_t pipeline_resolve_path_try_entry_dir_c(struct ast_PipelineDepCtx *ctx, uint8_t *import_path,
                                                     int32_t path_len) {
   int32_t ed_len;
@@ -5409,17 +5409,17 @@ static int32_t pipeline_resolve_path_try_entry_dir_c(struct ast_PipelineDepCtx *
     off = off + 1;
   }
   off = pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
-  return pipeline_resolve_path_probe_dot_sx_and_mod_c(ctx, off);
+  return pipeline_resolve_path_probe_dot_x_and_mod_c(ctx, off);
 }
 
-/** SX 真 emit 或 weak 默认；_c 经此 dispatch（build_asm pipeline.o 强符号覆盖 weak）。 */
-extern int32_t pipeline_resolve_path_sx(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len);
-extern int32_t pipeline_read_file_sx(struct ast_PipelineDepCtx *ctx);
+/** X 真 emit 或 weak 默认；_c 经此 dispatch（build_asm pipeline.o 强符号覆盖 weak）。 */
+extern int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len);
+extern int32_t pipeline_read_file_x(struct ast_PipelineDepCtx *ctx);
 
 /**
- * M8-tail strict 回退：`resolve_path_sx` 按 lib_roots 与 entry_dir 解析 import 到 ctx.path_buf。
+ * M8-tail strict 回退：`resolve_path_x` 按 lib_roots 与 entry_dir 解析 import 到 ctx.path_buf。
  */
-int32_t pipeline_resolve_path_sx_impl_c(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len) {
+int32_t pipeline_resolve_path_x_impl_c(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len) {
   int32_t r;
   int32_t n_lib;
 
@@ -5437,18 +5437,18 @@ int32_t pipeline_resolve_path_sx_impl_c(struct ast_PipelineDepCtx *ctx, uint8_t 
   return -1;
 }
 
-/** M8-tail：优先 dispatch 至 pipeline_resolve_path_sx（SX 或 weak impl_c）。 */
-int32_t pipeline_resolve_path_sx_c(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len) {
-  return pipeline_resolve_path_sx(ctx, import_path, path_len);
+/** M8-tail：优先 dispatch 至 pipeline_resolve_path_x（X 或 weak impl_c）。 */
+int32_t pipeline_resolve_path_x_c(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len) {
+  return pipeline_resolve_path_x(ctx, import_path, path_len);
 }
 
-/** read_file_sx SX emit：单点 fs read + loaded_len（前向声明，供 read_file_sx / impl_c 调用）。 */
+/** read_file_x X emit：单点 fs read + loaded_len（前向声明，供 read_file_x / impl_c 调用）。 */
 int32_t pipeline_read_fd_into_loaded_buf(struct ast_PipelineDepCtx *ctx, int32_t fd);
 
 /**
- * M8-tail strict 回退：`read_file_sx` 读 ctx.path_buf 文件到 ctx.loaded_buf（B-20 POSIX，非 fopen）。
+ * M8-tail strict 回退：`read_file_x` 读 ctx.path_buf 文件到 ctx.loaded_buf（B-20 POSIX，非 fopen）。
  */
-int32_t pipeline_read_file_sx_impl_c(struct ast_PipelineDepCtx *ctx) {
+int32_t pipeline_read_file_x_impl_c(struct ast_PipelineDepCtx *ctx) {
   int32_t n;
 
   if (!ctx)
@@ -5462,13 +5462,13 @@ int32_t pipeline_read_file_sx_impl_c(struct ast_PipelineDepCtx *ctx) {
   return 0;
 }
 
-/** M8-tail：优先 dispatch 至 pipeline_read_file_sx（SX 或 weak impl_c）。 */
-int32_t pipeline_read_file_sx_c(struct ast_PipelineDepCtx *ctx) {
-  return pipeline_read_file_sx(ctx);
+/** M8-tail：优先 dispatch 至 pipeline_read_file_x（X 或 weak impl_c）。 */
+int32_t pipeline_read_file_x_c(struct ast_PipelineDepCtx *ctx) {
+  return pipeline_read_file_x(ctx);
 }
 
 /**
- * read_file_sx SX emit：单点 fs read + loaded_len 写入（避免 SX 侧 fs_posix_read_c 嵌套 ptr 实参 SIGSEGV）。
+ * read_file_x X emit：单点 fs read + loaded_len 写入（避免 X 侧 fs_posix_read_c 嵌套 ptr 实参 SIGSEGV）。
  */
 int32_t pipeline_read_fd_into_loaded_buf(struct ast_PipelineDepCtx *ctx, int32_t fd) {
   ptrdiff_t n;
@@ -5482,7 +5482,7 @@ int32_t pipeline_read_fd_into_loaded_buf(struct ast_PipelineDepCtx *ctx, int32_t
   return 0;
 }
 
-extern int32_t preprocess_sx_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
+extern int32_t preprocess_x_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
                                               int32_t out_cap);
 extern uint8_t *driver_dep_arena_buf(int32_t i);
 extern uint8_t *driver_dep_module_buf(int32_t i);
@@ -5490,7 +5490,7 @@ extern int32_t driver_dep_seeded_get(int32_t i);
 extern int32_t driver_dep_slot_for_path(uint8_t *path);
 extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);
 
-/** pipeline_load_import_from_disk SX emit：读 ctx.preprocess_len（避免 FIELD_ACCESS emit 失败）。 */
+/** pipeline_load_import_from_disk X emit：读 ctx.preprocess_len（避免 FIELD_ACCESS emit 失败）。 */
 int32_t pipeline_dep_ctx_preprocess_len_get(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->preprocess_len : -1;
 }
@@ -5503,7 +5503,7 @@ int32_t pipeline_preprocess_loaded_into_ctx(struct ast_PipelineDepCtx *ctx) {
 
   if (!ctx)
     return -1;
-  out_len = preprocess_sx_buf(pipeline_dep_ctx_loaded_buf_ptr(ctx), ctx->loaded_len,
+  out_len = preprocess_x_buf(pipeline_dep_ctx_loaded_buf_ptr(ctx), ctx->loaded_len,
                                          pipeline_dep_ctx_preprocess_buf_ptr(ctx), PIPELINE_SOURCE_BUF_CAP);
   if (out_len < 0)
     return -9;
@@ -5521,7 +5521,7 @@ void pipeline_bind_import_dep_buffers(struct ast_PipelineDepCtx *ctx, int32_t im
 
 /**
  * 若 global_slot 或 import_idx 已由 driver seed，绑定 arena/module 槽并返回 1；未 seed 返回 0。
- * C glue：SX 侧 (struct ast_ASTArena *)driver_dep_arena_buf 指针 cast 在 M8 asm 真 emit 时易 SIGSEGV。
+ * C glue：X 侧 (struct ast_ASTArena *)driver_dep_arena_buf 指针 cast 在 M8 asm 真 emit 时易 SIGSEGV。
  */
 int32_t pipeline_try_bind_seeded_import(struct ast_PipelineDepCtx *ctx, int32_t import_idx, int32_t global_slot) {
   if (!ctx || import_idx < 0)
@@ -5575,16 +5575,16 @@ extern void parser_parse_into_set_main_index(struct ast_Module *module, int32_t 
 extern struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena *arena,
                                                                          struct ast_Module *module, uint8_t *data,
                                                                          int32_t len);
-extern int32_t pipeline_should_skip_sx_typeck(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_should_skip_x_typeck(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_driver_asm_build_skip_typeck(void);
-extern int32_t pipeline_driver_sx_pipeline_skip_typeck(void);
-extern int32_t driver_sx_pipeline_skip_typeck_get(void);
+extern int32_t pipeline_driver_x_pipeline_skip_typeck(void);
+extern int32_t driver_x_pipeline_skip_typeck_get(void);
 extern struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct ast_ASTArena *arena,
                                                                                struct ast_Module *module,
                                                                                uint8_t *data, int32_t len);
-extern int32_t typeck_typeck_sx_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_typeck_x_ast(struct ast_Module *module, struct ast_ASTArena *arena,
                                     struct ast_PipelineDepCtx *ctx);
-extern int32_t typeck_typeck_sx_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
                                             struct ast_PipelineDepCtx *ctx);
 /** WPO-S3：post-typeck struct 栈指针逃逸扫描（pipeline_glue.c）。 */
 extern int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *module,
@@ -5592,7 +5592,7 @@ extern int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Modu
                                                                  struct ast_PipelineDepCtx *ctx);
 extern void pipeline_typeck_set_active_ctx_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
 
-/** EMIT_HEAVY SX 读 parse scalars 出参（sidecar；避免 SX &local 导致 asm parse 0 func）。 */
+/** EMIT_HEAVY X 读 parse scalars 出参（sidecar；避免 X &local 导致 asm parse 0 func）。 */
 static int32_t g_pipeline_parse_scalars_ok;
 static int32_t g_pipeline_parse_scalars_main_idx;
 
@@ -5605,15 +5605,15 @@ int32_t pipeline_parse_scalars_main_idx_get(void) {
 }
 
 /**
- * 单模块 asm -o 是否跳过 .sx typeck：须 C glue（SX emit 读 skip 标志/ctx 字段易错序）。
+ * 单模块 asm -o 是否跳过 .x typeck：须 C glue（X emit 读 skip 标志/ctx 字段易错序）。
 /**
- * 与 pipeline.sx pipeline_should_skip_sx_typeck 语义一致。
- * runtime 在 C 预检后设 driver_sx_pipeline_skip_typeck 时须对用户 -o 程序生效（B-strict shux_asm hello 等）。
+ * 与 pipeline.x pipeline_should_skip_x_typeck 语义一致。
+ * runtime 在 C 预检后设 driver_x_pipeline_skip_typeck 时须对用户 -o 程序生效（B-strict shux_asm hello 等）。
  */
-int32_t pipeline_should_skip_sx_typeck_c(struct ast_PipelineDepCtx *ctx) {
+int32_t pipeline_should_skip_x_typeck_c(struct ast_PipelineDepCtx *ctx) {
   if (!ctx)
     return 0;
-  if (pipeline_driver_sx_pipeline_skip_typeck() != 0)
+  if (pipeline_driver_x_pipeline_skip_typeck() != 0)
     return 1;
   if (pipeline_dep_ctx_asm_entry_module_only(ctx) == 0)
     return 0;
@@ -5623,7 +5623,7 @@ int32_t pipeline_should_skip_sx_typeck_c(struct ast_PipelineDepCtx *ctx) {
 }
 
 /**
- * parse 失败时 stderr 诊断（EMIT_HEAVY 勿 SX 真 emit driver_diagnostic_parse_fail 多实参）。
+ * parse 失败时 stderr 诊断（EMIT_HEAVY 勿 X 真 emit driver_diagnostic_parse_fail 多实参）。
  */
 void pipeline_parse_fail_diag_scalars_c(struct ast_Module *module, struct ast_ASTArena *arena) {
   if (!module || !arena)
@@ -5633,7 +5633,7 @@ void pipeline_parse_fail_diag_scalars_c(struct ast_Module *module, struct ast_AS
 }
 
 /**
- * 从 parse scalars sidecar 构造 ParseIntoResult（EMIT_HEAVY 勿 SX 按值拼装后 return）。
+ * 从 parse scalars sidecar 构造 ParseIntoResult（EMIT_HEAVY 勿 X 按值拼装后 return）。
  */
 struct parser_ParseIntoResult pipeline_parse_into_with_init_result_c(void) {
   struct parser_ParseIntoResult r;
@@ -5644,7 +5644,7 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_result_c(void) {
 }
 
 /**
- * parse_into_with_init_buf 的 ok/main_idx 出参版；避免 SX 局部 ParseIntoResult 按值（EMIT_HEAVY SIGSEGV）。
+ * parse_into_with_init_buf 的 ok/main_idx 出参版；避免 X 局部 ParseIntoResult 按值（EMIT_HEAVY SIGSEGV）。
  * out_ok/out_main_idx 非 NULL 时写入；并始终更新 sidecar 供 pipeline_parse_scalars_*_get。
  */
 int32_t pipeline_parse_into_with_init_buf_scalars(struct ast_ASTArena *arena, struct ast_Module *module,
@@ -5671,15 +5671,15 @@ int32_t pipeline_parse_into_with_init_buf_scalars(struct ast_ASTArena *arena, st
   return 0;
 }
 
-/** SX 薄包装：sidecar 版 scalars（无 *i32 出参，避免 asm 前端 parse 0 func）。 */
+/** X 薄包装：sidecar 版 scalars（无 *i32 出参，避免 asm 前端 parse 0 func）。 */
 int32_t pipeline_parse_into_with_init_buf_scalars_sidecar(struct ast_ASTArena *arena, struct ast_Module *module,
                                                           uint8_t *data, int32_t len) {
   return pipeline_parse_into_with_init_buf_scalars(arena, module, data, len, NULL, NULL);
 }
 
 /**
- * u8[] slice 路径 sidecar：读 data/length 后复用 buf scalars（勿 SX ParseIntoResult 按值 EMIT_HEAVY SIGSEGV）。
- * SX 传 u8[] 时 ABI 为 shux_slice_uint8_t*。
+ * u8[] slice 路径 sidecar：读 data/length 后复用 buf scalars（勿 X ParseIntoResult 按值 EMIT_HEAVY SIGSEGV）。
+ * X 传 u8[] 时 ABI 为 shux_slice_uint8_t*。
  */
 int32_t pipeline_parse_into_with_init_slice_scalars_sidecar(struct ast_ASTArena *arena, struct ast_Module *module,
                                                              struct shux_slice_uint8_t *source) {
@@ -5710,8 +5710,8 @@ int32_t pipeline_parse_apply_main_from_scalars_c(struct ast_Module *module, stru
 }
 
 /**
- * buf 路径 parse + set_main；C glue 回退（strict 无 pipeline.o 时；有 SX 强符号则覆盖）。
- * EMIT_HEAVY 第二遍 pipeline.sx 内 pipeline_parse_set_main_from_buf SX 真 emit。
+ * buf 路径 parse + set_main；C glue 回退（strict 无 pipeline.o 时；有 X 强符号则覆盖）。
+ * EMIT_HEAVY 第二遍 pipeline.x 内 pipeline_parse_set_main_from_buf X 真 emit。
  */
 int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *data,
                                            int32_t len) {
@@ -5736,7 +5736,7 @@ int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast
 }
 
 /**
- * 已对 module 设好 main_idx：按 library / 可执行分派 typeck_sx_ast*（与 pipeline.sx 语义一致）。
+ * 已对 module 设好 main_idx：按 library / 可执行分派 typeck_x_ast*（与 pipeline.x 语义一致）。
  * fail_mapped 非 0 时 typeck 失败返回该码（LSP 用 -3）。
  */
 int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -5746,14 +5746,14 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
       return fail_mapped;
     return -1;
   }
-  /** parse 未产出任何函数时 main_func_index 可能仍为 0（memset）；强制走 library typeck 避免 typeck_sx_ast -11。 */
+  /** parse 未产出任何函数时 main_func_index 可能仍为 0（memset）；强制走 library typeck 避免 typeck_x_ast -11。 */
   if (pipeline_module_num_funcs(module) == 0)
     pipeline_module_set_main_func_index(module, -1);
   if (getenv("SHUX_DEBUG_PIPE"))
     fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=%d num_funcs=%d\n",
             (int)pipeline_module_main_func_index(module), (int)pipeline_module_num_funcs(module));
   if (pipeline_module_main_func_index(module) < 0) {
-    int32_t tc_lib = typeck_typeck_sx_ast_library(module, arena, ctx);
+    int32_t tc_lib = typeck_typeck_x_ast_library(module, arena, ctx);
     if (tc_lib != 0) {
       if (getenv("SHUX_DEBUG_PIPE"))
         fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] typeck library rc=%d ctx=%p ndep=%d\n", (int)tc_lib, (void *)ctx,
@@ -5772,7 +5772,7 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
     return 0;
   }
   {
-    int32_t tc = typeck_typeck_sx_ast(module, arena, ctx);
+    int32_t tc = typeck_typeck_x_ast(module, arena, ctx);
     if (tc != 0) {
       driver_diagnostic_typeck_fail();
       if (fail_mapped != 0)
@@ -5789,7 +5789,7 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
   return 0;
 }
 
-/** 主流水线 entry typeck：library→parsed_module；可执行→typeck_sx_ast（EMIT_HEAVY SX emit）。 */
+/** 主流水线 entry typeck：library→parsed_module；可执行→typeck_x_ast（EMIT_HEAVY X emit）。 */
 int32_t pipeline_typeck_entry_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                        struct ast_PipelineDepCtx *ctx) {
   if (!module || !arena || !ctx)
@@ -5826,7 +5826,7 @@ void pipeline_dep_ctx_realign_ndep_for_entry_c(struct ast_Module *module, struct
 }
 
 /**
- * 单 import resolve + read；C glue（SX 侧 u8[64] 栈 + assign CALL EMIT_HEAVY 失败）。
+ * 单 import resolve + read；C glue（X 侧 u8[64] 栈 + assign CALL EMIT_HEAVY 失败）。
  */
 int32_t pipeline_load_import_resolve_read_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
                                             int32_t import_idx) {
@@ -5837,9 +5837,9 @@ int32_t pipeline_load_import_resolve_read_c(struct ast_Module *module, struct as
     return -1;
   memset(path_buf, 0, sizeof(path_buf));
   path_len = parser_copy_module_import_path64(module, import_idx, path_buf);
-  if (pipeline_resolve_path_sx(ctx, path_buf, path_len) != 0)
+  if (pipeline_resolve_path_x(ctx, path_buf, path_len) != 0)
     return -7;
-  if (pipeline_read_file_sx(ctx) != 0)
+  if (pipeline_read_file_x(ctx) != 0)
     return -8;
   return 0;
 }
@@ -5863,8 +5863,8 @@ int32_t pipeline_load_one_import_slot_c(struct ast_Module *module, struct ast_AS
 }
 
 /**
- * run_sx_pipeline_impl EMIT_HEAVY：同模块 pipeline_load_and_sync SX CALL 在 let/assign asm emit 失败；
- * C 复刻 pipeline.sx::pipeline_load_and_sync_direct_import_deps 逻辑。
+ * run_x_pipeline_impl EMIT_HEAVY：同模块 pipeline_load_and_sync X CALL 在 let/assign asm emit 失败；
+ * C 复刻 pipeline.x::pipeline_load_and_sync_direct_import_deps 逻辑。
  */
 int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     struct ast_PipelineDepCtx *ctx) {
@@ -5936,25 +5936,25 @@ int32_t pipeline_load_and_sync_direct_import_deps_c(struct ast_Module *module, s
 }
 
 /**
- * run_sx_pipeline_impl EMIT_HEAVY：typecheck entry 同模块 CALL asm emit 失败时走 C glue。
+ * run_x_pipeline_impl EMIT_HEAVY：typecheck entry 同模块 CALL asm emit 失败时走 C glue。
  */
-int32_t run_sx_pipeline_typecheck_entry_c(struct ast_Module *module, struct ast_ASTArena *arena,
+int32_t run_x_pipeline_typecheck_entry_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                           struct ast_PipelineDepCtx *ctx) {
   if (!module || !arena || !ctx)
     return -1;
-  if (pipeline_should_skip_sx_typeck(ctx) != 0)
+  if (pipeline_should_skip_x_typeck(ctx) != 0)
     return 0;
   return pipeline_typeck_entry_module_c(module, arena, ctx);
 }
 
 /**
- * run_sx_pipeline_impl EMIT_HEAVY：if(CALL) 路径可 emit，let init CALL 会 tear patch；
- * 最近一次 phase C glue 返回值供 `return run_sx_pipeline_last_rc_get()` 使用（避免重复 call）。
+ * run_x_pipeline_impl EMIT_HEAVY：if(CALL) 路径可 emit，let init CALL 会 tear patch；
+ * 最近一次 phase C glue 返回值供 `return run_x_pipeline_last_rc_get()` 使用（避免重复 call）。
  */
-static int32_t g_run_sx_pipeline_last_rc;
+static int32_t g_run_x_pipeline_last_rc;
 
 /**
- * typeck 失败统一返回；C glue（SX 内 fail_mapped 分支重复 emit 失败）。
+ * typeck 失败统一返回；C glue（X 内 fail_mapped 分支重复 emit 失败）。
  */
 int32_t pipeline_typeck_fail_return_c(int32_t fail_mapped) {
   driver_diagnostic_typeck_fail();
@@ -5972,27 +5972,27 @@ int32_t pipeline_typeck_null_fail_return_c(int32_t fail_mapped) {
   return -1;
 }
 
-int32_t run_sx_pipeline_last_rc_get(void) {
-  return g_run_sx_pipeline_last_rc;
+int32_t run_x_pipeline_last_rc_get(void) {
+  return g_run_x_pipeline_last_rc;
 }
 
 /**
- * EMIT_HEAVY SX 编排：写入 last_rc sidecar（避免 let rc=CALL assign tear patch）。
+ * EMIT_HEAVY X 编排：写入 last_rc sidecar（避免 let rc=CALL assign tear patch）。
  */
-void run_sx_pipeline_last_rc_store_c(int32_t rc) {
-  g_run_sx_pipeline_last_rc = rc;
+void run_x_pipeline_last_rc_store_c(int32_t rc) {
+  g_run_x_pipeline_last_rc = rc;
 }
 
-int32_t run_sx_pipeline_load_deps_after_parse_c(struct ast_Module *module, struct ast_ASTArena *arena,
+int32_t run_x_pipeline_load_deps_after_parse_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                 struct ast_PipelineDepCtx *ctx) {
-  g_run_sx_pipeline_last_rc = pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
-  return g_run_sx_pipeline_last_rc;
+  g_run_x_pipeline_last_rc = pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
+  return g_run_x_pipeline_last_rc;
 }
 
-int32_t run_sx_pipeline_typecheck_after_load_c(struct ast_Module *module, struct ast_ASTArena *arena,
+int32_t run_x_pipeline_typecheck_after_load_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                struct ast_PipelineDepCtx *ctx) {
-  g_run_sx_pipeline_last_rc = run_sx_pipeline_typecheck_entry_c(module, arena, ctx);
-  return g_run_sx_pipeline_last_rc;
+  g_run_x_pipeline_last_rc = run_x_pipeline_typecheck_entry_c(module, arena, ctx);
+  return g_run_x_pipeline_last_rc;
 }
 
 /** LSP：load/sync + typeck（typeck 失败 -3）；C glue。 */
@@ -6078,7 +6078,7 @@ int32_t lsp_diag_parse_typeck_buf_c(struct ast_Module *module, struct ast_ASTAre
 /**
  * entry 尚未解析：parse_into_with_init_buf + set_main + 收尾诊断；C glue（scalars 路径）。
  */
-int32_t run_sx_pipeline_parse_entry_do_parse_c(struct ast_Module *module, struct ast_ASTArena *arena,
+int32_t run_x_pipeline_parse_entry_do_parse_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                               uint8_t *source_data, size_t source_len,
                                               struct ast_PipelineDepCtx *ctx) {
   int32_t len_i32 = (int32_t)source_len;
@@ -6105,7 +6105,7 @@ extern int32_t pipeline_typeck_dep_prerun_module_c(struct ast_Module *module, st
 extern int32_t pipeline_typeck_entry_module_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                             struct ast_PipelineDepCtx *ctx);
 extern int32_t parser_get_module_num_imports(struct ast_Module *module);
-int32_t run_sx_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct ast_ASTArena *arena,
+int32_t run_x_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                struct ast_PipelineDepCtx *ctx) {
   if (!module || !arena || !ctx)
     return -1;
@@ -6114,20 +6114,20 @@ int32_t run_sx_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct
             (int)pipeline_dep_ctx_ndep(ctx), (int)pipeline_module_num_funcs(module));
     fflush(stderr);
   }
-  /** 优先读 runtime 全局标志（C 预检后 set）；勿仅依赖 SX pipeline_should_skip_sx_typeck（strict 链 thin bl 偶发失效）。 */
-    if (driver_sx_pipeline_skip_typeck_get() != 0) {
+  /** 优先读 runtime 全局标志（C 预检后 set）；勿仅依赖 X pipeline_should_skip_x_typeck（strict 链 thin bl 偶发失效）。 */
+    if (driver_x_pipeline_skip_typeck_get() != 0) {
     /*
      * 用户 asm -o 单文件：runtime 仍设 skip_typeck，但须全量 typeck 填 field_access_offset；
      * build_shux_asm（SHUX_ASM_BUILD_SKIP_TYPECK）多文件 import 入口仅 dep_prerun；
      * 用户 -o 有 import 时仍须全量 typeck（ERR-01 负例 result_try_bad 等）。
      */
-    if (parser_get_module_num_imports(module) == 0 && driver_sx_pipeline_skip_codegen_get() != 0)
+    if (parser_get_module_num_imports(module) == 0 && driver_x_pipeline_skip_codegen_get() != 0)
       return pipeline_typeck_entry_module_c(module, arena, ctx);
     if (pipeline_driver_asm_build_skip_typeck() != 0)
       return pipeline_typeck_dep_prerun_module_c(module, arena, ctx);
     return pipeline_typeck_entry_module_c(module, arena, ctx);
   }
-  if (pipeline_should_skip_sx_typeck(ctx) != 0)
+  if (pipeline_should_skip_x_typeck(ctx) != 0)
     return 0;
   return pipeline_typeck_entry_module_c(module, arena, ctx);
 }
@@ -6135,10 +6135,10 @@ int32_t run_sx_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct
 extern void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep);
 extern int32_t asm_asm_codegen_ast(struct ast_Module *module, struct ast_ASTArena *arena,
                                    struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx);
-extern int32_t codegen_codegen_sx_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t codegen_codegen_x_ast(struct ast_Module *module, struct ast_ASTArena *arena,
                                       struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx,
                                       int32_t dep_index);
-int32_t pipeline_codegen_dep_skip_sx_bootstrap_partial(uint8_t *path);
+int32_t pipeline_codegen_dep_skip_x_bootstrap_partial(uint8_t *path);
 int32_t ast_ast_block_final_expr_ref(struct ast_ASTArena *a, int32_t br);
 
 static int pipeline_debug_name_eq_buf_lit(const uint8_t *buf, int32_t len, const char *lit) {
@@ -6284,7 +6284,7 @@ static int32_t pipeline_dep_ctx_has_earlier_same_import_path_c(struct ast_Pipeli
 /**
  * 对单个 dep 执行 asm/C codegen；C glue（dep_mod->num_funcs 读 + asm 深栈 emit 仍须 C）。
  */
-int32_t run_sx_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct codegen_CodegenOutBuf *out_buf,
+int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct codegen_CodegenOutBuf *out_buf,
                                              struct ast_PipelineDepCtx *ctx, int32_t dep_j, int32_t skip_asm_dep_codegen,
                                              int32_t use_asm_backend) {
   uint8_t dep_path_buf[64];
@@ -6307,7 +6307,7 @@ int32_t run_sx_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct 
             (char *)dep_path_buf, (int)use_asm_backend,
             dep_mod ? (int)pipeline_module_num_funcs(dep_mod) : -1);
   pipeline_debug_dump_std_heap_trace_call(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), ctx, dep_j, dep_path_buf);
-  if (pipeline_codegen_dep_skip_sx_bootstrap_partial(dep_path_buf) != 0) {
+  if (pipeline_codegen_dep_skip_x_bootstrap_partial(dep_path_buf) != 0) {
     if (getenv("SHUX_DEBUG_PIPE"))
       fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] skip dep emit j=%d path=%s\n", (int)dep_j, (char *)dep_path_buf);
     return 0;
@@ -6324,7 +6324,7 @@ int32_t run_sx_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct 
                   (char *)dep_path_buf);
         return -6;
       }
-    } else if (codegen_codegen_sx_ast(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), out_buf, ctx, dep_j) != 0) {
+    } else if (codegen_codegen_x_ast(dep_mod, pipeline_dep_ctx_arena_at(ctx, dep_j), out_buf, ctx, dep_j) != 0) {
       if (getenv("SHUX_DEBUG_PIPE")) {
         fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep emit c fail j=%d path=%s last_func_idx=%d out_len=%zu\n",
                 (int)dep_j, (char *)dep_path_buf, (int)ctx->current_func_index, (size_t)out_buf->len);
@@ -6336,9 +6336,9 @@ int32_t run_sx_pipeline_codegen_one_dep_emit(struct ast_Module *dep_mod, struct 
 }
 
 /**
- * entry module 最终 codegen emit；C glue（asm_asm_codegen_ast / codegen_codegen_sx_ast 深栈保留 C）。
+ * entry module 最终 codegen emit；C glue（asm_asm_codegen_ast / codegen_codegen_x_ast 深栈保留 C）。
  */
-int32_t run_sx_pipeline_codegen_entry_emit(struct ast_Module *module, struct ast_ASTArena *arena,
+int32_t run_x_pipeline_codegen_entry_emit(struct ast_Module *module, struct ast_ASTArena *arena,
                                            struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx,
                                            int32_t use_asm_backend) {
   if (!module || !arena || !out_buf || !ctx)
@@ -6346,7 +6346,7 @@ int32_t run_sx_pipeline_codegen_entry_emit(struct ast_Module *module, struct ast
   if (use_asm_backend != 0) {
     if (asm_asm_codegen_ast(module, arena, out_buf, ctx) != 0)
       return -6;
-  } else if (codegen_codegen_sx_ast(module, arena, out_buf, ctx, -1) != 0) {
+  } else if (codegen_codegen_x_ast(module, arena, out_buf, ctx, -1) != 0) {
     return -6;
   }
   return 0;
@@ -6362,8 +6362,8 @@ extern int32_t pipeline_dep_ctx_import_path_len(struct ast_PipelineDepCtx *ctx, 
 extern void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *path, int32_t len);
 extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, int32_t dep_j, uint8_t *dst);
 
-/** entry parse 薄编排 C glue（EMIT_HEAVY 勿 SX let init CALL）。 */
-int32_t run_sx_pipeline_parse_entry_if_needed_c(struct ast_Module *module, struct ast_ASTArena *arena,
+/** entry parse 薄编排 C glue（EMIT_HEAVY 勿 X let init CALL）。 */
+int32_t run_x_pipeline_parse_entry_if_needed_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                 uint8_t *source_data, size_t source_len,
                                                 struct ast_PipelineDepCtx *ctx) {
   if (!module || !arena || !ctx)
@@ -6374,10 +6374,10 @@ int32_t run_sx_pipeline_parse_entry_if_needed_c(struct ast_Module *module, struc
     driver_diagnostic_entry_module(module, arena);
     return 0;
   }
-  return run_sx_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
+  return run_x_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
 }
 
-/** dep 路径 buf 非空时写入 ctx import_path；C glue（SX u8[64] 栈后单点 set）。 */
+/** dep 路径 buf 非空时写入 ctx import_path；C glue（X u8[64] 栈后单点 set）。 */
 int32_t pipeline_fill_dep_import_path_from_buf_c(struct ast_PipelineDepCtx *ctx, int32_t dep_j, uint8_t *path_buf) {
   int32_t path_len = 0;
 
@@ -6391,9 +6391,9 @@ int32_t pipeline_fill_dep_import_path_from_buf_c(struct ast_PipelineDepCtx *ctx,
 }
 
 /**
- * 扫描 buf64 长度后 resolve_path_sx；C glue（SX 栈 path + assign CALL emit 失败）。
+ * 扫描 buf64 长度后 resolve_path_x；C glue（X 栈 path + assign CALL emit 失败）。
  */
-int32_t pipeline_resolve_path_sx_from_buf64_c(struct ast_PipelineDepCtx *ctx, uint8_t *path_buf) {
+int32_t pipeline_resolve_path_x_from_buf64_c(struct ast_PipelineDepCtx *ctx, uint8_t *path_buf) {
   int32_t path_len = 0;
 
   if (!ctx || !path_buf)
@@ -6402,11 +6402,11 @@ int32_t pipeline_resolve_path_sx_from_buf64_c(struct ast_PipelineDepCtx *ctx, ui
     path_len = path_len + 1;
   if (path_len <= 0)
     return -1;
-  return pipeline_resolve_path_sx(ctx, path_buf, path_len);
+  return pipeline_resolve_path_x(ctx, path_buf, path_len);
 }
 
-/** dep import 路径补全；C glue（SX u8[64] 栈 + assign CALL）。 */
-int32_t run_sx_pipeline_fill_dep_import_path_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
+/** dep import 路径补全；C glue（X u8[64] 栈 + assign CALL）。 */
+int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx,
                                                 int32_t dep_j) {
   uint8_t path_buf[64];
   int32_t path_len;
@@ -6442,7 +6442,7 @@ int32_t pipeline_finish_dep_codegen_diag_c(int32_t dep_j, struct codegen_Codegen
 }
 
 /** 单 dep codegen 编排；C glue。 */
-int32_t run_sx_pipeline_codegen_one_dep_c(struct ast_Module *module, struct codegen_CodegenOutBuf *out_buf,
+int32_t run_x_pipeline_codegen_one_dep_c(struct ast_Module *module, struct codegen_CodegenOutBuf *out_buf,
                                           struct ast_PipelineDepCtx *ctx, int32_t dep_j,
                                           int32_t skip_asm_dep_codegen) {
   uint8_t dep_path_buf[64];
@@ -6453,7 +6453,7 @@ int32_t run_sx_pipeline_codegen_one_dep_c(struct ast_Module *module, struct code
     return -1;
   if (dep_j == 0 && driver_skip_codegen_dep_0_get() != 0)
     return 0;
-  if (run_sx_pipeline_fill_dep_import_path_c(module, ctx, dep_j) != 0)
+  if (run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j) != 0)
     return -1;
   memset(dep_path_buf, 0, sizeof(dep_path_buf));
   pipeline_prepare_dep_codegen_path_c(ctx, dep_j, dep_path_buf);
@@ -6461,8 +6461,8 @@ int32_t run_sx_pipeline_codegen_one_dep_c(struct ast_Module *module, struct code
   if (getenv("SHUX_DEBUG_PIPE"))
     fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] dep codegen j=%d path=%s funcs=%d\n", (int)dep_j,
             (char *)dep_path_buf, dep_mod ? (int)pipeline_module_num_funcs(dep_mod) : -1);
-  /** bootstrap partial：前端模块勿整库 C emit（符号由 *_sx.o 提供）。 */
-  if (pipeline_codegen_dep_skip_sx_bootstrap_partial(dep_path_buf) != 0) {
+  /** bootstrap partial：前端模块勿整库 C emit（符号由 *_x.o 提供）。 */
+  if (pipeline_codegen_dep_skip_x_bootstrap_partial(dep_path_buf) != 0) {
     if (getenv("SHUX_DEBUG_PIPE"))
       fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] skip dep codegen j=%d path=%s\n", (int)dep_j,
               (char *)dep_path_buf);
@@ -6470,7 +6470,7 @@ int32_t run_sx_pipeline_codegen_one_dep_c(struct ast_Module *module, struct code
     return 0;
   }
   use_asm = pipeline_dep_ctx_use_asm_backend(ctx);
-  if (run_sx_pipeline_codegen_one_dep_emit(dep_mod, out_buf, ctx, dep_j, skip_asm_dep_codegen, use_asm) != 0) {
+  if (run_x_pipeline_codegen_one_dep_emit(dep_mod, out_buf, ctx, dep_j, skip_asm_dep_codegen, use_asm) != 0) {
     driver_diagnostic_codegen_fail(dep_j, 1);
     return -6;
   }
@@ -6506,7 +6506,7 @@ static int32_t pipeline_dep_ctx_has_earlier_same_import_path_c(struct ast_Pipeli
 }
 
 /** 各 dep codegen while 循环；C glue。 */
-int32_t run_sx_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_ASTArena *arena,
+int32_t run_x_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                        struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx,
                                        int32_t skip_asm_dep_codegen) {
   int32_t ndep;
@@ -6528,7 +6528,7 @@ int32_t run_sx_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_AST
       j = j + 1;
       continue;
     }
-    if (run_sx_pipeline_codegen_one_dep_c(module, out_buf, ctx, j, skip_asm_dep_codegen) != 0)
+    if (run_x_pipeline_codegen_one_dep_c(module, out_buf, ctx, j, skip_asm_dep_codegen) != 0)
       return -6;
     j = j + 1;
   }
@@ -6536,12 +6536,12 @@ int32_t run_sx_pipeline_codegen_deps_c(struct ast_Module *module, struct ast_AST
 }
 
 /** entry module 最终 codegen 编排；C glue。 */
-int32_t run_sx_pipeline_codegen_entry_c(struct ast_Module *module, struct ast_ASTArena *arena,
+int32_t run_x_pipeline_codegen_entry_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                          struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx) {
   if (!module || !arena || !out_buf || !ctx)
     return -1;
   driver_diagnostic_entry_module(module, arena);
-  if (run_sx_pipeline_codegen_entry_emit(module, arena, out_buf, ctx,
+  if (run_x_pipeline_codegen_entry_emit(module, arena, out_buf, ctx,
                                          pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {
     driver_diagnostic_codegen_fail(0, 0);
     return -6;
@@ -6550,7 +6550,7 @@ int32_t run_sx_pipeline_codegen_entry_c(struct ast_Module *module, struct ast_AS
 }
 
 /**
- * 有界循环 continue：idx < ndep 时返回 1（SX while 裸 CALL 条件，勿 CALL==0 比较 emit 失败）。
+ * 有界循环 continue：idx < ndep 时返回 1（X while 裸 CALL 条件，勿 CALL==0 比较 emit 失败）。
  */
 int32_t pipeline_loop_should_continue_ndep_c(struct ast_PipelineDepCtx *ctx, int32_t idx) {
   if (!ctx)
@@ -6568,7 +6568,7 @@ int32_t pipeline_loop_should_continue_imports_c(struct ast_Module *module, int32
 }
 
 /**
- * 有界 lib_root 循环 continue：idx < lib_root_count 时返回 1（resolve_path_sx SX while）。
+ * 有界 lib_root 循环 continue：idx < lib_root_count 时返回 1（resolve_path_x X while）。
  */
 int32_t pipeline_loop_should_continue_lib_root_c(struct ast_PipelineDepCtx *ctx, int32_t idx) {
   if (!ctx)
@@ -6577,7 +6577,7 @@ int32_t pipeline_loop_should_continue_lib_root_c(struct ast_PipelineDepCtx *ctx,
 }
 
 /**
- * 有界循环 exit：idx >= ndep 时返回 1（SX 用 if(CALL!=0)，勿 idx>=ndep(ctx) 比较 emit 失败）。
+ * 有界循环 exit：idx >= ndep 时返回 1（X 用 if(CALL!=0)，勿 idx>=ndep(ctx) 比较 emit 失败）。
  */
 int32_t pipeline_loop_index_at_or_beyond_ndep_c(struct ast_PipelineDepCtx *ctx, int32_t idx) {
   if (!ctx)
@@ -6594,14 +6594,14 @@ int32_t pipeline_loop_index_at_or_beyond_imports_c(struct ast_Module *module, in
   return idx >= parser_get_module_num_imports(module) ? 1 : 0;
 }
 
-/** load_and_sync import 循环结束后写 ndep；C glue（勿 SX stmt 内嵌双 CALL）。 */
+/** load_and_sync import 循环结束后写 ndep；C glue（勿 X stmt 内嵌双 CALL）。 */
 void pipeline_load_and_sync_set_ndep_from_module_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx) {
   if (module && ctx)
     pipeline_dep_ctx_set_ndep(ctx, parser_get_module_num_imports(module));
 }
 
-/** one_dep codegen 前 prepare path prefix；C glue（SX 侧 u8[64] 栈数组）。 */
-int32_t run_sx_pipeline_codegen_one_dep_prepare_c(struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
+/** one_dep codegen 前 prepare path prefix；C glue（X 侧 u8[64] 栈数组）。 */
+int32_t run_x_pipeline_codegen_one_dep_prepare_c(struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
   uint8_t dep_path_buf[64];
 
   if (!ctx || dep_j < 0)
@@ -6610,7 +6610,7 @@ int32_t run_sx_pipeline_codegen_one_dep_prepare_c(struct ast_PipelineDepCtx *ctx
   return pipeline_prepare_dep_codegen_path_c(ctx, dep_j, dep_path_buf);
 }
 
-/** 读 lib_root 路径第 off 字节；越界或无效返回 0（避免 pipeline.sx 侧整段 copy 大缓冲）。 */
+/** 读 lib_root 路径第 off 字节；越界或无效返回 0（避免 pipeline.x 侧整段 copy 大缓冲）。 */
 uint8_t pipeline_ctx_lib_root_byte_at(struct ast_PipelineDepCtx *ctx, int32_t i, int32_t off) {
   DepCtxSidecar *sc;
   uint8_t *row;
@@ -6768,7 +6768,7 @@ void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, int32_t 
     dst[k] = row[k];
 }
 
-/** backend.sx：import 限定符号解析时的 field 层栈（替代 [16][64] 栈数组）。 */
+/** backend.x：import 限定符号解析时的 field 层栈（替代 [16][64] 栈数组）。 */
 typedef struct {
   int inited;
   GrowVec layer_rows;
@@ -6857,7 +6857,7 @@ void asm_qual_sym_layer_copy(int32_t i, uint8_t *dst, int32_t cap) {
     dst[k] = row[k];
 }
 
-/** preprocess.sx：#if/#else 嵌套栈（替代 i32[32] 固定栈）。 */
+/** preprocess.x：#if/#else 嵌套栈（替代 i32[32] 固定栈）。 */
 static GrowVec g_preprocess_if_stack;
 static int g_preprocess_if_inited;
 
@@ -6922,13 +6922,13 @@ void preprocess_if_stack_set_at(int32_t i, int32_t v) {
     *slot = v;
 }
 
-/** typeck.sx：命名类型对齐/大小时复用的 64 字节 scratch（避免局部 u8[64] 在自 typecheck 时 check_block 失败）。 */
+/** typeck.x：命名类型对齐/大小时复用的 64 字节 scratch（避免局部 u8[64] 在自 typecheck 时 check_block 失败）。 */
 uint8_t *typeck_named_scratch64(void) {
   static uint8_t s[64];
   return s;
 }
 
-/** typeck.sx：多槽 64 字节 scratch；嵌套 layout/struct_lit 路径须用不同 slot 避免覆盖。 */
+/** typeck.x：多槽 64 字节 scratch；嵌套 layout/struct_lit 路径须用不同 slot 避免覆盖。 */
 static uint8_t g_typeck_scratch64[16][64];
 
 uint8_t *typeck_scratch64_slot(int32_t slot) {
@@ -6937,7 +6937,7 @@ uint8_t *typeck_scratch64_slot(int32_t slot) {
   return g_typeck_scratch64[slot];
 }
 
-/** typeck.sx：CALL resolve 写 func 下标用；勿用栈上 &cfi（自举 pipeline 下可撕裂致 segfault）。 */
+/** typeck.x：CALL resolve 写 func 下标用；勿用栈上 &cfi（自举 pipeline 下可撕裂致 segfault）。 */
 static int32_t g_typeck_call_resolve_func_idx;
 static int32_t g_typeck_call_resolve_dep_idx;
 
@@ -6949,12 +6949,12 @@ int32_t *typeck_call_resolve_dep_idx_slot(void) {
   return &g_typeck_call_resolve_dep_idx;
 }
 
-/** 读 CALL resolve dep scratch（SX emit 勿 typeck_i32_ptr_read(slot()) 嵌套）。 */
+/** 读 CALL resolve dep scratch（X emit 勿 typeck_i32_ptr_read(slot()) 嵌套）。 */
 int32_t typeck_call_resolve_dep_idx_peek(void) {
   return g_typeck_call_resolve_dep_idx;
 }
 
-/** 读 CALL resolve func scratch（SX emit 勿 typeck_i32_ptr_read(slot()) 嵌套）。 */
+/** 读 CALL resolve func scratch（X emit 勿 typeck_i32_ptr_read(slot()) 嵌套）。 */
 int32_t typeck_call_resolve_func_idx_peek(void) {
   return g_typeck_call_resolve_func_idx;
 }
@@ -6979,7 +6979,7 @@ static int32_t typeck_integer_widen_ok_ord_c(int32_t dest_kind, int32_t src_kind
 }
 
 /**
- * 算术/位 binop 结果类型推导（typeck.sx 同逻辑；SX 单函 emit 触顶 reloc 8192，暂经 C glue）。
+ * 算术/位 binop 结果类型推导（typeck.x 同逻辑；X 单函 emit 触顶 reloc 8192，暂经 C glue）。
  * 假定 bop_l/bop_r 已 check；写 expr_ref.resolved_type_ref。
  */
 void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_ref, int32_t bop_l,
@@ -7002,7 +7002,7 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
   rk_expr = pipeline_expr_kind_ord_at(arena, bop_r);
   lko = pipeline_type_kind_ord_at(arena, lt_ar);
   rko = pipeline_type_kind_ord_at(arena, rt_ar);
-  /** ptr ± i32/usize/isize → ptr（与 typeck.sx binop_arith 一致）。 */
+  /** ptr ± i32/usize/isize → ptr（与 typeck.x binop_arith 一致）。 */
   if (expr_kind >= 4 && expr_kind <= 5) {
     if (lko == 9 && (rko == 0 || rko == 6 || rko == 7))
       out_ar = lt_ar;
@@ -7046,7 +7046,7 @@ void typeck_binop_arith_infer_type_c(struct ast_ASTArena *arena, int32_t expr_re
 }
 
 /**
- * packed struct 布局快路径：无隐式 padding；与 typeck.sx typeck_struct_layout_metrics 一致。
+ * packed struct 布局快路径：无隐式 padding；与 typeck.x typeck_struct_layout_metrics 一致。
  * 返回值：1=已写入 out_sz/out_al，0=非 packed 须走常规对齐路径，-1=字段尺寸错误。
  */
 int32_t typeck_struct_layout_metrics_try_packed_c(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -7061,7 +7061,7 @@ int32_t typeck_struct_layout_metrics_try_packed_c(struct ast_Module *module, str
   uint8_t field_nm[64];
   int32_t layout_nlen;
   int32_t flen;
-  extern int32_t typeck_sx_type_size(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
+  extern int32_t typeck_x_type_size(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
                                      int32_t depth);
   extern void driver_diagnostic_typeck_struct_field_bad_size(uint8_t *sname, int32_t sname_len, uint8_t *fname,
                                                              int32_t fname_len);
@@ -7077,7 +7077,7 @@ int32_t typeck_struct_layout_metrics_try_packed_c(struct ast_Module *module, str
     ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
     pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
     flen = pipeline_module_struct_layout_field_name_len(module, li, j);
-    fsize = typeck_sx_type_size(module, arena, ftr, depth);
+    fsize = typeck_x_type_size(module, arena, ftr, depth);
     if (fsize <= 0) {
       pipeline_module_struct_layout_name_into(module, li, layout_nm);
       layout_nlen = pipeline_module_struct_layout_name_len(module, li);
@@ -7092,7 +7092,7 @@ int32_t typeck_struct_layout_metrics_try_packed_c(struct ast_Module *module, str
   return 1;
 }
 
-/** typeck.sx：struct_layout_metrics 写 out_sz/out_al；勿用栈上 &z/&al。 */
+/** typeck.x：struct_layout_metrics 写 out_sz/out_al；勿用栈上 &z/&al。 */
 static int32_t g_typeck_layout_metrics_sz;
 static int32_t g_typeck_layout_metrics_al;
 
@@ -7121,25 +7121,25 @@ int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
   return &g_typeck_layout_metrics_depth_scratch[s % 8][1];
 }
 
-/** ElfCodegenCtx 标签/补丁/重定位/符号表行数；与 platform/elf.sx 内联数组维度一致（改须全链 rebuild）。
- * parser EMIT_HEAVY 真 emit 时 num_patches/labels 可上千；4096 与 elf.sx 16384 漂移会导致 resolve_patches 失败。 */
+/** ElfCodegenCtx 标签/补丁/重定位/符号表行数；与 platform/elf.x 内联数组维度一致（改须全链 rebuild）。
+ * parser EMIT_HEAVY 真 emit 时 num_patches/labels 可上千；4096 与 elf.x 16384 漂移会导致 resolve_patches 失败。 */
 #define PIPELINE_ELF_CTX_TABLE_CAP 16384
 /** 堆 sidecar 扩 reloc 总上限（内联 16384 + heap 16384）。 */
 #define PIPELINE_ELF_CTX_RELOC_TOTAL_CAP 32768
 #define PIPELINE_ELF_CTX_RELOC_HEAP_CAP (PIPELINE_ELF_CTX_RELOC_TOTAL_CAP - PIPELINE_ELF_CTX_TABLE_CAP)
 
 /**
- * platform/elf.sx：ElfCodegenCtx 体量大，.sx/asm 对 patches[pi].* / relocs[ri].* 字段写入 typeck 失败；
- * 布局须与 elf.sx 中 ElfLabelEntry / ElfPatchEntry / ElfRelocEntry / ElfSymEntry 前缀一致（改 elf.sx 时同步）。
+ * platform/elf.x：ElfCodegenCtx 体量大，.x/asm 对 patches[pi].* / relocs[ri].* 字段写入 typeck 失败；
+ * 布局须与 elf.x 中 ElfLabelEntry / ElfPatchEntry / ElfRelocEntry / ElfSymEntry 前缀一致（改 elf.x 时同步）。
  */
-/** 与 elf.sx ElfLabelEntry 布局一致（无 code_shndx；PGO 段索引见 sidecar）。 */
+/** 与 elf.x ElfLabelEntry 布局一致（无 code_shndx；PGO 段索引见 sidecar）。 */
 typedef struct {
   uint8_t name[64];
   int32_t name_len;
   int32_t offset;
 } PipelineElfLabelEntry;
 
-/** 与 elf.sx ElfPatchEntry 布局一致。 */
+/** 与 elf.x ElfPatchEntry 布局一致。 */
 typedef struct {
   int32_t rel32_offset;
   uint8_t name[64];
@@ -7147,7 +7147,7 @@ typedef struct {
   int32_t patch_imm_bits;
 } PipelineElfPatchEntry;
 
-/** 与 elf.sx ElfRelocEntry 布局一致。 */
+/** 与 elf.x ElfRelocEntry 布局一致。 */
 typedef struct {
   int32_t offset;
   int32_t name_len;
@@ -7195,12 +7195,12 @@ typedef struct {
   int32_t emit_hot;
 } PipelineElfCtxAccess;
 
-/** code_data 容量；与 elf.sx ElfCodegenCtx.code_data 维度一致（8716288，勿用旧 8388608）。 */
+/** code_data 容量；与 elf.x ElfCodegenCtx.code_data 维度一致（8716288，勿用旧 8388608）。 */
 #define PIPELINE_ELF_CTX_CODE_BUF_CAP 8716288
 /** .text.hot 缓冲（用户程序热段通常远小于 cold；减小 ctx 体积避免 malloc/栈压力）。 */
 #define PIPELINE_ELF_CTX_CODE_HOT_BUF_CAP 1048576
 
-/** platform_elf_ElfCodegenCtx 后缀字段偏移（须与 elf.sx / pipeline_gen 一致）。 */
+/** platform_elf_ElfCodegenCtx 后缀字段偏移（须与 elf.x / pipeline_gen 一致）。 */
 enum {
   kPipelineElfCtxEMachineOff = (int)offsetof(PipelineElfCtxAccess, e_machine),
   kPipelineElfCtxMachoUnderscoreOff = (int)offsetof(PipelineElfCtxAccess, macho_leading_underscore),
@@ -7210,13 +7210,13 @@ enum {
       (int)sizeof(PipelineElfCtxAccess) + PIPELINE_ELF_CTX_CODE_BUF_CAP + PIPELINE_ELF_CTX_CODE_HOT_BUF_CAP
 };
 
-/** 与 elf.sx ElfCodegenCtx 前缀一致；漂移会导致 append_bytes 写穿 malloc 区。 */
-_Static_assert(sizeof(PipelineElfLabelEntry) == 72, "PipelineElfLabelEntry must match elf.sx ElfLabelEntry");
-_Static_assert(sizeof(PipelineElfPatchEntry) == 76, "PipelineElfPatchEntry must match elf.sx ElfPatchEntry");
-_Static_assert(sizeof(PipelineElfRelocEntry) == 8, "PipelineElfRelocEntry must match elf.sx ElfRelocEntry");
-_Static_assert(sizeof(PipelineElfSymEntry) == 76, "PipelineElfSymEntry must match elf.sx ElfSymEntry");
+/** 与 elf.x ElfCodegenCtx 前缀一致；漂移会导致 append_bytes 写穿 malloc 区。 */
+_Static_assert(sizeof(PipelineElfLabelEntry) == 72, "PipelineElfLabelEntry must match elf.x ElfLabelEntry");
+_Static_assert(sizeof(PipelineElfPatchEntry) == 76, "PipelineElfPatchEntry must match elf.x ElfPatchEntry");
+_Static_assert(sizeof(PipelineElfRelocEntry) == 8, "PipelineElfRelocEntry must match elf.x ElfRelocEntry");
+_Static_assert(sizeof(PipelineElfSymEntry) == 76, "PipelineElfSymEntry must match elf.x ElfSymEntry");
 _Static_assert(kPipelineElfCtxCodeDataOff == (int)sizeof(PipelineElfCtxAccess),
-               "PipelineElfCtxAccess prefix size drift vs elf.sx");
+               "PipelineElfCtxAccess prefix size drift vs elf.x");
 
 /** SHUX_WPO_PGO_HOT=1 时启用 .text.hot 双段 emit。 */
 int32_t pipeline_elf_pgo_hot_enabled(void) {
@@ -7326,7 +7326,7 @@ static uint8_t *g_pipeline_elf_reloc_sidecar_owner;
 static PipelineElfRelocHeapEntry g_pipeline_elf_reloc_heap[PIPELINE_ELF_CTX_RELOC_HEAP_CAP];
 static uint8_t g_pipeline_elf_reloc_sym_heap[PIPELINE_ELF_CTX_RELOC_HEAP_CAP][64];
 
-/** PGO 段索引 sidecar：内联 labels/patches/relocs 无 code_shndx 字段（与 elf.sx 布局对齐）。 */
+/** PGO 段索引 sidecar：内联 labels/patches/relocs 无 code_shndx 字段（与 elf.x 布局对齐）。 */
 static uint8_t *g_pipeline_elf_shndx_sidecar_owner;
 static int32_t g_pipeline_elf_label_shndx[PIPELINE_ELF_CTX_TABLE_CAP];
 static int32_t g_pipeline_elf_patch_shndx[PIPELINE_ELF_CTX_TABLE_CAP];
@@ -7452,14 +7452,14 @@ int32_t pipeline_elf_ctx_sym_shndx_at(uint8_t *ctx_bytes, int32_t idx) {
   return pipeline_elf_pgo_hot_enabled() ? PIPELINE_ELF_SHNX_TEXT_UNLIKELY : PIPELINE_ELF_SHNX_TEXT;
 }
 
-/** 返回 .text 机器码缓冲指针（glue 统一偏移；write_elf_o 须经此读，勿直接用 SX code_data[]）。 */
+/** 返回 .text 机器码缓冲指针（glue 统一偏移；write_elf_o 须经此读，勿直接用 X code_data[]）。 */
 uint8_t *pipeline_elf_ctx_code_data_ptr(uint8_t *ctx_bytes) {
   if (!ctx_bytes)
     return NULL;
   return pipeline_elf_ctx_code_buf(ctx_bytes, PIPELINE_ELF_SHNX_TEXT);
 }
 
-/** 向 CodegenOutBuf 追加字节；layout 与 codegen.sx 一致。 */
+/** 向 CodegenOutBuf 追加字节；layout 与 codegen.x 一致。 */
 static int32_t pipeline_elf_out_append(struct codegen_CodegenOutBuf *out, const uint8_t *p, int32_t n) {
   int32_t len;
   uint8_t *data;
@@ -7533,7 +7533,7 @@ static void pipeline_elf_rela_set_addend64(uint8_t *rela_buf, int64_t addend) {
 
 /**
  * 标准单 .text ELF64 ET_REL .o 写出（非 PGO）；从 glue code_data 偏移读机器码。
- * 替代 seed partial 内 write_elf_o_to_buf 对 SX code_data[] 的错误偏移读（导致 __text 全零）。
+ * 替代 seed partial 内 write_elf_o_to_buf 对 X code_data[] 的错误偏移读（导致 __text 全零）。
  */
 int32_t pipeline_elf_write_o_standard_to_buf_c(uint8_t *ctx_bytes, struct codegen_CodegenOutBuf *out) {
   PipelineElfCtxAccess *ctx;
@@ -8570,7 +8570,7 @@ int32_t pipeline_elf_ctx_ensure_label(uint8_t *ctx_bytes, uint8_t *name, int32_t
   return pipeline_elf_ctx_add_label(ctx_bytes, name, name_len, -1);
 }
 
-/** Mach-O/ELF 函数入口 4 字节对齐；端口 elf.sx elf_pad_code_to_4。 */
+/** Mach-O/ELF 函数入口 4 字节对齐；端口 elf.x elf_pad_code_to_4。 */
 int32_t pipeline_elf_ctx_pad_code_to_4(uint8_t *ctx_bytes) {
   uint8_t pad[1] = {0};
   if (!ctx_bytes)
@@ -8582,7 +8582,7 @@ int32_t pipeline_elf_ctx_pad_code_to_4(uint8_t *ctx_bytes) {
   return 0;
 }
 
-/** 记录导出符号；端口 elf.sx elf_add_sym。 */
+/** 记录导出符号；端口 elf.x elf_add_sym。 */
 int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset) {
   PipelineElfCtxAccess *ctx;
   uint8_t *sym_pool;
@@ -8708,7 +8708,7 @@ static void pipeline_elf_ctx_write_u32_le(uint8_t *ctx_bytes, int32_t shndx, int
   code[off + 3] = (uint8_t)((word >> 24) & 255);
 }
 
-/** 从占位指令推断 arm64/riscv patch 位宽；与 platform/elf.sx elf_infer_patch_imm_bits_from_code 一致。 */
+/** 从占位指令推断 arm64/riscv patch 位宽；与 platform/elf.x elf_infer_patch_imm_bits_from_code 一致。 */
 static int32_t pipeline_elf_ctx_infer_patch_imm_bits(uint8_t *ctx_bytes, int32_t shndx, int32_t rel32_offset) {
   PipelineElfCtxAccess *acc;
   uint8_t *code;
@@ -9029,7 +9029,7 @@ void pipeline_elf_log_unresolved_patch(struct platform_elf_ElfCodegenCtx *ctx, i
                (int)patch_idx, (int)hits, (int)acc->num_labels);
 }
 
-/** codegen.sx：路径/前缀 scratch（避免 `u8[64] = []` 在 asm emit 时 ExprKind=-1）。 */
+/** codegen.x：路径/前缀 scratch（避免 `u8[64] = []` 在 asm emit 时 ExprKind=-1）。 */
 static uint8_t g_scratch64[4][64];
 static uint8_t g_scratch128[2][128];
 static uint8_t g_scratch256[2][256];
@@ -9069,7 +9069,7 @@ uint8_t *pipeline_scratch_buf256_slot(int32_t slot) {
   return g_scratch256[slot];
 }
 
-/** codegen.sx：TypeKind 内建类型 → C 类型名；返回长度，*out_ptr 指向静态串；不支持则 0。 */
+/** codegen.x：TypeKind 内建类型 → C 类型名；返回长度，*out_ptr 指向静态串；不支持则 0。 */
 int32_t pipeline_codegen_type_kind_cstr(int32_t kind, uint8_t **out_ptr) {
   static const char *k_i32 = "int32_t";
   static const char *k_i64 = "int64_t";
@@ -9124,7 +9124,7 @@ int32_t pipeline_codegen_type_kind_cstr(int32_t kind, uint8_t **out_ptr) {
   }
 }
 
-/** codegen.sx：将 TypeKind C 名写入 dst，返回字节数；-1 缓冲不足或不支持。 */
+/** codegen.x：将 TypeKind C 名写入 dst，返回字节数；-1 缓冲不足或不支持。 */
 int32_t pipeline_codegen_type_kind_copy(uint8_t *dst, int32_t cap, int32_t kind) {
   uint8_t *s;
   int32_t n;
@@ -9137,7 +9137,7 @@ int32_t pipeline_codegen_type_kind_copy(uint8_t *dst, int32_t cap, int32_t kind)
   return n;
 }
 
-/** codegen.sx：VECTOR 类型 C 名（elem_kind=TYPE_I32/U32，lanes=4/8/16）；无匹配 0。 */
+/** codegen.x：VECTOR 类型 C 名（elem_kind=TYPE_I32/U32，lanes=4/8/16）；无匹配 0。 */
 int32_t pipeline_codegen_vector_type_cstr(int32_t elem_kind, int32_t lanes, uint8_t **out_ptr) {
   if (!out_ptr)
     return 0;
@@ -9173,7 +9173,7 @@ int32_t pipeline_codegen_vector_type_cstr(int32_t elem_kind, int32_t lanes, uint
   return 0;
 }
 
-/** codegen.sx：VECTOR 类型 C 名写入 dst；无匹配 -1。 */
+/** codegen.x：VECTOR 类型 C 名写入 dst；无匹配 -1。 */
 int32_t pipeline_codegen_vector_type_copy(uint8_t *dst, int32_t cap, int32_t elem_kind, int32_t lanes) {
   uint8_t *s;
   int32_t n;
@@ -9186,7 +9186,7 @@ int32_t pipeline_codegen_vector_type_copy(uint8_t *dst, int32_t cap, int32_t ele
   return n;
 }
 
-/** codegen.sx：将 TypeKind C 名追加到 scratch[w..)，返回下一写位置；-1 溢出或不支持。 */
+/** codegen.x：将 TypeKind C 名追加到 scratch[w..)，返回下一写位置；-1 溢出或不支持。 */
 int32_t pipeline_codegen_type_kind_append(uint8_t *scratch, int32_t cap, int32_t w, int32_t kind) {
   uint8_t *s;
   int32_t n;
@@ -9206,8 +9206,8 @@ int32_t pipeline_codegen_type_kind_append(uint8_t *scratch, int32_t cap, int32_t
 extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t ref, uint8_t *out64);
 
 /**
- * codegen.sx type_to_c_repr 递归核心：经 pipeline_* 读类型池，写入 scratch（无 NUL）。
- * 对齐 codegen.sx / codegen.c c_type_to_buf 的简化子集；返回字节数，-1 缓冲不足。
+ * codegen.x type_to_c_repr 递归核心：经 pipeline_* 读类型池，写入 scratch（无 NUL）。
+ * 对齐 codegen.x / codegen.c c_type_to_buf 的简化子集；返回字节数，-1 缓冲不足。
  */
 static int32_t pipeline_codegen_type_to_c_repr_inner(struct ast_ASTArena *arena, uint8_t *scratch, int32_t cap,
                                                      int32_t type_ref, uint8_t *struct_prefix,
@@ -9325,14 +9325,14 @@ static int32_t pipeline_codegen_type_to_c_repr_inner(struct ast_ASTArena *arena,
 }
 
 /**
- * codegen.sx type_to_c_repr 的 C glue：dep prerun 全量 typeck 时避免 SX 大函数 check_block 失败。
+ * codegen.x type_to_c_repr 的 C glue：dep prerun 全量 typeck 时避免 X 大函数 check_block 失败。
  */
 int32_t pipeline_codegen_type_to_c_repr(struct ast_ASTArena *arena, uint8_t *scratch, int32_t cap, int32_t type_ref,
                                         uint8_t *struct_prefix, int32_t struct_prefix_len) {
   return pipeline_codegen_type_to_c_repr_inner(arena, scratch, cap, type_ref, struct_prefix, struct_prefix_len);
 }
 
-/** 前向声明：CodegenOutBuf 追加（layout 与 codegen.sx 一致）。 */
+/** 前向声明：CodegenOutBuf 追加（layout 与 codegen.x 一致）。 */
 struct codegen_CodegenOutBuf;
 
 /** 向 CodegenOutBuf 追加字节；0 成功，-1 溢出。 */
@@ -9369,7 +9369,7 @@ static int32_t pipeline_codegen_out_format_int(struct codegen_CodegenOutBuf *out
   return pipeline_codegen_out_append_bytes(out, (const uint8_t *)buf, n);
 }
 
-/** emit_struct_field_type_via_pipeline 递归核心（ord 与 ast.sx TypeKind 一致）。 */
+/** emit_struct_field_type_via_pipeline 递归核心（ord 与 ast.x TypeKind 一致）。 */
 static int32_t pipeline_codegen_emit_struct_field_type_inner(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                                              int32_t type_ref, uint8_t *struct_prefix,
                                                              int32_t struct_prefix_len) {
@@ -9458,7 +9458,7 @@ static int32_t pipeline_codegen_emit_struct_field_type_inner(struct ast_ASTArena
 }
 
 /**
- * codegen.sx emit_struct_field_type_via_pipeline 的 C glue：dep prerun 全量 typeck 时避免 SX 大函数失败。
+ * codegen.x emit_struct_field_type_via_pipeline 的 C glue：dep prerun 全量 typeck 时避免 X 大函数失败。
  */
 int32_t pipeline_codegen_emit_struct_field_type(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                               int32_t type_ref, uint8_t *struct_prefix, int32_t struct_prefix_len) {
@@ -9508,7 +9508,7 @@ int32_t pipeline_codegen_emit_struct_field_decl(struct ast_ASTArena *arena, stru
 }
 
 /**
- * codegen.sx codegen_call_num_args_override：符号全名表（asm 不支持函数内 u8[N] 字面量）。
+ * codegen.x codegen_call_num_args_override：符号全名表（asm 不支持函数内 u8[N] 字面量）。
  * 命中返回 override 后的 num_args；未命中返回原 num_args。
  */
 typedef struct {
@@ -9567,7 +9567,7 @@ int32_t pipeline_codegen_call_num_args_override_lookup(uint8_t *buf, int32_t ful
   return num_args;
 }
 
-/** codegen.sx / asm backend：拼接 prefix+name 后查表，避免 .sx 内 u8[N] 字面量与 *u8 下标在 asm emit 失败。 */
+/** codegen.x / asm backend：拼接 prefix+name 后查表，避免 .x 内 u8[N] 字面量与 *u8 下标在 asm emit 失败。 */
 int32_t pipeline_codegen_call_num_args_override(uint8_t *prefix, int32_t prefix_len, uint8_t *name, int32_t name_len,
                                                 int32_t num_args) {
   uint8_t buf[96];
@@ -9586,7 +9586,7 @@ int32_t pipeline_codegen_call_num_args_override(uint8_t *prefix, int32_t prefix_
   return pipeline_codegen_call_num_args_override_lookup(buf, full, num_args);
 }
 
-/** codegen.sx：std.io.driver 桥接名前缀表（asm 不支持函数内数组字面量）。 */
+/** codegen.x：std.io.driver 桥接名前缀表（asm 不支持函数内数组字面量）。 */
 static int codegen_name_prefix_eq(uint8_t *name, int32_t name_len, const char *pfx, int32_t plen) {
   if (!name || name_len < plen)
     return 0;
@@ -9619,7 +9619,7 @@ int32_t pipeline_codegen_is_std_io_driver_bridge_name(uint8_t *name, int32_t nam
   return 0;
 }
 
-/** import 路径逐字节含末尾 NUL 比较（codegen.sx asm 无数组字面量）。 */
+/** import 路径逐字节含末尾 NUL 比较（codegen.x asm 无数组字面量）。 */
 static int codegen_path_bytes_eq(uint8_t *path, const char *expect, int32_t len_with_nul) {
   int32_t i;
   if (!path)
@@ -9648,12 +9648,12 @@ static int codegen_prefix_name_bytes_eq(uint8_t *prefix, int32_t prefix_len, uin
   return 1;
 }
 
-/** codegen.sx：import 路径是否为 std.io.driver（含 NUL，14 字节）。 */
+/** codegen.x：import 路径是否为 std.io.driver（含 NUL，14 字节）。 */
 int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path) {
   return codegen_path_bytes_eq(path, "std.io.driver\0", 14);
 }
 
-/** codegen.sx：import 路径是否为 std.io.core（含 NUL，12 字节）。 */
+/** codegen.x：import 路径是否为 std.io.core（含 NUL，12 字节）。 */
 int32_t pipeline_codegen_path_is_std_io_core_bytes(uint8_t *path) {
   return codegen_path_bytes_eq(path, "std.io.core\0", 12);
 }
@@ -9675,10 +9675,10 @@ int32_t pipeline_codegen_dep_skip_asm_user_std_io(uint8_t *path) {
 }
 
 /**
- * bootstrap -E / asm partial：compiler 前端模块符号已由 *_sx.o 链入，勿整库 SX C codegen（ast 等大库 emit 失败）。
- * 精确匹配 import 路径（如 ast、codegen、parser.sx→parser）。
+ * bootstrap -E / asm partial：compiler 前端模块符号已由 *_x.o 链入，勿整库 X C codegen（ast 等大库 emit 失败）。
+ * 精确匹配 import 路径（如 ast、codegen、parser.x→parser）。
  */
-int32_t pipeline_codegen_dep_skip_sx_bootstrap_partial(uint8_t *path) {
+int32_t pipeline_codegen_dep_skip_x_bootstrap_partial(uint8_t *path) {
   static const char *const k_exact[] = {
       "ast", "codegen", "parser", "typeck", "lexer", "preprocess", "pipeline", "lsp", "lsp.diag", "lsp.io",
       "driver", "driver.check", "driver.compile", "driver.emit", "driver.fmt", "driver.test", "driver.build",
@@ -9693,7 +9693,7 @@ int32_t pipeline_codegen_dep_skip_sx_bootstrap_partial(uint8_t *path) {
   return 0;
 }
 
-/** codegen.sx：std.io.core 与 io.o 重复的 shux_io_* 函数须跳过 emit。 */
+/** codegen.x：std.io.core 与 io.o 重复的 shux_io_* 函数须跳过 emit。 */
 int32_t pipeline_codegen_should_skip_emit_std_io_core_io_dup(uint8_t *dep_path, uint8_t *name, int32_t name_len) {
   if (!dep_path || !name)
     return 0;
@@ -9714,7 +9714,7 @@ int32_t pipeline_codegen_should_skip_emit_std_io_core_io_dup(uint8_t *dep_path, 
   return 0;
 }
 
-/** codegen.sx：std.io handle_* 字面量函数须跳过 emit；dep_path 为空时仅按 name 判断。 */
+/** codegen.x：std.io handle_* 字面量函数须跳过 emit；dep_path 为空时仅按 name 判断。 */
 int32_t pipeline_codegen_should_skip_emit_std_io_trivial_handle(uint8_t *dep_path, uint8_t *name, int32_t name_len) {
   if (!name)
     return 0;
@@ -9731,7 +9731,7 @@ int32_t pipeline_codegen_should_skip_emit_std_io_trivial_handle(uint8_t *dep_pat
   return 0;
 }
 
-/** codegen.sx：合并 driver_should_skip_emit 三套逻辑（原 codegen_should_skip_emit_func）。 */
+/** codegen.x：合并 driver_should_skip_emit 三套逻辑（原 codegen_should_skip_emit_func）。 */
 int32_t pipeline_codegen_should_skip_emit_func(uint8_t *dep_path, uint8_t *prefix, int32_t prefix_len,
                                                uint8_t *name, int32_t name_len) {
   int32_t ok_path;
@@ -9773,7 +9773,7 @@ int32_t pipeline_codegen_should_skip_emit_func(uint8_t *dep_path, uint8_t *prefi
   return 0;
 }
 
-/** codegen.sx：entry 模块是否含 read_message（LSP io 入口探测）。 */
+/** codegen.x：entry 模块是否含 read_message（LSP io 入口探测）。 */
 int32_t pipeline_codegen_entry_is_lsp_io_module(struct ast_Module *module) {
   static const uint8_t rd[] = "read_message";
   int32_t i;
@@ -9788,7 +9788,7 @@ int32_t pipeline_codegen_entry_is_lsp_io_module(struct ast_Module *module) {
   return 0;
 }
 
-/** codegen.sx：entry 模块是否含 lsp_main。 */
+/** codegen.x：entry 模块是否含 lsp_main。 */
 int32_t pipeline_codegen_entry_is_lsp_main_module(struct ast_Module *module) {
   static const uint8_t main_nm[] = "lsp_main";
   int32_t i;
@@ -9803,7 +9803,7 @@ int32_t pipeline_codegen_entry_is_lsp_main_module(struct ast_Module *module) {
   return 0;
 }
 
-/** codegen.sx：C 前缀是否为 std_io_driver 族（13 字节 + 可选第 14 字节 NUL/_）。 */
+/** codegen.x：C 前缀是否为 std_io_driver 族（13 字节 + 可选第 14 字节 NUL/_）。 */
 int32_t pipeline_codegen_force_param_std_io_driver_prefix_ok(uint8_t *prefix, int32_t prefix_len) {
   static const char exp13[] = "std_io_driver";
   int32_t i;
@@ -9820,7 +9820,7 @@ int32_t pipeline_codegen_force_param_std_io_driver_prefix_ok(uint8_t *prefix, in
   return 1;
 }
 
-/** codegen.sx：std_io_driver submit_*_batch_buf 首参强制 size_t。 */
+/** codegen.x：std_io_driver submit_*_batch_buf 首参强制 size_t。 */
 int32_t pipeline_codegen_force_param_size_t(uint8_t *prefix, int32_t prefix_len, uint8_t *name, int32_t name_len,
                                             int32_t param_index) {
   if (param_index != 0)
@@ -9836,7 +9836,7 @@ int32_t pipeline_codegen_force_param_size_t(uint8_t *prefix, int32_t prefix_len,
   return 0;
 }
 
-/** codegen.sx：std.io print 第二参强制 size_t（前缀须 std_io_）。 */
+/** codegen.x：std.io print 第二参强制 size_t（前缀须 std_io_）。 */
 int32_t pipeline_codegen_force_param_size_t_std_io_print_str_second(uint8_t *prefix, int32_t prefix_len,
                                                                     uint8_t *name, int32_t name_len,
                                                                     int32_t param_index) {
@@ -9849,7 +9849,7 @@ int32_t pipeline_codegen_force_param_size_t_std_io_print_str_second(uint8_t *pre
   return memcmp(prefix, "std_io_", 7) == 0 ? 1 : 0;
 }
 
-/** codegen.sx：std_io_driver register/submit_read/submit_write 首参 ptrdiff_t。 */
+/** codegen.x：std_io_driver register/submit_read/submit_write 首参 ptrdiff_t。 */
 int32_t pipeline_codegen_force_param_ptrdiff_t(uint8_t *prefix, int32_t prefix_len, uint8_t *name, int32_t name_len,
                                                int32_t param_index) {
   if (param_index != 0 || !pipeline_codegen_force_param_std_io_driver_prefix_ok(prefix, prefix_len) || !name)
@@ -9863,7 +9863,7 @@ int32_t pipeline_codegen_force_param_ptrdiff_t(uint8_t *prefix, int32_t prefix_l
   return 0;
 }
 
-/** codegen.sx：std_io_driver 按名/下标强制 uint32_t（timeout_ms/nr）。 */
+/** codegen.x：std_io_driver 按名/下标强制 uint32_t（timeout_ms/nr）。 */
 int32_t pipeline_codegen_force_param_uint32_t(uint8_t *prefix, int32_t prefix_len, uint8_t *name, int32_t name_len,
                                               int32_t param_index) {
   if (!pipeline_codegen_force_param_std_io_driver_prefix_ok(prefix, prefix_len) || !name)
@@ -9886,7 +9886,7 @@ int32_t pipeline_codegen_force_param_uint32_t(uint8_t *prefix, int32_t prefix_le
   return 0;
 }
 
-/** codegen.sx：std.io.core shux_io_* 调用名追加 _buf。 */
+/** codegen.x：std.io.core shux_io_* 调用名追加 _buf。 */
 int32_t pipeline_codegen_use_buf_wrapper(uint8_t *name, int32_t name_len, int32_t num_args) {
   if (!name || name_len <= 0)
     return 0;
@@ -9899,7 +9899,7 @@ int32_t pipeline_codegen_use_buf_wrapper(uint8_t *name, int32_t name_len, int32_
   return 0;
 }
 
-/** codegen.sx：driver extern io_* batch 由 preamble/io.o 提供，跳过 std_io_driver_io_* extern 声明。 */
+/** codegen.x：driver extern io_* batch 由 preamble/io.o 提供，跳过 std_io_driver_io_* extern 声明。 */
 int32_t pipeline_codegen_skip_emit_extern_io_batch_buf(uint8_t *name, int32_t name_len) {
   if (!name)
     return 0;
@@ -9912,7 +9912,7 @@ int32_t pipeline_codegen_skip_emit_extern_io_batch_buf(uint8_t *name, int32_t na
   return 0;
 }
 
-/** codegen.sx：占位/string 桩函数名跳过 emit（placeholder、string_new 等）。 */
+/** codegen.x：占位/string 桩函数名跳过 emit（placeholder、string_new 等）。 */
 int32_t pipeline_codegen_should_skip_emit_func_by_name(uint8_t *name, int32_t name_len) {
   if (!name)
     return 0;
@@ -9926,7 +9926,7 @@ int32_t pipeline_codegen_should_skip_emit_func_by_name(uint8_t *name, int32_t na
     return 1;
   if (name_len == 21 && codegen_name_prefix_eq(name, name_len, "std_string_string_new", 21))
     return 1;
-  /** bootstrap -E：seed_mega 体过大；SHUX_EMIT_SEED_MEGA=1 时仍尝试 SX emit（build_seed_asm_host）。 */
+  /** bootstrap -E：seed_mega 体过大；SHUX_EMIT_SEED_MEGA=1 时仍尝试 X emit（build_seed_asm_host）。 */
   if (!getenv("SHUX_EMIT_SEED_MEGA")) {
     if (name_len == 25 && memcmp(name, "asm_codegen_ast_seed_mega", 25) == 0)
       return 1;
@@ -9936,13 +9936,13 @@ int32_t pipeline_codegen_should_skip_emit_func_by_name(uint8_t *name, int32_t na
   return 0;
 }
 
-/** codegen.sx：SHUX_EMIT_SEED_MEGA=1 时 bootstrap -E 仍 emit seed_mega。 */
+/** codegen.x：SHUX_EMIT_SEED_MEGA=1 时 bootstrap -E 仍 emit seed_mega。 */
 int32_t pipeline_codegen_emit_seed_mega_enabled(void) {
   const char *e = getenv("SHUX_EMIT_SEED_MEGA");
   return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
 
-/** codegen.sx：submit_*_batch_buf 调用需补第 4 参 timeout_ms。 */
+/** codegen.x：submit_*_batch_buf 调用需补第 4 参 timeout_ms。 */
 int32_t pipeline_codegen_is_submit_batch_buf_call(uint8_t *name, int32_t name_len) {
   if (!name)
     return 0;
@@ -9953,7 +9953,7 @@ int32_t pipeline_codegen_is_submit_batch_buf_call(uint8_t *name, int32_t name_le
   return 0;
 }
 
-/** codegen.sx：std.io.core 中 preamble/io.o 已提供的 shux_io_* 桥接名，跳过函数体 emit。 */
+/** codegen.x：std.io.core 中 preamble/io.o 已提供的 shux_io_* 桥接名，跳过函数体 emit。 */
 int32_t pipeline_codegen_should_skip_emit_func_core_read_ptr(uint8_t *name, int32_t name_len) {
   if (!name)
     return 0;
@@ -10018,7 +10018,7 @@ int32_t pipeline_asm_io_core_extern_callee_sym(uint8_t *name, int32_t name_len, 
   return slen;
 }
 
-/** codegen.sx：std.io driver 短名 register/submit_* 映射到 shux_io_*_buf；命中写 sym_out，返回符号长度；无匹配 0；缓冲不足 -1。 */
+/** codegen.x：std.io driver 短名 register/submit_* 映射到 shux_io_*_buf；命中写 sym_out，返回符号长度；无匹配 0；缓冲不足 -1。 */
 int32_t pipeline_codegen_io_driver_buf_call_sym(uint8_t *name, int32_t name_len, int32_t num_args, uint8_t *sym_out,
                                                 int32_t sym_cap) {
   const char *sym;
@@ -10045,7 +10045,7 @@ int32_t pipeline_codegen_io_driver_buf_call_sym(uint8_t *name, int32_t name_len,
   return sym_len;
 }
 
-/** codegen.sx：std_io read_fixed_fd/write_fixed_fd 须追加 _impl 后缀。 */
+/** codegen.x：std_io read_fixed_fd/write_fixed_fd 须追加 _impl 后缀。 */
 int32_t pipeline_codegen_std_io_fixed_fd_emit_impl(uint8_t *prefix, int32_t prefix_len, uint8_t *name,
                                                    int32_t name_len) {
   if (!prefix || !name || prefix_len < 7 || name_len <= 0)
@@ -10059,7 +10059,7 @@ int32_t pipeline_codegen_std_io_fixed_fd_emit_impl(uint8_t *prefix, int32_t pref
   return 0;
 }
 
-/** backend.sx：AsmFuncCtx 局部变量 grow 池（替代 locals[24]）。 */
+/** backend.x：AsmFuncCtx 局部变量 grow 池（替代 locals[24]）。 */
 typedef struct {
   uint8_t name[64];
   int32_t name_len;
@@ -10213,7 +10213,7 @@ int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len)
 struct backend_AsmFuncCtx;
 
 /**
- * backend.sx local_offset 的 C 实现（含零字节占位名回退）；M8-tail 薄包装 bl 目标。
+ * backend.x local_offset 的 C 实现（含零字节占位名回退）；M8-tail 薄包装 bl 目标。
  */
 int32_t pipeline_asm_local_offset_c(struct backend_AsmFuncCtx *ctx, uint8_t *name, int32_t name_len) {
   uint8_t *key;
@@ -10238,7 +10238,7 @@ int32_t pipeline_asm_local_offset_c(struct backend_AsmFuncCtx *ctx, uint8_t *nam
         return asm_ctx_local_offset_at(key, i);
     }
   }
-  /** 与 backend.sx 一致：name_len<=32 且 sidecar 槽名为全零时仍匹配（自举 tear 修复路径）。 */
+  /** 与 backend.x 一致：name_len<=32 且 sidecar 槽名为全零时仍匹配（自举 tear 修复路径）。 */
   if (name_len > 0 && name_len <= 32) {
     for (j = 0; j < nloc; j++) {
       if (asm_ctx_local_name_len(key, j) == name_len) {
@@ -10255,7 +10255,7 @@ int32_t pipeline_asm_local_offset_c(struct backend_AsmFuncCtx *ctx, uint8_t *nam
   return -1;
 }
 
-/** backend.sx：块 ref → 该块 const/let 在 sidecar 中的起始槽下标（树遍历 fill 时写入）。 */
+/** backend.x：块 ref → 该块 const/let 在 sidecar 中的起始槽下标（树遍历 fill 时写入）。 */
 typedef struct {
   void *ctx;
   int used;
@@ -10350,11 +10350,11 @@ extern int32_t pipeline_asm_let_init_stack_reserve_bytes(struct ast_ASTArena *ar
                                                          int32_t init_ref);
 extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                   int32_t elem_type_ref, int32_t array_len, int32_t depth);
-extern int32_t typeck_sx_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t li, int32_t depth);
 
 /**
- * T[N] 定长数组总字节宽：SoA 列主序或 AoS N×struct layout（与 typeck typeck_sx_type_size 一致）。
+ * T[N] 定长数组总字节宽：SoA 列主序或 AoS N×struct layout（与 typeck typeck_x_type_size 一致）。
  * 非 struct 元素或 layout 未命中时返回 0，由调用方回落 esz 启发式。
  */
 static int32_t asm_fixed_array_total_bytes_mod(struct ast_ASTArena *arena, int32_t type_ref, struct ast_Module *mod) {
@@ -10396,7 +10396,7 @@ static int32_t asm_fixed_array_total_bytes_mod(struct ast_ASTArena *arena, int32
         }
         if (!eq)
           continue;
-        es = typeck_sx_type_size_from_layout_glue(mod, arena, lk, 0);
+        es = typeck_x_type_size_from_layout_glue(mod, arena, lk, 0);
         if (es > 0)
           return t->array_size * es;
       }
@@ -10406,7 +10406,7 @@ static int32_t asm_fixed_array_total_bytes_mod(struct ast_ASTArena *arena, int32
 }
 
 /**
- * 从 AsmFuncCtx 前缀读取 module_ref（偏移 16，与 backend.sx / pipeline_glue 布局一致）。
+ * 从 AsmFuncCtx 前缀读取 module_ref（偏移 16，与 backend.x / pipeline_glue 布局一致）。
  * fill_block_locals_tree 早于 emit 设置 global 时仍可按 layout 算 struct 栈槽宽。
  */
 static struct ast_Module *asm_ctx_module_ref(uint8_t *ctx) {
@@ -10453,7 +10453,7 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
           }
           if (!eq)
             continue;
-          sz = typeck_sx_type_size_from_layout_glue(mod, arena, k, 0);
+          sz = typeck_x_type_size_from_layout_glue(mod, arena, k, 0);
           if (sz <= 0) {
             /** layout metrics 失败时按末字段 offset+宽估算（many_fields 等）。 */
             int32_t nf = pipeline_module_struct_layout_num_fields(mod, k);
@@ -10561,7 +10561,7 @@ int32_t asm_local_slot_bytes(struct ast_ASTArena *arena, int32_t type_ref) {
 }
 
 /**
- * 懒登记 block 内 const/let 到 asm 局部 sidecar（C 实现，避免 .sx 生成代码在 if+while 双路径组合时崩溃）。
+ * 懒登记 block 内 const/let 到 asm 局部 sidecar（C 实现，避免 .x 生成代码在 if+while 双路径组合时崩溃）。
  * inout_next_offset / inout_num_locals 对应 AsmFuncCtx.next_offset / num_locals。
  * 与 pipeline_asm_fill_local_slots 一致：struct 前 16 字节对齐 + layout 真实槽宽。
  */
@@ -10616,7 +10616,7 @@ void asm_ctx_ensure_block_locals(uint8_t *ctx, struct ast_ASTArena *arena, int32
   *inout_num_locals = asm_ctx_local_count(ctx);
 }
 
-/** 块树遍历栈：压入待访问 block_ref（GrowVec，避免 .sx 大栈数组在大模块 asm 单编时 SIGSEGV）。 */
+/** 块树遍历栈：压入待访问 block_ref（GrowVec，避免 .x 大栈数组在大模块 asm 单编时 SIGSEGV）。 */
 static void asm_block_tree_push_ref(GrowVec *stack, int32_t block_ref) {
   int32_t *slot;
   if (!stack || block_ref <= 0)
@@ -10707,7 +10707,7 @@ int32_t asm_sum_block_local_slot_bytes(struct ast_ASTArena *arena, int32_t block
 
 /**
  * 统计函数体块树中全部 const/let 槽位数（含 if-then/else、while/for 嵌套体）。
- * 供 backend.sx compute_frame_size 使用；C 显式栈避免 .sx DFS 栈溢出。
+ * 供 backend.x compute_frame_size 使用；C 显式栈避免 .x DFS 栈溢出。
  */
 int32_t asm_count_block_stack_slots(struct ast_ASTArena *arena, int32_t block_ref) {
   GrowVec stack;
@@ -10755,7 +10755,7 @@ static int32_t asm_fixed_array_temp_bytes(struct ast_ASTArena *arena, int32_t ty
   if (!arena || type_ref <= 0 || type_ref > arena->num_types)
     return 0;
   t = pipeline_arena_type_ptr(arena, type_ref);
-  /* TYPE_ARRAY 序数为 10（与 ast.h AST_TYPE_ARRAY / ast.sx TypeKind 一致）；误用 9 会当成 TYPE_PTR 导致 frame 未预留 temp。 */
+  /* TYPE_ARRAY 序数为 10（与 ast.h AST_TYPE_ARRAY / ast.x TypeKind 一致）；误用 9 会当成 TYPE_PTR 导致 frame 未预留 temp。 */
   if (!t || (int32_t)t->kind != 10 || t->array_size <= 0)
     return 0;
   bytes = asm_fixed_array_total_bytes_mod(arena, type_ref, NULL);
@@ -10880,13 +10880,13 @@ void asm_diag_trace_func(uint8_t *name, int32_t name_len) {
 #define ASM_HEAVY_BODY_SLOT_THRESHOLD 48
 /** EMIT_HEAVY 第二遍放宽槽位（layout helper）；仍低于 mega typecheck 体。 */
 #define ASM_EMIT_HEAVY_SLOT_THRESHOLD 256
-/** backend.sx 自举（含 import 展开 ~219 func）：#87–218 索引桩；#0–86 小 helper 真 emit。 */
+/** backend.x 自举（含 import 展开 ~219 func）：#87–218 索引桩；#0–86 小 helper 真 emit。 */
 #define ASM_EMIT_HEAVY_BACKEND_INDEX_LO 87
 #define ASM_EMIT_HEAVY_BACKEND_INDEX_HI 218
-/** typeck.sx ~173 func：#90–159 深 emit Abort；#0–89 layout/helper 与 #160+ 可真 emit 扩 __text。 */
+/** typeck.x ~173 func：#90–159 深 emit Abort；#0–89 layout/helper 与 #160+ 可真 emit 扩 __text。 */
 #define ASM_EMIT_HEAVY_TYPECK_INDEX_LO 90
 #define ASM_EMIT_HEAVY_TYPECK_INDEX_HI 159
-/** pipeline.sx ~56 func：编排入口 #53–#55 须真 emit；索引桩已移除，靠 pipeline_expr_* 消除 Expr 栈拷贝。 */
+/** pipeline.x ~56 func：编排入口 #53–#55 须真 emit；索引桩已移除，靠 pipeline_expr_* 消除 Expr 栈拷贝。 */
 /** SHUX_ASM_EMIT_ABORT_LO/HI 默认（backend 二分调试）。 */
 #define ASM_EMIT_HEAVY_LARGE_ENTRY_LO ASM_EMIT_HEAVY_BACKEND_INDEX_LO
 #define ASM_EMIT_HEAVY_LARGE_ENTRY_HI ASM_EMIT_HEAVY_BACKEND_INDEX_HI
@@ -10924,19 +10924,19 @@ static int32_t asm_emit_heavy_abort_hi(void) {
 }
 
 /**
- * 与 typeck.sx::typeck_skip_heavy_selfhost_func_body 对齐，并据块树槽位数自动跳过超大函数体。
+ * 与 typeck.x::typeck_skip_heavy_selfhost_func_body 对齐，并据块树槽位数自动跳过超大函数体。
  * 库模块 -backend asm -o 时改发最小 ret 0 桩，保证 __text 非空且编译不 SIGSEGV。
  */
 /**
  * 模块顶层 let/const 若为整型字面量初始化，返回 1 并写入 *out_imm（供 asm EXPR_VAR 直接 mov imm）。
  */
 #ifndef SHUX_PIPELINE_GLUE_STANDALONE_TU
-/** runtime.c：dep 模块 asm codegen 时设置的当前 import 逻辑路径（常规 pipeline_sx 链）。 */
+/** runtime.c：dep 模块 asm codegen 时设置的当前 import 逻辑路径（常规 pipeline_x 链）。 */
 extern const char *driver_get_current_dep_path_for_codegen(void);
 #endif
 
 /**
- * 供 backend.sx 读取 dep 路径（避免经 codegen 模块名修饰导致链接符号不一致）。
+ * 供 backend.x 读取 dep 路径（避免经 codegen 模块名修饰导致链接符号不一致）。
  * B-strict standalone TU 下 driver_get 由 pipeline_glue_types.inc 声明为 uint8_t *。
  */
 uint8_t *asm_driver_current_dep_path_for_codegen(void) {
@@ -11027,7 +11027,7 @@ static int32_t asm_module_is_parser_selfhost(struct ast_Module *m);
 /**
  * SKIP_TYPECK 全桩模式下仍须保留真实机器码的入口（实验 asm-only 链与 shux_asm 烟囱测试依赖）。
  * 返回 1 表示该函数不应被 asm_skip_heavy 桩掉。
- * 大模块（如 backend.sx）自身也定义 asm_codegen_ast，若对其完整 emit 会在宿主栈上 abort。
+ * 大模块（如 backend.x）自身也定义 asm_codegen_ast，若对其完整 emit 会在宿主栈上 abort。
  */
 static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t func_index) {
   static const struct {
@@ -11037,7 +11037,7 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
   } k_keep[] = {
       /** parse_into_with_init_buf 真 emit 深栈 SIGSEGV；build 链由 parser.o / C alias 提供。 */
       {"pipeline_impl_run_all", 21, 1},
-      {"run_sx_pipeline_impl", 20, 1},
+      {"run_x_pipeline_impl", 20, 1},
       {"pipeline_impl_should_skip_codegen", 33, 1},
       {"pipeline_impl_phase_parse_load", 30, 1},
       {"pipeline_impl_phase_parse_only", 30, 1},
@@ -11048,16 +11048,16 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
       {"pipeline_impl_codegen_entry", 27, 1},
       /** codegen_chain 替代 phase_codegen（后者单独 emit 139）。 */
       {"pipeline_impl_codegen_chain", 27, 1},
-      /** parser.sx：strict 链 pipeline.parse_into_with_init_buf 依赖 parser.parse_into_buf 真机器码。 */
+      /** parser.x：strict 链 pipeline.parse_into_with_init_buf 依赖 parser.parse_into_buf 真机器码。 */
       {"parse_into_init", 15, 1},
       {"parse_into_set_main_index", 25, 1},
       {"collect_imports_buf", 19, 1},
       {"parse_into_buf", 14, 1},
       /** 大入口（>150KiB）上 typeck/asm 入口完整 emit 会栈溢出；SKIP 桩即可，编库不跑这些符号。 */
-      {"typeck_sx_ast", 13, 0},
-      {"typeck_sx_ast_library", 21, 0},
+      {"typeck_x_ast", 13, 0},
+      {"typeck_x_ast_library", 21, 0},
       {"asm_codegen_ast", 15, 0},
-      /** main.sx build_asm/main.o：entry 须真 emit（WPO root + crt0 链）。 */
+      /** main.x build_asm/main.o：entry 须真 emit（WPO root + crt0 链）。 */
       {"entry", 5, 1},
   };
   int32_t k;
@@ -11065,8 +11065,8 @@ static int32_t asm_skip_typeck_entry_whitelist(struct ast_Module *m, int32_t fun
   if (!m || func_index < 0)
     return 0;
   /**
-   * parser.sx 自举编 module 时勿 whitelist 真 emit（parse_into_init 等会 expr emit 失败）；
-   * strict 链 parse_into_* 由 pipeline_sx partial / C alias 提供。
+   * parser.x 自举编 module 时勿 whitelist 真 emit（parse_into_init 等会 expr emit 失败）；
+   * strict 链 parse_into_* 由 pipeline_x partial / C alias 提供。
    * SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1：experimental 编 parser_parse_bootstrap.o 须 parse_into* 真 emit。
    */
   if (asm_module_is_parser_selfhost(m)) {
@@ -11128,12 +11128,12 @@ int32_t asm_orchestration_extern_only_func(struct ast_Module *m, int32_t func_in
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_impl_run_all", 21))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_sx_pipeline_impl", 20))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_impl", 20))
     return 1;
   return 0;
 }
 
-/** 当前 asm codegen 的 PipelineDepCtx；backend.sx 在 emit 循环前设置，供 ENTRY_MODULE_ONLY 入口 -o 判定。 */
+/** 当前 asm codegen 的 PipelineDepCtx；backend.x 在 emit 循环前设置，供 ENTRY_MODULE_ONLY 入口 -o 判定。 */
 static struct ast_PipelineDepCtx *g_asm_skip_pipeline_ctx;
 
 void asm_skip_heavy_set_pipeline_ctx(struct ast_PipelineDepCtx *ctx) {
@@ -11148,7 +11148,7 @@ static int32_t asm_env_entry_emit_heavy(void) {
 
 /**
  * 模块内非 extern 函数个数。
- * typeck.sx 声明大量 extern pipeline/driver 符号时 num_funcs≈175，可 emit 体仅 ~78。
+ * typeck.x 声明大量 extern pipeline/driver 符号时 num_funcs≈175，可 emit 体仅 ~78。
  */
 static int32_t asm_module_num_defined_funcs(struct ast_Module *m) {
   int32_t i, n = 0;
@@ -11178,7 +11178,7 @@ static int32_t asm_module_defined_func_ordinal(struct ast_Module *m, int32_t fun
   return ord;
 }
 
-/** 模块是否 backend.sx 自举单元（asm_codegen_ast 或 M8-tail 薄包装探针）。 */
+/** 模块是否 backend.x 自举单元（asm_codegen_ast 或 M8-tail 薄包装探针）。 */
 static int32_t asm_module_is_backend_selfhost(struct ast_Module *m) {
   int32_t i;
   if (!m || m->num_funcs < 80)
@@ -11195,19 +11195,19 @@ static int32_t asm_module_is_backend_selfhost(struct ast_Module *m) {
   return 0;
 }
 
-/** 模块是否 typeck.sx 自举单元（含 typeck_sx_ast 或合并 glue 后约 168–180 func）。 */
+/** 模块是否 typeck.x 自举单元（含 typeck_x_ast 或合并 glue 后约 168–180 func）。 */
 static int32_t asm_module_is_typeck_selfhost(struct ast_Module *m) {
   int32_t i;
   if (!m || m->num_funcs < 40)
     return 0;
-  /** ast.sx ndef 规模与 typeck 重叠；须排除 ast_arena_init/ast_placeholder 标记。 */
+  /** ast.x ndef 规模与 typeck 重叠；须排除 ast_arena_init/ast_placeholder 标记。 */
   for (i = 0; i < m->num_funcs; i++) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"ast_arena_init", 14))
       return 0;
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"ast_placeholder", 15))
       return 0;
   }
-  /** parser.sx ndef≈130–200 勿落入下方 75–155 启发式（误判则走 typeck EMIT 路径）。 */
+  /** parser.x ndef≈130–200 勿落入下方 75–155 启发式（误判则走 typeck EMIT 路径）。 */
   for (i = 0; i < m->num_funcs; i++) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_module_reset_parse_counters", 36))
       return 0;
@@ -11219,10 +11219,10 @@ static int32_t asm_module_is_typeck_selfhost(struct ast_Module *m) {
   if (pipeline_module_func_name_equal_at(m, 0, (uint8_t *)"type_kind_ordinal", 17))
     return 1;
   for (i = 0; i < m->num_funcs; i++) {
-    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"typeck_sx_ast", 13))
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"typeck_x_ast", 13))
       return 1;
   }
-  /** ENTRY_MODULE_ONLY 编 typeck.sx：按已定义 func 规模识别（extern 占位不计入）。 */
+  /** ENTRY_MODULE_ONLY 编 typeck.x：按已定义 func 规模识别（extern 占位不计入）。 */
   {
     int32_t ndef = asm_module_num_defined_funcs(m);
     if (ndef >= 75 && ndef <= 155)
@@ -11234,7 +11234,7 @@ static int32_t asm_module_is_typeck_selfhost(struct ast_Module *m) {
 }
 
 /**
- * 模块是否 pipeline.sx 自举单元（含 extern 占位时 num_funcs 可达 ~70；按 resolve_path_sx 等符号名判定）。
+ * 模块是否 pipeline.x 自举单元（含 extern 占位时 num_funcs 可达 ~70；按 resolve_path_x 等符号名判定）。
  */
 static int32_t asm_module_is_pipeline_selfhost(struct ast_Module *m) {
   int32_t i;
@@ -11247,20 +11247,20 @@ static int32_t asm_module_is_pipeline_selfhost(struct ast_Module *m) {
   has_resolve = 0;
   has_marker = 0;
   for (i = 0; i < m->num_funcs; i++) {
-    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"resolve_path_sx", 15))
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"resolve_path_x", 15))
       has_resolve = 1;
-    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_should_skip_sx_typeck", 30))
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"pipeline_should_skip_x_typeck", 30))
       has_marker = 1;
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"path_append_from_buf_256", 24))
       has_marker = 1;
-    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"read_file_sx", 12))
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"read_file_x", 12))
       has_marker = 1;
   }
   return has_resolve != 0 && has_marker != 0;
 }
 
 /**
- * 模块是否 main.sx 驱动单元（~28 func；entry + run_compiler_sx_path_impl）。
+ * 模块是否 main.x 驱动单元（~28 func；entry + run_compiler_x_path_impl）。
  * build_asm/main.o 须走 SKIP 桩 + WPO，勿当用户程序全量 emit（9460B）。
  */
 static int32_t asm_module_is_main_driver_selfhost(struct ast_Module *m) {
@@ -11281,14 +11281,14 @@ static int32_t asm_module_is_main_driver_selfhost(struct ast_Module *m) {
   for (i = 0; i < m->num_funcs; i++) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"entry", 5))
       has_entry = 1;
-    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_sx_path_impl", 25))
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_x_path_impl", 25))
       has_run_path = 1;
   }
   return has_entry != 0 && has_run_path != 0;
 }
 
 /**
- * 模块是否 driver/compile.sx 自举单元（~26 func；compile_dispatch_* 可能未进 module 表，用 parse_argv + entry 判定）。
+ * 模块是否 driver/compile.x 自举单元（~26 func；compile_dispatch_* 可能未进 module 表，用 parse_argv + entry 判定）。
  */
 static int32_t asm_module_is_driver_compile_selfhost(struct ast_Module *m) {
   int32_t i;
@@ -11304,9 +11304,9 @@ static int32_t asm_module_is_driver_compile_selfhost(struct ast_Module *m) {
   for (i = 0; i < m->num_funcs; i++) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"driver_compile_parse_argv", 25))
       has_parse_argv = 1;
-    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_full_sx", 20))
+    if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"run_compiler_full_x", 20))
       has_entry = 1;
-    /** gen.o 路径可能注册 dispatch；单编 compile.sx 时常缺失，作可选辅助。 */
+    /** gen.o 路径可能注册 dispatch；单编 compile.x 时常缺失，作可选辅助。 */
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"compile_dispatch_asm_backend", 28))
       has_parse_argv = 1;
   }
@@ -11314,8 +11314,8 @@ static int32_t asm_module_is_driver_compile_selfhost(struct ast_Module *m) {
 }
 
 /**
- * 模块是否 parser.sx 自举单元（~288 func；parse_into_buf 可能未进 module 表，用 parse_into_init 等判定）。
- * strict 链 parse_into_* 真机码由 pipeline_sx partial / C alias 提供；func 数 >200 时仍须识别，否则
+ * 模块是否 parser.x 自举单元（~288 func；parse_into_buf 可能未进 module 表，用 parse_into_init 等判定）。
+ * strict 链 parse_into_* 真机码由 pipeline_x partial / C alias 提供；func 数 >200 时仍须识别，否则
  * whitelist 会对 parse_into_buf 真 emit → .L_* 未解析 / code_len 截断。
  */
 static int32_t asm_module_is_parser_selfhost(struct ast_Module *m) {
@@ -11338,7 +11338,7 @@ static int32_t asm_module_is_parser_selfhost(struct ast_Module *m) {
     if (pipeline_module_func_name_equal_at(m, i, (uint8_t *)"skip_one_struct_into_buf", 24))
       has_parse_marker = 1;
   }
-  /** reset 已足够识别 parser.sx；勿被 typeck ndef 启发式抢先（2026-06-14）。 */
+  /** reset 已足够识别 parser.x；勿被 typeck ndef 启发式抢先（2026-06-14）。 */
   if (has_reset != 0 && has_parse_marker == 0 && m->num_funcs >= 200)
     has_parse_marker = 1;
   if (has_reset == 0)
@@ -11348,7 +11348,7 @@ static int32_t asm_module_is_parser_selfhost(struct ast_Module *m) {
   return has_parse_marker != 0;
 }
 
-/** EMIT_HEAVY 第二遍：parser.sx 识别（reset 计数器存在即可；marker 偶发缺失时仍走 parser 路径）。 */
+/** EMIT_HEAVY 第二遍：parser.x 识别（reset 计数器存在即可；marker 偶发缺失时仍走 parser 路径）。 */
 static int32_t asm_module_is_parser_emit_heavy(struct ast_Module *m) {
   int32_t i;
   if (!m || m->num_funcs < 150 || m->num_funcs > 1450)
@@ -11409,14 +11409,14 @@ static int32_t asm_typeck_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
     return 1;
   if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_find_layout_idx", 22))
     return 1;
-  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_sx_named_builtin_", 24))
+  if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_x_named_builtin_", 24))
     return 1;
-  /** §11.1 align/size：layout 命中走 C glue，SX 真 emit 递归/array 分支（勿 metrics depth slot）。 */
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_sx_type_align", 20))
+  /** §11.1 align/size：layout 命中走 C glue，X 真 emit 递归/array 分支（勿 metrics depth slot）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_type_align", 20))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_sx_type_size", 19))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_type_size", 19))
     return 1;
-  /** §11.1 metrics：scratch 预绑定 + typeck_i32_ptr_store 写 out；槽位≤96 SX 真 emit。 */
+  /** §11.1 metrics：scratch 预绑定 + typeck_i32_ptr_store 写 out；槽位≤96 X 真 emit。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_struct_layout_metrics", 28))
     return 1;
   /** import 合并 / struct_lit 登记：scratch 预绑定 + glue 读 num_struct_layouts。 */
@@ -11438,7 +11438,7 @@ static int32_t asm_typeck_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"get_field_type_ref_from_layout_deps", 35))
     return 1;
-  /** FIELD_ACCESS 内联池字段 / Expr 标量回落：小 helper SX 真 emit（layout_deps/name_fallback 已真 emit）。 */
+  /** FIELD_ACCESS 内联池字段 / Expr 标量回落：小 helper X 真 emit（layout_deps/name_fallback 已真 emit）。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_inline_u8_64_array_field_type_ref", 40))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_expr_inline_array_field_type_ref", 39))
@@ -11468,7 +11468,7 @@ static int32_t asm_typeck_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_call_callee_return_type", 31))
     return 1;
-  /** 隐式尾返回判定：tail ref 扫描 + ast_expr_disallows_implicit_tail（patch 4096 后 SX 真 emit）。 */
+  /** 隐式尾返回判定：tail ref 扫描 + ast_expr_disallows_implicit_tail（patch 4096 后 X 真 emit）。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"func_body_tail_expr_ref_for_implicit_rule", 41))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"func_body_has_implicit_return_tail", 34))
@@ -11521,14 +11521,14 @@ static int32_t asm_typeck_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_call_callee_scan_dep", 28))
     return 1;
-  /** S2 SX 真 emit：expr/type 小 helper（glue 指针读池；勿 Type 按值 ast_arena_type_get）。 */
+  /** S2 X 真 emit：expr/type 小 helper（glue 指针读池；勿 Type 按值 ast_arena_type_get）。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"expr_type_ref", 13))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_ref_is_bool", 16))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_ref_is_bool_impl", 21))
     return 1;
-  /** type_refs_equal 薄包装可 SX emit；拆分 named/same_kind/impl 逐步 SX 真 emit。 */
+  /** type_refs_equal 薄包装可 X emit；拆分 named/same_kind/impl 逐步 X 真 emit。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_refs_equal", 15))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"type_refs_equal_impl", 20))
@@ -11563,10 +11563,10 @@ static int32_t asm_typeck_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_coerce_init_slice_from_array", 35))
     return 1;
-  /** validate 薄循环：metrics/align/size 仍 mega/thin stub（独立 SX emit SIGSEGV）；本函数 SX 真 emit。 */
+  /** validate 薄循环：metrics/align/size 仍 mega/thin stub（独立 X emit SIGSEGV）；本函数 X 真 emit。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_validate_struct_layouts_zero_padding", 43))
     return 1;
-  /** typeck_sx_ast 薄入口见 mega_entry；check_block 薄 guard 仍 SX 真 emit。 */
+  /** typeck_x_ast 薄入口见 mega_entry；check_block 薄 guard 仍 X 真 emit。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_block", 11))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_block_as_loop_body", 24))
@@ -11643,7 +11643,7 @@ static int32_t asm_typeck_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
 }
 
 /**
- * pipeline EMIT_HEAVY 第二遍：编排 helper SX 真 emit；parse/typecheck 关键路径 thin→C（strict smoke）。
+ * pipeline EMIT_HEAVY 第二遍：编排 helper X 真 emit；parse/typecheck 关键路径 thin→C（strict smoke）。
  * S3：resolve/read 经 weak→强符号 dispatch（build_asm 覆盖 impl_c）。
  */
 static int32_t asm_pipeline_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index) {
@@ -11651,71 +11651,71 @@ static int32_t asm_pipeline_emit_heavy_safe_helper(struct ast_Module *m, int32_t
     return 0;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"parse_one_function_ok", 21))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_should_skip_sx_typeck", 30))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_should_skip_x_typeck", 30))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_loaded_buf_cap", 23))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_sx_pipeline_parse_entry_if_needed", 37))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_parse_entry_if_needed", 37))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_sx_pipeline_typecheck_entry", 31))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_typecheck_entry", 31))
     return 1;
-  /** parse set_main + typeck 分派：if(CALL) 模式 SX 真 emit。 */
+  /** parse set_main + typeck 分派：if(CALL) 模式 X 真 emit。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_parse_set_main_from_buf", 32))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_typeck_parsed_module", 31))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_typeck_entry_module", 30))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_sx_pipeline_fill_dep_import_path", 36))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_fill_dep_import_path", 36))
     return 1;
   /** import 路径含 '.' 探测：纯 while，无 let=CALL。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_import_has_dot", 27))
     return 1;
-  /** 单 import resolve+read：SX 栈 path + if(CALL!=0) return。 */
+  /** 单 import resolve+read：X 栈 path + if(CALL!=0) return。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_load_import_resolve_read", 33))
     return 1;
-  /** 单 import 全链 resolve/read/preprocess/parse；SX 真 emit。 */
+  /** 单 import 全链 resolve/read/preprocess/parse；X 真 emit。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_load_import_from_disk", 30))
     return 1;
-  /** 单 import 槽 bind 或 load_from_disk；SX 真 emit。 */
+  /** 单 import 槽 bind 或 load_from_disk；X 真 emit。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_load_one_import_slot", 29))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_prepare_dep_codegen_path", 33))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_finish_dep_codegen_diag", 32))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_sx_pipeline_parse_entry_do_parse", 36))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_parse_entry_do_parse", 36))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_sx_pipeline_codegen_one_dep", 31))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_codegen_one_dep", 31))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_sx_pipeline_codegen_entry", 29))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_codegen_entry", 29))
     return 1;
-  /** sync 入口：null 检查 + 有界 while(CALL!=0) + if(sync_one) SX 真 emit。 */
+  /** sync 入口：null 检查 + 有界 while(CALL!=0) + if(sync_one) X 真 emit。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_sync_dep_slots_from_driver", 35))
     return 1;
-  /** dep 批量 codegen：有界 while + run_sx_pipeline_codegen_one_dep SX 真 emit。 */
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_sx_pipeline_codegen_deps", 28))
+  /** dep 批量 codegen：有界 while + run_x_pipeline_codegen_one_dep X 真 emit。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_codegen_deps", 28))
     return 1;
-  /** load/sync deps：import 有界 while + sync/typeck merge SX 真 emit。 */
+  /** load/sync deps：import 有界 while + sync/typeck merge X 真 emit。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"pipeline_load_and_sync_direct_import_deps", 41))
     return 1;
   /** resolve 编排：lib_root while + try_* CALL（try_* 仍 thin→C）。 */
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_sx", 15))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_x", 15))
     return 1;
-  /** resolve try_*：sidecar off + if(CALL) 模式 SX 真 emit。 */
+  /** resolve try_*：sidecar off + if(CALL) 模式 X 真 emit。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_try_one_lib_root", 29))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_try_entry_dir", 26))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"resolve_path_try_flat_import_under_lib", 38))
     return 1;
-  /** 完整流水线编排：run_sx_pipeline_impl SX 真 emit（if(CALL)+last_rc_get 模式）。 */
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_sx_pipeline_impl", 20))
+  /** 完整流水线编排：run_x_pipeline_impl X 真 emit（if(CALL)+last_rc_get 模式）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_impl", 20))
     return 1;
   /** load/typecheck phase 编排 + last_rc sidecar。 */
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_sx_pipeline_load_deps_after_parse", 37))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_load_deps_after_parse", 37))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_sx_pipeline_typecheck_after_load", 36))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_x_pipeline_typecheck_after_load", 36))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"lsp_diag_typeck_after_load", 26))
     return 1;
@@ -11725,7 +11725,7 @@ static int32_t asm_pipeline_emit_heavy_safe_helper(struct ast_Module *m, int32_t
 }
 
 /**
- * driver/compile.sx EMIT_HEAVY 第二遍：argv 分 helper + dispatch SX 真 emit；post_parse / run_compiler_full_sx 仍桩。
+ * driver/compile.x EMIT_HEAVY 第二遍：argv 分 helper + dispatch X 真 emit；post_parse / run_compiler_full_x 仍桩。
  */
 static int32_t asm_driver_compile_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0 || !asm_module_is_driver_compile_selfhost(m))
@@ -11739,12 +11739,12 @@ static int32_t asm_driver_compile_emit_heavy_safe_helper(struct ast_Module *m, i
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_dispatch_emit_c_path", 35))
     return 1;
-  /** run_compiler_full_sx* 大栈/复杂分派：EMIT_HEAVY 堆 state + post_parse/dispatch SX 真 emit（thin 表已空）。 */
+  /** run_compiler_full_x* 大栈/复杂分派：EMIT_HEAVY 堆 state + post_parse/dispatch X 真 emit（thin 表已空）。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_state_key", 24))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_ensure_default_lib", 29))
     return 1;
-  /** parse_argv 分 helper：init/step/loop/finalize/入口 SX 真 emit（单函数双 512 栈数组 SIGSEGV）。 */
+  /** parse_argv 分 helper：init/step/loop/finalize/入口 X 真 emit（单函数双 512 栈数组 SIGSEGV）。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_parse_argv_init", 30))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_parse_argv_step", 30))
@@ -11757,16 +11757,16 @@ static int32_t asm_driver_compile_emit_heavy_safe_helper(struct ast_Module *m, i
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_compile_parse_argv_scan_c", 31))
     return 0;
-  /** run_compiler_full_sx / post_parse：堆 state + dispatch SX 真 emit（勿 thin→impl_c）。 */
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_compiler_full_sx", 20))
+  /** run_compiler_full_x / post_parse：堆 state + dispatch X 真 emit（勿 thin→impl_c）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_compiler_full_x", 20))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_compiler_full_sx_post_parse", 31))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"run_compiler_full_x_post_parse", 31))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_run_compiler_full_sx", 27))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_run_compiler_full_x", 27))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_run_compiler_full_sx_post_parse", 38))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"driver_run_compiler_full_x_post_parse", 38))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"path_ends_sx", 12))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"path_ends_x", 12))
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"target_has_arm", 14))
     return 1;
@@ -11873,12 +11873,12 @@ static int32_t asm_skip_heavy_backend_helper_keep(struct ast_Module *m, int32_t 
 }
 
 /**
- * M8-tail：backend.sx 薄包装 SX 名 → C glue/partial 委托符号。
+ * M8-tail：backend.x 薄包装 X 名 → C glue/partial 委托符号。
  * 首遍 SKIP 桩路径 emit bl（非 ret0），扩 build_asm/backend.o __text。
  */
 typedef struct {
-  const char *sx_name;
-  int32_t sx_len;
+  const char *x_name;
+  int32_t x_len;
   const char *c_name;
   int32_t c_len;
 } AsmBackendThinDelegateRow;
@@ -11935,8 +11935,8 @@ int32_t asm_backend_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t f
     return 0;
   nrows = (int32_t)(sizeof(k_asm_backend_thin_delegate) / sizeof(k_asm_backend_thin_delegate[0]));
   for (i = 0; i < nrows; i++) {
-    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_backend_thin_delegate[i].sx_name,
-                                           k_asm_backend_thin_delegate[i].sx_len)) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_backend_thin_delegate[i].x_name,
+                                           k_asm_backend_thin_delegate[i].x_len)) {
       if (k_asm_backend_thin_delegate[i].c_len >= out_cap)
         return 0;
       memcpy(out, k_asm_backend_thin_delegate[i].c_name, (size_t)k_asm_backend_thin_delegate[i].c_len);
@@ -11948,11 +11948,11 @@ int32_t asm_backend_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t f
   return 0;
 }
 
-/** M8-tail：parse/typecheck entry 薄 bl→C（do_parse 仍 SX emit 调 set_main thin→C）。 */
+/** M8-tail：parse/typecheck entry 薄 bl→C（do_parse 仍 X emit 调 set_main thin→C）。 */
 static const AsmBackendThinDelegateRow k_asm_pipeline_thin_delegate[] = {
     {"pipeline_parse_set_main_from_buf", 32, "pipeline_parse_set_main_from_buf_c", 34},
-    {"pipeline_should_skip_sx_typeck", 30, "pipeline_should_skip_sx_typeck_c", 32},
-    {"run_sx_pipeline_typecheck_entry", 31, "run_sx_pipeline_typecheck_entry_emit_c", 36},
+    {"pipeline_should_skip_x_typeck", 30, "pipeline_should_skip_x_typeck_c", 32},
+    {"run_x_pipeline_typecheck_entry", 31, "run_x_pipeline_typecheck_entry_emit_c", 36},
 };
 
 /**
@@ -11966,8 +11966,8 @@ int32_t asm_pipeline_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t 
     return 0;
   nrows = (int32_t)(sizeof(k_asm_pipeline_thin_delegate) / sizeof(k_asm_pipeline_thin_delegate[0]));
   for (i = 0; i < nrows; i++) {
-    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_pipeline_thin_delegate[i].sx_name,
-                                           k_asm_pipeline_thin_delegate[i].sx_len)) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_pipeline_thin_delegate[i].x_name,
+                                           k_asm_pipeline_thin_delegate[i].x_len)) {
       if (k_asm_pipeline_thin_delegate[i].c_len >= out_cap)
         return 0;
       memcpy(out, k_asm_pipeline_thin_delegate[i].c_name, (size_t)k_asm_pipeline_thin_delegate[i].c_len);
@@ -11979,7 +11979,7 @@ int32_t asm_pipeline_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t 
   return 0;
 }
 
-/** M8-tail：parser.sx 薄包装 SX 名 → parser_asm_thin_c.c *_glue 或 pipeline_glue *_c（EMIT_HEAVY bl 扩 __text）。
+/** M8-tail：parser.x 薄包装 X 名 → parser_asm_thin_c.c *_glue 或 pipeline_glue *_c（EMIT_HEAVY bl 扩 __text）。
  * slot_fallback / safe_helper 真 emit：collect_imports_buf / parse_one_function_library_buf 等。 */
 static const AsmBackendThinDelegateRow k_asm_parser_thin_delegate[] = {
     {"collect_imports_buf", 19, "parser_collect_imports_buf_glue", 31},
@@ -12151,7 +12151,7 @@ static int32_t asm_parser_emit_heavy_slot_max(void) {
 }
 
 /**
- * SHUX_ASM_PARSER_MEGA_BISECT=<name>：单项 mega 跳过 ret0 桩以 SX 真 emit（bisect 门禁用）。
+ * SHUX_ASM_PARSER_MEGA_BISECT=<name>：单项 mega 跳过 ret0 桩以 X 真 emit（bisect 门禁用）。
  */
 static int32_t asm_parser_mega_bisect_skip_stub(struct ast_Module *m, int32_t func_index, const char *name,
                                                 int32_t len) {
@@ -12171,7 +12171,7 @@ static int32_t asm_parser_mega_bisect_skip_stub(struct ast_Module *m, int32_t fu
 }
 
 /**
- * PARSE_BOOTSTRAP_EMIT 时 mega 入口是否允许 SX 真 emit；MINIMAL 仅 parse_into_init / set_main_index。
+ * PARSE_BOOTSTRAP_EMIT 时 mega 入口是否允许 X 真 emit；MINIMAL 仅 parse_into_init / set_main_index。
  */
 static int32_t asm_parser_bootstrap_mega_emit_allowed(struct ast_Module *m, int32_t func_index, const char *name,
                                                       int32_t len) {
@@ -12208,7 +12208,7 @@ static int32_t asm_parser_bootstrap_mega_emit_allowed(struct ast_Module *m, int3
 }
 
 /**
- * parser.sx EMIT_HEAVY 第二遍：巨型 parse_into/expr 入口 ret0 桩（strict 链由 parser.o / C alias 提供）。
+ * parser.x EMIT_HEAVY 第二遍：巨型 parse_into/expr 入口 ret0 桩（strict 链由 parser.o / C alias 提供）。
  * SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1：experimental 重链用 ./shux 编 parser 真 parse_into*（仅 bootstrap .o，非 gate EMIT_HEAVY）。
  */
 static int32_t asm_skip_heavy_parser_mega_entry(struct ast_Module *m, int32_t func_index) {
@@ -12237,14 +12237,14 @@ static int32_t asm_skip_heavy_parser_mega_entry(struct ast_Module *m, int32_t fu
   PARSER_MEGA_EQ("parse_body_lets_into", 20);
   /** parse_at_simd_builtin / finish_struct_lit / leading_int_as glue 已迁 tier4c safe。 */
   /** parse_if_* / parse_match_* glue 薄包装已迁 tier4 safe；勿 mega ret0 桩。 */
-  /** 表达式 precedence 链（parse_primary/addsub/…_into）走 thin delegate 或 SX 真 emit；勿 PFX mega ret0 桩。 */
+  /** 表达式 precedence 链（parse_primary/addsub/…_into）走 thin delegate 或 X 真 emit；勿 PFX mega ret0 桩。 */
 #undef PARSER_MEGA_EQ
 #undef PARSER_MEGA_PFX
   return 0;
 }
 
 /**
- * parser EMIT_HEAVY 第二遍：须 ret0 桩（SX 真 emit Segfault / code_len 爆炸）；勿 safe_helper 白名单。
+ * parser EMIT_HEAVY 第二遍：须 ret0 桩（X 真 emit Segfault / code_len 爆炸）；勿 safe_helper 白名单。
  */
 static int32_t asm_parser_emit_heavy_force_stub(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
@@ -12268,7 +12268,7 @@ static int32_t asm_parser_emit_heavy_force_stub(struct ast_Module *m, int32_t fu
   PARSER_STUB_EQ("parser_expr_wrap_in_return", 26);
   PARSER_STUB_EQ("try_skip_allow_padding_struct", 29);
   PARSER_STUB_EQ("try_skip_allow_padding_struct_buf", 33);
-  /** parse_peek_function_name_buf 已迁 tier4 safe（单行 bl→glue SX emit OK）。 */
+  /** parse_peek_function_name_buf 已迁 tier4 safe（单行 bl→glue X emit OK）。 */
   /** parser_token_is_label_start：勿入 safe_helper（单独即 elf_ec=-1）；仅 thin_delegate→glue。 */
 #undef PARSER_STUB_EQ
 #undef PARSER_STUB_PFX
@@ -12276,7 +12276,7 @@ static int32_t asm_parser_emit_heavy_force_stub(struct ast_Module *m, int32_t fu
 }
 
 /**
- * parser EMIT_HEAVY 第二遍：按名判定可安全 SX 真 emit 的小 helper（扩 __text；名长须与 module 表一致）。
+ * parser EMIT_HEAVY 第二遍：按名判定可安全 X 真 emit 的小 helper（扩 __text；名长须与 module 表一致）。
  */
 static int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t func_index) {
   if (!m || func_index < 0 || !asm_module_is_parser_emit_heavy(m))
@@ -12308,7 +12308,7 @@ static int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
   PARSER_SAFE_EQ("extern_parse_pool_ptr", 21);
   PARSER_SAFE_EQ("onefunc_result_pool_ptr", 23);
   PARSER_SAFE_EQ("set_onefunc_fail", 16);
-  /** LexerResult/CollectImportsResult 字段读：slice 路径须 glue bl（SX 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
+  /** LexerResult/CollectImportsResult 字段读：slice 路径须 glue bl（X 真 emit 内调 lexer_next_into → elf_ec=-1）。 */
   PARSER_SAFE_EQ("copy_lex_from_import_into", 25);
   PARSER_SAFE_EQ("lex_from_next_into", 18);
   PARSER_SAFE_EQ("lex_from_result_ptr_into", 24);
@@ -12319,7 +12319,7 @@ static int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
   PARSER_SAFE_EQ("compound_assign_token_to_expr_kind", 34);
   PARSER_SAFE_EQ("import_path_dot_segment_copy", 28);
   PARSER_SAFE_EQ("parser_alloc_vector_type_ref", 28);
-  /** tier4 selective SX emit：单行 bl→glue（alloc/wrap_in_return SX 真 emit → elf_ec=-1）。 */
+  /** tier4 selective X emit：单行 bl→glue（alloc/wrap_in_return X 真 emit → elf_ec=-1）。 */
   PARSER_SAFE_EQ("parse_peek_function_name_buf", 28);
   PARSER_SAFE_EQ("lexer_pos_before_run", 20);
   PARSER_SAFE_EQ("parser_match_kw_immediately_before", 34);
@@ -12335,7 +12335,7 @@ static int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
   PARSER_SAFE_EQ("module_append_enum_variants_and_skip_body_into_buf", 50);
   PARSER_SAFE_EQ("skip_balanced_parens_into_buf", 29);
   PARSER_SAFE_EQ("skip_balanced_braces_into_buf", 29);
-  /** *_into_buf：parser_slice_from_buf + bl *_into（13al；勿 lexer_next_buf SX 深循环）。 */
+  /** *_into_buf：parser_slice_from_buf + bl *_into（13al；勿 lexer_next_buf X 深循环）。 */
   PARSER_SAFE_EQ("skip_one_enum_into_buf", 22);
   PARSER_SAFE_EQ("skip_one_struct_into_buf", 24);
   PARSER_SAFE_EQ("skip_one_trait_into_buf", 23);
@@ -12359,7 +12359,7 @@ static int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
   PARSER_SAFE_EQ("skip_one_struct_buf", 19);
   PARSER_SAFE_EQ("parse_into_try_skip_allow_buf", 29);
   PARSER_SAFE_EQ("try_skip_allow_padding_struct_buf", 33);
-  /** slice 兼容包装 / glue 单行桩（扩 __text 有限；勿 lexer_next_into SX 体）。 */
+  /** slice 兼容包装 / glue 单行桩（扩 __text 有限；勿 lexer_next_into X 体）。 */
   PARSER_SAFE_EQ("lex_from_library_into", 21);
   PARSER_SAFE_EQ("lex_from_try_skip_into", 22);
   PARSER_SAFE_EQ("lex_from_library", 16);
@@ -12515,8 +12515,8 @@ static int32_t asm_parser_emit_heavy_safe_helper(struct ast_Module *m, int32_t f
   return 0;
 }
 
-/** delegate 表内仍有 SX 体：强制真 emit（须先于 thin_delegate）；当前全禁（experimental emit SIGSEGV）。 */
-static int32_t asm_parser_emit_heavy_sx_body_keep(struct ast_Module *m, int32_t func_index) {
+/** delegate 表内仍有 X 体：强制真 emit（须先于 thin_delegate）；当前全禁（experimental emit SIGSEGV）。 */
+static int32_t asm_parser_emit_heavy_x_body_keep(struct ast_Module *m, int32_t func_index) {
   (void)m;
   (void)func_index;
   return 0;
@@ -12536,7 +12536,7 @@ static int32_t asm_parser_emit_heavy_sx_body_keep(struct ast_Module *m, int32_t 
 #endif
 }
 
-/** 槽位 fallback：小体 SX 真 emit（>ASM_EMIT_HEAVY_PARSER_SLOT_MAX 仍桩化）。 */
+/** 槽位 fallback：小体 X 真 emit（>ASM_EMIT_HEAVY_PARSER_SLOT_MAX 仍桩化）。 */
 static int32_t asm_parser_emit_heavy_slot_fallback_ok(struct ast_ASTArena *arena, int32_t body_ref, int32_t slots) {
   (void)arena;
   if (body_ref <= 0)
@@ -12552,8 +12552,8 @@ static int32_t asm_parser_func_is_thin_delegate(struct ast_Module *m, int32_t fu
     return 0;
   nrows = (int32_t)(sizeof(k_asm_parser_thin_delegate) / sizeof(k_asm_parser_thin_delegate[0]));
   for (i = 0; i < nrows; i++) {
-    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_parser_thin_delegate[i].sx_name,
-                                           k_asm_parser_thin_delegate[i].sx_len))
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_parser_thin_delegate[i].x_name,
+                                           k_asm_parser_thin_delegate[i].x_len))
       return 1;
   }
   return 0;
@@ -12568,11 +12568,11 @@ int32_t asm_parser_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t fu
   int32_t nrows;
   if (!m || func_index < 0 || !out || !out_len || out_cap <= 0)
     return 0;
-  /** 表内均为 parser.sx 符号；勿绑 asm_module_is_parser_selfhost（marker 偶发缺失时 delegate 仍须 bl）。 */
+  /** 表内均为 parser.x 符号；勿绑 asm_module_is_parser_selfhost（marker 偶发缺失时 delegate 仍须 bl）。 */
   nrows = (int32_t)(sizeof(k_asm_parser_thin_delegate) / sizeof(k_asm_parser_thin_delegate[0]));
   for (i = 0; i < nrows; i++) {
-    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_parser_thin_delegate[i].sx_name,
-                                           k_asm_parser_thin_delegate[i].sx_len)) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_parser_thin_delegate[i].x_name,
+                                           k_asm_parser_thin_delegate[i].x_len)) {
       if (k_asm_parser_thin_delegate[i].c_len >= out_cap)
         return 0;
       memcpy(out, k_asm_parser_thin_delegate[i].c_name, (size_t)k_asm_parser_thin_delegate[i].c_len);
@@ -12585,7 +12585,7 @@ int32_t asm_parser_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t fu
 }
 
 /**
- * parser EMIT_HEAVY：同模块 SX 真 emit 调 skip/delegate 目标时重定向 bl glue（避免 U sx 名）。
+ * parser EMIT_HEAVY：同模块 X 真 emit 调 skip/delegate 目标时重定向 bl glue（避免 U x 名）。
  * 成功写 out/out_len 并返回 1。
  */
 int32_t asm_parser_emit_heavy_resolve_call_to_glue(struct ast_Module *m, uint8_t *name, int32_t name_len,
@@ -12618,7 +12618,7 @@ int32_t asm_parser_emit_heavy_resolve_call_to_glue(struct ast_Module *m, uint8_t
 
 /**
  * parser EMIT_HEAVY：callee 为本模块已定义（非 extern）func 时返回 1。
- * SX 真 emit 调 stub/同模块 helper 应 enc_call→patch，勿 elf_add_reloc 产生 unexpected U。
+ * X 真 emit 调 stub/同模块 helper 应 enc_call→patch，勿 elf_add_reloc 产生 unexpected U。
  */
 int32_t asm_parser_emit_heavy_callee_is_same_module_local(struct ast_Module *m, uint8_t *name, int32_t name_len) {
   int32_t fi;
@@ -12634,12 +12634,12 @@ int32_t asm_parser_emit_heavy_callee_is_same_module_local(struct ast_Module *m, 
   return 0;
 }
 
-/** M8-tail：driver compile 薄 bl 表已空；run_compiler_full_sx* 堆 state + SX post_parse 真 emit。 */
+/** M8-tail：driver compile 薄 bl 表已空；run_compiler_full_x* 堆 state + X post_parse 真 emit。 */
 static const AsmBackendThinDelegateRow k_asm_driver_thin_delegate[] = {
 };
 
 /**
- * 查 driver/compile.sx 薄包装 func 的 C 委托符号；成功写 out/out_len 并返回 1。
+ * 查 driver/compile.x 薄包装 func 的 C 委托符号；成功写 out/out_len 并返回 1。
  */
 int32_t asm_driver_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
                                                  int32_t out_cap, int32_t *out_len) {
@@ -12649,8 +12649,8 @@ int32_t asm_driver_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t fu
     return 0;
   nrows = (int32_t)(sizeof(k_asm_driver_thin_delegate) / sizeof(k_asm_driver_thin_delegate[0]));
   for (i = 0; i < nrows; i++) {
-    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_driver_thin_delegate[i].sx_name,
-                                           k_asm_driver_thin_delegate[i].sx_len)) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_driver_thin_delegate[i].x_name,
+                                           k_asm_driver_thin_delegate[i].x_len)) {
       if (k_asm_driver_thin_delegate[i].c_len >= out_cap)
         return 0;
       memcpy(out, k_asm_driver_thin_delegate[i].c_name, (size_t)k_asm_driver_thin_delegate[i].c_len);
@@ -12662,12 +12662,12 @@ int32_t asm_driver_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t fu
   return 0;
 }
 
-/** typeck EMIT_HEAVY 薄委托：仅剩须 C 维持的入口（typeck 主体已 SX emit）。 */
+/** typeck EMIT_HEAVY 薄委托：仅剩须 C 维持的入口（typeck 主体已 X emit）。 */
 static const AsmBackendThinDelegateRow k_asm_typeck_thin_delegate[] = {
 };
 
 /**
- * typeck EMIT_HEAVY 第二遍：SKIP 桩路径 bl→C 委托或 typeck_sx.o 同名实现（首遍 SKIP 仍 ret0）。
+ * typeck EMIT_HEAVY 第二遍：SKIP 桩路径 bl→C 委托或 typeck_x.o 同名实现（首遍 SKIP 仍 ret0）。
  * 实参已在 ABI 寄存器；Mach-O 由 backend_enc_call_arch 加 leading `_`。
  */
 int32_t asm_typeck_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t func_index, uint8_t *out,
@@ -12684,8 +12684,8 @@ int32_t asm_typeck_m8_tail_thin_delegate_c_name(struct ast_Module *m, int32_t fu
     return 0;
   nrows = (int32_t)(sizeof(k_asm_typeck_thin_delegate) / sizeof(k_asm_typeck_thin_delegate[0]));
   for (i = 0; i < nrows; i++) {
-    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_typeck_thin_delegate[i].sx_name,
-                                           k_asm_typeck_thin_delegate[i].sx_len)) {
+    if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)k_asm_typeck_thin_delegate[i].x_name,
+                                           k_asm_typeck_thin_delegate[i].x_len)) {
       if (k_asm_typeck_thin_delegate[i].c_len >= out_cap)
         return 0;
       memcpy(out, k_asm_typeck_thin_delegate[i].c_name, (size_t)k_asm_typeck_thin_delegate[i].c_len);
@@ -12791,8 +12791,8 @@ static int32_t asm_skip_heavy_typeck_helper_keep(struct ast_Module *m, int32_t f
     return 0;
   if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_", 14))
     return 0;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_sx_type_align", 20) ||
-      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_sx_type_size", 19))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_type_align", 20) ||
+      pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_type_size", 19))
     return 0;
   return 0;
 }
@@ -12814,7 +12814,7 @@ static int32_t asm_skip_heavy_backend_mega_entry(struct ast_Module *m, int32_t f
   ASMB_MEGA("asm_codegen_ast_seed_mega", 25);
   ASMB_MEGA("asm_codegen_ast_to_elf_seed_mega", 32);
   /** emit_expr / emit_block_* / loop / if-then / fill_* / call / local_offset：thin_keep 真 emit（C/partial 委托）。 */
-  /** extern/C sidecar glue：.sx 体含 ExprKind 54 等 asm 未支持形态，须桩化。 */
+  /** extern/C sidecar glue：.x 体含 ExprKind 54 等 asm 未支持形态，须桩化。 */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"asm_ctx_key", 11))
     return 1;
   if (pipeline_module_func_name_has_prefix_at(m, func_index, "asm_ctx_local_", 14))
@@ -12837,7 +12837,7 @@ static int32_t asm_skip_heavy_typeck_mega_entry(struct ast_Module *m, int32_t fu
     return 1;
   /**
    * check_* mega：宿主编译器真 emit 会 SIGSEGV；EMIT_HEAVY 第二遍 ret0 桩。
-   * 子 helper 经 asm_typeck_emit_heavy_safe_helper 分片 SX 真 emit。
+   * 子 helper 经 asm_typeck_emit_heavy_safe_helper 分片 X 真 emit。
    */
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"check_expr_impl_mega", 20))
     return 1;
@@ -12847,16 +12847,16 @@ static int32_t asm_skip_heavy_typeck_mega_entry(struct ast_Module *m, int32_t fu
     return 1;
   if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_check_block_stmt_order_one", 33))
     return 1;
-  /** 遍历全模块函数：槽位高；EMIT_HEAVY 第二遍 ret0 桩（子 helper check_one_func 仍 SX）。 */
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_sx_ast_impl", 18))
+  /** 遍历全模块函数：槽位高；EMIT_HEAVY 第二遍 ret0 桩（子 helper check_one_func 仍 X）。 */
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_impl", 18))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_sx_ast_library", 21))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_library", 21))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_sx_ast_check_all_funcs_loop", 34))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_check_all_funcs_loop", 34))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_sx_ast_check_one_func", 28))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast_check_one_func", 28))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_sx_ast", 13))
+  if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_ast", 13))
     return 1;
   /** type_kind_ordinal 在瘦 typeck #0 须真 emit；勿在此 mega 桩。 */
   return 0;
@@ -12905,8 +12905,8 @@ void asm_empty_text_stub_label(struct ast_Module *m, uint8_t *out, int32_t out_c
 }
 
 /**
- * 模块是否 ast.sx 自举单元（~40–222 func；须桩化首遍 emit，否则 seed shux 全量真 emit 极慢）。
- * 须先于 typeck ndef 启发式识别（ast ndef≈75–155 会被误判为 typeck.sx）。
+ * 模块是否 ast.x 自举单元（~40–222 func；须桩化首遍 emit，否则 seed shux 全量真 emit 极慢）。
+ * 须先于 typeck ndef 启发式识别（ast ndef≈75–155 会被误判为 typeck.x）。
  */
 static int32_t asm_module_is_ast_selfhost(struct ast_Module *m) {
   int32_t i;
@@ -12930,7 +12930,7 @@ static int32_t asm_module_is_ast_selfhost(struct ast_Module *m) {
   return 1;
 }
 
-/** 模块是否为 compiler .sx 自举单元；用户小程序（pool-limits / 普通 -o）不在此列。 */
+/** 模块是否为 compiler .x 自举单元；用户小程序（pool-limits / 普通 -o）不在此列。 */
 static int32_t asm_module_is_compiler_selfhost(struct ast_Module *m) {
   return asm_module_is_ast_selfhost(m) || asm_module_is_backend_selfhost(m) ||
          asm_module_is_typeck_selfhost(m) || asm_module_is_pipeline_selfhost(m) ||
@@ -12951,7 +12951,7 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
   if (!asm_module_is_compiler_selfhost(m))
     return 0;
   /**
-   * ast.sx 首遍 SKIP：除 whitelist 外一律 ret0 桩（含 extern 占位；真符号由 ast_pool/pipeline_sx 提供）。
+   * ast.x 首遍 SKIP：除 whitelist 外一律 ret0 桩（含 extern 占位；真符号由 ast_pool/pipeline_x 提供）。
    */
   if (asm_module_is_ast_selfhost(m) && asm_env_build_skip_typeck() != 0 && asm_env_entry_emit_heavy() == 0) {
     if (asm_skip_typeck_entry_whitelist(m, func_index) != 0)
@@ -13002,7 +13002,7 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
     int32_t typeck_ndef = asm_module_is_typeck_selfhost(m) ? asm_module_num_defined_funcs(m) : 0;
     int32_t typeck_ord = asm_module_defined_func_ordinal(m, func_index);
     /**
-     * parser.sx EMIT_HEAVY 第二遍：须先于 typeck ndef 启发式（parser ndef≈130 与 typeck 重叠）。
+     * parser.x EMIT_HEAVY 第二遍：须先于 typeck ndef 启发式（parser ndef≈130 与 typeck 重叠）。
      */
     if (asm_module_is_parser_emit_heavy(m)) {
       if (asm_skip_heavy_parser_mega_entry(m, func_index) != 0)
@@ -13012,7 +13012,7 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
         return 1;
       /**
        * safe_helper 须先于 force_stub：onefunc_result_pool_ptr 等被 onefunc_ 前缀误桩，
-       * 白名单内小 helper 仍须 SX 真 emit 扩 __text。
+       * 白名单内小 helper 仍须 X 真 emit 扩 __text。
        */
       if (asm_parser_emit_heavy_safe_helper(m, func_index) != 0) {
         asm_parser_emit_heavy_dbg_real(m, func_index, "safe_helper");
@@ -13032,19 +13032,19 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       if (slots > asm_parser_emit_heavy_slot_max())
         return 1;
       asm_parser_emit_heavy_dbg_real(m, func_index, "slot_fallback");
-      /** 槽位 fallback：≤SLOT_MAX 小函数 SX 真 emit（ExprKind 序已对齐 primary_slice）。 */
+      /** 槽位 fallback：≤SLOT_MAX 小函数 X 真 emit（ExprKind 序已对齐 primary_slice）。 */
       return 0;
     }
     /**
-     * typeck.sx 合并 glue 后 ~160–180 已定义 func：#0–89 glue 桩；#90–117 按名小 helper；
-     * #118–159 check_* 桩；#160+ typeck_sx_ast mega 桩（序号均按非 extern ordinal）。
+     * typeck.x 合并 glue 后 ~160–180 已定义 func：#0–89 glue 桩；#90–117 按名小 helper；
+     * #118–159 check_* 桩；#160+ typeck_x_ast mega 桩（序号均按非 extern ordinal）。
      */
     if (asm_module_is_typeck_selfhost(m) && typeck_ndef >= 160 && typeck_ndef <= 180) {
       if (typeck_ord < 0)
         return 1;
       if (asm_skip_heavy_typeck_mega_entry(m, func_index) != 0)
         return 1;
-      /** safe_helper 须先于 ord #118–159 粗筛，否则 expr_type_ref 等无法 SX 真 emit。 */
+      /** safe_helper 须先于 ord #118–159 粗筛，否则 expr_type_ref 等无法 X 真 emit。 */
       if (asm_typeck_emit_heavy_safe_helper(m, func_index) != 0)
         return 0;
       if (typeck_ord >= 118 && typeck_ord <= ASM_EMIT_HEAVY_TYPECK_INDEX_HI)
@@ -13058,7 +13058,7 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
         return 1;
       return 1;
     }
-    /** 瘦 typeck：safe_helper 白名单 + 槽位过关 SX 真 emit；上限随 block helper 扩容（2026-06 ndef≈130）。 */
+    /** 瘦 typeck：safe_helper 白名单 + 槽位过关 X 真 emit；上限随 block helper 扩容（2026-06 ndef≈130）。 */
     if (typeck_ndef >= 75 && typeck_ndef <= 200 && !asm_module_is_backend_selfhost(m) &&
         !asm_module_is_parser_emit_heavy(m)) {
       int32_t body_ref_thin;
@@ -13067,7 +13067,7 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
         return 1;
       if (asm_skip_heavy_typeck_mega_entry(m, func_index) != 0)
         return 1;
-      /** merge_dep 须先于 safe_helper 粗筛（双循环槽位高；按名强制 SX 真 emit）。 */
+      /** merge_dep 须先于 safe_helper 粗筛（双循环槽位高；按名强制 X 真 emit）。 */
       if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_merge_dep_struct_layouts_into_entry", 42))
         return 0;
       if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_wpo_unify_soa_layouts", 28))
@@ -13083,8 +13083,8 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       return 0;
     }
     /**
-     * pipeline.sx：编排经 asm_pipeline_emit_heavy_safe_helper 真 emit；C mega 仅 ast_pool/pipeline_glue 回退。
-     * safe_helper 小函数 SX 真 emit（S3 起步）。
+     * pipeline.x：编排经 asm_pipeline_emit_heavy_safe_helper 真 emit；C mega 仅 ast_pool/pipeline_glue 回退。
+     * safe_helper 小函数 X 真 emit（S3 起步）。
      */
     if (asm_module_is_pipeline_selfhost(m)) {
       if (asm_pipeline_emit_heavy_safe_helper(m, func_index) != 0)
@@ -13092,7 +13092,7 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       return 1;
     }
     /**
-     * main.sx：仅 entry 真 emit；其余 helper 走 SKIP 桩 + WPO 从 entry 建 reach。
+     * main.x：仅 entry 真 emit；其余 helper 走 SKIP 桩 + WPO 从 entry 建 reach。
      */
     if (asm_module_is_main_driver_selfhost(m)) {
       if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"entry", 5))
@@ -13100,7 +13100,7 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       return 1;
     }
     /**
-     * driver/compile.sx：parse_argv 分 helper + dispatch SX 真 emit；run_compiler_full_sx* 薄 bl→runtime impl_c。
+     * driver/compile.x：parse_argv 分 helper + dispatch X 真 emit；run_compiler_full_x* 薄 bl→runtime impl_c。
      */
     if (asm_module_is_driver_compile_selfhost(m)) {
       if (asm_driver_compile_emit_heavy_safe_helper(m, func_index) != 0)
@@ -13108,13 +13108,13 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       return 1;
     }
     /**
-     * M8-tail：backend 薄包装 EMIT_HEAVY 仍 skip 桩 + bl→C（与 SKIP 首遍一致；勿真 emit 单行 SX）。
+     * M8-tail：backend 薄包装 EMIT_HEAVY 仍 skip 桩 + bl→C（与 SKIP 首遍一致；勿真 emit 单行 X）。
      */
     if (asm_module_is_backend_selfhost(m) && asm_skip_heavy_backend_m8_tail_thin_keep(m, func_index) != 0)
       return 1;
     /**
      * 白名单须先于 mega/索引桩：layout/arch helper 按名保留真 emit（小槽位体）。
-     * 合并 glue 后 num_funcs>150（~285 func）时勿 #0–86 真 emit，否则宿主编 backend.sx SIGSEGV。
+     * 合并 glue 后 num_funcs>150（~285 func）时勿 #0–86 真 emit，否则宿主编 backend.x SIGSEGV。
      */
     if (asm_module_is_backend_selfhost(m) && m->num_funcs <= 150 &&
         (asm_skip_heavy_backend_helper_keep(m, func_index) != 0 ||
@@ -13128,8 +13128,8 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       /** layout/metrics 小 helper 先于 Abort 索引带真 emit（合并 glue 后 #90 即为 type_kind_ordinal）。 */
       if (pipeline_module_func_name_has_prefix_at(m, func_index, "typeck_layout_", 14))
         return 1;
-      if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_sx_type_align", 20) ||
-          pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_sx_type_size", 19))
+      if (pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_type_align", 20) ||
+          pipeline_module_func_name_equal_at(m, func_index, (uint8_t *)"typeck_x_type_size", 19))
         return 1;
       if (func_index >= ASM_EMIT_HEAVY_TYPECK_INDEX_LO && func_index <= ASM_EMIT_HEAVY_TYPECK_INDEX_HI)
         return 1;
@@ -13143,14 +13143,14 @@ int32_t asm_skip_heavy_module_func_body(struct ast_Module *m, struct ast_ASTAren
       return 1;
     if (asm_skip_heavy_backend_mega_entry(m, func_index) != 0)
       return 1;
-    /** typeck.sx：ordinal #90–159 Abort 区间 ret0 桩（safe_helper 已 SX 真 emit 的除外）。 */
+    /** typeck.x：ordinal #90–159 Abort 区间 ret0 桩（safe_helper 已 X 真 emit 的除外）。 */
     if (asm_module_is_typeck_selfhost(m) && typeck_ndef >= 90 && typeck_ord >= 0 &&
         typeck_ord >= ASM_EMIT_HEAVY_TYPECK_INDEX_LO && typeck_ord <= ASM_EMIT_HEAVY_TYPECK_INDEX_HI) {
       if (asm_typeck_emit_heavy_safe_helper(m, func_index) != 0)
         return 0;
       return 1;
     }
-    /** backend.sx ~100 func：勿要求 num_funcs>=175，否则 #87+ 全走真 emit → 宿主栈 Abort。 */
+    /** backend.x ~100 func：勿要求 num_funcs>=175，否则 #87+ 全走真 emit → 宿主栈 Abort。 */
     if (asm_module_is_backend_selfhost(m) && m->num_funcs >= 80) {
       int32_t be_hi = asm_emit_heavy_abort_hi();
       if (be_hi >= m->num_funcs)
@@ -13317,7 +13317,7 @@ void asm_ctx_fill_locals_block_tree(uint8_t *ctx, struct ast_ASTArena *arena, in
   grow_vec_free(&stack);
 }
 
-/** backend.sx：嵌套循环 break/continue 标签栈 sidecar（替代 AsmFuncCtx 内 512×2 字节数组，减栈帧）。 */
+/** backend.x：嵌套循环 break/continue 标签栈 sidecar（替代 AsmFuncCtx 内 512×2 字节数组，减栈帧）。 */
 typedef struct {
   void *ctx;
   int used;
@@ -13495,7 +13495,7 @@ int32_t asm_be_cont_depth(void) {
 
 /**
  * WPO v0（asm 后端 DCE）：按 typeck 解析后的 call graph 标记 reachable，emit 时跳过 dead export。
- * 与 codegen.c 的 codegen_wpo_reach 语义对齐，但 keyed by (ast_Module*, func_index) 供 .sx asm 后端查询。
+ * 与 codegen.c 的 codegen_wpo_reach 语义对齐，但 keyed by (ast_Module*, func_index) 供 .x asm 后端查询。
  */
 #define ASM_WPO_MAX_FUNCS 1024
 #define ASM_WPO_MAX_MODS 64
@@ -13988,7 +13988,7 @@ static int32_t asm_wpo_is_user_single_file_pgo_entry(void) {
 static int32_t asm_wpo_user_main_func_id(void);
 
 /**
- * 用户可执行/单测 .sx（非 compiler 自举模块且含 main）：WPO root/reach 须从 main 出发。
+ * 用户可执行/单测 .x（非 compiler 自举模块且含 main）：WPO root/reach 须从 main 出发。
  * main_func_index 误指 #0/mk 时若 root 从 mk 起算，main 虽 force emit 但 get_a 等 callee 会被 DCE。
  */
 static int32_t asm_wpo_is_user_program_entry(void) {
@@ -14496,7 +14496,7 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
   }
   /**
    * build_shux_asm EMIT_HEAVY 第二遍：全 compiler 自举模块均可 WPO（root 按模块名设置）。
-   * pipeline/typeck/backend 分别以 run_sx_pipeline_impl / typeck_sx_ast / asm_codegen_ast 为 root。
+   * pipeline/typeck/backend 分别以 run_x_pipeline_impl / typeck_x_ast / asm_codegen_ast 为 root。
    */
   g_asm_wpo.entry = entry;
   g_asm_wpo.dep_ctx = ctx;
@@ -14517,7 +14517,7 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
     for (fi = 0; fi < nf; fi++)
       (void)asm_wpo_register_func(g_asm_wpo.mods[mi], fi);
   }
-  /** driver main.sx 可执行入口为 entry；须优先于 main_func_index（常误指 #0 占位符 → 32B 错杀 entry）。 */
+  /** driver main.x 可执行入口为 entry；须优先于 main_func_index（常误指 #0 占位符 → 32B 错杀 entry）。 */
   {
     static const uint8_t entry_nm[6] = {'e', 'n', 't', 'r', 'y', 0};
     nf = pipeline_module_num_funcs(entry);
@@ -14538,7 +14538,7 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
       }
     }
   }
-  /** pipeline.sx 编排根：run_sx_pipeline_impl（优于 main_func_index #0 占位符）。 */
+  /** pipeline.x 编排根：run_x_pipeline_impl（优于 main_func_index #0 占位符）。 */
   if (g_asm_wpo.root_id < 0 && asm_module_is_pipeline_selfhost(entry)) {
     static const uint8_t pipe_impl_nm[21] = {'r', 'u', 'n', '_', 's', 'u', '_', 'p', 'i', 'p', 'e', 'l', 'i', 'n', 'e', '_', 'i', 'm', 'p', 'l', 0};
     nf = pipeline_module_num_funcs(entry);
@@ -14549,7 +14549,7 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
       }
     }
   }
-  /** typeck.sx 编排根：typeck_sx_ast（S2 gate + pipeline typecheck 入口）。 */
+  /** typeck.x 编排根：typeck_x_ast（S2 gate + pipeline typecheck 入口）。 */
   if (g_asm_wpo.root_id < 0 && asm_module_is_typeck_selfhost(entry)) {
     static uint8_t typeck_root_nm[14] = {'t', 'y', 'p', 'e', 'c', 'k', '_', 's', 'u', '_', 'a', 's', 't', 0};
     nf = pipeline_module_num_funcs(entry);
@@ -14560,7 +14560,7 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
       }
     }
   }
-  /** backend.sx 编排根：asm_codegen_ast（pipeline codegen 入口；mega 仍 EMIT_HEAVY 桩）。 */
+  /** backend.x 编排根：asm_codegen_ast（pipeline codegen 入口；mega 仍 EMIT_HEAVY 桩）。 */
   if (g_asm_wpo.root_id < 0 && asm_module_is_backend_selfhost(entry)) {
     static uint8_t backend_root_nm[16] = {'a', 's', 'm', '_', 'c', 'o', 'd', 'e', 'g', 'e', 'n', '_', 'a', 's', 't', 0};
     nf = pipeline_module_num_funcs(entry);
@@ -14701,33 +14701,33 @@ int32_t pipeline_asm_wpo_pgo_is_hot_func(struct ast_Module *m, int32_t fi) {
   return g_asm_wpo_pgo_hot[(size_t)id] ? 1 : 0;
 }
 
-/** pipeline.sx WPO：strict 编排链 export 须保留（SKIP_TYPECK 时 call graph 兜底）。 */
+/** pipeline.x WPO：strict 编排链 export 须保留（SKIP_TYPECK 时 call graph 兜底）。 */
 static int32_t asm_wpo_pipeline_strict_preserve_emit(struct ast_Module *m, int32_t fi) {
   if (!m || fi < 0 || !asm_module_is_pipeline_selfhost(m))
     return 0;
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_sx_pipeline_impl", 20))
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_x_pipeline_impl", 20))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_sx_pipeline_parse_entry_if_needed", 37))
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_x_pipeline_parse_entry_if_needed", 37))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_sx_pipeline_parse_entry_do_parse", 36))
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_x_pipeline_parse_entry_do_parse", 36))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_sx_pipeline_typecheck_entry", 31))
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_x_pipeline_typecheck_entry", 31))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_sx_pipeline_codegen_deps", 28))
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_x_pipeline_codegen_deps", 28))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_sx_pipeline_codegen_entry", 29))
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_x_pipeline_codegen_entry", 29))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_sx_pipeline_codegen_one_dep", 31))
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"run_x_pipeline_codegen_one_dep", 31))
     return 1;
   if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_typeck_entry_module", 28))
     return 1;
   if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_typeck_parsed_module", 27))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"resolve_path_sx", 15))
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"resolve_path_x", 15))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_should_skip_sx_typeck", 30))
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_should_skip_x_typeck", 30))
     return 1;
-  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"read_file_sx", 12))
+  if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"read_file_x", 12))
     return 1;
   if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"pipeline_load_and_sync_direct_import_deps", 41))
     return 1;
@@ -14758,18 +14758,18 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
     return 1;
   /**
    * build_asm/main.o 生产链：WPO 启用时仅 export entry（~512B 内），
-   * 其余 driver helper 由 runtime_driver / driver_*_sx.o 提供。
+   * 其余 driver helper 由 runtime_driver / driver_*_x.o 提供。
    */
   if (m == g_asm_wpo.entry && asm_module_is_main_driver_selfhost(m))
     return 0;
   /**
    * build_asm/driver_compile.o WPO 压缩：仅保留 WPO reach 内 export（~145B，常为 compile_dispatch_asm_backend）；
-   * parse_argv / run_compiler_full_sx 由 driver_compile_emit_heavy.o + link.o 提供。
+   * parse_argv / run_compiler_full_x 由 driver_compile_emit_heavy.o + link.o 提供。
    */
   if (m == g_asm_wpo.entry && asm_module_is_driver_compile_selfhost(m))
     return 0;
   /**
-   * pipeline.sx WPO：gate/strict 关键 export 须保留；其余走 reach DCE（勿 blanket return 0）。
+   * pipeline.x WPO：gate/strict 关键 export 须保留；其余走 reach DCE（勿 blanket return 0）。
    */
   if (asm_wpo_pipeline_strict_preserve_emit(m, fi))
     return 1;
@@ -14777,12 +14777,12 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
     /* 遗留显式名单已由 asm_wpo_pipeline_strict_preserve_emit 覆盖；保留 reach 路径。 */
   }
   /**
-   * typeck.sx WPO：S2 gate 关键 export + pipeline merge 须保留；其余走 reach DCE。
+   * typeck.x WPO：S2 gate 关键 export + pipeline merge 须保留；其余走 reach DCE。
    */
   if (m == g_asm_wpo.entry && asm_module_is_typeck_selfhost(m)) {
-    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_sx_ast", 13))
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_x_ast", 13))
       return 1;
-    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_sx_ast_library", 21))
+    if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"typeck_x_ast_library", 21))
       return 1;
     if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"check_block", 11))
       return 1;
@@ -14794,7 +14794,7 @@ int32_t pipeline_asm_wpo_should_emit_func(struct ast_Module *m, int32_t fi) {
       return 1;
   }
   /**
-   * backend.sx WPO：codegen 入口 export 须保留；其余走 reach DCE（M8-tail 薄包装 bl→C）。
+   * backend.x WPO：codegen 入口 export 须保留；其余走 reach DCE（M8-tail 薄包装 bl→C）。
    */
   if (m == g_asm_wpo.entry && asm_module_is_backend_selfhost(m)) {
     if (pipeline_module_func_name_equal_at(m, fi, (uint8_t *)"asm_codegen_ast", 15))

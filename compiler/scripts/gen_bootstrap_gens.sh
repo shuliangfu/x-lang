@@ -5,7 +5,7 @@
 #   SHUX_LEGACY_C_FRONTEND=1 ./scripts/gen_bootstrap_gens.sh
 #
 # 说明：预编译 seed 对 pipeline/asm 等大模块 -E 会挂死；LEGACY shux-c 走 C 前端 -E 路径。
-# ast.sx / pipeline.sx 须保留仓库内已 pin 的 ast_gen2.c / pipeline_gen.c。
+# ast.x / pipeline.x 须保留仓库内已 pin 的 ast_gen2.c / pipeline_gen.c。
 
 set -e
 cd "$(dirname "$0")/.."
@@ -51,23 +51,23 @@ fi
 echo "gen_bootstrap_gens: pinned ast_gen2.c ($(wc -c < ast_gen2.c | tr -d ' ') bytes)"
 
 if [ ! -s pipeline_gen.c ]; then
-  gen_one pipeline_gen.c 1 $LIB_ASM -E -E-extern src/pipeline/pipeline.sx
+  gen_one pipeline_gen.c 1 $LIB_ASM -E -E-extern src/pipeline/pipeline.x
 else
   echo "gen_bootstrap_gens: pinned pipeline_gen.c ($(wc -c < pipeline_gen.c | tr -d ' ') bytes)"
 fi
 
-gen_one typeck_gen.c 1 -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.sx -E-extern || true
-gen_one codegen_gen.c 1 -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.sx -E-extern || true
-gen_one parser_gen.c 1 -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.sx || true
-gen_one lexer_gen.c 1 -L src/lexer -E -E-extern src/lexer/lexer.sx || true
-gen_one driver_gen.c 1 $MAIN_DIRS -E -E-extern src/main.sx || true
-gen_one preprocess_gen.c 1 -L src/preprocess -E -E-extern src/preprocess/preprocess.sx || true
-gen_one lsp_io_gen.c 1 $LSP_DIRS -E -E-extern src/lsp/lsp_io.sx || true
-gen_one lsp_gen.c 1 $LSP_DIRS -E -E-extern src/lsp/lsp.sx || true
-gen_one lsp_diag_gen.c 1 $LSP_DIRS -E -E-extern src/lsp/lsp_diag.sx || true
-gen_one lsp_io_std_heap_gen.c 1 $LSP_DIRS -E -E-extern src/lsp/lsp_io_std_heap.sx || true
+gen_one typeck_gen.c 1 -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.x -E-extern || true
+gen_one codegen_gen.c 1 -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.x -E-extern || true
+gen_one parser_gen.c 1 -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x || true
+gen_one lexer_gen.c 1 -L src/lexer -E -E-extern src/lexer/lexer.x || true
+gen_one driver_gen.c 1 $MAIN_DIRS -E -E-extern src/main.x || true
+gen_one preprocess_gen.c 1 -L src/preprocess -E -E-extern src/preprocess/preprocess.x || true
+gen_one lsp_io_gen.c 1 $LSP_DIRS -E -E-extern src/lsp/lsp_io.x || true
+gen_one lsp_gen.c 1 $LSP_DIRS -E -E-extern src/lsp/lsp.x || true
+gen_one lsp_diag_gen.c 1 $LSP_DIRS -E -E-extern src/lsp/lsp_diag.x || true
+gen_one lsp_io_std_heap_gen.c 1 $LSP_DIRS -E -E-extern src/lsp/lsp_io_std_heap.x || true
 for sub in fmt check test compile build run emit; do
-  gen_one "driver_${sub}_gen.c" 1 $DRIVER_DIRS -E -E-extern "src/driver/${sub}.sx" || true
+  gen_one "driver_${sub}_gen.c" 1 $DRIVER_DIRS -E -E-extern "src/driver/${sub}.x" || true
 done
 
 for req in typeck_gen.c codegen_gen.c parser_gen.c lexer_gen.c driver_gen.c preprocess_gen.c; do
@@ -77,9 +77,9 @@ for req in typeck_gen.c codegen_gen.c parser_gen.c lexer_gen.c driver_gen.c prep
   fi
 done
 
-echo "gen_bootstrap_gens: build-seed-asm-host (asm.sx -E via LEGACY shux-c) ..."
+echo "gen_bootstrap_gens: build-seed-asm-host (asm.x -E via LEGACY shux-c) ..."
 if [ "${SHUX_SKIP_SEED_ASM_E:-0}" = "1" ]; then
-  echo "gen_bootstrap_gens: skip asm.sx -E (SHUX_SKIP_SEED_ASM_E=1)" >&2
+  echo "gen_bootstrap_gens: skip asm.x -E (SHUX_SKIP_SEED_ASM_E=1)" >&2
 else
   SHUX_E=./shux-c ./scripts/build_seed_asm_host.sh
 fi

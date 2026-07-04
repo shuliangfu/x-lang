@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
-> 关联：`NEXT.md` Phase 2 CORE-004、`core/slice/mod.sx`
+> 关联：`NEXT.md` Phase 2 CORE-004、`core/slice/mod.x`
 
 ---
 
@@ -49,7 +49,7 @@
 ## 4. 验收
 
 - manifest：`tests/baseline/core-slice-api.tsv`
-- typeck：`shux check tests/slice/subslice_split_chunks.sx`
+- typeck：`shux check tests/slice/subslice_split_chunks.x`
 - runnable：`tests/run-slice.sh` 扩展子集
 - 报告：`shux: [SHUX_CORE_SLICE_API] status=ok`
 

@@ -2,9 +2,9 @@
 # 列：item_id	kind	anchor	notes
 ftime_doc	doc	analysis/phase-f-time-v1.md	F-time v1
 ftime_gate	gate	tests/run-f-time-v1-gate.sh	聚合门禁
-time_sx	file	std/time/time.sx	派生与烟测
+time_x	file	std/time/time.x	派生与烟测
 time_glue_absent	absent	std/time/time_os_glue.c	F-ZC 已删除
 runtime_time_os	file	compiler/src/asm/runtime_time_os.c	OS syscall runtime
-time_mod	file	std/time/mod.sx	对外 API
+time_mod	file	std/time/mod.x	对外 API
 time_c_absent	absent	std/time/time.c	已删除
-makefile	makefile	compiler/Makefile	time.o 纯 .sx
+makefile	makefile	compiler/Makefile	time.o 纯 .x

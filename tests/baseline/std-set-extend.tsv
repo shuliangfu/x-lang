@@ -1,13 +1,13 @@
 # STD-015 std.set Set_u64/Set_str 扩展 manifest
 # 列：item_id	kind	anchor	mod_path	notes
 min_set_types	2
-set_u64	symbol	Set_u64	std/set/mod.sx
-set_str	symbol	Set_str	std/set/mod.sx
-set_u64_insert	symbol	set_u64_insert	std/set/mod.sx
-set_str_insert	symbol	set_str_insert	std/set/mod.sx
-set_u64_remove	symbol	set_u64_remove	std/set/mod.sx
-set_str_remove	symbol	set_str_remove	std/set/mod.sx
-hash_link	symbol	hash_bytes	std/set/mod.sx	std.hash 联动
-test_smoke	file	tests/set/extend.sx		边界烟测
+set_u64	symbol	Set_u64	std/set/mod.x
+set_str	symbol	Set_str	std/set/mod.x
+set_u64_insert	symbol	set_u64_insert	std/set/mod.x
+set_str_insert	symbol	set_str_insert	std/set/mod.x
+set_u64_remove	symbol	set_u64_remove	std/set/mod.x
+set_str_remove	symbol	set_str_remove	std/set/mod.x
+hash_link	symbol	hash_bytes	std/set/mod.x	std.hash 联动
+test_smoke	file	tests/set/extend.x		边界烟测
 doc	file	std-set-extend-v1.md	analysis/std-set-extend-v1.md	RFC
 gate	script	run-std-set-extend-gate.sh	tests/run-std-set-extend-gate.sh	manifest

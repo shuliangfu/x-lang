@@ -51,7 +51,7 @@ if ! perf_ah_strace_probe_ok; then
 fi
 
 ensure_std_c_o ../std/string/string.o
-# F-03 v2：heap 已纯 .sx，不再 build ../std/heap/heap.o
+# F-03 v2：heap 已纯 .x，不再 build ../std/heap/heap.o
 
 HARD_FAIL=0
 CASE_OK=0

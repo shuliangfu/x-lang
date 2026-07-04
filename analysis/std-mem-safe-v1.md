@@ -32,6 +32,6 @@
 ./tests/run-std-mem-safe-gate.sh
 ```
 
-烟测：`tests/mem/mem_safe_boundary.sx`
+烟测：`tests/mem/mem_safe_boundary.x`
 
 报告：`shux: [SHUX_STD144_MEM_SAFE]`

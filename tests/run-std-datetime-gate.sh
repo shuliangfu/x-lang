@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_DATETIME_DOC:-analysis/std-datetime-v1.md}"
 MANIFEST="${SHUX_STD_DATETIME_MANIFEST:-tests/baseline/std-datetime-manifest.tsv}"
 VECTORS="${SHUX_STD_DATETIME_VECTORS:-tests/baseline/std-datetime-vectors.tsv}"
-MOD_SX="std/datetime/mod.sx"
-DT_SX="std/datetime/datetime.sx"
+MOD_X="std/datetime/mod.x"
+DT_X="std/datetime/datetime.x"
 LIB="tests/lib/std-datetime.sh"
-SMOKE_SX="tests/std-datetime/roundtrip.sx"
+SMOKE_X="tests/std-datetime/roundtrip.x"
 SMOKE_C="tests/std-datetime/datetime_smoke_ok.c"
 MIN_APIS=10
 
@@ -19,7 +19,7 @@ MIN_APIS=10
 . "$LIB"
 
 echo "=== STD-074: std.datetime manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$DT_SX" "$SMOKE_SX" "$SMOKE_C" std/datetime/README.md; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DT_X" "$SMOKE_X" "$SMOKE_C" std/datetime/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-datetime gate FAIL: missing $f" >&2
     exit 1
@@ -46,7 +46,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+  if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
     echo "std-datetime gate FAIL: missing api $anchor" >&2
     exit 1
   fi
@@ -57,7 +57,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_datetime_symbols_ok "$MOD_SX" "$DT_SX" "$MANIFEST" || true)"
+sym_miss="$(std_datetime_symbols_ok "$MOD_X" "$DT_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_datetime_emit_report "fail" 0 0 0
   exit 1
@@ -71,7 +71,7 @@ if [ "${SHUX_STD_DATETIME_MANIFEST_ONLY:-0}" = "1" ]; then
 fi
 
 C_OK=0
-SX_OK=0
+X_OK=0
 SKIP=0
 
 echo "=== STD-074: datetime c smoke ==="
@@ -98,23 +98,23 @@ SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-074: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+  echo "=== STD-074: .x smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-datetime gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_datetime_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_datetime_run_smoke "$SHUX_BIN" "$SMOKE_SX" "roundtrip"; then
-    SX_OK=1
+  if std_datetime_run_smoke "$SHUX_BIN" "$SMOKE_X" "roundtrip"; then
+    X_OK=1
   else
     std_datetime_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-datetime gate SKIP .sx smoke (no shux)" >&2
+  echo "std-datetime gate SKIP .x smoke (no shux)" >&2
   SKIP=1
 fi
 
-std_datetime_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
+std_datetime_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
 echo "std-datetime gate OK"

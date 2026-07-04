@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 SHUX="${SHUX:-./compiler/shux-c}"
 CHECK_CASES=(
-  tests/types/overload.sx
+  tests/types/overload.x
 )
 RUN_CASES=(
-  tests/types/overload.sx
+  tests/types/overload.x
 )
 
 # shellcheck source=tests/lib/shux-link-env.sh
@@ -44,7 +44,7 @@ TYPES_LINK_BACKEND_ARGS="${SHUX_TYPES_LINK_BACKEND_ARGS:--backend c}"
 
 echo "=== types gate: link + run ==="
 for f in "${RUN_CASES[@]}"; do
-  base="/tmp/shux_types_$(basename "$f" .sx)"
+  base="/tmp/shux_types_$(basename "$f" .x)"
   if ! $RUN_SHUX $TYPES_LINK_BACKEND_ARGS -L . "$f" -o "$base" 2>"${base}_build.log"; then
     echo "types gate FAIL: link $f" >&2
     tail -8 "${base}_build.log" 2>/dev/null >&2 || true

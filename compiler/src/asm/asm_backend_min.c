@@ -19,7 +19,7 @@ static void emit(const char *s) { fprintf(f, "%s\n", s); }
 
 static int asm_backend_min_usage(const char *argv0) {
     diag_reportf_with_code(NULL, 0, 0, "usage error", SHUX_DIAG_CODE_ARGUMENT_ARG001, NULL,
-                 "usage: %s <in.sx> [-o <out>]",
+                 "usage: %s <in.x> [-o <out>]",
                  argv0 ? argv0 : "asm_backend_min");
     return 1;
 }

@@ -37,7 +37,7 @@
 | std.sync | `std/sync/sync.o` | `sync_mutex_new_c` |
 | std.channel | `std/channel/channel.o` | `channel_i32_bounded_c` |
 
-纯 `.sx` 模块（`std.vec` / `std.map`）由 BOOT-015 语义 smoke 覆盖，本 gate 仅验 **C 后端 `.o`**。
+纯 `.x` 模块（`std.vec` / `std.map`）由 BOOT-015 语义 smoke 覆盖，本 gate 仅验 **C 后端 `.o`**。
 
 ---
 

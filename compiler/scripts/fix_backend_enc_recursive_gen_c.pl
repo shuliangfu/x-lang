@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # fix_backend_enc_recursive_gen_c.pl — 删除 asm_full_gen.c 中自递归 backend_enc_* / backend_arch_emit_* 桩
 #
-# backend.sx 委托 C 分派后，shux-c -E 会生成 `return backend_*self(...)`；真实现由 dispatch TU 提供。
+# backend.x 委托 C 分派后，shux-c -E 会生成 `return backend_*self(...)`；真实现由 dispatch TU 提供。
 
 use strict;
 use warnings;

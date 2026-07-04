@@ -2,12 +2,12 @@
  * typeck_lsp_io_stub.c — lsp_gen.c 期望的 typeck_* IO 符号桩（seed shux / strict_glue 共用）。
  *
  * lsp_io_gen.c 走 -E-extern 时 read_message 等由 typeck 模块 mangling 提供；
- * asm-only / 空 lsp_io 生成物时本 TU 供链接，完整 LSP 仍用 bootstrap 全量 shux-sx。
+ * asm-only / 空 lsp_io 生成物时本 TU 供链接，完整 LSP 仍用 bootstrap 全量 shux-x。
  */
 #include <stddef.h>
 #include <stdint.h>
 
-/** lsp.sx 经 typeck 模块 mangling 的 read_message；桩返回 -1 表示 EOF/错误。 */
+/** lsp.x 经 typeck 模块 mangling 的 read_message；桩返回 -1 表示 EOF/错误。 */
 ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf) {
   (void)fd;
   (void)body_out;

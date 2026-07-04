@@ -122,7 +122,7 @@ export async function startShuxLanguageClient(params: {
   };
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: 'file', language: 'sx' }],
+    documentSelector: [{ scheme: 'file', language: 'x' }],
     outputChannel: params.outputChannel,
     traceOutputChannel: params.outputChannel,
     /** Pull 诊断：编辑/切换标签页时向 shux 请求 textDocument/diagnostic */

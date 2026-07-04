@@ -51,11 +51,11 @@
 
 | 阶段 | Hub | 文件 |
 |------|-----|------|
-| typeck（C + SX glue） | `lsp_diag_report_typeck(line, col, fmt, ...)` | `lsp/lsp_diag.c` |
+| typeck（C + X glue） | `lsp_diag_report_typeck(line, col, fmt, ...)` | `lsp/lsp_diag.c` |
 | typeck 宏 | `TYPECK_ERR` / `TYPECK_ERR_AT` | `typeck/typeck.c` |
 | parse | `fail(Parser *, msg)` | `parser/parser.c` |
 | check 打印 | `lsp_diag_print_stderr_human(path)` | `lsp/lsp_diag.c` |
-| SX 细粒度 | `driver_diagnostic_typeck_*` → 优先 `lsp_diag_report_typeck` | `runtime.c` |
+| X 细粒度 | `driver_diagnostic_typeck_*` → 优先 `lsp_diag_report_typeck` | `runtime.c` |
 
 ---
 
@@ -63,8 +63,8 @@
 
 | case_id |  fixture | 期望 message 子串 |
 |---------|----------|-------------------|
-| `typeck_assign` | `tests/typeck/type_mismatch_assign.sx` | `assignment type mismatch: expected i32, found bool` |
-| `typeck_return` | `tests/typeck/return_operand_type_mismatch.sx` | `return expression type mismatch` |
+| `typeck_assign` | `tests/typeck/type_mismatch_assign.x` | `assignment type mismatch: expected i32, found bool` |
+| `typeck_return` | `tests/typeck/return_operand_type_mismatch.x` | `return expression type mismatch` |
 | `check_format` | `shux check` + assign fixture | ` - error: ` + 上列正文 |
 
 行列：须匹配 `\d+:\d+`（check）或 ` at \d+:\d+`（compile typeck）。

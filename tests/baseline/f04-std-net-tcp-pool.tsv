@@ -1,7 +1,7 @@
 # F-04 v2 std.net tcp_pool manifest
 # 列：item_id	kind	anchor	mod_path	notes
-symbol_create	symbol	net_tcp_pool_create_c	std/net/tcp_pool.sx	创建池
-symbol_acquire	symbol	net_tcp_pool_acquire_c	std/net/tcp_pool.sx	取连接
-symbol_smoke	symbol	net_tcp_pool_smoke_c	std/net/tcp_pool.sx	烟测
-api_new	symbol	tcp_pool_new	std/net/mod.sx	公开 API
+symbol_create	symbol	net_tcp_pool_create_c	std/net/tcp_pool.x	创建池
+symbol_acquire	symbol	net_tcp_pool_acquire_c	std/net/tcp_pool.x	取连接
+symbol_smoke	symbol	net_tcp_pool_smoke_c	std/net/tcp_pool.x	烟测
+api_new	symbol	tcp_pool_new	std/net/mod.x	公开 API
 absent_inc	absent	std/net/tcp_pool.inc.c	删除 inc.c

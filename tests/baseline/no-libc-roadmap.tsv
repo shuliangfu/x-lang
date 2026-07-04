@@ -2,23 +2,23 @@
 # 列：item_id	layer	status	anchor	notes
 crt0_user	.s	done	compiler/src/asm/crt0_user_x86_64.s	_start → _main
 freestanding_io	.s	done	compiler/src/asm/freestanding_io_x86_64.s	write read open close exit openat mmap munmap
-sys_linux_sx	sx	done	std/sys/linux.sx	extern + 薄封装
-sys_mod_sx	sx	done	std/sys/mod.sx	os_write 分平台
+sys_linux_x	x	done	std/sys/linux.x	extern + 薄封装
+sys_mod_x	x	done	std/sys/mod.x	os_write 分平台
 freestanding_hello	gate	done	tests/run-freestanding-hello.sh	ldd 无 libc.so
 nolibc_gate	gate	done	tests/run-no-libc-gate.sh	聚合 NL-01～07
 nolibc_n01_gate	gate	done	tests/run-nolibc-n01-preparation-gate.sh	NL-01 专 gate
 nolibc_n01_manifest	manifest	done	tests/baseline/nolibc-n01-preparation.tsv	NL-01 登记
 heap_brk	syscall	todo	freestanding_io_x86_64.s	可选；优先 mmap 堆
-heap_page_mmap	sx	done	std/heap/page_mmap.sx	NL-03 mmap bump 64KiB
+heap_page_mmap	x	done	std/heap/page_mmap.x	NL-03 mmap bump 64KiB
 nolibc_heap_gate	gate	done	tests/run-no-libc-heap-gate.sh	ABC stdout smoke
-heap_heap_c	c	done	std/heap/libc.sx	F-03 v2 已删 heap.c
-fs_freestanding_linux	sx	done	std/fs/freestanding_linux.sx	NL-04 syscall read/open/close
+heap_heap_c	c	done	std/heap/libc.x	F-03 v2 已删 heap.c
+fs_freestanding_linux	x	done	std/fs/freestanding_linux.x	NL-04 syscall read/open/close
 nolibc_fs_gate	gate	done	tests/run-no-libc-fs-gate.sh	FS stdout smoke
-fs_fs_c	sx	legacy	std/fs/posix.sx	hosted 纯 .sx；freestanding 不链
-io_io_c	sx	done	std/io/backend.sx	F-03 v3 sync fallback；io_uring 延后 F-04
-net_freestanding_linux	sx	done	std/net/freestanding_linux.sx	NL-02 socket facade
+fs_fs_c	x	legacy	std/fs/posix.x	hosted 纯 .x；freestanding 不链
+io_io_c	x	done	std/io/backend.x	F-03 v3 sync fallback；io_uring 延后 F-04
+net_freestanding_linux	x	done	std/net/freestanding_linux.x	NL-02 socket facade
 nolibc_socket_gate	gate	done	tests/run-no-libc-socket-gate.sh	socket+close smoke
-net_net_c	sx	deleted	std/net/mod.sx	F-04 v14：net.c 删；hosted net.o 纯 .sx+胶层
+net_net_c	x	deleted	std/net/mod.x	F-04 v14：net.c 删；hosted net.o 纯 .x+胶层
 link_nostdlib	driver	done	compiler/src/runtime_link_abi.c	NL-05 freestanding user ld -nostdlib
 link_no_lc	user_gate	done	tests/run-no-libc-link-gate.sh	用户链无 -lc；编译器 track
 nolibc_link_gate	gate	done	tests/run-no-libc-link-gate.sh	NL-05 链接策略

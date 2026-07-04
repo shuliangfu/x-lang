@@ -2,7 +2,7 @@
 # PERF-170：SQLite stub/loop 性能烟测门禁
 #
 # 1) manifest + docs/07 锚点
-# 2) typeck tests/bench/sqlite_is_available_loop.sx
+# 2) typeck tests/bench/sqlite_is_available_loop.x
 # 3) 可选 runnable：median ≤ tests/baseline/perf-sqlite.tsv
 #
 # 用法：./tests/run-perf-sqlite-gate.sh
@@ -11,8 +11,8 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_PERF_SQLITE_DOC:-analysis/perf-sqlite-v1.md}"
 BASELINE="${SHUX_PERF_SQLITE_TSV:-tests/baseline/perf-sqlite.tsv}"
-BENCH_SX="tests/bench/sqlite_is_available_loop.sx"
-STUB_SX="tests/stub/sqlite_net_stub.sx"
+BENCH_X="tests/bench/sqlite_is_available_loop.x"
+STUB_X="tests/stub/sqlite_net_stub.x"
 LIB="tests/lib/perf-sqlite.sh"
 RUNS="${SHUX_PERF_SQLITE_RUNS:-3}"
 
@@ -20,7 +20,7 @@ RUNS="${SHUX_PERF_SQLITE_RUNS:-3}"
 . "$LIB"
 
 echo "=== PERF-170: sqlite perf manifest ==="
-for f in "$DOC" "$BASELINE" "$LIB" "$BENCH_SX" "$STUB_SX"; do
+for f in "$DOC" "$BASELINE" "$LIB" "$BENCH_X" "$STUB_X"; do
   if [ ! -f "$f" ]; then
     echo "perf-sqlite gate FAIL: missing $f" >&2
     exit 1
@@ -55,18 +55,18 @@ fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== PERF-170: typeck (SHUX=$SHUX_BIN) ==="
-  if "$SHUX_BIN" check -L . "$BENCH_SX" >/dev/null 2>&1 \
-    && "$SHUX_BIN" check -L . "$STUB_SX" >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . "$BENCH_X" >/dev/null 2>&1 \
+    && "$SHUX_BIN" check -L . "$STUB_X" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "perf-sqlite gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$BENCH_SX" 2>&1 | tail -6 >&2 || true
+    "$SHUX_BIN" check -L . "$BENCH_X" 2>&1 | tail -6 >&2 || true
     perf_sqlite_emit_report "fail" 0 0 0
     exit 1
   fi
   SKIP=0
   OUT="/tmp/shux_perf_sqlite_loop"
-  if "$SHUX_BIN" -L . "$BENCH_SX" -o "$OUT" >/dev/null 2>&1 && [ -x "$OUT" ]; then
+  if "$SHUX_BIN" -L . "$BENCH_X" -o "$OUT" >/dev/null 2>&1 && [ -x "$OUT" ]; then
     MED="$(perf_sqlite_median_real "$OUT" "$RUNS")"
     CEIL="$(awk -F'\t' '$1=="sqlite_is_available_loop"{print $2; exit}' "$BASELINE")"
     echo "perf-sqlite median=${MED}s ceiling=${CEIL}s"

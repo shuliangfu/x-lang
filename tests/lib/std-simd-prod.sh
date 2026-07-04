@@ -12,7 +12,7 @@ std_simd_prod_native_asm() {
   local f="${1:-./compiler/shux_asm}"
   [ -n "$f" ] && [ -x "$f" ] || return 1
   case "$f" in
-    */shux-c|*/shux-sx*) return 1 ;;
+    */shux-c|*/shux-x*) return 1 ;;
   esac
   case "$(uname -s)-$(uname -m 2>/dev/null)" in
     Darwin-arm64) file "$f" 2>/dev/null | grep -qE 'Mach-O.*arm64' ;;

@@ -1,0 +1,809 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.net.ws_codec — F-04 v3：WebSocket 编解码与握手纯算法层（RFC 6455 子集）
+//
+// 【文件职责】
+// 从 ws.inc.c 迁出：SHA-1 Accept、帧编解码、握手 HTTP 缓冲、URL 解析、Upgrade 校验。
+// 无 socket IO；IO 见 ws_io.x。
+//
+// 【依赖】
+// core.mem；std.random（Sec-WebSocket-Key）。
+
+const mem = import("core.mem");
+const random = import("std.random");
+
+/** RFC 6455 GUID 字节（258EAFA5-E914-47DA-95CA-C5AB0DC85B11 + NUL）。 */
+let WS_GUID: u8[37] = [
+  50, 53, 56, 69, 65, 70, 65, 53, 45, 69, 57, 49, 52, 45, 52, 55,
+  68, 65, 45, 57, 53, 67, 65, 45, 67, 53, 65, 66, 48, 68, 67, 56,
+  53, 66, 49, 49, 0,
+];
+
+/** Base64 标准表。 */
+let WS_B64: u8[65] = [
+  65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+  81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 97, 98, 99, 100, 101, 102,
+  103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116,
+  117, 118, 119, 120, 121, 122, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
+  43, 47, 0,
+];
+
+/** SHA-1 上下文（WebSocket Accept 用）。 */
+allow(padding) struct WsSha1Ctx {
+  state0: u32; state1: u32; state2: u32; state3: u32; state4: u32;
+  count0: u32; count1: u32;
+  buffer: u8[64];
+  buf_used: i32;
+}
+
+/**
+ * 32 位循环左移（SHA-1 用）。
+ */
+function ws_rol(v: u32, bits: i32): u32 {
+  return ((v << bits) | (v >> (32 - bits))) as u32;
+}
+
+/**
+ * SHA-1 单块压缩（64 字节 block）。
+ */
+function ws_sha1_transform(ctx: *WsSha1Ctx, block: *u8): void {
+  let w: u32[80] = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  ];
+  let i: i32 = 0;
+  while (i < 16) {
+    let bi: i32 = i * 4;
+    w[i] = ((block[bi] as u32) << 24) | ((block[bi + 1] as u32) << 16)
+      | ((block[bi + 2] as u32) << 8) | (block[bi + 3] as u32);
+    i = i + 1;
+  }
+  while (i < 80) {
+    w[i] = ws_rol(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+    i = i + 1;
+  }
+  let a: u32 = ctx.state0;
+  let b: u32 = ctx.state1;
+  let c: u32 = ctx.state2;
+  let d: u32 = ctx.state3;
+  let e: u32 = ctx.state4;
+  i = 0;
+  while (i < 80) {
+    let f: u32 = 0;
+    let k: u32 = 0;
+    if (i < 20) {
+      f = (b & c) | ((~b) & d);
+      k = 0x5A827999;
+    } else if (i < 40) {
+      f = b ^ c ^ d;
+      k = 0x6ED9EBA1;
+    } else if (i < 60) {
+      f = (b & c) | (b & d) | (c & d);
+      k = 0x8F1BBCDC;
+    } else {
+      f = b ^ c ^ d;
+      k = 0xCA62C1D6;
+    }
+    let t: u32 = ws_rol(a, 5) + f + e + k + w[i];
+    e = d; d = c; c = ws_rol(b, 30); b = a; a = t;
+    i = i + 1;
+  }
+  ctx.state0 = ctx.state0 + a;
+  ctx.state1 = ctx.state1 + b;
+  ctx.state2 = ctx.state2 + c;
+  ctx.state3 = ctx.state3 + d;
+  ctx.state4 = ctx.state4 + e;
+}
+
+/**
+ * 初始化 SHA-1 上下文。
+ */
+function ws_sha1_init(ctx: *WsSha1Ctx): void {
+  ctx.state0 = 0x67452301;
+  ctx.state1 = 0xEFCDAB89;
+  ctx.state2 = 0x98BADCFE;
+  ctx.state3 = 0x10325476;
+  ctx.state4 = 0xC3D2E1F0;
+  ctx.count0 = 0;
+  ctx.count1 = 0;
+  ctx.buf_used = 0;
+}
+
+/**
+ * SHA-1 追加数据。
+ */
+function ws_sha1_update(ctx: *WsSha1Ctx, data: *u8, len: usize): void {
+  if (len == 0 || data == 0) {
+    return;
+  }
+  let i: usize = 0;
+  let bit_add: u32 = (len as u32) << 3;
+  ctx.count0 = ctx.count0 + bit_add;
+  if (ctx.count0 < bit_add) {
+    ctx.count1 = ctx.count1 + 1;
+  }
+  ctx.count1 = ctx.count1 + ((len as u32) >> 29);
+  while (i < len) {
+    let j: i32 = ctx.buf_used;
+    let space: i32 = 64 - j;
+    let n: usize = len - i;
+    if ((n as i32) > space) {
+      n = space;
+    }
+    mem.mem_copy(&ctx.buffer[j], data + i, n);
+    i = i + n;
+    ctx.buf_used = j + (n as i32);
+    if (ctx.buf_used == 64) {
+      ws_sha1_transform(ctx, &ctx.buffer[0]);
+      ctx.buf_used = 0;
+    }
+  }
+}
+
+/**
+ * SHA-1 结束并写 20 字节 digest。
+ */
+function ws_sha1_final(ctx: *WsSha1Ctx, digest: *u8): void {
+  let pad80: u8[1] = [0x80];
+  ws_sha1_update(ctx, &pad80[0], 1);
+  let pad0: u8[1] = [0];
+  while ((ctx.count0 & 504) != 448) {
+    ws_sha1_update(ctx, &pad0[0], 1);
+  }
+  let fc: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
+  let i: i32 = 0;
+  while (i < 8) {
+    let src_idx: i32 = (i >= 4) ? 0 : 1;
+    let shift: i32 = (3 - (i & 3)) * 8;
+    if (src_idx == 0) {
+      fc[i] = ((ctx.count0 >> shift) & 0xFF) as u8;
+    } else {
+      fc[i] = ((ctx.count1 >> shift) & 0xFF) as u8;
+    }
+    i = i + 1;
+  }
+  ws_sha1_update(ctx, &fc[0], 8);
+  i = 0;
+  while (i < 20) {
+    let si: i32 = i >> 2;
+    let shift: i32 = (3 - (i & 3)) * 8;
+    let st: u32 = 0;
+    if (si == 0) { st = ctx.state0; }
+    else if (si == 1) { st = ctx.state1; }
+    else if (si == 2) { st = ctx.state2; }
+    else if (si == 3) { st = ctx.state3; }
+    else { st = ctx.state4; }
+    digest[i] = ((st >> shift) & 0xFF) as u8;
+    i = i + 1;
+  }
+}
+
+/**
+ * Base64 标准编码；成功返回写入长度（含 NUL），失败 -1。
+ */
+function ws_b64_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
+  let i: i32 = 0;
+  let o: i32 = 0;
+  if (src == 0 || out == 0 || src_len < 0 || out_cap < 1) {
+    return -1;
+  }
+  while (i < src_len) {
+    let rem: i32 = src_len - i;
+    let v: u32 = (src[i] as u32) << 16;
+    i = i + 1;
+    if (rem >= 2) {
+      v = v | ((src[i] as u32) << 8);
+      i = i + 1;
+    }
+    if (rem >= 3) {
+      v = v | (src[i] as u32);
+      i = i + 1;
+    }
+    if (o + 4 >= out_cap) {
+      return -1;
+    }
+    out[o] = WS_B64[((v >> 18) & 63) as i32];
+    o = o + 1;
+    out[o] = WS_B64[((v >> 12) & 63) as i32];
+    o = o + 1;
+    out[o] = (rem >= 2) ? WS_B64[((v >> 6) & 63) as i32] : 61;
+    o = o + 1;
+    out[o] = (rem >= 3) ? WS_B64[(v & 63) as i32] : 61;
+    o = o + 1;
+  }
+  if (o >= out_cap) {
+    return -1;
+  }
+  out[o] = 0;
+  return o;
+}
+
+/**
+ * 计算 Sec-WebSocket-Accept；out 须 ≥ 29 字节（28 字符 + NUL）。
+ */
+function net_ws_compute_accept_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
+  let ctx: WsSha1Ctx = WsSha1Ctx {
+    state0: 0, state1: 0, state2: 0, state3: 0, state4: 0,
+    count0: 0, count1: 0, buffer: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    buf_used: 0,
+  };
+  let digest: u8[20] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let buf: u8[128] = [];
+  let guid_len: i32 = 36;
+  if (key == 0 || out == 0 || key_len <= 0 || key_len > 80 || out_cap < 29) {
+    return -1;
+  }
+  if (key_len + guid_len > 128) {
+    return -1;
+  }
+  mem.mem_copy(&buf[0], key, key_len);
+  mem.mem_copy(&buf[key_len], &WS_GUID[0], guid_len);
+  ws_sha1_init(&ctx);
+  ws_sha1_update(&ctx, &buf[0], (key_len + guid_len));
+  ws_sha1_final(&ctx, &digest[0]);
+  return ws_b64_encode(&digest[0], 20, out, out_cap);
+}
+
+/**
+ * 客户端 MASKED 帧编码公共路径（FIN=1，payload ≤ 125）。
+ */
+function ws_encode_masked_frame(first_byte: u8, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
+  let mask: u8[4] = [0x37, 0xfa, 0x21, 0x3d];
+  let hdr: i32 = 2;
+  let i: i32 = 0;
+  if (out == 0 || payload_len < 0 || payload_len > 125) {
+    return -1;
+  }
+  if (payload_len > 0 && payload == 0) {
+    return -1;
+  }
+  if (out_cap < 2 + 4 + payload_len) {
+    return -1;
+  }
+  out[0] = first_byte;
+  out[1] = (0x80 | (payload_len & 0x7F)) as u8;
+  out[2] = mask[0]; out[3] = mask[1]; out[4] = mask[2]; out[5] = mask[3];
+  hdr = 6;
+  while (i < payload_len) {
+    out[hdr + i] = (payload[i] ^ mask[i & 3]) as u8;
+    i = i + 1;
+  }
+  return hdr + payload_len;
+}
+
+/** 客户端 TEXT 帧编码（FIN+opcode=1，MASK=1）。 */
+function net_ws_encode_text_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
+  return ws_encode_masked_frame(0x81, payload, payload_len, out, out_cap);
+}
+
+/** 客户端 BINARY 帧编码（FIN+opcode=2，MASK=1）。 */
+function net_ws_encode_binary_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
+  return ws_encode_masked_frame(0x82, payload, payload_len, out, out_cap);
+}
+
+/** 客户端 PING 帧（opcode=9）。 */
+function net_ws_encode_ping_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
+  return ws_encode_masked_frame(0x89, payload, payload_len, out, out_cap);
+}
+
+/** 客户端 PONG 帧（opcode=10）。 */
+function net_ws_encode_pong_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
+  return ws_encode_masked_frame(0x8A, payload, payload_len, out, out_cap);
+}
+
+/** 客户端 CLOSE 帧（opcode=8）。 */
+function net_ws_encode_close_frame_c(status_code: i32, reason: *u8, reason_len: i32,
+  out: *u8, out_cap: i32): i32 {
+  let pl: u8[128] = [];
+  let plen: i32 = 0;
+  if (reason_len < 0) {
+    return -1;
+  }
+  if (reason_len > 0 && reason == 0) {
+    return -1;
+  }
+  if (status_code >= 0) {
+    if (reason_len + 2 > 125) {
+      return -1;
+    }
+    pl[0] = ((status_code >> 8) & 0xFF) as u8;
+    pl[1] = (status_code & 0xFF) as u8;
+    plen = 2;
+    if (reason_len > 0) {
+      mem.mem_copy(&pl[2], reason, reason_len);
+      plen = plen + reason_len;
+    }
+  } else {
+    if (reason_len > 0) {
+      return -1;
+    }
+    plen = 0;
+  }
+  if (plen > 0) {
+    return ws_encode_masked_frame(0x88, &pl[0], plen, out, out_cap);
+  }
+  return ws_encode_masked_frame(0x88, 0 as *u8, 0, out, out_cap);
+}
+
+/**
+ * 解析 WebSocket 帧；将负载解掩码写入 out_payload；成功 0。
+ */
+function net_ws_decode_frame_c(buf: *u8, buf_len: i32, out_opcode: *i32,
+  out_payload: *u8, out_payload_cap: i32, out_payload_len: *i32): i32 {
+  let off: i32 = 0;
+  let plen: i32 = 0;
+  let masked: i32 = 0;
+  let i: i32 = 0;
+  let mask0: u8 = 0; let mask1: u8 = 0; let mask2: u8 = 0; let mask3: u8 = 0;
+  if (buf == 0 || out_opcode == 0 || out_payload == 0
+    || out_payload_len == 0 || buf_len < 2) {
+    return -1;
+  }
+  out_opcode[0] = (buf[0] & 0x0F) as i32;
+  masked = ((buf[1] & 0x80) != 0) ? 1 : 0;
+  plen = (buf[1] & 0x7F) as i32;
+  off = 2;
+  if (plen == 126 || plen == 127) {
+    return -1;
+  }
+  if (masked != 0) {
+    if (off + 4 > buf_len) {
+      return -1;
+    }
+    mask0 = buf[off]; mask1 = buf[off + 1]; mask2 = buf[off + 2]; mask3 = buf[off + 3];
+    off = off + 4;
+  }
+  if (off + plen > buf_len || plen > out_payload_cap) {
+    return -1;
+  }
+  if (masked != 0) {
+    while (i < plen) {
+      let m: u8 = 0;
+      if ((i & 3) == 0) { m = mask0; }
+      else if ((i & 3) == 1) { m = mask1; }
+      else if ((i & 3) == 2) { m = mask2; }
+      else { m = mask3; }
+      out_payload[i] = (buf[off + i] ^ m) as u8;
+      i = i + 1;
+    }
+  } else {
+    mem.mem_copy(out_payload, buf + off, plen);
+  }
+  out_payload_len[0] = plen;
+  return 0;
+}
+
+/**
+ * 向 out 追加 NUL 结尾 C 字符串；返回新长度，失败 -1。
+ */
+function ws_append_cstr(out: *u8, off: i32, out_cap: i32, s: *u8): i32 {
+  let i: i32 = 0;
+  if (out == 0 || s == 0 || off < 0) {
+    return -1;
+  }
+  while (s[i] != 0) {
+    if (off + i + 1 >= out_cap) {
+      return -1;
+    }
+    out[off + i] = s[i];
+    i = i + 1;
+  }
+  return off + i;
+}
+
+/**
+ * 向 out 追加单字节；返回新长度，失败 -1。
+ */
+function ws_append_byte(out: *u8, off: i32, out_cap: i32, b: u8): i32 {
+  if (out == 0 || off < 0 || off + 1 >= out_cap) {
+    return -1;
+  }
+  out[off] = b;
+  return off + 1;
+}
+
+/** 构建客户端握手 HTTP 请求到 out；返回字节数（不含 NUL），失败 -1。 */
+function net_ws_handshake_request_c(host: *u8, path: *u8, key: *u8, out: *u8, out_cap: i32): i32 {
+  let n: i32 = 0;
+  if (host == 0 || path == 0 || key == 0 || out == 0 || out_cap < 64) {
+    return -1;
+  }
+  let get_p: u8[5] = [71, 69, 84, 32, 0];
+  let http11: u8[12] = [32, 72, 84, 84, 80, 47, 49, 46, 49, 46, 49, 13];
+  let host_h: u8[7] = [72, 111, 115, 116, 58, 32, 0];
+  let upg: u8[22] = [85, 112, 103, 114, 97, 100, 101, 58, 32, 119, 101, 98, 115, 111, 99, 107, 101, 116, 13, 10, 0, 0];
+  let conn: u8[23] = [67, 111, 110, 110, 101, 99, 116, 105, 111, 110, 58, 32, 85, 112, 103, 114, 97, 100, 101, 13, 10, 0, 0];
+  let swk: u8[22] = [83, 101, 99, 45, 87, 101, 98, 83, 111, 99, 107, 101, 116, 45, 75, 101, 121, 58, 32, 0, 0, 0];
+  let swv: u8[28] = [13, 10, 83, 101, 99, 45, 87, 101, 98, 83, 111, 99, 107, 101, 116, 45, 86, 101, 114, 115, 105, 111, 110, 58, 32, 49, 51, 13];
+  n = ws_append_cstr(out, 0, out_cap, &get_p[0]);
+  if (n < 0) { return -1; }
+  n = ws_append_cstr(out, n, out_cap, path);
+  if (n < 0) { return -1; }
+  mem.mem_copy(out + n, &http11[0], 11);
+  n = n + 11;
+  n = ws_append_byte(out, n, out_cap, 10);
+  if (n < 0) { return -1; }
+  n = ws_append_cstr(out, n, out_cap, &host_h[0]);
+  if (n < 0) { return -1; }
+  n = ws_append_cstr(out, n, out_cap, host);
+  if (n < 0) { return -1; }
+  n = ws_append_byte(out, n, out_cap, 13);
+  n = ws_append_byte(out, n, out_cap, 10);
+  mem.mem_copy(out + n, &upg[0], 20);
+  n = n + 20;
+  mem.mem_copy(out + n, &conn[0], 21);
+  n = n + 21;
+  n = ws_append_cstr(out, n, out_cap, &swk[0]);
+  if (n < 0) { return -1; }
+  n = ws_append_cstr(out, n, out_cap, key);
+  if (n < 0) { return -1; }
+  mem.mem_copy(out + n, &swv[0], 28);
+  n = n + 28;
+  n = ws_append_byte(out, n, out_cap, 10);
+  n = ws_append_byte(out, n, out_cap, 13);
+  n = ws_append_byte(out, n, out_cap, 10);
+  if (n <= 0 || n >= out_cap) {
+    return -1;
+  }
+  return n;
+}
+
+/**
+ * 在 buf[0..len) 中查找子串 sub[0..sub_len)；找到返回起始下标，否则 -1。
+ */
+function ws_find_bytes(buf: *u8, len: i32, sub: *u8, sub_len: i32): i32 {
+  let i: i32 = 0;
+  if (buf == 0 || sub == 0 || sub_len <= 0 || len < sub_len) {
+    return -1;
+  }
+  while (i + sub_len <= len) {
+    if (mem.mem_compare(buf + i, sub, sub_len) == 0) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return -1;
+}
+
+/** 校验握手响应缓冲含 HTTP/1.1 101 与匹配的 Sec-WebSocket-Accept。 */
+function net_ws_validate_handshake_c(resp: *u8, resp_len: i32, key: *u8, key_len: i32): i32 {
+  let expect: u8[32] = [];
+  let prefix: u8[22] = [83, 101, 99, 45, 87, 101, 98, 83, 111, 99, 107, 101, 116, 45, 65, 99, 99, 101, 112, 116, 58, 32];
+  let http101: u8[12] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 49, 48, 49];
+  if (resp == 0 || key == 0 || resp_len < 12 || key_len <= 0) {
+    return -1;
+  }
+  if (net_ws_compute_accept_c(key, key_len, &expect[0], 32) < 0) {
+    return -1;
+  }
+  if (ws_find_bytes(resp, resp_len, &http101[0], 12) < 0) {
+    return -1;
+  }
+  if (ws_find_bytes(resp, resp_len, &prefix[0], 22) < 0) {
+    return -1;
+  }
+  if (ws_find_bytes(resp, resp_len, &expect[0], 28) < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/** 生成 Sec-WebSocket-Key（16 随机字节 Base64）；成功返回 24，失败 -1。 */
+function net_ws_generate_key_c(out: *u8, out_cap: i32): i32 {
+  let rnd: u8[16] = [];
+  if (out == 0 || out_cap < 25) {
+    return -1;
+  }
+  if (random.fill_bytes(&rnd[0], 16) != 16) {
+    return -1;
+  }
+  return ws_b64_encode(&rnd[0], 16, out, out_cap);
+}
+
+/**
+ * 不区分大小写比较 a[0..n) 与 ASCII 字面量 b（NUL 结尾）。
+ */
+function ws_ci_eq_lit(a: *u8, b: *u8, n: i32): i32 {
+  let i: i32 = 0;
+  if (a == 0 || b == 0 || n <= 0) {
+    return 0;
+  }
+  while (i < n) {
+    let ca: u8 = a[i];
+    let cb: u8 = b[i];
+    if (ca >= 65 && ca <= 90) { ca = (ca + 32) as u8; }
+    if (cb >= 65 && cb <= 90) { cb = (cb + 32) as u8; }
+    if (ca != cb) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/** 扫描 HTTP 头是否含 Upgrade: websocket（不区分大小写）。 */
+function ws_request_is_upgrade(req: *u8, req_len: i32): i32 {
+  let upg: u8[10] = [117, 112, 103, 114, 97, 100, 101, 58, 0, 0];
+  let ws_lit: u8[10] = [119, 101, 98, 115, 111, 99, 107, 101, 116, 0];
+  let i: i32 = 0;
+  if (req == 0 || req_len < 24) {
+    return 0;
+  }
+  while (i + 8 <= req_len) {
+    if (ws_ci_eq_lit(req + i, &upg[0], 8) == 0) {
+      i = i + 1;
+      continue;
+    }
+    let j: i32 = i + 8;
+    while (j < req_len && (req[j] == 32 || req[j] == 9)) {
+      j = j + 1;
+    }
+    if (j + 9 <= req_len && ws_ci_eq_lit(req + j, &ws_lit[0], 9) != 0) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/** 从 HTTP Upgrade 请求提取 Sec-WebSocket-Key；成功返回 key 长度。 */
+function net_ws_extract_key_from_request_c(req: *u8, req_len: i32, out_key: *u8, out_cap: i32): i32 {
+  let needle: u8[19] = [83, 101, 99, 45, 87, 101, 98, 83, 111, 99, 107, 101, 116, 45, 75, 101, 121, 58, 0];
+  let i: i32 = 0;
+  if (req == 0 || req_len < 20 || out_key == 0 || out_cap < 2) {
+    return -1;
+  }
+  while (i + 18 <= req_len) {
+    if (ws_ci_eq_lit(req + i, &needle[0], 18) == 0) {
+      i = i + 1;
+      continue;
+    }
+    let j: i32 = i + 18;
+    while (j < req_len && (req[j] == 32 || req[j] == 9)) {
+      j = j + 1;
+    }
+    let key_len: i32 = 0;
+    while (j < req_len && req[j] != 13 && req[j] != 10 && key_len < out_cap - 1) {
+      out_key[key_len] = req[j];
+      key_len = key_len + 1;
+      j = j + 1;
+    }
+    out_key[key_len] = 0;
+    if (key_len > 0) {
+      return key_len;
+    }
+    return -1;
+  }
+  return -1;
+}
+
+/** 校验客户端 WebSocket Upgrade 请求；成功 0。 */
+function net_ws_validate_upgrade_request_c(req: *u8, req_len: i32): i32 {
+  let ver: u8[23] = [83, 101, 99, 45, 87, 101, 98, 83, 111, 99, 107, 101, 116, 45, 86, 101, 114, 115, 105, 111, 110, 58, 0];
+  let get_lit: u8[5] = [71, 69, 84, 32, 0];
+  let key_probe: u8[80] = [];
+  let i: i32 = 0;
+  let has_ver13: i32 = 0;
+  if (req == 0 || req_len < 32) {
+    return -1;
+  }
+  if (ws_ci_eq_lit(req, &get_lit[0], 4) == 0) {
+    return -1;
+  }
+  if (ws_request_is_upgrade(req, req_len) == 0) {
+    return -1;
+  }
+  if (net_ws_extract_key_from_request_c(req, req_len, &key_probe[0], 80) <= 0) {
+    return -1;
+  }
+  while (i + 22 <= req_len) {
+    if (ws_ci_eq_lit(req + i, &ver[0], 22) == 0) {
+      i = i + 1;
+      continue;
+    }
+    let j: i32 = i + 22;
+    while (j < req_len && (req[j] == 32 || req[j] == 9)) {
+      j = j + 1;
+    }
+    if (j + 2 <= req_len && req[j] == 49 && req[j + 1] == 51) {
+      has_ver13 = 1;
+    }
+    i = i + 1;
+  }
+  if (has_ver13 != 0) {
+    return 0;
+  }
+  return -1;
+}
+
+/** 服务端 TEXT 帧编码（MASK=0，payload ≤ 125）。 */
+function net_ws_encode_server_text_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
+  if (payload_len < 0 || payload_len > 125) {
+    return -1;
+  }
+  if (payload_len > 0 && payload == 0) {
+    return -1;
+  }
+  if (out == 0 || out_cap < 2 + payload_len) {
+    return -1;
+  }
+  out[0] = 0x81;
+  out[1] = (payload_len & 0x7F) as u8;
+  if (payload_len > 0) {
+    mem.mem_copy(out + 2, payload, payload_len);
+  }
+  return 2 + payload_len;
+}
+
+/** 服务端 BINARY 帧编码（MASK=0，payload ≤ 125）。 */
+function net_ws_encode_server_binary_frame_c(payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
+  if (payload_len < 0 || payload_len > 125) {
+    return -1;
+  }
+  if (payload_len > 0 && payload == 0) {
+    return -1;
+  }
+  if (out == 0 || out_cap < 2 + payload_len) {
+    return -1;
+  }
+  out[0] = 0x82;
+  out[1] = (payload_len & 0x7F) as u8;
+  if (payload_len > 0) {
+    mem.mem_copy(out + 2, payload, payload_len);
+  }
+  return 2 + payload_len;
+}
+
+/** 查找 HTTP 头结束 \\r\\n\\r\\n；返回结束位置（不含）或 0。 */
+function ws_header_end(buf: *u8, len: i32): i32 {
+  let i: i32 = 3;
+  if (buf == 0 || len < 4) {
+    return 0;
+  }
+  while (i < len) {
+    if (buf[i - 3] == 13 && buf[i - 2] == 10 && buf[i - 1] == 13 && buf[i] == 10) {
+      return i + 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/** 解析 ws(s)://host[:port]/path；out_secure=1 为 wss；默认端口 80/443。 */
+function net_ws_parse_url_c(url: *u8, url_len: i32, host: *u8, host_cap: i32, path: *u8,
+  path_cap: i32, out_port: *u32, out_secure: *i32): i32 {
+  let i: i32 = 0;
+  let default_port: u32 = 80;
+  let secure: i32 = 0;
+  if (url == 0 || url_len < 5 || host == 0 || path == 0
+    || out_port == 0 || host_cap < 2 || path_cap < 2) {
+    return -1;
+  }
+  if (out_secure != 0) {
+    out_secure[0] = 0;
+  }
+  if (url_len >= 6 && url[0] == 119 && url[1] == 115 && url[2] == 115 && url[3] == 58
+    && url[4] == 47 && url[5] == 47) {
+    i = 6;
+    default_port = 443;
+    secure = 1;
+  } else if (url_len >= 5 && url[0] == 119 && url[1] == 115 && url[2] == 58
+    && url[3] == 47 && url[4] == 47) {
+    i = 5;
+  } else {
+    return -1;
+  }
+  if (out_secure != 0) {
+    out_secure[0] = secure;
+  }
+  let host_start: i32 = i;
+  while (i < url_len && url[i] != 58 && url[i] != 47) {
+    i = i + 1;
+  }
+  let host_len: i32 = i - host_start;
+  if (host_len <= 0 || host_len >= host_cap) {
+    return -1;
+  }
+  mem.mem_copy(host, url + host_start, host_len);
+  host[host_len] = 0;
+  if (i < url_len && url[i] == 58) {
+    let port: u32 = 0;
+    i = i + 1;
+    if (i >= url_len) {
+      return -1;
+    }
+    while (i < url_len && url[i] != 47) {
+      if (url[i] < 48 || url[i] > 57) {
+        return -1;
+      }
+      port = port * 10 + ((url[i] - 48) as u32);
+      if (port > 65535) {
+        return -1;
+      }
+      i = i + 1;
+    }
+    if (port == 0) {
+      return -1;
+    }
+    out_port[0] = port;
+  } else {
+    out_port[0] = default_port;
+  }
+  if (i < url_len && url[i] == 47) {
+    let path_len: i32 = url_len - i;
+    if (path_len >= path_cap) {
+      return -1;
+    }
+    mem.mem_copy(path, url + i, path_len);
+    path[path_len] = 0;
+  } else {
+    path[0] = 47;
+    path[1] = 0;
+  }
+  return 0;
+}
+
+/** 比较 NUL 结尾 C 字符串是否相等；相等 1，否则 0。 */
+function ws_cstr_eq(a: *u8, b: *u8): i32 {
+  let i: i32 = 0;
+  if (a == 0 || b == 0) {
+    return 0;
+  }
+  while (a[i] != 0 && b[i] != 0) {
+    if (a[i] != b[i]) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  if (a[i] == b[i]) {
+    return 1;
+  }
+  return 0;
+}
+
+/** URL 解析烟测；0 通过。 */
+function net_ws_parse_url_smoke_c(): i32 {
+  let host: u8[64] = [];
+  let path: u8[64] = [];
+  let port: u32 = 0;
+  let sec: i32 = 0;
+  let localhost: u8[10] = [108, 111, 99, 97, 108, 104, 111, 115, 116, 0];
+  let chat: u8[6] = [47, 99, 104, 97, 116, 0];
+  let example: u8[12] = [101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 0];
+  let wspath: u8[4] = [47, 119, 115, 0];
+  let u1: u8[20] = [119, 115, 58, 47, 47, 108, 111, 99, 97, 108, 104, 111, 115, 116, 47, 99, 104, 97, 116, 0];
+  let u2: u8[26] = [119, 115, 115, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 58, 56, 52, 52, 51, 47, 119, 115, 0];
+  if (net_ws_parse_url_c(&u1[0], 19, &host[0], 64, &path[0], 64, &port, &sec) != 0) {
+    return 1;
+  }
+  if (sec != 0 || port != 80 || ws_cstr_eq(&host[0], &localhost[0]) == 0 || ws_cstr_eq(&path[0], &chat[0]) == 0) {
+    return 2;
+  }
+  if (net_ws_parse_url_c(&u2[0], 25, &host[0], 64, &path[0], 64, &port, &sec) != 0) {
+    return 3;
+  }
+  if (sec != 1 || port != 8443 || ws_cstr_eq(&host[0], &example[0]) == 0 || ws_cstr_eq(&path[0], &wspath[0]) == 0) {
+    return 4;
+  }
+  return 0;
+}

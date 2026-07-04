@@ -9,12 +9,12 @@
 | `shu_c_resolve_and_load_imports` | runtime_c_import.c | C 前端 resolve+load+typeck import 链 |
 | `shu_lsp_resolve_and_load_imports` | runtime_c_import.c | LSP import 加载（原 runtime.c） |
 | `driver_source_has_top_level_import` | runtime_driver_abi.c | 预处理后源码顶层 import 扫描 |
-| `driver_source_has_top_level_import_path` | runtime_driver_abi.c | compile.sx asm 分派降级探测 |
+| `driver_source_has_top_level_import_path` | runtime_driver_abi.c | compile.x asm 分派降级探测 |
 | `shux_merge_deps_path_already_out` | runtime_pipeline_abi.c | asm dep layout merge 去重 |
 
 ## 仍留 runtime.c
 
-- `run_compiler_c` / `run_compiler_sx_path` 主体
+- `run_compiler_c` / `run_compiler_x_path` 主体
 - `load_direct_imports_for_asm_layout` 等 asm layout 辅助
 - driver 诊断已迁至 v34（`runtime_driver_diagnostic.c`）
 

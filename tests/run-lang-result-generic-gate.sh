@@ -7,15 +7,15 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_LANG010_DOC:-analysis/lang-result-generic-v1.md}"
 MANIFEST="${SHUX_LANG010_TSV:-tests/baseline/lang-result-generic.tsv}"
-SMOKE1="tests/lang-result-generic/result_three.sx"
-SMOKE2="tests/lang-result-generic/with_core_import.sx"
+SMOKE1="tests/lang-result-generic/result_three.x"
+SMOKE2="tests/lang-result-generic/with_core_import.x"
 MIN_GOLDEN=2
 
 # shellcheck source=tests/lib/lang-result-generic.sh
 . tests/lib/lang-result-generic.sh
 
 echo "=== LANG-010: Result<T,E> generic struct manifest ==="
-for f in "$DOC" "$MANIFEST" "$SMOKE1" "$SMOKE2" core/result/mod.sx; do
+for f in "$DOC" "$MANIFEST" "$SMOKE1" "$SMOKE2" core/result/mod.x; do
   if [ ! -f "$f" ]; then
     echo "lang-result-generic gate FAIL: missing $f" >&2
     exit 1
@@ -71,10 +71,10 @@ if [ -n "$SHUX_BIN" ]; then
   echo "=== LANG-010: typeck + smoke ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   TC_OK=0
-  for sx in "$SMOKE1" "$SMOKE2"; do
-    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
-      echo "lang-result-generic gate FAIL: typeck $sx" >&2
-      "$SHUX_BIN" check -L . "$sx" 2>&1 | tail -10 >&2 || true
+  for x in "$SMOKE1" "$SMOKE2"; do
+    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+      echo "lang-result-generic gate FAIL: typeck $x" >&2
+      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -10 >&2 || true
       lang_result_generic_emit_report "fail" 0 0 0
       exit 1
     fi
@@ -84,8 +84,8 @@ if [ -n "$SHUX_BIN" ]; then
   exe="/tmp/shux_lang010_$$"
   set +e
   run_ec=0
-  for sx in "$SMOKE1" "$SMOKE2"; do
-    link_log=$("$SHUX_BIN" -L . "$sx" -o "$exe" 2>&1)
+  for x in "$SMOKE1" "$SMOKE2"; do
+    link_log=$("$SHUX_BIN" -L . "$x" -o "$exe" 2>&1)
     link_ec=$?
     if [ "$link_ec" -ne 0 ]; then
       if echo "$link_log" | grep -qE "library 'zstd' not found|shux_panic_"; then
@@ -93,7 +93,7 @@ if [ -n "$SHUX_BIN" ]; then
         SKIP=1
         break
       fi
-      echo "lang-result-generic gate FAIL: link $sx" >&2
+      echo "lang-result-generic gate FAIL: link $x" >&2
       echo "$link_log" | tail -8 >&2 || true
       lang_result_generic_emit_report "fail" 0 "$TYPECK_OK" 0
       exit 1
@@ -102,7 +102,7 @@ if [ -n "$SHUX_BIN" ]; then
     run_ec=$?
     rm -f "$exe"
     if [ "$run_ec" -ne 0 ]; then
-      echo "lang-result-generic gate FAIL: run $sx exit=$run_ec" >&2
+      echo "lang-result-generic gate FAIL: run $x exit=$run_ec" >&2
       lang_result_generic_emit_report "fail" 0 "$TYPECK_OK" 0
       exit 1
     fi

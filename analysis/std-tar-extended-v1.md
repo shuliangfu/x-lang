@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | 打开 `tests/baseline/std-tar-extended.tsv` |
 | 3 | `./tests/run-std-tar-extended-gate.sh` |
-| 4 | 金样：`tests/tar/long_path_dir.sx` |
+| 4 | 金样：`tests/tar/long_path_dir.x` |
 
 ---
 
@@ -28,7 +28,7 @@
 `read_header` / `next_entry` 输出 **完整路径**（prefix 已拼接）。  
 `next_entry` 遇 Pax 块自动跳过并解析 `path` 键。
 
-常量见 `std/tar/mod.sx`：`TAR_TYPE_FILE` / `TAR_TYPE_DIR` / `TAR_TYPE_PAX`、`TAR_MAX_NAME`、`TAR_MAX_PATH_USTAR`、`path_max()`。
+常量见 `std/tar/mod.x`：`TAR_TYPE_FILE` / `TAR_TYPE_DIR` / `TAR_TYPE_PAX`、`TAR_MAX_NAME`、`TAR_MAX_PATH_USTAR`、`path_max()`。
 
 ---
 
@@ -50,7 +50,7 @@ manifest：`tests/baseline/std-tar-extended.tsv`
 **report** 示例：
 
 ```
-shux: [SHUX_STD_TAR_EXTENDED] status=ok c=1 sx=1 skip=0
+shux: [SHUX_STD_TAR_EXTENDED] status=ok c=1 x=1 skip=0
 ```
 
 回归：保留 `tests/run-std-tar-ustar-gate.sh`（短路径 round-trip 不破）。

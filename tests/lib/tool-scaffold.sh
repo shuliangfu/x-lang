@@ -12,8 +12,8 @@ tool_scaffold_copy_to() {
   local root
   root="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
   local tpl="$root/tests/templates/project-hello"
-  if [ ! -f "$tpl/main.sx" ]; then
-    echo "tool-scaffold FAIL: missing $tpl/main.sx" >&2
+  if [ ! -f "$tpl/main.x" ]; then
+    echo "tool-scaffold FAIL: missing $tpl/main.x" >&2
     return 1
   fi
   mkdir -p "$dest"

@@ -1,8 +1,8 @@
 # C-09 parser 无 C 回退盘点（manifest）
 # 列：track_id	layer	anchor	check_type	gate_or_notes
-c06_seed_default	makefile	tests/run-c06-sx-frontend-default-gate.sh	gate_ref	DRIVER_SEED_SX_FRONTEND_OBJS
-strict_link_override	script	ensure_parser_sx_o_for_strict_link	grep	compiler/scripts/build_shux_asm.sh
-pipeline_sx_link	makefile	PIPELINE_SX_LINK_OBJS	grep	parser_sx.o in LINK_OBJS
+c06_seed_default	makefile	tests/run-c06-x-frontend-default-gate.sh	gate_ref	DRIVER_SEED_X_FRONTEND_OBJS
+strict_link_override	script	ensure_parser_x_o_for_strict_link	grep	compiler/scripts/build_shux_asm.sh
+pipeline_x_link	makefile	PIPELINE_X_LINK_OBJS	grep	parser_x.o in LINK_OBJS
 force_stub_manifest	doc	tests/baseline/boot-force-stub-matrix.tsv	min_rows	6 BOOT-010
 force_stub_gate	gate	tests/run-boot-force-stub-gate.sh	gate_ref	portable suite
 mega7_matrix	doc	tests/baseline/comp-parser-mega7-matrix.tsv	min_mega7	7 COMP-001
@@ -10,5 +10,5 @@ mega7_emit_manifest	doc	tests/baseline/boot-023-mega7-full-emit.tsv	min_promote_
 mega7_gap_track	doc	analysis/boot-mega7-gap.md	track-only	C glue delta=0 v2
 objs_core_c_parser	makefile	OBJS_CORE parser.o	track-only	shux-c cold start
 legacy_escape	makefile	SHUX_LEGACY_C_FRONTEND	opt_in	explicit only
-parser_sx_strict	gate	tests/run-parser-sx-strict-gate.sh	gate_ref	bootstrap-bstrict-ci
+parser_x_strict	gate	tests/run-parser-x-strict-gate.sh	gate_ref	bootstrap-bstrict-ci
 thin_glue_integrity	gate	tests/run-parser-thin-glue-symbol-integrity-gate.sh	gate_ref	parser symbol integrity

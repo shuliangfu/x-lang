@@ -34,16 +34,16 @@ esac
 # 无参：在子目录内递归 check（与 fmt 一致，不应要求显式路径）
 (
   cd tests/return-value
-  chk_cwd=$("$SHUX_EXE" check main.sx 2>&1)
+  chk_cwd=$("$SHUX_EXE" check main.x 2>&1)
   if [ -n "$chk_cwd" ]; then
-    echo "expected silent check on main.sx, got: $chk_cwd"
+    echo "expected silent check on main.x, got: $chk_cwd"
     exit 1
   fi
 )
 echo "check OK: cwd (no path arg)"
 
 # 合法：成功时无输出（deno check）
-chk_out=$($SHUX check tests/return-value/main.sx 2>&1)
+chk_out=$($SHUX check tests/return-value/main.x 2>&1)
 if [ -n "$chk_out" ]; then
   echo "expected silent check success, got: $chk_out"
   exit 1
@@ -51,7 +51,7 @@ fi
 echo "check OK: return-value (silent)"
 
 # 合法：含 import
-chk_out2=$($SHUX check -L . tests/stdlib-import/main.sx 2>&1)
+chk_out2=$($SHUX check -L . tests/stdlib-import/main.x 2>&1)
 if [ -n "$chk_out2" ]; then
   echo "expected silent check success with import, got: $chk_out2"
   exit 1
@@ -59,7 +59,7 @@ fi
 echo "check OK: import (silent)"
 
 # 非法：typeck 应失败并带诊断行
-neg_out=$($SHUX check tests/typeck/return_operand_type_mismatch.sx 2>&1) && {
+neg_out=$($SHUX check tests/typeck/return_operand_type_mismatch.x 2>&1) && {
   echo "expected check to fail on type mismatch"
   exit 1
 }

@@ -5,7 +5,7 @@ STD_ENCODING_EXTRA_PREFIX="${SHUX_STD127_ENCODING_EXTRA_PREFIX:-shux: [SHUX_STD1
 
 # 校验 manifest 条目。
 std_encoding_extra_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local encoding_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,7 +15,7 @@ std_encoding_extra_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}" "$mod_x" 2>/dev/null; then
           echo "std-encoding-extra FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -23,7 +23,7 @@ std_encoding_extra_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/encoding/encoding.c|std/encoding/encoding.sx) path="$encoding_c" ;;
+          std/encoding/encoding.c|std/encoding/encoding.x) path="$encoding_c" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-encoding-extra FAIL: missing '$anchor' in $path" >&2
@@ -42,7 +42,7 @@ std_encoding_extra_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
+# 编译并运行 .x 烟测。
 std_encoding_extra_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -84,5 +84,5 @@ std_encoding_extra_run_c_smoke() {
 
 # 输出 gate 报告。
 std_encoding_extra_emit_report() {
-  echo "${STD_ENCODING_EXTRA_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
+  echo "${STD_ENCODING_EXTRA_PREFIX} status=$1 c=$2 x=$3 skip=$4"
 }

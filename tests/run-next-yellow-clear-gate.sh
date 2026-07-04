@@ -72,17 +72,17 @@ done
 if [ -n "$SHUX_BIN" ]; then
   echo "=== NEXT-YELLOW: typeck smokes (SHUX=$SHUX_BIN) ==="
   SMOKES=(
-    tests/debug/diag_smoke.sx
-    tests/iterator/u64_roundtrip.sx
-    tests/exc/runtime_diag_smoke.sx
-    tests/string/unicode_bridge.sx
-    tests/vec/u16_roundtrip.sx
-    tests/map/iter_rehash.sx
-    tests/queue/u8_roundtrip.sx
-    tests/net/tcp_pool_smoke.sx
-    tests/thread/pool_stats.sx
-    tests/fmt/template_smoke.sx
-    tests/stub/sqlite_net_stub.sx
+    tests/debug/diag_smoke.x
+    tests/iterator/u64_roundtrip.x
+    tests/exc/runtime_diag_smoke.x
+    tests/string/unicode_bridge.x
+    tests/vec/u16_roundtrip.x
+    tests/map/iter_rehash.x
+    tests/queue/u8_roundtrip.x
+    tests/net/tcp_pool_smoke.x
+    tests/thread/pool_stats.x
+    tests/fmt/template_smoke.x
+    tests/stub/sqlite_net_stub.x
   )
   for s in "${SMOKES[@]}"; do
     if ! "$SHUX_BIN" check -L . "$s" >/dev/null 2>&1; then
@@ -99,17 +99,17 @@ if [ -n "$SHUX_BIN" ]; then
   # shellcheck source=tests/lib/bootstrap-link-shux.sh
   . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
   RUN_LIST=(
-    tests/vec/u16_roundtrip.sx
-    tests/map/iter_rehash.sx
-    tests/queue/u8_roundtrip.sx
-    tests/net/tcp_pool_smoke.sx
-    tests/fmt/template_smoke.sx
-    tests/stub/sqlite_net_stub.sx
-    tests/iterator/u64_roundtrip.sx
+    tests/vec/u16_roundtrip.x
+    tests/map/iter_rehash.x
+    tests/queue/u8_roundtrip.x
+    tests/net/tcp_pool_smoke.x
+    tests/fmt/template_smoke.x
+    tests/stub/sqlite_net_stub.x
+    tests/iterator/u64_roundtrip.x
   )
   RUN_OK=1
   for s in "${RUN_LIST[@]}"; do
-    out="/tmp/shux_yellow_$(basename "$s" .sx)"
+    out="/tmp/shux_yellow_$(basename "$s" .x)"
     if $RUN_SHUX -L . "$s" -o "$out" 2>/tmp/shux_yellow_build.log; then
       ec=0
       "$out" >/dev/null 2>&1 || ec=$?

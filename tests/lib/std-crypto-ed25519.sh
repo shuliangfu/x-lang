@@ -7,7 +7,7 @@ STD_CRYPTO_ED25519_PREFIX="${SHUX_STD126_CRYPTO_ED25519_PREFIX:-shux: [SHUX_STD1
 
 # 校验 manifest 中 api/const/symbol/file/smoke 条目是否存在于对应文件。
 std_crypto_ed25519_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local crypto_c="$2"
   local tsv="$3"
   local miss=0
@@ -17,7 +17,7 @@ std_crypto_ed25519_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api|const)
-        if ! grep -qE "(function|const) ${anchor}" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "(function|const) ${anchor}" "$mod_x" 2>/dev/null; then
           echo "std-crypto-ed25519 FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -42,7 +42,7 @@ std_crypto_ed25519_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测；成功返回 0。
+# 编译并运行 .x 烟测；成功返回 0。
 std_crypto_ed25519_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -68,8 +68,8 @@ std_crypto_ed25519_run_c_smoke() {
   if [ ! -f "$crypto_o" ]; then
     return 1
   fi
-  if ! std_crypto_o_has_sx_symbols "$crypto_o"; then
-    echo "std-crypto-ed25519 SKIP c smoke (crypto.o missing .sx symbols; need shux-c)" >&2
+  if ! std_crypto_o_has_x_symbols "$crypto_o"; then
+    echo "std-crypto-ed25519 SKIP c smoke (crypto.o missing .x symbols; need shux-c)" >&2
     return 2
   fi
   std_crypto_ensure_runtime_glue_o
@@ -96,5 +96,5 @@ std_crypto_ed25519_run_c_smoke() {
 
 # 输出 gate 报告行。
 std_crypto_ed25519_emit_report() {
-  echo "${STD_CRYPTO_ED25519_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
+  echo "${STD_CRYPTO_ED25519_PREFIX} status=$1 c=$2 x=$3 skip=$4"
 }

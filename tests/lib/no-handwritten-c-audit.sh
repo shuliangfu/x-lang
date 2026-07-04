@@ -64,7 +64,7 @@ nhc_audit_whitelist() {
   # 新增：当前存在但 baseline 未登记
   new_n=$(comm -23 "$cur" <(awk -F'\t' '$1=="file" { print $2 }' "$baseline" | LC_ALL=C sort) | wc -l | tr -d ' ')
   if [ "$new_n" -gt 0 ] 2>/dev/null; then
-    echo "nhc-audit FAIL: ${new_n} new .c not in whitelist (stage F requires .sx migration):" >&2
+    echo "nhc-audit FAIL: ${new_n} new .c not in whitelist (stage F requires .x migration):" >&2
     comm -23 "$cur" <(awk -F'\t' '$1=="file" { print $2 }' "$baseline" | LC_ALL=C sort) | head -20 >&2
     rm -f "$tmp" "$cur"
     return 1

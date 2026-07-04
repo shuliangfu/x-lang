@@ -3,7 +3,7 @@
  *
  * 【文件职责】连接 preface 检测、9 字节帧头编解码、SETTINGS ACK/单条 SETTINGS 构建、ALPN "h2" 写入。
  * 不含 HPACK/多路复用客户端；完整 HTTP/2 客户端仍为远期目标。
- * 【所属模块】由 std/http/http_glue.c include；符号供 std/http/mod.sx 导出。
+ * 【所属模块】由 std/http/http_glue.c include；符号供 std/http/mod.x 导出。
  */
 
 /** HTTP/2 帧头固定长度（字节）。 */

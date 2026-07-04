@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD063_DOC:-analysis/std-elf-deep-v1.md}"
 MANIFEST="${SHUX_STD063_TSV:-tests/baseline/std-elf-deep.tsv}"
 VECTORS="${SHUX_STD063_VECTORS:-tests/baseline/std-elf-deep-vectors.tsv}"
-MOD_SX="std/elf/mod.sx"
-ELF_SX="std/elf/elf.sx"
+MOD_X="std/elf/mod.x"
+ELF_X="std/elf/elf.x"
 LIB="tests/lib/std-elf-deep.sh"
-SMOKE_SX="tests/std-elf/parse_sections.sx"
+SMOKE_X="tests/std-elf/parse_sections.x"
 SMOKE_C="tests/std-elf/parse_sections_smoke_ok.c"
 FIXTURE="tests/baseline/fixtures/elf64_min_reloc.bin"
 MIN_DEEP=2
@@ -20,7 +20,7 @@ MIN_DEEP=2
 . "$LIB"
 
 echo "=== STD-063: elf deep manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$ELF_SX" "$SMOKE_SX" "$SMOKE_C" "$FIXTURE" \
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$ELF_X" "$SMOKE_X" "$SMOKE_C" "$FIXTURE" \
   analysis/std-elf-parse-v1.md tests/run-std-elf-parse-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-elf-deep gate FAIL: missing $f" >&2
@@ -69,7 +69,7 @@ if ! grep -qF 'text_byte0	144' "$VECTORS" 2>/dev/null; then
   exit 1
 fi
 
-sym_miss="$(std_elf_deep_symbols_ok "$MOD_SX" "$ELF_SX" "$MANIFEST" || true)"
+sym_miss="$(std_elf_deep_symbols_ok "$MOD_X" "$ELF_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_elf_deep_emit_report "fail" 0 0 0
   exit 1
@@ -85,7 +85,7 @@ SHUX_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
   ensure_std_c_o ../std/elf/elf.o
 else
-  echo "std-elf-deep gate SKIP c/sx smoke (need shux-c for elf.sx merge)" >&2
+  echo "std-elf-deep gate SKIP c/x smoke (need shux-c for elf.x merge)" >&2
   std_elf_deep_emit_report "ok" 0 0 1
   echo "std-elf-deep gate OK (manifest only; no shux-c)"
   exit 0
@@ -99,7 +99,7 @@ else
   exit 1
 fi
 
-DEEP_SX=0
+DEEP_X=0
 SKIP=0
 SHUX_BIN=""
 stdlib_cm_native_shu() {
@@ -120,11 +120,11 @@ elif stdlib_cm_native_shu ./compiler/shux; then
 fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-063: .sx deep smoke (SHUX=$SHUX_BIN) ==="
+  echo "=== STD-063: .x deep smoke (SHUX=$SHUX_BIN) ==="
   rc=0
-  std_elf_deep_run_sx_smoke "$SHUX_BIN" "$SMOKE_SX" || rc=$?
+  std_elf_deep_run_x_smoke "$SHUX_BIN" "$SMOKE_X" || rc=$?
   if [ "$rc" -eq 0 ]; then
-    DEEP_SX=1
+    DEEP_X=1
   elif [ "$rc" -eq 2 ]; then
     SKIP=1
   else
@@ -132,9 +132,9 @@ if [ -n "$SHUX_BIN" ]; then
     exit 1
   fi
 else
-  echo "std-elf-deep gate SKIP .sx smoke (no native shux)" >&2
+  echo "std-elf-deep gate SKIP .x smoke (no native shux)" >&2
   SKIP=1
 fi
 
-std_elf_deep_emit_report "ok" "$DEEP_C" "$DEEP_SX" "$SKIP"
+std_elf_deep_emit_report "ok" "$DEEP_C" "$DEEP_X" "$SKIP"
 echo "std-elf-deep gate OK"

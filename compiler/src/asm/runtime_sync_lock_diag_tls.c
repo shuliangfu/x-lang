@@ -4,7 +4,7 @@
  * 【文件职责】
  * __thread 持有 mutex 栈（最大 16）与锁诊断可变状态、元数据表、快照/烟测。
  * seed asm 暂不支持全局写与含全局的 if/while，诊断逻辑集中本 C 文件；
- * sync.sx 保留 API 锚点与版本标记供 gate/manifest 校验。
+ * sync.x 保留 API 锚点与版本标记供 gate/manifest 校验。
  *
  * 【所属模块】std.sync；与 sync.o、runtime_sync_os.o 一并链入 exe。
  */

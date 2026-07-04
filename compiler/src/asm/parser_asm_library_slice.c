@@ -8,7 +8,7 @@
 #ifndef PARSER_ASM_LIBRARY_SLICE_INCLUDED
 #define PARSER_ASM_LIBRARY_SLICE_INCLUDED
 
-/** 与 ast.sx Block 布局一致（library 形态仅写 labeled return）。 */
+/** 与 ast.x Block 布局一致（library 形态仅写 labeled return）。 */
 #ifndef PARSER_ASM_AST_BLOCK_DEFINED
 #define PARSER_ASM_AST_BLOCK_DEFINED
 struct ast_Block {
@@ -38,7 +38,7 @@ struct ast_Block {
 };
 #endif
 
-/** 与 ast.sx ExprKind 序一致（library 形态用到的子集；勿与 primary_slice 枚举混用）。 */
+/** 与 ast.x ExprKind 序一致（library 形态用到的子集；勿与 primary_slice 枚举混用）。 */
 enum {
   PARSER_ASM_LIB_EXPR_VAR = 3,
   PARSER_ASM_LIB_EXPR_EQ = 14,
@@ -79,7 +79,7 @@ extern int32_t parser_asm_struct_layout_name_exists_arr_c(void *module, uint8_t 
 extern int32_t parser_asm_stretch_library_fn_shape_audit_c(struct parser_asm_lexer lex,
                                                            struct parser_asm_slice_u8 *source);
 
-/** 与 parser.sx ast.expr_init_match_enum 一致：清零 match 占位字段。 */
+/** 与 parser.x ast.expr_init_match_enum 一致：清零 match 占位字段。 */
 static void parser_asm_lib_expr_init_match_c(struct ast_Expr *e) {
   if (!e)
     return;
@@ -97,7 +97,7 @@ static struct parser_asm_library_parse_result parser_asm_library_fail_c(struct p
 }
 
 /**
- * 解析库函数单参 bool return 形态并写入 module/arena；与 parser.sx parse_one_function_library 一致。
+ * 解析库函数单参 bool return 形态并写入 module/arena；与 parser.x parse_one_function_library 一致。
  */
 struct parser_asm_library_parse_result parser_asm_parse_one_function_library_slice_c(
     void *arena, void *module, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source) {

@@ -31,14 +31,14 @@ if ! nolibc_n06_audit_manifest "$MANIFEST"; then
   die "NL-06 freestanding replacements manifest audit failed"
 fi
 
-sx_n=$(nolibc_n06_count_sx_replacements "$MANIFEST")
+x_n=$(nolibc_n06_count_x_replacements "$MANIFEST")
 leg_n=$(nolibc_n06_count_legacy_c "$MANIFEST")
 f01_total=$(awk -F'\t' '$1=="summary_total_c" { print $2; exit }' tests/baseline/std-c-inventory.tsv 2>/dev/null)
 f01_total=${f01_total:-97}
-echo "nolibc-n06: sx_replacements=${sx_n} legacy_c=${leg_n} (F-01 total=${f01_total})"
+echo "nolibc-n06: x_replacements=${x_n} legacy_c=${leg_n} (F-01 total=${f01_total})"
 
 if [ "${SHUX_NOLIBC_N06_MANIFEST_ONLY:-0}" = "1" ]; then
-  echo "nolibc-n06 gate OK (manifest only; sx=${sx_n} legacy=${leg_n})"
+  echo "nolibc-n06 gate OK (manifest only; x=${x_n} legacy=${leg_n})"
   exit 0
 fi
 

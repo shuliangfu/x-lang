@@ -1,5 +1,5 @@
 /**
- * preprocess.c — .sx 条件编译预处理实现（#if / #else / #endif）
+ * preprocess.c — .x 条件编译预处理实现（#if / #else / #endif）
  *
  * 文件职责：按行扫描源码，识别 #if SYMBOL、#else、#endif；根据 defines 决定保留或跳过块；被跳过行输出换行以保持行号。
  * 约定：一行内 # 后紧跟 if/elseif/else/endif，允许空白；#if 与 #elseif 后跟单标识符 SYMBOL；嵌套深度可 grow（C 本地栈）。
@@ -22,7 +22,7 @@
 #define PREPROCESS_MAX_DEFINES 32
 #endif
 
-/** C 路径 #if 嵌套栈（grow；SX 路径用 ast_pool preprocess_if_stack_*）。 */
+/** C 路径 #if 嵌套栈（grow；X 路径用 ast_pool preprocess_if_stack_*）。 */
 static int32_t *pp_if_stack;
 static int pp_if_cap;
 static int pp_if_len;
@@ -363,15 +363,15 @@ char *preprocess_c_fallback(const char *source, size_t source_len, const char **
     return out;
 }
 
-/** 对外接口：默认构建（仅链 preprocess.o）时由此提供；SX 构建（-DSHUX_USE_SX_PREPROCESS）时由 runtime.c 提供。 */
-#ifndef SHUX_USE_SX_PREPROCESS
+/** 对外接口：默认构建（仅链 preprocess.o）时由此提供；X 构建（-DSHUX_USE_X_PREPROCESS）时由 runtime.c 提供。 */
+#ifndef SHUX_USE_X_PREPROCESS
 char *preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
     return preprocess_c_fallback(source, source_len, defines, ndefines, out_length);
 }
 #endif
 
 #ifdef SHUX_LEGACY_C_FRONTEND_ABI
-int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap) {
+int32_t preprocess_x_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap) {
     const char *defines[PREPROCESS_MAX_DEFINES];
     char *out;
     size_t out_len;
@@ -394,7 +394,7 @@ int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8
     return (int32_t)out_len;
 }
 
-int32_t typeck_preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap) {
-    return preprocess_sx_buf(source_buf, source_len, out_buf, out_cap);
+int32_t typeck_preprocess_x_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap) {
+    return preprocess_x_buf(source_buf, source_len, out_buf, out_cap);
 }
 #endif

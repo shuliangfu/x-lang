@@ -5,8 +5,8 @@ STD_ELF_PHDR_PREFIX="${SHUX_STD064_PREFIX:-shux: [SHUX_STD064_ELF_PHDR]}"
 
 # 校验 manifest 中 api/const/symbol/file。
 std_elf_phdr_symbols_ok() {
-  local mod_sx="$1"
-  local elf_sx="$2"
+  local mod_x="$1"
+  local elf_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,21 +15,21 @@ std_elf_phdr_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-elf-phdr FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_x" 2>/dev/null; then
           echo "std-elf-phdr FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/elf/elf.sx" ]; then path="$elf_sx"; fi
-        if [ "$path" = "std/elf/elf_glue.c" ]; then path="$elf_sx"; fi
+        if [ "$path" = "std/elf/elf.x" ]; then path="$elf_x"; fi
+        if [ "$path" = "std/elf/elf_glue.c" ]; then path="$elf_x"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-elf-phdr FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -78,7 +78,7 @@ std_elf_phdr_run_c_smoke() {
 std_elf_phdr_emit_report() {
   local status="$1"
   local phdr_c="$2"
-  local phdr_sx="$3"
+  local phdr_x="$3"
   local skip="$4"
-  echo "${STD_ELF_PHDR_PREFIX} status=${status} phdr_c=${phdr_c} phdr_sx=${phdr_sx} skip=${skip}"
+  echo "${STD_ELF_PHDR_PREFIX} status=${status} phdr_c=${phdr_c} phdr_x=${phdr_x} skip=${skip}"
 }

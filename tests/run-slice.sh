@@ -31,17 +31,17 @@ elif [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux_asm ]; th
   SLICE_LINK_BACKEND_ARGS=""
 fi
 
-# core/slice C 实现（length.sx 等）；勿强编 process.o（arm64 shux-c 无 asm backend）。
+# core/slice C 实现（length.x 等）；勿强编 process.o（arm64 shux-c 无 asm backend）。
 if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q ../core/slice/slice.o 2>/dev/null \
     || make -C compiler ../core/slice/slice.o 2>/dev/null || true
 fi
 
-# main.sx / data_field.sx：asm slice 栈槽问题或 exit 不符时回退 seed -E+cc。
+# main.x / data_field.x：asm slice 栈槽问题或 exit 不符时回退 seed -E+cc。
 slice_simple_link_o() {
-  local sx="$1" out="$2" struct_decl="$3" want_exit="$4"
+  local x="$1" out="$2" struct_decl="$3" want_exit="$4"
   set +e
-  $LINK_SHUX $SLICE_LINK_BACKEND_ARGS "$sx" -o "$out" 2>&1
+  $LINK_SHUX $SLICE_LINK_BACKEND_ARGS "$x" -o "$out" 2>&1
   local ec=$?
   set -e
   if [ "$ec" -eq 0 ] && [ -x "$out" ]; then
@@ -59,33 +59,33 @@ slice_simple_link_o() {
     echo '#include <stdint.h>'
     echo '#include <stddef.h>'
     echo "$struct_decl"
-    "$emit_shux" -E "$sx" 2>/dev/null | tail -n +2
+    "$emit_shux" -E "$x" 2>/dev/null | tail -n +2
   } >"$tmpc"
   cc -O0 -o "$out" "$tmpc"
   rm -f "$tmpc"
 }
 
-slice_simple_link_o tests/slice/main.sx /tmp/shux_slice \
+slice_simple_link_o tests/slice/main.x /tmp/shux_slice \
   'struct shulang_slice_int32_t { int32_t *data; int64_t length; };' 20
 exitcode=0; /tmp/shux_slice >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 20 ] && { echo "expected 20 (slice s[1]), got $exitcode"; exit 1; }
 
-slice_simple_link_o tests/slice/data_field.sx /tmp/shux_slice_data_field \
+slice_simple_link_o tests/slice/data_field.x /tmp/shux_slice_data_field \
   'struct shulang_slice_uint8_t { uint8_t *data; int64_t length; };' 0
 exitcode=0; /tmp/shux_slice_data_field >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (data_field), got $exitcode"; exit 1; }
 
 # core.slice + core.option 全链：bootstrap asm 对多 dep -o 易缺 core_slice_* 符号；check 绿则链接失败可跳过（同 run-core-slice-api-gate）。
 slice_dep_link_or_check() {
-  local sx="$1" out="$2" label="$3"
+  local x="$1" out="$2" label="$3"
   local ck="${TYPECK_SHUX:-$SHUX}"
-  if ! "$ck" check -L . "$sx" >/dev/null 2>&1; then
+  if ! "$ck" check -L . "$x" >/dev/null 2>&1; then
     echo "expected typeck OK ($label)" >&2
-    "$ck" check -L . "$sx" 2>&1 | tail -8 >&2 || true
+    "$ck" check -L . "$x" 2>&1 | tail -8 >&2 || true
     return 1
   fi
   set +e
-  $RUN_SHUX -L . "$sx" -o "$out" 2>/tmp/shux_slice_dep_link.log
+  $RUN_SHUX -L . "$x" -o "$out" 2>/tmp/shux_slice_dep_link.log
   local ec=$?
   set -e
   if [ "$ec" -ne 0 ] || [ ! -x "$out" ]; then
@@ -101,11 +101,11 @@ slice_dep_link_or_check() {
   [ "$exitcode" -eq 0 ] || { echo "expected exit 0 ($label), got $exitcode"; return 1; }
 }
 
-slice_dep_link_or_check tests/slice/length.sx /tmp/shux_slice_length "len_i32"
-slice_dep_link_or_check tests/slice/subslice_split_chunks.sx /tmp/shux_slice_subsplit "subslice_split_chunks"
+slice_dep_link_or_check tests/slice/length.x /tmp/shux_slice_length "len_i32"
+slice_dep_link_or_check tests/slice/subslice_split_chunks.x /tmp/shux_slice_subsplit "subslice_split_chunks"
 
 # 边界：对非数组/切片取下标，应报 subscript base must be array, slice or pointer
-err=$(${TYPECK_SHUX:-$SHUX} check tests/slice/subscript_not_slice.sx 2>&1) || true
+err=$(${TYPECK_SHUX:-$SHUX} check tests/slice/subscript_not_slice.x 2>&1) || true
 echo "$err" | grep -q "subscript base must be array" || { echo "expected subscript base error, got: $err"; exit 1; }
 
 echo "slice test OK"

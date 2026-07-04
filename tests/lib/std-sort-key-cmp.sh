@@ -5,7 +5,7 @@ STD150_PREFIX="${SHUX_STD150_SORT_KEY_CMP_PREFIX:-shux: [SHUX_STD150_SORT_KEY_CM
 
 # 校验 manifest；echo 缺失数。
 std_sort_key_cmp_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local sort_c="$2"
   local tsv="$3"
   local miss=0
@@ -15,14 +15,14 @@ std_sort_key_cmp_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api|struct)
-        if ! grep -qE "(function ${anchor}\\(|struct ${anchor} )" "$mod_sx" 2>/dev/null; then
-          echo "std-sort-key-cmp FAIL: missing '$anchor' in $mod_sx" >&2
+        if ! grep -qE "(function ${anchor}\\(|struct ${anchor} )" "$mod_x" 2>/dev/null; then
+          echo "std-sort-key-cmp FAIL: missing '$anchor' in $mod_x" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ -z "$path" ] || [ "$path" = "std/sort/sort.c" ] || [ "$path" = "std/sort/sort.sx" ]; then
+        if [ -z "$path" ] || [ "$path" = "std/sort/sort.c" ] || [ "$path" = "std/sort/sort.x" ]; then
           path="$sort_c"
         fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
@@ -102,11 +102,11 @@ std_sort_key_cmp_run_c_smoke() {
   return 0
 }
 
-std_sort_key_cmp_run_sx_smoke() {
+std_sort_key_cmp_run_x_smoke() {
   local shux="$1"
   local src="$2"
   local sort_o="$3"
-  local exe="/tmp/shux_sort_key_cmp_sx_$$"
+  local exe="/tmp/shux_sort_key_cmp_x_$$"
   if ! "$shux" -L . "$src" -o "$exe" "$sort_o" >/dev/null 2>&1; then
     echo "std-sort-key-cmp FAIL: compile $src" >&2
     "$shux" -L . "$src" -o "$exe" "$sort_o" 2>&1 | tail -10 >&2 || true
@@ -130,5 +130,5 @@ std_sort_key_cmp_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD150_PREFIX} status=${status} c=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD150_PREFIX} status=${status} c=${c_ok} x=${su_ok} skip=${skip}"
 }

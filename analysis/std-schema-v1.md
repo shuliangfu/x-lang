@@ -27,14 +27,14 @@
 | `last_error_field` / `last_error_message` | 字段级错误路径 |
 | `schema_to_error_code` | 与 std.error 负码桥接 |
 
-实现：`std/schema/mod.sx` + `std/schema/schema_glue.c`；链入 json + csv。
+实现：`std/schema/mod.x` + `std/schema/schema_glue.c`；链入 json + csv。
 
 ---
 
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_SCHEMA] status=ok c_smoke=1 sx=1 skip=0
+shux: [SHUX_STD_SCHEMA] status=ok c_smoke=1 x=1 skip=0
 std-schema gate OK
 ```
 

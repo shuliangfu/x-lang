@@ -12,7 +12,7 @@
 |----|------|
 | STD-027 | Windows `LoadLibraryA` / `GetProcAddress` / `FreeLibrary` 与 POSIX `dlopen` 对齐 |
 
-三平台统一 API：`open` / `sym` / `close`（`std/dynlib/mod.sx`）。
+三平台统一 API：`open` / `sym` / `close`（`std/dynlib/mod.x`）。
 
 ---
 
@@ -62,7 +62,7 @@
 ## 5. 验收
 
 - manifest：`tests/baseline/std-dynlib-windows.tsv`
-- 烟测：`tests/dynlib/open_sym_close.sx`；回归：`tests/run-dynlib.sh`
+- 烟测：`tests/dynlib/open_sym_close.x`；回归：`tests/run-dynlib.sh`
 - 报告：`shux: [SHUX_STD_DYNLIB_WIN] status=ok`
 
 ---

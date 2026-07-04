@@ -104,7 +104,7 @@ make -C compiler -q 2>/dev/null || make -C compiler
 
 SHUX_BIN="${SHUX:-}"
 if [ -z "$SHUX_BIN" ]; then
-  for cand in ./compiler/shux-c ./compiler/shux ./compiler/shux-sx; do
+  for cand in ./compiler/shux-c ./compiler/shux ./compiler/shux-x; do
     if native_shu "$cand"; then
       SHUX_BIN="$cand"
       break
@@ -147,7 +147,7 @@ while IFS=$'\t' read -r item_id kind anchor src notes; do
 done < "$MATRIX"
 
 echo "=== EXC-005: golden check format ==="
-assign="tests/typeck/type_mismatch_assign.sx"
+assign="tests/typeck/type_mismatch_assign.x"
 want="assignment type mismatch: expected i32, found bool"
 chk=$("$SHUX_BIN" check "$assign" 2>&1) && {
   echo "exc-cli-lsp-error FAIL: check should fail on $assign" >&2

@@ -1,9 +1,9 @@
 # COMP-011 Windows backend verification matrix
 # 列：case_id	sample	cmd_kind	expect	policy	notes
 # min_cases	6
-case_windows_min	windows_min.sx	coff_emit	nonempty_coff	required	COMP-011 min
-case_main_compat	main.sx	coff_emit	nonempty_coff	optional	run-asm parity
+case_windows_min	windows_min.x	coff_emit	nonempty_coff	required	COMP-011 min
+case_main_compat	main.x	coff_emit	nonempty_coff	optional	run-asm parity
 case_triple_msvc	x86_64-pc-windows-msvc	triple	use_coff_o	doc	driver
-case_ld_lld	windows_min.sx	link_run	exit_42	msys_only	lld-link
-case_cross_host	windows_min.sx	cross_emit	nonempty_coff	portable	non-MSYS
+case_ld_lld	windows_min.x	link_run	exit_42	msys_only	lld-link
+case_cross_host	windows_min.x	cross_emit	nonempty_coff	portable	non-MSYS
 case_ci_windows	ci-platform-matrix.tsv	ci_hook	windows-latest	doc	ENG-003

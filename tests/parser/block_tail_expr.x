@@ -1,0 +1,6 @@
+// 块末表达式解析测试（parser.x 最小支持）：块以整数字面量结尾，无
+return、无分号。
+// 有返回类型 i32 时须显式 return；本用例改为 return 以通过 typeck（与 C 一致）。
+function main(): i32 {
+  return 42;
+}

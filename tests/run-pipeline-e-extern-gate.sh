@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C-04 v4：pipeline.sx -E-extern 纯 codegen 产出，无 perl 后处理，须 cc -c 通过。
+# C-04 v4：pipeline.x -E-extern 纯 codegen 产出，无 perl 后处理，须 cc -c 通过。
 # 用法：./tests/run-pipeline-e-extern-gate.sh
 # 环境：SHUX_PIPELINE_E_EXTERN_FAIL=1 失败时硬退出
 set -e
@@ -28,7 +28,7 @@ fi
 
 rm -f "$GEN" "$OBJ" 2>/dev/null || true
 
-if ! "$SHUX" $DIRS src/pipeline/pipeline.sx -E -E-extern >"$GEN" 2>/tmp/shux_pipeline_e_extern_gen.log; then
+if ! "$SHUX" $DIRS src/pipeline/pipeline.x -E -E-extern >"$GEN" 2>/tmp/shux_pipeline_e_extern_gen.log; then
   echo "pipeline-e-extern-gate FAIL: pipeline -E-extern" >&2
   tail -n 10 /tmp/shux_pipeline_e_extern_gen.log 2>/dev/null || true
   rm -f "$GEN" 2>/dev/null || true
@@ -49,8 +49,8 @@ if ! grep -q 'extern struct parser_ParseIntoResult parser_parse_into_buf' "$GEN"
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
-if ! grep -q 'extern int32_t typeck_typeck_sx_ast' "$GEN"; then
-  echo "pipeline-e-extern-gate FAIL: missing auto extern typeck_typeck_sx_ast" >&2
+if ! grep -q 'extern int32_t typeck_typeck_x_ast' "$GEN"; then
+  echo "pipeline-e-extern-gate FAIL: missing auto extern typeck_typeck_x_ast" >&2
   rm -f "$GEN" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0

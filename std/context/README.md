@@ -8,4 +8,4 @@
 - `deadline_ns` / `remaining_ns`
 - 轻量键值 bag：`set_value` / `get_value`
 - `free` — 释放派生上下文
-- 烟测：`tests/std-context/cancel_smoke.sx`
+- 烟测：`tests/std-context/cancel_smoke.x`

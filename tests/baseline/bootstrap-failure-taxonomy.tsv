@@ -23,5 +23,5 @@ ft_preprocess	preprocess_if	preprocess	err_preprocess	shux_asm_gate	preprocess_u
 ft_lexer	lexer_fail	lexer	err_lexer	shux_asm_gate	-	词法错误
 ft_import	import_path	import	err_import	shux_asm_gate	-	模块路径
 ft_run_regression	run_fail	run	ci_banner_run_all,err_run_test	run_all_bstrict	-	run-all 回归
-ft_shux_asm_compile	user_compile	compile	ci_banner_shux_asm	shux_asm_gate	-	shux_asm 编 .sx
+ft_shux_asm_compile	user_compile	compile	ci_banner_shux_asm	shux_asm_gate	-	shux_asm 编 .x
 ft_full_ci	ci_full	all	ci_banner_bstrict_build	full_ci	-	完整 CI 链 fallback

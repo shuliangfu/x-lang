@@ -3,13 +3,13 @@
 # min_apis	3
 read_path	section	## 1. 阅读路径	analysis/std-hash-xxhash-v1.md
 xx_api	section	## 2. xxHash64 语义	xxhash64
-const_xx	const	HASHER_XXHASH	std/hash/mod.sx	2
-api_xxhash64	api	xxhash64	std/hash/mod.sx	一次性
-api_xxhash64_seed	api	xxhash64_seed	std/hash/mod.sx	带 seed
-api_start_algo	api	start_algo	std/hash/mod.sx	增量
-symbol_bytes_c	symbol	hash_xxhash64_bytes_c	std/hash/hash.sx	一次性
-symbol_smoke_c	symbol	hash_xxhash_smoke_c	std/hash/hash.sx	烟测
-smoke_sx	smoke	tests/std-hash/xxhash64.sx	.sx 烟测
+const_xx	const	HASHER_XXHASH	std/hash/mod.x	2
+api_xxhash64	api	xxhash64	std/hash/mod.x	一次性
+api_xxhash64_seed	api	xxhash64_seed	std/hash/mod.x	带 seed
+api_start_algo	api	start_algo	std/hash/mod.x	增量
+symbol_bytes_c	symbol	hash_xxhash64_bytes_c	std/hash/hash.x	一次性
+symbol_smoke_c	symbol	hash_xxhash_smoke_c	std/hash/hash.x	烟测
+smoke_x	smoke	tests/std-hash/xxhash64.x	.x 烟测
 smoke_c	smoke	tests/std-hash/xxhash64_smoke_ok.c	C 烟测
 lib	script	tests/lib/std-hash-xxhash.sh	lib
 gate	script	tests/run-std-hash-xxhash-gate.sh	gate

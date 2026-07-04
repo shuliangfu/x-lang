@@ -2,15 +2,15 @@
 # core-option-result.sh — CORE-002/003：Option/Result 类型族 manifest 辅助
 #
 # 用法（source 后）：
-#   core_or_symbols_ok OPTION_SX RESULT_SX TSV
+#   core_or_symbols_ok OPTION_X RESULT_X TSV
 #   core_or_emit_report status option_ok result_ok skip
 
 CORE_OR_PREFIX="${SHUX_CORE_OPTION_RESULT_PREFIX:-shux: [SHUX_CORE_OPTION_RESULT]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_or_symbols_ok() {
-  local option_sx="$1"
-  local result_sx="$2"
+  local option_x="$1"
+  local result_x="$2"
   local tsv="$3"
   local miss=0
   local sym mod_path
@@ -20,11 +20,11 @@ core_or_symbols_ok() {
       symbol)
         sym="$anchor"
         case "$mod_path" in
-          core/result/mod.sx) mod_path="$result_sx" ;;
-          *) mod_path="$option_sx" ;;
+          core/result/mod.x) mod_path="$result_x" ;;
+          *) mod_path="$option_x" ;;
         esac
         if [ "$sym" = "unwrap_or<T>" ]; then
-          if ! grep -qF 'function unwrap_or<T>' "$option_sx" 2>/dev/null; then
+          if ! grep -qF 'function unwrap_or<T>' "$option_x" 2>/dev/null; then
             echo "core-option-result FAIL: missing generic unwrap_or" >&2
             miss=$((miss + 1))
           fi

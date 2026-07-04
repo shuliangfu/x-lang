@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-random v1：std.random 去 C（random.c → random.sx + OS 胶层）。
+# F-random v1：std.random 去 C（random.c → random.x + OS 胶层）。
 #
 # 用法：./tests/run-f-random-v1-gate.sh
 # 环境：SHUX_F_RANDOM_V1_FAIL=1 — 失败时硬退出
@@ -16,11 +16,11 @@ die() {
   exit 0
 }
 
-echo "=== F-random v1: std.random random.c → random.sx + glue ==="
+echo "=== F-random v1: std.random random.c → random.x + glue ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-random v1' "$DOC" || die "doc missing F-random v1 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
-[ -f std/random/random.sx ] || die "missing std/random/random.sx"
+[ -f std/random/random.x ] || die "missing std/random/random.x"
 [ ! -f std/random/random_os_glue.c ] || die "random_os_glue.c should be deleted (F-ZC)"
 [ -f compiler/src/asm/runtime_random_fill.c ] || die "missing runtime_random_fill.c"
 [ ! -f std/random/random.c ] || die "std/random/random.c should be deleted"
@@ -38,7 +38,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-grep -q 'random.sx' compiler/Makefile || die "Makefile missing random.sx rule"
+grep -q 'random.x' compiler/Makefile || die "Makefile missing random.x rule"
 grep -q 'runtime_random_fill' compiler/Makefile || die "Makefile missing runtime_random_fill.o"
 if grep -q 'std/random/random\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/random/random.c"

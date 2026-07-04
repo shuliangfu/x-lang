@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# std-csv-stream.sh — STD-128 manifest 与烟测辅助（F-csv v1：csv.sx）
+# std-csv-stream.sh — STD-128 manifest 与烟测辅助（F-csv v1：csv.x）
 
 STD_CSV_STREAM_PREFIX="${SHUX_STD_CSV_STREAM_PREFIX:-shux: [SHUX_STD_CSV_STREAM]}"
 
 std_csv_stream_symbols_ok() {
-  local mod_sx="$1"
-  local csv_sx="$2"
+  local mod_x="$1"
+  local csv_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -14,7 +14,7 @@ std_csv_stream_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-csv-stream FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -22,7 +22,7 @@ std_csv_stream_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/csv/csv.c|std/csv/csv.sx) path="$csv_sx" ;;
+          std/csv/csv.c|std/csv/csv.x) path="$csv_x" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-csv-stream FAIL: missing '$anchor' in $path" >&2
@@ -93,5 +93,5 @@ std_csv_stream_run_c_smoke() {
 }
 
 std_csv_stream_emit_report() {
-  echo "${STD_CSV_STREAM_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
+  echo "${STD_CSV_STREAM_PREFIX} status=$1 c=$2 x=$3 skip=$4"
 }

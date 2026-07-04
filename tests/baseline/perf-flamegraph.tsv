@@ -4,9 +4,9 @@
 # min_cases	2
 # output_prefix	shux: [SHUX_PERF_FLAMEGRAPH]
 smoke_case	case_id	check_typeck	gate 烟测用例
-check_typeck	profile_case	check compiler/src/typeck/typeck.sx	typeck dogfood（PERF-004）
-loop_i32_compile	profile_case	compile tests/bench/loop_i32.sx -o /tmp/shux_fg_loop_i32	微基准编译
-check_parser	profile_case	check compiler/src/parser/parser.sx	parser dogfood
+check_typeck	profile_case	check compiler/src/typeck/typeck.x	typeck dogfood（PERF-004）
+loop_i32_compile	profile_case	compile tests/bench/loop_i32.x -o /tmp/shux_fg_loop_i32	微基准编译
+check_parser	profile_case	check compiler/src/parser/parser.x	parser dogfood
 output_prefix	field	shux: [SHUX_PERF_FLAMEGRAPH]	stderr 前缀
 report_header	field	case_id	rank	pct	symbol	TSV 列
 hook_runner	script	run-perf-flamegraph.sh	Top-N 生成器

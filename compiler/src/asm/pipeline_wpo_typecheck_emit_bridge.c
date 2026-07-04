@@ -1,8 +1,8 @@
 /**
- * pipeline_wpo_typecheck_emit_bridge.c — WPO helper 链：SX typecheck_entry thin bl 依赖 emit 桥。
+ * pipeline_wpo_typecheck_emit_bridge.c — WPO helper 链：X typecheck_entry thin bl 依赖 emit 桥。
  *
- * pipeline_wpo_helpers_partial 可能仍含 run_sx_pipeline_typecheck_entry；本 TU 提供
- * run_sx_pipeline_typecheck_entry_emit → glue emit_c（勿提供 pipeline_run_sx_pipeline_impl）。
+ * pipeline_wpo_helpers_partial 可能仍含 run_x_pipeline_typecheck_entry；本 TU 提供
+ * run_x_pipeline_typecheck_entry_emit → glue emit_c（勿提供 pipeline_run_x_pipeline_impl）。
  */
 #include <stdint.h>
 
@@ -10,19 +10,19 @@ struct ast_Module;
 struct ast_ASTArena;
 struct ast_PipelineDepCtx;
 
-extern int32_t run_sx_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t run_x_pipeline_typecheck_entry_emit_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                        struct ast_PipelineDepCtx *ctx);
 
 extern int32_t pipeline_resolve_path_try_one_lib_root(struct ast_PipelineDepCtx *ctx, int32_t lib_idx,
                                                       uint8_t *import_path, int32_t path_len);
 
-/** pipeline_wpo.o SX typecheck_entry 的 thin bl 目标。 */
-int32_t run_sx_pipeline_typecheck_entry_emit(struct ast_Module *module, struct ast_ASTArena *arena,
+/** pipeline_wpo.o X typecheck_entry 的 thin bl 目标。 */
+int32_t run_x_pipeline_typecheck_entry_emit(struct ast_Module *module, struct ast_ASTArena *arena,
                                              struct ast_PipelineDepCtx *ctx) {
-  return run_sx_pipeline_typecheck_entry_emit_c(module, arena, ctx);
+  return run_x_pipeline_typecheck_entry_emit_c(module, arena, ctx);
 }
 
-/** pipeline_wpo_helpers_partial 的裸名调用桥接到 pipeline.sx 导出的真实符号。 */
+/** pipeline_wpo_helpers_partial 的裸名调用桥接到 pipeline.x 导出的真实符号。 */
 int32_t resolve_path_try_one_lib_root(struct ast_PipelineDepCtx *ctx, int32_t lib_idx,
                                       uint8_t *import_path, int32_t path_len) {
   return pipeline_resolve_path_try_one_lib_root(ctx, lib_idx, import_path, path_len);

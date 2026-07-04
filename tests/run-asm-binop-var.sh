@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 SHUX=${SHUX:-./compiler/shux}
 
-$SHUX tests/asm/binop_var_fast.sx -o /tmp/shux_asm_binop_var 2>&1
+$SHUX tests/asm/binop_var_fast.x -o /tmp/shux_asm_binop_var 2>&1
 exitcode=0
 /tmp/shux_asm_binop_var >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 143 ] && { echo "run-asm-binop-var FAIL: expected exit 143, got $exitcode"; exit 1; }

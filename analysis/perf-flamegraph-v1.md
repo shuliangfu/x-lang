@@ -44,9 +44,9 @@
 
 | case_id | 命令 | 用途 |
 |---------|------|------|
-| `check_typeck` | `shux check compiler/src/typeck/typeck.sx` | typeck dogfood（gate 烟测） |
-| `loop_i32_compile` | `shux compile tests/bench/loop_i32.sx` | 微基准全链路 |
-| `check_parser` | `shux check compiler/src/parser/parser.sx` | parser 体量热点 |
+| `check_typeck` | `shux check compiler/src/typeck/typeck.x` | typeck dogfood（gate 烟测） |
+| `loop_i32_compile` | `shux compile tests/bench/loop_i32.x` | 微基准全链路 |
+| `check_parser` | `shux check compiler/src/parser/parser.x` | parser 体量热点 |
 
 与 `compile-dogfood.tsv` 中 `check_typeck` / `check_parser` 对齐，便于 PERF-004 回归后对照 flamegraph。
 
@@ -59,7 +59,7 @@
 列：`case_id` · `rank` · `pct` · `symbol`
 
 ```text
-check_typeck	1	18.42	typeck_sx_ast
+check_typeck	1	18.42	typeck_x_ast
 check_typeck	2	9.11	check_expr_impl_mega
 ...
 ```

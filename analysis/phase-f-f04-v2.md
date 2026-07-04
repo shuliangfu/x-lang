@@ -1,13 +1,13 @@
 # 阶段 F-04 v2（std.net tcp_pool 去 C）
 
-> **F-04 v2**：**`tcp_pool.inc.c`** → **`std/net/tcp_pool.sx`**；`mod.sx` import 转发；核心 TCP 仍 net.c。
+> **F-04 v2**：**`tcp_pool.inc.c`** → **`std/net/tcp_pool.x`**；`mod.x` import 转发；核心 TCP 仍 net.c。
 
 ## v2 完成（✅ manifest）
 
 | 项 | 说明 |
 |----|------|
-| `tcp_pool.sx` | create/acquire/release/drain/destroy + smoke（离线） |
-| `mod.sx` | `import("std.net.tcp_pool")`；无 extern net_tcp_pool_* |
+| `tcp_pool.x` | create/acquire/release/drain/destroy + smoke（离线） |
+| `mod.x` | `import("std.net.tcp_pool")`；无 extern net_tcp_pool_* |
 | `net.c` | 不再 `#include tcp_pool.inc.c` |
 | 删除 | `std/net/tcp_pool.inc.c` |
 | 存量 | F-01 total **102**（较 103 减 1） |

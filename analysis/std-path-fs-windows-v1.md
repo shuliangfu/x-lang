@@ -22,7 +22,7 @@
 | API | POSIX | Windows | v1 说明 |
 |-----|-------|---------|---------|
 | `path_is_sep(c)` | `/` `\` | 同左 | 解析时双分隔符均识别 |
-| `path_sep()` | `47` `/` | `92` `\` | 由 `path_sep_c()`（`mod.sx` cfg 内联，F-path v1 已删 path.c）返回本机主分隔符 |
+| `path_sep()` | `47` `/` | `92` `\` | 由 `path_sep_c()`（`mod.x` cfg 内联，F-path v1 已删 path.c）返回本机主分隔符 |
 | `path_join` 输出 | 本机 `path_sep()` | 同左 | 拼接时按需插入主分隔符 |
 
 ### 2.2 `path_is_absolute`（v1）
@@ -37,8 +37,8 @@
 
 ### 2.3 烟测
 
-- `tests/path/windows_abs_join.sx` — 盘符/UNC/反斜杠 basename（全平台 typeck + runnable）
-- 既有 `tests/path/*.sx` + `run-path.sh` 保持 POSIX 行为
+- `tests/path/windows_abs_join.x` — 盘符/UNC/反斜杠 basename（全平台 typeck + runnable）
+- 既有 `tests/path/*.x` + `run-path.sh` 保持 POSIX 行为
 
 ---
 
@@ -48,7 +48,7 @@ Windows 分支（`fs.c`）已用 `CreateFileA`；Win32 接受 `/` 与 `\`。
 
 | case | 脚本 | linux | macos | windows |
 |------|------|-------|-------|---------|
-| `win_path_smoke` | `windows_path_smoke.sx` | skip | skip | must |
+| `win_path_smoke` | `windows_path_smoke.x` | skip | skip | must |
 
 路径字面量使用 `tests\fs\.win_xplat_tmp`（反斜杠），验证 open/read/write/mmap 句柄路径。
 

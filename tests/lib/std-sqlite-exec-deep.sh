@@ -11,7 +11,7 @@ std_sqlite_exec_deep_source_sqlite() {
 
 # 遍历 manifest，校验 api/symbol/file/smoke。
 std_sqlite_exec_deep_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local db_c="$2"
   local tsv="$3"
   local miss=0
@@ -21,14 +21,14 @@ std_sqlite_exec_deep_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-sqlite-exec-deep FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/db/sqlite/sqlite.sx" ]; then path="$db_c"; fi
+        if [ "$path" = "std/db/sqlite/sqlite.x" ]; then path="$db_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-sqlite-exec-deep FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -82,7 +82,7 @@ std_sqlite_exec_deep_run_c_smoke() {
 std_sqlite_exec_deep_emit_report() {
   local status="$1"
   local tx_c="$2"
-  local tx_sx="$3"
+  local tx_x="$3"
   local skip="$4"
-  echo "${STD_DB_EXEC_DEEP_PREFIX} status=${status} tx_c=${tx_c} tx_sx=${tx_sx} skip=${skip}"
+  echo "${STD_DB_EXEC_DEEP_PREFIX} status=${status} tx_c=${tx_c} tx_x=${tx_x} skip=${skip}"
 }

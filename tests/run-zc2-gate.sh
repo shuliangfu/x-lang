@@ -64,9 +64,9 @@ fi
 make -C compiler -q ../std/process/process.o ../std/io/io.o ../std/fs/fs.o 2>/dev/null \
   || make -C compiler ../std/process/process.o ../std/io/io.o ../std/fs/fs.o
 
-GEN_SRC="tests/io/read_ptr_gen_smoke.sx"
-MMAP_SRC="tests/io/read_ptr_mmap_smoke.sx"
-VIEW_SRC="tests/io/read_ptr_view_smoke.sx"
+GEN_SRC="tests/io/read_ptr_gen_smoke.x"
+MMAP_SRC="tests/io/read_ptr_mmap_smoke.x"
+VIEW_SRC="tests/io/read_ptr_view_smoke.x"
 
 if ! "$CHECK_SHUX" check -L . "$GEN_SRC" >/dev/null 2>&1; then
   echo "zc2 FAIL: typeck $GEN_SRC" >&2

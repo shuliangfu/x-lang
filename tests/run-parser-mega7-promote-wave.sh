@@ -53,7 +53,7 @@ compile_one() {
     env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
       SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
       ${name:+SHUX_ASM_PARSER_MEGA_BISECT=$name} \
-      "$COMP_IN" -backend asm -o "$out" $LIBROOT src/parser/parser.sx
+      "$COMP_IN" -backend asm -o "$out" $LIBROOT src/parser/parser.x
   ) >/dev/null 2>&1
   ec=$?
   set -e

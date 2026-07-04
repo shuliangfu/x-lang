@@ -1,8 +1,8 @@
 # STD-132 std.env platform encoding manifest
 min_apis	3
-api_getenv	api	getenv	std/env/mod.sx
-api_setenv	api	setenv	std/env/mod.sx
-api_getenv_ptr	api	getenv_ptr	std/env/mod.sx
-symbol_smoke_c	symbol	env_platform_encoding_smoke_c	std/env/env.sx
-smoke_sx	smoke	tests/env/platform_encoding.sx
+api_getenv	api	getenv	std/env/mod.x
+api_setenv	api	setenv	std/env/mod.x
+api_getenv_ptr	api	getenv_ptr	std/env/mod.x
+symbol_smoke_c	symbol	env_platform_encoding_smoke_c	std/env/env.x
+smoke_x	smoke	tests/env/platform_encoding.x
 gate	script	run-std-env-platform-encoding-gate.sh	tests/run-std-env-platform-encoding-gate.sh

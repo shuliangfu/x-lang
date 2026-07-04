@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C-07：shux-c（C 前端）vs shux/shux_asm（.sx 前端）同输入 typeck/run parity 门禁。
+# C-07：shux-c（C 前端）vs shux/shux_asm（.x 前端）同输入 typeck/run parity 门禁。
 #
 # 用法：./tests/run-c07-frontend-parity-gate.sh
 # 环境：SHUX_C07_FAIL=1 失败时硬退出；C07_REF / C07_CAND 可覆盖编译器路径。
@@ -15,7 +15,7 @@ DOC="analysis/phase-c-c07-v1.md"
 # shellcheck source=tests/lib/c07-frontend-parity.sh
 . tests/lib/c07-frontend-parity.sh
 
-echo "=== C-07: frontend parity (shux-c REF vs sx CAND) ==="
+echo "=== C-07: frontend parity (shux-c REF vs x CAND) ==="
 for f in "$MATRIX" "$DOC" tests/lib/c07-frontend-parity.sh; do
   [ -f "$f" ] || { echo "c07 gate FAIL: missing $f" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 done
@@ -52,8 +52,8 @@ while IFS=$'\t' read -r case_id src policy expect_exit notes; do
 
   rc_ref=0
   rc_cand=0
-  c07_typeck_sx "$C07_REF" "$src" "$log_ref" || rc_ref=$?
-  c07_typeck_sx "$C07_CAND" "$src" "$log_cand" || rc_cand=$?
+  c07_typeck_x "$C07_REF" "$src" "$log_ref" || rc_ref=$?
+  c07_typeck_x "$C07_CAND" "$src" "$log_cand" || rc_cand=$?
 
   if [ "$policy" = "compile_fail" ]; then
     if [ "$rc_ref" -eq 0 ] || [ "$rc_cand" -eq 0 ]; then
@@ -95,8 +95,8 @@ while IFS=$'\t' read -r case_id src policy expect_exit notes; do
     out_cand="/tmp/c07_${tag}_cand"
     rc_link_ref=0
     rc_link_cand=0
-    c07_compile_sx "$C07_REF" "$src" "$out_ref" "$log_ref" || rc_link_ref=$?
-    c07_compile_sx "$C07_CAND" "$src" "$out_cand" "$log_cand" || rc_link_cand=$?
+    c07_compile_x "$C07_REF" "$src" "$out_ref" "$log_ref" || rc_link_ref=$?
+    c07_compile_x "$C07_CAND" "$src" "$out_cand" "$log_cand" || rc_link_cand=$?
     if [ "$rc_link_ref" -eq 0 ] && [ "$rc_link_cand" -eq 0 ] && [ -x "$out_ref" ] && [ -x "$out_cand" ]; then
       run_ref=$(c07_run_exit "$out_ref")
       run_cand=$(c07_run_exit "$out_cand")

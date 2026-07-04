@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
-SRC="tests/mem/owned_return_early.sx"
+SRC="tests/mem/owned_return_early.x"
 OUT="/tmp/shux_owned_return_$$"
 rm -f "$OUT"
 if ! SHUX_KEEP_C=1 "$SHUX" "$SRC" -o "$OUT" >/tmp/shux_owned_return_build.log 2>&1; then

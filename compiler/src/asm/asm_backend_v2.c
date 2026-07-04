@@ -28,7 +28,7 @@ static int nvars;
 
 static int asm_backend_v2_usage(const char *argv0) {
     diag_reportf_with_code(NULL, 0, 0, "usage error", SHUX_DIAG_CODE_ARGUMENT_ARG001, NULL,
-                           "usage: %s <in.sx> [-o <out>]",
+                           "usage: %s <in.x> [-o <out>]",
                            argv0 ? argv0 : "asm_backend_v2");
     return 1;
 }

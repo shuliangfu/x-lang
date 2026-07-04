@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
-SRC="tests/typeck/allocator_escape.sx"
+SRC="tests/typeck/allocator_escape.x"
 if "$SHUX" "$SRC" -o /tmp/shux_alloc_escape_bad 2>/tmp/shux_alloc_escape.log; then
   echo "allocator-escape-gate FAIL: expected typeck error for $SRC" >&2
   exit 1

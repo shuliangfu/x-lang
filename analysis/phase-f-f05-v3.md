@@ -1,12 +1,12 @@
 # 阶段 F-05 v3（std.db.sqlite 去 C）
 
-> **F-05 v3**：**`std/db/sqlite/sqlite.c`** → **`sqlite.sx`** + **`sqlite_glue.c`**（libsqlite3 胶层）。
+> **F-05 v3**：**`std/db/sqlite/sqlite.c`** → **`sqlite.x`** + **`sqlite_glue.c`**（libsqlite3 胶层）。
 
 ## 迁移范围
 
 | 文件 | 说明 |
 |------|------|
-| `std/db/sqlite/sqlite.sx` | open/close/exec/事务/游标/stmt 缓存/连接池/全量烟测 |
+| `std/db/sqlite/sqlite.x` | open/close/exec/事务/游标/stmt 缓存/连接池/全量烟测 |
 | `std/db/sqlite/sqlite_glue.c` | `shu_sqlite3_*_c` FFI；`-DSHUX_DB_USE_SQLITE3` 或 stub |
 | ~~`std/db/sqlite/sqlite.c`~~ | 已删除 |
 

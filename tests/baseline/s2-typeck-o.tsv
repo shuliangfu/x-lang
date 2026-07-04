@@ -1,4 +1,4 @@
-# S2 typeck.o：build_asm/typeck.sx 的 asm 产物 baseline
+# S2 typeck.o：build_asm/typeck.x 的 asm 产物 baseline
 # 更新 build_asm 下限：SHUX_S2_UPDATE_BASELINE=1 ./tests/run-s2-typeck-gate.sh
 # 同步 build_asm/typeck.o：./tests/run-s2-typeck-sync-build-o.sh
 # typeck_patch_all_body_parent_links + loop_depth push/pop SU（2026-06-02）

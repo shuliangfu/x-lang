@@ -5,8 +5,8 @@ STD_ELF_PARSE_PREFIX="${SHUX_STD_ELF_PARSE_PREFIX:-shux: [SHUX_STD_ELF_PARSE]}"
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke。
 std_elf_parse_symbols_ok() {
-  local mod_sx="$1"
-  local elf_sx="$2"
+  local mod_x="$1"
+  local elf_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,21 +15,21 @@ std_elf_parse_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-elf-parse FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_x" 2>/dev/null; then
           echo "std-elf-parse FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/elf/elf.sx" ]; then path="$elf_sx"; fi
-        if [ "$path" = "std/elf/elf_glue.c" ]; then path="$elf_sx"; fi
+        if [ "$path" = "std/elf/elf.x" ]; then path="$elf_x"; fi
+        if [ "$path" = "std/elf/elf_glue.c" ]; then path="$elf_x"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-elf-parse FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -74,7 +74,7 @@ std_elf_parse_run_c_smoke() {
   return 0
 }
 
-# .sx 烟测。
+# .x 烟测。
 std_elf_parse_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -104,5 +104,5 @@ std_elf_parse_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_ELF_PARSE_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_ELF_PARSE_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
 }

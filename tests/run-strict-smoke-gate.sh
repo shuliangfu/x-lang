@@ -44,12 +44,12 @@ if [ -n "$BUILD_LOG" ] && [ -f "$BUILD_LOG" ]; then
   fi
 fi
 
-# Linux x86_64：编排入口须为 C glue（非 pipeline_wpo SX 入口）；smoke 仅 compile+run（完整 gate 由 run-shux-asm-gate 覆盖）。
+# Linux x86_64：编排入口须为 C glue（非 pipeline_wpo X 入口）；smoke 仅 compile+run（完整 gate 由 run-shux-asm-gate 覆盖）。
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Linux-x86_64|Linux-amd64)
     if command -v nm >/dev/null 2>&1; then
-      if ! nm "$SHUX_ASM" 2>/dev/null | grep -q 'run_sx_pipeline_parse_entry_do_parse_c'; then
-        echo "strict-smoke gate FAIL: shux_asm missing run_sx_pipeline_parse_entry_do_parse_c (C orchestration glue)" >&2
+      if ! nm "$SHUX_ASM" 2>/dev/null | grep -q 'run_x_pipeline_parse_entry_do_parse_c'; then
+        echo "strict-smoke gate FAIL: shux_asm missing run_x_pipeline_parse_entry_do_parse_c (C orchestration glue)" >&2
         exit 1
       fi
     fi

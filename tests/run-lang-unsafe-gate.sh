@@ -2,7 +2,7 @@
 # LANG-007：unsafe 语法与边界门禁
 #
 # 读取 tests/baseline/lang-unsafe-api.tsv：
-#   policy=run          — 编译运行 .sx
+#   policy=run          — 编译运行 .x
 #   policy=compile_fail — 编译须失败且 stderr 含 implicit padding
 #   policy=hook         — 调用 tests/run-*.sh
 #
@@ -29,13 +29,13 @@ for f in \
   analysis/lang-unsafe-v1-rfc.md \
   analysis/type-region-v1-rfc.md \
   "$MATRIX" \
-  tests/unsafe/allow_padding_ok.sx \
-  tests/unsafe/padding_rejected.sx \
-  tests/unsafe/raw_ptr_null.sx \
-  tests/unsafe/extern_putchar.sx \
-  tests/unsafe/unsafe_block_deref_ok.sx \
-  tests/unsafe/deref_outside_unsafe_fail.sx \
-  tests/unsafe/extern_outside_unsafe_fail.sx; do
+  tests/unsafe/allow_padding_ok.x \
+  tests/unsafe/padding_rejected.x \
+  tests/unsafe/raw_ptr_null.x \
+  tests/unsafe/extern_putchar.x \
+  tests/unsafe/unsafe_block_deref_ok.x \
+  tests/unsafe/deref_outside_unsafe_fail.x \
+  tests/unsafe/extern_outside_unsafe_fail.x; do
   if [ ! -f "$f" ]; then
     echo "lang-unsafe gate FAIL: missing $f" >&2
     exit 1
@@ -43,7 +43,7 @@ for f in \
 done
 # U4：unsafe 关键字须在 lexer 保留列表中
 if ! grep -q '"unsafe"' compiler/src/asm/parser_asm_emit_heavy_stretch_slice.c 2>/dev/null \
-  && ! grep -q 'unsafe' compiler/src/lexer/token.sx 2>/dev/null; then
+  && ! grep -q 'unsafe' compiler/src/lexer/token.x 2>/dev/null; then
   echo "lang-unsafe gate FAIL: unsafe keyword not reserved in lexer" >&2
   exit 1
 fi
@@ -96,16 +96,16 @@ run_timeout_case() {
   fi
 }
 
-run_sx_case() {
+run_x_case() {
   local script="$1"
   local want_ec="$2"
   local src="tests/unsafe/${script}"
-  local out="/tmp/shux_unsafe_${script%.sx}"
+  local out="/tmp/shux_unsafe_${script%.x}"
   if [ ! -f "$src" ]; then
     echo "lang-unsafe FAIL: missing $src" >&2
     return 1
   fi
-  # LANG-007：relink seed 的 asm -o 路径 sx parse 回归中；`-backend c` 与 check 同走 C 前端（unsafe 边界已覆盖）。
+  # LANG-007：relink seed 的 asm -o 路径 x parse 回归中；`-backend c` 与 check 同走 C 前端（unsafe 边界已覆盖）。
   if ! run_timeout_case "$SHUX_BIN" -backend c -L . "$src" -o "$out" >/tmp/shux_unsafe_compile.log 2>&1; then
     cat /tmp/shux_unsafe_compile.log >&2
     return 1
@@ -149,7 +149,7 @@ while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
   echo "── $case_id [$mode]: $notes ──"
   case "$policy" in
     run)
-      if run_sx_case "$script" "${want_ec:-0}"; then
+      if run_x_case "$script" "${want_ec:-0}"; then
         echo "lang-unsafe OK $case_id"
       else
         FAILS=$((FAILS + 1))

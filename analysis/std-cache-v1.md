@@ -26,14 +26,14 @@
 | `mark_unhealthy` | health 失败丢弃 |
 | `stats` / `idle` | 池观测 |
 
-实现：`std/cache/mod.sx` + `std/cache/cache.c`；依赖 `std/time` 单调时钟。
+实现：`std/cache/mod.x` + `std/cache/cache.c`；依赖 `std/time` 单调时钟。
 
 ---
 
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_CACHE] status=ok c_smoke=1 sx=1 skip=0
+shux: [SHUX_STD_CACHE] status=ok c_smoke=1 x=1 skip=0
 std-cache gate OK
 ```
 

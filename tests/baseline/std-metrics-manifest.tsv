@@ -4,19 +4,19 @@
 read_path	section	## 1. 阅读路径	analysis/std-metrics-v1.md
 api_doc	section	## 2. API	analysis/std-metrics-v1.md
 verify	section	## 3. Gate	analysis/std-metrics-v1.md
-api_counter_inc	api	counter_inc	std/metrics/mod.sx	递增
-api_counter_snap	api	counter_snapshot	std/metrics/mod.sx	快照
-api_gauge_set	api	gauge_set	std/metrics/mod.sx	设置
-api_gauge_add	api	gauge_add	std/metrics/mod.sx	加减
-api_hist_obs	api	histogram_observe	std/metrics/mod.sx	观测
-api_reg_counter	api	counter	std/metrics/mod.sx	注册
-api_reg_gauge	api	gauge	std/metrics/mod.sx	注册
-api_reg_hist	api	histogram	std/metrics/mod.sx	注册
-api_export	api	export_prometheus	std/metrics/mod.sx	导出
-api_label	api	label_set	std/metrics/mod.sx	label
-api_err	api	err_ok	std/metrics/mod.sx	错误码
-impl_sx	file	std/metrics/mod.sx	std/metrics/mod.sx
-smoke_sx	smoke	tests/std-metrics/roundtrip.sx	round-trip
+api_counter_inc	api	counter_inc	std/metrics/mod.x	递增
+api_counter_snap	api	counter_snapshot	std/metrics/mod.x	快照
+api_gauge_set	api	gauge_set	std/metrics/mod.x	设置
+api_gauge_add	api	gauge_add	std/metrics/mod.x	加减
+api_hist_obs	api	histogram_observe	std/metrics/mod.x	观测
+api_reg_counter	api	counter	std/metrics/mod.x	注册
+api_reg_gauge	api	gauge	std/metrics/mod.x	注册
+api_reg_hist	api	histogram	std/metrics/mod.x	注册
+api_export	api	export_prometheus	std/metrics/mod.x	导出
+api_label	api	label_set	std/metrics/mod.x	label
+api_err	api	err_ok	std/metrics/mod.x	错误码
+impl_x	file	std/metrics/mod.x	std/metrics/mod.x
+smoke_x	smoke	tests/std-metrics/roundtrip.x	round-trip
 vectors	file	tests/baseline/std-metrics-vectors.tsv	向量
 lib	script	lib/std-metrics.sh	tests/lib/std-metrics.sh
 gate	script	run-std-metrics-gate.sh	tests/run-std-metrics-gate.sh

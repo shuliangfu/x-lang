@@ -10,47 +10,47 @@ reqresp_v4	section	## 9. Request/Response v4（HttpResponseOwned）	response_own
 h2_huffman	section	## 3. HTTP/2 Huffman	hpack_huffman_decode
 h2_flow	section	## 4. HTTP/2 流控	build_window_update
 verify	section	## 5. 验证与门禁	gate
-struct_request	struct	HttpRequest	std/http/mod.sx	请求
-struct_response	struct	HttpResponse	std/http/mod.sx	响应
-struct_body_owned	struct	HttpBodyOwned	std/http/mod.sx	堆 body
-api_init	api	request_init	std/http/mod.sx	构造
-api_parse	api	parse_response	std/http/mod.sx	解析
-api_execute	api	execute	std/http/mod.sx	执行
-api_execute_ctx	api	execute_ctx	std/http/mod.sx	Context
-struct_body_view	struct	HttpBodyView	std/http/mod.sx	body 视图
-struct_url_owned	struct	HttpUrlOwned	std/http/mod.sx	堆 URL
-api_url_cap	api	url_string_cap	std/http/mod.sx	String cap
-api_url_exceeds	api	url_exceeds_string_cap	std/http/mod.sx	>256 检测
-api_url_owned	api	url_owned_from_slice	std/http/mod.sx	堆 URL
-api_url_free	api	url_owned_free	std/http/mod.sx	释放 URL
-api_bind_url	api	request_bind_url_owned	std/http/mod.sx	绑定请求
-api_url_smoke	api	url_owned_smoke	std/http/mod.sx	URL 烟测
-struct_request_owned	struct	HttpRequestOwned	std/http/mod.sx	一体堆请求
-api_owned_init	api	request_owned_init	std/http/mod.sx	构造 Owned
-api_owned_free	api	request_owned_free	std/http/mod.sx	释放 Owned
-api_execute_owned	api	execute_owned	std/http/mod.sx	执行 Owned
-api_owned_smoke	api	request_owned_smoke	std/http/mod.sx	Owned 烟测
-struct_response_owned	struct	HttpResponseOwned	std/http/mod.sx	一体堆响应
-api_resp_owned	api	response_owned_from_parse	std/http/mod.sx	构造 Owned
-api_resp_owned_free	api	response_owned_free	std/http/mod.sx	释放 Owned
-api_push_body_owned	api	push_last_body_owned	std/http/mod.sx	push 堆 body
+struct_request	struct	HttpRequest	std/http/mod.x	请求
+struct_response	struct	HttpResponse	std/http/mod.x	响应
+struct_body_owned	struct	HttpBodyOwned	std/http/mod.x	堆 body
+api_init	api	request_init	std/http/mod.x	构造
+api_parse	api	parse_response	std/http/mod.x	解析
+api_execute	api	execute	std/http/mod.x	执行
+api_execute_ctx	api	execute_ctx	std/http/mod.x	Context
+struct_body_view	struct	HttpBodyView	std/http/mod.x	body 视图
+struct_url_owned	struct	HttpUrlOwned	std/http/mod.x	堆 URL
+api_url_cap	api	url_string_cap	std/http/mod.x	String cap
+api_url_exceeds	api	url_exceeds_string_cap	std/http/mod.x	>256 检测
+api_url_owned	api	url_owned_from_slice	std/http/mod.x	堆 URL
+api_url_free	api	url_owned_free	std/http/mod.x	释放 URL
+api_bind_url	api	request_bind_url_owned	std/http/mod.x	绑定请求
+api_url_smoke	api	url_owned_smoke	std/http/mod.x	URL 烟测
+struct_request_owned	struct	HttpRequestOwned	std/http/mod.x	一体堆请求
+api_owned_init	api	request_owned_init	std/http/mod.x	构造 Owned
+api_owned_free	api	request_owned_free	std/http/mod.x	释放 Owned
+api_execute_owned	api	execute_owned	std/http/mod.x	执行 Owned
+api_owned_smoke	api	request_owned_smoke	std/http/mod.x	Owned 烟测
+struct_response_owned	struct	HttpResponseOwned	std/http/mod.x	一体堆响应
+api_resp_owned	api	response_owned_from_parse	std/http/mod.x	构造 Owned
+api_resp_owned_free	api	response_owned_free	std/http/mod.x	释放 Owned
+api_push_body_owned	api	push_last_body_owned	std/http/mod.x	push 堆 body
 symbol_owned_smoke_c	symbol	http_request_owned_smoke_c	compiler/src/asm/http/http_reqresp.inc.c	Owned C
-api_body_view	api	response_body_view	std/http/mod.sx	body 视图
-api_body_owned	api	response_body_owned	std/http/mod.sx	堆 body
-api_body_free	api	body_owned_free	std/http/mod.sx	释放
-api_body_decode	api	response_body_decode	std/http/mod.sx	body
-api_huffman	api	hpack_huffman_decode	std/http/mod.sx	Huffman
-api_window	api	build_window_update	std/http/mod.sx	WINDOW_UPDATE
-api_smoke	api	response_parse_smoke	std/http/mod.sx	C 烟测
+api_body_view	api	response_body_view	std/http/mod.x	body 视图
+api_body_owned	api	response_body_owned	std/http/mod.x	堆 body
+api_body_free	api	body_owned_free	std/http/mod.x	释放
+api_body_decode	api	response_body_decode	std/http/mod.x	body
+api_huffman	api	hpack_huffman_decode	std/http/mod.x	Huffman
+api_window	api	build_window_update	std/http/mod.x	WINDOW_UPDATE
+api_smoke	api	response_parse_smoke	std/http/mod.x	C 烟测
 symbol_parse_c	symbol	http_response_parse_c	compiler/src/asm/http/http_reqresp.inc.c	解析 C
 symbol_body_copy_c	symbol	http_response_body_copy_c	compiler/src/asm/http/http_reqresp.inc.c	body 复制
 symbol_url_smoke_c	symbol	http_url_owned_smoke_c	compiler/src/asm/http/http_reqresp.inc.c	URL C
 symbol_huffman_c	symbol	http2_hpack_huffman_decode_c	compiler/src/asm/http/hpack_huffman.inc.c	Huffman C
 symbol_flow_c	symbol	http2_build_window_update_c	compiler/src/asm/http/flow.inc.c	流控 C
-smoke_reqresp	smoke	tests/http/request_response.sx	烟测
-smoke_url_owned	smoke	tests/http/request_url_owned.sx	堆 URL 烟测
-smoke_owned	smoke	tests/http/request_owned.sx	Owned 烟测
-smoke_response_owned	smoke	tests/http/response_owned.sx	ResponseOwned 烟测
+smoke_reqresp	smoke	tests/http/request_response.x	烟测
+smoke_url_owned	smoke	tests/http/request_url_owned.x	堆 URL 烟测
+smoke_owned	smoke	tests/http/request_owned.x	Owned 烟测
+smoke_response_owned	smoke	tests/http/response_owned.x	ResponseOwned 烟测
 doc	file	analysis/std-http-reqresp-v0.md	RFC
 lib	script	lib/std-http-reqresp.sh	tests/lib/std-http-reqresp.sh
 gate	script	run-std-http-reqresp-gate.sh	tests/run-std-http-reqresp-gate.sh

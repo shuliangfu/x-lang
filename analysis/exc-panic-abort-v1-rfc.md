@@ -12,7 +12,7 @@
 |------|------|
 | **边界清晰** | 何时用 Result/Error（可恢复）vs panic/abort（不可恢复） |
 | **库行为** | 标准库不对可预期 IO/资源错误直接 panic |
-| **示例可跑** | `tests/exc/*.sx` + 既有 `run-result` / `run-panic` |
+| **示例可跑** | `tests/exc/*.x` + 既有 `run-result` / `run-panic` |
 | **与 EXC-001 衔接** | 扩展 §9 为可执行规范 |
 
 验收标准（NEXT EXC-002）：**边界文档 + 示例完成** + CI 烟测。
@@ -78,13 +78,13 @@
 
 | 示例 | 路径 | 说明 |
 |------|------|------|
-| Layer A 可恢复 | `tests/exc/recoverable_result.sx` | `unwrap_or` on Err |
-| Layer C 可恢复 | `tests/exc/layer_c_recoverable.sx` | `fs_open` 失败 + `fs_last_error` |
-| expect 必成功 | `tests/exc/expect_or_panic_ok.sx` | Ok 路径 `expect_i32_or_panic` |
-| runtime 门面 | `tests/exc/runtime_ready.sx` | `runtime_ready()` |
-| Result 全量 | `tests/result/main.sx` | `run-result.sh` |
-| panic 语法 | `tests/panic/main.sx` | 非零退出 |
-| panic 带消息 | `tests/panic/with_msg.sx` | `panic(42)` |
+| Layer A 可恢复 | `tests/exc/recoverable_result.x` | `unwrap_or` on Err |
+| Layer C 可恢复 | `tests/exc/layer_c_recoverable.x` | `fs_open` 失败 + `fs_last_error` |
+| expect 必成功 | `tests/exc/expect_or_panic_ok.x` | Ok 路径 `expect_i32_or_panic` |
+| runtime 门面 | `tests/exc/runtime_ready.x` | `runtime_ready()` |
+| Result 全量 | `tests/result/main.x` | `run-result.sh` |
+| panic 语法 | `tests/panic/main.x` | 非零退出 |
+| panic 带消息 | `tests/panic/with_msg.x` | `panic(42)` |
 
 ---
 
@@ -98,7 +98,7 @@
 
 | case | 验证 |
 |------|------|
-| `recoverable_result` 等 4× `.sx` | exit 0 |
+| `recoverable_result` 等 4× `.x` | exit 0 |
 | `result_suite` / `error_suite` | hook 脚本 OK |
 | `panic_abort` | 编译通过 + 运行非零 |
 
@@ -119,7 +119,7 @@
 | 资源 | 路径 |
 |------|------|
 | Result/Error | `analysis/exc-result-error-v1-rfc.md` |
-| std.runtime | `std/runtime/mod.sx` |
+| std.runtime | `std/runtime/mod.x` |
 | 门禁 | `tests/run-exc-panic-abort-gate.sh` |
 
 **EXC-002 状态：定版 ✅**

@@ -1,7 +1,7 @@
 /**
- * lsp_codegen_extern.c — LSP -E-extern 跨 TU extern / inline 包装（io.o、heap.o、lsp_io_sx.o 桥接）。
+ * lsp_codegen_extern.c — LSP -E-extern 跨 TU extern / inline 包装（io.o、heap.o、lsp_io_x.o 桥接）。
  *
- * 自 codegen.c 内嵌块迁出，供 C codegen_library_module_to_c 与 codegen.sx（经 emit_to_buf）共用，
+ * 自 codegen.c 内嵌块迁出，供 C codegen_library_module_to_c 与 codegen.x（经 emit_to_buf）共用，
  * 避免在 codegen.c 手维护两份字符串。
  */
 #include "lsp_codegen_extern.h"
@@ -16,18 +16,18 @@ struct codegen_CodegenOutBuf {
   int32_t len;
 };
 
-/** 路径是否 lsp_io.sx 的 -E-extern 入口。 */
-int lsp_codegen_emit_path_is_lsp_io_sx(const char *path) {
-  return path != NULL && strstr(path, "lsp_io.sx") != NULL;
+/** 路径是否 lsp_io.x 的 -E-extern 入口。 */
+int lsp_codegen_emit_path_is_lsp_io_x(const char *path) {
+  return path != NULL && strstr(path, "lsp_io.x") != NULL;
 }
 
-/** 路径是否 lsp/lsp.sx 的 -E-extern 入口（排除 lsp_io 等子路径误匹配）。 */
-int lsp_codegen_emit_path_is_lsp_main_sx(const char *path) {
+/** 路径是否 lsp/lsp.x 的 -E-extern 入口（排除 lsp_io 等子路径误匹配）。 */
+int lsp_codegen_emit_path_is_lsp_main_x(const char *path) {
   if (!path)
     return 0;
-  if (strstr(path, "/lsp/lsp.sx") != NULL || strstr(path, "\\lsp\\lsp.sx") != NULL)
+  if (strstr(path, "/lsp/lsp.x") != NULL || strstr(path, "\\lsp\\lsp.x") != NULL)
     return 1;
-  if (strstr(path, "lsp/lsp.sx") != NULL && strstr(path, "lsp_io") == NULL)
+  if (strstr(path, "lsp/lsp.x") != NULL && strstr(path, "lsp_io") == NULL)
     return 1;
   return 0;
 }
@@ -53,7 +53,7 @@ static const char *lsp_io_extern_block =
     "#define std_heap_free typeck_std_heap_free\n";
 
 static const char *lsp_gen_extern_block =
-    "\n/* lsp_codegen_extern: lsp.sx -E-extern stubs (lsp_io_sx.o 符号桥接) */\n"
+    "\n/* lsp_codegen_extern: lsp.x -E-extern stubs (lsp_io_x.o 符号桥接) */\n"
     "extern ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf);\n"
     "extern ptrdiff_t typeck_write_fd(int32_t fd, uint8_t *ptr, size_t count);\n"
     "extern uint8_t *typeck_lsp_alloc(size_t size);\n"

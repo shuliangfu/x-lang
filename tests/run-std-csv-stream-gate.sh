@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# STD-128：std.csv 流式 reader/writer 门禁（F-csv v1：csv.sx）
+# STD-128：std.csv 流式 reader/writer 门禁（F-csv v1：csv.x）
 set -e
 cd "$(dirname "$0")/.."
 DOC="analysis/std-csv-stream-v1.md"
 MANIFEST="tests/baseline/std-csv-stream-manifest.tsv"
-MOD_SX="std/csv/mod.sx"
-CSV_SX="std/csv/csv.sx"
+MOD_X="std/csv/mod.x"
+CSV_X="std/csv/csv.x"
 LIB="tests/lib/std-csv-stream.sh"
-SMOKE_SX="tests/csv/stream_roundtrip.sx"
+SMOKE_X="tests/csv/stream_roundtrip.x"
 # shellcheck source=tests/lib/std-csv-stream.sh
 . "$LIB"
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$CSV_SX" "$SMOKE_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$CSV_X" "$SMOKE_X"; do
   [ -f "$f" ] || { echo "std-csv-stream gate FAIL: missing $f" >&2; exit 1; }
 done
 grep -qF STD-128 "$DOC" || { echo "std-csv-stream gate FAIL: doc" >&2; exit 1; }
-sym_miss="$(std_csv_stream_symbols_ok "$MOD_SX" "$CSV_SX" "$MANIFEST" || true)"
+sym_miss="$(std_csv_stream_symbols_ok "$MOD_X" "$CSV_X" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 
 C_OK=0
-SX_OK=0
+X_OK=0
 SKIP=0
 
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
@@ -36,10 +36,10 @@ else
 fi
 
 if [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c check -L . "$SMOKE_SX" >/dev/null
-  std_csv_stream_run_smoke ./compiler/shux-c "$SMOKE_SX" && SX_OK=1 || exit 1
+  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
+  std_csv_stream_run_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi
-std_csv_stream_emit_report ok "$C_OK" "$SX_OK" "$SKIP"
+std_csv_stream_emit_report ok "$C_OK" "$X_OK" "$SKIP"
 echo "std-csv-stream gate OK"

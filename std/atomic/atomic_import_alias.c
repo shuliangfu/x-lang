@@ -2,7 +2,7 @@
  * atomic_import_alias.c — import binding `-o` 链接桩
  *
  * asm co-emit 对 `const atomic = import("std.atomic")` 生成 std_atomic_* 符号；
- * atomic.o 仅含 atomic.sx 锚点，mod.sx 门面未 co-emit。本 TU 提供 std_atomic_* 转发至
+ * atomic.o 仅含 atomic.x 锚点，mod.x 门面未 co-emit。本 TU 提供 std_atomic_* 转发至
  * runtime_atomic_glue.c 中的 atomic_*_c。
  */
 #include <stdint.h>

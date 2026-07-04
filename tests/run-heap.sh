@@ -14,7 +14,7 @@ ensure_runtime_process_argv_o
 SHUX=${SHUX:-./compiler/shux}
 LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
 exe="/tmp/shux_heap_$$"
-if ! collection_link_exe "$LINK_SHUX" tests/heap/main.sx "$exe" heap 2>&1; then
+if ! collection_link_exe "$LINK_SHUX" tests/heap/main.x "$exe" heap 2>&1; then
   echo "heap test: compile failed"
   rm -f "$exe"
   exit 1

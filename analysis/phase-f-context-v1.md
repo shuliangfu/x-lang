@@ -1,12 +1,12 @@
 # 阶段 F-context v1（std.context 去 C）
 
-> **F-context v1**：删除 **`context.c`**；Context 树逻辑在 **`context.sx`**；节点/原子在 **`context_node_glue.c`**。
+> **F-context v1**：删除 **`context.c`**；Context 树逻辑在 **`context.x`**；节点/原子在 **`context_node_glue.c`**。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `context.c`（253 行） | `context.sx` + `context_node_glue.c` |
+| 实现 | `context.c`（253 行） | `context.x` + `context_node_glue.c` |
 | `context.o` | `cc -c` | `ld -r` 合并 |
 
 ## 门禁

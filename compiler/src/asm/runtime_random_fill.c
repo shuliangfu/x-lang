@@ -2,7 +2,7 @@
  * runtime_random_fill.c — CSPRNG OS 胶层（F-ZC：自 std/random/random_os_glue.c 迁入）
  *
  * 提供 random_fill_bytes_c：getrandom / getentropy / BCryptGenRandom。
- * random.sx 经 extern 调用；与 random.o 一并链入。
+ * random.x 经 extern 调用；与 random.o 一并链入。
  */
 #include <stdint.h>
 #include <string.h>

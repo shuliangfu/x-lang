@@ -1,13 +1,13 @@
 # 阶段 F-base64 v1（std.base64 去 C）
 
-> **F-base64 v1**：删除 **`base64.c`**；块/流式 API 全在 **`base64.sx`**；**零胶层 C**。
+> **F-base64 v1**：删除 **`base64.c`**；块/流式 API 全在 **`base64.x`**；**零胶层 C**。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `base64.c`（567 行） | `base64.sx`（块 + STD-109 流） |
-| `base64.o` | `cc -c base64.c` | `shux -backend asm base64.sx` |
+| 实现 | `base64.c`（567 行） | `base64.x`（块 + STD-109 流） |
+| `base64.o` | `cc -c base64.c` | `shux -backend asm base64.x` |
 | 解码表 | 静态 256 字节表 | 字符分类函数（无 lazy init） |
 | 存量 | std 89 `.c` | std **88** `.c` |
 
@@ -34,4 +34,4 @@ SHUX_F_BASE64_V1_FAIL=1 ./tests/run-f-base64-v1-gate.sh
 ## 下一项
 
 - **F-encoding v1** / **F-string v1**
-- **F-process v2**：getcwd/self_exe 缓存迁 `.sx`
+- **F-process v2**：getcwd/self_exe 缓存迁 `.x`

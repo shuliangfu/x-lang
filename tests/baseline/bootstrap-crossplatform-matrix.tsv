@@ -9,7 +9,7 @@ boot_failure_taxonomy	run-bootstrap-failure-taxonomy-gate.sh	must	must	must	boot
 boot_perf	run-bootstrap-perf-gate.sh	manifest	manifest	manifest	bootstrap-perf gate OK|perf-compile-dogfood gate SKIP bench	BOOT-012
 boot_force_stub	run-boot-force-stub-gate.sh	manifest	manifest	manifest	boot-force-stub gate OK|boot-force-stub SKIP check/hooks	BOOT-010
 comp_parser_mega7	run-comp-parser-mega7-gate.sh	manifest	manifest	manifest	comp-parser-mega7 gate OK|comp-parser-mega7 gate SKIP hooks	COMP-001
-boot_migrate_sx	run-migrate-sx-gen-gate.sh	linux_only	skip	skip	migrate sx gen gate OK	SU gen 重编
+boot_migrate_x	run-migrate-x-gen-gate.sh	linux_only	skip	skip	migrate x gen gate OK	SU gen 重编
 parser_symbol	run-parser-thin-glue-symbol-integrity-gate.sh	linux_only	skip	skip	parser-thin-glue-symbol-integrity-gate OK|N/A on Darwin	thin glue
 parser_second_pass	run-parser-second-pass-gate.sh	linux_only	skip	skip	parser-second-pass-gate OK|N/A on Darwin|SKIP	EMIT_HEAVY
 parser_mega_bisect	run-parser-mega-bisect-gate.sh	linux_only	skip	skip	parser-mega-bisect-gate OK|N/A on Darwin|SKIP	mega bisect

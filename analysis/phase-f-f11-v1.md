@@ -9,7 +9,7 @@
 | D | Stage2 哈希 + portable 子集（D-03/D-04） |
 | E | 编译器 C 软退役 gate 绿（`run-e-soft-retire-gate.sh` manifest） |
 | F | std v2 聚合 gate 绿（`run-f-std-de-c-batch-gate.sh`） |
-| 发布物 | 单 `compiler/shux` + 全 `.sx` 树（D-05） |
+| 发布物 | 单 `compiler/shux` + 全 `.x` 树（D-05） |
 | Tag 格式 | `v<major>.<minor>.<patch>-selfhost` |
 
 ## 门禁

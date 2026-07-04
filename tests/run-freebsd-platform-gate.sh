@@ -8,9 +8,9 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_FREEBSD_PLATFORM_FAIL:-0}
 DOC="analysis/platform-freebsd-v1.md"
-FREEBSD_MOD="std/sys/freebsd.sx"
-SMOKE="tests/sys/freebsd_posix_write_smoke.sx"
-CFG_SX="tests/lexer/cfg_attribute_skip.sx"
+FREEBSD_MOD="std/sys/freebsd.x"
+SMOKE="tests/sys/freebsd_posix_write_smoke.x"
+CFG_X="tests/lexer/cfg_attribute_skip.x"
 
 echo "=== B-21: FreeBSD platform manifest ==="
 for f in "$DOC" "$FREEBSD_MOD" "$SMOKE"; do
@@ -19,12 +19,12 @@ for f in "$DOC" "$FREEBSD_MOD" "$SMOKE"; do
     exit 1
   fi
 done
-grep -q 'target_os = "freebsd"' std/sys/mod.sx || {
-  echo "freebsd-platform gate FAIL: mod.sx missing freebsd cfg" >&2
+grep -q 'target_os = "freebsd"' std/sys/mod.x || {
+  echo "freebsd-platform gate FAIL: mod.x missing freebsd cfg" >&2
   exit 1
 }
-grep -q 'freebsd' compiler/src/lexer/cfg_eval.sx || {
-  echo "freebsd-platform gate FAIL: cfg_eval.sx missing freebsd" >&2
+grep -q 'freebsd' compiler/src/lexer/cfg_eval.x || {
+  echo "freebsd-platform gate FAIL: cfg_eval.x missing freebsd" >&2
   exit 1
 }
 echo "freebsd-platform manifest OK"
@@ -43,7 +43,7 @@ run_expect() {
   local expect="$2"
   local out="/tmp/shux_freebsd_triple.$$.out"
   rm -f "$out" 2>/dev/null || true
-  if ! "$SHUX" -target "$triple" -o "$out" "$CFG_SX" 2>/tmp/shux_freebsd_triple.log; then
+  if ! "$SHUX" -target "$triple" -o "$out" "$CFG_X" 2>/tmp/shux_freebsd_triple.log; then
     echo "freebsd-platform FAIL: compile -target $triple" >&2
     tail -n 6 /tmp/shux_freebsd_triple.log 2>/dev/null || true
     return 1

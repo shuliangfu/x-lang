@@ -44,11 +44,11 @@ if (mac_verify(&key[0], key_len, &msg[0], msg_len, &tag[0]) != 1) { return 1; }
 
 | case_id | 文件 | 期望 |
 |---------|------|------|
-| `smoke_sha256_abc` | `tests/std-crypto/sha256_abc.sx` | SHA-256(`abc`) FIPS 向量 |
-| `smoke_hmac_key_msg` | `tests/std-crypto/hmac_key_msg.sx` | HMAC 金样 |
-| `smoke_mac_verify` | `tests/std-crypto/mac_verify_smoke.sx` | sign + verify 闭环 |
-| `smoke_mem_eq` | `tests/std-crypto/mem_eq_ct.sx` | 常量时间比较 |
-| `smoke_rand_fill` | `tests/std-crypto/rand_fill_smoke.sx` | `std.random` fill_bytes |
+| `smoke_sha256_abc` | `tests/std-crypto/sha256_abc.x` | SHA-256(`abc`) FIPS 向量 |
+| `smoke_hmac_key_msg` | `tests/std-crypto/hmac_key_msg.x` | HMAC 金样 |
+| `smoke_mac_verify` | `tests/std-crypto/mac_verify_smoke.x` | sign + verify 闭环 |
+| `smoke_mem_eq` | `tests/std-crypto/mem_eq_ct.x` | 常量时间比较 |
+| `smoke_rand_fill` | `tests/std-crypto/rand_fill_smoke.x` | `std.random` fill_bytes |
 | `hook_crypto` | `tests/run-crypto.sh` | 回归 |
 | `hook_random` | `tests/run-random.sh` | 回归 |
 

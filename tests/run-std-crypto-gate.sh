@@ -8,8 +8,8 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_CRYPTO_DOC:-analysis/std-crypto-min-v1.md}"
 MANIFEST="${SHUX_STD_CRYPTO_MANIFEST:-tests/baseline/std-crypto-manifest.tsv}"
 VECTORS="${SHUX_STD_CRYPTO_VECTORS:-tests/baseline/std-crypto-vectors.tsv}"
-CRYPTO_MOD="${SHUX_STD_CRYPTO_MOD:-std/crypto/mod.sx}"
-RAND_MOD="${SHUX_STD_RANDOM_MOD:-std/random/mod.sx}"
+CRYPTO_MOD="${SHUX_STD_CRYPTO_MOD:-std/crypto/mod.x}"
+RAND_MOD="${SHUX_STD_RANDOM_MOD:-std/random/mod.x}"
 MIN_APIS=5
 MIN_LAYERS=3
 
@@ -18,7 +18,7 @@ MIN_LAYERS=3
 
 echo "=== STD-006: std.crypto manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$CRYPTO_MOD" "$RAND_MOD" \
-  std/crypto/core.sx compiler/src/asm/runtime_crypto_inc_glue.c std/random/random.sx compiler/src/asm/runtime_random_fill.c tests/lib/std-crypto.sh; do
+  std/crypto/core.x compiler/src/asm/runtime_crypto_inc_glue.c std/random/random.x compiler/src/asm/runtime_random_fill.c tests/lib/std-crypto.sh; do
   if [ ! -f "$f" ]; then
     echo "std-crypto gate FAIL: missing $f" >&2
     exit 1

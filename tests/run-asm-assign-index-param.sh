@@ -28,8 +28,8 @@ run_one() {
 }
 
 # 无 struct：仍用 shux_asm 验 asm INDEX assign scratch。
-run_one tests/asm/assign_index_ptr_param.sx /tmp/shux_asm_assign_index_ptr_param set_at 99 "$SHUX"
+run_one tests/asm/assign_index_ptr_param.x /tmp/shux_asm_assign_index_ptr_param set_at 99 "$SHUX"
 # struct 字段数组：-o 走 shux-c（与 run-struct / run-vector 一致）。
-run_one tests/asm/assign_index_struct_field.sx /tmp/shux_asm_assign_index_struct_field set_in 99 "$LINK_SHUX"
+run_one tests/asm/assign_index_struct_field.x /tmp/shux_asm_assign_index_struct_field set_in 99 "$LINK_SHUX"
 
 echo "asm assign index param OK"

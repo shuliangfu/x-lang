@@ -1,9 +1,9 @@
 # STD-096 std.dynlib last_error manifest
 min_apis	1
-api_last_os_error	api	last_os_error	std/dynlib/mod.sx	文本诊断
-symbol_copy_c	symbol	dynlib_last_error_copy_c	std/dynlib/dynlib.sx	C 复制
-symbol_smoke_c	symbol	dynlib_last_error_smoke_c	std/dynlib/dynlib.sx	C 烟测
-smoke_sx	smoke	tests/dynlib/last_error.sx	.sx 烟测
+api_last_os_error	api	last_os_error	std/dynlib/mod.x	文本诊断
+symbol_copy_c	symbol	dynlib_last_error_copy_c	std/dynlib/dynlib.x	C 复制
+symbol_smoke_c	symbol	dynlib_last_error_smoke_c	std/dynlib/dynlib.x	C 烟测
+smoke_x	smoke	tests/dynlib/last_error.x	.x 烟测
 smoke_c	file	tests/dynlib/last_error_smoke.c	C 入口
 cross_std027	cross_ref	STD-027	tests/baseline/std-dynlib-windows.tsv	open/sym/close
 gate	script	run-std-dynlib-last-error-gate.sh	tests/run-std-dynlib-last-error-gate.sh

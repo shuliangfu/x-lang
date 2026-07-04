@@ -7,7 +7,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 DOC="analysis/安全与性能.md"
-SRC="tests/typeck/ctfe/i64_min_not_zero.sx"
+SRC="tests/typeck/ctfe/i64_min_not_zero.x"
 BASELINE="tests/baseline/i64-ctfe.tsv"
 
 echo "=== P0-4: i64/CTFE regression manifest ==="
@@ -17,8 +17,8 @@ for f in "$DOC" "$SRC" "$BASELINE"; do
     exit 1
   fi
 done
-if ! grep -qF "i64_min_not_zero.sx" "$BASELINE" 2>/dev/null; then
-  echo "i64-ctfe gate FAIL: baseline missing i64_min_not_zero.sx" >&2
+if ! grep -qF "i64_min_not_zero.x" "$BASELINE" 2>/dev/null; then
+  echo "i64-ctfe gate FAIL: baseline missing i64_min_not_zero.x" >&2
   exit 1
 fi
 echo "i64-ctfe manifest OK"
@@ -27,7 +27,7 @@ echo "i64-ctfe manifest OK"
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 # shellcheck source=tests/lib/min-asm-gcc-link.sh
 . "$(dirname "$0")/lib/min-asm-gcc-link.sh"
-# P0 typeck：优先 B-strict relink 的 shux（含最新 typeck_sx）；无则 shux-c seed。
+# P0 typeck：优先 B-strict relink 的 shux（含最新 typeck_x）；无则 shux-c seed。
 SHUX_BIN="${SHUX:-${TYPECK_SHUX:-./compiler/shux}}"
 if [ ! -x "$SHUX_BIN" ] && [ -x ./compiler/shux-c ]; then
   SHUX_BIN=./compiler/shux-c

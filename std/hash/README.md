@@ -2,7 +2,7 @@
 
 对标 **Zig** `std.hash`、**Rust** `std::hash::Hasher`。
 
-**模块路径**：`std/hash/mod.sx` + `std/hash/hash.sx`（F-hash v2 纯 .sx）
+**模块路径**：`std/hash/mod.x` + `std/hash/hash.x`（F-hash v2 纯 .x）
 
 ## 算法族
 

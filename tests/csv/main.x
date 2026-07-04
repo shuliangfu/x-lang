@@ -1,0 +1,63 @@
+// tests/csv/main.x — std.csv 全面 + 边界测试
+//
+// 覆盖：next_field（无引号、引号字段、逗号在引号内）、escape、unescape；边界：空、缓冲不足。
+// 【asm -o】CALL 结果用赋值语句；引号探针内联于本文件，避免 csv.x 内局部数组 co-emit 缺陷。
+
+const csv = import("std.csv");
+
+function main(): i32 {
+  let start: i32 = 0;
+  let flen: i32 = 0;
+  let buf: u8[64] = [];
+  let line: u8[32] = [97, 98, 44, 99, 100, 101, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+  let next: i32 = 0;
+  next = csv.next_field(&line[0], 7, 0, &start, &flen);
+  if (next <= 0) { return 1; }
+  if (start != 0 || flen != 2) { return 2; }
+  if (line[start] != 97 || line[start + 1] != 98) { return 3; }
+  let next2: i32 = 0;
+  next2 = csv.next_field(&line[0], 7, next, &start, &flen);
+  if (next2 != 7) { return 4; }
+  if (start != 3 || flen != 3) { return 5; }
+
+  let n_esc: i32 = 0;
+  n_esc = csv.escape(&line[0], 2, &buf[0], 64);
+  if (n_esc != 4) { return 6; }
+  if (buf[0] != 34 || buf[1] != 97 || buf[2] != 98 || buf[3] != 34) { return 7; }
+  let esc_fail: i32 = 0;
+  esc_fail = csv.escape(&line[0], 2, &buf[0], 3);
+  if (esc_fail != (0 - 1)) { return 8; }
+
+  /** 引号字段 `"a,b",c` — 第一字段 start=1 len=3（a,b）。 */
+  let qline: u8[8] = [34, 97, 44, 98, 34, 44, 99, 0];
+  let off: i32 = 0;
+  let st: i32 = 0;
+  let ln: i32 = 0;
+  off = csv.next_field(&qline[0], 8, 0, &st, &ln);
+  if (off <= 0) { return 9; }
+  if (st != 1 || ln != 3) { return 10; }
+  off = csv.next_field(&qline[0], 8, off, &st, &ln);
+  if (off < 6) { return 12; }
+  if (ln < 1) { return 18; }
+
+  /** unescape：`""a` → `"a`。 */
+  let raw: u8[4] = [34, 34, 97, 0];
+  let unesc_buf: u8[8] = [];
+  let n_unesc: i32 = 0;
+  n_unesc = csv.unescape(&raw[0], 3, &unesc_buf[0], 8);
+  if (n_unesc != 2) { return 13; }
+  if (unesc_buf[0] != 34 || unesc_buf[1] != 97) { return 14; }
+  let tiny: u8[1] = [0];
+  let unesc_fail: i32 = 0;
+  unesc_fail = csv.unescape(&raw[0], 3, &tiny[0], 1);
+  if (unesc_fail != (0 - 1)) { return 15; }
+
+  let empty_off: i32 = 0;
+  empty_off = csv.next_field(&line[0], 0, 0, &st, &ln);
+  if (empty_off != 0) { return 16; }
+  if (ln != 0) { return 17; }
+
+  return 0;
+}

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# F-async v1：std.async 去 C（scheduler/future.c → .sx + *_glue.c）。
+# F-async v1：std.async 去 C（scheduler/future.c → .x + *_glue.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_ASYNC_V1_FAIL:-0}
 DOC="analysis/phase-f-async-v1.md"
 MANIFEST="tests/baseline/f-async-v1-closure.tsv"
 die() { echo "f-async-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-echo "=== F-async v1: scheduler/future.c → .sx + glue ==="
+echo "=== F-async v1: scheduler/future.c → .x + glue ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-async v1' "$DOC" || die "doc marker"
-[ -f std/async/scheduler.sx ] || die "missing scheduler.sx"
-[ -f std/async/future.sx ] || die "missing future.sx"
+[ -f std/async/scheduler.x ] || die "missing scheduler.x"
+[ -f std/async/future.x ] || die "missing future.x"
 [ -f compiler/src/asm/runtime_scheduler_glue.c ] || die "missing scheduler glue"
 [ ! -f std/async/scheduler_glue.c ] || die "scheduler_glue.c should be deleted (F-ZC)"
 [ ! -f std/async/future_glue.c ] || die "future_glue.c should be deleted (see F-async-future v2)"
@@ -24,10 +24,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
     absent) [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)" ;;
   esac
 done < "$MANIFEST"
-grep -q 'scheduler.sx' compiler/Makefile || die "Makefile missing scheduler.sx"
+grep -q 'scheduler.x' compiler/Makefile || die "Makefile missing scheduler.x"
 grep -q 'runtime_scheduler_glue' compiler/Makefile || die "Makefile missing runtime_scheduler_glue"
 make -C compiler -q runtime_scheduler_glue.o 2>/dev/null || make -C compiler runtime_scheduler_glue.o >/dev/null 2>&1 || die "runtime_scheduler_glue.o build failed"
-grep -q 'future.sx' compiler/Makefile || die "Makefile missing future.sx"
+grep -q 'future.x' compiler/Makefile || die "Makefile missing future.x"
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
   make -C compiler ../std/async/scheduler.o >/dev/null 2>&1 || die "make scheduler.o failed"
   make -C compiler ../std/async/future.o >/dev/null 2>&1 || die "make future.o failed"

@@ -14,9 +14,9 @@
 
 | 模块 | 原因 |
 |------|------|
-| `core.types` | `tests/stdlib-import/main.sx` |
-| `core.builtin` | `tests/builtin/main.sx` |
-| `core.mem` | `tests/mem/main.sx` |
+| `core.types` | `tests/stdlib-import/main.x` |
+| `core.builtin` | `tests/builtin/main.x` |
+| `core.mem` | `tests/mem/main.x` |
 | `core.fmt` | `std.fmt.placeholder()` 委托 |
 | `std.fmt` | Tier-S manifest |
 | `std.async` | Tier-S manifest |

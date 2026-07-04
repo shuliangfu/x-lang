@@ -1,7 +1,7 @@
 /**
  * asm_backend_compat_stubs.c — pipeline_glue 与 asm_backend_partial.o 的符号桥
  *
- * pipeline_glue.c（编入 pipeline_sx.o）仍引用若干 backend_* 名，全量 asm.sx -E 后部分已改名或未导出；
+ * pipeline_glue.c（编入 pipeline_x.o）仍引用若干 backend_* 名，全量 asm.x -E 后部分已改名或未导出；
  * 本 TU 提供薄转发，使 bootstrap-driver-seed / shu_stage2 在 macOS arm64 上可链通。
  */
 #include <stdint.h>
@@ -11,7 +11,7 @@ struct platform_elf_ElfCodegenCtx;
 struct ast_ASTArena;
 struct codegen_CodegenOutBuf;
 
-/** 与 codegen.sx CodegenOutBuf 一致（8MiB + len）。 */
+/** 与 codegen.x CodegenOutBuf 一致（8MiB + len）。 */
 #define SHUX_CODEGEN_OUTBUF_CAP 9437184
 typedef struct {
   uint8_t data[SHUX_CODEGEN_OUTBUF_CAP];
@@ -67,7 +67,7 @@ static int32_t shu_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uin
 }
 
 /**
- * 将 i32 十进制写入 buf[off..]；与 types.sx format_i32_to_buf 语义一致。
+ * 将 i32 十进制写入 buf[off..]；与 types.x format_i32_to_buf 语义一致。
  * weak：strict 链 build_asm/types.o 已提供时勿 duplicate。
  */
 __attribute__((weak)) int32_t format_i32_to_buf(uint8_t *buf, int32_t off, int32_t max, int32_t val) {
@@ -99,7 +99,7 @@ __attribute__((weak)) int32_t format_i32_to_buf(uint8_t *buf, int32_t off, int32
 }
 
 /**
- * Linux ELF：arch/*.sx 经 import types 解析为 asm_types_* 链名；build_asm/types.o 导出 append_asm_line。
+ * Linux ELF：arch/*.x 经 import types 解析为 asm_types_* 链名；build_asm/types.o 导出 append_asm_line。
  * weak 转发，strict 链 types.o 真符号存在时仍可由 append_asm_line 覆盖本 TU 弱定义。
  */
 __attribute__((weak)) int32_t asm_types_append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *ptr, int32_t len) {
@@ -116,7 +116,7 @@ __attribute__((weak)) int32_t asm_types_format_u32_to_buf(uint8_t *buf, int32_t 
   return shu_format_u32_to_buf(buf, off, max, (uint32_t)u);
 }
 
-/** types.format_u32_hex8_to_buf：8 位十六进制，与 types.sx 一致。 */
+/** types.format_u32_hex8_to_buf：8 位十六进制，与 types.x 一致。 */
 __attribute__((weak)) int32_t asm_types_format_u32_hex8_to_buf(uint8_t *buf, int32_t off, int32_t val) {
   static const uint8_t hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
                                   '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
@@ -132,7 +132,7 @@ __attribute__((weak)) int32_t asm_types_format_u32_hex8_to_buf(uint8_t *buf, int
 }
 
 /**
- * peephole/elf 路径：从 ElfCodegenCtx.code_data 读 u32 LE；与 elf.sx elf_read_u32_le 一致。
+ * peephole/elf 路径：从 ElfCodegenCtx.code_data 读 u32 LE；与 elf.x elf_read_u32_le 一致。
  */
 extern uint8_t *pipeline_elf_ctx_code_data_ptr(uint8_t *ctx_bytes);
 
@@ -149,14 +149,14 @@ __attribute__((weak)) int32_t asm_types_elf_read_u32_le(void *ctx, int32_t pos) 
 }
 
 /**
- * ast.sx ref_is_null 调用的 Expr 布局 prime；自举 ast.o 未 emit 时为空操作。
+ * ast.x ref_is_null 调用的 Expr 布局 prime；自举 ast.o 未 emit 时为空操作。
  * weak：build_asm/ast.o 真 emit 时由其覆盖。
  */
 __attribute__((weak)) void expr_layout_prime_call_resolved(void) {
 }
 
 /**
- * arm64 call 实参恢复：ldr x{reg}, [sp] 或 [sp, #slot*16]；与 arm64.sx 一致。
+ * arm64 call 实参恢复：ldr x{reg}, [sp] 或 [sp, #slot*16]；与 arm64.x 一致。
  * weak：build_asm/arm64.o 已 emit 时由其覆盖。
  */
 __attribute__((weak)) int32_t emit_ldr_sp_slot_to_xreg(struct codegen_CodegenOutBuf *out, int32_t slot, int32_t reg) {
@@ -195,7 +195,7 @@ __attribute__((weak)) int32_t emit_ldr_sp_slot_to_xreg(struct codegen_CodegenOut
   return append_asm_line(out, buf, 15 + n);
 }
 
-/** ast_pool.c：与 elf.sx / PipelineElfCtxAccess 布局一致的 code_data 追加路由。 */
+/** ast_pool.c：与 elf.x / PipelineElfCtxAccess 布局一致的 code_data 追加路由。 */
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 
 /**
@@ -228,7 +228,7 @@ static int32_t shu_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *el
   return 0;
 }
 
-/** 与 backend.sx AsmFuncCtx 前缀一致，供 block_slot_base_for 读 num_locals。 */
+/** 与 backend.x AsmFuncCtx 前缀一致，供 block_slot_base_for 读 num_locals。 */
 struct backend_AsmFuncCtx {
   int32_t frame_size;
   int32_t next_offset;
@@ -237,7 +237,7 @@ struct backend_AsmFuncCtx {
 
 extern int32_t backend_emit_expr_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
-/** seed partial 全量 SX 体；慢路径专用，勿与薄包装 backend_emit_expr_elf 互调。 */
+/** seed partial 全量 X 体；慢路径专用，勿与薄包装 backend_emit_expr_elf 互调。 */
 extern int32_t backend_emit_expr_elf_full(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
@@ -464,7 +464,7 @@ __attribute__((weak)) int32_t backend_asm_codegen_ast_to_elf_seed_mega(void *mod
   return backend_asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx);
 }
 
-/** asm.sx -E partial 导出 peephole_peephole_*；user_asm_seed_bridge 引用无前缀 peephole_*。 */
+/** asm.x -E partial 导出 peephole_peephole_*；user_asm_seed_bridge 引用无前缀 peephole_*。 */
 extern int32_t peephole_peephole_run(void *out_buf);
 extern int32_t peephole_peephole_elf_run(void *elf_ctx);
 
@@ -488,7 +488,7 @@ int32_t peephole_elf_run(void *elf_ctx) {
 }
 
 /** lsp_diag_gen.c 尚未含 semanticTokens（pinned seed 旧版）；真 partial 不再携带 phase1 弱桩时须兜底。
- * lsp_diag.sx 再生后由 lsp_diag_sx.o 强符号覆盖。
+ * lsp_diag.x 再生后由 lsp_diag_x.o 强符号覆盖。
  */
 __attribute__((weak)) int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
                                                                         uint8_t *out_buf, int32_t out_cap) {

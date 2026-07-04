@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	notes
 fencoding_doc	doc	analysis/phase-f-encoding-v1.md	F-encoding v1
 fencoding_gate	gate	tests/run-f-encoding-v1-gate.sh	聚合门禁
-encoding_sx	file	std/encoding/encoding.sx	纯 .sx 实现
-encoding_mod	file	std/encoding/mod.sx	对外 API
+encoding_x	file	std/encoding/encoding.x	纯 .x 实现
+encoding_mod	file	std/encoding/mod.x	对外 API
 encoding_c_absent	absent	std/encoding/encoding.c	已删除
-makefile	makefile	compiler/Makefile	encoding.o from encoding.sx
+makefile	makefile	compiler/Makefile	encoding.o from encoding.x

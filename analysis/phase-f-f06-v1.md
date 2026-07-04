@@ -11,7 +11,7 @@
 | `shux_std_compress_o_path` | 与 io 同 pattern，恒空串 |
 | `build_shux_asm.sh` | `ensure_std_fs_io_heap_objs` no-op；链接行移除 `../std/fs\|io\|heap .o` |
 | `relink_shux_asm_*.sh` | 同上 |
-| `boot-std-link-contract.tsv` | compress → `std_sx` |
+| `boot-std-link-contract.tsv` | compress → `std_x` |
 | `run-all-bstrict.sh` | bootstrap std 列表移除 `compress.o` |
 
 ## v1 限制（v2+）

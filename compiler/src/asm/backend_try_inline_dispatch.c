@@ -1,7 +1,7 @@
 /**
  * backend_try_inline_dispatch.c — try_inline_* 与 array/struct lit reserve 的 C 实现
  *
- * M8 自举：含 Expr/Type 按值访问的 SX 真 emit 会宿主 SIGABRT；改 extern 后由本 TU 提供符号。
+ * M8 自举：含 Expr/Type 按值访问的 X 真 emit 会宿主 SIGABRT；改 extern 后由本 TU 提供符号。
  */
 #include <stdint.h>
 #include <stdarg.h>
@@ -32,7 +32,7 @@ struct ast_PipelineDepCtx;
 struct platform_elf_ElfCodegenCtx;
 struct codegen_CodegenOutBuf;
 
-/** 与 backend.sx / pipeline_glue AsmFuncCtx 前缀一致（含 dep_pipe，WPO-S3 跨模块内联解析 import callee）。 */
+/** 与 backend.x / pipeline_glue AsmFuncCtx 前缀一致（含 dep_pipe，WPO-S3 跨模块内联解析 import callee）。 */
 struct glue_AsmFuncCtx {
   int32_t frame_size;
   int32_t next_offset;
@@ -201,7 +201,7 @@ extern int32_t pipeline_asm_var_is_emit_func_param_ptr_c(struct ast_ASTArena *ar
 extern int32_t pipeline_asm_emit_func_param_is_indirect_struct_slot_c(struct ast_ASTArena *arena,
                                                                        struct ast_Module *mod, int32_t var_expr_ref);
 
-/** TypeKind：与 ast.sx 序数一致。 */
+/** TypeKind：与 ast.x 序数一致。 */
 enum {
   GLUE_TYPE_NAMED = 8,
   GLUE_TYPE_PTR = 9,
@@ -255,7 +255,7 @@ extern void pipeline_module_struct_layout_field_name_into(struct ast_Module *m, 
 extern int32_t pipeline_module_struct_layout_field_offset_at(struct ast_Module *m, int32_t li, int32_t j);
 extern int32_t pipeline_asm_index_elem_byte_sz(struct ast_ASTArena *a, int32_t index_expr_ref);
 
-/** 向上取整到 8 字节（与 backend.sx asm_align_up8 一致）。 */
+/** 向上取整到 8 字节（与 backend.x asm_align_up8 一致）。 */
 static int32_t glue_align_up8_c(int32_t n) {
   int32_t m = n % 8;
   if (m != 0)
@@ -545,7 +545,7 @@ static int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *
 }
 
 /**
- * 模块内是否存在与 name 同名的 struct_layout（与 backend.sx asm_module_named_type_has_struct_layout 一致）。
+ * 模块内是否存在与 name 同名的 struct_layout（与 backend.x asm_module_named_type_has_struct_layout 一致）。
  */
 static int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t k;
@@ -650,7 +650,7 @@ int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_
 }
 
 /**
- * INDEX 元素字节宽；委托 pipeline_glue.c（避免 SX Type 按值 emit）。
+ * INDEX 元素字节宽；委托 pipeline_glue.c（避免 X Type 按值 emit）。
  */
 int32_t asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_ref) {
   return pipeline_asm_index_elem_byte_sz(arena, index_expr_ref);

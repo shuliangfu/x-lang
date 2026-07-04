@@ -7,8 +7,8 @@ ELF1="$WORKDIR/repro1.elf"
 ELF2="$WORKDIR/repro2.elf"
 
 echo "=== G7: Reproducible build gate ==="
-sh "$SCRIPT_DIR/build-kernel.sh" "$SCRIPT_DIR/timer_isr.sx" "$ELF1" 2>/dev/null
-sh "$SCRIPT_DIR/build-kernel.sh" "$SCRIPT_DIR/timer_isr.sx" "$ELF2" 2>/dev/null
+sh "$SCRIPT_DIR/build-kernel.sh" "$SCRIPT_DIR/timer_isr.x" "$ELF1" 2>/dev/null
+sh "$SCRIPT_DIR/build-kernel.sh" "$SCRIPT_DIR/timer_isr.x" "$ELF2" 2>/dev/null
 H1=$(shasum -a 256 "$ELF1" | awk '{print $1}')
 H2=$(shasum -a 256 "$ELF2" | awk '{print $1}')
 echo "  build1: $H1"

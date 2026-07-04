@@ -58,7 +58,7 @@ fi
 make -C compiler -q 2>/dev/null || make -C compiler
 # shellcheck source=tests/lib/build-std-c-o.sh
 . tests/lib/build-std-c-o.sh
-# F-03 v2：heap 已纯 .sx，不再 ensure heap.o
+# F-03 v2：heap 已纯 .x，不再 ensure heap.o
 ensure_std_c_o ../std/ffi/ffi.o
 
 OK=0
@@ -67,7 +67,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in
     case_*)
-      if safe_leak_run_sx "$SHUX_BIN" "$src" "$item_id"; then
+      if safe_leak_run_x "$SHUX_BIN" "$src" "$item_id"; then
         echo "safe-leak-nightly OK $item_id"
         OK=$((OK + 1))
       else

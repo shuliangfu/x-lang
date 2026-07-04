@@ -1,6 +1,6 @@
 # std.datetime
 
-墙钟 UTC `DateTime`、RFC3339 解析/格式化、本地时区偏移、`Duration` 与 `std.time` 互操作；**IANA DST**（`timezone_iana` / `timezone_offset_at`）。**纯 `datetime.sx`**（F-ZC；本地偏移经 `std.time`）。
+墙钟 UTC `DateTime`、RFC3339 解析/格式化、本地时区偏移、`Duration` 与 `std.time` 互操作；**IANA DST**（`timezone_iana` / `timezone_offset_at`）。**纯 `datetime.x`**（F-ZC；本地偏移经 `std.time`）。
 
 ## Gate
 

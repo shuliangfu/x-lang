@@ -45,22 +45,22 @@ else
   ./scripts/bootstrap_shuxc_create.sh ./shux 2>/dev/null || cp -f shux bootstrap_shuxc
 fi
 
-echo "[build_tool] generating from build.sx (build_runner + build_runtime_sx)..."
-./shux-c -E -E-extern -L .. ../build.sx > build_gen.c
-./shux-c -E -E-extern -L .. ../build_runner.sx > build_runner_gen.c
-./shux-c -E -E-extern -L .. ../build_runtime_sx.sx > build_runtime_sx_gen.c
+echo "[build_tool] generating from build.x (build_runner + build_runtime_x)..."
+./shux-c -E -E-extern -L .. ../build.x > build_gen.c
+./shux-c -E -E-extern -L .. ../build_runner.x > build_runner_gen.c
+./shux-c -E -E-extern -L .. ../build_runtime_x.x > build_runtime_x_gen.c
 cc -Wall -Wextra -I. -Iinclude -Isrc -c build_gen.c -o build_tool.o
 cc -Wall -Wextra -I. -Iinclude -Isrc -c src/build_tool_libc_bridge.c -o build_tool_libc_bridge.o
 cc -Wall -Wextra -I. -Iinclude -Isrc -c build_runner_gen.c -o build_runner.o
-cc -Wall -Wextra -I. -Iinclude -Isrc -c build_runtime_sx_gen.c -o build_runtime_sx.o
+cc -Wall -Wextra -I. -Iinclude -Isrc -c build_runtime_x_gen.c -o build_runtime_x.o
 cc -Wall -Wextra -I. -Iinclude -Isrc -c src/build_tool_main.c -o build_tool_main.o
-cc -Wall -Wextra -o build_tool build_tool_main.o build_runner.o build_tool.o build_runtime_sx.o build_tool_libc_bridge.o -lc
+cc -Wall -Wextra -o build_tool build_tool_main.o build_runner.o build_tool.o build_runtime_x.o build_tool_libc_bridge.o -lc
 
 echo ""
 echo "=== Bootstrap Complete ==="
 echo "  compiler/bootstrap_shuxc — G-06 cold-start seed"
 echo "  compiler/shux / shux-c   — copied from seed"
-echo "  compiler/build_tool      — build.sx driver"
+echo "  compiler/build_tool      — build.x driver"
 echo ""
 echo "Daily: make -C compiler bootstrap-driver-bstrict"
 echo "      cd compiler && ./build_tool ./shux"

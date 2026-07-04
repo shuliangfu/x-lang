@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# std-trace-hooks.sh — STD-118 manifest 与烟测辅助（F-trace v2：纯 trace.sx）
+# std-trace-hooks.sh — STD-118 manifest 与烟测辅助（F-trace v2：纯 trace.x）
 
 STD_TRACE_HOOKS_PREFIX="${SHUX_STD118_TRACE_HOOKS_PREFIX:-shux: [SHUX_STD118_TRACE_HOOKS]}"
 
-# 遍历 manifest；symbol 在 trace.sx。
+# 遍历 manifest；symbol 在 trace.x。
 std_trace_hooks_symbols_ok() {
-  local mod_sx="$1"
-  local trace_sx="$2"
+  local mod_x="$1"
+  local trace_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,12 +15,12 @@ std_trace_hooks_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null || miss=$((miss + 1))
+        grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null || miss=$((miss + 1))
         ;;
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/trace/trace.c|std/trace/trace.sx|std/trace/trace_span_glue.c) path="$trace_sx" ;;
+          std/trace/trace.c|std/trace/trace.x|std/trace/trace_span_glue.c) path="$trace_x" ;;
         esac
         grep -qF "$anchor" "$path" 2>/dev/null || miss=$((miss + 1))
         ;;
@@ -33,7 +33,7 @@ std_trace_hooks_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-std_trace_hooks_run_sx_smoke() {
+std_trace_hooks_run_x_smoke() {
   local shux="$1"
   local src="$2"
   local exe="/tmp/shux_std_trace_hooks_$$"
@@ -74,5 +74,5 @@ std_trace_hooks_run_c_smoke() {
 }
 
 std_trace_hooks_emit_report() {
-  echo "${STD_TRACE_HOOKS_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
+  echo "${STD_TRACE_HOOKS_PREFIX} status=$1 c=$2 x=$3 skip=$4"
 }

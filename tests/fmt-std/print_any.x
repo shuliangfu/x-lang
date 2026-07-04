@@ -1,0 +1,34 @@
+// tests/fmt-std/print_any.x — std.fmt 任意类型 JSON 风格 print/println 烟测
+const fmt = import("std.fmt");
+
+/** 嵌套结构体：验证 JSON 对象输出。 */
+struct Inner {
+  tag: i32;
+}
+
+struct Point {
+  x: i32;
+  y: i32;
+  inner: Inner;
+}
+
+/** Option 具象类型（烟测内联，避免拉 core.option 泛型解析）。 */
+struct Option_i32 {
+  is_some: bool;
+  value: i32;
+}
+
+/** 入口：打印结构体、数组、Option；编译通过且运行不 panic 即可。 */
+function main(): i32 {
+  let p: Point = Point { x: 1, y: 2, inner: Inner { tag: 99 } };
+  let _: i32 = fmt.println(p);
+  let arr: i32[3] = [10, 20, 30];
+  let _: i32 = fmt.println(arr);
+  let msg: u8[5] = [72, 101, 108, 108, 111];
+  let _: i32 = fmt.println(msg);
+  let opt: Option_i32 = { is_some: true, value: 42 };
+  let _: i32 = fmt.println(opt);
+  let empty: Option_i32 = { is_some: false, value: 0 };
+  let _: i32 = fmt.println(empty);
+  return 0;
+}

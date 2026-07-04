@@ -65,7 +65,7 @@ def main() -> int:
     n = 0
     for p in args.paths:
         path = Path(p)
-        files = sorted(path.rglob("*.sx")) if path.is_dir() else [path]
+        files = sorted(path.rglob("*.x")) if path.is_dir() else [path]
         for f in files:
             if ".git" in f.parts:
                 continue

@@ -10,8 +10,8 @@
 | `driver_dep_seed_slots` / `driver_dep_publish_slot` | C 侧预填 dep |
 | `driver_dep_slot_for_path` | 按 import 路径查槽 |
 | `driver_dep_seeded_clear_all` | 清槽 + 调 typeck 侧车 |
-| `driver_dep_arena_buf` / `driver_dep_module_buf` | pipeline.sx getter |
-| `typeck_driver_dep_*` | typeck.sx 转发 |
+| `driver_dep_arena_buf` / `driver_dep_module_buf` | pipeline.x getter |
+| `typeck_driver_dep_*` | typeck.x 转发 |
 | `SHUX_DRIVER_DEP_SLOT_MAX` | 槽数量常量 32 |
 
 ## 复现

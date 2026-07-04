@@ -1,0 +1,256 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.net.udp — F-04 v12：UDP bind/send_to/recv_from（基础路径）
+//
+// 【文件职责】
+// 从 net.c 迁出 net_udp_bind_c / net_udp_send_to_c / net_udp_recv_from_c。
+// UDP 批量见 udp_batch.x + runtime_net_udp_batch.c（F-04 v13b / F-ZC）。
+//
+// 【依赖】libc socket/bind/sendto/recvfrom、poll/select
+
+const AF_INET: i32 = 2;
+const SOCK_DGRAM: i32 = 2;
+const IPPROTO_UDP: i32 = 17;
+const SOL_SOCKET: i32 = 1;
+const SO_REUSEADDR: i32 = 2;
+const O_NONBLOCK: i32 = 2048;
+const POLLIN: i16 = 1;
+const POLLERR: i16 = 8;
+const POLLHUP: i16 = 16;
+
+/** IPv4 sockaddr 前缀。 */
+allow(padding) struct SockAddrIn {
+  sin_family: u16;
+  sin_port: u16;
+  sin_addr: u32;
+}
+
+#[cfg(not(target_os = "windows"))]
+allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
+
+extern function socket(domain: i32, type: i32, protocol: i32): i32;
+extern function bind(fd: i32, addr: *u8, addrlen: u32): i32;
+extern function setsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: u32): i32;
+extern function sendto(fd: i32, buf: *u8, len: usize, flags: i32, addr: *u8, addrlen: u32): i32;
+extern function recvfrom(fd: i32, buf: *u8, len: usize, flags: i32, addr: *u8, addrlen: *u32): i32;
+extern function close(fd: i32): i32;
+extern function htonl(hostlong: u32): u32;
+extern function htons(hostshort: u16): u16;
+extern function ntohl(netlong: u32): u32;
+extern function ntohs(netshort: u16): u16;
+
+#[cfg(not(target_os = "windows"))]
+extern function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+
+#[cfg(not(target_os = "windows"))]
+extern function poll(fds: *u8, nfds: u64, timeout: i32): i32;
+
+#[cfg(not(target_os = "windows"))]
+extern function __errno_location(): *i32;
+
+#[cfg(target_os = "linux")]
+const ERR_EAGAIN: i32 = 11;
+
+#[cfg(target_os = "macos")]
+const ERR_EAGAIN: i32 = 35;
+
+#[cfg(target_os = "windows")]
+extern function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
+
+#[cfg(target_os = "windows")]
+extern function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
+
+#[cfg(target_os = "windows")]
+extern function closesocket(fd: i32): i32;
+
+#[cfg(target_os = "windows")]
+let net_udp_wsa_done: i32 = 0;
+
+/**
+ * Windows：一次性 WSAStartup。
+ */
+#[cfg(target_os = "windows")]
+function net_udp_ensure_wsa_c(): i32 {
+  if (net_udp_wsa_done != 0) {
+    return 0;
+  }
+  unsafe { if (WSAStartup(514 as u16, 0 as *u8) != 0) {
+    return -1;
+  } }
+  net_udp_wsa_done = 1;
+  return 0;
+}
+
+/**
+ * Windows：绑定前确保 WSA；非 Windows 恒为 0（顶层 cfg，避免函数体内 #[cfg] parse skip）。
+ */
+#[cfg(target_os = "windows")]
+function net_udp_maybe_wsa_fail_c(): i32 {
+  if (net_udp_ensure_wsa_c() != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+#[cfg(not(target_os = "windows"))]
+function net_udp_maybe_wsa_fail_c(): i32 {
+  return 0;
+}
+
+/**
+ * 取栈上 sockaddr 缓冲首地址（seed emit 不支持 call 实参内联 &buf[0]）。
+ */
+function net_udp_sin_buf_ptr_c(p: *u8): *u8 {
+  return p;
+}
+
+/** IPv4 sockaddr 填充；实现见 net_import_alias.c（规避 asm u16 间接 store codegen 缺陷）。 */
+extern function net_udp_set_addr_port_buf_c(sin: *u8, addr_u32: u32, port_u32: u32): void;
+
+/**
+ * 设 UDP socket 非阻塞（Unix）。
+ */
+#[cfg(not(target_os = "windows"))]
+function net_udp_set_nonblock_c(fd: i32): i32 {
+  let flags: i32 = 0;
+  unsafe { flags = fcntl(fd, 3, 0); }
+  if (flags < 0) {
+    return -1;
+  }
+  unsafe { if (fcntl(fd, 4, flags | O_NONBLOCK) == 0) {
+    return 0;
+  } }
+  return -1;
+}
+
+/**
+ * 设 UDP socket 非阻塞（Windows）。
+ */
+#[cfg(target_os = "windows")]
+function net_udp_set_nonblock_c(fd: i32): i32 {
+  let one: u32 = 1;
+  unsafe { if (ioctlsocket(fd, (0x80000000 | 0x40000000) as i32, &one) == 0) {
+    return 0;
+  } }
+  return -1;
+}
+
+/**
+ * poll 可读（Unix）。
+ */
+#[cfg(not(target_os = "windows"))]
+function net_udp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
+  let pfd_mem: u8[8] = [];
+  let pfd_ptr: *u8 = net_udp_sin_buf_ptr_c(&pfd_mem[0]);
+  let p_fd: *i32 = (pfd_ptr + 0) as *i32;
+  let p_events: *i16 = (pfd_ptr + 4) as *i16;
+  let p_revents: *i16 = (pfd_ptr + 6) as *i16;
+  let to: i32 = (0 - 1);
+  let n: i32 = 0;
+  p_fd[0] = fd;
+  p_events[0] = POLLIN;
+  p_revents[0] = 0 as i16;
+  if (timeout_ms != 0) {
+    to = timeout_ms as i32;
+  }
+  unsafe { n = poll(pfd_ptr, 1 as u64, to); }
+  if (n <= 0 || (p_revents[0] & (POLLERR | POLLHUP)) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/**
+ * poll 可读（Windows 桩：恒成功）。
+ */
+#[cfg(target_os = "windows")]
+function net_udp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
+  return 0;
+}
+
+/**
+ * recvfrom EAGAIN 判定（Unix）。
+ */
+#[cfg(not(target_os = "windows"))]
+function net_udp_recv_is_eagain_c(): i32 {
+  let ep: *i32 = 0 as *i32;
+  unsafe { ep = __errno_location(); }
+  if (ep[0] == ERR_EAGAIN) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * recvfrom EAGAIN 判定（Windows 桩）。
+ */
+#[cfg(target_os = "windows")]
+function net_udp_recv_is_eagain_c(): i32 {
+  return 0;
+}
+
+/**
+ * UDP bind；非阻塞 fd；addr_u32=0 为 INADDR_ANY。
+ * 实现见 net_import_alias.c（规避 asm socket/bind 字面量实参 codegen 缺陷）。
+ */
+extern function net_udp_bind_c(addr_u32: u32, port_u32: u32): i32;
+
+/**
+ * UDP 向 addr:port 发送；返回字节数，失败 -1。
+ */
+function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u8, len: usize): i32 {
+  let sin_mem: u8[16] = [];
+  let sin_ptr: *u8 = net_udp_sin_buf_ptr_c(&sin_mem[0]);
+  let n: i32 = 0;
+  unsafe { net_udp_set_addr_port_buf_c(sin_ptr, addr_u32, port_u32); }
+  unsafe { n = sendto(fd, buf, len, 0, sin_ptr, 16 as u32); }
+  if (n >= 0) {
+    return n;
+  }
+  return -1;
+}
+
+/**
+ * UDP 接收；timeout_ms 毫秒（0=无超时）。成功字节数，EAGAIN=0，错误 -1。
+ */
+function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u32, out_addr_u32: *u32, out_port_u32: *u32): i32 {
+  let peer_mem: u8[16] = [];
+  let peer_ptr: *u8 = net_udp_sin_buf_ptr_c(&peer_mem[0]);
+  let peer_len: u32 = 16;
+  let p_port: *u16 = (peer_ptr + 2) as *u16;
+  let p_addr: *u32 = (peer_ptr + 4) as *u32;
+  let n: i32 = 0;
+  if (timeout_ms != 0) {
+    if (net_udp_poll_readable_c(fd, timeout_ms) != 0) {
+      return -1;
+    }
+  }
+  unsafe { n = recvfrom(fd, buf, len, 0, peer_ptr, &peer_len); }
+  if (n < 0) {
+    if (net_udp_recv_is_eagain_c() != 0) {
+      return 0;
+    }
+    return -1;
+  }
+  if (out_addr_u32 != 0) {
+    unsafe { out_addr_u32[0] = ntohl(p_addr[0]); }
+  }
+  if (out_port_u32 != 0) {
+    unsafe { out_port_u32[0] = ntohs(p_port[0]) as u32; }
+  }
+  return n;
+}

@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
-> 关联：`compiler/src/driver/fmt.sx`、`tests/run-fmt-wrap.sh`
+> 关联：`compiler/src/driver/fmt.x`、`tests/run-fmt-wrap.sh`
 
 ---
 
@@ -21,9 +21,9 @@
 
 | 规则 | 说明 | 金样 |
 |------|------|------|
-| **semicolon_space** | `;` 后接标识符须有空格（排除 `for(;;)`） | `fmt_semicolon_space.sx` |
-| **operator_space** | 二元运算符两侧空格一致 | `fmt_operator_space.sx` |
-| **array_comma_space** | 数组字面量 `,` 后补空格 | `fmt_array_comma_space.sx` |
+| **semicolon_space** | `;` 后接标识符须有空格（排除 `for(;;)`） | `fmt_semicolon_space.x` |
+| **operator_space** | 二元运算符两侧空格一致 | `fmt_operator_space.x` |
+| **array_comma_space** | 数组字面量 `,` 后补空格 | `fmt_array_comma_space.x` |
 | **comment_preserve** | 折行不丢失 `//` / `*` 前缀 | `scan_fmt_damage.py`、`verify_comment_prefixes.py` |
 | **fmt_idempotent** | `fmt` 后 `fmt --check` 静默成功（deno 语义） | `run-fmt-check-cmd.sh` |
 | **check_after_fmt** | `fmt` 后 `check` 无诊断 | `run-fmt-wrap.sh` |
@@ -38,21 +38,21 @@
 
 | id | 文件 |
 |----|------|
-| `case_wrap` | `tests/fmt/fmt_wrap_cases.sx` |
-| `case_comprehensive` | `tests/fmt/fmt_comprehensive.sx` |
-| `case_semicolon` | `tests/fmt/fmt_semicolon_space.sx` |
-| `case_operator` | `tests/fmt/fmt_operator_space.sx` |
-| `case_array_comma` | `tests/fmt/fmt_array_comma_space.sx` |
+| `case_wrap` | `tests/fmt/fmt_wrap_cases.x` |
+| `case_comprehensive` | `tests/fmt/fmt_comprehensive.x` |
+| `case_semicolon` | `tests/fmt/fmt_semicolon_space.x` |
+| `case_operator` | `tests/fmt/fmt_operator_space.x` |
+| `case_array_comma` | `tests/fmt/fmt_array_comma_space.x` |
 
-全仓推广：新 `.sx` 须 `shux fmt` 后 `shux fmt --check` 通过再提交。
+全仓推广：新 `.x` 须 `shux fmt` 后 `shux fmt --check` 通过再提交。
 
 ---
 
 ## 4. 幂等与 --check
 
 ```bash
-shux fmt path.sx              # 写回；成功可打印 fmt OK
-shux fmt --check path.sx      # 已格式化 → exit 0 无输出
+shux fmt path.x              # 写回；成功可打印 fmt OK
+shux fmt --check path.x      # 已格式化 → exit 0 无输出
 ```
 
 门禁 hook：
@@ -66,7 +66,7 @@ shux fmt --check path.sx      # 已格式化 → exit 0 无输出
 ## 5. 非目标（v1）
 
 - 不强制全仓库一次性 `fmt`（增量金样 + CI hook）。
-- 不做 `.sx` 以外扩展名。
+- 不做 `.x` 以外扩展名。
 
 ---
 

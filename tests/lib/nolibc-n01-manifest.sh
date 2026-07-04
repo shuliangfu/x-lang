@@ -75,9 +75,9 @@ nolibc_n01_audit_manifest() {
   return 0
 }
 
-# 审计 linux.sx 至少声明 shux_sys_write extern。
+# 审计 linux.x 至少声明 shux_sys_write extern。
 nolibc_n01_audit_sys_linux() {
-  local f="${1:-std/sys/linux.sx}"
+  local f="${1:-std/sys/linux.x}"
   grep -q 'extern function shux_sys_write' "$f" || {
     echo "nolibc-n01: $f missing shux_sys_write extern" >&2
     return 1

@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-async-io-cps.tsv` |
 | 3 | `./tests/run-std-async-io-cps-gate.sh` |
-| 4 | 烟测：`tests/async/io_cps_align.sx`；emit：`tests/parser/async_await_io.sx` |
+| 4 | 烟测：`tests/async/io_cps_align.x`；emit：`tests/parser/async_await_io.x` |
 
 ---
 
@@ -69,7 +69,7 @@ language await read/write/read_fd
 3. `drain_until_idle`：`poll_async_completions` → 唤醒 IO 等待者 → `complete_*_slot`；
 4. 帧 resume 后读取完成字节数。
 
-烟测 emit：`tests/parser/async_await_io.sx` 须含 `shu_async_cps_suspend_io` 与 `submit_read_async`。
+烟测 emit：`tests/parser/async_await_io.x` 须含 `shu_async_cps_suspend_io` 与 `submit_read_async`。
 
 ---
 
@@ -121,4 +121,4 @@ shux: [SHUX_STD_ASYNC_IO_CPS] status=ok align=1 emit=1 skip=0
 | `pump()` | `poll_completions(0)` + `drain_idle`（旧名 `io_pump_once` + `drain_until_idle`） |
 | `poll_loop_ctx(rt, max_rounds)` | Context deadline poll + drain；取消/超时返回 net_err_* |
 
-烟测：`tests/async/io_uring_facade.sx`。
+烟测：`tests/async/io_uring_facade.x`。

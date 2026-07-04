@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 . tests/lib/tool-debug-symbols.sh
 
 SHUX="${SHUX:-./compiler/shux}"
-SRC=tests/debug/symbols_marker.sx
+SRC=tests/debug/symbols_marker.x
 EXE="/tmp/shux_debug_symbols_$$"
 
 make -C compiler -q 2>/dev/null || make -C compiler

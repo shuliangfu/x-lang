@@ -12,23 +12,23 @@ tool_pkg_resolve_import() {
   local import_path="$2"
   local path
 
-  # a.b.c -> lib_root/a/b/c.sx
-  path="$lib_root/$(echo "$import_path" | tr '.' '/').sx"
+  # a.b.c -> lib_root/a/b/c.x
+  path="$lib_root/$(echo "$import_path" | tr '.' '/').x"
   if [ -f "$path" ]; then
     printf '%s\n' "$path"
     return 0
   fi
 
-  # a.b -> lib_root/a/b/mod.sx
-  path="$lib_root/$(echo "$import_path" | tr '.' '/')/mod.sx"
+  # a.b -> lib_root/a/b/mod.x
+  path="$lib_root/$(echo "$import_path" | tr '.' '/')/mod.x"
   if [ -f "$path" ]; then
     printf '%s\n' "$path"
     return 0
   fi
 
-  # 单段 foo -> lib_root/foo/foo.sx
+  # 单段 foo -> lib_root/foo/foo.x
   if ! echo "$import_path" | grep -q '\.'; then
-    path="$lib_root/${import_path}/${import_path}.sx"
+    path="$lib_root/${import_path}/${import_path}.x"
     if [ -f "$path" ]; then
       printf '%s\n' "$path"
       return 0

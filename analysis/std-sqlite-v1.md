@@ -57,7 +57,7 @@
 | 3 | `INSERT INTO t(k) VALUES (42)` | `DB_OK`，`changes == 1` |
 | 4 | `close` | `DB_OK` |
 
-烟测：`tests/std-db/exec_roundtrip_ok.c`（C）、`exec_roundtrip.sx`（有 native shux + sqlite 时）。
+烟测：`tests/std-db/exec_roundtrip_ok.c`（C）、`exec_roundtrip.x`（有 native shux + sqlite 时）。
 
 ---
 

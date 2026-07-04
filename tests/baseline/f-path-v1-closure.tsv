@@ -2,8 +2,8 @@
 # 列：item_id	kind	anchor	notes
 fpath_doc	doc	analysis/phase-f-path-v1.md	F-path v1
 fpath_gate	gate	tests/run-f-path-v1-gate.sh	聚合门禁
-path_mod	file	std/path/mod.sx	纯 .sx API
+path_mod	file	std/path/mod.x	纯 .x API
 path_o_absent	absent	std/path/path.c	已删除
 path_abi	file	compiler/include/shux_std_abi/path_abi.h	codegen ABI（F-ZC 内联）
 absent_std_path_abi	absent	std/path/path_abi.h	F-ZC 迁出
-makefile	makefile	compiler/Makefile	path.o from mod.sx
+makefile	makefile	compiler/Makefile	path.o from mod.x

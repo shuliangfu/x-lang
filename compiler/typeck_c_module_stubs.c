@@ -1,7 +1,7 @@
 /**
  * typeck_c_module_stubs.c — typeck_module / typeck_one_function weak 桩（回退）
  *
- * B-strict 整链 build_asm/typeck.o 时，编译/诊断走 pipeline typeck_sx_ast（slim pool）；
+ * B-strict 整链 build_asm/typeck.o 时，编译/诊断走 pipeline typeck_x_ast（slim pool）；
  * 用户 -o C 预检优先 typeck_c_orchestration_partial（seed typeck.o 抽出 typeck_module）；
  * partial 导出失败时本文件 weak 桩满足 lsp_diag.c 链接（strict 用户程序无 C 预检）。
  */

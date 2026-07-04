@@ -1,5 +1,5 @@
 /* win32_pipeline_stubs.c — Windows 下 shux-c 链接桩
- * 提供 .sx 管道/AST/driver 函数的空实现，使 C 前端可链接。
+ * 提供 .x 管道/AST/driver 函数的空实现，使 C 前端可链接。
  * 仅在 _WIN32 下编译。 */
 #ifdef _WIN32
 #include <stdint.h>
@@ -48,14 +48,14 @@ int32_t driver_get_module_num_funcs(void *m) { (void)m; return 0; }
 int32_t driver_get_module_main_func_index(void *m) { (void)m; return -1; }
 
 /* pipeline 函数 */
-int32_t pipeline_run_sx_pipeline(void *m, void *a, void *ctx, const char **lib_roots, int n_lib, const char **defines, int ndef, const char *entry_dir, const char *out_path, int gen_asm, const char *target_triple) {
+int32_t pipeline_run_x_pipeline(void *m, void *a, void *ctx, const char **lib_roots, int n_lib, const char **defines, int ndef, const char *entry_dir, const char *out_path, int gen_asm, const char *target_triple) {
     (void)m; (void)a; (void)ctx; (void)lib_roots; (void)n_lib; (void)defines; (void)ndef; (void)entry_dir; (void)out_path; (void)gen_asm; (void)target_triple; return -1;
 }
 int32_t pipeline_typeck_dep_prerun_module_c(void *m, void *a, void *ctx) { (void)m; (void)a; (void)ctx; return 0; }
 int32_t pipeline_load_and_sync_direct_import_deps_c(void *m, void *a, void *ctx, const char **lib_roots, int n, const char *entry_dir, const char **defines, int ndef) {
     (void)m; (void)a; (void)ctx; (void)lib_roots; (void)n; (void)entry_dir; (void)defines; (void)ndef; return 0;
 }
-int32_t pipeline_asm_user_dep_skip_sx_typeck(const uint8_t *path) { (void)path; return 0; }
+int32_t pipeline_asm_user_dep_skip_x_typeck(const uint8_t *path) { (void)path; return 0; }
 const char *pipeline_asm_user_std_net_dep_path(void) { return "std.net"; }
 int32_t pipeline_codegen_path_is_std_io_driver_bytes(const uint8_t *p, int len) { (void)p; (void)len; return 0; }
 /* codegen_emit_fmt_json_helpers_once — MinGW weak 符号有 bug，提供非 weak 定义 */
@@ -65,6 +65,6 @@ int32_t bootstrap_nostdlib_pthread_is_stub(void) { return 1; }
 int32_t preprocess_if_stack_len(void) { return 0; }
 void preprocess_define_add(const char *n, const char *v) { (void)n; (void)v; }
 void preprocess_define_reset(void) {}
-int32_t preprocess_sx_buf(unsigned char *src, long len, unsigned char *out, int cap) { (void)src; (void)len; (void)out; (void)cap; return -1; }
+int32_t preprocess_x_buf(unsigned char *src, long len, unsigned char *out, int cap) { (void)src; (void)len; (void)out; (void)cap; return -1; }
 
 #endif /* _WIN32 */

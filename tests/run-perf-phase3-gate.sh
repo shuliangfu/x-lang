@@ -2,7 +2,7 @@
 # PERF-172：Phase 3 std 热路径性能烟测门禁
 #
 # 1) manifest + docs
-# 2) typeck tests/bench/phase3_std_hotpath.sx
+# 2) typeck tests/bench/phase3_std_hotpath.x
 # 3) 可选 runnable：median ≤ tests/baseline/perf-phase3.tsv
 #
 # 用法：./tests/run-perf-phase3-gate.sh
@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_PERF_PHASE3_DOC:-analysis/perf-phase3-v1.md}"
 MANIFEST="${SHUX_PERF_PHASE3_MANIFEST:-tests/baseline/perf-phase3-manifest.tsv}"
 BASELINE="${SHUX_PERF_PHASE3_TSV:-tests/baseline/perf-phase3.tsv}"
-BENCH_SX="tests/bench/phase3_std_hotpath.sx"
+BENCH_X="tests/bench/phase3_std_hotpath.x"
 LIB="tests/lib/perf-phase3.sh"
 RUNS="${SHUX_PERF_PHASE3_RUNS:-3}"
 
@@ -20,7 +20,7 @@ RUNS="${SHUX_PERF_PHASE3_RUNS:-3}"
 . "$LIB"
 
 echo "=== PERF-172: phase3 std perf manifest ==="
-for f in "$DOC" "$MANIFEST" "$BASELINE" "$LIB" "$BENCH_SX"; do
+for f in "$DOC" "$MANIFEST" "$BASELINE" "$LIB" "$BENCH_X"; do
   if [ ! -f "$f" ]; then
     echo "perf-phase3 gate FAIL: missing $f" >&2
     exit 1
@@ -51,17 +51,17 @@ fi
 
 if [ -n "$SHUX_BIN" ]; then
   echo "=== PERF-172: typeck (SHUX=$SHUX_BIN) ==="
-  if "$SHUX_BIN" check -L . "$BENCH_SX" >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . "$BENCH_X" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "perf-phase3 gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$BENCH_SX" 2>&1 | tail -6 >&2 || true
+    "$SHUX_BIN" check -L . "$BENCH_X" 2>&1 | tail -6 >&2 || true
     perf_phase3_emit_report "fail" 0 0 0
     exit 1
   fi
   SKIP=0
   OUT="/tmp/shux_perf_phase3_loop"
-  if "$SHUX_BIN" -L . "$BENCH_SX" -o "$OUT" >/dev/null 2>&1 && [ -x "$OUT" ]; then
+  if "$SHUX_BIN" -L . "$BENCH_X" -o "$OUT" >/dev/null 2>&1 && [ -x "$OUT" ]; then
     MED="$(perf_phase3_median_real "$OUT" "$RUNS")"
     CEIL="$(awk -F'\t' '$1=="phase3_std_hotpath_loop"{print $2; exit}' "$BASELINE")"
     echo "perf-phase3 median=${MED}s ceiling=${CEIL}s"

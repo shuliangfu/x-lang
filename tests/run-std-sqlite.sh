@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 MANIFEST="${SHUX_STD_SQLITE_MANIFEST:-tests/baseline/std-sqlite-manifest.tsv}"
-MOD_SX="${SHUX_STD_SQLITE_MOD:-std/db/sqlite/mod.sx}"
+MOD_X="${SHUX_STD_SQLITE_MOD:-std/db/sqlite/mod.x}"
 
 # shellcheck source=tests/lib/std-sqlite.sh
 . tests/lib/std-sqlite.sh
@@ -24,7 +24,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! std_sqlite_has_api "$MOD_SX" "$anchor"; then
+      if ! std_sqlite_has_api "$MOD_X" "$anchor"; then
         echo "std-sqlite FAIL: missing API $anchor" >&2
         FAIL=$((FAIL + 1))
       fi
@@ -38,7 +38,7 @@ done < "$MANIFEST"
 SHUX_BIN=""
 if SHUX_BIN="$(std_sqlite_resolve_shu 2>/dev/null)"; then
   make -C compiler -q 2>/dev/null || make -C compiler
-  if std_sqlite_run_typeck "$SHUX_BIN" tests/std-sqlite/draft_typeck.sx draft_typeck; then
+  if std_sqlite_run_typeck "$SHUX_BIN" tests/std-sqlite/draft_typeck.x draft_typeck; then
     TYPECK_STATUS="ok"
   else
     TYPECK_STATUS="fail"

@@ -1,7 +1,7 @@
 /**
  * runtime_test_fn_invoke.c — std.test 函数指针 invoke（F-ZC：自 std/test/test_glue.c 迁入）
  *
- * .sx 尚不能稳定经 usize 间接调用；本 TU 提供 test_call_i32_void_c 供 test.sx / test.o 链入。
+ * .x 尚不能稳定经 usize 间接调用；本 TU 提供 test_call_i32_void_c 供 test.x / test.o 链入。
  */
 #include <stdint.h>
 

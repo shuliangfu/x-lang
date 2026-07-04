@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-03 v2：std.heap libc 层去 C 门禁（libc.sx + 无 heap.c/heap.o）。
+# F-03 v2：std.heap libc 层去 C 门禁（libc.x + 无 heap.c/heap.o）。
 #
 # 用法：./tests/run-f03-std-heap-libc-gate.sh
 # 环境：SHUX_F03_HEAP_LIBC_FAIL=1 — 失败时硬退出
@@ -9,8 +9,8 @@ cd "$(dirname "$0")/.."
 FAIL=${SHUX_F03_HEAP_LIBC_FAIL:-0}
 DOC="analysis/phase-f-f03-v2-heap.md"
 MANIFEST="tests/baseline/f03-std-heap-libc.tsv"
-HEAP_LIBC="std/heap/libc.sx"
-HEAP_MOD="std/heap/mod.sx"
+HEAP_LIBC="std/heap/libc.x"
+HEAP_MOD="std/heap/mod.x"
 
 die() {
   echo "f03-heap-libc gate FAIL: $*" >&2
@@ -21,13 +21,13 @@ die() {
 echo "=== F-03 v2: std.heap heap_libc remove heap.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-03 v2' "$DOC" || die "doc missing F-03 v2 marker"
-[ -f "$HEAP_LIBC" ] || die "missing libc.sx"
+[ -f "$HEAP_LIBC" ] || die "missing libc.x"
 [ ! -f std/heap/heap.c ] || die "heap.c should be deleted"
 grep -q 'heap_alloc_c' "$HEAP_LIBC" || die "heap_libc missing heap_alloc_c"
 grep -q 'SHUX_HEAP_TRACE' "$HEAP_LIBC" || die "heap_libc missing SHUX_HEAP_TRACE"
-grep -q 'import("std.heap.libc")' "$HEAP_MOD" || die "mod.sx missing libc import"
+grep -q 'import("std.heap.libc")' "$HEAP_MOD" || die "mod.x missing libc import"
 if grep -q 'extern function heap_alloc_c' "$HEAP_MOD" 2>/dev/null; then
-  die "mod.sx still extern heap_alloc_c"
+  die "mod.x still extern heap_alloc_c"
 fi
 if grep -q 'std/heap/heap.o' compiler/Makefile 2>/dev/null; then
   die "Makefile still references heap.o"
@@ -35,7 +35,7 @@ fi
 if grep -q 'std/heap/heap.o' compiler/src/runtime_link_abi.c 2>/dev/null; then
   die "runtime_link_abi.c still pushes heap.o"
 fi
-grep -q 'malloc' compiler/src/lsp/lsp_io_std_heap.sx || die "lsp_io_std_heap missing malloc extern"
+grep -q 'malloc' compiler/src/lsp/lsp_io_std_heap.x || die "lsp_io_std_heap missing malloc extern"
 
 if [ -f "$MANIFEST" ]; then
   while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
@@ -44,7 +44,7 @@ if [ -f "$MANIFEST" ]; then
       symbol)
         target="$HEAP_LIBC"
         case "$mod_path" in
-          std/heap/mod.sx) target="$HEAP_MOD" ;;
+          std/heap/mod.x) target="$HEAP_MOD" ;;
         esac
         grep -qF "$anchor" "$target" || die "manifest missing '$anchor' in $target"
         ;;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-03 v1：std.heap 算法层去 C 门禁（ops.sx + heap.c 无 mem/map 符号）。
+# F-03 v1：std.heap 算法层去 C 门禁（ops.x + heap.c 无 mem/map 符号）。
 #
 # 用法：./tests/run-f03-std-heap-ops-gate.sh
 # 环境：SHUX_F03_HEAP_OPS_FAIL=1 — 失败时硬退出
@@ -18,16 +18,16 @@ die() {
 echo "=== F-03 v1: std.heap heap_ops remove C algorithms ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-03 v1' "$DOC" || die "doc missing F-03 v1 marker"
-[ -f std/heap/ops.sx ] || die "missing ops.sx"
-grep -q 'heap_mem_set_c' std/heap/ops.sx || die "heap_ops missing heap_mem_set_c"
-grep -q 'map_i32_i32_find_c' std/heap/ops.sx || die "heap_ops missing map find"
+[ -f std/heap/ops.x ] || die "missing ops.x"
+grep -q 'heap_mem_set_c' std/heap/ops.x || die "heap_ops missing heap_mem_set_c"
+grep -q 'map_i32_i32_find_c' std/heap/ops.x || die "heap_ops missing map find"
 if grep -q 'heap_mem_set_c' std/heap/heap.c 2>/dev/null; then
-  die "heap.c still defines heap_mem_set_c (should be in ops.sx)"
+  die "heap.c still defines heap_mem_set_c (should be in ops.x)"
 fi
 if grep -q 'map_i32_i32_find_c' std/heap/heap.c 2>/dev/null; then
   die "heap.c still defines map_i32_i32_find_c"
 fi
-grep -q 'import("std.heap.ops")' std/heap/mod.sx || die "mod.sx missing ops import"
+grep -q 'import("std.heap.ops")' std/heap/mod.x || die "mod.x missing ops import"
 
 stdlib_cm_native_shu() {
   local f="$1"

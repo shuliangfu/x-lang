@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_HTTP_DOC:-analysis/std-http-bench-v1.md}"
 MANIFEST="${SHUX_STD_HTTP_MANIFEST:-tests/baseline/std-http-manifest.tsv}"
-MOD_SX="${SHUX_STD_HTTP_MOD:-std/http/mod.sx}"
+MOD_X="${SHUX_STD_HTTP_MOD:-std/http/mod.x}"
 HTTP_C="${SHUX_STD_HTTP_C:-compiler/src/asm/http/runtime_http_glue.c}"
 MIN_APIS=2
 
@@ -49,7 +49,7 @@ std_http_run_smoke() {
 }
 
 echo "=== STD-009: std.http bench manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SX" "$HTTP_C" \
+for f in "$DOC" "$MANIFEST" "$MOD_X" "$HTTP_C" \
   tests/baseline/http-perf.tsv tests/baseline/http-perf-latency.tsv; do
   if [ ! -f "$f" ]; then
     echo "std-http gate FAIL: missing $f" >&2
@@ -78,7 +78,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
       ;;
     api)
       API_N=$((API_N + 1))
-      if ! std_http_has_api "$MOD_SX" "$anchor"; then
+      if ! std_http_has_api "$MOD_X" "$anchor"; then
         echo "std-http FAIL: missing API $anchor" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
@@ -166,7 +166,7 @@ if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/http/http.o
-  if std_http_run_smoke "$SHUX_BIN" tests/http/main.sx main; then
+  if std_http_run_smoke "$SHUX_BIN" tests/http/main.x main; then
     echo "std-http smoke OK main"
   else
     echo "std-http gate FAIL: main smoke" >&2

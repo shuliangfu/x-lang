@@ -2,8 +2,8 @@
 # 列：item_id	kind	anchor	notes
 fcsv_doc	doc	analysis/phase-f-csv-v1.md	F-csv v1
 fcsv_gate	gate	tests/run-f-csv-v1-gate.sh	聚合门禁
-csv_sx	file	std/csv/csv.sx	主实现 .sx
-csv_mod	file	std/csv/mod.sx	对外 API
+csv_x	file	std/csv/csv.x	主实现 .x
+csv_mod	file	std/csv/mod.x	对外 API
 csv_c_absent	absent	std/csv/csv.c	已删除
 makefile	makefile	compiler/Makefile	csv.o shux asm
 row_gate	gate	tests/run-std-csv-row-gate.sh	STD-127 row

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # asm 后端测试：-backend asm 出汇编，检查 .text/main/ret，可选 as+ld 跑出退出码。
 # 在仓库根目录执行：./tests/run-asm.sh
-# 若当前 shux 不支持 -sx/-backend asm（无 pipeline），则 SKIP。
+# 若当前 shux 不支持 -x/-backend asm（无 pipeline），则 SKIP。
 # macOS：`-o <exe>` 自动 ld 依赖 Xcode CLT/SDK（-lSystem）；失败时可只看 .s/.o 校验或安装 CLT（见 compiler/docs/SELFHOST.md §5）。
 
 set -e
@@ -18,23 +18,23 @@ make -C compiler -q 2>/dev/null || make -C compiler
 if [ ! -x compiler/shux ]; then
   make -C compiler bootstrap-driver-seed 2>/dev/null || true
   make -C compiler bootstrap-pipeline 2>/dev/null || true
-  make -C compiler shux-sx-pipeline 2>/dev/null || true
+  make -C compiler shux-x-pipeline 2>/dev/null || true
 elif [ -z "${CI:-}" ]; then
   make -C compiler bootstrap-driver 2>/dev/null || true
   make -C compiler bootstrap-pipeline 2>/dev/null || true
-  make -C compiler shux-sx-pipeline 2>/dev/null || true
+  make -C compiler shux-x-pipeline 2>/dev/null || true
 fi
-if [ -x compiler/shux ]; then SHUX=./compiler/shux; elif [ -x compiler/shux_sx ]; then SHUX=./compiler/shux_sx; else SHUX=./compiler/shux; fi
+if [ -x compiler/shux ]; then SHUX=./compiler/shux; elif [ -x compiler/shux_x ]; then SHUX=./compiler/shux_x; else SHUX=./compiler/shux; fi
 [ -x "$SHUX" ] || { echo "compiler/shux not found"; exit 1; }
 
-# 测试用例：main 返回 42；expr 返回 6（2*3）；local 局部 const + VAR（cmp.sx 需 C 解析器支持比较，暂不加入）
-ASM_TESTS="tests/asm/main.sx tests/asm/expr.sx tests/asm/local.sx tests/asm/index_assign.sx tests/asm/tiny_ptr.sx"
+# 测试用例：main 返回 42；expr 返回 6（2*3）；local 局部 const + VAR（cmp.x 需 C 解析器支持比较，暂不加入）
+ASM_TESTS="tests/asm/main.x tests/asm/expr.x tests/asm/local.x tests/asm/index_assign.x tests/asm/tiny_ptr.x"
 for F in $ASM_TESTS; do
   [ -f "$F" ] || { echo "run-asm: $F not found"; exit 1; }
 done
 
-# 用 -backend asm 出汇编（默认 x86_64）；以 main.sx 为代表做 as+ld 与 arm64 校验
-MAIN_ASM="tests/asm/main.sx"
+# 用 -backend asm 出汇编（默认 x86_64）；以 main.x 为代表做 as+ld 与 arm64 校验
+MAIN_ASM="tests/asm/main.x"
 OUT_S=$(mktemp)
 EC=0
 "$SHUX" -backend asm "$MAIN_ASM" > "$OUT_S" 2>&1 || EC=$?
@@ -56,7 +56,7 @@ fi
 
 # 若输出是 C（无 pipeline 时 C driver 可能忽略 -backend asm），则跳过
 if grep -q '^#include' "$OUT_S"; then
-  echo "run-asm SKIP (shux built without -sx pipeline; -backend asm not used)"
+  echo "run-asm SKIP (shux built without -x pipeline; -backend asm not used)"
   rm -f "$OUT_S"
   exit 0
 fi
@@ -127,8 +127,8 @@ if "$SHUX" -backend asm -o "$ASM_EXE" "$MAIN_ASM" 2>/dev/null; then
   rm -f "$ASM_EXE"
 fi
 
-# 多用例：expr.sx、local.sx 仅校验能成功出汇编且含 .text/main/ret
-for ASM_FILE in tests/asm/expr.sx tests/asm/local.sx tests/asm/tiny_ptr.sx; do
+# 多用例：expr.x、local.x 仅校验能成功出汇编且含 .text/main/ret
+for ASM_FILE in tests/asm/expr.x tests/asm/local.x tests/asm/tiny_ptr.x; do
   OUT_T=$(mktemp)
   if "$SHUX" -backend asm "$ASM_FILE" > "$OUT_T" 2>/dev/null; then
     if grep -q '\.text' "$OUT_T" && grep -q 'main' "$OUT_T" && grep -q 'ret' "$OUT_T"; then
@@ -138,7 +138,7 @@ for ASM_FILE in tests/asm/expr.sx tests/asm/local.sx tests/asm/tiny_ptr.sx; do
   rm -f "$OUT_T"
 done
 
-# 可选：as + ld 并运行 main.sx，检查退出码 42；若有 as/ld 再对 expr/local 做 as+ld 校验退出码 7 和 3
+# 可选：as + ld 并运行 main.x，检查退出码 42；若有 as/ld 再对 expr/local 做 as+ld 校验退出码 7 和 3
 OUT_O=/tmp/shux_asm_test.o
 OUT_BIN=/tmp/shux_asm_test
 if as -o "$OUT_O" "$OUT_S" 2>/dev/null; then
@@ -154,8 +154,8 @@ if as -o "$OUT_O" "$OUT_S" 2>/dev/null; then
     echo "run-asm: ld failed (optional, asm output already verified)"
   fi
   rm -f "$OUT_O" "$OUT_BIN"
-  # expr.sx 预期退出码 6（2*3），local.sx 预期 3
-  for PAIR in "tests/asm/expr.sx:6" "tests/asm/local.sx:3" "tests/asm/tiny_ptr.sx:42"; do
+  # expr.x 预期退出码 6（2*3），local.x 预期 3
+  for PAIR in "tests/asm/expr.x:6" "tests/asm/local.x:3" "tests/asm/tiny_ptr.x:42"; do
     F="${PAIR%%:*}"; EXPECT="${PAIR##*:}"
     TMP_S=$(mktemp); TMP_O=/tmp/shux_asm_expr.o; TMP_BIN=/tmp/shux_asm_expr_bin
     if "$SHUX" -backend asm "$F" > "$TMP_S" 2>/dev/null && as -o "$TMP_O" "$TMP_S" 2>/dev/null && ld -o "$TMP_BIN" "$TMP_O" 2>/dev/null; then

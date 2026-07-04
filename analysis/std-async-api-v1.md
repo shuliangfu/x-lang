@@ -75,9 +75,9 @@ import("std.async")       ← 用户/语言 codegen 稳定面（§3）
 
 | case | 脚本 | steps | 说明 |
 |------|------|-------|------|
-| `async_switch` | `tests/bench/async_switch.sx` | 2M | 手工 CoopFrame 状态机 |
-| `async_1m_coop` | `tests/bench/async_1m_coop.sx` | 4M | `coop_pingpong` + `coop_pingpong_jmp` 各 1M |
-| `async_switch_sched` | `tests/bench/async_switch_sched.sx` | 2M | extern jmp（Linux x86_64 asm） |
+| `async_switch` | `tests/bench/async_switch.x` | 2M | 手工 CoopFrame 状态机 |
+| `async_1m_coop` | `tests/bench/async_1m_coop.x` | 4M | `coop_pingpong` + `coop_pingpong_jmp` 各 1M |
+| `async_switch_sched` | `tests/bench/async_switch_sched.x` | 2M | extern jmp（Linux x86_64 asm） |
 
 矩阵：`tests/baseline/std-async-1m.tsv`  
 门禁：`tests/run-std-async-1m-gate.sh`

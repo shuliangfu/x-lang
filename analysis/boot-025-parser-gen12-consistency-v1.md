@@ -53,6 +53,6 @@ shux: [SHUX_BOOT025] status=ok gen12_ok=1 dogfood_ok=0 skip=1
 
 ## 5. 非目标（v2）
 
-- C4 全量 SX bootstrap 无 C TU（见 BOOT-026）
+- C4 全量 X bootstrap 无 C TU（见 BOOT-026）
 - Darwin stage2 硬门禁
 - 跨平台 shux_asm2 二进制发布

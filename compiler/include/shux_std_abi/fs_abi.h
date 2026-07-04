@@ -3,7 +3,7 @@
  *
  * 【职责】声明 std.fs 平台模块 _c 符号；canonical 副本供 LANG-005 ABI 稳定门禁。
  * 【codegen】pipeline 单文件路径由 runtime.c write_fs_path_map_error_abi_inline 内联写入生成 C，不再 #include 本文件。
- * 【实现】F-03 v2：posix.sx / win32.sx（无 fs.c）。
+ * 【实现】F-03 v2：posix.x / win32.x（无 fs.c）。
  */
 #ifndef SHUX_STD_ABI_FS_ABI_H
 #define SHUX_STD_ABI_FS_ABI_H

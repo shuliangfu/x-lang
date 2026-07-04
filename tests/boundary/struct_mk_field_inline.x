@@ -1,0 +1,26 @@
+// struct_mk_field_inline.x — get_a(mk(i,2)) 嵌套 CALL 内联：mk 按值返回 struct，get_a 读单字段
+struct Pair {
+  a: i32
+  b: i32
+}
+
+/** 由形参构造小 struct 按值返回。 */
+function mk(a: i32, b: i32): Pair {
+  return Pair { a: a, b: b };
+}
+
+/** 读 struct 单字段。 */
+function get_a(p: Pair): i32 {
+  return p.a;
+}
+
+function main(): i32 {
+  let n: i32 = 5;
+  let s: i32 = 0;
+  let i: i32 = 0;
+  while (i < n) {
+    s = s + get_a(mk(i, 2));
+    i = i + 1;
+  }
+  return s;
+}

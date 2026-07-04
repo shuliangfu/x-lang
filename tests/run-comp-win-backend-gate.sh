@@ -17,8 +17,8 @@ MIN_CASES=6
 echo "=== COMP-011: Windows backend manifest ==="
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   tests/lib/comp-win-backend.sh tests/run-comp-win-backend.sh \
-  compiler/src/asm/platform/coff.sx compiler/src/asm/platform/README.md \
-  tests/asm/windows_min.sx tests/run-asm.sh tests/baseline/ci-platform-matrix.tsv; do
+  compiler/src/asm/platform/coff.x compiler/src/asm/platform/README.md \
+  tests/asm/windows_min.x tests/run-asm.sh tests/baseline/ci-platform-matrix.tsv; do
   if [ ! -f "$f" ]; then
     echo "comp-win-backend gate FAIL: missing $f" >&2
     exit 1
@@ -139,8 +139,8 @@ for kw in windows backend COFF runnable report sample; do
   fi
 done
 
-if ! grep -qF 'use_coff_o' compiler/src/ast/ast.sx 2>/dev/null; then
-  echo "comp-win-backend gate FAIL: ast.sx missing use_coff_o" >&2
+if ! grep -qF 'use_coff_o' compiler/src/ast/ast.x 2>/dev/null; then
+  echo "comp-win-backend gate FAIL: ast.x missing use_coff_o" >&2
   exit 1
 fi
 

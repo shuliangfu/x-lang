@@ -5,8 +5,8 @@ STD_ENV_PLATFORM_ENCODING_PREFIX="${SHUX_STD132_ENV_PLATFORM_ENCODING_PREFIX:-sh
 
 # 校验 manifest 条目；echo 缺失数。
 std_env_platform_encoding_symbols_ok() {
-  local mod_sx="$1"
-  local env_sx="$2"
+  local mod_x="$1"
+  local env_x="$2"
   local env_glue="$3"
   local tsv="$4"
   local miss=0
@@ -16,7 +16,7 @@ std_env_platform_encoding_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}" "$mod_x" 2>/dev/null; then
           echo "std-env-platform-encoding FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -24,7 +24,7 @@ std_env_platform_encoding_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/env/env.c|std/env/env.sx) path="$env_sx" ;;
+          std/env/env.c|std/env/env.x) path="$env_x" ;;
           std/env/env_os_glue.c|compiler/src/asm/runtime_env_os.c) path="$env_glue" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
@@ -44,7 +44,7 @@ std_env_platform_encoding_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
+# 编译并运行 .x 烟测。
 std_env_platform_encoding_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -91,5 +91,5 @@ std_env_platform_encoding_run_c_smoke() {
 
 # 输出 gate 报告。
 std_env_platform_encoding_emit_report() {
-  echo "${STD_ENV_PLATFORM_ENCODING_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
+  echo "${STD_ENV_PLATFORM_ENCODING_PREFIX} status=$1 c=$2 x=$3 skip=$4"
 }

@@ -4,22 +4,22 @@
 layer_L	doc_anchor	## 2. 三层模型	analysis/exc-error-code-layer-v1.md	Language
 layer_B	doc_anchor	## 4. 区间表	analysis/exc-error-code-layer-v1.md	Library
 layer_S	doc_anchor	## 3. 命名规范	analysis/exc-error-code-layer-v1.md	System 侧车
-naming_global	naming_rule	code_	std/error/mod.sx	L 层前缀
-naming_module	naming_rule	_err_	std/error/mod.sx	B 层后缀
-naming_base	naming_rule	base_	std/error/mod.sx	段起点
-global_ok	symbol	ok	std/error/mod.sx	0
-global_alloc	symbol	code_alloc_fail	std/error/mod.sx	-1
-global_invalid	symbol	code_invalid	std/error/mod.sx	-2
-global_not_found	symbol	code_not_found	std/error/mod.sx	-3
-global_range_fn	symbol	code_in_global_range	std/error/mod.sx	L 判定
-module_span_fn	symbol	code_in_module_span	std/error/mod.sx	B 判定
-platform_errno_fn	symbol	code_is_platform_errno	std/error/mod.sx	S 判定
-base_io	symbol	base_io	std/error/mod.sx	-1000
-base_fs	symbol	base_fs	std/error/mod.sx	-1100
-base_net	symbol	base_net	std/error/mod.sx	-1200
-base_async	symbol	base_async	std/error/mod.sx	-1300
-base_coll	symbol	base_coll	std/error/mod.sx	-1400
-io_timeout	symbol	io_err_timeout	std/error/mod.sx	-1001
-fs_not_found	symbol	fs_err_not_found	std/error/mod.sx	-1101
-sidecar_fs	symbol	last_error	std/fs/mod.sx	S 层侧车
-smoke_case	run	error_code_layer.sx	tests/exc/error_code_layer.sx	区间烟测
+naming_global	naming_rule	code_	std/error/mod.x	L 层前缀
+naming_module	naming_rule	_err_	std/error/mod.x	B 层后缀
+naming_base	naming_rule	base_	std/error/mod.x	段起点
+global_ok	symbol	ok	std/error/mod.x	0
+global_alloc	symbol	code_alloc_fail	std/error/mod.x	-1
+global_invalid	symbol	code_invalid	std/error/mod.x	-2
+global_not_found	symbol	code_not_found	std/error/mod.x	-3
+global_range_fn	symbol	code_in_global_range	std/error/mod.x	L 判定
+module_span_fn	symbol	code_in_module_span	std/error/mod.x	B 判定
+platform_errno_fn	symbol	code_is_platform_errno	std/error/mod.x	S 判定
+base_io	symbol	base_io	std/error/mod.x	-1000
+base_fs	symbol	base_fs	std/error/mod.x	-1100
+base_net	symbol	base_net	std/error/mod.x	-1200
+base_async	symbol	base_async	std/error/mod.x	-1300
+base_coll	symbol	base_coll	std/error/mod.x	-1400
+io_timeout	symbol	io_err_timeout	std/error/mod.x	-1001
+fs_not_found	symbol	fs_err_not_found	std/error/mod.x	-1101
+sidecar_fs	symbol	last_error	std/fs/mod.x	S 层侧车
+smoke_case	run	error_code_layer.x	tests/exc/error_code_layer.x	区间烟测

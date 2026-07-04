@@ -18,7 +18,7 @@ C1_parse_bootstrap	phase	C	in_progress	run-parser-parse-bootstrap-gate.sh	C seed
 C2_bootstrap_link	phase	C	in_progress	run-parser-parse-bootstrap-link-smoke.sh	experimental 链 smoke
 C3_full_emit	phase	C	emit_target	run-boot-024-parser-bootstrap-emit-gate.sh	BOOT-024 C2 139 emit
 C4_gen12_consistency	phase	C	gen12_target	run-boot-025-parser-gen12-consistency-gate.sh	BOOT-025 gen1/gen2
-C5_sx_bootstrap	phase	C	su_bootstrap_target	run-boot-026-parser-c4-bootstrap-gate.sh	BOOT-026 C4 SU bootstrap
+C5_x_bootstrap	phase	C	su_bootstrap_target	run-boot-026-parser-c4-bootstrap-gate.sh	BOOT-026 C4 SU bootstrap
 C6_shux_asm2_cross	phase	C	shux_asm2_cross_target	run-boot-027-shux-asm2-cross-gate.sh	BOOT-027 shux_asm2 跨平台
 C7_shux_asm2_ci_matrix	phase	C	shux_asm2_ci_target	run-boot-028-shux-asm2-ci-matrix-gate.sh	BOOT-028 CI 矩阵
 slice_expr_binop	capability	A2	done	compiler/src/asm/parser_asm_expr_binop_slice.c	expr binop

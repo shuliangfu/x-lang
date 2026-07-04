@@ -1,4 +1,4 @@
-// mem_copy.zig — 与 tests/bench/mem_copy.sx / mem_copy.c 等价的 Zig 参照
+// mem_copy.zig — 与 tests/bench/mem_copy.x / mem_copy.c 等价的 Zig 参照
 const std = @import("std");
 
 pub fn main() !void {

@@ -5,7 +5,7 @@ CORE_STR_FIND_SPLIT_PREFIX="${SHUX_STD131_CORE_STR_FIND_SPLIT_PREFIX:-shux: [SHU
 
 # 校验 manifest 条目。
 core_str_find_split_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor
@@ -14,7 +14,7 @@ core_str_find_split_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}" "$mod_x" 2>/dev/null; then
           echo "core-str-find-split FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -31,7 +31,7 @@ core_str_find_split_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
+# 编译并运行 .x 烟测。
 core_str_find_split_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -55,5 +55,5 @@ core_str_find_split_run_smoke() {
 
 # 输出 gate 报告。
 core_str_find_split_emit_report() {
-  echo "${CORE_STR_FIND_SPLIT_PREFIX} status=$1 sx=$2 skip=$3"
+  echo "${CORE_STR_FIND_SPLIT_PREFIX} status=$1 x=$2 skip=$3"
 }

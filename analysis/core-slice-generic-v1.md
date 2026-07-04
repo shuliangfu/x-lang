@@ -21,12 +21,12 @@
 ## 2. manifest
 
 - 扩展：`tests/baseline/core-slice-api.tsv`
-- 烟测：`tests/slice/subslice_split_chunks.sx`（含 u64 + 工具段）
+- 烟测：`tests/slice/subslice_split_chunks.x`（含 u64 + 工具段）
 - 门禁：`tests/run-core-slice-api-gate.sh`（CORE-004/157 共用）
 
 ---
 
 ## 3. 验收
 
-- typeck + runnable：`subslice_split_chunks.sx` exit 0
+- typeck + runnable：`subslice_split_chunks.x` exit 0
 - 报告：`shux: [SHUX_CORE_SLICE_API] status=ok`

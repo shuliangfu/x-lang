@@ -23,19 +23,19 @@
 
 | 层级 | 能力 | 实现 | 验证 |
 |------|------|------|------|
-| **W1-coff-writer** | PE/COFF `.obj` 写出 | `platform/coff.sx` `write_coff_o_to_buf` | 非空 `.obj` |
+| **W1-coff-writer** | PE/COFF `.obj` 写出 | `platform/coff.x` `write_coff_o_to_buf` | 非空 `.obj` |
 | **W2-target-triple** | Windows triple 识别 | `-target x86_64-pc-windows-msvc` | driver `use_coff_o` |
-| **W3-ctx-flag** | 流水线上下文 | `PipelineDepCtx.use_coff_o` | `ast.sx` |
+| **W3-ctx-flag** | 流水线上下文 | `PipelineDepCtx.use_coff_o` | `ast.x` |
 | **W4-ld-link** | 链接器分派 | `runtime.c` `lld-link` / `link` | MSYS 全链 |
 | **W5-cross-emit** | 非 Windows 主机交叉出 COFF | `run-asm.sh` / 本 gate | macOS/Linux 烟测 |
-| **W6-min-sample** | 最小可编译样例 | `tests/asm/windows_min.sx` | exit **42**（MSYS） |
+| **W6-min-sample** | 最小可编译样例 | `tests/asm/windows_min.x` | exit **42**（MSYS） |
 
 **windows backend 原则**：
 
-1. **仅 x86_64**：`coff.sx` `e_machine == 62`；arm64-windows 为 v2。
+1. **仅 x86_64**：`coff.x` `e_machine == 62`；arm64-windows 为 v2。
 2. **-o 后缀**：`.o` / `.obj` 触发 COFF；可执行 `-o prog.exe` 走 link 路径。
 3. **跨主机**：Linux/macOS 只验证 **COFF 对象可生成**；link+run 在 **MSYS CI** 执行。
-4. **最小样例**：`windows_min.sx` 单函数 `return 42`，与 `main.sx` 等价、专用于 manifest。
+4. **最小样例**：`windows_min.x` 单函数 `return 42`，与 `main.x` 等价、专用于 manifest。
 5. **稳定 SKIP**：无 asm-capable shux（seed/C-only 构建）时 COFF emit 烟测 SKIP，不 fail manifest。
 
 ---
@@ -46,8 +46,8 @@
 
 | case_id | 样例 | 命令 | 期望 |
 |---------|------|------|------|
-| `case_windows_min` | `windows_min.sx` | `-backend asm -target x86_64-pc-windows-msvc -o out.obj` | 非空 COFF |
-| `case_main_compat` | `main.sx` | 同上 | 与 run-asm COFF 段一致 |
+| `case_windows_min` | `windows_min.x` | `-backend asm -target x86_64-pc-windows-msvc -o out.obj` | 非空 COFF |
+| `case_main_compat` | `main.x` | 同上 | 与 run-asm COFF 段一致 |
 | `case_triple_msvc` | triple 字符串 | driver 解析 | `use_coff_o=1` |
 | `case_ld_lld` | link 路径 | `lld-link /entry:_main` | MSYS optional |
 | `case_cross_host` | 非 MSYS | 仅 emit | SKIP link |
@@ -59,10 +59,10 @@
 
 | 锚点 | 路径 |
 |------|------|
-| COFF writer | `compiler/src/asm/platform/coff.sx` |
+| COFF writer | `compiler/src/asm/platform/coff.x` |
 | 平台 README | `compiler/src/asm/platform/README.md` |
 | driver link | `compiler/src/runtime.c`（`use_coff_o`） |
-| 最小样例 | `tests/asm/windows_min.sx` |
+| 最小样例 | `tests/asm/windows_min.x` |
 | asm 回归 | `tests/run-asm.sh`（COFF 段） |
 
 ---

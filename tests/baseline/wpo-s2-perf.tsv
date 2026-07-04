@@ -1,5 +1,5 @@
 # WPO-S2 bench：fold 版 median ≤ no_fold_median × ratio（默认 0.92 = 快 8%）
 # 更新：SHUX_PERF_UPDATE_WPO_S2_BASELINE=1 ./tests/run-perf-wpo-s2.sh --bench
-# scale：tests/bench/wpo_scale_loop.sx；vec：tests/bench/wpo_vec_lane0_loop.sx
+# scale：tests/bench/wpo_scale_loop.x；vec：tests/bench/wpo_vec_lane0_loop.x
 wpo_scale_fold_max_ratio	0.92
 wpo_vec_lane0_fold_max_ratio	0.92

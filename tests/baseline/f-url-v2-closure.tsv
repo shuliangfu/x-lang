@@ -2,8 +2,8 @@
 # 列：item_id	kind	anchor	notes
 furl2_doc	doc	analysis/phase-f-url-v2.md	F-url v2
 furl2_gate	gate	tests/run-f-url-v2-gate.sh	逻辑下沉门禁
-url_sx	file	std/url/url.sx	parse/build/query/resolve + IPv6
+url_x	file	std/url/url.x	parse/build/query/resolve + IPv6
 url_glue_absent	absent	std/url/url_glue.c	F-ZC 已删除
-url_mod	file	std/url/mod.sx	对外 API
+url_mod	file	std/url/mod.x	对外 API
 url_c_absent	absent	std/url/url.c	已删除
-makefile	makefile	compiler/Makefile	url.o 纯 .sx
+makefile	makefile	compiler/Makefile	url.o 纯 .x

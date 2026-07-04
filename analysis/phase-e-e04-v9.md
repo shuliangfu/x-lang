@@ -21,4 +21,4 @@ make -C compiler src/runtime_link_abi.o src/runtime_driver_no_c.o
 - `ensure_runtime_asm_io_stubs_o` / `ensure_crt0_user_o` / `ensure_freestanding_io_o`
 - `asm_invoke_ld_platform` / `invoke_ld` / `invoke_cc` 主体
 - `get_repo_root` 等 std .o 路径族
-- `main.c` → crt0 / main.sx 全入口
+- `main.c` → crt0 / main.x 全入口

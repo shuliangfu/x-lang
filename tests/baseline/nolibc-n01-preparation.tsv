@@ -11,8 +11,8 @@ manifest_lib	lib	tests/lib/nolibc-n01-manifest.sh	gate_ref	审计函数
 link_audit_lib	lib	tests/lib/no-libc-link-audit.sh	gate_ref	NL-05 runtime 审计
 crt0_user	.s	compiler/src/asm/crt0_user_x86_64.s	exists	用户入口
 freestanding_io	.s	compiler/src/asm/freestanding_io_x86_64.s	exists	syscall 桩
-sys_linux	sx	std/sys/linux.sx	exists	extern 声明
-sys_mod	sx	std/sys/mod.sx	exists	os_write 门面
+sys_linux	x	std/sys/linux.x	exists	extern 声明
+sys_mod	x	std/sys/mod.x	exists	os_write 门面
 freestanding_hello	gate	tests/run-freestanding-hello.sh	gate_ref	S4 基线烟测
 runtime_nl05	runtime	compiler/src/runtime_link_abi.c	grep_marker	F-no-libc NL-05 BEGIN/END
 sub_gate_socket	gate_ref	tests/run-no-libc-socket-gate.sh	gate_ref	NL-02 委托

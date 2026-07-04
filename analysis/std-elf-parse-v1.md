@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
-> 关联：编译器 `compiler/src/asm/platform/elf.sx`（写出路径）
+> 关联：编译器 `compiler/src/asm/platform/elf.x`（写出路径）
 
 ---
 
@@ -55,7 +55,7 @@
 | section[1] | `.text`，`size=4` |
 | section[2] | `.shstrtab`，`type=3` |
 
-烟测：`tests/std-elf/parse_hdr.sx`（Ehdr）、`parse_smoke_ok.c`（C 全路径）。
+烟测：`tests/std-elf/parse_hdr.x`（Ehdr）、`parse_smoke_ok.c`（C 全路径）。
 
 ---
 

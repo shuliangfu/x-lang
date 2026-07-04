@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD109_DOC:-analysis/std-base64-stream-v1.md}"
 MANIFEST="${SHUX_STD109_TSV:-tests/baseline/std-base64-stream.tsv}"
 VECTORS="${SHUX_STD109_VECTORS:-tests/baseline/std-base64-stream-vectors.tsv}"
-MOD_SX="std/base64/mod.sx"
-B64_SX="${SHUX_STD_BASE64_IMPL:-std/base64/base64.sx}"
+MOD_X="std/base64/mod.x"
+B64_X="${SHUX_STD_BASE64_IMPL:-std/base64/base64.x}"
 LIB="tests/lib/std-base64-stream.sh"
-SMOKE_SX="tests/std-base64/stream.sx"
+SMOKE_X="tests/std-base64/stream.x"
 SMOKE_C="tests/std-base64/stream_smoke_ok.c"
 MIN_APIS=5
 
@@ -19,7 +19,7 @@ MIN_APIS=5
 . "$LIB"
 
 echo "=== STD-109: base64 stream manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$B64_SX" "$SMOKE_SX" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$B64_X" "$SMOKE_X" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-base64-stream gate FAIL: missing $f" >&2
     exit 1
@@ -62,7 +62,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_base64_stream_symbols_ok "$MOD_SX" "$B64_SX" "$MANIFEST" || true)"
+sym_miss="$(std_base64_stream_symbols_ok "$MOD_X" "$B64_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_base64_stream_emit_report "fail" 0 0 0
   exit 1
@@ -70,13 +70,13 @@ fi
 echo "std-base64-stream manifest OK"
 
 C_OK=0
-SX_OK=0
+X_OK=0
 SKIP=0
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/base64/base64.o
-  if std_base64_stream_run_c_smoke "$B64_SX"; then
+  if std_base64_stream_run_c_smoke "$B64_X"; then
     C_OK=1
   else
     std_base64_stream_emit_report "fail" 0 0 0
@@ -106,15 +106,15 @@ elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux ||
 fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-109: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-    echo "std-base64-stream gate FAIL: typeck $SMOKE_SX" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+  echo "=== STD-109: .x smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    echo "std-base64-stream gate FAIL: typeck $SMOKE_X" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_base64_stream_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_base64_stream_run_sx_smoke "$SHUX_BIN" "$SMOKE_SX" "b64"; then
-    SX_OK=1
+  if std_base64_stream_run_x_smoke "$SHUX_BIN" "$SMOKE_X" "b64"; then
+    X_OK=1
   else
     std_base64_stream_emit_report "fail" "$C_OK" 0 0
     exit 1
@@ -123,5 +123,5 @@ else
   SKIP=1
 fi
 
-std_base64_stream_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
+std_base64_stream_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
 echo "std-base64-stream gate OK"

@@ -4,7 +4,7 @@
 # 用法（source 后）：
 #   core_builtin_mappings_ok CODEGEN_C TSV
 #   core_builtin_c_impl_ok BUILTIN_C TSV
-#   core_builtin_emit_ok SHU SX_FILE TSV
+#   core_builtin_emit_ok SHU X_FILE TSV
 #   core_builtin_emit_report status found total
 
 CORE_BUILTIN_PREFIX="${SHUX_CORE_BUILTIN_BITOPS_PREFIX:-shux: [SHUX_CORE_BUILTIN_BITOPS]}"
@@ -33,13 +33,13 @@ core_builtin_mappings_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 校验 core/builtin/mod.sx 含 clz/ctz/popcount 纯 .sx 实现（G-01）。
-core_builtin_sx_impl_ok() {
-  local mod_sx="$1"
+# 校验 core/builtin/mod.x 含 clz/ctz/popcount 纯 .x 实现（G-01）。
+core_builtin_x_impl_ok() {
+  local mod_x="$1"
   local miss=0
   for sym in clz_u32 ctz_u32 popcount_u32; do
-    if ! grep -qE "function ${sym}\\(" "$mod_sx" 2>/dev/null; then
-      echo "core-builtin-bitops FAIL: $mod_sx missing $sym" >&2
+    if ! grep -qE "function ${sym}\\(" "$mod_x" 2>/dev/null; then
+      echo "core-builtin-bitops FAIL: $mod_x missing $sym" >&2
       miss=$((miss + 1))
     fi
   done

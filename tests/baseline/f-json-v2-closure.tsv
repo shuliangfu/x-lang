@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	notes
 fjson2_doc	doc	analysis/phase-f-json-v2.md	F-json v2
 fjson2_gate	gate	tests/run-f-json-v2-gate.sh	逻辑下沉门禁
-json_sx	file	std/json/json.sx	全量解析/游标/序列化
-json_mod	file	std/json/mod.sx	对外 API
+json_x	file	std/json/json.x	全量解析/游标/序列化
+json_mod	file	std/json/mod.x	对外 API
 json_glue_v1_absent	absent	std/json/json_parse_glue.c	v1 胶层已删除
-makefile	makefile	compiler/Makefile	json.o 纯 sx
+makefile	makefile	compiler/Makefile	json.o 纯 x

@@ -5,8 +5,8 @@ STD_ELF_DEEP_PREFIX="${SHUX_STD063_PREFIX:-shux: [SHUX_STD063_ELF_DEEP]}"
 
 # 校验深化 manifest 中 api/const/symbol。
 std_elf_deep_symbols_ok() {
-  local mod_sx="$1"
-  local elf_sx="$2"
+  local mod_x="$1"
+  local elf_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,21 +15,21 @@ std_elf_deep_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-elf-deep FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_x" 2>/dev/null; then
           echo "std-elf-deep FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/elf/elf.sx" ]; then path="$elf_sx"; fi
-        if [ "$path" = "std/elf/elf_glue.c" ]; then path="$elf_sx"; fi
+        if [ "$path" = "std/elf/elf.x" ]; then path="$elf_x"; fi
+        if [ "$path" = "std/elf/elf_glue.c" ]; then path="$elf_x"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-elf-deep FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -74,11 +74,11 @@ std_elf_deep_run_c_smoke() {
   return 0
 }
 
-# .sx 深化烟测（复用 STD-058 辅助）。
-std_elf_deep_run_sx_smoke() {
+# .x 深化烟测（复用 STD-058 辅助）。
+std_elf_deep_run_x_smoke() {
   local shux="$1"
   local src="$2"
-  local exe="/tmp/shux_std_elf_deep_sx_$$"
+  local exe="/tmp/shux_std_elf_deep_x_$$"
   if ! "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1; then
     echo "std-elf-deep SKIP: compile $src" >&2
     rm -f "$exe"
@@ -100,7 +100,7 @@ std_elf_deep_run_sx_smoke() {
 std_elf_deep_emit_report() {
   local status="$1"
   local deep_c="$2"
-  local deep_sx="$3"
+  local deep_x="$3"
   local skip="$4"
-  echo "${STD_ELF_DEEP_PREFIX} status=${status} deep_c=${deep_c} deep_sx=${deep_sx} skip=${skip}"
+  echo "${STD_ELF_DEEP_PREFIX} status=${status} deep_c=${deep_c} deep_x=${deep_x} skip=${skip}"
 }

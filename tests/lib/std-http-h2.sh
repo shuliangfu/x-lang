@@ -2,15 +2,15 @@
 # std-http-h2.sh — STD-HTTP-H2 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_http_h2_symbols_ok MOD_SX HTTP_C TSV
-#   std_http_h2_run_smoke SHUX_BIN SX TAG
+#   std_http_h2_symbols_ok MOD_X HTTP_C TSV
+#   std_http_h2_run_smoke SHUX_BIN X TAG
 #   std_http_h2_emit_report status wire_ok client_ok network_ok flow_ok skip
 
 STD_HTTP_H2_PREFIX="${SHUX_STD_HTTP_H2_PREFIX:-shux: [SHUX_STD_HTTP_H2]}"
 
 # 校验 manifest symbol/file；echo 缺失数。
 std_http_h2_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local http_c="$2"
   local tsv="$3"
   local miss=0
@@ -21,7 +21,7 @@ std_http_h2_symbols_ok() {
     case "$kind" in
       symbol)
         case "$mod_path" in
-          std/http/mod.sx) mod_path="$mod_sx" ;;
+          std/http/mod.x) mod_path="$mod_x" ;;
           compiler/src/asm/http/runtime_http_glue.c) mod_path="$http_c" ;;
           compiler/src/asm/http/http2.inc.c) mod_path="compiler/src/asm/http/http2.inc.c" ;;
           compiler/src/asm/http/hpack.inc.c) mod_path="compiler/src/asm/http/hpack.inc.c" ;;
@@ -41,7 +41,7 @@ std_http_h2_symbols_ok() {
         fi
         ;;
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-http-h2 FAIL: missing api $anchor" >&2
           miss=$((miss + 1))
         fi
@@ -58,7 +58,7 @@ std_http_h2_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .sx。
+# 编译并运行烟测 .x。
 std_http_h2_run_smoke() {
   local shux="$1"
   local src="$2"

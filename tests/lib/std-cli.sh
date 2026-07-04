@@ -4,7 +4,7 @@
 STD_CLI_PREFIX="${SHUX_STD_CLI_PREFIX:-shux: [SHUX_STD_CLI]}"
 
 std_cli_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local cli_c="$2"
   local tsv="$3"
   local miss=0
@@ -14,14 +14,14 @@ std_cli_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-cli FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/cli/cli.c" ] || [ "$path" = "std/cli/cli.sx" ]; then path="$cli_c"; fi
+        if [ "$path" = "std/cli/cli.c" ] || [ "$path" = "std/cli/cli.x" ]; then path="$cli_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-cli FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -67,5 +67,5 @@ std_cli_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_CLI_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_CLI_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
 }

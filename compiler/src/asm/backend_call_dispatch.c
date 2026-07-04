@@ -46,7 +46,7 @@ struct platform_elf_ElfCodegenCtx;
 struct backend_AsmFuncCtx;
 struct codegen_CodegenOutBuf;
 
-/** 与 backend.sx AsmFuncCtx 前缀一致（module_ref + dep_pipe）。 */
+/** 与 backend.x AsmFuncCtx 前缀一致（module_ref + dep_pipe）。 */
 struct glue_AsmFuncCtxCall {
   int32_t frame_size;
   int32_t next_offset;
@@ -65,7 +65,7 @@ struct glue_AsmFuncCtxCall {
   void *dep_pipe;
 };
 
-/** import ast.sx ImportKind.IMPORT_BINDING */
+/** import ast.x ImportKind.IMPORT_BINDING */
 #define GLUE_IMPORT_KIND_BINDING 1
 /** parser_asm_primary_slice / ast.h AST_EXPR_STRING_LIT；内容在 var_name。 */
 #define GLUE_EXPR_STRING_LIT_ORD 59
@@ -206,8 +206,8 @@ extern int32_t backend_enc_call_stack_reserve_arch(struct platform_elf_ElfCodege
 extern int32_t backend_enc_store_x0_sp_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes,
                                                    int32_t ta);
 
-/** bench stream_*_batch 等最多 11 实参；与 backend.sx 6 参上限解耦。 */
-/** 与 grow 池一致：>64 实参边界见 tests/pool-limits/many_call_args.sx。 */
+/** bench stream_*_batch 等最多 11 实参；与 backend.x 6 参上限解耦。 */
+/** 与 grow 池一致：>64 实参边界见 tests/pool-limits/many_call_args.x。 */
 #define GLUE_ASM_MAX_CALL_ARGS 96
 
 extern int32_t backend_enc_store_x0_sp_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes,
@@ -458,7 +458,7 @@ static int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
 }
 
 /**
- * 将 import 路径转为 C 符号前缀（`.`→`_`，末尾再补 `_`），与 codegen.sx codegen_import_path_to_c_prefix_into 一致。
+ * 将 import 路径转为 C 符号前缀（`.`→`_`，末尾再补 `_`），与 codegen.x codegen_import_path_to_c_prefix_into 一致。
  */
 static void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
   int32_t off;
@@ -902,8 +902,8 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(struct ast_ASTArena
 }
 
 /**
- * text 路径：为 call 准备至多 6 个实参（与 backend.sx asm_emit_call_args_text 语义一致）。
- * 供 backend.sx 薄包装 bl 委托（M8-tail）。
+ * text 路径：为 call 准备至多 6 个实参（与 backend.x asm_emit_call_args_text 语义一致）。
+ * 供 backend.x 薄包装 bl 委托（M8-tail）。
  */
 int32_t pipeline_asm_emit_call_args_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t target_arch,
@@ -942,7 +942,7 @@ int32_t pipeline_asm_emit_call_args_text_c(struct ast_ASTArena *arena, struct co
 
 /**
  * ELF 路径：为 enc_call 准备实参（寄存器 + outgoing 栈；经 pipeline_asm_emit_expr_elf_for_call_args）。
- * 供 backend.sx asm_emit_call_args_elf 薄包装（M8-tail）。
+ * 供 backend.x asm_emit_call_args_elf 薄包装（M8-tail）。
  */
 static int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index) {
   return pipeline_asm_call_param_type_ref_at_c(arena, call_expr_ref, param_index);
@@ -1234,7 +1234,7 @@ static int32_t glue_asm_build_call_export_sym_c(struct ast_ASTArena *arena, int3
 }
 
 /**
- * co-emit std.encoding/mod.sx：std_encoding_utf8_valid -> encoding_utf8_valid_c（链 std/encoding/encoding.o）。
+ * co-emit std.encoding/mod.x：std_encoding_utf8_valid -> encoding_utf8_valid_c（链 std/encoding/encoding.o）。
  */
 static int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
                                                         int32_t out_cap) {
@@ -1315,7 +1315,7 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struc
 
 /**
  * fmt/debug `binding.println("…")` / `print("…")`：内嵌 rodata + call std_fmt_println(ptr,len)。
- * 避免对 STRING_LIT 走通用 emit_expr 导致 SIGSEGV（hello.sx 阻塞项）。
+ * 避免对 STRING_LIT 走通用 emit_expr 导致 SIGSEGV（hello.x 阻塞项）。
  */
 static int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *arena,
                                                                   struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -1390,7 +1390,7 @@ static int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struc
 
 /**
  * EXPR_CALL ELF 全路径：IMPORT_BINDING / whole-import FIELD_ACCESS callee、VAR callee、try_inline。
- * 供 pipeline_asm_emit_expr_elf_rec 与 backend.sx emit_expr_elf_call 委托。
+ * 供 pipeline_asm_emit_expr_elf_rec 与 backend.x emit_expr_elf_call 委托。
  */
 int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -1412,7 +1412,7 @@ int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform
   backend_call_debugf("emit call elf callee_ko=%d call_nargs=%d", (int)callee_ko,
                       (int)pipeline_expr_call_num_args_at(arena, expr_ref));
 
-  /** hello.sx：fmt.println("…") 不依赖 import 槽匹配，直接 call std_fmt_println(ptr,len)。 */
+  /** hello.x：fmt.println("…") 不依赖 import 槽匹配，直接 call std_fmt_println(ptr,len)。 */
   if (callee_ko == GLUE_EXPR_FIELD_ACCESS_ORD) {
     int32_t fa_lit = glue_asm_try_emit_fmt_string_lit_import_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta,
                                                                         (const uint8_t *)"std_fmt_", 8, (const uint8_t *)"println",
@@ -1579,7 +1579,7 @@ extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t
 
 /**
  * EXPR_METHOD_CALL ELF：receiver 作 arg0，实参 arg1..argN，enc_call(method_name)。
- * 供 backend.sx emit_expr_elf_method_call 薄包装（M8-tail）。
+ * 供 backend.x emit_expr_elf_method_call 薄包装（M8-tail）。
  */
 int32_t pipeline_asm_emit_method_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                             int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {

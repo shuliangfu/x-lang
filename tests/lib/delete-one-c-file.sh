@@ -2,7 +2,7 @@
 # delete-one-c-file.sh — 阶段 G 单文件删 C/H + 快速回归 + 单文件 git commit
 #
 # 用法（仓库根）：
-#   ./tests/lib/delete-one-c-file.sh compiler/src/lexer/lexer.c "lexer.sx self-host"
+#   ./tests/lib/delete-one-c-file.sh compiler/src/lexer/lexer.c "lexer.x self-host"
 #   SHUX_DELETE_C_SKIP_GIT=1 ./tests/lib/delete-one-c-file.sh path/to/file.c "reason"
 #   SHUX_DELETE_C_SKIP_REGRESS=1 ./tests/lib/delete-one-c-file.sh path/to/file.c "reason"
 #
@@ -15,7 +15,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 TARGET="${1:-}"
-REASON="${2:-sx migration}"
+REASON="${2:-x migration}"
 PROGRESS="./tests/lib/progress-run.sh"
 
 usage() {

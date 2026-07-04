@@ -23,7 +23,7 @@
 |----|------|
 | `module_id` | `std.io` 等 |
 | `manifest` | baseline TSV 路径 |
-| `mod_path` | `std/xxx/mod.sx` |
+| `mod_path` | `std/xxx/mod.x` |
 | `kind` | `api`（每行符号）或 `feature`（STD 专项 manifest） |
 
 **v1 覆盖 28 模块**（`min_modules=28`；含既有 STD-001～024 manifest + 本轮新增 12 个 `*-api.tsv`）。

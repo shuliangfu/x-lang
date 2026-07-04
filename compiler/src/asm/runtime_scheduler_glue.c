@@ -2,7 +2,7 @@
  * runtime_scheduler_glue.c — F-ZC：自 std/async/scheduler_glue.c 迁入 — A1/A2 协作调度胶层（F-async v1）
  *
  * 【文件职责】协作帧、computed-goto dispatch、MPSC 环、CPS suspend、IO 等待队列；
- * 经 ld -r 与 scheduler.sx 合并为 scheduler.o；末尾 #include async_net_fs.inc.c。
+ * 经 ld -r 与 scheduler.x 合并为 scheduler.o；末尾 #include async_net_fs.inc.c。
  * 【链接】-pthread（MPSC 烟测）；按需链入；环境变量见原 scheduler.c 注释。
  */
 #include <stddef.h>
@@ -864,7 +864,7 @@ static int32_t shux_async_spawn_ctx_echo_task(void) {
 }
 
 /**
- * F-task v2：返回 task.o 中 task_echo_fn_c 入口（.sx 同模块尚不能取函数址）。
+ * F-task v2：返回 task.o 中 task_echo_fn_c 入口（.x 同模块尚不能取函数址）。
  * 链入 task.o 时由链接器解析；未链 task.o 时返回 NULL。
  */
 void *shux_async_task_echo_fn_ptr_c(void) {

@@ -1,6 +1,6 @@
 # Shu 语言文档
 
-本目录为 Shu（.sx）语言的简明参考文档，按类型分篇，便于查阅。
+本目录为 Shu（.x）语言的简明参考文档，按类型分篇，便于查阅。
 
 ## 文档索引
 
@@ -19,7 +19,7 @@
 
 ## 约定
 
-- **文件后缀**：`.sx`
+- **文件后缀**：`.x`
 - **入口**：含 `main` 的模块为可执行程序；无 `main` 的模块可作为库被 `import`
 - **风格**：表达式为主；语句后加分号（如 `const`/`let`/`return`/`goto` 等）
 
@@ -27,7 +27,7 @@
 
 ```sh
 make kernel              # 跑全部 30 个 QEMU 内核测试
-make kernel-build SX=tests/kernel/shuxos.sx  # 构建单个内核 ELF
+make kernel-build X=tests/kernel/shuxos.x  # 构建单个内核 ELF
 make kernel-longmode    # x86_64 长模式 QEMU 启动
 make kernel-ist          # IST 结构验证
 ```

@@ -68,6 +68,6 @@
 ./tests/run-std-codec-buffer-reuse-gate.sh
 ```
 
-烟测：`tests/std-codec/buffer_reuse.sx`（连续两次 `encode_into_bytes` 验证 cap 复用）。
+烟测：`tests/std-codec/buffer_reuse.x`（连续两次 `encode_into_bytes` 验证 cap 复用）。
 
 报告：`shux: [SHUX_STD139_CODEC_BUFFER_REUSE]`

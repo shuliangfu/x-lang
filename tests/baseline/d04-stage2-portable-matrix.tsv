@@ -1,13 +1,13 @@
 # D-04 Stage2 portable 两代 diff 矩阵（manifest）
 # 列：case_id	category	src	mode	expected_exit	notes
 # min_cases	10
-hello_check	portable	examples/hello.sx	check	0	Tier P hello
-parser_semi	boot019	tests/parser/semicolon_required.sx	check	0	分号正例
-parser_two	boot019	tests/parser/two_functions.sx	check	0	多函数
-parser_bin	boot019	tests/parser/binary_expr_return.sx	check	0	二元表达式
-typeck_option	boot019	tests/option/main.sx	link_run	102	Option
-typeck_result	boot019	tests/result/main.sx	link_run	173	Result
-typeck_generic	boot019	tests/generic/main.sx	link_run	42	泛型 id
-vec_check	boot015	tests/vec/main.sx	check	0	std.vec
-map_check	boot015	tests/map/main.sx	check	0	std.map
-heap_check	boot015	tests/heap/main.sx	check	0	std.heap
+hello_check	portable	examples/hello.x	check	0	Tier P hello
+parser_semi	boot019	tests/parser/semicolon_required.x	check	0	分号正例
+parser_two	boot019	tests/parser/two_functions.x	check	0	多函数
+parser_bin	boot019	tests/parser/binary_expr_return.x	check	0	二元表达式
+typeck_option	boot019	tests/option/main.x	link_run	102	Option
+typeck_result	boot019	tests/result/main.x	link_run	173	Result
+typeck_generic	boot019	tests/generic/main.x	link_run	42	泛型 id
+vec_check	boot015	tests/vec/main.x	check	0	std.vec
+map_check	boot015	tests/map/main.x	check	0	std.map
+heap_check	boot015	tests/heap/main.x	check	0	std.heap

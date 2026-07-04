@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # LANG-002：import 解析跨平台一致性门禁
 #
-# 同一套 .sx / run-*.sh 在 Linux / macOS / Windows MSYS 须行为一致。
+# 同一套 .x / run-*.sh 在 Linux / macOS / Windows MSYS 须行为一致。
 # 用法：./tests/run-lang-import-gate.sh
 set -e
 cd "$(dirname "$0")/.."
@@ -28,9 +28,9 @@ echo "=== LANG-002: import cross-platform manifest ==="
 for f in \
   analysis/lang-import-v1-rfc.md \
   "$MATRIX" \
-  tests/import/main.sx \
-  tests/import/missing_module.sx \
-  tests/parser/import_std_async.sx; do
+  tests/import/main.x \
+  tests/import/missing_module.x \
+  tests/parser/import_std_async.x; do
   if [ ! -f "$f" ]; then
     echo "lang-import gate FAIL: missing $f" >&2
     exit 1
@@ -63,7 +63,7 @@ if [ -x ./compiler/shux-c ] && native_shu ./compiler/shux-c; then
   LINK_SHUX=./compiler/shux-c
 fi
 
-run_sx_case() {
+run_x_case() {
   local script="$1"
   local want_ec="${2:-0}"
   local src=""
@@ -75,7 +75,7 @@ run_sx_case() {
     echo "lang-import FAIL: missing ${script}" >&2
     return 1
   fi
-  local out="/tmp/shux_lang_import_${script%.sx}"
+  local out="/tmp/shux_lang_import_${script%.x}"
   if ! "$LINK_SHUX" -L . "$src" -o "$out" >/tmp/shux_lang_import_compile.log 2>&1; then
     cat /tmp/shux_lang_import_compile.log >&2
     return 1
@@ -110,7 +110,7 @@ while IFS=$'\t' read -r case_id script policy want_ec notes; do
       fi
       ;;
     run)
-      if run_sx_case "$script" "${want_ec:-0}"; then
+      if run_x_case "$script" "${want_ec:-0}"; then
         echo "lang-import OK $case_id"
       else
         FAILS=$((FAILS + 1))

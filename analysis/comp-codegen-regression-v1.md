@@ -58,7 +58,7 @@
 
 ## 5. 变更流程
 
-1. 新增 codegen 特性 → 增 matrix 行 + 烟测 `.sx`  
+1. 新增 codegen 特性 → 增 matrix 行 + 烟测 `.x`  
 2. 改 asm 后端 → 确保 asm_compute hook 仍绿（Linux x86_64 CI）  
 3. 本地：`SHUX=./compiler/shux-c ./tests/run-codegen-regression-gate.sh`
 

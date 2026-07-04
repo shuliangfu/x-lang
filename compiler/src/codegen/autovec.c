@@ -1,5 +1,5 @@
 /**
- * autovec.c — loop autovec 冷启动桩（G-02a 真实现已迁入 codegen.sx；strict 链仍须本 TU 符号）
+ * autovec.c — loop autovec 冷启动桩（G-02a 真实现已迁入 codegen.x；strict 链仍须本 TU 符号）
  *
  * B-strict / relink 脚本会 cc -c 本文件为 seed autovec.o；默认关闭 autovec 匹配。
  */

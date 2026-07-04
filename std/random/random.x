@@ -1,0 +1,78 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std/random/random.x — CSPRNG 非 OS 逻辑（F-random v1；替代 random.c 主体）
+//
+// 【文件职责】random_u32/u64、SplitMix64 PRNG 烟测；OS fill 见 runtime_random_fill.c（compiler）。
+
+/** OS 胶层：密码学安全随机字节。 */
+extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
+
+/** 生成密码学安全 u32；失败返回 0。 */
+function random_u32_c(): u32 {
+  let buf: u8[4] = [0, 0, 0, 0];
+  unsafe { if (random_fill_bytes_c(&buf[0], 4) != 4) { return 0; } }
+  return (buf[0] as u32)
+    | ((buf[1] as u32) << 8)
+    | ((buf[2] as u32) << 16)
+    | ((buf[3] as u32) << 24);
+}
+
+/** 生成密码学安全 u64；失败返回 0。 */
+function random_u64_c(): u64 {
+  let buf: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
+  unsafe { if (random_fill_bytes_c(&buf[0], 8) != 8) { return 0 as u64; } }
+  return (buf[0] as u64)
+    | ((buf[1] as u64) << 8)
+    | ((buf[2] as u64) << 16)
+    | ((buf[3] as u64) << 24)
+    | ((buf[4] as u64) << 32)
+    | ((buf[5] as u64) << 40)
+    | ((buf[6] as u64) << 48)
+    | ((buf[7] as u64) << 56);
+}
+
+/** PRNG 状态（SplitMix64 烟测用）。 */
+allow(padding) struct RngC {
+  state: u64
+}
+
+/** SplitMix64 单步。 */
+function random_rng_next_u64(r: *RngC): u64 {
+  let z: u64 = r.state + 0x9e3779b97f4a7c15 as u64;
+  r.state = z;
+  let t: u64 = z >> 30;
+  let x: u64 = z ^ t;
+  z = x * 0xbf58476d1ce4e5b9 as u64;
+  t = z >> 27;
+  x = z ^ t;
+  z = x * 0x94d049bb133111eb as u64;
+  t = z >> 31;
+  return z ^ t;
+}
+
+/** STD-130 PRNG 烟测；0 成功。 */
+function random_rng_smoke_c(): i32 {
+  let a: RngC = RngC { state: 0 };
+  let b: RngC = RngC { state: 0 };
+  let c: RngC = RngC { state: 1 };
+  let x: u64 = random_rng_next_u64(&a);
+  let y: u64 = random_rng_next_u64(&a);
+  if (random_rng_next_u64(&b) != x) { return 1; }
+  if (random_rng_next_u64(&b) != y) { return 2; }
+  if (random_rng_next_u64(&c) == x) { return 3; }
+  return 0;
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-string v1：std.string 去 C（string.c → string.sx）。
+# F-string v1：std.string 去 C（string.c → string.x）。
 #
 # 用法：./tests/run-f-string-v1-gate.sh
 # 环境：SHUX_F_STRING_V1_FAIL=1 — 失败时硬退出
@@ -16,11 +16,11 @@ die() {
   exit 0
 }
 
-echo "=== F-string v1: std.string string.c → string.sx ==="
+echo "=== F-string v1: std.string string.c → string.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-string v1' "$DOC" || die "doc missing F-string v1 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
-[ -f std/string/string.sx ] || die "missing std/string/string.sx"
+[ -f std/string/string.x ] || die "missing std/string/string.x"
 [ ! -f std/string/string.c ] || die "std/string/string.c should be deleted"
 
 while IFS=$'\t' read -r item_id kind anchor _notes; do
@@ -36,7 +36,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-grep -q 'std/string/string.sx' compiler/Makefile || die "Makefile missing string.sx rule"
+grep -q 'std/string/string.x' compiler/Makefile || die "Makefile missing string.x rule"
 if grep -q 'std/string/string\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/string/string.c"
 fi

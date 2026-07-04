@@ -93,14 +93,14 @@ return 路径措辞：`slice region escape: cannot return <%s> slice as unbound 
 
 | ID | 模式 | 测试文件 | 预期 |
 |----|------|----------|------|
-| UAF-1 | 域内 slice → 块外未标注变量 | `region_assign_escape.sx` | escape |
-| UAF-2 | 域内 slice → 块外不同域变量 | `region_block_escape.sx` | mismatch |
-| UAF-3 | 跨域 let 赋值 | `region_mismatch.sx` | mismatch |
-| UAF-4 | 域内 slice 作未标注返回值 | `region_return_escape.sx` | escape |
-| UAF-5 | 实参域 → 未标注形参 | `region_call_escape.sx` | escape |
-| UAF-6 | 实参域 ≠ 形参域 | `region_call_mismatch.sx` | mismatch |
-| UAF-7 | read_ptr → 未标注 `u8[]` | `read_ptr_region_escape.sx` | escape |
-| UAF-8 | read_ptr → 错误域 | `read_ptr_region_mismatch.sx` | mismatch |
+| UAF-1 | 域内 slice → 块外未标注变量 | `region_assign_escape.x` | escape |
+| UAF-2 | 域内 slice → 块外不同域变量 | `region_block_escape.x` | mismatch |
+| UAF-3 | 跨域 let 赋值 | `region_mismatch.x` | mismatch |
+| UAF-4 | 域内 slice 作未标注返回值 | `region_return_escape.x` | escape |
+| UAF-5 | 实参域 → 未标注形参 | `region_call_escape.x` | escape |
+| UAF-6 | 实参域 ≠ 形参域 | `region_call_mismatch.x` | mismatch |
+| UAF-7 | read_ptr → 未标注 `u8[]` | `read_ptr_region_escape.x` | escape |
+| UAF-8 | read_ptr → 错误域 | `read_ptr_region_mismatch.x` | mismatch |
 
 ---
 
@@ -108,10 +108,10 @@ return 路径措辞：`slice region escape: cannot return <%s> slice as unbound 
 
 | 文件 | 说明 |
 |------|------|
-| `region_same_ok.sx` | 同域 `i32[]<ra>` 赋值 |
-| `region_block_same.sx` | region 块内 stamp + 同域 assign |
-| `region_call_ok.sx` | call 实参/形参同域 |
-| `read_ptr_region_ok.sx` | read_ptr + `u8[]<io_read_ptr>` |
+| `region_same_ok.x` | 同域 `i32[]<ra>` 赋值 |
+| `region_block_same.x` | region 块内 stamp + 同域 assign |
+| `region_call_ok.x` | call 实参/形参同域 |
+| `read_ptr_region_ok.x` | read_ptr + `u8[]<io_read_ptr>` |
 
 ---
 
@@ -127,17 +127,17 @@ return 路径措辞：`slice region escape: cannot return <%s> slice as unbound 
 | `typeck_check_slice_region_assign` | 同上 |
 | `typeck_check_return_slice_region` | 同上 |
 | `typeck_is_read_ptr_slice_producer` | M-5 read_ptr 自动域 |
-| SX/WPO glue | `pipeline_typeck_check_slice_region_assign_c` 等 |
+| X/WPO glue | `pipeline_typeck_check_slice_region_assign_c` 等 |
 
 ### 6.2 parser / AST
 
 - `ASTBlock.regions[]`：`label` + `body`
 - `ASTType.region_label`：slice 域字符串
-- 类型解析：`T[]<label>`（`parser_asm_type_ref_slice.c` / `parser.sx`）
+- 类型解析：`T[]<label>`（`parser_asm_type_ref_slice.c` / `parser.x`）
 
 ### 6.3 codegen
 
-- region → 嵌套块，无额外指令（`codegen.c` case 5 / `codegen.sx`）
+- region → 嵌套块，无额外指令（`codegen.c` case 5 / `codegen.x`）
 
 ### 6.4 v1 明确不做
 
@@ -202,7 +202,7 @@ ZC-3 gate 将 **编译期域检查** 与 **数组→slice 运行时**、**read_p
 |------|------|
 | 线性类型 v1 | `analysis/type-linear-v1-rfc.md` |
 | 内存契约 Slice | `analysis/内存契约.md` §3 |
-| 测试 | `tests/typeck/slice_lifetime/*.sx` |
+| 测试 | `tests/typeck/slice_lifetime/*.x` |
 | 路线图 | `NEXT.md` TYPE-002 |
 
 **TYPE-002 状态：定版 ✅**（M-3/M-5 实装 + 门禁已就绪；v2 见 TYPE-003 / LANG-008。）

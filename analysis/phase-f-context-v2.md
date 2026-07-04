@@ -1,13 +1,13 @@
-# 阶段 F-context v2（std.context 节点存储 .sx 下沉）
+# 阶段 F-context v2（std.context 节点存储 .x 下沉）
 
-> **F-context v2**：**ctx_node 分配/原子/value 槽** 全量在 **`context.sx`**；**删除 `context_node_glue.c`**；`context.o` 纯 `.sx` 编译（同 cache v2）。
+> **F-context v2**：**ctx_node 分配/原子/value 槽** 全量在 **`context.x`**；**删除 `context_node_glue.c`**；`context.o` 纯 `.x` 编译（同 cache v2）。
 
 ## 变更
 
 | 项 | v1 | v2 |
 |----|----|-----|
-| 节点/原子 | `context_node_glue.c`（139 行） | **`context.sx`** |
-| `context.o` | `ld -r` glue + sx | **纯 shux → context.o** |
+| 节点/原子 | `context_node_glue.c`（139 行） | **`context.x`** |
+| `context.o` | `ld -r` glue + x | **纯 shux → context.o** |
 | cancelled | C11 atomic | `extern atomic_load/store_i32_c` |
 
 ## 门禁

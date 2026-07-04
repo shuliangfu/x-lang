@@ -1,0 +1,8 @@
+// asm_append_repro.x — 最小复现：跨模块调用 append_asm_line 的 return 类型解析
+const types = import("asm.types");
+const codegen = import("codegen");
+
+function f(out: *CodegenOutBuf): i32 {
+  let nl: u8[1] = [10];
+  return append_asm_line(out, &nl[0], 1);
+}

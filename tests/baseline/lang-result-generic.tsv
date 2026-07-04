@@ -5,11 +5,11 @@ read_path	section	## 1. 阅读路径	analysis/lang-result-generic-v1.md
 layers	section	## 2. 闭环 M7–M9	analysis/lang-result-generic-v1.md
 api	section	## 3. API（v1）	analysis/lang-result-generic-v1.md
 golden	section	## 4. 金样向量	analysis/lang-result-generic-v1.md
-symbol_template	symbol	struct Result<T, E>	core/result/mod.sx	模板
-symbol_i32	symbol	Result_i32	core/result/mod.sx	兼容
-symbol_is_ok_gen	symbol	is_ok_gen	core/result/mod.sx	泛型辅助
-smoke_three	smoke	tests/lang-result-generic/result_three.sx	三组合
-smoke_import	smoke	tests/lang-result-generic/with_core_import.sx	core 导入
+symbol_template	symbol	struct Result<T, E>	core/result/mod.x	模板
+symbol_i32	symbol	Result_i32	core/result/mod.x	兼容
+symbol_is_ok_gen	symbol	is_ok_gen	core/result/mod.x	泛型辅助
+smoke_three	smoke	tests/lang-result-generic/result_three.x	三组合
+smoke_import	smoke	tests/lang-result-generic/with_core_import.x	core 导入
 typeck_c	symbol	typeck_demangle_suffix_to_types	compiler/src/typeck/typeck_generic_struct.c	双参 demangle
 parser_c	symbol	parser_append_type_inst_mangle	compiler/src/parser/parser.c	多实参 mangle
 cross_lang009	cross_ref	lang-option-generic-v1.md	analysis/lang-option-generic-v1.md	LANG-009

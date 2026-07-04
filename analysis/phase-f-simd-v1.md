@@ -1,14 +1,14 @@
 # 阶段 F-simd v1（std.simd 去 C + F-ZC）
 
-> **F-simd v1**：删除 **`simd.c`**；策略/HW/烟测均在 **`simd.sx`**；**F-ZC** 删除 **`simd_os_glue.c`**。
+> **F-simd v1**：删除 **`simd.c`**；策略/HW/烟测均在 **`simd.x`**；**F-ZC** 删除 **`simd_os_glue.c`**。
 
 ## 变更
 
 | 项 | 前 | v1 | F-ZC |
 |----|----|-----|------|
-| 实现 | `simd.c` | `simd.sx` + glue | **纯 `.sx`** |
-| HW/烟测 | C #if | `simd_os_glue.c` | **`.sx` 内** |
-| `simd.o` | `cc -c` | `ld -r` | **纯 `.sx`** |
+| 实现 | `simd.c` | `simd.x` + glue | **纯 `.x`** |
+| HW/烟测 | C #if | `simd_os_glue.c` | **`.x` 内** |
+| `simd.o` | `cc -c` | `ld -r` | **纯 `.x`** |
 
 ## 门禁
 

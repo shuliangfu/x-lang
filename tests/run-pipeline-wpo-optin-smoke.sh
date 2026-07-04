@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
-if [ ! -x compiler/shux ] && [ ! -x compiler/shux-sx ]; then
+if [ ! -x compiler/shux ] && [ ! -x compiler/shux-x ]; then
   echo "pipeline-wpo-optin: SKIP (no seed shux; make -C compiler all)" >&2
   exit 0
 fi
@@ -48,7 +48,7 @@ rm -f "$OUT"
 (
   cd compiler
   ulimit -s 65532 2>/dev/null || true
-  ./shux_asm.strict_glue ../tests/return-value/main.sx -o "$OUT" -backend asm
+  ./shux_asm.strict_glue ../tests/return-value/main.x -o "$OUT" -backend asm
 )
 if [ ! -x "$OUT" ]; then
   echo "pipeline-wpo-optin FAIL: no executable at $OUT" >&2
@@ -61,4 +61,4 @@ if [ "$RC" -ne 42 ]; then
   exit 1
 fi
 
-echo "pipeline-wpo-optin OK (WPO helpers + SX runtime bootstrap, return-value 42)"
+echo "pipeline-wpo-optin OK (WPO helpers + X runtime bootstrap, return-value 42)"

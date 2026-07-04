@@ -1,5 +1,5 @@
 # crt0_x86_64.s - 无 C 自举: _start（x86_64 Linux）
-# E-04 v19：_start 调 main_entry（driver_sx.o / bridge 弱桩）；替代 main.c / runtime_asm_build.c
+# E-04 v19：_start 调 main_entry（driver_x.o / bridge 弱桩）；替代 main.c / runtime_asm_build.c
 # NL-07 v5：_start 先 bootstrap_init_static_tls（%fs:0x28 栈保护；见 bootstrap_nostdlib_stubs.c）
 # NL-07 v5：再 bootstrap_init_environ（getenv/SHUX_* 环境变量）
 # NL-07 v6：argc/argv 存 r12/r13；bootstrap 桩会 clobber rdi/rsi，每次 call 前须恢复。

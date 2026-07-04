@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | 打开 `tests/baseline/std-net-dns.tsv` |
 | 3 | `./tests/run-std-net-dns-gate.sh` |
-| 4 | 烟测：`tests/net/resolve_dns.sx` |
+| 4 | 烟测：`tests/net/resolve_dns.x` |
 
 ---
 

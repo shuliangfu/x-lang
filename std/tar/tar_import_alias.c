@@ -1,7 +1,7 @@
 /**
  * tar_import_alias.c — import binding `-o` 链接桩
  *
- * tar.sx 现已直接导出 tar_*_c；本 TU 仅保留 asm import-binding 所需的 std_tar_* 转发符号。
+ * tar.x 现已直接导出 tar_*_c；本 TU 仅保留 asm import-binding 所需的 std_tar_* 转发符号。
  */
 #include <stdint.h>
 

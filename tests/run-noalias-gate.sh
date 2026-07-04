@@ -45,7 +45,7 @@ check_emit_c() {
   echo "noalias-gate OK $fn restrict=$expect_restrict"
 }
 
-check_emit_c tests/typeck/noalias/one_ptr.sx touch_one yes
-check_emit_c tests/typeck/noalias/two_ptr.sx touch_two no
+check_emit_c tests/typeck/noalias/one_ptr.x touch_one yes
+check_emit_c tests/typeck/noalias/two_ptr.x touch_two no
 
 echo "noalias-gate OK (MEM-A1 fine-grained restrict)"

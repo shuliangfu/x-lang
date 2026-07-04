@@ -2,13 +2,13 @@
 # Format: case_id<TAB>mode<TAB>script<TAB>policy<TAB>expected_exit<TAB>notes
 # mode: S0|U1|U2|U3|U4
 # policy: run | compile_fail | hook
-U1_allow_padding_ok	U1	allow_padding_ok.sx	run	2	allow(padding) 显式 opt-in
-U1_padding_rejected	U1	padding_rejected.sx	compile_fail	1	无 allow 时 implicit padding 拒绝
-U2_raw_ptr_null	U2	raw_ptr_null.sx	run	0	*T 可初始化为 null
-U3_extern_putchar	U3	extern_putchar.sx	run	0	extern 调 C putchar（unsafe 内）
-U4_unsafe_block_deref_ok	U4	unsafe_block_deref_ok.sx	run	0	unsafe 内 *T 解引用
-U4_deref_outside_unsafe_fail	U4	deref_outside_unsafe_fail.sx	compile_fail	1	S0 裸解引用拒绝
-U4_extern_outside_unsafe_fail	U4	extern_outside_unsafe_fail.sx	compile_fail	1	S0 裸 extern 拒绝
+U1_allow_padding_ok	U1	allow_padding_ok.x	run	2	allow(padding) 显式 opt-in
+U1_padding_rejected	U1	padding_rejected.x	compile_fail	1	无 allow 时 implicit padding 拒绝
+U2_raw_ptr_null	U2	raw_ptr_null.x	run	0	*T 可初始化为 null
+U3_extern_putchar	U3	extern_putchar.x	run	0	extern 调 C putchar（unsafe 内）
+U4_unsafe_block_deref_ok	U4	unsafe_block_deref_ok.x	run	0	unsafe 内 *T 解引用
+U4_deref_outside_unsafe_fail	U4	deref_outside_unsafe_fail.x	compile_fail	1	S0 裸解引用拒绝
+U4_extern_outside_unsafe_fail	U4	extern_outside_unsafe_fail.x	compile_fail	1	S0 裸 extern 拒绝
 S0_ub_bounds	S0	run-ub.sh	hook	0	div/bounds panic 收窄
 S0_region_typeck	S0	run-typeck-region.sh	hook	0	region slice 域检查
 U1_struct_regression	U1	run-struct.sh	hook	0	结构体 padding 回归

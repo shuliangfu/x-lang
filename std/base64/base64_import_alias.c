@@ -3,7 +3,7 @@
  *
  * asm co-emit 对 `const base64 = import("std.base64")` 生成 std_base64_* 符号；
  * base64.o 仅导出 base64_*_c。本 TU 提供 std_base64_* 实现。
- * encode/decode standard/url 在 shux-c 编译 base64.sx 产物中 padding 写入有缺陷（'=' 未落码），此处 C 直实现。
+ * encode/decode standard/url 在 shux-c 编译 base64.x 产物中 padding 写入有缺陷（'=' 未落码），此处 C 直实现。
  */
 #include <stdint.h>
 

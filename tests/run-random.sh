@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# 【文件职责】std.random 模块的回归测试脚本；编译并运行 tests/random/*.sx，校验退出码。
+# 【文件职责】std.random 模块的回归测试脚本；编译并运行 tests/random/*.x，校验退出码。
 # 【测试目的】覆盖 fill_bytes、u32、u64、range_u32、bool，确保 API 行为符合预期。
 # 【运行方式】在仓库根目录执行 ./tests/run-random.sh；可选环境变量 SHUX 指定编译器路径。
 #
@@ -27,7 +27,7 @@ run_one() {
   return 0
 }
 
-run_one "main" "tests/random/main.sx" || exit 1
+run_one "main" "tests/random/main.x" || exit 1
 
 echo "random test OK (all)"
 rm -f /tmp/shux_random_$$_*

@@ -20,9 +20,9 @@ sym_hash	symbol	lsp_hash_source	compiler/src/lsp/lsp_diag.c	P3	static
 sym_line_idx	symbol	build_line_index	compiler/src/lsp/lsp_diag.c	P6	static
 sym_lazy	symbol	lsp_typeck_entry_module	compiler/src/lsp/lsp_diag.c	P5	static
 sym_diag_json	symbol	s_last_diag_json	compiler/src/lsp/lsp_diag.c	P2	static
-sym_reset	symbol	lsp_diag_sx_reset_parse_buffers	compiler/src/lsp/lsp_diag.sx	su	buffer reuse
-case_large	case	diag_large_ok	tests/lsp/diag_large_ok.sx	large	40 funcs
-case_small	case	main.sx	tests/lsp/main.sx	small	control
+sym_reset	symbol	lsp_diag_x_reset_parse_buffers	compiler/src/lsp/lsp_diag.x	su	buffer reuse
+case_large	case	diag_large_ok	tests/lsp/diag_large_ok.x	large	40 funcs
+case_small	case	main.x	tests/lsp/main.x	small	control
 lib	script	lib/tool-lsp-diag-perf.sh	tests/lib/tool-lsp-diag-perf.sh	-	共享库
 gate	script	run-tool-lsp-diag-perf-gate.sh	tests/run-tool-lsp-diag-perf-gate.sh	-	manifest
 hook_perf	hook_script	run-lsp-diag-perf.sh	run-lsp-diag-perf.sh	-	perf 烟测

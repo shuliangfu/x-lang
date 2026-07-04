@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4（职责划分） |
 | 2 | `tests/baseline/std-encoding-hex-base64.tsv` |
 | 3 | `./tests/run-std-encoding-hex-base64-gate.sh` |
-| 4 | 烟测：`tests/encoding/hex_base64_string.sx` |
+| 4 | 烟测：`tests/encoding/hex_base64_string.x` |
 
 ---
 

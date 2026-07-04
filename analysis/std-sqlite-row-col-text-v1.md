@@ -23,7 +23,7 @@
 | NULL 列 | 写入空串，返回 **0** |
 | 缓冲不足 | `DB_ERR_EXEC`（须容纳 NUL 终止符） |
 
-烟测入口：`db_sqlite_row_col_text_smoke_c`（C）、`row_col_text_roundtrip.sx`（.sx）。
+烟测入口：`db_sqlite_row_col_text_smoke_c`（C）、`row_col_text_roundtrip.x`（.x）。
 
 ---
 
@@ -46,7 +46,7 @@
 ```
 
 ```
-shux: [SHUX_STD068_DB_TEXT_COL] status=ok text_c=1 text_sx=0 skip=1
+shux: [SHUX_STD068_DB_TEXT_COL] status=ok text_c=1 text_x=0 skip=1
 ```
 
 无 `libsqlite3` 时 manifest 仍过，烟测 **SKIP**。

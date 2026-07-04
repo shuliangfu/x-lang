@@ -1,16 +1,16 @@
-# 阶段 F-regex v2（std.regex 引擎全量 .sx）
+# 阶段 F-regex v2（std.regex 引擎全量 .x）
 
-> **F-regex v2**：`regex_min.inc.c`（~1305 行）全量迁入 **`regex.sx`**；**删除 `regex_engine_glue.c`** 与 **`regex_min.inc.c`**；`regex.o` 纯 `.sx` 编译（同 hash/schema）。
+> **F-regex v2**：`regex_min.inc.c`（~1305 行）全量迁入 **`regex.x`**；**删除 `regex_engine_glue.c`** 与 **`regex_min.inc.c`**；`regex.o` 纯 `.x` 编译（同 hash/schema）。
 
 ## 变更
 
 | 项 | v1 | v2 |
 |----|----|-----|
-| 引擎实现 | `regex_engine_glue.c` + `regex_min.inc.c` | **`regex.sx`** |
-| `regex.o` | `ld -r` glue + sx | **纯 shux → regex.o** |
+| 引擎实现 | `regex_engine_glue.c` + `regex_min.inc.c` | **`regex.x`** |
+| `regex.o` | `ld -r` glue + x | **纯 shux → regex.o** |
 | 特性 | NFA/回溯、capture、`\p{}`、占有型、`(?>...)` | 同上，逻辑 1:1 迁移 |
 
-## 导出符号（mod.sx extern）
+## 导出符号（mod.x extern）
 
 `regex_compile_c`、`regex_match_c`、`regex_group_count_c`、`regex_group_offset_c`、`regex_group_length_c`、`regex_free_c`、`regex_min_smoke_c`
 

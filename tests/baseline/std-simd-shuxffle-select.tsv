@@ -5,15 +5,15 @@ read_path	section	## 1. 阅读路径	15min
 dual_impl	section	## 2. 双层实现	lane-scalar
 api_sem	section	## 3. API 语义	vec4f_shuffle
 verify	section	## 4. 门禁	gate
-api_v4_shuffle	api	vec4f_shuffle	std/simd/mod.sx	4-lane
-api_v8_shuffle	api	vec8i_shuffle	std/simd/mod.sx	8-lane
-api_v4_select	api	vec4f_select	std/simd/mod.sx	f32 mask
-api_v8_select	api	vec8i_select	std/simd/mod.sx	i32 mask
-api_simd_shuffle	api	simd_shuffle	std/simd/mod.sx	@shuffle
-api_simd_select	api	simd_select	std/simd/mod.sx	@select
-smoke_roundtrip	smoke	tests/simd/shuffle_select_roundtrip.sx	金样
-smoke_s4	smoke	tests/simd/vec4f_shuffle_smoke.sx	S4 联动
+api_v4_shuffle	api	vec4f_shuffle	std/simd/mod.x	4-lane
+api_v8_shuffle	api	vec8i_shuffle	std/simd/mod.x	8-lane
+api_v4_select	api	vec4f_select	std/simd/mod.x	f32 mask
+api_v8_select	api	vec8i_select	std/simd/mod.x	i32 mask
+api_simd_shuffle	api	simd_shuffle	std/simd/mod.x	@shuffle
+api_simd_select	api	simd_select	std/simd/mod.x	@select
+smoke_roundtrip	smoke	tests/simd/shuffle_select_roundtrip.x	金样
+smoke_s4	smoke	tests/simd/vec4f_shuffle_smoke.x	S4 联动
 cross_std061	cross_ref	tests/baseline/std-simd-prod-wave.tsv	STD-061	prod bench
-bench_prod	bench	tests/bench/simd_shuffle_select.sx	hot-loop
+bench_prod	bench	tests/bench/simd_shuffle_select.x	hot-loop
 lib	script	lib/std-simd-shuffle-select.sh	tests/lib/std-simd-shuffle-select.sh
 gate	script	run-std-simd-shuffle-select-gate.sh	tests/run-std-simd-shuffle-select-gate.sh

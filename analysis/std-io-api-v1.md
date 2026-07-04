@@ -72,7 +72,7 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 | `read_ptr_view` / `read_ptr_view_valid` | 打包视图 |
 | `read_ptr_slice` / `read_stdin_ptr_slice` | `u8[]<io_read_ptr>`（M-5 typeck） |
 
-详见 `std/io/mod.sx` 文件头 Z2/ZC-1 注释。
+详见 `std/io/mod.x` 文件头 Z2/ZC-1 注释。
 
 ### 3.5 批量与 fixed / provided
 
@@ -145,7 +145,7 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 |------|------|----------|
 | **S 稳定** | `tests/baseline/std-io-api.tsv` | 禁止删改签名；可增 optional 参数须默认兼容 |
 | **P 平台** | 兼容矩阵 §4 | 允许 per-OS 实现差异；须更新矩阵 |
-| **E 实验** | mod.sx 注释 `@experimental` | 可随时改；晋升 S 须补基线 + 测试 |
+| **E 实验** | mod.x 注释 `@experimental` | 可随时改；晋升 S 须补基线 + 测试 |
 
 ### 6.2 破坏性变更步骤
 
@@ -156,7 +156,7 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 
 ### 6.3 新增 API 步骤
 
-1. 在 `std/io/mod.sx` 实现并注释  
+1. 在 `std/io/mod.x` 实现并注释  
 2. 若属 Tier S：追加 `std-io-api.tsv` 一行  
 3. 增加 `tests/io/` 或扩展现有 smoke  
 4. 更新本文档 §3/§4
@@ -190,7 +190,7 @@ import("std.io")          ← 用户稳定面（本文档 §3）
 
 | 资源 | 路径 |
 |------|------|
-| 实现 | `std/io/mod.sx`、`driver.sx`、`core.sx`、`io.c` |
+| 实现 | `std/io/mod.x`、`driver.x`、`core.x`、`io.c` |
 | 用户 README | `std/io/README.md` |
 | 稳定符号基线 | `tests/baseline/std-io-api.tsv` |
 | 性能评估 | `std/fs/PERF-ASSESSMENT.md` |

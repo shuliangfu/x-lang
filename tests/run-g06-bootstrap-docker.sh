@@ -70,7 +70,7 @@ elif [ -s "$PARTIAL" ] && [ "$(wc -c <"$PARTIAL" | tr -d " ")" -ge 50000 ] && \
   cat "$PARTIAL" > seeds/asm_backend_partial.linux.x86_64.o
   ls -la seeds/asm_backend_partial.linux.x86_64.o
 else
-  progress "WARN: partial still phase1 stub (asm.sx -E not yet green)"
+  progress "WARN: partial still phase1 stub (asm.x -E not yet green)"
 fi
 '
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C-04 parser：parser.sx -E-extern codegen TU 别名 + cc -c（无 fix_slim/fix_parser_pool perl 时亦须过）。
+# C-04 parser：parser.x -E-extern codegen TU 别名 + cc -c（无 fix_slim/fix_parser_pool perl 时亦须过）。
 # 用法：./tests/run-parser-e-extern-gate.sh
 # 环境：SHUX_PARSER_E_EXTERN_FAIL=1 失败时硬退出
 # 注：fix_slim_arena 仍须 parser_gen.c 文件名（内部 TU 别名扫描）；gate 在临时目录生成该名。
@@ -31,12 +31,12 @@ rm -rf "$GENDIR" 2>/dev/null || true
 mkdir -p "$GENDIR"
 
 GEN_OK=0
-if [ -x "./shux-sx" ] && ./shux-sx -sx -E $DIRS -E-extern src/parser/parser.sx >"$GEN" 2>/tmp/shux_parser_e_extern_sx.log \
+if [ -x "./shux-x" ] && ./shux-x -x -E $DIRS -E-extern src/parser/parser.x >"$GEN" 2>/tmp/shux_parser_e_extern_x.log \
   && grep -q 'lexer_advance_one' "$GEN"; then
   GEN_OK=1
 fi
 if [ "$GEN_OK" = "0" ]; then
-  if ! "$SHUX" $DIRS src/parser/parser.sx -E -E-extern >"$GEN" 2>/tmp/shux_parser_e_extern_gen.log; then
+  if ! "$SHUX" $DIRS src/parser/parser.x -E -E-extern >"$GEN" 2>/tmp/shux_parser_e_extern_gen.log; then
     echo "parser-e-extern-gate FAIL: parser -E-extern" >&2
     tail -n 10 /tmp/shux_parser_e_extern_gen.log 2>/dev/null || true
     rm -rf "$GENDIR" 2>/dev/null || true

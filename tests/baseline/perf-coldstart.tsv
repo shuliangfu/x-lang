@@ -7,9 +7,9 @@ layers	section	## 2. 优化层 T1–T6	perf-coldstart.tsv	-	coldstart
 baseline	section	## 3. 基线矩阵	coldstart-perf.tsv	-	median
 env	section	## 4. 门禁环境	analysis/perf-coldstart-v1.md	-	regression
 verify	section	## 6. 验证与门禁	analysis/perf-coldstart-v1.md	-	gate
-layer_t1	layers	T1-exec-latency	examples/hello.sx	exec	hello_stripped_us
-layer_t2	layers	T2-fs-min	tests/freestanding/return42/main.sx	fs	min
-layer_t3	layers	T3-fs-io	tests/freestanding/hello/main.sx	fs	syscall
+layer_t1	layers	T1-exec-latency	examples/hello.x	exec	hello_stripped_us
+layer_t2	layers	T2-fs-min	tests/freestanding/return42/main.x	fs	min
+layer_t3	layers	T3-fs-io	tests/freestanding/hello/main.x	fs	syscall
 layer_t4	layers	T4-first-compile	tests/baseline/compile-dogfood.tsv	compile	PERF-004
 layer_t5	layers	T5-stripped-size	tests/baseline/coldstart-perf.tsv	bytes	cap
 layer_t6	layers	T6-ci-wire	tests/run-ci-full-suite.sh	ci	B-BOOT

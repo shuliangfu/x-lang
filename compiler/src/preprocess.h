@@ -1,5 +1,5 @@
 /**
- * preprocess.h — .sx 条件编译预处理（#if / #else / #endif）
+ * preprocess.h — .x 条件编译预处理（#if / #else / #endif）
  *
  * 文件职责：声明预处理接口，供 main 在将源码交给 lexer 前按条件过滤 #if 块，实现标准库按 OS 选实现。
  * 约定：支持 #if COND、#elseif COND、#else、#endif；COND 可为 -D 符号或 target_os/target_arch 表达式（与 #[cfg] 对齐）。
@@ -21,7 +21,7 @@
  */
 char *preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length);
 
-/** C 实现：供 runtime.c 在 ndefines>0 或 .sx 不可用时调用；6.4 迁 .sx 后由 preprocess_sx 处理 ndefines==0。 */
+/** C 实现：供 runtime.c 在 ndefines>0 或 .x 不可用时调用；6.4 迁 .x 后由 preprocess_x 处理 ndefines==0。 */
 char *preprocess_c_fallback(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length);
 
 /**
@@ -36,10 +36,10 @@ int preprocess_eval_condition(const char *cond, const char **defines, int ndefin
  * 参数：source_buf/source_len 为输入源码；out_buf/out_cap 为调用方提供的输出缓冲。
  * 返回值：成功返回输出字节数；失败返回 -1。
  */
-int32_t preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
+int32_t preprocess_x_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
 
 /** 与 seed/selfhost 链兼容的别名。 */
-int32_t typeck_preprocess_sx_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
+int32_t typeck_preprocess_x_buf(const uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf, int32_t out_cap);
 
 /** runtime_pipeline_abi 的 -D 注入接口。 */
 void preprocess_define_reset(void);

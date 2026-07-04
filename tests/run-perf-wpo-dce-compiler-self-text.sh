@@ -86,9 +86,9 @@ sum_wpo_eligible_text() {
 
 echo "=== wpo compiler self __text (graph + asm proxy) ==="
 
-# ── 1) main.sx 全程序 call graph dead export %（C WPO，与 run-wpo-compiler-self 同语义）──
+# ── 1) main.x 全程序 call graph dead export %（C WPO，与 run-wpo-compiler-self 同语义）──
 rm -f "$GRAPH"
-SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" "$SHUXXX_C" check compiler/src/main.sx >/dev/null
+SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" "$SHUXXX_C" check compiler/src/main.x >/dev/null
 [ -s "$GRAPH" ] || { echo "wpo compiler self text: graph missing"; exit 1; }
 perl compiler/scripts/wpo_dce.pl "$GRAPH" --min-dead-pct "$MIN_GRAPH_PCT" | tee /tmp/wpo_compiler_self_text_graph.log
 grep -q 'wpo_dce OK' /tmp/wpo_compiler_self_text_graph.log
@@ -116,7 +116,7 @@ MULTI_PCT=0
 if [ ! -x "$SHUX_ASM_ABS" ]; then
   echo "wpo compiler self text: asm proxy SKIP (no shux_asm)"
 else
-  if compile_ab tests/wpo/dead_multi_user.sx "$MULTI_OFF" "$MULTI_ON"; then
+  if compile_ab tests/wpo/dead_multi_user.x "$MULTI_OFF" "$MULTI_ON"; then
     OFF=$(text_bytes "$MULTI_OFF") || { echo "cannot read multi off .text"; exit 1; }
     ON=$(text_bytes "$MULTI_ON") || { echo "cannot read multi on .text"; exit 1; }
     if [ "$OFF" -le "$ON" ]; then
@@ -142,7 +142,7 @@ else
   fi
 fi
 
-# ── 3) 可选：main.sx 单 TU asm __text A/B（与 build_shux_asm rebuild_main_o 同模式；失败仅 WARN）──
+# ── 3) 可选：main.x 单 TU asm __text A/B（与 build_shux_asm rebuild_main_o 同模式；失败仅 WARN）──
 MAIN_OFF="/tmp/shux_wpo_main_off.o"
 MAIN_ON="/tmp/shux_wpo_main_on.o"
 MAIN_SAVE=""
@@ -157,7 +157,7 @@ PIPE_SAVE=""
 PIPE_PCT=""
 BUILD_ASM_DIR="compiler/build_asm"
 
-compile_main_sx_ab() {
+compile_main_x_ab() {
   local off_o="$1"
   local on_o="$2"
   local emit_heavy="${3:-0}"
@@ -165,66 +165,66 @@ compile_main_sx_ab() {
   # 与 rebuild_main_o_for_cli 一致：ENTRY_ONLY + SKIP_TYPECK；生产链优先 EMIT_HEAVY=0（仅 entry ~656B）。
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/main.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/main.x >/dev/null 2>&1 ) || return 1
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/main.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/main.x >/dev/null 2>&1 ) || return 1
   [ -s "$off_o" ] && [ -s "$on_o" ]
 }
 
-# driver/compile.sx EMIT_HEAVY A/B（与 run-s3-driver-emit-heavy 同模式）。
-compile_driver_sx_ab() {
+# driver/compile.x EMIT_HEAVY A/B（与 run-s3-driver-emit-heavy 同模式）。
+compile_driver_x_ab() {
   local off_o="$1"
   local on_o="$2"
   rm -f "$off_o" "$on_o"
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/driver/compile.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/driver/compile.x >/dev/null 2>&1 ) || return 1
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/driver/compile.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/driver/compile.x >/dev/null 2>&1 ) || return 1
   [ -s "$off_o" ] && [ -s "$on_o" ]
 }
 
-# pipeline.sx EMIT_HEAVY A/B（run_sx_pipeline_impl root + reach DCE）。
-compile_pipeline_sx_ab() {
+# pipeline.x EMIT_HEAVY A/B（run_x_pipeline_impl root + reach DCE）。
+compile_pipeline_x_ab() {
   local off_o="$1"
   local on_o="$2"
   rm -f "$off_o" "$on_o"
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/pipeline/pipeline.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/pipeline/pipeline.x >/dev/null 2>&1 ) || return 1
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/pipeline/pipeline.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/pipeline/pipeline.x >/dev/null 2>&1 ) || return 1
   [ -s "$off_o" ] && [ -s "$on_o" ]
 }
 
-# typeck.sx EMIT_HEAVY A/B（typeck_sx_ast root + reach DCE）。
-compile_typeck_sx_ab() {
+# typeck.x EMIT_HEAVY A/B（typeck_x_ast root + reach DCE）。
+compile_typeck_x_ab() {
   local off_o="$1"
   local on_o="$2"
   rm -f "$off_o" "$on_o"
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/typeck/typeck.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/typeck/typeck.x >/dev/null 2>&1 ) || return 1
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/typeck/typeck.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/typeck/typeck.x >/dev/null 2>&1 ) || return 1
   [ -s "$off_o" ] && [ -s "$on_o" ]
 }
 
-# backend.sx EMIT_HEAVY A/B（asm_codegen_ast root + reach DCE）。
-compile_backend_sx_ab() {
+# backend.x EMIT_HEAVY A/B（asm_codegen_ast root + reach DCE）。
+compile_backend_x_ab() {
   local off_o="$1"
   local on_o="$2"
   rm -f "$off_o" "$on_o"
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/asm/backend.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$off_o" src/asm/backend.x >/dev/null 2>&1 ) || return 1
   ( cd compiler && \
     timeout "$MAIN_TIMEOUT" env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=1 \
-      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/asm/backend.sx >/dev/null 2>&1 ) || return 1
+      "$SHUX_ASM_ABS" -backend asm -o "$on_o" src/asm/backend.x >/dev/null 2>&1 ) || return 1
   [ -s "$off_o" ] && [ -s "$on_o" ]
 }
 
@@ -244,57 +244,57 @@ BE_OFF="/tmp/shux_wpo_be_off.o"
 BE_ON="/tmp/shux_wpo_be_on.o"
 
 if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
-  echo "wpo compiler self text: trying main.sx asm A/B (ENTRY_ONLY, timeout ${MAIN_TIMEOUT}s per pass) ..."
+  echo "wpo compiler self text: trying main.x asm A/B (ENTRY_ONLY, timeout ${MAIN_TIMEOUT}s per pass) ..."
   main_fast=""
   main_fast=$(wpo_ab_try_main_fast "$BUILD_ASM_DIR/main.o" "$BASELINE" 768) || main_fast=""
   if [ -n "$main_fast" ]; then
     MOFF="${main_fast%% *}"
     MON="${main_fast#* }"
-    echo "wpo compiler self text: main.sx A/B fast-path (build_asm main.o __text=${MON}B, proxy off=${MOFF}B)"
-  elif compile_main_sx_ab "$MAIN_OFF" "$MAIN_ON" 0; then
+    echo "wpo compiler self text: main.x A/B fast-path (build_asm main.o __text=${MON}B, proxy off=${MOFF}B)"
+  elif compile_main_x_ab "$MAIN_OFF" "$MAIN_ON" 0; then
     MOFF=$(text_bytes "$MAIN_OFF") || MOFF=0
     MON=$(text_bytes "$MAIN_ON") || MON=0
   fi
   if [ "$MOFF" -gt "$MON" ] && [ "$MOFF" -gt 0 ]; then
     MAIN_SAVE=$((MOFF - MON))
     MAIN_PCT=$((MAIN_SAVE * 100 / MOFF))
-    echo "| main.sx | dce_off | dce_on | save (B) | save (%) |"
-    echo "| compiler/src/main.sx | $MOFF | $MON | $MAIN_SAVE | ${MAIN_PCT}% |"
+    echo "| main.x | dce_off | dce_on | save (B) | save (%) |"
+    echo "| compiler/src/main.x | $MOFF | $MON | $MAIN_SAVE | ${MAIN_PCT}% |"
     if [ "$MAIN_PCT" -lt "$MIN_MAIN_PCT" ]; then
       echo "WPO compiler self text FAIL: main save ${MAIN_PCT}% < min ${MIN_MAIN_PCT}%" >&2
       [ "$FAIL_REGRESS" = "1" ] && exit 1
     fi
   else
-    echo "wpo compiler self text: main.sx asm A/B inconclusive (off=$MOFF on=$MON)"
+    echo "wpo compiler self text: main.x asm A/B inconclusive (off=$MOFF on=$MON)"
   fi
 fi
 
-# ── 3b) 可选：driver/compile.sx EMIT_HEAVY asm A/B ──
+# ── 3b) 可选：driver/compile.x EMIT_HEAVY asm A/B ──
 if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
-  echo "wpo compiler self text: trying driver/compile.sx asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
+  echo "wpo compiler self text: trying driver/compile.x asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
   drv_fast=""
   drv_fast=$(wpo_ab_try_driver_fast "$BUILD_ASM_DIR/driver_compile.o" "$BASELINE" 768) || drv_fast=""
   if [ -n "$drv_fast" ]; then
     DOFF="${drv_fast%% *}"
     DON="${drv_fast#* }"
     echo "wpo compiler self text: driver A/B fast-path (build_asm __text=${DON}B, proxy off=${DOFF}B)"
-  elif compile_driver_sx_ab "$DRIVER_OFF" "$DRIVER_ON"; then
+  elif compile_driver_x_ab "$DRIVER_OFF" "$DRIVER_ON"; then
     DOFF=$(text_bytes "$DRIVER_OFF") || DOFF=0
     DON=$(text_bytes "$DRIVER_ON") || DON=0
   fi
   if [ "$DOFF" -gt "$DON" ] && [ "$DOFF" -gt 0 ]; then
     DRIVER_SAVE=$((DOFF - DON))
     DRIVER_PCT=$((DRIVER_SAVE * 100 / DOFF))
-    echo "| driver.sx | dce_off | dce_on | save (B) | save (%) |"
-    echo "| compiler/src/driver/compile.sx | $DOFF | $DON | $DRIVER_SAVE | ${DRIVER_PCT}% |"
+    echo "| driver.x | dce_off | dce_on | save (B) | save (%) |"
+    echo "| compiler/src/driver/compile.x | $DOFF | $DON | $DRIVER_SAVE | ${DRIVER_PCT}% |"
   else
-    echo "wpo compiler self text: driver/compile.sx asm A/B inconclusive (off=$DOFF on=$DON)"
+    echo "wpo compiler self text: driver/compile.x asm A/B inconclusive (off=$DOFF on=$DON)"
   fi
 fi
 
-# ── 3c) 可选：pipeline.sx EMIT_HEAVY asm A/B ──
+# ── 3c) 可选：pipeline.x EMIT_HEAVY asm A/B ──
 if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
-  echo "wpo compiler self text: trying pipeline.sx asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
+  echo "wpo compiler self text: trying pipeline.x asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
   pipe_tree="$BUILD_ASM_DIR/pipeline_wpo.o"
   [ -f "$pipe_tree" ] || pipe_tree="$BUILD_ASM_DIR/pipeline.o"
   pipe_fast=""
@@ -303,23 +303,23 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
     POFF="${pipe_fast%% *}"
     PON="${pipe_fast#* }"
     echo "wpo compiler self text: pipeline A/B fast-path ($pipe_tree __text=${PON}B, proxy off=${POFF}B)"
-  elif compile_pipeline_sx_ab "$PIPE_OFF" "$PIPE_ON"; then
+  elif compile_pipeline_x_ab "$PIPE_OFF" "$PIPE_ON"; then
     POFF=$(text_bytes "$PIPE_OFF") || POFF=0
     PON=$(text_bytes "$PIPE_ON") || PON=0
   fi
   if [ "$POFF" -gt "$PON" ] && [ "$POFF" -gt 0 ]; then
     PIPE_SAVE=$((POFF - PON))
     PIPE_PCT=$((PIPE_SAVE * 100 / POFF))
-    echo "| pipeline.sx | dce_off | dce_on | save (B) | save (%) |"
-    echo "| compiler/src/pipeline/pipeline.sx | $POFF | $PON | $PIPE_SAVE | ${PIPE_PCT}% |"
+    echo "| pipeline.x | dce_off | dce_on | save (B) | save (%) |"
+    echo "| compiler/src/pipeline/pipeline.x | $POFF | $PON | $PIPE_SAVE | ${PIPE_PCT}% |"
   else
-    echo "wpo compiler self text: pipeline.sx asm A/B inconclusive (off=$POFF on=$PON)"
+    echo "wpo compiler self text: pipeline.x asm A/B inconclusive (off=$POFF on=$PON)"
   fi
 fi
 
-# ── 3d) 可选：typeck.sx EMIT_HEAVY asm A/B ──
+# ── 3d) 可选：typeck.x EMIT_HEAVY asm A/B ──
 if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
-  echo "wpo compiler self text: trying typeck.sx asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
+  echo "wpo compiler self text: trying typeck.x asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
   tck_tree="$BUILD_ASM_DIR/typeck_wpo.o"
   [ -f "$tck_tree" ] || tck_tree="$BUILD_ASM_DIR/typeck.o"
   tck_fast=""
@@ -328,23 +328,23 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
     TOFF="${tck_fast%% *}"
     TON="${tck_fast#* }"
     echo "wpo compiler self text: typeck A/B fast-path ($tck_tree __text=${TON}B, proxy off=${TOFF}B)"
-  elif compile_typeck_sx_ab "$TCK_OFF" "$TCK_ON"; then
+  elif compile_typeck_x_ab "$TCK_OFF" "$TCK_ON"; then
     TOFF=$(text_bytes "$TCK_OFF") || TOFF=0
     TON=$(text_bytes "$TCK_ON") || TON=0
   fi
   if [ "$TOFF" -gt "$TON" ] && [ "$TOFF" -gt 0 ]; then
     TCK_SAVE=$((TOFF - TON))
     TCK_PCT=$((TCK_SAVE * 100 / TOFF))
-    echo "| typeck.sx | dce_off | dce_on | save (B) | save (%) |"
-    echo "| compiler/src/typeck/typeck.sx | $TOFF | $TON | $TCK_SAVE | ${TCK_PCT}% |"
+    echo "| typeck.x | dce_off | dce_on | save (B) | save (%) |"
+    echo "| compiler/src/typeck/typeck.x | $TOFF | $TON | $TCK_SAVE | ${TCK_PCT}% |"
   else
-    echo "wpo compiler self text: typeck.sx asm A/B inconclusive (off=$TOFF on=$TON)"
+    echo "wpo compiler self text: typeck.x asm A/B inconclusive (off=$TOFF on=$TON)"
   fi
 fi
 
-# ── 3e) 可选：backend.sx EMIT_HEAVY asm A/B ──
+# ── 3e) 可选：backend.x EMIT_HEAVY asm A/B ──
 if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
-  echo "wpo compiler self text: trying backend.sx asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
+  echo "wpo compiler self text: trying backend.x asm A/B (EMIT_HEAVY, timeout ${MAIN_TIMEOUT}s per pass) ..."
   be_tree="$BUILD_ASM_DIR/backend_wpo.o"
   [ -f "$be_tree" ] || be_tree="$BUILD_ASM_DIR/backend.o"
   be_fast=""
@@ -353,17 +353,17 @@ if [ "$TRY_MAIN_ASM" = "1" ] && [ -x "$SHUX_ASM_ABS" ]; then
     BOFF="${be_fast%% *}"
     BON="${be_fast#* }"
     echo "wpo compiler self text: backend A/B fast-path ($be_tree __text=${BON}B, proxy off=${BOFF}B)"
-  elif compile_backend_sx_ab "$BE_OFF" "$BE_ON"; then
+  elif compile_backend_x_ab "$BE_OFF" "$BE_ON"; then
     BOFF=$(text_bytes "$BE_OFF") || BOFF=0
     BON=$(text_bytes "$BE_ON") || BON=0
   fi
   if [ "$BOFF" -gt "$BON" ] && [ "$BOFF" -gt 0 ]; then
     BE_SAVE=$((BOFF - BON))
     BE_PCT=$((BE_SAVE * 100 / BOFF))
-    echo "| backend.sx | dce_off | dce_on | save (B) | save (%) |"
-    echo "| compiler/src/asm/backend.sx | $BOFF | $BON | $BE_SAVE | ${BE_PCT}% |"
+    echo "| backend.x | dce_off | dce_on | save (B) | save (%) |"
+    echo "| compiler/src/asm/backend.x | $BOFF | $BON | $BE_SAVE | ${BE_PCT}% |"
   else
-    echo "wpo compiler self text: backend.sx asm A/B inconclusive (off=$BOFF on=$BON)"
+    echo "wpo compiler self text: backend.x asm A/B inconclusive (off=$BOFF on=$BON)"
   fi
 fi
 
@@ -399,14 +399,14 @@ if [ -d "$BUILD_ASM_DIR" ] && [ -f "$BUILD_ASM_DIR/main.o" ]; then
       fi
     fi
   elif [ "$MAIN_SAVE" = "" ]; then
-    echo "wpo compiler self text: build_asm chain SKIP (main.sx A/B unavailable)"
+    echo "wpo compiler self text: build_asm chain SKIP (main.x A/B unavailable)"
   fi
 fi
 
 if [ "$UPDATE_BASELINE" = 1 ] && [ "$MULTI_SAVE" -gt 0 ]; then
   cat > "$BASELINE" <<EOF
 # WPO compiler self __text proxy：dead_multi_user 三库 dead export A/B 相对 SHUX_ASM_WPO_DCE=0 的节省
-# main.sx call graph dead% 下限（与 run-wpo-compiler-self.sh 一致）
+# main.x call graph dead% 下限（与 run-wpo-compiler-self.sh 一致）
 # 更新：SHUX_PERF_UPDATE_BASELINE=1 ./tests/run-perf-wpo-dce-compiler-self-text.sh
 min_dead_pct_graph	${MIN_GRAPH_PCT}
 dead_multi_min_text_save_bytes	$((MULTI_SAVE > 16 ? MULTI_SAVE - 16 : MULTI_SAVE))

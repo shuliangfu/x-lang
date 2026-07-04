@@ -1,7 +1,7 @@
 # F-no-libc NL-05 链接策略（manifest）
 # 列：scope	layer	policy	anchor	notes
 user_freestanding_link	runtime	must_nostdlib_no_lc	compiler/src/runtime_link_abi.c	NL-05 BEGIN/END 块
-user_freestanding_flag	driver	must_set	compiler/src/driver/compile.sx	-freestanding
+user_freestanding_flag	driver	must_set	compiler/src/driver/compile.x	-freestanding
 compiler_bootstrap_link	build_shux_asm	track_lc_ok	compiler/scripts/build_shux_asm.sh	编译器仍 -lc/-lm 至 F-07
 compiler_runtime_hosted	runtime	track_lc_ok	compiler/src/runtime.c	hosted asm 链仍 -lc
 nolibc_n01_gate	gate	audit	tests/run-nolibc-n01-preparation-gate.sh	NL-01 专 gate

@@ -1,7 +1,7 @@
 /**
  * fmt_check_cmd.c — shux fmt / shux check CLI（对标 deno fmt、deno check）
  *
- * fmt：无路径参数时递归处理当前目录 *.sx；--check 全通过时无输出；失败时列出需格式化的文件。
+ * fmt：无路径参数时递归处理当前目录 *.x；--check 全通过时无输出；失败时列出需格式化的文件。
  * check：多文件/目录；诊断格式 path:line:col - error: message；全通过时无输出。
  */
 
@@ -63,12 +63,12 @@ static void closedir_win(DIR *d) {
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
 extern int run_compiler_c(int argc, char **argv);
-#ifdef SHUX_USE_SX_PIPELINE
+#ifdef SHUX_USE_X_PIPELINE
 extern int driver_run_compiler_full(int argc, char **argv);
 extern void driver_dep_seeded_clear_all(void);
 #endif
 
-/** 单目录遍历时最多收集的 .sx 路径数。 */
+/** 单目录遍历时最多收集的 .x 路径数。 */
 #define DRIVER_FMT_MAX_FILES 8192
 /** 忽略规则条数（CLI --ignore + 内置）。 */
 #define DRIVER_FMT_MAX_IGNORE 32
@@ -255,10 +255,10 @@ static int check_lint_fail_on_warnings(void) {
 }
 
 /**
- * 单文件 check：SX pipeline 走 driver_run_compiler_full，shux-c 走 run_compiler_c。
+ * 单文件 check：X pipeline 走 driver_run_compiler_full，shux-c 走 run_compiler_c。
  */
 static int fmt_check_invoke_compile(int argc, char **check_argv) {
-#ifdef SHUX_USE_SX_PIPELINE
+#ifdef SHUX_USE_X_PIPELINE
     return driver_run_compiler_full(argc, check_argv);
 #else
     return run_compiler_c(argc, check_argv);
@@ -266,10 +266,10 @@ static int fmt_check_invoke_compile(int argc, char **check_argv) {
 }
 
 /**
- * check 批次结束后清理 dep 槽（仅 SX pipeline 需要）。
+ * check 批次结束后清理 dep 槽（仅 X pipeline 需要）。
  */
 static void fmt_check_dep_clear(void) {
-#ifdef SHUX_USE_SX_PIPELINE
+#ifdef SHUX_USE_X_PIPELINE
     driver_dep_seeded_clear_all();
 #endif
 }
@@ -335,7 +335,7 @@ static int file_list_push(const char *path) {
     if (path_should_ignore(path))
         return 0;
     size_t len = strlen(path);
-    if (len < 4 || strcmp(path + len - 3, ".sx") != 0)
+    if (len < 4 || strcmp(path + len - 3, ".x") != 0)
         return 0;
     s_file_list[s_n_files] = strdup(path);
     if (!s_file_list[s_n_files])
@@ -345,7 +345,7 @@ static int file_list_push(const char *path) {
 }
 
 /**
- * 递归遍历目录，收集 .sx 文件。
+ * 递归遍历目录，收集 .x 文件。
  */
 static void walk_dir_collect(const char *dir) {
     DIR *d = opendir(dir);
@@ -368,7 +368,7 @@ static void walk_dir_collect(const char *dir) {
         }
         if (ent->d_type == DT_REG || ent->d_type == DT_UNKNOWN) {
             size_t n = strlen(child);
-            if (n > 3 && strcmp(child + n - 3, ".sx") == 0)
+            if (n > 3 && strcmp(child + n - 3, ".x") == 0)
                 file_list_push(child);
         }
     }
@@ -510,10 +510,10 @@ int driver_run_fmt(int argc, char **argv) {
     if (s_n_files == 0) {
         if (any_path_arg)
             diag_report_with_code(NULL, 0, 0, "fmt error", "FMT001",
-                                  "no .sx files found under given path(s)", NULL);
+                                  "no .x files found under given path(s)", NULL);
         else
             diag_report_with_code(NULL, 0, 0, "fmt error", "FMT001",
-                                  "no .sx files found in current directory", NULL);
+                                  "no .x files found in current directory", NULL);
         return 1;
     }
 
@@ -561,7 +561,7 @@ int driver_run_fmt(int argc, char **argv) {
 }
 
 /**
- * 对单个 .sx 运行 check；复用 driver_run_compiler_full。
+ * 对单个 .x 运行 check；复用 driver_run_compiler_full。
  */
 static int check_one_file(const char *path, int argc, char **argv) {
     char *check_argv[64];
@@ -585,7 +585,7 @@ static int check_one_file(const char *path, int argc, char **argv) {
     s_n_check_lib_bufs = 0;
 
     check_argv[n++] = argv[0];
-#ifdef SHUX_USE_SX_PIPELINE
+#ifdef SHUX_USE_X_PIPELINE
     check_argv[n++] = "check";
 #endif
     for (i = 2; i < argc && n < 60; i++) {
@@ -657,7 +657,7 @@ int driver_run_compiler_check(int argc, char **argv) {
     s_collect_mode = DRIVER_COLLECT_MODE_CHECK;
     file_list_clear();
 
-    /* main.sx 传入 argv[1]=check；shux-c 已 drop 子命令时 argv[1] 为首个路径。 */
+    /* main.x 传入 argv[1]=check；shux-c 已 drop 子命令时 argv[1] 为首个路径。 */
     if (argc >= 2 && argv[1] && strcmp(argv[1], "check") == 0)
         path_start = 2;
 
@@ -698,10 +698,10 @@ int driver_run_compiler_check(int argc, char **argv) {
     if (s_n_files == 0) {
         if (any_path)
             diag_report_with_code(NULL, 0, 0, "check error", "CHK002",
-                                  "no .sx files found under given path(s)", NULL);
+                                  "no .x files found under given path(s)", NULL);
         else
             diag_report_with_code(NULL, 0, 0, "check error", "CHK002",
-                                  "no .sx files found in current directory", NULL);
+                                  "no .x files found in current directory", NULL);
         return 1;
     }
 

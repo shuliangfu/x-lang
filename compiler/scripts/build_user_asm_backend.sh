@@ -10,8 +10,8 @@ mkdir -p "$BUILD_DIR"
 
 TAB=$(printf '\t')
 LIBROOT=""
-if [ -f src/asm/asm_build_list.sx ]; then
-  LIBROOT=$(grep '^// LIBROOT:' src/asm/asm_build_list.sx | sed "s|^// LIBROOT:${TAB}||")
+if [ -f src/asm/asm_build_list.x ]; then
+  LIBROOT=$(grep '^// LIBROOT:' src/asm/asm_build_list.x | sed "s|^// LIBROOT:${TAB}||")
 fi
 [ -z "$LIBROOT" ] && LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
@@ -41,12 +41,12 @@ compile_one() {
 }
 
 echo "build_user_asm_backend: SHUX=$SHUX"
-compile_one types.o src/asm/types.sx
-compile_one platform_elf.o src/asm/platform/elf.sx
-compile_one arm64.o src/asm/arch/arm64.sx
-compile_one arm64_enc.o src/asm/arch/arm64_enc.sx
-compile_one peephole.o src/asm/peephole.sx
-compile_one macho.o src/asm/platform/macho.sx
-compile_one backend.o src/asm/backend.sx
+compile_one types.o src/asm/types.x
+compile_one platform_elf.o src/asm/platform/elf.x
+compile_one arm64.o src/asm/arch/arm64.x
+compile_one arm64_enc.o src/asm/arch/arm64_enc.x
+compile_one peephole.o src/asm/peephole.x
+compile_one macho.o src/asm/platform/macho.x
+compile_one backend.o src/asm/backend.x
 
 echo "build_user_asm_backend OK (USER_ASM_LINK 可用)"

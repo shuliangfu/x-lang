@@ -12,8 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 /* ast_expr_init_match_enum：C 路径（-E-extern 生成 parser_gen.c）需要 C 侧提供；
- * SX 自举链接（shux_sx）中 ast_sx.o 已提供，通过 -DSHUX_USE_SX_AST 排除避免重复符号。 */
-#ifndef SHUX_USE_SX_AST
+ * X 自举链接（shux_x）中 ast_x.o 已提供，通过 -DSHUX_USE_X_AST 排除避免重复符号。 */
+#ifndef SHUX_USE_X_AST
 void ast_expr_init_match_enum(ASTExpr *e) {
     if (!e) return;
     memset(&e->value.match_expr, 0, sizeof(e->value.match_expr));

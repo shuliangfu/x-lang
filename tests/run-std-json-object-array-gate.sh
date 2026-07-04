@@ -7,11 +7,11 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_JOA_DOC:-analysis/std-json-object-array-v1.md}"
 MANIFEST="${SHUX_STD_JOA_TSV:-tests/baseline/std-json-object-array.tsv}"
-JSON_SX="std/json/mod.sx"
-JSON_IMPL="std/json/json.sx"
-JSON_SX="std/json/json.sx"
+JSON_X="std/json/mod.x"
+JSON_IMPL="std/json/json.x"
+JSON_X="std/json/json.x"
 LIB="tests/lib/std-json-object-array.sh"
-OA_SX="tests/json/object_array_parse.sx"
+OA_X="tests/json/object_array_parse.x"
 
 # shellcheck source=tests/lib/std-json-object-array.sh
 . tests/lib/std-json-object-array.sh
@@ -20,7 +20,7 @@ OA_SX="tests/json/object_array_parse.sx"
 . tests/lib/std-json.sh
 
 echo "=== STD-034: json object/array manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$JSON_SX" "$JSON_SX" "$OA_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$JSON_X" "$JSON_X" "$OA_X"; do
   if [ ! -f "$f" ]; then
     echo "std-json-object-array gate FAIL: missing $f" >&2
     exit 1
@@ -34,7 +34,7 @@ for kw in JsonCursor skip_value cursor_object_next 大对象 ZC; do
   fi
 done
 
-sym_miss="$(std_joa_symbols_ok "$JSON_SX" "$JSON_IMPL" "$MANIFEST" || true)"
+sym_miss="$(std_joa_symbols_ok "$JSON_X" "$JSON_IMPL" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_joa_emit_report "fail" 0 1
   echo "std-json-object-array gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -71,16 +71,16 @@ if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-034: typeck + smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q ../std/json/json.o 2>/dev/null || make -C compiler ../std/json/json.o 2>/dev/null || true
   make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$OA_SX" >/dev/null 2>&1; then
-    echo "std-json-object-array gate FAIL: typeck $OA_SX" >&2
-    "$SHUX_BIN" check -L . "$OA_SX" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$OA_X" >/dev/null 2>&1; then
+    echo "std-json-object-array gate FAIL: typeck $OA_X" >&2
+    "$SHUX_BIN" check -L . "$OA_X" 2>&1 | tail -10 >&2 || true
     std_joa_emit_report "fail" 0 0
     exit 1
   fi
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/json/json.o
-  if std_json_run_smoke "$SHUX_BIN" "$OA_SX" "object_array"; then
+  if std_json_run_smoke "$SHUX_BIN" "$OA_X" "object_array"; then
     OA_OK=1
   else
     std_joa_emit_report "fail" 0 0

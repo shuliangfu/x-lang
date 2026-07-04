@@ -7,18 +7,18 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_TAR_USTAR_DOC:-analysis/std-tar-ustar-v1.md}"
 MANIFEST="${SHUX_STD_TAR_USTAR_TSV:-tests/baseline/std-tar-ustar.tsv}"
-TAR_SX="std/tar/mod.sx"
-TAR_SX="std/tar/tar.sx"
+TAR_X="std/tar/mod.x"
+TAR_X="std/tar/tar.x"
 LIB="tests/lib/std-tar-ustar.sh"
-RT_SX="tests/tar/ustar_roundtrip.sx"
-MAIN_SX="tests/tar/main.sx"
+RT_X="tests/tar/ustar_roundtrip.x"
+MAIN_X="tests/tar/main.x"
 MIN_APIS=5
 
 # shellcheck source=tests/lib/std-tar-ustar.sh
 . "$LIB"
 
 echo "=== STD-038: tar ustar manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$TAR_SX" "$TAR_SX" "$RT_SX" "$MAIN_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$TAR_X" "$TAR_X" "$RT_X" "$MAIN_X"; do
   if [ ! -f "$f" ]; then
     echo "std-tar-ustar gate FAIL: missing $f" >&2
     exit 1
@@ -46,7 +46,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$TAR_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$TAR_X" 2>/dev/null; then
         echo "std-tar-ustar gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -65,7 +65,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_tar_ustar_symbols_ok "$TAR_SX" "$TAR_SX" "$MANIFEST" || true)"
+sym_miss="$(std_tar_ustar_symbols_ok "$TAR_X" "$TAR_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_tar_ustar_emit_report "fail" 0 0 1
   echo "std-tar-ustar gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -102,19 +102,19 @@ if [ -n "$SHUX_BIN" ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/tar/tar.o
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$RT_SX" >/dev/null 2>&1; then
-    echo "std-tar-ustar gate FAIL: typeck $RT_SX" >&2
-    "$SHUX_BIN" check -L . "$RT_SX" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$RT_X" >/dev/null 2>&1; then
+    echo "std-tar-ustar gate FAIL: typeck $RT_X" >&2
+    "$SHUX_BIN" check -L . "$RT_X" 2>&1 | tail -10 >&2 || true
     std_tar_ustar_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_tar_ustar_run_smoke "$SHUX_BIN" "$RT_SX" "ustar_roundtrip"; then
+  if std_tar_ustar_run_smoke "$SHUX_BIN" "$RT_X" "ustar_roundtrip"; then
     RT_OK=1
   else
     std_tar_ustar_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_tar_ustar_run_smoke "$SHUX_BIN" "$MAIN_SX" "main"; then
+  if std_tar_ustar_run_smoke "$SHUX_BIN" "$MAIN_X" "main"; then
     MAIN_OK=1
   else
     std_tar_ustar_emit_report "fail" "$RT_OK" 0 0

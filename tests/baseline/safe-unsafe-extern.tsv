@@ -1,19 +1,19 @@
 # SAFE-002 严格 extern 清单（小模块全量锁定）
 # Format: source_file<TAB>extern_symbol
 # 新增 extern 须更新本表 + SAFE-003 审计（上线后）
-std/ffi/mod.sx	ffi_cstr_len_c
-std/ffi/mod.sx	ffi_cstring_new_c
-std/ffi/mod.sx	ffi_cstring_free_c
-std/ffi/mod.sx	ffi_cstring_try_new_c
-std/ffi/mod.sx	ffi_point_pack_c
-std/ffi/mod.sx	ffi_point_unpack_c
-std/ffi/mod.sx	ffi_cb_double_i32_fn_c
-std/ffi/mod.sx	ffi_invoke_i32_cb_c
-std/runtime/mod.sx	runtime_panic
-std/runtime/mod.sx	runtime_abort
-std/runtime/mod.sx	crash_evidence_collect
-std/runtime/mod.sx	runtime_crash_evidence_collect_c
-std/dynlib/mod.sx	dynlib_open_c
-std/dynlib/mod.sx	dynlib_sym_c
-std/dynlib/mod.sx	dynlib_close_c
-std/dynlib/mod.sx	dynlib_last_error_copy_c
+std/ffi/mod.x	ffi_cstr_len_c
+std/ffi/mod.x	ffi_cstring_new_c
+std/ffi/mod.x	ffi_cstring_free_c
+std/ffi/mod.x	ffi_cstring_try_new_c
+std/ffi/mod.x	ffi_point_pack_c
+std/ffi/mod.x	ffi_point_unpack_c
+std/ffi/mod.x	ffi_cb_double_i32_fn_c
+std/ffi/mod.x	ffi_invoke_i32_cb_c
+std/runtime/mod.x	runtime_panic
+std/runtime/mod.x	runtime_abort
+std/runtime/mod.x	crash_evidence_collect
+std/runtime/mod.x	runtime_crash_evidence_collect_c
+std/dynlib/mod.x	dynlib_open_c
+std/dynlib/mod.x	dynlib_sym_c
+std/dynlib/mod.x	dynlib_close_c
+std/dynlib/mod.x	dynlib_last_error_copy_c

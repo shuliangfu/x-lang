@@ -9,8 +9,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_NOLIBC_FS_FAIL:-0}
-SX="tests/sys/linux_fs_freestanding_smoke.sx"
-FS_MOD="std/fs/freestanding_linux.sx"
+X="tests/sys/linux_fs_freestanding_smoke.x"
+FS_MOD="std/fs/freestanding_linux.x"
 GATE_FILE="/tmp/shux_nolibc_fs_gate.txt"
 OUT="/tmp/shux_nolibc_fs.$$.out"
 
@@ -21,10 +21,10 @@ die() {
 }
 
 echo "=== NL-04: freestanding fs read (zero libc) ==="
-for f in "$SX" "$FS_MOD"; do
+for f in "$X" "$FS_MOD"; do
   [ -f "$f" ] || die "missing $f"
 done
-grep -q 'freestanding_read_file_into' "$FS_MOD" || die "freestanding_linux.sx incomplete"
+grep -q 'freestanding_read_file_into' "$FS_MOD" || die "freestanding_linux.x incomplete"
 
 if [ "$(uname -s 2>/dev/null)" != "Linux" ] || [ "$(uname -m 2>/dev/null)" != "x86_64" ]; then
   echo "nolibc-fs gate: N/A (Linux x86_64 freestanding only; manifest OK)"
@@ -43,10 +43,10 @@ fi
 printf 'FS' >"$GATE_FILE"
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$SX" 2>/tmp/shux_nolibc_fs.log; then
+if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$X" 2>/tmp/shux_nolibc_fs.log; then
   tail -n 12 /tmp/shux_nolibc_fs.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true
-  die "compile $SX failed"
+  die "compile $X failed"
 fi
 [ -x "$OUT" ] || die "no executable $OUT"
 

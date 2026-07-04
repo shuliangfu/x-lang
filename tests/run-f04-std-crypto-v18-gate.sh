@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-04 v18：std.crypto chacha20_poly1305.inc.c → chacha20_poly1305.sx 门禁。
+# F-04 v18：std.crypto chacha20_poly1305.inc.c → chacha20_poly1305.x 门禁。
 #
 # 用法：./tests/run-f04-std-crypto-v18-gate.sh
 # 环境：SHUX_F04_CRYPTO_V18_FAIL=1 — 失败时硬退出
@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_F04_CRYPTO_V18_FAIL:-0}
 DOC="analysis/phase-f-f04-v18.md"
-CHACHA="std/crypto/chacha20_poly1305.sx"
+CHACHA="std/crypto/chacha20_poly1305.x"
 GLUE="compiler/src/asm/runtime_crypto_inc_glue.c"
 
 # shellcheck source=tests/lib/std-crypto.sh
@@ -20,11 +20,11 @@ die() {
   exit 0
 }
 
-echo "=== F-04 v18: std.crypto chacha20_poly1305.inc.c → chacha20_poly1305.sx ==="
+echo "=== F-04 v18: std.crypto chacha20_poly1305.inc.c → chacha20_poly1305.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-04 v18' "$DOC" || die "doc missing F-04 v18 marker"
 [ ! -f std/crypto/chacha20_poly1305.inc.c ] || die "chacha20_poly1305.inc.c should be deleted"
-[ -f "$CHACHA" ] || die "missing chacha20_poly1305.sx"
+[ -f "$CHACHA" ] || die "missing chacha20_poly1305.x"
 [ -f "$GLUE" ] || die "missing crypto_inc_glue.c"
 grep -q 'crypto_chacha20_poly1305_seal_c' "$CHACHA" || die "chacha missing seal"
 grep -q 'crypto_chacha20_poly1305_open_c' "$CHACHA" || die "chacha missing open"
@@ -32,7 +32,7 @@ grep -q 'crypto_chacha20_poly1305_smoke_c' "$CHACHA" || die "chacha missing smok
 grep -q 'Poly1305Ctx' "$CHACHA" || die "chacha missing Poly1305Ctx"
 grep -q 'allow(padding)' "$CHACHA" || die "chacha missing allow(padding)"
 grep -q 'crypto_mem_eq_c' "$CHACHA" || die "chacha missing crypto_mem_eq_c extern"
-grep -q 'chacha20_poly1305.sx' compiler/Makefile || die "Makefile missing chacha20_poly1305.sx build"
+grep -q 'chacha20_poly1305.x' compiler/Makefile || die "Makefile missing chacha20_poly1305.x build"
 if grep -q 'chacha20_poly1305.inc.c' "$GLUE" 2>/dev/null; then
   die "glue still includes chacha20_poly1305.inc.c"
 fi
@@ -58,7 +58,7 @@ make -C compiler ../std/crypto/crypto.o >/dev/null 2>&1 || die "make crypto.o fa
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-if std_crypto_o_has_sx_symbols std/crypto/crypto.o; then
+if std_crypto_o_has_x_symbols std/crypto/crypto.o; then
   if nm std/crypto/crypto.o 2>/dev/null | grep -qE ' crypto_chacha20_poly1305_smoke_c$'; then
     cat >"$TMP/chacha_smoke_main.c" <<'EOF'
 #include <stdint.h>
@@ -74,7 +74,7 @@ EOF
     echo "f04 crypto chacha20_poly1305 smoke SKIP (crypto.o missing chacha symbols)"
   fi
 else
-  echo "f04 crypto chacha20_poly1305 smoke SKIP (crypto.o missing .sx symbols; need shux-c)"
+  echo "f04 crypto chacha20_poly1305 smoke SKIP (crypto.o missing .x symbols; need shux-c)"
 fi
 
 if [ -f tests/run-std-crypto-gate.sh ]; then

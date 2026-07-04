@@ -19,14 +19,14 @@ echo "=== F-05 v2: std.db.kv remove kv.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-05 v2' "$DOC" || die "doc missing F-05 v2 marker"
 [ ! -f std/db/kv/kv.c ] || die "kv.c should be deleted"
-[ -f std/db/kv/kv.sx ] || die "missing kv.sx"
+[ -f std/db/kv/kv.x ] || die "missing kv.x"
 [ -f compiler/src/asm/runtime_kv_mmap_glue.c ] || die "missing kv_mmap_glue.c"
-grep -q 'db_kv_open_c' std/db/kv/kv.sx || die "kv.sx missing db_kv_open_c"
-grep -q 'db_kv_smoke_c' std/db/kv/kv.sx || die "kv.sx missing smoke"
+grep -q 'db_kv_open_c' std/db/kv/kv.x || die "kv.x missing db_kv_open_c"
+grep -q 'db_kv_smoke_c' std/db/kv/kv.x || die "kv.x missing smoke"
 [ ! -f std/db/kv/kv_mmap_glue.c ] || die "kv_mmap_glue.c should be deleted (F-ZC)"
 grep -q 'shu_kv_mmap_file_c' compiler/src/asm/runtime_kv_mmap_glue.c || die "glue missing mmap"
 grep -q 'runtime_kv_mmap_glue' compiler/Makefile || die "Makefile missing runtime_kv_mmap_glue"
-grep -q 'kv.sx' compiler/Makefile || die "Makefile missing kv.sx build"
+grep -q 'kv.x' compiler/Makefile || die "Makefile missing kv.x build"
 if grep -q 'std/db/kv/kv\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references kv.c"
 fi
@@ -51,7 +51,7 @@ EOF
   "$TMP/kv_smoke" || die "kv smoke run failed"
   echo "f05 kv smoke OK"
 else
-  echo "f05 kv smoke SKIP (kv.o missing .sx symbols; need shux-c)"
+  echo "f05 kv smoke SKIP (kv.o missing .x symbols; need shux-c)"
 fi
 
 if [ -f tests/run-std-db-kv-arrow-gate.sh ]; then

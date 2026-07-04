@@ -38,5 +38,5 @@ SHUX_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
 
 ## 下一阶段
 
-- **主线**：阶段 F（std 无 C、`runtime` 链 `.sx` 产物 .o）
-- **可选维护**：E-02 v2（LSP 全 `.sx`）、E-03 v4（SEED 拓扑）
+- **主线**：阶段 F（std 无 C、`runtime` 链 `.x` 产物 .o）
+- **可选维护**：E-02 v2（LSP 全 `.x`）、E-03 v4（SEED 拓扑）

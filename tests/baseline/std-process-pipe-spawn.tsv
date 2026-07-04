@@ -1,13 +1,13 @@
 # STD-023/024 process pipe/spawn manifest
 # 列：item_id	kind	anchor	mod_path	notes
 min_syms	3
-spawn_io	symbol	spawn_io	std/process/mod.sx
-spawn_io_c	symbol	process_spawn_io_c	std/process/mod.sx
-pipe_sym	symbol	process_pipe_c	std/process/mod.sx
+spawn_io	symbol	spawn_io	std/process/mod.x
+spawn_io_c	symbol	process_spawn_io_c	std/process/mod.x
+pipe_sym	symbol	process_pipe_c	std/process/mod.x
 spawn_io_doc	anchor	spawn_io	analysis/std-process-pipe-spawn-v1.md	RFC
 win_spawn	anchor	spawn_wait_win	analysis/std-process-pipe-spawn-v1.md	RFC
 pipe_echo	anchor	spawn_pipe_echo	analysis/std-process-pipe-spawn-v1.md	RFC
-test_pipe	file	tests/process/spawn_pipe_echo.sx		金样
-test_win	file	tests/process/spawn_wait_win.sx		Windows
+test_pipe	file	tests/process/spawn_pipe_echo.x		金样
+test_win	file	tests/process/spawn_wait_win.x		Windows
 doc	file	analysis/std-process-pipe-spawn-v1.md	analysis/std-process-pipe-spawn-v1.md	RFC
 gate	script	run-std-process-pipe-spawn-gate.sh	tests/run-std-process-pipe-spawn-gate.sh	manifest

@@ -41,15 +41,15 @@
 
 ## 4. Cookbook
 
-- `examples/cookbook/iter_slice_sum.sx`（ITER-01）：`next_i32` 循环求和
+- `examples/cookbook/iter_slice_sum.x`（ITER-01）：`next_i32` 循环求和
 
 ---
 
 ## 5. 验收
 
 - manifest：`tests/baseline/core-iterator-protocol.tsv`
-- typeck：`shux check tests/iterator/main.sx`
-- Cookbook typeck：gate 内校验 `iter_slice_sum.sx`
+- typeck：`shux check tests/iterator/main.x`
+- Cookbook typeck：gate 内校验 `iter_slice_sum.x`
 - 报告：`shux: [SHUX_CORE_ITERATOR] status=ok`
 
 ---

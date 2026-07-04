@@ -1,8 +1,8 @@
 /**
  * ast_pool_bootstrap_glue.c — 恢复 bootstrap ./shux 链接所需的 pipeline / asm / typeck glue
  *
- * 误 revert 后 ast_pool.c 缺失的符号在此补全；由 ast_pool.c 末尾 #include 编入 pipeline_sx.o。
- * 逻辑与 HEAD pipeline.sx 中 run_sx_pipeline_impl / pipeline_load_and_sync 一致。
+ * 误 revert 后 ast_pool.c 缺失的符号在此补全；由 ast_pool.c 末尾 #include 编入 pipeline_x.o。
+ * 逻辑与 HEAD pipeline.x 中 run_x_pipeline_impl / pipeline_load_and_sync 一致。
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -20,16 +20,16 @@ extern void parser_parse_into_set_main_index(struct ast_Module *module, int32_t 
 extern struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena *arena,
                                                                        struct ast_Module *module, uint8_t *data,
                                                                        int32_t len);
-extern int32_t pipeline_resolve_path_sx(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len);
-extern int32_t pipeline_read_file_sx(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len);
+extern int32_t pipeline_read_file_x(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module, uint8_t *buf,
                                        int32_t buf_len);
 extern int32_t pipeline_load_import_from_disk(struct ast_Module *module, struct ast_ASTArena *arena,
                                               struct ast_PipelineDepCtx *ctx, int32_t import_idx);
-extern int32_t pipeline_should_skip_sx_typeck(struct ast_PipelineDepCtx *ctx);
+extern int32_t pipeline_should_skip_x_typeck(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_driver_asm_build_skip_typeck(void);
-extern int32_t pipeline_driver_sx_pipeline_skip_typeck(void);
-extern int32_t preprocess_sx_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
+extern int32_t pipeline_driver_x_pipeline_skip_typeck(void);
+extern int32_t preprocess_x_buf(uint8_t *source_buf, ptrdiff_t source_len, uint8_t *out_buf,
                                             int32_t out_cap);
 
 extern uint8_t *driver_dep_arena_buf(int32_t i);
@@ -38,7 +38,7 @@ extern int32_t driver_dep_seeded_get(int32_t i);
 extern int32_t driver_dep_slot_for_path(uint8_t *path);
 extern int32_t driver_check_only_get(void);
 extern int32_t driver_skip_codegen_dep_0_get(void);
-extern int32_t driver_sx_pipeline_skip_codegen_get(void);
+extern int32_t driver_x_pipeline_skip_codegen_get(void);
 extern void driver_diagnostic_entry_already(int32_t v);
 extern void driver_diagnostic_source_len(int32_t len);
 extern void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
@@ -50,16 +50,16 @@ extern void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len);
 extern void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep);
 extern void driver_set_current_dep_path_for_codegen(uint8_t *path);
 
-extern int32_t typeck_typeck_sx_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_typeck_x_ast(struct ast_Module *module, struct ast_ASTArena *arena,
                                       struct ast_PipelineDepCtx *ctx);
-extern int32_t typeck_typeck_sx_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
                                             struct ast_PipelineDepCtx *ctx);
 extern void typeck_typeck_merge_dep_struct_layouts_into_entry(struct ast_Module *mod, struct ast_ASTArena *arena,
                                                              struct ast_PipelineDepCtx *ctx);
 extern void typeck_typeck_wpo_unify_soa_layouts(struct ast_Module *entry, struct ast_PipelineDepCtx *ctx);
 extern int32_t asm_asm_codegen_ast(struct ast_Module *module, struct ast_ASTArena *arena,
                                    struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx);
-extern int32_t codegen_codegen_sx_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t codegen_codegen_x_ast(struct ast_Module *module, struct ast_ASTArena *arena,
                                       struct codegen_CodegenOutBuf *out_buf, struct ast_PipelineDepCtx *ctx,
                                       int32_t dep_index);
 
@@ -88,15 +88,15 @@ extern int32_t *typeck_layout_metrics_al_slot(void);
 extern int32_t *typeck_layout_metrics_sz_slot_depth(int32_t depth);
 extern int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth);
 
-/* —— typeck.sx 指针写槽 glue（须在 pipeline_sx.o 提供，typeck_sx.o 链接依赖） —— */
+/* —— typeck.x 指针写槽 glue（须在 pipeline_x.o 提供，typeck_x.o 链接依赖） —— */
 
-/** 安全写 *i32，避免 .sx 栈上 &out 在自举 emit 下撕裂。 */
+/** 安全写 *i32，避免 .x 栈上 &out 在自举 emit 下撕裂。 */
 void typeck_i32_ptr_store(int32_t *p, int32_t v) {
   if (p)
     *p = v;
 }
 
-/** 安全读 *i32；resolve_call SX emit 读 scratch slot。 */
+/** 安全读 *i32；resolve_call X emit 读 scratch slot。 */
 int32_t typeck_i32_ptr_read(int32_t *p) {
   return p ? *p : 0;
 }
@@ -417,8 +417,8 @@ int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n) {
   return 0;
 }
 
-/** io/fs/net/process dep 跳过 .sx typeck（符号由 *.o 提供）。 */
-int32_t pipeline_asm_user_dep_skip_sx_typeck(uint8_t *path) {
+/** io/fs/net/process dep 跳过 .x typeck（符号由 *.o 提供）。 */
+int32_t pipeline_asm_user_dep_skip_x_typeck(uint8_t *path) {
   if (!path)
     return 0;
   if (pipeline_codegen_dep_skip_asm_user_std_io(path) != 0)
@@ -538,7 +538,7 @@ int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len,
     sym_out[name_len + 1] = 'c';
     return name_len + 2;
   }
-  /** hello.sx 等入口裸调 print_str：asm 跳过 std.io dep emit，链 runtime_asm_io_stubs 的 std_io_print_str。 */
+  /** hello.x 等入口裸调 print_str：asm 跳过 std.io dep emit，链 runtime_asm_io_stubs 的 std_io_print_str。 */
   if (name_len == 9 && memcmp(name, "print_str", 9) == 0) {
     memcpy(sym_out, "std_io_print_str", 16);
     return 16;
@@ -549,7 +549,7 @@ int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len,
     return 14;
   }
   /**
-   * co-emit std.encoding/mod.sx：std_encoding_utf8_valid -> encoding_utf8_valid_c（链 std/encoding/encoding.o）。
+   * co-emit std.encoding/mod.x：std_encoding_utf8_valid -> encoding_utf8_valid_c（链 std/encoding/encoding.o）。
    */
   if (name_len > 13 && memcmp(name, "std_encoding_", 13) == 0) {
     const int32_t suffix_len = name_len - 13;
@@ -563,7 +563,7 @@ int32_t pipeline_asm_redirect_std_c_wrapper_sym(uint8_t *name, int32_t name_len,
     return out_len;
   }
   /**
-   * co-emit std.string/mod.sx 时 extern shux_string_* 带 std_string_ 前缀；
+   * co-emit std.string/mod.x 时 extern shux_string_* 带 std_string_ 前缀；
    * 链 string.o 中无模块前缀的 shux_string_* 快路径。
    */
   if (name_len > 11 && memcmp(name, "std_string_", 11) == 0) {

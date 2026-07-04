@@ -45,7 +45,7 @@ HDR
 
 cat seeds/_lsp_io_body.c >> seeds/lsp_io_gen.linux.x86_64.c
 
-# lsp_io_* 导出符号 → typeck_*（与 lsp_io.sx -E-extern mangling 一致）
+# lsp_io_* 导出符号 → typeck_*（与 lsp_io.x -E-extern mangling 一致）
 perl -i -pe '
   s/\blsp_io_read_message\b/typeck_read_message/g;
   s/\blsp_io_write_fd\b/typeck_write_fd/g;
@@ -58,13 +58,13 @@ perl -i -pe '
 ' seeds/lsp_io_gen.linux.x86_64.c
 
 # lsp_gen：保留头（至 std_io 段末）+ io 薄 extern + lsp 主循环。
-# 去掉 326–381 std_heap 实现（由 sx_seed_bridge.o / lsp_io_std_heap_sx.o 提供）；
-# 去掉 382–579 内联 lsp_io 实现（由 lsp_io_sx.o 提供）；
+# 去掉 326–381 std_heap 实现（由 x_seed_bridge.o / lsp_io_std_heap_x.o 提供）；
+# 去掉 382–579 内联 lsp_io 实现（由 lsp_io_x.o 提供）；
 # lsp_main 导出为 typeck_lsp_main_impl（typeck_lsp_main 由 lsp_state.o 包装）。
 {
   awk 'NR>=1 && NR<=325 { print }' "$SRC"
   echo ""
-  echo "/* C-04 -E-extern TU aliases (lsp_io via typeck_* from lsp_io_sx.o) */"
+  echo "/* C-04 -E-extern TU aliases (lsp_io via typeck_* from lsp_io_x.o) */"
   awk 'NR>=580 && NR<=604 { print }' "$SRC"
   awk 'NR>=605 { print }' "$SRC"
 } > seeds/lsp_gen.linux.x86_64.c

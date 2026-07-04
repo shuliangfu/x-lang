@@ -19,7 +19,7 @@ export function createShuxDefinitionProvider(): vscode.DefinitionProvider {
       position: vscode.Position,
       _token: vscode.CancellationToken
     ): Promise<vscode.Definition | vscode.DefinitionLink[] | null> {
-      if (document.languageId !== 'sx') {
+      if (document.languageId !== 'x') {
         return null;
       }
 

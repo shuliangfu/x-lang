@@ -20,7 +20,7 @@ typedef struct {
     int32_t value_len;
 } server_dyn_entry_t;
 
-/** server 响应 HPACK 编码器（与 mod.sx Http2HpackServerDyn 前缀布局一致）。 */
+/** server 响应 HPACK 编码器（与 mod.x Http2HpackServerDyn 前缀布局一致）。 */
 typedef struct {
     /** 对端 SETTINGS HEADER_TABLE_SIZE 上限（字节）。 */
     int32_t max_table_size;

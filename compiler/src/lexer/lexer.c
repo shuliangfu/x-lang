@@ -1,7 +1,7 @@
 /**
  * lexer.c — 词法分析器实现
  *
- * 文件职责：将 .sx 源码按字符流切分为 Token 流，识别关键字、标识符、字面量、符号及三种注释：双斜线行注释、块注释、井号行注释。
+ * 文件职责：将 .x 源码按字符流切分为 Token 流，识别关键字、标识符、字面量、符号及三种注释：双斜线行注释、块注释、井号行注释。
  * 所属模块：编译器前端 lexer，compiler/src/lexer/；实现 lexer.h 声明的接口。
  * 与其它文件的关系：依赖 include/token.h；被 parser、main 通过 lexer.h 调用；不依赖 parser 或 ast。
  * 重要约定：与 compiler/docs/语法子集-阶段1与2.md 及阶段 5 import 词法一致；Token 的 line/col 为该 Token 在源码中的起始位置；ident 不拷贝，指向 source 内地址。

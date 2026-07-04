@@ -1,8 +1,8 @@
 /**
  * tls_mbedtls_bio.c — F-04 v9：mbedTLS BIO 胶层
  *
- * mbedtls_ssl_set_bio 需 C 函数指针；.sx 暂不支持 fn ptr 取址，故保留最小 send/recv/bind。
- * 主逻辑见 std/net/tls_mbedtls.sx。
+ * mbedtls_ssl_set_bio 需 C 函数指针；.x 暂不支持 fn ptr 取址，故保留最小 send/recv/bind。
+ * 主逻辑见 std/net/tls_mbedtls.x。
  */
 
 #include "mbedtls/ssl.h"

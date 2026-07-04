@@ -15,8 +15,8 @@ type_zero_cost_native_shu() {
   esac
 }
 
-# 解析 bench 矩阵中的 .sx 路径。
-type_zero_cost_bench_sx() {
+# 解析 bench 矩阵中的 .x 路径。
+type_zero_cost_bench_x() {
   local file="$1"
   if [ -f "tests/bench/${file}" ]; then
     echo "tests/bench/${file}"

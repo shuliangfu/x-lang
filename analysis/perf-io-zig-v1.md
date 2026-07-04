@@ -23,12 +23,12 @@
 
 | case_id | 类型 | 数据量 | Shu 源 | Zig/C 对照 |
 |---------|------|--------|--------|------------|
-| `io_mmap_throughput` | **顺序** | 16MiB mmap 全扫描 | `.sx` | `.c` / `.zig` |
-| `io_batch_readv` | **顺序** | 16MiB，4×4KiB×1024 轮 readv | `.sx` | `.c` / `.zig` |
-| `io_random_pread` | **随机** | 16MiB 文件，1024×4KiB 随机 pread | `.sx` | `.c` / `.zig` |
-| `io_write_throughput` | **顺序** | 16MiB 顺序 write | `.sx` | `.c` / `.zig` |
-| `zero_copy_sendfile` | 零拷贝 | 16MiB file→socket | `.sx` | `.c` / `.zig` |
-| `zero_copy_splice` | 零拷贝 | Linux splice | `.sx` | — |
+| `io_mmap_throughput` | **顺序** | 16MiB mmap 全扫描 | `.x` | `.c` / `.zig` |
+| `io_batch_readv` | **顺序** | 16MiB，4×4KiB×1024 轮 readv | `.x` | `.c` / `.zig` |
+| `io_random_pread` | **随机** | 16MiB 文件，1024×4KiB 随机 pread | `.x` | `.c` / `.zig` |
+| `io_write_throughput` | **顺序** | 16MiB 顺序 write | `.x` | `.c` / `.zig` |
+| `zero_copy_sendfile` | 零拷贝 | 16MiB file→socket | `.x` | `.c` / `.zig` |
+| `zero_copy_splice` | 零拷贝 | Linux splice | `.x` | — |
 
 环境变量：`SHUX_IO_BENCH_MB=16`（默认）、`SHUX_PERF_BASELINE_RUNS=3`。
 

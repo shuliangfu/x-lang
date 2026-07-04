@@ -4,7 +4,7 @@
 STD_COMPRESS_BROTLI_PREFIX="${SHUX_STD125_COMPRESS_BROTLI_PREFIX:-shux: [SHUX_STD125_COMPRESS_BROTLI]}"
 
 std_compress_brotli_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local compress_c="$2"
   local tsv="$3"
   local miss=0
@@ -14,12 +14,12 @@ std_compress_brotli_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null || miss=$((miss + 1))
+        grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null || miss=$((miss + 1))
         ;;
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/compress/brotli/lib.sx|std/compress/brotli/brotli.c) path="$compress_c" ;;
+          std/compress/brotli/lib.x|std/compress/brotli/brotli.c) path="$compress_c" ;;
         esac
         grep -qF "$anchor" "$path" 2>/dev/null || miss=$((miss + 1))
         ;;
@@ -45,7 +45,7 @@ std_compress_brotli_try_build() {
 
 std_compress_brotli_run_c_smoke() {
   local compress_o="$1"
-  # F-04 v6+：brotli 符号在 .sx；无 compress.o 或无 C 符号时 SKIP
+  # F-04 v6+：brotli 符号在 .x；无 compress.o 或无 C 符号时 SKIP
   if [ -z "$compress_o" ] || [ ! -f "$compress_o" ]; then
     return 2
   fi
@@ -64,10 +64,10 @@ std_compress_brotli_run_c_smoke() {
   [ "$ec" -eq 0 ]
 }
 
-std_compress_brotli_run_sx_smoke() {
+std_compress_brotli_run_x_smoke() {
   local shux="$1"
   local src="$2"
-  local exe="/tmp/shux_std_compress_brotli_sx_$$"
+  local exe="/tmp/shux_std_compress_brotli_x_$$"
   "$shux" -L . "$src" -o "$exe" >/dev/null 2>&1 || return 1
   set +e
   "$exe" >/dev/null 2>&1

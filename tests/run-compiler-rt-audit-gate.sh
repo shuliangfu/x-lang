@@ -40,8 +40,8 @@ done
 
 # i64 division audit
 echo "  Check: i64 division codegen audit"
-echo 'function div64(a: i64, b: i64): i64 { return a / b; } function main(): i32 { return div64(100, 3) as i32; }' > /tmp/i64div.sx
-"$SCRIPT_DIR/../compiler/shux-c" -E /tmp/i64div.sx > /tmp/i64div.c 2>/dev/null
+echo 'function div64(a: i64, b: i64): i64 { return a / b; } function main(): i32 { return div64(100, 3) as i32; }' > /tmp/i64div.x
+"$SCRIPT_DIR/../compiler/shux-c" -E /tmp/i64div.x > /tmp/i64div.c 2>/dev/null
 if grep -q '/' /tmp/i64div.c 2>/dev/null; then
     echo "    INFO: i64 division in C output (needs compiler-rt on -nostdlib)"
 else

@@ -20,11 +20,11 @@ fi
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 
 # slice 烟测不 import std.process；勿强编 process.o（arm64 上 shux-c 无 -backend asm）。
-$RUN_SHUX tests/slice/data_field.sx -o /tmp/shux_slice_data_field 2>&1
+$RUN_SHUX tests/slice/data_field.x -o /tmp/shux_slice_data_field 2>&1
 ec=0; /tmp/shux_slice_data_field >/dev/null 2>&1 || ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (slice data_field), got $ec"; exit 1; }
 
-$RUN_SHUX tests/slice/main.sx -o /tmp/shux_slice_main 2>&1
+$RUN_SHUX tests/slice/main.x -o /tmp/shux_slice_main 2>&1
 ec=0; /tmp/shux_slice_main >/dev/null 2>&1 || ec=$?
 [ "$ec" -ne 20 ] && { echo "expected exit 20 (slice main s[1]), got $ec"; exit 1; }
 

@@ -29,7 +29,7 @@ CI=1 SHUX=./compiler/shux SHUX_LINK_SHUX=./compiler/shux ./tests/run-all.sh   # 
 | run-for.sh | ✅ | ✅ | — | ✅ | L5 新增 |
 | run-array.sh | ✅ | ✅ | — | ✅ | L5 新增 |
 | run-pointer.sh | ✅ | ✅ | — | ✅ | L5 新增 |
-| run-if-expr.sh | ✅ | ✅ | ✅ | ✅ | SX parse_if_expr_into + let=if 勿吞 return |
+| run-if-expr.sh | ✅ | ✅ | ✅ | ✅ | X parse_if_expr_into + let=if 勿吞 return |
 | run-enum-asm.sh | ✅ | ✅ | — | ✅ | enum 变体登记 + asm tag；minimal/simple（无 return match） |
 | run-enum.sh | ✅ | ✅ | ✅ | ✅ | return match / enum tag |
 | run-dual-chain-struct-return.sh | ✅ | ✅ | — | ✅ | struct/packed/return 双链 seed + shux_asm |
@@ -40,7 +40,7 @@ CI=1 SHUX=./compiler/shux SHUX_LINK_SHUX=./compiler/shux ./tests/run-all.sh   # 
 | run-boundary-encodings.sh | ✅ | ✅ | — | ✅ | |
 | run-multi-func.sh | ✅ | ✅ | — | ✅ | 已在白名单 |
 | run-toplevel-let.sh | ✅ | ✅ | — | ✅ | |
-| run-preprocess.sh | ✅ | ✅ | — | ✅ | L5 新增：-D/#if；SX parse_directive 与 C is_ws_or_eol(p[2]) 对齐 |
+| run-preprocess.sh | ✅ | ✅ | — | ✅ | L5 新增：-D/#if；X parse_directive 与 C is_ws_or_eol(p[2]) 对齐 |
 | run-goto.sh | ✅ | ✅ | — | ✅ | L5 新增：label: return（parser_try_label_return_expr） |
 | run-let-const.sh | ✅ | ✅ | — | ✅ | |
 | run-generic.sh | ✅ | ✅ | ✅ | ✅ | wrong_type_args 注释勿断行 |
@@ -52,9 +52,9 @@ CI=1 SHUX=./compiler/shux SHUX_LINK_SHUX=./compiler/shux ./tests/run-all.sh   # 
 | run-atomic.sh | ✅ | ✅ | ✅ | ✅ | ensure_std_c_o atomic.o |
 | run-ffi.sh | ✅ | ✅ | ✅ | ✅ | ensure_std_c_o ffi.o |
 | run-float.sh | ✅ | ✅ | ✅ | ✅ | arm64 MOVZ/MOVK 基址 + slice ptr load |
-| run-match.sh | ✅ | ✅ | ✅ | ✅ | SX `parse_match_into` 勿在 `init_match_enum` 后清零 matched_ref；match 臂 arm64 `beq` |
+| run-match.sh | ✅ | ✅ | ✅ | ✅ | X `parse_match_into` 勿在 `init_match_enum` 后清零 matched_ref；match 臂 arm64 `beq` |
 | run-slice.sh | ✅ | ✅ | ✅ | ✅ | `T[]` parser + INDEX 从 slice 槽 load ptr |
-| run-defer.sh | ✅ | ✅ | ✅ | ✅ | SX parser 消费 `defer { }`（emit 待补） |
+| run-defer.sh | ✅ | ✅ | ✅ | ✅ | X parser 消费 `defer { }`（emit 待补） |
 | run-vector.sh | ✅ | ✅ | ✅ | ✅ | i32x16：TYPE_VECTOR 解析 + 栈槽 64B + frame |
 | run-asm-binop-var.sh | ✅ | ✅ | — | ✅ | 7.3：VAR+VAR binop 直 ldr（无 push/pop） |
 | run-asm-binop-block-var.sh | ✅ | ✅ | — | ✅ | 7.3：块内 VAR cache + return 四～七元链 x10/x11/x12 spill |
@@ -99,7 +99,7 @@ CI=1 SHUX=./compiler/shux SHUX_LINK_SHUX=./compiler/shux ./tests/run-all.sh   # 
 | run-debug.sh | ✅ | ✅ | — | ✅ | std.debug |
 | run-io-driver.sh | ✅ | ✅ | — | ✅ | std.io.driver |
 | run-multi-file-generic.sh | ✅ | ✅ | — | ✅ | 多文件 generic |
-| run-fmt-std.sh | ✅ | ✅ | — | ✅ | F6：std.fmt 全量；修复 main.sx 注释折行 |
+| run-fmt-std.sh | ✅ | ✅ | — | ✅ | F6：std.fmt 全量；修复 main.x 注释折行 |
 | run-ub.sh | ✅ | ✅ | — | ✅ | F6：asm 整数除/模除零 → shux_panic_(1,0) |
 | run-pool-limits.sh | ✅ | ✅ | — | ✅ | F6：grow 池边界（嵌套 while / many_locals / many_funcs 等） |
 

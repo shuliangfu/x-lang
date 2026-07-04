@@ -1,8 +1,8 @@
 # STD-128 std.csv stream manifest
 # 列：item_id	kind	anchor	notes
-api_reader	api	reader	std/csv/mod.sx
-api_reader_next	api	next_row	std/csv/mod.sx
-api_writer_append	api	append_row	std/csv/mod.sx
-api_smoke	api	smoke	std/csv/mod.sx
-symbol_smoke_c	symbol	csv_stream_smoke_c	std/csv/csv.sx
-symbol_writer_c	symbol	csv_stream_writer_append_row_c	std/csv/csv.sx
+api_reader	api	reader	std/csv/mod.x
+api_reader_next	api	next_row	std/csv/mod.x
+api_writer_append	api	append_row	std/csv/mod.x
+api_smoke	api	smoke	std/csv/mod.x
+symbol_smoke_c	symbol	csv_stream_smoke_c	std/csv/csv.x
+symbol_writer_c	symbol	csv_stream_writer_append_row_c	std/csv/csv.x

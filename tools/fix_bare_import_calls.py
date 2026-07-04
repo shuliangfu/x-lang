@@ -31,14 +31,14 @@ STRUCT_RE = re.compile(r"(?:^|\s)struct\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{")
 
 def resolve_module_file(import_path: str, root: Path) -> Path | None:
     parts = import_path.split(".")
-    for c in [root / "/".join(parts) / "mod.sx", root / f"{'/'.join(parts)}.sx"]:
+    for c in [root / "/".join(parts) / "mod.x", root / f"{'/'.join(parts)}.x"]:
         if c.is_file():
             return c
     if len(parts) == 1:
-        for c in [root / parts[0] / "mod.sx", root / f"{parts[0]}/{parts[0]}.sx"]:
+        for c in [root / parts[0] / "mod.x", root / f"{parts[0]}/{parts[0]}.x"]:
             if c.is_file():
                 return c
-        # 同目录单文件（tests/multi-file/foo.sx）
+        # 同目录单文件（tests/multi-file/foo.x）
         return None
     return None
 
@@ -49,10 +49,10 @@ def resolve_module_near(file_path: Path, import_path: str, root: Path) -> Path |
     if mf:
         return mf
     if "/" not in import_path and "." not in import_path:
-        local = file_path.parent / f"{import_path}.sx"
+        local = file_path.parent / f"{import_path}.x"
         if local.is_file():
             return local
-    if import_path.endswith(".sx"):
+    if import_path.endswith(".x"):
         local = file_path.parent / import_path
         if local.is_file():
             return local
@@ -154,7 +154,7 @@ def main() -> int:
     n = 0
     for p in args.paths:
         path = Path(p)
-        files = sorted(path.rglob("*.sx")) if path.is_dir() else [path]
+        files = sorted(path.rglob("*.x")) if path.is_dir() else [path]
         for f in files:
             n += fix_file(f, ROOT, args.write)
     print(f"fixed {n} files")

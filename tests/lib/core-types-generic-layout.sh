@@ -2,14 +2,14 @@
 # core-types-generic-layout.sh — CORE-001 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   core_types_gl_symbols_ok TYPES_SX TSV
+#   core_types_gl_symbols_ok TYPES_X TSV
 #   core_types_gl_emit_report status generic_ok scalar_ok skip
 
 CORE_TYPES_GL_PREFIX="${SHUX_CORE_TYPES_GL_PREFIX:-shux: [SHUX_CORE_TYPES_GL]}"
 
 # 校验 manifest symbol/file；echo 缺失数，成功返回 0。
 core_types_gl_symbols_ok() {
-  local types_sx="$1"
+  local types_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor mod_path
@@ -18,7 +18,7 @@ core_types_gl_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       symbol)
-        local target="$types_sx"
+        local target="$types_x"
         if [ -n "${mod_path:-}" ] && [ "$mod_path" != "-" ]; then
           target="$mod_path"
         fi

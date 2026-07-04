@@ -28,7 +28,7 @@ typedef int (*codegen_is_type_used_fn)(void *ctx, const struct ASTModule *mod, c
 /** pipeline 单文件时 preamble（write_io_net_abi_inline）已输出 core.option/core.result 的 Option_i32/Result_i32；置 1 时 codegen_library_module_to_c 跳过二者避免重定义。 */
 void codegen_set_preamble_has_core_option_result(int on);
 
-/** write_io_net_abi_inline 可选段：codegen.sx 在 emit 与 preamble 重叠符号时 OR 入 mask，runtime 写 preamble 时跳过对应行。 */
+/** write_io_net_abi_inline 可选段：codegen.x 在 emit 与 preamble 重叠符号时 OR 入 mask，runtime 写 preamble 时跳过对应行。 */
 #define CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS    1u
 #define CODEGEN_PREAMBLE_SKIP_STD_IO_DRIVER_HANDLE  2u
 #define CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE 4u
@@ -50,7 +50,7 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
  * 将库模块（无 main 或仅 import）生成 C 写入 out；若 is_*_used 非 NULL 则仅生成被引用部分（阶段 8.1 DCE）。
  * lib_dep_mods / lib_dep_paths / n_lib_dep 为该库模块的 import 依赖，用于生成跨模块调用时的 C 前缀（传递依赖）。
  * emitted_type_names/n_emitted_inout/max_emitted 非 NULL 时用于单文件去重。
- * emit_entry_path：单文件 -E-extern 时传入入口 .sx 路径（如 src/lsp/lsp_io.sx），用于内嵌原 lsp_*_extern.h 等价块；其它情况传 NULL。
+ * emit_entry_path：单文件 -E-extern 时传入入口 .x 路径（如 src/lsp/lsp_io.x），用于内嵌原 lsp_*_extern.h 等价块；其它情况传 NULL。
  */
 int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
     struct ASTModule **lib_dep_mods, const char **lib_dep_paths, int n_lib_dep,
@@ -105,15 +105,15 @@ int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_pat
     char (*emitted_type_names)[CODEGEN_EMITTED_TYPE_NAME_MAX], int *n_emitted_inout, int max_emitted);
 
 /**
- * C-04 -E-extern：设置入口 .sx 路径（parser.sx 等），供 dep 阶段 post-struct extern 与 import 剪枝。
+ * C-04 -E-extern：设置入口 .x 路径（parser.x 等），供 dep 阶段 post-struct extern 与 import 剪枝。
  * runtime/driver 在 emit_extern_imports 写 dep 类型前调用；传 NULL 清空。
  */
 void codegen_set_eextern_entry_path(const char *entry_path);
 
 /**
- * .sx pipeline 用：在调用 pipeline_run_sx_pipeline 前设置 dep 模块与路径，使 codegen 生成跨 dep 调用时使用正确 C 符号前缀（如 std_io_driver_）；调用后由 pipeline 或 driver 在适当时机清空。
+ * .x pipeline 用：在调用 pipeline_run_x_pipeline 前设置 dep 模块与路径，使 codegen 生成跨 dep 调用时使用正确 C 符号前缀（如 std_io_driver_）；调用后由 pipeline 或 driver 在适当时机清空。
  */
-void codegen_set_dep_slots_for_sx_pipeline(struct ASTModule **mods, const char **paths, int n);
+void codegen_set_dep_slots_for_x_pipeline(struct ASTModule **mods, const char **paths, int n);
 
 /**
  * WPO-S1/S2：从 entry + 全部传递依赖模块构建 call graph 并输出 JSON（version 2）。

@@ -2,12 +2,12 @@
 # 列：item_id	kind	anchor	mod_path	notes
 # min_apis	6
 sync_api	section	## 2. SyncQueue_i32 API	sync_new
-api_sync_new	api	sync_new	std/queue/mod.sx	创建
-api_sync_push	api	sync_push	std/queue/mod.sx	入队
-api_sync_pop	api	sync_try_pop	std/queue/mod.sx	出队
-api_sync_len	api	sync_queue_len	std/queue/mod.sx	长度
-api_sync_deinit	api	sync_deinit	std/queue/mod.sx	销毁
-api_smoke	api	sync_queue_contention_smoke	std/queue/mod.sx	门面
-symbol_smoke_c	symbol	sync_queue_contention_smoke_c	std/queue/queue.sx	C 烟测
+api_sync_new	api	sync_new	std/queue/mod.x	创建
+api_sync_push	api	sync_push	std/queue/mod.x	入队
+api_sync_pop	api	sync_try_pop	std/queue/mod.x	出队
+api_sync_len	api	sync_queue_len	std/queue/mod.x	长度
+api_sync_deinit	api	sync_deinit	std/queue/mod.x	销毁
+api_smoke	api	sync_queue_contention_smoke	std/queue/mod.x	门面
+symbol_smoke_c	symbol	sync_queue_contention_smoke_c	std/queue/queue.x	C 烟测
 smoke_contention_c	file	tests/queue/sync_queue_contention_ok.c	C 入口
-smoke_roundtrip	smoke	tests/queue/sync_queue_roundtrip.sx	单线程
+smoke_roundtrip	smoke	tests/queue/sync_queue_roundtrip.x	单线程

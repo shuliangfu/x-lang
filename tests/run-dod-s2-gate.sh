@@ -56,9 +56,9 @@ dod_s2_shu_compile() {
 
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
-SMOKE_SRC="tests/vec/vec3f_soa_smoke.sx"
-SUM_SRC="tests/vec/vec3f_soa_sum_smoke.sx"
-MAIN_SRC="tests/vec/main.sx"
+SMOKE_SRC="tests/vec/vec3f_soa_smoke.x"
+SUM_SRC="tests/vec/vec3f_soa_sum_smoke.x"
+MAIN_SRC="tests/vec/main.x"
 SMOKE_OUT="$OUT_DIR/shux_vec3f_soa_smoke"
 SUM_OUT="$OUT_DIR/shux_vec3f_soa_sum_smoke"
 MAIN_OUT="$OUT_DIR/shux_vec_main"
@@ -95,7 +95,7 @@ if [ -z "$SHUX_ABS" ] || ! dod_native_exe "$SHUX_ABS"; then
   exit 0
 fi
 
-# F-03 v2：heap 已纯 .sx，shux asm 链按需 -lc，不再 cc -c heap.c
+# F-03 v2：heap 已纯 .x，shux asm 链按需 -lc，不再 cc -c heap.c
 
 # asm 链：Vec3f + std.heap f32 分配符号可链接
 if ! dod_s2_shu_compile -backend asm -L . "$SMOKE_SRC" -o "$SMOKE_OUT" 2>/tmp/shux_dod_s2_build.log; then

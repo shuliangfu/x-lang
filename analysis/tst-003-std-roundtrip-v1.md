@@ -22,8 +22,8 @@
 | 列 | 含义 |
 |----|------|
 | `module` | `std.*` 模块 |
-| `test_path` | 金样 `.sx` |
-| `needs_o` | 链接用 C `.o`（`-` 表示纯 .sx） |
+| `test_path` | 金样 `.x` |
+| `needs_o` | 链接用 C `.o`（`-` 表示纯 .x） |
 
 ---
 
@@ -31,10 +31,10 @@
 
 | 模块 | 烟测 | 说明 |
 |------|------|------|
-| `std.base64` | `tests/boundary/base64_roundtrip.sx` | `../std/base64/base64.o` |
-| `std.json` | `tests/json/object_array_roundtrip.sx` | object/array 序列化往返 |
-| `std.csv` | `tests/csv/row_roundtrip.sx` | `parse_row`/`write_row` |
-| `std.compress` | `tests/std-compress/gzip_roundtrip.sx` | gzip；无 zlib 时 **SKIP 语义**（exit 0） |
+| `std.base64` | `tests/boundary/base64_roundtrip.x` | `../std/base64/base64.o` |
+| `std.json` | `tests/json/object_array_roundtrip.x` | object/array 序列化往返 |
+| `std.csv` | `tests/csv/row_roundtrip.x` | `parse_row`/`write_row` |
+| `std.compress` | `tests/std-compress/gzip_roundtrip.x` | gzip；无 zlib 时 **SKIP 语义**（exit 0） |
 
 后续波次可追加 `zstd_roundtrip`、url base64 等行，不破坏 v1 gate。
 

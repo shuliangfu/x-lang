@@ -46,12 +46,12 @@
 
 | case_id | 文件 | policy | 期望 |
 |---------|------|--------|------|
-| `fp_region_same` | `region_same_ok.sx` | pos | `check` 通过 |
-| `fp_region_block` | `fp_region_block_reassign_ok.sx` | pos | `check` 通过 |
-| `fp_linear_two` | `fp_linear_two_bindings_ok.sx` | pos | `check` 通过 |
-| `conflict_region_escape` | `region_assign_escape.sx` | neg | `slice region escape` @8 |
-| `conflict_region_mismatch` | `region_mismatch.sx` | neg | `slice region mismatch` @6 |
-| `conflict_linear_move` | `double_move.sx` | neg | `linear value used after move` |
+| `fp_region_same` | `region_same_ok.x` | pos | `check` 通过 |
+| `fp_region_block` | `fp_region_block_reassign_ok.x` | pos | `check` 通过 |
+| `fp_linear_two` | `fp_linear_two_bindings_ok.x` | pos | `check` 通过 |
+| `conflict_region_escape` | `region_assign_escape.x` | neg | `slice region escape` @8 |
+| `conflict_region_mismatch` | `region_mismatch.x` | neg | `slice region mismatch` @6 |
+| `conflict_linear_move` | `double_move.x` | neg | `linear value used after move` |
 
 全量回归：`run-typeck-region.sh` + `run-typeck-linear.sh`。
 

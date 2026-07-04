@@ -7,20 +7,20 @@ layers	section	## 2. 回归层 R1–R6	comp-riscv64.tsv	-	regression
 matrix	section	## 3. 回归矩阵	comp-riscv64-matrix.tsv	-	stable
 golden	section	## 4. Golden 锚点	analysis/comp-riscv64-v1.md	-	riscv
 verify	section	## 6. 验证与门禁	analysis/comp-riscv64-v1.md	-	gate
-layer_r1	layers	R1-asm-text	compiler/src/asm/arch/riscv64.sx	text	.s
-layer_r2	layers	R2-elf-o	compiler/src/asm/platform/elf.sx	elf	.o
-layer_r3	layers	R3-enc-dispatch	compiler/src/asm/arch/riscv64_enc.sx	enc	ta2
-layer_r4	layers	R4-min-sample	tests/asm/riscv64_min.sx	sample	42
-layer_r5	layers	R5-matrix	tests/asm/main.sx	matrix	multi
+layer_r1	layers	R1-asm-text	compiler/src/asm/arch/riscv64.x	text	.s
+layer_r2	layers	R2-elf-o	compiler/src/asm/platform/elf.x	elf	.o
+layer_r3	layers	R3-enc-dispatch	compiler/src/asm/arch/riscv64_enc.x	enc	ta2
+layer_r4	layers	R4-min-sample	tests/asm/riscv64_min.x	sample	42
+layer_r5	layers	R5-matrix	tests/asm/main.x	matrix	multi
 layer_r6	layers	R6-link-run	tests/run-asm.sh	link	ld
-sym_riscv	symbol	emit_section_text	compiler/src/asm/arch/riscv64.sx	text	.globl
-case_min	case	case_riscv_min	tests/asm/riscv64_min.sx	asm	min
-case_main	case	case_main	tests/asm/main.sx	asm	main
-case_wave_binop	case	case_wave_binop	tests/asm/binop_return_four_add.sx	wave	binop
-case_wave_cfg	case	case_wave_cfg	tests/asm/binop_if_plus_eq_merge.sx	wave	cfg
-case_wave_index	case	case_wave_index	tests/asm/binop_field_index_fast.sx	wave	index
-case_qemu_min	case	case_qemu_min	tests/asm/riscv64_min.sx	qemu	min
-case_qemu_binop	case	case_qemu_binop	tests/asm/binop_return_four_add.sx	qemu	binop
+sym_riscv	symbol	emit_section_text	compiler/src/asm/arch/riscv64.x	text	.globl
+case_min	case	case_riscv_min	tests/asm/riscv64_min.x	asm	min
+case_main	case	case_main	tests/asm/main.x	asm	main
+case_wave_binop	case	case_wave_binop	tests/asm/binop_return_four_add.x	wave	binop
+case_wave_cfg	case	case_wave_cfg	tests/asm/binop_if_plus_eq_merge.x	wave	cfg
+case_wave_index	case	case_wave_index	tests/asm/binop_field_index_fast.x	wave	index
+case_qemu_min	case	case_qemu_min	tests/asm/riscv64_min.x	qemu	min
+case_qemu_binop	case	case_qemu_binop	tests/asm/binop_return_four_add.x	qemu	binop
 hook_asm	hook_ref	run-asm.sh	tests/run-asm.sh	riscv	段
 gate	script	run-comp-riscv64-gate.sh	tests/run-comp-riscv64-gate.sh	-	manifest
 hook_riscv	hook_script	run-comp-riscv64.sh	run-comp-riscv64.sh	-	烟测

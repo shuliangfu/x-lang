@@ -87,7 +87,7 @@
 | `sleep_ns/us/ms/sec` | 睡眠 |
 | `duration_ns` | 纳秒差 |
 
-源码：`std/time/mod.sx`（薄封装）+ `std/time/time.c`（平台）。
+源码：`std/time/mod.x`（薄封装）+ `std/time/time.c`（平台）。
 
 ---
 
@@ -101,7 +101,7 @@
 ./tests/run-time.sh
 
 # 单文件 typeck / runnable 烟测
-./compiler/shux check -L . tests/time/precision_smoke.sx
+./compiler/shux check -L . tests/time/precision_smoke.x
 ```
 
 | 资源 | 路径 |
@@ -110,7 +110,7 @@
 | manifest | `tests/baseline/std-time-manifest.tsv` |
 | 库 | `tests/lib/std-time.sh` |
 | 门禁 | `tests/run-std-time-gate.sh` |
-| 烟测 | `tests/time/main.sx`、`tests/time/precision_smoke.sx` |
+| 烟测 | `tests/time/main.x`、`tests/time/precision_smoke.x` |
 | README | `std/time/README.md` |
 | 示例 catalog | `tests/baseline/std-examples-catalog.tsv`（`ex_time`） |
 

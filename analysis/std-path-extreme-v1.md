@@ -35,7 +35,7 @@
 ## 3. 向量与烟测
 
 - 注册表：`tests/baseline/std-path-extreme.tsv`
-- 烟测：`tests/path/extreme_clean.sx`
+- 烟测：`tests/path/extreme_clean.x`
 - 门禁：`./tests/run-std-path-extreme-gate.sh`
 
 ---
@@ -43,6 +43,6 @@
 ## 4. Gate
 
 ```
-shux: [SHUX_STD140_PATH_EXTREME] status=ok sx=1 skip=0
+shux: [SHUX_STD140_PATH_EXTREME] status=ok x=1 skip=0
 std-path-extreme gate OK
 ```

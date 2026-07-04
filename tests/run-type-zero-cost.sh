@@ -33,7 +33,7 @@ FAILS=0
 while IFS=$'\t' read -r bench_id su_file _c_ref policy notes; do
   [ -z "${bench_id:-}" ] && continue
   case "$bench_id" in \#*|min_*) continue ;; esac
-  src=$(type_zero_cost_bench_sx "$su_file") || {
+  src=$(type_zero_cost_bench_x "$su_file") || {
     echo "type-zero-cost FAIL: missing $su_file" >&2
     FAILS=$((FAILS + 1))
     continue
@@ -67,10 +67,10 @@ while IFS=$'\t' read -r bench_id su_file _c_ref policy notes; do
 done < "$BENCH"
 
 # region 正例（Z4 无 runtime 标签）
-if "$SHUX_BIN" check tests/typeck/slice_lifetime/region_same_ok.sx >/dev/null 2>&1; then
+if "$SHUX_BIN" check tests/typeck/slice_lifetime/region_same_ok.x >/dev/null 2>&1; then
   echo "type-zero-cost OK region_same"
 else
-  echo "type-zero-cost FAIL: region_same_ok.sx" >&2
+  echo "type-zero-cost FAIL: region_same_ok.x" >&2
   FAILS=$((FAILS + 1))
 fi
 

@@ -1,12 +1,12 @@
 # 阶段 F-hash v1（std.hash 去 C）
 
-> **F-hash v1**：删除 **`hash.c`**；模块锚点在 **`hash.sx`**；v2 后算法全在 **`hash.sx`**（已删 `hash_glue.c`）。
+> **F-hash v1**：删除 **`hash.c`**；模块锚点在 **`hash.x`**；v2 后算法全在 **`hash.x`**（已删 `hash_glue.c`）。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `hash.c`（440 行） | `hash.sx`（v2 纯 .sx） |
+| 实现 | `hash.c`（440 行） | `hash.x`（v2 纯 .x） |
 | `hash.o` | `cc -c` | 纯 shux（v2） |
 
 ## 门禁

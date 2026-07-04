@@ -5,7 +5,7 @@ STD_MEM_SAFE_PREFIX="${SHUX_STD144_MEM_SAFE_PREFIX:-shux: [SHUX_STD144_MEM_SAFE]
 
 # 校验 manifest；echo 缺失数。
 std_mem_safe_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor mod_path
@@ -14,7 +14,7 @@ std_mem_safe_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-mem-safe FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -37,7 +37,7 @@ std_mem_safe_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# .sx 烟测（sx pipeline 暂不能稳定链 std.io.core，typeck 通过即 OK）。
+# .x 烟测（x pipeline 暂不能稳定链 std.io.core，typeck 通过即 OK）。
 std_mem_safe_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -53,5 +53,5 @@ std_mem_safe_emit_report() {
   local status="$1"
   local su_ok="$2"
   local skip="$3"
-  echo "${STD_MEM_SAFE_PREFIX} status=${status} sx=${su_ok} skip=${skip}"
+  echo "${STD_MEM_SAFE_PREFIX} status=${status} x=${su_ok} skip=${skip}"
 }

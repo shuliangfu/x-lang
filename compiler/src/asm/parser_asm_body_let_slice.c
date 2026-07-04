@@ -6,7 +6,7 @@
 #ifndef PARSER_ASM_BODY_LET_SLICE_INCLUDED
 #define PARSER_ASM_BODY_LET_SLICE_INCLUDED
 
-/** 与 parser.sx ParseExprResult 布局一致（bool→i32）。 */
+/** 与 parser.x ParseExprResult 布局一致（bool→i32）。 */
 struct parser_asm_parse_expr_result {
   int32_t ok;
   int32_t expr_ref;

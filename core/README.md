@@ -2,7 +2,7 @@
 
 **标准库的 core 层**：不依赖操作系统，可在裸机、内核、嵌入式环境使用。
 
-- **用途**：用户通过 `const m = import("core.xxx");` 引用；编译器解析到本目录下对应模块（如 `core/types/mod.sx`）。
+- **用途**：用户通过 `const m = import("core.xxx");` 引用；编译器解析到本目录下对应模块（如 `core/types/mod.x`）。
 - **原则**：不依赖 libc/OS；按需链接，用不到的模块不进入最终二进制。嵌入式目标仅链接 core（及可选最小 std）。
 - **Phase 2 路线图**：根目录 `NEXT.md`；横切门禁 `tests/run-core-api-gate.sh`（CORE-014）。
 

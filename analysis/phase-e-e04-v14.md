@@ -22,4 +22,4 @@ make -C compiler src/runtime_link_abi.o src/runtime_driver_no_c.o
 ## 延后（E-04 v15+）
 
 - `invoke_cc` 主体与 `get_std_*_o_path` 路径族（v15 已迁 `asm_invoke_ld_platform`）
-- `main.c` → crt0 / main.sx 全入口
+- `main.c` → crt0 / main.x 全入口

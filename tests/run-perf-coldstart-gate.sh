@@ -17,8 +17,8 @@ MIN_METRICS=5
 echo "=== PERF-010: coldstart manifest ==="
 for f in "$DOC" "$MANIFEST" "$CAP" \
   tests/lib/perf-coldstart.sh tests/run-perf-coldstart.sh \
-  examples/hello.sx tests/freestanding/return42/main.sx \
-  tests/freestanding/hello/main.sx tests/baseline/compile-dogfood.tsv \
+  examples/hello.x tests/freestanding/return42/main.x \
+  tests/freestanding/hello/main.x tests/baseline/compile-dogfood.tsv \
   tests/baseline/perf-baseline-registry.tsv tests/run-ci-full-suite.sh; do
   if [ ! -f "$f" ]; then
     echo "perf-coldstart gate FAIL: missing $f" >&2

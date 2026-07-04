@@ -1,14 +1,14 @@
 # 阶段 F-process v1（std.process 去 C）
 
-> **F-process v1**：删除 **`process.c`**；**`process.sx`** + **`process_os_glue.c`** + **`runtime_process_argv.c`**（compiler）；`ld -r` 合并为 **`process.o`**。
+> **F-process v1**：删除 **`process.c`**；**`process.x`** + **`process_os_glue.c`** + **`runtime_process_argv.c`**（compiler）；`ld -r` 合并为 **`process.o`**。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `process.c`（574 行 monolith） | `process.sx`（args）+ os 胶层 + runtime argv |
-| `process.o` | `cc -c process.c` | `ld -r(os_glue + process.sx)` + `runtime_process_argv.o` 链入 |
-| argc/argv | process.c 全局 | `runtime_process_argv.c` 全局 + `process.sx` 薄封装 |
+| 实现 | `process.c`（574 行 monolith） | `process.x`（args）+ os 胶层 + runtime argv |
+| `process.o` | `cc -c process.c` | `ld -r(os_glue + process.x)` + `runtime_process_argv.o` 链入 |
+| argc/argv | process.c 全局 | `runtime_process_argv.c` 全局 + `process.x` 薄封装 |
 | OS | 同文件 | `process_os_glue.c`（getenv/spawn/getcwd 等） |
 | 存量 | std 88 `.c` | std **89** `.c`（+5 胶层，-4 monolith） |
 
@@ -34,5 +34,5 @@ SHUX_F_PROCESS_V1_FAIL=1 ./tests/run-f-process-v1-gate.sh
 
 ## 下一项
 
-- **F-process v2**：getcwd/self_exe 缓存迁 `.sx`
+- **F-process v2**：getcwd/self_exe 缓存迁 `.x`
 - **F-base64 v1** 等其它 std 去 C

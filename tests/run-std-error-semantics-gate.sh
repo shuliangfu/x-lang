@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-error-semantics-v1.md"
 MANIFEST="tests/baseline/std-error-semantics.tsv"
-ERR_MOD="std/error/mod.sx"
+ERR_MOD="std/error/mod.x"
 LIB="tests/lib/std-error-semantics.sh"
-SMOKE="tests/std/error_semantics_smoke.sx"
-RECIPE="examples/cookbook/error_semantic_class.sx"
+SMOKE="tests/std/error_semantics_smoke.x"
+RECIPE="examples/cookbook/error_semantic_class.x"
 MIN_SYM=6
 
 # shellcheck source=tests/lib/std-error-semantics.sh

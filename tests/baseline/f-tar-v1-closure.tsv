@@ -2,8 +2,8 @@
 # 列：item_id	kind	anchor	notes
 ftar_doc	doc	analysis/phase-f-tar-v1.md	F-tar v1
 ftar_gate	gate	tests/run-f-tar-v1-gate.sh	聚合门禁
-tar_sx	file	std/tar/tar.sx	模块锚点 .sx
+tar_x	file	std/tar/tar.x	模块锚点 .x
 tar_glue_absent	absent	std/tar/tar_glue.c	v2 已删；见 f-tar-v2
-tar_mod	file	std/tar/mod.sx	对外 API
+tar_mod	file	std/tar/mod.x	对外 API
 tar_c_absent	absent	std/tar/tar.c	已删除
 makefile	makefile	compiler/Makefile	tar.o ld -r merge

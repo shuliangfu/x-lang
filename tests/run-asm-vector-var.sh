@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# asm 7.3：VAR+VAR 向量逐 lane binop 直 ldr（无 push/pop）；基于 vec_add_check.sx。
+# asm 7.3：VAR+VAR 向量逐 lane binop 直 ldr（无 push/pop）；基于 vec_add_check.x。
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 SHUX=${SHUX:-./compiler/shux}
 
-$SHUX tests/vector/vec_add_check.sx -o /tmp/shux_asm_vector_var 2>&1
+$SHUX tests/vector/vec_add_check.x -o /tmp/shux_asm_vector_var 2>&1
 exitcode=0
 /tmp/shux_asm_vector_var >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "run-asm-vector-var FAIL: expected exit 0, got $exitcode"; exit 1; }

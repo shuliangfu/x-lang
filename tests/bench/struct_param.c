@@ -1,4 +1,4 @@
-/* struct_param.c — 与 tests/bench/struct_param.sx 对齐（每轮更新 p 防 C -O3 常量折叠） */
+/* struct_param.c — 与 tests/bench/struct_param.x 对齐（每轮更新 p 防 C -O3 常量折叠） */
 #include <stdint.h>
 
 typedef struct {

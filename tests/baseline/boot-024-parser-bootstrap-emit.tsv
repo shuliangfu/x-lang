@@ -9,7 +9,7 @@ gate_section	section	## 4. Gate	run-boot-024-parser-bootstrap-emit-gate
 hook_bisect	hook_gate	run-parser-parse-bootstrap-bisect-gate.sh	boot_bisect
 hook_c1	hook_ref	run-parser-parse-bootstrap-gate.sh	boot_c1
 hook_c2	hook_ref	run-parser-parse-bootstrap-link-smoke.sh	boot_c2
-hook_sx_emit	hook_ref	run-parser-parse-bootstrap-sx-emit-gate.sh	boot_sx_emit
+hook_x_emit	hook_ref	run-parser-parse-bootstrap-x-emit-gate.sh	boot_x_emit
 mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	C2 C3
 wave_tsv	file	tests/baseline/parser-bootstrap-emit-wave.tsv	4 rows
 parent_boot023	cross_ref	analysis/boot-023-mega7-full-emit-v1.md	mega7 7/7

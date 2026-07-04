@@ -40,7 +40,7 @@
 | `fs_sendfile` / `fs_pipe_splice` | ❌ 内核管道 | 用户态不 touch 字节 |
 | `string_from_slice` / `String` 拥有 | ✅ 堆拷贝 | 拥有内存；对比 `StrView` |
 | `StrView` / `string_view_subview` | ❌ 视图 | 仅 (ptr,len) |
-| `T[N]` → `T[]` 在 region 内 | ❌ 视图 | ZC-3；见 `region_array_smoke.sx` |
+| `T[N]` → `T[]` 在 region 内 | ❌ 视图 | ZC-3；见 `region_array_smoke.x` |
 | `vec_i32_data_ptr` + len | ❌ 内部缓冲视图 | 勿在 grow 后继续使用 |
 
 **冗余拷贝**：在已有稳定视图或内核可零拷贝路径上，标准库再次 `memcpy` 到中间缓冲。
@@ -86,7 +86,7 @@
 | `fs_read` / `fs_write` | 用户 buf 一次 | 大文件只读 → `fs_mmap_ro` |
 | `fs_mmap_ro/rw` | 映射 | 长生命周期只读/可写 |
 | `fs_copy_file_range` | 内核内（Linux） | 替代用户态 read+write |
-| `fs_sendfile` | 内核 file→socket | `zero_copy_sendfile.sx` |
+| `fs_sendfile` | 内核 file→socket | `zero_copy_sendfile.x` |
 | `fs_pipe_splice` | 内核 pipe 代理 | ZC-5 bench |
 
 ### 4.4 字符串 / 容器
@@ -156,10 +156,10 @@
 | 主题 | 测试 | 脚本 |
 |------|------|------|
 | 统一 ZC | — | `run-zc-gates.sh` |
-| read_ptr | `tests/io/read_ptr.sx` | `run-io.sh` |
-| slice 域 | `tests/slice/region_array_smoke.sx` | `run-zc3-gate.sh` |
-| StrView | `tests/string/view_zerocopy.sx` | `run-zc4-gate.sh` |
-| sendfile | `tests/bench/zero_copy_sendfile.sx` | perf IO |
+| read_ptr | `tests/io/read_ptr.x` | `run-io.sh` |
+| slice 域 | `tests/slice/region_array_smoke.x` | `run-zc3-gate.sh` |
+| StrView | `tests/string/view_zerocopy.x` | `run-zc4-gate.sh` |
+| sendfile | `tests/bench/zero_copy_sendfile.x` | perf IO |
 
 ---
 
@@ -180,9 +180,9 @@ ZC-007 PR 声明与证明测试模板见 `analysis/zc-copy-proof-v1.md`、`tests
 | 资源 | 路径 |
 |------|------|
 | slice 域 | `analysis/type-region-v1-rfc.md` |
-| IO 模块头 | `std/io/mod.sx`（Z2/ZC-1 生命周期） |
+| IO 模块头 | `std/io/mod.x`（Z2/ZC-1 生命周期） |
 | FS 零拷贝 | `std/fs/README.md` |
-| String ZC-4 | `std/string/mod.sx` |
+| String ZC-4 | `std/string/mod.x` |
 | 内存安全指南 | `analysis/doc-memory-safety-error-v1.md` |
 
 **ZC-006 状态：定版 ✅**

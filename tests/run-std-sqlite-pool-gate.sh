@@ -6,10 +6,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD084_DOC:-analysis/std-sqlite-pool-v1.md}"
 MANIFEST="${SHUX_STD084_TSV:-tests/baseline/std-sqlite-pool.tsv}"
 VECTORS="${SHUX_STD084_VECTORS:-tests/baseline/std-sqlite-pool-vectors.tsv}"
-MOD_SX="std/db/sqlite/mod.sx"
-DB_C="std/db/sqlite/sqlite.sx"
+MOD_X="std/db/sqlite/mod.x"
+DB_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-pool.sh"
-SMOKE_SX="tests/std-sqlite/pool_roundtrip.sx"
+SMOKE_X="tests/std-sqlite/pool_roundtrip.x"
 SMOKE_C="tests/std-sqlite/pool_roundtrip_ok.c"
 MIN_POOL=4
 
@@ -18,7 +18,7 @@ MIN_POOL=4
 std_sqlite_pool_source_sqlite
 
 echo "=== STD-084: std.db.sqlite pool manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$DB_C" "$SMOKE_SX" "$SMOKE_C" \
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
   analysis/std-sqlite-stmt-cache-v1.md tests/run-std-sqlite-stmt-cache-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-pool gate FAIL: missing $f" >&2
@@ -49,7 +49,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+  if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
     echo "std-sqlite-pool gate FAIL: missing api $anchor" >&2
     exit 1
   fi
@@ -60,7 +60,7 @@ if [ "$API_N" -lt "$MIN_POOL" ]; then
   exit 1
 fi
 
-sym_miss="$(std_sqlite_pool_symbols_ok "$MOD_SX" "$DB_C" "$MANIFEST" || true)"
+sym_miss="$(std_sqlite_pool_symbols_ok "$MOD_X" "$DB_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_sqlite_pool_emit_report "fail" 0 0 0
   exit 1
@@ -68,7 +68,7 @@ fi
 echo "std-sqlite-pool manifest OK"
 
 POOL_C=0
-POOL_SX=0
+POOL_X=0
 SKIP=0
 
 if std_sqlite_probe_libs; then
@@ -83,25 +83,25 @@ SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ] && [ "$SKIP" -eq 0 ]; then
-  echo "=== STD-084: .sx smoke (SHUX=$SHUX_BIN) ==="
+  echo "=== STD-084: .x smoke (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-    echo "std-sqlite-pool gate SKIP .sx smoke (typeck fail)" >&2
-  elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SX" "pool"; then
-    POOL_SX=1
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    echo "std-sqlite-pool gate SKIP .x smoke (typeck fail)" >&2
+  elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "pool"; then
+    POOL_X=1
   else
-    echo "std-sqlite-pool gate SKIP .sx smoke (link/compile)" >&2
+    echo "std-sqlite-pool gate SKIP .x smoke (link/compile)" >&2
   fi
 elif [ -n "$SHUX_BIN" ]; then
-  echo "std-sqlite-pool: .sx smoke SKIP (no libsqlite3)"
+  echo "std-sqlite-pool: .x smoke SKIP (no libsqlite3)"
   SKIP=1
 fi
 
 if [ "$SKIP" -eq 0 ] && [ "$POOL_C" -eq 0 ]; then
-  std_sqlite_pool_emit_report "fail" 0 "$POOL_SX" "$SKIP"
+  std_sqlite_pool_emit_report "fail" 0 "$POOL_X" "$SKIP"
   echo "std-sqlite-pool gate FAIL: c smoke" >&2
   exit 1
 fi
 
-std_sqlite_pool_emit_report "ok" "$POOL_C" "$POOL_SX" "$SKIP"
+std_sqlite_pool_emit_report "ok" "$POOL_C" "$POOL_X" "$SKIP"
 echo "std-sqlite-pool gate OK"

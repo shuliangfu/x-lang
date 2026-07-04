@@ -1,0 +1,9 @@
+// tests/dynlib/main.x — std.dynlib dynlib.open(null) 返回 0
+const dynlib = import("std.dynlib");
+
+function main(): i32 {
+  let path: u8[4] = [0, 0, 0, 0];
+  let lib: *u8 = dynlib.open(&path[0]);
+  if (lib != 0) { return 1; }
+  return 0;
+}

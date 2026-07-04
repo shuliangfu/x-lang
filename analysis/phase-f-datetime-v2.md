@@ -1,14 +1,14 @@
-# 阶段 F-datetime v2（std.datetime 逻辑 .sx 下沉 + F-ZC）
+# 阶段 F-datetime v2（std.datetime 逻辑 .x 下沉 + F-ZC）
 
-> **F-datetime v2**：RFC3339/Duration/固定偏移/IANA DST 迁入 **`datetime.sx`**；**F-ZC** 删除 **`datetime_tz_glue.c`**，本地偏移经 **`time_wall_local_offset_min_c`**（std.time）。
+> **F-datetime v2**：RFC3339/Duration/固定偏移/IANA DST 迁入 **`datetime.x`**；**F-ZC** 删除 **`datetime_tz_glue.c`**，本地偏移经 **`time_wall_local_offset_min_c`**（std.time）。
 
 ## 变更
 
 | 项 | v1 | v2 | F-ZC |
 |----|----|-----|------|
-| datetime 逻辑 | `datetime_glue.c` | **`datetime.sx`** | 同 v2 |
-| 本地时区偏移 | glue 内联 | `datetime_tz_glue.c` | **`.sx` → std.time extern** |
-| `datetime.o` | `ld -r` glue + sx | `ld -r` tz glue + sx | **纯 `.sx`** |
+| datetime 逻辑 | `datetime_glue.c` | **`datetime.x`** | 同 v2 |
+| 本地时区偏移 | glue 内联 | `datetime_tz_glue.c` | **`.x` → std.time extern** |
+| `datetime.o` | `ld -r` glue + x | `ld -r` tz glue + x | **纯 `.x`** |
 
 ## 门禁
 

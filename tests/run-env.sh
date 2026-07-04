@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# 【文件职责】std.env 模块的回归测试脚本；编译并运行 tests/env/*.sx，校验退出码。
+# 【文件职责】std.env 模块的回归测试脚本；编译并运行 tests/env/*.x，校验退出码。
 # 【测试目的】覆盖 getenv、setenv、env_iter、args_iter 等 API。
 # 【运行方式】在仓库根目录执行 bash tests/run-env.sh 或 ./tests/run-env.sh
 #
@@ -32,8 +32,8 @@ run_one() {
   echo "env test OK ($label)"
 }
 
-run_one tests/env/main.sx main
-run_one tests/env/env_iter.sx env_iter
-run_one tests/env/platform_encoding.sx platform_encoding
+run_one tests/env/main.x main
+run_one tests/env/env_iter.x env_iter
+run_one tests/env/platform_encoding.x platform_encoding
 echo "env test OK (all)"
 rm -f /tmp/shux_env_$$_*

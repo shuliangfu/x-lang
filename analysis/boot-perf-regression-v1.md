@@ -33,9 +33,9 @@
 
 | case_id | 源 | 说明 |
 |---------|-----|------|
-| `check_parser` | `compiler/src/parser/parser.sx` | parser EMIT_HEAVY |
-| `check_typeck` | `compiler/src/typeck/typeck.sx` | typeck 热路径（COMP-002） |
-| `check_backend` | `compiler/src/asm/backend.sx` | asm 后端 |
+| `check_parser` | `compiler/src/parser/parser.x` | parser EMIT_HEAVY |
+| `check_typeck` | `compiler/src/typeck/typeck.x` | typeck 热路径（COMP-002） |
+| `check_backend` | `compiler/src/asm/backend.x` | asm 后端 |
 
 另 5 项 microbench 与 PERF-004 共享同一 `compile-dogfood.tsv`。
 

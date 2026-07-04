@@ -2,13 +2,13 @@
 # 列：item_id	kind	anchor	notes
 fa_doc	doc	analysis/phase-f-async-v1.md	F-async v1
 fa_gate	gate	tests/run-f-async-v1-gate.sh	聚合门禁
-sched_sx	file	std/async/scheduler.sx	调度锚点 .sx
+sched_x	file	std/async/scheduler.x	调度锚点 .x
 sched_glue	file	compiler/src/asm/runtime_scheduler_glue.c	调度胶层 runtime
 sched_glue_absent	absent	std/async/scheduler_glue.c	已迁入 runtime
-fut_sx	file	std/async/future.sx	Future 纯 .sx（F-async-future v2）
+fut_x	file	std/async/future.x	Future 纯 .x（F-async-future v2）
 fut_glue_absent	absent	std/async/future_glue.c	已删除（v2）
-async_mod	file	std/async/mod.sx	对外 API
+async_mod	file	std/async/mod.x	对外 API
 async_inc	file	compiler/src/asm/async_net_fs.inc.c	net/fs 烟测 inc
 sched_c_absent	absent	std/async/scheduler.c	已删除
 fut_c_absent	absent	std/async/future.c	已删除
-makefile	makefile	compiler/Makefile	scheduler.o 纯 .sx + runtime_scheduler_glue.o
+makefile	makefile	compiler/Makefile	scheduler.o 纯 .x + runtime_scheduler_glue.o

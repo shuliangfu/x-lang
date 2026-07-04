@@ -133,8 +133,8 @@ if [ "$(uname -s)" = "Linux" ] && safe_leak_asan_ok; then
   if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
     echo "=== SAFE-005: leak nightly smoke (1 case) ==="
     make -C compiler -q 2>/dev/null || make -C compiler
-    # F-03 v2：heap 已纯 .sx，不再 ensure heap.o
-    if safe_leak_run_sx "$SHUX_BIN" tests/leak/no_leak_heap.sx case_heap; then
+    # F-03 v2：heap 已纯 .x，不再 ensure heap.o
+    if safe_leak_run_x "$SHUX_BIN" tests/leak/no_leak_heap.x case_heap; then
       echo "safe-leak-nightly smoke OK"
     else
       echo "safe-leak-nightly gate FAIL: smoke" >&2

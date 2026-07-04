@@ -1,0 +1,803 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std/datetime/datetime.x — F-datetime v2 + F-ZC：RFC3339/时区/IANA DST（纯 .x，无 .c/.h）
+//
+// 【文件职责】
+// 闰年/Unix 转换、RFC3339 解析/格式化、Duration、固定偏移与 IANA DST 时区、烟测；
+// 本地偏移经 std.time 的 time_wall_local_offset_min_c；编译为 datetime.o。
+//
+// 【对标】Go time.Time、Rust chrono、Zig std.time 高层。
+
+const DT_IANA_UTC: i32 = 0;
+const DT_IANA_US_EASTERN: i32 = 1;
+const DT_IANA_US_PACIFIC: i32 = 2;
+const DT_IANA_EU_LONDON: i32 = 3;
+const DT_IANA_EU_PARIS: i32 = 4;
+const DT_IANA_ASIA_TOKYO: i32 = 5;
+const DT_IANA_ASIA_SHANGHAI: i32 = 6;
+const DT_IANA_COUNT: i32 = 7;
+
+extern function time_now_wall_sec_c(): i64;
+extern function time_now_wall_ns_c(): i64;
+extern function time_wall_local_offset_min_c(): i32;
+extern function memcmp(a: *u8, b: *u8, n: usize): i32;
+
+/** F-datetime v1 版本标记。 */
+function datetime_f_datetime_v1_marker_c(): i32 {
+  return 1;
+}
+
+/** F-datetime v2 逻辑下沉标记。 */
+function datetime_f_datetime_v2_marker_c(): i32 {
+  return 1;
+}
+
+/** F-std-zero-c：datetime_tz_glue.c 已删除。 */
+function datetime_f_zero_c_marker_c(): i32 {
+  return 1;
+}
+
+/**
+ * 本地时区相对 UTC 偏移（分钟，东为正）。
+ * 委托 runtime_time_os 的 time_wall_local_offset_min_c（经 std.time extern）。
+ */
+function datetime_local_offset_min_c(): i32 {
+  unsafe { return time_wall_local_offset_min_c(); }
+}
+
+/** 闰年判定。 */
+function dt_is_leap(y: i32): i32 {
+  if (y % 4 == 0 && y % 100 != 0) { return 1; }
+  if (y % 400 == 0) { return 1; }
+  return 0;
+}
+
+/** 月天数（month 1..12）；非法月返回 0。 */
+function dt_days_in_month(y: i32, mo: i32): i32 {
+  if (mo < 1 || mo > 12) { return 0; }
+  if (mo == 2) {
+    if (dt_is_leap(y) != 0) { return 29; }
+    return 28;
+  }
+  if (mo == 4 || mo == 6 || mo == 9 || mo == 11) { return 30; }
+  return 31;
+}
+
+/** UTC 日历字段 → Unix 秒（1970-01-01 起）。 */
+function dt_utc_to_unix(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32): i64 {
+  let days: i64 = 0;
+  let yy: i32 = 0;
+  if (y >= 1970) {
+    yy = 1970;
+    while (yy < y) {
+      if (dt_is_leap(yy) != 0) { days = days + 366; } else { days = days + 365; }
+      yy = yy + 1;
+    }
+  } else {
+    yy = y;
+    while (yy < 1970) {
+      if (dt_is_leap(yy) != 0) { days = days - 366; } else { days = days - 365; }
+      yy = yy + 1;
+    }
+  }
+  yy = 1;
+  while (yy < mo) {
+    days = days + dt_days_in_month(y, yy) as i64;
+    yy = yy + 1;
+  }
+  days = days + (d as i64) - 1;
+  return days * 86400 + (h as i64) * 3600 + (mi as i64) * 60 + (s as i64);
+}
+
+/** Unix 秒 → UTC 日历字段。 */
+function dt_unix_to_utc(sec: i64, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void {
+  let days: i64 = 0;
+  let yy: i32 = 0;
+  let mm: i32 = 0;
+  let rem: i32 = (sec % 86400) as i32;
+  let sec_adj: i64 = sec;
+  if (rem < 0) {
+    rem = rem + 86400;
+    sec_adj = sec - 86400;
+  }
+  days = sec_adj / 86400;
+  yy = 1970;
+  if (days >= 0) {
+    loop {
+      let dy: i32 = 365;
+      if (dt_is_leap(yy) != 0) { dy = 366; }
+      if (days < dy as i64) { break; }
+      days = days - dy as i64;
+      yy = yy + 1;
+    }
+  } else {
+    yy = 1969;
+    loop {
+      let dy: i32 = 365;
+      if (dt_is_leap(yy) != 0) { dy = 366; }
+      days = days + dy as i64;
+      if (days >= 0) {
+        yy = yy + 1;
+        break;
+      }
+      yy = yy - 1;
+    }
+  }
+  mm = 1;
+  while (mm <= 12) {
+    let dm: i32 = dt_days_in_month(yy, mm);
+    if (days < dm as i64) { break; }
+    days = days - dm as i64;
+    mm = mm + 1;
+  }
+  y[0] = yy;
+  mo[0] = mm;
+  d[0] = (days as i32) + 1;
+  h[0] = rem / 3600;
+  mi[0] = (rem % 3600) / 60;
+  s[0] = rem % 60;
+}
+
+/** 读十进制数字；成功 0。 */
+function dt_read_digits(p: *u8, len: i32, pos: *i32, count: i32, out: *i32): i32 {
+  let i: i32 = 0;
+  let v: i32 = 0;
+  let cur: i32 = pos[0];
+  if (cur + count > len) { return -1; }
+  while (i < count) {
+    let c: u8 = p[(cur + i)];
+    if (c < 48 || c > 57) { return -1; }
+    v = v * 10 + (c as i32 - 48);
+    i = i + 1;
+  }
+  pos[0] = cur + count;
+  out[0] = v;
+  return 0;
+}
+
+/** 写入 4 位十进制（年）；失败 -1。 */
+function dt_write_4digit(buf: *u8, cap: i32, off: i32, v: i32): i32 {
+  if (off + 4 > cap || v < 0 || v > 9999) { return -1; }
+  buf[(off + 0)] = (48 + v / 1000) as u8;
+  buf[(off + 1)] = (48 + (v / 100) % 10) as u8;
+  buf[(off + 2)] = (48 + (v / 10) % 10) as u8;
+  buf[(off + 3)] = (48 + v % 10) as u8;
+  return off + 4;
+}
+
+/** 写入 2 位十进制（月/日/时/分/秒）；失败 -1。 */
+function dt_write_2digit(buf: *u8, cap: i32, off: i32, v: i32): i32 {
+  if (off + 2 > cap || v < 0 || v > 99) { return -1; }
+  buf[(off + 0)] = (48 + v / 10) as u8;
+  buf[(off + 1)] = (48 + v % 10) as u8;
+  return off + 2;
+}
+
+/** 写入 9 位十进制（纳秒，前导零）；失败 -1。 */
+function dt_write_9digit(buf: *u8, cap: i32, off: i32, v: i32): i32 {
+  let div: i32 = 100000000;
+  let i: i32 = 0;
+  let x: i32 = v;
+  if (off + 9 > cap || v < 0 || v >= 1000000000) { return -1; }
+  while (i < 9) {
+    buf[(off + i)] = (48 + x / div) as u8;
+    x = x % div;
+    div = div / 10;
+    i = i + 1;
+  }
+  return off + 9;
+}
+
+/** 名称不区分大小写比较（ASCII）。 */
+function dt_name_eq_ci(p: *u8, len: i32, lit: *u8, lit_len: i32): i32 {
+  let i: i32 = 0;
+  if (len != lit_len) { return 0; }
+  while (i < len) {
+    let a: u8 = p[i];
+    let b: u8 = lit[i];
+    if (a >= 65 && a <= 90) { a = (a + 32) as u8; }
+    if (b >= 65 && b <= 90) { b = (b + 32) as u8; }
+    if (a != b) { return 0; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/** 名称精确匹配（ASCII）。 */
+function dt_name_eq(p: *u8, len: i32, lit: *u8, lit_len: i32): i32 {
+  let i: i32 = 0;
+  if (len != lit_len) { return 0; }
+  while (i < len) {
+    if (p[i] != lit[i]) { return 0; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/** 当前 UTC 墙钟。 */
+function datetime_now_utc_c(out_sec: *i64, out_nsec: *i32): void {
+  let ns: i64 = 0;
+  if (out_sec == 0 || out_nsec == 0) { return; }
+  unsafe { out_sec[0] = time_now_wall_sec_c(); }
+  unsafe { ns = time_now_wall_ns_c(); }
+  out_nsec[0] = (ns % 1000000000) as i32;
+  if (out_nsec[0] < 0) { out_nsec[0] = out_nsec[0] + 1000000000; }
+}
+
+/** UTC 日历字段分解。 */
+function datetime_utc_fields_c(sec: i64, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void {
+  let yi: i32 = 0;
+  let moi: i32 = 0;
+  let di: i32 = 0;
+  let hi: i32 = 0;
+  let mii: i32 = 0;
+  let si: i32 = 0;
+  dt_unix_to_utc(sec, &yi, &moi, &di, &hi, &mii, &si);
+  if (y != 0) { y[0] = yi; }
+  if (mo != 0) { mo[0] = moi; }
+  if (d != 0) { d[0] = di; }
+  if (h != 0) { h[0] = hi; }
+  if (mi != 0) { mi[0] = mii; }
+  if (s != 0) { s[0] = si; }
+}
+
+/** 由 UTC 日历构造 DateTime；非法返回 -1。 */
+function datetime_from_utc_fields_c(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32, nsec: i32,
+  out_sec: *i64, out_nsec: *i32): i32 {
+  if (out_sec == 0 || out_nsec == 0) { return -1; }
+  if (mo < 1 || mo > 12 || d < 1 || d > dt_days_in_month(y, mo)) { return -1; }
+  if (h < 0 || h > 23 || mi < 0 || mi > 59 || s < 0 || s > 59) { return -1; }
+  if (nsec < 0 || nsec >= 1000000000) { return -1; }
+  out_sec[0] = dt_utc_to_unix(y, mo, d, h, mi, s);
+  out_nsec[0] = nsec;
+  return 0;
+}
+
+/** 比较两个 DateTime：-1/0/1。 */
+function datetime_compare_c(a_sec: i64, a_nsec: i32, b_sec: i64, b_nsec: i32): i32 {
+  if (a_sec < b_sec) { return -1; }
+  if (a_sec > b_sec) { return 1; }
+  if (a_nsec < b_nsec) { return -1; }
+  if (a_nsec > b_nsec) { return 1; }
+  return 0;
+}
+
+/**
+ * 解析 RFC3339 / RFC3339Nano（Z 或 ±HH:MM 偏移）。
+ * out_offset_min：相对 UTC 的分钟偏移（东为正）；Z 时为 0。
+ */
+function datetime_parse_rfc3339_c(ptr: *u8, len: i32, out_sec: *i64, out_nsec: *i32, out_offset_min: *i32): i32 {
+  let pos: i32 = 0;
+  let y: i32 = 0;
+  let mo: i32 = 0;
+  let d: i32 = 0;
+  let h: i32 = 0;
+  let mi: i32 = 0;
+  let s: i32 = 0;
+  let nsec: i32 = 0;
+  let off_min: i32 = 0;
+  let unix_sec: i64 = 0;
+  if (ptr == 0 || len < 20 || out_sec == 0 || out_nsec == 0) { return -1; }
+  if (dt_read_digits(ptr, len, &pos, 4, &y) != 0) { return -1; }
+  if (pos >= len || ptr[pos] != 45) { return -1; }
+  pos = pos + 1;
+  if (dt_read_digits(ptr, len, &pos, 2, &mo) != 0) { return -1; }
+  if (pos >= len || ptr[pos] != 45) { return -1; }
+  pos = pos + 1;
+  if (dt_read_digits(ptr, len, &pos, 2, &d) != 0) { return -1; }
+  if (pos >= len || ptr[pos] != 84) { return -1; }
+  pos = pos + 1;
+  if (dt_read_digits(ptr, len, &pos, 2, &h) != 0) { return -1; }
+  if (pos >= len || ptr[pos] != 58) { return -1; }
+  pos = pos + 1;
+  if (dt_read_digits(ptr, len, &pos, 2, &mi) != 0) { return -1; }
+  if (pos >= len || ptr[pos] != 58) { return -1; }
+  pos = pos + 1;
+  if (dt_read_digits(ptr, len, &pos, 2, &s) != 0) { return -1; }
+  if (pos < len && ptr[pos] == 46) {
+    let frac_digits: i32 = 0;
+    let frac: i32 = 0;
+    pos = pos + 1;
+    while (pos < len && ptr[pos] >= 48 && ptr[pos] <= 57 && frac_digits < 9) {
+      frac = frac * 10 + (ptr[pos] as i32 - 48);
+      frac_digits = frac_digits + 1;
+      pos = pos + 1;
+    }
+    while (frac_digits < 9) {
+      frac = frac * 10;
+      frac_digits = frac_digits + 1;
+    }
+    nsec = frac;
+  }
+  if (pos >= len) { return -1; }
+  if (ptr[pos] == 90) {
+    off_min = 0;
+    pos = pos + 1;
+  } else if (ptr[pos] == 43 || ptr[pos] == 45) {
+    let sign: i32 = 1;
+    let oh: i32 = 0;
+    let om: i32 = 0;
+    if (ptr[pos] == 45) { sign = -1; }
+    pos = pos + 1;
+    if (dt_read_digits(ptr, len, &pos, 2, &oh) != 0) { return -1; }
+    if (pos >= len || ptr[pos] != 58) { return -1; }
+    pos = pos + 1;
+    if (dt_read_digits(ptr, len, &pos, 2, &om) != 0) { return -1; }
+    off_min = sign * (oh * 60 + om);
+  } else {
+    return -1;
+  }
+  if (pos != len) { return -1; }
+  unix_sec = dt_utc_to_unix(y, mo, d, h, mi, s);
+  unix_sec = unix_sec - (off_min as i64) * 60;
+  out_sec[0] = unix_sec;
+  out_nsec[0] = nsec;
+  if (out_offset_min != 0) { out_offset_min[0] = off_min; }
+  return 0;
+}
+
+/** 格式化 RFC3339 UTC（Z 后缀）；返回写入长度，失败 -1。 */
+function datetime_format_rfc3339_c(sec: i64, nsec: i32, out: *u8, out_cap: i32): i32 {
+  let y: i32 = 0;
+  let mo: i32 = 0;
+  let d: i32 = 0;
+  let h: i32 = 0;
+  let mi: i32 = 0;
+  let s: i32 = 0;
+  let off: i32 = 0;
+  if (out == 0 || out_cap < 21) { return -1; }
+  if (nsec < 0 || nsec >= 1000000000) { return -1; }
+  dt_unix_to_utc(sec, &y, &mo, &d, &h, &mi, &s);
+  off = dt_write_4digit(out, out_cap, 0, y);
+  if (off < 0) { return -1; }
+  out[off] = 45;
+  off = dt_write_2digit(out, out_cap, off + 1, mo);
+  if (off < 0) { return -1; }
+  out[off] = 45;
+  off = dt_write_2digit(out, out_cap, off + 1, d);
+  if (off < 0) { return -1; }
+  out[off] = 84;
+  off = dt_write_2digit(out, out_cap, off + 1, h);
+  if (off < 0) { return -1; }
+  out[off] = 58;
+  off = dt_write_2digit(out, out_cap, off + 1, mi);
+  if (off < 0) { return -1; }
+  out[off] = 58;
+  off = dt_write_2digit(out, out_cap, off + 1, s);
+  if (off < 0) { return -1; }
+  out[off] = 90;
+  return 20;
+}
+
+/** 格式化 RFC3339Nano UTC；返回写入长度，失败 -1。 */
+function datetime_format_rfc3339_nano_c(sec: i64, nsec: i32, out: *u8, out_cap: i32): i32 {
+  let y: i32 = 0;
+  let mo: i32 = 0;
+  let d: i32 = 0;
+  let h: i32 = 0;
+  let mi: i32 = 0;
+  let s: i32 = 0;
+  let off: i32 = 0;
+  if (out == 0 || out_cap < 32) { return -1; }
+  if (nsec < 0 || nsec >= 1000000000) { return -1; }
+  dt_unix_to_utc(sec, &y, &mo, &d, &h, &mi, &s);
+  off = dt_write_4digit(out, out_cap, 0, y);
+  if (off < 0) { return -1; }
+  out[off] = 45;
+  off = dt_write_2digit(out, out_cap, off + 1, mo);
+  if (off < 0) { return -1; }
+  out[off] = 45;
+  off = dt_write_2digit(out, out_cap, off + 1, d);
+  if (off < 0) { return -1; }
+  out[off] = 84;
+  off = dt_write_2digit(out, out_cap, off + 1, h);
+  if (off < 0) { return -1; }
+  out[off] = 58;
+  off = dt_write_2digit(out, out_cap, off + 1, mi);
+  if (off < 0) { return -1; }
+  out[off] = 58;
+  off = dt_write_2digit(out, out_cap, off + 1, s);
+  if (off < 0) { return -1; }
+  out[off] = 46;
+  off = dt_write_9digit(out, out_cap, off + 1, nsec);
+  if (off < 0) { return -1; }
+  out[off] = 90;
+  return 30;
+}
+
+/** UTC + 偏移分钟 → 本地日历字段。 */
+function datetime_local_fields_c(sec: i64, offset_min: i32, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void {
+  datetime_utc_fields_c(sec + (offset_min as i64) * 60, y, mo, d, h, mi, s);
+}
+
+/** 两时刻差（纳秒）：b - a。 */
+function datetime_duration_between_ns_c(a_sec: i64, a_nsec: i32, b_sec: i64, b_nsec: i32): i64 {
+  let da: i64 = a_sec * 1000000000 + a_nsec as i64;
+  let db: i64 = b_sec * 1000000000 + b_nsec as i64;
+  return db - da;
+}
+
+/** DateTime 加 Duration（纳秒）；溢出归一化。 */
+function datetime_add_duration_ns_c(sec: i64, nsec: i32, delta_ns: i64, out_sec: *i64, out_nsec: *i32): i32 {
+  let total: i64 = 0;
+  let s: i64 = 0;
+  let ns: i32 = 0;
+  if (out_sec == 0 || out_nsec == 0) { return -1; }
+  total = sec * 1000000000 + nsec as i64 + delta_ns;
+  s = total / 1000000000;
+  ns = (total % 1000000000) as i32;
+  if (ns < 0) {
+    ns = ns + 1000000000;
+    s = s - 1;
+  }
+  out_sec[0] = s;
+  out_nsec[0] = ns;
+  return 0;
+}
+
+/**
+ * 内置固定偏移时区名 → offset_min（东为正；无 DST）。
+ * 支持 UTC/GMT/JST/CST/HKT/IST/CET/EST/PST 等；未知返回 -1。
+ */
+function datetime_timezone_from_name_c(name: *u8, name_len: i32, out_offset_min: *i32): i32 {
+  let lit_utc: u8[3] = [85, 84, 67];
+  let lit_gmt: u8[3] = [71, 77, 84];
+  let lit_z: u8[1] = [90];
+  let lit_jst: u8[3] = [74, 83, 84];
+  let lit_kst: u8[3] = [75, 83, 84];
+  let lit_cst: u8[3] = [67, 83, 84];
+  let lit_hkt: u8[3] = [72, 75, 84];
+  let lit_ist: u8[3] = [73, 83, 84];
+  let lit_cet: u8[3] = [67, 69, 84];
+  let lit_est: u8[3] = [69, 83, 84];
+  let lit_pst: u8[3] = [80, 83, 84];
+  if (name == 0 || out_offset_min == 0 || name_len <= 0) { return -1; }
+  if (dt_name_eq_ci(name, name_len, &lit_utc[0], 3) != 0 || dt_name_eq_ci(name, name_len, &lit_gmt[0], 3) != 0 ||
+    dt_name_eq_ci(name, name_len, &lit_z[0], 1) != 0) {
+    out_offset_min[0] = 0;
+    return 0;
+  }
+  if (dt_name_eq_ci(name, name_len, &lit_jst[0], 3) != 0 || dt_name_eq_ci(name, name_len, &lit_kst[0], 3) != 0) {
+    out_offset_min[0] = 540;
+    return 0;
+  }
+  if (dt_name_eq_ci(name, name_len, &lit_cst[0], 3) != 0 || dt_name_eq_ci(name, name_len, &lit_hkt[0], 3) != 0) {
+    out_offset_min[0] = 480;
+    return 0;
+  }
+  if (dt_name_eq_ci(name, name_len, &lit_ist[0], 3) != 0) {
+    out_offset_min[0] = 330;
+    return 0;
+  }
+  if (dt_name_eq_ci(name, name_len, &lit_cet[0], 3) != 0) {
+    out_offset_min[0] = 60;
+    return 0;
+  }
+  if (dt_name_eq_ci(name, name_len, &lit_est[0], 3) != 0) {
+    out_offset_min[0] = -300;
+    return 0;
+  }
+  if (dt_name_eq_ci(name, name_len, &lit_pst[0], 3) != 0) {
+    out_offset_min[0] = -480;
+    return 0;
+  }
+  return -1;
+}
+
+/**
+ * 解析 ±HH:MM / ±HHMM / Z 或内置时区名；成功 0 并写 offset_min。
+ */
+function datetime_parse_offset_min_c(ptr: *u8, len: i32, out_offset_min: *i32): i32 {
+  let pos: i32 = 0;
+  let sign: i32 = 1;
+  let oh: i32 = 0;
+  let om: i32 = 0;
+  if (ptr == 0 || len <= 0 || out_offset_min == 0) { return -1; }
+  if (len == 1 && ptr[0] == 90) {
+    out_offset_min[0] = 0;
+    return 0;
+  }
+  if (ptr[0] != 43 && ptr[0] != 45) {
+    return datetime_timezone_from_name_c(ptr, len, out_offset_min);
+  }
+  if (ptr[0] == 45) { sign = -1; }
+  pos = 1;
+  if (pos + 5 <= len && ptr[(pos + 2)] == 58) {
+    if (dt_read_digits(ptr, len, &pos, 2, &oh) != 0) { return -1; }
+    pos = pos + 1;
+    if (dt_read_digits(ptr, len, &pos, 2, &om) != 0) { return -1; }
+  } else if (pos + 4 <= len) {
+    if (dt_read_digits(ptr, len, &pos, 2, &oh) != 0) { return -1; }
+    if (dt_read_digits(ptr, len, &pos, 2, &om) != 0) { return -1; }
+  } else if (pos + 2 <= len) {
+    if (dt_read_digits(ptr, len, &pos, 2, &oh) != 0) { return -1; }
+  } else {
+    return -1;
+  }
+  if (pos != len || oh > 18 || om > 59) { return -1; }
+  out_offset_min[0] = sign * (oh * 60 + om);
+  return 0;
+}
+
+/**
+ * 时区墙钟日历字段 → UTC DateTime（sec+nsec）。
+ * offset_min 为相对 UTC 的分钟偏移（东为正）。
+ */
+function datetime_from_zoned_fields_c(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32, nsec: i32,
+  offset_min: i32, out_sec: *i64, out_nsec: *i32): i32 {
+  let local_sec: i64 = 0;
+  if (out_sec == 0 || out_nsec == 0) { return -1; }
+  if (datetime_from_utc_fields_c(y, mo, d, h, mi, s, nsec, &local_sec, out_nsec) != 0) { return -1; }
+  out_sec[0] = local_sec - (offset_min as i64) * 60;
+  return 0;
+}
+
+// ——— IANA 时区 + DST（原 timezone_iana.inc.c）———
+
+/** 星期（0=周日）由 UTC 日历日推算。 */
+function dt_dow_utc(y: i32, mo: i32, d: i32): i32 {
+  let sec: i64 = dt_utc_to_unix(y, mo, d, 12, 0, 0);
+  let days: i64 = sec / 86400;
+  let dow: i32 = ((days + 4) % 7) as i32;
+  if (dow < 0) { dow = dow + 7; }
+  return dow;
+}
+
+/** 月内第 n 个星期几（n=1 首个 …）；weekday 0=周日。 */
+function dt_nth_weekday(y: i32, mo: i32, n: i32, weekday: i32): i32 {
+  let dow1: i32 = dt_dow_utc(y, mo, 1);
+  let day: i32 = 1 + (weekday - dow1 + 7) % 7 + (n - 1) * 7;
+  return day;
+}
+
+/** 月内最后一个星期几。 */
+function dt_last_weekday(y: i32, mo: i32, weekday: i32): i32 {
+  let dim: i32 = dt_days_in_month(y, mo);
+  let dow_last: i32 = dt_dow_utc(y, mo, dim);
+  return dim - (dow_last - weekday + 7) % 7;
+}
+
+/** 美国 DST：3 月第 2 个周日 02:00 标准时 → UTC。 */
+function dt_us_dst_start_utc(year: i32, std_off_min: i32): i64 {
+  let day: i32 = dt_nth_weekday(year, 3, 2, 0);
+  let wall: i64 = dt_utc_to_unix(year, 3, day, 2, 0, 0);
+  return wall - (std_off_min as i64) * 60;
+}
+
+/** 美国 DST：11 月第 1 个周日 02:00 夏令时 → UTC。 */
+function dt_us_dst_end_utc(year: i32, dst_off_min: i32): i64 {
+  let day: i32 = dt_nth_weekday(year, 11, 1, 0);
+  let wall: i64 = dt_utc_to_unix(year, 11, day, 2, 0, 0);
+  return wall - (dst_off_min as i64) * 60;
+}
+
+/** 欧洲 DST：3 月最后一个周日 01:00 UTC。 */
+function dt_eu_dst_start_utc(year: i32): i64 {
+  let day: i32 = dt_last_weekday(year, 3, 0);
+  return dt_utc_to_unix(year, 3, day, 1, 0, 0);
+}
+
+/** 欧洲 DST：10 月最后一个周日 01:00 UTC。 */
+function dt_eu_dst_end_utc(year: i32): i64 {
+  let day: i32 = dt_last_weekday(year, 10, 0);
+  return dt_utc_to_unix(year, 10, day, 1, 0, 0);
+}
+
+/** 由 UTC 秒取日历年（近似：用 UTC 字段）。 */
+function dt_year_from_utc_sec(sec: i64): i32 {
+  let y: i32 = 0;
+  let mo: i32 = 0;
+  let d: i32 = 0;
+  let h: i32 = 0;
+  let mi: i32 = 0;
+  let s: i32 = 0;
+  dt_unix_to_utc(sec, &y, &mo, &d, &h, &mi, &s);
+  return y;
+}
+
+/** 按 IANA zone id 取标准/夏令偏移与种类。 */
+function dt_iana_std_off(id: i32): i32 {
+  if (id == DT_IANA_US_EASTERN) { return -300; }
+  if (id == DT_IANA_US_PACIFIC) { return -480; }
+  if (id == DT_IANA_EU_LONDON) { return 0; }
+  if (id == DT_IANA_EU_PARIS) { return 60; }
+  if (id == DT_IANA_ASIA_TOKYO) { return 540; }
+  if (id == DT_IANA_ASIA_SHANGHAI) { return 480; }
+  return 0;
+}
+
+function dt_iana_dst_off(id: i32): i32 {
+  if (id == DT_IANA_US_EASTERN) { return -240; }
+  if (id == DT_IANA_US_PACIFIC) { return -420; }
+  if (id == DT_IANA_EU_LONDON) { return 60; }
+  if (id == DT_IANA_EU_PARIS) { return 120; }
+  if (id == DT_IANA_ASIA_TOKYO) { return 540; }
+  if (id == DT_IANA_ASIA_SHANGHAI) { return 480; }
+  return 0;
+}
+
+function dt_iana_kind(id: i32): i32 {
+  if (id == DT_IANA_UTC) { return DT_IANA_UTC; }
+  if (id == DT_IANA_US_EASTERN) { return DT_IANA_US_EASTERN; }
+  if (id == DT_IANA_US_PACIFIC) { return DT_IANA_US_PACIFIC; }
+  if (id == DT_IANA_EU_LONDON) { return DT_IANA_EU_LONDON; }
+  if (id == DT_IANA_EU_PARIS) { return DT_IANA_EU_PARIS; }
+  if (id == DT_IANA_ASIA_TOKYO) { return DT_IANA_ASIA_TOKYO; }
+  if (id == DT_IANA_ASIA_SHANGHAI) { return DT_IANA_ASIA_SHANGHAI; }
+  return DT_IANA_UTC;
+}
+
+/** 按 IANA 种类与 UTC 秒计算偏移（分钟，东为正）。 */
+function dt_iana_offset_for_id(id: i32, sec: i64): i32 {
+  let year: i32 = 0;
+  let start: i64 = 0;
+  let end: i64 = 0;
+  let kind: i32 = dt_iana_kind(id);
+  let std_off: i32 = dt_iana_std_off(id);
+  let dst_off: i32 = dt_iana_dst_off(id);
+  if (id < 0 || id >= DT_IANA_COUNT) { return 0; }
+  if (kind == DT_IANA_UTC) { return 0; }
+  if (kind == DT_IANA_ASIA_TOKYO || kind == DT_IANA_ASIA_SHANGHAI) { return std_off; }
+  if (kind == DT_IANA_US_EASTERN || kind == DT_IANA_US_PACIFIC) {
+    year = dt_year_from_utc_sec(sec);
+    start = dt_us_dst_start_utc(year, std_off);
+    end = dt_us_dst_end_utc(year, dst_off);
+    if (sec >= start && sec < end) { return dst_off; }
+    return std_off;
+  }
+  if (kind == DT_IANA_EU_LONDON || kind == DT_IANA_EU_PARIS) {
+    year = dt_year_from_utc_sec(sec);
+    start = dt_eu_dst_start_utc(year);
+    end = dt_eu_dst_end_utc(year);
+    if (sec >= start && sec < end) { return dst_off; }
+    return std_off;
+  }
+  return std_off;
+}
+
+/** 名称精确匹配 IANA 表；成功返回 zone id（>=0），失败 -1。 */
+function datetime_iana_from_name_c(name: *u8, name_len: i32): i32 {
+  let n_ny: u8[16] = [65, 109, 101, 114, 105, 99, 97, 47, 78, 101, 119, 95, 89, 111, 114, 107];
+  let n_la: u8[19] = [65, 109, 101, 114, 105, 99, 97, 47, 76, 111, 115, 95, 65, 110, 103, 101, 108, 101, 115];
+  let n_ldn: u8[13] = [69, 117, 114, 111, 112, 101, 47, 76, 111, 110, 100, 111, 110];
+  let n_par: u8[12] = [69, 117, 114, 111, 112, 101, 47, 80, 97, 114, 105, 115];
+  let n_tyo: u8[10] = [65, 115, 105, 97, 47, 84, 111, 107, 121, 111];
+  let n_sha: u8[13] = [65, 115, 105, 97, 47, 83, 104, 97, 110, 103, 104, 97, 105];
+  let n_utc: u8[3] = [85, 84, 67];
+  if (name == 0 || name_len <= 0) { return -1; }
+  if (dt_name_eq(name, name_len, &n_utc[0], 3) != 0) { return DT_IANA_UTC; }
+  if (dt_name_eq(name, name_len, &n_ny[0], 16) != 0) { return DT_IANA_US_EASTERN; }
+  if (dt_name_eq(name, name_len, &n_la[0], 19) != 0) { return DT_IANA_US_PACIFIC; }
+  if (dt_name_eq(name, name_len, &n_ldn[0], 13) != 0) { return DT_IANA_EU_LONDON; }
+  if (dt_name_eq(name, name_len, &n_par[0], 12) != 0) { return DT_IANA_EU_PARIS; }
+  if (dt_name_eq(name, name_len, &n_tyo[0], 10) != 0) { return DT_IANA_ASIA_TOKYO; }
+  if (dt_name_eq(name, name_len, &n_sha[0], 13) != 0) { return DT_IANA_ASIA_SHANGHAI; }
+  return -1;
+}
+
+/** 按 IANA zone id 与 UTC 秒取偏移（含 DST）；非法 id 返回 0。 */
+function datetime_iana_offset_at_c(iana_id: i32, sec: i64): i32 {
+  if (iana_id < 0 || iana_id >= DT_IANA_COUNT) { return 0; }
+  return dt_iana_offset_for_id(iana_id, sec);
+}
+
+/**
+ * IANA 墙钟字段 → UTC（一次 refinement 处理 DST 边界）。
+ */
+function datetime_from_iana_zoned_fields_c(iana_id: i32, y: i32, mo: i32, d: i32, h: i32, mi: i32,
+  s: i32, nsec: i32, out_sec: *i64, out_nsec: *i32): i32 {
+  let naive: i64 = 0;
+  let off: i32 = 0;
+  let std_off: i32 = 0;
+  if (iana_id < 0 || iana_id >= DT_IANA_COUNT || out_sec == 0 || out_nsec == 0) { return -1; }
+  if (nsec < 0 || nsec >= 1000000000) { return -1; }
+  std_off = dt_iana_std_off(iana_id);
+  naive = dt_utc_to_unix(y, mo, d, h, mi, s);
+  off = dt_iana_offset_for_id(iana_id, naive - (std_off as i64) * 60);
+  out_sec[0] = naive - (off as i64) * 60;
+  out_nsec[0] = nsec;
+  off = dt_iana_offset_for_id(iana_id, out_sec[0]);
+  out_sec[0] = naive - (off as i64) * 60;
+  return 0;
+}
+
+/** STD-135：固定偏移时区名与 UTC/本地字段转换金样。 */
+function datetime_timezone_smoke_c(): i32 {
+  let off: i32 = 0;
+  let sec: i64 = 0;
+  let nsec: i32 = 0;
+  let y: i32 = 0;
+  let mo: i32 = 0;
+  let d: i32 = 0;
+  let h: i32 = 0;
+  let mi: i32 = 0;
+  let s: i32 = 0;
+  let jst: u8[3] = [74, 83, 84];
+  let p8: u8[6] = [43, 48, 56, 58, 48, 48];
+  let m5: u8[6] = [45, 48, 53, 58, 48, 48];
+  let bad: u8[3] = [66, 65, 68];
+  if (datetime_timezone_from_name_c(&jst[0], 3, &off) != 0 || off != 540) { return 1; }
+  if (datetime_parse_offset_min_c(&p8[0], 6, &off) != 0 || off != 480) { return 2; }
+  if (datetime_parse_offset_min_c(&m5[0], 6, &off) != 0 || off != -300) { return 3; }
+  if (datetime_from_zoned_fields_c(2020, 1, 1, 12, 0, 0, 0, 480, &sec, &nsec) != 0) { return 4; }
+  if (sec != 1577851200 || nsec != 0) { return 5; }
+  datetime_local_fields_c(sec, 480, &y, &mo, &d, &h, &mi, &s);
+  if (y != 2020 || mo != 1 || d != 1 || h != 12 || mi != 0 || s != 0) { return 6; }
+  if (datetime_timezone_from_name_c(&bad[0], 3, &off) == 0) { return 7; }
+  return 0;
+}
+
+/** IANA DST 烟测：纽约冬/夏偏移 + 伦敦 BST；0 通过。 */
+function datetime_iana_dst_smoke_c(): i32 {
+  let id: i32 = 0;
+  let off: i32 = 0;
+  let y: i32 = 0;
+  let mo: i32 = 0;
+  let d: i32 = 0;
+  let h: i32 = 0;
+  let mi: i32 = 0;
+  let s: i32 = 0;
+  let winter: i64 = 1705320000;
+  let summer: i64 = 1721044800;
+  let ny: u8[16] = [65, 109, 101, 114, 105, 99, 97, 47, 78, 101, 119, 95, 89, 111, 114, 107];
+  let ldn: u8[13] = [69, 117, 114, 111, 112, 101, 47, 76, 111, 110, 100, 111, 110];
+  let tyo: u8[10] = [65, 115, 105, 97, 47, 84, 111, 107, 121, 111];
+  id = datetime_iana_from_name_c(&ny[0], 16);
+  if (id < 0) { return 1; }
+  off = datetime_iana_offset_at_c(id, winter);
+  if (off != -300) { return 2; }
+  off = datetime_iana_offset_at_c(id, summer);
+  if (off != -240) { return 3; }
+  datetime_local_fields_c(winter, -300, &y, &mo, &d, &h, &mi, &s);
+  if (h != 7) { return 4; }
+  datetime_local_fields_c(summer, off, &y, &mo, &d, &h, &mi, &s);
+  if (h != 8) { return 5; }
+  id = datetime_iana_from_name_c(&ldn[0], 13);
+  if (id < 0) { return 6; }
+  off = datetime_iana_offset_at_c(id, winter);
+  if (off != 0) { return 7; }
+  off = datetime_iana_offset_at_c(id, summer);
+  if (off != 60) { return 8; }
+  datetime_local_fields_c(summer, off, &y, &mo, &d, &h, &mi, &s);
+  if (h != 13) { return 9; }
+  if (datetime_iana_from_name_c(&tyo[0], 10) < 0) { return 10; }
+  if (datetime_iana_offset_at_c(datetime_iana_from_name_c(&tyo[0], 10), summer) != 540) { return 11; }
+  return 0;
+}
+
+/** C 烟测：RFC3339 往返 + 已知时间戳。 */
+function datetime_smoke_c(): i32 {
+  let sec: i64 = 0;
+  let nsec: i32 = 0;
+  let n: i32 = 0;
+  let buf: u8[64] = [];
+  let raw20: u8[20] = [50, 48, 50, 48, 45, 48, 49, 45, 48, 50, 84, 48, 51, 58, 48, 52, 58, 48, 53, 90];
+  let expect20: u8[20] = [50, 48, 50, 48, 45, 48, 49, 45, 48, 50, 84, 48, 51, 58, 48, 52, 58, 48, 53, 90];
+  let raw30: u8[30] = [50, 48, 50, 48, 45, 48, 49, 45, 48, 50, 84, 48, 51, 58, 48, 52, 58, 48, 53, 46, 49, 50, 51, 52, 53, 54, 55, 56, 57, 90];
+  if (datetime_parse_rfc3339_c(&raw20[0], 20, &sec, &nsec, 0) != 0) { return 1; }
+  if (sec != 1577934245 || nsec != 0) { return 2; }
+  n = datetime_format_rfc3339_c(sec, nsec, &buf[0], 64);
+  if (n != 20) { return 3; }
+  unsafe { if (memcmp(&buf[0], &expect20[0], 20) != 0) { return 4; } }
+  if (datetime_parse_rfc3339_c(&raw30[0], 30, &sec, &nsec, 0) != 0) { return 5; }
+  if (sec != 1577934245 || nsec != 123456789) { return 6; }
+  if (datetime_add_duration_ns_c(sec, nsec, 1000000000, &sec, &nsec) != 0) { return 7; }
+  if (sec != 1577934246) { return 8; }
+  if (datetime_timezone_smoke_c() != 0) { return 9; }
+  if (datetime_iana_dst_smoke_c() != 0) { return 10; }
+  return 0;
+}

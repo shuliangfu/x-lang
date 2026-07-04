@@ -47,7 +47,7 @@ else
     fi
   fi
 fi
-BENCH_SRC="tests/bench/string_arena_concat.sx"
+BENCH_SRC="tests/bench/string_arena_concat.x"
 BENCH_EXE="/tmp/shux_string_arena_bench"
 EXPECT_N="${SHUX_STRING_BENCH_N:-128}"
 
@@ -61,7 +61,7 @@ fi
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 ensure_std_c_o ../std/string/string.o
-# F-03 v2：heap 已纯 .sx，不再 ensure heap.o
+# F-03 v2：heap 已纯 .x，不再 ensure heap.o
 
 rm -f "$BENCH_EXE"
 

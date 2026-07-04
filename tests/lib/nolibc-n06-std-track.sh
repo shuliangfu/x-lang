@@ -72,10 +72,10 @@ nolibc_n06_audit_manifest() {
   return 0
 }
 
-# 统计 manifest 中 sx_replacement 条目数（供 gate 日志）。
-nolibc_n06_count_sx_replacements() {
+# 统计 manifest 中 x_replacement 条目数（供 gate 日志）。
+nolibc_n06_count_x_replacements() {
   local manifest="${1:-tests/baseline/nolibc-n06-freestanding-replacements.tsv}"
-  awk -F'\t' '$2=="sx_replacement" { c++ } END { print c+0 }' "$manifest"
+  awk -F'\t' '$2=="x_replacement" { c++ } END { print c+0 }' "$manifest"
 }
 
 # 统计 legacy_c 条目数。

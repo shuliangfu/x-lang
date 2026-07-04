@@ -1,1 +1,1 @@
-sh: line 1: 71788 Segmentation fault: 11  ./shux-c -E -L .. ../std/json/json.sx > ../tests/probes/bootstrap-parser/json_core_gen_probe.c
+sh: line 1: 71788 Segmentation fault: 11  ./shux-c -E -L .. ../std/json/json.x > ../tests/probes/bootstrap-parser/json_core_gen_probe.c

@@ -64,7 +64,7 @@ while IFS=$'\t' read -r bench_id fixture cmd_kind max_r _target _notes; do
   cap="$(comp_incr_compile_effective_cap "$cap")"
   first_ms=0
   second_ms=0
-  FIX="${fixture:-tests/bench/loop_i32.sx}"
+  FIX="${fixture:-tests/bench/loop_i32.x}"
   if [ "$cmd_kind" != "make_q" ] && [ ! -f "$FIX" ]; then
     echo "comp-incr-compile SKIP $bench_id (no fixture $FIX)"
     continue

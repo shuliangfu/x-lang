@@ -1,8 +1,8 @@
 /**
  * user_asm_seed_bridge.c — bootstrap-driver-seed 用户程序 asm 后端桥
  *
- * pipeline_sx.o（-E-extern 瘦编排）经 extern 调用 asm_asm_codegen_ast / asm_asm_codegen_elf_o；
- * 本文件提供强符号实现，并链入 build_asm/seed_host/asm_backend_partial.o（shux-c -E asm.sx 抽出）。
+ * pipeline_x.o（-E-extern 瘦编排）经 extern 调用 asm_asm_codegen_ast / asm_asm_codegen_elf_o；
+ * 本文件提供强符号实现，并链入 build_asm/seed_host/asm_backend_partial.o（shux-c -E asm.x 抽出）。
  * 无 C codegen 回退、无 cc -c 汇编 GAS 兜底：asm 失败即返回错误。
  */
 #include <stdint.h>
@@ -77,7 +77,7 @@ struct platform_elf_ElfCodegenCtx {
   uint8_t sym_name_data[131072];
 };
 
-/** pipeline_sx.o / ast_pool.c（勿在此 TU 自建截断 PipelineDepCtx，含 4MiB 内嵌缓冲） */
+/** pipeline_x.o / ast_pool.c（勿在此 TU 自建截断 PipelineDepCtx，含 4MiB 内嵌缓冲） */
 extern int32_t pipeline_dep_ctx_use_macho_o(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_dep_ctx_use_coff_o(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_dep_ctx_asm_entry_module_only(struct ast_PipelineDepCtx *ctx);
@@ -121,16 +121,16 @@ double pipeline_expr_float_val_at(struct ast_ASTArena *a, int32_t expr_ref) {
   return *(double *)((char *)p + 24);
 }
 
-/** ast.sx extern 前缀转发。 */
+/** ast.x extern 前缀转发。 */
 double ast_pipeline_expr_float_val_at(struct ast_ASTArena *a, int32_t expr_ref) {
   return pipeline_expr_float_val_at(a, expr_ref);
 }
 
-/** build_asm/seed_host/asm_backend_partial.o（asm.sx 全量 -E 抽出） */
+/** build_asm/seed_host/asm_backend_partial.o（asm.x 全量 -E 抽出） */
 extern int32_t backend_asm_emit_one_call_arg_elf_arm64_push(void *arena, void *elf_ctx, int32_t expr_ref, int32_t arg_idx, void *ctx, int32_t ta);
 
 /**
- * ARM64 ELF call 实参 push 阶段：宿主 C for 循环逐参调用 backend，避免 .sx 递归/展开叠加深 emit 栈帧 SIGSEGV。
+ * ARM64 ELF call 实参 push 阶段：宿主 C for 循环逐参调用 backend，避免 .x 递归/展开叠加深 emit 栈帧 SIGSEGV。
  */
 int32_t pipeline_seed_asm_emit_call_args_elf_arm64_push_loop(void *arena, void *elf_ctx, int32_t expr_ref, int32_t reg_n, void *ctx, int32_t ta) {
   int32_t i;
@@ -147,26 +147,26 @@ int32_t pipeline_seed_asm_emit_call_args_elf_arm64_push_loop(void *arena, void *
   return 0;
 }
 
-/** ast.sx -E 前缀转发（backend partial.o 经 ast_pipeline_* 调用）。 */
+/** ast.x -E 前缀转发（backend partial.o 经 ast_pipeline_* 调用）。 */
 int32_t ast_pipeline_seed_asm_emit_call_args_elf_arm64_push_loop(void *arena, void *elf_ctx, int32_t expr_ref, int32_t reg_n, void *ctx, int32_t ta) {
   return pipeline_seed_asm_emit_call_args_elf_arm64_push_loop(arena, elf_ctx, expr_ref, reg_n, ctx, ta);
 }
 
-/** build_asm/seed_host/asm_backend_partial.o（asm.sx 全量 -E 抽出） */
+/** build_asm/seed_host/asm_backend_partial.o（asm.x 全量 -E 抽出） */
 extern int32_t backend_asm_codegen_ast(void *module, void *arena, void *out_buf, void *ctx);
 extern int32_t backend_asm_codegen_ast_to_elf(void *module, void *arena, void *elf_ctx, void *ctx);
 extern int32_t peephole_run(void *out_buf);
 extern int32_t peephole_elf_run(void *elf_ctx);
-/** ElfCodegenCtx.macho_leading_underscore 偏移（与 ast_pool.c kPipelineElfCtxMachoUnderscoreOff / elf.sx 4096 表一致）。 */
+/** ElfCodegenCtx.macho_leading_underscore 偏移（与 ast_pool.c kPipelineElfCtxMachoUnderscoreOff / elf.x 4096 表一致）。 */
 #define SHUX_ELF_CTX_MACHO_UNDERSCORE_OFF 598052
 
-/** Darwin -o：call/reloc 符号须 leading `_`（与 asm.sx::asm_codegen_elf_o 一致）。 */
+/** Darwin -o：call/reloc 符号须 leading `_`（与 asm.x::asm_codegen_elf_o 一致）。 */
 static void seed_elf_ctx_set_macho_leading_underscore(void *elf_ctx, int32_t on) {
   if (!elf_ctx)
     return;
   *(int32_t *)((uint8_t *)elf_ctx + SHUX_ELF_CTX_MACHO_UNDERSCORE_OFF) = on ? 1 : 0;
 }
-/** asm 失败时打印 backend.sx 记录的当前函数名。 */
+/** asm 失败时打印 backend.x 记录的当前函数名。 */
 extern void driver_diagnostic_asm_print_current_func(void);
 extern int32_t pipeline_asm_patch_module_parent_links(struct ast_Module *m, struct ast_ASTArena *a);
 extern void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast_ASTArena *entry_arena,
@@ -195,7 +195,7 @@ int32_t platform_elf_elf_resolve_patches(void *elf_ctx) {
   return pipeline_elf_ctx_resolve_patches((uint8_t *)elf_ctx);
 }
 
-/** 读 ElfCodegenCtx.code_len（前缀字段；与 platform/elf.sx / PipelineElfCtxAccess 一致）。 */
+/** 读 ElfCodegenCtx.code_len（前缀字段；与 platform/elf.x / PipelineElfCtxAccess 一致）。 */
 static int32_t seed_elf_ctx_code_len(const void *elf_ctx) {
   if (!elf_ctx)
     return 0;
@@ -259,7 +259,7 @@ static int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_b
 #endif
 }
 
-/** .sx 模块名修饰后的 pipeline_module_num_funcs 转发（asm/backend 分 TU 链接）。 */
+/** .x 模块名修饰后的 pipeline_module_num_funcs 转发（asm/backend 分 TU 链接）。 */
 int32_t asm_pipeline_module_num_funcs(struct ast_Module *m) {
   return pipeline_module_num_funcs(m);
 }
@@ -280,7 +280,7 @@ int32_t asm_asm_codegen_ast(void *module, void *arena, void *out_buf, void *ctx)
 }
 
 /**
- * 写出 -o .o / -o exe：先各 dep 再入口（与 asm.sx::asm_codegen_elf_o 一致），再 reloc + 写 Mach-O/ELF。
+ * 写出 -o .o / -o exe：先各 dep 再入口（与 asm.x::asm_codegen_elf_o 一致），再 reloc + 写 Mach-O/ELF。
  */
 int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ctx, void *out_buf) {
   struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)ctx;

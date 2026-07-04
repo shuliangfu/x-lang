@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# fix_asm_full_gen_c.pl — shux -E asm.sx 产出 C 的宿主 cc 兼容补丁（G-06 build_seed_asm_host）
+# fix_asm_full_gen_c.pl — shux -E asm.x 产出 C 的宿主 cc 兼容补丁（G-06 build_seed_asm_host）
 # 修复：固定数组字段顺序、float_val、enum 字段、import 限定调用、asm.types 残缺 emit、指针字段访问等。
 use strict;
 use warnings;
@@ -143,7 +143,7 @@ $src =~ s/(void backend_\w+\([^)]*\)\s*\{.*?)\n  return 0;\n(\})/$1\n$2/sg;
 # codegen 双前缀
 $src =~ s/\bcodegen_codegen_(\w+)/codegen_$1/g;
 
-# -E backend.sx import glue 误加 backend_ 前缀（链入 pipeline_glue / ast_pool 真符号）
+# -E backend.x import glue 误加 backend_ 前缀（链入 pipeline_glue / ast_pool 真符号）
 # 保留 pipeline_glue 中少数 backend_pipeline_expr_struct_lit_* 与 user_asm_seed 的 backend_pipeline_module_num_funcs
 $src =~ s/\bbackend_pipeline_backend_/pipeline_backend_/g;
 $src =~ s/\bbackend_pipeline_asm_/pipeline_asm_/g;
@@ -154,7 +154,7 @@ $src =~ s/\bbackend_pipeline_block_/pipeline_block_/g;
 $src =~ s/\bbackend_backend_/backend_/g;
 $src =~ s/\bbackend_asm_ctx_local_/asm_ctx_local_/g;
 
-# platform_elf import pipeline 符号：partial 链 pipeline_sx.o（ast_pool）而非 platform_elf_pipeline_* 子集
+# platform_elf import pipeline 符号：partial 链 pipeline_x.o（ast_pool）而非 platform_elf_pipeline_* 子集
 $src =~ s/\bplatform_elf_pipeline_elf_ctx_/pipeline_elf_ctx_/g;
 $src =~ s/\bplatform_elf_pipeline_elf_pgo_hot_enabled\b/pipeline_elf_pgo_hot_enabled/g;
 $src =~ s/\bplatform_elf_pipeline_elf_label_mod_scope_reset\b/pipeline_elf_label_mod_scope_reset/g;
@@ -278,7 +278,7 @@ $src =~ s/struct\s+[A-Za-z0-9_]+_ExprKind\s+(\w+)\)/int32_t $1)/g;
 # 残余 ExprKind 变体
 $src =~ s/ExprKind\.EXPR_BINOP/51/g;
 
-# ast_ast_arena_expr_get 按值拷贝 → pipeline glue（backend.sx M8 路径）
+# ast_ast_arena_expr_get 按值拷贝 → pipeline glue（backend.x M8 路径）
 $src =~ s/int32_t backend_asm_init_is_empty_array_lit\(struct backend_ASTArena \* arena, int32_t init_ref\) \{.*?\n\}/int32_t backend_asm_init_is_empty_array_lit(struct backend_ASTArena * arena, int32_t init_ref) {\n  if (init_ref == 0) { return 0; }\n  if (pipeline_expr_kind_ord_at((struct ast_ASTArena *)arena, init_ref) != 46) { return 0; }\n  return pipeline_expr_array_lit_num_elems_at((struct ast_ASTArena *)arena, init_ref) == 0;\n}/s;
 
 # arch_*_enc_enc_* 调用：从 backend_enc_dispatch.c 复制正确 extern（勿 void 桩，否则 cc 报参数个数不匹配）
@@ -374,7 +374,7 @@ for my $pfx (qw(platform_elf platform_macho platform_coff)) {
   $src =~ s/struct ${pfx}_ElfCodegenCtx \{.*?\n\};/$full/s;
 }
 
-# backend.sx import elf.ElfCodegenCtx → backend_ElfCodegenCtx；与 platform_elf 同布局（-E 截断时二者并存导致 cc 不兼容）
+# backend.x import elf.ElfCodegenCtx → backend_ElfCodegenCtx；与 platform_elf 同布局（-E 截断时二者并存导致 cc 不兼容）
 if ($src =~ /struct platform_elf_ElfCodegenCtx \{/) {
   unless ($src =~ /typedef struct platform_elf_ElfCodegenCtx backend_ElfCodegenCtx/) {
     $src =~ s/(struct platform_elf_ElfCodegenCtx \{.*?\n\};)/$1\n\ntypedef struct platform_elf_ElfCodegenCtx backend_ElfCodegenCtx;\n/s;

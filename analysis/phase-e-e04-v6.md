@@ -22,4 +22,4 @@ make -C compiler src/runtime_link_abi.o src/runtime_driver_no_c.o
 
 - ~~Linux 链接硬化~~ → ✅ E-04 v7
 - `invoke_cc` / `invoke_ld` / `asm_invoke_ld_platform` 主体
-- `main.c` → crt0 / main.sx 全入口
+- `main.c` → crt0 / main.x 全入口

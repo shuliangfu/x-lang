@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S3 driver EMIT_HEAVY 烟测：用 shux_asm 第二遍重编 compile.sx，统计非 ret0 桩的真机码函数数。
+# S3 driver EMIT_HEAVY 烟测：用 shux_asm 第二遍重编 compile.x，统计非 ret0 桩的真机码函数数。
 # 依赖：compiler/shux_asm.experimental 或 strict_glue 已重链含最新 ast_pool.c。
 # 用法：./tests/run-s3-driver-emit-heavy.sh
 # 门禁：SHUX_S3_FAIL_ON_EMIT_HEAVY=1 — real_funcs / __text 低于 baseline 时失败
@@ -14,7 +14,7 @@ if [ -z "$COMP" ]; then
     fi
   done
 fi
-COMPILE_SX="compiler/src/driver/compile.sx"
+COMPILE_X="compiler/src/driver/compile.x"
 OUT="/tmp/shux_s3_driver_emit_heavy.o"
 BASELINE="${SHUX_S3_DRIVER_EMIT_BASELINE:-tests/baseline/s3-driver-o.tsv}"
 LIBROOT="-L compiler/asm_libroot -L compiler/.. -L compiler/src -L compiler/src/lexer -L compiler/src/ast -L compiler/src/parser -L compiler/src/typeck -L compiler/src/codegen -L compiler/src/preprocess -L compiler/src/pipeline -L compiler/src/lsp -L compiler/src/asm"
@@ -64,7 +64,7 @@ PY
 
 rm -f "$OUT"
 if ! env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$COMP" -backend asm -o "$OUT" $LIBROOT "$COMPILE_SX" 2>/dev/null; then
+  "$COMP" -backend asm -o "$OUT" $LIBROOT "$COMPILE_X" 2>/dev/null; then
   echo "s3 driver emit-heavy: compile failed" >&2
   exit 1
 fi
@@ -103,8 +103,8 @@ PY
     "driver_compile_parse_argv_loop:20" \
     "driver_compile_parse_argv_finalize:20" \
     "driver_compile_parse_argv:25" \
-    "run_compiler_full_sx:15" \
-    "run_compiler_full_sx_post_parse:40" \
+    "run_compiler_full_x:15" \
+    "run_compiler_full_x_post_parse:40" \
     "compile_dispatch_asm_backend:15"; do
     fn="${pair%%:*}"
     min="${pair##*:}"

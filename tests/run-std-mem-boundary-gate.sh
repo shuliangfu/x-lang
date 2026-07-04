@@ -11,10 +11,10 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_MEM_BOUNDARY_DOC:-analysis/std-mem-boundary-v1.md}"
 MANIFEST="${SHUX_STD_MEM_BOUNDARY_TSV:-tests/baseline/std-mem-boundary.tsv}"
-CORE_SX="core/mem/mod.sx"
-STD_SX="std/mem/mod.sx"
+CORE_X="core/mem/mod.x"
+STD_X="std/mem/mod.x"
 STD_README="std/mem/README.md"
-SMOKE="tests/mem/std_mem_boundary.sx"
+SMOKE="tests/mem/std_mem_boundary.x"
 LIB="tests/lib/std-mem-boundary.sh"
 MIN_CORE=4
 MIN_STD=4
@@ -35,7 +35,7 @@ native_shu() {
 }
 
 echo "=== STD-018: std.mem boundary manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$CORE_SX" "$STD_SX" "$STD_README" "$SMOKE"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$CORE_X" "$STD_X" "$STD_README" "$SMOKE"; do
   if [ ! -f "$f" ]; then
     echo "std-mem-boundary gate FAIL: missing $f" >&2
     exit 1
@@ -104,8 +104,8 @@ if [ "$MISS" -gt 0 ]; then
   exit 1
 fi
 
-sym_miss="$(std_mem_boundary_symbols_ok "$CORE_SX" "$STD_SX" "$MANIFEST" || true)"
-cross_miss="$(std_mem_boundary_forbidden_ok "$STD_SX" "$MANIFEST" || true)"
+sym_miss="$(std_mem_boundary_symbols_ok "$CORE_X" "$STD_X" "$MANIFEST" || true)"
+cross_miss="$(std_mem_boundary_forbidden_ok "$STD_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ] || [ "${cross_miss:-0}" -gt 0 ]; then
   std_mem_boundary_emit_report "fail" "$CORE_N" "$STD_N" 0 1
   exit 1

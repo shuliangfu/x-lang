@@ -13,8 +13,8 @@ if [ ! -f compiler/shux ] || [ ! -x compiler/shux ]; then
 fi
 
 # 与 run-bootstrap-bstrict-ci.sh 一致：保留 seed 作 asm-73 回退。
-if [ -x compiler/shux-sx ]; then
-  cp -f compiler/shux-sx compiler/shux_asm73_seed
+if [ -x compiler/shux-x ]; then
+  cp -f compiler/shux-x compiler/shux_asm73_seed
 elif [ -x compiler/shux ]; then
   cp -f compiler/shux compiler/shux_asm73_seed
 fi

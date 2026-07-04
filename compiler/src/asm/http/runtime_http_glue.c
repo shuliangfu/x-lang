@@ -2,7 +2,7 @@
  * runtime_http_glue.c — F-ZC：自 std/http/http_glue.c 迁入 — HTTP 客户端胶层（F-http v1）：最小 HTTP 客户端（P4 可选；对标 Zig std.http、Rust reqwest 最小子集）
  *
  * 【文件职责】GET/POST/HEAD/PUT/DELETE/PATCH/OPTIONS：解析 http(s)://host[:port][/path]，connect + 可选 TLS + send/recv。
- * 【所属模块/组件】std.http；经 ld -r 与 http.sx 合并为 http.o；与 mod.sx 同属一模块。依赖 socket/getaddrinfo（Unix -lc；Windows ws2_32）。
+ * 【所属模块/组件】std.http；经 ld -r 与 http.x 合并为 http.o；与 mod.x 同属一模块。依赖 socket/getaddrinfo（Unix -lc；Windows ws2_32）。
  */
 
 #include <stdint.h>

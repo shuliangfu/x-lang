@@ -2,8 +2,8 @@
 # 列：item_id	kind	anchor	notes
 fsio_doc	doc	analysis/phase-f-socketio-v1.md	F-socketio v1
 fsio_gate	gate	tests/run-f-socketio-v1-gate.sh	聚合门禁
-sio_sx	file	std/socketio/socketio.sx	模块锚点 .sx
+sio_x	file	std/socketio/socketio.x	模块锚点 .x
 sio_glue_absent	absent	std/socketio/socketio_glue.c	v2 已删；见 f-socketio-v2
-sio_mod	file	std/socketio/mod.sx	对外 API
+sio_mod	file	std/socketio/mod.x	对外 API
 sio_c_absent	absent	std/socketio/socketio.c	已删除
 makefile	makefile	compiler/Makefile	socketio.o ld -r merge

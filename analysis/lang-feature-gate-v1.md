@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 版本层 G1–G6 |
 | 2 | 打开 `tests/baseline/lang-feature-gate.tsv` |
 | 3 | `./tests/run-lang-feature-gate-gate.sh` |
-| 4 | `./scripts/shux-lang-edition.sh 2024 tests/lang-feature/edition_stable.sx` |
+| 4 | `./scripts/shux-lang-edition.sh 2024 tests/lang-feature/edition_stable.x` |
 
 ---
 
@@ -34,13 +34,13 @@
 
 ```bash
 # 稳定 edition（wrapper 注入 -D）
-./scripts/shux-lang-edition.sh 2024 app.sx -o app
+./scripts/shux-lang-edition.sh 2024 app.x -o app
 
 # 实验 edition
-./scripts/shux-lang-edition.sh 2025 app.sx -o app.exp
+./scripts/shux-lang-edition.sh 2025 app.x -o app.exp
 
 # 单特性
-shux -D SHUX_FEATURE_MATCH_STMT app.sx -o app
+shux -D SHUX_FEATURE_MATCH_STMT app.x -o app
 ```
 
 v1 **不**解析源码 `edition 2024` 文件头（v1.1）；版本仅通过 **`-D` + wrapper** 表达。
@@ -63,10 +63,10 @@ v1 **不**解析源码 `edition 2024` 文件头（v1.1）；版本仅通过 **`-
 
 | case_id | 文件 | 编译方式 | 期望 exit |
 |---------|------|----------|-----------|
-| `case_edition_stable` | `edition_stable.sx` | 无 `-D SHUX_EDITION_2025` | 0 |
-| `case_edition_exp` | `edition_stable.sx` | `-D SHUX_EDITION_2025` | 99 |
-| `case_feature_off` | `feature_match.sx` | 无 feature flag | 0 |
-| `case_feature_on` | `feature_match.sx` | `-D SHUX_FEATURE_MATCH_STMT` | 42 |
+| `case_edition_stable` | `edition_stable.x` | 无 `-D SHUX_EDITION_2025` | 0 |
+| `case_edition_exp` | `edition_stable.x` | `-D SHUX_EDITION_2025` | 99 |
+| `case_feature_off` | `feature_match.x` | 无 feature flag | 0 |
+| `case_feature_on` | `feature_match.x` | `-D SHUX_FEATURE_MATCH_STMT` | 42 |
 
 ---
 

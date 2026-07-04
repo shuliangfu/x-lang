@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_FFI_CSTRING_DOC:-analysis/std-ffi-cstring-lifecycle-v1.md}"
 MANIFEST="${SHUX_STD_FFI_CSTRING_TSV:-tests/baseline/std-ffi-cstring-lifecycle.tsv}"
 VECTORS="${SHUX_STD_FFI_CSTRING_VECTORS:-tests/baseline/std-ffi-cstring-lifecycle-vectors.tsv}"
-MOD_SX="std/ffi/mod.sx"
-FFI_IMPL="std/ffi/ffi.sx"
+MOD_X="std/ffi/mod.x"
+FFI_IMPL="std/ffi/ffi.x"
 LIB="tests/lib/std-ffi-cstring-lifecycle.sh"
-SMOKE_SX="tests/std-ffi/cstring_try_new.sx"
+SMOKE_X="tests/std-ffi/cstring_try_new.x"
 SMOKE_C="tests/std-ffi/cstring_lifecycle_ok.c"
 SAFE_HOOK="tests/run-safe-ffi-contract-gate.sh"
 MIN_APIS=4
@@ -20,7 +20,7 @@ MIN_APIS=4
 . "$LIB"
 
 echo "=== STD-055: ffi cstring lifecycle manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$FFI_IMPL" "$SMOKE_SX" "$SMOKE_C" "$SAFE_HOOK"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$FFI_IMPL" "$SMOKE_X" "$SMOKE_C" "$SAFE_HOOK"; do
   if [ ! -f "$f" ]; then
     echo "std-ffi-cstring gate FAIL: missing $f" >&2
     exit 1
@@ -48,7 +48,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
         echo "std-ffi-cstring gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -67,7 +67,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_ffi_cstring_symbols_ok "$MOD_SX" "$FFI_IMPL" "$FFI_IMPL" "$MANIFEST" || true)"
+sym_miss="$(std_ffi_cstring_symbols_ok "$MOD_X" "$FFI_IMPL" "$FFI_IMPL" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_ffi_cstring_emit_report "fail" 0 0 0 0
   echo "std-ffi-cstring gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -88,7 +88,7 @@ else
   echo "std-ffi-cstring gate SKIP c smoke (no shux-c)" >&2
 fi
 
-SX_OK=0
+X_OK=0
 SKIP=0
 SHUX_BIN=""
 stdlib_cm_native_shu() {
@@ -109,21 +109,21 @@ elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux ||
 fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-055: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-    echo "std-ffi-cstring gate FAIL: typeck $SMOKE_SX" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+  echo "=== STD-055: .x smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    echo "std-ffi-cstring gate FAIL: typeck $SMOKE_X" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_ffi_cstring_emit_report "fail" "$C_OK" 0 0 0
     exit 1
   fi
-  if std_ffi_cstring_run_smoke "$SHUX_BIN" "$SMOKE_SX" "try"; then
-    SX_OK=1
+  if std_ffi_cstring_run_smoke "$SHUX_BIN" "$SMOKE_X" "try"; then
+    X_OK=1
   else
     std_ffi_cstring_emit_report "fail" "$C_OK" 0 0 0
     exit 1
   fi
 else
-  echo "std-ffi-cstring gate SKIP .sx smoke (no native shux)" >&2
+  echo "std-ffi-cstring gate SKIP .x smoke (no native shux)" >&2
   SKIP=1
 fi
 
@@ -136,10 +136,10 @@ if chmod +x "$SAFE_HOOK" && "$SAFE_HOOK" >/tmp/std_ffi_safe004_regress.log 2>&1;
 fi
 if [ "$SAFE_OK" -ne 1 ]; then
   tail -15 /tmp/std_ffi_safe004_regress.log >&2 || true
-  std_ffi_cstring_emit_report "fail" "$C_OK" "$SX_OK" 0 "$SKIP"
+  std_ffi_cstring_emit_report "fail" "$C_OK" "$X_OK" 0 "$SKIP"
   echo "std-ffi-cstring gate FAIL: SAFE-004 regression" >&2
   exit 1
 fi
 
-std_ffi_cstring_emit_report "ok" "$C_OK" "$SX_OK" "$SAFE_OK" "$SKIP"
+std_ffi_cstring_emit_report "ok" "$C_OK" "$X_OK" "$SAFE_OK" "$SKIP"
 echo "std-ffi-cstring gate OK"

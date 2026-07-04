@@ -6,10 +6,10 @@ FAIL=${SHUX_F_QUEUE_V2_FAIL:-0}
 DOC="analysis/phase-f-queue-v2.md"
 MANIFEST="tests/baseline/f-queue-v2-closure.tsv"
 die() { echo "f-queue-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-echo "=== F-queue v2: contention smoke → queue.sx + runtime ==="
+echo "=== F-queue v2: contention smoke → queue.x + runtime ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-queue v2' "$DOC" || die "doc marker"
-[ -f std/queue/queue.sx ] || die "missing queue.sx"
+[ -f std/queue/queue.x ] || die "missing queue.x"
 [ ! -f std/queue/queue_contention_os_glue.c ] || die "queue_contention_os_glue.c should be deleted (F-ZC)"
 [ -f compiler/src/asm/runtime_queue_contention.c ] || die "missing runtime_queue_contention.c"
 [ ! -f std/queue/queue_glue.c ] || die "queue_glue.c should be deleted"
@@ -21,9 +21,9 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
     absent) [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)" ;;
   esac
 done < "$MANIFEST"
-grep -q 'sync_queue_contention_smoke_c' std/queue/queue.sx || die "queue.sx missing smoke"
-grep -q 'queue_contention_worker_push_c' std/queue/queue.sx || die "queue.sx missing worker"
-grep -q 'queue_f_queue_v2_marker_c' std/queue/queue.sx || die "queue.sx missing v2 marker"
+grep -q 'sync_queue_contention_smoke_c' std/queue/queue.x || die "queue.x missing smoke"
+grep -q 'queue_contention_worker_push_c' std/queue/queue.x || die "queue.x missing worker"
+grep -q 'queue_f_queue_v2_marker_c' std/queue/queue.x || die "queue.x missing v2 marker"
 grep -q 'queue_os_run_two_workers_c' compiler/src/asm/runtime_queue_contention.c || die "runtime missing workers"
 grep -q 'queue_glue.c' compiler/Makefile && die "Makefile still references queue_glue.c"
 grep -q 'runtime_queue_contention' compiler/Makefile || die "Makefile missing runtime_queue_contention.o"

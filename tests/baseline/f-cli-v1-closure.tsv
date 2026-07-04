@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	notes
 fcli_doc	doc	analysis/phase-f-cli-v1.md	F-cli v1
 fcli_gate	gate	tests/run-f-cli-v1-gate.sh	聚合门禁
-cli_sx	file	std/cli/cli.sx	纯 .sx 实现
-cli_mod	file	std/cli/mod.sx	对外 API
+cli_x	file	std/cli/cli.x	纯 .x 实现
+cli_mod	file	std/cli/mod.x	对外 API
 cli_c_absent	absent	std/cli/cli.c	已删除
-makefile	makefile	compiler/Makefile	cli.o from cli.sx
+makefile	makefile	compiler/Makefile	cli.o from cli.x

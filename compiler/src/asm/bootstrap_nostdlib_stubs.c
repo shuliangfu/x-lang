@@ -399,7 +399,7 @@ long __isoc23_strtol(const char *nptr, char **endptr, int base) {
   return strtol(nptr, endptr, base);
 }
 
-/** 兼容 glibc 新符号名，避免 runtime_driver_abi / pipeline_sx 在 nostdlib 链丢失解析符号。 */
+/** 兼容 glibc 新符号名，避免 runtime_driver_abi / pipeline_x 在 nostdlib 链丢失解析符号。 */
 unsigned long __isoc23_strtoul(const char *nptr, char **endptr, int base) {
   return strtoul(nptr, endptr, base);
 }

@@ -11,14 +11,14 @@
 | B-03 | `#[repr(C)]` lex + typeck layout + asm smoke | `run-repr-c-*-gate.sh` |
 | B-04 | freestanding **extern→`.s`** syscall 等价内联 asm | `run-b04-freestanding-syscall-gate.sh` |
 | B-05 | Codegen MVP 清单 = asm-73 子集 | `run-b05-codegen-mvp-gate.sh` |
-| B-06 | ast_pool 边界 + .sx pipeline 可依赖 | `run-b06-ast-pool-gate.sh` |
+| B-06 | ast_pool 边界 + .x pipeline 可依赖 | `run-b06-ast-pool-gate.sh` |
 | B-10～13 | std.sys v0～v3 | `run-std-sys-gate.sh` |
 | B-14 | Linux freestanding read/write/open/mmap/openat | `run-linux-*-gate.sh` |
 | B-15 | std.sys 层 io_uring **探测门面**（实现在 std/io） | `run-b15-io-uring-sys-gate.sh` |
 | B-16 | macOS write/mmap/read | `run-macos-*` + `run-sys-read-file` |
 | B-17 | win32 WriteFile/ReadFile/ExitProcess | `run-win32-*` + `run-b17-exit-process-gate.sh` |
 | B-18 | win32 网络 **探测门面**（WSA；IOCP 在 std.io） | `run-b18-win32-net-gate.sh` |
-| B-19 | mod.sx 统一 os_write/read/mmap/exit | `run-b19-sys-mod-facade-gate.sh` |
+| B-19 | mod.x 统一 os_write/read/mmap/exit | `run-b19-sys-mod-facade-gate.sh` |
 | B-20 | generated_c 扫描无 fopen；os_read_file_into | `run-b20-*` + `run-sys-read-file-gate.sh` |
 | B-30 | runtime/stubs OS 调用盘点 TSV | `run-b30-stubs-runtime-os-inventory-gate.sh` |
 | B-31 | freestanding_io_x86_64.s 极薄 `.s` 登记 | `run-b31-freestanding-io-gate.sh` |

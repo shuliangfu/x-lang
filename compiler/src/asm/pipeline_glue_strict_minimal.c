@@ -1,7 +1,7 @@
 /**
  * pipeline_glue_strict_minimal.c — B-strict 链最小 glue（不含 ast_pool / pipeline_glue_types.inc）
  *
- * strict_core partial 已含 pipeline_sx 几乎全部符号；本 TU 仅补 runtime 入口与裸名 parse_into_init。
+ * strict_core partial 已含 pipeline_x 几乎全部符号；本 TU 仅补 runtime 入口与裸名 parse_into_init。
  */
 #include <stdint.h>
 #include <stddef.h>
@@ -290,9 +290,9 @@ struct backend_AsmFuncCtx;
 extern int32_t typeck_typeck_struct_layout_metrics(struct ast_Module *module, struct ast_ASTArena *arena,
                                                    int32_t li, int32_t depth, int32_t check_pad,
                                                    int32_t *out_sz, int32_t *out_al);
-extern int32_t typeck_sx_type_size(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
+extern int32_t typeck_x_type_size(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
                                    int32_t depth);
-extern int32_t typeck_sx_type_align(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
+extern int32_t typeck_x_type_align(struct ast_Module *module, struct ast_ASTArena *arena, int32_t ty_ref,
                                     int32_t depth);
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t type_ref);
 extern int32_t pipeline_type_named_name_into(struct ast_ASTArena *arena, int32_t type_ref, uint8_t *out64);
@@ -480,9 +480,9 @@ extern void pipeline_module_set_main_func_index(struct ast_Module *module, int32
 extern int32_t pipeline_module_main_func_index(struct ast_Module *module);
 extern void pipeline_strict_parse_into_init(struct ast_ASTArena *arena, struct ast_Module *module);
 extern void pipeline_typeck_set_active_ctx_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
-extern int32_t typeck_typeck_sx_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_typeck_x_ast(struct ast_Module *module, struct ast_ASTArena *arena,
                                     struct ast_PipelineDepCtx *ctx);
-extern int32_t typeck_typeck_sx_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
+extern int32_t typeck_typeck_x_ast_library(struct ast_Module *module, struct ast_ASTArena *arena,
                                             struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                  struct ast_PipelineDepCtx *ctx);
@@ -528,7 +528,7 @@ __attribute__((weak)) int32_t main_run_compiler_c(int32_t argc, uint8_t *argv) {
 }
 
 /** pipeline 非 asm 分支 weak 桩（asm 路径不走此符号）。 */
-__attribute__((weak)) int32_t codegen_sx_ast(void *module, void *arena, void *out_buf, void *ctx, int32_t dep_index) {
+__attribute__((weak)) int32_t codegen_x_ast(void *module, void *arena, void *out_buf, void *ctx, int32_t dep_index) {
   (void)module;
   (void)arena;
   (void)out_buf;
@@ -552,7 +552,7 @@ void parse_into_init(void *module, void *arena) {
   parser_parse_into_init((struct ast_Module *)module, (struct ast_ASTArena *)arena);
 }
 
-/** strict minimal 不链 glue_standalone 时，runtime / pipeline_sx 仍需要这两个默认桥接入口。 */
+/** strict minimal 不链 glue_standalone 时，runtime / pipeline_x 仍需要这两个默认桥接入口。 */
 extern int32_t pipeline_lsp_diag_parse_typeck_buf_impl_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                          uint8_t *source_data, int32_t source_len,
                                                          struct ast_PipelineDepCtx *ctx);
@@ -574,14 +574,14 @@ __attribute__((weak)) int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_A
   pipeline_module_set_main_func_index(module, main_idx);
   pipeline_typeck_set_active_ctx_c(module, ctx);
   if (pipeline_module_main_func_index(module) < 0) {
-    tc = typeck_typeck_sx_ast_library(module, arena, ctx);
+    tc = typeck_typeck_x_ast_library(module, arena, ctx);
     if (tc != 0) {
       driver_diagnostic_typeck_fail();
       return tc;
     }
     return tc;
   }
-  tc = typeck_typeck_sx_ast(module, arena, ctx);
+  tc = typeck_typeck_x_ast(module, arena, ctx);
   if (tc != 0) {
     driver_diagnostic_typeck_fail();
     return tc;
@@ -601,7 +601,7 @@ __attribute__((weak)) int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Modu
   return pipeline_lsp_diag_parse_typeck_buf_impl_c(module, arena, source_data, source_len, ctx);
 }
 
-__attribute__((weak)) int32_t typeck_sx_type_size_from_layout_glue(struct ast_Module *module,
+__attribute__((weak)) int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module,
                                                                    struct ast_ASTArena *arena, int32_t li,
                                                                    int32_t depth) {
   int32_t sz = 0;
@@ -613,7 +613,7 @@ __attribute__((weak)) int32_t typeck_sx_type_size_from_layout_glue(struct ast_Mo
   return sz;
 }
 
-__attribute__((weak)) int32_t typeck_sx_type_align_from_layout_glue(struct ast_Module *module,
+__attribute__((weak)) int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module,
                                                                     struct ast_ASTArena *arena, int32_t li,
                                                                     int32_t depth) {
   int32_t sz = 0;
@@ -653,8 +653,8 @@ __attribute__((weak)) int32_t typeck_soa_array_storage_size_glue(struct ast_Modu
     int32_t rem;
     if (ftr <= 0)
       continue;
-    al = typeck_sx_type_align(module, arena, ftr, depth + 1);
-    fsize = typeck_sx_type_size(module, arena, ftr, depth + 1);
+    al = typeck_x_type_align(module, arena, ftr, depth + 1);
+    fsize = typeck_x_type_size(module, arena, ftr, depth + 1);
     if (al <= 0)
       al = 1;
     if (fsize <= 0)
@@ -960,7 +960,7 @@ reject:
 
 /**
  * strict minimal 链在 Darwin 上默认不链接 pipeline_glue_standalone.o，
- * 因此需要在末尾覆盖 pipeline_sx.o 里的旧 addr_of 快照实现。
+ * 因此需要在末尾覆盖 pipeline_x.o 里的旧 addr_of 快照实现。
  * &var / &base.field / &base[idx] 都可直接复用现有左值有效地址发射。
  */
 int32_t pipeline_asm_emit_addr_of_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,

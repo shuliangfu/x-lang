@@ -6,17 +6,17 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-config-yaml-v1.md"
 MANIFEST="tests/baseline/std-config-yaml-manifest.tsv"
 VECTORS="tests/baseline/std-config-yaml-vectors.tsv"
-MOD_SX="std/config/mod.sx"
-CFG_SX="std/config/config.sx"
+MOD_X="std/config/mod.x"
+CFG_X="std/config/config.x"
 LIB="tests/lib/std-config-yaml.sh"
-SMOKE_SX="tests/std-config/yaml_smoke.sx"
+SMOKE_X="tests/std-config/yaml_smoke.x"
 SMOKE_C="tests/std-config/yaml_smoke_ok.c"
 MIN_APIS=4
 
 # shellcheck source=tests/lib/std-config-yaml.sh
 . "$LIB"
 
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$CFG_SX" "$SMOKE_SX" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$CFG_X" "$SMOKE_X" "$SMOKE_C"; do
   [ -f "$f" ] || { echo "std-config-yaml gate FAIL: missing $f" >&2; exit 1; }
 done
 
@@ -34,16 +34,16 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  grep -qE "function ${anchor}\\(" "$MOD_SX" || exit 1
+  grep -qE "function ${anchor}\\(" "$MOD_X" || exit 1
 done < "$MANIFEST"
 
 [ "$API_N" -ge "$MIN_APIS" ] || exit 1
 
-sym_miss="$(std_config_yaml_symbols_ok "$MOD_SX" "$CFG_SX" "$MANIFEST" || true)"
+sym_miss="$(std_config_yaml_symbols_ok "$MOD_X" "$CFG_X" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 
 C_OK=0
-SX_OK=0
+X_OK=0
 SKIP=0
 
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
@@ -56,18 +56,18 @@ if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
   PROC_O="$(cd compiler && pwd)/../std/process/process.o"
   std_config_yaml_run_c_smoke "$CFG_O" "$ENV_O" "$PROC_O" && C_OK=1 || exit 1
 else
-  echo "std-config-yaml gate SKIP c smoke (need shux-c for config.sx merge)" >&2
+  echo "std-config-yaml gate SKIP c smoke (need shux-c for config.x merge)" >&2
   SKIP=1
 fi
 
 if [ -x ./compiler/shux-c ]; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  ./compiler/shux-c check -L . "$SMOKE_SX" >/dev/null
-  std_config_yaml_run_sx_smoke ./compiler/shux-c "$SMOKE_SX" && SX_OK=1 || exit 1
+  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
+  std_config_yaml_run_x_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
 else
-  echo "std-config-yaml gate SKIP .sx smoke (no shux)" >&2
+  echo "std-config-yaml gate SKIP .x smoke (no shux)" >&2
   SKIP=1
 fi
 
-std_config_yaml_emit_report ok "$C_OK" "$SX_OK" "$SKIP"
+std_config_yaml_emit_report ok "$C_OK" "$X_OK" "$SKIP"
 echo "std-config-yaml gate OK"

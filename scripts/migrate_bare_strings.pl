@@ -1,10 +1,10 @@
 #!/usr/bin/env perl
-# 将 .sx 中裸 "..." 字面量（memcmp/实参/let 初值）迁为顶层 const u8[N] + &PREFIX_LIT_*[0]。
+# 将 .x 中裸 "..." 字面量（memcmp/实参/let 初值）迁为顶层 const u8[N] + &PREFIX_LIT_*[0]。
 use strict;
 use warnings;
 
-my $prefix = shift @ARGV or die "usage: $0 PREFIX file.sx\n";
-my $path = shift @ARGV or die "usage: $0 PREFIX file.sx\n";
+my $prefix = shift @ARGV or die "usage: $0 PREFIX file.x\n";
+my $path = shift @ARGV or die "usage: $0 PREFIX file.x\n";
 
 sub lit_name {
     my ($s) = @_;

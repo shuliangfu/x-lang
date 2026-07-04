@@ -1,6 +1,6 @@
 # std.encoding — UTF-8/ASCII
 
-**路径**：`std/encoding/`（mod.sx + encoding.c）  
+**路径**：`std/encoding/`（mod.x + encoding.c）  
 **依赖**：core。**性能**：表驱动、单遍、restrict、LIKELY/UNLIKELY，对标 Zig std.unicode.utf8。
 
 | API | 说明 |

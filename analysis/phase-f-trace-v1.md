@@ -1,12 +1,12 @@
 # 阶段 F-trace v1（std.trace 去 C）
 
-> **F-trace v1**：删除 **`trace.c`**；烟测在 **`trace.sx`**；span 栈/export 在 **`trace_span_glue.c`**（**v2 已迁入 trace.sx 并删 glue**）。
+> **F-trace v1**：删除 **`trace.c`**；烟测在 **`trace.x`**；span 栈/export 在 **`trace_span_glue.c`**（**v2 已迁入 trace.x 并删 glue**）。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `trace.c`（252 行） | `trace.sx` + `trace_span_glue.c` → **v2 纯 trace.sx** |
+| 实现 | `trace.c`（252 行） | `trace.x` + `trace_span_glue.c` → **v2 纯 trace.x** |
 | `trace.o` | `cc -c` | `ld -r` 合并 → **v2 纯 shux** |
 
 ## 门禁

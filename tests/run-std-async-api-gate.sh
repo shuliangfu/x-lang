@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # STD-004：std.async 调度器稳定 API manifest + smoke + 1M 压测
 #
-# 1) tests/baseline/std-async-api.tsv 符号须在 std/async/mod.sx
+# 1) tests/baseline/std-async-api.tsv 符号须在 std/async/mod.x
 # 2) tests/run-async.sh 烟测
 # 3) tests/run-std-async-1m-gate.sh 1M task 无崩溃
 #
@@ -10,7 +10,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 BASELINE="tests/baseline/std-async-api.tsv"
-MOD="std/async/mod.sx"
+MOD="std/async/mod.x"
 MISS=0
 N=0
 

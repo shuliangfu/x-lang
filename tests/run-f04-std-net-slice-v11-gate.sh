@@ -19,19 +19,19 @@ die() {
 echo "=== F-04 v11: std.net addr/ipv6/io_batch remove from net.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-04 v11' "$DOC" || die "doc missing F-04 v11 marker"
-for sx in net_addr net_ipv6 net_io_batch; do
-  [ -f "std/net/${sx}.sx" ] || die "missing ${sx}.sx"
+for x in net_addr net_ipv6 net_io_batch; do
+  [ -f "std/net/${x}.x" ] || die "missing ${x}.x"
 done
-grep -q 'net_tcp_local_addr_c' std/net/addr.sx || die "net_addr missing local"
-grep -q 'net_tcp_connect_ipv6_c' std/net/ipv6.sx || die "net_ipv6 missing connect"
-grep -q 'net_stream_read_batch_provided_c' std/net/io_batch.sx || die "net_io_batch missing provided"
+grep -q 'net_tcp_local_addr_c' std/net/addr.x || die "net_addr missing local"
+grep -q 'net_tcp_connect_ipv6_c' std/net/ipv6.x || die "net_ipv6 missing connect"
+grep -q 'net_stream_read_batch_provided_c' std/net/io_batch.x || die "net_io_batch missing provided"
 for sym in net_tcp_local_addr_c net_tcp_peer_addr_c net_tcp_connect_ipv6_c net_tcp_listen_ipv6_c \
   net_stream_write_batch_c net_stream_read_batch_c net_stream_read_batch_provided_c; do
   if [ -f "$NET_C" ] && grep -q "$sym" "$NET_C" 2>/dev/null; then
     die "net.c still defines $sym"
   fi
 done
-grep -q 'io_batch.sx' compiler/Makefile || die "Makefile missing io_batch.sx"
+grep -q 'io_batch.x' compiler/Makefile || die "Makefile missing io_batch.x"
 
 if [ -f tests/run-f04-std-net-dns-alpn-gate.sh ]; then
   echo "=== F-04 v11: delegate f04 dns/alpn gate ==="

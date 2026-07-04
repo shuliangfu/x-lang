@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C-08：main 薄入口 + driver/*.sx + build.sx + runtime 盘点（聚合门禁）。
+# C-08：main 薄入口 + driver/*.x + build.x + runtime 盘点（聚合门禁）。
 #
 # 用法：./tests/run-c08-runtime-driver-gate.sh
 # 环境：SHUX_C08_FAIL=1 失败时硬退出
@@ -18,9 +18,9 @@ run_gate() {
   return 0
 }
 
-echo "=== C-08: runtime → driver.sx / build.sx (v1) ==="
+echo "=== C-08: runtime → driver.x / build.x (v1) ==="
 ok=0
-for g in tests/run-c08-main-entry-gate.sh tests/run-c08-driver-sx-gate.sh tests/run-c08-build-sx-gate.sh tests/run-c08-runtime-inventory-gate.sh; do
+for g in tests/run-c08-main-entry-gate.sh tests/run-c08-driver-x-gate.sh tests/run-c08-build-x-gate.sh tests/run-c08-runtime-inventory-gate.sh; do
   if run_gate "$g"; then
     ok=$((ok + 1))
   fi

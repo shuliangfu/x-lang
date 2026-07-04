@@ -4,19 +4,19 @@
 read_path	section	## 1. 阅读路径	analysis/std-context-v1.md
 api_doc	section	## 2. API	analysis/std-context-v1.md
 verify	section	## 3. Gate	analysis/std-context-v1.md
-api_background	api	background	std/context/mod.sx	根
-api_with_cancel	api	with_cancel	std/context/mod.sx	派生
-api_with_deadline	api	with_deadline	std/context/mod.sx	deadline
-api_with_timeout	api	with_timeout	std/context/mod.sx	timeout
-api_cancel	api	cancel	std/context/mod.sx	取消
-api_is_cancelled	api	is_cancelled	std/context/mod.sx	检测
-api_deadline	api	deadline_ns	std/context/mod.sx	deadline
-api_remaining	api	remaining_ns	std/context/mod.sx	剩余
-api_set_value	api	set_value	std/context/mod.sx	bag
-api_get_value	api	get_value	std/context/mod.sx	bag
-api_free	api	free	std/context/mod.sx	释放
-symbol_smoke	symbol	ctx_smoke_c	std/context/context.sx	C烟测
-impl_sx	file	std/context/context.sx	std/context/context.sx
-smoke_sx	smoke	tests/std-context/cancel_smoke.sx	.sx烟测
+api_background	api	background	std/context/mod.x	根
+api_with_cancel	api	with_cancel	std/context/mod.x	派生
+api_with_deadline	api	with_deadline	std/context/mod.x	deadline
+api_with_timeout	api	with_timeout	std/context/mod.x	timeout
+api_cancel	api	cancel	std/context/mod.x	取消
+api_is_cancelled	api	is_cancelled	std/context/mod.x	检测
+api_deadline	api	deadline_ns	std/context/mod.x	deadline
+api_remaining	api	remaining_ns	std/context/mod.x	剩余
+api_set_value	api	set_value	std/context/mod.x	bag
+api_get_value	api	get_value	std/context/mod.x	bag
+api_free	api	free	std/context/mod.x	释放
+symbol_smoke	symbol	ctx_smoke_c	std/context/context.x	C烟测
+impl_x	file	std/context/context.x	std/context/context.x
+smoke_x	smoke	tests/std-context/cancel_smoke.x	.x烟测
 lib	script	lib/std-context.sh	tests/lib/std-context.sh
 gate	script	run-std-context-gate.sh	tests/run-std-context-gate.sh

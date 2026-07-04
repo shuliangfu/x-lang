@@ -14,7 +14,7 @@ OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
 OUT="$OUT_DIR/shux_vec"
 
-if ! vec_link_exe "$LINK_SHUX" tests/vec/main.sx "$OUT" 2>&1; then
+if ! vec_link_exe "$LINK_SHUX" tests/vec/main.x "$OUT" 2>&1; then
   echo "vec test: compile failed"
   rm -f "$OUT"
   exit 1

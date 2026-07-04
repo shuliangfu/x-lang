@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
 FAIL="${SHUX_SCOPE_ALLOC_GATE_FAIL:-0}"
-SRC="tests/mem/with_arena_smoke.sx"
+SRC="tests/mem/with_arena_smoke.x"
 OUT="/tmp/shux_with_arena_smoke_$$"
 
 check_emit() {
@@ -54,7 +54,7 @@ fi
 echo "scope-allocator-gate OK run exit=0"
 
 # MEM-C1：scope_alloc 展开（SHUX_KEEP_C 保留生成 C 供 emit 断言；带 import 时 -E 会 DCE 掉入口 main）
-SCOPE_SRC="tests/mem/scope_alloc.sx"
+SCOPE_SRC="tests/mem/scope_alloc.x"
 SCOPE_OUT="/tmp/shux_scope_alloc_$$"
 if ! SHUX_KEEP_C=1 "$SHUX" "$SCOPE_SRC" -o "$SCOPE_OUT" >/tmp/shux_scope_alloc_scope_run.log 2>&1; then
   echo "scope-allocator-gate FAIL: build $SCOPE_SRC" >&2

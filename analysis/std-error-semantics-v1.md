@@ -28,7 +28,7 @@
 - `error_is_timeout` / `error_is_cancelled` / `error_is_not_found` — 布尔探测（1/0）
 - `error_recommend_retry(code)` — v1 仅超时返回 1
 
-Cookbook **ERR-02**：`examples/cookbook/error_semantic_class.sx`
+Cookbook **ERR-02**：`examples/cookbook/error_semantic_class.x`
 
 ---
 
@@ -41,6 +41,6 @@ Cookbook **ERR-02**：`examples/cookbook/error_semantic_class.sx`
 
 ## 4. 验收
 
-- 烟测：`tests/std/error_semantics_smoke.sx`
+- 烟测：`tests/std/error_semantics_smoke.x`
 - 门禁：`tests/run-std-error-semantics-gate.sh`
 - 报告：`std-error-semantics gate OK`

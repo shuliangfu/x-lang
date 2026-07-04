@@ -1,1 +1,1 @@
-sh: line 1: 73098 Segmentation fault: 11  env SHUX_DEBUG_PIPE=1 SHUX_DEBUG_PARSE=1 ./shux-c -E -L .. ../std/json/json.sx > ../tests/probes/bootstrap-parser/json_core_gen_probe_dbg.c
+sh: line 1: 73098 Segmentation fault: 11  env SHUX_DEBUG_PIPE=1 SHUX_DEBUG_PARSE=1 ./shux-c -E -L .. ../std/json/json.x > ../tests/probes/bootstrap-parser/json_core_gen_probe_dbg.c

@@ -1,6 +1,6 @@
 # 阶段 E-04 v1（runtime.c / main.c — 路径审计与准备层）
 
-> **E-04 v1**：默认 bootstrap / shux-sx 链 **`runtime_driver_no_c.o`**（`-DSHUX_NO_C_FRONTEND`）+ **`main_driver.o`**（极简 C `main()`）；B-strict 链 **`runtime_driver_asm_strict.o`**。`runtime.c` / `main.c` **文件保留**，尚未收到 ABI 薄壳。
+> **E-04 v1**：默认 bootstrap / shux-x 链 **`runtime_driver_no_c.o`**（`-DSHUX_NO_C_FRONTEND`）+ **`main_driver.o`**（极简 C `main()`）；B-strict 链 **`runtime_driver_asm_strict.o`**。`runtime.c` / `main.c` **文件保留**，尚未收到 ABI 薄壳。
 
 ## v1 完成（✅ 准备 + gate）
 

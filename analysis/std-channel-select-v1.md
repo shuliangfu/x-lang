@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-27  
 > 状态：**定版（v1）**  
-> 关联：`tests/baseline/std-channel-select.tsv`、`tests/channel/select_*.sx`
+> 关联：`tests/baseline/std-channel-select.tsv`、`tests/channel/select_*.x`
 
 ---
 
@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§3 |
 | 2 | `tests/baseline/std-channel-select.tsv` |
 | 3 | `./tests/run-std-channel-select-gate.sh` |
-| 4 | 烟测：`select_2.sx`、`select_n.sx`、`select_send_2.sx`、`select_send_n.sx`、`select_mixed_2.sx`、`select_mixed_n.sx` |
+| 4 | 烟测：`select_2.x`、`select_n.x`、`select_send_2.x`、`select_send_n.x`、`select_mixed_2.x`、`select_mixed_n.x` |
 
 ---
 

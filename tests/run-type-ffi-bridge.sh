@@ -32,9 +32,9 @@ echo "=== TYPE-004: FFI bridge smoke (SHUX=$SHUX_BIN) ==="
 
 # i32 → putchar（标量桥接）
 exe="/tmp/shux_ffi_bridge_putchar"
-if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -L . tests/ffi/putchar.sx -o "$exe" 2>/tmp/shux_ffi_bridge_putchar.log; then
+if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -L . tests/ffi/putchar.x -o "$exe" 2>/tmp/shux_ffi_bridge_putchar.log; then
   cat /tmp/shux_ffi_bridge_putchar.log >&2
-  echo "type-ffi-bridge FAIL: compile putchar.sx" >&2
+  echo "type-ffi-bridge FAIL: compile putchar.x" >&2
   exit 1
 fi
 rc=0
@@ -46,10 +46,10 @@ fi
 echo "type-ffi-bridge OK putchar"
 
 # *u8 cstr_len（指针桥接）— 复用 safe-ffi 运行库
-if safe_ffi_run_case "$SHUX_BIN" tests/ffi/contract_null_cstr.sx 0 cstr_u8; then
+if safe_ffi_run_case "$SHUX_BIN" tests/ffi/contract_null_cstr.x 0 cstr_u8; then
   echo "type-ffi-bridge OK cstr_u8"
 else
-  echo "type-ffi-bridge FAIL: contract_null_cstr.sx" >&2
+  echo "type-ffi-bridge FAIL: contract_null_cstr.x" >&2
   exit 1
 fi
 

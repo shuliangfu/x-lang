@@ -49,7 +49,7 @@
 ## 5. 验收
 
 - manifest：`tests/baseline/std-heap-trace.tsv`
-- 烟测：`tests/heap/trace_stats.sx`
+- 烟测：`tests/heap/trace_stats.x`
 - 报告：`shux: [SHUX_STD_HEAP_TRACE] status=ok`
 
 ---

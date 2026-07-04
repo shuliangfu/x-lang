@@ -1,2 +1,2 @@
 note: pipeline debug: driver_first_parse num_funcs=5 src_len=439
- --> ../tests/probes/trace-min/test_ptr_arith_forms_min.sx
+ --> ../tests/probes/trace-min/test_ptr_arith_forms_min.x

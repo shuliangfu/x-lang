@@ -2,7 +2,7 @@
  * sync_import_alias.c — import binding `-o` 链接桩
  *
  * asm co-emit 对 `const sync = import("std.sync")` 生成 std_sync_* 符号；
- * sync.o 仅含 sync.sx 锚点，mod.sx 门面未 co-emit。本 TU 提供 std_sync_* 转发至
+ * sync.o 仅含 sync.x 锚点，mod.x 门面未 co-emit。本 TU 提供 std_sync_* 转发至
  * runtime_sync_os.c / runtime_sync_lock_diag_tls.c 中的 sync_*_c。
  */
 #include <stdint.h>

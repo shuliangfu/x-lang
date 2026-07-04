@@ -5,7 +5,7 @@ mapping_copy	mapping	core_mem_mem_copy	__builtin_memcpy
 mapping_set	mapping	core_mem_mem_set	__builtin_memset
 mapping_move	mapping	core_mem_mem_move	__builtin_memmove
 mapping_compare	mapping	core_mem_mem_compare	__builtin_memcmp
-emit_probe	file	tests/mem/main.sx	SHUX_DEBUG_C -o 烟测
+emit_probe	file	tests/mem/main.x	SHUX_DEBUG_C -o 烟测
 emit_builtin_1	emit_grep	__builtin_memcpy	C emit
 emit_builtin_2	emit_grep	__builtin_memset	C emit
 emit_builtin_3	emit_grep	__builtin_memmove	C emit

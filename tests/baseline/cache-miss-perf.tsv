@@ -1,5 +1,5 @@
 # PERF-006 L1 cache miss 基线（%）
 # 列：case_id	layout	max_l1_miss_pct	soa_lt_aos	bench_source
 # 更新：跑 run-perf-dod-soa.sh 后按 SoA 实测留 ~2× 余量
-dod_soa_sum_x	soa	1.0	yes	tests/bench/dod_soa_sum_x.sx
-dod_f32_soa_sum_x	soa	1.5	yes	tests/bench/dod_f32_soa_sum_x.sx
+dod_soa_sum_x	soa	1.0	yes	tests/bench/dod_soa_sum_x.x
+dod_f32_soa_sum_x	soa	1.5	yes	tests/bench/dod_f32_soa_sum_x.x

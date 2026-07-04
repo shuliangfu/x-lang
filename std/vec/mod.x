@@ -1,0 +1,838 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.vec — 动态数组 Vec（对标 Zig ArrayList、Rust Vec、Go slice+append）
+//
+// 【文件职责】
+// 基于 std.heap 的可增长数组：Vec_i32、Vec_u8，提供
+// new/with_capacity、push/pop、get/len/capacity、
+// clear/truncate/reserve、append_slice/from_slice、is_empty、ptr、deinit。
+// DOD-S2：Vec3f_soa（默认三列 SoA）与 Vec3f_aos（opt-in 交错 AoS）。
+//
+// 【对标】
+// Zig: std.ArrayList(T) — init/deinit、append、appendSlice、items、len、capacity、clear；
+// Rust: Vec —
+// new/with_capacity、push/pop、get/len/capacity、clear/truncate/reserve、extend_from_slice；
+// Go: append(slice, ...)、len、cap。
+const heap = import("std.heap");
+/** 默认初始容量（元素个数）；首次 push 时若 cap==0 则分配此大小。设为 8
+* 减少首次扩容次数。 */
+function default_cap(): i32 { return 8; }
+/** append_slice/from_slice 走 C memcpy 的阈值；≥ 此值时用块拷贝。 */
+function copy_threshold(): i32 { return 8; }
+// ——— Vec_i32 ———
+/** 动态数组：堆分配 *i32 + len + cap + al；调用方须在不用时调用 vec_i32_deinit。 */
+allow(padding) struct Vec_i32 {
+  ptr: *i32;
+  len: i32;
+  cap: i32;
+  al: heap.Allocator;
+}
+/** 新建空 Vec_i32（ptr 为 null，cap 0，al 为 default_allocator）；首次 push 时分配。 */
+function new(): Vec_i32 {
+  return Vec_i32 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
+}
+/** 预分配容量 capacity；按 v.al 分配；失败时 cap 置 0 并返回 -1，成功返回 0。 */
+function with_capacity(v: *Vec_i32, capacity: i32): i32 {
+  if (capacity <= 0) {
+    v.ptr = 0;
+    v.cap = 0;
+    return 0;
+  }
+  let bytes: usize = (capacity as usize) * 4;
+  let pu: *u8 = heap.alloc(v.al, bytes);
+  if (pu == 0) {
+    v.cap = 0;
+    return -1;
+  }
+  /* 根块末条须为 if/return，勿以赋值作 stmt_order 末条（隐式尾返回误判）。 */
+  if (0 == 0) {
+    v.ptr = pu as *i32;
+    v.cap = capacity;
+    v.len = 0;
+    return 0;
+  }
+  return -1;
+}
+/** 确保至少能再放 1 个元素；不足则扩容（2 倍或 default_capacity）；按 v.al 分配/扩容。
+* arena 仅支持首次 bump，已有 ptr 时扩容返回 -1（AL-05）。 */
+function reserve(v: *Vec_i32): i32 {
+  if (v.len < v.cap) { return 0; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  if (want <= 0) { return -1; }
+  if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
+  let bytes: usize = (want as usize) * 4;
+  let pu: *u8 = if (v.ptr == 0) {
+    heap.alloc(v.al, bytes)
+  } else {
+    heap.realloc(v.al, v.ptr as *u8, bytes)
+  };
+  if (pu == 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = pu as *i32;
+    v.cap = want;
+    return 0;
+  }
+  return -1;
+}
+/** 追加元素 x；成功返回 0，分配失败返回 -1。 */
+function push(v: *Vec_i32, x: i32): i32 {
+  /*
+  * 须满足非 void 函数体 stmt_order 末条不能落在「赋值」上（否则 .x typeck
+  * * * * 将末条 expr 当隐式尾返回）；
+  * * * * * 用 if/else 使根块末条为 if（kind 5），与「先 if 再顺序赋值再
+  return」的解析顺序区分。
+  */
+  if (reserve(v) != 0) {
+    return -1;
+  } else {
+    v.ptr[v.len] = x;
+    v.len = v.len + 1;
+    return 0;
+  }
+}
+/** MEM-C1 单态化：with_arena 热路径直接 arena64_alloc，无 allocator_alloc kind 分支。 */
+function push(v: *Vec_i32, x: i32, arena: *heap.Arena64): i32 {
+  if (v.len >= v.cap) {
+    let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+    if (v.ptr != 0) {
+      return -1;
+    }
+    let pu: *u8 = heap.arena64_alloc(arena, (want * 4) as usize, 8 as usize);
+    if (pu == 0) {
+      return -1;
+    }
+    v.ptr = pu as *i32;
+    v.cap = want;
+  }
+  v.ptr[v.len] = x;
+  v.len = v.len + 1;
+  return 0;
+}
+/** 移除并返回最后一个元素；空 vec 未定义。 */
+function pop(v: *Vec_i32): i32 {
+  /* 根块仅含单个 if，避免末条 expr_stmt 被误判为隐式尾返回（见
+  push）。 */
+  if (0 == 0) {
+    v.len = v.len - 1;
+    return v.ptr[v.len];
+  }
+  return 0;
+}
+/** 长度（元素个数）。 */
+function len(v: Vec_i32): i32 { return v.len; }
+/** 容量（可容纳元素个数，不含 realloc）。 */
+function capacity(v: Vec_i32): i32 { return v.cap; }
+/** 取第 i 个元素；i 越界未定义。 */
+function get(v: Vec_i32, i: i32): i32 { return v.ptr[i]; }
+/** 写第 i 个元素为 x；i 越界未定义。 */
+function set(v: *Vec_i32, i: i32, x: i32): void { v.ptr[i] = x; }
+/** 是否为空（len==0）。返回 1 是，0 否。 */
+function is_empty(v: Vec_i32): i32 {
+  if (v.len <= 0) { return 1; }
+  return 0;
+}
+/** 清空长度，不释放内存。 */
+function clear(v: *Vec_i32): void { v.len = 0; }
+/** 截断到 new_len；new_len > len 无操作。 */
+function truncate(v: *Vec_i32, new_len: i32): void {
+  if (new_len < v.len) { v.len = new_len; }
+}
+/** 确保容量至少为 new_cap；按 v.al realloc；arena 已有 ptr 时扩容返回 -1。 */
+function reserve(v: *Vec_i32, new_cap: i32): i32 {
+  if (new_cap <= v.cap) { return 0; }
+  if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
+  let bytes: usize = (new_cap as usize) * 4;
+  let pu: *u8 = if (v.ptr == 0) {
+    heap.alloc(v.al, bytes)
+  } else {
+    heap.realloc(v.al, v.ptr as *u8, bytes)
+  };
+  if (pu == 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = pu as *i32;
+    v.cap = new_cap;
+    return 0;
+  }
+  return -1;
+}
+/** 追加切片 ptr[0..n-1]；失败返回 -1，成功返回 0。≥8 元素走 C memcpy
+* 快路径。 */
+function extend(v: *Vec_i32, ptr: *i32, n: i32): i32 {
+  if (n <= 0) { return 0; }
+  if (reserve(v, v.len + n) != 0) { return -1; }
+  heap.copy(v.ptr, v.len, ptr, n);
+  if (0 == 0) {
+    v.len = v.len + n;
+    return 0;
+  }
+}
+/** 从切片 ptr[0..n-1] 拷贝构造新 Vec_i32；失败时返回 len=-1 的 vec。≥8 元素走
+* C memcpy 快路径。 */
+function from_slice(ptr: *i32, n: i32): Vec_i32 {
+  let v: Vec_i32 = new();
+  if (n <= 0) { return v; }
+  if (with_capacity(&v, n) != 0) { return Vec_i32 { ptr: 0, len: -1, cap: 0, al: heap.default_alloc() }; }
+  heap.copy(v.ptr, 0, ptr, n);
+  if (0 == 0) {
+    v.len = n;
+    return v;
+  }
+  return Vec_i32 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
+}
+/** 零拷贝：返回内部缓冲首指针；与 len 组合即 (ptr, len)。 */
+function ptr(v: Vec_i32): *i32 { return v.ptr; }
+/** 释放堆内存并将 ptr 置为 null、len/cap 置 0；按 v.al 释放。 */
+function deinit(v: *Vec_i32): void {
+  if (v.ptr != 0) {
+    heap.free(v.al, v.ptr as *u8);
+    v.ptr = 0;
+  }
+  v.len = 0;
+  v.cap = 0;
+}
+// ——— Vec_u8 ———
+/** 动态字节数组：堆/Arena 分配 *u8 + len + cap + al；调用方须在不用时调用 vec_u8_deinit。 */
+allow(padding) struct Vec_u8 {
+  ptr: *u8;
+  len: i32;
+  cap: i32;
+  al: heap.Allocator;
+}
+/** 新建空 Vec_u8；al 为 default_allocator（with_arena 内为 scope）。 */
+function new(): Vec_u8 {
+  return Vec_u8 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
+}
+/** 预分配容量 capacity；按 v.al 分配；失败时 cap 置 0 并返回 -1。 */
+function with_capacity(v: *Vec_u8, capacity: i32): i32 {
+  if (capacity <= 0) {
+    v.ptr = 0;
+    v.cap = 0;
+    return 0;
+  }
+  let pu: *u8 = heap.alloc(v.al, capacity);
+  if (pu == 0) {
+    v.cap = 0;
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = pu;
+    v.cap = capacity;
+    v.len = 0;
+    return 0;
+  }
+  return -1;
+}
+/** 按 v.al 扩容预留 1 个元素；arena 已有 ptr 时不可 realloc（AL-05）。 */
+function reserve(v: *Vec_u8): i32 {
+  if (v.len < v.cap) { return 0; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  if (want <= 0) { return -1; }
+  if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
+  let pu: *u8 = if (v.ptr == 0) {
+    heap.alloc(v.al, want)
+  } else {
+    heap.realloc(v.al, v.ptr, want)
+  };
+  if (pu == 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = pu;
+    v.cap = want;
+    return 0;
+  }
+  return -1;
+}
+function push(v: *Vec_u8, x: u8): i32 {
+  /* 同 push：根块末条须避免「赋值」作隐式尾返回判定。 */
+  if (reserve(v) != 0) {
+    return -1;
+  } else {
+    v.ptr[v.len] = x;
+    v.len = v.len + 1;
+    return 0;
+  }
+}
+/** MEM-C1 单态化：with_arena 热路径直接 arena64_alloc，无 allocator_alloc kind 分支。 */
+function push(v: *Vec_u8, x: u8, arena: *heap.Arena64): i32 {
+  if (v.len >= v.cap) {
+    let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+    if (v.ptr != 0) {
+      return -1;
+    }
+    let pu: *u8 = heap.arena64_alloc(arena, want, 8);
+    if (pu == 0) {
+      return -1;
+    }
+    v.ptr = pu;
+    v.cap = want;
+  }
+  v.ptr[v.len] = x;
+  v.len = v.len + 1;
+  return 0;
+}
+function pop(v: *Vec_u8): u8 {
+  if (0 == 0) {
+    v.len = v.len - 1;
+    return v.ptr[v.len];
+  }
+  return 0;
+}
+function len(v: Vec_u8): i32 { return v.len; }
+/** 热路径：指针取长，避免按值传 Vec_u8 结构体。 */
+function len_ptr(v: *Vec_u8): i32 { return v.len; }
+function capacity(v: Vec_u8): i32 { return v.cap; }
+function get(v: Vec_u8, i: i32): u8 { return 0; }
+function set(v: *Vec_u8, i: i32, x: u8): void { v.ptr[i] = x; }
+function is_empty(v: Vec_u8): i32 {
+  if (v.len <= 0) { return 1; }
+  return 0;
+}
+function clear(v: *Vec_u8): void { v.len = 0; }
+function truncate(v: *Vec_u8, new_len: i32): void {
+  if (new_len < v.len) { v.len = new_len; }
+}
+function reserve(v: *Vec_u8, new_cap: i32): i32 {
+  if (new_cap <= v.cap) { return 0; }
+  if (v.al.kind == heap.kind_arena() && v.ptr != 0) { return -1; }
+  let pu: *u8 = if (v.ptr == 0) {
+    heap.alloc(v.al, new_cap)
+  } else {
+    heap.realloc(v.al, v.ptr, new_cap)
+  };
+  if (pu == 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = pu;
+    v.cap = new_cap;
+    return 0;
+  }
+  return -1;
+}
+function extend(v: *Vec_u8, ptr: *u8, n: i32): i32 {
+  if (n <= 0) { return 0; }
+  if (reserve(v, v.len + n) != 0) { return -1; }
+  heap.copy(v.ptr, v.len, ptr, n);
+  if (0 == 0) {
+    v.len = v.len + n;
+    return 0;
+  }
+}
+function from_slice(ptr: *u8, n: i32): Vec_u8 {
+  let v: Vec_u8 = new();
+  if (n <= 0) { return v; }
+  if (with_capacity(&v, n) != 0) { return Vec_u8 { ptr: 0, len: -1, cap: 0, al: heap.default_alloc() }; }
+  heap.copy(v.ptr, 0, ptr, n);
+  if (0 == 0) {
+    v.len = n;
+    return v;
+  }
+  return Vec_u8 { ptr: 0, len: 0, cap: 0, al: heap.default_alloc() };
+}
+function ptr(v: Vec_u8): *u8 { return v.ptr; }
+function deinit(v: *Vec_u8): void {
+  if (v.ptr != 0) {
+    heap.free(v.al, v.ptr);
+    v.ptr = 0;
+  }
+  v.len = 0;
+  v.cap = 0;
+}
+
+/** STD-112：按 Allocator 预分配 capacity；写入 v.al 并分配；失败 -1。 */
+function with_alloc(v: *Vec_u8, al: heap.Allocator, capacity: i32): i32 {
+  v.al = al;
+  return with_capacity(v, capacity);
+}
+
+/** STD-112：按 Allocator 扩容预留 1 个元素；临时覆盖 v.al 后委托 reserve_one。 */
+function reserve_one(v: *Vec_u8, al: heap.Allocator): i32 {
+  v.al = al;
+  return reserve(v);
+}
+
+/** STD-112：按 Allocator 追加元素；设置 v.al 后委托 push。 */
+function push(v: *Vec_u8, al: heap.Allocator, x: u8): i32 {
+  v.al = al;
+  return push(v, x);
+}
+
+/** STD-112：按 Allocator 释放；arena 路径为 no-op。 */
+function deinit(v: *Vec_u8, al: heap.Allocator): void {
+  if (v.ptr != 0) {
+    heap.free(al, v.ptr);
+    v.ptr = 0;
+  }
+  v.len = 0;
+  v.cap = 0;
+}
+
+// ——— Vec_u16（STD-161） ———
+/** u16 动态数组。 */
+allow(padding) struct Vec_u16 {
+  ptr: *u16;
+  len: i32;
+  cap: i32;
+}
+
+/** 新建空 Vec_u16。 */
+function new(): Vec_u16 {
+  return Vec_u16 { ptr: 0, len: 0, cap: 0 };
+}
+
+/** Vec_u16 扩容预留 1 个元素；失败 -1。 */
+function reserve(v: *Vec_u16): i32 {
+  if (v.len < v.cap) { return 0; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  let bytes: i32 = want * 2;
+  let p: *u8 = if (v.ptr == 0) { heap.alloc(bytes) } else { heap.realloc(v.ptr as *u8, bytes) };
+  if (p == 0) { return -1; }
+  v.ptr = p as *u16;
+  v.cap = want;
+  return 0;
+}
+
+/** 追加 u16；失败 -1。 */
+function push(v: *Vec_u16, x: u16): i32 {
+  if (reserve(v) != 0) { return -1; }
+  v.ptr[v.len] = x;
+  v.len = v.len + 1;
+  return 0;
+}
+
+/** Vec_u16 长度。 */
+function len(v: Vec_u16): i32 { return v.len; }
+
+/** 取第 i 个 u16。 */
+function get(v: Vec_u16, i: i32): u16 { return v.ptr[i]; }
+
+/** 释放 Vec_u16。 */
+function deinit(v: *Vec_u16): void {
+  if (v.ptr != 0) { heap.free(v.ptr as *u8); v.ptr = 0; }
+  v.len = 0;
+  v.cap = 0;
+}
+
+// ——— Vec_u64（STD-014） ———
+
+/** u64 动态数组；堆经 alloc_u64。 */
+allow(padding) struct Vec_u64 {
+  ptr: *u64;
+  len: i32;
+  cap: i32;
+}
+
+/** 新建空 Vec_u64。 */
+function new(): Vec_u64 {
+  return Vec_u64 { ptr: 0, len: 0, cap: 0 };
+}
+
+/** 预分配 capacity；失败 -1。 */
+function with_capacity(v: *Vec_u64, capacity: i32): i32 {
+  if (capacity <= 0) {
+    v.ptr = 0;
+    v.cap = 0;
+    return 0;
+  }
+  let p: *u64 = heap.alloc(capacity);
+  if (p == 0) {
+    v.cap = 0;
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = capacity;
+    v.len = 0;
+    return 0;
+  }
+  return -1;
+}
+
+/** 扩容预留 1 个 u64；失败 -1。 */
+function reserve_one(v: *Vec_u64): i32 {
+  if (v.len < v.cap) { return 0; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  if (want <= 0) { return -1; }
+  let p: *u64 = if (v.ptr == 0) { heap.alloc(want) } else { heap.realloc(v.ptr, want) };
+  if (p == 0) { return -1; }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = want;
+    return 0;
+  }
+  return -1;
+}
+
+/** 确保容量至少 new_cap；失败 -1。 */
+function reserve(v: *Vec_u64, new_cap: i32): i32 {
+  if (new_cap <= v.cap) { return 0; }
+  let p: *u64 = if (v.ptr == 0) { heap.alloc(new_cap) } else { heap.realloc(v.ptr, new_cap) };
+  if (p == 0) { return -1; }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = new_cap;
+    return 0;
+  }
+  return -1;
+}
+
+/** 追加 u64 切片；失败 -1。 */
+function extend(v: *Vec_u64, ptr: *u64, n: i32): i32 {
+  if (n <= 0) { return 0; }
+  if (reserve(v, v.len + n) != 0) { return -1; }
+  heap.copy(v.ptr, v.len, ptr, n);
+  if (0 == 0) {
+    v.len = v.len + n;
+    return 0;
+  }
+  return -1;
+}
+
+/** 从 u64 切片构造 Vec_u64；失败 len=-1。 */
+function from_slice(ptr: *u64, n: i32): Vec_u64 {
+  let v: Vec_u64 = new();
+  if (n <= 0) { return v; }
+  if (with_capacity(&v, n) != 0) { return Vec_u64 { ptr: 0, len: -1, cap: 0 }; }
+  heap.copy(v.ptr, 0, ptr, n);
+  if (0 == 0) {
+    v.len = n;
+    return v;
+  }
+  return Vec_u64 { ptr: 0, len: 0, cap: 0 };
+}
+
+/** Vec_u64 长度。 */
+function len(v: Vec_u64): i32 { return v.len; }
+
+/** 取第 i 个 u64。 */
+function get(v: Vec_u64, i: i32): u64 { return v.ptr[i]; }
+
+/** 释放 Vec_u64。 */
+function deinit(v: *Vec_u64): void {
+  if (v.ptr != 0) { heap.free(v.ptr); v.ptr = 0; }
+  v.len = 0;
+  v.cap = 0;
+}
+
+// ——— Vec_f64（STD-014） ———
+
+/** f64 动态数组；堆经 alloc_f64。 */
+allow(padding) struct Vec_f64 {
+  ptr: *f64;
+  len: i32;
+  cap: i32;
+}
+
+/** 新建空 Vec_f64。 */
+function new(): Vec_f64 {
+  return Vec_f64 { ptr: 0, len: 0, cap: 0 };
+}
+
+/** 预分配 capacity；失败 -1。 */
+function with_capacity(v: *Vec_f64, capacity: i32): i32 {
+  if (capacity <= 0) {
+    v.ptr = 0;
+    v.cap = 0;
+    return 0;
+  }
+  let p: *f64 = heap.alloc(capacity);
+  if (p == 0) {
+    v.cap = 0;
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = capacity;
+    v.len = 0;
+    return 0;
+  }
+  return -1;
+}
+
+/** 扩容预留 1 个 f64；失败 -1。 */
+function reserve_one(v: *Vec_f64): i32 {
+  if (v.len < v.cap) { return 0; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  if (want <= 0) { return -1; }
+  let p: *f64 = if (v.ptr == 0) { heap.alloc(want) } else { heap.realloc(v.ptr, want) };
+  if (p == 0) { return -1; }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = want;
+    return 0;
+  }
+  return -1;
+}
+
+/** 确保容量至少 new_cap；失败 -1。 */
+function reserve(v: *Vec_f64, new_cap: i32): i32 {
+  if (new_cap <= v.cap) { return 0; }
+  let p: *f64 = if (v.ptr == 0) { heap.alloc(new_cap) } else { heap.realloc(v.ptr, new_cap) };
+  if (p == 0) { return -1; }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = new_cap;
+    return 0;
+  }
+  return -1;
+}
+
+/** 追加 f64 切片；失败 -1。 */
+function extend(v: *Vec_f64, ptr: *f64, n: i32): i32 {
+  if (n <= 0) { return 0; }
+  if (reserve(v, v.len + n) != 0) { return -1; }
+  heap.copy(v.ptr, v.len, ptr, n);
+  if (0 == 0) {
+    v.len = v.len + n;
+    return 0;
+  }
+  return -1;
+}
+
+/** 从 f64 切片构造 Vec_f64；失败 len=-1。 */
+function from_slice(ptr: *f64, n: i32): Vec_f64 {
+  let v: Vec_f64 = new();
+  if (n <= 0) { return v; }
+  if (with_capacity(&v, n) != 0) { return Vec_f64 { ptr: 0, len: -1, cap: 0 }; }
+  heap.copy(v.ptr, 0, ptr, n);
+  if (0 == 0) {
+    v.len = n;
+    return v;
+  }
+  return Vec_f64 { ptr: 0, len: 0, cap: 0 };
+}
+
+/** Vec_f64 长度。 */
+function len(v: Vec_f64): i32 { return v.len; }
+
+/** 取第 i 个 f64。 */
+function get(v: Vec_f64, i: i32): f64 { return v.ptr[i]; }
+
+/** 释放 Vec_f64。 */
+function deinit(v: *Vec_f64): void {
+  if (v.ptr != 0) { heap.free(v.ptr); v.ptr = 0; }
+  v.len = 0;
+  v.cap = 0;
+}
+
+// ——— DOD-S2：Vec3f SoA 默认 / AoS opt-in ———
+/** SoA 三列 f32 向量（x/y/z 各一列，列主序；DOD-S2 默认布局）。 */
+allow(padding) struct Vec3f_soa {
+  col_x: *f32;
+  col_y: *f32;
+  col_z: *f32;
+  len: i32;
+  cap: i32;
+}
+/** AoS 交错 xyz 向量（DOD-S2 opt-in；每元素 3 连续 f32）。 */
+allow(padding) struct Vec3f_aos {
+  ptr: *f32;
+  len: i32;
+  cap: i32;
+}
+/** 新建空 Vec3f_soa（三列 ptr 均为 null）。 */
+function vec3f_soa_new(): Vec3f_soa {
+  return Vec3f_soa { col_x: 0, col_y: 0, col_z: 0, len: 0, cap: 0 };
+}
+/** 预分配每列 capacity 个 f32；失败返回 -1。 */
+function vec3f_soa_with_capacity(v: *Vec3f_soa, capacity: i32): i32 {
+  if (capacity <= 0) {
+    v.col_x = 0;
+    v.col_y = 0;
+    v.col_z = 0;
+    v.cap = 0;
+    return 0;
+  }
+  let px: *f32 = heap.alloc(capacity);
+  let py: *f32 = heap.alloc(capacity);
+  let pz: *f32 = heap.alloc(capacity);
+  if (px == 0 || py == 0 || pz == 0) {
+    if (px != 0) { heap.free(px); }
+    if (py != 0) { heap.free(py); }
+    if (pz != 0) { heap.free(pz); }
+    v.cap = 0;
+    return -1;
+  }
+  if (0 == 0) {
+    v.col_x = px;
+    v.col_y = py;
+    v.col_z = pz;
+    v.cap = capacity;
+    v.len = 0;
+    return 0;
+  }
+  return -1;
+}
+/** 确保至少能再放 1 个三元组；三列同步扩容。 */
+function vec3f_soa_reserve_one(v: *Vec3f_soa): i32 {
+  if (v.len < v.cap) { return 0; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  if (want <= 0) { return -1; }
+  let px: *f32 = if (v.col_x == 0) { heap.alloc(want) } else { heap.realloc(v.col_x, want) };
+  let py: *f32 = if (v.col_y == 0) { heap.alloc(want) } else { heap.realloc(v.col_y, want) };
+  let pz: *f32 = if (v.col_z == 0) { heap.alloc(want) } else { heap.realloc(v.col_z, want) };
+  if (px == 0 || py == 0 || pz == 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    v.col_x = px;
+    v.col_y = py;
+    v.col_z = pz;
+    v.cap = want;
+    return 0;
+  }
+  return -1;
+}
+/** 追加 (x,y,z)；成功 0，分配失败 -1。 */
+function vec3f_soa_push(v: *Vec3f_soa, x: f32, y: f32, z: f32): i32 {
+  if (vec3f_soa_reserve_one(v) != 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    let i: i32 = v.len;
+    v.col_x[i] = x;
+    v.col_y[i] = y;
+    v.col_z[i] = z;
+    v.len = v.len + 1;
+    return 0;
+  }
+  return -1;
+}
+/** 长度（三元组个数）。 */
+function vec3f_soa_len(v: Vec3f_soa): i32 { return v.len; }
+/** 读第 i 个 x 分量；i 越界未定义。 */
+function vec3f_soa_get_x(v: Vec3f_soa, i: i32): f32 { return v.col_x[i]; }
+/** 读第 i 个 y 分量。 */
+function vec3f_soa_get_y(v: Vec3f_soa, i: i32): f32 { return v.col_y[i]; }
+/** 读第 i 个 z 分量。 */
+function vec3f_soa_get_z(v: Vec3f_soa, i: i32): f32 { return v.col_z[i]; }
+/** 写第 i 个三元组；i 越界未定义。 */
+function vec3f_soa_set(v: *Vec3f_soa, i: i32, x: f32, y: f32, z: f32): void {
+  v.col_x[i] = x;
+  v.col_y[i] = y;
+  v.col_z[i] = z;
+}
+/** 列扫描：求所有 x 分量之和（SoA 热路径 demo）；*Vec3f_soa 与 push/deinit 一致，勿大 struct 按值传参。 */
+/** 列扫描：求所有 x 分量之和（SoA 热路径 demo）；*Vec3f_soa 与 push/deinit 一致。 */
+function vec3f_soa_sum_x(v: *Vec3f_soa): f32 {
+  let s: f32 = 0.0;
+  let i: i32 = 0;
+  while (i < v.len) {
+    s = s + v.col_x[i];
+    i = i + 1;
+  }
+  return s;
+}
+/** 释放三列堆内存。 */
+function vec3f_soa_deinit(v: *Vec3f_soa): void {
+  if (v.col_x != 0) { heap.free(v.col_x); v.col_x = 0; }
+  if (v.col_y != 0) { heap.free(v.col_y); v.col_y = 0; }
+  if (v.col_z != 0) { heap.free(v.col_z); v.col_z = 0; }
+  v.len = 0;
+  v.cap = 0;
+}
+/** 新建空 Vec3f_aos。 */
+function vec3f_aos_new(): Vec3f_aos {
+  return Vec3f_aos { ptr: 0, len: 0, cap: 0 };
+}
+/** 预分配 capacity 个三元组（3*cap f32）；失败 -1。 */
+function vec3f_aos_with_capacity(v: *Vec3f_aos, capacity: i32): i32 {
+  if (capacity <= 0) {
+    v.ptr = 0;
+    v.cap = 0;
+    return 0;
+  }
+  let words: i32 = capacity * 3;
+  let p: *f32 = heap.alloc(words);
+  if (p == 0) {
+    v.cap = 0;
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = capacity;
+    v.len = 0;
+    return 0;
+  }
+  return -1;
+}
+/** AoS 扩容：元素槽 ×3 f32。 */
+function vec3f_aos_reserve_one(v: *Vec3f_aos): i32 {
+  if (v.len < v.cap) { return 0; }
+  let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
+  if (want <= 0) { return -1; }
+  let words: i32 = want * 3;
+  let p: *f32 = if (v.ptr == 0) { heap.alloc(words) } else { heap.realloc(v.ptr, words) };
+  if (p == 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    v.ptr = p;
+    v.cap = want;
+    return 0;
+  }
+  return -1;
+}
+/** AoS 追加 (x,y,z)。 */
+function vec3f_aos_push(v: *Vec3f_aos, x: f32, y: f32, z: f32): i32 {
+  if (vec3f_aos_reserve_one(v) != 0) {
+    return -1;
+  }
+  if (0 == 0) {
+    let base: i32 = v.len * 3;
+    v.ptr[base + 0] = x;
+    v.ptr[base + 1] = y;
+    v.ptr[base + 2] = z;
+    v.len = v.len + 1;
+    return 0;
+  }
+  return -1;
+}
+/** AoS 读 x 分量（第 i 个三元组）。 */
+function vec3f_aos_get_x(v: Vec3f_aos, i: i32): f32 { return v.ptr[i * 3 + 0]; }
+/** AoS 扫描 x 分量之和（对照 SoA 列扫描）。 */
+function vec3f_aos_sum_x(v: Vec3f_aos): f32 {
+  let s: f32 = 0.0;
+  let i: i32 = 0;
+  while (i < v.len) {
+    s = s + v.ptr[i * 3 + 0];
+    i = i + 1;
+  }
+  return s;
+}
+/** 释放 AoS 堆缓冲。 */
+function vec3f_aos_deinit(v: *Vec3f_aos): void {
+  if (v.ptr != 0) {
+    heap.free(v.ptr);
+    v.ptr = 0;
+  }
+  v.len = 0;
+  v.cap = 0;
+}
+/** 空 vec 长度 0；保留兼容（测试用）。 */
+function len_empty(): i32 { return 0; }
+/** 占位；保留兼容。 */
+function placeholder<T>(x: T): T { return x; }
+/** i32 单态占位：烟测用，避免泛型实例化拉整颗 mod.x 进 asm emit（自举 slice 下 elf_ec=-1）。 */
+function placeholder_i32(x: i32): i32 { return x; }
+/** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
+function module_anchor(): i32 { return 0; }

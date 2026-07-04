@@ -76,7 +76,7 @@ freestanding_musl_link_smoke() {
   local hello="$TMP/hello"
   cc -c -o "$TMP/crt0_user.o" "$ASM_DIR/crt0_user_x86_64.s"
   cat >"$TMP/return42_main.c" <<'EOF'
-/** musl 烟测桩：等价 tests/freestanding/return42/main.sx（crt0_user 经 call main 进入） */
+/** musl 烟测桩：等价 tests/freestanding/return42/main.x（crt0_user 经 call main 进入） */
 int main(void) { return 42; }
 EOF
   cc -c -o "$TMP/return42_main.o" "$TMP/return42_main.c"
@@ -93,7 +93,7 @@ EOF
   echo "run-freestanding-hello: musl return42 OK (exit 42, nostdlib static)"
 
   cat >"$TMP/hello_main.c" <<'EOF'
-/** musl 烟测桩：等价 tests/freestanding/hello/main.sx（crt0_user 经 call main 进入） */
+/** musl 烟测桩：等价 tests/freestanding/hello/main.x（crt0_user 经 call main 进入） */
 extern long shux_sys_write(int fd, const void *buf, unsigned long len);
 int main(void) {
   static const char msg[] = "Hello Shu!\n";
@@ -128,7 +128,7 @@ EOF
 # 探测 shux 是否具备 -freestanding + -backend asm 链入能力
 SHUX_ASM=0
 if [ -n "${SHUX:-}" ] && [ -x "$SHUX" ]; then
-  if "$SHUX" -freestanding -backend asm tests/freestanding/return42/main.sx -o "$TMP/probe" 2>/dev/null; then
+  if "$SHUX" -freestanding -backend asm tests/freestanding/return42/main.x -o "$TMP/probe" 2>/dev/null; then
     SHUX_ASM=1
     rm -f "$TMP/probe"
   fi
@@ -143,7 +143,7 @@ fi
 
 # return42：仅 syscall exit（完整 shux asm 路径）
 RV="$TMP/return42"
-"$SHUX" -freestanding -backend asm tests/freestanding/return42/main.sx -o "$RV" 2>/dev/null
+"$SHUX" -freestanding -backend asm tests/freestanding/return42/main.x -o "$RV" 2>/dev/null
 freestanding_no_libc "$RV"
 EX=0
 "$RV" >/dev/null 2>&1 || EX=$?
@@ -156,7 +156,7 @@ freestanding_trim_ok "$RV" 0 0
 
 # panic_div：除零 → shux_panic_，须按需链 runtime_panic.o
 PANIC="$TMP/panic_div"
-"$SHUX" -freestanding -backend asm tests/freestanding/panic_div/main.sx -o "$PANIC" 2>/dev/null
+"$SHUX" -freestanding -backend asm tests/freestanding/panic_div/main.x -o "$PANIC" 2>/dev/null
 freestanding_no_libc "$PANIC"
 freestanding_trim_ok "$PANIC" 0 1
 EX=0
@@ -169,7 +169,7 @@ echo "run-freestanding-hello: panic_div OK (exit 134, shux_panic_)"
 
 # hello：shux_sys_write → stdout
 HELLO="$TMP/hello"
-"$SHUX" -freestanding -backend asm tests/freestanding/hello/main.sx -o "$HELLO" 2>/dev/null
+"$SHUX" -freestanding -backend asm tests/freestanding/hello/main.x -o "$HELLO" 2>/dev/null
 freestanding_no_libc "$HELLO"
 set +e
 OUT=$("$HELLO" 2>/dev/null)

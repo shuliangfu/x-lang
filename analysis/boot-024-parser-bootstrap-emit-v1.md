@@ -9,7 +9,7 @@
 
 ## 1. 目标
 
-在 BOOT-023 mega7 全量 emit 基础上推进 **C2 bootstrap 全量 emit**：`SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1` 探测 parser.sx 全量编译；**MINIMAL** 白名单须绿，**FULL** 139 函数为 Linux 达标目标。
+在 BOOT-023 mega7 全量 emit 基础上推进 **C2 bootstrap 全量 emit**：`SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1` 探测 parser.x 全量编译；**MINIMAL** 白名单须绿，**FULL** 139 函数为 Linux 达标目标。
 
 验收：`tests/run-boot-024-parser-bootstrap-emit-gate.sh` 绿；`min_bootstrap_hooks=4`；Linux `bootstrap_minimal_ok=1`。
 
@@ -22,7 +22,7 @@
 | `boot_c1` | C1 | `run-parser-parse-bootstrap-gate.sh` | C seed parse_into_buf TU |
 | `boot_c2` | C2 | `run-parser-parse-bootstrap-link-smoke.sh` | experimental 链 smoke |
 | `boot_bisect` | C2 | `run-parser-parse-bootstrap-bisect-gate.sh` | MINIMAL + FULL bisect |
-| `boot_sx_emit` | C3 | `run-parser-parse-bootstrap-sx-emit-gate.sh` | SX emit 轨道探测 |
+| `boot_x_emit` | C3 | `run-parser-parse-bootstrap-x-emit-gate.sh` | X emit 轨道探测 |
 
 环境变量：`SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1`（全量）；`SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL=1`（白名单）。
 
@@ -66,6 +66,6 @@ shux: [SHUX_BOOT024] status=ok bootstrap_minimal_ok=1 bootstrap_full_emit=0 skip
 
 ## 6. 非目标（v2）
 
-- gen1 SX 编 gen2 parser 三代一致性（C3 终态）
+- gen1 X 编 gen2 parser 三代一致性（C3 终态）
 - Darwin nm 硬门禁
 - 批量 safe_helper 全替换

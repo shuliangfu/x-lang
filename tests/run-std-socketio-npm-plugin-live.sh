@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 NPM_DIR="tests/socketio/npm_live"
-LIVE_SX="tests/socketio/npm_live_plugin.sx"
+LIVE_X="tests/socketio/npm_live_plugin.x"
 PORT="${SHUX_SOCKETIO_NPM_PLUGIN_PORT:-13006}"
 
 if [ "${SHUX_SOCKETIO_NPM_PLUGIN:-0}" != "1" ]; then
@@ -41,7 +41,7 @@ else
   exit 0
 fi
 
-for f in "$LIVE_SX" "$NPM_DIR/package.json" "$NPM_DIR/server.mjs"; do
+for f in "$LIVE_X" "$NPM_DIR/package.json" "$NPM_DIR/server.mjs"; do
   if [ ! -f "$f" ]; then
     echo "std-socketio npm plugin live FAIL: missing $f" >&2
     exit 1
@@ -75,14 +75,14 @@ SVR_PID=$!
 sleep 1.5
 
 echo "=== STD-SOCKETIO-001: npm plugin live e2e (port=$PORT) ==="
-if ! "$SHUX_BIN" check -L . "$LIVE_SX" >/dev/null 2>&1; then
+if ! "$SHUX_BIN" check -L . "$LIVE_X" >/dev/null 2>&1; then
   echo "std-socketio npm plugin live FAIL: typeck" >&2
-  "$SHUX_BIN" check -L . "$LIVE_SX" 2>&1 | tail -10 >&2 || true
+  "$SHUX_BIN" check -L . "$LIVE_X" 2>&1 | tail -10 >&2 || true
   exit 1
 fi
 
 exe="/tmp/shux_std_socketio_npm_plugin_$$"
-if ! "$SHUX_BIN" -L . "$LIVE_SX" -o "$exe" 2>/tmp/shux_socketio_npm_plugin_link_$$.log; then
+if ! "$SHUX_BIN" -L . "$LIVE_X" -o "$exe" 2>/tmp/shux_socketio_npm_plugin_link_$$.log; then
   echo "std-socketio npm plugin live FAIL: link" >&2
   tail -8 /tmp/shux_socketio_npm_plugin_link_$$.log >&2 || true
   exit 1

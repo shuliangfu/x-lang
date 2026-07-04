@@ -21,6 +21,6 @@ check_neg() {
   echo "scope-borrow-gate OK $src -> $msg"
 }
 
-check_neg tests/typeck/borrow/return_addr_escape.sx "scope borrow escape"
-check_neg tests/typeck/borrow/assign_scope_escape.sx "scope borrow escape"
+check_neg tests/typeck/borrow/return_addr_escape.x "scope borrow escape"
+check_neg tests/typeck/borrow/assign_scope_escape.x "scope borrow escape"
 echo "scope-borrow-gate OK (MEM-A3 scope borrow v1)"

@@ -20,7 +20,7 @@ if [ ! -x compiler/shux_asm ]; then
 fi
 
 chmod +x compiler/scripts/build_shux_asm.sh
-SMK="tests/boundary/struct_mk_let_inline.sx"
+SMK="tests/boundary/struct_mk_let_inline.x"
 
 # 二次 build 触发 typeck_wpo opt-in 链（与 gen1 二次 build 同路径）。
 (

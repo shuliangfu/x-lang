@@ -60,7 +60,7 @@ export function importPathAtPosition(
 }
 
 /**
- * 在 .sx 文档中查找符号声明。
+ * 在 .x 文档中查找符号声明。
  */
 export function findDeclInSuDocument(
   document: vscode.TextDocument,
@@ -149,12 +149,12 @@ export async function findDeclInImportedModules(
   return undefined;
 }
 
-/** 在工作区 .sx 中查找符号 */
+/** 在工作区 .x 中查找符号 */
 export async function findDeclInWorkspaceSu(
   name: string,
   skipUri: vscode.Uri
 ): Promise<vscode.Location | undefined> {
-  const files = await vscode.workspace.findFiles('**/*.sx', '**/node_modules/**', 300);
+  const files = await vscode.workspace.findFiles('**/*.x', '**/node_modules/**', 300);
   for (const uri of files) {
     if (uri.fsPath === skipUri.fsPath) {
       continue;

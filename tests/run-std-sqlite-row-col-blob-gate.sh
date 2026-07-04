@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD069_DOC:-analysis/std-sqlite-row-col-blob-v1.md}"
 MANIFEST="${SHUX_STD069_TSV:-tests/baseline/std-sqlite-row-col-blob.tsv}"
 VECTORS="${SHUX_STD069_VECTORS:-tests/baseline/std-sqlite-row-col-blob-vectors.tsv}"
-MOD_SX="std/db/sqlite/mod.sx"
-DB_C="std/db/sqlite/sqlite.sx"
+MOD_X="std/db/sqlite/mod.x"
+DB_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-row-col-blob.sh"
-SMOKE_SX="tests/std-sqlite/row_col_blob_roundtrip.sx"
+SMOKE_X="tests/std-sqlite/row_col_blob_roundtrip.x"
 SMOKE_C="tests/std-sqlite/row_col_blob_roundtrip_ok.c"
 MIN_BLOB=1
 
@@ -20,7 +20,7 @@ MIN_BLOB=1
 std_sqlite_row_col_blob_source_sqlite
 
 echo "=== STD-069: db row_col_blob manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$DB_C" "$SMOKE_SX" "$SMOKE_C" \
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
   analysis/std-sqlite-row-col-text-v1.md tests/run-std-sqlite-row-col-text-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-row-col-blob gate FAIL: missing $f" >&2
@@ -65,7 +65,7 @@ if [ "$API_N" -lt "$MIN_BLOB" ]; then
   exit 1
 fi
 
-sym_miss="$(std_sqlite_row_col_blob_symbols_ok "$MOD_SX" "$DB_C" "$MANIFEST" || true)"
+sym_miss="$(std_sqlite_row_col_blob_symbols_ok "$MOD_X" "$DB_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_sqlite_row_col_blob_emit_report "fail" 0 0 0
   exit 1
@@ -83,7 +83,7 @@ if [ "${SHUX_STD069_MANIFEST_ONLY:-0}" = "1" ]; then
 fi
 
 BLOB_C=0
-BLOB_SX=0
+BLOB_X=0
 SKIP=1
 
 if std_sqlite_probe_libs; then
@@ -119,19 +119,19 @@ if std_sqlite_probe_libs; then
   fi
 
   if [ -n "$SHUX_BIN" ]; then
-    echo "=== STD-069: .sx row_col_blob smoke (SHUX=$SHUX_BIN) ==="
-    if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-      echo "std-sqlite-row-col-blob gate SKIP .sx smoke (typeck fail)" >&2
+    echo "=== STD-069: .x row_col_blob smoke (SHUX=$SHUX_BIN) ==="
+    if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+      echo "std-sqlite-row-col-blob gate SKIP .x smoke (typeck fail)" >&2
       SKIP=1
-    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SX" "blob"; then
-      BLOB_SX=1
+    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "blob"; then
+      BLOB_X=1
       SKIP=0
     else
-      echo "std-sqlite-row-col-blob gate SKIP .sx smoke (link/compile)" >&2
+      echo "std-sqlite-row-col-blob gate SKIP .x smoke (link/compile)" >&2
       SKIP=1
     fi
   else
-    echo "std-sqlite-row-col-blob gate SKIP .sx smoke (no native shux)" >&2
+    echo "std-sqlite-row-col-blob gate SKIP .x smoke (no native shux)" >&2
     SKIP=1
   fi
   std_sqlite_restore_default_o
@@ -142,5 +142,5 @@ else
   ensure_std_c_o ../std/db/sqlite/sqlite.o
 fi
 
-std_sqlite_row_col_blob_emit_report "ok" "$BLOB_C" "$BLOB_SX" "$SKIP"
+std_sqlite_row_col_blob_emit_report "ok" "$BLOB_C" "$BLOB_X" "$SKIP"
 echo "std-sqlite-row-col-blob gate OK"

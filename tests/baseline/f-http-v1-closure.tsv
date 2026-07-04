@@ -2,9 +2,9 @@
 # 列：item_id	kind	anchor	notes
 fhttp_doc	doc	analysis/phase-f-http-v1.md	F-http v1
 fhttp_gate	gate	tests/run-f-http-v1-gate.sh	聚合门禁
-http_sx	file	std/http/http.sx	模块锚点 .sx
+http_x	file	std/http/http.x	模块锚点 .x
 http_glue	file	compiler/src/asm/http/runtime_http_glue.c	HTTP 胶层 runtime
 http_glue_absent	absent	std/http/http_glue.c	已迁入 runtime
-http_mod	file	std/http/mod.sx	对外 API
+http_mod	file	std/http/mod.x	对外 API
 http_c_absent	absent	std/http/http.c	已删除
-makefile	makefile	compiler/Makefile	http.o 纯 .sx + runtime_http_glue.o
+makefile	makefile	compiler/Makefile	http.o 纯 .x + runtime_http_glue.o

@@ -11,7 +11,7 @@
 |----|------|
 | STD-142 | 三平台 process 行为向量 + 聚合烟测 + 子 gate 注册 |
 
-聚合 `getpid/cwd/pipe/spawn` 可移植子集；Windows 专项见 `spawn_wait_win.sx`（STD-024）。
+聚合 `getpid/cwd/pipe/spawn` 可移植子集；Windows 专项见 `spawn_wait_win.x`（STD-024）。
 
 ---
 
@@ -35,10 +35,10 @@
 
 | 用例 | 路径 |
 |------|------|
-| 聚合 | `tests/process/xplat_behavior.sx` |
-| 边界 | `tests/process/boundary.sx`（TST-002） |
-| Windows spawn | `tests/process/spawn_wait_win.sx` |
-| pipe 重定向 | `tests/process/spawn_pipe_echo.sx` |
+| 聚合 | `tests/process/xplat_behavior.x` |
+| 边界 | `tests/process/boundary.x`（TST-002） |
+| Windows spawn | `tests/process/spawn_wait_win.x` |
+| pipe 重定向 | `tests/process/spawn_pipe_echo.x` |
 
 ```bash
 ./tests/run-std-process-xplat-gate.sh

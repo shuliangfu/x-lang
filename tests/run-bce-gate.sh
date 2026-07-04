@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
-SRC="tests/mem/bce_array.sx"
+SRC="tests/mem/bce_array.x"
 OUT="/tmp/shux_bce_array"
 C_OUT="/tmp/shux_bce_array.c"
 rm -f "$OUT" "$C_OUT"

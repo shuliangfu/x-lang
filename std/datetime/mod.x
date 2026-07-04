@@ -1,0 +1,323 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.datetime — 日期时间解析、格式化、时区与 Duration（STD-074 / F-datetime v2）
+//
+// 【文件职责】
+// DateTime（UTC Unix sec+nsec）、RFC3339/RFC3339Nano、日历字段、
+// 本地时区偏移、Duration 算术、IANA DST；逻辑与 datetime_local_offset_min_c 均在 datetime.x（F-ZC）。
+// 与 std.time sleep/单调差互操作。
+//
+// 【对标】Go time.Time、Rust chrono、Zig std.time 高层。
+
+const time = import("std.time");
+
+/** UTC 墙钟时刻：Unix 纪元秒 + 纳秒余数。 */
+allow(padding) struct DateTime {
+  sec: i64;
+  nsec: i32;
+}
+
+/** 纳秒精度时间间隔。 */
+allow(padding) struct Duration {
+  ns: i64;
+}
+
+/** 日历字段（month 1..12）。 */
+allow(padding) struct DateFields {
+  year: i32;
+  month: i32;
+  day: i32;
+  hour: i32;
+  minute: i32;
+  second: i32;
+  nsec: i32;
+}
+
+extern function datetime_now_utc_c(out_sec: *i64, out_nsec: *i32): void;
+extern function datetime_utc_fields_c(sec: i64, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void;
+extern function datetime_from_utc_fields_c(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32, nsec: i32, out_sec: *i64, out_nsec: *i32): i32;
+extern function datetime_compare_c(a_sec: i64, a_nsec: i32, b_sec: i64, b_nsec: i32): i32;
+extern function datetime_parse_rfc3339_c(ptr: *u8, len: i32, out_sec: *i64, out_nsec: *i32, out_offset_min: *i32): i32;
+extern function datetime_format_rfc3339_c(sec: i64, nsec: i32, out: *u8, out_cap: i32): i32;
+extern function datetime_format_rfc3339_nano_c(sec: i64, nsec: i32, out: *u8, out_cap: i32): i32;
+extern function datetime_local_offset_min_c(): i32;
+extern function datetime_local_fields_c(sec: i64, offset_min: i32, y: *i32, mo: *i32, d: *i32, h: *i32, mi: *i32, s: *i32): void;
+extern function datetime_duration_between_ns_c(a_sec: i64, a_nsec: i32, b_sec: i64, b_nsec: i32): i64;
+extern function datetime_add_duration_ns_c(sec: i64, nsec: i32, delta_ns: i64, out_sec: *i64, out_nsec: *i32): i32;
+extern function datetime_timezone_from_name_c(name: *u8, name_len: i32, out_offset_min: *i32): i32;
+extern function datetime_parse_offset_min_c(ptr: *u8, len: i32, out_offset_min: *i32): i32;
+extern function datetime_from_zoned_fields_c(y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32, nsec: i32,
+  offset_min: i32, out_sec: *i64, out_nsec: *i32): i32;
+extern function datetime_iana_from_name_c(name: *u8, name_len: i32): i32;
+extern function datetime_iana_offset_at_c(iana_id: i32, sec: i64): i32;
+extern function datetime_from_iana_zoned_fields_c(iana_id: i32, y: i32, mo: i32, d: i32, h: i32, mi: i32, s: i32,
+  nsec: i32, out_sec: *i64, out_nsec: *i32): i32;
+extern function datetime_iana_dst_smoke_c(): i32;
+extern function datetime_timezone_smoke_c(): i32;
+
+/** 当前 UTC 时刻。 */
+function now_utc(): DateTime {
+  let sec: i64 = 0;
+  let nsec: i32 = 0;
+  unsafe {
+    datetime_now_utc_c(&sec, &nsec);
+  }
+  return DateTime { sec: sec, nsec: nsec };
+}
+
+/** 由 Unix 秒构造 UTC DateTime。 */
+function from_unix(sec: i64, nsec: i32): DateTime {
+  return DateTime { sec: sec, nsec: nsec };
+}
+
+/** 由 UTC 日历字段构造；失败返回 sec=-1。 */
+function from_utc_fields(f: DateFields): DateTime {
+  let sec: i64 = 0;
+  let nsec: i32 = 0;
+  unsafe {
+    if (datetime_from_utc_fields_c(f.year, f.month, f.day, f.hour, f.minute, f.second, f.nsec, &sec, &nsec) != 0) {
+      return DateTime { sec: -1, nsec: 0 };
+    }
+  }
+  return DateTime { sec: sec, nsec: nsec };
+}
+
+/** 分解为 UTC 日历字段。 */
+function to_utc_fields(t: DateTime): DateFields {
+  let y: i32 = 0;
+  let mo: i32 = 0;
+  let d: i32 = 0;
+  let h: i32 = 0;
+  let mi: i32 = 0;
+  let s: i32 = 0;
+  unsafe {
+    datetime_utc_fields_c(t.sec, &y, &mo, &d, &h, &mi, &s);
+  }
+  return DateFields { year: y, month: mo, day: d, hour: h, minute: mi, second: s, nsec: t.nsec };
+}
+
+/** 比较两个 DateTime：-1/0/1。 */
+function compare(a: DateTime, b: DateTime): i32 {
+  unsafe {
+    return datetime_compare_c(a.sec, a.nsec, b.sec, b.nsec);
+  }
+}
+
+/** 解析 RFC3339 / RFC3339Nano；0 成功，-1 失败。 */
+function parse_rfc3339(ptr: *u8, len: i32, out: *DateTime, offset_min: *i32): i32 {
+  let sec: i64 = 0;
+  let nsec: i32 = 0;
+  unsafe {
+    if (datetime_parse_rfc3339_c(ptr, len, &sec, &nsec, offset_min) != 0) {
+      return -1;
+    }
+    out.sec = sec;
+    out.nsec = nsec;
+  }
+  return 0;
+}
+
+/** 格式化为 RFC3339 UTC（Z）；返回写入长度，失败 -1。 */
+function format_rfc3339(t: DateTime, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return datetime_format_rfc3339_c(t.sec, t.nsec, out, out_cap);
+  }
+}
+
+/** 格式化为 RFC3339Nano UTC；返回写入长度，失败 -1。 */
+function format_rfc3339_nano(t: DateTime, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return datetime_format_rfc3339_nano_c(t.sec, t.nsec, out, out_cap);
+  }
+}
+
+/** 本地时区相对 UTC 偏移（分钟，东为正）。 */
+function local_offset_min(): i32 {
+  unsafe {
+    return datetime_local_offset_min_c();
+  }
+}
+
+/** 按本地偏移分解日历字段。 */
+function to_local_fields(t: DateTime, offset_min: i32): DateFields {
+  let y: i32 = 0;
+  let mo: i32 = 0;
+  let d: i32 = 0;
+  let h: i32 = 0;
+  let mi: i32 = 0;
+  let s: i32 = 0;
+  unsafe {
+    datetime_local_fields_c(t.sec, offset_min, &y, &mo, &d, &h, &mi, &s);
+  }
+  return DateFields { year: y, month: mo, day: d, hour: h, minute: mi, second: s, nsec: t.nsec };
+}
+
+/** 构造 Duration（纳秒）。 */
+function duration_from_ns(ns: i64): Duration {
+  return Duration { ns: ns };
+}
+
+/** 构造 Duration（秒）。 */
+function duration_from_sec(s: i64): Duration {
+  return Duration { ns: s * 1000000000 };
+}
+
+/** 两 DateTime 之差（b - a）。 */
+function duration_between(a: DateTime, b: DateTime): Duration {
+  let ns: i64 = 0;
+  unsafe {
+    ns = datetime_duration_between_ns_c(a.sec, a.nsec, b.sec, b.nsec);
+  }
+  return Duration { ns: ns };
+}
+
+/** DateTime 加 Duration。 */
+function add_duration(t: DateTime, d: Duration): DateTime {
+  let sec: i64 = 0;
+  let nsec: i32 = 0;
+  unsafe {
+    if (datetime_add_duration_ns_c(t.sec, t.nsec, d.ns, &sec, &nsec) != 0) {
+      return DateTime { sec: -1, nsec: 0 };
+    }
+  }
+  return DateTime { sec: sec, nsec: nsec };
+}
+
+/** Duration 睡眠（委托 std.time.sleep_ns）。 */
+function duration_sleep(d: Duration): void {
+  time.sleep_ns(d.ns);
+}
+
+/** 单调时钟差 → Duration。 */
+function duration_from_monotonic(from_ns: i64, to_ns: i64): Duration {
+  return Duration { ns: time.duration_ns(from_ns, to_ns) };
+}
+
+// ——— STD-135/136：固定偏移 + IANA DST 时区 ———
+
+/** 固定偏移或 IANA 时区；iana_id>=0 时按 UTC 秒查 DST 规则。 */
+allow(padding) struct TimeZone {
+  offset_min: i32;
+  iana_id: i32;
+}
+
+/** UTC 时区（offset 0）。 */
+function timezone_utc(): TimeZone {
+  return TimeZone { offset_min: 0, iana_id: 0 };
+}
+
+/** 平台本地时区偏移（固定，无 IANA）。 */
+function timezone_local(): TimeZone {
+  return TimeZone { offset_min: local_offset_min(), iana_id: -1 };
+}
+
+/** 指定固定偏移（分钟）；iana_id=-1。 */
+function timezone_fixed(offset_min: i32): TimeZone {
+  return TimeZone { offset_min: offset_min, iana_id: -1 };
+}
+
+/**
+ * 按内置名解析时区（UTC/JST/CST/…）；成功 0 并写 out，未知 -1。
+ * v1 为固定标准时偏移，不含夏令时规则。
+ */
+function timezone_from_name(name: *u8, name_len: i32, out: *TimeZone): i32 {
+  let off: i32 = 0;
+  unsafe {
+    if (datetime_timezone_from_name_c(name, name_len, &off) != 0) {
+      return -1;
+    }
+    out.offset_min = off;
+    out.iana_id = -1;
+  }
+  return 0;
+}
+
+/**
+ * 按 IANA 时区名解析（America/New_York / Europe/London / Asia/Tokyo 等）；含 DST。
+ * 成功 0；未知 -1。
+ */
+function timezone_iana(name: *u8, name_len: i32, out: *TimeZone): i32 {
+  let id: i32 = 0;
+  unsafe {
+    id = datetime_iana_from_name_c(name, name_len);
+    if (id < 0) {
+      return -1;
+    }
+    out.iana_id = id;
+    out.offset_min = 0;
+  }
+  return 0;
+}
+
+/** 指定 UTC 时刻在时区下的偏移（分钟；IANA 含 DST，固定区用 offset_min）。 */
+function timezone_offset_at(t: DateTime, tz: TimeZone): i32 {
+  if (tz.iana_id >= 0) {
+    unsafe {
+      return datetime_iana_offset_at_c(tz.iana_id, t.sec);
+    }
+  }
+  return tz.offset_min;
+}
+
+/** 解析 ±HH:MM / ±HHMM / Z 或内置时区名；成功 0。 */
+function parse_offset_min(ptr: *u8, len: i32, out: *i32): i32 {
+  unsafe {
+    return datetime_parse_offset_min_c(ptr, len, out);
+  }
+}
+
+/** UTC DateTime → 时区墙钟日历字段（IANA 按 t.sec 查 DST）。 */
+function to_zoned_fields(t: DateTime, tz: TimeZone): DateFields {
+  let off: i32 = timezone_offset_at(t, tz);
+  return to_local_fields(t, off);
+}
+
+/** 时区墙钟日历字段 → UTC DateTime；IANA 含 DST refinement。 */
+function from_zoned_fields(f: DateFields, tz: TimeZone): DateTime {
+  let sec: i64 = 0;
+  let nsec: i32 = 0;
+  if (tz.iana_id >= 0) {
+    unsafe {
+      if (datetime_from_iana_zoned_fields_c(tz.iana_id, f.year, f.month, f.day, f.hour, f.minute, f.second, f.nsec,
+          &sec, &nsec) != 0) {
+        return DateTime { sec: -1, nsec: 0 };
+      }
+    }
+    return DateTime { sec: sec, nsec: nsec };
+  }
+  unsafe {
+    if (datetime_from_zoned_fields_c(f.year, f.month, f.day, f.hour, f.minute, f.second, f.nsec,
+        tz.offset_min, &sec, &nsec) != 0) {
+      return DateTime { sec: -1, nsec: 0 };
+    }
+  }
+  return DateTime { sec: sec, nsec: nsec };
+}
+
+/** IANA DST 烟测；0 通过。 */
+function iana_dst_smoke(): i32 {
+  unsafe {
+    return datetime_iana_dst_smoke_c();
+  }
+}
+
+/** STD-135 C 金样。 */
+function timezone_smoke(): i32 {
+  unsafe {
+    return datetime_timezone_smoke_c();
+  }
+}

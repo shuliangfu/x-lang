@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-sync-rwlock-condvar.tsv` |
 | 3 | `./tests/run-std-sync-rwlock-condvar-gate.sh` |
-| 4 | 烟测：`tests/sync/rwlock_condvar.sx` |
+| 4 | 烟测：`tests/sync/rwlock_condvar.x` |
 
 ---
 

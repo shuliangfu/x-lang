@@ -8,7 +8,7 @@
 
 ## 1. 阅读路径
 
-15 分钟速览：`std/heap/mod.sx` 中 `Allocator` / `heap_alloc` / `from_arena`，以及 `std/vec/mod.sx` 中 `vec_u8_with_allocator`。
+15 分钟速览：`std/heap/mod.x` 中 `Allocator` / `heap_alloc` / `from_arena`，以及 `std/vec/mod.x` 中 `vec_u8_with_allocator`。
 
 ---
 
@@ -36,6 +36,6 @@
 ## 4. 验证与门禁
 
 - manifest：`tests/baseline/std-heap-allocator.tsv`
-- 烟测：`tests/heap/allocator_vec.sx`
+- 烟测：`tests/heap/allocator_vec.x`
 - gate：`tests/run-std-heap-allocator-gate.sh`
 - 报告：`shux: [SHUX_STD112_HEAP_ALLOC] status=ok`

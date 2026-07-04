@@ -110,7 +110,7 @@
 
 ### 4.2 Echo（TCP 回显，Tier S 参考实现）
 
-参考：`tests/bench/net_echo_throughput.sx`
+参考：`tests/bench/net_echo_throughput.x`
 
 ```su
 import("std.net");
@@ -226,9 +226,9 @@ close_stream(stream);
 
 | 资源 | 路径 |
 |------|------|
-| 实现 | `std/net/mod.sx`、`net.c` |
+| 实现 | `std/net/mod.x`、`net.c` |
 | 用户 README | `std/net/README.md` |
-| echo 参考 | `tests/bench/net_echo_throughput.sx` |
+| echo 参考 | `tests/bench/net_echo_throughput.x` |
 | 稳定符号 | `tests/baseline/std-net-api.tsv` |
 | 性能分析 | `analysis/std.net性能压榨与超越Zig.md` |
 

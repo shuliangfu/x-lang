@@ -9,7 +9,7 @@
 | `shux_find_loaded_import_index` | pipeline_abi | 已加载 import 去重查下标 |
 | `shux_dep_prerun_entry_dir` | pipeline_abi | dep 预跑 entry_dir（-L 优先） |
 | `shux_entry_lib_name_from_path` | pipeline_abi | -E 库模块 C 前缀 |
-| `shux_emit_pipeline_glue_include` | pipeline_abi | -E pipeline.sx 胶水 include |
+| `shux_emit_pipeline_glue_include` | pipeline_abi | -E pipeline.x 胶水 include |
 | `driver_asm_fclose_asm_out` | pipeline_abi | asm 写出（stdout 仅 fflush） |
 | `shux_asm_out_buf_is_object` | pipeline_abi | Mach-O/ELF 对象魔数检测 |
 | `driver_argv_collect_defines` | driver_abi | -D / -target / uname 宏收集 |

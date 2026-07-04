@@ -1,4 +1,4 @@
-// struct_param.zig — 与 tests/bench/struct_param.sx 对齐
+// struct_param.zig — 与 tests/bench/struct_param.x 对齐
 const std = @import("std");
 
 const Pair = struct { a: i32, b: i32 };

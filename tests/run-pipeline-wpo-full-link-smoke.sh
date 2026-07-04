@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# track-only：整颗 pipeline_wpo.o SX 编排链入 strict_glue（SHUX_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1）。
-# 链接 + return-value/hello 编译运行须成功（2026-06-10：+ pipeline_sx_glue_support astpool 桥接）。
+# track-only：整颗 pipeline_wpo.o X 编排链入 strict_glue（SHUX_ASM_STRICT_LINK_PIPELINE_WPO_FULL=1）。
+# 链接 + return-value/hello 编译运行须成功（2026-06-10：+ pipeline_x_glue_support astpool 桥接）。
 # 用法：
 #   ./tests/run-pipeline-wpo-full-link-smoke.sh
 #   SHUX_PIPELINE_WPO_FULL_COMPILE_FAIL=1 ./tests/run-pipeline-wpo-full-link-smoke.sh  # 同默认（硬门禁）
@@ -14,7 +14,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-if [ ! -x compiler/shux ] && [ ! -x compiler/shux-sx ]; then
+if [ ! -x compiler/shux ] && [ ! -x compiler/shux-x ]; then
   echo "pipeline-wpo-full-link: SKIP (no seed shux)"
   exit 0
 fi
@@ -44,8 +44,8 @@ if ! grep -q 'whole pipeline_wpo.o' /tmp/pipeline_wpo_full_relink.log; then
   echo "pipeline-wpo-full-link FAIL: relink log missing whole pipeline_wpo.o line" >&2
   exit 1
 fi
-if ! grep -q 'pipeline_sx glue support (FULL wpo' /tmp/pipeline_wpo_full_relink.log; then
-  echo "pipeline-wpo-full-link FAIL: relink log missing pipeline_sx glue support (FULL) line" >&2
+if ! grep -q 'pipeline_x glue support (FULL wpo' /tmp/pipeline_wpo_full_relink.log; then
+  echo "pipeline-wpo-full-link FAIL: relink log missing pipeline_x glue support (FULL) line" >&2
   exit 1
 fi
 
@@ -55,8 +55,8 @@ if [ ! -x compiler/shux_asm.strict_glue ]; then
   exit 1
 fi
 
-if ! nm compiler/shux_asm.strict_glue 2>/dev/null | grep -qE ' T run_sx_pipeline_impl$'; then
-  echo "pipeline-wpo-full-link FAIL: strict_glue missing T run_sx_pipeline_impl" >&2
+if ! nm compiler/shux_asm.strict_glue 2>/dev/null | grep -qE ' T run_x_pipeline_impl$'; then
+  echo "pipeline-wpo-full-link FAIL: strict_glue missing T run_x_pipeline_impl" >&2
   exit 1
 fi
 
@@ -66,7 +66,7 @@ RC=0
 (
   cd compiler
   ulimit -s 65532 2>/dev/null || true
-  ./shux_asm.strict_glue ../tests/return-value/main.sx -o "$OUT" -backend asm
+  ./shux_asm.strict_glue ../tests/return-value/main.x -o "$OUT" -backend asm
 ) || RC=$?
 
 if [ "$RC" -ne 0 ] || [ ! -x "$OUT" ]; then
@@ -85,7 +85,7 @@ rm -f "$HELLO_OUT"
 (
   cd compiler
   ulimit -s 65532 2>/dev/null || true
-  ./shux_asm.strict_glue -L "$(pwd)/.." ../examples/hello.sx -o "$HELLO_OUT" -backend asm
+  ./shux_asm.strict_glue -L "$(pwd)/.." ../examples/hello.x -o "$HELLO_OUT" -backend asm
 )
 if [ ! -x "$HELLO_OUT" ] || ! "$HELLO_OUT" | grep -q "Hello World"; then
   echo "pipeline-wpo-full-link FAIL: hello compile/run" >&2

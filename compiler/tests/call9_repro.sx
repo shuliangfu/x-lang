@@ -1,7 +1,0 @@
-// call9_repro.sx — 九参 extern call 烟测（ARM64 AAPCS 栈上传参）。
-extern function io_register_buffers_4(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize,
-p3: *u8, l3: usize, nr: u32): i32;
-
-function main(): i32 {
-  return io_register_buffers_4(0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 0);
-}

@@ -1,7 +1,7 @@
 # COMP-006 指令选择优化 v1
 
 > 更新时间：2026-06-18  
-> 状态：**定版（v1）** — 与 asm 7.3、`peephole.sx`、`run-asm-binop-var.sh` 对齐  
+> 状态：**定版（v1）** — 与 asm 7.3、`peephole.x`、`run-asm-binop-var.sh` 对齐  
 > 关联：`COMP-005`（regalloc）、`COMP-014`（P0 wave）、`PERF-001`（bcmp microbench）、`compiler/src/asm/README.md`
 
 ---
@@ -23,11 +23,11 @@
 
 | 层级 | 模式 | 选择策略 | 验证 |
 |------|------|----------|------|
-| **I1-imm-binop** | `VAR op VAR` | 直 ldr 栈槽，免 push/pop 左操作数 | `binop_var_fast.sx` exit **143** |
-| **I2-index-lit** | `arr[k] op expr`（k 字面量） | `add_imm` 下标，免 x2 暂存 | `binop_index_lit_fast.sx` exit **75** |
-| **I3-cmp-branch** | `if (a < b)` | 字面量/VAR 比较 + 分支 | `binop_var_fast.sx` 含 `<` |
-| **I4-peephole** | 冗余 mov/push-pop | `peephole_elf` 字节级删除 | `peephole.sx` |
-| **I5-shift-div** | `<<` `>>` `/` `%` | 专用 emit 路径（非通用 call） | `binop_var_fast.sx` |
+| **I1-imm-binop** | `VAR op VAR` | 直 ldr 栈槽，免 push/pop 左操作数 | `binop_var_fast.x` exit **143** |
+| **I2-index-lit** | `arr[k] op expr`（k 字面量） | `add_imm` 下标，免 x2 暂存 | `binop_index_lit_fast.x` exit **75** |
+| **I3-cmp-branch** | `if (a < b)` | 字面量/VAR 比较 + 分支 | `binop_var_fast.x` 含 `<` |
+| **I4-peephole** | 冗余 mov/push-pop | `peephole_elf` 字节级删除 | `peephole.x` |
+| **I5-shift-div** | `<<` `>>` `/` `%` | 专用 emit 路径（非通用 call） | `binop_var_fast.x` |
 | **I6-microbench** | 循环/调用链热路径 | 与 C -O3 对标 ≤1.0× | `run-bcmp-gate.sh` |
 
 **selection 原则**：
@@ -44,15 +44,15 @@
 
 | bench_id | 用例 | 策略 | gate |
 |----------|------|------|------|
-| `bench_var_fast` | `binop_var_fast.sx` | I1+I3+I5 | `run-asm-binop-var.sh` |
-| `bench_index_lit` | `binop_index_lit_fast.sx` | I2 | `run-asm-binop-index-lit.sh` |
-| `bench_loop` | `loop_i32.sx` | I6 | bcmp |
-| `bench_call` | `call_boundary.sx` | I6 | bcmp |
-| `bench_struct` | `struct_param.sx` | I6 | bcmp |
+| `bench_var_fast` | `binop_var_fast.x` | I1+I3+I5 | `run-asm-binop-var.sh` |
+| `bench_index_lit` | `binop_index_lit_fast.x` | I2 | `run-asm-binop-index-lit.sh` |
+| `bench_loop` | `loop_i32.x` | I6 | bcmp |
+| `bench_call` | `call_boundary.x` | I6 | bcmp |
+| `bench_struct` | `struct_param.x` | I6 | bcmp |
 | `bench_peephole` | block-var 无往返 mov | I4 | `run-asm-binop-block-var.sh` |
-| `bench_field_p0` | `binop_field_index_fast.sx` | I7 | `run-asm-binop-field-index.sh` |
-| `bench_nested_p0` | `binop_nested_var_return.sx` | I8 | `run-asm-binop-nested-var.sh` |
-| `bench_div_index_p0` | `binop_div_index_binop.sx` | I5 | `run-asm-binop-div-index.sh` |
+| `bench_field_p0` | `binop_field_index_fast.x` | I7 | `run-asm-binop-field-index.sh` |
+| `bench_nested_p0` | `binop_nested_var_return.x` | I8 | `run-asm-binop-nested-var.sh` |
+| `bench_div_index_p0` | `binop_div_index_binop.x` | I5 | `run-asm-binop-div-index.sh` |
 
 P0 波次详情见 `analysis/comp-isel-p0-v1.md`（COMP-014）。
 
@@ -62,19 +62,19 @@ P0 波次详情见 `analysis/comp-isel-p0-v1.md`（COMP-014）。
 
 | case_id | 文件 | 期望 |
 |---------|------|------|
-| `case_var_fast` | `binop_var_fast.sx` | exit **143**；无 stack push |
-| `case_index_lit` | `binop_index_lit_fast.sx` | exit **75**；无 `mov x2` |
-| `case_four_add` | `binop_return_four_add.sx` | exit **10**（链式 add isel） |
-| `case_loop` | `loop_i32.sx` | bcmp 对标 C |
+| `case_var_fast` | `binop_var_fast.x` | exit **143**；无 stack push |
+| `case_index_lit` | `binop_index_lit_fast.x` | exit **75**；无 `mov x2` |
+| `case_four_add` | `binop_return_four_add.x` | exit **10**（链式 add isel） |
+| `case_loop` | `loop_i32.x` | bcmp 对标 C |
 
 **COMP-014 P0 扩展**（`tier=P0`，详见 `comp-isel-p0-v1.md`）：
 
 | case_id | 文件 | 期望 |
 |---------|------|------|
-| `case_field_p0` | `binop_field_index_fast.sx` | exit **205** |
-| `case_nested_p0` | `binop_nested_var_return.sx` | exit **20** |
-| `case_div_index_p0` | `binop_div_index_binop.sx` | exit **2** |
-| `case_cfg_p0` | `binop_if_plus_eq_merge.sx` | exit **13** |
+| `case_field_p0` | `binop_field_index_fast.x` | exit **205** |
+| `case_nested_p0` | `binop_nested_var_return.x` | exit **20** |
+| `case_div_index_p0` | `binop_div_index_binop.x` | exit **2** |
+| `case_cfg_p0` | `binop_if_plus_eq_merge.x` | exit **13** |
 
 ---
 

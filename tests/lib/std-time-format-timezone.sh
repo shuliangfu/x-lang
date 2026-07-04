@@ -4,7 +4,7 @@
 STD_TIME_FORMAT_TZ_PREFIX="${SHUX_STD137_TIME_FORMAT_TZ_PREFIX:-shux: [SHUX_STD137_TIME_FORMAT_TZ]}"
 
 std_time_format_tz_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local time_c="$2"
   local tsv="$3"
   local miss=0
@@ -14,7 +14,7 @@ std_time_format_tz_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}" "$mod_x" 2>/dev/null; then
           echo "std-time-format-tz FAIL: missing '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -22,7 +22,7 @@ std_time_format_tz_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/time/time.c|std/time/time.sx) path="$time_c" ;;
+          std/time/time.c|std/time/time.x) path="$time_c" ;;
           std/time/time_os_glue.c|compiler/src/asm/runtime_time_os.c) path="${time_runtime:-compiler/src/asm/runtime_time_os.c}" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
@@ -83,5 +83,5 @@ std_time_format_tz_run_c_smoke() {
 }
 
 std_time_format_tz_emit_report() {
-  echo "${STD_TIME_FORMAT_TZ_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
+  echo "${STD_TIME_FORMAT_TZ_PREFIX} status=$1 c=$2 x=$3 skip=$4"
 }

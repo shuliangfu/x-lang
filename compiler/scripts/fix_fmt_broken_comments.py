@@ -45,7 +45,7 @@ def looks_like_comment_text(stripped: str) -> bool:
         return True
     if re.search(r"[。）；，、：」』】）]$", stripped):
         return True
-    if re.search(r"^(runtime|scripts/|\.\./|asm_|pipeline_|build_|mod\.sx)", stripped):
+    if re.search(r"^(runtime|scripts/|\.\./|asm_|pipeline_|build_|mod\.x)", stripped):
         return True
     if re.search(r"^[a-z_.][a-z0-9_./*-]*[.;)]?$", stripped, re.I):
         return True
@@ -198,7 +198,7 @@ def fix_file_lines(lines: list[str]) -> tuple[list[str], int]:
 
 
 def main() -> None:
-    """遍历目录并写回有改动的 .sx 文件。"""
+    """遍历目录并写回有改动的 .x 文件。"""
     roots = sys.argv[1:] or ["compiler", "core", "std", "tests", "examples"]
     total = 0
     files = 0
@@ -209,7 +209,7 @@ def main() -> None:
         for dp, dns, fns in os.walk(root):
             dns[:] = [d for d in dns if d not in skip_dirs]
             for fn in fns:
-                if not fn.endswith(".sx"):
+                if not fn.endswith(".x"):
                     continue
                 path = os.path.join(dp, fn)
                 with open(path, encoding="utf-8", errors="replace") as f:

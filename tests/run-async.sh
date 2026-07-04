@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # A1/A2 协作调度烟测：async_switch + scheduler 按需链入 + import std.async
-# 含 import/spawn/IO 全链路的 .sx 编译：import/hex 优先 shux（refresh 后），否则回退 shux-c。
+# 含 import/spawn/IO 全链路的 .x 编译：import/hex 优先 shux（refresh 后），否则回退 shux-c。
 set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
@@ -79,7 +79,7 @@ if [ -z "${SHUX:-}" ]; then
   fi
 fi
 
-# relink 后 seed shux 的 SX codegen 在 run/spawn -o 链路上可能 SIGSEGV；C 前端 -o 烟测与 EMIT_SHUX 对齐用 shux-c。
+# relink 后 seed shux 的 X codegen 在 run/spawn -o 链路上可能 SIGSEGV；C 前端 -o 烟测与 EMIT_SHUX 对齐用 shux-c。
 COMPILE_SHUX="$SHUX"
 if [ -x ./compiler/shux-c ]; then
   COMPILE_SHUX=./compiler/shux-c
@@ -87,7 +87,7 @@ fi
 
 # async_switch -o：见 async_host_compile_o（Win shux-c / macOS -backend c / Linux x86_64 asm）。
 async_switch_compile_o() {
-  async_host_compile_o tests/bench/async_switch.sx /tmp/shux_async_switch
+  async_host_compile_o tests/bench/async_switch.x /tmp/shux_async_switch
 }
 
 # relink 后 shux 的 -E 仅 parse/typeck 摘要；须 grep C/SHUX_ASYNC_FRAME 的烟测统一走 shux-c。
@@ -120,7 +120,7 @@ echo "async_switch OK"
 # scheduler jmp 烟测仅 Linux x86_64 seed asm 支持；seed 未 bootstrap 时 N/A（Tier P 早于 bootstrap-driver-seed）。
 if async_is_linux_x64_asm; then
   sched_log=/tmp/async_switch_sched_compile.log
-  if "$SHUX" -L . tests/bench/async_switch_sched.sx -backend asm -o /tmp/shux_async_sched >"$sched_log" 2>&1; then
+  if "$SHUX" -L . tests/bench/async_switch_sched.x -backend asm -o /tmp/shux_async_sched >"$sched_log" 2>&1; then
     rc=$(/tmp/shux_async_sched; echo $?)
     [ "$rc" = "0" ] || { echo "async_switch_sched failed exit=$rc"; exit 1; }
     echo "async_switch_sched OK"
@@ -139,10 +139,10 @@ fi
 SHUX_IMPORT=${SHUX_IMPORT:-$SHUX}
 if ! async_is_linux_x64_asm && [ -x ./compiler/shux-c ]; then
   SHUX_IMPORT=./compiler/shux-c
-elif ! "$SHUX_IMPORT" -L . -E tests/parser/import_std_async.sx >/dev/null 2>&1; then
+elif ! "$SHUX_IMPORT" -L . -E tests/parser/import_std_async.x >/dev/null 2>&1; then
   SHUX_IMPORT=./compiler/shux-c
 fi
-"$SHUX_IMPORT" -L . tests/bench/async_mod_import.sx -o /tmp/shux_async_mod_import 2>&1 || {
+"$SHUX_IMPORT" -L . tests/bench/async_mod_import.x -o /tmp/shux_async_mod_import 2>&1 || {
   echo "async_mod_import FAIL: compile ($SHUX_IMPORT)"
   exit 1
 }
@@ -152,8 +152,8 @@ rc=$(/tmp/shux_async_mod_import; echo $?)
 echo "async smoke OK"
 
 echo "async syntax: async function parse + compile ..."
-async_host_compile_o tests/parser/async_function.sx /tmp/shux_async_fn_syntax 2>&1 || {
-  echo "async syntax FAIL: async_function.sx should compile"
+async_host_compile_o tests/parser/async_function.x /tmp/shux_async_fn_syntax 2>&1 || {
+  echo "async syntax FAIL: async_function.x should compile"
   exit 1
 }
 rc=$(/tmp/shux_async_fn_syntax; echo $?)
@@ -161,8 +161,8 @@ rc=$(/tmp/shux_async_fn_syntax; echo $?)
 echo "async syntax OK"
 
 echo "async import std.async: parse (-E) + dep codegen ($SHUX_IMPORT) ..."
-out=$("$SHUX_IMPORT" -L . -E tests/parser/import_std_async.sx 2>&1) || {
-  echo "async import std.async FAIL: -E import_std_async.sx"
+out=$("$SHUX_IMPORT" -L . -E tests/parser/import_std_async.x 2>&1) || {
+  echo "async import std.async FAIL: -E import_std_async.x"
   exit 1
 }
 echo "$out" | grep -q 'shux_async_queue_reset' || {
@@ -181,8 +181,8 @@ case "$(basename "$SHUX_IMPORT")" in
     fi
     ;;
 esac
-out=$("$EMIT_HEX" -E tests/parser/const_hex.sx 2>&1) || {
-  echo "const hex FAIL: -E const_hex.sx"
+out=$("$EMIT_HEX" -E tests/parser/const_hex.x 2>&1) || {
+  echo "const hex FAIL: -E const_hex.x"
   exit 1
 }
 echo "$out" | grep -q '1095980800' || {
@@ -192,14 +192,14 @@ echo "$out" | grep -q '1095980800' || {
 echo "const hex OK"
 
 echo "await syntax: async function + await compile + run ..."
-async_host_compile_o tests/parser/await_async.sx /tmp/shux_await_async 2>&1 || {
-  echo "await syntax FAIL: await_async.sx should compile"
+async_host_compile_o tests/parser/await_async.x /tmp/shux_await_async 2>&1 || {
+  echo "await syntax FAIL: await_async.x should compile"
   exit 1
 }
 rc=$(/tmp/shux_await_async; echo $?)
 [ "$rc" = "42" ] || { echo "await syntax FAIL: expected exit 42, got $rc"; exit 1; }
 
-if "$COMPILE_SHUX" -L . tests/parser/await_sync_err.sx -o /tmp/shux_await_sync_err 2>&1 | grep -q "await.*only allowed inside async function"; then
+if "$COMPILE_SHUX" -L . tests/parser/await_sync_err.x -o /tmp/shux_await_sync_err 2>&1 | grep -q "await.*only allowed inside async function"; then
   : # 预期 typeck 报错
 else
   echo "await syntax FAIL: await in sync function should be rejected"
@@ -209,8 +209,8 @@ echo "await syntax OK"
 
 echo "async liveness A3: SHUX_ASYNC_FRAME in -E output ..."
 LIVENESS_EMIT="$EMIT_SHUX"
-out=$("$LIVENESS_EMIT" -E tests/parser/async_await_liveness.sx 2>&1) || {
-  echo "async liveness FAIL: async_await_liveness.sx -E failed"
+out=$("$LIVENESS_EMIT" -E tests/parser/async_await_liveness.x 2>&1) || {
+  echo "async liveness FAIL: async_await_liveness.x -E failed"
   exit 1
 }
 echo "$out" | grep -qE 'SHUX_ASYNC_FRAME func=liveness_demo.*slots=1.*vars=keep' || {
@@ -240,8 +240,8 @@ echo "$out" | grep 'SHUX_ASYNC_FRAME func=liveness_demo' | grep -q 'dead' && {
   exit 1
 }
 
-out2=$("$LIVENESS_EMIT" -E tests/parser/async_await_liveness_two.sx 2>&1) || {
-  echo "async liveness FAIL: async_await_liveness_two.sx -E failed"
+out2=$("$LIVENESS_EMIT" -E tests/parser/async_await_liveness_two.x 2>&1) || {
+  echo "async liveness FAIL: async_await_liveness_two.x -E failed"
   exit 1
 }
 echo "$out2" | grep -qE 'SHUX_ASYNC_FRAME func=two_await.*slots=2.*vars=a,b' || {
@@ -291,8 +291,8 @@ echo "$out" | grep -q 'static __shux_async_frame_liveness_demo __shux_frame' || 
 }
 
 echo "async liveness WPO-S3: struct Pair across await (-E) ..."
-out_await=$("$EMIT_SHUX" -E tests/wpo/stack_promote_await.sx 2>&1) || {
-  echo "async struct await FAIL: stack_promote_await.sx -E failed"
+out_await=$("$EMIT_SHUX" -E tests/wpo/stack_promote_await.x 2>&1) || {
+  echo "async struct await FAIL: stack_promote_await.x -E failed"
   exit 1
 }
 echo "$out_await" | grep -q 'struct Pair {' || {
@@ -324,8 +324,8 @@ make -C compiler ../std/async/scheduler.o -q 2>/dev/null \
   || make -C compiler ../std/async/scheduler.o
 if [ -f compiler/../std/async/scheduler.o ] || [ -f std/async/scheduler.o ]; then
   # 须用 relink 后 shux（runtime 按需链 scheduler.o）；shux-c 链接路径缺 shux_async_cps_suspend。
-  SHUX_ASYNC_YIELD=1 async_host_compile_o tests/parser/async_cps_yield.sx /tmp/shux_async_cps_yield 2>&1 || {
-    echo "async CPS yield FAIL: compile async_cps_yield.sx"
+  SHUX_ASYNC_YIELD=1 async_host_compile_o tests/parser/async_cps_yield.x /tmp/shux_async_cps_yield 2>&1 || {
+    echo "async CPS yield FAIL: compile async_cps_yield.x"
     exit 1
   }
   if file /tmp/shux_async_cps_yield 2>/dev/null | grep -q "executable"; then
@@ -335,8 +335,8 @@ if [ -f compiler/../std/async/scheduler.o ] || [ -f std/async/scheduler.o ]; the
   else
     echo "async CPS yield: skip run (link/platform)"
   fi
-  SHUX_ASYNC_YIELD=1 async_host_compile_o tests/wpo/stack_promote_await_yield.sx /tmp/shux_wpo_await_yield 2>&1 || {
-    echo "async struct await yield FAIL: compile stack_promote_await_yield.sx"
+  SHUX_ASYNC_YIELD=1 async_host_compile_o tests/wpo/stack_promote_await_yield.x /tmp/shux_wpo_await_yield 2>&1 || {
+    echo "async struct await yield FAIL: compile stack_promote_await_yield.x"
     exit 1
   }
   if file /tmp/shux_wpo_await_yield 2>/dev/null | grep -q "executable"; then
@@ -411,8 +411,8 @@ rc=$(/tmp/shux_async_scheduler_io_await_flag; echo $?)
 echo "async scheduler IO-A5 await flag OK"
 
 echo "async await IO: await read() codegen (shux_async_cps_suspend_io) ..."
-out=$("$EMIT_SHUX" -E tests/parser/async_await_io.sx 2>&1) || {
-  echo "async await IO FAIL: -E async_await_io.sx"
+out=$("$EMIT_SHUX" -E tests/parser/async_await_io.x 2>&1) || {
+  echo "async await IO FAIL: -E async_await_io.x"
   exit 1
 }
 echo "$out" | grep -q '__shux_frame.__io_rd_slot = shux_io_submit_read_async' || {
@@ -438,8 +438,8 @@ echo "$out" | grep -q 'SHUX_ASYNC_CPS switch=1' || {
 echo "async await IO OK"
 
 echo "async await IO write: await write() codegen ..."
-out=$("$EMIT_SHUX" -E tests/parser/async_await_io_write.sx 2>&1) || {
-  echo "async await IO write FAIL: -E async_await_io_write.sx"
+out=$("$EMIT_SHUX" -E tests/parser/async_await_io_write.x 2>&1) || {
+  echo "async await IO write FAIL: -E async_await_io_write.x"
   exit 1
 }
 echo "$out" | grep -q 'shux_io_submit_write_async' || {
@@ -453,8 +453,8 @@ echo "$out" | grep -q 'shux_io_complete_write_async' || {
 echo "async await IO write OK"
 
 echo "async await IO read_fd: await read_fd() codegen ..."
-out=$("$EMIT_SHUX" -E tests/parser/async_await_read_fd.sx 2>&1) || {
-  echo "async await IO read_fd FAIL: -E async_await_read_fd.sx"
+out=$("$EMIT_SHUX" -E tests/parser/async_await_read_fd.x 2>&1) || {
+  echo "async await IO read_fd FAIL: -E async_await_read_fd.x"
   exit 1
 }
 echo "$out" | grep -q 'shux_io_submit_read_async' || {
@@ -468,8 +468,8 @@ echo "$out" | grep -q '(size_t)(unsigned)(' || {
 echo "async await IO read_fd OK"
 
 echo "async await IO write_fd: await write_fd() codegen ..."
-out=$("$EMIT_SHUX" -E tests/parser/async_await_write_fd.sx 2>&1) || {
-  echo "async await IO write_fd FAIL: -E async_await_write_fd.sx"
+out=$("$EMIT_SHUX" -E tests/parser/async_await_write_fd.x 2>&1) || {
+  echo "async await IO write_fd FAIL: -E async_await_write_fd.x"
   exit 1
 }
 echo "$out" | grep -q 'shux_io_submit_write_async' || {
@@ -483,8 +483,8 @@ echo "$out" | grep -q '(size_t)(unsigned)(' || {
 echo "async await IO write_fd OK"
 
 echo "async await IO dual: two run read_chunk(fd) + __io_rd_slot ..."
-out=$("$EMIT_SHUX" -E tests/parser/async_await_io_dual.sx 2>&1) || {
-  echo "async await IO dual FAIL: -E async_await_io_dual.sx"
+out=$("$EMIT_SHUX" -E tests/parser/async_await_io_dual.x 2>&1) || {
+  echo "async await IO dual FAIL: -E async_await_io_dual.x"
   exit 1
 }
 echo "$out" | grep -q '__io_rd_slot' || {
@@ -595,8 +595,8 @@ if ! async_io_uring_skip_na "async scheduler IO write multi e2e"; then
 fi
 
 echo "async scheduler drain: run + SHUX_ASYNC_YIELD=1 ..."
-out=$("$EMIT_SHUX" -E tests/parser/async_scheduler_drain.sx 2>&1) || {
-  echo "async scheduler drain FAIL: -E async_scheduler_drain.sx"
+out=$("$EMIT_SHUX" -E tests/parser/async_scheduler_drain.x 2>&1) || {
+  echo "async scheduler drain FAIL: -E async_scheduler_drain.x"
   exit 1
 }
 echo "$out" | grep -q 'shux_async_sched_yield_demo' || {
@@ -609,7 +609,7 @@ echo "$out" | grep -q '__shux_frame.__phase = 0' || {
 }
 if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
   # 部分平台 shux 链 run+drain 仍可能崩溃；-E 烟测已通过，run 失败则 skip（CI 不 grep drain run OK）。
-  if SHUX_ASYNC_YIELD=1 "$COMPILE_SHUX" -L . tests/parser/async_scheduler_drain.sx -o /tmp/shux_async_sched_drain 2>/tmp/shux_async_sched_drain.log; then
+  if SHUX_ASYNC_YIELD=1 "$COMPILE_SHUX" -L . tests/parser/async_scheduler_drain.x -o /tmp/shux_async_sched_drain 2>/tmp/shux_async_sched_drain.log; then
     if file /tmp/shux_async_sched_drain 2>/dev/null | grep -q "executable"; then
       rc=$(SHUX_ASYNC_YIELD=1 /tmp/shux_async_sched_drain; echo $?)
       [ "$rc" = "0" ] || { echo "async scheduler drain FAIL: expected exit 0, got $rc"; exit 1; }
@@ -625,15 +625,15 @@ else
 fi
 
 echo "run async syntax: run yield_demo() codegen + typeck ..."
-out=$("$EMIT_SHUX" -E tests/parser/run_async.sx 2>&1) || {
-  echo "run async FAIL: -E run_async.sx"
+out=$("$EMIT_SHUX" -E tests/parser/run_async.x 2>&1) || {
+  echo "run async FAIL: -E run_async.x"
   exit 1
 }
 echo "$out" | grep -q 'shux_async_sched_yield_demo()' || {
   echo "run async FAIL: expected shux_async_sched_yield_demo() in -E"
   exit 1
 }
-if "$COMPILE_SHUX" -L . tests/parser/run_async_sync_err.sx -o /tmp/shux_run_async_err 2>&1 | grep -q "run.*not allowed inside async"; then
+if "$COMPILE_SHUX" -L . tests/parser/run_async_sync_err.x -o /tmp/shux_run_async_err 2>&1 | grep -q "run.*not allowed inside async"; then
   : # 预期 typeck 报错
 else
   echo "run async FAIL: run inside async should be rejected"
@@ -642,8 +642,8 @@ fi
 echo "run async syntax OK"
 
 echo "run async v1: run async_fn(i32) seed + codegen ..."
-out=$("$EMIT_SHUX" -E tests/parser/run_async_arg.sx 2>&1) || {
-  echo "run async v1 FAIL: -E run_async_arg.sx"
+out=$("$EMIT_SHUX" -E tests/parser/run_async_arg.x 2>&1) || {
+  echo "run async v1 FAIL: -E run_async_arg.x"
   exit 1
 }
 echo "$out" | grep -q 'shux_async_run_seed_push_i32' || {
@@ -654,15 +654,15 @@ echo "$out" | grep -q 'shux_async_run_seed_take_i32' || {
   echo "run async v1 FAIL: missing seed take in async entry"
   exit 1
 }
-if _run_async_arg_count_rejected tests/parser/run_async_arg_err.sx; then
+if _run_async_arg_count_rejected tests/parser/run_async_arg_err.x; then
   : # 预期 typeck 报错：两实参对一形参
 else
   echo "run async v1 FAIL: run arg count mismatch should be rejected"
   exit 1
 fi
 if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
-  "$COMPILE_SHUX" -L . tests/parser/run_async_arg.sx -o /tmp/shux_run_async_arg 2>&1 || {
-    echo "run async v1 FAIL: compile run_async_arg.sx"
+  "$COMPILE_SHUX" -L . tests/parser/run_async_arg.x -o /tmp/shux_run_async_arg 2>&1 || {
+    echo "run async v1 FAIL: compile run_async_arg.x"
     exit 1
   }
   if file /tmp/shux_run_async_arg 2>/dev/null | grep -q "executable"; then
@@ -678,8 +678,8 @@ fi
 echo "run async v1 OK"
 
 echo "run async v2: run async_fn(i32, i32) seed queue + codegen ..."
-out=$("$EMIT_SHUX" -E tests/parser/run_async_arg2.sx 2>&1) || {
-  echo "run async v2 FAIL: -E run_async_arg2.sx"
+out=$("$EMIT_SHUX" -E tests/parser/run_async_arg2.x 2>&1) || {
+  echo "run async v2 FAIL: -E run_async_arg2.x"
   exit 1
 }
 echo "$out" | grep -q 'shux_async_run_seed_reset' || {
@@ -700,21 +700,21 @@ echo "$out" | grep -q 'b = shux_async_run_seed_take_i32' || {
   echo "run async v2 FAIL: missing seed take for param b"
   exit 1
 }
-if _run_async_arg_count_rejected tests/parser/run_async_arg2_err.sx; then
+if _run_async_arg_count_rejected tests/parser/run_async_arg2_err.x; then
   : # 预期 typeck 报错
 else
   echo "run async v2 FAIL: run with one arg to two-param fn should be rejected"
   exit 1
 fi
-if _run_async_arg_count_rejected tests/parser/run_async_arg3_err.sx; then
+if _run_async_arg_count_rejected tests/parser/run_async_arg3_err.x; then
   : # 预期 typeck 报错
 else
   echo "run async v2 FAIL: run with three args to one-param fn should be rejected"
   exit 1
 fi
 if make -C compiler ../std/async/scheduler.o -q 2>/dev/null; then
-  "$COMPILE_SHUX" -L . tests/parser/run_async_arg2.sx -o /tmp/shux_run_async_arg2 2>&1 || {
-    echo "run async v2 FAIL: compile run_async_arg2.sx"
+  "$COMPILE_SHUX" -L . tests/parser/run_async_arg2.x -o /tmp/shux_run_async_arg2 2>&1 || {
+    echo "run async v2 FAIL: compile run_async_arg2.x"
     exit 1
   }
   if file /tmp/shux_run_async_arg2 2>/dev/null | grep -q "executable"; then
@@ -730,8 +730,8 @@ fi
 echo "run async v2 OK"
 
 echo "run async v3: u32/i64 seed + codegen ..."
-out=$("$EMIT_SHUX" -E tests/parser/run_async_u32.sx 2>&1) || {
-  echo "run async v3 FAIL: -E run_async_u32.sx"
+out=$("$EMIT_SHUX" -E tests/parser/run_async_u32.x 2>&1) || {
+  echo "run async v3 FAIL: -E run_async_u32.x"
   exit 1
 }
 echo "$out" | grep -q 'shux_async_run_seed_push_u32' || {
@@ -742,8 +742,8 @@ echo "$out" | grep -q 'shux_async_run_seed_take_u32' || {
   echo "run async v3 FAIL: missing take_u32 in async entry"
   exit 1
 }
-out2=$("$EMIT_SHUX" -E tests/parser/run_async_i64.sx 2>&1) || {
-  echo "run async v3 FAIL: -E run_async_i64.sx"
+out2=$("$EMIT_SHUX" -E tests/parser/run_async_i64.x 2>&1) || {
+  echo "run async v3 FAIL: -E run_async_i64.x"
   exit 1
 }
 echo "$out2" | grep -q 'shux_async_run_seed_push_i64' || {
@@ -754,15 +754,15 @@ echo "$out2" | grep -q 'shux_async_run_seed_take_i64' || {
   echo "run async v3 FAIL: missing take_i64"
   exit 1
 }
-if "$COMPILE_SHUX" -L . tests/parser/run_async_type_err.sx -o /tmp/shux_run_async_type_err 2>&1 | grep -q "type mismatch"; then
+if "$COMPILE_SHUX" -L . tests/parser/run_async_type_err.x -o /tmp/shux_run_async_type_err 2>&1 | grep -q "type mismatch"; then
   : # 预期 typeck 报错
 else
   echo "run async v3 FAIL: i32 arg to u32 param should be rejected"
   exit 1
 fi
 if [ -x "$COMPILE_SHUX" ]; then
-  "$COMPILE_SHUX" -L . tests/parser/run_async_u32.sx -o /tmp/shux_run_async_u32 2>&1 || {
-    echo "run async v3 FAIL: compile run_async_u32.sx"
+  "$COMPILE_SHUX" -L . tests/parser/run_async_u32.x -o /tmp/shux_run_async_u32 2>&1 || {
+    echo "run async v3 FAIL: compile run_async_u32.x"
     exit 1
   }
   if file /tmp/shux_run_async_u32 2>/dev/null | grep -q "executable"; then
@@ -770,8 +770,8 @@ if [ -x "$COMPILE_SHUX" ]; then
     [ "$rc" = "0" ] || { echo "run async v3 FAIL: run_async_u32 exit=$rc"; exit 1; }
     echo "run async v3 run_async_u32 OK"
   fi
-  "$COMPILE_SHUX" -L . tests/parser/run_async_i64.sx -o /tmp/shux_run_async_i64 2>&1 || {
-    echo "run async v3 FAIL: compile run_async_i64.sx"
+  "$COMPILE_SHUX" -L . tests/parser/run_async_i64.x -o /tmp/shux_run_async_i64 2>&1 || {
+    echo "run async v3 FAIL: compile run_async_i64.x"
     exit 1
   }
   if file /tmp/shux_run_async_i64 2>/dev/null | grep -q "executable"; then
@@ -783,8 +783,8 @@ fi
 echo "run async v3 OK"
 
 echo "run async v4: usize seed + codegen ..."
-out=$("$EMIT_SHUX" -E tests/parser/run_async_usize.sx 2>&1) || {
-  echo "run async v4 FAIL: -E run_async_usize.sx"
+out=$("$EMIT_SHUX" -E tests/parser/run_async_usize.x 2>&1) || {
+  echo "run async v4 FAIL: -E run_async_usize.x"
   exit 1
 }
 echo "$out" | grep -q 'shux_async_run_seed_push_usize' || {
@@ -796,8 +796,8 @@ echo "$out" | grep -q 'shux_async_run_seed_take_usize' || {
   exit 1
 }
 if [ -x "$COMPILE_SHUX" ]; then
-  "$COMPILE_SHUX" -L . tests/parser/run_async_usize.sx -o /tmp/shux_run_async_usize 2>&1 || {
-    echo "run async v4 FAIL: compile run_async_usize.sx"
+  "$COMPILE_SHUX" -L . tests/parser/run_async_usize.x -o /tmp/shux_run_async_usize 2>&1 || {
+    echo "run async v4 FAIL: compile run_async_usize.x"
     exit 1
   }
   if file /tmp/shux_run_async_usize 2>/dev/null | grep -q "executable"; then
@@ -818,7 +818,7 @@ else
   echo "async run seed: skip (scheduler.o)"
 fi
 
-echo "async linux full: .sx link + run (run v1/v2 + IO stdin/pipe/spawn) ..."
+echo "async linux full: .x link + run (run v1/v2 + IO stdin/pipe/spawn) ..."
 if [ -x ./compiler/shux-c ]; then
   ASYNC_LINUX_FULL_IO=1
   if async_io_uring_unavailable; then
@@ -831,8 +831,8 @@ if [ -x ./compiler/shux-c ]; then
       || make -C compiler ../std/io/io.o ../std/async/scheduler.o
   fi
 
-  ./compiler/shux-c -L . tests/parser/run_async_arg.sx -o /tmp/shux_run_async_arg_full 2>&1 || {
-    echo "async linux full FAIL: compile run_async_arg.sx"
+  ./compiler/shux-c -L . tests/parser/run_async_arg.x -o /tmp/shux_run_async_arg_full 2>&1 || {
+    echo "async linux full FAIL: compile run_async_arg.x"
     exit 1
   }
   if file /tmp/shux_run_async_arg_full 2>/dev/null | grep -q "executable"; then
@@ -843,8 +843,8 @@ if [ -x ./compiler/shux-c ]; then
     echo "async linux full: skip run_async_arg run (not executable)"
   fi
 
-  ./compiler/shux-c -L . tests/parser/run_async_arg2.sx -o /tmp/shux_run_async_arg2_full 2>&1 || {
-    echo "async linux full FAIL: compile run_async_arg2.sx"
+  ./compiler/shux-c -L . tests/parser/run_async_arg2.x -o /tmp/shux_run_async_arg2_full 2>&1 || {
+    echo "async linux full FAIL: compile run_async_arg2.x"
     exit 1
   }
   if file /tmp/shux_run_async_arg2_full 2>/dev/null | grep -q "executable"; then
@@ -856,8 +856,8 @@ if [ -x ./compiler/shux-c ]; then
   fi
 
   if [ "$ASYNC_LINUX_FULL_IO" = "1" ]; then
-    SHUX_ASYNC_YIELD=1 ./compiler/shux-c -L . tests/parser/async_run_io_stdin.sx -o /tmp/shux_async_run_io_stdin 2>&1 || {
-      echo "async linux full FAIL: compile async_run_io_stdin.sx"
+    SHUX_ASYNC_YIELD=1 ./compiler/shux-c -L . tests/parser/async_run_io_stdin.x -o /tmp/shux_async_run_io_stdin 2>&1 || {
+      echo "async linux full FAIL: compile async_run_io_stdin.x"
       exit 1
     }
     if file /tmp/shux_async_run_io_stdin 2>/dev/null | grep -q "executable"; then
@@ -868,8 +868,8 @@ if [ -x ./compiler/shux-c ]; then
       echo "async linux full: skip async_run_io_stdin run (not executable)"
     fi
 
-    SHUX_ASYNC_YIELD=1 ./compiler/shux-c -L . tests/parser/async_run_io_dual_pipe.sx -o /tmp/shux_async_run_io_dual_pipe 2>&1 || {
-      echo "async linux full FAIL: compile async_run_io_dual_pipe.sx"
+    SHUX_ASYNC_YIELD=1 ./compiler/shux-c -L . tests/parser/async_run_io_dual_pipe.x -o /tmp/shux_async_run_io_dual_pipe 2>&1 || {
+      echo "async linux full FAIL: compile async_run_io_dual_pipe.x"
       exit 1
     }
     if file /tmp/shux_async_run_io_dual_pipe 2>/dev/null | grep -q "executable"; then
@@ -885,8 +885,8 @@ if [ -x ./compiler/shux-c ]; then
       echo "async linux full: skip async_run_io_dual_pipe run (not executable)"
     fi
 
-    SHUX_ASYNC_YIELD=1 ./compiler/shux-c -L . tests/parser/async_run_io_dual_parallel.sx -o /tmp/shux_async_run_io_dual_parallel 2>&1 || {
-      echo "async linux full FAIL: compile async_run_io_dual_parallel.sx"
+    SHUX_ASYNC_YIELD=1 ./compiler/shux-c -L . tests/parser/async_run_io_dual_parallel.x -o /tmp/shux_async_run_io_dual_parallel 2>&1 || {
+      echo "async linux full FAIL: compile async_run_io_dual_parallel.x"
       exit 1
     }
     if file /tmp/shux_async_run_io_dual_parallel 2>/dev/null | grep -q "executable"; then
@@ -932,8 +932,8 @@ if ! async_io_uring_skip_na "async run dual pipe"; then
 fi
 
 echo "async spawn v4: spawn async_fn + drain_until_idle codegen ..."
-out=$("$EMIT_SHUX" -L . -E tests/parser/async_spawn_v4_smoke.sx 2>&1) || {
-  echo "async spawn v4 FAIL: -E async_spawn_v4_smoke.sx"
+out=$("$EMIT_SHUX" -L . -E tests/parser/async_spawn_v4_smoke.x 2>&1) || {
+  echo "async spawn v4 FAIL: -E async_spawn_v4_smoke.x"
   exit 1
 }
 echo "$out" | grep -q 'shux_async_queue_reset' || {

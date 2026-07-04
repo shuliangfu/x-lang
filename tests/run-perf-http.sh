@@ -74,8 +74,8 @@ if ! cc -O2 -Icompiler/src/asm/http tests/bench/http_bench_server.c compiler/src
 fi
 
 port="$(pick_free_port)"
-sed -e "s/${HTTP_BENCH_PORT_DEFAULT}/${port}/g" tests/bench/http_get_bench.sx >"/tmp/http_get_bench_${port}.sx"
-if ! "$SHUX_BIN" -L . "/tmp/http_get_bench_${port}.sx" -o "$CLIENT_BIN" >/tmp/http_bench_compile.log 2>&1; then
+sed -e "s/${HTTP_BENCH_PORT_DEFAULT}/${port}/g" tests/bench/http_get_bench.x >"/tmp/http_get_bench_${port}.x"
+if ! "$SHUX_BIN" -L . "/tmp/http_get_bench_${port}.x" -o "$CLIENT_BIN" >/tmp/http_bench_compile.log 2>&1; then
   cat /tmp/http_bench_compile.log >&2
   exit 1
 fi

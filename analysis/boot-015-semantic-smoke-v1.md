@@ -18,9 +18,9 @@
 
 | 模块 | 烟测 | 预期 |
 |------|------|------|
-| `std.vec` | `tests/vec/main.sx` | `vec_len_empty` + `vec_placeholder` → exit 0 |
-| `std.map` | `tests/map/main.sx` | `map_empty_size` → exit 0 |
-| `std.heap` | `tests/heap/main.sx` | `alloc_size_zero` → exit 0 |
+| `std.vec` | `tests/vec/main.x` | `vec_len_empty` + `vec_placeholder` → exit 0 |
+| `std.map` | `tests/map/main.x` | `map_empty_size` → exit 0 |
+| `std.heap` | `tests/heap/main.x` | `alloc_size_zero` → exit 0 |
 
 Runner：`tests/run-bootstrap-semantic-smoke-vec-map-heap.sh`（`SHUX=` 指定代际）。  
 全量回归：`tests/run-vec.sh`、`tests/run-map.sh`、`tests/run-heap.sh`。

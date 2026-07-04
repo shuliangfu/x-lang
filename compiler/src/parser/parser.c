@@ -1755,7 +1755,7 @@ static ASTExpr *parse_primary(Parser *p) {
                 elems[num_elems++] = e;
                 if (peek(p)->kind == TOKEN_COMMA) {
                     advance(p);
-                    /* 尾逗号 `, ]`：多行 [64]i32 初值等与 parser.sx 一致 */
+                    /* 尾逗号 `, ]`：多行 [64]i32 初值等与 parser.x 一致 */
                     if (peek(p)->kind == TOKEN_RBRACKET)
                         break;
                     continue;
@@ -1963,7 +1963,7 @@ static int question_is_try_propagate_suffix(Parser *p) {
 }
 
 /**
- * 解析零个或多个「as 类型」后缀，紧接在 primary/postfix/调用之后（与 parser.sx parse_as_suffix_into 一致）。
+ * 解析零个或多个「as 类型」后缀，紧接在 primary/postfix/调用之后（与 parser.x parse_as_suffix_into 一致）。
  * 支持 path[i] as i32、foo() as *u8 等；as 不可放在 [index] 之前。
  * 参数：p 解析器；left 已有子表达式。返回值：成功返回（可能嵌套 AS 的）ASTExpr*；失败返回 NULL。
  */
@@ -2745,18 +2745,18 @@ static ASTExpr *parse_expr(Parser *p) {
 
 /** 最大 import 数量 */
 #define MAX_IMPORTS 32
-/** 顶层 let 最大数量（std/fs/posix.sx 等超 32 项 const/let，自举前须 ≥64） */
+/** 顶层 let 最大数量（std/fs/posix.x 等超 32 项 const/let，自举前须 ≥64） */
 #define MAX_TOP_LEVEL_LETS 128
 /** 顶层最大 struct 定义数 */
 #define MAX_STRUCTS 16
 /** 顶层最大 enum 定义数 */
 #define MAX_ENUMS 16
 /** 单 struct 定义最大字段数（parse_one_struct 用） */
-/** 自举用：ast.sx 的 Expr 等结构体字段数超 32，故提高上限 */
+/** 自举用：ast.x 的 Expr 等结构体字段数超 32，故提高上限 */
 #define MAX_STRUCT_FIELDS_DEF 64
 /** 单 enum 定义最大变体数（自举 9.1：TokenKind 等超 32 项，故提高上限） */
 #define MAX_ENUM_VARIANTS 128
-/** 块内最大 const/let 声明数（自举用：parser.sx 的 parse_one_function 单块内 let 超 32，故提高上限） */
+/** 块内最大 const/let 声明数（自举用：parser.x 的 parse_one_function 单块内 let 超 32，故提高上限） */
 #define MAX_CONST_DECLS 256
 #define MAX_LET_DECLS 256
 /** 块内最大 while 循环数 */
@@ -6041,7 +6041,7 @@ cleanup_funcs_fail:
     } else {
         free(func_list);
     }
-    /* 库模块（被 import 的 .sx）可不含 main；入口模块由 driver 在 -o/-E 时校验须有 main（阶段 7.3）。 */
+    /* 库模块（被 import 的 .x）可不含 main；入口模块由 driver 在 -o/-E 时校验须有 main（阶段 7.3）。 */
 
     /* 拷贝 struct 定义到 mod */
     if (nstructs > 0) {

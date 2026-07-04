@@ -88,7 +88,7 @@ file	compiler/src/asm/pipeline_glue_strict_minimal.c
 file	compiler/src/asm/pipeline_phase_parse_only_alias.c
 file	compiler/src/asm/pipeline_run_bootstrap_trampoline.c
 file	compiler/src/asm/pipeline_run_impl_alias.c
-file	compiler/src/asm/pipeline_run_sx_link_alias.c
+file	compiler/src/asm/pipeline_run_x_link_alias.c
 file	compiler/src/asm/pipeline_wpo_strict_link_alias.c
 file	compiler/src/asm/pipeline_wpo_typecheck_emit_bridge.c
 file	compiler/src/asm/runtime_arrow_simd_glue.c
@@ -141,11 +141,11 @@ file	compiler/src/lsp/lsp_diag.c
 file	compiler/src/lsp/lsp_diag_pipeline_ctx.c
 file	compiler/src/lsp/lsp_diag_pipeline_sizes.c
 file	compiler/src/lsp/lsp_diag_stubs_no_c.c
-file	compiler/src/lsp/lsp_diag_sx_alias.c
+file	compiler/src/lsp/lsp_diag_x_alias.c
 file	compiler/src/lsp/lsp_state.c
 file	compiler/src/lsp/typeck_lsp_io_stub.c
 file	compiler/src/main.c
-file	compiler/src/main_sx.c
+file	compiler/src/main_x.c
 file	compiler/src/parser/parser.c
 file	compiler/src/preprocess.c
 file	compiler/src/preprocess_if_stack_bridge.c
@@ -162,9 +162,9 @@ file	compiler/src/runtime_pipeline_abi_shux_c_stubs.c
 file	compiler/src/runtime_proc_abi.c
 file	compiler/src/std_fs_shim.c
 file	compiler/src/std_sys_shim.c
-file	compiler/src/sx_bridge.c
-file	compiler/src/sx_seed_bridge.c
-file	compiler/src/sx_stubs.c
+file	compiler/src/x_bridge.c
+file	compiler/src/x_seed_bridge.c
+file	compiler/src/x_stubs.c
 file	compiler/src/typeck/typeck.c
 file	compiler/src/typeck/typeck_f64_bits.c
 file	compiler/src/typeck/typeck_generic_struct.c

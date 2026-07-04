@@ -1,7 +1,7 @@
 # std.random — 密码学安全随机数（CSPRNG）
 
-**模块路径**：`std/random/`（mod.sx + random.c）  
-**依赖**：core（extern C），无其它 .sx 模块。  
+**模块路径**：`std/random/`（mod.x + random.c）  
+**依赖**：core（extern C），无其它 .x 模块。  
 **对标**：Zig std.crypto / getentropy、Rust getrandom / rand::rngs::OsRng。
 
 ## API 概览

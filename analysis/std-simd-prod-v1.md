@@ -9,7 +9,7 @@
 
 ## 1. 目标
 
-在 STD-047 实装基础上，新增 **生产级 perf bench**：`tests/bench/simd_shuffle_select.sx` 热循环须 **≥1.0×** 标量桩基线 `simd_shuffle_select_stub.c`。
+在 STD-047 实装基础上，新增 **生产级 perf bench**：`tests/bench/simd_shuffle_select.x` 热循环须 **≥1.0×** 标量桩基线 `simd_shuffle_select_stub.c`。
 
 验收：`tests/run-std-simd-prod-gate.sh` 绿；`min_benches=3`。
 
@@ -19,7 +19,7 @@
 
 | bench_id | 文件 | 角色 |
 |----------|------|------|
-| `bench_shuffle_hot` | `simd_shuffle_select.sx` | import `std.simd` 生产路径 |
+| `bench_shuffle_hot` | `simd_shuffle_select.x` | import `std.simd` 生产路径 |
 | `bench_stub_scalar` | `simd_shuffle_select_stub.c` | 纯标量 lane 桩基线 |
 | `bench_hook` | `run-perf-simd-shuffle-select.sh` | stub/Shu ratio 门禁 |
 

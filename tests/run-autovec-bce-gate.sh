@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
-SRC="tests/vec/autovec_dot_loop.sx"
+SRC="tests/vec/autovec_dot_loop.x"
 C_OUT="/tmp/shux_autovec_bce.c"
 rm -f "$C_OUT"
 if ! "$SHUX" -E "$SRC" >"$C_OUT" 2>/tmp/shux_autovec_bce_emit.log; then

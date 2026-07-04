@@ -66,7 +66,7 @@ extern int32_t parser_asm_stretch_fn_summit_apexversal_maxversal_wholeversal_com
 extern int32_t parser_asm_stretch_fn_peak_summit_apexversal_maxversal_wholeversal_completeversal_fullversal_everyversal_totversal_allversal_panversal_omniversal_hyperversal_metaversal_multiversal_intergalactic_galactic_celestial_divine_imperial_sovereign_omnipotent_universal_cosmic_eternal_infinite_transcendent_absolute_ultimate_supreme_crown_pinnacle_zenith_peak_summit_apex_max_ultra_hyper_mega_full_deep_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_onefunc_buf_deep_audit_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 
-/** 写失败 OneFuncResult（等价 parser.sx set_onefunc_fail；force_stub 勿 SX emit）。 */
+/** 写失败 OneFuncResult（等价 parser.x set_onefunc_fail；force_stub 勿 X emit）。 */
 static void parser_asm_set_onefunc_fail_c(struct parser_asm_onefunc_result *out, struct parser_asm_lexer lex) {
   if (!out)
     return;

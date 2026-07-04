@@ -40,6 +40,6 @@ SHUX_STAGE2_HASH_STRICT=1 ./tests/run-stage2-hash-gate.sh compiler/shux_asm_stag
 
 ## 延后（D-03 v2+ / D-04+）
 
-- **D-04 v2**：全量 `run-portable-suite.sh` / `make test_sx` 两代 diff
+- **D-04 v2**：全量 `run-portable-suite.sh` / `make test_x` 两代 diff
 - **D-05**：发布单 `shux` 不依赖 `shux-c` 冷启动
 - **D-06**：`SELFHOST.md` 黄金自举声明与复现命令同步

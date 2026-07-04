@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# F-regex v2：std.regex 引擎全量 .sx（删除 regex_engine_glue.c + regex_min.inc.c）。
+# F-regex v2：std.regex 引擎全量 .x（删除 regex_engine_glue.c + regex_min.inc.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_REGEX_V2_FAIL:-0}
 DOC="analysis/phase-f-regex-v2.md"
 MANIFEST="tests/baseline/f-regex-v2-closure.tsv"
 die() { echo "f-regex-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-echo "=== F-regex v2: engine → regex.sx (zero glue/inc) ==="
+echo "=== F-regex v2: engine → regex.x (zero glue/inc) ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-regex v2' "$DOC" || die "doc marker"
-[ -f std/regex/regex.sx ] || die "missing regex.sx"
+[ -f std/regex/regex.x ] || die "missing regex.x"
 [ ! -f std/regex/regex_engine_glue.c ] || die "regex_engine_glue.c should be deleted"
 [ ! -f std/regex/regex_min.inc.c ] || die "regex_min.inc.c should be deleted"
 while IFS=$'\t' read -r item_id kind anchor _n; do
@@ -20,10 +20,10 @@ while IFS=$'\t' read -r item_id kind anchor _n; do
     absent) [ ! -f "$anchor" ] || die "$anchor should be absent ($item_id)" ;;
   esac
 done < "$MANIFEST"
-grep -q 'regex_compile_c' std/regex/regex.sx || die "regex.sx missing compile"
-grep -q 'regex_min_smoke_c' std/regex/regex.sx || die "regex.sx missing smoke"
-grep -q 'regex_f_regex_v2_marker_c' std/regex/regex.sx || die "regex.sx missing v2 marker"
-grep -q 'atomic_nest' std/regex/regex.sx || die "regex.sx missing atomic_nest"
+grep -q 'regex_compile_c' std/regex/regex.x || die "regex.x missing compile"
+grep -q 'regex_min_smoke_c' std/regex/regex.x || die "regex.x missing smoke"
+grep -q 'regex_f_regex_v2_marker_c' std/regex/regex.x || die "regex.x missing v2 marker"
+grep -q 'atomic_nest' std/regex/regex.x || die "regex.x missing atomic_nest"
 grep -q 'F-regex v2' compiler/Makefile || die "Makefile missing F-regex v2 note"
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
   make -C compiler ../std/regex/regex.o >/dev/null 2>&1 || die "make regex.o failed"

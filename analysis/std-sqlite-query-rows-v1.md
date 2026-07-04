@@ -23,7 +23,7 @@
 
 非游标句柄；列值迭代留待 v2。
 
-烟测入口：`db_sqlite_query_rows_smoke_c`（C）、`query_rows_roundtrip.sx`（.sx）。
+烟测入口：`db_sqlite_query_rows_smoke_c`（C）、`query_rows_roundtrip.x`（.x）。
 
 ---
 
@@ -45,7 +45,7 @@
 ```
 
 ```
-shux: [SHUX_STD066_DB_ROWS] status=ok rows_c=1 rows_sx=0 skip=1
+shux: [SHUX_STD066_DB_ROWS] status=ok rows_c=1 rows_x=0 skip=1
 ```
 
 无 `libsqlite3` 时 manifest 仍过，烟测 **SKIP**。

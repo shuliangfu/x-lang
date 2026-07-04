@@ -54,13 +54,13 @@ progress "rebuild parser_asm_thin_glue.o (slice T[] fix)"
 touch src/asm/parser_asm_type_ref_slice.c
 make -j"$(nproc 2>/dev/null || echo 4)" parser_asm_thin_glue.o
 
-progress "rebuild parser_sx.o (region { parse fix)"
+progress "rebuild parser_x.o (region { parse fix)"
 touch parser_gen.c
-make -j"$(nproc 2>/dev/null || echo 4)" parser_sx.o 2>&1 | tail -3 || true
+make -j"$(nproc 2>/dev/null || echo 4)" parser_x.o 2>&1 | tail -3 || true
 
-progress "rebuild pipeline_sx.o + typeck_sx.o (region parent link + assign final_expr)"
+progress "rebuild pipeline_x.o + typeck_x.o (region parent link + assign final_expr)"
 touch ast_pool.c pipeline_glue.c typeck_gen.c
-make -j"$(nproc 2>/dev/null || echo 4)" pipeline_sx.o typeck_sx.o 2>&1 | tail -8 || true
+make -j"$(nproc 2>/dev/null || echo 4)" pipeline_x.o typeck_x.o 2>&1 | tail -8 || true
 
 final_link_shux() {
   local line
@@ -69,7 +69,7 @@ final_link_shux() {
     echo "l1-fast FAIL: cannot extract final link line from make -n" >&2
     exit 1
   fi
-  progress "final link shux (skip asm.sx -E)"
+  progress "final link shux (skip asm.x -E)"
   eval "$line"
   cp -f shux shux-c
   cp -f shux bootstrap_shuxc
@@ -80,20 +80,20 @@ if [ -x ./shux ] && [ "${SHUX_FORCE_FULL_BOOTSTRAP:-}" != "1" ]; then
   final_link_shux
 else
   progress "cold: build DRIVER_SEED prereqs (parallel, no asm -E yet)"
-  # cfg_eval.sx 的 asm 编译极慢；冷启动直接用 stub
+  # cfg_eval.x 的 asm 编译极慢；冷启动直接用 stub
   cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_bootstrap_stub.o src/lexer/cfg_eval_bootstrap_stub.c
   cp -f src/lexer/cfg_eval_bootstrap_stub.o src/lexer/cfg_eval.o
   make -j"$(nproc 2>/dev/null || echo 4)" \
-    parser_sx.o typeck_sx.o codegen_sx.o driver_sx.o pipeline_sx.o lexer_sx.o lexer_sx_link_alias.o \
-    preprocess_sx.o pipeline_bootstrap_orchestration.o \
-    lsp_sx.o lsp_diag_sx.o lsp_io_sx.o lsp_io_std_heap_sx.o \
-    driver_fmt_sx.o driver_check_sx.o driver_test_sx.o driver_compile_sx.o driver_build_sx.o driver_run_sx.o driver_emit_sx.o \
+    parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o lexer_x.o lexer_x_link_alias.o \
+    preprocess_x.o pipeline_bootstrap_orchestration.o \
+    lsp_x.o lsp_diag_x.o lsp_io_x.o lsp_io_std_heap_x.o \
+    driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o \
     src/main_driver.o src/runtime_driver.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o \
     src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o \
     src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
-    src/asm/bootstrap_seed_io_stubs.o src/sx_seed_bridge.o src/std_fs_shim.o src/std_sys_shim.o \
+    src/asm/bootstrap_seed_io_stubs.o src/x_seed_bridge.o src/std_fs_shim.o src/std_sys_shim.o \
     src/ast_pool_l5_bridge.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes_nostub.o \
-    src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o src/lsp/lsp_diag_sx_alias.o \
+    src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o src/lsp/lsp_diag_x_alias.o \
     _stubs_driver.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o \
     src/lsp/lsp_heap_bootstrap.o     src/lsp/lsp_heap_bootstrap.o \
     2>&1 | while IFS= read -r line; do echo "$line"; done
@@ -103,11 +103,11 @@ else
 fi
 
 progress "smoke: i32[] parse (expect num_funcs=2)"
-cat >/tmp/l1_slice_smoke.sx <<EOF
+cat >/tmp/l1_slice_smoke.x <<EOF
 function f(): i32[] { return 0; }
 function main(): i32 { return 0; }
 EOF
-out=$(SHUX_DEBUG_PIPE=1 ./shux-c check /tmp/l1_slice_smoke.sx 2>&1) || true
+out=$(SHUX_DEBUG_PIPE=1 ./shux-c check /tmp/l1_slice_smoke.x 2>&1) || true
 echo "$out" | grep num_funcs || true
 echo "$out" | grep -q "num_funcs=2" || {
   echo "l1-fast FAIL: i32[] still not parsed (want num_funcs=2)" >&2

@@ -1,0 +1,184 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std/ffi/ffi.x — C 字符串互操作（F-ffi v1 + F-ZC；纯 .x，无 .c/.h）
+//
+// 【文件职责】
+// cstr_len / cstring_new / free / try_new / point pack-unpack / 烟测；
+// 回调 invoke 经句柄分发（F-ZC；非真实函数地址）。
+
+extern function malloc(n: usize): *u8;
+extern function free(p: *u8): void;
+extern function strlen(s: *u8): usize;
+extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+
+/** 内置 arg*2 回调句柄（F-ZC handle dispatch；非 C 函数地址）。 */
+const FFI_CB_HANDLE_DOUBLE_I32: usize = 1;
+
+/** 成功。 */
+const FFI_OK: i32 = 0;
+/** 空指针错误。 */
+const FFI_ERR_NULL: i32 = -1;
+/** len < 0。 */
+const FFI_ERR_INVALID_LEN: i32 = -2;
+/** malloc 失败。 */
+const FFI_ERR_OOM: i32 = -3;
+/** 缓冲区过小（cap < 8）。 */
+const FFI_ERR_TOO_SMALL: i32 = -4;
+
+/** FfiPoint POD（与 mod.x 布局一致：x + y，各 i32）。 */
+struct FfiPoint {
+  x: i32
+  y: i32
+}
+
+/** F-std-zero-c：ffi_cb_glue.c 已删除。 */
+function ffi_f_zero_c_marker_c(): i32 {
+  return 1;
+}
+
+/** 内置烟测回调：返回 arg*2。 */
+function ffi_cb_double_i32_impl(arg: i32): i32 {
+  return arg * 2;
+}
+
+/** 返回内置 double 回调句柄（usize；供 invoke_i32_cb 分发）。 */
+function ffi_cb_double_i32_fn_c(): usize {
+  return FFI_CB_HANDLE_DOUBLE_I32;
+}
+
+/**
+ * 调用 usize 承载的 i32→i32 回调句柄；cb=0 返回 -1。
+ * 已知句柄经 .x 分发；任意 C 函数地址 invoke 待编译器 indirect-call 支持。
+ */
+function ffi_invoke_i32_cb_c(cb: usize, arg: i32): i32 {
+  if (cb == 0) { return -1; }
+  if (cb == FFI_CB_HANDLE_DOUBLE_I32) { return ffi_cb_double_i32_impl(arg); }
+  return -1;
+}
+
+/** 返回 NUL 结尾字符串的字节长度（不含 NUL）；ptr 为 0 返回 -1。 */
+function ffi_cstr_len_c(ptr: *u8): i32 {
+  let n: usize = 0;
+  if (ptr == 0) { return -1; }
+  unsafe {
+    n = strlen(ptr);
+  }
+  if (n > 0x7fffffff) { return 0x7fffffff; }
+  return n as i32;
+}
+
+/** 分配 len+1 字节，复制 ptr[0..len] 并写入 NUL；失败返回 0。 */
+function ffi_cstring_new_c(ptr: *u8, len: i32): *u8 {
+  let p: *u8 = 0 as *u8;
+  let n: usize = 0;
+  if (len < 0) { return 0 as *u8; }
+  n = (len as usize) + 1;
+  unsafe {
+    p = malloc(n);
+  }
+  if (p == 0) { return 0 as *u8; }
+  if (ptr != 0 && len > 0) {
+    unsafe {
+      memcpy(p, ptr, len);
+    }
+  }
+  p[len] = 0;
+  return p;
+}
+
+/** 释放由 cstring_new 返回的指针；ptr 可为 0。 */
+function ffi_cstring_free_c(ptr: *u8): void {
+  if (ptr != 0) {
+    unsafe {
+      free(ptr);
+    }
+  }
+}
+
+/** 显式错误码分配 owned CString；成功 FFI_OK 且 *out 为指针位模式。 */
+function ffi_cstring_try_new_c(ptr: *u8, len: i32, out: *usize): i32 {
+  let p: *u8 = 0 as *u8;
+  if (out == 0) { return FFI_ERR_NULL; }
+  if (len < 0) {
+    out[0] = 0;
+    return FFI_ERR_INVALID_LEN;
+  }
+  p = ffi_cstring_new_c(ptr, len);
+  if (p == 0) {
+    out[0] = 0;
+    return FFI_ERR_OOM;
+  }
+  out[0] = p as usize;
+  return FFI_OK;
+}
+
+/** STD-055 C 烟测：try_new 成功路径 + invalid len 错误码。 */
+function ffi_cstring_lifecycle_smoke_c(): i32 {
+  let src: u8[3] = [97, 98, 99];
+  let owned: usize = 0;
+  if (ffi_cstring_try_new_c(&src[0], 3, &owned) != FFI_OK) { return 1; }
+  if (owned == 0) { return 2; }
+  if (ffi_cstr_len_c(owned as *u8) != 3) { return 3; }
+  ffi_cstring_free_c(owned as *u8);
+  owned = 99;
+  if (ffi_cstring_try_new_c(&src[0], 0 - 1, &owned) != FFI_ERR_INVALID_LEN) { return 4; }
+  if (owned != 0) { return 5; }
+  return 0;
+}
+
+/** 将 x/y 以小端写入 buf[0..7]；cap<8 返回 FFI_ERR_TOO_SMALL。 */
+function ffi_point_pack_c(buf: *u8, cap: i32, x: i32, y: i32): i32 {
+  if (buf == 0) { return -1; }
+  if (cap < 8) { return FFI_ERR_TOO_SMALL; }
+  buf[0] = (x & 255) as u8;
+  buf[1] = ((x >> 8) & 255) as u8;
+  buf[2] = ((x >> 16) & 255) as u8;
+  buf[3] = ((x >> 24) & 255) as u8;
+  buf[4] = (y & 255) as u8;
+  buf[5] = ((y >> 8) & 255) as u8;
+  buf[6] = ((y >> 16) & 255) as u8;
+  buf[7] = ((y >> 24) & 255) as u8;
+  return 0;
+}
+
+/** 从 buf[0..7] 读出 FfiPoint；cap<8 返回 FFI_ERR_TOO_SMALL。 */
+function ffi_point_unpack_c(buf: *u8, cap: i32, out: *FfiPoint): i32 {
+  let ux: u32 = 0;
+  let uy: u32 = 0;
+  if (buf == 0 || out == 0) { return -1; }
+  if (cap < 8) { return FFI_ERR_TOO_SMALL; }
+  ux = (buf[0] as u32) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16) | ((buf[3] as u32) << 24);
+  uy = (buf[4] as u32) | ((buf[5] as u32) << 8) | ((buf[6] as u32) << 16) | ((buf[7] as u32) << 24);
+  out.x = ux as i32;
+  out.y = uy as i32;
+  return 0;
+}
+
+/** STD-151 C 烟测：pack/unpack + 回调边界。 */
+function ffi_struct_callback_smoke_c(): i32 {
+  let buf: u8[8];
+  let pt: FfiPoint;
+  let cb: usize = 0;
+  if (ffi_point_pack_c(&buf[0], 8, 3, 4) != 0) { return 1; }
+  if (ffi_point_unpack_c(&buf[0], 8, &pt) != 0) { return 2; }
+  if (pt.x != 3 || pt.y != 4) { return 3; }
+  if (ffi_point_pack_c(&buf[0], 4, 0, 0) != FFI_ERR_TOO_SMALL) { return 4; }
+  if (ffi_invoke_i32_cb_c(0, 1) != -1) { return 5; }
+  cb = ffi_cb_double_i32_fn_c();
+  if (ffi_invoke_i32_cb_c(cb, 5) != 10) { return 6; }
+  return 0;
+}

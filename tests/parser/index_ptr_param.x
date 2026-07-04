@@ -1,0 +1,19 @@
+// index_ptr_param.x — M8b：*u8 形参 [i] 与 while 内 if 解析烟测
+
+function probe_index(body: *u8, len: i32): i32 {
+  let x: u8 = body[0];
+  return x as i32;
+}
+
+function probe_while_if(body: *u8, len: i32): i32 {
+  let i: i32 = 0;
+  let b0: u8 = 0;
+  while (i < len) {
+    b0 = body[0];
+    if (b0 == 105) {
+      return 1;
+    }
+    i = i + 1;
+  }
+  return 0;
+}

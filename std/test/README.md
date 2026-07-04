@@ -1,6 +1,6 @@
 # std.test — 测试断言与 runner
 
-**路径**：`std/test/`（mod.sx + test.c）  
+**路径**：`std/test/`（mod.x + test.c）  
 **依赖**：core。对标 Zig std.testing、Rust test。
 
 | API | 说明 |

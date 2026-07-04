@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# F-math v1：std.math 去 C（math.c → math.sx + runtime_math_libm.c）。
+# F-math v1：std.math 去 C（math.c → math.x + runtime_math_libm.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_MATH_V1_FAIL:-0}
 DOC="analysis/phase-f-math-v1.md"
 MANIFEST="tests/baseline/f-math-v1-closure.tsv"
 die() { echo "f-math-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-echo "=== F-math v1: std.math math.c → math.sx + runtime libm ==="
+echo "=== F-math v1: std.math math.c → math.x + runtime libm ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-math v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
-[ -f std/math/math.sx ] || die "missing math.sx"
+[ -f std/math/math.x ] || die "missing math.x"
 [ -f compiler/src/asm/runtime_math_libm.c ] || die "missing runtime_math_libm.c"
 [ ! -f std/math/math_libm_glue.c ] || die "math_libm_glue.c should be deleted"
 [ ! -f std/math/math.c ] || die "math.c should be deleted"

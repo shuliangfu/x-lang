@@ -18,7 +18,7 @@ MIN_CASES=6
 echo "=== COMP-009: frontend/backend contract manifest ==="
 for f in "$DOC" "$MANIFEST" "$BOUNDARY" \
   tests/lib/comp-feb-contract.sh tests/run-comp-feb-contract.sh \
-  compiler/src/pipeline/pipeline.sx compiler/pipeline_glue.c \
+  compiler/src/pipeline/pipeline.x compiler/pipeline_glue.c \
   tests/run-s3-pipeline-gate.sh analysis/doc-selfhost-architecture-v1.md; do
   if [ ! -f "$f" ]; then
     echo "comp-feb-contract gate FAIL: missing $f" >&2

@@ -4,16 +4,16 @@ min_apis	8
 read_path	section	## 1. 阅读路径	15min
 diag_api	section	## 2. 诊断语义	lock_diag_set_enabled
 verify	section	## 4. 验证与门禁	gate
-api_set_enabled	api	lock_diag_set_enabled	std/sync/mod.sx	开关
-api_is_enabled	api	lock_diag_is_enabled	std/sync/mod.sx	状态
-api_set_id	api	lock_diag_mutex_set_id	std/sync/mod.sx	锁序 id
-api_last_err	api	lock_diag_last_err	std/sync/mod.sx	最近错误
-api_clear	api	lock_diag_clear	std/sync/mod.sx	清空
-api_snapshot	api	lock_diag_snapshot	std/sync/mod.sx	快照
-api_smoke	api	lock_diag_smoke	std/sync/mod.sx	C 烟测
-api_err_order	api	lock_diag_err_order	std/sync/mod.sx	锁序错误码
-symbol_smoke_c	symbol	sync_lock_diag_smoke_c	std/sync/sync.sx	C 烟测（v2 逻辑在 .sx）
+api_set_enabled	api	lock_diag_set_enabled	std/sync/mod.x	开关
+api_is_enabled	api	lock_diag_is_enabled	std/sync/mod.x	状态
+api_set_id	api	lock_diag_mutex_set_id	std/sync/mod.x	锁序 id
+api_last_err	api	lock_diag_last_err	std/sync/mod.x	最近错误
+api_clear	api	lock_diag_clear	std/sync/mod.x	清空
+api_snapshot	api	lock_diag_snapshot	std/sync/mod.x	快照
+api_smoke	api	lock_diag_smoke	std/sync/mod.x	C 烟测
+api_err_order	api	lock_diag_err_order	std/sync/mod.x	锁序错误码
+symbol_smoke_c	symbol	sync_lock_diag_smoke_c	std/sync/sync.x	C 烟测（v2 逻辑在 .x）
 smoke_c	file	tests/sync/lock_diag_smoke_ok.c	C 入口
-smoke_sx	smoke	tests/sync/lock_diag.sx	.sx 烟测
+smoke_x	smoke	tests/sync/lock_diag.x	.x 烟测
 lib	script	lib/std-sync-lock-diag.sh	tests/lib/std-sync-lock-diag.sh
 gate	script	run-std-sync-lock-diag-gate.sh	tests/run-std-sync-lock-diag-gate.sh

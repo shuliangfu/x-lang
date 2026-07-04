@@ -67,8 +67,8 @@ fi
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 ensure_std_c_o ../std/net/net.o
 
-SMOKE_SRC="tests/fs/splice_smoke.sx"
-BENCH_SRC="tests/bench/zero_copy_splice.sx"
+SMOKE_SRC="tests/fs/splice_smoke.x"
+BENCH_SRC="tests/bench/zero_copy_splice.x"
 
 if ! "$CHECK_SHUX" check -L . "$SMOKE_SRC" >/dev/null 2>&1; then
   echo "zc5 FAIL: typeck $SMOKE_SRC" >&2

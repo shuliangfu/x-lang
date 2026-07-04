@@ -1,6 +1,6 @@
 # std.dynlib — 动态库加载
 
-**模块路径**：`std/dynlib/mod.sx` + `std/dynlib/dynlib.sx` + `std/dynlib/dynlib_glue.c`（F-dynlib v1）  
+**模块路径**：`std/dynlib/mod.x` + `std/dynlib/dynlib.x` + `std/dynlib/dynlib_glue.c`（F-dynlib v1）  
 **对标**：Zig `std.DynLib`、Rust `libloading`。
 
 ## API

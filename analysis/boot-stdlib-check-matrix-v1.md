@@ -35,7 +35,7 @@
 
 - 本矩阵仅 **typeck**，不链接执行（避免全量 `.o` 链入耗时）。
 - 编译器热路径依赖模块（io/fs/fmt）失败须 P0 修复。
-- 扩展新模块：在 TSV 追加 `module` 行 + `std/xxx/mod.sx`。
+- 扩展新模块：在 TSV 追加 `module` 行 + `std/xxx/mod.x`。
 
 ---
 

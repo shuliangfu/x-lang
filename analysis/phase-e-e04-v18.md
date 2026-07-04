@@ -6,7 +6,7 @@
 
 | 符号 | 说明 |
 |------|------|
-| `shux_forward_main_to_main_entry` | C main() 统一转发至 main.sx 的 main_entry |
+| `shux_forward_main_to_main_entry` | C main() 统一转发至 main.x 的 main_entry |
 | `main.c` | 仅 `#include runtime_abi.h` + 一行 main() |
 | `runtime_asm_build.c` | main() 改调 ABI 转发，去掉重复 extern main_entry |
 

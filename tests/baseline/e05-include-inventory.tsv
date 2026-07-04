@@ -10,22 +10,22 @@ e05_simd_enc_h	E-05	compiler/include/simd_enc.h	active_bootstrap	simd_enc.o	exis
 e05_simd_loop_h	E-05	compiler/include/simd_loop.h	active_bootstrap	simd_loop.o	exists	seed asm
 e05_simd_vector_h	E-05	compiler/include/simd_vector_inline.h	active_bootstrap	simd inline	exists	asm 内联
 e05_layout_arith_h	E-05	compiler/include/shux_layout_arith.h	active_bootstrap	typeck/layout gate	exists	P1-4 overflow
-e05_ast_h	E-05	compiler/include/ast.h	soft_retired_frontend	ast_pool/sx	exists	runtime NO_C 不 include（E-05 v2）
-e05_token_h	E-05	compiler/include/token.h	soft_retired_frontend	lexer_sx	exists	C lexer/parser
-e05_autovec_h	E-05	compiler/include/autovec.h	soft_retired_frontend	codegen_sx	exists	LEGACY/shux-c
-e05_async_live_h	E-05	compiler/include/async_liveness.h	soft_retired_legacy	async_sx	exists	SHUX_LEGACY_C_FRONTEND
-e05_async_cps_h	E-05	compiler/include/async_cps_codegen.h	soft_retired_legacy	async_sx	exists	LEGACY
+e05_ast_h	E-05	compiler/include/ast.h	soft_retired_frontend	ast_pool/x	exists	runtime NO_C 不 include（E-05 v2）
+e05_token_h	E-05	compiler/include/token.h	soft_retired_frontend	lexer_x	exists	C lexer/parser
+e05_autovec_h	E-05	compiler/include/autovec.h	soft_retired_frontend	codegen_x	exists	LEGACY/shux-c
+e05_async_live_h	E-05	compiler/include/async_liveness.h	soft_retired_legacy	async_x	exists	SHUX_LEGACY_C_FRONTEND
+e05_async_cps_h	E-05	compiler/include/async_cps_codegen.h	soft_retired_legacy	async_x	exists	LEGACY
 e05_async_pool_h	E-05	compiler/include/async_asm_pool.h	active_asm	async pool	exists	asm 路径
 # compiler/src/*.h
-e05_preprocess_h	E-05	compiler/src/preprocess.h	active_runtime	preprocess.sx	exists	runtime preprocess()
-e05_parser_h	E-05	compiler/src/parser/parser.h	soft_retired_frontend	parser_sx.o	exists	NO_C 不 include
-e05_lexer_h	E-05	compiler/src/lexer/lexer.h	soft_retired_frontend	lexer_sx.o	exists	NO_C 不 include
-e05_typeck_h	E-05	compiler/src/typeck/typeck.h	soft_retired_frontend	typeck_sx.o	exists	NO_C 不 include
-e05_codegen_h	E-05	compiler/src/codegen/codegen.h	soft_retired_frontend	codegen_sx.o	exists	NO_C 不 include
+e05_preprocess_h	E-05	compiler/src/preprocess.h	active_runtime	preprocess.x	exists	runtime preprocess()
+e05_parser_h	E-05	compiler/src/parser/parser.h	soft_retired_frontend	parser_x.o	exists	NO_C 不 include
+e05_lexer_h	E-05	compiler/src/lexer/lexer.h	soft_retired_frontend	lexer_x.o	exists	NO_C 不 include
+e05_typeck_h	E-05	compiler/src/typeck/typeck.h	soft_retired_frontend	typeck_x.o	exists	NO_C 不 include
+e05_codegen_h	E-05	compiler/src/codegen/codegen.h	soft_retired_frontend	codegen_x.o	exists	NO_C 不 include
 e05_lsp_diag_h	E-05	compiler/src/lsp/lsp_diag.h	active_runtime	lsp_diag_stubs	exists	NO_C 仍 include
 e05_lsp_codegen_h	E-05	compiler/src/lsp/lsp_codegen_extern.h	active	lsp -E C	exists	C codegen -E
 e05_fmt_check_h	E-05	compiler/src/driver/fmt_check_cmd.h	active_bootstrap	fmt_check_cmd_driver.o	exists	driver 子命令
-e05_sx_stubs_h	E-05	compiler/src/sx_stubs.h	active	stub TU	exists	弱符号
+e05_x_stubs_h	E-05	compiler/src/x_stubs.h	active	stub TU	exists	弱符号
 # E-01 已删除（须保持不存在）
 e05_lsp_io_extern_h	E-01	compiler/src/lsp/lsp_io_extern.h	not_exists	lsp_codegen_extern.c	not_exists	E-01
 e05_lsp_gen_extern_h	E-01	compiler/src/lsp/lsp_gen_extern.h	not_exists	lsp_codegen_extern.c	not_exists	E-01

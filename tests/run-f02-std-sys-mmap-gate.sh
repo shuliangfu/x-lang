@@ -19,10 +19,10 @@ echo "=== F-02 v1: std.sys mmap remove mmap.inc.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-02 v1' "$DOC" || die "doc missing F-02 v1 marker"
 [ ! -f std/sys/mmap.inc.c ] || die "mmap.inc.c should be deleted"
-grep -q 'linux_mmap_rw' std/sys/linux.sx || die "linux.sx missing linux_mmap_rw"
-grep -q 'linux_m' std/sys/mmap.sx || die "mmap.sx should import std.sys.linux"
-if grep -q 'shux_sys_mmap_rw_c' std/sys/mmap.sx 2>/dev/null; then
-  die "mmap.sx still references shux_sys_mmap_rw_c"
+grep -q 'linux_mmap_rw' std/sys/linux.x || die "linux.x missing linux_mmap_rw"
+grep -q 'linux_m' std/sys/mmap.x || die "mmap.x should import std.sys.linux"
+if grep -q 'shux_sys_mmap_rw_c' std/sys/mmap.x 2>/dev/null; then
+  die "mmap.x still references shux_sys_mmap_rw_c"
 fi
 
 if [ -f tests/run-linux-mmap-file-gate.sh ]; then

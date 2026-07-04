@@ -1,0 +1,178 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.schema — 结构化 typed decode/validate（STD-090；F-schema v2 逻辑在 schema.x）
+//
+// 【文件职责】
+// Schema 字段注册（标量/可选/col 映射）；JSON 对象 typed decode（含嵌套 object → 点分键）；
+// CSV 行与 SQLite 列文本统一映射；字段级错误路径。
+//
+// 【对标】Rust serde + validator、Go mapstructure 最小子集。
+
+/** Schema 句柄（不透明 C 存储指针）。 */
+allow(padding) struct Schema {
+  handle: i64;
+}
+
+/** 字段类型：字符串。 */
+function text(): i32 { return 0; }
+/** 字段类型：i32。 */
+function int(): i32 { return 1; }
+/** 字段类型：bool。 */
+function flag(): i32 { return 2; }
+/** 字段类型：f64。 */
+function float(): i32 { return 3; }
+
+/** 成功。 */
+function err_ok(): i32 { return 0; }
+/** 空指针/非法句柄。 */
+function err_null(): i32 { return -1; }
+/** 必填字段缺失。 */
+function err_not_found(): i32 { return -2; }
+/** 类型不匹配。 */
+function err_type(): i32 { return -3; }
+/** 解析/格式非法。 */
+function err_invalid(): i32 { return -4; }
+/** 字段数超限。 */
+function err_full(): i32 { return -5; }
+
+extern function schema_create_c(): i64;
+extern function schema_free_c(handle: i64): void;
+extern function schema_clear_c(handle: i64): void;
+extern function schema_add_field_c(handle: i64, name: *u8, name_len: i32, type: i32, optional: i32, col_index: i32): i32;
+extern function schema_decode_json_c(handle: i64, json: *u8, json_len: i32): i32;
+extern function schema_decode_csv_row_c(handle: i64, row: *u8, row_len: i32, offset: i32): i32;
+extern function schema_map_columns_c(handle: i64, row: *u8, col_starts: *i32, col_lens: *i32, count: i32): i32;
+extern function schema_get_string_c(handle: i64, name: *u8, name_len: i32, out: *u8, out_cap: i32): i32;
+extern function schema_get_i32_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32;
+extern function schema_get_bool_c(handle: i64, name: *u8, name_len: i32, out: *i32): i32;
+extern function schema_get_f64_c(handle: i64, name: *u8, name_len: i32, out: *f64): i32;
+extern function schema_last_error_field_c(handle: i64, out: *u8, out_cap: i32): i32;
+extern function schema_last_error_message_c(handle: i64, out: *u8, out_cap: i32): i32;
+
+/** 创建空 Schema。 */
+function new(): Schema {
+  let h: i64 = 0;
+  unsafe { h = schema_create_c(); }
+  return Schema { handle: h };
+}
+
+/** 释放 Schema。 */
+function free(sch: *Schema): void {
+  let zero: i64 = 0;
+  if (sch == 0) { return; }
+  if (sch.handle != zero) {
+    unsafe { schema_free_c(sch.handle); }
+    sch.handle = zero;
+  }
+}
+
+/** 清空字段定义与 decode 缓存。 */
+function clear(sch: *Schema): void {
+  let zero: i64 = 0;
+  if (sch == 0 || sch.handle == zero) { return; }
+  unsafe { schema_clear_c(sch.handle); }
+}
+
+/**
+ * 注册字段：name 为 JSON 键名；col_index 用于 CSV/SQLite 列序映射。
+ * optional 非 0 表示可选字段。
+ */
+function add_field(sch: *Schema, name: *u8, name_len: i32, type: i32, optional: i32, col_index: i32): i32 {
+  let zero: i64 = 0;
+  if (sch == 0 || sch.handle == zero || name == 0) { return err_null(); }
+  unsafe { return schema_add_field_c(sch.handle, name, name_len, type, optional, col_index); }
+}
+
+/** 从 JSON 对象缓冲 typed decode；嵌套 object/array 递归展开为点分/索引键。 */
+function decode_json(sch: *Schema, json: *u8, json_len: i32): i32 {
+  let zero: i64 = 0;
+  if (sch == 0 || sch.handle == zero || json == 0) { return err_null(); }
+  unsafe { return schema_decode_json_c(sch.handle, json, json_len); }
+}
+
+/** 从 CSV 行 decode（按 col_index 映射）。 */
+function decode_csv_row(sch: *Schema, row: *u8, row_len: i32, offset: i32): i32 {
+  let zero: i64 = 0;
+  if (sch == 0 || sch.handle == zero || row == 0) { return err_null(); }
+  unsafe { return schema_decode_csv_row_c(sch.handle, row, row_len, offset); }
+}
+
+/** 从列偏移/长度数组映射（CSV 解析后或 SQLite row_col_text 联用）。 */
+function map_columns(sch: *Schema, row: *u8, col_starts: *i32, col_lens: *i32, count: i32): i32 {
+  let zero: i64 = 0;
+  if (sch == 0 || sch.handle == zero || row == 0) { return err_null(); }
+  unsafe { return schema_map_columns_c(sch.handle, row, col_starts, col_lens, count); }
+}
+
+/** 读取 decode 后的 string 字段。 */
+function get_string(sch: *Schema, name: *u8, name_len: i32, out: *u8, out_cap: i32): i32 {
+  let zero: i64 = 0;
+  if (sch == 0 || sch.handle == zero) { return err_null(); }
+  unsafe { return schema_get_string_c(sch.handle, name, name_len, out, out_cap); }
+}
+
+/** 读取 decode 后的 i32 字段。 */
+function get(sch: *Schema, name: *u8, name_len: i32, out: *i32): i32 {
+  let zero: i64 = 0;
+  if (sch == 0 || sch.handle == zero) { return err_null(); }
+  unsafe { return schema_get_i32_c(sch.handle, name, name_len, out); }
+}
+
+/** 读取 decode 后的 bool 字段。 */
+function get(sch: *Schema, name: *u8, name_len: i32, out: *bool): i32 {
+  let zero: i64 = 0;
+  let raw: i32 = 0;
+  if (sch == 0 || sch.handle == zero) { return err_null(); }
+  let r: i32 = 0;
+  unsafe { r = schema_get_bool_c(sch.handle, name, name_len, &raw); }
+  if (r == err_ok()) {
+    out[0] = raw != 0;
+  }
+  return r;
+}
+
+/** 读取 decode 后的 f64 字段。 */
+function get(sch: *Schema, name: *u8, name_len: i32, out: *f64): i32 {
+  let zero: i64 = 0;
+  if (sch == 0 || sch.handle == zero) { return err_null(); }
+  unsafe { return schema_get_f64_c(sch.handle, name, name_len, out); }
+}
+
+/** 最近错误字段名；无错误返回 0 长度。 */
+function last_error_field(sch: *Schema, out: *u8, out_cap: i32): i32 {
+  let zero: i64 = 0;
+  if (sch == 0 || sch.handle == zero) { return err_null(); }
+  unsafe { return schema_last_error_field_c(sch.handle, out, out_cap); }
+}
+
+/** 最近错误消息。 */
+function last_error_message(sch: *Schema, out: *u8, out_cap: i32): i32 {
+  let zero: i64 = 0;
+  if (sch == 0 || sch.handle == zero) { return err_null(); }
+  unsafe { return schema_last_error_message_c(sch.handle, out, out_cap); }
+}
+
+/** 将 schema 本地错误码映射为 std.error 风格负码（-1500 段占位）。 */
+function to_code(local: i32): i32 {
+  if (local == err_ok()) { return 0; }
+  if (local == err_null()) { return -1501; }
+  if (local == err_not_found()) { return -1502; }
+  if (local == err_type()) { return -1503; }
+  if (local == err_invalid()) { return -1504; }
+  if (local == err_full()) { return -1505; }
+  return -1500;
+}

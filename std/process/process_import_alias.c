@@ -7,7 +7,7 @@
  */
 #include <stdint.h>
 
-/** 与 mod.sx SpawnIo 布局一致。 */
+/** 与 mod.x SpawnIo 布局一致。 */
 typedef struct ShuxSpawnIo {
   int32_t stdin_fd;
   int32_t stdout_fd;

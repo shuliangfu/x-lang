@@ -33,7 +33,7 @@
 
 | Tier | 内容 | 平台 |
 |------|------|------|
-| **P** | `run-portable-suite.sh`（同一套 .sx） | **全平台** |
+| **P** | `run-portable-suite.sh`（同一套 .x） | **全平台** |
 | **B** | IO unified perf、DOD、ZC-2..5、async、dogfood | 全平台（硬门禁强度因平台而异） |
 | **A** | `build_shux_asm` / `bootstrap-bstrict-ci` | Linux x86_64 全量；ARM64/Windows lite |
 

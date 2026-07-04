@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
-SRC="tests/mem/with_arena_vec_push.sx"
+SRC="tests/mem/with_arena_vec_push.x"
 OUT="/tmp/shux_with_arena_vec_$$"
 FAIL="${SHUX_WITH_ARENA_VEC_GATE_FAIL:-0}"
 

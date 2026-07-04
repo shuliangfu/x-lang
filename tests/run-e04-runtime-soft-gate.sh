@@ -151,8 +151,8 @@ grep -q 'SHUX_RUNTIME_PREPROCESS' "$RUNTIME" || die "runtime.c missing SHUX_RUNT
 if grep -qE '^char \*preprocess\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines preprocess()"
 fi
-if grep -qE '^static char \*preprocess_via_sx\(' "$RUNTIME" 2>/dev/null; then
-  die "runtime.c still defines preprocess_via_sx"
+if grep -qE '^static char \*preprocess_via_x\(' "$RUNTIME" 2>/dev/null; then
+  die "runtime.c still defines preprocess_via_x"
 fi
 grep -q 'SHUX_RUNTIME_PREPROCESS' "$RUNTIME" || die "runtime.c should use SHUX_RUNTIME_PREPROCESS for preprocess calls"
 
@@ -190,15 +190,15 @@ done
 grep -q 'E-04 v30' "$DOC_V30" || die "doc missing E-04 v30 marker"
 grep -q 'pipeline_set_entry_dir' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.c missing pipeline_set_entry_dir"
 grep -q 'pipeline_read_file' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.c missing pipeline_read_file"
-grep -q 'shux_pipeline_run_sx_pipeline_large_stack' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.c missing shux_pipeline_run_sx_pipeline_large_stack"
+grep -q 'shux_pipeline_run_x_pipeline_large_stack' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.c missing shux_pipeline_run_x_pipeline_large_stack"
 grep -q 'shux_pipeline_dep_prerun_parse_only' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing shux_pipeline_dep_prerun_parse_only"
 if grep -qE '^void pipeline_set_entry_dir\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines pipeline_set_entry_dir"
 fi
-if grep -qE '^static int pipeline_run_sx_pipeline_large_stack\(' "$RUNTIME" 2>/dev/null; then
-  die "runtime.c still defines pipeline_run_sx_pipeline_large_stack"
+if grep -qE '^static int pipeline_run_x_pipeline_large_stack\(' "$RUNTIME" 2>/dev/null; then
+  die "runtime.c still defines pipeline_run_x_pipeline_large_stack"
 fi
-grep -q 'shux_pipeline_run_sx_pipeline_large_stack' "$RUNTIME" || die "runtime.c should call shux_pipeline_run_sx_pipeline_large_stack"
+grep -q 'shux_pipeline_run_x_pipeline_large_stack' "$RUNTIME" || die "runtime.c should call shux_pipeline_run_x_pipeline_large_stack"
 
 echo "=== E-04 v29: stack bump + large-stack pthread + preprocess/typeck dep in ABI ==="
 for f in "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUILD" "$RUNTIME" "$MAIN" "$DRIVER_ABI_C" "$DRIVER_ABI_H" "$PIPELINE_ABI_C" "$PIPELINE_ABI_H" "$CRT0_MINGW" "$CRT0_LINUX" "$CRT0_DARWIN_ARM" "$CRT0_DARWIN_X64" \
@@ -233,9 +233,9 @@ done
 grep -q 'E-04 v28' "$DOC_V28" || die "doc missing E-04 v28 marker"
 grep -q 'shux_pipeline_fill_ctx_path_buffers' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.c missing shux_pipeline_fill_ctx_path_buffers"
 grep -q 'shux_pipeline_pctx_seed_dep_slots' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing shux_pipeline_pctx_seed_dep_slots"
-grep -q 'shux_asm_user_std_dep_skip_sx_typeck' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.c missing shux_asm_user_std_dep_skip_sx_typeck"
+grep -q 'shux_asm_user_std_dep_skip_x_typeck' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.c missing shux_asm_user_std_dep_skip_x_typeck"
 grep -q 'driver_pipeline_fail_code' "$DRIVER_ABI_C" || die "runtime_driver_abi.c missing driver_pipeline_fail_code"
-grep -q 'driver_print_sx_smoke_summary' "$DRIVER_ABI_H" || die "runtime_driver_abi.h missing driver_print_sx_smoke_summary"
+grep -q 'driver_print_x_smoke_summary' "$DRIVER_ABI_H" || die "runtime_driver_abi.h missing driver_print_x_smoke_summary"
 grep -q 'driver_peek_source_file' "$DRIVER_ABI_C" || die "runtime_driver_abi.c missing driver_peek_source_file"
 if grep -qE '^static void pipeline_fill_ctx_path_buffers\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines pipeline_fill_ctx_path_buffers"

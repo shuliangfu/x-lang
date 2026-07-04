@@ -35,7 +35,7 @@ POSIX 与 Windows 共用 `env_parse_kv_entry`；Windows 环境块来源 `GetEnvi
 
 - manifest：`tests/baseline/std-env-platform-encoding-manifest.tsv`
 - C 金样：`env_platform_encoding_smoke_c`（`std/env/env.c`）
-- 烟测：`tests/env/platform_encoding.sx`
+- 烟测：`tests/env/platform_encoding.x`
 - 门禁：`./tests/run-std-env-platform-encoding-gate.sh`
 - 报告：`shux: [SHUX_STD132_ENV_PLATFORM_ENCODING]`
 

@@ -6,7 +6,7 @@ STD_CRYPTO_AES_GCM_PREFIX="${SHUX_STD_CRYPTO_AES_GCM_PREFIX:-shux: [SHUX_STD_CRY
 . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/std-crypto.sh"
 
 std_crypto_aes_gcm_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local crypto_c="$2"
   local tsv="$3"
   local miss=0
@@ -16,13 +16,13 @@ std_crypto_aes_gcm_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-crypto-aes-gcm FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_x" 2>/dev/null; then
           echo "std-crypto-aes-gcm FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi

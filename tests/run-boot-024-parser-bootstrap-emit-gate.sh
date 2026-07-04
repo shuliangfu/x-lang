@@ -22,7 +22,7 @@ for f in "$DOC" "$MANIFEST" "$WAVE" "$LIB" "$MATRIX" \
   tests/run-parser-parse-bootstrap-gate.sh \
   tests/run-parser-parse-bootstrap-link-smoke.sh \
   tests/run-parser-parse-bootstrap-bisect-gate.sh \
-  tests/run-parser-parse-bootstrap-sx-emit-gate.sh \
+  tests/run-parser-parse-bootstrap-x-emit-gate.sh \
   tests/run-boot-023-mega7-full-emit-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "boot-024-parser-bootstrap-emit gate FAIL: missing $f" >&2

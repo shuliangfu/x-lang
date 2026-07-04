@@ -30,10 +30,10 @@ fi
 
 echo "=== DOD-S1: struct soa + #[soa] + arr[i].field smoke ==="
 
-SMOKE_SRC="tests/dod/soa_smoke.sx"
-ATTR_SRC="tests/dod/soa_attr_smoke.sx"
-F32_SRC="tests/dod/f32_soa_sum_smoke.sx"
-F32_AOS_LIT_SRC="tests/dod/f32_aos_lit_assign_smoke.sx"
+SMOKE_SRC="tests/dod/soa_smoke.x"
+ATTR_SRC="tests/dod/soa_attr_smoke.x"
+F32_SRC="tests/dod/f32_soa_sum_smoke.x"
+F32_AOS_LIT_SRC="tests/dod/f32_aos_lit_assign_smoke.x"
 SMOKE_O="/tmp/shux_dod_s1_smoke.o"
 ATTR_O="/tmp/shux_dod_s1_attr.o"
 F32_O="/tmp/shux_dod_s1_f32_sum.o"

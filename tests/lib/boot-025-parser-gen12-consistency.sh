@@ -19,7 +19,7 @@ boot025_gen12_linux_asm() {
     return 1
   fi
   comp_riscv64_native_shu "./compiler/shux_asm" || return 1
-  [ -x "./compiler/shux" ] || [ -x "./compiler/shux-sx" ] || return 1
+  [ -x "./compiler/shux" ] || [ -x "./compiler/shux-x" ] || return 1
   return 0
 }
 

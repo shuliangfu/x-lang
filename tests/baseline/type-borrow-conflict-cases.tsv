@@ -1,9 +1,9 @@
 # TYPE-003 borrow conflict cases（误报 pos + 冲突 neg）
 # 列：case_id	file	policy	expect_substr	expect_line	notes
 # min_cases	6
-fp_region_same	region_same_ok.sx	pos	-	-	same label
-fp_region_block	fp_region_block_reassign_ok.sx	pos	-	-	block reassign
-fp_linear_two	fp_linear_two_bindings_ok.sx	pos	-	-	two Linear
-conflict_region_escape	region_assign_escape.sx	neg	slice region escape	8	span wired: path:L:C at assign site
-conflict_region_mismatch	region_mismatch.sx	neg	slice region mismatch	6	cross label
-conflict_linear_move	double_move.sx	neg	linear value used after move	-	double move
+fp_region_same	region_same_ok.x	pos	-	-	same label
+fp_region_block	fp_region_block_reassign_ok.x	pos	-	-	block reassign
+fp_linear_two	fp_linear_two_bindings_ok.x	pos	-	-	two Linear
+conflict_region_escape	region_assign_escape.x	neg	slice region escape	8	span wired: path:L:C at assign site
+conflict_region_mismatch	region_mismatch.x	neg	slice region mismatch	6	cross label
+conflict_linear_move	double_move.x	neg	linear value used after move	-	double move

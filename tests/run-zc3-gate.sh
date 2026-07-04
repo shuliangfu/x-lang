@@ -41,7 +41,7 @@ if [ -z "$CHECK_SHUX" ] && [ -x ./compiler/shux-c ]; then
   CHECK_SHUX=./compiler/shux-c
 fi
 
-REGION_SMOKE="tests/slice/region_array_smoke.sx"
+REGION_SMOKE="tests/slice/region_array_smoke.x"
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
 REGION_OUT="$OUT_DIR/shux_zc3_region_array"
@@ -57,7 +57,7 @@ if [ -z "$CHECK_SHUX" ]; then
   fi
 fi
 
-if [ -z "$CHECK_SHUX" ] || ! "$CHECK_SHUX" check tests/slice/main.sx >/dev/null 2>&1; then
+if [ -z "$CHECK_SHUX" ] || ! "$CHECK_SHUX" check tests/slice/main.x >/dev/null 2>&1; then
   echo "zc3 gate SKIP (no working shux-c/shux; rebuild native compiler or use Linux docker)"
   exit 0
 fi

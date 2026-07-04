@@ -39,7 +39,7 @@ node_modules/
 *~
 .project
 .settings/
-*.sxblime-*
+*.xblime-*
 
 # --- 系统与临时 ---
 .DS_Store

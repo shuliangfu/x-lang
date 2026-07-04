@@ -1,4 +1,4 @@
-// loop_i32.zig — 与 tests/bench/loop_i32.sx / loop_i32.c 等价的 Zig 参照（run-perf-baseline.sh --bench）
+// loop_i32.zig — 与 tests/bench/loop_i32.x / loop_i32.c 等价的 Zig 参照（run-perf-baseline.sh --bench）
 const std = @import("std");
 
 pub fn main() !void {

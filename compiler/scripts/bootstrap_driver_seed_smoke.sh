@@ -14,11 +14,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# main.sx / pipeline 深递归；与 build_shux_asm / run_shux_asm_smoke 栈对齐。
+# main.x / pipeline 深递归；与 build_shux_asm / run_shux_asm_smoke 栈对齐。
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 TARGET="${1:-./shux}"
-SMOKE_SRC="/tmp/shux_bootstrap_seed_smoke.$$.sx"
+SMOKE_SRC="/tmp/shux_bootstrap_seed_smoke.$$.x"
 SMOKE_OUT="/tmp/shux_bootstrap_seed_smoke_out.$$"
 PINNED_TMP="/tmp/shux_bootstrap_seed_pinned.$$"
 AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-../logs}"

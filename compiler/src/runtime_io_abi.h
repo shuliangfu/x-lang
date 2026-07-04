@@ -37,7 +37,7 @@ void runtime_release_file_view(ShuxRuntimeFileView *view);
 
 /**
  * B-20：读文件前缀到 buf[0..cap-1]；成功返回读入字节数，失败 -1。
- * 参数：path/buf/cap 见 ast_pool pipeline_read_file_sx_impl_c。
+ * 参数：path/buf/cap 见 ast_pool pipeline_read_file_x_impl_c。
  */
 int shux_read_file_into_path(const char *path, void *buf, size_t cap);
 

@@ -2,7 +2,7 @@
 # COMP-001：parser mega 7 深循环改造 manifest 门禁
 #
 # 1) comp-parser-mega7-v1.md + matrix + boot-mega7-gap + parser-mega-bisect.tsv
-# 2) mega7 函数存在于 parser.sx；matrix 行数下限
+# 2) mega7 函数存在于 parser.x；matrix 行数下限
 # 3) capability slice 文件存在（status=done）
 # 4) hook：symbol-integrity（Linux）；mega bisect baseline 7 行
 #
@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 MATRIX="${SHUX_COMP_PARSER_MEGA7_TSV:-tests/baseline/comp-parser-mega7-matrix.tsv}"
 MEGA_BISECT="${SHUX_PARSER_MEGA_BISECT_BASELINE:-tests/baseline/parser-mega-bisect.tsv}"
-PARSER_SX="compiler/src/parser/parser.sx"
+PARSER_X="compiler/src/parser/parser.x"
 MIN_PHASE_A=2
 MIN_MEGA7=7
 MIN_SLICE=15
@@ -29,7 +29,7 @@ for f in \
   analysis/boot-mega7-gap.md \
   "$MATRIX" \
   "$MEGA_BISECT" \
-  "$PARSER_SX"; do
+  "$PARSER_X"; do
   if [ ! -f "$f" ]; then
     echo "comp-parser-mega7 gate FAIL: missing $f" >&2
     exit 1
@@ -45,11 +45,11 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MATRIX"
 
-# ── mega 7 函数在 parser.sx ──
+# ── mega 7 函数在 parser.x ──
 MISS=0
 for fn in $MEGA7_FUNCS; do
-  if ! grep -qE "function ${fn}\\(" "$PARSER_SX" 2>/dev/null; then
-    echo "comp-parser-mega7 FAIL: function ${fn} not in $PARSER_SX" >&2
+  if ! grep -qE "function ${fn}\\(" "$PARSER_X" 2>/dev/null; then
+    echo "comp-parser-mega7 FAIL: function ${fn} not in $PARSER_X" >&2
     MISS=$((MISS + 1))
   fi
 done

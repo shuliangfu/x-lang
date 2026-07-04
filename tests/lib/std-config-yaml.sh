@@ -4,8 +4,8 @@
 STD_CONFIG_YAML_PREFIX="${SHUX_STD119_CONFIG_YAML_PREFIX:-shux: [SHUX_STD119_CONFIG_YAML]}"
 
 std_config_yaml_symbols_ok() {
-  local mod_sx="$1"
-  local cfg_sx="$2"
+  local mod_x="$1"
+  local cfg_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -14,13 +14,13 @@ std_config_yaml_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null || miss=$((miss + 1))
+        grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null || miss=$((miss + 1))
         ;;
       symbol)
         local path="$mod_path"
         local path="$mod_path"
-        if [ "$path" = "std/config/config_glue.c" ]; then path="$cfg_sx"; fi
-        if [ "$path" = "std/config/config.sx" ]; then path="$cfg_sx"; fi
+        if [ "$path" = "std/config/config_glue.c" ]; then path="$cfg_x"; fi
+        if [ "$path" = "std/config/config.x" ]; then path="$cfg_x"; fi
         grep -qF "$anchor" "$path" 2>/dev/null || miss=$((miss + 1))
         ;;
       file|smoke|vectors)
@@ -32,7 +32,7 @@ std_config_yaml_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-std_config_yaml_run_sx_smoke() {
+std_config_yaml_run_x_smoke() {
   local shux="$1"
   local src="$2"
   local exe="/tmp/shux_std_config_yaml_$$"
@@ -62,5 +62,5 @@ std_config_yaml_run_c_smoke() {
 }
 
 std_config_yaml_emit_report() {
-  echo "${STD_CONFIG_YAML_PREFIX} status=$1 c=$2 sx=$3 skip=$4"
+  echo "${STD_CONFIG_YAML_PREFIX} status=$1 c=$2 x=$3 skip=$4"
 }

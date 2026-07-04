@@ -22,7 +22,7 @@
 | `import("std.db")` | `import("std.db.sqlite")`（推荐） |
 | `std.db.open` | `std.db.sqlite.open` 或 `std.db.open`（转发） |
 
-`std/db/mod.sx` 与 `std.db.sqlite` 共享 `std/db/sqlite/sqlite.o` C 实现；API 对齐。
+`std/db/mod.x` 与 `std.db.sqlite` 共享 `std/db/sqlite/sqlite.o` C 实现；API 对齐。
 
 检测废弃：`db_is_deprecated()` 恒返回 1。
 
@@ -31,7 +31,7 @@
 ## 3. Gate
 
 ```
-shux: [SHUX_STD120_DB_COMPAT] status=ok sx=1 skip=0
+shux: [SHUX_STD120_DB_COMPAT] status=ok x=1 skip=0
 std-db-compat gate OK
 ```
 

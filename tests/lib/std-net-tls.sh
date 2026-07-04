@@ -2,15 +2,15 @@
 # std-net-tls.sh — STD-030/083：TLS manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_net_tls_symbols_ok MOD_SX NET_C TSV
-#   std_net_tls_run_smoke SHUX_BIN SX TAG
+#   std_net_tls_symbols_ok MOD_X NET_C TSV
+#   std_net_tls_run_smoke SHUX_BIN X TAG
 #   std_net_tls_emit_report status stub_ok typeck_ok skip
 
 STD_NET_TLS_PREFIX="${SHUX_STD_NET_TLS_PREFIX:-shux: [SHUX_STD_NET_TLS]}"
 
 # 校验 manifest symbol/api/file；echo 缺失数。
 std_net_tls_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local net_c="$2"
   local tsv="$3"
   local miss=0
@@ -20,16 +20,16 @@ std_net_tls_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
-          echo "std-net-tls FAIL: missing api '$anchor' in $mod_sx" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
+          echo "std-net-tls FAIL: missing api '$anchor' in $mod_x" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol|const_not_impl)
-        local target="$mod_sx"
+        local target="$mod_x"
         case "$mod_path" in
-          std/net/net.c) target="${net_c:-std/net/tls_stub.sx}" ;;
-          std/net/tls_stub.sx|std/net/tls_openssl.sx|std/net/tls_mbedtls.sx) target="$mod_path" ;;
+          std/net/net.c) target="${net_c:-std/net/tls_stub.x}" ;;
+          std/net/tls_stub.x|std/net/tls_openssl.x|std/net/tls_mbedtls.x) target="$mod_path" ;;
           *) [ -n "${mod_path:-}" ] && target="$mod_path" ;;
         esac
         if ! grep -qF "$anchor" "$target" 2>/dev/null; then
@@ -49,7 +49,7 @@ std_net_tls_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .sx（须已 ensure net.o）。
+# 编译并运行烟测 .x（须已 ensure net.o）。
 std_net_tls_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -150,10 +150,10 @@ std_net_tls_build_mbedtls_o() {
   return 0
 }
 
-# 构建 net.o（OpenSSL TLS .sx + stub net.o）。
+# 构建 net.o（OpenSSL TLS .x + stub net.o）。
 std_net_tls_build_openssl_o() {
   if ! make -C compiler net-o-openssl >/dev/null 2>&1; then
-    echo "std-net-tls FAIL: make net-o-openssl (tls_openssl.sx)" >&2
+    echo "std-net-tls FAIL: make net-o-openssl (tls_openssl.x)" >&2
     return 1
   fi
   return 0
@@ -257,7 +257,7 @@ std_net_tls_run_mbedtls_c_smoke() {
 # 通过 shux-c 链接 OpenSSL net.o 并验证 tls_is_available（runtime 自动 -lssl）。
 std_net_tls_runtime_link_smoke() {
   local shux="$1"
-  local src="tests/net/tls_runtime_link_smoke.sx"
+  local src="tests/net/tls_runtime_link_smoke.x"
   local exe="/tmp/shux_net_tls_runtime_$$"
   if [ ! -f "$src" ]; then
     echo "std-net-tls FAIL: missing $src" >&2

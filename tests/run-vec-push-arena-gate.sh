@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
-SRC="tests/mem/with_arena_vec_push.sx"
+SRC="tests/mem/with_arena_vec_push.x"
 OUT="/tmp/shux_vec_push_arena_$$"
 rm -f "$OUT"
 if ! SHUX_KEEP_C=1 "$SHUX" "$SRC" -o "$OUT" >/tmp/shux_vec_push_arena_run.log 2>&1; then

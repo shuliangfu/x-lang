@@ -42,7 +42,7 @@
 
 ## 3. 命中率（hit rate）与 report
 
-v1 **命中率**定义为：对金样 `completion_symbols.sx` 发 `textDocument/completion` 后，`result` 数组 JSON 中 **6/6** 期望 `label` 均出现。
+v1 **命中率**定义为：对金样 `completion_symbols.x` 发 `textDocument/completion` 后，`result` 数组 JSON 中 **6/6** 期望 `label` 均出现。
 
 | 指标 | 阈值 | 说明 |
 |------|------|------|
@@ -57,7 +57,7 @@ v1 **命中率**定义为：对金样 `completion_symbols.sx` 发 `textDocument/
 
 | case_id | 文件 | 光标 | 期望 label（子集） |
 |---------|------|------|-------------------|
-| `case_symbols` | `tests/lsp/completion_symbols.sx` | `main` 函数体末行 | `add_one`、`Point`、`Kind`、`core.mem`、`function`、`i32` |
+| `case_symbols` | `tests/lsp/completion_symbols.x` | `main` 函数体末行 | `add_one`、`Point`、`Kind`、`core.mem`、`function`、`i32` |
 
 烟测流程：`initialize` → `didOpen` → `textDocument/completion` → 校验 `CompletionItem` JSON。
 

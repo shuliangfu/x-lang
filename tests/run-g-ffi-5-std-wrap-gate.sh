@@ -3,7 +3,7 @@
 #
 # 验证：
 #   1) Linux 可单文件 check 的 std/ffi + std/sys 通过 typeck
-#   2) win32 / ffi.sx 实现层 grep 确认 unsafe 包裹
+#   2) win32 / ffi.x 实现层 grep 确认 unsafe 包裹
 #
 # 用法：./tests/run-g-ffi-5-std-wrap-gate.sh
 set -e
@@ -11,16 +11,16 @@ cd "$(dirname "$0")/.."
 
 echo "=== G-FFI-5: std/ffi + std/sys unsafe wrap manifest ==="
 for f in \
-  std/ffi/ffi.sx \
-  std/ffi/mod.sx \
-  std/sys/mod.sx \
-  std/sys/linux.sx \
-  std/sys/macos.sx \
-  std/sys/freebsd.sx \
-  std/sys/win32.sx \
-  std/sys/win32_net.sx \
-  std/sys/mmap.sx \
-  std/sys/linux_io_uring.sx; do
+  std/ffi/ffi.x \
+  std/ffi/mod.x \
+  std/sys/mod.x \
+  std/sys/linux.x \
+  std/sys/macos.x \
+  std/sys/freebsd.x \
+  std/sys/win32.x \
+  std/sys/win32_net.x \
+  std/sys/mmap.x \
+  std/sys/linux_io_uring.x; do
   if [ ! -f "$f" ]; then
     echo "g-ffi-5 gate FAIL: missing $f" >&2
     exit 1
@@ -79,15 +79,15 @@ run_check() {
 }
 
 echo "=== G-FFI-5: std/ffi + std/sys typeck (SHUX=$SHUX_BIN) ==="
-# Linux 宿主可单文件 check 的子集（ffi.sx / win32*.sx 单文件 check 因 cfg/链接上下文历史即红，改走 contract + grep）
+# Linux 宿主可单文件 check 的子集（ffi.x / win32*.x 单文件 check 因 cfg/链接上下文历史即红，改走 contract + grep）
 CHECK_SRCS=(
-  std/ffi/mod.sx
-  std/sys/mod.sx
-  std/sys/linux.sx
-  std/sys/macos.sx
-  std/sys/freebsd.sx
-  std/sys/mmap.sx
-  std/sys/linux_io_uring.sx
+  std/ffi/mod.x
+  std/sys/mod.x
+  std/sys/linux.x
+  std/sys/macos.x
+  std/sys/freebsd.x
+  std/sys/mmap.x
+  std/sys/linux_io_uring.x
 )
 FAILS=0
 for src in "${CHECK_SRCS[@]}"; do
@@ -96,7 +96,7 @@ for src in "${CHECK_SRCS[@]}"; do
   fi
 done
 
-echo "=== G-FFI-5: win32 / ffi.sx impl unsafe wrap grep ==="
+echo "=== G-FFI-5: win32 / ffi.x impl unsafe wrap grep ==="
 gffi5_need_unsafe() {
   local f="$1" sym="$2"
   if ! grep -qF "$sym" "$f" || ! grep -q 'unsafe' "$f"; then
@@ -105,13 +105,13 @@ gffi5_need_unsafe() {
   fi
   return 0
 }
-gffi5_need_unsafe std/ffi/ffi.sx 'strlen(ptr)' || FAILS=$((FAILS + 1))
-gffi5_need_unsafe std/ffi/ffi.sx 'malloc(n)' || FAILS=$((FAILS + 1))
-gffi5_need_unsafe std/ffi/ffi.sx 'free(ptr)' || FAILS=$((FAILS + 1))
-gffi5_need_unsafe std/sys/win32.sx 'GetStdHandle' || FAILS=$((FAILS + 1))
-gffi5_need_unsafe std/sys/win32.sx 'WriteFile' || FAILS=$((FAILS + 1))
-gffi5_need_unsafe std/sys/win32.sx 'ExitProcess' || FAILS=$((FAILS + 1))
-gffi5_need_unsafe std/sys/win32_net.sx 'WSAStartup' || FAILS=$((FAILS + 1))
+gffi5_need_unsafe std/ffi/ffi.x 'strlen(ptr)' || FAILS=$((FAILS + 1))
+gffi5_need_unsafe std/ffi/ffi.x 'malloc(n)' || FAILS=$((FAILS + 1))
+gffi5_need_unsafe std/ffi/ffi.x 'free(ptr)' || FAILS=$((FAILS + 1))
+gffi5_need_unsafe std/sys/win32.x 'GetStdHandle' || FAILS=$((FAILS + 1))
+gffi5_need_unsafe std/sys/win32.x 'WriteFile' || FAILS=$((FAILS + 1))
+gffi5_need_unsafe std/sys/win32.x 'ExitProcess' || FAILS=$((FAILS + 1))
+gffi5_need_unsafe std/sys/win32_net.x 'WSAStartup' || FAILS=$((FAILS + 1))
 echo "g-ffi-5 grep OK (win32 + ffi impl)"
 
 if [ "$FAILS" -gt 0 ]; then

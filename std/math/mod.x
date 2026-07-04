@@ -1,0 +1,291 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.math — 数学常量与函数（对标 Zig std.math、Rust std::f64）
+//
+// 【文件职责】PI、E、Tau；floor/ceil/trunc/round；sin/cos/tan、asin/acos/atan、atan2；sqrt
+// cbrt、pow、exp、log、abs、signum；min/max；erf/erfc/log1p/expm1（STD-115）；
+// fenv 异常标志（STD-059/149）。
+// 【依赖】core；C 层 math_*_c 在 math.x / runtime_math_libm.c；链接时需 -lm。
+
+extern function math_pi_c(): f64;
+extern function math_e_c(): f64;
+extern function math_tau_c(): f64;
+extern function math_floor_c(x: f64): f64;
+extern function math_ceil_c(x: f64): f64;
+extern function math_trunc_c(x: f64): f64;
+extern function math_round_c(x: f64): f64;
+extern function math_sin_c(x: f64): f64;
+extern function math_cos_c(x: f64): f64;
+extern function math_tan_c(x: f64): f64;
+extern function math_asin_c(x: f64): f64;
+extern function math_acos_c(x: f64): f64;
+extern function math_atan_c(x: f64): f64;
+extern function math_atan2_c(y: f64, x: f64): f64;
+extern function math_sqrt_c(x: f64): f64;
+extern function math_cbrt_c(x: f64): f64;
+extern function math_pow_c(base: f64, exp: f64): f64;
+extern function math_exp_c(x: f64): f64;
+extern function math_log_c(x: f64): f64;
+extern function math_fabs_c(x: f64): f64;
+extern function math_signum_c(x: f64): f64;
+extern function math_fmin_c(a: f64, b: f64): f64;
+extern function math_fmax_c(a: f64, b: f64): f64;
+
+/** 圆周率 π。 */
+function pi(): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_pi_c(); }
+  return rc;
+}
+
+/** 自然常数 e。 */
+function e(): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_e_c(); }
+  return rc;
+}
+
+/** 2π。 */
+function tau(): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_tau_c(); }
+  return rc;
+}
+
+/** 向下取整。 */
+function floor(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_floor_c(x); }
+  return rc;
+}
+
+/** 向上取整。 */
+function ceil(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_ceil_c(x); }
+  return rc;
+}
+
+/** 截断小数部分。 */
+function trunc(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_trunc_c(x); }
+  return rc;
+}
+
+/** 四舍五入。 */
+function round(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_round_c(x); }
+  return rc;
+}
+
+/** 正弦。 */
+function sin(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_sin_c(x); }
+  return rc;
+}
+
+/** 余弦。 */
+function cos(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_cos_c(x); }
+  return rc;
+}
+
+/** 正切。 */
+function tan(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_tan_c(x); }
+  return rc;
+}
+
+/** 反正弦。 */
+function asin(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_asin_c(x); }
+  return rc;
+}
+
+/** 反余弦。 */
+function acos(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_acos_c(x); }
+  return rc;
+}
+
+/** 反正切。 */
+function atan(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_atan_c(x); }
+  return rc;
+}
+
+/** 二参数反正切 atan2(y, x)。 */
+function atan2(y: f64, x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_atan2_c(y, x); }
+  return rc;
+}
+
+/** 平方根。 */
+function sqrt(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_sqrt_c(x); }
+  return rc;
+}
+
+/** 立方根。 */
+function cbrt(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_cbrt_c(x); }
+  return rc;
+}
+
+/** 幂 base^exp。 */
+function pow(base: f64, exp: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_pow_c(base, exp); }
+  return rc;
+}
+
+/** 自然指数。 */
+function exp(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_exp_c(x); }
+  return rc;
+}
+
+/** 自然对数。 */
+function log(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_log_c(x); }
+  return rc;
+}
+
+/** 绝对值。 */
+function abs(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_fabs_c(x); }
+  return rc;
+}
+
+/** 符号：x>0→1，x<0→-1，x==0→0。 */
+function signum(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_signum_c(x); }
+  return rc;
+}
+
+/** 两数较小值。 */
+function min(a: f64, b: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_fmin_c(a, b); }
+  return rc;
+}
+
+/** 两数较大值。 */
+function max(a: f64, b: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_fmax_c(a, b); }
+  return rc;
+}
+
+// --- 特殊函数（STD-115）---
+extern function math_erf_c(x: f64): f64;
+extern function math_erfc_c(x: f64): f64;
+extern function math_log1p_c(x: f64): f64;
+extern function math_expm1_c(x: f64): f64;
+extern function math_special_smoke_c(): i32;
+
+/** 误差函数 erf(x)。 */
+function erf(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_erf_c(x); }
+  return rc;
+}
+
+/** 互补误差函数 erfc(x) = 1 - erf(x)。 */
+function erfc(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_erfc_c(x); }
+  return rc;
+}
+
+/** log(1+x)，小 x 数值稳定。 */
+function log1p(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_log1p_c(x); }
+  return rc;
+}
+
+/** exp(x)-1，小 x 数值稳定。 */
+function expm1(x: f64): f64 {
+  let rc: f64 = 0.0;
+  unsafe { rc = math_expm1_c(x); }
+  return rc;
+}
+
+/** C 金样烟测；0=通过。 */
+function special_smoke(): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = math_special_smoke_c(); }
+  return rc;
+}
+
+// --- fenv 异常标志（STD-059 / STD-149）---
+const FENV_INVALID: i32 = 1;
+const FENV_DIVBYZERO: i32 = 2;
+const FENV_OVERFLOW: i32 = 4;
+const FENV_UNDERFLOW: i32 = 8;
+const FENV_INEXACT: i32 = 16;
+const FENV_ALL: i32 = 31;
+const FENV_NOT_IMPL: i32 = -9;
+
+extern function math_fenv_available_c(): i32;
+extern function math_fenv_test_c(mask: i32): i32;
+extern function math_fenv_clear_c(mask: i32): i32;
+extern function math_fenv_raise_c(mask: i32): i32;
+
+/** 平台是否支持 fenv：1=是，0=stub。 */
+function fenv_available(): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = math_fenv_available_c(); }
+  return rc;
+}
+
+/** 读取 sticky 异常标志；stub 返回 FENV_NOT_IMPL。 */
+function test_exceptions(mask: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = math_fenv_test_c(mask); }
+  return rc;
+}
+
+/** 清除异常标志；成功 0；stub 返回 FENV_NOT_IMPL。 */
+function clear_exceptions(mask: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = math_fenv_clear_c(mask); }
+  return rc;
+}
+
+/** 置位异常标志（诊断）；成功 0；stub 返回 FENV_NOT_IMPL。 */
+function raise_exceptions(mask: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = math_fenv_raise_c(mask); }
+  return rc;
+}

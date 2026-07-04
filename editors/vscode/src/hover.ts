@@ -36,7 +36,7 @@ export class ShuxHoverProvider implements vscode.HoverProvider {
     if (funcDef) {
       return new vscode.Hover(
         {
-          language: 'sx',
+          language: 'x',
           value: funcDef,
         },
         wordRange
@@ -47,7 +47,7 @@ export class ShuxHoverProvider implements vscode.HoverProvider {
     const structDef = this.findStructDef(lines, word);
     if (structDef) {
       return new vscode.Hover({
-        language: 'sx',
+        language: 'x',
         value: structDef,
       }, wordRange);
     }
@@ -56,7 +56,7 @@ export class ShuxHoverProvider implements vscode.HoverProvider {
     const enumDef = this.findEnumDef(lines, word);
     if (enumDef) {
       return new vscode.Hover({
-        language: 'sx',
+        language: 'x',
         value: enumDef,
       }, wordRange);
     }
@@ -65,7 +65,7 @@ export class ShuxHoverProvider implements vscode.HoverProvider {
     const varDef = this.findVariableDef(lines, word, position.line);
     if (varDef) {
       return new vscode.Hover({
-        language: 'sx',
+        language: 'x',
         value: varDef,
       }, wordRange);
     }
@@ -74,7 +74,7 @@ export class ShuxHoverProvider implements vscode.HoverProvider {
     const externDef = this.findExternDef(lines, word);
     if (externDef) {
       return new vscode.Hover({
-        language: 'sx',
+        language: 'x',
         value: `extern ${externDef}`,
       }, wordRange);
     }

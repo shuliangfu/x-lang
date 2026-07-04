@@ -1,11 +1,11 @@
 # Debug Session: regex-asm-crash
 - **Status**: [OPEN]
-- **Issue**: `./shux_asm -backend asm -L .. ../std/regex/regex.sx -o ...` compiles through parse/typeck and then crashes with `Segmentation fault: 11` after `pipeline thread done ec=0`.
+- **Issue**: `./shux_asm -backend asm -L .. ../std/regex/regex.x -o ...` compiles through parse/typeck and then crashes with `Segmentation fault: 11` after `pipeline thread done ec=0`.
 - **Debug Server**: N/A
 - **Log File**: `tests/probes/bootstrap-parser/regex_asm_probe.stderr`
 
 ## Reproduction Steps
-1. Run `perl -e 'alarm shift; exec @ARGV' 15 env SHUX_DEBUG_PARSE=1 SHUX_DEBUG_PIPE=1 SHUX_ASM_WPO_DCE=0 ./shux_asm -backend asm -L .. ../std/regex/regex.sx -o ../tests/probes/bootstrap-parser/regex_asm_core.o`
+1. Run `perl -e 'alarm shift; exec @ARGV' 15 env SHUX_DEBUG_PARSE=1 SHUX_DEBUG_PIPE=1 SHUX_ASM_WPO_DCE=0 ./shux_asm -backend asm -L .. ../std/regex/regex.x -o ../tests/probes/bootstrap-parser/regex_asm_core.o`
 2. Observe parse/typeck reaches `pipeline thread done ec=0`.
 3. Process crashes with `Segmentation fault: 11`.
 
@@ -30,9 +30,9 @@
 
 ## Fix & Retest
 - Applied a minimal fix in `compiler/pipeline_glue.c`: route `ko == 26` in `pipeline_asm_emit_expr_elf_rec()` to the existing `pipeline_asm_emit_expr_if_arm_elf_c()` block-body path instead of falling through to `backend_emit_expr_elf_slow()`.
-- Retest command now succeeds in 15s: `perl -e 'alarm shift; exec @ARGV' 15 env SHUX_DEBUG_PARSE=1 SHUX_DEBUG_PIPE=1 SHUX_ASM_WPO_DCE=0 ./shux_asm -backend asm -L .. ../std/regex/regex.sx -o ../tests/probes/bootstrap-parser/regex_asm_core.o`
+- Retest command now succeeds in 15s: `perl -e 'alarm shift; exec @ARGV' 15 env SHUX_DEBUG_PARSE=1 SHUX_DEBUG_PIPE=1 SHUX_ASM_WPO_DCE=0 ./shux_asm -backend asm -L .. ../std/regex/regex.x -o ../tests/probes/bootstrap-parser/regex_asm_core.o`
 - `pipeline thread done ec=0` is now followed by normal exit code `0`, with no `Segmentation fault: 11`.
 
 ## Front Gate After Fix
-- `make bootstrap-parser` no longer stops at `std/regex/regex.sx`.
-- The next front gate has moved to `std/context/context.sx`: `codegen error[CG002]: asm_codegen_elf_o failed (elf_ec=-1, out_len=0, num_funcs=34)`.
+- `make bootstrap-parser` no longer stops at `std/regex/regex.x`.
+- The next front gate has moved to `std/context/context.x`: `codegen error[CG002]: asm_codegen_elf_o failed (elf_ec=-1, out_len=0, num_funcs=34)`.

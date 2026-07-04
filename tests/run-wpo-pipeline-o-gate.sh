@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S5：build_asm/pipeline_wpo.o WPO 生产链硬门禁（WPO 压缩 pipeline.sx dogfood）。
+# S5：build_asm/pipeline_wpo.o WPO 生产链硬门禁（WPO 压缩 pipeline.x dogfood）。
 # strict 链仍用全量 build_asm/pipeline.o；本门禁仅验 pipeline_wpo.o。
 # 用法：
 #   ./tests/run-wpo-pipeline-o-gate.sh
@@ -31,8 +31,8 @@ TXT=$(wpo_ab_text_bytes "$PIPE_O") || {
   exit 1
 }
 
-if ! nm "$PIPE_O" 2>/dev/null | grep -q 'run_sx_pipeline_impl'; then
-  echo "run-wpo-pipeline-o-gate FAIL: $PIPE_O missing run_sx_pipeline_impl" >&2
+if ! nm "$PIPE_O" 2>/dev/null | grep -q 'run_x_pipeline_impl'; then
+  echo "run-wpo-pipeline-o-gate FAIL: $PIPE_O missing run_x_pipeline_impl" >&2
   exit 1
 fi
 
@@ -48,7 +48,7 @@ if [ "$SAVE" -lt "$MIN_SAVE" ] 2>/dev/null; then
   [ "$FAIL" = "1" ] && exit 1
 fi
 
-# 编排链 reach：run_sx_pipeline_impl 不应 U 其 direct callee（须 ast_pool fixpoint 后重编 pipeline_wpo.o）。
+# 编排链 reach：run_x_pipeline_impl 不应 U 其 direct callee（须 ast_pool fixpoint 后重编 pipeline_wpo.o）。
 if [ -x "$(dirname "$0")/run-wpo-pipeline-reach-gate.sh" ]; then
   SHUX_WPO_PIPELINE_REACH_FAIL="${SHUX_WPO_PIPELINE_REACH_FAIL:-0}" \
     "$(dirname "$0")/run-wpo-pipeline-reach-gate.sh" "$PIPE_O" || {
@@ -56,4 +56,4 @@ if [ -x "$(dirname "$0")/run-wpo-pipeline-reach-gate.sh" ]; then
   }
 fi
 
-echo "wpo pipeline_wpo.o gate OK (__text=${TXT}B <= ${MAX_TEXT}B, save=${SAVE}B, run_sx_pipeline_impl present)"
+echo "wpo pipeline_wpo.o gate OK (__text=${TXT}B <= ${MAX_TEXT}B, save=${SAVE}B, run_x_pipeline_impl present)"

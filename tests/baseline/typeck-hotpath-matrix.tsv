@@ -1,15 +1,15 @@
 # COMP-002 typeck 热路径矩阵
 # 列：hot_id	symbol	tier	opt_status	source	hook	notes
 # min_opt_done	6
-check_expr	check_expr	T1	done	compiler/src/typeck/typeck.sx	run-typeck-region.sh	expr 入口；简单 kind 直分派其余 mega
-check_block	check_block	T1	done	compiler/src/typeck/typeck.sx	run-typeck-linear.sh	block 递归；loop body 专用路径
-check_expr_impl_mega	check_expr_impl_mega	T1	done	compiler/src/typeck/typeck.sx		ExprKind→typeck_check_expr_* 子 helper
-typeck_sx_ast	typeck_sx_ast	T0	done	compiler/src/typeck/typeck.sx	check_typeck	模块 typeck 入口 per-func loop
-typeck_wpo_unify_soa_layouts	typeck_wpo_unify_soa_layouts	T2	done	compiler/src/typeck/typeck.sx	run-typeck-wpo-optin-smoke.sh	WPO 跨模块 SoA layout 统一
-typeck_inline_u8_64	typeck_inline_u8_64_array_field_type_ref	T2	done	compiler/src/typeck/typeck.sx		u8[64] 字段类型 inline 快路径
+check_expr	check_expr	T1	done	compiler/src/typeck/typeck.x	run-typeck-region.sh	expr 入口；简单 kind 直分派其余 mega
+check_block	check_block	T1	done	compiler/src/typeck/typeck.x	run-typeck-linear.sh	block 递归；loop body 专用路径
+check_expr_impl_mega	check_expr_impl_mega	T1	done	compiler/src/typeck/typeck.x		ExprKind→typeck_check_expr_* 子 helper
+typeck_x_ast	typeck_x_ast	T0	done	compiler/src/typeck/typeck.x	check_typeck	模块 typeck 入口 per-func loop
+typeck_wpo_unify_soa_layouts	typeck_wpo_unify_soa_layouts	T2	done	compiler/src/typeck/typeck.x	run-typeck-wpo-optin-smoke.sh	WPO 跨模块 SoA layout 统一
+typeck_inline_u8_64	typeck_inline_u8_64_array_field_type_ref	T2	done	compiler/src/typeck/typeck.x		u8[64] 字段类型 inline 快路径
 typeck_soa_size_glue	typeck_soa_array_storage_size_glue	T2	done	compiler/pipeline_typeck_soa.c		SoA 数组 storage size C glue
 hot_reorder_layout	pipeline_typeck_hot_reorder_warn_layout	T2	done	compiler/pipeline_glue.c		SHUX_HOT_REORDER 热字段重排 hint
-typeck_sx_type_size	typeck_sx_type_size	T2	monitor	compiler/src/typeck/typeck.sx		递归 type size；dogfood 监控
-typeck_resolve_dep	typeck_resolve_scan_dep_with_apply	T2	planned	compiler/src/typeck/typeck.sx		dep call resolve 扫描
-find_named_type_ref	find_or_alloc_named_type_ref	T3	monitor	compiler/src/typeck/typeck.sx		命名类型 ref 分配
-name_equal	name_equal	T3	monitor	compiler/src/typeck/typeck.sx		热字符串比较 helper
+typeck_x_type_size	typeck_x_type_size	T2	monitor	compiler/src/typeck/typeck.x		递归 type size；dogfood 监控
+typeck_resolve_dep	typeck_resolve_scan_dep_with_apply	T2	planned	compiler/src/typeck/typeck.x		dep call resolve 扫描
+find_named_type_ref	find_or_alloc_named_type_ref	T3	monitor	compiler/src/typeck/typeck.x		命名类型 ref 分配
+name_equal	name_equal	T3	monitor	compiler/src/typeck/typeck.x		热字符串比较 helper

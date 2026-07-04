@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-19  
 > 状态：**v4（HttpResponseOwned + push 堆 body）**  
-> 关联：`std/http/mod.sx`、`std/http/http_reqresp.inc.c`
+> 关联：`std/http/mod.x`、`std/http/http_reqresp.inc.c`
 
 ---
 
@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-http-reqresp.tsv` |
 | 3 | `./tests/run-std-http-reqresp-gate.sh` |
-| 4 | 烟测：`tests/http/request_response.sx` |
+| 4 | 烟测：`tests/http/request_response.x` |
 
 ---
 
@@ -78,7 +78,7 @@ v0 不分配堆内存；body 仍位于用户提供的 raw 缓冲内（`buf + hea
 | `request_bind_url_owned` | 绑定 `HttpRequest.url` |
 | `url_owned_smoke` | C 烟测（300 字节） |
 
-烟测：`tests/http/request_url_owned.sx`。
+烟测：`tests/http/request_url_owned.x`。
 
 ---
 
@@ -91,7 +91,7 @@ v0 不分配堆内存；body 仍位于用户提供的 raw 缓冲内（`buf + hea
 | `execute_owned` | 绑定 HttpRequest 后 execute |
 | `request_owned_smoke` | C 烟测 |
 
-烟测：`tests/http/request_owned.sx`。
+烟测：`tests/http/request_owned.x`。
 
 ---
 
@@ -104,7 +104,7 @@ v0 不分配堆内存；body 仍位于用户提供的 raw 缓冲内（`buf + hea
 | `response_owned_free` | 释放堆 body / push body |
 | `push_last_body_owned` | 复制最近一次 push 到堆（`push_last_copy` + alloc） |
 
-烟测：`tests/http/response_owned.sx`。
+烟测：`tests/http/response_owned.x`。
 
 ---
 

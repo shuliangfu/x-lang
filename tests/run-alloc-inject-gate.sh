@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
 FAIL="${SHUX_ALLOC_INJECT_GATE_FAIL:-0}"
-SRC="tests/mem/default_alloc.sx"
+SRC="tests/mem/default_alloc.x"
 OUT="/tmp/shux_default_alloc_$$"
 
 if ! SHUX_KEEP_C=1 "$SHUX" "$SRC" -o "$OUT" >/tmp/shux_alloc_inject_run.log 2>&1; then

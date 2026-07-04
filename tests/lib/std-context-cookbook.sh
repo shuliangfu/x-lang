@@ -2,7 +2,7 @@
 # std-context-cookbook.sh — STD-156 Cookbook manifest 与 runnable 辅助
 #
 # 用法（source 后）：
-#   std_context_cookbook_symbols_ok MOD_SX TSV
+#   std_context_cookbook_symbols_ok MOD_X TSV
 #   std_context_cookbook_run_smoke RUN_SHUX RECIPE
 #   std_context_cookbook_emit_report status run_ok skip
 
@@ -10,7 +10,7 @@ STD_CTX_CB_PREFIX="${SHUX_STD_CTX_CB_PREFIX:-shux: [SHUX_STD_CONTEXT_COOKBOOK]}"
 
 # 校验 manifest 中 symbol/recipe 锚点；echo 缺失数。
 std_context_cookbook_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor path
@@ -19,7 +19,7 @@ std_context_cookbook_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       symbol)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-context-cookbook FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi

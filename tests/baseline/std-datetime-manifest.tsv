@@ -4,21 +4,21 @@
 read_path	section	## 1. 阅读路径	analysis/std-datetime-v1.md
 api_doc	section	## 2. API	analysis/std-datetime-v1.md
 verify	section	## 3. Gate	analysis/std-datetime-v1.md
-api_now	api	now_utc	std/datetime/mod.sx	UTC
-api_parse	api	parse_rfc3339	std/datetime/mod.sx	RFC3339
-api_format	api	format_rfc3339	std/datetime/mod.sx	格式
-api_format_nano	api	format_rfc3339_nano	std/datetime/mod.sx	Nano
-api_fields	api	to_utc_fields	std/datetime/mod.sx	字段
-api_from_fields	api	from_utc_fields	std/datetime/mod.sx	构造
-api_compare	api	compare	std/datetime/mod.sx	比较
-api_local	api	local_offset_min	std/datetime/mod.sx	时区
-api_duration	api	duration_between	std/datetime/mod.sx	Duration
-api_add	api	add_duration	std/datetime/mod.sx	加
-api_sleep	api	duration_sleep	std/datetime/mod.sx	sleep
-symbol_smoke	symbol	datetime_smoke_c	std/datetime/datetime.sx	C烟测
-impl_sx	file	std/datetime/datetime.sx	std/datetime/datetime.sx
-symbol_local_offset	symbol	datetime_local_offset_min_c	std/datetime/datetime.sx
-smoke_sx	smoke	tests/std-datetime/roundtrip.sx	.sx烟测
+api_now	api	now_utc	std/datetime/mod.x	UTC
+api_parse	api	parse_rfc3339	std/datetime/mod.x	RFC3339
+api_format	api	format_rfc3339	std/datetime/mod.x	格式
+api_format_nano	api	format_rfc3339_nano	std/datetime/mod.x	Nano
+api_fields	api	to_utc_fields	std/datetime/mod.x	字段
+api_from_fields	api	from_utc_fields	std/datetime/mod.x	构造
+api_compare	api	compare	std/datetime/mod.x	比较
+api_local	api	local_offset_min	std/datetime/mod.x	时区
+api_duration	api	duration_between	std/datetime/mod.x	Duration
+api_add	api	add_duration	std/datetime/mod.x	加
+api_sleep	api	duration_sleep	std/datetime/mod.x	sleep
+symbol_smoke	symbol	datetime_smoke_c	std/datetime/datetime.x	C烟测
+impl_x	file	std/datetime/datetime.x	std/datetime/datetime.x
+symbol_local_offset	symbol	datetime_local_offset_min_c	std/datetime/datetime.x
+smoke_x	smoke	tests/std-datetime/roundtrip.x	.x烟测
 vectors	file	tests/baseline/std-datetime-vectors.tsv	向量
 lib	script	lib/std-datetime.sh	tests/lib/std-datetime.sh
 gate	script	run-std-datetime-gate.sh	tests/run-std-datetime-gate.sh

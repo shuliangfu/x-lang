@@ -10,7 +10,7 @@ make -C compiler -q 2>/dev/null || make -C compiler
 GRAPH="/tmp/shux_wpo_const_spec.json"
 rm -f "$GRAPH"
 
-SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" ./compiler/shux-c check tests/wpo/const_spec.sx >/dev/null
+SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" ./compiler/shux-c check tests/wpo/const_spec.x >/dev/null
 [ -s "$GRAPH" ] || { echo "WPO graph not written"; exit 1; }
 grep -q '"version": 2' "$GRAPH" || { echo "WPO graph version != 2"; exit 1; }
 grep -q '"call_sites"' "$GRAPH" || { echo "WPO graph missing call_sites"; exit 1; }
@@ -20,7 +20,7 @@ perl compiler/scripts/wpo_const_spec.pl "$GRAPH" --expect-site 0 1 1024 64 | tee
 grep -q 'wpo_const_spec OK' /tmp/wpo_const_spec.log
 
 # WPO-S1 回归：dead_fn 仍可用 v2 JSON
-SHUX_WPO_DUMP_CALLGRAPH=/tmp/shux_wpo_dead_fn_v2.json ./compiler/shux-c check tests/wpo/dead_fn.sx >/dev/null
+SHUX_WPO_DUMP_CALLGRAPH=/tmp/shux_wpo_dead_fn_v2.json ./compiler/shux-c check tests/wpo/dead_fn.x >/dev/null
 perl compiler/scripts/wpo_dce.pl /tmp/shux_wpo_dead_fn_v2.json --expect-dead dead_helper
 
 # WPO-S2 asm：常量实参 call fold（须 shux_asm；Linux ARM64 lite refresh stub 记 N/A）
@@ -30,7 +30,7 @@ if [ -x ./compiler/shux_asm ] && ! wpo_host_asm_run_na; then
   fi
 
   OUT=$(wpo_s2_asm_out_path /tmp/shux_wpo_const_spec_fold)
-  if ! ./compiler/shux_asm tests/wpo/const_spec_fold.sx -o "$OUT" 2>/tmp/wpo_s2_fold_build.log; then
+  if ! ./compiler/shux_asm tests/wpo/const_spec_fold.x -o "$OUT" 2>/tmp/wpo_s2_fold_build.log; then
     echo "wpo-s2 asm FAIL: const_spec_fold compile failed"
     tail -8 /tmp/wpo_s2_fold_build.log 2>/dev/null || true
     exit 1
@@ -57,7 +57,7 @@ if [ -x ./compiler/shux_asm ] && ! wpo_host_asm_run_na; then
 
   # WPO-S2 monomorphize：SHUX_WPO_MONO=1 生成 scale__wpo_1024_64 thunk，_main bl 单态符号
   OUT_MONO=$(wpo_s2_asm_out_path /tmp/shux_wpo_const_spec_mono)
-  if ! SHUX_WPO_MONO=1 ./compiler/shux_asm tests/wpo/const_spec_fold.sx -o "$OUT_MONO" 2>/tmp/wpo_s2_mono_build.log; then
+  if ! SHUX_WPO_MONO=1 ./compiler/shux_asm tests/wpo/const_spec_fold.x -o "$OUT_MONO" 2>/tmp/wpo_s2_mono_build.log; then
     echo "wpo-s2 asm FAIL: const_spec_fold mono compile failed"
     tail -8 /tmp/wpo_s2_mono_build.log 2>/dev/null || true
     exit 1
@@ -99,7 +99,7 @@ if [ -x ./compiler/shux_asm ] && ! wpo_host_asm_run_na; then
 
   # WPO-S2 vec 特化：lane0(vec_add4([const],[const])) fold
   OUT_VEC=$(wpo_s2_asm_out_path /tmp/shux_wpo_vec_const_spec_fold)
-  if ! ./compiler/shux_asm tests/wpo/vec_const_spec_fold.sx -o "$OUT_VEC" 2>/tmp/wpo_s2_vec_build.log; then
+  if ! ./compiler/shux_asm tests/wpo/vec_const_spec_fold.x -o "$OUT_VEC" 2>/tmp/wpo_s2_vec_build.log; then
     echo "wpo-s2 asm FAIL: vec_const_spec_fold compile failed"
     tail -8 /tmp/wpo_s2_vec_build.log 2>/dev/null || true
     exit 1
@@ -126,7 +126,7 @@ if [ -x ./compiler/shux_asm ] && ! wpo_host_asm_run_na; then
 
   # WPO-S2 vec mono：SHUX_WPO_MONO=1 → lane0__wpo_1_2_3_4_10_20_30_40 thunk
   OUT_VEC_MONO=$(wpo_s2_asm_out_path /tmp/shux_wpo_vec_const_spec_mono)
-  if ! SHUX_WPO_MONO=1 ./compiler/shux_asm tests/wpo/vec_const_spec_mono.sx -o "$OUT_VEC_MONO" 2>/tmp/wpo_s2_vec_mono_build.log; then
+  if ! SHUX_WPO_MONO=1 ./compiler/shux_asm tests/wpo/vec_const_spec_mono.x -o "$OUT_VEC_MONO" 2>/tmp/wpo_s2_vec_mono_build.log; then
     echo "wpo-s2 asm FAIL: vec_const_spec_mono compile failed"
     tail -8 /tmp/wpo_s2_vec_mono_build.log 2>/dev/null || true
     exit 1

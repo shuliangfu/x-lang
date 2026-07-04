@@ -1,13 +1,13 @@
 # 阶段 F-runtime v1（std.runtime 去 C）
 
-> **F-runtime v1**：删除 **`runtime.c`**；panic/abort 全在 **`runtime.sx`**；**零胶层 C**。
+> **F-runtime v1**：删除 **`runtime.c`**；panic/abort 全在 **`runtime.x`**；**零胶层 C**。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `runtime.c`（27 行） | `runtime.sx` |
-| `runtime.o` | `cc -c runtime.c` | `shux -backend asm runtime.sx` |
+| 实现 | `runtime.c`（27 行） | `runtime.x` |
+| `runtime.o` | `cc -c runtime.c` | `shux -backend asm runtime.x` |
 | 存量 | std 86 `.c` | std **85** `.c` |
 
 ## 门禁

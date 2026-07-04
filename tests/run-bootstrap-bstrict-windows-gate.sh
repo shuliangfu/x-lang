@@ -22,7 +22,7 @@ fi
 
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || ulimit -s 16384 2>/dev/null || true
 
-if [ ! -x compiler/shux ] && [ ! -x compiler/shux-sx ]; then
+if [ ! -x compiler/shux ] && [ ! -x compiler/shux-x ]; then
   echo "bootstrap-bstrict-windows-gate FAIL: need seed (make -C compiler OPT=1 all)" >&2
   exit 127
 fi
@@ -61,13 +61,13 @@ compile_rv() {
   local tool="$1"
   shift
   # shellcheck disable=SC2086
-  "$tool" $RV_BACKEND_ARGS "$@" tests/return-value/main.sx -o "$RV_OUT"
+  "$tool" $RV_BACKEND_ARGS "$@" tests/return-value/main.x -o "$RV_OUT"
 }
 if ! compile_rv compiler/shux_asm 2>/tmp/shux_win_rv_err.log; then
   if [ -x ./compiler/shux-c ]; then
     echo "bootstrap-bstrict-windows-gate: shux_asm compile failed; fallback shux-c" >&2
     RV_BACKEND_ARGS=""
-    if ! ./compiler/shux-c -L . tests/return-value/main.sx -o "$RV_OUT" 2>/tmp/shux_win_rv_err.log; then
+    if ! ./compiler/shux-c -L . tests/return-value/main.x -o "$RV_OUT" 2>/tmp/shux_win_rv_err.log; then
       cat /tmp/shux_win_rv_err.log >&2
       echo "bootstrap-bstrict-windows-gate FAIL: compile return-value" >&2
       exit 1

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S2 typeck SX 门禁（NEXT §2.2 S2 / P3）：typeck.sx check + build_asm/typeck.o 非空 __text + 关键导出符号。
+# S2 typeck X 门禁（NEXT §2.2 S2 / P3）：typeck.x check + build_asm/typeck.o 非空 __text + 关键导出符号。
 # 用法：./tests/run-s2-typeck-gate.sh
 # 可选：SHUX_S2_REQUIRE_TYPECK_O=1 — 无 typeck.o 时失败（CI 在 build_shux_asm 之后设置）
 # 可选：SHUX_S2_FAIL_ON_REGRESSION=1 — __text 低于 baseline min_text_bytes 时失败
@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c
 
 SHUX=${SHUX:-./compiler/shux-c}
-TYPECK_SX="compiler/src/typeck/typeck.sx"
+TYPECK_X="compiler/src/typeck/typeck.x"
 TYPECK_O="compiler/build_asm/typeck.o"
 BASELINE="${SHUX_S2_TYPECK_BASELINE:-tests/baseline/s2-typeck-o.tsv}"
 MIN_TEXT=$(awk -F'\t' '$1=="min_text_bytes" && $1 !~ /^#/ { print $2; exit }' "$BASELINE")
@@ -40,18 +40,18 @@ print(real)
 PY
 }
 
-# ── 1) typeck.sx 须能通过 C 前端 check（与 run-check-compiler 子集一致）──
-out=$("$SHUX" check "$TYPECK_SX" 2>&1) || {
+# ── 1) typeck.x 须能通过 C 前端 check（与 run-check-compiler 子集一致）──
+out=$("$SHUX" check "$TYPECK_X" 2>&1) || {
   echo "$out"
-  echo "s2 typeck gate: check failed on $TYPECK_SX"
+  echo "s2 typeck gate: check failed on $TYPECK_X"
   exit 1
 }
 if [ -n "$out" ]; then
-  echo "s2 typeck gate: expected silent check on $TYPECK_SX, got: $out"
+  echo "s2 typeck gate: expected silent check on $TYPECK_X, got: $out"
   exit 1
 fi
 
-# ── 2) build_asm/typeck.o：__text 非空 + 导出 typeck_sx_ast / check_block ──
+# ── 2) build_asm/typeck.o：__text 非空 + 导出 typeck_x_ast / check_block ──
 text_section_size() {
   local o="$1"
   [ -f "$o" ] || {
@@ -82,7 +82,7 @@ echo "s2 typeck gate: $TYPECK_O __text size=$sz (min=$MIN_TEXT)"
 
 if [ "${SHUX_S2_UPDATE_BASELINE:-0}" = "1" ]; then
   {
-    echo "# S2 typeck.o：build_asm/typeck.sx 的 asm 产物 __text 下限（字节）"
+    echo "# S2 typeck.o：build_asm/typeck.x 的 asm 产物 __text 下限（字节）"
     echo "# 更新：SHUX_S2_UPDATE_BASELINE=1 ./tests/run-s2-typeck-gate.sh"
     printf 'min_text_bytes\t%s\n' "$sz"
   } >"$BASELINE"
@@ -101,8 +101,8 @@ if [ "${SHUX_S2_FAIL_ON_REGRESSION:-0}" = "1" ] || [ "${SHUX_S2_REQUIRE_TYPECK_O
   fi
 fi
 
-# 关键 SX typeck 入口须在 .o 中可见（非仅 C glue 桩）；ELF 无 leading _，Mach-O 有 _。
-for sym in typeck_sx_ast check_block; do
+# 关键 X typeck 入口须在 .o 中可见（非仅 C glue 桩）；ELF 无 leading _，Mach-O 有 _。
+for sym in typeck_x_ast check_block; do
   if ! nm "$TYPECK_O" 2>/dev/null | grep -qE "(_)?${sym}\$"; then
     echo "s2 typeck gate FAIL: missing symbol $sym in $TYPECK_O" >&2
     exit 1
@@ -125,4 +125,4 @@ if [ "${SHUX_S2_FAIL_ON_REGRESSION:-0}" = "1" ] && [ "${MIN_REAL:-0}" -gt 0 ] 2>
   fi
 fi
 
-echo "s2 typeck gate OK (__text=${sz}, real_funcs=${real}, symbols=typeck_sx_ast+check_block)"
+echo "s2 typeck gate OK (__text=${sz}, real_funcs=${real}, symbols=typeck_x_ast+check_block)"

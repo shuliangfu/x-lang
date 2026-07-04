@@ -78,7 +78,7 @@ if ! d05_native_exe "$SHUX_BIN"; then
   exit 0
 fi
 
-# ── shux 须具备 seed/.sx 能力（shux-c 纯 C 链不具备或较弱）──
+# ── shux 须具备 seed/.x 能力（shux-c 纯 C 链不具备或较弱）──
 if ! "$SHUX_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
   echo "d05 note: $SHUX_BIN missing --lsp (may need bootstrap-driver-seed first)" >&2
 fi
@@ -87,8 +87,8 @@ if ! "$SHUX_BIN" --help 2>/dev/null | grep -qE '\-backend|backend'; then
 fi
 
 # ── 日常 check 不经过 shux-c ──
-SMOKE="tests/c07/minimal_return42.sx"
-[ -f "$SMOKE" ] || SMOKE="examples/hello.sx"
+SMOKE="tests/c07/minimal_return42.x"
+[ -f "$SMOKE" ] || SMOKE="examples/hello.x"
 unset SHUX_LINK_SHUX
 if ! "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
   "$SHUX_BIN" check -L . "$SMOKE" 2>&1 | tail -8 >&2 || true

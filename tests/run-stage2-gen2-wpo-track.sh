@@ -18,7 +18,7 @@ fi
 
 chmod +x compiler/scripts/build_shux_asm.sh
 cp -f compiler/shux_asm compiler/shux_asm_stage1
-SMK="tests/boundary/struct_mk_let_inline.sx"
+SMK="tests/boundary/struct_mk_let_inline.x"
 
 run_case() {
   local label="$1"

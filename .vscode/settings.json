@@ -81,8 +81,8 @@
   ],
   "clangd.checkUpdates": false,
 
-  // --- .sx 文件专用编辑器行为（语言 ID 为 sx） ---
-  "[sx]": {
+  // --- .x 文件专用编辑器行为（语言 ID 为 x） ---
+  "[x]": {
     // 默认格式化器：Shux 扩展
     "editor.defaultFormatter": "shux.vscode-shux",
     // 保存时自动格式化

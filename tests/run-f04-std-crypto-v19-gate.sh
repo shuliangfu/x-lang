@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-04 v19：std.crypto ed25519.inc.c → ed25519.sx 门禁。
+# F-04 v19：std.crypto ed25519.inc.c → ed25519.x 门禁。
 #
 # 用法：./tests/run-f04-std-crypto-v19-gate.sh
 # 环境：SHUX_F04_CRYPTO_V19_FAIL=1 — 失败时硬退出
@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_F04_CRYPTO_V19_FAIL:-0}
 DOC="analysis/phase-f-f04-v19.md"
-ED25519="std/crypto/ed25519.sx"
+ED25519="std/crypto/ed25519.x"
 GLUE="compiler/src/asm/runtime_ed25519_ref10_glue.c"
 INC_GLUE="compiler/src/asm/runtime_crypto_inc_glue.c"
 
@@ -21,16 +21,16 @@ die() {
   exit 0
 }
 
-echo "=== F-04 v19: std.crypto ed25519.inc.c → ed25519.sx ==="
+echo "=== F-04 v19: std.crypto ed25519.inc.c → ed25519.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-04 v19' "$DOC" || die "doc missing F-04 v19 marker"
 [ ! -f std/crypto/ed25519.inc.c ] || die "ed25519.inc.c should be deleted"
-[ -f "$ED25519" ] || die "missing ed25519.sx"
+[ -f "$ED25519" ] || die "missing ed25519.x"
 [ -f "$GLUE" ] || die "missing ed25519_ref10_glue.c"
-grep -q 'crypto_ed25519_sign_c' "$ED25519" || die "ed25519.sx missing sign"
-grep -q 'crypto_ed25519_smoke_c' "$ED25519" || die "ed25519.sx missing smoke"
+grep -q 'crypto_ed25519_sign_c' "$ED25519" || die "ed25519.x missing sign"
+grep -q 'crypto_ed25519_smoke_c' "$ED25519" || die "ed25519.x missing smoke"
 grep -q 'crypto/ed25519/fe.c' "$GLUE" || die "ref10 glue missing fe.c include"
-grep -q 'ed25519.sx' compiler/Makefile || die "Makefile missing ed25519.sx build"
+grep -q 'ed25519.x' compiler/Makefile || die "Makefile missing ed25519.x build"
 grep -q 'runtime_ed25519_ref10_glue' compiler/Makefile || die "Makefile missing runtime_ed25519_ref10_glue"
 grep -q 'runtime_crypto_inc_glue' compiler/Makefile || die "Makefile missing runtime_crypto_inc_glue"
 if grep -q 'ed25519.inc.c' "$INC_GLUE" 2>/dev/null; then
@@ -63,7 +63,7 @@ make -C compiler ../std/crypto/crypto.o runtime_ed25519_ref10_glue.o runtime_cry
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-if std_crypto_o_has_sx_symbols std/crypto/crypto.o; then
+if std_crypto_o_has_x_symbols std/crypto/crypto.o; then
   if nm std/crypto/crypto.o 2>/dev/null | grep -qE ' crypto_ed25519_smoke_c$'; then
     cat >"$TMP/ed25519_smoke_main.c" <<'EOF'
 #include <stdint.h>
@@ -76,10 +76,10 @@ EOF
     "$TMP/ed25519_smoke" || die "ed25519 C smoke run failed"
     echo "f04 crypto ed25519 smoke OK"
   else
-    echo "f04 crypto ed25519 smoke SKIP (crypto.o missing ed25519 .sx symbols)"
+    echo "f04 crypto ed25519 smoke SKIP (crypto.o missing ed25519 .x symbols)"
   fi
 else
-  echo "f04 crypto ed25519 smoke SKIP (crypto.o missing .sx symbols; need shux-c)"
+  echo "f04 crypto ed25519 smoke SKIP (crypto.o missing .x symbols; need shux-c)"
 fi
 
 if [ -f tests/run-std-crypto-ed25519-gate.sh ]; then

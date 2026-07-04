@@ -5,16 +5,16 @@ read_path	section	## 1. 阅读路径	15min
 name_api	section	## 2. 命名线程	thread_set_name_self
 pool_api	section	## 3. 固定 worker 线程池	thread_pool_start
 verify	section	## 4. 验证与门禁	gate
-api_set_name	api	thread_set_name_self	std/thread/mod.sx	命名
-api_pool_start	api	thread_pool_start	std/thread/mod.sx	启动池
-api_pool_submit	api	thread_pool_submit	std/thread/mod.sx	提交
-api_pool_drain	api	thread_pool_drain	std/thread/mod.sx	排空
-api_pool_stop	api	thread_pool_stop	std/thread/mod.sx	停止
-api_pool_pending	api	thread_pool_pending	std/thread/mod.sx	观测
+api_set_name	api	thread_set_name_self	std/thread/mod.x	命名
+api_pool_start	api	thread_pool_start	std/thread/mod.x	启动池
+api_pool_submit	api	thread_pool_submit	std/thread/mod.x	提交
+api_pool_drain	api	thread_pool_drain	std/thread/mod.x	排空
+api_pool_stop	api	thread_pool_stop	std/thread/mod.x	停止
+api_pool_pending	api	thread_pool_pending	std/thread/mod.x	观测
 symbol_name_c	symbol	thread_set_name_self_c	compiler/src/asm/runtime_thread_glue.c	C 命名
 symbol_pool_start_c	symbol	thread_pool_start_c	compiler/src/asm/runtime_thread_glue.c	C 池
 symbol_pool_drain_c	symbol	thread_pool_drain_c	compiler/src/asm/runtime_thread_glue.c	C drain
-smoke_pool	smoke	tests/thread/pool_roundtrip.sx	池往返
-smoke_main	smoke	tests/thread/main.sx	spawn/join
+smoke_pool	smoke	tests/thread/pool_roundtrip.x	池往返
+smoke_main	smoke	tests/thread/main.x	spawn/join
 lib	script	lib/std-thread-pool.sh	tests/lib/std-thread-pool.sh
 gate	script	run-std-thread-pool-gate.sh	tests/run-std-thread-pool-gate.sh

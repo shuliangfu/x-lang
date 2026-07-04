@@ -8,21 +8,21 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_DYNLIB_WIN_DOC:-analysis/std-dynlib-windows-v1.md}"
 MANIFEST="${SHUX_STD_DYNLIB_WIN_TSV:-tests/baseline/std-dynlib-windows.tsv}"
 DYNLIB_RUNTIME="compiler/src/asm/runtime_dynlib_os.c"
-DYNLIB_SX="std/dynlib/dynlib.sx"
-DYNLIB_SX="std/dynlib/dynlib.sx"
-MOD_SX="std/dynlib/mod.sx"
+DYNLIB_X="std/dynlib/dynlib.x"
+DYNLIB_X="std/dynlib/dynlib.x"
+MOD_X="std/dynlib/mod.x"
 LIB="tests/lib/std-dynlib-windows.sh"
-SMOKE="tests/dynlib/open_sym_close.sx"
-WIN_PATH_SX="tests/dynlib/win_path.sx"
+SMOKE="tests/dynlib/open_sym_close.x"
+WIN_PATH_X="tests/dynlib/win_path.x"
 WIN_PATH_C="tests/dynlib/win_path_smoke.c"
-NULL_TEST="tests/dynlib/main.sx"
+NULL_TEST="tests/dynlib/main.x"
 RUNNER="tests/run-dynlib.sh"
 
 # shellcheck source=tests/lib/std-dynlib-windows.sh
 . tests/lib/std-dynlib-windows.sh
 
 echo "=== STD-027: dynlib Windows manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$DYNLIB_SX" "$DYNLIB_RUNTIME" "$MOD_SX" "$SMOKE" "$WIN_PATH_SX" "$WIN_PATH_C" "$NULL_TEST" "$RUNNER"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$DYNLIB_X" "$DYNLIB_RUNTIME" "$MOD_X" "$SMOKE" "$WIN_PATH_X" "$WIN_PATH_C" "$NULL_TEST" "$RUNNER"; do
   if [ ! -f "$f" ]; then
     echo "std-dynlib-windows gate FAIL: missing $f" >&2
     exit 1
@@ -36,7 +36,7 @@ for kw in LoadLibraryA LoadLibraryW GetProcAddress FreeLibrary kernel32.dll open
   fi
 done
 
-sym_miss="$(std_dynlib_win_manifest_ok "$DOC" "$DYNLIB_RUNTIME" "$MOD_SX" "$MANIFEST" || true)"
+sym_miss="$(std_dynlib_win_manifest_ok "$DOC" "$DYNLIB_RUNTIME" "$MOD_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_dynlib_win_emit_report "fail" 0 0 0
   echo "std-dynlib-windows gate FAIL: manifest_miss=${sym_miss}" >&2
@@ -73,7 +73,7 @@ WIN_PATH_C_OK=0
 SKIP=1
 if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-027: typeck (SHUX=$SHUX_BIN) ==="
-  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1 && "$SHUX_BIN" check -L . "$NULL_TEST" >/dev/null 2>&1 && "$SHUX_BIN" check -L . "$WIN_PATH_SX" >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1 && "$SHUX_BIN" check -L . "$NULL_TEST" >/dev/null 2>&1 && "$SHUX_BIN" check -L . "$WIN_PATH_X" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-dynlib-windows gate FAIL: typeck" >&2

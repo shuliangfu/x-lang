@@ -18,7 +18,7 @@ echo "=== TYPE-003: borrow conflict manifest ==="
 for f in "$DOC" "$MANIFEST" "$MATRIX" \
   analysis/type-linear-v1-rfc.md analysis/type-region-v1-rfc.md \
   compiler/src/typeck/typeck.c \
-  tests/typeck/borrow/fp_linear_two_bindings_ok.sx; do
+  tests/typeck/borrow/fp_linear_two_bindings_ok.x; do
   if [ ! -f "$f" ]; then
     echo "type-borrow-conflict gate FAIL: missing $f" >&2
     exit 1

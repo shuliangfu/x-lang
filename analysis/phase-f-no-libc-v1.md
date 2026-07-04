@@ -18,7 +18,7 @@
 | crt0 | `compiler/src/asm/crt0_user_x86_64.s` |
 | write/read/open/close/exit | `freestanding_io_x86_64.s` |
 | openat/mmap/munmap | 同上 |
-| `.sx` 门面 | `std/sys/linux.sx`、`std/sys/mod.sx` |
+| `.x` 门面 | `std/sys/linux.x`、`std/sys/mod.x` |
 | 烟测 | `tests/run-freestanding-hello.sh`、B-04/B-14/B-31 gates |
 
 ## 待写代码（按依赖顺序）
@@ -34,19 +34,19 @@
 
 | syscall | 状态 |
 |---------|------|
-| socket/connect/bind/listen/accept | ✅ `.s` + `linux.sx` + `std/net/freestanding_linux.sx` |
+| socket/connect/bind/listen/accept | ✅ `.s` + `linux.x` + `std/net/freestanding_linux.x` |
 | futex/clone/brk | ⬜ 后期 |
 
 Gate：`SHUX_NOLIBC_SOCKET_FAIL=1 ./tests/run-no-libc-socket-gate.sh`
 
 ### NL-03 堆（✅ v1）
 
-- `std/heap/page_mmap.sx`：`PageMmapHeap` 64KiB 匿名 mmap bump
+- `std/heap/page_mmap.x`：`PageMmapHeap` 64KiB 匿名 mmap bump
 - Gate：`SHUX_NOLIBC_HEAP_FAIL=1 ./tests/run-no-libc-heap-gate.sh`
 
 ### NL-04 文件 IO（✅ v1）
 
-- `std/fs/freestanding_linux.sx`：read/open/close/write 经 `std.sys` syscall
+- `std/fs/freestanding_linux.x`：read/open/close/write 经 `std.sys` syscall
 - Gate：`SHUX_NOLIBC_FS_FAIL=1 ./tests/run-no-libc-fs-gate.sh`
 - freestanding 程序用 `import("std.fs.freestanding_linux")`，勿拉完整 `std.fs`（含 fs.c extern）
 
@@ -59,7 +59,7 @@ Gate：`SHUX_NOLIBC_SOCKET_FAIL=1 ./tests/run-no-libc-socket-gate.sh`
 ### NL-06 freestanding std 首批发（v1 ✅）
 
 - 专文档：`analysis/phase-f-n06-v1.md`
-- Manifest：`tests/baseline/nolibc-n06-freestanding-replacements.tsv`（heap/fs/net `.sx` ↔ legacy `.c`）
+- Manifest：`tests/baseline/nolibc-n06-freestanding-replacements.tsv`（heap/fs/net `.x` ↔ legacy `.c`）
 - Gate：`SHUX_NOLIBC_N06_FAIL=1 ./tests/run-nolibc-n06-std-track-gate.sh`
 - v1 **不删** `std/*.c`；编译器 bootstrap 仍链 `fs.o`/`io.o`/`heap.o` → **F-07 / NL-06 v2**
 

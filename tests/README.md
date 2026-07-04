@@ -1,6 +1,6 @@
 # Shux 测试说明
 
-本目录包含编译器与运行行为的测试，按功能分子目录；每个子目录下为 `.sx` 源码，根目录下 `run-*.sh` 为对应测试脚本。
+本目录包含编译器与运行行为的测试，按功能分子目录；每个子目录下为 `.x` 源码，根目录下 `run-*.sh` 为对应测试脚本。
 
 ## 一、自举相关回归套件
 
@@ -8,14 +8,14 @@
 
 **执行方式：**
 
-- **推荐（分轨全量）**：`./tests/run-all-c.sh`（全量用 C 版编译器 shux-c）、`./tests/run-all-sx.sh`（全量用 .sx 流水线编译器 shux_sx）。CI 两条都跑，见 `.github/workflows/ci.yml`。
-- **通用脚本**：`./tests/run-all.sh` 跑全部 run-*.sh；通过环境变量 `SHUX=compiler/shux-c` 或 `SHUX=compiler/shux_sx` 指定用哪支编译器，不设则用当前 `compiler/shux`。
-- **从零与 build_tool**：`make -C compiler build-tool` / `first-time` 仅用 **shux-c** 对 `../build.sx` 做 `-E`（与 `lsp_*_gen` 同源，避免 Makefile 规则环）；仓库根 `./build.sh` 与 Makefile 一致（`-E` + `cc`，勿用 `shux ../build.sx -o build_tool`）。`make -C compiler all` 默认同时产出 **shux** 与 **shux-c**。
-- 编译器目录：`make -C compiler test` = `test_c`（委托 `./tests/run-all-c.sh`）+ `test_sx`（`run-all-sx.sh`）；`make test_c` 与 `run-all-c.sh` **等价**，勿再假定 Makefile 内联脚本列表。
+- **推荐（分轨全量）**：`./tests/run-all-c.sh`（全量用 C 版编译器 shux-c）、`./tests/run-all-x.sh`（全量用 .x 流水线编译器 shux_x）。CI 两条都跑，见 `.github/workflows/ci.yml`。
+- **通用脚本**：`./tests/run-all.sh` 跑全部 run-*.sh；通过环境变量 `SHUX=compiler/shux-c` 或 `SHUX=compiler/shux_x` 指定用哪支编译器，不设则用当前 `compiler/shux`。
+- **从零与 build_tool**：`make -C compiler build-tool` / `first-time` 仅用 **shux-c** 对 `../build.x` 做 `-E`（与 `lsp_*_gen` 同源，避免 Makefile 规则环）；仓库根 `./build.sh` 与 Makefile 一致（`-E` + `cc`，勿用 `shux ../build.x -o build_tool`）。`make -C compiler all` 默认同时产出 **shux** 与 **shux-c**。
+- 编译器目录：`make -C compiler test` = `test_c`（委托 `./tests/run-all-c.sh`）+ `test_x`（`run-all-x.sh`）；`make test_c` 与 `run-all-c.sh` **等价**，勿再假定 Makefile 内联脚本列表。
 
 **不纳入回归的脚本**：`run-size-baseline.sh`、`run-perf-baseline.sh` 为可选体积/性能基线，需时单独执行。
 
-**CI 多端测试**：push/PR 时在 **Linux**（ubuntu-22.04、ubuntu-latest）、**Linux ARM64**、**macOS**（macos-14、macos-latest）、**Windows**（MSYS2）、**Docker**（Alpine、Debian bookworm-slim）上先构建 shux + shux_sx，再依次执行 `./tests/run-all-c.sh` 与 `./tests/run-all-sx.sh`，见 `.github/workflows/ci.yml`。
+**CI 多端测试**：push/PR 时在 **Linux**（ubuntu-22.04、ubuntu-latest）、**Linux ARM64**、**macOS**（macos-14、macos-latest）、**Windows**（MSYS2）、**Docker**（Alpine、Debian bookworm-slim）上先构建 shux + shux_x，再依次执行 `./tests/run-all-c.sh` 与 `./tests/run-all-x.sh`，见 `.github/workflows/ci.yml`。
 
 ## 二、测试脚本与覆盖范围
 
@@ -23,7 +23,7 @@
 |------|----------|----------|
 | `run-lexer.sh` | 词法：Token 序列与 expected.txt 逐行比对 | 正例 |
 | `run-typeck.sh` | 类型检查：输出含 `typeck OK` | 正例 |
-| `run-hello.sh` | 编译运行 examples/hello.sx，输出 "Hello World" | 正例 |
+| `run-hello.sh` | 编译运行 examples/hello.x，输出 "Hello World" | 正例 |
 | `run-import.sh` | import 与多文件，输出 "Hello World" | 正例 |
 | `run-std.sh` | 标准库路径 -L .，parse/typeck OK 并运行 | 正例 |
 | `run-stdlib-import.sh` | 标准库 import（core/std 模块） | 正例 |
@@ -59,8 +59,8 @@
 | `run-defer.sh` | defer 块与块尾返回值 | 正例 |
 | `run-goto.sh` | label 与 goto、return | 正例 |
 | `run-preprocess.sh` | 条件编译（#if/#else/#endif 等） | 正例 |
-| `run-sx-pipeline.sh` | .sx 流水线（-sx -E 生成 C）；无 pipeline 时 SKIP | 正例 / SKIP |
-| `run-sx-multi-file.sh` | 多文件 .sx 流水线；无 pipeline 时 SKIP | 正例 / SKIP |
+| `run-x-pipeline.sh` | .x 流水线（-x -E 生成 C）；无 pipeline 时 SKIP | 正例 / SKIP |
+| `run-x-multi-file.sh` | 多文件 .x 流水线；无 pipeline 时 SKIP | 正例 / SKIP |
 | `run-asm.sh` | -backend asm 出汇编、.text/main/ret、可选 as+ld；无 asm 时 SKIP | 正例 / SKIP |
 | `run-without-c.sh` | 用 asm 路径构建 shux_asm 再跑全量测试（无 C 运行时）；无 asm 时 SKIP | 正例 / SKIP |
 | `run-vector.sh` | 向量 i32x4/u32x4/i32x16、0 与字面量初始化、逐分量加 | 正例（失败即 exit 1，不再 CI SKIP） |
@@ -90,7 +90,7 @@
 
 - **浮点**：`run-float.sh` — 边界 0.0、.25、const 1e2；负例 `let x: f32 = 1` 报 typeck 错误。
 - **循环**：`run-while.sh` — break 在循环外报 typeck 错误。
-- **结构体**：`run-struct.sh` — `padding_no_allow.sx` 未 allow(padding) 时报 typeck 隐式 padding 错误。
+- **结构体**：`run-struct.sh` — `padding_no_allow.x` 未 allow(padding) 时报 typeck 隐式 padding 错误。
 - **解析**：`run-parser.sh` — return 后缺分号报 parse error。
 - **UB**：`run-ub.sh` — 除零、数组/切片越界应 panic（exit 134），正常路径正常返回。
 
@@ -127,9 +127,9 @@ make test
 
 | 项 | 说明 |
 |------|------|
-| **FFI（extern function）** | `tests/run-ffi.sh` 已纳入 **run-all**（`tests/ffi/main.sx`：cstr_len / cstring_new / cstring_free）。扩展覆盖时在 `tests/ffi/` 增例并加长脚本即可。 |
-| **return 操作数 vs 函数返回类型** | **`compiler/shux_sx`** 或 **`shux-sx`**：**`-sx`** 跑 `tests/typeck/return_operand_type_mismatch.sx` 须报 **typeck error**（`run-typeck.sh`）；入口与流水线统一走 `preprocess.sx`。宿主 **shux-c** 仍可能与 C typeck 宽松行为不完全一致。 |
-| **memory-contract / packed** | `run-struct.sh` 已含 `memory-contract/packed_struct.sx` 正例；padding 负例同脚本。 |
+| **FFI（extern function）** | `tests/run-ffi.sh` 已纳入 **run-all**（`tests/ffi/main.x`：cstr_len / cstring_new / cstring_free）。扩展覆盖时在 `tests/ffi/` 增例并加长脚本即可。 |
+| **return 操作数 vs 函数返回类型** | **`compiler/shux_x`** 或 **`shux-x`**：**`-x`** 跑 `tests/typeck/return_operand_type_mismatch.x` 须报 **typeck error**（`run-typeck.sh`）；入口与流水线统一走 `preprocess.x`。宿主 **shux-c** 仍可能与 C typeck 宽松行为不完全一致。 |
+| **memory-contract / packed** | `run-struct.sh` 已含 `memory-contract/packed_struct.x` 正例；padding 负例同脚本。 |
 | **体积/性能基线** | run-size-baseline.sh、run-perf-baseline.sh 有意不纳入 run-all，需时单独执行。 |
 
 ### 5.3 结论
@@ -166,12 +166,12 @@ make test
 - **适用场景**：验证「用 asm 后端构建出的 shux_asm」能否在不依赖 C 运行时逻辑的前提下通过全量测试（仅链接最少 C 桩）；为日后完全脱离 C/Makefile 的路线提供回归保障。
 - **验证方式**：先 `make -C compiler bootstrap-driver` 得到支持 `-backend asm` 的 shux，再在仓库根执行 `./tests/run-without-c.sh`。脚本会使用 `build_tool` 以 asm 路径编出 `compiler/shux_asm`，并用 `SHUX=compiler/shux_asm ./tests/run-all.sh` 跑全量测试；通过即表示脱离 C 的构建路径可用。CI 下不跑此脚本（见 §6.1）。
 
-### 6.3 run-sx-pipeline 与 -sx -E 超时
+### 6.3 run-x-pipeline 与 -x -E 超时
 
-- **现象**：Linux/macOS CI 在「shux_sx built」之后执行 `run-sx-pipeline.sh` 时可能长时间无输出甚至卡住；有时卡在 **make shux-sx-pipeline**（编译巨大的 pipeline_gen.c）而非 -sx -E 本身。
-- **原因**：① **macOS 无 `timeout` 命令**，脚本若不用可移植超时则会无限等待；② **make bootstrap-pipeline / shux-sx-pipeline** 无超时，编译 pipeline_gen.c 可耗时数分钟；③ **shux_sx -sx -E** 会进入 `pipeline_run_sx_pipeline_impl`（`compiler/pipeline_gen.c`），内部 typeck/codegen 在部分环境下可能死循环或极慢。
-- **根因（已通过诊断确认）**：run-sx-multi-file 时最后一条诊断为 `pipeline: impl start`、无 `pipeline: after parse` → 卡在 **parser**（`pipeline_parse_into_with_init` / `parser_parse_into`）解析 **foo.sx** 阶段，需在 compiler 生成的 parser 码（pipeline_gen.c 中 `parser_parse_into`）或 src/parser 中查死循环/平台分支。  
+- **现象**：Linux/macOS CI 在「shux_x built」之后执行 `run-x-pipeline.sh` 时可能长时间无输出甚至卡住；有时卡在 **make shux-x-pipeline**（编译巨大的 pipeline_gen.c）而非 -x -E 本身。
+- **原因**：① **macOS 无 `timeout` 命令**，脚本若不用可移植超时则会无限等待；② **make bootstrap-pipeline / shux-x-pipeline** 无超时，编译 pipeline_gen.c 可耗时数分钟；③ **shux_x -x -E** 会进入 `pipeline_run_x_pipeline_impl`（`compiler/pipeline_gen.c`），内部 typeck/codegen 在部分环境下可能死循环或极慢。
+- **根因（已通过诊断确认）**：run-x-multi-file 时最后一条诊断为 `pipeline: impl start`、无 `pipeline: after parse` → 卡在 **parser**（`pipeline_parse_into_with_init` / `parser_parse_into`）解析 **foo.x** 阶段，需在 compiler 生成的 parser 码（pipeline_gen.c 中 `parser_parse_into`）或 src/parser 中查死循环/平台分支。  
 - **处理**：  
-  - **CI**：run-all.sh 会执行 run-sx-pipeline.sh、run-sx-multi-file.sh（通过 run()）；若失败则打印 SKIP 并继续，保证 run-all 不因单脚本失败而红。  
-  - **非 CI**：两脚本对「make bootstrap-pipeline + shux-sx-pipeline」整段施加 **120 秒**可移植超时，对 **shux_sx -sx -E** 施加 **60 秒**超时；任一步超时则 SKIP 并 exit 0。  
+  - **CI**：run-all.sh 会执行 run-x-pipeline.sh、run-x-multi-file.sh（通过 run()）；若失败则打印 SKIP 并继续，保证 run-all 不因单脚本失败而红。  
+  - **非 CI**：两脚本对「make bootstrap-pipeline + shux-x-pipeline」整段施加 **120 秒**可移植超时，对 **shux_x -x -E** 施加 **60 秒**超时；任一步超时则 SKIP 并 exit 0。  
   - **run-vector.sh**：CI 下若向量测试失败则 SKIP 并 exit 0（会先打印失败原因），保证 run-all 通过；本地失败仍 exit 1，便于从根上修。

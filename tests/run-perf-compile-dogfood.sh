@@ -49,14 +49,14 @@ root = os.environ["ROOT"]
 
 # 固定用例：P0 bench 的 -o 编译 + 编译器重模块 check（frontend dogfood）
 cases = [
-    ("loop_i32", f'"{shux}" tests/bench/loop_i32.sx -o /tmp/shux_dog_loop_i32'),
-    ("mem_copy", f'"{shux}" tests/bench/mem_copy.sx -o /tmp/shux_dog_mem_copy'),
-    ("struct_param", f'"{shux}" tests/bench/struct_param.sx -o /tmp/shux_dog_struct_param'),
-    ("call_boundary", f'"{shux}" tests/bench/call_boundary.sx -o /tmp/shux_dog_call_boundary'),
-    ("perf_main", f'"{shux}" tests/perf-baseline/main.sx -o /tmp/shux_dog_perf_main'),
-    ("check_backend", f'"{shux}" check compiler/src/asm/backend.sx'),
-    ("check_parser", f'"{shux}" check compiler/src/parser/parser.sx'),
-    ("check_typeck", f'"{shux}" check compiler/src/typeck/typeck.sx'),
+    ("loop_i32", f'"{shux}" tests/bench/loop_i32.x -o /tmp/shux_dog_loop_i32'),
+    ("mem_copy", f'"{shux}" tests/bench/mem_copy.x -o /tmp/shux_dog_mem_copy'),
+    ("struct_param", f'"{shux}" tests/bench/struct_param.x -o /tmp/shux_dog_struct_param'),
+    ("call_boundary", f'"{shux}" tests/bench/call_boundary.x -o /tmp/shux_dog_call_boundary'),
+    ("perf_main", f'"{shux}" tests/perf-baseline/main.x -o /tmp/shux_dog_perf_main'),
+    ("check_backend", f'"{shux}" check compiler/src/asm/backend.x'),
+    ("check_parser", f'"{shux}" check compiler/src/parser/parser.x'),
+    ("check_typeck", f'"{shux}" check compiler/src/typeck/typeck.x'),
 ]
 
 def load_baseline(path):

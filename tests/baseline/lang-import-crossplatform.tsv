@@ -1,6 +1,6 @@
 # LANG-002 import 跨平台烟测矩阵
 # Format: case_id<TAB>script<TAB>policy<TAB>expected_exit<TAB>notes
-# policy: hook = 调用 tests/run-*.sh；run = 编译运行 tests/import 或 tests/parser 下 .sx
+# policy: hook = 调用 tests/run-*.sh；run = 编译运行 tests/import 或 tests/parser 下 .x
 import_suite	run-import.sh	hook	0	四种 import + missing_module
 stdlib_import	run-stdlib-import.sh	hook	0	core/types/option/result
-async_keyword_path	import_std_async.sx	run	0	std.async 关键字路径段
+async_keyword_path	import_std_async.x	run	0	std.async 关键字路径段

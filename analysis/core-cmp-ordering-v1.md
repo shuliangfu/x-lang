@@ -48,7 +48,7 @@
 ## 4. 验收
 
 - manifest：`tests/baseline/core-cmp-ordering.tsv`
-- typeck：`shux check tests/cmp/main.sx`
+- typeck：`shux check tests/cmp/main.x`
 - runnable：gate 内链接烟测
 - 报告：`shux: [SHUX_CORE_CMP_ORDERING] status=ok`
 

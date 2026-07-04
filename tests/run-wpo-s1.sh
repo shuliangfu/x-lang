@@ -7,7 +7,7 @@ make -C compiler -q 2>/dev/null || make -C compiler
 GRAPH="/tmp/shux_wpo_dead_fn.json"
 rm -f "$GRAPH"
 
-SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" ./compiler/shux-c check tests/wpo/dead_fn.sx >/dev/null
+SHUX_WPO_DUMP_CALLGRAPH="$GRAPH" ./compiler/shux-c check tests/wpo/dead_fn.x >/dev/null
 [ -s "$GRAPH" ] || { echo "WPO graph not written"; exit 1; }
 
 perl compiler/scripts/wpo_dce.pl "$GRAPH" --expect-dead dead_helper | tee /tmp/wpo_dce.log

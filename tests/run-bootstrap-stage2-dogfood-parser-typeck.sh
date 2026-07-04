@@ -37,15 +37,15 @@ esac
 
 # parser 子集：语法/多函数/表达式
 PARSER_SMOKES=(
-  tests/parser/semicolon_required.sx
-  tests/parser/two_functions.sx
-  tests/parser/binary_expr_return.sx
+  tests/parser/semicolon_required.x
+  tests/parser/two_functions.x
+  tests/parser/binary_expr_return.x
 )
 # typeck 子集：Option/Result/泛型
 TYPECK_SMOKES=(
-  tests/option/main.sx
-  tests/result/main.sx
-  tests/generic/main.sx
+  tests/option/main.x
+  tests/result/main.x
+  tests/generic/main.x
 )
 
 CHECK_FAIL=0
@@ -70,7 +70,7 @@ run_smoke_list() {
       continue
     fi
     local base
-    base=$(basename "$src" .sx)
+    base=$(basename "$src" .x)
     local out="${OUT_DIR}/shux_boot019_${base}"
     local expect lr=0
     expect=$(boot019_expected_exit "$src")

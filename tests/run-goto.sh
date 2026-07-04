@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 SHUX=${SHUX:-./compiler/shux}
 
-$SHUX tests/goto/main.sx -o /tmp/shux_goto 2>&1
+$SHUX tests/goto/main.x -o /tmp/shux_goto 2>&1
 exitcode=0; /tmp/shux_goto >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 42 ] && { echo "expected 42 (goto main), got $exitcode"; exit 1; }
 

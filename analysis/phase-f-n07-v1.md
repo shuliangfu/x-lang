@@ -40,6 +40,6 @@ SHUX_NOLIBC_FAIL=1 ./tests/run-no-libc-gate.sh
 ## 延后（NL-07 v2+）
 
 - 实际启用 bootstrap `-nostdlib` 链（替换 crt0_x86_64 → crt0_user + freestanding_io）
-- `ensure_std_fs_io_heap_objs` 改为编译 freestanding `.sx` 模块
-- `bootstrap-driver-seed` Makefile 改链 `.sx` 产物
+- `ensure_std_fs_io_heap_objs` 改为编译 freestanding `.x` 模块
+- `bootstrap-driver-seed` Makefile 改链 `.x` 产物
 - 与阶段 F **F-06/F-07**（runtime 按需链、禁止 cc 编 std）对齐

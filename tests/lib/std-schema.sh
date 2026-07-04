@@ -4,8 +4,8 @@
 STD_SCHEMA_PREFIX="${SHUX_STD_SCHEMA_PREFIX:-shux: [SHUX_STD_SCHEMA]}"
 
 std_schema_symbols_ok() {
-  local mod_sx="$1"
-  local schema_sx="$2"
+  local mod_x="$1"
+  local schema_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -14,15 +14,15 @@ std_schema_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-schema FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/schema/schema_glue.c" ]; then path="$schema_sx"; fi
-        if [ "$path" = "std/schema/schema.sx" ]; then path="$schema_sx"; fi
+        if [ "$path" = "std/schema/schema_glue.c" ]; then path="$schema_x"; fi
+        if [ "$path" = "std/schema/schema.x" ]; then path="$schema_x"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-schema FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -68,5 +68,5 @@ std_schema_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_SCHEMA_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_SCHEMA_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
 }

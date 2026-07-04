@@ -42,7 +42,7 @@ let s: i32 = size_of<MyStruct>(); // 结构体布局
 
 ## 4. 金样
 
-`tests/core-types-size/generic_layout.sx`：
+`tests/core-types-size/generic_layout.x`：
 
 - `i32` / `u8` 标量
 - `*u8` 指针

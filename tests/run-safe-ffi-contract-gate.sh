@@ -2,7 +2,7 @@
 # SAFE-004：FFI 边界内存契约 manifest 门禁
 #
 # 1) safe-ffi-contract-v1.md + matrix
-# 2) 每个 case .sx 存在且文档引用
+# 2) 每个 case .x 存在且文档引用
 # 3) native shux：逐条编译运行 + run-ffi.sh hook
 #
 # 用法：./tests/run-safe-ffi-contract-gate.sh
@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_SAFE_FFI_DOC:-analysis/safe-ffi-contract-v1.md}"
 MANIFEST="${SHUX_SAFE_FFI_MANIFEST:-tests/baseline/safe-ffi-contract.tsv}"
-MOD_SX="${SHUX_SAFE_FFI_MOD:-std/ffi/mod.sx}"
+MOD_X="${SHUX_SAFE_FFI_MOD:-std/ffi/mod.x}"
 MIN_CASES=8
 
 # shellcheck source=tests/lib/safe-ffi.sh
@@ -30,7 +30,7 @@ native_shu() {
 }
 
 echo "=== SAFE-004: FFI memory contract manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SX" std/ffi/ffi.sx; do
+for f in "$DOC" "$MANIFEST" "$MOD_X" std/ffi/ffi.x; do
   if [ ! -f "$f" ]; then
     echo "safe-ffi-contract gate FAIL: missing $f" >&2
     exit 1

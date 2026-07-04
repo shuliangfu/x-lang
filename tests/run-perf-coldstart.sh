@@ -13,11 +13,11 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler
 
-HELLO_SRC="examples/hello.sx"
+HELLO_SRC="examples/hello.x"
 OUT="/tmp/shux_coldstart_hello"
-FS_HELLO_SRC="tests/freestanding/hello/main.sx"
+FS_HELLO_SRC="tests/freestanding/hello/main.x"
 FS_HELLO_OUT="/tmp/shux_coldstart_fs_hello"
-FS_RV42_SRC="tests/freestanding/return42/main.sx"
+FS_RV42_SRC="tests/freestanding/return42/main.x"
 FS_RV42_OUT="/tmp/shux_coldstart_fs_return42"
 BASELINE="tests/baseline/coldstart-perf.tsv"
 RUNS="${SHUX_COLDSTART_RUNS:-20}"

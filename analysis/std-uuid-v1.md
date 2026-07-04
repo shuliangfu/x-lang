@@ -26,14 +26,14 @@
 | `eq` / `version` | 比较与版本 nibble |
 | `as_bytes` | 16 字节指针视图 |
 
-实现：`std/uuid/mod.sx` + `std/uuid/uuid.c`；v4 依赖 `std.random`，v7 依赖 `std.time` 墙钟毫秒。
+实现：`std/uuid/mod.x` + `std/uuid/uuid.c`；v4 依赖 `std.random`，v7 依赖 `std.time` 墙钟毫秒。
 
 ---
 
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_UUID] status=ok c_smoke=1 sx=1 skip=0
+shux: [SHUX_STD_UUID] status=ok c_smoke=1 x=1 skip=0
 std-uuid gate OK
 ```
 

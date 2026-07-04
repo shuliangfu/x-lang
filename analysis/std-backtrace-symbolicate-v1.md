@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-backtrace-symbolicate-vectors.tsv` |
 | 3 | `./tests/run-std-backtrace-symbolicate-gate.sh` |
-| 4 | 烟测：`symbolicate_gold.c`、`symbolicate_known.sx` |
+| 4 | 烟测：`symbolicate_gold.c`、`symbolicate_known.x` |
 
 ---
 
@@ -36,7 +36,7 @@
 | ID | 类型 | 期望 |
 |----|------|------|
 | `gold_anchor_direct` | C 烟测 | `symbolicate` 解析锚点地址，名含 `gold_anchor` |
-| `capture_symbolicate` | C / `.sx` | `capture` 后 `symbolicate` 至少 1 帧有符号 |
+| `capture_symbolicate` | C / `.x` | `capture` 后 `symbolicate` 至少 1 帧有符号 |
 
 编译烟测二进制建议 `-g`；Linux 另加 `-rdynamic -ldl`。
 
@@ -60,7 +60,7 @@
 ```
 
 ```
-shux: [SHUX_STD_BACKTRACE_SYM] status=ok c_gold=1 sx=1 skip=0 host=Darwin/arm64
+shux: [SHUX_STD_BACKTRACE_SYM] status=ok c_gold=1 x=1 skip=0 host=Darwin/arm64
 ```
 
 ---

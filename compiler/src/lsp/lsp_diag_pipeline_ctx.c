@@ -24,7 +24,7 @@ struct ast_PipelineDepCtx {
   int32_t use_coff_o;
   int32_t current_block_ref;
   int32_t typeck_loop_depth;
-  /** typeck: check_expr 递归深度计数器，防 self-typeck.sx 编译时循环引用栈溢出（lsp_diag_pipeline_ctx.c）。 */
+  /** typeck: check_expr 递归深度计数器，防 self-typeck.x 编译时循环引用栈溢出（lsp_diag_pipeline_ctx.c）。 */
   int32_t typeck_check_depth;
   int32_t current_func_index;
   int32_t skip_codegen_dep_0;
@@ -48,14 +48,14 @@ extern int32_t pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint
 extern size_t pipeline_sizeof_dep_ctx(void);
 
 /**
- * bootstrap-driver 专用：LSP ctx 须与 ast.sx PipelineDepCtx（4MiB×2 内嵌缓冲）同尺寸。
+ * bootstrap-driver 专用：LSP ctx 须与 ast.x PipelineDepCtx（4MiB×2 内嵌缓冲）同尺寸。
  */
-size_t lsp_diag_sx_alloc_dep_ctx_size(void) {
+size_t lsp_diag_x_alloc_dep_ctx_size(void) {
   return pipeline_sizeof_dep_ctx();
 }
 
 /**
- * 填充 PipelineDepCtx 的 entry_dir 与 libRoots sidecar（供 .sx resolve_path_sx 使用）。
+ * 填充 PipelineDepCtx 的 entry_dir 与 libRoots sidecar（供 .x resolve_path_x 使用）。
  * 调用前 ctx 可为任意状态；内部先清零再写入路径缓冲。
  */
 void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots) {

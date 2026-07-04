@@ -6,7 +6,7 @@
 
 ```sh
 make kernel           # Run all QEMU kernel gate tests
-make kernel-build SX=tests/kernel/shuxos_v2.sx  # Build single kernel
+make kernel-build X=tests/kernel/shuxos_v2.x  # Build single kernel
 make kernel-check      # Static ELF + purity gate
 make kernel64-check    # 64-bit code model gate
 make kernel-smp        # SMP safety gate (-smp 2)
@@ -21,7 +21,7 @@ make kernel-uefi       # UEFI firmware gate
 ## Build Chain
 
 ```
-kernel.sx → shux-c -E → kernel.c → zig cc -target x86-linux-gnu -ffreestanding → kernel.o → zig cc -nostdlib -T kernel.ld → kernel.elf → qemu-system-x86_64 -kernel
+kernel.x → shux-c -E → kernel.c → zig cc -target x86-linux-gnu -ffreestanding → kernel.o → zig cc -nostdlib -T kernel.ld → kernel.elf → qemu-system-x86_64 -kernel
 ```
 
 ## Test Catalog
@@ -30,37 +30,37 @@ kernel.sx → shux-c -E → kernel.c → zig cc -target x86-linux-gnu -ffreestan
 
 | # | Test | Feature | Output |
 |---|------|---------|--------|
-| 1 | atomics.sx | `lock xadd` / `lock cmpxchg` | A:0,5 / C:5,10 |
-| 2 | timer_isr.sx | `#[naked]` + IDT/PIC/PIT | Shux OS / T:1 |
-| 3 | context_switch.sx | `switch_to` naked+asm | S/A/B/a |
-| 4 | panic_serial.sx | `kpanic` serial output | S/PANIC: 42 |
-| 5 | bump_alloc.sx | Bump allocator + K8 .data init | K:2097152,2097168 |
-| 6 | spinlock.sx | `xchg` spinlock | L:100 |
-| 7 | extern_asm.sx | `extern` + hand-written .s | H:17 |
-| 8 | no_mangle_kernel.sx | `#[no_mangle]` + `#[link_name]` | N:307,48 |
-| 9 | vtable_dispatch.sx | Vtable + asm indirect call | VT |
-| 10 | asm_sym.sx | `sym` operand | S:589824 |
-| 11 | interrupt_handler.sx | `#[interrupt]` auto iret | I:1 |
-| 12 | panic_backtrace.sx | `ebp` frame chain backtrace | PANIC:99/BT:... |
-| 13 | showcase.sx | All kernel utils integrated | K:1,2097152 |
-| 14 | percpu.sx | `gs:` segment addressing | P:12345 |
-| 15 | membarrier.sx | `mfence`/`lfence`/`sfence` | M:10,20 |
+| 1 | atomics.x | `lock xadd` / `lock cmpxchg` | A:0,5 / C:5,10 |
+| 2 | timer_isr.x | `#[naked]` + IDT/PIC/PIT | Shux OS / T:1 |
+| 3 | context_switch.x | `switch_to` naked+asm | S/A/B/a |
+| 4 | panic_serial.x | `kpanic` serial output | S/PANIC: 42 |
+| 5 | bump_alloc.x | Bump allocator + K8 .data init | K:2097152,2097168 |
+| 6 | spinlock.x | `xchg` spinlock | L:100 |
+| 7 | extern_asm.x | `extern` + hand-written .s | H:17 |
+| 8 | no_mangle_kernel.x | `#[no_mangle]` + `#[link_name]` | N:307,48 |
+| 9 | vtable_dispatch.x | Vtable + asm indirect call | VT |
+| 10 | asm_sym.x | `sym` operand | S:589824 |
+| 11 | interrupt_handler.x | `#[interrupt]` auto iret | I:1 |
+| 12 | panic_backtrace.x | `ebp` frame chain backtrace | PANIC:99/BT:... |
+| 13 | showcase.x | All kernel utils integrated | K:1,2097152 |
+| 14 | percpu.x | `gs:` segment addressing | P:12345 |
+| 15 | membarrier.x | `mfence`/`lfence`/`sfence` | M:10,20 |
 
 ### OS Features
 
 | # | Test | Feature | Output |
 |---|------|---------|--------|
-| 16 | shuxos.sx | VGA + serial + IDT + keyboard | ShuxOS/T:1/DONE |
-| 17 | paging.sx | 32-bit paging (4MB identity) | P:80000011,80 |
-| 18 | scheduler.sx | Cooperative 2-task scheduler | S12a! |
-| 19 | gdt_syscall.sx | GDT + syscall (int 0x80) | G:H30 |
-| 20 | usermode.sx | Ring 0→3 via IRET + user syscalls | K:GISUU42 |
-| 21 | shuxos_v2.sx | Comprehensive integration | ShuxOS2/T:1,5,5/A:.../P:.../DONE |
-| 22 | ramfs.sx | In-memory filesystem | F:0,1,2,hello(2) test(4) [2] |
-| 23 | keyboard.sx | Set 1 scancode → ASCII | K:hello/shux |
-| 24 | preempt.sx | Preemptive timer scheduler | S/GP:20,10,0 |
-| 25 | pmm.sx | Bitmap page frame allocator | M:768,1048576,... |
-| 26 | vmm.sx | Virtual memory map/unmap | V:00100000,0,12345 |
+| 16 | shuxos.x | VGA + serial + IDT + keyboard | ShuxOS/T:1/DONE |
+| 17 | paging.x | 32-bit paging (4MB identity) | P:80000011,80 |
+| 18 | scheduler.x | Cooperative 2-task scheduler | S12a! |
+| 19 | gdt_syscall.x | GDT + syscall (int 0x80) | G:H30 |
+| 20 | usermode.x | Ring 0→3 via IRET + user syscalls | K:GISUU42 |
+| 21 | shuxos_v2.x | Comprehensive integration | ShuxOS2/T:1,5,5/A:.../P:.../DONE |
+| 22 | ramfs.x | In-memory filesystem | F:0,1,2,hello(2) test(4) [2] |
+| 23 | keyboard.x | Set 1 scancode → ASCII | K:hello/shux |
+| 24 | preempt.x | Preemptive timer scheduler | S/GP:20,10,0 |
+| 25 | pmm.x | Bitmap page frame allocator | M:768,1048576,... |
+| 26 | vmm.x | Virtual memory map/unmap | V:00100000,0,12345 |
 
 ### Gate Scripts (non-QEMU)
 
@@ -88,11 +88,11 @@ tests/kernel/
 ├── freestanding_stubs.c  # libc stubs (abort/fprintf/...)
 ├── asm_helper.s          # Hand-written asm for extern_asm test
 ├── asm_multiply.s        # Hand-written asm for no_mangle test
-├── kernel_lib.sx         # Reusable kernel utility library
-├── host_test.sx          # Host-side unit test
-├── stack_check.sx        # #[max_stack] test
-├── kernel64_check.sx     # 64-bit code model test
-├── *.sx                  # 26 kernel test files
+├── kernel_lib.x         # Reusable kernel utility library
+├── host_test.x          # Host-side unit test
+├── stack_check.x        # #[max_stack] test
+├── kernel64_check.x     # 64-bit code model test
+├── *.x                  # 26 kernel test files
 ├── run-kernel-gate.sh    # QEMU kernel gate (26 tests)
 ├── static-check-gate.sh  # ELF static check + purity
 ├── host-test-gate.sh     # Host unit test gate

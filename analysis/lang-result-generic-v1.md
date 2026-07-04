@@ -52,8 +52,8 @@ allow(padding) struct Result<T, E> {
 
 | case | 文件 | 期望 |
 |------|------|------|
-| `result_three` | `tests/lang-result-generic/result_three.sx` | (i32,i32)/(u8,i32)/(bool,i32) typeck OK；run exit 0 |
-| `with_core_import` | `tests/lang-result-generic/with_core_import.sx` | 与 `Result_i32` API 并存 |
+| `result_three` | `tests/lang-result-generic/result_three.x` | (i32,i32)/(u8,i32)/(bool,i32) typeck OK；run exit 0 |
+| `with_core_import` | `tests/lang-result-generic/with_core_import.x` | 与 `Result_i32` API 并存 |
 
 ---
 

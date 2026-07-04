@@ -1,7 +1,7 @@
 /**
  * runtime_kv_mmap_glue.c — F-ZC：自 std/db 胶层迁入
  *
- * 从 kv.c 迁出 kv_mmap_file 与 munmap/msync；LSM/WAL 逻辑见 std/db/kv/kv.sx。
+ * 从 kv.c 迁出 kv_mmap_file 与 munmap/msync；LSM/WAL 逻辑见 std/db/kv/kv.x。
  * 仅 Linux / macOS hosted 路径编译链接。
  */
 

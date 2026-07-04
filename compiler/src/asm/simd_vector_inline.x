@@ -1,0 +1,120 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// simd_vector_inline.x — M8-tail：SIMD 向量 intrinsic let-init 内联 X 薄包装（bl→C pipeline_glue）。
+//
+// 【文件职责】
+//   - shuffle/select/binop2 向量 CALL 内联从 C glue 暴露 X 符号，供自举 backend 分派。
+//   - 实现委托 pipeline_asm_simd_try_inline_*_call_elf_c（pipeline_glue.c / simd_vector_inline.h）。
+
+const ast = import("ast");
+const backend = import("asm.backend");
+
+/** shuffle intrinsic 内联尝试（@shuffle / simd_shuffle / vec*_shuffle）。 */
+extern function pipeline_asm_simd_try_inline_shuffle_call_elf_c(
+  arena: *ASTArena,
+  elf_ctx: *ElfCodegenCtx,
+  call_ref: i32,
+  ctx: *AsmFuncCtx,
+  ta: i32,
+  stack_slot_off: i32,
+  type_ref: i32,
+): i32;
+
+function simd_try_inline_shuffle_call_elf(
+  arena: *ASTArena,
+  elf_ctx: *ElfCodegenCtx,
+  call_ref: i32,
+  ctx: *AsmFuncCtx,
+  ta: i32,
+  stack_slot_off: i32,
+  type_ref: i32,
+): i32 {
+  return pipeline_asm_simd_try_inline_shuffle_call_elf_c(
+    arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
+}
+
+/** select intrinsic 内联尝试（@select / simd_select / vec*_select）。 */
+extern function pipeline_asm_simd_try_inline_select_call_elf_c(
+  arena: *ASTArena,
+  elf_ctx: *ElfCodegenCtx,
+  call_ref: i32,
+  ctx: *AsmFuncCtx,
+  ta: i32,
+  stack_slot_off: i32,
+  type_ref: i32,
+): i32;
+
+function simd_try_inline_select_call_elf(
+  arena: *ASTArena,
+  elf_ctx: *ElfCodegenCtx,
+  call_ref: i32,
+  ctx: *AsmFuncCtx,
+  ta: i32,
+  stack_slot_off: i32,
+  type_ref: i32,
+): i32 {
+  return pipeline_asm_simd_try_inline_select_call_elf_c(
+    arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
+}
+
+/** 两参向量 binop CALL 内联（vec8i_add / vec4f_mul 等）。 */
+extern function pipeline_asm_simd_try_inline_binop2_call_elf_c(
+  arena: *ASTArena,
+  elf_ctx: *ElfCodegenCtx,
+  call_ref: i32,
+  ctx: *AsmFuncCtx,
+  ta: i32,
+  stack_slot_off: i32,
+  type_ref: i32,
+): i32;
+
+function simd_try_inline_binop2_call_elf(
+  arena: *ASTArena,
+  elf_ctx: *ElfCodegenCtx,
+  call_ref: i32,
+  ctx: *AsmFuncCtx,
+  ta: i32,
+  stack_slot_off: i32,
+  type_ref: i32,
+): i32 {
+  return pipeline_asm_simd_try_inline_binop2_call_elf_c(
+    arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
+}
+
+/** 三参 Vec4f FMA CALL 内联（vec4f_fma / vec4f_madd / simd_fma）。 */
+extern function pipeline_asm_simd_try_inline_fma3_call_elf_c(
+  arena: *ASTArena,
+  elf_ctx: *ElfCodegenCtx,
+  call_ref: i32,
+  ctx: *AsmFuncCtx,
+  ta: i32,
+  stack_slot_off: i32,
+  type_ref: i32,
+): i32;
+
+function simd_try_inline_fma3_call_elf(
+  arena: *ASTArena,
+  elf_ctx: *ElfCodegenCtx,
+  call_ref: i32,
+  ctx: *AsmFuncCtx,
+  ta: i32,
+  stack_slot_off: i32,
+  type_ref: i32,
+): i32 {
+  return pipeline_asm_simd_try_inline_fma3_call_elf_c(
+    arena, elf_ctx, call_ref, ctx, ta, stack_slot_off, type_ref);
+}

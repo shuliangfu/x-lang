@@ -24,7 +24,7 @@ TMP_EXE="/tmp/shux_wpo_dead_user_asm"
 rm -f "$TMP_O" "$TMP_EXE"
 
 # -backend asm -o .o：dead_export 不应出现在符号表
-if ! "$SHUX_BIN" -backend asm -o "$TMP_O" tests/wpo/dead_user.sx >/tmp/shux_wpo_dce_asm_build.log 2>&1; then
+if ! "$SHUX_BIN" -backend asm -o "$TMP_O" tests/wpo/dead_user.x >/tmp/shux_wpo_dce_asm_build.log 2>&1; then
   echo "WPO asm DCE SKIP: shux asm compile failed (need shux_asm on Linux CI)"
   tail -5 /tmp/shux_wpo_dce_asm_build.log 2>/dev/null || true
   exit 0
@@ -51,7 +51,7 @@ case "$(uname -s 2>/dev/null)" in
     echo "WPO asm DCE: exe run N/A on Darwin (.o symbol gate OK)"
     ;;
   *)
-    if "$SHUX_BIN" -backend asm -o "$TMP_EXE" tests/wpo/dead_user.sx >/dev/null 2>&1 && [ -x "$TMP_EXE" ]; then
+    if "$SHUX_BIN" -backend asm -o "$TMP_EXE" tests/wpo/dead_user.x >/dev/null 2>&1 && [ -x "$TMP_EXE" ]; then
       rc=$("$TMP_EXE"; echo $?)
       [ "$rc" = "7" ] || { echo "dead_user asm exit=$rc want 7"; exit 1; }
     fi

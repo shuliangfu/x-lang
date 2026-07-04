@@ -14,7 +14,7 @@ export function createShuxReferenceProvider(): vscode.ReferenceProvider {
       _context: vscode.ReferenceContext,
       _token: vscode.CancellationToken
     ): Promise<vscode.Location[]> {
-      if (document.languageId !== 'sx') {
+      if (document.languageId !== 'x') {
         return [];
       }
 

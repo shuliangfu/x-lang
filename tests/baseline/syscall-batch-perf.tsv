@@ -1,7 +1,7 @@
 # PERF-008 syscall 批处理基线（strace 次数上限）
 # 列：case_id	bench_src	expect_exit	needs_sink	max_read	max_write	max_readv	max_writev	max_splice	max_sendfile	min_splice	min_sendfile	batch_lt_ref	notes
 # needs_sink: 0=仅文件 1=需 sendfile sink；batch_lt_ref: 批处理路径 io_total 须小于 ref case
-io_batch_readv	tests/bench/io_batch_readv.sx	0	0	50	0	1100	0	0	0	0	0	io_read_chunked	4×4KiB read_batch
-io_read_chunked	tests/bench/io_read_chunked.sx	0	0	4200	0	0	0	0	0	0	0	-	4KiB 单 read 对照
-zero_copy_splice	tests/bench/zero_copy_splice.sx	0	1	30	30	0	0	20	0	1	0	zero_copy_readwrite	pipe+splice
-zero_copy_readwrite	tests/bench/zero_copy_readwrite.sx	0	1	300	300	0	300	0	0	0	0	-	64KiB read+write 对照
+io_batch_readv	tests/bench/io_batch_readv.x	0	0	50	0	1100	0	0	0	0	0	io_read_chunked	4×4KiB read_batch
+io_read_chunked	tests/bench/io_read_chunked.x	0	0	4200	0	0	0	0	0	0	0	-	4KiB 单 read 对照
+zero_copy_splice	tests/bench/zero_copy_splice.x	0	1	30	30	0	0	20	0	1	0	zero_copy_readwrite	pipe+splice
+zero_copy_readwrite	tests/bench/zero_copy_readwrite.x	0	1	300	300	0	300	0	0	0	0	-	64KiB read+write 对照

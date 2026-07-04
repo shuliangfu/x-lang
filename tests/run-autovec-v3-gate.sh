@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
-SRC="tests/vec/autovec_soa_sum_while.sx"
+SRC="tests/vec/autovec_soa_sum_while.x"
 OUT="/tmp/shux_autovec_soa_sum_while"
 C_OUT="/tmp/shux_autovec_soa_sum_while.c"
 rm -f "$OUT" "$C_OUT"

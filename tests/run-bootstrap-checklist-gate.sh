@@ -103,8 +103,8 @@ run_section_3() {
   should_run_section 3 || return 0
   section_banner 3 "语言与 ABI（L9 Arena 对齐）"
   gate_progress "审计 page_mmap_heap_alloc 须含 align_up ..."
-  if grep -q 'mem.align_up' std/heap/page_mmap.sx; then
-    gate_progress "OK: page_mmap.sx 使用 mem.align_up"
+  if grep -q 'mem.align_up' std/heap/page_mmap.x; then
+    gate_progress "OK: page_mmap.x 使用 mem.align_up"
   else
     record_fail 3 "L9 page_mmap" "missing align_up"
     return
@@ -253,7 +253,7 @@ run_section_9() {
   should_run_section 9 || return 0
   section_banner 9 "编译器 dogfood（X2 Arena / X9 spill）"
   gate_progress "X2/X9 已在 §三 L9、§五 C5 覆盖；确认 run-struct 含 arena_align ..."
-  if grep -q 'arena_align.sx' tests/run-struct.sh; then
+  if grep -q 'arena_align.x' tests/run-struct.sh; then
     gate_progress "OK: run-struct.sh 已挂 arena_align"
     record_ok 9 "X2 struct 链 arena_align"
   else

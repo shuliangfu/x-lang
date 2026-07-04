@@ -10,7 +10,7 @@
 
 | 步骤 | 动作 |
 |------|------|
-| 1 | 读 `std/http/mod.sx`：`get` + `respond_get_ok` |
+| 1 | 读 `std/http/mod.x`：`get` + `respond_get_ok` |
 | 2 | 读本文 §3–§4（基准用例、延迟指标） |
 | 3 | `./tests/run-std-http-gate.sh` |
 | 4 | Linux：`./tests/run-perf-http.sh --bench` |
@@ -40,7 +40,7 @@
 
 | case | 脚本 | 指标 |
 |------|------|------|
-| **http_get_bench** | `tests/bench/http_get_bench.sx` | 64× loopback GET |
+| **http_get_bench** | `tests/bench/http_get_bench.x` | 64× loopback GET |
 | sink | `tests/bench/http_bench_server.c` | 链入 `http.c` |
 
 **吞吐 throughput**：stderr `BENCH_ELAPSED_NS=`（64 次总耗时）  

@@ -1,6 +1,6 @@
 # std.ffi — C 互操作
 
-**路径**：`std/ffi/`（mod.sx + ffi.sx，F-ZC 纯 .sx）  
+**路径**：`std/ffi/`（mod.x + ffi.x，F-ZC 纯 .x）  
 **依赖**：core。
 
 ## CString（STD-055）

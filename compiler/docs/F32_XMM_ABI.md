@@ -35,11 +35,11 @@ legacy 路径为在现有 gp-only CALL 桩上传递 f32，caller 发 **64-bit f6
 
 ```bash
 # 默认 xmm（无需 export）
-SHUX=./compiler/shux_asm ./compiler/shux_asm -backend asm -L . app.sx -o app
+SHUX=./compiler/shux_asm ./compiler/shux_asm -backend asm -L . app.x -o app
 
 # 显式 legacy 回归（环境变量或 CLI）
-SHUX_ABI_F32_XMM=0 SHUX=./compiler/shux_asm ./compiler/shux_asm -backend asm -L . app.sx -o app
-SHUX=./compiler/shux_asm ./compiler/shux_asm -backend asm -L . -legacy-f32-abi app.sx -o app
+SHUX_ABI_F32_XMM=0 SHUX=./compiler/shux_asm ./compiler/shux_asm -backend asm -L . app.x -o app
+SHUX=./compiler/shux_asm ./compiler/shux_asm -backend asm -L . -legacy-f32-abi app.x -o app
 ```
 
 `pipeline_asm_abi_f32_xmm_enabled_c()`（`compiler/src/asm/pipeline_abi_f32_xmm.c`）读 `getenv("SHUX_ABI_F32_XMM")`：**仅 `"0"` 关闭**。
@@ -53,18 +53,18 @@ SHUX=./compiler/shux_asm ./compiler/shux_asm -backend asm -L . -legacy-f32-abi a
 | `src/asm/pipeline_abi_f32_xmm.o` | ABI 开关 |
 | `src/asm/backend_call_dispatch.o` | CALL 侧 gp/xmm 分轨 |
 | `src/asm/backend_enc_dispatch.c` | `movd` 等编码 |
-| `pipeline_glue.c`（在 `pipeline_sx.o` 内） | callee xmm homing、f32 load、struct layout |
+| `pipeline_glue.c`（在 `pipeline_x.o` 内） | callee xmm homing、f32 load、struct layout |
 
 重建示例（Linux Docker / amd64）：
 
 ```bash
 cd compiler
-make pipeline_sx.o PIPELINE_SX_FORCE_COMPILE=1   # pipeline_glue 变更后
+make pipeline_x.o PIPELINE_X_FORCE_COMPILE=1   # pipeline_glue 变更后
 cc -c -o src/asm/pipeline_abi_f32_xmm.o src/asm/pipeline_abi_f32_xmm.c   # 开关变更后
 ./scripts/relink_shux_asm_experimental_bootstrap.sh && cp shux_asm.experimental shux_asm
 ```
 
-**勿**在已链 `pipeline_sx.o`（含 glue）的 experimental 链上再单独链 `pipeline_abi_f32_xmm.o`（duplicate symbol）。
+**勿**在已链 `pipeline_x.o`（含 glue）的 experimental 链上再单独链 `pipeline_abi_f32_xmm.o`（duplicate symbol）。
 
 ---
 
@@ -101,7 +101,7 @@ SHUX=./compiler/shux_asm ./tests/run-f32-xmm-gates.sh
 | `tests/run-abi-f32-xmm-gate.sh` | 纯 f32 / mixed / 字段回读；disasm **movd**、**禁 cvtsd2ss**；**`-legacy-f32-abi`** |
 | `tests/run-dod-s2-gate.sh` | `import("std.vec")` **`vec3f_soa_push`**；xmm 时 push disasm 同上 |
 
-烟测源码：`tests/abi/f32_*.sx`。
+烟测源码：`tests/abi/f32_*.x`。
 
 **P5 / Docker / GHA**：`run-f32-xmm-gates.sh` 统一覆盖 xmm + CLI legacy；**不再**单独跑 `SHUX_ABI_F32_XMM=0` 全量 dod-s2。
 
@@ -118,7 +118,7 @@ SHUX=./compiler/shux_asm ./tests/run-f32-xmm-gates.sh
 **Release 推荐命令**：
 
 ```bash
-shux_asm -backend asm -O2 -L . app.sx -o app
+shux_asm -backend asm -O2 -L . app.x -o app
 ```
 
 用户程序默认 **-O2**（未写 `-O` 时 `opt_level_buf` 为 `'2'`）；f32 实/形参默认 xmm，无需 export 环境变量。

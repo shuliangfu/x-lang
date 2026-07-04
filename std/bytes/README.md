@@ -1,6 +1,6 @@
 # std.bytes — 动态字节缓冲
 
-**模块路径**：`std/bytes/mod.sx`（纯 .sx，依赖 std.heap/string/mem）  
+**模块路径**：`std/bytes/mod.x`（纯 .x，依赖 std.heap/string/mem）  
 **对标**：Zig ArrayList(u8)、Go bytes.Buffer、Rust Vec<u8>。
 
 ## API 概览

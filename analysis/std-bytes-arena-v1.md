@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§3 |
 | 2 | `tests/baseline/std-bytes-arena-manifest.tsv` |
 | 3 | `./tests/run-std-bytes-arena-gate.sh` |
-| 4 | 烟测：`tests/std-bytes/arena_external.sx` |
+| 4 | 烟测：`tests/std-bytes/arena_external.x` |
 
 ---
 

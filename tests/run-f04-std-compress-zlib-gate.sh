@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-04 v4：std.compress zlib 去 C 门禁（libz.sx + 无 zlib.c）。
+# F-04 v4：std.compress zlib 去 C 门禁（libz.x + 无 zlib.c）。
 #
 # 用法：./tests/run-f04-std-compress-zlib-gate.sh
 # 环境：SHUX_F04_COMPRESS_ZLIB_FAIL=1 — 失败时硬退出
@@ -8,8 +8,8 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_F04_COMPRESS_ZLIB_FAIL:-0}
 DOC="analysis/phase-f-f04-v4.md"
-ZLIB_LIBZ="std/compress/zlib/libz.sx"
-ZLIB_MOD="std/compress/zlib/mod.sx"
+ZLIB_LIBZ="std/compress/zlib/libz.x"
+ZLIB_MOD="std/compress/zlib/mod.x"
 
 die() {
   echo "f04-compress-zlib gate FAIL: $*" >&2
@@ -20,14 +20,14 @@ die() {
 echo "=== F-04 v4: std.compress zlib remove zlib.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-04 v4' "$DOC" || die "doc missing F-04 v4 marker"
-[ -f "$ZLIB_LIBZ" ] || die "missing libz.sx"
+[ -f "$ZLIB_LIBZ" ] || die "missing libz.x"
 [ ! -f std/compress/zlib/zlib.c ] || die "zlib.c should be deleted"
 grep -q 'compress_deflate_c' "$ZLIB_LIBZ" || die "libz missing compress_deflate_c"
 grep -q 'compress_inflate_c' "$ZLIB_LIBZ" || die "libz missing compress_inflate_c"
 grep -q 'shu_compress_zlib_marker' "$ZLIB_LIBZ" || die "libz missing marker"
-grep -q 'import("std.compress.zlib.libz")' "$ZLIB_MOD" || die "mod.sx missing libz import"
+grep -q 'import("std.compress.zlib.libz")' "$ZLIB_MOD" || die "mod.x missing libz import"
 if grep -q 'extern function compress_deflate_c' "$ZLIB_MOD" 2>/dev/null; then
-  die "mod.sx still extern compress_deflate_c"
+  die "mod.x still extern compress_deflate_c"
 fi
 if grep -q 'compress/zlib/zlib.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references zlib.c"
@@ -45,7 +45,7 @@ if [ -f "$MANIFEST" ]; then
       symbol)
         target="$ZLIB_LIBZ"
         case "$mod_path" in
-          std/compress/zlib/mod.sx) target="$ZLIB_MOD" ;;
+          std/compress/zlib/mod.x) target="$ZLIB_MOD" ;;
         esac
         grep -qF "$anchor" "$target" || die "manifest missing '$anchor' in $target"
         ;;

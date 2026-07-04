@@ -33,7 +33,7 @@
 **调试构建推荐**（v1 文档化，非强制改 driver）：
 
 ```bash
-shux -O 0 -L . app.sx -o app.debug    # 保留 symtab，无 strip
+shux -O 0 -L . app.x -o app.debug    # 保留 symtab，无 strip
 # Linux 符号化增强（手工链接场景）：cc ... -g -rdynamic
 ```
 
@@ -45,8 +45,8 @@ v1 **不**要求 ASM 后端产出 DWARF（v1.1）；C 路径 `-O 0` + symtab 为
 
 | case_id | 文件 | 检查 |
 |---------|------|------|
-| `case_marker` | `tests/debug/symbols_marker.sx` | `-O 0` 编译；`nm` 含 `main`；`file` 为 not stripped |
-| `case_backtrace` | `tests/backtrace/main.sx` | `capture` 烟测（`run-backtrace.sh`） |
+| `case_marker` | `tests/debug/symbols_marker.x` | `-O 0` 编译；`nm` 含 `main`；`file` 为 not stripped |
+| `case_backtrace` | `tests/backtrace/main.x` | `capture` 烟测（`run-backtrace.sh`） |
 
 门禁 **report** 示例：
 
@@ -68,7 +68,7 @@ tool-debug-symbols report sym=main stripped=no o0=OK capture=skip|OK
 
 ## 5. 非目标（v1）
 
-- 不生成 `.sx`→机器码 DWARF line table（ASM 后端 v1.1）。
+- 不生成 `.x`→机器码 DWARF line table（ASM 后端 v1.1）。
 - 不实现完整 `symbolicate`（`backtrace_symbolicate_c` 仍为 stub）。
 - 不把 `-g` 默认注入 `invoke_cc`（用户/CI 按需扩展）。
 

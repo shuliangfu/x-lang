@@ -1,23 +1,23 @@
 # NEXT-YELLOW 全量 🟡 清除 manifest
 # 列：item_id	kind	anchor	mod_path	notes
 # min_items	13
-core018_bswap	symbol	bswap_u32	core/builtin/mod.sx	CORE-018
-core019_diag	symbol	debug_assert_eq_i32_diag	core/debug/mod.sx	CORE-019
-core020_iter	symbol	iter_u64_from_buf	core/iterator/mod.sx	CORE-020
-std159_runtime	symbol	runtime_diag_enabled	std/runtime/mod.sx	STD-159
-std160_unicode	symbol	string_view_case_fold	std/string/mod.sx	STD-160
-std161_vec	symbol	vec_u16_push	std/vec/mod.sx	STD-161
-std162_map	symbol	iter_next	std/map/mod.sx	STD-162
-std163_queue	symbol	push_back	std/queue/mod.sx	STD-163
-std164_net	symbol	tcp_pool_new	std/net/mod.sx	STD-164
-std165_thread	symbol	thread_pool_stats	std/thread/mod.sx	STD-165
-std166_fmt	symbol	format_template	std/fmt/mod.sx	STD-166
-std167_sqlite	symbol	sqlite_is_available	std/db/sqlite/mod.sx	STD-167
+core018_bswap	symbol	bswap_u32	core/builtin/mod.x	CORE-018
+core019_diag	symbol	debug_assert_eq_i32_diag	core/debug/mod.x	CORE-019
+core020_iter	symbol	iter_u64_from_buf	core/iterator/mod.x	CORE-020
+std159_runtime	symbol	runtime_diag_enabled	std/runtime/mod.x	STD-159
+std160_unicode	symbol	string_view_case_fold	std/string/mod.x	STD-160
+std161_vec	symbol	vec_u16_push	std/vec/mod.x	STD-161
+std162_map	symbol	iter_next	std/map/mod.x	STD-162
+std163_queue	symbol	push_back	std/queue/mod.x	STD-163
+std164_net	symbol	tcp_pool_new	std/net/mod.x	STD-164
+std165_thread	symbol	thread_pool_stats	std/thread/mod.x	STD-165
+std166_fmt	symbol	format_template	std/fmt/mod.x	STD-166
+std167_sqlite	symbol	sqlite_is_available	std/db/sqlite/mod.x	STD-167
 doc	file	analysis/next-yellow-clear-v1.md	-	RFC
 gate	script	tests/run-next-yellow-clear-gate.sh	-	gate
-smoke_vec	smoke	tests/vec/u16_roundtrip.sx	-	STD-161
-smoke_map	smoke	tests/map/iter_rehash.sx	-	STD-162
-smoke_queue	smoke	tests/queue/u8_roundtrip.sx	-	STD-163
-smoke_net	smoke	tests/net/tcp_pool_smoke.sx	-	STD-164
-smoke_fmt	smoke	tests/fmt/template_smoke.sx	-	STD-166
-smoke_stub	smoke	tests/stub/sqlite_net_stub.sx	-	STD-167
+smoke_vec	smoke	tests/vec/u16_roundtrip.x	-	STD-161
+smoke_map	smoke	tests/map/iter_rehash.x	-	STD-162
+smoke_queue	smoke	tests/queue/u8_roundtrip.x	-	STD-163
+smoke_net	smoke	tests/net/tcp_pool_smoke.x	-	STD-164
+smoke_fmt	smoke	tests/fmt/template_smoke.x	-	STD-166
+smoke_stub	smoke	tests/stub/sqlite_net_stub.x	-	STD-167

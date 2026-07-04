@@ -1,6 +1,6 @@
 # 阶段 F-08 v1（core/ 手写 C 存量确认）
 
-> **F-08 v1**：确认 **`core/`** 仅保留 **4** 个手写 `.c`（builtin/mem/slice/debug），各有 **mod.sx** 与专 gate；终局目标为编译器内建替代（零 core `.c`）。
+> **F-08 v1**：确认 **`core/`** 仅保留 **4** 个手写 `.c`（builtin/mem/slice/debug），各有 **mod.x** 与专 gate；终局目标为编译器内建替代（零 core `.c`）。
 
 ## v1 存量（✅ manifest）
 
@@ -20,4 +20,4 @@ SHUX_STD_C_INVENTORY_FAIL=1 ./tests/run-std-c-inventory-gate.sh
 
 ## 终局（v2+）
 
-- 四文件迁入编译器内建 / mod.sx；`find core -name '*.c' | wc -l` = 0
+- 四文件迁入编译器内建 / mod.x；`find core -name '*.c' | wc -l` = 0

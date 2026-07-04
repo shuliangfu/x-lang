@@ -32,7 +32,7 @@
 
 ## 3. round-trip 金样
 
-`tests/json/object_array_roundtrip.sx`：
+`tests/json/object_array_roundtrip.x`：
 
 1. 用 `append_*` 构建 `{"name":"alice","age":30,"tags":["a","b"]}`
 2. `skip_value` 校验整文档

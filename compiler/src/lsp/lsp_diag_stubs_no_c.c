@@ -2,7 +2,7 @@
  * lsp_diag_stubs_no_c.c — E-02 默认：替代 lsp_diag.c 的 LSP 收集器 / 文档缓冲 / JSON 壳桩
  *
  * bootstrap-driver-seed / build_shux_asm 默认链本 TU（`LSP_DIAG_LINK_O`），不链 lsp_diag.c。
- * 不依赖 parser/lexer/typeck/ast C API；诊断 JSON 由 lsp_diag_sx.o + lsp_diag_sx_alias.c 提供。
+ * 不依赖 parser/lexer/typeck/ast C API；诊断 JSON 由 lsp_diag_x.o + lsp_diag_x_alias.c 提供。
  */
 #include <stdlib.h>
 #include <string.h>
@@ -18,30 +18,30 @@ extern size_t lsp_diag_pipeline_sizeof_arena(void);
 extern size_t lsp_diag_pipeline_sizeof_module(void);
 extern size_t lsp_diag_pipeline_sizeof_dep_ctx(void);
 
-/* ====== SX 管道缓冲 ====== */
+/* ====== X 管道缓冲 ====== */
 
-void *lsp_diag_sx_arena_ptr(void) {
+void *lsp_diag_x_arena_ptr(void) {
     static void *p;
     if (!p) p = calloc(1, lsp_diag_pipeline_sizeof_arena());
     return p;
 }
 
-void *lsp_diag_sx_module_ptr(void) {
+void *lsp_diag_x_module_ptr(void) {
     static void *p;
     if (!p) p = calloc(1, lsp_diag_pipeline_sizeof_module());
     return p;
 }
 
-void *lsp_diag_sx_ctx_ptr(void) {
+void *lsp_diag_x_ctx_ptr(void) {
     static void *p;
     if (!p) p = calloc(1, lsp_diag_pipeline_sizeof_dep_ctx());
     return p;
 }
 
-void lsp_diag_sx_reset_parse_buffers(void) {
-    void *a = lsp_diag_sx_arena_ptr();
-    void *m = lsp_diag_sx_module_ptr();
-    void *c = lsp_diag_sx_ctx_ptr();
+void lsp_diag_x_reset_parse_buffers(void) {
+    void *a = lsp_diag_x_arena_ptr();
+    void *m = lsp_diag_x_module_ptr();
+    void *c = lsp_diag_x_ctx_ptr();
     if (a) memset(a, 0, lsp_diag_pipeline_sizeof_arena());
     if (m) memset(m, 0, lsp_diag_pipeline_sizeof_module());
     if (c) memset(c, 0, lsp_diag_pipeline_sizeof_dep_ctx());
@@ -252,7 +252,7 @@ int lsp_build_initialize_result(int id_val, uint8_t *out_buf, int out_cap) {
  * 参数：doc 输入；doc_len 长度；out_buf 输出缓冲；out_cap 容量。
  * 返回值：写入字节数；失败 -1。
  */
-int shu_format_sx_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
+int shu_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
     if (!doc || doc_len <= 0 || !out_buf || out_cap <= doc_len)
         return -1;
     memcpy(out_buf, doc, (size_t)doc_len);

@@ -1,6 +1,6 @@
 # std.json — JSON 解析与生成
 
-**模块路径**：`std/json/mod.sx` + `std/json/json.sx` + `std/json/json_parse_glue.c`（F-json v1）  
+**模块路径**：`std/json/mod.x` + `std/json/json.x` + `std/json/json_parse_glue.c`（F-json v1）  
 **对标**：Zig std.json、Rust serde_json（最小子集）。
 
 ## API 概览
@@ -31,4 +31,4 @@
 ## 测试
 
 - `bash tests/run-json.sh`
-- cookbook：`examples/cookbook/json_object_parse.sx`
+- cookbook：`examples/cookbook/json_object_parse.x`

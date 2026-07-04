@@ -2,7 +2,7 @@
 # OBS-003：统一结构化日志 manifest + 烟测门禁
 #
 # 1) obs-structured-log-v1.md + manifest
-# 2) log.c / mod.sx 符号；registry bracket 组件可 grep
+# 2) log.c / mod.x 符号；registry bracket 组件可 grep
 # 3) obs_structured_log_smoke.c 输出合法结构化行
 #
 # 用法：./tests/run-obs-structured-log-gate.sh
@@ -11,9 +11,9 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_OBS_STRUCT_LOG_DOC:-analysis/obs-structured-log-v1.md}"
 MANIFEST="${SHUX_OBS_STRUCT_LOG_TSV:-tests/baseline/obs-structured-log.tsv}"
-LOG_SX="std/log/log.sx"
+LOG_X="std/log/log.x"
 LOG_RUNTIME="compiler/src/asm/runtime_log_os.c"
-LOG_SX="std/log/mod.sx"
+LOG_X="std/log/mod.x"
 SMOKE="tests/bench/obs_structured_log_smoke.c"
 LOG_O="std/log/log.o"
 MIN_COMP=6
@@ -22,7 +22,7 @@ MIN_COMP=6
 . tests/lib/obs-structured-log.sh
 
 echo "=== OBS-003: structured log manifest ==="
-for f in "$DOC" "$MANIFEST" "$LOG_SX" "$LOG_RUNTIME" "$LOG_SX" "$SMOKE"; do
+for f in "$DOC" "$MANIFEST" "$LOG_X" "$LOG_RUNTIME" "$LOG_X" "$SMOKE"; do
   if [ ! -f "$f" ]; then
     echo "obs-structured-log gate FAIL: missing $f" >&2
     exit 1
@@ -50,21 +50,21 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
       fi
       ;;
     runtime_fn)
-      if ! grep -qF "$anchor" "$LOG_SX" 2>/dev/null && ! grep -qF "$anchor" "$LOG_RUNTIME" 2>/dev/null; then
-        echo "obs-structured-log FAIL: ${anchor} not in log.sx/runtime_log_os.c" >&2
+      if ! grep -qF "$anchor" "$LOG_X" 2>/dev/null && ! grep -qF "$anchor" "$LOG_RUNTIME" 2>/dev/null; then
+        echo "obs-structured-log FAIL: ${anchor} not in log.x/runtime_log_os.c" >&2
         MISS=$((MISS + 1))
       fi
       ;;
     su_fn)
-      if ! grep -qF "$anchor" "$LOG_SX" 2>/dev/null; then
-        echo "obs-structured-log FAIL: ${anchor} not in $LOG_SX" >&2
+      if ! grep -qF "$anchor" "$LOG_X" 2>/dev/null; then
+        echo "obs-structured-log FAIL: ${anchor} not in $LOG_X" >&2
         MISS=$((MISS + 1))
       fi
       ;;
     bracket_component)
       COMP=$((COMP + 1))
       if ! grep -rqF "shux: [$anchor]" . \
-        --include='*.c' --include='*.sh' --include='*.sx' 2>/dev/null; then
+        --include='*.c' --include='*.sh' --include='*.x' 2>/dev/null; then
         echo "obs-structured-log FAIL: bracket component $anchor not found in tree" >&2
         MISS=$((MISS + 1))
       else

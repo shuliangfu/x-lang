@@ -6,7 +6,7 @@
 
 | 符号 | 说明 |
 |------|------|
-| `driver_get_argv_i` | main.sx / compile.sx 无法安全读 char** argv，须 C 拷贝 |
+| `driver_get_argv_i` | main.x / compile.x 无法安全读 char** argv，须 C 拷贝 |
 | `driver_argv_drop_subcommand` | 子命令路由 argv 调整 |
 | `driver_resolve_target_arch` | Mach-O arm64 默认 target |
 

@@ -32,9 +32,9 @@
 
 **解析规则**（与 driver 一致）：
 
-1. `{lib_root}/{a}/{b}/.../{last}.sx`（`a.b.c` → 路径）
-2. `{lib_root}/{a}/{b}/.../mod.sx`（目录模块）
-3. 单段 `foo` → `{lib_root}/foo/foo.sx`
+1. `{lib_root}/{a}/{b}/.../{last}.x`（`a.b.c` → 路径）
+2. `{lib_root}/{a}/{b}/.../mod.x`（目录模块）
+3. 单段 `foo` → `{lib_root}/foo/foo.x`
 
 ---
 
@@ -55,7 +55,7 @@ require	core.types	bundled	声明依赖
 
 ## 4. 包目录（bundled catalog）
 
-`tests/baseline/tool-pkgmgr-catalog.tsv` 登记 **8** 个 `core.*` 模块（与 `core/*/mod.sx` 对齐）。
+`tests/baseline/tool-pkgmgr-catalog.tsv` 登记 **8** 个 `core.*` 模块（与 `core/*/mod.x` 对齐）。
 
 ---
 
@@ -63,8 +63,8 @@ require	core.types	bundled	声明依赖
 
 | case_id | 路径 | 期望 |
 |---------|------|------|
-| `case_demo` | `tests/fixtures/pkgmgr/` | resolve OK + `main.sx` 编译（native shux） |
-| `case_import` | `tests/import/main.sx` | 既有 import 回归 |
+| `case_demo` | `tests/fixtures/pkgmgr/` | resolve OK + `main.x` 编译（native shux） |
+| `case_import` | `tests/import/main.x` | 既有 import 回归 |
 
 **report** 示例：
 

@@ -1,21 +1,21 @@
 /**
  * parser_asm_seed_parse_into_buf_slice.c — seed ./shux 链 parse_into_buf / parse_into C 实现。
  *
- * 瘦 parser_sx.o 无 parse_into_buf；由本 TU（parser_asm_thin_c.c #include）提供强符号，
- * 覆盖 parser_asm_link_alias.c 弱桩，供 runtime asm 后端 parse 任意 .sx。
+ * 瘦 parser_x.o 无 parse_into_buf；由本 TU（parser_asm_thin_c.c #include）提供强符号，
+ * 覆盖 parser_asm_link_alias.c 弱桩，供 runtime asm 后端 parse 任意 .x。
  */
 #ifndef PARSER_ASM_SEED_PARSE_INTO_BUF_SLICE_INCLUDED
 #define PARSER_ASM_SEED_PARSE_INTO_BUF_SLICE_INCLUDED
 
 #include <string.h>
 
-/** 与 parser.sx ParseIntoResult 布局一致。 */
+/** 与 parser.x ParseIntoResult 布局一致。 */
 struct parser_asm_seed_parse_into_result {
   int32_t ok;
   int32_t main_idx;
 };
 
-/** SX Module 池头部（与 ast.sx / pipeline_glue_types.inc 一致）。 */
+/** X Module 池头部（与 ast.x / pipeline_glue_types.inc 一致）。 */
 typedef struct {
   int32_t num_funcs;
   int32_t main_func_index;
@@ -28,7 +28,7 @@ typedef struct {
   int32_t pending_repr_c_struct;
   int32_t pending_repr_compatible_struct;
   int32_t num_module_enums;
-} parser_asm_sx_module_hdr_t;
+} parser_asm_x_module_hdr_t;
 
 extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_parse_into_buf_preamble_peek_buf_audit_c(struct parser_asm_lexer lex, uint8_t *data,
@@ -482,7 +482,7 @@ static int32_t parser_asm_seed_is_main_name_c(const uint8_t *name, int32_t name_
 }
 
 /**
- * 将 inner_ref 包一层 EXPR_RETURN（已是 RETURN 则原样返回）；与 parser.sx parser_expr_wrap_in_return 一致。
+ * 将 inner_ref 包一层 EXPR_RETURN（已是 RETURN 则原样返回）；与 parser.x parser_expr_wrap_in_return 一致。
  */
 static int32_t parser_asm_seed_expr_wrap_in_return_c(void *arena, int32_t type_ref, int32_t inner_ref) {
   int32_t wrap;
@@ -699,7 +699,7 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
   struct parser_asm_seed_parse_into_result out;
   struct parser_asm_lexer lex;
   struct parser_asm_collect_imports_result import_res;
-  parser_asm_sx_module_hdr_t *mod_hdr;
+  parser_asm_x_module_hdr_t *mod_hdr;
   int32_t main_idx;
   int32_t loop_count;
   int32_t func_is_async;
@@ -710,7 +710,7 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
   if (!arena || !module || !data || len <= 0)
     return out;
 
-  mod_hdr = (parser_asm_sx_module_hdr_t *)module;
+  mod_hdr = (parser_asm_x_module_hdr_t *)module;
   lex.pos = 0;
   lex.line = 1;
   lex.col = 1;
@@ -1841,7 +1841,7 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       if (!res.ok)
         parser_asm_parse_one_function_buf_into_c(&res, arena, lex_at_function, data, len);
       if (!res.ok) {
-        /* 与 parser.sx parse_into_buf 一致：跳过前打印函数名，供 A-11 typeck 截断 bisect。 */
+        /* 与 parser.x parse_into_buf 一致：跳过前打印函数名，供 A-11 typeck 截断 bisect。 */
         {
           uint8_t skip_name[64];
           int32_t skip_nlen =

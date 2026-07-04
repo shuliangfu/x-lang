@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）** — 汇编文本 + ELF .o 烟测；Linux 上可选 link+run  
-> 关联：`compiler/src/asm/arch/riscv64.sx`、`tests/run-asm.sh`、`COMP-006`（isel）
+> 关联：`compiler/src/asm/arch/riscv64.x`、`tests/run-asm.sh`、`COMP-006`（isel）
 
 ---
 
@@ -23,10 +23,10 @@
 
 | 层级 | 能力 | 实现 | 验证 |
 |------|------|------|------|
-| **R1-asm-text** | `.s` 文本发射 | `arch/riscv64.sx` | `.text` + `main` + `ret` |
-| **R2-elf-o** | ELF 可重定位 `.o` | `platform/elf.sx` + `target_arch=2` | `file` ELF relocatable |
-| **R3-enc-dispatch** | 机器码 enc 分派 | `riscv64_enc.sx` / `backend.sx` | `ta == 2` |
-| **R4-min-sample** | 最小样例 | `tests/asm/riscv64_min.sx` | exit **42**（link 可用时） |
+| **R1-asm-text** | `.s` 文本发射 | `arch/riscv64.x` | `.text` + `main` + `ret` |
+| **R2-elf-o** | ELF 可重定位 `.o` | `platform/elf.x` + `target_arch=2` | `file` ELF relocatable |
+| **R3-enc-dispatch** | 机器码 enc 分派 | `riscv64_enc.x` / `backend.x` | `ta == 2` |
+| **R4-min-sample** | 最小样例 | `tests/asm/riscv64_min.x` | exit **42**（link 可用时） |
 | **R5-matrix** | 多用例矩阵 | `main`/`expr`/`local` 等 | 与 `run-asm.sh` 一致 |
 | **R6-link-run** | 链接运行 | `riscv64-linux-gnu-ld` 等 | Linux optional |
 
@@ -45,17 +45,17 @@
 
 | case_id | 样例 | 检查 | 期望 |
 |---------|------|------|------|
-| `case_riscv_min` | `riscv64_min.sx` | asm_text + elf_o | COMP-012 锚点 |
-| `case_main` | `main.sx` | asm_text | `.text/main/ret` |
-| `case_expr` | `expr.sx` | asm_text | 同上 |
-| `case_local` | `local.sx` | asm_text | 同上 |
-| `case_elf_main` | `main.sx` | elf_o | ELF relocatable |
+| `case_riscv_min` | `riscv64_min.x` | asm_text + elf_o | COMP-012 锚点 |
+| `case_main` | `main.x` | asm_text | `.text/main/ret` |
+| `case_expr` | `expr.x` | asm_text | 同上 |
+| `case_local` | `local.x` | asm_text | 同上 |
+| `case_elf_main` | `main.x` | elf_o | ELF relocatable |
 | `case_run_asm` | `run-asm.sh` | hook | riscv64 段 |
-| `case_wave_binop` | `binop_return_four_add.sx` | asm_text | COMP-016 加链 |
-| `case_wave_cfg` | `binop_if_plus_eq_merge.sx` | asm_text | COMP-016 cfg |
-| `case_wave_index` | `binop_field_index_fast.sx` | asm_text | COMP-016 index |
-| `case_qemu_min` | `riscv64_min.sx` | qemu_run | exit **42**（COMP-018） |
-| `case_qemu_binop` | `binop_return_four_add.sx` | qemu_run | exit **10**（COMP-018） |
+| `case_wave_binop` | `binop_return_four_add.x` | asm_text | COMP-016 加链 |
+| `case_wave_cfg` | `binop_if_plus_eq_merge.x` | asm_text | COMP-016 cfg |
+| `case_wave_index` | `binop_field_index_fast.x` | asm_text | COMP-016 index |
+| `case_qemu_min` | `riscv64_min.x` | qemu_run | exit **42**（COMP-018） |
+| `case_qemu_binop` | `binop_return_four_add.x` | qemu_run | exit **10**（COMP-018） |
 
 Wave 深化 RFC：`analysis/comp-riscv64-wave-v1.md`（COMP-016）。  
 QEMU user 仿真：`analysis/comp-riscv64-qemu-v1.md`（COMP-018；`run-comp-riscv64-qemu-gate.sh`）。
@@ -66,10 +66,10 @@ QEMU user 仿真：`analysis/comp-riscv64-qemu-v1.md`（COMP-018；`run-comp-ris
 
 | 锚点 | 路径 |
 |------|------|
-| 汇编文本 | `compiler/src/asm/arch/riscv64.sx` |
-| ELF enc | `compiler/src/asm/arch/riscv64_enc.sx` |
-| 分派 | `compiler/src/asm/backend.sx`（`ta == 2`） |
-| 最小样例 | `tests/asm/riscv64_min.sx` |
+| 汇编文本 | `compiler/src/asm/arch/riscv64.x` |
+| ELF enc | `compiler/src/asm/arch/riscv64_enc.x` |
+| 分派 | `compiler/src/asm/backend.x`（`ta == 2`） |
+| 最小样例 | `tests/asm/riscv64_min.x` |
 | 既有回归 | `tests/run-asm.sh`（riscv64 段） |
 
 ---

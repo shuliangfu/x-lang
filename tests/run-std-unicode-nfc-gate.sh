@@ -7,19 +7,19 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_UNICODE_NFC_DOC:-analysis/std-unicode-nfc-v1.md}"
 MANIFEST="${SHUX_STD_UNICODE_NFC_TSV:-tests/baseline/std-unicode-nfc.tsv}"
-UNI_SX="std/unicode/mod.sx"
-UNI_IMPL="std/unicode/unicode.sx"
-UNI_SX="std/unicode/unicode.sx"
+UNI_X="std/unicode/mod.x"
+UNI_IMPL="std/unicode/unicode.x"
+UNI_X="std/unicode/unicode.x"
 LIB="tests/lib/std-unicode-nfc.sh"
-NFC_SX="tests/unicode/nfc_gold.sx"
-MAIN_SX="tests/unicode/main.sx"
+NFC_X="tests/unicode/nfc_gold.x"
+MAIN_X="tests/unicode/main.x"
 MIN_APIS=3
 
 # shellcheck source=tests/lib/std-unicode-nfc.sh
 . "$LIB"
 
 echo "=== STD-037: unicode NFC manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$UNI_SX" "$UNI_SX" "$UNI_IMPL" "$NFC_SX" "$MAIN_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$UNI_X" "$UNI_X" "$UNI_IMPL" "$NFC_X" "$MAIN_X"; do
   if [ ! -f "$f" ]; then
     echo "std-unicode-nfc gate FAIL: missing $f" >&2
     exit 1
@@ -47,7 +47,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$UNI_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$UNI_X" 2>/dev/null; then
         echo "std-unicode-nfc gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -66,7 +66,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_unicode_nfc_symbols_ok "$UNI_SX" "$UNI_IMPL" "$MANIFEST" || true)"
+sym_miss="$(std_unicode_nfc_symbols_ok "$UNI_X" "$UNI_IMPL" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_unicode_nfc_emit_report "fail" 0 0 1
   echo "std-unicode-nfc gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -103,19 +103,19 @@ if [ -n "$SHUX_BIN" ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/unicode/unicode.o
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$NFC_SX" >/dev/null 2>&1; then
-    echo "std-unicode-nfc gate FAIL: typeck $NFC_SX" >&2
-    "$SHUX_BIN" check -L . "$NFC_SX" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$NFC_X" >/dev/null 2>&1; then
+    echo "std-unicode-nfc gate FAIL: typeck $NFC_X" >&2
+    "$SHUX_BIN" check -L . "$NFC_X" 2>&1 | tail -10 >&2 || true
     std_unicode_nfc_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_unicode_nfc_run_smoke "$SHUX_BIN" "$NFC_SX" "nfc_gold"; then
+  if std_unicode_nfc_run_smoke "$SHUX_BIN" "$NFC_X" "nfc_gold"; then
     NFC_OK=1
   else
     std_unicode_nfc_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_unicode_nfc_run_smoke "$SHUX_BIN" "$MAIN_SX" "main"; then
+  if std_unicode_nfc_run_smoke "$SHUX_BIN" "$MAIN_X" "main"; then
     MAIN_OK=1
   else
     std_unicode_nfc_emit_report "fail" "$NFC_OK" 0 0

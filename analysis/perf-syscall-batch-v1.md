@@ -44,10 +44,10 @@
 
 | case_id | 路径 | cap 要点 | batch_lt_ref |
 |---------|------|----------|--------------|
-| `io_batch_readv` | `tests/bench/io_batch_readv.sx` | readv≤1100 | `io_read_chunked` |
-| `io_read_chunked` | `tests/bench/io_read_chunked.sx` | read≤4200 | — |
-| `zero_copy_splice` | `tests/bench/zero_copy_splice.sx` | splice≥1, ≤20 | `zero_copy_readwrite` |
-| `zero_copy_readwrite` | `tests/bench/zero_copy_readwrite.sx` | read/write≤300 | — |
+| `io_batch_readv` | `tests/bench/io_batch_readv.x` | readv≤1100 | `io_read_chunked` |
+| `io_read_chunked` | `tests/bench/io_read_chunked.x` | read≤4200 | — |
+| `zero_copy_splice` | `tests/bench/zero_copy_splice.x` | splice≥1, ≤20 | `zero_copy_readwrite` |
+| `zero_copy_readwrite` | `tests/bench/zero_copy_readwrite.x` | read/write≤300 | — |
 
 ---
 

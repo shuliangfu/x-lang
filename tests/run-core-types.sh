@@ -10,7 +10,7 @@ make -C compiler -q ../std/base64/base64.o 2>/dev/null || make -C compiler ../st
 LINK_SHUX="$RUN_SHUX"
 ulimit -s 65532 2>/dev/null || true
 
-$LINK_SHUX -L . tests/core-types-size/main.sx -o /tmp/shux_core_types 2>&1
+$LINK_SHUX -L . tests/core-types-size/main.x -o /tmp/shux_core_types 2>&1
 exitcode=0; /tmp/shux_core_types >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 0 ] && { echo "expected exit 0 (core.types size_of + assert), got $exitcode"; exit 1; }
 

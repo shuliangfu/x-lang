@@ -26,13 +26,13 @@
 | `write_usage` | usage 自动生成 |
 | `err_ok` / `err_help` / `err_unknown` | 退出码约定（0/1/-1） |
 
-Cookbook：`examples/cookbook/cli_subcommand.sx`（gate 烟测同逻辑）。
+Cookbook：`examples/cookbook/cli_subcommand.x`（gate 烟测同逻辑）。
 
 ---
 
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_CLI] status=ok c_smoke=1 sx=1 skip=0
+shux: [SHUX_STD_CLI] status=ok c_smoke=1 x=1 skip=0
 std-cli gate OK
 ```

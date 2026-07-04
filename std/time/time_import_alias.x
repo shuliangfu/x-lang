@@ -1,0 +1,41 @@
+// time_import_alias.x — import binding -o 链接桩（从 .c 转换）
+
+extern function time_now_monotonic_ns_c(): i64;
+extern function time_now_monotonic_us_c(): i64;
+extern function time_now_monotonic_ms_c(): i64;
+extern function time_now_monotonic_sec_c(): i64;
+extern function time_now_wall_sec_c(): i64;
+extern function time_now_wall_ms_c(): i64;
+extern function time_now_wall_us_c(): i64;
+extern function time_now_wall_ns_c(): i64;
+extern function time_sleep_ns_c(ns: i64): void;
+extern function time_sleep_us_c(us: i64): void;
+extern function time_sleep_ms_c(ms: i32): void;
+extern function time_sleep_sec_c(s: i32): void;
+extern function time_duration_ns_c(from_ns: i64, to_ns: i64): i64;
+extern function time_format_wall_rfc3339_c(buf: *u8, cap: i32): i32;
+extern function time_wall_local_offset_min_c(): i32;
+extern function time_format_timezone_smoke_c(): i32;
+
+function std_time_now_monotonic_ns(): i64 { return time_now_monotonic_ns_c(); }
+function std_time_now_monotonic_ms(): i64 { return time_now_monotonic_ms_c(); }
+function std_time_now_monotonic_us(): i64 { return time_now_monotonic_us_c(); }
+function std_time_now_monotonic_sec(): i64 { return time_now_monotonic_sec_c(); }
+function std_time_now_wall_sec(): i64 { return time_now_wall_sec_c(); }
+function std_time_now_wall_ms(): i64 { return time_now_wall_ms_c(); }
+function std_time_now_wall_us(): i64 { return time_now_wall_us_c(); }
+function std_time_now_wall_ns(): i64 { return time_now_wall_ns_c(); }
+function std_time_sleep_ns(ns: i64): void { time_sleep_ns_c(ns); }
+function std_time_sleep_us(us: i64): void { time_sleep_us_c(us); }
+function std_time_sleep_ms(ms: i32): void { time_sleep_ms_c(ms); }
+function std_time_sleep_sec(s: i32): void { time_sleep_sec_c(s); }
+function std_time_duration_ns(from_ns: i64, to_ns: i64): i64 { return time_duration_ns_c(from_ns, to_ns); }
+function std_time_timer_reset(slot: *u8): void { }
+function std_time_timer_elapsed_ns(t: *ShuxTimer): i64 { return 0 as i64; }
+function std_time_timer_elapsed_us(t: *ShuxTimer): i64 { return 0 as i64; }
+function std_time_timer_elapsed_ms(t: *ShuxTimer): i64 { return 0 as i64; }
+function std_time_timer_elapsed_sec(t: *ShuxTimer): i64 { return 0 as i64; }
+function std_time_timer_lap_ns(slot: *u8): i64 { return 0 as i64; }
+function std_time_format_wall_rfc3339(buf: *u8, cap: i32): i32 { return time_format_wall_rfc3339_c(buf, cap); }
+function std_time_wall_local_offset_min(): i32 { return time_wall_local_offset_min_c(); }
+function std_time_format_timezone_smoke(): i32 { return time_format_timezone_smoke_c(); }

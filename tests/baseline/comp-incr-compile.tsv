@@ -10,13 +10,13 @@ layers	section	## 2. 策略层 C1–C6	comp-incr-compile.tsv	-	incremental
 prototype	section	## 3. 原型登记	comp-incr-compile-prototype.tsv	-	cache
 bench	section	## 4. 二次编译 bench	comp-incr-compile-bench.tsv	-	second
 verify	section	## 6. 验证与门禁	analysis/comp-incr-compile-v1.md	-	gate
-layer_c1	layers	C1-dep-seed	compiler/src/pipeline/pipeline.sx	dep	seed
+layer_c1	layers	C1-dep-seed	compiler/src/pipeline/pipeline.x	dep	seed
 layer_c2	layers	C2-lsp-cache	compiler/src/lsp/lsp_diag.c	lsp	hash
 layer_c3	layers	C3-asm-preserve	compiler/scripts/build_shux_asm.sh	asm	preserve
 layer_c4	layers	C4-std-prelink	compiler/src/runtime.c	std	prelink
 layer_c5	layers	C5-phase-timing	analysis/obs-compile-phase-timing-v1.md	timing	OBS-001
 layer_c6	layers	C6-object-cache	analysis/comp-incr-compile-v1.md	planned	v2
-proto_dep	proto_ref	proto_dep_seed	compiler/src/pipeline/pipeline.sx	done	seed
+proto_dep	proto_ref	proto_dep_seed	compiler/src/pipeline/pipeline.x	done	seed
 proto_lsp	proto_ref	proto_lsp_cache	compiler/src/lsp/lsp_diag.c	done	cache
 proto_asm	proto_ref	proto_asm_preserve	compiler/scripts/build_shux_asm.sh	done	text
 proto_std	proto_ref	proto_std_prelink	compiler/src/runtime.c	done	std

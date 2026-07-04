@@ -2,9 +2,9 @@
 # 列：item_id	kind	anchor	notes
 felf_doc	doc	analysis/phase-f-elf-v1.md	F-elf v1
 felf_gate	gate	tests/run-f-elf-v1-gate.sh	聚合门禁
-elf_sx	file	std/elf/elf.sx	模块锚点 .sx
+elf_x	file	std/elf/elf.x	模块锚点 .x
 elf_io_glue_absent	absent	std/elf/elf_io_glue.c	F-ZC 已删除
-elf_mod	file	std/elf/mod.sx	对外 API
+elf_mod	file	std/elf/mod.x	对外 API
 elf_c_absent	absent	std/elf/elf.c	已删除
 elf_glue_v1_absent	absent	std/elf/elf_glue.c	v2 已删除
-makefile	makefile	compiler/Makefile	elf.o 纯 .sx
+makefile	makefile	compiler/Makefile	elf.o 纯 .x

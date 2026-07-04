@@ -1,9 +1,9 @@
 # BOOT-012 自举性能回归矩阵
 # 列：case_id	tier	ci_hard	hook	notes
 # min_bootstrap_compiler_cases	3
-check_parser	bootstrap_compiler	yes	run-perf-compile-dogfood-gate.sh	parser.sx check 中位数
-check_typeck	bootstrap_compiler	yes	run-perf-compile-dogfood-gate.sh	typeck.sx check 中位数
-check_backend	bootstrap_compiler	yes	run-perf-compile-dogfood-gate.sh	backend.sx check 中位数
+check_parser	bootstrap_compiler	yes	run-perf-compile-dogfood-gate.sh	parser.x check 中位数
+check_typeck	bootstrap_compiler	yes	run-perf-compile-dogfood-gate.sh	typeck.x check 中位数
+check_backend	bootstrap_compiler	yes	run-perf-compile-dogfood-gate.sh	backend.x check 中位数
 loop_i32	microbench	yes	run-perf-compile-dogfood-gate.sh	codegen loop bench
 mem_copy	microbench	yes	run-perf-compile-dogfood-gate.sh	mem copy bench
 struct_param	microbench	yes	run-perf-compile-dogfood-gate.sh	struct ABI bench

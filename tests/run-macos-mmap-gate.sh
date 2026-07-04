@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_MACOS_MMAP_FAIL:-0}
-SX="tests/sys/macos_mmap_smoke.sx"
+X="tests/sys/macos_mmap_smoke.x"
 OUT="/tmp/shux_macos_mmap.$$.out"
 SHUX="${SHUX:-./compiler/shux-c}"
 
@@ -25,8 +25,8 @@ fi
 
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -o "$OUT" "$SX" 2>/tmp/shux_macos_mmap.log; then
-  echo "macos-mmap-gate FAIL: compile $SX" >&2
+if ! "$SHUX" -o "$OUT" "$X" 2>/tmp/shux_macos_mmap.log; then
+  echo "macos-mmap-gate FAIL: compile $X" >&2
   tail -n 10 /tmp/shux_macos_mmap.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

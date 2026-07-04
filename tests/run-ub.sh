@@ -29,11 +29,11 @@ run_ok() {
     echo "  $1: exit $r"
 }
 echo "ub: div_zero (expect panic)"
-run_panic tests/ub/div_zero.sx
+run_panic tests/ub/div_zero.x
 echo "ub: bounds_array (expect panic)"
-run_panic tests/ub/bounds_array.sx
+run_panic tests/ub/bounds_array.x
 echo "ub: bounds_slice (expect panic)"
-run_panic tests/ub/bounds_slice.sx
+run_panic tests/ub/bounds_slice.x
 echo "ub: div_ok (expect exit 3)"
-run_ok tests/ub/div_ok.sx
+run_ok tests/ub/div_ok.x
 echo "ub: OK"

@@ -23,12 +23,12 @@
 
 | 层级 | 抽象 | 零成本机制 | 回归 |
 |------|------|------------|------|
-| **Z1-linear-abi** | `Linear(T)` | 与 `T` 同布局/ABI；无 drop 表 | `move_ok.sx` + TYPE-001 |
-| **Z2-generic-mono** | `id<T>(x)` | 编译期单态化，无 vtable | `generic_id_i32.sx` |
-| **Z3-struct-byval** | 小 struct 按值传参 | 栈拷贝 = C struct | `struct_param.sx` B-CMP |
+| **Z1-linear-abi** | `Linear(T)` | 与 `T` 同布局/ABI；无 drop 表 | `move_ok.x` + TYPE-001 |
+| **Z2-generic-mono** | `id<T>(x)` | 编译期单态化，无 vtable | `generic_id_i32.x` |
+| **Z3-struct-byval** | 小 struct 按值传参 | 栈拷贝 = C struct | `struct_param.x` B-CMP |
 | **Z4-region-zero** | `region` / `T[]<label>` | 标签不进 ABI/runtime | TYPE-002 RFC |
-| **Z5-call-depth** | 多层函数调用 | 无额外间接层 | `call_boundary.sx` B-CMP |
-| **Z6-mem-hotpath** | 循环 memcpy 热路径 | 无多余用户态 copy | `mem_copy.sx` B-CMP |
+| **Z5-call-depth** | 多层函数调用 | 无额外间接层 | `call_boundary.x` B-CMP |
+| **Z6-mem-hotpath** | 循环 memcpy 热路径 | 无多余用户态 copy | `mem_copy.x` B-CMP |
 
 **copy 判定（v1）**：
 
@@ -42,14 +42,14 @@
 
 `tests/baseline/type-zero-cost-bench.tsv`（**6** 条 `bench_*`）。
 
-| bench_id | .sx | 对标 | gate |
+| bench_id | .x | 对标 | gate |
 |----------|-----|------|------|
-| `bench_loop` | `loop_i32.sx` | `loop_i32.c` | bcmp |
-| `bench_mem` | `mem_copy.sx` | `mem_copy.c` | bcmp |
-| `bench_struct` | `struct_param.sx` | `struct_param.c` | bcmp |
-| `bench_call` | `call_boundary.sx` | `call_boundary.c` | bcmp |
-| `bench_generic` | `generic_id_i32.sx` | — | compile smoke |
-| `bench_linear` | `move_ok.sx` | — | typeck smoke |
+| `bench_loop` | `loop_i32.x` | `loop_i32.c` | bcmp |
+| `bench_mem` | `mem_copy.x` | `mem_copy.c` | bcmp |
+| `bench_struct` | `struct_param.x` | `struct_param.c` | bcmp |
+| `bench_call` | `call_boundary.x` | `call_boundary.c` | bcmp |
+| `bench_generic` | `generic_id_i32.x` | — | compile smoke |
+| `bench_linear` | `move_ok.x` | — | typeck smoke |
 
 ---
 
@@ -58,9 +58,9 @@
 | case_id | 验证 | 期望 |
 |---------|------|------|
 | `case_linear` | `Linear` 无额外字段 | `check` 通过 |
-| `case_generic` | 泛型单态化可编译 | `generic_id_i32.sx` |
-| `case_region` | region 块正例 | `region_same_ok.sx` |
-| `case_loop` | 标量循环 B-CMP 锚点 | `loop_i32.sx` |
+| `case_generic` | 泛型单态化可编译 | `generic_id_i32.x` |
+| `case_region` | region 块正例 | `region_same_ok.x` |
+| `case_loop` | 标量循环 B-CMP 锚点 | `loop_i32.x` |
 | `case_bcmp` | 四件套 B-CMP | `perf baseline OK`（CI） |
 
 ---

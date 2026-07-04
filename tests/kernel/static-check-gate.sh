@@ -5,7 +5,7 @@
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKDIR="${TMPDIR:-/tmp}"
-ELF="${1:-$WORKDIR/gate_timer_isr.sx.elf}"
+ELF="${1:-$WORKDIR/gate_timer_isr.x.elf}"
 PASS=0
 FAIL=0
 check() {
@@ -23,7 +23,7 @@ echo "=== G3: Static check gate ($ELF) ==="
 
 # Build if not exists
 if [ ! -f "$ELF" ]; then
-    sh "$SCRIPT_DIR/build-kernel.sh" "$SCRIPT_DIR/timer_isr.sx" "$ELF" 2>&1
+    sh "$SCRIPT_DIR/build-kernel.sh" "$SCRIPT_DIR/timer_isr.x" "$ELF" 2>&1
 fi
 
 # G3-1: _start symbol exists and is global (T = text global)

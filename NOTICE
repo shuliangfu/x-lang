@@ -11,9 +11,9 @@ Unless otherwise noted, files in this repository are licensed under the
 GNU Affero General Public License version 3 or later (AGPL-3.0-or-later).
 The complete license text is in the LICENSE file at the repository root.
 
-Recommended .sx source file header
+Recommended .x source file header
 ----------------------------------
-Attach the following block at the top of each .sx source file, before any
+Attach the following block at the top of each .x source file, before any
 module-specific description comments:
 
     // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>

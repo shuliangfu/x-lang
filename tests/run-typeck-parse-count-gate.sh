@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A-11 track/CI：asm pipeline 编 typeck.sx 时 after_entry_parse num_defined 须 ≥ min（146 为全量 defined）。
+# A-11 track/CI：asm pipeline 编 typeck.x 时 after_entry_parse num_defined 须 ≥ min（146 为全量 defined）。
 # 用法：./tests/run-typeck-parse-count-gate.sh
 # 环境：SHUX_TYPECK_PARSE_COUNT_FAIL=1 低于 MIN 时硬失败
 #       SHUX_TYPECK_PARSE_COUNT_MIN / TARGET 覆盖 baseline
@@ -13,7 +13,7 @@ TARGET_FUNCS=${SHUX_TYPECK_PARSE_COUNT_TARGET:-$(awk -F'\t' '$1=="target_funcs" 
 MIN_FUNCS=${MIN_FUNCS:-80}
 TARGET_FUNCS=${TARGET_FUNCS:-146}
 SHUX="${SHUX:-./compiler/shux_asm}"
-TYPECK_SX="compiler/src/typeck/typeck.sx"
+TYPECK_X="compiler/src/typeck/typeck.x"
 OUT="/tmp/shux_typeck_parse_count.$$.o"
 LOG="/tmp/shux_typeck_parse_count.$$.log"
 LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
@@ -31,8 +31,8 @@ if [ ! -x "$SHUX" ]; then
   exit 0
 fi
 
-src_count=$(grep -c '^function ' "$TYPECK_SX" 2>/dev/null || echo 0)
-echo "typeck-parse-count-gate: source functions in typeck.sx: ${src_count} (baseline min=${MIN_FUNCS}, stretch target>=${TARGET_FUNCS})"
+src_count=$(grep -c '^function ' "$TYPECK_X" 2>/dev/null || echo 0)
+echo "typeck-parse-count-gate: source functions in typeck.x: ${src_count} (baseline min=${MIN_FUNCS}, stretch target>=${TARGET_FUNCS})"
 
 rm -f "$OUT" "$LOG" 2>/dev/null || true
 
@@ -44,7 +44,7 @@ typeck_parse_count_compile() {
     env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
       SHUX_ASM_PARSE_METRIC_ONLY=1 \
       SHUX_DEBUG_PIPE=1 \
-      "../$comp" -backend asm -o "$OUT" $LIBROOT src/typeck/typeck.sx
+      "../$comp" -backend asm -o "$OUT" $LIBROOT src/typeck/typeck.x
   ) 2>&1 | tee "$LOG" | cat >/dev/null
 }
 
@@ -53,7 +53,7 @@ typeck_parse_count_try_chunked() {
   local comp="$1"
   local sum
   chmod +x tests/lib/typeck-parse-count-chunk.sh 2>/dev/null || true
-  if ! sum="$(tests/lib/typeck-parse-count-chunk.sh "$comp" "$TYPECK_SX" 2>>"$LOG")"; then
+  if ! sum="$(tests/lib/typeck-parse-count-chunk.sh "$comp" "$TYPECK_X" 2>>"$LOG")"; then
     return 1
   fi
   ndef="$sum"
@@ -90,7 +90,7 @@ if [ "$compile_ok" -eq 0 ] && [ "${SHUX_TYPECK_PARSE_COUNT_SOURCE_FALLBACK:-0}" 
     ndef="$src_count"
     nf="$src_count"
     compile_ok=1
-    echo "typeck-parse-count-gate: WARN chunked parse failed; source_fallback metric=${metric} (typeck.sx ^function count)" >&2
+    echo "typeck-parse-count-gate: WARN chunked parse failed; source_fallback metric=${metric} (typeck.x ^function count)" >&2
   fi
 fi
 
@@ -121,7 +121,7 @@ fi
 
 if [ "${SHUX_TYPECK_PARSE_COUNT_UPDATE:-0}" = "1" ]; then
   {
-    echo "# typeck.sx asm ENTRY_MODULE_ONLY parse 指标（A-11）"
+    echo "# typeck.x asm ENTRY_MODULE_ONLY parse 指标（A-11）"
     echo "# 更新：SHUX_TYPECK_PARSE_COUNT_UPDATE=1 ./tests/run-typeck-parse-count-gate.sh"
     printf 'min_funcs\t%s\n' "$metric"
     printf 'target_funcs\t%s\n' "$metric"
@@ -154,5 +154,5 @@ if [ "$metric" -ge "$TARGET_FUNCS" ] 2>/dev/null; then
   exit 0
 fi
 
-echo "typeck-parse-count-gate OK (num_defined=${metric} num_funcs=${nf:-?}; baseline ${MIN_FUNCS}; target ${TARGET_FUNCS} — partial parse, typeck_sx.o may cover gap)"
+echo "typeck-parse-count-gate OK (num_defined=${metric} num_funcs=${nf:-?}; baseline ${MIN_FUNCS}; target ${TARGET_FUNCS} — partial parse, typeck_x.o may cover gap)"
 exit 0

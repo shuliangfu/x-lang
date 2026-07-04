@@ -1,7 +1,7 @@
 # STD-146：std.atomic 16/64 位扩展 v1
 
 > 状态：**定版（v1）**  
-> 关联：`STD-046` ordering/fence、`tests/atomic/main.sx` 基础回归
+> 关联：`STD-046` ordering/fence、`tests/atomic/main.x` 基础回归
 
 ---
 
@@ -32,6 +32,6 @@ v1 仍默认 **seq_cst**；未新增带 Ordering 参数的重载。
 ./tests/run-std-atomic-widen-gate.sh
 ```
 
-烟测：`tests/atomic/widen_16_64.sx`
+烟测：`tests/atomic/widen_16_64.x`
 
 报告：`shux: [SHUX_STD146_ATOMIC_WIDEN]`

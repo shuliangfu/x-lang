@@ -13,7 +13,7 @@
 | 1 | 读本文 §2（统一命名表） |
 | 2 | `tests/baseline/std-crypto-sha512-hmac-vectors.tsv` |
 | 3 | `./tests/run-std-crypto-sha512-hmac-gate.sh` |
-| 4 | 烟测：`sha512_abc.sx`、`hmac_sha512_rfc4231_tc1.sx`、`mac_verify_512_smoke.sx` |
+| 4 | 烟测：`sha512_abc.x`、`hmac_sha512_rfc4231_tc1.x`、`mac_verify_512_smoke.x` |
 
 ---
 
@@ -24,7 +24,7 @@
 | SHA-256 | 32 B | `sha256` | `hmac_sha256` | `mac_sign` | `mac_verify` | 32 B |
 | SHA-512 | 64 B | `sha512` | `hmac_sha512` | `mac_sign_512` | `mac_verify_512` | 64 B |
 
-模块常量（`std/crypto/mod.sx`）：`SHA256_DIGEST_LEN=32`、`SHA512_DIGEST_LEN=64`。
+模块常量（`std/crypto/mod.x`）：`SHA256_DIGEST_LEN=32`、`SHA512_DIGEST_LEN=64`。
 
 实现：`crypto_sha512_c` / `crypto_hmac_sha512_c`（`std/crypto/crypto.c`）；HMAC block=128（RFC 4231）。
 
@@ -36,9 +36,9 @@
 
 | ID | 来源 | 验证 |
 |----|------|------|
-| `sha512_abc` | FIPS 180-4 / NIST `abc` | `sha512_abc.sx` |
-| `hmac_rfc4231_tc1` | RFC 4231 Test Case 1（key=20×0x0b，msg=`Hi There`） | `hmac_sha512_rfc4231_tc1.sx` |
-| `mac_verify_512` | `mac_sign_512` + `mac_verify_512` 签验闭环 | `mac_verify_512_smoke.sx` |
+| `sha512_abc` | FIPS 180-4 / NIST `abc` | `sha512_abc.x` |
+| `hmac_rfc4231_tc1` | RFC 4231 Test Case 1（key=20×0x0b，msg=`Hi There`） | `hmac_sha512_rfc4231_tc1.x` |
+| `mac_verify_512` | `mac_sign_512` + `mac_verify_512` 签验闭环 | `mac_verify_512_smoke.x` |
 
 详见 `tests/baseline/std-crypto-sha512-hmac-vectors.tsv`。
 

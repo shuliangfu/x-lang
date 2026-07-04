@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-http-https-v1.md"
 MANIFEST="tests/baseline/std-http-https.tsv"
-MOD_SX="std/http/mod.sx"
+MOD_X="std/http/mod.x"
 HTTP_C="compiler/src/asm/http/runtime_http_glue.c"
 LIB="tests/lib/std-http-https.sh"
-SMOKE_SX="tests/http/https_smoke.sx"
+SMOKE_X="tests/http/https_smoke.x"
 SMOKE_C="tests/http/https_smoke_ok.c"
 MIN_APIS=2
 
@@ -20,7 +20,7 @@ MIN_APIS=2
 . tests/lib/std-net-tls.sh
 
 echo "=== STD-HTTP-HTTPS: manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$HTTP_C" "$SMOKE_SX" "$SMOKE_C" \
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$HTTP_C" "$SMOKE_X" "$SMOKE_C" \
   compiler/src/asm/http/http_tls_bridge.inc.c std/http/README.md; do
   [ -f "$f" ] || { echo "std-http-https gate FAIL: missing $f" >&2; exit 1; }
 done
@@ -53,7 +53,7 @@ done < "$MANIFEST"
   exit 1
 }
 
-sym_miss="$(std_http_https_symbols_ok "$MOD_SX" "$HTTP_C" "$MANIFEST" || true)"
+sym_miss="$(std_http_https_symbols_ok "$MOD_X" "$HTTP_C" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || {
   std_http_https_emit_report fail 0 0 0 0
   echo "std-http-https gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -73,13 +73,13 @@ if cc -std=c11 -O1 -o /tmp/shux_http_https_stub_$$ tests/http/https_smoke_ok.c "
 fi
 [ "$C_OK" -eq 1 ] || { std_http_https_emit_report fail 0 0 0 0; exit 1; }
 
-SX_OK=0
+X_OK=0
 SKIP=0
 SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 if [ -n "$SHUX_BIN" ]; then
-  "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null
-  std_http_https_run_sx_smoke "$SHUX_BIN" "$SMOKE_SX" && SX_OK=1 || exit 1
+  "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null
+  std_http_https_run_x_smoke "$SHUX_BIN" "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi
@@ -105,5 +105,5 @@ if std_net_tls_probe_openssl; then
   std_net_tls_restore_stub_o 2>/dev/null || true
 fi
 
-std_http_https_emit_report ok "$C_OK" "$SX_OK" "$SKIP" "$OPENSSL_OK"
+std_http_https_emit_report ok "$C_OK" "$X_OK" "$SKIP" "$OPENSSL_OK"
 echo "std-http-https gate OK"

@@ -1,9 +1,9 @@
 #!/bin/sh
-# build.sh — 以 build.sx 为策略入口，用 build_tool 完成一次编译器构建（与 compiler/Makefile 中 build-tool + ./build_tool 一致）。
+# build.sh — 以 build.x 为策略入口，用 build_tool 完成一次编译器构建（与 compiler/Makefile 中 build-tool + ./build_tool 一致）。
 #
 # 用法：在仓库根目录执行 ./build.sh
-# 流程：进入 compiler；若无 build_tool，则用 shux-c（若已存在）或 shux/bootstrap_shux 对 ../build.sx 做 -E 得到 build_gen.c，再用宿主 cc 与 build_runtime.c 链出 build_tool；最后执行 ./build_tool <shux>。
-# 注意：不可用「shux ../build.sx -o build_tool」直接链出可执行文件（生成 C 无用户 main，链接会失败）；必须与 Makefile 相同走 -E + cc。
+# 流程：进入 compiler；若无 build_tool，则用 shux-c（若已存在）或 shux/bootstrap_shux 对 ../build.x 做 -E 得到 build_gen.c，再用宿主 cc 与 build_runtime.c 链出 build_tool；最后执行 ./build_tool <shux>。
+# 注意：不可用「shux ../build.x -o build_tool」直接链出可执行文件（生成 C 无用户 main，链接会失败）；必须与 Makefile 相同走 -E + cc。
 # 前提：compiler 下已有可执行 shux 或 bootstrap_shux（首次：make -C compiler、或 cd compiler && sh bootstrap.sh）。
 #
 # 完全无 C/无 Makefile 自举见：analysis/完全自举-无C无Makefile.md；
@@ -31,8 +31,8 @@ fi
 CFLAGS_BT="-Wall -Wextra -I. -Iinclude -Isrc"
 
 if [ ! -x "./build_tool" ]; then
-  echo "build.sh: building build_tool from ../build.sx ($GEN_SHU -E → build_gen.c + src/build_runtime.c) ..."
-  "$GEN_SHU" ../build.sx -E > build_gen.c
+  echo "build.sh: building build_tool from ../build.x ($GEN_SHU -E → build_gen.c + src/build_runtime.c) ..."
+  "$GEN_SHU" ../build.x -E > build_gen.c
   cc $CFLAGS_BT -c build_gen.c -o build_tool.o
   cc $CFLAGS_BT -c src/build_runtime.c -o build_runtime.o
   cc $CFLAGS_BT -o build_tool build_tool.o build_runtime.o

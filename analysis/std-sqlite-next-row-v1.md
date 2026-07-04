@@ -24,7 +24,7 @@
 | `row_col_i32` | 读当前行第 `col` 列整型值 |
 | `query_end` | `sqlite3_finalize` 释放游标 |
 
-烟测入口：`db_sqlite_next_row_smoke_c`（C）、`next_row_roundtrip.sx`（.sx）。
+烟测入口：`db_sqlite_next_row_smoke_c`（C）、`next_row_roundtrip.x`（.x）。
 
 ---
 
@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_STD067_DB_CURSOR] status=ok cursor_c=1 cursor_sx=0 skip=1
+shux: [SHUX_STD067_DB_CURSOR] status=ok cursor_c=1 cursor_x=0 skip=1
 ```
 
 无 `libsqlite3` 时 manifest 仍过，烟测 **SKIP**。

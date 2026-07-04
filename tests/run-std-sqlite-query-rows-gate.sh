@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD066_DOC:-analysis/std-sqlite-query-rows-v1.md}"
 MANIFEST="${SHUX_STD066_TSV:-tests/baseline/std-sqlite-query-rows.tsv}"
 VECTORS="${SHUX_STD066_VECTORS:-tests/baseline/std-sqlite-query-rows-vectors.tsv}"
-MOD_SX="std/db/sqlite/mod.sx"
-DB_C="std/db/sqlite/sqlite.sx"
+MOD_X="std/db/sqlite/mod.x"
+DB_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-query-rows.sh"
-SMOKE_SX="tests/std-sqlite/query_rows_roundtrip.sx"
+SMOKE_X="tests/std-sqlite/query_rows_roundtrip.x"
 SMOKE_C="tests/std-sqlite/query_rows_roundtrip_ok.c"
 MIN_QUERY=1
 
@@ -20,7 +20,7 @@ MIN_QUERY=1
 std_sqlite_query_rows_source_sqlite
 
 echo "=== STD-066: db query_rows manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$DB_C" "$SMOKE_SX" "$SMOKE_C" \
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" \
   analysis/std-sqlite-exec-deep-v1.md tests/run-std-sqlite-exec-deep-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-query-rows gate FAIL: missing $f" >&2
@@ -65,7 +65,7 @@ if [ "$API_N" -lt "$MIN_QUERY" ]; then
   exit 1
 fi
 
-sym_miss="$(std_sqlite_query_rows_symbols_ok "$MOD_SX" "$DB_C" "$MANIFEST" || true)"
+sym_miss="$(std_sqlite_query_rows_symbols_ok "$MOD_X" "$DB_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_sqlite_query_rows_emit_report "fail" 0 0 0
   exit 1
@@ -83,7 +83,7 @@ if [ "${SHUX_STD066_MANIFEST_ONLY:-0}" = "1" ]; then
 fi
 
 ROWS_C=0
-ROWS_SX=0
+ROWS_X=0
 SKIP=1
 
 if std_sqlite_probe_libs; then
@@ -119,19 +119,19 @@ if std_sqlite_probe_libs; then
   fi
 
   if [ -n "$SHUX_BIN" ]; then
-    echo "=== STD-066: .sx query_rows smoke (SHUX=$SHUX_BIN) ==="
-    if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-      echo "std-sqlite-query-rows gate SKIP .sx smoke (typeck fail)" >&2
+    echo "=== STD-066: .x query_rows smoke (SHUX=$SHUX_BIN) ==="
+    if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+      echo "std-sqlite-query-rows gate SKIP .x smoke (typeck fail)" >&2
       SKIP=1
-    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SX" "rows"; then
-      ROWS_SX=1
+    elif std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "rows"; then
+      ROWS_X=1
       SKIP=0
     else
-      echo "std-sqlite-query-rows gate SKIP .sx smoke (link/compile)" >&2
+      echo "std-sqlite-query-rows gate SKIP .x smoke (link/compile)" >&2
       SKIP=1
     fi
   else
-    echo "std-sqlite-query-rows gate SKIP .sx smoke (no native shux)" >&2
+    echo "std-sqlite-query-rows gate SKIP .x smoke (no native shux)" >&2
     SKIP=1
   fi
   std_sqlite_restore_default_o
@@ -142,5 +142,5 @@ else
   ensure_std_c_o ../std/db/sqlite/sqlite.o
 fi
 
-std_sqlite_query_rows_emit_report "ok" "$ROWS_C" "$ROWS_SX" "$SKIP"
+std_sqlite_query_rows_emit_report "ok" "$ROWS_C" "$ROWS_X" "$SKIP"
 echo "std-sqlite-query-rows gate OK"

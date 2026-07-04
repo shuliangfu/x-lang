@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Sweep .sx comments for outdated import syntax / mod-prefix examples.
+Sweep .x comments for outdated import syntax / mod-prefix examples.
 
 - import std.xxx / import core.xxx  -> import("std.xxx") / import("core.xxx")
 - platform.elf.* in comments          -> elf.* (binding import)
@@ -100,7 +100,7 @@ def patch_markdown_line(line: str) -> str:
 
 def main() -> int:
     n = 0
-    for ext in ("*.sx", "*.md"):
+    for ext in ("*.x", "*.md"):
         for path in sorted(ROOT.rglob(ext)):
             if ".git" in path.parts:
                 continue

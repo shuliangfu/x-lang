@@ -1,15 +1,15 @@
 # 阶段 F-04 v12（std.net socket/UDP 基础去 C）
 
-> **F-04 v12 v1**：从 **`net.c`** 迁出 **close/blocking** 与 **UDP 基础** → **`sock.sx`** + **`udp.sx`**。
+> **F-04 v12 v1**：从 **`net.c`** 迁出 **close/blocking** 与 **UDP 基础** → **`sock.x`** + **`udp.x`**。
 
 ## v12 v1 完成（✅ manifest）
 
 | 项 | 说明 |
 |----|------|
-| `sock.sx` | `net_close_socket_c` / `net_set_blocking_c` |
-| `udp.sx` | `net_udp_bind_c` / `net_udp_send_to_c` / `net_udp_recv_from_c` |
+| `sock.x` | `net_close_socket_c` / `net_set_blocking_c` |
+| `udp.x` | `net_udp_bind_c` / `net_udp_send_to_c` / `net_udp_recv_from_c` |
 | `net.c` | 移除上述 ~100 行；UDP batch（recvmmsg）仍留 C |
-| `Makefile` | `net.o` 合并 7 个 `.sx` 模块 |
+| `Makefile` | `net.o` 合并 7 个 `.x` 模块 |
 
 ## v12 限制（v13+）
 

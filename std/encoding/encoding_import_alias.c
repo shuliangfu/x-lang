@@ -3,7 +3,7 @@
  *
  * asm co-emit 对 `const encoding = import("std.encoding")` 生成 std_encoding_* 符号；
  * encoding.o 仅导出 encoding_*_c。本 TU 提供 std_encoding_* 转发。
- * utf8_valid / utf8_len_chars 在 shux-c 编译 encoding.sx 产物中存在 pi 不递增死循环，此处用 C 直实现。
+ * utf8_valid / utf8_len_chars 在 shux-c 编译 encoding.x 产物中存在 pi 不递增死循环，此处用 C 直实现。
  */
 #include <stdint.h>
 
@@ -34,7 +34,7 @@ static uint32_t encoding_hotfix_utf8_first_byte_len(uint8_t b) {
   return 255u;
 }
 
-/** UTF-8 校验；C 直实现（规避 shux-c 编译 encoding.sx 的 pi 递增缺陷）。 */
+/** UTF-8 校验；C 直实现（规避 shux-c 编译 encoding.x 的 pi 递增缺陷）。 */
 int32_t std_encoding_utf8_valid(const uint8_t *p, int32_t len) {
   int32_t pi = 0;
   uint32_t n;

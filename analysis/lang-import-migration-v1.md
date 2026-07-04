@@ -13,9 +13,9 @@ const { m1, m2 } = import("std.token");      // 解构
 
 ## 2. 路径
 
-- 逻辑名：`"std.io"` → `-L` 下 `std/io/mod.sx`
-- 相对路径：`"../foo/bar.sx"` → 相对当前 .sx 所在目录
-- 绝对路径：`"/path/to/mod.sx"`
+- 逻辑名：`"std.io"` → `-L` 下 `std/io/mod.x`
+- 相对路径：`"../foo/bar.x"` → 相对当前 .x 所在目录
+- 绝对路径：`"/path/to/mod.x"`
 
 ## 3. 选型
 

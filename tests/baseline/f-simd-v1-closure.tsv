@@ -2,8 +2,8 @@
 # 列：item_id	kind	anchor	notes
 fsimd_doc	doc	analysis/phase-f-simd-v1.md	F-simd v1
 fsimd_gate	gate	tests/run-f-simd-v1-gate.sh	聚合门禁
-simd_sx	file	std/simd/simd.sx	策略 + HW/烟测
+simd_x	file	std/simd/simd.x	策略 + HW/烟测
 simd_glue_absent	absent	std/simd/simd_os_glue.c	F-ZC 已删除
-simd_mod	file	std/simd/mod.sx	对外 API
+simd_mod	file	std/simd/mod.x	对外 API
 simd_c_absent	absent	std/simd/simd.c	已删除
-makefile	makefile	compiler/Makefile	simd.o 纯 .sx
+makefile	makefile	compiler/Makefile	simd.o 纯 .x

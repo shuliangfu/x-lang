@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# track-only：experimental 链无 ENTRY_MODULE_ONLY 编 parser.sx（EMIT_HEAVY）须产出非空 .o（截断 ~4 func，≥500B）。
-# 全量 ~288 func 仍靠 parser_sx.o；本门禁防 experimental asm emit 回归。
+# track-only：experimental 链无 ENTRY_MODULE_ONLY 编 parser.x（EMIT_HEAVY）须产出非空 .o（截断 ~4 func，≥500B）。
+# 全量 ~288 func 仍靠 parser_x.o；本门禁防 experimental asm emit 回归。
 # 用法：./tests/run-parser-experimental-emit-gate.sh
 set -e
 cd "$(dirname "$0")/.."
@@ -31,11 +31,11 @@ fi
 TMP="/tmp/shux_parser_exp_emit.$$.o"
 rm -f "$TMP" /tmp/shux_parser_exp_emit.log 2>/dev/null || true
 
-echo "parser-experimental-emit-gate: compile parser.sx (no ENTRY_ONLY, EMIT_HEAVY) with compiler/$COMP_IN ..."
+echo "parser-experimental-emit-gate: compile parser.x (no ENTRY_ONLY, EMIT_HEAVY) with compiler/$COMP_IN ..."
 if ! (
   cd compiler
   env -u SHUX_ASM_START_FUNC SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
-    "$COMP_IN" -backend asm -o "$TMP" $LIBROOT src/parser/parser.sx
+    "$COMP_IN" -backend asm -o "$TMP" $LIBROOT src/parser/parser.x
 ) > /tmp/shux_parser_exp_emit.log 2>&1; then
   echo "parser-experimental-emit-gate FAIL: compile command failed" >&2
   tail -n 8 /tmp/shux_parser_exp_emit.log 2>/dev/null || true
@@ -71,4 +71,4 @@ if [ "${TEXT:-0}" -lt "$MIN_TEXT" ] 2>/dev/null && [ "${FILE_SZ:-0}" -lt "$MIN_T
   exit 0
 fi
 
-echo "parser-experimental-emit-gate OK (__text=${TEXT}B file=${FILE_SZ}B; mega parse via parser_sx.o)"
+echo "parser-experimental-emit-gate OK (__text=${TEXT}B file=${FILE_SZ}B; mega parse via parser_x.o)"

@@ -21,17 +21,17 @@ esac
 
 set +e
 # shellcheck disable=SC2086
-$LINK_SHUX $LINK_BACKEND_ARGS tests/compound-assign/main.sx -o /tmp/shux_compound_assign 2>&1
+$LINK_SHUX $LINK_BACKEND_ARGS tests/compound-assign/main.x -o /tmp/shux_compound_assign 2>&1
 _compile_ec=$?
 set -e
 set +e
 if [ "$_compile_ec" -ne 0 ] && [ "$LINK_SHUX" != "./compiler/shux" ]; then
-  ./compiler/shux -backend c tests/compound-assign/main.sx -o /tmp/shux_compound_assign 2>&1
+  ./compiler/shux -backend c tests/compound-assign/main.x -o /tmp/shux_compound_assign 2>&1
   _compile_ec=$?
 fi
 # shux-c -E + cc 回退（无 asm/c backend 时）
 if [ "$_compile_ec" -ne 0 ] && [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c -E tests/compound-assign/main.sx > /tmp/shux_ca_fallback.c 2>&1
+  ./compiler/shux-c -E tests/compound-assign/main.x > /tmp/shux_ca_fallback.c 2>&1
   ${CC:-cc} -O2 -o /tmp/shux_compound_assign /tmp/shux_ca_fallback.c 2>&1
   _compile_ec=$?
 fi

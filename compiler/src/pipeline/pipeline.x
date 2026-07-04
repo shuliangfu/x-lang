@@ -1,0 +1,705 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// pipeline.x — 自举 9.1/9.2/5.3：纯 .x 编译流水线入口
+//
+// 职责：串联 解析 →（可选）按 import 加载 deps → 类型检查 → 代码生成。
+// 自举兼容：pipeline_glue.c 在同一 TU 内直接使用上方已定义的 ast_* / lexer_* / parser_* / codegen_* 等类型，
+// 故 `-E -E-extern` 生成 pipeline_gen.c 时必须显式 import 这些模块以确保其 C 结构体定义出现在 glue 之前。
+const ast = import("ast");
+const lexer = import("lexer");
+const parser = import("parser");
+const typeck = import("typeck");
+const codegen = import("codegen");
+const asm_backend = import("asm.backend");
+
+/** C 按需提供第 i 个依赖的 arena/module 缓冲；pipeline 在解析 import 前取回并写入 dep 动态池，避免 arena 槽为空导致 ast_arena_init 写空指针。 */
+extern function driver_dep_arena_buf(i: i32): *u8;
+extern function driver_dep_module_buf(i: i32): *u8;
+/** 非 0 表示 dep i 已由 C 侧预填，跳过 read/parse 直接使用 driver 槽位。 */
+extern function driver_dep_seeded_get(i: i32): i32;
+/** 按 import 逻辑路径（如 std.io.core）查 dep 预跑全局槽；-1 未找到。 */
+extern function driver_dep_slot_for_path(path: *u8): i32;
+/** 当前 dep 个数（与 ctx.ndep 同步，由 C 在 codegen 前设置）；循环中用 get_ndep() 从源头避免 build 对 while (j < ndep) 的补丁。 */
+extern function get_ndep(): i32;
+/** build_shux_asm：SHUX_ASM_BUILD_SKIP_TYPECK=1 时跳过 .x typeck（pipeline_glue.c → driver_asm_build_skip_typeck）。 */
+extern function pipeline_driver_asm_build_skip_typeck(): i32;
+/** asm -o：C typeck 预检通过后 runtime 置位，避免重复跑 .x typeck（与 env SKIP 正交）。 */
+extern function pipeline_driver_x_pipeline_skip_typeck(): i32;
+
+/**
+ * 单模块 asm -o 是否跳过 .x typeck：runtime 预检后 skip 标志优先；build_shux_asm env SKIP 次之。
+ */
+function pipeline_should_skip_x_typeck(ctx: *PipelineDepCtx): i32 {
+  if (pipeline_driver_x_pipeline_skip_typeck() != 0) {
+    return 1;
+  }
+  if (pipeline_dep_ctx_asm_entry_module_only(ctx) == 0) {
+    return 0;
+  }
+  if (pipeline_driver_asm_build_skip_typeck() != 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/* codegen.x 的 -E-extern 生成 C 时不自动扫描间接调用，以下显式声明 pipeline 内调用的外部函数。 */
+extern function parser_parse_one_function_ok_for_pipeline_buf_glue(arena: *ASTArena, data: *u8, len: i32): i32;
+extern function ast_ast_arena_init(arena: *ASTArena): void;
+extern function asm_asm_codegen_ast(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32;
+/** 将 lib_root[i] 清零写入 dst[256]；返回 root 路径长度（pipeline_glue.c）。 */
+extern function pipeline_copy_lib_root_to_buf256(ctx: *PipelineDepCtx, lib_idx: i32, dst: *u8): i32;
+/** 指针版预处理（与 driver/emit.x 一致）；避免 ctx 大数组按值传入 preprocess_x_buf 导致 parse skip。 */
+extern function preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8, out_cap: i32): i32;
+/** path_buf / entry_dir 经 C glue，避免 *PipelineDepCtx 形参 FIELD+INDEX 在 asm emit/typeck 失败。 */
+extern function pipeline_dep_ctx_set_path_buf_byte(ctx: *PipelineDepCtx, off: i32, b: u8): void;
+extern function pipeline_dep_ctx_path_buf_ptr(ctx: *PipelineDepCtx): *u8;
+extern function pipeline_dep_ctx_entry_dir_len(ctx: *PipelineDepCtx): i32;
+extern function pipeline_dep_ctx_entry_dir_copy(ctx: *PipelineDepCtx, dst: *u8, cap: i32): void;
+extern function pipeline_dep_ctx_asm_entry_module_only(ctx: *PipelineDepCtx): i32;
+/** ctx.use_asm_backend 非 0 时走 asm codegen（ast_pool.c glue 读）。 */
+extern function pipeline_dep_ctx_use_asm_backend(ctx: *PipelineDepCtx): i32;
+/** read_file_x X emit：loaded_buf 指针与长度写入（pipeline_glue.c / ast_pool.c）。 */
+extern function pipeline_dep_ctx_loaded_buf_ptr(ctx: *PipelineDepCtx): *u8;
+extern function pipeline_dep_ctx_set_loaded_len(ctx: *PipelineDepCtx, n: isize): void;
+/** lib_root 个数；resolve_path_x 遍历用（ast.x 亦声明，此处显式 extern 供 -E-extern 瘦 TU）。 */
+extern function pipeline_ctx_lib_root_count(ctx: *PipelineDepCtx): i32;
+/** 与 emit.x 一致：直调 fs.c read/close，避免 fs_read 包装层 emit 嵌套实参。 */
+extern function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
+extern function fs_posix_close_c(fd: i32): i32;
+/** run_x_pipeline_impl EMIT_HEAVY：if(CALL) 可 emit；let init CALL 失败时用 last_rc_get 取返回值。 */
+extern function run_x_pipeline_last_rc_get(): i32;
+extern function run_x_pipeline_last_rc_store_c(rc: i32): void;
+extern function pipeline_typeck_fail_return_c(fail_mapped: i32): i32;
+extern function pipeline_typeck_null_fail_return_c(fail_mapped: i32): i32;
+extern function run_x_pipeline_load_deps_after_parse_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
+extern function run_x_pipeline_typecheck_after_load_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
+
+/** module main 下标读写（ast_pool.c；避免 X 直写字段在 asm emit 撕裂）。 */
+extern function pipeline_module_set_main_func_index(module: *Module, main_idx: i32): void;
+extern function pipeline_module_main_func_index(module: *Module): i32;
+
+/** arena.num_types glue 读（LSP parse fail 诊断）。 */
+extern function pipeline_arena_num_types(arena: *ASTArena): i32;
+
+/** parse scalars sidecar（勿局部 ParseIntoResult 按值，EMIT_HEAVY SIGSEGV）。 */
+extern function pipeline_parse_into_with_init_buf_scalars_sidecar(arena: *ASTArena, module: *Module, data: *u8, len: i32): i32;
+extern function pipeline_parse_scalars_ok_get(): i32;
+extern function pipeline_parse_scalars_main_idx_get(): i32;
+/** parse 失败诊断 / ParseIntoResult 构造（C glue；勿 X 多实参/按值 return）。 */
+extern function pipeline_parse_fail_diag_scalars_c(module: *Module, arena: *ASTArena): void;
+extern function pipeline_parse_apply_main_from_scalars_c(module: *Module, arena: *ASTArena): i32;
+extern function pipeline_parse_set_main_from_buf_c(module: *Module, arena: *ASTArena, data: *u8, len: i32): i32;
+extern function pipeline_typeck_parsed_module_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, fail_mapped: i32): i32;
+extern function pipeline_typeck_entry_module_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
+extern function pipeline_typeck_after_parse_ok_buf_impl_c(arena: *ASTArena, module: *Module, data: *u8, len: i32, ctx: *PipelineDepCtx): i32;
+extern function pipeline_load_import_resolve_read_c(module: *Module, ctx: *PipelineDepCtx, import_idx: i32): i32;
+extern function pipeline_load_import_from_disk_impl_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32;
+extern function pipeline_load_one_import_slot_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32;
+extern function pipeline_sync_dep_slots_from_driver_impl_c(module: *Module, ctx: *PipelineDepCtx): i32;
+extern function pipeline_dep_ctx_realign_ndep_for_entry_c(module: *Module, ctx: *PipelineDepCtx): void;
+extern function pipeline_load_and_sync_direct_import_deps_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
+extern function lsp_diag_typeck_after_load_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
+extern function lsp_diag_parse_typeck_buf_c(module: *Module, arena: *ASTArena, source_data: *u8, source_len: i32, ctx: *PipelineDepCtx): i32;
+extern function pipeline_parse_into_with_init_result_c(): ParseIntoResult;
+/** buf parse_into：C impl（勿 X struct return / sidecar EMIT_HEAVY SIGSEGV）。 */
+extern function pipeline_parse_into_with_init_buf_impl_c(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult;
+/** entry parse 重活已 X emit（pipeline_parse_set_main_from_buf + 诊断）；C glue 保留 strict 回退。 */
+extern function run_x_pipeline_parse_entry_do_parse_c(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32;
+extern function run_x_pipeline_parse_entry_if_needed_c(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32;
+extern function run_x_pipeline_typecheck_entry_emit_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
+extern function run_x_pipeline_fill_dep_import_path_c(module: *Module, ctx: *PipelineDepCtx, dep_j: i32): i32;
+/** dep 路径 buf 写入 import_path；C glue（X u8[64] 栈后单点 set）。 */
+extern function pipeline_fill_dep_import_path_from_buf_c(ctx: *PipelineDepCtx, dep_j: i32, path_buf: *u8): i32;
+/** 扫描 buf64 后 resolve_path_x；C glue（避免 let len = CALL）。 */
+extern function pipeline_resolve_path_x_from_buf64_c(ctx: *PipelineDepCtx, path_buf: *u8): i32;
+extern function pipeline_prepare_dep_codegen_path_c(ctx: *PipelineDepCtx, dep_j: i32, dst: *u8): i32;
+extern function pipeline_finish_dep_codegen_diag_c(dep_j: i32, out_buf: *CodegenOutBuf): i32;
+extern function run_x_pipeline_codegen_one_dep_prepare_c(ctx: *PipelineDepCtx, dep_j: i32): i32;
+/** 有界 while continue 探测（裸 CALL 条件；勿 CALL==0 比较 emit 失败）。 */
+extern function pipeline_loop_should_continue_ndep_c(ctx: *PipelineDepCtx, idx: i32): i32;
+extern function pipeline_loop_should_continue_imports_c(module: *Module, idx: i32): i32;
+/** lib_root 有界循环：idx < lib_root_count 时返回 1（resolve_path_x while 用）。 */
+extern function pipeline_loop_should_continue_lib_root_c(ctx: *PipelineDepCtx, idx: i32): i32;
+/** resolve path off sidecar（C glue 写入；X probe 实参内联 get）。 */
+extern function pipeline_resolve_path_last_off_get_c(): i32;
+extern function pipeline_resolve_path_lib_root_prefix_off_c(ctx: *PipelineDepCtx, lib_idx: i32): i32;
+extern function pipeline_path_append_import_path_sidecar_c(ctx: *PipelineDepCtx, off: i32, import_path: *u8, path_len: i32): i32;
+extern function pipeline_resolve_path_entry_dir_prefix_off_c(ctx: *PipelineDepCtx): i32;
+extern function pipeline_flat_import_build_path_c(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32;
+extern function pipeline_flat_import_probe_open_c(ctx: *PipelineDepCtx): i32;
+/** 有界 while exit 探测（legacy；prefer should_continue）。 */
+extern function pipeline_loop_index_at_or_beyond_ndep_c(ctx: *PipelineDepCtx, idx: i32): i32;
+extern function pipeline_loop_index_at_or_beyond_imports_c(module: *Module, idx: i32): i32;
+extern function pipeline_load_and_sync_set_ndep_from_module_c(module: *Module, ctx: *PipelineDepCtx): void;
+extern function run_x_pipeline_codegen_deps_c(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, skip_asm_dep_codegen: i32): i32;
+extern function run_x_pipeline_codegen_entry_c(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32;
+
+/** strict 链 entry parse 前 reset（ast_pool.c）；勿与 parser_parse_into_init 叠加（runtime 预 init → body_ref=0）。 */
+extern function pipeline_strict_parse_into_init(arena: *ASTArena, module: *Module): void;
+
+/** 将 (buf, buf_len) 传入 parser.parse_into_buf；EMIT_HEAVY 走 C glue（勿 struct let init）。 */
+extern function parser_parse_into_init(module: *Module, arena: *ASTArena): void;
+extern function parser_parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult;
+extern function pipeline_parse_into_buf_c(arena: *ASTArena, module: *Module, buf: *u8, buf_len: i32): i32;
+
+function pipeline_parse_into_buf(arena: *ASTArena, module: *Module, buf: *u8, buf_len: i32): i32 {
+  return pipeline_parse_into_buf_c(arena, module, buf, buf_len);
+}
+
+/** path_buf 追加：C glue（*u8 while INDEX emit 仍失败，勿 X 真 emit）。 */
+extern function pipeline_path_append_from_buf_256_c(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32;
+extern function pipeline_path_append_from_buf_512_c(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32;
+extern function pipeline_path_append_import_path_c(ctx: *PipelineDepCtx, off: i32, import_path: *u8, path_len: i32): i32;
+
+/** 6.1：将 buf[0..len-1] 复制到 ctx.path_buf[off..]，返回新 off。 */
+function path_append_from_buf_256(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32 {
+  return pipeline_path_append_from_buf_256_c(ctx, off, buf, len);
+}
+
+/** 6.1：同 path_append_from_buf_256，用于 entry_dir 缓冲。 */
+function path_append_from_buf_512(ctx: *PipelineDepCtx, off: i32, buf: *u8, len: i32): i32 {
+  return pipeline_path_append_from_buf_512_c(ctx, off, buf, len);
+}
+
+/** 6.1：将 import_path 中 '.' 换为 '/' 追加到 ctx.path_buf[off..]，返回新 off。 */
+function path_append_import_path(ctx: *PipelineDepCtx, off: i32, import_path: *u8, path_len: i32): i32 {
+  return pipeline_path_append_import_path_c(ctx, off, import_path, path_len);
+}
+
+/** import 路径是否含 '.'；*u8 形参（仅简单 while，可尝试 X emit）。 */
+function resolve_path_import_has_dot(import_path: *u8, path_len: i32): i32 {
+  if (import_path == 0 as *u8 || path_len <= 0) {
+    return 0;
+  }
+  let k: i32 = 0;
+  while (k < path_len && k < 64) {
+    if (import_path[k] == 46 as u8) {
+      return 1;
+    }
+    k = k + 1;
+  }
+  return 0;
+}
+
+/**
+ * 在 ctx.path_buf 已写入路径前缀后，于 off 处尝试追加 `.x` 与 `/mod.x` 并 fs_open_read 探测。
+ */
+extern function pipeline_resolve_path_probe_export_c(ctx: *PipelineDepCtx, off: i32): i32;
+
+function resolve_path_probe_dot_x_and_mod(ctx: *PipelineDepCtx, off: i32): i32 {
+  return pipeline_resolve_path_probe_export_c(ctx, off);
+}
+
+/**
+ * 单段 import（无 '.'）在 lib_root 下再试 lib_root/name/name.x；EMIT_HEAVY X 真 emit。
+ */
+function resolve_path_try_flat_import_under_lib(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
+    return -1;
+  }
+  if (pipeline_flat_import_build_path_c(ctx, lib_idx, import_path, path_len) != 0) {
+    return -1;
+  }
+  if (pipeline_flat_import_probe_open_c(ctx) == 0) {
+    return 0;
+  }
+  return -1;
+}
+
+/** 在单个 lib_root 下拼接 import 并探测 .x / mod.x / 扁平单段路径；EMIT_HEAVY X 真 emit。 */
+function resolve_path_try_one_lib_root(ctx: *PipelineDepCtx, lib_idx: i32, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *PipelineDepCtx || lib_idx < 0) {
+    return -1;
+  }
+  if (pipeline_resolve_path_lib_root_prefix_off_c(ctx, lib_idx) < 0) {
+    return -1;
+  }
+  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
+    return -1;
+  }
+  if (resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c()) == 0) {
+    return 0;
+  }
+  if (path_len > 0 && path_len < 64 && resolve_path_import_has_dot(import_path, path_len) == 0) {
+    if (resolve_path_try_flat_import_under_lib(ctx, lib_idx, import_path, path_len) == 0) {
+      return 0;
+    }
+  }
+  return -1;
+}
+
+/** 在 entry_dir 下拼接单段 import 并探测 .x / mod.x；EMIT_HEAVY X 真 emit。 */
+function resolve_path_try_entry_dir(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *PipelineDepCtx) {
+    return -1;
+  }
+  if (pipeline_dep_ctx_entry_dir_len(ctx) <= 0 || resolve_path_import_has_dot(import_path, path_len) != 0) {
+    return -1;
+  }
+  if (pipeline_resolve_path_entry_dir_prefix_off_c(ctx) < 0) {
+    return -1;
+  }
+  if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {
+    return -1;
+  }
+  return resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c());
+}
+
+/** 6.1：按 lib_roots 与 entry_dir 解析 import 路径到 ctx.path_buf；EMIT_HEAVY X 真 emit。 */
+function resolve_path_x(ctx: *PipelineDepCtx, import_path: *u8, path_len: i32): i32 {
+  if (ctx == 0 as *PipelineDepCtx || path_len <= 0) {
+    return -1;
+  }
+  let lib_i: i32 = 0;
+  while (1 == 1) {
+    if (pipeline_loop_should_continue_lib_root_c(ctx, lib_i) == 0) {
+      break;
+    }
+    if (resolve_path_try_one_lib_root(ctx, lib_i, import_path, path_len) == 0) {
+      return 0;
+    }
+    lib_i = lib_i + 1;
+  }
+  if (resolve_path_try_entry_dir(ctx, import_path, path_len) == 0) {
+    return 0;
+  }
+  return -1;
+}
+
+/** loaded_buf 容量（4MiB）；独立 helper 避免 read_file_x emit 大常数实参。 */
+function pipeline_loaded_buf_cap(): usize {
+  return 4194304 as usize;
+}
+
+/**
+ * 已 open 的 fd 读入 ctx.loaded_buf 并写 loaded_len；C glue 单点 fs read（emit 嵌套实参易 SIGSEGV）。
+ * 返回 0 成功，-1 失败；不关 fd。
+ */
+extern function pipeline_read_fd_into_loaded_buf(ctx: *PipelineDepCtx, fd: i32): i32;
+/** import 路径拷贝（parser_x.o / link alias 提供）。 */
+extern function parser_copy_module_import_path64(module: *Module, i: i32, out: *u8): i32;
+/** entry module import 个数；load_and_sync 循环用。 */
+extern function parser_get_module_num_imports(module: *Module): i32;
+extern function pipeline_dep_ctx_preprocess_buf_ptr(ctx: *PipelineDepCtx): *u8;
+extern function pipeline_dep_ctx_preprocess_len_get(ctx: *PipelineDepCtx): i32;
+extern function pipeline_dep_ctx_arena_at(ctx: *PipelineDepCtx, idx: i32): *ASTArena;
+extern function pipeline_dep_ctx_module_at(ctx: *PipelineDepCtx, idx: i32): *Module;
+extern function pipeline_dep_ctx_ndep(ctx: *PipelineDepCtx): i32;
+extern function pipeline_dep_ctx_set_ndep(ctx: *PipelineDepCtx, n: i32): void;
+extern function pipeline_dep_ctx_import_path_len(ctx: *PipelineDepCtx, idx: i32): i32;
+extern function pipeline_dep_ctx_set_import_path(ctx: *PipelineDepCtx, idx: i32, bytes: *u8, len: i32): void;
+extern function pipeline_dep_ctx_import_path_copy64(ctx: *PipelineDepCtx, idx: i32, dst: *u8): void;
+/** typeck 入口（typeck.x / typeck_x.o）；typeck_after_parse_ok X 编排调用。 */
+extern function typeck_typeck_x_ast(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
+extern function typeck_typeck_x_ast_library(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
+/** WPO-S3：post-typeck 全模块 struct 栈指针逃逸扫描（C glue；X inline hook 可被 WPO DCE）。 */
+extern function pipeline_typeck_scan_module_struct_stack_escape_c(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32;
+/** typeck：direct deps 装载后与 entry 合并 struct layout。 */
+extern function typeck_typeck_merge_dep_struct_layouts_into_entry(mod: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): void;
+/** DOD-S3：merge 后 WPO 跨模块 SoA layout 统一。 */
+extern function typeck_typeck_wpo_unify_soa_layouts(entry: *Module, ctx: *PipelineDepCtx): void;
+/** preprocess/bind 单点 C glue（避免 X FIELD_ACCESS + 指针 cast SIGSEGV）。 */
+extern function pipeline_preprocess_loaded_into_ctx(ctx: *PipelineDepCtx): i32;
+extern function pipeline_bind_import_dep_buffers(ctx: *PipelineDepCtx, import_idx: i32): void;
+
+/** read 编排：C glue（sys.os_read_file_into let-init CALL 在 EMIT_HEAVY 会 tear patch）。 */
+extern function pipeline_read_file_x_impl_c(ctx: *PipelineDepCtx): i32;
+
+/** 6.1：将 ctx.path_buf 指向的文件读入 ctx.loaded_buf。 */
+function read_file_x(ctx: *PipelineDepCtx): i32 {
+  return pipeline_read_file_x_impl_c(ctx);
+}
+
+/**
+ * 以 (data, len) 解析入口；C glue impl_c（勿 dispatch 回 X 递归）。
+ */
+function parse_into_with_init_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
+  return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
+}
+
+/**
+ * 读 sidecar ok/main_idx 写 module.main；C glue 薄包装（勿 assign CALL emit）。
+ */
+function pipeline_parse_apply_main_from_scalars(module: *Module, arena: *ASTArena): i32 {
+  return pipeline_parse_apply_main_from_scalars_c(module, arena);
+}
+
+/**
+ * buf 路径 parse + set_main；C glue 薄包装。
+ */
+/**
+ * buf 路径 parse + set_main；EMIT_HEAVY X 真 emit（parse_into_buf + sidecar main_idx）。
+ */
+function pipeline_parse_set_main_from_buf(module: *Module, arena: *ASTArena, data: *u8, len: i32): i32 {
+  return pipeline_parse_set_main_from_buf_c(module, arena, data, len);
+}
+
+/**
+ * 已对 module 设好 main_idx：按 library / 可执行分派 typeck_x_ast*；EMIT_HEAVY X 真 emit。
+ */
+function pipeline_typeck_parsed_module(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, fail_mapped: i32): i32 {
+  return pipeline_typeck_parsed_module_c(module, arena, ctx, fail_mapped);
+}
+
+/**
+ * 主流水线 entry typeck：library→parsed_module；可执行→typeck_x_ast；EMIT_HEAVY X 真 emit。
+ */
+function pipeline_typeck_entry_module(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
+  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+    return -1;
+  }
+  return pipeline_typeck_parsed_module(module, arena, ctx, 0);
+}
+
+/**
+ * 若 global_slot 或 import_idx 已由 driver seed，绑定 arena/module 槽并返回 1；未 seed 返回 0。
+ * 实现于 ast_pool.c（避免 X 指针 cast 在 M8 asm 真 emit 时宿主 SIGSEGV）。
+ */
+extern function pipeline_try_bind_seeded_import(ctx: *PipelineDepCtx, import_idx: i32, global_slot: i32): i32;
+
+/**
+ * 对单个 import 做 resolve + read；EMIT_HEAVY X 真 emit（path_buf 栈 + if(CALL!=0) return）。
+ */
+function pipeline_load_import_resolve_read(module: *Module, ctx: *PipelineDepCtx, import_idx: i32): i32 {
+  return pipeline_load_import_resolve_read_c(module, ctx, import_idx);
+}
+
+/**
+ * 对单个 import 做 resolve/read/preprocess/parse；EMIT_HEAVY X 真 emit。
+ * resolve/read 与 pipeline_load_import_resolve_read 同型；后续 preprocess/bind/parse 经 if(CALL!=0) return。
+ */
+function pipeline_load_import_from_disk(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32 {
+  return pipeline_load_import_from_disk_impl_c(module, arena, ctx, import_idx);
+}
+
+/**
+ * 装载单个 import 槽：已 seed 则 bind，否则 load_import_from_disk；EMIT_HEAVY X 真 emit。
+ */
+function pipeline_load_one_import_slot(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx, import_idx: i32): i32 {
+  return pipeline_load_one_import_slot_c(module, arena, ctx, import_idx);
+}
+
+/** 将单个 dep 槽与 driver 全局 seed 槽对齐；实现于 ast_pool.c（指针 cast C glue）。 */
+extern function pipeline_sync_one_dep_slot(module: *Module, ctx: *PipelineDepCtx, dep_i: i32): i32;
+
+/**
+ * 将 ctx 各 dep 槽与 driver 全局 seed 槽对齐；EMIT_HEAVY X 真 emit。
+ * 有界循环：while(1==1)+if(CALL==0) break（与 std/cli/mod.x 同型，勿 CALL 作 while 条件）。
+ */
+function pipeline_sync_dep_slots_from_driver(module: *Module, ctx: *PipelineDepCtx): i32 {
+  if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx) {
+    return -1;
+  }
+  let dep_sync_i: i32 = 0;
+  while (1 == 1) {
+    if (pipeline_loop_should_continue_ndep_c(ctx, dep_sync_i) == 0) {
+      break;
+    }
+    if (pipeline_sync_one_dep_slot(module, ctx, dep_sync_i) != 0) {
+      return -1;
+    }
+    dep_sync_i = dep_sync_i + 1;
+  }
+  return 0;
+}
+
+/**
+ * 按 entry module 的 import 列表装载 direct deps 并对齐 seed 槽；EMIT_HEAVY X 真 emit。
+ * import 循环：while(1==1)+if(CALL==0) break；sync/typeck merge 仍 if(CALL!=0) return。
+ */
+function pipeline_load_and_sync_direct_import_deps(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
+  return pipeline_load_and_sync_direct_import_deps_c(module, arena, ctx);
+}
+
+/** LSP：parse+set_main；与 pipeline_parse_set_main_from_buf 同路径（EMIT_HEAVY X emit）。 */
+function lsp_diag_parse_entry_buf(module: *Module, arena: *ASTArena, source_data: *u8, source_len: i32): i32 {
+  return pipeline_parse_set_main_from_buf(module, arena, source_data, source_len);
+}
+
+/**
+ * LSP：load/sync deps + typeck；EMIT_HEAVY X 真 emit。
+ */
+function lsp_diag_typeck_after_load(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
+  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+    return -1;
+  }
+  if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {
+    return -1;
+  }
+  if (run_x_pipeline_typecheck_entry(module, arena, ctx) != 0) {
+    return -3;
+  }
+  return 0;
+}
+
+/**
+ * LSP 诊断专用：parse + load deps + typeck；EMIT_HEAVY X 真 emit。
+ */
+function lsp_diag_parse_typeck_buf(module: *Module, arena: *ASTArena, source_data: *u8, source_len: i32, ctx: *PipelineDepCtx): i32 {
+  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx || source_data == 0 as *u8) {
+    return -1;
+  }
+  if (pipeline_parse_set_main_from_buf(module, arena, source_data, source_len) != 0) {
+    return -2;
+  }
+  if (lsp_diag_typeck_after_load(module, arena, ctx) != 0) {
+    return -3;
+  }
+  return 0;
+}
+
+/** C 诊断：parse 失败时打印 main_idx、num_funcs、arena_num_types（-1001 时便于确认 arena 是否已满）。由 runtime.c 实现。 */
+extern function driver_diagnostic_parse_fail(main_idx: i32, num_funcs: i32, arena_num_types: i32): void;
+/** C 诊断：.x 流水线 typeck 失败时打印一行「typeck error: …」，与 C 路径 stderr 形态一致；由 runtime.c 实现。 */
+extern function driver_diagnostic_typeck_fail(): void;
+/** C 诊断：codegen 前打印 module.num_funcs、out_buf.len，便于排查 -x -E 多文件 dep 产出为空。由 runtime.c 实现。 */
+extern function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): void;
+/** OBS-001：编译阶段耗时；phase 0=parse(+dep load) 1=typeck 2=codegen；SHUX_COMPILE_PHASE_TIMING=1 时 stderr 汇总。 */
+extern function driver_compile_phase_timing_begin(phase: i32): void;
+extern function driver_compile_phase_timing_end(phase: i32): void;
+extern function driver_compile_phase_timing_flush(): void;
+/** module.num_funcs glue 读（before_codegen 诊断用）。 */
+extern function pipeline_module_num_funcs(module: *Module): i32;
+/** 重置 CodegenOutBuf.len；避免 X emit 直接写 out_buf.len 字段。 */
+extern function codegen_out_buf_len(out_buf: *CodegenOutBuf): i32;
+extern function codegen_out_buf_set_len(out_buf: *CodegenOutBuf, n: i32): void;
+/** C 诊断：每个 dep codegen 后打印 j 与 out_buf.len，确认是否递增。由 runtime.c 实现。 */
+extern function driver_diagnostic_after_dep_codegen(j: i32, out_len: i32): void;
+extern function driver_diagnostic_codegen_fail(dep_index: i32, is_dep: i32): void;
+/** 非 0 时跳过 dep 0 的 codegen（-o 时 C 设，driver 由 io.o 提供）；用 extern 避免与 ctx 布局耦合。 */
+extern function driver_skip_codegen_dep_0_get(): i32;
+/** shux check：非 0 时 typeck 通过后直接返回，不跑 codegen/asm。 */
+extern function driver_check_only_get(): i32;
+/** asm -o 单模块：C 设 1 时 pipeline 仅 parse（+ 可选 skip typeck），勿 codegen_x_ast（大模块宿主栈风险）。 */
+extern function driver_x_pipeline_skip_codegen_get(): i32;
+/** 诊断：pipeline 入口打印 ctx.entry_already_parsed（非 0 则跳过解析）。由 runtime.c 实现。 */
+extern function driver_diagnostic_entry_already(v: i32): void;
+/** 诊断：解析前打印 source_len（0 表示无源码）。由 runtime.c 实现。 */
+extern function driver_diagnostic_source_len(len: i32): void;
+/** 诊断：entry 解析后打印 module.num_funcs（0 表示未解析）。由 runtime.c 实现。 */
+extern function driver_diagnostic_after_entry_parse(num_funcs: i32): void;
+/** 诊断：解析 entry 后打印 module 的 main body_ref，便于排查 main 空体。由 pipeline_glue.c 实现。 */
+extern function driver_diagnostic_entry_module(module: *Module, arena: *ASTArena): void;
+/** 设置当前 codegen 的 dep 路径，供 codegen 生成 C 符号前缀（如 std_io_driver_）；传 0 表示清除。由 runtime.c 实现。 */
+extern function driver_set_current_dep_path_for_codegen(path: *u8): void;
+extern function pipeline_dep_ctx_entry_already_parsed(ctx: *PipelineDepCtx): i32;
+
+/** dep/entry codegen emit 深栈；C glue（ast_pool.c）。 */
+extern function run_x_pipeline_codegen_one_dep_emit(dep_mod: *Module, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, dep_j: i32, skip_asm_dep_codegen: i32, use_asm_backend: i32): i32;
+extern function run_x_pipeline_codegen_entry_emit(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, use_asm_backend: i32): i32;
+
+/**
+ * entry 尚未解析：parse + set_main + 收尾诊断；EMIT_HEAVY X 真 emit（if(CALL) 勿 let init）。
+ */
+function run_x_pipeline_parse_entry_do_parse(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32 {
+  return run_x_pipeline_parse_entry_do_parse_c(module, arena, source_data, source_len, ctx);
+}
+
+/**
+ * 若 entry 尚未解析则 parse；EMIT_HEAVY X 真 emit（do_parse 仍 thin→C）。
+ */
+function run_x_pipeline_parse_entry_if_needed(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, ctx: *PipelineDepCtx): i32 {
+  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+    return -1;
+  }
+  driver_diagnostic_entry_already(pipeline_dep_ctx_entry_already_parsed(ctx));
+  if (pipeline_dep_ctx_entry_already_parsed(ctx) != 0) {
+    driver_diagnostic_after_entry_parse(pipeline_module_num_funcs(module));
+    driver_diagnostic_entry_module(module, arena);
+    return 0;
+  }
+  return run_x_pipeline_parse_entry_do_parse(module, arena, source_data, source_len, ctx);
+}
+
+/**
+ * parse 后 load/sync deps；EMIT_HEAVY X 真 emit（last_rc sidecar 与 impl 一致）。
+ */
+function run_x_pipeline_load_deps_after_parse(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
+  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+    run_x_pipeline_last_rc_store_c(-1);
+    return run_x_pipeline_last_rc_get();
+  }
+  if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {
+    run_x_pipeline_last_rc_store_c(-1);
+    return run_x_pipeline_last_rc_get();
+  }
+  run_x_pipeline_last_rc_store_c(0);
+  return 0;
+}
+
+/**
+ * load 后 typecheck entry；EMIT_HEAVY X 真 emit（last_rc sidecar 与 impl 一致）。
+ */
+function run_x_pipeline_typecheck_after_load(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
+  return run_x_pipeline_typecheck_after_load_c(module, arena, ctx);
+}
+
+/**
+ * entry typecheck：skip_typeck 时委托 C glue 分派（ERR-01 负例 -o）；否则走 X pipeline_typeck_entry_module。
+ */
+function run_x_pipeline_typecheck_entry(module: *Module, arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
+  if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
+    return -1;
+  }
+  if (pipeline_driver_x_pipeline_skip_typeck() != 0) {
+    return run_x_pipeline_typecheck_entry_emit_c(module, arena, ctx);
+  }
+  if (pipeline_should_skip_x_typeck(ctx) != 0) {
+    return 0;
+  }
+  return pipeline_typeck_entry_module(module, arena, ctx);
+}
+
+/**
+ * 若 dep 槽 import 路径为空则从 entry module 补全；EMIT_HEAVY X 真 emit。
+ */
+function run_x_pipeline_fill_dep_import_path(module: *Module, ctx: *PipelineDepCtx, dep_j: i32): i32 {
+  return run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
+}
+
+/**
+ * 对单个 dep 下标 j 做 codegen；EMIT_HEAVY X 真 emit（prepare C glue + if(CALL) emit）。
+ */
+function run_x_pipeline_codegen_one_dep(module: *Module, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, dep_j: i32, skip_asm_dep_codegen: i32): i32 {
+  if (module == 0 as *Module || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx || dep_j < 0) {
+    return -1;
+  }
+  if (dep_j == 0 && driver_skip_codegen_dep_0_get() != 0) {
+    return 0;
+  }
+  if (run_x_pipeline_fill_dep_import_path(module, ctx, dep_j) != 0) {
+    return -1;
+  }
+  if (run_x_pipeline_codegen_one_dep_prepare_c(ctx, dep_j) != 0) {
+    return -1;
+  }
+  /** EMIT_HEAVY：实参内联 module_at / use_asm；勿 let dep_mod / let emit_rc。 */
+  if (run_x_pipeline_codegen_one_dep_emit(pipeline_dep_ctx_module_at(ctx, dep_j), out_buf, ctx, dep_j, skip_asm_dep_codegen, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {
+    driver_diagnostic_codegen_fail(dep_j, 1);
+    return -6;
+  }
+  pipeline_finish_dep_codegen_diag(dep_j, out_buf);
+  return 0;
+}
+
+/**
+ * 对 ctx 中各 dep 做 codegen；EMIT_HEAVY X 真 emit。
+ * 有界循环：while(1==1)+if(CALL==0) break（与 sync / std/cli/mod.x 同型）。
+ */
+function run_x_pipeline_codegen_deps(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx, skip_asm_dep_codegen: i32): i32 {
+  if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+    return -1;
+  }
+  let dep_codegen_i: i32 = 0;
+  while (1 == 1) {
+    if (pipeline_loop_should_continue_ndep_c(ctx, dep_codegen_i) == 0) {
+      break;
+    }
+    if (run_x_pipeline_codegen_one_dep(module, out_buf, ctx, dep_codegen_i, skip_asm_dep_codegen) != 0) {
+      return -6;
+    }
+    dep_codegen_i = dep_codegen_i + 1;
+  }
+  return 0;
+}
+
+/**
+ * 复制 dep import 路径到 dst 并设置 codegen 符号前缀；EMIT_HEAVY X 真 emit。
+ */
+function pipeline_prepare_dep_codegen_path(ctx: *PipelineDepCtx, dep_j: i32, dst: *u8): i32 {
+  pipeline_dep_ctx_import_path_copy64(ctx, dep_j, dst);
+  driver_set_current_dep_path_for_codegen(dst);
+  return 0;
+}
+
+/** dep 单模块 codegen 后清理路径前缀并打诊断；EMIT_HEAVY X 真 emit。 */
+function pipeline_finish_dep_codegen_diag(dep_j: i32, out_buf: *CodegenOutBuf): i32 {
+  driver_diagnostic_after_dep_codegen(dep_j, codegen_out_buf_len(out_buf));
+  driver_set_current_dep_path_for_codegen(0 as *u8);
+  return 0;
+}
+
+/**
+ * 对 entry module 做最终 codegen；EMIT_HEAVY X 真 emit。
+ */
+function run_x_pipeline_codegen_entry(module: *Module, arena: *ASTArena, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
+  if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+    return -1;
+  }
+  driver_diagnostic_entry_module(module, arena);
+  /** EMIT_HEAVY：use_asm/emit 实参内联；勿 let init CALL。 */
+  if (run_x_pipeline_codegen_entry_emit(module, arena, out_buf, ctx, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {
+    driver_diagnostic_codegen_fail(0, 0);
+    return -6;
+  }
+  return 0;
+}
+
+/**
+ * 完整 .x 流水线：parse → load/sync deps → typeck → codegen；EMIT_HEAVY X 编排。
+ * parse/typecheck 薄编排 X 真 emit；parse emit/typeck mega 仍 ast_pool C glue。
+ */
+function run_x_pipeline_impl(module: *Module, arena: *ASTArena, source_data: *u8, source_len: usize, out_buf: *CodegenOutBuf, ctx: *PipelineDepCtx): i32 {
+  if (module == 0 as *Module || arena == 0 as *ASTArena || out_buf == 0 as *CodegenOutBuf || ctx == 0 as *PipelineDepCtx) {
+    return -1;
+  }
+  driver_compile_phase_timing_begin(0);
+  if (run_x_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {
+    driver_compile_phase_timing_end(0);
+    driver_compile_phase_timing_flush();
+    return -2;
+  }
+  /** EMIT_HEAVY：load/typecheck 走 if(CALL!=0)+last_rc_get；勿 let init CALL（ko=48 tear patch）。 */
+  if (run_x_pipeline_load_deps_after_parse(module, arena, ctx) != 0) {
+    driver_compile_phase_timing_end(0);
+    driver_compile_phase_timing_flush();
+    return run_x_pipeline_last_rc_get();
+  }
+  driver_compile_phase_timing_end(0);
+  driver_compile_phase_timing_begin(1);
+  if (run_x_pipeline_typecheck_after_load(module, arena, ctx) != 0) {
+    driver_compile_phase_timing_end(1);
+    driver_compile_phase_timing_flush();
+    return run_x_pipeline_last_rc_get();
+  }
+  driver_compile_phase_timing_end(1);
+  if (driver_check_only_get() != 0) {
+    driver_compile_phase_timing_flush();
+    return 0;
+  }
+  if (driver_x_pipeline_skip_codegen_get() != 0) {
+    driver_compile_phase_timing_flush();
+    return 0;
+  }
+  codegen_out_buf_set_len(out_buf, 0);
+  driver_diagnostic_before_codegen(pipeline_module_num_funcs(module), 0);
+  driver_compile_phase_timing_begin(2);
+  /** EMIT_HEAVY：勿 skip_asm 局部 assign（EXPR_ASSIGN kind=28 emit 失败）；实参内联 CALL。 */
+  if (run_x_pipeline_codegen_deps(module, arena, out_buf, ctx, pipeline_dep_ctx_asm_entry_module_only(ctx)) != 0) {
+    driver_compile_phase_timing_end(2);
+    driver_compile_phase_timing_flush();
+    return -6;
+  }
+  if (run_x_pipeline_codegen_entry(module, arena, out_buf, ctx) != 0) {
+    driver_compile_phase_timing_end(2);
+    driver_compile_phase_timing_flush();
+    return -6;
+  }
+  driver_compile_phase_timing_end(2);
+  driver_compile_phase_timing_flush();
+  return 0;
+}

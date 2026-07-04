@@ -22,7 +22,7 @@ async function* walk(dir: string): AsyncGenerator<string> {
       yield* walk(path);
       continue;
     }
-    if (entry.isFile && path.endsWith(".sx")) {
+    if (entry.isFile && path.endsWith(".x")) {
       yield path;
     }
   }

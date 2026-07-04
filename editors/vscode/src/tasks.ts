@@ -7,7 +7,7 @@
  * - shux run <file>   (运行当前文件)
  * - shux --lsp        (启动语言服务器)
  *
- * 同时提供 file-watch 任务（保存 .sx 时自动 check/lint）。
+ * 同时提供 file-watch 任务（保存 .x 时自动 check/lint）。
  */
 
 import * as vscode from 'vscode';

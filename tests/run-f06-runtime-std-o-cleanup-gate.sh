@@ -49,8 +49,8 @@ if grep -qE 'cc .*-c.*std/(fs|io|heap)/' "$BUILD_ASM" 2>/dev/null; then
   die "build_shux_asm.sh still cc -c std/fs|io|heap"
 fi
 
-grep -q $'compress\tstd_sx\tshux_std_compress_o_path' "$BOOT_TSV" \
-  || die "boot-std-link-contract.tsv compress not std_sx"
+grep -q $'compress\tstd_x\tshux_std_compress_o_path' "$BOOT_TSV" \
+  || die "boot-std-link-contract.tsv compress not std_x"
 
 STAGE2="compiler/verify-selfhost-stage2.sh"
 [ -f "$STAGE2" ] || die "missing $STAGE2"

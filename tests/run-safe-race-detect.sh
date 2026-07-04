@@ -52,7 +52,7 @@ else
     case "$kind" in
       case)
         echo "── $item_id ($src) ──"
-        if safe_race_run_sx "$SHUX_BIN" "$src" "$item_id"; then
+        if safe_race_run_x "$SHUX_BIN" "$src" "$item_id"; then
           CASES_OK=$((CASES_OK + 1))
         else
           CASES_FAIL=$((CASES_FAIL + 1))

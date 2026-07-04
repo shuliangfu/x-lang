@@ -6,11 +6,11 @@ kw_async79	keyword	await_read_fd	docs07	#79 std.async
 kw_dt80	keyword	timezone_iana	docs07	#80 std.datetime
 kw_cmp81	keyword	format_brotli	docs07	#81 std.compress
 kw_sql82	keyword	row_col_blob_read	docs07	#82 std.db.sqlite
-recipe_async4	recipe	examples/cookbook/async_net_fs.sx	cookbook	ASYNC-04
-recipe_dt1	recipe	examples/cookbook/datetime_iana.sx	cookbook	DT-01
-recipe_cmp2	recipe	examples/cookbook/compress_stream_br_zs.sx	cookbook	CMP-02
-recipe_db2	recipe	examples/cookbook/sqlite_blob_stream.sx	cookbook	DB-02
-recipe_db3	recipe	examples/cookbook/db_kv_arrow.sx	cookbook	DB-03
+recipe_async4	recipe	examples/cookbook/async_net_fs.x	cookbook	ASYNC-04
+recipe_dt1	recipe	examples/cookbook/datetime_iana.x	cookbook	DT-01
+recipe_cmp2	recipe	examples/cookbook/compress_stream_br_zs.x	cookbook	CMP-02
+recipe_db2	recipe	examples/cookbook/sqlite_blob_stream.x	cookbook	DB-02
+recipe_db3	recipe	examples/cookbook/db_kv_arrow.x	cookbook	DB-03
 doc07_file	file	docs/07-内置与标准库.md	docs07	用户文档
 cookbook_doc	file	analysis/doc-cookbook-expand-v1.md	cookbook	§17
 gate	script	run-doc-07-phase3-sync-gate.sh	tests/run-doc-07-phase3-sync-gate.sh	gate

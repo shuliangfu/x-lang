@@ -1,5 +1,5 @@
-# F-04 v17 std.crypto aes_gcm.inc.c → aes_gcm.sx manifest
+# F-04 v17 std.crypto aes_gcm.inc.c → aes_gcm.x manifest
 # 列：item_id	kind	anchor	mod_path	notes
-symbol_aes_seal	symbol	crypto_aes_gcm_seal_c	std/crypto/aes_gcm.sx	AEAD seal
-symbol_aes_open	symbol	crypto_aes_gcm_open_c	std/crypto/aes_gcm.sx	AEAD open
+symbol_aes_seal	symbol	crypto_aes_gcm_seal_c	std/crypto/aes_gcm.x	AEAD seal
+symbol_aes_open	symbol	crypto_aes_gcm_open_c	std/crypto/aes_gcm.x	AEAD open
 absent_inc	absent	std/crypto/aes_gcm.inc.c	删除 inc.c

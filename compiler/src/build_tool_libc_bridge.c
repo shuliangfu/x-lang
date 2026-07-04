@@ -1,14 +1,14 @@
 /**
  * build_tool_libc_bridge.c — build_tool 宿主 libc 桥（G-05）
  *
- * .sx 侧以 *u8 传命令行；若直接在 .sx 中 extern system/fopen 等，Darwin 上
+ * .x 侧以 *u8 传命令行；若直接在 .x 中 extern system/fopen 等，Darwin 上
  * 与 stdlib 头文件类型冲突。本 TU 提供 build_exec_system 等 C 签名包装。
  */
 #include <stdlib.h>
 #include <string.h>
 
 /**
- * 执行 shell 命令；cmd 为 NUL 结尾字节串（与 build_runtime_sx.sx 一致）。
+ * 执行 shell 命令；cmd 为 NUL 结尾字节串（与 build_runtime_x.x 一致）。
  * 返回 system(3) 状态，失败时由调用方判非零。
  */
 int build_exec_system(const char *cmd) {

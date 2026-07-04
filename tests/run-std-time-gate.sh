@@ -2,7 +2,7 @@
 # STD-005：std.time 精度与时区 manifest 门禁
 #
 # 1) std-time-precision-v1.md + manifest
-# 2) mod.sx 13 API + time.c 平台实现
+# 2) mod.x 13 API + time.c 平台实现
 # 3) native shux：precision_smoke + main 烟测
 #
 # 用法：./tests/run-std-time-gate.sh
@@ -11,9 +11,9 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_TIME_DOC:-analysis/std-time-precision-v1.md}"
 MANIFEST="${SHUX_STD_TIME_MANIFEST:-tests/baseline/std-time-manifest.tsv}"
-MOD_SX="${SHUX_STD_TIME_MOD:-std/time/mod.sx}"
+MOD_X="${SHUX_STD_TIME_MOD:-std/time/mod.x}"
 TIME_RUNTIME="compiler/src/asm/runtime_time_os.c"
-TIME_SX="std/time/time.sx"
+TIME_X="std/time/time.x"
 MIN_APIS=13
 
 # shellcheck source=tests/lib/std-time.sh
@@ -32,7 +32,7 @@ native_shu() {
 }
 
 echo "=== STD-005: std.time precision manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SX" "$TIME_RUNTIME" "$TIME_SX"; do
+for f in "$DOC" "$MANIFEST" "$MOD_X" "$TIME_RUNTIME" "$TIME_X"; do
   if [ ! -f "$f" ]; then
     echo "std-time gate FAIL: missing $f" >&2
     exit 1
@@ -61,8 +61,8 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
       ;;
     api)
       API_N=$((API_N + 1))
-      if ! std_time_has_api "$MOD_SX" "$anchor"; then
-        echo "std-time FAIL: missing API ${anchor} in $MOD_SX" >&2
+      if ! std_time_has_api "$MOD_X" "$anchor"; then
+        echo "std-time FAIL: missing API ${anchor} in $MOD_X" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
         echo "std-time FAIL: doc missing API $anchor" >&2
@@ -143,8 +143,8 @@ if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/time/time.o
   FAIL=0
-  for smoke in tests/time/main.sx tests/time/precision_smoke.sx; do
-    tag="$(basename "$smoke" .sx)"
+  for smoke in tests/time/main.x tests/time/precision_smoke.x; do
+    tag="$(basename "$smoke" .x)"
     if std_time_run_smoke "$SHUX_BIN" "$smoke" "$tag"; then
       echo "std-time smoke OK $tag"
     else

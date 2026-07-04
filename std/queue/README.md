@@ -1,6 +1,6 @@
 # std.queue — 双端队列（VecDeque）
 
-**路径**：`std/queue/`（mod.sx + queue.sx/queue_glue.c 胶层）  
+**路径**：`std/queue/`（mod.x + queue.x/queue_glue.c 胶层）  
 **依赖**：std.heap。对标 Rust VecDeque、Zig std.fifo。
 
 | API | 说明 |

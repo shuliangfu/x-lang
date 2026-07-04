@@ -1,0 +1,9 @@
+// async_function.x — P2：`async function` 语法烟测（暂等同普通 function，无 await）
+/** 异步修饰函数原型：当前 codegen 与普通 function 相同。 */
+async function ping(n: i32): i32 {
+  return n + 1;
+}
+
+function main(): i32 {
+  return ping(41);
+}

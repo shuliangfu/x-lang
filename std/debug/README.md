@@ -1,6 +1,6 @@
 # std.debug — 开发调试（stderr）
 
-**模块路径**：`std/debug/mod.sx`  
+**模块路径**：`std/debug/mod.x`  
 **依赖**：core.fmt、core.assert、std.io。  
 **对标**：Zig `std.debug`（print 写 stderr；assert 可从此 import）。
 
@@ -23,7 +23,7 @@
 
 ## 示例
 
-```sx
+```x
 const dbg = import("std.debug");
 
 function main(): i32 {

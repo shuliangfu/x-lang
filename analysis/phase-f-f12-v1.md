@@ -8,7 +8,7 @@
 |----|------|
 | SELFHOST §1.1 | D+E+F 定义 ✅ |
 | README | 自举表区分 Stage2 ✅ vs std 无 C 进度 |
-| `verify-selfhost*.sh` | 标题/注释改为「语义/Stage2 SX」 |
+| `verify-selfhost*.sh` | 标题/注释改为「语义/Stage2 X」 |
 | D-06 gate | 委托 `run-d06-selfhost-doc-gate.sh` |
 
 ## 门禁

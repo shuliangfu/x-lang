@@ -13,7 +13,7 @@
 | 1 | 读本文 §2 |
 | 2 | `tests/baseline/std-regex-atomic-manifest.tsv` |
 | 3 | `./tests/run-std-regex-atomic-gate.sh` |
-| 4 | 烟测：`tests/regex/atomic_match.sx` |
+| 4 | 烟测：`tests/regex/atomic_match.x` |
 
 ---
 
@@ -37,6 +37,6 @@
 ```
 
 ```
-shux: [SHUX_STD124_REGEX_ATOMIC] status=ok c=1 sx=1 skip=0
+shux: [SHUX_STD124_REGEX_ATOMIC] status=ok c=1 x=1 skip=0
 std-regex-atomic gate OK
 ```

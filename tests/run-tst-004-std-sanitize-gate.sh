@@ -17,7 +17,7 @@ MIN_CASES=2
 
 echo "=== TST-004: std sanitizer manifest ==="
 for f in "$DOC" "$MANIFEST" "$LIB" tests/run-tst-004-std-sanitize-nightly.sh \
-  tests/sanitize/std_heap_asan.sx tests/sanitize/std_channel_asan.sx; do
+  tests/sanitize/std_heap_asan.x tests/sanitize/std_channel_asan.x; do
   if [ ! -f "$f" ]; then
     echo "tst-004-sanitize gate FAIL: missing $f" >&2
     exit 1

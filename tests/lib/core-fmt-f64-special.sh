@@ -2,15 +2,15 @@
 # core-fmt-f64-special.sh — CORE-011：f64 NaN/Inf/精度 manifest 辅助
 #
 # 用法（source 后）：
-#   core_fmt_f64_special_symbols_ok FMT_SX STD_FMT_SX TSV
+#   core_fmt_f64_special_symbols_ok FMT_X STD_FMT_X TSV
 #   core_fmt_f64_special_emit_report status check_ok skip
 
 CORE_FMT_F64_SPECIAL_PREFIX="${SHUX_CORE_FMT_F64_SPECIAL_PREFIX:-shux: [SHUX_CORE_FMT_F64_SPECIAL]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_fmt_f64_special_symbols_ok() {
-  local fmt_sx="$1"
-  local std_fmt_sx="$2"
+  local fmt_x="$1"
+  local std_fmt_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -19,11 +19,11 @@ core_fmt_f64_special_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       symbol)
-        local target="${mod_path:-$fmt_sx}"
+        local target="${mod_path:-$fmt_x}"
         if [ "$item_id" = "std_reexport" ]; then
-          target="$std_fmt_sx"
-        elif [ -z "$mod_path" ] || [ "$mod_path" = "core/fmt/mod.sx" ]; then
-          target="$fmt_sx"
+          target="$std_fmt_x"
+        elif [ -z "$mod_path" ] || [ "$mod_path" = "core/fmt/mod.x" ]; then
+          target="$fmt_x"
         fi
         if ! grep -qF "$anchor" "$target" 2>/dev/null; then
           echo "core-fmt-f64-special FAIL: missing '$anchor' in $target" >&2

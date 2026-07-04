@@ -1,7 +1,7 @@
 # LANG-008 lifetime diagnostic cases（行号定位矩阵）
 # 列：case_id	file	expect_substr	expect_line	notes
 # min_cases	4
-diag_escape_assign	region_assign_escape.sx	slice region escape	8	span wired at assign site
-diag_mismatch	region_mismatch.sx	slice region mismatch	6	y=x
-diag_return_escape	region_return_escape.sx	slice region escape	8	return s
-diag_call_escape	region_call_escape.sx	slice region escape	8	take_unbound(s)
+diag_escape_assign	region_assign_escape.x	slice region escape	8	span wired at assign site
+diag_mismatch	region_mismatch.x	slice region mismatch	6	y=x
+diag_return_escape	region_return_escape.x	slice region escape	8	return s
+diag_call_escape	region_call_escape.x	slice region escape	8	take_unbound(s)

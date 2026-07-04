@@ -3,20 +3,20 @@ min_apis	12
 read_path	section	## 1. 阅读路径	15min
 typed_api	section	## 2. 类型化 decode	object_decode
 verify	section	## 4. 验证与门禁	gate
-api_val_type	api	cursor_value_type	std/json/mod.sx	值种类
-api_dec_i32	api	decode_at	std/json/mod.sx	i32 解码
-api_dec_bool	api	decode_at	std/json/mod.sx	bool 解码
-api_dec_str	api	decode_string_at	std/json/mod.sx	string 解码
-api_obj_i32	api	object_decode	std/json/mod.sx	object 字段 i32
-api_obj_bool	api	object_decode	std/json/mod.sx	object 字段 bool
-api_obj_str	api	object_decode_string	std/json/mod.sx	object 字段 string
-api_obj_dot_i32	api	object_decode_dotted	std/json/mod.sx	点分 i32
-api_obj_dot_str	api	object_decode_dotted_string	std/json/mod.sx	点分 string
-api_obj_dot_bool	api	object_decode_dotted	std/json/mod.sx	点分 bool
-api_obj_dot_f64	api	object_decode_dotted	std/json/mod.sx	点分 f64
-api_smoke	api	typed_decode_smoke	std/json/mod.sx	C 烟测
-symbol_smoke_c	symbol	json_typed_decode_smoke_c	std/json/json.sx	C 烟测
+api_val_type	api	cursor_value_type	std/json/mod.x	值种类
+api_dec_i32	api	decode_at	std/json/mod.x	i32 解码
+api_dec_bool	api	decode_at	std/json/mod.x	bool 解码
+api_dec_str	api	decode_string_at	std/json/mod.x	string 解码
+api_obj_i32	api	object_decode	std/json/mod.x	object 字段 i32
+api_obj_bool	api	object_decode	std/json/mod.x	object 字段 bool
+api_obj_str	api	object_decode_string	std/json/mod.x	object 字段 string
+api_obj_dot_i32	api	object_decode_dotted	std/json/mod.x	点分 i32
+api_obj_dot_str	api	object_decode_dotted_string	std/json/mod.x	点分 string
+api_obj_dot_bool	api	object_decode_dotted	std/json/mod.x	点分 bool
+api_obj_dot_f64	api	object_decode_dotted	std/json/mod.x	点分 f64
+api_smoke	api	typed_decode_smoke	std/json/mod.x	C 烟测
+symbol_smoke_c	symbol	json_typed_decode_smoke_c	std/json/json.x	C 烟测
 vectors	vectors	tests/baseline/std-json-typed-decode-vectors.tsv	金样
 smoke_c	file	tests/json/typed_decode_smoke_ok.c	C 入口
-smoke_sx	smoke	tests/json/typed_decode.sx	.sx 烟测
+smoke_x	smoke	tests/json/typed_decode.x	.x 烟测
 gate	script	run-std-json-typed-decode-gate.sh	tests/run-std-json-typed-decode-gate.sh

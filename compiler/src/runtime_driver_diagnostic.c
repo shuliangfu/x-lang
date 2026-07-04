@@ -1,7 +1,7 @@
 /**
  * runtime_driver_diagnostic.c — pipeline/typeck/asm 诊断输出（Phase E-04 v34）
  *
- * 文件职责：driver_diagnostic_*、parser_diag_*、typeck 诊断 scratch；供 pipeline.sx / typeck.sx / backend.sx 链接。
+ * 文件职责：driver_diagnostic_*、parser_diag_*、typeck 诊断 scratch；供 pipeline.x / typeck.x / backend.x 链接。
  * 所属模块：compiler 运行时 driver 诊断；bootstrap driver seed 与 shux-c 均链入。
  * 与其它文件的关系：依赖 lsp_diag、runtime_driver_abi（check_only）；不依赖 C 前端头。
  */
@@ -31,7 +31,7 @@ static void driver_diag_report_prefixed(int32_t line, int32_t col, const char *m
     diag_report(NULL, (int)line, (int)col, NULL, msg ? msg : "", msg ? msg : "");
 }
 
-static void driver_diag_report_sx_pipeline_code(const char *code, const char *fmt, ...) {
+static void driver_diag_report_x_pipeline_code(const char *code, const char *fmt, ...) {
     va_list ap;
     char buf[256];
 
@@ -65,8 +65,8 @@ static int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src
 
 
 void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types) {
-    driver_diag_report_sx_pipeline_code("SXP001",
-                                        ".sx parse failed (main_idx=%d, num_funcs=%d, arena_num_types=%d)",
+    driver_diag_report_x_pipeline_code("XP001",
+                                        ".x parse failed (main_idx=%d, num_funcs=%d, arena_num_types=%d)",
                                         (int)main_idx, (int)num_funcs, (int)arena_num_types);
 }
 
@@ -110,20 +110,20 @@ void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_s
 }
 
 /**
- * .sx 流水线中 typeck_sx_ast / typeck_sx_ast_library 失败时打印一行 stderr。
- * 与 C 路径 lsp_diag_report_typeck 在 !lsp_diag_enabled 时的前缀一致，供 run-typeck.sh、check-7.2 等识别（.sx typeck 当前不向 stderr 逐条报原因）。
+ * .x 流水线中 typeck_x_ast / typeck_x_ast_library 失败时打印一行 stderr。
+ * 与 C 路径 lsp_diag_report_typeck 在 !lsp_diag_enabled 时的前缀一致，供 run-typeck.sh、check-7.2 等识别（.x typeck 当前不向 stderr 逐条报原因）。
  */
 void driver_diagnostic_typeck_fail(void) {
     /*
-     * .sx check/compile 失败前通常已由更具体的 typeck 诊断（例如 SXT001 或 lsp/typeck 细节）
-     * 说明根因；这里不再追加泛化摘要，避免用户面出现重复的 ".sx pipeline type check failed"。
+     * .x check/compile 失败前通常已由更具体的 typeck 诊断（例如 XT001 或 lsp/typeck 细节）
+     * 说明根因；这里不再追加泛化摘要，避免用户面出现重复的 ".x pipeline type check failed"。
      */
     (void)driver_check_only_get();
     (void)driver_check_diag_emitted_get();
 }
 
 /**
- * .sx typeck：标注失败函数（下标 + 名称）与失败类别；在 driver_diagnostic_typeck_fail 一行之前打印，便于定位大模块。
+ * .x typeck：标注失败函数（下标 + 名称）与失败类别；在 driver_diagnostic_typeck_fail 一行之前打印，便于定位大模块。
  * kind：5 = check_block 失败；-6 = 非 void 函数块末隐式尾表达式。
  */
 void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind) {
@@ -139,13 +139,13 @@ void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, i
     }
     if (lsp_diag_enabled) {
         char msg[240];
-        (void)snprintf(msg, sizeof(msg), ".sx type check failed in function #%d %s (%s)", (int)func_idx, namebuf, why);
-        lsp_diag_add_code(1, 1, 1, "SXT001", msg);
+        (void)snprintf(msg, sizeof(msg), ".x type check failed in function #%d %s (%s)", (int)func_idx, namebuf, why);
+        lsp_diag_add_code(1, 1, 1, "XT001", msg);
         return;
     }
     driver_check_diag_emitted_note();
-    diag_reportf_with_code(NULL, 0, 0, "typeck error", "SXT001", NULL,
-                           ".sx type check failed in function #%d %s (%s)", (int)func_idx, namebuf, why);
+    diag_reportf_with_code(NULL, 0, 0, "typeck error", "XT001", NULL,
+                           ".x type check failed in function #%d %s (%s)", (int)func_idx, namebuf, why);
     if (kind == -6) {
         driver_diag_report_prefixed(0, 0, "typeck error: return value must use explicit return statement (e.g. return 0;)");
     }
@@ -203,7 +203,7 @@ void driver_diagnostic_parser_onefunc_param_ref(const uint8_t *func_name, int32_
                  param_buf[0] ? param_buf : "?", (int)type_ref);
 }
 
-/** .sx typeck：`return expr` 表达式类型与函数返回类型不符；行文与 assignment type mismatch 对齐。 */
+/** .x typeck：`return expr` 表达式类型与函数返回类型不符；行文与 assignment type mismatch 对齐。 */
 void driver_diagnostic_typeck_return_mismatch(int32_t line, int32_t col,
                                                const uint8_t *expect_buf, int32_t expect_len,
                                                const uint8_t *found_buf, int32_t found_len) {
@@ -303,10 +303,10 @@ void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32_t col,
 }
 
 /**
- * .sx 流水线 typeck：赋值 / 复合赋值左右类型不符时打印一行 stderr，与 typeck.c 经 lsp_diag_report_typeck 的措辞一致，
+ * .x 流水线 typeck：赋值 / 复合赋值左右类型不符时打印一行 stderr，与 typeck.c 经 lsp_diag_report_typeck 的措辞一致，
  * 以便 run-typeck、负例与 shux-c 对齐（含 "assignment type mismatch: expected …, found …"）。
  */
-/** .sx typeck：break/continue 不在循环内时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
+/** .x typeck：break/continue 不在循环内时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
 void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break) {
     const char *kw = is_break ? "break" : "continue";
     lsp_diag_report_typeck((int)line, (int)col, "'%s' only allowed inside a loop", kw);
@@ -334,12 +334,12 @@ void driver_diagnostic_typeck_extern_call_outside_unsafe(int32_t line, int32_t c
     lsp_diag_report_typeck((int)line, (int)col, "extern call requires unsafe block");
 }
 
-/** .sx typeck：对 linear 值取址时打印，与 typeck.c「cannot take address of linear value」一致。 */
+/** .x typeck：对 linear 值取址时打印，与 typeck.c「cannot take address of linear value」一致。 */
 void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col) {
     lsp_diag_report_typeck((int)line, (int)col, "cannot take address of linear value");
 }
 
-/** .sx typeck：import 顶层 const 裸名访问时打印，与 typeck.c TYPECK_ERR 措辞对齐。 */
+/** .x typeck：import 顶层 const 裸名访问时打印，与 typeck.c TYPECK_ERR 措辞对齐。 */
 void driver_diagnostic_typeck_import_const_must_be_qualified(int32_t line, int32_t col, const uint8_t *name,
                                                              int32_t name_len, const uint8_t *binding,
                                                              int32_t binding_len) {
@@ -361,7 +361,7 @@ void driver_diagnostic_typeck_import_const_must_be_qualified(int32_t line, int32
                            (const char *)(name ? name : (const uint8_t *)""));
 }
 
-/** .sx typeck：match 臂 Enum.Variant 在模块枚举表中未命中（与 typeck.c TYPECK_ERR 措辞一致）。 */
+/** .x typeck：match 臂 Enum.Variant 在模块枚举表中未命中（与 typeck.c TYPECK_ERR 措辞一致）。 */
 void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col) {
     const char *msg = "typeck error: enum has no variant";
     if (lsp_diag_enabled) {
@@ -371,7 +371,7 @@ void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col) {
     driver_diag_report_prefixed(line, col, msg);
 }
 
-/** .sx typeck：下标基类型非数组/切片/指针时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
+/** .x typeck：下标基类型非数组/切片/指针时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
 void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col) {
     const char *msg = "subscript base must be array, slice or pointer";
     if (lsp_diag_enabled) {
@@ -381,7 +381,7 @@ void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col) {
     diag_report_with_code(NULL, (int)line, (int)col, "typeck error", "T001", msg, msg);
 }
 
-/** ERR-01：`?` 要求 enclosing function 返回与 operand 同型的 Result（run-typeck result_try_bad.sx）。 */
+/** ERR-01：`?` 要求 enclosing function 返回与 operand 同型的 Result（run-typeck result_try_bad.x）。 */
 void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t col) {
     const char *msg = "`?` requires the enclosing function to return the same Result type";
     if (lsp_diag_enabled) {
@@ -391,7 +391,7 @@ void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t 
     diag_report_with_code(NULL, (int)line, (int)col, "typeck error", "T001", msg, msg);
 }
 
-/** .sx typeck：结构体 §11.1 隐式 padding 前间隙；行文与 typeck.c TYPECK_ERR_AT 一致。 */
+/** .x typeck：结构体 §11.1 隐式 padding 前间隙；行文与 typeck.c TYPECK_ERR_AT 一致。 */
 void driver_diagnostic_typeck_struct_padding_before(const uint8_t *sname, int32_t sname_len, int32_t gap,
                                                     const uint8_t *fname, int32_t fname_len) {
     lsp_diag_report_typeck(
@@ -448,7 +448,7 @@ void driver_diagnostic_typeck_assign_mismatch(int32_t is_compound, int32_t line,
     driver_diag_report_prefixed(line, col, msg);
 }
 
-/** 非重入也没关系：赋值诊断双缓冲（.sx check_expr_impl 格式化 expected/found 类型名）；单线程流水线专用。 */
+/** 非重入也没关系：赋值诊断双缓冲（.x check_expr_impl 格式化 expected/found 类型名）；单线程流水线专用。 */
 static uint8_t g_type_diag_scratch_expect[96];
 static uint8_t g_type_diag_scratch_found[96];
 
@@ -465,7 +465,7 @@ void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, i
                  (int)func_idx, (int)block_ref, (int)n_const, (int)n_let, (int)n_loop, (int)n_for, (int)n_expr, (int)final_ref);
 }
 
-/** 诊断：typeck_sx_ast_impl 逐函数入口；SHUX_TYPECK_FN=1 时打印 func_idx 与名称。 */
+/** 诊断：typeck_x_ast_impl 逐函数入口；SHUX_TYPECK_FN=1 时打印 func_idx 与名称。 */
 void driver_diagnostic_typeck_fn_enter(int32_t func_idx, const uint8_t *name, int32_t name_len) {
     char namebuf[72];
     if (!getenv("SHUX_TYPECK_FN"))
@@ -489,7 +489,7 @@ void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *na
                  (int)source, (int)type_ref);
 }
 
-/** -sx -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.len，便于排查 dep 产出为空。 */
+/** -x -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.len，便于排查 dep 产出为空。 */
 void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len) {
     if (getenv("SHUX_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
@@ -497,19 +497,19 @@ void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len) {
                      (int)num_funcs, (int)out_len);
 }
 
-/** 诊断：pipeline 入口 ctx.entry_already_parsed。由 pipeline.sx 调用。需要时取消注释 fprintf。 */
+/** 诊断：pipeline 入口 ctx.entry_already_parsed。由 pipeline.x 调用。需要时取消注释 fprintf。 */
 void driver_diagnostic_entry_already(int32_t v) {
     (void)v;
 }
 
-/** 诊断：解析前 source_len。由 pipeline.sx 调用。需要时取消注释 fprintf。 */
+/** 诊断：解析前 source_len。由 pipeline.x 调用。需要时取消注释 fprintf。 */
 void driver_diagnostic_source_len(int32_t len) {
     if (getenv("SHUX_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: entry_source_len=%d", (int)len);
 }
 
-/** 诊断：entry 解析后 module.num_funcs，便于确认是否未解析（0）。由 pipeline.sx 调用。需要时取消注释 fprintf。 */
+/** 诊断：entry 解析后 module.num_funcs，便于确认是否未解析（0）。由 pipeline.x 调用。需要时取消注释 fprintf。 */
 void driver_diagnostic_after_entry_parse(int32_t num_funcs) {
     if (getenv("SHUX_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
@@ -537,8 +537,8 @@ void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_
     } else {
         (void)strcpy(namebuf, "?");
     }
-    driver_diag_report_sx_pipeline_code("SXP002",
-                                        ".sx parse commit failed at byte %d (num_funcs=%d, name=%s, mode=%s)",
+    driver_diag_report_x_pipeline_code("XP002",
+                                        ".x parse commit failed at byte %d (num_funcs=%d, name=%s, mode=%s)",
                                         (int)byte_pos, (int)num_funcs_so_far, namebuf, tag);
 }
 
@@ -669,7 +669,7 @@ void driver_diagnostic_codegen_emit_func_fail(void *module, int32_t func_index) 
     }
 }
 
-/** asm 后端：不支持的 ExprKind 时由 backend.sx 调用，便于定位 rc=-6；kind 为 ast_ExprKind 枚举值。 */
+/** asm 后端：不支持的 ExprKind 时由 backend.x 调用，便于定位 rc=-6；kind 为 ast_ExprKind 枚举值。 */
 void driver_diagnostic_asm_unsupported_expr(int32_t kind) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "asm codegen unsupported ExprKind=%d", (int)kind);
@@ -732,7 +732,7 @@ void driver_diagnostic_asm_print_current_func(void) {
         diag_report(NULL, 0, 0, "note", "asm codegen failed (func unknown)", NULL);
 }
 
-/** asm 后端：EXPR_VAR 在 local_offset 未找到时由 backend.sx 调用；若 num_locals>0 可传首槽名 first_slot/first_len 便于对比。 */
+/** asm 后端：EXPR_VAR 在 local_offset 未找到时由 backend.x 调用；若 num_locals>0 可传首槽名 first_slot/first_len 便于对比。 */
 void driver_diagnostic_asm_var_not_found(const uint8_t *name, int32_t len, int32_t num_locals,
     const uint8_t *first_slot, int32_t first_len) {
     char namebuf[65];
@@ -809,7 +809,7 @@ int parser_is_ident_allow(const uint8_t *ident, int len) {
     return (ident[0] == 'a' && ident[1] == 'l' && ident[2] == 'l' && ident[3] == 'o' && ident[4] == 'w') ? 1 : 0;
 }
 /** DOD-CL -pad-fields：相邻 atomic-sized 与普通字段同 cache line 且无 align(64) 分隔。
- * 须在 #if SHUX_USE_SX_PIPELINE 外：C 前端 typeck.o（shux-c）也调用。 */
+ * 须在 #if SHUX_USE_X_PIPELINE 外：C 前端 typeck.o（shux-c）也调用。 */
 void driver_diagnostic_warn_pad_fields_same_cache_line(const uint8_t *sname, int32_t sname_len, const uint8_t *f0,
                                                        int32_t f0_len, const uint8_t *f1, int32_t f1_len) {
     char msg[384];

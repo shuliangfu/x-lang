@@ -1,7 +1,7 @@
 # 阶段 G 完全自举 — 全量任务清单 v1
 
 > **创建**：2026-06-21  
-> **目标**：仓库内 **零手写 `.c`/`.h`**（compiler + core + std）；Linux bootstrap **`-nostdlib` 硬绿**；`build.sx` 替代 Makefile。  
+> **目标**：仓库内 **零手写 `.c`/`.h`**（compiler + core + std）；Linux bootstrap **`-nostdlib` 硬绿**；`build.x` 替代 Makefile。  
 > **前提**：D+E+F v1 ✅（见 `NEXT.md` §0.1）。  
 > **终局哨兵**：`SHUX_NO_HANDWRITTEN_C_STRICT=1 ./tests/run-no-handwritten-c-gate.sh`
 
@@ -35,7 +35,7 @@ SHUX_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
 | **1** | G-01 | `core/` 5→0 `.c` + 1 `.h` | 1～2 天 | ✅ |
 | **2** | G-03 | F-no-libc bootstrap 硬绿 | 2～4 天 | 🟡 path.o + net.o（10 子模块）asm 绿；gate hello 仍卡 test.o 重复链接 |
 | **3** | G-02a | 删 LEGACY 前端 C（仅 shux-c 用） | 3～5 天 | ⬜ 需 seed + B-strict 绿 |
-| **4** | G-02b | runtime ABI 七件套 → `.sx` | 1～2 周 | ⬜ |
+| **4** | G-02b | runtime ABI 七件套 → `.x` | 1～2 周 | ⬜ |
 | **5** | G-02c | LSP / driver / asm glue C | 1～2 周 | ⬜ |
 | **6** | G-02d | std 测试胶层 `runtime_*_glue.c` + http/ed25519 | 1 周 | ⬜ |
 | **7** | G-04 | F-09 STRICT 硬绿 | — | ⬜ 随 1～6 |
@@ -50,11 +50,11 @@ SHUX_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
 
 | # | 任务 | 文件 | 动作 | Gate |
 |---|------|------|------|------|
-| G-01-01 | 删 assert 重复 C | `core/assert/assert.c` | 逻辑已在 `core/assert/mod.sx` | `run-core-debug-assert-extend-gate.sh` |
-| G-01-02 | 删 debug 重复 C | `core/debug/debug.c` | alias 已在 `core/debug/mod.sx` | 同上 |
-| G-01-03 | slice 纯 `.sx` | `core/slice/slice.c` | `mod.sx` 用字段赋值构造 slice | `run-core-slice-api-gate.sh` |
-| G-01-04 | mem 纯 `.sx` | `core/mem/mem.c` | volatile 读写 + fence（`.sx`/极薄 `.s`） | `run-core-mem-volatile-fence-gate.sh` |
-| G-01-05 | builtin 纯 `.sx` | `core/builtin/builtin.c` | 已有 `mod.sx` 实现；更新 codegen 映射 | `run-core-builtin-bitops-gate.sh` |
+| G-01-01 | 删 assert 重复 C | `core/assert/assert.c` | 逻辑已在 `core/assert/mod.x` | `run-core-debug-assert-extend-gate.sh` |
+| G-01-02 | 删 debug 重复 C | `core/debug/debug.c` | alias 已在 `core/debug/mod.x` | 同上 |
+| G-01-03 | slice 纯 `.x` | `core/slice/slice.c` | `mod.x` 用字段赋值构造 slice | `run-core-slice-api-gate.sh` |
+| G-01-04 | mem 纯 `.x` | `core/mem/mem.c` | volatile 读写 + fence（`.x`/极薄 `.s`） | `run-core-mem-volatile-fence-gate.sh` |
+| G-01-05 | builtin 纯 `.x` | `core/builtin/builtin.c` | 已有 `mod.x` 实现；更新 codegen 映射 | `run-core-builtin-bitops-gate.sh` |
 | G-01-06 | 删 ABI 头 | `core/builtin/builtin_abi.h` | 迁 `compiler/include/shux_std_abi/` 或内联 | `run-builtin.sh` |
 | G-01-07 | Makefile | `compiler/Makefile` | 去掉 `core/*/builtin.o` 等规则 | `run-std-c-inventory-gate.sh` |
 | G-01-08 | runtime 链 | `runtime_link_abi.c` | 去掉按需链 `core/*.o` | `run-boot-std-link-contract-gate.sh` |
@@ -75,18 +75,18 @@ SHUX_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
 
 ## 4. 批次 3 — G-02a LEGACY 前端 C 删除
 
-> **阻塞**：须 G-06 预编译 seed 或 `.sx` 完全替代 `shux-c -E` 冷启动。
+> **阻塞**：须 G-06 预编译 seed 或 `.x` 完全替代 `shux-c -E` 冷启动。
 
 | # | 文件 | 替代 |
 |---|------|------|
-| G-02a-01 | `lexer/lexer.c` + `lexer.h` | `lexer_sx.o` |
-| G-02a-02 | `ast/ast.c` + `ast.h` | `ast_sx.o` |
-| G-02a-03 | `parser/parser.c` + `parser.h` | `parser_sx.o` |
-| G-02a-04 | `typeck/typeck.c` + `typeck.h` | `typeck_sx.o` |
-| G-02a-05 | `codegen/codegen.c` + `codegen.h` | `codegen_sx.o` |
-| G-02a-06 | `codegen/autovec.c` | `autovec.sx` 或内联 |
-| G-02a-07 | `preprocess.c` + `preprocess.h` | `preprocess_sx.o` |
-| G-02a-08 | `lsp/lsp_diag.c` | `lsp_diag.sx` + stubs |
+| G-02a-01 | `lexer/lexer.c` + `lexer.h` | `lexer_x.o` |
+| G-02a-02 | `ast/ast.c` + `ast.h` | `ast_x.o` |
+| G-02a-03 | `parser/parser.c` + `parser.h` | `parser_x.o` |
+| G-02a-04 | `typeck/typeck.c` + `typeck.h` | `typeck_x.o` |
+| G-02a-05 | `codegen/codegen.c` + `codegen.h` | `codegen_x.o` |
+| G-02a-06 | `codegen/autovec.c` | `autovec.x` 或内联 |
+| G-02a-07 | `preprocess.c` + `preprocess.h` | `preprocess_x.o` |
+| G-02a-08 | `lsp/lsp_diag.c` | `lsp_diag.x` + stubs |
 | G-02a-09 | `include/{ast,token,autovec}.h` | 仅 FFI 零头 |
 
 Gate：`run-e03-v3-coldstart-track-gate.sh`；`run-c06/c09-*`
@@ -97,15 +97,15 @@ Gate：`run-e03-v3-coldstart-track-gate.sh`；`run-c06/c09-*`
 
 | # | 文件 | 迁往 |
 |---|------|------|
-| G-02b-01 | `runtime.c`（主体） | `driver.sx` + 薄 ABI |
-| G-02b-02 | `runtime_abi.c/h` | `.sx` |
-| G-02b-03 | `runtime_io_abi.c/h` | `.sx` |
-| G-02b-04 | `runtime_proc_abi.c/h` | `.sx` |
-| G-02b-05 | `runtime_link_abi.c/h` | `.sx`（最后：invoke_cc/ld） |
-| G-02b-06 | `runtime_driver_abi.c/h` | `.sx` |
-| G-02b-07 | `runtime_pipeline_abi.c/h` | `.sx` |
-| G-02b-08 | `runtime_driver_diagnostic.c/h` | `.sx` |
-| G-02b-09 | `runtime_c_import.c/h` | 删或 `.sx` |
+| G-02b-01 | `runtime.c`（主体） | `driver.x` + 薄 ABI |
+| G-02b-02 | `runtime_abi.c/h` | `.x` |
+| G-02b-03 | `runtime_io_abi.c/h` | `.x` |
+| G-02b-04 | `runtime_proc_abi.c/h` | `.x` |
+| G-02b-05 | `runtime_link_abi.c/h` | `.x`（最后：invoke_cc/ld） |
+| G-02b-06 | `runtime_driver_abi.c/h` | `.x` |
+| G-02b-07 | `runtime_pipeline_abi.c/h` | `.x` |
+| G-02b-08 | `runtime_driver_diagnostic.c/h` | `.x` |
+| G-02b-09 | `runtime_c_import.c/h` | 删或 `.x` |
 | G-02b-10 | `main.c` | crt0 `.s` only |
 
 Gate：`run-e04-runtime-soft-gate.sh`
@@ -116,14 +116,14 @@ Gate：`run-e04-runtime-soft-gate.sh`
 
 | 子批 | 代表文件 | 说明 |
 |------|----------|------|
-| G-02c-01 | `parser_asm_thin_c.c` + 20× `*_slice.c` | 收拢进 `parser.sx` emit |
-| G-02c-02 | `pipeline_*_alias.c`, `pipeline_glue_*.c` | strict 链别名 → `.sx` |
-| G-02c-03 | `backend_*_dispatch.c`, `asm_backend_*.c` | asm 后端 `.sx` |
-| G-02c-04 | `lsp_*.c`（6 文件） | LSP 全 `.sx` |
-| G-02c-05 | `_stubs_driver.c`, `fmt_check_cmd.c`, `target_cpu.c` | driver `.sx` |
-| G-02c-06 | `sx_seed_bridge.c`, `std_*_shim.c`, `ast_pool_l5_bridge.c` | bridge → `.sx` |
-| G-02c-07 | `async/async_*.c` | async `.sx` |
-| G-02c-08 | `runtime_panic*.c` | `.s` 或 `.sx` syscall exit |
+| G-02c-01 | `parser_asm_thin_c.c` + 20× `*_slice.c` | 收拢进 `parser.x` emit |
+| G-02c-02 | `pipeline_*_alias.c`, `pipeline_glue_*.c` | strict 链别名 → `.x` |
+| G-02c-03 | `backend_*_dispatch.c`, `asm_backend_*.c` | asm 后端 `.x` |
+| G-02c-04 | `lsp_*.c`（6 文件） | LSP 全 `.x` |
+| G-02c-05 | `_stubs_driver.c`, `fmt_check_cmd.c`, `target_cpu.c` | driver `.x` |
+| G-02c-06 | `x_seed_bridge.c`, `std_*_shim.c`, `ast_pool_l5_bridge.c` | bridge → `.x` |
+| G-02c-07 | `async/async_*.c` | async `.x` |
+| G-02c-08 | `runtime_panic*.c` | `.s` 或 `.x` syscall exit |
 
 Gate：`run-bootstrap-bstrict-ci.sh`；`run-l5-run-all-parity-gate.sh`
 
@@ -135,10 +135,10 @@ Gate：`run-bootstrap-bstrict-ci.sh`；`run-l5-run-all-parity-gate.sh`
 |------|------|------|
 | G-02d-01 | `asm/runtime_*_glue.c` | HTTP/crypto/db 胶层 |
 | G-02d-02 | `asm/http/*.inc.c` | 已 F-ZC；compiler 侧残留 |
-| G-02d-03 | `asm/crypto/ed25519/*.c` | 纯 `.sx` 或单对象 |
-| G-02d-04 | `build_runtime.c`, `build_obj_stubs.c` | G-05 build.sx |
+| G-02d-03 | `asm/crypto/ed25519/*.c` | 纯 `.x` 或单对象 |
+| G-02d-04 | `build_runtime.c`, `build_obj_stubs.c` | G-05 build.x |
 
-Gate：`run-all-sx.sh` 子集；各 `run-f-*-gate.sh`
+Gate：`run-all-x.sh` 子集；各 `run-f-*-gate.sh`
 
 ---
 
@@ -177,9 +177,9 @@ Gate：`run-all-sx.sh` 子集；各 `run-f-*-gate.sh`
 |------|--------------|------|
 | `make bootstrap-driver-seed` | ✅ 链接成功 | crt0 + `-nostartfiles` |
 | `./shux -h` | ✅ | `SHUX_ASM_USE_COMPILER_IMPL_C` on seed runtime |
-| `./shux min.sx -o out` | ✅ | `function main(): i32 { return 0; }` → `num_funcs=1` |
-| `./shux -L .. hello.sx` | ✅ | `return if` + `fmt.println("…")`；须重建 parser_asm_thin_glue + parser_sx |
-| `./shux-c -L .. hello.sx` | ✅ | C 前端路径，输出 `Hello World` |
+| `./shux min.x -o out` | ✅ | `function main(): i32 { return 0; }` → `num_funcs=1` |
+| `./shux -L .. hello.x` | ✅ | `return if` + `fmt.println("…")`；须重建 parser_asm_thin_glue + parser_x |
+| `./shux-c -L .. hello.x` | ✅ | C 前端路径，输出 `Hello World` |
 | `build_shux_asm` pipeline 二遍 | ✅ | `__text=6843B`（此前为 0） |
 | `run-linux-a09-a11-gate` | 🟡 | B-strict/hello/hash 子集 ✅（Docker 2026-06-21）；全链 gate 待跑 |
 
@@ -195,19 +195,19 @@ Gate：`run-all-sx.sh` 子集；各 `run-f-*-gate.sh`
 
 **本轮 build_shux_asm 修复（glue 截断 + B-strict 重链）**：
 
-1. **`-E -E-extern` 薄 TU**：`ensure_asm_pipeline_glue_standalone_obj` / `ensure_asm_gen_driver_sx_objs` 对 `pipeline.sx` 改用 `-E-extern`（全量 `-E` 内联 std.io 截断 ~142KB、`exit=1`）。
-2. **`asm_strict_pipeline_selfhosted`**：`__text` 门槛 8192→6144；`resolve_path_.*su` 匹配 `resolve_path_probe_dot_sx_and_mod`（实测 __text≈6843B）。
-3. **strict 重链符号**：`pipeline_sx_glue_support` 强制导出 `pipeline_load_and_sync_*`；新增 `pipeline_fill_dep_strict_alias.c`；跳过 text 桩 `*_enc.o`。
-4. **`driver_compile_link`**：从 `driver_compile_sx.o` 部分导出 `parse_argv_loop`；`driver_compile_link` 补全后 **re-filter** 避免与 `driver_compile_sx.o` 重复定义。
+1. **`-E -E-extern` 薄 TU**：`ensure_asm_pipeline_glue_standalone_obj` / `ensure_asm_gen_driver_x_objs` 对 `pipeline.x` 改用 `-E-extern`（全量 `-E` 内联 std.io 截断 ~142KB、`exit=1`）。
+2. **`asm_strict_pipeline_selfhosted`**：`__text` 门槛 8192→6144；`resolve_path_.*su` 匹配 `resolve_path_probe_dot_x_and_mod`（实测 __text≈6843B）。
+3. **strict 重链符号**：`pipeline_x_glue_support` 强制导出 `pipeline_load_and_sync_*`；新增 `pipeline_fill_dep_strict_alias.c`；跳过 text 桩 `*_enc.o`。
+4. **`driver_compile_link`**：从 `driver_compile_x.o` 部分导出 `parse_argv_loop`；`driver_compile_link` 补全后 **re-filter** 避免与 `driver_compile_x.o` 重复定义。
 
 **gen1 实测（Docker Linux x86_64）**：`B-strict OK — LINK_MODE=asm_only_strict` ✅；`run-linux-a09-a11-gate` 全链重跑中。
 
 **本轮 parse 修复（根因）**：
 
-1. **`token.sx` 与 `token.h` 枚举漂移**：缺 `TRY/CATCH/TYPE/ATTR_REPR_COMPATIBLE/DOTDOT`，lexer 发 `TOKEN_IDENT=37` 被 C 薄层读成 `TOKEN_ASYNC` → buf/impl 均失败。
+1. **`token.x` 与 `token.h` 枚举漂移**：缺 `TRY/CATCH/TYPE/ATTR_REPR_COMPATIBLE/DOTDOT`，lexer 发 `TOKEN_IDENT=37` 被 C 薄层读成 `TOKEN_ASYNC` → buf/impl 均失败。
 2. **`parser_asm_body_skip_let_const_then_if_buf_c`**：旧实现仅 stretch audit、未初始化 `r`；改为委托 slice 版。
 3. **`parser_asm_parse_one_function_buf_into_c`**：支持 lex 已在 `function` 之后；读 IDENT 后推进 lexer。
-4. **`TOKEN_STRING` 未实现（hello 阻塞）**：`parse_primary` 双次 `lexer_next` 跳过 `TOKEN_STRING`，`foo("…")` 实参 parse 失败 → impl 失败、buf 回退只认 `return int`；`return if` 整函数 skip。修复：`parser_asm_primary_slice.c` 第一次 `lexer_next` 后处理 `TOKEN_STRING`；`parser.sx` `parse_body_lets` 增 `TOKEN_STRING` 分支；`parser_asm_one_function_buf_slice.c` buf 回退支持 `return if`。
+4. **`TOKEN_STRING` 未实现（hello 阻塞）**：`parse_primary` 双次 `lexer_next` 跳过 `TOKEN_STRING`，`foo("…")` 实参 parse 失败 → impl 失败、buf 回退只认 `return int`；`return if` 整函数 skip。修复：`parser_asm_primary_slice.c` 第一次 `lexer_next` 后处理 `TOKEN_STRING`；`parser.x` `parse_body_lets` 增 `TOKEN_STRING` 分支；`parser_asm_one_function_buf_slice.c` buf 回退支持 `return if`。
 
 - Linux `bootstrap-driver-seed`：`crt0_x86_64` + `-e _start -nostartfiles`
 - seed runtime：`RUNTIME_DRIVER_NO_C_CFLAGS` 增加 `-DSHUX_ASM_USE_COMPILER_IMPL_C`

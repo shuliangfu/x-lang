@@ -5,13 +5,13 @@
  * SHA-512 / HMAC-SHA512 委托 ed25519/sha512.c（via ed25519_ref10_glue.c 同 crypto.o 单元）。
  *
  * 【分层】
- * - core.sx：mem_eq、SHA-256、HMAC-SHA256
- * - aes_gcm.sx：AES-128-GCM seal/open
- * - chacha20_poly1305.sx：ChaCha20-Poly1305 AEAD
- * - ed25519.sx：Ed25519 C ABI + 烟测
+ * - core.x：mem_eq、SHA-256、HMAC-SHA256
+ * - aes_gcm.x：AES-128-GCM seal/open
+ * - chacha20_poly1305.x：ChaCha20-Poly1305 AEAD
+ * - ed25519.x：Ed25519 C ABI + 烟测
  * - ed25519_ref10_glue.c：ref10 fe/ge/sc/sha512/sign/verify
  * - 本文件：crypto_sha512_c / crypto_hmac_sha512_c
- * - seed asm 辅助：rotr/rotl、AES S-box/Rcon、ChaCha sigma 查表（避免 .sx 全局数组下标与字面量减法 emit 失败）
+ * - seed asm 辅助：rotr/rotl、AES S-box/Rcon、ChaCha sigma 查表（避免 .x 全局数组下标与字面量减法 emit 失败）
  *
  * 【构建】ld -r glue.o + *_main.o → crypto.o
  */

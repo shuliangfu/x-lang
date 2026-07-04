@@ -1,13 +1,13 @@
-# 阶段 F-unicode v2（std.unicode 逻辑 .sx 下沉）
+# 阶段 F-unicode v2（std.unicode 逻辑 .x 下沉）
 
-> **F-unicode v2**：分类/NFC/字素簇全量在 **`unicode.sx`**；**删除 `unicode_glue.c`**；`unicode.o` 纯 `.sx` 编译（同 hash/schema/cache）。
+> **F-unicode v2**：分类/NFC/字素簇全量在 **`unicode.x`**；**删除 `unicode_glue.c`**；`unicode.o` 纯 `.x` 编译（同 hash/schema/cache）。
 
 ## 变更
 
 | 项 | v1 | v2 |
 |----|----|-----|
-| 算法实现 | `unicode_glue.c`（288 行） | **`unicode.sx`** |
-| `unicode.o` | `ld -r` glue + sx | **纯 shux → unicode.o** |
+| 算法实现 | `unicode_glue.c`（288 行） | **`unicode.x`** |
+| `unicode.o` | `ld -r` glue + x | **纯 shux → unicode.o** |
 | 依赖 | libc ctype.h/string.h | 内联 ASCII 查表 + `extern memcpy` |
 
 ## 门禁

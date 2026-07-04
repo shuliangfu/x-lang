@@ -34,9 +34,9 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-grep -q 'kv.sx' compiler/Makefile || die "Makefile missing kv.sx in kv.o"
-grep -q 'arrow.sx' compiler/Makefile || die "Makefile missing arrow.sx in arrow.o"
-grep -q 'sqlite.sx' compiler/Makefile || die "Makefile missing sqlite.sx in sqlite.o"
+grep -q 'kv.x' compiler/Makefile || die "Makefile missing kv.x in kv.o"
+grep -q 'arrow.x' compiler/Makefile || die "Makefile missing arrow.x in arrow.o"
+grep -q 'sqlite.x' compiler/Makefile || die "Makefile missing sqlite.x in sqlite.o"
 if grep -q 'std/db/kv/kv\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/db/kv/kv.c"
 fi

@@ -93,7 +93,7 @@ function snapshotServerConfig(): string {
   });
 }
 
-/** 格式化 .sx 文档（走 LSP documentFormattingProvider） */
+/** 格式化 .x 文档（走 LSP documentFormattingProvider） */
 async function formatSuDocument(document: vscode.TextDocument): Promise<void> {
   const config = vscode.workspace.getConfiguration('shux');
   if (!config.get<boolean>('format.enabled', true)) {
@@ -177,7 +177,7 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
   if (isFeatureEnabled(config, 'folding')) {
     context.subscriptions.push(
       vscode.languages.registerFoldingRangeProvider(
-        { scheme: 'file', language: 'sx' },
+        { scheme: 'file', language: 'x' },
         new ShuxFoldingRangeProvider()
       )
     );
@@ -187,7 +187,7 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
     const provider = new ShuxCodeLensProvider();
     codeLensProvider = provider;
     context.subscriptions.push(
-      vscode.languages.registerCodeLensProvider({ scheme: 'file', language: 'sx' }, provider)
+      vscode.languages.registerCodeLensProvider({ scheme: 'file', language: 'x' }, provider)
     );
   }
 
@@ -198,7 +198,7 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
   if (isFeatureEnabled(config, 'formatOnType')) {
     context.subscriptions.push(
       vscode.languages.registerOnTypeFormattingEditProvider(
-        { scheme: 'file', language: 'sx' },
+        { scheme: 'file', language: 'x' },
         new ShuxOnTypeFormattingProvider(),
         '{',
         '\n',
@@ -211,7 +211,7 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
   if (isFeatureEnabled(config, 'documentLinks')) {
     context.subscriptions.push(
       vscode.languages.registerDocumentLinkProvider(
-        { scheme: 'file', language: 'sx' },
+        { scheme: 'file', language: 'x' },
         new ShuxDocumentLinkProvider()
       )
     );
@@ -223,7 +223,7 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
     context.subscriptions.push(
       vscode.window.onDidChangeActiveTextEditor((e) => refreshShuxStatusBar(e)),
       vscode.workspace.onDidChangeTextDocument((e) => {
-        if (e.document.languageId === 'sx') {
+        if (e.document.languageId === 'x') {
           refreshShuxStatusBar(vscode.window.activeTextEditor);
         }
       })
@@ -233,14 +233,14 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
   if (isFeatureEnabled(config, 'selectionRange')) {
     context.subscriptions.push(
       vscode.languages.registerSelectionRangeProvider(
-        { scheme: 'file', language: 'sx' },
+        { scheme: 'file', language: 'x' },
         createShuxSelectionRangeProvider()
       )
     );
   }
 
   if (isFeatureEnabled(config, 'formatOnBlur')) {
-    let lastSxEditor: vscode.TextEditor | undefined;
+    let lastXEditor: vscode.TextEditor | undefined;
     let initialized = false;
     setTimeout(() => {
       initialized = true;
@@ -248,8 +248,8 @@ async function loadHeavyFeatures(context: vscode.ExtensionContext): Promise<void
 
     context.subscriptions.push(
       vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-        const prev = lastSxEditor;
-        lastSxEditor = editor?.document.languageId === 'sx' ? editor : undefined;
+        const prev = lastXEditor;
+        lastXEditor = editor?.document.languageId === 'x' ? editor : undefined;
         if (!initialized || !prev || prev.document.isClosed || prev === editor) {
           return;
         }
@@ -410,8 +410,8 @@ function registerCommands(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('shux.refreshCodeLens', async () => {
       const editor = vscode.window.activeTextEditor;
-      if (!editor || editor.document.languageId !== 'sx') {
-        vscode.window.showWarningMessage('请先打开一个 .sx 文件。');
+      if (!editor || editor.document.languageId !== 'x') {
+        vscode.window.showWarningMessage('请先打开一个 .x 文件。');
         return;
       }
       await ensureHeavyFeatures(context);
@@ -459,20 +459,20 @@ function scheduleHeavyFeaturesOnSu(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument((doc) => {
-      if (doc.languageId === 'sx') {
+      if (doc.languageId === 'x') {
         tryLoad();
       }
     }),
     vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor?.document.languageId === 'sx') {
+      if (editor?.document.languageId === 'x') {
         tryLoad();
       }
     })
   );
 
   if (
-    vscode.window.activeTextEditor?.document.languageId === 'sx' ||
-    vscode.workspace.textDocuments.some((d) => d.languageId === 'sx')
+    vscode.window.activeTextEditor?.document.languageId === 'x' ||
+    vscode.workspace.textDocuments.some((d) => d.languageId === 'x')
   ) {
     tryLoad();
   }
@@ -483,7 +483,7 @@ export function activate(context: vscode.ExtensionContext): void {
   outputChannel.appendLine('[Shux] 扩展正在激活（轻量模式）...');
   registerCommands(context);
   scheduleHeavyFeaturesOnSu(context);
-  outputChannel.appendLine('[Shux] 扩展已激活。打开 .sx 文件时将立即加载 LSP。');
+  outputChannel.appendLine('[Shux] 扩展已激活。打开 .x 文件时将立即加载 LSP。');
 }
 
 export function deactivate(): Thenable<void> | undefined {

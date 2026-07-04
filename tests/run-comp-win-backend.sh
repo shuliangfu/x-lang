@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 . tests/lib/comp-win-backend.sh
 
 MATRIX="${SHUX_WIN_BACKEND_MATRIX:-tests/baseline/comp-win-backend-matrix.tsv}"
-SAMPLE="tests/asm/windows_min.sx"
+SAMPLE="tests/asm/windows_min.x"
 COFF_OUT="/tmp/shux_comp_win_backend.$$.obj"
 trap 'rm -f "$COFF_OUT" /tmp/shux_comp_win_exe.$$.exe 2>/dev/null || true' EXIT
 

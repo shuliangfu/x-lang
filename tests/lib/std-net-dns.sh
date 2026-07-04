@@ -2,15 +2,15 @@
 # std-net-dns.sh — STD-029 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_net_dns_symbols_ok MOD_SX NET_C TSV
-#   std_net_dns_run_smoke SHUX_BIN SX TAG
+#   std_net_dns_symbols_ok MOD_X NET_C TSV
+#   std_net_dns_run_smoke SHUX_BIN X TAG
 #   std_net_dns_emit_report status resolve_ok main_ok skip
 
 STD_NET_DNS_PREFIX="${SHUX_STD_NET_DNS_PREFIX:-shux: [SHUX_STD_NET_DNS]}"
 
 # 校验 manifest symbol/file/api；echo 缺失数。
 std_net_dns_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local net_c="$2"
   local tsv="$3"
   local miss=0
@@ -20,16 +20,16 @@ std_net_dns_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
-          echo "std-net-dns FAIL: missing api '$anchor' in $mod_sx" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
+          echo "std-net-dns FAIL: missing api '$anchor' in $mod_x" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         case "$mod_path" in
-          std/net/net.c) mod_path="${net_c:-std/net/dns.sx}" ;;
-          std/net/dns.sx) mod_path="std/net/dns.sx" ;;
-          *) mod_path="${mod_path:-$mod_sx}" ;;
+          std/net/net.c) mod_path="${net_c:-std/net/dns.x}" ;;
+          std/net/dns.x) mod_path="std/net/dns.x" ;;
+          *) mod_path="${mod_path:-$mod_x}" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-net-dns FAIL: missing '$anchor' in $mod_path" >&2
@@ -48,7 +48,7 @@ std_net_dns_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .sx（须已 ensure net.o）。
+# 编译并运行烟测 .x（须已 ensure net.o）。
 std_net_dns_run_smoke() {
   local shux="$1"
   local src="$2"

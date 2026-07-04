@@ -5,7 +5,7 @@ STD_HTTP_SERVER_POOL_PREFIX="${SHUX_STD107_HTTP_SERVER_POOL_PREFIX:-shux: [SHUX_
 
 # 校验 manifest 中 api/symbol/file。
 std_http_server_pool_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local http_c="$2"
   local pool_inc="$3"
   local tsv="$4"
@@ -16,7 +16,7 @@ std_http_server_pool_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-http-server-pool FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -42,8 +42,8 @@ std_http_server_pool_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
-std_http_server_pool_run_sx_smoke() {
+# 编译并运行 .x 烟测。
+std_http_server_pool_run_x_smoke() {
   local shux="$1"
   local src="$2"
   local tag="${3:-pool}"
@@ -98,5 +98,5 @@ std_http_server_pool_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_HTTP_SERVER_POOL_PREFIX} status=${status} c=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_HTTP_SERVER_POOL_PREFIX} status=${status} c=${c_ok} x=${su_ok} skip=${skip}"
 }

@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-25  
 > 状态：**v1 落地（hosted POSIX + #[cfg]）**  
-> 关联：`std/sys/freebsd.sx`、`tests/run-freebsd-platform-gate.sh`
+> 关联：`std/sys/freebsd.x`、`tests/run-freebsd-platform-gate.sh`
 
 ---
 
@@ -66,9 +66,9 @@ cd compiler && SHUX_LEGACY_C_FRONTEND=1 ./scripts/capture_bootstrap_seeds.sh
 
 | 资源 | 路径 |
 |------|------|
-| std 子模块 | `std/sys/freebsd.sx` |
-| mod 门面 | `std/sys/mod.sx` |
-| cfg | `compiler/src/lexer/cfg_eval.sx`、`lexer.c` |
+| std 子模块 | `std/sys/freebsd.x` |
+| mod 门面 | `std/sys/mod.x` |
+| cfg | `compiler/src/lexer/cfg_eval.x`、`lexer.c` |
 | 种子选择 | `compiler/scripts/select_bootstrap_shuxc.sh` |
 | 矩阵 | `tests/baseline/ci-platform-matrix.tsv` |
 

@@ -1,13 +1,13 @@
-# 阶段 F-schema v2（std.schema 逻辑 .sx 下沉）
+# 阶段 F-schema v2（std.schema 逻辑 .x 下沉）
 
-> **F-schema v2**：**JSON/CSV typed decode** 全量在 **`schema.sx`**；**删除 `schema_glue.c`**；`schema.o` 纯 `.sx` 编译（同 cache/encoding）。
+> **F-schema v2**：**JSON/CSV typed decode** 全量在 **`schema.x`**；**删除 `schema_glue.c`**；`schema.o` 纯 `.x` 编译（同 cache/encoding）。
 
 ## 变更
 
 | 项 | v1 | v2 |
 |----|----|-----|
-| decode 实现 | `schema_glue.c`（677 行） | **`schema.sx`** |
-| `schema.o` | `ld -r` glue + sx | **纯 shux → schema.o** |
+| decode 实现 | `schema_glue.c`（677 行） | **`schema.x`** |
+| `schema.o` | `ld -r` glue + x | **纯 shux → schema.o** |
 | JSON/CSV 依赖 | glue 链 json.o/csv.o | `extern json_*` / `parse_row` |
 
 ## 门禁

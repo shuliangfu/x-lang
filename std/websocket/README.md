@@ -1,6 +1,6 @@
 # std.websocket
 
-RFC6455 WebSocket 握手与帧编解码（STD-031）。F-04 v3 纯 `.sx`：`std/net/ws_codec.sx` + `ws_io.sx`。
+RFC6455 WebSocket 握手与帧编解码（STD-031）。F-04 v3 纯 `.x`：`std/net/ws_codec.x` + `ws_io.x`。
 
 ## 依赖
 

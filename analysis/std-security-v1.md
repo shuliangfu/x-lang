@@ -34,7 +34,7 @@
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_SECURITY] status=ok c_smoke=1 sx=1 skip=0
+shux: [SHUX_STD_SECURITY] status=ok c_smoke=1 x=1 skip=0
 std-security gate OK
 ```
 

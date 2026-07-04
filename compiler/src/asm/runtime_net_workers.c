@@ -1,8 +1,8 @@
 /**
  * runtime_net_workers.c — accept worker 线程入口胶层（F-ZC：自 std/net/workers_glue.c 迁入）
  *
- * .sx 暂无法导出 void* (*)(void*) 线程入口；循环 accept_many+close 保留于此。
- * 编排（thread_create/join）见 workers.sx；与 net.o 一并链入 exe。
+ * .x 暂无法导出 void* (*)(void*) 线程入口；循环 accept_many+close 保留于此。
+ * 编排（thread_create/join）见 workers.x；与 net.o 一并链入 exe。
  */
 
 #include <stddef.h>
@@ -11,7 +11,7 @@
 /** 每 worker 一次 accept_many 批量上限（与 IO_NET_BATCH_MAX 对齐）。 */
 #define SHUX_NET_ACCEPT_BATCH 64
 
-/** worker 线程参数（与 workers.sx NetWorkerArg ABI 一致）。 */
+/** worker 线程参数（与 workers.x NetWorkerArg ABI 一致）。 */
 struct shu_net_worker_arg {
     int32_t listener_fd;
     uint32_t timeout_ms;

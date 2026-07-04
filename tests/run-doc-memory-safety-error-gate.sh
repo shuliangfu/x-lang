@@ -3,7 +3,7 @@
 #
 # 1) doc-memory-safety-error-v1.md 必需章节
 # 2) 交叉引用 RFC 存在
-# 3) 示例 .sx 存在；hook 脚本存在（native shux 时可选跑 hook）
+# 3) 示例 .x 存在；hook 脚本存在（native shux 时可选跑 hook）
 #
 # 用法：./tests/run-doc-memory-safety-error-gate.sh
 set -e

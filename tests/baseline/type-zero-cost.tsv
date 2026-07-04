@@ -9,16 +9,16 @@ cases	section	## 4. Golden 用例	analysis/type-zero-cost-v1.md	-	cases
 verify	section	## 6. 验证与门禁	analysis/type-zero-cost-v1.md	-	gate
 layer_z1	layers	Z1-linear-abi	analysis/type-linear-v1-rfc.md	linear	ABI
 layer_z2	layers	Z2-generic-mono	analysis/lang-generic-v1.md	generic	monomorph
-layer_z3	layers	Z3-struct-byval	tests/bench/struct_param.sx	struct	bcmp
+layer_z3	layers	Z3-struct-byval	tests/bench/struct_param.x	struct	bcmp
 layer_z4	layers	Z4-region-zero	analysis/type-region-v1-rfc.md	region	compile
-layer_z5	layers	Z5-call-depth	tests/bench/call_boundary.sx	call	bcmp
-layer_z6	layers	Z6-mem-hotpath	tests/bench/mem_copy.sx	mem	bcmp
+layer_z5	layers	Z5-call-depth	tests/bench/call_boundary.x	call	bcmp
+layer_z6	layers	Z6-mem-hotpath	tests/bench/mem_copy.x	mem	bcmp
 sym_linear	symbol	AST_TYPE_LINEAR	compiler/src/codegen/codegen.c	codegen	unwrap
 sym_mono	symbol	codegen_one_mono_instance	compiler/src/codegen/codegen.c	generic	单态化
-case_linear	case	case_linear	tests/typeck/linear/move_ok.sx	typeck	Linear
-case_generic	case	case_generic	tests/bench/generic_id_i32.sx	compile	mono
-case_region	case	case_region	tests/typeck/slice_lifetime/region_same_ok.sx	region	ok
-case_loop	case	case_loop	tests/bench/loop_i32.sx	bcmp	loop
+case_linear	case	case_linear	tests/typeck/linear/move_ok.x	typeck	Linear
+case_generic	case	case_generic	tests/bench/generic_id_i32.x	compile	mono
+case_region	case	case_region	tests/typeck/slice_lifetime/region_same_ok.x	region	ok
+case_loop	case	case_loop	tests/bench/loop_i32.x	bcmp	loop
 case_bcmp	hook_ref	run-bcmp-gate.sh	tests/run-bcmp-gate.sh	bcmp	CI
 gate	script	run-type-zero-cost-gate.sh	tests/run-type-zero-cost-gate.sh	-	manifest
 hook_zc	hook_script	run-type-zero-cost.sh	run-type-zero-cost.sh	-	烟测

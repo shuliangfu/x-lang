@@ -1,7 +1,7 @@
 # [OPEN] hello-stage1-segv
 
 ## Summary
-- Symptom: `./compiler/shux_asm -L .. ../examples/hello.sx -o /tmp/shux_hello_stage1` on `ubuntu-server` terminates with `SIGSEGV`.
+- Symptom: `./compiler/shux_asm -L .. ../examples/hello.x -o /tmp/shux_hello_stage1` on `ubuntu-server` terminates with `SIGSEGV`.
 - Expected: stage1 compiler finishes hello build successfully.
 - Scope: blocks `check-7.2-bstrict` and `bootstrap-verify-bstrict` on Ubuntu.
 
@@ -9,7 +9,7 @@
 - Host: `ubuntu-server`
 - Working dir: `~/worker/shu/shux/compiler`
 - Command:
-  - `perl -e 'alarm shift; exec @ARGV' 120 ./shux_asm -L .. ../examples/hello.sx -o /tmp/shux_hello_stage1`
+  - `perl -e 'alarm shift; exec @ARGV' 120 ./shux_asm -L .. ../examples/hello.x -o /tmp/shux_hello_stage1`
 
 ## Hypotheses
 1. Crash is in driver compile / final link path, not in typeck.

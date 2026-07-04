@@ -51,7 +51,7 @@
 ## 5. Gate
 
 ```
-shux: [SHUX_STD_CODEC] status=ok sx=1 skip=0
+shux: [SHUX_STD_CODEC] status=ok x=1 skip=0
 std-codec gate OK
 ```
 

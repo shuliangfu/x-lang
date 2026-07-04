@@ -7,9 +7,9 @@ set -e
 cd "$(dirname "$0")/.."
 
 SHUX_BIN="${SHUX:-./compiler/shux_asm}"
-SX_SRC="tests/bench/simd_shuffle_select.sx"
+X_SRC="tests/bench/simd_shuffle_select.x"
 STUB_SRC="tests/bench/simd_shuffle_select_stub.c"
-SX_EXE="/tmp/shux_simd_ss_bench"
+X_EXE="/tmp/shux_simd_ss_bench"
 STUB_EXE="/tmp/shux_simd_ss_stub_bench"
 RUNS="${SHUX_SIMD_SS_RUNS:-3}"
 MIN_RATIO="${SHUX_SIMD_SS_MIN_RATIO:-1.0}"
@@ -46,7 +46,7 @@ simd_ss_native_exe() {
   esac
 }
 
-echo "=== STD-061 simd shuffle/select perf: ${SX_SRC} vs stub ${STUB_SRC} (min ratio ${MIN_RATIO}) ==="
+echo "=== STD-061 simd shuffle/select perf: ${X_SRC} vs stub ${STUB_SRC} (min ratio ${MIN_RATIO}) ==="
 
 if ! simd_ss_native_exe "$SHUX_BIN"; then
   echo "simd-shuffle-select-perf SKIP: ${SHUX_BIN} not native"
@@ -57,16 +57,16 @@ if ! command -v cc >/dev/null 2>&1; then
   exit 0
 fi
 
-SX_O="${SX_EXE}.o"
-rm -f "$SX_EXE" "$SX_O" "$STUB_EXE"
+X_O="${X_EXE}.o"
+rm -f "$X_EXE" "$X_O" "$STUB_EXE"
 
-if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -L . "$SX_SRC" -o "$SX_O"; then
-  echo "simd-shuffle-select-perf FAIL: compile $SX_SRC" >&2
+if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -L . "$X_SRC" -o "$X_O"; then
+  echo "simd-shuffle-select-perf FAIL: compile $X_SRC" >&2
   exit 1
 fi
-if ! cc -O2 -o "$SX_EXE" "$SX_O" -lm 2>/dev/null; then
-  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -L . "$SX_SRC" -o "$SX_EXE"; then
-    echo "simd-shuffle-select-perf FAIL: link $SX_EXE" >&2
+if ! cc -O2 -o "$X_EXE" "$X_O" -lm 2>/dev/null; then
+  if ! SHUX="$SHUX_BIN" "$SHUX_BIN" -L . "$X_SRC" -o "$X_EXE"; then
+    echo "simd-shuffle-select-perf FAIL: link $X_EXE" >&2
     exit 1
   fi
 fi
@@ -76,17 +76,17 @@ if ! cc -O2 "$STUB_SRC" -o "$STUB_EXE"; then
   exit 1
 fi
 
-SX_MED=$(median_real "$SX_EXE")
+X_MED=$(median_real "$X_EXE")
 STUB_MED=$(median_real "$STUB_EXE")
-echo "Shu asm median real:  ${SX_MED}s"
+echo "Shu asm median real:  ${X_MED}s"
 echo "stub scalar median:   ${STUB_MED}s"
 
-if [ "$SX_MED" = "nan" ] || [ "$STUB_MED" = "nan" ]; then
+if [ "$X_MED" = "nan" ] || [ "$STUB_MED" = "nan" ]; then
   echo "simd-shuffle-select-perf SKIP: benchmark returned nan"
   exit 0
 fi
 
-RATIO=$(awk -v stub="$STUB_MED" -v shux="$SX_MED" 'BEGIN { if (shux <= 0) print 0; else print stub / shux }')
+RATIO=$(awk -v stub="$STUB_MED" -v shux="$X_MED" 'BEGIN { if (shux <= 0) print 0; else print stub / shux }')
 echo "simd-shuffle-select-perf ratio (stub/Shu): ${RATIO} (need >= ${MIN_RATIO})"
 
 if awk -v r="$RATIO" -v m="$MIN_RATIO" 'BEGIN { exit (r + 0.000001 >= m) ? 0 : 1 }'; then

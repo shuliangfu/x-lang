@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_DOC08_DOC:-analysis/doc-phase2-close-v1.md}"
 MANIFEST="${SHUX_DOC08_TSV:-tests/baseline/doc-phase2-close.tsv}"
-COOKBOOK="examples/cookbook/http_chunked_decode.sx"
+COOKBOOK="examples/cookbook/http_chunked_decode.x"
 MIN_ANCHORS=6
 
 # shellcheck source=tests/lib/doc-phase2-close.sh

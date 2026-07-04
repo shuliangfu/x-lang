@@ -44,7 +44,7 @@
 |-------|----------|---------|
 | **build** | `make bootstrap-driver-bstrict` 失败；log 含 `pipeline_gen.c` | `bstrict_build` |
 | **build** | experimental fallback / 无 `asm_only_strict` | `strict_smoke` |
-| **compile** | `shux_asm` 编用户 .sx 失败 | `shux_asm_gate` |
+| **compile** | `shux_asm` 编用户 .x 失败 | `shux_asm_gate` |
 | **compile** | asm binop/cfg-merge SIGSEGV | `asm_73` |
 | **run** | B-strict 白名单 run-all 失败 | `run_all_bstrict` |
 | **selfhost** | gen1→gen2 不一致 | `stage2_bstrict` |

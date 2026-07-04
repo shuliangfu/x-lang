@@ -17,7 +17,7 @@ ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/
 
 ASM="${1:-./shux_asm}"
 FALLBACK="${2:-${SHUX:-./shux}}"
-SMOKE_SRC="/tmp/shux_asm_postlink_smoke.$$.sx"
+SMOKE_SRC="/tmp/shux_asm_postlink_smoke.$$.x"
 SMOKE_OUT="/tmp/shux_asm_postlink_smoke_out.$$"
 AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-../logs}"
 

@@ -2,11 +2,11 @@
  * json_import_alias.c — import binding `-o` 链接桩
  *
  * asm co-emit 对 `const json = import("std.json")` 生成 std_json_* 符号；
- * json.o 仅导出 json_*_c（json.sx）。本 TU 提供 std_json_* 转发（语义对齐 mod.sx）。
+ * json.o 仅导出 json_*_c（json.x）。本 TU 提供 std_json_* 转发（语义对齐 mod.x）。
  */
 #include <stdint.h>
 
-/** 与 mod.sx JsonCursor 布局一致。 */
+/** 与 mod.x JsonCursor 布局一致。 */
 typedef struct ShuxJsonCursor {
   uint8_t *ptr;
   int32_t len;

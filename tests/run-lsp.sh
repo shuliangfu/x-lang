@@ -23,19 +23,19 @@ send_lsp() {
 
 # 用 Python 做 JSON 转义（若不可用则用内联写死的短文档）
 if command -v python3 >/dev/null 2>&1; then
-  DOC_JSON=$(python3 -c "import json; print(json.dumps(open('tests/lsp/main.sx').read()))")
-  DEF_DOC_JSON=$(python3 -c "import json; print(json.dumps(open('tests/lsp/def_call.sx').read()))")
+  DOC_JSON=$(python3 -c "import json; print(json.dumps(open('tests/lsp/main.x').read()))")
+  DEF_DOC_JSON=$(python3 -c "import json; print(json.dumps(open('tests/lsp/def_call.x').read()))")
 else
   DOC_JSON='"function main(): i32 { return 0; }"'
   DEF_DOC_JSON='"function helper(): i32 { return 1; } function main(): i32 { return helper(); }"'
 fi
 
 INIT_REQ='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}'
-DID_OPEN='{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tests/lsp/main.sx","languageId":"su","version":1,"text":'"$DOC_JSON"'}}}'
-DID_OPEN_DEF='{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tests/lsp/def_call.sx","languageId":"su","version":1,"text":'"$DEF_DOC_JSON"'}}}'
-DIAG_REQ='{"jsonrpc":"2.0","id":2,"method":"textDocument/diagnostics","params":{"textDocument":{"uri":"file:///tests/lsp/main.sx"}}}'
-FMT_REQ='{"jsonrpc":"2.0","id":4,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///tests/lsp/main.sx"},"options":{"tabSize":2,"insertSpaces":true,"maxLineLength":100}}}'
-DEF_REQ='{"jsonrpc":"2.0","id":5,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///tests/lsp/def_call.sx"},"position":{"line":6,"character":9}}}'
+DID_OPEN='{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tests/lsp/main.x","languageId":"su","version":1,"text":'"$DOC_JSON"'}}}'
+DID_OPEN_DEF='{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///tests/lsp/def_call.x","languageId":"su","version":1,"text":'"$DEF_DOC_JSON"'}}}'
+DIAG_REQ='{"jsonrpc":"2.0","id":2,"method":"textDocument/diagnostics","params":{"textDocument":{"uri":"file:///tests/lsp/main.x"}}}'
+FMT_REQ='{"jsonrpc":"2.0","id":4,"method":"textDocument/formatting","params":{"textDocument":{"uri":"file:///tests/lsp/main.x"},"options":{"tabSize":2,"insertSpaces":true,"maxLineLength":100}}}'
+DEF_REQ='{"jsonrpc":"2.0","id":5,"method":"textDocument/definition","params":{"textDocument":{"uri":"file:///tests/lsp/def_call.x"},"position":{"line":6,"character":9}}}'
 SHUTDOWN='{"jsonrpc":"2.0","id":3,"method":"shutdown"}'
 EXIT_NOTIF='{"jsonrpc":"2.0","method":"exit"}'
 
@@ -112,7 +112,7 @@ if ! grep -q '"newText":' "$OUT"; then
   cat "$OUT"
   exit 1
 fi
-# definition 烟测：helper() 调用应解析到 def_call.sx 内 helper 定义（非 null）
+# definition 烟测：helper() 调用应解析到 def_call.x 内 helper 定义（非 null）
 if ! grep -q '"id":5' "$OUT" || ! grep -q '"line":0' "$OUT"; then
   echo "LSP test FAIL: definition response missing expected helper location"
   cat "$OUT"

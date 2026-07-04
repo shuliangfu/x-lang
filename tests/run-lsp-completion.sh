@@ -9,8 +9,8 @@ cd "$(dirname "$0")/.."
 . tests/lib/tool-lsp-completion.sh
 
 SHUX="${SHUX:-./compiler/shux}"
-FIXTURE=tests/lsp/completion_symbols.sx
-URI="file:///$(pwd)/tests/lsp/completion_symbols.sx"
+FIXTURE=tests/lsp/completion_symbols.x
+URI="file:///$(pwd)/tests/lsp/completion_symbols.x"
 
 if ! "$SHUX" --help 2>/dev/null | grep -q '\-\-lsp'; then
   make -C compiler bootstrap-driver-seed 2>/dev/null || make -C compiler

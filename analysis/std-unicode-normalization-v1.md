@@ -33,6 +33,6 @@ v1 覆盖与 STD-037 相同的拉丁预组合对（如 `é` ↔ `e`+U+0301）；
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_UNICODE_NORM] status=ok c_smoke=1 sx=1 skip=0
+shux: [SHUX_STD_UNICODE_NORM] status=ok c_smoke=1 x=1 skip=0
 std-unicode-normalization gate OK
 ```

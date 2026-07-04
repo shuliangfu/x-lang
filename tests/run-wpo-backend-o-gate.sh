@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S5：build_asm/backend_wpo.o WPO 生产链硬门禁（WPO 压缩 backend.sx dogfood）。
+# S5：build_asm/backend_wpo.o WPO 生产链硬门禁（WPO 压缩 backend.x dogfood）。
 # strict 链仍用全量 build_asm/backend.o；本门禁仅验 backend_wpo.o。
 # 用法：
 #   ./tests/run-wpo-backend-o-gate.sh

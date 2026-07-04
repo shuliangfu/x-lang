@@ -1,6 +1,6 @@
-typeck error[SXT001]: .sx type check failed in function #13 csv_field_needs_quote (implicit tail return)
- --> ../std/csv/csv.sx
+typeck error[XT001]: .x type check failed in function #13 csv_field_needs_quote (implicit tail return)
+ --> ../std/csv/csv.x
 typeck error: return value must use explicit return statement (e.g. return 0;)
- --> ../std/csv/csv.sx
-pipeline error: .sx pipeline failed for '../std/csv/csv.sx' (stage=parse_into/typeck_sx_ast/codegen_sx_ast)
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
+pipeline error: .x pipeline failed for '../std/csv/csv.x' (stage=parse_into/typeck_x_ast/codegen_x_ast)
+ --> ../std/csv/csv.x

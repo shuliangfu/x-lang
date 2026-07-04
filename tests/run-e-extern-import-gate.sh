@@ -18,13 +18,13 @@ if [ ! -x "$SHUX" ]; then
   exit 0
 fi
 
-# --- lsp_io.sx ---
+# --- lsp_io.x ---
 GEN_IO="/tmp/shux_lsp_io_gen_$$.c"
 OBJ_IO="/tmp/shux_lsp_io_gen_$$.o"
 rm -f "$GEN_IO" "$OBJ_IO" 2>/dev/null || true
 
-if ! "$SHUX" $LSP_DIRS src/lsp/lsp_io.sx -E -E-extern >"$GEN_IO" 2>/tmp/shux_e_extern_io.log; then
-  echo "e-extern-import-gate FAIL: -E-extern lsp_io.sx" >&2
+if ! "$SHUX" $LSP_DIRS src/lsp/lsp_io.x -E -E-extern >"$GEN_IO" 2>/tmp/shux_e_extern_io.log; then
+  echo "e-extern-import-gate FAIL: -E-extern lsp_io.x" >&2
   tail -n 10 /tmp/shux_e_extern_io.log 2>/dev/null || true
   rm -f "$GEN_IO" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
@@ -58,20 +58,20 @@ if ! cc -c -I. -Dstd_io_read=io_read -Dstd_io_write=io_write -o "$OBJ_IO" "$GEN_
 fi
 rm -f "$GEN_IO" "$OBJ_IO" 2>/dev/null || true
 
-# --- lsp.sx (C-04 v1：lsp_io import 自动 typeck extern + inline wrapper) ---
+# --- lsp.x (C-04 v1：lsp_io import 自动 typeck extern + inline wrapper) ---
 GEN_LSP="/tmp/shux_lsp_gen_$$.c"
 OBJ_LSP="/tmp/shux_lsp_gen_$$.o"
 rm -f "$GEN_LSP" "$OBJ_LSP" 2>/dev/null || true
 
-if ! "$SHUX" $LSP_DIRS src/lsp/lsp.sx -E -E-extern >"$GEN_LSP" 2>/tmp/shux_e_extern_lsp.log; then
-  echo "e-extern-import-gate FAIL: -E-extern lsp.sx" >&2
+if ! "$SHUX" $LSP_DIRS src/lsp/lsp.x -E -E-extern >"$GEN_LSP" 2>/tmp/shux_e_extern_lsp.log; then
+  echo "e-extern-import-gate FAIL: -E-extern lsp.x" >&2
   tail -n 10 /tmp/shux_e_extern_lsp.log 2>/dev/null || true
   rm -f "$GEN_LSP" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0
 fi
 
-if grep -q 'lsp.sx -E-extern stubs (lsp_io_sx' "$GEN_LSP"; then
+if grep -q 'lsp.x -E-extern stubs (lsp_io_x' "$GEN_LSP"; then
   echo "e-extern-import-gate FAIL: deprecated lsp_gen extern block still present" >&2
   rm -f "$GEN_LSP" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

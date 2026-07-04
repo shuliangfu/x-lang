@@ -6,11 +6,11 @@
 
 | 禁止 `cc -c`（strict 段） | 替代 |
 |---------------------------|------|
-| `src/parser/parser.c` | `parser_sx.o` |
-| `src/typeck/typeck.c` | `typeck_sx.o` |
-| `src/codegen/codegen.c` / `autovec.c` | `codegen_sx.o` |
-| `src/preprocess.c` | `preprocess_sx.o` |
-| `src/lexer/lexer.c` | `lexer_sx.o` |
+| `src/parser/parser.c` | `parser_x.o` |
+| `src/typeck/typeck.c` | `typeck_x.o` |
+| `src/codegen/codegen.c` / `autovec.c` | `codegen_x.o` |
+| `src/preprocess.c` | `preprocess_x.o` |
+| `src/lexer/lexer.c` | `lexer_x.o` |
 | `src/ast/ast.c` | ast_pool / bridge |
 | `src/lsp/lsp_diag.c` | `lsp_diag_stubs_no_c.o` |
 | `pipeline_gen.c` | C-03 委托 |
@@ -33,4 +33,4 @@ SHUX_E06_FAIL=1 SHUX_E06_BUILD_LOG=/tmp/build_bstrict.log ./tests/run-e06-no-com
 
 ## 延后（E-06 v1）
 
-- 见 `analysis/phase-e-e06-v2.md`（v2 experimental SEED SX skip）
+- 见 `analysis/phase-e-e06-v2.md`（v2 experimental SEED X skip）

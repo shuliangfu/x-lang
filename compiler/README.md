@@ -2,8 +2,8 @@
 
 本目录为 **shux 编译器** 的源码与构建入口。
 
-- **阶段**：自举前用 **C** 实现（`src/*.c`、`include/*.h`），自举后逐步改为 **.sx**（`src/*.sx`）。
-- **产出**：可执行文件 **shux**（.sx 流水线），将 .sx 源码编译为目标码/IR。
+- **阶段**：自举前用 **C** 实现（`src/*.c`、`include/*.h`），自举后逐步改为 **.x**（`src/*.x`）。
+- **产出**：可执行文件 **shux**（.x 流水线），将 .x 源码编译为目标码/IR。
 - **子目录**：
   - `src/` — 编译器源码（lexer、parser、ast、typeck、ir、codegen、driver）
   - `include/` — C 头文件（若用 C 实现时使用）
@@ -25,14 +25,14 @@ Makefile 仅作从零构建/首次；`make all` 默认同时产出 **shux** 与 
 
 | 命令 | 说明 |
 |------|------|
-| `shux file.sx` | 编译并运行（等同 `shux run file.sx`） |
-| `shux build` | 读取当前目录 `build.sx`，编译并运行 `build_runner` |
-| `shux build file.sx` | 仅编译，默认产物 `a.out` |
-| `shux build file.sx -o exe` | 编译到指定可执行文件 |
-| `shux run file.sx` | 编译并运行 |
-| `shux -E file.sx` | 输出 C 源码（调试用） |
-| `shux -backend c file.sx` | 强制走 C 路径 |
-| `shux -O2 file.sx -o app` | 默认 **-O2**；release 推荐 `shux_asm -backend asm -O2` |
+| `shux file.x` | 编译并运行（等同 `shux run file.x`） |
+| `shux build` | 读取当前目录 `build.x`，编译并运行 `build_runner` |
+| `shux build file.x` | 仅编译，默认产物 `a.out` |
+| `shux build file.x -o exe` | 编译到指定可执行文件 |
+| `shux run file.x` | 编译并运行 |
+| `shux -E file.x` | 输出 C 源码（调试用） |
+| `shux -backend c file.x` | 强制走 C 路径 |
+| `shux -O2 file.x -o app` | 默认 **-O2**；release 推荐 `shux_asm -backend asm -O2` |
 | `shux -legacy-f32-abi …` | x86_64 legacy f32 CALL（默认 xmm；见 `docs/F32_XMM_ABI.md`） |
 | `shux --help` | 用法摘要 |
 

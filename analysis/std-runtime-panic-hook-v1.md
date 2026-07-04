@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-19  
 > 状态：**定版（v1）**  
-> 关联：`NEXT.md` STD-028、EXC-002、`std/runtime/mod.sx`、`compiler/src/asm/runtime_panic.c`
+> 关联：`NEXT.md` STD-028、EXC-002、`std/runtime/mod.x`、`compiler/src/asm/runtime_panic.c`
 
 ---
 
@@ -49,7 +49,7 @@
 ## 4. 验收
 
 - Manifest：`tests/baseline/std-runtime-panic-hook.tsv`
-- 烟测：`tests/exc/panic_hook_align.sx`、`tests/exc/runtime_ready.sx`
+- 烟测：`tests/exc/panic_hook_align.x`、`tests/exc/runtime_ready.x`
 - 联动：`tests/run-exc-panic-abort-gate.sh`（EXC-002）
 - Gate：`tests/run-std-runtime-panic-hook-gate.sh`
 - 报告：`shux: [SHUX_STD_RUNTIME_PANIC] status=ok`

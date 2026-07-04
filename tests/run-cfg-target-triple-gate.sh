@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_CFG_TARGET_TRIPLE_FAIL:-0}
-SX="tests/lexer/cfg_attribute_skip.sx"
+X="tests/lexer/cfg_attribute_skip.x"
 SHUX="${SHUX:-./compiler/shux-c}"
 
 if [ ! -x "$SHUX" ]; then
@@ -32,7 +32,7 @@ run_expect() {
   local expect="$2"
   local out="/tmp/shux_cfg_triple.$$.out"
   rm -f "$out" 2>/dev/null || true
-  if ! "$SHUX" -target "$triple" -o "$out" "$SX" 2>/tmp/shux_cfg_triple.log; then
+  if ! "$SHUX" -target "$triple" -o "$out" "$X" 2>/tmp/shux_cfg_triple.log; then
     echo "cfg-target-triple-gate FAIL: compile with -target $triple" >&2
     tail -n 8 /tmp/shux_cfg_triple.log 2>/dev/null || true
     rm -f "$out" 2>/dev/null || true

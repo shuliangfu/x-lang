@@ -3,16 +3,16 @@
 # min_apis	8
 read_path	section	## 1. 阅读路径	analysis/std-option-result-v1.md
 api_doc	section	## 2. API	analysis/std-option-result-v1.md
-api_none	api	none	std/option/mod.sx	构造
-api_some	api	some	std/option/mod.sx	构造
-api_unwrap	api	unwrap_or	std/option/mod.sx	解包
-api_is_some	api	is_some	std/option/mod.sx	判定
-api_map	api	map	std/option/mod.sx	组合
-api_and_then	api	and_then	std/option/mod.sx	组合
-api_or	api	or	std/option/mod.sx	组合
-api_from_result	api	from_result	std/option/mod.sx	互转
-api_to_result	api	to_result	std/option/mod.sx	互转
-impl_sx	file	std/option/mod.sx	std/option/mod.sx
-smoke_sx	smoke	tests/std-option-result/roundtrip.sx	round-trip
+api_none	api	none	std/option/mod.x	构造
+api_some	api	some	std/option/mod.x	构造
+api_unwrap	api	unwrap_or	std/option/mod.x	解包
+api_is_some	api	is_some	std/option/mod.x	判定
+api_map	api	map	std/option/mod.x	组合
+api_and_then	api	and_then	std/option/mod.x	组合
+api_or	api	or	std/option/mod.x	组合
+api_from_result	api	from_result	std/option/mod.x	互转
+api_to_result	api	to_result	std/option/mod.x	互转
+impl_x	file	std/option/mod.x	std/option/mod.x
+smoke_x	smoke	tests/std-option-result/roundtrip.x	round-trip
 lib	script	lib/std-option-result.sh	tests/lib/std-option-result.sh
 gate	script	run-std-option-result-gate.sh	tests/run-std-option-result-gate.sh

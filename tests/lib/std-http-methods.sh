@@ -2,15 +2,15 @@
 # std-http-methods.sh — STD-032 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_http_methods_symbols_ok MOD_SX HTTP_C TSV
-#   std_http_methods_run_smoke SHUX_BIN SX TAG
+#   std_http_methods_symbols_ok MOD_X HTTP_C TSV
+#   std_http_methods_run_smoke SHUX_BIN X TAG
 #   std_http_methods_emit_report status methods_ok skip
 
 STD_HTTP_METHODS_PREFIX="${SHUX_STD_HTTP_METHODS_PREFIX:-shux: [SHUX_STD_HTTP_METHODS]}"
 
 # 校验 manifest symbol/file/api；echo 缺失数，成功返回 0。
 std_http_methods_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local http_c="$2"
   local tsv="$3"
   local miss=0
@@ -20,15 +20,15 @@ std_http_methods_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
-          echo "std-http-methods FAIL: missing api '$anchor' in $mod_sx" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
+          echo "std-http-methods FAIL: missing api '$anchor' in $mod_x" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         case "$mod_path" in
           compiler/src/asm/http/runtime_http_glue.c) mod_path="$http_c" ;;
-          *) mod_path="$mod_sx" ;;
+          *) mod_path="$mod_x" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-http-methods FAIL: missing '$anchor' in $mod_path" >&2
@@ -47,7 +47,7 @@ std_http_methods_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .sx（须已 ensure http.o）。
+# 编译并运行烟测 .x（须已 ensure http.o）。
 std_http_methods_run_smoke() {
   local shux="$1"
   local src="$2"

@@ -19,13 +19,13 @@ echo "=== F-03 v2: std.fs remove fs.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-03 v2' "$DOC" || die "doc missing F-03 v2 marker"
 [ ! -f std/fs/fs.c ] || die "fs.c should be deleted"
-[ -f std/fs/posix.sx ] || die "missing posix.sx"
-[ -f std/fs/win32.sx ] || die "missing win32.sx"
-grep -q 'import("std.fs.posix")' std/fs/mod.sx || die "mod.sx missing posix import"
-grep -q 'fs_open_read_c' std/fs/posix.sx || die "fs_posix missing fs_open_read_c"
-grep -q 'fs_mmap_ro_c' std/fs/win32.sx || die "fs_win32 missing fs_mmap_ro_c"
-if grep -q 'extern function fs_open_read_c' std/fs/mod.sx 2>/dev/null; then
-  die "mod.sx still extern fs_open_read_c (should forward to platform)"
+[ -f std/fs/posix.x ] || die "missing posix.x"
+[ -f std/fs/win32.x ] || die "missing win32.x"
+grep -q 'import("std.fs.posix")' std/fs/mod.x || die "mod.x missing posix import"
+grep -q 'fs_open_read_c' std/fs/posix.x || die "fs_posix missing fs_open_read_c"
+grep -q 'fs_mmap_ro_c' std/fs/win32.x || die "fs_win32 missing fs_mmap_ro_c"
+if grep -q 'extern function fs_open_read_c' std/fs/mod.x 2>/dev/null; then
+  die "mod.x still extern fs_open_read_c (should forward to platform)"
 fi
 if grep -q '../std/fs/fs.o' compiler/Makefile 2>/dev/null; then
   die "Makefile still references ../std/fs/fs.o"

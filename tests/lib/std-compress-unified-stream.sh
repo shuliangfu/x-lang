@@ -2,15 +2,15 @@
 # std-compress-unified-stream.sh — STD-122 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_compress_unified_symbols_ok MOD_SX TSV
-#   std_compress_unified_run_smoke SHUX_BIN SX TAG
+#   std_compress_unified_symbols_ok MOD_X TSV
+#   std_compress_unified_run_smoke SHUX_BIN X TAG
 #   std_compress_unified_emit_report status stream_ok skip
 
 STD_COMPRESS_UNIFIED_PREFIX="${SHUX_STD122_COMPRESS_UNIFIED_PREFIX:-shux: [SHUX_STD122_COMPRESS_UNIFIED]}"
 
 # 校验 manifest api/smoke/file；echo 缺失数。
 std_compress_unified_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor mod_path
@@ -19,8 +19,8 @@ std_compress_unified_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
-          echo "std-compress-unified-stream FAIL: missing api '$anchor' in $mod_sx" >&2
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
+          echo "std-compress-unified-stream FAIL: missing api '$anchor' in $mod_x" >&2
           miss=$((miss + 1))
         fi
         ;;
@@ -36,7 +36,7 @@ std_compress_unified_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行烟测 .sx（须已 rebuild compress.o with zlib）。
+# 编译并运行烟测 .x（须已 rebuild compress.o with zlib）。
 std_compress_unified_run_smoke() {
   local shux="$1"
   local src="$2"

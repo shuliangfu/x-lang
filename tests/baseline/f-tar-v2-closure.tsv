@@ -2,7 +2,7 @@
 # 列：item_id	kind	anchor	notes
 ftar2_doc	doc	analysis/phase-f-tar-v2.md	F-tar v2
 ftar2_gate	gate	tests/run-f-tar-v2-gate.sh	逻辑下沉门禁
-tar_sx	file	std/tar/tar.sx	全量 UStar/Pax
-tar_mod	file	std/tar/mod.sx	对外 API
+tar_x	file	std/tar/tar.x	全量 UStar/Pax
+tar_mod	file	std/tar/mod.x	对外 API
 tar_glue_v1_absent	absent	std/tar/tar_glue.c	v1 胶层已删除
-makefile	makefile	compiler/Makefile	tar.o 纯 sx
+makefile	makefile	compiler/Makefile	tar.o 纯 x

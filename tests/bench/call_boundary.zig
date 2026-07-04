@@ -1,4 +1,4 @@
-// call_boundary.zig — 与 tests/bench/call_boundary.sx 对齐
+// call_boundary.zig — 与 tests/bench/call_boundary.x 对齐
 const std = @import("std");
 
 fn f0(x: i32) i32 {

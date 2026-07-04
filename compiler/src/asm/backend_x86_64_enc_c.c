@@ -2,7 +2,7 @@
  * backend_x86_64_enc_c.c — x86_64 ELF 指令编码 C 体（覆盖 asm_full_link_stubs weak -1）
  *
  * M8 自举 USER_ASM_LINK 链仅 partial+stubs，未链 x86_64_enc.o；强符号在此提供，
- * 端口 arch/x86_64_enc.sx。
+ * 端口 arch/x86_64_enc.x。
  */
 #include <stdint.h>
 #include <string.h>
@@ -47,7 +47,7 @@ static int32_t x86_enc_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx, const u
 
 #define X86_ENC_FIXED(ctx, arr) x86_enc_bytes((ctx), (const uint8_t *)(arr), (int32_t)sizeof(arr))
 
-/** x86 rel32 条件跳转 + patch（与 x86_64_enc.sx enc_jz/enc_jge 一致）。 */
+/** x86 rel32 条件跳转 + patch（与 x86_64_enc.x enc_jz/enc_jge 一致）。 */
 static int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2, uint8_t *label,
                                  int32_t label_len) {
   uint8_t buf[6];

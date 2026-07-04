@@ -23,15 +23,15 @@
 
 | 优先级 | 模式 | 示例 `import("std.io")` | 物理路径（`lib_root=.`） |
 |--------|------|----------------------|--------------------------|
-| 1 | `{root}/{a}/{b}/.../{last}.sx` | 末段单文件 | `std/io.sx`（若存在） |
-| 2 | `{root}/{a}/{b}/.../mod.sx` | **目录模块（std 主路径）** | `std/io/mod.sx` |
-| 3 | 单段 `foo` | `import preprocess` | `{root}/preprocess/preprocess.sx` |
+| 1 | `{root}/{a}/{b}/.../{last}.x` | 末段单文件 | `std/io.x`（若存在） |
+| 2 | `{root}/{a}/{b}/.../mod.x` | **目录模块（std 主路径）** | `std/io/mod.x` |
+| 3 | 单段 `foo` | `import preprocess` | `{root}/preprocess/preprocess.x` |
 
 **多 `-L`**：从左到右尝试每个 lib_root，首个可读文件命中即成功（**K2-lib-roots**）。
 
-**入口目录 fallback**：单段 import 可在入口 `.sx` 同目录查找（多文件工程，见 `runtime.c` `resolve_import_file_path_multi`）。
+**入口目录 fallback**：单段 import 可在入口 `.x` 同目录查找（多文件工程，见 `runtime.c` `resolve_import_file_path_multi`）。
 
-**禁止**：`import xxx.c` — 仅 `.sx` 模块可 import（`docs/05-函数与模块.md`）。
+**禁止**：`import xxx.c` — 仅 `.x` 模块可 import（`docs/05-函数与模块.md`）。
 
 ---
 
@@ -42,21 +42,21 @@
 ```
 {repo}/                 ← 典型 -L . 指向此处
 ├── core/               ← import core.*
-│   └── types/mod.sx
+│   └── types/mod.x
 ├── std/                ← import std.*
-│   ├── io/mod.sx
-│   ├── fs/mod.sx
+│   ├── io/mod.x
+│   ├── fs/mod.x
 │   └── http/
-│       ├── mod.sx      ← import("std.http")
+│       ├── mod.x      ← import("std.http")
 │       └── http.c      ← extern 实现，非 import 目标
 └── tests/
 ```
 
 | 约定 | 说明 |
 |------|------|
-| **扁平 std** | 无 `stdlib/`；`std/<name>/mod.sx` 为主模块文件 |
-| **core 同构** | `core/<name>/mod.sx` 或 `core/<name>.sx` |
-| **测试** | `shux check -L . tests/foo/main.sx`；项目根为默认 lib_root |
+| **扁平 std** | 无 `stdlib/`；`std/<name>/mod.x` 为主模块文件 |
+| **core 同构** | `core/<name>/mod.x` 或 `core/<name>.x` |
+| **测试** | `shux check -L . tests/foo/main.x`；项目根为默认 lib_root |
 | **多根** | `shux -L . -L vendor/foo` — vendor 覆盖或补充 bundled |
 
 ---
@@ -67,12 +67,12 @@
 
 | import | 物理路径（`-L .`） | 备注 |
 |--------|-------------------|------|
-| `std.io` | `std/io/mod.sx` | Tier-S |
-| `std.fs` | `std/fs/mod.sx` | Tier-S |
-| `std.http` | `std/http/mod.sx` | Tier-S |
-| `std.json` | `std/json/mod.sx` | Tier-S |
-| `std.process` | `std/process/mod.sx` | Tier-S |
-| `core.types` | `core/types/mod.sx` | core 对照 |
+| `std.io` | `std/io/mod.x` | Tier-S |
+| `std.fs` | `std/fs/mod.x` | Tier-S |
+| `std.http` | `std/http/mod.x` | Tier-S |
+| `std.json` | `std/json/mod.x` | Tier-S |
+| `std.process` | `std/process/mod.x` | Tier-S |
+| `core.types` | `core/types/mod.x` | core 对照 |
 
 gate 对 manifest 中每条 `resolve` 行执行 `tool_pkg_resolve_import` 校验。
 
@@ -80,7 +80,7 @@ gate 对 manifest 中每条 `resolve` 行执行 `tool_pkg_resolve_import` 校验
 
 ## 5. C `.o` 按需链接（ABI）
 
-`.sx` 中 `extern function foo_c` 由 **链接阶段** 解析，不走 import 路径：
+`.x` 中 `extern function foo_c` 由 **链接阶段** 解析，不走 import 路径：
 
 | 层次 | 说明 |
 |------|------|
@@ -98,7 +98,7 @@ gate 对 manifest 中每条 `resolve` 行执行 `tool_pkg_resolve_import` 校验
 |------|----------------------|
 | **TOOL-007** | `shux.pkg.tsv` 声明 `lib_root` 与 `require`；`shux-deps-resolve.sh` 用与 driver 一致的解析子集探测文件 |
 | **TOOL-008** | `shux.pkg.lock.tsv` 锁定 require 路径与 digest；`shux-deps-verify.sh` 保证可重复构建 |
-| **STBL-001** | Tier-S manifest 登记各 `std.*` 的 `mod.sx` 与 baseline TSV |
+| **STBL-001** | Tier-S manifest 登记各 `std.*` 的 `mod.x` 与 baseline TSV |
 
 v1 **无** 网络 registry；`core.*` / `std.*` 均为仓库 bundled。
 
@@ -112,7 +112,7 @@ v1 **无** 网络 registry；`core.*` / `std.*` 均为仓库 bundled。
 
 manifest：`tests/baseline/stbl-import-std-layout.tsv`
 
-烟测：`tests/import-std-layout/check_imports.sx`（多 `std.*` import + `shux check -L .`）
+烟测：`tests/import-std-layout/check_imports.x`（多 `std.*` import + `shux check -L .`）
 
 **report** 示例：
 

@@ -49,7 +49,7 @@ struct ErrorChain {
 | `error_chain_wrap(chain, wrapper)` | 包装；超深截断最旧 leaf |
 | `error_chain_depth` / `root` / `leaf` / `code_at` | 访问 |
 
-实现：`std/error/mod.sx`（`import("core.result")`）。
+实现：`std/error/mod.x`（`import("core.result")`）。
 
 ---
 
@@ -97,7 +97,7 @@ let chain: ErrorChain = error_chain_wrap(leaf, io_err_generic());
 | 脚本 | 覆盖 |
 |------|------|
 | `tests/run-exc-error-chain-gate.sh` | manifest + 符号 + 烟测 |
-| `tests/exc/error_chain_smoke.sx` | wrap 顺序 + depth |
+| `tests/exc/error_chain_smoke.x` | wrap 顺序 + depth |
 
 ---
 
@@ -106,7 +106,7 @@ let chain: ErrorChain = error_chain_wrap(leaf, io_err_generic());
 | 资源 | 路径 |
 |------|------|
 | 矩阵 | `tests/baseline/exc-error-chain.tsv` |
-| 实现 | `std/error/mod.sx` |
+| 实现 | `std/error/mod.x` |
 | EXC-003 码 | `analysis/exc-error-code-layer-v1.md` |
 
 **EXC-004 状态：定版 ✅**

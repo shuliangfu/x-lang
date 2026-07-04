@@ -8,7 +8,7 @@ migrate_import_to_select.py — 将 `import path;` 转为方式 2（绑定）或
 
 用法：
   python3 tools/migrate_import_to_select.py --write examples/cookbook/
-  python3 tools/migrate_import_to_select.py --check std/io/mod.sx
+  python3 tools/migrate_import_to_select.py --check std/io/mod.x
 """
 from __future__ import annotations
 
@@ -40,14 +40,14 @@ FULL_MODULE_RATIO = 0.75
 
 
 def resolve_module_file(import_path: str, root: Path) -> Path | None:
-    """按 STBL-004 规则解析 import 路径到 .sx 文件。"""
+    """按 STBL-004 规则解析 import 路径到 .x 文件。"""
     parts = import_path.split(".")
     candidates: list[Path] = [
-        root / "/".join(parts) / "mod.sx",
-        root / f"{'/'.join(parts)}.sx",
+        root / "/".join(parts) / "mod.x",
+        root / f"{'/'.join(parts)}.x",
     ]
     if len(parts) == 1:
-        candidates.append(root / parts[0] / f"{parts[0]}.sx")
+        candidates.append(root / parts[0] / f"{parts[0]}.x")
     for c in candidates:
         if c.is_file():
             return c
@@ -252,7 +252,7 @@ def main() -> int:
     for p in args.paths:
         path = Path(p)
         if path.is_dir():
-            files.extend(sorted(path.rglob("*.sx")))
+            files.extend(sorted(path.rglob("*.x")))
         elif path.is_file():
             files.append(path)
 

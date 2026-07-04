@@ -2,7 +2,7 @@
  * parser_asm_primary_slice.c — parse_primary_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * INT/FLOAT/BOOL/break/continue/IDENT 后缀/paren/array/if/match/panic/@simd 与 parser.sx 一致。
+ * INT/FLOAT/BOOL/break/continue/IDENT 后缀/paren/array/if/match/panic/@simd 与 parser.x 一致。
  */
 #ifndef PARSER_ASM_PRIMARY_SLICE_INCLUDED
 #define PARSER_ASM_PRIMARY_SLICE_INCLUDED
@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/** 与 ast.sx ExprKind 序一致（primary 用到的子集；勿用 C ast.h 旧序 +32 误值）。 */
+/** 与 ast.x ExprKind 序一致（primary 用到的子集；勿用 C ast.h 旧序 +32 误值）。 */
 enum {
   PARSER_ASM_EXPR_LIT = 0,
   PARSER_ASM_EXPR_FLOAT_LIT = 1,
@@ -26,7 +26,7 @@ enum {
   PARSER_ASM_EXPR_ARRAY_LIT = 46,
   PARSER_ASM_EXPR_INDEX = 47,
   PARSER_ASM_EXPR_CALL = 48,
-  /** 与 ast.sx ExprKind.EXPR_METHOD_CALL 一致；`.method(...)` 后缀。 */
+  /** 与 ast.x ExprKind.EXPR_METHOD_CALL 一致；`.method(...)` 后缀。 */
   PARSER_ASM_EXPR_METHOD_CALL = 49,
   /** 与 ast.h AST_EXPR_STRING_LIT 序一致；字符串字面量写入 var_name。 */
   PARSER_ASM_EXPR_STRING_LIT = 59
@@ -177,7 +177,7 @@ static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 static void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
 
-/** 分配 EXPR_FLOAT_LIT 节点；与 parser.sx parser_alloc_float_lit 一致。 */
+/** 分配 EXPR_FLOAT_LIT 节点；与 parser.x parser_alloc_float_lit 一致。 */
 static int32_t parser_asm_alloc_float_lit_c(void *arena, double fval) {
   int32_t ref;
   struct parser_asm_ast_expr e;
@@ -1470,7 +1470,7 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
     e.kind = PARSER_ASM_EXPR_STRING_LIT;
     e.line = r.tok.line;
     e.col = r.tok.col;
-    /* lexer.sx：TOKEN_STRING 的 token_start 已指向开引号后首字节。 */
+    /* lexer.x：TOKEN_STRING 的 token_start 已指向开引号后首字节。 */
     q0 = r.token_start;
     e.var_name_len = r.tok.ident_len;
     if (e.var_name_len > 63)

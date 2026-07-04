@@ -21,10 +21,10 @@
 
 | 模块 | 文件 | case 数 | 覆盖要点 |
 |------|------|---------|----------|
-| `std.io` | `tests/io/boundary.sx` | 9 | handle 常量、零长 write、print_str |
-| `std.fs` | `tests/fs/boundary.sx` | 10 | invalid handle、不存在路径、写读、pread |
-| `std.net` | `tests/net/boundary.sx` | 10 | addr 编解码、UDP/TCP bind 0、local_addr |
-| `std.string` | `tests/string/boundary.sx` | 10 | StrView 钳制、capacity、compare/find |
+| `std.io` | `tests/io/boundary.x` | 9 | handle 常量、零长 write、print_str |
+| `std.fs` | `tests/fs/boundary.x` | 10 | invalid handle、不存在路径、写读、pread |
+| `std.net` | `tests/net/boundary.x` | 10 | addr 编解码、UDP/TCP bind 0、local_addr |
+| `std.string` | `tests/string/boundary.x` | 10 | StrView 钳制、capacity、compare/find |
 
 约定：每个 case 失败返回唯一 exit code；`main` 成功返回 0。
 
@@ -55,6 +55,6 @@ manifest：`tests/baseline/tst-001-boundary-wave1.tsv`
 
 扩展边界时：
 
-1. 在对应 `tests/<mod>/boundary.sx` 追加 `// case N`  
+1. 在对应 `tests/<mod>/boundary.x` 追加 `// case N`  
 2. 更新 manifest `min_cases` 列（若超过原值）  
 3. 跑 gate 全绿  

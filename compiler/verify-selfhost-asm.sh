@@ -1,7 +1,7 @@
 #!/bin/sh
 # verify-selfhost-asm.sh — asm 构建质量与 shux_asm 烟囱测试（零 cc 路线验收辅助）
 # 用法：cd compiler && ./verify-selfhost-asm.sh
-# 要求：./shux 已存在（make bootstrap-driver-seed）；不替代 make bootstrap-verify（语义自举仍以 shux-sx 为准）。
+# 要求：./shux 已存在（make bootstrap-driver-seed）；不替代 make bootstrap-verify（语义自举仍以 shux-x 为准）。
 
 set -e
 cd "$(dirname "$0")"
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "── Step 2: shux_asm 编译 smoke（return-value）──"
-RV=../tests/return-value/main.sx
+RV=../tests/return-value/main.x
 if [ -f "$RV" ]; then
   set +e
   ./shux_asm -backend asm -o /tmp/shux_asm_rv.o "$RV"

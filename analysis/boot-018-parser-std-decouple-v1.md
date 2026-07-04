@@ -29,7 +29,7 @@
 2. **`run-portable-suite.sh`**：`COMP-001` 接受 `gate OK` 或 `gate SKIP hooks`（Darwin / 无 Linux hook）。  
 3. **`eng-quality-gate-matrix.tsv`**：`comp_parser_mega7` 为 **Qp/portable**，非 `ci_hard=yes`。  
 4. **std 轨门禁**须先于或与 parser 轨并行，**不得** grep `mega7.*done` 作为 std 绿条件。  
-5. 新增 std 模块：仅需 `stdlib-check-matrix.tsv` + 对应 STD manifest；**无需**修改 `parser.sx` mega7。
+5. 新增 std 模块：仅需 `stdlib-check-matrix.tsv` + 对应 STD manifest；**无需**修改 `parser.x` mega7。
 
 ---
 

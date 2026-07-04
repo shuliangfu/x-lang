@@ -7,16 +7,16 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_MVE_DOC:-analysis/std-map-vec-extend-v1.md}"
 MANIFEST="${SHUX_STD_MVE_TSV:-tests/baseline/std-map-vec-extend.tsv}"
-MAP_SX="std/map/mod.sx"
-VEC_SX="std/vec/mod.sx"
-HEAP_SX="std/heap/mod.sx"
+MAP_X="std/map/mod.x"
+VEC_X="std/vec/mod.x"
+HEAP_X="std/heap/mod.x"
 LIB="tests/lib/std-map-vec-extend.sh"
 
 # shellcheck source=tests/lib/std-map-vec-extend.sh
 . tests/lib/std-map-vec-extend.sh
 
 echo "=== STD-013/014: map/vec extend manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MAP_SX" "$VEC_SX" "$HEAP_SX" tests/map/boundary.sx tests/vec/append_roundtrip.sx; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MAP_X" "$VEC_X" "$HEAP_X" tests/map/boundary.x tests/vec/append_roundtrip.x; do
   if [ ! -f "$f" ]; then
     echo "std-map-vec-extend gate FAIL: missing $f" >&2
     exit 1
@@ -30,7 +30,7 @@ for kw in Map_u64_i32 Map_str_i32 Vec_u64 Vec_f64 str_key_cap; do
   fi
 done
 
-sym_miss="$(std_mve_symbols_ok "$MAP_SX" "$VEC_SX" "$HEAP_SX" "$MANIFEST" || true)"
+sym_miss="$(std_mve_symbols_ok "$MAP_X" "$VEC_X" "$HEAP_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_mve_emit_report "fail" 0 0 0
   echo "std-map-vec-extend gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -66,19 +66,19 @@ resolve_shu() {
 if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== STD-013/014: typeck (SHUX=$SHUX_BIN) ==="
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if "$SHUX_BIN" check -L . tests/map/boundary.sx >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . tests/map/boundary.x >/dev/null 2>&1; then
     MAP_OK=1
   else
     echo "std-map-vec-extend gate FAIL: map boundary typeck" >&2
-    "$SHUX_BIN" check -L . tests/map/boundary.sx 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . tests/map/boundary.x 2>&1 | tail -8 >&2 || true
     std_mve_emit_report "fail" 0 0 0
     exit 1
   fi
-  if "$SHUX_BIN" check -L . tests/vec/append_roundtrip.sx >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . tests/vec/append_roundtrip.x >/dev/null 2>&1; then
     VEC_OK=1
   else
     echo "std-map-vec-extend gate FAIL: vec append typeck" >&2
-    "$SHUX_BIN" check -L . tests/vec/append_roundtrip.sx 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . tests/vec/append_roundtrip.x 2>&1 | tail -8 >&2 || true
     std_mve_emit_report "fail" "$MAP_OK" 0 0
     exit 1
   fi

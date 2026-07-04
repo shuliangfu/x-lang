@@ -62,8 +62,8 @@ C 后端：`generated_c_needs_async_scheduler` 扫描生成 `.c` 后链入 `sche
 
 | 脚本 | 验证 |
 |------|------|
-| `tests/json/object_array_parse.sx` | `std/json/json.o` 全量链入 |
-| `tests/async/await_scheduler_mod.sx` | `import("std.async")` → 按需 `scheduler.o` |
+| `tests/json/object_array_parse.x` | `std/json/json.o` 全量链入 |
+| `tests/async/await_scheduler_mod.x` | `import("std.async")` → 按需 `scheduler.o` |
 
 ---
 

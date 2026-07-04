@@ -1,6 +1,6 @@
 # 阶段 E-03 v2（lexer.c / ast_seed 软退役）
 
-> **E-03 v2 lexer/ast**：默认 bootstrap **不链** `src/lexer/lexer.o` / `src/ast/ast_seed.o`；SX 前端用 `lexer_sx.o` + `lexer_sx_link_alias.o` 与 ast_pool / sx_seed_bridge。文件保留。
+> **E-03 v2 lexer/ast**：默认 bootstrap **不链** `src/lexer/lexer.o` / `src/ast/ast_seed.o`；X 前端用 `lexer_x.o` + `lexer_x_link_alias.o` 与 ast_pool / x_seed_bridge。文件保留。
 
 ## v2 lexer/ast 完成（✅）
 
@@ -21,5 +21,5 @@ SHUX_LEGACY_SEED_LEXER_AST=1 make -C compiler bootstrap-driver-seed  # 考古 C 
 
 ## 延后（E-03 v3+）
 
-- `OBJS_CORE`（shux-c）改默认 SX lexer/ast
+- `OBJS_CORE`（shux-c）改默认 X lexer/ast
 - `build_shux_asm` strict 路径去 `SEED_O/lexer.o` / `ast_seed.o`

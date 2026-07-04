@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-17  
 > 状态：**定版（v1）**  
-> 关联：`PERF-004`、`SHUX_DEBUG_PIPE`、`pipeline.sx`
+> 关联：`PERF-004`、`SHUX_DEBUG_PIPE`、`pipeline.x`
 
 ---
 
@@ -12,7 +12,7 @@
 |------|------|
 | **三阶段可见** | 单次编译输出 parse / typeck / codegen 毫秒耗时 |
 | **零默认开销** | 未设环境变量时不计时、不打印 |
-| **主链覆盖** | `run_sx_pipeline_impl`（.sx 流水线）全路径 |
+| **主链覆盖** | `run_x_pipeline_impl`（.x 流水线）全路径 |
 | **可 grep** | 固定 stderr 前缀，便于 gate / CI / 脚本聚合 |
 
 验收（NEXT OBS-001）：**parse/typeck/codegen 耗时输出** + manifest + gate。
@@ -33,9 +33,9 @@
 
 | phase | 名称 | 范围 |
 |-------|------|------|
-| 0 | `parse` | `run_sx_pipeline_parse_entry_if_needed` + `pipeline_load_and_sync_direct_import_deps` |
-| 1 | `typeck` | `run_sx_pipeline_typecheck_entry` |
-| 2 | `codegen` | `run_sx_pipeline_codegen_deps` + `run_sx_pipeline_codegen_entry` |
+| 0 | `parse` | `run_x_pipeline_parse_entry_if_needed` + `pipeline_load_and_sync_direct_import_deps` |
+| 1 | `typeck` | `run_x_pipeline_typecheck_entry` |
+| 2 | `codegen` | `run_x_pipeline_codegen_deps` + `run_x_pipeline_codegen_entry` |
 
 `shux check`（check-only）在 typeck 通过后打印；`codegen_ms=0.000`。
 
@@ -50,7 +50,7 @@ shux: [SHUX_COMPILE_PHASE_TIMING] parse_ms=12.345 typeck_ms=3.210 codegen_ms=0.0
 ```
 
 实现：`compiler/src/runtime_driver_abi.c`（`driver_compile_phase_timing_*`）  
-编排：`compiler/src/pipeline/pipeline.sx`（`run_sx_pipeline_impl`）
+编排：`compiler/src/pipeline/pipeline.x`（`run_x_pipeline_impl`）
 
 ---
 
@@ -67,7 +67,7 @@ shux: [SHUX_COMPILE_PHASE_TIMING] parse_ms=12.345 typeck_ms=3.210 codegen_ms=0.0
 `tests/run-obs-compile-phase-timing-gate.sh`：
 
 1. RFC + manifest 存在  
-2. `runtime_driver_abi.c` / `pipeline.sx` 含必需符号与 env 名  
+2. `runtime_driver_abi.c` / `pipeline.x` 含必需符号与 env 名  
 3. 有 native `shux` 时：`SHUX_COMPILE_PHASE_TIMING=1 check` 烟测 grep 汇总行  
 
 ---
@@ -75,8 +75,8 @@ shux: [SHUX_COMPILE_PHASE_TIMING] parse_ms=12.345 typeck_ms=3.210 codegen_ms=0.0
 ## 7. 用法示例
 
 ```bash
-SHUX_COMPILE_PHASE_TIMING=1 ./compiler/shux-c check tests/bench/loop_i32.sx
-SHUX_COMPILE_PHASE_TIMING=1 ./compiler/shux-c tests/bench/loop_i32.sx -o /tmp/loop_i32
+SHUX_COMPILE_PHASE_TIMING=1 ./compiler/shux-c check tests/bench/loop_i32.x
+SHUX_COMPILE_PHASE_TIMING=1 ./compiler/shux-c tests/bench/loop_i32.x -o /tmp/loop_i32
 ```
 
 ---
@@ -88,4 +88,4 @@ SHUX_COMPILE_PHASE_TIMING=1 ./compiler/shux-c tests/bench/loop_i32.sx -o /tmp/lo
 | 矩阵 | `tests/baseline/obs-compile-phase-timing.tsv` |
 | 门禁 | `tests/run-obs-compile-phase-timing-gate.sh` |
 | 实现 | `compiler/src/runtime_driver_abi.c` |
-| 编排 | `compiler/src/pipeline/pipeline.sx` |
+| 编排 | `compiler/src/pipeline/pipeline.x` |

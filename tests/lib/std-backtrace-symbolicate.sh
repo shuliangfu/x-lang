@@ -28,7 +28,7 @@ EOF
 
 # 遍历 manifest TSV，校验 api/const/symbol/file/smoke 锚点。
 std_backtrace_sym_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local bt_c="$2"
   local tsv="$3"
   local miss=0
@@ -38,13 +38,13 @@ std_backtrace_sym_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-backtrace-symbolicate FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       const)
-        if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "const ${anchor}:" "$mod_x" 2>/dev/null; then
           echo "std-backtrace-symbolicate FAIL: missing const '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -71,7 +71,7 @@ std_backtrace_sym_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
+# 编译并运行 .x 烟测。
 std_backtrace_sym_run_smoke() {
   local shux="$1"
   local src="$2"
@@ -142,5 +142,5 @@ std_backtrace_sym_emit_report() {
   local su_ok="$3"
   local skip="$4"
   local host="$5"
-  echo "${STD_BACKTRACE_SYM_PREFIX} status=${status} c_gold=${c_ok} sx=${su_ok} skip=${skip} host=${host}"
+  echo "${STD_BACKTRACE_SYM_PREFIX} status=${status} c_gold=${c_ok} x=${su_ok} skip=${skip} host=${host}"
 }

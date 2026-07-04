@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 # gen_g06_phase1_backend_stub.sh — G-06 冷启动：无 seed partial 时为 phase1 生成弱符号桩 .o
 #
-# bootstrap_shuxc 无法对当前 asm.sx 做 -E；已入库 partial 缺失时，用本脚本从链接错误收集
-# backend/arch/peephole 未定义符号，生成 weak 桩，使 shux-seed-phase1 可链出并用 *_sx.o 前端 -E asm.sx。
+# bootstrap_shuxc 无法对当前 asm.x 做 -E；已入库 partial 缺失时，用本脚本从链接错误收集
+# backend/arch/peephole 未定义符号，生成 weak 桩，使 shux-seed-phase1 可链出并用 *_x.o 前端 -E asm.x。
 #
 # 用法（compiler 目录）：
 #   ./scripts/gen_g06_phase1_backend_stub.sh

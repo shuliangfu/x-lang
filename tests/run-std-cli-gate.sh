@@ -5,19 +5,19 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_CLI_DOC:-analysis/std-cli-v1.md}"
 MANIFEST="${SHUX_STD_CLI_MANIFEST:-tests/baseline/std-cli-manifest.tsv}"
-MOD_SX="std/cli/mod.sx"
-CLI_IMPL="std/cli/cli.sx"
+MOD_X="std/cli/mod.x"
+CLI_IMPL="std/cli/cli.x"
 LIB="tests/lib/std-cli.sh"
-SMOKE_SX="tests/std-cli/roundtrip.sx"
+SMOKE_X="tests/std-cli/roundtrip.x"
 SMOKE_C="tests/std-cli/cli_smoke_ok.c"
-COOKBOOK="examples/cookbook/cli_subcommand.sx"
+COOKBOOK="examples/cookbook/cli_subcommand.x"
 MIN_APIS=6
 
 # shellcheck source=tests/lib/std-cli.sh
 . "$LIB"
 
 echo "=== STD-077: std.cli manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$CLI_IMPL" "$SMOKE_SX" "$SMOKE_C" "$COOKBOOK" std/cli/README.md; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$CLI_IMPL" "$SMOKE_X" "$SMOKE_C" "$COOKBOOK" std/cli/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-cli gate FAIL: missing $f" >&2
     exit 1
@@ -42,7 +42,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+  if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
     echo "std-cli gate FAIL: missing api $anchor" >&2
     exit 1
   fi
@@ -53,7 +53,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_cli_symbols_ok "$MOD_SX" "$CLI_IMPL" "$MANIFEST" || true)"
+sym_miss="$(std_cli_symbols_ok "$MOD_X" "$CLI_IMPL" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_cli_emit_report "fail" 0 0 0
   exit 1
@@ -61,7 +61,7 @@ fi
 echo "std-cli manifest OK"
 
 C_OK=0
-SX_OK=0
+X_OK=0
 SKIP=0
 
 echo "=== STD-077: cli c smoke ==="
@@ -83,14 +83,14 @@ SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-077: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+  echo "=== STD-077: .x smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-cli gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_cli_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_cli_run_smoke "$SHUX_BIN" "$SMOKE_SX" "roundtrip"; then SX_OK=1; else
+  if std_cli_run_smoke "$SHUX_BIN" "$SMOKE_X" "roundtrip"; then X_OK=1; else
     std_cli_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
@@ -98,5 +98,5 @@ else
   SKIP=1
 fi
 
-std_cli_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
+std_cli_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
 echo "std-cli gate OK"

@@ -2,14 +2,14 @@
 # core-str-view.sh — CORE-007：BytesView manifest 辅助
 #
 # 用法（source 后）：
-#   core_str_symbols_ok STR_SX TSV
+#   core_str_symbols_ok STR_X TSV
 #   core_str_emit_report status check_ok run_ok skip
 
 CORE_STR_PREFIX="${SHUX_CORE_STR_VIEW_PREFIX:-shux: [SHUX_CORE_STR_VIEW]}"
 
 # 校验 manifest 中 symbol 锚点；echo 缺失数，成功返回 0。
 core_str_symbols_ok() {
-  local str_sx="$1"
+  local str_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor
@@ -17,8 +17,8 @@ core_str_symbols_ok() {
     [ -z "${item_id:-}" ] && continue
     case "$kind" in
       symbol)
-        if ! grep -qF "$anchor" "$str_sx" 2>/dev/null; then
-          echo "core-str-view FAIL: missing '$anchor' in $str_sx" >&2
+        if ! grep -qF "$anchor" "$str_x" 2>/dev/null; then
+          echo "core-str-view FAIL: missing '$anchor' in $str_x" >&2
           miss=$((miss + 1))
         fi
         ;;

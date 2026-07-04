@@ -12,7 +12,7 @@
 | 1 | 读本文 §2–§5 |
 | 2 | `tests/baseline/std-socketio.tsv` |
 | 3 | `./tests/run-std-socketio-gate.sh` |
-| 4 | 烟测：`tests/socketio/eio_packet.sx` |
+| 4 | 烟测：`tests/socketio/eio_packet.x` |
 
 ---
 
@@ -124,7 +124,7 @@ npm live：`SHUX_SOCKETIO_NPM=1 ./tests/run-std-socketio-npm-live.sh`
 | `server_emit_event_ws` | WebSocket 服务端推送 EVENT |
 | `ns_ack_smoke` | 无网络烟测 |
 
-烟测：`tests/socketio/ns_ack.sx`
+烟测：`tests/socketio/ns_ack.x`
 
 ---
 
@@ -139,7 +139,7 @@ npm live：`SHUX_SOCKETIO_NPM=1 ./tests/run-std-socketio-npm-live.sh`
 
 npm live（含 `/chat` CONNECT POST）：`SHUX_SOCKETIO_NPM=1 ./tests/run-std-socketio-npm-live.sh`
 
-烟测：`tests/socketio/ns_router.sx`
+烟测：`tests/socketio/ns_router.x`
 
 ---
 
@@ -157,7 +157,7 @@ npm live（含 `/chat` CONNECT POST）：`SHUX_SOCKETIO_NPM=1 ./tests/run-std-so
 
 npm WS live：`SHUX_SOCKETIO_NPM_WS=1 ./tests/run-std-socketio-npm-ws-live.sh`
 
-烟测：`tests/socketio/ns_sessions.sx`
+烟测：`tests/socketio/ns_sessions.x`
 
 ---
 
@@ -173,7 +173,7 @@ npm WS live：`SHUX_SOCKETIO_NPM_WS=1 ./tests/run-std-socketio-npm-ws-live.sh`
 | `server_emit_event_ws_ns` | 单连接 namespace EVENT |
 | `ws_hub_smoke` | 无网络烟测 |
 
-烟测：`tests/socketio/ws_hub.sx`
+烟测：`tests/socketio/ws_hub.x`
 
 ---
 
@@ -188,7 +188,7 @@ npm WS live：`SHUX_SOCKETIO_NPM_WS=1 ./tests/run-std-socketio-npm-ws-live.sh`
 | `ws_hub_export` / `ws_hub_import` / `ws_hub_snapshot_bytes` | hub 二进制快照（SIOH magic；不含 fd） |
 | `room_smoke` | room + hub 快照无网络烟测 |
 
-烟测：`tests/socketio/room.sx`
+烟测：`tests/socketio/room.x`
 
 ---
 
@@ -202,7 +202,7 @@ npm WS live：`SHUX_SOCKETIO_NPM_WS=1 ./tests/run-std-socketio-npm-ws-live.sh`
 
 npm room live：`SHUX_SOCKETIO_NPM_ROOM=1 ./tests/run-std-socketio-npm-room-live.sh`
 
-烟测：`tests/socketio/hub_sync.sx`
+烟测：`tests/socketio/hub_sync.x`
 
 ---
 
@@ -216,7 +216,7 @@ npm room live：`SHUX_SOCKETIO_NPM_ROOM=1 ./tests/run-std-socketio-npm-room-live
 
 npm middleware live：`SHUX_SOCKETIO_NPM_MW=1 ./tests/run-std-socketio-npm-mw-live.sh`
 
-烟测：`tests/socketio/session_sync.sx`
+烟测：`tests/socketio/session_sync.x`
 
 ---
 
@@ -230,7 +230,7 @@ npm middleware live：`SHUX_SOCKETIO_NPM_MW=1 ./tests/run-std-socketio-npm-mw-li
 
 npm plugin live：`SHUX_SOCKETIO_NPM_PLUGIN=1 ./tests/run-std-socketio-npm-plugin-live.sh`
 
-烟测：`tests/socketio/cluster_sync.sx`
+烟测：`tests/socketio/cluster_sync.x`
 
 ---
 
@@ -244,7 +244,7 @@ npm plugin live：`SHUX_SOCKETIO_NPM_PLUGIN=1 ./tests/run-std-socketio-npm-plugi
 
 > 轻量占位，对标 Redis adapter pub/sub；**不**引入 Redis 依赖。
 
-烟测：`tests/socketio/cluster_adapter.sx`
+烟测：`tests/socketio/cluster_adapter.x`
 
 ---
 
@@ -257,7 +257,7 @@ npm plugin live：`SHUX_SOCKETIO_NPM_PLUGIN=1 ./tests/run-std-socketio-npm-plugi
 
 cluster ring live：`SHUX_SOCKETIO_CLUSTER_RING=1 ./tests/run-std-socketio-cluster-ring-live.sh`
 
-烟测：`tests/socketio/cluster_ring.sx`
+烟测：`tests/socketio/cluster_ring.x`
 
 ---
 
@@ -270,7 +270,7 @@ cluster ring live：`SHUX_SOCKETIO_CLUSTER_RING=1 ./tests/run-std-socketio-clust
 
 all-live：`SHUX_SOCKETIO_ALL_LIVE=1 ./tests/run-std-socketio-all-live.sh`
 
-烟测：`tests/socketio/p3_complete.sx`
+烟测：`tests/socketio/p3_complete.x`
 
 ---
 

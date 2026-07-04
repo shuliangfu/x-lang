@@ -1,0 +1,10 @@
+// simd_dot_as_f32_smoke：while 体内 `(i % n) as f32` X parse 烟测。
+function main(): i32 {
+  let i: i32 = 0;
+  while (i < 10) {
+    let t: f32 = (i % 256) as f32;
+    let _unused: f32 = t;
+    i = i + 1;
+  }
+  return 0;
+}

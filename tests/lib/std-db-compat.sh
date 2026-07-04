@@ -4,7 +4,7 @@
 STD_DB_COMPAT_PREFIX="${SHUX_STD120_DB_COMPAT_PREFIX:-shux: [SHUX_STD120_DB_COMPAT]}"
 
 std_db_compat_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local tsv="$2"
   local miss=0
   local item_id kind anchor mod_path
@@ -13,7 +13,7 @@ std_db_compat_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null || miss=$((miss + 1))
+        grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null || miss=$((miss + 1))
         ;;
       file|smoke|vectors|impl_readme)
         [ -f "$anchor" ] || miss=$((miss + 1))
@@ -24,7 +24,7 @@ std_db_compat_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-std_db_compat_run_sx_smoke() {
+std_db_compat_run_x_smoke() {
   local shux="$1"
   local src="$2"
   local exe="/tmp/shux_std_db_compat_$$"
@@ -51,5 +51,5 @@ std_db_compat_run_sx_smoke() {
 }
 
 std_db_compat_emit_report() {
-  echo "${STD_DB_COMPAT_PREFIX} status=$1 sx=$2 skip=$3"
+  echo "${STD_DB_COMPAT_PREFIX} status=$1 x=$2 skip=$3"
 }

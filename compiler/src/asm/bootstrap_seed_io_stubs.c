@@ -2,7 +2,7 @@
  * bootstrap_seed_io_stubs.c — bootstrap-driver-seed 专用 io 底层桩
  *
  * lsp_gen.c 内嵌 std_io_* 实现，但 extern 引用 io_* / shux_io_* 底层符号；
- * 真 partial 链不再携带 phase1 弱桩 partial 时，由本 TU 补齐（不与 lsp_sx.o 重复 std_io_*）。
+ * 真 partial 链不再携带 phase1 弱桩 partial 时，由本 TU 补齐（不与 lsp_x.o 重复 std_io_*）。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -12,7 +12,7 @@
 #endif
 #endif
 
-/** sx_seed_bridge.o 已提供 io_read/io_write；本 TU 仅声明。 */
+/** x_seed_bridge.o 已提供 io_read/io_write；本 TU 仅声明。 */
 extern ptrdiff_t io_read(int32_t fd, uint8_t *buf, size_t count, unsigned timeout_ms);
 extern ptrdiff_t io_write(int32_t fd, uint8_t *buf, size_t count, unsigned timeout_ms);
 

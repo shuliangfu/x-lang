@@ -7,16 +7,16 @@ cd "$(dirname "$0")/.."
 
 DOC="analysis/std-atomic-widen-v1.md"
 MANIFEST="tests/baseline/std-atomic-widen-manifest.tsv"
-MOD_SX="std/atomic/mod.sx"
+MOD_X="std/atomic/mod.x"
 ATOMIC_RUNTIME="${SHUX_STD_ATOMIC_IMPL:-compiler/src/asm/runtime_atomic_glue.c}"
 LIB="tests/lib/std-atomic-widen.sh"
-SMOKE_SX="tests/atomic/widen_16_64.sx"
+SMOKE_X="tests/atomic/widen_16_64.x"
 
 # shellcheck source=tests/lib/std-atomic-widen.sh
 . "$LIB"
 
 echo "=== STD-146: std.atomic widen manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$ATOMIC_RUNTIME" "$SMOKE_SX" std/atomic/README.md; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$ATOMIC_RUNTIME" "$SMOKE_X" std/atomic/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-atomic-widen gate FAIL: missing $f" >&2
     exit 1
@@ -30,7 +30,7 @@ for kw in STD-146 load compare_exchange fetch_sub; do
   fi
 done
 
-sym_miss="$(std_atomic_widen_symbols_ok "$MOD_SX" "$ATOMIC_RUNTIME" "$MANIFEST" || true)"
+sym_miss="$(std_atomic_widen_symbols_ok "$MOD_X" "$ATOMIC_RUNTIME" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_atomic_widen_emit_report "fail" 0 0
   exit 1
@@ -50,13 +50,13 @@ SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-atomic-widen gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_atomic_widen_emit_report "fail" 0 0
     exit 1
   fi
-  if std_atomic_widen_run_smoke "$SHUX_BIN" "$SMOKE_SX" "$ATOMIC_O" "$ATOMIC_RT_O"; then
+  if std_atomic_widen_run_smoke "$SHUX_BIN" "$SMOKE_X" "$ATOMIC_O" "$ATOMIC_RT_O"; then
     EXEC_OK=1
   else
     std_atomic_widen_emit_report "fail" 0 0

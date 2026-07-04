@@ -24,7 +24,7 @@
 | `pool_idle` | idle 数量 |
 | `pool_close` | 关闭全部 idle（借出未还则 `DB_ERR_BUSY`） |
 
-烟测：`db_sqlite_pool_smoke_c`、`pool_roundtrip.sx`。
+烟测：`db_sqlite_pool_smoke_c`、`pool_roundtrip.x`。
 
 ---
 
@@ -44,7 +44,7 @@
 ```
 
 ```
-shux: [SHUX_STD084_DB_POOL] status=ok pool_c=1 pool_sx=1 skip=0
+shux: [SHUX_STD084_DB_POOL] status=ok pool_c=1 pool_x=1 skip=0
 ```
 
 ---

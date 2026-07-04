@@ -23,14 +23,14 @@
 
 | case_id | 类型 | 命令 |
 |---------|------|------|
-| `loop_i32` | microbench `-o` | `shux tests/bench/loop_i32.sx -o …` |
-| `mem_copy` | microbench `-o` | `shux tests/bench/mem_copy.sx -o …` |
-| `struct_param` | microbench `-o` | `shux tests/bench/struct_param.sx -o …` |
-| `call_boundary` | microbench `-o` | `shux tests/bench/call_boundary.sx -o …` |
-| `perf_main` | perf baseline `-o` | `shux tests/perf-baseline/main.sx -o …` |
-| `check_backend` | frontend dogfood | `shux check compiler/src/asm/backend.sx` |
-| `check_parser` | frontend dogfood | `shux check compiler/src/parser/parser.sx` |
-| `check_typeck` | frontend dogfood | `shux check compiler/src/typeck/typeck.sx`（COMP-002 热路径监控） |
+| `loop_i32` | microbench `-o` | `shux tests/bench/loop_i32.x -o …` |
+| `mem_copy` | microbench `-o` | `shux tests/bench/mem_copy.x -o …` |
+| `struct_param` | microbench `-o` | `shux tests/bench/struct_param.x -o …` |
+| `call_boundary` | microbench `-o` | `shux tests/bench/call_boundary.x -o …` |
+| `perf_main` | perf baseline `-o` | `shux tests/perf-baseline/main.x -o …` |
+| `check_backend` | frontend dogfood | `shux check compiler/src/asm/backend.x` |
+| `check_parser` | frontend dogfood | `shux check compiler/src/parser/parser.x` |
+| `check_typeck` | frontend dogfood | `shux check compiler/src/typeck/typeck.x`（COMP-002 热路径监控） |
 
 **编译器二进制**：优先 `./compiler/shux-c`（与 IO/net perf 一致）；可用 `SHUX=…` 覆盖。
 

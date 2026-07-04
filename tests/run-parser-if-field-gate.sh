@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Parser 回归：if (struct.field) 后 return struct.field
 #
-# shux-c（C 解析器）须 check 通过；shux_asm_stage1（sx 解析器）同绿为加分项。
+# shux-c（C 解析器）须 check 通过；shux_asm_stage1（x 解析器）同绿为加分项。
 # 用法：./tests/run-parser-if-field-gate.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/gate-progress.sh
 source tests/lib/gate-progress.sh
 
-SRC="tests/parser/if_field_after_if.sx"
+SRC="tests/parser/if_field_after_if.x"
 [ -f "$SRC" ] || { gate_progress "FAIL: missing $SRC"; exit 1; }
 
 gate_progress "parser-if-field: shux-c check ..."

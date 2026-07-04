@@ -22,7 +22,7 @@
 | 项 | v1 约定 |
 |----|---------|
 | 工具链 | `cc -fsanitize=address` + `detect_leaks=1` |
-| 编译 | `shux -fsanitize=address -L . <case>.sx -o exe` |
+| 编译 | `shux -fsanitize=address -L . <case>.x -o exe` |
 | 运行 | `ASAN_OPTIONS=detect_leaks=1:exitcode=23:halt_on_error=1` |
 | 平台 | **Linux** 夜跑主路径；macOS/Windows gate manifest only |
 | 探测器 | `SHUX_LEAK_PROBE=1` 时运行 `leak_probe.c` 校验 ASAN 能抓故意泄漏 |
@@ -37,9 +37,9 @@
 
 | case | 路径 | 覆盖 |
 |------|------|------|
-| `case_heap` | `tests/leak/no_leak_heap.sx` | `alloc` / `free` |
-| `case_ffi` | `tests/leak/no_leak_ffi.sx` | `cstring_new` / `cstring_free` |
-| `case_arena` | `tests/leak/no_leak_arena.sx` | `arena64_deinit` |
+| `case_heap` | `tests/leak/no_leak_heap.x` | `alloc` / `free` |
+| `case_ffi` | `tests/leak/no_leak_ffi.x` | `cstring_new` / `cstring_free` |
+| `case_arena` | `tests/leak/no_leak_arena.x` | `arena64_deinit` |
 
 ---
 

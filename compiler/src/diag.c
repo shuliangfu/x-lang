@@ -70,32 +70,32 @@ static const DiagCodeExplain g_diag_code_table[] = {
     {"IMP004", "import error", "Import pipeline failed in a later dependency-resolution stage.",
      "Used for import-side failures such as path normalization limits, unresolved dependency closure, or imported "
      "module type-check failure summaries. Typical action: inspect the paired import diagnostics emitted earlier."},
-    {"SXP001", "pipeline error", ".sx pipeline parse stage failed before building a usable module.",
-     "Used when the .sx pipeline cannot finish parse/module construction. Typical action: inspect the "
+    {"XP001", "pipeline error", ".x pipeline parse stage failed before building a usable module.",
+     "Used when the .x pipeline cannot finish parse/module construction. Typical action: inspect the "
      "preceding parse diagnostics and the failing module entry."},
-    {"SXP002", "pipeline error", ".sx pipeline parse commit failed while committing a parsed function.",
-     "Used for stricter .sx parse/commit failures after a function was tentatively parsed but could not be "
+    {"XP002", "pipeline error", ".x pipeline parse commit failed while committing a parsed function.",
+     "Used for stricter .x parse/commit failures after a function was tentatively parsed but could not be "
      "committed into the module. Typical action: inspect nearby function boundaries and parse-recovery logs."},
-    {"SXP003", "pipeline error", ".sx pipeline terminated with a non-zero runtime status code.",
-     "Used for generic .sx pipeline summary failures reported as `pipeline failed rc=...` after a deeper stage "
+    {"XP003", "pipeline error", ".x pipeline terminated with a non-zero runtime status code.",
+     "Used for generic .x pipeline summary failures reported as `pipeline failed rc=...` after a deeper stage "
      "returned an error code. Typical action: inspect preceding parser/typeck/import/codegen diagnostics."},
-    {"SXP004", "pipeline error", ".sx pipeline path resolution trace for a failed import or entry lookup.",
+    {"XP004", "pipeline error", ".x pipeline path resolution trace for a failed import or entry lookup.",
      "Used for the follow-up `resolve path tried:` diagnostic that lists the concrete path attempted before "
      "pipeline failure. Typical action: inspect the shown path and verify library roots and import naming."},
-    {"SXP005", "pipeline error", ".sx pipeline failed while allocating required runtime structures.",
+    {"XP005", "pipeline error", ".x pipeline failed while allocating required runtime structures.",
      "Used for allocation failures covering arena/module buffers, ELF context, or dependency-side arena/module "
      "storage before the pipeline can proceed. Typical action: inspect memory pressure and the specific pipeline stage."},
-    {"SXP006", "pipeline error", ".sx pipeline failed while allocating output or dependency context state.",
+    {"XP006", "pipeline error", ".x pipeline failed while allocating output or dependency context state.",
      "Used when `CodegenOutBuf`, `PipelineDepCtx`, or dependency-local output/context buffers cannot be allocated. "
      "Typical action: inspect memory pressure and whether a large-output path is being exercised."},
-    {"SXP007", "pipeline error", ".sx pipeline refused an input buffer that exceeds parser size limits.",
+    {"XP007", "pipeline error", ".x pipeline refused an input buffer that exceeds parser size limits.",
      "Used for `source too large for parser` failures when the source buffer exceeds the current `int32_t` parser "
      "boundary. Typical action: reduce input size or change the parser limit handling."},
-    {"SXP008", "pipeline error", ".sx dependency sub-pipeline failed while prerunning an imported module.",
+    {"XP008", "pipeline error", ".x dependency sub-pipeline failed while prerunning an imported module.",
      "Used for `pipeline failed for import` summaries emitted after a dependency prerun returns non-zero. "
      "Typical action: inspect earlier diagnostics for the referenced import path and its transitive dependencies."},
-    {"SXT001", "typeck error", ".sx pipeline type checking failed for a specific function.",
-     "Used when .sx type checking fails inside a concrete function, often with function index/name attached. "
+    {"XT001", "typeck error", ".x pipeline type checking failed for a specific function.",
+     "Used when .x type checking fails inside a concrete function, often with function index/name attached. "
      "Typical action: inspect the named function body and any accompanying type diagnostics."},
     {"CG001", "codegen error", "Code generation could not emit C output because no main entry was available.",
      "Used when executable-oriented C emission requires a `main` function but the module only contains library "
@@ -107,17 +107,17 @@ static const DiagCodeExplain g_diag_code_table[] = {
      "Used for `failed to emit function` summaries tied to a concrete function name or index. Typical action: "
      "inspect that function body and any preceding backend/type diagnostics for unsupported constructs."},
     {"CG004", "codegen error", "Code generation produced an empty output buffer after a non-failing pipeline.",
-     "Used when the C-path `.sx -E` pipeline returns success but the codegen output buffer is empty, indicating a "
+     "Used when the C-path `.x -E` pipeline returns success but the codegen output buffer is empty, indicating a "
      "codegen/pipeline wiring gap rather than a reported typeck/codegen error. Typical action: inspect the CodegenOutBuf "
      "wiring and any earlier typeck/codegen diagnostics."},
     {"CHK001", "check error", "`shux check` failed without a more specific structured diagnostic.",
      "Fallback check-mode code used when compilation/check failed but no detailed parser/typeck/import "
      "diagnostic was emitted. Typical action: inspect prior stderr output and the target file path."},
-    {"CHK002", "check error", "`shux check` found no .sx files to inspect.",
-     "Used when the provided path set, or the current directory, contains no discoverable .sx sources. "
+    {"CHK002", "check error", "`shux check` found no .x files to inspect.",
+     "Used when the provided path set, or the current directory, contains no discoverable .x sources. "
      "Typical action: verify input paths and whether ignored filters removed all candidates."},
     {"FMT001", "fmt error", "`shux fmt` failed or found no format candidates.",
-     "Used for format-mode failures such as missing input files, unreadable files, or no .sx files found. "
+     "Used for format-mode failures such as missing input files, unreadable files, or no .x files found. "
      "Typical action: verify the path list, file accessibility, and whether `--check` reported unformatted files."},
     {"SMOKE001", "info", "Parse-stage smoke summary: source parsed successfully.",
      "Emitted as an info-level smoke marker after a successful parse/typeck pass on the no-`-o` smoke path. "

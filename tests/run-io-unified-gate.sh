@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # run-io-unified-gate.sh — 统一 IO 后端门禁（Tier P + Tier B）。
 #
-# 同一套 .sx 源码在全平台验证 std.io 批量读写；Linux 额外探测 io_uring ZC-1/multishot（无则 N/A）。
-# Windows 上 .sx 批量路径即 IOCP；可选 --perf 追加平台 perf（Linux ZC-1 / Windows IOCP pipe）。
+# 同一套 .x 源码在全平台验证 std.io 批量读写；Linux 额外探测 io_uring ZC-1/multishot（无则 N/A）。
+# Windows 上 .x 批量路径即 IOCP；可选 --perf 追加平台 perf（Linux ZC-1 / Windows IOCP pipe）。
 #
 # 用法：
 #   ./tests/run-io-unified-gate.sh           # smoke（全平台必过部分）
@@ -31,7 +31,7 @@ done
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 
 make -C compiler -q 2>/dev/null || make -C compiler
-# F-03 v2/v3：io 已纯 .sx，不再 build ../std/io/io.o
+# F-03 v2/v3：io 已纯 .x，不再 build ../std/io/io.o
 make -C compiler ../std/process/process.o -q 2>/dev/null \
   || make -C compiler ../std/process/process.o
 
@@ -49,8 +49,8 @@ fi
 # Linux 链 io.o 时编译器 invoke_cc 自动加 -luring（见 compiler/Makefile）。
 rm -f tests/bench/.io_batch_rw_smoke_tmp
 
-echo "=== IO unified: batch_rw_smoke.sx ($(ci_host_summary)) ==="
-$RUN_SHUX -L . tests/io/batch_rw_smoke.sx -o /tmp/shux_io_batch_rw_smoke 2>&1
+echo "=== IO unified: batch_rw_smoke.x ($(ci_host_summary)) ==="
+$RUN_SHUX -L . tests/io/batch_rw_smoke.x -o /tmp/shux_io_batch_rw_smoke 2>&1
 ec=0
 /tmp/shux_io_batch_rw_smoke || ec=$?
 rm -f tests/bench/.io_batch_rw_smoke_tmp

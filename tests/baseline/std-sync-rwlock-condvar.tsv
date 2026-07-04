@@ -6,22 +6,22 @@ rwlock_api	section	## 2. RwLock API	rwlock_new
 condvar_api	section	## 3. Condvar API	condvar_wait
 tsan	section	## 4. 竞争烟测与 TSAN	sync_tsan_ok
 verify	section	## 5. 门禁	gate
-api_rwlock_new	api	rwlock_new	std/sync/mod.sx	创建
-api_rwlock_rlock	api	rwlock_read_lock	std/sync/mod.sx	读锁
-api_rwlock_wlock	api	rwlock_write_lock	std/sync/mod.sx	写锁
-api_rwlock_runlock	api	rwlock_read_unlock	std/sync/mod.sx	释读
-api_rwlock_wrunlock	api	rwlock_write_unlock	std/sync/mod.sx	释写
-api_cond_new	api	condvar_new	std/sync/mod.sx	创建
-api_cond_wait	api	condvar_wait	std/sync/mod.sx	等待
-api_cond_signal	api	condvar_signal	std/sync/mod.sx	唤醒
-api_cond_broadcast	api	condvar_broadcast	std/sync/mod.sx	广播
-api_rw_smoke	api	rwlock_contention_smoke	std/sync/mod.sx	竞争
-api_cv_smoke	api	condvar_contention_smoke	std/sync/mod.sx	cond
-api_cond_free	api	condvar_free	std/sync/mod.sx	释放
+api_rwlock_new	api	rwlock_new	std/sync/mod.x	创建
+api_rwlock_rlock	api	rwlock_read_lock	std/sync/mod.x	读锁
+api_rwlock_wlock	api	rwlock_write_lock	std/sync/mod.x	写锁
+api_rwlock_runlock	api	rwlock_read_unlock	std/sync/mod.x	释读
+api_rwlock_wrunlock	api	rwlock_write_unlock	std/sync/mod.x	释写
+api_cond_new	api	condvar_new	std/sync/mod.x	创建
+api_cond_wait	api	condvar_wait	std/sync/mod.x	等待
+api_cond_signal	api	condvar_signal	std/sync/mod.x	唤醒
+api_cond_broadcast	api	condvar_broadcast	std/sync/mod.x	广播
+api_rw_smoke	api	rwlock_contention_smoke	std/sync/mod.x	竞争
+api_cv_smoke	api	condvar_contention_smoke	std/sync/mod.x	cond
+api_cond_free	api	condvar_free	std/sync/mod.x	释放
 symbol_rwlock_c	symbol	sync_rwlock_new_c	compiler/src/asm/runtime_sync_os.c	C rwlock
 symbol_cond_c	symbol	sync_condvar_wait_c	compiler/src/asm/runtime_sync_os.c	C condvar
-smoke_contention	smoke	tests/sync/rwlock_condvar.sx	烟测
-smoke_main	smoke	tests/sync/main.sx	mutex 回归
+smoke_contention	smoke	tests/sync/rwlock_condvar.x	烟测
+smoke_main	smoke	tests/sync/main.x	mutex 回归
 tsan_ok	file	tests/sync/sync_tsan_ok.c	TSAN 正例
 lib	script	lib/std-sync-rwlock-condvar.sh	tests/lib/std-sync-rwlock-condvar.sh
 gate	script	run-std-sync-rwlock-condvar-gate.sh	tests/run-std-sync-rwlock-condvar-gate.sh

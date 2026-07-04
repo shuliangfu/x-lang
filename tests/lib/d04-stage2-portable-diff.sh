@@ -42,7 +42,7 @@ d04_stage_binaries_ready() {
   return 0
 }
 
-# 对单个 .sx 跑 check，输出稳定 outcome 标签：check:pass | check:fail。
+# 对单个 .x 跑 check，输出稳定 outcome 标签：check:pass | check:fail。
 d04_outcome_check() {
   local shux="$1"
   local src="$2"
@@ -53,7 +53,7 @@ d04_outcome_check() {
   fi
 }
 
-# 对单个 .sx 跑 link+run，输出：link:ok:EXIT | link:skip | link:fail:CODE。
+# 对单个 .x 跑 link+run，输出：link:ok:EXIT | link:skip | link:fail:CODE。
 d04_outcome_link_run() {
   local shux="$1"
   local src="$2"

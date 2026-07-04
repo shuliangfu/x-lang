@@ -1,0 +1,9 @@
+// run_async_arg3_err.x — run v2：超过 8 个实参应被 typeck 拒绝（此处测 3 个对 1 形参）
+async function add_one(x: i32): i32 {
+  let v: i32 = await x;
+  return v + 1;
+}
+
+function main(): i32 {
+  return run add_one(1, 2, 3);
+}

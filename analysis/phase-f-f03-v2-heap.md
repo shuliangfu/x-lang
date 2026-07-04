@@ -1,16 +1,16 @@
 # 阶段 F-03 v2（std.heap libc 层去 C）
 
-> **F-03 v2**：`std/heap/heap.c` 全部逻辑迁至 **`std/heap/libc.sx`**（libc FFI + core.mem + trace）；**删除 heap.c / heap.o**。
+> **F-03 v2**：`std/heap/heap.c` 全部逻辑迁至 **`std/heap/libc.x`**（libc FFI + core.mem + trace）；**删除 heap.c / heap.o**。
 
 ## v2 完成（✅ manifest）
 
 | 项 | 说明 |
 |----|------|
-| `libc.sx` | malloc/free/realloc/calloc、typed alloc、copy_*_at、Arena64、SHUX_HEAP_TRACE、alloc_f32 导出 |
-| `ops.sx` | F-03 v1：mem/map 算法（不变） |
-| `mod.sx` | import heap_libc + heap_ops；无 extern heap_*_c |
+| `libc.x` | malloc/free/realloc/calloc、typed alloc、copy_*_at、Arena64、SHUX_HEAP_TRACE、alloc_f32 导出 |
+| `ops.x` | F-03 v1：mem/map 算法（不变） |
+| `mod.x` | import heap_libc + heap_ops；无 extern heap_*_c |
 | 删除 | `std/heap/heap.c`、`Makefile` heap.o、链接表 heap.o |
-| LSP | `lsp_io_std_heap.sx` / `lsp_diag.sx` 直链 libc 或 std_heap_* |
+| LSP | `lsp_io_std_heap.x` / `lsp_diag.x` 直链 libc 或 std_heap_* |
 | 链接 | `runtime_link_abi.c` 按需 `-lc`（malloc/heap_alloc_c/getenv） |
 | 存量 | F-03 v2 后 std+core 手写 `.c` **105**（较 F-03 v1 107 减 2：含 heap.c 等） |
 

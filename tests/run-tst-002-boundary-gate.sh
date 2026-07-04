@@ -96,33 +96,33 @@ if [ -n "$SHUX_BIN" ]; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
   make -C compiler -q ../std/heap/heap.o ../std/process/process.o 2>/dev/null \
     || make -C compiler ../std/heap/heap.o ../std/process/process.o 2>/dev/null || true
-  for sx in tests/heap/boundary.sx tests/vec/boundary.sx tests/map/boundary.sx tests/process/boundary.sx; do
-    if ! "$SHUX_BIN" check -L . "$sx" >/dev/null 2>&1; then
-      echo "tst-002-boundary gate FAIL: typeck $sx" >&2
-      "$SHUX_BIN" check -L . "$sx" 2>&1 | tail -8 >&2 || true
+  for x in tests/heap/boundary.x tests/vec/boundary.x tests/map/boundary.x tests/process/boundary.x; do
+    if ! "$SHUX_BIN" check -L . "$x" >/dev/null 2>&1; then
+      echo "tst-002-boundary gate FAIL: typeck $x" >&2
+      "$SHUX_BIN" check -L . "$x" 2>&1 | tail -8 >&2 || true
       tst002_emit_report "fail" "$HEAP_OK" "$VEC_OK" "$MAP_OK" "$PROC_OK" 0
       exit 1
     fi
   done
-  if tst002_run_boundary "$SHUX_BIN" tests/heap/boundary.sx /tmp/shux_tst002_heap; then
+  if tst002_run_boundary "$SHUX_BIN" tests/heap/boundary.x /tmp/shux_tst002_heap; then
     HEAP_OK=1
   else
     tst002_emit_report "fail" 0 0 0 0 0
     exit 1
   fi
-  if tst002_run_boundary "$SHUX_BIN" tests/vec/boundary.sx /tmp/shux_tst002_vec; then
+  if tst002_run_boundary "$SHUX_BIN" tests/vec/boundary.x /tmp/shux_tst002_vec; then
     VEC_OK=1
   else
     tst002_emit_report "fail" "$HEAP_OK" 0 0 0 0
     exit 1
   fi
-  if tst002_run_boundary "$SHUX_BIN" tests/map/boundary.sx /tmp/shux_tst002_map; then
+  if tst002_run_boundary "$SHUX_BIN" tests/map/boundary.x /tmp/shux_tst002_map; then
     MAP_OK=1
   else
     tst002_emit_report "fail" "$HEAP_OK" "$VEC_OK" 0 0 0
     exit 1
   fi
-  if tst002_run_boundary "$SHUX_BIN" tests/process/boundary.sx /tmp/shux_tst002_proc; then
+  if tst002_run_boundary "$SHUX_BIN" tests/process/boundary.x /tmp/shux_tst002_proc; then
     PROC_OK=1
   else
     tst002_emit_report "fail" "$HEAP_OK" "$VEC_OK" "$MAP_OK" 0 0

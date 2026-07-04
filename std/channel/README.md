@@ -1,6 +1,6 @@
 # std.channel — 有界/无界 channel
 
-**模块路径**：`std/channel/mod.sx` + `std/channel/channel.sx` + `compiler/src/asm/runtime_channel_glue.c`（F-channel v2 / F-ZC）  
+**模块路径**：`std/channel/mod.x` + `std/channel/channel.x` + `compiler/src/asm/runtime_channel_glue.c`（F-channel v2 / F-ZC）  
 **对标**：Go channel、Rust mpsc（有界、阻塞 send/recv）。
 
 ## 平台
@@ -21,4 +21,4 @@
 - `bash tests/run-channel.sh`
 - `bash tests/run-std-channel-select-gate.sh`
 - `bash tests/run-f-channel-v1-gate.sh`
-- cookbook：`examples/cookbook/async_channel_ping.sx`
+- cookbook：`examples/cookbook/async_channel_ping.x`

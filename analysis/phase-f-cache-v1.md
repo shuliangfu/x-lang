@@ -1,12 +1,12 @@
 # 阶段 F-cache v1（std.cache 去 C）
 
-> **F-cache v1**：删除 **`cache.c`**；模块锚点在 **`cache.sx`**；LRU/对象池在 **`cache_glue.c`**。
+> **F-cache v1**：删除 **`cache.c`**；模块锚点在 **`cache.x`**；LRU/对象池在 **`cache_glue.c`**。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `cache.c`（395 行） | `cache.sx` + `cache_glue.c` |
+| 实现 | `cache.c`（395 行） | `cache.x` + `cache_glue.c` |
 | `cache.o` | `cc -c` | `ld -r` 合并 |
 
 ## 门禁

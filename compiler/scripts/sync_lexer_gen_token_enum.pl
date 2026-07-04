@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # sync_lexer_gen_token_enum.pl — 将 lexer_gen.c 内 token_TokenKind 枚举与 include/token.h 对齐。
 #
-# 背景：lexer.sx -E 若用旧 seed 生成，枚举常缺 TOKEN_TRY/TOKEN_CATCH 等，导致
+# 背景：lexer.x -E 若用旧 seed 生成，枚举常缺 TOKEN_TRY/TOKEN_CATCH 等，导致
 # parser_asm glue 用 token.h 的 TOKEN_* 比较时判错，用户程序 parse 0 funcs。
 #
 # 用法（compiler 目录）：perl scripts/sync_lexer_gen_token_enum.pl [lexer_gen.c]

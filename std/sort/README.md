@@ -13,7 +13,7 @@
 
 ## F-sort v1（去 C）
 
-- **`sort.c` 已删除**；实现见 `sort.sx`（零胶层 C）
+- **`sort.c` 已删除**；实现见 `sort.x`（零胶层 C）
 - 构建：`make -C compiler ../std/sort/sort.o`
 - 门禁：`./tests/run-f-sort-v1-gate.sh`
 

@@ -23,7 +23,7 @@
 | `commit` | 提交后 `changes` 保留 |
 | `rollback` | 回滚后无残留写入 |
 
-烟测入口：`db_sqlite_tx_exec_smoke_c`（C）、`exec_tx_roundtrip.sx`（.sx）。
+烟测入口：`db_sqlite_tx_exec_smoke_c`（C）、`exec_tx_roundtrip.x`（.x）。
 
 ---
 
@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_STD065_DB_EXEC] status=ok tx_c=1 tx_sx=0 skip=1
+shux: [SHUX_STD065_DB_EXEC] status=ok tx_c=1 tx_x=0 skip=1
 ```
 
 无 `libsqlite3` 时 manifest 仍过，exec 烟测 **SKIP**。

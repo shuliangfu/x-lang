@@ -1,14 +1,14 @@
-# 阶段 F-socketio v2（std.socketio 逻辑 .sx 下沉）
+# 阶段 F-socketio v2（std.socketio 逻辑 .x 下沉）
 
-> **F-socketio v2**：Engine.IO/SIO 编解码、polling/WS URL、namespace 路由、WS hub、room、cluster adapter 与全部烟测迁入 **`socketio.sx`**；**纯 .sx**（HTTP/WS 经 `extern http_*` / `net_ws_*`）。
+> **F-socketio v2**：Engine.IO/SIO 编解码、polling/WS URL、namespace 路由、WS hub、room、cluster adapter 与全部烟测迁入 **`socketio.x`**；**纯 .x**（HTTP/WS 经 `extern http_*` / `net_ws_*`）。
 
 ## 变更
 
 | 项 | v1 | v2 |
 |----|----|-----|
-| 协议逻辑 | `socketio_glue.c`（~2802 行） | **`socketio.sx`** |
-| IO | glue 内联 `http_get` / `net_ws_*` | **`extern` 声明于 socketio.sx** |
-| `socketio.o` | `ld -r` glue + sx | **仅 sx（`socketio_main.o`）** |
+| 协议逻辑 | `socketio_glue.c`（~2802 行） | **`socketio.x`** |
+| IO | glue 内联 `http_get` / `net_ws_*` | **`extern` 声明于 socketio.x** |
+| `socketio.o` | `ld -r` glue + x | **仅 x（`socketio_main.o`）** |
 
 ## 门禁
 

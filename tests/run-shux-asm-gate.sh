@@ -28,7 +28,7 @@ ulimit -s 16384 2>/dev/null || true
 echo "run-shux-asm-gate: hello (import std.io) ..."
 rm -f /tmp/shux_asm_gate_hello
 # -o 链接：Darwin/non-x86_64 走 RUN_SHUX（shux-c）；typeck 仍由 $SHUX（shux_asm）承担。
-"$RUN_SHUX" -L . examples/hello.sx -o /tmp/shux_asm_gate_hello
+"$RUN_SHUX" -L . examples/hello.x -o /tmp/shux_asm_gate_hello
 /tmp/shux_asm_gate_hello | grep -q "Hello World" || {
   echo "run-shux-asm-gate: hello expected Hello World" >&2
   exit 1

@@ -32,10 +32,10 @@
 
 ## 性能（已压榨）
 
-- **find 走 .sx 快路径**：`heap.map_find`（`std/heap/ops.sx`）内线性探测，get/contains/remove/insert 均复用。
+- **find 走 .x 快路径**：`heap.map_find`（`std/heap/ops.x`）内线性探测，get/contains/remove/insert 均复用。
 - **reserve_one**：字面量 8 与 3/4 负载因子，避免阈值函数调用。
 - **热路径**：`len_ptr` 避免按值传 Map 结构体。
 
 ## 依赖
 
-- `import("std.heap")`；链接时需 `std/heap/heap.o`（malloc/copy；find/mem 在 ops.sx）。
+- `import("std.heap")`；链接时需 `std/heap/heap.o`（malloc/copy；find/mem 在 ops.x）。

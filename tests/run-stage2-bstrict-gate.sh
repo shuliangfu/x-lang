@@ -23,7 +23,7 @@ if [ ! -x compiler/shux_asm ] || ! comp_riscv64_native_shu compiler/shux_asm; th
   exit 0
 fi
 
-if [ ! -x compiler/shux ] && [ ! -x compiler/shux-sx ]; then
+if [ ! -x compiler/shux ] && [ ! -x compiler/shux-x ]; then
   echo "stage2-bstrict-gate FAIL: seed shux missing (make -C compiler OPT=1 all)" >&2
   exit 1
 fi

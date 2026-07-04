@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§5 |
 | 2 | `tests/baseline/std-net-ws.tsv` |
 | 3 | `./tests/run-std-net-ws-gate.sh` |
-| 4 | 烟测：`tests/net/ws_frame.sx` |
+| 4 | 烟测：`tests/net/ws_frame.x` |
 
 ---
 

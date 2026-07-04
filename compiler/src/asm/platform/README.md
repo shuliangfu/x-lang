@@ -6,11 +6,11 @@
 
 | 文件 | 格式 | 说明 |
 |------|------|------|
-| **elf.sx** | ELF64 | Linux / *BSD 等可重定位 .o；符号、重定位、patch 回填；`write_elf_o_to_buf`。 |
-| **macho.sx** | Mach-O 64 位 | macOS 可重定位 MH_OBJECT；复用 `ElfCodegenCtx`，`write_macho_o_to_buf`。 |
-| **coff.sx** | PE/COFF | Windows 可重定位 .obj（x86_64）；复用 `ElfCodegenCtx`，`write_coff_o_to_buf`。 |
+| **elf.x** | ELF64 | Linux / *BSD 等可重定位 .o；符号、重定位、patch 回填；`write_elf_o_to_buf`。 |
+| **macho.x** | Mach-O 64 位 | macOS 可重定位 MH_OBJECT；复用 `ElfCodegenCtx`，`write_macho_o_to_buf`。 |
+| **coff.x** | PE/COFF | Windows 可重定位 .obj（x86_64）；复用 `ElfCodegenCtx`，`write_coff_o_to_buf`。 |
 
 ## 使用
 
-- **backend**、**asm.sx**、**arch/*_enc.sx** 通过 `import platform.elf`（及可选的 `platform.macho`、`platform.coff`）引用。
-- 出 .o 时由 asm.sx 根据 `ctx.use_coff_o`、`ctx.use_macho_o` 选择 `platform.coff.write_coff_o_to_buf`、`platform.macho.write_macho_o_to_buf` 或 `elf.write_elf_o_to_buf`。
+- **backend**、**asm.x**、**arch/*_enc.x** 通过 `import platform.elf`（及可选的 `platform.macho`、`platform.coff`）引用。
+- 出 .o 时由 asm.x 根据 `ctx.use_coff_o`、`ctx.use_macho_o` 选择 `platform.coff.write_coff_o_to_buf`、`platform.macho.write_macho_o_to_buf` 或 `elf.write_elf_o_to_buf`。

@@ -1,13 +1,13 @@
-# 阶段 F-hash v2（std.hash 逻辑 .sx 下沉）
+# 阶段 F-hash v2（std.hash 逻辑 .x 下沉）
 
-> **F-hash v2**：SipHash-2-4 / FNV-1a64 / xxHash64 全量在 **`hash.sx`**；**删除 `hash_glue.c`**；`hash.o` 纯 `.sx` 编译（同 cache/schema）。
+> **F-hash v2**：SipHash-2-4 / FNV-1a64 / xxHash64 全量在 **`hash.x`**；**删除 `hash_glue.c`**；`hash.o` 纯 `.x` 编译（同 cache/schema）。
 
 ## 变更
 
 | 项 | v1 | v2 |
 |----|----|-----|
-| 算法实现 | `hash_glue.c`（438 行） | **`hash.sx`** |
-| `hash.o` | `ld -r` glue + sx | **纯 shux → hash.o** |
+| 算法实现 | `hash_glue.c`（438 行） | **`hash.x`** |
+| `hash.o` | `ld -r` glue + x | **纯 shux → hash.o** |
 | 依赖 | libc malloc/free/strcmp/getenv | `extern` 同上 |
 
 ## 门禁

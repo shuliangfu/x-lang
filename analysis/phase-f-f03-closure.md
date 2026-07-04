@@ -1,15 +1,15 @@
 # 阶段 F-03 闭合（std.heap / std.fs / std.io 核心无 C）
 
-> **F-03**：删除 **`heap.c`**、**`fs.c`**、**`io.c`**；核心路径改纯 `.sx` + libc/kernel32 FFI。
+> **F-03**：删除 **`heap.c`**、**`fs.c`**、**`io.c`**；核心路径改纯 `.x` + libc/kernel32 FFI。
 
 ## 完成项
 
-| 模块 | 删除 | 新增 `.sx` | 门禁 |
+| 模块 | 删除 | 新增 `.x` | 门禁 |
 |------|------|------------|------|
-| **heap** v1 | — | `ops.sx` | `run-f03-std-heap-ops-gate.sh` |
-| **heap** v2 | `heap.c` | `libc.sx` | `run-f03-std-heap-libc-gate.sh` |
-| **fs** v2 | `fs.c` | `posix.sx`, `win32.sx` | `run-f03-std-fs-gate.sh` |
-| **io** v2/v3 | `io.c` | `sync.sx`, `win32.sx`, `read_ptr.sx`, `stubs.sx`, `backend.sx` | `run-f03-std-io-gate.sh` |
+| **heap** v1 | — | `ops.x` | `run-f03-std-heap-ops-gate.sh` |
+| **heap** v2 | `heap.c` | `libc.x` | `run-f03-std-heap-libc-gate.sh` |
+| **fs** v2 | `fs.c` | `posix.x`, `win32.x` | `run-f03-std-fs-gate.sh` |
+| **io** v2/v3 | `io.c` | `sync.x`, `win32.x`, `read_ptr.x`, `stubs.x`, `backend.x` | `run-f03-std-io-gate.sh` |
 
 ## F-01 存量
 

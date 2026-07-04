@@ -5,8 +5,8 @@ STD_LOG_ROTATE_ASYNC_PREFIX="${SHUX_STD106_LOG_ROTATE_ASYNC_PREFIX:-shux: [SHUX_
 
 # 校验 manifest 中 api/symbol/file。
 std_log_rotate_async_symbols_ok() {
-  local mod_sx="$1"
-  local log_sx="$2"
+  local mod_x="$1"
+  local log_x="$2"
   local log_glue="$3"
   local tsv="$4"
   local miss=0
@@ -16,7 +16,7 @@ std_log_rotate_async_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-log-rotate-async FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -24,7 +24,7 @@ std_log_rotate_async_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/log/log.c|std/log/log.sx) path="$log_sx" ;;
+          std/log/log.c|std/log/log.x) path="$log_x" ;;
           std/log/log_os_glue.c|compiler/src/asm/runtime_log_os.c) path="$log_glue" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
@@ -44,8 +44,8 @@ std_log_rotate_async_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-# 编译并运行 .sx 烟测。
-std_log_rotate_async_run_sx_smoke() {
+# 编译并运行 .x 烟测。
+std_log_rotate_async_run_x_smoke() {
   local shux="$1"
   local src="$2"
   local tag="${3:-rotate}"
@@ -108,5 +108,5 @@ std_log_rotate_async_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_LOG_ROTATE_ASYNC_PREFIX} status=${status} c=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_LOG_ROTATE_ASYNC_PREFIX} status=${status} c=${c_ok} x=${su_ok} skip=${skip}"
 }

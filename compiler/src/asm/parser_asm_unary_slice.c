@@ -2,12 +2,12 @@
  * parser_asm_unary_slice.c — parse_unary_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * 与 parser.sx parse_unary_into 一致：await/run/spawn/-,!,& 前缀 + primary 回落。
+ * 与 parser.x parse_unary_into 一致：await/run/spawn/-,!,& 前缀 + primary 回落。
  */
 #ifndef PARSER_ASM_UNARY_SLICE_INCLUDED
 #define PARSER_ASM_UNARY_SLICE_INCLUDED
 
-/** 与 ast.sx ExprKind 序一致。 */
+/** 与 ast.x ExprKind 序一致。 */
 enum {
   PARSER_ASM_EXPR_NEG = 22,
   PARSER_ASM_EXPR_LOGNOT = 24,

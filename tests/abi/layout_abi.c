@@ -12,7 +12,7 @@ struct shux_slice_u8 {
     size_t length;
 };
 
-/* packed 结构体：无填充，1+4=5 字节（与 tests/memory-contract/packed_struct.sx 中 Header 一致） */
+/* packed 结构体：无填充，1+4=5 字节（与 tests/memory-contract/packed_struct.x 中 Header 一致） */
 struct Header_packed {
     uint8_t tag;
     uint32_t len;

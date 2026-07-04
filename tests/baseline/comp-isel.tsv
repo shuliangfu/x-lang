@@ -8,22 +8,22 @@ layers	section	## 2. 选择层 I1–I6	comp-isel.tsv	-	isel
 bench	section	## 3. microbench 矩阵	comp-isel-bench.tsv	-	microbench
 cases	section	## 4. Golden 用例	analysis/comp-isel-v1.md	-	cases
 verify	section	## 6. 验证与门禁	analysis/comp-isel-v1.md	-	gate
-layer_i1	layers	I1-imm-binop	tests/asm/binop_var_fast.sx	binop	ldr
-layer_i2	layers	I2-index-lit	tests/asm/binop_index_lit_fast.sx	index	add_imm
-layer_i3	layers	I3-cmp-branch	compiler/src/asm/backend.sx	cmp	分支
-layer_i4	layers	I4-peephole	compiler/src/asm/peephole.sx	peephole	elf
-layer_i5	layers	I5-shift-div	tests/asm/binop_var_fast.sx	shift	/%
-layer_i6	layers	I6-microbench	tests/bench/loop_i32.sx	bcmp	对标C
-sym_peephole	symbol	peephole_elf_run	compiler/src/asm/peephole.sx	elf	窥孔
-sym_peephole_txt	symbol	peephole_run	compiler/src/asm/peephole.sx	text	窥孔
-case_var	case	case_var_fast	tests/asm/binop_var_fast.sx	asm	143
-case_index	case	case_index_lit	tests/asm/binop_index_lit_fast.sx	asm	75
-case_four	case	case_four_add	tests/asm/binop_return_four_add.sx	chain	10
-case_loop	case	case_loop	tests/bench/loop_i32.sx	bcmp	loop
-case_field_p0	case	case_field_index	tests/asm/binop_field_index_fast.sx	P0	205
-case_nested_p0	case	case_nested_var	tests/asm/binop_nested_var_return.sx	P0	20
-case_div_index_p0	case	case_div_index	tests/asm/binop_div_index_binop.sx	P0	2
-case_cfg_p0	case	case_cfg_if	tests/asm/binop_if_plus_eq_merge.sx	P0	13
+layer_i1	layers	I1-imm-binop	tests/asm/binop_var_fast.x	binop	ldr
+layer_i2	layers	I2-index-lit	tests/asm/binop_index_lit_fast.x	index	add_imm
+layer_i3	layers	I3-cmp-branch	compiler/src/asm/backend.x	cmp	分支
+layer_i4	layers	I4-peephole	compiler/src/asm/peephole.x	peephole	elf
+layer_i5	layers	I5-shift-div	tests/asm/binop_var_fast.x	shift	/%
+layer_i6	layers	I6-microbench	tests/bench/loop_i32.x	bcmp	对标C
+sym_peephole	symbol	peephole_elf_run	compiler/src/asm/peephole.x	elf	窥孔
+sym_peephole_txt	symbol	peephole_run	compiler/src/asm/peephole.x	text	窥孔
+case_var	case	case_var_fast	tests/asm/binop_var_fast.x	asm	143
+case_index	case	case_index_lit	tests/asm/binop_index_lit_fast.x	asm	75
+case_four	case	case_four_add	tests/asm/binop_return_four_add.x	chain	10
+case_loop	case	case_loop	tests/bench/loop_i32.x	bcmp	loop
+case_field_p0	case	case_field_index	tests/asm/binop_field_index_fast.x	P0	205
+case_nested_p0	case	case_nested_var	tests/asm/binop_nested_var_return.x	P0	20
+case_div_index_p0	case	case_div_index	tests/asm/binop_div_index_binop.x	P0	2
+case_cfg_p0	case	case_cfg_if	tests/asm/binop_if_plus_eq_merge.x	P0	13
 hook_field_p0	hook_script	run-asm-binop-field-index.sh	run-asm-binop-field-index.sh	P0	I7
 hook_nested_p0	hook_script	run-asm-binop-nested-var.sh	run-asm-binop-nested-var.sh	P0	I8
 hook_div_p0	hook_script	run-asm-binop-div-index.sh	run-asm-binop-div-index.sh	P0	I5

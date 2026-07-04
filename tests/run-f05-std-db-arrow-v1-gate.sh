@@ -19,14 +19,14 @@ echo "=== F-05 v1: std.db.arrow remove arrow.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-05 v1' "$DOC" || die "doc missing F-05 v1 marker"
 [ ! -f std/db/arrow/arrow.c ] || die "arrow.c should be deleted"
-[ -f std/db/arrow/arrow.sx ] || die "missing arrow.sx"
+[ -f std/db/arrow/arrow.x ] || die "missing arrow.x"
 [ -f compiler/src/asm/runtime_arrow_simd_glue.c ] || die "missing arrow_simd_glue.c"
-grep -q 'arrow_column_i32_create_c' std/db/arrow/arrow.sx || die "arrow.sx missing create"
-grep -q 'arrow_smoke_c' std/db/arrow/arrow.sx || die "arrow.sx missing smoke"
+grep -q 'arrow_column_i32_create_c' std/db/arrow/arrow.x || die "arrow.x missing create"
+grep -q 'arrow_smoke_c' std/db/arrow/arrow.x || die "arrow.x missing smoke"
 [ ! -f std/db/arrow/arrow_simd_glue.c ] || die "arrow_simd_glue.c should be deleted (F-ZC)"
 grep -q 'runtime_arrow_simd_glue' compiler/Makefile || die "Makefile missing runtime_arrow_simd_glue"
 grep -q 'arrow_column_f32_sum_c' compiler/src/asm/runtime_arrow_simd_glue.c || die "glue missing f32 sum"
-grep -q 'arrow.sx' compiler/Makefile || die "Makefile missing arrow.sx build"
+grep -q 'arrow.x' compiler/Makefile || die "Makefile missing arrow.x build"
 if grep -q 'std/db/arrow/arrow\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references arrow.c"
 fi
@@ -47,7 +47,7 @@ EOF
   "$TMP/arrow_smoke" || die "arrow smoke run failed"
   echo "f05 arrow smoke OK"
 else
-  echo "f05 arrow smoke SKIP (arrow.o missing .sx symbols; need shux-c)"
+  echo "f05 arrow smoke SKIP (arrow.o missing .x symbols; need shux-c)"
 fi
 
 if [ -f tests/run-std-db-kv-arrow-gate.sh ]; then

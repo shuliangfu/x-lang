@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
-SRC="tests/mem/sroa_struct_call.sx"
+SRC="tests/mem/sroa_struct_call.x"
 OUT="/tmp/shux_sroa_struct_call"
 C_OUT="/tmp/shux_sroa_struct_call.c"
 rm -f "$OUT" "$C_OUT"
@@ -51,7 +51,7 @@ fi
 echo "sroa-gate OK (MEM-D1 struct call SROA stack promotion)"
 
 echo "=== MEM-D1.2: cross-module sroa_struct_cross ==="
-CROSS_SRC="tests/mem/sroa_struct_cross.sx"
+CROSS_SRC="tests/mem/sroa_struct_cross.x"
 CROSS_OUT="/tmp/shux_sroa_struct_cross"
 CROSS_C="/tmp/shux_sroa_struct_cross.c"
 rm -f "$CROSS_OUT" "$CROSS_C"

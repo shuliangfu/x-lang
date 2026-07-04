@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-simd-shuffle-select.tsv` |
 | 3 | `./tests/run-std-simd-shuffle-select-gate.sh` |
-| 4 | 烟测：`tests/simd/shuffle_select_roundtrip.sx` |
+| 4 | 烟测：`tests/simd/shuffle_select_roundtrip.x` |
 
 ---
 
@@ -22,9 +22,9 @@
 | 层 | 行为 |
 |----|------|
 | **编译器内联** | `vec4f_shuffle` / `vec8i_shuffle` → x86 `pshufd`/`vpshufd`；arm64 `ld1`/`ins`/`st1`；`vec*_select` → x86 `cmpgt*`/`and`/`or` 或 arm64 `cmgt`/`fcmgt`/`bit` |
-| **.sx 回退** | `std/simd/mod.sx` lane-scalar：`v[mask[i]]`、三元 `mask[i]!=0 ? a[i]:b[i]` |
+| **.x 回退** | `std/simd/mod.x` lane-scalar：`v[mask[i]]`、三元 `mask[i]!=0 ? a[i]:b[i]` |
 
-环境变量 `SHUX_SIMD_HW=0` 可强制走 lane-scalar emit（仍可由编译器内联 .sx 体）。
+环境变量 `SHUX_SIMD_HW=0` 可强制走 lane-scalar emit（仍可由编译器内联 .x 体）。
 
 ---
 
@@ -64,4 +64,4 @@ shux: [SHUX_STD_SIMD_SHUFFLE_SELECT] status=ok shuffle=1 select=1 s4=1 skip=0
 
 ## 6. STD-061 生产级 bench
 
-详见 `analysis/std-simd-prod-v1.md`：`tests/bench/simd_shuffle_select.sx` vs `simd_shuffle_select_stub.c`，`run-perf-simd-shuffle-select.sh` ratio **≥1.0×**。
+详见 `analysis/std-simd-prod-v1.md`：`tests/bench/simd_shuffle_select.x` vs `simd_shuffle_select_stub.c`，`run-perf-simd-shuffle-select.sh` ratio **≥1.0×**。

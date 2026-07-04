@@ -1,14 +1,14 @@
 # 阶段 F-05 v4（std.db 闭合）
 
-> **F-05 v4**：**std.db** 三后端（arrow / kv / sqlite）业务逻辑全在 **`.sx`**；**`kv.c` / `arrow.c` / `sqlite.c` 已删除**；仅保留文档化最小胶层 C。
+> **F-05 v4**：**std.db** 三后端（arrow / kv / sqlite）业务逻辑全在 **`.x`**；**`kv.c` / `arrow.c` / `sqlite.c` 已删除**；仅保留文档化最小胶层 C。
 
 ## v4 闭合清单（✅ manifest）
 
 | 模块 | 主逻辑 | 胶层 C | 阶段 |
 |------|--------|--------|------|
-| arrow | `arrow.sx` | `arrow_simd_glue.c`（SSE2/NEON sum/dot） | F-05 v1 |
-| kv | `kv.sx` | `kv_mmap_glue.c`（mmap open/ftruncate） | F-05 v2 |
-| sqlite | `sqlite.sx` | `sqlite_glue.c`（libsqlite3 FFI / stub） | F-05 v3 |
+| arrow | `arrow.x` | `arrow_simd_glue.c`（SSE2/NEON sum/dot） | F-05 v1 |
+| kv | `kv.x` | `kv_mmap_glue.c`（mmap open/ftruncate） | F-05 v2 |
+| sqlite | `sqlite.x` | `sqlite_glue.c`（libsqlite3 FFI / stub） | F-05 v3 |
 
 ## 已删除（须保持 absent）
 

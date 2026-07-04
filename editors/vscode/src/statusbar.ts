@@ -1,5 +1,5 @@
 /**
- * Shux 状态栏 — 在右下角显示「Shux」及对当前 `.sx` 源的符号粗略统计。
+ * Shux 状态栏 — 在右下角显示「Shux」及对当前 `.x` 源的符号粗略统计。
  *
  * extension.activate() 示例：
  * ```
@@ -10,7 +10,7 @@
  * );
  * context.subscriptions.push(
  *   vscode.workspace.onDidChangeTextDocument((e) => {
- *     if (e.document.languageId === 'sx') {
+ *     if (e.document.languageId === 'x') {
  *       refreshShuxStatusBar(vscode.window.activeTextEditor);
  *     }
  *   })
@@ -44,7 +44,7 @@ const ENUM_HEAD = /^\s*enum\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\{/;
  * @param source 文档全文。
  * @returns 去掉注释后的文本（仅用于正则统计，不改变换行个数）。
  */
-function stripSxCommentsPreserveNewlines(source: string): string {
+function stripXCommentsPreserveNewlines(source: string): string {
   /** 输出缓冲区，与原串等长，逐字节填充。 */
   const outChars: string[] = new Array(source.length);
   /** 是否在 `//` 行注释尾部。 */
@@ -130,9 +130,9 @@ function stripSxCommentsPreserveNewlines(source: string): string {
 /**
  * 对清洗后的源码逐行计数：function / struct / enum。
  *
- * @param sanitized 已通过 `stripSxCommentsPreserveNewlines` 的文本。
+ * @param sanitized 已通过 `stripXCommentsPreserveNewlines` 的文本。
  */
-function countSxSymbolsPerLinePrefix(sanitized: string): {
+function countXSymbolsPerLinePrefix(sanitized: string): {
   funcs: number;
   structs: number;
   enums: number;
@@ -154,7 +154,7 @@ function countSxSymbolsPerLinePrefix(sanitized: string): {
  *
  * StatusBar：`alignment = Right`、`priority = 100`；
  * `text = ' Shux'`（按需求保留前导空格）；
- * `tooltip = 'Shux (.sx)'`；
+ * `tooltip = 'Shux (.x)'`；
  * `show()` 后即加入 `context.subscriptions`。
  *
  * @param context VSCode 激活上下文。
@@ -170,7 +170,7 @@ export function registerShuxStatusBar(context: ExtensionContext): void {
   item.name = 'Shux';
   /** 初始化展示（占位含前导空格，符合需求字面） */
   item.text = ' Shux';
-  item.tooltip = 'Shux (.sx)';
+  item.tooltip = 'Shux (.x)';
   item.show();
 
   /** 扩展卸载时销毁状态条目 */
@@ -183,8 +183,8 @@ export function registerShuxStatusBar(context: ExtensionContext): void {
 /**
  * 在活动编辑器或其文档发生变化时刷新状态栏计数。
  *
- * - 若为 `.sx`：统计 `function`/`struct`/`enum`（排除注释）。
- * - 否则回退占位文本：` Shux`，tooltip：`Shux (.sx)`。
+ * - 若为 `.x`：统计 `function`/`struct`/`enum`（排除注释）。
+ * - 否则回退占位文本：` Shux`，tooltip：`Shux (.x)`。
  *
  * @param editor 当前活动编辑器，可为 undefined。
  */
@@ -195,15 +195,15 @@ export function refreshShuxStatusBar(editor: TextEditor | undefined): void {
   }
 
   /** 仅在 Shux 语言 ID 上做统计（与 contributes 对齐） */
-  if (!editor || editor.document.languageId !== 'sx') {
-    /** 需求：非 .sx 编辑器回退占位 */
+  if (!editor || editor.document.languageId !== 'x') {
+    /** 需求：非 .x 编辑器回退占位 */
     item.text = ' Shux';
-    item.tooltip = 'Shux (.sx)';
+    item.tooltip = 'Shux (.x)';
     return;
   }
 
-  const sanitized = stripSxCommentsPreserveNewlines(editor.document.getText());
-  const { funcs, structs, enums } = countSxSymbolsPerLinePrefix(sanitized);
+  const sanitized = stripXCommentsPreserveNewlines(editor.document.getText());
+  const { funcs, structs, enums } = countXSymbolsPerLinePrefix(sanitized);
 
   /**
    * `$(symbol-namespace)`：使用内置图标前缀，前缀保留一个空格以保持版式，
@@ -211,7 +211,7 @@ export function refreshShuxStatusBar(editor: TextEditor | undefined): void {
    */
   item.text = ` $(symbol-namespace) Shux · fn ${funcs} · st ${structs} · en ${enums}`;
   /** 悬停详细信息：分项列出 */
-  item.tooltip = `Shux (.sx)
+  item.tooltip = `Shux (.x)
 函数: ${funcs}
 结构体: ${structs}
 枚举: ${enums}`;

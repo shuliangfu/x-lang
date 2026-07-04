@@ -71,15 +71,15 @@ fi
 
 # 编译 bench：Linux x86_64 可用 asm；其它平台 shux-c/-backend c。
 async_compile_bench() {
-  local sx="$1"
+  local x="$1"
   local out="$2"
   rm -f "$out"
-  if async_is_linux_x64_asm && [[ "$sx" == *sched* ]]; then
-    if ! "$SHUX_BIN" -L . "$sx" -backend asm -o "$out" >/tmp/async_1m_compile.log 2>&1; then
+  if async_is_linux_x64_asm && [[ "$x" == *sched* ]]; then
+    if ! "$SHUX_BIN" -L . "$x" -backend asm -o "$out" >/tmp/async_1m_compile.log 2>&1; then
       if grep -qE 'backend asm not available|not available in this build' /tmp/async_1m_compile.log 2>/dev/null; then
-        echo "async 1M WARN: asm backend unavailable, fallback shux-c for $sx" >&2
+        echo "async 1M WARN: asm backend unavailable, fallback shux-c for $x" >&2
         if [ -x ./compiler/shux-c ]; then
-          ./compiler/shux-c -L . "$sx" -o "$out" || return 1
+          ./compiler/shux-c -L . "$x" -o "$out" || return 1
           return 0
         fi
       fi
@@ -89,13 +89,13 @@ async_compile_bench() {
     return 0
   fi
   if async_is_linux_x64_asm; then
-    "$SHUX_BIN" -L . "$sx" -o "$out"
+    "$SHUX_BIN" -L . "$x" -o "$out"
   elif [ -x ./compiler/shux-c ]; then
-    ./compiler/shux-c -L . "$sx" -o "$out"
+    ./compiler/shux-c -L . "$x" -o "$out"
   elif [ -x ./compiler/shux ]; then
-    ./compiler/shux -L . "$sx" -backend c -o "$out"
+    ./compiler/shux -L . "$x" -backend c -o "$out"
   else
-    "$SHUX_BIN" -L . "$sx" -o "$out"
+    "$SHUX_BIN" -L . "$x" -o "$out"
   fi
 }
 

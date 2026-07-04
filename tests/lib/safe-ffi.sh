@@ -11,7 +11,7 @@ safe_ffi_contract_count() {
   awk -F'\t' '$1 ~ /^case_/ { n++ } END { print n+0 }' "$man"
 }
 
-# 编译并运行单个契约 .sx；校验退出码。
+# 编译并运行单个契约 .x；校验退出码。
 safe_ffi_run_case() {
   local shux="$1"
   local src="$2"

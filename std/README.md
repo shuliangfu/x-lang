@@ -2,7 +2,7 @@
 
 **标准库的 std 层**：依赖操作系统或运行时（进程、文件、网络等），在 core 之上提供统一 API。
 
-- **用途**：用户通过 `import("std.xxx")` 引用；编译器解析到本目录下对应模块（如 `std/io/mod.sx`）。
+- **用途**：用户通过 `import("std.xxx")` 引用；编译器解析到本目录下对应模块（如 `std/io/mod.x`）。
 - **内容**：按模块单文件或子目录（runtime、process、io、fs、path、string、fmt、vec、map、thread、sync、time、net 等）。
 - **原则**：内部按目标平台条件编译，**用户只写一套 API**；按需链接，未用模块不进入二进制。嵌入式可用最小 std 子集或仅 core。
 
@@ -90,16 +90,16 @@
 
 ### 4.1 有独立回归测试且已纳入 run-all.sh 的模块
 
-以下模块在 `tests/` 下有对应 `tests/xxx/main.sx` 与 `run-xxx.sh`，且已在 `tests/run-all.sh` 中执行：
+以下模块在 `tests/` 下有对应 `tests/xxx/main.x` 与 `run-xxx.sh`，且已在 `tests/run-all.sh` 中执行：
 
 runtime、io、io-driver、mem、fs、process、path、heap、string、vec、map、error、net、time、env、fmt、fmt-std、sync、encoding、base64、crypto、log、stdtest、set、queue、atomic、channel、backtrace、hash、math、sort、ffi、json、csv、unicode、dynlib、compress、thread、random、core-types、builtin、debug 等（具体以 `tests/run-all.sh` 中 run run-*.sh 为准）。
 
 ### 4.2 已纳入 run-all.sh 的 thread / random
 
-- **std.thread**：`tests/thread/main.sx`、`run-thread.sh`，已加入 run-all.sh。
-- **std.random**：`tests/random/main.sx`、`run-random.sh`（含 range_u32 边界 100..100），已加入 run-all.sh。
+- **std.thread**：`tests/thread/main.x`、`run-thread.sh`，已加入 run-all.sh。
+- **std.random**：`tests/random/main.x`、`run-random.sh`（含 range_u32 边界 100..100），已加入 run-all.sh。
 
-### 4.3 有 gate 或 cookbook 覆盖、无传统 main.sx 的模块
+### 4.3 有 gate 或 cookbook 覆盖、无传统 main.x 的模块
 
 - **std.http / std.websocket / std.tar**：`run-http.sh`、`run-std-websocket-gate.sh`、`run-tar.sh`（已纳入 run-all）。
 - **std.bytes / std.regex / std.simd / std.async**：`run-std-*-gate.sh` 或 `tests/async/`。

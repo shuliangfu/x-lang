@@ -4,14 +4,14 @@
 read_path	section	## 1. 阅读路径	analysis/std-metrics-obs-v1.md
 api_doc	section	## 2. API	analysis/std-metrics-obs-v1.md
 verify	section	## 3. Gate	analysis/std-metrics-obs-v1.md
-api_from_trace	api	obs_ctx_from_trace	std/metrics/mod.sx	从 trace 构建
-api_attach	api	obs_ctx_attach_context	std/metrics/mod.sx	写入 context
-api_from_ctx	api	obs_ctx_from_context	std/metrics/mod.sx	从 context 恢复
-api_log_kv	api	obs_ctx_format_log_kv	std/metrics/mod.sx	log KV
-api_label	api	obs_ctx_apply_trace_label	std/metrics/mod.sx	metrics label
-api_empty	api	obs_ctx_empty	std/metrics/mod.sx	空上下文
-impl_sx	file	std/metrics/mod.sx	std/metrics/mod.sx
-smoke_sx	smoke	tests/std-metrics/obs_correlation.sx	关联烟测
+api_from_trace	api	obs_ctx_from_trace	std/metrics/mod.x	从 trace 构建
+api_attach	api	obs_ctx_attach_context	std/metrics/mod.x	写入 context
+api_from_ctx	api	obs_ctx_from_context	std/metrics/mod.x	从 context 恢复
+api_log_kv	api	obs_ctx_format_log_kv	std/metrics/mod.x	log KV
+api_label	api	obs_ctx_apply_trace_label	std/metrics/mod.x	metrics label
+api_empty	api	obs_ctx_empty	std/metrics/mod.x	空上下文
+impl_x	file	std/metrics/mod.x	std/metrics/mod.x
+smoke_x	smoke	tests/std-metrics/obs_correlation.x	关联烟测
 vectors	file	tests/baseline/std-metrics-obs-vectors.tsv	向量
 lib	script	lib/std-metrics-obs.sh	tests/lib/std-metrics-obs.sh
 gate	script	run-std-metrics-obs-gate.sh	tests/run-std-metrics-obs-gate.sh

@@ -3,7 +3,7 @@
  *
  * 文件职责：提供 _start 与 driver_get_argv_i，替代 main.c / main_driver.o。
  * 所属模块：compiler asm 运行时；bootstrap-driver-seed 在 Darwin x86_64 默认链入。
- * 重要约定：_start 调 main_entry（driver_sx.o）；链接须 -e _start -nostartfiles。
+ * 重要约定：_start 调 main_entry（driver_x.o）；链接须 -e _start -nostartfiles。
  */
 
 	.section __TEXT,__text,regular,pure_instructions

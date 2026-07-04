@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_SYS_PLATFORM_WRITE_FAIL:-0}
-SX="tests/sys/sys_platform_write_unified.sx"
+X="tests/sys/sys_platform_write_unified.x"
 OUT="/tmp/shux_sys_platform_write.$$.out"
 SHUX="${SHUX:-./compiler/shux-c}"
 
@@ -27,8 +27,8 @@ fi
 
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" "${EXTRA[@]}" -o "$OUT" "$SX" 2>/tmp/shux_sys_platform_write.log; then
-  echo "sys-platform-write-gate FAIL: compile $SX on $OS" >&2
+if ! "$SHUX" "${EXTRA[@]}" -o "$OUT" "$X" 2>/tmp/shux_sys_platform_write.log; then
+  echo "sys-platform-write-gate FAIL: compile $X on $OS" >&2
   tail -n 10 /tmp/shux_sys_platform_write.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

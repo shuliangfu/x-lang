@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_LINUX_SYSCALL_INVOKE_FAIL:-0}
-SX="tests/sys/linux_syscall_invoke_smoke.sx"
+X="tests/sys/linux_syscall_invoke_smoke.x"
 OUT="/tmp/shux_linux_syscall_invoke.$$.out"
 SHUX="${SHUX:-./compiler/shux-c}"
 
@@ -25,8 +25,8 @@ fi
 
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$SX" 2>/tmp/shux_linux_syscall_invoke.log; then
-  echo "linux-syscall-invoke-gate FAIL: compile $SX" >&2
+if ! "$SHUX" -freestanding -backend asm -o "$OUT" "$X" 2>/tmp/shux_linux_syscall_invoke.log; then
+  echo "linux-syscall-invoke-gate FAIL: compile $X" >&2
   tail -n 10 /tmp/shux_linux_syscall_invoke.log 2>/dev/null || true
   rm -f "$OUT" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

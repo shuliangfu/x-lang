@@ -18,9 +18,9 @@ linux_read_ptr	matrix	mmap	io_read_ptr_try_mmap	std/io/io.c	read_ptr
 macos_wait	matrix	EVFILT_READ	EVFILT_READ	std/io/io.c	io_wait_readable
 win_wait	matrix	FD_SET	FD_SET	std/io/io.c	io_wait_readable
 linux_wait	matrix	poll	poll(pfd	std/io/io.c	io_wait_readable
-api_read_fd	symbol	-	read_fd	std/io/mod.sx	API
-api_read_batch	symbol	-	read_batch_fd	std/io/mod.sx	API
-test_smoke	file	-	fallback_matrix.sx	tests/io/fallback_matrix.sx	烟测
+api_read_fd	symbol	-	read_fd	std/io/mod.x	API
+api_read_batch	symbol	-	read_batch_fd	std/io/mod.x	API
+test_smoke	file	-	fallback_matrix.x	tests/io/fallback_matrix.x	烟测
 runner	script	-	run-io.sh	tests/run-io.sh	回归
 doc	file	-	std-io-fallback-v1.md	analysis/std-io-fallback-v1.md	RFC
 gate	script	-	run-std-io-fallback-gate.sh	tests/run-std-io-fallback-gate.sh	manifest

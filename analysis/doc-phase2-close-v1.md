@@ -25,14 +25,14 @@
 | `STD-033` | `std/README.md` | std.http 行 gate 引用 |
 | `STD-033` | `docs/07-内置与标准库.md` | std.http 已完善表 |
 | `HTTP-02` | `analysis/doc-cookbook-expand-v1.md` | chunked 食谱 |
-| `http_chunked_decode.sx` | `examples/cookbook/` | Cookbook 可 typeck |
+| `http_chunked_decode.x` | `examples/cookbook/` | Cookbook 可 typeck |
 | `Phase 2` | `NEXT.md` §3 | 审计快照与 STD-033 一致 |
 
 ---
 
 ## 3. Cookbook 增量
 
-- **HTTP-02**：`examples/cookbook/http_chunked_decode.sx` — 离线 chunked 金样解码（与 `tests/http/chunked_keepalive.sx` 同向量，无 `build_get_keep_alive`）。
+- **HTTP-02**：`examples/cookbook/http_chunked_decode.x` — 离线 chunked 金样解码（与 `tests/http/chunked_keepalive.x` 同向量，无 `build_get_keep_alive`）。
 
 DOC-006 manifest 食谱数由 35 增至 **36**（`min_recipes` 仍为 35，gate 阈值不变）。
 

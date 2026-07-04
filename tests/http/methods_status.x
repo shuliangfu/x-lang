@@ -1,0 +1,78 @@
+// tests/http/methods_status.x — STD-032 HTTP 方法 + parse_status_line 烟测
+const http = import("std.http");
+function main(): i32 {
+  if (http.method(http.method(0)) != 0) { return 10; }
+  if (http.method(http.method(1)) != 1) { return 11; }
+  if (http.method(http.method(2)) != 2) { return 12; }
+  if (http.method(http.method(3)) != 3) { return 13; }
+  if (http.method(http.method(4)) != 4) { return 14; }
+  if (http.method(http.method(5)) != 5) { return 15; }
+  if (http.method(http.method(6)) != 6) { return 16; }
+  if (http.method(http.method(3)) != 3) { return 17; }
+  if (http.method(http.method(99)) != 0) { return 18; }
+
+  let line204: u8[28] = [72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 52, 32, 78, 111, 32, 67, 111,
+    110, 116, 101, 110, 116, 13, 10, 0, 0, 0];
+  let code: i32 = 0;
+  if (http.parse_status_line(&line204[0], 24, &code) != 0) {
+    return 1;
+  }
+  if (code != 204) {
+    return 2;
+  }
+
+  let line404: u8[24] = [72, 84, 84, 80, 47, 49, 46, 48, 32, 52, 48, 52, 32, 78, 111, 116, 32,
+    70, 111, 117, 110, 100, 13, 10];
+  code = 0;
+  if (http.parse_status_line(&line404[0], 22, &code) != 0) {
+    return 3;
+  }
+  if (code != 404) {
+    return 4;
+  }
+
+  let bad: u8[4] = [72, 84, 84, 80];
+  if (http.parse_status_line(&bad[0], 4, &code) == 0) {
+    return 5;
+  }
+
+  let url: u8[32] = [104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111,
+    109, 47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  let out: u8[4096] = [];
+  let hn: i32 = http.head(&url[0], 19, &out[0], 4096);
+  if (hn >= 0) {
+    code = 0;
+    if (http.parse_status_line(&out[0], hn, &code) != 0) {
+      return 6;
+    }
+    if (code < 100 || code > 599) {
+      return 7;
+    }
+  }
+
+  let body: u8[4] = [116, 101, 115, 116];
+  let pn: i32 = http.post(&url[0], 19, &body[0], 4, &out[0], 4096);
+  if (pn >= 0) {
+    code = 0;
+    if (http.parse_status_line(&out[0], pn, &code) != 0) {
+      return 8;
+    }
+  }
+
+  let optn: i32 = http.options(&url[0], 19, &out[0], 4096);
+  if (optn >= 0) {
+    code = 0;
+    if (http.parse_status_line(&out[0], optn, &code) != 0) {
+      return 19;
+    }
+  }
+
+  let dln: i32 = http.delete(&url[0], 19, &out[0], 4096);
+  if (dln >= 0) {
+    code = 0;
+    if (http.parse_status_line(&out[0], dln, &code) != 0) {
+      return 20;
+    }
+  }
+  return 0;
+}

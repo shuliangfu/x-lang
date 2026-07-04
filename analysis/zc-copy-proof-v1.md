@@ -11,8 +11,8 @@
 | 目标 | 说明 |
 |------|------|
 | **PR 可审计** | 触及 IO/FS/NET/String 热路径的 PR 须声明 userland 拷贝次数 |
-| **可复现证明** | 关键路径提供可编译 `.sx` 烟测，exit 0 = 证明通过 |
-| **模板一致** | 复制 `tests/templates/zc-copy-proof-test.sx`，填 metadata 头 |
+| **可复现证明** | 关键路径提供可编译 `.x` 烟测，exit 0 = 证明通过 |
+| **模板一致** | 复制 `tests/templates/zc-copy-proof-test.x`，填 metadata 头 |
 
 验收（NEXT ZC-007）：**新 PR 必填拷贝声明** + 模板 + 示例 proof + gate。
 
@@ -39,7 +39,7 @@
 |------|------|
 | `userland_copies` | 热路径用户态 **冗余** 拷贝次数（见 ZC-006 §2） |
 | `zc_tier` | `none` / `ZC-1`..`ZC-5` |
-| `proof_id` | `tests/zc/<id>.sx` 或 `N/A` |
+| `proof_id` | `tests/zc/<id>.x` 或 `N/A` |
 | `fallback` | 非 Linux 回退说明（若有） |
 
 粘贴到 PR 描述 **或** 链到 proof 文件头 comment。
@@ -48,7 +48,7 @@
 
 ## 4. 证明测试模板
 
-1. 复制 `tests/templates/zc-copy-proof-test.sx` → `tests/zc/<proof_id>.sx`
+1. 复制 `tests/templates/zc-copy-proof-test.x` → `tests/zc/<proof_id>.x`
 2. 填写文件头 metadata（`path_id`、`userland_copies`、`zc_tier`）
 3. 实现 `main()`：触达声称的零拷贝/最小拷贝路径，**return 0** 表示证明成功
 4. 登记 `tests/baseline/zc-copy-proof.tsv`
@@ -72,7 +72,7 @@ Gate 会 grep 这些键。
 
 | proof_id | 路径 | copies | tier | 说明 |
 |----------|------|--------|------|------|
-| `copy_proof_smoke` | `tests/zc/copy_proof_smoke.sx` | 0 | ZC-4 | StrView subview 无堆拷贝 |
+| `copy_proof_smoke` | `tests/zc/copy_proof_smoke.x` | 0 | ZC-4 | StrView subview 无堆拷贝 |
 
 ---
 
@@ -92,7 +92,7 @@ Gate 会 grep 这些键。
 | 资源 | 路径 |
 |------|------|
 | PR 模板 | `tests/templates/zc-pr-copy-declaration.txt` |
-| 测试模板 | `tests/templates/zc-copy-proof-test.sx` |
+| 测试模板 | `tests/templates/zc-copy-proof-test.x` |
 | 矩阵 | `tests/baseline/zc-copy-proof.tsv` |
 | 语义 | `analysis/zc-semantics-v1.md` |
 

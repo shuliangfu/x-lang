@@ -20,9 +20,9 @@ if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler shux-c 2>/dev/null || make -C compiler shux
 fi
 
-OK_FILE="$FMT_TMP/shux_fmt_check_ok.sx"
-BAD_FILE="$FMT_TMP/shux_fmt_check_bad.sx"
-cp tests/return-value/main.sx "$OK_FILE"
+OK_FILE="$FMT_TMP/shux_fmt_check_ok.x"
+BAD_FILE="$FMT_TMP/shux_fmt_check_bad.x"
+cp tests/return-value/main.x "$OK_FILE"
 # MSYS2：cp 后内容可能与 fmt 规范形不一致（CRLF/单行）；先 fmt 写回再测 --check。
 if [ "$_IS_MSYS" -eq 1 ]; then
   set +e
@@ -68,7 +68,7 @@ echo "$bad_out" | grep -qiE 'not formatted|needs format|would reformat' || {
   echo "expected summary listing unformatted files, got: $bad_out" >&2
   exit 1
 }
-echo "$bad_out" | grep -qE 'shu_fmt_check_bad\.sx|shu_fmt_check_bad' || {
+echo "$bad_out" | grep -qE 'shu_fmt_check_bad\.x|shu_fmt_check_bad' || {
   echo "expected path in fmt --check summary, got: $bad_out" >&2
   exit 1
 }

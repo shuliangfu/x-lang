@@ -6,16 +6,16 @@ naming	section	## 2. 统一命名	mac_sign_512
 vectors	section	## 3. 金样向量	sha512_abc
 link_opt	section	## 4. 可选链入	crypto.o
 verify	section	## 5. 门禁	gate
-api_sha512	api	sha512	std/crypto/mod.sx	摘要
-api_hmac512	api	hmac_sha512	std/crypto/mod.sx	HMAC
-api_mac_sign	api	mac_sign_512	std/crypto/mod.sx	签
-api_mac_verify	api	mac_verify_512	std/crypto/mod.sx	验
-const_digest	const	SHA512_DIGEST_LEN	std/crypto/mod.sx	64
+api_sha512	api	sha512	std/crypto/mod.x	摘要
+api_hmac512	api	hmac_sha512	std/crypto/mod.x	HMAC
+api_mac_sign	api	mac_sign_512	std/crypto/mod.x	签
+api_mac_verify	api	mac_verify_512	std/crypto/mod.x	验
+const_digest	const	SHA512_DIGEST_LEN	std/crypto/mod.x	64
 symbol_sha512_c	symbol	crypto_sha512_c	std/crypto/crypto_inc_glue.c	C SHA-512
 symbol_hmac512_c	symbol	crypto_hmac_sha512_c	std/crypto/crypto_inc_glue.c	C HMAC
 vectors_tsv	file	tests/baseline/std-crypto-sha512-hmac-vectors.tsv	金样表
-smoke_sha512	smoke	tests/std-crypto/sha512_abc.sx	SHA-512 abc
-smoke_hmac	smoke	tests/std-crypto/hmac_sha512_rfc4231_tc1.sx	RFC4231 TC1
-smoke_mac	smoke	tests/std-crypto/mac_verify_512_smoke.sx	MAC 512
+smoke_sha512	smoke	tests/std-crypto/sha512_abc.x	SHA-512 abc
+smoke_hmac	smoke	tests/std-crypto/hmac_sha512_rfc4231_tc1.x	RFC4231 TC1
+smoke_mac	smoke	tests/std-crypto/mac_verify_512_smoke.x	MAC 512
 lib	script	lib/std-crypto-sha512-hmac.sh	tests/lib/std-crypto-sha512-hmac.sh
 gate	script	run-std-crypto-sha512-hmac-gate.sh	tests/run-std-crypto-sha512-hmac-gate.sh

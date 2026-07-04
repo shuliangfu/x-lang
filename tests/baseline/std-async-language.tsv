@@ -1,12 +1,12 @@
 # STD-041 std.async language bridge manifest
 # 列：item_id	kind	anchor	mod_path	notes
 min_syms	2
-scheduler_reset	symbol	scheduler_reset	std/async/mod.sx
-drain_idle	symbol	drain_idle	std/async/mod.sx
+scheduler_reset	symbol	scheduler_reset	std/async/mod.x
+drain_idle	symbol	drain_idle	std/async/mod.x
 run_doc	anchor	await_scheduler_run	analysis/std-async-language-v1.md	RFC
 mod_doc	anchor	await_scheduler_mod	analysis/std-async-language-v1.md	RFC
 async_1m	anchor	async_1m_coop	analysis/std-async-language-v1.md	1M gate
-test_run	file	tests/async/await_scheduler_run.sx		run/await
-test_mod	file	tests/async/await_scheduler_mod.sx		import
+test_run	file	tests/async/await_scheduler_run.x		run/await
+test_mod	file	tests/async/await_scheduler_mod.x		import
 doc	file	analysis/std-async-language-v1.md	analysis/std-async-language-v1.md	RFC
 gate	script	run-std-async-language-gate.sh	tests/run-std-async-language-gate.sh	manifest

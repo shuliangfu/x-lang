@@ -14,21 +14,21 @@ esac
 
 # 分阶段门禁：先覆盖已稳定的编译器/核心模块（全量 compiler/src 仍有个别 import/折行待修）。
 for f in \
-  core/slice/mod.sx \
-  core/option/mod.sx \
-  compiler/asm_libroot/std/fs/mod.sx \
-  compiler/src/ast/ast.sx \
-  compiler/src/lexer/lexer.sx \
-  compiler/src/parser/parser.sx \
-  compiler/src/typeck/typeck.sx \
-  compiler/src/codegen/codegen.sx \
-  compiler/src/pipeline/pipeline.sx \
-  compiler/src/asm/asm.sx \
-  compiler/src/asm/backend.sx \
-  compiler/src/preprocess/preprocess.sx \
-  compiler/src/driver/compile.sx \
-  compiler/src/driver/fmt.sx \
-  compiler/src/driver/check.sx
+  core/slice/mod.x \
+  core/option/mod.x \
+  compiler/asm_libroot/std/fs/mod.x \
+  compiler/src/ast/ast.x \
+  compiler/src/lexer/lexer.x \
+  compiler/src/parser/parser.x \
+  compiler/src/typeck/typeck.x \
+  compiler/src/codegen/codegen.x \
+  compiler/src/pipeline/pipeline.x \
+  compiler/src/asm/asm.x \
+  compiler/src/asm/backend.x \
+  compiler/src/preprocess/preprocess.x \
+  compiler/src/driver/compile.x \
+  compiler/src/driver/fmt.x \
+  compiler/src/driver/check.x
 do
   out=$("$SHUX_EXE" check "$f" 2>&1) || {
     echo "$out"

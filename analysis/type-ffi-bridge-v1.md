@@ -70,10 +70,10 @@ extern function putchar(c: i32): i32;  // Shu i32 → C int32_t
 
 | case_id | 文件 | 验证 |
 |---------|------|------|
-| `case_putchar` | `tests/ffi/putchar.sx` | `i32` 实参调 C `putchar` |
-| `case_extern_abi` | `contract_extern_putchar.sx` | extern 声明 + 运行 |
-| `case_cstr_u8` | `contract_null_cstr.sx` | `*u8` + `cstr_len` |
-| `case_ffi_main` | `tests/ffi/main.sx` | `run-ffi.sh` 聚合 |
+| `case_putchar` | `tests/ffi/putchar.x` | `i32` 实参调 C `putchar` |
+| `case_extern_abi` | `contract_extern_putchar.x` | extern 声明 + 运行 |
+| `case_cstr_u8` | `contract_null_cstr.x` | `*u8` + `cstr_len` |
+| `case_ffi_main` | `tests/ffi/main.x` | `run-ffi.sh` 聚合 |
 
 内存契约（owned/null）见 **SAFE-004**，不在此重复。
 

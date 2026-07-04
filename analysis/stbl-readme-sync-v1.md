@@ -18,7 +18,7 @@
 
 | 过时表述 | 原因 |
 |----------|------|
-| `spawn/exec/管道为 P3` | `std/process/mod.sx` 已实现 spawn/exec |
+| `spawn/exec/管道为 P3` | `std/process/mod.x` 已实现 spawn/exec |
 | `std.async` 仅占位 | `scheduler.c` + 1M gate 已交付 |
 | `无 run-http.sh` | 已纳入 run-all |
 | `无 run-tar.sh` | 已纳入 run-all |

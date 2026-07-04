@@ -2,7 +2,7 @@
  * parser_asm_match_subject_slice.c — parse_match_subject_into / parse_match_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
- * match subject：裸 IDENT 走 EXPR_VAR；parse_match_into 解析整段 match 表达式并回调 parse_expr_into SX mega。
+ * match subject：裸 IDENT 走 EXPR_VAR；parse_match_into 解析整段 match 表达式并回调 parse_expr_into X mega。
  */
 #ifndef PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
 #define PARSER_ASM_MATCH_SUBJECT_SLICE_INCLUDED
@@ -126,7 +126,7 @@ extern int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, 
 extern int32_t pipeline_expr_append_match_arm(void *arena, int32_t expr_ref, int32_t result_ref, int32_t is_wildcard,
                                               int32_t lit_val, int32_t is_enum_variant, int32_t variant_index);
 
-/** 与 parser.sx ast.expr_init_match_enum 一致。 */
+/** 与 parser.x ast.expr_init_match_enum 一致。 */
 static void parser_asm_expr_init_match_enum_c(struct ast_Expr *e) {
   if (!e)
     return;
@@ -134,7 +134,7 @@ static void parser_asm_expr_init_match_enum_c(struct ast_Expr *e) {
   e->enum_variant_tag = 0;
 }
 
-/** expr_set_common_zeros：与 parser.sx 字段清零顺序一致。 */
+/** expr_set_common_zeros：与 parser.x 字段清零顺序一致。 */
 static void parser_asm_match_expr_common_zeros_c(struct ast_Expr *e) {
   if (!e)
     return;

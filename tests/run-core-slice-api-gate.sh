@@ -7,16 +7,16 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_CORE_SLICE_DOC:-analysis/core-slice-api-v1.md}"
 MANIFEST="${SHUX_CORE_SLICE_TSV:-tests/baseline/core-slice-api.tsv}"
-SLICE_SX="core/slice/mod.sx"
+SLICE_X="core/slice/mod.x"
 LIB="tests/lib/core-slice-api.sh"
-SMOKE="tests/slice/subslice_split_chunks.sx"
+SMOKE="tests/slice/subslice_split_chunks.x"
 PREFIX="shux: [SHUX_CORE_SLICE_API]"
 
 # shellcheck source=tests/lib/core-slice-api.sh
 . tests/lib/core-slice-api.sh
 
 echo "=== CORE-004: slice API manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$SLICE_SX" "$SMOKE" analysis/core-slice-generic-v1.md core/option/mod.sx; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$SLICE_X" "$SMOKE" analysis/core-slice-generic-v1.md core/option/mod.x; do
   if [ ! -f "$f" ]; then
     echo "core-slice-api gate FAIL: missing $f" >&2
     exit 1
@@ -30,7 +30,7 @@ for kw in subslice split_at chunks_len 零拷贝 is_empty_i32 len_u64 subslice_u
   fi
 done
 
-sym_miss="$(core_slice_symbols_ok "$SLICE_SX" "$MANIFEST" || true)"
+sym_miss="$(core_slice_symbols_ok "$SLICE_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   core_slice_emit_report "fail" 0 0 0
   echo "core-slice-api gate FAIL: symbol_miss=${sym_miss}" >&2

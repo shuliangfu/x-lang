@@ -11,7 +11,7 @@
  * extension.activate() 注册示例：
  * ```
  * languages.registerSelectionRangeProvider(
- *   { scheme: 'file', language: 'sx' },
+ *   { scheme: 'file', language: 'x' },
  *   createShuxSelectionRangeProvider()
  * );
  * ```
@@ -32,7 +32,7 @@ import {
  */
 export class ShuxSelectionRangeProvider implements SelectionRangeProvider {
   /**
-   * @param document 打开的 `.sx` 文档。
+   * @param document 打开的 `.x` 文档。
    * @param positions 需要生成链的根位置数组（通常为当前光标）。
    * @returns 与 positions 对齐的每条选区链路；若被取消则返回 `undefined`。
    */
@@ -98,7 +98,7 @@ export class ShuxSelectionRangeProvider implements SelectionRangeProvider {
 /**
  * Provider 工厂函数，便于 activate() 单行注册：
  * ```
- * languages.registerSelectionRangeProvider({ language: 'sx' }, createShuxSelectionRangeProvider());
+ * languages.registerSelectionRangeProvider({ language: 'x' }, createShuxSelectionRangeProvider());
  * ```
  *
  * @returns Shux 选区递进实现实例。

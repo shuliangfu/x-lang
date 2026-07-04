@@ -12,7 +12,7 @@
 |------|------|
 | 1 | 读本文 §2 设计层 D1–D4 |
 | 2 | 打开 `tests/baseline/std-sqlite-manifest.tsv` |
-| 3 | 浏览 `std/db/sqlite/mod.sx` API |
+| 3 | 浏览 `std/db/sqlite/mod.x` API |
 | 4 | `./tests/run-std-sqlite-prereq-gate.sh` |
 
 ---
@@ -52,7 +52,7 @@
 | `last_error` | `() -> DbError` | 线程局部错误快照 |
 | `backend_name` | `() -> *u8` | `"sqlite3"` 或 `"stub"` |
 
-实现文件：`std/db/sqlite/mod.sx` + `std/db/sqlite/sqlite.c`；说明见 `std/db/sqlite/README.md`。
+实现文件：`std/db/sqlite/mod.x` + `std/db/sqlite/sqlite.c`；说明见 `std/db/sqlite/README.md`。
 
 公开路线图见 `analysis/doc-public-roadmap-v1.md`（DOC-005）。
 
@@ -71,7 +71,7 @@
 
 | case_id | 文件 | 期望 |
 |---------|------|------|
-| `draft_typeck` | `tests/std-sqlite/draft_typeck.sx` | `shux check` 通过 |
+| `draft_typeck` | `tests/std-sqlite/draft_typeck.x` | `shux check` 通过 |
 
 ---
 
@@ -92,7 +92,7 @@ shux: [SHUX_STD_SQLITE] status=ok apis=9 layers=4 typeck=ok|skip
 ## 7. 验收（NEXT STD-010）
 
 - [x] **RFC 草案**完成（D1–D4 + API 表 + 后端路线）
-- [x] manifest + `std/db/sqlite/mod.sx` API 面
+- [x] manifest + `std/db/sqlite/mod.x` API 面
 - [x] `run-std-sqlite-prereq-gate.sh` + `run-portable-suite.sh`
 
 **非目标**：ORM、连接池、异步查询、分布式事务。

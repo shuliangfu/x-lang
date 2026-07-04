@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-# 将 std/db/sqlite/sqlite.sx 中裸 "..." 迁移为顶层 const + &SQL_LIT_*[0]（仅限该文件）。
+# 将 std/db/sqlite/sqlite.x 中裸 "..." 迁移为顶层 const + &SQL_LIT_*[0]（仅限该文件）。
 
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PATH = ROOT / "std/db/sqlite/sqlite.sx"
+PATH = ROOT / "std/db/sqlite/sqlite.x"
 MARKER = '/** C 字符串常量（解析器不支持 "..." as *u8）。 */'
 PREFIX = "SQL"
 

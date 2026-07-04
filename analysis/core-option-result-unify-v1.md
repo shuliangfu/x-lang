@@ -38,8 +38,8 @@
 
 | case | 文件 | 期望 |
 |------|------|------|
-| `unify_option` | `tests/core016/unify_option.sx` | `Option<i32>` ↔ `Option_i32` typeck OK |
-| `unify_result` | `tests/core016/unify_result.sx` | `Result<T,i32>` ↔ `Result_*` + combinator |
+| `unify_option` | `tests/core016/unify_option.x` | `Option<i32>` ↔ `Option_i32` typeck OK |
+| `unify_result` | `tests/core016/unify_result.x` | `Result<T,i32>` ↔ `Result_*` + combinator |
 
 联动：`tests/run-core-option-result-gate.sh`（CORE-002/003 回归）、`run-lang-option-generic-gate.sh`、`run-lang-result-generic-gate.sh`。
 

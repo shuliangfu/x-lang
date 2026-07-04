@@ -75,7 +75,7 @@ comp_incr_compile_effective_cap() {
 # 探测 shux check 是否输出 SHUX_COMPILE_PHASE_TIMING（C-only shux-c 无 pipeline 时不输出）。
 comp_incr_compile_phase_timing_available() {
   local shux="$1"
-  local fix="${2:-tests/bench/loop_i32.sx}"
+  local fix="${2:-tests/bench/loop_i32.x}"
   local log=""
   [ -x "$shux" ] && [ -f "$fix" ] || return 1
   log="$(SHUX_COMPILE_PHASE_TIMING=1 "$shux" check "$fix" 2>&1)" || true

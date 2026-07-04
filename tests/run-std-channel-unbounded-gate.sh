@@ -7,18 +7,18 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_CHANNEL_UNBOUNDED_DOC:-analysis/std-channel-unbounded-v1.md}"
 MANIFEST="${SHUX_STD_CHANNEL_UNBOUNDED_TSV:-tests/baseline/std-channel-unbounded.tsv}"
-MOD_SX="std/channel/mod.sx"
+MOD_X="std/channel/mod.x"
 CHANNEL_RUNTIME="${SHUX_STD_CHANNEL_IMPL:-compiler/src/asm/runtime_channel_glue.c}"
 LIB="tests/lib/std-channel-unbounded.sh"
-UB_SX="tests/channel/unbounded_roundtrip.sx"
-MAIN_SX="tests/channel/main.sx"
+UB_X="tests/channel/unbounded_roundtrip.x"
+MAIN_X="tests/channel/main.x"
 MIN_APIS=5
 
 # shellcheck source=tests/lib/std-channel-unbounded.sh
 . "$LIB"
 
 echo "=== STD-044: channel unbounded manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$CHANNEL_RUNTIME" "$UB_SX" "$MAIN_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$CHANNEL_RUNTIME" "$UB_X" "$MAIN_X"; do
   if [ ! -f "$f" ]; then
     echo "std-channel-unbounded gate FAIL: missing $f" >&2
     exit 1
@@ -46,7 +46,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
         echo "std-channel-unbounded gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -65,7 +65,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_channel_unbounded_symbols_ok "$MOD_SX" "$CHANNEL_RUNTIME" "$MANIFEST" || true)"
+sym_miss="$(std_channel_unbounded_symbols_ok "$MOD_X" "$CHANNEL_RUNTIME" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_channel_unbounded_emit_report "fail" 0 0 0
   echo "std-channel-unbounded gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -102,19 +102,19 @@ if [ -n "$SHUX_BIN" ]; then
   # shellcheck source=tests/lib/build-std-c-o.sh
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/channel/channel.o
-  if ! "$SHUX_BIN" check -L . "$UB_SX" >/dev/null 2>&1; then
-    echo "std-channel-unbounded gate FAIL: typeck $UB_SX" >&2
-    "$SHUX_BIN" check -L . "$UB_SX" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$UB_X" >/dev/null 2>&1; then
+    echo "std-channel-unbounded gate FAIL: typeck $UB_X" >&2
+    "$SHUX_BIN" check -L . "$UB_X" 2>&1 | tail -10 >&2 || true
     std_channel_unbounded_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_channel_unbounded_run_smoke "$SHUX_BIN" "$UB_SX" "unbounded"; then
+  if std_channel_unbounded_run_smoke "$SHUX_BIN" "$UB_X" "unbounded"; then
     UB_OK=1
   else
     std_channel_unbounded_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_channel_unbounded_run_smoke "$SHUX_BIN" "$MAIN_SX" "main"; then
+  if std_channel_unbounded_run_smoke "$SHUX_BIN" "$MAIN_X" "main"; then
     MAIN_OK=1
   else
     std_channel_unbounded_emit_report "fail" "$UB_OK" 0 0

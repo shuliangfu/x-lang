@@ -15,7 +15,7 @@ ensure_runtime_process_argv_o
 SHUX=${SHUX:-./compiler/shux}
 LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
 exe="/tmp/shux_set_$$"
-if ! collection_link_exe "$LINK_SHUX" tests/set/main.sx "$exe" set 2>&1; then
+if ! collection_link_exe "$LINK_SHUX" tests/set/main.x "$exe" set 2>&1; then
   echo "set test: compile failed"
   rm -f "$exe"
   exit 1

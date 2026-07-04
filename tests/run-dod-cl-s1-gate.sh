@@ -33,8 +33,8 @@ if [ -z "$CHECK_SHUX" ] && [ -x ./compiler/shux-c ]; then
   CHECK_SHUX=./compiler/shux-c
 fi
 
-ALIGN_SRC="tests/dod/cl_align64_smoke.sx"
-PAD_SRC="tests/dod/cl_pad_fields_bad.sx"
+ALIGN_SRC="tests/dod/cl_align64_smoke.x"
+PAD_SRC="tests/dod/cl_pad_fields_bad.x"
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
 ALIGN_OUT="$OUT_DIR/shux_dod_cl_align64"

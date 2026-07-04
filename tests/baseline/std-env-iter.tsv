@@ -1,19 +1,19 @@
 # STD-025 std.env env_iter / args_iter manifest
 # 列：item_id	kind	anchor	mod_path	notes
 min_iter_apis	4
-env_iter_struct	symbol	EnvIter	std/env/mod.sx
-args_iter_struct	symbol	ArgsIter	std/env/mod.sx
-env_iter_fn	symbol	iter	std/env/mod.sx
-env_iter_next	symbol	iter_next	std/env/mod.sx
-env_iter_count	symbol	iter_count	std/env/mod.sx
-args_iter_fn	symbol	args_iter	std/env/mod.sx
-args_iter_next	symbol	args_iter_next	std/env/mod.sx
-args_iter_count	symbol	args_iter_count	std/env/mod.sx
+env_iter_struct	symbol	EnvIter	std/env/mod.x
+args_iter_struct	symbol	ArgsIter	std/env/mod.x
+env_iter_fn	symbol	iter	std/env/mod.x
+env_iter_next	symbol	iter_next	std/env/mod.x
+env_iter_count	symbol	iter_count	std/env/mod.x
+args_iter_fn	symbol	args_iter	std/env/mod.x
+args_iter_next	symbol	args_iter_next	std/env/mod.x
+args_iter_count	symbol	args_iter_count	std/env/mod.x
 c_iter_count	symbol	env_iter_count_c	compiler/src/asm/runtime_env_os.c
 c_iter_at	symbol	env_iter_at_c	compiler/src/asm/runtime_env_os.c
-c_args_count	symbol	args_iter_count_c	std/env/env.sx
-c_args_at	symbol	args_iter_at_c	std/env/env.sx
-test_smoke	file	env_iter.sx	tests/env/env_iter.sx	烟测
+c_args_count	symbol	args_iter_count_c	std/env/env.x
+c_args_at	symbol	args_iter_at_c	std/env/env.x
+test_smoke	file	env_iter.x	tests/env/env_iter.x	烟测
 runner	script	run-env.sh	tests/run-env.sh	回归
 doc	file	std-env-iter-v1.md	analysis/std-env-iter-v1.md	RFC
 gate	script	run-std-env-iter-gate.sh	tests/run-std-env-iter-gate.sh	manifest

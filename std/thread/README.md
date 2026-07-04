@@ -23,8 +23,8 @@
 
 ## 约定
 
-- **entry**：当前 .sx 无函数指针，需传 C 函数地址（usize）；后续语言支持 `&fn` 后可直接传 .sx 函数。
-- 链接：`import("std.thread")` 时链入 std/thread/thread.o（**thread.sx + thread_glue.c**，F-thread v1）；Unix 需 `-lpthread`，Windows 用 CreateThread。
+- **entry**：当前 .x 无函数指针，需传 C 函数地址（usize）；后续语言支持 `&fn` 后可直接传 .x 函数。
+- 链接：`import("std.thread")` 时链入 std/thread/thread.o（**thread.x + thread_glue.c**，F-thread v1）；Unix 需 `-lpthread`，Windows 用 CreateThread。
 
 ## 使用示例（测试用）
 

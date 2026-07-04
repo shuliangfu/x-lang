@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-crypto-aes-gcm-vectors.tsv` |
 | 3 | `./tests/run-std-crypto-aes-gcm-gate.sh` |
-| 4 | 烟测：`tests/std-crypto/aes_gcm_nist2.sx` |
+| 4 | 烟测：`tests/std-crypto/aes_gcm_nist2.x` |
 
 ---
 
@@ -25,7 +25,7 @@
 | `aes_gcm_open` | 解密并校验 tag；失败 -1 |
 | `AES_GCM_KEY_LEN` / `AES_GCM_IV_LEN` / `AES_GCM_TAG_LEN` | 常量 16 / 12 / 16 |
 
-实现：`std/crypto/aes_gcm.sx`（ld -r 链入 crypto.o）。
+实现：`std/crypto/aes_gcm.x`（ld -r 链入 crypto.o）。
 
 ---
 
@@ -33,7 +33,7 @@
 
 | ID | 来源 | 验证 |
 |----|------|------|
-| `nist2_tc` | SP 800-38D Test Case 2（全零 key/iv/pt） | `aes_gcm_nist2.sx` |
+| `nist2_tc` | SP 800-38D Test Case 2（全零 key/iv/pt） | `aes_gcm_nist2.x` |
 
 详见 `tests/baseline/std-crypto-aes-gcm-vectors.tsv`。
 

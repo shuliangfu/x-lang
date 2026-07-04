@@ -2,10 +2,10 @@
 # 列：item_id	kind	anchor	notes
 fdt_doc	doc	analysis/phase-f-datetime-v1.md	F-datetime v1
 fdt_gate	gate	tests/run-f-datetime-v1-gate.sh	聚合门禁
-dt_sx	file	std/datetime/datetime.sx	模块锚点 .sx
+dt_x	file	std/datetime/datetime.x	模块锚点 .x
 dt_tz_glue_absent	absent	std/datetime/datetime_tz_glue.c	F-ZC 已删除
-dt_mod	file	std/datetime/mod.sx	对外 API
+dt_mod	file	std/datetime/mod.x	对外 API
 dt_c_absent	absent	std/datetime/datetime.c	已删除
 dt_glue_v1_absent	absent	std/datetime/datetime_glue.c	v2 已删除
-dt_inc_absent	absent	std/datetime/timezone_iana.inc.c	v2 已迁入 datetime.sx
-makefile	makefile	compiler/Makefile	datetime.o 纯 .sx
+dt_inc_absent	absent	std/datetime/timezone_iana.inc.c	v2 已迁入 datetime.x
+makefile	makefile	compiler/Makefile	datetime.o 纯 .x

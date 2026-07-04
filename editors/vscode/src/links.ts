@@ -140,7 +140,7 @@ export class ShuxDocumentLinkProvider implements vscode.DocumentLinkProvider {
     document: vscode.TextDocument,
     _token: vscode.CancellationToken
   ): Promise<vscode.DocumentLink[]> {
-    if (document.languageId !== 'sx') {
+    if (document.languageId !== 'x') {
       return [];
     }
 

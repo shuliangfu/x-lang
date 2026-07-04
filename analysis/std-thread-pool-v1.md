@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-thread-pool.tsv` |
 | 3 | `./tests/run-std-thread-pool-gate.sh` |
-| 4 | 烟测：`tests/thread/pool_roundtrip.sx` |
+| 4 | 烟测：`tests/thread/pool_roundtrip.x` |
 
 ---
 
@@ -44,7 +44,7 @@
 **语义**：
 
 - 全局单例池；`submit` 队列满时阻塞（cap=128）。
-- entry 须为 C 函数地址（与 `thread_create` 相同约束）；`.sx` 烟测用 `thread_dummy_entry_ptr()`。
+- entry 须为 C 函数地址（与 `thread_create` 相同约束）；`.x` 烟测用 `thread_dummy_entry_ptr()`。
 - **Windows v1**：池 API 返回 -1；烟测 skip（exit 0）。
 
 与 `thread_create` 区别：池复用 worker，适合大量短任务；长阻塞任务仍用独立 `thread_create`。
@@ -61,9 +61,9 @@
 shux: [SHUX_STD_THREAD_POOL] status=ok pool=1 name=1 main=1 skip=0
 ```
 
-烟测：`pool_roundtrip.sx` — 2 worker × 8 submit + drain + stop；`thread_set_name_self("shux-main")`。
+烟测：`pool_roundtrip.x` — 2 worker × 8 submit + drain + stop；`thread_set_name_self("shux-main")`。
 
-回归：`tests/thread/main.sx`（spawn/join）。
+回归：`tests/thread/main.x`（spawn/join）。
 
 ---
 

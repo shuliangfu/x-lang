@@ -41,7 +41,7 @@ make -C compiler runtime_panic.o -q 2>/dev/null || make -C compiler runtime_pani
 echo "=== SAFE-007: manual evidence ==="
 EXE="/tmp/shux_crash_manual_$$"
 LOG="/tmp/shux_crash_manual_$$.log"
-if ! "$SHUX_BIN" -L . tests/crash/evidence_manual.sx -o "$EXE" >/dev/null 2>&1; then
+if ! "$SHUX_BIN" -L . tests/crash/evidence_manual.x -o "$EXE" >/dev/null 2>&1; then
   echo "safe-crash-evidence FAIL: compile evidence_manual" >&2
   exit 1
 fi
@@ -61,7 +61,7 @@ echo "safe-crash-evidence manual OK"
 echo "=== SAFE-007: panic evidence (div_zero) ==="
 PLOG="/tmp/shux_crash_panic_$$.log"
 PEX="/tmp/shux_crash_panic_$$"
-if ! "$SHUX_BIN" -L . tests/ub/div_zero.sx -o "$PEX" >/dev/null 2>&1; then
+if ! "$SHUX_BIN" -L . tests/ub/div_zero.x -o "$PEX" >/dev/null 2>&1; then
   echo "safe-crash-evidence FAIL: compile div_zero" >&2
   exit 1
 fi

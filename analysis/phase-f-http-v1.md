@@ -1,12 +1,12 @@
 # 阶段 F-http v1（std.http 去 C）
 
-> **F-http v1**：删除 **`http.c`**；模块锚点在 **`http.sx`**；HTTP/1.x/H2 在 **`http_glue.c`** + `*.inc.c`。
+> **F-http v1**：删除 **`http.c`**；模块锚点在 **`http.x`**；HTTP/1.x/H2 在 **`http_glue.c`** + `*.inc.c`。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `http.c`（~1000 行 + inc） | `http.sx` + `http_glue.c` |
+| 实现 | `http.c`（~1000 行 + inc） | `http.x` + `http_glue.c` |
 | `http.o` | `cc -c` | `ld -r` 合并 |
 
 ## 门禁

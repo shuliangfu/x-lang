@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 脱离对 C 的依赖测试：用 asm 路径构建 shux_asm（.sx → asm → .o + 最少 C 桩链接），
+# 脱离对 C 的依赖测试：用 asm 路径构建 shux_asm（.x → asm → .o + 最少 C 桩链接），
 # 再用 shux_asm 跑全量测试，验证「运行时不依赖 C 逻辑」。
 #
 # 用法：在仓库根目录执行 ./tests/run-without-c.sh
@@ -31,8 +31,8 @@ if [ ! -x "$BUILD_TOOL" ]; then
 fi
 
 # 2) 当前 shux 必须支持 -backend asm（bootstrap-driver 产出）；否则先构建 bootstrap-driver
-# 使用含 main 的用例（../tests/return-value/main.sx），否则 typeck 会因 main_func_index < 0 失败
-SHUX_ASM_CHECK_INPUT="../tests/return-value/main.sx"
+# 使用含 main 的用例（../tests/return-value/main.x），否则 typeck 会因 main_func_index < 0 失败
+SHUX_ASM_CHECK_INPUT="../tests/return-value/main.x"
 SHUX_ASM_CHECK=$(mktemp)
 if ! (cd "$COMPILER_DIR" && ./shux -backend asm -o /dev/null -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -L src/pipeline "$SHUX_ASM_CHECK_INPUT") 2>"$SHUX_ASM_CHECK"; then
   if grep -q "not available in this build" "$SHUX_ASM_CHECK" 2>/dev/null; then
@@ -53,7 +53,7 @@ if ! (cd "$COMPILER_DIR" && ./shux -backend asm -o /dev/null -L .. -L src/lexer 
 fi
 rm -f "$SECOND_CHECK_ERR"
 
-# 3) 用 asm 路径构建 shux_asm（不编任何 .sx 为 C，只编为 asm .o + 最少 C 桩链接）
+# 3) 用 asm 路径构建 shux_asm（不编任何 .x 为 C，只编为 asm .o + 最少 C 桩链接）
 echo "run-without-c: building shux_asm (asm backend, minimal C link) ..."
 (cd "$COMPILER_DIR" && ./build_tool ./shux asm)
 if [ ! -x "$SHUX_ASM" ]; then

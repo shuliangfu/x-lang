@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 文件职责：按需构建 std 下由 C 实现的 .o，供 asm/-o 链接解析 mod.sx 中的 extern（如 std.csv.next_field）。
+# 文件职责：按需构建 std 下由 C 实现的 .o，供 asm/-o 链接解析 mod.x 中的 extern（如 std.csv.next_field）。
 # bootstrap-driver-seed 仅链 io/fs/heap，不构建全量 STD_AND_PANIC_O；依赖本脚本的 run-*.sh 须先 ensure。
 # 用法：. "$(dirname "$0")/lib/build-std-c-o.sh" && ensure_std_c_o ../std/csv/csv.o
 
@@ -18,7 +18,7 @@ EOF
   return 0
 }
 
-# F-07 v1：已迁移为纯 .sx 的 std 模块禁止经 cc -c 构建 .o（须 shux -backend asm）。
+# F-07 v1：已迁移为纯 .x 的 std 模块禁止经 cc -c 构建 .o（须 shux -backend asm）。
 _std_c_o_forbidden_migrated() {
   local repo_rel="$1"
   case "$repo_rel" in
@@ -32,7 +32,7 @@ _std_c_o_forbidden_migrated() {
     std/log/log.c|std/simd/simd.c|\
     std/security/security.c|std/context/context.c|std/trace/trace.c|std/sync/sync.c|\
     std/task/task.c|std/csv/csv.c|std/json/json.c|std/regex/regex.c|std/unicode/unicode.c|std/hash/hash.c|std/dynlib/dynlib.c|std/backtrace/backtrace.c|std/http/http.c|std/tar/tar.c|std/channel/channel.c|std/atomic/atomic.c|std/thread/thread.c|std/queue/queue.c|std/crypto/crypto.c|std/async/scheduler.c|std/async/future.c|std/cache/cache.c|std/config/config.c|std/datetime/datetime.c|std/elf/elf.c|std/test/test.c|std/url/url.c|std/schema/schema.c|std/socketio/socketio.c)
-      echo "ensure_std_c_o FORBIDDEN (F-07 v1/v2): $repo_rel is pure .sx / deleted — use shux -backend asm, not cc -c" >&2
+      echo "ensure_std_c_o FORBIDDEN (F-07 v1/v2): $repo_rel is pure .x / deleted — use shux -backend asm, not cc -c" >&2
       return 0
       ;;
   esac

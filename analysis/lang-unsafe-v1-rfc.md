@@ -95,7 +95,7 @@ extern function putchar(c: i32): i32;
 
 | 规则 | 说明 |
 |------|------|
-| **链接** | 符号由 C/平台提供；`.sx` 仅声明 |
+| **链接** | 符号由 C/平台提供；`.x` 仅声明 |
 | **类型映射** | 参数/返回须与 C ABI 一致（见 TYPE-004 预留） |
 | **内存** | 传入 `*u8` + len 时，缓冲区生命周期由调用方保证 |
 | **panic** | C 侧 UB 不自动收窄；**边界外行为未定义** |
@@ -103,7 +103,7 @@ extern function putchar(c: i32): i32;
 ### 3.5 U4：`unsafe` 关键字（v2 已落地）
 
 - lexer / parser **已保留** `unsafe` 为关键字。
-- **v2**：`unsafe { ... }` 块语法已落地（C 前端 `parser.c` + sx 路径）；块内允许 U2 `*T` 解引用与 U3 `extern` 调用。
+- **v2**：`unsafe { ... }` 块语法已落地（C 前端 `parser.c` + x 路径）；块内允许 U2 `*T` 解引用与 U3 `extern` 调用。
 - **v1 历史**：v1 无 `unsafe fn` / `unsafe { }`；S0 内裸解引用/裸 `extern` 由 typeck **硬拒**（`run-lang-unsafe-gate.sh` U4 case）。
 - **未闭合**：~~`std/ffi`、`std/sys` 包裹~~ ✅（#89）；bstrict 业务层 / release CI → G-FFI-5 尾声。
 
@@ -144,10 +144,10 @@ extern function putchar(c: i32): i32;
 
 | mode | 验证 |
 |------|------|
-| U1 opt-in | `tests/unsafe/allow_padding_ok.sx` |
-| U1 reject | `tests/unsafe/padding_rejected.sx`（compile fail） |
-| U2 null ptr | `tests/unsafe/raw_ptr_null.sx` |
-| U3 extern | `tests/unsafe/extern_putchar.sx` |
+| U1 opt-in | `tests/unsafe/allow_padding_ok.x` |
+| U1 reject | `tests/unsafe/padding_rejected.x`（compile fail） |
+| U2 null ptr | `tests/unsafe/raw_ptr_null.x` |
+| U3 extern | `tests/unsafe/extern_putchar.x` |
 | U4 unsafe block | `tests/unsafe/` U4 正/负例（S0 拒 / unsafe 内允许） |
 | S0 bounds | hook `run-ub.sh` |
 | S0 region | hook `run-typeck-region.sh` |

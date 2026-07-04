@@ -1,11 +1,11 @@
 /**
- * build_runtime.c — build.sx（Zig build.zig 类比）的 C 执行后端
+ * build_runtime.c — build.x（Zig build.zig 类比）的 C 执行后端
  *
- * 职责：提供 main() 按 ../build.sx 的 build_get_step_count() 与 build_get_step_at()（见 build_runtime.c 与 build.sx）顺序执行；
- * build_run_step(step_id, shu_path) 跑「默认路径」（.sx → *_gen.c → cc）；build_run_asm_build() 调 scripts/build_shux_asm.sh（机器码路径）。
+ * 职责：提供 main() 按 ../build.x 的 build_get_step_count() 与 build_get_step_at()（见 build_runtime.c 与 build.x）顺序执行；
+ * build_run_step(step_id, shu_path) 跑「默认路径」（.x → *_gen.c → cc）；build_run_asm_build() 调 scripts/build_shux_asm.sh（机器码路径）。
  * argv[1]=shux 可执行路径，argv[2]=asm 时只做 asm 路径、不跑默认步骤。
- * 约定：在 compiler 目录运行 build_tool；具体命令字符串集中在本文件，策略与路线图写在 build.sx 顶注释。
- * 长期目标：Makefile 仅兜底；日常以 ./build_tool ./shux 与 ./build_tool ./shux asm 为准（见 build.sx「去掉 Makefile 的爬梯」）。
+ * 约定：在 compiler 目录运行 build_tool；具体命令字符串集中在本文件，策略与路线图写在 build.x 顶注释。
+ * 长期目标：Makefile 仅兜底；日常以 ./build_tool ./shux 与 ./build_tool ./shux asm 为准（见 build.x「去掉 Makefile 的爬梯」）。
  */
 
 #include <stdint.h>
@@ -29,7 +29,7 @@ static void build_runtime_warn(const char *msg) {
 }
 
 /**
- * 从源头去补丁：pipeline.sx 已用 run_sx_pipeline_impl、get_ndep()；codegen 已对 slice/数组形参生成 -> 与 *。
+ * 从源头去补丁：pipeline.x 已用 run_x_pipeline_impl、get_ndep()；codegen 已对 slice/数组形参生成 -> 与 *。
  * 此处仅：必要时插入 parser_parse_into extern，并追加 pipeline_glue.c 内容（包装/sizeof/debug 等）。返回 0 成功，-1 失败。
  */
 static int build_patch_pipeline_gen_c(void) {
@@ -99,7 +99,7 @@ static int build_patch_pipeline_gen_c(void) {
     }
   }
 
-  /* 瘦 pipeline_gen.c：外部符号由 parser_sx.o / typeck_sx.o / codegen_sx.o 链接提供 */
+  /* 瘦 pipeline_gen.c：外部符号由 parser_x.o / typeck_x.o / codegen_x.o 链接提供 */
   f = fopen("pipeline_gen.c", "wb");
   if (!f) { free(buf); return -1; }
   if (fwrite(buf, 1, strlen(buf), f) != strlen(buf)) { fclose(f); free(buf); return -1; }
@@ -110,7 +110,7 @@ static int build_patch_pipeline_gen_c(void) {
 
 /* build_patch_parser_export 已删除：当前 step 6 用 -E-extern 生成 parser_gen.c，已含 parser_* 符号，不再追写 ABI 包装。 */
 
-/* build.sx 经 shux -E 生成：符号为 build_<name>；若源名已含模块前缀则 codegen 去重（见 codegen_c_prefix_redundant_with_name）。 */
+/* build.x 经 shux -E 生成：符号为 build_<name>；若源名已含模块前缀则 codegen 去重（见 codegen_c_prefix_redundant_with_name）。 */
 extern int32_t build_get_step_count(void);
 extern int32_t build_use_asm_only(void);
 extern int32_t build_get_step_at(int32_t);
@@ -133,39 +133,39 @@ int build_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
  */
 static const char *const build_literals[] = {
   /* 0: step 0 全命令（含 std_fs_shim.o 供 pipeline/driver 的 std.fs 符号） */
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/main.o src/main.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/runtime.o src/runtime.c && cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_FRONTEND -DSHUX_USE_SX_PREPROCESS -c -o src/runtime_driver.o src/runtime.c && cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_SX_PREPROCESS -c -o src/preprocess_fallback.o src/preprocess.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o std_fs.o src/std_fs_shim.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o preprocess_shim.o src/preprocess_shim.c",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/main.o src/main.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/runtime.o src/runtime.c && cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS -c -o src/runtime_driver.o src/runtime.c && cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_X_PREPROCESS -c -o src/preprocess_fallback.o src/preprocess.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o std_fs.o src/std_fs_shim.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o preprocess_shim.o src/preprocess_shim.c",
   /* 1: step 1 后缀（前接 shu_path） */
-  " -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.sx > pipeline_gen.c",
+  " -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c",
   /* 2: step 2 */
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c pipeline_gen.c -o pipeline_sx.o",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c pipeline_gen.c -o pipeline_x.o",
   /* 3: step 3 后缀 */
-  " -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess src/main.sx -E -E-extern > driver_gen.c",
+  " -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess src/main.x -E -E-extern > driver_gen.c",
   /* 4: step 4 */
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c driver_gen.c -o driver_sx.o",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c driver_gen.c -o driver_x.o",
   /* 5: step 5（含 std_fs.o 供 pipeline/driver 的 std.fs 符号） */
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_FRONTEND -o shux src/main.o src/runtime_driver.o src/preprocess_fallback.o preprocess_shim.o preprocess_sx.o std_fs.o ast_sx.o token_sx.o lexer_sx.o parser_sx.o typeck_sx.o codegen_sx.o driver_sx.o pipeline_sx.o",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -o shux src/main.o src/runtime_driver.o src/preprocess_fallback.o preprocess_shim.o preprocess_x.o std_fs.o ast_x.o token_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o",
   /* 6–7: step 6 parser */
-  " -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.sx > parser_gen.c",
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c parser_gen.c -o parser_sx.o",
+  " -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c parser_gen.c -o parser_x.o",
   /* 8–9: typeck */
-  " -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.sx > typeck_gen.c",
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_sx.o",
+  " -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.x > typeck_gen.c",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_x.o",
   /* 10–11: codegen */
-  " -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.sx > codegen_gen.c",
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c codegen_gen.c -o codegen_sx.o",
+  " -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > codegen_gen.c",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c codegen_gen.c -o codegen_x.o",
   /* 12–13: ast */
-  " -E -E-extern src/ast/ast.sx > ast_gen.c",
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c ast_gen.c -o ast_sx.o",
+  " -E -E-extern src/ast/ast.x > ast_gen.c",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c ast_gen.c -o ast_x.o",
   /* 14–15: token */
-  " -L src/lexer -E -E-extern src/lexer/token.sx > token_gen.c",
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c token_gen.c -o token_sx.o",
+  " -L src/lexer -E -E-extern src/lexer/token.x > token_gen.c",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c token_gen.c -o token_x.o",
   /* 16–17: lexer */
-  " -L src/lexer -E -E-extern src/lexer/lexer.sx > lexer_gen.c",
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c lexer_gen.c -o lexer_sx.o",
+  " -L src/lexer -E -E-extern src/lexer/lexer.x > lexer_gen.c",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c lexer_gen.c -o lexer_x.o",
   /* 18–19: preprocess */
-  " -L src/lexer -E -E-extern src/preprocess/preprocess.sx > preprocess_gen.c",
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c preprocess_gen.c -o preprocess_sx.o",
-  /* 20–21: 完全自举 asm 路径（build.sx 用 argv[2]==asm 时执行） */
+  " -L src/lexer -E -E-extern src/preprocess/preprocess.x > preprocess_gen.c",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c preprocess_gen.c -o preprocess_x.o",
+  /* 20–21: 完全自举 asm 路径（build.x 用 argv[2]==asm 时执行） */
   "SHUX=",
   " ./scripts/build_shux_asm.sh",
 };
@@ -189,7 +189,7 @@ int build_exec_cmd(char *cmd_buf) {
 }
 
 /**
- * 6.3：对 driver_gen.c 做与 Makefile 等价的 sed 修正（slice . -> ->；preprocess_sx_buf 签名）。
+ * 6.3：对 driver_gen.c 做与 Makefile 等价的 sed 修正（slice . -> ->；preprocess_x_buf 签名）。
  */
 static int build_patch_driver_gen_c(void) {
   FILE *f = fopen("driver_gen.c", "rb");
@@ -203,7 +203,7 @@ static int build_patch_driver_gen_c(void) {
   if (fread(buf, 1, (size_t)sz, f) != (size_t)sz) { free(buf); fclose(f); return -1; }
   buf[sz] = '\0';
   fclose(f);
-  /* slice . -> ->、preprocess_sx_buf 签名、run_compiler_c 包装均已从源头产出（codegen 数组形参为 *，runtime.c 在 SHUX_USE_SX_DRIVER 下已定义 run_compiler_c），不再补丁 */
+  /* slice . -> ->、preprocess_x_buf 签名、run_compiler_c 包装均已从源头产出（codegen 数组形参为 *，runtime.c 在 SHUX_USE_X_DRIVER 下已定义 run_compiler_c），不再补丁 */
   f = fopen("driver_gen.c", "wb");
   if (!f) { free(buf); return -1; }
   if (fwrite(buf, 1, strlen(buf), f) != strlen(buf)) { fclose(f); free(buf); return -1; }
@@ -243,92 +243,92 @@ int build_get_shu_path(char *buf, int max, int argc, char **argv) {
 }
 
 /**
- * 执行单步构建命令；由 main 按 build.sx 的步骤顺序调用。step_id 含义见 build.sx 注释。
+ * 执行单步构建命令；由 main 按 build.x 的步骤顺序调用。step_id 含义见 build.x 注释。
  */
 int build_run_step(int step_id, const char *shu_path) {
   char cmd[4096];
   const char *cc = "cc";
   const char *cflags = "-Wall -Wextra -I. -Iinclude -Isrc";
-  const char *cflags_driver = "-Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_FRONTEND -DSHUX_USE_SX_PREPROCESS";
+  const char *cflags_driver = "-Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS";
   int n;
 
   switch (step_id) {
   case 0:
-    /* 阶段 3.2 / 6.4：编 main、runtime_driver（带 SX_PREPROCESS 使 preprocess() 在 .sx 路径）、preprocess_fallback（不覆盖 preprocess.o）。
+    /* 阶段 3.2 / 6.4：编 main、runtime_driver（带 X_PREPROCESS 使 preprocess() 在 .x 路径）、preprocess_fallback（不覆盖 preprocess.o）。
      * 同时编译所有 C 侧模块，供 step 5 链接（runtime_driver 仍引用了部分 C 侧函数）。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s %s -c -o src/main.o src/main.c && "
       "%s %s -c -o src/runtime.o src/runtime.c && "
-      "%s %s -DSHUX_USE_SX_PREPROCESS -c -o src/runtime_driver.o src/runtime.c && "
-      "%s %s -DSHUX_USE_SX_PREPROCESS -c -o src/preprocess_fallback.o src/preprocess.c && "
+      "%s %s -DSHUX_USE_X_PREPROCESS -c -o src/runtime_driver.o src/runtime.c && "
+      "%s %s -DSHUX_USE_X_PREPROCESS -c -o src/preprocess_fallback.o src/preprocess.c && "
       "%s %s -c -o src/lexer/lexer.o src/lexer/lexer.c && "
-      "%s %s -DSHUX_USE_SX_AST -c -o src/ast/ast.o src/ast/ast.c && "
+      "%s %s -DSHUX_USE_X_AST -c -o src/ast/ast.o src/ast/ast.c && "
       "%s %s -c -o src/parser/parser.o src/parser/parser.c && "
       "%s %s -c -o src/typeck/typeck.o src/typeck/typeck.c && "
       "%s %s -c -o src/codegen/codegen.o src/codegen/codegen.c && "
       "%s %s -c -o src/lsp/lsp_diag.o src/lsp/lsp_diag.c && "
       "%s %s -c -o std_fs_shim.o src/std_fs_shim.c && "
-      "%s %s -c -o sx_stubs.o src/sx_stubs.c",
+      "%s %s -c -o x_stubs.o src/x_stubs.c",
       cc, cflags, cc, cflags, cc, cflags_driver, cc, cflags,
       cc, cflags, cc, cflags, cc, cflags, cc, cflags,
       cc, cflags, cc, cflags, cc, cflags, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     return system(cmd);
   case 6: {
-    /* 阶段 3.2：用 -E -E-extern 生成瘦 parser_gen.c/typeck_gen.c/codegen_gen.c（仅类型+入口模块，依赖用 extern），再编成 _sx.o。 */
+    /* 阶段 3.2：用 -E -E-extern 生成瘦 parser_gen.c/typeck_gen.c/codegen_gen.c（仅类型+入口模块，依赖用 extern），再编成 _x.o。 */
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.sx > parser_gen.c",
+      "%s -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c",
       shu_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     /* -E-extern 已生成 parser_* 符号，不再追加 ABI 包装，避免重复定义。 */
     n = (int)snprintf(cmd, sizeof(cmd),
-      "perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' parser_gen.c && %s %s -include ast.h -c parser_gen.c -o parser_sx.o", cc, cflags);
+      "perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $seen++' parser_gen.c && %s %s -include ast.h -c parser_gen.c -o parser_x.o", cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.sx > typeck_gen.c && "
-      "%s %s -c typeck_gen.c -o typeck_sx.o",
+      "%s -L .. -L src/lexer -L src/ast -E -E-extern src/typeck/typeck.x > typeck_gen.c && "
+      "%s %s -c typeck_gen.c -o typeck_x.o",
       shu_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.sx > codegen_gen.c && "
-      "%s %s -c codegen_gen.c -o codegen_sx.o",
+      "%s -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -E -E-extern src/codegen/codegen.x > codegen_gen.c && "
+      "%s %s -c codegen_gen.c -o codegen_x.o",
       shu_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
-    /* 阶段 3：生成并编 ast_sx.o、token_sx.o、lexer_sx.o，供 parser/typeck/codegen 与 pipeline 链接。 */
+    /* 阶段 3：生成并编 ast_x.o、token_x.o、lexer_x.o，供 parser/typeck/codegen 与 pipeline 链接。 */
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s -E -E-extern src/ast/ast.sx > ast_gen.c && %s %s -c ast_gen.c -o ast_sx.o",
-      shu_path, cc, cflags);
-    if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
-    if (system(cmd) != 0) return -1;
-    n = (int)snprintf(cmd, sizeof(cmd),
-      "%s -L src/lexer -E -E-extern src/lexer/token.sx > token_gen.c && %s %s -c token_gen.c -o token_sx.o",
+      "%s -E -E-extern src/ast/ast.x > ast_gen.c && %s %s -c ast_gen.c -o ast_x.o",
       shu_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s -L src/lexer -E -E-extern src/lexer/lexer.sx > lexer_gen.c && %s %s -c lexer_gen.c -o lexer_sx.o",
+      "%s -L src/lexer -E -E-extern src/lexer/token.x > token_gen.c && %s %s -c token_gen.c -o token_x.o",
       shu_path, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
-    /* 6.4：preprocess.sx 生成 preprocess_gen.c（codegen 对 slice 形参已生成 ->，无补丁），编成 preprocess_sx.o。 */
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s -L src/lexer -E -E-extern src/preprocess/preprocess.sx > preprocess_gen.c",
+      "%s -L src/lexer -E -E-extern src/lexer/lexer.x > lexer_gen.c && %s %s -c lexer_gen.c -o lexer_x.o",
+      shu_path, cc, cflags);
+    if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
+    if (system(cmd) != 0) return -1;
+    /* 6.4：preprocess.x 生成 preprocess_gen.c（codegen 对 slice 形参已生成 ->，无补丁），编成 preprocess_x.o。 */
+    n = (int)snprintf(cmd, sizeof(cmd),
+      "%s -L src/lexer -E -E-extern src/preprocess/preprocess.x > preprocess_gen.c",
       shu_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
-    n = (int)snprintf(cmd, sizeof(cmd), "%s %s -c preprocess_gen.c -o preprocess_sx.o", cc, cflags);
+    n = (int)snprintf(cmd, sizeof(cmd), "%s %s -c preprocess_gen.c -o preprocess_x.o", cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     return system(cmd);
   }
   case 1: {
     /* 阶段 1.1/1.2：用 shux 生成 pipeline_gen.c，再由 build_patch_pipeline_gen_c 修正。
-     * 阶段 3：C 版 shux 无 -sx，一律用 -E -E-extern 生成瘦 pipeline_gen.c，避免与 parser_sx/typeck_sx/codegen_sx 重复符号。 */
+     * 阶段 3：C 版 shux 无 -x，一律用 -E -E-extern 生成瘦 pipeline_gen.c，避免与 parser_x/typeck_x/codegen_x 重复符号。 */
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.sx > pipeline_gen.c",
+      "%s -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c",
       shu_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     if (system(cmd) != 0) return -1;
@@ -336,28 +336,28 @@ int build_run_step(int step_id, const char *shu_path) {
   }
   case 2:
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s %s -c pipeline_gen.c -o pipeline_sx.o", cc, cflags);
+      "%s %s -c pipeline_gen.c -o pipeline_x.o", cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     return system(cmd);
   case 3:
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.sx > driver_gen.c",
+      "%s -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -E -E-extern src/main.x > driver_gen.c",
       shu_path);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     return system(cmd);
   case 4:
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s %s -c driver_gen.c -o driver_sx.o", cc, cflags);
+      "%s %s -c driver_gen.c -o driver_x.o", cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     return system(cmd);
   case 5:
-    /* 阶段 3.2/3.3、6.4：链 runtime_driver.o（含 preprocess()，step 0 已带 -DSHUX_USE_SX_PREPROCESS）+ preprocess_fallback.o + preprocess_sx.o
+    /* 阶段 3.2/3.3、6.4：链 runtime_driver.o（含 preprocess()，step 0 已带 -DSHUX_USE_X_PREPROCESS）+ preprocess_fallback.o + preprocess_x.o
      * + 所有 C 侧 .o（仍被 runtime_driver 的部分路径引用）。 */
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s %s -DSHUX_USE_SX_DRIVER -DSHUX_USE_SX_PIPELINE -DSHUX_USE_SX_FRONTEND -o shux "
+      "%s %s -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -o shux "
       "src/main.o src/runtime_driver.o src/preprocess_fallback.o "
-      "src/lexer/lexer.o src/ast/ast.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/lsp/lsp_diag.o std_fs_shim.o sx_stubs.o "
-      "preprocess_sx.o ast_sx.o token_sx.o lexer_sx.o parser_sx.o typeck_sx.o codegen_sx.o driver_sx.o pipeline_sx.o",
+      "src/lexer/lexer.o src/ast/ast.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/lsp/lsp_diag.o std_fs_shim.o x_stubs.o "
+      "preprocess_x.o ast_x.o token_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o",
       cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     return system(cmd);
@@ -386,7 +386,7 @@ int build_run_asm_build(const char *shu_path) {
   return system(cmd);
 }
 
-/** 执行 build.sx 配置的 legacy 逐步（生成 *_gen.c 并链接 shux）。返回 0 成功。 */
+/** 执行 build.x 配置的 legacy 逐步（生成 *_gen.c 并链接 shux）。返回 0 成功。 */
 static int build_run_legacy_steps(const char *shu_path) {
   int n = (int)build_get_step_count();
   for (int i = 0; i < n; i++) {
@@ -397,8 +397,8 @@ static int build_run_legacy_steps(const char *shu_path) {
   return 0;
 }
 
-#ifdef BUILD_TOOL_SX_ENTRY
-/* 入口由 build_runner.sx 提供；crt0 调 entry，此处提供 entry 包装调用 build_runner_entry（.sx -E 生成符号为 build_runner_entry）。 */
+#ifdef BUILD_TOOL_X_ENTRY
+/* 入口由 build_runner.x 提供；crt0 调 entry，此处提供 entry 包装调用 build_runner_entry（.x -E 生成符号为 build_runner_entry）。 */
 extern int32_t build_runner_entry(int argc, void *argv);
 int entry(int argc, char **argv) {
   return (int)build_runner_entry(argc, (void *)argv);
@@ -422,7 +422,7 @@ int main(int argc, char **argv) {
   /* 显式 legacy：只跑 -E 逐步，忽略 build_use_asm_only。 */
   if (argc >= 3 && argv[2] && strcmp(argv[2], "legacy") == 0)
     return build_run_legacy_steps(shu_path) != 0 ? 1 : 0;
-  /* build.sx build_use_asm_only()==1：先试 asm（不生成 pipeline_gen/driver_gen）；失败则回退 legacy。 */
+  /* build.x build_use_asm_only()==1：先试 asm（不生成 pipeline_gen/driver_gen）；失败则回退 legacy。 */
   if (build_use_asm_only() != 0) {
     int ar = build_run_asm_build(shu_path);
     if (ar == 0) {
@@ -434,4 +434,4 @@ int main(int argc, char **argv) {
   }
   return build_run_legacy_steps(shu_path) != 0 ? 1 : 0;
 }
-#endif /* !BUILD_TOOL_SX_ENTRY */
+#endif /* !BUILD_TOOL_X_ENTRY */

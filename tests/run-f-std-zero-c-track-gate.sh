@@ -58,8 +58,8 @@ collect_track() {
     if [ -f compiler/include/shux_std_abi/fs_abi.h ]; then
       printf 'file_abi_h\tcompiler/include/shux_std_abi/fs_abi.h\tZ9-abi-header-done\tF-ZC inline preamble\n'
     fi
-    if [ -f std/compress/common.sx ]; then
-      printf 'file_sx\tstd/compress/common.sx\tZ9-header-done\tcompress_common.h removed\n'
+    if [ -f std/compress/common.x ]; then
+      printf 'file_x\tstd/compress/common.x\tZ9-header-done\tcompress_common.h removed\n'
     fi
   } >"$TMP"
   echo "$c_n $h_n"
@@ -94,7 +94,7 @@ while IFS= read -r p; do
     NEW=$((NEW + 1))
   fi
 done < <({ find std -name '*.c'; find std -name '*.h'; } | LC_ALL=C sort -u)
-[ "$NEW" -eq 0 ] || die "$NEW new std C/H not in manifest (migrate to .sx first)"
+[ "$NEW" -eq 0 ] || die "$NEW new std C/H not in manifest (migrate to .x first)"
 
 # 已删 baseline 行 → 刷新提示
 GONE=0
@@ -112,8 +112,8 @@ if [ "$STRICT" = "1" ]; then
   fi
 fi
 
-[ -f std/compress/common.sx ] || die "missing std/compress/common.sx"
-grep -q 'compress_common_zero_c_marker_c' std/compress/common.sx || die "common.sx missing marker"
+[ -f std/compress/common.x ] || die "missing std/compress/common.x"
+grep -q 'compress_common_zero_c_marker_c' std/compress/common.x || die "common.x missing marker"
 [ ! -f std/compress/compress_common.h ] || die "compress_common.h should be deleted"
 
 chmod +x tests/run-std-c-inventory-gate.sh

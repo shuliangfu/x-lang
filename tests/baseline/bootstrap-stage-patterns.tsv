@@ -18,7 +18,7 @@ ci_banner_verify	bootstrap-verify	selfhost	verify_semantic	10	CI banner
 err_preprocess	preprocess error:|#if.*unclosed|#endif without	preprocess	shux_asm_gate	20	preprocess 条件编译
 err_lexer	lex(er)? error|lexer error	lexer	shux_asm_gate	20	lexer 词法
 err_parser	parse error at|parser error|parser-second-pass gate FAIL|parser thin glue.*FAIL|mega bisect.*FAIL|parse count.*FAIL	parser	parser_second_pass	20	parser 语法/emit
-err_typeck	typeck error:|\.sx pipeline type check failed	typeck	shux_asm_gate	20	typeck 类型
+err_typeck	typeck error:|\.x pipeline type check failed	typeck	shux_asm_gate	20	typeck 类型
 err_codegen	codegen error:|failed to emit function	codegen	shux_asm_gate	25	codegen 发射
 err_asm_backend	asm-73.*FAIL|cfg-merge|SIGSEGV.*asm|__text.*EMPTY|check_asm_o_quality	asm	asm_73	22	asm 后端
 err_import	cannot open import	import	shux_asm_gate	30	import 解析（pipeline）

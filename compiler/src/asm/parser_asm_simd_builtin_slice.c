@@ -22,7 +22,7 @@ extern int32_t parser_asm_stretch_simd_builtin_deep_audit_c(struct parser_asm_le
 extern int32_t parser_asm_stretch_simd_builtin_audit_c(struct parser_asm_lexer_result r_at,
                                                        struct parser_asm_slice_u8 *source);
 
-/** expr_set_common_zeros：与 parser.sx 字段清零顺序一致。 */
+/** expr_set_common_zeros：与 parser.x 字段清零顺序一致。 */
 static void parser_asm_simd_expr_common_zeros_c(struct ast_Expr *e) {
   if (!e)
     return;
@@ -65,7 +65,7 @@ static void parser_asm_simd_expr_common_zeros_c(struct ast_Expr *e) {
   e->call_resolved_dep_index = -1;
 }
 
-/** 判断 ident 是否为 shuffle / select（与 parser.sx 字节比较一致）。 */
+/** 判断 ident 是否为 shuffle / select（与 parser.x 字节比较一致）。 */
 static int32_t parser_asm_simd_builtin_kind_c(struct parser_asm_lexer_result *r, struct parser_asm_slice_u8 *source,
                                               int32_t *need_args_out, int32_t *is_shuffle_out) {
   int32_t nlen;
@@ -165,7 +165,7 @@ void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexe
   if (call_ref == 0)
     return;
   call_e = ast_ast_arena_expr_get(arena, call_ref);
-  call_e.kind = 48; /* EXPR_CALL，与 ast.sx ExprKind 序一致（勿用旧 +32 误值 80） */
+  call_e.kind = 48; /* EXPR_CALL，与 ast.x ExprKind 序一致（勿用旧 +32 误值 80） */
   parser_asm_simd_expr_common_zeros_c(&call_e);
   call_e.call_callee_ref = callee_ref;
   ast_ast_arena_expr_set(arena, call_ref, call_e);

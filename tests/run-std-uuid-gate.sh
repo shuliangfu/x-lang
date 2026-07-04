@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_UUID_DOC:-analysis/std-uuid-v1.md}"
 MANIFEST="${SHUX_STD_UUID_MANIFEST:-tests/baseline/std-uuid-manifest.tsv}"
 VECTORS="${SHUX_STD_UUID_VECTORS:-tests/baseline/std-uuid-vectors.tsv}"
-MOD_SX="std/uuid/mod.sx"
-UUID_SX="std/uuid/uuid.sx"
+MOD_X="std/uuid/mod.x"
+UUID_X="std/uuid/uuid.x"
 LIB="tests/lib/std-uuid.sh"
-SMOKE_SX="tests/std-uuid/roundtrip.sx"
+SMOKE_X="tests/std-uuid/roundtrip.x"
 SMOKE_C="tests/std-uuid/uuid_smoke_ok.c"
 MIN_APIS=7
 
@@ -19,7 +19,7 @@ MIN_APIS=7
 . "$LIB"
 
 echo "=== STD-075: std.uuid manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$UUID_SX" "$SMOKE_SX" "$SMOKE_C" std/uuid/README.md; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$UUID_X" "$SMOKE_X" "$SMOKE_C" std/uuid/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-uuid gate FAIL: missing $f" >&2
     exit 1
@@ -46,7 +46,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+  if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
     echo "std-uuid gate FAIL: missing api $anchor" >&2
     exit 1
   fi
@@ -59,7 +59,7 @@ fi
 
 [ ! -f std/uuid/uuid.c ] || { echo "std-uuid gate FAIL: uuid.c should be deleted (F-uuid v1)" >&2; exit 1; }
 
-sym_miss="$(std_uuid_symbols_ok "$MOD_SX" "$UUID_SX" "$MANIFEST" || true)"
+sym_miss="$(std_uuid_symbols_ok "$MOD_X" "$UUID_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_uuid_emit_report "fail" 0 0 0
   exit 1
@@ -73,7 +73,7 @@ if [ "${SHUX_STD_UUID_MANIFEST_ONLY:-0}" = "1" ]; then
 fi
 
 C_OK=0
-SX_OK=0
+X_OK=0
 SKIP=0
 
 echo "=== STD-075: uuid smoke ==="
@@ -96,7 +96,7 @@ if [ "$C_OK" -eq 0 ]; then
     echo "std-uuid gate FAIL: smoke" >&2
     exit 1
   fi
-  echo "std-uuid SKIP smoke (uuid.o missing .sx symbols; need shux-c)" >&2
+  echo "std-uuid SKIP smoke (uuid.o missing .x symbols; need shux-c)" >&2
   C_OK=0
 fi
 
@@ -104,23 +104,23 @@ SHUX_BIN=""
 if [ -x ./compiler/shux-c ]; then SHUX_BIN=./compiler/shux-c; fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-075: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+  echo "=== STD-075: .x smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
     echo "std-uuid gate FAIL: typeck" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_uuid_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
-  if std_uuid_run_smoke "$SHUX_BIN" "$SMOKE_SX" "roundtrip"; then
-    SX_OK=1
+  if std_uuid_run_smoke "$SHUX_BIN" "$SMOKE_X" "roundtrip"; then
+    X_OK=1
   else
     std_uuid_emit_report "fail" "$C_OK" 0 0
     exit 1
   fi
 else
-  echo "std-uuid gate SKIP .sx smoke (no shux)" >&2
+  echo "std-uuid gate SKIP .x smoke (no shux)" >&2
   SKIP=1
 fi
 
-std_uuid_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
+std_uuid_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
 echo "std-uuid gate OK"

@@ -31,19 +31,19 @@ int32_t driver_sanitize_address_get(void);
 void driver_fmt_check_only_set(int32_t v);
 int32_t driver_fmt_check_only_get(void);
 
-/** 非 SX 链或未链 fmt_check_cmd 时弱符号默认 0（批量 check 成功时静默）。 */
+/** 非 X 链或未链 fmt_check_cmd 时弱符号默认 0（批量 check 成功时静默）。 */
 int driver_check_quiet_ok_get(void);
 
 /** 统一 shux check 成功行；deno 风格批量 check 时由 fmt_check_cmd 保持静默。 */
 void driver_print_check_ok(const char *input_path);
 
-/** 非 0 时 pipeline 跳过 .sx typeck（C 预检已通过）。 */
-void driver_sx_pipeline_skip_typeck_set(int32_t v);
-int32_t driver_sx_pipeline_skip_typeck_get(void);
+/** 非 0 时 pipeline 跳过 .x typeck（C 预检已通过）。 */
+void driver_x_pipeline_skip_typeck_set(int32_t v);
+int32_t driver_x_pipeline_skip_typeck_get(void);
 
-/** 非 0 时 pipeline 跳过 .sx C codegen（用户 asm -o 单路径 emit）。 */
-void driver_sx_pipeline_skip_codegen_set(int32_t v);
-int32_t driver_sx_pipeline_skip_codegen_get(void);
+/** 非 0 时 pipeline 跳过 .x C codegen（用户 asm -o 单路径 emit）。 */
+void driver_x_pipeline_skip_codegen_set(int32_t v);
+int32_t driver_x_pipeline_skip_codegen_get(void);
 
 /** SHUX_TYPECK_FORCE_C=1 时入口模块 typeck 走 C typeck_module。 */
 int32_t driver_typeck_force_c_enabled(void);
@@ -79,7 +79,7 @@ int32_t driver_asm_build_skip_typeck(void);
 int32_t driver_asm_entry_emit_heavy(void);
 int32_t driver_asm_entry_module_only_from_env(void);
 
-/** A-11：SHUX_ASM_PARSE_METRIC_ONLY=1 时 entry parse 后输出 num_defined，跳过 pipeline/asm emit（防 typeck.sx OOM）。 */
+/** A-11：SHUX_ASM_PARSE_METRIC_ONLY=1 时 entry parse 后输出 num_defined，跳过 pipeline/asm emit（防 typeck.x OOM）。 */
 int32_t driver_asm_parse_metric_only_from_env(void);
 
 /** -o exe 时跳过 dep 0 codegen；当前 dep 路径供 codegen 前缀。 */
@@ -88,7 +88,7 @@ int32_t driver_skip_codegen_dep_0_get(void);
 void driver_set_current_dep_path_for_codegen(const char *path);
 const char *driver_get_current_dep_path_for_codegen(void);
 
-/** OBS-001：SHUX_COMPILE_PHASE_TIMING 阶段计时（pipeline.sx 调用）。 */
+/** OBS-001：SHUX_COMPILE_PHASE_TIMING 阶段计时（pipeline.x 调用）。 */
 void driver_compile_phase_timing_begin(int32_t phase);
 void driver_compile_phase_timing_end(int32_t phase);
 void driver_compile_phase_timing_flush(void);
@@ -102,18 +102,18 @@ int driver_argv_collect_defines(int argc, char **argv, const char **defines, int
 /** pipeline 失败 rc 诊断；rc==-7 时打印 resolve 尝试路径。 */
 void driver_pipeline_fail_code(int rc, const uint8_t *path);
 
-/** .sx pipeline 烟测 stderr 摘要（parse OK / typeck OK 前缀供 gate grep）。 */
-void driver_print_sx_smoke_summary(void *module, size_t codegen_len);
+/** .x pipeline 烟测 stderr 摘要（parse OK / typeck OK 前缀供 gate grep）。 */
+void driver_print_x_smoke_summary(void *module, size_t codegen_len);
 
 /**
  * B-20：读源文件前缀到 content（最多 cap-1 字节）；成功返回读入字节数，失败 -1。
  */
 int driver_peek_source_file(const char *path, char *content, size_t cap);
 
-/** 预处理后源码是否含顶层 import（seed asm 对这类入口 SX parse 易 0 func）。 */
+/** 预处理后源码是否含顶层 import（seed asm 对这类入口 X parse 易 0 func）。 */
 int driver_source_has_top_level_import(const char *src, size_t src_len);
 
-/** 读 path 并检测顶层 import（compile.sx extern）。 */
+/** 读 path 并检测顶层 import（compile.x extern）。 */
 int driver_source_has_top_level_import_path(const char *path);
 
 #endif /* SHUX_RUNTIME_DRIVER_ABI_H */

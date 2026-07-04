@@ -6,8 +6,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_REPR_C_LAYOUT_FAIL:-0}
-GOOD="tests/lexer/repr_c_layout_smoke.sx"
-BAD="/tmp/shux_repr_c_layout_bad.$$.sx"
+GOOD="tests/lexer/repr_c_layout_smoke.x"
+BAD="/tmp/shux_repr_c_layout_bad.$$.x"
 OUT="/tmp/shux_repr_c_layout.$$.out"
 SHUX="${SHUX:-./compiler/shux-c}"
 

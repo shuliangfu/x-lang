@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q 2>/dev/null || make -C compiler shux-c
 SHUX=${SHUX:-./compiler/shux-c}
-$SHUX -L . tests/std-debug/main.sx -o /tmp/shux_std_debug 2>&1
+$SHUX -L . tests/std-debug/main.x -o /tmp/shux_std_debug 2>&1
 ec=0
 /tmp/shux_std_debug >/dev/null 2>/tmp/shux_std_debug_err.log || ec=$?
 [ "$ec" -ne 0 ] && { echo "std-debug: run failed ec=$ec"; exit 1; }

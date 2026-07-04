@@ -23,7 +23,7 @@ comp_riscv64_native_shu() {
 # 探测 shux 是否支持 -backend asm -target riscv64（C-only seed 返回 not available）。
 comp_riscv64_asm_capable() {
   local shux="$1"
-  local sample="${2:-$ROOT/tests/asm/riscv64_min.sx}"
+  local sample="${2:-$ROOT/tests/asm/riscv64_min.x}"
   local err=""
   [ -x "$shux" ] && [ -f "$sample" ] || return 1
   err="$("$shux" -backend asm -target "$RISCV_TARGET" "$sample" 2>&1 >/dev/null || true)"
@@ -62,10 +62,10 @@ comp_riscv64_sample_path() {
 # 检查 riscv64 汇编文本输出（.text、main、ret）。
 comp_riscv64_check_asm_text() {
   local shux="$1"
-  local sx="$2"
+  local x="$2"
   local out
   out="$(mktemp /tmp/shux_riscv_asm.XXXXXX)"
-  if ! "$shux" -backend asm -target "$RISCV_TARGET" "$sx" >"$out" 2>/dev/null; then
+  if ! "$shux" -backend asm -target "$RISCV_TARGET" "$x" >"$out" 2>/dev/null; then
     rm -f "$out"
     return 1
   fi
@@ -80,10 +80,10 @@ comp_riscv64_check_asm_text() {
 # 生成 riscv64 ELF .o 并校验；Linux 上必须为 ELF relocatable。
 comp_riscv64_emit_elf_o() {
   local shux="$1"
-  local sx="$2"
+  local x="$2"
   local out="$3"
   rm -f "$out" 2>/dev/null || true
-  if ! "$shux" -backend asm -target "$RISCV_TARGET" -o "$out" "$sx" 2>/dev/null; then
+  if ! "$shux" -backend asm -target "$RISCV_TARGET" -o "$out" "$x" 2>/dev/null; then
     return 1
   fi
   [ -f "$out" ] && [ -s "$out" ] || return 1

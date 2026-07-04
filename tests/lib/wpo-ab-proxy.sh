@@ -37,7 +37,7 @@ wpo_ab_text_bytes() {
   return 1
 }
 
-# main.sx：MON=树内 main.o；MOFF=baseline proxy（生产 WPO 链）。
+# main.x：MON=树内 main.o；MOFF=baseline proxy（生产 WPO 链）。
 wpo_ab_try_main_fast() {
   local build_main="$1"
   local baseline="$2"
@@ -54,7 +54,7 @@ wpo_ab_try_main_fast() {
   return 0
 }
 
-# driver/compile.sx：DON=树内 driver_compile.o；DOFF=baseline proxy。
+# driver/compile.x：DON=树内 driver_compile.o；DOFF=baseline proxy。
 wpo_ab_try_driver_fast() {
   local build_drv="$1"
   local baseline="$2"
@@ -66,12 +66,12 @@ wpo_ab_try_driver_fast() {
   off_proxy=${off_proxy:-7637}
   on_txt=$(wpo_ab_text_bytes "$build_drv") || return 1
   [ "$on_txt" -le "$max_on" ] 2>/dev/null || return 1
-  nm "$build_drv" 2>/dev/null | grep -qE ' T (compile_dispatch_asm_backend|run_compiler_full_sx|entry)$' || return 1
+  nm "$build_drv" 2>/dev/null | grep -qE ' T (compile_dispatch_asm_backend|run_compiler_full_x|entry)$' || return 1
   echo "$off_proxy $on_txt"
   return 0
 }
 
-# pipeline.sx：PON=树内 pipeline.o 或 pipeline_wpo.o；POFF=baseline proxy（须 < emit_heavy min）。
+# pipeline.x：PON=树内 pipeline.o 或 pipeline_wpo.o；POFF=baseline proxy（须 < emit_heavy min）。
 wpo_ab_try_pipeline_fast() {
   local build_pipe="$1"
   local baseline="$2"
@@ -83,12 +83,12 @@ wpo_ab_try_pipeline_fast() {
   off_proxy=${off_proxy:-11588}
   on_txt=$(wpo_ab_text_bytes "$build_pipe") || return 1
   [ "$on_txt" -lt "$emit_heavy_min" ] 2>/dev/null || return 1
-  nm "$build_pipe" 2>/dev/null | grep -q 'run_sx_pipeline_impl' || return 1
+  nm "$build_pipe" 2>/dev/null | grep -q 'run_x_pipeline_impl' || return 1
   echo "$off_proxy $on_txt"
   return 0
 }
 
-# typeck.sx：TON=树内 typeck_wpo.o；TOFF=baseline proxy（须 < emit_heavy min）。
+# typeck.x：TON=树内 typeck_wpo.o；TOFF=baseline proxy（须 < emit_heavy min）。
 wpo_ab_try_typeck_fast() {
   local build_tck="$1"
   local baseline="$2"
@@ -100,13 +100,13 @@ wpo_ab_try_typeck_fast() {
   off_proxy=${off_proxy:-79397}
   on_txt=$(wpo_ab_text_bytes "$build_tck") || return 1
   [ "$on_txt" -lt "$emit_heavy_min" ] 2>/dev/null || return 1
-  nm "$build_tck" 2>/dev/null | grep -q 'typeck_sx_ast' || return 1
+  nm "$build_tck" 2>/dev/null | grep -q 'typeck_x_ast' || return 1
   nm "$build_tck" 2>/dev/null | grep -q 'check_block' || return 1
   echo "$off_proxy $on_txt"
   return 0
 }
 
-# backend.sx：BON=树内 backend_wpo.o；BOFF=baseline proxy（须 < emit_heavy min）。
+# backend.x：BON=树内 backend_wpo.o；BOFF=baseline proxy（须 < emit_heavy min）。
 wpo_ab_try_backend_fast() {
   local build_be="$1"
   local baseline="$2"

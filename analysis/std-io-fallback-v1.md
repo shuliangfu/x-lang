@@ -37,7 +37,7 @@ std.io.driver → std.io.core → io.c
 
 ## 3. 三平台 read/write 矩阵
 
-| API（io.c / mod.sx） | Linux 主路径 | Linux 回退 | macOS 主路径 | macOS 回退 | Windows 主路径 | Windows 回退 |
+| API（io.c / mod.x） | Linux 主路径 | Linux 回退 | macOS 主路径 | macOS 回退 | Windows 主路径 | Windows 回退 |
 |----------------------|-------------|-----------|-------------|-----------|---------------|-------------|
 | `io_read` / `read_fd` | `io_uring_prep_read` | `FALLBACK_READ` → `read(2)` | `kqueue` + `EVFILT_READ`（fd≥3） | `FALLBACK_READ` | `IOCP` + `ReadFile` overlapped | `FALLBACK_READ` |
 | `io_write` / `write_fd` | `io_uring_prep_write` | `FALLBACK_WRITE` → `write(2)` | `kqueue` + `EVFILT_WRITE`（fd≥3） | `FALLBACK_WRITE` | `IOCP` + `WriteFile` | `FALLBACK_WRITE` |
@@ -45,7 +45,7 @@ std.io.driver → std.io.core → io.c
 | `io_write_batch` / `write_batch_fd` | `prep_writev` / multi-SQE | 逐段 `io_write` | `writev`（`io_writev_all`） | 逐段 `io_write` | `IOCP` 批量 `WriteFile` | 逐段 `io_write` |
 | `io_read_fixed` / `read_fixed_fd` | `io_uring_prep_read_fixed` | `FALLBACK_READ` | TLS `fixed_pool_t` → `io_read` | — | TLS `win_fixed_pool_t` → `io_read` | — |
 | `io_write_fixed` / `write_fixed_fd` | `io_uring_prep_write_fixed` | `FALLBACK_WRITE` | TLS iov 池 → `io_write` | — | TLS 池 → `io_write` | — |
-| `register_provided_buffers` | `IORING_OP_PROVIDE_BUFFERS` | 失败返回 0 | **不支持**（mod.sx 文档：回退 read_fixed_fd） | — | **不支持** | — |
+| `register_provided_buffers` | `IORING_OP_PROVIDE_BUFFERS` | 失败返回 0 | **不支持**（mod.x 文档：回退 read_fixed_fd） | — | **不支持** | — |
 | `read_async` / `complete_read_async_slot` | `io_uring` 异步 SQE | — | `complete` 时 **同步** `io_read` | — | `complete` 时 **同步** `io_read` | — |
 | `io_read_ptr` | `mmap` 文件视图 | TLS `g_io_read_ptr_buf` | `dispatch_data` 文件视图 | TLS 缓冲 | TLS 缓冲（无 mmap/dispatch） | TLS 缓冲 |
 | `io_wait_readable` | `poll` | — | `kqueue` `EVFILT_READ` | — | `select` / `WSA` `FD_SET` | — |
@@ -85,7 +85,7 @@ std.io.driver → std.io.core → io.c
 ## 5. 验收
 
 - manifest：`tests/baseline/std-io-fallback.tsv`
-- 烟测：`tests/io/fallback_matrix.sx`（`read_fd`/`write_fd` typeck）
+- 烟测：`tests/io/fallback_matrix.x`（`read_fd`/`write_fd` typeck）
 - 回归：`tests/run-io.sh`
 - 报告：`shux: [SHUX_STD_IO_FALLBACK] status=ok`
 

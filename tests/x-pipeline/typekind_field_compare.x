@@ -1,0 +1,24 @@
+/*
+* X 流水线 typeck：`struct.field == Enum.VAR`，与 codegen.x/typeck.x 中 `ty.kind ==
+* * * * * TypeKind.TYPE_*` 同形态。
+* * * * * * 无 import ast，仅用本地 enum/struct（run-x-pipeline 风格 -x -E）。
+*/
+enum ShapeKind {
+  SK_I32,
+  SK_PTR,
+  SK_SLICE
+}
+
+struct Shape {
+  kind: ShapeKind;
+  tag: i32;
+}
+
+/** 指针形态：kind 为 SK_PTR */
+function shape_is_ptr(s: Shape): bool {
+  return s.kind == ShapeKind.SK_PTR;
+}
+
+function main(): i32 {
+  return 0;
+}

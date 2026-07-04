@@ -1,9 +1,9 @@
 # PERF-011 战略看板 case 清单（Shu vs Zig -O2）
 # 列：case_id	category	su_src	zig_src	target_ahead_pct	notes
 # target_ahead_pct：目标领先 Zig 百分点（0=持平即可绿）
-loop_i32	microbench	loop_i32.sx	loop_i32.zig	0	P0 microbench
-mem_copy	microbench	mem_copy.sx	mem_copy.zig	0	P0 microbench
-struct_param	microbench	struct_param.sx	struct_param.zig	0	P0 microbench
-call_boundary	microbench	call_boundary.sx	call_boundary.zig	0	P0 microbench
-io_mmap_throughput	io	io_mmap_throughput.sx	io_mmap_throughput.zig	0	16MiB mmap read
-net_echo_throughput	net	net_echo_throughput.sx	net_echo_throughput.zig	0	需 echo server；runner 可 SKIP
+loop_i32	microbench	loop_i32.x	loop_i32.zig	0	P0 microbench
+mem_copy	microbench	mem_copy.x	mem_copy.zig	0	P0 microbench
+struct_param	microbench	struct_param.x	struct_param.zig	0	P0 microbench
+call_boundary	microbench	call_boundary.x	call_boundary.zig	0	P0 microbench
+io_mmap_throughput	io	io_mmap_throughput.x	io_mmap_throughput.zig	0	16MiB mmap read
+net_echo_throughput	net	net_echo_throughput.x	net_echo_throughput.zig	0	需 echo server；runner 可 SKIP

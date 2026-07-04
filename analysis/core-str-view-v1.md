@@ -48,7 +48,7 @@
 ## 4. 验收
 
 - manifest：`tests/baseline/core-str-view.tsv`
-- typeck + runnable：`tests/str/bytes_view.sx`
+- typeck + runnable：`tests/str/bytes_view.x`
 - 报告：`shux: [SHUX_CORE_STR_VIEW] status=ok`
 
 ---

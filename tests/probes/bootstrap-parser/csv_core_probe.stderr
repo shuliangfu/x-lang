@@ -1,15 +1,15 @@
 note: pipeline debug: pipeline thread start len=10986
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
 note: pipeline debug: entry_source_len=10986
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
 shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=21
 shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
 note: pipeline debug: after_entry_parse num_funcs=21
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
 note: pipeline debug: after_entry_parse num_funcs=21 num_defined=21 num_extern=0
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
 note: pipeline debug: after_entry_parse num_top_level_lets=0
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
 shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=21
 shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=23 tail=1460 kind=41
 shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=24 fin=0 nso=1
@@ -69,6 +69,6 @@ shux: [SHUX_DEBUG_PIPE] implicit_tail_item body=84 si=0 so_kind=2 so_idx=0 expr=
 shux: [SHUX_DEBUG_PIPE] implicit_tail_last body=84 kind=2
 shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=84 tail=8943 kind=41
 note: pipeline debug: before_codegen num_funcs=21 out_len=0
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x
 note: pipeline debug: pipeline thread done ec=0
- --> ../std/csv/csv.sx
+ --> ../std/csv/csv.x

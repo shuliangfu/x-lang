@@ -4,14 +4,14 @@
 read_path	section	## 1. 阅读路径	analysis/std-config-yaml-v1.md
 api_doc	section	## 2. API	analysis/std-config-yaml-v1.md
 verify	section	## 3. Gate	analysis/std-config-yaml-v1.md
-api_yaml_buf	api	load_yaml_buf	std/config/mod.sx	内存加载
-api_yaml_file	api	load_yaml_file	std/config/mod.sx	文件加载
-api_backend	api	backend_yaml	std/config/mod.sx	后端标识
-api_smoke	api	yaml_smoke	std/config/mod.sx	烟测
-symbol_c	symbol	config_load_yaml_buf_c	std/config/config.sx	C 实现
-symbol_smoke	symbol	config_yaml_smoke_c	std/config/config.sx	C 烟测
-impl_sx	file	std/config/config.sx	std/config/config.sx
-smoke_sx	smoke	tests/std-config/yaml_smoke.sx	.sx烟测
+api_yaml_buf	api	load_yaml_buf	std/config/mod.x	内存加载
+api_yaml_file	api	load_yaml_file	std/config/mod.x	文件加载
+api_backend	api	backend_yaml	std/config/mod.x	后端标识
+api_smoke	api	yaml_smoke	std/config/mod.x	烟测
+symbol_c	symbol	config_load_yaml_buf_c	std/config/config.x	C 实现
+symbol_smoke	symbol	config_yaml_smoke_c	std/config/config.x	C 烟测
+impl_x	file	std/config/config.x	std/config/config.x
+smoke_x	smoke	tests/std-config/yaml_smoke.x	.x烟测
 vectors	file	tests/baseline/std-config-yaml-vectors.tsv	向量
 lib	script	lib/std-config-yaml.sh	tests/lib/std-config-yaml.sh
 gate	script	run-std-config-yaml-gate.sh	tests/run-std-config-yaml-gate.sh

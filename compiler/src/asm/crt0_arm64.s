@@ -3,7 +3,7 @@
  *
  * 文件职责：提供 _start；dyld 调用 _start 时 x0=argc、x1=argv（非 Linux 栈布局）。
  * driver_get_argv_i 由 runtime_abi.o 提供。
- * 重要约定：_start 调 main_entry（driver_sx.o）；链接须 -e _start -nostartfiles。
+ * 重要约定：_start 调 main_entry（driver_x.o）；链接须 -e _start -nostartfiles。
  */
 
 	.section __TEXT,__text,regular,pure_instructions

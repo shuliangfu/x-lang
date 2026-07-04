@@ -10,8 +10,8 @@ FAIL=0
 
 echo "=== G1: Host unit test gate ==="
 
-# Compile host_test.sx for host (not freestanding)
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$SCRIPT_DIR/host_test.sx" > "$WORKDIR/host_test.c"
+# Compile host_test.x for host (not freestanding)
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$SCRIPT_DIR/host_test.x" > "$WORKDIR/host_test.c"
 cc -O2 -o "$WORKDIR/host_test" "$WORKDIR/host_test.c" 2>&1
 RESULT=$("$WORKDIR/host_test"; echo $?)
 RC=$(echo "$RESULT" | tail -1)

@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§5 |
 | 2 | `tests/baseline/std-http-chunked.tsv` |
 | 3 | `./tests/run-std-http-chunked-gate.sh` |
-| 4 | 烟测：`tests/http/chunked_keepalive.sx` |
+| 4 | 烟测：`tests/http/chunked_keepalive.x` |
 
 ---
 
@@ -56,7 +56,7 @@ hello\r\n
 
 ## 4. Bench
 
-`tests/bench/http_chunked_decode_bench.sx`：循环解码固定向量 1000 次（纯 CPU，无网络）；门禁 typeck + 可选 runnable。
+`tests/bench/http_chunked_decode_bench.x`：循环解码固定向量 1000 次（纯 CPU，无网络）；门禁 typeck + 可选 runnable。
 
 与 STD-009 `http_get_bench` 互补：本 bench 测**解析热路径**，非 socket 吞吐。
 

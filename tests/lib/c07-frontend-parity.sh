@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C-07 前端 parity 辅助：shux-c（C 前端 REF）vs shux/shux_asm（.sx 前端 CAND）同输入比对。
+# C-07 前端 parity 辅助：shux-c（C 前端 REF）vs shux/shux_asm（.x 前端 CAND）同输入比对。
 #
 # 用法：source tests/lib/c07-frontend-parity.sh
 
@@ -44,7 +44,7 @@ c07_resolve_compilers() {
 
 # typeck-only 编译（无 -o）：CAND 加 -backend c 与 shux-c 路径对齐。
 # 参数：$1=编译器 $2=源码 $3=日志文件；返回编译器退出码。
-c07_typeck_sx() {
+c07_typeck_x() {
   local bin="$1" src="$2" log="$3"
   local args=(-L .)
   if [ "${bin##*/}" != "shux-c" ]; then
@@ -55,7 +55,7 @@ c07_typeck_sx() {
 
 # 编译并链接 -o（可选 run parity；需 liburing 等完整链接环境）。
 # 参数：$1=编译器 $2=源码 $3=输出可执行文件 $4=日志文件；返回编译器退出码。
-c07_compile_sx() {
+c07_compile_x() {
   local bin="$1" src="$2" out="$3" log="$4"
   local args=(-L .)
   if [ "${bin##*/}" != "shux-c" ]; then

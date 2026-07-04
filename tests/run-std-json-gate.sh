@@ -11,8 +11,8 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_JSON_DOC:-analysis/std-json-zc-v1.md}"
 MANIFEST="${SHUX_STD_JSON_MANIFEST:-tests/baseline/std-json-manifest.tsv}"
-MOD_SX="${SHUX_STD_JSON_MOD:-std/json/mod.sx}"
-JSON_SX="${SHUX_STD_JSON_SX:-std/json/json.sx}"
+MOD_X="${SHUX_STD_JSON_MOD:-std/json/mod.x}"
+JSON_X="${SHUX_STD_JSON_X:-std/json/json.x}"
 MIN_APIS=10
 
 # shellcheck source=tests/lib/std-json.sh
@@ -31,7 +31,7 @@ native_shu() {
 }
 
 echo "=== STD-008: std.json zero-copy manifest ==="
-for f in "$DOC" "$MANIFEST" "$MOD_SX" "$JSON_SX"; do
+for f in "$DOC" "$MANIFEST" "$MOD_X" "$JSON_X"; do
   if [ ! -f "$f" ]; then
     echo "std-json gate FAIL: missing $f" >&2
     exit 1
@@ -60,8 +60,8 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
       ;;
     api)
       API_N=$((API_N + 1))
-      if ! std_json_has_api "$MOD_SX" "$anchor"; then
-        echo "std-json FAIL: missing API ${anchor} in $MOD_SX" >&2
+      if ! std_json_has_api "$MOD_X" "$anchor"; then
+        echo "std-json FAIL: missing API ${anchor} in $MOD_X" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$anchor" "$DOC" 2>/dev/null; then
         echo "std-json FAIL: doc missing API $anchor" >&2
@@ -73,9 +73,9 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
         echo "std-json FAIL: missing file $anchor" >&2
         MISS=$((MISS + 1))
       fi
-      if [ "$anchor" = "std/json/json.sx" ] || [ "$anchor" = "std/json/json.c" ]; then
-        if ! std_json_has_c_impl "$JSON_SX" "json_parse_string_view_c"; then
-          echo "std-json FAIL: missing json_parse_string_view_c in $JSON_SX" >&2
+      if [ "$anchor" = "std/json/json.x" ] || [ "$anchor" = "std/json/json.c" ]; then
+        if ! std_json_has_c_impl "$JSON_X" "json_parse_string_view_c"; then
+          echo "std-json FAIL: missing json_parse_string_view_c in $JSON_X" >&2
           MISS=$((MISS + 1))
         fi
       fi
@@ -143,8 +143,8 @@ if [ -n "$SHUX_BIN" ] && native_shu "$SHUX_BIN"; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/json/json.o
   FAIL=0
-  for smoke in tests/json/main.sx tests/json/zc_parse_string_view.sx; do
-    tag="$(basename "$smoke" .sx)"
+  for smoke in tests/json/main.x tests/json/zc_parse_string_view.x; do
+    tag="$(basename "$smoke" .x)"
     if std_json_run_smoke "$SHUX_BIN" "$smoke" "$tag"; then
       echo "std-json smoke OK $tag"
     else

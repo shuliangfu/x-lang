@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-07 v1：已迁移纯 .sx 的 std 模块硬禁 cc -c（io/fs/heap/compress）。
+# F-07 v1：已迁移纯 .x 的 std 模块硬禁 cc -c（io/fs/heap/compress）。
 #
 # 用法：./tests/run-f07-no-cc-std-migrated-gate.sh
 # 环境：SHUX_F07_NO_CC_MIGRATED_FAIL=1 — 失败时硬退出

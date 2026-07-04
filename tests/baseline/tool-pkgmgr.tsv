@@ -15,7 +15,7 @@ rule_k5	rules	K5-resolve-proto	analysis/tool-pkgmgr-v1.md	script	shux-deps-resol
 rule_k6	rules	K6-local-only	analysis/tool-pkgmgr-v1.md	local	no network
 sym_resolve	symbol	resolve_import_file_path_multi	compiler/src/runtime.c	driver	multi root
 fixture_pkg	file	tests/fixtures/pkgmgr/shux.pkg.tsv	tests/fixtures/pkgmgr/shux.pkg.tsv	demo	manifest
-fixture_main	file	tests/fixtures/pkgmgr/main.sx	tests/fixtures/pkgmgr/main.sx	demo	app
+fixture_main	file	tests/fixtures/pkgmgr/main.x	tests/fixtures/pkgmgr/main.x	demo	app
 catalog_file	file	tests/baseline/tool-pkgmgr-catalog.tsv	tests/baseline/tool-pkgmgr-catalog.tsv	bundled	11 core
 lib	script	lib/tool-pkgmgr.sh	tests/lib/tool-pkgmgr.sh	-	共享库
 proto	script	shux-deps-resolve.sh	scripts/shux-deps-resolve.sh	cli	原型

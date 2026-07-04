@@ -9,7 +9,7 @@
 
 set -e
 cd "$(dirname "$0")/.."
-BUILD_LIST_SX="src/asm/asm_build_list.sx"
+BUILD_LIST_X="src/asm/asm_build_list.x"
 BUILD_DIR="build_asm"
 STRICT="${SHUX_ASM_QUALITY_STRICT:-0}"
 TAB=$(printf '\t')
@@ -33,8 +33,8 @@ text_section_size() {
 mkdir -p "$BUILD_DIR"
 echo "check_asm_o_quality: scanning $BUILD_DIR (STRICT=$STRICT)"
 
-if [ ! -f "$BUILD_LIST_SX" ]; then
-  echo "check_asm_o_quality: $BUILD_LIST_SX missing, skip"
+if [ ! -f "$BUILD_LIST_X" ]; then
+  echo "check_asm_o_quality: $BUILD_LIST_X missing, skip"
   echo 0 >"$BUILD_DIR/.asm_text_quality"
   exit 0
 fi
@@ -57,7 +57,7 @@ while IFS= read -r line; do
     echo "MISSING $out" >>"$BAD_LIST"
     bad=$((bad + 1))
   elif [ "${sz:-0}" -eq 0 ] 2>/dev/null; then
-    # token.sx 仅 enum+struct+单函数；若仍空则计 bad。允许显式跳过：SHUX_ASM_ALLOW_EMPTY_TEXT=token.o,...
+    # token.x 仅 enum+struct+单函数；若仍空则计 bad。允许显式跳过：SHUX_ASM_ALLOW_EMPTY_TEXT=token.o,...
     allow_empty=0
     case ",${SHUX_ASM_ALLOW_EMPTY_TEXT:-}," in
       *",$out,"*) allow_empty=1 ;;
@@ -73,7 +73,7 @@ while IFS= read -r line; do
     echo "  OK code section $out size=$sz"
   fi
 done <<EOF
-$(grep '^// BUILD:' "$BUILD_LIST_SX")
+$(grep '^// BUILD:' "$BUILD_LIST_X")
 EOF
 
 echo "check_asm_o_quality: summary bad=$bad total=$tot"

@@ -12,14 +12,14 @@
 
 | ID | 交付 |
 |----|------|
-| CTX-01 | `examples/cookbook/context_cancel_deadline.sx` |
+| CTX-01 | `examples/cookbook/context_cancel_deadline.x` |
 | STD-156 | manifest + `run-std-context-cookbook-gate.sh` |
 
 ---
 
 ## 2. 食谱 CTX-01
 
-路径：`examples/cookbook/context_cancel_deadline.sx`
+路径：`examples/cookbook/context_cancel_deadline.x`
 
 覆盖 API：
 
@@ -29,7 +29,7 @@
 
 与模块 gate 关系：
 
-- `run-std-context-gate.sh`（STD-071）保留 C 烟测 + `tests/std-context/cancel_smoke.sx`
+- `run-std-context-gate.sh`（STD-071）保留 C 烟测 + `tests/std-context/cancel_smoke.x`
 - 本 gate 仅校验 Cookbook 食谱存在、文档引用与 typeck/runnable
 
 ---

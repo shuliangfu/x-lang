@@ -1,12 +1,12 @@
 # 阶段 F-url v1（std.url 去 C）
 
-> **F-url v1**：删除 **`url.c`**；锚点 **`url.sx`**；URL 解析在 **`url_glue.c`**。
+> **F-url v1**：删除 **`url.c`**；锚点 **`url.x`**；URL 解析在 **`url_glue.c`**。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `url.c`（456 行） | `url.sx` + `url_glue.c` |
+| 实现 | `url.c`（456 行） | `url.x` + `url_glue.c` |
 | `url.o` | `cc -c` | `ld -r` 合并 |
 
 ## 门禁

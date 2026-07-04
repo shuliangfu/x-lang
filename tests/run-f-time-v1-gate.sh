@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-time v1：std.time 去 C（time.c → time.sx + OS 胶层）。
+# F-time v1：std.time 去 C（time.c → time.x + OS 胶层）。
 #
 # 用法：./tests/run-f-time-v1-gate.sh
 # 环境：SHUX_F_TIME_V1_FAIL=1 — 失败时硬退出
@@ -16,11 +16,11 @@ die() {
   exit 0
 }
 
-echo "=== F-time v1: std.time time.c → time.sx + glue ==="
+echo "=== F-time v1: std.time time.c → time.x + glue ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-time v1' "$DOC" || die "doc missing F-time v1 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
-[ -f std/time/time.sx ] || die "missing std/time/time.sx"
+[ -f std/time/time.x ] || die "missing std/time/time.x"
 [ ! -f std/time/time_os_glue.c ] || die "time_os_glue.c should be deleted (F-ZC)"
 [ -f compiler/src/asm/runtime_time_os.c ] || die "missing runtime_time_os.c"
 [ ! -f std/time/time.c ] || die "std/time/time.c should be deleted"
@@ -38,7 +38,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-grep -q 'time.sx' compiler/Makefile || die "Makefile missing time.sx rule"
+grep -q 'time.x' compiler/Makefile || die "Makefile missing time.x rule"
 grep -q 'runtime_time_os' compiler/Makefile || die "Makefile missing runtime_time_os.o"
 if grep -q 'std/time/time\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/time/time.c"

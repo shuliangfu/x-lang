@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | 打开 `tests/baseline/std-simd-autovec-strategy-manifest.tsv` |
 | 3 | `./tests/run-std-simd-autovec-strategy-gate.sh` |
-| 4 | 金样：`tests/std-simd/autovec_strategy.sx` |
+| 4 | 金样：`tests/std-simd/autovec_strategy.x` |
 
 ---
 

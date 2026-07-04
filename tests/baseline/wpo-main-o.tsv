@@ -1,3 +1,3 @@
 # build_asm/main.o WPO 生产链：post-strict 重编后 __text 上限（entry TU 压缩）
-# WPO on + main.sx 仅 export entry：实测 ~656B；WPO off fallback ~9460B 视为 FAIL
+# WPO on + main.x 仅 export entry：实测 ~656B；WPO off fallback ~9460B 视为 FAIL
 main_o_max_text_bytes	768

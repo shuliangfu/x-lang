@@ -1,7 +1,7 @@
 /**
  * runtime_log_os.c — F-log OS 胶层（F-ZC：自 std/log/log_os_glue.c 迁入）
  *
- * 多 sink、文件轮转、异步缓冲、log_emit_bytes_c；格式化在 log.sx；与 log.o 一并链入。
+ * 多 sink、文件轮转、异步缓冲、log_emit_bytes_c；格式化在 log.x；与 log.o 一并链入。
  */
 #include <stdint.h>
 #include <stdio.h>
@@ -22,7 +22,7 @@ static int log_write_fd(int fd, const void *buf, size_t len) { return (int)_writ
 static int log_write_fd(int fd, const void *buf, size_t len) { return (int)write(fd, buf, len); }
 #endif
 
-/** sink 掩码位（与 mod.sx SINK_* 一致）。 */
+/** sink 掩码位（与 mod.x SINK_* 一致）。 */
 #define LOG_SINK_STDERR 1
 #define LOG_SINK_FILE 2
 
@@ -222,7 +222,7 @@ int32_t log_async_flush_c(void) {
 }
 
 
-/** F-log v1：供 log.sx 调用的导出桥。 */
+/** F-log v1：供 log.x 调用的导出桥。 */
 void log_apply_env_once_c(void) {
   log_apply_env_once();
 }

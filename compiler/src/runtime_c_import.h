@@ -11,10 +11,10 @@
 
 #include "ast.h"
 
-/** 传递 import 列表上限（与 runtime.c MAX_ALL_DEPS 一致）。pipeline.sx 链 std 时 >32。 */
+/** 传递 import 列表上限（与 runtime.c MAX_ALL_DEPS 一致）。pipeline.x 链 std 时 >32。 */
 #define SHU_C_MAX_ALL_DEPS 128
 
-/** import 对应 .sx 文件路径缓冲容量。 */
+/** import 对应 .x 文件路径缓冲容量。 */
 #define SHU_C_IMPORT_PATH_FS_CAP 512
 
 /**
@@ -28,7 +28,7 @@ int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n
     int max_deps);
 
 /**
- * LSP 专用：解析并 typeck 全部 import 依赖，并记录各模块 .sx 路径（跨文件 Location.uri）。
+ * LSP 专用：解析并 typeck 全部 import 依赖，并记录各模块 .x 路径（跨文件 Location.uri）。
  */
 int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots, const char *entry_dir,
     ASTModule **dep_mods, int *ndep_out, ASTModule **all_dep_mods, char **all_dep_paths,

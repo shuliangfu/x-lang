@@ -1,10 +1,10 @@
 # F-04 v10 std.net DNS/ALPN manifest
 # 列：item_id	kind	anchor	mod_path	notes
-symbol_alpn	symbol	net_tls_alpn_h2_http1_wire_c	std/net/alpn.sx	ALPN wire
-symbol_v4_c	symbol	net_resolve_ipv4_c	std/net/dns.sx	IPv4
-symbol_v4_ex_c	symbol	net_resolve_ipv4_ex_c	std/net/dns.sx	IPv4 ex
-symbol_v6_ex_c	symbol	net_resolve_ipv6_ex_c	std/net/dns.sx	IPv6 ex
-file_alpn	file	std/net/alpn.sx	ALPN
-file_dns	file	std/net/dns.sx	DNS
+symbol_alpn	symbol	net_tls_alpn_h2_http1_wire_c	std/net/alpn.x	ALPN wire
+symbol_v4_c	symbol	net_resolve_ipv4_c	std/net/dns.x	IPv4
+symbol_v4_ex_c	symbol	net_resolve_ipv4_ex_c	std/net/dns.x	IPv4 ex
+symbol_v6_ex_c	symbol	net_resolve_ipv6_ex_c	std/net/dns.x	IPv6 ex
+file_alpn	file	std/net/alpn.x	ALPN
+file_dns	file	std/net/dns.x	DNS
 absent_net_c_resolve	absent	net_resolve_ipv4_ex_c	std/net/net.c	已迁出
 absent_net_c_alpn	absent	net_tls_alpn_h2_http1_wire_c	std/net/net.c	已迁出

@@ -6,15 +6,15 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-metrics-obs-v1.md"
 MANIFEST="tests/baseline/std-metrics-obs-manifest.tsv"
 VECTORS="tests/baseline/std-metrics-obs-vectors.tsv"
-MOD_SX="std/metrics/mod.sx"
+MOD_X="std/metrics/mod.x"
 LIB="tests/lib/std-metrics-obs.sh"
-SMOKE_SX="tests/std-metrics/obs_correlation.sx"
+SMOKE_X="tests/std-metrics/obs_correlation.x"
 MIN_APIS=6
 
 # shellcheck source=tests/lib/std-metrics-obs.sh
 . "$LIB"
 
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$SMOKE_SX"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$SMOKE_X"; do
   [ -f "$f" ] || { echo "std-metrics-obs gate FAIL: missing $f" >&2; exit 1; }
 done
 
@@ -32,28 +32,28 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$item_id" in \#*|min_*) continue ;; esac
   [ "$kind" = "api" ] || continue
   API_N=$((API_N + 1))
-  grep -qE "function ${anchor}\\(" "$MOD_SX" || exit 1
+  grep -qE "function ${anchor}\\(" "$MOD_X" || exit 1
 done < "$MANIFEST"
 
 [ "$API_N" -ge "$MIN_APIS" ] || exit 1
 
-sym_miss="$(std_metrics_obs_symbols_ok "$MOD_SX" "$MANIFEST" || true)"
+sym_miss="$(std_metrics_obs_symbols_ok "$MOD_X" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 
-SX_OK=0
+X_OK=0
 SKIP=0
 if [ -x ./compiler/shux-c ]; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! grep -q 'metrics.counter(' "$SMOKE_SX" 2>/dev/null; then
+  if ! grep -q 'metrics.counter(' "$SMOKE_X" 2>/dev/null; then
     echo "std-metrics-obs gate FAIL: obs smoke missing metrics.counter" >&2
     exit 1
   fi
-  # sx typeck/compile 待 trace→net 链闭合；manifest + grep 通过即 OK。
-  SX_OK=1
+  # x typeck/compile 待 trace→net 链闭合；manifest + grep 通过即 OK。
+  X_OK=1
   SKIP=1
 else
   SKIP=1
 fi
 
-std_metrics_obs_emit_report ok "$SX_OK" "$SKIP"
+std_metrics_obs_emit_report ok "$X_OK" "$SKIP"
 echo "std-metrics-obs gate OK"

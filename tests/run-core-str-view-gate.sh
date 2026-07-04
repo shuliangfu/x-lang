@@ -8,15 +8,15 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_CORE_STR_DOC:-analysis/core-str-view-v1.md}"
 STD_DOC="${SHUX_STD_STRVIEW_DOC:-analysis/std-strview-zc4-v1.md}"
 MANIFEST="${SHUX_CORE_STR_TSV:-tests/baseline/core-str-view.tsv}"
-STR_SX="core/str/mod.sx"
+STR_X="core/str/mod.x"
 LIB="tests/lib/core-str-view.sh"
-SMOKE="tests/str/bytes_view.sx"
+SMOKE="tests/str/bytes_view.x"
 
 # shellcheck source=tests/lib/core-str-view.sh
 . tests/lib/core-str-view.sh
 
 echo "=== CORE-007: core.str BytesView manifest ==="
-for f in "$DOC" "$STD_DOC" "$MANIFEST" "$LIB" "$STR_SX" "$SMOKE"; do
+for f in "$DOC" "$STD_DOC" "$MANIFEST" "$LIB" "$STR_X" "$SMOKE"; do
   if [ ! -f "$f" ]; then
     echo "core-str-view gate FAIL: missing $f" >&2
     exit 1
@@ -30,7 +30,7 @@ for kw in BytesView StrView bytes_view_subview 生命周期; do
   fi
 done
 
-sym_miss="$(core_str_symbols_ok "$STR_SX" "$MANIFEST" || true)"
+sym_miss="$(core_str_symbols_ok "$STR_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   core_str_emit_report "fail" 0 0 0
   echo "core-str-view gate FAIL: symbol_miss=${sym_miss}" >&2

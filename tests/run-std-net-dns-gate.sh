@@ -7,18 +7,18 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_NET_DNS_DOC:-analysis/std-net-dns-v1.md}"
 MANIFEST="${SHUX_STD_NET_DNS_TSV:-tests/baseline/std-net-dns.tsv}"
-NET_SX="std/net/mod.sx"
-NET_DNS_SX="std/net/dns.sx"
+NET_X="std/net/mod.x"
+NET_DNS_X="std/net/dns.x"
 LIB="tests/lib/std-net-dns.sh"
-RESOLVE_SX="tests/net/resolve_dns.sx"
-MAIN_SX="tests/net/main.sx"
+RESOLVE_X="tests/net/resolve_dns.x"
+MAIN_X="tests/net/main.x"
 MIN_APIS=4
 
 # shellcheck source=tests/lib/std-net-dns.sh
 . "$LIB"
 
 echo "=== STD-029: net DNS manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$NET_SX" "$NET_DNS_SX" "$RESOLVE_SX" "$MAIN_SX" std/net/dns.sx std/net/alpn.sx; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$NET_X" "$NET_DNS_X" "$RESOLVE_X" "$MAIN_X" std/net/dns.x std/net/alpn.x; do
   if [ ! -f "$f" ]; then
     echo "std-net-dns gate FAIL: missing $f" >&2
     exit 1
@@ -46,7 +46,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$NET_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$NET_X" 2>/dev/null; then
         echo "std-net-dns gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -65,7 +65,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_net_dns_symbols_ok "$NET_SX" "$NET_DNS_SX" "$MANIFEST" || true)"
+sym_miss="$(std_net_dns_symbols_ok "$NET_X" "$NET_DNS_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_net_dns_emit_report "fail" 0 0 1
   echo "std-net-dns gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -102,19 +102,19 @@ if [ -n "$SHUX_BIN" ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/net/net.o
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$RESOLVE_SX" >/dev/null 2>&1; then
-    echo "std-net-dns gate FAIL: typeck $RESOLVE_SX" >&2
-    "$SHUX_BIN" check -L . "$RESOLVE_SX" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$RESOLVE_X" >/dev/null 2>&1; then
+    echo "std-net-dns gate FAIL: typeck $RESOLVE_X" >&2
+    "$SHUX_BIN" check -L . "$RESOLVE_X" 2>&1 | tail -10 >&2 || true
     std_net_dns_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_net_dns_run_smoke "$SHUX_BIN" "$RESOLVE_SX" "resolve_dns"; then
+  if std_net_dns_run_smoke "$SHUX_BIN" "$RESOLVE_X" "resolve_dns"; then
     RESOLVE_OK=1
   else
     std_net_dns_emit_report "fail" 0 0 0
     exit 1
   fi
-  if std_net_dns_run_smoke "$SHUX_BIN" "$MAIN_SX" "main"; then
+  if std_net_dns_run_smoke "$SHUX_BIN" "$MAIN_X" "main"; then
     MAIN_OK=1
   else
     std_net_dns_emit_report "fail" "$RESOLVE_OK" 0 0

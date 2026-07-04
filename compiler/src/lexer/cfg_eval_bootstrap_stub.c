@@ -1,10 +1,10 @@
 /**
- * cfg_eval_bootstrap_stub.c — 冷启动 #[cfg] 求值（cfg_eval.sx 尚不可编时链入）
+ * cfg_eval_bootstrap_stub.c — 冷启动 #[cfg] 求值（cfg_eval.x 尚不可编时链入）
  *
  * 旧桩恒返回 1，导致 Linux seed 仍解析 #[cfg(windows)] 项，std/net 等模块
  * body_ref 错位、asm emit 失败。本文件与 lexer.c B-01/B-02 语义对齐：
  * target_os / target_arch / all() / not()、-target triple 覆盖。
- * bootstrap 成功后 cfg_eval.sx 真实现可替换本 TU。
+ * bootstrap 成功后 cfg_eval.x 真实现可替换本 TU。
  */
 #include <stdint.h>
 #include <string.h>

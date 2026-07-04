@@ -16,7 +16,7 @@
 | 项 | 标准 | 产物 |
 |----|------|------|
 | E-soft 专文档 | 本文件 | `analysis/phase-e-soft-v1.md` |
-| 软退役 manifest | C/H 路径 / 状态 / 替代 `.sx` | `tests/baseline/phase-e-soft-retire.tsv` |
+| 软退役 manifest | C/H 路径 / 状态 / 替代 `.x` | `tests/baseline/phase-e-soft-retire.tsv` |
 | 审计库 | manifest / marker / Makefile 审计 | `tests/lib/phase-e-soft-audit.sh` |
 | E-soft 聚合 gate | E-01 + C-03/C-04/C-06/C-09 委托 | `tests/run-e-soft-retire-gate.sh` |
 | E-01 专 gate | extern `.h` 不再参与编译 | `tests/run-e01-extern-h-soft-gate.sh` |
@@ -25,7 +25,7 @@
 | E-03 v2 专 gate | `lexer.c` / `ast_seed` 默认不链 | `tests/run-e03-lexer-ast-soft-gate.sh` |
 | E-03 v3/v4 专 gate | 冷启动 track + OBJS_CORE ABI 对齐 | `tests/run-e03-v3-coldstart-track-gate.sh` |
 | E-04 v1/v3 专 gate | runtime_abi + runtime_io_abi 薄壳 | `tests/run-e04-runtime-soft-gate.sh` |
-| E-06 v1/v2/v3/v4 专 gate | B-strict 禁前端 cc -c + SEED SX skip（strict / gen_driver） | `tests/run-e06-no-compiler-frontend-cc-gate.sh` |
+| E-06 v1/v2/v3/v4 专 gate | B-strict 禁前端 cc -c + SEED X skip（strict / gen_driver） | `tests/run-e06-no-compiler-frontend-cc-gate.sh` |
 | E-05 v1/v2 专 gate | 头文件 inventory + runtime NO_C include 守卫 | `tests/run-e05-include-soft-gate.sh` |
 
 ## v1 已软退役（默认 bootstrap 不链 / 不 -include）
@@ -33,8 +33,8 @@
 | E | 路径 | 替代 | 说明 |
 |---|------|------|------|
 | E-01 | `lsp_io_extern.h` / `lsp_gen_extern.h` | `lsp_codegen_extern.c` 内嵌块 | 文件已不存在；C-04 `-E-extern` 自带 extern |
-| E-02 | `lsp_diag.c` | `lsp_diag_stubs_no_c.o` + `lsp_diag_sx.o` | `LSP_DIAG_LINK_O`；`SHUX_LEGACY_LSP_DIAG_C=1` 考古 |
-| E-03 | `parser.c` / `typeck.c` / `codegen.c` / `preprocess.c` / `lexer.c` / `ast.c` | `*_sx.o` + bridge | C-06 + E-03 v2 默认 seed 不链 C 辅助 TU |
+| E-02 | `lsp_diag.c` | `lsp_diag_stubs_no_c.o` + `lsp_diag_x.o` | `LSP_DIAG_LINK_O`；`SHUX_LEGACY_LSP_DIAG_C=1` 考古 |
+| E-03 | `parser.c` / `typeck.c` / `codegen.c` / `preprocess.c` / `lexer.c` / `ast.c` | `*_x.o` + bridge | C-06 + E-03 v2 默认 seed 不链 C 辅助 TU |
 
 ## 仍 active（v1 不阻塞，后续 E-04 软退役）
 
@@ -89,7 +89,7 @@ SHUX_E_SOFT_FAIL=1 ./tests/run-e-soft-retire-gate.sh
 
 ## 延后（阶段 F / 可选维护，非 E 阻塞）
 
-- **阶段 F**：std/core 去 C、`runtime` 按需链 `.sx` 产物（完全自举终局）
-- E-02 v2：definition/hover 全 `.sx`，OBJS_CORE 去 `lsp_diag.o`
-- E-03 v4 / E-03 v5：`OBJS_CORE` / SEED 改默认 SX 拓扑（`shux-c` 冷启动另议）
+- **阶段 F**：std/core 去 C、`runtime` 按需链 `.x` 产物（完全自举终局）
+- E-02 v2：definition/hover 全 `.x`，OBJS_CORE 去 `lsp_diag.o`
+- E-03 v4 / E-03 v5：`OBJS_CORE` / SEED 改默认 X 拓扑（`shux-c` 冷启动另议）
 - E-04 v36+：**不再作为 E 项**；runtime 主体拆分属维护性，gate 已在 v35 满足

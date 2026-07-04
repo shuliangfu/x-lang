@@ -1,10 +1,10 @@
 #!/bin/sh
 # verify-selfhost-stage2-bstrict.sh — B-strict Stage2：shux_asm 自举第二遍产出 shux_asm2，两代行为一致。
-# 与 verify-selfhost-stage2.sh（shux-sx -sx -E 生成 _gen2.c）正交；本脚本仅验 asm 链二遍自举。
+# 与 verify-selfhost-stage2.sh（shux-x -x -E 生成 _gen2.c）正交；本脚本仅验 asm 链二遍自举。
 # 用法：cd compiler && sh ./verify-selfhost-stage2-bstrict.sh
 #       SHUX_STAGE2_SKIP_BOOTSTRAP=1 — 跳过 Step 0（run-stage2-bstrict-gate / bootstrap-bstrict-ci 已 bootstrap 时）
 #       SHUX_STAGE2_SKIP_SECOND_BUILD=1 — 跳过 Step 2（bootstrap 已产出 shux_asm_stage1/shux_asm2 时）
-#       SHUX_STAGE2_SKIP_MAIN_WPO=1 — 跳过 Step 2b main.sx WPO（与 SHUX_ASM_SKIP_MAIN_O_REBUILD 同效）
+#       SHUX_STAGE2_SKIP_MAIN_WPO=1 — 跳过 Step 2b main.x WPO（与 SHUX_ASM_SKIP_MAIN_O_REBUILD 同效）
 #       SHUX_STAGE2_SKIP_REFRESH=1 — 跳过 Step 5 refresh-shux-asm-gate（Linux A-09~A-12 门禁已保留 shux_asm2 时）
 #       SHUX_ASM_SKIP_MAIN_O_REBUILD=1 — bridge strict：跳过 main/WPO dogfood + Step 3 compile 烟测（Docker 快路径）
 #       SHUX_ASM_SKIP_WPO_DOGFOOD=1 — 跳过 Step 2c–2h WPO 链
@@ -76,7 +76,7 @@ else
     esac
   fi
   if ! grep -q 'driver_compile_link.o' /tmp/build_shux_asm2.log; then
-    if [ -f build_asm/driver_compile_link.o ] && nm -g build_asm/driver_compile_link.o 2>/dev/null | grep -qE '(_)?driver_run_compiler_full_sx'; then
+    if [ -f build_asm/driver_compile_link.o ] && nm -g build_asm/driver_compile_link.o 2>/dev/null | grep -qE '(_)?driver_run_compiler_full_x'; then
       echo "verify-stage2-bstrict: driver_compile_link.o present (artifact OK; log grep missed)"
     else
       echo "verify-stage2-bstrict: WARN — driver_compile_link.o not built (EMIT_HEAVY OOM?); continue behavior parity"
@@ -101,15 +101,15 @@ esac
 ROOT="$(cd .. && pwd)"
 MAIN_WPO_TIMEOUT="${SHUX_WPO_MAIN_ASM_TIMEOUT:-180}"
 
-# 与 build_shux_asm.sh 一致：main.sx -backend asm 须 LIBROOT。
+# 与 build_shux_asm.sh 一致：main.x -backend asm 须 LIBROOT。
 LIBROOT=""
-if [ -f src/asm/asm_build_list.sx ]; then
+if [ -f src/asm/asm_build_list.x ]; then
   TAB=$(printf '\t')
-  LIBROOT=$(grep '^// LIBROOT:' src/asm/asm_build_list.sx | sed "s|^// LIBROOT:${TAB}||")
+  LIBROOT=$(grep '^// LIBROOT:' src/asm/asm_build_list.x | sed "s|^// LIBROOT:${TAB}||")
 fi
 [ -z "$LIBROOT" ] && LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
 
-# main.sx EMIT_HEAVY 须大栈（与 rebuild_main_o_for_cli / run_shux_asm_smoke 一致）。
+# main.x EMIT_HEAVY 须大栈（与 rebuild_main_o_for_cli / run_shux_asm_smoke 一致）。
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
 # Step 2b：用 gen2/gen1 编译器重编 build_asm/main.o（WPO DCE）；build_shux_asm 内 post-strict 可能 SIGSEGV。
@@ -150,12 +150,12 @@ stage2_rebuild_main_o_wpo() {
     if ! timeout "$MAIN_WPO_TIMEOUT" env -u SHUX_ASM_START_FUNC \
       SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
       SHUX_ASM_WPO_DCE="$wpo_arg" \
-      "$comp" -backend asm -o "$tmp" $LIBROOT src/main.sx >/dev/null 2>&1; then
+      "$comp" -backend asm -o "$tmp" $LIBROOT src/main.x >/dev/null 2>&1; then
       return 1
     fi
   elif ! timeout "$MAIN_WPO_TIMEOUT" env -u SHUX_ASM_START_FUNC \
     SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY="$emit_heavy" \
-    "$comp" -backend asm -o "$tmp" $LIBROOT src/main.sx >/dev/null 2>&1; then
+    "$comp" -backend asm -o "$tmp" $LIBROOT src/main.x >/dev/null 2>&1; then
     return 1
   fi
   txt=$(stage2_main_o_text_bytes "$tmp" 2>/dev/null || echo 0)
@@ -260,7 +260,7 @@ fi
 # ── Step 3: 两代编译同一用例，对比退出码（对齐 verify-selfhost-stage2 Step 5）──
 echo ""
 echo "── Step 3: 功能对比（return-value / hello）──"
-echo 'function main(): i32 { return 42; }' > /tmp/stage2_bstrict_rv.sx
+echo 'function main(): i32 { return 42; }' > /tmp/stage2_bstrict_rv.x
 
 STAGE2_COMPILE_BACKEND=""
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
@@ -279,7 +279,7 @@ run_compile() {
   while [ "$try" -le 8 ]; do
     rm -f "$out" 2>/dev/null || true
     # shellcheck disable=SC2086
-    if err=$("$comp" $STAGE2_COMPILE_BACKEND /tmp/stage2_bstrict_rv.sx -o "$out" 2>&1); then
+    if err=$("$comp" $STAGE2_COMPILE_BACKEND /tmp/stage2_bstrict_rv.x -o "$out" 2>&1); then
       chmod +x "$out" 2>/dev/null || true
       return 0
     fi
@@ -339,7 +339,7 @@ if [ "${SHUX_ASM_SKIP_ENTRY_SMOKE:-0}" = "1" ] || [ "${SHUX_STAGE2_SKIP_HELLO:-0
 else
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Darwin-*|Linux-aarch64|Linux-arm64)
-    echo "verify-stage2-bstrict: skip hello on Darwin/ARM64 (asm Mach-O incomplete; examples/hello.sx const-import 与 -backend c 不兼容；Step 3 return-value 已覆盖行为 parity)"
+    echo "verify-stage2-bstrict: skip hello on Darwin/ARM64 (asm Mach-O incomplete; examples/hello.x const-import 与 -backend c 不兼容；Step 3 return-value 已覆盖行为 parity)"
     ;;
   *)
     rm -f /tmp/stage2_bstrict_hello1 /tmp/stage2_bstrict_hello2
@@ -351,10 +351,10 @@ case "$(uname -s)-$(uname -m 2>/dev/null)" in
       while [ "$try" -le 8 ]; do
         # shellcheck disable=SC2086
         if command -v timeout >/dev/null 2>&1; then
-          if err=$(timeout "$HELLO_TIMEOUT" "$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.sx" -o "$out" 2>&1); then
+          if err=$(timeout "$HELLO_TIMEOUT" "$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.x" -o "$out" 2>&1); then
             return 0
           fi
-        elif err=$("$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.sx" -o "$out" 2>&1); then
+        elif err=$("$bin" $STAGE2_COMPILE_BACKEND -L "$ROOT" "$ROOT/examples/hello.x" -o "$out" 2>&1); then
           return 0
         fi
         last_err="$err"
@@ -397,18 +397,18 @@ fi
 
 echo ""
 echo "── Step 4b: shux_asm2 struct mk 烟测（gen2 CALL 内联，须 exit 10）──"
-SMK_SX="$ROOT/tests/boundary/struct_mk_let_inline.sx"
+SMK_X="$ROOT/tests/boundary/struct_mk_let_inline.x"
 SMK_TIMEOUT="${SHUX_STAGE2_STRUCT_MK_TIMEOUT:-120}"
 case "$(uname -s)-$(uname -m 2>/dev/null)" in
   Darwin-*|Linux-aarch64|Linux-arm64)
     echo "verify-stage2-bstrict: skip struct_mk on Darwin/ARM64 (user asm -o incomplete; Linux x86_64 covers)"
     ;;
   *)
-if [ -x ./shux_asm2 ] && [ -f "$SMK_SX" ]; then
+if [ -x ./shux_asm2 ] && [ -f "$SMK_X" ]; then
   rm -f /tmp/stage2_bstrict_smki2
   (
     # shellcheck disable=SC2086
-    ./shux_asm2 $STAGE2_COMPILE_BACKEND "$SMK_SX" -o /tmp/stage2_bstrict_smki2 2>/dev/null
+    ./shux_asm2 $STAGE2_COMPILE_BACKEND "$SMK_X" -o /tmp/stage2_bstrict_smki2 2>/dev/null
   ) &
   smk_pid=$!
   (
@@ -471,7 +471,7 @@ fi
 
 echo ""
 echo "── Step 5: refresh shux_asm gate（P0 asm struct mk 内联）──"
-# 纯 strict gen2（typeck_sx_no_layout + 无 pipeline_sx.o）常无法 struct mk 内联；门禁用 refresh-shux-asm-gate。
+# 纯 strict gen2（typeck_x_no_layout + 无 pipeline_x.o）常无法 struct mk 内联；门禁用 refresh-shux-asm-gate。
 if [ "${SHUX_STAGE2_SKIP_REFRESH:-0}" = "1" ]; then
   echo "verify-stage2-bstrict: skip Step 5 refresh (SHUX_STAGE2_SKIP_REFRESH=1)"
 else
@@ -482,6 +482,6 @@ echo ""
 echo "============================================"
 echo " ✓ B-strict Stage2 通过"
 echo "   shux_asm_stage1 / shux_asm2 行为一致（42 + hello）"
-echo "   shux_asm 已恢复为 seed+parser_sx（asm-73 / run-pre-push-p0）"
-echo "   （-sx -E 全模块 C 生成仍见 verify-selfhost-stage2.sh + shux-sx）"
+echo "   shux_asm 已恢复为 seed+parser_x（asm-73 / run-pre-push-p0）"
+echo "   （-x -E 全模块 C 生成仍见 verify-selfhost-stage2.sh + shux-x）"
 echo "============================================"

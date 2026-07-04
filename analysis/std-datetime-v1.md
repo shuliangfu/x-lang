@@ -27,14 +27,14 @@
 | `duration_sleep` / `duration_from_monotonic` | 与 std.time 互操作 |
 | `compare` | 时刻比较 |
 
-实现：`std/datetime/mod.sx` + `datetime.sx`/`datetime_tz_glue.c`；墙钟复用 `std.time`。
+实现：`std/datetime/mod.x` + `datetime.x`/`datetime_tz_glue.c`；墙钟复用 `std.time`。
 
 ---
 
 ## 3. Gate
 
 ```
-shux: [SHUX_STD_DATETIME] status=ok c_smoke=1 sx=1 skip=0
+shux: [SHUX_STD_DATETIME] status=ok c_smoke=1 x=1 skip=0
 std-datetime gate OK
 ```
 

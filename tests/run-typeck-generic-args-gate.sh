@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # C2 §5：native self-host 泛型类型实参数量诊断门禁
 #
-# 目标：验证 ./compiler/shux 在真实宿主上对 wrong_type_args.sx 给出 expects/got 诊断。
+# 目标：验证 ./compiler/shux 在真实宿主上对 wrong_type_args.x 给出 expects/got 诊断。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -11,7 +11,7 @@ source tests/lib/gate-progress.sh
 source tests/lib/ci-host.sh
 
 SHU="${SHUX_C2_BIN:-./compiler/shux}"
-SRC="tests/generic/wrong_type_args.sx"
+SRC="tests/generic/wrong_type_args.x"
 
 [ -f "$SRC" ] || { gate_progress "FAIL: missing $SRC"; exit 1; }
 [ -x "$SHU" ] || { gate_progress "FAIL: missing compiler $SHU"; exit 1; }

@@ -21,6 +21,6 @@ check_neg() {
   echo "al06-gate OK $src -> $msg"
 }
 
-check_neg tests/typeck/allocator_assign_escape.sx "allocator region escape"
-check_neg tests/typeck/dual_escape_with_arena_region.sx "slice region escape"
+check_neg tests/typeck/allocator_assign_escape.x "allocator region escape"
+check_neg tests/typeck/dual_escape_with_arena_region.x "slice region escape"
 echo "al06-gate OK (AL-04 assign + AL-06 dual escape)"

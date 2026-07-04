@@ -1,6 +1,6 @@
 /**
- * pipeline_run_impl_alias.c — 实验 asm-only 链：build_asm/pipeline.o 导出 run_sx_pipeline_impl，
- * runtime/glue 期望 pipeline_run_sx_pipeline_impl（与 pipeline_gen.c 一致）。仅在不链 pipeline_sx.o 时并入。
+ * pipeline_run_impl_alias.c — 实验 asm-only 链：build_asm/pipeline.o 导出 run_x_pipeline_impl，
+ * runtime/glue 期望 pipeline_run_x_pipeline_impl（与 pipeline_gen.c 一致）。仅在不链 pipeline_x.o 时并入。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -10,21 +10,21 @@ struct ast_ASTArena;
 struct ast_PipelineDepCtx;
 struct codegen_CodegenOutBuf;
 
-extern int32_t run_sx_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data,
+extern int32_t run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data,
                                     size_t source_len, struct codegen_CodegenOutBuf *out_buf,
                                     struct ast_PipelineDepCtx *ctx);
 
 /** glue / runtime 统一入口名。 */
-int32_t pipeline_run_sx_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data,
+int32_t pipeline_run_x_pipeline_impl(struct ast_Module *module, struct ast_ASTArena *arena, uint8_t *source_data,
                                       size_t source_len, struct codegen_CodegenOutBuf *out_buf,
                                       struct ast_PipelineDepCtx *ctx) {
-  return run_sx_pipeline_impl(module, arena, source_data, source_len, out_buf, ctx);
+  return run_x_pipeline_impl(module, arena, source_data, source_len, out_buf, ctx);
 }
 
 /*
  * strict 链：build_asm/parser.o 自举 parse 时跳过大函数（parse_into_buf 等未进 module），
- * 须由 parser_bootstrap_partial.o（自 pipeline_sx.o 部分链接）提供 parser_parse_into_buf。
- * SX 编排 + pipeline_glue_standalone 已提供 parse_into_init；设 SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES=0 跳过。
+ * 须由 parser_bootstrap_partial.o（自 pipeline_x.o 部分链接）提供 parser_parse_into_buf。
+ * X 编排 + pipeline_glue_standalone 已提供 parse_into_init；设 SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES=0 跳过。
  */
 #if !defined(SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES) || SHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES
 struct parser_ParseIntoResult {

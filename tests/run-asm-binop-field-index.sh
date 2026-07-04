@@ -9,7 +9,7 @@ make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX=${SHUX:-./compiler/shux}
 LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
 
-$LINK_SHUX tests/asm/binop_field_index_fast.sx -o /tmp/shux_asm_binop_field_index 2>&1
+$LINK_SHUX tests/asm/binop_field_index_fast.x -o /tmp/shux_asm_binop_field_index 2>&1
 exitcode=0
 /tmp/shux_asm_binop_field_index >/dev/null 2>&1 || exitcode=$?
 [ "$exitcode" -ne 205 ] && { echo "run-asm-binop-field-index FAIL: expected exit 205, got $exitcode"; exit 1; }

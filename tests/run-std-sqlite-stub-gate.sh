@@ -7,10 +7,10 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD139_DOC:-analysis/std-sqlite-stub-v1.md}"
 MANIFEST="${SHUX_STD139_TSV:-tests/baseline/std-sqlite-stub.tsv}"
-MOD_SX="std/db/sqlite/mod.sx"
-DB_C="std/db/sqlite/sqlite.sx"
+MOD_X="std/db/sqlite/mod.x"
+DB_C="std/db/sqlite/sqlite.x"
 LIB="tests/lib/std-sqlite-stub.sh"
-SMOKE_SX="tests/std-sqlite/stub_behavior.sx"
+SMOKE_X="tests/std-sqlite/stub_behavior.x"
 SMOKE_C="tests/std-sqlite/stub_behavior_ok.c"
 README="std/db/sqlite/README.md"
 MIN_STUB=2
@@ -20,7 +20,7 @@ MIN_STUB=2
 std_sqlite_stub_source_sqlite
 
 echo "=== STD-139: sqlite stub manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$DB_C" "$SMOKE_SX" "$SMOKE_C" "$README"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$DB_C" "$SMOKE_X" "$SMOKE_C" "$README"; do
   if [ ! -f "$f" ]; then
     echo "std-sqlite-stub gate FAIL: missing $f" >&2
     exit 1
@@ -65,7 +65,7 @@ if [ "$API_N" -lt "$MIN_STUB" ]; then
   exit 1
 fi
 
-sym_miss="$(std_sqlite_stub_symbols_ok "$MOD_SX" "$DB_C" "$MANIFEST" || true)"
+sym_miss="$(std_sqlite_stub_symbols_ok "$MOD_X" "$DB_C" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_sqlite_stub_emit_report "fail" 0 0 0
   exit 1
@@ -79,7 +79,7 @@ if [ "${SHUX_STD139_MANIFEST_ONLY:-0}" = "1" ]; then
 fi
 
 STUB_C=0
-STUB_SX=0
+STUB_X=0
 
 echo "=== STD-139: stub C smoke (sqlite-o-stub) ==="
 set +e
@@ -114,15 +114,15 @@ elif stdlib_cm_native_shu ./compiler/shux; then
 fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-139: .sx stub behavior smoke ==="
-  if "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-    if std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_SX" "stub"; then
-      STUB_SX=1
+  echo "=== STD-139: .x stub behavior smoke ==="
+  if "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    if std_sqlite_run_smoke "$SHUX_BIN" "$SMOKE_X" "stub"; then
+      STUB_X=1
     fi
   else
-    echo "std-sqlite-stub gate SKIP .sx smoke (typeck fail)" >&2
+    echo "std-sqlite-stub gate SKIP .x smoke (typeck fail)" >&2
   fi
 fi
 
-std_sqlite_stub_emit_report "ok" "$STUB_C" "$STUB_SX" 1
+std_sqlite_stub_emit_report "ok" "$STUB_C" "$STUB_X" 1
 echo "std-sqlite-stub gate OK"

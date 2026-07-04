@@ -4,16 +4,16 @@ set -e
 cd "$(dirname "$0")/.."
 DOC="analysis/std-url-ipv6-host-v1.md"
 MANIFEST="tests/baseline/std-url-ipv6-host-manifest.tsv"
-MOD_SX="std/url/mod.sx"
-URL_SX="std/url/url.sx"
+MOD_X="std/url/mod.x"
+URL_X="std/url/url.x"
 LIB="tests/lib/std-url-ipv6-host.sh"
-SMOKE_SX="tests/std-url/ipv6_host.sx"
+SMOKE_X="tests/std-url/ipv6_host.x"
 . "$LIB"
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$URL_SX" "$SMOKE_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$URL_X" "$SMOKE_X"; do
   [ -f "$f" ] || { echo "std-url-ipv6-host gate FAIL: missing $f" >&2; exit 1; }
 done
 grep -qF STD-134 "$DOC" || { echo "std-url-ipv6-host gate FAIL: doc" >&2; exit 1; }
-sym_miss="$(std_url_ipv6_host_symbols_ok "$MOD_SX" "$URL_SX" "$MANIFEST" || true)"
+sym_miss="$(std_url_ipv6_host_symbols_ok "$MOD_X" "$URL_X" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 . tests/lib/build-std-c-o.sh
 C_OK=0
@@ -26,13 +26,13 @@ else
   echo "std-url-ipv6-host gate SKIP c smoke (need shux-c)" >&2
   SKIP=1
 fi
-SX_OK=0
+X_OK=0
 SKIP=0
 if [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c check -L . "$SMOKE_SX" >/dev/null
-  std_url_ipv6_host_run_smoke ./compiler/shux-c "$SMOKE_SX" && SX_OK=1 || exit 1
+  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
+  std_url_ipv6_host_run_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi
-std_url_ipv6_host_emit_report ok "$C_OK" "$SX_OK" "$SKIP"
+std_url_ipv6_host_emit_report ok "$C_OK" "$X_OK" "$SKIP"
 echo "std-url-ipv6-host gate OK"

@@ -6,7 +6,7 @@
 #
 # 用法（仓库根）：
 #   . tests/lib/collection-asm-gcc-link.sh
-#   collection_asm_gcc_link ./compiler/shux_asm tests/set/main.sx /tmp/shux_set set
+#   collection_asm_gcc_link ./compiler/shux_asm tests/set/main.x /tmp/shux_set set
 
 # shellcheck source=tests/lib/build-std-c-o.sh
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/build-std-c-o.sh"
@@ -14,9 +14,9 @@
 # 用 shux_asm emit 用户 .o（-o *.o 只生成对象，不触发旧 link_abi 缺陷路径）。
 collection_asm_emit_user_o() {
   local link_shux="$1"
-  local sx="$2"
+  local x="$2"
   local user_o="$3"
-  "$link_shux" -L . "$sx" -o "$user_o"
+  "$link_shux" -L . "$x" -o "$user_o"
 }
 
 # 确保 set/heap/map bootstrap .o 已构建。
@@ -43,7 +43,7 @@ collection_ensure_std_objs() {
 # gcc -fPIE 链 collection 烟测可执行文件。
 collection_asm_gcc_link() {
   local link_shux="$1"
-  local sx="$2"
+  local x="$2"
   local exe="$3"
   local kind="$4"
   local user_o="${5:-/tmp/shux_collection_user.$$.o}"
@@ -54,7 +54,7 @@ collection_asm_gcc_link() {
   ensure_runtime_panic_o
   ensure_runtime_process_argv_o
 
-  collection_asm_emit_user_o "$link_shux" "$sx" "$user_o"
+  collection_asm_emit_user_o "$link_shux" "$x" "$user_o"
 
   case "$kind" in
     set)
@@ -78,12 +78,12 @@ collection_asm_gcc_link() {
 # shux_asm -o 直链失败时回退 gcc；其它链接器走原 -o。
 collection_link_exe() {
   local link_shux="$1"
-  local sx="$2"
+  local x="$2"
   local exe="$3"
   local kind="$4"
   local errf="/tmp/shux_collection_link_err.$$"
 
-  if "$link_shux" -L . "$sx" -o "$exe" 2>"$errf"; then
+  if "$link_shux" -L . "$x" -o "$exe" 2>"$errf"; then
     rm -f "$errf"
     return 0
   fi
@@ -91,7 +91,7 @@ collection_link_exe() {
     echo "collection: $link_shux -o failed, fallback collection_asm_gcc_link ($kind)" >&2
     cat "$errf" >&2 || true
     rm -f "$errf"
-    collection_asm_gcc_link "$link_shux" "$sx" "$exe" "$kind"
+    collection_asm_gcc_link "$link_shux" "$x" "$exe" "$kind"
     return $?
   fi
   cat "$errf" >&2

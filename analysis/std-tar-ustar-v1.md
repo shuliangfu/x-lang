@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | 打开 `tests/baseline/std-tar-ustar.tsv` |
 | 3 | `./tests/run-std-tar-ustar-gate.sh` |
-| 4 | 金样：`tests/tar/ustar_roundtrip.sx` |
+| 4 | 金样：`tests/tar/ustar_roundtrip.x` |
 
 ---
 
@@ -60,7 +60,7 @@ manifest：`tests/baseline/std-tar-ustar.tsv`
 shux: [SHUX_STD_TAR_USTAR] status=ok rt=1 main=1 skip=0
 ```
 
-回归：`tests/tar/main.sx`（头读写）、`tests/run-tar.sh`
+回归：`tests/tar/main.x`（头读写）、`tests/run-tar.sh`
 
 ---
 

@@ -6,8 +6,8 @@ asan	section	## 2. ASAN 策略	analysis/tst-004-std-sanitize-v1.md	-	-	detect_le
 cases	section	## 3. std 夜跑用例矩阵	tst-004-std-sanitize.tsv	-	-	heap+channel
 report	section	## 4. 报告格式	analysis/tst-004-std-sanitize-v1.md	-	-	SHUX_TST004_SANITIZE
 verify	section	## 5. 验证与门禁	analysis/tst-004-std-sanitize-v1.md	-	-	gate
-case_heap_std	case	std_heap	tests/sanitize/std_heap_asan.sx	../std/heap/heap.o	alloc+arena
-case_channel_std	case	std_channel	tests/sanitize/std_channel_asan.sx	../std/channel/channel.o	send+free
+case_heap_std	case	std_heap	tests/sanitize/std_heap_asan.x	../std/heap/heap.o	alloc+arena
+case_channel_std	case	std_channel	tests/sanitize/std_channel_asan.x	../std/channel/channel.o	send+free
 cross_safe005	cross_ref	tests/baseline/safe-leak-nightly.tsv	SAFE-005	-	泄漏夜跑
 cross_m6	cross_ref	tests/run-sanitize-gate.sh	M-6	-	边界插桩
 lib	script	tests/lib/tst-004-std-sanitize.sh	tests/lib/tst-004-std-sanitize.sh	-	共享

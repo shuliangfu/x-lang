@@ -2,7 +2,7 @@
 
 与 **Rust** `std::sync::atomic`、**Zig** `std.atomic` 对标。
 
-**模块路径**：`std/atomic/mod.sx` + `std/atomic/atomic.sx` + `compiler/src/asm/runtime_atomic_glue.c`（F-atomic v2 / F-ZC）
+**模块路径**：`std/atomic/mod.x` + `std/atomic/atomic.x` + `compiler/src/asm/runtime_atomic_glue.c`（F-atomic v2 / F-ZC）
 
 ## 类型覆盖
 

@@ -63,7 +63,7 @@ if [ -z "$CHECK_SHUX" ]; then
   exit 0
 fi
 
-# 编译/运行：import std.string/heap 时 shux_asm co-emit 暂缺 .sx 符号，须 shux-c（CI 可 SHUX=shux_asm 跑 typeck 上下文）
+# 编译/运行：import std.string/heap 时 shux_asm co-emit 暂缺 .x 符号，须 shux-c（CI 可 SHUX=shux_asm 跑 typeck 上下文）
 RUN_SHUX="$(zc4_pick_native_shu ./compiler/shux-c ./compiler/shux)" || RUN_SHUX=""
 if [ -z "$RUN_SHUX" ]; then
   RUN_SHUX="$(zc4_pick_native_shu ./compiler/shux_asm)" || RUN_SHUX="$CHECK_SHUX"
@@ -86,11 +86,11 @@ echo "=== ZC-4: StrView subview + arena concat + SSO_STACK ==="
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 ensure_std_c_o ../std/string/string.o
-# F-03 v2：heap 已纯 .sx，不再 ensure heap.o
+# F-03 v2：heap 已纯 .x，不再 ensure heap.o
 
-SUBVIEW_SRC="tests/string/view_subview_smoke.sx"
-CONCAT_SRC="tests/string/arena_concat_smoke.sx"
-SSO_SRC="tests/string/stack_str_sso_smoke.sx"
+SUBVIEW_SRC="tests/string/view_subview_smoke.x"
+CONCAT_SRC="tests/string/arena_concat_smoke.x"
+SSO_SRC="tests/string/stack_str_sso_smoke.x"
 
 if ! "$CHECK_SHUX" check -L . "$SUBVIEW_SRC" >/dev/null 2>&1; then
   echo "zc4 FAIL: typeck $SUBVIEW_SRC" >&2

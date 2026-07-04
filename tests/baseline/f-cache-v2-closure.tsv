@@ -1,9 +1,9 @@
-# F-cache v2 std.cache 逻辑全量 .sx manifest
+# F-cache v2 std.cache 逻辑全量 .x manifest
 # 列：item_id	kind	anchor	notes
 fcache2_doc	doc	analysis/phase-f-cache-v2.md	F-cache v2
 fcache2_gate	gate	tests/run-f-cache-v2-gate.sh	逻辑下沉门禁
-ca_sx	file	std/cache/cache.sx	LRU/池/烟测
+ca_x	file	std/cache/cache.x	LRU/池/烟测
 ca_glue_absent	absent	std/cache/cache_glue.c	已删除
-ca_mod	file	std/cache/mod.sx	对外 API
+ca_mod	file	std/cache/mod.x	对外 API
 ca_c_absent	absent	std/cache/cache.c	已删除
-makefile	makefile	compiler/Makefile	纯 cache.sx → cache.o
+makefile	makefile	compiler/Makefile	纯 cache.x → cache.o

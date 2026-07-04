@@ -66,7 +66,7 @@ cstring_destroy(p);
 ```
 
 ```
-shux: [SHUX_STD_FFI_CSTRING] status=ok c_smoke=1 sx=1 safe004=1 skip=0
+shux: [SHUX_STD_FFI_CSTRING] status=ok c_smoke=1 x=1 safe004=1 skip=0
 ```
 
 ---

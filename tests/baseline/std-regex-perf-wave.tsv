@@ -6,15 +6,15 @@ opt_section	section	## 2. 引擎优化	analysis/std-regex-perf-v1.md	-	STD-062
 bench_matrix	section	## 3. Bench 矩阵	analysis/std-regex-perf-v1.md	-	3条
 xplat_section	section	## 4. 三平台 xplat	analysis/std-regex-perf-v1.md	-	must
 gate_section	section	## 5. Gate	analysis/std-regex-perf-v1.md	-	runnable
-opt_literal	engine_opt	is_literal_only	std/regex/regex.sx	literal	memcmp
-opt_first_lit	engine_opt	first_lit	std/regex/regex.sx	skip	跳跃
+opt_literal	engine_opt	is_literal_only	std/regex/regex.x	literal	memcmp
+opt_first_lit	engine_opt	first_lit	std/regex/regex.x	skip	跳跃
 bench_engine	bench	bench_engine	tests/bench/regex_match_bench.c	prod	500K
 bench_naive_stub	bench	bench_naive_stub	tests/bench/regex_match_naive_stub.c	stub	朴素
 bench_hook	bench	bench_hook	tests/run-perf-regex-match.sh	hook	ratio
 parent_tsv	cross_ref	tests/baseline/std-regex.tsv	STD-051
 parent_xplat	cross_ref	tests/baseline/std-regex-xplat.tsv	STD-051
 xplat_matrix	file	tests/baseline/std-regex-perf-xplat.tsv	xplat	三平台
-mod_anchor	file	STD-062	std/regex/mod.sx	prod	注释
+mod_anchor	file	STD-062	std/regex/mod.x	prod	注释
 lib	script	lib/std-regex-perf.sh	tests/lib/std-regex-perf.sh	-	helper
 gate	script	run-std-regex-perf-gate.sh	tests/run-std-regex-perf-gate.sh	-	manifest
 hook_perf	hook_script	run-perf-regex-match.sh	run-perf-regex-match.sh	prod	≥1.0×

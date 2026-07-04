@@ -1,12 +1,12 @@
 # 阶段 F-dynlib v1（std.dynlib 去 C）
 
-> **F-dynlib v1**：删除 **`dynlib.c`**；模块锚点在 **`dynlib.sx`**；dlopen/LoadLibrary 在 **`dynlib_glue.c`**。
+> **F-dynlib v1**：删除 **`dynlib.c`**；模块锚点在 **`dynlib.x`**；dlopen/LoadLibrary 在 **`dynlib_glue.c`**。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `dynlib.c`（173 行） | `dynlib.sx` + `dynlib_glue.c` |
+| 实现 | `dynlib.c`（173 行） | `dynlib.x` + `dynlib_glue.c` |
 | `dynlib.o` | `cc -c` | `ld -r` 合并 |
 
 ## 门禁

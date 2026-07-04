@@ -1,7 +1,7 @@
 /**
- * lsp_codegen_extern.h — LSP -E-extern 跨 TU 符号声明（io.o / heap.o / lsp_io_sx.o 桥接）。
+ * lsp_codegen_extern.h — LSP -E-extern 跨 TU 符号声明（io.o / heap.o / lsp_io_x.o 桥接）。
  *
- * 原内嵌于 codegen.c 的 lsp_io_extern / lsp_gen_extern 等价块，集中于此供 C codegen 与 codegen.sx 共用。
+ * 原内嵌于 codegen.c 的 lsp_io_extern / lsp_gen_extern 等价块，集中于此供 C codegen 与 codegen.x 共用。
  */
 #ifndef SHUX_LSP_CODEGEN_EXTERN_H
 #define SHUX_LSP_CODEGEN_EXTERN_H
@@ -28,10 +28,10 @@ int lsp_codegen_emit_io_extern_to_buf(struct codegen_CodegenOutBuf *out);
 /** 同上 gen 块，写入 CodegenOutBuf。 */
 int lsp_codegen_emit_gen_extern_to_buf(struct codegen_CodegenOutBuf *out);
 
-/** entry 路径是否 lsp_io.sx 的 -E-extern 入口（C/SX 共用判定）。 */
-int lsp_codegen_emit_path_is_lsp_io_sx(const char *path);
+/** entry 路径是否 lsp_io.x 的 -E-extern 入口（C/X 共用判定）。 */
+int lsp_codegen_emit_path_is_lsp_io_x(const char *path);
 
-/** entry 路径是否 lsp/lsp.sx 的 -E-extern 入口。 */
-int lsp_codegen_emit_path_is_lsp_main_sx(const char *path);
+/** entry 路径是否 lsp/lsp.x 的 -E-extern 入口。 */
+int lsp_codegen_emit_path_is_lsp_main_x(const char *path);
 
 #endif /* SHUX_LSP_CODEGEN_EXTERN_H */

@@ -34,10 +34,10 @@
 
 | ID | 路径 |
 |----|------|
-| CSTR-01 | `examples/cookbook/core_str_index.sx` |
-| TIME-02 | `examples/cookbook/time_timer_elapsed.sx` |
-| TIME-03 | `examples/cookbook/time_rfc3339_format.sx` |
-| PATH-02 | `examples/cookbook/path_clean_extreme.sx` |
+| CSTR-01 | `examples/cookbook/core_str_index.x` |
+| TIME-02 | `examples/cookbook/time_timer_elapsed.x` |
+| TIME-03 | `examples/cookbook/time_rfc3339_format.x` |
+| PATH-02 | `examples/cookbook/path_clean_extreme.x` |
 
 ---
 

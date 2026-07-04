@@ -1,0 +1,26 @@
+// tests/tar/main.x — std.tar UStar 头读写烟测（name 往返；size 校验待 tar octal/read 与 out 参数 co-emit 稳定）
+
+const tar = import("std.tar");
+
+function main(): i32 {
+  let buf: u8[512] = [];
+  let name_out: u8[128] = [];
+  let size_out: i32 = 0;
+  let name_a: u8[2] = [97, 0];
+
+  tar.write_header(&buf[0], 512, &name_a[0], 1, 100);
+  tar.read_header(&buf[0], 512, &name_out[0], 128, &size_out);
+  if (name_out[0] != 97 || name_out[1] != 0) { return 3; }
+
+  let name_long: u8[11] = [102, 111, 111, 47, 98, 97, 114, 46, 116, 120, 0];
+  tar.write_header(&buf[0], 512, &name_long[0], 10, 42);
+  tar.read_header(&buf[0], 512, &name_out[0], 128, &size_out);
+  let i: i32 = 0;
+  while (i < 10) {
+    if (name_out[i] != name_long[i]) { return 8; }
+    i = i + 1;
+  }
+  if (name_out[10] != 0) { return 9; }
+
+  return 0;
+}

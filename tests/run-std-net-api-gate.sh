@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # STD-002：std.net 稳定 API manifest 门禁 + 基础 smoke。
-# 1) tests/baseline/std-net-api.tsv 中每个符号须在 std/net/mod.sx 存在
+# 1) tests/baseline/std-net-api.tsv 中每个符号须在 std/net/mod.x 存在
 # 2) tests/run-net.sh 烟测
 #
 # 用法：./tests/run-std-net-api-gate.sh
@@ -8,7 +8,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 BASELINE="tests/baseline/std-net-api.tsv"
-MOD="std/net/mod.sx"
+MOD="std/net/mod.x"
 MISS=0
 N=0
 
@@ -75,8 +75,8 @@ for sym in addr_to_packed packed_to_ipv4 read_batch write_batch send_to recv_fro
     exit 1
   fi
 done
-if ! grep -q 'addr_to_packed' tests/net/main.sx 2>/dev/null; then
-  echo "std-net-api gate FAIL: main.sx missing addr_to_packed" >&2
+if ! grep -q 'addr_to_packed' tests/net/main.x 2>/dev/null; then
+  echo "std-net-api gate FAIL: main.x missing addr_to_packed" >&2
   exit 1
 fi
 

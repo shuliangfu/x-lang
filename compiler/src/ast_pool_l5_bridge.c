@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <string.h>
 
-/** #[cfg] 表达式求值（cfg_eval.sx / bootstrap stub）；供 target_os == "linux" 等 #if 条件。 */
+/** #[cfg] 表达式求值（cfg_eval.x / bootstrap stub）；供 target_os == "linux" 等 #if 条件。 */
 extern int cfg_eval_expr_c(const char *start, int len);
 
 struct ast_LabeledStmt {
@@ -120,7 +120,7 @@ __attribute__((weak)) int32_t typeck_call_resolve_func_idx_peek(void) {
   return *typeck_call_resolve_func_idx_slot();
 }
 
-__attribute__((weak)) int32_t run_sx_pipeline_fill_dep_import_path_c(struct ast_Module *module,
+__attribute__((weak)) int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module,
                                                                      struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
   uint8_t path_buf[64];
   int32_t path_len;
@@ -172,7 +172,7 @@ int32_t preprocess_define_has(const uint8_t *sym, int32_t sym_len) {
 }
 
 /**
- * .sx 预处理路径：求值 #if COND（bridge 内 -D 宏表；不依赖 preprocess.c）。
+ * .x 预处理路径：求值 #if COND（bridge 内 -D 宏表；不依赖 preprocess.c）。
  * 参数：cond 条件字节；cond_len 长度。
  * 返回值：非 0 表示成立。
  */

@@ -7,7 +7,7 @@ set -e
 cd "$(dirname "$0")/.."
 COMP="${SHUX_S2_EMIT_HEAVY_COMPILER:-}"
 if [ -z "$COMP" ]; then
-  # strict 重链 shux_asm 可用；优先 experimental bootstrap（全 SX 链），再 strict_glue / shux_asm。
+  # strict 重链 shux_asm 可用；优先 experimental bootstrap（全 X 链），再 strict_glue / shux_asm。
   for cand in ./compiler/shux_asm.experimental ./compiler/shux_asm ./compiler/shux_asm.strict_glue; do
     if [ -x "$cand" ]; then
       COMP="$cand"
@@ -15,7 +15,7 @@ if [ -z "$COMP" ]; then
     fi
   done
 fi
-TYPECK_SX="compiler/src/typeck/typeck.sx"
+TYPECK_X="compiler/src/typeck/typeck.x"
 OUT="/tmp/shux_s2_typeck_emit_heavy.o"
 BASELINE="${SHUX_S2_TYPECK_BASELINE:-tests/baseline/s2-typeck-o.tsv}"
 LIBROOT="-L compiler/asm_libroot -L compiler/.. -L compiler/src -L compiler/src/lexer -L compiler/src/ast -L compiler/src/parser -L compiler/src/typeck -L compiler/src/codegen -L compiler/src/preprocess -L compiler/src/pipeline -L compiler/src/lsp -L compiler/src/asm"
@@ -61,7 +61,7 @@ PY
 
 rm -f "$OUT"
 if ! env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_ENTRY_EMIT_HEAVY=1 \
-  "$COMP" -backend asm -o "$OUT" $LIBROOT "$TYPECK_SX" 2>/dev/null; then
+  "$COMP" -backend asm -o "$OUT" $LIBROOT "$TYPECK_X" 2>/dev/null; then
   echo "s2 emit-heavy: compile failed" >&2
   exit 1
 fi

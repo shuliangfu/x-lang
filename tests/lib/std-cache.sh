@@ -4,8 +4,8 @@
 STD_CACHE_PREFIX="${SHUX_STD_CACHE_PREFIX:-shux: [SHUX_STD_CACHE]}"
 
 std_cache_symbols_ok() {
-  local mod_sx="$1"
-  local cache_sx="$2"
+  local mod_x="$1"
+  local cache_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -14,15 +14,15 @@ std_cache_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-cache FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/cache/cache_glue.c" ]; then path="$cache_sx"; fi
-        if [ "$path" = "std/cache/cache.sx" ]; then path="$cache_sx"; fi
+        if [ "$path" = "std/cache/cache_glue.c" ]; then path="$cache_x"; fi
+        if [ "$path" = "std/cache/cache.x" ]; then path="$cache_x"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-cache FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))
@@ -68,5 +68,5 @@ std_cache_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_CACHE_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_CACHE_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
 }

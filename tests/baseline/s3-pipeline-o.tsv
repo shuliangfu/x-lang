@@ -1,4 +1,4 @@
-# S3 pipeline.o：build_asm/pipeline.sx EMIT_HEAVY 同步产物（2026-06-02 parse_into_with_init SU）
+# S3 pipeline.o：build_asm/pipeline.x EMIT_HEAVY 同步产物（2026-06-02 parse_into_with_init SU）
 # 更新：SHUX_S3_UPDATE_BASELINE=1 ./tests/run-s3-pipeline-gate.sh
 min_text_bytes	11588
 min_real_funcs	35

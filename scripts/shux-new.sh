@@ -22,7 +22,7 @@ if [ -e "$TARGET" ]; then
   exit 1
 fi
 
-if [ ! -d "$TEMPLATE" ] || [ ! -f "$TEMPLATE/main.sx" ]; then
+if [ ! -d "$TEMPLATE" ] || [ ! -f "$TEMPLATE/main.x" ]; then
   echo "shux-new FAIL: missing template $TEMPLATE" >&2
   exit 1
 fi
@@ -30,4 +30,4 @@ fi
 mkdir -p "$TARGET"
 cp -R "$TEMPLATE"/. "$TARGET"/
 echo "shux-new OK: created $TARGET"
-echo "  cd $(basename "$TARGET") && shux run main.sx"
+echo "  cd $(basename "$TARGET") && shux run main.x"

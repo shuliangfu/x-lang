@@ -1,11 +1,11 @@
 # COMP-009 frontend/backend boundary matrix
 # 列：boundary_id	layer	upstream	downstream	symbol	payload	src
 # min_boundaries	8
-bd_parse_module	B1-parser-ast	parser	ast	parse_into_buf	Module,ASTArena,ParseIntoResult	compiler/src/parser/parser.sx
+bd_parse_module	B1-parser-ast	parser	ast	parse_into_buf	Module,ASTArena,ParseIntoResult	compiler/src/parser/parser.x
 bd_parse_slice	B6-glue-c	pipeline_glue	parser	parser_slice_from_buf	ptr+len,u8[]	compiler/pipeline_glue.c
-bd_typeck_entry	B2-typeck-ast	pipeline	typeck	typeck_sx_ast	Module,ASTArena,PipelineDepCtx	compiler/src/typeck/typeck.sx
-bd_typeck_layout	B2-typeck-ast	typeck	typeck	typeck_merge_dep_struct_layouts_into_entry	Module,ASTArena	compiler/src/typeck/typeck.sx
-bd_codegen_emit	B3-codegen-out	pipeline	codegen	codegen_sx_ast	CodegenOutBuf,dep_index	compiler/src/codegen/codegen.sx
-bd_asm_emit	B4-asm-backend	asm	backend	asm_codegen_ast	CodegenOutBuf,PipelineDepCtx	compiler/src/asm/backend.sx
-bd_pipeline_orchestrate	B5-pipeline	driver	pipeline	run_sx_pipeline_impl	source,out_buf,ctx	compiler/src/pipeline/pipeline.sx
-bd_dep_ctx	B5-pipeline	ast_pool	pipeline	pipeline_dep_ctx_set_module	PipelineDepCtx,Module	compiler/src/ast/ast.sx
+bd_typeck_entry	B2-typeck-ast	pipeline	typeck	typeck_x_ast	Module,ASTArena,PipelineDepCtx	compiler/src/typeck/typeck.x
+bd_typeck_layout	B2-typeck-ast	typeck	typeck	typeck_merge_dep_struct_layouts_into_entry	Module,ASTArena	compiler/src/typeck/typeck.x
+bd_codegen_emit	B3-codegen-out	pipeline	codegen	codegen_x_ast	CodegenOutBuf,dep_index	compiler/src/codegen/codegen.x
+bd_asm_emit	B4-asm-backend	asm	backend	asm_codegen_ast	CodegenOutBuf,PipelineDepCtx	compiler/src/asm/backend.x
+bd_pipeline_orchestrate	B5-pipeline	driver	pipeline	run_x_pipeline_impl	source,out_buf,ctx	compiler/src/pipeline/pipeline.x
+bd_dep_ctx	B5-pipeline	ast_pool	pipeline	pipeline_dep_ctx_set_module	PipelineDepCtx,Module	compiler/src/ast/ast.x

@@ -2,7 +2,7 @@
 
 > 更新时间：2026-06-27  
 > 状态：**定版（v1）**  
-> 关联：`tests/baseline/std-channel-api.tsv`（Tier-S）、`tests/sanitize/std_channel_asan.sx`
+> 关联：`tests/baseline/std-channel-api.tsv`（Tier-S）、`tests/sanitize/std_channel_asan.x`
 
 ---
 
@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§3 |
 | 2 | `tests/baseline/std-channel-unbounded.tsv` |
 | 3 | `./tests/run-std-channel-unbounded-gate.sh` |
-| 4 | 烟测：`tests/channel/unbounded_roundtrip.sx` |
+| 4 | 烟测：`tests/channel/unbounded_roundtrip.x` |
 
 ---
 
@@ -45,7 +45,7 @@ v1 仅 **i32** channel；泛型 channel 留待后续 RFC。
 | `unbounded_is_closed(ch)` | 委托 `is_closed` |
 | `free(ch)` | 销毁；须先 close 或确认无并发使用 |
 
-**关闭后行为**（金样 `unbounded_roundtrip.sx`）：
+**关闭后行为**（金样 `unbounded_roundtrip.x`）：
 
 | 操作 | 队列非空 | 队列空且已关闭 |
 |------|----------|----------------|

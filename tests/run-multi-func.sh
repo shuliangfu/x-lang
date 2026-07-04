@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
-"$RUN_SHUX" tests/multi-func/main.sx -o /tmp/shux_multi_func 2>&1
+"$RUN_SHUX" tests/multi-func/main.x -o /tmp/shux_multi_func 2>&1
 exitcode=0
 /tmp/shux_multi_func >/dev/null 2>&1 || exitcode=$?
 if [ "$exitcode" -ne 3 ]; then

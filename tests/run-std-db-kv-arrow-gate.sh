@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# std.db kv + arrow 门禁：manifest + typeck + C 烟测 + 可选 .sx 链接运行
+# std.db kv + arrow 门禁：manifest + typeck + C 烟测 + 可选 .x 链接运行
 set -e
 cd "$(dirname "$0")/.."
 
-MOD_KV="std/db/kv/mod.sx"
-MOD_ARROW="std/db/arrow/mod.sx"
-MOD_DB="std/db/mod.sx"
-MOD_SQLITE="std/db/sqlite/mod.sx"
-ARROW_SX="std/db/arrow/arrow.sx"
-KV_SX="std/db/kv/kv.sx"
+MOD_KV="std/db/kv/mod.x"
+MOD_ARROW="std/db/arrow/mod.x"
+MOD_DB="std/db/mod.x"
+MOD_SQLITE="std/db/sqlite/mod.x"
+ARROW_X="std/db/arrow/arrow.x"
+KV_X="std/db/kv/kv.x"
 KV_GLUE="compiler/src/asm/runtime_kv_mmap_glue.c"
-MMAP_SX="std/sys/mmap.sx"
-LINUX_SX="std/sys/linux.sx"
-SMOKE_KV="tests/std-db/kv_tick_smoke.sx"
-SMOKE_ARROW="tests/std-db/arrow_column_smoke.sx"
-COOKBOOK_DB="examples/cookbook/db_kv_arrow.sx"
+MMAP_X="std/sys/mmap.x"
+LINUX_X="std/sys/linux.x"
+SMOKE_KV="tests/std-db/kv_tick_smoke.x"
+SMOKE_ARROW="tests/std-db/arrow_column_smoke.x"
+COOKBOOK_DB="examples/cookbook/db_kv_arrow.x"
 README="std/db/README.md"
 
 echo "=== std.db kv+arrow: manifest ==="
-for f in "$MOD_KV" "$MOD_ARROW" "$MOD_DB" "$MOD_SQLITE" "$ARROW_SX" "$KV_SX" "$KV_GLUE" "$MMAP_SX" "$LINUX_SX" "$README"; do
+for f in "$MOD_KV" "$MOD_ARROW" "$MOD_DB" "$MOD_SQLITE" "$ARROW_X" "$KV_X" "$KV_GLUE" "$MMAP_X" "$LINUX_X" "$README"; do
   if [ ! -f "$f" ]; then
     echo "std-db-kv-arrow gate FAIL: missing $f" >&2
     exit 1
@@ -51,7 +51,7 @@ if [ -n "$SHUX_BIN" ] && [ -x "$SHUX_BIN" ]; then
 fi
 
 make -C compiler ../std/db/kv/kv.o ../std/db/arrow/arrow.o runtime_kv_mmap_glue.o runtime_arrow_simd_glue.o >/dev/null 2>&1
-# F-02 v1：mmap 已纯 .sx；F-05 v1：arrow 已纯 .sx + 胶层；F-05 v2：kv 已纯 .sx + mmap 胶层
+# F-02 v1：mmap 已纯 .x；F-05 v1：arrow 已纯 .x + 胶层；F-05 v2：kv 已纯 .x + mmap 胶层
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
@@ -73,7 +73,7 @@ if nm std/db/kv/kv.o 2>/dev/null | grep -q ' db_kv_smoke_c'; then
   "$TMP/kv_c_smoke" || { echo "std-db-kv-arrow gate FAIL: kv smoke run" >&2; exit 1; }
   echo "std-db-kv-arrow kv smoke OK"
 else
-  echo "std-db-kv-arrow SKIP kv smoke (kv.o missing .sx symbols; need shux-c)" >&2
+  echo "std-db-kv-arrow SKIP kv smoke (kv.o missing .x symbols; need shux-c)" >&2
 fi
 
 cat >"$TMP/arrow_smoke_main.c" <<'EOF'
@@ -89,7 +89,7 @@ if nm std/db/arrow/arrow.o 2>/dev/null | grep -q ' arrow_smoke_c'; then
   "$TMP/arrow_c_smoke" || { echo "std-db-kv-arrow gate FAIL: arrow C smoke run" >&2; exit 1; }
   echo "std-db-kv-arrow arrow C smoke OK"
 else
-  echo "std-db-kv-arrow SKIP arrow C smoke (need shux-c for arrow.sx)" >&2
+  echo "std-db-kv-arrow SKIP arrow C smoke (need shux-c for arrow.x)" >&2
 fi
 
 mkdir -p tests/std-db
@@ -106,18 +106,18 @@ if [ -n "$SHUX_LINK" ]; then
   if "$SHUX_LINK" -L . "$SMOKE_KV" -o "$TMP/kv_smoke" "$KV_O" 2>/dev/null && [ -x "$TMP/kv_smoke" ]; then
     if "$TMP/kv_smoke"; then
       RUN_OK=$((RUN_OK + 1))
-      echo "std-db-kv-arrow kv .sx run OK"
+      echo "std-db-kv-arrow kv .x run OK"
     else
-      echo "std-db-kv-arrow gate FAIL: kv .sx run" >&2
+      echo "std-db-kv-arrow gate FAIL: kv .x run" >&2
       exit 1
     fi
   fi
   if "$SHUX_LINK" -L . "$SMOKE_ARROW" -o "$TMP/arrow_smoke" "$ARROW_O" 2>/dev/null && [ -x "$TMP/arrow_smoke" ]; then
     if "$TMP/arrow_smoke"; then
       RUN_OK=$((RUN_OK + 1))
-      echo "std-db-kv-arrow arrow .sx run OK"
+      echo "std-db-kv-arrow arrow .x run OK"
     else
-      echo "std-db-kv-arrow gate FAIL: arrow .sx run" >&2
+      echo "std-db-kv-arrow gate FAIL: arrow .x run" >&2
       exit 1
     fi
   fi
@@ -135,7 +135,7 @@ if [ -n "$SHUX_LINK" ]; then
 fi
 
 if [ "$RUN_OK" = "0" ]; then
-  echo "std-db-kv-arrow SKIP .sx run (no shux link or compile failed)" >&2
+  echo "std-db-kv-arrow SKIP .x run (no shux link or compile failed)" >&2
 fi
 
 echo "std-db-kv-arrow gate OK"

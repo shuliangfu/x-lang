@@ -1,17 +1,17 @@
 # 阶段 F-03 v2/v3（std.io 去 C：删除 io.c）
 
-> **F-03 v2/v3**：`std/io/io.c`（3387 行）迁至 **`sync.sx` / `win32.sx` / `read_ptr.sx` / `stubs.sx` / `backend.sx`**；**删除** `io.c` / `io.o`；链接改 **-lc**（POSIX sync），**不再**默认 **-luring**。
+> **F-03 v2/v3**：`std/io/io.c`（3387 行）迁至 **`sync.x` / `win32.x` / `read_ptr.x` / `stubs.x` / `backend.x`**；**删除** `io.c` / `io.o`；链接改 **-lc**（POSIX sync），**不再**默认 **-luring**。
 
 ## v2/v3 完成（✅ manifest）
 
 | 项 | 说明 |
 |----|------|
-| `sync.sx` | Linux/macOS：read/write/readv/writev、poll、fixed buffer 池 |
-| `win32.sx` | Windows：ReadFile/WriteFile/_read/_write、fixed 池 |
-| `read_ptr.sx` | 64KiB 模块缓冲 + generation；v1 无 mmap/dispatch_data |
-| `stubs.sx` | io_uring/provided/async 桩（返回 0/-1） |
-| `backend.sx` | 聚合导出 `io_*` 与 bootstrap 符号（原 io.c 弱符号） |
-| `core.sx` | `import("std.io.backend")` 替代 extern io_* |
+| `sync.x` | Linux/macOS：read/write/readv/writev、poll、fixed buffer 池 |
+| `win32.x` | Windows：ReadFile/WriteFile/_read/_write、fixed 池 |
+| `read_ptr.x` | 64KiB 模块缓冲 + generation；v1 无 mmap/dispatch_data |
+| `stubs.x` | io_uring/provided/async 桩（返回 0/-1） |
+| `backend.x` | 聚合导出 `io_*` 与 bootstrap 符号（原 io.c 弱符号） |
+| `core.x` | `import("std.io.backend")` 替代 extern io_* |
 | 删除 | `std/io/io.c`、`Makefile` / `runtime_link_abi.c` 中 `io.o` |
 | 存量 | F-01 **104** `.c`（io.c 已删） |
 

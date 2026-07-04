@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mega 单项 bisect 门禁：SHUX_ASM_PARSER_MEGA_BISECT=parse_into 时跳过 ret0 桩，探测 SX 真 emit 是否可链。
+# mega 单项 bisect 门禁：SHUX_ASM_PARSER_MEGA_BISECT=parse_into 时跳过 ret0 桩，探测 X 真 emit 是否可链。
 # 判定：与无 bisect 基线比 __text 增量 <8KB 视为仍桩化/不可迁（PASS）；编译失败亦 PASS。
 # 用法：
 #   ./tests/run-parser-mega-bisect-gate.sh
@@ -52,7 +52,7 @@ compile_parser_o() {
     env -u SHUX_ASM_START_FUNC SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 \
       SHUX_ASM_ENTRY_EMIT_HEAVY=1 SHUX_ASM_WPO_DCE=0 \
       ${mega_bisect:+SHUX_ASM_PARSER_MEGA_BISECT=$mega_bisect} \
-      "$COMP_IN" -backend asm -o "$out" $LIBROOT src/parser/parser.sx
+      "$COMP_IN" -backend asm -o "$out" $LIBROOT src/parser/parser.x
   ) > "$log" 2>&1
   ec=$?
   set -e

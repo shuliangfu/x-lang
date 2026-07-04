@@ -17,7 +17,7 @@
 #define SHUX_QUEUE_WIN 0
 #endif
 
-/** 烟测用 mutex 保护环形队列（与 queue.sx QueueSmokeState 布局一致）。 */
+/** 烟测用 mutex 保护环形队列（与 queue.x QueueSmokeState 布局一致）。 */
 typedef struct {
   void *mu;
   int32_t *data;

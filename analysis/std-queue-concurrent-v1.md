@@ -13,7 +13,7 @@
 | 1 | 读本文 §2–§4 |
 | 2 | `tests/baseline/std-queue-concurrent.tsv` |
 | 3 | `./tests/run-std-queue-concurrent-gate.sh` |
-| 4 | 烟测：`tests/queue/sync_queue_roundtrip.sx` |
+| 4 | 烟测：`tests/queue/sync_queue_roundtrip.x` |
 
 ---
 

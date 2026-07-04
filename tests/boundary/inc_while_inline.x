@@ -1,0 +1,16 @@
+// inc_while_inline.x — while 内外层 let 调 inc(i) 应 x+K 内联，_main 无 bl
+/** 单形参 +1，供 try_inline_x_plus_k 匹配。 */
+function inc(x: i32): i32 {
+  return x + 1;
+}
+
+function main(): i32 {
+  let n: i32 = 5;
+  let s: i32 = 0;
+  let i: i32 = 0;
+  while (i < n) {
+    s = s + inc(i);
+    i = i + 1;
+  }
+  return s;
+}

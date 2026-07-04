@@ -7,8 +7,8 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_CORE_OR_DOC:-analysis/core-option-result-combinators-v1.md}"
 MANIFEST="${SHUX_CORE_OR_TSV:-tests/baseline/core-option-result.tsv}"
-OPTION_SX="core/option/mod.sx"
-RESULT_SX="core/result/mod.sx"
+OPTION_X="core/option/mod.x"
+RESULT_X="core/result/mod.x"
 LIB="tests/lib/core-option-result.sh"
 PREFIX="shux: [SHUX_CORE_OPTION_RESULT]"
 
@@ -16,7 +16,7 @@ PREFIX="shux: [SHUX_CORE_OPTION_RESULT]"
 . tests/lib/core-option-result.sh
 
 echo "=== CORE-002/003: Option/Result manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$OPTION_SX" "$RESULT_SX" tests/option/main.sx tests/result/main.sx; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$OPTION_X" "$RESULT_X" tests/option/main.x tests/result/main.x; do
   if [ ! -f "$f" ]; then
     echo "core-option-result gate FAIL: missing $f" >&2
     exit 1
@@ -30,7 +30,7 @@ for kw in eager EXC-001 Option_ptr_u8 Result_u8 or_else_i32; do
   fi
 done
 
-sym_miss="$(core_or_symbols_ok "$OPTION_SX" "$RESULT_SX" "$MANIFEST" || true)"
+sym_miss="$(core_or_symbols_ok "$OPTION_X" "$RESULT_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   core_or_emit_report "fail" 0 0 0
   echo "core-option-result gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -66,19 +66,19 @@ RES_OK=0
 SKIP=1
 if SHUX_BIN="$(resolve_shu 2>/dev/null)"; then
   echo "=== CORE-002/003: typeck (SHUX=$SHUX_BIN) ==="
-  if "$SHUX_BIN" check -L . tests/option/main.sx >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . tests/option/main.x >/dev/null 2>&1; then
     OPT_OK=1
   else
     echo "core-option-result gate FAIL: option typeck" >&2
-    "$SHUX_BIN" check -L . tests/option/main.sx 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . tests/option/main.x 2>&1 | tail -8 >&2 || true
     core_or_emit_report "fail" 0 0 0
     exit 1
   fi
-  if "$SHUX_BIN" check -L . tests/result/main.sx >/dev/null 2>&1; then
+  if "$SHUX_BIN" check -L . tests/result/main.x >/dev/null 2>&1; then
     RES_OK=1
   else
     echo "core-option-result gate FAIL: result typeck" >&2
-    "$SHUX_BIN" check -L . tests/result/main.sx 2>&1 | tail -8 >&2 || true
+    "$SHUX_BIN" check -L . tests/result/main.x 2>&1 | tail -8 >&2 || true
     core_or_emit_report "fail" "$OPT_OK" 0 0
     exit 1
   fi

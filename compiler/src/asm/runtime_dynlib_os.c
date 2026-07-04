@@ -2,7 +2,7 @@
  * runtime_dynlib_os.c — 动态库 OS 胶层（F-ZC：自 std/dynlib/dynlib_os_glue.c 迁入）
  *
  * dlopen/dlsym/dlclose、LoadLibrary/GetProcAddress/FreeLibrary；
- * dynlib.sx 经 extern 调用；与 dynlib.o 一并链入（Linux 需 -ldl）。
+ * dynlib.x 经 extern 调用；与 dynlib.o 一并链入（Linux 需 -ldl）。
  */
 #include <stdint.h>
 #include <stdlib.h>

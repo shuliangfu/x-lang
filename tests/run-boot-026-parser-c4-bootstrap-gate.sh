@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BOOT-026：parser C4 全量 SX bootstrap 门禁
+# BOOT-026：parser C4 全量 X bootstrap 门禁
 #
 # 用法：./tests/run-boot-026-parser-c4-bootstrap-gate.sh
 set -e
@@ -17,9 +17,9 @@ MIN_ROWS=4
 # shellcheck source=tests/lib/boot-026-parser-c4-bootstrap.sh
 . "$LIB"
 
-echo "=== BOOT-026: parser C4 SX bootstrap manifest ==="
+echo "=== BOOT-026: parser C4 X bootstrap manifest ==="
 for f in "$DOC" "$MANIFEST" "$WAVE" "$LIB" "$MATRIX" "$REPRO" \
-  tests/run-parser-parse-bootstrap-sx-emit-gate.sh \
+  tests/run-parser-parse-bootstrap-x-emit-gate.sh \
   tests/run-parser-parse-bootstrap-bisect-gate.sh \
   tests/run-parser-parse-bootstrap-link-smoke.sh \
   tests/run-boot-025-parser-gen12-consistency-gate.sh; do
@@ -37,14 +37,14 @@ while IFS=$'\t' read -r c1 c2 _rest; do
   esac
 done < "$MANIFEST"
 
-for kw in c4_minimal_ok c4_sx_probe boot026_sx_c4 su_bootstrap_target; do
+for kw in c4_minimal_ok c4_x_probe boot026_x_c4 su_bootstrap_target; do
   if ! grep -qF "$kw" "$DOC" 2>/dev/null; then
     echo "boot-026-parser-c4-bootstrap gate FAIL: doc missing '$kw'" >&2
     exit 1
   fi
 done
 
-if ! grep -qF 'boot026_sx_c4' "$REPRO" 2>/dev/null; then
+if ! grep -qF 'boot026_x_c4' "$REPRO" 2>/dev/null; then
   echo "boot-026-parser-c4-bootstrap gate FAIL: bootstrap-repro missing boot026" >&2
   exit 1
 fi
@@ -93,8 +93,8 @@ if [ "$HOOK_N" -lt "$MIN_HOOKS" ]; then
   exit 1
 fi
 
-if ! grep -F 'C5_sx_bootstrap' "$MATRIX" 2>/dev/null | grep -qF 'run-boot-026-parser-c4-bootstrap-gate.sh'; then
-  echo "boot-026 FAIL: C5_sx_bootstrap not wired to boot-026 gate" >&2
+if ! grep -F 'C5_x_bootstrap' "$MATRIX" 2>/dev/null | grep -qF 'run-boot-026-parser-c4-bootstrap-gate.sh'; then
+  echo "boot-026 FAIL: C5_x_bootstrap not wired to boot-026 gate" >&2
   MISS=$((MISS + 1))
 fi
 
@@ -119,19 +119,19 @@ C4_SU_PROBE=0
 SKIP=1
 
 if boot026_parser_linux_shu; then
-  echo "=== BOOT-026: SX emit probe (Linux shux) ==="
-  chmod +x tests/run-parser-parse-bootstrap-sx-emit-gate.sh
-  SX_LOG="/tmp/boot026_sx_emit_$$.log"
-  if ./tests/run-parser-parse-bootstrap-sx-emit-gate.sh 2>&1 | tee "$SX_LOG"; then
-    read -r C4_MINIMAL_OK C4_SU_PROBE <<< "$(boot026_parse_sx_emit_log "$SX_LOG")"
+  echo "=== BOOT-026: X emit probe (Linux shux) ==="
+  chmod +x tests/run-parser-parse-bootstrap-x-emit-gate.sh
+  X_LOG="/tmp/boot026_x_emit_$$.log"
+  if ./tests/run-parser-parse-bootstrap-x-emit-gate.sh 2>&1 | tee "$X_LOG"; then
+    read -r C4_MINIMAL_OK C4_SU_PROBE <<< "$(boot026_parse_x_emit_log "$X_LOG")"
     SKIP=0
     echo "boot-026 su_emit OK (minimal=${C4_MINIMAL_OK} probe=${C4_SU_PROBE})"
   else
-    rm -f "$SX_LOG"
+    rm -f "$X_LOG"
     boot026_emit_report "fail" 0 0 0
     exit 1
   fi
-  rm -f "$SX_LOG"
+  rm -f "$X_LOG"
 else
   echo "boot-026-parser-c4-bootstrap gate SKIP wave (Darwin or no compiler/shux)" >&2
 fi

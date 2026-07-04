@@ -19,10 +19,10 @@
 
 | 模块 | 文件 | case 数 | 覆盖要点 |
 |------|------|---------|----------|
-| `std.heap` | `tests/heap/boundary.sx` | 8 | alloc/free、zero、realloc、Arena64 |
-| `std.vec` | `tests/vec/boundary.sx` | 9 | push/pop、append_slice、clear/truncate |
-| `std.map` | `tests/map/boundary.sx` | 8 | Map_u64/Map_str insert/get/remove |
-| `std.process` | `tests/process/boundary.sx` | 9 | pid、pipe、getcwd、getenv |
+| `std.heap` | `tests/heap/boundary.x` | 8 | alloc/free、zero、realloc、Arena64 |
+| `std.vec` | `tests/vec/boundary.x` | 9 | push/pop、append_slice、clear/truncate |
+| `std.map` | `tests/map/boundary.x` | 8 | Map_u64/Map_str insert/get/remove |
+| `std.process` | `tests/process/boundary.x` | 9 | pid、pipe、getcwd、getenv |
 
 与波次 1（`TST-001`）互补：波次 1 覆盖 IO 路径；波次 2 覆盖容器与进程基础 API。
 

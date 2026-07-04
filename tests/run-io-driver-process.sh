@@ -8,12 +8,12 @@ if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   make -C compiler -q 2>/dev/null || make -C compiler
 fi
 
-"$RUN_SHUX" -L . examples/hello.sx -o /tmp/shux_io_hello 2>&1
+"$RUN_SHUX" -L . examples/hello.x -o /tmp/shux_io_hello 2>&1
 rc=0
 /tmp/shux_io_hello >/dev/null 2>&1 || rc=$?
 [ "$rc" -ne 0 ] && { echo "hello: expected exit 0, got $rc"; exit 1; }
 
-"$RUN_SHUX" -L . tests/process/spawn_wait.sx -o /tmp/shux_spawn_wait 2>&1
+"$RUN_SHUX" -L . tests/process/spawn_wait.x -o /tmp/shux_spawn_wait 2>&1
 rc=0
 /tmp/shux_spawn_wait >/dev/null 2>&1 || rc=$?
 if [ "$rc" -ne 0 ]; then

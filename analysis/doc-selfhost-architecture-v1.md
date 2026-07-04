@@ -24,11 +24,11 @@
 
 | 代号 | 含义 | 新人只需记住 |
 |------|------|--------------|
-| **A** | 用户 `.sx` → 产物尽量不走 `cc -c` | 用户编译路径 asm 优先 |
+| **A** | 用户 `.x` → 产物尽量不走 `cc -c` | 用户编译路径 asm 优先 |
 | **B** | 构建**编译器本身**时不 `cc -c pipeline_gen.c` | **`shux_asm` 链接拓扑** |
 | **C** | freestanding / 弱化 libc | Linux crt0 等，长期目标 |
 
-仓库内「完全自举」≈ **语义自举（shux 编 .sx 前端）+ 目标 B 在平台上成立**。允许 C 冷启动种子 `shux-c`。
+仓库内「完全自举」≈ **语义自举（shux 编 .x 前端）+ 目标 B 在平台上成立**。允许 C 冷启动种子 `shux-c`。
 
 ---
 
@@ -37,7 +37,7 @@
 ```mermaid
 flowchart TB
   subgraph user["用户编译路径（目标 A）"]
-    U1[".sx 源码"] --> U2["driver: lex → parse → typeck → codegen"]
+    U1[".x 源码"] --> U2["driver: lex → parse → typeck → codegen"]
     U2 --> U3["asm 后端 / 可选 C 后端"]
     U3 --> U4["ld 链接 → 可执行文件"]
   end
@@ -49,7 +49,7 @@ flowchart TB
     S4 --> S5["Stage2: shux_asm → shux_asm2"]
   end
 
-  user -.->|"同一套 .sx 前端"| boot
+  user -.->|"同一套 .x 前端"| boot
 ```
 
 **主链路关键词**：`seed` → `build_asm/*.o` → `shux_asm` → `run-bootstrap-bstrict-ci.sh` →（Linux）`stage2`。
@@ -60,15 +60,15 @@ flowchart TB
 
 | 阶段 | 模块 | 典型失败 | 诊断 stage |
 |------|------|----------|------------|
-| preprocess | `preprocess.sx` | `#if` 未闭合 | preprocess |
-| lexer | `lexer.sx` | 词法错误 | lexer |
-| parser | `parser.sx` | 语法 / EMIT_HEAVY emit | parser |
-| typeck | `typeck.sx` | 类型不匹配 | typeck |
-| codegen | `codegen.sx` | 发射失败 | codegen |
-| asm | `backend.sx` + arch | cfg-merge / SIGSEGV | asm |
+| preprocess | `preprocess.x` | `#if` 未闭合 | preprocess |
+| lexer | `lexer.x` | 词法错误 | lexer |
+| parser | `parser.x` | 语法 / EMIT_HEAVY emit | parser |
+| typeck | `typeck.x` | 类型不匹配 | typeck |
+| codegen | `codegen.x` | 发射失败 | codegen |
+| asm | `backend.x` + arch | cfg-merge / SIGSEGV | asm |
 | link | ld / 符号 | undefined symbol | link |
 
-数据流：`Module` + `ASTArena` 经 pipeline glue（`pipeline_glue.c` / `pipeline.sx`）串联。
+数据流：`Module` + `ASTArena` 经 pipeline glue（`pipeline_glue.c` / `pipeline.x`）串联。
 
 ---
 
@@ -79,7 +79,7 @@ flowchart TB
 | 拓扑 | 何时 | 关键环境变量 |
 |------|------|--------------|
 | **full_asm / asm_only_strict** | Linux/macOS __text 全绿 | `SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1` |
-| **pipeline_sx（B-hybrid）** | 回退 / 未全绿 | 无 SKIP_GEN，`-E` 生成 gen_driver |
+| **pipeline_x（B-hybrid）** | 回退 / 未全绿 | 无 SKIP_GEN，`-E` 生成 gen_driver |
 
 详见 `compiler/docs/SELFHOST.md` §4。
 
@@ -103,7 +103,7 @@ SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh
 
 | 路径 | 命令 |
 |------|------|
-| SX Stage2 | `make -C compiler verify-selfhost-stage2` |
+| X Stage2 | `make -C compiler verify-selfhost-stage2` |
 | B-strict Stage2 | `make -C compiler bootstrap-verify-stage2-bstrict` |
 
 ---
@@ -112,7 +112,7 @@ SHUX=./compiler/shux_asm ./tests/run-pre-push-p0.sh
 
 | 层级 | 入口 | 覆盖 |
 |------|------|------|
-| **Tier P** | `tests/run-portable-suite.sh` | 全平台同一套 .sx |
+| **Tier P** | `tests/run-portable-suite.sh` | 全平台同一套 .x |
 | **Tier B** | `tests/run-ci-full-suite.sh` 中段 | IO/DOD/dogfood |
 | **Tier A** | Linux x86_64 | `build_shux_asm` + bstrict |
 

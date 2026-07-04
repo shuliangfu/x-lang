@@ -1,13 +1,13 @@
 # 阶段 E-06 v5（Windows MSYS2 B-strict：禁 cc -c pipeline_gen.c）
 
-> **E-06 v5**：Windows MSYS2 在 **`SHUX_WIN_BSTRICT=1`** 时走 **`bootstrap-driver-bstrict`**（`SKIP_GEN` + experimental SX-only），日志 **不得** `cc -c pipeline_gen.c`；默认 **`SHUX_WIN_BSTRICT=0`** 仍为 B-hybrid 回退。
+> **E-06 v5**：Windows MSYS2 在 **`SHUX_WIN_BSTRICT=1`** 时走 **`bootstrap-driver-bstrict`**（`SKIP_GEN` + experimental X-only），日志 **不得** `cc -c pipeline_gen.c`；默认 **`SHUX_WIN_BSTRICT=0`** 仍为 B-hybrid 回退。
 
 ## v5 完成（✅）
 
 | 机制 | 说明 |
 |------|------|
 | `build_shux_asm_is_msys` | MSYS2/MINGW 探测 |
-| MSYS + SKIP_GEN | experimental SX-only（无需 build_asm/*.o） |
+| MSYS + SKIP_GEN | experimental X-only（无需 build_asm/*.o） |
 | `bootstrap-driver-bstrict-windows` | Makefile 别名 → `bootstrap-driver-bstrict` |
 | Windows gate | `SHUX_WIN_BSTRICT=1` 硬禁 pipeline_gen cc -c |
 

@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_F04_CRYPTO_V16_FAIL:-0}
 DOC="analysis/phase-f-f04-v16.md"
-CORE="std/crypto/core.sx"
+CORE="std/crypto/core.x"
 GLUE="compiler/src/asm/runtime_crypto_inc_glue.c"
 
 # shellcheck source=tests/lib/std-crypto.sh
@@ -24,13 +24,13 @@ echo "=== F-04 v16: std.crypto remove crypto.c shell ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-04 v16' "$DOC" || die "doc missing F-04 v16 marker"
 [ ! -f std/crypto/crypto.c ] || die "crypto.c should be deleted"
-[ -f "$CORE" ] || die "missing core.sx"
+[ -f "$CORE" ] || die "missing core.x"
 [ -f "$GLUE" ] || die "missing crypto_inc_glue.c"
 grep -q 'crypto_mem_eq_c' "$CORE" || die "crypto_core missing mem_eq"
 grep -q 'crypto_sha256_c' "$CORE" || die "crypto_core missing sha256"
 grep -q 'crypto_hmac_sha256_c' "$CORE" || die "crypto_core missing hmac_sha256"
 grep -q 'crypto_sha512_c' "$GLUE" || die "glue missing sha512"
-grep -q 'core.sx' compiler/Makefile || die "Makefile missing core.sx build"
+grep -q 'core.x' compiler/Makefile || die "Makefile missing core.x build"
 if grep -q 'std/crypto/crypto\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references crypto.c"
 fi
@@ -56,7 +56,7 @@ make -C compiler ../std/crypto/crypto.o >/dev/null 2>&1 || die "make crypto.o fa
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-if std_crypto_o_has_sx_symbols std/crypto/crypto.o; then
+if std_crypto_o_has_x_symbols std/crypto/crypto.o; then
   cat >"$TMP/sha256_smoke_main.c" <<'EOF'
 #include <stdint.h>
 #include <string.h>
@@ -77,7 +77,7 @@ EOF
   "$TMP/sha256_smoke" || die "sha256 C smoke run failed"
   echo "f04 crypto sha256 smoke OK"
 else
-  echo "f04 crypto sha256 smoke SKIP (crypto.o missing .sx symbols; need shux-c)"
+  echo "f04 crypto sha256 smoke SKIP (crypto.o missing .x symbols; need shux-c)"
 fi
 
 if [ -f tests/run-std-crypto-gate.sh ]; then

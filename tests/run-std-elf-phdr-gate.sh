@@ -8,10 +8,10 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD064_DOC:-analysis/std-elf-phdr-v1.md}"
 MANIFEST="${SHUX_STD064_TSV:-tests/baseline/std-elf-phdr.tsv}"
 VECTORS="${SHUX_STD064_VECTORS:-tests/baseline/std-elf-phdr-vectors.tsv}"
-MOD_SX="std/elf/mod.sx"
-ELF_SX="std/elf/elf.sx"
+MOD_X="std/elf/mod.x"
+ELF_X="std/elf/elf.x"
 LIB="tests/lib/std-elf-phdr.sh"
-SMOKE_SX="tests/std-elf/parse_phdr.sx"
+SMOKE_X="tests/std-elf/parse_phdr.x"
 SMOKE_C="tests/std-elf/parse_phdr_smoke_ok.c"
 FIXTURE="tests/baseline/fixtures/elf64_min_phdr.bin"
 MIN_PHDR=2
@@ -22,7 +22,7 @@ MIN_PHDR=2
 . tests/lib/std-elf-parse.sh
 
 echo "=== STD-064: elf phdr manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$ELF_SX" "$SMOKE_SX" "$SMOKE_C" "$FIXTURE" \
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$ELF_X" "$SMOKE_X" "$SMOKE_C" "$FIXTURE" \
   analysis/std-elf-deep-v1.md tests/run-std-elf-deep-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "std-elf-phdr gate FAIL: missing $f" >&2
@@ -71,7 +71,7 @@ if ! grep -qF 'p_type	1' "$VECTORS" 2>/dev/null; then
   exit 1
 fi
 
-sym_miss="$(std_elf_phdr_symbols_ok "$MOD_SX" "$ELF_SX" "$MANIFEST" || true)"
+sym_miss="$(std_elf_phdr_symbols_ok "$MOD_X" "$ELF_X" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_elf_phdr_emit_report "fail" 0 0 0
   exit 1
@@ -87,7 +87,7 @@ SHUX_STD_ELF_PARSE_MANIFEST_ONLY=1 ./tests/run-std-elf-parse-gate.sh
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
   ensure_std_c_o ../std/elf/elf.o
 else
-  echo "std-elf-phdr gate SKIP c/sx smoke (need shux-c for elf.sx merge)" >&2
+  echo "std-elf-phdr gate SKIP c/x smoke (need shux-c for elf.x merge)" >&2
   std_elf_phdr_emit_report "ok" 0 0 1
   echo "std-elf-phdr gate OK (manifest only; no shux-c)"
   exit 0
@@ -101,7 +101,7 @@ else
   exit 1
 fi
 
-PHDR_SX=0
+PHDR_X=0
 SKIP=1
 SHUX_BIN=""
 stdlib_cm_native_shu() {
@@ -122,17 +122,17 @@ elif stdlib_cm_native_shu ./compiler/shux; then
 fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-064: .sx phdr smoke (SHUX=$SHUX_BIN) ==="
-  if std_elf_parse_run_smoke "$SHUX_BIN" "$SMOKE_SX" "phdr"; then
-    PHDR_SX=1
+  echo "=== STD-064: .x phdr smoke (SHUX=$SHUX_BIN) ==="
+  if std_elf_parse_run_smoke "$SHUX_BIN" "$SMOKE_X" "phdr"; then
+    PHDR_X=1
     SKIP=0
   else
-    echo "std-elf-phdr gate SKIP .sx smoke" >&2
+    echo "std-elf-phdr gate SKIP .x smoke" >&2
     SKIP=1
   fi
 else
-  echo "std-elf-phdr gate SKIP .sx smoke (no native shux)" >&2
+  echo "std-elf-phdr gate SKIP .x smoke (no native shux)" >&2
 fi
 
-std_elf_phdr_emit_report "ok" "$PHDR_C" "$PHDR_SX" "$SKIP"
+std_elf_phdr_emit_report "ok" "$PHDR_C" "$PHDR_X" "$SKIP"
 echo "std-elf-phdr gate OK"

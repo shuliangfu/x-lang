@@ -1,12 +1,12 @@
 # Debug Session: result-try-typeck
 - **Status**: [OPEN]
-- **Issue**: `./compiler/shux_asm tests/typeck/result_try.sx` 仍报 `?` requires the enclosing function to return the same Result type
+- **Issue**: `./compiler/shux_asm tests/typeck/result_try.x` 仍报 `?` requires the enclosing function to return the same Result type
 - **Debug Server**: pending
 - **Log File**: `.dbg/trae-debug-log-result-try-typeck.ndjson`
 
 ## Reproduction Steps
 1. `make -C compiler bootstrap-driver-bstrict-relink`
-2. `./compiler/shux_asm tests/typeck/result_try.sx`
+2. `./compiler/shux_asm tests/typeck/result_try.x`
 
 ## Hypotheses & Verification
 | ID | Hypothesis | Likelihood | Effort | Evidence |

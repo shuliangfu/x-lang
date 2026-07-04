@@ -2,8 +2,8 @@
 # 列：item_id	kind	anchor	notes
 fffi_doc	doc	analysis/phase-f-ffi-v1.md	F-ffi v1
 fffi_gate	gate	tests/run-f-ffi-v1-gate.sh	聚合门禁
-ffi_sx	file	std/ffi/ffi.sx	主实现 + 回调 dispatch
+ffi_x	file	std/ffi/ffi.x	主实现 + 回调 dispatch
 ffi_glue_absent	absent	std/ffi/ffi_cb_glue.c	F-ZC 已删除
-ffi_mod	file	std/ffi/mod.sx	对外 API
+ffi_mod	file	std/ffi/mod.x	对外 API
 ffi_c_absent	absent	std/ffi/ffi.c	已删除
-makefile	makefile	compiler/Makefile	ffi.o 纯 .sx
+makefile	makefile	compiler/Makefile	ffi.o 纯 .x

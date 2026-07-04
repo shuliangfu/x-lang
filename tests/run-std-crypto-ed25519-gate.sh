@@ -4,18 +4,18 @@ set -e
 cd "$(dirname "$0")/.."
 DOC="analysis/std-crypto-ed25519-v1.md"
 MANIFEST="tests/baseline/std-crypto-ed25519-manifest.tsv"
-MOD_SX="std/crypto/mod.sx"
-ED25519_SX="std/crypto/ed25519.sx"
+MOD_X="std/crypto/mod.x"
+ED25519_X="std/crypto/ed25519.x"
 REF10_GLUE="compiler/src/asm/runtime_ed25519_ref10_glue.c"
 CRYPTO_GLUE="compiler/src/asm/runtime_crypto_inc_glue.c"
 LIB="tests/lib/std-crypto-ed25519.sh"
-SMOKE_SX="tests/std-crypto/ed25519_roundtrip.sx"
+SMOKE_X="tests/std-crypto/ed25519_roundtrip.x"
 . "$LIB"
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$ED25519_SX" "$REF10_GLUE" "$CRYPTO_GLUE" "$SMOKE_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$ED25519_X" "$REF10_GLUE" "$CRYPTO_GLUE" "$SMOKE_X"; do
   [ -f "$f" ] || { echo "std-crypto-ed25519 gate FAIL: missing $f" >&2; exit 1; }
 done
 grep -qF STD-126 "$DOC" || { echo "std-crypto-ed25519 gate FAIL: doc" >&2; exit 1; }
-sym_miss="$(std_crypto_ed25519_symbols_ok "$MOD_SX" "$ED25519_SX" "$MANIFEST" || true)"
+sym_miss="$(std_crypto_ed25519_symbols_ok "$MOD_X" "$ED25519_X" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 . tests/lib/build-std-c-o.sh
 ensure_std_c_o ../std/crypto/crypto.o
@@ -35,12 +35,12 @@ elif [ "$c_ec" -eq 2 ]; then
 else
   exit 1
 fi
-SX_OK=0
+X_OK=0
 if [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c check -L . "$SMOKE_SX" >/dev/null
-  std_crypto_ed25519_run_smoke ./compiler/shux-c "$SMOKE_SX" && SX_OK=1 || exit 1
+  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
+  std_crypto_ed25519_run_smoke ./compiler/shux-c "$SMOKE_X" && X_OK=1 || exit 1
 else
   SKIP=1
 fi
-std_crypto_ed25519_emit_report ok "$C_OK" "$SX_OK" "$SKIP"
+std_crypto_ed25519_emit_report ok "$C_OK" "$X_OK" "$SKIP"
 echo "std-crypto-ed25519 gate OK"

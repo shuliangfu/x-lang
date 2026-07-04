@@ -16,7 +16,7 @@ comp_feb_contract_symbol_present() {
     || grep -qE "^[a-zA-Z_].*\\b${sym}\\s*\\(" "$src" 2>/dev/null
 }
 
-# 解析 boundary TSV 中的 .sx/.c 路径（相对仓库根）。
+# 解析 boundary TSV 中的 .x/.c 路径（相对仓库根）。
 comp_feb_contract_src_path() {
   local rel="$1"
   if [ -f "$ROOT/$rel" ]; then

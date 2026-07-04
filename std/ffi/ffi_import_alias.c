@@ -2,11 +2,11 @@
  * ffi_import_alias.c — import binding `-o` 链接桩
  *
  * asm co-emit 对 `const ffi = import("std.ffi")` 生成 std_ffi_* 符号；
- * ffi.o 仅导出 ffi_*_c（ffi.sx）。本 TU 提供 std_ffi_* 转发（语义对齐 mod.sx）。
+ * ffi.o 仅导出 ffi_*_c（ffi.x）。本 TU 提供 std_ffi_* 转发（语义对齐 mod.x）。
  */
 #include <stdint.h>
 
-/** 与 mod.sx FfiPoint 布局一致。 */
+/** 与 mod.x FfiPoint 布局一致。 */
 typedef struct ShuxFfiPoint {
   int32_t x;
   int32_t y;

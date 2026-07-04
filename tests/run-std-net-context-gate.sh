@@ -6,8 +6,8 @@ cd "$(dirname "$0")/.."
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "$0")/lib/ci-host.sh"
 
-MOD_SX="std/net/mod.sx"
-SMOKE="tests/net/context_connect.sx"
+MOD_X="std/net/mod.x"
+SMOKE="tests/net/context_connect.x"
 PREFIX="shux: [SHUX_STD092_NET_CTX]"
 
 stdlib_cm_native_shu() {
@@ -23,23 +23,23 @@ stdlib_cm_native_shu() {
 }
 
 echo "=== STD-092: net-context manifest ==="
-for f in "$MOD_SX" "$SMOKE"; do
+for f in "$MOD_X" "$SMOKE"; do
   if [ ! -f "$f" ]; then
     echo "net-context gate FAIL: missing $f" >&2
     exit 1
   fi
 done
 for sym in connect_ctx_fd accept_ctx_fd connect_ipv6_ctx_fd read_ctx write_ctx; do
-  if ! grep -qE "function ${sym}\\(" "$MOD_SX" 2>/dev/null; then
+  if ! grep -qE "function ${sym}\\(" "$MOD_X" 2>/dev/null; then
     echo "net-context gate FAIL: missing api $sym" >&2
     exit 1
   fi
 done
-if ! grep -qF 'function net_err_timeout()' std/error/mod.sx 2>/dev/null; then
+if ! grep -qF 'function net_err_timeout()' std/error/mod.x 2>/dev/null; then
   echo "net-context gate FAIL: missing net_err_timeout in std.error" >&2
   exit 1
 fi
-if ! grep -qF 'function net_err_cancelled()' std/error/mod.sx 2>/dev/null; then
+if ! grep -qF 'function net_err_cancelled()' std/error/mod.x 2>/dev/null; then
   echo "net-context gate FAIL: missing net_err_cancelled in std.error" >&2
   exit 1
 fi
@@ -58,7 +58,7 @@ elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux ||
   :
 fi
 
-SX_OK=0
+X_OK=0
 SKIP=0
 if [ -n "$SHUX_BIN" ]; then
   echo "=== STD-092: smoke (SHUX=$SHUX_BIN) ==="
@@ -80,11 +80,11 @@ if [ -n "$SHUX_BIN" ]; then
     echo "net-context gate FAIL: run exit=$ec" >&2
     exit 1
   fi
-  SX_OK=1
+  X_OK=1
 else
-  echo "net-context gate SKIP .sx (no native shux)" >&2
+  echo "net-context gate SKIP .x (no native shux)" >&2
   SKIP=1
 fi
 
-echo "${PREFIX} status=ok sx=${SX_OK} skip=${SKIP} host=$(ci_host_summary)"
+echo "${PREFIX} status=ok x=${X_OK} skip=${SKIP} host=$(ci_host_summary)"
 echo "std-net-context gate OK"

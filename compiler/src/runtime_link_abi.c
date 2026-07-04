@@ -569,7 +569,7 @@ const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_b
 }
 
 /**
- * F-03 v2/v3：std.io 已纯 .sx，无 io.o；保留 API 供 repo root 推导，返回空串。
+ * F-03 v2/v3：std.io 已纯 .x，无 io.o；保留 API 供 repo root 推导，返回空串。
  * 参数：argv0 可选 shux 路径。
  * 返回值：空串（调用方应改用 shux_repo_root_from_argv0 的 process.o 路径）。
  */
@@ -581,7 +581,7 @@ const char *shux_std_io_o_path(const char *argv0) {
 }
 
 /**
- * F-04 v7 + F-06 v1：std.compress 已纯 .sx，无 compress.o；保留 API 兼容，返回空串。
+ * F-04 v7 + F-06 v1：std.compress 已纯 .x，无 compress.o；保留 API 兼容，返回空串。
  * 参数：argv0 可选 shux 路径。
  * 返回值：空串（压缩库由 user .o / 生成 C 扫描按需 -lz/-lzstd/-lbrotli*）。
  */
@@ -2636,7 +2636,7 @@ static int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
     return 0;
 }
 
-/** 任意 .o 是否依赖 libz（marker 或 zlib 未定义符号）。F-04 v4：含用户 .sx 链出的 .o。 */
+/** 任意 .o 是否依赖 libz（marker 或 zlib 未定义符号）。F-04 v4：含用户 .x 链出的 .o。 */
 static int link_abi_obj_needs_zlib(const char *obj_o) {
     if (!obj_o || !obj_o[0])
         return 0;
@@ -2648,7 +2648,7 @@ static int link_abi_obj_needs_zlib(const char *obj_o) {
         || link_abi_obj_has_undef_sym(obj_o, "_uncompress");
 }
 
-/** 任意 .o 是否依赖 libzstd（F-04 v7+：zstd .sx 用户链）。 */
+/** 任意 .o 是否依赖 libzstd（F-04 v7+：zstd .x 用户链）。 */
 static int link_abi_obj_needs_zstd(const char *obj_o) {
     if (!obj_o || !obj_o[0])
         return 0;
@@ -2657,7 +2657,7 @@ static int link_abi_obj_needs_zstd(const char *obj_o) {
     return link_abi_obj_has_undef_sym(obj_o, "ZSTD_") || link_abi_obj_has_undef_sym(obj_o, "_ZSTD");
 }
 
-/** 任意 .o 是否依赖 libbrotli（F-04 v6：lib.sx 用户链）。 */
+/** 任意 .o 是否依赖 libbrotli（F-04 v6：lib.x 用户链）。 */
 static int link_abi_obj_needs_brotli(const char *obj_o) {
     if (!obj_o || !obj_o[0])
         return 0;
@@ -2667,7 +2667,7 @@ static int link_abi_obj_needs_brotli(const char *obj_o) {
         || link_abi_obj_has_undef_sym(obj_o, "BrotliDecoderDecompress");
 }
 
-/** 用户 .o 是否引用任一压缩库（F-04 v7：全 .sx 按需 -lz/-lzstd/-lbrotli*）。 */
+/** 用户 .o 是否引用任一压缩库（F-04 v7：全 .x 按需 -lz/-lzstd/-lbrotli*）。 */
 static int link_abi_user_o_needs_compress_libs(const char *user_o) {
     return link_abi_obj_needs_zlib(user_o) || link_abi_obj_needs_zstd(user_o)
         || link_abi_obj_needs_brotli(user_o);
@@ -2689,7 +2689,7 @@ static void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
 
 /**
  * ASM 链接：按 compress.o / 用户 .o 实际依赖追加 -lz / -lzstd / -lbrotli*。
- * 参数：compress_o std/compress .o；user_o 用户主 .o（F-04 v4 libz.sx）；argv/la/max_la 为 ld argv 构建状态。
+ * 参数：compress_o std/compress .o；user_o 用户主 .o（F-04 v4 libz.x）；argv/la/max_la 为 ld argv 构建状态。
  */
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la) {
     if (!argv || !la)
@@ -2777,7 +2777,7 @@ static int link_abi_generated_c_contains_any_substr(const char *c_path, const ch
 }
 
 /**
- * 生成的 .c 是否引用 libc 堆符号（F-03 v2：libc.sx 经 codegen 生成 extern malloc 等，按需 -lc）。
+ * 生成的 .c 是否引用 libc 堆符号（F-03 v2：libc.x 经 codegen 生成 extern malloc 等，按需 -lc）。
  */
 static int link_abi_generated_c_needs_libc_heap(const char *c_path) {
     static const char *needles[] = {
@@ -2826,7 +2826,7 @@ static int link_abi_generated_c_needs_core_builtin(const char *c_path) {
     return 0;
 }
 
-/** 扫描生成 C 是否引用 core.mem volatile/fence 符号（G-01：纯 .sx，不再链 mem.o）。 */
+/** 扫描生成 C 是否引用 core.mem volatile/fence 符号（G-01：纯 .x，不再链 mem.o）。 */
 static int link_abi_generated_c_needs_core_mem(const char *c_path) {
     (void)c_path;
     return 0;
@@ -2849,7 +2849,7 @@ static int link_abi_generated_c_needs_db_arrow(const char *c_path) {
     return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
 }
 
-/** 扫描生成 C 是否引用 core.slice C 辅助符号（G-01：纯 .sx，不再链 slice.o）。 */
+/** 扫描生成 C 是否引用 core.slice C 辅助符号（G-01：纯 .x，不再链 slice.o）。 */
 static int link_abi_generated_c_needs_core_slice(const char *c_path) {
     (void)c_path;
     return 0;
@@ -3540,7 +3540,7 @@ void ensure_std_net_o_auto_tls(const char *repo_root) {
 
 /**
  * net.o / tls_openssl.o / tls_mbedtls.o 为 OpenSSL/mbedTLS 后端时追加对应 -L/-l 链接参数。
- * F-04 v8/v9：marker 在 std/net/tls_*.o（.sx 产物），不再编译进 net.o。
+ * F-04 v8/v9：marker 在 std/net/tls_*.o（.x 产物），不再编译进 net.o。
  * 参数：argv/i/argv_cap 为 cc 链接 argv；net_o std/net .o；repo_root 仓库根（查 tls_openssl.o）。
  * 返回值：1 已追加 TLS 库，0 否。
  */
@@ -3732,7 +3732,7 @@ static int link_abi_ld_argv_entry_is_obj(const char *s) {
 
 /**
  * 用户主 .o 或已入链 argv 中的 std/*.o 是否仍引用 heap_*_c。
- * hash/sort 等经 libc.sx 编译，hello 全量 std 链时 user.o 本身可无 heap 符号。
+ * hash/sort 等经 libc.x 编译，hello 全量 std 链时 user.o 本身可无 heap 符号。
  */
 static int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int la) {
     static const char *heap_syms[] = {
@@ -4174,7 +4174,7 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/json/json.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/csv/csv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/regex/regex.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    /* F-06 v1 / F-04 v7：compress 已纯 .sx，无 compress.o；tail libs 由 user_o 扫描按需 -lz/-lzstd/-lbrotli* */
+    /* F-06 v1 / F-04 v7：compress 已纯 .x，无 compress.o；tail libs 由 user_o 扫描按需 -lz/-lzstd/-lbrotli* */
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/unicode/unicode.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/dynlib/dynlib.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_dynlib : NULL);
     link_abi_asm_ld_push_glue_after_std(flags && flags->have_dynlib, shux_ensure_runtime_dynlib_os_o,
@@ -4251,7 +4251,7 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
         if (have_net) {
             if (flags)
                 flags->have_net = 1;
-            /* workers.sx 依赖 thread_create_c；按需再推 thread.o + glue（默认 ld 可能未链）。 */
+            /* workers.x 依赖 thread_create_c；按需再推 thread.o + glue（默认 ld 可能未链）。 */
             link_abi_asm_ld_push_obj(NULL, link_argv0, "std/thread/thread.o", lib_roots, n_lib_roots, bank, argv, la, max_la,
                 flags ? &flags->have_thread : NULL);
             if (flags && flags->have_thread) {
@@ -4351,7 +4351,7 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
         if (flags)
             flags->have_libc_heap = 1;
     }
-    /** co-emit std.string/mod.sx 时 call 重定向到 string.o 内 shux_string_*；import binding 走 std_string_* 别名桩。 */
+    /** co-emit std.string/mod.x 时 call 重定向到 string.o 内 shux_string_*；import binding 走 std_string_* 别名桩。 */
     if (shux_link_obj_needs_undef_sym(user_o, "shux_string_copy_c")
         || shux_link_obj_needs_undef_sym(user_o, "shux_string_memcmp_c")
         || shux_link_obj_needs_undef_sym(user_o, "shux_string_memchr_c")
@@ -4368,7 +4368,7 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
         || shux_link_obj_needs_undef_sym(user_o, "core_types_placeholder")) {
         link_abi_asm_ld_push_obj(NULL, link_argv0, "std/base64/base64.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
-    /** co-emit std.encoding/mod.sx 调用 encoding_*_c；按需链 encoding.o。 */
+    /** co-emit std.encoding/mod.x 调用 encoding_*_c；按需链 encoding.o。 */
     if (shux_link_obj_needs_undef_sym(user_o, "encoding_utf8_valid_c")
         || shux_link_obj_needs_undef_sym(user_o, "encoding_hex_encode_c")
         || shux_link_obj_needs_undef_sym(user_o, "encoding_ascii_is_alpha_c")
@@ -4377,14 +4377,14 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
         || shux_link_obj_needs_undef_sym(user_o, "std_encoding_ascii_is_alpha")) {
         link_abi_asm_ld_push_obj(NULL, link_argv0, "std/encoding/encoding.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
-    /** co-emit std.base64/mod.sx 调用 base64_*_c；按需链 base64.o（含 std_base64_* 别名桩）。 */
+    /** co-emit std.base64/mod.x 调用 base64_*_c；按需链 base64.o（含 std_base64_* 别名桩）。 */
     if (shux_link_obj_needs_undef_sym(user_o, "base64_encode_standard_c")
         || shux_link_obj_needs_undef_sym(user_o, "std_base64_encode_standard")
         || shux_link_obj_needs_undef_sym(user_o, "std_base64_decode_standard")
         || shux_link_obj_needs_undef_sym(user_o, "std_base64_encode_url")) {
         link_abi_asm_ld_push_obj(NULL, link_argv0, "std/base64/base64.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
-    /** co-emit std.time/mod.sx 调用 time_*_c；按需链 time.o + runtime_time_os.o。 */
+    /** co-emit std.time/mod.x 调用 time_*_c；按需链 time.o + runtime_time_os.o。 */
     if (shux_link_obj_needs_undef_sym(user_o, "std_time_now_monotonic_ns")
         || shux_link_obj_needs_undef_sym(user_o, "std_time_sleep_ms")
         || shux_link_obj_needs_undef_sym(user_o, "std_time_timer_start")

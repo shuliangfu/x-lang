@@ -1,6 +1,6 @@
 # PERF-172 Phase 3 std 性能 manifest
 # min_items	1
 read_path	section	## 1. 目标	analysis/perf-phase3-v1.md
-bench	bench	tests/bench/phase3_std_hotpath.sx	热路径
+bench	bench	tests/bench/phase3_std_hotpath.x	热路径
 baseline	file	tests/baseline/perf-phase3.tsv	上限
 gate	script	run-perf-phase3-gate.sh	tests/run-perf-phase3-gate.sh

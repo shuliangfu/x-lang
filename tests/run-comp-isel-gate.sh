@@ -17,9 +17,9 @@ MIN_BENCHES=9
 
 echo "=== COMP-006: instruction selection manifest ==="
 for f in "$DOC" "$MANIFEST" "$BENCH" \
-  compiler/src/asm/peephole.sx compiler/src/asm/backend.sx \
-  tests/asm/binop_var_fast.sx tests/asm/binop_index_lit_fast.sx \
-  tests/bench/loop_i32.sx tests/run-bcmp-gate.sh; do
+  compiler/src/asm/peephole.x compiler/src/asm/backend.x \
+  tests/asm/binop_var_fast.x tests/asm/binop_index_lit_fast.x \
+  tests/bench/loop_i32.x tests/run-bcmp-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "comp-isel gate FAIL: missing $f" >&2
     exit 1
@@ -115,7 +115,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
 done < "$MANIFEST"
 
 BENCH_N=0
-while IFS=$'\t' read -r bench_id sx_file _rest; do
+while IFS=$'\t' read -r bench_id x_file _rest; do
   [ -z "${bench_id:-}" ] && continue
   case "$bench_id" in \#*|min_*) continue ;; esac
   BENCH_N=$((BENCH_N + 1))
@@ -124,8 +124,8 @@ while IFS=$'\t' read -r bench_id sx_file _rest; do
     echo "comp-isel FAIL: doc missing bench $bench_id" >&2
     MISS=$((MISS + 1))
   fi
-  if ! comp_isel_bench_path "$sx_file" >/dev/null 2>&1; then
-    echo "comp-isel FAIL: missing bench sx $sx_file" >&2
+  if ! comp_isel_bench_path "$x_file" >/dev/null 2>&1; then
+    echo "comp-isel FAIL: missing bench x $x_file" >&2
     MISS=$((MISS + 1))
   fi
 done < "$BENCH"

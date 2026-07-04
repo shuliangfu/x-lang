@@ -1,16 +1,16 @@
 # 阶段 F-04 v11（std.net 地址/IPv6/io batch 去 C）
 
-> **F-04 v11 v1**：从 **`net.c`** 迁出 **local/peer 地址**、**IPv6 TCP**、**stream io batch** → 独立 `.sx`；`ld -r` 合并进 `net.o`。
+> **F-04 v11 v1**：从 **`net.c`** 迁出 **local/peer 地址**、**IPv6 TCP**、**stream io batch** → 独立 `.x`；`ld -r` 合并进 `net.o`。
 
 ## v11 v1 完成（✅ manifest）
 
 | 项 | 说明 |
 |----|------|
-| `addr.sx` | `net_tcp_local_addr_c` / `net_tcp_peer_addr_c` |
-| `ipv6.sx` | `net_tcp_connect_ipv6_c` / `net_tcp_listen_ipv6_c` |
-| `io_batch.sx` | `net_stream_*_batch_c`（→ io.o C 符号） |
+| `addr.x` | `net_tcp_local_addr_c` / `net_tcp_peer_addr_c` |
+| `ipv6.x` | `net_tcp_connect_ipv6_c` / `net_tcp_listen_ipv6_c` |
+| `io_batch.x` | `net_stream_*_batch_c`（→ io.o C 符号） |
 | `net.c` | 移除上述 ~170 行；**922 → ~750 行** |
-| `Makefile` | `net.o` 合并 5 个 `.sx` 模块 |
+| `Makefile` | `net.o` 合并 5 个 `.x` 模块 |
 
 ## v11 限制（v12+）
 

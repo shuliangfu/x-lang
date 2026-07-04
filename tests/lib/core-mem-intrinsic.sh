@@ -3,7 +3,7 @@
 #
 # 用法（source 后）：
 #   core_mem_intrinsic_mappings_ok CODEGEN_C TSV
-#   core_mem_intrinsic_emit_ok SHU SX_FILE TSV
+#   core_mem_intrinsic_emit_ok SHU X_FILE TSV
 #   core_mem_intrinsic_emit_report status found total
 
 CORE_MEM_INTRINSIC_PREFIX="${SHUX_CORE_MEM_INTRINSIC_PREFIX:-shux: [SHUX_CORE_MEM_INTRINSIC]}"

@@ -36,7 +36,7 @@
 | `text_byte0` | 144（0x90） |
 | `shstrtab_idx` | 2（`SHT_STRTAB`，金样按索引） |
 
-烟测：`elf64_sections_deep_smoke_c`（C）、`parse_sections.sx`（.sx 可选）。
+烟测：`elf64_sections_deep_smoke_c`（C）、`parse_sections.x`（.x 可选）。
 
 ---
 
@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_STD063_ELF_DEEP] status=ok deep_c=1 deep_sx=0 skip=1
+shux: [SHUX_STD063_ELF_DEEP] status=ok deep_c=1 deep_x=0 skip=1
 ```
 
 无 native `shux` 时 manifest 仍须绿；C 烟测须过。

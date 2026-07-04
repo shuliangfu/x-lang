@@ -12,7 +12,7 @@ DOC="analysis/std-backtrace-xplat-v1.md"
 MANIFEST="tests/baseline/std-backtrace-xplat-manifest.tsv"
 VECTORS="tests/baseline/std-backtrace-xplat.tsv"
 BT_RUNTIME="compiler/src/asm/runtime_backtrace_platform.c"
-BT_SX="std/backtrace/backtrace.sx"
+BT_X="std/backtrace/backtrace.x"
 LIB="tests/lib/std-backtrace-xplat.sh"
 SMOKE_C="tests/backtrace/xplat_quality.c"
 
@@ -20,7 +20,7 @@ SMOKE_C="tests/backtrace/xplat_quality.c"
 . "$LIB"
 
 echo "=== STD-147: backtrace xplat quality manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$BT_SX" "$BT_RUNTIME" "$SMOKE_C" std/backtrace/README.md; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$BT_X" "$BT_RUNTIME" "$SMOKE_C" std/backtrace/README.md; do
   if [ ! -f "$f" ]; then
     echo "std-backtrace-xplat gate FAIL: missing $f" >&2
     exit 1

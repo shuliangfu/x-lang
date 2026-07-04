@@ -3,8 +3,8 @@
 #
 # 用法（source 后）：
 #   std_time_api_count [manifest_tsv]
-#   std_time_has_api MOD_SX fn_name
-#   std_time_run_smoke SHUX_BIN smoke_sx
+#   std_time_has_api MOD_X fn_name
+#   std_time_run_smoke SHUX_BIN smoke_x
 
 # 统计 manifest 中 api 行数（不含注释）。
 std_time_api_count() {
@@ -12,14 +12,14 @@ std_time_api_count() {
   awk -F'\t' '$2=="api" && $1 !~ /^#/ { n++ } END { print n+0 }' "$man"
 }
 
-# 检查 mod.sx 是否导出指定函数。
+# 检查 mod.x 是否导出指定函数。
 std_time_has_api() {
   local mod="$1"
   local fn="$2"
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
-# 编译并运行烟测 .sx；期望退出码 0。
+# 编译并运行烟测 .x；期望退出码 0。
 std_time_run_smoke() {
   local shux="$1"
   local src="$2"

@@ -1,6 +1,6 @@
 # std.set — 集合（HashSet）
 
-**路径**：`std/set/`（仅 mod.sx，无 .c）  
+**路径**：`std/set/`（仅 mod.x，无 .c）  
 **依赖**：std.heap（复用 map_i32_i32_find_c）。对标 Rust HashSet、Zig AutoSet。
 
 | API | 说明 |

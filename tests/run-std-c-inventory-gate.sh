@@ -56,7 +56,7 @@ base_core=${base_core:-4}
 base_total=${base_total:-108}
 
 if [ "$total" -gt "$base_total" ] 2>/dev/null; then
-  echo "std-c-inventory-gate FAIL: total ${total} > baseline ${base_total} (new .c added; stage F requires .sx migration)" >&2
+  echo "std-c-inventory-gate FAIL: total ${total} > baseline ${base_total} (new .c added; stage F requires .x migration)" >&2
   collect_c_files | comm -13 <(awk -F'\t' '$1=="file" { print $2 }' "$BASELINE" | LC_ALL=C sort) - | head -20 >&2 || true
   [ "$FAIL" = "1" ] && exit 1
   exit 0

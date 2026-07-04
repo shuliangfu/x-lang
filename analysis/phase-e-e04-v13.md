@@ -24,4 +24,4 @@ make -C compiler src/runtime_link_abi.o src/runtime_driver_no_c.o
 
 - `asm_invoke_ld_platform` fork/exec 主体（v14 已拆 prepare/tail -l*）
 - `invoke_cc` 主体与 `get_std_*_o_path` 路径族
-- `main.c` → crt0 / main.sx 全入口
+- `main.c` → crt0 / main.x 全入口

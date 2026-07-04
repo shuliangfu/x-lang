@@ -9,12 +9,12 @@ FAIL=0
 
 echo "=== L4: Stack usage analysis gate ==="
 
-SX_FILE="${1:-$SCRIPT_DIR/stack_check.sx}"
+X_FILE="${1:-$SCRIPT_DIR/stack_check.x}"
 C_FILE="$WORKDIR/stack_check.c"
 O_FILE="$WORKDIR/stack_check.o"
 
-# Compile .sx → C → .o
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$SX_FILE" > "$C_FILE"
+# Compile .x → C → .o
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$X_FILE" > "$C_FILE"
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" \
     zig cc -target x86-linux-gnu -ffreestanding -fno-sanitize=all -fno-stack-protector \
     -c -o "$O_FILE" "$C_FILE" 2>&1

@@ -7,17 +7,17 @@
 #   std_compress_run_smoke SHU src tag
 #   std_compress_probe_roundtrip SHU src  # 打印 ok|skip|fail
 
-# 检查 mod.sx 是否导出指定函数。
+# 检查 mod.x 是否导出指定函数。
 std_compress_has_api() {
   local mod="$1"
   local fn="$2"
   grep -qE "function ${fn}\\(" "$mod" 2>/dev/null
 }
 
-# F-04 v7：compress 格式已全 .sx；compress-o-* 为兼容 no-op，runtime 按需 -lz/-lzstd/-lbrotli*。
+# F-04 v7：compress 格式已全 .x；compress-o-* 为兼容 no-op，runtime 按需 -lz/-lzstd/-lbrotli*。
 std_compress_try_libs() {
   (cd compiler && make compress-o-zlib-zstd 2>/dev/null) || true
-  echo "std-compress: formats via .sx (F-04 v7, no compress.o)" >&2
+  echo "std-compress: formats via .x (F-04 v7, no compress.o)" >&2
   return 0
 }
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-从 typeck.sx 函数签名生成 typeck_asm_bare_link_alias.c：
+从 typeck.x 函数签名生成 typeck_asm_bare_link_alias.c：
 build_asm/typeck.o 裸符号 → pipeline_glue 期望的 typeck_ 前缀名。
 """
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SX = ROOT / "src/typeck/typeck.sx"
+X = ROOT / "src/typeck/typeck.x"
 OUT = ROOT / "typeck_asm_bare_link_alias.c"
 
 TYPE_MAP = {
@@ -25,37 +25,37 @@ TYPE_MAP = {
 }
 
 
-def sx_to_c_type(t: str) -> str:
+def x_to_c_type(t: str) -> str:
     t = t.strip()
     if t in TYPE_MAP:
         return TYPE_MAP[t]
     if t.startswith("*"):
-        inner = sx_to_c_type(t[1:])
+        inner = x_to_c_type(t[1:])
         if inner.endswith("*"):
             return inner
         return f"{inner} *"
     return t
 
 
-def parse_func(sx_src: str, name: str):
+def parse_func(x_src: str, name: str):
     pat = re.compile(rf"function {re.escape(name)}\((.*?)\):\s*(\w+)\s*\{{", re.DOTALL)
-    m = pat.search(sx_src)
+    m = pat.search(x_src)
     if not m:
-        raise SystemExit(f"missing function {name} in typeck.sx")
+        raise SystemExit(f"missing function {name} in typeck.x")
     params_raw = re.sub(r"\s+", " ", m.group(1).strip())
-    ret = sx_to_c_type(m.group(2))
+    ret = x_to_c_type(m.group(2))
     params = []
     if params_raw:
         for p in params_raw.split(","):
             pname, ptype = p.split(":", 1)
-            params.append((sx_to_c_type(ptype), pname.strip()))
+            params.append((x_to_c_type(ptype), pname.strip()))
     return ret, params
 
 
 def main() -> None:
-    sx_src = SX.read_text()
+    x_src = X.read_text()
     asm = set()
-    sx = set()
+    x = set()
     import subprocess
 
     def nm_syms(path, pred):
@@ -69,11 +69,11 @@ def main() -> None:
 
     for s in nm_syms(ROOT / "build_asm/typeck.o", lambda _: True):
         asm.add(s)
-    for s in nm_syms(ROOT / "typeck_sx.o", lambda x: x.startswith("typeck_")):
-        sx.add(s)
+    for s in nm_syms(ROOT / "typeck_x.o", lambda x: x.startswith("typeck_")):
+        x.add(s)
 
     pairs = []
-    for pref in sorted(sx):
+    for pref in sorted(x):
         if pref in asm:
             continue
         bare = pref[7:] if pref.startswith("typeck_") else pref
@@ -84,7 +84,7 @@ def main() -> None:
         "/**",
         " * typeck_asm_bare_link_alias.c — build_asm/typeck.o 裸符号 → pipeline_glue 的 typeck_ 前缀名",
         " *",
-        " * 由 compiler/scripts/gen_typeck_asm_bare_link_alias.py 从 typeck.sx 签名生成。",
+        " * 由 compiler/scripts/gen_typeck_asm_bare_link_alias.py 从 typeck.x 签名生成。",
         " */",
         "#include <stdint.h>",
         "",
@@ -94,7 +94,7 @@ def main() -> None:
         "",
     ]
     for pref, bare in pairs:
-        ret, params = parse_func(sx_src, bare)
+        ret, params = parse_func(x_src, bare)
         argdecl = ", ".join(f"{t} {n}" for t, n in params)
         lines.append(f"extern {ret} {bare}({argdecl});")
         lines.append("")

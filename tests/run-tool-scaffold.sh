@@ -20,8 +20,8 @@ make -C compiler -q 2>/dev/null || make -C compiler
 
 tool_scaffold_copy_to "$WORKDIR"
 
-if ! "$SHUX" -L . "$WORKDIR/main.sx" -o "$EXE" 2>&1; then
-  echo "run-tool-scaffold FAIL: compile template main.sx" >&2
+if ! "$SHUX" -L . "$WORKDIR/main.x" -o "$EXE" 2>&1; then
+  echo "run-tool-scaffold FAIL: compile template main.x" >&2
   exit 1
 fi
 

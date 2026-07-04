@@ -6,19 +6,19 @@ n06_gate	gate	tests/run-nolibc-n06-std-track-gate.sh	gate_ref	NL-06 专 gate
 n06_track_lib	lib	tests/lib/nolibc-n06-std-track.sh	gate_ref	审计函数
 std_c_inventory	inventory	tests/baseline/std-c-inventory.tsv	exists	F-01 110 基线
 std_c_gate	gate_ref	tests/run-std-c-inventory-gate.sh	gate_ref	F-01 委托
-replace_heap	sx_replacement	std/heap/page_mmap.sx	grep	page_mmap_heap_init
+replace_heap	x_replacement	std/heap/page_mmap.x	grep	page_mmap_heap_init
 replace_heap_legacy	removed	std/heap/heap.c	absent	F-03 v2 deleted
-heap_smoke	smoke	tests/sys/linux_heap_mmap_smoke.sx	smoke_import	std.heap.page_mmap
+heap_smoke	smoke	tests/sys/linux_heap_mmap_smoke.x	smoke_import	std.heap.page_mmap
 heap_gate	gate_ref	tests/run-no-libc-heap-gate.sh	gate_ref	NL-03
-replace_fs	sx_replacement	std/fs/freestanding_linux.sx	grep	freestanding_read_file_into
+replace_fs	x_replacement	std/fs/freestanding_linux.x	grep	freestanding_read_file_into
 replace_fs_legacy	removed	std/fs/fs.c	absent	F-03 v2 deleted
-fs_smoke	smoke	tests/sys/linux_fs_freestanding_smoke.sx	smoke_import	std.fs.freestanding_linux
+fs_smoke	smoke	tests/sys/linux_fs_freestanding_smoke.x	smoke_import	std.fs.freestanding_linux
 fs_gate	gate_ref	tests/run-no-libc-fs-gate.sh	gate_ref	NL-04
-replace_net	sx_replacement	std/net/freestanding_linux.sx	grep	freestanding_net_available
-replace_net_legacy	removed	std/net/net.c	absent	F-04 v14 删除；hosted net.o 纯 .sx+胶层
-socket_smoke	smoke	tests/sys/linux_socket_invoke_smoke.sx	smoke_import	std.net.freestanding_linux
+replace_net	x_replacement	std/net/freestanding_linux.x	grep	freestanding_net_available
+replace_net_legacy	removed	std/net/net.c	absent	F-04 v14 删除；hosted net.o 纯 .x+胶层
+socket_smoke	smoke	tests/sys/linux_socket_invoke_smoke.x	smoke_import	std.net.freestanding_linux
 socket_gate	gate_ref	tests/run-no-libc-socket-gate.sh	gate_ref	NL-02
-bootstrap_fs_o	compiler_track	compiler/scripts/build_shux_asm.sh	grep	F-06 v1：fs/io/heap 已纯 .sx
+bootstrap_fs_o	compiler_track	compiler/scripts/build_shux_asm.sh	grep	F-06 v1：fs/io/heap 已纯 .x
 bootstrap_heap_o	compiler_track	compiler/scripts/build_shux_asm.sh	grep	F-06 v1
 bootstrap_io_o	compiler_track	compiler/scripts/build_shux_asm.sh	grep	F-06 v1
 f06_gate	gate_ref	tests/run-f06-runtime-std-o-cleanup-gate.sh	gate_ref	F-06 v1 专 gate

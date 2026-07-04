@@ -38,10 +38,10 @@
 
 ```bash
 # 小规模 DCE（shux-c，任意主机可编时）
-./compiler/shux-c -E tests/wpo/dead_fn.sx   # 无 dead_helper 体
+./compiler/shux-c -E tests/wpo/dead_fn.x   # 无 dead_helper 体
 
 # call graph 导出
-SHUX_WPO_DUMP_CALLGRAPH=/tmp/cg.json ./compiler/shux-c check tests/wpo/dead_fn.sx
+SHUX_WPO_DUMP_CALLGRAPH=/tmp/cg.json ./compiler/shux-c check tests/wpo/dead_fn.x
 ```
 
 ---
@@ -67,10 +67,10 @@ SHUX_WPO_DUMP_CALLGRAPH=/tmp/cg.json ./compiler/shux-c check tests/wpo/dead_fn.s
 
 | case_id | 文件 | 期望 |
 |---------|------|------|
-| `case_dead_fn` | `tests/wpo/dead_fn.sx` | `-E` 无 `dead_helper` |
-| `case_dead_user` | `tests/wpo/dead_user.sx` | import 库 dead export 剔除 |
-| `case_if_reach` | `tests/wpo/if_block_reach.sx` | 分支内 call 计入 reach |
-| `case_const_spec` | `tests/wpo/const_spec.sx` | graph v2 + const site |
+| `case_dead_fn` | `tests/wpo/dead_fn.x` | `-E` 无 `dead_helper` |
+| `case_dead_user` | `tests/wpo/dead_user.x` | import 库 dead export 剔除 |
+| `case_if_reach` | `tests/wpo/if_block_reach.x` | 分支内 call 计入 reach |
+| `case_const_spec` | `tests/wpo/const_spec.x` | graph v2 + const site |
 
 ---
 

@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_ZC_COPY_PROOF_DOC:-analysis/zc-copy-proof-v1.md}"
 MATRIX="${SHUX_ZC_COPY_PROOF_TSV:-tests/baseline/zc-copy-proof.tsv}"
 PR_TPL="${SHUX_ZC_PR_COPY_TPL:-tests/templates/zc-pr-copy-declaration.txt}"
-SX_TPL="${SHUX_ZC_SX_COPY_TPL:-tests/templates/zc-copy-proof-test.sx}"
+X_TPL="${SHUX_ZC_X_COPY_TPL:-tests/templates/zc-copy-proof-test.x}"
 SEM="${SHUX_ZC_SEMANTICS_DOC:-analysis/zc-semantics-v1.md}"
 MIN_PROOFS=1
 
@@ -32,7 +32,7 @@ native_shu() {
 }
 
 echo "=== ZC-007: copy proof manifest ==="
-for f in "$DOC" "$MATRIX" "$PR_TPL" "$SX_TPL" "$SEM"; do
+for f in "$DOC" "$MATRIX" "$PR_TPL" "$X_TPL" "$SEM"; do
   if [ ! -f "$f" ]; then
     echo "zc-copy-proof gate FAIL: missing $f" >&2
     exit 1
@@ -45,12 +45,12 @@ done < "$MATRIX"
 
 # ── 模板 metadata 键 ──
 for key in path_id userland_copies zc_tier hot_path fallback; do
-  if ! grep -qF "$key:" "$SX_TPL" 2>/dev/null; then
-    echo "zc-copy-proof gate FAIL: sx template missing key $key" >&2
+  if ! grep -qF "$key:" "$X_TPL" 2>/dev/null; then
+    echo "zc-copy-proof gate FAIL: x template missing key $key" >&2
     exit 1
   fi
 done
-echo "zc-copy-proof sx template OK"
+echo "zc-copy-proof x template OK"
 
 # ── PR checklist 必填字段 ──
 for field in userland_copies zc_tier proof_id fallback; do
@@ -76,8 +76,8 @@ while IFS=$'\t' read -r proof_id source policy want_ec copies tier notes; do
   case "$policy" in
     template)
       case "$source" in
-        zc-copy-proof-test.sx)
-          [ -f "$SX_TPL" ] || { echo "zc-copy-proof FAIL: $SX_TPL" >&2; FAILS=$((FAILS + 1)); }
+        zc-copy-proof-test.x)
+          [ -f "$X_TPL" ] || { echo "zc-copy-proof FAIL: $X_TPL" >&2; FAILS=$((FAILS + 1)); }
           ;;
         zc-pr-copy-declaration.txt)
           [ -f "$PR_TPL" ] || { echo "zc-copy-proof FAIL: $PR_TPL" >&2; FAILS=$((FAILS + 1)); }
@@ -165,7 +165,7 @@ run_proof() {
   local script="$1"
   local want_ec="$2"
   local src="tests/zc/$script"
-  local out="/tmp/shux_zc_proof_${script%.sx}"
+  local out="/tmp/shux_zc_proof_${script%.x}"
   if ! "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_zc_proof_compile.log 2>&1; then
     cat /tmp/shux_zc_proof_compile.log >&2
     return 1

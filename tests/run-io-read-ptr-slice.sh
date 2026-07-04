@@ -22,12 +22,12 @@ fi
 make -C compiler -q ../std/process/process.o ../std/io/io.o 2>/dev/null \
   || make -C compiler ../std/process/process.o ../std/io/io.o
 
-$RUN_SHUX -L . tests/io/read_ptr_slice.sx -o /tmp/shux_io_read_ptr_slice 2>&1
+$RUN_SHUX -L . tests/io/read_ptr_slice.x -o /tmp/shux_io_read_ptr_slice 2>&1
 echo -n "AB" | /tmp/shux_io_read_ptr_slice
 ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (read_stdin_ptr_slice), got $ec"; exit 1; }
 
-$RUN_SHUX -L . tests/io/read_ptr_slice_param.sx -o /tmp/shux_io_read_ptr_slice_param 2>&1
+$RUN_SHUX -L . tests/io/read_ptr_slice_param.x -o /tmp/shux_io_read_ptr_slice_param 2>&1
 echo -n "AB" | /tmp/shux_io_read_ptr_slice_param
 ec=$?
 [ "$ec" -ne 0 ] && { echo "expected exit 0 (read_ptr_slice_param local/param field), got $ec"; exit 1; }

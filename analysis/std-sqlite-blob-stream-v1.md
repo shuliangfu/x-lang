@@ -24,7 +24,7 @@
 
 小 BLOB 仍可用 `row_col_blob`；大对象推荐 `len` + 循环 `read`。
 
-烟测：`db_sqlite_blob_stream_smoke_c`（96 字节、32×3 块）、`blob_stream_roundtrip.sx`。
+烟测：`db_sqlite_blob_stream_smoke_c`（96 字节、32×3 块）、`blob_stream_roundtrip.x`。
 
 ---
 
@@ -47,7 +47,7 @@
 ```
 
 ```
-shux: [SHUX_STD137_DB_BLOB_STREAM] status=ok stream_c=1 stream_sx=0 skip=1
+shux: [SHUX_STD137_DB_BLOB_STREAM] status=ok stream_c=1 stream_x=0 skip=1
 ```
 
 无 `libsqlite3` 时 manifest 仍过，烟测 **SKIP**。

@@ -18,7 +18,7 @@ MIN_GOLDEN=5
 
 echo "=== TOOL-009: vscode 0.2 manifest ==="
 for f in "$DOC" "$MANIFEST" "$LIB" \
-  editors/vscode/package.json editors/vscode/grammars/sx.tmLanguage.json \
+  editors/vscode/package.json editors/vscode/grammars/x.tmLanguage.json \
   VERSION tests/run-tool-vscode-pack.sh; do
   if [ ! -f "$f" ]; then
     echo "tool-vscode-020 gate FAIL: missing $f" >&2
@@ -68,7 +68,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
   case "$kind" in
     grammar_rule)
       RULE_N=$((RULE_N + 1))
-      if ! tool_vscode_020_grammar_has_rule "editors/vscode/grammars/sx.tmLanguage.json" "$anchor"; then
+      if ! tool_vscode_020_grammar_has_rule "editors/vscode/grammars/x.tmLanguage.json" "$anchor"; then
         echo "tool-vscode-020 FAIL: grammar missing rule $anchor ($item_id)" >&2
         MISS=$((MISS + 1))
       elif ! grep -qF "$item_id" "$DOC" 2>/dev/null; then

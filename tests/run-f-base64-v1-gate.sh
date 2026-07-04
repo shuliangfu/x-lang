@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-base64 v1：std.base64 去 C（base64.c → base64.sx）。
+# F-base64 v1：std.base64 去 C（base64.c → base64.x）。
 #
 # 用法：./tests/run-f-base64-v1-gate.sh
 # 环境：SHUX_F_BASE64_V1_FAIL=1 — 失败时硬退出
@@ -16,11 +16,11 @@ die() {
   exit 0
 }
 
-echo "=== F-base64 v1: std.base64 base64.c → base64.sx ==="
+echo "=== F-base64 v1: std.base64 base64.c → base64.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-base64 v1' "$DOC" || die "doc missing F-base64 v1 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
-[ -f std/base64/base64.sx ] || die "missing std/base64/base64.sx"
+[ -f std/base64/base64.x ] || die "missing std/base64/base64.x"
 [ ! -f std/base64/base64.c ] || die "std/base64/base64.c should be deleted"
 
 while IFS=$'\t' read -r item_id kind anchor _notes; do
@@ -36,7 +36,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-grep -q 'std/base64/base64.sx' compiler/Makefile || die "Makefile missing base64.sx rule"
+grep -q 'std/base64/base64.x' compiler/Makefile || die "Makefile missing base64.x rule"
 if grep -q 'std/base64/base64\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/base64/base64.c"
 fi

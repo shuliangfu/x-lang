@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-uuid v1：std.uuid 去 C（uuid.c → uuid.sx）。
+# F-uuid v1：std.uuid 去 C（uuid.c → uuid.x）。
 #
 # 用法：./tests/run-f-uuid-v1-gate.sh
 # 环境：SHUX_F_UUID_V1_FAIL=1 — 失败时硬退出
@@ -16,11 +16,11 @@ die() {
   exit 0
 }
 
-echo "=== F-uuid v1: std.uuid uuid.c → uuid.sx ==="
+echo "=== F-uuid v1: std.uuid uuid.c → uuid.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-uuid v1' "$DOC" || die "doc missing F-uuid v1 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
-[ -f std/uuid/uuid.sx ] || die "missing std/uuid/uuid.sx"
+[ -f std/uuid/uuid.x ] || die "missing std/uuid/uuid.x"
 [ ! -f std/uuid/uuid.c ] || die "std/uuid/uuid.c should be deleted"
 
 while IFS=$'\t' read -r item_id kind anchor _notes; do
@@ -36,7 +36,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
   esac
 done < "$MANIFEST"
 
-grep -q 'std/uuid/uuid.sx' compiler/Makefile || die "Makefile missing uuid.sx rule"
+grep -q 'std/uuid/uuid.x' compiler/Makefile || die "Makefile missing uuid.x rule"
 if grep -q 'std/uuid/uuid\.c' compiler/Makefile 2>/dev/null; then
   die "Makefile still references std/uuid/uuid.c"
 fi

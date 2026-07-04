@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# 阶段 4 Hello World：编译 examples/hello.sx 并运行，检查输出含 "Hello World"
+# 阶段 4 Hello World：编译 examples/hello.x 并运行，检查输出含 "Hello World"
 # run-all 默认用 C（RUN_ALL_USE_C=1）：父脚本会 export SHUX=./compiler/shux-c（若存在），走 C 流水线。
-# 显式 SHUX=./compiler/shux 时走 seed / .sx 流水线（bootstrap 验证）。
+# 显式 SHUX=./compiler/shux 时走 seed / .x 流水线（bootstrap 验证）。
 
 set -e
 cd "$(dirname "$0")/.."
 SHUX=${SHUX:-./compiler/shux}
 
-# 探测二进制是否支持 -sx（链 pipeline）；纯 C 前端 shux-c 会报 unknown option。
-shux_cli_supports_sx() {
+# 探测二进制是否支持 -x（链 pipeline）；纯 C 前端 shux-c 会报 unknown option。
+shux_cli_supports_x() {
   local o
-  o=$("$1" -sx 2>&1) || true
+  o=$("$1" -x 2>&1) || true
   case "$o" in
     *"unknown option"*) return 1 ;;
     *) return 0 ;;
@@ -57,14 +57,14 @@ if [ -n "${RUN_ALL_USE_C:-}" ]; then
     HELLO_COMPILE_SHUX=./compiler/shux-c
     HELLO_BACKEND=""
   fi
-  $HELLO_COMPILE_SHUX $HELLO_BACKEND examples/hello.sx -o /tmp/shux_hello
+  $HELLO_COMPILE_SHUX $HELLO_BACKEND examples/hello.x -o /tmp/shux_hello
 else
-  if [[ "$HELLO_COMPILE_SHUX" == *shux-c* ]] || ! shux_cli_supports_sx "$HELLO_COMPILE_SHUX"; then
-    $HELLO_COMPILE_SHUX $HELLO_BACKEND -L . examples/hello.sx -o /tmp/shux_hello
+  if [[ "$HELLO_COMPILE_SHUX" == *shux-c* ]] || ! shux_cli_supports_x "$HELLO_COMPILE_SHUX"; then
+    $HELLO_COMPILE_SHUX $HELLO_BACKEND -L . examples/hello.x -o /tmp/shux_hello
   else
-    # -o 链接走 driver 全路径；与 run-all-sx 一致带 -L .
+    # -o 链接走 driver 全路径；与 run-all-x 一致带 -L .
     # seed/shux_asm：非 TTY stdout 重定向会挂起；须 tee|cat Drain（Codespace gold L5）。
-    if ! $HELLO_COMPILE_SHUX $HELLO_BACKEND -L . examples/hello.sx -o /tmp/shux_hello 2>&1 | tee /tmp/shux_hello_build.log | cat >/dev/null; then
+    if ! $HELLO_COMPILE_SHUX $HELLO_BACKEND -L . examples/hello.x -o /tmp/shux_hello 2>&1 | tee /tmp/shux_hello_build.log | cat >/dev/null; then
       echo "hello compile failed (see /tmp/shux_hello_build.log)" >&2
       exit 1
     fi

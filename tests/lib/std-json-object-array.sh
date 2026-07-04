@@ -2,14 +2,14 @@
 # std-json-object-array.sh — STD-034 manifest 与烟测辅助
 #
 # 用法（source 后）：
-#   std_joa_symbols_ok JSON_SX JSON_C TSV
+#   std_joa_symbols_ok JSON_X JSON_C TSV
 #   std_joa_emit_report status oa_ok skip
 
 STD_JOA_PREFIX="${SHUX_STD_JSON_OBJECT_ARRAY_PREFIX:-shux: [SHUX_STD_JSON_OBJECT_ARRAY]}"
 
 # 校验 manifest；echo 缺失数，成功返回 0。
 std_joa_symbols_ok() {
-  local json_sx="$1"
+  local json_x="$1"
   local json_c="$2"
   local tsv="$3"
   local miss=0
@@ -20,8 +20,8 @@ std_joa_symbols_ok() {
     case "$kind" in
       symbol)
         case "$mod_path" in
-          std/json/json.c|std/json/json_parse_glue.c|std/json/json.sx) mod_path="$json_c" ;;
-          *) mod_path="$json_sx" ;;
+          std/json/json.c|std/json/json_parse_glue.c|std/json/json.x) mod_path="$json_c" ;;
+          *) mod_path="$json_x" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-json-object-array FAIL: missing '$anchor' in $mod_path" >&2

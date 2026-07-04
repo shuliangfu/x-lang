@@ -5,8 +5,8 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MOD="std/string/mod.sx"
-SMOKE="tests/string/unicode_bridge.sx"
+MOD="std/string/mod.x"
+SMOKE="tests/string/unicode_bridge.x"
 
 echo "=== STD-160: std.string unicode bridge ==="
 for f in "$MOD" "$SMOKE"; do

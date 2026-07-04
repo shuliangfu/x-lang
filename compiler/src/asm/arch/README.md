@@ -1,20 +1,20 @@
 # asm/arch/ — 多平台汇编架构
 
-本目录按**目标架构**拆分，每个平台一个 `.sx` 文件，由 backend 根据 `ctx.target_arch` 分派，便于扩展且不污染 asm 根目录。
+本目录按**目标架构**拆分，每个平台一个 `.x` 文件，由 backend 根据 `ctx.target_arch` 分派，便于扩展且不污染 asm 根目录。
 
 ## 当前平台
 
 | 文件 | 架构 | 说明 |
 |------|------|------|
-| **x86_64.sx** / **x86_64_enc.sx** | x86-64 (AMD64) | GAS AT&T + 直接机器码；System V ABI。 |
-| **arm64.sx** / **arm64_enc.sx** | ARM64 (AArch64) | GAS + 机器码；AAPCS64。 |
-| **riscv64.sx** / **riscv64_enc.sx** | RISC-V 64 | GAS + RV64I 机器码；ELF e_machine=243。 |
+| **x86_64.x** / **x86_64_enc.x** | x86-64 (AMD64) | GAS AT&T + 直接机器码；System V ABI。 |
+| **arm64.x** / **arm64_enc.x** | ARM64 (AArch64) | GAS + 机器码；AAPCS64。 |
+| **riscv64.x** / **riscv64_enc.x** | RISC-V 64 | GAS + RV64I 机器码；ELF e_machine=243。 |
 
 ## 扩展新平台
 
-1. 在本目录新增 `<arch>.sx`（如 `riscv64.sx`）。
-2. 在 `types.sx` 的 `TargetArch` 枚举中增加对应值。
-3. 在 `backend.sx` 中 `import arch.<arch>`，并在各 `arch_*` 辅助函数中增加 `ta == 新枚举值` 分支，调用新模块的对应 emit。
+1. 在本目录新增 `<arch>.x`（如 `riscv64.x`）。
+2. 在 `types.x` 的 `TargetArch` 枚举中增加对应值。
+3. 在 `backend.x` 中 `import arch.<arch>`，并在各 `arch_*` 辅助函数中增加 `ta == 新枚举值` 分支，调用新模块的对应 emit。
 4. 在 driver/runtime 中根据 `-target` 设置 `ctx.target_arch`。
 
 ### 新架构须实现的 emit_*（与 backend arch_* 一一对应）

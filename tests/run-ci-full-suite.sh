@@ -31,7 +31,7 @@ ci_linux_perf_l1_probe_ok() {
   [ -n "$loads" ] && [ -n "$misses" ] && [ "$loads" != "0" ]
 }
 
-# Linux ARM64 CI 精简路径：全量 run-all-sx + build_shux_asm 易超 170min；Neon DOD/SIMD 烟测保留，完整回归由 x86_64 承担。
+# Linux ARM64 CI 精简路径：全量 run-all-x + build_shux_asm 易超 170min；Neon DOD/SIMD 烟测保留，完整回归由 x86_64 承担。
 ci_is_linux_arm64_ci_lite() {
   ci_is_linux && ci_is_arm64_host
 }
@@ -160,7 +160,7 @@ fi
 
 ulimit -s 65532 2>/dev/null || ulimit -s 16384 2>/dev/null || ulimit -s hard 2>/dev/null || true
 
-# ── Tier P：全平台统一便携测试（同一套 .sx / shux-c，平台能力自动 N/A） ───
+# ── Tier P：全平台统一便携测试（同一套 .x / shux-c，平台能力自动 N/A） ───
 echo "── Tier P portable suite ──"
 chmod +x tests/run-portable-suite.sh
 ./tests/run-portable-suite.sh | tee /tmp/portable_suite.log
@@ -195,7 +195,7 @@ else
 fi
 grep -q 'perf baseline OK' /tmp/perf_bench.log
 
-echo "── IO unified perf (Tier B: io_uring / IOCP / kqueue 同一套 .sx) ──"
+echo "── IO unified perf (Tier B: io_uring / IOCP / kqueue 同一套 .x) ──"
 chmod +x tests/run-io-unified-gate.sh
 if ci_is_linux; then
   IO_UNIFIED_ENV="SHUX_PERF_FAIL_ON_IO_REGRESSION=1"
@@ -224,7 +224,7 @@ echo "── refresh shux_asm gate ──"
 chmod +x tests/run-refresh-shux-asm-gate.sh
 if ci_is_windows_msys_ci_lite; then
   # MSYS2 上 relink-shux / build_shux_asm typeck EMIT_HEAVY 易挂起 45min+；seed shux 作 shux_asm 足够 DOD/ZC 烟测。
-  make -C compiler migrate-sx-objs 2>/dev/null || make -C compiler migrate-sx-objs
+  make -C compiler migrate-x-objs 2>/dev/null || make -C compiler migrate-x-objs
   cp -f compiler/shux compiler/shux_asm
   {
     echo "refresh shux asm gate: CI non-Linux — Mach-O/PE single-platform relink"
@@ -311,18 +311,18 @@ else
   ./tests/run-all-seed.sh
 fi
 
-echo "── test_sx (LSP + run-all-sx) ──"
+echo "── test_x (LSP + run-all-x) ──"
 if ci_is_linux_arm64_ci_lite; then
   make -C compiler bootstrap-driver-seed
   chmod +x tests/run-lsp.sh
   ./tests/run-lsp.sh
-  echo "ci-full-suite: run-all-sx N/A on Linux ARM64 (x86_64 covers shux_sx full run-all)"
+  echo "ci-full-suite: run-all-x N/A on Linux ARM64 (x86_64 covers shux_x full run-all)"
 elif ci_is_windows_msys_ci_lite; then
   chmod +x tests/run-lsp.sh
   ./tests/run-lsp.sh
-  echo "ci-full-suite: run-all-sx N/A on Windows MSYS2 (Linux x86_64 covers shux_sx full run-all)"
+  echo "ci-full-suite: run-all-x N/A on Windows MSYS2 (Linux x86_64 covers shux_x full run-all)"
 else
-  make -C compiler test_sx
+  make -C compiler test_x
 fi
 
 # ── Tier A 边界：lite 平台跳过 build_shux_asm/bstrict，仍跑 Tier B（DOD/WPO-S2 等） ──

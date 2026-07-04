@@ -5,8 +5,8 @@
 # 再回退 shux_asm2 / shux-c（contextual typing 已覆盖 usize 字面量）。
 #
 # 用法（source 后）：
-#   p0_gate_run_typeck "$sx"   # stdout=编译器路径；失败 return 1
-#   p0_gate_try_run_o "$bin" "$sx" "$exe"
+#   p0_gate_run_typeck "$x"   # stdout=编译器路径；失败 return 1
+#   p0_gate_try_run_o "$bin" "$x" "$exe"
 
 # shellcheck source=tests/lib/ci-host.sh
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/ci-host.sh"
@@ -36,17 +36,17 @@ p0_gate_default_seed() {
 
 # typeck：先 seed（shux-c），失败再按候选列表回退。
 p0_gate_run_typeck_prefer_seed() {
-  local sx="$1"
+  local x="$1"
   local seed
   if seed="$(p0_gate_default_seed)"; then
-    p0_gate_log "typeck prefer seed: $seed $(basename "$sx")"
-    if p0_gate_typeck_one "$seed" "$sx"; then
+    p0_gate_log "typeck prefer seed: $seed $(basename "$x")"
+    if p0_gate_typeck_one "$seed" "$x"; then
       echo "$seed"
       return 0
     fi
     p0_gate_log "typeck seed failed, fallback candidates ..."
   fi
-  p0_gate_run_typeck "$sx"
+  p0_gate_run_typeck "$x"
 }
 
 # 候选 typeck 编译器列表（按优先级）。
@@ -76,13 +76,13 @@ p0_gate_typeck_candidates() {
 # 对单文件 typeck；137/139 时最多重试 3 次。
 p0_gate_typeck_one() {
   local bin="$1"
-  local sx="$2"
+  local x="$2"
   local logf try ec
   logf="/tmp/shux_p0_typeck_$$.log"
   for try in 1 2 3; do
-    p0_gate_log "typeck try $try: $bin $(basename "$sx")"
+    p0_gate_log "typeck try $try: $bin $(basename "$x")"
     set +e
-    "$bin" check -L . "$sx" >"$logf" 2>&1
+    "$bin" check -L . "$x" >"$logf" 2>&1
     ec=$?
     set -e
     if [ "$ec" -eq 0 ]; then
@@ -104,11 +104,11 @@ p0_gate_typeck_one() {
 
 # 依次尝试候选编译器直至 typeck 通过；stdout 输出成功者路径。
 p0_gate_run_typeck() {
-  local sx="$1"
+  local x="$1"
   local bin
   while IFS= read -r bin; do
     [ -n "$bin" ] || continue
-    if p0_gate_typeck_one "$bin" "$sx"; then
+    if p0_gate_typeck_one "$bin" "$x"; then
       echo "$bin"
       return 0
     fi
@@ -117,10 +117,10 @@ p0_gate_run_typeck() {
 }
 
 # 尝试 -o 编译并运行；shux-c 走 -backend c；失败时默认 WARN 返回 2。
-# 参数：$1=编译器 $2=.sx $3=exe；SHUX_P0_GATE_RUN_STRICT=1 时失败即 exit 1。
+# 参数：$1=编译器 $2=.x $3=exe；SHUX_P0_GATE_RUN_STRICT=1 时失败即 exit 1。
 p0_gate_try_run_o() {
   local bin="$1"
-  local sx="$2"
+  local x="$2"
   local exe="$3"
   local ec run_ec logf backend_args=""
   logf="/tmp/shux_p0_gate_o_$$.log"
@@ -133,16 +133,16 @@ p0_gate_try_run_o() {
   fi
   local o_timeout="${SHUX_P0_GATE_O_TIMEOUT:-300}"
   local hb="${SHUX_P0_GATE_O_HEARTBEAT:-15}"
-  p0_gate_log "-o compile: $bin $(basename "$sx") (timeout=${o_timeout}s, heartbeat=${hb}s) ..."
+  p0_gate_log "-o compile: $bin $(basename "$x") (timeout=${o_timeout}s, heartbeat=${hb}s) ..."
   set +e
   # shellcheck disable=SC2086
   if declare -F gate_progress_run_heartbeat >/dev/null 2>&1; then
-    gate_progress_run_heartbeat "-o $bin $(basename "$sx")" "$hb" \
-      gate_run_timeout "$o_timeout" "$bin" $backend_args -L . "$sx" -o "$exe" \
+    gate_progress_run_heartbeat "-o $bin $(basename "$x")" "$hb" \
+      gate_run_timeout "$o_timeout" "$bin" $backend_args -L . "$x" -o "$exe" \
       >"$logf" 2>&1
     ec=$?
   else
-    gate_run_timeout "$o_timeout" "$bin" $backend_args -L . "$sx" -o "$exe" >"$logf" 2>&1
+    gate_run_timeout "$o_timeout" "$bin" $backend_args -L . "$x" -o "$exe" >"$logf" 2>&1
     ec=$?
   fi
   if [ "$ec" -ne 0 ] || [ ! -x "$exe" ]; then
@@ -154,13 +154,13 @@ p0_gate_try_run_o() {
       export SHUX_MIN_LINK_REAL="$bin"
       rm -f "$exe"
       if declare -F gate_progress_run_heartbeat >/dev/null 2>&1; then
-        gate_progress_run_heartbeat "min-link $(basename "$sx")" "$hb" \
-          gate_run_timeout "$o_timeout" "$min_wrap" $backend_args -L . "$sx" -o "$exe" \
+        gate_progress_run_heartbeat "min-link $(basename "$x")" "$hb" \
+          gate_run_timeout "$o_timeout" "$min_wrap" $backend_args -L . "$x" -o "$exe" \
           >>"$logf" 2>&1
         ec=$?
       else
         # shellcheck disable=SC2086
-        gate_run_timeout "$o_timeout" "$min_wrap" $backend_args -L . "$sx" -o "$exe" >>"$logf" 2>&1
+        gate_run_timeout "$o_timeout" "$min_wrap" $backend_args -L . "$x" -o "$exe" >>"$logf" 2>&1
         ec=$?
       fi
     fi

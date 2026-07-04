@@ -70,7 +70,7 @@ P0_SCRIPTS=(
   run-bootstrap-std-harddeps-gate.sh
 )
 
-# --- 语言 + pipeline 烟测（compiler .sx 子集；不拉全 std）---
+# --- 语言 + pipeline 烟测（compiler .x 子集；不拉全 std）---
 # 不含：run-preprocess（seed #if '?'）、run-result（seed asm SIGSEGV）、run-slice（core.slice 链 gold）。
 LANG_SCRIPTS=(
   run-check.sh

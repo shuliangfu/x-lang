@@ -1,0 +1,32 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// check.x — shux check 子命令：parse + typeck（含 import deps），不
+// codegen、不链接。
+// 符号名 driver_cmd_check：源码标识符 cmd_check + 模块前缀 driver_
+// 勿 import ast：-E 生成 driver_check_gen.c 时无需 AST；路径/目录由 fmt_check_cmd.c
+// 处理。
+
+/** C 侧 fmt_check_cmd.c：多文件/目录、deno check 风格诊断。 */
+extern function driver_run_compiler_check(argc: i32, argv: *u8): i32;
+
+/**
+ * shux check [flags] [path...]
+ * 无路径时递归检查当前目录 *.x（与 shux fmt 一致）；目录则递归 *.x。
+ */
+function cmd_check(argc: i32, argv: *u8): i32 {
+  return driver_run_compiler_check(argc, argv);
+}

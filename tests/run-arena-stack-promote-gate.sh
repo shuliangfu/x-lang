@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
 SHUX="${SHUX:-./compiler/shux-c}"
-SRC="tests/mem/arena_stack_promote.sx"
+SRC="tests/mem/arena_stack_promote.x"
 OUT="/tmp/shux_arena_stack_promote"
 rm -f "$OUT"
 # 带 import 时 -E 可能 DCE 掉 main；用 SHUX_KEEP_C 保留完整 TU（同 scope_alloc gate）
@@ -50,7 +50,7 @@ fi
 echo "arena-stack-promote-gate OK (MEM-D2 arena ptr factory stack promotion)"
 
 echo "=== MEM-D2.2: alias promote arena_stack_promote_alias ==="
-ALIAS_SRC="tests/mem/arena_stack_promote_alias.sx"
+ALIAS_SRC="tests/mem/arena_stack_promote_alias.x"
 ALIAS_OUT="/tmp/shux_arena_stack_promote_alias"
 if ! SHUX_KEEP_C=1 "$SHUX" "$ALIAS_SRC" -o "$ALIAS_OUT" >/tmp/shux_asp_alias.log 2>&1; then
   echo "asp-alias-gate FAIL: compile/run failed" >&2
@@ -75,7 +75,7 @@ fi
 echo "asp-alias-gate OK (block-local alias still promotes)"
 
 echo "=== MEM-D2.2: escape skip arena_stack_promote_escape ==="
-ESC_SRC="tests/mem/arena_stack_promote_escape.sx"
+ESC_SRC="tests/mem/arena_stack_promote_escape.x"
 ESC_OUT="/tmp/shux_arena_stack_promote_escape"
 if ! SHUX_KEEP_C=1 "$SHUX" "$ESC_SRC" -o "$ESC_OUT" >/tmp/shux_asp_escape.log 2>&1; then
   echo "asp-escape-gate FAIL: compile/run failed" >&2

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# std-csv-row.sh — STD-127 manifest 与烟测辅助（F-csv v1：csv.sx）
+# std-csv-row.sh — STD-127 manifest 与烟测辅助（F-csv v1：csv.x）
 
 STD_CSV_ROW_PREFIX="${SHUX_STD_CSV_ROW_PREFIX:-shux: [SHUX_STD_CSV_ROW]}"
 
-# 校验 manifest；C symbol 在 csv.sx。
+# 校验 manifest；C symbol 在 csv.x。
 std_csv_row_symbols_ok() {
-  local mod_sx="$1"
-  local csv_sx="$2"
+  local mod_x="$1"
+  local csv_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,14 +15,14 @@ std_csv_row_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-csv-row FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
         ;;
       symbol)
         case "$mod_path" in
-          std/csv/csv.c|std/csv/csv.sx) mod_path="$csv_sx" ;;
+          std/csv/csv.c|std/csv/csv.x) mod_path="$csv_x" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-csv-row FAIL: missing '$anchor' in $mod_path" >&2

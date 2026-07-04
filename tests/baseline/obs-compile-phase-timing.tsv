@@ -10,5 +10,5 @@ field_total	output_field	total_ms=	三阶段之和
 impl_begin	runtime_fn	driver_compile_phase_timing_begin	runtime_driver_abi.c
 impl_end	runtime_fn	driver_compile_phase_timing_end	runtime_driver_abi.c
 impl_flush	runtime_fn	driver_compile_phase_timing_flush	runtime_driver_abi.c
-pipeline_hook	pipeline_fn	run_sx_pipeline_impl	pipeline.sx 编排
-smoke_fixture	check	tests/bench/loop_i32.sx	native shux 烟测
+pipeline_hook	pipeline_fn	run_x_pipeline_impl	pipeline.x 编排
+smoke_fixture	check	tests/bench/loop_i32.x	native shux 烟测

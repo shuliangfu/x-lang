@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-003：std.fs 跨平台对齐门禁（Linux / macOS / Windows 同一套 .sx）
+# STD-003：std.fs 跨平台对齐门禁（Linux / macOS / Windows 同一套 .x）
 #
 # 读取 tests/baseline/std-fs-crossplatform.tsv，按平台策略跑 must/skip/optional。
 # 用法：./tests/run-std-fs-crossplatform-gate.sh
@@ -66,10 +66,10 @@ fi
 
 echo "=== STD-003: std.fs cross-platform ($(ci_host_summary) SHUX=$SHUX_BIN) ==="
 
-run_sx_case() {
+run_x_case() {
   local script="$1"
   local src="tests/fs/${script}"
-  local out="/tmp/shux_fs_xplat_${script%.sx}"
+  local out="/tmp/shux_fs_xplat_${script%.x}"
   rm -f tests/fs/.crossplatform_tmp tests/fs/.mmap_ro_tmp
   "$SHUX_BIN" -L . "$src" -o "$out" >/tmp/shux_fs_xplat_compile.log 2>&1 || {
     cat /tmp/shux_fs_xplat_compile.log >&2
@@ -118,7 +118,7 @@ while IFS=$'\t' read -r case_id script linux pol_mac pol_win notes; do
   fi
 
   echo "── case $case_id: tests/fs/${script} ──"
-  if run_sx_case "$script"; then
+  if run_x_case "$script"; then
     echo "std-fs xplat OK $case_id"
   else
     if [ "$pol" = "optional" ]; then

@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_LINUX_MMAP_FILE_FAIL:-0}
-SX="tests/sys/linux_mmap_file_smoke.sx"
+X="tests/sys/linux_mmap_file_smoke.x"
 OUT="/tmp/shux_linux_mmap_file.$$.out"
 GATE_FILE="/tmp/shux_linux_mmap_file_gate.dat"
 SHUX="${SHUX:-./compiler/shux-c}"
@@ -33,8 +33,8 @@ fi
 : >"$GATE_FILE"
 rm -f "$OUT" 2>/dev/null || true
 
-if ! "$SHUX" -o "$OUT" "$SX" 2>/tmp/shux_linux_mmap_file.log; then
-  echo "linux-mmap-file-gate FAIL: compile $SX" >&2
+if ! "$SHUX" -o "$OUT" "$X" 2>/tmp/shux_linux_mmap_file.log; then
+  echo "linux-mmap-file-gate FAIL: compile $X" >&2
   tail -n 10 /tmp/shux_linux_mmap_file.log 2>/dev/null || true
   rm -f "$OUT" "$GATE_FILE" 2>/dev/null || true
   [ "$FAIL" = "1" ] && exit 1

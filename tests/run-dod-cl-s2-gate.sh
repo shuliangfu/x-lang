@@ -33,8 +33,8 @@ if [ -z "$CHECK_SHUX" ] && [ -x ./compiler/shux-c ]; then
   CHECK_SHUX=./compiler/shux-c
 fi
 
-ARENA_SRC="tests/dod/cl_arena64_smoke.sx"
-REORDER_SRC="tests/dod/cl_hot_reorder_bad.sx"
+ARENA_SRC="tests/dod/cl_arena64_smoke.x"
+REORDER_SRC="tests/dod/cl_hot_reorder_bad.x"
 OUT_DIR="${TESTS_OUT_DIR:-tests/.out}"
 mkdir -p "$OUT_DIR"
 ARENA_OUT="$OUT_DIR/shux_dod_cl_arena64"
@@ -47,7 +47,7 @@ if [ -z "$CHECK_SHUX" ] && [ -z "$SHUX_ABS" ]; then
   exit 0
 fi
 
-# F-03 v2：heap 已纯 .sx，不再 cc -c heap.c
+# F-03 v2：heap 已纯 .x，不再 cc -c heap.c
 
 if [ -n "$CHECK_SHUX" ]; then
   if "$CHECK_SHUX" check -L . "$ARENA_SRC" >/dev/null 2>&1; then

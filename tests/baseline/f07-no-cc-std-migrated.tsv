@@ -1,4 +1,4 @@
-# F-07 v1：已迁移纯 .sx 模块硬禁 cc -c 清单
+# F-07 v1：已迁移纯 .x 模块硬禁 cc -c 清单
 # 列：module_id	c_path	o_path	phase
 io	std/io/io.c	std/io/io.o	F-03
 fs	std/fs/fs.c	std/fs/fs.o	F-03

@@ -1,19 +1,19 @@
 note: pipeline debug: driver post-parse_into_buf num_funcs=47 n_imports=2 pr_ok=0 pr_main_idx=-1 src_len=11557
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 note: pipeline debug: collect parse dep=std.heap.libc pr_ok=0 n_imp=1
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 note: pipeline debug: collect parse dep=core.mem pr_ok=0 n_imp=0
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 note: pipeline debug: collect parse dep=std.heap.ops pr_ok=0 n_imp=1
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 note: pipeline debug: n_deps=3
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 note: pipeline debug: dep[0]=std.heap.libc
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 note: pipeline debug: dep[1]=core.mem
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 note: pipeline debug: dep[2]=std.heap.ops
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=4
 shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
 shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=31
@@ -21,19 +21,19 @@ shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
 shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=52
 shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
 note: pipeline debug: before entry memset arena_sz=16
- --> ../std/heap/mod.sx
-note: pipeline debug: before pipeline_run entry=../std/heap/mod.sx src_len=11557
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
+note: pipeline debug: before pipeline_run entry=../std/heap/mod.x src_len=11557
+ --> ../std/heap/mod.x
 note: pipeline debug: pipeline thread start len=11557
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 note: pipeline debug: entry_source_len=11557
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c ok=0 main_idx=-1 num_funcs=47
 shux: [SHUX_DEBUG_PIPE] parse_set_main_from_buf_c stored_main_idx=-1
 note: pipeline debug: after_entry_parse num_funcs=47
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 note: pipeline debug: after_entry_parse num_funcs=47 num_defined=47 num_extern=0
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=-1 num_funcs=47
 shux: [SHUX_DEBUG_PIPE] implicit_tail_scan body=2 fin=0 nso=1
 shux: [SHUX_DEBUG_PIPE] implicit_tail_dump body=2 exprs=1
@@ -103,15 +103,15 @@ shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=20 tail=897 kind=41
 shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=23 tail=1037 kind=41
 shux: [SHUX_DEBUG_PIPE] implicit_tail_result body=27 tail=1149 kind=41
 typeck error: return expression type mismatch: expected *u8, found *u64
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 typeck note: return subexpression: alloc()
- --> ../std/heap/mod.sx
-typeck error[SXT001]: .sx type check failed in function #23 bump (check_block failed)
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
+typeck error[XT001]: .x type check failed in function #23 bump (check_block failed)
+ --> ../std/heap/mod.x
 shux: [SHUX_DEBUG_PIPE] typeck library rc=-5 ctx=0x44f400000 ndep=3
 note: pipeline debug: pipeline thread done ec=-5
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
 note: pipeline debug: after pipeline_run ec=-5
- --> ../std/heap/mod.sx
-pipeline error: pipeline failed for '../std/heap/mod.sx' (ec=-5, out_len=0)
- --> ../std/heap/mod.sx
+ --> ../std/heap/mod.x
+pipeline error: pipeline failed for '../std/heap/mod.x' (ec=-5, out_len=0)
+ --> ../std/heap/mod.x

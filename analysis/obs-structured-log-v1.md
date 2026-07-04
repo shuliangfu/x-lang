@@ -33,7 +33,7 @@ shux: level=info component=obs_smoke event=gate_ok case=1
 | `component` | 是 | 组件名（snake 或 `SHUX_*` 大写常量） |
 | 其它 | 否 | 小写 snake `key=value`，值勿含空格 |
 
-实现：`std/log/log.sx` → `log_write_structured_kv_c()`；`.sx` → `structured_kv()`。
+实现：`std/log/log.x` → `log_write_structured_kv_c()`；`.x` → `structured_kv()`。
 
 ### 2.2 遗留 bracket（OBS-001/002、ENG 预检等）
 
@@ -109,7 +109,7 @@ grep -F 'shux: [SHUX_COMPILE_PHASE_TIMING]' build.log | sed 's/.*\] //'
 | 校验库 | `tests/lib/obs-structured-log.sh` |
 | 烟测 | `tests/bench/obs_structured_log_smoke.c` |
 | 门禁 | `tests/run-obs-structured-log-gate.sh` |
-| std.log | `std/log/log.c`、`std/log/mod.sx` |
+| std.log | `std/log/log.c`、`std/log/mod.x` |
 | 编译阶段 | `analysis/obs-compile-phase-timing-v1.md` |
 | async trace | `analysis/obs-async-runtime-trace-v1.md` |
 

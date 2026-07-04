@@ -1,0 +1,191 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// std.io.core — 舒 IO 核心层（分析/舒IO实现路线图.md 阶段 1）
+// 供 std.io.driver 与 std.mem 调用。F-03 v2/v3：底层 io_* 由 std.io.backend 纯 .x 提供（libc sync）。
+// 约定：返回值 >0 表示读写字节数，0 表示 EOF（仅读），-1 表示错误；timeout_ms 传 0 表示无超时。
+const io_backend = import("std.io.backend");
+
+// 预注册当前线程的固定 buffer（单 buffer）：v1 仅存 (ptr,len) 供 read_fixed/write_fixed。handle 暂未使用。返回 1 成功，0 失败。
+function shux_io_register(ptr: *u8, len: usize, handle: usize): i32 {
+  if (handle >= 0) {
+    /* handle 暂未使用。 */
+  }
+  return io_backend.io_register_buffer(ptr, len);
+}
+// 预注册当前线程的固定 buffer 池（最多 4 块，受 .x 参数个数限制）：(p0,l0)..(p3,l3) 为 (ptr,len) 对，nr 为实际数量 1..4。返回 1 成功，0 失败。
+function shux_io_register_buffers(p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, nr: u32): i32 {
+  return io_backend.io_register_buffers_4(p0, l0, p1, l1, p2, l2, p3, l3, nr);
+}
+// 注销当前线程的固定 buffer 池。
+function shux_io_unregister_buffers(): void {
+  io_backend.io_unregister_buffers();
+}
+// 使用已注册固定 buffer 读：buf_index 当前仅支持 0；offset+len 须 ≤ 注册长度。handle 为 fd；返回读入字节数，0=EOF，-1=错误/超时。
+function shux_io_read_fixed(handle: usize, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
+  let fd: i32 = (handle as i32);
+  let r: isize = io_backend.io_read_fixed(fd, buf_index, offset, len, timeout_ms);
+  if (r < 0) { return -1; }
+  return (r as i32);
+}
+// 使用已注册固定 buffer 写：buf_index 当前仅支持 0；offset+len 须 ≤ 注册长度。返回写入字节数，-1=错误/超时。
+function shux_io_write_fixed(handle: usize, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): i32 {
+  let fd: i32 = (handle as i32);
+  let r: isize = io_backend.io_write_fixed(fd, buf_index, offset, len, timeout_ms);
+  if (r < 0) { return -1; }
+  return (r as i32);
+}
+// 多 fd 就绪等待：fds 指向 n 个 i32（fd 数组），一次系统调用等待任意可读。返回第一个就绪的下标 0..n-1，超时/错误 -1。n 建议 ≤8。
+function shux_io_wait_readable(fds: *i32, n: i32, timeout_ms: u32): i32 {
+  return io_backend.io_wait_readable(fds, n, timeout_ms);
+}
+// 同步读：handle 0=stdin，handle≥2 视为 fd；timeout_ms 毫秒（0=无超时）。返回读入字节数，0=EOF，-1=错误/超时。
+function shux_io_submit_read(ptr: *u8, len: usize, handle: usize, timeout_ms: u32): i32 {
+  let fd: i32 = (handle as i32);
+  if (handle == 0 || handle >= 2) {
+    let r: isize = io_backend.io_read(fd, ptr, len, timeout_ms);
+    if (r < 0) { return -1; }
+    return (r as i32);
+  }
+  return -1;
+}
+// 零拷贝读：读入内部缓冲并返回只读指针；失败返回 0。指针在下次 read_ptr 前有效；长度由 shux_io_read_ptr_len() 返回。
+function shux_io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
+  return io_backend.io_read_ptr(handle, timeout_ms);
+}
+function shux_io_read_ptr_len(): i32 {
+  return io_backend.io_read_ptr_len();
+}
+/** ZC-2：返回当前 read_ptr generation。 */
+function shux_io_read_ptr_gen(): u64 {
+  return io_backend.io_read_ptr_gen();
+}
+/** ZC-2：校验 saved generation 是否仍对应当前有效 read_ptr 视图。 */
+function shux_io_read_ptr_gen_valid(saved: u64): i32 {
+  return io_backend.io_read_ptr_gen_valid(saved);
+}
+/** ZC-2：read_ptr 绝对视图后端探测。 */
+function shux_io_read_ptr_backend(): i32 {
+  return io_backend.io_read_ptr_backend();
+}
+/** M-5：read_ptr + len 打包为 u8[] slice；域标签 io_read_ptr 由 typeck 绑定。 */
+function shux_io_read_ptr_slice(handle: usize, timeout_ms: u32): u8[]<io_read_ptr> {
+  return io_backend.io_read_ptr_slice(handle, timeout_ms);
+}
+// 同步写：handle 1=stdout，handle≥2 视为 fd；timeout_ms 传给后端。返回写入字节数，-1=错误/超时。
+function shux_io_submit_write(ptr: *u8, len: usize, handle: usize, timeout_ms: u32): i32 {
+  let fd: i32 = (handle as i32);
+  if (handle >= 1) {
+    let r: isize = io_backend.io_write(fd, ptr, len, timeout_ms);
+    if (r < 0) { return -1; }
+    return (r as i32);
+  }
+  return -1;
+}
+// 批量读：4 段 (ptr0,len0)..(ptr3,len3)，n 为段数 1..4，handle 为 fd；timeout_ms=0 时可用 readv。
+function shux_io_submit_read_batch(ptr0: *u8, len0: usize, ptr1: *u8, len1: usize, ptr2: *u8, len2: usize, ptr3: *u8, len3: usize, handle: usize, n: i32, timeout_ms: u32): i32 {
+  let fd: i32 = (handle as i32);
+  if (handle == 0 || handle >= 2) {
+    let r: isize = io_backend.io_read_batch(fd, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, n, timeout_ms);
+    if (r < 0) { return -1; }
+    return (r as i32);
+  }
+  return -1;
+}
+// 批量写：同上；timeout_ms=0 时可用 writev。
+function shux_io_submit_write_batch(ptr0: *u8, len0: usize, ptr1: *u8, len1: usize, ptr2: *u8, len2: usize, ptr3: *u8, len3: usize, handle: usize, n: i32, timeout_ms: u32): i32 {
+  let fd: i32 = (handle as i32);
+  if (handle >= 1) {
+    let r: isize = io_backend.io_write_batch(fd, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, n, timeout_ms);
+    if (r < 0) { return -1; }
+    return (r as i32);
+  }
+  return -1;
+}
+/** 按指针+块数注册固定 buffer 池；bufs 指向 nr 个 Buffer/IoBatchBuf（24 字节 ABI）。 */
+function shux_io_register_buffers_buf(bufs: *u8, nr: i32): i32 {
+  return io_backend.io_register_buffers_buf(bufs, nr);
+}
+/** 切片式批量读；bufs 指向 n 个 Buffer/IoBatchBuf。 */
+function shux_io_read_batch_buf(fd: i32, bufs: *u8, n: i32, timeout_ms: u32): isize {
+  return io_backend.io_read_batch_buf(fd, bufs, n, timeout_ms);
+}
+/** 切片式批量写；bufs 指向 n 个 Buffer/IoBatchBuf。 */
+function shux_io_write_batch_buf(fd: i32, bufs: *u8, n: i32, timeout_ms: u32): isize {
+  return io_backend.io_write_batch_buf(fd, bufs, n, timeout_ms);
+}
+// ─── ZC-1 Provided Buffers：v1 stub，回退 read_fixed/read_batch ───
+/** 注册当前线程 provided 池；nr 1..32，bufsz 建议 4096。v1 失败返回 0。 */
+function shux_io_register_provided_buffers(nr: u32, bufsz: u32): i32 {
+  return io_backend.io_register_provided_buffers(nr, bufsz);
+}
+/** 注销 provided 池。 */
+function shux_io_unregister_provided_buffers(): void {
+  io_backend.io_unregister_provided_buffers();
+}
+/** 返回 bid 对应只读指针；无效返回 0。 */
+function shux_io_provided_buffer_ptr(bid: u32): *u8 {
+  return io_backend.io_provided_buffer_ptr(bid);
+}
+/** 单块容量（字节）。 */
+function shux_io_provided_buffer_size(): u32 {
+  return io_backend.io_provided_buffer_size();
+}
+/** 单次 provided recv；out_bid/out_len 可传 0 忽略。返回读入字节数，0=EOF，-1=错误。 */
+function shux_io_read_provided(handle: usize, timeout_ms: u32, out_bid: *u32, out_len: *u32): i32 {
+  let fd: i32 = (handle as i32);
+  if (handle == 0 || handle >= 2) {
+    let r: isize = io_backend.io_read_provided(fd, timeout_ms, out_bid, out_len);
+    if (r < 0) { return -1; }
+    return (r as i32);
+  }
+  return -1;
+}
+/** 批量 provided recv（n=1..4）；out_bids/out_lens 各 n 元素。返回总字节数，-1=错误。 */
+function shux_io_read_batch_provided(handle: usize, n: i32, timeout_ms: u32, out_bids: *u32, out_lens: *u32): i32 {
+  let fd: i32 = (handle as i32);
+  if (handle == 0 || handle >= 2) {
+    let r: isize = io_backend.io_read_batch_provided(fd, n, timeout_ms, out_bids, out_lens);
+    if (r < 0) { return -1; }
+    return (r as i32);
+  }
+  return -1;
+}
+// IO-A5 v2/v3：async 路径 v1 stub；见 stubs.x。
+function shux_io_submit_read_async(ptr: *u8, len: usize, handle: usize): i32 {
+  return io_backend.shux_io_submit_read_async(ptr, len, handle);
+}
+function shux_io_complete_read_async(): i32 {
+  return io_backend.shux_io_complete_read_async();
+}
+function shux_io_complete_read_async_slot(slot: i32): i32 {
+  return io_backend.shux_io_complete_read_async_slot(slot);
+}
+function shux_io_submit_write_async(ptr: *u8, len: usize, handle: usize): i32 {
+  return io_backend.shux_io_submit_write_async(ptr, len, handle);
+}
+function shux_io_complete_write_async(): i32 {
+  return io_backend.shux_io_complete_write_async();
+}
+function shux_io_complete_write_async_slot(slot: i32): i32 {
+  return io_backend.shux_io_complete_write_async_slot(slot);
+}
+function shux_io_poll_async_completions(timeout_ms: u32): u32 {
+  return io_backend.shux_io_poll_async_completions(timeout_ms);
+}
+function shux_io_uring_is_available_c(): i32 {
+  return io_backend.shux_io_uring_is_available_c();
+}

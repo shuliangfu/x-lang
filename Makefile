@@ -1,7 +1,7 @@
 # Shux 顶层 Makefile
 # 委托 compiler 目录构建，产出 shux；测试等目标在此统一入口
 
-.PHONY: all clean test test_c test_sx bootstrap-lexer bootstrap-token
+.PHONY: all clean test test_c test_x bootstrap-lexer bootstrap-token
 
 # 默认目标：构建编译器 shux
 all:
@@ -15,31 +15,31 @@ clean:
 test:
 	$(MAKE) -C compiler test
 
-# 仅 C 路径测试（run-*.sh，不含 sx 自举）
+# 仅 C 路径测试（run-*.sh，不含 x 自举）
 test_c:
 	$(MAKE) -C compiler test_c
 
-# 仅 sx 自举测试（bootstrap-driver-seed + run-lsp + run-all-sx 全量）
-test_sx:
-	$(MAKE) -C compiler test_sx
+# 仅 x 自举测试（bootstrap-driver-seed + run-lsp + run-all-x 全量）
+test_x:
+	$(MAKE) -C compiler test_x
 
-# 自举：用当前 shux 编译 .sx 词法分析器并运行，验证通过则打印 bootstrap-lexer OK
+# 自举：用当前 shux 编译 .x 词法分析器并运行，验证通过则打印 bootstrap-lexer OK
 bootstrap-lexer:
 	$(MAKE) -C compiler bootstrap-lexer
 
-# 自举：用当前 shux 编译 token.sx 并运行（若 compiler 有该目标）
+# 自举：用当前 shux 编译 token.x 并运行（若 compiler 有该目标）
 bootstrap-token:
 	$(MAKE) -C compiler bootstrap-token
 
-# 内核：构建并 QEMU 测试所有 tests/kernel/*.sx 内核
+# 内核：构建并 QEMU 测试所有 tests/kernel/*.x 内核
 kernel:
 	sh tests/kernel/run-kernel-gate.sh
 
 # 内核构建链 K9：一键出 multiboot1 ELF 镜像
-# 用法: make kernel-build SX=tests/kernel/timer_isr.sx ELF=/tmp/kernel.elf
+# 用法: make kernel-build X=tests/kernel/timer_isr.x ELF=/tmp/kernel.elf
 kernel-build:
-	@test -n "$(SX)" || (echo "Usage: make kernel-build SX=file.sx [ELF=out.elf]" && exit 1)
-	sh tests/kernel/build-kernel.sh "$(SX)" "$(ELF)"
+	@test -n "$(X)" || (echo "Usage: make kernel-build X=file.x [ELF=out.elf]" && exit 1)
+	sh tests/kernel/build-kernel.sh "$(X)" "$(ELF)"
 
 # G3+G4: 静态检查 + 纯净度 gate
 kernel-check:

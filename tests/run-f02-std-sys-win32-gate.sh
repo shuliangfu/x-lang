@@ -20,13 +20,13 @@ echo "=== F-02 v2: std.sys win32 remove win32*.inc.c ==="
 grep -q 'F-02 v2' "$DOC" || die "doc missing F-02 v2 marker"
 [ ! -f std/sys/win32.inc.c ] || die "win32.inc.c should be deleted"
 [ ! -f std/sys/win32_net.inc.c ] || die "win32_net.inc.c should be deleted"
-grep -q 'GetStdHandle' std/sys/win32.sx || die "win32.sx missing GetStdHandle FFI"
-grep -q 'WSAStartup' std/sys/win32_net.sx || die "win32_net.sx missing WSAStartup FFI"
-if grep -q 'shux_win32_' std/sys/win32.sx 2>/dev/null; then
-  die "win32.sx still references shux_win32_* C shim"
+grep -q 'GetStdHandle' std/sys/win32.x || die "win32.x missing GetStdHandle FFI"
+grep -q 'WSAStartup' std/sys/win32_net.x || die "win32_net.x missing WSAStartup FFI"
+if grep -q 'shux_win32_' std/sys/win32.x 2>/dev/null; then
+  die "win32.x still references shux_win32_* C shim"
 fi
-if grep -q 'shux_win32_net_available_c' std/sys/win32_net.sx 2>/dev/null; then
-  die "win32_net.sx still references shux_win32_net_available_c"
+if grep -q 'shux_win32_net_available_c' std/sys/win32_net.x 2>/dev/null; then
+  die "win32_net.x still references shux_win32_net_available_c"
 fi
 
 for g in tests/run-b17-exit-process-gate.sh tests/run-b18-win32-net-gate.sh; do

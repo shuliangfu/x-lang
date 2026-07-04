@@ -1,7 +1,7 @@
 /**
  * lexer.h — 词法分析器接口
  *
- * 文件职责：声明 Lexer 类型及创建/取 Token/释放接口，供 Parser 与 Driver 将 .sx 源码转为 Token 流。
+ * 文件职责：声明 Lexer 类型及创建/取 Token/释放接口，供 Parser 与 Driver 将 .x 源码转为 Token 流。
  * 所属模块：编译器前端 lexer，compiler/src/lexer/；被 src/parser、src/main 引用。
  * 与其它文件的关系：依赖 include/token.h 的 Token/TokenKind；实现位于 lexer.c，不暴露内部结构体布局。
  * 重要约定：源码字符串 source 在 lexer 使用期间不得被修改或释放；Token 的 value.ident 指向 source 内片段，调用方在消费 Token 前不得 free source。

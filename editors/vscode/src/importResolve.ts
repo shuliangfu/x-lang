@@ -46,7 +46,7 @@ function collectCandidates(
 ): vscode.Uri[] {
   const out: vscode.Uri[] = [];
   const isFilePath =
-    importPath.includes('/') || importPath.endsWith('.sx');
+    importPath.includes('/') || importPath.endsWith('.x');
 
   if (isFilePath) {
     if (importPath.startsWith('/')) {
@@ -62,17 +62,17 @@ function collectCandidates(
 
   if (hasDot) {
     const seg = importPath.replace(/\./g, '/');
-    out.push(vscode.Uri.joinPath(libRoot, `${seg}.sx`));
-    out.push(vscode.Uri.joinPath(libRoot, seg, 'mod.sx'));
+    out.push(vscode.Uri.joinPath(libRoot, `${seg}.x`));
+    out.push(vscode.Uri.joinPath(libRoot, seg, 'mod.x'));
   } else {
-    out.push(vscode.Uri.joinPath(libRoot, `${importPath}.sx`));
-    out.push(vscode.Uri.joinPath(libRoot, importPath, 'mod.sx'));
-    out.push(vscode.Uri.joinPath(libRoot, importPath, `${importPath}.sx`));
+    out.push(vscode.Uri.joinPath(libRoot, `${importPath}.x`));
+    out.push(vscode.Uri.joinPath(libRoot, importPath, 'mod.x'));
+    out.push(vscode.Uri.joinPath(libRoot, importPath, `${importPath}.x`));
   }
 
   if (entryDir) {
     if (!hasDot) {
-      out.push(vscode.Uri.joinPath(entryDir, `${importPath}.sx`));
+      out.push(vscode.Uri.joinPath(entryDir, `${importPath}.x`));
     } else {
       let eff = importPath;
       const dirName = path.basename(entryDir.fsPath);
@@ -81,8 +81,8 @@ function collectCandidates(
         eff = importPath.slice(firstDot + 1);
       }
       const seg = eff.replace(/\./g, '/');
-      out.push(vscode.Uri.joinPath(entryDir, `${seg}.sx`));
-      out.push(vscode.Uri.joinPath(entryDir, seg, 'mod.sx'));
+      out.push(vscode.Uri.joinPath(entryDir, `${seg}.x`));
+      out.push(vscode.Uri.joinPath(entryDir, seg, 'mod.x'));
     }
   }
 

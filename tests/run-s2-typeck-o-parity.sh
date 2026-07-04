@@ -76,7 +76,7 @@ if [ "${real:-0}" -lt "${MIN_REAL}" ] 2>/dev/null; then
   parity_fail "real_funcs ${real} < min_real_funcs ${MIN_REAL}"
 fi
 
-# ── 2) 禁止回退到 pipeline_type_ensure_by_kind_ord（已由 SX ensure_* + init_* glue 替代）──
+# ── 2) 禁止回退到 pipeline_type_ensure_by_kind_ord（已由 X ensure_* + init_* glue 替代）──
 if nm "$TYPECK_O" 2>/dev/null | grep -qE ' (_)?pipeline_type_ensure_by_kind_ord$'; then
   parity_fail "typeck.o references pipeline_type_ensure_by_kind_ord (dep_return regression)"
 else
@@ -94,7 +94,7 @@ fi
 
 # ── 3) EMIT_HEAVY 分片（ast_pool.c）：mega 入口 intentionally 桩化，勿验 insn/size ──
 # __text≥68264 + real_funcs≥133（步骤 1）已证明 safe helper 真 emit；mega 仅须符号存在供 C glue。
-for sym in check_block_impl check_expr_impl typeck_sx_ast; do
+for sym in check_block_impl check_expr_impl typeck_x_ast; do
   if ! sym_defined "$TYPECK_O" "$sym"; then
     parity_fail "missing mega entry symbol $sym (C glue alias target)"
   fi
@@ -119,28 +119,28 @@ for sym in typeck_struct_layout_metrics typeck_merge_dep_struct_layouts_into_ent
 done
 echo "s2 parity: layout partial export symbols OK"
 
-# ── 5) typeck_sx.o 若存在：须能生成 no_layout partial（strict 链双轨不 duplicate）──
-if [ -f compiler/typeck_sx.o ]; then
-  SX_PARTIAL="compiler/build_asm/typeck_sx_no_layout_partial.o"
-  SX_SYMS="compiler/build_asm/typeck_sx_no_layout_export.txt"
-  nm compiler/typeck_sx.o 2>/dev/null | awk '/ T _?typeck_/ {print $3}' | sed 's/^_//' | \
+# ── 5) typeck_x.o 若存在：须能生成 no_layout partial（strict 链双轨不 duplicate）──
+if [ -f compiler/typeck_x.o ]; then
+  X_PARTIAL="compiler/build_asm/typeck_x_no_layout_partial.o"
+  X_SYMS="compiler/build_asm/typeck_x_no_layout_export.txt"
+  nm compiler/typeck_x.o 2>/dev/null | awk '/ T _?typeck_/ {print $3}' | sed 's/^_//' | \
     grep -v '^typeck_struct_layout_metrics$' | \
     grep -v '^typeck_validate_struct_layouts_zero_padding$' | \
     grep -v '^typeck_merge_dep_struct_layouts_into_entry$' | \
     grep -v '^typeck_find_layout_idx_by_type_name$' | \
-    sed 's/^/_/' >"$SX_SYMS" || true
-  if [ -s "$SX_SYMS" ]; then
-    echo "s2 parity: ld -r typeck_sx.o -> $SX_PARTIAL (no layout dupes)"
-    if s2_ld_partial_export "$SX_SYMS" "$SX_PARTIAL" compiler/typeck_sx.o 2>"${SX_PARTIAL}.err"; then
-      echo "s2 parity: typeck_sx_no_layout_partial OK"
+    sed 's/^/_/' >"$X_SYMS" || true
+  if [ -s "$X_SYMS" ]; then
+    echo "s2 parity: ld -r typeck_x.o -> $X_PARTIAL (no layout dupes)"
+    if s2_ld_partial_export "$X_SYMS" "$X_PARTIAL" compiler/typeck_x.o 2>"${X_PARTIAL}.err"; then
+      echo "s2 parity: typeck_x_no_layout_partial OK"
     else
-      parity_fail "typeck_sx_no_layout partial failed (see ${SX_PARTIAL}.err)"
+      parity_fail "typeck_x_no_layout partial failed (see ${X_PARTIAL}.err)"
     fi
   else
-    echo "s2 parity: skip typeck_sx_no_layout (no typeck_ exports in typeck_sx.o)"
+    echo "s2 parity: skip typeck_x_no_layout (no typeck_ exports in typeck_x.o)"
   fi
 else
-  echo "s2 parity: skip typeck_sx.o checks (compiler/typeck_sx.o missing)"
+  echo "s2 parity: skip typeck_x.o checks (compiler/typeck_x.o missing)"
 fi
 
 echo "s2 parity OK (__text=${sz}, real_funcs=${real}, layout_partial=${psz})"

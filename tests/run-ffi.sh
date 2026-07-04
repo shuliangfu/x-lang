@@ -20,7 +20,7 @@ SHUX="${SHUX:-./compiler/shux}"
 LINK_SHUX="$RUN_SHUX"
 ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
 exe="/tmp/shux_ffi_$$"
-if ! $LINK_SHUX -L . tests/ffi/main.sx -o "$exe" 2>&1; then echo "ffi test: compile failed"; rm -f "$exe"; exit 1; fi
+if ! $LINK_SHUX -L . tests/ffi/main.x -o "$exe" 2>&1; then echo "ffi test: compile failed"; rm -f "$exe"; exit 1; fi
 exitcode=0; $exe 2>/dev/null || exitcode=$?
 rm -f "$exe"
 if [ "$exitcode" -ne 0 ]; then echo "ffi test: expected exit 0, got $exitcode"; exit 1; fi

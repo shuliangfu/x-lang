@@ -2,9 +2,9 @@
  * runtime_abi.c — 编译器 C 侧 ABI 薄壳实现（Phase E-04 v2）
  *
  * 文件职责：提供 argv / target 相关极薄 C 原语；自 runtime.c 拆出，逐步收成 E-04 ABI 薄壳。
- * 所属模块：compiler 运行时；被 main.sx、compile.sx、runtime.c、asm 桥接 TU 链接。
+ * 所属模块：compiler 运行时；被 main.x、compile.x、runtime.c、asm 桥接 TU 链接。
  * 与其它文件的关系：不 include C 前端头；runtime.c 仍承载 pipeline/driver 主体逻辑。
- * 重要约定：与 main.sx 注释一致——.sx 无法安全从 *u8 读取 argv[i] 字符串，须调 driver_get_argv_i。
+ * 重要约定：与 main.x 注释一致——.x 无法安全从 *u8 读取 argv[i] 字符串，须调 driver_get_argv_i。
  */
 
 #include "runtime_abi.h"
@@ -75,7 +75,7 @@ int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_fla
 #endif
 }
 
-/** main.sx 经 -E 或 asm 后端导出的驱动入口；由链接时强符号覆盖 runtime.c 弱桩。 */
+/** main.x 经 -E 或 asm 后端导出的驱动入口；由链接时强符号覆盖 runtime.c 弱桩。 */
 extern int main_entry(int argc, char **argv);
 
 /**

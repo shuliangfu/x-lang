@@ -35,7 +35,7 @@
 | 指标 | arm64 期望 | x86_64 期望 | 验证 |
 |------|------------|-------------|------|
 | binop 无栈 push | `_main` 无 `sub sp,#0x10` | 同左（AArch64 形态）或 SKIP | `run-asm-binop-block-var.sh` |
-| 长链 exit | 1+…+n 精确 | 同 | 各 `binop_return_*_add.sx` |
+| 长链 exit | 1+…+n 精确 | 同 | 各 `binop_return_*_add.x` |
 | 栈帧 spill 允许 | ≥12 VAR 可 `sub sp` | 同 | `run-asm-binop-stack-spill.sh` |
 | cfg 汇合 | if/for 分支 exit 精确 | 同 | `run-asm-binop-cfg-merge.sh` |
 
@@ -67,10 +67,10 @@ v1 **quality report** 以 **arm64 反汇编门禁**为主（CI Linux arm64 + Dar
 
 | case_id | 文件 | 期望 |
 |---------|------|------|
-| `case_four_mul` | `binop_return_four_mul.sx` | exit **24**；rbx 换载 spill x10 |
-| `case_seven_add` | `binop_return_seven_add.sx` | exit **28**；第三 spill x12 |
-| `case_fourteen` | `binop_return_fourteen_add.sx` | exit **105**；x15/栈帧 |
-| `case_cfg_if` | `binop_if_return_twelve_add.sx` | cfg-merge exit **78** |
+| `case_four_mul` | `binop_return_four_mul.x` | exit **24**；rbx 换载 spill x10 |
+| `case_seven_add` | `binop_return_seven_add.x` | exit **28**；第三 spill x12 |
+| `case_fourteen` | `binop_return_fourteen_add.x` | exit **105**；x15/栈帧 |
+| `case_cfg_if` | `binop_if_return_twelve_add.x` | cfg-merge exit **78** |
 
 ---
 

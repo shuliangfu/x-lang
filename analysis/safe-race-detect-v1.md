@@ -35,7 +35,7 @@
 | 工具链 | `cc -fsanitize=thread -pthread` |
 | 探测器 | `SHUX_RACE_PROBE=1` 时运行 `race_probe.c`（故意 pthread 竞争） |
 | 平台 | **Linux** 主路径；macOS/Windows gate manifest only |
-| 正例 | `.sx` 用例普通编译运行（mutex/atomic 单线程烟测） |
+| 正例 | `.x` 用例普通编译运行（mutex/atomic 单线程烟测） |
 
 验收：**可执行方案**（runnable manifest + TSAN probe + 正例烟测）→ v1 实验线交付。
 
@@ -45,8 +45,8 @@
 
 | case | 路径 | 期望 |
 |------|------|------|
-| `case_mutex` | `tests/safe/race_mutex_ok.sx` | exit **0** |
-| `case_atomic` | `tests/safe/race_atomic_ok.sx` | exit **0** |
+| `case_mutex` | `tests/safe/race_mutex_ok.x` | exit **0** |
+| `case_atomic` | `tests/safe/race_atomic_ok.x` | exit **0** |
 | `probe` | `tests/safe/race_probe.c` | TSAN 检出竞争（非 0） |
 
 ---

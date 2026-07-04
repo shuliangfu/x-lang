@@ -1,10 +1,10 @@
 # STD-126 std.crypto Ed25519 manifest
 min_apis	4
-api_public_from_seed	api	ed25519_public_from_seed	std/crypto/mod.sx
-api_sign	api	ed25519_sign	std/crypto/mod.sx
-api_verify	api	ed25519_verify	std/crypto/mod.sx
-api_smoke	api	ed25519_smoke	std/crypto/mod.sx
-const_seed	const	ED25519_SEED_LEN	std/crypto/mod.sx
-symbol_sign_c	symbol	crypto_ed25519_sign_c	std/crypto/ed25519.sx
-smoke_sx	smoke	tests/std-crypto/ed25519_roundtrip.sx
+api_public_from_seed	api	ed25519_public_from_seed	std/crypto/mod.x
+api_sign	api	ed25519_sign	std/crypto/mod.x
+api_verify	api	ed25519_verify	std/crypto/mod.x
+api_smoke	api	ed25519_smoke	std/crypto/mod.x
+const_seed	const	ED25519_SEED_LEN	std/crypto/mod.x
+symbol_sign_c	symbol	crypto_ed25519_sign_c	std/crypto/ed25519.x
+smoke_x	smoke	tests/std-crypto/ed25519_roundtrip.x
 gate	script	run-std-crypto-ed25519-gate.sh	tests/run-std-crypto-ed25519-gate.sh

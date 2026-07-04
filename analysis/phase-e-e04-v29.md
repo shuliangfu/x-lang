@@ -9,15 +9,15 @@
 | `driver_bump_stack_limit` | driver_abi | RLIMIT_STACK 软上限 64MiB |
 | `driver_run_thread_on_large_stack` | driver_abi | 256MiB 栈 pthread |
 | `driver_run_on_large_stack_pthread` | driver_abi | LSP 主循环别名 |
-| `shux_preprocess_raw_to_malloc` | pipeline_abi | preprocess.sx 条件编译 |
+| `shux_preprocess_raw_to_malloc` | pipeline_abi | preprocess.x 条件编译 |
 | `typeck_dep_*` / `get_dep_*` | pipeline_abi | pipeline_gen 兼容 dep 槽 |
-| `pipeline_set_dep` / `pipeline_set_ndep` | pipeline_abi | pipeline.sx 写 dep |
+| `pipeline_set_dep` / `pipeline_set_ndep` | pipeline_abi | pipeline.x 写 dep |
 | `driver_typeck_dep_sidecar_clear` | pipeline_abi | clear_all 同步清侧车 |
 
 ## 仍留 runtime.c
 
 - `load_one_import` / `resolve_and_load_imports` / `run_compiler_c` 主体
-- dep 预跑 `pipeline_dep_prerun_*`、`pipeline_run_sx_pipeline_large_stack`
+- dep 预跑 `pipeline_dep_prerun_*`、`pipeline_run_x_pipeline_large_stack`
 - pipeline I/O 原语（`pipeline_resolve_path` / `pipeline_read_file` 等）
 
 ## 复现

@@ -3,7 +3,7 @@
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
 > 前置：COMP-016 `comp-riscv64-wave-v1.md`、`comp-riscv64-matrix.tsv`  
-> 关联：`riscv64_min.sx`、`qemu-riscv64`、COMP-012
+> 关联：`riscv64_min.x`、`qemu-riscv64`、COMP-012
 
 ---
 
@@ -19,8 +19,8 @@
 
 | case_id | 样例 | 期望 exit | 说明 |
 |---------|------|-----------|------|
-| `case_qemu_min` | `riscv64_min.sx` | 42 | COMP-012 最小样例 |
-| `case_qemu_binop` | `binop_return_four_add.sx` | 10 | 加链 1+2+3+4 |
+| `case_qemu_min` | `riscv64_min.x` | 42 | COMP-012 最小样例 |
+| `case_qemu_binop` | `binop_return_four_add.x` | 10 | 加链 1+2+3+4 |
 
 流程：`shux -target riscv64` → link → `qemu-riscv64` 用户态执行。
 

@@ -11,7 +11,7 @@
 | 目标 | 说明 |
 |------|------|
 | **API 冻结边界** | `import("std.fs")` 的稳定面与平台/实验面 |
-| **三平台对齐** | Linux / macOS / Windows 同一套 `.sx` 烟测 |
+| **三平台对齐** | Linux / macOS / Windows 同一套 `.x` 烟测 |
 | **兼容矩阵** | 零拷贝/内核提示等差异可查询 |
 | **变更流程** | 与 STD-001 同级评审规则 |
 
@@ -24,7 +24,7 @@
 ```
 import("std.fs")          ← 用户稳定面（本文档 §3）
     ├── std.io         ← 已 re-export read_fd/write_fd/batch（§3.5）
-    └── std/fs/posix.sx / win32.sx    ← 平台实现（不直接 import）
+    └── std/fs/posix.x / win32.x    ← 平台实现（不直接 import）
 ```
 
 **v1 规则**：文件路径由 `std.path` 拼接；**用户仅** `import("std.fs")` 即可用 fd + io 批量路径。
@@ -118,7 +118,7 @@ import("std.fs")          ← 用户稳定面（本文档 §3）
 | 资源 | 说明 |
 |------|------|
 | 矩阵 | `tests/baseline/std-fs-crossplatform.tsv` |
-| 统一 .sx | `tests/fs/crossplatform_core.sx` |
+| 统一 .x | `tests/fs/crossplatform_core.x` |
 | 门禁 | `tests/run-std-fs-crossplatform-gate.sh` |
 | CI | `run-portable-suite.sh` 全 job 调用 |
 

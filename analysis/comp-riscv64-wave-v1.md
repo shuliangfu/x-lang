@@ -3,7 +3,7 @@
 > 更新时间：2026-06-18  
 > 状态：**定版（v1）**  
 > 前置：COMP-012 `comp-riscv64-v1.md`、`comp-riscv64-matrix.tsv`  
-> 关联：`riscv64.sx`、`run-asm.sh`、COMP-014 isel P0
+> 关联：`riscv64.x`、`run-asm.sh`、COMP-014 isel P0
 
 ---
 
@@ -19,9 +19,9 @@
 
 | case_id | 样例 | 检查 | isel 层 |
 |---------|------|------|---------|
-| `case_wave_binop` | `binop_return_four_add.sx` | asm_text | 加链 |
-| `case_wave_cfg` | `binop_if_plus_eq_merge.sx` | asm_text | cmp+phi |
-| `case_wave_index` | `binop_field_index_fast.sx` | asm_text | FIELD+INDEX |
+| `case_wave_binop` | `binop_return_four_add.x` | asm_text | 加链 |
+| `case_wave_cfg` | `binop_if_plus_eq_merge.x` | asm_text | cmp+phi |
+| `case_wave_index` | `binop_field_index_fast.x` | asm_text | FIELD+INDEX |
 
 父矩阵保留 `case_riscv_min` / `case_main` / `case_expr` / `case_local` / `case_elf_main` / `case_run_asm`。
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# STD-031：std.websocket 门禁（F-04 v3 纯 .sx：ws_codec + ws_io）
+# STD-031：std.websocket 门禁（F-04 v3 纯 .x：ws_codec + ws_io）
 #
 # 用法：./tests/run-std-net-ws-gate.sh
 set -e
@@ -7,19 +7,19 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_NET_WS_DOC:-analysis/std-net-ws-v1.md}"
 MANIFEST="${SHUX_STD_NET_WS_TSV:-tests/baseline/std-net-ws.tsv}"
-MOD_SX="std/websocket/mod.sx"
+MOD_X="std/websocket/mod.x"
 WS_README="std/websocket/README.md"
-WS_CODEC="std/net/ws_codec.sx"
-WS_IO="std/net/ws_io.sx"
+WS_CODEC="std/net/ws_codec.x"
+WS_IO="std/net/ws_io.x"
 LIB="tests/lib/std-net-ws.sh"
-FRAME_SX="tests/net/ws_frame.sx"
+FRAME_X="tests/net/ws_frame.x"
 MIN_APIS=30
 
 # shellcheck source=tests/lib/std-net-ws.sh
 . "$LIB"
 
 echo "=== STD-031: std.websocket manifest ==="
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$WS_README" "$WS_CODEC" "$WS_IO" "$FRAME_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$WS_README" "$WS_CODEC" "$WS_IO" "$FRAME_X"; do
   if [ ! -f "$f" ]; then
     echo "std-net-ws gate FAIL: missing $f" >&2
     exit 1
@@ -38,7 +38,7 @@ if [ -f std/net/net.c ] && grep -q 'ws.inc.c' std/net/net.c 2>/dev/null; then
   exit 1
 fi
 if [ ! -f "$WS_CODEC" ] || [ ! -f "$WS_IO" ]; then
-  echo "std-net-ws gate FAIL: missing ws_codec.sx or ws_io.sx" >&2
+  echo "std-net-ws gate FAIL: missing ws_codec.x or ws_io.x" >&2
   exit 1
 fi
 
@@ -69,7 +69,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_net_ws_symbols_ok "$MOD_SX" "$WS_CODEC" "$MANIFEST" || true)"
+sym_miss="$(std_net_ws_symbols_ok "$MOD_X" "$WS_CODEC" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_net_ws_emit_report "fail" 0 0 0 1
   echo "std-net-ws gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -107,16 +107,16 @@ if [ -n "$SHUX_BIN" ]; then
   . tests/lib/build-std-c-o.sh
   ensure_std_c_o ../std/net/net.o
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
-  if ! "$SHUX_BIN" check -L . "$FRAME_SX" >/dev/null 2>&1; then
-    echo "std-net-ws gate FAIL: typeck $FRAME_SX" >&2
-    "$SHUX_BIN" check -L . "$FRAME_SX" 2>&1 | tail -10 >&2 || true
+  if ! "$SHUX_BIN" check -L . "$FRAME_X" >/dev/null 2>&1; then
+    echo "std-net-ws gate FAIL: typeck $FRAME_X" >&2
+    "$SHUX_BIN" check -L . "$FRAME_X" 2>&1 | tail -10 >&2 || true
     std_net_ws_emit_report "fail" 0 0 0 0
     exit 1
   fi
   TYPECK_OK=1
   exe="/tmp/shux_std_net_ws_frame_$$"
   set +e
-  link_log=$("$SHUX_BIN" -L . "$FRAME_SX" -o "$exe" 2>&1)
+  link_log=$("$SHUX_BIN" -L . "$FRAME_X" -o "$exe" 2>&1)
   link_ec=$?
   set -e
   if [ "$link_ec" -eq 0 ]; then
@@ -140,7 +140,7 @@ if [ -n "$SHUX_BIN" ]; then
     FRAME_OK=0
     SKIP=1
   else
-    echo "std-net-ws gate FAIL: link $FRAME_SX" >&2
+    echo "std-net-ws gate FAIL: link $FRAME_X" >&2
     echo "$link_log" | tail -8 >&2 || true
     std_net_ws_emit_report "fail" 0 0 "$TYPECK_OK" 0
     exit 1

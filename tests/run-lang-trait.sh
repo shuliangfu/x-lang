@@ -31,7 +31,7 @@ chmod +x tests/run-trait.sh
 SHUX="$SHUX_BIN" ./tests/run-trait.sh
 
 # impl 缺方法负例（run-trait.sh 未覆盖）
-err=$("$SHUX_BIN" tests/trait/impl_missing_method.sx -o /tmp/shux_trait_miss 2>&1) || true
+err=$("$SHUX_BIN" tests/trait/impl_missing_method.x -o /tmp/shux_trait_miss 2>&1) || true
 echo "$err" | grep -q "missing method" || {
   echo "lang-trait FAIL: expected missing method error, got: $err" >&2
   exit 1

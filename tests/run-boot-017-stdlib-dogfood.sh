@@ -113,7 +113,7 @@ medians = []
 
 for mod, layer in modules:
     safe = mod.replace(".", "_")
-    probe = os.path.join(tmpdir, f"probe_{safe}.sx")
+    probe = os.path.join(tmpdir, f"probe_{safe}.x")
     with open(probe, "w", encoding="utf-8") as f:
         f.write(f"// BOOT-017 check probe for {mod}\n")
         f.write(f'const _m = import("{mod}");\n')

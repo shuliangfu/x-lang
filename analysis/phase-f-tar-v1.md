@@ -1,12 +1,12 @@
 # 阶段 F-tar v1（std.tar 去 C）
 
-> **F-tar v1**：删除 **`tar.c`**；模块锚点在 **`tar.sx`**；UStar/Pax 在 **`tar_glue.c`**。
+> **F-tar v1**：删除 **`tar.c`**；模块锚点在 **`tar.x`**；UStar/Pax 在 **`tar_glue.c`**。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `tar.c`（479 行） | `tar.sx` + `tar_glue.c` |
+| 实现 | `tar.c`（479 行） | `tar.x` + `tar_glue.c` |
 | `tar.o` | `cc -c` | `ld -r` 合并 |
 
 ## 门禁

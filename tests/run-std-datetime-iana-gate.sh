@@ -3,12 +3,12 @@
 set -e
 cd "$(dirname "$0")/.."
 MANIFEST="tests/baseline/std-datetime-iana-manifest.tsv"
-MOD_SX="std/datetime/mod.sx"
-DT_SX="std/datetime/datetime.sx"
-SMOKE_SX="tests/std-datetime/iana_dst_smoke.sx"
+MOD_X="std/datetime/mod.x"
+DT_X="std/datetime/datetime.x"
+SMOKE_X="tests/std-datetime/iana_dst_smoke.x"
 
 echo "=== STD-136: std.datetime IANA manifest ==="
-for f in "$MANIFEST" "$MOD_SX" "$DT_SX" "$SMOKE_SX"; do
+for f in "$MANIFEST" "$MOD_X" "$DT_X" "$SMOKE_X"; do
   [ -f "$f" ] || { echo "std-datetime-iana gate FAIL: missing $f" >&2; exit 1; }
 done
 
@@ -18,7 +18,7 @@ while IFS=$'\t' read -r item_id kind anchor mod_path _notes; do
   case "$item_id" in \#*|min_*) continue ;; esac
   case "$kind" in
     api)
-      grep -qE "function ${anchor}" "$MOD_SX" || { echo "std-datetime-iana FAIL: missing $anchor" >&2; MISS=$((MISS + 1)); }
+      grep -qE "function ${anchor}" "$MOD_X" || { echo "std-datetime-iana FAIL: missing $anchor" >&2; MISS=$((MISS + 1)); }
       ;;
     symbol)
       grep -qF "$anchor" "$mod_path" || { echo "std-datetime-iana FAIL: missing $anchor in $mod_path" >&2; MISS=$((MISS + 1)); }
@@ -52,12 +52,12 @@ else
 fi
 
 if [ -x ./compiler/shux-c ]; then
-  ./compiler/shux-c check -L . "$SMOKE_SX" >/dev/null
+  ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null
   # shellcheck source=tests/lib/bootstrap-link-shux.sh
   . tests/lib/bootstrap-link-shux.sh
-  EXE="/tmp/shux_std_dt_iana_sx_$$"
-  $RUN_SHUX -L . "$SMOKE_SX" -o "$EXE" >/dev/null
-  "$EXE" || { echo "std-datetime-iana FAIL: sx smoke" >&2; rm -f "$EXE"; exit 1; }
+  EXE="/tmp/shux_std_dt_iana_x_$$"
+  $RUN_SHUX -L . "$SMOKE_X" -o "$EXE" >/dev/null
+  "$EXE" || { echo "std-datetime-iana FAIL: x smoke" >&2; rm -f "$EXE"; exit 1; }
   rm -f "$EXE"
 fi
 

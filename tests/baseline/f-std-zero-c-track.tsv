@@ -6,4 +6,4 @@ summary_std_h_target	0
 summary_std_c_current	0
 summary_std_h_current	0
 file_abi_h	compiler/include/shux_std_abi/fs_abi.h	Z9-abi-header-done	F-ZC inline preamble
-file_sx	std/compress/common.sx	Z9-header-done	compress_common.h removed
+file_x	std/compress/common.x	Z9-header-done	compress_common.h removed

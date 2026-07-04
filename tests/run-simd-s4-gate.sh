@@ -43,12 +43,12 @@ if [ -z "$SHUX_ABS" ] || ! simd_s4_native_exe "$SHUX_ABS"; then
   exit 0
 fi
 
-VEC4F_SRC="tests/simd/vec4f_shuffle_smoke.sx"
-VEC8I_SRC="tests/simd/vec8i_shuffle_smoke.sx"
-VEC8I_SEL_SRC="tests/simd/vec8i_select_smoke.sx"
-VEC4F_SEL_SRC="tests/simd/vec4f_select_smoke.sx"
-AT_SRC="tests/simd/at_builtin_smoke.sx"
-DOT_SRC="tests/bench/simd_dot.sx"
+VEC4F_SRC="tests/simd/vec4f_shuffle_smoke.x"
+VEC8I_SRC="tests/simd/vec8i_shuffle_smoke.x"
+VEC8I_SEL_SRC="tests/simd/vec8i_select_smoke.x"
+VEC4F_SEL_SRC="tests/simd/vec4f_select_smoke.x"
+AT_SRC="tests/simd/at_builtin_smoke.x"
+DOT_SRC="tests/bench/simd_dot.x"
 VEC4F_O="/tmp/shux_simd_s4_vec4f.o"
 VEC8I_O="/tmp/shux_simd_s4_vec8i.o"
 VEC8I_SEL_O="/tmp/shux_simd_s4_vec8i_sel.o"

@@ -4,21 +4,21 @@ set -e
 cd "$(dirname "$0")/.."
 DOC="analysis/std-random-rng-v1.md"
 MANIFEST="tests/baseline/std-random-rng-manifest.tsv"
-MOD_SX="std/random/mod.sx"
-RANDOM_SX="${SHUX_STD_RANDOM_IMPL:-std/random/random.sx}"
+MOD_X="std/random/mod.x"
+RANDOM_X="${SHUX_STD_RANDOM_IMPL:-std/random/random.x}"
 RUNTIME_FILL="compiler/src/asm/runtime_random_fill.c"
 LIB="tests/lib/std-random-rng.sh"
-SMOKE_SX="tests/random/rng_roundtrip.sx"
+SMOKE_X="tests/random/rng_roundtrip.x"
 . "$LIB"
-for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_SX" "$RANDOM_SX" "$RUNTIME_FILL" "$SMOKE_SX"; do
+for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$RANDOM_X" "$RUNTIME_FILL" "$SMOKE_X"; do
   [ -f "$f" ] || { echo "std-random-rng gate FAIL: missing $f" >&2; exit 1; }
 done
 grep -qF STD-130 "$DOC" || { echo "std-random-rng gate FAIL: doc" >&2; exit 1; }
-sym_miss="$(std_random_rng_symbols_ok "$MOD_SX" "$RANDOM_SX" "$MANIFEST" || true)"
+sym_miss="$(std_random_rng_symbols_ok "$MOD_X" "$RANDOM_X" "$MANIFEST" || true)"
 [ "${sym_miss:-0}" -eq 0 ] || exit 1
 C_OK=0
 CHECK_OK=0
-SX_OK=0
+X_OK=0
 SKIP=0
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then
   . tests/lib/build-std-c-o.sh
@@ -35,28 +35,28 @@ else
   SKIP=1
 fi
 if [ -x ./compiler/shux-c ]; then
-  if ./compiler/shux-c check -L . "$SMOKE_SX" >/dev/null 2>&1; then
+  if ./compiler/shux-c check -L . "$SMOKE_X" >/dev/null 2>&1; then
     CHECK_OK=1
   else
     echo "std-random-rng gate FAIL: typeck" >&2
-    ./compiler/shux-c check -L . "$SMOKE_SX" 2>&1 | tail -8 >&2 || true
+    ./compiler/shux-c check -L . "$SMOKE_X" 2>&1 | tail -8 >&2 || true
     std_random_rng_emit_report fail 1 0 0
     exit 1
   fi
-  if ! ./compiler/shux-c check -L . tests/random/main.sx >/dev/null 2>&1; then
-    echo "std-random-rng gate FAIL: typeck main.sx" >&2
+  if ! ./compiler/shux-c check -L . tests/random/main.x >/dev/null 2>&1; then
+    echo "std-random-rng gate FAIL: typeck main.x" >&2
     std_random_rng_emit_report fail 1 0 0
     exit 1
   fi
   for sym in fill_bytes next range flip seed step fill rng_smoke; do
-    if ! grep -qE "function ${sym}\\(" "$MOD_SX" 2>/dev/null; then
+    if ! grep -qE "function ${sym}\\(" "$MOD_X" 2>/dev/null; then
       echo "std-random-rng gate FAIL: mod missing function ${sym}" >&2
       std_random_rng_emit_report fail 1 0 0
       exit 1
     fi
   done
   for call in random.seed random.step random.fill random.range random.next; do
-    if ! grep -q "${call}" "$SMOKE_SX" 2>/dev/null; then
+    if ! grep -q "${call}" "$SMOKE_X" 2>/dev/null; then
       echo "std-random-rng gate FAIL: smoke missing ${call}" >&2
       std_random_rng_emit_report fail 1 0 0
       exit 1
@@ -65,16 +65,16 @@ if [ -x ./compiler/shux-c ]; then
   make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
   # shellcheck source=tests/lib/bootstrap-link-shux.sh
   . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-  # sx pipeline compile/run 待 random co-emit 闭合；typeck + manifest + grep 通过即 OK。
-  if std_random_rng_run_smoke "$RUN_SHUX" "$SMOKE_SX"; then
-    SX_OK=1
+  # x pipeline compile/run 待 random co-emit 闭合；typeck + manifest + grep 通过即 OK。
+  if std_random_rng_run_smoke "$RUN_SHUX" "$SMOKE_X"; then
+    X_OK=1
   else
-    echo "std-random-rng gate SKIP sx runnable (typeck OK; co-emit debt)" >&2
+    echo "std-random-rng gate SKIP x runnable (typeck OK; co-emit debt)" >&2
     SKIP=1
-    SX_OK=1
+    X_OK=1
   fi
 else
   SKIP=1
 fi
-std_random_rng_emit_report ok "$C_OK" "$SX_OK" "$SKIP"
+std_random_rng_emit_report ok "$C_OK" "$X_OK" "$SKIP"
 echo "std-random-rng gate OK"

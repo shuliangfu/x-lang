@@ -9,7 +9,7 @@ FAIL=0
 
 echo "=== L6: Send/Sync contract gate ==="
 
-cat > "$WORKDIR/send_sync_test.sx" << 'SXEOF'
+cat > "$WORKDIR/send_sync_test.x" << 'XEOF'
 #[repr(C)]
 #[send]
 #[sync]
@@ -31,9 +31,9 @@ function main(): i32 {
   let msg: Message = { id: 42 };
   return msg.id as i32;
 }
-SXEOF
+XEOF
 
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/send_sync_test.sx" > "$WORKDIR/send_sync.c" 2>/dev/null
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/zigcache}" "$SHUX_C" -E "$WORKDIR/send_sync_test.x" > "$WORKDIR/send_sync.c" 2>/dev/null
 
 echo "  Check: #[send] #[sync] emits shux_thread_safety:send+sync"
 if grep -q 'shux_thread_safety:send+sync' "$WORKDIR/send_sync.c"; then

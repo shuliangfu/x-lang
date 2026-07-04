@@ -5,13 +5,13 @@
 ## 运行
 
 ```bash
-shux run main.sx
+shux run main.x
 ```
 
 ## 编译
 
 ```bash
-shux build main.sx -o myapp
+shux build main.x -o myapp
 ./myapp
 echo $?   # 42
 ```
@@ -19,6 +19,6 @@ echo $?   # 42
 ## 格式化（可选）
 
 ```bash
-shux fmt main.sx
-shux fmt --check main.sx
+shux fmt main.x
+shux fmt --check main.x
 ```

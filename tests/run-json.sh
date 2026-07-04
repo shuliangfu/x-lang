@@ -18,7 +18,7 @@ if [ -z "$SHUX" ] || [ ! -x "$SHUX" ]; then
   exit 0
 fi
 exe="/tmp/shux_json_$$"
-if ! "$SHUX" -L . tests/json/main.sx -o "$exe" 2>&1; then echo "json test: compile failed"; rm -f "$exe"; exit 1; fi
+if ! "$SHUX" -L . tests/json/main.x -o "$exe" 2>&1; then echo "json test: compile failed"; rm -f "$exe"; exit 1; fi
 $exe 2>/dev/null; exitcode=$?
 rm -f "$exe"
 if [ "$exitcode" -ne 0 ]; then echo "json test: expected exit 0, got $exitcode"; exit 1; fi

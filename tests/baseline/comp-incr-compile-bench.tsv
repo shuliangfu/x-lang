@@ -3,8 +3,8 @@
 # min_benches	5
 # max_second_first_ratio	1.0
 # target_ratio	0.85
-bench_double_check	tests/bench/loop_i32.sx	check	1.0	0.85	check x2
-bench_double_o	tests/bench/loop_i32.sx	-o	1.0	0.85	-o x2
-bench_timing	tests/bench/loop_i32.sx	timing	1.0	0.85	phase timing
+bench_double_check	tests/bench/loop_i32.x	check	1.0	0.85	check x2
+bench_double_o	tests/bench/loop_i32.x	-o	1.0	0.85	-o x2
+bench_timing	tests/bench/loop_i32.x	timing	1.0	0.85	phase timing
 bench_make_q	compiler	make_q	1.0	1.0	make -q proxy
-bench_dogfood_check	tests/wpo/dead_fn.sx	check	1.1	0.85	wpo dead_fn x2
+bench_dogfood_check	tests/wpo/dead_fn.x	check	1.1	0.85	wpo dead_fn x2

@@ -2,7 +2,7 @@
  * time_import_alias.c — import binding `-o` 链接桩
  *
  * asm co-emit 对 `const time = import("std.time")` 生成 std_time_* 符号；
- * time.o 仅导出 time_*_c。本 TU 提供 std_time_* 实现（语义对齐 mod.sx）。
+ * time.o 仅导出 time_*_c。本 TU 提供 std_time_* 实现（语义对齐 mod.x）。
  *
  * asm `-o` ABI：Timer 栈槽为 8 字节 ShuxTimer*；只读 timer_elapsed_*(t) 用 rdi=Timer*，
  * timer_reset / timer_lap_ns 用 rdi=Timer**。
@@ -27,7 +27,7 @@ extern int32_t time_format_wall_rfc3339_c(uint8_t *buf, int32_t cap);
 extern int32_t time_wall_local_offset_min_c(void);
 extern int32_t time_format_timezone_smoke_c(void);
 
-/** 与 mod.sx Timer 布局一致。 */
+/** 与 mod.x Timer 布局一致。 */
 typedef struct ShuxTimer {
   int64_t start_ns;
 } ShuxTimer;

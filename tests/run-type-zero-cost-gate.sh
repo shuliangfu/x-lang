@@ -18,8 +18,8 @@ MIN_BENCHES=6
 echo "=== TYPE-005: zero-cost abstraction manifest ==="
 for f in "$DOC" "$MANIFEST" "$BENCH" \
   analysis/type-linear-v1-rfc.md analysis/type-region-v1-rfc.md \
-  tests/bench/{loop_i32,mem_copy,struct_param,call_boundary}.sx \
-  tests/bench/generic_id_i32.sx tests/typeck/linear/move_ok.sx \
+  tests/bench/{loop_i32,mem_copy,struct_param,call_boundary}.x \
+  tests/bench/generic_id_i32.x tests/typeck/linear/move_ok.x \
   tests/run-bcmp-gate.sh; do
   if [ ! -f "$f" ]; then
     echo "type-zero-cost gate FAIL: missing $f" >&2
@@ -114,7 +114,7 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
 done < "$MANIFEST"
 
 BENCH_N=0
-while IFS=$'\t' read -r bench_id sx_file _rest; do
+while IFS=$'\t' read -r bench_id x_file _rest; do
   [ -z "${bench_id:-}" ] && continue
   case "$bench_id" in \#*|min_*) continue ;; esac
   BENCH_N=$((BENCH_N + 1))
@@ -122,8 +122,8 @@ while IFS=$'\t' read -r bench_id sx_file _rest; do
     echo "type-zero-cost FAIL: doc missing bench $bench_id" >&2
     MISS=$((MISS + 1))
   fi
-  if ! type_zero_cost_bench_sx "$sx_file" >/dev/null 2>&1; then
-    echo "type-zero-cost FAIL: missing bench sx $sx_file" >&2
+  if ! type_zero_cost_bench_x "$x_file" >/dev/null 2>&1; then
+    echo "type-zero-cost FAIL: missing bench x $x_file" >&2
     MISS=$((MISS + 1))
   fi
 done < "$BENCH"

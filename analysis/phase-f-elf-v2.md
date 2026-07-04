@@ -1,14 +1,14 @@
-# 阶段 F-elf v2（std.elf 逻辑 .sx 下沉 + F-ZC）
+# 阶段 F-elf v2（std.elf 逻辑 .x 下沉 + F-ZC）
 
-> **F-elf v2**：ELF64 解析/写入/烟测迁入 **`elf.sx`**；**F-ZC** 删除 **`elf_io_glue.c`**，fixture 读经 **`fs_open_read_c` + `fs_posix_read_c`**。
+> **F-elf v2**：ELF64 解析/写入/烟测迁入 **`elf.x`**；**F-ZC** 删除 **`elf_io_glue.c`**，fixture 读经 **`fs_open_read_c` + `fs_posix_read_c`**。
 
 ## 变更
 
 | 项 | v1 | v2 | F-ZC |
 |----|----|-----|------|
-| ELF 逻辑 | `elf_glue.c`（561 行） | **`elf.sx`** | 同 v2 |
-| fixture IO | glue 内联 fopen | `elf_io_glue.c` | **`.sx` + fs extern** |
-| `elf.o` | `ld -r` glue + sx | `ld -r` io glue + sx | **纯 `.sx`** |
+| ELF 逻辑 | `elf_glue.c`（561 行） | **`elf.x`** | 同 v2 |
+| fixture IO | glue 内联 fopen | `elf_io_glue.c` | **`.x` + fs extern** |
+| `elf.o` | `ld -r` glue + x | `ld -r` io glue + x | **纯 `.x`** |
 
 ## 门禁
 

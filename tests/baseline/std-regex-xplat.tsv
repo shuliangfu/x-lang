@@ -1,17 +1,17 @@
 # STD-051 std.regex 三平台烟测矩阵
 # 列：case_id	script	linux	macos	windows	notes
-literal_match.sx	tests/regex/literal_match.sx	must	must	must	hello 子串
-dot_match.sx	tests/regex/dot_match.sx	must	must	must	h.l
-class_match.sx	tests/regex/class_match.sx	must	must	must	[0-9]
-star_match.sx	tests/regex/star_match.sx	must	must	must	a*b
-question_match.sx	tests/regex/question_match.sx	must	must	must	colou?r
-group_match.sx	tests/regex/group_match.sx	must	must	must	(ab)c
-alt_match.sx	tests/regex/alt_match.sx	must	must	must	cat|dog
-anchor_match.sx	tests/regex/anchor_match.sx	must	must	must	^hi$
-capture_match.sx	tests/regex/capture_match.sx	must	must	must	(ab)c capture
-plus_match.sx	tests/regex/plus_match.sx	must	must	must	a+b
-lazy_star_match.sx	tests/regex/lazy_star_match.sx	must	must	must	<.*?>
-prop_match.sx	tests/regex/prop_match.sx	must	must	must	STD-066 \p{}
-possessive_match.sx	tests/regex/possessive_match.sx	must	must	must	STD-099 *+/++/?+
-atomic_match.sx	tests/regex/atomic_match.sx	must	must	must	STD-124 (?>)
+literal_match.x	tests/regex/literal_match.x	must	must	must	hello 子串
+dot_match.x	tests/regex/dot_match.x	must	must	must	h.l
+class_match.x	tests/regex/class_match.x	must	must	must	[0-9]
+star_match.x	tests/regex/star_match.x	must	must	must	a*b
+question_match.x	tests/regex/question_match.x	must	must	must	colou?r
+group_match.x	tests/regex/group_match.x	must	must	must	(ab)c
+alt_match.x	tests/regex/alt_match.x	must	must	must	cat|dog
+anchor_match.x	tests/regex/anchor_match.x	must	must	must	^hi$
+capture_match.x	tests/regex/capture_match.x	must	must	must	(ab)c capture
+plus_match.x	tests/regex/plus_match.x	must	must	must	a+b
+lazy_star_match.x	tests/regex/lazy_star_match.x	must	must	must	<.*?>
+prop_match.x	tests/regex/prop_match.x	must	must	must	STD-066 \p{}
+possessive_match.x	tests/regex/possessive_match.x	must	must	must	STD-099 *+/++/?+
+atomic_match.x	tests/regex/atomic_match.x	must	must	must	STD-124 (?>)
 regex_min_ok.c	tests/regex/regex_min_ok.c	must	must	must	C 烟测

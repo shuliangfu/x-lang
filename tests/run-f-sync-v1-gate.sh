@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# F-sync v1：std.sync 去 C（sync.sx + runtime_sync_os.c + runtime_sync_lock_diag_tls.c）。
+# F-sync v1：std.sync 去 C（sync.x + runtime_sync_os.c + runtime_sync_lock_diag_tls.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_SYNC_V1_FAIL:-0}
 DOC="analysis/phase-f-sync-v1.md"
 MANIFEST="tests/baseline/f-sync-v1-closure.tsv"
 die() { echo "f-sync-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
-echo "=== F-sync v1: sync.c → sync.sx ==="
+echo "=== F-sync v1: sync.c → sync.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-sync v1' "$DOC" || die "doc marker"
-[ -f std/sync/sync.sx ] || die "missing sync.sx"
+[ -f std/sync/sync.x ] || die "missing sync.x"
 [ -f compiler/src/asm/runtime_sync_os.c ] || die "missing runtime_sync_os.c"
 [ -f compiler/src/asm/runtime_sync_lock_diag_tls.c ] || die "missing runtime_sync_lock_diag_tls.c"
 [ ! -f std/sync/sync_os_glue.c ] || die "sync_os_glue.c should be deleted"

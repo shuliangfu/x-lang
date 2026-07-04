@@ -1,7 +1,7 @@
 /**
  * lsp_diag_pipeline_sizes.c — 仅为 lsp_diag.c 提供 ASTArena / Module / PipelineDepCtx 的 sizeof。
  *
- * 须与 ast.sx 中 ASTArena / Module / PipelineDepCtx 布局一致；调整池化/瘦身后请同步本文件。
+ * 须与 ast.x 中 ASTArena / Module / PipelineDepCtx 布局一致；调整池化/瘦身后请同步本文件。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -72,7 +72,7 @@ struct ast_PipelineDepCtx {
   int32_t use_coff_o;
   int32_t current_block_ref;
   int32_t typeck_loop_depth;
-  /** typeck: check_expr 递归深度计数器，防 self-typeck.sx 编译时循环引用栈溢出（lsp_diag_pipeline_sizes.c）。 */
+  /** typeck: check_expr 递归深度计数器，防 self-typeck.x 编译时循环引用栈溢出（lsp_diag_pipeline_sizes.c）。 */
   int32_t typeck_check_depth;
   int32_t current_func_index;
   int32_t skip_codegen_dep_0;
@@ -99,15 +99,15 @@ size_t lsp_diag_pipeline_sizeof_module(void) { return sizeof(struct ast_Module);
 size_t lsp_diag_pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_PipelineDepCtx); }
 
 /**
- * shux-c / 无 pipeline_sx 时的弱占位：返回 0 表示用瘦 struct 尺寸。
+ * shux-c / 无 pipeline_x 时的弱占位：返回 0 表示用瘦 struct 尺寸。
  * bootstrap-driver 链 lsp_diag_pipeline_ctx.o 时由强符号覆盖为 pipeline_sizeof_dep_ctx()。
  * SHUX_LSP_PIPELINE_CTX_LINKED：bootstrap 同时链 ctx.o，本 TU 勿再导出占位（Cygwin 无 weak）。
  */
 #ifndef SHUX_LSP_PIPELINE_CTX_LINKED
 #if defined(__CYGWIN__) || defined(_WIN32) || defined(__MINGW32__)
-size_t lsp_diag_sx_alloc_dep_ctx_size(void) { return 0; }
+size_t lsp_diag_x_alloc_dep_ctx_size(void) { return 0; }
 #else
-SHUX_WEAK size_t lsp_diag_sx_alloc_dep_ctx_size(void) { return 0; }
+SHUX_WEAK size_t lsp_diag_x_alloc_dep_ctx_size(void) { return 0; }
 #endif
 
 /** shux-c 链接用占位；bootstrap-driver 链入 lsp_diag_pipeline_ctx.o 强符号覆盖。MSYS2/Cygwin 不支持 ELF weak。 */

@@ -3,8 +3,8 @@
 use strict;
 use warnings;
 
-my $prefix = shift @ARGV or die "usage: $0 PREFIX file.sx\n";
-my $path = shift @ARGV or die "usage: $0 PREFIX file.sx\n";
+my $prefix = shift @ARGV or die "usage: $0 PREFIX file.x\n";
+my $path = shift @ARGV or die "usage: $0 PREFIX file.x\n";
 
 sub lit_name {
     my ($s) = @_;

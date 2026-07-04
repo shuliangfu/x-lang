@@ -8,7 +8,7 @@
 |----|------|------|
 | NL-07 v4 文档 | 本文件 | `analysis/phase-f-n07-v4.md` |
 | POSIX 桩扩展 | open/read/close/fstat/waitpid/fopen | `bootstrap_nostdlib_stubs.c` |
-| shux-c 冷链修复 | runtime_pipeline_abi SX 符号弱桩 | `runtime_pipeline_abi_shux_c_stubs.c` |
+| shux-c 冷链修复 | runtime_pipeline_abi X 符号弱桩 | `runtime_pipeline_abi_shux_c_stubs.c` |
 | runtime_io_abi | `#include <stdint.h>`（INT32_MAX） | `runtime_io_abi.c` |
 | v4 build gate | manifest + 可选全链试跑 | `tests/run-nolibc-n07-v4-build-gate.sh` |
 

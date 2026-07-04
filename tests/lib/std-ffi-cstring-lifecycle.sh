@@ -4,8 +4,8 @@
 STD_FFI_CSTRING_PREFIX="${SHUX_STD_FFI_CSTRING_PREFIX:-shux: [SHUX_STD_FFI_CSTRING]}"
 
 std_ffi_cstring_symbols_ok() {
-  local mod_sx="$1"
-  local ffi_sx="$2"
+  local mod_x="$1"
+  local ffi_x="$2"
   local ffi_glue="$3"
   local tsv="$4"
   local miss=0
@@ -16,12 +16,12 @@ std_ffi_cstring_symbols_ok() {
     case "$kind" in
       api|const)
         if [ "$kind" = "api" ]; then
-          if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+          if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
             echo "std-ffi-cstring FAIL: missing api '$anchor'" >&2
             miss=$((miss + 1))
           fi
         else
-          if ! grep -qE "const ${anchor}:" "$mod_sx" 2>/dev/null; then
+          if ! grep -qE "const ${anchor}:" "$mod_x" 2>/dev/null; then
             echo "std-ffi-cstring FAIL: missing const '$anchor'" >&2
             miss=$((miss + 1))
           fi
@@ -30,7 +30,7 @@ std_ffi_cstring_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/ffi/ffi.c|std/ffi/ffi.sx|std/ffi/ffi_cb_glue.c) path="$ffi_sx" ;;
+          std/ffi/ffi.c|std/ffi/ffi.x|std/ffi/ffi_cb_glue.c) path="$ffi_x" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-ffi-cstring FAIL: missing '$anchor' in $path" >&2
@@ -110,5 +110,5 @@ std_ffi_cstring_emit_report() {
   local su_ok="$3"
   local safe_ok="$4"
   local skip="$5"
-  echo "${STD_FFI_CSTRING_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} safe004=${safe_ok} skip=${skip}"
+  echo "${STD_FFI_CSTRING_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} safe004=${safe_ok} skip=${skip}"
 }

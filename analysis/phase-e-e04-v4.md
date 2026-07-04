@@ -26,4 +26,4 @@ make -C compiler src/runtime_proc_abi.o src/runtime_driver_no_c.o
 
 - ~~invoke_cc 链接 argv 辅助~~ → ✅ E-04 v5 `runtime_link_abi.c`
 - 拆 `invoke_cc` / `invoke_ld` / `asm_invoke_ld_platform` 主体
-- `main.c` → crt0 / main.sx 全入口
+- `main.c` → crt0 / main.x 全入口

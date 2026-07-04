@@ -96,8 +96,8 @@ compile_shu_sendfile() {
   local out="$2"
   rm -f "$out"
   sed -e "s/16777216/${bytes}/" \
-      tests/bench/zero_copy_sendfile.sx >"/tmp/bench_io_sendfile.sx"
-  if ! $PERF_COMPILE_SHUX -L . "/tmp/bench_io_sendfile.sx" -o "$out" >/tmp/bench_io_compile.log 2>&1; then
+      tests/bench/zero_copy_sendfile.x >"/tmp/bench_io_sendfile.x"
+  if ! $PERF_COMPILE_SHUX -L . "/tmp/bench_io_sendfile.x" -o "$out" >/tmp/bench_io_compile.log 2>&1; then
     cat /tmp/bench_io_compile.log >&2
     return 1
   fi
@@ -224,8 +224,8 @@ compile_shu_splice() {
   local out="$2"
   rm -f "$out"
   sed -e "s/16777216/${bytes}/" \
-      tests/bench/zero_copy_splice.sx >"/tmp/bench_io_splice.sx"
-  if ! $PERF_COMPILE_SHUX -L . "/tmp/bench_io_splice.sx" -o "$out" >/tmp/bench_io_splice_compile.log 2>&1; then
+      tests/bench/zero_copy_splice.x >"/tmp/bench_io_splice.x"
+  if ! $PERF_COMPILE_SHUX -L . "/tmp/bench_io_splice.x" -o "$out" >/tmp/bench_io_splice_compile.log 2>&1; then
     cat /tmp/bench_io_splice_compile.log >&2
     return 1
   fi
@@ -358,7 +358,7 @@ bench_io_case() {
   local name="$1"
   local base="$2"
   local desc="$3"
-  local sx="${base}.sx"
+  local x="${base}.x"
   local c="${base}.c"
   local zig="${base}.zig"
   local SHUX_ASM_MED="nan"
@@ -381,7 +381,7 @@ bench_io_case() {
     ensure_io_mmap_bench_file
   fi
 
-  $PERF_COMPILE_SHUX -L . "$sx" -o "/tmp/bench_io_shu_${tag}" 2>&1
+  $PERF_COMPILE_SHUX -L . "$x" -o "/tmp/bench_io_shu_${tag}" 2>&1
   if [ -x "/tmp/bench_io_shu_${tag}" ]; then
     [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
     SHUX_ASM_MED=$(median_real "/tmp/bench_io_shu_${tag}")
@@ -389,7 +389,7 @@ bench_io_case() {
   fi
 
   if [ "$PERF_COMPILE_SHUX" != "./compiler/shux-c" ] \
-    && $PERF_COMPILE_SHUX -L . "$sx" -backend c -o "/tmp/bench_io_shu_c_${tag}" 2>&1 \
+    && $PERF_COMPILE_SHUX -L . "$x" -backend c -o "/tmp/bench_io_shu_c_${tag}" 2>&1 \
     && [ -x "/tmp/bench_io_shu_c_${tag}" ]; then
     [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
     SHUX_C_MED=$(median_real "/tmp/bench_io_shu_c_${tag}")
@@ -399,7 +399,7 @@ bench_io_case() {
   fi
 
   if [ -x compiler/shux_asm ]; then
-    if compiler/shux_asm -L . "$sx" -o "/tmp/bench_io_asm_${tag}" 2>&1 && [ -x "/tmp/bench_io_asm_${tag}" ]; then
+    if compiler/shux_asm -L . "$x" -o "/tmp/bench_io_asm_${tag}" 2>&1 && [ -x "/tmp/bench_io_asm_${tag}" ]; then
       [ "$name" = "io_write_throughput" ] && rm -f "$BENCH_WRITE_FILE"
       ASM_MED=$(median_real "/tmp/bench_io_asm_${tag}")
       echo "Shu asm (shux_asm) ${name} median real: ${ASM_MED}s"

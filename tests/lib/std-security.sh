@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# std-security.sh — STD-079 manifest 与烟测辅助（F-security v1 + F-ZC：纯 security.sx）
+# std-security.sh — STD-079 manifest 与烟测辅助（F-security v1 + F-ZC：纯 security.x）
 
 STD_SECURITY_PREFIX="${SHUX_STD_SECURITY_PREFIX:-shux: [SHUX_STD_SECURITY]}"
 
-# 遍历 manifest；symbol 在 security.sx。
+# 遍历 manifest；symbol 在 security.x。
 std_security_symbols_ok() {
-  local mod_sx="$1"
-  local sec_sx="$2"
+  local mod_x="$1"
+  local sec_x="$2"
   local tsv="$3"
   local miss=0
   local item_id kind anchor mod_path
@@ -15,7 +15,7 @@ std_security_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        if ! grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null; then
+        if ! grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null; then
           echo "std-security FAIL: missing api '$anchor'" >&2
           miss=$((miss + 1))
         fi
@@ -23,7 +23,7 @@ std_security_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/security/security.c|std/security/security.sx|std/security/security_os_glue.c) path="$sec_sx" ;;
+          std/security/security.c|std/security/security.x|std/security/security_os_glue.c) path="$sec_x" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-security FAIL: missing '$anchor' in $path" >&2
@@ -44,11 +44,11 @@ std_security_symbols_ok() {
 
 # C 烟测：security_smoke_ok.c + security.o + crypto.o。
 std_security_run_c_smoke() {
-  local sec_sx="$1"
+  local sec_x="$1"
   local src="tests/std-security/security_smoke_ok.c"
   local out="/tmp/shux_std_security_$$"
   local sec_o crypto_o
-  sec_o="$(dirname "$sec_sx")/security.o"
+  sec_o="$(dirname "$sec_x")/security.o"
   crypto_o="std/crypto/crypto.o"
   if [ ! -f "$sec_o" ]; then
     echo "std-security FAIL: missing $sec_o" >&2
@@ -101,5 +101,5 @@ std_security_emit_report() {
   local c_ok="$2"
   local su_ok="$3"
   local skip="$4"
-  echo "${STD_SECURITY_PREFIX} status=${status} c_smoke=${c_ok} sx=${su_ok} skip=${skip}"
+  echo "${STD_SECURITY_PREFIX} status=${status} c_smoke=${c_ok} x=${su_ok} skip=${skip}"
 }

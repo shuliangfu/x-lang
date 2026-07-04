@@ -1,6 +1,6 @@
 # Shux Language
 
-VS Code / Cursor 中 `.sx`（Shux）语言的完整开发体验扩展。
+VS Code / Cursor 中 `.x`（Shux）语言的完整开发体验扩展。
 
 **当前版本**：`0.2.0` · **引擎要求**：VS Code / Cursor `^1.75.0`
 
@@ -16,7 +16,7 @@ VS Code / Cursor 中 `.sx`（Shux）语言的完整开发体验扩展。
    make -C compiler bootstrap-driver-seed
    ```
    确认 `compiler/shux` 存在且支持 `--lsp`（`shux-c` 种子编译器**不支持** LSP）。
-4. **打开任意 `.sx` 文件** — 扩展自动启动 `shux --lsp`；右下角问题面板显示 parse/typeck 诊断。
+4. **打开任意 `.x` 文件** — 扩展自动启动 `shux --lsp`；右下角问题面板显示 parse/typeck 诊断。
 5. **构建** — `Ctrl+Shift+B`（Mac: `Cmd+Shift+B`）运行 `shux build`。
 
 ### 推荐工作区设置
@@ -45,11 +45,11 @@ VS Code / Cursor 中 `.sx`（Shux）语言的完整开发体验扩展。
 | **智能选区扩展** | `Ctrl+Shift+→`（Mac 同）逐级扩大：单词 → 整行 → `{}` 块 → 整个文档 |
 | **语义折叠** | 函数体、结构体、枚举、注释块独立折叠 |
 | **大纲 / 面包屑** | 函数、结构体（含字段）、枚举（含变体）、trait、import |
-| **Import 跳转** | `import lexer;` 等模块路径 Ctrl+Click 打开对应 `.sx`（依赖 `shux.compiler.libRoots`） |
+| **Import 跳转** | `import lexer;` 等模块路径 Ctrl+Click 打开对应 `.x`（依赖 `shux.compiler.libRoots`） |
 | **CodeLens** | `main` 上方 `▶ Run`；结构体/枚举显示字段/变体数；可选 `fn` / `extern fn` 标签 |
 | **状态栏** | 右下角 `fn N · st N · en N` 符号计数 |
 | **构建任务** | `shux build` / `build (当前文件)` / `run` / `check`，输出自动解析到问题面板 |
-| **格式化触发** | 保存 / 粘贴时格式化（`[sx]` 语言默认开启）；失去焦点格式化（`shux.features.formatOnBlur`，**默认关闭**） |
+| **格式化触发** | 保存 / 粘贴时格式化（`[x]` 语言默认开启）；失去焦点格式化（`shux.features.formatOnBlur`，**默认关闭**） |
 
 ### 语言服务（LSP）
 
@@ -107,7 +107,7 @@ VS Code / Cursor 中 `.sx`（Shux）语言的完整开发体验扩展。
 
 | 设置 | 说明 | 默认 |
 |------|------|------|
-| `shux.format.enabled` | 启用 LSP 格式化（关闭后「格式化文档」对 `.sx` 无效） | `true` |
+| `shux.format.enabled` | 启用 LSP 格式化（关闭后「格式化文档」对 `.x` 无效） | `true` |
 | `shux.format.tabSize` | 缩进空格数（1–16） | `2` |
 | `shux.format.insertSpaces` | 使用空格而非 Tab | `true` |
 | `shux.format.maxLineLength` | 行宽上限，超出时折行（20–512） | `100` |
@@ -115,7 +115,7 @@ VS Code / Cursor 中 `.sx`（Shux）语言的完整开发体验扩展。
 | `shux.format.trimTrailingWhitespace` | 清除行尾空格 | `true` |
 | `shux.format.trimFinalNewlines` | 压缩末尾多余空行 | `true` |
 
-`[sx]` 语言默认：`editor.defaultFormatter` = 本扩展，`editor.formatOnSave` / `editor.formatOnPaste` = `true`。
+`[x]` 语言默认：`editor.defaultFormatter` = 本扩展，`editor.formatOnSave` / `editor.formatOnPaste` = `true`。
 
 ### 功能开关
 
@@ -132,7 +132,7 @@ VS Code / Cursor 中 `.sx`（Shux）语言的完整开发体验扩展。
 | `shux.features.statusBar` | 状态栏符号统计 | `true` |
 | `shux.features.formatOnType` | 输入时实时缩进（OnTypeFormatting） | `true` |
 | `shux.features.selectionRange` | 智能选区扩展 | `true` |
-| `shux.features.formatOnBlur` | 编辑器失去焦点时格式化上一个 `.sx` 文档 | `false` |
+| `shux.features.formatOnBlur` | 编辑器失去焦点时格式化上一个 `.x` 文档 | `false` |
 
 ### 编译器
 
@@ -157,8 +157,8 @@ VS Code / Cursor 中 `.sx`（Shux）语言的完整开发体验扩展。
 | **Shux: 重启语言服务** | 停止并重新启动 `shux --lsp` |
 | **Shux: 显示语言服务输出** | 打开 **Shux** 输出通道（启动日志、LSP trace） |
 | **Shux: 打开设置（工作区 settings.json）** | 打开工作区 `.vscode/settings.json`；无工作区时跳转设置 UI |
-| **Shux: 运行当前 .sx 文件** | 对当前文件执行 `shux run`（与 CodeLens ▶ Run 相同） |
-| **Shux: 刷新 CodeLens** | 强制刷新当前 `.sx` 的 CodeLens |
+| **Shux: 运行当前 .x 文件** | 对当前文件执行 `shux run`（与 CodeLens ▶ Run 相同） |
+| **Shux: 刷新 CodeLens** | 强制刷新当前 `.x` 的 CodeLens |
 
 ---
 
@@ -177,7 +177,7 @@ VS Code / Cursor 中 `.sx`（Shux）语言的完整开发体验扩展。
 
 - `parse error at 12:5: ...`
 - `typeck error: ... at 45:10`
-- 通用 `... at file.sx:12:5` 格式
+- 通用 `... at file.x:12:5` 格式
 
 点击问题面板条目可跳转到对应行列。
 
@@ -190,9 +190,9 @@ VS Code / Cursor 中 `.sx`（Shux）语言的完整开发体验扩展。
 | 触发方式 | 默认状态 | 如何开启 / 配置 |
 |----------|----------|-----------------|
 | 手动格式化 | ✅ | `Shift+Option+F`（Mac）/ `Shift+Alt+F`（Win/Linux）或右键 → 格式化文档 |
-| 保存时格式化 | ✅ | 设置搜 `[sx]` → `Editor: Format On Save` |
-| 粘贴时格式化 | ✅ | 设置搜 `[sx]` → `Editor: Format On Paste` |
-| 失去焦点格式化 | ⭕ | 设置搜 `shux.features.formatOnBlur` → 勾选启用；切换标签页或文件时自动格式化刚离开的 `.sx` |
+| 保存时格式化 | ✅ | 设置搜 `[x]` → `Editor: Format On Save` |
+| 粘贴时格式化 | ✅ | 设置搜 `[x]` → `Editor: Format On Paste` |
+| 失去焦点格式化 | ⭕ | 设置搜 `shux.features.formatOnBlur` → 勾选启用；切换标签页或文件时自动格式化刚离开的 `.x` |
 | 输入时缩进 | ✅ | `shux.features.formatOnType`（非完整格式化，仅 `{`/`}`/回车时的缩进对齐；可关） |
 
 需要失去焦点也自动排版时，在工作区 `.vscode/settings.json` 中加入：

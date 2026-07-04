@@ -2,8 +2,8 @@
 # 列：item_id	kind	anchor	notes
 fsecurity_doc	doc	analysis/phase-f-security-v1.md	F-security v1
 fsecurity_gate	gate	tests/run-f-security-v1-gate.sh	聚合门禁
-security_sx	file	std/security/security.sx	主实现 + mlock
+security_x	file	std/security/security.x	主实现 + mlock
 security_glue_absent	absent	std/security/security_os_glue.c	F-ZC 已删除
-security_mod	file	std/security/mod.sx	对外 API
+security_mod	file	std/security/mod.x	对外 API
 security_c_absent	absent	std/security/security.c	已删除
-makefile	makefile	compiler/Makefile	security.o 纯 .sx
+makefile	makefile	compiler/Makefile	security.o 纯 .x

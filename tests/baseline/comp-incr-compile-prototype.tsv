@@ -1,7 +1,7 @@
 # COMP-007 incremental compile prototype registry
 # 列：proto_id	capability	status	symbol	src	notes
 # min_protos	6
-proto_dep_seed	dep pre-seed skip parse	done	driver_dep_seeded_get	compiler/src/pipeline/pipeline.sx
+proto_dep_seed	dep pre-seed skip parse	done	driver_dep_seeded_get	compiler/src/pipeline/pipeline.x
 proto_lsp_cache	LSP source hash module cache	done	lsp_diag_invalidate_cache	compiler/src/lsp/lsp_diag.c
 proto_asm_preserve	build_asm __text preserve	done	asm_o_text_bytes	compiler/scripts/build_shux_asm.sh
 proto_std_prelink	prebuilt std .o link	done	get_std_fs_o_path	compiler/src/runtime.c

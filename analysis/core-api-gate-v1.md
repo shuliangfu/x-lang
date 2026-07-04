@@ -23,7 +23,7 @@
 |----|------|
 | `module_id` | `core.types` 等 |
 | `manifest` | baseline TSV 路径 |
-| `mod_path` | `core/xxx/mod.sx` |
+| `mod_path` | `core/xxx/mod.x` |
 | `kind` | `api`（每行符号）或 `feature`（CORE 专项 manifest） |
 | `sub_gate` | 专项门禁脚本（`-` 表示仅 api manifest） |
 

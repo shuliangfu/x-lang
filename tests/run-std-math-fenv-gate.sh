@@ -8,11 +8,11 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_MATH_FENV_DOC:-analysis/std-math-fenv-v1.md}"
 MANIFEST="${SHUX_STD_MATH_FENV_TSV:-tests/baseline/std-math-fenv.tsv}"
 VECTORS="${SHUX_STD_MATH_FENV_VECTORS:-tests/baseline/std-math-fenv-vectors.tsv}"
-MOD_SX="std/math/mod.sx"
+MOD_X="std/math/mod.x"
 MATH_RUNTIME="${SHUX_STD_MATH_IMPL:-compiler/src/asm/runtime_math_libm.c}"
-MATH_SX="std/math/math.sx"
+MATH_X="std/math/math.x"
 LIB="tests/lib/std-math-fenv.sh"
-SMOKE_SX="tests/std-math/fenv_clear.sx"
+SMOKE_X="tests/std-math/fenv_clear.x"
 SMOKE_C="tests/std-math/fenv_smoke_ok.c"
 MIN_APIS=3
 
@@ -20,7 +20,7 @@ MIN_APIS=3
 . "$LIB"
 
 echo "=== STD-059: math fenv manifest ==="
-for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_SX" "$MATH_RUNTIME" "$MATH_SX" "$SMOKE_SX" "$SMOKE_C"; do
+for f in "$DOC" "$MANIFEST" "$VECTORS" "$LIB" "$MOD_X" "$MATH_RUNTIME" "$MATH_X" "$SMOKE_X" "$SMOKE_C"; do
   if [ ! -f "$f" ]; then
     echo "std-math-fenv gate FAIL: missing $f" >&2
     exit 1
@@ -53,7 +53,7 @@ while IFS=$'\t' read -r item_id kind anchor _rest; do
   case "$kind" in
     api)
       API_N=$((API_N + 1))
-      if ! grep -qE "function ${anchor}\\(" "$MOD_SX" 2>/dev/null; then
+      if ! grep -qE "function ${anchor}\\(" "$MOD_X" 2>/dev/null; then
         echo "std-math-fenv gate FAIL: missing api $anchor" >&2
         exit 1
       fi
@@ -72,7 +72,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
   exit 1
 fi
 
-sym_miss="$(std_math_fenv_symbols_ok "$MOD_SX" "$MATH_RUNTIME" "$MANIFEST" || true)"
+sym_miss="$(std_math_fenv_symbols_ok "$MOD_X" "$MATH_RUNTIME" "$MANIFEST" || true)"
 if [ "${sym_miss:-0}" -gt 0 ]; then
   std_math_fenv_emit_report "fail" 0 0 0
   echo "std-math-fenv gate FAIL: symbol_miss=${sym_miss}" >&2
@@ -97,7 +97,7 @@ else
   SKIP=1
 fi
 
-SX_OK=0
+X_OK=0
 SHUX_BIN=""
 stdlib_cm_native_shu() {
   local f="$1"
@@ -117,23 +117,23 @@ elif SHUX_BIN="$(stdlib_cm_native_shu ./compiler/shux && echo ./compiler/shux ||
 fi
 
 if [ -n "$SHUX_BIN" ]; then
-  echo "=== STD-059: .sx smoke (SHUX=$SHUX_BIN) ==="
-  if ! "$SHUX_BIN" check -L . "$SMOKE_SX" >/dev/null 2>&1; then
-    echo "std-math-fenv gate FAIL: typeck $SMOKE_SX" >&2
-    "$SHUX_BIN" check -L . "$SMOKE_SX" 2>&1 | tail -10 >&2 || true
+  echo "=== STD-059: .x smoke (SHUX=$SHUX_BIN) ==="
+  if ! "$SHUX_BIN" check -L . "$SMOKE_X" >/dev/null 2>&1; then
+    echo "std-math-fenv gate FAIL: typeck $SMOKE_X" >&2
+    "$SHUX_BIN" check -L . "$SMOKE_X" 2>&1 | tail -10 >&2 || true
     std_math_fenv_emit_report "fail" "$C_OK" 0 "$SKIP"
     exit 1
   fi
-  if std_math_fenv_run_smoke "$SHUX_BIN" "$SMOKE_SX" "clear"; then
-    SX_OK=1
+  if std_math_fenv_run_smoke "$SHUX_BIN" "$SMOKE_X" "clear"; then
+    X_OK=1
   else
     std_math_fenv_emit_report "fail" "$C_OK" 0 "$SKIP"
     exit 1
   fi
 else
-  echo "std-math-fenv gate SKIP .sx smoke (no native shux)" >&2
+  echo "std-math-fenv gate SKIP .x smoke (no native shux)" >&2
   SKIP=1
 fi
 
-std_math_fenv_emit_report "ok" "$C_OK" "$SX_OK" "$SKIP"
+std_math_fenv_emit_report "ok" "$C_OK" "$X_OK" "$SKIP"
 echo "std-math-fenv gate OK"

@@ -4,7 +4,7 @@
 STD_HTTP_HTTPS_PREFIX="${SHUX_STD_HTTP_HTTPS_PREFIX:-shux: [SHUX_STD_HTTP_HTTPS]}"
 
 std_http_https_symbols_ok() {
-  local mod_sx="$1"
+  local mod_x="$1"
   local http_c="$2"
   local tsv="$3"
   local miss=0
@@ -14,7 +14,7 @@ std_http_https_symbols_ok() {
     case "$item_id" in \#*|min_*) continue ;; esac
     case "$kind" in
       api)
-        grep -qE "function ${anchor}\\(" "$mod_sx" 2>/dev/null || miss=$((miss + 1))
+        grep -qE "function ${anchor}\\(" "$mod_x" 2>/dev/null || miss=$((miss + 1))
         ;;
       symbol)
         case "$mod_path" in
@@ -31,7 +31,7 @@ std_http_https_symbols_ok() {
   [ "$miss" -eq 0 ]
 }
 
-std_http_https_run_sx_smoke() {
+std_http_https_run_x_smoke() {
   local shux="$1"
   local src="$2"
   local exe="/tmp/shux_std_http_https_$$"
@@ -60,5 +60,5 @@ std_http_https_run_c_smoke() {
 }
 
 std_http_https_emit_report() {
-  echo "${STD_HTTP_HTTPS_PREFIX} status=$1 c=$2 sx=$3 skip=$4 openssl=$5"
+  echo "${STD_HTTP_HTTPS_PREFIX} status=$1 c=$2 x=$3 skip=$4 openssl=$5"
 }

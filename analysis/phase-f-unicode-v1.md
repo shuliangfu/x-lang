@@ -1,12 +1,12 @@
 # 阶段 F-unicode v1（std.unicode 去 C）
 
-> **F-unicode v1**：删除 **`unicode.c`**；模块锚点在 **`unicode.sx`**；分类/NFC/字素簇在 **`unicode_glue.c`**。
+> **F-unicode v1**：删除 **`unicode.c`**；模块锚点在 **`unicode.x`**；分类/NFC/字素簇在 **`unicode_glue.c`**。
 
 ## 变更
 
 | 项 | 前 | 后 |
 |----|----|-----|
-| 实现 | `unicode.c`（289 行） | `unicode.sx` + `unicode_glue.c` |
+| 实现 | `unicode.c`（289 行） | `unicode.x` + `unicode_glue.c` |
 | `unicode.o` | `cc -c` | `ld -r` 合并 |
 
 ## 门禁

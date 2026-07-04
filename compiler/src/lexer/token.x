@@ -1,0 +1,196 @@
+// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// token.x — 词法单元（Token）定义（自举 9.1：与 token.h 对应）
+// 与 compiler/include/token.h 一致；与 C 并存，完成后删 lexer.c 留本文件。
+
+// Token 种类枚举（与 token.h TokenKind 顺序一致）
+enum TokenKind {
+  TOKEN_EOF,
+  TOKEN_FUNCTION,
+  TOKEN_LET,
+  TOKEN_CONST,
+  TOKEN_IF,
+  TOKEN_ELSE,
+  TOKEN_WHILE,
+  TOKEN_LOOP,
+  TOKEN_FOR,
+  TOKEN_BREAK,
+  TOKEN_CONTINUE,
+  TOKEN_RETURN,
+  TOKEN_PANIC,
+  TOKEN_DEFER,
+  /** ERR-02：try/catch Result 错误捕获（与 token.h TOKEN_TRY/TOKEN_CATCH 一致） */
+  TOKEN_TRY,
+  TOKEN_CATCH,
+  /** M-3：region 域块（与 token.h TOKEN_REGION 一致） */
+  TOKEN_REGION,
+  /** MEM-C1：with_arena 作用域 Arena（与 token.h TOKEN_WITH_ARENA 一致） */
+  TOKEN_WITH_ARENA,
+  TOKEN_MATCH,
+  TOKEN_STRUCT,
+  /** 类型别名 type Alias = T;（与 token.h TOKEN_TYPE 一致） */
+  TOKEN_TYPE,
+  TOKEN_PACKED,
+  TOKEN_SOA,
+  TOKEN_ATTR_SOA,
+  /** B-01：#[cfg(...)]；int_val 1=host 匹配保留下一项，0=剪枝跳过 */
+  TOKEN_ATTR_CFG,
+  /** B-03：#[repr(C)]；下一顶层 struct 按 C ABI 布局（允许隐式 padding） */
+  TOKEN_ATTR_REPR_C,
+  /** #[repr(compatible)]；与同布局 struct 指针互认（与 token.h TOKEN_ATTR_REPR_COMPATIBLE 一致） */
+  TOKEN_ATTR_REPR_COMPATIBLE,
+  /** MEM-C1：#[alloc]；下一 function 为 Allocator 自动注入 API */
+  TOKEN_ATTR_ALLOC,
+  /** K4：#[link_section("name")]；下一 const/let/function 落入指定段 */
+  TOKEN_ATTR_LINK_SECTION,
+  /** K3：#[naked]；下一 function 无 prologue/epilogue，体须仅 asm! */
+  TOKEN_ATTR_NAKED,
+  /** K5：#[entry]；下一 function 为内核入口 _start */
+  TOKEN_ATTR_ENTRY,
+  /** K10：#[used]；下一 function 不被 C 编译器消除，外部链接 */
+  TOKEN_ATTR_USED,
+  /** L9：#[no_mangle]；下一 function 外部链接+不 DCE */
+  TOKEN_ATTR_NO_MANGLE,
+  /** L9：#[link_name("name")]；下一 function/extern 用指定符号名 */
+  TOKEN_ATTR_LINK_NAME,
+  /** L4：#[max_stack(N)]；下一 function 栈用量上限 */
+  TOKEN_ATTR_MAX_STACK,
+  /** A1：#[interrupt]；下一 function 为中断处理（C 编译器自动 push/pop + iret） */
+  TOKEN_ATTR_INTERRUPT,
+  /** L6：#[send]；下一 struct 可安全跨线程传递 */
+  TOKEN_ATTR_SEND,
+  /** L6：#[sync]；下一 struct 可安全跨线程共享 */
+  TOKEN_ATTR_SYNC,
+  /** DOD-CL：struct 字段 align(N) cache line 对齐 */
+  TOKEN_ALIGN,
+  TOKEN_ENUM,
+  TOKEN_GOTO,
+  TOKEN_TRAIT,
+  TOKEN_IMPL,
+  TOKEN_SELF,
+  TOKEN_UNDERSCORE,
+  TOKEN_IMPORT,
+  TOKEN_EXTERN,
+  /** async function 修饰（P2 原型） */
+  TOKEN_ASYNC,
+  /** await expr（仅 async function 内；与 token.h 一致） */
+  TOKEN_AWAIT,
+  /** run async_fn()（sync 上下文经 scheduler drain） */
+  TOKEN_RUN,
+  /** spawn async_fn()（非阻塞 submit） */
+  TOKEN_SPAWN,
+  TOKEN_IDENT,
+  TOKEN_I32,
+  TOKEN_BOOL,
+  TOKEN_U8,
+  TOKEN_U32,
+  TOKEN_U64,
+  TOKEN_I64,
+  TOKEN_USIZE,
+  TOKEN_ISIZE,
+  TOKEN_I32X4,
+  TOKEN_I32X8,
+  TOKEN_I32X16,
+  TOKEN_U32X4,
+  TOKEN_U32X8,
+  TOKEN_U32X16,
+  TOKEN_F32X4,
+  TOKEN_TRUE,
+  TOKEN_FALSE,
+  TOKEN_F32,
+  TOKEN_F64,
+  TOKEN_VOID,
+  TOKEN_INT,
+  TOKEN_FLOAT,
+  TOKEN_LPAREN,
+  TOKEN_RPAREN,
+  TOKEN_LBRACE,
+  TOKEN_RBRACE,
+  TOKEN_LBRACKET,
+  TOKEN_RBRACKET,
+  TOKEN_ARROW,
+  TOKEN_FATARROW,
+  TOKEN_COMMA,
+  TOKEN_COLON,
+  TOKEN_DOT,
+  /** .. 范围 for / 切片（与 token.h TOKEN_DOTDOT 一致） */
+  TOKEN_DOTDOT,
+  TOKEN_SEMICOLON,
+  TOKEN_PLUS,
+  TOKEN_MINUS,
+  TOKEN_STAR,
+  TOKEN_SLASH,
+  TOKEN_PERCENT,
+  TOKEN_AMP,
+  TOKEN_PIPE,
+  TOKEN_CARET,
+  TOKEN_LSHIFT,
+  TOKEN_RSHIFT,
+  /** 复合赋值：+=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=（与 C 一致，左值 op
+  * 右值后写回） */
+  TOKEN_PLUS_EQ,
+  TOKEN_MINUS_EQ,
+  TOKEN_STAR_EQ,
+  TOKEN_SLASH_EQ,
+  TOKEN_PERCENT_EQ,
+  TOKEN_AMP_EQ,
+  TOKEN_PIPE_EQ,
+  TOKEN_CARET_EQ,
+  TOKEN_LSHIFT_EQ,
+  TOKEN_RSHIFT_EQ,
+  TOKEN_TILDE,
+  TOKEN_ASSIGN,
+  TOKEN_EQ,
+  TOKEN_NE,
+  TOKEN_LT,
+  TOKEN_GT,
+  TOKEN_LE,
+  TOKEN_GE,
+  TOKEN_AMPAMP,
+  TOKEN_PIPEPIPE,
+  TOKEN_BANG,
+  TOKEN_QUESTION,
+  /** as 类型转换 expr as type（与 token.h / lexer.c 一致） */
+  TOKEN_AS,
+  /** @ SIMD comptime builtin（@shuffle / @select） */
+  TOKEN_AT,
+  /** 字符串字面量 import("path") 等 */
+  TOKEN_STRING,
+}
+
+// 单个 Token：类型 + 源码位置 + 字面量/标识符（.x 无
+// union，用独立字段）；allow(padding) 与 C 端布局兼容
+allow(padding) struct Token {
+  kind: TokenKind;
+  line: i32;
+  col: i32;
+  int_val: i32;
+  float_val: f64;
+  ident: *u8;
+  ident_len: i32;
+}
+
+/**
+* 是否为 EOF。
+* Parser 将此比较落成 EXPR_FIELD_ACCESS(t.kind) ==
+* EXPR_ENUM_VARIANT(TOKEN_EOF)，typeck/codegen 与 C 流水线一致。
+* 注意：不得写成 let x: i32 = t.kind as i32（shux-c 在 let
+* 初始化里不支持「as」cast，会破坏 bootstrap-pipeline）。
+*/
+function token_is_eof(t: Token): bool {
+  return t.kind == TokenKind.TOKEN_EOF;
+}

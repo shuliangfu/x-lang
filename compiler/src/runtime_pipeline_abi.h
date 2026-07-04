@@ -1,9 +1,9 @@
 /**
  * runtime_pipeline_abi.h — 编译器 C 侧 pipeline import / dep 槽 ABI 声明（Phase E-04 v24～v30）
  *
- * 文件职责：import 路径解析与 pipeline dep 全局槽（driver_dep_*）；供 pipeline.sx / runtime.c 链接。
+ * 文件职责：import 路径解析与 pipeline dep 全局槽（driver_dep_*）；供 pipeline.x / runtime.c 链接。
  * 所属模块：compiler 运行时 pipeline ABI；实现于 runtime_pipeline_abi.c。
- * 与其它文件的关系：不依赖 C 前端；与 pipeline.sx 内 resolve 规则对齐。
+ * 与其它文件的关系：不依赖 C 前端；与 pipeline.x 内 resolve 规则对齐。
  */
 
 #ifndef SHUX_RUNTIME_PIPELINE_ABI_H
@@ -14,15 +14,15 @@
 #include <stdio.h>
 #include <string.h>
 
-/** 与 ast.sx PipelineDepCtx 内嵌源缓冲容量一致。 */
+/** 与 ast.x PipelineDepCtx 内嵌源缓冲容量一致。 */
 #define SHUX_PIPELINE_CTX_BUF_SIZE 4194304
 
 struct ast_Module;
 struct ast_ASTArena;
 
 /**
- * 与 ast.sx PipelineDepCtx 布局一致（含内嵌源缓冲）；dep/lib_root sidecar 在 ast_pool.c 堆上 grow。
- * C 侧 pipeline / dep 预跑通过本结构向 .sx pipeline 传路径与 dep 槽。
+ * 与 ast.x PipelineDepCtx 布局一致（含内嵌源缓冲）；dep/lib_root sidecar 在 ast_pool.c 堆上 grow。
+ * C 侧 pipeline / dep 预跑通过本结构向 .x pipeline 传路径与 dep 槽。
  */
 struct ast_PipelineDepCtx {
     int32_t ndep;
@@ -56,16 +56,16 @@ struct ast_PipelineDepCtx {
     int32_t asm_entry_module_only;
     uint8_t entry_module_import_path_mirror[64];
     int32_t entry_module_import_path_len;
-    /** M-3 typeck：与 ast.sx PipelineDepCtx.typeck_scope_region_* 对齐。 */
+    /** M-3 typeck：与 ast.x PipelineDepCtx.typeck_scope_region_* 对齐。 */
     int32_t typeck_scope_region_len;
     uint8_t typeck_scope_region_label[64];
 };
 
-/** pipeline dep 全局槽数量（与 pipeline.sx / runtime 预跑 dep 上限一致）。 */
+/** pipeline dep 全局槽数量（与 pipeline.x / runtime 预跑 dep 上限一致）。 */
 #define SHUX_DRIVER_DEP_SLOT_MAX 32
 
 /**
- * 对原始 .sx 做 preprocess.sx 条件编译，写入新分配 NUL 结尾字符串。
+ * 对原始 .x 做 preprocess.x 条件编译，写入新分配 NUL 结尾字符串。
  * 参数：defines/ndefines 为 -D 宏；path_diag 用于错误信息。
  * 返回值：0 成功；失败写 stderr 且不分配 *out_src。
  */
@@ -99,35 +99,35 @@ void pipeline_set_ndep(int32_t n);
 void driver_typeck_dep_sidecar_clear(void);
 
 /**
- * 将逻辑 import 路径转为 lib_root 下的 .sx 文件路径（'.' → '/'）。
+ * 将逻辑 import 路径转为 lib_root 下的 .x 文件路径（'.' → '/'）。
  * 参数：lib_root 库根；import_path 如 "core.types"；path/path_size 输出缓冲。
  */
 void shux_import_path_to_file_path(const char *lib_root, const char *import_path, char *path, size_t path_size);
 
 /**
- * 从入口 .sx 路径得到所在目录；无目录时写入 "."。
+ * 从入口 .x 路径得到所在目录；无目录时写入 "."。
  */
 void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size);
 
 /**
- * 判断 import 是否为文件路径（相对/绝对/.sx），而非逻辑模块名 std.io。
+ * 判断 import 是否为文件路径（相对/绝对/.x），而非逻辑模块名 std.io。
  * 返回值：非 0 表示文件路径形式。
  */
 int shux_import_path_is_file_path(const char *import_path);
 
 /**
- * 将相对/绝对文件路径解析为可打开的 .sx 路径（相对 entry_dir）。
+ * 将相对/绝对文件路径解析为可打开的 .x 路径（相对 entry_dir）。
  */
 void shux_resolve_file_import_path(const char *entry_dir, const char *import_path, char *path, size_t path_size);
 
 /**
- * 在 lib_roots 与 entry_dir 下解析 import 到可读 .sx 路径（单文件 / mod.sx / 同目录 fallback）。
+ * 在 lib_roots 与 entry_dir 下解析 import 到可读 .x 路径（单文件 / mod.x / 同目录 fallback）。
  * 参数：lib_roots/n_lib_roots 与 -L 一致；path 输出；path_size 缓冲容量。
  */
 void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char *import_path, char *path, size_t path_size);
 
-/** pipeline.sx extern：dep 槽 seeded 标志与 arena/module 缓冲 getter。 */
+/** pipeline.x extern：dep 槽 seeded 标志与 arena/module 缓冲 getter。 */
 int32_t driver_dep_seeded_get(int32_t i);
 void driver_dep_seeded_set(int32_t i, int32_t v);
 void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n);
@@ -137,7 +137,7 @@ void driver_dep_seeded_clear_all(void);
 uint8_t *driver_dep_arena_buf(int32_t i);
 uint8_t *driver_dep_module_buf(int32_t i);
 
-/** typeck.sx codegen 导出名；转发至 driver_dep_* 槽。 */
+/** typeck.x codegen 导出名；转发至 driver_dep_* 槽。 */
 uint8_t *typeck_driver_dep_module_buf(int32_t i);
 int32_t typeck_driver_dep_seeded_get(int32_t i);
 
@@ -153,11 +153,11 @@ int shux_find_loaded_import_index(const char *import_path, char **all_paths, int
 const char *shux_dep_prerun_entry_dir(const char *main_entry_dir, const char **lib_roots, int n_lib_roots);
 
 /**
- * 从入口 .sx 路径推导 -E 库模块 C 前缀（pipeline/typeck/...）。
+ * 从入口 .x 路径推导 -E 库模块 C 前缀（pipeline/typeck/...）。
  */
 const char *shux_entry_lib_name_from_path(const char *input_path);
 
-/** -E pipeline.sx 时向 stdout 输出 #include "pipeline_glue.c"。 */
+/** -E pipeline.x 时向 stdout 输出 #include "pipeline_glue.c"。 */
 void shux_emit_pipeline_glue_include(void);
 
 /** asm 后端：stdout 仅 fflush，其它 fclose。 */
@@ -167,13 +167,13 @@ void driver_asm_fclose_asm_out(FILE *fp);
 int shux_asm_out_buf_is_object(const unsigned char *data, size_t len);
 
 /**
- * 填充 PipelineDepCtx 的 entry_dir_buf 与 lib_root sidecar，供 .sx resolve_path_sx 使用。
+ * 填充 PipelineDepCtx 的 entry_dir_buf 与 lib_root sidecar，供 .x resolve_path_x 使用。
  */
 void shux_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
     const char **lib_roots, int n_lib_roots);
 
 /**
- * 将 C 侧 dep 槽写入 PipelineDepCtx sidecar（与 ast.sx pipeline_dep_ctx_* 对齐）。
+ * 将 C 侧 dep 槽写入 PipelineDepCtx sidecar（与 ast.x pipeline_dep_ctx_* 对齐）。
  */
 void shux_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
     char **import_paths, int n);
@@ -189,8 +189,8 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
                                           void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
                                           size_t dep_src_len);
 
-/** asm 用户程序：std.io/fs/net dep 是否跳过 .sx typeck。 */
-int shux_asm_user_std_dep_skip_sx_typeck(const char *dep_path);
+/** asm 用户程序：std.io/fs/net dep 是否跳过 .x typeck。 */
+int shux_asm_user_std_dep_skip_x_typeck(const char *dep_path);
 
 /** std.net dep 路径（co-emit 前须 parse 填 funcs）。 */
 int shux_asm_user_std_net_dep_path(const char *dep_path);
@@ -201,16 +201,16 @@ int shux_asm_user_std_io_driver_dep_path(const char *dep_path);
 /** dep 预跑 parse+skip typeck 路径（std.net / std.io.driver）。 */
 int shux_asm_user_dep_parse_skip_typeck_path(const char *dep_path);
 
-/** parser / pipeline 切片（与 pipeline.sx shux_slice 一致）。 */
+/** parser / pipeline 切片（与 pipeline.x shux_slice 一致）。 */
 struct shux_slice_uint8_t {
     uint8_t *data;
     size_t length;
 };
 
-/** pipeline.sx import 加载缓冲容量（与 runtime 原 PIPELINE_IMPORT_BUF_CAP 一致）。 */
+/** pipeline.x import 加载缓冲容量（与 runtime 原 PIPELINE_IMPORT_BUF_CAP 一致）。 */
 #define SHUX_PIPELINE_IMPORT_BUF_CAP 4194304
 
-/** 阶段 5.3：pipeline.sx 编排用最小 C I/O 原语（resolve/read/parse）。 */
+/** 阶段 5.3：pipeline.x 编排用最小 C I/O 原语（resolve/read/parse）。 */
 void pipeline_set_entry_dir(const char *path);
 void pipeline_set_dep_slots(void *arenas[32], void *modules[32]);
 int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len);
@@ -219,8 +219,8 @@ void *pipeline_get_dep_arena_slot(int32_t i);
 void *pipeline_get_dep_module_slot(int32_t i);
 int32_t pipeline_parse_into_loaded_import(void *arena, void *module);
 
-/** 大栈 pthread 上跑 pipeline_run_sx_pipeline；失败回退当前线程。 */
-int shux_pipeline_run_sx_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+/** 大栈 pthread 上跑 pipeline_run_x_pipeline；失败回退当前线程。 */
+int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx);
 
 /** dep 预跑：parse+skip typeck/codegen（std.net co-emit 前填 funcs）。 */
@@ -285,13 +285,13 @@ int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void
 void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_dep_paths, int n_all);
 
 /**
- * 对 .sx 源码做条件编译预处理（malloc 结果，调用方 free）。
- * bootstrap/driver 默认走 preprocess.sx（shux_preprocess_raw_to_malloc）；SHUX_LEGACY_PREPROCESS_C=1 走 C fallback。
+ * 对 .x 源码做条件编译预处理（malloc 结果，调用方 free）。
+ * bootstrap/driver 默认走 preprocess.x（shux_preprocess_raw_to_malloc）；SHUX_LEGACY_PREPROCESS_C=1 走 C fallback。
  */
 char *shux_preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length);
 
 /**
- * 传递闭包 seed 的 ctx.ndep 与 entry 直接 import 数不一致时清零 ndep（实现于 ast_pool.c / pipeline_sx.o）。
+ * 传递闭包 seed 的 ctx.ndep 与 entry 直接 import 数不一致时清零 ndep（实现于 ast_pool.c / pipeline_x.o）。
  */
 void pipeline_dep_ctx_realign_ndep_for_entry_c(struct ast_Module *module, struct ast_PipelineDepCtx *ctx);
 
