@@ -83,7 +83,11 @@ static int shux_cc_compile_sync_ex(const char *src, const char *out_o,
                                     const char *const *extra_flags) {
     const char *argv[32];
     int ai = 0;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    argv[ai++] = "gcc";
+#else
     argv[ai++] = "cc";
+#endif
     if (!from_asm_s) {
         argv[ai++] = "-Wall";
         argv[ai++] = "-Wextra";
@@ -106,7 +110,7 @@ static int shux_cc_compile_sync_ex(const char *src, const char *out_o,
     argv[ai] = NULL;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     {
-        intptr_t rc = _spawnvp(_P_WAIT, "cc", (const char *const *)argv);
+        intptr_t rc = _spawnvp(_P_WAIT, "gcc", (const char *const *)argv);
         if (rc == -1)
             return -1;
         return (int)rc;
@@ -3404,7 +3408,9 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
             argv[i++] = NULL;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
         {
-            intptr_t rc = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
+            /* Windows 无 cc，用 gcc；_spawnvp 第一参数为 PATH 查找的程序名 */
+            argv[0] = (char *)"gcc";
+            intptr_t rc = _spawnvp(_P_WAIT, "gcc", (const char *const *)argv);
             if (rc == -1) {
                 perror("_spawnvp (cc)");
                 return -1;
