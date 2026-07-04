@@ -46,7 +46,7 @@ extern function _read(fd: i32, buf: *u8, count: u32): i32;
 extern function _write(fd: i32, buf: *u8, count: u32): i32;
 extern function ReadFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToRead: u32, lpNumberOfBytesRead: *u32, lpOverlapped: *u8): i32;
 extern function WriteFile(hFile: *u8, lpBuffer: *u8, nNumberOfBytesToWrite: u32, lpNumberOfBytesWritten: *u32, lpOverlapped: *u8): i32;
-extern function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
+extern function WSAStartup(wVersionRequested: i32, lpWSAData: *u8): i32;
 
 /** fd 转 Win32 HANDLE（无效时回退 _read/_write）。 */
 function io_win_fd_to_handle(fd: i32): *u8 {
