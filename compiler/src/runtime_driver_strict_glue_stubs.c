@@ -4,17 +4,27 @@
 
 #include "token.h"
 
+/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
+ * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
+#ifndef SHUX_WEAK
+#if defined(_WIN32) || defined(_WIN64)
+#define SHUX_WEAK
+#else
+#define SHUX_WEAK __attribute__((weak))
+#endif
+#endif
+
 struct ASTModule;
 struct ASTFunc;
 typedef struct ASTModule ASTModule;
 
 typedef struct Lexer Lexer;
 
-__attribute__((weak)) void codegen_emit_fmt_json_helpers_once(FILE *out) {
+SHUX_WEAK void codegen_emit_fmt_json_helpers_once(FILE *out) {
   (void)out;
 }
 
-__attribute__((weak)) int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_paths, int n, FILE *out,
+SHUX_WEAK int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_paths, int n, FILE *out,
                                                       char (*emitted_type_names)[64], int *n_emitted_inout,
                                                       int max_emitted) {
   (void)mods;
@@ -27,20 +37,20 @@ __attribute__((weak)) int codegen_emit_dep_types_only(struct ASTModule **mods, c
   return -1;
 }
 
-__attribute__((weak)) void codegen_set_eextern_entry_path(const char *entry_path) {
+SHUX_WEAK void codegen_set_eextern_entry_path(const char *entry_path) {
   (void)entry_path;
 }
 
-__attribute__((weak)) Lexer *lexer_new(const char *source) {
+SHUX_WEAK Lexer *lexer_new(const char *source) {
   (void)source;
   return NULL;
 }
 
-__attribute__((weak)) void lexer_free(Lexer *l) {
+SHUX_WEAK void lexer_free(Lexer *l) {
   (void)l;
 }
 
-__attribute__((weak)) void lexer_next(Lexer *l, Token *out) {
+SHUX_WEAK void lexer_next(Lexer *l, Token *out) {
   (void)l;
   if (!out)
     return;
@@ -50,13 +60,13 @@ __attribute__((weak)) void lexer_next(Lexer *l, Token *out) {
   out->ident_len = 0;
 }
 
-__attribute__((weak)) int parse(Lexer *lex, ASTModule **out) {
+SHUX_WEAK int parse(Lexer *lex, ASTModule **out) {
   (void)lex;
   (void)out;
   return -1;
 }
 
-__attribute__((weak)) int typeck_module(ASTModule *m, ASTModule **dep_mods, int num_deps, ASTModule **all_dep_mods, int n_all_deps) {
+SHUX_WEAK int typeck_module(ASTModule *m, ASTModule **dep_mods, int num_deps, ASTModule **all_dep_mods, int n_all_deps) {
   (void)m;
   (void)dep_mods;
   (void)num_deps;
@@ -65,12 +75,12 @@ __attribute__((weak)) int typeck_module(ASTModule *m, ASTModule **dep_mods, int 
   return -1;
 }
 
-__attribute__((weak)) int typeck_set_allow_legacy_extern_calls(int allow) {
+SHUX_WEAK int typeck_set_allow_legacy_extern_calls(int allow) {
   (void)allow;
   return 0;
 }
 
-__attribute__((weak)) char *preprocess(const char *source, size_t source_len, const char **defines, int ndefines,
+SHUX_WEAK char *preprocess(const char *source, size_t source_len, const char **defines, int ndefines,
                                        size_t *out_length) {
   (void)source;
   (void)source_len;
@@ -81,11 +91,11 @@ __attribute__((weak)) char *preprocess(const char *source, size_t source_len, co
   return NULL;
 }
 
-__attribute__((weak)) void driver_print_usage_c(void) {
+SHUX_WEAK void driver_print_usage_c(void) {
   fputs("Shux (stub)\nUsage: shux [options] file.sx\n", stdout);
 }
 
-__attribute__((weak)) int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
+SHUX_WEAK int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
                                                          const char *entry_dir, const char **defines, int ndefines,
                                                          int allow_legacy_extern, ASTModule **dep_mods, int *ndep_out,
                                                          ASTModule **all_dep_mods, char **all_dep_paths, char all_dep_fs[][512],
@@ -107,7 +117,7 @@ __attribute__((weak)) int shu_c_resolve_and_load_imports(ASTModule *mod, const c
   return -1;
 }
 
-__attribute__((weak)) int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
+SHUX_WEAK int shu_lsp_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,
                                                            const char *entry_dir, ASTModule **dep_mods, int *ndep_out,
                                                            ASTModule **all_dep_mods, char **all_dep_paths,
                                                            char all_dep_fs[][512], int *n_all_out, int max_deps) {
@@ -125,16 +135,13 @@ __attribute__((weak)) int shu_lsp_resolve_and_load_imports(ASTModule *mod, const
   return -1;
 }
 
-__attribute__((weak)) int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void) {
+SHUX_WEAK int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void) {
   (void)module;
   (void)arena;
   (void)ctx_void;
   return -1;
 }
 
-#if !defined(_WIN32) && !defined(_WIN64)
-/* MinGW 不支持 __attribute__((weak)) 函数符号；Windows 上由 runtime_pipeline_abi_shux_c_stubs.c 单一提供。 */
-__attribute__((weak)) void ast_module_free(ASTModule *mod) {
+SHUX_WEAK void ast_module_free(ASTModule *mod) {
   (void)mod;
 }
-#endif

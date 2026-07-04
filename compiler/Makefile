@@ -10,6 +10,13 @@
 
 CC      ?= cc
 CFLAGS  ?= -Wall -Wextra -I. -Iinclude -Isrc
+# Windows/MinGW: __attribute__((weak)) 函数符号不被 PE 格式支持，
+# 所有 weak 函数在 stub 文件中变为正常定义；用 --allow-multiple-definition 解决重复定义冲突。
+ifeq ($(OS),Windows_NT)
+WIN_LDFLAGS = -Wl,--allow-multiple-definition
+else
+WIN_LDFLAGS =
+endif
 # 仅编译 pipeline_gen.c / driver_gen.c 等生成代码时加：静默已知警告，使 bootstrap-driver 整次 0 警告
 # GCC 不识别 -Wno-logical-op-parentheses / -Wno-bitwise-op-parentheses / -Wno-incompatible-pointer-types-discards-qualifiers，会出 cc1 note；仅 Clang 追加
 PIPELINE_GEN_CFLAGS_BASE = -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits
@@ -657,7 +664,7 @@ std-objs: $(STD_AND_PANIC_O)
 endif
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(WIN_LDFLAGS)
 
 # G-06：默认 shux-c = bootstrap_shuxc 预编译种子（无 cc 编 OBJS_CORE）；考古：SHUX_LEGACY_C_FRONTEND=1。
 bootstrap_shuxc: scripts/bootstrap_shuxc_create.sh scripts/select_bootstrap_shuxc.sh
