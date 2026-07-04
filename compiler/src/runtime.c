@@ -2316,12 +2316,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         if (getenv("SHUX_DEBUG_C")) {
             FILE *dc = fopen(tmp_c, "r");
             if (dc) {
-                { char _dbg[256]; snprintf(_dbg, sizeof(_dbg), "%sshux_debug.c", SHUX_TMP_PREFIX); FILE *_df = fopen(_dbg, "w"); (void)_df; }
-                if (out) {
-                    int ch;
-                    while ((ch = getc(dc)) != EOF) putc(ch, out);
-                    fclose(out);
-                }
+                { char _dbg[256]; snprintf(_dbg, sizeof(_dbg), "%sshux_debug.c", SHUX_TMP_PREFIX); FILE *_df = fopen(_dbg, "w"); if (_df) { int ch; while ((ch = getc(dc)) != EOF) putc(ch, _df); fclose(_df); } }
                 fclose(dc);
             }
         }
