@@ -506,10 +506,15 @@ int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz
 #endif
 #if defined(_WIN32) || defined(_WIN64)
     {
-        /* GetModuleFileNameA 直接返回窄字符路径（ANSI 代码页），避免宽窄字符转换。
-         * 编译器目录通常无 Unicode 字符，ANSI 路径足够。 */
-        DWORD n = GetModuleFileNameA(NULL, buf, (DWORD)sizeof(buf) - 1);
-        if (n > 0 && n < (DWORD)sizeof(buf) - 1) {
+        /* MinGW process.h 提供 _pgmptr 全局变量（char*），是当前进程可执行文件完整路径
+         * （含 .exe 与盘符）。无需 #include <windows.h>，避免与 token.h 的 TOKEN_TYPE 冲突。 */
+        extern char *_pgmptr;
+        const char *exe_path = _pgmptr;
+        if (exe_path && exe_path[0]) {
+            size_t n = strlen(exe_path);
+            if (n >= sizeof(buf))
+                n = sizeof(buf) - 1;
+            memcpy(buf, exe_path, n);
             buf[n] = '\0';
             char *slash = shux_path_last_sep(buf);
             if (slash) {

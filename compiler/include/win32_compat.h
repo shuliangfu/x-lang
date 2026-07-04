@@ -16,10 +16,9 @@
 #include <direct.h>
 #include <process.h>
 #include <sys/stat.h>
-/* windows.h 提供 HMODULE / GetModuleHandleW / GetModuleFileNameW 等，
- * 用于 shu_resolve_compiler_dir 在 Windows 上定位编译器自身路径。 */
-#define WIN32_LEAN_AND_MEAN 1
-#include <windows.h>
+/* 注意：不要在此处 #include <windows.h>——它会引入 winnt.h 的 TOKEN_TYPE 等枚举，
+ * 与 shux 自己的 TOKEN_TYPE 冲突。需要 Windows API（如 GetModuleFileNameA）的
+ * 文件应在使用前局部 #include <windows.h>（用 NOGDI/NOUSER 减少 API 表面）。 */
 
 /* strndup — MinGW 无此函数 */
 static inline char *strndup(const char *s, size_t n) {
