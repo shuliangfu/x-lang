@@ -25,6 +25,22 @@
  */
 
 #include "win32_compat.h"
+
+#ifndef _WIN32
+#define SHUX_TMP_PREFIX "/tmp/shux_"
+#else
+/* Windows: 用 TEMP 环境变量替代 /tmp */
+static const char *shux_get_tmp_prefix(void) {
+    const char *tmp = getenv("TEMP");
+    if (!tmp) tmp = getenv("TMP");
+    if (!tmp) tmp = "C:/Users/shuliangfu/AppData/Local/Temp";
+    static char buf[256];
+    snprintf(buf, sizeof(buf), "%s/shux_", tmp);
+    return buf;
+}
+#define SHUX_TMP_PREFIX shux_get_tmp_prefix()
+#endif
+
 #include "preprocess.h"
 #include "target_cpu.h"
 #include "lsp/lsp_diag.h"
@@ -1406,7 +1422,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         if (use_asm_backend && out_path) {
             asm_want_exe = shux_output_want_exe(out_path);
             if (asm_want_exe) {
-                strcpy(asm_tmp_o_path, "/tmp/shux_asm_XXXXXX");
+                snprintf(asm_tmp_o_path, 64, "%sshux_asm_XXXXXX", SHUX_TMP_PREFIX);
                 int fd = mkstemp(asm_tmp_o_path);
                 if (fd < 0) {
                     runtime_diag_errno_path(input_path, "build error", "mkstemp (asm)", asm_tmp_o_path);
@@ -1995,7 +2011,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         if (!root_func || !root_func->body) {
             /* LANG-007 v2：库模块 -o *.o → codegen_library_module_to_c + cc -c。 */
             if (out_path && shux_output_is_elf_o(out_path) && mod->num_funcs > 0) {
-                char tmp_lib[] = "/tmp/shux_XXXXXX";
+                char tmp_lib[128]; snprintf(tmp_lib, sizeof(tmp_lib), "%ssXXXXXX", SHUX_TMP_PREFIX);
                 int fd_lib = mkstemp(tmp_lib);
                 if (fd_lib < 0) {
                     runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp_lib);
@@ -2112,7 +2128,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         char tmp_c[256];
 
         /* 入口模块 → 临时 .c（有依赖时同一文件内先写依赖再写入口） */
-        char tmp[] = "/tmp/shux_XXXXXX";
+        char tmp[128]; snprintf(tmp, sizeof(tmp), "%ssXXXXXX", SHUX_TMP_PREFIX);
         int fd = mkstemp(tmp);
         if (fd < 0) {
             runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp);
@@ -2299,7 +2315,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         if (getenv("SHUX_DEBUG_C")) {
             FILE *dc = fopen(tmp_c, "r");
             if (dc) {
-                FILE *out = fopen("/tmp/shux_debug.c", "w");
+                { char _dbg[256]; snprintf(_dbg, sizeof(_dbg), "%sshux_debug.c", SHUX_TMP_PREFIX); out = fopen(_dbg, "w"); }
                 if (out) {
                     int ch;
                     while ((ch = getc(dc)) != EOF) putc(ch, out);
@@ -2552,7 +2568,7 @@ int run_compiler_sx_path(int argc, char **argv) {
     }
     typeck_ndep = 0;
     /* 模板末尾须为 6 个 X，mkstemp 后重命名为 .c 以便 cc/ld 识别 */
-    char tmp[] = "/tmp/shux_sx.XXXXXX";
+    char tmp[128]; snprintf(tmp, sizeof(tmp), "%sshux_sx.XXXXXX", SHUX_TMP_PREFIX);
     char tmp_c[32];
     int fd = -1;
     FILE *cf;
@@ -3384,7 +3400,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     } else {
         asm_want_exe = shux_output_want_exe(out_path);
         if (asm_want_exe) {
-            strcpy(asm_tmp_o_path, "/tmp/shux_asm_XXXXXX");
+            snprintf(asm_tmp_o_path, 64, "%sshux_asm_XXXXXX", SHUX_TMP_PREFIX);
             int fd = mkstemp(asm_tmp_o_path);
             if (fd < 0) {
                 runtime_diag_errno_path(input_path, "build error", "mkstemp (asm)", asm_tmp_o_path);
@@ -4377,7 +4393,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                         return 1;
                     }
                     codegen_set_preamble_has_core_option_result(0);
-                    char tmp_lib[] = "/tmp/shux_XXXXXX";
+                    char tmp_lib[128]; snprintf(tmp_lib, sizeof(tmp_lib), "%ssXXXXXX", SHUX_TMP_PREFIX);
                     int fd_lib = mkstemp(tmp_lib);
                     if (fd_lib < 0) {
                         runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp_lib);
@@ -4508,7 +4524,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 return 0;
             }
             codegen_set_preamble_has_core_option_result(0);
-            char tmp[] = "/tmp/shux_XXXXXX";
+            char tmp[128]; snprintf(tmp, sizeof(tmp), "%ssXXXXXX", SHUX_TMP_PREFIX);
             int fd = mkstemp(tmp);
             if (fd < 0) {
                 runtime_diag_errno_path(input_path, "build error", "mkstemp", tmp);
@@ -4759,7 +4775,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     }
     typeck_ndep = 0;
     /* 模板末尾须为 6 个 X，mkstemp 后重命名为 .c 以便 cc/ld 识别 */
-    char tmp[] = "/tmp/shux_sx.XXXXXX";
+    char tmp[128]; snprintf(tmp, sizeof(tmp), "%sshux_sx.XXXXXX", SHUX_TMP_PREFIX);
     char tmp_c[32];
     int fd = -1;
     FILE *cf;
