@@ -33,10 +33,15 @@
 #include <stdio.h>
 static const char *shux_get_tmp_prefix(void) {
     const char *tmp = getenv("TEMP");
-    if (!tmp) tmp = getenv("TMP");
-    if (!tmp) tmp = "C:/Users/shuliangfu/AppData/Local/Temp";
-    static char buf[256];
-    snprintf(buf, sizeof(buf), "%s/shux_", tmp);
+    if (!tmp || !tmp[0]) tmp = getenv("TMP");
+    if (!tmp || !tmp[0]) tmp = ".";
+    static char buf[260];
+    size_t L = strlen(tmp);
+    /* 拼接 tmp + 分隔符 + shux_；统一用反斜杠（MinGW 与 native 都接受） */
+    if (L > 0 && tmp[L - 1] != '/' && tmp[L - 1] != '\\')
+        snprintf(buf, sizeof(buf), "%s\\shux_", tmp);
+    else
+        snprintf(buf, sizeof(buf), "%sshux_", tmp);
     return buf;
 }
 #define SHUX_TMP_PREFIX shux_get_tmp_prefix()
@@ -1626,6 +1631,11 @@ int RUN_CC_FUNC(int argc, char **argv) {
 #if defined(__APPLE__)
         if (emit_elf_o)
             pctx->use_macho_o = 1;
+#endif
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+        /* Windows 宿主默认走 COFF 分支（lld-link/link），否则会错走 Linux/gcc 分支并用 fork 必失败。 */
+        if (emit_elf_o)
+            pctx->use_coff_o = 1;
 #endif
         if (emit_elf_o && target && strstr(target, "windows") != NULL)
             pctx->use_coff_o = 1;
@@ -3505,6 +3515,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
 #if defined(__APPLE__)
     if (emit_elf_o)
         pctx->use_macho_o = 1;
+#endif
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    /* Windows 宿主默认走 COFF 分支（lld-link/link），否则会错走 Linux/gcc 分支并用 fork 必失败。 */
+    if (emit_elf_o)
+        pctx->use_coff_o = 1;
 #endif
     if (emit_elf_o && target && strstr(target, "windows") != NULL)
         pctx->use_coff_o = 1;

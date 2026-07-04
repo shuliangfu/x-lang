@@ -37,6 +37,143 @@
 /** invoke_cc 子进程 realpath 缓冲池：不可共用单块 static，否则多次 push 后 argv 中旧槽指向最后被覆盖的路径。 */
 #define INVOKE_CC_ABS_POOL_SZ 80
 
+/**
+ * 在字符串 s 中查找最后一个路径分隔符（POSIX '/' 或 Windows '\\')。
+ * Windows 上 argv0 / realpath 结果可能含反斜杠，需双分隔符查找；
+ * POSIX 上 strchr(s, '\\') 通常为 NULL（文件名极少含反斜杠），行为不变。
+ * 返回值：指向最后分隔符的指针，找不到返回 NULL。
+ */
+static char *shux_path_last_sep(const char *s) {
+    char *p = s ? strrchr(s, '/') : NULL;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    if (s) {
+        char *bs = strrchr(s, '\\');
+        if (bs && (!p || bs > p))
+            p = bs;
+    }
+#endif
+    return p;
+}
+
+/** 字符串是否包含任意路径分隔符（POSIX '/' 或 Windows '\\')。 */
+static int shux_path_has_sep(const char *s) {
+    if (!s)
+        return 0;
+    if (strchr(s, '/'))
+        return 1;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    if (strchr(s, '\\'))
+        return 1;
+#endif
+    return 0;
+}
+
+/**
+ * 同步执行 cc 编译 .c/.s → .o；POSIX 上 fork+execvp+waitpid，Windows 上 _spawnvp(_P_WAIT,...)。
+ * 参数：src 源文件；out_o 输出 .o 路径；inc0/inc1/inc2 三个 -I 包含路径；
+ *       from_asm_s != 0 表示源是 .s 汇编，仅传 -c -o out src，不传 -Wall/-Wextra/-I。
+ *       extra_flags 可选额外标志数组（NULL 或 NULL-terminated），插在 -I 之后、-c 之前。
+ * 返回值：0 成功，非 0 失败（exit code 或 -1）。
+ * 设计目的：消除 30+ 处 ensure_runtime_*_o 函数中重复的 fork+execlp+waitpid 三段式，
+ *           并让 Windows 宿主走 _spawnvp 同步路径（无 fork）。
+ */
+static int shux_cc_compile_sync_ex(const char *src, const char *out_o,
+                                    const char *inc0, const char *inc1, const char *inc2,
+                                    int from_asm_s,
+                                    const char *const *extra_flags) {
+    const char *argv[32];
+    int ai = 0;
+    argv[ai++] = "cc";
+    if (!from_asm_s) {
+        argv[ai++] = "-Wall";
+        argv[ai++] = "-Wextra";
+        argv[ai++] = "-I";
+        argv[ai++] = inc0;
+        argv[ai++] = "-I";
+        argv[ai++] = inc1;
+        argv[ai++] = "-I";
+        argv[ai++] = inc2;
+    }
+    if (extra_flags) {
+        int i;
+        for (i = 0; extra_flags[i] != NULL && ai < 28; i++)
+            argv[ai++] = extra_flags[i];
+    }
+    argv[ai++] = "-c";
+    argv[ai++] = "-o";
+    argv[ai++] = out_o;
+    argv[ai++] = src;
+    argv[ai] = NULL;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    {
+        intptr_t rc = _spawnvp(_P_WAIT, "cc", (const char *const *)argv);
+        if (rc == -1)
+            return -1;
+        return (int)rc;
+    }
+#else
+    {
+        pid_t pid = fork();
+        if (pid < 0)
+            return -1;
+        if (pid == 0) {
+            execvp("cc", (char *const *)argv);
+            _exit(127);
+        }
+        {
+            int st;
+            if (shu_waitpid_retry(pid, &st) != 0)
+                return -1;
+            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0)
+                return -1;
+        }
+    }
+    return 0;
+#endif
+}
+
+/** shux_cc_compile_sync 的简化包装：无额外标志。 */
+static int shux_cc_compile_sync(const char *src, const char *out_o,
+                                const char *inc0, const char *inc1, const char *inc2,
+                                int from_asm_s) {
+    return shux_cc_compile_sync_ex(src, out_o, inc0, inc1, inc2, from_asm_s, NULL);
+}
+
+/**
+ * 同步执行子进程：POSIX 上 fork+execvp+waitpid，Windows 上 _spawnvp(_P_WAIT,...)。
+ * 参数：prog 程序名（PATH 查找）；argv 参数数组，须以 NULL 结尾。
+ * 返回值：0 成功（exit 0），非 0 失败（exit code 或 -1）。
+ * 设计目的：shux_asm_invoke_ld_platform 中 6 处 fork+execvp+waitpid 统一封装。
+ */
+static int shux_spawn_sync(const char *prog, const char *const *argv) {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    {
+        intptr_t rc = _spawnvp(_P_WAIT, prog, (const char *const *)argv);
+        if (rc == -1)
+            return -1;
+        return (int)rc;
+    }
+#else
+    {
+        pid_t pid = fork();
+        if (pid < 0)
+            return -1;
+        if (pid == 0) {
+            execvp(prog, (char *const *)argv);
+            _exit(127);
+        }
+        {
+            int st;
+            if (shu_waitpid_retry(pid, &st) != 0)
+                return -1;
+            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0)
+                return -1;
+        }
+    }
+    return 0;
+#endif
+}
+
 static const char *link_diag_code_for_kind(const char *kind) {
     if (!kind)
         return SHUX_DIAG_CODE_PROCESS_PRC001;
@@ -367,12 +504,36 @@ int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz
         }
     }
 #endif
-    if (!argv0 || !argv0[0] || !strchr(argv0, '/'))
+#if defined(_WIN32) || defined(_WIN64)
+    {
+        /* MinGW 上 _pgmptr 是当前进程可执行文件完整路径（含 .exe 与盘符）。 */
+        HMODULE hMod = GetModuleHandleW(NULL);
+        DWORD n = GetModuleFileNameW(hMod, (LPWSTR)buf, (DWORD)(sizeof(buf) / 2));
+        if (n > 0 && n < sizeof(buf) / 2) {
+            /* 宽字符 → 窄字符就地转换（仅 ASCII 路径足够；编译器目录通常无 Unicode）。 */
+            char *p = buf;
+            wchar_t *w = (wchar_t *)buf;
+            size_t i;
+            for (i = 0; i < (size_t)n && w[i]; i++)
+                p[i] = (char)w[i];
+            p[i] = '\0';
+            char *slash = shux_path_last_sep(p);
+            if (slash) {
+                *slash = '\0';
+                if (strlen(p) >= out_dir_sz)
+                    return -1;
+                memcpy(out_dir, p, strlen(p) + 1);
+                return 0;
+            }
+        }
+    }
+#endif
+    if (!argv0 || !argv0[0] || !shux_path_has_sep(argv0))
         return -1;
     if (realpath(argv0, buf) == NULL)
         return -1;
     {
-        char *slash = strrchr(buf, '/');
+        char *slash = shux_path_last_sep(buf);
         if (!slash)
             return -1;
         *slash = '\0';
@@ -444,7 +605,7 @@ const char *shux_repo_root_from_argv0(const char *argv0) {
         return buf;
     strcpy(buf, proc_o);
     for (k = 0; k < 3; k++) {
-        char *last = strrchr(buf, '/');
+        char *last = shux_path_last_sep(buf);
         if (!last || last == buf)
             break;
         *last = '\0';
@@ -542,7 +703,7 @@ const char *shux_runtime_panic_o_path(const char *argv0) {
         }
     }
     if (argv0 && argv0[0]) {
-        const char *last_slash = strrchr(argv0, '/');
+        const char *last_slash = shux_path_last_sep(argv0);
         int n;
         if (last_slash) {
             n = (int)(last_slash - argv0);
@@ -590,7 +751,7 @@ const char *shux_std_async_scheduler_o_path(const char *argv0) {
         }
     }
     if (argv0 && argv0[0] && realpath(argv0, buf) != NULL) {
-        char *last = strrchr(buf, '/');
+        char *last = shux_path_last_sep(buf);
         if (last && (size_t)(last - buf) + 26 < sizeof(buf)) {
             *last = '\0';
             strcat(buf, "/../std/async/scheduler.o");
@@ -625,7 +786,7 @@ const char *shux_crt0_user_o_path(const char *argv0) {
         }
     }
     if (argv0 && argv0[0]) {
-        const char *last_slash = strrchr(argv0, '/');
+        const char *last_slash = shux_path_last_sep(argv0);
         int n;
         if (last_slash) {
             n = (int)(last_slash - argv0);
@@ -672,7 +833,7 @@ const char *shux_freestanding_io_o_path(const char *argv0) {
         }
     }
     if (argv0 && argv0[0]) {
-        const char *last_slash = strrchr(argv0, '/');
+        const char *last_slash = shux_path_last_sep(argv0);
         int n;
         if (last_slash) {
             n = (int)(last_slash - argv0);
@@ -1187,27 +1348,10 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_panic.o)");
+        int rc = shux_cc_compile_sync(src, out_o, inc0, inc1, inc2, from_asm_s);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_panic.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            if (from_asm_s)
-                execlp("cc", "cc", "-c", "-o", out_o, src, (char *)NULL);
-            else
-                execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src, (char *)NULL);
-            perror("cc (runtime_panic.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_panic.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_panic_o_path(argv0))) {
@@ -1262,24 +1406,11 @@ int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_asm_io_stubs.o)");
+        const char *extra_flags[] = { "-fPIE", NULL };
+        int rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_asm_io_stubs.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-fPIE", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_asm_io_stubs.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_asm_io_stubs.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_asm_io_stubs_o_path(argv0))) {
@@ -1316,24 +1447,10 @@ int shux_ensure_runtime_process_argv_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_process_argv.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_process_argv.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_process_argv.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_process_argv.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_process_argv_o_path(argv0))) {
@@ -1364,24 +1481,10 @@ int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_process_os_glue.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_process_os_glue.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_process_os_glue.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_process_os_glue.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_process_os_glue_o_path(argv0))) {
@@ -1417,24 +1520,10 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_test_fn_invoke.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_test_fn_invoke.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_test_fn_invoke.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_test_fn_invoke.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_test_fn_invoke_o_path(argv0))) {
@@ -1470,24 +1559,10 @@ int shux_ensure_runtime_random_fill_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_random_fill.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_random_fill.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_random_fill.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_random_fill.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_random_fill_o_path(argv0))) {
@@ -1522,24 +1597,10 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_heap_user.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_heap_user.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_heap_user.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_heap_user.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_heap_user_o_path(argv0))) {
@@ -1575,24 +1636,10 @@ int shux_ensure_runtime_time_os_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_time_os.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_time_os.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_time_os.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_time_os.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_time_os_o_path(argv0))) {
@@ -1628,24 +1675,10 @@ int shux_ensure_runtime_queue_contention_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_queue_contention.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_queue_contention.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_queue_contention.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_queue_contention.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_queue_contention_o_path(argv0))) {
@@ -1681,24 +1714,10 @@ int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_dynlib_os.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_dynlib_os.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_dynlib_os.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_dynlib_os.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_dynlib_os_o_path(argv0))) {
@@ -1734,24 +1753,10 @@ int shux_ensure_runtime_env_os_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_env_os.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_env_os.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_env_os.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_env_os.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_env_os_o_path(argv0))) {
@@ -1787,24 +1792,10 @@ int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_backtrace_platform.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_backtrace_platform.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_backtrace_platform.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_backtrace_platform.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_backtrace_platform_o_path(argv0))) {
@@ -1840,24 +1831,10 @@ int shux_ensure_runtime_log_os_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_log_os.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_log_os.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_log_os.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_log_os.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_log_os_o_path(argv0))) {
@@ -1893,24 +1870,10 @@ int shux_ensure_runtime_math_libm_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_math_libm.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_math_libm.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_math_libm.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_math_libm.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_math_libm_o_path(argv0))) {
@@ -1946,24 +1909,10 @@ int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_atomic_glue.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_atomic_glue.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_atomic_glue.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_atomic_glue.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_atomic_glue_o_path(argv0))) {
@@ -1999,24 +1948,10 @@ int shux_ensure_runtime_channel_glue_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_channel_glue.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_channel_glue.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_channel_glue.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_channel_glue.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_channel_glue_o_path(argv0))) {
@@ -2052,24 +1987,10 @@ int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_net_udp_batch.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_net_udp_batch.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_net_udp_batch.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_net_udp_batch.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_net_udp_batch_o_path(argv0))) {
@@ -2105,24 +2026,10 @@ int shux_ensure_runtime_net_workers_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_net_workers.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_net_workers.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_net_workers.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_net_workers.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_net_workers_o_path(argv0))) {
@@ -2153,24 +2060,10 @@ int shux_ensure_runtime_sync_os_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_sync_os.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_sync_os.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_sync_os.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_sync_os.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_sync_os_o_path(argv0))) {
@@ -2201,24 +2094,10 @@ int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_sync_lock_diag_tls.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_sync_lock_diag_tls.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_sync_lock_diag_tls.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_sync_lock_diag_tls.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_sync_lock_diag_tls_o_path(argv0))) {
@@ -2249,24 +2128,10 @@ int shux_ensure_runtime_thread_glue_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_thread_glue.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_thread_glue.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_thread_glue.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_thread_glue.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_thread_glue_o_path(argv0))) {
@@ -2297,24 +2162,10 @@ int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_scheduler_glue.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_scheduler_glue.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_scheduler_glue.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_scheduler_glue.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_scheduler_glue_o_path(argv0))) {
@@ -2345,24 +2196,10 @@ int shux_ensure_runtime_http_glue_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_http_glue.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_http_glue.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_http_glue.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_http_glue.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_http_glue_o_path(argv0))) {
@@ -2393,26 +2230,12 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_tls_mbedtls_bio.o)");
+        const char *extra_flags[] = { "-I/opt/homebrew/opt/mbedtls/include", NULL };
+        int rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
+        if (rc != 0) {
+            /* 无 mbedTLS 头时由 Makefile 规则兜底；此处仅 best-effort */
+            link_diag_runtime_obj_build_status("runtime_tls_mbedtls_bio.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2,
-                "-I/opt/homebrew/opt/mbedtls/include", "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_tls_mbedtls_bio.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                /* 无 mbedTLS 头时由 Makefile 规则兜底；此处仅 best-effort */
-                link_diag_runtime_obj_build_status("runtime_tls_mbedtls_bio.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_tls_mbedtls_bio_o_path(argv0))) {
@@ -2443,24 +2266,10 @@ int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_kv_mmap_glue.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_kv_mmap_glue.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_kv_mmap_glue.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_kv_mmap_glue.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_kv_mmap_glue_o_path(argv0))) {
@@ -2491,24 +2300,10 @@ int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_arrow_simd_glue.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_arrow_simd_glue.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_arrow_simd_glue.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_arrow_simd_glue.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_arrow_simd_glue_o_path(argv0))) {
@@ -2539,24 +2334,11 @@ int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_sqlite_glue.o)");
+        const char *extra_flags[] = { "-DSHUX_DB_USE_SQLITE3", NULL };
+        int rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_sqlite_glue.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-DSHUX_DB_USE_SQLITE3", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_sqlite_glue.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_sqlite_glue.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_sqlite_glue_o_path(argv0))) {
@@ -2587,24 +2369,10 @@ int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_crypto_inc_glue.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_crypto_inc_glue.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_crypto_inc_glue.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_crypto_inc_glue.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_crypto_inc_glue_o_path(argv0))) {
@@ -2635,24 +2403,10 @@ int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (runtime_ed25519_ref10_glue.o)");
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_ed25519_ref10_glue.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-Wall", "-Wextra", "-I", inc0, "-I", inc1, "-I", inc2, "-c", "-o", out_o, src_c, (char *)NULL);
-            perror("cc (runtime_ed25519_ref10_glue.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("runtime_ed25519_ref10_glue.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_runtime_ed25519_ref10_glue_o_path(argv0))) {
@@ -2687,24 +2441,10 @@ int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding) {
         return -1;
     }
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (crt0_user.o)");
+        int rc = shux_cc_compile_sync(src_s, out_o, NULL, NULL, NULL, 1);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("crt0_user.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-c", "-o", out_o, src_s, (char *)NULL);
-            perror("cc (crt0_user.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("crt0_user.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_crt0_user_o_path(argv0))) {
@@ -2739,24 +2479,10 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
         return -1;
     }
     {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork (freestanding_io.o)");
+        int rc = shux_cc_compile_sync(src_s, out_o, NULL, NULL, NULL, 1);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("freestanding_io.o", rc);
             return -1;
-        }
-        if (pid == 0) {
-            execlp("cc", "cc", "-c", "-o", out_o, src_s, (char *)NULL);
-            perror("cc (freestanding_io.o)");
-            _exit(127);
-        }
-        {
-            int st;
-            if (shu_waitpid_retry(pid, &st) != 0)
-                return -1;
-            if (!WIFEXITED(st) || WEXITSTATUS(st) != 0) {
-                link_diag_runtime_obj_build_status("freestanding_io.o", st);
-                return -1;
-            }
         }
     }
     if (!asm_link_obj_skip_missing(shux_freestanding_io_o_path(argv0))) {
@@ -3892,7 +3618,7 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
         }
     }
     if (argv0 && argv0[0]) {
-        const char *last_slash = strrchr(argv0, '/');
+        const char *last_slash = shux_path_last_sep(argv0);
         int n;
         if (last_slash) {
             n = (int)(last_slash - argv0);
@@ -4940,20 +4666,9 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 0);
             argv[la] = NULL;
-            pid = fork();
-            if (pid < 0) {
-                perror("fork (ld)");
-                return -1;
-            }
-            if (pid == 0) {
-                execvp("clang", (char *const *)argv);
-                _exit(127);
-            }
             {
-                int status;
-                if (shu_waitpid_retry(pid, &status) != 0)
-                    return -1;
-                if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
+                int rc = shux_spawn_sync("clang", (const char *const *)argv);
+                if (rc == 0)
                     return 0;
             }
             la = 0;
@@ -4969,22 +4684,10 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 1);
             argv[la] = NULL;
-            pid = fork();
-            if (pid < 0) {
-                perror("fork (ld)");
-                return -1;
-            }
-            if (pid == 0) {
-                execvp("ld", (char *const *)argv);
-                perror("ld/clang");
-                _exit(127);
-            }
             {
-                int status;
-                if (shu_waitpid_retry(pid, &status) != 0)
-                    return -1;
-                if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                    link_diag_tool_status("ld", status);
+                int rc = shux_spawn_sync("ld", (const char *const *)argv);
+                if (rc != 0) {
+                    link_diag_tool_status("ld", rc);
                     return -1;
                 }
             }
@@ -5006,23 +4709,10 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             argv[la++] = "ws2_32.lib";
             argv[la] = NULL;
-            pid = fork();
-            if (pid < 0) {
-                perror("fork (ld)");
-                return -1;
-            }
-            if (pid == 0) {
-                execvp("lld-link", (char *const *)argv);
-                execvp("link", (char *const *)argv);
-                perror("lld-link/link");
-                _exit(127);
-            }
             {
-                int status;
-                if (shu_waitpid_retry(pid, &status) != 0)
-                    return -1;
-                if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                    link_diag_tool_status("ld", status);
+                int rc = shux_spawn_sync("lld-link", (const char *const *)argv);
+                if (rc != 0) {
+                    link_diag_tool_status("ld", rc);
                     return -1;
                 }
             }
@@ -5076,22 +4766,10 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = o_path;
             argv[la] = NULL;
-            pid = fork();
-            if (pid < 0) {
-                perror("fork (ld)");
-                return -1;
-            }
-            if (pid == 0) {
-                execvp("ld", (char *const *)argv);
-                perror("ld (freestanding)");
-                _exit(127);
-            }
             {
-                int status;
-                if (shu_waitpid_retry(pid, &status) != 0)
-                    return -1;
-                if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-                    link_diag_tool_status("ld", status);
+                int rc = shux_spawn_sync("ld", (const char *const *)argv);
+                if (rc != 0) {
+                    link_diag_tool_status("ld", rc);
                     return -1;
                 }
             }
