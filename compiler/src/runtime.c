@@ -30,6 +30,7 @@
 #define SHUX_TMP_PREFIX "/tmp/shux_"
 #else
 /* Windows: 用 TEMP 环境变量替代 /tmp */
+#include <stdio.h>
 static const char *shux_get_tmp_prefix(void) {
     const char *tmp = getenv("TEMP");
     if (!tmp) tmp = getenv("TMP");
