@@ -2,7 +2,7 @@
 #ifndef SHUX_WIN32_COMPAT_H
 #define SHUX_WIN32_COMPAT_H
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64)
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -147,5 +147,5 @@ static inline int pthread_attr_setguardsize(void *attr, size_t guardsize) {
 
 
 
-#endif /* _WIN32 */
+#endif /* _WIN32 || _WIN64 */
 #endif /* SHUX_WIN32_COMPAT_H */

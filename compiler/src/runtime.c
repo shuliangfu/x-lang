@@ -26,7 +26,7 @@
 
 #include "win32_compat.h"
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(_WIN64)
 #define SHUX_TMP_PREFIX "/tmp/shux_"
 #else
 /* Windows: 用 TEMP 环境变量替代 /tmp */
