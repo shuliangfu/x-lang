@@ -62,5 +62,9 @@ int32_t pipeline_codegen_path_is_std_io_driver_bytes(const uint8_t *p, int len) 
 #include <stdio.h>
 void codegen_emit_fmt_json_helpers_once(FILE *out) { (void)out; }
 int32_t bootstrap_nostdlib_pthread_is_stub(void) { return 1; }
+int32_t preprocess_if_stack_len(void) { return 0; }
+void preprocess_define_add(const char *n, const char *v) { (void)n; (void)v; }
+void preprocess_define_reset(void) {}
+int32_t preprocess_sx_buf(unsigned char *src, long len, unsigned char *out, int cap) { (void)src; (void)len; (void)out; (void)cap; return -1; }
 
 #endif /* _WIN32 */
