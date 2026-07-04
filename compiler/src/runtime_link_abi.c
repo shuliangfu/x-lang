@@ -506,23 +506,17 @@ int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz
 #endif
 #if defined(_WIN32) || defined(_WIN64)
     {
-        /* MinGW 上 _pgmptr 是当前进程可执行文件完整路径（含 .exe 与盘符）。 */
-        HMODULE hMod = GetModuleHandleW(NULL);
-        DWORD n = GetModuleFileNameW(hMod, (LPWSTR)buf, (DWORD)(sizeof(buf) / 2));
-        if (n > 0 && n < sizeof(buf) / 2) {
-            /* 宽字符 → 窄字符就地转换（仅 ASCII 路径足够；编译器目录通常无 Unicode）。 */
-            char *p = buf;
-            wchar_t *w = (wchar_t *)buf;
-            size_t i;
-            for (i = 0; i < (size_t)n && w[i]; i++)
-                p[i] = (char)w[i];
-            p[i] = '\0';
-            char *slash = shux_path_last_sep(p);
+        /* GetModuleFileNameA 直接返回窄字符路径（ANSI 代码页），避免宽窄字符转换。
+         * 编译器目录通常无 Unicode 字符，ANSI 路径足够。 */
+        DWORD n = GetModuleFileNameA(NULL, buf, (DWORD)sizeof(buf) - 1);
+        if (n > 0 && n < (DWORD)sizeof(buf) - 1) {
+            buf[n] = '\0';
+            char *slash = shux_path_last_sep(buf);
             if (slash) {
                 *slash = '\0';
-                if (strlen(p) >= out_dir_sz)
+                if (strlen(buf) >= out_dir_sz)
                     return -1;
-                memcpy(out_dir, p, strlen(p) + 1);
+                memcpy(out_dir, buf, strlen(buf) + 1);
                 return 0;
             }
         }
