@@ -132,6 +132,9 @@ __attribute__((weak)) int32_t pipeline_typeck_module_for_ctx(void *module, void 
   return -1;
 }
 
+#if !defined(_WIN32) && !defined(_WIN64)
+/* MinGW 不支持 __attribute__((weak)) 函数符号；Windows 上由 runtime_pipeline_abi_shux_c_stubs.c 单一提供。 */
 __attribute__((weak)) void ast_module_free(ASTModule *mod) {
   (void)mod;
 }
+#endif

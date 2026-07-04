@@ -186,9 +186,16 @@ __attribute__((weak)) size_t pipeline_sizeof_module(void) {
     return 4096u;
 }
 
+#if defined(_WIN32) || defined(_WIN64)
+/* MinGW 不支持 __attribute__((weak)) 函数符号；改为非 weak 定义，由本文件单一提供。 */
+void ast_module_free(struct ast_Module *mod) {
+    (void)mod;
+}
+#else
 __attribute__((weak)) void ast_module_free(struct ast_Module *mod) {
     (void)mod;
 }
+#endif
 
 /** pipeline 解析/typeck 依赖；冷启动 C 前端 check 不走 SX dep prerun，弱桩返回失败。 */
 __attribute__((weak)) int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *module, struct ast_ASTArena *arena,
