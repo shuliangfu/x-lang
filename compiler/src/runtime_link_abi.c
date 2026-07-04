@@ -2946,6 +2946,9 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
         if (shux_ensure_runtime_time_os_o(NULL) != 0)
             return -1;
     }
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    pid_t pid = 0;  /* Windows: 模拟 child 分支，直接构造 argv + _spawnvp */
+#else
     pid_t pid = fork();
     if (pid < 0) {
         perror("fork");
@@ -2957,6 +2960,7 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
         /* #endregion */
         /* 静态链 shux_asm 子进程可能继承空 PATH，gcc 找不到 ld；显式补齐常见路径。 */
         (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
+#endif
         /* 容量须容纳：cc -O -std... [-DNDEBUG] [-flto] -o out [-I inc] + n 个 .c + 若干 .o + -pthread -lc + SHUX_CC_EXTRA(至多 8) + NULL */
         char *argv[SHUX_INVOKE_CC_MAX_C_FILES + 48];
         int i = 0;
@@ -3398,6 +3402,23 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
 #endif
         if (i < argv_cap)
             argv[i++] = NULL;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+        {
+            intptr_t rc = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
+            if (rc == -1) {
+                perror("_spawnvp (cc)");
+                return -1;
+            }
+            {
+                int status = (int)rc;
+                if (rc != 0) {
+                    link_diag_tool_status("cc", status);
+                    return -1;
+                }
+            }
+        }
+        return 0;
+#else
 #if defined(__linux__)
         /* Alpine 等环境下优先用 gcc 并传 argv[0]=gcc，确保 -std=gnu11 等参数被正确识别（部分 cc 包装可能行为不同） */
         argv[0] = (char *)"gcc";
@@ -3431,8 +3452,18 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
         link_diag_tool_status("cc", status);
         return -1;
     }
+#endif
     /* 阶段 8：非调试（-O0）时对产出执行 strip，减小体积（避免传 -s 给 cc 触发 ld 的 obsolete 警告） */
     if (strcmp(opt_level, "0") != 0) {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+        {
+            const char *sargv[3];
+            sargv[0] = "strip";
+            sargv[1] = out_path;
+            sargv[2] = NULL;
+            (void)_spawnvp(_P_WAIT, "strip", (const char *const *)sargv);
+        }
+#else
         pid_t spid = fork();
         if (spid == 0) {
             execlp("strip", "strip", out_path, (char *)NULL);
@@ -3442,6 +3473,7 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
             int sstatus;
             (void)shu_waitpid_retry(spid, &sstatus);
         }
+#endif
     }
     return 0;
 }
@@ -4006,6 +4038,19 @@ static int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, 
     argv[la] = NULL;
     if (getenv("SHUX_DEBUG_LD"))
         link_diag_ld_debug_argv("minimal gcc argv", argv);
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    {
+        intptr_t rc = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
+        if (rc == -1) {
+            perror("spawnvp (ld nostdlib minimal)");
+            return -1;
+        }
+        if (rc != 0) {
+            link_diag_tool_status("ld", (int)rc);
+            return -1;
+        }
+    }
+#else
     pid = fork();
     if (pid < 0) {
         perror("fork (ld nostdlib minimal)");
@@ -4025,6 +4070,7 @@ static int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, 
         link_diag_tool_status("ld", status);
         return -1;
     }
+#endif
     return 0;
 }
 #endif /* __linux__ */
@@ -4806,6 +4852,19 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "-lc";
             argv[la] = NULL;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+            {
+                intptr_t rc = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
+                if (rc == -1) {
+                    perror("spawnvp (ld)");
+                    return -1;
+                }
+                if (rc != 0) {
+                    link_diag_tool_status("ld", (int)rc);
+                    return -1;
+                }
+            }
+#else
             pid = fork();
             if (pid < 0) {
                 perror("fork (ld)");
@@ -4834,6 +4893,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                     return -1;
                 }
             }
+#endif
             return 0;
         }
 #endif
@@ -4858,6 +4918,19 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         argv[la] = NULL;
         if (getenv("SHUX_DEBUG_LD"))
             link_diag_ld_debug_argv("gcc argv", argv);
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+        {
+            intptr_t rc = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
+            if (rc == -1) {
+                perror("spawnvp (ld)");
+                return -1;
+            }
+            if (rc != 0) {
+                link_diag_tool_status("ld", (int)rc);
+                return -1;
+            }
+        }
+#else
         pid = fork();
         if (pid < 0) {
             perror("fork (ld)");
@@ -4883,6 +4956,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 return -1;
             }
         }
+#endif
     }
     return 0;
 }

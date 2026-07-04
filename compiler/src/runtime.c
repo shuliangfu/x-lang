@@ -2951,6 +2951,17 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque)
             return 0;
     }
     {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+        char *av[2];
+        av[0] = (char *)exe;
+        av[1] = NULL;
+        intptr_t rc = _spawnvp(_P_WAIT, exe, (const char *const *)av);
+        if (rc == -1) {
+            runtime_diag_errno_path(NULL, "process error", "spawnvp (driver_exec_compiled)", exe);
+            return 1;
+        }
+        return (int)rc;
+#else
         pid_t pid = fork();
         if (pid < 0) {
             runtime_diag_errno_path(NULL, "process error", "fork (driver_exec_compiled)", exe);
@@ -2972,6 +2983,7 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque)
                 return WEXITSTATUS(st);
             return 1;
         }
+#endif
     }
 }
 
@@ -5290,6 +5302,15 @@ static int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     }
     if (access(shu_c, X_OK) != 0)
         return -1;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    {
+        argv[0] = shu_c;
+        intptr_t rc = _spawnvp(_P_WAIT, shu_c, (const char *const *)argv);
+        if (rc == -1)
+            return -1;
+        return (int)rc;
+    }
+#else
     pid_t pid = fork();
     if (pid < 0)
         return -1;
@@ -5306,6 +5327,7 @@ static int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
             return WEXITSTATUS(st);
         return 1;
     }
+#endif
 }
 
 /** C 后端 C mega：lib_key→lib_roots；含 import 时可选 exec 同目录 shux-c；否则 driver_run_compiler_parsed。 */
