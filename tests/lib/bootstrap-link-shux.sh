@@ -43,22 +43,13 @@ if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux-c ] && ci_n
     *) TYPECK_SHUX=./compiler/shux-c ;;
   esac
 fi
-# shux-c 默认 C 后端 -o 在 struct/inline 等用例易 SIGSEGV；与 shux_compile_std_sx.sh 一致走 asm。
-# MSYS/MinGW 例外：shux-c.exe 的 -backend asm 走 runtime_pipeline_abi_shux_c_stubs.c（返回 -1，
-# 因为默认 OBJS_CORE 不链 asm 后端 .o）。Windows 上让 shux-c 走默认 C 后端 -o（fork gcc 链），
-# 与 hello.sx 烟测一致；run-ub.sh 的 fallback 会用 -backend c 显式。
+# shux-c（SHUX_LEGACY_C_FRONTEND=1 构建，无 SHUX_USE_SX_PIPELINE）不支持 -backend 参数
+# （runtime.c:1219 报 "build error[BLD001]: -backend asm not available"）。
+# 只有 shux_asm/shux_asm_stage1 等真正链了 asm 后端 .o 的构建才支持 -backend asm。
+# 故 shux-c 走默认 C 后端 -o（fork gcc 链）；struct/inline SIGSEGV 由各 gate 的 fallback 处理。
 SHUX_LINK_BACKEND_ARGS=""
 case "$(basename "${RUN_SHUX}")" in
-  shux-c)
-    case "$(uname -s 2>/dev/null)" in
-      MINGW*|MSYS*)
-        # Windows: shux-c.exe asm 后端是 stub，走默认 C 后端 -o。
-        ;;
-      *)
-        SHUX_LINK_BACKEND_ARGS="-backend asm"
-        ;;
-    esac
-    ;;
+  shux_asm|shux_asm2|shux_asm_stage1) SHUX_LINK_BACKEND_ARGS="-backend asm" ;;
 esac
 # W3 / B-strict：stage2 shux_asm(2) 可用于 asm -o；未显式 SHUX_LINK_SHUX 时优先于 shux-c（seed -o 易 SIGSEGV）。
 # refresh-shux-asm-gate 后 shux_asm 常新于 shux_asm2（未跑 stage2）；勿用陈旧 gen2。

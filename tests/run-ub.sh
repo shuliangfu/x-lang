@@ -10,7 +10,8 @@ compile_ub() {
     if [ -n "${SHUX_LINK_BACKEND_ARGS:-}" ]; then
         "$LINK_SHUX" $SHUX_LINK_BACKEND_ARGS "$1" -o "$2" 2>/dev/null
     else
-        "$LINK_SHUX" -backend c "$1" -o "$2" 2>/dev/null
+        # SHUX_LINK_BACKEND_ARGS 为空时选的是 shux-c（不支持 -backend，默认走 C 后端 -o）
+        "$LINK_SHUX" "$1" -o "$2" 2>/dev/null
     fi
 }
 run_panic() {
