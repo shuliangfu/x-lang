@@ -16,6 +16,10 @@
 #include <direct.h>
 #include <process.h>
 #include <sys/stat.h>
+/* windows.h 提供 HMODULE / GetModuleHandleW / GetModuleFileNameW 等，
+ * 用于 shu_resolve_compiler_dir 在 Windows 上定位编译器自身路径。 */
+#define WIN32_LEAN_AND_MEAN 1
+#include <windows.h>
 
 /* strndup — MinGW 无此函数 */
 static inline char *strndup(const char *s, size_t n) {
