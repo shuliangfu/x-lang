@@ -13,6 +13,16 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+
+/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
+ * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
+#ifndef SHUX_WEAK
+#if defined(_WIN32) || defined(_WIN64)
+#define SHUX_WEAK
+#else
+#define SHUX_WEAK __attribute__((weak))
+#endif
+#endif
 struct Lexer {
     const char *src;  /**< 当前扫描位置 */
     const char *end;  /**< 源码结尾（不含 NUL） */
@@ -766,14 +776,14 @@ static const char *cfg_effective_arch_lit(void) {
 /**
  * B-02：应用 `-target` triple，使后续 #[cfg] 按 cross 目标剪枝。
  */
-__attribute__((weak)) void cfg_apply_compile_target_from_triple(const char *triple, int len) {
+SHUX_WEAK void cfg_apply_compile_target_from_triple(const char *triple, int len) {
     cfg_parse_triple_literals(triple, len, g_cfg_os_override, sizeof g_cfg_os_override, g_cfg_arch_override,
                               sizeof g_cfg_arch_override);
     g_cfg_has_target_override = 1;
 }
 
 /** B-02：清除 triple 覆盖，#[cfg] 回退 host。 */
-__attribute__((weak)) void cfg_reset_compile_target(void) {
+SHUX_WEAK void cfg_reset_compile_target(void) {
     g_cfg_has_target_override = 0;
     g_cfg_os_override[0] = '\0';
     g_cfg_arch_override[0] = '\0';
@@ -898,7 +908,7 @@ static int cfg_eval_expr(const char *start, const char *end) {
     return 0;
 }
 
-__attribute__((weak)) int cfg_eval_expr_c(const char *start, int len) {
+SHUX_WEAK int cfg_eval_expr_c(const char *start, int len) {
     if (!start || len <= 0)
         return 0;
     return cfg_eval_expr(start, start + len) ? 1 : 0;
