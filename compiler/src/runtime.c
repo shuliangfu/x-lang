@@ -26,6 +26,16 @@
 
 #include "win32_compat.h"
 
+/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
+ * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
+#ifndef SHUX_WEAK
+#if defined(_WIN32) || defined(_WIN64)
+#define SHUX_WEAK
+#else
+#define SHUX_WEAK __attribute__((weak))
+#endif
+#endif
+
 #if !defined(_WIN32) && !defined(_WIN64)
 #define SHUX_TMP_PREFIX "/tmp/shux_"
 #else
@@ -741,7 +751,7 @@ _Static_assert(offsetof(struct codegen_CodegenOutBuf, len) == SX_CODEGEN_OUTBUF_
 #endif
 /** asm 后端 C 桩：-backend asm 时由 pipeline 调用，写出最小 GAS（main return 42），便于 pipeline 不 import asm 仍可构建 shux_sx。
  * 实验 asm-only 链并入 build_asm/backend.o 时须为 weak，避免与 backend.sx 导出的 asm_codegen_ast 重复定义。 */
-__attribute__((weak)) int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out) {
+SHUX_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out) {
     (void)module;
     (void)arena;
     static const char *lines[] = {
@@ -6711,7 +6721,7 @@ static int runtime_run_test_c(int argc, char **argv) {
 /** 6.3：无 .sx 入口时由 runtime 提供 main_entry 桩；链接 main.sx 时由 main.sx 的 main_entry 覆盖。
  * Cygwin/MinGW 上 weak 符号可能不被链接器解析，故仅在非 Windows 环境使用 weak。 */
 #if !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(_WIN32)
-__attribute__((weak))
+SHUX_WEAK
 #endif
 int main_entry(int argc, char **argv) {
     /* --diag-json：切换为 NDJSON 诊断输出（供 CI / 工具消费）；亦可通过 SHUX_DIAG_JSON=1 启用。

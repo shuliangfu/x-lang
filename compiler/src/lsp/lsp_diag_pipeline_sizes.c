@@ -7,6 +7,16 @@
 #include <stdint.h>
 #include <string.h>
 
+/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
+ * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
+#ifndef SHUX_WEAK
+#if defined(_WIN32) || defined(_WIN64)
+#define SHUX_WEAK
+#else
+#define SHUX_WEAK __attribute__((weak))
+#endif
+#endif
+
 enum ast_TypeKind { ast_TypeKind_TYPE_I32 };
 enum ast_ExprKind { ast_ExprKind_EXPR_LIT };
 struct ast_Type {
@@ -97,7 +107,7 @@ size_t lsp_diag_pipeline_sizeof_dep_ctx(void) { return sizeof(struct ast_Pipelin
 #if defined(__CYGWIN__) || defined(_WIN32) || defined(__MINGW32__)
 size_t lsp_diag_sx_alloc_dep_ctx_size(void) { return 0; }
 #else
-__attribute__((weak)) size_t lsp_diag_sx_alloc_dep_ctx_size(void) { return 0; }
+SHUX_WEAK size_t lsp_diag_sx_alloc_dep_ctx_size(void) { return 0; }
 #endif
 
 /** shux-c 链接用占位；bootstrap-driver 链入 lsp_diag_pipeline_ctx.o 强符号覆盖。MSYS2/Cygwin 不支持 ELF weak。 */
@@ -105,7 +115,7 @@ __attribute__((weak)) size_t lsp_diag_sx_alloc_dep_ctx_size(void) { return 0; }
 void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir,
                                       const char **lib_roots, int n_lib_roots) {
 #else
-__attribute__((weak)) void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir,
+SHUX_WEAK void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir,
                                                             const char **lib_roots, int n_lib_roots) {
 #endif
     (void)ctx_void;

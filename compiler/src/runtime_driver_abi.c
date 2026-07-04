@@ -17,6 +17,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
+ * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
+#ifndef SHUX_WEAK
+#if defined(_WIN32) || defined(_WIN64)
+#define SHUX_WEAK
+#else
+#define SHUX_WEAK __attribute__((weak))
+#endif
+#endif
 #ifndef _WIN32
 #include <sys/time.h>
 #include <sys/utsname.h>
@@ -114,7 +124,7 @@ int32_t driver_fmt_check_only_get(void) {
 }
 
 /** 非 SX 链或未链 fmt_check_cmd 时弱符号默认 0（保留逐文件 check OK）。 */
-__attribute__((weak)) int driver_check_quiet_ok_get(void) {
+SHUX_WEAK int driver_check_quiet_ok_get(void) {
     return 0;
 }
 

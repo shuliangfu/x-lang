@@ -11,6 +11,16 @@
 
 #include <string.h>
 
+/* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
+ * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */
+#ifndef SHUX_WEAK
+#if defined(_WIN32) || defined(_WIN64)
+#define SHUX_WEAK
+#else
+#define SHUX_WEAK __attribute__((weak))
+#endif
+#endif
+
 /**
  * 6.2 极薄原语：将 argv[i] 复制到 buf，最多 max-1 字节并加 NUL。
  * 参数：见 runtime_abi.h。
@@ -81,18 +91,18 @@ int shux_forward_main_to_main_entry(int argc, char **argv) {
  * NL-07 v5：crt0 _start 在 main_entry 前调用；libc 链 weak 空实现。
  * nostdlib 链 bootstrap_nostdlib_stubs.o 提供强符号（arch_prctl 初始化 %fs:0x28）。
  */
-__attribute__((weak)) void bootstrap_init_static_tls(void) {
+SHUX_WEAK void bootstrap_init_static_tls(void) {
 }
 
 /**
  * NL-07 v5：crt0 在 main_entry 前从 argv 填充 environ；libc 链 weak 空实现。
  */
-__attribute__((weak)) void bootstrap_init_environ(int argc, char **argv) {
+SHUX_WEAK void bootstrap_init_environ(int argc, char **argv) {
     (void)argc;
     (void)argv;
 }
 
 /** libc 链默认 0；nostdlib bootstrap_nostdlib_stubs.o 提供强符号返回 1。 */
-__attribute__((weak)) int bootstrap_nostdlib_pthread_is_stub(void) {
+SHUX_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
     return 0;
 }
