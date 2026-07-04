@@ -314,11 +314,11 @@ function eq_c_word(buf: *u8, len: i32): i32 {
 
 /** 是否为 Shux 源文件路径（`.x`；仅 `.x`）。 */
 function path_ends_x(buf: *u8, len: i32): i32 {
-  if (len >= 3 && buf[len - 3] == 46 && buf[len - 2] == 115) {
-    let ext: u8 = buf[len - 1];
-    if (ext == 117 || ext == 120) {
-      return 1;
-    }
+  if (len >= 2 && buf[len - 2] == 46 && buf[len - 1] == 120) {
+    return 1;
+  }
+  if (len >= 3 && buf[len - 3] == 46 && buf[len - 2] == 115 && buf[len - 1] == 117) {
+    return 1;
   }
   return 0;
 }

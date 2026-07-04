@@ -335,7 +335,7 @@ static int file_list_push(const char *path) {
     if (path_should_ignore(path))
         return 0;
     size_t len = strlen(path);
-    if (len < 4 || strcmp(path + len - 3, ".x") != 0)
+    if (len < 3 || strcmp(path + len - 2, ".x") != 0)
         return 0;
     s_file_list[s_n_files] = strdup(path);
     if (!s_file_list[s_n_files])
@@ -368,7 +368,7 @@ static void walk_dir_collect(const char *dir) {
         }
         if (ent->d_type == DT_REG || ent->d_type == DT_UNKNOWN) {
             size_t n = strlen(child);
-            if (n > 3 && strcmp(child + n - 3, ".x") == 0)
+            if (n > 2 && strcmp(child + n - 2, ".x") == 0)
                 file_list_push(child);
         }
     }

@@ -384,7 +384,7 @@ int shux_import_path_is_file_path(const char *import_path) {
     if (strchr(import_path, '/') != NULL)
         return 1;
     size_t n = strlen(import_path);
-    if (n >= 3 && strcmp(import_path + n - 3, ".x") == 0)
+    if (n >= 2 && strcmp(import_path + n - 2, ".x") == 0)
         return 1;
     return 0;
 }

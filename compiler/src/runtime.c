@@ -5447,10 +5447,10 @@ static int drv_eq_c_word(const char *buf, int len) {
 }
 /** 是否为 Shux 源文件路径（`.x`；仅 `.x`）。 */
 static int drv_path_ends_x(const char *buf, int len) {
-    if (len >= 3 && buf[len - 3] == '.' && buf[len - 2] == 's') {
-        char ext = buf[len - 1];
-        return ext == 'u' || ext == 'x';
-    }
+    if (len >= 2 && buf[len - 2] == '.' && buf[len - 1] == 'x')
+        return 1;
+    if (len >= 3 && buf[len - 3] == '.' && buf[len - 2] == 's' && buf[len - 1] == 'u')
+        return 1;
     return 0;
 }
 static int drv_target_has_arm(const char *buf, int len) {
@@ -6638,7 +6638,7 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
         return 1;
     memcpy(pathbuf, path, (size_t)path_len);
     pathbuf[path_len] = '\0';
-    if (path_len < 3 || strcmp(pathbuf + path_len - 3, ".x") != 0)
+    if (path_len < 2 || strcmp(pathbuf + path_len - 2, ".x") != 0)
         return 1;
     if (runtime_read_file_view(pathbuf, &raw_view) != 0) {
         diag_reportf_with_code(pathbuf, 0, 0, "fmt error", SHUX_DIAG_CODE_FMT_FMT001, NULL,
