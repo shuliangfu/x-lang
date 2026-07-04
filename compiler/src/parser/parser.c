@@ -1894,6 +1894,21 @@ static ASTExpr *parse_primary(Parser *p) {
         e->value.float_val = fval;
         return e;
     }
+    /* 字符串字面量 "..."：value.ident/ident_len 为解码后内容（lexer 存入 str_buf，须 strndup） */
+    if (t->kind == TOKEN_STRING) {
+        int sline = t->line, scol = t->col;
+        int slen = t->ident_len;
+        char *bytes = (t->ident_len > 0 && t->value.ident)
+            ? strndup(t->value.ident, (size_t)t->ident_len) : NULL;
+        advance(p);
+        ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+        if (!e) { free(bytes); parser_oom(p); return NULL; }
+        set_expr_loc_at(e, sline, scol);
+        e->kind = AST_EXPR_STRING_LIT;
+        e->value.string_lit.bytes = bytes;
+        e->value.string_lit.len = slen;
+        return e;
+    }
     /* 类型关键字作函数名（如 std.random 的 u32()、u64()、bool()）；后接 ( 时解析为变量引用，由 parse_postfix 处理为函数调用 */
     if ((t->kind == TOKEN_U32 || t->kind == TOKEN_U64 || t->kind == TOKEN_BOOL) && peek_next(p) && peek_next(p)->kind == TOKEN_LPAREN) {
         int ident_line = t->line;

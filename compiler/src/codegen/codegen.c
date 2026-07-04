@@ -2958,6 +2958,28 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             fprintf(out, "%d", e->value.int_val ? 1 : 0);
             return 0;
 #endif
+        case AST_EXPR_STRING_LIT: {
+            /* 字符串字面量：生成 C 字符串 "..."（转义 " \ \n \t 等）；作为 *u8 指针传递 */
+            fprintf(out, "\"");
+            const char *s = e->value.string_lit.bytes;
+            int slen = e->value.string_lit.len;
+            for (int i = 0; i < slen; i++) {
+                unsigned char c = (unsigned char)s[i];
+                switch (c) {
+                    case '"': fprintf(out, "\\\""); break;
+                    case '\\': fprintf(out, "\\\\"); break;
+                    case '\n': fprintf(out, "\\n"); break;
+                    case '\r': fprintf(out, "\\r"); break;
+                    case '\t': fprintf(out, "\\t"); break;
+                    case '\0': fprintf(out, "\\0"); break;
+                    default:
+                        if (c >= 0x20 && c < 0x7f) fprintf(out, "%c", c);
+                        else fprintf(out, "\\x%02x", c);
+                }
+            }
+            fprintf(out, "\"");
+            return 0;
+        }
         case AST_EXPR_ASM:
             /* asm! 作为值表达式少见；extended asm 形态由 codegen_emit_asm_extended 统一发射。 */
             codegen_emit_asm_extended(out, e);

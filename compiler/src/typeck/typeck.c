@@ -770,7 +770,7 @@ static int typeck_integer_widen_ok(enum ASTTypeKind dest, enum ASTTypeKind src) 
     if (src == AST_TYPE_U8)
         return dest == AST_TYPE_U32 || dest == AST_TYPE_U64 || dest == AST_TYPE_USIZE || dest == AST_TYPE_I32;
     if (src == AST_TYPE_I32)
-        return dest == AST_TYPE_I64 || dest == AST_TYPE_U32 || dest == AST_TYPE_USIZE || dest == AST_TYPE_U64;
+        return dest == AST_TYPE_I64 || dest == AST_TYPE_U32 || dest == AST_TYPE_USIZE || dest == AST_TYPE_U64 || dest == AST_TYPE_ISIZE;
     if (src == AST_TYPE_U32 && dest == AST_TYPE_U64)
         return 1;
     return 0;
@@ -1533,6 +1533,7 @@ static int is_const_expr(const struct ASTExpr *e, const char **names, int n) {
         case AST_EXPR_LIT:
         case AST_EXPR_FLOAT_LIT:
         case AST_EXPR_BOOL_LIT:
+        case AST_EXPR_STRING_LIT:
             return 1;
         case AST_EXPR_VAR: {
             const char *name = e->value.var.name;
@@ -1811,6 +1812,12 @@ static int get_expr_type(const struct ASTExpr *e, const char **names, const int 
             *out_kind = AST_TYPE_F64;
             *out_name = NULL;
         }
+        return 0;
+    }
+    if (e->kind == AST_EXPR_STRING_LIT) {
+        *out_kind = AST_TYPE_PTR;
+        *out_name = NULL;
+        if (out_elem_type) *out_elem_type = &static_type_u8;
         return 0;
     }
     if (e->kind == AST_EXPR_ENUM_VARIANT) {
@@ -2180,6 +2187,9 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             ((struct ASTExpr *)e)->float_bits_hi = (int)(u.u >> 32);
             return 0;
         }
+        case AST_EXPR_STRING_LIT:
+            ((struct ASTExpr *)e)->resolved_type = &static_type_ptr_u8;
+            return 0;
         case AST_EXPR_VAR: {
             const char *name = e->value.var.name;
             for (int i = 0; i < n; i++)

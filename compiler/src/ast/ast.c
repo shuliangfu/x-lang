@@ -138,6 +138,9 @@ void ast_expr_free(ASTExpr *e) {
             if (e->value.enum_variant.enum_name) free((void *)e->value.enum_variant.enum_name);
             if (e->value.enum_variant.variant_name) free((void *)e->value.enum_variant.variant_name);
             break;
+        case AST_EXPR_STRING_LIT:
+            if (e->value.string_lit.bytes) free((void *)e->value.string_lit.bytes);
+            break;
         case AST_EXPR_ASM: {
             int i;
             if (e->value.asm_tmpl.bytes) free((void *)e->value.asm_tmpl.bytes);
