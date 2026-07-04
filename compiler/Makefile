@@ -676,7 +676,7 @@ LEGACY_SHUX_C_EXTRA = src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_ab
 
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 $(SHUX_C): $(OBJS_CORE) $(LEGACY_SHUX_C_EXTRA)
-	$(CC) $(CFLAGS) -o $@ $^ $(PIPELINE_LIBS)
+	$(CC) $(CFLAGS) -o $@ $^ $(PIPELINE_LIBS) $(WIN_LDFLAGS)
 
 src/preprocess_legacy.o: src/preprocess.c src/preprocess.h
 	$(CC) $(CFLAGS) -DSHUX_LEGACY_C_FRONTEND_ABI -c -o $@ $<
