@@ -126,7 +126,7 @@ p0_gate_try_run_o() {
   logf="/tmp/shux_p0_gate_o_$$.log"
   rm -f "$exe"
   case "$(basename "$bin")" in
-    shux-c) backend_args="-backend c" ;;
+    shux-c) backend_args="" ;;  # shux-c 不支持 -backend（runtime.c:1219 BLD001），走默认 C 后端
   esac
   if [ "${SHUX_MINIMAL_CC_LINK:-0}" = "1" ]; then
     export SHUX_MINIMAL_CC_LINK=1
