@@ -1723,6 +1723,38 @@ static const char *builtin_intrinsic_name(const char *c_name) {
 }
 
 /**
+ * §3.4 CORE-009：emit shux_builtin_* static inline 包装器。
+ * 【Why 根源】builtin_intrinsic_name 将 core_builtin_clz_u32 等调用点重映射为 shux_builtin_*，
+ * 但这些符号在生成 C 中从未声明，导致 cc 报 "call to undeclared function"。
+ * 设计意图（analysis/core-builtin-bitops-v1.md）：用 __builtin_clz/ctz/popcount 单指令优化，
+ * 但 __builtin_clz(0)/__builtin_ctz(0) 是 UB，须在包装器内显式处理 x==0→32 边界。
+ * bswap 用 __builtin_bswap32（全值域合法）；rotl/rotr 无 GCC 直接等价 builtin，用纯 C 旋转表达式。
+ * 【Invariant】每个翻译单元自己一份 static inline；未被引用时编译器消除，无符号冲突。
+ * 【Asm/Perf】期望 GCC/Clang 把 clz/ctz/popcount 折成单指令（lzcnt/tzcnt/popcnt），
+ * bswap 折成 bswap，rotl/rotr 折成 rol/ror（x86 BMI2）。
+ */
+void codegen_emit_builtin_inline_decls(FILE *out) {
+    if (!out) return;
+    /* 单文件模式 driver 与 codegen_module_to_c 都会调用本函数；用 include guard 避免重复定义。
+     * 【Why】static inline 函数重复定义在 C 中是错误（不像 #include 有 header guard）。 */
+    fprintf(out,
+        "#ifndef SHUX_BUILTIN_INLINE_DECLS_GUARD\n"
+        "#define SHUX_BUILTIN_INLINE_DECLS_GUARD\n"
+        "/* CORE-009 shux_builtin_* static inline wrappers (clz/ctz/popcount/bswap/rotl/rotr) */\n"
+        "static inline int shux_builtin_clz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_clz(x); }\n"
+        "static inline int shux_builtin_ctz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_ctz(x); }\n"
+        "static inline int shux_builtin_popcount_u32(uint32_t x) { return __builtin_popcount(x); }\n"
+        "static inline uint32_t shux_builtin_bswap_u32(uint32_t x) { return __builtin_bswap32(x); }\n"
+        "static inline uint32_t shux_builtin_rotl_u32(uint32_t x, uint32_t c) {\n"
+        "  c &= 31; return c == 0 ? x : (x << c) | (x >> (32 - c));\n"
+        "}\n"
+        "static inline uint32_t shux_builtin_rotr_u32(uint32_t x, uint32_t c) {\n"
+        "  c &= 31; return c == 0 ? x : (x >> c) | (x << (32 - c));\n"
+        "}\n"
+        "#endif\n");
+}
+
+/**
  * 向 out 输出单个函数形参的 C 声明；若为指针且 is_restrict 则插入 restrict（noalias 传递）。
  * 数组类型 [N]T 输出为 elem_type name[N]，否则 c_type_str 只出元素类型会导致参数退化为指针（方案 A 自举 pipeline_gen.c 需完整数组声明）。
  * override_ty 非 NULL 时用其替代 p->type（用于单态化），仍用 p->is_restrict。
@@ -4411,7 +4443,11 @@ static int codegen_emit_call_library_same_impl(FILE *out, const struct ASTExpr *
     }
     if (!f || f->is_extern) return -1;
     char cname[256];
-    library_prefixed_name(call_instance_mangled_name(f, e), cname, sizeof(cname));
+    /* L9：#[no_mangle] 同模块调用也不加 library_prefix，与定义端一致 */
+    if (f->is_no_mangle)
+        snprintf(cname, sizeof(cname), "%s", call_instance_mangled_name(f, e));
+    else
+        library_prefixed_name(call_instance_mangled_name(f, e), cname, sizeof(cname));
     fprintf(out, "%s(", builtin_intrinsic_name(cname));
     for (int i = 0; i < e->value.call.num_args; i++) {
         if (i) fprintf(out, ", ");
@@ -4784,19 +4820,41 @@ static int codegen_try_emit_var_plus_lit_stmt(FILE *out, const char *pad, const 
     vname = left->value.var.name;
     if (!right || right->kind != AST_EXPR_ADD)
         return 0;
+    /* 【Why 根源】仅库模块顶层 let 变量名须加前缀（与声明一致）。
+     * 局部变量（函数形参/let）声明不带前缀，引用也不带前缀，否则 C 编译报 undeclared identifier。
+     * 与 AST_EXPR_VAR codegen（codegen.c:3039）的判断逻辑保持严格一致。
+     * 【Invariant】prefixed_buf 生命周期仅本函数内；vname 仍指向 AST 原名。 */
+    char prefixed_buf[256];
+    const char *cvname = vname;
+    if (codegen_library_prefix && *codegen_library_prefix && codegen_library_module
+        && codegen_current_module == codegen_library_module
+        && codegen_current_module->top_level_lets) {
+        int is_top_let = 0;
+        for (int i = 0; i < codegen_current_module->num_top_level_lets; i++) {
+            if (codegen_current_module->top_level_lets[i].name
+                && strcmp(codegen_current_module->top_level_lets[i].name, vname) == 0) {
+                is_top_let = 1;
+                break;
+            }
+        }
+        if (is_top_let) {
+            library_prefixed_name(vname, prefixed_buf, sizeof(prefixed_buf));
+            cvname = prefixed_buf;
+        }
+    }
     lhs = right->value.binop.left;
     rhs = right->value.binop.right;
     if (lhs && lhs->kind == AST_EXPR_VAR && lhs->value.var.name &&
         strcmp(lhs->value.var.name, vname) == 0 && rhs && rhs->kind == AST_EXPR_LIT) {
         if (rhs->value.int_val == 1) {
-            fprintf(out, "%s++%s;\n", pad, vname);
+            fprintf(out, "%s++%s;\n", pad, cvname);
             return 1;
         }
         if (rhs->value.int_val == -1) {
-            fprintf(out, "%s--%s;\n", pad, vname);
+            fprintf(out, "%s--%s;\n", pad, cvname);
             return 1;
         }
-        fprintf(out, "%s%s += ", pad, vname);
+        fprintf(out, "%s%s += ", pad, cvname);
         if (codegen_expr(rhs, out) != 0)
             return -1;
         fprintf(out, ";\n");
@@ -4805,14 +4863,14 @@ static int codegen_try_emit_var_plus_lit_stmt(FILE *out, const char *pad, const 
     if (rhs && rhs->kind == AST_EXPR_VAR && rhs->value.var.name &&
         strcmp(rhs->value.var.name, vname) == 0 && lhs && lhs->kind == AST_EXPR_LIT) {
         if (lhs->value.int_val == 1) {
-            fprintf(out, "%s++%s;\n", pad, vname);
+            fprintf(out, "%s++%s;\n", pad, cvname);
             return 1;
         }
         if (lhs->value.int_val == -1) {
-            fprintf(out, "%s--%s;\n", pad, vname);
+            fprintf(out, "%s--%s;\n", pad, cvname);
             return 1;
         }
-        fprintf(out, "%s%s += ", pad, vname);
+        fprintf(out, "%s%s += ", pad, cvname);
         if (codegen_expr(lhs, out) != 0)
             return -1;
         fprintf(out, ";\n");
@@ -6490,7 +6548,16 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
         && f->params[1].type && f->params[1].type->kind == AST_TYPE_USIZE)
         return 0;
     char fname[256];
-    library_prefixed_name(func_link_name(m, f), fname, sizeof(fname));
+    /* L9：#[no_mangle] 不加 library_prefix（函数名不修改），匹配跨模块 extern 声明用原名的调用端。
+     * 【Why 根源治理】原 codegen 无条件 library_prefixed_name 给定义加前缀（如 tcp_net_accept_c），
+     * 但 extern 声明和 CALL 解析（call_instance_mangled_name line 1119 用 func_link_name，不加前缀）
+     * 用原名（net_accept_c），导致跨模块链接 undefined。#[no_mangle] 跳过前缀后定义与调用一致。
+     * 【Invariant】is_no_mangle 已在 line 6556/8250/8293 DCE 跳过条件中，used attribute 在 line 6534 添加。 */
+    if (f->is_no_mangle) {
+        snprintf(fname, sizeof(fname), "%s", func_link_name(m, f));
+    } else {
+        library_prefixed_name(func_link_name(m, f), fname, sizeof(fname));
+    }
     if (f->is_entry) { snprintf(fname, sizeof(fname), "_start"); }  /* K5：入口符号裸名 _start，供 bootloader/linker 识别 */
     if (f->link_name) { snprintf(fname, sizeof(fname), "%s", f->link_name); }  /* L9：#[link_name] 用指定符号名 */
     if (f->export_name) { snprintf(fname, sizeof(fname), "%s", f->export_name); }  /* #[export_name] 用指定导出名 */
@@ -6567,7 +6634,15 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
     else if (codegen_library_prefix && codegen_library_import_path && f->name && !f->is_extern
         && (strcmp(codegen_library_import_path, "core.types") == 0 || strcmp(codegen_library_import_path, "core.mem") == 0)
         && (strncmp(f->name, "size_of_", 8) == 0 || strncmp(f->name, "align_of_", 9) == 0))
-        fprintf(out, "inline ");
+        fprintf(out, "__attribute__((weak)) inline ");
+    /* 【Why 逻辑根源】库模块有 body 函数被 co-emit 到入口 .o 时生成强符号，
+     * 与 std/*.o 同名 co-emit 强符号冲突（duplicate symbol）。
+     * 【Invariant】仅库模块（codegen_library_prefix 真）且有 body（!is_extern）且
+     * 非 #[no_mangle]（C 桥桩引用须强符号）时加 weak；static inline 分支本 TU 可见不冲突。
+     * 【Asm/Perf】weak 不影响代码生成质量，仅链接期允许多份定义选其一；
+     * Windows PE 不支持 weak 函数符号，靠 Makefile --allow-multiple-definition 兜底。 */
+    else if (codegen_library_prefix && !f->is_extern && !f->is_no_mangle && !f->is_entry)
+        fprintf(out, "__attribute__((weak)) ");
     fprintf(out, "%s %s(", cret, fname);
     if (has_async_frame)
         fprintf(out, "void");
@@ -7939,6 +8014,13 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
     if (strcmp(m->main_func->name, "main") != 0) return -1;
     if (!m->funcs || m->num_funcs <= 0) return -1;
 
+    /* 【Why 根源】codegen_library_prefix 是 static 变量，上次 codegen_library_module_to_c 调用后
+     * 可能残留非 NULL 值。若不重置，下方 main 函数生成分支 `!codegen_library_prefix` 为假，
+     * main 被当库函数加前缀生成，链接器找不到 _main 符号。 */
+    codegen_library_prefix = NULL;
+    codegen_library_module = NULL;
+    codegen_library_import_path = NULL;
+
     codegen_current_module = m;
     codegen_dep_mods = dep_mods;
     codegen_dep_paths = dep_import_paths;
@@ -7954,6 +8036,9 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
     fprintf(out, "#include <stdint.h>\n");
     fprintf(out, "#include <stddef.h>\n");
     fprintf(out, "#include <string.h>\n"); /* memcpy 用于数组拷贝（自举 parser.x 中 let/const 数组 = 变量） */
+    /* CORE-009：clz/ctz/popcount/bswap/rotl/rotr 调用点经 builtin_intrinsic_name 重映射为 shux_builtin_*，
+     * 此处 emit static inline 包装器（__builtin_* + x==0 边界），避免 cc 报未声明符号。 */
+    codegen_emit_builtin_inline_decls(out);
     /* std.process：入口 main 写 argc/argv；weak 供 minimal 链，process.o 强符号覆盖。 */
     fprintf(out, "__attribute__((weak)) int shux_process_argc = 0;\n");
     fprintf(out, "__attribute__((weak)) char **shux_process_argv = NULL;\n");
@@ -8374,6 +8459,8 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         fprintf(out, "#include <stdlib.h>\n");
         fprintf(out, "#include <stdio.h>\n");
         fprintf(out, "#include <string.h>\n"); /* memcpy 用于数组拷贝 */
+        /* CORE-009：库模块自身也可能 emit 跨模块 builtin 调用，需自带 static inline 包装器。 */
+        codegen_emit_builtin_inline_decls(out);
     }
 
     /* 库模块顶层 let/const：带前缀的 static [const] T name = init;，供单文件 -E 时引用（如 lsp.x 的 LSP_BODY_CAP） */
@@ -8579,7 +8666,11 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         if (codegen_library_import_path && f->name && (strcmp(f->name, "submit_read_batch_buf") == 0 || strcmp(f->name, "submit_write_batch_buf") == 0) && strstr(codegen_library_import_path, "io")) continue;
         if (dce_ctx && is_func_used && !codegen_async_keep_for_sched(m, f, is_func_used, dce_ctx)) continue;
         char fwd_name[256];
-        library_prefixed_name(func_link_name(m, f), fwd_name, sizeof(fwd_name));
+        /* L9：#[no_mangle] 前向声明也不加 library_prefix，与定义端一致 */
+        if (f->is_no_mangle)
+            snprintf(fwd_name, sizeof(fwd_name), "%s", func_link_name(m, f));
+        else
+            library_prefixed_name(func_link_name(m, f), fwd_name, sizeof(fwd_name));
         if (codegen_library_import_path && !f->is_extern && (strcmp(codegen_library_import_path, "core.option") == 0 || strcmp(codegen_library_import_path, "core.result") == 0))
             fprintf(out, "static inline ");
         if (codegen_library_import_path && !f->is_extern && (strcmp(codegen_library_import_path, "std.fs") == 0 || strcmp(codegen_library_import_path, "std.net") == 0))
