@@ -2303,8 +2303,14 @@ static ASTExpr *parse_postfix(Parser *p) {
         e->value.call.num_type_args = num_type_args;
         left = e;
     }
-    /* postfix / 调用之后再接 as type（path[i] as i32、foo() as *u8） */
-    return parse_as_chain(p, left);
+    /* postfix / 调用之后不再在此处接 as type；as 由 parse_unary 末尾统一处理。
+     * 【Why 优先级根源】若在此处接 as_chain，则 `&expr as T` / `*expr as T` 在 parse_unary
+     * 的 inner 递归中就会把 as 包进 inner，导致 AST 错为 `&(expr as T)` / `*(expr as T)`。
+     * 把 as_chain 上提到 parse_unary 末尾后，`&` 与 `*` 可先包装成 AddrOf/Deref，
+     * 再交给 as_chain，得到正确的 `(&expr) as T` / `(*expr) as T`。
+     * 【Invariant】仅改变 as_chain 调用位置；普通 `arr[0] as T` / `foo() as T` 由 parse_unary
+     * 末尾 `parse_as_chain(p, parse_postfix(p))` 等价处理。 */
+    return left;
 }
 
 /**
@@ -2367,12 +2373,21 @@ static ASTExpr *parse_unary(Parser *p) {
         e->value.unary.operand = inner;
         return e;
     }
-    /* 一元 & 取址：&expr，用于传指针给 extern 函数（如 &out、&ctx） */
+    /* 一元 & 取址：&expr，用于传指针给 extern 函数（如 &out、&ctx）。
+     * 【Why 优先级根源】`&` 必须比 `as` 优先级高（与 Rust 一致）：
+     *   `&arr[0] as *T` 应解析为 `(&arr[0]) as *T`，而非 `&(arr[0] as *T)`。
+     * 若 inner 用 parse_unary（含 as_chain），`as` 会被包进 inner，
+     * 导致 AST 变成 `AddrOf { Cast { Index } }` = `&(arr[0] as *T)`，
+     * codegen 出 `&((T)(arr[0]))` —— rvalue 取地址，C 编译失败。
+     * 修法：inner 用 parse_postfix（不含 as_chain），最后把 `&expr` 整体喂给 as_chain。
+     * 【Invariant】仅影响 `&expr as T` 与 `*expr as T`；普通 `&expr` / `*expr` 因 as_chain
+     * 看到 next 不是 `as` 直接返回 e，行为不变。
+     * 【Asm/Perf】纯 AST 重构，不影响 codegen 输出。 */
     if (k == TOKEN_AMP) {
         int unary_line = peek(p)->line;
         int unary_col = peek(p)->col;
         advance(p);
-        ASTExpr *inner = parse_unary(p);
+        ASTExpr *inner = parse_postfix(p);
         if (!inner) return NULL;
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
@@ -2383,14 +2398,15 @@ static ASTExpr *parse_unary(Parser *p) {
         set_expr_loc_at(e, unary_line, unary_col);
         e->kind = AST_EXPR_ADDR_OF;
         e->value.unary.operand = inner;
-        return e;
+        return parse_as_chain(p, e);
     }
-    /* 一元 * 解引用：*expr，操作数须为指针类型（如 map_i32_i32_slot(*m, key)） */
+    /* 一元 * 解引用：*expr，操作数须为指针类型（如 map_i32_i32_slot(*m, key)）。
+     * 【Why】同 `&` 优先级修复：`*p as T` 应为 `(*p) as T`，而非 `*(p as T)`。 */
     if (k == TOKEN_STAR) {
         int unary_line = peek(p)->line;
         int unary_col = peek(p)->col;
         advance(p);
-        ASTExpr *inner = parse_unary(p);
+        ASTExpr *inner = parse_postfix(p);
         if (!inner) return NULL;
         ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
@@ -2401,7 +2417,7 @@ static ASTExpr *parse_unary(Parser *p) {
         set_expr_loc_at(e, unary_line, unary_col);
         e->kind = AST_EXPR_DEREF;
         e->value.unary.operand = inner;
-        return e;
+        return parse_as_chain(p, e);
     }
     if (k == TOKEN_MINUS || k == TOKEN_TILDE || k == TOKEN_BANG) {
         int unary_line = peek(p)->line;
@@ -2418,9 +2434,19 @@ static ASTExpr *parse_unary(Parser *p) {
         set_expr_loc_at(e, unary_line, unary_col);
         e->kind = (k == TOKEN_MINUS) ? AST_EXPR_NEG : (k == TOKEN_TILDE) ? AST_EXPR_BITNOT : AST_EXPR_LOGNOT;
         e->value.unary.operand = inner;
-        return e;
+        /* 【Why】与 `&` / `*` 同优先级：`-x as T` 应为 `(-x) as T`，而非 `-(x as T)`。
+         * parse_unary 内部递归时 inner 已含 as_chain，但此处包装后整体再喂给 as_chain，
+         * 让外层 as 作用于整个一元表达式。 */
+        return parse_as_chain(p, e);
     }
-    return parse_postfix(p);
+    /* 【Why 优先级根源】parse_postfix 不再调 as_chain，统一由 parse_unary 末尾处理。
+     * 这样 `&expr as T` / `*expr as T` / `-expr as T` 都能正确解析为一元优先于 as。
+     * 同时 `arr[0] as T` / `foo() as T` 等无前缀表达式也由这里等价处理。 */
+    {
+        ASTExpr *left = parse_postfix(p);
+        if (!left) return NULL;
+        return parse_as_chain(p, left);
+    }
 }
 
 /**
@@ -5020,6 +5046,22 @@ static void skip_one_top_level_const_decl(Parser *p) {
         advance(p);
 }
 
+/**
+ * B-01：跳过一条顶层 `let IDENT : Type = expr ;`，不建 AST。
+ * 【Why 根源治理 C 组】与 skip_one_top_level_const_decl 对称；#[cfg] 不匹配时
+ * 顶层 let 也须被剪枝，否则同名 let 在多个 cfg 分支内会重复 emit。
+ * 【Invariant】调用方保证 peek->kind == TOKEN_LET；跳到下一个 TOKEN_SEMICOLON。
+ */
+static void skip_one_top_level_let_decl(Parser *p) {
+    if (peek(p)->kind != TOKEN_LET)
+        return;
+    advance(p);
+    while (peek(p)->kind != TOKEN_SEMICOLON && peek(p)->kind != TOKEN_EOF)
+        advance(p);
+    if (peek(p)->kind == TOKEN_SEMICOLON)
+        advance(p);
+}
+
 /* parse 的完整说明见 parser.h */
 int parse(Lexer *lex, ASTModule **out) {
     if (!out) return -1;
@@ -5487,6 +5529,23 @@ int parse(Lexer *lex, ASTModule **out) {
            || peek(&prs)->kind == TOKEN_ATTR_SYNC
            || peek(&prs)->kind == TOKEN_LET || peek(&prs)->kind == TOKEN_CONST
            || (peek(&prs)->kind == TOKEN_IDENT && is_ident_str(&prs, "allow", 5))) {
+        /* 【Why 根源治理 C 组】#[cfg] 不匹配时顶层 let/const 须被剪枝，否则同名
+         * let/const 在多个 cfg 分支内会重复 emit（如 udp.x 的 ERR_EAGAIN）。
+         * 此前 pending_cfg_skip 检查在 line 5789（struct/const/function 段），
+         * 但 TOKEN_LET(line 5533) 和 TOKEN_CONST(line 5601) 的处理在它之前，
+         * 导致 pending_cfg_skip=1 时 let/const 仍被正常处理。
+         * 修复：在 let/const 处理之前先检查 pending_cfg_skip，与 import 段
+         * (line 5113) 的 pattern 一致。 */
+        if (pending_cfg_skip && peek(&prs)->kind == TOKEN_LET) {
+            skip_one_top_level_let_decl(&prs);
+            pending_cfg_skip = 0;
+            continue;
+        }
+        if (pending_cfg_skip && peek(&prs)->kind == TOKEN_CONST) {
+            skip_one_top_level_const_decl(&prs);
+            pending_cfg_skip = 0;
+            continue;
+        }
         /* 顶层 let：与 function/struct/enum 同级，可任意顺序出现 */
         if (peek(&prs)->kind == TOKEN_LET) {
             if (mod->num_top_level_lets >= MAX_TOP_LEVEL_LETS) {

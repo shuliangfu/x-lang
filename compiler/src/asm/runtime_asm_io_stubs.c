@@ -96,6 +96,46 @@ int32_t io_read_ptr_len(void) {
   return 0;
 }
 
+/** std.io.core 注册单缓冲桩。 */
+int32_t io_register_buffer(uint8_t *ptr, size_t len) {
+  (void)ptr;
+  (void)len;
+  return 0;
+}
+
+/** std.io.core 三参注册。 */
+int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle) {
+  (void)handle;
+  return io_register_buffer(ptr, len);
+}
+
+/** driver 侧 Buffer 描述符注册。 */
+typedef struct { uint8_t *ptr; size_t len; size_t handle; } shu_buffer_abi_t;
+int32_t shux_io_register_buf(intptr_t buf) {
+  const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf;
+  if (!b)
+    return -1;
+  return shux_io_register(b->ptr, b->len, b->handle);
+}
+
+/** std.io.core submit_read 桩。 */
+int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
+  (void)ptr;
+  (void)len;
+  (void)handle;
+  (void)timeout_ms;
+  return 0;
+}
+
+/** std.io.core submit_write 桩。 */
+int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_ms) {
+  (void)ptr;
+  (void)len;
+  (void)handle;
+  (void)timeout_ms;
+  return 0;
+}
+
 size_t std_io_handle_stdin(void) {
   return 0;
 }
@@ -148,21 +188,21 @@ int32_t std_io_print_i64(int64_t x) {
   return 0;
 }
 
-int32_t std_io_write_stdout(uint8_t *ptr, size_t len) {
+__attribute__((weak)) int32_t std_io_write_stdout(uint8_t *ptr, size_t len) {
   return seed_io_write_fd1(ptr, len, 0);
 }
 
-int32_t std_io_write_with_timeout(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
+__attribute__((weak)) int32_t std_io_write_with_timeout(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
   return seed_io_write_fd1(ptr, len, timeout_ms);
 }
 
 /** std.io.print(ptr,len) C ABI：mangled std_io_print_u8_ptr_usize。 */
-int32_t std_io_print_u8_ptr_usize(uint8_t *ptr, size_t len) {
+__attribute__((weak)) int32_t std_io_print_u8_ptr_usize(uint8_t *ptr, size_t len) {
   return std_io_write_stdout(ptr, len);
 }
 
 /** 兼容旧链接名 std_io_print_str。 */
-int32_t std_io_print_str(uint8_t *ptr, size_t len) {
+__attribute__((weak)) int32_t std_io_print_str(uint8_t *ptr, size_t len) {
   return std_io_print_u8_ptr_usize(ptr, len);
 }
 

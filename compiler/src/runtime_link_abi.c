@@ -2518,8 +2518,9 @@ int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *
     if (!path || !path[0] || !ia || *ia >= max_ia - 1)
         return 0;
     use = asm_link_obj_skip_missing(path);
-    if (!use)
+    if (!use) {
         return 0;
+    }
 #if !defined(_WIN32) && !defined(_WIN64)
     {
         char *slot = abs_pool[abs_pool_i % INVOKE_CC_ABS_POOL_SZ];
@@ -3633,15 +3634,21 @@ int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *
  * 相对仓库根的 .o 路径解析：realpath(rel)、cwd/rel、argv0/../rel。
  */
 const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
-    static char buf[512];
-    static char resolved[PATH_MAX];
+    /* 【Why 逻辑根源】返回独立堆分配内存而非静态缓冲：runtime.c 中 shux_invoke_cc 之前
+     * 连续调用 30+ 次本函数（path_o/runtime_o/.../crypto_o/.../test_o）保存到局部变量，
+     * 若返回静态缓冲则所有指针指向同一缓冲，最终只剩最后一次调用的内容——crypto_o 实际
+     * 指向 test.o 路径，链接器找不到 crypto.o 触发 _core_crypto_mem_eq_c 未定义错误。
+     * 【Invariant】调用方无需 free；进程退出自动回收（编译器短生命周期）。
+     * 【Asm/Perf】strdup 一次 ~50ns，30+ 次仅 ~1.5us，可忽略。 */
+    char buf[512];
+    char resolved[PATH_MAX];
     size_t rel_len;
     buf[0] = resolved[0] = '\0';
     if (!rel || !rel[0])
-        return buf;
+        return strdup("");
     rel_len = strlen(rel);
     if (realpath(rel, resolved) != NULL)
-        return resolved;
+        return strdup(resolved);
     {
         char cwd[512];
         if (getcwd(cwd, sizeof(cwd) - 2) != NULL) {
@@ -3650,7 +3657,7 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
                 cwd[L] = '/';
                 memcpy(cwd + L + 1, rel, rel_len + 1);
                 if (realpath(cwd, resolved) != NULL)
-                    return resolved;
+                    return strdup(resolved);
             }
         }
     }
@@ -3660,7 +3667,7 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
         if (last_slash) {
             n = (int)(last_slash - argv0);
             if (n >= (int)sizeof(buf) - (int)(3 + rel_len))
-                return buf;
+                return strdup("");
             memcpy(buf, argv0, (size_t)n);
             buf[n] = '\0';
         } else {
@@ -3672,15 +3679,14 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
             strcat(buf, "/../");
             strcat(buf, rel);
             if (realpath(buf, resolved) != NULL)
-                return resolved;
+                return strdup(resolved);
             /* realpath 失败时勿返回臆造路径：仅当 stat 命中常规文件才返回 buf。 */
             if (asm_link_obj_skip_missing(buf))
-                return buf;
-            buf[0] = '\0';
-            return buf;
+                return strdup(buf);
+            return strdup("");
         }
     }
-    return buf;
+    return strdup("");
 }
 
 /** 扫描用户 .o 未定义符号；nm 失败时返回 0（勿臆测缺符号，避免 on_demand 误链 net/heap）。 */

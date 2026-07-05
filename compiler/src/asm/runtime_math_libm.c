@@ -8,6 +8,12 @@
 #include <stdio.h>
 #include "diag.h"
 
+#ifndef diag_reportf
+__attribute__((weak)) void diag_reportf(const char *file, int line, int col, const char *tag, const char *code, const char *fmt, ...) {
+  (void)file; (void)line; (void)col; (void)tag; (void)code; (void)fmt;
+}
+#endif
+
 #if defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__))
 #include <fenv.h>
 #define SHUX_MATH_HAVE_FENV 1

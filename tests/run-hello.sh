@@ -51,8 +51,11 @@ case "$(uname -m 2>/dev/null)" in
     ;;
 esac
 if [ -n "${RUN_ALL_USE_C:-}" ]; then
-  # run-all 默认 C 流水线
-  make -C compiler -q all 2>/dev/null || make -C compiler all
+  # run-all 默认 C 流水线；run-all 入口已 make 时跳过（SHUX_SKIP_SUBSCRIPT_MAKE=1），
+  # 避免子脚本 `make all` 触发默认 shux-c target（cp -f bootstrap_shuxc）覆盖真正 C 前端。
+  if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+    make -C compiler -q all 2>/dev/null || make -C compiler all
+  fi
   if [ -x ./compiler/shux-c ]; then
     HELLO_COMPILE_SHUX=./compiler/shux-c
     HELLO_BACKEND=""

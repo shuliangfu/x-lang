@@ -108,7 +108,11 @@ fi
 
 echo "select_bootstrap_shuxc: OK $pick (${os}.${arch})"
 # G-06：shux-c 须与宿主同架构（Docker Linux 勿沿用 macOS Mach-O shux-c）。
-if [ "$PRINT_ONLY" -eq 0 ] && [ -f ./bootstrap_shuxc ]; then
+# 【Why 根源治理 shux-c 被覆盖】SHUX_SKIP_SUBSCRIPT_MAKE=1 时调用方（如 run-all.sh）
+# 已用 SHUX_LEGACY_C_FRONTEND=1 构建真正 C 前端 shux-c，此处 cp 会覆盖之，
+# 导致 62+ 测试因用 bootstrap_shuxc 副本（.x pipeline）而非真正 C 前端而失败。
+# 修复：SHUX_SKIP_SUBSCRIPT_MAKE=1 时跳过 cp，保留调用方构建的真正 C 前端。
+if [ "$PRINT_ONLY" -eq 0 ] && [ -f ./bootstrap_shuxc ] && [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   cp -f ./bootstrap_shuxc ./shux-c
   chmod +x ./shux-c 2>/dev/null || true
   maybe_codesign ./shux-c

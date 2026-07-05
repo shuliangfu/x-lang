@@ -122,7 +122,11 @@ extern function malloc(size: usize): *u8;
 extern function free(ptr: *u8): void;
 extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 extern function strlen(s: *u8): usize;
+#[cfg(target_os = "linux")]
 extern function __errno_location(): *i32;
+
+#[cfg(target_os = "macos")]
+extern function __error(): *i32;
 extern function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 extern function usleep(usec: u32): i32;
 extern function madvise(addr: *u8, len: usize, advice: i32): i32;
@@ -207,8 +211,18 @@ function fs_libc_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
 function fs_libc_strlen(s: *u8): usize {
   unsafe { return strlen(s); }
 }
+#[cfg(target_os = "linux")]
 function fs_libc_errno_location(): *i32 {
-  unsafe { return __errno_location(); }
+  let p: *i32 = 0 as *i32;
+  unsafe { p = __errno_location(); }
+  return p;
+}
+
+#[cfg(target_os = "macos")]
+function fs_libc_errno_location(): *i32 {
+  let p: *i32 = 0 as *i32;
+  unsafe { p = __error(); }
+  return p;
 }
 function fs_libc_fcntl(fd: i32, cmd: i32, arg: i32): i32 {
   unsafe { return fcntl(fd, cmd, arg); }

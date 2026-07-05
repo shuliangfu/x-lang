@@ -180,7 +180,7 @@ net-o-openssl:
 	  ./shux -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
 	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux-c ]; then \
-	  ./shux-c -backend c -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
+	  ./shux-c -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
 	  $(MAKE) net-o-stub; \
 	else \
 	  echo "net-o-openssl: need shux_asm, shux, or shux-c"; exit 1; \
@@ -198,7 +198,7 @@ net-o-mbedtls:
 	  ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
 	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux-c ]; then \
-	  ./shux-c -backend c -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
+	  ./shux-c -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
 	  $(MAKE) runtime_tls_mbedtls_bio.o && \
 	  ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
 	  $(MAKE) net-o-stub; \
@@ -391,10 +391,10 @@ net-o-mbedtls:
 # G-01：core/ 零 C — 位运算/volatile/slice 已纯 .x（见 analysis/phase-g-full-selfhost-tasks-v1.md）
 
 # std.ffi：F-ffi v1 + F-ZC 纯 ffi.x；import binding 别名桩 ffi_import_alias.c。
-# LANG-007 v2：shux-c 默认 x pipeline 对 ffi.x typeck 仍红；库模块用 -backend c -E → cc -c。
+# LANG-007 v2：shux-c 默认 x pipeline 对 ffi.x typeck 仍红；库模块用 -E → cc -c。
 ../std/ffi/ffi.o: ../std/ffi/ffi.x ../std/ffi/ffi_import_alias.c
 	@if [ -x ./shux-c ]; then \
-	  ./shux-c -backend c -E -L .. ../std/ffi/ffi.x > ../std/ffi/ffi_core_gen.c && \
+	  ./shux-c -E -L .. ../std/ffi/ffi.x > ../std/ffi/ffi_core_gen.c && \
 	  $(CC) $(CFLAGS) -c -o ../std/ffi/ffi_core.o ../std/ffi/ffi_core_gen.c && \
 	  rm -f ../std/ffi/ffi_core_gen.c; \
 	elif [ -x ./shux_asm ]; then \
@@ -702,8 +702,10 @@ src/codegen/codegen.o: src/codegen/codegen.c src/codegen/codegen.h include/ast.h
 src/lsp/lsp_diag.o: src/lsp/lsp_diag.c src/lsp/lsp_diag.h include/diag.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 else
+# SHUX_SKIP_SUBSCRIPT_MAKE=1 时跳过 cp：run-all 入口已构建真正 C 前端（SHUX_LEGACY_C_FRONTEND=1），
+# 此处 cp 会覆盖之导致回归全部失败。bootstrap_shuxc target 仍会跑 select_bootstrap_shuxc.sh 同步种子。
 $(SHUX_C): bootstrap_shuxc
-	@cp -f bootstrap_shuxc $@
+	@if [ -z "$${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then cp -f bootstrap_shuxc $@; else echo "shux-c: SHUX_SKIP_SUBSCRIPT_MAKE=1, skip cp (preserve real C frontend)"; fi
 endif
 
 # `shux-c` 默认模式可能只是 bootstrap_shuxc 的同步副本；凡是依赖 `-E/-E-extern`
@@ -786,22 +788,22 @@ src/codegen/codegen_pipeline_stubs.o: src/codegen/codegen_pipeline_stubs.c inclu
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # G-02-B1：cfg_eval 仅 cfg_eval.x（无 cfg_eval.c 回退）。
-# cold bootstrap 时 shux-c -backend asm 可能挂起；timeout 后回退 -E-extern / stub。
+# cold bootstrap 时 shux-c 默认 pipeline 可能挂起；timeout 后回退 -E-extern / stub。
 src/lexer/cfg_eval.o: src/lexer/cfg_eval.x src/lexer/cfg_eval_link_alias.c
 	@set -e; \
 	$(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C); \
 	rm -f src/lexer/cfg_eval_x.o; \
 	if command -v timeout >/dev/null 2>&1; then \
-	  timeout "${SHUX_CFG_EVAL_ASM_TIMEOUT:-120}" ./$(SHUX_C) -backend asm -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
+	  timeout "${SHUX_CFG_EVAL_ASM_TIMEOUT:-120}" ./$(SHUX_C) -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
 	    || rm -f src/lexer/cfg_eval_x.o; \
 	else \
-	  ./$(SHUX_C) -backend asm -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
+	  ./$(SHUX_C) -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
 	    || rm -f src/lexer/cfg_eval_x.o; \
 	fi; \
 	if [ -s src/lexer/cfg_eval_x.o ]; then \
 	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_link_alias.o src/lexer/cfg_eval_link_alias.c; \
 	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
-	  echo "cfg_eval.o from cfg_eval.x (-backend asm + alias)"; \
+	  echo "cfg_eval.o from cfg_eval.x (default pipeline + alias)"; \
 	elif ./$(SHUX_C) -E -E-extern -L .. src/lexer/cfg_eval.x > src/lexer/cfg_eval_gen.c 2>/dev/null \
 	  && [ -s src/lexer/cfg_eval_gen.c ]; then \
 	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c; \
@@ -1565,8 +1567,11 @@ endif
 RELINK_SHUX_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
 DRIVER_SEED_GLUE_PREFIX =
 DRIVER_SEED_GLUE_SUFFIX = $(ASM_GLUE_STANDALONE_O)
-# E-02 v1：lsp_diag.c 已删；仅 lsp_diag_stubs_no_c.o + lsp_diag_x.o。
-LSP_DIAG_LINK_O = src/lsp/lsp_diag_stubs_no_c.o
+# LSP_DIAG_LINK_O：fmt 命令依赖 shu_format_x_document 的真实实现，必须链入 lsp_diag.o
+# 而非 lsp_diag_stubs_no_c.o（no-op stub 会让 fmt 静默无操作）。
+# 历史：E-02 v1 误注 "lsp_diag.c 已删" 但文件实存；链接 stub 导致 fmt 不生效。
+# 修复日期：2026-07-04。
+LSP_DIAG_LINK_O = src/lsp/lsp_diag.o
 # E-03 v2 lexer/ast：seed-compat / LEGACY 链 C lexer.o + ast_seed.o；SHUX_NO_C_SEED_LINK=1 时不链。
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 LEXER_LINK_O = src/lexer/lexer.o

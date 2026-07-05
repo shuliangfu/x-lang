@@ -1788,6 +1788,26 @@ static int get_expr_type(const struct ASTExpr *e, const char **names, const int 
     if (!e || !out_kind || !out_name) return -1;
     *out_name = NULL;
     if (out_elem_type) *out_elem_type = NULL;
+    /* 【Why 根源治理】typeck_expr_sym 在递归 typecheck 时已为每个表达式设好 resolved_type
+     * （BinaryOp/UnaryOp/ADDR_OF/DEREF/AS/CALL/METHOD_CALL/STRUCT_LIT/ARRAY_LIT/INDEX/
+     *  FIELD_ACCESS/IF/BLOCK/TERNARY/TRY_PROPAGATE/...）。
+     * get_expr_type 是"事后取类型"的查询函数，应该统一从 resolved_type 取，而不是为
+     * 每个 ASTExprKind 单独列举 if 分支——后者必然漏掉某些 kind，遇到漏的就报 unhandled，
+     * 然后哪里报错就在哪里补一个分支，这违背根源治理。
+     * 【Invariant】resolved_type 由 typeck_expr_sym 设；未设（NULL）的只可能是字面量/变量
+     * 等基础表达式，走下面各自分支。指针算术 (s+i) 的 resolved_type=*T 已由 BinaryOp case
+     * 设好，此处直接返回，IndexExpr 入口拿到 *T 后正常推导元素类型。
+     * 【Asm/Perf】纯查询路径，O(1) 指针解引用，零分配。 */
+    if (e->resolved_type) {
+        *out_kind = e->resolved_type->kind;
+        *out_name = e->resolved_type->name;
+        if (out_elem_type && e->resolved_type->elem_type &&
+            (e->resolved_type->kind == AST_TYPE_ARRAY ||
+             e->resolved_type->kind == AST_TYPE_SLICE ||
+             e->resolved_type->kind == AST_TYPE_PTR))
+            *out_elem_type = e->resolved_type->elem_type;
+        return 0;
+    }
     /* X parser 的 match 1 { … } 等：matched 常为 EXPR_LIT，须能推断类型（与 typeck_expr_sym 中 i32 默认一致）。 */
     if (e->kind == AST_EXPR_LIT) {
         if (e->resolved_type) {
@@ -1839,6 +1859,13 @@ static int get_expr_type(const struct ASTExpr *e, const char **names, const int 
         TYPECK_ERR((struct ASTExpr *)e, "get_expr_type variable '%.*s' not in scope", name ? (int)strlen(name) : 0, name ? name : "?");
         return -1;
     }
+    /* 【Why 指针运算根源】`(s + i)`、`(p - n)` 等 C 风格指针算术表达式：
+     * BinaryOp ADD/SUB 的左操作数是指针 *T、右操作数是整数 offset，结果类型仍为 *T。
+     * typeck_expr_sym 的 BinaryOp case（line 2297-2300）已为指针算术设 resolved_type=lt(*T)，
+     * 本函数入口的 resolved_type 检查会直接返回 *T，无需在此重复处理。
+     * 【Invariant】仅 ADD/SUB 指针算术走此路径；其他 BinaryOp（MUL/DIV/CMP/...）的 resolved_type
+     * 同样由 typeck_expr_sym 设好，入口统一处理。
+     * 【Asm/Perf】纯 typeck 路径，不影响 codegen；下游 cc 生成 `*(ptr+offset)` 由 codegen 处理。 */
     if (e->kind == AST_EXPR_FIELD_ACCESS) {
         /* Type.Variant 形式（typeck 已设 is_enum_variant）：类型为枚举名 */
         if (e->value.field_access.is_enum_variant && e->value.field_access.base->kind == AST_EXPR_VAR && e->value.field_access.base->value.var.name) {
@@ -1898,9 +1925,21 @@ static int get_expr_type(const struct ASTExpr *e, const char **names, const int 
         int base_kind;
         const char *base_name = NULL;
         const struct ASTType *base_elem = NULL;
-        if (get_expr_type(e->value.index.base, names, type_kinds, type_names, n, type_ptrs, struct_defs, num_structs, enum_defs, num_enums, &base_kind, &base_name, &base_elem) != 0) return -1;
-        if (base_kind == AST_TYPE_PTR && !base_elem && e->value.index.base->resolved_type && e->value.index.base->resolved_type->kind == AST_TYPE_PTR)
-            base_elem = e->value.index.base->resolved_type->elem_type;
+        /* 【Why 指针运算根源】`(s + i)[0]`、`(p - n)[k]` 等 C 风格指针运算下标：
+         * base 是 BinaryOp ADD/SUB，左操作数是指针，右操作数是整数 offset。
+         * get_expr_type 没处理 BinaryOp kind（直接报 unhandled），须在 IndexExpr 入口
+         * 处把 base 解引用到指针操作数（binop.left），再走原 IndexExpr 类型推导。
+         * 【Invariant】仅 ADD/SUB 走此 desugar；其他 BinaryOp（MUL/DIV/CMP/...）作为 base
+         * 仍非法，会被原 base_kind 检查报错。指针 + 整数 = 指针；指针 - 整数 = 指针。
+         * 【Asm/Perf】纯 typeck 路径，不影响 codegen；下游 cc 生成 `*(ptr+offset)` 仍由
+         * codegen 已有指针运算 emit 处理。 */
+        const struct ASTExpr *base = e->value.index.base;
+        if (base && (base->kind == AST_EXPR_ADD || base->kind == AST_EXPR_SUB)) {
+            base = base->value.binop.left;
+        }
+        if (get_expr_type(base, names, type_kinds, type_names, n, type_ptrs, struct_defs, num_structs, enum_defs, num_enums, &base_kind, &base_name, &base_elem) != 0) return -1;
+        if (base_kind == AST_TYPE_PTR && !base_elem && base->resolved_type && base->resolved_type->kind == AST_TYPE_PTR)
+            base_elem = base->resolved_type->elem_type;
         if (base_kind != AST_TYPE_ARRAY && base_kind != AST_TYPE_SLICE && base_kind != AST_TYPE_PTR && base_kind != AST_TYPE_VECTOR) {
                 TYPECK_ERR(e, "subscript base must be array, slice or pointer type");
                 return -1;
@@ -2169,6 +2208,39 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 return typeck_expr_sym(e->value.unary.operand, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m);
             return 0;  /* return; 的 void 检查在 typeck_block 中根据 func_return_type 完成 */
         case AST_EXPR_LIT:
+            /* 【Why 期望类型传播根源】docs/04-表达式与运算符.md §上下文类型：return/let/赋值/实参
+             * 等位置应按期望类型 coerce 字面量。typeck_ctx_expected_return 在 typeck_block
+             * 处理 return 语句前设为 func_return_type（line 3919-3921），此处据此推导：
+             * 若期望为 u32/u64/isize/usize 且字面量在期望类型范围内，直接用期望类型；
+             * 否则按值范围回退到 i32/i64。这样 `return 0xABCDEF01`（u32 函数）推导为 u32
+             * 而非 i64，避免假性 type mismatch。
+             * 【Invariant】仅整数 LIT 走此路径；bool/float LIT 各有分支。负字面量按 i64 处理
+             * （u32 范围外）。typeck_ctx_expected_return==NULL 表示非 return 上下文，走原逻辑。
+             * 【Asm/Perf】纯 typeck 路径，零分配；不影响 codegen 的字面量 emit。 */
+            if (typeck_ctx_expected_return) {
+                int64_t v = e->value.int_val;
+                ASTTypeKind ek = typeck_ctx_expected_return->kind;
+                if (ek == AST_TYPE_U32 && v >= 0 && v <= 0xFFFFFFFFLL) {
+                    ((struct ASTExpr *)e)->resolved_type = typeck_ctx_expected_return;
+                    return 0;
+                }
+                if (ek == AST_TYPE_U64 && v >= 0) {
+                    ((struct ASTExpr *)e)->resolved_type = typeck_ctx_expected_return;
+                    return 0;
+                }
+                if (ek == AST_TYPE_USIZE && v >= 0) {
+                    ((struct ASTExpr *)e)->resolved_type = typeck_ctx_expected_return;
+                    return 0;
+                }
+                if (ek == AST_TYPE_ISIZE) {
+                    ((struct ASTExpr *)e)->resolved_type = typeck_ctx_expected_return;
+                    return 0;
+                }
+                if (ek == AST_TYPE_I64) {
+                    ((struct ASTExpr *)e)->resolved_type = typeck_ctx_expected_return;
+                    return 0;
+                }
+            }
             if (e->value.int_val > 2147483647LL || e->value.int_val < -2147483648LL)
                 ((struct ASTExpr *)e)->resolved_type = &static_type_i64;
             else
@@ -2335,7 +2407,16 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             return typeck_expr_sym(e->value.unary.operand, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m);
         }
         case AST_EXPR_DEREF: {
-            if (!typeck_fill_only && typeck_unsafe_depth <= 0) {
+            /* 【Why 根源治理】与 extern call 门禁（line 3180-3184）一致：
+             * -E bootstrap 兼容模式下（typeck_allow_legacy_extern_calls=1）放宽 *T 解引用门禁，
+             * 因为 std/ 与 compiler/.x 大量 raw pointer 操作（*pos、*state 等）是合法的内存访问，
+             * 正式 .x typeck 仍严格要求 unsafe 块。此前只放宽 extern call 而不放宽 deref，
+             * 导致同一类 raw pointer 操作门禁不一致——std/ 中调 extern 合法但解引用 *pos 报错。
+             * 【Invariant】typeck_allow_legacy_extern_calls 由 runtime 在 -E 路径显式开启；
+             * 正式 check/compile 路径保持 0，安全语义不变。
+             * 【Asm/Perf】纯 typeck 门禁判断，零运行期开销。 */
+            if (!typeck_fill_only && typeck_unsafe_depth <= 0
+                && !typeck_allow_legacy_extern_calls) {
                 TYPECK_ERR(e, "pointer dereference requires unsafe block");
                 return -1;
             }
@@ -3040,11 +3121,23 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             struct ASTFunc *func = NULL;
             int from_dep = -1;
             struct ASTModule *func_mod = (struct ASTModule *)m;
+            /* 【Why 根源治理 from_fd 重载失败】typeck_ctx_expected_return 是为 return/let 上下文
+             * 设计的"期望返回类型"，但 D3 修复（LIT case 期望类型传播）让它泄漏到 CALL 实参：
+             * `let h: usize = from_fd(fd, 0);` 中 let 设 typeck_ctx_expected_return=usize，
+             * 字面量 `0` 被强制转换为 usize，与参数 i32 不匹配，导致 no matching overload。
+             * 修复：实参 typecheck 前清空 typeck_ctx_expected_return，避免期望返回类型
+             * 跨 CALL 边界泄漏；实参类型应按参数期望推导，而非继承外层返回类型。
+             * 【Invariant】仅清空实参 typecheck 期间；CALL 本身的返回类型仍由外层上下文推导。 */
+            const struct ASTType *prev_call_expected_ret = typeck_ctx_expected_return;
+            typeck_ctx_expected_return = NULL;
             /* 先 typecheck 实参，供 overload 按类型选取 */
             for (int ai = 0; ai < e->value.call.num_args; ai++) {
-                if (typeck_expr_sym(e->value.call.args[ai], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0)
+                if (typeck_expr_sym(e->value.call.args[ai], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) {
+                    typeck_ctx_expected_return = prev_call_expected_ret;
                     return -1;
+                }
             }
+            typeck_ctx_expected_return = prev_call_expected_ret;
             /* module.func：在依赖模块内 overload / 泛型解析 */
             if (e->value.call.callee->kind == AST_EXPR_FIELD_ACCESS
                 && e->value.call.callee->value.field_access.base

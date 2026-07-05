@@ -33,6 +33,32 @@ case "$(basename "$shux_bin")" in
     exec "$shux_bin" -L .. "$x_path" -o "$out_o"
     ;;
   *)
-    exec env SHUX_ASM_WPO_DCE=0 "$shux_bin" -backend asm -L .. "$x_path" -o "$out_o"
+    # 【Why 根源】Darwin 的 bootstrap-driver-seed 使用 asm_backend_partial.o 中的
+    # seed_mega 桩（仅 14 个弱符号返回 0），真实 ARM64 指令发射器未被 -E 编入。
+    # 因此 -backend asm 在 macOS 上产出 code_len=0，所有 std/*.o 编译失败。
+    # 【修复】-backend asm 失败时回退到 shux-c（-E + cc -c），保证 std .o 可用。
+    if env SHUX_ASM_WPO_DCE=0 "$shux_bin" -backend asm -L .. "$x_path" -o "$out_o" 2>/dev/null; then
+      :
+    else
+      if [ -x ./shux-c ]; then
+        gen_c="$out_o.gen.c"
+        ./shux-c -E -L .. "$x_path" > "$gen_c" || { rm -f "$gen_c"; exit 1; }
+        if grep -q '^#include' "$gen_c"; then
+          last_inc_line=$(grep -n '^#include' "$gen_c" | tail -1 | cut -d: -f1)
+          if [ -n "$last_inc_line" ]; then
+            sed -i.bak "${last_inc_line}a\\
+#undef htonl\\
+#undef htons\\
+#undef ntohl\\
+#undef ntohs" "$gen_c"
+            rm -f "$gen_c.bak"
+          fi
+        fi
+        cc -Wall -Wextra -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; exit 1; }
+        rm -f "$gen_c"
+      else
+        exit 1
+      fi
+    fi
     ;;
 esac

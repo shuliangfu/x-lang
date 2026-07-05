@@ -76,8 +76,29 @@ extern function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 #[cfg(not(target_os = "windows"))]
 extern function poll(fds: *u8, nfds: u64, timeout: i32): i32;
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
 extern function __errno_location(): *i32;
+
+#[cfg(target_os = "macos")]
+extern function __error(): *i32;
+
+/** 平台无关 errno 指针获取：Linux 走 __errno_location，macOS/BSD 走 __error。
+ * 【Why 根源治理】原 `#[cfg(not(windows))] extern __errno_location` 在 macOS 链接失败：
+ * __errno_location 是 glibc 符号，macOS 用 __error()。错误 cfg 导致 net.o 引用
+ * undefined `___errno_location`，~75 个测试链接失败。 */
+#[cfg(target_os = "linux")]
+function net_ipv6_errno_ptr(): *i32 {
+  let p: *i32 = 0 as *i32;
+  unsafe { p = __errno_location(); }
+  return p;
+}
+
+#[cfg(target_os = "macos")]
+function net_ipv6_errno_ptr(): *i32 {
+  let p: *i32 = 0 as *i32;
+  unsafe { p = __error(); }
+  return p;
+}
 
 #[cfg(target_os = "windows")]
 extern function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
@@ -196,7 +217,7 @@ function net_ipv6_poll_writable_c(fd: i32, timeout_ms: u32): i32 {
 function net_ipv6_connect_retry_ok_c(): i32 {
   let ep: *i32 = 0 as *i32;
   let e: i32 = 0;
-  unsafe { ep = __errno_location(); }
+  ep = net_ipv6_errno_ptr();
   e = ep[0];
   if (e == ERR_INPROGRESS || e == ERR_EAGAIN) {
     return 1;

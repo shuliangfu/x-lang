@@ -1115,8 +1115,13 @@ int RUN_CC_FUNC(int argc, char **argv) {
     int emit_c_only = 0;  /* -E：仅生成 C 到 stdout，不调用 cc */
     int emit_extern_imports = 0;  /* 阶段 3.1：-E-extern 时仅展开入口，import 用 extern，生成瘦 C */
     #ifdef SHUX_USE_X_PIPELINE
-    int use_x_pipeline = 1;  /* 链接了 .x pipeline 时默认启用（避免 C 前端 parser 不支持 .x 语法） */
-    int use_asm_backend = 0;  /* -backend asm：出汇编而非 C，并走 -x pipeline */
+    /* 【Why 根源】默认走 C 前端（use_x_pipeline=0），避免 .x pipeline 的 ASM 后端在
+     * Darwin/ARM64 上失效（asm_backend_partial.o 为 fallback 弱桩，code_len=0）。
+     * C 前端在所有平台上都能工作（-E 生成 C 代码 + cc 编译）。
+     * 显式 -backend asm 或 -x 可重新启用 .x pipeline。
+     * 【Invariant】仅影响默认编译路径；-E 模式不受影响（emit_c_only 独立于 use_x_pipeline）。 */
+    int use_x_pipeline = 0;
+    int use_asm_backend = 0;  /* -backend asm：出汇编而非 C，并走 .x pipeline */
     #endif
     const char *defines[MAX_DEFINES];
     int ndefines = 0;
@@ -1904,7 +1909,6 @@ int RUN_CC_FUNC(int argc, char **argv) {
          * 库模块 -E 亦须全量 emit（如 std/json/json.x）。 */
         if (emit_extern_imports || !mod->main_func || !mod->main_func->body)
             dce_ctx_arg = NULL;
-
         if (n_all > 0) {
             /* 有依赖时与 -o 单文件一致：先统一输出 include 与 panic，再按拓扑序写各库，最后写入口，类型名去重避免重定义。
              * 阶段 3.1：-E-extern 时仅输出依赖类型 + 入口模块（extern 由 codegen 生成），不内联各库函数体。 */
@@ -2143,6 +2147,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
         int dce_ready = 0;
         runtime_prepare_dce_ctx(mod, all_dep_mods, n_all, used_funcs, &n_used, used_mono, used_type_names, &n_used_types, &wpo_reach, &dce, &dce_ready);
         void *dce_ctx_arg = dce_ready ? (void *)&dce : NULL;
+        /* 【Why 根源】库模块 -E（无 main_func）须全量 emit 供 .o 链接；
+         * WPO/DCE 会把未被入口引用的函数判为不可达而跳过 emit，导致 .o 缺符号。
+         * 与 n_all>0 分支 line 1910 对称：无 main_func 时禁用 DCE。
+         * 【Invariant】仅影响 -E 库模块；有 main 的入口模块仍走 DCE。 */
+        if (!mod->main_func || !mod->main_func->body)
+            dce_ctx_arg = NULL;
 
         const char *c_paths[SHUX_INVOKE_CC_MAX_C_FILES];
         int n_c = 0;

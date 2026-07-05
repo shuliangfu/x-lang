@@ -32,18 +32,25 @@ if [ -n "$SHUX" ]; then
     else
     # 子脚本内 `make -C compiler` 走 bootstrap-driver-seed，避免默认 all 用 C-only shux 覆盖 .x pipeline 链。
     export SHUX_RUN_ALL_BOOTSTRAP_SHUX=1
+    # 【Why 根源治理 shux-c 被覆盖】bootstrap-driver-seed 依赖 $(SHUX_C)=shux-c，
+    # 而 shux-c 默认 target 是 `cp -f bootstrap_shuxc shux-c`（Makefile line 708），
+    # 会把真正的 C 前端 shux-c 覆盖成 bootstrap_shuxc 副本（.x pipeline，3.9MB），
+    # 导致 62+ 测试因用错 shux-c 而失败。修复：先 -B 构建真正 C 前端，
+    # 再 export SHUX_SKIP_SUBSCRIPT_MAKE=1 阻止 bootstrap-driver-seed 覆盖它。
+    make -B -C compiler SHUX_LEGACY_C_FRONTEND=1 shux-c 2>/dev/null || true
+    export SHUX_SKIP_SUBSCRIPT_MAKE=1
     # 子脚本不再各自 make，避免长回归中反复链接 shux 产生竞态；入口统一构建一次 seed。
     make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
     fi
     if [ -z "${SHUX_BSTRICT_RUN_ALL:-}" ]; then
         # stdlib-import 等用 shux-c 链多模块可执行；seed 仅 check/typeck。
-        make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
+        # -B 重建确保 shux-c 是真正 C 前端（bootstrap-driver-seed 可能触发依赖重建覆盖）。
+        make -B -C compiler SHUX_LEGACY_C_FRONTEND=1 shux-c 2>/dev/null || true
         # 可执行链接/退出码回归优先 shux-c；typeck/check 仍用 SHU（seed）。
         if [ -x ./compiler/shux-c ]; then
             export SHUX_LINK_SHUX=./compiler/shux-c
         fi
     fi
-    export SHUX_SKIP_SUBSCRIPT_MAKE=1
     # SHU 与 compiler/shux 为同一inode 时不能做「先 mv 再 cp」：mv 会破坏 cp 的源路径（常见：SHUX=./compiler/shux）。
     if [ -f compiler/shux ] && [ compiler/shux -ef "$SHUX" ]; then
         :
@@ -61,9 +68,16 @@ else
     make -C compiler -q all 2>/dev/null || make -C compiler all
     # 与 Makefile test_c 一致：子脚本用 shux-c 走纯 C 前端，避免本机 compiler/shux 已是
     # bootstrap-driver-seed（链 .x pipeline）时仍当「默认 C 回归」却误走 .x typeck 失败
+    # 额外构建真正的 C 前端（SHUX_LEGACY_C_FRONTEND=1），避免 .x pipeline mangling 缺失导致重载冲突。
+    # 用 -B 强制重建：`make all` 可能已把 shux-c 当作副产品生成（默认 cp bootstrap_shuxc），
+    # 时间戳较新会导致后续 `make shux-c` 误判 up-to-date 而跳过真正 C 前端的构建。
+    make -B -C compiler SHUX_LEGACY_C_FRONTEND=1 shux-c 2>/dev/null || true
     if [ -x "./compiler/shux-c" ]; then
         export SHUX=./compiler/shux-c
     fi
+    # 阻止子脚本再次 `make all` / `make shux-c`：默认 shux-c target 是 `cp -f bootstrap_shuxc shux-c`，
+    # 会覆盖上面刚刚构建好的真正 C 前端（SHUX_LEGACY_C_FRONTEND=1），导致回归全部失败。
+    export SHUX_SKIP_SUBSCRIPT_MAKE=1
 fi
 
 # 无 shux 则直接失败，避免整次跑完仍打印 all tests OK

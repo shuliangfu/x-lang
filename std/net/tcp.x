@@ -73,8 +73,29 @@ extern function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 #[cfg(not(target_os = "windows"))]
 extern function poll(fds: *u8, nfds: u64, timeout: i32): i32;
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
 extern function __errno_location(): *i32;
+
+#[cfg(target_os = "macos")]
+extern function __error(): *i32;
+
+/** 平台无关 errno 指针获取：Linux 走 __errno_location，macOS/BSD 走 __error。
+ * 【Why 根源治理】原 `#[cfg(not(windows))] extern __errno_location` 在 macOS 链接失败：
+ * __errno_location 是 glibc 符号，macOS 用 __error()。错误 cfg 导致 net.o 引用
+ * undefined `___errno_location`，~75 个测试链接失败。 */
+#[cfg(target_os = "linux")]
+function net_tcp_errno_ptr(): *i32 {
+  let p: *i32 = 0 as *i32;
+  unsafe { p = __errno_location(); }
+  return p;
+}
+
+#[cfg(target_os = "macos")]
+function net_tcp_errno_ptr(): *i32 {
+  let p: *i32 = 0 as *i32;
+  unsafe { p = __error(); }
+  return p;
+}
 
 #[cfg(target_os = "linux")]
 extern function io_uring_connect(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
@@ -244,7 +265,7 @@ function net_tcp_poll_readable_c(fd: i32, timeout_ms: u32): i32 {
 #[cfg(not(target_os = "windows"))]
 function net_tcp_connect_not_inprogress_c(): i32 {
   let ep: *i32 = 0 as *i32;
-  unsafe { ep = __errno_location(); }
+  ep = net_tcp_errno_ptr();
   if (ep[0] != ERR_INPROGRESS) {
     return 1;
   }
@@ -381,6 +402,7 @@ extern function net_tcp_listen_c(addr_u32: u32, port_u32: u32): i32;
  * accept 单连接（Linux io_uring）；非阻塞 client fd。
  */
 #[cfg(target_os = "linux")]
+#[no_mangle]
 function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
   unsafe { return io_uring_accept(listener_fd, timeout_ms); }
 }
@@ -389,6 +411,7 @@ function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
  * accept 单连接（非 Linux：poll + accept）；非阻塞 client fd。
  */
 #[cfg(not(target_os = "linux"))]
+#[no_mangle]
 function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
   let peer_mem: u8[16] = [];
   let peer_ptr: *u8 = net_tcp_sin_buf_ptr_c(&peer_mem[0]);

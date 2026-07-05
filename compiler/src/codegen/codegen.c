@@ -16,6 +16,7 @@
 #include "async_cps_codegen.h"
 #include "../lsp/lsp_codegen_extern.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 /** M-6：`-fsanitize=address` 时强制 INDEX 边界检查（由 runtime.c 解析 argv / 环境变量）。 */
 extern int32_t driver_sanitize_address_get(void);
@@ -1094,7 +1095,18 @@ static const struct ASTModule *codegen_module_for_import_path(const char *import
 static const char *func_link_name(const struct ASTModule *mod, const struct ASTFunc *f) {
     if (!f || !f->name) return "";
     if (f->link_name) return f->link_name;  /* L9：#[link_name] 用指定符号名 */
-    if (!mod || module_func_overload_count(mod, f->name) <= 1) return f->name;
+    if (!mod) {
+        /* 【Why 根源】传递依赖模块不在 codegen_dep_paths 中时 mod=NULL（如 std.io 被 std.fmt
+         * 传递依赖，但 codegen_dep_paths 只含直接 import）。此时若不遍历全部依赖模块统计
+         * 同名函数个数，会漏检 overload，导致 C 链接符号冲突（conflicting types）。
+         * 【Invariant】仅当 >1 个依赖模块含同名函数时才 mangle，避免误 mangle 单定义函数。 */
+        int total = 0;
+        for (int di = 0; di < codegen_ndep && codegen_dep_mods; di++)
+            total += module_func_overload_count(codegen_dep_mods[di], f->name);
+        if (total <= 1) return f->name;
+        return overload_mangled_name(f);
+    }
+    if (module_func_overload_count(mod, f->name) <= 1) return f->name;
     return overload_mangled_name(f);
 }
 
@@ -4809,6 +4821,76 @@ static int codegen_try_emit_var_plus_lit_stmt(FILE *out, const char *pad, const 
     return 0;
 }
 
+/* 前向声明：codegen_emit_if_branch_stmt 递归处理 else if 链时调 codegen_emit_if_stmt。 */
+static int codegen_emit_if_stmt(FILE *out, const char *pad, const struct ASTExpr *st);
+
+/**
+ * IF 分支 statement 形式 emit：BLOCK → `{ ... }`；RETURN/BREAK/CONTINUE 直出；其他 → `{ expr; }`。
+ * 【Why 根源治理】statement-if 的 then/else 不需要返回值，直接生成 C 语句形式，
+ * 不走 codegen_emit_if_expr_impl 的 `({ __tmp; })` 表达式路径——后者假设需要值。
+ * 【Invariant】仅 statement 位置调用；表达式位置仍走 codegen_emit_if_expr_impl。
+ * 【Asm/Perf】cc -O2 后直接生成 jcc/jmp，无临时变量、无 (void) 包裹。
+ */
+static int codegen_emit_if_branch_stmt(FILE *out, const char *pad, const struct ASTExpr *br) {
+    if (!br) { fprintf(out, "{}"); return 0; }
+    if (br->kind == AST_EXPR_BLOCK) {
+        fprintf(out, "{ ");
+        /* 【Why 根源治理】is_void_return_context=0：statement-if 的 then/else BLOCK 内
+         * return 应正常返回值（return expr;），不应被 (void)(expr); return; 丢弃。
+         * 此前传 1 导致 regex_re_from_handle 的 `if (re==0) { return 0; }` 被生成为
+         * `if (re==0) { (void)(0); return; }` —— return 无值，cc 报 return-mismatch。 */
+        if (codegen_block_body(br->value.block, 2, out, 0, 0, NULL) != 0) return -1;
+        fprintf(out, " }");
+        return 0;
+    }
+    if (br->kind == AST_EXPR_RETURN) {
+        fprintf(out, "{ ");
+        if (br->value.unary.operand) {
+            fprintf(out, "return ");
+            if (codegen_expr(br->value.unary.operand, out) != 0) return -1;
+            fprintf(out, ";");
+        } else {
+            fprintf(out, "return;");
+        }
+        fprintf(out, " }");
+        return 0;
+    }
+    if (br->kind == AST_EXPR_CONTINUE) { fprintf(out, "{ continue; }"); return 0; }
+    if (br->kind == AST_EXPR_BREAK) { fprintf(out, "{ break; }"); return 0; }
+    /* 【Why 根源治理 B 组】else if 链：else 分支本身是另一个 IF（parser 把
+     * `if (c1) {...} else if (c2) {...} else if (c3) {...}` 解析为嵌套 IF）。
+     * 递归调 codegen_emit_if_stmt 生成 `else if (c2) {...} else ...` statement 形式，
+     * 不走 codegen_expr 表达式路径——后者会生成 `({ __tmp; })` 导致类型混乱。 */
+    if (br->kind == AST_EXPR_IF) {
+        return codegen_emit_if_stmt(out, pad, br);
+    }
+    /* 普通表达式 → 表达式语句形式 */
+    fprintf(out, "{ ");
+    if (codegen_expr(br, out) != 0) return -1;
+    fprintf(out, "; }");
+    return 0;
+}
+
+/**
+ * IF statement 形式 emit：直接生成 `if (cond) { then } else { else }`，不走表达式路径。
+ * 根源治理 B 组：消除 statement-if 被当表达式处理生成的 `({ __tmp; })` 与 (void) 包裹。
+ */
+static int codegen_emit_if_stmt(FILE *out, const char *pad, const struct ASTExpr *st) {
+    const struct ASTExpr *cond = st->value.if_expr.cond;
+    const struct ASTExpr *then_e = st->value.if_expr.then_expr;
+    const struct ASTExpr *else_e = st->value.if_expr.else_expr;
+    fprintf(out, "%sif (", pad);
+    if (codegen_expr(cond, out) != 0) return -1;
+    fprintf(out, ") ");
+    if (codegen_emit_if_branch_stmt(out, pad, then_e) != 0) return -1;
+    if (else_e) {
+        fprintf(out, " else ");
+        if (codegen_emit_if_branch_stmt(out, pad, else_e) != 0) return -1;
+    }
+    fprintf(out, "\n");
+    return 0;
+}
+
 /**
  * C 路径输出一条表达式语句：continue/break/return 直出；赋值 emit `expr;`；其余 `(void)(expr);`。
  * 返回 0 成功，-1 失败。
@@ -4848,6 +4930,13 @@ static int codegen_emit_expr_stmt(FILE *out, const char *pad, const struct ASTEx
             }
         }
         return 0;
+    }
+    /* 【Why 根源治理 B 组】IF 处于 statement 位置时直接生成 C statement-if 形式，
+     * 不走 codegen_expr 表达式路径——后者看到 then/else 为 RETURN/BREAK/CONTINUE
+     * 就走 `({ __tmp; })` 表达式形式，生成 (void) 包裹的无意义临时变量，
+     * 且 resolved_type NULL 时默认 "int32_t" 兜底导致类型不匹配。 */
+    if (st->kind == AST_EXPR_IF) {
+        return codegen_emit_if_stmt(out, pad, st);
     }
     if (codegen_expr_is_assign_stmt(st)) {
         {
@@ -4993,6 +5082,30 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                   if (into_r == -1) return -1;
                   if (into_r == 1) break;
                 }
+                /** let x: T; 无显式初值：C 零初始化（与 asm 栈 prologue 清零一致，同 line 5200）。
+                 *  【Why 逻辑根源】stmt_order 路径（case 1）必须与 early/late-let、func_body fallback 对无 init 行为对称，
+                 *  否则会 emit `T name = ;`（带等号无值）致 C 语法错误，触发 codegen_one_func 返回 -1。
+                 *  【Invariant】数组 emit `T name[64] = {0};`；指针 emit `T * name = 0;`；其它 emit `T name = {0};`。 */
+                if (!linit) {
+                    if (ety && ety->kind == AST_TYPE_ARRAY && ety->elem_type) {
+                        fprintf(out, "%s", pad);
+                        emit_local_array_decl(ety, name, "", out); fprintf(out, "= {0}");
+                        fprintf(out, ";\n");
+                    } else if (ety && ety->kind == AST_TYPE_PTR && ety->elem_type) {
+                        if (ety->is_volatile)
+                            fprintf(out, "%svolatile %s * %s = 0;\n", pad, c_type_str(ety->elem_type), name);
+                        else
+                            fprintf(out, "%s%s * %s = 0;\n", pad, c_type_str(ety->elem_type), name);
+                    } else if (ety && ety->kind == AST_TYPE_NAMED && ety->name) {
+                        fprintf(out, "%s%s %s = {0};\n", pad, c_type_str(ety), name);
+                    } else if (ety && ety->kind == AST_TYPE_SLICE && ety->elem_type) {
+                        ensure_slice_struct(ety, out);
+                        fprintf(out, "%s%s %s = {0};\n", pad, c_type_str(ety), name);
+                    } else {
+                        fprintf(out, "%s%s %s = {0};\n", pad, ety ? c_type_str(ety) : "int32_t", name);
+                    }
+                    break;
+                }
                 if (ety && ety->kind == AST_TYPE_PTR && ety->elem_type) {
                     /* K2：*volatile T 声明发 `volatile <elem> * name`，cc 据此不消除其解引用读写 */
                     if (ety->is_volatile)
@@ -5004,15 +5117,15 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 else if (ety && ety->kind == AST_TYPE_ARRAY && ety->elem_type) {
                     fprintf(out, "%s", pad);
                     emit_local_array_decl(ety, name, "", out);
-                    if (linit && linit->kind == AST_EXPR_VAR && linit->value.var.name) {
+                    if (linit->kind == AST_EXPR_VAR && linit->value.var.name) {
                         fprintf(out, ";\n%smemcpy(%s, %s, sizeof(%s));\n", pad, name, linit->value.var.name, name);
                         break;
                     }
-                    if (linit && linit->kind == AST_EXPR_LIT && linit->value.int_val == 0) {
+                    if (linit->kind == AST_EXPR_LIT && linit->value.int_val == 0) {
                         fprintf(out, ";\n%smemset(%s, 0, sizeof(%s));\n", pad, name, name);
                         break;
                     }
-                    if (linit && linit->kind != AST_EXPR_ARRAY_LIT) {
+                    if (linit->kind != AST_EXPR_ARRAY_LIT) {
                         fprintf(out, ";\n%smemcpy(%s, (", pad, name);
                         if (codegen_expr(linit, out) != 0) return -1;
                         fprintf(out, "), sizeof(%s));\n", name);
@@ -5134,16 +5247,31 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
               if (into_r == -1) return -1;
               if (into_r == 1) continue;
             }
+            /** let x: T; 无显式初值：C 零初始化（与 asm 栈 prologue 清零一致，同 line 5200）。
+             *  【Why 逻辑根源】early-let 分支与 late-let 必须对无 init 行为对称，否则会 emit `T name = ;`（带等号无值）致 C 语法错误。
+             *  【Invariant】数组 emit `T name[64] = {0};`；指针 emit `T * name = 0;`；其它 emit `T name = {0};`。 */
+            if (!linit) {
+                if (ety && ety->kind == AST_TYPE_ARRAY && ety->elem_type) {
+                    fprintf(out, "%s", pad);
+                    emit_local_array_decl(ety, name, "", out); fprintf(out, "= {0}");
+                    fprintf(out, ";\n");
+                } else if (ety && ety->kind == AST_TYPE_PTR && ety->elem_type) {
+                    fprintf(out, "%s%s * %s = 0;\n", pad, c_type_str(ety->elem_type), name);
+                } else {
+                    fprintf(out, "%s%s %s = {0};\n", pad, ety ? c_type_str(ety) : "int32_t", name);
+                }
+                continue;
+            }
             if (ety && ety->kind == AST_TYPE_PTR && ety->elem_type) fprintf(out, "%s%s * %s = ", pad, c_type_str(ety->elem_type), name);
             else if (ety && ety->kind == AST_TYPE_NAMED && ety->name) fprintf(out, "%s%s %s = ", pad, c_type_str(ety), name);
             else if (ety && ety->kind == AST_TYPE_ARRAY && ety->elem_type) {
                 fprintf(out, "%s", pad);
                 emit_local_array_decl(ety, name, "", out);
-                if (linit && linit->kind == AST_EXPR_VAR && linit->value.var.name) {
+                if (linit->kind == AST_EXPR_VAR && linit->value.var.name) {
                     fprintf(out, ";\n%smemcpy(%s, %s, sizeof(%s));\n", pad, name, linit->value.var.name, name);
                     continue;
                 }
-                if (linit && linit->kind != AST_EXPR_ARRAY_LIT) {
+                if (linit->kind != AST_EXPR_ARRAY_LIT) {
                     fprintf(out, ";\n%smemcpy(%s, (", pad, name);
                     if (codegen_expr(linit, out) != 0) return -1;
                     fprintf(out, "), sizeof(%s));\n", name);
@@ -5189,7 +5317,7 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                 if (!linit_i) {
                     if (ety && ety->kind == AST_TYPE_ARRAY && ety->elem_type) {
                         fprintf(out, "%s", pad);
-                        emit_local_array_decl(ety, name, " = {0}", out);
+                        emit_local_array_decl(ety, name, "", out); fprintf(out, "= {0}");
                         fprintf(out, ";\n");
                     } else if (ety && ety->kind == AST_TYPE_PTR && ety->elem_type) {
                         fprintf(out, "%s%s * %s = 0;\n", pad, c_type_str(ety->elem_type), name);
@@ -5502,6 +5630,15 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
         if (codegen_expr(b->final_expr, out) != 0) return -1;
         fprintf(out, ";\n");
         return 0;
+    }
+    /* 【Why 根源治理 B 组】final_expr 为 IF 且无 final_result_var 时，处于 statement 位置，
+     * 直接生成 statement-if 形式，不走 codegen_expr 表达式路径——后者会生成
+     * (void)({ __tmp; if(...) ... else ...; __tmp; }) 形式，导致临时变量类型混乱。
+     * 此前 codegen_block_body 的 final_expr 默认走 (void)(expr); 路径，对 IF 表达式
+     * 触发 codegen_emit_if_expr_impl 的 __tmp 生成，是 B 组（regex if-else if 链）
+     * 类型不匹配的根因。final_result_var 非 NULL 时（表达式上下文需赋值）仍走原路径。 */
+    if (b->final_expr->kind == AST_EXPR_IF && (!final_result_var || !*final_result_var)) {
+        return codegen_emit_if_stmt(out, pad, b->final_expr);
     }
     if (final_result_var && *final_result_var) {
         fprintf(out, "%s%s = ", pad, final_result_var);
@@ -5958,6 +6095,30 @@ static int codegen_func_body(const struct ASTBlock *b, const struct ASTModule *m
         const struct ASTType *ty = b->let_decls[i].type;
         const struct ASTExpr *linit = b->let_decls[i].init;
         const struct ASTType *ety = codegen_emit_type(ty);
+        /** let x: T; 无显式初值：C 零初始化（与 asm 栈 prologue 清零一致，同 line 5200）。
+         *  【Why 逻辑根源】func_body fallback 路径（num_stmt_order==0）必须与 block_body early/late-let 对无 init 行为对称，
+         *  否则会 emit `T name = ;`（带等号无值）致 C 语法错误，触发 codegen_one_func 返回 -1。
+         *  【Invariant】数组 emit `T name[64] = {0};`；指针 emit `T * name = 0;`；其它 emit `T name = {0};`。 */
+        if (!linit) {
+            if (ety && ety->kind == AST_TYPE_ARRAY && ety->elem_type) {
+                fprintf(out, "%s", pad);
+                emit_local_array_decl(ety, name, "", out); fprintf(out, "= {0}");
+                fprintf(out, ";\n");
+            } else if (ety && ety->kind == AST_TYPE_PTR && ety->elem_type) {
+                fprintf(out, "%s%s * %s = 0;\n", pad, c_type_str(ety->elem_type), name);
+            } else if (ety && ety->kind == AST_TYPE_NAMED && ety->name) {
+                if (is_enum_type(m, ety->name))
+                    fprintf(out, "%senum %s %s = {0};\n", pad, ety->name, name);
+                else
+                    fprintf(out, "%s%s %s = {0};\n", pad, c_type_str(ety), name);
+            } else if (ety && ety->kind == AST_TYPE_SLICE && ety->elem_type) {
+                ensure_slice_struct(ety, out);
+                fprintf(out, "%s%s %s = {0};\n", pad, c_type_str(ety), name);
+            } else {
+                fprintf(out, "%s%s %s = {0};\n", pad, ety ? c_type_str(ety) : "int32_t", name);
+            }
+            continue;
+        }
         if (ety && ety->kind == AST_TYPE_NAMED && ety->name) {
             if (is_enum_type(m, ety->name))
                 fprintf(out, "%senum %s %s = ", pad, ety->name, name);
@@ -5967,15 +6128,15 @@ static int codegen_func_body(const struct ASTBlock *b, const struct ASTModule *m
         else if (ety && ety->kind == AST_TYPE_ARRAY && ety->elem_type) {
             fprintf(out, "%s", pad);
             emit_local_array_decl(ety, name, "", out);
-            if (linit && linit->kind == AST_EXPR_VAR && linit->value.var.name) {
+            if (linit->kind == AST_EXPR_VAR && linit->value.var.name) {
                 fprintf(out, ";\n%smemcpy(%s, %s, sizeof(%s));\n", pad, name, linit->value.var.name, name);
                 continue;
             }
-            if (linit && linit->kind == AST_EXPR_LIT && linit->value.int_val == 0) {
+            if (linit->kind == AST_EXPR_LIT && linit->value.int_val == 0) {
                 fprintf(out, ";\n%smemset(%s, 0, sizeof(%s));\n", pad, name, name);
                 continue;
             }
-            if (linit && linit->kind != AST_EXPR_ARRAY_LIT) {
+            if (linit->kind != AST_EXPR_ARRAY_LIT) {
                 fprintf(out, ";\n%smemcpy(%s, (", pad, name);
                 if (codegen_expr(linit, out) != 0) return -1;
                 fprintf(out, "), sizeof(%s));\n", name);
@@ -7519,12 +7680,56 @@ static int codegen_param_is_u8_array(const struct ASTParam *p, int array_size) {
 }
 
 /**
+ * 判定函数名是否属于 C 标准库（<string.h>/<stdlib.h>/<arpa/inet.h>/<stdio.h>）。
+ *
+ * 【Why 逻辑根源】SHUX 模块中 `extern function memcpy/memset/malloc/free/...` 声明会被
+ *   codegen 直译为 `extern uint8_t * memcpy(uint8_t * dst, uint8_t * src, size_t n);`，
+ *   与 preamble 已 `#include` 的 <string.h>/<stdlib.h> 中 `void *memcpy(void *, const void *, size_t)`
+ *   类型冲突（Darwin secure/_string.h 还会把 memset/memcpy 展开为 __builtin___memset_chk 宏）。
+ *   根源治理：识别这些 libc 符号后跳过 extern emit，让 C 编译器使用系统头文件中的正确声明。
+ *
+ * 【Invariant 状态不变量】纯查询函数，无副作用；不修改任何全局状态；输入 name 可为 NULL。
+ *
+ * 【Asm/Perf 性能预期】仅在 -E 模式输出库模块 extern 原型时调用，非编译热路径；
+ *   线性查找 + 短路 strcmp，64 个符号平均 32 次比较，可忽略。
+ */
+static int codegen_is_c_stdlib_func_name(const char *name) {
+    if (!name || !*name) return 0;
+    static const char *const libc_funcs[] = {
+        /* <string.h> */
+        "memcpy", "memset", "memcmp", "memchr", "memmove", "strlen",
+        "strcpy", "strncpy", "strcat", "strncat", "strcmp", "strncmp",
+        "strchr", "strrchr", "strstr", "strtok", "strdup", "strndup",
+        /* <stdlib.h> */
+        "malloc", "free", "calloc", "realloc", "getenv",
+        "atoi", "atol", "atoll", "strtol", "strtoul", "strtoll", "strtoull", "strtod",
+        "exit", "abort", "atexit", "system", "qsort", "rand", "srand", "abs",
+        /* <arpa/inet.h> / <machine/endian.h> */
+        "ntohs", "htonl", "ntohl", "htons",
+        /* <stdio.h> */
+        "printf", "fprintf", "sprintf", "snprintf", "vprintf", "vfprintf", "vsprintf", "vsnprintf",
+        "fopen", "fclose", "fread", "fwrite", "fgets", "fputs", "fgetc", "fputc",
+        "fseek", "ftell", "feof", "ferror", "fflush", "setbuf", "setvbuf",
+        NULL
+    };
+    for (int i = 0; libc_funcs[i]; i++) {
+        if (strcmp(name, libc_funcs[i]) == 0) return 1;
+    }
+    return 0;
+}
+
+/**
  * 输出模块内显式 extern 函数原型（pipeline.x 的 extern function 等）。
  * copy_module_import_path64 第三参强制 out[64]（与 parser.x 实现一致，避免 uint8_t* 与数组形参冲突）。
+ *
+ * 【Why 逻辑根源】C 标准库函数（memcpy/memset/malloc 等）由 preamble 的 #include 提供正确声明，
+ *   这里若再 emit 一份类型不匹配的 extern 会与系统头文件冲突。codegen_is_c_stdlib_func_name 命中即跳过。
  */
 static void codegen_emit_module_extern_func_proto(FILE *out, const struct ASTFunc *f) {
     if (!f || !out) return;
     const char *name = f->name ? f->name : "";
+    /* C 标准库函数：跳过 extern emit，使用 preamble 中 #include 的系统头文件声明 */
+    if (codegen_is_c_stdlib_func_name(name)) return;
     if (strstr(name, "copy_module_import_path64") != NULL && f->num_params == 3) {
         fprintf(out, "extern %s %s(", c_type_str(f->return_type), name);
         codegen_emit_param(&f->params[0], out, NULL, 0);
