@@ -29,7 +29,6 @@
 // 等。我们提供最小集：panic/abort/ready。
 extern function runtime_panic(): void;
 extern function runtime_abort(): void;
-extern function crash_evidence_collect(has_msg: i32, msg_val: i32): void;
 /** 无参 panic：终止程序（noreturn）。用于断言失败、不可达分支等。对标
 * Rust panic!()、Zig @panic、Go panic()。 */
 function panic(): void {
@@ -55,7 +54,8 @@ function diag_collect(code: i32, detail: i32): void {
 
 /** 用户/测试可调用：登记 panic 钩子参数（has_msg/msg_val 透传 runtime）。 */
 function panic_hook_collect(has_msg: i32, msg_val: i32): void {
-  unsafe { crash_evidence_collect(has_msg, msg_val); }
+  /** 【Why 根源】runtime.x 提供实现：runtime_crash_evidence_collect_c 转发到 shux_crash_evidence_collect_c C 桩。 */
+  unsafe { runtime_crash_evidence_collect_c(has_msg, msg_val); }
 }
 
 extern function runtime_crash_evidence_collect_c(has_msg: i32, msg_val: i32): void;
