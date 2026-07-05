@@ -7776,7 +7776,7 @@ static int codegen_is_c_stdlib_func_name(const char *name) {
         "strcpy", "strncpy", "strcat", "strncat", "strcmp", "strncmp",
         "strchr", "strrchr", "strstr", "strtok", "strdup", "strndup",
         /* <stdlib.h> */
-        "malloc", "free", "calloc", "realloc", "getenv",
+        "malloc", "free", "calloc", "realloc", "getenv", "posix_memalign",
         "atoi", "atol", "atoll", "strtol", "strtoul", "strtoll", "strtoull", "strtod",
         "exit", "abort", "atexit", "system", "qsort", "rand", "srand", "abs",
         /* <arpa/inet.h> / <machine/endian.h> */
@@ -9026,7 +9026,13 @@ static void wpo_collect_edges_from_expr(const struct ASTExpr *e, int caller_id, 
     }
 }
 
-/** 从块递归收集 call 边。 */
+/** 从块递归收集 call 边。
+ * 【Why 逻辑根源】必须覆盖块内所有可能包含 CALL 的子结构，否则被调用函数会被
+ * 误判为 unreachable 而 DCE 剔除，导致链接时 undeclared symbol。
+ * 与 typeck_block（typeck.c:4031）和 collect_var_names_from_block（codegen.c:7124）
+ * 的遍历范围严格对齐：defer_blocks / regions / with_arenas / try_catches 均须递归。
+ * 【Invariant】只读遍历，不修改 AST；caller_id 为调用者节点 id，全程不变。
+ * 【Asm/Perf】WPO 为编译期静态分析，不影响运行期代码生成质量。 */
 static void wpo_collect_edges_from_block(const struct ASTBlock *b, int caller_id, WpoGraph *g) {
     if (!b || !g || caller_id < 0) return;
     for (int i = 0; i < b->num_consts; i++)
@@ -9040,6 +9046,29 @@ static void wpo_collect_edges_from_block(const struct ASTBlock *b, int caller_id
         if (b->for_loops[i].cond) wpo_collect_edges_from_expr(b->for_loops[i].cond, caller_id, g);
         if (b->for_loops[i].step) wpo_collect_edges_from_expr(b->for_loops[i].step, caller_id, g);
         wpo_collect_edges_from_block(b->for_loops[i].body, caller_id, g);
+    }
+    /* defer 块体：块退出时执行，可能含 call（如 heap.free） */
+    for (int i = 0; i < b->num_defers; i++)
+        if (b->defer_blocks && i < b->num_defers && b->defer_blocks[i])
+            wpo_collect_edges_from_block(b->defer_blocks[i], caller_id, g);
+    /* region/unsafe 块体：unsafe { start = slot(*s, key); } 等含 call；
+     * 漏处理会导致 slot 被误判 unreachable 而 DCE 剔除（run-set.sh 回归根因）。 */
+    for (int i = 0; i < b->num_regions; i++)
+        if (b->regions && b->regions[i].body)
+            wpo_collect_edges_from_block(b->regions[i].body, caller_id, g);
+    /* with_arena(cap) { body }：cap 表达式与 body 均可能含 call */
+    for (int i = 0; i < b->num_with_arenas; i++) {
+        if (b->with_arenas && b->with_arenas[i].cap)
+            wpo_collect_edges_from_expr(b->with_arenas[i].cap, caller_id, g);
+        if (b->with_arenas && b->with_arenas[i].body)
+            wpo_collect_edges_from_block(b->with_arenas[i].body, caller_id, g);
+    }
+    /* try { } catch { }：try_body 与 catch_body 均可能含 call */
+    for (int i = 0; i < b->num_try_catches; i++) {
+        if (b->try_catches && b->try_catches[i].try_body)
+            wpo_collect_edges_from_block(b->try_catches[i].try_body, caller_id, g);
+        if (b->try_catches && b->try_catches[i].catch_body)
+            wpo_collect_edges_from_block(b->try_catches[i].catch_body, caller_id, g);
     }
     for (int i = 0; i < b->num_labeled_stmts; i++)
         if (b->labeled_stmts[i].kind == AST_STMT_RETURN && b->labeled_stmts[i].u.return_expr)
