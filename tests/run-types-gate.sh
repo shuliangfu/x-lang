@@ -40,7 +40,13 @@ done
 
 # shellcheck source=tests/lib/bootstrap-link-shux.sh
 . tests/lib/bootstrap-link-shux.sh
-TYPES_LINK_BACKEND_ARGS="${SHUX_TYPES_LINK_BACKEND_ARGS:--backend c}"
+# 【Why 根源】shux-c (SHUX_LEGACY_C_FRONTEND=1 build) 不支持 -backend 参数；
+# 仅 shux_asm/shux_asm2 等链 asm 后端的构建支持。
+# bootstrap-link-shux.sh 已根据 RUN_SHUX 类型设置 SHUX_LINK_BACKEND_ARGS：
+#   shux-c → "" (空，不传 -backend)
+#   shux_asm → "-backend asm"
+# 此处沿用之，避免 shux-c 报 "-backend asm not available in this build"。
+TYPES_LINK_BACKEND_ARGS="${SHUX_TYPES_LINK_BACKEND_ARGS:-${SHUX_LINK_BACKEND_ARGS:-}}"
 
 echo "=== types gate: link + run ==="
 for f in "${RUN_CASES[@]}"; do
