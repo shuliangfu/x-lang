@@ -9,7 +9,15 @@ SHUX=${SHUX:-./compiler/shux}
 # shellcheck source=lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 LINK_SHUX="$RUN_SHUX"
-STRUCT_LINK_BACKEND_ARGS="${SHUX_LINK_BACKEND_ARGS:--backend asm}"
+# 【Why 根源】shux-c (SHUX_LEGACY_C_FRONTEND=1) 不支持 -backend 参数；
+#   SHUX_LINK_BACKEND_ARGS 由 bootstrap-link-shux.sh 设置：shux-c → ""，shux_asm* → "-backend asm"。
+#   沿用 SHUX_LINK_BACKEND_ARGS（空默认值），不再硬编码 -backend asm，避免 shux-c 报错。
+STRUCT_LINK_BACKEND_ARGS="${SHUX_LINK_BACKEND_ARGS:-}"
+# codegen 后端参数：shux_asm* 支持 -backend c 走 C 后端；shux-c 不支持 -backend，留空。
+STRUCT_CODEGEN_BACKEND_ARGS=""
+case "$(basename "$LINK_SHUX")" in
+  shux_asm|shux_asm2|shux_asm_stage1) STRUCT_CODEGEN_BACKEND_ARGS="-backend c" ;;
+esac
 
 # struct -o：bstrict 强制 SHUX_LINK_SHUX=shux-c 时 shux-c 对 simple.x 易 SIGSEGV；
 # W3/lang-unsafe 已验证 shux_asm2 可绿（与 lang-unsafe-gate SHUX_BIN 策略一致）。
@@ -18,9 +26,11 @@ if [ -z "${SHUX_BOOTSTRAP_MIN:-}" ]; then
   if [ -x ./compiler/shux_asm2 ] && ci_native_shu ./compiler/shux_asm2; then
     LINK_SHUX=./compiler/shux_asm2
     STRUCT_LINK_BACKEND_ARGS=""
+    STRUCT_CODEGEN_BACKEND_ARGS="-backend c"
   elif [ -x ./compiler/shux_asm ] && ci_native_shu ./compiler/shux_asm; then
     LINK_SHUX=./compiler/shux_asm
     STRUCT_LINK_BACKEND_ARGS=""
+    STRUCT_CODEGEN_BACKEND_ARGS="-backend c"
   fi
 fi
 
@@ -28,7 +38,7 @@ fi
 struct_link_o() {
   local x="$1" out="$2"
   set +e
-  $LINK_SHUX $STRUCT_LINK_BACKEND_ARGS -backend c -L . "$x" -o "$out" 2>&1
+  $LINK_SHUX $STRUCT_LINK_BACKEND_ARGS $STRUCT_CODEGEN_BACKEND_ARGS -L . "$x" -o "$out" 2>&1
   local ec=$?
   set -e
   if [ "$ec" -ne 0 ] && [ -z "${SHUX_BOOTSTRAP_MIN:-}" ] \
