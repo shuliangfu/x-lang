@@ -52,7 +52,12 @@ allow(padding) struct FsIovecBuf { ptr: *u8; len: usize; handle: usize; }
 /** POSIX 目录句柄：DIR* 包装。 */
 allow(padding) struct FsDirHandlePosix { dir: *u8; }
 
-/** Linux x86_64/aarch64 glibc struct stat 关键字段布局。 */
+/** Linux x86_64/aarch64 glibc struct stat 完整布局（144 字节）。
+ * 【Why 逻辑根源】fstat 由 libc 写入 sizeof(struct stat) 字节；若 PosixStatBuf 偏短，
+ *   fstat 越界写栈触发 __stack_chk_fail。须与 /usr/include/bits/struct_stat.h 完全对齐：
+ *   st_blksize 为 long（8B），timespec 为 {tv_sec, tv_nsec}（16B），末尾 __unused[3]（24B）。
+ * 【Invariant】struct stat x86_64 sizeof = 144；本结构 sizeof 须 == 144。
+ * 【Asm/Perf】fstat 非热路径，多 48B 栈空间可忽略。 */
 #[cfg(target_os = "linux")]
 allow(padding) struct PosixStatBuf {
   st_dev: u64;
@@ -64,12 +69,17 @@ allow(padding) struct PosixStatBuf {
   pad0: u32;
   st_rdev: u64;
   st_size: i64;
-  st_blksize: i32;
-  pad1: i32;
+  st_blksize: i64;
   st_blocks: i64;
   st_atime: i64;
+  st_atime_nsec: i64;
   st_mtime: i64;
+  st_mtime_nsec: i64;
   st_ctime: i64;
+  st_ctime_nsec: i64;
+  __unused0: i64;
+  __unused1: i64;
+  __unused2: i64;
 }
 
 /** macOS struct stat 关键字段布局（arm64/x86_64 通用 enough for hosted）。 */
