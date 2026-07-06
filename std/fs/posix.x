@@ -23,6 +23,11 @@
 // 【链接】
 // hosted `-o exe` 由链接器解析 open/read/mmap 等 libc 符号；无 fs.o。
 
+/* 【Why 根源治理】导入 std.io.sync 以复用 Iovec/PollFd 定义，避免跨模块重定义导致
+ * codegen 生成不同 C 类型名（std_fs_posix_Iovec vs std_io_sync_Iovec），
+ * 引发 readv/writev/poll extern 声明类型冲突。 */
+const io_sync = import("std.io.sync");
+
 /** EXC-002：fs_open_read 等失败时立即保存 errno，供 fs_last_error_c 读取。 */
 let fs_saved_last_error: i32 = 0;
 let fs_saved_last_error_set: i32 = 0;
@@ -36,8 +41,10 @@ allow(padding) struct FsStatOut {
   mtime_sec: i64;
 }
 
-/** readv/writev iovec 布局。 */
-allow(padding) struct Iovec { base: *u8; len: usize; }
+/* 【Why 根源治理】Iovec 不在此模块重定义。
+ * Iovec 由 std.io.sync 定义（经 std.io → std.fs → std.fs.posix 依赖链可达）。
+ * 重定义导致 codegen 生成 std_fs_posix_Iovec vs std_io_sync_Iovec，
+ * 引发 readv/writev extern 声明类型冲突。 */
 
 /** FsIovecBuf 与 mod.x Buffer ABI 一致。 */
 allow(padding) struct FsIovecBuf { ptr: *u8; len: usize; handle: usize; }
@@ -93,8 +100,8 @@ allow(padding) struct PosixStatBuf {
   st_qspare: i64[2];
 }
 
-/** pollfd 布局（fd/events/revents）。 */
-allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
+/* 【Why 根源治理】PollFd 不在此模块重定义。
+ * PollFd 由 std.io.sync 定义；重定义导致 poll extern 声明类型冲突。 */
 
 extern function open(path: *u8, flags: i32, mode: i32): i32;
 extern function close(fd: i32): i32;

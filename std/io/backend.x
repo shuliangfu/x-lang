@@ -33,11 +33,12 @@ const io_platform = import("std.io.win32");
 const io_read_ptr_mod = import("std.io.read_ptr");
 const io_stubs_mod = import("std.io.stubs");
 
-/** 与 driver Buffer ABI 一致。 */
-allow(padding) struct IoBatchBuf { ptr: *u8; len: usize; handle: usize; }
-
-/** M-5 slice 视图（与 io_read_ptr 模块一致）。 */
-allow(padding) struct ShuxSliceU8 { data: *u8; length: usize; }
+/* 【Why 根源治理】IoBatchBuf 和 ShuxSliceU8 不在此模块重定义。
+ * IoBatchBuf 由 std.io.sync（io_platform）定义，ShuxSliceU8 由 std.io.read_ptr
+ * （io_read_ptr_mod）定义。重定义会导致 codegen 生成不同的 C 类型名
+ *（std_io_backend_IoBatchBuf vs std_io_sync_IoBatchBuf），引发跨模块类型冲突。
+ * typeck 按名字解析 struct，codegen 的 codegen_emit_struct_type_name_only 会遍历
+ * codegen_dep_mods 查找定义模块，自动使用正确的 C 前缀。 */
 
 /* ─── 同步 read/write（转发平台模块）─── */
 

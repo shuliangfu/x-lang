@@ -100,10 +100,10 @@ function create(path: *u8): i32 { return fs_open_write_c(path); }
 function close(fd: i32): i32 { return fs_platform.fs_posix_close_c(fd); }
 /** 大块读：从 fd 读入最多 count 字节到 buf。推荐 count ≥
 * fs_read_chunk()。返回读入字节数，0=EOF，-1=错误。 */
-function read(fd: i32, buf: *u8, count: usize): isize { return fs_posix_read_c(fd, buf, count); }
+function read(fd: i32, buf: *u8, count: usize): isize { return fs_posix_read_c(fd, buf, count) as isize; }
 /** 大块写：将 buf[0..count-1] 写入 fd。返回写入字节数，-1=错误。 */
 function write(fd: i32, buf: *u8, count: usize): isize { return fs_posix_write_c(fd, buf,
-  count); }
+  count) as isize; }
 /** 并发读：从 fd 的 offset 处读最多 count 字节到 buf，不改变 fd
 * 位置；多线程可同时对同一 fd 调 fs_pread 读不同
 * offset，极致并发。返回读入字节数，0=EOF，-1=错误。 */

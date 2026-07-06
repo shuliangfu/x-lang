@@ -98,6 +98,7 @@ function io_write(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize {
 /**
  * 批量读：最多 4 段；timeout_ms=0 且 n≥2 时走 readv，否则逐段 io_read。
  */
+#[no_mangle]
 function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): isize {
   if (n <= 0 || n > 4) {
     return -1;
@@ -142,6 +143,7 @@ function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8,
 /**
  * 批量写：最多 4 段；timeout_ms=0 且 n≥2 时走 writev，否则逐段 io_write。
  */
+#[no_mangle]
 function io_write_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): isize {
   if (n <= 0 || n > 4) {
     return -1;
