@@ -3861,6 +3861,30 @@ next_stmt:
                         return NULL;
                     }
                     advance(p);
+                    /* 【Why 逻辑根源】#[cfg] 块内末条语句若以 } 结尾（如 if (...) { ... }），
+                     *   parse_block 会将其设为 cb->final_expr 而非 expr_stmt。flatten 时
+                     *   final_expr 被追加到 dst 末尾而非源码位置，导致语句顺序错乱
+                     *   （如 fs_mmap_ro_c 中 fstat 调用跑到 mmap 之后）。
+                     *   修复：cfg 块不是表达式块（无返回值），末条语句须按源码顺序并入
+                     *   stmt_order，故将 final_expr 降级为 expr_stmt 再 flatten。
+                     * 【Invariant】cb->final_expr 非 NULL 时降级；NULL 时无操作。
+                     * 【Asm/Perf】仅 cfg 块（少量），无热路径影响。 */
+                    if (cb->final_expr) {
+                        if (!cb->expr_stmts) {
+                            cb->expr_stmts = (ASTExpr **)malloc((size_t)MAX_EXPR_STMTS * sizeof(ASTExpr *));
+                            if (!cb->expr_stmts) { ast_block_free(cb); ast_block_free(b); parser_oom(p); return NULL; }
+                        }
+                        if (cb->num_expr_stmts >= MAX_EXPR_STMTS) {
+                            ast_block_free(cb);
+                            fail(p, "too many expression statements in #[cfg] block");
+                            if (parser_recovery_enabled()) { parser_recover_statement_boundary(p); goto next_stmt; }
+                            ast_block_free(b);
+                            return NULL;
+                        }
+                        cb->expr_stmts[cb->num_expr_stmts++] = cb->final_expr;
+                        push_stmt_order(cb, 2, cb->num_expr_stmts - 1);
+                        cb->final_expr = NULL;
+                    }
                     if (ast_block_flatten_into(b, cb) != 0) {
                         ast_block_free(cb);
                         fail(p, "too many statements in #[cfg] block");
