@@ -6918,24 +6918,34 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
         codegen_async_cps_ctx = async_cps_ctx;
         codegen_async_cps_active = 1;
     }
-    /* std.io.driver 的 register/submit_read/submit_write 首参已生成为 ptrdiff_t，须直接调 _buf 包装；submit_register_fixed_buffers_buf 首参为 struct *，体内转 intptr_t 调 io_register_buffers_buf_i32。 */
+    /* 【Why 逻辑根源】std.io.driver 的 register/submit_read/submit_write 首参经 codegen_io_driver_param_override
+     *   被改写为 ptrdiff_t（Buffer 结构体指针的整数表示）。函数体须从该指针还原 Buffer 三字段 (ptr, len, handle)，
+     *   再调 std_io_core_shux_io_*（std/io/core.x 中的 SHUX 实现，最终走 write/read syscall）。
+     *   绝不能调 preamble 的 shux_io_submit_write_buf → shux_io_submit_write（weak 桩，return 0，无 syscall）——
+     *   那是 C ABI 兜底桩，仅用于无 std.io.core 依赖时的链接占位。macOS/Linux 均须走 core 实现才能真正 I/O。
+     *   shu_buffer_abi_t 与 std_io_driver_Buffer 同布局（ptr+len+handle 24B），uintptr_t 转换安全。
+     * 【Invariant】p0 为非空 Buffer 指针（调用方传 &buf 经 (ptrdiff_t)(uintptr_t) 转换）；shu_buffer_abi_t 已在 preamble 定义。
+     * 【Asm/Perf】仅一次内存解引用（3 字段连续），无堆分配；非热路径（每次 I/O 提交一次）。 */
     if (codegen_library_import_path && f->name && f->params
         && (strcmp(codegen_library_import_path, "std.io.driver") == 0 || strcmp(codegen_library_import_path, "std/io/driver") == 0)) {
         const char *p0 = (f->num_params > 0 && f->params[0].name && (unsigned char)f->params[0].name[0] > ' ') ? f->params[0].name : "buf";
         const char *p1 = (f->num_params > 1 && f->params[1].name && (unsigned char)f->params[1].name[0] > ' ') ? f->params[1].name : "timeout_ms";
-        /* 直接调 preamble 的 _buf/_i32 包装，避免依赖 #define 与生成文件中 core 的 3 参 extern 冲突 */
+        /* 调 std_io_core_* SHUX 实现（最终走 syscall），不调 preamble weak 桩 */
         if (strcmp(f->name, "register") == 0 && f->num_params == 1) {
-            fprintf(out, "  return shux_io_register_buf(%s);\n", p0);
+            fprintf(out, "  const shu_buffer_abi_t *_b = (const shu_buffer_abi_t *)(uintptr_t)%s;\n", p0);
+            fprintf(out, "  return std_io_core_shux_io_register((uint8_t *)_b->ptr, _b->len, _b->handle);\n");
             fprintf(out, "}\n");
             return 0;
         }
         if (strcmp(f->name, "submit_read") == 0 && f->num_params == 2) {
-            fprintf(out, "  return shux_io_submit_read_buf(%s, %s);\n", p0, p1);
+            fprintf(out, "  const shu_buffer_abi_t *_b = (const shu_buffer_abi_t *)(uintptr_t)%s;\n", p0);
+            fprintf(out, "  return std_io_core_shux_io_submit_read((uint8_t *)_b->ptr, _b->len, _b->handle, %s);\n", p1);
             fprintf(out, "}\n");
             return 0;
         }
         if (strcmp(f->name, "submit_write") == 0 && f->num_params == 2) {
-            fprintf(out, "  return shux_io_submit_write_buf(%s, %s);\n", p0, p1);
+            fprintf(out, "  const shu_buffer_abi_t *_b = (const shu_buffer_abi_t *)(uintptr_t)%s;\n", p0);
+            fprintf(out, "  return std_io_core_shux_io_submit_write((uint8_t *)_b->ptr, _b->len, _b->handle, %s);\n", p1);
             fprintf(out, "}\n");
             return 0;
         }
