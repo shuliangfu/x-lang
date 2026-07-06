@@ -252,3 +252,4 @@ logs/bootstrap-seed.fresh
 
 # G-06 seed: asm_backend_partial 须入库（例外）
 !compiler/seeds/asm_backend_partial.*.o
+.trae/
