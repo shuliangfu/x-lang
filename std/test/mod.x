@@ -21,10 +21,10 @@
 // 【文件职责】assert、assert_eq、assert_ne 返回
 // 0=通过/1=失败；run 执行测试函数。
 // 【依赖】core；F-test v2 逻辑在 test.x（F-ZC 纯 .x；fn-ptr 在 runtime_test_fn_invoke.o）。
-extern function assert_c(cond: i32): i32;
-extern function assert_eq_i32_c(a: i32, b: i32): i32;
-extern function assert_eq_u32_c(a: u32, b: u32): i32;
-extern function assert_ne_i32_c(a: i32, b: i32): i32;
+extern function test_expect_c(cond: i32): i32;
+extern function test_expect_eq_i32_c(a: i32, b: i32): i32;
+extern function test_expect_eq_u32_c(a: u32, b: u32): i32;
+extern function test_expect_ne_i32_c(a: i32, b: i32): i32;
 extern function run_c(fn: usize): i32;
 extern function bench_run_c(fn: usize, iters: i32): i64;
 extern function bench_report_c(name: *u8, len: i32, ns: i64): i32;
@@ -38,13 +38,13 @@ extern function runner_report_case_c(name: *u8, len: i32, exit_code: i32): i32;
 extern function runner_report_skip_c(name: *u8, len: i32): i32;
 extern function runner_finish_c(): i32;
 /** 断言 cond 为真；返回 0 通过，1 失败。 */
-function assert(cond: i32): i32 { unsafe { return assert_c(cond); } }
+function assert(cond: i32): i32 { unsafe { return test_expect_c(cond); } }
 /** 断言 a == b（i32）；返回 0 通过，1 失败。 */
-function assert_eq(a: i32, b: i32): i32 { unsafe { return assert_eq_i32_c(a, b); } }
+function assert_eq(a: i32, b: i32): i32 { unsafe { return test_expect_eq_i32_c(a, b); } }
 /** 断言 a == b（u32）；返回 0 通过，1 失败。 */
-function assert_eq(a: u32, b: u32): i32 { unsafe { return assert_eq_u32_c(a, b); } }
+function assert_eq(a: u32, b: u32): i32 { unsafe { return test_expect_eq_u32_c(a, b); } }
 /** 断言 a != b（i32）；返回 0 通过，1 失败。 */
-function assert_ne(a: i32, b: i32): i32 { unsafe { return assert_ne_i32_c(a, b); } }
+function assert_ne(a: i32, b: i32): i32 { unsafe { return test_expect_ne_i32_c(a, b); } }
 /** expect 风格别名：与 assert 语义一致，供测试调用。 */
 function expect(cond: i32): i32 { return assert(cond); }
 function expect_eq_i32(a: i32, b: i32): i32 { return assert_eq(a, b); }
