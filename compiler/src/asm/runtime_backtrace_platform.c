@@ -350,9 +350,9 @@ int32_t backtrace_xplat_quality_c(void) {
   total = backtrace_capture_c(buf, 32);
   if (total > 0)
     resolved = backtrace_symbolicate_c(buf, total, buf, names, total);
-  diag_reportf(NULL, 0, 0, "note", NULL,
-               "backtrace xplat: platform=%s gold=%d resolved=%d total=%d",
-               plat, gold, resolved, total);
+  /* 【Why 根源】runtime 不依赖编译器 diag_reportf（仅 compiler 链入）；用 fprintf 直接输出。 */
+  fprintf(stderr, "shux: [SHUX_BT_XPLAT] backtrace xplat: platform=%s gold=%d resolved=%d total=%d\n",
+          plat, gold, resolved, total);
   if (gold < 1 || resolved < 1 || total < 1)
     return 1;
   return 0;
