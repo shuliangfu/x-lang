@@ -61,6 +61,8 @@ int32_t pipeline_codegen_path_is_std_io_driver_bytes(const uint8_t *p, int len) 
 /* codegen_emit_fmt_json_helpers_once — MinGW weak 符号有 bug，提供非 weak 定义 */
 #include <stdio.h>
 void codegen_emit_fmt_json_helpers_once(FILE *out) { (void)out; }
+/* CORE-009 builtin inline 包装器 emit；MinGW 同上，提供非 weak 定义。 */
+void codegen_emit_builtin_inline_decls(FILE *out) { (void)out; }
 int32_t bootstrap_nostdlib_pthread_is_stub(void) { return 1; }
 int32_t preprocess_if_stack_len(void) { return 0; }
 void preprocess_define_add(const char *n, const char *v) { (void)n; (void)v; }

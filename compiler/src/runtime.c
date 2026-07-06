@@ -1920,6 +1920,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(stdout, "#include <string.h>\n");
             fprintf(stdout, "#include <math.h>\n");
             codegen_emit_fmt_json_helpers_once(stdout);
+            codegen_emit_builtin_inline_decls(stdout);
             fprintf(stdout, "extern int getpid(void);\n");
             fprintf(stdout, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
             fprintf(stdout, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");
@@ -2063,6 +2064,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 fprintf(cf_lib, "#include <string.h>\n");
                 fprintf(cf_lib, "#include <math.h>\n");
                 codegen_emit_fmt_json_helpers_once(cf_lib);
+                codegen_emit_builtin_inline_decls(cf_lib);
                 {
                     const char *lib_name = shux_entry_lib_name_from_path(input_path);
                     if (codegen_library_module_to_c(mod, lib_name, ndep > 0 ? dep_mods : NULL,
@@ -2193,6 +2195,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "#include <string.h>\n"); /* memcpy for array copy (bootstrap parser.x) */
             fprintf(cf, "#include <math.h>\n");
             codegen_emit_fmt_json_helpers_once(cf);
+            codegen_emit_builtin_inline_decls(cf);
             fprintf(cf, "#include <string.h>\n");
             fprintf(cf, "extern int getpid(void);\n");
             fprintf(cf, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
@@ -4469,6 +4472,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                     fprintf(cf_lib, "#include <string.h>\n");
                     fprintf(cf_lib, "#include <math.h>\n");
                     codegen_emit_fmt_json_helpers_once(cf_lib);
+                    codegen_emit_builtin_inline_decls(cf_lib);
                     {
                         const char *lib_name = shux_entry_lib_name_from_path(input_path);
                         if (codegen_library_module_to_c(c_mod, lib_name, ndep > 0 ? dep_mods : NULL,
@@ -4603,6 +4607,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                     fprintf(cf, "#include <stdlib.h>\n");
                     fprintf(cf, "#include <stdio.h>\n");
                     fprintf(cf, "#include <string.h>\n");
+                    codegen_emit_builtin_inline_decls(cf);
                     for (int di = 0; di < n_all; di++) {
                         ASTModule *lib_deps[32];
                         const char *lib_dep_paths[32];
@@ -6172,6 +6177,7 @@ static int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
     fprintf(stdout, "#include <stdio.h>\n");
     fprintf(stdout, "#include <string.h>\n");
     fprintf(stdout, "#include <string.h>\n");
+    codegen_emit_builtin_inline_decls(stdout);
     fprintf(stdout, "extern int getpid(void);\n");
     fprintf(stdout, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
     fprintf(stdout, "  const char *_ev = getenv(\"SHUX_CRASH_EVIDENCE\");\n");

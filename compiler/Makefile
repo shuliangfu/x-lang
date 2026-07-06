@@ -882,6 +882,10 @@ runtime_test_fn_invoke.o: src/asm/runtime_test_fn_invoke.c
 runtime_random_fill.o: src/asm/runtime_random_fill.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+# zlib 宏包装桩；与 compress 同链（deflateInit2/inflateInit2 是宏，需真实函数符号）
+runtime_compress_zlib_glue.o: src/asm/runtime_compress_zlib_glue.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
 # F-ZC：time OS syscall；与 time.o 一并链入（见 runtime_time_os.c）
 runtime_time_os.o: src/asm/runtime_time_os.c
 	$(CC) $(CFLAGS) -c -o $@ $<

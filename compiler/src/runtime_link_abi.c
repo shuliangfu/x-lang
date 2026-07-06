@@ -949,6 +949,22 @@ const char *shux_runtime_random_fill_o_path(const char *argv0) {
 }
 
 /**
+ * zlib 宏包装桩路径；deflateInit2/inflateInit2 是宏，此 .o 提供真实函数符号。
+ */
+const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0) {
+    static char resolved[PATH_MAX];
+    char comp_dir[PATH_MAX];
+    int nn;
+    resolved[0] = '\0';
+    if (shu_resolve_compiler_dir(argv0, comp_dir, sizeof comp_dir) != 0)
+        return resolved;
+    nn = snprintf(resolved, sizeof resolved, "%s/runtime_compress_zlib_glue.o", comp_dir);
+    if (nn < 0 || (size_t)nn >= sizeof resolved)
+        resolved[0] = '\0';
+    return resolved;
+}
+
+/**
  * F-03：runtime_heap_user.o 路径；co-emit std.heap redirect 的 heap_*_c 符号。
  */
 const char *shux_runtime_heap_user_o_path(const char *argv0) {
@@ -1570,6 +1586,44 @@ int shux_ensure_runtime_random_fill_o(const char *argv0) {
     }
     if (!asm_link_obj_skip_missing(shux_runtime_random_fill_o_path(argv0))) {
         link_diag_runtime_obj_missing("runtime_random_fill.o", out_o);
+        return -1;
+    }
+    return 0;
+}
+
+/**
+ * 若 runtime_compress_zlib_glue.o 尚不存在则用 cc -c 从 src/asm/runtime_compress_zlib_glue.c 生成。
+ * 提供 deflateInit2/inflateInit2 真实函数符号（zlib.h 中为宏，无函数符号）。
+ */
+int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
+    char comp[PATH_MAX];
+    char out_o[PATH_MAX];
+    char src_c[PATH_MAX];
+    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
+    if (asm_link_obj_skip_missing(shux_runtime_compress_zlib_glue_o_path(argv0)))
+        return 0;
+    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
+        link_diag_runtime_obj_resolve_fail("runtime_compress_zlib_glue.o", "try: make -C compiler runtime_compress_zlib_glue.o");
+        return -1;
+    }
+    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_compress_zlib_glue.o", comp) >= sizeof out_o)
+        return -1;
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_compress_zlib_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+        link_diag_runtime_source_missing("runtime_compress_zlib_glue", src_c);
+        return -1;
+    }
+    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
+        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
+        return -1;
+    {
+        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        if (rc != 0) {
+            link_diag_runtime_obj_build_status("runtime_compress_zlib_glue.o", rc);
+            return -1;
+        }
+    }
+    if (!asm_link_obj_skip_missing(shux_runtime_compress_zlib_glue_o_path(argv0))) {
+        link_diag_runtime_obj_missing("runtime_compress_zlib_glue.o", out_o);
         return -1;
     }
     return 0;
@@ -2699,6 +2753,13 @@ void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, con
         ld_append_brew_lib_paths(argv, la, max_la);
         if (*la < max_la - 1)
             argv[(*la)++] = "-lz";
+        /* zlib 宏包装桩：deflateInit2/inflateInit2 是宏，需真实函数符号 */
+        (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
+        {
+            const char *glue = shux_runtime_compress_zlib_glue_o_path(NULL);
+            if (glue && glue[0] && *la < max_la - 1)
+                argv[(*la)++] = glue;
+        }
     }
     if (link_abi_obj_needs_zstd(compress_o) || link_abi_obj_needs_zstd(user_o)) {
         ld_append_brew_lib_paths(argv, la, max_la);
@@ -2725,6 +2786,10 @@ void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char
         ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
         if (*i < argv_cap - 1)
             argv[(*i)++] = (char *)"-lz";
+        /* zlib 宏包装桩：deflateInit2/inflateInit2 是宏，需真实函数符号 */
+        (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
+        (void)invoke_cc_argv_push_existing(argv, i, argv_cap,
+            shux_runtime_compress_zlib_glue_o_path(NULL));
     }
     if (link_abi_obj_needs_zstd(compress_o) || link_abi_obj_needs_zstd(user_o)) {
         ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
@@ -3081,8 +3146,17 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
                     argv[i++] = (char *)"-lc";
 #endif
             }
-            if (needs_random)
+            if (needs_random) {
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, random_o);
+                {
+                    /* 【Why】random_fill_bytes_c 是 extern C 桩，实现在 runtime_random_fill.o；
+                     * shux-c 链路径需显式链入，否则 _random_fill_bytes_c undefined。
+                     * 【Invariant】shux_runtime_random_fill_o_path 返回静态缓冲，同 needs_time 模式。 */
+                    const char *rrf = shux_runtime_random_fill_o_path(NULL);
+                    if (rrf && rrf[0])
+                        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rrf);
+                }
+            }
             if (needs_time) {
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o);
                 {
@@ -3309,8 +3383,13 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
             }
             if (needs_zlib || needs_zstd || needs_brotli) {
                 ld_append_brew_lib_paths((const char **)argv, &i, argv_cap);
-                if (needs_zlib && i < argv_cap - 1)
+                if (needs_zlib && i < argv_cap - 1) {
                     argv[i++] = (char *)"-lz";
+                    /* zlib 宏包装桩：deflateInit2/inflateInit2 是宏，需真实函数符号 */
+                    (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
+                        shux_runtime_compress_zlib_glue_o_path(NULL));
+                }
                 if (needs_zstd && i < argv_cap - 1)
                     argv[i++] = (char *)"-lzstd";
                 if (needs_brotli && i < argv_cap - 1) {

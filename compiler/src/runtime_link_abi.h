@@ -157,6 +157,11 @@ const char *shux_runtime_test_fn_invoke_o_path(const char *argv0);
 const char *shux_runtime_random_fill_o_path(const char *argv0);
 
 /**
+ * runtime_compress_zlib_glue.o 路径；zlib 宏包装桩。
+ */
+const char *shux_runtime_compress_zlib_glue_o_path(const char *argv0);
+
+/**
  * runtime_heap_user.o 路径；co-emit std.heap redirect 的 heap_*_c 符号。
  */
 const char *shux_runtime_heap_user_o_path(const char *argv0);
@@ -318,6 +323,11 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0);
  * 返回值：0 成功，-1 失败。
  */
 int shux_ensure_runtime_random_fill_o(const char *argv0);
+
+/**
+ * 若 runtime_compress_zlib_glue.o 不存在则用 cc -c 生成。
+ */
+int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0);
 
 /**
  * 若 runtime_heap_user.o 尚不存在则用 cc -c 生成到 compiler/ 目录。

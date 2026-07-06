@@ -24,6 +24,10 @@ SHUX_WEAK void codegen_emit_fmt_json_helpers_once(FILE *out) {
   (void)out;
 }
 
+SHUX_WEAK void codegen_emit_builtin_inline_decls(FILE *out) {
+  (void)out;
+}
+
 SHUX_WEAK int codegen_emit_dep_types_only(struct ASTModule **mods, const char **import_paths, int n, FILE *out,
                                                       char (*emitted_type_names)[64], int *n_emitted_inout,
                                                       int max_emitted) {

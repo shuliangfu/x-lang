@@ -158,4 +158,8 @@ int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, ch
 extern int codegen_fmt_json_helpers_needed;
 void codegen_emit_fmt_json_helpers_once(FILE *out);
 
+/** CORE-009：emit shux_builtin_* static inline 包装器（clz/ctz/popcount/bswap/rotl/rotr）。
+ * 在每个生成 C 翻译单元 includes 之后调用一次，避免调用点经 builtin_intrinsic_name 重映射后无声明。 */
+void codegen_emit_builtin_inline_decls(FILE *out);
+
 #endif /* SHUX_CODEGEN_H */

@@ -29,6 +29,11 @@ SHUX_WEAK void codegen_emit_fmt_json_helpers_once(FILE *out) {
     (void)out;
 }
 
+/** CORE-009 builtin inline 包装器 emit；冷启动弱桩（真实现见 codegen.c）。 */
+SHUX_WEAK void codegen_emit_builtin_inline_decls(FILE *out) {
+    (void)out;
+}
+
 /** 与 runtime_pipeline_abi.c / runtime.c 一致的 parse 结果布局。 */
 struct parser_ParseIntoResult {
     int32_t ok;
