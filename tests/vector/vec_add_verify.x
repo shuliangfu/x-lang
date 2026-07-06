@@ -8,7 +8,7 @@ function main(): i32 {
   let expect: i32x4 = [11, 22, 33, 44];
   let pc: *u8 = &c as *u8;
   let pe: *u8 = &expect as *u8;
-  if (shux_string_memcmp_c(pc, pe, 16) != 0) {
+  if (unsafe { shux_string_memcmp_c(pc, pe, 16) } != 0) {
     return 1;
   }
   return 0;

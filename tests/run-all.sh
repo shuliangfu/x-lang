@@ -51,6 +51,15 @@ if [ -n "$SHUX" ]; then
             export SHUX_LINK_SHUX=./compiler/shux-c
         fi
     fi
+    # 【Why 根源治理 .o 污染】shux_compile_std_x.sh auto 优先选 shux_asm/shux（seed），
+    # 而 seed 在 macOS -backend asm 产出错误 .o 且 exit=0 不回退。
+    # 修复：强制 std .o 用 shux-c 编译（与测试程序同源）。
+    # 【工程原则】每次测试前必须全部重新编译 .o：若依赖旧 .o，代码改坏但 .o 仍是旧的正确版本，
+    # 测试误报通过，掩盖真实回归。删除后预编译，确保 .o 与当前源码一致。
+    export SHUX_COMPILE_STD_USE_C=1
+    find std -name '*.o' -delete 2>/dev/null || true
+    # 预编译所有 std .o（SHUX_COMPILE_STD_USE_C=1 强制用 shux-c）；失败不中断，后续按需 ensure
+    make -C compiler std-objs SHUX_COMPILE_STD_USE_C=1 2>/dev/null || true
     # SHU 与 compiler/shux 为同一inode 时不能做「先 mv 再 cp」：mv 会破坏 cp 的源路径（常见：SHUX=./compiler/shux）。
     if [ -f compiler/shux ] && [ compiler/shux -ef "$SHUX" ]; then
         :
@@ -78,6 +87,10 @@ else
     # 阻止子脚本再次 `make all` / `make shux-c`：默认 shux-c target 是 `cp -f bootstrap_shuxc shux-c`，
     # 会覆盖上面刚刚构建好的真正 C 前端（SHUX_LEGACY_C_FRONTEND=1），导致回归全部失败。
     export SHUX_SKIP_SUBSCRIPT_MAKE=1
+    # 【Why 根源治理 .o 污染】同 SHUX 分支：强制 std .o 用 shux-c 编译，清理旧 .o 并预编译。
+    export SHUX_COMPILE_STD_USE_C=1
+    find std -name '*.o' -delete 2>/dev/null || true
+    make -C compiler std-objs SHUX_COMPILE_STD_USE_C=1 2>/dev/null || true
 fi
 
 # 无 shux 则直接失败，避免整次跑完仍打印 all tests OK

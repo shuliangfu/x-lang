@@ -63,7 +63,7 @@ neg_out=$($SHUX check tests/typeck/return_operand_type_mismatch.x 2>&1) && {
   echo "expected check to fail on type mismatch"
   exit 1
 }
-echo "$neg_out" | grep -qE " - error: |typeck error:|check failed" || {
+echo "$neg_out" | grep -qE " - error: |typeck error:|check failed|error\[[A-Z][0-9]+\]:" || {
   echo "expected type error diagnostic, got: $neg_out"
   exit 1
 }

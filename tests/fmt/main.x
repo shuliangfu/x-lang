@@ -1,6 +1,6 @@
 // 测试
 // core.fmt：fmt_i32、fmt_*_to_buf（i32/u32/i64/u64/bool/f64）、append_i64、容量不足返回 -1
-const fmt = import("core.fmt");
+const fmt = import("std.fmt");
 
 function main(): i32 {
   let n: i32 = fmt.format(42);
@@ -25,7 +25,7 @@ function main(): i32 {
   if (len6 != 4) { return 9; }
   let len7: i32 = fmt.to_buf(buf, 24, false);
   if (len7 != 5) { return 10; }
-  let len8: i32 = fmt.hex_to_buf(buf, 24, 255);
+  let len8: i32 = fmt.hex_to_buf(buf, 24, 255 as u32);
   if (len8 != 2) { return 11; }
   let hex_val: u64 = 256;
   let len9: i32 = fmt.hex_to_buf(buf, 24, hex_val);
