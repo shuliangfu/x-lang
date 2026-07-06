@@ -161,7 +161,8 @@ function std_csv_csv_test_unescape_fail(): i32 {
   return std_csv_unescape(&raw[0], 3, &tiny[0], 1);
 }
 
-/** import std.csv 裸名 next_field。 */
+/** import std.csv 裸名 next_field。#[no_mangle] 让跨模块调用与定义符号一致。 */
+#[no_mangle]
 function next_field(ptr: *u8, len: i32, offset: i32, out_start: *i32, out_len: *i32): i32 {
   return std_csv_next_field(ptr, len, offset, out_start, out_len);
 }
@@ -328,7 +329,8 @@ function csv_stream_smoke_c(): i32 {
   return 0;
 }
 
-/** mod.x extern unescape 链接名。 */
+/** mod.x extern unescape 链接名。#[no_mangle] 让跨模块调用与定义符号一致。 */
+#[no_mangle]
 function unescape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
   return std_csv_unescape(ptr, len, buf, buf_cap);
 }

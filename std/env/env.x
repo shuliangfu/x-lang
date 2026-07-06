@@ -39,11 +39,15 @@ extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
 extern function env_unsetenv_c(name: *u8): i32;
 
 /** args_iter 计数：委托 process argc。 */
+/** mod.x extern args_iter_count_c → bare name 调用；#[no_mangle] 让 .x 定义符号与调用端一致。 */
+#[no_mangle]
 function args_iter_count_c(): i32 {
   unsafe { return process_args_count_c(); }
 }
 
 /** args_iter 取第 i 个 argv 指针（NUL 结尾）；越界返回 NULL。 */
+/** mod.x extern args_iter_at_c → bare name 调用；#[no_mangle] 让 .x 定义符号与调用端一致。 */
+#[no_mangle]
 function args_iter_at_c(i: i32): *u8 {
   unsafe { return process_arg_c(i); }
 }

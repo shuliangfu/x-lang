@@ -152,6 +152,8 @@ function unicode_is_combining_mark(rune: u32): i32 {
 }
 
 /** Unicode 分类（简化）：0 未知，1 Letter，2 Number，3 Whitespace。ASCII 查表，非 ASCII 返回 0。 */
+/** mod.x extern category → bare name 调用；#[no_mangle] 让 .x 定义符号与调用端一致。 */
+#[no_mangle]
 function category(rune: u32): i32 {
   return unicode_ascii_cat_lookup(rune) as i32;
 }
@@ -169,12 +171,16 @@ function is_ascii(rune: u32): i32 {
 }
 
 /** rune 转小写；非 ASCII 暂返回原 rune（内联 ASCII，无 ctype）。 */
+/** mod.x extern to_lower → bare name 调用；#[no_mangle] 让 .x 定义符号与调用端一致。 */
+#[no_mangle]
 function to_lower(rune: u32): u32 {
   if (rune >= 65 as u32 && rune <= 90 as u32) { return rune + 32; }
   return rune;
 }
 
 /** rune 转大写；非 ASCII 暂返回原 rune（内联 ASCII，无 ctype）。 */
+/** mod.x extern to_upper → bare name 调用；#[no_mangle] 让 .x 定义符号与调用端一致。 */
+#[no_mangle]
 function to_upper(rune: u32): u32 {
   if (rune >= 97 as u32 && rune <= 122 as u32) { return rune - 32; }
   return rune;

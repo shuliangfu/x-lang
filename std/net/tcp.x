@@ -318,6 +318,7 @@ function net_tcp_connect_finish_c(fd: i32, timeout_ms: u32): i32 {
  * TCP 非阻塞 connect（Linux io_uring 快路径）。
  */
 #[cfg(target_os = "linux")]
+#[no_mangle]
 function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
   let fd: i32 = 0;
   unsafe { fd = io_uring_connect(addr_u32, port_u32, timeout_ms); }
@@ -331,6 +332,7 @@ function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
  * TCP 非阻塞 connect（非 Linux：socket + poll 完成路径）；失败 -1。
  */
 #[cfg(not(target_os = "linux"))]
+#[no_mangle]
 function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
   let sin_mem: u8[16] = [];
   let sin_ptr: *u8 = net_tcp_sin_buf_ptr_c(&sin_mem[0]);
@@ -360,6 +362,7 @@ function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
 /**
  * 阻塞 TCP connect（bulk 快路径）。
  */
+#[no_mangle]
 function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32 {
   let sin_mem: u8[16] = [];
   let sin_ptr: *u8 = net_tcp_sin_buf_ptr_c(&sin_mem[0]);
@@ -437,6 +440,7 @@ function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
  * 批量 accept（Linux io_uring）。
  */
 #[cfg(target_os = "linux")]
+#[no_mangle]
 function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
   if (n <= 0 || out_fds == 0) {
     return 0;
@@ -448,6 +452,7 @@ function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: 
  * 批量 accept（非 Linux：循环 net_accept_c）。
  */
 #[cfg(not(target_os = "linux"))]
+#[no_mangle]
 function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: u32): i32 {
   let i: i32 = 0;
   let fd: i32 = 0;

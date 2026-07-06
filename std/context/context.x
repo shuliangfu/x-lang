@@ -262,6 +262,7 @@ function ctx_cancel_c(handle: i64): void {
 }
 
 /** 是否已取消：1 是，0 否；无效句柄视为已取消。 */
+#[no_mangle]
 function ctx_is_cancelled_c(handle: i64): i32 {
   if (handle == 0) { return 1; }
   return ctx_chain_cancelled(handle);

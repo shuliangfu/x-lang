@@ -233,6 +233,7 @@ extern function net_udp_bind_c(addr_u32: u32, port_u32: u32): i32;
 /**
  * UDP 向 addr:port 发送；返回字节数，失败 -1。
  */
+#[no_mangle]
 function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u8, len: usize): i32 {
   let sin_mem: u8[16] = [];
   let sin_ptr: *u8 = net_udp_sin_buf_ptr_c(&sin_mem[0]);
@@ -248,6 +249,7 @@ function net_udp_send_to_c(fd: i32, addr_u32: u32, port_u32: u32, buf: *u8, len:
 /**
  * UDP 接收；timeout_ms 毫秒（0=无超时）。成功字节数，EAGAIN=0，错误 -1。
  */
+#[no_mangle]
 function net_udp_recv_from_c(fd: i32, buf: *u8, len: usize, timeout_ms: u32, out_addr_u32: *u32, out_port_u32: *u32): i32 {
   let peer_mem: u8[16] = [];
   let peer_ptr: *u8 = net_udp_sin_buf_ptr_c(&peer_mem[0]);
