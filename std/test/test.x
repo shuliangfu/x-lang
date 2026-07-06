@@ -49,10 +49,10 @@ const TST_LIT_FAIL: u8[7] = [32, 102, 97, 105, 108, 61, 0];
 const TST_LIT_SKIP: u8[7] = [32, 115, 107, 105, 112, 61, 0];
 
 /** STD-145 runner 计数器（模块级状态）。 */
-let s_runner_total: i32 = 0;
-let s_runner_pass: i32 = 0;
-let s_runner_fail: i32 = 0;
-let s_runner_skip: i32 = 0;
+let test_s_runner_total: i32 = 0;
+let test_s_runner_pass: i32 = 0;
+let test_s_runner_fail: i32 = 0;
+let test_s_runner_skip: i32 = 0;
 
 /** 复制用例名到 NUL 结尾缓冲（cap 含结尾 0）。 */
 function test_io_copy_name(out: *u8, cap: i32, name: *u8, len: i32): void {
@@ -329,9 +329,9 @@ function test_bench_report_c(name: *u8, len: i32, ns: i64): i32 {
 function test_fuzz_next_c(state: *u32): u32 {
   let s: u32 = 0;
   if (state == 0) { return 0; }
-  s = *state;
+  unsafe { s = *state; }
   s = (s * 1103515245 + 12345) & 0x7fffffff;
-  *state = s;
+  unsafe { *state = s; }
   return s;
 }
 
@@ -393,19 +393,19 @@ function test_bench_fuzz_smoke_c(): i32 {
 
 /** 重置 runner 计数（STD-145）。 */
 function test_runner_reset_c(): void {
-  s_runner_total = 0;
-  s_runner_pass = 0;
-  s_runner_fail = 0;
-  s_runner_skip = 0;
+  test_s_runner_total = 0;
+  test_s_runner_pass = 0;
+  test_s_runner_fail = 0;
+  test_s_runner_skip = 0;
 }
 
 /** 报告单条用例；exit_code=0 记 pass，否则 fail。 */
 function test_runner_report_case_c(name: *u8, len: i32, exit_code: i32): i32 {
-  s_runner_total = s_runner_total + 1;
+  test_s_runner_total = test_s_runner_total + 1;
   if (exit_code == 0) {
-    s_runner_pass = s_runner_pass + 1;
+    test_s_runner_pass = test_s_runner_pass + 1;
   } else {
-    s_runner_fail = s_runner_fail + 1;
+    test_s_runner_fail = test_s_runner_fail + 1;
   }
   test_io_runner_case_line_c(name, len, exit_code);
   return exit_code;
@@ -413,14 +413,14 @@ function test_runner_report_case_c(name: *u8, len: i32, exit_code: i32): i32 {
 
 /** 报告 skip 用例。 */
 function test_runner_report_skip_c(name: *u8, len: i32): i32 {
-  s_runner_total = s_runner_total + 1;
-  s_runner_skip = s_runner_skip + 1;
+  test_s_runner_total = test_s_runner_total + 1;
+  test_s_runner_skip = test_s_runner_skip + 1;
   test_io_runner_skip_line_c(name, len);
   return 0;
 }
 
 /** 输出汇总行并返回 fail 数。 */
 function test_runner_finish_c(): i32 {
-  test_io_runner_summary_line_c(s_runner_total, s_runner_pass, s_runner_fail, s_runner_skip);
-  return s_runner_fail;
+  test_io_runner_summary_line_c(test_s_runner_total, test_s_runner_pass, test_s_runner_fail, test_s_runner_skip);
+  return test_s_runner_fail;
 }

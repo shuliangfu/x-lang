@@ -118,9 +118,11 @@ function trace_find_span(t: *TraceState, span_id: u64): i32 {
 /** 向 out 追加单字节；满则 TRACE_ERR_FULL。 */
 function trace_append_byte(out: *u8, out_cap: i32, pos: *i32, b: u8): i32 {
   if (out == 0 || pos == 0) { return TRACE_ERR_NULL; }
-  if (*pos < 0 || *pos >= out_cap) { return TRACE_ERR_FULL; }
-  out[*pos] = b;
-  *pos = *pos + 1;
+  unsafe {
+    if (*pos < 0 || *pos >= out_cap) { return TRACE_ERR_FULL; }
+    out[*pos] = b;
+    *pos = *pos + 1;
+  }
   return TRACE_OK;
 }
 
@@ -139,8 +141,10 @@ function u8_to_hex2(b: u8, out: *u8): void {
   let hi: u8 = (b >> 4) & 0x0f;
   let lo: u8 = b & 0x0f;
   if (out == 0) { return; }
-  out[0] = (hi < 10) ? ((48 + hi) as u8) : ((87 + hi) as u8);
-  out[1] = (lo < 10) ? ((48 + lo) as u8) : ((87 + lo) as u8);
+  unsafe {
+    out[0] = (hi < 10) ? ((48 + hi) as u8) : ((87 + hi) as u8);
+    out[1] = (lo < 10) ? ((48 + lo) as u8) : ((87 + lo) as u8);
+  }
 }
 
 /** 追加 u64 十进制表示。 */
