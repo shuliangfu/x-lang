@@ -3796,6 +3796,10 @@ static ASTBlock *parse_block(Parser *p, int allow_while, int consume_rbrace) {
     b->num_try_catches = 0;
     b->regions = NULL;
     b->num_regions = 0;
+    b->with_arenas = NULL;    /* 漏初始化会导致 Linux malloc 复用 freed chunk 时 with_arenas 为垃圾指针，
+                               * wpo_collect_edges_from_block 遍历到 num_with_arenas（同为垃圾值非零）时
+                               * 解引用垃圾指针 → SIGSEGV。macOS 小分配 malloc 返回零内存掩盖此 bug。 */
+    b->num_with_arenas = 0;
     b->labeled_stmts = NULL;
     b->num_labeled_stmts = 0;
     b->expr_stmts = NULL;
