@@ -3,7 +3,9 @@
  * SAFE-007：弱符号证据收集，强符号由 runtime_backtrace_platform.o 提供。 */
 #include <stdlib.h>
 #include <stdio.h>
-#ifndef _WIN32
+#ifdef _WIN32
+#include <process.h> /* MinGW getpid() 声明在此；unistd.h 不提供 */
+#else
 #include <unistd.h>
 #endif
 

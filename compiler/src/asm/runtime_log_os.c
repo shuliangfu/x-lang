@@ -11,6 +11,7 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <io.h>
 #include <fcntl.h>
+#include <sys/stat.h> /* _S_IWRITE 声明在此 */
 #define STDERR_FILENO 2
 static int log_write_fd(int fd, const void *buf, size_t len) { return (int)_write((int)fd, buf, (unsigned)len); }
 #else

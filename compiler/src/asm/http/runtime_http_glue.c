@@ -16,6 +16,8 @@
 #pragma comment(lib, "ws2_32.lib")
 #define SHUX_HTTP_CLOSE(fd) closesocket((SOCKET)(fd))
 #define SHUX_HTTP_ERRNO WSAGetLastError()
+/* MinGW 无 POSIX poll()；WSAPoll 签名兼容（WSAPOLLFD 与 struct pollfd 布局一致） */
+#define poll WSAPoll
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -375,7 +377,11 @@ static int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t
 #endif
   }
   if (timeout_ms > 0) {
+#if defined(_WIN32) || defined(_WIN64)
+    WSAPOLLFD pfd;
+#else
     struct pollfd pfd;
+#endif
     pfd.fd = fd;
     pfd.events = POLLOUT;
     {

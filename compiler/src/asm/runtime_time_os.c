@@ -10,6 +10,7 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
+#include <time.h> /* struct tm/time/gmtime_s；MinGW windows.h 不提供 */
 #define UNIX_EPOCH_100NS 116444736000000000ULL
 #else
 #include <time.h>

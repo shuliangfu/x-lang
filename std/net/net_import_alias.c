@@ -8,6 +8,7 @@
 #include <string.h>
 #if defined(_WIN32) || defined(_WIN64)
 #include <winsock2.h>
+#include <ws2tcpip.h> /* socklen_t 定义在此；winsock2.h 不提供 */
 #else
 #include <arpa/inet.h>
 #include <fcntl.h>
