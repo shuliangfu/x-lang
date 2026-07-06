@@ -1919,6 +1919,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(stdout, "#include <stdio.h>\n");
             fprintf(stdout, "#include <string.h>\n");
             fprintf(stdout, "#include <math.h>\n");
+            /* macOS 上 htonl/htons/ntohl/ntohs 是宏，须 #undef 后才能 emit extern 原型。
+             * PE/COFF 不支持 weak 函数符号，Windows 改强符号靠 --allow-multiple-definition（见 codegen.c 注释）。 */
+            fprintf(stdout, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
+            fprintf(stdout, "#ifdef _WIN32\n#define SHUX_LIB_WEAK\n#else\n#define SHUX_LIB_WEAK __attribute__((weak))\n#endif\n");
             codegen_emit_fmt_json_helpers_once(stdout);
             codegen_emit_builtin_inline_decls(stdout);
             fprintf(stdout, "extern int getpid(void);\n");
@@ -2194,6 +2198,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "#include <stdio.h>\n");
             fprintf(cf, "#include <string.h>\n"); /* memcpy for array copy (bootstrap parser.x) */
             fprintf(cf, "#include <math.h>\n");
+            /* macOS 上 htonl/htons/ntohl/ntohs 是宏，须 #undef 后才能 emit extern 原型。
+             * PE/COFF 不支持 weak 函数符号，Windows 改强符号靠 --allow-multiple-definition（见 codegen.c 注释）。 */
+            fprintf(cf, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
+            fprintf(cf, "#ifdef _WIN32\n#define SHUX_LIB_WEAK\n#else\n#define SHUX_LIB_WEAK __attribute__((weak))\n#endif\n");
             codegen_emit_fmt_json_helpers_once(cf);
             codegen_emit_builtin_inline_decls(cf);
             fprintf(cf, "#include <string.h>\n");
@@ -6181,6 +6189,10 @@ static int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
     fprintf(stdout, "#include <stdio.h>\n");
     fprintf(stdout, "#include <string.h>\n");
     fprintf(stdout, "#include <string.h>\n");
+    /* macOS 上 htonl/htons/ntohl/ntohs 是宏，须 #undef 后才能 emit extern 原型。
+     * PE/COFF 不支持 weak 函数符号，Windows 改强符号靠 --allow-multiple-definition（见 codegen.c 注释）。 */
+    fprintf(stdout, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
+    fprintf(stdout, "#ifdef _WIN32\n#define SHUX_LIB_WEAK\n#else\n#define SHUX_LIB_WEAK __attribute__((weak))\n#endif\n");
     codegen_emit_builtin_inline_decls(stdout);
     fprintf(stdout, "extern int getpid(void);\n");
     fprintf(stdout, "static inline void shux_crash_evidence_collect_inline(int has_msg, int msg_val) {\n");
