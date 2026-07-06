@@ -3269,6 +3269,15 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ris);
             }
 #endif
+#if defined(_WIN32) || defined(_WIN64)
+            /* 【Why 根源】net.o / net_import_alias.c / runtime_net_udp_batch.o /
+               runtime_net_workers.o 引用 socket/bind/listen/accept/connect/
+               recv/send/setsockopt/ioctlsocket/closesocket/htons/htonl 等
+               winsock 符号；MinGW 不自动链 ws2_32。
+               【Invariant】仅 Windows 需 -lws2_32；Linux/macOS 走 libc。 */
+            if (i < argv_cap - 1)
+                argv[i++] = (char *)"-lws2_32";
+#endif
         }
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, thread_o)) {
             {
@@ -3363,6 +3372,12 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
 #elif defined(__APPLE__)
             if (i < argv_cap - 2)
                 argv[i++] = (char *)"-Wl,-export_dynamic";
+#elif defined(_WIN32) || defined(_WIN64)
+            /* 【Why 根源】runtime_backtrace_platform.o 引用 SymSetOptions/SymInitialize/
+               SymFromAddr/UnDecorateSymbolName 等 DbgHelp 符号；MinGW 不自动链 dbghelp。
+               【Invariant】仅 Windows 需显式 -ldbghelp；Linux/macOS 走 -ldl/-rdynamic。 */
+            if (i < argv_cap - 1)
+                argv[i++] = (char *)"-ldbghelp";
 #endif
         }
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, hash_o);
@@ -3446,6 +3461,14 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
                 if (rhg && rhg[0])
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rhg);
             }
+#if defined(_WIN32) || defined(_WIN64)
+            /* 【Why 根源】runtime_http_glue.o 引用 socket/connect/recv/send/
+               WSAStartup/WSACleanup/getaddrinfo/freeaddrinfo 等 winsock 符号；
+               MinGW 不自动链 ws2_32。net_o 链入块已推 -lws2_32，但 http 可能独立链入。
+               【Invariant】仅 Windows 需 -lws2_32；Linux/macOS 走 libc。 */
+            if (i < argv_cap - 1)
+                argv[i++] = (char *)"-lws2_32";
+#endif
         }
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "std/socketio/socketio.o"));
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, tar_o);
