@@ -8296,6 +8296,14 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
     fprintf(out, "#include <stdint.h>\n");
     fprintf(out, "#include <stddef.h>\n");
     fprintf(out, "#include <string.h>\n"); /* memcpy 用于数组拷贝（自举 parser.x 中 let/const 数组 = 变量） */
+    /* macOS <sys/_endian.h> 将 htonl/htons/ntohl/ntohs 定义为宏（__DARWIN_OSSwapInt*），
+     * 导致后续 extern uint32_t htonl(uint32_t) 声明被宏展开后语法错误。
+     * Linux glibc 上这四个是真正的函数符号，#undef 是 no-op，不影响。
+     * 【Why】commit 393f9fd1 移除跳过列表，直接 emit extern 原型（Linux GCC 需要）；
+     *   macOS 须先 #undef 宏才能让 extern 声明通过。
+     * 【Invariant】#undef 后这四个符号均为函数声明，由 libc 链接器解析。
+     * 【Asm/Perf】无运行时开销，仅影响预处理。 */
+    fprintf(out, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
     /* CORE-009：clz/ctz/popcount/bswap/rotl/rotr 调用点经 builtin_intrinsic_name 重映射为 shux_builtin_*，
      * 此处 emit static inline 包装器（__builtin_* + x==0 边界），避免 cc 报未声明符号。 */
     codegen_emit_builtin_inline_decls(out);
@@ -8726,6 +8734,8 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         fprintf(out, "#include <stdlib.h>\n");
         fprintf(out, "#include <stdio.h>\n");
         fprintf(out, "#include <string.h>\n"); /* memcpy 用于数组拷贝 */
+        /* macOS 上 htonl/htons/ntohl/ntohs 是宏，须 #undef 后才能 emit extern 原型（见 codegen_module_to_c 注释）。 */
+        fprintf(out, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
         /* CORE-009：库模块自身也可能 emit 跨模块 builtin 调用，需自带 static inline 包装器。 */
         codegen_emit_builtin_inline_decls(out);
     }
