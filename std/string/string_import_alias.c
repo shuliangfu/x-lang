@@ -61,23 +61,23 @@ static ShuxString *string_from_slot(ShuxString **slot) {
 }
 
 /** 空串长度常量 0。 */
-int32_t std_string_string_empty(void) { return 0; }
+static int32_t std_string_string_empty(void) { return 0; }
 
 /** 固定缓冲容量 256。 */
-int32_t std_string_string_capacity(void) { return k_string_cap; }
+static int32_t std_string_string_capacity(void) { return k_string_cap; }
 
 /** 新建空字符串；返回堆 ShuxString*。 */
-ShuxString *std_string_string_new(void) { return string_alloc_empty(); }
+static ShuxString *std_string_string_new(void) { return string_alloc_empty(); }
 
 /** 当前字节数；rdi=ShuxString*。 */
-int32_t std_string_string_len(ShuxString *s) {
+static int32_t std_string_string_len(ShuxString *s) {
   if (!s)
     return 0;
   return s->len;
 }
 
 /** 指针版 len；rdi=ShuxString**。 */
-int32_t std_string_string_len_ptr(ShuxString **slot) {
+static int32_t std_string_string_len_ptr(ShuxString **slot) {
   ShuxString *s = string_from_slot(slot);
   if (!s)
     return 0;
@@ -85,14 +85,14 @@ int32_t std_string_string_len_ptr(ShuxString **slot) {
 }
 
 /** 是否为空；rdi=ShuxString*。 */
-int32_t std_string_string_is_empty(ShuxString *s) {
+static int32_t std_string_string_is_empty(ShuxString *s) {
   if (!s || s->len <= 0)
     return 1;
   return 0;
 }
 
 /** 从 (ptr,len) 构造；rdi=src, rsi=len；返回 ShuxString*。 */
-ShuxString *std_string_string_from_slice(uint8_t *ptr, int32_t len) {
+static ShuxString *std_string_string_from_slice(uint8_t *ptr, int32_t len) {
   ShuxString *s = string_alloc_empty();
   int32_t n = len;
   if (!s)
@@ -106,10 +106,10 @@ ShuxString *std_string_string_from_slice(uint8_t *ptr, int32_t len) {
 }
 
 /** 取第 i 字节；rdi=ShuxString*, rsi=index。 */
-uint8_t std_string_string_get(ShuxString *s, int32_t i) { return s->data[i]; }
+static uint8_t std_string_string_get(ShuxString *s, int32_t i) { return s->data[i]; }
 
 /** 两 String 相等；rdi/rsi=ShuxString*。 */
-int32_t std_string_string_eq(ShuxString *a, ShuxString *b) {
+static int32_t std_string_string_eq(ShuxString *a, ShuxString *b) {
   int32_t i;
   if (!a || !b)
     return 0;
@@ -144,7 +144,7 @@ int32_t std_string_string_eq(ShuxString *a, ShuxString *b) {
 }
 
 /** 字典序比较；rdi/rsi=ShuxString*。 */
-int32_t std_string_string_compare(ShuxString *a, ShuxString *b) {
+static int32_t std_string_string_compare(ShuxString *a, ShuxString *b) {
   int32_t n;
   int32_t r;
   if (!a || !b)
@@ -167,7 +167,7 @@ int32_t std_string_string_compare(ShuxString *a, ShuxString *b) {
 }
 
 /** 追加单字符；rdi=ShuxString**, rsi=byte。 */
-int32_t std_string_string_append_char(ShuxString **slot, uint8_t c) {
+static int32_t std_string_string_append_char(ShuxString **slot, uint8_t c) {
   ShuxString *s = string_from_slot(slot);
   if (!s || s->len >= k_string_cap)
     return -1;
@@ -177,7 +177,7 @@ int32_t std_string_string_append_char(ShuxString **slot, uint8_t c) {
 }
 
 /** 追加 slice；rdi=ShuxString**, rsi=ptr, rdx=len。 */
-int32_t std_string_string_append_slice(ShuxString **slot, uint8_t *ptr, int32_t len) {
+static int32_t std_string_string_append_slice(ShuxString **slot, uint8_t *ptr, int32_t len) {
   ShuxString *s = string_from_slot(slot);
   int32_t remain;
   int32_t base;
@@ -194,7 +194,7 @@ int32_t std_string_string_append_slice(ShuxString **slot, uint8_t *ptr, int32_t 
 }
 
 /** 零拷贝 data 指针；rdi=ShuxString**。 */
-uint8_t *std_string_string_data_ptr(ShuxString **slot) {
+static uint8_t *std_string_string_data_ptr(ShuxString **slot) {
   ShuxString *s = string_from_slot(slot);
   if (!s)
     return 0;
@@ -202,7 +202,7 @@ uint8_t *std_string_string_data_ptr(ShuxString **slot) {
 }
 
 /** 拷贝到 out；rdi=ShuxString*, rsi=out, rdx=out_max。 */
-int32_t std_string_string_copy_to(ShuxString *s, uint8_t *out, int32_t out_max) {
+static int32_t std_string_string_copy_to(ShuxString *s, uint8_t *out, int32_t out_max) {
   if (!s || !out)
     return -1;
   if (s->len > out_max)
@@ -221,14 +221,14 @@ int32_t std_string_string_copy_to(ShuxString *s, uint8_t *out, int32_t out_max) 
 }
 
 /** 找字节 c；rdi=ShuxString*, rsi=c。 */
-int32_t std_string_string_find_char(ShuxString *s, uint8_t c) {
+static int32_t std_string_string_find_char(ShuxString *s, uint8_t c) {
   if (!s)
     return -1;
   return shux_string_memchr_c(&s->data[0], c, s->len);
 }
 
 /** 前缀判断；rdi=ShuxString*, rsi=prefix, rdx=prefix_len。 */
-int32_t std_string_string_starts_with(ShuxString *s, uint8_t *prefix, int32_t prefix_len) {
+static int32_t std_string_string_starts_with(ShuxString *s, uint8_t *prefix, int32_t prefix_len) {
   if (prefix_len <= 0)
     return 1;
   if (!s || s->len < prefix_len)
@@ -237,7 +237,7 @@ int32_t std_string_string_starts_with(ShuxString *s, uint8_t *prefix, int32_t pr
 }
 
 /** 后缀判断；rdi=ShuxString*, rsi=suffix, rdx=suffix_len。 */
-int32_t std_string_string_ends_with(ShuxString *s, uint8_t *suffix, int32_t suffix_len) {
+static int32_t std_string_string_ends_with(ShuxString *s, uint8_t *suffix, int32_t suffix_len) {
   int32_t off;
   if (suffix_len <= 0)
     return 1;
@@ -264,7 +264,7 @@ static int32_t string_find_slice_scan(ShuxString *s, uint8_t *sub, int32_t sub_l
 }
 
 /** 子串首次下标；rdi=ShuxString*, rsi=sub, rdx=sub_len。 */
-int32_t std_string_string_find_slice(ShuxString *s, uint8_t *sub, int32_t sub_len) {
+static int32_t std_string_string_find_slice(ShuxString *s, uint8_t *sub, int32_t sub_len) {
   int32_t end;
   if (sub_len <= 0)
     return 0;
@@ -279,12 +279,12 @@ int32_t std_string_string_find_slice(ShuxString *s, uint8_t *sub, int32_t sub_le
 }
 
 /** 是否包含子串。 */
-int32_t std_string_string_contains(ShuxString *s, uint8_t *sub, int32_t sub_len) {
+static int32_t std_string_string_contains(ShuxString *s, uint8_t *sub, int32_t sub_len) {
   return std_string_string_find_slice(s, sub, sub_len) >= 0 ? 1 : 0;
 }
 
 /** 反向找字节；rdi=ShuxString*, rsi=c。C 直实现（shux-c 编译 memrchr_c 的 while 不落码）。 */
-int32_t std_string_string_rfind_char(ShuxString *s, uint8_t c) {
+static int32_t std_string_string_rfind_char(ShuxString *s, uint8_t c) {
   int32_t pos;
   if (!s || s->len <= 0)
     return -1;
@@ -318,7 +318,7 @@ static int32_t trim_skip_end(ShuxString *s, int32_t start, int32_t i) {
 }
 
 /** 去首尾空白写入 out；rdi=ShuxString*, rsi=out, rdx=out_max。 */
-int32_t std_string_string_trim_space(ShuxString *s, uint8_t *out, int32_t out_max) {
+static int32_t std_string_string_trim_space(ShuxString *s, uint8_t *out, int32_t out_max) {
   int32_t start;
   int32_t end;
   int32_t n;
@@ -336,7 +336,7 @@ int32_t std_string_string_trim_space(ShuxString *s, uint8_t *out, int32_t out_ma
 }
 
 /** 原地替换 from→to；rdi=ShuxString**, rsi=from, rdx=to。 */
-int32_t std_string_string_replace_char(ShuxString **slot, uint8_t from, uint8_t to) {
+static int32_t std_string_string_replace_char(ShuxString **slot, uint8_t from, uint8_t to) {
   ShuxString *s = string_from_slot(slot);
   int32_t i;
   int32_t count = 0;
@@ -352,27 +352,27 @@ int32_t std_string_string_replace_char(ShuxString **slot, uint8_t from, uint8_t 
 }
 
 /** 构造 StrView；rdi=ptr, rsi=len；返回 ShuxStrView*。 */
-ShuxStrView *std_string_string_view(uint8_t *ptr, int32_t len) { return view_alloc(ptr, len); }
+static ShuxStrView *std_string_string_view(uint8_t *ptr, int32_t len) { return view_alloc(ptr, len); }
 
 /** 视图长度；rdi=ShuxStrView*。 */
-int32_t std_string_string_view_len(ShuxStrView *v) {
+static int32_t std_string_string_view_len(ShuxStrView *v) {
   if (!v)
     return 0;
   return v->len;
 }
 
 /** 视图是否为空。 */
-int32_t std_string_string_view_is_empty(ShuxStrView *v) {
+static int32_t std_string_string_view_is_empty(ShuxStrView *v) {
   if (!v || v->len <= 0)
     return 1;
   return 0;
 }
 
 /** 取视图字节；rdi=ShuxStrView*, rsi=index。 */
-uint8_t std_string_string_view_get(ShuxStrView *v, int32_t i) { return v->ptr[i]; }
+static uint8_t std_string_string_view_get(ShuxStrView *v, int32_t i) { return v->ptr[i]; }
 
 /** 两视图相等。 */
-int32_t std_string_string_view_eq(ShuxStrView *a, ShuxStrView *b) {
+static int32_t std_string_string_view_eq(ShuxStrView *a, ShuxStrView *b) {
   int32_t i;
   if (!a || !b)
     return 0;
@@ -405,7 +405,7 @@ int32_t std_string_string_view_eq(ShuxStrView *a, ShuxStrView *b) {
 }
 
 /** 视图字典序比较。 */
-int32_t std_string_string_view_compare(ShuxStrView *a, ShuxStrView *b) {
+static int32_t std_string_string_view_compare(ShuxStrView *a, ShuxStrView *b) {
   int32_t n;
   int32_t i;
   int32_t r;
@@ -445,14 +445,14 @@ int32_t std_string_string_view_compare(ShuxStrView *a, ShuxStrView *b) {
 }
 
 /** 视图中找字节 c。 */
-int32_t std_string_string_view_find_char(ShuxStrView *v, uint8_t c) {
+static int32_t std_string_string_view_find_char(ShuxStrView *v, uint8_t c) {
   if (!v)
     return -1;
   return shux_string_memchr_c(v->ptr, c, v->len);
 }
 
 /** 视图前缀判断。 */
-int32_t std_string_string_view_starts_with(ShuxStrView *v, uint8_t *prefix, int32_t prefix_len) {
+static int32_t std_string_string_view_starts_with(ShuxStrView *v, uint8_t *prefix, int32_t prefix_len) {
   int32_t i;
   if (prefix_len <= 0)
     return 1;
@@ -468,7 +468,7 @@ int32_t std_string_string_view_starts_with(ShuxStrView *v, uint8_t *prefix, int3
 }
 
 /** 视图后缀判断。 */
-int32_t std_string_string_view_ends_with(ShuxStrView *v, uint8_t *suffix, int32_t suffix_len) {
+static int32_t std_string_string_view_ends_with(ShuxStrView *v, uint8_t *suffix, int32_t suffix_len) {
   int32_t off;
   if (suffix_len <= 0)
     return 1;
@@ -495,7 +495,7 @@ static int32_t view_find_slice_scan(ShuxStrView *v, uint8_t *sub, int32_t sub_le
 }
 
 /** 视图中找子串。 */
-int32_t std_string_string_view_find_slice(ShuxStrView *v, uint8_t *sub, int32_t sub_len) {
+static int32_t std_string_string_view_find_slice(ShuxStrView *v, uint8_t *sub, int32_t sub_len) {
   int32_t end;
   if (sub_len <= 0)
     return 0;
@@ -510,12 +510,12 @@ int32_t std_string_string_view_find_slice(ShuxStrView *v, uint8_t *sub, int32_t 
 }
 
 /** 视图 contains。 */
-int32_t std_string_string_view_contains(ShuxStrView *v, uint8_t *sub, int32_t sub_len) {
+static int32_t std_string_string_view_contains(ShuxStrView *v, uint8_t *sub, int32_t sub_len) {
   return std_string_string_view_find_slice(v, sub, sub_len) >= 0 ? 1 : 0;
 }
 
 /** String 与 StrView 相等；rdi=ShuxString*, rsi=ShuxStrView*。 */
-int32_t std_string_string_eq_view(ShuxString *s, ShuxStrView *v) {
+static int32_t std_string_string_eq_view(ShuxString *s, ShuxStrView *v) {
   int32_t i;
   if (!s || !v)
     return 0;
@@ -539,7 +539,7 @@ int32_t std_string_string_eq_view(ShuxString *s, ShuxStrView *v) {
 }
 
 /** String 与 StrView 字典序比较。 */
-int32_t std_string_string_compare_view(ShuxString *s, ShuxStrView *v) {
+static int32_t std_string_string_compare_view(ShuxString *s, ShuxStrView *v) {
   int32_t n;
   int32_t i;
   int32_t r;

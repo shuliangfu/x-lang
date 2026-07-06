@@ -295,6 +295,22 @@ static void lex_ident_or_keyword(Lexer *l, Token *out) {
         out->ident_len = 0;
         return;
     }
+    if (len == 3 && memcmp(start, "try", 3) == 0) {
+        out->kind = TOKEN_TRY;
+        out->line = line0;
+        out->col = col0;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
+    if (len == 5 && memcmp(start, "catch", 5) == 0) {
+        out->kind = TOKEN_CATCH;
+        out->line = line0;
+        out->col = col0;
+        out->value.ident = NULL;
+        out->ident_len = 0;
+        return;
+    }
     if (len == 4 && memcmp(start, "goto", 4) == 0) {
         out->kind = TOKEN_GOTO;
         out->line = line0;
@@ -1522,7 +1538,10 @@ void lexer_next(Lexer *l, Token *out) {
         case ']': out->kind = TOKEN_RBRACKET; break;
         case ',': out->kind = TOKEN_COMMA; break;
         case ':': out->kind = TOKEN_COLON; break;
-        case '.': out->kind = TOKEN_DOT; break;
+        case '.':
+            if (l->src < l->end && *l->src == '.') { lexer_advance(l); out->kind = TOKEN_DOTDOT; }
+            else out->kind = TOKEN_DOT;
+            break;
         case ';': out->kind = TOKEN_SEMICOLON; break;
         case '+':
             if (lexer_peek(l) == '=') { lexer_advance(l); out->kind = TOKEN_PLUS_EQ; }

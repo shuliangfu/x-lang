@@ -390,6 +390,19 @@ static ASTExpr *parse_struct_lit_body(Parser *p, char *name, int ident_line, int
             return NULL;
         }
         if (peek(p)->kind != TOKEN_COLON) {
+            if (peek(p)->kind == TOKEN_COMMA || peek(p)->kind == TOKEN_SEMICOLON
+                || peek(p)->kind == TOKEN_RBRACE) {
+                ASTExpr *shorthand = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+                if (!shorthand) { free((void *)fnames[nf]); free(name);
+                    for (int i = 0; i < nf; i++) { free((void *)fnames[i]); ast_expr_free(inits[i]); }
+                    free(fnames); free(inits); parser_oom(p); return NULL; }
+                shorthand->kind = AST_EXPR_VAR;
+                shorthand->value.var.name = strndup(fnames[nf], 64);
+                inits[nf] = shorthand;
+                nf++;
+                if (peek(p)->kind == TOKEN_COMMA || peek(p)->kind == TOKEN_SEMICOLON) advance(p);
+                continue;
+            }
             free((void *)fnames[nf]);
             free(name);
             for (int i = 0; i < nf; i++) {
@@ -415,7 +428,7 @@ static ASTExpr *parse_struct_lit_body(Parser *p, char *name, int ident_line, int
             return NULL;
         }
         nf++;
-        if (peek(p)->kind == TOKEN_COMMA) advance(p);
+        if (peek(p)->kind == TOKEN_COMMA || peek(p)->kind == TOKEN_SEMICOLON) advance(p);
     }
     if (peek(p)->kind != TOKEN_RBRACE) {
         free(name);
@@ -1634,65 +1647,165 @@ static ASTExpr *parse_primary(Parser *p) {
                 }
                 arms = n;
             }
+            int lits[64];
+            int nlits = 0;
+            int arm_is_wildcard = 0;
+            int arm_is_enum = 0;
+            int arm_is_struct = 0;
+            char *en = NULL;
+            char *vn = NULL;
+            char *sp_name = NULL;
+            ASTMatchStructPatField *sp_fields = NULL;
+            int sp_nfields = 0;
             if (peek(p)->kind == TOKEN_INT) {
-                arms[num_arms].is_wildcard = 0;
-                arms[num_arms].is_enum_variant = 0;
-                arms[num_arms].enum_name = NULL;
-                arms[num_arms].variant_name = NULL;
-                arms[num_arms].variant_index = 0;
-                arms[num_arms].lit_val = peek(p)->value.int_val;
+                lits[nlits++] = (int)peek(p)->value.int_val;
                 advance(p);
+                while (peek(p)->kind == TOKEN_PIPE) {
+                    advance(p);
+                    if (peek(p)->kind != TOKEN_INT) {
+                        free(en); free(vn);
+                        while (num_arms--) ast_expr_free(arms[num_arms].result);
+                        free(arms); ast_expr_free(matched);
+                        fail(p, "expected integer literal after '|' in match arm or-pattern");
+                        return NULL;
+                    }
+                    if (nlits >= 64) {
+                        while (num_arms--) ast_expr_free(arms[num_arms].result);
+                        free(arms); ast_expr_free(matched);
+                        fail(p, "too many patterns in match arm or-pattern");
+                        return NULL;
+                    }
+                    lits[nlits++] = (int)peek(p)->value.int_val;
+                    advance(p);
+                }
             } else if (peek(p)->kind == TOKEN_UNDERSCORE) {
-                arms[num_arms].is_wildcard = 1;
-                arms[num_arms].is_enum_variant = 0;
-                arms[num_arms].enum_name = NULL;
-                arms[num_arms].variant_name = NULL;
-                arms[num_arms].lit_val = 0;
+                arm_is_wildcard = 1;
                 advance(p);
             } else if (peek(p)->kind == TOKEN_IDENT && peek_next(p)->kind == TOKEN_DOT) {
-                /* Name.Variant 枚举变体模式（§7.4） */
-                char *en = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
+                arm_is_enum = 1;
+                en = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
                 advance(p);
                 if (peek(p)->kind != TOKEN_DOT) { free(en); goto match_arm_fail; }
                 advance(p);
                 if (peek(p)->kind != TOKEN_IDENT) { free(en); goto match_arm_fail; }
-                char *vn = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
+                vn = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
                 advance(p);
                 if (!vn) { free(en); goto match_arm_fail; }
-                arms[num_arms].is_wildcard = 0;
-                arms[num_arms].is_enum_variant = 1;
-                arms[num_arms].enum_name = en;
-                arms[num_arms].variant_name = vn;
-                arms[num_arms].variant_index = 0;
-                arms[num_arms].lit_val = 0;
+            } else if (peek(p)->kind == TOKEN_IDENT && peek_next(p)->kind == TOKEN_LBRACE) {
+                /* 结构解构模式：Name { field: pat, ... }；pat 为整型字面量 / _ / 绑定名 / 省略(绑定) */
+                arm_is_struct = 1;
+                sp_name = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
+                advance(p); advance(p);  /* Name, { */
+                int spf_cap = 8;
+                sp_fields = (ASTMatchStructPatField *)malloc((size_t)spf_cap * sizeof(ASTMatchStructPatField));
+                if (!sp_fields) { free(sp_name); free(en); free(vn); parser_oom(p); goto match_arm_fail; }
+                while (peek(p)->kind != TOKEN_RBRACE && peek(p)->kind != TOKEN_EOF) {
+                    if (peek(p)->kind != TOKEN_IDENT) { fail(p, "expected field name in struct destructure pattern"); goto match_arm_fail_struct; }
+                    char *fname = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
+                    advance(p);
+                    int fkind = MATCH_STRUCT_PAT_BIND;  /* 省略 : pat 时按绑定 */
+                    int64_t flit = 0; char *fbind = fname;
+                    if (peek(p)->kind == TOKEN_COLON) {
+                        advance(p);
+                        if (peek(p)->kind == TOKEN_INT) { fkind = MATCH_STRUCT_PAT_LIT; flit = peek(p)->value.int_val; advance(p); }
+                        else if (peek(p)->kind == TOKEN_UNDERSCORE) { fkind = MATCH_STRUCT_PAT_WILDCARD; advance(p); }
+                        else if (peek(p)->kind == TOKEN_IDENT) { fkind = MATCH_STRUCT_PAT_BIND; fbind = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len); advance(p); }
+                        else { fail(p, "expected literal, '_' or binding in struct destructure field"); goto match_arm_fail_struct; }
+                    }
+                    if (sp_nfields >= spf_cap) {
+                        spf_cap *= 2;
+                        ASTMatchStructPatField *nf = (ASTMatchStructPatField *)realloc(sp_fields, (size_t)spf_cap * sizeof(ASTMatchStructPatField));
+                        if (!nf) { free(fname); if (fbind != fname) free(fbind); parser_oom(p); goto match_arm_fail_struct; }
+                        sp_fields = nf;
+                    }
+                    sp_fields[sp_nfields].field_name = fname;
+                    sp_fields[sp_nfields].kind = fkind;
+                    sp_fields[sp_nfields].lit_val = flit;
+                    sp_fields[sp_nfields].bind_name = fbind;
+                    sp_nfields++;
+                    if (peek(p)->kind == TOKEN_COMMA) advance(p);
+                }
+                if (peek(p)->kind != TOKEN_RBRACE) { fail(p, "expected '}' in struct destructure pattern"); goto match_arm_fail_struct; }
+                advance(p);  /* } */
+                goto match_arm_pattern_done;
+            match_arm_fail_struct:
+                free(sp_name); sp_name = NULL;
+                while (sp_nfields--) { free(sp_fields[sp_nfields].field_name); free(sp_fields[sp_nfields].bind_name); }
+                free(sp_fields); sp_fields = NULL;
+                while (num_arms--) { if (!arms[num_arms].result_shared) ast_expr_free(arms[num_arms].result); }
+                free(arms); ast_expr_free(matched);
+                return NULL;
             } else {
                 match_arm_fail:
+                free(en);
                 while (num_arms--) ast_expr_free(arms[num_arms].result);
-                free(arms);
-                ast_expr_free(matched);
+                free(arms); ast_expr_free(matched);
                 fail(p, "expected integer literal, '_', or enum variant (Name.Variant) in match arm");
                 return NULL;
             }
+            match_arm_pattern_done:
+            /* 可选 guard：`pat if cond =>`；cond 须为 bool（typeck 校验）。
+             * 或模式 `1|2 if cond =>` 共享同一 guard（guard_shared 标记避免重复 free）。 */
+            ASTExpr *shared_guard = NULL;
+            if (peek(p)->kind == TOKEN_IF) {
+                advance(p);
+                shared_guard = parse_expr(p);
+                if (!shared_guard) {
+                    free(en); free(vn);
+                    while (num_arms--) { if (!arms[num_arms].result_shared) ast_expr_free(arms[num_arms].result); }
+                    free(arms); ast_expr_free(matched);
+                    return NULL;
+                }
+            }
             if (peek(p)->kind != TOKEN_FATARROW) {
-                while (num_arms--) ast_expr_free(arms[num_arms].result);
-                free(arms);
-                ast_expr_free(matched);
+                free(en); free(vn);
+                if (shared_guard) ast_expr_free(shared_guard);
+                while (num_arms--) { if (!arms[num_arms].result_shared) ast_expr_free(arms[num_arms].result); }
+                free(arms); ast_expr_free(matched);
                 fail(p, "expected '=>' in match arm");
                 return NULL;
             }
             advance(p);
-            arms[num_arms].result = parse_expr(p);
-            if (!arms[num_arms].result) {
-                while (num_arms--) ast_expr_free(arms[num_arms].result);
-                free(arms);
-                ast_expr_free(matched);
+            ASTExpr *shared_result = parse_expr(p);
+            if (!shared_result) {
+                free(en); free(vn);
+                if (shared_guard) ast_expr_free(shared_guard);
+                while (num_arms--) { if (!arms[num_arms].result_shared) ast_expr_free(arms[num_arms].result); }
+                free(arms); ast_expr_free(matched);
                 return NULL;
             }
-            num_arms++;
+            int npush = (arm_is_struct ? 1 : (nlits > 0 ? nlits : 1));
+            for (int pi = 0; pi < npush; pi++) {
+                if (num_arms >= cap) {
+                    ASTMatchArm *n = (ASTMatchArm *)realloc(arms, (size_t)(cap *= 2) * sizeof(ASTMatchArm));
+                    if (!n) {
+                        for (int k = 0; k < num_arms; k++)
+                            if (!arms[k].result_shared) ast_expr_free(arms[k].result);
+                        if (pi == 0) ast_expr_free(shared_result);
+                        free(arms); ast_expr_free(matched);
+                        return NULL;
+                    }
+                    arms = n;
+                }
+                arms[num_arms].is_wildcard = arm_is_wildcard;
+                arms[num_arms].is_enum_variant = arm_is_enum;
+                arms[num_arms].enum_name = en;
+                arms[num_arms].variant_name = vn;
+                arms[num_arms].variant_index = 0;
+                arms[num_arms].lit_val = nlits > 0 ? lits[pi] : 0;
+                arms[num_arms].is_struct_pattern = arm_is_struct;
+                arms[num_arms].struct_pat_name = (arm_is_struct ? sp_name : NULL);
+                arms[num_arms].struct_pat_fields = (arm_is_struct ? sp_fields : NULL);
+                arms[num_arms].num_struct_pat_fields = (arm_is_struct ? sp_nfields : 0);
+                arms[num_arms].result_shared = (nlits > 1 && pi < npush - 1) ? 1 : 0;
+                arms[num_arms].guard_expr = shared_guard;
+                arms[num_arms].guard_shared = (shared_guard && nlits > 1 && pi < npush - 1) ? 1 : 0;
+                arms[num_arms].result = shared_result;
+                num_arms++;
+            }
             if (peek(p)->kind != TOKEN_SEMICOLON) {
-                while (num_arms--) ast_expr_free(arms[num_arms].result);
-                free(arms);
-                ast_expr_free(matched);
+                while (num_arms--) { if (!arms[num_arms].result_shared) ast_expr_free(arms[num_arms].result); }
+                free(arms); ast_expr_free(matched);
                 fail(p, "expected ';' after match arm");
                 return NULL;
             }
@@ -2024,10 +2137,17 @@ static ASTExpr *parse_cast(Parser *p) {
  * 解析后缀表达式：cast 后接零个或多个 . field 或 [ index ]，可交错（支持 a[i].field[j]）。
  * 参数：p 解析器状态。返回值：成功返回 ASTExpr*；失败返回 NULL。
  */
+static ASTExpr *parse_postfix_rest(Parser *p, ASTExpr *left);
 static ASTExpr *parse_postfix(Parser *p) {
     ASTExpr *left = parse_cast(p);
     if (!left) return NULL;
-    while (peek(p)->kind == TOKEN_DOT || peek(p)->kind == TOKEN_LBRACKET) {
+    return parse_postfix_rest(p, left);
+}
+/* 后缀链：在已 parse 的 left 上接 ./[/( 与泛型调用，支持 foo()[0]、a.b()、f<T>(x)[1] 等。
+ * 原 parse_postfix 把调用放在 while 之外，导致调用结果上的 [0] 无法链接；此处统一并入循环。 */
+static ASTExpr *parse_postfix_rest(Parser *p, ASTExpr *left) {
+    while (peek(p)->kind == TOKEN_DOT || peek(p)->kind == TOKEN_LBRACKET
+        || peek(p)->kind == TOKEN_LT || peek(p)->kind == TOKEN_LPAREN) {
         if (peek(p)->kind == TOKEN_DOT) {
             advance(p);
             if (peek(p)->kind != TOKEN_IDENT && peek(p)->kind != TOKEN_MATCH && peek(p)->kind != TOKEN_SPAWN) {
@@ -2145,7 +2265,8 @@ static ASTExpr *parse_postfix(Parser *p) {
                 e->value.field_access.is_enum_variant = 0;  /* typeck 将 Type.Variant 设为 1 */
                 left = e;
             }
-        } else {
+            continue;
+        } else if (peek(p)->kind == TOKEN_LBRACKET) {
             /* 下标访问 base[index]（文档 §6.2） */
             advance(p);
             ASTExpr *idx = parse_expr(p);
@@ -2173,12 +2294,12 @@ static ASTExpr *parse_postfix(Parser *p) {
             e->value.index.index_expr = idx;
             e->value.index.base_is_slice = 0;  /* typeck 会设为 1 当基类型为切片 */
             left = e;
+            continue;
         }
-    }
-    /* 可选泛型类型实参：callee < Type (, Type)* > ( args )（阶段 7.1）。仅当 < 后为类型起始符时才解析，避免 a < b 被当作泛型调用。 */
-    ASTType **type_args = NULL;
-    int num_type_args = 0;
-    if (peek(p)->kind == TOKEN_LT) {
+        /* 可选泛型类型实参：callee < Type (, Type)* > ( args )（阶段 7.1）。仅当 < 后为类型起始符时才解析，避免 a < b 被当作泛型调用。 */
+        ASTType **type_args = NULL;
+        int num_type_args = 0;
+        if (peek(p)->kind == TOKEN_LT) {
         const Token *n = peek_next(p);
         TokenKind k = n->kind;
         int type_start;
@@ -2190,7 +2311,8 @@ static ASTExpr *parse_postfix(Parser *p) {
             type_start = (k == TOKEN_I32 || k == TOKEN_BOOL || k == TOKEN_U8 || k == TOKEN_U32 || k == TOKEN_U64 || k == TOKEN_I64 || k == TOKEN_USIZE || k == TOKEN_ISIZE || k == TOKEN_F32 || k == TOKEN_F64 || k == TOKEN_VOID || k == TOKEN_I32X4 || k == TOKEN_I32X8 || k == TOKEN_I32X16 || k == TOKEN_U32X4 || k == TOKEN_U32X8 || k == TOKEN_U32X16 || k == TOKEN_F32X4 || k == TOKEN_STAR || k == TOKEN_LBRACKET);
         }
         if (!type_start) {
-            /* 视为小于运算，不解析类型实参 */
+            /* 视为小于运算，不解析类型实参；跳出 postfix 循环避免死循环。 */
+            break;
         } else {
         advance(p);
         ASTType **ta = (ASTType **)malloc((size_t)AST_MAX_GENERIC_PARAMS * sizeof(ASTType *));
@@ -2302,7 +2424,10 @@ static ASTExpr *parse_postfix(Parser *p) {
         e->value.call.type_args = type_args;
         e->value.call.num_type_args = num_type_args;
         left = e;
+        continue;  /* 调用后继续链：foo()[0]、foo().bar() */
     }
+    break;  /* 既非 ./[/( 又非 <( 泛型调用：postfix 链结束 */
+    }  /* end postfix while */
     /* postfix / 调用之后不再在此处接 as type；as 由 parse_unary 末尾统一处理。
      * 【Why 优先级根源】若在此处接 as_chain，则 `&expr as T` / `*expr as T` 在 parse_unary
      * 的 inner 递归中就会把 as 包进 inner，导致 AST 错为 `&(expr as T)` / `*(expr as T)`。
@@ -3667,6 +3792,8 @@ static ASTBlock *parse_block(Parser *p, int allow_while, int consume_rbrace) {
     b->num_for_loops = 0;
     b->defer_blocks = NULL;
     b->num_defers = 0;
+    b->try_catches = NULL;
+    b->num_try_catches = 0;
     b->regions = NULL;
     b->num_regions = 0;
     b->labeled_stmts = NULL;
@@ -3760,6 +3887,7 @@ next_stmt:
             if (peek(p)->kind == TOKEN_IDENT && is_ident_str(p, "unsafe", 6))
                 goto parse_unsafe_start;
             if (peek(p)->kind == TOKEN_DEFER) goto parse_defer_start;
+            if (peek(p)->kind == TOKEN_TRY) goto parse_try_start;
             if (peek(p)->kind == TOKEN_GOTO || (peek(p)->kind == TOKEN_IDENT && peek_next(p)->kind == TOKEN_COLON))
                 goto parse_label_start;
             ASTExpr *e = parse_expr(p);
@@ -3981,6 +4109,78 @@ parse_for_start:
                 return NULL;
             }
             advance(p);
+            /* 范围 for：for (i : start .. end) { body } — desugar 为 C-style for */
+            if (peek(p)->kind == TOKEN_IDENT && peek_next(p)->kind == TOKEN_COLON) {
+                char *range_var = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
+                advance(p); advance(p);  /* ident, : */
+                ASTExpr *range_start = parse_expr(p);
+                if (!range_var || !range_start) { free(range_var); ast_expr_free(range_start); ast_block_free(b); return NULL; }
+                if (peek(p)->kind != TOKEN_DOTDOT) {
+                    free(range_var); ast_expr_free(range_start);
+                    fail(p, "expected '..' in range for");
+                    ast_block_free(b); return NULL;
+                }
+                advance(p);  /* .. */
+                ASTExpr *range_end = parse_expr(p);
+                if (!range_end) { free(range_var); ast_expr_free(range_start); ast_block_free(b); return NULL; }
+                if (peek(p)->kind != TOKEN_RPAREN) {
+                    free(range_var); ast_expr_free(range_start); ast_expr_free(range_end);
+                    fail(p, "expected ')' in range for");
+                    ast_block_free(b); return NULL;
+                }
+                advance(p);  /* ) */
+                /* desugar: let i = start; for (; i < end; i = i + 1) { body } */
+                if (b->num_lets >= MAX_LET_DECLS) { free(range_var); ast_expr_free(range_start); ast_expr_free(range_end); ast_block_free(b); return NULL; }
+                b->let_decls[b->num_lets].name = range_var;
+                b->let_decls[b->num_lets].type = NULL;
+                b->let_decls[b->num_lets].init = range_start;
+                int range_let_idx = b->num_lets++;
+                push_stmt_order(b, 1, range_let_idx);
+                /* cond: i < end */
+                ASTExpr *cond = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+                cond->kind = AST_EXPR_LT;
+                ASTExpr *cond_l = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+                cond_l->kind = AST_EXPR_VAR; cond_l->value.var.name = strdup(range_var);
+                cond->value.binop.left = cond_l;
+                cond->value.binop.right = range_end;
+                /* step: i = i + 1 */
+                ASTExpr *step = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+                step->kind = AST_EXPR_ASSIGN;
+                ASTExpr *step_l = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+                step_l->kind = AST_EXPR_VAR; step_l->value.var.name = strdup(range_var);
+                step->value.binop.left = step_l;
+                ASTExpr *step_r = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+                step_r->kind = AST_EXPR_ADD;
+                ASTExpr *add_l = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+                add_l->kind = AST_EXPR_VAR; add_l->value.var.name = strdup(range_var);
+                ASTExpr *add_r = (ASTExpr *)calloc(1, sizeof(ASTExpr));
+                add_r->kind = AST_EXPR_LIT; add_r->value.int_val = 1;
+                step_r->value.binop.left = add_l;
+                step_r->value.binop.right = add_r;
+                step->value.binop.right = step_r;
+                if (peek(p)->kind != TOKEN_LBRACE) {
+                    ast_expr_free(cond); ast_expr_free(step);
+                    fail(p, "expected '{' after range for");
+                    ast_block_free(b); return NULL;
+                }
+                advance(p);
+                ASTBlock *body = parse_block(p, 1, 0);
+                if (!body) { ast_expr_free(cond); ast_expr_free(step); ast_block_free(b); return NULL; }
+                if (peek(p)->kind != TOKEN_RBRACE) {
+                    ast_expr_free(cond); ast_expr_free(step); ast_block_free(body);
+                    fail(p, "expected '}' after range for body");
+                    ast_block_free(b); return NULL;
+                }
+                advance(p);
+                if (fail_if_semicolon_after_brace(p) != 0) { ast_expr_free(cond); ast_expr_free(step); ast_block_free(body); ast_block_free(b); return NULL; }
+                b->for_loops[b->num_for_loops].init = NULL;
+                b->for_loops[b->num_for_loops].cond = cond;
+                b->for_loops[b->num_for_loops].step = step;
+                b->for_loops[b->num_for_loops].body = body;
+                b->num_for_loops++;
+                push_stmt_order(b, 4, b->num_for_loops - 1);
+                goto next_stmt;
+            }
             /* init：可选，; 前可为 let ident : type = expr ;（基础写法）或单条表达式 */
             ASTExpr *init = NULL;
             if (peek(p)->kind == TOKEN_LET) {
@@ -4251,6 +4451,52 @@ parse_defer_start:
             }
         }
         b->defer_blocks[b->num_defers++] = db;
+    }
+    goto next_stmt;
+    /* ERR-02：try { } catch (r) { } — try 内 ? 失败 goto catch 并绑定 Result。 */
+parse_try_start:
+    {
+        if (b->num_try_catches >= 32) { fail(p, "too many try/catch blocks"); ast_block_free(b); return NULL; }
+        advance(p);  /* consume 'try' */
+        if (peek(p)->kind != TOKEN_LBRACE) { fail(p, "expected '{' after try"); if (parser_recovery_enabled()) { parser_recover_statement_boundary(p); goto next_stmt; } ast_block_free(b); return NULL; }
+        advance(p);
+        ASTBlock *tb = parse_block(p, 1, 0);
+        if (!tb) { if (parser_recovery_enabled()) { parser_recover_statement_boundary(p); goto next_stmt; } ast_block_free(b); return NULL; }
+        if (peek(p)->kind != TOKEN_RBRACE) { ast_block_free(tb); fail(p, "expected '}' after try block"); ast_block_free(b); return NULL; }
+        advance(p);  /* } */
+        char *catch_bind = NULL;
+        ASTBlock *cb = NULL;
+        if (peek(p)->kind == TOKEN_CATCH) {
+            advance(p);
+            if (peek(p)->kind == TOKEN_LPAREN) {
+                advance(p);
+                if (peek(p)->kind != TOKEN_IDENT) { ast_block_free(tb); fail(p, "expected binding name in catch(...)"); ast_block_free(b); return NULL; }
+                catch_bind = strndup(peek(p)->value.ident, (size_t)peek(p)->ident_len);
+                advance(p);
+                if (peek(p)->kind != TOKEN_RPAREN) { ast_block_free(tb); free(catch_bind); fail(p, "expected ')' after catch binding"); ast_block_free(b); return NULL; }
+                advance(p);
+            }
+            if (peek(p)->kind != TOKEN_LBRACE) { ast_block_free(tb); free(catch_bind); fail(p, "expected '{' after catch"); ast_block_free(b); return NULL; }
+            advance(p);
+            cb = parse_block(p, 1, 0);
+            if (!cb) { ast_block_free(tb); free(catch_bind); ast_block_free(b); return NULL; }
+            if (peek(p)->kind != TOKEN_RBRACE) { ast_block_free(tb); ast_block_free(cb); free(catch_bind); fail(p, "expected '}' after catch block"); ast_block_free(b); return NULL; }
+            advance(p);  /* } */
+        }
+        if (!b->try_catches) {
+            b->try_catches = (ASTTryCatchBlock *)malloc((size_t)32 * sizeof(ASTTryCatchBlock));
+            if (!b->try_catches) { ast_block_free(tb); ast_block_free(cb); free(catch_bind); ast_block_free(b); parser_oom(p); return NULL; }
+        }
+        int ti = b->num_try_catches++;
+        b->try_catches[ti].try_body = tb;
+        b->try_catches[ti].catch_bind = catch_bind;
+        b->try_catches[ti].catch_body = cb;
+        b->try_catches[ti].result_type = NULL;
+        if (b->num_stmt_order < MAX_BLOCK_STMT_ORDER) {
+            b->stmt_order[b->num_stmt_order].kind = (unsigned char)7;
+            b->stmt_order[b->num_stmt_order].idx = ti;
+            b->num_stmt_order++;
+        }
     }
     goto next_stmt;
     /* M-3：region label { body }；块内 slice 由 typeck 继承域标签 */
@@ -5131,6 +5377,15 @@ int parse(Lexer *lex, ASTModule **out) {
             continue;
         }
         if (pending_cfg_skip_import) {
+            if (peek(&prs)->kind == TOKEN_IDENT && is_ident_str(&prs, "allow", 5)) {
+                advance(&prs);
+                if (peek(&prs)->kind != TOKEN_LPAREN) { FREE_IMPORT_AUX; free(mod); fail(&prs, "expected '(' after 'allow'"); return -1; }
+                advance(&prs);
+                if (!is_ident_str(&prs, "padding", 7)) { FREE_IMPORT_AUX; free(mod); fail(&prs, "expected 'padding' inside allow(...)"); return -1; }
+                advance(&prs);
+                if (peek(&prs)->kind != TOKEN_RPAREN) { FREE_IMPORT_AUX; free(mod); fail(&prs, "expected ')' to close allow(...)"); return -1; }
+                advance(&prs);
+            }
             if (peek(&prs)->kind == TOKEN_CONST) {
                 skip_one_top_level_const_decl(&prs);
                 pending_cfg_skip_import = 0;
@@ -5342,6 +5597,8 @@ int parse(Lexer *lex, ASTModule **out) {
     int nstructs = 0;
     ASTEnumDef *enum_list[MAX_ENUMS];
     int nenums = 0;
+    ASTTypeAlias alias_list[AST_MODULE_MAX_TYPE_ALIASES];
+    int naliases = 0;
     while (peek(&prs)->kind == TOKEN_ENUM) {
         ASTEnumDef *e = parse_one_enum(&prs);
         if (!e) {
@@ -5510,6 +5767,8 @@ int parse(Lexer *lex, ASTModule **out) {
     int pending_sync = 0;      /* L6：#[sync]，应用于下一 struct */
     while (peek(&prs)->kind == TOKEN_EXTERN || peek(&prs)->kind == TOKEN_ASYNC || peek(&prs)->kind == TOKEN_FUNCTION
            || peek(&prs)->kind == TOKEN_STRUCT || peek(&prs)->kind == TOKEN_ENUM
+           || (peek(&prs)->kind == TOKEN_IDENT && is_ident_str(&prs, "type", 4)
+               && peek_next(&prs)->kind == TOKEN_IDENT && peek_next_next(&prs)->kind == TOKEN_ASSIGN)
            || peek(&prs)->kind == TOKEN_ATTR_SOA || peek(&prs)->kind == TOKEN_ATTR_CFG
            || peek(&prs)->kind == TOKEN_ATTR_REPR_C || peek(&prs)->kind == TOKEN_ATTR_REPR_COMPATIBLE
            || peek(&prs)->kind == TOKEN_ATTR_ALLOC
@@ -5780,6 +6039,19 @@ int parse(Lexer *lex, ASTModule **out) {
             advance(&prs);
             continue;
         }
+        if (peek(&prs)->kind == TOKEN_IDENT && is_ident_str(&prs, "type", 4)
+            && peek_next(&prs)->kind == TOKEN_IDENT && peek_next_next(&prs)->kind == TOKEN_ASSIGN) {
+            advance(&prs); /* consume 'type' identifier */
+            char *alname = strndup(peek(&prs)->value.ident, (size_t)peek(&prs)->ident_len);
+            advance(&prs); advance(&prs); /* IDENT, '=' */
+            ASTType *altarget = parse_type(&prs);
+            if (!altarget) { free(alname); goto cleanup_funcs_fail; }
+            if (peek(&prs)->kind != TOKEN_SEMICOLON) { free(alname); ast_type_free(altarget); fail(&prs, "expected ';' after type alias"); goto cleanup_funcs_fail; }
+            advance(&prs);
+            if (naliases >= AST_MODULE_MAX_TYPE_ALIASES) { free(alname); ast_type_free(altarget); fail(&prs, "too many type aliases"); goto cleanup_funcs_fail; }
+            alias_list[naliases].name = alname; alias_list[naliases].target = altarget; naliases++;
+            continue;
+        }
         if (peek(&prs)->kind == TOKEN_ATTR_COLD) {
             pending_cold = 1; advance(&prs); continue;
         }
@@ -5818,6 +6090,15 @@ int parse(Lexer *lex, ASTModule **out) {
             continue;
         }
         if (pending_cfg_skip) {
+            if (peek(&prs)->kind == TOKEN_IDENT && is_ident_str(&prs, "allow", 5)) {
+                advance(&prs);
+                if (peek(&prs)->kind != TOKEN_LPAREN) goto cleanup_funcs_fail;
+                advance(&prs);
+                if (!is_ident_str(&prs, "padding", 7)) goto cleanup_funcs_fail;
+                advance(&prs);
+                if (peek(&prs)->kind != TOKEN_RPAREN) goto cleanup_funcs_fail;
+                advance(&prs);
+            }
             if (peek(&prs)->kind == TOKEN_STRUCT) {
                 skip_one_top_level_struct(&prs);
                 pending_cfg_skip = 0;
@@ -6142,6 +6423,12 @@ cleanup_funcs_fail:
         for (int i = 0; i < nstructs; i++)
             mod->struct_defs[i] = struct_list[i];
         mod->num_structs = nstructs;
+    }
+    if (naliases > 0) {
+        mod->type_aliases = (ASTTypeAlias *)malloc((size_t)naliases * sizeof(ASTTypeAlias));
+        if (!mod->type_aliases) goto cleanup_funcs_fail;
+        for (int i = 0; i < naliases; i++) { mod->type_aliases[i].name = alias_list[i].name; mod->type_aliases[i].target = alias_list[i].target; }
+        mod->num_type_aliases = naliases;
     }
     if (nenums > 0) {
         mod->enum_defs = (ASTEnumDef **)malloc((size_t)nenums * sizeof(ASTEnumDef *));

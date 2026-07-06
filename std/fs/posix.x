@@ -896,15 +896,16 @@ function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, 
 }
 
 /** 按段数 readv（1..16）。 */
-function fs_readv_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 {
+function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   if (n <= 0 || n > FS_IOV_BUF_MAX || bufs == 0) {
     return -1;
   }
+  let b: *FsIovecBuf = bufs as *FsIovecBuf;
   let iov: Iovec[16];
   let i: i32 = 0;
   while (i < n) {
-    iov[i].base = bufs[i].ptr;
-    iov[i].len = bufs[i].len;
+    iov[i].base = b[i].ptr;
+    iov[i].len = b[i].len;
     i = i + 1;
   }
   let r: isize = fs_libc_readv(fd, &iov[0], n);
@@ -912,15 +913,16 @@ function fs_readv_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 {
 }
 
 /** 按段数 writev（1..16）。 */
-function fs_writev_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 {
+function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
   if (n <= 0 || n > FS_IOV_BUF_MAX || bufs == 0) {
     return -1;
   }
+  let b: *FsIovecBuf = bufs as *FsIovecBuf;
   let iov: Iovec[16];
   let i: i32 = 0;
   while (i < n) {
-    iov[i].base = bufs[i].ptr;
-    iov[i].len = bufs[i].len;
+    iov[i].base = b[i].ptr;
+    iov[i].len = b[i].len;
     i = i + 1;
   }
   let r: isize = fs_libc_writev(fd, &iov[0], n);

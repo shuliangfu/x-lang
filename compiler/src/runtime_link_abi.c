@@ -2917,9 +2917,15 @@ static int link_abi_generated_c_needs_db_arrow(const char *c_path) {
 
 /** 扫描生成 C 是否引用 core.slice C 辅助符号（G-01：纯 .x，不再链 slice.o）。 */
 static int link_abi_generated_c_needs_core_slice(const char *c_path) {
-    (void)c_path;
-    return 0;
+    /* core.slice subslice/chunk 经 core/slice/slice.c 薄封装构造（语言暂无 slice 复合字面量）。 */
+    static const char *needles[] = {
+        "core_slice_i32_from_ptr_c", "core_subslice_i32_c",
+        "core_slice_u8_from_ptr_c", "core_subslice_u8_c",
+        "core_slice_u64_from_ptr_c", "core_subslice_u64_c",
+    };
+    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
 }
+
 
 /** 扫描生成 C 是否引用 std.fs 符号（F-03 v2：按需链 -lc，无 fs.o）。 */
 static int link_abi_generated_c_needs_fs(const char *c_path) {
@@ -3124,6 +3130,7 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "core/mem/mem.o"));
             if (needs_core_slice)
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "core/slice/slice.o"));
+
             if (needs_db_kv) {
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "std/db/kv/kv.o"));
                 {
@@ -4071,8 +4078,12 @@ static int link_abi_user_o_needs_core_mem(const char *user_o) {
 }
 
 static int link_abi_user_o_needs_core_slice(const char *user_o) {
-    (void)user_o;
-    return 0;
+    return shux_link_obj_needs_undef_sym(user_o, "core_slice_i32_from_ptr_c")
+        || shux_link_obj_needs_undef_sym(user_o, "core_subslice_i32_c")
+        || shux_link_obj_needs_undef_sym(user_o, "core_slice_u8_from_ptr_c")
+        || shux_link_obj_needs_undef_sym(user_o, "core_subslice_u8_c")
+        || shux_link_obj_needs_undef_sym(user_o, "core_slice_u64_from_ptr_c")
+        || shux_link_obj_needs_undef_sym(user_o, "core_subslice_u64_c");
 }
 
 /**

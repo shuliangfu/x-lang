@@ -87,8 +87,8 @@ function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, 
   return fs_platform.fs_writev4_c(fd, p0, l0, p1, l1, p2, l2, p3, l3);
 }
 allow(padding) struct FsIovecBuf { ptr: *u8; len: usize; handle: usize }
-function fs_readv_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 { return fs_platform.fs_readv_buf_c(fd, bufs, n); }
-function fs_writev_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 { return fs_platform.fs_writev_buf_c(fd, bufs, n); }
+function fs_readv_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 { return fs_platform.fs_readv_buf_c(fd, bufs as *u8, n); }
+function fs_writev_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 { return fs_platform.fs_writev_buf_c(fd, bufs as *u8, n); }
 function invalid(): i32 { return -1; }
 /** 推荐大块读单次字节数（1MiB），极致压榨时用此大小循环 fs_read。 */
 function chunk_size(): usize { return 1048576; }

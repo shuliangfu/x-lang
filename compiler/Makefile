@@ -2444,3 +2444,7 @@ size-baseline:
 # 阶段 8 性能基线：编译并多次运行 perf-baseline，输出耗时
 perf-baseline:
 	@if [ -f ../tests/run-perf-baseline.sh ]; then (cd .. && chmod +x tests/run-perf-baseline.sh && SHUX=./compiler/shux-c ./tests/run-perf-baseline.sh); fi
+
+# core.slice：语言暂无 slice 复合字面量，subslice/chunk 经 core/slice/slice.c 薄封装构造。
+../core/slice/slice.o: ../core/slice/slice.c
+	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<

@@ -32,6 +32,7 @@ static int bce_bound_const[MAX_BCE_RANGES];   /* 1 表示上界为常数 bce_bou
 
 /** LANG-007 v2：S0 内 *T 解引用与 extern 调用须在 unsafe { } 内；嵌套 unsafe 块递增。 */
 static int typeck_unsafe_depth;
+static struct ASTTryCatchBlock *typeck_current_try_catch;
 /**
  * 自举兼容：旧 C typeck 仍承担 shux-c 的 `-E` 生成职责，而编译器内部 `.x` 大量通过 C glue 调 extern。
  * 最终语言语义以 `.x` typeck 为准，因此这里放宽“extern 调用必须 unsafe”只用于 bootstrap 生成链，
@@ -50,6 +51,7 @@ int typeck_set_allow_legacy_extern_calls(int allow) {
 
 /** 当前 typeck 的函数是否为 async function（await 仅允许在其体内）。 */
 static int typeck_current_func_is_async;
+static const struct ASTType *typeck_func_return_type;
 
 /** M-4：线性类型 use-once move 跟踪；与 symtab names[i] 平行，仅 AST_TYPE_LINEAR 有意义。 */
 static int g_linear_moved[MAX_SYMTAB];
@@ -209,7 +211,50 @@ static const struct ASTStructDef *find_struct_def(struct ASTStructDef **defs, in
  * 先在本模块 defs 中查找结构体，未找到时在 typeck_dep_mods 中查找（跨模块类型解析，如 import std.mem 后使用 Buffer）。
  * 参数：defs/num 当前模块结构体；name 类型名。返回值：找到返回该 ASTStructDef*，否则 NULL。
  */
+static int typeck_repr_compatible_ptrs(const char *na, const char *nb);
+static const struct ASTType *resolve_type_alias(const char *name, int depth) {
+    int j;
+    if (!name || depth > 16) return NULL;
+    if (typeck_current_mod && typeck_current_mod->type_aliases) {
+        for (int i = 0; i < typeck_current_mod->num_type_aliases; i++) {
+            ASTTypeAlias *a = &typeck_current_mod->type_aliases[i];
+            if (a->name && strcmp(a->name, name) == 0 && a->target) {
+                if (a->target->kind == AST_TYPE_NAMED && a->target->name) {
+                    const struct ASTType *r = resolve_type_alias(a->target->name, depth + 1);
+                    return r ? r : a->target;
+                }
+                return a->target;
+            }
+        }
+    }
+    if (typeck_dep_mods) {
+        for (j = 0; j < typeck_num_deps; j++) {
+            struct ASTModule *dm = typeck_dep_mods[j];
+            if (!dm || !dm->type_aliases) continue;
+            for (int i = 0; i < dm->num_type_aliases; i++) {
+                ASTTypeAlias *a = &dm->type_aliases[i];
+                if (a->name && strcmp(a->name, name) == 0 && a->target) {
+                    if (a->target->kind == AST_TYPE_NAMED && a->target->name) {
+                        const struct ASTType *r = resolve_type_alias(a->target->name, depth + 1);
+                        return r ? r : a->target;
+                    }
+                    return a->target;
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
 static const struct ASTStructDef *find_struct_def_with_deps(struct ASTStructDef **defs, int num, const char *name) {
+    /* 类型别名：name 是 alias 时按其 target 的结构名再查 */
+    if (name) {
+        const struct ASTType *t = resolve_type_alias(name, 0);
+        if (t && t->kind == AST_TYPE_NAMED && t->name) {
+            const struct ASTStructDef *sd2 = find_struct_def_with_deps(defs, num, t->name);
+            if (sd2) return sd2;
+        }
+    }
     const struct ASTStructDef *sd = find_struct_def(defs, num, name);
     if (sd) return sd;
     if (!typeck_dep_mods || !name) return NULL;
@@ -733,6 +778,12 @@ static int type_equal(const struct ASTType *a, const struct ASTType *b) {
     if (a->kind == AST_TYPE_NAMED) {
         if (!a->name && !b->name) return 1;
         if (a->name && b->name && strcmp(a->name, b->name) == 0) return 1;
+        {
+            const struct ASTType *ta = (a->name) ? resolve_type_alias(a->name, 0) : NULL;
+            const struct ASTType *tb = (b->name) ? resolve_type_alias(b->name, 0) : NULL;
+            if (ta && type_equal(ta, b)) return 1;
+            if (tb && type_equal(tb, a)) return 1;
+        }
         /* 跨模块限定名与短名视为同类型：ElfCodegenCtx 与 platform.elf.ElfCodegenCtx */
         if (a->name && b->name) {
             const char *tail_a = strrchr(a->name, '.');
@@ -804,6 +855,26 @@ static int typeck_is_integer_like_type(const struct ASTType *ty) {
 static void type_to_string_buf(const struct ASTType *ty, char *buf, size_t size);
 
 /** 实参是否可赋给形参。arg_expr 可为 NULL（跳过仅依赖字面量的规则）。 */
+/** #[repr(compatible)]：两个 NAMED struct 名都标 repr_compatible 且字段类型序列一致时
+ * 允许 *A / *B 指针实参互认（MOD-02：同布局不同名 struct 指针互 assign）。 */
+static int typeck_repr_compatible_ptrs(const char *na, const char *nb);
+static int typeck_repr_compatible_ptrs(const char *na, const char *nb) {
+    const struct ASTStructDef *a = NULL, *b = NULL;
+    if (typeck_current_mod && typeck_current_mod->struct_defs) {
+        a = find_struct_def(typeck_current_mod->struct_defs, typeck_current_mod->num_structs, na);
+        b = find_struct_def(typeck_current_mod->struct_defs, typeck_current_mod->num_structs, nb);
+    }
+    if (!a) a = find_struct_def_with_deps(NULL, 0, na);
+    if (!b) b = find_struct_def_with_deps(NULL, 0, nb);
+    if (!a || !b) return 0;
+    if (!a->repr_compatible || !b->repr_compatible) return 0;
+    if (a->num_fields != b->num_fields) return 0;
+    for (int i = 0; i < a->num_fields; i++) {
+        if (!type_equal(a->fields[i].type, b->fields[i].type)) return 0;
+    }
+    return 1;
+}
+
 static int type_assignable_to(const struct ASTType *actual, const struct ASTType *formal,
     const struct ASTExpr *arg_expr) {
     if (!formal) return actual == NULL;
@@ -814,6 +885,11 @@ static int type_assignable_to(const struct ASTType *actual, const struct ASTType
             if (type_equal(formal->elem_type, operand->resolved_type)) return 1;
             if (operand->resolved_type->kind == AST_TYPE_ARRAY && operand->resolved_type->elem_type
                 && type_equal(formal->elem_type, operand->resolved_type->elem_type))
+                return 1;
+            /* #[repr(compatible)]：&x（x:PairA）传 *PairB 形参，同布局不同名 struct 互认。 */
+            if (formal->elem_type->kind == AST_TYPE_NAMED && operand->resolved_type->kind == AST_TYPE_NAMED
+                && formal->elem_type->name && operand->resolved_type->name
+                && typeck_repr_compatible_ptrs(formal->elem_type->name, operand->resolved_type->name))
                 return 1;
         }
         return 0;
@@ -848,6 +924,15 @@ static int type_assignable_to(const struct ASTType *actual, const struct ASTType
     }
     if (!actual) return 0;
     if (type_equal(actual, formal)) return 1;
+    /* #[repr(compatible)]：同布局不同名 struct 指针互认（MOD-02: take_b(&x) 传 *PairA 给 *PairB）。 */
+    if (formal->kind == AST_TYPE_PTR && actual->kind == AST_TYPE_PTR
+        && formal->elem_type && actual->elem_type
+        && formal->elem_type->kind == AST_TYPE_NAMED && actual->elem_type->kind == AST_TYPE_NAMED
+        && formal->elem_type->name && actual->elem_type->name) {
+        int rc = typeck_repr_compatible_ptrs(formal->elem_type->name, actual->elem_type->name);
+        fprintf(stderr, "DBG rcptr formal=%s actual=%s rc=%d\n", formal->elem_type->name, actual->elem_type->name, rc);
+        if (rc) return 1;
+    }
     if (formal->kind == AST_TYPE_U32 && arg_expr && arg_expr->kind == AST_EXPR_LIT
         && arg_expr->value.int_val >= 0)
         return 1;
@@ -918,6 +1003,10 @@ static const char *struct_lit_resolved_type_name(const struct ASTStructDef *sd, 
 static int typeck_let_init_matches(const struct ASTType *decl, const struct ASTExpr *init) {
     if (!decl || !init || !init->resolved_type) return 1;
     if (type_equal(decl, init->resolved_type)) return 1;
+    if (decl->kind == AST_TYPE_NAMED && decl->name) {
+        const struct ASTType *t = resolve_type_alias(decl->name, 0);
+        if (t && type_equal(t, init->resolved_type)) return 1;
+    }
     /* import 解构 as：声明 IoBuf、初值 Buffer（或反之）时视为同一结构体 */
     if (typeck_current_mod && decl->kind == AST_TYPE_NAMED && init->resolved_type->kind == AST_TYPE_NAMED
         && decl->name && init->resolved_type->name && strcmp(decl->name, init->resolved_type->name) != 0) {
@@ -2453,6 +2542,36 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             if (typeck_expr_sym(e->value.as_type.operand, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
             ((struct ASTExpr *)e)->resolved_type = e->value.as_type.type;
             return 0;
+        case AST_EXPR_TRY_PROPAGATE: {
+            /* ERR-01：Result `?` — operand 须为 Result struct（含 err/value 字段）；
+             * 表达式类型为 value 字段类型；codegen desugar 为 err 早退 + unwrap value。 */
+            const struct ASTExpr *op = e->value.unary.operand;
+            if (!op) { TYPECK_ERR(e, "`?` requires an operand"); return -1; }
+            if (typeck_expr_sym((struct ASTExpr *)op, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+            const struct ASTType *ot = op->resolved_type;
+            const struct ASTStructDef *rsd = NULL;
+            if (ot && ot->kind == AST_TYPE_NAMED && ot->name)
+                rsd = find_struct_def_with_deps(struct_defs, num_structs, ot->name);
+            if (!rsd) { if (!typeck_fill_only) { TYPECK_ERR(e, "`?` operand must be a Result type"); return -1; } return 0; }
+            int err_idx = -1, val_idx = -1;
+            for (int fi = 0; fi < rsd->num_fields; fi++) {
+                if (rsd->fields[fi].name && strcmp(rsd->fields[fi].name, "err") == 0) err_idx = fi;
+                if (rsd->fields[fi].name && strcmp(rsd->fields[fi].name, "value") == 0) val_idx = fi;
+            }
+            if (err_idx < 0 || val_idx < 0) { if (!typeck_fill_only) { TYPECK_ERR(e, "`?` operand struct has no err/value fields"); return -1; } return 0; }
+            ((struct ASTExpr *)e)->resolved_type = rsd->fields[val_idx].type;
+            /* ERR-02：try 内的 ? 记录 Result 类型供 catch 绑定 r。 */
+            if (typeck_current_try_catch && !typeck_current_try_catch->result_type)
+                typeck_current_try_catch->result_type = (struct ASTType *)ot;
+            /* 非 try 上下文的 ? 须在返回同型 Result 的函数内（ERR-01 负例：i32 函数内 ? 应报错）。 */
+            if (!typeck_current_try_catch && !typeck_fill_only) {
+                if (!typeck_func_return_type || !type_equal(typeck_func_return_type, ot)) {
+                    TYPECK_ERR(e, "`?` requires the enclosing function to return the same Result type");
+                    return -1;
+                }
+            }
+            return 0;
+        }
         case AST_EXPR_AWAIT:
             if (!typeck_current_func_is_async) {
                 if (!typeck_fill_only) {
@@ -2645,6 +2764,17 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             if (!rt && lt)
                 ((struct ASTExpr *)e->value.binop.right)->resolved_type = lt;  /* 子块中右端可能未解析到类型，用左端补 */
             rt = e->value.binop.right->resolved_type;
+            if (lt && e->value.binop.right->kind == AST_EXPR_TERNARY) {
+                struct ASTExpr *te = (struct ASTExpr *)e->value.binop.right;
+                struct ASTExpr *tb = (struct ASTExpr *)te->value.if_expr.then_expr;
+                struct ASTExpr *eb = (struct ASTExpr *)te->value.if_expr.else_expr;
+                if (tb && tb->kind == AST_EXPR_LIT && eb && eb->kind == AST_EXPR_LIT
+                    && typeck_coerce_let_int_lit(lt, tb) && typeck_coerce_let_int_lit(lt, eb)) {
+                    te->resolved_type = (struct ASTType *)lt;
+                    ((struct ASTExpr *)e->value.binop.right)->resolved_type = (struct ASTType *)lt;
+                    rt = lt;
+                }
+            }
             if (!typeck_fill_only && typeck_check_slice_region_assign(e, lt, rt) != 0)
                 return -1;
             if (!lt || !rt || !type_equal(lt, rt)) {
@@ -2784,7 +2914,42 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     }
                     arm->variant_index = idx;
                 }
-                if (typeck_expr_sym(arm->result, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+                /* 结构解构模式：Name { field: lit/_/bind } — 校验字段存在，BIND 字段加入 arm 作用域供 result/guard 使用。 */
+                const char **r_names = names; const int *r_kinds = type_kinds; const char **r_tnames = type_names; const struct ASTType **r_ptrs = type_ptrs; int r_n = n;
+                const char *ext_names[256]; int ext_kinds[256]; const char *ext_tnames[256]; const struct ASTType *ext_ptrs[256];
+                if (arm->is_struct_pattern) {
+                    const struct ASTStructDef *sd = arm->struct_pat_name ? find_struct_def_with_deps(struct_defs, num_structs, arm->struct_pat_name) : NULL;
+                    if (!sd) { if (!typeck_fill_only) { TYPECK_ERR(arm->result, "match destructure: unknown struct '%s'", arm->struct_pat_name ? arm->struct_pat_name : ""); return -1; } }
+                    else {
+                        for (int fi = 0; fi < arm->num_struct_pat_fields; fi++) {
+                            ASTMatchStructPatField *pf = &arm->struct_pat_fields[fi];
+                            int sidx = -1;
+                            for (int si = 0; si < sd->num_fields; si++) if (sd->fields[si].name && pf->field_name && strcmp(sd->fields[si].name, pf->field_name) == 0) { sidx = si; break; }
+                            if (sidx < 0) { if (!typeck_fill_only) { TYPECK_ERR(arm->result, "match destructure: struct '%s' has no field '%s'", sd->name, pf->field_name); return -1; } continue; }
+                            if (pf->kind == MATCH_STRUCT_PAT_BIND && pf->bind_name && r_n < 256) {
+                                ext_names[r_n] = pf->bind_name;
+                                ext_kinds[r_n] = sd->fields[sidx].type ? sd->fields[sidx].type->kind : AST_TYPE_I32;
+                                ext_tnames[r_n] = (sd->fields[sidx].type && sd->fields[sidx].type->kind == AST_TYPE_NAMED) ? sd->fields[sidx].type->name : NULL;
+                                ext_ptrs[r_n] = sd->fields[sidx].type;
+                                r_n++;
+                            }
+                        }
+                        if (r_n > n) {
+                            /* 合并既有 names + 新增 bind 到 ext 数组前部（复制原 n 项） */
+                            for (int k = 0; k < n; k++) { ext_names[k]=names[k]; ext_kinds[k]=type_kinds[k]; ext_tnames[k]=type_names[k]; ext_ptrs[k]=type_ptrs[k]; }
+                            r_names = ext_names; r_kinds = ext_kinds; r_tnames = ext_tnames; r_ptrs = ext_ptrs;
+                        }
+                    }
+                }
+                if (typeck_expr_sym(arm->result, r_names, r_kinds, r_tnames, r_n, r_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+                /* match guard: `pat if cond =>`；cond 须为 bool（MCH-02）。 */
+                if (arm->guard_expr) {
+                    if (typeck_expr_sym(arm->guard_expr, r_names, r_kinds, r_tnames, r_n, r_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+                    if (!typeck_fill_only && !expr_produces_bool(arm->guard_expr, names, type_kinds, n)) {
+                        TYPECK_ERR(arm->guard_expr, "match guard must be bool");
+                        return -1;
+                    }
+                }
             }
             return 0;
         }
@@ -3762,13 +3927,14 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
     /* 允许空块 {}（如 if (x) { } 的 then 体）；仅当块完全为空且无 final_expr 时放行，不视为错误 */
     if (!b->final_expr && b->num_labeled_stmts == 0 && b->num_expr_stmts == 0
         && b->num_consts == 0 && b->num_lets == 0 && b->num_loops == 0 && b->num_for_loops == 0 && b->num_defers == 0
-        && b->num_regions == 0)
+        && b->num_regions == 0 && b->num_try_catches == 0)
         return 0;
     const char *names[MAX_SYMTAB];
     int type_kinds[MAX_SYMTAB];
     const char *type_names[MAX_SYMTAB];
     const struct ASTType *type_ptrs[MAX_SYMTAB];
     int64_t const_values[MAX_SYMTAB]; /* CTFE：当前作用域 const 的求值结果，仅 names[0..n_consts) 为 const */
+    if (func_return_type) typeck_func_return_type = func_return_type;
     int n = parent_n < MAX_SYMTAB ? parent_n : 0;
     for (int i = 0; i < n && parent_names; i++) {
         names[i] = parent_names[i];
@@ -4006,6 +4172,28 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
     }
     for (int i = 0; i < b->num_defers; i++) {
         if (typeck_block(b->defer_blocks[i], names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type, scope_region) != 0) return -1;
+    }
+    /* ERR-02：try { } catch (r) { } — typeck try 体（? 记录 result_type），catch 体把 r 绑定为 Result 类型。 */
+    for (int i = 0; i < b->num_try_catches; i++) {
+        struct ASTTryCatchBlock *tc = &b->try_catches[i];
+        struct ASTTryCatchBlock *prev_tc = typeck_current_try_catch;
+        typeck_current_try_catch = tc;
+        if (tc->try_body && typeck_block(tc->try_body, names, type_kinds, type_names, type_ptrs, n, const_values, n_consts, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type, scope_region) != 0) { typeck_current_try_catch = prev_tc; return -1; }
+        typeck_current_try_catch = prev_tc;
+        if (tc->catch_body) {
+            const char **c_names = names; const int *c_kinds = type_kinds; const char **c_tnames = type_names; const struct ASTType **c_ptrs = type_ptrs; int c_n = n;
+            const char *ext_n[256]; int ext_k[256]; const char *ext_tn[256]; const struct ASTType *ext_tp[256];
+            if (tc->catch_bind && tc->result_type && c_n < 256) {
+                for (int k = 0; k < n; k++) { ext_n[k]=names[k]; ext_k[k]=type_kinds[k]; ext_tn[k]=type_names[k]; ext_tp[k]=type_ptrs[k]; }
+                ext_n[c_n] = tc->catch_bind;
+                ext_k[c_n] = tc->result_type->kind;
+                ext_tn[c_n] = (tc->result_type->kind == AST_TYPE_NAMED) ? tc->result_type->name : NULL;
+                ext_tp[c_n] = tc->result_type;
+                c_n++;
+                c_names = ext_n; c_kinds = ext_k; c_tnames = ext_tn; c_ptrs = ext_tp;
+            }
+            if (typeck_block(tc->catch_body, c_names, c_kinds, c_tnames, c_ptrs, c_n, const_values, n_consts, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m, func_return_type, scope_region) != 0) return -1;
+        }
     }
     for (int i = 0; i < b->num_regions; i++) {
         if (b->regions[i].is_unsafe) {

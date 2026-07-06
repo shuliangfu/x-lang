@@ -71,10 +71,17 @@ void ast_expr_free(ASTExpr *e) {
             ast_expr_free(e->value.match_expr.matched_expr);
             for (int i = 0; i < e->value.match_expr.num_arms; i++) {
                 if (e->value.match_expr.arms[i].is_enum_variant) {
+                    /* 或模式不支持 enum，单 enum arm 自有 en/vn；多 arm 共享同一指针时仅由拥有者 free。
+                     * 当前或模式仅整数字面量，enum 必为单 arm，直接 free 安全。 */
                     if (e->value.match_expr.arms[i].enum_name) free((void *)e->value.match_expr.arms[i].enum_name);
                     if (e->value.match_expr.arms[i].variant_name) free((void *)e->value.match_expr.arms[i].variant_name);
                 }
-                ast_expr_free(e->value.match_expr.arms[i].result);
+                /* result_shared=1 的 arm 与下一 arm 共享 result，跳过 free 避免重复释放。 */
+                if (!e->value.match_expr.arms[i].result_shared)
+                    ast_expr_free(e->value.match_expr.arms[i].result);
+                /* guard_shared=1 的 arm 共享 guard_expr，跳过 free。 */
+                if (e->value.match_expr.arms[i].guard_expr && !e->value.match_expr.arms[i].guard_shared)
+                    ast_expr_free(e->value.match_expr.arms[i].guard_expr);
             }
             free(e->value.match_expr.arms);
             break;

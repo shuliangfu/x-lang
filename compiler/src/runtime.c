@@ -2241,6 +2241,10 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);\n");
             fprintf(cf, "extern int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
             fprintf(cf, "extern int32_t shux_io_submit_write(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m);\n");
+            /* std.io.driver 的 register 走 shux_io_register_buf→裸名 shux_io_register；与 submit_read/write
+             * 对齐补 weak 桩（返回 0=注册成功占位），使纯 .x io 烟测自包含，无需链 runtime_asm_io_stubs.o
+             *（强桩会覆盖 submit_write 的 fwrite 弱实现，破坏 write_stdout）。 */
+            fprintf(cf, "__attribute__((weak)) int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle) { (void)ptr; (void)len; (void)handle; return 0; }\n");
             fprintf(cf, "typedef struct { void *ptr; size_t len; size_t handle; } shu_buffer_abi_t;\n");
             fprintf(cf, "static inline int32_t shux_io_register_buf(intptr_t buf) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_register((uint8_t *)b->ptr, b->len, b->handle); }\n");
             fprintf(cf, "static inline int32_t shux_io_submit_read_buf(intptr_t buf, int32_t timeout_m) { const shu_buffer_abi_t *b = (const shu_buffer_abi_t *)(uintptr_t)buf; return shux_io_submit_read((uint8_t *)b->ptr, b->len, b->handle, (uint32_t)timeout_m); }\n");
@@ -2257,7 +2261,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "__attribute__((weak)) int32_t shux_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uint32_t timeout_m) {\n");
             fprintf(cf, "  size_t r;\n");
             fprintf(cf, "  (void)timeout_m;\n");
-            fprintf(cf, "  if (!ptr || handle != 0) return -1;\n");
+            fprintf(cf, "  if (!ptr) return 0; if (handle != 0) return -1;\n");
             fprintf(cf, "  r = fread(ptr, 1, len, stdin);\n");
             fprintf(cf, "  if (r == 0 && feof(stdin)) return 0;\n");
             fprintf(cf, "  if (r == 0 && ferror(stdin)) return -1;\n");

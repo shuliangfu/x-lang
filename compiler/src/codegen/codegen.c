@@ -152,6 +152,10 @@ static int codegen_emit_call_library_dep_impl(FILE *out, const struct ASTExpr *e
 static int codegen_emit_call_mono_impl(FILE *out, const struct ASTExpr *e);
 /** 用于生成唯一 match 临时变量名；需在 codegen_x_match_next_id 前可见。 */
 static int codegen_match_id;
+static int codegen_try_active;  /* 在 try 体内时置位：? 失败 goto catch 而非 return */
+static char codegen_try_r_var[64];
+static char codegen_try_catch_label[64];
+static int codegen_try_id;
 
 /** .x 侧通过 extern 调用的“输出整棵表达式”接口：递归调用 codegen_expr，供 .x 在二元运算等中输出子表达式。返回 0 成功，-1 失败。 */
 int32_t codegen_x_emit_expr(uint8_t *out, uint8_t *expr) {
@@ -1452,6 +1456,15 @@ static void c_type_to_buf(const struct ASTType *ty, char *buf, size_t size) {
         case AST_TYPE_ISIZE: s = "ptrdiff_t"; break;
         case AST_TYPE_NAMED: {
             const char *n = ty->name ? ty->name : "int";
+            if (n && n[0]) {
+                const struct ASTType *at = NULL;
+                if (codegen_current_module && codegen_current_module->type_aliases)
+                    for (int ai = 0; ai < codegen_current_module->num_type_aliases; ai++)
+                        if (codegen_current_module->type_aliases[ai].name && strcmp(codegen_current_module->type_aliases[ai].name, n) == 0 && codegen_current_module->type_aliases[ai].target) { at = codegen_current_module->type_aliases[ai].target; break; }
+                if (!at && codegen_ndep > 0 && codegen_dep_mods)
+                    for (int di = 0; di < codegen_ndep && !at; di++) { const struct ASTModule *dm = codegen_dep_mods[di]; if (!dm || !dm->type_aliases) continue; for (int ai = 0; ai < dm->num_type_aliases; ai++) if (dm->type_aliases[ai].name && strcmp(dm->type_aliases[ai].name, n) == 0 && dm->type_aliases[ai].target) { at = dm->type_aliases[ai].target; break; } }
+                if (at) { c_type_to_buf(at, buf, size); return; }
+            }
             const char *src_n = codegen_import_select_source_name(n);
             /* CORE-013/CORE-017：i16/u16 为具名标量，映射 stdint 类型供 C 编译与 volatile ABI。 */
             if (strcmp(n, "i16") == 0) {
@@ -1893,6 +1906,41 @@ static void ensure_func_sig_vector_typedefs(const struct ASTFunc *f, FILE *out) 
  * 若 ty 为切片类型，则向 out 输出一次 struct shux_slice_<elem> { elem* data; size_t length; }（文档 §6.3）。
  * 同一 elem 类型只输出一次。单文件多模块时先查 codegen_emitted_type_names，避免跨库重复定义。
  */
+
+/* 函数按值返回定长数组 [N]T：C 不允许按值返回数组，包装为 struct shux_arr_<T>_<N> { <T> data[N]; }。
+ * 返回 wrapper struct 名；调用处解包用 .data。ensure_arr_ret_struct 输出 typedef（去重）。 */
+static const char *arr_ret_wrapper_name(const struct ASTType *ty) {
+    static char name_buf[128];
+    if (!ty || ty->kind != AST_TYPE_ARRAY || !ty->elem_type || ty->array_size <= 0) return NULL;
+    char elem_buf[64]; c_type_to_buf(ty->elem_type, elem_buf, sizeof elem_buf);
+    const char *ep = (strncmp(elem_buf, "struct ", 7) == 0) ? elem_buf + 7 : elem_buf;
+    const char *ep2 = (strncmp(ep, "uint8_t", 7) == 0) ? "u8" : (strncmp(ep, "int32_t", 7) == 0) ? "i32" : (strncmp(ep, "int16_t", 7) == 0) ? "i16" : ep;
+    snprintf(name_buf, sizeof name_buf, "shux_arr_%s_%d", ep2, ty->array_size);
+    return name_buf;
+}
+static void ensure_arr_ret_struct(const struct ASTType *ty, FILE *out) {
+    const char *wn = arr_ret_wrapper_name(ty);
+    if (!wn || !out) return;
+    for (int i = 0; i < codegen_slice_emitted_n; i++)
+        if (strcmp(codegen_slice_emitted[i], wn) == 0) return;
+    if (codegen_slice_emitted_n < MAX_SLICE_STRUCTS) {
+        snprintf(codegen_slice_emitted[codegen_slice_emitted_n], SLICE_KEY_MAX, "%s", wn);
+        codegen_slice_emitted_n++;
+    }
+    char elem_buf[64]; c_type_to_buf(ty->elem_type, elem_buf, sizeof elem_buf);
+    fprintf(out, "struct %s { %s data[%d]; };\n", wn, elem_buf, ty->array_size);
+}
+
+static const char *func_ret_c_type(const struct ASTFunc *f, FILE *out) {
+    if (!f || !f->return_type) return "int32_t";
+    if (f->return_type->kind == AST_TYPE_ARRAY && f->return_type->array_size > 0) {
+        if (out) ensure_arr_ret_struct(f->return_type, out);
+        const char *wn = arr_ret_wrapper_name(f->return_type);
+        if (wn) { fprintf(out, "struct "); return wn; }  /* caller prints "struct " prefix then wn */
+    }
+    return c_type_str(f->return_type);
+}
+
 static void ensure_slice_struct(const struct ASTType *ty, FILE *out) {
     if (!ty || ty->kind != AST_TYPE_SLICE || !ty->elem_type || !out) return;
     const char *key = c_type_str(ty->elem_type);
@@ -3436,12 +3484,16 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             /* Result `?`：({ Result_T tmp = op; if (tmp.err != 0) { return tmp; } tmp.value; }) */
             const struct ASTExpr *op = e->value.unary.operand;
             char op_ty_buf[128];
-            if (!op || !op->resolved_type)
-                return -1;
+            if (!op || !op->resolved_type) return -1;
             c_type_to_buf(op->resolved_type, op_ty_buf, sizeof(op_ty_buf));
             fprintf(out, "(({ %s __shux_try_tmp = ", op_ty_buf);
             if (codegen_expr(op, out) != 0) return -1;
-            fprintf(out, "; if ((__shux_try_tmp).err != 0) { return __shux_try_tmp; } (__shux_try_tmp).value; }))");
+            if (codegen_try_active) {
+                fprintf(out, "; if ((__shux_try_tmp).err != 0) { %s = __shux_try_tmp; goto %s; } (__shux_try_tmp).value; }))",
+                    codegen_try_r_var, codegen_try_catch_label);
+            } else {
+                fprintf(out, "; if ((__shux_try_tmp).err != 0) { return __shux_try_tmp; } (__shux_try_tmp).value; }))");
+            }
             return 0;
         }
         case AST_EXPR_AWAIT:
@@ -4056,6 +4108,23 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
                 }
                 return 0;
             }
+            /* foo()[i]：foo() 返回数组是右值，C 不允许直接对函数返回值下标，先存临时变量再取。 */
+            if (!e->value.index.base_is_slice && base_ty && base_ty->kind == AST_TYPE_ARRAY && base_ty->array_size > 0
+                && (base->kind == AST_EXPR_CALL || base->kind == AST_EXPR_METHOD_CALL)) {
+                const char *wn = arr_ret_wrapper_name(base_ty);
+                int id = codegen_match_id++;
+                int n = base_ty->array_size;
+                fprintf(out, "({ struct %s _x_idx%d = (", wn, id);
+                if (codegen_expr(base, out) != 0) return -1;
+                fprintf(out, "); (");
+                if (codegen_expr(idx, out) != 0) return -1;
+                fprintf(out, " < 0 || (");
+                if (codegen_expr(idx, out) != 0) return -1;
+                fprintf(out, ") >= %d ? (shux_panic_(1, 0), _x_idx%d.data[0]) : _x_idx%d.data[", n, id, id);
+                if (codegen_expr(idx, out) != 0) return -1;
+                fprintf(out, "]); })");
+                return 0;
+            }
             if (!e->value.index.base_is_slice && base_ty && base_ty->kind == AST_TYPE_ARRAY && base_ty->array_size > 0) {
                 if (skip_bounds_check) {
                     fprintf(out, "(");
@@ -4189,12 +4258,18 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             if (codegen_codegen_x_emit_match((uint8_t *)out, (uint8_t *)e) != 0) return -1;
             return 0;
 #else
-            /* 按控制流清单 §8.6：密度 > 0.7 时生成 switch，否则三元链；支持整数字面量与枚举变体（§7.4） */
+            /* 按控制流清单 §8.6：密度 > 0.7 时生成 switch，否则三元链；支持整数字面量与枚举变体（§7.4）。
+             * match guard（`pat if cond =>`）与或模式（`1|2 =>`）须走三元链：guard 需条件合取，
+             * 或模式同 result 多 lit 须合并为 (m==a||m==b)，switch 会重复 case。 */
             const struct ASTExpr *me = e->value.match_expr.matched_expr;
             const struct ASTMatchArm *arms = e->value.match_expr.arms;
             int num_arms = e->value.match_expr.num_arms;
             int value_min = INT_MAX, value_max = INT_MIN, lit_count = 0;
+            int has_guard = 0, has_or = 0, has_struct = 0;
             for (int i = 0; i < num_arms; i++) {
+                if (arms[i].guard_expr) has_guard = 1;
+                if (arms[i].result_shared) has_or = 1;
+                if (arms[i].is_struct_pattern) has_struct = 1;
                 if (arms[i].is_wildcard) continue;
                 int v = arms[i].is_enum_variant ? arms[i].variant_index : arms[i].lit_val;
                 lit_count++;
@@ -4203,7 +4278,7 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
             }
             int range = (value_max >= value_min) ? (value_max - value_min + 1) : 0;
             double density = (range > 0 && lit_count > 0) ? (double)lit_count / (double)range : 0.0;
-            int use_switch = (density > 0.7 && lit_count > 0);
+            int use_switch = (density > 0.7 && lit_count > 0) && !has_guard && !has_or && !has_struct;
 
             if (use_switch) {
                 int id = codegen_match_id++;
@@ -4228,20 +4303,99 @@ static int codegen_expr(const struct ASTExpr *e, FILE *out) {
                     fprintf(out, "default: _x_r = 0; break; ");
                 fprintf(out, "} _x_r; })");
             } else {
+                /* 三元链：或模式合并 (m==a||m==b)，guard 合取 (&& cond)。 */
                 fprintf(out, "(");
-                for (int i = 0; i < num_arms; i++) {
-                    if (i) fprintf(out, " : ");
+                int i = 0;
+                int first = 1;
+                while (i < num_arms) {
+                    if (!first) fprintf(out, " : ");
+                    first = 0;
                     if (arms[i].is_wildcard) {
+                        if (arms[i].guard_expr) {
+                            fprintf(out, "(");
+                            if (codegen_expr(arms[i].guard_expr, out) != 0) return -1;
+                            fprintf(out, ") ? ");
+                            if (codegen_expr(arms[i].result, out) != 0) return -1;
+                            i++;
+                            continue;
+                        }
                         if (codegen_expr(arms[i].result, out) != 0) return -1;
                         break;
                     }
-                    {
-                        int cmp_val = arms[i].is_enum_variant ? arms[i].variant_index : arms[i].lit_val;
+                    if (arms[i].is_struct_pattern) {
+                        /* Name { f: lit, g: _, x } => r：条件为各 LIT 字段 (me).f==lit 的合取（无 LIT 则恒真）；
+                         * BIND 字段在 result 前声明 T x = (me).f; 供 result 使用。 */
+                        const struct ASTStructDef *sd = NULL;
+                        if (codegen_current_module && codegen_current_module->struct_defs)
+                            for (int si=0; si<codegen_current_module->num_structs && !sd; si++)
+                                if (codegen_current_module->struct_defs[si]->name && arms[i].struct_pat_name && strcmp(codegen_current_module->struct_defs[si]->name, arms[i].struct_pat_name)==0) sd=codegen_current_module->struct_defs[si];
+                        if (!sd && codegen_ndep>0 && codegen_dep_mods)
+                            for (int di=0; di<codegen_ndep && !sd; di++) { const struct ASTModule *dm=codegen_dep_mods[di]; if(!dm||!dm->struct_defs) continue; for(int si=0;si<dm->num_structs&&!sd;si++) if(dm->struct_defs[si]->name&&arms[i].struct_pat_name&&strcmp(dm->struct_defs[si]->name,arms[i].struct_pat_name)==0) sd=dm->struct_defs[si]; }
+                        int has_bind = 0;
+                        for (int fi=0; fi<arms[i].num_struct_pat_fields; fi++) if (arms[i].struct_pat_fields[fi].kind == MATCH_STRUCT_PAT_BIND) has_bind = 1;
+                        /* 条件：有 BIND 字段时用 ({ binds; lit_conds && guard; }) 让 guard 能引用绑定变量 */
+                        fprintf(out, "(");
+                        if (has_bind) fprintf(out, "({ ");
+                        for (int fi=0; fi<arms[i].num_struct_pat_fields; fi++) {
+                            if (arms[i].struct_pat_fields[fi].kind != MATCH_STRUCT_PAT_BIND) continue;
+                            const char *bty = "int32_t";
+                            if (sd) { for (int si=0; si<sd->num_fields; si++) if (sd->fields[si].name && strcmp(sd->fields[si].name, arms[i].struct_pat_fields[fi].field_name)==0 && sd->fields[si].type) { bty = c_type_str(sd->fields[si].type); break; } }
+                            fprintf(out, "%s %s = (", bty, arms[i].struct_pat_fields[fi].bind_name);
+                            if (codegen_expr(me, out) != 0) return -1;
+                            fprintf(out, ").%s; ", arms[i].struct_pat_fields[fi].field_name);
+                        }
+                        int has_lit = 0;
+                        for (int fi=0; fi<arms[i].num_struct_pat_fields; fi++) {
+                            if (arms[i].struct_pat_fields[fi].kind != MATCH_STRUCT_PAT_LIT) continue;
+                            if (has_lit) fprintf(out, " && ");
+                            fprintf(out, "(");
+                            if (codegen_expr(me, out) != 0) return -1;
+                            fprintf(out, ").%s == %lld", arms[i].struct_pat_fields[fi].field_name, (long long)arms[i].struct_pat_fields[fi].lit_val);
+                            has_lit = 1;
+                        }
+                        if (!has_lit) fprintf(out, "1");
+                        if (arms[i].guard_expr) { fprintf(out, " && ("); if (codegen_expr(arms[i].guard_expr, out) != 0) return -1; fprintf(out, ")"); }
+                        if (has_bind) fprintf(out, "; }))"); else fprintf(out, ")");
+                        fprintf(out, " ? ({ ");
+                        for (int fi=0; fi<arms[i].num_struct_pat_fields; fi++) {
+                            if (arms[i].struct_pat_fields[fi].kind != MATCH_STRUCT_PAT_BIND) continue;
+                            const char *bty = "int32_t";
+                            if (sd) { for (int si=0; si<sd->num_fields; si++) if (sd->fields[si].name && strcmp(sd->fields[si].name, arms[i].struct_pat_fields[fi].field_name)==0 && sd->fields[si].type) { bty = c_type_str(sd->fields[si].type); break; } }
+                            fprintf(out, "%s %s = (", bty, arms[i].struct_pat_fields[fi].bind_name);
+                            if (codegen_expr(me, out) != 0) return -1;
+                            fprintf(out, ").%s; ", arms[i].struct_pat_fields[fi].field_name);
+                        }
+                        fprintf(out, "(");
+                        if (codegen_expr(arms[i].result, out) != 0) return -1;
+                        fprintf(out, "); })");
+                        i++;
+                        continue;
+                    }
+                    /* 收集同 result/guard 的连续或模式 lit（result_shared 标记） */
+                    fprintf(out, "(");
+                    int printed_or = 0;
+                    int j = i;
+                    while (j < num_arms && !arms[j].is_wildcard
+                           && arms[j].result == arms[i].result && arms[j].guard_expr == arms[i].guard_expr) {
+                        if (printed_or) fprintf(out, " || ");
                         fprintf(out, "(");
                         if (codegen_expr(me, out) != 0) return -1;
-                        fprintf(out, ") == %d ? ", cmp_val);
+                        int cmp_val = arms[j].is_enum_variant ? arms[j].variant_index : arms[j].lit_val;
+                        fprintf(out, ") == %d", cmp_val);
+                        printed_or = 1;
+                        if (!arms[j].result_shared) { j++; break; }
+                        j++;
                     }
+                    if (arms[i].guard_expr) {
+                        fprintf(out, ") && (");
+                        if (codegen_expr(arms[i].guard_expr, out) != 0) return -1;
+                        fprintf(out, ")");
+                    } else {
+                        fprintf(out, ")");
+                    }
+                    fprintf(out, " ? ");
                     if (codegen_expr(arms[i].result, out) != 0) return -1;
+                    i = j;
                 }
                 if (num_arms && !arms[num_arms - 1].is_wildcard)
                     fprintf(out, " : 0");
@@ -4966,10 +5120,18 @@ static int codegen_emit_expr_stmt(FILE *out, const char *pad, const struct ASTEx
     }
     if (st->kind == AST_EXPR_RETURN) {
         if (st->value.unary.operand) {
+            const struct ASTType *rt = (codegen_current_func && codegen_current_func->return_type) ? codegen_current_func->return_type : NULL;
+            if (rt && rt->kind == AST_TYPE_ARRAY && rt->array_size > 0) {
+                const char *wn = arr_ret_wrapper_name(rt);
+                fprintf(out, "%sreturn ((struct %s){ .data = ", pad, wn);
+                if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
+                fprintf(out, " });\n");
+            } else {
             fprintf(out, "%sreturn ", pad);
             if (codegen_expr(st->value.unary.operand, out) != 0)
                 return -1;
             fprintf(out, ";\n");
+            }
         } else {
             fprintf(out, "%sreturn;\n", pad);
         }
@@ -5209,9 +5371,17 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                             if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
                             fprintf(out, ");\n%sreturn;\n", pad);
                         } else {
+                            const struct ASTType *rt2 = (codegen_current_func && codegen_current_func->return_type) ? codegen_current_func->return_type : NULL;
+                            if (rt2 && rt2->kind == AST_TYPE_ARRAY && rt2->array_size > 0) {
+                                const char *wn2 = arr_ret_wrapper_name(rt2);
+                                fprintf(out, "%sreturn ((struct %s){ .data = ", pad, wn2);
+                                if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
+                                fprintf(out, " });\n");
+                            } else {
                             fprintf(out, "%sreturn ", pad);
                             if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
                             fprintf(out, ";\n");
+                            }
                         }
                     }
                     else fprintf(out, "%sreturn;\n", pad);
@@ -5250,6 +5420,27 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                     fprintf(out, "%s}\n", pad);
                 }
                 break;
+            case 7: { /* try { } catch (r) { }：? 失败 goto catch，r 绑定 Result */
+                if (idx >= b->num_try_catches) break;
+                const ASTTryCatchBlock *tc = &b->try_catches[idx];
+                int tid = codegen_try_id++;
+                char r_var[64], catch_label[64], after_label[64];
+                const char *rb = (tc->catch_bind && tc->catch_bind[0]) ? tc->catch_bind : NULL;
+                if (!rb) { snprintf(r_var, sizeof r_var, "_shux_tc_r_%d", tid); rb = r_var; }
+                snprintf(catch_label, sizeof catch_label, "_shux_tc_catch_%d", tid);
+                snprintf(after_label, sizeof after_label, "_shux_tc_after_%d", tid);
+                fprintf(out, "%s{\n", pad);
+                if (tc->result_type) { char rtbuf[128]; c_type_to_buf(tc->result_type, rtbuf, sizeof rtbuf); fprintf(out, "%s%s %s;\n", pad, rtbuf, rb); }
+                /* try 体：设置 ? 的 catch 上下文 */
+                int prev_active = codegen_try_active; char prev_r[64]; char prev_cl[64];
+                memcpy(prev_r, codegen_try_r_var, 64); memcpy(prev_cl, codegen_try_catch_label, 64);
+                codegen_try_active = 1; strncpy(codegen_try_r_var, rb, 63); strncpy(codegen_try_catch_label, catch_label, 63);
+                if (tc->try_body && codegen_block_body(tc->try_body, indent + 2, out, cast_return_to_int, is_void_return_context, NULL) != 0) return -1;
+                codegen_try_active = prev_active; memcpy(codegen_try_r_var, prev_r, 64); memcpy(codegen_try_catch_label, prev_cl, 64);
+                fprintf(out, "%sgoto %s;\n%s%s: ;\n", pad, after_label, pad, catch_label);
+                if (tc->catch_body && codegen_block_body(tc->catch_body, indent + 2, out, cast_return_to_int, is_void_return_context, NULL) != 0) return -1;
+                fprintf(out, "%s%s: ;\n%s}\n", pad, after_label, pad);
+            } break;
             }
         }
     } else {
@@ -5585,9 +5776,17 @@ static int codegen_block_body(const struct ASTBlock *b, int indent, FILE *out, i
                     if (codegen_expr(re, out) != 0) return -1;
                     fprintf(out, ");\n%sreturn;\n", pad);
                 } else {
+                    const struct ASTType *rt = (codegen_current_func && codegen_current_func->return_type) ? codegen_current_func->return_type : NULL;
+                    if (rt && rt->kind == AST_TYPE_ARRAY && rt->array_size > 0 && !cast_return_to_int) {
+                        const char *wn = arr_ret_wrapper_name(rt);
+                        fprintf(out, "%sreturn ((struct %s){ .data = ", pad, wn);
+                        if (codegen_expr(re, out) != 0) return -1;
+                        fprintf(out, " });\n");
+                    } else {
                     if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
                     if (codegen_expr(re, out) != 0) return -1;
                     fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+                    }
                 }
             }
         }
@@ -6356,9 +6555,17 @@ func_body_after_block:
                     if (codegen_expr(ret_e, out) != 0) return -1;
                     fprintf(out, ";\n%sreturn 0;\n", pad);
                 } else {
+                    const struct ASTType *rt = (codegen_current_func && codegen_current_func->return_type) ? codegen_current_func->return_type : NULL;
+                    if (rt && rt->kind == AST_TYPE_ARRAY && rt->array_size > 0 && !cast_return_to_int) {
+                        const char *wn = arr_ret_wrapper_name(rt);
+                        fprintf(out, "%sreturn ((struct %s){ .data = ", pad, wn);
+                        if (codegen_expr(ret_e, out) != 0) return -1;
+                        fprintf(out, " });\n");
+                    } else {
                     if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
                     if (codegen_expr(ret_e, out) != 0) return -1;
                     fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+                    }
                 }
             }
         }
@@ -6390,9 +6597,17 @@ func_body_after_block:
         } else if (st->kind == AST_EXPR_RETURN) {
             if (st->value.unary.operand) {
                 codegen_async_cps_before_return(out, pad);
-                fprintf(out, "%sreturn ", pad);
-                if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
-                fprintf(out, ";\n");
+                const struct ASTType *rt = (f && f->return_type) ? f->return_type : NULL;
+                if (rt && rt->kind == AST_TYPE_ARRAY && rt->array_size > 0) {
+                    const char *wn = arr_ret_wrapper_name(rt);
+                    fprintf(out, "%sreturn ((struct %s){ .data = ", pad, wn);
+                    if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
+                    fprintf(out, " });\n");
+                } else {
+                    fprintf(out, "%sreturn ", pad);
+                    if (codegen_expr(st->value.unary.operand, out) != 0) return -1;
+                    fprintf(out, ";\n");
+                }
             } else {
                 codegen_async_cps_before_return(out, pad);
                 fprintf(out, "%sreturn;\n", pad);
@@ -6516,6 +6731,19 @@ func_body_after_block:
                 }
                 fprintf(out, ");\n%sreturn;\n", pad);
             } else {
+                const struct ASTType *rt = (f && f->return_type) ? f->return_type : NULL;
+                if (rt && rt->kind == AST_TYPE_ARRAY && rt->array_size > 0 && !cast_return_to_int) {
+                    const char *wn = arr_ret_wrapper_name(rt);
+                    /* 数组字面量未设 resolved_type 时用函数返回类型，使 codegen 用正确元素类型 */
+                    if (b->final_expr->kind == AST_EXPR_RETURN && ret_op && ret_op->kind == AST_EXPR_ARRAY_LIT && !ret_op->resolved_type)
+                        ((struct ASTExpr *)ret_op)->resolved_type = (struct ASTType *)rt;
+                    /* C 不允许按值返回数组；用 struct wrapper + memcpy from compound literal */
+                    int arr_id = codegen_match_id++;
+                    const struct ASTExpr *arr_expr = (b->final_expr->kind == AST_EXPR_RETURN) ? ret_op : b->final_expr;
+                    fprintf(out, "{ struct %s _ar%d; memcpy(_ar%d.data, ", wn, arr_id, arr_id);
+                    if (codegen_expr(arr_expr, out) != 0) return -1;
+                    fprintf(out, ", sizeof(_ar%d.data)); return _ar%d; }\n", arr_id, arr_id);
+                } else {
                 if (cast_return_to_int) fprintf(out, "%sreturn (int)(", pad); else fprintf(out, "%sreturn ", pad);
                 if (b->final_expr->kind == AST_EXPR_RETURN) {
                     if (codegen_expr(ret_op, out) != 0) return -1;
@@ -6523,6 +6751,7 @@ func_body_after_block:
                     if (codegen_expr(b->final_expr, out) != 0) return -1;
                 }
                 fprintf(out, cast_return_to_int ? ");\n" : ";\n");
+                }
             }
         }
     }
@@ -6562,7 +6791,15 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
     if (f->link_name) { snprintf(fname, sizeof(fname), "%s", f->link_name); }  /* L9：#[link_name] 用指定符号名 */
     if (f->export_name) { snprintf(fname, sizeof(fname), "%s", f->export_name); }  /* #[export_name] 用指定导出名 */
     /* C 要求 main 返回 int；若 .x 中 main 返回 i64 则在函数体内对 return 包 (int) */
-    const char *cret = (f->name && strcmp(f->name, "main") == 0) ? "int" : c_type_str(f->return_type);
+    /* 函数返回定长数组 [N]T：用 wrapper struct 替代（C 不允许按值返回数组）。 */
+    if (f->return_type && f->return_type->kind == AST_TYPE_ARRAY && f->return_type->array_size > 0) {
+        ensure_arr_ret_struct(f->return_type, out);
+    }
+    const char *cret_arr = (f->return_type && f->return_type->kind == AST_TYPE_ARRAY && f->return_type->array_size > 0) ? arr_ret_wrapper_name(f->return_type) : NULL;
+    const char *cret = (f->name && strcmp(f->name, "main") == 0) ? "int" : (cret_arr ? cret_arr : c_type_str(f->return_type));
+    char cret_full[160];
+    if (cret_arr) snprintf(cret_full, sizeof cret_full, "struct %s", cret);
+    else { snprintf(cret_full, sizeof cret_full, "%s", cret); }
     /* 入口模块的 main：生成 main(int argc, char **argv) 并保存到 std.process 全局，供 args_count/arg 使用 */
     if (!codegen_library_prefix && f->name && strcmp(f->name, "main") == 0) {
         fprintf(out, "int main(int argc, char **argv) {\n");
@@ -6643,7 +6880,7 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
      * Windows PE 不支持 weak 函数符号，靠 Makefile --allow-multiple-definition 兜底。 */
     else if (codegen_library_prefix && !f->is_extern && !f->is_no_mangle && !f->is_entry)
         fprintf(out, "__attribute__((weak)) ");
-    fprintf(out, "%s %s(", cret, fname);
+    fprintf(out, "%s %s(", cret_full, fname);
     if (has_async_frame)
         fprintf(out, "void");
     else if (f->is_interrupt && f->num_params == 0)
@@ -6743,7 +6980,9 @@ static int codegen_one_impl_func(const struct ASTFunc *f, const struct ASTModule
     char cname_buf[256];
     library_prefixed_name(impl_method_c_name(f), cname_buf, sizeof(cname_buf));
     /* 库模块 impl 方法不加 static 以保持可链接；入口模块可考虑在单文件时加 inline，此处从简 */
-    fprintf(out, "%s %s(", c_type_str(f->return_type), cname_buf);
+    if (f->return_type && f->return_type->kind == AST_TYPE_ARRAY) ensure_arr_ret_struct(f->return_type, out);
+    const char *proto_ret = (f->return_type && f->return_type->kind == AST_TYPE_ARRAY && f->return_type->array_size > 0) ? arr_ret_wrapper_name(f->return_type) : c_type_str(f->return_type);
+    fprintf(out, "%s%s %s(", (f->return_type && f->return_type->kind == AST_TYPE_ARRAY) ? "struct " : "", proto_ret, cname_buf);
     for (int i = 0; i < f->num_params; i++) {
         if (i) fprintf(out, ", ");
         codegen_emit_param(&f->params[i], out, NULL, i);
@@ -7890,7 +8129,9 @@ static void codegen_emit_import_extern_with_optional_wrapper(FILE *out, const ch
     const char *fname = link ? link : (f->name ? f->name : "");
     if (strcmp(call_pre, link_pre) != 0) {
         codegen_emit_import_func_extern_proto(out, link_pre, f, import_path);
-        fprintf(out, "static inline %s %s%s(", c_type_str(f->return_type), call_pre, fname);
+        if (f->return_type && f->return_type->kind == AST_TYPE_ARRAY) ensure_arr_ret_struct(f->return_type, out);
+        const char *imp_ret = (f->return_type && f->return_type->kind == AST_TYPE_ARRAY && f->return_type->array_size > 0) ? arr_ret_wrapper_name(f->return_type) : c_type_str(f->return_type);
+        fprintf(out, "static inline %s%s %s%s(", (f->return_type && f->return_type->kind == AST_TYPE_ARRAY) ? "struct " : "", imp_ret, call_pre, fname);
         for (int j = 0; j < f->num_params; j++) {
             if (j) fprintf(out, ", ");
             codegen_emit_param(&f->params[j], out, codegen_io_driver_param_override(import_path, f->name, j), j);
@@ -8332,10 +8573,13 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         const struct ASTFunc *f = m->funcs[i];
         if (!f || strcmp(f->name, "main") == 0 || f->num_generic_params > 0 || f->is_extern || !f->body) continue;
         if (dce_ctx && is_func_used && !codegen_async_keep_for_sched(m, f, is_func_used, dce_ctx)) continue;
+        if (f->return_type && f->return_type->kind == AST_TYPE_ARRAY) ensure_arr_ret_struct(f->return_type, out);
+        const char *mod_ret = (f->return_type && f->return_type->kind == AST_TYPE_ARRAY && f->return_type->array_size > 0) ? arr_ret_wrapper_name(f->return_type) : c_type_str(f->return_type);
+        const char *mod_ret_pre = (f->return_type && f->return_type->kind == AST_TYPE_ARRAY) ? "struct " : "";
         if (f->is_no_mangle || f->is_used || f->is_interrupt || f->is_naked || f->is_entry || f->is_global_allocator || f->is_cold || f->is_panic_handler || f->export_name)
-            fprintf(out, "%s %s(", c_type_str(f->return_type), func_link_name(m, f));
+            fprintf(out, "%s%s %s(", mod_ret_pre, mod_ret, func_link_name(m, f));
         else
-            fprintf(out, "static inline %s %s(", c_type_str(f->return_type), func_link_name(m, f));
+            fprintf(out, "static inline %s%s %s(", mod_ret_pre, mod_ret, func_link_name(m, f));
         if (async_cps_func_uses_void_entry(f, m))
             fprintf(out, "void");
         else {
@@ -8350,7 +8594,9 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         for (int j = 0; j < m->impl_blocks[k]->num_funcs; j++) {
             const struct ASTFunc *f = m->impl_blocks[k]->funcs[j];
             if (!f) continue;
-            fprintf(out, "static inline %s %s(", c_type_str(f->return_type), impl_method_c_name(f));
+            if (f->return_type && f->return_type->kind == AST_TYPE_ARRAY) ensure_arr_ret_struct(f->return_type, out);
+            const char *impl_ret = (f->return_type && f->return_type->kind == AST_TYPE_ARRAY && f->return_type->array_size > 0) ? arr_ret_wrapper_name(f->return_type) : c_type_str(f->return_type);
+            fprintf(out, "static inline %s%s %s(", (f->return_type && f->return_type->kind == AST_TYPE_ARRAY) ? "struct " : "", impl_ret, impl_method_c_name(f));
             for (int p = 0; p < f->num_params; p++) {
                 if (p) fprintf(out, ", ");
                 codegen_emit_param(&f->params[p], out, NULL, p);
@@ -8362,7 +8608,9 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
         if (!inst->template || !inst->type_args) continue;
         const struct ASTFunc *f = inst->template;
         const struct ASTType *ret_ty = subst_type(f->return_type, f->generic_param_names, inst->type_args, inst->num_type_args);
-        fprintf(out, "static inline %s %s(", ret_ty ? c_type_str(ret_ty) : "int32_t",
+        if (ret_ty && ret_ty->kind == AST_TYPE_ARRAY) ensure_arr_ret_struct(ret_ty, out);
+        const char *gen_ret = (ret_ty && ret_ty->kind == AST_TYPE_ARRAY && ret_ty->array_size > 0) ? arr_ret_wrapper_name(ret_ty) : (ret_ty ? c_type_str(ret_ty) : "int32_t");
+        fprintf(out, "static inline %s%s %s(", (ret_ty && ret_ty->kind == AST_TYPE_ARRAY) ? "struct " : "", gen_ret,
             mono_instance_mangled_name_ex(m, f, inst->type_args, inst->num_type_args));
         for (int p = 0; p < f->num_params; p++) {
             const struct ASTType *pt = subst_type(f->params[p].type, f->generic_param_names, inst->type_args, inst->num_type_args);
