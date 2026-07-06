@@ -2,9 +2,11 @@
 # 【文件职责】std.dynlib 回归：open(null) + open/sym/close 烟测（STD-027）
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler -q ../std/dynlib/dynlib.o 2>/dev/null || make -C compiler ../std/dynlib/dynlib.o
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+  make -C compiler -q ../std/dynlib/dynlib.o 2>/dev/null || make -C compiler ../std/dynlib/dynlib.o
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+fi
 
 # shellcheck source=tests/lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"

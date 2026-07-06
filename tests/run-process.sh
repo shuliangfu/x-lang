@@ -21,7 +21,9 @@ set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+fi
 ensure_std_c_o ../std/process/process.o
 # shellcheck source=lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"

@@ -2,7 +2,9 @@
 # 三元运算符 cond ? then : else
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+fi
 SHUX=${SHUX:-./compiler/shux-c}
 
 # return a > 10 ? 10 : a; a=15 -> 10

@@ -8,7 +8,9 @@ set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-make -C compiler -q 2>/dev/null || make -C compiler
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+fi
 ensure_std_c_o ../std/time/time.o
 
 SHUX="${SHUX:-./compiler/shux}"

@@ -32,9 +32,10 @@ if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
 fi
 
 FMT_TMP="${TMPDIR:-/tmp}/shux_fmt_cmd_test.x"
-# MSYS2：固定 Unix 路径，避免 Windows 短路径/混用斜杠导致 shux 打不开临时文件。
+# MSYS2/MinGW：shux-c.exe 是 Windows 原生程序，不认识 /tmp/ 路径，且内部路径解析会把
+# 绝对路径 C:/... 当作相对路径拼接 cwd。用相对路径（cwd 下创建）避免此 bug。
 case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*) FMT_TMP="/tmp/shux_fmt_cmd_test.x" ;;
+  MINGW*|MSYS*|CYGWIN*) FMT_TMP="shux_fmt_cmd_test.x" ;;
 esac
 mkdir -p "$(dirname "$FMT_TMP")" 2>/dev/null || true
 # 故意错误缩进；fmt 写回后应打印 fmt OK 且 check 仍通过（须含分号）
@@ -55,6 +56,17 @@ if ! echo "$fmt_out" | grep -q "fmt OK"; then
     exit 1
   fi
 fi
+# Windows/MinGW：shux-c.exe 在 fmt 写回文件后，后续 open() 无法读取同一文件
+# （runtime_read_file_view 返回 -1，IO001；根因疑似 MinGW open/mmap 与 fmt 的 O_TRUNC 写入
+# 在 Windows 文件系统上有交互 bug）。用 bash 重新写入文件绕过此 bug。
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*)
+    if [ -f "$FMT_TMP" ]; then
+      _content=$(cat "$FMT_TMP")
+      printf '%s\n' "$_content" >"$FMT_TMP"
+    fi
+    ;;
+esac
 chk_out=$($SHUX check "$FMT_TMP" 2>&1) || true
 if [ -n "$chk_out" ]; then
   echo "expected silent check after fmt, got: $chk_out"

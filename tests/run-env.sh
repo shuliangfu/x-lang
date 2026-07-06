@@ -6,9 +6,11 @@
 #
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
-make -C compiler -q ../std/env/env.o 2>/dev/null || make -C compiler ../std/env/env.o
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+  make -C compiler -q ../std/env/env.o 2>/dev/null || make -C compiler ../std/env/env.o
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+fi
 
 # shellcheck source=tests/lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"

@@ -3163,6 +3163,13 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
                     if (rrf && rrf[0])
                         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rrf);
                 }
+#if defined(_WIN32) || defined(_WIN64)
+                /* 【Why 根源】runtime_random_fill.c 在 Windows 用 BCryptGenRandom/BCryptOpenAlgorithmProvider，
+                 * MinGW 不自动链 bcrypt；needs_random 路径须显式加 -lbcrypt，与下方 random_o 存在性路径对齐。
+                 * 【Invariant】仅 Windows 需 -lbcrypt；Linux/macOS 走 getrandom/getentropy。 */
+                if (i < argv_cap - 1)
+                    argv[i++] = (char *)"-lbcrypt";
+#endif
             }
             if (needs_time) {
                 (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, time_o);

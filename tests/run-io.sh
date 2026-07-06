@@ -2,7 +2,9 @@
 # 测试 std.io：print_i32 输出 42，print_u32 输出 100
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || true
+fi
 
 # run-all 默认 C 流水线（RUN_ALL_USE_C=1）时用 shux-c，避免 seed -o 在非 x86_64 挂起。
 if [ -n "${RUN_ALL_USE_C:-}" ] && [ -x ./compiler/shux-c ]; then
@@ -17,9 +19,11 @@ else
   SHUX=./compiler/shux-c
 fi
 
-make -C compiler -q ../std/process/process.o 2>/dev/null \
-  || make -C compiler ../std/process/process.o 2>/dev/null \
-  || true
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q ../std/process/process.o 2>/dev/null \
+    || make -C compiler ../std/process/process.o 2>/dev/null \
+    || true
+fi
 # F-03 v3：io 纯 .x，不再 build ../std/io/io.o
 
 $SHUX -L . tests/io/main.x -o /tmp/shux_io 2>&1

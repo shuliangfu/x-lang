@@ -6,9 +6,13 @@ cd "$(dirname "$0")/.."
 . "$(dirname "$0")/lib/build-std-c-o.sh"
 # B-strict gate 显式 SHUX_LINK_SHUX=shux_asm 时不必构建 shux-c（mac/无 seed 会失败）。
 if [ -z "${SHUX_LINK_SHUX:-}" ]; then
-  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+    make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
+  fi
 else
-  make -C compiler -q shux-c 2>/dev/null || true
+  if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+    make -C compiler -q shux-c 2>/dev/null || true
+  fi
 fi
 ensure_std_c_o ../std/net/net.o
 # net.o 合并 workers.x，链入时依赖 thread.o

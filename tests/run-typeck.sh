@@ -171,8 +171,10 @@ if [ -n "$SHUX" ]; then
     echo "$out_pos" | grep -q "typeck OK" || { echo "missing typeck OK for $f: $out_pos"; exit 1; }
   done
 else
-  make -C compiler -q 2>/dev/null || make -C compiler
-  make -C compiler shux-c 2>/dev/null || true
+  if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+    make -C compiler -q 2>/dev/null || make -C compiler
+    make -C compiler shux-c 2>/dev/null || true
+  fi
   if [ -f ./compiler/shux-c ]; then
     TYPECK_SHUX=./compiler/shux-c
   else

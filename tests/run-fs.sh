@@ -2,7 +2,9 @@
 # 测试 std.fs（fs_invalid_handle、fs_open_write/fs_write/fs_read）
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+fi
 SHUX=${SHUX:-./compiler/shux}
 
 $SHUX -L . tests/fs/main.x -o /tmp/shux_fs 2>&1

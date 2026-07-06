@@ -2,7 +2,9 @@
 # std.compress 测试：gzip / zstd / Brotli 往返。若 compress.o 未启用对应库，分支跳过仍通过。
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q 2>/dev/null || make -C compiler
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+fi
 # 优先 zlib+zstd；回退 zlib-only
 if (cd compiler && make compress-o-zlib-zstd 2>/dev/null); then
   :

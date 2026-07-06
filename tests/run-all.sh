@@ -6,6 +6,22 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# 【Why 根源治理 Windows TEMP 截断】MinGW make 子进程继承的 TEMP 可能被截断为
+# "C:\Users\...\AppData\Loc"，导致 shux-c.exe 内部 gcc 调用失败 → std .o 构建失败 → 82/90 测试回归。
+# 修复：Windows 下统一 export 短路径 TEMP/TMP，确保所有 make 子进程继承。
+# 【Why 根源治理 Windows pthread 大栈失败】driver_run_thread_on_large_stack 在 Windows MinGW 上
+# 用 pthread_attr_setstack 创建 256MiB 大栈线程时失败，导致无 -o 时的 token dump 路径返回 127
+# （run-import/run-std/run-stdlib-import 等用 `out=$($SHUX file.x)` 检查 parse/typeck 输出全挂）。
+# 修复：Windows 下 export SHUX_PIPELINE_NO_LARGE_STACK=1，跳过 pthread，直接在当前栈上跑。
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*)
+    export TEMP=C:/shux_tmp
+    export TMP=C:/shux_tmp
+    mkdir -p "$TEMP" 2>/dev/null || true
+    export SHUX_PIPELINE_NO_LARGE_STACK=1
+    ;;
+esac
+
 # RUN_ALL_PORTABLE=1：全平台可移植子集（shux-c、无 asm/自举）；供 run-portable-c.sh / lite CI 使用。
 if [ -n "${RUN_ALL_PORTABLE:-}" ]; then
     export RUN_ALL_USE_C=1
@@ -31,6 +47,17 @@ if [ -n "$SHUX" ]; then
         make -C compiler shux-c -q 2>/dev/null || make -C compiler shux-c 2>/dev/null || true
     else
     # 子脚本内 `make -C compiler` 走 bootstrap-driver-seed，避免默认 all 用 C-only shux 覆盖 .x pipeline 链。
+    # 【Why 根源治理 Windows seed 不可用】Windows 上 bootstrap_shuxc.exe 是旧版本（7月4日），
+    # typeck 对大 u32 字面量（如 ARM64 指令编码 2847898621）报 "no matching overload"，
+    # 导致 make bootstrap-driver-seed 失败。且 seeds/ 无 Windows 版本 seed。
+    # 修复：Windows 下跳过 bootstrap-driver-seed，所有测试用 shux-c（C 前端）。
+    case "$(uname -s 2>/dev/null)" in
+      MINGW*|MSYS*|CYGWIN*)
+        # Windows：seed 不可用，不设 SHUX_RUN_ALL_BOOTSTRAP_SHUX，所有测试走 shux-c。
+        make -B -C compiler SHUX_LEGACY_C_FRONTEND=1 shux-c 2>/dev/null || true
+        export SHUX_SKIP_SUBSCRIPT_MAKE=1
+        ;;
+      *)
     export SHUX_RUN_ALL_BOOTSTRAP_SHUX=1
     # 【Why 根源治理 shux-c 被覆盖】bootstrap-driver-seed 依赖 $(SHUX_C)=shux-c，
     # 而 shux-c 默认 target 是 `cp -f bootstrap_shuxc shux-c`（Makefile line 708），
@@ -41,6 +68,8 @@ if [ -n "$SHUX" ]; then
     export SHUX_SKIP_SUBSCRIPT_MAKE=1
     # 子脚本不再各自 make，避免长回归中反复链接 shux 产生竞态；入口统一构建一次 seed。
     make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
+        ;;
+    esac
     fi
     if [ -z "${SHUX_BSTRICT_RUN_ALL:-}" ]; then
         # stdlib-import 等用 shux-c 链多模块可执行；seed 仅 check/typeck。

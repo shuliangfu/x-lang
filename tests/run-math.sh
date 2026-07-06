@@ -2,7 +2,9 @@
 # 测试 std.math：typeck + math.o / libm 烟测
 set -e
 cd "$(dirname "$0")/.."
-make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || make -C compiler -q 2>/dev/null || make -C compiler
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q shux-c 2>/dev/null || SHUX_LEGACY_C_FRONTEND=1 make -C compiler shux-c 2>/dev/null || make -C compiler -q 2>/dev/null || make -C compiler
+fi
 SHUX="${SHUX:-}"
 if [ -z "$SHUX" ]; then
   for cand in ./compiler/shux-c ./compiler/shux; do

@@ -4,9 +4,11 @@ set -e
 cd "$(dirname "$0")/.."
 # shellcheck source=lib/build-std-c-o.sh
 . "$(dirname "$0")/lib/build-std-c-o.sh"
-make -C compiler -q 2>/dev/null || make -C compiler
-# F-string v1：string.o 由 asm 编译 string.x（ensure_std_c_o 对纯 .x 模块为 no-op）。
-make -C compiler -q ../std/string/string.o 2>/dev/null || make -C compiler ../std/string/string.o
+if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
+  make -C compiler -q 2>/dev/null || make -C compiler
+  # F-string v1：string.o 由 asm 编译 string.x（ensure_std_c_o 对纯 .x 模块为 no-op）。
+  make -C compiler -q ../std/string/string.o 2>/dev/null || make -C compiler ../std/string/string.o
+fi
 SHUX=${SHUX:-./compiler/shux}
 # shellcheck source=lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
