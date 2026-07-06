@@ -56,7 +56,7 @@ function popcount_u32(x: u32): i32 {
   let c: i32 = 0;
   let t: u32 = x;
   while (t != 0) {
-    c = c + (t % 2);
+    c = c + ((t % 2) as i32);
     t = t >> 1;
   }
   return c;

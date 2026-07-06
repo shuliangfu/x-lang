@@ -34,7 +34,7 @@ extern function malloc(size: usize): *u8;
 extern function free(ptr: *u8): void;
 extern function realloc(ptr: *u8, new_size: usize): *u8;
 extern function calloc(nmemb: usize, size: usize): *u8;
-extern function posix_memalign(memptr: * *u8, alignment: usize, size: usize): i32;
+extern function posix_memalign(memptr: * *void, alignment: usize, size: usize): i32;
 extern function getenv(name: *u8): *u8;
 
 /** libc 堆/环境 FFI 须 unsafe；薄包装供 heap_*_c 调用。 */
@@ -50,7 +50,7 @@ function heap_libc_realloc(ptr: *u8, new_size: usize): *u8 {
 function heap_libc_calloc(nmemb: usize, size: usize): *u8 {
   unsafe { return calloc(nmemb, size); }
 }
-function heap_libc_posix_memalign(memptr: * *u8, alignment: usize, size: usize): i32 {
+function heap_libc_posix_memalign(memptr: * *void, alignment: usize, size: usize): i32 {
   unsafe { return posix_memalign(memptr, alignment, size); }
 }
 function heap_libc_getenv(name: *u8): *u8 {
@@ -325,7 +325,7 @@ function free_f32(ptr: *f32): void {
  */
 function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8 {
   let obj_align: usize = align_bytes;
-  let slot: *u8 = 0 as *u8;
+  let slot: *void = 0 as *void;
   if (size == 0) {
     return 0;
   }
@@ -335,7 +335,7 @@ function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8 {
   if (heap_libc_posix_memalign(&slot, obj_align, size) != 0) {
     return 0;
   }
-  return slot;
+  return slot as *u8;
 }
 
 /**

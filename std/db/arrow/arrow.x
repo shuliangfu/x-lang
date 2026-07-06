@@ -46,7 +46,7 @@ allow(padding) struct ArrowBatchMem {
 extern function calloc(nmemb: usize, size: usize): *u8;
 extern function free(ptr: *u8): void;
 extern function memset(s: *u8, c: i32, n: usize): *u8;
-extern function posix_memalign(memptr: * *u8, alignment: usize, size: usize): i32;
+extern function posix_memalign(memptr: * *void, alignment: usize, size: usize): i32;
 
 extern function arrow_column_i32_sum_valid_c(handle: i64, n: i32): i32;
 extern function arrow_column_f32_sum_c(handle: i64, n: i32): f32;

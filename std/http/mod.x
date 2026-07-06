@@ -38,13 +38,13 @@ enum Method {
 
 /** Method → u8 判别值（GET=0 … OPTIONS=6）；与 `method(tag: u8)` 成对重载。 */
 function method(m: Method): u8 {
-  if (m == Method.POST) { return 1; }
-  if (m == Method.HEAD) { return 2; }
-  if (m == Method.PUT) { return 3; }
-  if (m == Method.DELETE) { return 4; }
-  if (m == Method.PATCH) { return 5; }
-  if (m == Method.OPTIONS) { return 6; }
-  return 0;
+  if (m == Method.POST) { return 1 as u8; }
+  if (m == Method.HEAD) { return 2 as u8; }
+  if (m == Method.PUT) { return 3 as u8; }
+  if (m == Method.DELETE) { return 4 as u8; }
+  if (m == Method.PATCH) { return 5 as u8; }
+  if (m == Method.OPTIONS) { return 6 as u8; }
+  return 0 as u8;
 }
 
 /** u8 判别值 → Method；非法值回退 GET。 */

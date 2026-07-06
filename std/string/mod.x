@@ -114,7 +114,7 @@ function string_view_case_fold(v: StrView, out: *u8, out_cap: i32): i32 {
   while (i < v.len) {
     if (i >= out_cap) { return -1; }
     let c: u8 = v.ptr[i];
-    if (c >= 65 && c <= 90) { c = c + 32; }
+    if (c >= 65 && c <= 90) { c = (c + 32) as u8; }
     out[i] = c;
     i = i + 1;
   }

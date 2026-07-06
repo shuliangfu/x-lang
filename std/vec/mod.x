@@ -294,13 +294,13 @@ function pop(v: *Vec_u8): u8 {
     v.len = v.len - 1;
     return v.ptr[v.len];
   }
-  return 0;
+  return 0 as u8;
 }
 function len(v: Vec_u8): i32 { return v.len; }
 /** 热路径：指针取长，避免按值传 Vec_u8 结构体。 */
 function len_ptr(v: *Vec_u8): i32 { return v.len; }
 function capacity(v: Vec_u8): i32 { return v.cap; }
-function get(v: Vec_u8, i: i32): u8 { return 0; }
+function get(v: Vec_u8, i: i32): u8 { return 0 as u8; }
 function set(v: *Vec_u8, i: i32, x: u8): void { v.ptr[i] = x; }
 function is_empty(v: Vec_u8): i32 {
   if (v.len <= 0) { return 1; }
