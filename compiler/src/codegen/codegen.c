@@ -1410,7 +1410,14 @@ static const char *vector_c_type_name(const struct ASTType *ty);
 static void c_type_to_buf(const struct ASTType *ty, char *buf, size_t size) {
     if (!ty || size == 0) return;
     if (ty->kind == AST_TYPE_PTR && ty->elem_type) {
-        static char inner_buf[256];
+        /* 【Why 逻辑根源】局部缓冲区（非 static）：递归处理 **T 等多重指针时，每层调用需独立缓冲区。
+         *   若用 static inner_buf，外层与内层递归共享同一缓冲区，c_type_to_buf(elem_type, inner_buf)
+         *   覆盖外层正在使用的 inner_buf，导致 snprintf(buf, size, "%s *", inner_buf) 读到残缺数据
+         *   —— glibc 上表现为双重指针 **u8 生成 " * *" 而非 "uint8_t * *"（UB：同缓冲区既作输出又作源）。
+         *   macOS libc 恰好读先于写而掩盖此 bug，Linux glibc 暴露。
+         * 【Invariant】每次递归调用在自身栈帧分配 inner_buf[256]，互不干扰；类型树深度 ≤ 8（多重指针/数组嵌套），栈开销 ≤ 2KB。
+         * 【Asm/Perf】栈分配 zero-cost（sub rsp），无堆分配；c_type_to_buf 非编译热路径（仅函数签名/声明发射时调用）。 */
+        char inner_buf[256];
         c_type_to_buf(ty->elem_type, inner_buf, sizeof(inner_buf));
         if (ty->is_volatile)
             snprintf(buf, size, "volatile %s *", inner_buf);  /* K2: 指向 volatile T 的指针，cc 不消除其读写 */
