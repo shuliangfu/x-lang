@@ -2735,6 +2735,10 @@ static ASTExpr *parse_assign(Parser *p) {
     ASTExpr *left = parse_ternary(p);
     if (!left) return NULL;
     TokenKind t = peek(p)->kind;
+    if (getenv("SHUX_PARSE_ASSIGN_DEBUG")) {
+        fprintf(stderr, "shux: [ASSIGN_DEBUG] left_kind=%d next_tok=%d is_assign=%d is_lvalue=%d\n",
+            (int)left->kind, (int)t, (t == TOKEN_ASSIGN || is_compound_assign_token(t)), expr_is_lvalue(left));
+    }
     if (t == TOKEN_ASSIGN || is_compound_assign_token(t)) {
         if (!expr_is_lvalue(left))
             return left;
