@@ -19,7 +19,10 @@
 #define PREPROCESS_OUT_GROW  65536
 #define PREPROCESS_IF_INIT   32
 #ifdef SHUX_LEGACY_C_FRONTEND_ABI
-#define PREPROCESS_MAX_DEFINES 32
+/* 【Why】run-pool-limits.sh 传 40 个 -D 参数；原 32 上限导致 L33..L40 被静默丢弃，
+ * #if L33 不成立 → main 被剪掉 → CG001 no main function。
+ * 256 覆盖所有实际用例，静态数组零分配开销。 */
+#define PREPROCESS_MAX_DEFINES 256
 #endif
 
 /** C 路径 #if 嵌套栈（grow；X 路径用 ast_pool preprocess_if_stack_*）。 */

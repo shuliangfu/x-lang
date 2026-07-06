@@ -20,7 +20,8 @@ fi
 # shellcheck source=lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
 LINK_SHUX="$RUN_SHUX"
-SLICE_LINK_BACKEND_ARGS="${SHUX_LINK_BACKEND_ARGS:--backend asm}"
+# 【Why】shux-c 不支持 -backend 参数；默认空，仅 shux_asm/shux_asm2 需显式 -backend asm。
+SLICE_LINK_BACKEND_ARGS="${SHUX_LINK_BACKEND_ARGS:-}"
 
 # bstrict：-o 优先 shux_asm2（与 run-struct 一致）。
 if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux_asm2 ]; then
@@ -54,14 +55,16 @@ slice_simple_link_o() {
   fi
   local tmpc emit_shux=./compiler/shux-c
   [ -x "$emit_shux" ] || emit_shux=./compiler/shux
-  tmpc=$(mktemp /tmp/shux_slice_simple.XXXXXX.c)
+  # 【Why】macOS mkstemp 要求 X 在模板末尾；原 /tmp/...XXXXXX.c 中 .c 在 X 之后导致失败。
+  # 用不带 .c 后缀的临时文件，cc 用 -x c 指定 C 语言即可编译。
+  tmpc=$(mktemp /tmp/shux_slice_simple_XXXXXX)
   {
     echo '#include <stdint.h>'
     echo '#include <stddef.h>'
     echo "$struct_decl"
     "$emit_shux" -E "$x" 2>/dev/null | tail -n +2
   } >"$tmpc"
-  cc -O0 -o "$out" "$tmpc"
+  cc -O0 -x c -o "$out" "$tmpc"
   rm -f "$tmpc"
 }
 
