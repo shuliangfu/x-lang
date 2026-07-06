@@ -418,6 +418,21 @@ void ast_module_free(ASTModule *m) {
         m->top_level_lets = NULL;
         m->num_top_level_lets = 0;
     }
+    /* 【Why 逻辑根源】type_aliases 的 name 由 strdup 分配（parser.c:6042），
+       target 由 parse_type 分配，所有权归本节点（ast.h:348 注释明确声明）。
+       若不释放，每次 ast_module_free 都会泄漏 naliases 个 (name, target) 对。
+       parser.c 修复后 type_aliases 在 naliases==0 时为 NULL，此分支自动跳过。
+       【Invariant】释放后 type_aliases 必须为 NULL，num_type_aliases 必须为 0。
+       【Asm/Perf】仅模块卸载时执行，非热路径，无性能影响。 */
+    if (m->type_aliases) {
+        for (int i = 0; i < m->num_type_aliases; i++) {
+            if (m->type_aliases[i].name) free(m->type_aliases[i].name);
+            if (m->type_aliases[i].target) ast_type_free(m->type_aliases[i].target);
+        }
+        free(m->type_aliases);
+        m->type_aliases = NULL;
+        m->num_type_aliases = 0;
+    }
     if (m->struct_defs) {
         for (int i = 0; i < m->num_structs; i++)
             ast_struct_def_free(m->struct_defs[i]);  /* 每项为 malloc 的 ASTStructDef* */
