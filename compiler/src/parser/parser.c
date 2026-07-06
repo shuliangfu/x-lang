@@ -5333,6 +5333,15 @@ int parse(Lexer *lex, ASTModule **out) {
     mod->import_select_counts = NULL;
     mod->top_level_lets = NULL;
     mod->num_top_level_lets = 0;
+    /* 【Why 逻辑根源】type_aliases/num_type_aliases 必须在此显式置零：
+       mod 由 malloc 分配（非 calloc），若 module 不含 `type Name = T;` 声明，
+       parser.c:6427 的 `if (naliases > 0)` 分支不会执行，两字段保持 malloc 的垃圾值。
+       resolve_type_alias（typeck.c:218）以 `type_aliases != NULL` 作为进入循环的前提，
+       垃圾值会让条件误判为真，进而对 type_aliases[i].name 解引用野指针 → SIGSEGV。
+       【Invariant】naliases==0 时，type_aliases 必须为 NULL，num_type_aliases 必须为 0。
+       【Asm/Perf】两条 mov 指令，无分支，无运行时开销。 */
+    mod->type_aliases = NULL;
+    mod->num_type_aliases = 0;
     mod->struct_defs = NULL;
     mod->num_structs = 0;
     mod->enum_defs = NULL;

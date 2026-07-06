@@ -3248,6 +3248,27 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
                 if (rnw && rnw[0])
                     (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rnw);
             }
+            /* 【Why 逻辑根源】net.o 引用 io_uring_* weak 符号（io_uring_connect /
+               io_uring_accept / io_uring_accept_many / io_uring_connect_many /
+               io_uring_prefetch_fd）及 shu_net_udp_recvmmsg2_c / shu_net_udp_sendmmsg2_c /
+               shu_net_udp_recvmmsg_buf_c / shu_net_udp_sendmmsg_buf_c 等 weak 符号。
+               这些符号定义在 runtime_asm_io_stubs.o（src/asm/runtime_asm_io_stubs.c）。
+               若不链入此 .o，Linux 链接器报 undefined reference to 'io_uring_*' /
+               'shu_net_udp_*'。
+               macOS 上 Mach-O 不支持 weak 符号，io_stubs.o 中 std_io_write_stdout 等
+               符号变为强定义，会覆盖 std.io 模块的实现，导致 write_stdout 等测试回归。
+               故仅 Linux 需链入 io_stubs.o；macOS 上 net.o 的 io_uring 引用由
+               net_import_alias.c 的 C 桥桩或系统库解析。
+               【Invariant】Linux: net_o 链入时 runtime_asm_io_stubs.o 必须同时链入；
+               macOS: 不链入 io_stubs.o，避免 std_io_* 强符号冲突。
+               【Asm/Perf】Linux 上为 weak 符号，链接器选第一个定义，无运行时开销。 */
+#if defined(__linux__)
+            {
+                const char *ris = shux_runtime_asm_io_stubs_o_path(NULL);
+                if (ris && ris[0])
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, ris);
+            }
+#endif
         }
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, thread_o)) {
             {
