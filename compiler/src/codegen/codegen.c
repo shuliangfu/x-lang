@@ -6878,7 +6878,7 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
     else if (codegen_library_prefix && codegen_library_import_path && f->name && !f->is_extern
         && (strcmp(codegen_library_import_path, "core.types") == 0 || strcmp(codegen_library_import_path, "core.mem") == 0)
         && (strncmp(f->name, "size_of_", 8) == 0 || strncmp(f->name, "align_of_", 9) == 0))
-        fprintf(out, "__attribute__((weak)) inline ");
+        fprintf(out, "SHUX_LIB_WEAK inline ");
     /* 【Why 逻辑根源】库模块有 body 函数被 co-emit 到入口 .o 时生成强符号，
      * 与 std/*.o 同名 co-emit 强符号冲突（duplicate symbol）。
      * 【Invariant】仅库模块（codegen_library_prefix 真）且有 body（!is_extern）且
@@ -6886,7 +6886,7 @@ static int codegen_one_func(const struct ASTFunc *f, const struct ASTModule *m, 
      * 【Asm/Perf】weak 不影响代码生成质量，仅链接期允许多份定义选其一；
      * Windows PE 不支持 weak 函数符号，靠 Makefile --allow-multiple-definition 兜底。 */
     else if (codegen_library_prefix && !f->is_extern && !f->is_no_mangle && !f->is_entry)
-        fprintf(out, "__attribute__((weak)) ");
+        fprintf(out, "SHUX_LIB_WEAK ");
     fprintf(out, "%s %s(", cret_full, fname);
     if (has_async_frame)
         fprintf(out, "void");
@@ -8304,6 +8304,14 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
      * 【Invariant】#undef 后这四个符号均为函数声明，由 libc 链接器解析。
      * 【Asm/Perf】无运行时开销，仅影响预处理。 */
     fprintf(out, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
+    /* 【Why 根源】PE/COFF 不支持 weak 函数符号：MinGW 编译 __attribute__((weak)) 函数时
+     * 生成 .weak.<name>. 实现体 + <name> weak 别名。ld -r 部分链接（合并 tar.o/net.o 等）
+     * 会丢弃 weak 别名，导致最终链接报 undefined reference。
+     * Windows 下改为强符号，靠 --allow-multiple-definition 选第一个定义（与 ELF weak 语义对齐）。
+     * 【Invariant】SHUX_LIB_WEAK 在 Linux/macOS 展开为 __attribute__((weak))，行为不变；
+     * Windows 展开为空，函数变强符号。
+     * 【Asm/Perf】无运行时开销，仅影响链接期符号解析。 */
+    fprintf(out, "#ifdef _WIN32\n#define SHUX_LIB_WEAK\n#else\n#define SHUX_LIB_WEAK __attribute__((weak))\n#endif\n");
     /* CORE-009：clz/ctz/popcount/bswap/rotl/rotr 调用点经 builtin_intrinsic_name 重映射为 shux_builtin_*，
      * 此处 emit static inline 包装器（__builtin_* + x==0 边界），避免 cc 报未声明符号。 */
     codegen_emit_builtin_inline_decls(out);
@@ -8736,6 +8744,8 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         fprintf(out, "#include <string.h>\n"); /* memcpy 用于数组拷贝 */
         /* macOS 上 htonl/htons/ntohl/ntohs 是宏，须 #undef 后才能 emit extern 原型（见 codegen_module_to_c 注释）。 */
         fprintf(out, "#undef htonl\n#undef htons\n#undef ntohl\n#undef ntohs\n");
+        /* PE weak 函数在 ld -r 部分链接时丢失别名；Windows 改强符号靠 --allow-multiple-definition（见 codegen_module_to_c 注释）。 */
+        fprintf(out, "#ifdef _WIN32\n#define SHUX_LIB_WEAK\n#else\n#define SHUX_LIB_WEAK __attribute__((weak))\n#endif\n");
         /* CORE-009：库模块自身也可能 emit 跨模块 builtin 调用，需自带 static inline 包装器。 */
         codegen_emit_builtin_inline_decls(out);
     }
