@@ -5,14 +5,12 @@ cd "$(dirname "$0")/.."
 SHUX=${SHUX:-./compiler/shux}
 FMT_TMP="${TMPDIR:-/tmp}"
 _IS_MSYS=0
-# MSYS2：与 run-fmt-cmd.sh 一致，使用 /tmp 下固定文件名；fmt 子命令优先 seed shux（shux-c 路径偶发异常）。
+# MSYS2：shux-c.exe 已修复 _O_BINARY 二进制模式（CRLF 不再导致 read mismatch），
+# 直接用传入的 SHUX（shux-c.exe）；不再回退到 seed shux（seed 无 _O_BINARY 修复）。
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*)
     _IS_MSYS=1
     FMT_TMP="/tmp"
-    if [ -x ./compiler/shux ]; then
-      SHUX=./compiler/shux
-    fi
     ;;
 esac
 mkdir -p "$FMT_TMP" 2>/dev/null || true

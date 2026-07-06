@@ -15,14 +15,8 @@ if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ] && [ -x ./compiler/shux-c ]; then
       ;;
   esac
 fi
-# MSYS2：fmt 子命令在 shux-c 路径下偶发异常，CI test_c 仍走 shux-c 但 fmt 回归优先 seed shux。
-case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*)
-    if [ -x ./compiler/shux ]; then
-      SHUX=./compiler/shux
-    fi
-    ;;
-esac
+# MSYS2/MinGW：shux-c.exe 已修复 _O_BINARY 二进制模式（CRLF 不再导致 read mismatch），
+# 直接用 shux-c 执行 fmt/check；不再回退到 seed shux（seed 无 _O_BINARY 修复）。
 if [ -z "${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then
   if [ -n "${SHUX_RUN_ALL_BOOTSTRAP_SHUX:-}" ]; then
     make -C compiler bootstrap-driver-seed -q 2>/dev/null || make -C compiler bootstrap-driver-seed
@@ -56,17 +50,7 @@ if ! echo "$fmt_out" | grep -q "fmt OK"; then
     exit 1
   fi
 fi
-# Windows/MinGW：shux-c.exe 在 fmt 写回文件后，后续 open() 无法读取同一文件
-# （runtime_read_file_view 返回 -1，IO001；根因疑似 MinGW open/mmap 与 fmt 的 O_TRUNC 写入
-# 在 Windows 文件系统上有交互 bug）。用 bash 重新写入文件绕过此 bug。
-case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*|CYGWIN*)
-    if [ -f "$FMT_TMP" ]; then
-      _content=$(cat "$FMT_TMP")
-      printf '%s\n' "$_content" >"$FMT_TMP"
-    fi
-    ;;
-esac
+# Windows/MinGW：_O_BINARY 修复后 fmt/check 不再有 CRLF read mismatch，无需 workaround。
 chk_out=$($SHUX check "$FMT_TMP" 2>&1) || true
 if [ -n "$chk_out" ]; then
   echo "expected silent check after fmt, got: $chk_out"

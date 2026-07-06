@@ -10,9 +10,11 @@
 #include "win32_compat.h"
 #include "runtime_io_abi.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #ifndef _WIN32
@@ -21,6 +23,22 @@
 #include <sys/stat.h>
 #ifndef _WIN32
 #include <unistd.h>
+#endif
+
+/* 【Why 根源】MinGW open() 默认文本模式，read/write 做 CRLF↔LF 转换，
+ * 导致 fstat 报告的 st_size（物理字节数）与 read 实际返回字节数不一致。
+ * 例：fmt 写入 37 字节 LF，文本模式 write 磁盘为 40 字节 CRLF；
+ * fstat 报告 40，但 read 文本模式转换后只返回 37 → read mismatch → IO001。
+ * 【Invariant】所有编译器 I/O 路径必须用二进制模式，保证 read/write 透明传输。
+ * 【Asm/Perf】_O_BINARY 是 MinGW _open 的 flag，零运行时开销。 */
+#if defined(_WIN32) || defined(_WIN64)
+#include <fcntl.h>
+#ifndef _O_BINARY
+#define _O_BINARY 0x8000
+#endif
+#define SHUX_O_BINARY _O_BINARY
+#else
+#define SHUX_O_BINARY 0
 #endif
 
 /**
@@ -90,7 +108,7 @@ int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
     if (!path || !out)
         return -1;
     memset(out, 0, sizeof(*out));
-    fd = open(path, O_RDONLY);
+    fd = open(path, O_RDONLY | SHUX_O_BINARY);
     if (fd < 0)
         return -1;
     if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size < 0) {
@@ -107,7 +125,7 @@ int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
     mapped = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
     if (mapped == MAP_FAILED) {
-        fd_fallback = open(path, O_RDONLY);
+        fd_fallback = open(path, O_RDONLY | SHUX_O_BINARY);
         if (fd_fallback < 0)
             return -1;
         return shux_runtime_file_view_read_malloc(fd_fallback, size, out);
@@ -166,7 +184,7 @@ int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
 
     if (!path || !buf || cap == 0 || cap > (size_t)INT32_MAX)
         return -1;
-    fd = open(path, O_RDONLY);
+    fd = open(path, O_RDONLY | SHUX_O_BINARY);
     if (fd < 0)
         return -1;
     n = shux_read_fd_into_buf(fd, buf, cap);
@@ -185,7 +203,7 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
 
     if (!path || !data)
         return -1;
-    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, (mode_t)0644);
+    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY, (mode_t)0644);
     if (fd < 0)
         return -1;
     off = 0;

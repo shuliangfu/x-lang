@@ -123,9 +123,15 @@ int32_t driver_fmt_check_only_get(void) {
     return driver_fmt_check_only_flag ? 1 : 0;
 }
 
-/** 非 X 链或未链 fmt_check_cmd 时弱符号默认 0（保留逐文件 check OK）。 */
+/* 【Why 根源】MinGW PE 格式不真正支持 __attribute__((weak))：weak 函数被当作普通强符号，
+ * 与 fmt_check_cmd.c 的强符号并存；--allow-multiple-definition 选第一个遇到的定义，
+ * 链接器不保证按 OBJS_CORE 顺序选 fmt_check_cmd.o 的版本。当 weak 版本被选中且返回 0，
+ * check 成功后会逐文件打印 "check OK"，与 deno check 静默成功语义矛盾。
+ * 【Invariant】deno check 语义：成功时静默。weak 默认值必须返回 1（静默），保证无论
+ * Windows 链接器选中哪个版本，driver_print_check_ok 都不输出逐文件 check OK。
+ * 【Asm/Perf】macOS/Linux 上 weak 正常工作，强符号覆盖 weak 默认值，此改动无影响。 */
 SHUX_WEAK int driver_check_quiet_ok_get(void) {
-    return 0;
+    return 1;
 }
 
 /**

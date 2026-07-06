@@ -68,6 +68,24 @@ extern int driver_run_compiler_full(int argc, char **argv);
 extern void driver_dep_seeded_clear_all(void);
 #endif
 
+/* 【Why 根源】Windows 绝对路径格式 C:/... 或 C:\...（驱动器盘符+冒号）不被 POSIX
+ * path[0]=='/' 判断识别，导致 file_list_push/collect_paths_from_arg 把 Windows
+ * 绝对路径当相对路径拼接到 getcwd，产生 C:\cwd/C:/abs/path 双重前缀。
+ * 【Invariant】path 非空时返回 1 表示绝对路径（POSIX / 或 Windows 盘符）。
+ * 【Asm/Perf】纯 ASCII 比较，零运行时开销。 */
+static int shux_path_is_absolute(const char *path) {
+    if (!path || !path[0])
+        return 0;
+    if (path[0] == '/')
+        return 1;
+#ifdef _WIN32
+    if (((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z'))
+        && path[1] == ':')
+        return 1;
+#endif
+    return 0;
+}
+
 /** 单目录遍历时最多收集的 .x 路径数。 */
 #define DRIVER_FMT_MAX_FILES 8192
 /** 忽略规则条数（CLI --ignore + 内置）。 */
@@ -319,7 +337,7 @@ static int file_list_push(const char *path) {
     char ab[512];
     if (!path || s_n_files >= DRIVER_FMT_MAX_FILES)
         return -1;
-    if (path[0] != '/') {
+    if (!shux_path_is_absolute(path)) {
         if (!getcwd(ab, sizeof ab))
             return -1;
         size_t n = strlen(ab);
@@ -415,7 +433,7 @@ static void collect_paths_from_arg(const char *arg) {
     }
     if (S_ISDIR(st.st_mode)) {
         char base[512];
-        if (arg[0] == '/')
+        if (shux_path_is_absolute(arg))
             snprintf(base, sizeof base, "%s", arg);
         else {
             if (!getcwd(base, sizeof base))
