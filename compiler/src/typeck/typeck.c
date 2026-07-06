@@ -977,6 +977,16 @@ static int typeck_coerce_let_int_lit(const struct ASTType *decl, struct ASTExpr 
         init->resolved_type = (struct ASTType *)decl;
         return 1;
     }
+    /* 【Why】整数字面量可隐式转换为 f32/f64（如 let x: f32 = 1;），与 typeck.x 语义对齐。
+     * 原缺失此分支导致 run-float.sh init_non_zero_int.x 误报 typeck 错误。
+     * 所有整数值均可精确表示为 f64；f32 在 2^24 内可精确表示，超出也按 IEEE754 舍入，
+     * 与 C/Zig/Rust 的整型→浮点隐式转换语义一致。
+     * 【Invariant】仅整数字面量走此路径；浮点字面量在 typeck_block 已处理。
+     * 【Asm/Perf】typeck 路径，零开销。 */
+    if (dk == AST_TYPE_F32 || dk == AST_TYPE_F64) {
+        init->resolved_type = (struct ASTType *)decl;
+        return 1;
+    }
     return 0;
 }
 
@@ -1987,17 +1997,6 @@ static int typeck_overload_match_score_args(const struct ASTFunc *f, int num_arg
         const struct ASTType *arg = arg_e ? arg_e->resolved_type : NULL;
         const struct ASTType *param = f->params[i].type;
         if (!type_assignable_to(arg, param, arg_e)) {
-            if (getenv("SHUX_TYPECK_CALL_OVERLOAD")) {
-                fprintf(stderr,
-                        "shux: [SHUX_TYPECK_CALL_OVERLOAD] callee=%s argi=%d arg_expr_kind=%d arg_ty_kind=%d param_ty_kind=%d arg_elem_kind=%d param_elem_kind=%d\n",
-                        f->name ? f->name : "?",
-                        i,
-                        arg_e ? (int)arg_e->kind : -1,
-                        arg ? (int)arg->kind : -1,
-                        param ? (int)param->kind : -1,
-                        (arg && arg->elem_type) ? (int)arg->elem_type->kind : -1,
-                        (param && param->elem_type) ? (int)param->elem_type->kind : -1);
-            }
             return -1;
         }
         if (arg && param && type_equal(arg, param)) score += 1000;
@@ -2299,8 +2298,26 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
         case AST_EXPR_BITAND: case AST_EXPR_BITOR: case AST_EXPR_BITXOR:
         case AST_EXPR_EQ: case AST_EXPR_NE: case AST_EXPR_LT: case AST_EXPR_LE:
         case AST_EXPR_GT: case AST_EXPR_GE: case AST_EXPR_LOGAND: case AST_EXPR_LOGOR:
-            if (typeck_expr_sym(e->value.binop.left, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
-            if (typeck_expr_sym(e->value.binop.right, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+            /* 【Why 根源治理 expected_return 泄漏】binop 子操作数不得继承外层 return/let 的期望
+             * 返回类型。否则 `return s.mt[i].off + 24`（usize 函数）中字面量 24 会被错误收窄为
+             * usize，导致 u64+usize 无 widen 规则 → resolved_type=NULL，typeck_check_return_operand
+             * line 3667 `if (!got) return 0;` 静默放过（u64_to_usize_needs_as 漏报根因）。
+             * 与 CALL（line 3149）/method_call（line 3510）的清空模式一致。
+             * 【Invariant】清空-递归-恢复三段式；typeck_ctx_expected_return 跨递归后必须还原。
+             * 【Asm/Perf】纯 typeck 路径，零运行时开销。 */
+            {
+                const struct ASTType *prev_binop_expected = typeck_ctx_expected_return;
+                typeck_ctx_expected_return = NULL;
+                if (typeck_expr_sym(e->value.binop.left, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) {
+                    typeck_ctx_expected_return = prev_binop_expected;
+                    return -1;
+                }
+                if (typeck_expr_sym(e->value.binop.right, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) {
+                    typeck_ctx_expected_return = prev_binop_expected;
+                    return -1;
+                }
+                typeck_ctx_expected_return = prev_binop_expected;
+            }
             /* 向量逐分量运算（§10）：两操作数均为同类型向量时，结果类型为该向量 */
             {
                 const struct ASTType *lt = e->value.binop.left->resolved_type;
@@ -2576,15 +2593,35 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
         case AST_EXPR_TERNARY: {
             /* cond ? then : else：条件须为 bool，两分支类型须一致 */
             const struct ASTExpr *cond_ter = e->value.if_expr.cond;
-            if (typeck_expr_sym(cond_ter, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+            /* 【Why 根源治理 expected_return 泄漏】ternary 子表达式（cond/then/else）不得继承外层
+             * return/let 的期望返回类型。否则 `return n >= 0 ? n : -1`（i64 函数）中 else 分支
+             * 的 -1 会被 expected_return=i64 收窄为 i64，而 then 分支 n 仍是 i32，
+             * 导致 ternary i32 vs i64 类型不一致误报（contextual_typing_p0.x 回归根因）。
+             * 与 binop（line 2327）/CALL（line 3149）的清空模式一致。
+             * 【Invariant】清空-递归-恢复三段式；typeck_ctx_expected_return 跨递归后必须还原。
+             * 【Asm/Perf】纯 typeck 路径，零运行时开销。 */
+            const struct ASTType *prev_ternary_expected = typeck_ctx_expected_return;
+            typeck_ctx_expected_return = NULL;
+            if (typeck_expr_sym(cond_ter, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) {
+                typeck_ctx_expected_return = prev_ternary_expected;
+                return -1;
+            }
             if (!expr_produces_bool(cond_ter, names, type_kinds, n)) {
                 if (!typeck_fill_only) {
                     TYPECK_ERR(e, "ternary condition must be bool (no implicit int-to-bool)");
+                    typeck_ctx_expected_return = prev_ternary_expected;
                     return -1;
                 }
             }
-            if (typeck_expr_sym(e->value.if_expr.then_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
-            if (typeck_expr_sym(e->value.if_expr.else_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+            if (typeck_expr_sym(e->value.if_expr.then_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) {
+                typeck_ctx_expected_return = prev_ternary_expected;
+                return -1;
+            }
+            if (typeck_expr_sym(e->value.if_expr.else_expr, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) {
+                typeck_ctx_expected_return = prev_ternary_expected;
+                return -1;
+            }
+            typeck_ctx_expected_return = prev_ternary_expected;
             const struct ASTType *ty_then = e->value.if_expr.then_expr->resolved_type;
             const struct ASTType *ty_else = e->value.if_expr.else_expr->resolved_type;
             if (!ty_then || !ty_else || !type_equal(ty_then, ty_else)) {
@@ -3438,7 +3475,9 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
             return 0;
         }
         case AST_EXPR_METHOD_CALL: {
-            if (typeck_expr_sym(e->value.method_call.base, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+            if (typeck_expr_sym(e->value.method_call.base, names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) {
+                return -1;
+            }
             const struct ASTType *base_ty = e->value.method_call.base->resolved_type;
             const char *method_name = e->value.method_call.method_name;
             /* module.func 或 arch.x86_64.func 形式：base 为模块引用（VAR 或嵌套 FIELD 且无 resolved_type）时，在依赖中按函数名解析 */
@@ -3448,17 +3487,29 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                 int meth_path_len = expr_to_import_path(e->value.method_call.base, meth_path_buf, sizeof(meth_path_buf));
                 if (meth_path_len >= 0) {
                     meth_path_buf[meth_path_len] = '\0';
+                    /* 【Why 根源治理 method_call 实参期望类型泄漏】与 AST_EXPR_CALL 路径（line 3151）
+                     * 同源问题：typeck_ctx_expected_return 由外层 let/return 设为 usize 等返回类型，
+                     * 若不清空，实参中的整型字面量（如 `0`）会被强制转为 usize，与形参 i32 不匹配，
+                     * 导致 typeck_pick_overload_in_module_ex 返回 -1，最终误报 "method call base has no type"。
+                     * 实参类型应按形参期望推导，而非继承外层返回类型。
+                     * 【Invariant】仅清空实参 typecheck 期间；method_call 本身的返回类型仍由外层推导。 */
+                    const struct ASTType *prev_mcall_expected_ret = typeck_ctx_expected_return;
+                    typeck_ctx_expected_return = NULL;
                     for (int ai = 0; ai < e->value.method_call.num_args; ai++) {
-                        if (typeck_expr_sym(e->value.method_call.args[ai], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0)
+                        if (typeck_expr_sym(e->value.method_call.args[ai], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) {
+                            typeck_ctx_expected_return = prev_mcall_expected_ret;
                             return -1;
+                        }
                     }
+                    typeck_ctx_expected_return = prev_mcall_expected_ret;
                     for (int j = 0; j < m->num_imports && j < typeck_num_deps; j++) {
                         if (!import_module_ref_matches(m, j, meth_path_buf)) continue;
                         struct ASTModule *dm = typeck_dep_mods[j];
                         struct ASTFunc *func = NULL;
-                        if (!dm || typeck_pick_overload_in_module_ex(dm, method_name,
+                        int pick_rc = typeck_pick_overload_in_module_ex(dm, method_name,
                                 e->value.method_call.num_args, e->value.method_call.args,
-                                (struct ASTExpr *)e, &func) != 0)
+                                (struct ASTExpr *)e, &func);
+                        if (!dm || pick_rc != 0)
                             continue;
                         for (int ai = 0; ai < e->value.method_call.num_args; ai++) {
                             const struct ASTType *arg_type = e->value.method_call.args[ai]->resolved_type;
@@ -3522,15 +3573,25 @@ static int typeck_expr_sym(const struct ASTExpr *e, const char **names,
                     method_name, num_params_no_self, e->value.method_call.num_args);
                 return -1;
             }
+            /* 【Why 根源治理】同 module.func 路径（line 3489）：清空 typeck_ctx_expected_return
+             * 避免外层 let/return 的返回类型泄漏到 impl 方法实参，导致字面量被错误推断。
+             * 【Invariant】仅清空实参 typecheck 期间；method_call 返回类型由 impl_func->return_type 设。 */
+            const struct ASTType *prev_impl_expected_ret = typeck_ctx_expected_return;
+            typeck_ctx_expected_return = NULL;
             for (int i = 0; i < e->value.method_call.num_args; i++) {
-                if (typeck_expr_sym(e->value.method_call.args[i], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) return -1;
+                if (typeck_expr_sym(e->value.method_call.args[i], names, type_kinds, type_names, n, type_ptrs, inside_loop, struct_defs, num_structs, enum_defs, num_enums, m) != 0) {
+                    typeck_ctx_expected_return = prev_impl_expected_ret;
+                    return -1;
+                }
                 const struct ASTType *arg_type = e->value.method_call.args[i]->resolved_type;
                 const struct ASTType *param_type = impl_func->params[i + 1].type;
                 if (!arg_type || !param_type || !type_equal(arg_type, param_type)) {
                     TYPECK_ERR(e->value.method_call.args[i], "argument %d of method '%s' type mismatch", i + 1, method_name ? method_name : "");
+                    typeck_ctx_expected_return = prev_impl_expected_ret;
                     return -1;
                 }
             }
+            typeck_ctx_expected_return = prev_impl_expected_ret;
             ((struct ASTExpr *)e)->resolved_type = impl_func->return_type;
             ((struct ASTExpr *)e)->value.method_call.resolved_impl_func = impl_func;
             return 0;
@@ -3829,10 +3890,11 @@ static int typeck_block(const struct ASTBlock *b, const char **parent_names,
                 ((struct ASTExpr *)init)->resolved_type = b->let_decls[i].type;
             else if (init->kind == AST_EXPR_LIT && init->value.int_val == 0)
                 ((struct ASTExpr *)init)->resolved_type = b->let_decls[i].type;
-            else if (init->kind == AST_EXPR_LIT && init->value.int_val != 0) {
-                TYPECK_ERR_AT(0, 0, "f32/f64 init must be float literal or integer 0");
-                return -1;
-            }
+            /* 【Why】整数字面量（含非零）允许隐式转换为 f32/f64（如 let x: f32 = 1;），
+             * 与 typeck.x 语义对齐。原硬拒绝非零 int 字面量导致 run-float.sh 误报。
+             * 具体 coerce 由 typeck_coerce_let_int_lit 的 f32/f64 分支完成。 */
+            else if (init->kind == AST_EXPR_LIT)
+                ;
             else if (init->resolved_type && (init->resolved_type->kind == AST_TYPE_I32 || init->resolved_type->kind == AST_TYPE_F32 || init->resolved_type->kind == AST_TYPE_F64))
                 ;
             else if (init->kind == AST_EXPR_VAR) {

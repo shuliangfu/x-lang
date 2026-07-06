@@ -869,6 +869,9 @@ static int cfg_eval_expr(const char *start, const char *end) {
         }
         return !cfg_eval_expr(inner, close);
     }
+    /* 【Why 逻辑根源】#[cfg] 与 #if 中 target_os == "..." 既允许单 `=`（cfg 风格）也允许双 `==`
+     * （C 风格）；与 cfg_eval.x::cfg_eval_expr_range 对齐，否则 #if target_os == "macos" 在
+     * macOS 上会被 lexer C 实现误判为 false 走 #else 分支（run-preprocess.sh 根因）。 */
     if ((size_t)(end - p) >= 9 && strncmp(p, "target_os", 9) == 0) {
         const char *lit;
         p += 9;
@@ -877,6 +880,8 @@ static int cfg_eval_expr(const char *start, const char *end) {
         if (p >= end || *p != '=')
             return 0;
         p++;
+        if (p < end && *p == '=')
+            p++;
         while (p < end && (*p == ' ' || *p == '\t'))
             p++;
         if (p >= end || *p != '"')
@@ -895,6 +900,8 @@ static int cfg_eval_expr(const char *start, const char *end) {
         if (p >= end || *p != '=')
             return 0;
         p++;
+        if (p < end && *p == '=')
+            p++;
         while (p < end && (*p == ' ' || *p == '\t'))
             p++;
         if (p >= end || *p != '"')

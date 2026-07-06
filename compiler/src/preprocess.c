@@ -191,10 +191,19 @@ static int parse_directive(const char *line, int *out_kind, char *out_sym, size_
         p += 2;
         p = skip_ws(p);
         if (!*p || *p == '\n' || *p == '\r') return 0;
+        /* 【Why 逻辑根源】#if 后可为简单宏名（#if FOO）或复杂表达式（#if target_os == "macos"）。
+         * 仅取 isalnum/_ 会把 `target_os == "macos"` 截断为 `target_os`，导致
+         * preprocess_eval_condition 走 is_defined 分支查 -D 宏而非 cfg_eval_expr_c，
+         * 永远返回 false（run-preprocess.sh got 43 根因）。
+         * 必须取到行尾（去尾部空白），让完整表达式传给 cfg_eval_expr_c 求值。
+         * 【Invariant】sym 以 \0 结尾；不含行尾 \n/\r。
+         * 【Asm/Perf】字符串拷贝是 O(n)，preprocess 非热路径，无性能影响。 */
         size_t i = 0;
-        while (*p && (isalnum((unsigned char)*p) || *p == '_') && i + 1 < buf_size) {
+        while (*p && *p != '\n' && *p != '\r' && i + 1 < buf_size) {
             out_sym[i++] = *p++;
         }
+        while (i > 0 && (out_sym[i - 1] == ' ' || out_sym[i - 1] == '\t'))
+            i--;
         out_sym[i] = '\0';
         if (i == 0) return 0;
         *out_kind = 1;
@@ -205,10 +214,13 @@ static int parse_directive(const char *line, int *out_kind, char *out_sym, size_
         p += 6;
         p = skip_ws(p);
         if (!*p || *p == '\n' || *p == '\r') return 0;
+        /* 【Why】同 #if：#elseif target_os == "..." 须传完整表达式给 cfg_eval_expr_c。 */
         size_t i = 0;
-        while (*p && (isalnum((unsigned char)*p) || *p == '_') && i + 1 < buf_size) {
+        while (*p && *p != '\n' && *p != '\r' && i + 1 < buf_size) {
             out_sym[i++] = *p++;
         }
+        while (i > 0 && (out_sym[i - 1] == ' ' || out_sym[i - 1] == '\t'))
+            i--;
         out_sym[i] = '\0';
         if (i == 0) return 0;
         *out_kind = 4;
