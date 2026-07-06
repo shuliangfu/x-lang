@@ -17,7 +17,13 @@ case "$x_path" in
   std/*) x_path="../$x_path" ;;
 esac
 if [ "$shux_bin" = "auto" ]; then
-  if [ -x ./shux_asm ]; then
+  # 【Why 根源】run-all 批量回归时 SHUX_COMPILE_STD_USE_C=1 强制走 shux-c：
+  # shux_asm/shux（seed）在 macOS -backend asm 对部分 .x 产出 code_len=0 或语义错误 .o，
+  # 且 exit=0 不回退，污染 std/*.o 导致单独通过批量失败。
+  # 设此变量后优先 shux-c，确保 .o 与测试程序同源（都用 C 前端）。
+  if [ -n "${SHUX_COMPILE_STD_USE_C:-}" ] && [ -x ./shux-c ]; then
+    shux_bin=./shux-c
+  elif [ -x ./shux_asm ]; then
     shux_bin=./shux_asm
   elif [ -x ./shux ]; then
     shux_bin=./shux
