@@ -8277,6 +8277,9 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
     fprintf(out, "#include <stdint.h>\n");
     fprintf(out, "#include <stddef.h>\n");
     fprintf(out, "#include <string.h>\n"); /* memcpy 用于数组拷贝（自举 parser.x 中 let/const 数组 = 变量） */
+    /* ntohl/ntohs/htonl/htons：codegen_is_c_stdlib_func_name 跳过其 extern emit，由系统头提供声明。
+     * <arpa/inet.h> 不含 bind/socket（<sys/socket.h>），不与 shux extern function bind(...) 冲突。 */
+    fprintf(out, "#include <arpa/inet.h>\n");
     /* CORE-009：clz/ctz/popcount/bswap/rotl/rotr 调用点经 builtin_intrinsic_name 重映射为 shux_builtin_*，
      * 此处 emit static inline 包装器（__builtin_* + x==0 边界），避免 cc 报未声明符号。 */
     codegen_emit_builtin_inline_decls(out);
@@ -8707,6 +8710,7 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         fprintf(out, "#include <stdlib.h>\n");
         fprintf(out, "#include <stdio.h>\n");
         fprintf(out, "#include <string.h>\n"); /* memcpy 用于数组拷贝 */
+        fprintf(out, "#include <arpa/inet.h>\n"); /* ntohl/ntohs/htonl/htons 声明（codegen 跳过其 extern emit） */
         /* CORE-009：库模块自身也可能 emit 跨模块 builtin 调用，需自带 static inline 包装器。 */
         codegen_emit_builtin_inline_decls(out);
     }

@@ -1919,6 +1919,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(stdout, "#include <stdio.h>\n");
             fprintf(stdout, "#include <string.h>\n");
             fprintf(stdout, "#include <math.h>\n");
+            fprintf(stdout, "#include <arpa/inet.h>\n"); /* ntohl/ntohs/htonl/htons（codegen 跳过其 extern emit） */
             codegen_emit_fmt_json_helpers_once(stdout);
             codegen_emit_builtin_inline_decls(stdout);
             fprintf(stdout, "extern int getpid(void);\n");
@@ -2063,6 +2064,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 fprintf(cf_lib, "#include <stdio.h>\n");
                 fprintf(cf_lib, "#include <string.h>\n");
                 fprintf(cf_lib, "#include <math.h>\n");
+                fprintf(cf_lib, "#include <arpa/inet.h>\n"); /* ntohl/ntohs/htonl/htons（codegen 跳过其 extern emit） */
                 codegen_emit_fmt_json_helpers_once(cf_lib);
                 codegen_emit_builtin_inline_decls(cf_lib);
                 {
@@ -2194,6 +2196,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             fprintf(cf, "#include <stdio.h>\n");
             fprintf(cf, "#include <string.h>\n"); /* memcpy for array copy (bootstrap parser.x) */
             fprintf(cf, "#include <math.h>\n");
+            fprintf(cf, "#include <arpa/inet.h>\n"); /* ntohl/ntohs/htonl/htons（codegen 跳过其 extern emit） */
             codegen_emit_fmt_json_helpers_once(cf);
             codegen_emit_builtin_inline_decls(cf);
             fprintf(cf, "#include <string.h>\n");
