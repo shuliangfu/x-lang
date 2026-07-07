@@ -5926,6 +5926,11 @@ int parse(Lexer *lex, ASTModule **out) {
             mod->top_level_lets[mod->num_top_level_lets].section = pending_link_section;  /* K4 */
             mod->top_level_lets[mod->num_top_level_lets].is_thread_local = pending_thread_local;
             mod->top_level_lets[mod->num_top_level_lets].is_percpu = pending_percpu;
+            fprintf(stderr, "DBG parser let[%d] name=%s is_thread_local=%d is_percpu=%d pending_tl=%d pending_pc=%d\n",
+                    mod->num_top_level_lets, let_name,
+                    (int)mod->top_level_lets[mod->num_top_level_lets].is_thread_local,
+                    (int)mod->top_level_lets[mod->num_top_level_lets].is_percpu,
+                    (int)pending_thread_local, (int)pending_percpu);
             pending_thread_local = 0;
             pending_percpu = 0;
             pending_link_section = NULL;
