@@ -4627,11 +4627,25 @@ static int codegen_emit_call_import_path_impl(FILE *out, const struct ASTExpr *e
 static int codegen_emit_call_library_same_impl(FILE *out, const struct ASTExpr *e) {
     const char *callee_name = e->value.call.callee->value.var.name;
     const struct ASTFunc *f = NULL;
-    for (int i = 0; i < codegen_library_module->num_funcs && codegen_library_module->funcs; i++) {
-        if (!codegen_library_module->funcs[i]) continue;
-        if (codegen_library_module->funcs[i]->name && callee_name && strcmp(codegen_library_module->funcs[i]->name, callee_name) == 0) {
-            f = codegen_library_module->funcs[i];
-            break;
+    /* 【Why 根源】优先用 typeck 设置的 resolved_callee_func，避免同模块重载函数
+     * （如 std.heap 的 alloc 有 7 个重载：alloc(i32)->*u64, alloc(Allocator,usize)->*u8, ...）
+     * 按名查找时选中 funcs[] 中第一个同名函数而非参数类型/个数精确匹配的重载。
+     * typeck_pick_overload_in_module 已按 num_params+type_assignable_to 选取唯一重载，
+     * codegen 必须尊重 typeck 的决议，否则 bump(al,size) 内调 alloc(al,size) 会误绑到
+     * alloc(count:i32)->*u64（funcs[] 首个 alloc），生成 mod_alloc_i32_ret_u64_ptr(al,size)
+     * 导致 cc 报 "too many arguments, expected 1, have 2"。
+     * 【Invariant】resolved_callee_func 仅在 typeck 成功解析时非 NULL；未设置（如部分
+     * typeck 未覆盖路径）时回退到按名查找，保持向后兼容。
+     * 【Asm/Perf】无运行期开销，编译期决议。 */
+    if (e->value.call.resolved_callee_func) {
+        f = e->value.call.resolved_callee_func;
+    } else {
+        for (int i = 0; i < codegen_library_module->num_funcs && codegen_library_module->funcs; i++) {
+            if (!codegen_library_module->funcs[i]) continue;
+            if (codegen_library_module->funcs[i]->name && callee_name && strcmp(codegen_library_module->funcs[i]->name, callee_name) == 0) {
+                f = codegen_library_module->funcs[i];
+                break;
+            }
         }
     }
     if (!f || f->is_extern) return -1;
