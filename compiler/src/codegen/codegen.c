@@ -1147,7 +1147,8 @@ static void collect_lib_dep_calls_from_block(const struct ASTBlock *b, struct AS
 static void collect_import_calls_from_expr(const struct ASTExpr *e, const char **paths, struct ASTFunc **funcs, int *n,
     const char **gen_paths, struct ASTFunc **gen_funcs, struct ASTType ***gen_type_args, int *gen_n, int *gen_count) {
     if (!e || !paths || !funcs || !n) return;
-    if (e->kind == AST_EXPR_CALL && e->value.call.resolved_import_path && e->value.call.resolved_callee_func) {
+    if (e->kind == AST_EXPR_CALL && e->value.call.resolved_import_path && e->value.call.resolved_callee_func
+        && !e->value.call.resolved_callee_func->is_extern) {
         if (e->value.call.num_type_args <= 0 || !e->value.call.type_args) {
             if (*n >= MAX_IMPORT_DECLS) return;
             for (int i = 0; i < *n; i++)
@@ -1178,7 +1179,8 @@ static void collect_import_calls_from_expr(const struct ASTExpr *e, const char *
         }
     }
     /* module.func 形式的 METHOD_CALL 也需登记，供 -E 生成 extern */
-    if (e->kind == AST_EXPR_METHOD_CALL && e->value.method_call.resolved_import_path && e->value.method_call.resolved_impl_func) {
+    if (e->kind == AST_EXPR_METHOD_CALL && e->value.method_call.resolved_import_path && e->value.method_call.resolved_impl_func
+        && !e->value.method_call.resolved_impl_func->is_extern) {
         if (*n < MAX_IMPORT_DECLS) {
             int found = 0;
             for (int i = 0; i < *n; i++)
@@ -1272,6 +1274,11 @@ static void collect_lib_dep_calls_from_expr(const struct ASTExpr *e, struct ASTM
                 if (!dm || !dm->funcs) continue;
                 for (int fi = 0; fi < dm->num_funcs; fi++) {
                     if (!dm->funcs[fi]) continue;
+                    /* 【Why 根源】extern FFI 函数（如 macOS libSystem write(2)）用裸名链接，不加
+                     * lib_prefix。若收集为 lib_dep 调用，会生成带前缀的 extern 声明（如
+                     * std_sys_macos_write），与当前模块同名函数（如 std_sys_ + macos_write）碰撞。
+                     * extern 函数由 codegen_emit_module_extern_func_proto 用裸名声明，无需此处收集。 */
+                    if (dm->funcs[fi]->is_extern) continue;
                     if (dm->funcs[fi]->name && strcmp(dm->funcs[fi]->name, callee_name) == 0) {
                         for (int k = 0; k < *n_out; k++)
                             if (paths_out[k] == lib_dep_paths[di] && funcs_out[k] == dm->funcs[fi]) goto next_call;
