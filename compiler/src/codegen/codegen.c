@@ -1204,6 +1204,11 @@ static void collect_import_calls_from_expr(const struct ASTExpr *e, const char *
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
         case AST_EXPR_AWAIT: case AST_EXPR_RUN: case AST_EXPR_SPAWN: case AST_EXPR_TRY_PROPAGATE:
+        case AST_EXPR_RETURN:
+            /* 【Why 根源】AST_EXPR_RETURN 的 return expr 存于 value.unary.operand（parser.c:1588）；
+             * 若不递归收集，return module.func() 形式的 METHOD_CALL 会被遗漏，导致 -E-extern
+             * 生成的 C 缺少 extern 声明、cc 报 implicit function declaration。
+             * 【Invariant】operand 可为 NULL（裸 return;），collect_import_calls_from_expr 入口已 null 检查。 */
             collect_import_calls_from_expr(e->value.unary.operand, paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
             break;
         case AST_EXPR_AS:
