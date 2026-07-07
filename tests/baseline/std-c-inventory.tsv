@@ -2,8 +2,9 @@
 # 列：path
 # 更新：SHUX_STD_C_INVENTORY_UPDATE=1 ./tests/run-std-c-inventory-gate.sh
 summary_std_c	16
-summary_core_c	0
-summary_total_c	16
+summary_core_c	1
+summary_total_c	17
+file	core/slice/slice.c
 file	std/atomic/atomic_import_alias.c
 file	std/base64/base64_import_alias.c
 file	std/csv/csv_import_alias.c
