@@ -6,7 +6,7 @@
 
 ## 策略选择：C 辅助
 
-**采用 C 辅助策略**：由 C（main.c）负责 import 路径解析与预处理，对每个模块调用 .x 流水线（`run_sx_pipeline`），再拼接 C 输出。
+**采用 C 辅助策略**：由 C（main.c）负责 import 路径解析与预处理，对每个模块调用 .x 流水线（`run_x_pipeline`），再拼接 C 输出。
 
 ### 流程
 
@@ -25,8 +25,8 @@
 | 项目 | C 路径 | .x 路径（阶段 5） |
 |------|--------|--------------------|
 | 解析 | C parse | parser.x parse_into |
-| 类型检查 | C typeck_module | typeck.x typeck_sx_ast |
-| 代码生成 | C codegen | codegen.x codegen_sx_ast |
+| 类型检查 | C typeck_module | typeck.x typeck_x_ast |
+| 代码生成 | C codegen | codegen.x codegen_x_ast |
 | import 路径解析 | resolve_import_file_path_multi | 复用 C |
 | 预处理 | preprocess | 复用 C |
 | 多模块管理 | all_dep_mods / dep_mods | 每模块独立 arena/module |
@@ -38,7 +38,7 @@
 - **parser.x**：需在 `parse_into` 中收集 import 路径到 `Module.import_paths`（当前 `skip_imports` 仅跳过）。
 - **ast.x Module**：需增加 `import_paths`、`num_imports` 字段。
 - **跨模块调用**：当前 .x codegen 对库模块符号不加前缀；多依赖同名时可能冲突，后续扩展。
-- **单模块用例**：无 import 时仍走单文件 `run_sx_pipeline`，逻辑不变。
+- **单模块用例**：无 import 时仍走单文件 `run_x_pipeline`，逻辑不变。
 
 ---
 

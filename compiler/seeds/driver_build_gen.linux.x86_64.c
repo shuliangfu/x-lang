@@ -50,11 +50,11 @@ extern void ast_arena_block_set(struct ast_ASTArena *a, int32_t ref, struct ast_
 extern void ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_Type t);
 extern void ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
 
-extern int32_t main_run_compiler_sx_path_impl(int32_t argc, uint8_t * argv);
-extern int32_t driver_build_build_sx();
+extern int32_t main_run_compiler_x_path_impl(int32_t argc, uint8_t * argv);
+extern int32_t driver_build_build_x();
 int32_t build_cmd_build(int32_t argc, uint8_t * argv);
 int32_t build_cmd_build(int32_t argc, uint8_t * argv) {
-  (void)(({ int32_t __tmp = 0; if (argc < 2) {   return driver_build_build_sx();
+  (void)(({ int32_t __tmp = 0; if (argc < 2) {   return driver_build_build_x();
  } else (__tmp = 0) ; __tmp; }));
-  return main_run_compiler_sx_path_impl(argc, argv);
+  return main_run_compiler_x_path_impl(argc, argv);
 }

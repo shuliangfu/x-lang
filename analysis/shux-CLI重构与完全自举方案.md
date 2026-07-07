@@ -153,8 +153,8 @@ codegen.c 中的核心函数：
 - DCE（死代码消除）：`codegen_compute_used`、`codegen_compute_used_types`
 
 当前 codegen.x 通过大量 extern 调用 codegen.c：
-- `codegen_sx_import_path_to_c_prefix`
-- `codegen_sx_path_is_std_io_core`
+- `codegen_x_import_path_to_c_prefix`
+- `codegen_x_path_is_std_io_core`
 - `driver_get_current_dep_prefix_for_codegen`
 - `driver_force_param_*`
 - 等 ~20 个 extern

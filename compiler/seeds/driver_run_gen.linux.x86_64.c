@@ -51,7 +51,7 @@ extern void ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_T
 extern void ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
 
 extern int32_t driver_exec_compiled(int32_t argc, uint8_t * argv);
-extern int32_t main_run_compiler_sx_path_impl(int32_t argc, uint8_t * argv);
+extern int32_t main_run_compiler_x_path_impl(int32_t argc, uint8_t * argv);
 int32_t driver_run_eq_word(uint8_t * buf, int32_t len, uint8_t * word_ptr, int32_t word_len);
 int32_t driver_cmd_run(int32_t argc, uint8_t * argv);
 int32_t driver_run_eq_word(uint8_t * buf, int32_t len, uint8_t * word_ptr, int32_t word_len) {
@@ -68,7 +68,7 @@ int32_t driver_run_eq_word(uint8_t * buf, int32_t len, uint8_t * word_ptr, int32
 int32_t driver_cmd_run(int32_t argc, uint8_t * argv) {
   (void)(({ int32_t __tmp = 0; if (argc < 2) {   return 1;
  } else (__tmp = 0) ; __tmp; }));
-  int32_t rc = main_run_compiler_sx_path_impl(argc, argv);
+  int32_t rc = main_run_compiler_x_path_impl(argc, argv);
   (void)(({ int32_t __tmp = 0; if (rc == 0) {   return driver_exec_compiled(argc, argv);
  } else (__tmp = 0) ; __tmp; }));
   return rc;

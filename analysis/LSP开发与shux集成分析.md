@@ -79,7 +79,7 @@
 - **.x 侧职责**：
   - 从 **stdin** 按 LSP 约定读消息（Content-Length + JSON 正文），解析 JSON-RPC 的 method、id、params；
   - 根据 method 分发：initialize、initialized、textDocument/didOpen/didChange、textDocument/diagnostics、textDocument/definition、shutdown/exit 等；
-  - 调用**现有编译器接口**（parse_into、typeck_sx_ast 等，通过现有 C/.x 调用约定）获取诊断与符号信息；
+  - 调用**现有编译器接口**（parse_into、typeck_x_ast 等，通过现有 C/.x 调用约定）获取诊断与符号信息；
   - 将错误、符号位置组装成 LSP 的 Diagnostic、Location 等结构，序列化为 JSON，按 Content-Length + 正文写入 **stdout**。
 - **C / 现有编译器**：不实现 LSP 协议本身，只提供「可被 .x 调用的」parse/typeck 及**结构化错误与定义位置**的接口（见第四节）；必要时在 C 侧增加错误收集器或定义查询 API，供 .x LSP 层使用。
 

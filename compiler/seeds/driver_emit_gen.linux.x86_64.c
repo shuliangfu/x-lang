@@ -52,11 +52,11 @@ extern void ast_arena_type_set(struct ast_ASTArena *a, int32_t ref, struct ast_T
 extern void ast_arena_func_set(struct ast_ASTArena *a, int32_t ref, struct ast_Func f);
 
 extern int32_t std_sys_read_file_into(uint8_t * path, uint8_t * buf, int32_t cap);
-struct driver_DriverSxEmitState { uint8_t path_buf[512]; int32_t path_len; int32_t emit_extern_imports; int32_t use_asm_backend; int32_t target_arch; uint8_t out_path_buf[512]; int32_t out_path_len; };
+struct driver_DriverXEmitState { uint8_t path_buf[512]; int32_t path_len; int32_t emit_extern_imports; int32_t use_asm_backend; int32_t target_arch; uint8_t out_path_buf[512]; int32_t out_path_len; };
 extern ptrdiff_t fs_posix_read_c(int32_t fd, uint8_t * buf, size_t count);
 extern ptrdiff_t fs_posix_write_c(int32_t fd, uint8_t * buf, size_t count);
 extern int32_t fs_posix_close_c(int32_t fd);
-extern int32_t preprocess_sx_buf(uint8_t * source_buf, ptrdiff_t source_len, uint8_t * out_buf, int32_t out_cap);
+extern int32_t preprocess_x_buf(uint8_t * source_buf, ptrdiff_t source_len, uint8_t * out_buf, int32_t out_cap);
 extern int32_t pipeline_dep_ctx_ensure_source_buffers(struct ast_PipelineDepCtx * ctx);
 extern void pipeline_dep_ctx_free_source_buffers(struct ast_PipelineDepCtx * ctx);
 extern uint8_t * pipeline_dep_ctx_loaded_buf_ptr(struct ast_PipelineDepCtx * ctx);
@@ -70,27 +70,27 @@ extern int32_t driver_fs_open_write(uint8_t * path, int32_t path_len);
 extern uint8_t * driver_arena_buf();
 extern uint8_t * driver_module_buf();
 extern void driver_pipeline_fail_code(int32_t rc, uint8_t * path);
-extern void driver_print_sx_smoke_summary(uint8_t * module, size_t codegen_len);
-extern int32_t pipeline_run_sx_pipeline_impl(uint8_t * module_buf, uint8_t * arena_buf, uint8_t * source, size_t source_len, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx);
-extern int32_t driver_run_sx_emit_c_set_path(uint8_t * path, int32_t path_len);
-extern int32_t driver_run_sx_emit_c_set_lib(int32_t i, uint8_t * buf, int32_t len);
-extern int32_t driver_run_sx_emit_c_set_n_lib_roots(int32_t n);
-extern int32_t driver_run_sx_emit_c_set_emit_extern(int32_t v);
-extern int32_t driver_run_sx_emit_c();
+extern void driver_print_x_smoke_summary(uint8_t * module, size_t codegen_len);
+extern int32_t pipeline_run_x_pipeline_impl(uint8_t * module_buf, uint8_t * arena_buf, uint8_t * source, size_t source_len, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx);
+extern int32_t driver_run_x_emit_c_set_path(uint8_t * path, int32_t path_len);
+extern int32_t driver_run_x_emit_c_set_lib(int32_t i, uint8_t * buf, int32_t len);
+extern int32_t driver_run_x_emit_c_set_n_lib_roots(int32_t n);
+extern int32_t driver_run_x_emit_c_set_emit_extern(int32_t v);
+extern int32_t driver_run_x_emit_c();
 extern int32_t ast_pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx * ctx, uint8_t * path, int32_t len);
 
 /* C-04 -E-extern TU aliases */
 #define pipeline_ctx_append_lib_root ast_pipeline_ctx_append_lib_root
 
-uint8_t * driver_emit_state_key(struct driver_DriverSxEmitState * state);
-void driver_emit_copy_lib_roots_to_ctx(struct driver_DriverSxEmitState * state, struct ast_PipelineDepCtx * ctx);
+uint8_t * driver_emit_state_key(struct driver_DriverXEmitState * state);
+void driver_emit_copy_lib_roots_to_ctx(struct driver_DriverXEmitState * state, struct ast_PipelineDepCtx * ctx);
 struct ast_PipelineDepCtx driver_pipeline_dep_ctx_for_emit(int32_t use_asm, int32_t target);
-int32_t driver_run_sx_emit_sx(struct driver_DriverSxEmitState * state);
-int32_t driver_dispatch_sx_emit_to_c(struct driver_DriverSxEmitState * state);
-uint8_t * driver_emit_state_key(struct driver_DriverSxEmitState * state) {
+int32_t driver_run_x_emit_x(struct driver_DriverXEmitState * state);
+int32_t driver_dispatch_x_emit_to_c(struct driver_DriverXEmitState * state);
+uint8_t * driver_emit_state_key(struct driver_DriverXEmitState * state) {
   return ((uint8_t *)(state));
 }
-void driver_emit_copy_lib_roots_to_ctx(struct driver_DriverSxEmitState * state, struct ast_PipelineDepCtx * ctx) {
+void driver_emit_copy_lib_roots_to_ctx(struct driver_DriverXEmitState * state, struct ast_PipelineDepCtx * ctx) {
   int32_t k = 0;
   int32_t n = driver_emit_lib_root_count(driver_emit_state_key(state));
   uint8_t tmp[256] = { 0 };
@@ -110,7 +110,7 @@ struct ast_PipelineDepCtx driver_pipeline_dep_ctx_for_emit(int32_t use_asm, int3
   ((ctx).current_func_single_empty_param_index = ((-1)));
   return ctx;
 }
-int32_t driver_run_sx_emit_sx(struct driver_DriverSxEmitState * state) {
+int32_t driver_run_x_emit_x(struct driver_DriverXEmitState * state) {
   (void)(({ uint8_t __tmp = 0; if ((state)->path_len >= 0 && (state)->path_len < 511) {   (((state)->path_len < 0 || ((state)->path_len) >= 512 ? (shux_panic_(1, 0), 0) : (((state)->path_buf)[(state)->path_len] = ((uint8_t)(0)), 0)));
  } else (__tmp = 0) ; __tmp; }));
   struct ast_PipelineDepCtx ctx = driver_pipeline_dep_ctx_for_emit((state)->use_asm_backend, (state)->target_arch);
@@ -122,7 +122,7 @@ int32_t driver_run_sx_emit_sx(struct driver_DriverSxEmitState * state) {
   return 1;
  } else (__tmp = 0) ; __tmp; }));
   (void)(pipeline_dep_ctx_set_loaded_len((&(ctx)), ((ptrdiff_t)(n))));
-  int32_t out_len = preprocess_sx_buf(pipeline_dep_ctx_loaded_buf_ptr((&(ctx))), n, pipeline_dep_ctx_preprocess_buf_ptr((&(ctx))), 4194304);
+  int32_t out_len = preprocess_x_buf(pipeline_dep_ctx_loaded_buf_ptr((&(ctx))), n, pipeline_dep_ctx_preprocess_buf_ptr((&(ctx))), 4194304);
   (void)(({ int32_t __tmp = 0; if (out_len < 0) {   (void)(pipeline_dep_ctx_free_source_buffers((&(ctx))));
   return 1;
  } else (__tmp = 0) ; __tmp; }));
@@ -151,13 +151,13 @@ int32_t driver_run_sx_emit_sx(struct driver_DriverSxEmitState * state) {
   (void)(driver_emit_copy_lib_roots_to_ctx(state, (&(ctx))));
   struct codegen_CodegenOutBuf out = ({ struct codegen_CodegenOutBuf _t = { 0 }; _t.len = 0; _t; });
   size_t source_len = ((size_t)(out_len));
-  int32_t rc = pipeline_run_sx_pipeline_impl(module_buf, arena_buf, pipeline_dep_ctx_preprocess_buf_ptr((&(ctx))), source_len, (&(out)), (&(ctx)));
+  int32_t rc = pipeline_run_x_pipeline_impl(module_buf, arena_buf, pipeline_dep_ctx_preprocess_buf_ptr((&(ctx))), source_len, (&(out)), (&(ctx)));
   (void)(({ int32_t __tmp = 0; if (rc != 0) {   (void)(driver_pipeline_fail_code(rc, (&(((ctx).path_buf)[0]))));
   (void)(pipeline_dep_ctx_free_source_buffers((&(ctx))));
   return 1;
  } else (__tmp = 0) ; __tmp; }));
   int32_t len = (out).len;
-  (void)(({ int32_t __tmp = 0; if ((state)->out_path_len == 0) {   (void)(driver_print_sx_smoke_summary(module_buf, ((size_t)(len))));
+  (void)(({ int32_t __tmp = 0; if ((state)->out_path_len == 0) {   (void)(driver_print_x_smoke_summary(module_buf, ((size_t)(len))));
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if ((state)->out_path_len > 0) {   int32_t wfd = driver_fs_open_write((state)->out_path_buf, (state)->out_path_len);
   (void)(({ int32_t __tmp = 0; if (wfd < 0) {   (void)(pipeline_dep_ctx_free_source_buffers((&(ctx))));
@@ -187,18 +187,18 @@ int32_t driver_run_sx_emit_sx(struct driver_DriverSxEmitState * state) {
   (void)(pipeline_dep_ctx_free_source_buffers((&(ctx))));
   return 0;
 }
-int32_t driver_dispatch_sx_emit_to_c(struct driver_DriverSxEmitState * state) {
-  (void)(driver_run_sx_emit_c_set_emit_extern((state)->emit_extern_imports));
-  (void)(driver_run_sx_emit_c_set_path((state)->path_buf, (state)->path_len));
+int32_t driver_dispatch_x_emit_to_c(struct driver_DriverXEmitState * state) {
+  (void)(driver_run_x_emit_c_set_emit_extern((state)->emit_extern_imports));
+  (void)(driver_run_x_emit_c_set_path((state)->path_buf, (state)->path_len));
   int32_t k = 0;
   int32_t n_roots = driver_emit_lib_root_count(driver_emit_state_key(state));
   uint8_t lib_tmp[256] = { 0 };
   while (k < n_roots) {
     int32_t llen = driver_emit_lib_root_len(driver_emit_state_key(state), k);
     (void)(driver_emit_lib_root_copy(driver_emit_state_key(state), k, (&((lib_tmp)[0])), 256));
-    (void)(driver_run_sx_emit_c_set_lib(k, (&((lib_tmp)[0])), llen));
+    (void)(driver_run_x_emit_c_set_lib(k, (&((lib_tmp)[0])), llen));
     ++k;
   }
-  (void)(driver_run_sx_emit_c_set_n_lib_roots(n_roots));
-  return driver_run_sx_emit_c();
+  (void)(driver_run_x_emit_c_set_n_lib_roots(n_roots));
+  return driver_run_x_emit_c();
 }

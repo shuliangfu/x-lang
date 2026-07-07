@@ -285,7 +285,7 @@ $ shux-c file.x
 | [x_bridge.c](file:///home/shu/shux/compiler/src/x_bridge.c) | C 符号 → .x 生成实现桥接（parser/typeck/codegen 的 _gen.o 替代原 .o） |
 | [x_seed_bridge.c](file:///home/shu/shux/compiler/src/x_seed_bridge.c) | bootstrap-driver-seed 分 TU 链接桥：preprocess 前缀、asm 桩、ast 辅助、heap 桩 |
 | [x_stubs.c](file:///home/shu/shux/compiler/src/x_stubs.c) / [x_stubs.h](file:///home/shu/shux/compiler/src/x_stubs.h) | X 管线链接桩：ASM 后端/IO 批处理/LSP 等未在 X 路径实现模块的空实现 + 模块前缀命名不一致桥接 |
-| [sx_stubs.c](file:///home/shu/shux/compiler/src/sx_stubs.c) / [sx_stubs.h](file:///home/shu/shux/compiler/src/sx_stubs.h) | SX 管线链接桩（同 x_stubs 语义，SX 路径版本） |
+| [x_stubs.c](file:///home/shu/shux/compiler/src/x_stubs.c) / [x_stubs.h](file:///home/shu/shux/compiler/src/x_stubs.h) | X 管线链接桩（同 x_stubs 语义，X 路径版本） |
 
 #### 平台适配
 
@@ -466,7 +466,7 @@ build_tool = build_tool_main.c（薄 main）
 | 目录 | 路径 | 职责 |
 |---|---|---|
 | `scripts/`（根目录，18 个） | [scripts/](file:///home/shu/shux/scripts) | 迁移/工具脚本：`shux-deps-lock.sh`/`shux-deps-resolve.sh`/`shux-deps-verify.sh`（依赖锁定）、`shux-new.sh`（创建新模块骨架）、`shux-lang-edition.sh`（语言版本管理）、`migrate_*.pl`/`strip_*.pl`（语法迁移：array_slice、bare_strings、socketio、redundant_casts、usize_index 等） |
-| `tools/`（18 个） | [tools/](file:///home/shu/shux/tools) | 一次性 Python/Shell 迁移脚本：`audit_import_migration.py`、`add_sx_license_header.sh`/`add_x_license_header.sh`（License 头添加）、`c2sx_socketio.py`/`c2x_socketio.py`（C→SX/X 迁移）、`fix_*.py`（修复脚本） |
+| `tools/`（18 个） | [tools/](file:///home/shu/shux/tools) | 一次性 Python/Shell 迁移脚本：`audit_import_migration.py`、`add_x_license_header.sh`/`add_x_license_header.sh`（License 头添加）、`c2x_socketio.py`/`c2x_socketio.py`（C→X/X 迁移）、`fix_*.py`（修复脚本） |
 | `bin/` | [bin/](file:///home/shu/shux/bin) | `audit-std-extern-unsafe.ts`（TS 脚本：审计 std 模块 extern unsafe 声明） |
 
 ---
@@ -657,7 +657,7 @@ string sync sys tar task test thread time trace unicode url uuid vec websocket
 ### 9.4 桥接层排障（新增）
 
 - **C 路径正常但 .x 路径异常**：先查 `x_bridge.c` / `x_seed_bridge.c` 是否正确桥接了对应符号
-- **undefined symbol 但 .o 存在**：查 `x_stubs.c` / `sx_stubs.c` 是否提供了空桩（-1 返回值可能表现为运行时错误）
+- **undefined symbol 但 .o 存在**：查 `x_stubs.c` / `x_stubs.c` 是否提供了空桩（-1 返回值可能表现为运行时错误）
 - **Windows 链接失败**：查 `win32_pipeline_stubs.c` 是否覆盖了缺失符号（仅 _WIN32 编译）
 - **build_tool 链接失败**：查 `build_tool_libc_bridge.c`（Darwin 上 .x extern 与 stdlib 类型冲突）
 

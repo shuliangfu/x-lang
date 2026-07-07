@@ -18,7 +18,7 @@
 
 - **构建**：build_tool（build.x）可完成 0～6 步全流程，step 1 用 shux 生成 pipeline_gen.c（不依赖 make）；Makefile 保留为兜底。
 - **前端**：parser/typeck/codegen/lexer/ast 已由 .x 产出（ast_x.o、token_x.o、lexer_x.o、parser_x.o、typeck_x.o、codegen_x.o）并参与链接，-x 路径下业务逻辑在 .x 中。
-- **仍依赖 C 的原因**：main.x、build.x、typeck.x、pipeline.x 通过 **extern** 调用 runtime.c、build_runtime.c；codegen.x 通过 **extern** 调用 codegen.c 中大量 `codegen_sx_*`（控制流与表达式生成）（见**第七节**）。因此**尚不能删除** runtime.c、build_runtime.c、codegen.c；要实现「**全部逻辑完整迁到 .x**、完全自举、可删除 C 文件」需完成**第八节阶段 6**（含 6.0 codegen 完全迁 .x）。
+- **仍依赖 C 的原因**：main.x、build.x、typeck.x、pipeline.x 通过 **extern** 调用 runtime.c、build_runtime.c；codegen.x 通过 **extern** 调用 codegen.c 中大量 `codegen_x_*`（控制流与表达式生成）（见**第七节**）。因此**尚不能删除** runtime.c、build_runtime.c、codegen.c；要实现「**全部逻辑完整迁到 .x**、完全自举、可删除 C 文件」需完成**第八节阶段 6**（含 6.0 codegen 完全迁 .x）。
 
 ---
 
@@ -75,7 +75,7 @@
 
 | 序号 | 内容 | 验收 | 状态 |
 |------|------|------|------|
-| 3.1 | shuxc 支持「-E 仅展开入口、import 用 extern」或等价机制 | 生成「瘦」pipeline_gen.c（只含 pipeline 自身 + extern parse_into/typeck_sx_ast/codegen_sx_ast 等），不内联 parser/typeck/codegen | ✅ |
+| 3.1 | shuxc 支持「-E 仅展开入口、import 用 extern」或等价机制 | 生成「瘦」pipeline_gen.c（只含 pipeline 自身 + extern parse_into/typeck_x_ast/codegen_x_ast 等），不内联 parser/typeck/codegen | ✅ |
 | 3.2 | build_tool 链入 parser_x.o、typeck_x.o、codegen_x.o，不再链 parser.o、typeck.o、codegen.o | 链接命令用 parser_x.o 等；step 0 不再编 parser/typeck/codegen 的 C，或仅保留 lexer/ast/preprocess/runtime/main 等 C | ✅ |
 | 3.3 | 全构建通过且测试套件与当前一致 | run-all 或 bootstrap-verify 等价验收通过 | ✅ |
 
@@ -98,7 +98,7 @@
 | 4.5 | main.c 最小化 | 仅保留「调用 driver 入口」或由 .x 生成 main 桩，无业务逻辑 | ✅ |
 
 **阶段 4 完成标志**：C 代码仅剩「最小运行时 + 程序入口」，业务逻辑全部在 .x。  
-**4.3 说明**：6.4 已完成：preprocess.x 已链入（ndefines==0 时走 typeck_preprocess_sx）；preprocess.c 保留为 preprocess_c_fallback 供 ndefines>0 或回退。  
+**4.3 说明**：6.4 已完成：preprocess.x 已链入（ndefines==0 时走 typeck_preprocess_x）；preprocess.c 保留为 preprocess_c_fallback 供 ndefines>0 或回退。  
 **4.4 说明**：.x 构建下 `run_compiler_c` 已为桩、不执行 C 前端；`run_compiler_x_path` + pipeline 原语 + read_file/resolve/get_dep_* 为实际路径。`find_loaded_index` 等仍被 .x 路径使用，故保留在 runtime.c。
 
 ---
@@ -161,7 +161,7 @@
 | main.x | `run_compiler_c`, `run_compiler_x_path`, `driver_get_argv_i`, `pipeline_run_x_pipeline`（极薄原语） | runtime.c | 6.2 ✅：-x -E 解析与执行全在 main.x，仅保留上述 extern |
 | typeck.x | `get_dep_module`, `get_dep_arena`, `get_ndep` | runtime.c | 6.1：dep 在 .x 内 |
 | pipeline.x | `pipeline_resolve_path`, `pipeline_read_file`, `pipeline_parse_into_loaded_import`, `pipeline_*_slot`, `pipeline_set_dep`/`set_ndep`, `get_dep_*`, `get_ndep` | runtime.c | 6.1：原语在 .x 内 |
-| codegen.x（及 -E 生成的 pipeline 内联） | 无（原 codegen_sx_* 已全部在 codegen.x 内实现） | — | 6.0 ✅ |
+| codegen.x（及 -E 生成的 pipeline 内联） | 无（原 codegen_x_* 已全部在 codegen.x 内实现） | — | 6.0 ✅ |
 | preprocess.x | 无 | — | 6.4 ✅ 已无 C 依赖 |
 | std/fs/mod.x | `open`, `read`, `write`, `close` | libc | 最小运行时，保留 |
 | tests/ffi/putchar.x | `putchar` | libc | 最小运行时，保留 |
@@ -178,8 +178,8 @@
 
 | 序号 | 内容 | 验收 | 状态 |
 |------|------|------|------|
-| 6.0 | **codegen 完全迁 .x** | codegen.x 内实现所有 `codegen_sx_*` 的等价逻辑（emit、block、match、if_expr、for/while、call、index、field_access、struct_lit、array_lit 等）；.x 与 -E 生成的 pipeline 内联**不再 extern** codegen.c 的符号；逻辑全部在 .x，不依赖 C 业务代码 | ✅（codegen.x 已无 extern 调 C；STRUCT_LIT/ARRAY_LIT/ENUM_VARIANT 等均在 .x 内 emit_expr 实现） |
-| 6.1 | **pipeline 原语迁 .x** | `pipeline_resolve_path`、`pipeline_read_file`、`pipeline_set_dep`、`get_dep_*` 等**在 .x 内用 std.fs + .x 自己的 dep 存储实现**；pipeline.x / typeck.x **不再 extern** 这些符号；仅允许 extern malloc/free 与 std.fs（open/read/close）等最小运行时 | ✅（resolve_path_sx/read_file_sx 纯 .x+std.fs；preprocess_sx_buf 在 preprocess.x；ctx 用固定数组；**仅保留 1 个 C 桥接** pipeline_parse_into_buf：因 .x 暂无 (buf,len)→u8[] 语法） |
+| 6.0 | **codegen 完全迁 .x** | codegen.x 内实现所有 `codegen_x_*` 的等价逻辑（emit、block、match、if_expr、for/while、call、index、field_access、struct_lit、array_lit 等）；.x 与 -E 生成的 pipeline 内联**不再 extern** codegen.c 的符号；逻辑全部在 .x，不依赖 C 业务代码 | ✅（codegen.x 已无 extern 调 C；STRUCT_LIT/ARRAY_LIT/ENUM_VARIANT 等均在 .x 内 emit_expr 实现） |
+| 6.1 | **pipeline 原语迁 .x** | `pipeline_resolve_path`、`pipeline_read_file`、`pipeline_set_dep`、`get_dep_*` 等**在 .x 内用 std.fs + .x 自己的 dep 存储实现**；pipeline.x / typeck.x **不再 extern** 这些符号；仅允许 extern malloc/free 与 std.fs（open/read/close）等最小运行时 | ✅（resolve_path_x/read_file_x 纯 .x+std.fs；preprocess_x_buf 在 preprocess.x；ctx 用固定数组；**仅保留 1 个 C 桥接** pipeline_parse_into_buf：因 .x 暂无 (buf,len)→u8[] 语法） |
 | 6.2 | **driver 入口迁 .x** | `run_compiler_x_path`、`driver_argv_parse_x_emit_c`、`driver_run_x_emit_c` 的**全部逻辑在 main.x（或 driver.x）中实现**；.x 不再通过 extern 调 runtime.c 的上述函数；C 仅保留「调用 main_entry」的 main 桩（不删 C 文件，仅收口） | ✅（main.x 实现 driver_argv_parse_x、driver_run_x_emit_x；-x -E 解析与执行全在 .x；仅 extern driver_get_argv_i、run_compiler_x_path、pipeline_run_x_pipeline） |
 | 6.3 | **build_tool 原语迁 .x** | `build_get_shux_path`、`build_run_step` 的「拼命令、调 shux/cc、写 pipeline_gen.c」等**逻辑在 build.x 中实现**；.x 不再 extern build_runtime.c；可基于 std.fs + 新 std.process（或极薄 C：exec/spawn）在 .x 内完成子进程与文件读写 | ✅（build.x 实现 entry/run_all_steps/run_step，拼命令用 build_append_literal、执行用 build_exec_cmd、修正用 build_patch_after_step；C 仅保留上述极薄原语 + patch 实现） |
 | 6.4 | **preprocess 迁 .x** | 预处理**逻辑全部在 preprocess.x**，无 extern 读/写字节；链入 preprocess_x.o，runtime 在 ndefines==0 时调 .x 实现 | ✅（preprocess.x 已无 C 依赖；preprocess.c 仅作 ndefines>0 回退，不删文件） |
@@ -188,8 +188,8 @@
 **阶段 6 完成标志（不含 6.5）**：**语法、控制流、代码生成、驱动、pipeline、构建、预处理**等业务逻辑**全部在 .x 中实现**，**.x 不依赖我们自己的 C 业务代码**（仅允许最小运行时如 libc/open/read/close、malloc/free）。**完全自举**：用「build_tool + 上一代 shux」产出新一代 shux，新一代 shux 的运行逻辑由 .x 承担。**6.5 暂不执行**：不删除 C 文件，仅在做完 6.0～6.4 并确认 .x 自洽后再考虑是否删除/最小化 C。
 
 **说明**：  
-- **6.0 codegen 完全迁 .x**：codegen.x **已不 extern** codegen.c，整条 -x 路径只调 codegen_sx_ast；emit_expr/emit_block 等均在 .x 内用 ast.x 自写。未覆盖的仅剩 STRUCT_LIT/ARRAY_LIT/EXPR_ENUM_VARIANT 等少量分支，补全即可达标。  
-- **6.1 pipeline 原语**：**无需模块级 var**。做法：定义「dep 上下文」结构体（如 `PipelineDepCtx { dep_modules, dep_arenas, ndep }`），由调用方分配并传入 `run_sx_pipeline(..., ctx)` 与 `typeck_sx_ast(module, arena, ctx)`，.x 内用 ctx 读写 dep，不再调用 get_dep_*/pipeline_set_dep 等 extern。resolve_path/read_file 在 .x 内用 std.fs（open/read/close）+ 自写路径拼接实现。  
+- **6.0 codegen 完全迁 .x**：codegen.x **已不 extern** codegen.c，整条 -x 路径只调 codegen_x_ast；emit_expr/emit_block 等均在 .x 内用 ast.x 自写。未覆盖的仅剩 STRUCT_LIT/ARRAY_LIT/EXPR_ENUM_VARIANT 等少量分支，补全即可达标。  
+- **6.1 pipeline 原语**：**无需模块级 var**。做法：定义「dep 上下文」结构体（如 `PipelineDepCtx { dep_modules, dep_arenas, ndep }`），由调用方分配并传入 `run_x_pipeline(..., ctx)` 与 `typeck_x_ast(module, arena, ctx)`，.x 内用 ctx 读写 dep，不再调用 get_dep_*/pipeline_set_dep 等 extern。resolve_path/read_file 在 .x 内用 std.fs（open/read/close）+ 自写路径拼接实现。  
 - **6.2 driver**：run_compiler_x_path、driver_argv_parse_x_emit_c、driver_run_x_emit_c 的**实现逻辑迁到 main.x**，C 只留 main 调 main_entry，不删 runtime.c 文件直至 6.5 明确执行。  
 - **6.3 build_tool**：build_get_shux_path、build_run_step 的**实现逻辑迁到 build.x**（拼命令、调子进程、写文件），不依赖 build_runtime.c 业务逻辑；不删 build_runtime.c 直至 6.5。  
 - **6.4 preprocess**：已达成；preprocess.x 无 extern，逻辑全在 .x。  

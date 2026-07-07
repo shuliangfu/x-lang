@@ -33,8 +33,8 @@ int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val);
 int preprocess_line_keeping();
 int32_t preprocess_parse_copy_cond_from_line(uint8_t cond[256], uint8_t line_buf[512], int32_t pos, int32_t line_len);
 void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * out, uint8_t line_buf[512], int32_t line_len, uint8_t cond[256]);
-int32_t preprocess_sx(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf);
-int32_t preprocess_sx_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap);
+int32_t preprocess_x(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf);
+int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap);
 int32_t preprocess_apply_directive_kind(int32_t kind, int32_t cond_val) {
   int32_t depth = preprocess_if_stack_len();
   (void)(({ int32_t __tmp = 0; if (kind == 1) {   int32_t v = cond_val;
@@ -173,7 +173,7 @@ void preprocess_parse_directive_into(struct preprocess_ParseDirectiveResult * ou
  } else (__tmp = 0) ; __tmp; }));
   return;
 }
-int32_t preprocess_sx(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf) {
+int32_t preprocess_x(struct shux_slice_uint8_t * source, struct shux_slice_uint8_t * out_buf) {
   (void)(({ int32_t __tmp = 0; if ((out_buf)->length <= 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(preprocess_if_stack_reset());
@@ -224,7 +224,7 @@ int32_t preprocess_sx(struct shux_slice_uint8_t * source, struct shux_slice_uint
  } else (__tmp = 0) ; __tmp; }));
   return out_len;
 }
-int32_t preprocess_sx_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap) {
+int32_t preprocess_x_buf(uint8_t source_buf[4194304], ptrdiff_t source_len, uint8_t out_buf[4194304], int32_t out_cap) {
   (void)(({ int32_t __tmp = 0; if (out_cap <= 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(preprocess_if_stack_reset());

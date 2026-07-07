@@ -61,10 +61,10 @@ extern void std_heap_free(uint8_t * ptr);
 extern void lsp_diag_invalidate_cache();
 extern void lsp_diag_collect_begin();
 extern void lsp_diag_collect_end();
-extern void lsp_diag_sx_reset_parse_buffers();
-extern struct ast_ASTArena * lsp_diag_sx_arena_ptr();
-extern struct ast_Module * lsp_diag_sx_module_ptr();
-extern struct ast_PipelineDepCtx * lsp_diag_sx_ctx_ptr();
+extern void lsp_diag_x_reset_parse_buffers();
+extern struct ast_ASTArena * lsp_diag_x_arena_ptr();
+extern struct ast_Module * lsp_diag_x_module_ptr();
+extern struct ast_PipelineDepCtx * lsp_diag_x_ctx_ptr();
 extern int32_t lsp_diag_format_diagnostics_json(uint8_t * out, int32_t out_cap);
 extern int32_t lsp_build_response_with_result(int32_t id_val, uint8_t * result_ptr, int32_t result_len, uint8_t * out_buf, int32_t out_cap);
 
@@ -93,10 +93,10 @@ void lsp_diag_copy_bytes(uint8_t * dest, uint8_t * src, size_t n) {
   }
 }
 int32_t lsp_diag_run_pipeline_on_buf(uint8_t * mut_buf, int32_t sl) {
-  (void)(lsp_diag_sx_reset_parse_buffers());
-  struct ast_ASTArena * arena = lsp_diag_sx_arena_ptr();
-  struct ast_Module * module = lsp_diag_sx_module_ptr();
-  struct ast_PipelineDepCtx * ctx = lsp_diag_sx_ctx_ptr();
+  (void)(lsp_diag_x_reset_parse_buffers());
+  struct ast_ASTArena * arena = lsp_diag_x_arena_ptr();
+  struct ast_Module * module = lsp_diag_x_module_ptr();
+  struct ast_PipelineDepCtx * ctx = lsp_diag_x_ctx_ptr();
   (void)(lsp_diag_prepare_pipeline_ctx(ctx));
   return pipeline_lsp_diag_parse_typeck_buf(module, arena, mut_buf, sl, ctx);
 }
@@ -171,7 +171,7 @@ int32_t lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, 
   (void)(({ int32_t __tmp = 0; if (rc != 0) {   (void)(std_heap_free(mut_buf));
   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_ASTArena * arena = lsp_diag_sx_arena_ptr();
+  struct ast_ASTArena * arena = lsp_diag_x_arena_ptr();
   (void)(std_heap_free(mut_buf));
   int32_t type_ref = lsp_diag_lsp_find_type_ref_at_pos(arena, line_0 + 1, col_0 + 1);
   (void)(({ int32_t __tmp = 0; if (type_ref == 0) {   return 0;
@@ -287,7 +287,7 @@ int32_t lsp_diag_references_at(uint8_t * source, int32_t source_len, int32_t lin
   (void)(({ int32_t __tmp = 0; if (rc != 0) {   (void)(std_heap_free(mut_buf));
   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_ASTArena * arena = lsp_diag_sx_arena_ptr();
+  struct ast_ASTArena * arena = lsp_diag_x_arena_ptr();
   (void)(std_heap_free(mut_buf));
   int32_t line_1 = line_0 + 1;
   int32_t col_1 = col_0 + 1;
@@ -405,8 +405,8 @@ int32_t lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t lin
   (void)(({ int32_t __tmp = 0; if (rc != 0) {   (void)(std_heap_free(mut_buf));
   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_Module * module = lsp_diag_sx_module_ptr();
-  struct ast_ASTArena * arena = lsp_diag_sx_arena_ptr();
+  struct ast_Module * module = lsp_diag_x_module_ptr();
+  struct ast_ASTArena * arena = lsp_diag_x_arena_ptr();
   int32_t line_1 = line_0 + 1;
   int32_t col_1 = col_0 + 1;
   int32_t def_l1 = 0;
@@ -529,7 +529,7 @@ int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * do
   (void)(({ int32_t __tmp = 0; if (rc != 0) {   (void)(std_heap_free(mut_buf));
   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  struct ast_ASTArena * arena = lsp_diag_sx_arena_ptr();
+  struct ast_ASTArena * arena = lsp_diag_x_arena_ptr();
   (void)(std_heap_free(mut_buf));
   int32_t token_cap = 4096;
   size_t token_bytes = ((size_t)(token_cap * 4));

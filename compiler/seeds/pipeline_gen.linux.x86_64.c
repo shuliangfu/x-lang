@@ -100,12 +100,12 @@ extern int32_t driver_dep_seeded_get(int32_t i);
 extern int32_t driver_dep_slot_for_path(uint8_t * path);
 extern int32_t get_ndep();
 extern int32_t pipeline_driver_asm_build_skip_typeck();
-extern int32_t pipeline_driver_sx_pipeline_skip_typeck();
+extern int32_t pipeline_driver_x_pipeline_skip_typeck();
 extern int32_t parser_parse_one_function_ok_for_pipeline_buf_glue(struct ast_ASTArena * arena, uint8_t * data, int32_t len);
 extern void ast_ast_arena_init(struct ast_ASTArena * arena);
 extern int32_t asm_asm_codegen_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_copy_lib_root_to_buf256(struct ast_PipelineDepCtx * ctx, int32_t lib_idx, uint8_t * dst);
-extern int32_t preprocess_sx_buf(uint8_t * source_buf, ptrdiff_t source_len, uint8_t * out_buf, int32_t out_cap);
+extern int32_t preprocess_x_buf(uint8_t * source_buf, ptrdiff_t source_len, uint8_t * out_buf, int32_t out_cap);
 extern void pipeline_dep_ctx_set_path_buf_byte(struct ast_PipelineDepCtx * ctx, int32_t off, uint8_t b);
 extern uint8_t * pipeline_dep_ctx_path_buf_ptr(struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_dep_ctx_entry_dir_len(struct ast_PipelineDepCtx * ctx);
@@ -117,12 +117,12 @@ extern void pipeline_dep_ctx_set_loaded_len(struct ast_PipelineDepCtx * ctx, ptr
 extern int32_t pipeline_ctx_lib_root_count(struct ast_PipelineDepCtx * ctx);
 extern ptrdiff_t fs_posix_read_c(int32_t fd, uint8_t * buf, size_t count);
 extern int32_t fs_posix_close_c(int32_t fd);
-extern int32_t run_sx_pipeline_last_rc_get();
-extern void run_sx_pipeline_last_rc_store_c(int32_t rc);
+extern int32_t run_x_pipeline_last_rc_get();
+extern void run_x_pipeline_last_rc_store_c(int32_t rc);
 extern int32_t pipeline_typeck_fail_return_c(int32_t fail_mapped);
 extern int32_t pipeline_typeck_null_fail_return_c(int32_t fail_mapped);
-extern int32_t run_sx_pipeline_load_deps_after_parse_c(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
-extern int32_t run_sx_pipeline_typecheck_after_load_c(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
+extern int32_t run_x_pipeline_load_deps_after_parse_c(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
+extern int32_t run_x_pipeline_typecheck_after_load_c(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 extern void pipeline_module_set_main_func_index(struct ast_Module * module, int32_t main_idx);
 extern int32_t pipeline_module_main_func_index(struct ast_Module * module);
 extern int32_t pipeline_arena_num_types(struct ast_ASTArena * arena);
@@ -145,15 +145,15 @@ extern int32_t lsp_diag_typeck_after_load_c(struct ast_Module * module, struct a
 extern int32_t lsp_diag_parse_typeck_buf_c(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, int32_t source_len, struct ast_PipelineDepCtx * ctx);
 extern struct parser_ParseIntoResult pipeline_parse_into_with_init_result_c();
 extern struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_impl_c(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * data, int32_t len);
-extern int32_t run_sx_pipeline_parse_entry_do_parse_c(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx);
-extern int32_t run_sx_pipeline_parse_entry_if_needed_c(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx);
-extern int32_t run_sx_pipeline_typecheck_entry_emit_c(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
-extern int32_t run_sx_pipeline_fill_dep_import_path_c(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t dep_j);
+extern int32_t run_x_pipeline_parse_entry_do_parse_c(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx);
+extern int32_t run_x_pipeline_parse_entry_if_needed_c(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx);
+extern int32_t run_x_pipeline_typecheck_entry_emit_c(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
+extern int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t dep_j);
 extern int32_t pipeline_fill_dep_import_path_from_buf_c(struct ast_PipelineDepCtx * ctx, int32_t dep_j, uint8_t * path_buf);
-extern int32_t pipeline_resolve_path_sx_from_buf64_c(struct ast_PipelineDepCtx * ctx, uint8_t * path_buf);
+extern int32_t pipeline_resolve_path_x_from_buf64_c(struct ast_PipelineDepCtx * ctx, uint8_t * path_buf);
 extern int32_t pipeline_prepare_dep_codegen_path_c(struct ast_PipelineDepCtx * ctx, int32_t dep_j, uint8_t * dst);
 extern int32_t pipeline_finish_dep_codegen_diag_c(int32_t dep_j, struct codegen_CodegenOutBuf * out_buf);
-extern int32_t run_sx_pipeline_codegen_one_dep_prepare_c(struct ast_PipelineDepCtx * ctx, int32_t dep_j);
+extern int32_t run_x_pipeline_codegen_one_dep_prepare_c(struct ast_PipelineDepCtx * ctx, int32_t dep_j);
 extern int32_t pipeline_loop_should_continue_ndep_c(struct ast_PipelineDepCtx * ctx, int32_t idx);
 extern int32_t pipeline_loop_should_continue_imports_c(struct ast_Module * module, int32_t idx);
 extern int32_t pipeline_loop_should_continue_lib_root_c(struct ast_PipelineDepCtx * ctx, int32_t idx);
@@ -166,8 +166,8 @@ extern int32_t pipeline_flat_import_probe_open_c(struct ast_PipelineDepCtx * ctx
 extern int32_t pipeline_loop_index_at_or_beyond_ndep_c(struct ast_PipelineDepCtx * ctx, int32_t idx);
 extern int32_t pipeline_loop_index_at_or_beyond_imports_c(struct ast_Module * module, int32_t idx);
 extern void pipeline_load_and_sync_set_ndep_from_module_c(struct ast_Module * module, struct ast_PipelineDepCtx * ctx);
-extern int32_t run_sx_pipeline_codegen_deps_c(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t skip_asm_dep_codegen);
-extern int32_t run_sx_pipeline_codegen_entry_c(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx);
+extern int32_t run_x_pipeline_codegen_deps_c(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t skip_asm_dep_codegen);
+extern int32_t run_x_pipeline_codegen_entry_c(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx);
 extern void pipeline_strict_parse_into_init(struct ast_ASTArena * arena, struct ast_Module * module);
 extern void parser_parse_into_init(struct ast_Module * module, struct ast_ASTArena * arena);
 extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * data, int32_t len);
@@ -188,14 +188,14 @@ extern void pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx * ctx, int32_t n
 extern int32_t pipeline_dep_ctx_import_path_len(struct ast_PipelineDepCtx * ctx, int32_t idx);
 extern void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx * ctx, int32_t idx, uint8_t * bytes, int32_t len);
 extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx * ctx, int32_t idx, uint8_t * dst);
-extern int32_t typeck_typeck_sx_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
-extern int32_t typeck_typeck_sx_ast_library(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
+extern int32_t typeck_typeck_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
+extern int32_t typeck_typeck_x_ast_library(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_typeck_scan_module_struct_stack_escape_c(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 extern void typeck_typeck_merge_dep_struct_layouts_into_entry(struct ast_Module * mod, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 extern void typeck_typeck_wpo_unify_soa_layouts(struct ast_Module * entry, struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_preprocess_loaded_into_ctx(struct ast_PipelineDepCtx * ctx);
 extern void pipeline_bind_import_dep_buffers(struct ast_PipelineDepCtx * ctx, int32_t import_idx);
-extern int32_t pipeline_read_file_sx_impl_c(struct ast_PipelineDepCtx * ctx);
+extern int32_t pipeline_read_file_x_impl_c(struct ast_PipelineDepCtx * ctx);
 extern int32_t pipeline_try_bind_seeded_import(struct ast_PipelineDepCtx * ctx, int32_t import_idx, int32_t global_slot);
 extern int32_t pipeline_sync_one_dep_slot(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t dep_i);
 extern void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
@@ -211,32 +211,32 @@ extern void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len);
 extern void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep);
 extern int32_t driver_skip_codegen_dep_0_get();
 extern int32_t driver_check_only_get();
-extern int32_t driver_sx_pipeline_skip_codegen_get();
+extern int32_t driver_x_pipeline_skip_codegen_get();
 extern void driver_diagnostic_entry_already(int32_t v);
 extern void driver_diagnostic_source_len(int32_t len);
 extern void driver_diagnostic_after_entry_parse(int32_t num_funcs);
 extern void driver_diagnostic_entry_module(struct ast_Module * module, struct ast_ASTArena * arena);
 extern void driver_set_current_dep_path_for_codegen(uint8_t * path);
 extern int32_t pipeline_dep_ctx_entry_already_parsed(struct ast_PipelineDepCtx * ctx);
-extern int32_t run_sx_pipeline_codegen_one_dep_emit(struct ast_Module * dep_mod, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t dep_j, int32_t skip_asm_dep_codegen, int32_t use_asm_backend);
-extern int32_t run_sx_pipeline_codegen_entry_emit(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t use_asm_backend);
+extern int32_t run_x_pipeline_codegen_one_dep_emit(struct ast_Module * dep_mod, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t dep_j, int32_t skip_asm_dep_codegen, int32_t use_asm_backend);
+extern int32_t run_x_pipeline_codegen_entry_emit(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t use_asm_backend);
 
 /* C-04 -E-extern TU aliases */
 #define ast_arena_init ast_ast_arena_init
 
-int32_t pipeline_should_skip_sx_typeck(struct ast_PipelineDepCtx * ctx);
+int32_t pipeline_should_skip_x_typeck(struct ast_PipelineDepCtx * ctx);
 int32_t pipeline_parse_into_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * buf, int32_t buf_len);
 int32_t pipeline_path_append_from_buf_256(struct ast_PipelineDepCtx * ctx, int32_t off, uint8_t * buf, int32_t len);
 int32_t pipeline_path_append_from_buf_512(struct ast_PipelineDepCtx * ctx, int32_t off, uint8_t * buf, int32_t len);
 int32_t pipeline_path_append_import_path(struct ast_PipelineDepCtx * ctx, int32_t off, uint8_t * import_path, int32_t path_len);
 int32_t pipeline_resolve_path_import_has_dot(uint8_t * import_path, int32_t path_len);
-int32_t pipeline_resolve_path_probe_dot_sx_and_mod(struct ast_PipelineDepCtx * ctx, int32_t off);
+int32_t pipeline_resolve_path_probe_dot_x_and_mod(struct ast_PipelineDepCtx * ctx, int32_t off);
 int32_t pipeline_resolve_path_try_flat_import_under_lib(struct ast_PipelineDepCtx * ctx, int32_t lib_idx, uint8_t * import_path, int32_t path_len);
 int32_t pipeline_resolve_path_try_one_lib_root(struct ast_PipelineDepCtx * ctx, int32_t lib_idx, uint8_t * import_path, int32_t path_len);
 int32_t pipeline_resolve_path_try_entry_dir(struct ast_PipelineDepCtx * ctx, uint8_t * import_path, int32_t path_len);
-int32_t pipeline_resolve_path_sx(struct ast_PipelineDepCtx * ctx, uint8_t * import_path, int32_t path_len);
+int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx * ctx, uint8_t * import_path, int32_t path_len);
 size_t pipeline_loaded_buf_cap();
-int32_t pipeline_read_file_sx(struct ast_PipelineDepCtx * ctx);
+int32_t pipeline_read_file_x(struct ast_PipelineDepCtx * ctx);
 struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * data, int32_t len);
 int32_t pipeline_parse_apply_main_from_scalars(struct ast_Module * module, struct ast_ASTArena * arena);
 int32_t pipeline_parse_set_main_from_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * data, int32_t len);
@@ -250,20 +250,20 @@ int32_t pipeline_load_and_sync_direct_import_deps(struct ast_Module * module, st
 int32_t pipeline_lsp_diag_parse_entry_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, int32_t source_len);
 int32_t pipeline_lsp_diag_typeck_after_load(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
 int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, int32_t source_len, struct ast_PipelineDepCtx * ctx);
-int32_t pipeline_run_sx_pipeline_parse_entry_do_parse(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx);
-int32_t pipeline_run_sx_pipeline_parse_entry_if_needed(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx);
-int32_t pipeline_run_sx_pipeline_load_deps_after_parse(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
-int32_t pipeline_run_sx_pipeline_typecheck_after_load(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
-int32_t pipeline_run_sx_pipeline_typecheck_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
-int32_t pipeline_run_sx_pipeline_fill_dep_import_path(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t dep_j);
-int32_t pipeline_run_sx_pipeline_codegen_one_dep(struct ast_Module * module, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t dep_j, int32_t skip_asm_dep_codegen);
-int32_t pipeline_run_sx_pipeline_codegen_deps(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t skip_asm_dep_codegen);
+int32_t pipeline_run_x_pipeline_parse_entry_do_parse(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx);
+int32_t pipeline_run_x_pipeline_parse_entry_if_needed(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx);
+int32_t pipeline_run_x_pipeline_load_deps_after_parse(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
+int32_t pipeline_run_x_pipeline_typecheck_after_load(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
+int32_t pipeline_run_x_pipeline_typecheck_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx);
+int32_t pipeline_run_x_pipeline_fill_dep_import_path(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t dep_j);
+int32_t pipeline_run_x_pipeline_codegen_one_dep(struct ast_Module * module, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t dep_j, int32_t skip_asm_dep_codegen);
+int32_t pipeline_run_x_pipeline_codegen_deps(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t skip_asm_dep_codegen);
 int32_t pipeline_prepare_dep_codegen_path(struct ast_PipelineDepCtx * ctx, int32_t dep_j, uint8_t * dst);
 int32_t pipeline_finish_dep_codegen_diag(int32_t dep_j, struct codegen_CodegenOutBuf * out_buf);
-int32_t pipeline_run_sx_pipeline_codegen_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx);
-int32_t pipeline_run_sx_pipeline_impl(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx);
-int32_t pipeline_should_skip_sx_typeck(struct ast_PipelineDepCtx * ctx) {
-  (void)(({ int32_t __tmp = 0; if (pipeline_driver_sx_pipeline_skip_typeck() != 0) {   return 1;
+int32_t pipeline_run_x_pipeline_codegen_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx);
+int32_t pipeline_run_x_pipeline_impl(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx);
+int32_t pipeline_should_skip_x_typeck(struct ast_PipelineDepCtx * ctx) {
+  (void)(({ int32_t __tmp = 0; if (pipeline_driver_x_pipeline_skip_typeck() != 0) {   return 1;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (pipeline_dep_ctx_asm_entry_module_only(ctx) == 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
@@ -294,7 +294,7 @@ int32_t pipeline_resolve_path_import_has_dot(uint8_t * import_path, int32_t path
   }
   return 0;
 }
-int32_t pipeline_resolve_path_probe_dot_sx_and_mod(struct ast_PipelineDepCtx * ctx, int32_t off) {
+int32_t pipeline_resolve_path_probe_dot_x_and_mod(struct ast_PipelineDepCtx * ctx, int32_t off) {
   return pipeline_resolve_path_probe_export_c(ctx, off);
 }
 int32_t pipeline_resolve_path_try_flat_import_under_lib(struct ast_PipelineDepCtx * ctx, int32_t lib_idx, uint8_t * import_path, int32_t path_len) {
@@ -313,7 +313,7 @@ int32_t pipeline_resolve_path_try_one_lib_root(struct ast_PipelineDepCtx * ctx, 
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_resolve_path_probe_dot_sx_and_mod(ctx, pipeline_resolve_path_last_off_get_c()) == 0) {   return 0;
+  (void)(({ int32_t __tmp = 0; if (pipeline_resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c()) == 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (path_len > 0 && path_len < 64 && pipeline_resolve_path_import_has_dot(import_path, path_len) == 0) {   __tmp = ({ int32_t __tmp = 0; if (pipeline_resolve_path_try_flat_import_under_lib(ctx, lib_idx, import_path, path_len) == 0) {   return 0;
  } else (__tmp = 0) ; __tmp; });
@@ -329,9 +329,9 @@ int32_t pipeline_resolve_path_try_entry_dir(struct ast_PipelineDepCtx * ctx, uin
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (pipeline_path_append_import_path_sidecar_c(ctx, pipeline_resolve_path_last_off_get_c(), import_path, path_len) < 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  return pipeline_resolve_path_probe_dot_sx_and_mod(ctx, pipeline_resolve_path_last_off_get_c());
+  return pipeline_resolve_path_probe_dot_x_and_mod(ctx, pipeline_resolve_path_last_off_get_c());
 }
-int32_t pipeline_resolve_path_sx(struct ast_PipelineDepCtx * ctx, uint8_t * import_path, int32_t path_len) {
+int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx * ctx, uint8_t * import_path, int32_t path_len) {
   (void)(({ int32_t __tmp = 0; if (ctx == ((struct ast_PipelineDepCtx *)(0)) || path_len <= 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   int32_t lib_i = 0;
@@ -349,8 +349,8 @@ int32_t pipeline_resolve_path_sx(struct ast_PipelineDepCtx * ctx, uint8_t * impo
 size_t pipeline_loaded_buf_cap() {
   return ((size_t)(4194304));
 }
-int32_t pipeline_read_file_sx(struct ast_PipelineDepCtx * ctx) {
-  return pipeline_read_file_sx_impl_c(ctx);
+int32_t pipeline_read_file_x(struct ast_PipelineDepCtx * ctx) {
+  return pipeline_read_file_x_impl_c(ctx);
 }
 struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena * arena, struct ast_Module * module, uint8_t * data, int32_t len) {
   return pipeline_parse_into_with_init_buf_impl_c(arena, module, data, len);
@@ -370,13 +370,13 @@ int32_t pipeline_parse_set_main_from_buf(struct ast_Module * module, struct ast_
 int32_t pipeline_typeck_parsed_module(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t fail_mapped) {
   (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return pipeline_typeck_null_fail_return_c(fail_mapped);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_module_main_func_index(module) < 0) {   (void)(({ int32_t __tmp = 0; if (typeck_typeck_sx_ast_library(module, arena, ctx) != 0) {   return pipeline_typeck_fail_return_c(fail_mapped);
+  (void)(({ int32_t __tmp = 0; if (pipeline_module_main_func_index(module) < 0) {   (void)(({ int32_t __tmp = 0; if (typeck_typeck_x_ast_library(module, arena, ctx) != 0) {   return pipeline_typeck_fail_return_c(fail_mapped);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx) != 0) {   return pipeline_typeck_fail_return_c(fail_mapped);
  } else (__tmp = 0) ; __tmp; }));
   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (typeck_typeck_sx_ast(module, arena, ctx) != 0) {   return pipeline_typeck_fail_return_c(fail_mapped);
+  (void)(({ int32_t __tmp = 0; if (typeck_typeck_x_ast(module, arena, ctx) != 0) {   return pipeline_typeck_fail_return_c(fail_mapped);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (pipeline_typeck_scan_module_struct_stack_escape_c(module, arena, ctx) != 0) {   return pipeline_typeck_fail_return_c(fail_mapped);
  } else (__tmp = 0) ; __tmp; }));
@@ -420,7 +420,7 @@ int32_t pipeline_lsp_diag_typeck_after_load(struct ast_Module * module, struct a
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_run_sx_pipeline_typecheck_entry(module, arena, ctx) != 0) {   return (-3);
+  (void)(({ int32_t __tmp = 0; if (pipeline_run_x_pipeline_typecheck_entry(module, arena, ctx) != 0) {   return (-3);
  } else (__tmp = 0) ; __tmp; }));
   return 0;
 }
@@ -433,7 +433,7 @@ int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module * module, struct as
  } else (__tmp = 0) ; __tmp; }));
   return 0;
 }
-int32_t pipeline_run_sx_pipeline_parse_entry_do_parse(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx) {
+int32_t pipeline_run_x_pipeline_parse_entry_do_parse(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx) {
   (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0)) || source_data == ((uint8_t *)(0))) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (source_len > ((size_t)(2147483647))) {   return (-1);
@@ -445,7 +445,7 @@ int32_t pipeline_run_sx_pipeline_parse_entry_do_parse(struct ast_Module * module
   (void)(driver_diagnostic_entry_module(module, arena));
   return 0;
 }
-int32_t pipeline_run_sx_pipeline_parse_entry_if_needed(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx) {
+int32_t pipeline_run_x_pipeline_parse_entry_if_needed(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct ast_PipelineDepCtx * ctx) {
   (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(driver_diagnostic_entry_already(pipeline_dep_ctx_entry_already_parsed(ctx)));
@@ -453,63 +453,63 @@ int32_t pipeline_run_sx_pipeline_parse_entry_if_needed(struct ast_Module * modul
   (void)(driver_diagnostic_entry_module(module, arena));
   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  return pipeline_run_sx_pipeline_parse_entry_do_parse(module, arena, source_data, source_len, ctx);
+  return pipeline_run_x_pipeline_parse_entry_do_parse(module, arena, source_data, source_len, ctx);
 }
-int32_t pipeline_run_sx_pipeline_load_deps_after_parse(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
-  (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   (void)(run_sx_pipeline_last_rc_store_c((-1)));
-  return run_sx_pipeline_last_rc_get();
+int32_t pipeline_run_x_pipeline_load_deps_after_parse(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
+  (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   (void)(run_x_pipeline_last_rc_store_c((-1)));
+  return run_x_pipeline_last_rc_get();
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {   (void)(run_sx_pipeline_last_rc_store_c((-1)));
-  return run_sx_pipeline_last_rc_get();
+  (void)(({ int32_t __tmp = 0; if (pipeline_load_and_sync_direct_import_deps(module, arena, ctx) != 0) {   (void)(run_x_pipeline_last_rc_store_c((-1)));
+  return run_x_pipeline_last_rc_get();
  } else (__tmp = 0) ; __tmp; }));
-  (void)(run_sx_pipeline_last_rc_store_c(0));
+  (void)(run_x_pipeline_last_rc_store_c(0));
   return 0;
 }
-int32_t pipeline_run_sx_pipeline_typecheck_after_load(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
-  (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   (void)(run_sx_pipeline_last_rc_store_c((-1)));
-  return run_sx_pipeline_last_rc_get();
+int32_t pipeline_run_x_pipeline_typecheck_after_load(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
+  (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   (void)(run_x_pipeline_last_rc_store_c((-1)));
+  return run_x_pipeline_last_rc_get();
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_run_sx_pipeline_typecheck_entry(module, arena, ctx) != 0) {   (void)(run_sx_pipeline_last_rc_store_c((-3)));
-  return run_sx_pipeline_last_rc_get();
+  (void)(({ int32_t __tmp = 0; if (pipeline_run_x_pipeline_typecheck_entry(module, arena, ctx) != 0) {   (void)(run_x_pipeline_last_rc_store_c((-3)));
+  return run_x_pipeline_last_rc_get();
  } else (__tmp = 0) ; __tmp; }));
-  (void)(run_sx_pipeline_last_rc_store_c(0));
+  (void)(run_x_pipeline_last_rc_store_c(0));
   return 0;
 }
-int32_t pipeline_run_sx_pipeline_typecheck_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
+int32_t pipeline_run_x_pipeline_typecheck_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx) {
   (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_driver_sx_pipeline_skip_typeck() != 0) {   return run_sx_pipeline_typecheck_entry_emit_c(module, arena, ctx);
+  (void)(({ int32_t __tmp = 0; if (pipeline_driver_x_pipeline_skip_typeck() != 0) {   return run_x_pipeline_typecheck_entry_emit_c(module, arena, ctx);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_should_skip_sx_typeck(ctx) != 0) {   return 0;
+  (void)(({ int32_t __tmp = 0; if (pipeline_should_skip_x_typeck(ctx) != 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   return pipeline_typeck_entry_module(module, arena, ctx);
 }
-int32_t pipeline_run_sx_pipeline_fill_dep_import_path(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t dep_j) {
-  return run_sx_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
+int32_t pipeline_run_x_pipeline_fill_dep_import_path(struct ast_Module * module, struct ast_PipelineDepCtx * ctx, int32_t dep_j) {
+  return run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
 }
-int32_t pipeline_run_sx_pipeline_codegen_one_dep(struct ast_Module * module, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t dep_j, int32_t skip_asm_dep_codegen) {
+int32_t pipeline_run_x_pipeline_codegen_one_dep(struct ast_Module * module, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t dep_j, int32_t skip_asm_dep_codegen) {
   (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || out_buf == ((struct codegen_CodegenOutBuf *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0)) || dep_j < 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (dep_j == 0 && driver_skip_codegen_dep_0_get() != 0) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_run_sx_pipeline_fill_dep_import_path(module, ctx, dep_j) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if (pipeline_run_x_pipeline_fill_dep_import_path(module, ctx, dep_j) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (run_sx_pipeline_codegen_one_dep_prepare_c(ctx, dep_j) != 0) {   return (-1);
+  (void)(({ int32_t __tmp = 0; if (run_x_pipeline_codegen_one_dep_prepare_c(ctx, dep_j) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (run_sx_pipeline_codegen_one_dep_emit(pipeline_dep_ctx_module_at(ctx, dep_j), out_buf, ctx, dep_j, skip_asm_dep_codegen, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {   (void)(driver_diagnostic_codegen_fail(dep_j, 1));
+  (void)(({ int32_t __tmp = 0; if (run_x_pipeline_codegen_one_dep_emit(pipeline_dep_ctx_module_at(ctx, dep_j), out_buf, ctx, dep_j, skip_asm_dep_codegen, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {   (void)(driver_diagnostic_codegen_fail(dep_j, 1));
   return (-6);
  } else (__tmp = 0) ; __tmp; }));
   (void)(pipeline_finish_dep_codegen_diag(dep_j, out_buf));
   return 0;
 }
-int32_t pipeline_run_sx_pipeline_codegen_deps(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t skip_asm_dep_codegen) {
+int32_t pipeline_run_x_pipeline_codegen_deps(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx, int32_t skip_asm_dep_codegen) {
   (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || out_buf == ((struct codegen_CodegenOutBuf *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   int32_t dep_codegen_i = 0;
   while (1) {
     (void)(({ int32_t __tmp = 0; if (pipeline_loop_should_continue_ndep_c(ctx, dep_codegen_i) == 0) {   break;
  } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (pipeline_run_sx_pipeline_codegen_one_dep(module, out_buf, ctx, dep_codegen_i, skip_asm_dep_codegen) != 0) {   return (-6);
+    (void)(({ int32_t __tmp = 0; if (pipeline_run_x_pipeline_codegen_one_dep(module, out_buf, ctx, dep_codegen_i, skip_asm_dep_codegen) != 0) {   return (-6);
  } else (__tmp = 0) ; __tmp; }));
     ++dep_codegen_i;
   }
@@ -525,48 +525,48 @@ int32_t pipeline_finish_dep_codegen_diag(int32_t dep_j, struct codegen_CodegenOu
   (void)(driver_set_current_dep_path_for_codegen(((uint8_t *)(0))));
   return 0;
 }
-int32_t pipeline_run_sx_pipeline_codegen_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx) {
+int32_t pipeline_run_x_pipeline_codegen_entry(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx) {
   (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || out_buf == ((struct codegen_CodegenOutBuf *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(driver_diagnostic_entry_module(module, arena));
-  (void)(({ int32_t __tmp = 0; if (run_sx_pipeline_codegen_entry_emit(module, arena, out_buf, ctx, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {   (void)(driver_diagnostic_codegen_fail(0, 0));
+  (void)(({ int32_t __tmp = 0; if (run_x_pipeline_codegen_entry_emit(module, arena, out_buf, ctx, pipeline_dep_ctx_use_asm_backend(ctx)) != 0) {   (void)(driver_diagnostic_codegen_fail(0, 0));
   return (-6);
  } else (__tmp = 0) ; __tmp; }));
   return 0;
 }
-int32_t pipeline_run_sx_pipeline_impl(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx) {
+int32_t pipeline_run_x_pipeline_impl(struct ast_Module * module, struct ast_ASTArena * arena, uint8_t * source_data, size_t source_len, struct codegen_CodegenOutBuf * out_buf, struct ast_PipelineDepCtx * ctx) {
   (void)(({ int32_t __tmp = 0; if (module == ((struct ast_Module *)(0)) || arena == ((struct ast_ASTArena *)(0)) || out_buf == ((struct codegen_CodegenOutBuf *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0))) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(driver_compile_phase_timing_begin(0));
-  (void)(({ int32_t __tmp = 0; if (pipeline_run_sx_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {   (void)(driver_compile_phase_timing_end(0));
+  (void)(({ int32_t __tmp = 0; if (pipeline_run_x_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {   (void)(driver_compile_phase_timing_end(0));
   (void)(driver_compile_phase_timing_flush());
   return (-2);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_run_sx_pipeline_load_deps_after_parse(module, arena, ctx) != 0) {   (void)(driver_compile_phase_timing_end(0));
+  (void)(({ int32_t __tmp = 0; if (pipeline_run_x_pipeline_load_deps_after_parse(module, arena, ctx) != 0) {   (void)(driver_compile_phase_timing_end(0));
   (void)(driver_compile_phase_timing_flush());
-  return run_sx_pipeline_last_rc_get();
+  return run_x_pipeline_last_rc_get();
  } else (__tmp = 0) ; __tmp; }));
   (void)(driver_compile_phase_timing_end(0));
   (void)(driver_compile_phase_timing_begin(1));
-  (void)(({ int32_t __tmp = 0; if (pipeline_run_sx_pipeline_typecheck_after_load(module, arena, ctx) != 0) {   (void)(driver_compile_phase_timing_end(1));
+  (void)(({ int32_t __tmp = 0; if (pipeline_run_x_pipeline_typecheck_after_load(module, arena, ctx) != 0) {   (void)(driver_compile_phase_timing_end(1));
   (void)(driver_compile_phase_timing_flush());
-  return run_sx_pipeline_last_rc_get();
+  return run_x_pipeline_last_rc_get();
  } else (__tmp = 0) ; __tmp; }));
   (void)(driver_compile_phase_timing_end(1));
   (void)(({ int32_t __tmp = 0; if (driver_check_only_get() != 0) {   (void)(driver_compile_phase_timing_flush());
   return 0;
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (driver_sx_pipeline_skip_codegen_get() != 0) {   (void)(driver_compile_phase_timing_flush());
+  (void)(({ int32_t __tmp = 0; if (driver_x_pipeline_skip_codegen_get() != 0) {   (void)(driver_compile_phase_timing_flush());
   return 0;
  } else (__tmp = 0) ; __tmp; }));
   (void)(codegen_out_buf_set_len(out_buf, 0));
   (void)(driver_diagnostic_before_codegen(pipeline_module_num_funcs(module), 0));
   (void)(driver_compile_phase_timing_begin(2));
-  (void)(({ int32_t __tmp = 0; if (pipeline_run_sx_pipeline_codegen_deps(module, arena, out_buf, ctx, pipeline_dep_ctx_asm_entry_module_only(ctx)) != 0) {   (void)(driver_compile_phase_timing_end(2));
+  (void)(({ int32_t __tmp = 0; if (pipeline_run_x_pipeline_codegen_deps(module, arena, out_buf, ctx, pipeline_dep_ctx_asm_entry_module_only(ctx)) != 0) {   (void)(driver_compile_phase_timing_end(2));
   (void)(driver_compile_phase_timing_flush());
   return (-6);
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if (pipeline_run_sx_pipeline_codegen_entry(module, arena, out_buf, ctx) != 0) {   (void)(driver_compile_phase_timing_end(2));
+  (void)(({ int32_t __tmp = 0; if (pipeline_run_x_pipeline_codegen_entry(module, arena, out_buf, ctx) != 0) {   (void)(driver_compile_phase_timing_end(2));
   (void)(driver_compile_phase_timing_flush());
   return (-6);
  } else (__tmp = 0) ; __tmp; }));

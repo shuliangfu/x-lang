@@ -121,7 +121,7 @@
 **现状**：
 
 - 项目**已有汇编/机器码后端**（`src/asm/`）：AST 经 `asm_codegen_ast` / `asm_codegen_elf_o` 直接出汇编文本 (.s) 或 ELF/Mach-O/COFF .o，**不经过 C**。
-- pipeline 在 `-backend asm` 时走 `asm.asm_codegen_ast`，否则走 `codegen_sx_ast`（出 C）。
+- pipeline 在 `-backend asm` 时走 `asm.asm_codegen_ast`，否则走 `codegen_x_ast`（出 C）。
 - `scripts/build_shux_asm.sh` 即用「shux -backend asm -o xxx.o」把各 .x 编成 .o 再链接，实现**完全不经 C 生成**的自举。
 
 **做法**：
@@ -182,13 +182,13 @@
 
 ## 六、asm 后端进展（库模块与 Abort）
 
-- **库模块解析**：`parse_into` 在「仅 enum/struct/extern、无 function」时原先返回 `ok: -1`，导致 pipeline 直接报 parse fail。已改为返回 `ok: 0, main_idx: -1`，pipeline 走 `typeck_sx_ast_library` 与 `asm_codegen_ast`。  
+- **库模块解析**：`parse_into` 在「仅 enum/struct/extern、无 function」时原先返回 `ok: -1`，导致 pipeline 直接报 parse fail。已改为返回 `ok: 0, main_idx: -1`，pipeline 走 `typeck_x_ast_library` 与 `asm_codegen_ast`。  
   - 效果：`token.x`、`ast.x`、`preprocess.x`、`std_fs.x` 等纯库模块在 `build_shux_asm.sh` 下显示 **OK**（此前为 SKIP）。
 - **库模块 .o 为 0 字节**：`asm_codegen_ast` 在 `num_funcs==0` 时循环不执行，`out_buf.len` 保持 0，写出 0 字节。若需可链接的 .o，需在「库模块 + -o xxx.o」路径上改为走 `asm_codegen_elf_o` 写出最小 ELF，或由脚本对 0 字节 .o 做占位/跳过。
 - **剩余问题**：  
   - 部分模块 **SKIP**（pipeline rc=-1，多为 typeck 失败，如 codegen.x、typeck.x、lexer.x 等）。  
   - 部分模块 **Abort trap: 6**（如 x86_64.x、arm64.x、asm.x），发生在 parse 之后（typeck 或 asm 阶段），需用调试器或加边界检查定位。
-- **建议下一步**：对 Abort 模块去掉 `2>/dev/null` 单独跑、用 lldb 看 backtrace；对 rc=-1 的模块看 typeck 报错或 typeck_sx_ast 返回值；再考虑库模块最小 ELF 产出。
+- **建议下一步**：对 Abort 模块去掉 `2>/dev/null` 单独跑、用 lldb 看 backtrace；对 rc=-1 的模块看 typeck 报错或 typeck_x_ast 返回值；再考虑库模块最小 ELF 产出。
 
 - **ast arena 防护**：在 `ast.x` 的 `ast_arena_type_get` 中增加了 `ref <= 0` 时返回默认 `TYPE_I32` 的防护，避免 C 生成码里 `ref - 1` 越界触发 `shux_panic_(1, 0)`。
 
@@ -200,5 +200,5 @@
   - **k=k+1 在内层 while 之后**：生成码把 `(void)((k = k + 1));` 放在内层 `while (r < ... lib_root_lens[k])` 之前，导致内层用 `lib_root_lens[k]` 时 k 已为 8 越界 panic。Makefile 中 perl 将该行移到内层 while 结束后、外层 while 结束前。  
   - **rc=-7 诊断**：`driver_pipeline_fail_code(rc, path)` 在 rc==-7 时打印 resolve 尝试路径，便于排查库根/路径问题。
   - **dep 缓冲（.x 路径）**：走 .x 时 `ctx.dep_arenas[i]` / `ctx.dep_modules[i]` 若未赋值，解析依赖会在 `ast_arena_init` 等处写空指针导致 SIGSEGV。由 **runtime.c** 提供 `driver_dep_arena_buf(i)`、`driver_dep_module_buf(i)` 按需分配并缓存在 driver；**pipeline.x** 在解析第 i 个 import 前调用上述 extern 并将返回值写回 `ctx.dep_arenas[i]`、`ctx.dep_modules[i]`。
-  - **resolve path/mod.x 回退**：`import("std.fs")` 等约定为目录下 **mod.x**（如 `../std/fs/mod.x`），若 `path.x` 不存在则尝试 `path/mod.x`。**pipeline.x** 在 `resolve_path_sx` 的 lib_roots 与 entry_dir 两处、在打开 path.x 失败后追加 `/mod.x` 再试；**fix_pipeline_gen.py** 第 8 条对生成的 C 做同样插入（当 block1 未找到时脚本不再提前 return，继续执行到第 8 条补丁）。
+  - **resolve path/mod.x 回退**：`import("std.fs")` 等约定为目录下 **mod.x**（如 `../std/fs/mod.x`），若 `path.x` 不存在则尝试 `path/mod.x`。**pipeline.x** 在 `resolve_path_x` 的 lib_roots 与 entry_dir 两处、在打开 path.x 失败后追加 `/mod.x` 再试；**fix_pipeline_gen.py** 第 8 条对生成的 C 做同样插入（当 block1 未找到时脚本不再提前 return，继续执行到第 8 条补丁）。
   - 效果：token.x 等无 import 模块可正常编过 asm；x86_64.x 等有 import 的模块可过 resolve，后续可能为 typeck/asm 或 SIGSEGV（139）需继续定位。

@@ -33,7 +33,7 @@
 |------|----------------|------|
 | **进程与入口** | 过渡期：`main()`、命令行解析（见 §七 目标：build.x + 无 main.c） | 最终由 .x 提供入口 |
 | **文件与内存** | 读文件到内存（`read_file`）、预处理（可选，直至 .x 实现） | 为 .x 流水线提供「源码字符串」；分配 arena/module 缓冲区（或由 .x 侧声明，C 只传指针） |
-| **写出一字节** | `codegen_sx_emit_byte(out, b)` | 唯一与「写出 C 代码」直接相关的 C：把一字节写到 `out`（如 FILE*）；其余输出逻辑全在 codegen.x |
+| **写出一字节** | `codegen_x_emit_byte(out, b)` | 唯一与「写出 C 代码」直接相关的 C：把一字节写到 `out`（如 FILE*）；其余输出逻辑全在 codegen.x |
 | **调用外部 cc** | `invoke_cc()`（或等价） | 把生成的 .c 交给系统 cc 编译/链接；不参与「生成什么 C」 |
 | **可选：预处理** | `preprocess()` | 在 .x 未实现预处理前，可由 C 做；实现后可在 .x 中替代 |
 
@@ -67,8 +67,8 @@
 
 ### 阶段 1：纯 .x 流水线成为唯一主路径
 
-- **目标**：默认或通过 `-x` 走「parse_into → typeck_sx_ast → codegen_sx_ast」；不再用 C 的 parse/typeck/codegen 做业务。
-- **C 可改**：main.c 中默认使用 run_sx_pipeline；若缺 arena/module 分配或 sizeof，在 C 或生成 C 中提供；若需 `-x` 以外选项，在 main.c 中加。
+- **目标**：默认或通过 `-x` 走「parse_into → typeck_x_ast → codegen_x_ast」；不再用 C 的 parse/typeck/codegen 做业务。
+- **C 可改**：main.c 中默认使用 run_x_pipeline；若缺 arena/module 分配或 sizeof，在 C 或生成 C 中提供；若需 `-x` 以外选项，在 main.c 中加。
 - **验收**：对最小程序（如 `function main(): i32 { return 0; }`），整条链路仅用 .x 逻辑即可生成可编译的 C。
 
 ### 阶段 2：.x 覆盖完整语法与类型
@@ -100,10 +100,10 @@
 
 | # | 检查项 | 说明 |
 |---|--------|------|
-| 1 | 主路径无 C 业务逻辑 | 默认或 -x 仅调用 run_sx_pipeline；不调用 C 的 parse/typeck_module/codegen_module_to_c |
+| 1 | 主路径无 C 业务逻辑 | 默认或 -x 仅调用 run_x_pipeline；不调用 C 的 parse/typeck_module/codegen_module_to_c |
 | 2 | 词法、语法、AST 全在 .x | lexer.x, parser.x, ast.x 覆盖自举所需；不依赖 C 的 AST 结构做语义 |
 | 3 | 类型检查全在 .x | typeck.x 实现全部类型规则；不依赖 C 的 typeck 逻辑 |
-| 4 | 代码生成全在 .x | codegen.x 实现全部 C 输出；C 仅保留 codegen_sx_emit_byte（及可选最小胶水） |
+| 4 | 代码生成全在 .x | codegen.x 实现全部 C 输出；C 仅保留 codegen_x_emit_byte（及可选最小胶水） |
 | 5 | 遇阻只扩 C 能力不写业务 | 修改 C 仅用于：新语法/类型/输出形式、bug 修复、运行时/构建接口 |
 | 6 | 两代 shux 行为一致 | shuxc₁、shux₂ 对同一测试套件结果一致 |
 
@@ -137,12 +137,12 @@
 ### 7.2 不要 main.c（入口在 .x）
 
 - **含义**：**不再用 main.c 实现**「命令行解析、读文件、调 pipeline、调 cc」等驱动逻辑；这些逻辑全部放在 .x（例如 **driver.x** 的 `function main(): i32`）。
-- **入口从何而来**：由 shux 编译「含 main 的 .x 模块」（如 driver.x）时，生成的 C 中会包含 `main()`，该 `main()` 即程序入口；链接时只需再链接提供 `codegen_sx_emit_byte`、`read_file`、`invoke_cc` 等 **extern** 的最小 C 运行时（如 **runtime.c**），无需 main.c。
+- **入口从何而来**：由 shux 编译「含 main 的 .x 模块」（如 driver.x）时，生成的 C 中会包含 `main()`，该 `main()` 即程序入口；链接时只需再链接提供 `codegen_x_emit_byte`、`read_file`、`invoke_cc` 等 **extern** 的最小 C 运行时（如 **runtime.c**），无需 main.c。
 - **C 仅保留**：最小运行时（实现 extern 的 I/O、写字节、调 cc 等），**不包含**任何编译器业务或驱动决策；若将来 .x 标准库能完全覆盖这些能力，也可不再需要 C 运行时。
 
 ### 7.3 实施顺序建议
 
-1. 先完成「纯 .x 流水线 + C 仅做壳」（main.c 调 run_sx_pipeline，Makefile 构建）。  
+1. 先完成「纯 .x 流水线 + C 仅做壳」（main.c 调 run_x_pipeline，Makefile 构建）。  
 2. 再实现 **driver.x** 作为真正入口：把 main.c 里的命令行解析、读文件、调 pipeline、调 cc 迁到 driver.x，保留最小 main.c 仅「调用 driver_main()」或改为由生成 C 的 main 直接调 driver 逻辑。  
 3. 实现 **build.x**：用 .x 描述「如何编 compiler 下所有 .x、如何调 cc、产出 shux」；用现有 shux 编译并运行 build.x，替代 Makefile。  
 4. 最终：**不要 Makefile**（由 build.x 负责构建），**不要 main.c**（入口与驱动全在 .x；C 仅保留最小运行时，若仍需 extern）。

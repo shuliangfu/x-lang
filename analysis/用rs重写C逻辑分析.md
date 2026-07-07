@@ -36,7 +36,7 @@
 | **驱动主流程** | `run_compiler_c` / `run_compiler_x_path`：解析 argv、resolve 依赖、读文件、调 pipeline、写 .c、调 cc、链接 | 在 **main.x**（或独立 driver 模块）用 std.fs / std.io / std.process 实现：读入口与依赖、调 parser/typeck/codegen/pipeline、写生成 C、spawn cc/ld | 驱动逻辑纯编排，不依赖 C 专有知识 |
 | **resolve 路径** | `resolve_import_file_path_multi`、`import_path_to_file_path`、`get_entry_dir` | .x 内用 path/string + std.fs 存在性检查实现 | 纯路径与字符串处理 |
 | **依赖加载与去重** | `find_loaded_index`、`load_one_import`、`resolve_and_load_imports`（含递归 load + typeck） | .x 内维护 `all_dep_mods` / `all_dep_paths`，用现有 typeck/pipeline 接口 | 当前 C 侧只是分配 buffer、调 parse/typeck，均可改为 .x 分配与调用 |
-| **预处理** | `preprocess`、`preprocess_via_sx` | 已有 preprocess.x 时用 .x；条件编译符号由 .x 维护 | 仅入口与缓冲在 C，可迁到 .x |
+| **预处理** | `preprocess`、`preprocess_via_x` | 已有 preprocess.x 时用 .x；条件编译符号由 .x 维护 | 仅入口与缓冲在 C，可迁到 .x |
 | **读文件** | `read_file(path, out_len)`（打开、读入、malloc 缓冲） | **std.fs** 读文件（或 std.io 按需） | 驱动层不再需要 C 的 read_file |
 | **Pipeline 编排** | 分配 arena/module、填充 ctx、调用 `pipeline_run_x_pipeline`、写 out_buf 到文件、再调 cc/ld | .x 内分配 arena/module/ctx，调 pipeline（.x 实现），用 std.fs 写文件、std.process spawn cc/ld | 编排与 I/O 均可在 .x 完成 |
 
@@ -49,7 +49,7 @@
 | 类别 | C 侧现状 | 为何仍涉及 C | 用 .x 重写后的目标 |
 |------|----------|--------------|----------------------|
 | **PipelineDepCtx 布局** | runtime.c 中 `struct ast_PipelineDepCtx` 与 ast.x 的 `PipelineDepCtx` **逐字段对齐**；C 分配 pctx 并传给 `pipeline_run_x_pipeline` | 当前由 C 分配 ctx、填充部分字段（如 dep_modules、dep_paths）、再传指针给 .x | **ctx 完全在 .x 内分配与填充**；C 不再分配、不再声明该结构体，**不再需要与 .x 保持布局一致** |
-| **codegen_set_dep_slots_for_sx_pipeline** 等 | C 把 dep_modules/dep_paths 写入全局槽或 pctx，供 .x codegen 使用 | 因当前「谁分配 ctx、谁填 dep」在 C | 驱动在 .x 后，ctx 与 dep 信息全部在 .x 内维护，**不再需要 C 提供的 dep 槽** |
+| **codegen_set_dep_slots_for_x_pipeline** 等 | C 把 dep_modules/dep_paths 写入全局槽或 pctx，供 .x codegen 使用 | 因当前「谁分配 ctx、谁填 dep」在 C | 驱动在 .x 后，ctx 与 dep 信息全部在 .x 内维护，**不再需要 C 提供的 dep 槽** |
 
 结论：**一旦驱动与 pipeline 调用全在 .x，ctx 由 .x 分配，C 不再需要 PipelineDepCtx 的拷贝，也不再需要填 dep 槽**。这是「用 .x 重写 C 逻辑」带来的直接收益。
 
@@ -66,7 +66,7 @@
 | **std 库底层实现** | std/io/io.c、std/fs/fs.c、std/process/process.c 等 | 文件 open/read/write、进程 spawn 等；当前用 C 实现这些 .o | **不在本目标内**：std 有没有使用 C 不用管；只要 compiler 全部用 .x 实现即可。驱动只通过 std 的 .x API 使用，不在 runtime.c 再写一套 I/O/process |
 | **根据 argv0 解析 std/*.o 路径** | `get_io_o_path`、`get_std_fs_o_path`、`get_repo_root` 等一长串 get_*_o_path | 用于链接时把 std/io/io.o、std/fs/fs.o 等传给 ld | **用标准库完全去掉 C**：用 std.fs、std.path 实现「根据可执行路径或 cwd 找 std/*.o」；若 std 尚未提供 realpath/getcwd/可执行路径等 API，在 **std** 里补（std 用不用 C 不管），compiler 只调 std 的 .x API，**compiler 侧完全不必用 C** |
 | **Pipeline 对 C 的 extern 调用** | pipeline.x 中：`driver_dep_arena_buf`、`driver_dep_module_buf`、`driver_skip_codegen_dep_0_get`、`driver_set_current_dep_path_for_codegen`、`driver_diagnostic_*` 等 | 当前由 C 分配 dep 槽、设置 skip/当前路径、打诊断 | **驱动迁到 .x 后**：dep 槽、当前路径、skip 等由 .x 状态管理，**pipeline 不再 extern 这些**，或改为调用 .x 内函数 |
-| **Codegen 对 C 的 extern 调用** | codegen.x 中：`driver_get_current_dep_prefix_for_codegen`、`driver_current_dep_path_is_std_io_core`、`codegen_sx_import_path_to_c_prefix`、`codegen_sx_path_is_std_io_core`、`codegen_sx_use_buf_wrapper` 等 | 当前由 C 提供「当前 dep 路径→C 前缀」、io core 判断等 | **驱动与 ctx 在 .x 后**：前缀与路径从 ctx 或 .x 内状态读取，**codegen 不再依赖 C 的 driver_* / codegen_sx_*** |
+| **Codegen 对 C 的 extern 调用** | codegen.x 中：`driver_get_current_dep_prefix_for_codegen`、`driver_current_dep_path_is_std_io_core`、`codegen_x_import_path_to_c_prefix`、`codegen_x_path_is_std_io_core`、`codegen_x_use_buf_wrapper` 等 | 当前由 C 提供「当前 dep 路径→C 前缀」、io core 判断等 | **驱动与 ctx 在 .x 后**：前缀与路径从 ctx 或 .x 内状态读取，**codegen 不再依赖 C 的 driver_* / codegen_x_*** |
 | **类型检查对 C 的 extern** | typeck.x 中：`typeck_float64_bits_lo/hi`（若仍有） | 若 f64 位拆分为 C 实现 | 可保留为极少 C 函数，或日后用 .x+extern 调 libc/编译器内置 |
 
 ---
@@ -162,7 +162,7 @@
    pipeline 或 main.x 分配 PipelineDepCtx（或等价缓冲区），调用 pipeline 时传入；删除 runtime.c 中的 `struct ast_PipelineDepCtx` 及所有对其的分配与填充。
 
 4. **清理 pipeline/codegen 对 C driver 的 extern**  
-   将 driver_*、codegen_sx_* 中与「当前 dep、前缀、路径」相关的调用改为从 ctx 或 .x 状态读取；删除 C 侧对应实现。
+   将 driver_*、codegen_x_* 中与「当前 dep、前缀、路径」相关的调用改为从 ctx 或 .x 状态读取；删除 C 侧对应实现。
 
 5. **（可选）std 补全**  
    路径解析等已用 std.fs/std.path 在 compiler 侧完全去掉 C；若 std 尚未提供相关 API，在 std 里补即可（std 用不用 C 不管）。

@@ -302,8 +302,8 @@ void codegen_copy_func_name64_from_module(struct ast_Module * module, int32_t fi
 void codegen_copy_param_name32_from_module(struct ast_Module * module, int32_t fi, int32_t pi, uint8_t * dst);
 int32_t codegen_emit_func(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, int is_entry, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx, int32_t call_init_globals);
 int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len, struct ast_PipelineDepCtx * ctx);
-int32_t codegen_sx_ast_emit_header(struct codegen_CodegenOutBuf * out);
-int32_t codegen_sx_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index);
+int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out);
+int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index);
 int32_t codegen_should_skip_emit_func_by_name(uint8_t * name, int32_t name_len);
 int32_t codegen_is_submit_batch_buf_call(uint8_t * name, int32_t name_len);
 int32_t codegen_force_param_i32(uint8_t * prefix, int32_t prefix_len, uint8_t * name, int32_t name_len, int32_t param_index);
@@ -3718,11 +3718,11 @@ int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena * arena, struct
  } else (__tmp = 0) ; __tmp; }));
   return 0;
 }
-int32_t codegen_sx_ast_emit_header(struct codegen_CodegenOutBuf * out) {
+int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out) {
   uint8_t h[22] = { 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10, 0, 0 };
   return codegen_emit_bytes_22(out, h, 20);
 }
-int32_t codegen_sx_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index) {
+int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index) {
   (void)(({ int32_t __tmp = 0; if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_codegen_module = (module));
   ((ctx)->current_codegen_arena = (arena));
   ((ctx)->current_codegen_dep_index = (dep_index));
@@ -3767,7 +3767,7 @@ int32_t codegen_sx_ast(struct ast_Module * module, struct ast_ASTArena * arena, 
  } else (__tmp = 0) ; __tmp; }));
   int32_t i = 0;
   while (i < (module)->num_funcs) {
-    (void)(({ int32_t __tmp = 0; if (i == 0) {   (void)(({ int32_t __tmp = 0; if (codegen_sx_ast_emit_header(out) != 0) {   return (-1);
+    (void)(({ int32_t __tmp = 0; if (i == 0) {   (void)(({ int32_t __tmp = 0; if (codegen_x_ast_emit_header(out) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int32_t __tmp = 0; if (codegen_emit_module_struct_definitions(module, arena, out, (&((prefix_buf)[0])), prefix_len, ctx) != 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
