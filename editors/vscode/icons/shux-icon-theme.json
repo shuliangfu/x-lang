@@ -1,22 +1,22 @@
 {
   "iconDefinitions": {
     "file-sx": {
-      "iconPath": "./sx.png"
+      "iconPath": "./x.png"
     },
     "file-sx-main": {
-      "iconPath": "./sx.png"
+      "iconPath": "./x.png"
     },
     "file-sx-test": {
-      "iconPath": "./sx.png"
+      "iconPath": "./x.png"
     },
     "file-sx-compiler": {
-      "iconPath": "./sx.png"
+      "iconPath": "./x.png"
     },
     "folder-shux": {
-      "iconPath": "./sx.png"
+      "iconPath": "./x.png"
     },
     "folder-shux-src": {
-      "iconPath": "./sx.png"
+      "iconPath": "./x.png"
     }
   },
   "fileExtensions": {

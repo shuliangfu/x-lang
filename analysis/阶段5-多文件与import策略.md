@@ -14,7 +14,7 @@
 2. **路径解析**：C 用 `resolve_import_file_path_multi` 在 `-L` 与 `entry_dir` 下解析 import 路径，得到依赖文件列表。
 3. **拓扑序**：递归加载依赖（与 C 路径一致），保证依赖先于被依赖模块。
 4. **每模块流水线**：对每个模块（依赖 + 入口）依次执行：
-   - `read_file` → `preprocess` → `pipeline_run_sx_pipeline(arena, module, source, out_buf)`
+   - `read_file` → `preprocess` → `pipeline_run_x_pipeline(arena, module, source, out_buf)`
 5. **输出拼接**：按拓扑序输出 dep 的 C，再输出入口的 C，形成单文件 C 源码。
 6. **调用 cc**：与 `-o` 时相同，将生成的 C 传给 cc 链接。
 

@@ -53,11 +53,11 @@
 | **类型或 IR 表示缺失** | ast.h, ast.c, typeck.c | 增加类型种类、表达式种类、块/函数表示，使 .x 前端能表达自举所需结构 |
 | **代码生成缺某种形式** | codegen.c | 增加对新 AST/类型的 C 输出（仅作「能正确输出」的占位或最小实现），使 .x 生成的 AST 能被当前 shux 正确编成 C |
 | **标准库/运行时缺失** | core/*.x, std/*.x 或 C 运行时胶水 | 增加 .x 可调用的 API 或 C 胶水，使 compiler/*.x 能编译通过并运行 |
-| **构建/驱动缺失** | main.c, Makefile | 增加 -sx 分支、pipeline 调用、sizeof 获取等，使「纯 .x 流水线」能被 C 驱动正确调用 |
+| **构建/驱动缺失** | main.c, Makefile | 增加 -x 分支、pipeline 调用、sizeof 获取等，使「纯 .x 流水线」能被 C 驱动正确调用 |
 | **明显 bug 阻碍自举** | 任意相关 .c/.h | 修 bug，使 shux 行为符合语言规范或自举所需 |
 
 修改后必须：  
-1. **重新编译 shux**（`make` 或 `make shux-sx-pipeline` 等）；  
+1. **重新编译 shux**（`make` 或 `make shux-x-pipeline` 等）；  
 2. 用**新 shux** 继续在 .x 中实现/扩展编译器逻辑；  
 3. **不**把「本应在 .x 里实现的算法」写回 C（C 只做能力扩展与修 bug）。
 
@@ -67,8 +67,8 @@
 
 ### 阶段 1：纯 .x 流水线成为唯一主路径
 
-- **目标**：默认或通过 `-sx` 走「parse_into → typeck_sx_ast → codegen_sx_ast」；不再用 C 的 parse/typeck/codegen 做业务。
-- **C 可改**：main.c 中默认使用 run_sx_pipeline；若缺 arena/module 分配或 sizeof，在 C 或生成 C 中提供；若需 `-sx` 以外选项，在 main.c 中加。
+- **目标**：默认或通过 `-x` 走「parse_into → typeck_sx_ast → codegen_sx_ast」；不再用 C 的 parse/typeck/codegen 做业务。
+- **C 可改**：main.c 中默认使用 run_sx_pipeline；若缺 arena/module 分配或 sizeof，在 C 或生成 C 中提供；若需 `-x` 以外选项，在 main.c 中加。
 - **验收**：对最小程序（如 `function main(): i32 { return 0; }`），整条链路仅用 .x 逻辑即可生成可编译的 C。
 
 ### 阶段 2：.x 覆盖完整语法与类型
@@ -100,7 +100,7 @@
 
 | # | 检查项 | 说明 |
 |---|--------|------|
-| 1 | 主路径无 C 业务逻辑 | 默认或 -sx 仅调用 run_sx_pipeline；不调用 C 的 parse/typeck_module/codegen_module_to_c |
+| 1 | 主路径无 C 业务逻辑 | 默认或 -x 仅调用 run_sx_pipeline；不调用 C 的 parse/typeck_module/codegen_module_to_c |
 | 2 | 词法、语法、AST 全在 .x | lexer.x, parser.x, ast.x 覆盖自举所需；不依赖 C 的 AST 结构做语义 |
 | 3 | 类型检查全在 .x | typeck.x 实现全部类型规则；不依赖 C 的 typeck 逻辑 |
 | 4 | 代码生成全在 .x | codegen.x 实现全部 C 输出；C 仅保留 codegen_sx_emit_byte（及可选最小胶水） |

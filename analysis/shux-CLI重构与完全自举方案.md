@@ -12,7 +12,7 @@
 shux [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.x> [ -o <out> ]
 shux -E <file.x>                          # 仅生成 C 到 stdout
 shux -E-extern <file.x>                   # 生成瘦 C（import 用 extern）
-shux -sx -E <file.x>                      # 用 .x pipeline 生成 C
+shux -x -E <file.x>                      # 用 .x pipeline 生成 C
 shux --lsp                                 # LSP 模式
 ```
 
@@ -126,7 +126,7 @@ shux run / test / build 全部由 .x 驱动实现，不依赖 C 的 run_compiler
 
 **做法**：
 1. 生成 `parser_gen.c`（瘦模式，无 main/ast 内联）
-2. 链接时用 `parser_sx.o` 替代 `parser.o`
+2. 链接时用 `parser_x.o` 替代 `parser.o`
 3. 修复符号冲突（`parser_*` vs `parse`、`parser_parse_into` 等）
 
 **关键**：需要 arm64 ABI 修复——parser.x 中 LexerResult/OneFuncResult 全部改用 _into API（见 analysis/自举-生成C与ABI问题-重构分析.md 方案A）。
@@ -175,7 +175,7 @@ codegen.c 中的核心函数：
 
 **方案 C**：用 asm 后端直接出机器码，跳过 C（仅 Linux x86_64 可用）
 
-当前采取务实策略：ARM64 走 C 编译路径，x86_64 走 SX pipeline。
+当前采取务实策略：ARM64 走 C 编译路径，x86_64 走 .x pipeline。
 
 ### 步骤 7：删除 C 源文件
 

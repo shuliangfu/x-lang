@@ -195,7 +195,7 @@
 - **Abort 根因与修复（parser_copy_onefunc_into）**：用 lldb 取得 backtrace，确认崩溃在 **parser_copy_onefunc_into**（解析阶段复制 OneFuncResult 时）。原因是 C 代码生成将外层循环变量递增（如 `pi = pi + 1`）误放在循环体**开头**，导致内层循环用 pi=1..16 访问，最后一轮访问 `param_names[16]` 越界触发 panic。已在 **fix_pipeline_gen.py** 中增加 1.10：将 `(void)((pi = pi + 1));` / ci / li 从「内层 while 前」移到「内层 while 后」。修复后 x86_64.x、arm64.x 等不再 Abort，改为 pipeline rc=-1（typeck 等后续失败）。
 
 - **driver_gen.c 生成顺序与 -L 生效**（Makefile 后处理）：  
-  - **pipeline 调用顺序**：-E-extern 将 `pipeline_run_sx_pipeline_impl` 放在填充 ctx（entry_dir、num_lib_roots、lib_root_bufs）之前，导致 resolve 时 `num_lib_roots=0`、path 仅用默认 "."。Makefile 中 perl 将「pipeline 调用 + len 赋值」移到 `ctx.num_lib_roots` 赋值之后。  
+  - **pipeline 调用顺序**：-E-extern 将 `pipeline_run_x_pipeline_impl` 放在填充 ctx（entry_dir、num_lib_roots、lib_root_bufs）之前，导致 resolve 时 `num_lib_roots=0`、path 仅用默认 "."。Makefile 中 perl 将「pipeline 调用 + len 赋值」移到 `ctx.num_lib_roots` 赋值之后。  
   - **k=0  before lib_root 复制**：path_buf/last_slash 循环后 `k` 已增大，若不在 lib_root 复制前 `k=0`，则 `while (k < n_lib_roots)` 不进入，ctx 的 lib_root 未填。Makefile 在 `while (k < (state)->n_lib_roots && k < 8)` 前插入 `(void)((k = 0));`。  
   - **k=k+1 在内层 while 之后**：生成码把 `(void)((k = k + 1));` 放在内层 `while (r < ... lib_root_lens[k])` 之前，导致内层用 `lib_root_lens[k]` 时 k 已为 8 越界 panic。Makefile 中 perl 将该行移到内层 while 结束后、外层 while 结束前。  
   - **rc=-7 诊断**：`driver_pipeline_fail_code(rc, path)` 在 rc==-7 时打印 resolve 尝试路径，便于排查库根/路径问题。

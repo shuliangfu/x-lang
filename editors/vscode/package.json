@@ -39,8 +39,8 @@
         ],
         "configuration": "./language-configuration.json",
         "icon": {
-          "light": "./icons/sx.png",
-          "dark": "./icons/sx.png"
+          "light": "./icons/x.png",
+          "dark": "./icons/x.png"
         }
       }
     ],
@@ -48,7 +48,7 @@
       {
         "language": "sx",
         "scopeName": "source.x",
-        "path": "./grammars/sx.tmLanguage.json"
+        "path": "./grammars/x.tmLanguage.json"
       }
     ],
     "configuration": {
@@ -290,7 +290,7 @@
     "snippets": [
       {
         "language": "sx",
-        "path": "./snippets/sx.json"
+        "path": "./snippets/x.json"
       }
     ],
     "problemMatchers": [

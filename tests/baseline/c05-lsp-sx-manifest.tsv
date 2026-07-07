@@ -1,9 +1,0 @@
-# C-05 LSP .x 盘点（manifest）
-# 列：item_id	layer	anchor	check_type	gate_or_notes
-lsp_diag_sx	sx	compiler/src/lsp/lsp_diag.x	grep	pipeline_lsp_diag_parse_typeck_buf
-lsp_diag_gen	makefile	lsp_diag_gen.c	grep	-E-extern zero perl
-lsp_diag_sx_o	makefile	lsp_diag_sx.o	grep	bootstrap-driver-seed link
-lsp_diag_alias	c	src/lsp/lsp_diag_sx_alias.c	grep	strong override weak
-lsp_smoke	gate	tests/run-lsp.sh	gate_ref	--lsp JSON-RPC
-lsp_completion	gate	tests/run-lsp-completion.sh	gate_ref	TOOL-003 C1-C6
-lsp_diag_c_track	c	src/lsp/lsp_diag.c	track-only	E-02 defer

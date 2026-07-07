@@ -37,7 +37,7 @@
 
 | 当前 C | 作用 | 替代方式 |
 |--------|------|----------|
-| `run_compiler_sx_path(argc, argv)` | 处理带 -o、import 等「复杂」命令行路径 | 在 **main.x** 里实现完整驱动：解析 argv、-L、-o、-backend asm、调用 pipeline、写 .o/.s、必要时调 ld。复杂路径不再 fallback 到 C，全部 .x。 |
+| `run_compiler_x_path(argc, argv)` | 处理带 -o、import 等「复杂」命令行路径 | 在 **main.x** 里实现完整驱动：解析 argv、-L、-o、-backend asm、调用 pipeline、写 .o/.s、必要时调 ld。复杂路径不再 fallback 到 C，全部 .x。 |
 | `run_compiler_c_impl(argc, argv)` | 全功能 C 编译路径 | 同上：要么在 main.x 里实现等价逻辑，要么在「无 C」构建下改为 **桩**：直接返回 -1，强制所有逻辑走 .x 路径。 |
 
 - 目标：main.x 不再 `extern` 这两个，而是自己实现或桩掉。
@@ -129,9 +129,9 @@
    - **已完成**：已去掉 extern，pipeline.x 内实现为调 `parser.parse_into_buf`；parser/lexer 已增加完整 (data, len) 链（parse_into_buf、parse_one_function_buf、lexer_next_buf 等），C 端 `pipeline_parse_into_buf` 已用 `#if 0` 禁用。
 
 3. ✅ **在 main.x 中消除对 C 的 extern**  
-   - 实现或桩掉 `run_compiler_sx_path`、`run_compiler_c_impl`（见 2.2）。  
+   - 实现或桩掉 `run_compiler_x_path`、`run_compiler_c_impl`（见 2.2）。  
    - 保证 `driver_get_argv_i` 只由 asm 提供，main.x 继续 `extern function driver_get_argv_i(...)`，链接时由 crt0 的 .o 提供。  
-   - **已完成**：`run_compiler_sx_path` 在 main.x 内实现为转调 `run_compiler_sx_path_impl`；`run_compiler_c_impl` 在 main.x 内桩为直接返回 1。C 端在 `SHUX_USE_SX_DRIVER` 下不再定义二者，避免重复符号。
+   - **已完成**：`run_compiler_x_path` 在 main.x 内实现为转调 `run_compiler_x_path_impl`；`run_compiler_c_impl` 在 main.x 内桩为直接返回 1。C 端在 `SHUX_USE_X_DRIVER` 下不再定义二者，避免重复符号。
 
 4. ✅ **引入 bootstrap shux 与 build.sh**  
    - 在仓库中加入预编译的 **bootstrap_shuxc**（例如 `compiler/bootstrap_shuxc`，或按 `uname -m` 选不同文件）。  
@@ -193,7 +193,7 @@
 |------|------|
 | **步骤 1：asm 入口** | `crt0_x86_64.s` 已存在（仅 Linux），提供 `_start` 与 `driver_get_argv_i`；Makefile 有 `crt0_x86_64.o` 目标。 |
 | **步骤 2：pipeline parse_into buf** | pipeline.x 内实现为调 `parser.parse_into_buf`；parser/lexer 已有 (data, len) 链；C 端 `pipeline_parse_into_buf` 已 `#if 0`。 |
-| **步骤 3：main.x 去 C extern** | `run_compiler_sx_path` / `run_compiler_c_impl` 在 main.x 实现或桩；C 在 `SHUX_USE_SX_DRIVER` 下不定义二者。 |
+| **步骤 3：main.x 去 C extern** | `run_compiler_x_path` / `run_compiler_c_impl` 在 main.x 实现或桩；C 在 `SHUX_USE_X_DRIVER` 下不定义二者。 |
 | **步骤 4（部分）** | `build.sh` 已实现（build_tool + shux；无 shux 时可用 `bootstrap_shuxc`）；**bootstrap_shuxc 二进制尚未纳入仓库**。 |
 | **build.x 配置化** | build.x 仅做步骤顺序配置；build_tool 支持默认构建与 `asm` 路径（`./build_tool ./shuxc asm`）。 |
 | **脱离 C 依赖测试** | `tests/run-without-c.sh` 已提供：构建 shux_asm 后用其跑 run-all.sh。 |
@@ -205,7 +205,7 @@
 | **步骤 4（缺口）** | 预置 bootstrap_shuxc 未入库 | **已提供** `compiler/scripts/bootstrap_shuxc_create.sh`：首次 `make` 或 `build_tool` 后执行该脚本即可生成 `compiler/bootstrap_shuxc`，供 build.sh 无 shux 时使用；预编二进制入库仍可选。 |
 | **步骤 5** | 未执行 | 仍保留；按设计测试通过后再删 .c/.h/Makefile。 |
 | **asm 链接仍用 C 桩** | 改为 crt0 + build_asm/*.o + -lc | **已实现**：Linux 下 `build_shux_asm.sh` 优先尝试 **crt0_x86_64.o + typeck_f64_bits.o + runtime_panic.o + build_asm/*.o + -lc -lm**，成功则 shux_asm 不再链 runtime_driver.o。**typeck_f64_bits 零 C**：新增 `src/typeck/typeck_f64_bits_x86_64.s`，Linux 下 Makefile 由该 .s 生成 typeck_f64_bits.o，不再用 typeck_f64_bits.c。 |
-| **build_tool 仍依赖 C** | 入口与编排迁 .x | **已实现**：根目录 `build_runner.x` 提供 entry；`build_runtime_sx.x` 提供 build_run_step 与三处 patch（pipeline_gen.c / driver_gen.c / preprocess_gen.c），仅链 libc。Linux 下 `make build-tool-sx` 产出 build_tool = crt0 + build_runner.o + build_tool.o + **build_runtime_sx.o**（无 build_runtime.c）。非 Linux 下生成 C 与系统头冲突时仍可用原 build-tool（链 build_runtime.c）。 |
+| **build_tool 仍依赖 C** | 入口与编排迁 .x | **已实现**：根目录 `build_runner.x` 提供 entry；`build_runtime_x.x` 提供 build_run_step 与三处 patch（pipeline_gen.c / driver_gen.c / preprocess_gen.c），仅链 libc。Linux 下 `make build-tool-x` 产出 build_tool = crt0 + build_runner.o + build_tool.o + **build_runtime_x.o**（无 build_runtime.c）。非 Linux 下生成 C 与系统头冲突时仍可用原 build-tool（链 build_runtime.c）。 |
 | **脱离 C 测试能否通过** | asm 编全 + 链接成功 | 依赖 asm 后端与 crt0 路径；run-without-c.sh 可验证。 |
 
 ### 7.3 是否已实现「完全自举」？
@@ -217,7 +217,7 @@
   → **尚未实现**。当前进展与缺口：  
   1）**bootstrap_shuxc**：脚本已提供，入库或等效「种子」仍可选。  
   2）**asm 链接无 C**：Linux 已实现 crt0 + typeck_f64_bits（.s）+ runtime_panic（.s 或 .c）+ build_asm/*.o + -lc -lm；若 runtime_panic 也用 .s 则 asm 路径可零 C。  
-  3）**build_tool 无 C**：已迁入 `build_runtime_sx.x`（run_step + 三处 patch + driver 的 run_compiler_c 追加），Linux 下 `make build-tool-sx` 仅链 crt0 + .x 生成 .o + -lc。  
+  3）**build_tool 无 C**：已迁入 `build_runtime_x.x`（run_step + 三处 patch + driver 的 run_compiler_c 追加），Linux 下 `make build-tool-x` 仅链 crt0 + .x 生成 .o + -lc。  
   4）**第 5 步**：在测试与分析通过后删除 .c/.h/Makefile。
 
 ### 7.4 建议后续顺序
@@ -245,7 +245,7 @@
 | 顺序 | 项 | 说明 |
 |------|----|------|
 | 1 | **runtime_panic 零 C（可选）** | Linux 下已有 `src/asm/runtime_panic_x86_64.s` 时，asm 链接即不再依赖 runtime_panic.c；若无 .s 需补写并让 Makefile 在 Linux 下用 .s 生成 runtime_panic.o。 |
-| 2 | **build_tool 完全无 C** | **已实现**：`build_runtime_sx.x` 含字面量（分支内 let）、run_step（拼命令 + system）、三处 patch（fopen/fread/fwrite/strstr/替换循环）。链接为 crt0 + build_runner.o + build_tool.o + build_runtime_sx.o + -lc。仅 Linux 下 `make build-tool-sx` 使用；生成 C 与系统头类型一致时可在其他平台启用。 |
+| 2 | **build_tool 完全无 C** | **已实现**：`build_runtime_x.x` 含字面量（分支内 let）、run_step（拼命令 + system）、三处 patch（fopen/fread/fwrite/strstr/替换循环）。链接为 crt0 + build_runner.o + build_tool.o + build_runtime_x.o + -lc。仅 Linux 下 `make build-tool-x` 使用；生成 C 与系统头类型一致时可在其他平台启用。 |
 | 3 | **bootstrap_shuxc 入库（可选）** | 将预编 bootstrap_shuxc 纳入仓库或发布包，使新 clone 无需先有 C 编出的 shux。 |
 | 4 | **第 5 步：删 .c/.h/Makefile** | 在 run-without-c.sh 及自举测试通过、且 build_tool 无 C 后，删除项目内 .c/.h 与 Makefile，仅保留 .x + asm(.s) + 脚本。 |
 
@@ -263,15 +263,15 @@
 | 项 | 说明 |
 |----|------|
 | build_runner.x | entry、asm 路径纯 .x（SHUX=path + system）、默认路径调 build_run_step。 |
-| build_runtime_sx.x | 字面量（分支内 let）、run_step 0～6、preprocess_gen.c 两处替换、driver_gen.c 五处替换 + **run_compiler_c 包装追加**、pipeline_gen.c 重命名 _impl / parser 签名 / slice .→-> 等替换。 |
+| build_runtime_x.x | 字面量（分支内 let）、run_step 0～6、preprocess_gen.c 两处替换、driver_gen.c 五处替换 + **run_compiler_c 包装追加**、pipeline_gen.c 重命名 _impl / parser 签名 / slice .→-> 等替换。 |
 | typeck_f64_bits | Linux 下用 typeck_f64_bits_x86_64.s，不再用 .c。 |
-| Makefile | Linux 下 build-tool-sx 只链 build_runtime_sx.o，不链 build_runtime.c。 |
+| Makefile | Linux 下 build-tool-x 只链 build_runtime_x.o，不链 build_runtime.c。 |
 
 **尚未与 C 端完全一致的项（可选/按需补）**
 
 | 项 | C 端行为 | 当前 .x 行为 |
 |----|----------|----------------|
 | pipeline_gen.c 追加块 | 若缺 source_data/source_len 则追加 (data,len,ctx) 包装；若缺 pipeline_sizeof_arena 则追加 size getters；若缺 pipeline_debug_module_funcs 则追加 debug 函数；若缺 parser_parse_into 的 extern 则插入。 | 仅做「必要替换」：重命名 _impl、parser 签名、slice .→->，**未**做上述「若缺则追加」。若 -E 生成的 pipeline_gen.c 已含这些块则无影响；否则可能需仍用 C 端 patch 或后续在 .x 中补同样逻辑。 |
-| 非 Linux 平台 | build-tool 可链 build_runtime.c 正常编。 | build-tool-sx 仅 Linux；在 macOS 等编 build_runtime_sx_gen.c 会与系统头（FILE* / const char*）冲突，需适配代码生成或编译选项后再启用。 |
+| 非 Linux 平台 | build-tool 可链 build_runtime.c 正常编。 | build-tool-x 仅 Linux；在 macOS 等编 build_runtime_x_gen.c 会与系统头（FILE* / const char*）冲突，需适配代码生成或编译选项后再启用。 |
 
 **结论**：日常 Linux 下「build_tool 完全无 C」路径已可用；driver 的 run_compiler_c 已补全。pipeline 的「若缺则追加」与跨平台生成 C 的兼容为可选完善项。
