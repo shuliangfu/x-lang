@@ -5614,8 +5614,13 @@ int parse(Lexer *lex, ASTModule **out) {
 #undef FREE_TOPLEVEL_LETS
 
     /* 将顶层 let 拷贝到 mod，后续错误路径仅需 free(mod)，由 ast_module_free 释放 */
+    /* 【Why 根源治理】calloc 而非 malloc：ASTLetDecl 含 is_thread_local/is_percpu 等 #[属性] 字段，
+     * malloc 不保证零初始化（Windows/Linux malloc 复用 free chunk 返回垃圾值）。预扫描 let 无属性，
+     * 垃圾值会让 codegen 误输出 __thread __attribute__((section(".percpu")))（与 ASTExpr calloc 修复同源）。
+     * 【Invariant】预扫描 let 全字段零初始化；is_const=0、section/属性=NULL/0。
+     * 【Asm/Perf】ntoplets 通常 ≤ 10，calloc 开销可忽略。 */
     if (ntoplets > 0) {
-        mod->top_level_lets = (ASTLetDecl *)malloc((size_t)ntoplets * sizeof(ASTLetDecl));
+        mod->top_level_lets = (ASTLetDecl *)calloc((size_t)ntoplets, sizeof(ASTLetDecl));
         if (!mod->top_level_lets) {
             for (int _ti = 0; _ti < ntoplets; _ti++) {
                 if (toplevel_let_list[_ti].name) free((void *)toplevel_let_list[_ti].name);
@@ -5633,6 +5638,8 @@ int parse(Lexer *lex, ASTModule **out) {
             mod->top_level_lets[i].init = toplevel_let_list[i].init;
             mod->top_level_lets[i].is_const = 0;
             mod->top_level_lets[i].section = NULL;  /* K4：预扫描 let 无段属性 */
+            mod->top_level_lets[i].is_thread_local = 0;  /* 预扫描 let 无 #[thread_local] */
+            mod->top_level_lets[i].is_percpu = 0;        /* 预扫描 let 无 #[percpu] */
         }
         mod->num_top_level_lets = ntoplets;
     }
@@ -5926,11 +5933,6 @@ int parse(Lexer *lex, ASTModule **out) {
             mod->top_level_lets[mod->num_top_level_lets].section = pending_link_section;  /* K4 */
             mod->top_level_lets[mod->num_top_level_lets].is_thread_local = pending_thread_local;
             mod->top_level_lets[mod->num_top_level_lets].is_percpu = pending_percpu;
-            fprintf(stderr, "DBG parser let[%d] name=%s is_thread_local=%d is_percpu=%d pending_tl=%d pending_pc=%d\n",
-                    mod->num_top_level_lets, let_name,
-                    (int)mod->top_level_lets[mod->num_top_level_lets].is_thread_local,
-                    (int)mod->top_level_lets[mod->num_top_level_lets].is_percpu,
-                    (int)pending_thread_local, (int)pending_percpu);
             pending_thread_local = 0;
             pending_percpu = 0;
             pending_link_section = NULL;
