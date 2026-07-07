@@ -675,11 +675,12 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
         return "lexer";
     if (strstr(input_path, "ast") != NULL)
         return "ast";
-    /* std/xxx/mod.x 或 std/xxx/xxx.x：lib_prefix 须为 std_xxx_（如 std_heap_），
-     * 与 import("std.xxx") 生成的 std_xxx_* 调用符号一致。
-     * 【Why 根源】import("std.heap") 的调用方生成 std_heap_* 符号；若库前缀用 basename
-     * "mod"（mod.x）则生成 mod_* 符号，与调用方不匹配，必须依赖 C 桩文件
-     * (*_import_alias.c) 提供转发。修此根因后 .o 直接提供正确符号，C 桩可删，F 闭合。
+    /* std/xxx/mod.x → lib_prefix std_xxx；std/xxx/yyy.x → std_xxx_yyy。
+     * 【Why 根源】codegen 用 import path 生成符号前缀：import("std.heap.libc") →
+     * std_heap_libc_（codegen_import_path_to_c_prefix_into）。-E-extern 编译 libc.x 时
+     * lib_prefix 须与之一致，否则 mod.x 引用 std_heap_libc_heap_alloc_c 而 libc.o 提供
+     * std_heap_heap_alloc_c，符号不匹配。规则：提取 std/ 后所有路径段用 _ 连接，跳过末尾
+     * mod（mod.x 的 import path 不含 mod）。此修复使 .o 直接提供正确符号，C 桩可删，F 闭合。
      * 【Invariant】仅影响路径含 "std/" 段的输入；compiler/ 等其他路径不受影响。
      * 【Asm/Perf】编译期决议，无运行期开销。 */
     {
@@ -692,13 +693,35 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
             }
         }
         if (std_seg) {
-            const char *seg_end = std_seg;
-            while (*seg_end && *seg_end != '/' && *seg_end != '\\') seg_end++;
-            size_t seg_len = (size_t)(seg_end - std_seg);
-            if (seg_len > 0 && seg_len + 5 < sizeof(stem_buf)) {
-                memcpy(stem_buf, "std_", 4);
-                memcpy(stem_buf + 4, std_seg, seg_len);
-                stem_buf[4 + seg_len] = '\0';
+            /* 收集所有路径段，用 _ 连接，跳过末尾 mod（去 .x/.su 后缀） */
+            size_t off = 4;  /* "std_" 前缀 */
+            memcpy(stem_buf, "std_", 4);
+            const char *p = std_seg;
+            while (*p && off + 2 < sizeof(stem_buf)) {
+                const char *seg_start = p;
+                while (*p && *p != '/' && *p != '\\') p++;
+                size_t seg_len = (size_t)(p - seg_start);
+                /* 去 .x/.su 后缀 */
+                if (seg_len >= 3 && memcmp(seg_start + seg_len - 3, ".su", 3) == 0)
+                    seg_len -= 3;
+                else if (seg_len >= 2 && memcmp(seg_start + seg_len - 2, ".x", 2) == 0)
+                    seg_len -= 2;
+                /* 跳过 "mod" 段（mod.x 的 import path 不含 mod） */
+                if (seg_len == 3 && memcmp(seg_start, "mod", 3) == 0) {
+                    /* mod 段跳过；但需记录以处理后续段 */
+                } else if (seg_len > 0) {
+                    if (off > 4 && off + seg_len + 1 < sizeof(stem_buf)) {
+                        stem_buf[off++] = '_';
+                    }
+                    if (off + seg_len < sizeof(stem_buf)) {
+                        memcpy(stem_buf + off, seg_start, seg_len);
+                        off += seg_len;
+                    }
+                }
+                if (*p) p++;  /* 跳过 / */
+            }
+            if (off > 4) {
+                stem_buf[off] = '\0';
                 return stem_buf;
             }
         }
