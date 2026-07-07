@@ -8315,9 +8315,22 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
     /* CORE-009：clz/ctz/popcount/bswap/rotl/rotr 调用点经 builtin_intrinsic_name 重映射为 shux_builtin_*，
      * 此处 emit static inline 包装器（__builtin_* + x==0 边界），避免 cc 报未声明符号。 */
     codegen_emit_builtin_inline_decls(out);
-    /* std.process：入口 main 写 argc/argv；weak 供 minimal 链，process.o 强符号覆盖。 */
+    /* std.process：入口 main 写 argc/argv；weak 供 minimal 链，process.o 强符号覆盖。
+     * 【Why 根源】Windows/MinGW 上 __attribute__((weak)) 变量行为与 ELF 不同：
+     * weak 定义生成 .weak.<name>.<module> 符号，main 函数中 shux_process_argc = argc;
+     * 写的是 weak 定义（地址 A），而 process_args_count_c() 读的是 runtime_process_argv.o
+     * 的强符号（地址 B），地址不同 → args_count() 永远返回 0。
+     * Windows 改为 extern 声明，由 runtime_process_argv.o 提供唯一定义。
+     * 【Invariant】Windows -o 模式总链 runtime_process_argv.o（ensure_runtime_process_argv_o）；
+     * 非 Windows 保留 weak 供 SHUX_MINIMAL_CC_LINK minimal 链（不链 runtime_process_argv.o）。
+     * 【Asm/Perf】无运行时开销，仅影响链接期符号解析。 */
+    fprintf(out, "#ifdef _WIN32\n");
+    fprintf(out, "extern int shux_process_argc;\n");
+    fprintf(out, "extern char **shux_process_argv;\n");
+    fprintf(out, "#else\n");
     fprintf(out, "__attribute__((weak)) int shux_process_argc = 0;\n");
     fprintf(out, "__attribute__((weak)) char **shux_process_argv = NULL;\n");
+    fprintf(out, "#endif\n");
     /* 单文件模式（emitted_type_names 非 NULL）时依赖类型已在前面写出，此处不再重复输出，避免 C 重定义 */
     if (!emitted_type_names && codegen_ndep > 0 && codegen_dep_mods && codegen_dep_paths) {
         /* 依赖模块中的 enum 须在 struct 之前输出，避免 struct 字段 "enum prefix_Name" 引用不完整类型 */
