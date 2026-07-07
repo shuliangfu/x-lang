@@ -89,8 +89,8 @@ extern function _close(fd: i32): i32;
 extern function _lseek(fd: i32, offset: i32, origin: i32): i32;
 extern function _chmod(path: *u8, mode: i32): i32;
 extern function _mkdir(path: *u8): i32;
-extern function _unlink(path: *u8): i32;
 extern function _rmdir(path: *u8): i32;
+extern function DeleteFileA(lpFileName: *u8): i32;
 extern function malloc(size: usize): *u8;
 extern function free(ptr: *u8): void;
 extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
@@ -664,7 +664,7 @@ function fs_unlink_c(path: *u8): i32 {
   if (path == 0) {
     return -1;
   }
-  unsafe { if (_unlink(path) != 0) {
+  unsafe { if (DeleteFileA(path) == 0) {
     fs_note_last_error_win();
     return -1;
   } }
