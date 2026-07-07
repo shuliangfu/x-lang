@@ -20,7 +20,7 @@ int typeck_lsp_main(void) { return -1; }
 
 /* preprocess.preprocess_sx_buf 桥接：
  * SX 生成的 preprocess_sx.o 导出 _typeck_preprocess_sx_buf，
- * 但 pipeline.sx 和 driver.sx 引用它为 preprocess.preprocess_sx_buf → _preprocess_sx_buf。
+ * 但 pipeline.x 和 driver.x 引用它为 preprocess.preprocess_sx_buf → _preprocess_sx_buf。
  * 此桥接将调用转给实际实现。 */
 extern int32_t typeck_preprocess_sx_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap);
 int32_t preprocess_sx_buf(const uint8_t *src, ptrdiff_t src_len, uint8_t *out_buf, int32_t out_cap) {

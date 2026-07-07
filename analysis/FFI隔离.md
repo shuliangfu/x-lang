@@ -28,7 +28,7 @@
 
 | 类别 | 典型路径 | 风险来源 |
 |------|----------|----------|
-| **OS 边界** | `std/sys/*.sx` 内 `asm { syscall }` 或 `extern` 绑平台库 | 错误参数、错误缓冲区长度 |
+| **OS 边界** | `std/sys/*.x` 内 `asm { syscall }` 或 `extern` 绑平台库 | 错误参数、错误缓冲区长度 |
 | **标准库胶层** | `std/ffi`（CString、POD pack/unpack、回调句柄） | 裸指针生命周期、double-free |
 | **动态库** | `std/dynlib` → `dlopen` / `LoadLibrary` | 错误函数签名、无界 C API |
 | **用户第三方 C** | 用户自行 `extern` + 链接 | 任意 UB |
@@ -178,7 +178,7 @@ unsafe {
 1. **裸指针不出库**：对外 API 返回 `T[]`、`Result`、owned 句柄或标量。  
 2. **禁止 std 封装 `strcpy`/`sprintf` 等无界 API**；须长度参数或 Shux 侧缓冲区。  
 3. **新增 `extern` 符号** → 更新 `safe-unsafe-extern.tsv` + SAFE-003 审计。  
-4. **F-ZC**：`std/ffi` 已纯 `.sx`（[phase-f-ffi-v1.md](./phase-f-ffi-v1.md)）；隔离逻辑留在 Shux 源码，便于 grep。
+4. **F-ZC**：`std/ffi` 已纯 `.x`（[phase-f-ffi-v1.md](./phase-f-ffi-v1.md)）；隔离逻辑留在 Shux 源码，便于 grep。
 
 ### 5.4 L4：纵深防御与进程外隔离
 
@@ -251,7 +251,7 @@ unsafe {
 1. **FFI 入口已存在**：`std/sys`、`std/ffi`、`compiler/runtime*.c` 构建链——不是自举完成后才突然出现的外部边界。  
 2. **v1 已投入且 CI 在跑**：SAFE-004、TYPE-004、`run-safe-ffi-contract-gate.sh` 等；「等自举后再做」= 闲置已有门禁。  
 3. **安全路线已写死 G 结束前目标**：`std/sys` syscall 收拢、业务层零 `unsafe`（[安全路线.md](./安全路线.md) §8）——没有 L2 `unsafe { }`，「零 unsafe 业务层」无法操作化。  
-4. **std 收拢与 G 同向**：F-ZC 后隔离逻辑在 `.sx` 里，阶段 G 改 `std/sys`、删 `import_alias.c` 时 **顺带** 包 `unsafe`、更新 TSV，比事后再 grep 全库便宜。  
+4. **std 收拢与 G 同向**：F-ZC 后隔离逻辑在 `.x` 里，阶段 G 改 `std/sys`、删 `import_alias.c` 时 **顺带** 包 `unsafe`、更新 TSV，比事后再 grep 全库便宜。  
 5. **自举不依赖 LANG-007 v2**：[lang-unsafe-v1-rfc.md](./lang-unsafe-v1-rfc.md) 明确 U4 `unsafe { }` 属 v2、**不阻塞 v1**；compiler 自举路径几乎不扩 `extern` 面。
 
 ### 7.4 为什么也不是「现在就全量硬拒」

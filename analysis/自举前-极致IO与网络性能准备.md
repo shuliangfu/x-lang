@@ -12,7 +12,7 @@
 - **IO**：自研**舒 IO**，达到**超越 io_uring/kqueue/IOCP** 的高并发、高吞吐（固定 buffer、预注册、批量提交、completion 无锁）；**不以**现有内核 API 为后端封装。
 - **网络**：同等级别的连接多路复用、零拷贝、批量收发、超时可控、无阻塞热路径。
 
-这些**实现**在自举后用 .sx 完成；本文档只谈**自举前要准备好的前提**。具体「如何实现才能超越」与自举前准备清单见《[高并发IO与多平台](高并发IO与多平台.md)》§6。
+这些**实现**在自举后用 .x 完成；本文档只谈**自举前要准备好的前提**。具体「如何实现才能超越」与自举前准备清单见《[高并发IO与多平台](高并发IO与多平台.md)》§6。
 
 ### 1.2 自举前「准备」的含义
 
@@ -32,15 +32,15 @@
 | 状态 | 项 | 位置 | 作用 |
 |------|----|------|------|
 | ✅ 已实现 | **Buffer ABI 24 字节** | std.mem.Buffer、Buffer | ptr + len + handle，与舒 IO 预注册句柄 / fixed buffer 对接；64 位下 8+8+8，与 Slice(ptr, len) 兼容扩展；ABI 测试已覆盖。 |
-| ✅ 已实现 | **内核预注册** | std.mem.register_buffer、std.io.driver.register | 通过 std.io.core（.sx，Shu IO 核心）的 shu_io_register；当前为桩（返回 0），自举后可在此模块内改为舒 IO 预注册逻辑；接口不绑定现有 API。 |
-| ✅ 已实现 | **提交读/写 + 超时** | std.io.driver.submit_read / submit_write(buf, timeout_ms) | 通过 std.io.core（.sx，Shu IO 核心）的 shu_io_submit_read/submit_write；当前为桩（返回 0），自举后可改为真实 I/O 与超时；Buffer[] 多段扩展预留。 |
+| ✅ 已实现 | **内核预注册** | std.mem.register_buffer、std.io.driver.register | 通过 std.io.core（.x，Shu IO 核心）的 shu_io_register；当前为桩（返回 0），自举后可在此模块内改为舒 IO 预注册逻辑；接口不绑定现有 API。 |
+| ✅ 已实现 | **提交读/写 + 超时** | std.io.driver.submit_read / submit_write(buf, timeout_ms) | 通过 std.io.core（.x，Shu IO 核心）的 shu_io_submit_read/submit_write；当前为桩（返回 0），自举后可改为真实 I/O 与超时；Buffer[] 多段扩展预留。 |
 | ✅ 已实现 | **ReadOnlySlice / WriteOnlySlice** | std.io | 零拷贝只读/只写视图类型已定义，便于与 driver 对接、避免隐式拷贝。 |
 | ✅ 已实现 | **Reader / Writer trait** | std.io | 自举前最小签名已定义；扩展时需保证不堵死「批量 Buffer、超时、completion」语义。 |
 | ✅ 已实现 | **超时参数** | std.io read_with_timeout / write_with_timeout、driver timeout_ms | 所有读写接口已统一预留 timeout 参数（0=无超时），避免高并发下挂死与资源泄漏。 |
 | ✅ 已实现 | **IO_Result / Completion / AsyncContext** | std.io.driver | 完成状态枚举与原子位结构体已定义；与 completion 队列、无锁状态机的对接逻辑待实现。 |
 | ✅ 已实现 | **条件编译** | 编译器 + analysis/条件编译.md | SHUX_OS_* / SHUX_ARCH_* 全大写已注入；各平台下**舒 IO 差异化实现**可据此选径，目标超越 io_uring/kqueue/IOCP。 |
 
-**上述 2 项已实现**：内核预注册、提交读/写 + 超时 已由 **std.io.core**（`std/io/core.sx`，Shu IO 核心）实现，std.io.driver 与 std.mem 通过 `import("std.io.core")` 调用 `shu_io_register` / `shu_io_submit_read` / `shu_io_submit_write`；当前为桩（返回 0），自举后可在该 .sx 模块内改为舒 IO 真实逻辑或通过 extern 调用内核/驱动。设计目标与「如何超越」见《[高并发IO与多平台](高并发IO与多平台.md)》§6。
+**上述 2 项已实现**：内核预注册、提交读/写 + 超时 已由 **std.io.core**（`std/io/core.x`，Shu IO 核心）实现，std.io.driver 与 std.mem 通过 `import("std.io.core")` 调用 `shu_io_register` / `shu_io_submit_read` / `shu_io_submit_write`；当前为桩（返回 0），自举后可在该 .x 模块内改为舒 IO 真实逻辑或通过 extern 调用内核/驱动。设计目标与「如何超越」见《[高并发IO与多平台](高并发IO与多平台.md)》§6。
 
 ### 2.1 为什么 Buffer 是 24 字节？24 与 32 字节对比
 
@@ -126,7 +126,7 @@
 | P5 | driver 与 trait 不堵死 Buffer[] 批量提交；注释或文档中写明多段 I/O 扩展 | ✅ 已实现（driver 注释已预留 Buffer[]） |
 | P6 | 《高并发IO与多平台》或等价文档存在，含零拷贝、超时、Completion、多段 I/O、平台分支及§6「如何超越」 | ✅ 已实现（该文档已存在且含 §6） |
 | P7 | ABI 与 C 互操作零成本、Result 寄存器化已满足（自举前性能生死线） | ✅ 已实现 |
-| — | **二、表中 2 项**：内核预注册、提交读/写 + 超时（std.io.core .sx 桩） | ✅ 已实现 |
+| — | **二、表中 2 项**：内核预注册、提交读/写 + 超时（std.io.core .x 桩） | ✅ 已实现 |
 
 全部勾选后，自举后即可在**不推翻现有接口与 ABI** 的前提下，实现**舒 IO**（超越 io_uring/kqueue/IOCP）与高并发网络，把 IO/网络性能压榨到极致。**如何实现才能超越**见《[高并发IO与多平台](高并发IO与多平台.md)》§6。
 
@@ -137,13 +137,13 @@
 ### 6.1 小结
 
 - **自举前**：锁定 Buffer/Reader/Writer 的 ABI 与扩展方式，约定零拷贝、超时、无分配热路径、多段 I/O 预留；《高并发IO与多平台》已存在，含「如何实现才能超越现有 API」与自举前准备清单（§6），供自举后实现**舒 IO** 时遵循。
-- **自举后**：在 .sx 内实现**舒 IO**（自研驱动与调度，超越 io_uring/kqueue/IOCP）、completion 队列、批量 submit、网络 accept/connect/read/write，全部基于现有 Buffer、driver 与条件编译，无需改语言或推倒重来。
+- **自举后**：在 .x 内实现**舒 IO**（自研驱动与调度，超越 io_uring/kqueue/IOCP）、completion 队列、批量 submit、网络 accept/connect/read/write，全部基于现有 Buffer、driver 与条件编译，无需改语言或推倒重来。
 
 ### 6.2 已完成的实现项
 
 | 类别 | 项 | 说明 |
 |------|----|------|
-| **二、表中** | 内核预注册 | std.mem.register_buffer、std.io.driver.register 通过 **std.io.core**（.sx，Shu IO 核心）的 `shu_io_register` 调用；当前桩返回 0，自举后可在此模块内改为舒 IO 预注册逻辑。 |
-| **二、表中** | 提交读/写 + 超时 | std.io.driver.submit_read、submit_write 通过 **std.io.core**（.sx，Shu IO 核心）的 `shu_io_submit_read` / `shu_io_submit_write` 调用；当前桩返回 0，自举后可改为真实 I/O 与超时。 |
+| **二、表中** | 内核预注册 | std.mem.register_buffer、std.io.driver.register 通过 **std.io.core**（.x，Shu IO 核心）的 `shu_io_register` 调用；当前桩返回 0，自举后可在此模块内改为舒 IO 预注册逻辑。 |
+| **二、表中** | 提交读/写 + 超时 | std.io.driver.submit_read、submit_write 通过 **std.io.core**（.x，Shu IO 核心）的 `shu_io_submit_read` / `shu_io_submit_write` 调用；当前桩返回 0，自举后可改为真实 I/O 与超时。 |
 
-**P3、P4、P6** 已由《[高并发IO与多平台](高并发IO与多平台.md)》满足。**二、表中 2 项** 已实现（std.io.core .sx 桩）。自举前为「舒 IO 超越现有 API」做的准备已全部完成；自举后只需在 **std.io.core** 内替换桩为舒 IO 真实实现即可。
+**P3、P4、P6** 已由《[高并发IO与多平台](高并发IO与多平台.md)》满足。**二、表中 2 项** 已实现（std.io.core .x 桩）。自举前为「舒 IO 超越现有 API」做的准备已全部完成；自举后只需在 **std.io.core** 内替换桩为舒 IO 真实实现即可。

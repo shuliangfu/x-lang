@@ -51,7 +51,7 @@
 | 场景 | 策略 | 实现现状 |
 |------|------|----------|
 | **语言语义** | 有符号 `+` `-` `*` 结果超出类型范围 → **未定义行为（UB）** | 与 §二 一致；不承诺 wrapping |
-| **无符号运算** | 按 \(2^N\) 取模（**非 UB**） | 与 C 一致；见 `tests/ub/unsigned_wrap_ok.sx` |
+| **无符号运算** | 按 \(2^N\) 取模（**非 UB**） | 与 C 一致；见 `tests/ub/unsigned_wrap_ok.x` |
 | **编译期常量（CTFE）** | 字面量与常量折叠在 **i64** 宽域计算；赋值到较窄类型时须可表示 | lexer/i64 CTFE 回归见 `run-i64-ctfe-gate.sh` |
 | **Release 运行时** | **不**插入有符号溢出检查；生成 C 时依赖 C 语义（仍为 UB） | 零成本；与「性能比肩 C」一致 |
 | **Debug / 未来** | 可选 `-fshux-check-overflow` 或显式 `wrapping_add` 等 API → panic / 可预测 wrapping | **未实现**；新增须改 typeck + codegen 并扩 gate |

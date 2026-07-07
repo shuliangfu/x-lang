@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 为 Shux 核心 .sx 源文件批量 prepend AGPL 标准文件头（已含 SPDX 则跳过）。
+# 为 Shux 核心 .x 源文件批量 prepend AGPL 标准文件头（已含 SPDX 则跳过）。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -37,6 +37,6 @@ while IFS= read -r -d '' file; do
   cat "$file" >> "$tmp"
   mv "$tmp" "$file"
   added=$((added + 1))
-done < <(find "$ROOT/compiler/src" "$ROOT/core" "$ROOT/std" -name '*.sx' -type f -print0)
+done < <(find "$ROOT/compiler/src" "$ROOT/core" "$ROOT/std" -name '*.x' -type f -print0)
 
 echo "license header: added=$added skipped=$skipped"

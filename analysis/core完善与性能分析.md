@@ -40,7 +40,7 @@
 
 | 项                                 | 现状                                    | 建议                                                                                                                                                                | 收益                         |
 | --------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| **mem_copy / mem_set / mem_move** | .sx 循环；**codegen 已映射**为 __builtin_memcpy/memset/memmove | 同上 | ✅ 已实现 |
+| **mem_copy / mem_set / mem_move** | .x 循环；**codegen 已映射**为 __builtin_memcpy/memset/memmove | 同上 | ✅ 已实现 |
 | **builtin_intrinsic_name**        | **已实现**：mem_* + core.builtin 的 copy→__builtin_memcpy、unreachable→__builtin_unreachable、abort→__builtin_abort | 同上 | ✅ 已实现；小函数零开销、冷路径不拖累热点 |
 | **size_of_ / align_of_**         | **已实现**：core.types/core.mem 的 size_of_*、align_of_* 生成时加 inline，便于 cc 内联与常量折叠 | 同上 | ✅ 已实现 |
 
@@ -50,7 +50,7 @@
 
 | 项                 | 现状                                    | 建议                                                                                     | 收益                 |
 | ----------------- | ------------------------------------- | -------------------------------------------------------------------------------------- | ------------------ |
-| **mem_copy 实现**   | .sx 内循环；**codegen 已映射**：对 core_mem_mem_copy/mem_set/mem_move 的调用改为 __builtin_memcpy/__builtin_memset/__builtin_memmove | ✅ 已实现（codegen 侧）；core 保持 .sx 实现 | 大块拷贝由 cc 优化/向量化      |
+| **mem_copy 实现**   | .x 内循环；**codegen 已映射**：对 core_mem_mem_copy/mem_set/mem_move 的调用改为 __builtin_memcpy/__builtin_memset/__builtin_memmove | ✅ 已实现（codegen 侧）；core 保持 .x 实现 | 大块拷贝由 cc 优化/向量化      |
 | **slice 热路径**     | 已有 get_i32 / get_u8（边界安全）；**已增加 get_i32_unchecked / get_u8_unchecked**（越界未定义，调用方保证 i < len） | ✅ 已实现；文档约定「仅在对索引已证明安全时使用」 | 热点循环可省边界检查           |
 | **Option/Result** | 已为固定布局、无堆、无虚表；**codegen 已对 core.option/core.result 函数加 inline 提示** | ✅ 已实现（codegen 侧）；map/and_then 待函数类型                                                              | 小函数更易被 cc 内联       |
 
@@ -66,9 +66,9 @@
 
 ### 2.4 不做或慎做的
 
-- **不在 core 内用 extern memcpy**：与部分环境（如 macOS）的 memcpy 宏冲突，已由 .sx 循环 + 后端替换解决。
+- **不在 core 内用 extern memcpy**：与部分环境（如 macOS）的 memcpy 宏冲突，已由 .x 循环 + 后端替换解决。
 - **不引入「可选」边界检查**：当前 get 返回 Option 已足够；unchecked 仅作为可选扩展、文档约束严格。
-- **不为了「好内联」在 core 里加编译器魔法**：优先在 codegen 中统一处理内建/内联，core 保持纯 .sx 实现。
+- **不为了「好内联」在 core 里加编译器魔法**：优先在 codegen 中统一处理内建/内联，core 保持纯 .x 实现。
 
 ---
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""c2sx_socketio.py — socketio_glue.c → socketio.sx（F-socketio v2）。"""
+"""c2sx_socketio.py — socketio_glue.c → socketio.x（F-socketio v2）。"""
 import re
 
 SRC = "/home/shu/shux/std/socketio/socketio_glue.c"
-DST = "/home/shu/shux/std/socketio/socketio.sx"
+DST = "/home/shu/shux/std/socketio/socketio.x"
 
 STRUCT_MAP = {
     "sio_ns_router_t": "SioNsRouterMem",
@@ -22,7 +22,7 @@ STRUCT_MAP = {
 }
 
 STRUCTS_SX = """
-/** 多 namespace 路由表（CONNECT 包 → slot_id；布局与 mod.sx SioNsRouter 一致）。 */
+/** 多 namespace 路由表（CONNECT 包 → slot_id；布局与 mod.x SioNsRouter 一致）。 */
 allow(padding) struct SioNsRouterMem {
   count: i32;
   ns_len: i32[4];
@@ -30,14 +30,14 @@ allow(padding) struct SioNsRouterMem {
   ns: u8[4][24];
 }
 
-/** 多 namespace 并发会话表（布局与 mod.sx SioNsSessions 一致）。 */
+/** 多 namespace 并发会话表（布局与 mod.x SioNsSessions 一致）。 */
 allow(padding) struct SioNsSessionsMem {
   count: i32;
   slot_id: i32[4];
   active: i32[4];
 }
 
-/** WS hub 单槽（布局与 mod.sx SioWsHubSlot 一致，48 字节）。 */
+/** WS hub 单槽（布局与 mod.x SioWsHubSlot 一致，48 字节）。 */
 allow(padding) struct SioWsHubSlotMem {
   in_use: i32;
   fd: i32;
@@ -47,14 +47,14 @@ allow(padding) struct SioWsHubSlotMem {
   sid: u8[24];
 }
 
-/** WS hub（count + 对齐填充 + 4 槽；200 字节，与 mod.sx SioWsHub 一致）。 */
+/** WS hub（count + 对齐填充 + 4 槽；200 字节，与 mod.x SioWsHub 一致）。 */
 allow(padding) struct SioWsHubMem {
   count: i32;
   pad_count: i32;
   slot: SioWsHubSlotMem[4];
 }
 
-/** 单个 room（布局与 mod.sx SioRoom 一致）。 */
+/** 单个 room（布局与 mod.x SioRoom 一致）。 */
 allow(padding) struct SioRoomMem {
   in_use: i32;
   name_len: i32;
@@ -64,7 +64,7 @@ allow(padding) struct SioRoomMem {
   members: i32[4];
 }
 
-/** room 注册表（布局与 mod.sx SioRoomRegistry 一致）。 */
+/** room 注册表（布局与 mod.x SioRoomRegistry 一致）。 */
 allow(padding) struct SioRoomRegistryMem {
   count: i32;
   room: SioRoomMem[4];
@@ -131,12 +131,12 @@ allow(padding) struct SioClusterAdapterSnapshotMem {
 }
 """
 
-HEADER = """// std/socketio/socketio.sx — F-socketio v2：Engine.IO/SIO 协议逻辑（纯 .sx）
+HEADER = """// std/socketio/socketio.x — F-socketio v2：Engine.IO/SIO 协议逻辑（纯 .x）
 //
 // 【文件职责】
 // EIO/SIO 编解码、polling/WS URL、namespace 路由、WS hub、room、cluster adapter 与全部烟测。
 // HTTP/WS IO 经 extern http_* / net_ws_*；经 ld -r 单独编译为 socketio_main.o 再合并 socketio.o。
-// 对外 API 在 mod.sx（sio_*_c 符号供 mod extern 绑定）。
+// 对外 API 在 mod.x（sio_*_c 符号供 mod extern 绑定）。
 
 """
 

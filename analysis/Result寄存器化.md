@@ -25,7 +25,7 @@
 
 ### 3.1 布局约定
 
-`core/result/mod.sx` 中：
+`core/result/mod.x` 中：
 
 ```text
 allow(padding) struct Result_i32 {
@@ -83,5 +83,5 @@ struct core_resultResult_i32 {
 ## 五、参考
 
 - 自举前置条件：`analysis/自举实现分析.md` §3.2（Result ABI 约定并实现或验证）。
-- 实现文件：`core/result/mod.sx`、`tests/result/main.sx`。
+- 实现文件：`core/result/mod.x`、`tests/result/main.x`。
 - x86-64 System V ABI：返回类型 ≤16 字节时使用 RAX/RDX。

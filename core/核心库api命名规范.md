@@ -33,7 +33,7 @@
 
 ### core.builtin
 
-`core/builtin/mod.sx` · 13 APIs · `const builtin = import("core.builtin")`
+`core/builtin/mod.x` · 13 APIs · `const builtin = import("core.builtin")`
 
 | 当前名称 | 简化名称 | 说明 | 绑定调用 |
 |---|---|---|---|
@@ -53,7 +53,7 @@
 
 ### core.cmp
 
-`core/cmp/mod.sx` · 12 APIs · `const cmp = import("core.cmp")`
+`core/cmp/mod.x` · 12 APIs · `const cmp = import("core.cmp")`
 
 | 当前名称 | 简化名称 | 说明 | 绑定调用 |
 |---|---|---|---|
@@ -72,7 +72,7 @@
 
 ### core.debug
 
-`core/debug/mod.sx` · 14 APIs · `const dbg = import("core.debug")`
+`core/debug/mod.x` · 14 APIs · `const dbg = import("core.debug")`
 
 | 当前名称 | 简化名称 | 说明 | 绑定调用 |
 |---|---|---|---|
@@ -93,7 +93,7 @@
 
 ### core.fmt
 
-`core/fmt/mod.sx` · 25 APIs · `const fmt = import("core.fmt")`
+`core/fmt/mod.x` · 25 APIs · `const fmt = import("core.fmt")`
 
 | 当前名称 | 简化名称 | 说明 | 绑定调用 |
 |---|---|---|---|
@@ -125,7 +125,7 @@
 
 ### core.iterator
 
-`core/iterator/mod.sx` · 10 APIs · `const iter = import("core.iterator")`
+`core/iterator/mod.x` · 10 APIs · `const iter = import("core.iterator")`
 
 | 当前名称 | 简化名称 | 说明 | 绑定调用 |
 |---|---|---|---|
@@ -142,7 +142,7 @@
 
 ### core.mem
 
-`core/mem/mod.sx` · 40 APIs · `const mem = import("core.mem")`
+`core/mem/mod.x` · 40 APIs · `const mem = import("core.mem")`
 
 | 当前名称 | 简化名称 | 说明 | 绑定调用 |
 |---|---|---|---|
@@ -189,7 +189,7 @@
 
 ### core.option
 
-`core/option/mod.sx` · 29 APIs · `const opt = import("core.option")`
+`core/option/mod.x` · 29 APIs · `const opt = import("core.option")`
 
 | 当前名称 | 简化名称 | 说明 | 绑定调用 |
 |---|---|---|---|
@@ -225,7 +225,7 @@
 
 ### core.result
 
-`core/result/mod.sx` · 23 APIs · `const res = import("core.result")`
+`core/result/mod.x` · 23 APIs · `const res = import("core.result")`
 
 | 当前名称 | 简化名称 | 说明 | 绑定调用 |
 |---|---|---|---|
@@ -255,7 +255,7 @@
 
 ### core.slice
 
-`core/slice/mod.sx` · 34 APIs · `const slice = import("core.slice")`
+`core/slice/mod.x` · 34 APIs · `const slice = import("core.slice")`
 
 | 当前名称 | 简化名称 | 说明 | 绑定调用 |
 |---|---|---|---|
@@ -296,7 +296,7 @@
 
 ### core.str
 
-`core/str/mod.sx` · 12 APIs · `const str = import("core.str")`
+`core/str/mod.x` · 12 APIs · `const str = import("core.str")`
 
 | 当前名称 | 简化名称 | 说明 | 绑定调用 |
 |---|---|---|---|
@@ -315,7 +315,7 @@
 
 ### core.types
 
-`core/types/mod.sx` · 28 APIs · `const types = import("core.types")`
+`core/types/mod.x` · 28 APIs · `const types = import("core.types")`
 
 | 当前名称 | 简化名称 | 说明 | 绑定调用 |
 |---|---|---|---|

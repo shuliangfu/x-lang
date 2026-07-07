@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-# 修复 migrate_bare_strings 破坏的 std/socketio/socketio.sx：补 const、字符字面量、损坏函数体。
+# 修复 migrate_bare_strings 破坏的 std/socketio/socketio.x：补 const、字符字面量、损坏函数体。
 
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PATH = ROOT / "std/socketio/socketio.sx"
+PATH = ROOT / "std/socketio/socketio.x"
 
 
 def lit(name: str, s: str) -> str:

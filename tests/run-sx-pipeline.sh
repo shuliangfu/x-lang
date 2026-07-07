@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 阶段 2.11 / 9.1：验证纯 .sx 流水线（-sx -E）对最小程序能跑通并产出 C。
+# 阶段 2.11 / 9.1：验证纯 .x 流水线（-sx -E）对最小程序能跑通并产出 C。
 # 在仓库根目录执行：./tests/run-sx-pipeline.sh
 # 要求：compiler 已 make，且 make bootstrap-pipeline + shux-sx-pipeline 已生成 shux_sx。
 
@@ -31,7 +31,7 @@ fi
 if [ -x compiler/shux_sx ]; then SX_SHUX=compiler/shux_sx; else SX_SHUX=compiler/shux; fi
 [ -x "$SX_SHUX" ] || { echo "compiler/shux_sx and compiler/shux not found or not executable"; exit 1; }
 
-MIN_SX="tests/sx-pipeline/min.sx"
+MIN_SX="tests/sx-pipeline/min.x"
 mkdir -p tests/sx-pipeline
 if [ ! -f "$MIN_SX" ]; then
   printf 'function main(): i32 { return 0; }\n' > "$MIN_SX"

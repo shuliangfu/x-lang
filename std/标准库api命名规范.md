@@ -61,7 +61,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `registry_register_counter` | `counter` | metrics 模块内省略 `registry_register_` |
 | `extend_from_slice` | `extend` | 容器模块内最短可读动词 |
 
-**歧义规则**：同一 `mod.sx` 内简化名不得冲突；若 `create`/`reset`/`new` 会撞车，保留**最短消歧前缀**（如 `new_mutex` vs `new_rwlock`，`runtime_reset` vs `scheduler_reset`）。
+**歧义规则**：同一 `mod.x` 内简化名不得冲突；若 `create`/`reset`/`new` 会撞车，保留**最短消歧前缀**（如 `new_mutex` vs `new_rwlock`，`runtime_reset` vs `scheduler_reset`）。
 
 ---
 
@@ -115,7 +115,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.async
 
-`std/async/mod.sx` · 125 APIs · `const async = import("std.async")`
+`std/async/mod.x` · 125 APIs · `const async = import("std.async")`
 
 
 | 当前名称                              | 功能说明                                                                                                                                         | 简化名称                        | 说明             | 绑定调用                                   |
@@ -249,7 +249,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.atomic
 
-`std/atomic/mod.sx` · 60 APIs · `const atomic = import("std.atomic")`
+`std/atomic/mod.x` · 60 APIs · `const atomic = import("std.atomic")`
 
 
 | 当前名称                            | 功能说明                                                                                                                               | 简化名称               | 说明             | 绑定调用                           |
@@ -318,7 +318,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.backtrace
 
-`std/backtrace/mod.sx` · 6 APIs · `const backtrace = import("std.backtrace")`
+`std/backtrace/mod.x` · 6 APIs · `const backtrace = import("std.backtrace")`
 
 
 | 当前名称                            | 功能说明                                                                                     | 简化名称                     | 说明             | 绑定调用                                    |
@@ -333,7 +333,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.base64
 
-`std/base64/mod.sx` · 18 APIs · `const base64 = import("std.base64")`
+`std/base64/mod.x` · 18 APIs · `const base64 = import("std.base64")`
 
 
 | 当前名称                          | 功能说明                                                                                                       | 简化名称              | 说明             | 绑定调用                          |
@@ -360,7 +360,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.bytes
 
-`std/bytes/mod.sx` · 28 APIs · `const bytes = import("std.bytes")`
+`std/bytes/mod.x` · 28 APIs · `const bytes = import("std.bytes")`
 
 
 | 当前名称                          | 功能说明                                           | 简化名称                          | 说明         | 绑定调用                                     |
@@ -397,7 +397,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.cache
 
-`std/cache/mod.sx` · 35 APIs · `const cache = import("std.cache")`
+`std/cache/mod.x` · 35 APIs · `const cache = import("std.cache")`
 
 
 | 当前名称                          | 功能说明                                | 简化名称                | 说明             | 绑定调用                           |
@@ -441,7 +441,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.channel
 
-`std/channel/mod.sx` · 51 APIs · `const channel = import("std.channel")`
+`std/channel/mod.x` · 51 APIs · `const channel = import("std.channel")`
 
 
 | 当前名称                           | 功能说明                                              | 简化名称                  | 说明             | 绑定调用                               |
@@ -501,7 +501,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.cli
 
-`std/cli/mod.sx` · 15 APIs · `const cli = import("std.cli")`
+`std/cli/mod.x` · 15 APIs · `const cli = import("std.cli")`
 
 
 | 当前名称                | 功能说明                                                 | 简化名称              | 说明             | 绑定调用                       |
@@ -525,7 +525,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.codec
 
-`std/codec/mod.sx` · 41 APIs · `const codec = import("std.codec")`
+`std/codec/mod.x` · 41 APIs · `const codec = import("std.codec")`
 
 
 | 当前名称                              | 功能说明                                                         | 简化名称                              | 说明         | 绑定调用                                         |
@@ -575,7 +575,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.compress
 
-`std/compress/mod.sx` · 40 APIs · `const compress = import("std.compress")`
+`std/compress/mod.x` · 40 APIs · `const compress = import("std.compress")`
 
 
 | 当前名称                              | 功能说明                                         | 简化名称                            | 说明         | 绑定调用                                          |
@@ -624,7 +624,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.compress.brotli
 
-`std/compress/brotli/mod.sx` · 10 APIs · `const brotli = import("std.compress.brotli")`
+`std/compress/brotli/mod.x` · 10 APIs · `const brotli = import("std.compress.brotli")`
 
 
 | 当前名称                            | 功能说明                                | 简化名称              | 说明         | 绑定调用                          |
@@ -643,7 +643,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.compress.gzip
 
-`std/compress/gzip/mod.sx` · 8 APIs · `const gzip = import("std.compress.gzip")`
+`std/compress/gzip/mod.x` · 8 APIs · `const gzip = import("std.compress.gzip")`
 
 
 | 当前名称                          | 功能说明                                | 简化名称              | 说明         | 绑定调用                        |
@@ -660,7 +660,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.compress.zlib
 
-`std/compress/zlib/mod.sx` · 2 APIs · `const zlib = import("std.compress.zlib")`
+`std/compress/zlib/mod.x` · 2 APIs · `const zlib = import("std.compress.zlib")`
 
 
 | 当前名称      | 功能说明                       | 简化名称      | 说明    | 绑定调用                |
@@ -669,7 +669,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `inflate` | 解压 zlib 流，返回写入字节数，失败 -1。   | `inflate` | 已符合命名 | `zlib.inflate(...)` |
 ### std.compress.zstd
 
-`std/compress/zstd/mod.sx` · 10 APIs · `const zstd = import("std.compress.zstd")`
+`std/compress/zstd/mod.x` · 10 APIs · `const zstd = import("std.compress.zstd")`
 
 
 | 当前名称                          | 功能说明                               | 简化名称              | 说明         | 绑定调用                        |
@@ -688,7 +688,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.config
 
-`std/config/mod.sx` · 49 APIs · `const config = import("std.config")`
+`std/config/mod.x` · 49 APIs · `const config = import("std.config")`
 
 
 | 当前名称                       | 功能说明                                           | 简化名称              | 说明             | 绑定调用                          |
@@ -746,7 +746,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.context
 
-`std/context/mod.sx` · 23 APIs · `const context = import("std.context")`
+`std/context/mod.x` · 23 APIs · `const context = import("std.context")`
 
 
 | 当前名称                  | 功能说明                              | 简化名称            | 说明             | 绑定调用                         |
@@ -778,7 +778,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.crypto
 
-`std/crypto/mod.sx` · 34 APIs · `const crypto = import("std.crypto")`
+`std/crypto/mod.x` · 34 APIs · `const crypto = import("std.crypto")`
 
 
 | 当前名称                                | 功能说明                                                                                                                                             | 简化名称                        | 说明                | 绑定调用                                    |
@@ -821,12 +821,12 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.csv
 
-`std/csv/mod.sx` · 18 APIs · `const csv = import("std.csv")`
+`std/csv/mod.x` · 18 APIs · `const csv = import("std.csv")`
 
 
 | 当前名称                             | 功能说明                                                                                                   | 简化名称                 | 说明             | 绑定调用                          |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------- | -------------- | ----------------------------- |
-| `next_field`                     | std.csv — CSV 解析与写回（RFC 4180） next_field / unescape / parse_row / write_row / stream：csv.sx（F-csv v1）。 | `next_field`         | 已符合命名          | `csv.next_field(...)`         |
+| `next_field`                     | std.csv — CSV 解析与写回（RFC 4180） next_field / unescape / parse_row / write_row / stream：csv.x（F-csv v1）。 | `next_field`         | 已符合命名          | `csv.next_field(...)`         |
 | `unescape`                       | extern C/平台                                                                                            | `unescape`           | 已符合命名          | `csv.unescape(...)`           |
 | `csv_test_quoted_first`          | extern C/平台                                                                                            | `test_quoted_first`  | 去模块前缀+去类型名     | `csv.test_quoted_first(...)`  |
 | `csv_test_quoted_second`         | extern C/平台                                                                                            | `test_quoted_second` | 去模块前缀+去类型名     | `csv.test_quoted_second(...)` |
@@ -848,7 +848,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.datetime
 
-`std/datetime/mod.sx` · 46 APIs · `const dt = import("std.datetime")`
+`std/datetime/mod.x` · 46 APIs · `const dt = import("std.datetime")`
 
 
 | 当前名称                                | 功能说明                                             | 简化名称                      | 说明             | 绑定调用                              |
@@ -903,7 +903,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.db
 
-`std/db/mod.sx` · 13 APIs · `const db = import("std.db")`
+`std/db/mod.x` · 13 APIs · `const db = import("std.db")`
 
 
 | 当前名称                      | 功能说明                                   | 简化名称                      | 说明             | 绑定调用                              |
@@ -923,7 +923,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `arrow_simd_hw_available` | SIMD 是否可用于 Arrow 列计算（委托 std.db.arrow）。 | `arrow_simd_hw_available` | 已符合命名          | `db.arrow_simd_hw_available(...)` |
 ### std.db.arrow
 
-`std/db/arrow/mod.sx` · 56 APIs · `const arrow = import("std.db.arrow")`
+`std/db/arrow/mod.x` · 56 APIs · `const arrow = import("std.db.arrow")`
 
 
 | 当前名称                             | 功能说明                                      | 简化名称                     | 说明             | 绑定调用                                |
@@ -988,7 +988,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.db.kv
 
-`std/db/kv/mod.sx` · 24 APIs · `const kv = import("std.db.kv")`
+`std/db/kv/mod.x` · 24 APIs · `const kv = import("std.db.kv")`
 
 
 | 当前名称                      | 功能说明                                                     | 简化名称                 | 说明             | 绑定调用                         |
@@ -1021,7 +1021,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.db.sqlite
 
-`std/db/sqlite/mod.sx` · 68 APIs · `const sqlite = import("std.db.sqlite")`
+`std/db/sqlite/mod.x` · 68 APIs · `const sqlite = import("std.db.sqlite")`
 
 
 | 当前名称                     | 功能说明                                                    | 简化名称              | 说明             | 绑定调用                          |
@@ -1098,7 +1098,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.dynlib
 
-`std/dynlib/mod.sx` · 8 APIs · `const dynlib = import("std.dynlib")`
+`std/dynlib/mod.x` · 8 APIs · `const dynlib = import("std.dynlib")`
 
 
 | 当前名称                       | 功能说明                                                                                                           | 简化名称              | 说明             | 绑定调用                          |
@@ -1115,7 +1115,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.elf
 
-`std/elf/mod.sx` · 29 APIs · `const elf = import("std.elf")`
+`std/elf/mod.x` · 29 APIs · `const elf = import("std.elf")`
 
 
 | 当前名称                           | 功能说明                   | 简化名称                         | 说明         | 绑定调用                                  |
@@ -1153,7 +1153,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.encoding
 
-`std/encoding/mod.sx` · 47 APIs · `const enc = import("std.encoding")`
+`std/encoding/mod.x` · 47 APIs · `const enc = import("std.encoding")`
 
 
 | 当前名称                          | 功能说明                                                  | 简化名称                       | 说明             | 绑定调用                                |
@@ -1209,7 +1209,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.env
 
-`std/env/mod.sx` · 24 APIs · `const env = import("std.env")`
+`std/env/mod.x` · 24 APIs · `const env = import("std.env")`
 
 
 | 当前名称                  | 功能说明                                             | 简化名称              | 说明             | 绑定调用                       |
@@ -1242,7 +1242,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.error
 
-`std/error/mod.sx` · 56 APIs · `const err = import("std.error")`
+`std/error/mod.x` · 56 APIs · `const err = import("std.error")`
 
 
 | 当前名称                           | 功能说明                                     | 简化名称                     | 说明         | 绑定调用                              |
@@ -1307,7 +1307,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.ffi
 
-`std/ffi/mod.sx` · 17 APIs · `const ffi = import("std.ffi")`
+`std/ffi/mod.x` · 17 APIs · `const ffi = import("std.ffi")`
 
 
 | 当前名称                     | 功能说明                                                                                                    | 简化名称              | 说明             | 绑定调用                       |
@@ -1333,7 +1333,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.fmt
 
-`std/fmt/mod.sx` · 35 APIs · `const fmt = import("std.fmt")`
+`std/fmt/mod.x` · 35 APIs · `const fmt = import("std.fmt")`
 
 
 | 当前名称                    | 功能说明                                                      | 简化名称              | 说明               | 绑定调用                       |
@@ -1377,7 +1377,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.fs
 
-`std/fs/mod.sx` · 87 APIs · `const fs = import("std.fs")`
+`std/fs/mod.x` · 87 APIs · `const fs = import("std.fs")`
 
 
 | 当前名称                          | 功能说明                                                                                                                    | 简化名称                          | 说明                | 绑定调用                                  |
@@ -1386,7 +1386,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `close`                       | extern C/平台                                                                                                             | `close`                       | 已符合命名             | `fs.close(...)`                       |
 | `pread`                       | extern C/平台                                                                                                             | `pread`                       | 已符合命名             | `fs.pread(...)`                       |
 | `pwrite`                      | extern C/平台                                                                                                             | `pwrite`                      | 已符合命名             | `fs.pwrite(...)`                      |
-| `fs_open_read_c` | 只读打开（F-03 v2 纯 .sx）；asm 跳过 std.fs emit 时由 std_fs.o 提供。 | `open` | 去模块前缀+去类型名（C层） | `fs.open(...)` |
+| `fs_open_read_c` | 只读打开（F-03 v2 纯 .x）；asm 跳过 std.fs emit 时由 std_fs.o 提供。 | `open` | 去模块前缀+去类型名（C层） | `fs.open(...)` |
 | `fs_posix_read_c` | — | `pread` | 去模块前缀+去类型名（C层） | `fs.pread(...)` |
 | `fs_posix_write_c` | — | `pwrite` | 去模块前缀+去类型名（C层） | `fs.pwrite(...)` |
 | `fs_mmap_ro_c` | — | `mmap_ro` | 去模块前缀+去类型名（C层） | `fs.mmap_ro(...)` |
@@ -1471,7 +1471,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `freestanding_read_file_into` | —                                                                                                                       | `read_file` | 三轮精简 | fs.freestanding_read_file_into(...) |
 ### std.hash
 
-`std/hash/mod.sx` · 34 APIs · `const hash = import("std.hash")`
+`std/hash/mod.x` · 34 APIs · `const hash = import("std.hash")`
 
 
 | 当前名称                           | 功能说明                                                                                                                                              | 简化名称                    | 说明             | 绑定调用                              |
@@ -1514,14 +1514,14 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.heap
 
-`std/heap/mod.sx` · 51 APIs · `const heap = import("std.heap")`
+`std/heap/mod.x` · 51 APIs · `const heap = import("std.heap")`
 
 
 | 当前名称                               | 功能说明                                                          | 简化名称                               | 说明             | 绑定调用                                         |
 | ---------------------------------- | ------------------------------------------------------------- | ---------------------------------- | -------------- | -------------------------------------------- |
-| `heap_mem_set_c` | F-03 v1：纯 .sx 实现（ops.sx）；保留名供 std.mem 链接。 | `mem_set` | 去模块前缀+去类型名（C层） | `heap.mem_set(...)` |
-| `heap_mem_compare_c` | F-03 v1：纯 .sx 实现（ops.sx）。 | `mem_compare` | 去模块前缀+去类型名（C层） | `heap.mem_compare(...)` |
-| `map_i32_i32_find_c` | 线性探测查找 key；F-03 v1 纯 .sx（ops.sx）。 | `map_find` | 去模块前缀+去类型名（C层） | `heap.map_find(...)` |
+| `heap_mem_set_c` | F-03 v1：纯 .x 实现（ops.x）；保留名供 std.mem 链接。 | `mem_set` | 去模块前缀+去类型名（C层） | `heap.mem_set(...)` |
+| `heap_mem_compare_c` | F-03 v1：纯 .x 实现（ops.x）。 | `mem_compare` | 去模块前缀+去类型名（C层） | `heap.mem_compare(...)` |
+| `map_i32_i32_find_c` | 线性探测查找 key；F-03 v1 纯 .x（ops.x）。 | `map_find` | 去模块前缀+去类型名（C层） | `heap.map_find(...)` |
 | `heap_trace_enabled` | trace 是否启用（1/0）。 | `trace_on` | 去模块前缀+去类型名；三轮精简 | `heap.trace_on(...)` |
 | `heap_trace_reset`                 | 重置 trace 计数器。                                                 | `trace_reset`                      | 去模块前缀+去类型名     | `heap.trace_reset(...)`                      |
 | `heap_trace_stats`                 | 读取 trace 统计到 st。                                              | `trace_stats`                      | 去模块前缀+去类型名     | `heap.trace_stats(...)`                      |
@@ -1574,7 +1574,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.http
 
-`std/http/mod.sx` · 540 APIs · `const http = import("std.http")`
+`std/http/mod.x` · 540 APIs · `const http = import("std.http")`
 
 
 | 当前名称                                            | 功能说明                                                                      | 简化名称                                    | 说明                        | 绑定调用                                              |
@@ -2122,7 +2122,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.io
 
-`std/io/mod.sx` · 59 APIs · `const io = import("std.io")`
+`std/io/mod.x` · 59 APIs · `const io = import("std.io")`
 
 
 | 当前名称                          | 功能说明                                                                                                                              | 简化名称                          | 说明         | 绑定调用                                  |
@@ -2190,7 +2190,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.json
 
-`std/json/mod.sx` · 76 APIs · `const json = import("std.json")`
+`std/json/mod.x` · 76 APIs · `const json = import("std.json")`
 
 
 | 当前名称                                 | 功能说明                                                               | 简化名称                          | 说明             | 绑定调用                                    |
@@ -2275,7 +2275,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.log
 
-`std/log/mod.sx` · 22 APIs · `const log = import("std.log")`
+`std/log/mod.x` · 22 APIs · `const log = import("std.log")`
 
 
 | 当前名称                        | 功能说明                                                                                                                      | 简化名称                  | 说明                                             | 绑定调用                           |
@@ -2306,14 +2306,14 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.map
 
-`std/map/mod.sx` · 46 APIs · `const map = import("std.map")`
+`std/map/mod.x` · 46 APIs · `const map = import("std.map")`
 
 
 | 当前名称                          | 功能说明                                                    | 简化名称                | 说明         | 绑定调用                         |
 | ----------------------------- | ------------------------------------------------------- | ------------------- | ---------- | ---------------------------- |
 | `map_default_capacity`        | 默认初始容量（槽位数）；负载因子超过约 0.7 时扩容。                            | `default_capacity`  | 去模块前缀+去类型名 | `map.default_capacity(...)`  |
 | `map_i32_i32_slot`            | 取 key 的槽位下标（0..cap-1）；仅用于内部。                            | `slot`              | 去模块前缀+去类型名 | `map.slot(...)`              |
-| `map_i32_i32_find`            | 查找 key 所在槽位；若存在返回槽位下标，否则返回 -1。F-03 v1：ops.sx 线性探测。 | `find`              | 去模块前缀+去类型名 | `map.find(...)`              |
+| `map_i32_i32_find`            | 查找 key 所在槽位；若存在返回槽位下标，否则返回 -1。F-03 v1：ops.x 线性探测。 | `find`              | 去模块前缀+去类型名 | `map.find(...)`              |
 | `map_i32_i32_new`             | 新建空 Map_i32_i32（cap 0，ptr 均为 null）。                     | `new`               | 去模块前缀+去类型名 | `map.new(...)`               |
 | `map_i32_i32_with_capacity`   | 预分配 capacity 个槽位；失败返回 -1，成功返回 0。                        | `with_capacity`     | 去模块前缀+去类型名 | `map.with_capacity(...)`     |
 | `map_i32_i32_grow`            | 扩容为 new_cap 并 rehash 所有条目；失败返回 -1，成功返回 0。               | `grow`              | 去模块前缀+去类型名 | `map.grow(...)`              |
@@ -2361,7 +2361,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.math
 
-`std/math/mod.sx` · 64 APIs · `const math = import("std.math")`
+`std/math/mod.x` · 64 APIs · `const math = import("std.math")`
 
 
 | 当前名称                    | 功能说明                                                                                                                         | 简化名称               | 说明             | 绑定调用                         |
@@ -2434,7 +2434,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.mem
 
-`std/mem/mod.sx` · 8 APIs · `const mem = import("std.mem")`
+`std/mem/mod.x` · 8 APIs · `const mem = import("std.mem")`
 
 
 | 当前名称              | 功能说明                                          | 简化名称              | 说明    | 绑定调用                       |
@@ -2451,7 +2451,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.metrics
 
-`std/metrics/mod.sx` · 44 APIs · `const metrics = import("std.metrics")`
+`std/metrics/mod.x` · 44 APIs · `const metrics = import("std.metrics")`
 
 
 | 当前名称                             | 功能说明                                                           | 简化名称                             | 说明         | 绑定调用                                          |
@@ -2504,7 +2504,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.net
 
-`std/net/mod.sx` · 94 APIs · `const net = import("std.net")`
+`std/net/mod.x` · 94 APIs · `const net = import("std.net")`
 
 
 | 当前名称                               | 功能说明                                                                                                                                                                         | 简化名称                         | 说明             | 绑定调用                                  |
@@ -2533,7 +2533,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `net_resolve_ipv4_ex_c` | STD-029：可诊断 IPv4 DNS；失败 -1 并写 out_err。 | `resolve_ipv4_ex` | 去模块前缀+去类型名（C层） | `net.resolve_ipv4_ex(...)` |
 | `net_resolve_ipv6_ex_c` | STD-029：可诊断 IPv6 DNS；失败 -1 并写 out_err；成功写 16 字节地址。 | `resolve_ipv6_ex` | 去模块前缀+去类型名（C层） | `net.resolve_ipv6_ex(...)` |
 | `net_stream_read_batch_provided_c` | ZC-1：批量 provided recv 薄包装（Linux io_uring）。 | `read_batch_provided` | 二次精简：去对象前缀 | `net.read_batch_provided(...)` |
-| `net_tls_alpn_h2_http1_wire_c` | ALPN 线格式（h2 + http/1.1）；由 alpn.sx 提供（F-04 v10）。 | `tls_alpn_h2_http1_wire` | 去模块前缀+去类型名（C层） | `net.tls_alpn_h2_http1_wire(...)` |
+| `net_tls_alpn_h2_http1_wire_c` | ALPN 线格式（h2 + http/1.1）；由 alpn.x 提供（F-04 v10）。 | `tls_alpn_h2_http1_wire` | 去模块前缀+去类型名（C层） | `net.tls_alpn_h2_http1_wire(...)` |
 | `addr_to_u32`                      | 将 Ipv4Addr 转为 C 层使用的 u32（大端：(a<<24)|(b<<16)|(c<<8)| `net.(b<<16)\(...)`                                                                                                      | `addr_to_packed`             | 语义重命名          | `net.addr_to_packed(...)`             |
 | `u32_to_ipv4`                      | 将 C 层返回的 u32（主机序）转为 Ipv4Addr。                                                                                                                                                | `packed_to_ipv4`             | 语义重命名          | `net.packed_to_ipv4(...)`             |
 | `connect`                          | 连接至 addr:port；timeout_ms 毫秒（0=无超时）。返回 TcpStream（失败 fd=-1）；Socket 为非阻塞。                                                                                                       | `connect`                    | 已符合命名          | `net.connect(...)`                    |
@@ -2606,7 +2606,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.option
 
-`std/option/mod.sx` · 11 APIs · `const option = import("std.option")`
+`std/option/mod.x` · 11 APIs · `const option = import("std.option")`
 
 
 | 当前名称                     | 功能说明                                   | 简化名称          | 说明         | 绑定调用                      |
@@ -2626,13 +2626,13 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.path
 
-`std/path/mod.sx` · 15 APIs · `const path = import("std.path")`
+`std/path/mod.x` · 15 APIs · `const path = import("std.path")`
 
 
 | 当前名称                      | 功能说明                                                                                                  | 简化名称                 | 说明             | 绑定调用                           |
 | ------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------- | -------------- | ------------------------------ |
 | `path_empty_len`          | 空路径长度 0；与 path_join 等配合使用。                                                                            | `empty_len`          | 去模块前缀+去类型名     | `path.empty_len(...)`          |
-| `path_sep_c` | 平台主路径分隔符：POSIX '/'(47)；Windows ''(92)。F-path v1：原 path.c 已内联 .sx。 | `sep` | 去模块前缀+去类型名（C层） | `path.sep(...)` |
+| `path_sep_c` | 平台主路径分隔符：POSIX '/'(47)；Windows ''(92)。F-path v1：原 path.c 已内联 .x。 | `sep` | 去模块前缀+去类型名（C层） | `path.sep(...)` |
 | `path_sep`                | 当前平台路径分隔符（POSIX '/'=47；Windows ''=92；对标 Zig sep、Go filepath.Separator）。                               | `sep`                | 去模块前缀+去类型名     | `path.sep(...)`                |
 | `path_join`               | 路径拼接：将 a[0..a_len-1] 与 b[0..b_len-1] 写入 out，中间按需加 '/'，不超过 out_max。返回写入长度，溢出返回 -1。                     | `join`               | 去模块前缀+去类型名     | `path.join(...)`               |
 | `path_last_slash`         | 找 path[0..path_len-1] 中最后一个 '/' 的下标，不存在返回 -1。                                                         | `last_slash`         | 去模块前缀+去类型名     | `path.last_slash(...)`         |
@@ -2650,7 +2650,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.process
 
-`std/process/mod.sx` · 43 APIs · `const process = import("std.process")`
+`std/process/mod.x` · 43 APIs · `const process = import("std.process")`
 
 
 | 当前名称                                 | 功能说明                                                        | 简化名称                       | 说明             | 绑定调用                                    |
@@ -2702,7 +2702,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.queue
 
-`std/queue/mod.sx` · 29 APIs · `const queue = import("std.queue")`
+`std/queue/mod.x` · 29 APIs · `const queue = import("std.queue")`
 
 
 | 当前名称                            | 功能说明                                                                | 简化名称                          | 说明             | 绑定调用                                     |
@@ -2721,7 +2721,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `queue_i32_clear`               | 清空，不释放内存。                                                           | `clear`                       | 去模块前缀+去类型名     | `queue.clear(...)`                       |
 | `queue_i32_reserve`             | 确保容量至少 new_cap；失败返回 -1。                                             | `reserve`                     | 去模块前缀+去类型名     | `queue.reserve(...)`                     |
 | `queue_i32_deinit`              | 释放；调用后不可再用。                                                         | `deinit`                      | 去模块前缀+去类型名     | `queue.deinit(...)`                      |
-| `sync_queue_contention_smoke_c` | C 层双线程竞争 push 烟测（queue.sx + runtime_queue_contention.c）；0 通过，-1 失败。 | `sync_queue_contention_smoke` | 去模块前缀+去类型名（C层）；Tier-X 不 export | `queue.sync_queue_contention_smoke(...)` |
+| `sync_queue_contention_smoke_c` | C 层双线程竞争 push 烟测（queue.x + runtime_queue_contention.c）；0 通过，-1 失败。 | `sync_queue_contention_smoke` | 去模块前缀+去类型名（C层）；Tier-X 不 export | `queue.sync_queue_contention_smoke(...)` |
 | `sync_queue_i32_new` | 创建空 SyncQueue_i32；mutex 分配失败时 lock 为 null。 | `sync_new` | 去模块前缀+去类型名；三轮精简 | `queue.sync_new(...)` |
 | `sync_queue_i32_deinit` | 销毁队列并释放 mutex。 | `sync_deinit` | 去模块前缀+去类型名；三轮精简 | `queue.sync_deinit(...)` |
 | `sync_queue_i32_push_back` | 加锁队尾插入；失败 -1。 | `sync_push` | 去模块前缀+去类型名；三轮精简 | `queue.sync_push(...)` |
@@ -2740,7 +2740,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.random
 
-`std/random/mod.sx` · 18 APIs · `const random = import("std.random")`
+`std/random/mod.x` · 18 APIs · `const random = import("std.random")`
 
 
 | 当前名称                  | 功能说明                                                      | 简化名称             | 说明             | 绑定调用                         |
@@ -2767,7 +2767,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.regex
 
-`std/regex/mod.sx` · 12 APIs · `const regex = import("std.regex")`
+`std/regex/mod.x` · 12 APIs · `const regex = import("std.regex")`
 
 
 | 当前名称                   | 功能说明                                                                                                 | 简化名称           | 说明             | 绑定调用                      |
@@ -2788,7 +2788,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.result
 
-`std/result/mod.sx` · 11 APIs · `const result = import("std.result")`
+`std/result/mod.x` · 11 APIs · `const result = import("std.result")`
 
 
 | 当前名称                     | 功能说明                                              | 简化名称              | 说明         | 绑定调用                          |
@@ -2808,7 +2808,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.runtime
 
-`std/runtime/mod.sx` · 9 APIs · `const runtime = import("std.runtime")`
+`std/runtime/mod.x` · 9 APIs · `const runtime = import("std.runtime")`
 
 
 | 当前名称                               | 功能说明                                                                                      | 简化名称                     | 说明             | 绑定调用                                  |
@@ -2826,7 +2826,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.schema
 
-`std/schema/mod.sx` · 37 APIs · `const schema = import("std.schema")`
+`std/schema/mod.x` · 37 APIs · `const schema = import("std.schema")`
 
 
 | 当前名称                          | 功能说明                                                  | 简化名称                 | 说明             | 绑定调用                             |
@@ -2872,7 +2872,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.security
 
-`std/security/mod.sx` · 20 APIs · `const security = import("std.security")`
+`std/security/mod.x` · 20 APIs · `const security = import("std.security")`
 
 
 | 当前名称                        | 功能说明                                                | 简化名称                 | 说明                | 绑定调用                               |
@@ -2901,7 +2901,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.set
 
-`std/set/mod.sx` · 42 APIs · `const set = import("std.set")`
+`std/set/mod.x` · 42 APIs · `const set = import("std.set")`
 
 
 | 当前名称                      | 功能说明                                                                          | 简化名称                | 说明         | 绑定调用                         |
@@ -2952,7 +2952,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.simd
 
-`std/simd/mod.sx` · 31 APIs · `const simd = import("std.simd")`
+`std/simd/mod.x` · 31 APIs · `const simd = import("std.simd")`
 
 
 | 当前名称                    | 功能说明                                                                                                                                                       | 简化名称                  | 说明             | 绑定调用                            |
@@ -2992,12 +2992,12 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.socketio
 
-`std/socketio/mod.sx` · 241 APIs · `const socket = import("std.socketio")`
+`std/socketio/mod.x` · 241 APIs · `const socket = import("std.socketio")`
 
 
 | 当前名称                                     | 功能说明                                                                                                                                                                                 | 简化名称                                 | 说明             | 绑定调用                                             |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ | -------------- | ------------------------------------------------ |
-| `net_ws_connect_url_c` | std.socketio — Engine.IO / Socket.IO v0 包 + v1 polling + v2 connect + v7 ns 路由 + v11 hub sync（STD-SOCKETIO-001 · P3 可选） 【文件职责】导出 socketio.sx（F-socketio v2 纯 .sx 逻辑）；v2 connect 编排 s | `connect_url` | 去模块前缀+去类型名（C层） | `socket.connect_url(...)` |
+| `net_ws_connect_url_c` | std.socketio — Engine.IO / Socket.IO v0 包 + v1 polling + v2 connect + v7 ns 路由 + v11 hub sync（STD-SOCKETIO-001 · P3 可选） 【文件职责】导出 socketio.x（F-socketio v2 纯 .x 逻辑）；v2 connect 编排 s | `connect_url` | 去模块前缀+去类型名（C层） | `socket.connect_url(...)` |
 | `net_ws_write_text_c` | extern C/平台 | `write_text` | 去模块前缀+去类型名（C层） | `socket.write_text(...)` |
 | `net_ws_write_server_text_c` | extern C/平台 | `write_server_text` | 去模块前缀+去类型名（C层） | `socket.write_server_text(...)` |
 | `net_ws_read_frame_c` | extern C/平台 | `read_frame` | 去模块前缀+去类型名（C层） | `socket.read_frame(...)` |
@@ -3242,7 +3242,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.sort
 
-`std/sort/mod.sx` · 18 APIs · `const sort = import("std.sort")`
+`std/sort/mod.x` · 18 APIs · `const sort = import("std.sort")`
 
 
 | 当前名称                     | 功能说明                                                                                             | 简化名称             | 说明             | 绑定调用                       |
@@ -3269,7 +3269,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.string
 
-`std/string/mod.sx` · 62 APIs · `const str = import("std.string")`
+`std/string/mod.x` · 62 APIs · `const str = import("std.string")`
 
 
 | 当前名称                        | 功能说明                                                           | 简化名称                | 说明             | 绑定调用                         |
@@ -3340,7 +3340,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.sync
 
-`std/sync/mod.sx` · 53 APIs · `const sync = import("std.sync")`
+`std/sync/mod.x` · 53 APIs · `const sync = import("std.sync")`
 
 
 | 当前名称                              | 功能说明                                                                  | 简化名称                       | 说明             | 绑定调用                                 |
@@ -3402,7 +3402,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.sys
 
-`std/sys/mod.sx` · 37 APIs · `const sys = import("std.sys")`
+`std/sys/mod.x` · 37 APIs · `const sys = import("std.sys")`
 
 
 | 当前名称                            | 功能说明                                     | 简化名称                            | 说明         | 绑定调用                                     |
@@ -3448,7 +3448,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.tar
 
-`std/tar/mod.sx` · 12 APIs · `const tar = import("std.tar")`
+`std/tar/mod.x` · 12 APIs · `const tar = import("std.tar")`
 
 
 | 当前名称                    | 功能说明                           | 简化名称              | 说明             | 绑定调用                       |
@@ -3469,7 +3469,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.task
 
-`std/task/mod.sx` · 38 APIs · `const task = import("std.task")`
+`std/task/mod.x` · 38 APIs · `const task = import("std.task")`
 
 
 | 当前名称                        | 功能说明                            | 简化名称                  | 说明             | 绑定调用                            |
@@ -3516,7 +3516,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.test
 
-`std/test/mod.sx` · 32 APIs · `const test = import("std.test")`
+`std/test/mod.x` · 32 APIs · `const test = import("std.test")`
 
 
 | 当前名称                        | 功能说明                                                                                                                              | 简化名称                 | 说明             | 绑定调用                           |
@@ -3557,7 +3557,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.thread
 
-`std/thread/mod.sx` · 29 APIs · `const thread = import("std.thread")`
+`std/thread/mod.x` · 29 APIs · `const thread = import("std.thread")`
 
 
 | 当前名称                          | 功能说明                                                 | 简化名称                 | 说明             | 绑定调用                             |
@@ -3595,7 +3595,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.time
 
-`std/time/mod.sx` · 39 APIs · `const time = import("std.time")`
+`std/time/mod.x` · 39 APIs · `const time = import("std.time")`
 
 
 | 当前名称                           | 功能说明                                     | 简化名称                    | 说明             | 绑定调用                              |
@@ -3643,7 +3643,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.trace
 
-`std/trace/mod.sx` · 34 APIs · `const trace = import("std.trace")`
+`std/trace/mod.x` · 34 APIs · `const trace = import("std.trace")`
 
 
 | 当前名称                       | 功能说明                                            | 简化名称                  | 说明             | 绑定调用                             |
@@ -3686,7 +3686,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.unicode
 
-`std/unicode/mod.sx` · 23 APIs · `const unicode = import("std.unicode")`
+`std/unicode/mod.x` · 23 APIs · `const unicode = import("std.unicode")`
 
 
 | 当前名称                            | 功能说明                                                                                                                        | 简化名称                  | 说明             | 绑定调用                               |
@@ -3718,7 +3718,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.url
 
-`std/url/mod.sx` · 19 APIs · `const url = import("std.url")`
+`std/url/mod.x` · 19 APIs · `const url = import("std.url")`
 
 
 | 当前名称                     | 功能说明                                      | 简化名称               | 说明             | 绑定调用                        |
@@ -3746,7 +3746,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.uuid
 
-`std/uuid/mod.sx` · 13 APIs · `const uuid = import("std.uuid")`
+`std/uuid/mod.x` · 13 APIs · `const uuid = import("std.uuid")`
 
 
 | 当前名称             | 功能说明                                               | 简化名称       | 说明                | 绑定调用                 |
@@ -3768,7 +3768,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.vec
 
-`std/vec/mod.sx` · 86 APIs · `const vec = import("std.vec")`
+`std/vec/mod.x` · 86 APIs · `const vec = import("std.vec")`
 
 
 | 当前名称                                | 功能说明                                                                 | 简化名称                         | 说明         | 绑定调用                                  |
@@ -3863,7 +3863,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 
 ### std.websocket
 
-`std/websocket/mod.sx` · 58 APIs · `const ws = import("std.websocket")`
+`std/websocket/mod.x` · 58 APIs · `const ws = import("std.websocket")`
 
 
 | 当前名称                             | 功能说明                                                                         | 简化名称                          | 说明             | 绑定调用                                  |
@@ -3925,7 +3925,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | `ws_client_handshake_smoke` | C 层握手 socketpair 烟测；0 通过。 | `handshake_smoke` | 去模块前缀+去类型名；Tier-X 不 export | `ws.handshake_smoke(...)` |
 | `ws_parse_url_smoke` | ws(s):// URL 解析烟测；0 通过。 | `parse_url_smoke` | 去模块前缀+去类型名；Tier-X 不 export | `ws.parse_url_smoke(...)` |
 | `ws_server_accept_smoke` | 服务端 accept 烟测（请求解析 + socketpair 101）；0 通过。 | `accept_smoke` | 去模块前缀+去类型名；Tier-X 不 export | `ws.accept_smoke(...)` |
-| `ws_is_implemented`              | WebSocket 模块是否可用（F-04 v3 纯 .sx）。                                             | `is_implemented`              | 去模块前缀+去类型名     | `ws.is_implemented(...)`              |
+| `ws_is_implemented`              | WebSocket 模块是否可用（F-04 v3 纯 .x）。                                             | `is_implemented`              | 去模块前缀+去类型名     | `ws.is_implemented(...)`              |
 
 
 ---
@@ -4013,7 +4013,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 > **自举清单**：原则与改名同步义务见 [`analysis/自举前必须清单.md`](../analysis/自举前必须清单.md) **§4.4 S9**。
 
 1. 编译器：函数重载（支撑 `print` / `read` / `heap.alloc` 等同名合并）。
-2. `mod.sx` 仅 export **Tier-S / Tier-A** 简化名；**禁止新增**含标量类型 token 的公开 API。
+2. `mod.x` 仅 export **Tier-S / Tier-A** 简化名；**禁止新增**含标量类型 token 的公开 API。
 3. 旧 `_*_i32` / 长名保留一版 `@deprecated` alias（自举完成后分批删除）。
 4. 大模块（`http` / `socketio`）按 §二子路径表拆子 mod，避免 30+ 字符函数名。
 
@@ -4028,7 +4028,7 @@ const sync = import("std.sync");  sync.new_mutex();  // not sync.sync_mutex_new
 | **Tier-B** 子模块 | 按域拆分 | 子 mod | `hcli.client_get` `mtx.lock` |
 | **Tier-X** 内部 | 任意 | ❌ | `*_smoke` `lock_diag_*` `coop_pingpong`（bench） |
 
-清单表中「说明」列含 **Tier-X 不 export** 的条目，实施时不写入公开 `mod.sx`。
+清单表中「说明」列含 **Tier-X 不 export** 的条目，实施时不写入公开 `mod.x`。
 
 ---
 

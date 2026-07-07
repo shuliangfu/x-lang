@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# C-05 v1：LSP lsp_diag.sx 链入 + --lsp 烟测（方案 B 子集）。
+# C-05 v1：LSP lsp_diag.x 链入 + --lsp 烟测（方案 B 子集）。
 #
 # 用法：./tests/run-c05-lsp-sx-gate.sh
 # 环境：
@@ -13,7 +13,7 @@ FAIL=${SHUX_C05_FAIL:-0}
 DOC="analysis/phase-c-c05-v1.md"
 MANIFEST="tests/baseline/c05-lsp-sx-manifest.tsv"
 MF="compiler/Makefile"
-LSP_SX="compiler/src/lsp/lsp_diag.sx"
+LSP_SX="compiler/src/lsp/lsp_diag.x"
 SHUX_BIN="${SHUX:-./compiler/shux}"
 
 die() {
@@ -35,13 +35,13 @@ native_shu() {
   esac
 }
 
-echo "=== C-05: LSP lsp_diag.sx (v1) ==="
+echo "=== C-05: LSP lsp_diag.x (v1) ==="
 for f in "$DOC" "$MANIFEST" "$MF" "$LSP_SX" \
   compiler/src/lsp/lsp_diag_sx_alias.c tests/run-lsp.sh tests/run-lsp-completion.sh; do
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'C-05 v1' "$DOC" || die "doc missing C-05 v1 marker"
-grep -q 'pipeline_lsp_diag_parse_typeck_buf' "$LSP_SX" || die "lsp_diag.sx missing pipeline hook"
+grep -q 'pipeline_lsp_diag_parse_typeck_buf' "$LSP_SX" || die "lsp_diag.x missing pipeline hook"
 grep -q 'lsp_diag_gen.c' "$MF" || die "Makefile missing lsp_diag_gen.c rule"
 grep -q 'lsp_diag_sx.o' "$MF" || die "Makefile missing lsp_diag_sx.o"
 grep -q 'lsp_diag_sx_alias' "$MF" || die "Makefile missing lsp_diag_sx_alias"
@@ -78,4 +78,4 @@ if ! SHUX="$SHUX_BIN" ./tests/run-lsp.sh; then
   die "run-lsp.sh failed"
 fi
 
-echo "c05 lsp-sx gate OK (lsp_diag.sx wired + --lsp smoke)"
+echo "c05 lsp-sx gate OK (lsp_diag.x wired + --lsp smoke)"

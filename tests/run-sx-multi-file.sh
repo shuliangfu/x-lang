@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 阶段 5.2：验证 -sx 流水线多文件（import + 跨模块调用）；main.sx import foo，main 调 bar()，bar 在 foo.sx。
+# 阶段 5.2：验证 -sx 流水线多文件（import + 跨模块调用）；main.x import foo，main 调 bar()，bar 在 foo.x。
 # 在仓库根目录执行：./tests/run-sx-multi-file.sh
 # 已知问题：部分环境（如 CI）下 -sx -E 多文件只产出片段（如 "42   ()"）缺 bar，根因待查（pipeline 先 dep 再 main 的 codegen/写缓冲顺序）；CI 下该情况会 SKIP 以保 run-all 通过。
 set -e
@@ -45,7 +45,7 @@ if [ -n "${SHUX:-}" ]; then echo "run-sx-multi-file SKIP (SHUX set, -sx -E multi
 out=$(mktemp)
 err=$(mktemp)
 ec=0
-run_timeout 60 "$SX_SHUX" -sx -E tests/multi-file/main.sx > "$out" 2>"$err" || ec=$?
+run_timeout 60 "$SX_SHUX" -sx -E tests/multi-file/main.x > "$out" 2>"$err" || ec=$?
 [ "$ec" -eq 142 ] && ec=124
 _show_stderr() { echo "--- stderr ---"; cat "$err" 2>/dev/null || true; rm -f "$err"; }
 if [ "$ec" -eq 124 ]; then
@@ -60,7 +60,7 @@ if [ "$ec" -ne 0 ]; then
     echo "run-sx-multi-file SKIP (shux does not support -sx -E; use build_tool for full shux)"
     exit 0
   fi
-  echo "run-sx-multi-file: $SX_SHUX -sx -E tests/multi-file/main.sx failed (exit $ec)"
+  echo "run-sx-multi-file: $SX_SHUX -sx -E tests/multi-file/main.x failed (exit $ec)"
   cat "$out" 2>/dev/null || true
   _show_stderr
   rm -f "$out"

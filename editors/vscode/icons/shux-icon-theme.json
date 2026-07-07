@@ -20,16 +20,16 @@
     }
   },
   "fileExtensions": {
-    "sx": "file-sx"
+    "x": "file-sx"
   },
   "fileNames": {
-    "main.sx": "file-sx-main",
-    "mod.sx": "file-sx-compiler"
+    "main.x": "file-sx-main",
+    "mod.x": "file-sx-compiler"
   },
   "folderNames": {
     "compiler": "folder-shux",
     "src": "folder-shux-src",
     "shux": "folder-shux",
-    ".sx": "folder-shux-src"
+    ".x": "folder-shux-src"
   }
 }

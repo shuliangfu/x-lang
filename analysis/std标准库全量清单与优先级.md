@@ -25,10 +25,10 @@
 | 序号 | 状态 | 模块 | 路径 | 依赖 | 说明 |
 |------|:----:|------|------|------|------|
 | 1 | ✅ | **std.runtime** | std/runtime/ | core | 运行时初始化、panic/abort 钩子；extern 对接 runtime_panic。 |
-| 2 | ✅ | **std.io.core** | std/io/（core.sx） | core | 舒 IO 核心：shu_io_register、submit_read/submit_write，extern 调 io.c（io_uring/kqueue/IOCP）。 |
-| 3 | ✅ | **std.io.driver** | std/io/（driver.sx） | std.io.core | Buffer ABI 24 字节、Completion、submit_*_batch、register_fixed_buffers、wait_readable。 |
+| 2 | ✅ | **std.io.core** | std/io/（core.x） | core | 舒 IO 核心：shu_io_register、submit_read/submit_write，extern 调 io.c（io_uring/kqueue/IOCP）。 |
+| 3 | ✅ | **std.io.driver** | std/io/（driver.x） | std.io.core | Buffer ABI 24 字节、Completion、submit_*_batch、register_fixed_buffers、wait_readable。 |
 | 4 | ✅ | **std.mem** | std/mem/ | std.io.core, std.heap | Buffer(ptr,len,handle)、register_buffer；copy/set/compare 走 heap C 层。 |
-| 5 | ✅ | **std.io** | std/io/（mod.sx） | std.io.driver | 对外 API：Reader/Writer、read/write 超时、print_str、read_batch_fd_buf/write_batch_fd_buf、register_fixed_buffers_buf。 |
+| 5 | ✅ | **std.io** | std/io/（mod.x） | std.io.driver | 对外 API：Reader/Writer、read/write 超时、print_str、read_batch_fd_buf/write_batch_fd_buf、register_fixed_buffers_buf。 |
 | 6 | ✅ | **std.fs** | std/fs/ | core, 可选 std.io | open/read/write/close、mmap、readv/writev（fs_readv_buf/fs_writev_buf）；与 std.io 联合批量化。 |
 | 7 | ✅ | **std.process** | std/process/ | core | exit、args（argv）、环境变量占位；codegen 生成 exit(code)。 |
 | 8 | ✅ | **std.path** | std/path/ | core | 路径拼接、分解、规范化；(ptr,len) 处理，不依赖结尾 NUL。 |
@@ -67,7 +67,7 @@
 | 睡眠 | sleep(nanoseconds) | thread::sleep(Duration) | `sleep_ns(ns: i64): void`、`sleep_us(us: i64): void`、`sleep_ms(ms: i32): void`、`sleep_sec(s: i32): void` | nanosleep / Sleep()；可接受 spurious wakeup，不保证精度。 |
 | 时间差/间隔（可选） | 手算 diff | Duration | `duration_ns(from_ns: i64, to_ns: i64): i64` 等 | 纯算术，零成本。 |
 
-**实现路径**：std/time/ 下 mod.sx + time.c；extern C 封装 clock_gettime/gettimeofday/nanosleep/QueryPerformanceCounter/GetSystemTimePreciseAsFileTime/Sleep；全平台一套 .sx API，内部条件编译。**Benchmark**：单调时间取 100 万次取样的平均延迟，目标 ≤ Zig/Rust 同场景。
+**实现路径**：std/time/ 下 mod.x + time.c；extern C 封装 clock_gettime/gettimeofday/nanosleep/QueryPerformanceCounter/GetSystemTimePreciseAsFileTime/Sleep；全平台一套 .x API，内部条件编译。**Benchmark**：单调时间取 100 万次取样的平均延迟，目标 ≤ Zig/Rust 同场景。
 
 ---
 
@@ -80,7 +80,7 @@
 | 有界整数（闭区间） | intRangeAtMost | gen_range | `range_u32(lo: u32, hi: u32): u32`（[lo, hi] 含两端） | 拒绝采样法或均匀缩放，避免 bias；文档注明分布。 |
 | 布尔 | 由 int 得 | gen_bool | `bool(): i32`（0/1） | 单次 u32 高位或单字节。 |
 
-**实现路径**：std/random/ 下 mod.sx + random.c；仅提供 **CSPRNG**（getentropy/getrandom/BCryptGenRandom），不引入 PRNG 引擎（可放 P2/P3 的 std.hash 或独立 prng 模块）。**Benchmark**：fill_bytes 大块（如 1MB）吞吐与 Zig/Rust 的 OsRng/getentropy 对比，目标 ≥ 二者；小调用（u32/u64）延迟可接受。
+**实现路径**：std/random/ 下 mod.x + random.c；仅提供 **CSPRNG**（getentropy/getrandom/BCryptGenRandom），不引入 PRNG 引擎（可放 P2/P3 的 std.hash 或独立 prng 模块）。**Benchmark**：fill_bytes 大块（如 1MB）吞吐与 Zig/Rust 的 OsRng/getentropy 对比，目标 ≥ 二者；小调用（u32/u64）延迟可接受。
 
 ---
 
@@ -94,7 +94,7 @@
 | 当前工作目录 | getCwd | current_dir() | 建议**不重复**：继续使用 std.process.getcwd / getcwd_ptr | 避免两处实现。 |
 | 临时目录 | — | temp_dir() | `temp_dir(out: *u8, cap: i32): i32`（可选，P1 可占位） | getenv("TMPDIR")/TEMP/TMP + 回退 /tmp；P1 可只做 getenv 部分。 |
 
-**实现路径**：std/env/ 下 mod.sx；可复用 std.process 的 getenv_c/setenv_c/unsetenv_c，或独立 time.c 风格 C 层。API 上提供 **key 为 (ptr,len)** 的 getenv/getenv_exists，与 std.string/StrView 友好；**性能**：getenv 热点路径无多余分配，目标与 Zig/Rust 同量级。
+**实现路径**：std/env/ 下 mod.x；可复用 std.process 的 getenv_c/setenv_c/unsetenv_c，或独立 time.c 风格 C 层。API 上提供 **key 为 (ptr,len)** 的 getenv/getenv_exists，与 std.string/StrView 友好；**性能**：getenv 热点路径无多余分配，目标与 Zig/Rust 同量级。
 
 ---
 
@@ -107,7 +107,7 @@
 | 格式化到 String（可选） | ArrayList + format | format! -> String | `format_i32(x: i32): String` 等返回固定或堆分配字符串（视语言能力）；或 `format_into(s: *String, ...): i32` | 若 String 为固定 256 字节，则 format_into 更稳妥；大数可考虑堆扩展（依赖 std.heap）。 |
 | 多参数格式化（占位符） | format | format!("{} {}", a, b) | 阶段目标：**按序拼接** `format_2(buf, cap, a, b)` 或 `format_to_buf(buf, cap, fmt_spec, a, b)`；完整 printf 风格占位符可 P2 | 先保证常用类型多段拼接无额外拷贝；占位符解析可后续扩展。 |
 
-**实现路径**：std/fmt/ 下 mod.sx；依赖 core.fmt + std.io。**完整功能**：重导出 core.fmt 全部 *_to_buf；提供 print/println 与 std.io 结合；提供至少 format_2 或 format_to_buf 多参数写入 buffer；若类型支持可提供 format_into(String)。**性能**：格式化整数/浮点与 Zig/Rust 同量级；打印路径无多余内存分配，目标不低于二者。
+**实现路径**：std/fmt/ 下 mod.x；依赖 core.fmt + std.io。**完整功能**：重导出 core.fmt 全部 *_to_buf；提供 print/println 与 std.io 结合；提供至少 format_2 或 format_to_buf 多参数写入 buffer；若类型支持可提供 format_into(String)。**性能**：格式化整数/浮点与 Zig/Rust 同量级；打印路径无多余内存分配，目标不低于二者。
 
 ---
 
@@ -207,7 +207,7 @@
 
 ## 九、约定（与项目宗旨一致）
 
-- **全平台一套 API**：用户只写一套 .sx；平台差异在模块内部用条件编译或 extern C 解决。  
+- **全平台一套 API**：用户只写一套 .x；平台差异在模块内部用条件编译或 extern C 解决。  
 - **按需链接**：未 import 的模块不进入二进制；嵌入式可用最小 std 子集或仅 core。  
 - **轻量**：不引入巨型第三方依赖；可选模块（P4）尤其控制体积与依赖。  
 - **core 与 std 边界**：core 无 OS 依赖；std 依赖 OS 或 C 运行时（如 heap、thread、time、random）。  

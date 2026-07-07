@@ -1,7 +1,7 @@
 {
   "name": "vscode-shux",
   "displayName": "Shux Language",
-  "description": "Shux (.sx) 完整开发体验：语法高亮、LSP、智能补全、参数提示、悬停、大纲、折叠、片段、任务、错误跳转、实时缩进、选区扩展与状态栏",
+  "description": "Shux (.x) 完整开发体验：语法高亮、LSP、智能补全、参数提示、悬停、大纲、折叠、片段、任务、错误跳转、实时缩进、选区扩展与状态栏",
   "version": "0.2.0",
   "license": "MIT",
   "publisher": "shux",
@@ -31,7 +31,7 @@
       {
         "id": "sx",
         "extensions": [
-          ".sx"
+          ".x"
         ],
         "aliases": [
           "Shux",
@@ -47,7 +47,7 @@
     "grammars": [
       {
         "language": "sx",
-        "scopeName": "source.sx",
+        "scopeName": "source.x",
         "path": "./grammars/sx.tmLanguage.json"
       }
     ],
@@ -85,7 +85,7 @@
         "shux.format.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "启用 Shux 代码格式化。关闭后 `.sx` 文件的 **格式化文档** 命令不生效，同时禁用编辑器格式化快捷键。",
+          "markdownDescription": "启用 Shux 代码格式化。关闭后 `.x` 文件的 **格式化文档** 命令不生效，同时禁用编辑器格式化快捷键。",
           "scope": "resource"
         },
         "shux.format.tabSize": {
@@ -197,7 +197,7 @@
         "shux.features.formatOnBlur": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "`.sx` 编辑器失去焦点（切换标签页或文件）时自动格式化上一个文档。",
+          "markdownDescription": "`.x` 编辑器失去焦点（切换标签页或文件）时自动格式化上一个文档。",
           "scope": "resource"
         },
         "shux.compiler.diagnosticLevel": {
@@ -215,7 +215,7 @@
             "显示警告和错误（默认）",
             "显示信息、警告和错误"
           ],
-          "markdownDescription": "编译器诊断报告的最低级别。影响问题面板中 `.sx` 文件的诊断标记。",
+          "markdownDescription": "编译器诊断报告的最低级别。影响问题面板中 `.x` 文件的诊断标记。",
           "scope": "resource"
         },
         "shux.compiler.extraArgs": {
@@ -278,7 +278,7 @@
       },
       {
         "command": "shux.runFile",
-        "title": "运行当前 .sx 文件",
+        "title": "运行当前 .x 文件",
         "category": "Shux"
       },
       {

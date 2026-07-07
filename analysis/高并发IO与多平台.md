@@ -57,7 +57,7 @@
 ## 五、网络接口预留（高吞吐、高并发）
 
 - **定位**：网络与 IO 共用同一套「Buffer + submit + completion」抽象；**数据读写**统一走 std.io.driver，**连接生命周期**由 std.net 提供 API。
-- **std.net 为对外 API 层**：提供 Ipv4Addr、TcpStream、TcpListener、connect、listen、accept；自举前仅占位，**不做单独 net/core.sx**，调度与实现细节自举后在 mod 内或下层（driver/核心）完成。
+- **std.net 为对外 API 层**：提供 Ipv4Addr、TcpStream、TcpListener、connect、listen、accept；自举前仅占位，**不做单独 net/core.x**，调度与实现细节自举后在 mod 内或下层（driver/核心）完成。
 - **超时**：connect(addr, port, timeout_ms)、accept(listener, timeout_ms) 已预留 timeout_ms（0=无超时），与 driver 的 submit 超时一致。
 - **Completion 与批量**：自举后 accept/connect 可与 driver 的 Completion 对接、支持无锁完成路径；**预留**批量 accept、批量 connect（或 TcpStream[] 等），与 Buffer[] 多段扩展同思路。
 - **TcpStream 与 handle**：自举后 TcpStream/TcpListener 的句柄可与 driver 的 handle 统一（如 usize），便于在 submit_read/submit_write 时用同一套 Buffer(ptr, len, handle)。

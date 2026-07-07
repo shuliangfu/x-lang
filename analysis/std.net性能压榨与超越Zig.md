@@ -75,7 +75,7 @@
 - **收益**：高 PPS UDP 场景下，系统边界与上下文切换大幅下降。
 - **实现要点**：
   - net.c 增加 `net_udp_recv_many_c`/`net_udp_send_many_c`（Linux 走 recvmmsg/sendmmsg，其他平台循环或条件编译回退）。
-  - mod.sx 增加 `udp_recv_many`/`udp_send_many`，参数为多 (buf, len) 或多 (addr, port, buf, len)。
+  - mod.x 增加 `udp_recv_many`/`udp_send_many`，参数为多 (buf, len) 或多 (addr, port, buf, len)。
 - **与 Zig 对比**：Zig std.net UDP 通常为单报文 API；我们提供 many 即在高 PPS 场景超越。
 
 ### 阶段 6（可选）：换赛道 — 内核 bypass / 自研路径
@@ -97,7 +97,7 @@
 - **完整接 DPDK/旁路**：属于**长期可选**。需要引入大依赖（DPDK 构建、PMD、大页等）或内核/驱动开发，且 DPDK 本身不提供「标准 TCP socket」——要么在 DPDK 上跑 lwIP 等栈，要么做裸包/自定义协议，工作量与当前 std.net 不在同一量级。
 - **当前可做**：
   1. **抽象预留**：保持 std.net 与 std.io 的「Buffer + submit + completion」抽象，不把「内核 socket」写死；日后在平台或编译选项下可切换后端（如 `SHUX_NET_BACKEND=uring|dpdk|xdp`），而不改用户 API。
-  2. **文档与接口约定**：在分析/设计中写明「阶段 6 后端」的接口契约（例如：connect/accept/read/write 由哪一层 C 或 .sx 实现、如何与 Buffer 对接），便于以后接 DPDK/AF_XDP 时只换实现、不拆 API。
+  2. **文档与接口约定**：在分析/设计中写明「阶段 6 后端」的接口契约（例如：connect/accept/read/write 由哪一层 C 或 .x 实现、如何与 Buffer 对接），便于以后接 DPDK/AF_XDP 时只换实现、不拆 API。
   3. **不落实现**：暂不引入 DPDK 或内核模块代码，也不在构建里加 DPDK 依赖；阶段 6 作为路线图占位与设计预留即可。
 
 ---
@@ -163,7 +163,7 @@
 ## 五、实现顺序建议（与现有代码的衔接）
 
 1. **先做阶段 1**：在 io.c 中为 Linux 增加 uring 的 accept/connect 封装，net.c 的 connect/accept（Linux）改为调 uring，保持现有 API 不变。
-2. **再做阶段 2**：在 driver 层增加 submit_accept_many/submit_connect_many（或等价），mod.sx 的 accept_many/connect_many 改为调上述接口并填 TcpStream[]。
+2. **再做阶段 2**：在 driver 层增加 submit_accept_many/submit_connect_many（或等价），mod.x 的 accept_many/connect_many 改为调上述接口并填 TcpStream[]。
 3. **阶段 3**：为 TcpStream 增加 read_batch/write_batch（或 stream_read_batch/stream_write_batch），内部用 driver 的 submit_read_batch/submit_write_batch + stream.fd。
 4. **阶段 4、5**：按需做 fixed 注册与 UDP many；阶段 6 作为长期可选。
 5. **多核易用** ✅：std.thread 已提供 spawn/join/affinity；std.net 增加 **run_accept_workers(listener, n_workers, timeout_ms)**，内部起 n 个线程，每线程循环 accept_many 后立即 close（压测建连吞吐）；主线程阻塞 join。用户无需手写 pthread，见 §四.2。自定义业务逻辑仍可用 std.thread 自起线程 + accept_many 循环。

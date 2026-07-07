@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sx PARSE_BOOTSTRAP_EMIT 轨道门禁：全量 parser.sx 真 emit parse_into* 在 seed/shux_asm 上仍 139（已知）。
+# sx PARSE_BOOTSTRAP_EMIT 轨道门禁：全量 parser.x 真 emit parse_into* 在 seed/shux_asm 上仍 139（已知）。
 # C seed TU（parser_asm_parse_bootstrap_obj.c）为默认路径；本门禁记录 sx 探测结果，防回归为「静默成功但无 .o」。
 # 用法：
 #   ./tests/run-parser-parse-bootstrap-sx-emit-gate.sh
@@ -35,7 +35,7 @@ set +e
   cd compiler
   env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
     SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
-    ./shux -backend asm -o "$OUT" $LIBROOT src/parser/parser.sx
+    ./shux -backend asm -o "$OUT" $LIBROOT src/parser/parser.x
 ) > "$LOG" 2>&1
 EC=$?
 set -e
@@ -87,7 +87,7 @@ set +e
   env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
     SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL=1 \
     SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
-    ./shux -backend asm -o "$MIN_OUT" $LIBROOT src/parser/parser.sx
+    ./shux -backend asm -o "$MIN_OUT" $LIBROOT src/parser/parser.x
 ) > "$MIN_LOG" 2>&1
 MIN_EC=$?
 set -e

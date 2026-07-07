@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# parser/lexer/typeck/codegen/ast .sx → gen.c → .o 跨平台门禁（仅 shux-c 生成 + cc 编译，勿 relink shux_asm）。
+# parser/lexer/typeck/codegen/ast .x → gen.c → .o 跨平台门禁（仅 shux-c 生成 + cc 编译，勿 relink shux_asm）。
 # Mac/Linux 均可跑；refresh gate 前置快速失败。
 # 用法：./tests/run-migrate-sx-gen-gate.sh
 # 环境：SHUX_FORCE_MIGRATE_SX_GEN=1 强制重编（忽略 mtime）；兼容 SHUX_FORCE_MIGRATE_SX_GEN。
@@ -12,11 +12,11 @@ fi
 
 # M-3：ast/typeck/codegen 变更须与 parser 一并重编
 SX_SRC=(
-  compiler/src/parser/parser.sx
-  compiler/src/lexer/lexer.sx
-  compiler/src/typeck/typeck.sx
-  compiler/src/codegen/codegen.sx
-  compiler/src/ast/ast.sx
+  compiler/src/parser/parser.x
+  compiler/src/lexer/lexer.x
+  compiler/src/typeck/typeck.x
+  compiler/src/codegen/codegen.x
+  compiler/src/ast/ast.x
 )
 SX_OBJ=(
   compiler/parser_sx.o

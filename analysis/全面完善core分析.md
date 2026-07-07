@@ -40,7 +40,7 @@
 
 ### 2.2 测试覆盖情况
 
-- **直接测 core**：run-import（core.types）、run-option、run-result、run-mem、run-slice（length.sx）、run-fmt、run-debug、run-builtin、run-core-types-size（core.types + core.debug）。
+- **直接测 core**：run-import（core.types）、run-option、run-result、run-mem、run-slice（length.x）、run-fmt、run-debug、run-builtin、run-core-types-size（core.types + core.debug）。
 - **间接**：run-stdlib-import 同时 import("core.types") / core.option / core.result 并调用 placeholder/option_placeholder/result_placeholder。
 - **缺口**：core.mem 仅测 align_of_i32；core.slice 仅测 len_i32；core.fmt 仅测 fmt_i32；无负例（如 assert(false) 期望 panic）的专项测试。
 
@@ -115,7 +115,7 @@
   - 若编译器暂无内建 size_of(T)/align_of(T)，保持当前「按类型分函数」；若有内建，在注释中说明「内建优先，本模块为兼容/fallback」。
 - **core.mem** ✅
   - ✅ 补全 **align_of_***（或委托 core.types 避免重复）。
-  - ✅ 增加 **mem_copy(dst, src, n)**：按字节拷贝，不重叠；语义与 C memcpy 一致（当前 .sx 循环实现，避免与系统 memcpy 宏冲突）。
+  - ✅ 增加 **mem_copy(dst, src, n)**：按字节拷贝，不重叠；语义与 C memcpy 一致（当前 .x 循环实现，避免与系统 memcpy 宏冲突）。
   - ✅ **align_up(addr, alignment)** / **align_down**，用于分配器与布局计算。
 - **验收** ✅：run-import、run-core-types-size、run-mem 通过；新增 align_of_* / mem_copy / align_up / align_down 的测试。
 
@@ -173,7 +173,7 @@
 ### 6.2 与项目宗旨一致
 
 - **内存安全**：copy 不重叠、slice get 边界检查或明确标注 unchecked；不引入未定义行为。
-- **轻量级**：不引入大依赖、不膨胀 core 体积；按需增加文件（如 core/mem/copy.sx）可接受，但保持模块扁平。
+- **轻量级**：不引入大依赖、不膨胀 core 体积；按需增加文件（如 core/mem/copy.x）可接受，但保持模块扁平。
 - **全平台一套 API**：core 不包含 #ifdef 平台分支；平台差异留给 std 与运行时。
 
 ### 6.3 依赖关系
@@ -190,7 +190,7 @@
 ### 7.1 零成本抽象
 
 - **Option / Result**：不引入堆分配、不引入虚表或函数指针间接调用。当前 `Option_i32`、`Result_i32` 均为固定布局结构体，与手写 C 结构体等价；**保持此约束**，新增 `map`/`and_then` 等应为**纯函数 + 可内联**，编译器优化后等价于手写分支。
-- **Result 寄存器化**：`Result_i32` 已按双槽布局设计（见 core/result/mod.sx 注释），错误检查为 `err==0` 比较、零内存访问；完善时**不破坏该 ABI**，以便后端利用两寄存器返回（如 x86-64 rax/rdx）。
+- **Result 寄存器化**：`Result_i32` 已按双槽布局设计（见 core/result/mod.x 注释），错误检查为 `err==0` 比较、零内存访问；完善时**不破坏该 ABI**，以便后端利用两寄存器返回（如 x86-64 rax/rdx）。
 - **不引入**：GC、引用计数、隐式锁、RTTI/反射、或任何「运行时额外字段」；core 类型在内存中的表示应可被 C 互操作方预测。
 
 ### 7.2 内存与布局

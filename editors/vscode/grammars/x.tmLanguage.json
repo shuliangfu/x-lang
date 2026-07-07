@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "Shux",
-  "scopeName": "source.sx",
+  "scopeName": "source.x",
   "patterns": [
     { "include": "#comments" },
     { "include": "#strings" },

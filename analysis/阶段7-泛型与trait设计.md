@@ -60,12 +60,12 @@
 
 ### 3.1 当前状态
 
-- **import** 已实现：顶层 `import path;`，路径解析为 `lib_root/path/to/module.sx`。
+- **import** 已实现：顶层 `import path;`，路径解析为 `lib_root/path/to/module.x`。
 - **多文件编译（已实现）**：指定 `-o` 时，driver 对入口生成含 main 的 .c，对每个 import 的模块生成占位 .c（`codegen_library_module_to_c`），将所有 .c 一并传给 cc 链接，产出单一可执行文件。
 
 ### 3.2 阶段 7 目标
 
-- **多文件编译**：入口文件 + 其 import 树内所有 .sx 参与同一编译单元或同一链接单元；driver 对每个被 import 的模块产出代码并链接。
+- **多文件编译**：入口文件 + 其 import 树内所有 .x 参与同一编译单元或同一链接单元；driver 对每个被 import 的模块产出代码并链接。
 - **可见性**：可引入 `pub`/`export` 等最小可见性规则，使「仅导出」的符号可被 import 方使用；内部细节不导出。具体语法可与现有 import 对齐后补文档。
 
 ### 3.3 实现顺序
