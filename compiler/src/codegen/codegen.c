@@ -8546,6 +8546,8 @@ int codegen_module_to_c(struct ASTModule *m, FILE *out, struct ASTModule **dep_m
                 /* K8: 顶层 let 有初值时 emit `static T name = init;`(落 .data,bootloader 加载即有初值);
                  * 无初值 emit `static T name;`(落 .bss,零初始化)。init_globals() 仍保留(main 调用,对普通程序冗余但无害;
                  * 内核 _start 不调用但 .data 已有初值,故内核 let 全局变量正确初始化)。 */
+                fprintf(stderr, "DBG top_level_let[%d] name=%s is_thread_local=%d is_percpu=%d section=%p\n",
+                        i, name, (int)m->top_level_lets[i].is_thread_local, (int)m->top_level_lets[i].is_percpu, (void*)m->top_level_lets[i].section);
                 if (m->top_level_lets[i].is_thread_local)
                     fprintf(out, "__thread ");
                 if (m->top_level_lets[i].is_percpu)
