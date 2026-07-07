@@ -542,7 +542,8 @@ function fs_writev4_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, 
   return (n0 as i64) + (n1 as i64) + (n2 as i64) + (n3 as i64);
 }
 
-function fs_readv_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 {
+function fs_readv_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
+  let b: *FsIovecBuf = bufs as *FsIovecBuf;
   let h: *u8;
   let total: i64 = 0;
   let i: i32 = 0;
@@ -556,15 +557,15 @@ function fs_readv_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 {
     return -1;
   }
   while (i < n) {
-    len = bufs[i].len as u32;
-    if (bufs[i].len > 0x7fffffff) {
+    len = b[i].len as u32;
+    if (b[i].len > 0x7fffffff) {
       len = 0x7fffffff;
     }
-    unsafe { if (ReadFile(h, bufs[i].ptr, len, &got, 0 as *u8) == 0) {
+    unsafe { if (ReadFile(h, b[i].ptr, len, &got, 0 as *u8) == 0) {
       return -1;
     } }
     total = total + (got as i64);
-    if ((got) < bufs[i].len) {
+    if ((got) < b[i].len) {
       return total;
     }
     i = i + 1;
@@ -572,7 +573,8 @@ function fs_readv_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 {
   return total;
 }
 
-function fs_writev_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 {
+function fs_writev_buf_c(fd: i32, bufs: *u8, n: i32): i64 {
+  let b: *FsIovecBuf = bufs as *FsIovecBuf;
   let h: *u8;
   let total: i64 = 0;
   let i: i32 = 0;
@@ -586,15 +588,15 @@ function fs_writev_buf_c(fd: i32, bufs: *FsIovecBuf, n: i32): i64 {
     return -1;
   }
   while (i < n) {
-    len = bufs[i].len as u32;
-    if (bufs[i].len > 0x7fffffff) {
+    len = b[i].len as u32;
+    if (b[i].len > 0x7fffffff) {
       len = 0x7fffffff;
     }
-    unsafe { if (WriteFile(h, bufs[i].ptr, len, &written, 0 as *u8) == 0) {
+    unsafe { if (WriteFile(h, b[i].ptr, len, &written, 0 as *u8) == 0) {
       return -1;
     } }
     total = total + (written as i64);
-    if ((written) < bufs[i].len) {
+    if ((written) < b[i].len) {
       return total;
     }
     i = i + 1;
