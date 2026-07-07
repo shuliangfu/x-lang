@@ -1487,12 +1487,36 @@ static void c_type_to_buf(const struct ASTType *ty, char *buf, size_t size) {
                 snprintf(buf, size, "uint16_t");
                 return;
             }
-            /* 限定类型名（如 elf.ElfCodegenCtx、platform.elf.ElfCodegenCtx）：从最后一个点拆出类型名，在 dep 中按 import_path 匹配并输出 struct dep_prefix_TypeName，避免生成 xxx.elf.ElfCodegenCtx 导致 C 非法。 */
+            /* 限定类型名（如 elf.ElfCodegenCtx、heap_libc.Arena64）：
+             * 【Why 根源】binding 名（heap_libc，下划线分隔）与 dep_path（std.heap.libc，点号分隔）
+             * 分隔符不一致，原匹配逻辑用 strncmp 比较 "heap_libc" 与 "std.heap.libc" 尾部必然失败，
+             * 导致 `a as *heap_libc.Arena64` 输出无效 C 标识符 `mod_heap_libc.Arena64`。
+             * 【修复】先用 codegen_current_module 的 import_binding_names 把 binding 名解析为
+             * import_path（如 "std.heap.libc"），再与 dep_path 精确匹配。
+             * 【Invariant】codegen_current_module 在 -E-extern 库模块生成时由 codegen_library_module_to_c 设置。 */
             if (strchr(n, '.') && codegen_ndep > 0 && codegen_dep_mods && codegen_dep_paths) {
                 const char *last_dot = strrchr(n, '.');
                 if (last_dot && last_dot[1]) {
                     const char *type_name = last_dot + 1;
                     size_t module_len = (size_t)(last_dot - n);
+                    /* 用 import_binding_names 解析 binding 名到 import_path */
+                    const char *resolved_dep_path = NULL;
+                    if (codegen_current_module && codegen_current_module->import_kinds
+                        && codegen_current_module->import_binding_names && codegen_current_module->import_paths) {
+                        char binding_buf[128];
+                        if (module_len < sizeof(binding_buf)) {
+                            memcpy(binding_buf, n, module_len);
+                            binding_buf[module_len] = '\0';
+                            for (int j = 0; j < codegen_current_module->num_imports; j++) {
+                                if (codegen_current_module->import_kinds[j] == AST_IMPORT_KIND_BINDING
+                                    && codegen_current_module->import_binding_names[j]
+                                    && strcmp(codegen_current_module->import_binding_names[j], binding_buf) == 0) {
+                                    resolved_dep_path = codegen_current_module->import_paths[j];
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     for (int i = 0; i < codegen_ndep; i++) {
                         const struct ASTModule *d = codegen_dep_mods[i];
                         if (!d || !d->struct_defs) continue;
@@ -1503,8 +1527,11 @@ static void c_type_to_buf(const struct ASTType *ty, char *buf, size_t size) {
                             /* 匹配：dep_path 等于 n 的 module 部分，或 dep_path 以 ".module_part" 结尾（如 platform.elf 对 elf） */
                             size_t dlen = strlen(dep_path);
                             int match = 0;
-                            if (dlen == module_len && strncmp(dep_path, n, module_len) == 0) match = 1;
-                            else if (dlen > module_len + 1 && dep_path[dlen - module_len - 1] == '.' && strncmp(dep_path + dlen - module_len, n, module_len) == 0) match = 1;
+                            /* 优先用 resolved_dep_path 精确匹配（binding 名 → import_path） */
+                            if (resolved_dep_path && strcmp(dep_path, resolved_dep_path) == 0) match = 1;
+                            /* 兼容原逻辑：dep_path == module_part 或 dep_path 以 ".module_part" 结尾 */
+                            if (!match && dlen == module_len && strncmp(dep_path, n, module_len) == 0) match = 1;
+                            else if (!match && dlen > module_len + 1 && dep_path[dlen - module_len - 1] == '.' && strncmp(dep_path + dlen - module_len, n, module_len) == 0) match = 1;
                             if (match) {
                                 static char dep_pre[256];
                                 import_path_to_c_prefix(dep_path, dep_pre, sizeof(dep_pre));
