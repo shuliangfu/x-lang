@@ -5901,12 +5901,22 @@ int parse(Lexer *lex, ASTModule **out) {
                 goto cleanup_funcs_fail;
             }
             advance(&prs);
-            ASTLetDecl *new_lets = (ASTLetDecl *)realloc(mod->top_level_lets, (size_t)(mod->num_top_level_lets + 1) * sizeof(ASTLetDecl));
+            /* 【Why 根源治理】用 calloc+memcpy 替代 realloc：ASTLetDecl 含 is_thread_local/is_percpu
+             * 等 #[属性] 字段，realloc 不保证新扩展元素的内存为零初始化（Windows/Linux malloc 复用
+             * free chunk 返回垃圾值）。若 parser 赋值被优化或内存被覆盖，is_thread_local 留垃圾值时
+             * codegen 误输出 __thread __attribute__((section(".percpu")))（与 ASTExpr calloc 修复同源）。
+             * 【Invariant】新元素全字段必须零初始化；parser 后续显式赋值覆盖默认 0。
+             * 【Asm/Perf】top_level_lets 数量通常 ≤ 10，calloc+memcpy 开销可忽略。 */
+            ASTLetDecl *new_lets = (ASTLetDecl *)calloc((size_t)(mod->num_top_level_lets + 1), sizeof(ASTLetDecl));
             if (!new_lets) {
                 free(let_name);
                 ast_type_free(let_type);
                 ast_expr_free(let_init);
                 goto cleanup_funcs_fail;
+            }
+            if (mod->top_level_lets) {
+                memcpy(new_lets, mod->top_level_lets, (size_t)mod->num_top_level_lets * sizeof(ASTLetDecl));
+                free(mod->top_level_lets);
             }
             mod->top_level_lets = new_lets;
             mod->top_level_lets[mod->num_top_level_lets].name = let_name;
@@ -5978,12 +5988,18 @@ int parse(Lexer *lex, ASTModule **out) {
                 goto cleanup_funcs_fail;
             }
             advance(&prs);
-            ASTLetDecl *new_const_lets = (ASTLetDecl *)realloc(mod->top_level_lets, (size_t)(mod->num_top_level_lets + 1) * sizeof(ASTLetDecl));
+            /* 【Why 根源治理】calloc+memcpy 替代 realloc：见 let 处注释。
+             * const 还须显式补 is_thread_local/is_percpu=0（原代码漏赋值，靠 realloc 垃圾值）。 */
+            ASTLetDecl *new_const_lets = (ASTLetDecl *)calloc((size_t)(mod->num_top_level_lets + 1), sizeof(ASTLetDecl));
             if (!new_const_lets) {
                 free(const_name);
                 ast_type_free(const_type);
                 ast_expr_free(const_init);
                 goto cleanup_funcs_fail;
+            }
+            if (mod->top_level_lets) {
+                memcpy(new_const_lets, mod->top_level_lets, (size_t)mod->num_top_level_lets * sizeof(ASTLetDecl));
+                free(mod->top_level_lets);
             }
             mod->top_level_lets = new_const_lets;
             mod->top_level_lets[mod->num_top_level_lets].name = const_name;
@@ -5991,6 +6007,10 @@ int parse(Lexer *lex, ASTModule **out) {
             mod->top_level_lets[mod->num_top_level_lets].init = const_init;
             mod->top_level_lets[mod->num_top_level_lets].is_const = 1;
             mod->top_level_lets[mod->num_top_level_lets].section = pending_link_section;  /* K4 */
+            mod->top_level_lets[mod->num_top_level_lets].is_thread_local = pending_thread_local;
+            mod->top_level_lets[mod->num_top_level_lets].is_percpu = pending_percpu;
+            pending_thread_local = 0;
+            pending_percpu = 0;
             pending_link_section = NULL;
             mod->num_top_level_lets++;
             continue;
