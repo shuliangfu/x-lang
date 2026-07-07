@@ -11,8 +11,9 @@ my $src = <$fh>;
 my $orig = $src;
 
 # 删掉 codegen 重复生成的 wrapper（impl 本体经 #define 已导出为 main_run_compiler_c）。
-$src =~ s/\nint32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\) \{\n  return main_run_compiler_c_impl\(argc, argv\);\n\}//s;
-$src =~ s/\nint32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\) \{\n  return main_run_compiler_c\(argc, argv\);\n\}//s;
+# SHUX_LIB_WEAK 前缀可选匹配（codegen 输出可能带或不带）。
+$src =~ s/\n(?:SHUX_LIB_WEAK\s+)?int32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\) \{\n  return main_run_compiler_c_impl\(argc, argv\);\n\}//s;
+$src =~ s/\n(?:SHUX_LIB_WEAK\s+)?int32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\) \{\n  return main_run_compiler_c\(argc, argv\);\n\}//s;
 # 去重连续相同前向声明。
 while ($src =~ s/(int32_t main_run_compiler_c\(int32_t argc, uint8_t \* argv\);\n)\1/$1/s) { }
 

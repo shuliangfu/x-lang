@@ -4,6 +4,29 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#undef htonl
+#undef htons
+#undef ntohl
+#undef ntohs
+#ifdef _WIN32
+#define SHUX_LIB_WEAK
+#else
+#define SHUX_LIB_WEAK __attribute__((weak))
+#endif
+#ifndef SHUX_BUILTIN_INLINE_DECLS_GUARD
+#define SHUX_BUILTIN_INLINE_DECLS_GUARD
+/* CORE-009 shux_builtin_* static inline wrappers (clz/ctz/popcount/bswap/rotl/rotr) */
+static inline int shux_builtin_clz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_clz(x); }
+static inline int shux_builtin_ctz_u32(uint32_t x) { return x == 0 ? 32 : __builtin_ctz(x); }
+static inline int shux_builtin_popcount_u32(uint32_t x) { return __builtin_popcount(x); }
+static inline uint32_t shux_builtin_bswap_u32(uint32_t x) { return __builtin_bswap32(x); }
+static inline uint32_t shux_builtin_rotl_u32(uint32_t x, uint32_t c) {
+  c &= 31; return c == 0 ? x : (x << c) | (x >> (32 - c));
+}
+static inline uint32_t shux_builtin_rotr_u32(uint32_t x, uint32_t c) {
+  c &= 31; return c == 0 ? x : (x >> c) | (x << (32 - c));
+}
+#endif
 enum ast_TypeKind { ast_TypeKind_TYPE_I32, ast_TypeKind_TYPE_BOOL, ast_TypeKind_TYPE_U8, ast_TypeKind_TYPE_U32, ast_TypeKind_TYPE_U64, ast_TypeKind_TYPE_I64, ast_TypeKind_TYPE_USIZE, ast_TypeKind_TYPE_ISIZE, ast_TypeKind_TYPE_NAMED, ast_TypeKind_TYPE_PTR, ast_TypeKind_TYPE_ARRAY, ast_TypeKind_TYPE_SLICE, ast_TypeKind_TYPE_LINEAR, ast_TypeKind_TYPE_VECTOR, ast_TypeKind_TYPE_F32, ast_TypeKind_TYPE_F64, ast_TypeKind_TYPE_VOID };
 enum ast_ExprKind { ast_ExprKind_EXPR_LIT, ast_ExprKind_EXPR_FLOAT_LIT, ast_ExprKind_EXPR_BOOL_LIT, ast_ExprKind_EXPR_VAR, ast_ExprKind_EXPR_ADD, ast_ExprKind_EXPR_SUB, ast_ExprKind_EXPR_MUL, ast_ExprKind_EXPR_DIV, ast_ExprKind_EXPR_MOD, ast_ExprKind_EXPR_SHL, ast_ExprKind_EXPR_SHR, ast_ExprKind_EXPR_BITAND, ast_ExprKind_EXPR_BITOR, ast_ExprKind_EXPR_BITXOR, ast_ExprKind_EXPR_EQ, ast_ExprKind_EXPR_NE, ast_ExprKind_EXPR_LT, ast_ExprKind_EXPR_LE, ast_ExprKind_EXPR_GT, ast_ExprKind_EXPR_GE, ast_ExprKind_EXPR_LOGAND, ast_ExprKind_EXPR_LOGOR, ast_ExprKind_EXPR_NEG, ast_ExprKind_EXPR_BITNOT, ast_ExprKind_EXPR_LOGNOT, ast_ExprKind_EXPR_IF, ast_ExprKind_EXPR_BLOCK, ast_ExprKind_EXPR_TERNARY, ast_ExprKind_EXPR_ASSIGN, ast_ExprKind_EXPR_ADD_ASSIGN, ast_ExprKind_EXPR_SUB_ASSIGN, ast_ExprKind_EXPR_MUL_ASSIGN, ast_ExprKind_EXPR_DIV_ASSIGN, ast_ExprKind_EXPR_MOD_ASSIGN, ast_ExprKind_EXPR_BITAND_ASSIGN, ast_ExprKind_EXPR_BITOR_ASSIGN, ast_ExprKind_EXPR_BITXOR_ASSIGN, ast_ExprKind_EXPR_SHL_ASSIGN, ast_ExprKind_EXPR_SHR_ASSIGN, ast_ExprKind_EXPR_BREAK, ast_ExprKind_EXPR_CONTINUE, ast_ExprKind_EXPR_RETURN, ast_ExprKind_EXPR_PANIC, ast_ExprKind_EXPR_MATCH, ast_ExprKind_EXPR_FIELD_ACCESS, ast_ExprKind_EXPR_STRUCT_LIT, ast_ExprKind_EXPR_ARRAY_LIT, ast_ExprKind_EXPR_INDEX, ast_ExprKind_EXPR_CALL, ast_ExprKind_EXPR_METHOD_CALL, ast_ExprKind_EXPR_ENUM_VARIANT, ast_ExprKind_EXPR_ADDR_OF, ast_ExprKind_EXPR_DEREF, ast_ExprKind_EXPR_BINOP, ast_ExprKind_EXPR_AS, ast_ExprKind_EXPR_AWAIT, ast_ExprKind_EXPR_RUN, ast_ExprKind_EXPR_SPAWN, ast_ExprKind_EXPR_TRY_PROPAGATE };
 enum ast_ImportKind { ast_ImportKind_IMPORT_WHOLE, ast_ImportKind_IMPORT_BINDING, ast_ImportKind_IMPORT_SELECT };
@@ -18,9 +41,9 @@ struct ast_StmtOrderItem { uint8_t kind; int32_t idx; };
 struct ast_LabeledStmt { uint8_t label[32]; int32_t label_len; int32_t is_goto; uint8_t goto_target[32]; int32_t goto_target_len; int32_t return_expr_ref; };
 struct ast_Block { int32_t const_base; int32_t num_consts; int32_t let_base; int32_t num_lets; int32_t num_early_lets; int32_t loop_base; int32_t num_loops; int32_t for_loop_base; int32_t num_for_loops; int32_t if_base; int32_t num_if_stmts; int32_t region_base; int32_t num_regions; int32_t defer_base; int32_t num_defers; int32_t labeled_base; int32_t num_labeled_stmts; int32_t expr_stmt_base; int32_t num_expr_stmts; int32_t final_expr_ref; int32_t stmt_order_base; int32_t num_stmt_order; int32_t parent_block_ref; };
 struct ast_Param { uint8_t name[32]; int32_t name_len; int32_t type_ref; };
-struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; int32_t num_generic_params; int32_t return_type_ref; int32_t body_ref; int32_t body_expr_ref; int32_t is_extern; int32_t is_async; int32_t is_used; };
+struct ast_Func { uint8_t name[64]; int32_t name_len; int32_t param_base; int32_t num_params; int32_t num_generic_params; int32_t return_type_ref; int32_t body_ref; int32_t body_expr_ref; int32_t is_extern; int32_t is_async; int32_t is_used; int32_t is_naked; int32_t is_entry; int32_t is_no_mangle; int32_t is_interrupt; };
 struct ast_StructLayout { uint8_t name[64]; int32_t name_len; int32_t field_base; int32_t num_fields; int32_t allow_padding; int32_t soa; int32_t packed; int32_t repr_compatible; };
-struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t pending_soa_struct; int32_t pending_cfg_skip; int32_t pending_repr_c_struct; int32_t pending_repr_compatible_struct; int32_t pending_used; int32_t num_module_enums; };
+struct ast_Module { int32_t num_funcs; int32_t main_func_index; int32_t num_imports; int32_t num_top_level_lets; int32_t num_struct_layouts; int32_t pending_allow_padding; int32_t pending_soa_struct; int32_t pending_cfg_skip; int32_t pending_repr_c_struct; int32_t pending_repr_compatible_struct; int32_t pending_used; int32_t pending_naked; int32_t pending_entry; int32_t pending_no_mangle; int32_t pending_interrupt; int32_t num_module_enums; };
 struct ast_ASTArena { int32_t num_types; int32_t num_exprs; int32_t num_blocks; int32_t num_funcs; };
 
 /* slim arena grow pool glue (linked from pipeline/runtime) */
@@ -291,23 +314,23 @@ int32_t ast_block_if_else_body_ref(struct ast_ASTArena * a, int32_t br, int32_t 
 int32_t ast_block_resolve_var_to_type_ref(struct ast_ASTArena * a, int32_t block_ref, uint8_t * vname, int32_t vlen);
 void ast_arena_patch_block_parent_links(struct ast_ASTArena * arena, int32_t block_ref, int32_t parent_ref);
 int32_t ast_arena_func_alloc(struct ast_ASTArena * arena);
-__attribute__((weak)) int ast_ref_is_null(int32_t ref) {
+SHUX_LIB_WEAK int ast_ref_is_null(int32_t ref) {
   return ref == 0;
 }
-int32_t ast_placeholder() {
+SHUX_LIB_WEAK int32_t ast_placeholder() {
   return 0;
 }
-__attribute__((weak)) void ast_expr_layout_prime_call_resolved() {
+SHUX_LIB_WEAK void ast_expr_layout_prime_call_resolved() {
   struct ast_Expr _tail = (struct ast_Expr){ .kind = ast_ExprKind_EXPR_LIT, .resolved_type_ref = 0, .line = 0, .col = 0, .as_operand_ref = 0, .as_target_type_ref = 0, .call_resolved_func_index = (-1), .call_resolved_dep_index = (-1) };
   ((_tail).call_num_type_args = (0));
   ((_tail).call_resolved_func_index = ((-1)));
 }
-void ast_func_layout_prime_generic_params() {
+SHUX_LIB_WEAK void ast_func_layout_prime_generic_params() {
   uint8_t name0[64] = { 0 };
   struct ast_Func f0 = ({ struct ast_Func _t = { 0 }; _t.name_len = 0; _t.param_base = 0; _t.num_params = 0; _t.num_generic_params = 0; _t.return_type_ref = 0; _t.body_ref = 0; _t.body_expr_ref = 0; _t.is_extern = 0; _t.is_async = 0; memcpy(_t.name, name0, sizeof(_t.name)); _t; });
   ((f0).num_generic_params = (0));
 }
-void ast_arena_init(struct ast_ASTArena * arena) {
+SHUX_LIB_WEAK void ast_arena_init(struct ast_ASTArena * arena) {
   (void)(ast_expr_layout_prime_call_resolved());
   (void)(ast_func_layout_prime_generic_params());
   ((arena)->num_types = (0));
@@ -315,235 +338,235 @@ void ast_arena_init(struct ast_ASTArena * arena) {
   ((arena)->num_blocks = (0));
   ((arena)->num_funcs = (0));
 }
-int32_t ast_arena_type_alloc(struct ast_ASTArena * arena) {
+SHUX_LIB_WEAK int32_t ast_arena_type_alloc(struct ast_ASTArena * arena) {
   int32_t ref = 0;
   {
     (ref = (pipeline_arena_type_alloc(arena)));
   }
-  (void)(({ int32_t __tmp = 0; if (ref <= 0) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+  if (ref <= 0) {   return 0;
+ }
   return ref;
 }
-int32_t ast_arena_expr_alloc(struct ast_ASTArena * arena) {
+SHUX_LIB_WEAK int32_t ast_arena_expr_alloc(struct ast_ASTArena * arena) {
   int32_t ref = 0;
   {
     (ref = (pipeline_arena_expr_alloc(arena)));
   }
-  (void)(({ int32_t __tmp = 0; if (ref <= 0) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+  if (ref <= 0) {   return 0;
+ }
   return ref;
 }
-int32_t ast_arena_block_alloc(struct ast_ASTArena * arena) {
+SHUX_LIB_WEAK int32_t ast_arena_block_alloc(struct ast_ASTArena * arena) {
   int32_t ref = 0;
   {
     (ref = (pipeline_arena_block_alloc(arena)));
   }
-  (void)(({ int32_t __tmp = 0; if (ref <= 0) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+  if (ref <= 0) {   return 0;
+ }
   return ref;
 }
-__attribute__((weak)) void ast_expr_init_match_enum(struct ast_Expr * e) {
+SHUX_LIB_WEAK void ast_expr_init_match_enum(struct ast_Expr * e) {
   ((e)->match_arm_base = (0));
   ((e)->enum_variant_tag = (0));
 }
-__attribute__((weak)) void ast_expr_init_call_resolve(struct ast_ASTArena * arena, int32_t expr_ref) {
+SHUX_LIB_WEAK void ast_expr_init_call_resolve(struct ast_ASTArena * arena, int32_t expr_ref) {
   {
     (void)(pipeline_expr_init_call_resolve_at_ref(arena, expr_ref));
   }
 }
-void ast_expr_apply_call_resolve(struct ast_ASTArena * arena, int32_t call_expr_ref, int32_t dep_ix, int32_t func_ix) {
+SHUX_LIB_WEAK void ast_expr_apply_call_resolve(struct ast_ASTArena * arena, int32_t call_expr_ref, int32_t dep_ix, int32_t func_ix) {
   {
     (void)(pipeline_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix));
   }
 }
-int ast_name_bytes_equal(uint8_t * a_nm, int32_t a_len, uint8_t * b_nm, int32_t b_len) {
-  (void)(({ int __tmp = 0; if (a_len != b_len || a_len <= 0) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+SHUX_LIB_WEAK int ast_name_bytes_equal(uint8_t * a_nm, int32_t a_len, uint8_t * b_nm, int32_t b_len) {
+  if (a_len != b_len || a_len <= 0) {   return 0;
+ }
   int32_t j = 0;
   while (j < a_len) {
-    (void)(({ int __tmp = 0; if ((a_nm)[j] != (b_nm)[j]) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+    if ((a_nm)[j] != (b_nm)[j]) {   return 0;
+ }
     ++j;
   }
   return 1;
 }
-int32_t ast_block_final_expr_ref(struct ast_ASTArena * a, int32_t body_ref) {
-  (void)(({ int32_t __tmp = 0; if (body_ref <= 0 || body_ref > (a)->num_blocks) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+SHUX_LIB_WEAK int32_t ast_block_final_expr_ref(struct ast_ASTArena * a, int32_t body_ref) {
+  if (body_ref <= 0 || body_ref > (a)->num_blocks) {   return 0;
+ }
   struct ast_Block blk = {0};
   {
     (blk = (ast_arena_block_get(a, body_ref)));
   }
   return (blk).final_expr_ref;
 }
-int ast_expr_disallows_implicit_tail(struct ast_ASTArena * a, int32_t expr_ref) {
+SHUX_LIB_WEAK int ast_expr_disallows_implicit_tail(struct ast_ASTArena * a, int32_t expr_ref) {
   {
     return implicit_tail_expr_disallowed_by_glue(a, expr_ref);
   }
 }
-int32_t ast_block_num_consts(struct ast_ASTArena * a, int32_t br) {
-  (void)(({ int32_t __tmp = 0; if (br <= 0 || br > (a)->num_blocks) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+SHUX_LIB_WEAK int32_t ast_block_num_consts(struct ast_ASTArena * a, int32_t br) {
+  if (br <= 0 || br > (a)->num_blocks) {   return 0;
+ }
   struct ast_Block blk_nc = {0};
   {
     (blk_nc = (ast_arena_block_get(a, br)));
   }
   return (blk_nc).num_consts;
 }
-int32_t ast_block_num_lets(struct ast_ASTArena * a, int32_t br) {
-  (void)(({ int32_t __tmp = 0; if (br <= 0 || br > (a)->num_blocks) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+SHUX_LIB_WEAK int32_t ast_block_num_lets(struct ast_ASTArena * a, int32_t br) {
+  if (br <= 0 || br > (a)->num_blocks) {   return 0;
+ }
   struct ast_Block blk_nl = {0};
   {
     (blk_nl = (ast_arena_block_get(a, br)));
   }
   return (blk_nl).num_lets;
 }
-int32_t ast_block_num_loops(struct ast_ASTArena * a, int32_t br) {
-  (void)(({ int32_t __tmp = 0; if (br <= 0 || br > (a)->num_blocks) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+SHUX_LIB_WEAK int32_t ast_block_num_loops(struct ast_ASTArena * a, int32_t br) {
+  if (br <= 0 || br > (a)->num_blocks) {   return 0;
+ }
   struct ast_Block blk_nlp = {0};
   {
     (blk_nlp = (ast_arena_block_get(a, br)));
   }
   return (blk_nlp).num_loops;
 }
-int32_t ast_block_num_for_loops(struct ast_ASTArena * a, int32_t br) {
-  (void)(({ int32_t __tmp = 0; if (br <= 0 || br > (a)->num_blocks) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+SHUX_LIB_WEAK int32_t ast_block_num_for_loops(struct ast_ASTArena * a, int32_t br) {
+  if (br <= 0 || br > (a)->num_blocks) {   return 0;
+ }
   struct ast_Block blk_nfp = {0};
   {
     (blk_nfp = (ast_arena_block_get(a, br)));
   }
   return (blk_nfp).num_for_loops;
 }
-int32_t ast_block_num_if_stmts(struct ast_ASTArena * a, int32_t br) {
-  (void)(({ int32_t __tmp = 0; if (br <= 0 || br > (a)->num_blocks) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+SHUX_LIB_WEAK int32_t ast_block_num_if_stmts(struct ast_ASTArena * a, int32_t br) {
+  if (br <= 0 || br > (a)->num_blocks) {   return 0;
+ }
   struct ast_Block blk_nif = {0};
   {
     (blk_nif = (ast_arena_block_get(a, br)));
   }
   return (blk_nif).num_if_stmts;
 }
-int32_t ast_block_num_regions(struct ast_ASTArena * a, int32_t br) {
-  (void)(({ int32_t __tmp = 0; if (br <= 0 || br > (a)->num_blocks) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+SHUX_LIB_WEAK int32_t ast_block_num_regions(struct ast_ASTArena * a, int32_t br) {
+  if (br <= 0 || br > (a)->num_blocks) {   return 0;
+ }
   struct ast_Block blk_nr = {0};
   {
     (blk_nr = (ast_arena_block_get(a, br)));
   }
   return (blk_nr).num_regions;
 }
-int32_t ast_block_region_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ri) {
+SHUX_LIB_WEAK int32_t ast_block_region_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ri) {
   {
     return pipeline_block_region_body_ref(a, br, ri);
   }
 }
-int32_t ast_block_num_expr_stmts(struct ast_ASTArena * a, int32_t br) {
-  (void)(({ int32_t __tmp = 0; if (br <= 0 || br > (a)->num_blocks) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+SHUX_LIB_WEAK int32_t ast_block_num_expr_stmts(struct ast_ASTArena * a, int32_t br) {
+  if (br <= 0 || br > (a)->num_blocks) {   return 0;
+ }
   struct ast_Block blk_nes = {0};
   {
     (blk_nes = (ast_arena_block_get(a, br)));
   }
   return (blk_nes).num_expr_stmts;
 }
-int32_t ast_block_num_stmt_order(struct ast_ASTArena * a, int32_t br) {
-  (void)(({ int32_t __tmp = 0; if (br <= 0 || br > (a)->num_blocks) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+SHUX_LIB_WEAK int32_t ast_block_num_stmt_order(struct ast_ASTArena * a, int32_t br) {
+  if (br <= 0 || br > (a)->num_blocks) {   return 0;
+ }
   struct ast_Block blk_nso = {0};
   {
     (blk_nso = (ast_arena_block_get(a, br)));
   }
   return (blk_nso).num_stmt_order;
 }
-uint8_t ast_block_stmt_order_kind(struct ast_ASTArena * a, int32_t br, int32_t si) {
+SHUX_LIB_WEAK uint8_t ast_block_stmt_order_kind(struct ast_ASTArena * a, int32_t br, int32_t si) {
   {
     return pipeline_block_stmt_order_kind(a, br, si);
   }
 }
-int32_t ast_block_stmt_order_idx(struct ast_ASTArena * a, int32_t br, int32_t si) {
+SHUX_LIB_WEAK int32_t ast_block_stmt_order_idx(struct ast_ASTArena * a, int32_t br, int32_t si) {
   {
     return pipeline_block_stmt_order_idx(a, br, si);
   }
 }
-int32_t ast_block_const_init_ref(struct ast_ASTArena * a, int32_t br, int32_t ci) {
+SHUX_LIB_WEAK int32_t ast_block_const_init_ref(struct ast_ASTArena * a, int32_t br, int32_t ci) {
   {
     return pipeline_block_const_init_ref(a, br, ci);
   }
 }
-int32_t ast_block_const_type_ref(struct ast_ASTArena * a, int32_t br, int32_t ci) {
+SHUX_LIB_WEAK int32_t ast_block_const_type_ref(struct ast_ASTArena * a, int32_t br, int32_t ci) {
   {
     return pipeline_block_const_type_ref(a, br, ci);
   }
 }
-int32_t ast_block_let_init_ref(struct ast_ASTArena * a, int32_t br, int32_t li) {
+SHUX_LIB_WEAK int32_t ast_block_let_init_ref(struct ast_ASTArena * a, int32_t br, int32_t li) {
   {
     return pipeline_block_let_init_ref(a, br, li);
   }
 }
-int32_t ast_block_let_type_ref(struct ast_ASTArena * a, int32_t br, int32_t li) {
+SHUX_LIB_WEAK int32_t ast_block_let_type_ref(struct ast_ASTArena * a, int32_t br, int32_t li) {
   {
     return pipeline_block_let_type_ref(a, br, li);
   }
 }
-int32_t ast_block_expr_stmt_ref(struct ast_ASTArena * a, int32_t br, int32_t ei) {
+SHUX_LIB_WEAK int32_t ast_block_expr_stmt_ref(struct ast_ASTArena * a, int32_t br, int32_t ei) {
   {
     return pipeline_block_expr_stmt_ref(a, br, ei);
   }
 }
-int32_t ast_block_while_cond_ref(struct ast_ASTArena * a, int32_t br, int32_t wi) {
+SHUX_LIB_WEAK int32_t ast_block_while_cond_ref(struct ast_ASTArena * a, int32_t br, int32_t wi) {
   {
     return pipeline_block_while_cond_ref(a, br, wi);
   }
 }
-int32_t ast_block_while_body_ref(struct ast_ASTArena * a, int32_t br, int32_t wi) {
+SHUX_LIB_WEAK int32_t ast_block_while_body_ref(struct ast_ASTArena * a, int32_t br, int32_t wi) {
   {
     return pipeline_block_while_body_ref(a, br, wi);
   }
 }
-int32_t ast_block_for_init_ref(struct ast_ASTArena * a, int32_t br, int32_t fi) {
+SHUX_LIB_WEAK int32_t ast_block_for_init_ref(struct ast_ASTArena * a, int32_t br, int32_t fi) {
   {
     return pipeline_block_for_init_ref(a, br, fi);
   }
 }
-int32_t ast_block_for_cond_ref(struct ast_ASTArena * a, int32_t br, int32_t fi) {
+SHUX_LIB_WEAK int32_t ast_block_for_cond_ref(struct ast_ASTArena * a, int32_t br, int32_t fi) {
   {
     return pipeline_block_for_cond_ref(a, br, fi);
   }
 }
-int32_t ast_block_for_step_ref(struct ast_ASTArena * a, int32_t br, int32_t fi) {
+SHUX_LIB_WEAK int32_t ast_block_for_step_ref(struct ast_ASTArena * a, int32_t br, int32_t fi) {
   {
     return pipeline_block_for_step_ref(a, br, fi);
   }
 }
-int32_t ast_block_for_body_ref(struct ast_ASTArena * a, int32_t br, int32_t fi) {
+SHUX_LIB_WEAK int32_t ast_block_for_body_ref(struct ast_ASTArena * a, int32_t br, int32_t fi) {
   {
     return pipeline_block_for_body_ref(a, br, fi);
   }
 }
-int32_t ast_block_if_cond_ref(struct ast_ASTArena * a, int32_t br, int32_t ii) {
+SHUX_LIB_WEAK int32_t ast_block_if_cond_ref(struct ast_ASTArena * a, int32_t br, int32_t ii) {
   {
     return pipeline_block_if_cond_ref(a, br, ii);
   }
 }
-int32_t ast_block_if_then_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ii) {
+SHUX_LIB_WEAK int32_t ast_block_if_then_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ii) {
   {
     return pipeline_block_if_then_body_ref(a, br, ii);
   }
 }
-int32_t ast_block_if_else_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ii) {
+SHUX_LIB_WEAK int32_t ast_block_if_else_body_ref(struct ast_ASTArena * a, int32_t br, int32_t ii) {
   {
     return pipeline_block_if_else_body_ref(a, br, ii);
   }
 }
-int32_t ast_block_resolve_var_to_type_ref(struct ast_ASTArena * a, int32_t block_ref, uint8_t * vname, int32_t vlen) {
+SHUX_LIB_WEAK int32_t ast_block_resolve_var_to_type_ref(struct ast_ASTArena * a, int32_t block_ref, uint8_t * vname, int32_t vlen) {
   {
     return pipeline_block_resolve_var_type_ref(a, block_ref, vname, vlen);
   }
 }
-void ast_arena_patch_block_parent_links(struct ast_ASTArena * arena, int32_t block_ref, int32_t parent_ref) {
+SHUX_LIB_WEAK void ast_arena_patch_block_parent_links(struct ast_ASTArena * arena, int32_t block_ref, int32_t parent_ref) {
   int32_t stack_blk[256] = { 0 };
   int32_t stack_par[256] = { 0 };
   int32_t sp = 0;
@@ -555,8 +578,8 @@ void ast_arena_patch_block_parent_links(struct ast_ASTArena * arena, int32_t blo
   int32_t eb = 0;
   int32_t rgb = 0;
   int32_t i = 0;
-  (void)(({ int32_t __tmp = 0; if (block_ref <= 0 || block_ref > (arena)->num_blocks) {   return;
- } else (__tmp = 0) ; __tmp; }));
+  if (block_ref <= 0 || block_ref > (arena)->num_blocks) {   return;
+ }
   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = block_ref, 0)));
   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_par)[sp] = parent_ref, 0)));
   ++sp;
@@ -564,18 +587,18 @@ void ast_arena_patch_block_parent_links(struct ast_ASTArena * arena, int32_t blo
     (sp = (sp - 1));
     (cur = ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), (stack_blk)[0]) : (stack_blk)[sp])));
     (par = ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), (stack_par)[0]) : (stack_par)[sp])));
-    (void)(({ int32_t __tmp = 0; if (cur <= 0 || cur > (arena)->num_blocks) {   continue;
- } else (__tmp = 0) ; __tmp; }));
-    (void)(({ int32_t __tmp = 0; if (par != 0) {   struct ast_Block b_head = {0};
+    if (cur <= 0 || cur > (arena)->num_blocks) {   continue;
+ }
+    if (par != 0) {   struct ast_Block b_head = {0};
   {
     (b_head = (ast_arena_block_get(arena, cur)));
   }
-  __tmp = ({ int32_t __tmp = 0; if ((b_head).parent_block_ref == 0) {   ((b_head).parent_block_ref = (par));
+  if ((b_head).parent_block_ref == 0) {   ((b_head).parent_block_ref = (par));
   {
     (void)(ast_arena_block_set(arena, cur, b_head));
   }
- } else (__tmp = 0) ; __tmp; });
- } else (__tmp = 0) ; __tmp; }));
+ }
+ }
     struct ast_Block b = {0};
     {
       (b = (ast_arena_block_get(arena, cur)));
@@ -583,52 +606,52 @@ void ast_arena_patch_block_parent_links(struct ast_ASTArena * arena, int32_t blo
     (i = (0));
     while (i < (b).num_loops) {
       (wb = (ast_block_while_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (wb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = wb, 0)));
+      if (wb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = wb, 0)));
   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
   ++sp;
- } else (__tmp = 0) ; __tmp; }));
+ }
       ++i;
     }
     (i = (0));
     while (i < (b).num_for_loops) {
       (fb = (ast_block_for_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (fb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = fb, 0)));
+      if (fb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = fb, 0)));
   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
   ++sp;
- } else (__tmp = 0) ; __tmp; }));
+ }
       ++i;
     }
     (i = (0));
     while (i < (b).num_if_stmts) {
       (tb = (ast_block_if_then_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (tb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = tb, 0)));
+      if (tb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = tb, 0)));
   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
   ++sp;
- } else (__tmp = 0) ; __tmp; }));
+ }
       (eb = (ast_block_if_else_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (eb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = eb, 0)));
+      if (eb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = eb, 0)));
   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
   ++sp;
- } else (__tmp = 0) ; __tmp; }));
+ }
       ++i;
     }
     (i = (0));
     while (i < (b).num_regions) {
       (rgb = (ast_block_region_body_ref(arena, cur, i)));
-      (void)(({ int32_t __tmp = 0; if (rgb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = rgb, 0)));
+      if (rgb > 0 && sp < 256) {   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_blk)[sp] = rgb, 0)));
   ((sp < 0 || (sp) >= 256 ? (shux_panic_(1, 0), 0) : ((stack_par)[sp] = cur, 0)));
   ++sp;
- } else (__tmp = 0) ; __tmp; }));
+ }
       ++i;
     }
   }
 }
-int32_t ast_arena_func_alloc(struct ast_ASTArena * arena) {
+SHUX_LIB_WEAK int32_t ast_arena_func_alloc(struct ast_ASTArena * arena) {
   int32_t ref = 0;
   {
     (ref = (pipeline_arena_func_alloc(arena)));
   }
-  (void)(({ int32_t __tmp = 0; if (ref <= 0) {   return 0;
- } else (__tmp = 0) ; __tmp; }));
+  if (ref <= 0) {   return 0;
+ }
   return ref;
 }

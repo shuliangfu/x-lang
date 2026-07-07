@@ -184,6 +184,8 @@ static void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int m
 #include "ast.h"
 #include "runtime_c_import.h"
 #else
+/* token.h 为共享类型定义（TokenKind 枚举），非 C 前端实现；parser_diag_fail_at_token_kind 返回值需 TOKEN_STRING 比对。 */
+#include "token.h"
 /* preamble write_io_net_abi_inline 仅用 codegen_pipeline_stubs 的 skip mask，不依赖 codegen.h 全量 API。 */
 struct ASTModule;
 #define CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS    1u
@@ -1120,7 +1122,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
      * C 前端在所有平台上都能工作（-E 生成 C 代码 + cc 编译）。
      * 显式 -backend asm 或 -x 可重新启用 .x pipeline。
      * 【Invariant】仅影响默认编译路径；-E 模式不受影响（emit_c_only 独立于 use_x_pipeline）。 */
+    #ifdef SHUX_NO_C_FRONTEND
+    /* 无 C 前端：默认必须走 X pipeline（无 C parse/typeck/codegen 可回退）。 */
+    int use_x_pipeline = 1;
+    #else
     int use_x_pipeline = 0;
+    #endif
     int use_asm_backend = 0;  /* -backend asm：出汇编而非 C，并走 .x pipeline */
     #endif
     const char *defines[MAX_DEFINES];
@@ -1140,7 +1147,12 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 use_x_pipeline = 1;  /* -backend asm 必须走 .x pipeline */
             } else if (strcmp(argv[i + 1], "c") == 0) {
                 use_asm_backend = 0;
+#ifdef SHUX_NO_C_FRONTEND
+                /* 无 C 前端：-backend c 必须走 X pipeline（C codegen 由 codegen_x.o 提供）。 */
+                use_x_pipeline = 1;
+#else
                 use_x_pipeline = 0;  /* -backend c：C parse/typeck/codegen；-o+import 走 X pipeline 易 out_len=0 */
+#endif
             } else {
                 diag_reportf_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG002, NULL,
                              "-backend expects asm or c (got '%s')", argv[i + 1]);
