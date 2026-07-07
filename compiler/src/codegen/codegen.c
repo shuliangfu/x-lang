@@ -1372,6 +1372,18 @@ static void collect_lib_dep_calls_from_block(const struct ASTBlock *b, struct AS
     for (int i = 0; i < b->num_expr_stmts; i++)
         collect_lib_dep_calls_from_expr(b->expr_stmts[i], lib_dep_mods, lib_dep_paths, n_lib_dep, paths_out, funcs_out, n_out, max_out);
     if (b->final_expr) collect_lib_dep_calls_from_expr(b->final_expr, lib_dep_mods, lib_dep_paths, n_lib_dep, paths_out, funcs_out, n_out, max_out);
+    /* 【Why 根源】同 collect_import_calls_from_block：unsafe/with_arena/try_catch/defer 块内
+     * 的 lib_dep CALL 也须收集，否则 -E-extern 缺少 lib_dep extern 声明。 */
+    for (int i = 0; i < b->num_regions; i++)
+        if (b->regions[i].body) collect_lib_dep_calls_from_block(b->regions[i].body, lib_dep_mods, lib_dep_paths, n_lib_dep, paths_out, funcs_out, n_out, max_out);
+    for (int i = 0; i < b->num_with_arenas; i++)
+        if (b->with_arenas[i].body) collect_lib_dep_calls_from_block(b->with_arenas[i].body, lib_dep_mods, lib_dep_paths, n_lib_dep, paths_out, funcs_out, n_out, max_out);
+    for (int i = 0; i < b->num_try_catches; i++) {
+        if (b->try_catches[i].try_body) collect_lib_dep_calls_from_block(b->try_catches[i].try_body, lib_dep_mods, lib_dep_paths, n_lib_dep, paths_out, funcs_out, n_out, max_out);
+        if (b->try_catches[i].catch_body) collect_lib_dep_calls_from_block(b->try_catches[i].catch_body, lib_dep_mods, lib_dep_paths, n_lib_dep, paths_out, funcs_out, n_out, max_out);
+    }
+    for (int i = 0; i < b->num_defers; i++)
+        if (b->defer_blocks[i]) collect_lib_dep_calls_from_block(b->defer_blocks[i], lib_dep_mods, lib_dep_paths, n_lib_dep, paths_out, funcs_out, n_out, max_out);
 }
 
 /** 从块 b 递归收集所有跨模块 CALL（非泛型与泛型）。 */
@@ -1396,6 +1408,23 @@ static void collect_import_calls_from_block(const struct ASTBlock *b, const char
     for (int i = 0; i < b->num_expr_stmts; i++)
         collect_import_calls_from_expr(b->expr_stmts[i], paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
     if (b->final_expr) collect_import_calls_from_expr(b->final_expr, paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
+    /* 【Why 根源】unsafe { } 块解析为 regions[i].body（is_unsafe=1），with_arena(cap) { }
+     * 解析为 with_arenas[i].body，try/catch 解析为 try_catches[i].try_body/catch_body，
+     * defer { } 解析为 defer_blocks[i]。若不递归遍历，这些块内的跨模块 CALL 不会被收集，
+     * 导致 -E-extern 生成的 C 缺少 extern 声明，cc 报 implicit function declaration。
+     * 典型案例：std.net 的 tls_plat/tcp_pool_plat 调用大多在 unsafe { } 内，遗漏导致 19 个
+     * undeclared function 错误。
+     * 【Invariant】regions/with_arenas/try_catches/defer_blocks 可为 NULL，num_* 为 0 时跳过。 */
+    for (int i = 0; i < b->num_regions; i++)
+        if (b->regions[i].body) collect_import_calls_from_block(b->regions[i].body, paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
+    for (int i = 0; i < b->num_with_arenas; i++)
+        if (b->with_arenas[i].body) collect_import_calls_from_block(b->with_arenas[i].body, paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
+    for (int i = 0; i < b->num_try_catches; i++) {
+        if (b->try_catches[i].try_body) collect_import_calls_from_block(b->try_catches[i].try_body, paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
+        if (b->try_catches[i].catch_body) collect_import_calls_from_block(b->try_catches[i].catch_body, paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
+    }
+    for (int i = 0; i < b->num_defers; i++)
+        if (b->defer_blocks[i]) collect_import_calls_from_block(b->defer_blocks[i], paths, funcs, n, gen_paths, gen_funcs, gen_type_args, gen_n, gen_count);
 }
 
 /** 若当前处于单态化代入上下文则返回代入后的类型，否则返回 ty；用于 const/let 等类型输出。 */
