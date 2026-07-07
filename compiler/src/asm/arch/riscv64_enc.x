@@ -25,7 +25,7 @@
 const elf = import("platform.elf");
 
 /** 向 ctx 追加 4 字节小端 u32（一条 RISC-V 指令）。 */
-function enc_u32_le(ctx: *ElfCodegenCtx, val: i32): i32 {
+function enc_u32_le(ctx: *ElfCodegenCtx, val: i64): i32 {
   let buf: u8[4] = [];
   buf[0] = elf.elf_u32_byte_at(val, 0);
   buf[1] = elf.elf_u32_byte_at(val, 1);

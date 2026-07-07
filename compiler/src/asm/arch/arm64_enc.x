@@ -30,7 +30,7 @@ const elf = import("platform.elf");
 extern function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
 
 /** 向 ctx 追加 4 字节（小端 u32），用于一条 AArch64 指令。 */
-function enc_u32_le(ctx: *ElfCodegenCtx, val: i32): i32 {
+function enc_u32_le(ctx: *ElfCodegenCtx, val: i64): i32 {
   let buf: u8[4] = [];
   buf[0] = elf.elf_u32_byte_at(val, 0);
   buf[1] = elf.elf_u32_byte_at(val, 1);

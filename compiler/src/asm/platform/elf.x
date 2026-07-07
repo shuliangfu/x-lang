@@ -162,9 +162,9 @@ function elf_to_u8(val: i32): u8 {
   return val as u8;
 }
 
-/** 取 i32 按无符号 u32 解释后的第 byte_idx 字节（0..3）；避免高位为 1
-* 时有符号 >> 污染 ARM/x86 机器码。 */
-function elf_u32_byte_at(val: i32, byte_idx: i32): u8 {
+/** 取 i64 按无符号 u32 解释后的第 byte_idx 字节（0..3）；避免高位为 1
+* 时有符号 >> 污染 ARM/x86 机器码。val 高于 32 位部分被截断。 */
+function elf_u32_byte_at(val: i64, byte_idx: i32): u8 {
   let u: u32 = val as u32;
   if (byte_idx == 0) {
     return (u & 255) as u8;
