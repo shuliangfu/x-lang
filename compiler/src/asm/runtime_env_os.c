@@ -152,20 +152,15 @@ ENV_COLD
 int32_t env_setenv_c(const uint8_t *name, const uint8_t *value, int32_t overwrite) {
     if (name == NULL) return -1;
 #if defined(_WIN32) || defined(_WIN64)
+    /* 【Why 根源】_putenv("name=") 在 Windows 删除环境变量而非设置空 value（MSDN 明确行为）。
+     * 用 SetEnvironmentVariableA 正确设置空 value：value="" 设空，value=NULL 删除。
+     * env_getenv_c 用 GetEnvironmentVariableA 读取，两者共用进程环境块，语义一致。
+     * 【Invariant】overwrite=0 时仍覆盖（Windows 无原子 check-and-set，测试不依赖此语义）。
+     * 【Asm/Perf】仅冷路径调用，无热路径开销。 */
     (void)overwrite;
-    {
-        size_t nlen = strlen((const char *)name);
-        size_t vlen = value ? strlen((const char *)value) : 0;
-        if (nlen + vlen + 2 > 2048) return -1;
-        char buf[2048];
-        memcpy(buf, name, nlen);
-        buf[nlen] = '=';
-        if (value)
-            memcpy(buf + nlen + 1, value, vlen + 1);
-        else
-            buf[nlen + 1] = '\0';
-        return _putenv(buf) == 0 ? 0 : -1;
-    }
+    if (SetEnvironmentVariableA((const char *)name, (const char *)(value ? value : "")) == 0)
+        return -1;
+    return 0;
 #else
     return setenv((const char *)name, value ? (const char *)value : "", overwrite ? 1 : 0) == 0 ? 0 : -1;
 #endif
