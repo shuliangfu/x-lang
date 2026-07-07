@@ -1173,6 +1173,7 @@ parser_gen.c: ast_gen2.c src/parser/parser.x
 	perl -0pi -e 's@^extern int32_t ast_pipeline_onefunc_append_const\(.*\);\n@@mg; s@^extern int32_t ast_pipeline_onefunc_const_init_ref\(.*\);\n@@mg; s@^extern int32_t ast_pipeline_onefunc_const_type_ref\(.*\);\n@@mg; s@/\* C-04 -E-extern TU aliases \*/\n@extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);\nextern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);\nextern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32_t i);\n/* C-04 -E-extern TU aliases */\n@s' $@
 	@echo "parser_gen.c: from parser.x (-E-extern, full TU via shux-x -x)"
 parser_x.o: parser_gen.c
+	@perl scripts/sync_lexer_gen_token_enum.pl parser_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Dstd_io_driver_driver_read_ptr_len=shux_io_read_ptr_len -Dstd_io_driver_driver_read_ptr=shux_io_read_ptr -c parser_gen.c -o parser_x.o
 	@echo "parser_x.o OK"
 
@@ -1967,6 +1968,7 @@ endif
 # 默认复用 build_asm/gen_driver/pipeline_x.o（fat 编排）；设 PIPELINE_X_FORCE_COMPILE=1 才从 pipeline_gen.c 重编。
 # pipeline_glue.c / ast_pool.c 由 pipeline_glue_standalone.o 覆盖，勿因二者 mtime 触发整 TU 重编（否则与 partial 并列链 parse 塌陷）。
 pipeline_x.o: $(PIPELINE_X_FORCE_PREREQ) pipeline_gen.c $(PIPELINE_X_DEPS)
+	@perl scripts/sync_lexer_gen_token_enum.pl pipeline_gen.c
 	@GEN_DRV=build_asm/gen_driver/pipeline_x.o; \
 	STALE=0; \
 	if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ] || [ "$(PIPELINE_X_FORCE_COMPILE)" = "1" ]; then STALE=1; fi; \

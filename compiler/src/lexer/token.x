@@ -75,6 +75,22 @@ enum TokenKind {
   TOKEN_ATTR_SEND,
   /** L6：#[sync]；下一 struct 可安全跨线程共享 */
   TOKEN_ATTR_SYNC,
+  /** 属性 #[global_allocator]（L1：下一 function 为全局分配器入口） */
+  TOKEN_ATTR_GLOBAL_ALLOCATOR,
+  /** 属性 #[cold]（冷路径优化提示） */
+  TOKEN_ATTR_COLD,
+  /** 属性 #[inline(never)]（禁止内联） */
+  TOKEN_ATTR_INLINE_NEVER,
+  /** 属性 #[inline(always)]（强制内联） */
+  TOKEN_ATTR_INLINE_ALWAYS,
+  /** 属性 #[export_name("name")]（导出符号名） */
+  TOKEN_ATTR_EXPORT_NAME,
+  /** 属性 #[panic_handler]（panic 处理函数） */
+  TOKEN_ATTR_PANIC_HANDLER,
+  /** 属性 #[thread_local]（线程局部存储） */
+  TOKEN_ATTR_THREAD_LOCAL,
+  /** 属性 #[percpu]（per-CPU 数据段） */
+  TOKEN_ATTR_PERCPU,
   /** DOD-CL：struct 字段 align(N) cache line 对齐 */
   TOKEN_ALIGN,
   TOKEN_ENUM,
