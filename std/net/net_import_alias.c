@@ -45,7 +45,24 @@ typedef struct ShuxBuffer {
 } ShuxBuffer;
 
 /** 前向声明：listen/bind 失败路径须 close fd。 */
-int32_t net_close_socket_c(int32_t fd);
+int32_t net_close_socket_c(int32_t);
+
+#if defined(_WIN32) || defined(_WIN64)
+/* 【Why 根源】Windows Winsock 须先 WSAStartup 才能 socket/bind/listen。
+ * net_tcp_listen_c 等 C 桩直接调 socket()，不经 std/net/tcp.x 的 SHUX 层 WSAStartup。
+ * 用 constructor 在 main 前自动初始化，确保所有 C 桩可用。
+ * 【Invariant】net_wsa_done 防重复初始化；WSACleanup 由 OS 在进程退出时自动回收。
+ * 【Asm/Perf】constructor 仅执行一次，热路径无开销。 */
+static int net_wsa_done = 0;
+static void net_ensure_wsa(void) {
+    WSADATA data;
+    if (net_wsa_done) return;
+    if (WSAStartup(MAKEWORD(2, 2), &data) == 0)
+        net_wsa_done = 1;
+}
+__attribute__((constructor(65534)))
+static void net_wsa_ctor(void) { net_ensure_wsa(); }
+#endif
 
 #if defined(__linux__) && defined(__GLIBC__)
 extern int shu_net_udp_recvmmsg_buf_c(int32_t fd, ShuxBuffer *bufs, int n, uint32_t timeout_ms,

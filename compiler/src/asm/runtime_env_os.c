@@ -63,7 +63,18 @@ int32_t env_getenv_c(const uint8_t * restrict key, int32_t key_len, uint8_t * re
 #if defined(_WIN32) || defined(_WIN64)
     {
         DWORD need = GetEnvironmentVariableA(key_buf, (char *)out, (DWORD)out_cap);
-        if (need == 0) return -1;
+        if (need == 0) {
+            /* 【Why 根源】GetEnvironmentVariableA 对空 value 也返回 0，须用 GetLastError 区分
+             * 空值（ERROR_SUCCESS，变量存在但 value 为 ""）与不存在（ERROR_ENVVAR_NOT_FOUND）。
+             * POSIX getenv 对空 value 返回非 NULL 指针，此处对齐语义返回 0（写入长度 0）。
+             * 【Invariant】out[0] 已 NUL 终止（GetEnvironmentVariableA 失败时不写 out）。 */
+            DWORD err = GetLastError();
+            if (err == ERROR_SUCCESS) {
+                out[0] = '\0';
+                return 0;
+            }
+            return -1;
+        }
         if (need > (DWORD)out_cap) return (int32_t)need;
         return (int32_t)need;
     }
