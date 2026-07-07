@@ -19,6 +19,9 @@ case "$(uname -s 2>/dev/null)" in
     export TMP=C:/shux_tmp
     mkdir -p "$TEMP" 2>/dev/null || true
     export SHUX_PIPELINE_NO_LARGE_STACK=1
+    # 【Why 根源治理 Windows 无 cc 命令】MinGW 无 cc 别名，make 默认用 cc 编译失败。
+    # 修复：Windows 下强制 CC=gcc。
+    export CC=gcc
     # 【Why 根源治理 Windows Store python3 stub】Windows 预装 python3 是 Store stub，
     # 无输出且 exit 49；run-comment-prefix.sh / run-fmt-wrap.sh 等用 python3 的脚本全挂。
     # 修复：python3 不可用时创建 /usr/local/bin/python3 → python 的 shim，
