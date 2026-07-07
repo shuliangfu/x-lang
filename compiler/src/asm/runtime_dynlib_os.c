@@ -60,8 +60,26 @@ int32_t dynlib_os_copy_last_error_c(uint8_t *buf, int32_t cap) {
         return 0;
     buf[0] = '\0';
 #if defined(_WIN32) || defined(_WIN64)
-    (void)0;
-    return 0;
+    /* 【Why 根源】Windows 无 dlerror：用 GetLastError + FormatMessageA 取系统错误描述。
+     * dynlib_os_open_c 失败后立即调用 dynlib_note_os_error_c → 本函数，
+     * GetLastError 仍保留 LoadLibrary 失败码（ERROR_MOD_NOT_FOUND 等）。
+     * 【Invariant】buf[0..cap) 可写；FormatMessageA NUL 终止；去尾 \r\n 避免诊断噪声。
+     * 【Asm/Perf】仅失败路径调用，热路径无开销。 */
+    {
+        DWORD err = GetLastError();
+        DWORD n;
+        if (err == 0)
+            return 0;
+        n = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                           NULL, err, 0, (LPSTR)buf, (DWORD)cap, NULL);
+        if (n == 0) {
+            buf[0] = '\0';
+            return 0;
+        }
+        while (n > 0 && (buf[n-1] == '\r' || buf[n-1] == '\n' || buf[n-1] == ' '))
+            buf[--n] = '\0';
+        return (int32_t)n;
+    }
 #else
     {
         const char *e = dlerror();
