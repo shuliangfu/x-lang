@@ -21,12 +21,18 @@ case "$(uname -s 2>/dev/null)" in
     export SHUX_PIPELINE_NO_LARGE_STACK=1
     # 【Why 根源治理 Windows Store python3 stub】Windows 预装 python3 是 Store stub，
     # 无输出且 exit 49；run-comment-prefix.sh / run-fmt-wrap.sh 等用 python3 的脚本全挂。
-    # 修复：python3 不可用时创建 /usr/local/bin/python3 → python 的 shim。
+    # 修复：python3 不可用时创建 /usr/local/bin/python3 → python 的 shim，
+    # 并把 /usr/local/bin 加到 PATH 前面（Git Bash 默认不含此路径，导致 shim 不生效）。
     if ! python3 --version >/dev/null 2>&1 && command -v python >/dev/null 2>&1; then
       mkdir -p /usr/local/bin 2>/dev/null || true
       printf '#!/usr/bin/env bash\nexec python "$@"\n' > /usr/local/bin/python3 2>/dev/null || true
       chmod +x /usr/local/bin/python3 2>/dev/null || true
     fi
+    # 确保 /usr/local/bin 在 PATH 前面，使 python3 shim 优先于 WindowsApps alias
+    case ":$PATH:" in
+      *:/usr/local/bin:*) ;;
+      *) export PATH="/usr/local/bin:$PATH" ;;
+    esac
     ;;
 esac
 
@@ -97,6 +103,8 @@ if [ -n "$SHUX" ]; then
     find std -name '*.o' -delete 2>/dev/null || true
     # 预编译所有 std .o（SHUX_COMPILE_STD_USE_C=1 强制用 shux-c）；失败不中断，后续按需 ensure
     make -C compiler std-objs SHUX_COMPILE_STD_USE_C=1 2>/dev/null || true
+    # 预编译 core .o（SHUX_SKIP_SUBSCRIPT_MAKE=1 时子脚本跳过 make，需入口预构建）
+    make -C compiler ../core/slice/slice.o 2>/dev/null || true
     # SHU 与 compiler/shux 为同一inode 时不能做「先 mv 再 cp」：mv 会破坏 cp 的源路径（常见：SHUX=./compiler/shux）。
     if [ -f compiler/shux ] && [ compiler/shux -ef "$SHUX" ]; then
         :
