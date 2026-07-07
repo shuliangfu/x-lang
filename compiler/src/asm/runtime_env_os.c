@@ -158,7 +158,7 @@ int32_t env_setenv_c(const uint8_t *name, const uint8_t *value, int32_t overwrit
      * 【Invariant】overwrite=0 时仍覆盖（Windows 无原子 check-and-set，测试不依赖此语义）。
      * 【Asm/Perf】仅冷路径调用，无热路径开销。 */
     (void)overwrite;
-    if (SetEnvironmentVariableA((const char *)name, (const char *)(value ? value : "")) == 0)
+    if (SetEnvironmentVariableA((const char *)name, value ? (const char *)value : "") == 0)
         return -1;
     return 0;
 #else
