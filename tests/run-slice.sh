@@ -64,7 +64,7 @@ slice_simple_link_o() {
     echo "$struct_decl"
     "$emit_shux" -E "$x" 2>/dev/null | tail -n +2
   } >"$tmpc"
-  cc -O0 -x c -o "$out" "$tmpc"
+  ${CC:-cc} -O0 -x c -o "$out" "$tmpc"
   rm -f "$tmpc"
 }
 

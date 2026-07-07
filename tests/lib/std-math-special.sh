@@ -68,7 +68,7 @@ std_math_special_run_c_smoke() {
     echo "std-math-special FAIL: missing $rt_o" >&2
     return 1
   fi
-  if ! cc -std=c11 -O1 -o "$out" "$src" "$math_o" "$rt_o" -lm 2>/dev/null; then
+  if ! ${CC:-cc} -std=c11 -O1 -o "$out" "$src" "$math_o" "$rt_o" -lm 2>/dev/null; then
     echo "std-math-special FAIL: compile C smoke" >&2
     return 1
   fi
