@@ -152,15 +152,31 @@ ENV_COLD
 int32_t env_setenv_c(const uint8_t *name, const uint8_t *value, int32_t overwrite) {
     if (name == NULL) return -1;
 #if defined(_WIN32) || defined(_WIN64)
-    /* 【Why 根源】_putenv("name=") 在 Windows 删除环境变量而非设置空 value（MSDN 明确行为）。
-     * 用 SetEnvironmentVariableA 正确设置空 value：value="" 设空，value=NULL 删除。
-     * env_getenv_c 用 GetEnvironmentVariableA 读取，两者共用进程环境块，语义一致。
+    /* 【Why 根源】Windows 有两套环境块：
+     * 1. 进程环境块（Get/SetEnvironmentVariableA）— env_getenv_c 用此读取
+     * 2. CRT 环境（_putenv/getenv）— env_getenv_z_c / env_getenv_ptr_c 用此读取
+     * 非空 value 时须同时更新两者，否则零拷贝 getenv_z/ptr 读不到 setenv 的值。
+     * 空 value 时 _putenv("name=") 会删除变量（MSDN 行为），只用 SetEnvironmentVariableA 设空。
      * 【Invariant】overwrite=0 时仍覆盖（Windows 无原子 check-and-set，测试不依赖此语义）。
      * 【Asm/Perf】仅冷路径调用，无热路径开销。 */
     (void)overwrite;
-    if (SetEnvironmentVariableA((const char *)name, value ? (const char *)value : "") == 0)
-        return -1;
-    return 0;
+    {
+        const char *v = value ? (const char *)value : "";
+        if (v[0] != '\0') {
+            size_t nlen = strlen((const char *)name);
+            size_t vlen = strlen(v);
+            if (nlen + vlen + 2 > 2048) return -1;
+            char buf[2048];
+            memcpy(buf, name, nlen);
+            buf[nlen] = '=';
+            memcpy(buf + nlen + 1, v, vlen + 1);
+            if (_putenv(buf) != 0)
+                return -1;
+        }
+        if (SetEnvironmentVariableA((const char *)name, v) == 0)
+            return -1;
+        return 0;
+    }
 #else
     return setenv((const char *)name, value ? (const char *)value : "", overwrite ? 1 : 0) == 0 ? 0 : -1;
 #endif
@@ -174,6 +190,8 @@ ENV_COLD
 int32_t env_unsetenv_c(const uint8_t *name) {
     if (name == NULL) return -1;
 #if defined(_WIN32) || defined(_WIN64)
+    /* 同时清除 CRT 环境（_putenv("name=") 删除）和进程环境块（SetEnvironmentVariableA NULL 删除）。
+     * 与 env_setenv_c 对齐：两套环境块须同步，否则 getenv_z/ptr 仍能读到已删除的变量。 */
     {
         char buf[512];
         size_t n = 0;
@@ -181,8 +199,12 @@ int32_t env_unsetenv_c(const uint8_t *name) {
         if (n >= sizeof(buf) - 2) return -1;
         buf[n++] = '=';
         buf[n] = '\0';
-        return _putenv(buf) == 0 ? 0 : -1;
+        if (_putenv(buf) != 0)
+            return -1;
     }
+    if (SetEnvironmentVariableA((const char *)name, NULL) == 0)
+        return -1;
+    return 0;
 #else
     return unsetenv((const char *)name) == 0 ? 0 : -1;
 #endif
