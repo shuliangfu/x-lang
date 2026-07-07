@@ -675,6 +675,34 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
         return "lexer";
     if (strstr(input_path, "ast") != NULL)
         return "ast";
+    /* std/xxx/mod.x 或 std/xxx/xxx.x：lib_prefix 须为 std_xxx_（如 std_heap_），
+     * 与 import("std.xxx") 生成的 std_xxx_* 调用符号一致。
+     * 【Why 根源】import("std.heap") 的调用方生成 std_heap_* 符号；若库前缀用 basename
+     * "mod"（mod.x）则生成 mod_* 符号，与调用方不匹配，必须依赖 C 桩文件
+     * (*_import_alias.c) 提供转发。修此根因后 .o 直接提供正确符号，C 桩可删，F 闭合。
+     * 【Invariant】仅影响路径含 "std/" 段的输入；compiler/ 等其他路径不受影响。
+     * 【Asm/Perf】编译期决议，无运行期开销。 */
+    {
+        const char *std_seg = NULL;
+        for (const char *s = input_path; *s; s++) {
+            if ((s == input_path || s[-1] == '/' || s[-1] == '\\')
+                && strncmp(s, "std/", 4) == 0) {
+                std_seg = s + 4;
+                break;
+            }
+        }
+        if (std_seg) {
+            const char *seg_end = std_seg;
+            while (*seg_end && *seg_end != '/' && *seg_end != '\\') seg_end++;
+            size_t seg_len = (size_t)(seg_end - std_seg);
+            if (seg_len > 0 && seg_len + 5 < sizeof(stem_buf)) {
+                memcpy(stem_buf, "std_", 4);
+                memcpy(stem_buf + 4, std_seg, seg_len);
+                stem_buf[4 + seg_len] = '\0';
+                return stem_buf;
+            }
+        }
+    }
     /* std/json/json.x 等：basename 去 .x/.su 作为库前缀（json_ → json_*_c 符号）。 */
     base = strrchr(input_path, '/');
     if (!base)
