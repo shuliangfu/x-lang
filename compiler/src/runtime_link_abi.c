@@ -3202,8 +3202,18 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
 #endif
             }
         }
-        /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc；shux_process_* 由生成 C weak 定义。 */
+        /* CORE-009 / Docker musl：仅链已按需推入的 core/*.o + -lc；shux_process_* 由生成 C weak 定义。
+         * 【Why 根源】Windows codegen 生成 extern 声明（非 weak 定义），minimal 链须显式链入
+         * runtime_process_argv.o 提供 shux_process_argc/argv 定义，否则链接报 undefined reference。
+         * Linux/macOS 仍由生成 C 的 weak 定义提供默认值（minimal 链不链 runtime_process_argv.o）。 */
         if (getenv("SHUX_MINIMAL_CC_LINK")) {
+#if defined(_WIN32) || defined(_WIN64)
+            {
+                const char *rpav = shux_runtime_process_argv_o_path(NULL);
+                if (rpav && rpav[0])
+                    (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rpav);
+            }
+#endif
 #if defined(__linux__) || defined(__APPLE__)
             if (i < argv_cap - 1)
                 argv[i++] = (char *)"-lc";
