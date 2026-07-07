@@ -98,41 +98,17 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	ld -r -o ../std/path/path.o ../std/path/path_core.o && \
 	rm -f ../std/path/path_core.o
 
-# std.heap：F-03 纯 .x 优先；typeck 未 relink 进 shux_asm 时回退 heap_import_alias.c。
-../std/heap/heap.o: ../std/heap/mod.x ../std/heap/heap_import_alias.c
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else shux=; fi; \
-	if [ -n "$$shux" ] && sh scripts/shux_compile_std_x.sh $$shux ../std/heap/mod.x ../std/heap/heap.o 2>/dev/null; then \
-	  exit 0; \
-	fi; \
-	echo "make heap.o: x emit failed, fallback heap_import_alias.c" >&2; \
-	$(CC) $(CFLAGS) -fPIE -c -o $@ ../std/heap/heap_import_alias.c
+# std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops）。
+../std/heap/heap.o: ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x
 
-# std.map：纯 .x 优先；失败回退 map_import_alias.c。
-../std/map/map.o: ../std/map/mod.x ../std/map/map_import_alias.c
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else shux=; fi; \
-	if [ -n "$$shux" ] && sh scripts/shux_compile_std_x.sh $$shux ../std/map/mod.x ../std/map/map.o 2>/dev/null; then \
-	  exit 0; \
-	fi; \
-	echo "make map.o: x emit failed, fallback map_import_alias.c" >&2; \
-	$(CC) $(CFLAGS) -fPIE -c -o $@ ../std/map/map_import_alias.c
+# std.map：F 闭合 — 纯 .x -E-extern + cc -c。
+../std/map/map.o: ../std/map/mod.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/map/mod.x
 
-# std.set：纯 .x 优先；失败回退 set_import_alias.c。
-../std/set/set.o: ../std/set/mod.x ../std/set/set_import_alias.c
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else shux=; fi; \
-	if [ -n "$$shux" ] && sh scripts/shux_compile_std_x.sh $$shux ../std/set/mod.x ../std/set/set.o 2>/dev/null; then \
-	  exit 0; \
-	fi; \
-	echo "make set.o: x emit failed, fallback set_import_alias.c" >&2; \
-	$(CC) $(CFLAGS) -fPIE -c -o $@ ../std/set/set_import_alias.c
+# std.set：F 闭合 — 纯 .x -E-extern + cc -c。
+../std/set/set.o: ../std/set/mod.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/set/mod.x
 
 # std.runtime：保留 runtime.x 作为 F-runtime v1 源码锚点；runtime.o 仅提供
 # runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
@@ -270,27 +246,13 @@ net-o-mbedtls:
 	else echo "make queue.o: need shux-c or shux (F-queue zero-c)" >&2; exit 0; fi; \
 	sh scripts/shux_compile_std_x.sh auto ../std/queue/queue.x ../std/queue/queue.o
 
-# std.encoding：F-encoding v1 纯 .x（encoding.x）；import binding 别名桩 encoding_import_alias.c。
-../std/encoding/encoding.o: ../std/encoding/encoding.x ../std/encoding/encoding_import_alias.c
-	@sh scripts/shux_compile_std_x.sh auto ../std/encoding/encoding.x ../std/encoding/encoding_core.o && \
-	test -s ../std/encoding/encoding_core.o || { echo "make encoding.o: failed to produce ../std/encoding/encoding_core.o" >&2; rm -f ../std/encoding/encoding_core.o; exit 1; }; \
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/encoding/encoding_import_alias.o ../std/encoding/encoding_import_alias.c && \
-	ld -r -o ../std/encoding/encoding.o ../std/encoding/encoding_core.o ../std/encoding/encoding_import_alias.o && \
-	rm -f ../std/encoding/encoding_core.o ../std/encoding/encoding_import_alias.o
+# std.encoding：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + encoding）。
+../std/encoding/encoding.o: ../std/encoding/mod.x ../std/encoding/encoding.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/encoding/mod.x ../std/encoding/encoding.x
 
-# std.base64：F-base64 v1 纯 .x（base64.x）；import binding 别名桩 base64_import_alias.c。
-../std/base64/base64.o: ../std/base64/base64.x ../std/base64/base64_import_alias.c
-	@if [ -x ./shux-c ]; then \
-	  ./shux-c -E -L .. ../std/base64/base64.x > ../std/base64/base64_core_gen.c && \
-	  $(CC) $(CFLAGS) -c -o ../std/base64/base64_core.o ../std/base64/base64_core_gen.c && \
-	  rm -f ../std/base64/base64_core_gen.c; \
-	elif [ -x ./shux_asm ]; then \
-	  sh scripts/shux_compile_std_x.sh ./shux_asm ../std/base64/base64.x ../std/base64/base64_core.o; \
-	else echo "make base64.o: need shux-c or shux_asm (F-base64 v2)" >&2; exit 1; fi; \
-	test -s ../std/base64/base64_core.o || { echo "make base64.o: failed to produce ../std/base64/base64_core.o" >&2; rm -f ../std/base64/base64_core.o; exit 1; }; \
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/base64/base64_import_alias.o ../std/base64/base64_import_alias.c && \
-	ld -r -o ../std/base64/base64.o ../std/base64/base64_core.o ../std/base64/base64_import_alias.o && \
-	rm -f ../std/base64/base64_core.o ../std/base64/base64_import_alias.o
+# std.base64：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + base64）。
+../std/base64/base64.o: ../std/base64/mod.x ../std/base64/base64.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/base64/mod.x ../std/base64/base64.x
 
 # std.crypto：F-crypto v2 纯 .x（F-ZC）；SHA-512/ref10 胶层在 runtime_crypto_*_glue.o。
 ../std/crypto/crypto.o: ../std/crypto/core.x ../std/crypto/aes_gcm.x ../std/crypto/chacha20_poly1305.x ../std/crypto/chacha20_aead.x ../std/crypto/ed25519.x
@@ -390,19 +352,9 @@ net-o-mbedtls:
 
 # G-01：core/ 零 C — 位运算/volatile/slice 已纯 .x（见 analysis/phase-g-full-selfhost-tasks-v1.md）
 
-# std.ffi：F-ffi v1 + F-ZC 纯 ffi.x；import binding 别名桩 ffi_import_alias.c。
-# LANG-007 v2：shux-c 默认 x pipeline 对 ffi.x typeck 仍红；库模块用 -E → cc -c。
-../std/ffi/ffi.o: ../std/ffi/ffi.x ../std/ffi/ffi_import_alias.c
-	@if [ -x ./shux-c ]; then \
-	  ./shux-c -E -L .. ../std/ffi/ffi.x > ../std/ffi/ffi_core_gen.c && \
-	  $(CC) $(CFLAGS) -c -o ../std/ffi/ffi_core.o ../std/ffi/ffi_core_gen.c && \
-	  rm -f ../std/ffi/ffi_core_gen.c; \
-	elif [ -x ./shux_asm ]; then \
-	  env SHUX_ASM_WPO_DCE=0 ./shux_asm -backend asm -L .. ../std/ffi/ffi.x -o ../std/ffi/ffi_core.o; \
-	else echo "make ffi.o: need shux-c or shux_asm (F-ffi v1)" >&2; exit 1; fi; \
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/ffi/ffi_import_alias.o ../std/ffi/ffi_import_alias.c && \
-	ld -r -o ../std/ffi/ffi.o ../std/ffi/ffi_core.o ../std/ffi/ffi_import_alias.o && \
-	rm -f ../std/ffi/ffi_core.o ../std/ffi/ffi_import_alias.o
+# std.ffi：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + ffi）。
+../std/ffi/ffi.o: ../std/ffi/mod.x ../std/ffi/ffi.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/ffi/mod.x ../std/ffi/ffi.x
 
 
 # std.context：F-context v2 纯 context.x → context.o（无 glue；无 shux 时 exit 0）。
@@ -565,26 +517,12 @@ sqlite-o-stub:
 	sh scripts/shux_compile_std_x.sh auto ../std/elf/elf.x ../std/elf/elf.o
 
 # P4 std 模块（按需链接）
-# std.json：F-json v2 纯 json.x；import binding 别名桩 json_import_alias.c。
-# LANG-007 v2：shux-c -E → cc -c 库模块；fallback shux_asm。
-../std/json/json.o: ../std/json/json.x ../std/json/json_import_alias.c
-	@if [ -x ./shux-c ]; then \
-	  ./shux-c -E -L .. ../std/json/json.x > ../std/json/json_core_gen.c && \
-	  $(CC) $(CFLAGS) -c -o ../std/json/json_core.o ../std/json/json_core_gen.c && \
-	  rm -f ../std/json/json_core_gen.c; \
-	elif [ -x ./shux_asm ]; then \
-	  sh scripts/shux_compile_std_x.sh ./shux_asm ../std/json/json.x ../std/json/json_core.o; \
-	else echo "make json.o: need shux-c or shux_asm (F-json v2)" >&2; exit 1; fi; \
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/json/json_import_alias.o ../std/json/json_import_alias.c && \
-	ld -r -o ../std/json/json.o ../std/json/json_core.o ../std/json/json_import_alias.o && \
-	rm -f ../std/json/json_core.o ../std/json/json_import_alias.o
-# std.csv：F-csv v1 纯 .x（csv.x）；import binding 别名桩 csv_import_alias.c（std_csv_escape）。
-../std/csv/csv.o: ../std/csv/csv.x ../std/csv/csv_import_alias.c
-	@sh scripts/shux_compile_std_x.sh auto ../std/csv/csv.x ../std/csv/csv_core.o && \
-	test -s ../std/csv/csv_core.o || { echo "make csv.o: failed to produce ../std/csv/csv_core.o" >&2; rm -f ../std/csv/csv_core.o; exit 1; }; \
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/csv/csv_import_alias.o ../std/csv/csv_import_alias.c && \
-	ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/csv/csv.o ../std/csv/csv_import_alias.o ../std/csv/csv_core.o && \
-	rm -f ../std/csv/csv_core.o ../std/csv/csv_import_alias.o
+# std.json：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + json）。
+../std/json/json.o: ../std/json/mod.x ../std/json/json.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/json/mod.x ../std/json/json.x
+# std.csv：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + csv）。
+../std/csv/csv.o: ../std/csv/mod.x ../std/csv/csv.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/csv/mod.x ../std/csv/csv.x
 # std.regex：F-regex v2 纯 .x → regex.o（同 hash/schema）。
 ../std/regex/regex.o: ../std/regex/regex.x
 	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
@@ -630,12 +568,9 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 	objs="$$objs ../std/socketio/socketio_main.o"; \
 	$(LD) $(LD_RELFLAGS) -r -o $@ $$objs
 # std.tar：F-tar v2 纯 tar.x；import binding 别名桩 tar_import_alias.c。
-../std/tar/tar.o: ../std/tar/tar.x ../std/tar/tar_import_alias.c
-	@sh scripts/shux_compile_std_x.sh auto ../std/tar/tar.x ../std/tar/tar_core.o && \
-	test -s ../std/tar/tar_core.o || { echo "make tar.o: failed to produce ../std/tar/tar_core.o" >&2; rm -f ../std/tar/tar_core.o; exit 1; }; \
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/tar/tar_import_alias.o ../std/tar/tar_import_alias.c && \
-	ld -r $(LD_R_MULTIDEF_FLAGS) -o ../std/tar/tar.o ../std/tar/tar_import_alias.o ../std/tar/tar_core.o && \
-	rm -f ../std/tar/tar_core.o ../std/tar/tar_import_alias.o
+# std.tar：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + tar）。
+../std/tar/tar.o: ../std/tar/mod.x ../std/tar/tar.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/tar/mod.x ../std/tar/tar.x
 # std.simd：F-simd v1 + F-ZC 纯 simd.x → simd.o（无 glue；无 shux 时 exit 0）。
 ../std/simd/simd.o: ../std/simd/simd.x
 	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
