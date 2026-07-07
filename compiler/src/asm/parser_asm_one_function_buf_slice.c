@@ -999,6 +999,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     out->name_len = name_len;
     for (ni = 0; ni < 64; ni++)
       out->name[ni] = dummy_name[ni];
+    out->has_explicit_return_kw = 1;
     return;
   }
   if (r.tok.kind != (int32_t)TOKEN_INT) {
@@ -1027,6 +1028,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   for (ni = 0; ni < 64; ni++)
     out->name[ni] = dummy_name[ni];
   out->return_val = ret_val;
+  out->has_explicit_return_kw = 1;
 }
 
 #endif /* PARSER_ASM_ONE_FUNCTION_BUF_SLICE_INCLUDED */

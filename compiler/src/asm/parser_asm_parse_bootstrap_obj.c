@@ -66,6 +66,7 @@ struct parser_asm_onefunc_result {
   uint8_t name[64];
   int32_t name_len;
   int32_t num_params;
+  int32_t num_generic_params;
   int32_t num_consts;
   int32_t num_lets;
   int32_t has_if_expr;
@@ -87,6 +88,7 @@ struct parser_asm_onefunc_result {
   uint8_t return_var_name[64];
   int32_t return_var_name_len;
   int32_t return_expr_ref;
+  int32_t has_final_expr;
   int32_t has_explicit_return_kw;
   int32_t call_num_args;
   int32_t num_loops;
