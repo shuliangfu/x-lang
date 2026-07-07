@@ -2,12 +2,14 @@
 // 对标 Rust/Go/Zig 的 extension、stem、IsAbs、sep、Clean。
 const path = import("std.path");
 
+// POSIX sep()=47 ('/')；Windows sep()=92 ('\\') — path.sep() 返回 OS 原生分隔符
+#[cfg(target_os = "windows")]
+function expected_sep(): u8 { return 92 as u8; }
+#[cfg(not(target_os = "windows"))]
+function expected_sep(): u8 { return 47 as u8; }
+
 function main(): i32 {
-  // POSIX sep()=47 ('/')；Windows sep()=92 ('\\') — path.sep() 返回 OS 原生分隔符
-  #[cfg(target_os = "windows")]
-  if (path.sep() != 92) { return 1; }
-  #[cfg(not(target_os = "windows"))]
-  if (path.sep() != 47) { return 1; }
+  if (path.sep() != expected_sep()) { return 1; }
   let p_abs: u8[4] = [47, 97, 98, 0];
   if (path.is_absolute(&p_abs[0], 3) != 1) { return 2; }
   let p_rel: u8[3] = [97, 98, 0];
