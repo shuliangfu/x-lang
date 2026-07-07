@@ -1669,6 +1669,10 @@ $(AST_POOL_L5_BRIDGE_O): src/ast_pool_l5_bridge.c
 src/ast/ast_seed.o: src/ast/ast.c include/ast.h
 	$(CC) $(CFLAGS) -DSHUX_USE_X_AST -c -o $@ src/ast/ast.c
 
+# G-02a: ast_x.o alias — ast.x 提供类型+helper；ast_seed.o 提供 C ABI 实现（ast_block_free 等）。
+ast_x.o: src/ast/ast_seed.o
+	cp -f src/ast/ast_seed.o ast_x.o
+
 # seed-compat：runtime_driver.o 薄桥依赖 C parse/typeck/codegen（与 capture LEGACY 种子一致）。
 src/preprocess.o: src/preprocess.c src/preprocess.h
 	$(CC) $(CFLAGS) $(PREPROCESS_O_CFLAGS) -c -o $@ $<
