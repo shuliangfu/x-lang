@@ -2108,7 +2108,11 @@ static ASTExpr *parse_as_chain(Parser *p, ASTExpr *left) {
             ast_expr_free(left);
             return NULL;
         }
-        ASTExpr *e = (ASTExpr *)malloc(sizeof(ASTExpr));
+        /* 【Why 根源治理】用 calloc 而非 malloc：ASTExpr 含 const_folded_valid/const_folded_val
+         * 等 CTFE 字段，malloc 在 Windows/Linux 上复用 free chunk 返回垃圾值，
+         * const_folded_valid 碰巧非 0 时 codegen 误把表达式当常量输出（return 7143471 等）。
+         * macOS malloc 小分配常返回零内存不触发；calloc 保证全字段零初始化。 */
+        ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
             ast_expr_free(left);
             ast_type_free(ty);
@@ -2792,7 +2796,9 @@ static ASTExpr *parse_ternary(Parser *p) {
         ast_expr_free(then_expr);
         return NULL;
     }
-    ASTExpr *e = (ASTExpr *)malloc(sizeof(ASTExpr));
+    /* 【Why 根源治理】calloc 而非 malloc：见 parse_as 处注释。
+     * ternary 若 const_folded_valid 留垃圾值，codegen 会跳过 (cond ? then : else) 直出垃圾常量。 */
+    ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
     if (!e) {
         ast_expr_free(cond);
         ast_expr_free(then_expr);
@@ -2874,7 +2880,9 @@ static ASTExpr *parse_assign(Parser *p) {
             ast_expr_free(left);
             return NULL;
         }
-        ASTExpr *e = (ASTExpr *)malloc(sizeof(ASTExpr));
+        /* 【Why 根源治理】calloc 而非 malloc：见 parse_as 处注释。
+         * assign 若 const_folded_valid 留垃圾值，会绕过赋值 codegen 直出垃圾常量。 */
+        ASTExpr *e = (ASTExpr *)calloc(1, sizeof(ASTExpr));
         if (!e) {
             ast_expr_free(left);
             ast_expr_free(right);
