@@ -56,7 +56,7 @@ SRCS    = src/main.c src/runtime.c src/async/async_liveness.c src/async/async_cp
 OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/preprocess_legacy.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 # 考古冷启动：完整 C 前端 shux-c（仅用于生成/刷新 seeds/ 预编译种子）
-OBJS_CORE = src/main.o src/runtime.o src/diag.o src/driver/fmt_check_cmd.o src/preprocess_legacy.o src/lexer/lexer.o src/lexer/cfg_eval_bootstrap_stub.o src/ast/ast.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_c_import.o
+OBJS_CORE = src/main.o src/runtime.o src/diag.o src/driver/fmt_check_cmd.o src/preprocess_legacy.o src/lexer/lexer.o src/lexer/cfg_eval_bootstrap_stub.o src/ast/ast.o src/typeck/typeck.o src/codegen/codegen.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_c_import.o
 endif
 OBJS      = $(OBJS_CORE)
 # 注：lsp.x 生成的 lsp_gen 与 lsp_diag 中 lsp_build_* 同名；若把 InitializeResult/response 外壳迁入 .x，
@@ -581,9 +581,6 @@ src/ast/ast.o: src/asm/runtime_ast_glue.c include/ast.h
 src/diag.o: src/diag.c include/diag.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-src/parser/parser.o: src/parser/parser.c src/parser/parser.h src/lexer/lexer.h include/ast.h include/token.h include/diag.h
-	$(CC) $(CFLAGS) -c -o $@ $<
-
 src/typeck/typeck.o: src/typeck/typeck.c src/typeck/typeck.h include/ast.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -718,7 +715,7 @@ src/main_x.o: src/main.c
 	$(CC) $(CFLAGS) -DSHUX_USE_X_PIPELINE -c -o $@ $<
 
 # shux_x：pipeline_x.o 编排 typeck_x/codegen_x（非 C typeck.o/codegen.o）。
-PIPELINE_X_BASE_OBJS = src/main_x.o src/runtime_x.o src/diag.o src/preprocess.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o
+PIPELINE_X_BASE_OBJS = src/main_x.o src/runtime_x.o src/diag.o src/preprocess.o src/lexer/lexer.o src/ast/ast_seed.o
 PIPELINE_X_FRONTEND_OBJS = typeck_x.o codegen_x.o typeck_x_link_alias.o codegen_x_link_alias.o
 # parser_x / seed partial / C typeck·codegen·bridge + 卫星 .o（对齐 DRIVER_SEED_OBJS 除 main_x/runtime_x 外的链接依赖）。
 # fmt_check_cmd.o（非 _driver）：runtime_x 无 SHUX_USE_X_DRIVER，fmt/check 走 run_compiler_c 桩，避免缺 driver_run_compiler_full。
@@ -1530,7 +1527,7 @@ DRIVER_SEED_X_OBJS = parser_x.o typeck_x.o codegen_x.o
 
 # 阶段 10.4 实验：链 typeck_x.o/codegen_x.o 替代 C 前端（不含 pipeline_x.o，无 SHUX_USE_X_PIPELINE）。
 # 勿复用 DRIVER_SEED_X_FRONTEND_OBJS 名：bootstrap-driver-seed 链依赖 parser_x.o/lexer_x.o（见上 §1280）。
-DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS = src/main_driver.o src/runtime_driver.o src/diag.o src/preprocess_for_driver.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o typeck_x.o codegen_x.o
+DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS = src/main_driver.o src/runtime_driver.o src/diag.o src/preprocess_for_driver.o src/lexer/lexer.o src/ast/ast_seed.o typeck_x.o codegen_x.o
 bootstrap-driver-seed-x-frontend: $(SHUX_C) migrate-x-objs driver_x.o preprocess_x.o $(DRIVER_SUBCMD_GEN) $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) $(LSP_DIAG_LINK_O) _stubs_driver.o $(DRIVER_SUBCMD_OBJS)
 	$(CC) $(CFLAGS) -DSHUX_USE_X_DRIVER -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN -o $(TARGET)_x_frontend $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) driver_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o $(LSP_DIAG_LINK_O) $(PIPELINE_LIBS)
 	@echo "bootstrap-driver-seed-x-frontend OK ($(TARGET)_x_frontend: .x typeck/codegen, no pipeline_x.o)"
@@ -1577,9 +1574,6 @@ src/preprocess.o: src/preprocess.c src/preprocess.h
 # G-02a: lexer.o 从 runtime_lexer_glue.c 编译（lexer.c 已物理删除）。
 src/lexer/lexer.o: src/asm/runtime_lexer_glue.c src/lexer/lexer.h include/token.h
 	$(CC) $(CFLAGS) -c -o $@ src/asm/runtime_lexer_glue.c
-
-src/parser/parser.o: src/parser/parser.c src/parser/parser.h src/lexer/lexer.h include/ast.h include/token.h
-	$(CC) $(CFLAGS) -c -o $@ $<
 
 src/typeck/typeck.o: src/typeck/typeck.c src/typeck/typeck.h include/ast.h
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -2253,7 +2247,9 @@ check-7.2: bootstrap-self
 	echo "check-7.2 OK (both stages: return-value, hello, lexer, typeck, vec/map/heap + parser/typeck dogfood)"
 
 # 9.1 自举：纯 .x 流水线（parse_into → typeck_x_ast → codegen_x_ast）；生成 pipeline_gen.c 便于联调；-L 与 pipeline 依赖一致。
-# 必须用 $(SHUX_C) 做 -E：C 解析器(parser.c) 会按源码顺序填充 stmt_order，codegen 按序输出；若用 $(TARGET) 走 .x 解析则 stmt_order 仅有 const+let 导致声明被提到函数首、顺序错乱。
+# 【Why 根源】必须用 $(SHUX_C) 做 -E：G-02a 后 parser.c 已物理删除，$(SHUX_C) 即 bootstrap_shuxc seed（.x pipeline）。
+# seed 的 .x parser 按源码顺序填充 stmt_order，codegen 按序输出；若用 $(TARGET)（非 seed 的 .x 解析）则 stmt_order
+# 仅有 const+let 导致声明被提到函数首、顺序错乱。故 -E 须固定用 seed 而非 $(TARGET)。
 # pipeline_gen.c 必须是真文件目标，且默认沿用 pinned 生成物：
 # 1) 若把它挂在 bootstrap-pipeline 这种伪目标下，经 pipeline_x.o / asm_full_link_stubs.o 间接依赖时会反复触发
 #    bootstrap-pipeline -> legacy-shux-c-ready -> make -B shux-c。

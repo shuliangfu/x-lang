@@ -76,7 +76,6 @@ entries = [
     ("src/runtime.c", driver_flags),
     ("src/runtime.c", base),
     ("src/main.c", base),
-    ("src/parser/parser.c", base),
     ("src/typeck/typeck.c", base),
     ("src/codegen/codegen.c", base),
     ("src/asm/runtime_lexer_glue.c", base),

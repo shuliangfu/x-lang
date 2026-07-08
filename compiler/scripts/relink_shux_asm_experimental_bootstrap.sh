@@ -56,10 +56,6 @@ ensure_asm_driver_seed_c_objs() {
     experimental_bootstrap_info "cc $SEED_O/ast_seed.o"
     "$CC" $CFLAGS -c -o "$SEED_O/ast_seed.o" src/asm/runtime_ast_glue.c
   fi
-  if [ ! -f "$SEED_O/parser.o" ] || [ "src/parser/parser.c" -nt "$SEED_O/parser.o" ]; then
-    experimental_bootstrap_info "cc $SEED_O/parser.o"
-    "$CC" $CFLAGS -c -o "$SEED_O/parser.o" src/parser/parser.c
-  fi
   if [ ! -f "$SEED_O/typeck.o" ] || [ "src/typeck/typeck.c" -nt "$SEED_O/typeck.o" ]; then
     experimental_bootstrap_info "cc $SEED_O/typeck.o"
     "$CC" $CFLAGS -c -o "$SEED_O/typeck.o" src/typeck/typeck.c

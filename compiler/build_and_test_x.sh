@@ -5,7 +5,7 @@ CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 CFLAGS_DRIVER="$CFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS"
 
 echo "=== 0. Bootstrap ==="
-SRCS="src/main.c src/runtime.c src/preprocess.c src/asm/runtime_lexer_glue.c src/asm/runtime_ast_glue.c src/parser/parser.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_diag.c"
+SRCS="src/main.c src/runtime.c src/preprocess.c src/asm/runtime_lexer_glue.c src/asm/runtime_ast_glue.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_diag.c"
 OBJS=""
 for src in $SRCS; do
   obj="${src%.c}.o"
@@ -56,7 +56,6 @@ cc $CFLAGS -c shu_x_stubs.c -o shu_x_stubs.o
 echo "=== 6. Compile C fallback object files ==="
 cc $CFLAGS -c src/asm/runtime_lexer_glue.c -o src/lexer/lexer.o
 cc $CFLAGS -c src/asm/runtime_ast_glue.c -o src/ast/ast.o
-cc $CFLAGS -c src/parser/parser.c -o src/parser/parser.o
 cc $CFLAGS -c src/typeck/typeck.c -o src/typeck/typeck.o
 cc $CFLAGS -c src/codegen/codegen.c -o src/codegen/codegen.o
 cc $CFLAGS -c src/lsp/lsp_diag.c -o src/lsp/lsp_diag.o

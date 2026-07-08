@@ -263,14 +263,13 @@ int build_run_step(int step_id, const char *shu_path) {
       "%s %s -DSHUX_USE_X_PREPROCESS -c -o src/preprocess_fallback.o src/preprocess.c && "
       "%s %s -c -o src/lexer/lexer.o src/asm/runtime_lexer_glue.c && "
       "%s %s -c -o src/ast/ast.o src/asm/runtime_ast_glue.c && "
-      "%s %s -c -o src/parser/parser.o src/parser/parser.c && "
       "%s %s -c -o src/typeck/typeck.o src/typeck/typeck.c && "
       "%s %s -c -o src/codegen/codegen.o src/codegen/codegen.c && "
       "%s %s -c -o src/lsp/lsp_diag.o src/lsp/lsp_diag.c && "
       "%s %s -c -o std_fs_shim.o src/std_fs_shim.c && "
       "%s %s -c -o x_stubs.o src/x_stubs.c",
       cc, cflags, cc, cflags, cc, cflags_driver, cc, cflags,
-      cc, cflags, cc, cflags, cc, cflags, cc, cflags,
+      cc, cflags, cc, cflags, cc, cflags,
       cc, cflags, cc, cflags, cc, cflags, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     return system(cmd);

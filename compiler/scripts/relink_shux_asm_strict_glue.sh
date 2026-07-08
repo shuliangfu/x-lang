@@ -1606,14 +1606,6 @@ ensure_lexer_obj() {
   fi
 }
 
-ensure_parser_obj() {
-  local o="src/parser/parser.o"
-  if [ ! -f "$o" ] || [ "src/parser/parser.c" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- src/parser/parser.c"
-    "$CC" $CFLAGS -c -o "$o" src/parser/parser.c
-  fi
-}
-
 ensure_typeck_obj() {
   local o="src/typeck/typeck.o"
   if [ ! -f "$o" ] || [ "src/typeck/typeck.c" -nt "$o" ]; then
