@@ -21,6 +21,30 @@ SMOKE_SRC="/tmp/shux_asm_postlink_smoke.$$.x"
 SMOKE_OUT="/tmp/shux_asm_postlink_smoke_out.$$"
 AUDIT_DIR="${SHUX_BOOTSTRAP_AUDIT_DIR:-../logs}"
 
+# 平台自适应后端选择（与 run_shux_asm_smoke.sh 一致）。
+# 【Why】strict link 产出的 shux_asm 链入 asm_backend_partial.o（asm codegen），
+# 但不链入 codegen_x.o（C codegen）。Linux x86_64 上 asm -o 已稳定工作；
+# Darwin/ARM64 上 asm -o Mach-O/ARM64 stub 不完整，需 -backend c（依赖 codegen_x.o，
+# 仅 gen_driver fallback 路径链入）。故 Linux x86_64 用 asm，其余平台用 c。
+# 【Invariant】SMOKE_BACKEND_ARGS 在 smoke_bin 中展开为 -backend <asm|c> 或空。
+SMOKE_RUN_BACKEND="${SHUX_ASM_SMOKE_BACKEND:-}"
+if [ -z "$SMOKE_RUN_BACKEND" ]; then
+  case "$(uname -s)-$(uname -m 2>/dev/null)" in
+    Darwin-*|Linux-aarch64|Linux-arm64)
+      SMOKE_RUN_BACKEND="c"
+      ;;
+    *)
+      SMOKE_RUN_BACKEND="asm"
+      ;;
+  esac
+fi
+SMOKE_BACKEND_ARGS=""
+if [ "$SMOKE_RUN_BACKEND" = "c" ]; then
+  SMOKE_BACKEND_ARGS="-backend c"
+elif [ "$SMOKE_RUN_BACKEND" = "asm" ]; then
+  SMOKE_BACKEND_ARGS="-backend asm"
+fi
+
 cleanup() {
   rm -f "$SMOKE_SRC" "$SMOKE_OUT" 2>/dev/null || true
 }
@@ -35,7 +59,7 @@ fi
 
 printf '%s\n' 'function main(): i32 { return 42; }' >"$SMOKE_SRC"
 
-# smoke_bin — shux_asm 的 -c/-o 烟测；-backend c 避免 bootstrap asm -o ld 失败。
+# smoke_bin — shux_asm 的 -c/-o 烟测；后端由 SMOKE_BACKEND_ARGS 平台自适应选择。
 # 参数：bin — 待测路径；成功返回 0。
 smoke_bin() {
   local bin="$1"
@@ -48,7 +72,8 @@ smoke_bin() {
     return 1
   fi
   rm -f "$SMOKE_OUT"
-  "$bin" -backend c -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null
+  # shellcheck disable=SC2086
+  "$bin" $SMOKE_BACKEND_ARGS -o "$SMOKE_OUT" "$SMOKE_SRC" 2>&1 | tee "$_log" | cat >/dev/null
   _rc="${PIPESTATUS[0]:-1}"
   if [ "$_rc" -ne 0 ]; then
     return 1
@@ -65,7 +90,7 @@ if smoke_bin "$ASM"; then
     "$AUDIT_DIR/bootstrap-postlink.compiler-fallback"
   printf '[%s] postlink smoke OK fresh %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$ASM" \
     >>"$AUDIT_DIR/bootstrap-audit.log"
-  echo "shux_asm_postlink_smoke: OK $ASM (-c + -backend c -o exit=42)"
+  echo "shux_asm_postlink_smoke: OK $ASM (-c + -backend $SMOKE_RUN_BACKEND -o exit=42)"
   exit 0
 fi
 
