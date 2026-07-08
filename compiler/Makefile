@@ -603,7 +603,7 @@ endif
 # 生成当前源码对应 C 的目标，必须先强制刷新一次 legacy C frontend，避免继续吃旧语义。
 .PHONY: legacy-shux-c-ready
 legacy-shux-c-ready:
-	@$(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C)
+	@$(MAKE) $(SHUX_C)
 
 LEGACY_SHUX_C_READY_TARGETS = build-tool
 
@@ -682,7 +682,7 @@ src/codegen/codegen_pipeline_stubs.o: src/codegen/codegen_pipeline_stubs.c inclu
 # cold bootstrap 时 shux-c 默认 pipeline 可能挂起；timeout 后回退 -E-extern / stub。
 src/lexer/cfg_eval.o: src/lexer/cfg_eval.x src/lexer/cfg_eval_link_alias.c
 	@set -e; \
-	$(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C); \
+	$(MAKE) $(SHUX_C); \
 	rm -f src/lexer/cfg_eval_x.o; \
 	if command -v timeout >/dev/null 2>&1; then \
 	  timeout "${SHUX_CFG_EVAL_ASM_TIMEOUT:-120}" ./$(SHUX_C) -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
@@ -997,11 +997,11 @@ parser_gen.c: ast_gen2.c src/parser/parser.x
 	      mv -f "$$tmp" $@; \
 	    else \
 	      rm -f "$$tmp"; \
-	      $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	      $(MAKE) $(SHUX_C) && \
 	      ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" && mv -f "$$tmp" $@; \
 	    fi; \
 	  else \
-	    $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	    $(MAKE) $(SHUX_C) && \
 	    ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" && mv -f "$$tmp" $@; \
 	  fi; \
 	elif [ -s parser_gen.c ]; then \
@@ -1019,7 +1019,7 @@ parser_gen.c: ast_gen2.c src/parser/parser.x
 	    else \
 	      echo "parser_gen.c: shux-x failed or thin output; fallback shux-c" >&2; \
 	      rm -f "$$tmp" 2>/dev/null || true; \
-	      if $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) >/dev/null \
+	      if $(MAKE) $(SHUX_C) >/dev/null \
 	         && ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
 	         && [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
 	        mv -f "$$tmp" $@; \
@@ -1032,7 +1032,7 @@ parser_gen.c: ast_gen2.c src/parser/parser.x
 	      fi; \
 	    fi; \
 	  else \
-	    if $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) >/dev/null \
+	    if $(MAKE) $(SHUX_C) >/dev/null \
 	       && ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
 	       && [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
 	      mv -f "$$tmp" $@; \
@@ -1078,11 +1078,11 @@ lexer_gen.c: src/lexer/lexer.x
 	      mv -f "$$tmp" $@; \
 	    else \
 	      rm -f "$$tmp"; \
-	      $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	      $(MAKE) $(SHUX_C) && \
 	      ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" && mv -f "$$tmp" $@; \
 	    fi; \
 	  else \
-	    $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	    $(MAKE) $(SHUX_C) && \
 	    ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" && mv -f "$$tmp" $@; \
 	  fi; \
 	elif [ -s lexer_gen.c ]; then \
@@ -1100,7 +1100,7 @@ lexer_gen.c: src/lexer/lexer.x
 	    else \
 	      echo "lexer_gen.c: shux-x failed or thin output; fallback shux-c" >&2; \
 	      rm -f "$$tmp" 2>/dev/null || true; \
-	      if $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) >/dev/null \
+	      if $(MAKE) $(SHUX_C) >/dev/null \
 	         && ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
 	         && [ -s "$$tmp" ] && grep -q 'lexer_advance_one' "$$tmp"; then \
 	        mv -f "$$tmp" $@; \
@@ -1113,7 +1113,7 @@ lexer_gen.c: src/lexer/lexer.x
 	      fi; \
 	    fi; \
 	  else \
-	    if $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) >/dev/null \
+	    if $(MAKE) $(SHUX_C) >/dev/null \
 	       && ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
 	       && [ -s "$$tmp" ] && grep -q 'lexer_advance_one' "$$tmp"; then \
 	      mv -f "$$tmp" $@; \
@@ -1317,14 +1317,14 @@ migrate-x-objs: parser_x.o typeck_x.o codegen_x.o
 ast_gen2.c: src/ast/ast.x
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) -L src/ast -E -E-extern src/ast/ast.x > "$$tmp" && mv -f "$$tmp" $@; \
 	  perl scripts/fix_slim_arena_gen_c.pl $@; \
 	elif [ -s ast_gen2.c ]; then \
 	  echo "ast_gen2.c: pinned ($$(wc -c < ast_gen2.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) -L src/ast -E -E-extern src/ast/ast.x > "$$tmp" && mv -f "$$tmp" $@; \
 	  perl scripts/fix_slim_arena_gen_c.pl $@; \
 	fi
@@ -1335,7 +1335,7 @@ ast_gen2.o: ast_gen2.c
 typeck_gen.c: ast_gen2.c src/typeck/typeck.x
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
 	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.x -E-extern > "$$tmp" && mv "$$tmp" $@; \
 	elif [ -s typeck_gen.c ]; then \
 	  echo "typeck_gen.c: pinned ($$(wc -c < typeck_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
@@ -1344,7 +1344,7 @@ typeck_gen.c: ast_gen2.c src/typeck/typeck.x
 	  echo "typeck_gen.c: restored from seeds/typeck_gen.linux.x86_64.c"; \
 	else \
 	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.x -E-extern > "$$tmp" && mv "$$tmp" $@ || \
 	    { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/typeck_gen.linux.x86_64.c ]; then cp -f seeds/typeck_gen.linux.x86_64.c $@ && echo "typeck_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	fi
@@ -1357,7 +1357,7 @@ typeck_x.o: typeck_gen.c
 codegen_gen.c: ast_gen2.c src/codegen/codegen.x
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
 	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.x -E-extern > "$$tmp" && mv "$$tmp" $@; \
 	elif [ -s codegen_gen.c ]; then \
 	  echo "codegen_gen.c: pinned ($$(wc -c < codegen_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
@@ -1366,7 +1366,7 @@ codegen_gen.c: ast_gen2.c src/codegen/codegen.x
 	  echo "codegen_gen.c: restored from seeds/codegen_gen.linux.x86_64.c"; \
 	else \
 	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.x -E-extern > "$$tmp" && mv "$$tmp" $@ || \
 	    { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/codegen_gen.linux.x86_64.c ]; then cp -f seeds/codegen_gen.linux.x86_64.c $@ && echo "codegen_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	fi
@@ -1599,7 +1599,7 @@ lsp_diag_gen.c: src/lsp/lsp_diag.x
 	else \
 	  echo "lsp_diag_gen.c: $(SHUX_C) -E -E-extern (avoid shux-x -x -E: broken TU for lsp_diag.x)" >&2; \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(LSP_X_E_DIRS) -L src/pipeline src/lsp/lsp_diag.x -E -E-extern > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ -f seeds/lsp_diag_gen.linux.x86_64.c ]; then cp -f seeds/lsp_diag_gen.linux.x86_64.c $@ && echo "lsp_diag_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -1628,14 +1628,14 @@ lsp_io_gen.c: src/lsp/lsp_io.x
 	    rm -f $@.tmp; \
 	    echo "lsp_io_gen.c: fallback to shux-c -E -E-extern (C-04)" >&2; \
 	    tmp="$@.tmp"; \
-	    $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	    $(MAKE) $(SHUX_C) && \
 	    ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io.x -E -E-extern > "$$tmp" || \
 	      { rm -f "$$tmp"; if [ -f seeds/lsp_io_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_gen.linux.x86_64.c $@ && echo "lsp_io_gen.c: fallback seed" >&2; else exit 1; fi; }; \
 	    if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	  fi; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io.x -E -E-extern > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ -f seeds/lsp_io_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_gen.linux.x86_64.c $@ && echo "lsp_io_gen.c: fallback seed" >&2; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -1668,14 +1668,14 @@ lsp_gen.c: src/lsp/lsp.x
 	    rm -f $@.tmp; \
 	    echo "lsp_gen.c: shux-x failed or old extern block, fallback to shux-c -E -E-extern" >&2; \
 	    tmp="$@.tmp"; \
-	    $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	    $(MAKE) $(SHUX_C) && \
 	    ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp.x -E -E-extern > "$$tmp" || \
 	      { rm -f "$$tmp"; if [ -f seeds/lsp_gen.linux.x86_64.c ]; then cp -f seeds/lsp_gen.linux.x86_64.c $@ && echo "lsp_gen.c: fallback seed" >&2; else exit 1; fi; }; \
 	    if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	  fi; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp.x -E -E-extern > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ -f seeds/lsp_gen.linux.x86_64.c ]; then cp -f seeds/lsp_gen.linux.x86_64.c $@ && echo "lsp_gen.c: fallback seed" >&2; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -1699,14 +1699,14 @@ lsp_io_std_heap_gen.c: src/lsp/lsp_io_std_heap.x
 	    rm -f $@.tmp; \
 	    echo "lsp_io_std_heap_gen.c: shux-x failed/OOM, fallback to shux-c -E -E-extern" >&2; \
 	    tmp="$@.tmp"; \
-	    $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	    $(MAKE) $(SHUX_C) && \
 	    ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io_std_heap.x -E -E-extern > "$$tmp" || \
 	      { rm -f "$$tmp"; if [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c $@ && echo "lsp_io_std_heap_gen.c: fallback seed" >&2; else exit 1; fi; }; \
 	    if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	  fi; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io_std_heap.x -E -E-extern > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c $@ && echo "lsp_io_std_heap_gen.c: fallback seed" >&2; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -1741,7 +1741,7 @@ driver_fmt_gen.c: src/driver/fmt.x
 	  echo "driver_fmt_gen.c: restored from seed"; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/fmt.x > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ -f seeds/driver_fmt_gen.linux.x86_64.c ]; then cp -f seeds/driver_fmt_gen.linux.x86_64.c $@; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -1754,7 +1754,7 @@ driver_check_gen.c: src/driver/check.x
 	  echo "driver_check_gen.c: restored from seed"; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/check.x > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ -f seeds/driver_check_gen.linux.x86_64.c ]; then cp -f seeds/driver_check_gen.linux.x86_64.c $@; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -1767,7 +1767,7 @@ driver_test_gen.c: src/driver/test.x
 	  echo "driver_test_gen.c: restored from seed"; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/test.x > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ -f seeds/driver_test_gen.linux.x86_64.c ]; then cp -f seeds/driver_test_gen.linux.x86_64.c $@; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -1780,7 +1780,7 @@ driver_compile_gen.c: src/driver/compile.x
 	  echo "driver_compile_gen.c: restored from seed"; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/compile.x > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ -f seeds/driver_compile_gen.linux.x86_64.c ]; then cp -f seeds/driver_compile_gen.linux.x86_64.c $@; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -1793,7 +1793,7 @@ driver_build_gen.c: src/driver/build.x
 	  echo "driver_build_gen.c: restored from seed"; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/build.x > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ -f seeds/driver_build_gen.linux.x86_64.c ]; then cp -f seeds/driver_build_gen.linux.x86_64.c $@; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -1806,7 +1806,7 @@ driver_run_gen.c: src/driver/run.x
 	  echo "driver_run_gen.c: restored from seed"; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/run.x > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ -f seeds/driver_run_gen.linux.x86_64.c ]; then cp -f seeds/driver_run_gen.linux.x86_64.c $@; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -1819,7 +1819,7 @@ driver_emit_gen.c: src/driver/emit.x
 	  echo "driver_emit_gen.c: restored from seed"; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -L ../std/fs -L src/preprocess -L src/pipeline -L src/codegen -E -E-extern src/driver/emit.x > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ -f seeds/driver_emit_gen.linux.x86_64.c ]; then cp -f seeds/driver_emit_gen.linux.x86_64.c $@; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -1915,14 +1915,14 @@ driver_gen.c: $(MAIN_X_DEPS)
 	    rm -f $@.tmp; \
 	    echo "driver_gen.c: shux-x failed or old bare -E block, fallback to shux-c -E -E-extern" >&2; \
 	    tmp="$@.tmp"; \
-	    $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	    $(MAKE) $(SHUX_C) && \
 	    ./$(SHUX_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || \
 	      { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	    if [ -s "$$tmp" ]; then mv "$$tmp" $@; fi; \
 	  fi; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv "$$tmp" $@; fi; \
@@ -1941,7 +1941,7 @@ preprocess_gen.c: $(PREPROCESS_X_DEPS)
 	  echo "preprocess_gen.c: restored from seeds/preprocess_gen.linux.x86_64.c"; \
 	else \
 	  tmp="$@.tmp"; \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) -L src/lexer -E -E-extern src/preprocess/preprocess.x > "$$tmp" || \
 	    { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/preprocess_gen.linux.x86_64.c ]; then cp -f seeds/preprocess_gen.linux.x86_64.c $@ && echo "preprocess_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
@@ -2262,7 +2262,7 @@ check-7.2: bootstrap-self
 # 其余情况直接沿用 pinned pipeline_gen.c。
 pipeline_gen.c:
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c || exit 1; \
 	  echo "bootstrap-pipeline: pipeline_gen.c (-E-extern thin TU; forced regen)"; \
 	elif [ -s pipeline_gen.c ]; then \
@@ -2271,7 +2271,7 @@ pipeline_gen.c:
 	  cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c; \
 	  echo "bootstrap-pipeline: restored from seeds/pipeline_gen.linux.x86_64.c"; \
 	else \
-	  $(MAKE) -B SHUX_LEGACY_C_FRONTEND=1 $(SHUX_C) && \
+	  $(MAKE) $(SHUX_C) && \
 	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c || \
 	    { if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/pipeline_gen.linux.x86_64.c ]; then cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c && echo "bootstrap-pipeline: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	  echo "bootstrap-pipeline: pipeline_gen.c (-E-extern thin TU; codegen 无 perl 后处理)"; \
