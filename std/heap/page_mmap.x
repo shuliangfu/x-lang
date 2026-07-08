@@ -17,16 +17,23 @@
 // std.heap.page_mmap — Linux freestanding 堆：匿名 mmap bump（零 libc / 无 malloc）
 //
 // 【文件职责】
-// F-no-libc NL-03：用 std.sys.linux 的 shux_sys_mmap/munmap 提供页级 bump 分配器，
+// F-no-libc NL-03：直接声明 shux_sys_mmap/munmap extern 提供页级 bump 分配器，
 // 供 `-freestanding -backend asm` 程序与后续编译器自举堆路径使用；不链 heap.c。
+//
+// 【Why 自包含】freestanding 模块须最小依赖；直接 extern syscall 桩避免 import
+// std.sys.linux 触发 -x -E dep const/extern 前缀化问题（codegen.x dep_index<0 裸名
+// vs dep_index>=0 带前缀的符号模型不匹配）。align_up 内联消除 core.mem 依赖。
 //
 // 【限制 v1】
 // - 单块匿名映射（默认 64KiB）；bump 用尽返回 null（不自动扩容）
 // - free 为 no-op（与 Arena bump 一致）；deinit 整段 munmap
 // - 仅 Linux freestanding；hosted 仍用 heap.c / malloc
 
-const linux = import("std.sys.linux");
-const mem = import("core.mem");
+/** freestanding mmap(2) 桩（6 参；offset 低 32 位在 r9）。 */
+extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+
+/** freestanding munmap(2) 桩；成功 0，失败负 errno。 */
+extern function shux_sys_munmap(addr: *u8, len: usize): i32;
 
 /** 默认映射大小：64KiB（16 × 4KiB 页，够 freestanding smoke 与小工具）。 */
 const PAGE_MMAP_DEFAULT_CAP: usize = 65536;
@@ -61,11 +68,9 @@ function page_mmap_heap_init(h: *PageMmapHeap): i32 {
   h.base = 0 as *u8;
   h.cap = 0;
   h.off = 0;
-  let p: *u8 = linux.linux_anonymous_mmap(
-    PAGE_MMAP_DEFAULT_CAP,
-    PAGE_MMAP_PROT_RW,
-    PAGE_MMAP_FLAGS,
-  );
+  let p: *u8 = unsafe {
+    shux_sys_mmap(0 as *u8, PAGE_MMAP_DEFAULT_CAP, PAGE_MMAP_PROT_RW, PAGE_MMAP_FLAGS, -1, 0 as i64)
+  };
   let p_i: i64 = p as i64;
   if (p_i <= 0) {
     return -1;
@@ -88,7 +93,7 @@ function page_mmap_heap_alloc(h: *PageMmapHeap, size: usize, align_bytes: usize)
   if (a == 0) {
     a = 1;
   }
-  let start: usize = mem.align_up(h.off, a);
+  let start: usize = ((h.off + a - 1) / a) * a;
   let end: usize = start + size;
   if (end > h.cap || end < start) {
     return 0;
@@ -112,7 +117,9 @@ function page_mmap_heap_deinit(h: *PageMmapHeap): void {
     return;
   }
   if (h.base != 0 && h.cap > 0) {
-    linux.linux_syscall_munmap(h.base, h.cap);
+    unsafe {
+      shux_sys_munmap(h.base, h.cap);
+    }
   }
   h.base = 0 as *u8;
   h.cap = 0;
