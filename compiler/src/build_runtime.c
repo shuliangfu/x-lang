@@ -133,7 +133,7 @@ int build_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
  */
 static const char *const build_literals[] = {
   /* 0: step 0 全命令（含 std_fs_shim.o 供 pipeline/driver 的 std.fs 符号） */
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/main.o src/main.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/runtime.o src/runtime.c && cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS -c -o src/runtime_driver.o src/runtime.c && cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_X_PREPROCESS -c -o src/preprocess_fallback.o src/preprocess.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o std_fs.o src/std_fs_shim.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o preprocess_shim.o src/preprocess_shim.c",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/main.o src/main.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/runtime.o src/runtime.c && cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS -c -o src/runtime_driver.o src/runtime.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o std_fs.o src/std_fs_shim.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o preprocess_shim.o src/preprocess_shim.c",
   /* 1: step 1 后缀（前接 shu_path） */
   " -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c",
   /* 2: step 2 */
@@ -143,7 +143,7 @@ static const char *const build_literals[] = {
   /* 4: step 4 */
   "cc -Wall -Wextra -I. -Iinclude -Isrc -c driver_gen.c -o driver_x.o",
   /* 5: step 5（含 std_fs.o 供 pipeline/driver 的 std.fs 符号） */
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -o shux src/main.o src/runtime_driver.o src/preprocess_fallback.o preprocess_shim.o preprocess_x.o std_fs.o ast_x.o token_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -o shux src/main.o src/runtime_driver.o preprocess_shim.o preprocess_x.o std_fs.o ast_x.o token_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o",
   /* 6–7: step 6 parser */
   " -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c",
   "cc -Wall -Wextra -I. -Iinclude -Isrc -c parser_gen.c -o parser_x.o",
@@ -254,13 +254,13 @@ int build_run_step(int step_id, const char *shu_path) {
 
   switch (step_id) {
   case 0:
-    /* 阶段 3.2 / 6.4：编 main、runtime_driver（带 X_PREPROCESS 使 preprocess() 在 .x 路径）、preprocess_fallback（不覆盖 preprocess.o）。
+    /* 阶段 3.2 / 6.4：编 main、runtime_driver（带 X_PREPROCESS 使 preprocess() 在 .x 路径）。
+     * G-02a: preprocess.c 已物理删除；preprocess 由 preprocess_x.o 提供（step 18-19 生成）。
      * 同时编译所有 C 侧模块，供 step 5 链接（runtime_driver 仍引用了部分 C 侧函数）。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s %s -c -o src/main.o src/main.c && "
       "%s %s -c -o src/runtime.o src/runtime.c && "
       "%s %s -DSHUX_USE_X_PREPROCESS -c -o src/runtime_driver.o src/runtime.c && "
-      "%s %s -DSHUX_USE_X_PREPROCESS -c -o src/preprocess_fallback.o src/preprocess.c && "
       "%s %s -c -o src/lexer/lexer.o src/asm/runtime_lexer_glue.c && "
       "%s %s -c -o src/ast/ast.o src/asm/runtime_ast_glue.c && "
       "%s %s -c -o src/typeck/typeck.o src/typeck/typeck.c && "
@@ -268,7 +268,7 @@ int build_run_step(int step_id, const char *shu_path) {
       "%s %s -c -o src/lsp/lsp_diag.o src/lsp/lsp_diag.c && "
       "%s %s -c -o std_fs_shim.o src/std_fs_shim.c && "
       "%s %s -c -o x_stubs.o src/x_stubs.c",
-      cc, cflags, cc, cflags, cc, cflags_driver, cc, cflags,
+      cc, cflags, cc, cflags, cc, cflags_driver,
       cc, cflags, cc, cflags, cc, cflags,
       cc, cflags, cc, cflags, cc, cflags, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
@@ -350,12 +350,12 @@ int build_run_step(int step_id, const char *shu_path) {
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     return system(cmd);
   case 5:
-    /* 阶段 3.2/3.3、6.4：链 runtime_driver.o（含 preprocess()，step 0 已带 -DSHUX_USE_X_PREPROCESS）+ preprocess_fallback.o + preprocess_x.o
-     * + 所有 C 侧 .o（仍被 runtime_driver 的部分路径引用）。 */
+    /* 阶段 3.2/3.3、6.4：链 runtime_driver.o（含 preprocess()，step 0 已带 -DSHUX_USE_X_PREPROCESS）+ preprocess_x.o
+     * + 所有 C 侧 .o（仍被 runtime_driver 的部分路径引用）。G-02a: preprocess.c/parser.c 已物理删除。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s %s -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -o shux "
-      "src/main.o src/runtime_driver.o src/preprocess_fallback.o "
-      "src/lexer/lexer.o src/ast/ast.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/lsp/lsp_diag.o std_fs_shim.o x_stubs.o "
+      "src/main.o src/runtime_driver.o "
+      "src/lexer/lexer.o src/ast/ast.o src/typeck/typeck.o src/codegen/codegen.o src/lsp/lsp_diag.o std_fs_shim.o x_stubs.o "
       "preprocess_x.o ast_x.o token_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o",
       cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;

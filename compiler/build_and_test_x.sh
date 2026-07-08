@@ -5,7 +5,7 @@ CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 CFLAGS_DRIVER="$CFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS"
 
 echo "=== 0. Bootstrap ==="
-SRCS="src/main.c src/runtime.c src/preprocess.c src/asm/runtime_lexer_glue.c src/asm/runtime_ast_glue.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_diag.c"
+SRCS="src/main.c src/runtime.c src/asm/runtime_lexer_glue.c src/asm/runtime_ast_glue.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_diag.c"
 OBJS=""
 for src in $SRCS; do
   obj="${src%.c}.o"
@@ -17,7 +17,7 @@ cc $CFLAGS -o shux-c $OBJS
 
 echo "=== 1. Relink shux with fixed runtime ==="
 cc $CFLAGS -c src/runtime.c -o src/runtime.o
-cc $CFLAGS -o shux src/main.o src/runtime.o src/preprocess.o src/lexer/lexer.o src/ast/ast.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/lsp/lsp_diag.o
+cc $CFLAGS -o shux src/main.o src/runtime.o src/lexer/lexer.o src/ast/ast.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/lsp/lsp_diag.o
 
 echo "=== 2. Generate all _gen.c ==="
 ./shux -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c
@@ -48,7 +48,6 @@ done
 
 echo "=== 5. Compile support files ==="
 cc $CFLAGS_DRIVER -c src/runtime.c -o runtime_driver.o
-cc $CFLAGS -DSHUX_USE_X_PREPROCESS -c src/preprocess.c -o preprocess_fallback.o
 cc $CFLAGS -c src/std_fs_shim.c -o std_fs_shim.o
 cc $CFLAGS -c src/asm/runtime_panic.c -o runtime_panic.o
 cc $CFLAGS -c shu_x_stubs.c -o shu_x_stubs.o
@@ -62,11 +61,11 @@ cc $CFLAGS -c src/lsp/lsp_diag.c -o src/lsp/lsp_diag.o
 
 echo "=== 7. Link shux_x ==="
 cc $CFLAGS_DRIVER -o shux_x \
-  src/main.o runtime_driver.o preprocess_fallback.o \
+  src/main.o runtime_driver.o \
   preprocess_x.o std_fs_shim.o \
   ast_x.o token_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o \
   driver_x.o pipeline_x.o runtime_panic.o \
-  src/lexer/lexer.o src/ast/ast.o src/parser/parser.o \
+  src/lexer/lexer.o src/ast/ast.o \
   src/typeck/typeck.o src/codegen/codegen.o src/lsp/lsp_diag.o \
   shu_x_stubs.o
 

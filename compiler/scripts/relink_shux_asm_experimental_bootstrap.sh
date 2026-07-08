@@ -41,13 +41,9 @@ ensure_async_cps_seed_objs() {
 }
 ensure_async_cps_seed_objs
 
-# bootstrap-driver-seed 同款 C 种子 .o（experimental 链须 preprocess/parser/typeck 等；缺则 ld 失败）。
+# bootstrap-driver-seed 同款 C 种子 .o（experimental 链须 parser/typeck 等；缺则 ld 失败）。
 ensure_asm_driver_seed_c_objs() {
   mkdir -p "$SEED_O"
-  if [ ! -f "$SEED_O/preprocess.o" ] || [ "src/preprocess.c" -nt "$SEED_O/preprocess.o" ]; then
-    experimental_bootstrap_info "cc $SEED_O/preprocess.o"
-    "$CC" $CFLAGS -DSHUX_USE_X_PREPROCESS -c -o "$SEED_O/preprocess.o" src/preprocess.c
-  fi
   if [ ! -f "$SEED_O/lexer.o" ] || [ "src/asm/runtime_lexer_glue.c" -nt "$SEED_O/lexer.o" ]; then
     experimental_bootstrap_info "cc $SEED_O/lexer.o"
     "$CC" $CFLAGS -c -o "$SEED_O/lexer.o" src/asm/runtime_lexer_glue.c
@@ -445,7 +441,6 @@ fi
   ${PARSER_PARSE_BOOT_O:+"$PARSER_PARSE_BOOT_O"} \
   $ST_LSP_DIAG_STUB \
   "$BUILD_DIR/lsp_codegen_extern.o" \
-  "$SEED_O/preprocess.o" \
   "$SEED_O/async_liveness.o" \
   "$SEED_O/async_cps_codegen.o" \
   "$SEED_O/ast_seed.o" \

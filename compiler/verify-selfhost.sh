@@ -14,7 +14,7 @@ echo ""
 echo "── Step 0: 冷启动 ──"
 rm -f *.o src/*.o src/*/*.o _x_stubs.* _shux2_* shux shux-c shux-x *_gen.c *_x.o 2>/dev/null || true
 
-SRCS="src/main.c src/runtime.c src/preprocess.c src/asm/runtime_lexer_glue.c src/asm/runtime_ast_glue.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_diag.c"
+SRCS="src/main.c src/runtime.c src/asm/runtime_lexer_glue.c src/asm/runtime_ast_glue.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_diag.c"
 OBJS=""
 for src in $SRCS; do
   obj="${src%.c}.o"
@@ -144,15 +144,14 @@ echo ""
 echo "── Step 4: 编译 runtime_driver ──"
 cc $CFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS \
   -c src/runtime.c -o runtime_driver.o
-cc $CFLAGS -DSHUX_USE_X_PREPROCESS -c src/preprocess.c -o preprocess_fallback.o
 cc $CFLAGS -c src/main.c -o main.o
 
 # ── Step 5: Link shux-x ─────────────────────
 echo ""
 echo "── Step 5: 链接 shux-x ──"
 cc -fno-stack-protector -o shux-x \
-  main.o runtime_driver.o preprocess_fallback.o \
-  lexer_c.o ast_c.o parser_c.o typeck_c.o codegen_c.o lsp_diag_c.o std_fs_shim_c.o \
+  main.o runtime_driver.o \
+  lexer_c.o ast_c.o typeck_c.o codegen_c.o lsp_diag_c.o std_fs_shim_c.o \
   token_x.o ast_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o preprocess_x.o pipeline_x.o driver_x.o \
   _x_stubs.o
 

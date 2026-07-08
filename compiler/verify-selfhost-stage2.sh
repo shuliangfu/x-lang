@@ -105,7 +105,7 @@ cc $CFLAGS -c lexer_x_link_alias.c -o lexer_x_link_alias.o 2>/dev/null || true
 cc $CFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN -DSHUX_USE_X_PREPROCESS \
   -c src/runtime.c -o runtime_driver2.o
 # Stage2 链接仍需沿用 driver 专用 C 对象；不要依赖工作区里偶然残留的 .o。
-${MAKE:-make} src/main_driver.o src/preprocess_for_driver.o src/driver/fmt_check_cmd_driver.o >/dev/null
+${MAKE:-make} src/main_driver.o src/driver/fmt_check_cmd_driver.o >/dev/null
 
 # ── Step 4: 链接 shux-x2（*_x2.o 替代 parser_x/typeck_x/codegen_x/pipeline_x；其余与 bootstrap-driver-seed 同拓扑）──
 echo ""
@@ -123,9 +123,9 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   src/asm/crt0_arm64.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o \
   src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o runtime_driver2.o \
   src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
-  src/asm/bootstrap_seed_io_stubs.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o src/typeck/typeck.o \
+  src/asm/bootstrap_seed_io_stubs.o src/lexer/lexer.o src/ast/ast_seed.o src/typeck/typeck.o \
   src/codegen/codegen.o src/codegen/autovec.o src/async/async_liveness.o src/async/async_cps_codegen.o \
-  src/runtime_c_import.o src/preprocess.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o \
+  src/runtime_c_import.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o \
   src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o \
   src/lsp/lsp_heap_bootstrap.o src/x_seed_bridge_stage2.o src/seed_link_compat.o src/std_fs_shim.o src/std_sys_shim.o \
   src/ast_pool_l5_bridge.o \

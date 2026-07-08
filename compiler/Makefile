@@ -53,10 +53,10 @@ endif
 TARGET  = shux
 SRCS    = src/main.c src/runtime.c src/async/async_liveness.c src/async/async_cps_codegen.c
 # OBJS_CORE：G-06 默认 shux-c=bootstrap_shuxc；仅 SHUX_LEGACY_C_FRONTEND=1 时链下列 runtime 桩（无 C 前端 .c）。
-OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/preprocess_legacy.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
+OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 # 考古冷启动：完整 C 前端 shux-c（仅用于生成/刷新 seeds/ 预编译种子）
-OBJS_CORE = src/main.o src/runtime.o src/diag.o src/driver/fmt_check_cmd.o src/preprocess_legacy.o src/lexer/lexer.o src/lexer/cfg_eval_bootstrap_stub.o src/ast/ast.o src/typeck/typeck.o src/codegen/codegen.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_c_import.o
+OBJS_CORE = src/main.o src/runtime.o src/diag.o src/driver/fmt_check_cmd.o src/lexer/lexer.o src/lexer/cfg_eval_bootstrap_stub.o src/ast/ast.o src/typeck/typeck.o src/codegen/codegen.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_c_import.o
 endif
 OBJS      = $(OBJS_CORE)
 # 注：lsp.x 生成的 lsp_gen 与 lsp_diag 中 lsp_build_* 同名；若把 InitializeResult/response 外壳迁入 .x，
@@ -565,9 +565,6 @@ ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 $(SHUX_C): $(OBJS_CORE) $(LEGACY_SHUX_C_EXTRA)
 	$(CC) $(CFLAGS) -o $@ $^ $(PIPELINE_LIBS) $(WIN_LDFLAGS)
 
-src/preprocess_legacy.o: src/preprocess.c src/preprocess.h
-	$(CC) $(CFLAGS) -DSHUX_LEGACY_C_FRONTEND_ABI -c -o $@ $<
-
 # G-02a: lexer.o 从 runtime_lexer_glue.c 编译（lexer.c 已物理删除）。
 # 仅提供 lexer_new/lexer_free；lexer_next 由 lexer_x.o（.x）或 runtime_driver_strict_glue_stubs.o（weak 桩）提供。
 src/lexer/lexer.o: src/asm/runtime_lexer_glue.c src/lexer/lexer.h include/token.h
@@ -654,8 +651,7 @@ endif
 src/runtime_driver.o: src/runtime.c Makefile include/diag.h
 	$(CC) $(CFLAGS) $(RUNTIME_DRIVER_CFLAGS) -c -o $@ $<
 
-src/preprocess_for_driver.o: src/preprocess.c src/preprocess.h
-	$(CC) $(CFLAGS) -DSHUX_USE_X_PREPROCESS -c -o $@ $<
+# G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（SHUX_LEGACY_PREPROCESS_C 路径已死）。
 # shux_x 用：仅 -DSHUX_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
 src/runtime_x.o: src/runtime.c include/diag.h
 	$(CC) $(CFLAGS) -DSHUX_USE_X_PIPELINE -c -o $@ $<
@@ -715,7 +711,7 @@ src/main_x.o: src/main.c
 	$(CC) $(CFLAGS) -DSHUX_USE_X_PIPELINE -c -o $@ $<
 
 # shux_x：pipeline_x.o 编排 typeck_x/codegen_x（非 C typeck.o/codegen.o）。
-PIPELINE_X_BASE_OBJS = src/main_x.o src/runtime_x.o src/diag.o src/preprocess.o src/lexer/lexer.o src/ast/ast_seed.o
+PIPELINE_X_BASE_OBJS = src/main_x.o src/runtime_x.o src/diag.o src/lexer/lexer.o src/ast/ast_seed.o
 PIPELINE_X_FRONTEND_OBJS = typeck_x.o codegen_x.o typeck_x_link_alias.o codegen_x_link_alias.o
 # parser_x / seed partial / C typeck·codegen·bridge + 卫星 .o（对齐 DRIVER_SEED_OBJS 除 main_x/runtime_x 外的链接依赖）。
 # fmt_check_cmd.o（非 _driver）：runtime_x 无 SHUX_USE_X_DRIVER，fmt/check 走 run_compiler_c 桩，避免缺 driver_run_compiler_full。
@@ -1398,7 +1394,7 @@ bootstrap-codegen: $(TARGET) $(SHUX_C) bootstrap_shuxc $(RELINK_SHUX_PREREQS)
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 SHUX_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
 src/main_driver.o: src/main.c Makefile
 	$(CC) $(CFLAGS) -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -c -o $@ $<
-# runtime_driver.o 已定义 preprocess()；此处须链 preprocess_for_driver.o（仅 preprocess_c_fallback），不可与 src/preprocess.o 同链。
+# G-02a: preprocess.c 已物理删除；runtime preprocess() 走 preprocess.x（preprocess_x.o）。
 src/driver/target_cpu.o: src/driver/target_cpu.c include/target_cpu.h
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 src/asm/simd_enc.o: src/asm/simd_enc.c include/simd_enc.h include/target_cpu.h
@@ -1410,15 +1406,10 @@ src/asm/simd_loop.o: src/asm/simd_loop.c include/simd_loop.h include/simd_enc.h 
 # bootstrap-driver-seed：pipeline_x.o 为 -E-extern 编排；parser/lexer/typeck/codegen *_x.o 分 TU。
 # C-06 v1 默认：不链 C parser/typeck/codegen.o（SHUX_LEGACY_C_FRONTEND=1 恢复双轨）。
 # seed 链：lexer_x.o + lexer_x_link_alias.o（X 词法）；默认不链 C lexer.o（E-03 v2）。
-# E-03 v2 preprocess：默认 bootstrap 不链 preprocess_for_driver.o（runtime preprocess() 走 preprocess.x）。
-# SHUX_LEGACY_PREPROCESS_C=1 恢复 C preprocess_c_fallback（考古）。
-ifeq ($(SHUX_LEGACY_PREPROCESS_C),1)
-PREPROCESS_LINK_O = src/preprocess_for_driver.o
-DRIVER_SEED_PREPROCESS_REBUILD = src/preprocess_for_driver.o
-else
+# G-02a: preprocess.c 已物理删除；SHUX_LEGACY_PREPROCESS_C 路径已死（preprocess_for_driver.o 无法编译）。
+# runtime preprocess() 走 preprocess.x（preprocess_x.o）；PREPROCESS_LINK_O 恒空。
 PREPROCESS_LINK_O =
 DRIVER_SEED_PREPROCESS_REBUILD =
-endif
 # parser labeled 名写入（parser_x.o / ast_pool_l5_bridge 依赖，不可缺链）。
 AST_POOL_L5_BRIDGE_O = src/ast_pool_l5_bridge.o
 DRIVER_SEED_X_FRONTEND_OBJS = parser_x.o lexer_x.o lexer_x_link_alias.o typeck_x.o codegen_x.o typeck_x_link_alias.o codegen_x_link_alias.o
@@ -1527,7 +1518,7 @@ DRIVER_SEED_X_OBJS = parser_x.o typeck_x.o codegen_x.o
 
 # 阶段 10.4 实验：链 typeck_x.o/codegen_x.o 替代 C 前端（不含 pipeline_x.o，无 SHUX_USE_X_PIPELINE）。
 # 勿复用 DRIVER_SEED_X_FRONTEND_OBJS 名：bootstrap-driver-seed 链依赖 parser_x.o/lexer_x.o（见上 §1280）。
-DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS = src/main_driver.o src/runtime_driver.o src/diag.o src/preprocess_for_driver.o src/lexer/lexer.o src/ast/ast_seed.o typeck_x.o codegen_x.o
+DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS = src/main_driver.o src/runtime_driver.o src/diag.o src/lexer/lexer.o src/ast/ast_seed.o typeck_x.o codegen_x.o
 bootstrap-driver-seed-x-frontend: $(SHUX_C) migrate-x-objs driver_x.o preprocess_x.o $(DRIVER_SUBCMD_GEN) $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) $(LSP_DIAG_LINK_O) _stubs_driver.o $(DRIVER_SUBCMD_OBJS)
 	$(CC) $(CFLAGS) -DSHUX_USE_X_DRIVER -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN -o $(TARGET)_x_frontend $(DRIVER_SEED_X_FRONTEND_EXPERIMENT_OBJS) driver_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o $(LSP_DIAG_LINK_O) $(PIPELINE_LIBS)
 	@echo "bootstrap-driver-seed-x-frontend OK ($(TARGET)_x_frontend: .x typeck/codegen, no pipeline_x.o)"
@@ -1567,9 +1558,7 @@ src/ast/ast_seed.o: src/asm/runtime_ast_glue.c include/ast.h
 ast_x.o: src/ast/ast_seed.o
 	cp -f src/ast/ast_seed.o ast_x.o
 
-# seed-compat：runtime_driver.o 薄桥依赖 C parse/typeck/codegen（与 capture LEGACY 种子一致）。
-src/preprocess.o: src/preprocess.c src/preprocess.h
-	$(CC) $(CFLAGS) $(PREPROCESS_O_CFLAGS) -c -o $@ $<
+# G-02a: preprocess.c 已物理删除；preprocess.o 不再编译（preprocess_x.o 由 .x 生成）。
 
 # G-02a: lexer.o 从 runtime_lexer_glue.c 编译（lexer.c 已物理删除）。
 src/lexer/lexer.o: src/asm/runtime_lexer_glue.c src/lexer/lexer.h include/token.h

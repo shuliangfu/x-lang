@@ -83,11 +83,8 @@ asm_seed_st_async_support_link() {
 }
 
 asm_seed_st_preprocess_link() {
-  if asm_seed_omit_c_frontend_seed; then
-    echo ""
-    return 0
-  fi
-  echo "$SEED_O/preprocess.o"
+  # G-02a: preprocess.c 已物理删除；preprocess 由 preprocess_x.o 提供。
+  echo ""
 }
 
 have_link_liburing() {
@@ -1627,14 +1624,6 @@ ensure_runtime_c_import_obj() {
   if [ ! -f "$o" ] || [ "src/runtime_c_import.c" -nt "$o" ]; then
     strict_glue_info "cc -c $o <- src/runtime_c_import.c"
     "$CC" $CFLAGS -c -o "$o" src/runtime_c_import.c
-  fi
-}
-
-ensure_preprocess_obj() {
-  local o="src/preprocess.o"
-  if [ ! -f "$o" ] || [ "src/preprocess.c" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- src/preprocess.c"
-    "$CC" $CFLAGS -c -o "$o" src/preprocess.c
   fi
 }
 

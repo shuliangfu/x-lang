@@ -3231,13 +3231,12 @@ ensure_asm_driver_seed_frontend_c_objs() {
     echo "  G-02a: omit C frontend seed (X *_x.o; SHUX_LEGACY_SEED_FRONTEND_CC=1 to restore cc -c)"
     return 0
   fi
-  echo "  cc -c asm_driver_seed/*.o <- preprocess/lexer/ast_seed/typeck/codegen .c (SHUX_LEGACY_SEED_FRONTEND_CC archaeology)"
-  if [ ! -f src/preprocess.c ] || [ ! -f src/asm/runtime_lexer_glue.c ] || [ ! -f src/asm/runtime_ast_glue.c ] \
+  echo "  cc -c asm_driver_seed/*.o <- lexer/ast_seed/typeck/codegen .c (SHUX_LEGACY_SEED_FRONTEND_CC archaeology)"
+  if [ ! -f src/asm/runtime_lexer_glue.c ] || [ ! -f src/asm/runtime_ast_glue.c ] \
     || [ ! -f src/typeck/typeck.c ] || [ ! -f src/codegen/codegen.c ]; then
     build_shux_asm_error "LEGACY seed frontend .c missing; use X companions or restore C sources"
     return 1
   fi
-  "$CC" $CFLAGS -DSHUX_USE_X_PREPROCESS -c -o "$SEED_DIR/preprocess.o" src/preprocess.c
   "$CC" $CFLAGS -c -o "$SEED_DIR/lexer.o" src/asm/runtime_lexer_glue.c
   "$CC" $CFLAGS -c -o "$SEED_DIR/ast_seed.o" src/asm/runtime_ast_glue.c
   "$CC" $CFLAGS -c -o "$SEED_DIR/typeck.o" src/typeck/typeck.c
@@ -3291,24 +3290,19 @@ asm_seed_st_x_glue_suffix() {
   echo "codegen_x.o lexer_x_link_alias.o typeck_x_link_alias.o codegen_x_link_alias.o"
 }
 
-# preprocess：X 路径由 preprocess_x.o 提供，不链 seed preprocess.o。
+# G-02a: preprocess.c 已物理删除；preprocess 由 preprocess_x.o 提供，不链 seed preprocess.o。
 asm_seed_st_preprocess_link() {
-  SEED_DIR="${SEED_DIR:-$BUILD_DIR/asm_driver_seed}"
-  if asm_seed_use_x_frontend; then
-    echo ""
-    return 0
-  fi
-  echo "$SEED_DIR/preprocess.o"
+  echo ""
 }
 
-# E-06 v4：gen_driver 回退链 — omit seed C 前端 .o（preprocess/lexer/ast/parser/typeck/codegen）。
+# E-06 v4：gen_driver 回退链 — omit seed C 前端 .o（lexer/ast/parser/typeck/codegen）。
 asm_seed_gen_driver_c_frontend_link() {
   SEED_DIR="${SEED_DIR:-$BUILD_DIR/asm_driver_seed}"
   if asm_seed_omit_c_frontend_seed; then
     echo ""
     return 0
   fi
-  echo "$SEED_DIR/preprocess.o $SEED_DIR/lexer.o $SEED_DIR/ast_seed.o $SEED_DIR/parser.o $SEED_DIR/typeck.o $SEED_DIR/codegen.o"
+  echo "$SEED_DIR/lexer.o $SEED_DIR/ast_seed.o $SEED_DIR/parser.o $SEED_DIR/typeck.o $SEED_DIR/codegen.o"
 }
 
 ensure_asm_driver_seed_c_objs() {
@@ -4346,7 +4340,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         GEN_O="$BUILD_DIR/gen_driver"
         ASM_SEED_FRONTEND_LINK=""
         if ! asm_seed_omit_c_frontend_seed; then
-          ASM_SEED_FRONTEND_LINK="$SEED_O/preprocess.o $SEED_O/parser.o $SEED_O/typeck.o $SEED_O/codegen.o $SEED_O/autovec.o $SEED_O/lexer.o $SEED_O/ast_seed.o"
+          ASM_SEED_FRONTEND_LINK="$SEED_O/parser.o $SEED_O/typeck.o $SEED_O/codegen.o $SEED_O/autovec.o $SEED_O/lexer.o $SEED_O/ast_seed.o"
         elif asm_seed_use_x_frontend; then
           build_shux_asm_info "E-06 v2 experimental link omit asm_driver_seed frontend .o (X companions)"
         else
@@ -4814,7 +4808,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   ST_STRICT_FB_X_TAIL="preprocess_x.o parser_x.o lexer_x.o typeck_x.o codegen_x.o"
                   build_shux_asm_info "E-06 v3 strict fallback X-only (no SEED C frontend .o)"
                 else
-                  ST_SEED_PREPROCESS_LINK="$SEED_O/preprocess.o"
+                  ST_SEED_PREPROCESS_LINK=""
                   ST_SEED_PARSER_TCK="$SEED_O/parser.o $SEED_O/typeck.o $SEED_O/codegen.o $SEED_O/autovec.o $SEED_O/async_liveness.o $SEED_O/async_cps_codegen.o $SEED_O/lexer.o $SEED_O/ast_seed.o"
                 fi
                 set +e

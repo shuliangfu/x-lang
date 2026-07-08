@@ -40,7 +40,6 @@ if command -v bear >/dev/null 2>&1; then
     src/codegen/codegen.o \
     src/lexer/lexer.o \
     src/ast/ast.o \
-    src/preprocess.o \
     src/lsp/lsp_diag.o \
     pipeline_bootstrap_orchestration.o \
     2>/dev/null || bear -- make src/runtime_driver.o src/parser/parser.o src/typeck/typeck.o
@@ -80,7 +79,6 @@ entries = [
     ("src/codegen/codegen.c", base),
     ("src/asm/runtime_lexer_glue.c", base),
     ("src/asm/runtime_ast_glue.c", base),
-    ("src/preprocess.c", base),
     ("src/lsp/lsp_diag.c", base),
     ("src/main_driver.c", driver_flags),
     ("src/runtime_driver.c", driver_flags),
