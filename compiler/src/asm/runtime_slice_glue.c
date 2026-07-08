@@ -1,8 +1,14 @@
-/* core/slice/slice.c — slice 构造薄封装（语言暂无 slice 复合字面量）
+/* compiler/src/asm/runtime_slice_glue.c — slice 构造薄封装（语言限制 C 桩）
  *
- * mod.x 的 subslice_i32 / chunk_i32 / split_at_i32 等零拷贝视图经 core_subslice_*_c
- * 构造切片；本 TU 提供这 6 个 C 符号，返回值 ABI 与 codegen 生成的
+ * 【Why 根源】SHUX parser/codegen 暂不支持 slice 复合字面量（[]i32 { data, length }），
+ * 也不支持范围切片（arr[0..n]）。core/slice/mod.x 的 subslice_i32 / chunk_i32 / split_at_i32
+ * 等零拷贝视图须经本 TU 构造切片。返回值 ABI 与 codegen 生成的
  * struct shux_slice_<T>_t { T *data; size_t length; } 一致（16 字节，按值返回）。
+ *
+ * 【Invariant】data 指向至少 total_len 个 T 元素的可读缓冲；start/len 不越界（subslice 内部钳制）。
+ * 【Asm/Perf】6 个函数均为纯寄存器运算（指针加法 + min），无内存访问，编译为 ≤5 条指令。
+ *
+ * 从 core/slice/slice.c 迁入（G-01：core/ 零 C）。待 codegen 补齐 slice 字面量后迁移回 .x。
  */
 #include <stdint.h>
 #include <stddef.h>

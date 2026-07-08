@@ -2340,6 +2340,6 @@ size-baseline:
 perf-baseline:
 	@if [ -f ../tests/run-perf-baseline.sh ]; then (cd .. && chmod +x tests/run-perf-baseline.sh && SHUX=./compiler/shux-c ./tests/run-perf-baseline.sh); fi
 
-# core.slice：语言暂无 slice 复合字面量，subslice/chunk 经 core/slice/slice.c 薄封装构造。
-../core/slice/slice.o: ../core/slice/slice.c
+# core.slice：语言限制 C 桩（slice 字面量未实现），源码迁至 compiler/src/asm/runtime_slice_glue.c（G-01：core/ 零 C）。
+../core/slice/slice.o: src/asm/runtime_slice_glue.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
