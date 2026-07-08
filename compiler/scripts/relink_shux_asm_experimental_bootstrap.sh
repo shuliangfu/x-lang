@@ -57,10 +57,6 @@ ensure_asm_driver_seed_c_objs() {
     experimental_bootstrap_info "cc $SEED_O/codegen.o"
     "$CC" $CFLAGS -c -o "$SEED_O/codegen.o" src/codegen/codegen.c
   fi
-  if [ ! -f "$SEED_O/autovec.o" ] || [ "src/codegen/autovec.c" -nt "$SEED_O/autovec.o" ]; then
-    experimental_bootstrap_info "cc $SEED_O/autovec.o"
-    "$CC" $CFLAGS -c -o "$SEED_O/autovec.o" src/codegen/autovec.c
-  fi
   if [ ! -f "$SEED_O/lsp_diag.o" ] || [ "src/lsp/lsp_diag.c" -nt "$SEED_O/lsp_diag.o" ]; then
     experimental_bootstrap_info "cc $SEED_O/lsp_diag.o"
     "$CC" $CFLAGS -c -o "$SEED_O/lsp_diag.o" src/lsp/lsp_diag.c
@@ -444,7 +440,6 @@ fi
   "$SEED_O/lexer.o" \
   "$SEED_O/parser.o" \
   "$SEED_O/codegen.o" \
-  "$SEED_O/autovec.o" \
   "$SEED_O/lsp_diag.o" \
   $ST_LSP_X \
   "$SEED_O/lsp_state.o" \

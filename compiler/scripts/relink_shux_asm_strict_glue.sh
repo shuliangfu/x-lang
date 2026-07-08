@@ -79,7 +79,7 @@ asm_seed_omit_c_frontend_seed() {
 }
 
 asm_seed_st_async_support_link() {
-  echo "$SEED_O/async_liveness.o $SEED_O/async_cps_codegen.o $SEED_O/autovec.o"
+  echo "$SEED_O/async_liveness.o $SEED_O/async_cps_codegen.o"
 }
 
 asm_seed_st_preprocess_link() {
@@ -1628,13 +1628,6 @@ ensure_runtime_pipeline_abi_shux_c_stubs_obj() {
     "$CC" $CFLAGS -c -o "$o" src/runtime_pipeline_abi_shux_c_stubs.c
   fi
 }
-ensure_seed_autovec_obj() {
-  if [ ! -f "$SEED_O/autovec.o" ] || [ "src/codegen/autovec.c" -nt "$SEED_O/autovec.o" ]; then
-    strict_glue_info "cc -c $SEED_O/autovec.o <- src/codegen/autovec.c"
-    mkdir -p "$SEED_O"
-    "$CC" $CFLAGS -c -o "$SEED_O/autovec.o" src/codegen/autovec.c
-  fi
-}
 ensure_codegen_pipeline_stubs_obj() {
   local o="src/codegen/codegen_pipeline_stubs.o"
   if [ ! -f "$o" ] || [ "src/codegen/codegen_pipeline_stubs.c" -nt "$o" ]; then
@@ -1751,7 +1744,6 @@ ensure_runtime_link_abi_obj
 ensure_runtime_pipeline_abi_obj
 ensure_runtime_driver_obj
 ensure_runtime_driver_strict_glue_stubs_obj
-ensure_seed_autovec_obj
 ensure_codegen_pipeline_stubs_obj
 ensure_runtime_asm_build_obj
 ensure_std_fs_shim_obj

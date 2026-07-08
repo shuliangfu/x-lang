@@ -1568,8 +1568,7 @@ src/lexer/lexer.o: src/asm/runtime_lexer_glue.c src/lexer/lexer.h include/token.
 src/codegen/codegen.o: src/codegen/codegen.c src/codegen/codegen.h include/ast.h src/lsp/lsp_codegen_extern.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-src/codegen/autovec.o: src/codegen/autovec.c include/autovec.h include/ast.h
-	$(CC) $(CFLAGS) -c -o $@ src/codegen/autovec.c
+# G-02a: autovec.c 已物理删除（孤立死代码，无任何调用点/include）。
 
 lsp_diag_gen.c: src/lsp/lsp_diag.x
 	@if [ -s lsp_diag_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \

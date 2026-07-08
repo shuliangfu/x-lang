@@ -3241,7 +3241,6 @@ ensure_asm_driver_seed_frontend_c_objs() {
   "$CC" $CFLAGS -c -o "$SEED_DIR/ast_seed.o" src/asm/runtime_ast_glue.c
   "$CC" $CFLAGS -c -o "$SEED_DIR/typeck.o" src/typeck/typeck.c
   "$CC" $CFLAGS -c -o "$SEED_DIR/codegen.o" src/codegen/codegen.c
-  "$CC" $CFLAGS -c -o "$SEED_DIR/autovec.o" src/codegen/autovec.c
 }
 
 # E-06 v2/v4：X 前端 *.o 就绪检测（parser_x / typeck_x / codegen_x / lexer_x）。
@@ -3277,13 +3276,13 @@ asm_seed_st_async_support_link() {
 # G-02a: typeck.c 已物理删除；typeck.o 不再编译（typeck_x.o + typeck_c_module_stubs.o 提供）。
 asm_seed_st_frontend_seed_link() {
   SEED_DIR="${SEED_DIR:-$BUILD_DIR/asm_driver_seed}"
-  echo "$SEED_DIR/parser.o $SEED_DIR/codegen.o $SEED_DIR/autovec.o $SEED_DIR/async_liveness.o $SEED_DIR/async_cps_codegen.o $SEED_DIR/lexer.o $SEED_DIR/ast_seed.o"
+  echo "$SEED_DIR/parser.o $SEED_DIR/codegen.o $SEED_DIR/async_liveness.o $SEED_DIR/async_cps_codegen.o $SEED_DIR/lexer.o $SEED_DIR/ast_seed.o"
 }
 
 # E-06 v3：bare typeck alias 路径省略 seed typeck.o，其余与 frontend_seed 一致。
 asm_seed_st_frontend_seed_no_typeck_link() {
   SEED_DIR="${SEED_DIR:-$BUILD_DIR/asm_driver_seed}"
-  echo "$SEED_DIR/parser.o $SEED_DIR/codegen.o $SEED_DIR/autovec.o $SEED_DIR/async_liveness.o $SEED_DIR/async_cps_codegen.o $SEED_DIR/lexer.o $SEED_DIR/ast_seed.o"
+  echo "$SEED_DIR/parser.o $SEED_DIR/codegen.o $SEED_DIR/async_liveness.o $SEED_DIR/async_cps_codegen.o $SEED_DIR/lexer.o $SEED_DIR/ast_seed.o"
 }
 
 # X glue 后缀：codegen_x + x link alias（strict / experimental 共用）。
@@ -4341,7 +4340,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         GEN_O="$BUILD_DIR/gen_driver"
         ASM_SEED_FRONTEND_LINK=""
         if ! asm_seed_omit_c_frontend_seed; then
-          ASM_SEED_FRONTEND_LINK="$SEED_O/parser.o $SEED_O/codegen.o $SEED_O/autovec.o $SEED_O/lexer.o $SEED_O/ast_seed.o"
+          ASM_SEED_FRONTEND_LINK="$SEED_O/parser.o $SEED_O/codegen.o $SEED_O/lexer.o $SEED_O/ast_seed.o"
         elif asm_seed_use_x_frontend; then
           build_shux_asm_info "E-06 v2 experimental link omit asm_driver_seed frontend .o (X companions)"
         else
@@ -4810,7 +4809,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   build_shux_asm_info "E-06 v3 strict fallback X-only (no SEED C frontend .o)"
                 else
                   ST_SEED_PREPROCESS_LINK=""
-                  ST_SEED_PARSER_TCK="$SEED_O/parser.o $SEED_O/codegen.o $SEED_O/autovec.o $SEED_O/async_liveness.o $SEED_O/async_cps_codegen.o $SEED_O/lexer.o $SEED_O/ast_seed.o"
+                  ST_SEED_PARSER_TCK="$SEED_O/parser.o $SEED_O/codegen.o $SEED_O/async_liveness.o $SEED_O/async_cps_codegen.o $SEED_O/lexer.o $SEED_O/ast_seed.o"
                 fi
                 set +e
               ensure_runtime_driver_asm_strict_obj
