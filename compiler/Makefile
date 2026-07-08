@@ -583,14 +583,17 @@ src/diag.o: src/diag.c include/diag.h
 src/codegen/codegen.o: src/codegen/codegen.c src/codegen/codegen.h include/ast.h src/lsp/lsp_codegen_extern.h include/diag.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-src/lsp/lsp_diag.o: src/lsp/lsp_diag.c src/lsp/lsp_diag.h include/diag.h
-	$(CC) $(CFLAGS) -c -o $@ $<
 else
 # SHUX_SKIP_SUBSCRIPT_MAKE=1 时跳过 cp：run-all 入口已构建真正 C 前端（SHUX_LEGACY_C_FRONTEND=1），
 # 此处 cp 会覆盖之导致回归全部失败。bootstrap_shuxc target 仍会跑 select_bootstrap_shuxc.sh 同步种子。
 $(SHUX_C): bootstrap_shuxc
 	@if [ -z "$${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then cp -f bootstrap_shuxc $@; else echo "shux-c: SHUX_SKIP_SUBSCRIPT_MAKE=1, skip cp (preserve real C frontend)"; fi
 endif
+
+# G-02a: lsp_diag.c 迁移到 runtime_lsp_glue.c（24 个符号被 lsp_x.o/fmt_check_cmd*.o/runtime*.o 引用）
+# 全局规则，LEGACY 和默认模式共用。
+src/lsp/lsp_diag.o: src/asm/runtime_lsp_glue.c src/lsp/lsp_diag.h include/diag.h
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 # `shux-c` 默认模式可能只是 bootstrap_shuxc 的同步副本；凡是依赖 `-E/-E-extern`
 # 生成当前源码对应 C 的目标，必须先强制刷新一次 legacy C frontend，避免继续吃旧语义。

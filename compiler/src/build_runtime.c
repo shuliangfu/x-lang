@@ -265,7 +265,7 @@ int build_run_step(int step_id, const char *shu_path) {
       "%s %s -c -o src/lexer/lexer.o src/asm/runtime_lexer_glue.c && "
       "%s %s -c -o src/ast/ast.o src/asm/runtime_ast_glue.c && "
       "%s %s -c -o src/codegen/codegen.o src/codegen/codegen.c && "
-      "%s %s -c -o src/lsp/lsp_diag.o src/lsp/lsp_diag.c && "
+      "%s %s -c -o src/lsp/lsp_diag.o src/asm/runtime_lsp_glue.c && "
       "%s %s -c -o std_fs_shim.o src/std_fs_shim.c && "
       "%s %s -c -o x_stubs.o src/x_stubs.c",
       cc, cflags, cc, cflags, cc, cflags_driver,

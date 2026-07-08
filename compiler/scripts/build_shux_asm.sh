@@ -3185,9 +3185,9 @@ lsp_diag_seed_obj_path() {
 ensure_lsp_diag_seed_obj() {
   local seed_dir="$1"
   if [ "${SHUX_LEGACY_LSP_DIAG_C:-0}" = "1" ]; then
-    if [ ! -f "$seed_dir/lsp_diag.o" ] || [ "src/lsp/lsp_diag.c" -nt "$seed_dir/lsp_diag.o" ]; then
+    if [ ! -f "$seed_dir/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.c" -nt "$seed_dir/lsp_diag.o" ]; then
       echo "  cc -c $seed_dir/lsp_diag.o <- lsp_diag.c (LEGACY)"
-      "$CC" $CFLAGS -c -o "$seed_dir/lsp_diag.o" src/lsp/lsp_diag.c
+      "$CC" $CFLAGS -c -o "$seed_dir/lsp_diag.o" src/asm/runtime_lsp_glue.c
     fi
   else
     if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "src/lsp/lsp_diag_stubs_no_c.c" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then

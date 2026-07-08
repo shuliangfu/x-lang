@@ -57,9 +57,9 @@ ensure_asm_driver_seed_c_objs() {
     experimental_bootstrap_info "cc $SEED_O/codegen.o"
     "$CC" $CFLAGS -c -o "$SEED_O/codegen.o" src/codegen/codegen.c
   fi
-  if [ ! -f "$SEED_O/lsp_diag.o" ] || [ "src/lsp/lsp_diag.c" -nt "$SEED_O/lsp_diag.o" ]; then
+  if [ ! -f "$SEED_O/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.c" -nt "$SEED_O/lsp_diag.o" ]; then
     experimental_bootstrap_info "cc $SEED_O/lsp_diag.o"
-    "$CC" $CFLAGS -c -o "$SEED_O/lsp_diag.o" src/lsp/lsp_diag.c
+    "$CC" $CFLAGS -c -o "$SEED_O/lsp_diag.o" src/asm/runtime_lsp_glue.c
   fi
   if [ ! -f "$SEED_O/lsp_state.o" ] || [ "src/lsp/lsp_state.c" -nt "$SEED_O/lsp_state.o" ]; then
     experimental_bootstrap_info "cc $SEED_O/lsp_state.o"

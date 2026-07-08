@@ -77,7 +77,7 @@ entries = [
     ("src/codegen/codegen.c", base),
     ("src/asm/runtime_lexer_glue.c", base),
     ("src/asm/runtime_ast_glue.c", base),
-    ("src/lsp/lsp_diag.c", base),
+    ("src/asm/runtime_lsp_glue.c", base),
     ("src/main_driver.c", driver_flags),
     ("src/runtime_driver.c", driver_flags),
     ("src/driver/fmt_check_cmd.c", base),
