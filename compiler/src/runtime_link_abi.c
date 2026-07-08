@@ -5014,6 +5014,13 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 argv[la++] = o_path;
             argv[la] = NULL;
             {
+                /*
+                 * nostdlib 链 shux_asm 的 environ 可能无 PATH：ld 子进程须显式设置 PATH，
+                 * 否则 execvp("ld") 找不到 /usr/bin/ld → ENOENT → BLD001。
+                 * 【Why】strict link shux_asm 用 -nostdlib -static 链接，environ 不一定
+                 * 继承完整 PATH；gcc 路径用 shux_linux_host_gcc_path() 绕过，ld 亦须设 PATH。
+                 */
+                shux_linux_ld_child_path();
                 int rc = shux_spawn_sync("ld", (const char *const *)argv);
                 if (rc != 0) {
                     link_diag_tool_status("ld", rc);
