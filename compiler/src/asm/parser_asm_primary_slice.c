@@ -554,6 +554,52 @@ static void parser_asm_primary_ident_suffix_loop_c(void *arena, struct parser_as
         *lex = r->next_lex;
       }
       out->expr_ref = call_ref;
+    } else if (r->tok.kind == (int32_t)TOKEN_LBRACE) {
+      /**
+       * 【Why】`Module.TypeName { ... }` 语法：field-access 后跟 `{` 视为 struct 字面量。
+       * parser IDENT 后缀 loop 原本只处理 `.`/`[`/`(`/`<`，不支持 `heap.PageMmapHeap { ... }`，
+       * 导致 nolibc gate CG002（struct_lit 被解析为 FIELD_ACCESS ko=44，asm codegen 期望 ko=45）。
+       * 【Invariant】仅 FIELD_ACCESS (ko=44) 后的 LBRACE 触发；CALL/INDEX 后的 LBRACE 不触发。
+       * 【Asm/Perf】无额外分支开销：LBRACE 检查仅在 suffix loop 末尾命中一次。
+       */
+      struct parser_asm_ast_expr fae;
+      int32_t fa_ref;
+      int32_t tlen;
+      uint8_t tnm[64];
+      int32_t ti;
+      int32_t tj;
+      fa_ref = out->expr_ref;
+      fae = parser_asm_arena_expr_get_c(arena, fa_ref);
+      if (fae.kind != PARSER_ASM_EXPR_FIELD_ACCESS) {
+        out->next_lex = *lex;
+        return;
+      }
+      tlen = fae.field_access_field_len;
+      if (tlen <= 0 || tlen > 63) {
+        out->ok = 0;
+        return;
+      }
+      ti = 0;
+      while (ti < 64) {
+        tnm[ti] = fae.field_access_field_name[ti];
+        ti = ti + 1;
+      }
+      parser_asm_expr_set_common_zeros_c(&fae);
+      fae.kind = PARSER_ASM_FINISH_STRUCT_LIT_KIND;
+      fae.struct_lit_struct_name_len = tlen;
+      tj = 0;
+      while (tj < 64) {
+        fae.struct_lit_struct_name[tj] = tnm[tj];
+        tj = tj + 1;
+      }
+      fae.struct_lit_field_base = 0;
+      fae.struct_lit_num_fields = 0;
+      fae.line = 0;
+      fae.col = 0;
+      parser_asm_arena_expr_set_c(arena, fa_ref, fae);
+      *lex = r->next_lex;
+      parser_asm_parse_struct_lit_fields_c(arena, fa_ref, *lex, source, out);
+      return;
     } else {
       out->next_lex = *lex;
       return;
