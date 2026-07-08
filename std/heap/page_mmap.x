@@ -68,9 +68,10 @@ function page_mmap_heap_init(h: *PageMmapHeap): i32 {
   h.base = 0 as *u8;
   h.cap = 0;
   h.off = 0;
-  let p: *u8 = unsafe {
-    shux_sys_mmap(0 as *u8, PAGE_MMAP_DEFAULT_CAP, PAGE_MMAP_PROT_RW, PAGE_MMAP_FLAGS, -1, 0 as i64)
-  };
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    p = shux_sys_mmap(0 as *u8, PAGE_MMAP_DEFAULT_CAP, PAGE_MMAP_PROT_RW, PAGE_MMAP_FLAGS, -1, 0 as i64);
+  }
   let p_i: i64 = p as i64;
   if (p_i <= 0) {
     return -1;
