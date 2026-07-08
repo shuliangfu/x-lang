@@ -3348,6 +3348,13 @@ ensure_asm_strict_link_extra_objs() {
     echo "  cc -c src/asm/pipeline_fill_dep_strict_alias.c -> src/asm/pipeline_fill_dep_strict_alias.o"
     "$CC" $CFLAGS -c -o src/asm/pipeline_fill_dep_strict_alias.o src/asm/pipeline_fill_dep_strict_alias.c
   fi
+  # G-03 NL-07 v5：strict link 用 pipeline_glue_strict_minimal.o（无 preprocess_if_stack_*）
+  # 但 preprocess_x.o 引用 preprocess_if_stack_*；bridge 文件提供这些符号。
+  # standalone 模式下重复定义由 --allow-multiple-definition 兜底。
+  if [ ! -f "$BUILD_DIR/preprocess_if_stack_bridge.o" ] || [ "src/preprocess_if_stack_bridge.c" -nt "$BUILD_DIR/preprocess_if_stack_bridge.o" ]; then
+    echo "  cc -c src/preprocess_if_stack_bridge.c -> $BUILD_DIR/preprocess_if_stack_bridge.o"
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/preprocess_if_stack_bridge.o" src/preprocess_if_stack_bridge.c
+  fi
 }
 
 # experimental / strict 链：lsp_state.o 依赖 typeck_lsp_main_impl（lsp.x -E → lsp_x.o）；勿拉整包 gen_driver。
@@ -4088,7 +4095,7 @@ shux_asm_bstrict_relink_runtime_only() {
   refresh_bstrict_link_variants
   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
   ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
+  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/preprocess_if_stack_bridge.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
   ensure_pipeline_o_strict_link_partial_obj || true
   filter_strict_asm_objs
   ASM_TRY_OBJS="$FILTERED"
@@ -4674,7 +4681,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   fi
                   ensure_asm_backend_compat_stubs_obj
                   refresh_bstrict_link_variants
-                  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
+                  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/preprocess_if_stack_bridge.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
                 else
                   # legacy：须 seed C 前端 *.o 在前、*_x.o 在后（macOS ld 重复符号取后定义）。
                   # E-06 v3 X：仅 async seed + X glue；parser_x.o 在 ST_PARSER_X_TAIL 压过重复符号。
@@ -4689,7 +4696,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
                   ensure_asm_backend_compat_stubs_obj
                   refresh_bstrict_link_variants
-                  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
+                  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/preprocess_if_stack_bridge.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
                 fi
               elif [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
                 ST_BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"
@@ -4805,7 +4812,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 if asm_seed_use_x_frontend; then
                   ST_SEED_PREPROCESS_LINK=""
                   ST_SEED_PARSER_TCK="$(asm_seed_st_async_support_link) $(asm_seed_st_x_glue_suffix)"
-                  ST_STRICT_FB_X_TAIL="preprocess_x.o parser_x.o lexer_x.o typeck_x.o codegen_x.o"
+                  ST_STRICT_FB_X_TAIL="preprocess_x.o $BUILD_DIR/preprocess_if_stack_bridge.o parser_x.o lexer_x.o typeck_x.o codegen_x.o"
                   build_shux_asm_info "E-06 v3 strict fallback X-only (no SEED C frontend .o)"
                 else
                   ST_SEED_PREPROCESS_LINK=""
@@ -5023,6 +5030,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
         "$GEN_O/pipeline_x.o" \
         "$BUILD_DIR/pipeline_glue_strict_minimal.o" \
         "$GEN_O/preprocess_x.o" \
+        "$BUILD_DIR/preprocess_if_stack_bridge.o" \
         $GEN_DRIVER_TYPECK_COMPANIONS \
         $GEN_DRIVER_BSTRICT_COMPANIONS \
         $GEN_DRIVER_X_PIPELINE_COMPANIONS \
