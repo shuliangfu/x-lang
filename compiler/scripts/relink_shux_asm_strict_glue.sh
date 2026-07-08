@@ -1592,9 +1592,9 @@ ensure_runtime_driver_obj() {
 
 ensure_ast_obj() {
   local o="src/ast/ast.o"
-  if [ ! -f "$o" ] || [ "src/ast/ast.c" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- src/ast/ast.c"
-    "$CC" $CFLAGS -c -o "$o" src/ast/ast.c
+  if [ ! -f "$o" ] || [ "src/asm/runtime_ast_glue.c" -nt "$o" ]; then
+    strict_glue_info "cc -c $o <- src/asm/runtime_ast_glue.c"
+    "$CC" $CFLAGS -c -o "$o" src/asm/runtime_ast_glue.c
   fi
 }
 

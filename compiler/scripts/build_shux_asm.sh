@@ -3232,14 +3232,14 @@ ensure_asm_driver_seed_frontend_c_objs() {
     return 0
   fi
   echo "  cc -c asm_driver_seed/*.o <- preprocess/lexer/ast_seed/parser/typeck/codegen .c (SHUX_LEGACY_SEED_FRONTEND_CC archaeology)"
-  if [ ! -f src/preprocess.c ] || [ ! -f src/lexer/lexer.c ] || [ ! -f src/ast/ast.c ] \
+  if [ ! -f src/preprocess.c ] || [ ! -f src/lexer/lexer.c ] || [ ! -f src/asm/runtime_ast_glue.c ] \
     || [ ! -f src/parser/parser.c ] || [ ! -f src/typeck/typeck.c ] || [ ! -f src/codegen/codegen.c ]; then
     build_shux_asm_error "LEGACY seed frontend .c missing; use X companions or restore C sources"
     return 1
   fi
   "$CC" $CFLAGS -DSHUX_USE_X_PREPROCESS -c -o "$SEED_DIR/preprocess.o" src/preprocess.c
   "$CC" $CFLAGS -c -o "$SEED_DIR/lexer.o" src/lexer/lexer.c
-  "$CC" $CFLAGS -DSHUX_USE_X_AST -c -o "$SEED_DIR/ast_seed.o" src/ast/ast.c
+  "$CC" $CFLAGS -c -o "$SEED_DIR/ast_seed.o" src/asm/runtime_ast_glue.c
   "$CC" $CFLAGS -c -o "$SEED_DIR/parser.o" src/parser/parser.c
   "$CC" $CFLAGS -c -o "$SEED_DIR/typeck.o" src/typeck/typeck.c
   "$CC" $CFLAGS -c -o "$SEED_DIR/codegen.o" src/codegen/codegen.c

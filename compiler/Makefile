@@ -571,8 +571,10 @@ src/preprocess_legacy.o: src/preprocess.c src/preprocess.h
 src/lexer/lexer.o: src/lexer/lexer.c src/lexer/lexer.h include/token.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-src/ast/ast.o: src/ast/ast.c include/ast.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+# G-02a: ast.o 从 runtime_ast_glue.c 编译（LEGACY 模式 SHUX_LEGACY_C_FRONTEND=1）。
+# LEGACY parser.o 不引用 ast_expr_init_match_enum，安全。
+src/ast/ast.o: src/asm/runtime_ast_glue.c include/ast.h
+	$(CC) $(CFLAGS) -c -o $@ src/asm/runtime_ast_glue.c
 
 src/diag.o: src/diag.c include/diag.h
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -1556,11 +1558,13 @@ src/lsp/lsp_heap_bootstrap.o: src/lsp/lsp_heap_bootstrap.c
 $(AST_POOL_L5_BRIDGE_O): src/ast_pool_l5_bridge.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
-# G-06：ast.c 以 SHUX_USE_X_AST 编为 ast_seed.o，供 seed-compat 链（ast_block_free 等；与 capture seeds 一致）。
-src/ast/ast_seed.o: src/ast/ast.c include/ast.h
-	$(CC) $(CFLAGS) -DSHUX_USE_X_AST -c -o $@ src/ast/ast.c
+# G-02a：ast_seed.o 从 runtime_ast_glue.c 编译（从 src/ast/ast.c 迁移）。
+# 提供 ast_module_free/ast_expr_free/ast_block_free 等 8 个内存管理函数。
+# 不含 ast_expr_init_match_enum（no_c 模式下由 x_seed_bridge.o 提供）。
+src/ast/ast_seed.o: src/asm/runtime_ast_glue.c include/ast.h
+	$(CC) $(CFLAGS) -c -o $@ src/asm/runtime_ast_glue.c
 
-# G-02a: ast_x.o alias — ast.x 提供类型+helper；ast_seed.o 提供 C ABI 实现（ast_block_free 等）。
+# G-02a: ast_x.o alias — ast_seed.o 提供 C ABI 内存管理实现。
 ast_x.o: src/ast/ast_seed.o
 	cp -f src/ast/ast_seed.o ast_x.o
 

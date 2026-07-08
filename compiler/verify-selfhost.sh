@@ -14,7 +14,7 @@ echo ""
 echo "── Step 0: 冷启动 ──"
 rm -f *.o src/*.o src/*/*.o _x_stubs.* _shux2_* shux shux-c shux-x *_gen.c *_x.o 2>/dev/null || true
 
-SRCS="src/main.c src/runtime.c src/preprocess.c src/lexer/lexer.c src/ast/ast.c src/parser/parser.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_diag.c"
+SRCS="src/main.c src/runtime.c src/preprocess.c src/lexer/lexer.c src/asm/runtime_ast_glue.c src/parser/parser.c src/typeck/typeck.c src/codegen/codegen.c src/lsp/lsp_diag.c"
 OBJS=""
 for src in $SRCS; do
   obj="${src%.c}.o"
@@ -115,7 +115,7 @@ cc $CFLAGS -c driver_gen.c -o driver_x.o
 # 编译 C 侧模块
 echo ""
 echo "  编译 C 侧模块..."
-cc $CFLAGS -DSHUX_USE_X_AST -c src/ast/ast.c -o ast_c.o
+cc $CFLAGS -c src/asm/runtime_ast_glue.c -o ast_c.o
 cc $CFLAGS -c src/lexer/lexer.c -o lexer_c.o
 cc $CFLAGS -c src/parser/parser.c -o parser_c.o
 cc $CFLAGS -c src/typeck/typeck.c -o typeck_c.o
