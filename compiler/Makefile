@@ -568,8 +568,10 @@ $(SHUX_C): $(OBJS_CORE) $(LEGACY_SHUX_C_EXTRA)
 src/preprocess_legacy.o: src/preprocess.c src/preprocess.h
 	$(CC) $(CFLAGS) -DSHUX_LEGACY_C_FRONTEND_ABI -c -o $@ $<
 
-src/lexer/lexer.o: src/lexer/lexer.c src/lexer/lexer.h include/token.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+# G-02a: lexer.o 从 runtime_lexer_glue.c 编译（lexer.c 已物理删除）。
+# 仅提供 lexer_new/lexer_free；lexer_next 由 lexer_x.o（.x）或 runtime_driver_strict_glue_stubs.o（weak 桩）提供。
+src/lexer/lexer.o: src/asm/runtime_lexer_glue.c src/lexer/lexer.h include/token.h
+	$(CC) $(CFLAGS) -c -o $@ src/asm/runtime_lexer_glue.c
 
 # G-02a: ast.o 从 runtime_ast_glue.c 编译（LEGACY 模式 SHUX_LEGACY_C_FRONTEND=1）。
 # LEGACY parser.o 不引用 ast_expr_init_match_enum，安全。
@@ -1572,8 +1574,9 @@ ast_x.o: src/ast/ast_seed.o
 src/preprocess.o: src/preprocess.c src/preprocess.h
 	$(CC) $(CFLAGS) $(PREPROCESS_O_CFLAGS) -c -o $@ $<
 
-src/lexer/lexer.o: src/lexer/lexer.c src/lexer/lexer.h include/token.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+# G-02a: lexer.o 从 runtime_lexer_glue.c 编译（lexer.c 已物理删除）。
+src/lexer/lexer.o: src/asm/runtime_lexer_glue.c src/lexer/lexer.h include/token.h
+	$(CC) $(CFLAGS) -c -o $@ src/asm/runtime_lexer_glue.c
 
 src/parser/parser.o: src/parser/parser.c src/parser/parser.h src/lexer/lexer.h include/ast.h include/token.h
 	$(CC) $(CFLAGS) -c -o $@ $<

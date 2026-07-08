@@ -48,9 +48,9 @@ ensure_asm_driver_seed_c_objs() {
     experimental_bootstrap_info "cc $SEED_O/preprocess.o"
     "$CC" $CFLAGS -DSHUX_USE_X_PREPROCESS -c -o "$SEED_O/preprocess.o" src/preprocess.c
   fi
-  if [ ! -f "$SEED_O/lexer.o" ] || [ "src/lexer/lexer.c" -nt "$SEED_O/lexer.o" ]; then
+  if [ ! -f "$SEED_O/lexer.o" ] || [ "src/asm/runtime_lexer_glue.c" -nt "$SEED_O/lexer.o" ]; then
     experimental_bootstrap_info "cc $SEED_O/lexer.o"
-    "$CC" $CFLAGS -c -o "$SEED_O/lexer.o" src/lexer/lexer.c
+    "$CC" $CFLAGS -c -o "$SEED_O/lexer.o" src/asm/runtime_lexer_glue.c
   fi
   if [ ! -f "$SEED_O/ast_seed.o" ] || [ "src/asm/runtime_ast_glue.c" -nt "$SEED_O/ast_seed.o" ]; then
     experimental_bootstrap_info "cc $SEED_O/ast_seed.o"

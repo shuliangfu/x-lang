@@ -79,7 +79,7 @@ entries = [
     ("src/parser/parser.c", base),
     ("src/typeck/typeck.c", base),
     ("src/codegen/codegen.c", base),
-    ("src/lexer/lexer.c", base),
+    ("src/asm/runtime_lexer_glue.c", base),
     ("src/asm/runtime_ast_glue.c", base),
     ("src/preprocess.c", base),
     ("src/lsp/lsp_diag.c", base),
