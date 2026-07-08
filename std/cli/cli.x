@@ -22,8 +22,8 @@
 /** C 字符串常量（解析器不支持 "..." as *u8）。 */
 const CLI_LIT_HELP: u8[7] = [45, 45, 104, 101, 108, 112, 0];
 
-extern function memcmp(a: *u8, b: *u8, n: usize): i32;
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
 /** 与 mod.x CliResult 布局一致。 */
 allow(padding) struct CliResult {

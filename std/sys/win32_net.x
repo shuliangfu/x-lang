@@ -23,10 +23,10 @@
 // F-02 v2：直接 extern ws2_32.dll（无 win32_net.inc.c）。
 
 /** winsock2 WSAStartup；0 成功。 */
-extern function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
+extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
 
 /** winsock2 WSACleanup；0 成功。 */
-extern function WSACleanup(): i32;
+extern "C" function WSACleanup(): i32;
 
 /** MAKEWORD(2, 2) = 0x0202。 */
 const WIN32_WSA_VERSION_2_2: u16 = 0x0202;

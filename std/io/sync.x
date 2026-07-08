@@ -49,11 +49,11 @@ let io_fixed_len: [8]usize = [
 ];
 let io_fixed_nr: u32 = 0;
 
-extern function read(fd: i32, buf: *u8, count: usize): isize;
-extern function write(fd: i32, buf: *u8, count: usize): isize;
-extern function readv(fd: i32, iov: *Iovec, iovcnt: i32): isize;
-extern function writev(fd: i32, iov: *Iovec, iovcnt: i32): isize;
-extern function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
+extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function readv(fd: i32, iov: *Iovec, iovcnt: i32): isize;
+extern "C" function writev(fd: i32, iov: *Iovec, iovcnt: i32): isize;
+extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
 
 /** libc FFI 须 unsafe；集中薄包装，避免各 io_* 重复写 unsafe 块。 */
 function io_libc_read(fd: i32, buf: *u8, count: usize): isize {

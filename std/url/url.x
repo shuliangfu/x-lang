@@ -49,11 +49,11 @@ allow(padding) struct Url {
   fragment: u8[256];
 }
 
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memset(s: *u8, c: i32, n: usize): *u8;
-extern function strlen(s: *u8): usize;
-extern function inet_pton(af: i32, src: *u8, dst: *u8): i32;
-extern function inet_ntop(af: i32, src: *u8, dst: *u8, size: usize): *u8;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function strlen(s: *u8): usize;
+extern "C" function inet_pton(af: i32, src: *u8, dst: *u8): i32;
+extern "C" function inet_ntop(af: i32, src: *u8, dst: *u8, size: usize): *u8;
 
 /** F-url v1 版本标记。 */
 function url_f_url_v1_marker_c(): i32 {

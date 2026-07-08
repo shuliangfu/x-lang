@@ -128,36 +128,36 @@ function db_stmt_cache_slot(i: i32): *DbCachedStmt {
   return (&g_db_stmt_cache_bytes[(i * 264) as i32] as *DbCachedStmt);
 }
 
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memcmp(a: *u8, b: *u8, n: usize): i32;
-extern function memset(s: *u8, c: i32, n: usize): *u8;
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function malloc(size: usize): *u8;
-extern function snprintf(buf: *u8, size: usize, fmt: *u8): i32;
-extern function strlen(s: *u8): usize;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function malloc(size: usize): *u8;
+extern "C" function snprintf(buf: *u8, size: usize, fmt: *u8): i32;
+extern "C" function strlen(s: *u8): usize;
 
-extern function shu_db_use_sqlite3_c(): i32;
-extern function shu_sqlite3_open_c(path: *u8, out_db: *i64): i32;
-extern function shu_sqlite3_close_c(db_h: i64): i32;
-extern function shu_sqlite3_exec_c(db_h: i64, sql: *u8, out_errmsg: *i64): i32;
-extern function shu_sqlite3_exec_count_c(db_h: i64, sql: *u8, out_count: *i32, out_errmsg: *i64): i32;
-extern function shu_sqlite3_prepare_v2_c(db_h: i64, sql: *u8, out_stmt: *i64): i32;
-extern function shu_sqlite3_step_c(stmt_h: i64): i32;
-extern function shu_sqlite3_finalize_c(stmt_h: i64): i32;
-extern function shu_sqlite3_reset_c(stmt_h: i64): i32;
-extern function shu_sqlite3_clear_bindings_c(stmt_h: i64): i32;
-extern function shu_sqlite3_column_count_c(stmt_h: i64): i32;
-extern function shu_sqlite3_column_int_c(stmt_h: i64, col: i32): i32;
-extern function shu_sqlite3_column_text_c(stmt_h: i64, col: i32): i64;
-extern function shu_sqlite3_column_blob_c(stmt_h: i64, col: i32): i64;
-extern function shu_sqlite3_column_bytes_c(stmt_h: i64, col: i32): i32;
-extern function shu_sqlite3_bind_int_c(stmt_h: i64, idx: i32, val: i32): i32;
-extern function shu_sqlite3_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32;
-extern function shu_sqlite3_errmsg_c(db_h: i64): i64;
-extern function shu_sqlite3_db_handle_c(stmt_h: i64): i64;
-extern function shu_sqlite3_changes_c(db_h: i64): i32;
-extern function shu_sqlite3_free_c(ptr: i64): void;
+extern "C" function shu_db_use_sqlite3_c(): i32;
+extern "C" function shu_sqlite3_open_c(path: *u8, out_db: *i64): i32;
+extern "C" function shu_sqlite3_close_c(db_h: i64): i32;
+extern "C" function shu_sqlite3_exec_c(db_h: i64, sql: *u8, out_errmsg: *i64): i32;
+extern "C" function shu_sqlite3_exec_count_c(db_h: i64, sql: *u8, out_count: *i32, out_errmsg: *i64): i32;
+extern "C" function shu_sqlite3_prepare_v2_c(db_h: i64, sql: *u8, out_stmt: *i64): i32;
+extern "C" function shu_sqlite3_step_c(stmt_h: i64): i32;
+extern "C" function shu_sqlite3_finalize_c(stmt_h: i64): i32;
+extern "C" function shu_sqlite3_reset_c(stmt_h: i64): i32;
+extern "C" function shu_sqlite3_clear_bindings_c(stmt_h: i64): i32;
+extern "C" function shu_sqlite3_column_count_c(stmt_h: i64): i32;
+extern "C" function shu_sqlite3_column_int_c(stmt_h: i64, col: i32): i32;
+extern "C" function shu_sqlite3_column_text_c(stmt_h: i64, col: i32): i64;
+extern "C" function shu_sqlite3_column_blob_c(stmt_h: i64, col: i32): i64;
+extern "C" function shu_sqlite3_column_bytes_c(stmt_h: i64, col: i32): i32;
+extern "C" function shu_sqlite3_bind_int_c(stmt_h: i64, idx: i32, val: i32): i32;
+extern "C" function shu_sqlite3_bind_text_c(stmt_h: i64, idx: i32, text: *u8): i32;
+extern "C" function shu_sqlite3_errmsg_c(db_h: i64): i64;
+extern "C" function shu_sqlite3_db_handle_c(stmt_h: i64): i64;
+extern "C" function shu_sqlite3_changes_c(db_h: i64): i32;
+extern "C" function shu_sqlite3_free_c(ptr: i64): void;
 
 /** 设置最后一次库错误码与消息（截断至 159 字节）。 */
 function db_set_err(code: i32, msg: *u8): void {

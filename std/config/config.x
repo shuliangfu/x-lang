@@ -110,18 +110,18 @@ allow(padding) struct YamlParseCtx {
 extern function env_iter_count_c(): i32;
 extern function env_iter_at_c(index: i32, key_out: *u8, key_cap: i32, val_out: *u8, val_cap: i32): i32;
 extern function env_setenv_c(name: *u8, value: *u8, overwrite: i32): i32;
-extern function fs_open_read_c(path: *u8): i32;
-extern function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64;
-extern function close(fd: i32): i32;
+extern "C" function fs_open_read_c(path: *u8): i32;
+extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64;
+extern "C" function close(fd: i32): i32;
 
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memset(s: *u8, c: i32, n: usize): *u8;
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function strcmp(a: *u8, b: *u8): i32;
-extern function strncmp(a: *u8, b: *u8, n: usize): i32;
-extern function strlen(s: *u8): usize;
-extern function strchr(s: *u8, c: i32): *u8;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function strcmp(a: *u8, b: *u8): i32;
+extern "C" function strncmp(a: *u8, b: *u8, n: usize): i32;
+extern "C" function strlen(s: *u8): usize;
+extern "C" function strchr(s: *u8, c: i32): *u8;
 
 /** F-config v1 版本标记。 */
 function config_f_config_v1_marker_c(): i32 {

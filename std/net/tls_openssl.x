@@ -53,42 +53,42 @@ allow(padding) struct TlsOpensslServerCtx {
   ctx: *u8;
 }
 
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function getenv(name: *u8): *u8;
-extern function atoi(s: *u8): i32;
-extern function strlen(s: *u8): usize;
-extern function strstr(haystack: *u8, needle: *u8): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function getenv(name: *u8): *u8;
+extern "C" function atoi(s: *u8): i32;
+extern "C" function strlen(s: *u8): usize;
+extern "C" function strstr(haystack: *u8, needle: *u8): *u8;
 
 extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
 extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
 extern function net_close_socket_c(fd: i32): i32;
 
-extern function OPENSSL_init_ssl(opts: u64, settings: *u8): i32;
-extern function TLS_client_method(): *u8;
-extern function TLS_server_method(): *u8;
-extern function SSL_CTX_new(method: *u8): *u8;
-extern function SSL_CTX_free(ctx: *u8): void;
-extern function SSL_CTX_set_verify(ctx: *u8, mode: i32, cb: *u8): void;
-extern function SSL_CTX_set_alpn_protos(ctx: *u8, protos: *u8, protos_len: u32): i32;
-extern function SSL_new(ctx: *u8): *u8;
-extern function SSL_free(ssl: *u8): void;
-extern function SSL_set_fd(ssl: *u8, fd: i32): i32;
-extern function SSL_set_tlsext_host_name(ssl: *u8, name: *u8): i32;
-extern function SSL_connect(ssl: *u8): i32;
-extern function SSL_accept(ssl: *u8): i32;
-extern function SSL_shutdown(ssl: *u8): i32;
-extern function SSL_read(ssl: *u8, buf: *u8, cap: i32): i32;
-extern function SSL_write(ssl: *u8, buf: *u8, len: i32): i32;
-extern function SSL_get0_alpn_selected(ssl: *u8, out: * *u8, out_len: *u32): void;
-extern function BIO_new_mem_buf(buf: *u8, len: i32): *u8;
-extern function BIO_free(bio: *u8): void;
-extern function PEM_read_bio_X509(bio: *u8, x: * *u8, cb: *u8, u: *u8): *u8;
-extern function PEM_read_bio_PrivateKey(bio: *u8, x: * *u8, cb: *u8, u: *u8): *u8;
-extern function X509_free(x: *u8): void;
-extern function EVP_PKEY_free(k: *u8): void;
-extern function SSL_CTX_use_certificate(ctx: *u8, cert: *u8): i32;
-extern function SSL_CTX_use_PrivateKey(ctx: *u8, key: *u8): i32;
+extern "C" function OPENSSL_init_ssl(opts: u64, settings: *u8): i32;
+extern "C" function TLS_client_method(): *u8;
+extern "C" function TLS_server_method(): *u8;
+extern "C" function SSL_CTX_new(method: *u8): *u8;
+extern "C" function SSL_CTX_free(ctx: *u8): void;
+extern "C" function SSL_CTX_set_verify(ctx: *u8, mode: i32, cb: *u8): void;
+extern "C" function SSL_CTX_set_alpn_protos(ctx: *u8, protos: *u8, protos_len: u32): i32;
+extern "C" function SSL_new(ctx: *u8): *u8;
+extern "C" function SSL_free(ssl: *u8): void;
+extern "C" function SSL_set_fd(ssl: *u8, fd: i32): i32;
+extern "C" function SSL_set_tlsext_host_name(ssl: *u8, name: *u8): i32;
+extern "C" function SSL_connect(ssl: *u8): i32;
+extern "C" function SSL_accept(ssl: *u8): i32;
+extern "C" function SSL_shutdown(ssl: *u8): i32;
+extern "C" function SSL_read(ssl: *u8, buf: *u8, cap: i32): i32;
+extern "C" function SSL_write(ssl: *u8, buf: *u8, len: i32): i32;
+extern "C" function SSL_get0_alpn_selected(ssl: *u8, out: * *u8, out_len: *u32): void;
+extern "C" function BIO_new_mem_buf(buf: *u8, len: i32): *u8;
+extern "C" function BIO_free(bio: *u8): void;
+extern "C" function PEM_read_bio_X509(bio: *u8, x: * *u8, cb: *u8, u: *u8): *u8;
+extern "C" function PEM_read_bio_PrivateKey(bio: *u8, x: * *u8, cb: *u8, u: *u8): *u8;
+extern "C" function X509_free(x: *u8): void;
+extern "C" function EVP_PKEY_free(k: *u8): void;
+extern "C" function SSL_CTX_use_certificate(ctx: *u8, cert: *u8): i32;
+extern "C" function SSL_CTX_use_PrivateKey(ctx: *u8, key: *u8): i32;
 
 /**
  * handle 转 TlsOpensslSess*；0 返回 0。

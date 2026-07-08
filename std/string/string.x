@@ -19,9 +19,9 @@
 // 【文件职责】memcmp/memcpy/memchr/memmem 快路径；供 mod.x len≥阈值时调用。
 // memmem 便携实现（全平台一致，不依赖 GNU memmem）。
 
-extern function memcmp(a: *u8, b: *u8, n: usize): i32;
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memchr(ptr: *u8, c: i32, n: usize): *u8;
+extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memchr(ptr: *u8, c: i32, n: usize): *u8;
 
 /** 返回 ptr + off；供 StrView 子视图与 arena concat。 */
 function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8 {

@@ -26,9 +26,9 @@ const ast = import("ast");
 const heap = import("std.heap");
 
 /** parser 联调 main 仅需最小文件 IO，避免拉入 std.fs 全平台定义污染 bootstrap 生成。 */
-extern function std_fs_open(path: *u8): i32;
-extern function std_fs_read(fd: i32, buf: *u8, count: usize): isize;
-extern function std_fs_close(fd: i32): i32;
+extern "C" function std_fs_open(path: *u8): i32;
+extern "C" function std_fs_read(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function std_fs_close(fd: i32): i32;
 
 /** 从 lex（位于 function 关键字）读出函数名写入 out，返回 name_len；失败返回 0。 */
 /** 单行 extern bl→parser_parse_peek_function_name_buf_glue（EMIT_HEAVY 深循环/兼容包装勿 X emit）。 */

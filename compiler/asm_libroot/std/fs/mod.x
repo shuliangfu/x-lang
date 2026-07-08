@@ -8,10 +8,10 @@
 // 正常用户库仍使用仓库 ../std/fs/mod.x；本文件仅通过 asm_build_list 的 -L
 // asm_libroot 优先于 -L .. 被解析。
 
-extern function fs_open_read_c(path: *u8): i32;
-extern function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
-extern function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
-extern function close(fd: i32): i32;
+extern "C" function fs_open_read_c(path: *u8): i32;
+extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function close(fd: i32): i32;
 
 /** mod 层 libc close 须 unsafe；避免与公开 close 重载递归。 */
 function fs_mod_close(fd: i32): i32 {

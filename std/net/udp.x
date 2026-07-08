@@ -42,28 +42,28 @@ allow(padding) struct SockAddrIn {
 #[cfg(not(target_os = "windows"))]
 allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 
-extern function socket(domain: i32, type: i32, protocol: i32): i32;
-extern function bind(fd: i32, addr: *u8, addrlen: u32): i32;
-extern function setsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: u32): i32;
-extern function sendto(fd: i32, buf: *u8, len: usize, flags: i32, addr: *u8, addrlen: u32): i32;
-extern function recvfrom(fd: i32, buf: *u8, len: usize, flags: i32, addr: *u8, addrlen: *u32): i32;
-extern function close(fd: i32): i32;
-extern function htonl(hostlong: u32): u32;
-extern function htons(hostshort: u16): u16;
-extern function ntohl(netlong: u32): u32;
-extern function ntohs(netshort: u16): u16;
+extern "C" function socket(domain: i32, type: i32, protocol: i32): i32;
+extern "C" function bind(fd: i32, addr: *u8, addrlen: u32): i32;
+extern "C" function setsockopt(fd: i32, level: i32, optname: i32, optval: *i32, optlen: u32): i32;
+extern "C" function sendto(fd: i32, buf: *u8, len: usize, flags: i32, addr: *u8, addrlen: u32): i32;
+extern "C" function recvfrom(fd: i32, buf: *u8, len: usize, flags: i32, addr: *u8, addrlen: *u32): i32;
+extern "C" function close(fd: i32): i32;
+extern "C" function htonl(hostlong: u32): u32;
+extern "C" function htons(hostshort: u16): u16;
+extern "C" function ntohl(netlong: u32): u32;
+extern "C" function ntohs(netshort: u16): u16;
 
 #[cfg(not(target_os = "windows"))]
-extern function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 
 #[cfg(not(target_os = "windows"))]
-extern function poll(fds: *u8, nfds: u64, timeout: i32): i32;
+extern "C" function poll(fds: *u8, nfds: u64, timeout: i32): i32;
 
 #[cfg(target_os = "linux")]
-extern function __errno_location(): *i32;
+extern "C" function __errno_location(): *i32;
 
 #[cfg(target_os = "macos")]
-extern function __error(): *i32;
+extern "C" function __error(): *i32;
 
 /** 平台无关 errno 指针获取：Linux 走 __errno_location，macOS/BSD 走 __error。
  * 【Why 根源治理】原 `#[cfg(not(windows))] extern __errno_location` 在 macOS 链接失败：
@@ -90,13 +90,13 @@ const ERR_EAGAIN: i32 = 11;
 const ERR_EAGAIN: i32 = 35;
 
 #[cfg(target_os = "windows")]
-extern function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
+extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
 
 #[cfg(target_os = "windows")]
-extern function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
+extern "C" function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
 
 #[cfg(target_os = "windows")]
-extern function closesocket(fd: i32): i32;
+extern "C" function closesocket(fd: i32): i32;
 
 #[cfg(target_os = "windows")]
 let net_udp_wsa_done: i32 = 0;

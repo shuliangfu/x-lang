@@ -21,9 +21,9 @@
 // 本模块转调 libc malloc/free/calloc（F-03 v2 不再依赖 std/heap/heap.o）。
 
 /** libc 堆分配/释放/清零；链接时由 -lc 解析。 */
-extern function malloc(size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function malloc(size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
 
 /** 分配 size 字节，返回指针；失败返回 null。供 lsp_io 层通过 std_heap_alloc
 * 名链接。 */

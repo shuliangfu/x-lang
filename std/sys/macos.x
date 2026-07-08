@@ -24,12 +24,12 @@
 // shux 在 macOS 上链接可执行文件时由 clang 隐式链 libSystem；符号 write(2) 直接解析。
 
 /** POSIX write(2) @ libSystem；count 为字节数。 */
-extern function write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
 
 /** POSIX open/read/close @ libSystem（B-20 v0 读文件）。 */
-extern function open(path: *u8, flags: i32, mode: i32): i32;
-extern function read(fd: i32, buf: *u8, count: usize): isize;
-extern function close(fd: i32): i32;
+extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
+extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function close(fd: i32): i32;
 
 /** macOS open(2) O_RDONLY。 */
 const MACOS_O_RDONLY: i32 = 0;
@@ -56,17 +56,17 @@ const MACOS_PROT_READ: i32 = 1;
 const MACOS_PROT_WRITE: i32 = 2;
 
 /** POSIX mmap/munmap/msync/ftruncate/lseek @ libSystem（B-16 v0/v1）。 */
-extern function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
-extern function munmap(addr: *u8, len: usize): i32;
-extern function msync(addr: *u8, len: usize, flags: i32): i32;
-extern function ftruncate(fd: i32, length: i64): i32;
-extern function lseek(fd: i32, offset: i64, whence: i32): i64;
+extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+extern "C" function munmap(addr: *u8, len: usize): i32;
+extern "C" function msync(addr: *u8, len: usize, flags: i32): i32;
+extern "C" function ftruncate(fd: i32, length: i64): i32;
+extern "C" function lseek(fd: i32, offset: i64, whence: i32): i64;
 
 /** lseek(2) SEEK_END：取当前文件长度。 */
 const MACOS_SEEK_END: i32 = 2;
 
 /** POSIX _exit(2) @ libSystem（noreturn）。 */
-extern function _exit(code: i32): void;
+extern "C" function _exit(code: i32): void;
 
 /**
  * B-16 v2：进程退出；noreturn。

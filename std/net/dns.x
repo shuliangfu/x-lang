@@ -74,12 +74,12 @@ function net_dns_ai_addconfig_c(): i32 {
   return 1024;
 }
 
-extern function getaddrinfo(node: *u8, service: *u8, hints_in: *u8, res: * *u8): i32;
-extern function freeaddrinfo(res: *AddrInfo): void;
-extern function ntohl(netlong: u32): u32;
+extern "C" function getaddrinfo(node: *u8, service: *u8, hints_in: *u8, res: * *u8): i32;
+extern "C" function freeaddrinfo(res: *AddrInfo): void;
+extern "C" function ntohl(netlong: u32): u32;
 
 #[cfg(target_os = "windows")]
-extern function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
+extern "C" function WSAStartup(wVersionRequested: u16, lpWSAData: *u8): i32;
 
 #[cfg(target_os = "windows")]
 let net_dns_wsa_done: i32 = 0;

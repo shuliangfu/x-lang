@@ -136,12 +136,12 @@ extern function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32;
 extern function parse_row(ptr: *u8, len: i32, offset: i32, field_starts: *i32,
   field_lens: *i32, max_fields: i32, out_count: *i32): i32;
 
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memset(s: *u8, c: i32, n: usize): *u8;
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function strcmp(a: *u8, b: *u8): i32;
-extern function strlen(s: *u8): usize;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function strcmp(a: *u8, b: *u8): i32;
+extern "C" function strlen(s: *u8): usize;
 
 /** F-schema v1 版本标记；供聚合 gate 校验 schema.x 已参与构建。 */
 function schema_f_schema_v1_marker_c(): i32 {

@@ -30,12 +30,12 @@ const mem = import("core.mem");
 const HEAP_ARENA64_DEFAULT_CAP: usize = 4096;
 
 /** libc 堆接口（hosted 路径由链接器解析 -lc）。 */
-extern function malloc(size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function realloc(ptr: *u8, new_size: usize): *u8;
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function posix_memalign(memptr: * *void, alignment: usize, size: usize): i32;
-extern function getenv(name: *u8): *u8;
+extern "C" function malloc(size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function realloc(ptr: *u8, new_size: usize): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function posix_memalign(memptr: * *void, alignment: usize, size: usize): i32;
+extern "C" function getenv(name: *u8): *u8;
 
 /** libc 堆/环境 FFI 须 unsafe；薄包装供 heap_*_c 调用。 */
 function heap_libc_malloc(size: usize): *u8 {

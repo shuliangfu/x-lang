@@ -27,8 +27,8 @@ const types = import("core.types");
 /** 流状态魔数 'B4ST'。 */
 const SHU_B64_STREAM_MAGIC: u32 = 0x42345354;
 
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
 
 /** 标准 Base64 编码字符（0..63）；seed asm 不支持全局 const u8[] 下标。 */
 function b64_std_enc_char(idx: i32): u8 {

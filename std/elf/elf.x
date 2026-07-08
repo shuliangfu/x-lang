@@ -91,11 +91,11 @@ allow(padding) struct Elf64Rela {
   addend: i64
 }
 
-extern function fs_open_read_c(path: *u8): i32;
-extern function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64;
-extern function close(fd: i32): i32;
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function fs_open_read_c(path: *u8): i32;
+extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64;
+extern "C" function close(fd: i32): i32;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
 
 /** F-elf v1 版本标记。 */
 function elf_f_elf_v1_marker_c(): i32 {

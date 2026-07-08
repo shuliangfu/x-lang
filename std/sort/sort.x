@@ -26,8 +26,8 @@
 const mem = import("core.mem");
 
 /** libc 堆（稳定归并临时缓冲；与 heap_libc 一致，避免环依赖 std.heap）。 */
-extern function malloc(size: usize): *u8;
-extern function free(ptr: *u8): void;
+extern "C" function malloc(size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
 
 /** 内建比较器 id（usize 承载；与 sort_cmp_*_fn_c 返回值一致，STD-060 v1）。 */
 const SORT_CMP_I32_ASC: usize = 1;

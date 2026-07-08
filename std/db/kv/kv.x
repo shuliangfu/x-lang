@@ -92,13 +92,13 @@ allow(padding) struct KvStoreMem {
   arena_off: usize;
 }
 
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memcmp(a: *u8, b: *u8, n: usize): i32;
-extern function memset(s: *u8, c: i32, n: usize): *u8;
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function malloc(size: usize): *u8;
-extern function strlen(s: *u8): usize;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memcmp(a: *u8, b: *u8, n: usize): i32;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function malloc(size: usize): *u8;
+extern "C" function strlen(s: *u8): usize;
 
 extern function shu_kv_mmap_file_c(path: *u8, min_size: usize, out_size: *usize): i64;
 extern function shu_kv_munmap_c(addr: i64, len: usize): i32;

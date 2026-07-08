@@ -76,13 +76,13 @@ allow(padding) struct RegexMinImpl {
   caps: *RegexMinCapSlot;
 }
 
-extern function malloc(size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memcmp(s1: *u8, s2: *u8, n: usize): i32;
-extern function memchr(ptr: *u8, c: i32, n: usize): *u8;
-extern function strlen(s: *u8): usize;
+extern "C" function malloc(size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memcmp(s1: *u8, s2: *u8, n: usize): i32;
+extern "C" function memchr(ptr: *u8, c: i32, n: usize): *u8;
+extern "C" function strlen(s: *u8): usize;
 
 /** F-regex v1 版本标记；供聚合 gate 校验 regex.x 已参与 ld -r 合并。 */
 function regex_f_regex_v1_marker_c(): i32 {

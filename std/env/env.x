@@ -27,9 +27,9 @@ const ENV_LIT_V_EQ_W: u8[4] = [86, 61, 87, 0];
 const ENV_LIT_NOEQ: u8[5] = [78, 79, 69, 81, 0];
 const ENV_LIT_EMPTY: u8[1] = [0];
 
-extern function strchr(s: *u8, c: i32): *u8;
-extern function strlen(s: *u8): usize;
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function strchr(s: *u8, c: i32): *u8;
+extern "C" function strlen(s: *u8): usize;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
 extern function process_args_count_c(): i32;
 extern function process_arg_c(i: i32): *u8;

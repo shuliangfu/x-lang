@@ -96,11 +96,11 @@ allow(padding) struct HashUnifiedCtx {
   xxh_seed: u64;
 }
 
-extern function malloc(size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function getenv(name: *u8): *u8;
-extern function strcmp(a: *u8, b: *u8): i32;
+extern "C" function malloc(size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function getenv(name: *u8): *u8;
+extern "C" function strcmp(a: *u8, b: *u8): i32;
 
 /** libc FFI 须 unsafe；集中薄包装，避免 hash_*_c 重复写 unsafe 块。 */
 function hash_libc_memcpy(dst: *u8, src: *u8, n: usize): *u8 {

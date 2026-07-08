@@ -24,12 +24,12 @@
 // FreeBSD 上链接可执行文件时由 clang 链 libc；符号 write(2) 直接解析。
 
 /** POSIX write(2) @ libc；count 为字节数。 */
-extern function write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
 
 /** POSIX open/read/close @ libc。 */
-extern function open(path: *u8, flags: i32, mode: i32): i32;
-extern function read(fd: i32, buf: *u8, count: usize): isize;
-extern function close(fd: i32): i32;
+extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
+extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function close(fd: i32): i32;
 
 /** FreeBSD open(2) O_RDONLY。 */
 const FREEBSD_O_RDONLY: i32 = 0;
@@ -56,17 +56,17 @@ const FREEBSD_PROT_READ: i32 = 1;
 const FREEBSD_PROT_WRITE: i32 = 2;
 
 /** POSIX mmap/munmap/msync/ftruncate/lseek @ libc。 */
-extern function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
-extern function munmap(addr: *u8, len: usize): i32;
-extern function msync(addr: *u8, len: usize, flags: i32): i32;
-extern function ftruncate(fd: i32, length: i64): i32;
-extern function lseek(fd: i32, offset: i64, whence: i32): i64;
+extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+extern "C" function munmap(addr: *u8, len: usize): i32;
+extern "C" function msync(addr: *u8, len: usize, flags: i32): i32;
+extern "C" function ftruncate(fd: i32, length: i64): i32;
+extern "C" function lseek(fd: i32, offset: i64, whence: i32): i64;
 
 /** lseek(2) SEEK_END。 */
 const FREEBSD_SEEK_END: i32 = 2;
 
 /** POSIX _exit(2) @ libc（noreturn）。 */
-extern function _exit(code: i32): void;
+extern "C" function _exit(code: i32): void;
 
 /**
  * 进程退出；noreturn。

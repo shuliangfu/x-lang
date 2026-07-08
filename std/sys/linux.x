@@ -407,13 +407,13 @@ const LINUX_MS_SYNC: i32 = 4;
 const LINUX_OPEN_MODE_0644: i32 = 420;
 
 /** Hosted Linux：libc open/ftruncate/lseek/mmap（常规 -o exe 链 libc；F-02 v1 替代 mmap.inc.c）。 */
-extern function open(path: *u8, flags: i32, mode: i32): i32;
-extern function close(fd: i32): i32;
-extern function lseek(fd: i32, offset: i64, whence: i32): i64;
-extern function ftruncate(fd: i32, length: i64): i32;
-extern function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
-extern function munmap(addr: *u8, len: usize): i32;
-extern function msync(addr: *u8, len: usize, flags: i32): i32;
+extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
+extern "C" function close(fd: i32): i32;
+extern "C" function lseek(fd: i32, offset: i64, whence: i32): i64;
+extern "C" function ftruncate(fd: i32, length: i64): i32;
+extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+extern "C" function munmap(addr: *u8, len: usize): i32;
+extern "C" function msync(addr: *u8, len: usize, flags: i32): i32;
 
 /**
  * F-02 v1：文件 MAP_SHARED 可写 mmap（open + ftruncate + mmap；无 mmap.inc.c）。

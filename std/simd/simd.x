@@ -21,7 +21,7 @@
 // HW 探测与 STD-153 烟测均在 .x 内。
 // G-03：strcmp 改字节比较，避免 seed asm .o 链入 PIE 可执行文件时 PC32 重定位失败。
 
-extern function getenv(name: *u8): *u8;
+extern "C" function getenv(name: *u8): *u8;
 
 /** lane-scalar 回退路径。 */
 const SIMD_PATH_SCALAR: i32 = 0;

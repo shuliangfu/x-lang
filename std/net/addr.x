@@ -30,20 +30,20 @@ allow(padding) struct SockAddrIn {
   sin_addr: u32;
 }
 
-extern function ntohl(netlong: u32): u32;
-extern function ntohs(netshort: u16): u16;
+extern "C" function ntohl(netlong: u32): u32;
+extern "C" function ntohs(netshort: u16): u16;
 
 #[cfg(not(target_os = "windows"))]
-extern function getsockname(fd: i32, addr: *u8, addrlen: *u32): i32;
+extern "C" function getsockname(fd: i32, addr: *u8, addrlen: *u32): i32;
 
 #[cfg(not(target_os = "windows"))]
-extern function getpeername(fd: i32, addr: *u8, addrlen: *u32): i32;
+extern "C" function getpeername(fd: i32, addr: *u8, addrlen: *u32): i32;
 
 #[cfg(target_os = "windows")]
-extern function getsockname(fd: i32, addr: *u8, addrlen: *i32): i32;
+extern "C" function getsockname(fd: i32, addr: *u8, addrlen: *i32): i32;
 
 #[cfg(target_os = "windows")]
-extern function getpeername(fd: i32, addr: *u8, addrlen: *i32): i32;
+extern "C" function getpeername(fd: i32, addr: *u8, addrlen: *i32): i32;
 
 /**
  * 取栈上 sockaddr 缓冲首地址（seed emit 不支持 call 实参内联 &buf[0]，经 helper 传递）。

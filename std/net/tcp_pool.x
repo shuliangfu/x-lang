@@ -20,8 +20,8 @@ allow(padding) struct NetTcpPool {
   idle_fds: *i32;
 }
 
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function free(ptr: *u8): void;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
 /** 阻塞 TCP 连接（net_tcp.x 提供）。 */
 extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
 /** 关闭 socket（net_sock.x 提供）。 */

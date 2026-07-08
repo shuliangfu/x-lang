@@ -59,8 +59,8 @@ extern function shux_async_bind_context_c(ctx_handle: i64): void;
 extern function ctx_is_cancelled_c(handle: i64): i32;
 extern function ctx_cancel_c(handle: i64): void;
 extern function time_sleep_ns_c(ns: i64): void;
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function free(ptr: *u8): void;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
 
 /**
  * F-task v2：.x 尚不能同模块取函数址；scheduler 在链 task.o 时解析 task_echo_fn_c 符号。

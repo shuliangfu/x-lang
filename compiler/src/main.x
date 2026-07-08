@@ -27,8 +27,8 @@
 const ast = import("ast");
 const codegen = import("codegen");
 const sys = import("std.sys");
-extern function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
-extern function fs_posix_close_c(fd: i32): i32;
+extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function fs_posix_close_c(fd: i32): i32;
 /** 与 emit.x / pipeline.x 一致：指针版预处理，避免 import preprocess 模块在 -E-extern 时 method base 无类型。 */
 extern function preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8, out_cap: i32): i32;
 /** 子命令：build/run 在 main_cmd_build / main_cmd_run 内实现；fmt/check/test 仍由 src/driver/*.x 提供（extern driver_cmd_*）。 */

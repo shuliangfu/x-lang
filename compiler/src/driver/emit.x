@@ -24,9 +24,9 @@ const sys = import("std.sys");
 
 /** POSIX 读写原语（链 ../std/fs/fs.o）；勿 import("std.fs")，-E-extern 不会内联 fs_read
 * 符号名。 */
-extern function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
-extern function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
-extern function fs_posix_close_c(fd: i32): i32;
+extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function fs_posix_close_c(fd: i32): i32;
 /** preprocess.x 导出名带模块前缀。 */
 extern function preprocess_x_buf(source_buf: *u8, source_len: isize, out_buf: *u8,
 out_cap: i32): i32;

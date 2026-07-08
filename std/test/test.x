@@ -23,9 +23,9 @@
 extern function time_now_monotonic_ns_c(): i64;
 extern function test_call_i32_void_c(fn: usize): i32;
 extern function env_getenv_c(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32;
-extern function write(fd: i32, buf: *u8, count: usize): isize;
-extern function strtoul(nptr: *u8, endptr: *u8, base: i32): u32;
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function strtoul(nptr: *u8, endptr: *u8, base: i32): u32;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
 /** F-test v1 版本标记；供聚合 gate 校验 test.x 已参与构建。 */
 function test_f_test_v1_marker_c(): i32 {

@@ -68,10 +68,10 @@ allow(padding) struct TraceState {
 
 extern function time_now_monotonic_ns_c(): i64;
 extern function random_fill_bytes_c(buf: *u8, len: i32): i32;
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
 
 /** F-trace v1 版本标记；供聚合 gate 校验 trace.x 已参与构建。 */
 function trace_f_trace_v1_marker_c(): i32 {

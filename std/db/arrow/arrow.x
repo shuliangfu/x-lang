@@ -43,10 +43,10 @@ allow(padding) struct ArrowBatchMem {
   cols: *u64;
 }
 
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function memset(s: *u8, c: i32, n: usize): *u8;
-extern function posix_memalign(memptr: * *void, alignment: usize, size: usize): i32;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function memset(s: *u8, c: i32, n: usize): *u8;
+extern "C" function posix_memalign(memptr: * *void, alignment: usize, size: usize): i32;
 
 extern function arrow_column_i32_sum_valid_c(handle: i64, n: i32): i32;
 extern function arrow_column_f32_sum_c(handle: i64, n: i32): f32;

@@ -84,11 +84,11 @@ let shu_net_tls_mbedtls_marker: u8[8] = [109, 101, 100, 116, 108, 115, 0, 0];
 let ALPN_H2: u8[3] = [104, 50, 0];
 let ALPN_HTTP11: u8[9] = [104, 116, 116, 112, 47, 49, 46, 49, 0];
 
-extern function calloc(nmemb: usize, size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function getenv(name: *u8): *u8;
-extern function atoi(s: *u8): i32;
-extern function strlen(s: *u8): usize;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function getenv(name: *u8): *u8;
+extern "C" function atoi(s: *u8): i32;
+extern "C" function strlen(s: *u8): usize;
 
 extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
 extern function net_tcp_connect_blocking_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
@@ -96,28 +96,28 @@ extern function net_close_socket_c(fd: i32): i32;
 
 extern function shu_mbedtls_ssl_bind_fd_c(ssl: *u8, fd_ptr: *i32): void;
 
-extern function psa_crypto_init(): i32;
-extern function mbedtls_ssl_config_init(conf: *u8): void;
-extern function mbedtls_ssl_config_defaults(conf: *u8, endpoint: i32, transport: i32, preset: i32): i32;
-extern function mbedtls_ssl_config_free(conf: *u8): void;
-extern function mbedtls_ssl_conf_authmode(conf: *u8, mode: i32): void;
-extern function mbedtls_ssl_conf_alpn_protocols(conf: *u8, protos: * *u8): i32;
-extern function mbedtls_ssl_init(ssl: *u8): void;
-extern function mbedtls_ssl_setup(ssl: *u8, conf: *u8): i32;
-extern function mbedtls_ssl_set_hostname(ssl: *u8, name: *u8): i32;
-extern function mbedtls_ssl_handshake(ssl: *u8): i32;
-extern function mbedtls_ssl_get_alpn_protocol(ssl: *u8): *u8;
-extern function mbedtls_ssl_close_notify(ssl: *u8): i32;
-extern function mbedtls_ssl_free(ssl: *u8): void;
-extern function mbedtls_ssl_read(ssl: *u8, buf: *u8, len: usize): i32;
-extern function mbedtls_ssl_write(ssl: *u8, buf: *u8, len: usize): i32;
-extern function mbedtls_x509_crt_init(crt: *u8): void;
-extern function mbedtls_x509_crt_parse(crt: *u8, buf: *u8, buflen: usize): i32;
-extern function mbedtls_x509_crt_free(crt: *u8): void;
-extern function mbedtls_pk_init(pk: *u8): void;
-extern function mbedtls_pk_parse_key(pk: *u8, key: *u8, keylen: usize, pwd: *u8, pwdlen: usize, f_rng: *u8, p_rng: *u8): i32;
-extern function mbedtls_pk_free(pk: *u8): void;
-extern function mbedtls_ssl_conf_own_cert(conf: *u8, cert: *u8, pk: *u8): i32;
+extern "C" function psa_crypto_init(): i32;
+extern "C" function mbedtls_ssl_config_init(conf: *u8): void;
+extern "C" function mbedtls_ssl_config_defaults(conf: *u8, endpoint: i32, transport: i32, preset: i32): i32;
+extern "C" function mbedtls_ssl_config_free(conf: *u8): void;
+extern "C" function mbedtls_ssl_conf_authmode(conf: *u8, mode: i32): void;
+extern "C" function mbedtls_ssl_conf_alpn_protocols(conf: *u8, protos: * *u8): i32;
+extern "C" function mbedtls_ssl_init(ssl: *u8): void;
+extern "C" function mbedtls_ssl_setup(ssl: *u8, conf: *u8): i32;
+extern "C" function mbedtls_ssl_set_hostname(ssl: *u8, name: *u8): i32;
+extern "C" function mbedtls_ssl_handshake(ssl: *u8): i32;
+extern "C" function mbedtls_ssl_get_alpn_protocol(ssl: *u8): *u8;
+extern "C" function mbedtls_ssl_close_notify(ssl: *u8): i32;
+extern "C" function mbedtls_ssl_free(ssl: *u8): void;
+extern "C" function mbedtls_ssl_read(ssl: *u8, buf: *u8, len: usize): i32;
+extern "C" function mbedtls_ssl_write(ssl: *u8, buf: *u8, len: usize): i32;
+extern "C" function mbedtls_x509_crt_init(crt: *u8): void;
+extern "C" function mbedtls_x509_crt_parse(crt: *u8, buf: *u8, buflen: usize): i32;
+extern "C" function mbedtls_x509_crt_free(crt: *u8): void;
+extern "C" function mbedtls_pk_init(pk: *u8): void;
+extern "C" function mbedtls_pk_parse_key(pk: *u8, key: *u8, keylen: usize, pwd: *u8, pwdlen: usize, f_rng: *u8, p_rng: *u8): i32;
+extern "C" function mbedtls_pk_free(pk: *u8): void;
+extern "C" function mbedtls_ssl_conf_own_cert(conf: *u8, cert: *u8, pk: *u8): i32;
 
 /**
  * handle 转 TlsMbedtlsSess*；0 返回 0。

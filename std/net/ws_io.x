@@ -33,30 +33,30 @@ const WS_ERR_TLS_NOT_IMPL: i32 = -1221;
 /** pollfd 布局。 */
 allow(padding) struct PollFd { fd: i32; events: i16; revents: i16; }
 
-extern function send(fd: i32, buf: *u8, len: usize, flags: i32): isize;
-extern function recv(fd: i32, buf: *u8, len: usize, flags: i32): isize;
-extern function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
+extern "C" function send(fd: i32, buf: *u8, len: usize, flags: i32): isize;
+extern "C" function recv(fd: i32, buf: *u8, len: usize, flags: i32): isize;
+extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
 extern function net_close_socket_c(fd: i32): i32;
 extern function net_set_blocking_c(fd: i32, blocking: i32): i32;
 extern function net_tcp_connect_c(addr_u32: u32, port_u32: u32, timeout_ms: u32): i32;
 extern function net_resolve_ipv4_c(hostname: *u8): u32;
 
 #[cfg(target_os = "linux")]
-extern function socketpair(domain: i32, type: i32, protocol: i32, sv: *i32): i32;
+extern "C" function socketpair(domain: i32, type: i32, protocol: i32, sv: *i32): i32;
 #[cfg(target_os = "macos")]
-extern function socketpair(domain: i32, type: i32, protocol: i32, sv: *i32): i32;
+extern "C" function socketpair(domain: i32, type: i32, protocol: i32, sv: *i32): i32;
 #[cfg(target_os = "linux")]
-extern function fork(): i32;
+extern "C" function fork(): i32;
 #[cfg(target_os = "macos")]
-extern function fork(): i32;
+extern "C" function fork(): i32;
 #[cfg(target_os = "linux")]
-extern function waitpid(pid: i32, status: *i32, options: i32): i32;
+extern "C" function waitpid(pid: i32, status: *i32, options: i32): i32;
 #[cfg(target_os = "macos")]
-extern function waitpid(pid: i32, status: *i32, options: i32): i32;
+extern "C" function waitpid(pid: i32, status: *i32, options: i32): i32;
 #[cfg(target_os = "linux")]
-extern function _exit(code: i32): void;
+extern "C" function _exit(code: i32): void;
 #[cfg(target_os = "macos")]
-extern function _exit(code: i32): void;
+extern "C" function _exit(code: i32): void;
 
 /**
  * 等待 fd 可写；timeout_ms=0 无限等待；成功 0，失败 -1。

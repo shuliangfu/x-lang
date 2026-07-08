@@ -113,41 +113,41 @@ allow(padding) struct PosixStatBuf {
 /* 【Why 根源治理】PollFd 不在此模块重定义。
  * PollFd 由 std.io.sync 定义；重定义导致 poll extern 声明类型冲突。 */
 
-extern function open(path: *u8, flags: i32, mode: i32): i32;
-extern function close(fd: i32): i32;
-extern function read(fd: i32, buf: *u8, count: usize): isize;
-extern function write(fd: i32, buf: *u8, count: usize): isize;
-extern function pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
-extern function pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
-extern function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
-extern function munmap(addr: *u8, len: usize): i32;
-extern function fstat(fd: i32, st: *PosixStatBuf): i32;
-extern function stat(path: *u8, st: *PosixStatBuf): i32;
-extern function fsync(fd: i32): i32;
-extern function fchmod(fd: i32, mode: u32): i32;
-extern function chmod(path: *u8, mode: u32): i32;
-extern function mkdir(path: *u8, mode: u32): i32;
-extern function unlink(path: *u8): i32;
-extern function rmdir(path: *u8): i32;
-extern function umask(mask: u32): u32;
-extern function readv(fd: i32, iov: *Iovec, iovcnt: i32): isize;
-extern function writev(fd: i32, iov: *Iovec, iovcnt: i32): isize;
-extern function opendir(name: *u8): *u8;
-extern function readdir(dirp: *u8): *u8;
-extern function closedir(dirp: *u8): i32;
-extern function malloc(size: usize): *u8;
-extern function free(ptr: *u8): void;
-extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
-extern function strlen(s: *u8): usize;
+extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
+extern "C" function close(fd: i32): i32;
+extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
+extern "C" function pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
+extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+extern "C" function munmap(addr: *u8, len: usize): i32;
+extern "C" function fstat(fd: i32, st: *PosixStatBuf): i32;
+extern "C" function stat(path: *u8, st: *PosixStatBuf): i32;
+extern "C" function fsync(fd: i32): i32;
+extern "C" function fchmod(fd: i32, mode: u32): i32;
+extern "C" function chmod(path: *u8, mode: u32): i32;
+extern "C" function mkdir(path: *u8, mode: u32): i32;
+extern "C" function unlink(path: *u8): i32;
+extern "C" function rmdir(path: *u8): i32;
+extern "C" function umask(mask: u32): u32;
+extern "C" function readv(fd: i32, iov: *Iovec, iovcnt: i32): isize;
+extern "C" function writev(fd: i32, iov: *Iovec, iovcnt: i32): isize;
+extern "C" function opendir(name: *u8): *u8;
+extern "C" function readdir(dirp: *u8): *u8;
+extern "C" function closedir(dirp: *u8): i32;
+extern "C" function malloc(size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
+extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+extern "C" function strlen(s: *u8): usize;
 #[cfg(target_os = "linux")]
-extern function __errno_location(): *i32;
+extern "C" function __errno_location(): *i32;
 
 #[cfg(target_os = "macos")]
-extern function __error(): *i32;
-extern function fcntl(fd: i32, cmd: i32, arg: i32): i32;
-extern function usleep(usec: u32): i32;
-extern function madvise(addr: *u8, len: usize, advice: i32): i32;
-extern function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
+extern "C" function __error(): *i32;
+extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+extern "C" function usleep(usec: u32): i32;
+extern "C" function madvise(addr: *u8, len: usize, advice: i32): i32;
+extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
 
 /** libc FFI 须 unsafe；集中薄包装，避免各 fs_*_c 重复写 unsafe 块。 */
 function fs_libc_open(path: *u8, flags: i32, mode: i32): i32 {
@@ -299,22 +299,22 @@ function fs_errno_set(v: i32): void {
 }
 
 #[cfg(target_os = "linux")]
-extern function posix_fadvise(fd: i32, offset: i64, len: i64, advice: i32): i32;
+extern "C" function posix_fadvise(fd: i32, offset: i64, len: i64, advice: i32): i32;
 #[cfg(target_os = "linux")]
-extern function copy_file_range(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize;
+extern "C" function copy_file_range(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize;
 #[cfg(target_os = "linux")]
-extern function sendfile(out_fd: i32, in_fd: i32, offset: *i64, count: usize): isize;
+extern "C" function sendfile(out_fd: i32, in_fd: i32, offset: *i64, count: usize): isize;
 #[cfg(target_os = "linux")]
-extern function splice(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize;
+extern "C" function splice(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize;
 #[cfg(target_os = "linux")]
-extern function pipe(pipefd: *i32): i32;
+extern "C" function pipe(pipefd: *i32): i32;
 #[cfg(target_os = "linux")]
-extern function sync_file_range(fd: i32, offset: i64, nbytes: i64, flags: u32): i32;
+extern "C" function sync_file_range(fd: i32, offset: i64, nbytes: i64, flags: u32): i32;
 #[cfg(target_os = "linux")]
-extern function fallocate(fd: i32, mode: i32, offset: i64, len: i64): i32;
+extern "C" function fallocate(fd: i32, mode: i32, offset: i64, len: i64): i32;
 
 #[cfg(target_os = "macos")]
-extern function sendfile(in_fd: i32, out_fd: i32, offset: i64, len: *i64, hdtr: *u8, flags: i32): i32;
+extern "C" function sendfile(in_fd: i32, out_fd: i32, offset: i64, len: *i64, hdtr: *u8, flags: i32): i32;
 
 /** dirent.d_name 在 readdir 结果中的偏移（Linux/macOS 常见布局）。 */
 const DIRENT_D_NAME_OFF: usize = 19;

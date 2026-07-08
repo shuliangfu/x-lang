@@ -78,8 +78,8 @@ extern function pipeline_dep_ctx_set_loaded_len(ctx: *PipelineDepCtx, n: isize):
 /** lib_root 个数；resolve_path_x 遍历用（ast.x 亦声明，此处显式 extern 供 -E-extern 瘦 TU）。 */
 extern function pipeline_ctx_lib_root_count(ctx: *PipelineDepCtx): i32;
 /** 与 emit.x 一致：直调 fs.c read/close，避免 fs_read 包装层 emit 嵌套实参。 */
-extern function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
-extern function fs_posix_close_c(fd: i32): i32;
+extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function fs_posix_close_c(fd: i32): i32;
 /** run_x_pipeline_impl EMIT_HEAVY：if(CALL) 可 emit；let init CALL 失败时用 last_rc_get 取返回值。 */
 extern function run_x_pipeline_last_rc_get(): i32;
 extern function run_x_pipeline_last_rc_store_c(rc: i32): void;
