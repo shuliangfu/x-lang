@@ -24,7 +24,7 @@ if ! nm std/map/map.o 2>/dev/null | grep -q 'std_map_empty_size'; then
   echo "map test: missing std_map_empty_size in map.o"
   exit 1
 fi
-# 链入 map_import_alias 烟测：empty_size() 恒 0（mod.x 全量 emit 暂走 alias 回退）
+# 链入 map.o + heap.o 烟测：empty_size() 恒 0（map.o 引用 heap 模块 libc_heap_alloc_* 符号）
 exe="/tmp/shux_map_$$"
 smoke_c="/tmp/shux_map_smoke_$$.c"
 cat > "$smoke_c" <<'EOF'
@@ -34,7 +34,7 @@ int main(void) {
   return (int)std_map_empty_size();
 }
 EOF
-if ! gcc -fPIE -o "$exe" "$smoke_c" std/map/map.o 2>&1; then
+if ! gcc -fPIE -o "$exe" "$smoke_c" std/map/map.o std/heap/heap.o 2>&1; then
   echo "map test: link failed"
   rm -f "$exe" "$smoke_c"
   exit 1

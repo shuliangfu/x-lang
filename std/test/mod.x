@@ -25,18 +25,18 @@ extern function test_expect_c(cond: i32): i32;
 extern function test_expect_eq_i32_c(a: i32, b: i32): i32;
 extern function test_expect_eq_u32_c(a: u32, b: u32): i32;
 extern function test_expect_ne_i32_c(a: i32, b: i32): i32;
-extern function run_c(fn: usize): i32;
-extern function bench_run_c(fn: usize, iters: i32): i64;
-extern function bench_report_c(name: *u8, len: i32, ns: i64): i32;
-extern function fuzz_seed_c(): u32;
-extern function fuzz_next_c(state: *u32): u32;
-extern function fuzz_run_c(fn: usize, iters: i32): i32;
-extern function bench_run_noop_c(iters: i32): i64;
-extern function fuzz_run_noop_c(iters: i32): i32;
-extern function runner_reset_c(): void;
-extern function runner_report_case_c(name: *u8, len: i32, exit_code: i32): i32;
-extern function runner_report_skip_c(name: *u8, len: i32): i32;
-extern function runner_finish_c(): i32;
+extern function test_run_c(fn: usize): i32;
+extern function test_bench_run_c(fn: usize, iters: i32): i64;
+extern function test_bench_report_c(name: *u8, len: i32, ns: i64): i32;
+extern function test_fuzz_seed_c(): u32;
+extern function test_fuzz_next_c(state: *u32): u32;
+extern function test_fuzz_run_c(fn: usize, iters: i32): i32;
+extern function test_bench_run_noop_c(iters: i32): i64;
+extern function test_fuzz_run_noop_c(iters: i32): i32;
+extern function test_runner_reset_c(): void;
+extern function test_runner_report_case_c(name: *u8, len: i32, exit_code: i32): i32;
+extern function test_runner_report_skip_c(name: *u8, len: i32): i32;
+extern function test_runner_finish_c(): i32;
 /** 断言 cond 为真；返回 0 通过，1 失败。 */
 function assert(cond: i32): i32 { unsafe { return test_expect_c(cond); } }
 /** 断言 a == b（i32）；返回 0 通过，1 失败。 */
@@ -51,41 +51,41 @@ function expect_eq_i32(a: i32, b: i32): i32 { return assert_eq(a, b); }
 function expect_eq_u32(a: u32, b: u32): i32 { return assert_eq(a, b); }
 function expect_ne_i32(a: i32, b: i32): i32 { return assert_ne(a, b); }
 /** 执行测试函数 fn（无参返回 i32）；返回 fn 的返回值（0=通过）。 */
-function exec(fn: usize): i32 { unsafe { return run_c(fn); } }
+function exec(fn: usize): i32 { unsafe { return test_run_c(fn); } }
 
 /** 调用无参 fn 共 iters 次，返回纳秒耗时。 */
-function bench_run(fn: usize, iters: i32): i64 { unsafe { return bench_run_c(fn, iters); } }
+function bench_run(fn: usize, iters: i32): i64 { unsafe { return test_bench_run_c(fn, iters); } }
 
 /** 写 bench 报告到 stderr：shux: [SHUX_BENCH] name=… ns=… */
 function bench_report(name: *u8, len: i32, ns: i64): i32 {
-  unsafe { return bench_report_c(name, len, ns); }
+  unsafe { return test_bench_report_c(name, len, ns); }
 }
 
 /** 读取 SHUX_FUZZ_SEED 或默认种子。 */
-function fuzz_seed(): u32 { unsafe { return fuzz_seed_c(); } }
+function fuzz_seed(): u32 { unsafe { return test_fuzz_seed_c(); } }
 
 /** LCG 单步；state 为 in/out 种子指针。 */
-function fuzz_next(state: *u32): u32 { unsafe { return fuzz_next_c(state); } }
+function fuzz_next(state: *u32): u32 { unsafe { return test_fuzz_next_c(state); } }
 
 /** 每轮推进 PRNG 后调用 fn；全部返回 0 则 0。 */
-function fuzz_run(fn: usize, iters: i32): i32 { unsafe { return fuzz_run_c(fn, iters); } }
+function fuzz_run(fn: usize, iters: i32): i32 { unsafe { return test_fuzz_run_c(fn, iters); } }
 
 /** STD-143：对 C 内置 noop 跑 bench，无需函数指针。 */
-function bench_run_noop(iters: i32): i64 { unsafe { return bench_run_noop_c(iters); } }
+function bench_run_noop(iters: i32): i64 { unsafe { return test_bench_run_noop_c(iters); } }
 
 /** STD-143：对 C 内置 noop 跑 fuzz runner。 */
-function fuzz_run_noop(iters: i32): i32 { unsafe { return fuzz_run_noop_c(iters); } }
+function fuzz_run_noop(iters: i32): i32 { unsafe { return test_fuzz_run_noop_c(iters); } }
 
 /** 重置 runner 计数（STD-145）。 */
-function runner_reset(): void { unsafe { runner_reset_c(); } }
+function runner_reset(): void { unsafe { test_runner_reset_c(); } }
 
 /** 报告单条用例；exit_code=0 为 pass。 */
 function runner_case(name: *u8, len: i32, exit_code: i32): i32 {
-  unsafe { return runner_report_case_c(name, len, exit_code); }
+  unsafe { return test_runner_report_case_c(name, len, exit_code); }
 }
 
 /** 报告 skip 用例。 */
-function runner_skip(name: *u8, len: i32): i32 { unsafe { return runner_report_skip_c(name, len); } }
+function runner_skip(name: *u8, len: i32): i32 { unsafe { return test_runner_report_skip_c(name, len); } }
 
 /** 输出汇总行；返回 fail 数。 */
-function runner_finish(): i32 { unsafe { return runner_finish_c(); } }
+function runner_finish(): i32 { unsafe { return test_runner_finish_c(); } }

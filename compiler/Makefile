@@ -76,20 +76,20 @@ MAIN_X_DEPS = src/main.x src/codegen/codegen.x src/ast/ast.x src/preprocess/prep
 PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 .PHONY: all std-objs clean test size-baseline perf-baseline bootstrap-token bootstrap-lexer bootstrap-parser bootstrap-parse-file bootstrap-typeck bootstrap-codegen bootstrap-driver bootstrap-driver-seed bootstrap-driver-bstrict bootstrap-driver-bstrict-relink bootstrap-driver-bstrict-windows bootstrap-driver-crt0 bootstrap-driver-asm bootstrap-driver-asm-only bootstrap-asm bootstrap_shuxc check-asm-o-quality check-6.4 bootstrap-self check-7.2 check-7.2-bstrict bootstrap-verify bootstrap-verify-seed bootstrap-verify-bstrict bootstrap-verify-stage2 bootstrap-verify-stage2-bstrict bootstrap-test build-tool build-tool-x build-via-tool first-time verify-selfhost-stage2 regen-lsp-gens-x shux-no-c-frontend gen-x-driver-objs build-user-asm-backend build-seed-user-asm-partial bootstrap-driver-seed-user-asm compile_commands.json
 
-# std.process：运行时 provider 已在 runtime_process_argv.o/runtime_process_os_glue.o；
-# process.o 仅保留 import binding 别名桩。保留 process.x 依赖，维持 manifest/gate 的源码布局约定。
-../std/process/process.o: ../std/process/process.x ../std/process/process_import_alias.c runtime_process_argv.o runtime_process_os_glue.o
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/process/process_import_alias.o ../std/process/process_import_alias.c && \
-	ld -r -o ../std/process/process.o ../std/process/process_import_alias.o runtime_process_argv.o runtime_process_os_glue.o && \
-	rm -f ../std/process/process_import_alias.o
+# std.process：F 闭合 — mod.x + process.x 用 -E-extern 编译（裸符号），
+# ld -r 合并 runtime_process_argv.o + runtime_process_os_glue.o（提供 process_*_c 定义）。
+../std/process/process.o: ../std/process/mod.x ../std/process/process.x scripts/shux_compile_std_module.sh runtime_process_argv.o runtime_process_os_glue.o
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@.core ../std/process/mod.x ../std/process/process.x && \
+	ld -r -o $@ $@.core runtime_process_argv.o runtime_process_os_glue.o && \
+	rm -f $@.core
 
-# std.string：保留 string.x 作为 F-string v1 源码锚点；string.o 由 C fast-path provider +
-# import binding alias 组成，避免 bootstrap asm backend 在 assign(call) 形状上反复卡住。
-../std/string/string.o: ../std/string/string.x ../std/string/string_import_alias.c src/asm/runtime_string_fast.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/string/string_core.o src/asm/runtime_string_fast.c && \
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/string/string_import_alias.o ../std/string/string_import_alias.c && \
-	ld -r -o ../std/string/string.o ../std/string/string_core.o ../std/string/string_import_alias.o && \
-	rm -f ../std/string/string_core.o ../std/string/string_import_alias.o
+# std.string：F 闭合 — mod.x + string.x 用 -E-extern 编译（裸符号），
+# ld -r 合并 runtime_string_fast.o（提供 string_*_c fast-path 定义）。
+../std/string/string.o: ../std/string/mod.x ../std/string/string.x scripts/shux_compile_std_module.sh src/asm/runtime_string_fast.c
+	@$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@.fast src/asm/runtime_string_fast.c && \
+	sh scripts/shux_compile_std_module.sh --bare-impl $@.core ../std/string/mod.x ../std/string/string.x && \
+	ld -r -o $@ $@.core $@.fast && \
+	rm -f $@.core $@.fast
 
 # std.path：保留 mod.x 作为 F-path v1 源码锚点；path.o 由 C provider 产出，
 # 避免 bootstrap asm backend 在 dirname/last_slash 链上反复卡住。
@@ -104,11 +104,11 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 
 # std.map：F 闭合 — 纯 .x -E-extern + cc -c。
 ../std/map/map.o: ../std/map/mod.x scripts/shux_compile_std_module.sh
-	@sh scripts/shux_compile_std_module.sh $@ ../std/map/mod.x
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/map/mod.x
 
 # std.set：F 闭合 — 纯 .x -E-extern + cc -c。
 ../std/set/set.o: ../std/set/mod.x scripts/shux_compile_std_module.sh
-	@sh scripts/shux_compile_std_module.sh $@ ../std/set/mod.x
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/set/mod.x
 
 # std.runtime：保留 runtime.x 作为 F-runtime v1 源码锚点；runtime.o 仅提供
 # runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
@@ -206,21 +206,15 @@ net-o-mbedtls:
 	else echo "future.o: need shux-c or shux (F-async-future v2)" >&2; exit 0; fi; \
 	sh scripts/shux_compile_std_x.sh auto ../std/async/future.x ../std/async/future.o
 
-# std.time：F-time v2 纯 .x（F-ZC）；OS syscall 在 runtime_time_os.o；import binding 别名桩 time_import_alias.c。
-../std/time/time.o: ../std/time/time.x ../std/time/time_import_alias.c
-	@sh scripts/shux_compile_std_x.sh auto ../std/time/time.x ../std/time/time_core.o && \
-	test -s ../std/time/time_core.o || { echo "make time.o: failed to produce ../std/time/time_core.o" >&2; rm -f ../std/time/time_core.o; exit 1; }; \
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/time/time_import_alias.o ../std/time/time_import_alias.c && \
-	ld -r -o ../std/time/time.o ../std/time/time_core.o ../std/time/time_import_alias.o && \
-	rm -f ../std/time/time_core.o ../std/time/time_import_alias.o
+# std.time：F 闭合 — mod.x 内联派生函数（now_monotonic_us/sleep_ms/duration_ns 等），
+# 仅 5 个基础 OS extern 由 runtime_time_os.o 提供。无需 time.x / time_import_alias.c。
+../std/time/time.o: ../std/time/mod.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/time/mod.x
 
-# std.random：F-random v2 纯 .x（F-ZC）；CSPRNG OS 在 runtime_random_fill.o。
-../std/random/random.o: ../std/random/random.x
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make random.o: need shux-c or shux (F-random zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_x.sh auto ../std/random/random.x ../std/random/random.o
+# std.random：F 闭合 — mod.x（用户 API）+ random.x（impl 裸符号）用 -E-extern 编译；
+# CSPRNG OS 在 runtime_random_fill.o，最终 exe 链接时按需推入。
+../std/random/random.o: ../std/random/mod.x ../std/random/random.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/random/mod.x ../std/random/random.x
 
 # std.env：F-env v2 纯 .x（F-ZC）；OS 胶层在 runtime_env_os.o。
 ../std/env/env.o: ../std/env/env.x
@@ -230,13 +224,10 @@ net-o-mbedtls:
 	else echo "make env.o: need shux-c or shux (F-env zero-c)" >&2; exit 0; fi; \
 	sh scripts/shux_compile_std_x.sh auto ../std/env/env.x ../std/env/env.o
 
-# std.sync：F-sync v3 纯 .x（F-ZC）；OS/TLS 胶层在 runtime_sync_*.o；import binding 别名桩 sync_import_alias.c。
-../std/sync/sync.o: ../std/sync/sync.x ../std/sync/sync_import_alias.c
-	@sh scripts/shux_compile_std_x.sh auto ../std/sync/sync.x ../std/sync/sync_core.o && \
-	test -s ../std/sync/sync_core.o || { echo "make sync.o: failed to produce ../std/sync/sync_core.o" >&2; rm -f ../std/sync/sync_core.o; exit 1; }; \
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/sync/sync_import_alias.o ../std/sync/sync_import_alias.c && \
-	ld -r -o ../std/sync/sync.o ../std/sync/sync_core.o ../std/sync/sync_import_alias.o && \
-	rm -f ../std/sync/sync_core.o ../std/sync/sync_import_alias.o
+# std.sync：F 闭合 — mod.x（用户 API）+ sync.x（impl 裸符号）用 -E-extern 编译；
+# OS/TLS 胶层在 runtime_sync_*.o，最终 exe 链接时按需推入。
+../std/sync/sync.o: ../std/sync/mod.x ../std/sync/sync.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/sync/mod.x ../std/sync/sync.x
 
 # std.queue：F-queue v2 纯 .x（F-ZC）；pthread 胶层在 runtime_queue_contention.o。
 ../std/queue/queue.o: ../std/queue/queue.x
@@ -248,61 +239,32 @@ net-o-mbedtls:
 
 # std.encoding：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + encoding）。
 ../std/encoding/encoding.o: ../std/encoding/mod.x ../std/encoding/encoding.x scripts/shux_compile_std_module.sh
-	@sh scripts/shux_compile_std_module.sh $@ ../std/encoding/mod.x ../std/encoding/encoding.x
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/encoding/mod.x ../std/encoding/encoding.x
 
 # std.base64：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + base64）。
 ../std/base64/base64.o: ../std/base64/mod.x ../std/base64/base64.x scripts/shux_compile_std_module.sh
-	@sh scripts/shux_compile_std_module.sh $@ ../std/base64/mod.x ../std/base64/base64.x
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/base64/mod.x ../std/base64/base64.x
 
-# std.crypto：F-crypto v2 纯 .x（F-ZC）；SHA-512/ref10 胶层在 runtime_crypto_*_glue.o。
-../std/crypto/crypto.o: ../std/crypto/core.x ../std/crypto/aes_gcm.x ../std/crypto/chacha20_poly1305.x ../std/crypto/chacha20_aead.x ../std/crypto/ed25519.x
-	@objs=""; \
-	if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else shux=; fi; \
-	if [ -n "$$shux" ]; then \
-	  sh scripts/shux_compile_std_x.sh auto ../std/crypto/core.x ../std/crypto/core.o || exit 1; \
-	  sh scripts/shux_compile_std_x.sh auto ../std/crypto/aes_gcm.x ../std/crypto/aes_gcm.o || exit 1; \
-	  sh scripts/shux_compile_std_x.sh auto ../std/crypto/chacha20_poly1305.x ../std/crypto/chacha20_poly1305.o || exit 1; \
-	  sh scripts/shux_compile_std_x.sh auto ../std/crypto/chacha20_aead.x ../std/crypto/chacha20_aead.o || exit 1; \
-	  sh scripts/shux_compile_std_x.sh auto ../std/crypto/ed25519.x ../std/crypto/ed25519.o || exit 1; \
-	  objs="../std/crypto/core.o ../std/crypto/aes_gcm.o ../std/crypto/chacha20_poly1305.o ../std/crypto/chacha20_aead.o ../std/crypto/ed25519.o"; \
-	  ld -r -o $@ $$objs; \
-	else \
-	  echo "crypto.o: need shux-c to merge crypto .x"; exit 0; \
-	fi
+# std.crypto：F-闭合 — mod.x + 5 .x 用 -E-extern 编译（裸符号）。
+# mod.x 提供 extern 声明 + 公共 API；core/aes_gcm/chacha20_*/ed25519.x 提供裸符号实现。
+../std/crypto/crypto.o: ../std/crypto/mod.x ../std/crypto/core.x ../std/crypto/aes_gcm.x ../std/crypto/chacha20_poly1305.x ../std/crypto/chacha20_aead.x ../std/crypto/ed25519.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/crypto/mod.x ../std/crypto/core.x ../std/crypto/aes_gcm.x ../std/crypto/chacha20_poly1305.x ../std/crypto/chacha20_aead.x ../std/crypto/ed25519.x
 
-# std.log：F-log v2 纯 .x（F-ZC）；OS 胶层在 runtime_log_os.o。
-# LANG-007 v2：shux-c -E → cc -c 库模块；fallback shux_compile_std_x.sh。
-../std/log/log.o: ../std/log/log.x
-	@if [ -x ./shux-c ]; then \
-	  ./shux-c -E -L .. ../std/log/log.x > ../std/log/log_core_gen.c && \
-	  $(CC) $(CFLAGS) -c -o ../std/log/log.o ../std/log/log_core_gen.c && \
-	  rm -f ../std/log/log_core_gen.c; \
-	elif [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	else echo "make log.o: need shux-c or shux (F-log zero-c)" >&2; exit 0; fi; \
-	if [ ! -f ../std/log/log.o ]; then \
-	  sh scripts/shux_compile_std_x.sh auto ../std/log/log.x ../std/log/log.o; \
-	fi
+# std.log：F-闭合 — mod.x + log.x 用 -E-extern 编译（裸符号）。
+# mod.x 提供 extern 声明 + 公共 API；log.x 提供 log_write_c 等裸符号实现。
+../std/log/log.o: ../std/log/mod.x ../std/log/log.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/log/mod.x ../std/log/log.x
 
 
-# std.test：F-test v2 纯 .x（F-ZC）；fn-ptr 在 runtime_test_fn_invoke.o。
-../std/test/test.o: ../std/test/test.x
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make test.o: need shux-c or shux (F-test zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_x.sh auto ../std/test/test.x ../std/test/test.o
+# std.test：F 闭合 — mod.x（用户 API）+ test.x（impl 裸符号）用 -E-extern 编译；
+# fn-ptr 在 runtime_test_fn_invoke.o，最终 exe 链接时按需推入。
+../std/test/test.o: ../std/test/mod.x ../std/test/test.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/test/mod.x ../std/test/test.x
 
-# std.atomic：F-atomic v2 纯 .x（F-ZC）；原子胶层在 runtime_atomic_glue.o；import binding 别名桩 atomic_import_alias.c。
-../std/atomic/atomic.o: ../std/atomic/atomic.x ../std/atomic/atomic_import_alias.c
-	@sh scripts/shux_compile_std_x.sh auto ../std/atomic/atomic.x ../std/atomic/atomic_core.o && \
-	test -s ../std/atomic/atomic_core.o || { echo "make atomic.o: failed to produce ../std/atomic/atomic_core.o" >&2; rm -f ../std/atomic/atomic_core.o; exit 1; }; \
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/atomic/atomic_import_alias.o ../std/atomic/atomic_import_alias.c && \
-	ld -r -o ../std/atomic/atomic.o ../std/atomic/atomic_core.o ../std/atomic/atomic_import_alias.o && \
-	rm -f ../std/atomic/atomic_core.o ../std/atomic/atomic_import_alias.o
+# std.atomic：F 闭合 — mod.x（用户 API）+ atomic.x（impl 裸符号）用 -E-extern 编译；
+# 原子胶层在 runtime_atomic_glue.o，最终 exe 链接时按需推入。
+../std/atomic/atomic.o: ../std/atomic/mod.x ../std/atomic/atomic.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/atomic/mod.x ../std/atomic/atomic.x
 
 # std.channel：F-channel v2 纯 .x（F-ZC）；channel 胶层在 runtime_channel_glue.o；Unix 需 -lpthread。
 ../std/channel/channel.o: ../std/channel/channel.x
@@ -320,13 +282,9 @@ net-o-mbedtls:
 	else echo "make backtrace.o: need shux-c or shux (F-backtrace zero-c)" >&2; exit 0; fi; \
 	sh scripts/shux_compile_std_x.sh auto ../std/backtrace/backtrace.x ../std/backtrace/backtrace.o
 
-# std.hash：F-hash v2 纯 .x → hash.o（同 json/schema）。
-../std/hash/hash.o: ../std/hash/hash.x
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "hash.o: need shux-c or shux (F-hash v2)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_x.sh auto ../std/hash/hash.x ../std/hash/hash.o
+# std.hash：F 闭合 — mod.x（用户 API）+ hash.x（impl 裸符号）用 -E-extern 编译。
+../std/hash/hash.o: ../std/hash/mod.x ../std/hash/hash.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/hash/mod.x ../std/hash/hash.x
 
 # std.math：F-math v2 纯 .x（F-ZC）；libm 胶层在 runtime_math_libm.o（链接 exe 仍须 -lm）。
 # LANG-007 v2：shux-c -E → cc -c 库模块；fallback shux_compile_std_x.sh。
@@ -354,16 +312,17 @@ net-o-mbedtls:
 
 # std.ffi：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + ffi）。
 ../std/ffi/ffi.o: ../std/ffi/mod.x ../std/ffi/ffi.x scripts/shux_compile_std_module.sh
-	@sh scripts/shux_compile_std_module.sh $@ ../std/ffi/mod.x ../std/ffi/ffi.x
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/ffi/mod.x ../std/ffi/ffi.x
 
 
-# std.context：F-context v2 纯 context.x → context.o（无 glue；无 shux 时 exit 0）。
-../std/context/context.o: ../std/context/context.x
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "context.o: need shux-c or shux (F-context v2)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_x.sh auto ../std/context/context.x ../std/context/context.o
+# std.context：F-闭合 — mod.x + context.x 用 -E-extern 编译（裸符号）。
+# mod.x 提供 is_cancelled/deadline_ns/remaining_ns 等公共 API；context.x 提供 ctx_*_c 实现。
+../std/context/context.o: ../std/context/mod.x ../std/context/context.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/context/mod.x ../std/context/context.x
+
+# std.error：F-闭合 — mod.x 用 -E-extern 编译。提供 http_err_cancelled/timeout 等错误码 API。
+../std/error/error.o: ../std/error/mod.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/error/mod.x
 
 
 # std.datetime：F-datetime v2 + F-ZC 纯 datetime.x → datetime.o（无 glue；无 shux 时 exit 0）。
@@ -519,10 +478,10 @@ sqlite-o-stub:
 # P4 std 模块（按需链接）
 # std.json：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + json）。
 ../std/json/json.o: ../std/json/mod.x ../std/json/json.x scripts/shux_compile_std_module.sh
-	@sh scripts/shux_compile_std_module.sh $@ ../std/json/mod.x ../std/json/json.x
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/json/mod.x ../std/json/json.x
 # std.csv：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + csv）。
 ../std/csv/csv.o: ../std/csv/mod.x ../std/csv/csv.x scripts/shux_compile_std_module.sh
-	@sh scripts/shux_compile_std_module.sh $@ ../std/csv/mod.x ../std/csv/csv.x
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/csv/mod.x ../std/csv/csv.x
 # std.regex：F-regex v2 纯 .x → regex.o（同 hash/schema）。
 ../std/regex/regex.o: ../std/regex/regex.x
 	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
@@ -540,20 +499,14 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 	elif [ -x ./shux-c ]; then shux=./shux-c; \
 	else echo "unicode.o: need shux-c or shux (F-unicode v2)" >&2; exit 0; fi; \
 	sh scripts/shux_compile_std_x.sh auto ../std/unicode/unicode.x ../std/unicode/unicode.o
-# std.dynlib：F-dynlib v2 纯 .x（F-ZC）；dlopen 胶层在 runtime_dynlib_os.o。
-../std/dynlib/dynlib.o: ../std/dynlib/dynlib.x
-	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
-	elif [ -x ./shux ]; then shux=./shux; \
-	elif [ -x ./shux-c ]; then shux=./shux-c; \
-	else echo "make dynlib.o: need shux-c or shux (F-dynlib zero-c)" >&2; exit 0; fi; \
-	sh scripts/shux_compile_std_x.sh auto ../std/dynlib/dynlib.x ../std/dynlib/dynlib.o
-# std.http：F-http v2 纯 .x（F-ZC）；HTTP 胶层在 runtime_http_glue.o；import binding 别名桩 http_import_alias.c。
-../std/http/http.o: ../std/http/http.x ../std/http/http_import_alias.c
-	@sh scripts/shux_compile_std_x.sh auto ../std/http/http.x ../std/http/http_core.o && \
-	test -s ../std/http/http_core.o || { echo "make http.o: failed to produce ../std/http/http_core.o" >&2; rm -f ../std/http/http_core.o; exit 1; }; \
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/http/http_import_alias.o ../std/http/http_import_alias.c && \
-	ld -r -o ../std/http/http.o ../std/http/http_core.o ../std/http/http_import_alias.o && \
-	rm -f ../std/http/http_core.o ../std/http/http_import_alias.o
+# std.dynlib：F 闭合 — mod.x（用户 API）+ dynlib.x（impl 裸符号）用 -E-extern 编译；
+# dlopen 胶层在 runtime_dynlib_os.o，最终 exe 链接时按需推入。
+../std/dynlib/dynlib.o: ../std/dynlib/mod.x ../std/dynlib/dynlib.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/dynlib/mod.x ../std/dynlib/dynlib.x
+# std.http：F 闭合 — mod.x（用户 API）+ http.x（impl 裸符号）用 -E-extern 编译；
+# HTTP 胶层在 runtime_http_glue.o，最终 exe 链接时按需推入。
+../std/http/http.o: ../std/http/mod.x ../std/http/http.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/http/mod.x ../std/http/http.x
 
 # std.socketio：F-socketio v2 纯 socketio.x；ld -r 合并为 socketio.o（P3 可选）。
 ../std/socketio/socketio.o: ../std/socketio/socketio.x
@@ -570,7 +523,7 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 # std.tar：F-tar v2 纯 tar.x；import binding 别名桩 tar_import_alias.c。
 # std.tar：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + tar）。
 ../std/tar/tar.o: ../std/tar/mod.x ../std/tar/tar.x scripts/shux_compile_std_module.sh
-	@sh scripts/shux_compile_std_module.sh $@ ../std/tar/mod.x ../std/tar/tar.x
+	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/tar/mod.x ../std/tar/tar.x
 # std.simd：F-simd v1 + F-ZC 纯 simd.x → simd.o（无 glue；无 shux 时 exit 0）。
 ../std/simd/simd.o: ../std/simd/simd.x
 	@if [ -x ./shux_asm ]; then shux=./shux_asm; \
@@ -581,7 +534,7 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 
 
 # 测试与 shux 链接 std 时依赖的 .o：所有 std 模块 + runtime_panic.o；Linux 另预编 freestanding 链入桩
-STD_AND_PANIC_O = ../std/process/process.o ../std/string/string.o ../std/path/path.o ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o ../std/async/scheduler.o ../std/time/time.o ../std/random/random.o ../std/env/env.o ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o ../std/csv/csv.o ../std/regex/regex.o ../std/unicode/unicode.o ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/simd/simd.o ../std/context/context.o ../std/trace/trace.o ../std/test/test.o runtime_panic.o runtime_asm_io_stubs.o runtime_process_argv.o runtime_process_os_glue.o runtime_test_fn_invoke.o runtime_random_fill.o runtime_time_os.o runtime_dynlib_os.o runtime_env_os.o runtime_backtrace_platform.o runtime_log_os.o runtime_math_libm.o runtime_atomic_glue.o runtime_channel_glue.o runtime_net_udp_batch.o runtime_net_workers.o runtime_sync_os.o runtime_sync_lock_diag_tls.o runtime_thread_glue.o runtime_scheduler_glue.o runtime_http_glue.o runtime_crypto_inc_glue.o runtime_ed25519_ref10_glue.o
+STD_AND_PANIC_O = ../std/heap/heap.o ../std/map/map.o ../std/set/set.o ../std/process/process.o ../std/string/string.o ../std/path/path.o ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o ../std/async/scheduler.o ../std/time/time.o ../std/random/random.o ../std/env/env.o ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o ../std/csv/csv.o ../std/regex/regex.o ../std/unicode/unicode.o ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/simd/simd.o ../std/context/context.o ../std/error/error.o ../std/trace/trace.o ../std/test/test.o runtime_panic.o runtime_asm_io_stubs.o runtime_process_argv.o runtime_process_os_glue.o runtime_test_fn_invoke.o runtime_random_fill.o runtime_time_os.o runtime_dynlib_os.o runtime_env_os.o runtime_backtrace_platform.o runtime_log_os.o runtime_math_libm.o runtime_atomic_glue.o runtime_channel_glue.o runtime_net_udp_batch.o runtime_net_workers.o runtime_sync_os.o runtime_sync_lock_diag_tls.o runtime_thread_glue.o runtime_scheduler_glue.o runtime_http_glue.o runtime_crypto_inc_glue.o runtime_ed25519_ref10_glue.o
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
 STD_AND_PANIC_O += crt0_user.o freestanding_io.o

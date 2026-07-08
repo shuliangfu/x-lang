@@ -38,21 +38,10 @@
 // analysis/std标准库全量清单与优先级.md 3.1）。
 
 extern function time_now_monotonic_ns_c(): i64;
-extern function time_now_monotonic_us_c(): i64;
-extern function time_now_monotonic_ms_c(): i64;
-extern function time_now_monotonic_sec_c(): i64;
-extern function time_now_wall_sec_c(): i64;
-extern function time_now_wall_ms_c(): i64;
-extern function time_now_wall_us_c(): i64;
 extern function time_now_wall_ns_c(): i64;
 extern function time_sleep_ns_c(ns: i64): void;
-extern function time_sleep_us_c(us: i64): void;
-extern function time_sleep_ms_c(ms: i32): void;
-extern function time_sleep_sec_c(s: i32): void;
-extern function time_duration_ns_c(from_ns: i64, to_ns: i64): i64;
 extern function time_format_wall_rfc3339_c(buf: *u8, cap: i32): i32;
 extern function time_wall_local_offset_min_c(): i32;
-extern function time_format_timezone_smoke_c(): i32;
 
 /** 单调时钟：纳秒（自任意起点，仅用于差值；对标 Rust Instant、Zig Timer）。 */
 function now_monotonic_ns(): i64 {
@@ -64,42 +53,42 @@ function now_monotonic_ns(): i64 {
 /** 单调时钟：微秒。 */
 function now_monotonic_us(): i64 {
   unsafe {
-    return time_now_monotonic_us_c();
+    return time_now_monotonic_ns_c() / 1000;
   }
 }
 
 /** 单调时钟：毫秒。 */
 function now_monotonic_ms(): i64 {
   unsafe {
-    return time_now_monotonic_ms_c();
+    return time_now_monotonic_ns_c() / 1000000;
   }
 }
 
 /** 单调时钟：秒。 */
 function now_monotonic_sec(): i64 {
   unsafe {
-    return time_now_monotonic_sec_c();
+    return time_now_monotonic_ns_c() / 1000000000;
   }
 }
 
 /** 墙钟：自 Unix 纪元 1970-01-01 00:00:00 UTC 的秒。 */
 function now_wall_sec(): i64 {
   unsafe {
-    return time_now_wall_sec_c();
+    return time_now_wall_ns_c() / 1000000000;
   }
 }
 
 /** 墙钟：毫秒。 */
 function now_wall_ms(): i64 {
   unsafe {
-    return time_now_wall_ms_c();
+    return time_now_wall_ns_c() / 1000000;
   }
 }
 
 /** 墙钟：微秒。 */
 function now_wall_us(): i64 {
   unsafe {
-    return time_now_wall_us_c();
+    return time_now_wall_ns_c() / 1000;
   }
 }
 
@@ -120,29 +109,29 @@ function sleep_ns(ns: i64): void {
 /** 睡眠：微秒。 */
 function sleep_us(us: i64): void {
   unsafe {
-    time_sleep_us_c(us);
+    time_sleep_ns_c(us * 1000);
   }
 }
 
 /** 睡眠：毫秒。 */
 function sleep_ms(ms: i32): void {
+  if (ms <= 0) { return; }
   unsafe {
-    time_sleep_ms_c(ms);
+    time_sleep_ns_c((ms as i64) * 1000000);
   }
 }
 
 /** 睡眠：秒。 */
 function sleep_sec(s: i32): void {
+  if (s <= 0) { return; }
   unsafe {
-    time_sleep_sec_c(s);
+    time_sleep_ns_c((s as i64) * 1000000000);
   }
 }
 
 /** 时间差（纳秒）：to_ns - from_ns；纯算术。 */
 function duration_ns(from_ns: i64, to_ns: i64): i64 {
-  unsafe {
-    return time_duration_ns_c(from_ns, to_ns);
-  }
+  return to_ns - from_ns;
 }
 
 /** 单调计时器状态（STD-133）。 */
@@ -210,7 +199,20 @@ function wall_local_offset_min(): i32 {
 
 /** 时区/格式化烟测；0 成功。 */
 function format_timezone_smoke(): i32 {
-  unsafe {
-    return time_format_timezone_smoke_c();
+  let buf: u8[32];
+  let i: i32 = 0;
+  while (i < 32) {
+    buf[i] = 0;
+    i = i + 1;
   }
+  let n: i32 = 0;
+  let off: i32 = 0;
+  unsafe {
+    n = time_format_wall_rfc3339_c(&buf[0], 32);
+    off = time_wall_local_offset_min_c();
+  }
+  if (n < 20) { return 1; }
+  if (buf[(n - 1)] != 90) { return 2; }
+  if (off < -840 || off > 840) { return 3; }
+  return 0;
 }
