@@ -32,11 +32,16 @@ if [ -z "$out_o" ] || [ "$#" -lt 1 ]; then
   exit 1
 fi
 
-SHUX_BIN="${SHUX:-./shux-c}"
-[ -x "$SHUX_BIN" ] || SHUX_BIN="./shux-c"
-[ -x "$SHUX_BIN" ] || SHUX_BIN="./shux_asm"
+# 【Why 根源】优先 ./shux（.x pipeline，支持 -x -E）；LEGACY shux-c 不支持 -x 选项。
+# G-02a 后 -E-extern 不可用，必须用 -x -E 走 .x pipeline，故 ./shux 优先。
+# SHUX 可能是项目根目录相对路径（./compiler/shux），Makefile 在 compiler/ 下执行时
+# 该路径不存在，需回退到 compiler/ 本地的 ./shux。
+SHUX_BIN="${SHUX:-./shux}"
 [ -x "$SHUX_BIN" ] || SHUX_BIN="./shux"
-[ -x "$SHUX_BIN" ] || { echo "shux_compile_std_module.sh: no shux-c/shux_asm/shux found" >&2; exit 1; }
+[ -x "$SHUX_BIN" ] || SHUX_BIN="./shux_asm"
+[ -x "$SHUX_BIN" ] || SHUX_BIN="./shux-c"
+[ -x "$SHUX_BIN" ] || SHUX_BIN="../compiler/shux"
+[ -x "$SHUX_BIN" ] || { echo "shux_compile_std_module.sh: no shux/shux_asm/shux-c found" >&2; exit 1; }
 
 # 【Why 根源】-x -E 生成瘦 C TU（emit_c_only=1 + emit_extern_imports=1），
 # import 用 extern 声明，不内联 deps。mod.x 带前缀产出 std_<module>_* 用户 API。
