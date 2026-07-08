@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <string.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <winsock2.h>
@@ -15,7 +16,18 @@ static int net_ipv6_wsa_done = 0;
 #endif
 #endif
 
-extern void net_ipv6_set_addr_port_buf_c(uint8_t *sin, uint8_t *addr_16, uint32_t port_u32);
+/* 【Why 根源】asm codegen 对 u16 间接 store 会错发 64 位 store；IPv6 sockaddr_in6 填充须走 C。
+ * 从 net_import_alias.c 迁入（F-闭合消除 *_import_alias.c 命名）。
+ * 【Invariant】sin 指向至少 28 字节可写缓冲（sizeof(sockaddr_in6)==28）；addr_16 为 16 字节 IPv6 地址。
+ * 【Asm/Perf】memset/memcpy 编译为向量指令（SSE2/NEON）。 */
+void net_ipv6_set_addr_port_buf_c(uint8_t *sin, uint8_t *addr_16, uint32_t port_u32) {
+    struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)(void *)sin;
+    memset(sa6, 0, sizeof(*sa6));
+    sa6->sin6_family = AF_INET6;
+    sa6->sin6_port = htons((uint16_t)(port_u32 & 0xffffu));
+    sa6->sin6_flowinfo = 0;
+    memcpy(&sa6->sin6_addr, addr_16, 16);
+}
 
 static int32_t net_ipv6_ensure_wsa_c(void) {
 #if defined(_WIN32) || defined(_WIN64)

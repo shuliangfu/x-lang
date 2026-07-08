@@ -117,8 +117,8 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	ld -r -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
 	rm -f ../std/runtime/runtime_core.o
 
-# std.net：F-04 v10～v14 纯 .x（F-ZC）；import binding 别名桩 net_import_alias.c。
-../std/net/net.o: ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x ../std/net/net_import_alias.c src/asm/runtime_net_dns_fast.c src/asm/runtime_net_io_batch_fast.c src/asm/runtime_net_addr_fast.c src/asm/runtime_net_ipv6_fast.c src/asm/runtime_net_sock_fast.c
+# std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue C 实现由 runtime_net_*_fast.c 提供（F-闭合）。
+../std/net/net.o: ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x src/asm/runtime_net_dns_fast.c src/asm/runtime_net_io_batch_fast.c src/asm/runtime_net_addr_fast.c src/asm/runtime_net_ipv6_fast.c src/asm/runtime_net_sock_fast.c
 	@objs=""; \
 	shux="$${SHUX:-}"; \
 	if [ -z "$$shux" ] || [ ! -x "$$shux" ]; then \
@@ -137,9 +137,8 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_addr_fast.o src/asm/runtime_net_addr_fast.c && \
 	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_ipv6_fast.o src/asm/runtime_net_ipv6_fast.c && \
 	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_sock_fast.o src/asm/runtime_net_sock_fast.c && \
-	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_import_alias.o ../std/net/net_import_alias.c && \
-	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $$objs ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o ../std/net/net_import_alias.o && \
-	  rm -f ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o ../std/net/net_import_alias.o; \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $$objs ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o && \
+	  rm -f ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o; \
 	else \
 	  echo "net.o: need shux-c to merge net_*.x"; exit 0; \
 	fi
