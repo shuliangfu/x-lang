@@ -36,8 +36,10 @@ function page_mmap_heap_init(h: *PageMmapHeap): i32 {
   unsafe {
     p = shux_sys_mmap(0 as *u8, 65536 as usize, 3 as i32, 0x22 as i32, -1, 0 as i64);
   }
-  let p_i: i64 = p as i64;
-  if (p_i <= 0) {
+  // 【Why 指针比较】ASM 后端对 i64 比较错误发射 32-bit cmp（eax/ebx），
+  // mmap 返回地址高 32 位被截断导致误判为负。改用指针 == 比较规避 i64 比较缺陷。
+  // mmap 失败返回 MAP_FAILED（全 1）；成功返回非空地址。
+  if (p == 0 as *u8) {
     return -1;
   }
   h.base = p;
