@@ -14,6 +14,14 @@
 #include <crt_externs.h>
 #endif
 
+/* SHUX_WEAK：macOS/Linux 下生成 weak 符号；Windows/MinGW PE 不支持函数 weak，宏为空
+ *（PE 侧靠 --allow-multiple-definition 兜底）。 */
+#if defined(__GNUC__) || defined(__clang__)
+#define SHUX_WEAK __attribute__((weak))
+#else
+#define SHUX_WEAK
+#endif
+
 /** 由 codegen 或 shux_process_argv_bind_from_crt 写入；供 process.x 经 getter 读取。 */
 int shux_process_argc = 0;
 char **shux_process_argv = NULL;
@@ -119,17 +127,24 @@ uint8_t *process_shux_argv_get(int32_t i) {
 }
 
 /**
- * std/process/process.x 同名热路径；供 process.o / mod.x 链入（C -o 路径须与 runtime 同 .o）。
+ * std/process/process.x 同名热路径；weak fallback 供 minimal 链（C -o 路径不经 process.x 编译时）。
+ * 【Why 根源】process.x 编译出强符号 process_args_count_c；本 TU 经 ld -r 合并进 process.o
+ * 时若也是强符号 → duplicate symbol。weak 让链接器优先选 process.x 强符号，本定义仅在
+ * 未链 process.o 的 minimal 场景下被解析。
+ * 【Invariant】weak 定义与 process.x 强符号实现等价（都转调 process_shux_argc_get），
+ * 覆盖与否不影响行为。
  * 返回值：命令行参数个数（含 argv[0]）。
  */
-int32_t process_args_count_c(void) {
+SHUX_WEAK int32_t process_args_count_c(void) {
     return process_shux_argc_get();
 }
 
 /**
- * std/process/process.x 同名热路径；第 i 个参数 C 字符串，越界返回 NULL。
+ * std/process/process.x 同名热路径；weak fallback（见上 process_args_count_c 说明）。
+ * 【Why】同上 — 让 process.x 强符号覆盖，避免 ld -r 合并 duplicate symbol。
  * 参数：i — 参数索引。
+ * 返回值：argv[i] C 字符串指针；越界返回 NULL。
  */
-uint8_t *process_arg_c(int32_t i) {
+SHUX_WEAK uint8_t *process_arg_c(int32_t i) {
     return process_shux_argv_get(i);
 }
