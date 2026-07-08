@@ -168,9 +168,19 @@ __attribute__((weak)) void parser_parse_into_init(void *arena, void *module) {
   parse_into_init(module, arena);
 }
 
-__attribute__((weak)) struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len) {
-  return parse_into_buf(arena, module, data, len);
-}
+/*
+ * parser_parse_into_buf 的 weak stub 已删除。
+ *
+ * 【Why】Linux ELF 链接器选第一个 weak 定义；bridge.o 在 parser_x.o 之前时，
+ * 链接器选了 bridge 的 stub（返回 ok=-1），覆盖 parser_x.o 的真正实现，
+ * 导致 runtime.c 调用 parser_parse_into_buf 返回失败，触发 P001。
+ *
+ * 【Invariant】所有 strict link 路径（shux_asm_bstrict_relink_runtime_only、
+ * 第一个 strict link、fallback strict link）都链入 parser_x.o（通过
+ * $ST_PARSER_X_TAIL 或 $ST_STRICT_FB_X_TAIL），提供 parser_parse_into_buf
+ * 真正实现。不链入 parser_x.o 的路径（asm_seed_use_x_frontend=false 的
+ * fallback）会链接失败，暴露配置问题而非掩盖为运行时 P001。
+ */
 
 __attribute__((weak)) struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source) {
   return parse_into(arena, module, source);
