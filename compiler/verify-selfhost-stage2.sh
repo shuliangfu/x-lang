@@ -123,7 +123,7 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   src/asm/crt0_arm64.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o \
   src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o runtime_driver2.o \
   src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
-  src/asm/bootstrap_seed_io_stubs.o src/lexer/lexer.o src/ast/ast_seed.o src/typeck/typeck.o \
+  src/asm/bootstrap_seed_io_stubs.o src/lexer/lexer.o src/ast/ast_seed.o \
   src/codegen/codegen.o src/codegen/autovec.o src/async/async_liveness.o src/async/async_cps_codegen.o \
   src/runtime_c_import.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o \
   src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o \

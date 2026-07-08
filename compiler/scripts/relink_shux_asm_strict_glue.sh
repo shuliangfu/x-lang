@@ -1296,7 +1296,7 @@ if asm_strict_typeck_selfhosted; then
     strict_glue_info "omit asm_driver_seed frontend C objs (X companions ready)"
   elif asm_strict_typeck_x_glue_via_pipeline_x; then
     ensure_typeck_x_o_for_strict_link || true
-    ST_SEED_PARSER_TCK="$SEED_O/parser.o $SEED_O/typeck.o $SEED_O/codegen.o $ST_ASYNC_CPS_SEED $SEED_O/lexer.o $SEED_O/ast_seed.o codegen_x.o lexer_x_link_alias.o typeck_x_link_alias.o codegen_x_link_alias.o"
+    ST_SEED_PARSER_TCK="$SEED_O/parser.o $SEED_O/codegen.o $ST_ASYNC_CPS_SEED $SEED_O/lexer.o $SEED_O/ast_seed.o codegen_x.o lexer_x_link_alias.o typeck_x_link_alias.o codegen_x_link_alias.o"
     strict_glue_info "seed typeck + typeck_x tail (X glue; no build_asm typeck partial/bare_link)"
   else
     if [ ! -f "$BUILD_DIR/typeck_asm_bare_link_alias.o" ] || [ typeck_asm_bare_link_alias.c -nt "$BUILD_DIR/typeck_asm_bare_link_alias.o" ]; then
@@ -1314,7 +1314,7 @@ elif asm_seed_omit_c_frontend_seed; then
   ST_SEED_PARSER_TCK="$ST_ASYNC_CPS_SEED $ST_TYPECK_X_LINK codegen_x.o lexer_x_link_alias.o typeck_x_link_alias.o codegen_x_link_alias.o"
   strict_glue_info "typeck not selfhosted; omit asm_driver_seed frontend C objs"
 else
-  ST_SEED_PARSER_TCK="$SEED_O/parser.o $SEED_O/typeck.o $SEED_O/codegen.o $ST_ASYNC_CPS_SEED $SEED_O/lexer.o $SEED_O/ast_seed.o $ST_TYPECK_X_LINK codegen_x.o lexer_x_link_alias.o typeck_x_link_alias.o codegen_x_link_alias.o"
+  ST_SEED_PARSER_TCK="$SEED_O/parser.o $SEED_O/codegen.o $ST_ASYNC_CPS_SEED $SEED_O/lexer.o $SEED_O/ast_seed.o $ST_TYPECK_X_LINK codegen_x.o lexer_x_link_alias.o typeck_x_link_alias.o codegen_x_link_alias.o"
   strict_glue_info "typeck not selfhosted yet (__text=$(asm_o_text_bytes "$BUILD_DIR/typeck.o")B)"
 fi
 
@@ -1603,13 +1603,7 @@ ensure_lexer_obj() {
   fi
 }
 
-ensure_typeck_obj() {
-  local o="src/typeck/typeck.o"
-  if [ ! -f "$o" ] || [ "src/typeck/typeck.c" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- src/typeck/typeck.c"
-    "$CC" $CFLAGS -c -o "$o" src/typeck/typeck.c
-  fi
-}
+# G-02a: typeck.c 已物理删除；ensure_typeck_obj 已移除（typeck_x.o + typeck_c_module_stubs.o 提供）。
 
 ensure_codegen_obj() {
   local o="src/codegen/codegen.o"

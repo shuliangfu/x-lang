@@ -36,13 +36,12 @@ if command -v bear >/dev/null 2>&1; then
     src/runtime_driver.o \
     src/runtime.o \
     src/parser/parser.o \
-    src/typeck/typeck.o \
     src/codegen/codegen.o \
     src/lexer/lexer.o \
     src/ast/ast.o \
     src/lsp/lsp_diag.o \
     pipeline_bootstrap_orchestration.o \
-    2>/dev/null || bear -- make src/runtime_driver.o src/parser/parser.o src/typeck/typeck.o
+    2>/dev/null || bear -- make src/runtime_driver.o src/parser/parser.o
   if [[ -f "$OUT" ]]; then
     echo "gen_compile_commands OK: $OUT (+ $INC)"
     exit 0
@@ -75,7 +74,6 @@ entries = [
     ("src/runtime.c", driver_flags),
     ("src/runtime.c", base),
     ("src/main.c", base),
-    ("src/typeck/typeck.c", base),
     ("src/codegen/codegen.c", base),
     ("src/asm/runtime_lexer_glue.c", base),
     ("src/asm/runtime_ast_glue.c", base),

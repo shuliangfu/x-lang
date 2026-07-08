@@ -52,10 +52,7 @@ ensure_asm_driver_seed_c_objs() {
     experimental_bootstrap_info "cc $SEED_O/ast_seed.o"
     "$CC" $CFLAGS -c -o "$SEED_O/ast_seed.o" src/asm/runtime_ast_glue.c
   fi
-  if [ ! -f "$SEED_O/typeck.o" ] || [ "src/typeck/typeck.c" -nt "$SEED_O/typeck.o" ]; then
-    experimental_bootstrap_info "cc $SEED_O/typeck.o"
-    "$CC" $CFLAGS -c -o "$SEED_O/typeck.o" src/typeck/typeck.c
-  fi
+  # G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），编排桩由 typeck_c_module_stubs.o 提供。
   if [ ! -f "$SEED_O/codegen.o" ] || [ "src/codegen/codegen.c" -nt "$SEED_O/codegen.o" ]; then
     experimental_bootstrap_info "cc $SEED_O/codegen.o"
     "$CC" $CFLAGS -c -o "$SEED_O/codegen.o" src/codegen/codegen.c
@@ -446,7 +443,6 @@ fi
   "$SEED_O/ast_seed.o" \
   "$SEED_O/lexer.o" \
   "$SEED_O/parser.o" \
-  "$SEED_O/typeck.o" \
   "$SEED_O/codegen.o" \
   "$SEED_O/autovec.o" \
   "$SEED_O/lsp_diag.o" \

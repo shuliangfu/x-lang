@@ -56,7 +56,7 @@ SRCS    = src/main.c src/runtime.c src/async/async_liveness.c src/async/async_cp
 OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 # 考古冷启动：完整 C 前端 shux-c（仅用于生成/刷新 seeds/ 预编译种子）
-OBJS_CORE = src/main.o src/runtime.o src/diag.o src/driver/fmt_check_cmd.o src/lexer/lexer.o src/lexer/cfg_eval_bootstrap_stub.o src/ast/ast.o src/typeck/typeck.o src/codegen/codegen.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_c_import.o
+OBJS_CORE = src/main.o src/runtime.o src/diag.o src/driver/fmt_check_cmd.o src/lexer/lexer.o src/lexer/cfg_eval_bootstrap_stub.o src/ast/ast.o src/codegen/codegen.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_c_import.o
 endif
 OBJS      = $(OBJS_CORE)
 # 注：lsp.x 生成的 lsp_gen 与 lsp_diag 中 lsp_build_* 同名；若把 InitializeResult/response 外壳迁入 .x，
@@ -578,8 +578,7 @@ src/ast/ast.o: src/asm/runtime_ast_glue.c include/ast.h
 src/diag.o: src/diag.c include/diag.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-src/typeck/typeck.o: src/typeck/typeck.c src/typeck/typeck.h include/ast.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+# G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），C 编排由 typeck_c_module_stubs.o 提供。
 
 src/codegen/codegen.o: src/codegen/codegen.c src/codegen/codegen.h include/ast.h src/lsp/lsp_codegen_extern.h include/diag.h
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -710,7 +709,7 @@ src/runtime_driver_no_c.o: src/runtime.c Makefile
 src/main_x.o: src/main.c
 	$(CC) $(CFLAGS) -DSHUX_USE_X_PIPELINE -c -o $@ $<
 
-# shux_x：pipeline_x.o 编排 typeck_x/codegen_x（非 C typeck.o/codegen.o）。
+# shux_x：pipeline_x.o 编排 typeck_x/codegen_x（G-02a: typeck.c 已删；codegen.o 仍 C）。
 PIPELINE_X_BASE_OBJS = src/main_x.o src/runtime_x.o src/diag.o src/lexer/lexer.o src/ast/ast_seed.o
 PIPELINE_X_FRONTEND_OBJS = typeck_x.o codegen_x.o typeck_x_link_alias.o codegen_x_link_alias.o
 # parser_x / seed partial / C typeck·codegen·bridge + 卫星 .o（对齐 DRIVER_SEED_OBJS 除 main_x/runtime_x 外的链接依赖）。
@@ -1564,8 +1563,7 @@ ast_x.o: src/ast/ast_seed.o
 src/lexer/lexer.o: src/asm/runtime_lexer_glue.c src/lexer/lexer.h include/token.h
 	$(CC) $(CFLAGS) -c -o $@ src/asm/runtime_lexer_glue.c
 
-src/typeck/typeck.o: src/typeck/typeck.c src/typeck/typeck.h include/ast.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+# G-02a: typeck.c 已物理删除；typeck_x.o 由 typeck.x 生成，typeck_c_module_stubs.o 提供 weak 桩。
 
 src/codegen/codegen.o: src/codegen/codegen.c src/codegen/codegen.h include/ast.h src/lsp/lsp_codegen_extern.h
 	$(CC) $(CFLAGS) -c -o $@ $<

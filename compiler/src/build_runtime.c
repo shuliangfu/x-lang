@@ -256,6 +256,7 @@ int build_run_step(int step_id, const char *shu_path) {
   case 0:
     /* 阶段 3.2 / 6.4：编 main、runtime_driver（带 X_PREPROCESS 使 preprocess() 在 .x 路径）。
      * G-02a: preprocess.c 已物理删除；preprocess 由 preprocess_x.o 提供（step 18-19 生成）。
+     * G-02a: typeck.c 已物理删除；typeck 由 typeck_x.o 提供（step 8-9 生成），typeck_c_module_stubs.o 提供 weak 桩。
      * 同时编译所有 C 侧模块，供 step 5 链接（runtime_driver 仍引用了部分 C 侧函数）。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s %s -c -o src/main.o src/main.c && "
@@ -263,13 +264,12 @@ int build_run_step(int step_id, const char *shu_path) {
       "%s %s -DSHUX_USE_X_PREPROCESS -c -o src/runtime_driver.o src/runtime.c && "
       "%s %s -c -o src/lexer/lexer.o src/asm/runtime_lexer_glue.c && "
       "%s %s -c -o src/ast/ast.o src/asm/runtime_ast_glue.c && "
-      "%s %s -c -o src/typeck/typeck.o src/typeck/typeck.c && "
       "%s %s -c -o src/codegen/codegen.o src/codegen/codegen.c && "
       "%s %s -c -o src/lsp/lsp_diag.o src/lsp/lsp_diag.c && "
       "%s %s -c -o std_fs_shim.o src/std_fs_shim.c && "
       "%s %s -c -o x_stubs.o src/x_stubs.c",
       cc, cflags, cc, cflags, cc, cflags_driver,
-      cc, cflags, cc, cflags, cc, cflags,
+      cc, cflags, cc, cflags,
       cc, cflags, cc, cflags, cc, cflags, cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
     return system(cmd);
@@ -351,11 +351,12 @@ int build_run_step(int step_id, const char *shu_path) {
     return system(cmd);
   case 5:
     /* 阶段 3.2/3.3、6.4：链 runtime_driver.o（含 preprocess()，step 0 已带 -DSHUX_USE_X_PREPROCESS）+ preprocess_x.o
-     * + 所有 C 侧 .o（仍被 runtime_driver 的部分路径引用）。G-02a: preprocess.c/parser.c 已物理删除。 */
+     * + 所有 C 侧 .o（仍被 runtime_driver 的部分路径引用）。
+     * G-02a: preprocess.c/parser.c/typeck.c 已物理删除；typeck 由 typeck_x.o + typeck_c_module_stubs.o 提供。 */
     n = (int)snprintf(cmd, sizeof(cmd),
       "%s %s -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -o shux "
       "src/main.o src/runtime_driver.o "
-      "src/lexer/lexer.o src/ast/ast.o src/typeck/typeck.o src/codegen/codegen.o src/lsp/lsp_diag.o std_fs_shim.o x_stubs.o "
+      "src/lexer/lexer.o src/ast/ast.o src/codegen/codegen.o src/lsp/lsp_diag.o std_fs_shim.o x_stubs.o "
       "preprocess_x.o ast_x.o token_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o",
       cc, cflags);
     if (n <= 0 || n >= (int)sizeof(cmd)) return -1;
