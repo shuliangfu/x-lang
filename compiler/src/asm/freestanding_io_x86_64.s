@@ -44,7 +44,9 @@ shux_sys_exit:
 	.globl	shux_sys_open
 	.type	shux_sys_open, @function
 shux_sys_open:
-	mov	%edi, %edi
+	# 【Why 不做 mov %edi,%edi】open 首参是 path: *u8（64 位指针），
+	# mov %edi,%edi 会将高 32 位清零导致 EFAULT。其他 stub 的首参是 fd:i32，
+	# mov %edi,%edi 用于零扩展 32 位整数，此处不适用。
 	mov	$2, %eax
 	syscall
 	ret
