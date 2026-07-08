@@ -221,20 +221,20 @@ __attribute__((weak)) int32_t asm_asm_codegen_ast(void *module, void *arena, voi
   return asm_codegen_ast(module, arena, out_buf, ctx);
 }
 
-/** build_asm/typeck.o 导出 typeck_x_ast*；orchestration 期望 typeck_typeck_x_ast*（pipeline_x 链入时由其强符号覆盖）。 */
-__attribute__((weak)) int32_t typeck_x_ast(void *module, void *arena, void *ctx) {
-  (void)module;
-  (void)arena;
-  (void)ctx;
-  return -1;
-}
-
-__attribute__((weak)) int32_t typeck_x_ast_library(void *module, void *arena, void *ctx) {
-  (void)module;
-  (void)arena;
-  (void)ctx;
-  return -1;
-}
+/*
+ * typeck_x_ast / typeck_x_ast_library 的 weak stub 已删除。
+ *
+ * 【Why】Linux ELF 链接器选第一个 weak 定义；bridge.o 在 typeck_x.o 之前时，
+ * 链接器选了 bridge 的 stub（返回 -1），覆盖 typeck_x.o 的真正实现。
+ * typeck_x_link_alias.o 提供 typeck_typeck_x_ast 强符号转发 typeck_x_ast，
+ * 但 typeck_x_ast 解析到 bridge stub → typeck 失败 → XP001。
+ *
+ * 【Invariant】所有 strict link 路径都链入 typeck_x.o（通过 $ST_TYPECK_X_LINK
+ * 加入 $ST_SEED_PARSER_TCK），提供 typeck_x_ast / typeck_x_ast_library 真正实现。
+ * 不链入 typeck_x.o 的路径会链接失败，暴露配置问题而非掩盖为运行时 XP001。
+ */
+extern int32_t typeck_x_ast(void *module, void *arena, void *ctx);
+extern int32_t typeck_x_ast_library(void *module, void *arena, void *ctx);
 
 __attribute__((weak)) int32_t typeck_typeck_x_ast(void *module, void *arena, void *ctx) {
   return typeck_x_ast(module, arena, ctx);
