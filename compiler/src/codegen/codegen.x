@@ -6894,8 +6894,13 @@ function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, c
     ctx.current_codegen_prefix_mirror[px] = 0 as u8;
     ctx.current_codegen_prefix_len = px;
   }
+  /* dep 模块 const 也需 emit：dep 模块函数体通过 EXPR_VAR 裸名引用同模块 const，
+   * 故 const 定义亦以裸名 emit（与 EXPR_VAR 一致），不加 dep 前缀。
+   * 入口模块与 dep 模块均可能含非 const let → 生成 init_globals()；但 dep 模块
+   * 入口函数非 main，不会调用其 init_globals（仅入口模块 main 调用），故 dep 模块
+   * 若有 let 需后续另行处理（当前 freestanding gate dep 模块均纯 const，无此问题）。 */
   let call_init_globals: i32 = 0;
-  if (dep_index < 0 && module.num_top_level_lets > 0) {
+  if (module.num_top_level_lets > 0) {
     let ti: i32 = 0;
     while (ti < module.num_top_level_lets) {
       if (pipeline_module_top_level_let_is_const(module, ti) == 0) {
@@ -6923,8 +6928,9 @@ function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, c
       if (codegen_emit_module_struct_definitions(module, arena, out, &prefix_buf[0], prefix_len, ctx) != 0) {
         return -1;
       }
-      /* 入口模块顶层 let/const：与 C codegen 同步，生成 static [const] 变量与 init_globals() */
-      if (dep_index < 0 && module.num_top_level_lets > 0) {
+      /* 顶层 let/const（入口与 dep 模块均 emit）：dep 模块 const 以裸名 emit 供本模块
+       * 函数体 EXPR_VAR 裸名引用；入口模块 main 调用 init_globals()，dep 模块不调用。 */
+      if (module.num_top_level_lets > 0) {
         let ti: i32 = 0;
         while (ti < module.num_top_level_lets) {
           let is_const: i32 = pipeline_module_top_level_let_is_const(module, ti);

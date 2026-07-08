@@ -5422,7 +5422,7 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
   ((ctx)->current_codegen_prefix_len = (px));
  }
   int32_t call_init_globals = 0;
-  if (dep_index < 0 && (module)->num_top_level_lets > 0) {   int32_t ti = 0;
+  if ((module)->num_top_level_lets > 0) {   int32_t ti = 0;
   while (ti < (module)->num_top_level_lets) {
     if (pipeline_module_top_level_let_is_const(module, ti) == 0) {   (call_init_globals = (1));
   break;
@@ -5440,7 +5440,7 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
  }
   if (codegen_emit_module_struct_definitions(module, arena, out, (&((prefix_buf)[0])), prefix_len, ctx) != 0) {   return (-1);
  }
-  if (dep_index < 0 && (module)->num_top_level_lets > 0) {   int32_t ti = 0;
+  if ((module)->num_top_level_lets > 0) {   int32_t ti = 0;
   while (ti < (module)->num_top_level_lets) {
     int32_t is_const = pipeline_module_top_level_let_is_const(module, ti);
     int32_t name_len = pipeline_module_top_level_let_name_len(module, ti);
