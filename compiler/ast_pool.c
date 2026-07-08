@@ -1550,12 +1550,79 @@ int32_t pipeline_module_func_body_expr_ref_at(struct ast_Module *m, int32_t fi) 
 }
 
 /**
- * 嵌套 parse_block_into 会先递归子块并在父块首次 append 之前写入侧车池；
- * alloc 时快照的 *base 会与兄弟块相同，须在首次 append 该池条目时对齐到实际 abs 下标。
+ * 维持 per-block 池条目连续性的核心辅助函数（insert-and-shift 策略）。
+ *
+ * 【Why 逻辑根源】block_let_at / block_const_at 等 reader 用 `base + li` 索引全局池，假设
+ *   同一 block 的条目在池中物理连续。但嵌套 parse_block_into 递归会在父块首次 append 后、
+ *   后续 append 前向池尾 push 子块条目，破坏父块连续性；导致父块 `base + li` 读到子块条目
+ *   （数据错乱）或越界（SIGSEGV）。与 pipeline_block_stmt_order_insert_at 既有策略同源。
+ *
+ * 【Invariant 状态不变量】调用后，br 对应 block 的 `base .. base+num_before` 区间在池中物理连续，
+ *   且同 arena 内所有 block 的对应 base 字段被同步修正以维持各自的连续性。
+ *
+ * 【Asm/Perf 性能预期】无间隙时 O(1)（仅 push）；有间隙时 O(N+M) memmove（N=被搬移条目数，
+ *   M=同 arena block 数）。间隙仅在嵌套块交错追加时出现，属低频路径，热路径无影响。
+ *
+ * 参数：
+ *   a          — ASTArena
+ *   br         — 目标 block ref（1-based）
+ *   pool       — 目标侧车池（&sc->lets / &sc->consts / ...）
+ *   base_off   — block 内 base 字段的 offsetof 偏移（offsetof(struct ast_Block, let_base) 等）
+ *   num_before — 调用前 block 内该类条目的已有数量（b->num_lets 等）
+ * 返回：池中绝对下标（>=0）成功；-1 失败。调用方负责写入条目数据并递增 num_* 计数。
  */
-static void block_lazy_fix_sidecar_base(int32_t *base, int32_t num_before, int32_t abs_idx) {
-  if (num_before == 0)
-    *base = abs_idx;
+static int32_t block_pool_append_pos(struct ast_ASTArena *a, int32_t br, GrowVec *pool,
+                                     size_t base_off, int32_t num_before) {
+  struct ast_Block *b;
+  int32_t *base_field;
+  int32_t abs_pos;
+  if (!a || !pool || !(b = block_at(a, br)))
+    return -1;
+  base_field = (int32_t *)((uint8_t *)b + base_off);
+  if (num_before == 0) {
+    /* 首次追加：直接 push 到池尾并锚定 base；abs_pos 在尾后，不影响其他 block 的既有 base */
+    abs_pos = grow_vec_push(pool);
+    if (abs_pos < 0)
+      return -1;
+    *base_field = abs_pos;
+    return abs_pos;
+  }
+  /* 后续追加：期望位置 = base + num_before（维持连续性的物理位置） */
+  abs_pos = *base_field + num_before;
+  if (abs_pos >= pool->len) {
+    /* 无间隙：期望位置在池尾或超出，直接 push 即可，不破坏既有连续性 */
+    abs_pos = grow_vec_push(pool);
+    if (abs_pos < 0)
+      return -1;
+    return abs_pos;
+  }
+  /* 有间隙：abs_pos 处当前被嵌套块条目占据，须 insert-and-shift */
+  {
+    size_t esz;
+    int32_t move_count;
+    int32_t bi;
+    if (!grow_vec_ensure(pool))
+      return -1;
+    esz = pool->elem_sz;
+    move_count = pool->len - abs_pos;
+    if (move_count > 0) {
+      memmove(pool->data + (size_t)(abs_pos + 1) * esz,
+              pool->data + (size_t)abs_pos * esz,
+              (size_t)move_count * esz);
+    }
+    memset(pool->data + (size_t)abs_pos * esz, 0, esz);
+    pool->len++;
+    /* 修正同 arena 内所有 block 的同名字段：base >= abs_pos 者 +1（其条目被 memmove 推后一位） */
+    for (bi = 1; bi <= a->num_blocks; bi++) {
+      struct ast_Block *ob = block_at(a, bi);
+      if (ob && bi != br) {
+        int32_t *ob_field = (int32_t *)((uint8_t *)ob + base_off);
+        if (*ob_field >= abs_pos)
+          (*ob_field)++;
+      }
+    }
+  }
+  return abs_pos;
 }
 
 /** Block 池 append/read — const */
@@ -1567,10 +1634,9 @@ int32_t pipeline_block_append_const(struct ast_ASTArena *a, int32_t br, uint8_t 
   int32_t idx;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)))
     return -1;
-  idx = grow_vec_push(&sc->consts);
+  idx = block_pool_append_pos(a, br, &sc->consts, offsetof(struct ast_Block, const_base), b->num_consts);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->const_base, b->num_consts, idx);
   cd = (struct ast_ConstDecl *)grow_vec_at(&sc->consts, idx);
   memset(cd, 0, sizeof(*cd));
   if (name_len > 0 && name)
@@ -1592,10 +1658,9 @@ int32_t pipeline_block_append_let(struct ast_ASTArena *a, int32_t br, uint8_t *n
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)))
     return -1;
   dbg_append_block = getenv("SHUX_DEBUG_APPEND_BLOCK");
-  idx = grow_vec_push(&sc->lets);
+  idx = block_pool_append_pos(a, br, &sc->lets, offsetof(struct ast_Block, let_base), b->num_lets);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->let_base, b->num_lets, idx);
   ld = (struct ast_LetDecl *)grow_vec_at(&sc->lets, idx);
   memset(ld, 0, sizeof(*ld));
   if (name_len > 0 && name)
@@ -1621,10 +1686,9 @@ int32_t pipeline_block_append_if(struct ast_ASTArena *a, int32_t br, int32_t con
   int32_t idx;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)))
     return -1;
-  idx = grow_vec_push(&sc->ifs);
+  idx = block_pool_append_pos(a, br, &sc->ifs, offsetof(struct ast_Block, if_base), b->num_if_stmts);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->if_base, b->num_if_stmts, idx);
   is = (struct ast_IfStmt *)grow_vec_at(&sc->ifs, idx);
   is->cond_ref = cond_ref;
   is->then_body_ref = then_ref;
@@ -1642,10 +1706,9 @@ int32_t pipeline_block_append_region(struct ast_ASTArena *a, int32_t br, uint8_t
   int32_t idx;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)) || !label || label_len <= 0 || label_len > 63)
     return -1;
-  idx = grow_vec_push(&sc->regions);
+  idx = block_pool_append_pos(a, br, &sc->regions, offsetof(struct ast_Block, region_base), b->num_regions);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->region_base, b->num_regions, idx);
   rb = (RegionBlockEntry *)grow_vec_at(&sc->regions, idx);
   memset(rb, 0, sizeof(*rb));
   memcpy(rb->label, label, (size_t)label_len);
@@ -1667,10 +1730,9 @@ int32_t pipeline_block_append_with_arena(struct ast_ASTArena *a, int32_t br, int
   int32_t idx;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)) || cap_ref <= 0 || body_ref <= 0)
     return -1;
-  idx = grow_vec_push(&sc->regions);
+  idx = block_pool_append_pos(a, br, &sc->regions, offsetof(struct ast_Block, region_base), b->num_regions);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->region_base, b->num_regions, idx);
   rb = (RegionBlockEntry *)grow_vec_at(&sc->regions, idx);
   memset(rb, 0, sizeof(*rb));
   rb->with_arena_cap_ref = cap_ref;
@@ -1690,10 +1752,9 @@ int32_t pipeline_block_append_unsafe(struct ast_ASTArena *a, int32_t br, int32_t
   int32_t idx;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)) || body_ref <= 0)
     return -1;
-  idx = grow_vec_push(&sc->regions);
+  idx = block_pool_append_pos(a, br, &sc->regions, offsetof(struct ast_Block, region_base), b->num_regions);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->region_base, b->num_regions, idx);
   rb = (RegionBlockEntry *)grow_vec_at(&sc->regions, idx);
   memset(rb, 0, sizeof(*rb));
   rb->with_arena_cap_ref = -1;
@@ -1758,10 +1819,9 @@ int32_t pipeline_block_append_defer(struct ast_ASTArena *a, int32_t br, int32_t 
   int32_t *pr;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)) || body_ref <= 0)
     return -1;
-  idx = grow_vec_push(&sc->defer_block_refs);
+  idx = block_pool_append_pos(a, br, &sc->defer_block_refs, offsetof(struct ast_Block, defer_base), b->num_defers);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->defer_base, b->num_defers, idx);
   pr = (int32_t *)grow_vec_at(&sc->defer_block_refs, idx);
   *pr = body_ref;
   b->num_defers++;
@@ -1824,10 +1884,9 @@ int32_t pipeline_block_append_expr_stmt(struct ast_ASTArena *a, int32_t br, int3
   int32_t *pr;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)))
     return -1;
-  idx = grow_vec_push(&sc->expr_stmt_refs);
+  idx = block_pool_append_pos(a, br, &sc->expr_stmt_refs, offsetof(struct ast_Block, expr_stmt_base), b->num_expr_stmts);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->expr_stmt_base, b->num_expr_stmts, idx);
   pr = (int32_t *)grow_vec_at(&sc->expr_stmt_refs, idx);
   *pr = expr_ref;
   b->num_expr_stmts++;
@@ -1841,10 +1900,9 @@ int32_t pipeline_block_append_stmt_order(struct ast_ASTArena *a, int32_t br, uin
   int32_t idx;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)))
     return -1;
-  idx = grow_vec_push(&sc->stmt_order);
+  idx = block_pool_append_pos(a, br, &sc->stmt_order, offsetof(struct ast_Block, stmt_order_base), b->num_stmt_order);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->stmt_order_base, b->num_stmt_order, idx);
   so = (struct ast_StmtOrderItem *)grow_vec_at(&sc->stmt_order, idx);
   so->kind = kind;
   so->idx = idx_val;
@@ -1920,10 +1978,9 @@ int32_t pipeline_block_append_while(struct ast_ASTArena *a, int32_t br, int32_t 
   int32_t idx;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)))
     return -1;
-  idx = grow_vec_push(&sc->loops);
+  idx = block_pool_append_pos(a, br, &sc->loops, offsetof(struct ast_Block, loop_base), b->num_loops);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->loop_base, b->num_loops, idx);
   wl = (struct ast_WhileLoop *)grow_vec_at(&sc->loops, idx);
   if (!wl)
     return -1;
@@ -1946,10 +2003,9 @@ int32_t pipeline_block_append_for(struct ast_ASTArena *a, int32_t br, int32_t in
   int32_t idx;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)))
     return -1;
-  idx = grow_vec_push(&sc->for_loops);
+  idx = block_pool_append_pos(a, br, &sc->for_loops, offsetof(struct ast_Block, for_loop_base), b->num_for_loops);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->for_loop_base, b->num_for_loops, idx);
   fl = (struct ast_ForLoop *)grow_vec_at(&sc->for_loops, idx);
   if (!fl)
     return -1;
@@ -2000,10 +2056,9 @@ int32_t pipeline_block_append_labeled(struct ast_ASTArena *a, int32_t br, int32_
   int32_t idx;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = block_at(a, br)))
     return -1;
-  idx = grow_vec_push(&sc->labeled_stmts);
+  idx = block_pool_append_pos(a, br, &sc->labeled_stmts, offsetof(struct ast_Block, labeled_base), b->num_labeled_stmts);
   if (idx < 0)
     return -1;
-  block_lazy_fix_sidecar_base(&b->labeled_base, b->num_labeled_stmts, idx);
   ls = (struct ast_LabeledStmt *)grow_vec_at(&sc->labeled_stmts, idx);
   if (!ls)
     return -1;
