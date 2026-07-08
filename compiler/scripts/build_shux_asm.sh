@@ -4146,6 +4146,7 @@ shux_asm_bstrict_relink_runtime_only() {
     $ST_PARSER_LINK \
     $ST_RUNTIME_PARTIAL \
     "$BUILD_DIR/std_fs_shim.o" \
+    $ST_PARSER_X_TAIL \
     $ST_BRIDGE_OBJ \
     "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
     $ST_TYPECK_LSP_STUB \
@@ -4163,7 +4164,6 @@ shux_asm_bstrict_relink_runtime_only() {
     $ST_RUNTIME_EXTRA \
     $ST_LAYOUT_PARTIAL \
     $ST_PIPELINE_ALIAS \
-    $ST_PARSER_X_TAIL \
     $ST_TYPECK_X_TAIL \
     $BOOT_DRIVER_TAIL 2>"$BUILD_DIR/.asm_strict_relink_only_err"
   ST_RC=$?
