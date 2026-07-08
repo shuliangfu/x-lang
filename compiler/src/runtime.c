@@ -1116,6 +1116,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
     int use_lto = 0;       /* -flto：传 -flto 给 cc，发布/性能构建时建议（2.3） */
     int emit_c_only = 0;  /* -E：仅生成 C 到 stdout，不调用 cc */
     int emit_extern_imports = 0;  /* 阶段 3.1：-E-extern 时仅展开入口，import 用 extern，生成瘦 C */
+    const char *lib_name_override = NULL;  /* -lib-name：覆盖 lib_prefix（F 闭合：impl .x 编译为裸符号用空串）*/
     #ifdef SHUX_USE_X_PIPELINE
     /* 【Why 根源】默认走 C 前端（use_x_pipeline=0），避免 .x pipeline 的 ASM 后端在
      * Darwin/ARM64 上失效（asm_backend_partial.o 为 fallback 弱桩，code_len=0）。
@@ -1166,6 +1167,15 @@ int RUN_CC_FUNC(int argc, char **argv) {
         } else if (strcmp(argv[i], "-E-extern") == 0) {
             emit_c_only = 1;
             emit_extern_imports = 1;
+        } else if (strcmp(argv[i], "-lib-name") == 0) {
+            /* F 闭合：覆盖 lib_prefix。传空串使 impl .x 函数编译为裸符号（匹配 mod.x 的 extern 调用）。 */
+            if (i + 1 >= argc) {
+                diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-lib-name requires an argument", NULL);
+                runtime_diag_cli_usage_note(argv[0]);
+                return 1;
+            }
+            lib_name_override = argv[i + 1];
+            i++;
         } else if (strcmp(argv[i], "-D") == 0) {
             if (i + 1 >= argc) {
                 diag_report_with_code(NULL, 0, 0, "argument error", SHUX_DIAG_CODE_ARGUMENT_ARG001, "-D requires an argument", NULL);
@@ -1997,7 +2007,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             }
             if (ec == 0) {
                 /* 阶段 3 -E-extern：入口一律按库模块输出（带 lib 前缀），避免 main 与 main.o 冲突、且仅 extern 依赖不内联。 */
-                const char *lib_name = shux_entry_lib_name_from_path(input_path);
+                const char *lib_name = lib_name_override ? lib_name_override : shux_entry_lib_name_from_path(input_path);
                 if (mod->num_funcs > 0) {
 #if defined(SHUX_USE_X_CODEGEN) && !defined(SHUX_USE_X_PIPELINE)
                     ec = codegen_codegen_entry_library_module_to_c(mod, lib_name, dep_mods, (const char **)mod->import_paths, ndep, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, emitted_type_buf, &n_emitted, max_emitted);
@@ -2025,7 +2035,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 ec = codegen_module_to_c(mod, stdout, NULL, NULL, 0, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0);
 #endif
             } else if (mod->num_funcs > 0) {
-                const char *lib_name = shux_entry_lib_name_from_path(input_path);
+                const char *lib_name = lib_name_override ? lib_name_override : shux_entry_lib_name_from_path(input_path);
 #if defined(SHUX_USE_X_CODEGEN) && !defined(SHUX_USE_X_PIPELINE)
                 ec = codegen_codegen_entry_library_module_to_c(mod, lib_name, NULL, NULL, 0, stdout, dce_is_func_used, dce_is_mono_used, dce_is_type_used, dce_ctx_arg, NULL, NULL, 0);
 #else
@@ -2082,7 +2092,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
                 codegen_emit_fmt_json_helpers_once(cf_lib);
                 codegen_emit_builtin_inline_decls(cf_lib);
                 {
-                    const char *lib_name = shux_entry_lib_name_from_path(input_path);
+                    const char *lib_name = lib_name_override ? lib_name_override : shux_entry_lib_name_from_path(input_path);
                     if (codegen_library_module_to_c(mod, lib_name, ndep > 0 ? dep_mods : NULL,
                             ndep > 0 ? (const char **)mod->import_paths : NULL, ndep,
                             cf_lib, NULL, NULL, NULL, NULL, NULL, NULL, 0, input_path) != 0) {
@@ -2383,7 +2393,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
         const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
         const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
-        const char *heap_o = NULL; /* F-06 v1：纯 .x，按需 -lc */
+        const char *heap_o = shux_rel_o_path_from_argv0(argv[0], "std/heap/heap.o");
         const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
         const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
         const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);
@@ -2806,7 +2816,7 @@ int run_compiler_x_path(int argc, char **argv) {
             const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
             const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
             const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
-            const char *heap_o = NULL; /* F-06 v1：纯 .x，按需 -lc */
+            const char *heap_o = shux_rel_o_path_from_argv0(argv[0], "std/heap/heap.o");
             const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
             const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
             const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);
@@ -4498,7 +4508,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                     codegen_emit_fmt_json_helpers_once(cf_lib);
                     codegen_emit_builtin_inline_decls(cf_lib);
                     {
-                        const char *lib_name = shux_entry_lib_name_from_path(input_path);
+                        const char *lib_name = lib_name_override ? lib_name_override : shux_entry_lib_name_from_path(input_path);
                         if (codegen_library_module_to_c(c_mod, lib_name, ndep > 0 ? dep_mods : NULL,
                                 ndep > 0 ? (const char **)c_mod->import_paths : NULL, ndep,
                                 cf_lib, NULL, NULL, NULL, NULL, NULL, NULL, 0, input_path) != 0) {
@@ -4692,7 +4702,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
                 const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
                 const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
-                const char *heap_o = NULL; /* F-06 v1：纯 .x，按需 -lc */
+                const char *heap_o = shux_rel_o_path_from_argv0(argv[0], "std/heap/heap.o");
                 const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
                 const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
                 const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);
@@ -5144,7 +5154,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
             const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
             const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
-            const char *heap_o = NULL; /* F-06 v1：纯 .x，按需 -lc */
+            const char *heap_o = shux_rel_o_path_from_argv0(argv[0], "std/heap/heap.o");
             const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
             const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
             const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);
@@ -6245,7 +6255,7 @@ static int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
             ec = -1;
     }
     if (ec == 0) {
-        const char *lib_name = shux_entry_lib_name_from_path(input_path);
+        const char *lib_name = lib_name_override ? lib_name_override : shux_entry_lib_name_from_path(input_path);
         if (mod->num_funcs > 0) {
             ec = codegen_library_module_to_c(mod, lib_name, dep_mods, (const char **)mod->import_paths, ndep, stdout,
                 NULL, NULL, NULL, NULL, emitted_type_buf, &n_emitted, max_emitted, input_path);

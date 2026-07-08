@@ -3491,6 +3491,8 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, tar_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, simd_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, context_o);
+        /* F-闭合：error.o 提供 std_error_http_err_cancelled/timeout 等，http.o 依赖 */
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "std/error/error.o"));
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, datetime_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, uuid_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, url_o);
@@ -3981,16 +3983,42 @@ static int link_abi_user_o_needs_std_set(const char *user_o) {
 }
 
 /**
- * 判断用户 .o 是否引用 std.heap import 符号（按需链 heap.o bootstrap 桩）。
+ * 判断用户 .o 或已入链 argv 中的 std/*.o 是否引用 std.heap API（按需链 heap.o）。
+ * 【Why 根源】F-闭合删除 *_import_alias.c C 桩后，std/http.o、std/string.o 等内部
+ * 直接引用 std_heap_alloc_usize / std_heap_libc_heap_arena64_alloc_c 等内部 API，
+ * 不再经过 C 桩内联。shux_invoke_cc 必须递归扫描已入链的 std/*.o 的 undefined 符号，
+ * 否则 hello 等最小用户程序的 user.o 本身不引用 heap API，heap.o 不会被推入 → 链接失败。
+ * 【Invariant】调用点必须在 string.o/http.o/crypto.o 等已入链之后；argv 须反映当前已推入的 .o。
+ * 【Asm/Perf】nm -u 子进程调用 O(n×m)，n=argv 中 .o 数，m=符号数；仅在链接期触发一次，可接受。
  */
-static int link_abi_user_o_needs_std_heap_import(const char *user_o) {
-    if (!user_o || !user_o[0])
+static int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la) {
+    static const char *heap_api_syms[] = {
+        "std_heap_alloc_i32", "std_heap_alloc_u8",
+        "std_heap_free_i32", "std_heap_free_u8",
+        "std_heap_alloc_size_zero",
+        /* F-闭合新增：-E-extern 编译后 std/http.o、std/string.o 引用的内部 API */
+        "std_heap_alloc_usize", "std_heap_free_u8_ptr",
+        "std_heap_libc_heap_arena64_alloc_c", "std_heap_libc_heap_alloc_c",
+        "std_heap_libc_heap_free_c", "std_heap_libc_heap_alloc_aligned_c",
+    };
+    size_t si;
+    int i;
+    if (user_o && user_o[0]) {
+        for (si = 0; si < sizeof(heap_api_syms) / sizeof(heap_api_syms[0]); si++)
+            if (shux_link_obj_needs_undef_sym(user_o, heap_api_syms[si]))
+                return 1;
+    }
+    if (!argv || la <= 0)
         return 0;
-    return shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_i32")
-        || shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_u8")
-        || shux_link_obj_needs_undef_sym(user_o, "std_heap_free_i32")
-        || shux_link_obj_needs_undef_sym(user_o, "std_heap_free_u8")
-        || shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_size_zero");
+    for (i = 0; i < la && argv[i]; i++) {
+        if (!link_abi_ld_argv_entry_is_obj(argv[i]))
+            continue;
+        for (si = 0; si < sizeof(heap_api_syms) / sizeof(heap_api_syms[0]); si++) {
+            if (shux_link_obj_needs_undef_sym(argv[i], heap_api_syms[si]))
+                return 1;
+        }
+    }
+    return 0;
 }
 
 /**
@@ -4355,6 +4383,7 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/tar/tar.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/simd/simd.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/context/context.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/error/error.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/datetime/datetime.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/uuid/uuid.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     link_abi_asm_ld_push_obj(NULL, link_argv0, "std/url/url.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
@@ -4434,12 +4463,12 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
                 "compiler/runtime_net_workers.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
         }
     }
-    if (link_abi_user_o_needs_std_heap_import(user_o)) {
+    if (link_abi_link_needs_std_heap_import(user_o, argv, la ? *la : 0)) {
         link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
     if (link_abi_user_o_needs_std_set(user_o)) {
         link_abi_asm_ld_push_obj(NULL, link_argv0, "std/set/set.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-        if (!link_abi_user_o_needs_std_heap_import(user_o)) {
+        if (!link_abi_link_needs_std_heap_import(user_o, argv, la ? *la : 0)) {
             link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
     }

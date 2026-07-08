@@ -1592,8 +1592,10 @@ static void c_type_to_buf(const struct ASTType *ty, char *buf, size_t size) {
                         }
                 }
             }
-            /* 库模块：本模块内的 enum 须用 "enum prefix_Name" 以便与库 .c 中定义一致 */
-            if (codegen_library_prefix && *codegen_library_prefix && codegen_library_module && codegen_library_module->enum_defs) {
+            /* 库模块：本模块内的 enum 须用 "enum prefix_Name" 以便与库 .c 中定义一致。
+             * 【F 闭合】-lib-name "" 时 codegen_library_prefix 为空串（非 NULL）：仍须识别本模块 enum，
+             * 输出 "enum Name"（无前缀），否则 fallback 输出裸名导致 C 编译失败。 */
+            if (codegen_library_prefix && codegen_library_module && codegen_library_module->enum_defs) {
                 for (int i = 0; i < codegen_library_module->num_enums; i++)
                     if (codegen_library_module->enum_defs[i]->name && strcmp(codegen_library_module->enum_defs[i]->name, n) == 0) {
                         snprintf(buf, size, "enum %s%s", codegen_library_prefix, n);
@@ -1601,7 +1603,8 @@ static void c_type_to_buf(const struct ASTType *ty, char *buf, size_t size) {
                     }
             }
             int is_struct_in_lib = 0;
-            if (codegen_library_prefix && *codegen_library_prefix && codegen_library_module && codegen_library_module->struct_defs) {
+            /* 【F 闭合】同上：空串前缀仍须识别本模块 struct，输出 "struct Name"。 */
+            if (codegen_library_prefix && codegen_library_module && codegen_library_module->struct_defs) {
                 for (int i = 0; i < codegen_library_module->num_structs; i++)
                     if (codegen_library_module->struct_defs[i]->name && strcmp(codegen_library_module->struct_defs[i]->name, n) == 0) {
                         is_struct_in_lib = 1;
@@ -8809,7 +8812,8 @@ int codegen_library_module_to_c(struct ASTModule *m, const char *import_path,
         for (const char *s = import_path; *s && off + 2 < sizeof(lib_prefix_buf); s++)
             lib_prefix_buf[off++] = (*s == '.') ? '_' : *s;
     }
-    if (off + 1 < sizeof(lib_prefix_buf)) lib_prefix_buf[off++] = '_';
+    /* F 闭合：-lib-name "" 时 off==0，不加尾随 _，使函数符号为裸名（匹配 mod.x 的 extern 调用）。 */
+    if (off > 0 && off + 1 < sizeof(lib_prefix_buf)) lib_prefix_buf[off++] = '_';
     lib_prefix_buf[off] = '\0';
     codegen_library_prefix = lib_prefix_buf;
     codegen_library_module = m;

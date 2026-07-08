@@ -324,11 +324,4 @@ int32_t crypto_block16_fill_c(int32_t used) {
   return 16 - (used & 15);
 }
 
-/** 【Why 根源】core.x 编译时符号被加上 core_ 前缀（如 core_crypto_mem_eq_c），
- * 但 mod.x 中的 extern 声明期望不带前缀的符号（crypto_mem_eq_c）。
- * 此处添加包装函数，将 core_ 前缀符号重导出为无前缀符号。 */
-extern int32_t core_crypto_mem_eq_c(uint8_t *a, uint8_t *b, int32_t len);
-
-int32_t crypto_mem_eq_c(uint8_t *a, uint8_t *b, int32_t len) {
-  return core_crypto_mem_eq_c(a, b, len);
-}
+/* F-闭合：crypto_mem_eq_c 由 core.x --bare-impl 直接产出裸符号，无需 C 桥桩重导出。 */
