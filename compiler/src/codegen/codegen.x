@@ -3904,6 +3904,9 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
                   k = k + 1;
                 }
                 if (eq && pipeline_dep_ctx_import_path_len(ctx, j) > 0) {
+                  /* 【Why extern 裸名】dep 池匹配到 extern function 时，调用站点须用裸名，
+     与 emit_func_extern_declaration 声明符号一致，否则链接器找不到符号。 */
+                  let callee_is_extern: i32 = pipeline_module_func_is_extern_at(dep_mod, fi);
                   let dep_path_call: u8[64] = [];
                   pipeline_dep_ctx_import_path_copy64(ctx, j, &dep_path_call[0]);
                   let pre_buf: u8[128] = [];
@@ -3911,6 +3914,9 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
                   let pre_len: i32 = 0;
                   while (pre_len < 128 && pre_buf[pre_len] != 0) {
                     pre_len = pre_len + 1;
+                  }
+                  if (callee_is_extern != 0) {
+                    pre_len = 0;
                   }
                   let drv_buf_call: i32 = 0;
                   if (codegen_path_is_std_io_driver_bytes(&dep_path_call[0]) != 0) {
@@ -4062,6 +4068,10 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
                 let pl: i32 = 0;
                 while (pl < 128 && cur_pre[pl] != 0) {
                   pl = pl + 1;
+                }
+                /* 【Why extern 裸名】同模块 extern function 调用也须用裸名，与声明符号一致 */
+                if (pipeline_module_func_is_extern_at(cur_mod, fi) != 0) {
+                  pl = 0;
                 }
                 if (pl > 0 && codegen_c_prefix_redundant_with_name(&cur_pre[0], pl, callee2.var_name, callee2.var_name_len) == 0 && emit_bytes_from_ptr(out, &cur_pre[0], pl) != 0) {
                   return -1;
@@ -6622,7 +6632,15 @@ function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutBuf, mod
     return -1;
   }
   /* 声明阶段不把库符号写成特殊入口名 main（与对本模块函数的 CALL 前缀规则一致）。 */
-  if (prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, prefix_len, &fn_local[0], fn_len) == 0 && emit_bytes_from_ptr(out, prefix, prefix_len) != 0) {
+  /* 【Why extern 裸名】extern function 符号由外部链接库提供（如 freestanding_io_x86_64.s），
+     须用裸名（shux_sys_mmap），不加 dep 前缀（std_sys_linux_shux_sys_mmap 会导致链接失败）。
+     类型 emit 仍用 prefix_len 以支持 dep 模块自定义类型参数。
+     【Invariant】name_prefix_len 仅影响函数名 emit，不影响返回类型/参数类型的 prefix 传递。 */
+  let name_prefix_len: i32 = prefix_len;
+  if (pipeline_module_func_is_extern_at(module, fi) != 0) {
+    name_prefix_len = 0;
+  }
+  if (name_prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, name_prefix_len, &fn_local[0], fn_len) == 0 && emit_bytes_from_ptr(out, prefix, name_prefix_len) != 0) {
     return -1;
   }
   /* 重载函数 mangle：与 emit_func 定义端一致，避免 extern 声明同名冲突（conflicting types）。 */
