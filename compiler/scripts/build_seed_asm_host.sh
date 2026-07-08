@@ -499,7 +499,12 @@ if seed_partial_needs_regen; then
       build_seed_asm_host_warn "cc asm_full_gen.c 失败，沿用已有 $BACKEND_PARTIAL"
       exit 0
     fi
-    build_seed_asm_host_error "cc asm_full_gen.c 失败且无已有 $BACKEND_PARTIAL"
+    build_seed_asm_host_warn "cc asm_full_gen.c 失败且无已有 $BACKEND_PARTIAL，尝试 source fallback ..."
+    if build_backend_partial_from_c_fallback; then
+      build_seed_asm_host_info "source fallback partial 创建成功 ($BACKEND_PARTIAL)"
+      exit 0
+    fi
+    build_seed_asm_host_error "cc asm_full_gen.c 失败且 source fallback 也失败"
     exit 1
   fi
   build_seed_asm_host_info "[$(date +%H:%M:%S)] cc OK ($(( $(date +%s) - _t0 ))s, $(wc -c <"$ASM_FULL_O" | tr -d ' ') bytes -> $ASM_FULL_O)"
