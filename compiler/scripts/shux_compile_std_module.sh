@@ -47,6 +47,18 @@ fi
 tmp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t shuxmod)
 trap 'rm -rf "$tmp_dir" 2>/dev/null || true' EXIT INT TERM
 
+# 【Why 根源】旧 seed（bootstrap_shuxc）不支持 -lib-name flag（ treats it as a file path,
+# outputs "io error: cannot read file '-lib-name'" and exits 0）。但其无前缀逻辑也产出裸符号
+# （函数名本身已含 module_ 前缀），故不加 -lib-name 即可匹配 mod.x 的 extern 调用。
+# 新编译器需 -lib-name "" 抑制 shux_entry_lib_name_from_path 的路径前缀，否则符号被双重前缀化。
+LIB_NAME_SUPPORTED=0
+probe_x="$tmp_dir/probe.x"
+probe_c="$tmp_dir/probe.c"
+printf 'function probe_fn(): i32 { return 0; }\n' > "$probe_x"
+if "$SHUX_BIN" -E-extern -lib-name "" "$probe_x" > "$probe_c" 2>/dev/null && grep -q 'probe_fn' "$probe_c"; then
+  LIB_NAME_SUPPORTED=1
+fi
+
 obj_files=""
 idx=0
 for x_path in "$@"; do
@@ -68,10 +80,20 @@ for x_path in "$@"; do
     fi
   else
     if [ "$BARE_IMPL" = "1" ]; then
-      if ! "$SHUX_BIN" -E-extern -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-        echo "shux_compile_std_module.sh: shux-c -E-extern -lib-name failed for $x_path" >&2
-        cat "$tmp_dir/shuxc_${idx}.log" >&2
-        exit 1
+      # 【Why 根源】-lib-name "" 让新编译器产出裸符号（匹配 mod.x 的 extern 调用）。
+      # 旧 seed 不支持 -lib-name 但其无前缀逻辑也产出裸符号，故 LIB_NAME_SUPPORTED=0 时不加。
+      if [ "$LIB_NAME_SUPPORTED" = "1" ]; then
+        if ! "$SHUX_BIN" -E-extern -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+          echo "shux_compile_std_module.sh: shux-c -E-extern -lib-name failed for $x_path" >&2
+          cat "$tmp_dir/shuxc_${idx}.log" >&2
+          exit 1
+        fi
+      else
+        if ! "$SHUX_BIN" -E-extern -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+          echo "shux_compile_std_module.sh: shux-c -E-extern failed for $x_path" >&2
+          cat "$tmp_dir/shuxc_${idx}.log" >&2
+          exit 1
+        fi
       fi
     else
       if ! "$SHUX_BIN" -E-extern -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
