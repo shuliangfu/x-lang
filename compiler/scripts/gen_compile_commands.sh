@@ -80,7 +80,7 @@ entries = [
     ("src/typeck/typeck.c", base),
     ("src/codegen/codegen.c", base),
     ("src/lexer/lexer.c", base),
-    ("src/ast/ast.c", base),
+    ("src/asm/runtime_ast_glue.c", base),
     ("src/preprocess.c", base),
     ("src/lsp/lsp_diag.c", base),
     ("src/main_driver.c", driver_flags),
