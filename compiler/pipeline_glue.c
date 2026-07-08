@@ -13693,6 +13693,30 @@ static int32_t pipeline_asm_cmp_enum_rhs_tag_c(struct ast_ASTArena *arena, int32
   return tag;
 }
 
+/**
+ * 判断 TypeKind 是否为 64-bit 整数/指针类型（需 64-bit cmpq）。
+ * TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7, TYPE_PTR=9。
+ */
+static int32_t glue_type_kind_is_64bit_int(int32_t kind) {
+  return kind == 4 || kind == 5 || kind == 6 || kind == 7 || kind == 9;
+}
+
+/**
+ * 【Why】x86_64 的 enc_cmp_rbx_rax 硬编码 32-bit cmpl（39 C3），i64/u64/usize/isize/ptr
+ *        比较时高 32 位被截断，导致 mmap 返回地址等 64-bit 值的 <= 比较误判为负。
+ *        修复：64-bit 比较前发射 REX.W 前缀（0x48），使 cmpl 升级为 cmpq。
+ * 【Invariant】仅在 ta==0（x86_64）且 is_64bit 时发射 1 字节 0x48；其他架构 no-op。
+ *              REX.W 必须紧贴 cmp 指令前，中间不得插入其他字节。
+ * 【Asm/Perf】48 39 C3 = cmpq %rax, %rbx（64-bit 比较，置标志位供后续 setcc 用）。
+ */
+static int32_t glue_emit_rex_w_if_64bit(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t is_64bit, int32_t ta) {
+  if (is_64bit && ta == 0) {
+    uint8_t rex_w[1] = { 0x48 };
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, rex_w, 1);
+  }
+  return 0;
+}
+
 int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                   int32_t cmp_expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t right_ref;
@@ -13701,6 +13725,9 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
   int32_t cc;
   int32_t enum_tag;
   int32_t cmp_ko;
+  int32_t is_cmp_64bit;
+  int32_t lt_ref;
+  int32_t lt_kind;
   struct ast_Expr *e;
   if (!arena || cmp_expr_ref <= 0)
     return -1;
@@ -13710,6 +13737,19 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
   cmp_ko = pipeline_expr_kind_ord_at(arena, cmp_expr_ref);
   left_ref = pipeline_expr_binop_left_ref_at(arena, cmp_expr_ref);
   right_ref = pipeline_expr_binop_right_ref_at(arena, cmp_expr_ref);
+  /* 获取左操作数类型判断是否 64-bit 比较（i64/u64/usize/isize/ptr），
+   * 64-bit 时 x86_64 需 REX.W 前缀将 cmpl 升级为 cmpq，避免高 32 位截断。 */
+  is_cmp_64bit = 0;
+  if (left_ref > 0) {
+    struct ast_Expr *le = pipeline_arena_expr_ptr(arena, left_ref);
+    if (le) {
+      lt_ref = le->resolved_type_ref;
+      if (lt_ref > 0) {
+        lt_kind = pipeline_type_kind_ord_at(arena, lt_ref);
+        is_cmp_64bit = glue_type_kind_is_64bit_int(lt_kind);
+      }
+    }
+  }
   /**
    * CALL 与字面量 0 比较（while/if 内 pipeline_loop_* / sync_one 等）：
    * 勿 mov rax→rbx + imm 0 cmp（CALL 后 tear/patch 易失败）；test eax + setcc 归一化 bool。
@@ -13727,6 +13767,8 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
       return -1;
     cc = pipeline_asm_cmp_cc_for_expr_kind_ord(cmp_ko);
     if (cc < 0)
+      return -1;
+    if (glue_emit_rex_w_if_64bit(elf_ctx, is_cmp_64bit, ta) != 0)
       return -1;
     if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
       return -1;
@@ -13746,6 +13788,8 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
     cc = pipeline_asm_cmp_cc_for_expr_kind_ord(pipeline_expr_kind_ord_at(arena, cmp_expr_ref));
     if (cc < 0)
       return -1;
+    if (glue_emit_rex_w_if_64bit(elf_ctx, is_cmp_64bit, ta) != 0)
+      return -1;
     if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
       return -1;
     return backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
@@ -13762,6 +13806,8 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
         return -1;
       if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, lit_imm, ta) != 0)
         return -1;
+      if (glue_emit_rex_w_if_64bit(elf_ctx, is_cmp_64bit, ta) != 0)
+        return -1;
       if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
         return -1;
       return backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
@@ -13776,6 +13822,8 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
       return -1;
     cc = pipeline_asm_cmp_cc_for_expr_kind_ord(pipeline_expr_kind_ord_at(arena, cmp_expr_ref));
     if (cc < 0)
+      return -1;
+    if (glue_emit_rex_w_if_64bit(elf_ctx, is_cmp_64bit, ta) != 0)
       return -1;
     if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
       return -1;
@@ -13801,6 +13849,8 @@ int32_t pipeline_asm_emit_cmp_elf(struct ast_ASTArena *arena, struct platform_el
   }
   cc = pipeline_asm_cmp_cc_for_expr_kind_ord(pipeline_expr_kind_ord_at(arena, cmp_expr_ref));
   if (cc < 0)
+    return -1;
+  if (glue_emit_rex_w_if_64bit(elf_ctx, is_cmp_64bit, ta) != 0)
     return -1;
   if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
     return -1;
