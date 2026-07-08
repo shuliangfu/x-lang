@@ -1442,12 +1442,13 @@ DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/codegen/c
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 else
-# 默认：seed-compat（runtime_driver + C ast/lexer + async + C parse/typeck/codegen 薄桥；匹配 seeds/bootstrap_shuxc.*）。
-DRIVER_SEED_RUNTIME_O = src/runtime_driver.o
-DRIVER_SEED_FRONTEND_EXTRA = src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/codegen/autovec.o
-DRIVER_SEED_SUPPORT_EXTRA = src/async/async_liveness.o src/async/async_cps_codegen.o src/runtime_c_import.o src/preprocess.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o src/lsp/lsp_heap_bootstrap.o
+# G-02a：默认 no_c 模式（X pipeline 自洽；C 前端 API weak stubs 满足链接但不调用）。
+# 2026-07-08：从 seed-compat 切换到 no_c；macOS arm64 check ✅、compile 走 -E+cc fallback ✅；Linux x86_64 全绿。
+DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
+DRIVER_SEED_FRONTEND_EXTRA =
+DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o src/lsp/lsp_heap_bootstrap.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
-DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver.o src/async/async_cps_codegen.o
+DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 endif
 # pipeline_glue_standalone 与 pipeline_x.o 重复时 glue 置链接末尾且允许多定义（覆盖 pipeline_gen 快照内旧 glue）。
 ASM_GLUE_STANDALONE_O = build_asm/pipeline_glue_standalone.o
@@ -1477,8 +1478,9 @@ else ifeq ($(SHUX_NO_C_SEED_LINK),1)
 LEXER_LINK_O =
 AST_LINK_O =
 else
-LEXER_LINK_O = src/lexer/lexer.o
-AST_LINK_O = src/ast/ast_seed.o
+# G-02a：默认 no_c 模式；不链 C lexer/ast（X pipeline 自洽）。
+LEXER_LINK_O =
+AST_LINK_O =
 endif
 # E-04 v19/v20：Linux / Darwin bootstrap 默认 crt0 替代 main_driver.o（driver_x.o 导出 main_entry）。
 # SHUX_LEGACY_MAIN_C=1 或非 crt0 平台仍链 main_driver.o（main.c 薄桩 → shux_forward_main_to_main_entry）。
