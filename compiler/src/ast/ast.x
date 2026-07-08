@@ -312,6 +312,10 @@ struct Func {
   is_no_mangle: i32;
   /** A1：#[interrupt] 中断处理（C 编译器自动 push/pop + iret） */
   is_interrupt: i32;
+  /** ABI 标记：0=X ABI（默认，SHUX-to-SHUX 调用，不需要 unsafe）；1=C ABI（FFI，需 unsafe 调用）。
+   * 语法：`extern function f()` → abi_kind=0（默认 X）；`extern "C" function f()` → abi_kind=1。
+   * P0a 阶段语义降级：typeck/codegen 统一按 C ABI 生成，不改变行为；P1 激活 X ABI 契约验证。 */
+  abi_kind: i32;
 }
 
 /** 结构体布局（用于 typeck 填 field_access_offset / 字段类型）：名称 + field_base/num_fields；字段名/偏移/类型在 C sidecar grow 池。 */

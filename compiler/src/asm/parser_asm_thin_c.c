@@ -102,6 +102,7 @@ struct parser_asm_extern_parse_result {
   int32_t name_len;
   int32_t return_ty_ref;
   int32_t num_params;
+  int32_t abi_kind; /**< ABI 标记：0=X ABI（默认），1=C ABI（extern "C"） */
 };
 
 /** 与 ast.x Func 布局一致（parse_one_extern_and_add C 路径写 arena）。 */
@@ -116,6 +117,12 @@ struct ast_Func {
   int32_t body_expr_ref;
   int32_t is_extern;
   int32_t is_async;
+  int32_t is_used;
+  int32_t is_naked;
+  int32_t is_entry;
+  int32_t is_no_mangle;
+  int32_t is_interrupt;
+  int32_t abi_kind; /**< ABI 标记：0=X ABI（默认），1=C ABI（extern "C"） */
 };
 
 /** 与 parser_gen parser_OneFuncResult 布局一致（wire/parse_one_function_impl ABI）。 */
@@ -11242,6 +11249,7 @@ static void parser_asm_extern_parse_set_fail_c(struct parser_asm_extern_parse_re
   out->name_len = -1;
   out->return_ty_ref = 0;
   out->num_params = 0;
+  out->abi_kind = 0;
 }
 
 /**
@@ -11271,13 +11279,31 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
   }
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_extern_fn_audit_c(lex, source));
   ast_pool_onefunc_reset((uint8_t *)out);
+  out->abi_kind = 0; /* 默认 X ABI；extern "C" 时在下方设为 1 */
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_EXTERN) {
     parser_asm_extern_parse_set_fail_c(out, lex);
     return;
   }
   parser_asm_lex_from_result_val_into(&lex, r);
+  /* P0a: 可选 ABI 标记 — extern "C" function ... / extern "X" function ...
+   * 默认（无标记）= X ABI（abi_kind=0）；"C" = C ABI（abi_kind=1，需 unsafe 调用）。
+   * 语义降级：P0a 阶段 typeck/codegen 统一按 C ABI 生成，不改变行为。 */
   lexer_next_into(&r, lex, source);
+  if (r.tok.kind == (int32_t)TOKEN_STRING) {
+    uint8_t *abi_str = source->data + r.token_start;
+    int32_t abi_len = r.tok.ident_len;
+    if (abi_len == 1 && abi_str[0] == 'C') {
+      out->abi_kind = 1; /* C ABI */
+    } else if (abi_len == 1 && abi_str[0] == 'X') {
+      out->abi_kind = 0; /* X ABI（显式标记，与默认一致） */
+    } else {
+      parser_asm_extern_parse_set_fail_c(out, lex);
+      return;
+    }
+    parser_asm_lex_from_result_val_into(&lex, r);
+    lexer_next_into(&r, lex, source);
+  }
   if (r.tok.kind != (int32_t)TOKEN_FUNCTION) {
     parser_asm_extern_parse_set_fail_c(out, lex);
     return;
@@ -11437,6 +11463,7 @@ void parser_asm_parse_one_extern_and_add_into_slice_c(void *arena, void *module,
   f.body_expr_ref = 0;
   f.is_extern = 1;
   f.is_async = 0;
+  f.abi_kind = res.abi_kind;
   ast_arena_func_set(arena, func_ref, f);
   fi_ex = parser_asm_module_register_arena_func_c(module, func_ref, f);
   if (fi_ex < 0) {

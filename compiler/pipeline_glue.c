@@ -348,6 +348,7 @@ typedef struct {
   int32_t name_len;
   int32_t return_ty_ref;
   int32_t num_params;
+  int32_t abi_kind; /**< ABI 标记：0=X ABI（默认），1=C ABI（extern "C"） */
 } pipeline_glue_ExternParseResult;
 
 /** *ExternParseResult.next_lex → *Lexer；parse_one_extern_and_add_into X emit 勿写 lex_out.pos=…（kind=28）。 */

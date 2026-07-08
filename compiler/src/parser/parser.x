@@ -4760,6 +4760,8 @@ allow(padding) struct ExternParseResult {
   return_ty_ref: i32;
   /** 形参个数；形参名/类型在侧车 grow 池（extern_parse_pool_ptr）。 */
   num_params: i32;
+  /** ABI 标记：0=X ABI（默认），1=C ABI（extern "C"）。P0a 语义降级阶段仅存储不改变行为。 */
+  abi_kind: i32;
 }
 
 /** 取 ExternParseResult 侧车池键（与 OneFunc 共用 grow 池 API，按 struct 地址索引）。 */
