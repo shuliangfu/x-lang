@@ -4307,6 +4307,9 @@ static int driver_argv0_basename_is(const char *argv0, const char *base) {
  * 由 driver/compile.x 经 driver_run_compiler_dispatch_c 调用。
  */
 static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
+    /* 【Why 根源】-lib-name 仅 C 前端 RUN_CC_FUNC 路径需要（shux_compile_std_module.sh --bare-impl）；
+     * x-pipeline 路径（shux-x）不编译 std 模块，用 NULL 走 path-based lib_name。 */
+    const char *lib_name_override = NULL;
     const char *defines[MAX_DEFINES];
     int ndefines = 0;
     if (argv && argc > 0)
@@ -6136,6 +6139,9 @@ int driver_argv_parse_x_emit_c(int argc, char **argv) {
  */
 #if !defined(SHUX_NO_C_FRONTEND)
 static int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
+    /* 【Why 根源】-lib-name 仅 C 前端 RUN_CC_FUNC 路径需要（shux_compile_std_module.sh --bare-impl）；
+     * x-pipeline 路径（shux-x）不编译 std 模块，用 NULL 走 path-based lib_name。 */
+    const char *lib_name_override = NULL;
     (void)setvbuf(stdout, NULL, _IONBF, 0);
     ShuxRuntimeFileView raw_src_view;
     if (runtime_read_file_view(input_path, &raw_src_view) != 0) {
