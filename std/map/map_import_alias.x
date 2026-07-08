@@ -1,5 +1,0 @@
-// map_import_alias.x — import binding -o 链接桩（从 .c 转换）
-// asm co-emit 对 const map = import("std.map") 生成 std_map_* 符号。
-function std_map_empty_size(): i32 {
-  return 0;
-}
