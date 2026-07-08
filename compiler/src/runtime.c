@@ -3812,13 +3812,14 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 driver_x_pipeline_skip_typeck_set(1);
             /** 仅 parse+typeck（单文件）或 parse+填槽（多文件）；真机器码由 asm_asm_codegen_elf_o 生成。 */
             driver_x_pipeline_skip_codegen_set(1);
-        } else if (driver_check_only_get()) {
+        } else {
             /*
-             * -c check：只需 parse + typeck，始终 skip codegen。
+             * asm_smoke_only（out_path==NULL，含 -c check 与无 -o smoke）：skip codegen。
              * 【Why】strict link 产出的 shux_asm 不链入 codegen_x.o（C codegen），
-             * codegen_x_ast 是 bridge.c weak stub（返回 -1）；-c check 调用 codegen
-             * 会走 weak stub → XP001。check 语义只需验证语法与类型，codegen 错误
-             * 由 -o 模式检测。
+             * codegen_x_ast 是 bridge.c weak stub（返回 -1）；asm_smoke_only 调用 codegen
+             * 会走 weak stub → XP001。-c check 语义只需验证语法与类型，codegen 错误
+             * 由 -o 模式检测。-c flag 不设置 driver_check_only（仅 fmt/dep_prerun 设置），
+             * 故以 asm_smoke_only 为判据而非 driver_check_only_get()。
              * 【Invariant】typeck skip 条件不变（仅 std/core 闭包多文件 skip typeck）；
              * 无 import 单文件仍走全量 typeck 填 field_access_offset。
              */
