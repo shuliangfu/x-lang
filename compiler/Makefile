@@ -98,9 +98,10 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	ld -r -o ../std/path/path.o ../std/path/path_core.o && \
 	rm -f ../std/path/path_core.o
 
-# std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops）。
-../std/heap/heap.o: ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x scripts/shux_compile_std_module.sh
-	@sh scripts/shux_compile_std_module.sh $@ ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x
+# std.heap：F 闭合 — 纯 .x -E-extern + cc -c + ld -r（mod + libc + ops + page_mmap）。
+# page_mmap.x 提供 page_mmap_heap_available/init/alloc/deinit，mod.x import 引用其符号。
+../std/heap/heap.o: ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x ../std/heap/page_mmap.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x ../std/heap/page_mmap.x
 
 # std.map：F 闭合 — 纯 .x -E-extern + cc -c。
 ../std/map/map.o: ../std/map/mod.x scripts/shux_compile_std_module.sh
