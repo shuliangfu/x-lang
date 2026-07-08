@@ -102,6 +102,26 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 ../std/heap/heap.o: ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh $@ ../std/heap/mod.x ../std/heap/libc.x ../std/heap/ops.x
 
+# std.heap.page_mmap：F-no-libc NL-03 freestanding mmap bump 堆（单文件 .x -E + cc）。
+# 路径前缀 std_heap_page_mmap_*；传递依赖 std.sys.linux + core.mem 由 freestanding on_demand 链入。
+../std/heap/page_mmap.o: ../std/heap/page_mmap.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/heap/page_mmap.x
+
+# std.sys：OS 原语门面（mod.x -E + cc；#[cfg(target_os)] 分平台）。
+# 路径前缀 std_sys_*；Linux 编译激活 linux import，传递依赖 std/sys/linux.o + core/mem/mem.o。
+../std/sys/sys.o: ../std/sys/mod.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/sys/mod.x
+
+# std.sys.linux：Linux syscall 号表 + freestanding invoke（linux.x -E + cc）。
+# 路径前缀 std_sys_linux_*；含 hosted libc 函数（open/mmap），靠 --gc-sections 移除未引用者。
+../std/sys/linux.o: ../std/sys/linux.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../std/sys/linux.x
+
+# core.mem：内存操作原语（mod.x -E + cc）。
+# 路径前缀 core_mem_*；align_up/mem_copy/mem_set 等纯 .x 实现，无 libc 依赖。
+../core/mem/mem.o: ../core/mem/mod.x scripts/shux_compile_std_module.sh
+	@sh scripts/shux_compile_std_module.sh $@ ../core/mem/mod.x
+
 # std.map：F 闭合 — 纯 .x -E-extern + cc -c。
 ../std/map/map.o: ../std/map/mod.x scripts/shux_compile_std_module.sh
 	@sh scripts/shux_compile_std_module.sh --bare-impl $@ ../std/map/mod.x
@@ -533,7 +553,7 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 
 
 # 测试与 shux 链接 std 时依赖的 .o：所有 std 模块 + runtime_panic.o；Linux 另预编 freestanding 链入桩
-STD_AND_PANIC_O = ../std/heap/heap.o ../std/map/map.o ../std/set/set.o ../std/process/process.o ../std/string/string.o ../std/path/path.o ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o ../std/async/scheduler.o ../std/time/time.o ../std/random/random.o ../std/env/env.o ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o ../std/csv/csv.o ../std/regex/regex.o ../std/unicode/unicode.o ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/simd/simd.o ../std/context/context.o ../std/error/error.o ../std/trace/trace.o ../std/test/test.o runtime_panic.o runtime_asm_io_stubs.o runtime_process_argv.o runtime_process_os_glue.o runtime_test_fn_invoke.o runtime_random_fill.o runtime_time_os.o runtime_dynlib_os.o runtime_env_os.o runtime_backtrace_platform.o runtime_log_os.o runtime_math_libm.o runtime_atomic_glue.o runtime_channel_glue.o runtime_net_udp_batch.o runtime_net_workers.o runtime_sync_os.o runtime_sync_lock_diag_tls.o runtime_thread_glue.o runtime_scheduler_glue.o runtime_http_glue.o runtime_crypto_inc_glue.o runtime_ed25519_ref10_glue.o
+STD_AND_PANIC_O = ../std/heap/heap.o ../std/heap/page_mmap.o ../std/sys/sys.o ../std/sys/linux.o ../core/mem/mem.o ../std/map/map.o ../std/set/set.o ../std/process/process.o ../std/string/string.o ../std/path/path.o ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o ../std/async/scheduler.o ../std/time/time.o ../std/random/random.o ../std/env/env.o ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o ../std/csv/csv.o ../std/regex/regex.o ../std/unicode/unicode.o ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/simd/simd.o ../std/context/context.o ../std/error/error.o ../std/trace/trace.o ../std/test/test.o runtime_panic.o runtime_asm_io_stubs.o runtime_process_argv.o runtime_process_os_glue.o runtime_test_fn_invoke.o runtime_random_fill.o runtime_time_os.o runtime_dynlib_os.o runtime_env_os.o runtime_backtrace_platform.o runtime_log_os.o runtime_math_libm.o runtime_atomic_glue.o runtime_channel_glue.o runtime_net_udp_batch.o runtime_net_workers.o runtime_sync_os.o runtime_sync_lock_diag_tls.o runtime_thread_glue.o runtime_scheduler_glue.o runtime_http_glue.o runtime_crypto_inc_glue.o runtime_ed25519_ref10_glue.o
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
 STD_AND_PANIC_O += crt0_user.o freestanding_io.o

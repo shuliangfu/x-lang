@@ -4172,8 +4172,15 @@ static int link_abi_user_o_needs_async_scheduler(const char *user_o) {
 }
 
 static int link_abi_user_o_needs_core_mem(const char *user_o) {
-    (void)user_o;
-    return 0;
+    if (!user_o || !user_o[0])
+        return 0;
+    return shux_link_obj_needs_undef_sym(user_o, "core_mem_align_up")
+        || shux_link_obj_needs_undef_sym(user_o, "core_mem_align_down")
+        || shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_copy")
+        || shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_set")
+        || shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_zero")
+        || shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_move")
+        || shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_compare");
 }
 
 static int link_abi_user_o_needs_core_slice(const char *user_o) {
@@ -4183,6 +4190,52 @@ static int link_abi_user_o_needs_core_slice(const char *user_o) {
         || shux_link_obj_needs_undef_sym(user_o, "core_subslice_u8_c")
         || shux_link_obj_needs_undef_sym(user_o, "core_slice_u64_from_ptr_c")
         || shux_link_obj_needs_undef_sym(user_o, "core_subslice_u64_c");
+}
+
+/**
+ * F-no-libc NL-03：判断 user_o 是否引用 std.heap.page_mmap API（freestanding mmap bump 堆）。
+ * 按需链 page_mmap.o（其传递依赖 linux.o + core_mem.o 由 on_demand 后续块覆盖）。
+ */
+static int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 0;
+    return shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_available")
+        || shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_init")
+        || shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_alloc")
+        || shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_deinit")
+        || shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_free");
+}
+
+/**
+ * F-no-libc：判断 user_o 是否引用 std.sys.linux API（Linux freestanding syscall 薄封装）。
+ */
+static int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 0;
+    return shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_invoke_available")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_anonymous_mmap")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_munmap")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_read")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_write")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_close")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_exit");
+}
+
+/**
+ * F-no-libc：判断 user_o 是否引用 std.sys 门面 API（write_stdout/read/close/exit 等）。
+ * sys/mod.x 在 Linux 编译时 #[cfg(target_os="linux")] 激活 linux import，故 sys.o 传递依赖 linux.o。
+ */
+static int link_abi_user_o_needs_std_sys(const char *user_o) {
+    if (!user_o || !user_o[0])
+        return 0;
+    return shux_link_obj_needs_undef_sym(user_o, "std_sys_write_stdout")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_write_stderr")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_write")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_read")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_close")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_exit")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_freestanding_write_available")
+        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_syscall_table_available");
 }
 
 /**
@@ -4495,6 +4548,27 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
             p = shux_asm_ld_try_under_lib_roots("core/mem/mem.o", lib_roots, n_lib_roots, bank);
         if (p)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
+    }
+    /*
+     * F-no-libc NL-03：freestanding mmap bump 堆按需链入。
+     * 【Why 根源】page_mmap.x 固定 import std.sys.linux + core.mem，故链 page_mmap.o 须同时
+     * 链 linux.o + core_mem.o；sys.o 传递依赖 linux.o。--gc-sections 移除未引用的 hosted 函数。
+     * 【Invariant】顺序：linux.o → core_mem.o → page_mmap.o / sys.o（被依赖者先入链）。
+     */
+    if (link_abi_user_o_needs_std_sys_linux(user_o)
+        || link_abi_user_o_needs_std_heap_page_mmap(user_o)
+        || link_abi_user_o_needs_std_sys(user_o)) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sys/linux.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    }
+    if (link_abi_user_o_needs_std_heap_page_mmap(user_o)
+        || link_abi_user_o_needs_std_sys(user_o)) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    }
+    if (link_abi_user_o_needs_std_heap_page_mmap(user_o)) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/page_mmap.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    }
+    if (link_abi_user_o_needs_std_sys(user_o)) {
+        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sys/sys.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
     if (link_abi_user_o_needs_core_slice(user_o)) {
         p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, "core/slice/slice.o"));
@@ -5010,6 +5084,15 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
                 argv[la++] = panic_p;
             if (need_io && la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = io_p;
+            /*
+             * F-no-libc NL-03/04/06：freestanding 按需链入 import 的 std/*.o（page_mmap/sys/linux/core_mem）。
+             * 【Why 根源】freestanding -nostdlib 链接默认只链 crt0+panic+io+user.o，不扫描 std 依赖；
+             * user.o import std.heap.page_mmap / std.sys / std.sys.linux 时，其 .o 须显式按需链入。
+             * 【Invariant】on_demand 在 o_path 之前调用；--gc-sections 从 entry(crt0→main) 做可达性
+             * 分析，所有 .o 须在 ld argv 中，未引用的 hosted 函数被 GC 移除。
+             */
+            shux_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff,
+                ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
             if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = o_path;
             argv[la] = NULL;

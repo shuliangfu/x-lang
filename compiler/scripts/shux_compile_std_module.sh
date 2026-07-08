@@ -48,7 +48,10 @@ SHUX_BIN="${SHUX:-./shux}"
 # --bare-impl 模式下 impl .x 用 -lib-name "" 产出裸符号（如 tar_read_header_c）；
 # 否则 impl .x 用路径提取前缀（如 std_heap_libc_heap_arena64_alloc_c），匹配 import binding。
 # CFLAGS 抑制 warning（-x -E 生成的 C 有大量 extern 前向声明）。
-CFLAGS="-I.. -I. -Iinclude -Isrc -fPIE -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits -Wno-visibility -Wno-incompatible-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers"
+# -ffunction-sections -fdata-sections：配合 freestanding 链接的 --gc-sections，
+# 移除 std/sys/linux.o 等模块中未被引用的 hosted libc 函数（open/mmap 等），
+# 使 freestanding -nostdlib 链接不因 transitive libc 符号失败。
+CFLAGS="-I.. -I. -Iinclude -Isrc -fPIE -ffunction-sections -fdata-sections -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits -Wno-visibility -Wno-incompatible-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers"
 if cc -v 2>&1 | grep -q clang; then
   CFLAGS="$CFLAGS -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses"
 fi
