@@ -1,5 +1,9 @@
 #!/bin/sh
-# shux_compile_std_module.sh — 用 -E-extern + cc -c 编译 std 模块为 .o（F 闭合）
+# shux_compile_std_module.sh — 用 -x -E + cc -c 编译 std 模块为 .o（F 闭合）
+#
+# 【Why 根源】G-02a 删除 C 前端后，-E-extern 模式不可用（runtime.c 在
+# SHUX_NO_C_FRONTEND 定义时直接报 BLD001）。-x -E 走 .x pipeline 路径，
+# 生成等价的瘦 C TU（含 extern 前向声明），功能等价于旧 -E-extern。
 #
 # 替代 *_import_alias.c C 桩。两种模块架构：
 #   1. import binding 模式（heap/map/set）：mod.x 用 `const impl = import("std.module.libc")`，
@@ -12,7 +16,7 @@
 # 用法：shux_compile_std_module.sh [--bare-impl] <out.o> <x1> [x2] [x3] ...
 # 约定：mod.x 编译为带前缀符号（std_<module>_*）。
 #   --bare-impl：非 mod.x 文件用 -lib-name ""（裸符号）；否则用路径提取前缀。
-# 环境：SHUX=shux-c 路径（默认 ./shux-c）
+# 环境：SHUX=编译器路径（默认 ./shux-c，回退 ./shux_asm → ./shux）
 set -e
 
 BARE_IMPL=0
@@ -34,11 +38,11 @@ SHUX_BIN="${SHUX:-./shux-c}"
 [ -x "$SHUX_BIN" ] || SHUX_BIN="./shux"
 [ -x "$SHUX_BIN" ] || { echo "shux_compile_std_module.sh: no shux-c/shux_asm/shux found" >&2; exit 1; }
 
-# 【Why 根源】-E-extern 生成瘦 C TU（emit_c_only=1 + emit_extern_imports=1），
+# 【Why 根源】-x -E 生成瘦 C TU（emit_c_only=1 + emit_extern_imports=1），
 # import 用 extern 声明，不内联 deps。mod.x 带前缀产出 std_<module>_* 用户 API。
 # --bare-impl 模式下 impl .x 用 -lib-name "" 产出裸符号（如 tar_read_header_c）；
 # 否则 impl .x 用路径提取前缀（如 std_heap_libc_heap_arena64_alloc_c），匹配 import binding。
-# CFLAGS 抑制 warning（-E-extern 生成的 C 有大量 extern 前向声明）。
+# CFLAGS 抑制 warning（-x -E 生成的 C 有大量 extern 前向声明）。
 CFLAGS="-I.. -I. -Iinclude -Isrc -fPIE -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits -Wno-visibility -Wno-incompatible-pointer-types -Wno-incompatible-pointer-types-discards-qualifiers"
 if cc -v 2>&1 | grep -q clang; then
   CFLAGS="$CFLAGS -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses"
@@ -55,7 +59,7 @@ LIB_NAME_SUPPORTED=0
 probe_x="$tmp_dir/probe.x"
 probe_c="$tmp_dir/probe.c"
 printf 'function probe_fn(): i32 { return 0; }\n' > "$probe_x"
-if "$SHUX_BIN" -E-extern -lib-name "" "$probe_x" > "$probe_c" 2>/dev/null && grep -q 'probe_fn' "$probe_c"; then
+if "$SHUX_BIN" -x -E -lib-name "" "$probe_x" > "$probe_c" 2>/dev/null && grep -q 'probe_fn' "$probe_c"; then
   LIB_NAME_SUPPORTED=1
 fi
 
@@ -73,8 +77,8 @@ for x_path in "$@"; do
   # 否则 impl .x 用路径提取前缀（匹配 mod.x 的 import binding 调用）。
   base_name=$(basename "$x_path")
   if [ "$base_name" = "mod.x" ]; then
-    if ! "$SHUX_BIN" -E-extern -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-      echo "shux_compile_std_module.sh: shux-c -E-extern failed for $x_path" >&2
+    if ! "$SHUX_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+      echo "shux_compile_std_module.sh: shux-c -x -E failed for $x_path" >&2
       cat "$tmp_dir/shuxc_${idx}.log" >&2
       exit 1
     fi
@@ -83,21 +87,21 @@ for x_path in "$@"; do
       # 【Why 根源】-lib-name "" 让新编译器产出裸符号（匹配 mod.x 的 extern 调用）。
       # 旧 seed 不支持 -lib-name 但其无前缀逻辑也产出裸符号，故 LIB_NAME_SUPPORTED=0 时不加。
       if [ "$LIB_NAME_SUPPORTED" = "1" ]; then
-        if ! "$SHUX_BIN" -E-extern -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-          echo "shux_compile_std_module.sh: shux-c -E-extern -lib-name failed for $x_path" >&2
+        if ! "$SHUX_BIN" -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+          echo "shux_compile_std_module.sh: shux-c -x -E -lib-name failed for $x_path" >&2
           cat "$tmp_dir/shuxc_${idx}.log" >&2
           exit 1
         fi
       else
-        if ! "$SHUX_BIN" -E-extern -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-          echo "shux_compile_std_module.sh: shux-c -E-extern failed for $x_path" >&2
+        if ! "$SHUX_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+          echo "shux_compile_std_module.sh: shux-c -x -E failed for $x_path" >&2
           cat "$tmp_dir/shuxc_${idx}.log" >&2
           exit 1
         fi
       fi
     else
-      if ! "$SHUX_BIN" -E-extern -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-        echo "shux_compile_std_module.sh: shux-c -E-extern failed for $x_path" >&2
+      if ! "$SHUX_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+        echo "shux_compile_std_module.sh: shux-c -x -E failed for $x_path" >&2
         cat "$tmp_dir/shuxc_${idx}.log" >&2
         exit 1
       fi
