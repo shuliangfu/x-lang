@@ -396,7 +396,12 @@ extern function pipeline_module_top_level_let_is_const(module: *Module, idx: i32
 /** 将 TypeKind 转为序数（与 ast.x enum 顺序一致）；枚举值即 0..15，勿 16 路 if（自举 asm emit Abort）。 */
 function type_kind_ordinal(k: TypeKind): i32 {
   let o: i32 = k as i32;
-  if (o < (TypeKind.TYPE_I32 as i32) || o > (TypeKind.TYPE_VOID as i32)) {
+  let lo: i32 = TypeKind.TYPE_I32 as i32;
+  let hi: i32 = TypeKind.TYPE_VOID as i32;
+  if (o < lo) {
+    return - 1;
+  }
+  if (o > hi) {
     return - 1;
   }
   return o;
@@ -2351,6 +2356,80 @@ name_len: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *i32):
   return 0;
 }
 
+/**
+ * 重载解析版 find_func_return_type_in_module：根据 call 表达式的实参类型选择正确的重载。
+ * call_expr_ref <= 0 时退化为取第一个匹配（兼容旧行为）。
+ * 【Why 根源】函数重载要求 typeck 根据实参类型选择正确的重载版本，否则 codegen 用错误的
+ *   resolved_func_index 做 mangling，链接到错误的重载版本（如 pick(20 as i64) 链到 pick_i32）。
+ * 【Invariant】同模块（from_dep_index < 0）时类型 ref 在同一 arena 可直接比较；
+ *   跨模块时类型 ref 属于不同 arena 无法直接比较，暂回退首匹配（待后续实现跨模块类型映射）。
+ * 【Asm/Perf】遍历全部同名函数做参数类型匹配，O(n_overloads * n_args)，重载数通常 ≤ 8，可忽略。
+ */
+function find_func_return_type_in_module_overload(mod: *Module, mod_arena: *ASTArena,
+caller_arena: *ASTArena, callee_arena: *ASTArena, callee_expr_ref: i32,
+call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
+  let j: i32 = 0;
+  let first_idx: i32 = -1;
+  let first_ret: i32 = 0;
+  let num_args: i32 = 0;
+  let has_call_info: i32 = 0;
+  /** 无 call_expr_ref 时退化为取第一个匹配（兼容旧调用）。 */
+  if (call_expr_ref > 0 && call_expr_ref <= caller_arena.num_exprs) {
+    num_args = pipeline_expr_call_num_args_at(caller_arena, call_expr_ref);
+    has_call_info = 1;
+  }
+  while (j < mod.num_funcs) {
+    if (expr_var_name_equal_func(callee_arena, callee_expr_ref, mod, j)) {
+      if (first_idx < 0) {
+        first_idx = j;
+        first_ret = pipeline_module_func_return_type_at(mod, j);
+      }
+      /** 有 call 信息时做重载匹配。 */
+      if (has_call_info != 0) {
+        let nparams: i32 = pipeline_module_func_num_params_at(mod, j);
+        if (nparams == num_args) {
+          let ai: i32 = 0;
+          let match: i32 = 1;
+          while (ai < num_args) {
+            let arg_ref: i32 = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, ai);
+            let arg_ty: i32 = pipeline_expr_resolved_type_ref(caller_arena, arg_ref);
+            let param_ty: i32 = pipeline_module_func_param_type_ref_at(mod, j, ai);
+            /** 同模块类型 ref 直接比较；跨模块暂跳过类型检查（回退首匹配）。 */
+            if (from_dep_index < 0 && arg_ty != param_ty) {
+              match = 0;
+              break;
+            }
+            ai = ai + 1;
+          }
+          if (match != 0) {
+            /** 找到完全匹配的重载。 */
+            if (func_index_out != 0 as * i32) {
+              func_index_out[0] = j;
+            }
+            let ret_dep: i32 = pipeline_module_func_return_type_at(mod, j);
+            if (from_dep_index < 0) {
+              return ret_dep;
+            }
+            return get_dep_return_type_in_caller_arena(from_dep_index, ret_dep, caller_arena, ctx);
+          }
+        }
+      }
+    }
+    j = j + 1;
+  }
+  /** 无匹配重载时回退第一个同名函数（兼容旧行为）。 */
+  if (first_idx >= 0) {
+    if (func_index_out != 0 as * i32) {
+      func_index_out[0] = first_idx;
+    }
+    if (from_dep_index < 0) {
+      return first_ret;
+    }
+    return get_dep_return_type_in_caller_arena(from_dep_index, first_ret, caller_arena, ctx);
+  }
+  return 0;
+}
+
 /** 统计 import_path 缓冲区中的分段数（`.` 分隔），如 `platform.elf`→2；空白则 0。 */
 function typeck_import_path_segment_count(path: *u8, path_len: i32): i32 {
   if (path_len <= 0 || path == 0 as * u8) {
@@ -2827,8 +2906,8 @@ call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
       /** 本模块 callee + LSP apply 内联（typeck_resolve_local_module_with_apply thin stub）。 */
       let minus_one_lm: i32 = -1;
       typeck_i32_ptr_store(typeck_call_resolve_func_idx_slot(), 0);
-      find_func_return_type_in_module(module, arena, arena, arena, callee_expr_ref, minus_one_lm, ctx,
-      typeck_call_resolve_func_idx_slot());
+      find_func_return_type_in_module_overload(module, arena, arena, arena, callee_expr_ref,
+      call_expr_ref, minus_one_lm, ctx, typeck_call_resolve_func_idx_slot());
       ast.ast_expr_apply_call_resolve(arena, call_expr_ref, minus_one_lm,
       typeck_call_resolve_func_idx_peek());
     }
