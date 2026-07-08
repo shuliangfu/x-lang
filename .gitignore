@@ -250,6 +250,10 @@ gate_out.txt
 gate_out2.txt
 logs/bootstrap-seed.fresh
 
-# G-06 seed: asm_backend_partial 须入库（例外）
-!compiler/seeds/asm_backend_partial.*.o
+# G-06 seed: asm_backend_partial.linux.x86_64.o 须入库（例外）；darwin arm64 为本地构建产物，忽略
+!compiler/seeds/asm_backend_partial.linux.x86_64.o
 .trae/
+
+# shux-x 二进制备份（手动恢复用，非仓库资产）
+compiler/shux-x-backup
+compiler/shux-x-default-backup
