@@ -1970,7 +1970,7 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_min
 	@# 冷启动：保留已提交的 ast_gen2.c，避免旧 seed 对 ast.x 重新 -E 失败。
 	@if [ -f ast_gen2.c ] && [ -s ast_gen2.c ]; then touch -r ast_gen2.c src/ast/ast.x 2>/dev/null || true; fi
 	@$(MAKE) pipeline_x.o PIPELINE_X_FORCE_COMPILE=1
-	$(MAKE) -B src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
+	$(MAKE) -B src/diag.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_REBUILD) $(DRIVER_SEED_PREPROCESS_REBUILD) src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o
 	$(MAKE) lsp_io_x.o lsp_x.o lsp_diag_x.o
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c src/lsp/lsp_diag_x_alias.c -o src/lsp/lsp_diag_x_alias.o
 	@# 冷启动：phase1 须链 dispatch/bridge + partial（seed 或 gen_g06_phase1_backend_stub 弱桩）。
