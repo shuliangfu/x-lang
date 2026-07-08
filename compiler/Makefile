@@ -713,7 +713,6 @@ src/runtime_driver_no_c.o: src/runtime.c Makefile
 src/main_x.o: src/main.c
 	$(CC) $(CFLAGS) -DSHUX_USE_X_PIPELINE -c -o $@ $<
 
-PIPELINE_OBJS = src/main_x.o src/runtime_x.o src/diag.o src/preprocess.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/codegen/autovec.o
 # shux_x：pipeline_x.o 编排 typeck_x/codegen_x（非 C typeck.o/codegen.o）。
 PIPELINE_X_BASE_OBJS = src/main_x.o src/runtime_x.o src/diag.o src/preprocess.o src/lexer/lexer.o src/ast/ast_seed.o src/parser/parser.o
 PIPELINE_X_FRONTEND_OBJS = typeck_x.o codegen_x.o typeck_x_link_alias.o codegen_x_link_alias.o
@@ -1405,8 +1404,8 @@ src/asm/simd_enc.o: src/asm/simd_enc.c include/simd_enc.h include/target_cpu.h
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 src/asm/simd_loop.o: src/asm/simd_loop.c include/simd_loop.h include/simd_enc.h include/target_cpu.h
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
-DRIVER_OBJS = src/main_driver.o src/runtime_driver.o src/diag.o src/preprocess_for_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o src/lexer/lexer.o src/ast/ast.o src/parser/parser.o src/typeck/typeck.o src/codegen/codegen.o src/codegen/autovec.o
-# G-02a：ast_seed / C 前端已删；默认 bootstrap 不链 LEXER_LINK_O / AST_LINK_O。
+# G-02a Step 1：默认构建切 no_c 模式；默认 bootstrap 不链 LEXER_LINK_O / AST_LINK_O。
+# C 前端 .c（ast/lexer/parser/typeck/codegen）仍保留，因 build_shux_asm.sh + relink 脚本仍引用 ast_seed.o 等。
 # bootstrap-driver-seed：pipeline_x.o 为 -E-extern 编排；parser/lexer/typeck/codegen *_x.o 分 TU。
 # C-06 v1 默认：不链 C parser/typeck/codegen.o（SHUX_LEGACY_C_FRONTEND=1 恢复双轨）。
 # seed 链：lexer_x.o + lexer_x_link_alias.o（X 词法）；默认不链 C lexer.o（E-03 v2）。
