@@ -49,9 +49,11 @@ const SHA512_DIGEST_LEN: i32 = 64;
 
 /** 常量时间比较 a[0..len] 与 b[0..len]；相等返回 1，否则 0。 */
 function mem_eq(a: *u8, b: *u8, len: i32): i32 {
+  let __gffi_r: i32 = 0;
   unsafe {
-    return crypto_mem_eq_c(a, b, len);
+    __gffi_r = crypto_mem_eq_c(a, b, len);
   }
+  return __gffi_r;
 }
 
 /** SHA-256 哈希，写入 out[0..32]。 */
@@ -115,60 +117,76 @@ function ed25519_public_from_seed(seed: *u8, pub: *u8): void {
 
 /** 使用 seed 对 msg 签名；sig 写入 64 字节；成功 0，失败 -1。 */
 function ed25519_sign(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
+  let __gffi_r: i32 = 0;
   unsafe {
-    return crypto_ed25519_sign_c(seed, msg, msg_len, sig);
+    __gffi_r = crypto_ed25519_sign_c(seed, msg, msg_len, sig);
   }
+  return __gffi_r;
 }
 
 /** 验签；成功 0，失败 -1。 */
 function ed25519_verify(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i32 {
+  let __gffi_r: i32 = 0;
   unsafe {
-    return crypto_ed25519_verify_c(pub, msg, msg_len, sig);
+    __gffi_r = crypto_ed25519_verify_c(pub, msg, msg_len, sig);
   }
+  return __gffi_r;
 }
 
 /** Ed25519 C 层烟测（RFC 8032 TEST 1）；0 通过。 */
 function ed25519_smoke(): i32 {
+  let __gffi_r: i32 = 0;
   unsafe {
-    return crypto_ed25519_smoke_c();
+    __gffi_r = crypto_ed25519_smoke_c();
   }
+  return __gffi_r;
 }
 
 /** AES-128-GCM 加密；key_len=16、iv_len=12、tag 16B；成功 0。 */
 function aes_gcm_seal(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8, aad_len: i32,
   pt: *u8, pt_len: i32, ct: *u8, tag: *u8): i32 {
+  let __gffi_r: i32 = 0;
   unsafe {
-    return crypto_aes_gcm_seal_c(key, key_len, iv, iv_len, aad, aad_len, pt, pt_len, ct, tag);
+    __gffi_r = crypto_aes_gcm_seal_c(key, key_len, iv, iv_len, aad, aad_len, pt, pt_len, ct, tag);
   }
+  return __gffi_r;
 }
 
 /** AES-128-GCM 解密并校验 tag；成功 0，tag 错误 -1。 */
 function aes_gcm_open(key: *u8, key_len: i32, iv: *u8, iv_len: i32, aad: *u8, aad_len: i32,
   ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32 {
+  let __gffi_r: i32 = 0;
   unsafe {
-    return crypto_aes_gcm_open_c(key, key_len, iv, iv_len, aad, aad_len, ct, ct_len, tag, pt);
+    __gffi_r = crypto_aes_gcm_open_c(key, key_len, iv, iv_len, aad, aad_len, ct, ct_len, tag, pt);
   }
+  return __gffi_r;
 }
 
 /** ChaCha20-Poly1305 加密；key_len=32、nonce_len=12、tag 16B；成功 0。 */
 function chacha20_poly1305_seal(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32, aad: *u8,
   aad_len: i32, pt: *u8, pt_len: i32, ct: *u8, tag: *u8): i32 {
+  let __gffi_r: i32 = 0;
   unsafe {
-    return crypto_chacha20_poly1305_seal_c(key, key_len, nonce, nonce_len, aad, aad_len, pt, pt_len, ct, tag);
+    __gffi_r = crypto_chacha20_poly1305_seal_c(key, key_len, nonce, nonce_len, aad, aad_len, pt, pt_len, ct, tag);
   }
+  return __gffi_r;
 }
 
 /** ChaCha20-Poly1305 解密并校验 tag；成功 0，失败 -1。 */
 function chacha20_poly1305_open(key: *u8, key_len: i32, nonce: *u8, nonce_len: i32, aad: *u8,
   aad_len: i32, ct: *u8, ct_len: i32, tag: *u8, pt: *u8): i32 {
+  let __gffi_r: i32 = 0;
   unsafe {
-    return crypto_chacha20_poly1305_open_c(key, key_len, nonce, nonce_len, aad, aad_len, ct, ct_len, tag, pt);
+    __gffi_r = crypto_chacha20_poly1305_open_c(key, key_len, nonce, nonce_len, aad, aad_len, ct, ct_len, tag, pt);
   }
+  return __gffi_r;
 }
 
 /** ChaCha20-Poly1305 C 层烟测；0 通过。 */
 function chacha20_poly1305_smoke(): i32 {
+  let __gffi_r: i32 = 0;
   unsafe {
-    return crypto_chacha20_poly1305_smoke_c();
+    __gffi_r = crypto_chacha20_poly1305_smoke_c();
   }
+  return __gffi_r;
 }
