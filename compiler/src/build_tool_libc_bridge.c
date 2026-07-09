@@ -43,24 +43,19 @@ int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
 /**
  * 对齐 Makefile 日常发布路径（G-05 产物一致性）：
  *
- * - 默认：`make shux_asm`（= relink-shux + cp shux→shux_asm）
- *   与 `make shux_asm` / 发布入口定稿拓扑一致；勿只跑 build_shux_asm.sh，
- *   否则会留下未 refresh 的 strict 大二进制（struct 等用例回归）。
- * - SHUX_BUILD_TOOL_FULL=1：`make bootstrap-driver-bstrict`
- *   （script SKIP_GEN + refresh-shux-asm-gate，全量 B-strict）。
+ * 唯一出口：`scripts/g05_build_shux_asm.sh`
+ * - 默认：脚本内 `make shux_asm`（= relink-shux + cp shux→shux_asm）
+ * - SHUX_BUILD_TOOL_FULL=1：脚本内 `make bootstrap-driver-bstrict`
  *
- * shu_path 保留参数以兼容 build_runner；默认路径由 Makefile 使用已有 ./shux。
+ * 勿只跑 build_shux_asm.sh（会留下未 refresh 的 strict 大二进制）。
+ * shu_path 保留参数以兼容 build_runner；宿主路径由脚本/Makefile 使用 ./shux。
  */
 int32_t build_run_asm_build(uint8_t *shu_path) {
-  const char *full = getenv("SHUX_BUILD_TOOL_FULL");
   char cmd[512];
   int n;
   (void)shu_path;
-  if (full && full[0] == '1' && full[1] == '\0') {
-    n = snprintf(cmd, sizeof(cmd), "make bootstrap-driver-bstrict");
-  } else {
-    n = snprintf(cmd, sizeof(cmd), "make shux_asm");
-  }
+  /* FULL 由脚本读环境；此处只调单点出口，便于日后无 make 实现。 */
+  n = snprintf(cmd, sizeof(cmd), "sh scripts/g05_build_shux_asm.sh");
   if (n < 0 || (size_t)n >= sizeof(cmd)) {
     return -1;
   }

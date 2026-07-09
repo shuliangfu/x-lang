@@ -2,9 +2,11 @@
 # shux-build.sh — 仓库根统一构建入口（G-05）
 #
 # 分层：
-#   1) 日常编译器：build.x + compiler/build_tool（默认 = make shux_asm / relink 金标准）
+#   1) 日常编译器：build.x + compiler/build_tool
+#      → scripts/g05_build_shux_asm.sh → make shux_asm（relink 金标准）
 #   2) 测试 / 内核 / gate：仍委托 compiler/Makefile 或 tests/*.sh
-#   3) Makefile：冷启动、CI 历史目标、兜底；非日常首选
+#   3) compiler/Makefile：冷启动、relink 依赖图、CI 历史目标 — 实现层兜底
+#   4) 根 Makefile：薄包装，委托本脚本（勿再直调 compiler/ 作日常入口）
 #
 # 用法: ./shux-build.sh <target>
 # 例:   ./shux-build.sh build
@@ -177,8 +179,13 @@ shux-build.sh — 统一构建入口（G-05）
 
 环境:
   SHUX_BUILD_TOOL_FULL=1   full 目标走 bootstrap-driver-bstrict
+  SHUX_G05_LEGACY_SMOKE=1  c08 gate 额外跑 ./build_tool ./shux legacy（默认跳过）
 
-Makefile 仍用于冷启动细节、CI 历史目标；日常优先本脚本或:
+实现层（用户勿直接依赖）:
+  compiler/scripts/g05_build_shux_asm.sh  — build_tool 唯一 asm 出口
+  compiler/Makefile                         — relink 依赖图 / 冷启动
+
+日常优先本脚本或:
   cd compiler && ./build_tool ./shux
 EOF
     ;;

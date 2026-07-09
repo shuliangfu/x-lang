@@ -92,8 +92,8 @@ make -C compiler bootstrap-driver-seed
 ### 日常构建与自举
 
 ```bash
-# 【推荐日常】G-05：build_tool → make shux_asm（relink 金标准）
-./shux-build.sh build                 # 仓库根
+# 【推荐日常】G-05：build_tool → g05_build_shux_asm.sh → make shux_asm（relink 金标准）
+./shux-build.sh build                 # 仓库根（根 make 亦委托本脚本）
 # 或：cd compiler && ./build_tool ./shux
 
 SHUX=./compiler/shux ./tests/run-hello.sh
@@ -164,7 +164,7 @@ function main(): i32 {
 | `shux -freestanding … -o app` | Linux x86_64 nostdlib 静态链 |
 | `shux -h` / `shux --help` | 打印用法摘要 |
 
-构建配置入口为根目录 [`build.x`](build.x)：对标 Zig 的 `build.zig`，描述「怎么编、编什么」；顶层 Makefile 仍作委托与 bootstrap，长期由 `build.x` 完全替代（阶段 G-05）。
+构建配置入口为根目录 [`build.x`](build.x)：对标 Zig 的 `build.zig`，描述「怎么编、编什么」。日常入口为 `./shux-build.sh` / `build_tool`（G-05 ~95%）；`compiler/Makefile` 仅作 relink 依赖图与冷启动实现层。
 
 ---
 

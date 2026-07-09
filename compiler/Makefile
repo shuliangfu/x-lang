@@ -1,8 +1,8 @@
 # Shux 编译器（compiler）构建
 #
 # 【G-05 日常入口】优先仓库根 ./shux-build.sh build 或本目录 ./build_tool ./shux
-#   （默认 = make shux_asm / relink 金标准；FULL=1 → bootstrap-driver-bstrict）
-# 【本 Makefile】冷启动、CI 历史目标、test/bootstrap-*、以及 build_tool 尚未覆盖的细节 — 兜底。
+#   → scripts/g05_build_shux_asm.sh → make shux_asm（relink 金标准；FULL=1 → bstrict）
+# 【本 Makefile】冷启动、relink 依赖图、CI 历史目标、test/bootstrap-* — 实现层兜底（非用户日常入口）。
 # 【build-tool】默认 copy seeds/build_*_gen.c 链出 build_tool（不依赖已删 C 前端 -E-extern）。
 #
 # 阶段 1：main + lexer，产出 shux；阶段 8：可选 OPT=1 为 shux 启用 -O2

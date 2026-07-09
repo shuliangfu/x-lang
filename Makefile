@@ -1,94 +1,113 @@
 # Shux 顶层 Makefile
-# 委托 compiler 目录构建，产出 shux；测试等目标在此统一入口
+#
+# 【G-05】日常编译器构建优先委托 ./shux-build.sh（→ build_tool → g05_build_shux_asm.sh）。
+# 本文件其余目标：测试 / 内核 gate / 冷启动细节的薄包装。
+# compiler/Makefile 仍为实现层（relink 依赖图、CI 历史目标），非用户日常入口。
 
-.PHONY: all clean test test_c test_x bootstrap-lexer bootstrap-token
+.PHONY: all build shux shux-asm full clean test test_c test_x bootstrap-lexer bootstrap-token \
+	help build-tool first-time c08
 
-# 默认目标：构建编译器 shux
-all:
-	$(MAKE) -C compiler
+# 默认目标：G-05 统一入口（build_tool → make shux_asm 金标准）
+all build shux:
+	./shux-build.sh build
+
+shux-asm asm:
+	./shux-build.sh asm
+
+full bstrict:
+	./shux-build.sh full
+
+build-tool:
+	./shux-build.sh build-tool
+
+first-time:
+	./shux-build.sh first-time
+
+c08:
+	./shux-build.sh c08
+
+help:
+	./shux-build.sh help
 
 # 清理构建产物
 clean:
-	$(MAKE) -C compiler clean
+	./shux-build.sh clean
 
-# 测试（阶段 1：词法测试；后续接入 Parser 等）
+# 测试（仍走 compiler/Makefile 兜底）
 test:
-	$(MAKE) -C compiler test
+	./shux-build.sh test
 
-# 仅 C 路径测试（run-*.sh，不含 x 自举）
 test_c:
-	$(MAKE) -C compiler test_c
+	./shux-build.sh test_c
 
-# 仅 x 自举测试（bootstrap-driver-seed + run-lsp + run-all-x 全量）
 test_x:
-	$(MAKE) -C compiler test_x
+	./shux-build.sh test_x
 
-# 自举：用当前 shux 编译 .x 词法分析器并运行，验证通过则打印 bootstrap-lexer OK
+# 自举：用当前 shux 编译 .x 词法分析器并运行
 bootstrap-lexer:
-	$(MAKE) -C compiler bootstrap-lexer
+	./shux-build.sh bootstrap-lexer
 
-# 自举：用当前 shux 编译 token.x 并运行（若 compiler 有该目标）
 bootstrap-token:
-	$(MAKE) -C compiler bootstrap-token
+	./shux-build.sh bootstrap-token
 
 # 内核：构建并 QEMU 测试所有 tests/kernel/*.x 内核
 kernel:
-	sh tests/kernel/run-kernel-gate.sh
+	./shux-build.sh kernel
 
 # 内核构建链 K9：一键出 multiboot1 ELF 镜像
 # 用法: make kernel-build X=tests/kernel/timer_isr.x ELF=/tmp/kernel.elf
 kernel-build:
 	@test -n "$(X)" || (echo "Usage: make kernel-build X=file.x [ELF=out.elf]" && exit 1)
-	sh tests/kernel/build-kernel.sh "$(X)" "$(ELF)"
+	X="$(X)" ELF="$(ELF)" ./shux-build.sh kernel-build
 
 # G3+G4: 静态检查 + 纯净度 gate
 kernel-check:
-	sh tests/kernel/static-check-gate.sh
+	./shux-build.sh kernel-check
 
 # G7: 可复现构建 gate
 kernel-repro:
-	sh tests/kernel/reproducible-gate.sh
+	./shux-build.sh kernel-repro
 
 # G1: host 单测 gate
 kernel-host-test:
-	sh tests/kernel/host-test-gate.sh
+	./shux-build.sh kernel-host-test
 
 # L4: 栈用量分析 gate
 kernel-stack-check:
-	sh tests/kernel/stack-check-gate.sh
+	./shux-build.sh kernel-stack-check
 
 # K11/L10: 64-bit kernel code model gate
 kernel64-check:
-	sh tests/kernel/kernel64-gate.sh
+	./shux-build.sh kernel64-check
 
 # G5: QEMU SMP gate
 kernel-smp:
-	sh tests/kernel/smp-gate.sh
+	./shux-build.sh kernel-smp
 
 # L6: Send/Sync contract gate
 kernel-send-sync:
-	sh tests/kernel/send_sync_gate.sh
+	./shux-build.sh kernel-send-sync
 
 # A3: cross-architecture gate
 kernel-cross-arch:
-	sh tests/kernel/cross-arch-gate.sh
+	./shux-build.sh kernel-cross-arch
 
 # A4: UEFI boot path gate
 kernel-uefi:
-	sh tests/kernel/uefi-gate.sh
+	./shux-build.sh kernel-uefi
 
 # x86_64 long mode boot gate (32-bit -> 64-bit transition in QEMU)
 kernel-longmode:
-	sh tests/kernel/longmode-gate.sh
+	./shux-build.sh kernel-longmode
 
 # Multiboot2 header gate (end tag + alignment, T1 static)
 kernel-multiboot2:
-	sh tests/kernel/multiboot2-gate.sh
+	./shux-build.sh kernel-multiboot2
 
 # UEFI application gate (PE32+ skeleton with efi_main)
 kernel-uefi-app:
-	sh tests/kernel/uefi-app-gate.sh
+	./shux-build.sh kernel-uefi-app
 
 # IST (Interrupt Stack Table) gate (TSS64 + IDTGate64 structs)
 kernel-ist:
-	sh tests/kernel/ist-gate.sh
+	./shux-build.sh kernel-ist
