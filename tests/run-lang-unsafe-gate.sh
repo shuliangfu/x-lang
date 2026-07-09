@@ -49,14 +49,15 @@ if ! grep -q '"unsafe"' compiler/src/asm/parser_asm_emit_heavy_stretch_slice.c 2
 fi
 echo "lang-unsafe manifest OK"
 
-make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
-
 # bstrict / W3：stage2 shux_asm(2) 用于 asm -o；但真机仅 git pull 源码后，陈旧 shux_asm2 可能落后于新刷出的 shux/shux_asm。
 # 因此默认选 native 候选里“最新”的一个，避免 gate 继续绑定旧 gen2。
+# 若调用方已设 SHUX，则绝不 make 重建（防内存打爆 / 超时）。
 SHUX_BIN=""
 if [ -n "${SHUX:-}" ] && [ -x "${SHUX}" ]; then
   SHUX_BIN="${SHUX}"
 else
+  # 仅在未指定 SHUX 时尝试轻量 ensure shux-c（-q 已最新则不重建）
+  make -C compiler -q shux-c 2>/dev/null || make -C compiler shux-c
   for cand in ./compiler/shux_asm2 ./compiler/shux_asm ./compiler/shux; do
     if [ -x "$cand" ] && native_shu "$cand"; then
       if [ -z "$SHUX_BIN" ] || [ "$cand" -nt "$SHUX_BIN" ]; then
