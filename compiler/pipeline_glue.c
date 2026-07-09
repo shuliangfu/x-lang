@@ -14486,6 +14486,14 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
         return -1;
     }
   }
+  if (getenv("SHUX_ASM_DEBUG2") != NULL) {
+    for (i = 0; i < nso; i++) {
+      uint8_t dk = ast_ast_block_stmt_order_kind(arena, block_ref, i);
+      int32_t dix = ast_ast_block_stmt_order_idx(arena, block_ref, i);
+      fprintf(stderr, "shux: SO br=%d [%d] kind=%d idx=%d\n", (int)block_ref, (int)i, (int)dk, (int)dix);
+      fflush(stderr);
+    }
+  }
   {
     int32_t pass;
     for (pass = 0; pass < 2; pass++) {
