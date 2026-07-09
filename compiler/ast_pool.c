@@ -10407,6 +10407,62 @@ extern int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module, str
                                                   int32_t elem_type_ref, int32_t array_len, int32_t depth);
 extern int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module, struct ast_ASTArena *arena,
                                                     int32_t li, int32_t depth);
+extern struct ast_PipelineDepCtx *pipeline_asm_emit_dep_pipe_c(void);
+
+static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type_ref, struct ast_Module *mod);
+
+/**
+ * 在指定模块内查 TYPE_NAMED struct layout 的栈槽字节数。
+ * 【Why】typeck skip 时入口模块无 dep struct（如 PageMmapHeap）的 layout，须遍历 dep_ctx 查找；
+ *       否则栈槽算成默认 8B，实际 24B，struct 末字段（off）越界覆盖相邻局部变量。
+ * 【Invariant】仅查 mod 的 num_struct_layouts；返回 >0 表示命中并对齐到 8 字节，0 表示未命中。
+ * 【Asm/Perf】dep_ctx 遍历仅在入口模块未命中时触发，热路径（入口模块 struct）零开销。
+ */
+static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t type_ref, struct ast_Module *mod) {
+  uint8_t name[64];
+  int32_t nlen;
+  int32_t k;
+  if (!arena || type_ref <= 0 || !mod)
+    return 0;
+  nlen = pipeline_type_named_name_into(arena, type_ref, name);
+  if (nlen <= 0 || nlen > 63)
+    return 0;
+  for (k = 0; k < (int32_t)mod->num_struct_layouts; k++) {
+    int32_t ln = pipeline_module_struct_layout_name_len(mod, k);
+    int32_t j;
+    int32_t eq = 1;
+    int32_t sz;
+    if (ln != nlen)
+      continue;
+    for (j = 0; j < nlen; j++) {
+      if (pipeline_module_struct_layout_name_byte_at(mod, k, j) != name[j]) {
+        eq = 0;
+        break;
+      }
+    }
+    if (!eq)
+      continue;
+    sz = typeck_x_type_size_from_layout_glue(mod, arena, k, 0);
+    if (sz <= 0) {
+      int32_t nf = pipeline_module_struct_layout_num_fields(mod, k);
+      if (nf > 0) {
+        int32_t last = nf - 1;
+        int32_t foff = pipeline_module_struct_layout_field_offset_at(mod, k, last);
+        int32_t fty = pipeline_module_struct_layout_field_type_ref(mod, k, last);
+        int32_t fsz = asm_local_slot_bytes_mod(arena, fty, mod);
+        if (fsz <= 0)
+          fsz = 4;
+        sz = foff + fsz;
+      }
+    }
+    if (sz > 0) {
+      if (sz % 8 != 0)
+        sz += 8 - (sz % 8);
+      return sz;
+    }
+  }
+  return 0;
+}
 
 /**
  * T[N] 定长数组总字节宽：SoA 列主序或 AoS N×struct layout（与 typeck typeck_x_type_size 一致）。
@@ -10488,46 +10544,35 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
   if (pipeline_type_kind_ord_at(arena, type_ref) == 8) {
     if (!mod)
       mod = pipeline_asm_glue_emit_module_ref();
-    if (mod) {
-      uint8_t name[64];
-      int32_t nlen = pipeline_type_named_name_into(arena, type_ref, name);
-      if (nlen > 0 && nlen <= 63) {
-        int32_t k;
-        for (k = 0; k < (int32_t)mod->num_struct_layouts; k++) {
-          int32_t ln = pipeline_module_struct_layout_name_len(mod, k);
-          int32_t j;
-          int32_t eq = 1;
-          int32_t sz;
-          if (ln != nlen)
+    {
+      int32_t sz = asm_slot_bytes_named_in_mod(arena, type_ref, mod);
+      if (sz > 0) {
+        if (getenv("SHUX_ASM_EMIT_TRACE")) {
+          uint8_t nm[64];
+          int32_t nl = pipeline_type_named_name_into(arena, type_ref, nm);
+          fprintf(stderr, "shux: local_slot struct %.*s sz=%d\n", (int)nl, nm, (int)sz);
+        }
+        return sz;
+      }
+    }
+    /** 【Why】typeck skip 时入口模块无 dep struct 的 layout（PageMmapHeap 定义在
+     *  std.heap.page_mmap），须遍历 dep_ctx 查找；否则栈槽算成默认 8B，实际 24B，
+     *  struct 末字段（off）越界覆盖相邻局部变量（path 数组被 h.off 破坏）。
+     * 【Invariant】仅入口模块未命中时触发；dep 模块按 import 顺序线性扫描。
+     * 【Asm/Perf】dep struct 局部变量为低频路径（freestanding gate），遍历开销可忽略。 */
+    {
+      struct ast_PipelineDepCtx *dep = pipeline_asm_emit_dep_pipe_c();
+      if (dep) {
+        int32_t nd = pipeline_dep_ctx_ndep(dep);
+        int32_t di;
+        for (di = 0; di < nd; di++) {
+          struct ast_Module *dm = pipeline_dep_ctx_module_at(dep, di);
+          if (!dm || dm == mod)
             continue;
-          for (j = 0; j < nlen; j++) {
-            if (pipeline_module_struct_layout_name_byte_at(mod, k, j) != name[j]) {
-              eq = 0;
-              break;
-            }
-          }
-          if (!eq)
-            continue;
-          sz = typeck_x_type_size_from_layout_glue(mod, arena, k, 0);
-          if (sz <= 0) {
-            /** layout metrics 失败时按末字段 offset+宽估算（many_fields 等）。 */
-            int32_t nf = pipeline_module_struct_layout_num_fields(mod, k);
-            if (nf > 0) {
-              int32_t last = nf - 1;
-              int32_t foff = pipeline_module_struct_layout_field_offset_at(mod, k, last);
-              int32_t fty = pipeline_module_struct_layout_field_type_ref(mod, k, last);
-              int32_t fsz = asm_local_slot_bytes_mod(arena, fty, mod);
-              if (fsz <= 0)
-                fsz = 4;
-              sz = foff + fsz;
-            }
-          }
-          if (sz > 0) {
-            if (sz % 8 != 0)
-              sz += 8 - (sz % 8);
-            if (getenv("SHUX_ASM_EMIT_TRACE"))
-              fprintf(stderr, "shux: local_slot struct %.*s sz=%d\n", (int)nlen, name, (int)sz);
-            return sz;
+          {
+            int32_t sz = asm_slot_bytes_named_in_mod(arena, type_ref, dm);
+            if (sz > 0)
+              return sz;
           }
         }
       }
