@@ -79,11 +79,18 @@ if ! d05_native_exe "$SHUX_BIN"; then
 fi
 
 # ── shux 须具备 seed/.x 能力（shux-c 纯 C 链不具备或较弱）──
-if ! "$SHUX_BIN" --help 2>/dev/null | grep -q '\-\-lsp'; then
-  echo "d05 note: $SHUX_BIN missing --lsp (may need bootstrap-driver-seed first)" >&2
+HELP_OUT=$("$SHUX_BIN" --help 2>&1 || true)
+if ! printf '%s' "$HELP_OUT" | grep -q '\-\-lsp'; then
+  echo "d05 note: $SHUX_BIN missing --lsp in --help (may need bootstrap-driver-seed)" >&2
 fi
-if ! "$SHUX_BIN" --help 2>/dev/null | grep -qE '\-backend|backend'; then
-  die "$SHUX_BIN missing -backend in --help"
+# 部分 B-strict 链路上 --help 为空（driver_print_usage 弱桩/未链入）；用 -backend 行为探测兜底
+if ! printf '%s' "$HELP_OUT" | grep -qE '\-backend|backend'; then
+  if "$SHUX_BIN" -backend asm check -L . tests/c07/minimal_return42.x >/dev/null 2>&1 \
+    || "$SHUX_BIN" -backend asm check -L . examples/hello.x >/dev/null 2>&1; then
+    echo "d05 note: --help empty/missing -backend text; -backend asm check OK" >&2
+  else
+    die "$SHUX_BIN missing -backend (help empty and -backend asm check failed)"
+  fi
 fi
 
 # ── 日常 check 不经过 shux-c ──
