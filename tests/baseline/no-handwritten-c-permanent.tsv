@@ -173,3 +173,26 @@ file	compiler/src/asm/parser_asm_top_level_let_slice.c
 file	compiler/src/asm/parser_asm_type_alias_slice.c
 file	compiler/src/asm/parser_asm_type_ref_slice.c
 file	compiler/src/asm/parser_asm_unary_slice.c
+# G-04: platform #if conditional compilation (16 files, POSIX syscalls / #if / build mode switches)
+file	compiler/src/asm/runtime_env_os.c
+file	compiler/src/asm/runtime_net_addr_fast.c
+file	compiler/src/asm/runtime_net_dns_fast.c
+file	compiler/src/asm/runtime_net_ipv6_fast.c
+file	compiler/src/asm/runtime_net_sock_fast.c
+file	compiler/src/asm/runtime_net_udp_batch.c
+file	compiler/src/asm/runtime_path_fast.c
+file	compiler/src/asm/runtime_random_fill.c
+file	compiler/src/asm/runtime_sync_lock_diag_tls.c
+file	compiler/src/asm/runtime_time_os.c
+file	compiler/src/asm/runtime_tls_mbedtls_bio.c
+file	compiler/src/asm/pipeline_run_bootstrap_trampoline.c
+file	compiler/src/asm/pipeline_run_impl_alias.c
+file	compiler/src/lsp/lsp_state.c
+file	compiler/src/x_seed_bridge.c
+file	compiler/src/lexer/cfg_eval_bootstrap_stub.c
+# G-04: C frontend AST companion (5 files, depend on C ASTExpr/ASTBlock/ASTFunc struct layout)
+file	compiler/src/async/async_asm_pool.c
+file	compiler/src/async/async_cps_codegen.c
+file	compiler/src/async/async_liveness.c
+file	compiler/src/lsp/lsp_diag_pipeline_ctx.c
+file	compiler/src/runtime_c_import.c
