@@ -11,7 +11,6 @@ std/ffi/mod.x	ffi_cb_double_i32_fn_c
 std/ffi/mod.x	ffi_invoke_i32_cb_c
 std/runtime/mod.x	runtime_panic
 std/runtime/mod.x	runtime_abort
-std/runtime/mod.x	crash_evidence_collect
 std/runtime/mod.x	runtime_crash_evidence_collect_c
 std/dynlib/mod.x	dynlib_open_c
 std/dynlib/mod.x	dynlib_sym_c
