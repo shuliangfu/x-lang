@@ -3816,12 +3816,23 @@ asm_bootstrap_support_extra_link() {
 # 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。
 ensure_typeck_f64_bits_obj() {
   UNAME_S=$(uname -s 2>/dev/null || echo Unknown)
-  if [ "$UNAME_S" = "Linux" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
+  UNAME_M=$(uname -m 2>/dev/null || echo Unknown)
+  # G-02e：全平台 .s，不再回退 typeck_f64_bits.c
+  if [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
+    echo "  cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_x86_64.s"
+    "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_x86_64.s
+  elif [ "$UNAME_S" = "Linux" ] && [ "$UNAME_M" = "aarch64" ] && [ -f src/typeck/typeck_f64_bits_aarch64_elf.s ]; then
+    echo "  cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_aarch64_elf.s"
+    "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_aarch64_elf.s
+  elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "arm64" ] && [ -f src/typeck/typeck_f64_bits_arm64.s ]; then
+    echo "  cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_arm64.s"
+    "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_arm64.s
+  elif [ "$UNAME_S" = "Darwin" ] && [ "$UNAME_M" = "x86_64" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
     echo "  cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_x86_64.s"
     "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_x86_64.s
   else
-    echo "  cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits.c"
-    "$CC" $CFLAGS -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits.c
+    echo "ensure_typeck_f64_bits_obj: missing platform .s for $UNAME_S/$UNAME_M" >&2
+    return 1
   fi
 }
 

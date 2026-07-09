@@ -1709,16 +1709,26 @@ ensure_backend_x86_64_enc_c_obj() {
   fi
 }
 ensure_typeck_f64_bits_obj() {
-  local uname_s
+  local uname_s uname_m src
   uname_s=$(uname -s 2>/dev/null || echo Unknown)
-  if [ "$uname_s" = "Linux" ] && [ -f src/typeck/typeck_f64_bits_x86_64.s ]; then
-    if [ ! -f src/typeck/typeck_f64_bits.o ] || [ src/typeck/typeck_f64_bits_x86_64.s -nt src/typeck/typeck_f64_bits.o ]; then
-      strict_glue_info "cc -c src/typeck/typeck_f64_bits.o <- typeck_f64_bits_x86_64.s"
-      "$CC" -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits_x86_64.s
-    fi
-  elif [ ! -f src/typeck/typeck_f64_bits.o ] || [ src/typeck/typeck_f64_bits.c -nt src/typeck/typeck_f64_bits.o ]; then
-    strict_glue_info "cc -c src/typeck/typeck_f64_bits.o <- src/typeck/typeck_f64_bits.c"
-    "$CC" $CFLAGS -c -o src/typeck/typeck_f64_bits.o src/typeck/typeck_f64_bits.c
+  uname_m=$(uname -m 2>/dev/null || echo Unknown)
+  src=""
+  if [ "$uname_s" = "Linux" ] && [ "$uname_m" = "x86_64" ]; then
+    src="src/typeck/typeck_f64_bits_x86_64.s"
+  elif [ "$uname_s" = "Linux" ] && [ "$uname_m" = "aarch64" ]; then
+    src="src/typeck/typeck_f64_bits_aarch64_elf.s"
+  elif [ "$uname_s" = "Darwin" ] && [ "$uname_m" = "arm64" ]; then
+    src="src/typeck/typeck_f64_bits_arm64.s"
+  elif [ "$uname_s" = "Darwin" ] && [ "$uname_m" = "x86_64" ]; then
+    src="src/typeck/typeck_f64_bits_x86_64.s"
+  fi
+  if [ -z "$src" ] || [ ! -f "$src" ]; then
+    strict_glue_info "ensure_typeck_f64_bits_obj: missing .s for $uname_s/$uname_m"
+    return 1
+  fi
+  if [ ! -f src/typeck/typeck_f64_bits.o ] || [ "$src" -nt src/typeck/typeck_f64_bits.o ]; then
+    strict_glue_info "cc -c src/typeck/typeck_f64_bits.o <- $src"
+    "$CC" -c -o src/typeck/typeck_f64_bits.o "$src"
   fi
 }
 ensure_cfg_eval_obj() {

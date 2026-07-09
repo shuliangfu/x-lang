@@ -53,6 +53,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # 注意：.o 名是 runtime_driver_no_c.o，源文件是 runtime.c + NO_C flags
   g05_cc_c src/runtime_driver_no_c.o src/runtime.c $RUNTIME_DRIVER_NO_C_CFLAGS
   g05_cc_c build_asm/pipeline_glue_strict_minimal.o src/asm/pipeline_glue_strict_minimal.c
+  # G-02e：typeck_f64_bits 纯 .s
+  _f64s=""
+  case "${G05_UNAME_S:-$(uname -s)}/${G05_UNAME_M:-$(uname -m)}" in
+    Linux/x86_64) _f64s=src/typeck/typeck_f64_bits_x86_64.s ;;
+    Linux/aarch64) _f64s=src/typeck/typeck_f64_bits_aarch64_elf.s ;;
+    Darwin/arm64) _f64s=src/typeck/typeck_f64_bits_arm64.s ;;
+    Darwin/x86_64) _f64s=src/typeck/typeck_f64_bits_x86_64.s ;;
+  esac
+  if [ -n "$_f64s" ] && [ -f "$_f64s" ]; then
+    if [ ! -f src/typeck/typeck_f64_bits.o ] || [ "$_f64s" -nt src/typeck/typeck_f64_bits.o ]; then
+      echo "g05_ensure: cc -c $_f64s → src/typeck/typeck_f64_bits.o"
+      $CC -c -o src/typeck/typeck_f64_bits.o "$_f64s"
+    fi
+  fi
   # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
   if [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
     _tg_before=$(wc -c < typeck_gen.c | tr -d ' ')

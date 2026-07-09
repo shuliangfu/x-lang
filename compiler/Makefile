@@ -928,18 +928,30 @@ src/asm/crt0_mingw.o: src/asm/crt0_mingw.c Makefile
 	$(CC) $(CFLAGS) $(WIN32_O_CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 endif
 
-# asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi。Linux x86_64 优先用 asm，否则 .c
+# asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi（G-02e：全平台 .s，零 C）。
 ifeq ($(UNAME_S),Linux)
 ifeq ($(UNAME_M),x86_64)
 src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s
 	$(CC) -c -o $@ $<
+else ifeq ($(UNAME_M),aarch64)
+src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_aarch64_elf.s
+	$(CC) -c -o $@ $<
 else
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+$(error typeck_f64_bits: unsupported Linux arch $(UNAME_M); add .s)
+endif
+else ifeq ($(UNAME_S),Darwin)
+ifeq ($(UNAME_M),arm64)
+src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_arm64.s
+	$(CC) -c -o $@ $<
+else ifeq ($(UNAME_M),x86_64)
+# Darwin x86_64：SysV .s 无 _ 前缀；clang 汇编 Mach-O 时需额外处理，当前主路径为 arm64。
+src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits_x86_64.s
+	$(CC) -c -o $@ $<
+else
+$(error typeck_f64_bits: unsupported Darwin arch $(UNAME_M); add .s)
 endif
 else
-src/typeck/typeck_f64_bits.o: src/typeck/typeck_f64_bits.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+$(error typeck_f64_bits: unsupported OS $(UNAME_S); add .s)
 endif
 
 clean:
