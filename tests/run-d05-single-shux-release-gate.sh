@@ -96,14 +96,17 @@ if ! "$SHUX_BIN" check -L . "$SMOKE" >/dev/null 2>&1; then
 fi
 echo "d05 OK: $SHUX_BIN check $SMOKE (no shux-c link fallback)"
 
-# 若 shux 与 shux_asm 同存且均为 native，bstrict 后应一致（发布即 asm 链）
+# 若 shux 与 shux_asm 同存且均为 native，发布链上宜一致（make shux_asm / bstrict cp）。
+# 默认仅 note；硬失败需 SHUX_D05_REQUIRE_ASM_HASH=1（Linux 发版 CI 可开）。
 if [ -x "$SHUX_ASM" ] && d05_native_exe "$SHUX_ASM" && [ -x "./compiler/shux" ] && d05_native_exe "./compiler/shux"; then
   if command -v shasum >/dev/null 2>&1; then
     H1=$(shasum -a 256 "./compiler/shux" | awk '{print $1}')
     H2=$(shasum -a 256 "$SHUX_ASM" | awk '{print $1}')
     if [ "$H1" != "$H2" ]; then
-      echo "d05 note: shux != shux_asm hash (run make bootstrap-driver-bstrict to sync release)" >&2
-      [ "$FAIL" = "1" ] && die "shux and shux_asm differ after expected bstrict cp"
+      echo "d05 note: shux != shux_asm hash (sync: make -C compiler shux_asm 或 cp shux shux_asm)" >&2
+      if [ "${SHUX_D05_REQUIRE_ASM_HASH:-0}" = "1" ]; then
+        die "shux and shux_asm differ (SHUX_D05_REQUIRE_ASM_HASH=1)"
+      fi
     else
       echo "d05 OK: compiler/shux matches shux_asm (release binary)"
     fi

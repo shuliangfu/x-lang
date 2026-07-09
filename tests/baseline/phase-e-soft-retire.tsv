@@ -9,17 +9,17 @@ e01_gate	gate	tests/run-e01-extern-h-soft-gate.sh	active	n/a	gate_ref	E-01 委�
 e01_lsp_io_extern_h	E-01	compiler/src/lsp/lsp_io_extern.h	soft_retired	lsp_codegen_extern.c	not_exists	已内嵌
 e01_lsp_gen_extern_h	E-01	compiler/src/lsp/lsp_gen_extern.h	soft_retired	lsp_codegen_extern.c	not_exists	已内嵌
 e01_lsp_codegen_extern_c	E-01	compiler/src/lsp/lsp_codegen_extern.c	active	C codegen 路径	exists	C -E 仍用
-e02_lsp_diag_c	E-02	compiler/src/lsp/lsp_diag.c	soft_retired	lsp_diag_stubs_no_c.o	phase_e_marker	E-02 默认 stubs
+e02_lsp_diag_c	E-02	compiler/src/lsp/lsp_diag.c	hard_retired	lsp_diag_stubs_no_c.o	not_exists	E-02 默认 stubs; G-02a physical delete
 e02_stubs_c	E-02	compiler/src/lsp/lsp_diag_stubs_no_c.c	active	LSP_DIAG_LINK_O	exists	E-02 默认链
 e02_gate	gate	tests/run-e02-lsp-diag-soft-gate.sh	active	n/a	gate_ref	E-02 委托
-e03_parser_c	E-03	compiler/src/parser/parser.c	soft_retired	parser_x.o	phase_e_marker	C-06 默认不链
-e03_typeck_c	E-03	compiler/src/typeck/typeck.c	soft_retired	typeck_x.o	phase_e_marker	C-06 默认不链
-e03_codegen_c	E-03	compiler/src/codegen/codegen.c	soft_retired	codegen_x.o	phase_e_marker	C-06 默认不链
-e03_autovec_c	E-03	compiler/src/codegen/autovec.c	soft_retired	codegen_x.o	phase_e_marker	LEGACY 内
-e03_lexer_c	E-03	compiler/src/lexer/lexer.c	soft_retired	lexer_x.o	phase_e_marker	E-03 v2 默认不链 lexer.o
-e03_ast_c	E-03	compiler/src/ast/ast.c	soft_retired	ast_pool/x_seed_bridge	phase_e_marker	E-03 v2 默认不链 ast_seed
+e03_parser_c	E-03	compiler/src/parser/parser.c	hard_retired	parser_x.o	not_exists	C-06 默认不链; G-02a physical delete
+e03_typeck_c	E-03	compiler/src/typeck/typeck.c	hard_retired	typeck_x.o	not_exists	C-06 默认不链; G-02a physical delete
+e03_codegen_c	E-03	compiler/src/codegen/codegen.c	hard_retired	codegen_x.o	not_exists	C-06 默认不链; G-02a physical delete
+e03_autovec_c	E-03	compiler/src/codegen/autovec.c	hard_retired	codegen_x.o	not_exists	LEGACY 内; G-02a physical delete
+e03_lexer_c	E-03	compiler/src/lexer/lexer.c	hard_retired	lexer_x.o	not_exists	E-03 v2 默认不链 lexer.o; G-02a physical delete
+e03_ast_c	E-03	compiler/src/ast/ast.c	hard_retired	ast_pool/x_seed_bridge	not_exists	E-03 v2 默认不链 ast_seed; G-02a physical delete
 e03_lexer_ast_gate	gate	tests/run-e03-lexer-ast-soft-gate.sh	active	n/a	gate_ref	E-03 v2 lexer/ast 委托
-e03_preprocess_c	E-03	compiler/src/preprocess.c	soft_retired	preprocess_x.o	phase_e_marker	E-03 v2 默认不链 preprocess_for_driver
+e03_preprocess_c	E-03	compiler/src/preprocess.c	hard_retired	preprocess_x.o	not_exists	E-03 v2 默认不链 preprocess_for_driver; G-02a physical delete
 e03_preprocess_gate	gate	tests/run-e03-preprocess-soft-gate.sh	active	n/a	gate_ref	E-03 v2 preprocess 委托
 e03_v3_coldstart_gate	gate	tests/run-e03-v3-coldstart-track-gate.sh	active	n/a	gate_ref	E-03 v3 冷启动 track
 e04_runtime_c	E-04	compiler/src/runtime.c	active	runtime_driver_no_c.o	grep	E-04 v1 default no_c
