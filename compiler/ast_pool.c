@@ -10427,6 +10427,26 @@ static int32_t asm_slot_bytes_named_in_mod(struct ast_ASTArena *arena, int32_t t
   nlen = pipeline_type_named_name_into(arena, type_ref, name);
   if (nlen <= 0 || nlen > 63)
     return 0;
+  /** 【Why】type name 可能带模块前缀（如 "heap.PageMmapHeap"），而 struct layout
+   *  name 是裸名（"PageMmapHeap"）；比较时取最后一个 "." 之后的部分。
+   * 【Invariant】仅修改本地 name buf，不影响 arena 内 type name。 */
+  {
+    int32_t dot = -1;
+    int32_t j;
+    for (j = 0; j < nlen; j++) {
+      if (name[j] == '.')
+        dot = j;
+    }
+    if (dot >= 0) {
+      int32_t base_off = dot + 1;
+      int32_t base_len = nlen - base_off;
+      if (base_len <= 0)
+        return 0;
+      for (j = 0; j < base_len; j++)
+        name[j] = name[base_off + j];
+      nlen = base_len;
+    }
+  }
   for (k = 0; k < (int32_t)mod->num_struct_layouts; k++) {
     int32_t ln = pipeline_module_struct_layout_name_len(mod, k);
     int32_t j;
