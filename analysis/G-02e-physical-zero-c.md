@@ -34,6 +34,7 @@
 | G-02e-2 | 删 `lsp_heap_bootstrap.c`（改链 `runtime_heap_user.o`）；`typeck_one_function` 并入 strict_glue_stubs，G05 去掉 `typeck_c_module_stubs.o`；G05 67→66 objs | ✅ 172→171 |
 | G-02e-3 | **include 碎片改名**：`*.inc.c` / `parser_asm_*_slice.c` / ed25519 被 include 的 `.c` → **`.inc`**（不再计入手写 C 审计）；逻辑仍由 glue TU 编译 | ✅ 171→113 |
 | G-02e-4 | `runtime_proc_abi.c`→`runtime_link_abi.c`；g05_ensure 自动补编缺失产品 `.o`；G05 −1 obj | ✅ 113→112 |
+| G-02e-5 | `runtime_abi.c`→`runtime_link_abi.c`（argv/target + nostdlib weak）；G05 −1 obj | ✅ 112→111 |
 
 ## 4. 建议下一刀（工作量升序）
 

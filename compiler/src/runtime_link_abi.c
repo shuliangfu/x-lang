@@ -28,6 +28,14 @@
 #include <sys/wait.h>
 #endif
 #include <sys/stat.h>
+
+#ifndef SHUX_WEAK
+#if defined(_WIN32) || defined(_WIN64)
+#define SHUX_WEAK
+#else
+#define SHUX_WEAK __attribute__((weak))
+#endif
+#endif
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
@@ -5386,4 +5394,66 @@ const char *asm_link_obj_skip_missing(const char *path) {
     if (st.st_size <= 0)
         return NULL;
     return path;
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* G-02e：原 runtime_abi.c 并入本 TU（argv/target 薄原语 + nostdlib weak 桩）。 */
+/* -------------------------------------------------------------------------- */
+
+int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
+    if (!argv || !buf || max <= 0 || i < 0 || i >= argc || !argv[i])
+        return -1;
+    size_t n = (size_t)max - 1;
+    size_t j = 0;
+    while (argv[i][j] && j < n) {
+        buf[j] = argv[i][j];
+        j++;
+    }
+    buf[j] = '\0';
+    return (int)j;
+}
+
+uint8_t *driver_argv_drop_subcommand(int argc, uint8_t *argv_opaque) {
+    static char *adj[512];
+    char **argv;
+    int i;
+
+    if (argc < 2 || !argv_opaque)
+        return argv_opaque;
+    argv = (char **)argv_opaque;
+    if (argc > 512)
+        return argv_opaque;
+    adj[0] = argv[0];
+    for (i = 2; i < argc; i++)
+        adj[i - 1] = argv[i];
+    return (uint8_t *)adj;
+}
+
+int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_flag) {
+    if (saw_target_flag)
+        return parsed_target;
+#if defined(__APPLE__) && defined(__aarch64__)
+    return 1;
+#else
+    return parsed_target;
+#endif
+}
+
+extern int main_entry(int argc, char **argv);
+
+int shux_forward_main_to_main_entry(int argc, char **argv) {
+    return main_entry(argc, argv);
+}
+
+SHUX_WEAK void bootstrap_init_static_tls(void) {
+}
+
+SHUX_WEAK void bootstrap_init_environ(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+}
+
+SHUX_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
+    return 0;
 }

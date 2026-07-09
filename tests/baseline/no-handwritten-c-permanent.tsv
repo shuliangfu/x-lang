@@ -130,7 +130,6 @@ file	compiler/src/main.c
 file	compiler/src/preprocess_if_stack_bridge.c
 file	compiler/src/preprocess_shim.c
 file	compiler/src/runtime.c
-file	compiler/src/runtime_abi.c
 file	compiler/src/runtime_c_import.c
 file	compiler/src/runtime_driver_abi.c
 file	compiler/src/runtime_driver_diagnostic.c
