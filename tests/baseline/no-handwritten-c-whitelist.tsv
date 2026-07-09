@@ -3,8 +3,8 @@
 # 更新：SHUX_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh
 summary_std_c	0
 summary_core_c	0
-summary_compiler_src_c	177
-summary_total_c	177
+summary_compiler_src_c	176
+summary_total_c	176
 file	compiler/src/asm/asm_backend_compat_stubs.c
 file	compiler/src/asm/asm_experimental_symbol_bridge.c
 file	compiler/src/asm/async_net_fs.inc.c
@@ -151,7 +151,6 @@ file	compiler/src/diag.c
 file	compiler/src/driver/fmt_check_cmd.c
 file	compiler/src/driver/target_cpu.c
 file	compiler/src/lexer/cfg_eval_bootstrap_stub.c
-file	compiler/src/lexer/cfg_eval_gen.c
 file	compiler/src/lexer/cfg_eval_link_alias.c
 file	compiler/src/lsp/lsp_codegen_extern.c
 file	compiler/src/lsp/lsp_diag_pipeline_ctx.c

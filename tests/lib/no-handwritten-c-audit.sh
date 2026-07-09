@@ -9,19 +9,22 @@
 NHC_PERMANENT_STUBS="${NHC_PERMANENT_STUBS:-tests/baseline/no-handwritten-c-permanent.tsv}"
 
 # 收集 F-09 审计范围内的全部 .c（相对仓库根路径，LC_ALL=C 排序）。
+# 排除 gitignored 构建产物（pinned _gen.c 等），仅审计 git 跟踪的手写 C。
 nhc_collect_scope_c() {
   {
     find std core -type f -name '*.c' 2>/dev/null
     find compiler/src -type f -name '*.c' 2>/dev/null
-  } | LC_ALL=C sort -u
+  } | while IFS= read -r f; do
+    git check-ignore "$f" >/dev/null 2>&1 || printf '%s\n' "$f"
+  done | LC_ALL=C sort -u
 }
 
-# 统计各 scope 下 .c 数量。
+# 统计各 scope 下 .c 数量（排除 gitignored 构建产物）。
 nhc_count_scope_c() {
   local std_n core_n comp_n total
-  std_n=$(find std -type f -name '*.c' 2>/dev/null | wc -l | tr -d ' ')
-  core_n=$(find core -type f -name '*.c' 2>/dev/null | wc -l | tr -d ' ')
-  comp_n=$(find compiler/src -type f -name '*.c' 2>/dev/null | wc -l | tr -d ' ')
+  std_n=$(find std -type f -name '*.c' 2>/dev/null | while IFS= read -r f; do git check-ignore "$f" >/dev/null 2>&1 || echo "$f"; done | wc -l | tr -d ' ')
+  core_n=$(find core -type f -name '*.c' 2>/dev/null | while IFS= read -r f; do git check-ignore "$f" >/dev/null 2>&1 || echo "$f"; done | wc -l | tr -d ' ')
+  comp_n=$(find compiler/src -type f -name '*.c' 2>/dev/null | while IFS= read -r f; do git check-ignore "$f" >/dev/null 2>&1 || echo "$f"; done | wc -l | tr -d ' ')
   total=$((std_n + core_n + comp_n))
   printf 'summary_std_c\t%s\n' "$std_n"
   printf 'summary_core_c\t%s\n' "$core_n"
