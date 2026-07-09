@@ -2,7 +2,7 @@
   "name": "vscode-shux",
   "displayName": "Shux Language",
   "description": "Shux (.x) 完整开发体验：语法高亮、LSP、智能补全、参数提示、悬停、大纲、折叠、片段、任务、错误跳转、实时缩进、选区扩展与状态栏",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "license": "MIT",
   "publisher": "shux",
   "icon": "icon.png",
@@ -39,8 +39,8 @@
         ],
         "configuration": "./language-configuration.json",
         "icon": {
-          "light": "./icons/x.png",
-          "dark": "./icons/x.png"
+          "light": "./icons/x-128.png",
+          "dark": "./icons/x-128.png"
         }
       }
     ],

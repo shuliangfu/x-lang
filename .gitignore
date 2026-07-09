@@ -13,6 +13,7 @@ su
 
 # C 目标文件与静态库
 *.o
+*.o.fast
 *.obj
 *.a
 *.lib
@@ -249,6 +250,7 @@ compiler/shux-seed-phase1
 gate_out.txt
 gate_out2.txt
 logs/bootstrap-seed.fresh
+logs/bootstrap-postlink.*
 
 # G-06 seed: asm_backend_partial.linux.x86_64.o 须入库（例外）；darwin arm64 为本地构建产物，忽略
 !compiler/seeds/asm_backend_partial.linux.x86_64.o
