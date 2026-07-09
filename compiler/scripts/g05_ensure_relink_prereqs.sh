@@ -53,6 +53,17 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # 注意：.o 名是 runtime_driver_no_c.o，源文件是 runtime.c + NO_C flags
   g05_cc_c src/runtime_driver_no_c.o src/runtime.c $RUNTIME_DRIVER_NO_C_CFLAGS
   g05_cc_c build_asm/pipeline_glue_strict_minimal.o src/asm/pipeline_glue_strict_minimal.c
+  # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
+  if [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
+    _tg_before=$(wc -c < typeck_gen.c | tr -d ' ')
+    python3 scripts/patch_typeck_gen_lang007.py || true
+    _tg_after=$(wc -c < typeck_gen.c | tr -d ' ')
+    if [ "$_tg_before" != "$_tg_after" ] || [ ! -f typeck_x.o ] || [ typeck_gen.c -nt typeck_x.o ]; then
+      echo "g05_ensure: cc -c typeck_gen.c → typeck_x.o (LANG-007 patch)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o typeck_x.o typeck_gen.c
+    fi
+  fi
 fi
 
 # --- 齐备检查 ---

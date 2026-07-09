@@ -1367,6 +1367,7 @@ typeck_gen.c: ast_gen2.c src/typeck/typeck.x
 	perl scripts/fix_slim_arena_gen_c.pl $@
 
 typeck_x.o: typeck_gen.c
+	@python3 scripts/patch_typeck_gen_lang007.py
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_x.o
 	@test $$(stat -f%z typeck_x.o 2>/dev/null || stat -c%s typeck_x.o) -gt 10000 || (echo "typeck_x.o too small (corrupt gen? rm typeck_gen.c && make typeck_gen.c typeck_x.o)" >&2; exit 1)
 

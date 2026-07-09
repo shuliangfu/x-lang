@@ -24638,6 +24638,11 @@ static int32_t typeck_check_call_ptr_struct_compat_c(struct ast_Module *module, 
 /**
  * M-3：.x typeck CALL 实参 slice 域检查；解析 callee 后逐实参对照形参域标签。
  */
+/** LANG-007：S0 extern 边界（定义见后文；call_slice_region 旧路径也挂此检查）。 */
+int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *module,
+                                                            struct ast_ASTArena *arena, int32_t expr_ref,
+                                                            struct ast_PipelineDepCtx *ctx);
+
 int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                   int32_t call_expr_ref, struct ast_PipelineDepCtx *ctx) {
   int32_t func_ix;
@@ -24651,6 +24656,13 @@ int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module, str
   struct ast_Module *callee_mod;
   if (!module || !arena || call_expr_ref <= 0)
     return 0;
+  /**
+   * LANG-007 belt：旧 typeck_gen 的 typeck_check_expr_call 内联路径不经
+   * pipeline_typeck_check_expr_call_c，但仍调用本函数做 slice region；在此再挂 S0 extern 边界。
+   * （新路径已在 pipeline_typeck_check_expr_call_c 内检查；重复检查幂等。）
+   */
+  if (pipeline_typeck_check_extern_call_unsafe_boundary_c(module, arena, call_expr_ref, ctx) != 0)
+    return -1;
   func_ix = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
   dep_ix = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
   if (func_ix < 0)
