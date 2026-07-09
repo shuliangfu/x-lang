@@ -22,6 +22,13 @@ function main(): i32 {
   if (heap.page_mmap_heap_init(&h) != 0) {
     return 3;
   }
+  // 诊断：init 后检查 h 字段
+  if (h.base == 0 as *u8) {
+    return 20;
+  }
+  if (h.cap != 65536 as usize) {
+    return 21;
+  }
   let p: *u8 = heap.page_mmap_heap_alloc(&h, 32 as usize, 8 as usize);
   if (p == 0 as *u8) {
     heap.page_mmap_heap_deinit(&h);
