@@ -14487,10 +14487,17 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
     }
   }
   if (getenv("SHUX_ASM_DEBUG2") != NULL) {
+    int32_t dbg_fn_body2 = 0;
+    if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0)
+      dbg_fn_body2 = pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
+    fprintf(stderr, "shux: SO-BEGIN fi=%d br=%d nso=%d is_fn_body=%d\n",
+            (int)g_pipeline_asm_emit_func_index, (int)block_ref, (int)nso, (int)(dbg_fn_body2 == block_ref));
+    fflush(stderr);
     for (i = 0; i < nso; i++) {
       uint8_t dk = ast_ast_block_stmt_order_kind(arena, block_ref, i);
       int32_t dix = ast_ast_block_stmt_order_idx(arena, block_ref, i);
-      fprintf(stderr, "shux: SO br=%d [%d] kind=%d idx=%d\n", (int)block_ref, (int)i, (int)dk, (int)dix);
+      fprintf(stderr, "shux: SO fi=%d br=%d [%d] kind=%d idx=%d\n",
+              (int)g_pipeline_asm_emit_func_index, (int)block_ref, (int)i, (int)dk, (int)dix);
       fflush(stderr);
     }
   }
