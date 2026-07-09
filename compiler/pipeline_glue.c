@@ -14706,6 +14706,12 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
         int32_t expr_ref = ast_pipeline_block_expr_stmt_ref(arena, block_ref, idx);
         if (expr_ref != 0) {
           int32_t stmt_ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+          if (getenv("SHUX_ASM_DEBUG3") != NULL) {
+            fprintf(stderr, "shux: ES_EMIT fi=%d br=%d idx=%d expr_ref=%d kind=%d nes=%d\n",
+                    (int)g_pipeline_asm_emit_func_index, (int)block_ref, (int)idx,
+                    (int)expr_ref, (int)stmt_ko, (int)ast_ast_block_num_expr_stmts(arena, block_ref));
+            fflush(stderr);
+          }
           /**
            * 赋值类：仅 kill 左值 VAR 槽（7.3 线性活跃性）；plain ASSIGN(28) 可保留 INDEX 址 cache。
            * 其它语句可能 clobber rbx/rax，清空全部 binop/INDEX 缓存。
