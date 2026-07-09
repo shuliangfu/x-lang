@@ -3155,10 +3155,10 @@ ensure_bstrict_seed_support_objs() {
     echo "  cc -c src/asm/user_asm_seed_bridge.c -> src/asm/user_asm_seed_bridge.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/user_asm_seed_bridge.o src/asm/user_asm_seed_bridge.c
   fi
-  if [ ! -f src/lsp/lsp_heap_bootstrap.o ] \
-    || [ "src/lsp/lsp_heap_bootstrap.c" -nt src/lsp/lsp_heap_bootstrap.o ]; then
-    echo "  cc -c src/lsp/lsp_heap_bootstrap.c -> src/lsp/lsp_heap_bootstrap.o"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/lsp/lsp_heap_bootstrap.o src/lsp/lsp_heap_bootstrap.c
+  if [ ! -f src/runtime_heap_user.o ] \
+    || [ "src/runtime_heap_user.c" -nt src/runtime_heap_user.o ]; then
+    echo "  cc -c src/runtime_heap_user.c -> src/runtime_heap_user.o"
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_heap_user.o src/runtime_heap_user.c
   fi
   # parser EMIT_HEAVY extern bl _glue：须与 Makefile USER_ASM_SEED_OBJS 同步链入 shux_asm。
   PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
@@ -3803,16 +3803,16 @@ ensure_asm_bootstrap_support_extra_objs() {
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/runtime_pipeline_abi_shux_c_stubs.c
   fi
   ensure_typeck_c_module_stubs_obj
-  o="src/lsp/lsp_heap_bootstrap.o"
-  if [ ! -f "$o" ] || [ "src/lsp/lsp_heap_bootstrap.c" -nt "$o" ]; then
-    echo "  cc -c $o <- src/lsp/lsp_heap_bootstrap.c (heap_alloc_c for lsp_io_std_heap)"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/lsp/lsp_heap_bootstrap.c
+  o="src/runtime_heap_user.o"
+  if [ ! -f "$o" ] || [ "src/runtime_heap_user.c" -nt "$o" ]; then
+    echo "  cc -c $o <- src/runtime_heap_user.c (heap_alloc_c for lsp_io_std_heap)"
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/runtime_heap_user.c
   fi
 }
 
 # experimental / strict runtime 链：与 Makefile DRIVER_SEED_SUPPORT_EXTRA 一致。
 asm_bootstrap_support_extra_link() {
-  echo "src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o $BUILD_DIR/typeck_c_module_stubs.o src/lsp/lsp_heap_bootstrap.o"
+  echo "src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_heap_user.o"
 }
 
 # 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。

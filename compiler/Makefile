@@ -1456,7 +1456,7 @@ else ifeq ($(SHUX_NO_C_SEED_LINK),1)
 # 非 SHUX_NO_C_FRONTEND 编译单元引用（lsp_diag.c 未走 no_c 守卫，仍需符号满足链接）。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o src/lsp/lsp_heap_bootstrap.o
+DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_heap_user.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 else
@@ -1464,7 +1464,7 @@ else
 # 2026-07-08：从 seed-compat 切换到 no_c；macOS arm64 check ✅、compile 走 -E+cc fallback ✅；Linux x86_64 全绿。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o src/lsp/lsp_heap_bootstrap.o
+DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_heap_user.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 endif
@@ -1569,7 +1569,7 @@ src/lsp/lsp_diag_pipeline_ctx.o: src/lsp/lsp_diag_pipeline_ctx.c
 src/lsp/lsp_diag_x_alias.o: src/lsp/lsp_diag_x_alias.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
-src/lsp/lsp_heap_bootstrap.o: src/lsp/lsp_heap_bootstrap.c
+src/runtime_heap_user.o: src/runtime_heap_user.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
 $(AST_POOL_L5_BRIDGE_O): src/ast_pool_l5_bridge.c

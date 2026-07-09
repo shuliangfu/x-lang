@@ -3,8 +3,8 @@
 # 更新：SHUX_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh
 summary_std_c	0
 summary_core_c	0
-summary_compiler_src_c	172
-summary_total_c	172
+summary_compiler_src_c	171
+summary_total_c	171
 file	compiler/src/asm/asm_backend_compat_stubs.c
 file	compiler/src/asm/asm_experimental_symbol_bridge.c
 file	compiler/src/asm/async_net_fs.inc.c
@@ -156,7 +156,6 @@ file	compiler/src/lsp/lsp_diag_pipeline_ctx.c
 file	compiler/src/lsp/lsp_diag_pipeline_sizes.c
 file	compiler/src/lsp/lsp_diag_stubs_no_c.c
 file	compiler/src/lsp/lsp_diag_x_alias.c
-file	compiler/src/lsp/lsp_heap_bootstrap.c
 file	compiler/src/lsp/lsp_state.c
 file	compiler/src/lsp/typeck_lsp_io_stub.c
 file	compiler/src/main.c

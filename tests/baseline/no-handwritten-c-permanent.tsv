@@ -196,11 +196,9 @@ file	compiler/src/runtime_c_import.c
 # - string_fast / heap_*: libc mem* / malloc / posix_memalign thin wrappers (P0b extern "C" 自举后可再评估迁 .x)
 # - std_runtime_fast: panic/abort 符号别名 → shux_panic_
 # - lsp_codegen_extern: 大块 C 源字符串 + strstr 路径探测（codegen -E preamble）
-# - lsp_heap_bootstrap: 冷启动无 std/heap.o 时 malloc 桥
 # - preprocess_if_stack_bridge: 分 TU 链静态 #if 栈（pipeline_gen2 不链 glue 时）
 file	compiler/src/asm/runtime_std_runtime_fast.c
 file	compiler/src/asm/runtime_string_fast.c
 file	compiler/src/lsp/lsp_codegen_extern.c
-file	compiler/src/lsp/lsp_heap_bootstrap.c
 file	compiler/src/preprocess_if_stack_bridge.c
 file	compiler/src/runtime_heap_user.c

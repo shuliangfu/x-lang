@@ -80,6 +80,18 @@ SHUX_WEAK int typeck_module(ASTModule *m, ASTModule **dep_mods, int num_deps, AS
   return -1;
 }
 
+/** G-02e：原 typeck_c_module_stubs.c 的 typeck_one_function，并入本 TU 以便产品链去掉独立 stubs.o。 */
+SHUX_WEAK int typeck_one_function(ASTModule *m, ASTModule **dep_mods, int num_deps, ASTModule **all_dep_mods, int n_all_deps,
+                                  int only_func_index) {
+  (void)m;
+  (void)dep_mods;
+  (void)num_deps;
+  (void)all_dep_mods;
+  (void)n_all_deps;
+  (void)only_func_index;
+  return -1;
+}
+
 SHUX_WEAK int typeck_set_allow_legacy_extern_calls(int allow) {
   (void)allow;
   return 0;

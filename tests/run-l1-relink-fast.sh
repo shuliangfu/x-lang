@@ -95,7 +95,7 @@ else
     src/ast_pool_l5_bridge.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes_nostub.o \
     src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o src/lsp/lsp_diag_x_alias.o \
     _stubs_driver.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o \
-    src/lsp/lsp_heap_bootstrap.o     src/lsp/lsp_heap_bootstrap.o \
+    src/runtime_heap_user.o     src/runtime_heap_user.o \
     2>&1 | while IFS= read -r line; do echo "$line"; done
   progress "gen phase1 stub partial (avoid long asm -E)"
   ./scripts/gen_g06_phase1_backend_stub.sh
