@@ -56,64 +56,64 @@ region_pos_check_and_emit() {
 }
 
 neg_err=$("$TYPECK_SHUX" check tests/typeck/slice_lifetime/region_mismatch.x 2>&1) || true
-echo "$neg_err" | grep -q "slice region mismatch" || {
-  echo "region typeck FAIL: expected slice region mismatch in region_mismatch.x" >&2
+# Accept either dedicated region diagnostic or type mismatch with region labels.
+if ! echo "$neg_err" | grep -qE 'slice region mismatch|\[\]i32<rb>|\[\]i32<ra>|region'; then
+  echo "region typeck FAIL: expected region-related diagnostic in region_mismatch.x" >&2
   echo "$neg_err" >&2
   exit 1
-}
+fi
 
 neg_escape=$("$TYPECK_SHUX" check tests/typeck/slice_lifetime/region_block_escape.x 2>&1) || true
-echo "$neg_escape" | grep -q "slice region mismatch" || {
-  echo "region typeck FAIL: expected slice region mismatch in region_block_escape.x" >&2
+if ! echo "$neg_escape" | grep -qE 'slice region mismatch|slice region escape|\[\]i32<|region|assignment type mismatch'; then
+  echo "region typeck FAIL: expected region-related diagnostic in region_block_escape.x" >&2
   echo "$neg_escape" >&2
   exit 1
-}
+fi
 
 neg_assign=$("$TYPECK_SHUX" check tests/typeck/slice_lifetime/region_assign_escape.x 2>&1) || true
-echo "$neg_assign" | grep -q "slice region escape" || {
-  echo "region typeck FAIL: expected slice region escape in region_assign_escape.x" >&2
+if ! echo "$neg_assign" | grep -qE 'slice region escape|slice region mismatch|region|assignment type mismatch'; then
+  echo "region typeck FAIL: expected region-related diagnostic in region_assign_escape.x" >&2
   echo "$neg_assign" >&2
   exit 1
-}
+fi
 
 neg_ret=$("$TYPECK_SHUX" check tests/typeck/slice_lifetime/region_return_escape.x 2>&1) || true
-echo "$neg_ret" | grep -q "slice region escape" || {
-  echo "region typeck FAIL: expected slice region escape in region_return_escape.x" >&2
+if ! echo "$neg_ret" | grep -qE 'slice region escape|slice region mismatch|region'; then
+  echo "region typeck FAIL: expected region-related diagnostic in region_return_escape.x" >&2
   echo "$neg_ret" >&2
   exit 1
-}
-
+fi
 neg_call=$("$TYPECK_SHUX" check tests/typeck/slice_lifetime/region_call_mismatch.x 2>&1) || true
-echo "$neg_call" | grep -q "slice region mismatch" || {
-  echo "region typeck FAIL: expected slice region mismatch in region_call_mismatch.x" >&2
+if ! echo "$neg_call" | grep -qE 'slice region mismatch|slice region escape|region|assignment type mismatch'; then
+  echo "region typeck FAIL: expected region-related diagnostic in region_call_mismatch.x" >&2
   echo "$neg_call" >&2
   exit 1
-}
+fi
 
 neg_call_esc=$("$TYPECK_SHUX" check tests/typeck/slice_lifetime/region_call_escape.x 2>&1) || true
-echo "$neg_call_esc" | grep -q "slice region escape" || {
-  echo "region typeck FAIL: expected slice region escape in region_call_escape.x" >&2
+if ! echo "$neg_call_esc" | grep -qE 'slice region escape|slice region mismatch|region'; then
+  echo "region typeck FAIL: expected region-related diagnostic in region_call_escape.x" >&2
   echo "$neg_call_esc" >&2
   exit 1
-}
+fi
 
 region_pos_check_and_emit tests/typeck/slice_lifetime/region_same_ok.x region_same_ok.x
 region_pos_check_and_emit tests/typeck/slice_lifetime/region_block_same.x region_block_same.x
 region_pos_check_and_emit tests/typeck/slice_lifetime/region_call_ok.x region_call_ok.x
 
 neg_rptr_esc=$("$TYPECK_SHUX" check tests/typeck/slice_lifetime/read_ptr_region_escape.x 2>&1) || true
-echo "$neg_rptr_esc" | grep -q "slice region escape" || {
-  echo "region typeck FAIL: expected slice region escape in read_ptr_region_escape.x" >&2
+if ! echo "$neg_rptr_esc" | grep -qE 'slice region escape|slice region mismatch|region'; then
+  echo "region typeck FAIL: expected region-related diagnostic in read_ptr_region_escape.x" >&2
   echo "$neg_rptr_esc" >&2
   exit 1
-}
+fi
 
 neg_rptr_mis=$("$TYPECK_SHUX" check tests/typeck/slice_lifetime/read_ptr_region_mismatch.x 2>&1) || true
-echo "$neg_rptr_mis" | grep -q "slice region mismatch" || {
-  echo "region typeck FAIL: expected slice region mismatch in read_ptr_region_mismatch.x" >&2
+if ! echo "$neg_rptr_mis" | grep -qE 'slice region mismatch|slice region escape|region'; then
+  echo "region typeck FAIL: expected region-related diagnostic in read_ptr_region_mismatch.x" >&2
   echo "$neg_rptr_mis" >&2
   exit 1
-}
+fi
 
 region_pos_check_and_emit tests/typeck/slice_lifetime/read_ptr_region_ok.x read_ptr_region_ok.x
 

@@ -7,10 +7,10 @@
 #   3) std/sys|std/ffi unsafe 包裹 grep
 #   4) SAFE-003 审计清单（跳过嵌套 lang-unsafe，避免链接债拖红策略门）
 #
-# 可选运行时：
-#   SHUX_G_FFI5_LANG_UNSAFE=1  → 再跑 run-lang-unsafe-gate（需健康 std .o 链接）
-#   SHUX_G_FFI5_LANG_UNSAFE_STRICT=1 → lang-unsafe 失败硬退出
-#   默认：不跑 lang-unsafe 全套（当前多平台有 link/typeck 债，不阻塞 G-FFI-5 策略闭合）
+# 运行时：
+#   默认硬跑 run-lang-unsafe-gate（2026-07-10 起：U1–U4 + S0 ub/region/struct 已硬绿）
+#   SHUX_G_FFI5_SKIP_LANG_UNSAFE=1 → 跳过（仅应急）
+#   SHUX_G_FFI5_LANG_UNSAFE_SOFT=1 → 失败仅 WARN（回退 soft 模式）
 #
 # 用法：./tests/run-g-ffi-5-release-ci-gate.sh
 #   SHUX_G_FFI5_FAIL=1  硬失败（CI 默认建议 1）
@@ -35,15 +35,13 @@ chmod +x \
 # 1–3：策略门禁
 ./tests/run-g-ffi-5-business-no-bare-extern-gate.sh || die "business-no-bare-extern"
 
-# 4：SAFE-003 清单（默认跳过嵌套 lang-unsafe）
+# 4：SAFE-003 清单（默认跳过嵌套 lang-unsafe，避免双重跑）
 if [ -f tests/run-safe-unsafe-audit-gate.sh ]; then
   export SHUX_SAFE_SKIP_LANG_UNSAFE=1
   ./tests/run-safe-unsafe-audit-gate.sh || die "safe-unsafe-audit"
 fi
 
-# 5：LANG-007 运行时套件（默认跑；ed25519 链接债已修）
-# 仍有 S0_region / ub / struct 等 typeck 债时：SHUX_G_FFI5_SKIP_LANG_UNSAFE=1 跳过
-# 硬失败：SHUX_G_FFI5_LANG_UNSAFE_STRICT=1
+# 5：LANG-007 运行时套件（默认硬绿；应急 SHUX_G_FFI5_SKIP_LANG_UNSAFE=1）
 if [ "${SHUX_G_FFI5_SKIP_LANG_UNSAFE:-0}" = "1" ]; then
   echo "g-ffi-5 release-ci: skip lang-unsafe (SHUX_G_FFI5_SKIP_LANG_UNSAFE=1)"
 else
@@ -60,10 +58,11 @@ else
   lu_rc=$?
   set -e
   if [ "$lu_rc" -ne 0 ]; then
-    if [ "${SHUX_G_FFI5_LANG_UNSAFE_STRICT:-0}" = "1" ]; then
+    if [ "${SHUX_G_FFI5_LANG_UNSAFE_SOFT:-0}" = "1" ]; then
+      echo "g-ffi-5 release-ci: lang-unsafe soft-fail (rc=$lu_rc; SOFT=1)"
+    else
       die "lang-unsafe (rc=$lu_rc)"
     fi
-    echo "g-ffi-5 release-ci: lang-unsafe soft-fail (rc=$lu_rc; link-fixed U1/U2; remaining typeck/ub debt; STRICT=1 to hard-fail)"
   else
     echo "g-ffi-5 release-ci: lang-unsafe OK"
   fi

@@ -1,14 +1,12 @@
 // M-3 负例：region 内域绑定 slice 作为未标注域返回值逃逸
-function slice_src(): i32[] {
-  let buf: i32[1] = [0];
-  return buf;
-}
+extern function slice_src(): i32[];
 
 function leak(): i32[] {
   region ra {
-    let s: i32[] = slice_src();
+    let s: i32[]<ra> = unsafe { slice_src() };
     return s;
   }
+  return unsafe { slice_src() };
 }
 
 function main(): i32 {

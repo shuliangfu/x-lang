@@ -25574,9 +25574,13 @@ extern int32_t pipeline_expr_call_num_type_args_at(struct ast_ASTArena *a, int32
 
 static int32_t glue_module_func_index_by_name_c(struct ast_Module *mod, uint8_t *name, int32_t name_len);
 
-static int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *module,
-                                                                   struct ast_ASTArena *arena, int32_t expr_ref,
-                                                                   struct ast_PipelineDepCtx *ctx) {
+/**
+ * LANG-007 v2：S0 内 extern 调用须在 unsafe { } 内。
+ * 非 static：typeck.x 的 typeck_check_expr_call 须直接调用（勿仅靠 glue 包装路径）。
+ */
+int32_t pipeline_typeck_check_extern_call_unsafe_boundary_c(struct ast_Module *module,
+                                                            struct ast_ASTArena *arena, int32_t expr_ref,
+                                                            struct ast_PipelineDepCtx *ctx) {
   int32_t callee_ref;
   int32_t callee_kind;
   int32_t name_len;

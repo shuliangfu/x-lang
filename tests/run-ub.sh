@@ -2,16 +2,24 @@
 # 运行 UB 收窄测试：除零、越界应 panic（exit 134 = SIGABRT），正常路径应正常返回
 set -e
 cd "$(dirname "$0")/.."
+# Prefer explicit SHUX (caller-owned binary). bootstrap-link defaults SHUX_LINK to
+# shux-c which is often broken after G-02a; do not force it when SHUX is set.
+CALLER_SHUX="${SHUX:-}"
 # shellcheck source=lib/bootstrap-link-shux.sh
 . "$(dirname "$0")/lib/bootstrap-link-shux.sh"
-SHUX="${SHUX:-./compiler/shux}"
-LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
+if [ -n "$CALLER_SHUX" ] && [ -x "$CALLER_SHUX" ]; then
+  SHUX="$CALLER_SHUX"
+  LINK_SHUX="$CALLER_SHUX"
+  SHUX_LINK_BACKEND_ARGS="-backend c"
+else
+  SHUX="${SHUX:-./compiler/shux}"
+  LINK_SHUX="${SHUX_LINK_SHUX:-${RUN_SHUX:-$SHUX}}"
+fi
 compile_ub() {
     if [ -n "${SHUX_LINK_BACKEND_ARGS:-}" ]; then
-        "$LINK_SHUX" $SHUX_LINK_BACKEND_ARGS "$1" -o "$2" 2>/dev/null
+        "$LINK_SHUX" $SHUX_LINK_BACKEND_ARGS -L . "$1" -o "$2" 2>/dev/null
     else
-        # SHUX_LINK_BACKEND_ARGS 为空时选的是 shux-c（不支持 -backend，默认走 C 后端 -o）
-        "$LINK_SHUX" "$1" -o "$2" 2>/dev/null
+        "$LINK_SHUX" -L . "$1" -o "$2" 2>/dev/null
     fi
 }
 run_panic() {

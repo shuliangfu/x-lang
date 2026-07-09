@@ -8,7 +8,11 @@ const mem = import("core.mem");
  * 成功返回下一 off；溢出/失败返回 0。
  */
 function bump_simulate(off: usize, size: usize, align_bytes: usize): usize {
-  let a: usize = if (align_bytes == 0) { 1 } else { align_bytes };
+  // 避免 if 表达式作为值（C emit 会生成 void statement-expression）
+  let a: usize = 1;
+  if (align_bytes != 0) {
+    a = align_bytes;
+  }
   let start: usize = mem.align_up(off, a);
   let end: usize = start + size;
   if (end < start) {

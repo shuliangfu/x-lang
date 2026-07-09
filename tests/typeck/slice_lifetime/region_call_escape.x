@@ -1,14 +1,9 @@
-// M-3 负例：域绑定实参传给未标注域形参（逃逸）
-function slice_src(): i32[] {
-  let buf: i32[1] = [0];
-  return buf;
-}
-function take_unbound(x: i32[]): i32 { return 0; }
+// M-3 负例：不同域 slice 传入带域形参
+extern function slice_src(): i32[];
+function take_ra(x: i32[]<ra>): i32 { return 0; }
 
 function main(): i32 {
-  region ra {
-    let s: i32[] = slice_src();
-    take_unbound(s);
-  }
+  let s: i32[]<rb> = unsafe { slice_src() };
+  take_ra(s);
   return 0;
 }

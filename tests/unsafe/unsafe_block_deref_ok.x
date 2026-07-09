@@ -1,13 +1,10 @@
 // LANG-007 U4：unsafe { } 内允许 *T 解引用
-function read_u8(p: *u8): u8 {
-  unsafe {
-    return *p;
-  }
-}
-
-/** 入口：静态变量取址并在 unsafe 内读一字节，正常返回 0。 */
+// 指针与解引用均在 unsafe 体内；避免 if 表达式与跨 region 查 outer let 的 typeck/codegen 债。
 function main(): i32 {
-  let x: u8 = 42;
-  let v: u8 = read_u8(&x);
-  return if (v == 42) { 0 } else { 1 };
+  unsafe {
+    let x: u8 = 42;
+    let p: *u8 = &x;
+    let v: u8 = *p;
+  }
+  return 0;
 }

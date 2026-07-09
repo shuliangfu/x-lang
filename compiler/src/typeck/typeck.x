@@ -268,6 +268,9 @@ expect_ref: i32, src_ref: i32): i32;
 extern function pipeline_typeck_check_return_slice_region_c(arena: *ASTArena, ret_site_ref: i32,
 op_ref: i32, func_return_ref: i32): i32;
 /** M-3：CALL 实参 slice 域检查；region 块 typeck / let stamp。 */
+/** LANG-007 v2：S0 内 extern 调用须在 unsafe { }（pipeline_glue.c）。 */
+extern function pipeline_typeck_check_extern_call_unsafe_boundary_c(module: *Module, arena: *ASTArena,
+expr_ref: i32, ctx: *PipelineDepCtx): i32;
 extern function pipeline_typeck_check_call_slice_region_c(module: *Module, arena: *ASTArena,
 call_expr_ref: i32, ctx: *PipelineDepCtx): i32;
 extern function pipeline_type_stamp_block_let_region_c(arena: *ASTArena, block_ref: i32, let_idx: i32,
@@ -4665,16 +4668,20 @@ ctx: *PipelineDepCtx): i32 {
 */
 function typeck_check_expr_call(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  /** LANG-007：须在 arg resolve 前拒绝 S0 裸 extern（typeck.x 直路径不经 glue 包装）。 */
+  if (pipeline_typeck_check_extern_call_unsafe_boundary_c(module, arena, expr_ref, ctx) != 0) {
+    return -1;
+  }
   let num_args: i32 = pipeline_expr_call_num_args_at(arena, expr_ref);
   if (typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0, num_args) != 0) {
-    return - 1;
+    return -1;
   }
   if (typeck_check_expr_call_resolve(module, arena, expr_ref, ctx) != 0) {
-    return - 1;
+    return -1;
   }
   /** M-3：实参 slice 域与形参域标签一致性（内含 WPO-S3 struct stack escape）。 */
   if (pipeline_typeck_check_call_slice_region_c(module, arena, expr_ref, ctx) != 0) {
-    return - 1;
+    return -1;
   }
   return 0;
 }
