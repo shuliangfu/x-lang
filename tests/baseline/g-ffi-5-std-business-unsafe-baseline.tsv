@@ -1,106 +1,55 @@
-# G-FFI-5 §8 freeze: std business (excl sys/ffi) files currently containing unsafe
-# Progress = shrink this list; SHUX_G_FFI5_STRICT_ZERO_UNSAFE=1 requires empty set
+# G-FFI-5 §8 freeze: std **business** (excl infra boundary) files with unsafe
+# Infra boundary (sys/ffi/heap/crypto/dynlib/process/thread/sync/atomic/channel/net/http/fs/path/runtime/log/time/random/env/backtrace/compress/db/sqlite) excluded
 # track_id	path	reason
-std_u001	std/async/future.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u002	std/async/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u003	std/atomic/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u004	std/backtrace/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u005	std/base64/base64.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u006	std/base64/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u007	std/cache/cache.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u008	std/cache/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u009	std/channel/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u010	std/cli/cli.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u011	std/cli/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u012	std/compress/brotli/lib.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u013	std/compress/gzip/libz.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u014	std/compress/zlib/libz.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u015	std/compress/zstd/lib.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u016	std/config/config.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u017	std/config/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u018	std/context/context.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u019	std/context/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u020	std/crypto/ed25519.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u021	std/crypto/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u022	std/csv/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u023	std/datetime/datetime.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u024	std/datetime/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u025	std/db/arrow/arrow.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u026	std/db/arrow/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u027	std/db/kv/kv.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u028	std/db/kv/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u029	std/db/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u030	std/db/sqlite/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u031	std/db/sqlite/sqlite.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u032	std/dynlib/dynlib.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u033	std/dynlib/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u034	std/elf/elf.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u035	std/elf/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u036	std/encoding/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u037	std/env/env.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u038	std/env/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u039	std/fs/posix.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u040	std/fs/win32.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u041	std/hash/hash.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u042	std/hash/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u043	std/heap/libc.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u044	std/heap/page_mmap.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u045	std/http/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u046	std/io/sync.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u047	std/io/win32.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u048	std/json/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u049	std/log/log.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u050	std/log/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u051	std/map/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u052	std/math/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u053	std/net/addr.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u054	std/net/dns.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u055	std/net/io_batch.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u056	std/net/ipv6.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u057	std/net/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u058	std/net/sock.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u059	std/net/tcp.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u060	std/net/tcp_pool.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u061	std/net/tls_mbedtls.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u062	std/net/tls_openssl.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u063	std/net/udp.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u064	std/net/udp_batch.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u065	std/net/workers.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u066	std/net/ws_io.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u067	std/process/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u068	std/process/process.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u069	std/queue/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u070	std/random/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u071	std/random/random.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u072	std/regex/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u073	std/regex/regex.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u074	std/runtime/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u075	std/runtime/runtime.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u076	std/schema/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u077	std/schema/schema.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u078	std/security/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u079	std/security/security.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u080	std/set/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u081	std/simd/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u082	std/simd/simd.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u083	std/socketio/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u084	std/socketio/socketio.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u085	std/sort/sort.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u086	std/string/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u087	std/string/string.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u088	std/sync/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u089	std/tar/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u090	std/task/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u091	std/task/task.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u092	std/test/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u093	std/test/test.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u094	std/thread/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u095	std/time/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u096	std/time/time.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u097	std/trace/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u098	std/trace/trace.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u099	std/url/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u100	std/url/url.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u101	std/uuid/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u102	std/uuid/uuid.x	pre-existing unsafe until migrated to std/sys|std/ffi
-std_u103	std/websocket/mod.x	pre-existing unsafe until migrated to std/sys|std/ffi
+std_biz001	std/async/future.x	business-layer unsafe pending migration
+std_biz002	std/async/mod.x	business-layer unsafe pending migration
+std_biz003	std/base64/base64.x	business-layer unsafe pending migration
+std_biz004	std/base64/mod.x	business-layer unsafe pending migration
+std_biz005	std/cache/cache.x	business-layer unsafe pending migration
+std_biz006	std/cache/mod.x	business-layer unsafe pending migration
+std_biz007	std/cli/cli.x	business-layer unsafe pending migration
+std_biz008	std/cli/mod.x	business-layer unsafe pending migration
+std_biz009	std/config/config.x	business-layer unsafe pending migration
+std_biz010	std/config/mod.x	business-layer unsafe pending migration
+std_biz011	std/context/context.x	business-layer unsafe pending migration
+std_biz012	std/context/mod.x	business-layer unsafe pending migration
+std_biz013	std/csv/mod.x	business-layer unsafe pending migration
+std_biz014	std/datetime/datetime.x	business-layer unsafe pending migration
+std_biz015	std/datetime/mod.x	business-layer unsafe pending migration
+std_biz016	std/elf/elf.x	business-layer unsafe pending migration
+std_biz017	std/elf/mod.x	business-layer unsafe pending migration
+std_biz018	std/encoding/mod.x	business-layer unsafe pending migration
+std_biz019	std/hash/hash.x	business-layer unsafe pending migration
+std_biz020	std/hash/mod.x	business-layer unsafe pending migration
+std_biz021	std/io/sync.x	business-layer unsafe pending migration
+std_biz022	std/io/win32.x	business-layer unsafe pending migration
+std_biz023	std/json/mod.x	business-layer unsafe pending migration
+std_biz024	std/map/mod.x	business-layer unsafe pending migration
+std_biz025	std/math/mod.x	business-layer unsafe pending migration
+std_biz026	std/queue/mod.x	business-layer unsafe pending migration
+std_biz027	std/regex/mod.x	business-layer unsafe pending migration
+std_biz028	std/regex/regex.x	business-layer unsafe pending migration
+std_biz029	std/schema/mod.x	business-layer unsafe pending migration
+std_biz030	std/schema/schema.x	business-layer unsafe pending migration
+std_biz031	std/security/mod.x	business-layer unsafe pending migration
+std_biz032	std/security/security.x	business-layer unsafe pending migration
+std_biz033	std/set/mod.x	business-layer unsafe pending migration
+std_biz034	std/simd/mod.x	business-layer unsafe pending migration
+std_biz035	std/simd/simd.x	business-layer unsafe pending migration
+std_biz036	std/socketio/mod.x	business-layer unsafe pending migration
+std_biz037	std/socketio/socketio.x	business-layer unsafe pending migration
+std_biz038	std/sort/sort.x	business-layer unsafe pending migration
+std_biz039	std/string/mod.x	business-layer unsafe pending migration
+std_biz040	std/string/string.x	business-layer unsafe pending migration
+std_biz041	std/tar/mod.x	business-layer unsafe pending migration
+std_biz042	std/task/mod.x	business-layer unsafe pending migration
+std_biz043	std/task/task.x	business-layer unsafe pending migration
+std_biz044	std/test/mod.x	business-layer unsafe pending migration
+std_biz045	std/test/test.x	business-layer unsafe pending migration
+std_biz046	std/trace/mod.x	business-layer unsafe pending migration
+std_biz047	std/trace/trace.x	business-layer unsafe pending migration
+std_biz048	std/url/mod.x	business-layer unsafe pending migration
+std_biz049	std/url/url.x	business-layer unsafe pending migration
+std_biz050	std/uuid/mod.x	business-layer unsafe pending migration
+std_biz051	std/uuid/uuid.x	business-layer unsafe pending migration
+std_biz052	std/websocket/mod.x	business-layer unsafe pending migration
