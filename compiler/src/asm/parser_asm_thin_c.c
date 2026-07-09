@@ -4047,6 +4047,9 @@ int32_t parser_asm_struct_field_name_tok_kind_c(int32_t k) {
 int32_t parser_asm_struct_field_continues_tok_kind_c(int32_t k) {
   if (parser_asm_stretch_struct_field_continues_kind_c(k) != 0)
     return 1;
+  /* let/const 字段前缀：多字段 struct 在 ; 后下一字段以 let/const 开头 */
+  if (k == (int32_t)TOKEN_LET || k == (int32_t)TOKEN_CONST)
+    return 1;
   return parser_asm_struct_field_name_tok_kind_c(k) != 0 || k == (int32_t)TOKEN_ALIGN;
 }
 

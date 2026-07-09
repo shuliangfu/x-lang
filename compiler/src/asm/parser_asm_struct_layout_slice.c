@@ -1039,6 +1039,15 @@ int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *mo
       parser_asm_lex_from_result_val_into(&lex, r);
       break;
     }
+    /**
+     * 可选字段前缀 `let` / `const`（语言文档与 std 均用 `let x: T`）。
+     * 若不消费，field_name 把 TOKEN_LET 当非法名 → 整 struct layout 登记失败，
+     * 后续形参/局部 `s.x` 在无 STRUCT_LIT 先触发时 typeck 得到 ?。
+     */
+    if (r.tok.kind == (int32_t)TOKEN_LET || r.tok.kind == (int32_t)TOKEN_CONST) {
+      parser_asm_lex_from_result_val_into(&lex, r);
+      lexer_next_into(&r, lex, source);
+    }
     fn_len = parser_struct_field_name_from_tok_glue(r, source, fname_buf);
     if (fn_len < 0)
       return -1;
