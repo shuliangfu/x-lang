@@ -9103,15 +9103,6 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
   int32_t kind_ord;
   int32_t pointee;
   int32_t esz_base;
-  if (getenv("SHUX_ASM_DEBUG3") != NULL) {
-    int32_t dbg_br = pipeline_expr_index_base_ref(arena, expr_ref);
-    int32_t dbg_bko = dbg_br > 0 ? pipeline_expr_kind_ord_at(arena, dbg_br) : -1;
-    int32_t dbg_btr = dbg_br > 0 ? pipeline_expr_resolved_type_ref(arena, dbg_br) : 0;
-    int32_t dbg_itr = pipeline_expr_resolved_type_ref(arena, expr_ref);
-    fprintf(stderr, "shux: ELEM_SZ expr_ref=%d base_ref=%d base_kind=%d base_tr=%d idx_tr=%d\n",
-            (int)expr_ref, (int)dbg_br, (int)dbg_bko, (int)dbg_btr, (int)dbg_itr);
-    fflush(stderr);
-  }
   /**
    * v.ptr[v.len] 等：INDEX resolved_type 偶发为 i32/usize（8B）而基址为 *u8；
    * 优先按指针基址 pointee 步长，避免 lea (ptr,len,8) 写穿 bump 区（with_arena_vec SIGSEGV）。
@@ -9205,6 +9196,27 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
     return 4;
   }
   tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+  /** skip typeck 时 resolved_type_ref=0：从 VAR 声明作用域查 let/param 声明类型（p:*u8 等）。
+   *  【Why】import 程序走 -o asm 时 driver_x_pipeline_skip_typeck_set(1) 跳过 .x typeck，
+   *  INDEX base VAR 的 resolved_type_ref 未设，导致步长默认 4（i32）而非 *u8 的 1 字节。
+   *  【Invariant】仅 VAR(kind=3) 基址走此 fallback；FIELD_ACCESS(44) 已在上方处理。 */
+  if (tr <= 0 && pipeline_expr_kind_ord_at(arena, base_ref) == 3 && g_pipeline_asm_emit_module) {
+    uint8_t vname_idx[64];
+    int32_t vlen_idx = pipeline_expr_var_name_len(arena, base_ref);
+    if (vlen_idx > 0 && vlen_idx <= 63) {
+      pipeline_expr_var_name_into(arena, base_ref, vname_idx);
+      if (g_pipeline_asm_emit_func_index >= 0)
+        tr = pipeline_module_func_param_type_ref_for_name(g_pipeline_asm_emit_module,
+                                                           g_pipeline_asm_emit_func_index, vname_idx, vlen_idx);
+      if (tr <= 0 && g_pipeline_asm_emit_scope_block > 0)
+        tr = pipeline_block_resolve_var_type_ref(arena, g_pipeline_asm_emit_scope_block, vname_idx, vlen_idx);
+      if (tr <= 0 && g_pipeline_asm_emit_func_index >= 0) {
+        int32_t body_ref_idx = pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
+        if (body_ref_idx > 0)
+          tr = pipeline_block_resolve_var_type_ref(arena, body_ref_idx, vname_idx, vlen_idx);
+      }
+    }
+  }
   if (tr <= 0)
     return 4;
   kind_ord = pipeline_type_kind_ord_at(arena, tr);
@@ -14497,17 +14509,10 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
   }
   if (getenv("SHUX_ASM_DEBUG2") != NULL) {
     int32_t dbg_fn_body2 = 0;
-    char dbg_fnb[64] = {0};
-    int32_t dbg_fnlen = 0;
-    if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
+    if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0)
       dbg_fn_body2 = pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-      pipeline_asm_module_func_name_copy64(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index,
-                                           (uint8_t *)dbg_fnb);
-      dbg_fnlen = pipeline_module_func_name_len_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-    }
-    fprintf(stderr, "shux: SO-BEGIN fi=%d fn=%.*s br=%d nso=%d is_fn_body=%d\n",
-            (int)g_pipeline_asm_emit_func_index, (int)dbg_fnlen, dbg_fnb, (int)block_ref, (int)nso,
-            (int)(dbg_fn_body2 == block_ref));
+    fprintf(stderr, "shux: SO-BEGIN fi=%d br=%d nso=%d is_fn_body=%d\n",
+            (int)g_pipeline_asm_emit_func_index, (int)block_ref, (int)nso, (int)(dbg_fn_body2 == block_ref));
     fflush(stderr);
     for (i = 0; i < nso; i++) {
       uint8_t dk = ast_ast_block_stmt_order_kind(arena, block_ref, i);
@@ -14713,12 +14718,6 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
         int32_t expr_ref = ast_pipeline_block_expr_stmt_ref(arena, block_ref, idx);
         if (expr_ref != 0) {
           int32_t stmt_ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-          if (getenv("SHUX_ASM_DEBUG3") != NULL) {
-            fprintf(stderr, "shux: ES_EMIT fi=%d br=%d idx=%d expr_ref=%d kind=%d nes=%d\n",
-                    (int)g_pipeline_asm_emit_func_index, (int)block_ref, (int)idx,
-                    (int)expr_ref, (int)stmt_ko, (int)ast_ast_block_num_expr_stmts(arena, block_ref));
-            fflush(stderr);
-          }
           /**
            * 赋值类：仅 kill 左值 VAR 槽（7.3 线性活跃性）；plain ASSIGN(28) 可保留 INDEX 址 cache。
            * 其它语句可能 clobber rbx/rax，清空全部 binop/INDEX 缓存。
@@ -21392,16 +21391,6 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
   compound_flag = 1;
   if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN)
     compound_flag = 0;
-  if (getenv("SHUX_ASM_DEBUG3") != NULL) {
-    int32_t dbg_lk = (left_ref > 0 && left_ref <= arena->num_exprs)
-                         ? pipeline_expr_kind_ord_at(arena, left_ref) : -1;
-    int32_t dbg_rk = (right_ref > 0 && right_ref <= arena->num_exprs)
-                         ? pipeline_expr_kind_ord_at(arena, right_ref) : -1;
-    fprintf(stderr, "shux: ASSIGN_DBG expr=%d kind=%d left=%d lkind=%d right=%d rkind=%d\n",
-            (int)expr_ref, (int)expr_kind, (int)left_ref, (int)dbg_lk,
-            (int)right_ref, (int)dbg_rk);
-    fflush(stderr);
-  }
   if (pipeline_typeck_check_expr_c(module, arena, left_ref, return_type_ref, ctx) != 0)
     return -1;
   lt = pipeline_typeck_expr_type_ref_c(arena, left_ref);
@@ -25353,12 +25342,6 @@ int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module, struct
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
   kind = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (getenv("SHUX_ASM_DEBUG3") != NULL) {
-    fprintf(stderr, "shux: MEGA_ALL_DBG expr=%d kind=%d func=%d\n",
-            (int)expr_ref, (int)kind,
-            ctx ? (int)ctx->current_func_index : -1);
-    fflush(stderr);
-  }
   if (pipeline_typeck_expr_is_any_assign_kind_c(kind)) {
     int32_t left_ref;
     int32_t right_ref;
@@ -25621,11 +25604,6 @@ int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast
   nes = ast_ast_block_num_expr_stmts(arena, block_ref);
   nso = ast_ast_block_num_stmt_order(arena, block_ref);
   fin0 = ast_ast_block_final_expr_ref(arena, block_ref);
-  if (getenv("SHUX_ASM_DEBUG3") != NULL) {
-    fprintf(stderr, "shux: BLK_IMPL fi=%d br=%d nc=%d nl=%d nes=%d nso=%d nif=%d\n",
-            (int)ctx->current_func_index, (int)block_ref, (int)nc, (int)nl, (int)nes, (int)nso, (int)nif);
-    fflush(stderr);
-  }
   driver_diagnostic_typeck_block_enter(ctx->current_func_index, block_ref, nc, nl, nlp, nfp, nes, fin0);
   if (nso > 0) {
     si = 0;
