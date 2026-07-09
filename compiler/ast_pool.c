@@ -10582,27 +10582,15 @@ static int32_t asm_local_slot_bytes_mod(struct ast_ASTArena *arena, int32_t type
      * 【Asm/Perf】dep struct 局部变量为低频路径（freestanding gate），遍历开销可忽略。 */
     {
       struct ast_PipelineDepCtx *dep = pipeline_asm_emit_dep_pipe_c();
-      if (getenv("SHUX_ASM_EMIT_TRACE")) {
-        uint8_t nm[64];
-        int32_t nl = pipeline_type_named_name_into(arena, type_ref, nm);
-        fprintf(stderr, "shux: DBG dep_ctx=%p kind=8 type_ref=%d name=%.*s mod=%p\n",
-                (void *)dep, (int)type_ref, (int)nl, nm, (void *)mod);
-      }
       if (dep) {
         int32_t nd = pipeline_dep_ctx_ndep(dep);
         int32_t di;
-        if (getenv("SHUX_ASM_EMIT_TRACE"))
-          fprintf(stderr, "shux: DBG ndep=%d\n", (int)nd);
         for (di = 0; di < nd; di++) {
           struct ast_Module *dm = pipeline_dep_ctx_module_at(dep, di);
           if (!dm || dm == mod)
             continue;
           {
-            int32_t nsl = (int32_t)dm->num_struct_layouts;
             int32_t sz = asm_slot_bytes_named_in_mod(arena, type_ref, dm);
-            if (getenv("SHUX_ASM_EMIT_TRACE"))
-              fprintf(stderr, "shux: DBG dep[%d] dm=%p nsl=%d sz=%d\n",
-                      (int)di, (void *)dm, (int)nsl, (int)sz);
             if (sz > 0)
               return sz;
           }
