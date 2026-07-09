@@ -341,33 +341,13 @@ shux/
 
 | 基准 | 循环规模 | C median | SHUX median | ratio | 门禁 |
 |------|---------|----------|-------------|-------|------|
-| `loop_i32` | 1 亿次 LCG 累加循环 | 45.3 ms | 39.4 ms | 0.87 | ✅ PASS |
-| `mem_copy` | 8192 轮 × 4096 字节填充+求和 | 7.2 ms | 6.8 ms | 0.94 | ✅ PASS |
-| `struct_param` | 1 亿次按值传 Pair(2×i32) | 66.1 ms | 4.8 ms | 0.07 | ✅ PASS |
-| `call_boundary` | 2 亿次 5 层深调用链 | 88.1 ms | 151.3 ms | 1.72 | ❌ FAIL |
+| `loop_i32` | 1 亿次 LCG 累加循环 | 45.7 ms | 39.9 ms | 0.87 | ✅ PASS |
+| `mem_copy` | 8192 轮 × 4096 字节填充+求和 | 7.5 ms | 6.5 ms | 0.87 | ✅ PASS |
+| `struct_param` | 1 亿次按值传 Pair(2×i32) | 67.6 ms | 5.7 ms | 0.08 | ✅ PASS |
+| `call_boundary` | 2 亿次 5 层深调用链 | 88.4 ms | 152.6 ms | 1.73 | ❌ FAIL |
 
 > ratio = SHUX median / C median；< 1.0 表示 SHUX 更快。计时基于 `date +%s%3N`（GNU date 返回纳秒，P99 跨秒采样不可靠，故仅采信 median；上表已换算为毫秒）。
-
-**PERF-001 小结：3/4 PASS**。
-
-- ✅ **`struct_param`（ratio=0.07，SHUX 领先 14 倍）**：1 亿次按值传 Pair struct + 字段累加。修复反作弊后 C 端真循环 66.1ms，SHUX 仅 4.8ms——SHUX 的 struct 传参/字段访问代码质量**远优于** clang `-O2`（C 端 `__asm__ volatile` memory clobber 阻止了 add_pair 内联合并，SHUX 端无此栅栏）。
-- ✅ **`loop_i32`（ratio=0.87）** 与 **`mem_copy`（ratio=0.94）**：纯整数 LCG 循环与内存拷贝场景，SHUX ASM 后端**优于** clang `-O2`，算术/内存密集路径的指令选择与 BCE 已达标。
-- ❌ **`call_boundary`（ratio=1.72，真实超限）**：2 亿次 5 层深调用链。这是修复反作弊后的**真实公平差距**（非之前 28.21 的假象）。根因：clang `-O2` 把 f0–f4 五层 `+1` 内联后**合并为单条 `add w0,w10,#5`**（强度削减），SHUX 虽也内联（call=0）但未做此合并，且变量全存栈无寄存器分配。1.72 倍是**可优化的中等差距**，是 ASM 后端寄存器分配 + 强度削减的**下一目标**。
-
-> **反作弊教训（2026-07-09）**：开发规范 v1 §4 要求 C 侧用 `__asm__ volatile` 阻止常量折叠。初始 `call_boundary.c` / `struct_param.c` 缺此防御，clang `-O2` 把可求和等差数列循环折叠为 `mov $const,%eax;ret`，导致 C median（5.4ms/6.8ms）只是进程启动开销，与 SHUX 端真跑循环不对称，ratio 虚高至 28.21/1.10。perf gate 反作弊检查（`x_med=0 || c_med=0`）只检测"零时间"，无法检测"C 端循环消除但启动开销非零"——C 端 5ms 启动开销掩盖了循环消除。所有可求和公式循环（等差/等比/可符号化求和）的 bench 必须加 `__asm__ volatile`，不能依赖"更新变量"防折叠。修复后 struct_param 真实 ratio=0.07（SHUX 赢），call_boundary 真实 ratio=1.72（可优化中等差距）。
-
-#### 复现命令
-
-```bash
-# 差分测试（需 Linux x86_64 + ./compiler/shux）
-SHUX=./compiler/shux ./tests/bench/diff/run_diff.sh
-
-# PERF-001 单项门禁
-SHUX=./compiler/shux ./tests/bench/gate/perf_001_gate.sh loop_i32
-SHUX=./compiler/shux ./tests/bench/gate/perf_001_gate.sh mem_copy
-SHUX=./compiler/shux ./tests/bench/gate/perf_001_gate.sh struct_param
-SHUX=./compiler/shux ./tests/bench/gate/perf_001_gate.sh call_boundary
-```
+> `call_boundary` 为唯一超限项：SHUX 已内联 f0–f4 并合并为 `add $0x5` 强度削减（与 clang 对称），但循环变量 `s`/`i` 全存栈（每轮 load/store），clang `-O2` 将其留在寄存器；差距来自 ASM 后端无寄存器分配。此前该用例还存在 `EXPR_BINARY(+, VAR, CALL)` 实参 emit 走桩函数 `backend_emit_expr_elf`（return 0 不生成指令）导致实参污染的 codegen bug，已修复（`try_inline_x_plus_k_call_elf` 等 7 处改走 `pipeline_asm_emit_expr_elf_c`）。
 
 > macOS arm64 因 CG002（ASM 后端 `code_len=0` 限制）无法运行 ASM 后端基准，请在 Linux x86_64 上执行（可用 `ssh ubuntu-server`）。
 
