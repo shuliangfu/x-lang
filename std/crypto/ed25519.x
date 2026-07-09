@@ -20,14 +20,14 @@
 
 extern function crypto_mem_eq_c(a: *u8, b: *u8, len: i32): i32;
 
-/** ref10：由 seed 导出公钥与 64 字节私钥（glue 提供）。 */
-extern function ed25519_create_keypair(public_key: *u8, private_key: *u8, seed: *u8): void;
+/** ref10：由 seed 导出公钥与 64 字节私钥（glue 提供；符号 ed25519_ref10_* 避免与 mod.x 高层 API 冲突）。 */
+extern function ed25519_ref10_create_keypair(public_key: *u8, private_key: *u8, seed: *u8): void;
 
 /** ref10：对消息签名（glue 提供）。 */
-extern function ed25519_sign(signature: *u8, message: *u8, message_len: usize, public_key: *u8, private_key: *u8): void;
+extern function ed25519_ref10_sign(signature: *u8, message: *u8, message_len: usize, public_key: *u8, private_key: *u8): void;
 
 /** ref10：验签；成功 1，失败 0（glue 提供）。 */
-extern function ed25519_verify(signature: *u8, message: *u8, message_len: usize, public_key: *u8): i32;
+extern function ed25519_ref10_verify(signature: *u8, message: *u8, message_len: usize, public_key: *u8): i32;
 
 /** 由 32 字节 seed 导出 Ed25519 公钥至 pub[0..32]。 */
 function crypto_ed25519_public_from_seed_c(seed: *u8, pub: *u8): void {
@@ -35,7 +35,7 @@ function crypto_ed25519_public_from_seed_c(seed: *u8, pub: *u8): void {
   if (seed == 0 || pub == 0) {
     return;
   }
-  unsafe { ed25519_create_keypair(pub, &priv[0], seed); }
+  unsafe { ed25519_ref10_create_keypair(pub, &priv[0], seed); }
 }
 
 /**
@@ -51,8 +51,8 @@ function crypto_ed25519_sign_c(seed: *u8, msg: *u8, msg_len: i32, sig: *u8): i32
   if (msg_len > 0 && msg == 0) {
     return -1;
   }
-  unsafe { ed25519_create_keypair(&pub[0], &priv[0], seed); }
-  unsafe { ed25519_sign(sig, msg, msg_len, &pub[0], &priv[0]); }
+  unsafe { ed25519_ref10_create_keypair(&pub[0], &priv[0], seed); }
+  unsafe { ed25519_ref10_sign(sig, msg, msg_len, &pub[0], &priv[0]); }
   return 0;
 }
 
@@ -67,7 +67,7 @@ function crypto_ed25519_verify_c(pub: *u8, msg: *u8, msg_len: i32, sig: *u8): i3
   if (msg_len > 0 && msg == 0) {
     return -1;
   }
-  unsafe { if (ed25519_verify(sig, msg, msg_len, pub) != 1) {
+  unsafe { if (ed25519_ref10_verify(sig, msg, msg_len, pub) != 1) {
     return -1;
   } }
   return 0;
