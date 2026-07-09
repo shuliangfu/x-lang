@@ -326,6 +326,11 @@ extern int32_t arch_x86_64_enc_enc_sar_cl_eax(struct platform_elf_ElfCodegenCtx 
 extern int32_t arch_x86_64_enc_enc_setz_movzbl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_shl_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_shr_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_shl_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_shr_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_sar_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_xor_edx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx);
+extern int32_t arch_x86_64_enc_enc_div_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx);
 extern int32_t arch_x86_64_enc_enc_store_rax_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
 extern int32_t arch_x86_64_enc_enc_store_rdx_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
 extern int32_t arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
@@ -727,6 +732,40 @@ int32_t backend_enc_sar_cl_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, 
 }
 
 /**
+ * ta 分派：enc_shl_cl_rax_arch（64-bit 逻辑左移）。
+ * arm64/riscv64 暂复用 32-bit 路径（寄存器宽度由操作数类型隐式决定），x86_64 显式发射 REX.W 前缀。
+ */
+int32_t backend_enc_shl_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta == 1)
+    return arch_arm64_enc_enc_shl_cl_eax(elf_ctx);
+  if (ta == 2)
+    return arch_riscv64_enc_enc_shl_cl_eax(elf_ctx);
+  return arch_x86_64_enc_enc_shl_cl_rax(elf_ctx);
+}
+
+/**
+ * ta 分派：enc_shr_cl_rax_arch（64-bit 逻辑右移）。
+ */
+int32_t backend_enc_shr_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta == 1)
+    return arch_arm64_enc_enc_shr_cl_eax(elf_ctx);
+  if (ta == 2)
+    return arch_riscv64_enc_enc_shr_cl_eax(elf_ctx);
+  return arch_x86_64_enc_enc_shr_cl_rax(elf_ctx);
+}
+
+/**
+ * ta 分派：enc_sar_cl_rax_arch（64-bit 算术右移）。
+ */
+int32_t backend_enc_sar_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta == 1)
+    return arch_arm64_enc_enc_sar_cl_eax(elf_ctx);
+  if (ta == 2)
+    return arch_riscv64_enc_enc_sar_cl_eax(elf_ctx);
+  return arch_x86_64_enc_enc_sar_cl_rax(elf_ctx);
+}
+
+/**
  * ta 分派：enc_cltd_arch
  */
 int32_t backend_enc_cltd_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
@@ -751,6 +790,20 @@ int32_t backend_enc_idiv_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, in
 }
 
 /**
+ * ta 分派：enc_div_rbx_arch（32-bit 无符号除法）。
+ * x86_64 路径发射 xor_edx_edx + div_rbx；arm64/riscv64 暂复用 idiv（TODO: 加 udiv/divu）。
+ */
+int32_t backend_enc_div_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta == 1)
+    return arch_arm64_enc_enc_idiv_rbx(elf_ctx);
+  if (ta == 2)
+    return arch_riscv64_enc_enc_idiv_rbx(elf_ctx);
+  if (arch_x86_64_enc_enc_xor_edx_edx(elf_ctx) != 0)
+    return -1;
+  return arch_x86_64_enc_enc_div_rbx(elf_ctx);
+}
+
+/**
  * ta 分派：enc_mov_edx_to_eax_arch
  */
 int32_t backend_enc_mov_edx_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
@@ -767,6 +820,18 @@ int32_t backend_enc_rem_mod_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int
   if (backend_enc_cltd_arch(elf_ctx, ta) != 0)
     return -1;
   if (backend_enc_idiv_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta);
+}
+
+/**
+ * 无符号取模（u32 % n）：xor_edx_edx + div + mov_edx_to_eax。
+ * div 后余数在 edx，mov_edx_to_eax 取余数到 eax。
+ */
+int32_t backend_enc_rem_mod_unsigned_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
+  if (ta == 1)
+    return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta);
+  if (backend_enc_div_rbx_arch(elf_ctx, ta) != 0)
     return -1;
   return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta);
 }

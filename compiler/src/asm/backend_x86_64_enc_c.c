@@ -367,6 +367,41 @@ int32_t arch_x86_64_enc_enc_sar_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ct
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
 
+/** shlq %cl, %rax — 64-bit 逻辑左移（REX.W=0x48 前缀）。i64/u64 移位须用 64-bit 指令。 */
+int32_t arch_x86_64_enc_enc_shl_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  static const uint8_t ins[] = {72, 211, 224};
+  if (!elf_ctx) return -1;
+  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
+}
+
+/** shrq %cl, %rax — 64-bit 逻辑右移（REX.W=0x48 前缀）。u64/usize 逻辑右移保留高 32 位。 */
+int32_t arch_x86_64_enc_enc_shr_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  static const uint8_t ins[] = {72, 211, 232};
+  if (!elf_ctx) return -1;
+  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
+}
+
+/** sarq %cl, %rax — 64-bit 算术右移（REX.W=0x48 前缀）。i64/isize 算术右移符号位扩展。 */
+int32_t arch_x86_64_enc_enc_sar_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  static const uint8_t ins[] = {72, 211, 248};
+  if (!elf_ctx) return -1;
+  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
+}
+
+/** xorl %edx, %edx — 32-bit 无符号除法前清零 edx（替代 cltd 符号扩展）。 */
+int32_t arch_x86_64_enc_enc_xor_edx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  static const uint8_t ins[] = {49, 210};
+  if (!elf_ctx) return -1;
+  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
+}
+
+/** divl %ebx — 32-bit 无符号除法（被除数在 edx:eax，除数在 %ebx）。u32 除法必须用 divl。 */
+int32_t arch_x86_64_enc_enc_div_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  static const uint8_t ins[] = {247, 243};
+  if (!elf_ctx) return -1;
+  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
+}
+
 int32_t arch_x86_64_enc_enc_load_32_from_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t ins[] = {139, 0};
   if (!elf_ctx) return -1;

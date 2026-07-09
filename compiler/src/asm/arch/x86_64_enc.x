@@ -184,9 +184,45 @@ function enc_sar_cl_eax(ctx: *ElfCodegenCtx): i32 {
   return elf.append_elf_bytes(ctx, buf, 2);
 }
 
+/** shlq %cl, %rax（64-bit 逻辑左移；REX.W=0x48 前缀）。
+ * 【Why】i64/u64/usize/isize 移位须用 64-bit 指令，否则移位量被 & 31 截断。 */
+function enc_shl_cl_rax(ctx: *ElfCodegenCtx): i32 {
+  let buf: u8[3] = [72, 211, 224];
+  return elf.append_elf_bytes(ctx, buf, 3);
+}
+
+/** shrq %cl, %rax（64-bit 逻辑右移；REX.W=0x48 前缀）。
+ * 【Why】u64/usize 逻辑右移须用 64-bit 指令，保留高 32 位。 */
+function enc_shr_cl_rax(ctx: *ElfCodegenCtx): i32 {
+  let buf: u8[3] = [72, 211, 232];
+  return elf.append_elf_bytes(ctx, buf, 3);
+}
+
+/** sarq %cl, %rax（64-bit 算术右移；REX.W=0x48 前缀）。
+ * 【Why】i64/isize 算术右移须用 64-bit 指令，符号位扩展到高 32 位。 */
+function enc_sar_cl_rax(ctx: *ElfCodegenCtx): i32 {
+  let buf: u8[3] = [72, 211, 248];
+  return elf.append_elf_bytes(ctx, buf, 3);
+}
+
 /** cltd。 */
 function enc_cltd(ctx: *ElfCodegenCtx): i32 {
   return enc_u8(ctx, 153);
+}
+
+/** xorl %edx, %edx（32-bit 无符号除法前清零 edx，替代 cltd 符号扩展）。
+ * 【Why】u32 除法用 divl（无符号）须 edx=0；用 cltd 会把 eax 符号位扩展到 edx，
+ *        导致 0xFFFFFFFF / 2 被当作 -1 / 2 = 0（而非 0x7FFFFFFF）。 */
+function enc_xor_edx_edx(ctx: *ElfCodegenCtx): i32 {
+  let buf: u8[2] = [49, 210];
+  return elf.append_elf_bytes(ctx, buf, 2);
+}
+
+/** divl %ebx（32-bit 无符号除法；被除数在 edx:eax，除数在 %ebx；调用方须先 xor_edx_edx）。
+ * 【Why】u32 除法必须用 divl（无符号），idivl 会把 0xFFFFFFFF 当作 -1 处理。 */
+function enc_div_rbx(ctx: *ElfCodegenCtx): i32 {
+  let buf: u8[2] = [247, 243];
+  return elf.append_elf_bytes(ctx, buf, 2);
 }
 
 /** idivl %ebx（调用方须先 cltd；被除数在 edx:eax）。 */

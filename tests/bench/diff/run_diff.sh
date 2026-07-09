@@ -100,9 +100,22 @@ run_one() {
 # 用例列表
 ALL_CASES="d1_int_arith d2_struct_layout d3_call_conv d4_float d5_bit_ops d6_mem_ops"
 
-# 选择用例
+# 选择用例：支持短名前缀（d1→d1_int_arith）或完整名
 if [ "$#" -gt 0 ]; then
-  CASES="$*"
+  CASES=""
+  for arg in "$@"; do
+    matched=""
+    for full in $ALL_CASES; do
+      case "$full" in
+        "${arg}"*) matched="$full"; break ;;
+      esac
+    done
+    if [ -n "$matched" ]; then
+      CASES="$CASES $matched"
+    else
+      echo "[SKIP] $arg: unknown case (known: $ALL_CASES)" >&2
+    fi
+  done
 else
   CASES="$ALL_CASES"
 fi

@@ -385,6 +385,37 @@ function enc_rem_mod_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   if (enc_idiv_rbx_arch(elf_ctx, ta) != 0) { return -1; }
   return enc_mov_edx_to_eax_arch(elf_ctx, ta);
 }
+/** shlq %cl, %rax (64-bit logical left shift for i64/u64/usize/isize). */
+function enc_shl_cl_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
+  if (ta == 1) { return arch.arm64_enc.enc_shl_cl_eax(elf_ctx); }
+  if (ta == 2) { return arch.riscv64_enc.enc_shl_cl_eax(elf_ctx); }
+  return arch.x86_64_enc.enc_shl_cl_rax(elf_ctx);
+}
+/** shrq %cl, %rax (64-bit logical right shift). */
+function enc_shr_cl_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
+  if (ta == 1) { return arch.arm64_enc.enc_shr_cl_eax(elf_ctx); }
+  if (ta == 2) { return arch.riscv64_enc.enc_shr_cl_eax(elf_ctx); }
+  return arch.x86_64_enc.enc_shr_cl_rax(elf_ctx);
+}
+/** sarq %cl, %rax (64-bit arithmetic right shift). */
+function enc_sar_cl_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
+  if (ta == 1) { return arch.arm64_enc.enc_sar_cl_eax(elf_ctx); }
+  if (ta == 2) { return arch.riscv64_enc.enc_sar_cl_eax(elf_ctx); }
+  return arch.x86_64_enc.enc_sar_cl_rax(elf_ctx);
+}
+/** divl %ebx (32-bit unsigned division; x86_64 emits xor_edx_edx then divl). */
+function enc_div_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
+  if (ta == 1) { return arch.arm64_enc.enc_idiv_rbx(elf_ctx); }
+  if (ta == 2) { return arch.riscv64_enc.enc_idiv_rbx(elf_ctx); }
+  if (arch.x86_64_enc.enc_xor_edx_edx(elf_ctx) != 0) { return -1; }
+  return arch.x86_64_enc.enc_div_rbx(elf_ctx);
+}
+/** Unsigned MOD (x86_64: xor_edx_edx+divl+edx->eax; arm64 fallback). */
+function enc_rem_mod_unsigned_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
+  if (ta == 1) { return enc_mov_edx_to_eax_arch(elf_ctx, ta); }
+  if (enc_div_rbx_arch(elf_ctx, ta) != 0) { return -1; }
+  return enc_mov_edx_to_eax_arch(elf_ctx, ta);
+}
 function enc_neg_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   if (ta == 1) { return arch.arm64_enc.enc_neg_eax(elf_ctx); }
   if (ta == 2) { return arch.riscv64_enc.enc_neg_eax(elf_ctx); }

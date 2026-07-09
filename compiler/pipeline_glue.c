@@ -1238,11 +1238,16 @@ extern int32_t backend_enc_xor_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *e
 extern int32_t backend_enc_mov_rbx_to_ecx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_shl_cl_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_shr_cl_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_shl_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_shr_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_sar_cl_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_idiv_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_div_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cltd_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_edx_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_rem_mod_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+extern int32_t backend_enc_rem_mod_unsigned_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t backend_enc_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc, int32_t ta);
 extern int32_t backend_enc_jz_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len,
                                    int32_t ta);
@@ -11770,11 +11775,76 @@ static int32_t pipeline_asm_emit_divisor_zero_check_rbx_elf_c(struct platform_el
   return 0;
 }
 
+/**
+ * 判定 binop 左操作数是否无符号类型（u8/u32/u64/usize）。
+ * 【Why】除法/取模指令须按符号性选择：u32 用 divl（无符号），i32 用 idivl（有符号）。
+ *        若用 idivl 处理 u32，0xFFFFFFFF 会被当作 -1，导致 /2 得 0 而非 0x7FFFFFFF。
+ * 优先取 left_ref 的 resolved_type_ref；若为空（字面量场景），回退到 right_ref。
+ */
+static int32_t glue_binop_operand_is_unsigned_elf_c(struct ast_ASTArena *arena,
+                                                     struct backend_AsmFuncCtx *ctx,
+                                                     int32_t left_ref, int32_t right_ref) {
+  int32_t tr = 0;
+  int32_t kind_ord;
+  if (!arena)
+    return 0;
+  if (left_ref > 0) {
+    tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+    if (tr <= 0 && ctx)
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+  }
+  if (tr <= 0 && right_ref > 0) {
+    tr = pipeline_expr_resolved_type_ref(arena, right_ref);
+    if (tr <= 0 && ctx)
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, right_ref);
+  }
+  if (tr <= 0)
+    return 0;
+  kind_ord = pipeline_type_kind_ord_at(arena, tr);
+  /* TYPE_U8=2, TYPE_U32=3, TYPE_U64=4, TYPE_USIZE=6 */
+  if (kind_ord == 2 || kind_ord == 3 || kind_ord == 4 || kind_ord == 6)
+    return 1;
+  return 0;
+}
+
+/**
+ * 判定 binop 操作数是否 64-bit（u64/i64/usize/isize/ptr）。
+ * 【Why】移位/除法须按宽度选择指令：64-bit 用 shlq/divq（REX.W 前缀），32-bit 用 shll/divl。
+ *        若用 32-bit 指令处理 i64，移位量被 & 31 截断（1<<40 变成 1<<8）。
+ */
+static int32_t glue_binop_operand_is_64bit_elf_c(struct ast_ASTArena *arena,
+                                                  struct backend_AsmFuncCtx *ctx,
+                                                  int32_t left_ref, int32_t right_ref) {
+  int32_t tr = 0;
+  int32_t kind_ord;
+  if (!arena)
+    return 0;
+  if (left_ref > 0) {
+    tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+    if (tr <= 0 && ctx)
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+  }
+  if (tr <= 0 && right_ref > 0) {
+    tr = pipeline_expr_resolved_type_ref(arena, right_ref);
+    if (tr <= 0 && ctx)
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, right_ref);
+  }
+  if (tr <= 0)
+    return 0;
+  kind_ord = pipeline_type_kind_ord_at(arena, tr);
+  /* TYPE_U64=4, TYPE_I64=5, TYPE_USIZE=6, TYPE_ISIZE=7, TYPE_PTR=9 */
+  if (kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 || kind_ord == 9)
+    return 1;
+  return 0;
+}
+
 static int32_t pipeline_asm_emit_binop_div_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                    int32_t left_ref, int32_t right_ref, struct backend_AsmFuncCtx *ctx,
                                                    int32_t ta) {
   int32_t lit_imm;
   int32_t vr;
+  int32_t is_unsigned;
+  is_unsigned = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, right_ref);
   if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
     if (lit_imm == 0)
       return pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
@@ -11782,7 +11852,7 @@ static int32_t pipeline_asm_emit_binop_div_elf_c(struct ast_ASTArena *arena, str
       return -1;
     if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
       return -1;
-    return backend_enc_idiv_rbx_arch(elf_ctx, ta);
+    return is_unsigned ? backend_enc_div_rbx_arch(elf_ctx, ta) : backend_enc_idiv_rbx_arch(elf_ctx, ta);
   }
   vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
   if (vr == -1)
@@ -11790,7 +11860,7 @@ static int32_t pipeline_asm_emit_binop_div_elf_c(struct ast_ASTArena *arena, str
   if (vr == 0) {
     if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
       return -1;
-    return backend_enc_idiv_rbx_arch(elf_ctx, ta);
+    return is_unsigned ? backend_enc_div_rbx_arch(elf_ctx, ta) : backend_enc_idiv_rbx_arch(elf_ctx, ta);
   }
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
     return -1;
@@ -11804,7 +11874,7 @@ static int32_t pipeline_asm_emit_binop_div_elf_c(struct ast_ASTArena *arena, str
     return -1;
   if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
     return -1;
-  return backend_enc_idiv_rbx_arch(elf_ctx, ta);
+  return is_unsigned ? backend_enc_div_rbx_arch(elf_ctx, ta) : backend_enc_idiv_rbx_arch(elf_ctx, ta);
 }
 
 /** 按位与二元运算 ELF 发射（i & 1 等；与 add 同栈序 pop_rbx）。 */
@@ -11943,6 +12013,10 @@ static int32_t pipeline_asm_emit_binop_shift_elf_c(struct ast_ASTArena *arena,
                                                     int32_t op) {
   int32_t lit_imm;
   int32_t vr;
+  int32_t is_64bit;
+  /* 【Why】i64/u64/usize/isize/ptr 移位须用 64-bit 指令（shlq/shrq/sarq，REX.W 前缀），
+   *        否则移位量被 & 31 截断（1<<40 变成 1<<8），高 32 位丢失。 */
+  is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
   if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
     if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
       return -1;
@@ -11968,7 +12042,10 @@ static int32_t pipeline_asm_emit_binop_shift_elf_c(struct ast_ASTArena *arena,
   glue_binop_var_slot_cache_clear();
   if (backend_enc_mov_rbx_to_ecx_arch(elf_ctx, ta) != 0)
     return -1;
-  return op != 0 ? backend_enc_shr_cl_eax_arch(elf_ctx, ta) : backend_enc_shl_cl_eax_arch(elf_ctx, ta);
+  if (op != 0) {
+    return is_64bit ? backend_enc_shr_cl_rax_arch(elf_ctx, ta) : backend_enc_shr_cl_eax_arch(elf_ctx, ta);
+  }
+  return is_64bit ? backend_enc_shl_cl_rax_arch(elf_ctx, ta) : backend_enc_shl_cl_eax_arch(elf_ctx, ta);
 }
 
 static int32_t pipeline_asm_emit_binop_mod_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -11976,6 +12053,8 @@ static int32_t pipeline_asm_emit_binop_mod_elf_c(struct ast_ASTArena *arena, str
                                                    int32_t ta) {
   int32_t lit_imm;
   int32_t vr;
+  int32_t is_unsigned;
+  is_unsigned = glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, right_ref);
   if (pipeline_asm_expr_lit_i32_at_c(arena, right_ref, &lit_imm)) {
     if (lit_imm == 0)
       return pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
@@ -11983,7 +12062,7 @@ static int32_t pipeline_asm_emit_binop_mod_elf_c(struct ast_ASTArena *arena, str
       return -1;
     if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, lit_imm, ta) != 0)
       return -1;
-    return backend_enc_rem_mod_arch(elf_ctx, ta);
+    return is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta);
   }
   vr = glue_try_binop_left_rax_right_rbx_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
   if (vr == -1)
@@ -11991,7 +12070,7 @@ static int32_t pipeline_asm_emit_binop_mod_elf_c(struct ast_ASTArena *arena, str
   if (vr == 0) {
     if (pipeline_asm_emit_divisor_zero_check_rbx_elf_c(elf_ctx, ctx, ta) != 0)
       return -1;
-    return backend_enc_rem_mod_arch(elf_ctx, ta);
+    return is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta);
   }
   if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, left_ref, ctx, ta) != 0)
     return -1;
@@ -12005,7 +12084,7 @@ static int32_t pipeline_asm_emit_binop_mod_elf_c(struct ast_ASTArena *arena, str
     return -1;
   if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
     return -1;
-  return backend_enc_rem_mod_arch(elf_ctx, ta);
+  return is_unsigned ? backend_enc_rem_mod_unsigned_arch(elf_ctx, ta) : backend_enc_rem_mod_arch(elf_ctx, ta);
 }
 
 /**
