@@ -2206,7 +2206,25 @@ function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, struct_
         return -1;
       }
     }
-    return emit_bytes_64(out, &nm[0], name_len);
+    /* 【Why 根源】跨模块 struct 引用：typeck 存限定名（page_mmap.PageMmapHeap），C 需裸名（PageMmapHeap）。
+     * 取最后一个 '.' 之后的部分发射，与 dep struct_layout name / struct 定义一致，避免 C 非法点号。
+     * 【Asm/Perf】逐字节发射避免大块按值传参撕裂（对齐 emit_bytes_from_ptr 注释）。 */
+    let bare_off: i32 = 0;
+    let bi: i32 = 0;
+    while (bi < name_len && bi < 64) {
+      if (nm[bi] == 46) {
+        bare_off = bi + 1;
+      }
+      bi = bi + 1;
+    }
+    let ci: i32 = bare_off;
+    while (ci < name_len && ci < 64) {
+      if (append_byte_u8(out, nm[ci]) != 0) {
+        return -1;
+      }
+      ci = ci + 1;
+    }
+    return 0;
   }
   /* C 中数组形参退化为指针，输出 elem_type * 以便 extern/定义一致，避免 build 对 preprocess_x_buf 签名的补丁 */
   if (tk == TypeKind.TYPE_ARRAY && !ast.ref_is_null(elem_ref)) {
@@ -2265,6 +2283,18 @@ function codegen_type_dep_struct_prefix_into(ctx: *PipelineDepCtx, arena: *ASTAr
   if (name_len <= 0) {
     return 0;
   }
+  /* 【Why 根源】typeck 存储限定名（如 page_mmap.PageMmapHeap），dep struct_layout name 是裸名（PageMmapHeap）。
+   * 取最后一个 '.' 之后的裸名偏移，用裸名与 dep layout name 比较（对齐 asm_slot_bytes_named_in_mod 修复 commit 45f97d71）。
+   * 【Invariant】bare_off 指向最后一个 '.' 之后首字节；bare_len = name_len - bare_off。 */
+  let bare_off: i32 = 0;
+  let bi: i32 = 0;
+  while (bi < name_len && bi < 64) {
+    if (ty_nm[bi] == 46) {
+      bare_off = bi + 1;
+    }
+    bi = bi + 1;
+  }
+  let bare_len: i32 = name_len - bare_off;
   di = 0;
   while (di < pipeline_dep_ctx_ndep(ctx)) {
     let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
@@ -2272,13 +2302,13 @@ function codegen_type_dep_struct_prefix_into(ctx: *PipelineDepCtx, arena: *ASTAr
       let li: i32 = 0;
       while (li < dep_mod.num_struct_layouts) {
         let dep_name_len: i32 = pipeline_module_struct_layout_name_len(dep_mod, li);
-        if (dep_name_len == name_len) {
+        if (dep_name_len == bare_len) {
           let dep_nm: u8[64] = [];
           let eq: bool = true;
           let j: i32 = 0;
           pipeline_module_struct_layout_name_into(dep_mod, li, &dep_nm[0]);
-          while (j < name_len && j < 64) {
-            if (dep_nm[j] != ty_nm[j]) {
+          while (j < bare_len && j < 64) {
+            if (dep_nm[j] != ty_nm[bare_off + j]) {
               eq = false;
               break;
             }
