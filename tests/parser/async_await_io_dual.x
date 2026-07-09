@@ -4,7 +4,7 @@ extern function read_fd(fd: i32, ptr: *u8, len: usize): i32;
 /** 从 fd 读最多 4 字节；独立 static 帧 + __io_rd_slot。 */
 async function read_chunk(fd: i32): i32 {
   let buf: u8[4] = [];
-  let n: i32 = await read_fd(fd, buf as *u8, 4);
+  let n: i32 = await unsafe { read_fd(fd, buf as *u8, 4) };
   return n;
 }
 
