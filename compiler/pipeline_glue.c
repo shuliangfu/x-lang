@@ -2368,6 +2368,24 @@ static int32_t pipeline_asm_emit_struct_lit_fields_elf_c(struct ast_ASTArena *ar
       } else if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta) != 0) {
         return -1;
       }
+      /**
+       * 【Why】递归 emit（嵌套 struct_lit / binop）会 clobber rbx 为子 temp 区基址；
+       *        不重载则 store 写入子 temp 区而非父栈槽，字段值丢失。
+       * 【Invariant】rax 含字段值（不可破坏）；push/pop 保护后重载 rbx 父基址。
+       */
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (sret_direct) {
+        if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, g_pipeline_asm_sret_home_off, ta) != 0)
+          return -1;
+      } else {
+        if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, base_off, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+      }
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
       if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
         return -1;
     }
