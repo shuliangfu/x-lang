@@ -25621,6 +25621,11 @@ int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module, struct ast
   nes = ast_ast_block_num_expr_stmts(arena, block_ref);
   nso = ast_ast_block_num_stmt_order(arena, block_ref);
   fin0 = ast_ast_block_final_expr_ref(arena, block_ref);
+  if (getenv("SHUX_ASM_DEBUG3") != NULL) {
+    fprintf(stderr, "shux: BLK_IMPL fi=%d br=%d nc=%d nl=%d nes=%d nso=%d nif=%d\n",
+            (int)ctx->current_func_index, (int)block_ref, (int)nc, (int)nl, (int)nes, (int)nso, (int)nif);
+    fflush(stderr);
+  }
   driver_diagnostic_typeck_block_enter(ctx->current_func_index, block_ref, nc, nl, nlp, nfp, nes, fin0);
   if (nso > 0) {
     si = 0;
