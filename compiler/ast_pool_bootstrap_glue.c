@@ -20,7 +20,7 @@ extern void parser_parse_into_set_main_index(struct ast_Module *module, int32_t 
 extern struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTArena *arena,
                                                                        struct ast_Module *module, uint8_t *data,
                                                                        int32_t len);
-extern int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx *ctx, uint8_t import_path[64], int32_t path_len);
+extern int32_t pipeline_resolve_path_x(struct ast_PipelineDepCtx *ctx, uint8_t *import_path, int32_t path_len);
 extern int32_t pipeline_read_file_x(struct ast_PipelineDepCtx *ctx);
 extern int32_t pipeline_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module, uint8_t *buf,
                                        int32_t buf_len);
