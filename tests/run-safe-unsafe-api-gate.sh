@@ -132,7 +132,11 @@ if [ "$drift_fail" -ne 0 ]; then
 fi
 
 echo "=== SAFE-002: LANG-007 unsafe boundary (hook) ==="
-chmod +x tests/run-lang-unsafe-gate.sh
-./tests/run-lang-unsafe-gate.sh
+if [ "${SHUX_SAFE_SKIP_LANG_UNSAFE:-0}" = "1" ]; then
+  echo "safe-unsafe-api: skip lang-unsafe hook (SHUX_SAFE_SKIP_LANG_UNSAFE=1)"
+else
+  chmod +x tests/run-lang-unsafe-gate.sh
+  ./tests/run-lang-unsafe-gate.sh
+fi
 
 echo "safe-unsafe-api gate OK"
