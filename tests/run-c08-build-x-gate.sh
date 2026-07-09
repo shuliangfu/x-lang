@@ -25,22 +25,46 @@ grep -q 'g05_build_shux_asm.sh' compiler/src/build_tool_libc_bridge.c || {
   echo "c08 build-x FAIL: build_tool_libc_bridge must invoke scripts/g05_build_shux_asm.sh" >&2
   exit 1
 }
-# 脚本内仍可委托 make（实现层）；须保留 shux_asm 金标准路径
-grep -q 'make shux_asm' compiler/scripts/g05_build_shux_asm.sh || {
-  echo "c08 build-x FAIL: g05_build_shux_asm.sh must default to make shux_asm" >&2
+# G-05 100%：默认走 prepare_and_relink，不再 exec make shux_asm
+grep -q 'g05_prepare_and_relink' compiler/scripts/g05_build_shux_asm.sh || {
+  echo "c08 build-x FAIL: g05_build_shux_asm.sh must call g05_prepare_and_relink" >&2
   exit 1
 }
 grep -q 'bootstrap-driver-bstrict' compiler/scripts/g05_build_shux_asm.sh || {
   echo "c08 build-x FAIL: g05_build_shux_asm.sh missing FULL=1 bstrict path" >&2
   exit 1
 }
-# G-05 最终链接迁出 Makefile recipe → g05_relink_shux.sh
-[ -f compiler/scripts/g05_relink_shux.sh ] || {
-  echo "c08 build-x FAIL: missing compiler/scripts/g05_relink_shux.sh" >&2
+for s in g05_relink_shux.sh g05_prepare_and_relink.sh g05_build_shux_asm.sh \
+         g05_relink_env.sh g05_ensure_relink_prereqs.sh; do
+  [ -f "compiler/scripts/$s" ] || { echo "c08 build-x FAIL: missing compiler/scripts/$s" >&2; exit 1; }
+done
+# 产品路径零 make：prepare/ensure 不得调用 make 目标图
+if grep -E 'make[[:space:]]+g05-|make[[:space:]]+-s[[:space:]]+g05-|make[[:space:]]+g05-export|make[[:space:]]+g05-ensure|make[[:space:]]+shux_asm' \
+     compiler/scripts/g05_prepare_and_relink.sh compiler/scripts/g05_ensure_relink_prereqs.sh \
+     compiler/scripts/g05_relink_env.sh 2>/dev/null | grep -v '^[^:]*:[[:space:]]*#' >/dev/null; then
+  echo "c08 build-x FAIL: product-path g05 scripts must not invoke make g05-*/shux_asm" >&2
+  exit 1
+fi
+grep -q 'g05_relink_env' compiler/scripts/g05_prepare_and_relink.sh || {
+  echo "c08 build-x FAIL: prepare must use g05_relink_env.sh" >&2
   exit 1
 }
-grep -q 'g05_relink_shux.sh' compiler/Makefile || {
-  echo "c08 build-x FAIL: Makefile relink-shux must invoke g05_relink_shux.sh" >&2
+grep -q 'g05_ensure_relink_prereqs' compiler/scripts/g05_prepare_and_relink.sh || {
+  echo "c08 build-x FAIL: prepare must call g05_ensure_relink_prereqs.sh" >&2
+  exit 1
+}
+# Makefile 兼容薄包装仍可保留 g05-ensure / g05-export 别名（委托 shell）
+grep -q 'g05-ensure-relink-prereqs' compiler/Makefile || {
+  echo "c08 build-x FAIL: Makefile missing g05-ensure-relink-prereqs" >&2
+  exit 1
+}
+grep -q 'g05_relink_env' compiler/Makefile || {
+  echo "c08 build-x FAIL: Makefile g05-export-relink must delegate g05_relink_env.sh" >&2
+  exit 1
+}
+# 薄包装：make shux_asm / relink-shux 须委托 shell
+grep -q 'g05_prepare_and_relink' compiler/Makefile || {
+  echo "c08 build-x FAIL: Makefile shux_asm/relink must delegate g05_prepare_and_relink" >&2
   exit 1
 }
 
