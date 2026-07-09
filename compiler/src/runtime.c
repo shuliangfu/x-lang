@@ -3609,8 +3609,12 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         pctx->asm_entry_module_only = 1;
     /**
      * 用户单文件 import 仅 std/core 闭包（hello.x）：仅 emit entry，dep 由 io 桩 + ld 解析。
+     * Why freestanding 例外：freestanding -backend asm 无预编译 std .o（nostdlib 链），
+     *   std/core dep 须 co-emit 进入口 .o 否则 ld 缺符号（NL-06 smoke import 场景）。
+     *   hosted 模式仍走 entry-only（dep 由 io.o/fs.o 等预编译 .o 提供）。
      */
     if (emit_elf_o && n_deps > 0 && !asm_smoke_only && driver_asm_build_skip_typeck() == 0 &&
+        driver_freestanding_get() == 0 &&
         pipeline_asm_user_deps_need_coemit(dep_paths, n_deps) == 0)
         pctx->asm_entry_module_only = 1;
     driver_dep_seeded_clear_all();
