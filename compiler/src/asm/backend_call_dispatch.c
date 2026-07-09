@@ -1173,6 +1173,8 @@ static int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, 
  */
 extern int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                                   int32_t call_expr_ref);
+/** 查询函数是否为 extern 声明（无函数体，定义由外部桩/libc 提供）。 */
+extern int32_t pipeline_module_func_is_extern_at(struct ast_Module *module, int32_t fi);
 
 static int32_t glue_asm_build_call_export_sym_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
                                                 int32_t callee_ref, struct ast_Module *mod,
@@ -1227,8 +1229,18 @@ static int32_t glue_asm_build_call_export_sym_c(struct ast_ASTArena *arena, int3
   }
   if (mod) {
     int32_t func_ix = pipeline_typeck_resolve_call_func_index_for_emit_c(mod, arena, call_expr_ref);
-    if (func_ix >= 0)
+    if (func_ix >= 0) {
+      /* extern 函数（shux_sys_* / libc）用裸名：定义由 freestanding_io 桩或 libc 提供，
+       * 勿加 dep 前缀（否则 ld 缺符号 std_heap_page_mmap_shux_sys_mmap）。 */
+      if (pipeline_module_func_is_extern_at(mod, func_ix) != 0) {
+        if (clen > 0 && clen < out_cap) {
+          memcpy(out, cname, (size_t)clen);
+          return clen;
+        }
+        return -1;
+      }
       return glue_asm_build_func_export_sym_c(mod, arena, func_ix, out, out_cap);
+    }
   }
   /* 兜底：被调用函数既不在 dep 列表也不在当前模块 → extern 函数（shux_sys_*, libc）。
    * extern 定义由 freestanding_io 桩或 libc 提供（裸名），勿加 dep 前缀
