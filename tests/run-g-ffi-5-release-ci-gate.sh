@@ -41,8 +41,12 @@ if [ -f tests/run-safe-unsafe-audit-gate.sh ]; then
   ./tests/run-safe-unsafe-audit-gate.sh || die "safe-unsafe-audit"
 fi
 
-# 5：可选 LANG-007 运行时套件
-if [ "${SHUX_G_FFI5_LANG_UNSAFE:-0}" = "1" ] || [ "${SHUX_G_FFI5_LANG_UNSAFE_STRICT:-0}" = "1" ]; then
+# 5：LANG-007 运行时套件（默认跑；ed25519 链接债已修）
+# 仍有 S0_region / ub / struct 等 typeck 债时：SHUX_G_FFI5_SKIP_LANG_UNSAFE=1 跳过
+# 硬失败：SHUX_G_FFI5_LANG_UNSAFE_STRICT=1
+if [ "${SHUX_G_FFI5_SKIP_LANG_UNSAFE:-0}" = "1" ]; then
+  echo "g-ffi-5 release-ci: skip lang-unsafe (SHUX_G_FFI5_SKIP_LANG_UNSAFE=1)"
+else
   if [ -z "${SHUX:-}" ]; then
     for cand in ./compiler/shux ./compiler/shux_asm ./compiler/shux-c; do
       if [ -x "$cand" ]; then
@@ -59,10 +63,10 @@ if [ "${SHUX_G_FFI5_LANG_UNSAFE:-0}" = "1" ] || [ "${SHUX_G_FFI5_LANG_UNSAFE_STR
     if [ "${SHUX_G_FFI5_LANG_UNSAFE_STRICT:-0}" = "1" ]; then
       die "lang-unsafe (rc=$lu_rc)"
     fi
-    echo "g-ffi-5 release-ci: lang-unsafe soft-fail (rc=$lu_rc; set LANG_UNSAFE_STRICT=1 to hard-fail)"
+    echo "g-ffi-5 release-ci: lang-unsafe soft-fail (rc=$lu_rc; link-fixed U1/U2; remaining typeck/ub debt; STRICT=1 to hard-fail)"
+  else
+    echo "g-ffi-5 release-ci: lang-unsafe OK"
   fi
-else
-  echo "g-ffi-5 release-ci: skip lang-unsafe suite (opt-in SHUX_G_FFI5_LANG_UNSAFE=1; known link/typeck debt)"
 fi
 
 echo "g-ffi-5 release-ci gate OK"
