@@ -21,7 +21,7 @@ function main(): i32 {
   acc = acc ^ (pm.a as u32) ^ pm.b ^ (pm.c as u32);
 
   let n: Nested = Nested { p: Point { x: 1, y: 2 }, z: -3 };
-  acc = acc ^ (n.p.x as u32) ^ (n.p.y as u32) ^ (n.p.z as u32);
+  acc = acc ^ (n.p.x as u32) ^ (n.p.y as u32) ^ (n.z as u32);
 
   return (acc & 0xFF) as i32;
 }
