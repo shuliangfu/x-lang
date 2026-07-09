@@ -10,10 +10,10 @@ function helper_size(module: *Module, arena: *ASTArena, ty_ref: i32, depth: i32)
   if (ty_ref <= 0 || depth > 64) {
     return 0;
   }
-  let kind_ord: i32 = pipeline_type_kind_ord_at(arena, ty_ref);
+  let kind_ord: i32 = unsafe { pipeline_type_kind_ord_at(arena, ty_ref) };
   if (kind_ord == 10) {
-    let elem_ref: i32 = pipeline_type_elem_ref_at(arena, ty_ref);
-    let asz: i32 = pipeline_type_array_size_at(arena, ty_ref);
+    let elem_ref: i32 = unsafe { pipeline_type_elem_ref_at(arena, ty_ref) };
+    let asz: i32 = unsafe { pipeline_type_array_size_at(arena, ty_ref) };
     if (elem_ref <= 0 || asz <= 0) {
       return 0;
     }
@@ -25,7 +25,7 @@ function helper_size(module: *Module, arena: *ASTArena, ty_ref: i32, depth: i32)
   }
   if (kind_ord == 8) {
     let nm_buf: u8[64] = [];
-    let nlen: i32 = pipeline_type_named_name_into(arena, ty_ref, &nm_buf[0]);
+    let nlen: i32 = unsafe { pipeline_type_named_name_into(arena, ty_ref, &nm_buf[0]) };
     return nlen;
   }
   return 4;
