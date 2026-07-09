@@ -14523,20 +14523,23 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
         int32_t ix_ko = ix_init_ref > 0 ? pipeline_expr_kind_ord_at(arena, ix_init_ref) : 0;
         if (ix_ko == 47)
           continue;
-        /** CALL 初值须按 stmt_order 原位 emit（timer_elapsed 越过 sleep、next_field 实参顺序等）。 */
+        /** CALL/METHOD_CALL 初值须按 stmt_order 原位 emit（timer_elapsed 越过 sleep、next_field 实参顺序等）。 */
         if (ix_ko == 48)
+          continue;
+        /** EXPR_METHOD_CALL(49)：module.func(args) 形式，与 CALL 同有副作用，留 pass 1 原位 emit。 */
+        if (ix_ko == 49)
           continue;
       }
     } else if (item_kind == 0) {
       continue;
     } else if (item_kind == 1) {
-      /** pass 0 已发射纯字面/数组 let；pass 1 补 INDEX 与 CALL 初值（须保 stmt_order 顺序）。 */
+      /** pass 0 已发射纯字面/数组 let；pass 1 补 INDEX/CALL/METHOD_CALL 初值（须保 stmt_order 顺序）。 */
       if (idx < 0 || idx >= nlet)
         continue;
       {
         int32_t ix_init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, idx);
         int32_t ix_ko = ix_init_ref > 0 ? pipeline_expr_kind_ord_at(arena, ix_init_ref) : 0;
-        if (ix_init_ref <= 0 || (ix_ko != 47 && ix_ko != 48))
+        if (ix_init_ref <= 0 || (ix_ko != 47 && ix_ko != 48 && ix_ko != 49))
           continue;
       }
     }
