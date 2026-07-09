@@ -8,8 +8,8 @@ async function echo_i32(x: i32): i32 {
 }
 
 function main(): i32 {
-  shux_async_queue_reset();
+  unsafe { shux_async_queue_reset(); }
   spawn echo_i32(1);
   spawn echo_i32(2);
-  return shux_async_run_drain_until_idle();
+  return unsafe { shux_async_run_drain_until_idle() };
 }
