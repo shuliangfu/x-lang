@@ -1,8 +1,8 @@
 # Shux 编译器（compiler）构建
 #
 # 【G-05 日常入口】优先仓库根 ./shux-build.sh build 或本目录 ./build_tool ./shux
-#   → scripts/g05_build_shux_asm.sh → make shux_asm（relink 金标准；FULL=1 → bstrict）
-# 【本 Makefile】冷启动、relink 依赖图、CI 历史目标、test/bootstrap-* — 实现层兜底（非用户日常入口）。
+#   → scripts/g05_build_shux_asm.sh → g05_prepare_and_relink（纯 shell，零 make；FULL=1 → bstrict）
+# 【本 Makefile】冷启动单文件 .o 规则、CI 历史目标、test/bootstrap-* — 兜底（非用户日常入口）。
 # 【build-tool】默认 copy seeds/build_*_gen.c 链出 build_tool（不依赖已删 C 前端 -E-extern）。
 #
 # 阶段 1：main + lexer，产出 shux；阶段 8：可选 OPT=1 为 shux 启用 -O2
@@ -2055,28 +2055,30 @@ RELINK_SHUX_PREREQS = build-seed-asm-host $(RELINK_SHUX_FILTERED_OBJS) $(USER_AS
 # relink-shux-lexer：仅重建 lexer_x.o 并重链，不触发 driver/typeck *_gen.c 再生（迭代 token enum 修复用）。
 # 提供真实 shux_asm 目标，避免同名旧文件让 `make shux_asm` 静默跳过重建。
 # Darwin 等宿主直接走 relink-shux 的已过滤拓扑，避免 build_shux_asm.sh 直链 seed_host partial 时重复符号。
-.PHONY: shux_asm relink-shux relink-shux-lexer refresh-shux-asm-gate
-shux_asm: relink-shux
-	@cp -f $(TARGET) shux_asm
-	@echo "shux_asm OK (synced from $(TARGET))"
+# G-05 100%：产品路径编排在 scripts/g05_*.sh（零 make 于 prepare/ensure/export/link）。
+# 下列目标仅：
+#   - 单文件 .o 规则（冷启动隐式）
+#   - 薄包装兼容 `make shux_asm` / `make relink-shux` → 委托 shell
+#   - g05-ensure / g05-export 兼容别名 → 同名 shell 脚本
+.PHONY: shux_asm relink-shux relink-shux-lexer refresh-shux-asm-gate \
+	g05-ensure-relink-prereqs g05-export-relink
 
-relink-shux: bootstrap_shuxc $(RELINK_SHUX_PREREQS)
-	$(MAKE) driver_fmt_x.o driver_check_x.o
-	@$(MAKE) -B src/runtime_link_abi.o $(DRIVER_SEED_RUNTIME_REBUILD)
-	@$(MAKE) pipeline_x.o
-	@$(MAKE) $(RELINK_SHUX_GLUE_SUFFIX)
-	@mkdir -p build_asm/seed_host
-	@$(MAKE) $(USER_ASM_SEED_HOST_STUBS)
-	@if [ -n "$(strip $(RELINK_SHUX_FILTERED_OBJS))" ]; then $(MAKE) $(RELINK_SHUX_FILTERED_OBJS); fi
-	@# G-05：最终链接迁入 scripts/g05_relink_shux.sh（依赖图仍由本 Makefile 保证）
-	@G05_CC="$(CC)" \
-	  G05_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
-	  G05_OUT="$(TARGET)" \
-	  G05_SHUX_C="$(SHUX_C)" \
-	  G05_BOOTSTRAP="bootstrap_shuxc" \
-	  G05_OBJS="$(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_SHUX_PIPELINE_LINK_O) pipeline_bootstrap_orchestration.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_x_alias.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_SHUX_USER_ASM_LINK) $(RELINK_SHUX_GLUE_SUFFIX)" \
-	  sh scripts/g05_relink_shux.sh
-	@echo "relink-shux OK (via g05_relink_shux.sh)"
+# 兼容：委托 scripts/g05_ensure_relink_prereqs.sh（产品路径不再依赖本 recipe 图）
+g05-ensure-relink-prereqs:
+	@sh scripts/g05_ensure_relink_prereqs.sh
+
+# 兼容：委托 scripts/g05_relink_env.sh（与 shell 清单单一真相）
+g05-export-relink:
+	@sh scripts/g05_relink_env.sh
+
+# 兼容入口：委托 G-05 shell 编排（无 recipe 内嵌 cc；产品路径零 make）
+relink-shux:
+	@G05_SYNC_ASM=0 sh scripts/g05_prepare_and_relink.sh
+	@echo "relink-shux OK (via g05_prepare_and_relink.sh)"
+
+shux_asm:
+	@G05_SYNC_ASM=1 sh scripts/g05_prepare_and_relink.sh
+	@echo "shux_asm OK (via g05_prepare_and_relink.sh)"
 
 relink-shux-lexer: lexer_x.o
 	@test -f build_asm/seed_host/asm_backend_partial.o || (echo "relink-shux-lexer: need build_asm/seed_host/asm_backend_partial.o (make build-seed-asm-host)" >&2; exit 1)
