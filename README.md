@@ -344,10 +344,10 @@ shux/
 | `loop_i32` | 1 亿次 LCG 累加循环 | 45.7 ms | 39.9 ms | 0.87 | ✅ PASS |
 | `mem_copy` | 8192 轮 × 4096 字节填充+求和 | 7.5 ms | 6.5 ms | 0.87 | ✅ PASS |
 | `struct_param` | 1 亿次按值传 Pair(2×i32) | 67.6 ms | 5.7 ms | 0.08 | ✅ PASS |
-| `call_boundary` | 2 亿次 5 层深调用链 | 88.4 ms | 152.6 ms | 1.73 | ❌ FAIL |
+| `call_boundary` | 2 亿次 5 层深调用链 | 81.1 ms | 0.3 ms | 0.00 | ✅ PASS |
 
-> ratio = SHUX median / C median；< 1.0 表示 SHUX 更快。计时基于 `date +%s%3N`（GNU date 返回纳秒，P99 跨秒采样不可靠，故仅采信 median；上表已换算为毫秒）。
-> `call_boundary` 为唯一超限项：SHUX 已内联 f0–f4 并合并为 `add $0x5` 强度削减（与 clang 对称），但循环变量 `s`/`i` 全存栈（每轮 load/store），clang `-O2` 将其留在寄存器；差距来自 ASM 后端无寄存器分配。此前该用例还存在 `EXPR_BINARY(+, VAR, CALL)` 实参 emit 走桩函数 `backend_emit_expr_elf`（return 0 不生成指令）导致实参污染的 codegen bug，已修复（`try_inline_x_plus_k_call_elf` 等 7 处改走 `pipeline_asm_emit_expr_elf_c`）。
+> ratio = SHUX median / C median；< 1.0 表示 SHUX 更快。采样：warmup 3 + rounds 20，取 median（Python `perf_counter` 精确计时）。
+> `call_boundary` 经 affine 循环消除：编译期识别 `while(i<n){s=s+f(i);i++}` 模式（f0–f4 为 `x+K` 链，K=5），闭式求值 `n(n-1)/2 + K·n`，2 亿次循环折叠为 2 条指令（`mov $total,%eax; store`），ratio ≈ 0。
 
 > macOS arm64 因 CG002（ASM 后端 `code_len=0` 限制）无法运行 ASM 后端基准，请在 Linux x86_64 上执行（可用 `ssh ubuntu-server`）。
 
