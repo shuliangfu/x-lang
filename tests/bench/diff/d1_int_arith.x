@@ -39,11 +39,13 @@ function main(): i32 {
   acc = acc ^ (0xFF00 ^ 0x0FF0);
 
   // 11. i64 低 32 位：(1<<40) 低 32 位 = 0
-  let big: i64 = 1 << 40;
+  // SHUX 整数字面量默认 i32；移位结果类型跟随左操作数，故左操作数须显式 i64。
+  let one64: i64 = 1;
+  let big: i64 = one64 << 40;
   acc = acc ^ (big as u32);
 
   // 12. i64 乘法低 32 位：(1<<40)*3 低 32 位 = 0
-  acc = acc ^ ((big * 3) as u32);
+  acc = acc ^ ((big * (3 as i64)) as u32);
 
   return (acc & 0xFF) as i32;
 }
