@@ -4,7 +4,7 @@ extern function read(handle: usize, ptr: *u8, len: usize, timeout_ms: u32): i32;
 /** await IO 后返回读入字节数。 */
 async function io_read_demo(): i32 {
   let buf: u8[8] = [];
-  let n: i32 = await read(0, buf as *u8, 8, 0);
+  let n: i32 = await unsafe { read(0, buf as *u8, 8, 0) };
   return n;
 }
 
