@@ -9103,6 +9103,15 @@ static int32_t pipeline_asm_index_elem_byte_sz_c(struct ast_ASTArena *arena, int
   int32_t kind_ord;
   int32_t pointee;
   int32_t esz_base;
+  if (getenv("SHUX_ASM_DEBUG3") != NULL) {
+    int32_t dbg_br = pipeline_expr_index_base_ref(arena, expr_ref);
+    int32_t dbg_bko = dbg_br > 0 ? pipeline_expr_kind_ord_at(arena, dbg_br) : -1;
+    int32_t dbg_btr = dbg_br > 0 ? pipeline_expr_resolved_type_ref(arena, dbg_br) : 0;
+    int32_t dbg_itr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    fprintf(stderr, "shux: ELEM_SZ expr_ref=%d base_ref=%d base_kind=%d base_tr=%d idx_tr=%d\n",
+            (int)expr_ref, (int)dbg_br, (int)dbg_bko, (int)dbg_btr, (int)dbg_itr);
+    fflush(stderr);
+  }
   /**
    * v.ptr[v.len] 等：INDEX resolved_type 偶发为 i32/usize（8B）而基址为 *u8；
    * 优先按指针基址 pointee 步长，避免 lea (ptr,len,8) 写穿 bump 区（with_arena_vec SIGSEGV）。
