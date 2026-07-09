@@ -1,7 +1,7 @@
 # 可选：更严自举对比（shux-x -x -E 生成 _gen2.c 链 shux-x2）。
 # 默认不阻塞 PR；手动 workflow_dispatch 或每周 schedule 触发。
 #
-# TEMP: schedule 已暂停（bootstrap-gold 调试中）。
+# 2026-07-10：加 G-FFI-5 release 子 job + D-03 stage2 hash（G 尾声 / 发版硬门槛）。
 
 name: Selfhost Stage2
 
@@ -36,3 +36,35 @@ jobs:
       - name: Run verify-selfhost-stage2-bstrict.sh
         run: cd compiler && sh ./verify-selfhost-stage2-bstrict.sh
         timeout-minutes: 45
+      - name: D-03 Stage2 SHA256 gate
+        run: |
+          chmod +x tests/run-d03-stage2-hash-gate.sh
+          SHUX_D03_FAIL=1 ./tests/run-d03-stage2-hash-gate.sh
+        timeout-minutes: 15
+
+  g-ffi-5-release:
+    name: G-FFI-5 release CI (LANG-007 + business zero bare extern)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq liburing-dev zlib1g-dev libzstd-dev libbrotli-dev
+      - name: Build shux (for lang-unsafe check)
+        run: make -C compiler OPT=1 all
+        env:
+          CC: cc
+      - name: G-FFI-5 release-ci gate
+        run: |
+          chmod +x tests/run-g-ffi-5-release-ci-gate.sh
+          SHUX_G_FFI5_FAIL=1 ./tests/run-g-ffi-5-release-ci-gate.sh
+        timeout-minutes: 30
+
+  g05-c08:
+    name: G-05 c08 build.x policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: C-08 / G-05 entry gate
+        run: |
+          chmod +x tests/run-c08-build-x-gate.sh
+          ./tests/run-c08-build-x-gate.sh
