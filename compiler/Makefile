@@ -2198,7 +2198,7 @@ first-time: build-tool
 # G-05（2026-07-10）：
 #   - 默认用 seeds/ 下 pinned *_gen.c（-x -E 对 build_runner.entry / 大 TU 仍不稳定；C 前端 -E-extern 已随 G-02a 不可用）
 #   - 可选：SHUX_BUILD_TOOL_REGEN=1 且 ./shux 可 -x -E 时尝试刷新 build_gen + build_runtime_x_gen
-#   - build_run_asm_build / build_copy_shux_asm 在 build_tool_libc_bridge.c（避免 -x -E 截断）
+#   - build_run_asm_build 默认 `make shux_asm`（与 relink 定稿一致）；FULL=1 → bootstrap-driver-bstrict
 #   - main 调用 entry（build_runner.x），非 build_entry
 build-tool:
 	@if [ "$${SHUX_BUILD_TOOL_REGEN:-0}" = "1" ] && [ -x ./shux ]; then \

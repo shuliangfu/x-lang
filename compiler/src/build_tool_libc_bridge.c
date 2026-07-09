@@ -41,14 +41,26 @@ int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
 }
 
 /**
- * SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 SHUX=<shu_path> ./scripts/build_shux_asm.sh
- * 与 build_runtime_x.x build_run_asm_build 语义一致。
+ * 对齐 Makefile 日常发布路径（G-05 产物一致性）：
+ *
+ * - 默认：`make shux_asm`（= relink-shux + cp shux→shux_asm）
+ *   与 `make shux_asm` / 发布入口定稿拓扑一致；勿只跑 build_shux_asm.sh，
+ *   否则会留下未 refresh 的 strict 大二进制（struct 等用例回归）。
+ * - SHUX_BUILD_TOOL_FULL=1：`make bootstrap-driver-bstrict`
+ *   （script SKIP_GEN + refresh-shux-asm-gate，全量 B-strict）。
+ *
+ * shu_path 保留参数以兼容 build_runner；默认路径由 Makefile 使用已有 ./shux。
  */
 int32_t build_run_asm_build(uint8_t *shu_path) {
-  char cmd[4096];
-  const char *shux = (shu_path && shu_path[0]) ? (const char *)shu_path : "./shux";
-  int n = snprintf(cmd, sizeof(cmd),
-                   "SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 SHUX=%s ./scripts/build_shux_asm.sh", shux);
+  const char *full = getenv("SHUX_BUILD_TOOL_FULL");
+  char cmd[512];
+  int n;
+  (void)shu_path;
+  if (full && full[0] == '1' && full[1] == '\0') {
+    n = snprintf(cmd, sizeof(cmd), "make bootstrap-driver-bstrict");
+  } else {
+    n = snprintf(cmd, sizeof(cmd), "make shux_asm");
+  }
   if (n < 0 || (size_t)n >= sizeof(cmd)) {
     return -1;
   }
@@ -58,10 +70,15 @@ int32_t build_run_asm_build(uint8_t *shu_path) {
   return 0;
 }
 
-/** cp -f shux_asm shux */
+/**
+ * make shux_asm 已同步 shux 与 shux_asm；保留 cp 作幂等兜底
+ * （显式 ./build_tool ./shux asm 后 runner 仍会调用）。
+ */
 int32_t build_copy_shux_asm(void) {
-  if (build_exec_system("cp -f shux_asm shux") != 0) {
-    return -1;
+  if (build_exec_system("cp -f shux shux_asm 2>/dev/null; true") != 0) {
+    return 0;
   }
+  /* Prefer gold: shux is primary after make shux_asm */
+  (void)build_exec_system("test -f shux && test -f shux_asm && cp -f shux shux_asm");
   return 0;
 }
