@@ -8,7 +8,7 @@ BUILD_DIR="build_asm"
 CC=${CC:-cc}
 CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 SEED_O="$BUILD_DIR/asm_driver_seed"
-BSTRICT_DISPATCH="src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
+BSTRICT_DISPATCH="src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
 PARSER_ALIAS_O="$BUILD_DIR/parser_asm_link_alias.o"
 PARSER_ASM_PARTIAL="$BUILD_DIR/parser_asm_minimal_partial.o"
 
@@ -138,9 +138,10 @@ ensure_runtime_driver_asm_strict_obj
 
 # pipeline_glue / pipeline_x 引用 target_cpu / simd_enc / simd_loop（SIMD-S1–S4）。
 ensure_simd_glue_link_objs() {
-  if [ ! -f src/asm/pipeline_abi_f32_xmm.o ] || [ src/asm/pipeline_abi_f32_xmm.c -nt src/asm/pipeline_abi_f32_xmm.o ]; then
-    experimental_bootstrap_info "cc pipeline_abi_f32_xmm.o"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/pipeline_abi_f32_xmm.o src/asm/pipeline_abi_f32_xmm.c
+  # G-02e: f32 xmm ABI 并入 backend_call_dispatch.o（无独立 pipeline_abi_f32_xmm.o）
+  if [ ! -f src/asm/backend_call_dispatch.o ] || [ src/asm/backend_call_dispatch.c -nt src/asm/backend_call_dispatch.o ]; then
+    experimental_bootstrap_info "cc src/asm/backend_call_dispatch.o (incl. f32 xmm ABI)"
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/backend_call_dispatch.o src/asm/backend_call_dispatch.c
   fi
   if [ ! -f src/driver/target_cpu.o ] || [ src/driver/target_cpu.c -nt src/driver/target_cpu.o ]; then
     experimental_bootstrap_info "cc src/driver/target_cpu.o"
@@ -167,9 +168,9 @@ ensure_experimental_companion_objs() {
       driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
       pipeline_bootstrap_orchestration.o 2>/dev/null || true
   fi
-  if [ ! -f "$BUILD_DIR/std_fs_shim.o" ] || [ "src/std_fs_shim.c" -nt "$BUILD_DIR/std_fs_shim.o" ]; then
-    experimental_bootstrap_info "cc std_fs_shim.o"
-    "$CC" $CFLAGS -c -o "$BUILD_DIR/std_fs_shim.o" src/std_fs_shim.c
+  if [ ! -f src/runtime_io_abi.o ] || [ src/runtime_io_abi.c -nt src/runtime_io_abi.o ]; then
+    experimental_bootstrap_info "cc runtime_io_abi.o (incl. fs/sys shim)"
+    "$CC" $CFLAGS -c -o src/runtime_io_abi.o src/runtime_io_abi.c
   fi
   if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "src/x_seed_bridge.c" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
     experimental_bootstrap_info "cc x_seed_bridge.o"
@@ -415,8 +416,8 @@ fi
   preprocess_x.o \
   "$BUILD_DIR/ast_pool_l5_bridge.o" \
   driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-  "$BUILD_DIR/std_fs_shim.o" \
-  src/std_sys_shim.o \
+  src/runtime_io_abi.o \
+  src/runtime_io_abi.o \
   "$BUILD_DIR/x_seed_bridge.o" \
   "$BUILD_DIR/seed_host/asm_backend_partial.o" \
   src/asm/user_asm_seed_bridge.o \

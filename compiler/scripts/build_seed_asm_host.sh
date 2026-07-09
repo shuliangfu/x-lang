@@ -542,7 +542,7 @@ if seed_partial_needs_regen; then
   : >"$OUT_DIR/asm_dispatch_syms.txt"
   for _dof in src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o \
               src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o \
-              src/asm/pipeline_abi_f32_xmm.o; do
+             ; do
     if [ ! -f "$_dof" ]; then
       build_seed_asm_host_error "missing $_dof (make bootstrap-driver-seed 须先编 dispatch TU)"
       exit 1

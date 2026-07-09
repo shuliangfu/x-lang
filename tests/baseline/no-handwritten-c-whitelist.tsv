@@ -3,8 +3,8 @@
 # 更新：SHUX_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh
 summary_std_c	0
 summary_core_c	0
-summary_compiler_src_c	175
-summary_total_c	175
+summary_compiler_src_c	172
+summary_total_c	172
 file	compiler/src/asm/asm_backend_compat_stubs.c
 file	compiler/src/asm/asm_experimental_symbol_bridge.c
 file	compiler/src/asm/async_net_fs.inc.c
@@ -80,7 +80,6 @@ file	compiler/src/asm/parser_asm_top_level_let_slice.c
 file	compiler/src/asm/parser_asm_type_alias_slice.c
 file	compiler/src/asm/parser_asm_type_ref_slice.c
 file	compiler/src/asm/parser_asm_unary_slice.c
-file	compiler/src/asm/pipeline_abi_f32_xmm.c
 file	compiler/src/asm/pipeline_asm_orchestration_alias.c
 file	compiler/src/asm/pipeline_asm_run_all_alias.c
 file	compiler/src/asm/pipeline_asm_typecheck_alias.c
@@ -176,7 +175,5 @@ file	compiler/src/runtime_pipeline_abi.c
 file	compiler/src/runtime_pipeline_abi_shux_c_stubs.c
 file	compiler/src/runtime_proc_abi.c
 file	compiler/src/seed_link_compat.c
-file	compiler/src/std_fs_shim.c
-file	compiler/src/std_sys_shim.c
 file	compiler/src/x_seed_bridge.c
 file	compiler/src/x_stubs.c

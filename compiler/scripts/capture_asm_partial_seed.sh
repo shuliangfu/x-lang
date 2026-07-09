@@ -62,7 +62,7 @@ fi
 progress "SHUX_E=$SHUX_E (bootstrap -E path; LEGACY 无法 parse 当前 ast.x)"
 make -j4 src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o \
   src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o \
-  src/asm/pipeline_abi_f32_xmm.o
+ 
 
 ulimit -s unlimited 2>/dev/null || ulimit -s 65532 2>/dev/null || true
 

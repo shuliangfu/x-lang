@@ -29,7 +29,8 @@
 
 | 批次 | 项 | 提交/状态 |
 |------|-----|-----------|
-| G-02e-0 | **typeck_f64_bits.c → 全平台 .s**（Darwin arm64 / Linux x86_64 / Linux aarch64 ELF） | 本批 |
+| G-02e-0 | **typeck_f64_bits.c → 全平台 .s**（Darwin arm64 / Linux x86_64 / Linux aarch64 ELF） | ✅ 176→175 |
+| G-02e-1 | **合并薄 TU**：`pipeline_abi_f32_xmm.c`→`backend_call_dispatch.c`；`std_fs_shim.c`+`std_sys_shim.c`→`runtime_io_abi.c`；G05 70→67 objs | ✅ 175→172 |
 
 ## 4. 建议下一刀（工作量升序）
 

@@ -119,7 +119,6 @@ file	compiler/src/asm/parser_asm_parse_expr_link.c
 file	compiler/src/asm/parser_asm_thin_c.c
 file	compiler/src/asm/driver_compile_asm_link_alias.c
 # G-02d: pipeline alias/bridge (13 files, C ABI bridge / weak)
-file	compiler/src/asm/pipeline_abi_f32_xmm.c
 file	compiler/src/asm/pipeline_asm_orchestration_alias.c
 file	compiler/src/asm/pipeline_asm_run_all_alias.c
 file	compiler/src/asm/pipeline_asm_typecheck_alias.c
@@ -147,8 +146,6 @@ file	compiler/src/preprocess_shim.c
 file	compiler/src/runtime_driver_strict_glue_stubs.c
 file	compiler/src/runtime_pipeline_abi_shux_c_stubs.c
 file	compiler/src/seed_link_compat.c
-file	compiler/src/std_fs_shim.c
-file	compiler/src/std_sys_shim.c
 file	compiler/src/x_stubs.c
 # G-02d: parser_asm_*_slice.c (21 files, #include pattern with include guard)
 file	compiler/src/asm/parser_asm_as_suffix_slice.c

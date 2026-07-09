@@ -214,7 +214,6 @@ extern int32_t backend_enc_store_x0_sp_offset_arch(struct platform_elf_ElfCodege
                                                    int32_t ta);
 extern int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k,
                                                        int32_t ta);
-extern int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
 extern int32_t pipeline_asm_type_ref_byte_size_c(struct ast_ASTArena *arena, int32_t ty_ref);
 extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 extern int32_t pipeline_asm_call_struct16_ret_needs_rax_deref_c(struct ast_ASTArena *arena, int32_t call_expr_ref);
@@ -225,8 +224,26 @@ extern int32_t backend_enc_store_rax_to_rbp_arch(struct platform_elf_ElfCodegenC
                                                  int32_t ta);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                int32_t ta);
-extern void pipeline_asm_emit_set_call_f32_xmm(int32_t on);
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t type_ref);
+
+/* G-02e：原 pipeline_abi_f32_xmm.c 并入本 TU，去掉独立手写 C 文件。 */
+static int32_t g_pipeline_asm_emit_call_f32_xmm;
+
+/** 默认开启 f32 xmm ABI；SHUX_ABI_F32_XMM=0 回落 legacy f64 widen。 */
+int32_t pipeline_asm_abi_f32_xmm_enabled_c(void) {
+  const char *env = getenv("SHUX_ABI_F32_XMM");
+  if (env && env[0] == '0' && env[1] == '\0')
+    return 0;
+  return 1;
+}
+
+void pipeline_asm_emit_set_call_f32_xmm(int32_t on) {
+  g_pipeline_asm_emit_call_f32_xmm = on != 0 ? 1 : 0;
+}
+
+int32_t pipeline_asm_emit_get_call_f32_xmm_c(void) {
+  return g_pipeline_asm_emit_call_f32_xmm;
+}
 
 #define GLUE_TYPE_F32_ORD 14
 

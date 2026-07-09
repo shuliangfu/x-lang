@@ -3035,11 +3035,12 @@ ensure_asm_bootstrap_x_companion_objs() {
       driver_fmt_x.o driver_check_x.o driver_test_x.o \
       driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
       lsp_io_std_heap_x.o \
-      src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o
+      src/runtime_io_abi.o src/asm/parser_asm_parse_expr_link.o
   fi
-  if [ ! -f "$BUILD_DIR/std_fs_shim.o" ] || [ "src/std_fs_shim.c" -nt "$BUILD_DIR/std_fs_shim.o" ]; then
-    echo "  cc -c src/std_fs_shim.c -> $BUILD_DIR/std_fs_shim.o"
-    "$CC" $CFLAGS -c -o "$BUILD_DIR/std_fs_shim.o" src/std_fs_shim.c
+  # G-02e: fs/sys shim symbols live in runtime_io_abi.o
+  if [ ! -f src/runtime_io_abi.o ] || [ src/runtime_io_abi.c -nt src/runtime_io_abi.o ]; then
+    echo "  cc -c src/runtime_io_abi.c -> src/runtime_io_abi.o"
+    "$CC" $CFLAGS -c -o src/runtime_io_abi.o src/runtime_io_abi.c
   fi
   if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "src/x_seed_bridge.c" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
     echo "  cc -c src/x_seed_bridge.c -> $BUILD_DIR/x_seed_bridge.o"
@@ -3075,7 +3076,7 @@ BSTRICT_EXPERIMENTAL_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
 BSTRICT_USER_ASM_SEED_BRIDGE_LINK="src/asm/user_asm_seed_bridge.o"
 BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="src/asm/asm_backend_compat_stubs.o"
 BSTRICT_BACKEND_X86_64_ENC_LINK="src/asm/backend_x86_64_enc_c.o"
-BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
+BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
 
 refresh_bstrict_link_variants() {
   BSTRICT_PIPELINE_LINK_O="pipeline_x.o"
@@ -3101,12 +3102,12 @@ refresh_bstrict_link_variants() {
       fi
     fi
   fi
-  BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o src/asm/pipeline_abi_f32_xmm.o"
-  GEN_DRIVER_BSTRICT_COMPANIONS="$BUILD_DIR/std_fs_shim.o src/std_sys_shim.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+  BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
+  GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
 }
 
 # gen_driver 回退链须与 bootstrap-driver-seed 同款 companion：pipeline_x.o 引用 std_fs_shim / try_inline 分派等。
-GEN_DRIVER_BSTRICT_COMPANIONS="$BUILD_DIR/std_fs_shim.o src/std_sys_shim.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
+GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
 
 # gen_driver 回退链：pipeline_x.o / runtime_driver 须 parser/lexer/codegen X + driver 子命令 + orchestration（Darwin 勿仅 SEED parser.o）。
 GEN_DRIVER_X_PIPELINE_COMPANIONS="parser_x.o lexer_x.o codegen_x.o lexer_x_link_alias.o codegen_x_link_alias.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o pipeline_bootstrap_orchestration.o $BUILD_DIR/ast_pool_l5_bridge.o"
@@ -3123,7 +3124,7 @@ ensure_bstrict_seed_support_objs() {
     echo "  cc -c src/asm/asm_backend_compat_stubs.c -> src/asm/asm_backend_compat_stubs.o"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/asm_backend_compat_stubs.o src/asm/asm_backend_compat_stubs.c
   fi
-  for _disp in backend_enc_dispatch backend_x86_64_enc_c backend_arch_emit_dispatch backend_try_inline_dispatch backend_call_dispatch pipeline_abi_f32_xmm; do
+  for _disp in backend_enc_dispatch backend_x86_64_enc_c backend_arch_emit_dispatch backend_try_inline_dispatch backend_call_dispatch; do
     if [ ! -f "src/asm/${_disp}.o" ] || [ "src/asm/${_disp}.c" -nt "src/asm/${_disp}.o" ]; then
       echo "  cc -c src/asm/${_disp}.c -> src/asm/${_disp}.o"
       "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "src/asm/${_disp}.o" "src/asm/${_disp}.c"
@@ -3325,9 +3326,10 @@ ensure_asm_driver_seed_c_objs() {
 # - parser_asm_parse_expr_link：thin glue → parser_x parse_expr_into
 # - pipeline_fill_dep_strict_alias：strict 链仅 fill_dep 裸名（勿整包 pipeline_run_x_link_alias）
 ensure_asm_strict_link_extra_objs() {
-  if [ ! -f src/std_sys_shim.o ] || [ src/std_sys_shim.c -nt src/std_sys_shim.o ]; then
-    echo "  cc -c src/std_sys_shim.c -> src/std_sys_shim.o"
-    "$CC" $CFLAGS -c -o src/std_sys_shim.o src/std_sys_shim.c
+  # G-02e: std_sys_shim merged into runtime_io_abi.o (ensured above / DRIVER_SEED)
+  if [ ! -f src/runtime_io_abi.o ] || [ src/runtime_io_abi.c -nt src/runtime_io_abi.o ]; then
+    echo "  cc -c src/runtime_io_abi.c -> src/runtime_io_abi.o"
+    "$CC" $CFLAGS -c -o src/runtime_io_abi.o src/runtime_io_abi.c
   fi
   if [ ! -f src/asm/parser_asm_parse_expr_link.o ] \
     || [ src/asm/parser_asm_parse_expr_link.c -nt src/asm/parser_asm_parse_expr_link.o ]; then
@@ -4108,7 +4110,7 @@ shux_asm_bstrict_relink_runtime_only() {
   ensure_asm_backend_compat_stubs_obj
   refresh_bstrict_link_variants
   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
-  ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
+  ST_BSTRICT_LINK_EXTRA="src/runtime_io_abi.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
   ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/preprocess_if_stack_bridge.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
   ensure_pipeline_o_strict_link_partial_obj || true
   filter_strict_asm_objs
@@ -4159,7 +4161,7 @@ shux_asm_bstrict_relink_runtime_only() {
     $ASM_TRY_OBJS \
     $ST_PARSER_LINK \
     $ST_RUNTIME_PARTIAL \
-    "$BUILD_DIR/std_fs_shim.o" \
+    src/runtime_io_abi.o \
     $ST_PARSER_X_TAIL \
     $ST_BRIDGE_OBJ \
     "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
@@ -4416,8 +4418,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
           preprocess_x.o \
           "$BUILD_DIR/ast_pool_l5_bridge.o" \
           driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-          "$BUILD_DIR/std_fs_shim.o" \
-          src/std_sys_shim.o \
+          src/runtime_io_abi.o \
+          src/runtime_io_abi.o \
           "$BUILD_DIR/x_seed_bridge.o" \
           "$BUILD_DIR/seed_link_compat.o" \
           "$BUILD_DIR/seed_host/asm_backend_partial.o" \
@@ -4615,7 +4617,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
               ensure_asm_driver_seed_c_objs
               SEED_O="$BUILD_DIR/asm_driver_seed"
               ensure_asm_strict_link_extra_objs
-              ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
+              ST_BSTRICT_LINK_EXTRA="src/runtime_io_abi.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
               ensure_asm_link_objs
               ST_RUNTIME_PANIC="runtime_panic.o atoi_stub.o"
               ST_BRIDGE_OBJ=""
@@ -4792,7 +4794,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 $ASM_TRY_OBJS \
                 $ST_PARSER_LINK \
                 $ST_RUNTIME_PARTIAL \
-                "$BUILD_DIR/std_fs_shim.o" \
+                src/runtime_io_abi.o \
                 $ST_BRIDGE_OBJ \
                 "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
                 $ST_TYPECK_LSP_STUB \
@@ -4857,7 +4859,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
                 $ASM_TRY_OBJS \
                   "$ST_PARSER_LINK" \
                   "$BUILD_DIR/pipeline_runtime_bootstrap_partial.o" \
-                  "$BUILD_DIR/std_fs_shim.o" \
+                  src/runtime_io_abi.o \
                   "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
                   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
                   $ST_TYPECK_LSP_STUB \

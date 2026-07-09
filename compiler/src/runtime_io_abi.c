@@ -220,3 +220,79 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
     close(fd);
     return off == len ? 0 : -1;
 }
+
+/* -------------------------------------------------------------------------- */
+/* G-02e：原 std_fs_shim.c / std_sys_shim.c 并入本 TU（产品链减 2 个手写 C 文件）。 */
+/* -------------------------------------------------------------------------- */
+
+int32_t std_fs_fs_open_read(uint8_t *path) {
+  if (!path)
+    return -1;
+  return (int32_t)open((char *)path, O_RDONLY | SHUX_O_BINARY, 0);
+}
+
+int32_t std_fs_fs_open_write(uint8_t *path) {
+  if (!path)
+    return -1;
+  return (int32_t)open((char *)path, O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY, (mode_t)0644);
+}
+
+int32_t std_fs_fs_close(int32_t fd) {
+  return (int32_t)close(fd);
+}
+
+int32_t std_fs_fs_invalid_handle(void) {
+  return -1;
+}
+
+ptrdiff_t std_fs_fs_read(int32_t fd, uint8_t *buf, size_t count) {
+  if (!buf)
+    return -1;
+  return (ptrdiff_t)read(fd, buf, count);
+}
+
+ptrdiff_t std_fs_fs_write(int32_t fd, uint8_t *buf, size_t count) {
+  if (!buf)
+    return -1;
+  return (ptrdiff_t)write(fd, buf, count);
+}
+
+int32_t fs_posix_close_c(int32_t fd) {
+  return std_fs_fs_close(fd);
+}
+
+ptrdiff_t fs_posix_write_c(int32_t fd, uint8_t *buf, size_t count) {
+  return std_fs_fs_write(fd, buf, count);
+}
+
+ptrdiff_t fs_posix_read_c(int32_t fd, uint8_t *buf, size_t count) {
+  return std_fs_fs_read(fd, buf, count);
+}
+
+/**
+ * std.sys.os_read_file_into 的 C 链接符号（-E-extern import 名）。
+ * 成功返回读入字节数；失败 -1。
+ */
+int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
+  int32_t fd;
+  int32_t total;
+  if (!path || !buf || cap <= 0)
+    return -1;
+  fd = (int32_t)open((const char *)path, O_RDONLY | SHUX_O_BINARY, 0);
+  if (fd < 0)
+    return -1;
+  total = 0;
+  while (total < cap) {
+    int32_t chunk = cap - total;
+    ssize_t r = read(fd, buf + total, (size_t)chunk);
+    if (r < 0) {
+      close(fd);
+      return -1;
+    }
+    if (r == 0)
+      break;
+    total += (int32_t)r;
+  }
+  close(fd);
+  return total;
+}
