@@ -21379,6 +21379,16 @@ int32_t pipeline_typeck_check_expr_assign_c(struct ast_Module *module, struct as
   compound_flag = 1;
   if (expr_kind == (int32_t)ast_ExprKind_EXPR_ASSIGN)
     compound_flag = 0;
+  if (getenv("SHUX_ASM_DEBUG3") != NULL) {
+    int32_t dbg_lk = (left_ref > 0 && left_ref <= arena->num_exprs)
+                         ? pipeline_expr_kind_ord_at(arena, left_ref) : -1;
+    int32_t dbg_rk = (right_ref > 0 && right_ref <= arena->num_exprs)
+                         ? pipeline_expr_kind_ord_at(arena, right_ref) : -1;
+    fprintf(stderr, "shux: ASSIGN_DBG expr=%d kind=%d left=%d lkind=%d right=%d rkind=%d\n",
+            (int)expr_ref, (int)expr_kind, (int)left_ref, (int)dbg_lk,
+            (int)right_ref, (int)dbg_rk);
+    fflush(stderr);
+  }
   if (pipeline_typeck_check_expr_c(module, arena, left_ref, return_type_ref, ctx) != 0)
     return -1;
   lt = pipeline_typeck_expr_type_ref_c(arena, left_ref);
