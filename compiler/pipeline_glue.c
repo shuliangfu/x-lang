@@ -16094,6 +16094,18 @@ static void pipeline_asm_register_module_top_level_lets_c(struct backend_AsmFunc
       continue;
     type_ref = pipeline_module_top_level_let_type_ref(m, tl);
     init_ref = pipeline_module_top_level_let_init_ref(m, tl);
+    /* 【Why】模块级 const（init 为 EXPR_LIT/EXPR_BOOL_LIT）不登记到非 hoist target
+     *        函数的局部变量表：const 值不会被 store 到栈上（仅 hoist target 在 body
+     *        中 store），登记偏移会导致 glue_var_expr_stack_off_elf_c 返回未初始化
+     *        栈槽偏移，读取垃圾值（bug ①）。const 应通过 asm_module_top_level_const_lit_i32
+     *        emit 立即数。非字面量 let 仍需登记（值在 hoist target 中 store）。
+     * 【Invariant】仅跳过 init_kind==0(EXPR_LIT) 或 2(EXPR_BOOL_LIT)；其他 init 不跳过。
+     * 【Asm/Perf】跳过登记后 const 引用走 mov $imm32,%eax 立即数路径，零访存。 */
+    if (init_ref > 0 && init_ref <= a->num_exprs) {
+      int32_t init_kind = pipeline_expr_kind_ord_at(a, init_ref);
+      if (init_kind == 0 || init_kind == 2)
+        continue;
+    }
     slot_off = asm_local_slot_reg_offset(a, type_ref, off, &off);
     if (asm_ctx_local_append((uint8_t *)ctx, name_buf, name_len, slot_off) < 0)
       return;
