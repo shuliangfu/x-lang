@@ -344,10 +344,11 @@ shux/
 | `loop_i32` | 1 亿次 LCG 累加循环 | 45.7 ms | 39.9 ms | 0.87 | ✅ PASS |
 | `mem_copy` | 8192 轮 × 4096 字节填充+求和 | 7.5 ms | 6.5 ms | 0.87 | ✅ PASS |
 | `struct_param` | 1 亿次按值传 Pair(2×i32) | 67.6 ms | 5.7 ms | 0.08 | ✅ PASS |
-| `call_boundary` | 2 亿次 5 层深调用链 | 81.1 ms | 0.3 ms | 0.00 | ✅ PASS |
+| `call_boundary` (fold) | 2 亿次 5 层深调用链 | 81.1 ms | 0.3 ms | 0.00 | ✅ PASS |
+| `call_boundary` (真跑) | 2 亿次 5 层深调用链 | 81.2 ms | 143.4 ms | 1.77 | ❌ FAIL |
 
 > ratio = SHUX median / C median；< 1.0 表示 SHUX 更快。采样：warmup 3 + rounds 20，取 median（Python `perf_counter` 精确计时）。
-> `call_boundary` 经 affine 循环消除：编译期识别 `while(i<n){s=s+f(i);i++}` 模式（f0–f4 为 `x+K` 链，K=5），闭式求值 `n(n-1)/2 + K·n`，2 亿次循环折叠为 2 条指令（`mov $total,%eax; store`），ratio ≈ 0。
+> `call_boundary` 提供两组数据：**fold** = 编译期 affine 循环消除（识别 `while(i<n){s=s+f(i);i++}` 模式，f0–f4 为 `x+K` 链 K=5，闭式求值 `n(n-1)/2 + K·n`，2 亿次循环折叠为 2 条指令 `mov $total,%eax; store`）；**真跑** = 禁用 fold 公平比较运行时性能，差距来自 ASM 后端无寄存器分配（循环变量 s/i 全存栈，每轮 load/store，clang `-O2` 留在寄存器）。自举后实现寄存器分配可让真跑 ratio 趋近 1.0。
 
 > macOS arm64 因 CG002（ASM 后端 `code_len=0` 限制）无法运行 ASM 后端基准，请在 Linux x86_64 上执行（可用 `ssh ubuntu-server`）。
 
