@@ -2035,6 +2035,11 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
   kind = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (getenv("SHUX_ASM_DEBUG3") != NULL && kind >= 28 && kind <= 38) {
+    fprintf(stderr, "shux: SM_MEGA_ASSIGN_DBG expr=%d kind=%d func=%d\n",
+            (int)expr_ref, (int)kind, ctx ? (int)ctx->current_func_index : -1);
+    fflush(stderr);
+  }
   if (pipeline_typeck_expr_is_any_assign_kind_strict_minimal(kind))
     return typeck_check_expr_assign(module, arena, expr_ref, return_type_ref, ctx);
   if (kind == (int32_t)ast_ExprKind_EXPR_RETURN)
