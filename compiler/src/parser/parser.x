@@ -2076,10 +2076,6 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[
   if (block_prefix_lets > 0) {
     pipeline_block_stmt_order_fix_prefix_lets(arena, block_ref, block_prefix_lets);
     b = ast.ast_arena_block_get(arena, block_ref);
-  } else if (b.num_lets > 0) {
-    /** fill 前 parse_body_lets 未入账但 mid-block 已补 let：仍须把 let 移到 if 前（with_arena_vec gate）。 */
-    pipeline_block_stmt_order_fix_prefix_lets(arena, block_ref, b.num_lets);
-    b = ast.ast_arena_block_get(arena, block_ref);
   }
   ast.ast_arena_block_set(arena, block_ref, b);
   out.ok = true;
