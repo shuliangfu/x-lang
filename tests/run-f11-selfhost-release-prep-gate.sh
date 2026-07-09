@@ -59,4 +59,11 @@ if [ "${SHUX_F11_RUN_F_STD_BATCH:-0}" = "1" ] && [ -f tests/run-f-std-de-c-batch
   tests/run-f-std-de-c-batch-gate.sh || die "f-std-de-c-batch failed"
 fi
 
+
+# G-FFI-5：LANG-007 + 业务零裸 extern + 安全路线 §8（release 硬门槛）
+if [ -f tests/run-g-ffi-5-release-ci-gate.sh ]; then
+  chmod +x tests/run-g-ffi-5-release-ci-gate.sh
+  SHUX_G_FFI5_FAIL="$FAIL" tests/run-g-ffi-5-release-ci-gate.sh || die "g-ffi-5 release-ci failed"
+fi
+
 echo "f11-selfhost-release-prep gate OK (checklist green; tag on release: v\$(cat VERSION)-selfhost)"
