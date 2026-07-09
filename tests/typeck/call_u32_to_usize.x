@@ -4,11 +4,11 @@ extern function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 
 function keys_eq(a: *u8, alen: u32, b: *u8, blen: u32): i32 {
   if (alen != blen) { return 0; }
-  return memcmp(a, b, alen) == 0 ? 1 : 0;
+  return unsafe { memcmp(a, b, alen) } == 0 ? 1 : 0;
 }
 
 function copy_n(dst: *u8, src: *u8, n: i32): void {
-  memcpy(dst, src, n);
+  unsafe { memcpy(dst, src, n); }
 }
 
 function main(): i32 {
