@@ -91,6 +91,8 @@ extern void pipeline_elf_ctx_reloc_sidecar_reset(uint8_t *ctx_bytes);
 extern int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes);
 extern void driver_set_current_dep_path_for_codegen(const char *path);
 extern int32_t driver_skip_codegen_dep_0_get(void);
+/** freestanding 标志：nostdlib 链无预编译 std .o，dep 须全部 co-emit（跳过 skip 检查）。 */
+extern int32_t driver_freestanding_get(void);
 /** std.io 族由 io.o + 本文件桩提供；seed asm 跳过整族 dep 的机器码生成。 */
 extern int32_t pipeline_codegen_dep_skip_asm_user_std_io(uint8_t *path);
 extern int32_t pipeline_codegen_dep_skip_asm_user_std_fs(uint8_t *path);
@@ -325,22 +327,22 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
                      "asm emit trace: co-emit dep[%d] path=%s funcs=%d",
                      (int)jdep, (char *)dep_path_buf,
                      dep_mod ? (int)pipeline_module_num_funcs(dep_mod) : -1);
-      /** std.io 族：符号由 io.o + 本 TU 桩提供，避免整库 asm emit 导致宿主 Abort。 */
-      if (pipeline_codegen_dep_skip_asm_user_std_io(dep_path_buf) != 0)
-        continue;
-      /** std.fs 族：符号由 fs.o 提供，勿整模块 asm emit（薄包装经 CALL redirect→fs.o）。 */
-      if (pipeline_codegen_dep_skip_asm_user_std_fs(dep_path_buf) != 0)
-        continue;
-      /** std.process：符号由 process.o 提供，args_count/arg 经 CALL redirect。 */
-      if (pipeline_codegen_dep_skip_asm_user_std_process(dep_path_buf) != 0)
-        continue;
-      /** std.fmt / core / std.error：闭包符号由链接桩提供，勿整库 co-emit（hello SIGSEGV）。 */
-      if (pipeline_codegen_dep_skip_asm_user_std_fmt(dep_path_buf) != 0)
-        continue;
-      if (pipeline_codegen_dep_skip_asm_user_std_misc(dep_path_buf) != 0)
-        continue;
-      if (pipeline_codegen_dep_skip_asm_user_core_lib(dep_path_buf) != 0)
-        continue;
+      /** freestanding 模式：nostdlib 链无预编译 std .o，跳过 skip（dep 须全部 co-emit）。
+       * hosted 模式：std.io/fs/process/fmt 等族符号由预编译 .o 提供，skip 整库 co-emit。 */
+      if (driver_freestanding_get() == 0) {
+        if (pipeline_codegen_dep_skip_asm_user_std_io(dep_path_buf) != 0)
+          continue;
+        if (pipeline_codegen_dep_skip_asm_user_std_fs(dep_path_buf) != 0)
+          continue;
+        if (pipeline_codegen_dep_skip_asm_user_std_process(dep_path_buf) != 0)
+          continue;
+        if (pipeline_codegen_dep_skip_asm_user_std_fmt(dep_path_buf) != 0)
+          continue;
+        if (pipeline_codegen_dep_skip_asm_user_std_misc(dep_path_buf) != 0)
+          continue;
+        if (pipeline_codegen_dep_skip_asm_user_core_lib(dep_path_buf) != 0)
+          continue;
+      }
       driver_set_current_dep_path_for_codegen((const char *)dep_path_buf);
       dep_ar = pipeline_dep_ctx_arena_at(pctx, jdep);
       if (dep_mod != NULL && dep_ar != NULL && pipeline_module_num_funcs(dep_mod) > 0) {
