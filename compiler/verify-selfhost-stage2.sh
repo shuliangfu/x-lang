@@ -124,7 +124,7 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o runtime_driver2.o \
   src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
   src/asm/bootstrap_seed_io_stubs.o src/lexer/lexer.o src/ast/ast_seed.o \
-  src/codegen/codegen.o src/async/async_liveness.o src/async/async_cps_codegen.o \
+  src/async/async_liveness.o src/async/async_cps_codegen.o \
   src/runtime_c_import.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o \
   src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o \
   src/lsp/lsp_heap_bootstrap.o src/x_seed_bridge_stage2.o src/seed_link_compat.o src/std_fs_shim.o src/std_sys_shim.o \

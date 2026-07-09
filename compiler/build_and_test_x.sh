@@ -5,7 +5,7 @@ CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 CFLAGS_DRIVER="$CFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS"
 
 echo "=== 0. Bootstrap ==="
-SRCS="src/main.c src/runtime.c src/asm/runtime_lexer_glue.c src/asm/runtime_ast_glue.c src/codegen/codegen.c src/asm/runtime_lsp_glue.c"
+SRCS="src/main.c src/runtime.c src/asm/runtime_lexer_glue.c src/asm/runtime_ast_glue.c src/asm/runtime_lsp_glue.c"
 OBJS=""
 for src in $SRCS; do
   obj="${src%.c}.o"
@@ -17,7 +17,7 @@ cc $CFLAGS -o shux-c $OBJS
 
 echo "=== 1. Relink shux with fixed runtime ==="
 cc $CFLAGS -c src/runtime.c -o src/runtime.o
-cc $CFLAGS -o shux src/main.o src/runtime.o src/lexer/lexer.o src/ast/ast.o src/parser/parser.o src/codegen/codegen.o src/lsp/lsp_diag.o
+cc $CFLAGS -o shux src/main.o src/runtime.o src/lexer/lexer.o src/ast/ast.o src/parser/parser.o src/lsp/lsp_diag.o
 
 echo "=== 2. Generate all _gen.c ==="
 ./shux -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > parser_gen.c
@@ -55,7 +55,6 @@ cc $CFLAGS -c shu_x_stubs.c -o shu_x_stubs.o
 echo "=== 6. Compile C fallback object files ==="
 cc $CFLAGS -c src/asm/runtime_lexer_glue.c -o src/lexer/lexer.o
 cc $CFLAGS -c src/asm/runtime_ast_glue.c -o src/ast/ast.o
-cc $CFLAGS -c src/codegen/codegen.c -o src/codegen/codegen.o
 cc $CFLAGS -c src/asm/runtime_lsp_glue.c -o src/lsp/lsp_diag.o
 
 echo "=== 7. Link shux_x ==="
@@ -65,7 +64,7 @@ cc $CFLAGS_DRIVER -o shux_x \
   ast_x.o token_x.o lexer_x.o parser_x.o typeck_x.o codegen_x.o \
   driver_x.o pipeline_x.o runtime_panic.o \
   src/lexer/lexer.o src/ast/ast.o \
-  src/codegen/codegen.o src/lsp/lsp_diag.o \
+  src/lsp/lsp_diag.o \
   shu_x_stubs.o
 
 echo "=== 8. Quick smoke test ==="

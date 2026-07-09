@@ -53,10 +53,7 @@ ensure_asm_driver_seed_c_objs() {
     "$CC" $CFLAGS -c -o "$SEED_O/ast_seed.o" src/asm/runtime_ast_glue.c
   fi
   # G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），编排桩由 typeck_c_module_stubs.o 提供。
-  if [ ! -f "$SEED_O/codegen.o" ] || [ "src/codegen/codegen.c" -nt "$SEED_O/codegen.o" ]; then
-    experimental_bootstrap_info "cc $SEED_O/codegen.o"
-    "$CC" $CFLAGS -c -o "$SEED_O/codegen.o" src/codegen/codegen.c
-  fi
+  # G-02a: codegen.c 已物理删除；codegen.o 由 codegen.x 生成（codegen_x.o），编排桩由 codegen_pipeline_stubs.o 提供。
   if [ ! -f "$SEED_O/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.c" -nt "$SEED_O/lsp_diag.o" ]; then
     experimental_bootstrap_info "cc $SEED_O/lsp_diag.o"
     "$CC" $CFLAGS -c -o "$SEED_O/lsp_diag.o" src/asm/runtime_lsp_glue.c
@@ -439,7 +436,6 @@ fi
   "$SEED_O/ast_seed.o" \
   "$SEED_O/lexer.o" \
   "$SEED_O/parser.o" \
-  "$SEED_O/codegen.o" \
   "$SEED_O/lsp_diag.o" \
   $ST_LSP_X \
   "$SEED_O/lsp_state.o" \
