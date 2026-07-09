@@ -221,6 +221,8 @@ DONE
 /build_tool.o
 /build_runner.o
 /build_runtime.o
+# 根目录 fmt 命令 -E 产物（single-file with deps 生成 C，不提交）
+/fmt_main_gen.c
 
 # --- 可选：调试与覆盖率 ---
 # *.dSYM/
@@ -233,6 +235,8 @@ DONE
 # --- 不应提交的本地/运行时产物 ---
 # VS Code 扩展 vsix（vsce package 本地生成；TOOL-009 gate 无 node 时 SKIP 或现场 pack）
 *.vsix
+# 设计源文件（Photoshop .psdb 等，体积大且非仓库约定资产）
+*.psdb
 
 # IO benchmark 临时 mmap 文件（run-perf-io / zc5 / syscall-batch 等生成，体积大）
 tests/bench/.io_mmap_bench_tmp
