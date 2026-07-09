@@ -5,14 +5,14 @@ extern function read_fd(fd: i32, ptr: *u8, len: usize): i32;
 /** 读 pipe A（独立 static 帧）。 */
 async function read_a(fd: i32): i32 {
   let buf: u8[8] = [];
-  let n: i32 = await read_fd(fd, buf as *u8, 8);
+  let n: i32 = await unsafe { read_fd(fd, buf as *u8, 8) };
   return n;
 }
 
 /** 读 pipe B（独立 static 帧；与 read_a 并行 in-flight）。 */
 async function read_b(fd: i32): i32 {
   let buf: u8[8] = [];
-  let n: i32 = await read_fd(fd, buf as *u8, 8);
+  let n: i32 = await unsafe { read_fd(fd, buf as *u8, 8) };
   return n;
 }
 
