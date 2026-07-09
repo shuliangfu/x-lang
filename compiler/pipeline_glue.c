@@ -14496,8 +14496,13 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
     for (i = 0; i < nso; i++) {
       uint8_t dk = ast_ast_block_stmt_order_kind(arena, block_ref, i);
       int32_t dix = ast_ast_block_stmt_order_idx(arena, block_ref, i);
-      fprintf(stderr, "shux: SO fi=%d br=%d [%d] kind=%d idx=%d\n",
-              (int)g_pipeline_asm_emit_func_index, (int)block_ref, (int)i, (int)dk, (int)dix);
+      int32_t init_ko = -1;
+      if (dk == 1 && dix >= 0 && dix < nlet) {
+        int32_t iref = ast_pipeline_block_let_init_ref(arena, block_ref, dix);
+        init_ko = iref > 0 ? pipeline_expr_kind_ord_at(arena, iref) : -1;
+      }
+      fprintf(stderr, "shux: SO fi=%d br=%d [%d] kind=%d idx=%d init_ko=%d\n",
+              (int)g_pipeline_asm_emit_func_index, (int)block_ref, (int)i, (int)dk, (int)dix, (int)init_ko);
       fflush(stderr);
     }
   }
