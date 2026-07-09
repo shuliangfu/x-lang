@@ -3524,6 +3524,50 @@ void pipeline_module_hoist_top_level_lets_into_main(struct ast_Module *m, struct
     (void)pipeline_block_append_let(a, br, name_buf, name_len, ent->type_ref, ent->init_ref);
   }
   pipeline_block_stmt_order_prepend_lets(a, br, let_start_idx, n);
+
+  /*
+   * G-03 bug ① 根源修复：模块级 const 引用在非 hoist 目标函数中 store-to-stack 缺失。
+   * 【Why 根源】hoist 只将 const 并入首个函数，其他函数引用 const 时栈槽已由
+   * pipeline_asm_sum_module_top_level_lets_stack 预留但未初始化 → 读取未初始化栈槽。
+   * 【Fix】将 const 也并入其他非 extern 函数的 block，使 backend_emit_block_inits
+   * 为每个函数正确发射 store-to-stack 初始化指令。let 不重复（mutable 状态不可复制）。
+   * 【Invariant】仅 const（is_const!=0）；跳过 hoist 目标 mi（已处理）和 extern/无体函数。
+   * hoist 后设 num_top_level_lets=0：防重 + 使 sum_module_top_level_lets_stack 返回 0
+   * （const 已在 block 内，由 asm_ctx_fill_locals_block_tree 计入 frame size，不重复累加）。
+   * 【Asm/Perf】每个函数多几条 mov 立即数→栈槽指令（const 初始化），开销可忽略。
+   */
+  for (fi = 0; fi < m->num_funcs; fi++) {
+    int32_t fi_br;
+    int32_t fi_let_start;
+    int32_t fi_n_const;
+    struct ast_Block *fi_blk;
+    if (fi == mi)
+      continue;
+    if (pipeline_asm_module_func_is_extern_at(m, fi) != 0)
+      continue;
+    fi_br = pipeline_module_func_body_ref_at(m, fi);
+    if (fi_br <= 0)
+      continue;
+    fi_blk = block_at(a, fi_br);
+    fi_let_start = fi_blk ? fi_blk->num_lets : 0;
+    fi_n_const = 0;
+    for (tl = 0; tl < n; tl++) {
+      if (tl < 0 || tl >= sc->top_level_lets.len)
+        break;
+      ent = (TopLevelLetEntry *)grow_vec_at(&sc->top_level_lets, tl);
+      if (!ent || ent->is_const == 0 || ent->name_len <= 0 || ent->name_len > 64)
+        continue;
+      name_len = ent->name_len;
+      for (k = 0; k < name_len; k++)
+        name_buf[k] = ent->name[k];
+      (void)pipeline_block_append_let(a, fi_br, name_buf, name_len, ent->type_ref, ent->init_ref);
+      fi_n_const++;
+    }
+    if (fi_n_const > 0)
+      pipeline_block_stmt_order_prepend_lets(a, fi_br, fi_let_start, fi_n_const);
+  }
+  /* 防重 + 修正 frame size 计算：const 已在 block 内，sum 无需再累加。 */
+  m->num_top_level_lets = 0;
 }
 
 /**
