@@ -25340,6 +25340,12 @@ int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module, struct
   if (!arena || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
   kind = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (getenv("SHUX_ASM_DEBUG3") != NULL && kind >= 28 && kind <= 38) {
+    fprintf(stderr, "shux: MEGA_ASSIGN_DBG expr=%d kind=%d func=%d\n",
+            (int)expr_ref, (int)kind,
+            ctx ? (int)ctx->current_func_index : -1);
+    fflush(stderr);
+  }
   if (pipeline_typeck_expr_is_any_assign_kind_c(kind)) {
     int32_t left_ref;
     int32_t right_ref;
