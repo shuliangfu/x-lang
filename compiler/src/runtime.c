@@ -2396,7 +2396,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
         const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
         const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
         const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
-        const char *heap_o = shux_rel_o_path_from_argv0(argv[0], "std/heap/heap.o");
+        const char *heap_o = NULL; /* F-06 v1：纯 .x，invoke_cc 按需扫描 std 各 .o 引用 std.heap API 链入 */
         const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
         const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
         const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);
@@ -2819,7 +2819,7 @@ int run_compiler_x_path(int argc, char **argv) {
             const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
             const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
             const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
-            const char *heap_o = shux_rel_o_path_from_argv0(argv[0], "std/heap/heap.o");
+            const char *heap_o = NULL; /* F-06 v1：纯 .x，invoke_cc 按需扫描 std 各 .o 引用 std.heap API 链入 */
             const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
             const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
             const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);
@@ -4723,7 +4723,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
                 const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
                 const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
                 const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
-                const char *heap_o = shux_rel_o_path_from_argv0(argv[0], "std/heap/heap.o");
+                const char *heap_o = NULL; /* F-06 v1：纯 .x，invoke_cc 按需扫描 std 各 .o 引用 std.heap API 链入 */
                 const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
                 const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
                 const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);
@@ -5175,7 +5175,7 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
             const char *fs_o = NULL; /* F-06 v1：纯 .x，invoke_cc 扫描生成 C 按需 -lc */
             const char *process_o = shux_rel_o_path_from_argv0(argv[0], "std/process/process.o");
             const char *string_o = shux_rel_o_path_from_argv0(argv[0], "std/string/string.o");
-            const char *heap_o = shux_rel_o_path_from_argv0(argv[0], "std/heap/heap.o");
+            const char *heap_o = NULL; /* F-06 v1：纯 .x，invoke_cc 按需扫描 std 各 .o 引用 std.heap API 链入 */
             const char *path_o = shux_rel_o_path_from_argv0(argv[0], "std/path/path.o");
             const char *runtime_o = shux_rel_o_path_from_argv0(argv[0], "std/runtime/runtime.o");
             const char *runtime_panic_o = shux_runtime_panic_o_path(argv[0]);

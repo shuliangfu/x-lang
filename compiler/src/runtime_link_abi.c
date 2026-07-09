@@ -3001,6 +3001,9 @@ int shux_generated_c_needs_async_scheduler(const char *c_path) {
     return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
 }
 
+/* F-06 v1 前向声明：invoke_cc 按需链入 heap.o 时复用 ASM 后端检测逻辑 */
+static int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
+
 /**
  * 调用系统 cc 将多个 C 文件编译链接为可执行文件（fork/exec + 可选 strip）。
  * 参数：c_paths/n 源文件；各 *_o 可选 std/core .o；include_root 用于 -I 与按需 .o 解析。
@@ -3544,6 +3547,17 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
                         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, rsg);
                 }
             }
+        }
+        /* F-06 v1：heap.o 按需链入 — runtime.c 不再硬编码 heap.o 路径；invoke_cc 扫描
+         * 已入链 std 各 .o 的 undefined 符号，若引用 std.heap API（std_heap_alloc_usize 等）
+         * 则按需解析 heap.o 路径并链入。
+         * 【Why 根源】F-闭合删除 *_import_alias.c C 桩后，std/string.o、std/http.o 等内部
+         *   直接引用 std_heap_* API，不再经 C 桩内联；heap.o 必须按需链入以提供符号定义。
+         * 【Invariant】须在所有 std 各 .o push 之后、-lc 之前；argv 反映当前已推入的 .o。
+         * 【Asm/Perf】nm -u 子进程 O(n×m)，n=argv 中 .o 数，m=heap API 符号数；仅链接期一次。 */
+        if (link_abi_link_needs_std_heap_import(NULL, (const char **)argv, i)) {
+            const char *heap_o_ondemand = shux_rel_o_path_from_argv0(include_root, "std/heap/heap.o");
+            (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o_ondemand);
         }
 #if defined(__linux__) || defined(__APPLE__)
         /* Unix 上 thread.o 使用 CPU_ZERO/CPU_SET（sched.h）；用 -pthread 让 cc 以正确顺序拉取 libpthread/libc */
