@@ -78,15 +78,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o typeck_x.o typeck_gen.c
     fi
   fi
-  # G-02e：产品链新增/并入的 C 源（如 runtime_heap_user）在远端可能尚无 .o
+  # G-02e：产品链 C 源缺失或比 .o 新时强制重编（并入/删 TU 后跨机 git pull 必走此路径）
   # shellcheck disable=SC2086
   for o in $G05_OBJS; do
-    if [ -f "$o" ]; then
-      continue
-    fi
     c="${o%.o}.c"
+    # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
+    case "$o" in
+      src/runtime_driver_no_c.o|src/typeck/typeck_f64_bits.o|build_asm/*|*.s) continue ;;
+    esac
     if [ -f "$c" ]; then
-      g05_cc_c "$o" "$c"
+      if [ ! -f "$o" ] || [ "$c" -nt "$o" ]; then
+        g05_cc_c "$o" "$c"
+      fi
     fi
   done
 fi
