@@ -14497,10 +14497,17 @@ int32_t pipeline_asm_emit_block_body_sync_elf(struct ast_ASTArena *arena, struct
   }
   if (getenv("SHUX_ASM_DEBUG2") != NULL) {
     int32_t dbg_fn_body2 = 0;
-    if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0)
+    char dbg_fnb[64] = {0};
+    int32_t dbg_fnlen = 0;
+    if (g_pipeline_asm_emit_module && g_pipeline_asm_emit_func_index >= 0) {
       dbg_fn_body2 = pipeline_module_func_body_ref_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
-    fprintf(stderr, "shux: SO-BEGIN fi=%d br=%d nso=%d is_fn_body=%d\n",
-            (int)g_pipeline_asm_emit_func_index, (int)block_ref, (int)nso, (int)(dbg_fn_body2 == block_ref));
+      pipeline_asm_module_func_name_copy64(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index,
+                                           (uint8_t *)dbg_fnb);
+      dbg_fnlen = pipeline_module_func_name_len_at(g_pipeline_asm_emit_module, g_pipeline_asm_emit_func_index);
+    }
+    fprintf(stderr, "shux: SO-BEGIN fi=%d fn=%.*s br=%d nso=%d is_fn_body=%d\n",
+            (int)g_pipeline_asm_emit_func_index, (int)dbg_fnlen, dbg_fnb, (int)block_ref, (int)nso,
+            (int)(dbg_fn_body2 == block_ref));
     fflush(stderr);
     for (i = 0; i < nso; i++) {
       uint8_t dk = ast_ast_block_stmt_order_kind(arena, block_ref, i);
