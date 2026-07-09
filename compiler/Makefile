@@ -2195,17 +2195,28 @@ check-6.4: $(TARGET)
 first-time: build-tool
 
 # 阶段 7：build.x 驱动 build_tool（G-05：build_runner + build_runtime_x，无 build_runtime.c）
-build-tool: $(SHUX_C)
-	./$(SHUX_C) -E -E-extern -L .. ../build.x > build_gen.c
-	./$(SHUX_C) -E -E-extern -L .. ../build_runner.x > build_runner_gen.c
-	./$(SHUX_C) -E -E-extern -L .. ../build_runtime_x.x > build_runtime_x_gen.c
-	$(CC) $(CFLAGS) -c build_gen.c -o build_tool.o
+# G-05（2026-07-10）：
+#   - 默认用 seeds/ 下 pinned *_gen.c（-x -E 对 build_runner.entry / 大 TU 仍不稳定；C 前端 -E-extern 已随 G-02a 不可用）
+#   - 可选：SHUX_BUILD_TOOL_REGEN=1 且 ./shux 可 -x -E 时尝试刷新 build_gen + build_runtime_x_gen
+#   - build_run_asm_build / build_copy_shux_asm 在 build_tool_libc_bridge.c（避免 -x -E 截断）
+#   - main 调用 entry（build_runner.x），非 build_entry
+build-tool:
+	@if [ "$${SHUX_BUILD_TOOL_REGEN:-0}" = "1" ] && [ -x ./shux ]; then \
+	  echo "build-tool: regen build_gen + build_runtime_x_gen via ./shux -x -E"; \
+	  ./shux -x -E -L .. ../build.x > build_gen.c || cp -f seeds/build_gen.c build_gen.c; \
+	  ./shux -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c || cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
+	else \
+	  cp -f seeds/build_gen.c build_gen.c; \
+	  cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
+	fi
+	cp -f seeds/build_runner_gen.c build_runner_gen.c
+	$(CC) $(CFLAGS) -Wno-unused -c build_gen.c -o build_tool.o
 	$(CC) $(CFLAGS) -c src/build_tool_libc_bridge.c -o build_tool_libc_bridge.o
 	$(CC) $(CFLAGS) -c build_runner_gen.c -o build_runner.o
-	$(CC) $(CFLAGS) -c build_runtime_x_gen.c -o build_runtime_x.o
+	$(CC) $(CFLAGS) -Wno-unused -c build_runtime_x_gen.c -o build_runtime_x.o
 	$(CC) $(CFLAGS) -c src/build_tool_main.c -o build_tool_main.o
 	$(CC) $(CFLAGS) -o build_tool build_tool_main.o build_runner.o build_tool.o build_runtime_x.o build_tool_libc_bridge.o -lc
-	@echo "build_tool OK（./build_tool ./shux；无 build_runtime.c）"
+	@echo "build_tool OK（./build_tool ./shux [asm|legacy]；G-05 pinned seeds）"
 
 src/build_tool_main.o: src/build_tool_main.c
 	$(CC) $(CFLAGS) -c src/build_tool_main.c -o src/build_tool_main.o

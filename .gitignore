@@ -132,6 +132,10 @@ compiler/shux_stage1_test
 # 由 -E 或脚本生成的 C 源文件（parser_gen.c, driver_gen.c, pipeline_gen.c, typeck_gen.c, codegen_gen.c 等）
 compiler/*_gen.c
 compiler/**/*_gen.c
+# G-05：build_tool pinned seeds（例外：可提交的冷启动 C）
+!compiler/seeds/build_gen.c
+!compiler/seeds/build_runner_gen.c
+!compiler/seeds/build_runtime_x_gen.c
 # IDE/clangd 快照与单测生成 C（typeck_gen_full 等后缀非 *_gen.c）
 compiler/*_gen_*.c
 # Stage2 验证脚本产出的第二代生成 C（token_gen2.c 等）

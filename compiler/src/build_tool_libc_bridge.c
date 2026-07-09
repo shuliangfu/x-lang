@@ -3,7 +3,12 @@
  *
  * .x 侧以 *u8 传命令行；若直接在 .x 中 extern system/fopen 等，Darwin 上
  * 与 stdlib 头文件类型冲突。本 TU 提供 build_exec_system 等 C 签名包装。
+ *
+ * 另：build_run_asm_build / build_copy_shux_asm 放在此 C 侧实现——当前 -x -E
+ * 对 build_runtime_x.x 中该函数会截断（丢 copy_path/suffix），导致 build_tool 卡死或恒失败。
  */
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -33,4 +38,30 @@ int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
   }
   buf[j] = '\0';
   return (int)j;
+}
+
+/**
+ * SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 SHUX=<shu_path> ./scripts/build_shux_asm.sh
+ * 与 build_runtime_x.x build_run_asm_build 语义一致。
+ */
+int32_t build_run_asm_build(uint8_t *shu_path) {
+  char cmd[4096];
+  const char *shux = (shu_path && shu_path[0]) ? (const char *)shu_path : "./shux";
+  int n = snprintf(cmd, sizeof(cmd),
+                   "SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 SHUX=%s ./scripts/build_shux_asm.sh", shux);
+  if (n < 0 || (size_t)n >= sizeof(cmd)) {
+    return -1;
+  }
+  if (build_exec_system(cmd) != 0) {
+    return -1;
+  }
+  return 0;
+}
+
+/** cp -f shux_asm shux */
+int32_t build_copy_shux_asm(void) {
+  if (build_exec_system("cp -f shux_asm shux") != 0) {
+    return -1;
+  }
+  return 0;
 }
