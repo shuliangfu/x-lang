@@ -25,6 +25,19 @@ let g_cfg_os_override: u8[32] = [];
 let g_cfg_arch_override: u8[32] = [];
 let g_cfg_has_target_override: i32 = 0;
 
+/**
+ * `-freestanding` 模式标志：1 表示当前为 freestanding 编译（无 libc，仅 syscall 桩）。
+ *
+ * 【Why 逻辑根源】co-emit 模式下，dep 模块（如 std.sys.linux）的全部函数被 emit
+ * 到入口 .o，包括 hosted-only 函数（linux_mmap_rw 调用 libc open/lseek/ftruncate）。
+ * SHUX ASM codegen 把所有函数放在同一 .text section，ld --gc-sections 无法消除单个
+ * 不可达函数 → hosted 函数的 extern 引用残留 → undefined reference。
+ * 用 `#[cfg(not(freestanding))]` 在 parse 阶段剪枝 hosted 函数是根源解法。
+ * 【Invariant】parse 前必须由 runtime.c 调用 cfg_set_freestanding(1) 设置；
+ * 每次 driver reset 必须清零，避免跨编译单元泄漏。
+ */
+let g_cfg_freestanding: i32 = 0;
+
 /** host target_os：分平台独立命名，避免多 cfg 同名 let 在 -E-extern 下重复 emit。 */
 #[cfg(target_os = "linux")]
 let CFG_HOST_OS_LINUX: u8[6] = [108, 105, 110, 117, 120, 0];
@@ -395,6 +408,30 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
     }
     return 0;
   }
+  /**
+   * freestanding 裸标志：#[cfg(freestanding)] / #[cfg(not(freestanding))]。
+   *
+   * 【Why】co-emit 模式下需在 parse 阶段剪枝 hosted-only 函数（调用 libc），
+   * 避免其 extern 引用残留导致 freestanding 链接失败。bare flag 无 `=`，
+   * 扫描标识符字符后与 "freestanding" 比较，返回 g_cfg_freestanding。
+   * 【Invariant】仅当 range 恰为标识符 "freestanding" 时生效；含其他字符则不匹配，
+   * 落入末尾 return 0。all()/not() 已递归调用本函数，故 not(freestanding) 自动支持。
+   */
+  {
+    let lit_freestanding: u8[13] = [102, 114, 101, 101, 115, 116, 97, 110, 100, 105, 110, 103, 0];
+    let q: i32 = p;
+    while (q < end) {
+      let c: u8 = buf[q];
+      if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c == 95) {
+        q = q + 1;
+      } else {
+        break;
+      }
+    }
+    if (cfg_range_eq_ci(buf, p, q, &lit_freestanding[0]) != 0) {
+      return g_cfg_freestanding;
+    }
+  }
   return 0;
 }
 
@@ -422,4 +459,16 @@ function cfg_reset_compile_target(): void {
   g_cfg_has_target_override = 0;
   g_cfg_os_override[0] = 0;
   g_cfg_arch_override[0] = 0;
+}
+
+/**
+ * 设置 freestanding 模式标志。
+ *
+ * 【Why】runtime.c 解析 `-freestanding` 时调用 cfg_set_freestanding(1)，
+ * 使后续 #[cfg(freestanding)] / #[cfg(not(freestanding))] 按模式剪枝；
+ * driver reset 时调用 cfg_set_freestanding(0) 清零，避免跨编译单元泄漏。
+ * 【Invariant】必须在 parse 前设置；parse 中读取 g_cfg_freestanding 决定剪枝。
+ */
+function cfg_set_freestanding(v: i32): void {
+  g_cfg_freestanding = v;
 }

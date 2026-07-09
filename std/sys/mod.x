@@ -227,16 +227,19 @@ function mmap_available(): i32 {
 }
 
 /** 可写 mmap 薄转发。 */
+#[cfg(not(freestanding))]
 function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   return mmap_m.mmap_rw(path, min_size, out_size);
 }
 
 /** 解除 mmap 薄转发。 */
+#[cfg(not(freestanding))]
 function munmap(ptr: *u8, size: usize): i32 {
   return mmap_m.munmap(ptr, size);
 }
 
 /** msync 薄转发。 */
+#[cfg(not(freestanding))]
 function msync(ptr: *u8, size: usize): i32 {
   return mmap_m.msync(ptr, size);
 }
@@ -340,6 +343,7 @@ function exit(code: i32): void {
 }
 
 /** B-19：mmap 为 mmap_rw 别名（可写文件 mmap）。 */
+#[cfg(not(freestanding))]
 function mmap(path: *u8, min_size: usize, out_size: *usize): *u8 {
   return mmap_rw(path, min_size, out_size);
 }

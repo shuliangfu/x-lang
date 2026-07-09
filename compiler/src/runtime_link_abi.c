@@ -4554,21 +4554,29 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
      * 【Why 根源】page_mmap.x 固定 import std.sys.linux + core.mem，故链 page_mmap.o 须同时
      * 链 linux.o + core_mem.o；sys.o 传递依赖 linux.o。--gc-sections 移除未引用的 hosted 函数。
      * 【Invariant】顺序：linux.o → core_mem.o → page_mmap.o / sys.o（被依赖者先入链）。
+     *
+     * G-03 freestanding co-emit 守卫：freestanding 模式下 dep 模块经 co-emit 已 emit 到 user.o
+     * （#[cfg(not(freestanding))] 剪枝 hosted 函数，仅留 syscall 桩/const）。预编译 std/sys/linux.o
+     * 等是 hosted 编译产物（含 linux_mmap_rw → libc open/lseek/ftruncate），链入会泄漏 undefined
+     * 引用；且 consts（syscall_nr_write）与 co-emit 重复定义。故 freestanding 模式跳过整块，
+     * 完全依赖 co-emit 提供的 freestanding-safe 子集。
      */
-    if (link_abi_user_o_needs_std_sys_linux(user_o)
-        || link_abi_user_o_needs_std_heap_page_mmap(user_o)
-        || link_abi_user_o_needs_std_sys(user_o)) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sys/linux.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    }
-    if (link_abi_user_o_needs_std_heap_page_mmap(user_o)
-        || link_abi_user_o_needs_std_sys(user_o)) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    }
-    if (link_abi_user_o_needs_std_heap_page_mmap(user_o)) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/page_mmap.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    }
-    if (link_abi_user_o_needs_std_sys(user_o)) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sys/sys.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    if (!driver_freestanding_get()) {
+        if (link_abi_user_o_needs_std_sys_linux(user_o)
+            || link_abi_user_o_needs_std_heap_page_mmap(user_o)
+            || link_abi_user_o_needs_std_sys(user_o)) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sys/linux.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        if (link_abi_user_o_needs_std_heap_page_mmap(user_o)
+            || link_abi_user_o_needs_std_sys(user_o)) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        if (link_abi_user_o_needs_std_heap_page_mmap(user_o)) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/page_mmap.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        if (link_abi_user_o_needs_std_sys(user_o)) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sys/sys.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
     }
     if (link_abi_user_o_needs_core_slice(user_o)) {
         p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, "core/slice/slice.o"));

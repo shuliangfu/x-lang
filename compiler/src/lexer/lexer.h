@@ -35,6 +35,13 @@ void cfg_reset_compile_target(void);
  */
 void cfg_sync_compile_target_from_state_c(void *state);
 
+/**
+ * G-03：设置 freestanding 模式标志。`-freestanding` 时 v=1，使
+ * #[cfg(freestanding)] 命中、#[cfg(not(freestanding))] 剪枝 hosted-only 函数，
+ * 避免 co-emit 模式下 hosted 函数的 libc 引用残留导致链接失败。
+ */
+void cfg_set_freestanding(int v);
+
 /** Lexer 状态（不透明，在 .c 中定义） */
 typedef struct Lexer Lexer;
 

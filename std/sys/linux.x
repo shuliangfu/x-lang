@@ -407,18 +407,30 @@ const LINUX_MS_SYNC: i32 = 4;
 const LINUX_OPEN_MODE_0644: i32 = 420;
 
 /** Hosted Linux：libc open/ftruncate/lseek/mmap（常规 -o exe 链 libc；F-02 v1 替代 mmap.inc.c）。 */
+#[cfg(not(freestanding))]
 extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
+#[cfg(not(freestanding))]
 extern "C" function close(fd: i32): i32;
+#[cfg(not(freestanding))]
 extern "C" function lseek(fd: i32, offset: i64, whence: i32): i64;
+#[cfg(not(freestanding))]
 extern "C" function ftruncate(fd: i32, length: i64): i32;
+#[cfg(not(freestanding))]
 extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
+#[cfg(not(freestanding))]
 extern "C" function munmap(addr: *u8, len: usize): i32;
+#[cfg(not(freestanding))]
 extern "C" function msync(addr: *u8, len: usize, flags: i32): i32;
 
 /**
  * F-02 v1：文件 MAP_SHARED 可写 mmap（open + ftruncate + mmap；无 mmap.inc.c）。
  * path NUL 结尾；不足 min_size 时扩展文件；*out_size 写回映射字节数。
+ *
+ * 【Why freestanding 剪枝】此函数调用 libc open/lseek/ftruncate/mmap（裸 extern "C"），
+ * freestanding 模式无 libc → 引用残留导致 undefined。co-emit 模式下用
+ * #[cfg(not(freestanding))] 在 parse 阶段剪枝，使 user.o 不含此函数及其 libc 引用。
  */
+#[cfg(not(freestanding))]
 function linux_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
     return 0;
@@ -455,6 +467,7 @@ function linux_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
 }
 
 /** 解除 libc mmap；0 成功，-1 失败（F-02 v1 文件映射路径）。 */
+#[cfg(not(freestanding))]
 function linux_munmap(addr: *u8, len: usize): i32 {
   if (addr == 0 || len == 0) {
     return -1;
@@ -465,6 +478,7 @@ function linux_munmap(addr: *u8, len: usize): i32 {
 }
 
 /** msync 刷盘（MS_SYNC）；0 成功，-1 失败。 */
+#[cfg(not(freestanding))]
 function linux_msync_sync(addr: *u8, len: usize): i32 {
   if (addr == 0 || len == 0) {
     return -1;

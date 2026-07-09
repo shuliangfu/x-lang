@@ -204,6 +204,8 @@ extern int typeck_set_allow_legacy_extern_calls(int allow);
 void cfg_apply_compile_target_from_triple(const char *triple, int len);
 void cfg_reset_compile_target(void);
 void cfg_sync_compile_target_from_state_c(void *state);
+/* G-03 freestanding #[cfg] 剪枝：-freestanding 时设 1，使 #[cfg(not(freestanding))] 剪枝 hosted 函数。 */
+void cfg_set_freestanding(int v);
 #endif
 #if defined(SHUX_USE_X_CODEGEN) && !defined(SHUX_NO_C_FRONTEND)
 /* 6.2：.x codegen 入口；由 codegen.x 提供（库模块形式，符号带 codegen_ 前缀），转调 C codegen */
@@ -1214,6 +1216,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
             driver_sanitize_address_set(1);
         } else if (strcmp(argv[i], "-freestanding") == 0) {
             driver_freestanding_set(1);
+            cfg_set_freestanding(1);
         } else if (strcmp(argv[i], "-legacy-f32-abi") == 0) {
             setenv("SHUX_ABI_F32_XMM", "0", 1);
         } else if (strcmp(argv[i], "-o") == 0) {
@@ -5711,6 +5714,7 @@ void driver_compile_parse_argv_init_c(DriverCompileStateSU *state) {
     state->print_target_cpu = 0;
     state->parse_saw_target_cpu = 0;
     driver_freestanding_set(0);
+    cfg_set_freestanding(0);
     driver_emit_lib_root_reset((uint8_t *)state);
 }
 
@@ -5772,6 +5776,7 @@ void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state) {
         return;
     state->use_freestanding = 1;
     driver_freestanding_set(1);
+    cfg_set_freestanding(1);
 }
 
 /** `-legacy-f32-abi`：等价 SHUX_ABI_F32_XMM=0（legacy f64 widen + callee cvtsd2ss）。 */
@@ -5971,6 +5976,7 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
         state->use_asm_backend = 1;
         state->backend_asm_explicit = 1;
         driver_freestanding_set(1);
+        cfg_set_freestanding(1);
     }
     if (state->use_asm_backend) {
         return driver_run_asm_backend_impl_c(state->path_buf, out_ptr, (uint8_t *)state, target_ptr, argc, argv);

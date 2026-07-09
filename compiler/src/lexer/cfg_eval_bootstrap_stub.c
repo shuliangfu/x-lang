@@ -42,6 +42,13 @@ static char g_cfg_os_override[32];
 static char g_cfg_arch_override[32];
 static int g_cfg_has_target_override;
 
+/**
+ * `-freestanding` 模式标志（与 cfg_eval.x g_cfg_freestanding 对齐）。
+ * runtime.c 解析 `-freestanding` 时调用 cfg_set_freestanding(1)。
+ * co-emit 模式下用 #[cfg(not(freestanding))] 剪枝 hosted-only 函数。
+ */
+static int g_cfg_freestanding;
+
 /** triple 子串忽略大小写匹配。 */
 static int cfg_triple_contains_ci(const char *triple, int len, const char *needle) {
   size_t nlen;
@@ -236,6 +243,20 @@ static int cfg_eval_expr(const char *start, const char *end) {
       p++;
     return cfg_lit_eq_ci(lit, (size_t)(p - lit), cfg_effective_arch_lit());
   }
+  /* freestanding 裸标志：#[cfg(freestanding)] / #[cfg(not(freestanding))]。
+   * 扫描标识符字符后与 "freestanding" 比较，返回 g_cfg_freestanding。 */
+  {
+    const char *q = p;
+    while (q < end) {
+      char c = *q;
+      if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')
+        q++;
+      else
+        break;
+    }
+    if (cfg_lit_eq_ci(p, (size_t)(q - p), "freestanding"))
+      return g_cfg_freestanding;
+  }
   return 0;
 }
 
@@ -258,4 +279,9 @@ void cfg_reset_compile_target(void) {
   g_cfg_has_target_override = 0;
   g_cfg_os_override[0] = '\0';
   g_cfg_arch_override[0] = '\0';
+}
+
+/** 设置 freestanding 模式标志（runtime.c 解析 `-freestanding` 时调用）。 */
+void cfg_set_freestanding(int v) {
+  g_cfg_freestanding = v;
 }

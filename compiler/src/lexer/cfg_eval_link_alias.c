@@ -10,6 +10,7 @@
 extern int32_t lexer_cfg_eval_expr_c(uint8_t *start, int32_t len);
 extern void lexer_cfg_apply_compile_target_from_triple(uint8_t *triple, int32_t len);
 extern void lexer_cfg_reset_compile_target(void);
+extern void lexer_cfg_set_freestanding(int32_t v);
 
 /** #[cfg] 表达式求值；C ABI 裸名。 */
 int cfg_eval_expr_c(const char *start, int len) {
@@ -24,4 +25,9 @@ void cfg_apply_compile_target_from_triple(const char *triple, int len) {
 /** 清除 triple 覆盖。 */
 void cfg_reset_compile_target(void) {
     lexer_cfg_reset_compile_target();
+}
+
+/** 设置 freestanding 模式标志；C ABI 裸名。 */
+void cfg_set_freestanding(int v) {
+    lexer_cfg_set_freestanding(v);
 }

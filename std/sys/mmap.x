@@ -62,6 +62,7 @@ function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
 }
 
 #[cfg(target_os = "linux")]
+#[cfg(not(freestanding))]
 function mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8 {
   if (path == 0 || out_size == 0 || min_size == 0) {
     return 0;
@@ -87,6 +88,7 @@ function munmap(ptr: *u8, size: usize): i32 {
 }
 
 #[cfg(target_os = "linux")]
+#[cfg(not(freestanding))]
 function munmap(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
@@ -112,6 +114,7 @@ function msync(ptr: *u8, size: usize): i32 {
 }
 
 #[cfg(target_os = "linux")]
+#[cfg(not(freestanding))]
 function msync(ptr: *u8, size: usize): i32 {
   if (ptr == 0 || size == 0) {
     return -1;
