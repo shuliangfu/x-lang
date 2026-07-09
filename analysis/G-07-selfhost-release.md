@@ -1,7 +1,7 @@
 # G-07：`vX.Y.Z-selfhost` 发布说明
 
-> 版本号以仓库根 `VERSION` 为准（当前 **0.2.0** → 建议 tag **`v0.2.0-selfhost`**）。  
-> 人工打 tag 前须绿：`SHUX_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate.sh`
+> 版本号以仓库根 `VERSION` 为准（当前 **0.1.0** → tag **`v0.1.0-selfhost`**）。  
+> 打 tag 前须绿：`SHUX_F11_SELFHOST_RELEASE_PREP_FAIL=1 ./tests/run-f11-selfhost-release-prep-gate.sh`
 
 ## 1. 发布物
 
@@ -44,12 +44,10 @@ SHUX_NO_HANDWRITTEN_C_STRICT=1 SHUX_NO_HANDWRITTEN_C_FAIL=1 \
 ## 3. 打 tag（人工）
 
 ```bash
-VER=$(cat VERSION)   # 0.2.0
+VER=$(cat VERSION)   # 0.1.0
 git tag -a "v${VER}-selfhost" -m "Release v${VER}-selfhost (D+E+F + G-04 STRICT + G-05 entry)"
 git push origin "v${VER}-selfhost"
 ```
-
-**不要**在无 F-11 绿 / 无维护者确认时自动推 tag。
 
 ## 4. Checklist 与 gate 映射（F-11 v2）
 
