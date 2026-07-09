@@ -1216,6 +1216,25 @@ static int32_t glue_asm_build_call_export_sym_c(struct ast_ASTArena *arena, int3
     }
   }
   if (dep_ix >= 0 && dep_pipe) {
+    /* 【Why extern 裸名】dep 池匹配到 extern function（shux_sys_* / libc open/lseek 等）时，
+     * 定义由 freestanding_io 桩或 libc 提供（裸名），勿加 dep 前缀（否则 ld 缺符号
+     * std_sys_linux_shux_sys_listen / std_sys_linux_open）。 */
+    struct ast_Module *dep_mod = pipeline_dep_ctx_module_at(dep_pipe, dep_ix);
+    if (dep_mod) {
+      int32_t fi2;
+      for (fi2 = 0; fi2 < pipeline_module_num_funcs(dep_mod); fi2++) {
+        if (pipeline_module_func_name_equal_at(dep_mod, fi2, cname, clen)) {
+          if (pipeline_module_func_is_extern_at(dep_mod, fi2) != 0) {
+            if (clen > 0 && clen < out_cap) {
+              memcpy(out, cname, (size_t)clen);
+              return clen;
+            }
+            return -1;
+          }
+          break;
+        }
+      }
+    }
     memset(path, 0, sizeof(path));
     pipeline_dep_ctx_import_path_copy64(dep_pipe, dep_ix, path);
     if (path[0]) {
