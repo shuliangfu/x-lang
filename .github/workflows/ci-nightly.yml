@@ -32,6 +32,20 @@ jobs:
           chmod +x tests/run-ci-full-suite.sh
           ./tests/run-ci-full-suite.sh
         timeout-minutes: 170
+      - name: G-FFI-5 release CI (LANG-007 + business)
+        run: |
+          chmod +x tests/run-g-ffi-5-release-ci-gate.sh
+          SHUX_G_FFI5_FAIL=1 ./tests/run-g-ffi-5-release-ci-gate.sh
+        timeout-minutes: 30
+      - name: D-03 Stage2 hash (if stage products exist)
+        run: |
+          chmod +x tests/run-d03-stage2-hash-gate.sh
+          SHUX_D03_FAIL=0 ./tests/run-d03-stage2-hash-gate.sh
+        timeout-minutes: 15
+      - name: G-05 c08 policy
+        run: |
+          chmod +x tests/run-c08-build-x-gate.sh
+          ./tests/run-c08-build-x-gate.sh
       - name: SAFE-005 leak nightly (Linux ASAN)
         run: |
           chmod +x tests/run-safe-leak-nightly.sh tests/lib/safe-leak.sh
