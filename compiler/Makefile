@@ -1,12 +1,14 @@
 # Shux 编译器（compiler）构建
-# 【推荐】日常/朝 Zig 对齐：在 compiler 目录用 ../build.x 驱动的 build_tool — ./build_tool ./shux 或 ./build_tool ./shux asm（见 build.x 顶注释「去掉 Makefile 的爬梯」）。
-# 【build-tool / first-time】仅依赖 shux-c（OBJS_CORE）。lsp_*_gen / driver_gen / preprocess_gen：前置仍要 shux-c（冷启动）；recipe 内在已有 ./shux-x 时改用 .x codegen（无前置 shux-x，避免 seed 依赖环）。
-# 【兜底/可选】本 Makefile 用于：从零构建、与历史 CI 兼容、或尚未迁走的 test 目标。
-# 阶段 1：main.c + lexer，产出 shux；阶段 8：可选 OPT=1 为 shux 启用 -O2
+#
+# 【G-05 日常入口】优先仓库根 ./shux-build.sh build 或本目录 ./build_tool ./shux
+#   （默认 = make shux_asm / relink 金标准；FULL=1 → bootstrap-driver-bstrict）
+# 【本 Makefile】冷启动、CI 历史目标、test/bootstrap-*、以及 build_tool 尚未覆盖的细节 — 兜底。
+# 【build-tool】默认 copy seeds/build_*_gen.c 链出 build_tool（不依赖已删 C 前端 -E-extern）。
+#
+# 阶段 1：main + lexer，产出 shux；阶段 8：可选 OPT=1 为 shux 启用 -O2
 #
 # 【生成 C 后无补丁】-E 产出 pipeline_gen.c / driver_gen.c 后不再做 sed/awk/perl/echo 后处理。
-# pipeline_gen.c：包装/size/debug 由 runtime.c 在 -E 且入口为 pipeline.x 时追加 pipeline_glue.c 到 stdout，Makefile 不修改生成文件。
-# driver_gen.c：仅由 -E -E-extern 生成；run_compiler_c 在 runtime.c 定义；字段 ->、written 比较等已在 codegen/main.x 从根源修。
+# pipeline_gen.c：包装/size/debug 由 runtime.c 在 -E 且入口为 pipeline.x 时追加 pipeline_glue.c 到 stdout。
 
 CC      ?= cc
 CFLAGS  ?= -Wall -Wextra -I. -Iinclude -Isrc
