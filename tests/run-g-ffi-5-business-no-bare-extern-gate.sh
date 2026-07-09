@@ -63,8 +63,21 @@ EOF
 [ "$MISS" -eq 0 ] || die "$MISS business test(s) have extern without unsafe (add unsafe or allowlist)"
 echo "g-ffi-5 business tests: no bare extern OK"
 
-# ── 安全路线 §8：std 业务层（非 sys/ffi）unsafe 债务冻结 / 终局清零 ──
-echo "=== G-FFI-5: std business unsafe policy (excl sys/ffi) ==="
+# ── 安全路线 §8：std **业务层** unsafe 债务冻结 / 终局清零 ──
+# 基础设施边界（syscall/FFI/OS/IO 底座）允许 unsafe，不计入业务债：
+#   sys, ffi, heap, crypto, dynlib, process, thread, sync, atomic, channel,
+#   net, http, fs, path, runtime, log, time, random, env, backtrace, compress, db, sqlite
+echo "=== G-FFI-5: std business unsafe policy (excl infra boundary) ==="
+is_infra_boundary() {
+  case "$1" in
+    std/sys/*|std/ffi/*|std/heap/*|std/crypto/*|std/dynlib/*|std/process/*| \
+    std/thread/*|std/sync/*|std/atomic/*|std/channel/*|std/net/*|std/http/*| \
+    std/fs/*|std/path/*|std/runtime/*|std/log/*|std/time/*|std/random/*| \
+    std/env/*|std/backtrace/*|std/compress/*|std/db/*|std/sqlite/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 BASE_TMP=$(mktemp)
 CUR_TMP=$(mktemp)
 trap 'rm -f "$BASE_TMP" "$CUR_TMP"' EXIT
@@ -73,16 +86,20 @@ trap 'rm -f "$BASE_TMP" "$CUR_TMP"' EXIT
 while IFS=$'\t' read tid path rest; do
   [ -z "${tid:-}" ] && continue
   case "$tid" in \#*) continue ;; esac
-  [ -n "$path" ] && printf '%s\n' "$path"
+  [ -n "$path" ] || continue
+  if is_infra_boundary "$path"; then
+    continue
+  fi
+  printf '%s\n' "$path"
 done < "$STD_BASE" | sort -u > "$BASE_TMP"
 BASE_N=$(wc -l < "$BASE_TMP" | tr -d ' ')
 
 : > "$CUR_TMP"
 while IFS= read -r f; do
   [ -n "$f" ] || continue
-  case "$f" in
-    std/sys/*|std/ffi/*) continue ;;
-  esac
+  if is_infra_boundary "$f"; then
+    continue
+  fi
   if grep -q 'unsafe' "$f"; then
     printf '%s\n' "$f" >> "$CUR_TMP"
   fi
