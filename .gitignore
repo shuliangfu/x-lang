@@ -32,6 +32,9 @@ su
 !tests/kernel/*.s
 # G-03：Linux x86_64 typeck 双精度位取（Makefile 链入，非编译器临时 .s）
 !compiler/src/typeck/typeck_f64_bits_x86_64.s
+!compiler/src/typeck/typeck_f64_bits_arm64.s
+!compiler/src/typeck/typeck_f64_bits_aarch64_elf.s
+
 
 # 构建时生成的 C 源文件（由 -E 等生成，不提交）
 std_fs_gen.c
