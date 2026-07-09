@@ -318,6 +318,59 @@ shux/
 - **编译路径不回退**：`SHUX_PERF_FAIL_ON_COMPILE_REGRESSION=1 ./tests/run-perf-compile-dogfood.sh`
 - **性能基线**：`tests/baseline/`、`analysis/perf-*.md`
 
+### 性能基准结果（2026-07-09，Linux x86_64）
+
+> 测试机：Ubuntu x86_64；对照编译器 `clang -O2 -std=c11`；SHUX 编译器 `./compiler/shux`（seed，ASM 后端，默认 `-O2`）。
+> 门禁标准（开发规范 v1 §4）：SHUX 自研后端 wall time 中位数 ≤ C `-O2` 中位数。采样：warmup 3 + rounds 20，取 median。
+
+#### 差分测试 D1–D6（行为正确性：exit code + stdout 与 C 同源一致）
+
+| 用例 | 验证内容 | 结果 |
+|------|---------|------|
+| D1 `int_arith` | u32 溢出回绕 / 有符号除法向零截断 / 取模符号 / 移位 / 位运算 | ✅ PASS (rc=242) |
+| D2 `struct_layout` | repr(C) 布局 / packed 无填充 / 嵌套 struct / 字段读写 | ✅ PASS (rc=50) |
+| D3 `call_conv` | 多参数传递（>6 寄存器溢出栈）/ struct 返回值 / 递归调用 | ✅ PASS (rc=178) |
+| D4 `float` | IEEE 754 浮点运算 / 浮点比较 | ❌ FAIL（P2 占位，ASM 后端浮点 codegen 待实现） |
+| D5 `bit_ops` | 负数算术右移 / 无符号逻辑右移 / 位域提取 / 位设置清除 | ✅ PASS (rc=130) |
+| D6 `mem_ops` | 手写 memset/memcpy / 数组下标访问 / 循环填充拷贝 | ✅ PASS (rc=8) |
+
+**D1–D6 小结：5/6 PASS**。D4 浮点为 P2 占位项（`tests/bench/diff/d4_float.x` 注释明确），待 ASM 后端浮点支持完善后激活。D2/D3 在 `shux_asm`（no_c 独立构建）上因 `&array[idx]` 等 typeck bug 编译失败，故差分测试以 `./compiler/shux`（seed）为准。
+
+#### PERF-001 性能门禁（wall time 中位数比对）
+
+| 基准 | 循环规模 | C median | SHUX median | ratio | 门禁 |
+|------|---------|----------|-------------|-------|------|
+| `loop_i32` | 1 亿次 LCG 累加循环 | 45.5 ms | 39.7 ms | 0.87 | ✅ PASS |
+| `mem_copy` | 8192 轮 × 4096 字节填充+求和 | 9.5 ms | 5.7 ms | 0.61 | ✅ PASS |
+| `struct_param` | 1 亿次按值传 Pair(2×i32) | 6.8 ms ⚠️ | 7.5 ms | 1.10 | ⚠️ 失效 |
+| `call_boundary` | 2 亿次 5 层深调用链 | 5.4 ms ⚠️ | 151.9 ms | 28.21 | ⚠️ 失效 |
+
+> ⚠️ `struct_param` / `call_boundary` 的 C median 失效：clang `-O2` 常量折叠消除了整个循环（详见下文根因分析）。已修复 bench 源码，待 Linux x86_64 重跑。
+
+> ratio = SHUX median / C median；< 1.0 表示 SHUX 更快。计时基于 `date +%s%3N`，受 GNU date 纳秒精度影响，P99 在跨秒采样时不可靠，故仅采信 median。
+
+**PERF-001 小结**：`loop_i32` / `mem_copy` 为公平比较（已达标）；`struct_param` / `call_boundary` 的上表数据**失效**（C 端反作弊防御缺失，待重跑）。
+
+- ✅ **`loop_i32`（ratio=0.87）** 与 **`mem_copy`（ratio=0.61）**：纯整数循环与内存拷贝场景，SHUX ASM 后端生成的代码质量**优于** clang `-O2`，表明后端在算术/内存密集路径上的指令选择与 BCE 已达标——**"超越 C -O2"目标在此两类场景已达成**。
+- ⚠️ **`struct_param` / `call_boundary` 上表数据失效**：反汇编诊断（macOS arm64 + Linux x86_64 一致）证实 clang `-O2` 把这两个 bench 的 main 编译为 `mov $const,%eax;ret`——整个 1 亿/2 亿次循环被**常量折叠消除**，上表 C median（6.8ms/5.4ms）只是进程启动开销，与 SHUX 端真跑循环**不对称**。根因是这两个 C 源码缺 `__asm__ volatile` 反作弊防御（`loop_i32.c` 有），非 SHUX 调用约定/struct 传参性能问题。已修复 bench 源码（加 `__asm__ volatile`，验证 C 端现保留真循环），待 Linux x86_64 重跑获取公平数据。
+
+> **反作弊教训**：开发规范 v1 §4 要求 C 侧用 `__asm__ volatile` 阻止常量折叠。perf gate 反作弊检查（`x_med=0 || c_med=0`）只检测"零时间"，无法检测"C 端循环被消除但进程启动开销非零"的情况——C 端 5ms 启动开销掩盖了循环消除。所有可求和公式循环（等差/等比/可符号化求和）的 bench 必须加 `__asm__ volatile`，不能依赖"更新变量"防折叠。
+
+#### 复现命令
+
+```bash
+# 差分测试（需 Linux x86_64 + ./compiler/shux）
+SHUX=./compiler/shux ./tests/bench/diff/run_diff.sh
+
+# PERF-001 单项门禁
+SHUX=./compiler/shux ./tests/bench/gate/perf_001_gate.sh loop_i32
+SHUX=./compiler/shux ./tests/bench/gate/perf_001_gate.sh mem_copy
+SHUX=./compiler/shux ./tests/bench/gate/perf_001_gate.sh struct_param
+SHUX=./compiler/shux ./tests/bench/gate/perf_001_gate.sh call_boundary
+```
+
+> macOS arm64 因 CG002（ASM 后端 `code_len=0` 限制）无法运行 ASM 后端基准，请在 Linux x86_64 上执行（可用 `ssh ubuntu-server`）。
+
 ---
 
 ## 十一、工具链生态

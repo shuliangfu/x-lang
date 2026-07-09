@@ -1,4 +1,7 @@
-/* struct_param.c — 与 tests/bench/struct_param.x 对齐（每轮更新 p 防 C -O3 常量折叠） */
+/* struct_param.c — 与 tests/bench/struct_param.x 对齐
+ * 反作弊：__asm__ volatile 阻止 gcc/clang -O2 把可求和等差数列循环
+ * 常量折叠为单条 mov $const,%eax;ret（"每轮更新 p"不足以防折叠，因为
+ * 整个循环仍是可求和公式）。规范 v1 §4 反作弊防御。 */
 #include <stdint.h>
 
 typedef struct {
@@ -20,6 +23,7 @@ int main(void) {
     p.b = i + 1;
     s = s + add_pair(p);
     i = i + 1;
+    __asm__ volatile("" : "+r"(i), "+r"(s), "+r"(p.a), "+r"(p.b) : : "memory");
   }
   return (int)s;
 }
