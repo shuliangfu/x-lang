@@ -166,7 +166,7 @@ static int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena,
   return glue_fold_func_return_operand_ref_module(arena, mod, func_idx);
 }
 
-extern int32_t backend_emit_expr_elf_slow(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+extern int32_t pipeline_asm_emit_expr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                           int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta);
 extern int32_t asm_ctx_local_find_offset_scoped(uint8_t *ctx, struct ast_ASTArena *arena, uint8_t *name,
                                                 int32_t name_len);
@@ -888,7 +888,7 @@ int32_t try_inline_param0_single_field_call_elf(struct ast_ASTArena *arena, stru
     int32_t inner_arg;
     if (glue_inner_call_arg_for_field_access(arena, ctx, arg_ref, ret_ref, &inner_arg) == 0)
       return 0;
-    if (backend_emit_expr_elf_slow(arena, elf_ctx, inner_arg, ctx, ta) != 0)
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, inner_arg, ctx, ta) != 0)
       return -1;
     return 1;
   }
@@ -1166,11 +1166,11 @@ int32_t try_inline_param0_field_sum_call_elf(struct ast_ASTArena *arena, struct 
       return 0;
     if (glue_inner_call_arg_for_field_access(arena, ctx, arg_ref, ar, &inner_arg_b) == 0)
       return 0;
-    if (backend_emit_expr_elf_slow(arena, elf_ctx, inner_arg_a, ctx, ta) != 0)
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, inner_arg_a, ctx, ta) != 0)
       return -1;
     if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
       return -1;
-    if (backend_emit_expr_elf_slow(arena, elf_ctx, inner_arg_b, ctx, ta) != 0)
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, inner_arg_b, ctx, ta) != 0)
       return -1;
     if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
       return -1;
@@ -1270,7 +1270,7 @@ int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform
   arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
   if (arg_ref <= 0)
     return -1;
-  if (backend_emit_expr_elf_slow(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0)
     return -1;
   if (k != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta) != 0)
     return -1;
@@ -1891,7 +1891,7 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
         return 0;
       if (glue_emit_default_alloc_to_rbx_offset(elf_ctx, foff, fsz, ta) != 0)
         return -1;
-    } else if (backend_emit_expr_elf_slow(callee_arena, elf_ctx, init_ref, ctx, ta) != 0) {
+    } else if (pipeline_asm_emit_expr_elf_c(callee_arena, elf_ctx, init_ref, ctx, ta) != 0) {
       return -1;
     } else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0) {
       return -1;
@@ -1944,7 +1944,7 @@ int32_t try_inline_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena
       return -1;
     foff = pipeline_expr_struct_lit_field_offset_at(callee_arena, callee_mod, lit_ref, fj);
     fsz = pipeline_expr_struct_lit_field_store_sz(callee_arena, callee_mod, lit_ref, fj);
-    if (backend_emit_expr_elf_slow(arena, elf_ctx, arg_ref, ctx, ta) != 0)
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0)
       return -1;
     if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0)
       return -1;
