@@ -1580,6 +1580,55 @@ function field_access_base_is_pointer_ref(arena: *ASTArena, base_ref: i32): i32 
 }
 
 /**
+ * 【Why 根源】回退：typeck 未填 resolved_type_ref 时，通过当前函数形参类型判断 base 是否为指针。
+ * 用于 dep 模块 codegen：dep 模块函数体未走完整 typeck，EXPR_VAR 的 resolved_type_ref 可能为空，
+ * field_access_base_is_pointer_ref 返回 0 → 字段访问误用 . 而非 ->（C 编译错误）。
+ * 通过形参类型回退判断，确保 *T 形参的字段访问生成 ->。
+ * 【Invariant】仅当 base 为 EXPR_VAR 且 var_name 匹配当前函数某形参名时生效。
+ */
+function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i32, mod: *Module, func_index: i32): i32 {
+  if (ast.ref_is_null(base_ref) || base_ref <= 0 || base_ref > arena.num_exprs) {
+    return 0;
+  }
+  if (mod == 0 as *Module || func_index < 0 || func_index >= mod.num_funcs) {
+    return 0;
+  }
+  let base: Expr = ast.ast_arena_expr_get(arena, base_ref);
+  if (base.kind != ExprKind.EXPR_VAR || base.var_name_len <= 0) {
+    return 0;
+  }
+  let np: i32 = pipeline_module_func_num_params_at(mod, func_index);
+  let pi: i32 = 0;
+  while (pi < np) {
+    let p_name_len: i32 = pipeline_module_func_param_name_len_at(mod, func_index, pi);
+    if (p_name_len > 0 && p_name_len == base.var_name_len) {
+      let pname_buf: u8[32] = [];
+      pipeline_module_func_param_name_copy32(mod, func_index, pi, &pname_buf[0]);
+      let match: bool = true;
+      let j: i32 = 0;
+      while (j < p_name_len && j < 32) {
+        if (pname_buf[j] != base.var_name[j]) {
+          match = false;
+          break;
+        }
+        j = j + 1;
+      }
+      if (match) {
+        let param_ty_ref: i32 = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
+        if (!ast.ref_is_null(param_ty_ref) && param_ty_ref > 0 && param_ty_ref <= arena.num_types) {
+          let pty: Type = ast.ast_arena_type_get(arena, param_ty_ref);
+          if (pty.kind == TypeKind.TYPE_PTR) {
+            return 1;
+          }
+        }
+      }
+    }
+    pi = pi + 1;
+  }
+  return 0;
+}
+
+/**
  * 回退：base 为已知指针/slice 形参名时字段访问输出 ->。
  * typeck 未填 resolved_type_ref 时仍能生成 (module->field) 等合法 C。
  */
@@ -4666,8 +4715,13 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
     if (!ast.ref_is_null(e.field_access_base_ref) && emit_expr(arena, out, e.field_access_base_ref, ctx) != 0) {
       return -1;
     }
-    /* base 为指针或 slice 时输出 ->，否则输出 .；类型由 arena+resolved_type_ref 判断；无类型时回退为形参名 source/out_buf 用 ->，从源头避免 (source).length 补丁 */
-    if (field_access_base_is_pointer_ref(arena, e.field_access_base_ref) != 0 || field_access_base_is_slice_param_name(arena, e.field_access_base_ref) != 0) {
+    /* base 为指针或 slice 时输出 ->，否则输出 .；类型由 arena+resolved_type_ref 判断；无类型时回退为形参名 source/out_buf 用 ->，从源头避免 (source).length 补丁。
+     * dep 模块 codegen 时 typeck 可能未填 resolved_type_ref，额外通过当前函数形参类型回退判断（field_access_base_is_pointer_param）。 */
+    let is_ptr_base: i32 = field_access_base_is_pointer_ref(arena, e.field_access_base_ref);
+    if (is_ptr_base == 0 && ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module && ctx.current_func_index >= 0) {
+      is_ptr_base = field_access_base_is_pointer_param(arena, e.field_access_base_ref, ctx.current_codegen_module, ctx.current_func_index);
+    }
+    if (is_ptr_base != 0 || field_access_base_is_slice_param_name(arena, e.field_access_base_ref) != 0) {
       let arrow: u8[3] = [45, 62, 0];
       if (emit_bytes_3(out, arrow, 2) != 0) {
         return -1;
