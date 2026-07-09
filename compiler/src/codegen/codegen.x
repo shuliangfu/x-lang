@@ -2220,6 +2220,15 @@ function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, struct_
       let io_buf: u8[22] = [115, 116, 114, 117, 99, 116, 32, 115, 116, 100, 95, 105, 111, 95, 66, 117, 102, 102, 101, 114, 0, 0];
       return emit_bytes_from_ptr(out, &io_buf[0], 20);
     }
+    /* u16/i16 无独立 TypeKind（存为 TYPE_NAMED），映射到 stdint.h 的 uint16_t/int16_t */
+    if (name_len == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54) {
+      let u16_t: u8[9] = [117, 105, 110, 116, 49, 54, 95, 116, 0];
+      return emit_bytes_8(out, u16_t, 8);
+    }
+    if (name_len == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54) {
+      let i16_t: u8[8] = [105, 110, 116, 49, 54, 95, 116, 0];
+      return emit_bytes_8(out, i16_t, 7);
+    }
     /** 用户顶层 enum：C 无对应 tag 时按 int32_t 存储（与 typeck 布局一致）。 */
     if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
         && codegen_type_is_module_user_enum(ctx.current_codegen_module, arena, type_ref) != 0) {

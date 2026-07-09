@@ -3205,6 +3205,24 @@ decl_kind: i32, init_kind: i32): i32 {
     pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
     return 1;
   }
+  /* 【Why 根源】u16/i16 无独立 TypeKind（存为 TYPE_NAMED name="u16"/"i16"），
+   * let 初值字面量需按 name 做范围检查，否则 let x:u16=42 报 type mismatch。
+   * 【Invariant】decl_kind==ord_named 保证 type_ref 是 TYPE_NAMED，name_into 安全。
+   * 【Asm/Perf】u16 范围 0..65535、i16 范围 -32768..32767 均在 i32 内可表示。 */
+  if (decl_kind == ord_named) {
+    let nm16: u8[64] = [];
+    let nlen16: i32 = pipeline_type_named_name_into(arena, decl_ty_ref, &nm16[0]);
+    if (nlen16 == 3 && nm16[0] == 117 && nm16[1] == 49 && nm16[2] == 54
+        && int_val >= 0 && int_val <= 65535) {
+      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+      return 1;
+    }
+    if (nlen16 == 3 && nm16[0] == 105 && nm16[1] == 49 && nm16[2] == 54
+        && int_val >= -32768 && int_val <= 32767) {
+      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+      return 1;
+    }
+  }
   if (int_val == 0 && (decl_kind == ord_f32 || decl_kind == ord_f64)) {
     pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
     return 1;
@@ -4176,6 +4194,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   let ord_u64: i32 = 4;
   let ord_i64: i32 = 5;
   let ord_usize: i32 = 6;
+  let ord_named: i32 = 8;
   let ord_ptr: i32 = 9;
   let ord_type_array: i32 = 10;
   let ord_field: i32 = 44;
@@ -4255,6 +4274,20 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
         } else if (expr_kind == ord_assign && lt_kind == ord_i64) {
           pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+        } else if (expr_kind == ord_assign && lt_kind == ord_named) {
+          /* 【Why 根源】u16/i16 无独立 TypeKind（存为 TYPE_NAMED name="u16"/"i16"），
+           * 字面量窄化与 u8 同理需按 name 做范围检查，否则 let x:u16=42 报 type mismatch。
+           * 【Invariant】lt_kind==ord_named 保证 type_ref 是 TYPE_NAMED，name_into 安全。
+           * 【Asm/Perf】u16 范围 0..65535、i16 范围 -32768..32767 均在 i32 内可表示。 */
+          let nm16: u8[64] = [];
+          let nlen16: i32 = pipeline_type_named_name_into(arena, lt, &nm16[0]);
+          if (nlen16 == 3 && nm16[0] == 117 && nm16[1] == 49 && nm16[2] == 54
+              && int_val >= 0 && int_val <= 65535) {
+            pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+          } else if (nlen16 == 3 && nm16[0] == 105 && nm16[1] == 49 && nm16[2] == 54
+              && int_val >= -32768 && int_val <= 32767) {
+            pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+          }
         }
       }
     }
