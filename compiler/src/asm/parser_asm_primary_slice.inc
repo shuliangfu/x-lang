@@ -1,5 +1,5 @@
 /**
- * parser_asm_primary_slice.c — parse_primary_into C 实现。
+ * parser_asm_primary_slice.inc — parse_primary_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * INT/FLOAT/BOOL/break/continue/IDENT 后缀/paren/array/if/match/panic/@simd 与 parser.x 一致。

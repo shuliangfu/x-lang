@@ -14,111 +14,40 @@
 # Update: manually edit (do NOT auto-generate).
 #
 # G-02b: runtime ABI (9 files)
-file	compiler/src/main.c
-file	compiler/src/runtime.c
-file	compiler/src/runtime_abi.c
-file	compiler/src/runtime_driver_abi.c
-file	compiler/src/runtime_driver_diagnostic.c
-file	compiler/src/runtime_io_abi.c
-file	compiler/src/runtime_link_abi.c
-file	compiler/src/runtime_pipeline_abi.c
-file	compiler/src/runtime_proc_abi.c
 # G-02d: runtime_*_glue.c (16 files)
-file	compiler/src/asm/http/runtime_http_glue.c
-file	compiler/src/asm/runtime_arrow_simd_glue.c
-file	compiler/src/asm/runtime_ast_glue.c
-file	compiler/src/asm/runtime_atomic_glue.c
-file	compiler/src/asm/runtime_channel_glue.c
-file	compiler/src/asm/runtime_compress_zlib_glue.c
-file	compiler/src/asm/runtime_crypto_inc_glue.c
-file	compiler/src/asm/runtime_ed25519_ref10_glue.c
-file	compiler/src/asm/runtime_kv_mmap_glue.c
-file	compiler/src/asm/runtime_lexer_glue.c
-file	compiler/src/asm/runtime_lsp_glue.c
-file	compiler/src/asm/runtime_process_os_glue.c
-file	compiler/src/asm/runtime_scheduler_glue.c
-file	compiler/src/asm/runtime_slice_glue.c
-file	compiler/src/asm/runtime_sqlite_glue.c
-file	compiler/src/asm/runtime_thread_glue.c
 # G-02d: crypto/ed25519 third-party (7 files)
-file	compiler/src/asm/crypto/ed25519/fe.c
-file	compiler/src/asm/crypto/ed25519/ge.c
-file	compiler/src/asm/crypto/ed25519/keypair.c
-file	compiler/src/asm/crypto/ed25519/sc.c
-file	compiler/src/asm/crypto/ed25519/sha512.c
-file	compiler/src/asm/crypto/ed25519/sign.c
-file	compiler/src/asm/crypto/ed25519/verify.c
 # G-02d: build_*.c (3 files, language limitation)
-file	compiler/src/build_runtime.c
-file	compiler/src/build_tool_libc_bridge.c
-file	compiler/src/build_tool_main.c
 # G-02d: HTTP .inc.c (29 files, #include preprocessor pattern)
-file	compiler/src/asm/async_net_fs.inc.c
-file	compiler/src/asm/http/http2.inc.c
-file	compiler/src/asm/http/http2_client.inc.c
-file	compiler/src/asm/http/http2_conn_pool.inc.c
-file	compiler/src/asm/http/http2_conn_reuse.inc.c
-file	compiler/src/asm/http/http2_flow.inc.c
-file	compiler/src/asm/http/http2_flow_recv.inc.c
-file	compiler/src/asm/http/http2_flow_state.inc.c
-file	compiler/src/asm/http/http2_frame_capped.inc.c
-file	compiler/src/asm/http/http2_global_pool.inc.c
-file	compiler/src/asm/http/http2_goaway.inc.c
-file	compiler/src/asm/http/http2_hpack.inc.c
-file	compiler/src/asm/http/http2_hpack_dyn.inc.c
-file	compiler/src/asm/http/http2_hpack_huffman.inc.c
-file	compiler/src/asm/http/http2_hpack_server_dyn.inc.c
-file	compiler/src/asm/http/http2_multistream_client.inc.c
-file	compiler/src/asm/http/http2_network.inc.c
-file	compiler/src/asm/http/http2_ping.inc.c
-file	compiler/src/asm/http/http2_push_fetch.inc.c
-file	compiler/src/asm/http/http2_push_h2c.inc.c
-file	compiler/src/asm/http/http2_rst_stream.inc.c
-file	compiler/src/asm/http/http2_server.inc.c
-file	compiler/src/asm/http/http2_server_push.inc.c
-file	compiler/src/asm/http/http2_settings.inc.c
-file	compiler/src/asm/http/http2_stream_registry.inc.c
-file	compiler/src/asm/http/http2_test_tls_cert.inc.c
-file	compiler/src/asm/http/http_chunked.inc.c
-file	compiler/src/asm/http/http_reqresp.inc.c
-file	compiler/src/asm/http/http_server_pool.inc.c
-file	compiler/src/asm/http/http_tls_bridge.inc.c
 # G-02d: backend dispatch/enc (9 files, inline asm / struct literal / function pointer arrays)
+# G-02d: runtime OS/platform stubs (17 files, POSIX syscalls / #if / weak / argv)
+# G-02d: parser/link alias (5 files, weak / C ABI bridge)
+# G-02d: pipeline alias/bridge (13 files, C ABI bridge / weak)
+# G-02d: root stubs/bridge (12 files, weak / C ABI bridge / va_list / POSIX)
+# G-02d: parser_asm_*_slice.c (21 files, #include pattern with include guard)
+# G-04: platform #if conditional compilation (16 files, POSIX syscalls / #if / build mode switches)
+# G-04: C frontend AST companion (5 files, depend on C ASTExpr/ASTBlock/ASTFunc struct layout)
+# G-04: 6 remaining simple ABI / libc bridges (2026-07-10 STRICT close)
+# - string_fast / heap_*: libc mem* / malloc / posix_memalign thin wrappers (P0b extern "C" 自举后可再评估迁 .x)
+# - std_runtime_fast: panic/abort 符号别名 → shux_panic_
+# - lsp_codegen_extern: 大块 C 源字符串 + strstr 路径探测（codegen -E preamble）
+# - preprocess_if_stack_bridge: 分 TU 链静态 #if 栈（pipeline_gen2 不链 glue 时）
+file	compiler/src/asm/asm_backend_compat_stubs.c
+file	compiler/src/asm/asm_experimental_symbol_bridge.c
 file	compiler/src/asm/backend_arch_emit_dispatch.c
 file	compiler/src/asm/backend_call_dispatch.c
 file	compiler/src/asm/backend_enc_dispatch.c
 file	compiler/src/asm/backend_seed_mega_fallback.c
 file	compiler/src/asm/backend_try_inline_dispatch.c
 file	compiler/src/asm/backend_x86_64_enc_c.c
-file	compiler/src/asm/simd_enc.c
-file	compiler/src/asm/simd_loop.c
-file	compiler/src/asm/asm_experimental_symbol_bridge.c
-# G-02d: runtime OS/platform stubs (17 files, POSIX syscalls / #if / weak / argv)
-file	compiler/src/asm/asm_backend_compat_stubs.c
 file	compiler/src/asm/bootstrap_nostdlib_stubs.c
 file	compiler/src/asm/bootstrap_seed_io_stubs.c
 file	compiler/src/asm/crt0_mingw.c
-file	compiler/src/asm/runtime_asm_build.c
-file	compiler/src/asm/runtime_asm_io_stubs.c
-file	compiler/src/asm/runtime_backtrace_platform.c
-file	compiler/src/asm/runtime_dynlib_os.c
-file	compiler/src/asm/runtime_log_os.c
-file	compiler/src/asm/runtime_math_libm.c
-file	compiler/src/asm/runtime_net_io_batch_fast.c
-file	compiler/src/asm/runtime_net_workers.c
-file	compiler/src/asm/runtime_panic.c
-file	compiler/src/asm/runtime_panic_arm64.c
-file	compiler/src/asm/runtime_process_argv.c
-file	compiler/src/asm/runtime_queue_contention.c
-file	compiler/src/asm/runtime_sync_os.c
-file	compiler/src/asm/user_asm_seed_bridge.c
-# G-02d: parser/link alias (5 files, weak / C ABI bridge)
+file	compiler/src/asm/driver_compile_asm_link_alias.c
+file	compiler/src/asm/http/runtime_http_glue.c
 file	compiler/src/asm/parser_asm_link_alias.c
 file	compiler/src/asm/parser_asm_parse_bootstrap_obj.c
 file	compiler/src/asm/parser_asm_parse_expr_link.c
 file	compiler/src/asm/parser_asm_thin_c.c
-file	compiler/src/asm/driver_compile_asm_link_alias.c
-# G-02d: pipeline alias/bridge (13 files, C ABI bridge / weak)
 file	compiler/src/asm/pipeline_asm_orchestration_alias.c
 file	compiler/src/asm/pipeline_asm_run_all_alias.c
 file	compiler/src/asm/pipeline_asm_typecheck_alias.c
@@ -127,78 +56,91 @@ file	compiler/src/asm/pipeline_glue_link.c
 file	compiler/src/asm/pipeline_glue_standalone.c
 file	compiler/src/asm/pipeline_glue_strict_minimal.c
 file	compiler/src/asm/pipeline_phase_parse_only_alias.c
+file	compiler/src/asm/pipeline_run_bootstrap_trampoline.c
+file	compiler/src/asm/pipeline_run_impl_alias.c
 file	compiler/src/asm/pipeline_run_x_link_alias.c
 file	compiler/src/asm/pipeline_wpo_strict_link_alias.c
 file	compiler/src/asm/pipeline_wpo_typecheck_emit_bridge.c
+file	compiler/src/asm/runtime_arrow_simd_glue.c
+file	compiler/src/asm/runtime_asm_build.c
+file	compiler/src/asm/runtime_asm_io_stubs.c
+file	compiler/src/asm/runtime_ast_glue.c
+file	compiler/src/asm/runtime_atomic_glue.c
+file	compiler/src/asm/runtime_backtrace_platform.c
+file	compiler/src/asm/runtime_channel_glue.c
+file	compiler/src/asm/runtime_compress_zlib_glue.c
+file	compiler/src/asm/runtime_crypto_inc_glue.c
+file	compiler/src/asm/runtime_dynlib_os.c
+file	compiler/src/asm/runtime_ed25519_ref10_glue.c
+file	compiler/src/asm/runtime_env_os.c
+file	compiler/src/asm/runtime_kv_mmap_glue.c
+file	compiler/src/asm/runtime_lexer_glue.c
+file	compiler/src/asm/runtime_log_os.c
+file	compiler/src/asm/runtime_lsp_glue.c
+file	compiler/src/asm/runtime_math_libm.c
+file	compiler/src/asm/runtime_net_addr_fast.c
+file	compiler/src/asm/runtime_net_dns_fast.c
+file	compiler/src/asm/runtime_net_io_batch_fast.c
+file	compiler/src/asm/runtime_net_ipv6_fast.c
+file	compiler/src/asm/runtime_net_sock_fast.c
+file	compiler/src/asm/runtime_net_udp_batch.c
+file	compiler/src/asm/runtime_net_workers.c
+file	compiler/src/asm/runtime_panic.c
+file	compiler/src/asm/runtime_panic_arm64.c
+file	compiler/src/asm/runtime_path_fast.c
+file	compiler/src/asm/runtime_process_argv.c
+file	compiler/src/asm/runtime_process_os_glue.c
+file	compiler/src/asm/runtime_queue_contention.c
+file	compiler/src/asm/runtime_random_fill.c
+file	compiler/src/asm/runtime_scheduler_glue.c
+file	compiler/src/asm/runtime_slice_glue.c
+file	compiler/src/asm/runtime_sqlite_glue.c
+file	compiler/src/asm/runtime_std_runtime_fast.c
+file	compiler/src/asm/runtime_string_fast.c
+file	compiler/src/asm/runtime_sync_lock_diag_tls.c
+file	compiler/src/asm/runtime_sync_os.c
 file	compiler/src/asm/runtime_test_fn_invoke.c
-# G-02d: root stubs/bridge (12 files, weak / C ABI bridge / va_list / POSIX)
+file	compiler/src/asm/runtime_thread_glue.c
+file	compiler/src/asm/runtime_time_os.c
+file	compiler/src/asm/runtime_tls_mbedtls_bio.c
+file	compiler/src/asm/simd_enc.c
+file	compiler/src/asm/simd_loop.c
+file	compiler/src/asm/user_asm_seed_bridge.c
 file	compiler/src/ast_pool_l5_bridge.c
+file	compiler/src/async/async_asm_pool.c
+file	compiler/src/async/async_cps_codegen.c
+file	compiler/src/async/async_liveness.c
+file	compiler/src/build_runtime.c
+file	compiler/src/build_tool_libc_bridge.c
+file	compiler/src/build_tool_main.c
 file	compiler/src/codegen/codegen_pipeline_stubs.c
 file	compiler/src/diag.c
 file	compiler/src/driver/fmt_check_cmd.c
 file	compiler/src/driver/target_cpu.c
+file	compiler/src/lexer/cfg_eval_bootstrap_stub.c
 file	compiler/src/lexer/cfg_eval_link_alias.c
+file	compiler/src/lsp/lsp_codegen_extern.c
+file	compiler/src/lsp/lsp_diag_pipeline_ctx.c
 file	compiler/src/lsp/lsp_diag_pipeline_sizes.c
 file	compiler/src/lsp/lsp_diag_stubs_no_c.c
 file	compiler/src/lsp/lsp_diag_x_alias.c
-file	compiler/src/lsp/typeck_lsp_io_stub.c
-file	compiler/src/preprocess_shim.c
-file	compiler/src/runtime_driver_strict_glue_stubs.c
-file	compiler/src/runtime_pipeline_abi_shux_c_stubs.c
-file	compiler/src/seed_link_compat.c
-file	compiler/src/x_stubs.c
-# G-02d: parser_asm_*_slice.c (21 files, #include pattern with include guard)
-file	compiler/src/asm/parser_asm_as_suffix_slice.c
-file	compiler/src/asm/parser_asm_block_from_res_slice.c
-file	compiler/src/asm/parser_asm_body_let_slice.c
-file	compiler/src/asm/parser_asm_emit_heavy_stretch_slice.c
-file	compiler/src/asm/parser_asm_emit_heavy_stretch_suite_slice.c
-file	compiler/src/asm/parser_asm_expr_binop_slice.c
-file	compiler/src/asm/parser_asm_finish_struct_lit_slice.c
-file	compiler/src/asm/parser_asm_if_expr_slice.c
-file	compiler/src/asm/parser_asm_if_stmt_slice.c
-file	compiler/src/asm/parser_asm_library_slice.c
-file	compiler/src/asm/parser_asm_match_subject_slice.c
-file	compiler/src/asm/parser_asm_one_function_buf_slice.c
-file	compiler/src/asm/parser_asm_primary_slice.c
-file	compiler/src/asm/parser_asm_seed_parse_into_buf_slice.c
-file	compiler/src/asm/parser_asm_simd_builtin_slice.c
-file	compiler/src/asm/parser_asm_struct_layout_slice.c
-file	compiler/src/asm/parser_asm_ternary_assign_slice.c
-file	compiler/src/asm/parser_asm_top_level_let_slice.c
-file	compiler/src/asm/parser_asm_type_alias_slice.c
-file	compiler/src/asm/parser_asm_type_ref_slice.c
-file	compiler/src/asm/parser_asm_unary_slice.c
-# G-04: platform #if conditional compilation (16 files, POSIX syscalls / #if / build mode switches)
-file	compiler/src/asm/runtime_env_os.c
-file	compiler/src/asm/runtime_net_addr_fast.c
-file	compiler/src/asm/runtime_net_dns_fast.c
-file	compiler/src/asm/runtime_net_ipv6_fast.c
-file	compiler/src/asm/runtime_net_sock_fast.c
-file	compiler/src/asm/runtime_net_udp_batch.c
-file	compiler/src/asm/runtime_path_fast.c
-file	compiler/src/asm/runtime_random_fill.c
-file	compiler/src/asm/runtime_sync_lock_diag_tls.c
-file	compiler/src/asm/runtime_time_os.c
-file	compiler/src/asm/runtime_tls_mbedtls_bio.c
-file	compiler/src/asm/pipeline_run_bootstrap_trampoline.c
-file	compiler/src/asm/pipeline_run_impl_alias.c
 file	compiler/src/lsp/lsp_state.c
-file	compiler/src/x_seed_bridge.c
-file	compiler/src/lexer/cfg_eval_bootstrap_stub.c
-# G-04: C frontend AST companion (5 files, depend on C ASTExpr/ASTBlock/ASTFunc struct layout)
-file	compiler/src/async/async_asm_pool.c
-file	compiler/src/async/async_cps_codegen.c
-file	compiler/src/async/async_liveness.c
-file	compiler/src/lsp/lsp_diag_pipeline_ctx.c
-file	compiler/src/runtime_c_import.c
-# G-04: 6 remaining simple ABI / libc bridges (2026-07-10 STRICT close)
-# - string_fast / heap_*: libc mem* / malloc / posix_memalign thin wrappers (P0b extern "C" 自举后可再评估迁 .x)
-# - std_runtime_fast: panic/abort 符号别名 → shux_panic_
-# - lsp_codegen_extern: 大块 C 源字符串 + strstr 路径探测（codegen -E preamble）
-# - preprocess_if_stack_bridge: 分 TU 链静态 #if 栈（pipeline_gen2 不链 glue 时）
-file	compiler/src/asm/runtime_std_runtime_fast.c
-file	compiler/src/asm/runtime_string_fast.c
-file	compiler/src/lsp/lsp_codegen_extern.c
+file	compiler/src/lsp/typeck_lsp_io_stub.c
+file	compiler/src/main.c
 file	compiler/src/preprocess_if_stack_bridge.c
+file	compiler/src/preprocess_shim.c
+file	compiler/src/runtime.c
+file	compiler/src/runtime_abi.c
+file	compiler/src/runtime_c_import.c
+file	compiler/src/runtime_driver_abi.c
+file	compiler/src/runtime_driver_diagnostic.c
+file	compiler/src/runtime_driver_strict_glue_stubs.c
 file	compiler/src/runtime_heap_user.c
+file	compiler/src/runtime_io_abi.c
+file	compiler/src/runtime_link_abi.c
+file	compiler/src/runtime_pipeline_abi.c
+file	compiler/src/runtime_pipeline_abi_shux_c_stubs.c
+file	compiler/src/runtime_proc_abi.c
+file	compiler/src/seed_link_compat.c
+file	compiler/src/x_seed_bridge.c
+file	compiler/src/x_stubs.c

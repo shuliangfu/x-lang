@@ -1,5 +1,5 @@
 /**
- * parser_asm_expr_binop_slice.c — parse_term_into / parse_addsub_into C 实现。
+ * parser_asm_expr_binop_slice.inc — parse_term_into / parse_addsub_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * cast/unary/as_suffix 已 thin delegate；本 slice 处理 expr 左结合二元链至 compare。

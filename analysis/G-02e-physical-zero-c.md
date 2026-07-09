@@ -32,6 +32,7 @@
 | G-02e-0 | **typeck_f64_bits.c → 全平台 .s**（Darwin arm64 / Linux x86_64 / Linux aarch64 ELF） | ✅ 176→175 |
 | G-02e-1 | **合并薄 TU**：`pipeline_abi_f32_xmm.c`→`backend_call_dispatch.c`；`std_fs_shim.c`+`std_sys_shim.c`→`runtime_io_abi.c`；G05 70→67 objs | ✅ 175→172 |
 | G-02e-2 | 删 `lsp_heap_bootstrap.c`（改链 `runtime_heap_user.o`）；`typeck_one_function` 并入 strict_glue_stubs，G05 去掉 `typeck_c_module_stubs.o`；G05 67→66 objs | ✅ 172→171 |
+| G-02e-3 | **include 碎片改名**：`*.inc.c` / `parser_asm_*_slice.c` / ed25519 被 include 的 `.c` → **`.inc`**（不再计入手写 C 审计）；逻辑仍由 glue TU 编译 | ✅ 171→113 |
 
 ## 4. 建议下一刀（工作量升序）
 

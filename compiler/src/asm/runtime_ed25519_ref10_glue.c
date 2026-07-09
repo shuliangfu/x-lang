@@ -32,13 +32,13 @@
 #define sha512_compress ed25519_ref10_sha512_compress
 
 #include "crypto/ed25519/fixedint.h"
-#include "crypto/ed25519/sha512.c"
-#include "crypto/ed25519/fe.c"
-#include "crypto/ed25519/ge.c"
-#include "crypto/ed25519/sc.c"
-#include "crypto/ed25519/keypair.c"
-#include "crypto/ed25519/sign.c"
-#include "crypto/ed25519/verify.c"
+#include "crypto/ed25519/sha512.inc"
+#include "crypto/ed25519/fe.inc"
+#include "crypto/ed25519/ge.inc"
+#include "crypto/ed25519/sc.inc"
+#include "crypto/ed25519/keypair.inc"
+#include "crypto/ed25519/sign.inc"
+#include "crypto/ed25519/verify.inc"
 
 /*
  * 兼容旧 crypto.o：mod.x 高层占用 ed25519_sign/verify 名；底层为 ed25519_ref10_*。

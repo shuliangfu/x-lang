@@ -1,5 +1,5 @@
 /**
- * parser_asm_one_function_buf_slice.c — parse_one_function_buf_into C 实现。
+ * parser_asm_one_function_buf_slice.inc — parse_one_function_buf_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 精简 buf 路径：function ident(): type { … return int; }；回调 body_skip_let_const_then_if_buf glue。

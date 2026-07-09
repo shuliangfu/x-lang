@@ -281,9 +281,9 @@ smoke_network	smoke	tests/http/network.x	TLS/ALPN 烟测
 smoke_flow_state	smoke	tests/http/flow_state.x	流控状态机烟测
 smoke_flow_recv_push_h2c	smoke	tests/http/flow_recv_push_h2c.x	v6 recv/push/h2c
 smoke_dyn	smoke	tests/http/hpack_dyn.x	动态 HPACK 烟测
-symbol_smoke_c	symbol	http2_smoke_c	compiler/src/asm/http/http2.inc.c	C 烟测
-symbol_preface_c	symbol	http2_is_connection_preface_c	compiler/src/asm/http/http2.inc.c	preface
-symbol_parse_c	symbol	http2_parse_frame_header_c	compiler/src/asm/http/http2.inc.c	帧头
+symbol_smoke_c	symbol	http2_smoke_c	compiler/src/asm/http/http2.inc	C 烟测
+symbol_preface_c	symbol	http2_is_connection_preface_c	compiler/src/asm/http/http2.inc	preface
+symbol_parse_c	symbol	http2_parse_frame_header_c	compiler/src/asm/http/http2.inc	帧头
 symbol_hpack_smoke_c	symbol	http2_hpack_smoke_c	compiler/src/asm/http/hpack.inc.c	HPACK
 symbol_client_smoke_c	symbol	http2_client_smoke_c	compiler/src/asm/http/client.inc.c	客户端
 smoke_wire	smoke	tests/http/wire.x	线格式烟测

@@ -1,5 +1,5 @@
 /**
- * parser_asm_type_ref_slice.c — parse_type_ref_for_arena_into / alloc_pointee C 实现。
+ * parser_asm_type_ref_slice.inc — parse_type_ref_for_arena_into / alloc_pointee C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  */

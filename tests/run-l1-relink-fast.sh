@@ -51,7 +51,7 @@ for f in lexer_gen parser_gen typeck_gen codegen_gen pipeline_gen driver_gen pre
 done
 
 progress "rebuild parser_asm_thin_glue.o (slice T[] fix)"
-touch src/asm/parser_asm_type_ref_slice.c
+touch src/asm/parser_asm_type_ref_slice.inc
 make -j"$(nproc 2>/dev/null || echo 4)" parser_asm_thin_glue.o
 
 progress "rebuild parser_x.o (region { parse fix)"

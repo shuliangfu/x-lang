@@ -21,20 +21,20 @@ C4_gen12_consistency	phase	C	gen12_target	run-boot-025-parser-gen12-consistency-
 C5_x_bootstrap	phase	C	su_bootstrap_target	run-boot-026-parser-c4-bootstrap-gate.sh	BOOT-026 C4 SU bootstrap
 C6_shux_asm2_cross	phase	C	shux_asm2_cross_target	run-boot-027-shux-asm2-cross-gate.sh	BOOT-027 shux_asm2 跨平台
 C7_shux_asm2_ci_matrix	phase	C	shux_asm2_ci_target	run-boot-028-shux-asm2-ci-matrix-gate.sh	BOOT-028 CI 矩阵
-slice_expr_binop	capability	A2	done	compiler/src/asm/parser_asm_expr_binop_slice.c	expr binop
-slice_primary	capability	A2	done	compiler/src/asm/parser_asm_primary_slice.c	primary
-slice_unary	capability	A2	done	compiler/src/asm/parser_asm_unary_slice.c	unary
-slice_body_let	capability	A2	done	compiler/src/asm/parser_asm_body_let_slice.c	body let
-slice_block	capability	A2	done	compiler/src/asm/parser_asm_block_from_res_slice.c	block
-slice_if_stmt	capability	A2	done	compiler/src/asm/parser_asm_if_stmt_slice.c	if stmt
-slice_if_expr	capability	A2	done	compiler/src/asm/parser_asm_if_expr_slice.c	if expr
-slice_match	capability	A2	done	compiler/src/asm/parser_asm_match_subject_slice.c	match
-slice_type_ref	capability	A2	done	compiler/src/asm/parser_asm_type_ref_slice.c	type ref
-slice_library	capability	A2	done	compiler/src/asm/parser_asm_library_slice.c	library
-slice_one_func_buf	capability	A2	done	compiler/src/asm/parser_asm_one_function_buf_slice.c	one func buf
-slice_seed_parse_buf	capability	A2	done	compiler/src/asm/parser_asm_seed_parse_into_buf_slice.c	seed parse_into_buf
-slice_top_level_let	capability	A2	done	compiler/src/asm/parser_asm_top_level_let_slice.c	top level let
-slice_struct_lit	capability	A2	done	compiler/src/asm/parser_asm_finish_struct_lit_slice.c	struct lit
-slice_struct_layout	capability	A2	done	compiler/src/asm/parser_asm_struct_layout_slice.c	struct layout
-slice_emit_heavy	capability	A2	done	compiler/src/asm/parser_asm_emit_heavy_stretch_slice.c	emit heavy
-slice_emit_heavy_suite	capability	A2	done	compiler/src/asm/parser_asm_emit_heavy_stretch_suite_slice.c	emit heavy suite
+slice_expr_binop	capability	A2	done	compiler/src/asm/parser_asm_expr_binop_slice.inc	expr binop
+slice_primary	capability	A2	done	compiler/src/asm/parser_asm_primary_slice.inc	primary
+slice_unary	capability	A2	done	compiler/src/asm/parser_asm_unary_slice.inc	unary
+slice_body_let	capability	A2	done	compiler/src/asm/parser_asm_body_let_slice.inc	body let
+slice_block	capability	A2	done	compiler/src/asm/parser_asm_block_from_res_slice.inc	block
+slice_if_stmt	capability	A2	done	compiler/src/asm/parser_asm_if_stmt_slice.inc	if stmt
+slice_if_expr	capability	A2	done	compiler/src/asm/parser_asm_if_expr_slice.inc	if expr
+slice_match	capability	A2	done	compiler/src/asm/parser_asm_match_subject_slice.inc	match
+slice_type_ref	capability	A2	done	compiler/src/asm/parser_asm_type_ref_slice.inc	type ref
+slice_library	capability	A2	done	compiler/src/asm/parser_asm_library_slice.inc	library
+slice_one_func_buf	capability	A2	done	compiler/src/asm/parser_asm_one_function_buf_slice.inc	one func buf
+slice_seed_parse_buf	capability	A2	done	compiler/src/asm/parser_asm_seed_parse_into_buf_slice.inc	seed parse_into_buf
+slice_top_level_let	capability	A2	done	compiler/src/asm/parser_asm_top_level_let_slice.inc	top level let
+slice_struct_lit	capability	A2	done	compiler/src/asm/parser_asm_finish_struct_lit_slice.inc	struct lit
+slice_struct_layout	capability	A2	done	compiler/src/asm/parser_asm_struct_layout_slice.inc	struct layout
+slice_emit_heavy	capability	A2	done	compiler/src/asm/parser_asm_emit_heavy_stretch_slice.inc	emit heavy
+slice_emit_heavy_suite	capability	A2	done	compiler/src/asm/parser_asm_emit_heavy_stretch_suite_slice.inc	emit heavy suite

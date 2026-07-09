@@ -1,5 +1,5 @@
 /**
- * parser_asm_type_alias_slice.c — parse_one_type_alias_into C 实现。
+ * parser_asm_type_alias_slice.inc — parse_one_type_alias_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 顶层 type 别名「type Alias = TargetType ;」；Target 经 parse_type_ref 完整语法。

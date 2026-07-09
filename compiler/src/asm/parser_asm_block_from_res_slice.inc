@@ -1,5 +1,5 @@
 /**
- * parser_asm_block_from_res_slice.c — fill_block_const_let_from_res / append_block_lets_from_res C 实现。
+ * parser_asm_block_from_res_slice.inc — fill_block_const_let_from_res / append_block_lets_from_res C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * OneFunc 侧车池 → block const/let 声明；Expr 按值初始化勿 X emit（曾 elf_ec=-1 / code 缓冲触顶）。

@@ -23,7 +23,7 @@ std_http_h2_symbols_ok() {
         case "$mod_path" in
           std/http/mod.x) mod_path="$mod_x" ;;
           compiler/src/asm/http/runtime_http_glue.c) mod_path="$http_c" ;;
-          compiler/src/asm/http/http2.inc.c) mod_path="compiler/src/asm/http/http2.inc.c" ;;
+          compiler/src/asm/http/http2.inc) mod_path="compiler/src/asm/http/http2.inc" ;;
           compiler/src/asm/http/hpack.inc.c) mod_path="compiler/src/asm/http/hpack.inc.c" ;;
           compiler/src/asm/http/hpack_dyn.inc.c) mod_path="compiler/src/asm/http/hpack_dyn.inc.c" ;;
           compiler/src/asm/http/client.inc.c) mod_path="compiler/src/asm/http/client.inc.c" ;;

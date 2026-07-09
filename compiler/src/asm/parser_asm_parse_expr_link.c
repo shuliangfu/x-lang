@@ -22,7 +22,7 @@ struct parser_asm_slice_u8 {
   size_t length;
 };
 
-/** 与 parser_asm_body_let_slice.c 中 parser_asm_parse_expr_result 一致。 */
+/** 与 parser_asm_body_let_slice.inc 中 parser_asm_parse_expr_result 一致。 */
 struct parser_asm_parse_expr_result {
   int32_t ok;
   int32_t expr_ref;

@@ -1,5 +1,5 @@
 /**
- * parser_asm_as_suffix_slice.c — parse_as_suffix_into C 实现。
+ * parser_asm_as_suffix_slice.inc — parse_as_suffix_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 与 parser.x parse_as_suffix_into 一致：`as type` 后缀链，支持 *T 与标量/命名类型。

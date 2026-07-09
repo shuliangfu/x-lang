@@ -1,9 +1,9 @@
 /**
- * parser_asm_library_slice.c — parse_one_function_library C 实现。
+ * parser_asm_library_slice.inc — parse_one_function_library C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 先调 parser_asm_parse_one_function_library_scan_slice_c 扫描 token，再建 AST / module func 槽。
- * 依赖同 TU 内 parser_asm_type_ref_slice.c 的 struct ast_Type / PARSER_ASM_TYPE_*。
+ * 依赖同 TU 内 parser_asm_type_ref_slice.inc 的 struct ast_Type / PARSER_ASM_TYPE_*。
  */
 #ifndef PARSER_ASM_LIBRARY_SLICE_INCLUDED
 #define PARSER_ASM_LIBRARY_SLICE_INCLUDED

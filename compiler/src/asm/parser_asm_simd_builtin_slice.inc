@@ -1,5 +1,5 @@
 /**
- * parser_asm_simd_builtin_slice.c — parse_at_simd_builtin_into C 实现。
+ * parser_asm_simd_builtin_slice.inc — parse_at_simd_builtin_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 解析 @shuffle(v, mask) / @select(mask, a, b) → CALL simd_shuffle/simd_select。

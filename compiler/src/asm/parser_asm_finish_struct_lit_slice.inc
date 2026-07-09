@@ -1,5 +1,5 @@
 /**
- * parser_asm_finish_struct_lit_slice.c — finish_struct_lit_from_type_ident_into C 实现。
+ * parser_asm_finish_struct_lit_slice.inc — finish_struct_lit_from_type_ident_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include（须在 body_let_slice 之后）；勿单独编译。
  * TypeName { a: e1 , b: e2 } 后缀字段填充；支持 STR-02 字段简写 `{ fd }` => `{ fd: fd }`；

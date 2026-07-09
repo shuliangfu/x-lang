@@ -99,14 +99,14 @@ struct parser_asm_onefunc_result {
   int32_t func_return_type_ref;
 };
 
-/** 与 parser_asm_top_level_let_slice.c TopLevelLetResult 布局一致。 */
+/** 与 parser_asm_top_level_let_slice.inc TopLevelLetResult 布局一致。 */
 struct parser_asm_top_level_let_result {
   int32_t ok;
   uint8_t _pad[4];
   struct parser_asm_lexer next_lex;
 };
 
-/** 与 parser_asm_type_ref_slice.c / ast.x Type 布局一致。 */
+/** 与 parser_asm_type_ref_slice.inc / ast.x Type 布局一致。 */
 struct ast_Type {
   int32_t kind;
   uint8_t name[64];
@@ -173,7 +173,7 @@ struct ast_Expr {
   int32_t call_resolved_dep_index;
 };
 
-/** 与 parser_asm_library_slice.c / ast.x Block 布局一致。 */
+/** 与 parser_asm_library_slice.inc / ast.x Block 布局一致。 */
 struct ast_Block {
   int32_t const_base;
   int32_t num_consts;
@@ -201,4 +201,4 @@ struct ast_Block {
 };
 
 #include "parser_asm_stretch_audit_gate.h"
-#include "parser_asm_seed_parse_into_buf_slice.c"
+#include "parser_asm_seed_parse_into_buf_slice.inc"

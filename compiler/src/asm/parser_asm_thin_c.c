@@ -6591,34 +6591,34 @@ static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
   e->call_resolved_dep_index = -1;
 }
 
-#include "parser_asm_type_ref_slice.c"
-#include "parser_asm_struct_layout_slice.c"
-#include "parser_asm_library_slice.c"
-#include "parser_asm_body_let_slice.c"
-#include "parser_asm_top_level_let_slice.c"
-#include "parser_asm_type_alias_slice.c"
-#include "parser_asm_one_function_buf_slice.c"
-#include "parser_asm_block_from_res_slice.c"
-#include "parser_asm_if_stmt_slice.c"
-#include "parser_asm_match_subject_slice.c"
-#include "parser_asm_simd_builtin_slice.c"
-#include "parser_asm_if_expr_slice.c"
-#include "parser_asm_finish_struct_lit_slice.c"
-#include "parser_asm_as_suffix_slice.c"
-#include "parser_asm_primary_slice.c"
-#include "parser_asm_unary_slice.c"
-#include "parser_asm_expr_binop_slice.c"
-#include "parser_asm_ternary_assign_slice.c"
-#include "parser_asm_emit_heavy_stretch_slice.c"
+#include "parser_asm_type_ref_slice.inc"
+#include "parser_asm_struct_layout_slice.inc"
+#include "parser_asm_library_slice.inc"
+#include "parser_asm_body_let_slice.inc"
+#include "parser_asm_top_level_let_slice.inc"
+#include "parser_asm_type_alias_slice.inc"
+#include "parser_asm_one_function_buf_slice.inc"
+#include "parser_asm_block_from_res_slice.inc"
+#include "parser_asm_if_stmt_slice.inc"
+#include "parser_asm_match_subject_slice.inc"
+#include "parser_asm_simd_builtin_slice.inc"
+#include "parser_asm_if_expr_slice.inc"
+#include "parser_asm_finish_struct_lit_slice.inc"
+#include "parser_asm_as_suffix_slice.inc"
+#include "parser_asm_primary_slice.inc"
+#include "parser_asm_unary_slice.inc"
+#include "parser_asm_expr_binop_slice.inc"
+#include "parser_asm_ternary_assign_slice.inc"
+#include "parser_asm_emit_heavy_stretch_slice.inc"
 struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
                                                             struct parser_asm_slice_u8 *source);
 struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-#include "parser_asm_emit_heavy_stretch_suite_slice.c"
+#include "parser_asm_emit_heavy_stretch_suite_slice.inc"
 #ifndef PARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 /* 瘦 parser_x.o 无 parse_into_buf 时由 seed slice 提供；全量 parser_x.o 链入时 Makefile 定义 NO_SEED_PARSE。 */
-#include "parser_asm_seed_parse_into_buf_slice.c"
+#include "parser_asm_seed_parse_into_buf_slice.inc"
 #endif
 
 /** 参数/返回值标量或命名类型 token（不含 * 与 []）。 */

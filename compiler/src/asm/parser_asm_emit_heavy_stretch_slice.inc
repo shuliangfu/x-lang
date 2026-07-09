@@ -1,5 +1,5 @@
 /**
- * parser_asm_emit_heavy_stretch_slice.c — parser EMIT_HEAVY 第二遍 thin_glue 扩面（audit stretch）。
+ * parser_asm_emit_heavy_stretch_slice.inc — parser EMIT_HEAVY 第二遍 thin_glue 扩面（audit stretch）。
  *
  * 提供 TokenKind 元数据表、import 路径校验与标号探测辅助；由 parser_asm_thin_c.c #include。
  * 符号名均 parser_asm_stretch_* 前缀，勿与 parser_x.o / seed slice 冲突。

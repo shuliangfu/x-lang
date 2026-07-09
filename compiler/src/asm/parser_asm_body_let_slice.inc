@@ -1,5 +1,5 @@
 /**
- * parser_asm_body_let_slice.c — body let / cond expr 解析 helper C 实现。
+ * parser_asm_body_let_slice.inc — body let / cond expr 解析 helper C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  */

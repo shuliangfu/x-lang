@@ -1,5 +1,5 @@
 /**
- * parser_asm_seed_parse_into_buf_slice.c — seed ./shux 链 parse_into_buf / parse_into C 实现。
+ * parser_asm_seed_parse_into_buf_slice.inc — seed ./shux 链 parse_into_buf / parse_into C 实现。
  *
  * 瘦 parser_x.o 无 parse_into_buf；由本 TU（parser_asm_thin_c.c #include）提供强符号，
  * 覆盖 parser_asm_link_alias.c 弱桩，供 runtime asm 后端 parse 任意 .x。

@@ -2,7 +2,7 @@
  * crypto_inc_glue.c — F-04 v19 v1：std.crypto C 胶层
  *
  * 【文件职责】
- * SHA-512 / HMAC-SHA512 委托 ed25519/sha512.c（via ed25519_ref10_glue.c 同 crypto.o 单元）。
+ * SHA-512 / HMAC-SHA512 委托 ed25519/sha512.inc（via ed25519_ref10_glue.c 同 crypto.o 单元）。
  *
  * 【分层】
  * - core.x：mem_eq、SHA-256、HMAC-SHA256
@@ -186,7 +186,7 @@ void crypto_hmac_sha256_c(const uint8_t * restrict key, int32_t key_len,
 /* ed25519_ref10_glue.c 提供 sha512()；须在 Makefile 中与 crypto_inc_glue.o 一并 ld -r。 */
 int sha512(const unsigned char *message, size_t message_len, unsigned char *out);
 
-/* ---------- SHA-512 / HMAC-SHA512（LibTomCrypt ref，ed25519/sha512.c） ---------- */
+/* ---------- SHA-512 / HMAC-SHA512（LibTomCrypt ref，ed25519/sha512.inc） ---------- */
 
 /** SHA-512 摘要；委托 ref10 同单元 sha512()（FIPS 180-4 金样正确）。 */
 CRYPTO_HOT

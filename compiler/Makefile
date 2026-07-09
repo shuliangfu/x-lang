@@ -848,7 +848,7 @@ runtime_thread_glue.o: src/asm/runtime_thread_glue.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # F-ZC：async 协作调度 + async_net_fs；与 scheduler.o 一并链入（按需 -pthread）
-runtime_scheduler_glue.o: src/asm/runtime_scheduler_glue.c src/asm/async_net_fs.inc.c
+runtime_scheduler_glue.o: src/asm/runtime_scheduler_glue.c src/asm/async_net_fs.inc
 	$(CC) $(CFLAGS) -Isrc/asm -c -o $@ src/asm/runtime_scheduler_glue.c
 
 # F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入
@@ -1249,27 +1249,27 @@ src/asm/backend_call_dispatch.o: src/asm/backend_call_dispatch.c
 PARSER_ASM_THIN_GLUE_CFLAGS = -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
 parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c \
- src/asm/parser_asm_type_ref_slice.c \
- src/asm/parser_asm_struct_layout_slice.c \
- src/asm/parser_asm_library_slice.c \
- src/asm/parser_asm_body_let_slice.c \
- src/asm/parser_asm_top_level_let_slice.c \
- src/asm/parser_asm_type_alias_slice.c \
- src/asm/parser_asm_one_function_buf_slice.c \
- src/asm/parser_asm_block_from_res_slice.c \
- src/asm/parser_asm_if_stmt_slice.c \
- src/asm/parser_asm_match_subject_slice.c \
- src/asm/parser_asm_simd_builtin_slice.c \
- src/asm/parser_asm_if_expr_slice.c \
- src/asm/parser_asm_finish_struct_lit_slice.c \
- src/asm/parser_asm_as_suffix_slice.c \
- src/asm/parser_asm_primary_slice.c \
- src/asm/parser_asm_unary_slice.c \
- src/asm/parser_asm_expr_binop_slice.c \
- src/asm/parser_asm_ternary_assign_slice.c \
- src/asm/parser_asm_emit_heavy_stretch_slice.c \
- src/asm/parser_asm_emit_heavy_stretch_suite_slice.c \
- src/asm/parser_asm_seed_parse_into_buf_slice.c
+ src/asm/parser_asm_type_ref_slice.inc \
+ src/asm/parser_asm_struct_layout_slice.inc \
+ src/asm/parser_asm_library_slice.inc \
+ src/asm/parser_asm_body_let_slice.inc \
+ src/asm/parser_asm_top_level_let_slice.inc \
+ src/asm/parser_asm_type_alias_slice.inc \
+ src/asm/parser_asm_one_function_buf_slice.inc \
+ src/asm/parser_asm_block_from_res_slice.inc \
+ src/asm/parser_asm_if_stmt_slice.inc \
+ src/asm/parser_asm_match_subject_slice.inc \
+ src/asm/parser_asm_simd_builtin_slice.inc \
+ src/asm/parser_asm_if_expr_slice.inc \
+ src/asm/parser_asm_finish_struct_lit_slice.inc \
+ src/asm/parser_asm_as_suffix_slice.inc \
+ src/asm/parser_asm_primary_slice.inc \
+ src/asm/parser_asm_unary_slice.inc \
+ src/asm/parser_asm_expr_binop_slice.inc \
+ src/asm/parser_asm_ternary_assign_slice.inc \
+ src/asm/parser_asm_emit_heavy_stretch_slice.inc \
+ src/asm/parser_asm_emit_heavy_stretch_suite_slice.inc \
+ src/asm/parser_asm_seed_parse_into_buf_slice.inc
 	$(CC) $(CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -c -o $@ src/asm/parser_asm_thin_c.c
 
 # pipeline parser_* 前缀 alias + parse 弱裸名桩（seed ./shux 与 experimental bootstrap 共用）。

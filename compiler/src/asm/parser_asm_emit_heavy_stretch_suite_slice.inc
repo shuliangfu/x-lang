@@ -1,5 +1,5 @@
 /**
- * parser_asm_emit_heavy_stretch_suite_slice.c — parser EMIT_HEAVY audit stretch 第二段 C 扩面。
+ * parser_asm_emit_heavy_stretch_suite_slice.inc — parser EMIT_HEAVY audit stretch 第二段 C 扩面。
  *
  * 函数签名/类型/顶层声明扫描辅助；由 parser_asm_thin_c.c #include（须在 skip_balanced 定义之后）。
  * 符号均 parser_asm_stretch_* 前缀，勿与 parser_x.o / seed slice 冲突。

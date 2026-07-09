@@ -362,7 +362,7 @@ echo "async scheduler A4 OK"
 
 echo "async scheduler MPSC: dual-thread submit + drain ..."
 if "${SHUX_ASYNC_CC[@]}" -pthread -o /tmp/shux_async_scheduler_mpsc \
-  tests/bench/async_scheduler_mpsc.c std/async/scheduler.o 2>/dev/null; then
+  tests/bench/async_scheduler_mpsc.inc std/async/scheduler.o 2>/dev/null; then
   rc=$(/tmp/shux_async_scheduler_mpsc; echo $?)
   [ "$rc" = "0" ] || { echo "async scheduler MPSC FAIL: exit=$rc"; exit 1; }
   echo "async scheduler MPSC OK"

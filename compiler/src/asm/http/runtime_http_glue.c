@@ -30,8 +30,8 @@
 #define SHUX_HTTP_ERRNO errno
 #endif
 
-#include "http_chunked.inc.c"
-#include "http_tls_bridge.inc.c"
+#include "http_chunked.inc"
+#include "http_tls_bridge.inc"
 
 /** 解析 HTTP/1.x 状态行中的三位状态码；成功 0，失败 -1（STD-032）。 */
 int32_t http_parse_status_line_c(const uint8_t *line, int32_t len, int32_t *out_code) {
@@ -678,12 +678,12 @@ static int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket
   return 0;
 }
 
-#include "http_server_pool.inc.c"
-#include "http_reqresp.inc.c"
-#include "http2.inc.c"
-#include "http2_hpack.inc.c"
-#include "http2_client.inc.c"
-#include "http2_network.inc.c"
+#include "http_server_pool.inc"
+#include "http_reqresp.inc"
+#include "http2.inc"
+#include "http2_hpack.inc"
+#include "http2_client.inc"
+#include "http2_network.inc"
 
 /** HTTP/2 over TLS 多 method 请求（https:// + ALPN h2）。 */
 int32_t http_h2_request_c(uint8_t method_u8, const uint8_t *url, int32_t url_len,
@@ -1007,5 +1007,5 @@ int32_t http_h2c_client_smoke_c(void) {
   return 0;
 }
 
-#include "http2_conn_pool.inc.c"
-#include "http2_global_pool.inc.c"
+#include "http2_conn_pool.inc"
+#include "http2_global_pool.inc"

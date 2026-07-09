@@ -1,9 +1,9 @@
 # BOOT-010 force_stub 6 风险处置矩阵
 # 列：stub_id	symbol	root_cause	strategy	regression_src	regression_hook	notes
 # min_stub_rows	6
-wrap_block	wrap_block_ref_as_expr	if_expr块包装SU emit失败	keep_stub+C_slice_if_expr	tests/if-expr/simple.x	run-if-expr.sh	parser_asm_if_expr_slice.c
+wrap_block	wrap_block_ref_as_expr	if_expr块包装SU emit失败	keep_stub+C_slice_if_expr	tests/if-expr/simple.x	run-if-expr.sh	parser_asm_if_expr_slice.inc
 alloc_bool	parser_alloc_true_bool_lit	深循环bool节点alloc	keep_stub+glue_path	tests/if-expr/no_else.x	run-if-expr.sh	true分支/无else
-alloc_float	parser_alloc_float_lit	primary浮点alloc	keep_stub+C_slice_primary	tests/float/f32_f64.x	run-float.sh	parser_asm_primary_slice.c
+alloc_float	parser_alloc_float_lit	primary浮点alloc	keep_stub+C_slice_primary	tests/float/f32_f64.x	run-float.sh	parser_asm_primary_slice.inc
 wrap_return	parser_expr_wrap_in_return	单expr函数RETURN包装	keep_stub+C_seed_slice	tests/parser/if_expr_return.x	check_only	return if 表达式
 skip_padding	try_skip_allow_padding_struct	allow(padding)深循环elf_ec=-1	extern_glue+force_stub	tests/struct/padding_allow.x	check_only	parser_try_skip_allow_padding_struct_glue
 skip_padding_buf	try_skip_allow_padding_struct_buf	buf路径padding skip	extern_buf_glue+force_stub	tests/unsafe/allow_padding_ok.x	run-lang-unsafe-gate.sh	U1 allow(padding)

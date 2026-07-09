@@ -1,5 +1,5 @@
 /**
- * parser_asm_struct_layout_slice.c — parse_struct_record_layout_into C 实现。
+ * parser_asm_struct_layout_slice.inc — parse_struct_record_layout_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  */

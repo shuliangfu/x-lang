@@ -1,5 +1,5 @@
 /**
- * parser_asm_if_expr_slice.c — parse_if_expr_into C 实现。
+ * parser_asm_if_expr_slice.inc — parse_if_expr_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * if 条件表达式：if (cond) { block } [ else { block } | else if … ] → EXPR_IF。

@@ -204,9 +204,9 @@ PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
 PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
 PARSER_ASM_THIN_C="parser_asm_thin_glue.o"
 if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.c" -nt "$PARSER_ASM_THIN_C" ] \
-  || [ "src/asm/parser_asm_struct_layout_slice.c" -nt "$PARSER_ASM_THIN_C" ] \
-  || [ "src/asm/parser_asm_block_from_res_slice.c" -nt "$PARSER_ASM_THIN_C" ] \
-  || [ "src/asm/parser_asm_if_stmt_slice.c" -nt "$PARSER_ASM_THIN_C" ]; then
+  || [ "src/asm/parser_asm_struct_layout_slice.inc" -nt "$PARSER_ASM_THIN_C" ] \
+  || [ "src/asm/parser_asm_block_from_res_slice.inc" -nt "$PARSER_ASM_THIN_C" ] \
+  || [ "src/asm/parser_asm_if_stmt_slice.inc" -nt "$PARSER_ASM_THIN_C" ]; then
   experimental_bootstrap_info "cc parser_asm_thin_glue.o"
   "$CC" $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -c -o "$PARSER_ASM_THIN_C" src/asm/parser_asm_thin_c.c
 fi
@@ -257,7 +257,7 @@ ensure_parser_x_obj
 ensure_parser_parse_bootstrap_asm_obj() {
   PARSER_PARSE_BOOT_O="$BUILD_DIR/parser_parse_bootstrap.o"
   PBOOT_C_SRC="src/asm/parser_asm_parse_bootstrap_obj.c"
-  PBOOT_SEED_SLICE="src/asm/parser_asm_seed_parse_into_buf_slice.c"
+  PBOOT_SEED_SLICE="src/asm/parser_asm_seed_parse_into_buf_slice.inc"
   mkdir -p "$BUILD_DIR"
 
   compile_parser_parse_bootstrap_cc_obj() {

@@ -1,5 +1,5 @@
 /**
- * parser_asm_if_stmt_slice.c — parse_if_stmt_into C 实现。
+ * parser_asm_if_stmt_slice.inc — parse_if_stmt_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 单条 if（含 else / else if 链）；回调 parse_cond_expr / parse_block X mega，勿 X emit 本函数体。

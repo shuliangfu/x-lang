@@ -55,5 +55,5 @@ int32_t http2_flow_control_smoke_c(void) {
     return 0;
 }
 
-#include "http2_flow_state.inc.c"
-#include "http2_flow_recv.inc.c"
+#include "http2_flow_state.inc"
+#include "http2_flow_recv.inc"

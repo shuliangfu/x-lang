@@ -1,5 +1,5 @@
 /**
- * parser_asm_top_level_let_slice.c — parse_one_top_level_let_into C 实现。
+ * parser_asm_top_level_let_slice.inc — parse_one_top_level_let_into C 实现。
  *
  * 由 parser_asm_thin_c.c #include；勿单独编译。
  * 顶层 let/const「ident : type = expr ;」路径；expr 经 parse_expr_into 回调 X mega。
@@ -14,7 +14,7 @@ struct parser_asm_top_level_let_result {
   struct parser_asm_lexer next_lex;
 };
 
-/** 与 parser_asm_body_let_slice.c ParseExprResult 布局一致（body_let 已先 include）。 */
+/** 与 parser_asm_body_let_slice.inc ParseExprResult 布局一致（body_let 已先 include）。 */
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *data);

@@ -14,7 +14,7 @@
 /** END_HEADERS 标志。 */
 #define HTTP2_FLAG_END_HEADERS 0x04
 
-#include "http2_stream_registry.inc.c"
+#include "http2_stream_registry.inc"
 
 /** 构建 HEADERS 帧（9 字节头 + HPACK payload）。 */
 int32_t http2_build_headers_frame_c(int32_t stream_id, int32_t flags, const uint8_t *hpack,
@@ -95,7 +95,7 @@ int32_t http2_build_get_headers_frame_c(const uint8_t *authority, int32_t author
 /** v1 客户端编解码层可用（HPACK + 帧；不含 TLS ALPN 网络路径）。 */
 int32_t http2_client_is_available_c(void) { return 1; }
 
-#include "http2_multistream_client.inc.c"
+#include "http2_multistream_client.inc"
 
 /**
  * 多路复用烟测：构建 stream 1/3 两个 GET HEADERS 帧；校验 stream_id 与帧类型。
@@ -155,4 +155,4 @@ int32_t http2_client_smoke_c(void) {
     return 0;
 }
 
-#include "http2_frame_capped.inc.c"
+#include "http2_frame_capped.inc"
