@@ -6,9 +6,9 @@ api_v1	section	## 6. v1（Linux syscall 号表）	linux
 api_v2	section	## 7. v2（macOS POSIX write）	macos
 api_v3	section	## 8. v3（FreeBSD POSIX write）	freebsd
 verify	section	## 3. Gate	gate
-api_os_write	api	os_write	std/sys/mod.x	write
-api_os_stdout	api	os_write_stdout	std/sys/mod.x	stdout
-api_os_read_file	api	os_read_file_into	std/sys/mod.x	B-20 v0
+api_os_write	api	write	std/sys/mod.x	write
+api_os_stdout	api	write_stdout	std/sys/mod.x	stdout
+api_os_read_file	api	read_file_into	std/sys/mod.x	B-20 v0
 api_freestanding	api	freestanding_write_available	std/sys/mod.x	探测
 api_linux_table	api	linux_syscall_table_available	std/sys/mod.x	v1
 api_linux_write_amd64	api	linux_syscall_nr_write_amd64	std/sys/mod.x	v1
