@@ -34,6 +34,21 @@ function main(): i32 {
     heap.page_mmap_heap_deinit(&h);
     return 4;
   }
+  if (p == 1 as *u8) {
+    return 40;
+  }
+  if (p == 2 as *u8) {
+    return 41;
+  }
+  if (p == 3 as *u8) {
+    return 42;
+  }
+  if (p == 4 as *u8) {
+    return 43;
+  }
+  if (p == 5 as *u8) {
+    return 44;
+  }
   p[0] = 65 as u8;
   p[1] = 66 as u8;
   p[2] = 67 as u8;

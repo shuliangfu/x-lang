@@ -88,8 +88,14 @@ function page_mmap_heap_init(h: *PageMmapHeap): i32 {
  * align 须为 2 的幂；0 视为 1。
  */
 function page_mmap_heap_alloc(h: *PageMmapHeap, size: usize, align_bytes: usize): *u8 {
-  if (h == 0 || h.base == 0 || size == 0) {
-    return 0;
+  if (h == 0) {
+    return 1 as *u8;
+  }
+  if (h.base == 0) {
+    return 2 as *u8;
+  }
+  if (size == 0) {
+    return 3 as *u8;
   }
   let a: usize = align_bytes;
   if (a == 0) {
@@ -97,8 +103,11 @@ function page_mmap_heap_alloc(h: *PageMmapHeap, size: usize, align_bytes: usize)
   }
   let start: usize = ((h.off + a - 1) / a) * a;
   let end: usize = start + size;
-  if (end > h.cap || end < start) {
-    return 0;
+  if (end > h.cap) {
+    return 4 as *u8;
+  }
+  if (end < start) {
+    return 5 as *u8;
   }
   let out: *u8 = h.base + start;
   h.off = end;
