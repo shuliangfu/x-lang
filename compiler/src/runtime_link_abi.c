@@ -5065,6 +5065,19 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             argv[la++] = "-static";
             if (la < SHUX_LD_ARGV_CAP - 1)
                 argv[la++] = "--gc-sections";
+            /*
+             * G-03 freestanding co-emit 去重未做：dep 模块（如 linux.x）经多条 import 路径
+             * （std.sys → linux, page_mmap → linux, 直接 import linux）被 co-emit 多次，
+             * 同一 function 在 user.o 内重复定义（如 syscall_nr_write_amd64/arm64）。
+             * 【Why 根源】co-emit 不做 reach 过滤 + 所有函数在同一 .text section，
+             * --gc-sections 仅移除未引用 section，无法消除单 .o 内的同名重复定义。
+             * --allow-multiple-definition 让 ld 选第一个定义，与项目既有 weak+multi-def
+             * 模式（line 3565 PE/COFF、line 4919 core.mem）对齐。重复 function 体相同，安全。
+             * 【Invariant】仅 freestanding ld 路径；ELF weak 原生支持但 co-emit 产生强符号重复。
+             * 【Asm/Perf】链接期选第一个定义，无运行时开销。
+             */
+            if (la < SHUX_LD_ARGV_CAP - 1)
+                argv[la++] = "--allow-multiple-definition";
             argv[la++] = "-o";
             argv[la++] = exe_path;
             crt0_p = asm_link_obj_skip_missing(shux_crt0_user_o_path(link_eff));
