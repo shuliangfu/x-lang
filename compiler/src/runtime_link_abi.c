@@ -27,6 +27,7 @@
 #ifndef _WIN32
 #include <sys/wait.h>
 #endif
+#include <sys/stat.h>
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
@@ -5341,4 +5342,48 @@ int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char 
         return -1;
     return shux_asm_invoke_ld_platform(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots,
         freestanding);
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* G-02e：原 runtime_proc_abi.c 并入本 TU（产品链减 1 个手写 C 文件）。 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 等待子进程；EINTR 时重试，避免 invoke_cc/asm_invoke_ld 误判失败。
+ */
+int shu_waitpid_retry(pid_t pid, int *status_out) {
+    int st = 0;
+    for (;;) {
+        pid_t w = waitpid(pid, &st, 0);
+        if (w == pid) {
+            if (status_out)
+                *status_out = st;
+            return 0;
+        }
+        if (w == -1 && errno == EINTR)
+            continue;
+        {
+            int saved_errno = errno;
+            const char *err = strerror(saved_errno);
+            diag_reportf_with_code(NULL, 0, 0, "process error", SHUX_DIAG_CODE_PROCESS_PRC001, NULL,
+                                   "waitpid failed: %s",
+                                   err ? err : "unknown error");
+        }
+        return -1;
+    }
+}
+
+/**
+ * 仅当 path 指向已存在且非空的常规文件时返回 path，供 clang/ld argv 追加。
+ */
+const char *asm_link_obj_skip_missing(const char *path) {
+    struct stat st;
+    if (!path || !path[0])
+        return NULL;
+    if (stat(path, &st) != 0 || !S_ISREG(st.st_mode))
+        return NULL;
+    if (st.st_size <= 0)
+        return NULL;
+    return path;
 }

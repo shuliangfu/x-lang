@@ -3,8 +3,8 @@
 # 更新：SHUX_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh
 summary_std_c	0
 summary_core_c	0
-summary_compiler_src_c	113
-summary_total_c	113
+summary_compiler_src_c	112
+summary_total_c	112
 file	compiler/src/asm/asm_backend_compat_stubs.c
 file	compiler/src/asm/asm_experimental_symbol_bridge.c
 file	compiler/src/asm/backend_arch_emit_dispatch.c
@@ -114,7 +114,6 @@ file	compiler/src/runtime_io_abi.c
 file	compiler/src/runtime_link_abi.c
 file	compiler/src/runtime_pipeline_abi.c
 file	compiler/src/runtime_pipeline_abi_shux_c_stubs.c
-file	compiler/src/runtime_proc_abi.c
 file	compiler/src/seed_link_compat.c
 file	compiler/src/x_seed_bridge.c
 file	compiler/src/x_stubs.c

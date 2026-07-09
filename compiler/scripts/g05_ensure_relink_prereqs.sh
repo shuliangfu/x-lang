@@ -78,6 +78,17 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o typeck_x.o typeck_gen.c
     fi
   fi
+  # G-02e：产品链新增/并入的 C 源（如 runtime_heap_user）在远端可能尚无 .o
+  # shellcheck disable=SC2086
+  for o in $G05_OBJS; do
+    if [ -f "$o" ]; then
+      continue
+    fi
+    c="${o%.o}.c"
+    if [ -f "$c" ]; then
+      g05_cc_c "$o" "$c"
+    fi
+  done
 fi
 
 # --- 齐备检查 ---
