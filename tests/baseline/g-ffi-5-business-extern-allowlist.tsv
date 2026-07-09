@@ -1,0 +1,5 @@
+# G-FFI-5：业务 tests 允许保留 `extern` 声明的专项清单（调用须 unsafe，或整文件为语言/FFI 语法探针）
+# track_id	path	reason
+ffi_syntax	tests/x-pipeline/extern_abi_syntax.x	LANG extern ABI 语法探针（声明形态，非业务逻辑）
+ffi_putchar	tests/ffi/putchar.x	std/ffi 专项
+ffi_contract	tests/ffi/contract_extern_putchar.x	std/ffi 契约专项
