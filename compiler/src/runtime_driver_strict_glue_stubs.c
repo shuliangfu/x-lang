@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "token.h"
 
@@ -96,7 +97,8 @@ SHUX_WEAK char *preprocess(const char *source, size_t source_len, const char **d
 }
 
 SHUX_WEAK void driver_print_usage_c(void) {
-  fputs("Shux (stub)\nUsage: shux [options] file.x\n", stdout);
+  static const char msg[] = "Shux (stub)\nUsage: shux [options] file.x\n";
+  (void)write(STDOUT_FILENO, msg, sizeof(msg) - 1u);
 }
 
 SHUX_WEAK int shu_c_resolve_and_load_imports(ASTModule *mod, const char **lib_roots, int n_lib_roots,

@@ -6007,9 +6007,13 @@ int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
     return 0;
 }
 
-/** 打印 shux 用法摘要（stdout）；含 `-legacy-f32-abi` 与 release 默认说明。 */
+/**
+ * 打印 shux 用法摘要（fd 1）。
+ * 【Why write(1)】B-strict / -nostartfiles 链路上 libc 未完整初始化 stdout，
+ * fputs/fwrite 到 stdout 在 Linux 上可静默 0 字节；write(STDOUT_FILENO) 仍可靠。
+ */
 void driver_print_usage_c(void) {
-    fputs(
+    static const char usage[] =
         "Shux (shux) compiler\n"
         "\n"
         "Usage:\n"
@@ -6041,8 +6045,8 @@ void driver_print_usage_c(void) {
         "  SHUX_OPT          default -O level if omitted\n"
         "\n"
         "Release default: shux_asm -backend asm -O2 (f32 xmm ABI on unless legacy).\n"
-        "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n",
-        stdout);
+        "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
+    (void)write(STDOUT_FILENO, usage, sizeof(usage) - 1u);
 }
 
 /**
