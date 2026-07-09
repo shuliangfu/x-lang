@@ -35,12 +35,12 @@ extern function shux_sys_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: 
 /** freestanding munmap(2) 桩；成功 0，失败负 errno。 */
 extern function shux_sys_munmap(addr: *u8, len: usize): i32;
 
-/** 默认映射大小：64KiB（16 × 4KiB 页，够 freestanding smoke 与小工具）。 */
-const PAGE_MMAP_DEFAULT_CAP: usize = 65536;
-
-/** Linux MAP_PRIVATE | MAP_ANONYMOUS（与 linux_mmap_invoke_smoke 一致）。 */
-const PAGE_MMAP_PROT_RW: i32 = 1 | 2;
-const PAGE_MMAP_FLAGS: i32 = 2 | 0x20;
+/*
+ * bug ① 绕过（ASM 后端 store-to-stack 缺失）：模块级 const 在非首函数中引用时
+ * 栈槽预留但未初始化 → 读取垃圾值。此处删除模块级 const，在 page_mmap_heap_init
+ * 中内联字面量（65536=64KiB cap, 3=PROT_READ|PROT_WRITE, 0x22=MAP_PRIVATE|MAP_ANONYMOUS）。
+ * bug ① 根源修复（codegen.x emit block inits）完成后恢复模块级 const。
+ */
 
 /**
  * 单映射 bump 堆状态；调用方栈上持有，init/deinit 成对使用。
@@ -70,14 +70,15 @@ function page_mmap_heap_init(h: *PageMmapHeap): i32 {
   h.off = 0;
   let p: *u8 = 0 as *u8;
   unsafe {
-    p = shux_sys_mmap(0 as *u8, PAGE_MMAP_DEFAULT_CAP, PAGE_MMAP_PROT_RW, PAGE_MMAP_FLAGS, -1, 0 as i64);
+    // bug ① 绕过：内联字面量替代模块级 const 引用。
+    p = shux_sys_mmap(0 as *u8, 65536 as usize, 3, 0x22, -1, 0 as i64);
   }
-  let p_i: i64 = p as i64;
-  if (p_i <= 0) {
+  // bug ② 绕过：i64 <= 比较截断高 32 位误判 mmap 返回地址为负，改用指针 == 检测 MAP_FAILED。
+  if (p == -1 as *u8) {
     return -1;
   }
   h.base = p;
-  h.cap = PAGE_MMAP_DEFAULT_CAP;
+  h.cap = 65536 as usize;
   h.off = 0;
   return 0;
 }
