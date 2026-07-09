@@ -91,9 +91,7 @@ function page_mmap_heap_alloc(h: *PageMmapHeap, size: usize, align_bytes: usize)
   if (h == 0 as *PageMmapHeap) {
     return 1 as *u8;
   }
-  if (h.base == 0 as *u8) {
-    return 2 as *u8;
-  }
+  // 跳过 h.base == 0 检查（诊断：h.base load 是否误读为 0）
   if (size == 0) {
     return 3 as *u8;
   }
