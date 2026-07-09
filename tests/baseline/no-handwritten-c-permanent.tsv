@@ -151,3 +151,25 @@ file	compiler/src/std_fs_shim.c
 file	compiler/src/std_sys_shim.c
 file	compiler/src/typeck/typeck_f64_bits.c
 file	compiler/src/x_stubs.c
+# G-02d: parser_asm_*_slice.c (21 files, #include pattern with include guard)
+file	compiler/src/asm/parser_asm_as_suffix_slice.c
+file	compiler/src/asm/parser_asm_block_from_res_slice.c
+file	compiler/src/asm/parser_asm_body_let_slice.c
+file	compiler/src/asm/parser_asm_emit_heavy_stretch_slice.c
+file	compiler/src/asm/parser_asm_emit_heavy_stretch_suite_slice.c
+file	compiler/src/asm/parser_asm_expr_binop_slice.c
+file	compiler/src/asm/parser_asm_finish_struct_lit_slice.c
+file	compiler/src/asm/parser_asm_if_expr_slice.c
+file	compiler/src/asm/parser_asm_if_stmt_slice.c
+file	compiler/src/asm/parser_asm_library_slice.c
+file	compiler/src/asm/parser_asm_match_subject_slice.c
+file	compiler/src/asm/parser_asm_one_function_buf_slice.c
+file	compiler/src/asm/parser_asm_primary_slice.c
+file	compiler/src/asm/parser_asm_seed_parse_into_buf_slice.c
+file	compiler/src/asm/parser_asm_simd_builtin_slice.c
+file	compiler/src/asm/parser_asm_struct_layout_slice.c
+file	compiler/src/asm/parser_asm_ternary_assign_slice.c
+file	compiler/src/asm/parser_asm_top_level_let_slice.c
+file	compiler/src/asm/parser_asm_type_alias_slice.c
+file	compiler/src/asm/parser_asm_type_ref_slice.c
+file	compiler/src/asm/parser_asm_unary_slice.c
