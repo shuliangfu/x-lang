@@ -1,0 +1,54 @@
+# F-09 permanent C stubs — language limitation C glue (G-04 STRICT allowed)
+#
+# These files CANNOT be migrated to .x until language features are added:
+# - argv double pointers (char **argv)
+# - __attribute__((weak))
+# - #if / #ifdef conditional compilation
+# - va_list / vsnprintf (variadic functions)
+# - POSIX syscalls (waitpid/stat/open/mmap/pthread)
+# - C main() entry point
+# - #include preprocessor pattern (.inc.c)
+# - Third-party library (ed25519 ref10)
+#
+# G-04 STRICT mode: passes when all remaining .c are in this file.
+# Update: manually edit (do NOT auto-generate).
+#
+# G-02b: runtime ABI (9 files)
+file	compiler/src/main.c
+file	compiler/src/runtime.c
+file	compiler/src/runtime_abi.c
+file	compiler/src/runtime_driver_abi.c
+file	compiler/src/runtime_driver_diagnostic.c
+file	compiler/src/runtime_io_abi.c
+file	compiler/src/runtime_link_abi.c
+file	compiler/src/runtime_pipeline_abi.c
+file	compiler/src/runtime_proc_abi.c
+# G-02d: runtime_*_glue.c (16 files)
+file	compiler/src/asm/http/runtime_http_glue.c
+file	compiler/src/asm/runtime_arrow_simd_glue.c
+file	compiler/src/asm/runtime_ast_glue.c
+file	compiler/src/asm/runtime_atomic_glue.c
+file	compiler/src/asm/runtime_channel_glue.c
+file	compiler/src/asm/runtime_compress_zlib_glue.c
+file	compiler/src/asm/runtime_crypto_inc_glue.c
+file	compiler/src/asm/runtime_ed25519_ref10_glue.c
+file	compiler/src/asm/runtime_kv_mmap_glue.c
+file	compiler/src/asm/runtime_lexer_glue.c
+file	compiler/src/asm/runtime_lsp_glue.c
+file	compiler/src/asm/runtime_process_os_glue.c
+file	compiler/src/asm/runtime_scheduler_glue.c
+file	compiler/src/asm/runtime_slice_glue.c
+file	compiler/src/asm/runtime_sqlite_glue.c
+file	compiler/src/asm/runtime_thread_glue.c
+# G-02d: crypto/ed25519 third-party (7 files)
+file	compiler/src/asm/crypto/ed25519/fe.c
+file	compiler/src/asm/crypto/ed25519/ge.c
+file	compiler/src/asm/crypto/ed25519/keypair.c
+file	compiler/src/asm/crypto/ed25519/sc.c
+file	compiler/src/asm/crypto/ed25519/sha512.c
+file	compiler/src/asm/crypto/ed25519/sign.c
+file	compiler/src/asm/crypto/ed25519/verify.c
+# G-02d: build_*.c (3 files, language limitation)
+file	compiler/src/build_runtime.c
+file	compiler/src/build_tool_libc_bridge.c
+file	compiler/src/build_tool_main.c

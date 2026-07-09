@@ -5,6 +5,9 @@
 #   . tests/lib/no-handwritten-c-audit.sh
 #   nhc_collect_scope_c | nhc_audit_whitelist tests/baseline/no-handwritten-c-whitelist.tsv
 
+# 永久 C 桩白名单（语言限制 C glue，STRICT 模式允许保留）
+NHC_PERMANENT_STUBS="${NHC_PERMANENT_STUBS:-tests/baseline/no-handwritten-c-permanent.tsv}"
+
 # 收集 F-09 审计范围内的全部 .c（相对仓库根路径，LC_ALL=C 排序）。
 nhc_collect_scope_c() {
   {
@@ -40,8 +43,14 @@ nhc_write_snapshot_tsv() {
   } >"$out"
 }
 
+# 读取永久 C 桩列表（LC_ALL=C 排序）。
+nhc_collect_permanent_stubs() {
+  [ -f "$NHC_PERMANENT_STUBS" ] || return 0
+  awk -F'\t' '$1=="file" { print $2 }' "$NHC_PERMANENT_STUBS" | LC_ALL=C sort -u
+}
+
 # 对比当前磁盘与 baseline；返回 0=OK，1=有新增未登记 .c，2=baseline 缺失。
-# 环境：NHC_AUDIT_STRICT=1 时 whitelist 非空也视为失败（终局零 C 模式）。
+# 环境：NHC_AUDIT_STRICT=1 时检查非永久桩 .c 是否归零（G-04 终局模式）。
 nhc_audit_whitelist() {
   local baseline="${1:-tests/baseline/no-handwritten-c-whitelist.tsv}"
   local strict="${NHC_AUDIT_STRICT:-0}"
@@ -79,10 +88,24 @@ nhc_audit_whitelist() {
     echo "nhc-audit OK (std+core+compiler/src total=${total}; baseline ${base_total})"
   fi
 
+  # G-04 STRICT：检查非永久桩 .c 是否归零
   if [ "$strict" = "1" ] && [ "$total" -gt 0 ] 2>/dev/null; then
-    echo "nhc-audit STRICT FAIL: ${total} handwritten .c remain (F-09终局要求 0)" >&2
-    rm -f "$tmp" "$cur"
-    return 1
+    local perm_n nonperm_n perm_lst
+    perm_lst="/tmp/shux_nhc_perm.$$.lst"
+    nhc_collect_permanent_stubs >"$perm_lst"
+    perm_n=$(wc -l <"$perm_lst" | tr -d ' ')
+    # 非永久桩 = 当前 .c 中不在永久桩列表的
+    nonperm_n=$(comm -23 "$cur" "$perm_lst" | wc -l | tr -d ' ')
+    if [ "$nonperm_n" -gt 0 ] 2>/dev/null; then
+      echo "nhc-audit STRICT FAIL: ${nonperm_n}/${total} .c are NOT permanent stubs (need .x migration):" >&2
+      comm -23 "$cur" "$perm_lst" | head -30 >&2
+      echo "  (${perm_n} permanent stubs in $NHC_PERMANENT_STUBS)" >&2
+      rm -f "$tmp" "$cur" "$perm_lst"
+      return 1
+    else
+      echo "nhc-audit STRICT OK: all ${total} .c are permanent stubs (language limitation C glue)"
+    fi
+    rm -f "$perm_lst"
   fi
 
   rm -f "$tmp" "$cur"
