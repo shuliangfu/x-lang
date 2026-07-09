@@ -3,8 +3,8 @@
 # 更新：SHUX_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh
 summary_std_c	0
 summary_core_c	0
-summary_compiler_src_c	111
-summary_total_c	111
+summary_compiler_src_c	110
+summary_total_c	110
 file	compiler/src/asm/asm_backend_compat_stubs.c
 file	compiler/src/asm/asm_experimental_symbol_bridge.c
 file	compiler/src/asm/backend_arch_emit_dispatch.c
@@ -87,7 +87,6 @@ file	compiler/src/async/async_liveness.c
 file	compiler/src/build_runtime.c
 file	compiler/src/build_tool_libc_bridge.c
 file	compiler/src/build_tool_main.c
-file	compiler/src/codegen/codegen_pipeline_stubs.c
 file	compiler/src/diag.c
 file	compiler/src/driver/fmt_check_cmd.c
 file	compiler/src/driver/target_cpu.c

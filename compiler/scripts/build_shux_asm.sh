@@ -3774,7 +3774,7 @@ ensure_runtime_driver_asm_strict_obj() {
 # bootstrap-driver-seed DRIVER_SEED_SUPPORT_EXTRA 对齐：X 前端 experimental 链缺 C codegen/lexer 时的桩。
 ensure_asm_bootstrap_support_extra_objs() {
   local o
-  o="src/codegen/codegen_pipeline_stubs.o"
+  o=""
   if [ ! -f "$o" ] || [ "src/codegen/codegen_pipeline_stubs.c" -nt "$o" ]; then
     echo "  cc -c $o <- src/codegen/codegen_pipeline_stubs.c (cfg/WPO/C-codegen stubs)"
     "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/codegen/codegen_pipeline_stubs.c
@@ -3812,7 +3812,7 @@ ensure_asm_bootstrap_support_extra_objs() {
 
 # experimental / strict runtime 链：与 Makefile DRIVER_SEED_SUPPORT_EXTRA 一致。
 asm_bootstrap_support_extra_link() {
-  echo "src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_heap_user.o"
+  echo "src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_heap_user.o"
 }
 
 # 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。

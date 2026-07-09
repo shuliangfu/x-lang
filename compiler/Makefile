@@ -55,7 +55,7 @@ endif
 TARGET  = shux
 SRCS    = src/main.c src/runtime.c src/async/async_liveness.c src/async/async_cps_codegen.c
 # OBJS_CORE：G-06 默认 shux-c=bootstrap_shuxc；仅 SHUX_LEGACY_C_FRONTEND=1 时链下列 runtime 桩（无 C 前端 .c）。
-OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
+OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 # 考古冷启动：完整 C 前端 shux-c（仅用于生成/刷新 seeds/ 预编译种子）
 OBJS_CORE = src/main.o src/runtime.o src/diag.o src/driver/fmt_check_cmd.o src/lexer/lexer.o src/lexer/cfg_eval_bootstrap_stub.o src/ast/ast.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_c_import.o
@@ -687,8 +687,6 @@ src/lsp/lsp_codegen_extern.o: src/lsp/lsp_codegen_extern.c src/lsp/lsp_codegen_e
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # SHUX_NO_C_FRONTEND 实验链接：满足 pipeline 对 codegen_set_* 的引用，无 codegen.c
-src/codegen/codegen_pipeline_stubs.o: src/codegen/codegen_pipeline_stubs.c include/ast.h src/codegen/codegen.h
-	$(CC) $(CFLAGS) -c -o $@ $<
 
 # G-02-B1：cfg_eval 仅 cfg_eval.x（无 cfg_eval.c 回退）。
 # cold bootstrap 时 shux-c 默认 pipeline 可能挂起；timeout 后回退 -E-extern / stub。
@@ -951,7 +949,7 @@ $(error typeck_f64_bits: unsupported OS $(UNAME_S); add .s)
 endif
 
 clean:
-	rm -f $(OBJS) src/main_driver.o src/runtime_driver.o src/runtime_driver_no_c.o src/runtime_x.o src/main_x.o src/ast/ast_seed.o src/preprocess_for_driver.o src/codegen/codegen_pipeline_stubs.o ../std/process/process.o ../std/string/string.o ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o ../std/time/time.o ../std/random/random.o ../std/env/env.o ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o ../std/csv/csv.o ../std/regex/regex.o ../std/compress/compress.o ../std/unicode/unicode.o ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/test/test.o src/asm/runtime_asm_build.o src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o src/lsp/lsp_state.o src/lsp/lsp_diag_pipeline_sizes.o lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_x_alias.o lsp_io_std_heap_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(TARGET) shux-x shux-no-c-frontend $(SHUX_C) $(TARGET)_stage1 $(TARGET)_stage2 $(TARGET)_x $(TARGET)_x_stage2 typeck_gen.c typeck_x.o codegen_gen.c codegen_x.o parser_gen.c parser_x.o driver_gen.c driver_x.o driver_fmt_gen.c driver_check_gen.c driver_test_gen.c driver_fmt_x.o driver_check_x.o driver_test_x.o _stubs_driver.o pipeline_gen.c pipeline_x.o typeck_x_x.c typeck_x_x.o codegen_x_x.c codegen_x_x.o build_gen.c build_runner_gen.c build_runtime_x_gen.c build_tool.o build_runner.o build_runtime.o build_runtime_x.o build_tool runtime_panic.o shux_asm preprocess_gen.c preprocess_x.o
+	rm -f $(OBJS) src/main_driver.o src/runtime_driver.o src/runtime_driver_no_c.o src/runtime_x.o src/main_x.o src/ast/ast_seed.o src/preprocess_for_driver.o ../std/process/process.o ../std/string/string.o ../std/runtime/runtime.o ../std/net/net.o ../std/thread/thread.o ../std/time/time.o ../std/random/random.o ../std/env/env.o ../std/sync/sync.o ../std/encoding/encoding.o ../std/base64/base64.o ../std/crypto/crypto.o ../std/log/log.o ../std/atomic/atomic.o ../std/channel/channel.o ../std/backtrace/backtrace.o ../std/hash/hash.o ../std/math/math.o ../std/sort/sort.o ../std/ffi/ffi.o ../std/json/json.o ../std/csv/csv.o ../std/regex/regex.o ../std/compress/compress.o ../std/unicode/unicode.o ../std/dynlib/dynlib.o ../std/http/http.o ../std/tar/tar.o ../std/test/test.o src/asm/runtime_asm_build.o src/asm/crt0_x86_64.o src/typeck/typeck_f64_bits.o src/lsp/lsp_state.o src/lsp/lsp_diag_pipeline_sizes.o lsp_io_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_x_alias.o lsp_io_std_heap_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(TARGET) shux-x shux-no-c-frontend $(SHUX_C) $(TARGET)_stage1 $(TARGET)_stage2 $(TARGET)_x $(TARGET)_x_stage2 typeck_gen.c typeck_x.o codegen_gen.c codegen_x.o parser_gen.c parser_x.o driver_gen.c driver_x.o driver_fmt_gen.c driver_check_gen.c driver_test_gen.c driver_fmt_x.o driver_check_x.o driver_test_x.o _stubs_driver.o pipeline_gen.c pipeline_x.o typeck_x_x.c typeck_x_x.o codegen_x_x.c codegen_x_x.o build_gen.c build_runner_gen.c build_runtime_x_gen.c build_tool.o build_runner.o build_runtime.o build_runtime_x.o build_tool runtime_panic.o shux_asm preprocess_gen.c preprocess_x.o
 	rm -rf build_asm build build_final build_manual build_v5 build_v7
 	rm -f bootstrap_shux shux_asm2 shux_x_dbg shux_stage1_test a.out
 	rm -f .lldb_* *.bak pipeline_gen.c.bak lsp_gen.c.bak
@@ -1452,7 +1450,7 @@ else ifeq ($(SHUX_NO_C_SEED_LINK),1)
 # 非 SHUX_NO_C_FRONTEND 编译单元引用（lsp_diag.c 未走 no_c 守卫，仍需符号满足链接）。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_heap_user.o
+DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_heap_user.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 else
@@ -1460,7 +1458,7 @@ else
 # 2026-07-08：从 seed-compat 切换到 no_c；macOS arm64 check ✅、compile 走 -E+cc fallback ✅；Linux x86_64 全绿。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_heap_user.o
+DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_heap_user.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 endif
@@ -2094,7 +2092,7 @@ bootstrap-driver-seed-user-asm: bootstrap-driver-seed
 	@echo "bootstrap-driver-seed-user-asm OK (= bootstrap-driver-seed + USER_ASM_LINK)"
 
 # 实验：不链 C lexer/parser/typeck/codegen；依赖已成功的 bootstrap-driver-seed 产物。(-E-extern / 泛型单态 C 路径不可用)
-DRIVER_NO_C_FRONTEND_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o src/runtime_driver_no_c.o $(PREPROCESS_LINK_O) $(AST_LINK_O) src/codegen/codegen_pipeline_stubs.o src/typeck/typeck_f64_bits.o
+DRIVER_NO_C_FRONTEND_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o src/runtime_driver_no_c.o $(PREPROCESS_LINK_O) $(AST_LINK_O) src/typeck/typeck_f64_bits.o
 shux-no-c-frontend: $(DRIVER_NO_C_FRONTEND_OBJS) src/lsp/lsp_diag_stubs_no_c.o
 	@test -f driver_x.o && test -f pipeline_x.o && test -f preprocess_x.o || (echo "请先 make bootstrap-driver-seed" && exit 1)
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS) -o $@ $(DRIVER_NO_C_FRONTEND_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_x_alias.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_state.o src/lsp/lsp_diag_stubs_no_c.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)

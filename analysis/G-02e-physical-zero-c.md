@@ -35,6 +35,7 @@
 | G-02e-3 | **include 碎片改名**：`*.inc.c` / `parser_asm_*_slice.c` / ed25519 被 include 的 `.c` → **`.inc`**（不再计入手写 C 审计）；逻辑仍由 glue TU 编译 | ✅ 171→113 |
 | G-02e-4 | `runtime_proc_abi.c`→`runtime_link_abi.c`；g05_ensure 自动补编缺失产品 `.o`；G05 −1 obj | ✅ 113→112 |
 | G-02e-5 | `runtime_abi.c`→`runtime_link_abi.c`（argv/target + nostdlib weak）；G05 −1 obj | ✅ 112→111 |
+| G-02e-6 | `codegen_pipeline_stubs.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 111→110 |
 
 ## 4. 建议下一刀（工作量升序）
 

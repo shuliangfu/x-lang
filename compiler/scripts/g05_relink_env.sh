@@ -72,7 +72,7 @@ esac
 
 # 默认 no_c DRIVER_SEED 支撑（与 Makefile else 分支一致）
 # G-02e: typeck_c_module_stubs 并入 runtime_driver_strict_glue_stubs；heap 用 runtime_heap_user
-_DRIVER_SEED_SUPPORT="src/runtime_driver_strict_glue_stubs.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_heap_user.o"
+_DRIVER_SEED_SUPPORT="src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_heap_user.o"
 _X_FRONTEND="parser_x.o lexer_x.o lexer_x_link_alias.o typeck_x.o codegen_x.o typeck_x_link_alias.o codegen_x_link_alias.o"
 _DRIVER_SUBCMD="driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o"
 _GLUE_SUFFIX="build_asm/pipeline_glue_strict_minimal.o"

@@ -113,7 +113,6 @@ file	compiler/src/async/async_liveness.c
 file	compiler/src/build_runtime.c
 file	compiler/src/build_tool_libc_bridge.c
 file	compiler/src/build_tool_main.c
-file	compiler/src/codegen/codegen_pipeline_stubs.c
 file	compiler/src/diag.c
 file	compiler/src/driver/fmt_check_cmd.c
 file	compiler/src/driver/target_cpu.c
