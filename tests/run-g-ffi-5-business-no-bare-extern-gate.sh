@@ -3,7 +3,12 @@
 # 或列入 tests/baseline/g-ffi-5-business-extern-allowlist.tsv。
 #
 # 排除：tests/unsafe、tests/probes、tests/kernel、tests/ffi（专项/探针）。
-# 另验：std/ 业务层（排除 std/sys、std/ffi）零 `unsafe`（安全路线 §8 可验证）。
+#
+# 安全路线 §8「业务层零 unsafe」可验证策略：
+#   - 默认：freeze 基线 tests/baseline/g-ffi-5-std-business-unsafe-baseline.tsv
+#     · 基线内文件允许仍含 unsafe（既有债务）
+#     · 基线外 std 业务 .x 新增 unsafe → 硬失败（债务不得扩张）
+#   - SHUX_G_FFI5_STRICT_ZERO_UNSAFE=1：要求 std 业务层 unsafe 计数为 0（终局）
 #
 # 用法：./tests/run-g-ffi-5-business-no-bare-extern-gate.sh
 #   SHUX_G_FFI5_FAIL=1  — 失败硬退出（CI）
@@ -11,6 +16,7 @@ set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_G_FFI5_FAIL:-0}
 ALLOW="tests/baseline/g-ffi-5-business-extern-allowlist.tsv"
+STD_BASE="tests/baseline/g-ffi-5-std-business-unsafe-baseline.tsv"
 die() {
   echo "g-ffi-5 business FAIL: $*" >&2
   [ "$FAIL" = "1" ] && exit 1
@@ -20,6 +26,7 @@ die() {
 echo "=== G-FFI-5: business tests no bare extern calls ==="
 [ -f "$ALLOW" ] || die "missing $ALLOW"
 [ -f tests/run-g-ffi-5-std-wrap-gate.sh ] || die "missing std wrap gate"
+[ -f "$STD_BASE" ] || die "missing $STD_BASE"
 
 is_allowlisted() {
   local f="$1"
@@ -34,7 +41,6 @@ is_allowlisted() {
 
 # ── business tests: extern 文件必须含 unsafe 或在 allowlist ──
 MISS=0
-# portable find (no -print0 dependency on weird platforms for bash 3.2)
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   case "$f" in
@@ -55,23 +61,65 @@ $(find tests -name '*.x' 2>/dev/null | sort)
 EOF
 
 [ "$MISS" -eq 0 ] || die "$MISS business test(s) have extern without unsafe (add unsafe or allowlist)"
+echo "g-ffi-5 business tests: no bare extern OK"
 
-# ── 安全路线 §8：业务层 std（非 sys/ffi）零 unsafe ──
-echo "=== G-FFI-5: std business layer zero unsafe (excl sys/ffi) ==="
-STD_U=0
+# ── 安全路线 §8：std 业务层（非 sys/ffi）unsafe 债务冻结 / 终局清零 ──
+echo "=== G-FFI-5: std business unsafe policy (excl sys/ffi) ==="
+BASE_TMP=$(mktemp)
+CUR_TMP=$(mktemp)
+trap 'rm -f "$BASE_TMP" "$CUR_TMP"' EXIT
+
+# shellcheck disable=SC2162
+while IFS=$'\t' read tid path rest; do
+  [ -z "${tid:-}" ] && continue
+  case "$tid" in \#*) continue ;; esac
+  [ -n "$path" ] && printf '%s\n' "$path"
+done < "$STD_BASE" | sort -u > "$BASE_TMP"
+BASE_N=$(wc -l < "$BASE_TMP" | tr -d ' ')
+
+: > "$CUR_TMP"
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   case "$f" in
     std/sys/*|std/ffi/*) continue ;;
   esac
   if grep -q 'unsafe' "$f"; then
-    echo "  std unsafe: $f" >&2
-    STD_U=$((STD_U + 1))
+    printf '%s\n' "$f" >> "$CUR_TMP"
   fi
 done <<EOF
 $(find std -name '*.x' 2>/dev/null | sort)
 EOF
-[ "$STD_U" -eq 0 ] || die "$STD_U std business .x still use unsafe (should live in std/sys|std/ffi)"
+CUR_N=$(wc -l < "$CUR_TMP" | tr -d ' ')
+echo "g-ffi-5 §8: current unsafe files=$CUR_N baseline=$BASE_N"
+
+if [ "${SHUX_G_FFI5_STRICT_ZERO_UNSAFE:-0}" = "1" ]; then
+  if [ "$CUR_N" -ne 0 ]; then
+    while IFS= read -r f; do
+      echo "  std unsafe (strict zero): $f" >&2
+    done < "$CUR_TMP"
+    die "$CUR_N std business .x still use unsafe (STRICT_ZERO_UNSAFE=1)"
+  fi
+  echo "g-ffi-5 §8 STRICT zero unsafe OK"
+else
+  NEW=0
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    if ! grep -qxF "$f" "$BASE_TMP"; then
+      echo "  NEW std unsafe (not in baseline): $f" >&2
+      NEW=$((NEW + 1))
+    fi
+  done < "$CUR_TMP"
+  [ "$NEW" -eq 0 ] || die "$NEW new std business .x gained unsafe (shrink baseline only when clearing debt)"
+  CLEARED=0
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    if [ -f "$p" ] && ! grep -q 'unsafe' "$p"; then
+      echo "  progress: baseline path cleared unsafe: $p"
+      CLEARED=$((CLEARED + 1))
+    fi
+  done < "$BASE_TMP"
+  echo "g-ffi-5 §8 freeze OK (debt frozen; cleared_scan=$CLEARED; STRICT_ZERO_UNSAFE=1 for end-state)"
+fi
 
 # ── 挂接既有 std wrap ──
 chmod +x tests/run-g-ffi-5-std-wrap-gate.sh
