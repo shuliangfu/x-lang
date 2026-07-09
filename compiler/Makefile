@@ -2068,10 +2068,15 @@ relink-shux: bootstrap_shuxc $(RELINK_SHUX_PREREQS)
 	@mkdir -p build_asm/seed_host
 	@$(MAKE) $(USER_ASM_SEED_HOST_STUBS)
 	@if [ -n "$(strip $(RELINK_SHUX_FILTERED_OBJS))" ]; then $(MAKE) $(RELINK_SHUX_FILTERED_OBJS); fi
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_SHUX_PIPELINE_LINK_O) pipeline_bootstrap_orchestration.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_x_alias.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_SHUX_USER_ASM_LINK) $(RELINK_SHUX_GLUE_SUFFIX)
-	cp -f $(TARGET) $(SHUX_C)
-	cp -f $(TARGET) bootstrap_shuxc
-	@echo "relink-shux OK (shux-c synced)"
+	@# G-05：最终链接迁入 scripts/g05_relink_shux.sh（依赖图仍由本 Makefile 保证）
+	@G05_CC="$(CC)" \
+	  G05_CFLAGS="$(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS)" \
+	  G05_OUT="$(TARGET)" \
+	  G05_SHUX_C="$(SHUX_C)" \
+	  G05_BOOTSTRAP="bootstrap_shuxc" \
+	  G05_OBJS="$(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_SHUX_PIPELINE_LINK_O) pipeline_bootstrap_orchestration.o lsp_x.o lsp_diag_x.o src/lsp/lsp_diag_x_alias.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) _stubs_driver.o src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_SHUX_USER_ASM_LINK) $(RELINK_SHUX_GLUE_SUFFIX)" \
+	  sh scripts/g05_relink_shux.sh
+	@echo "relink-shux OK (via g05_relink_shux.sh)"
 
 relink-shux-lexer: lexer_x.o
 	@test -f build_asm/seed_host/asm_backend_partial.o || (echo "relink-shux-lexer: need build_asm/seed_host/asm_backend_partial.o (make build-seed-asm-host)" >&2; exit 1)

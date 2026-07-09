@@ -24,5 +24,5 @@ if [ "${SHUX_BUILD_TOOL_FULL:-}" = "1" ]; then
   exec make bootstrap-driver-bstrict
 fi
 
-echo "g05_build_shux_asm: default → make shux_asm (relink gold)"
+echo "g05_build_shux_asm: default → make shux_asm (relink gold → g05_relink_shux.sh)"
 exec make shux_asm

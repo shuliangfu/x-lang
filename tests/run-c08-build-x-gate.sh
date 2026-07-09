@@ -34,6 +34,15 @@ grep -q 'bootstrap-driver-bstrict' compiler/scripts/g05_build_shux_asm.sh || {
   echo "c08 build-x FAIL: g05_build_shux_asm.sh missing FULL=1 bstrict path" >&2
   exit 1
 }
+# G-05 最终链接迁出 Makefile recipe → g05_relink_shux.sh
+[ -f compiler/scripts/g05_relink_shux.sh ] || {
+  echo "c08 build-x FAIL: missing compiler/scripts/g05_relink_shux.sh" >&2
+  exit 1
+}
+grep -q 'g05_relink_shux.sh' compiler/Makefile || {
+  echo "c08 build-x FAIL: Makefile relink-shux must invoke g05_relink_shux.sh" >&2
+  exit 1
+}
 
 # 根 Makefile 日常目标委托 shux-build.sh（G-05 物理收缩：顶层不再直调 compiler）
 grep -q 'shux-build.sh' Makefile || {
