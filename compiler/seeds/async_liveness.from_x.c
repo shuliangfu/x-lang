@@ -541,7 +541,8 @@ int block_rest_refs_var(const struct ASTBlock *b, int from_exclusive,
 
 
 /** 将 name 插入 out（去重，超上限静默丢弃）。 */
-void frame_live_add_impl(AsyncFrameLive *out, const char *name) {
+/* G-02f-162：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void frame_live_add(AsyncFrameLive *out, const char *name) {
     if (!out || !name || !name[0]) return;
     for (int i = 0; i < out->n; i++)
         if (strcmp(out->names[i], name) == 0) return;
@@ -549,11 +550,6 @@ void frame_live_add_impl(AsyncFrameLive *out, const char *name) {
     strncpy(out->names[out->n], name, sizeof(out->names[0]) - 1);
     out->names[out->n][sizeof(out->names[0]) - 1] = '\0';
     out->n++;
-}
-void frame_live_add(AsyncFrameLive *out, const char *name) {
-  {
-    frame_live_add_impl(out, name);
-  }
 }
 
 

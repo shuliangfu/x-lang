@@ -3,6 +3,7 @@
 //
 // G-02f-18：async_liveness 产品源迁 seeds/async_liveness.from_x.c。
 // G-02f-161：frame_mangle_ident / frame_build_tag 真迁 .x。
+// G-02f-162：frame_live_add 真迁 .x（AsyncFrameLive names@0 n@4096）。
 // 产品：cc seeds/async_liveness.from_x.c → src/async/async_liveness.o
 
 function async_liveness_x_doc_anchor(): i32 {
@@ -16,7 +17,6 @@ extern "C" function block_has_io_read_await_impl(b: *u8): i32;
 extern "C" function block_has_io_write_await_impl(b: *u8): i32;
 extern "C" function block_refs_var_impl(b: *u8, name: *u8): i32;
 extern "C" function block_rest_refs_var_impl(b: *u8, from: i32, name: *u8): i32;
-extern "C" function frame_live_add_impl(out: *u8, name: *u8): void;
 
 /* ---- G-02f-108 / G-02f-132：async_liveness helpers ---- */
 
@@ -99,9 +99,96 @@ function block_rest_refs_var(b: *u8, from: i32, name: *u8): i32 {
   return 0;
 }
 
+// G-02f-162：AsyncFrameLive — names[64][64] @0，n:i32 @4096
+function frame_live_load_n(out: *u8): i32 {
+  if (out == 0) { return 0; }
+  let q: *u8 = out;
+  let i: i32 = 0;
+  while (i < 4096) {
+    q = q + 1;
+    i = i + 1;
+  }
+  let m: i32 = 256;
+  let a: i32 = q[0] as i32;
+  a = a + (q[1] as i32) * m;
+  a = a + (q[2] as i32) * m * m;
+  a = a + (q[3] as i32) * m * m * m;
+  return a;
+}
+
+function frame_live_store_n(out: *u8, n: i32): void {
+  if (out == 0) { return; }
+  let q: *u8 = out;
+  let i: i32 = 0;
+  while (i < 4096) {
+    q = q + 1;
+    i = i + 1;
+  }
+  let a: i32 = n;
+  let m: i32 = 256;
+  if (a < 0) { a = 0; }
+  q[0] = (a % m) as u8;
+  a = a / m;
+  q[1] = (a % m) as u8;
+  a = a / m;
+  q[2] = (a % m) as u8;
+  a = a / m;
+  q[3] = (a % m) as u8;
+}
+
+function frame_live_row_ptr(out: *u8, idx: i32): *u8 {
+  if (out == 0) { return 0 as *u8; }
+  let q: *u8 = out;
+  let off: i32 = idx * 64;
+  let i: i32 = 0;
+  while (i < off) {
+    q = q + 1;
+    i = i + 1;
+  }
+  return q;
+}
+
+function frame_live_name_eq(row: *u8, name: *u8): i32 {
+  if (row == 0) { return 0; }
+  if (name == 0) { return 0; }
+  let i: i32 = 0;
+  while (i < 64) {
+    let a: u8 = row[i];
+    let b: u8 = name[i];
+    if (a != b) { return 0; }
+    if (a == 0) { return 1; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+// G-02f-162：插入去重（超 64 静默丢弃）
 #[no_mangle]
 function frame_live_add(out: *u8, name: *u8): void {
-  unsafe { frame_live_add_impl(out, name); }
+  if (out == 0) { return; }
+  if (name == 0) { return; }
+  if (name[0] == 0) { return; }
+  let n: i32 = frame_live_load_n(out);
+  if (n < 0) { n = 0; }
+  if (n > 64) { n = 64; }
+  let i: i32 = 0;
+  while (i < n) {
+    let row: *u8 = frame_live_row_ptr(out, i);
+    if (frame_live_name_eq(row, name) != 0) { return; }
+    i = i + 1;
+  }
+  if (n >= 64) { return; }
+  let dst: *u8 = frame_live_row_ptr(out, n);
+  if (dst == 0) { return; }
+  let j: i32 = 0;
+  while (j < 63) {
+    let c: u8 = name[j];
+    if (c == 0) { break; }
+    dst[j] = c;
+    j = j + 1;
+  }
+  dst[j] = 0;
+  frame_live_store_n(out, n + 1);
 }
 
 // G-02f-110：+ expr await/refs + frame analyze 薄门闩。
