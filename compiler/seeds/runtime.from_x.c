@@ -5744,7 +5744,8 @@ int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, ui
 }
 
 /** 兼容旧符号名；新路径 compile.x 经 compile_dispatch_* 调 impl_c。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-312：dispatch thin → rt_dispatch_thin hybrid */
+#ifndef SHUX_RT_DISPATCH_THIN_FROM_X
 int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                  int32_t argc, uint8_t *argv) {
     return driver_run_asm_backend_impl_c(input_path, out_path, lib_key, target, argc, argv);
@@ -5755,7 +5756,6 @@ int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t
 
 /** C 后端 C 桥：供 compile.x 调用（want_asm_backend=0 走 driver_run_compiler_parsed）。 */
 /** 含 import 时 seed 的 X codegen 易重复符号；若同目录有 shux-c 则委托其完成 -o 链接（与 run-hello 一致）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     char shu_c[512];
     const char *self;
@@ -5813,6 +5813,11 @@ int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     }
 #endif
 }
+#else
+int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+                                 int32_t argc, uint8_t *argv);
+int driver_try_compile_via_shu_c_sibling(int argc, char **argv);
+#endif
 
 
 
@@ -5850,11 +5855,16 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
 }
 
 /** 兼容旧符号名；新路径 compile.x 经 compile_dispatch_* 调 impl_c。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-312：dispatch thin → rt_dispatch_thin hybrid */
+#ifndef SHUX_RT_DISPATCH_THIN_FROM_X
 int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                  uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
     return driver_run_emit_c_path_impl_c(input_path, out_path, lib_key, target, opt_level, use_lto, argc, argv);
 }
+#else
+int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+                                 uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv);
+#endif
 
 
 
@@ -6683,7 +6693,8 @@ int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
 /**
  * 完整编译入口：argv 解析在 driver/compile.x；B-strict shux_asm 走 impl_c（完整 parse_argv+finalize），避免 X emit 的 driver_run_compiler_full_x 在 strict 链 silent fail。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-312：dispatch thin → rt_dispatch_thin hybrid */
+#ifndef SHUX_RT_DISPATCH_THIN_FROM_X
 int driver_run_compiler_full(int argc, char **argv) {
 #if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
     return (int)driver_run_compiler_full_x_impl_c((int32_t)argc, (uint8_t *)argv);
@@ -6692,6 +6703,10 @@ int driver_run_compiler_full(int argc, char **argv) {
     return (int)driver_run_compiler_full_x((int32_t)argc, (uint8_t *)argv);
 #endif
 }
+#else
+int driver_run_compiler_full(int argc, char **argv);
+int labi_rt_dispatch_thin_slice_marker(void);
+#endif
 
 
 
