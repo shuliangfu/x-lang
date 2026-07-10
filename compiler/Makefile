@@ -1226,20 +1226,21 @@ src/asm/user_asm_seed_bridge.o: src/asm/user_asm_seed_bridge.inc scripts/cc_inc_
 src/asm/asm_backend_compat_stubs.o: src/asm/asm_backend_compat_stubs.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc $@
 
-src/asm/backend_enc_dispatch.o: src/asm/backend_enc_dispatch.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/backend_enc_dispatch.inc $@ -I. -Iinclude -Isrc
+# G-02f-9：backend_*_dispatch 产品 seed 单 TU
+src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/backend_enc_dispatch.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_enc_dispatch.from_x.c -o $@
 
 src/asm/backend_x86_64_enc_c.o: src/asm/backend_x86_64_enc_c.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/backend_x86_64_enc_c.inc $@
 
-src/asm/backend_arch_emit_dispatch.o: src/asm/backend_arch_emit_dispatch.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/backend_arch_emit_dispatch.inc $@ -I. -Iinclude -Isrc
+src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c src/asm/backend_arch_emit_dispatch.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_arch_emit_dispatch.from_x.c -o $@
 
-src/asm/backend_try_inline_dispatch.o: src/asm/backend_try_inline_dispatch.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/backend_try_inline_dispatch.inc $@ -I. -Iinclude -Isrc
+src/asm/backend_try_inline_dispatch.o: seeds/backend_try_inline_dispatch.from_x.c src/asm/backend_try_inline_dispatch.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_try_inline_dispatch.from_x.c -o $@
 
-src/asm/backend_call_dispatch.o: src/asm/backend_call_dispatch.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/backend_call_dispatch.inc $@ -I. -Iinclude -Isrc
+src/asm/backend_call_dispatch.o: seeds/backend_call_dispatch.from_x.c src/asm/backend_call_dispatch.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_call_dispatch.from_x.c -o $@
 
 # parser EMIT_HEAVY thin delegate C 目标：bootstrap shux 须链入，extern bl 白名单 emit 才不 segfault。
 # 全量 parser_x.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。

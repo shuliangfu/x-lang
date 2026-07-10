@@ -3125,21 +3125,32 @@ ensure_bstrict_seed_support_objs() {
   echo " cc -c src/asm/asm_backend_compat_stubs.inc -> src/asm/asm_backend_compat_stubs.o"
   sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc src/asm/asm_backend_compat_stubs.o
   fi
-  for _disp in backend_enc_dispatch backend_x86_64_enc_c backend_arch_emit_dispatch backend_try_inline_dispatch backend_call_dispatch; do
-  if [ ! -f "src/asm/${_disp}.o" ] || [ "src/asm/${_disp}.c" -nt "src/asm/${_disp}.o" ]; then
-  echo " cc -c src/asm/${_disp}.c -> src/asm/${_disp}.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "src/asm/${_disp}.o" "src/asm/${_disp}.c"
+  for _disp in backend_enc_dispatch backend_arch_emit_dispatch backend_try_inline_dispatch backend_call_dispatch; do
+  if [ -f "seeds/${_disp}.from_x.c" ]; then
+  if [ ! -f "src/asm/${_disp}.o" ] || [ "seeds/${_disp}.from_x.c" -nt "src/asm/${_disp}.o" ]; then
+  echo " cc -c seeds/${_disp}.from_x.c -> src/asm/${_disp}.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "src/asm/${_disp}.o" "seeds/${_disp}.from_x.c"
+  fi
+  elif [ -f "src/asm/${_disp}.inc" ]; then
+  if [ ! -f "src/asm/${_disp}.o" ] || [ "src/asm/${_disp}.inc" -nt "src/asm/${_disp}.o" ]; then
+  echo " cc -c src/asm/${_disp}.inc -> src/asm/${_disp}.o"
+  sh scripts/cc_inc_tu.sh "src/asm/${_disp}.inc" "src/asm/${_disp}.o" -I. -Iinclude -Isrc
+  fi
   fi
   done
+  if [ ! -f src/asm/backend_x86_64_enc_c.o ] || [ "src/asm/backend_x86_64_enc_c.inc" -nt src/asm/backend_x86_64_enc_c.o ]; then
+  echo " cc -c src/asm/backend_x86_64_enc_c.inc -> src/asm/backend_x86_64_enc_c.o"
+  sh scripts/cc_inc_tu.sh src/asm/backend_x86_64_enc_c.inc src/asm/backend_x86_64_enc_c.o -I. -Iinclude -Isrc
+  fi
   if [ ! -f src/driver/fmt_check_cmd_driver.o ] \
   || [ "src/driver/fmt_check_cmd.inc" -nt src/driver/fmt_check_cmd_driver.o ]; then
   echo " cc -c src/driver/fmt_check_cmd.inc -> src/driver/fmt_check_cmd_driver.o"
   sh scripts/cc_inc_tu.sh src/driver/fmt_check_cmd.inc src/driver/fmt_check_cmd_driver.o -DSHUX_USE_X_PIPELINE
   fi
   if [ ! -f src/driver/target_cpu.o ] \
-  || [ "src/driver/target_cpu.inc" -nt src/driver/target_cpu.o ]; then
-  echo " cc -c src/driver/target_cpu.inc -> src/driver/target_cpu.o"
-  sh scripts/cc_inc_tu.sh src/driver/target_cpu.inc src/driver/target_cpu.o -I. -Iinclude -Isrc
+  || [ "seeds/target_cpu_pure.from_x.c" -nt src/driver/target_cpu.o ]; then
+  echo " cc -c seeds/target_cpu_pure.from_x.c -> src/driver/target_cpu.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c seeds/target_cpu_pure.from_x.c -o src/driver/target_cpu.o
   fi
   if [ ! -f src/asm/simd_enc.o ] \
   || [ "seeds/simd_enc.from_x.c" -nt src/asm/simd_enc.o ]; then
