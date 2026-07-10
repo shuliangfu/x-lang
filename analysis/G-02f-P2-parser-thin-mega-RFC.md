@@ -256,3 +256,4 @@ nm -g parser_asm_thin_glue.o | head
 | 2026-07-11 | **f-319 P10 glue tail**：`pthin_glue.*` + `parser_asm_glue_tail_slice.inc`（≈6.5k `*_glue` + 晚期 skip/lex）；`SHUX_PTHIN_GLUE_FROM_X`；prefer hybrid **P1–P7+P9+P10+rest**；rest T **≈86** |
 | 2026-07-11 | **f-320 P11 imports**：`pthin_imports.*` + `parser_asm_imports_slice.inc`（skip/collect_imports 簇 ≈1.8k）；`SHUX_PTHIN_IMPORTS_FROM_X`；prefer hybrid **P1–P7+P9–P11+rest**；rest T **≈77** |
 | 2026-07-11 | **f-321 P12 skip_tl**：`pthin_skip_tl.*` + `parser_asm_skip_tl_slice.inc`（struct/enum/trait/impl/extern skip ≈1.4k）；`SHUX_PTHIN_SKIP_TL_FROM_X`；prefer hybrid **P1–P7+P9–P12+rest**；rest T **≈64** |
+| 2026-07-11 | **f-322 P13 try_skip_allow**：`pthin_try_skip_allow.*` + `parser_asm_try_skip_allow_slice.inc`（allow(padding) 跳过 ≈1.6k）；`SHUX_PTHIN_TRY_SKIP_ALLOW_FROM_X`；prefer hybrid **P1–P7+P9–P13+rest**；rest T **≈59** |
