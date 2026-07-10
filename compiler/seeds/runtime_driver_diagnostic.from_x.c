@@ -1,4 +1,6 @@
-/* Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-180 P0-4 audit + va_list lock; G-02f-179 asm notes true .x; G-02f-178 padding true .x; G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
+/* G-02f-339：PREFER hybrid thin 由 src/runtime_driver_diagnostic_thin.x→-E；
+ * rest 用 SHUX_L2_RDD_THIN_FROM_X（public 门闩→_impl）。
+ * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-180 P0-4 audit + va_list lock; G-02f-179 asm notes true .x; G-02f-178 padding true .x; G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
  * .x covers: fixed typeck msgs (f-30/31) + remaining diags gated f-73
@@ -17,6 +19,7 @@
 #include <string.h>
 
 /* G-02f-73 diagnostic gates */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, const uint8_t *name);
 void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind);
@@ -67,7 +70,61 @@ extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
 
 /** 供 .x 读 lsp_diag_enabled（G-02f-163）。 */
-int lsp_diag_get_enabled(void) {
+int lsp_diag_get_enabled(void)
+#else
+void driver_diagnostic_parse_fail_impl(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
+void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, const uint8_t *name);
+void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind);
+void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen, int32_t base_resolved_ref, int32_t num_struct_layouts);
+void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref);
+void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref, int32_t right_ref, int32_t left_kind, int32_t right_kind, int32_t left_block_ref, int32_t right_block_ref, int32_t left_ty_ref, int32_t right_ty_ref, const uint8_t *left_ty, int32_t left_ty_len, const uint8_t *right_ty, int32_t right_ty_len);
+void driver_diagnostic_parser_onefunc_param_ref(const uint8_t *func_name, int32_t func_name_len, const uint8_t *param_name, int32_t param_name_len, int32_t stage, int32_t param_idx, int32_t type_ref);
+void driver_diagnostic_typeck_return_mismatch(int32_t line, int32_t col, const uint8_t *expect_buf, int32_t expect_len, const uint8_t *found_buf, int32_t found_len);
+void driver_diagnostic_typeck_return_unresolved(int32_t line, int32_t col, const uint8_t *expr_buf, int32_t expr_len);
+void driver_diagnostic_typeck_return_subexpr(int32_t line, int32_t col, const uint8_t *expr_buf, int32_t expr_len);
+void driver_diagnostic_typeck_call_not_generic(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
+void driver_diagnostic_typeck_call_wrong_num_type_args(int32_t line, int32_t col, const uint8_t *name, int32_t name_len, int32_t expect_n, int32_t got_n);
+void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
+void driver_diagnostic_typeck_import_const_must_be_qualified(int32_t line, int32_t col, const uint8_t *name, int32_t name_len, const uint8_t *binding, int32_t binding_len);
+void driver_diagnostic_typeck_struct_padding_before(const uint8_t *sname, int32_t sname_len, int32_t gap, const uint8_t *fname, int32_t fname_len);
+void driver_diagnostic_typeck_struct_padding_trailing(const uint8_t *sname, int32_t sname_len, int32_t gap);
+void driver_diagnostic_typeck_struct_field_bad_size(const uint8_t *sname, int32_t sname_len, const uint8_t *fname, int32_t fname_len);
+void driver_diagnostic_typeck_assign_mismatch(int32_t is_compound, int32_t line, int32_t col, const uint8_t *expect_buf, int32_t expect_len, const uint8_t *found_buf, int32_t found_len);
+void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, int32_t n_const, int32_t n_let, int32_t n_loop, int32_t n_for, int32_t n_expr, int32_t final_ref);
+void driver_diagnostic_typeck_fn_enter(int32_t func_idx, const uint8_t *name, int32_t name_len);
+void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *name, int32_t name_len, int32_t func_idx, int32_t block_ref, int32_t source, int32_t type_ref);
+
+void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, const uint8_t *name);
+void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len, int32_t num_generic_params, int32_t is_main);
+void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len, int32_t phase, int32_t block_ref, int32_t pool_num_consts, int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions, int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets, int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order, int32_t final_expr_ref);
+void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len, int32_t phase, int32_t block_ref, int32_t pool_num_consts, int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions, int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets, int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order, int32_t final_expr_ref);
+void driver_diagnostic_after_entry_parse_module(void *module);
+
+void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep);
+void driver_diagnostic_codegen_emit_func_fail(void *module, int32_t func_index);
+void driver_diagnostic_asm_unsupported_expr(int32_t kind);
+void driver_diagnostic_asm_elf_unresolved_patch(const uint8_t *name, int32_t len);
+void driver_diagnostic_asm_macho_empty_reloc(int32_t reloc_idx);
+void driver_diagnostic_asm_macho_missing_und_reloc(int32_t reloc_idx);
+void driver_diagnostic_asm_print_current_func(void);
+void driver_diagnostic_asm_var_not_found(const uint8_t *name, int32_t len, int32_t num_locals, const uint8_t *first_slot, int32_t first_len);
+void driver_diagnostic_asm_fail_at(int32_t loc);
+void driver_debug_log(int32_t step);
+void parser_diag_tok_kind(int32_t k);
+void parser_diag_ident_len(int32_t len);
+void parser_diag_scan_fail(int32_t step);
+int parser_is_ident_allow(const uint8_t *ident, int len);
+void driver_diagnostic_warn_pad_fields_same_cache_line(const uint8_t *sname, int32_t sname_len, const uint8_t *f0, int32_t f0_len, const uint8_t *f1, int32_t f1_len);
+void driver_diagnostic_warn_hot_reorder_field(const uint8_t *sname, int32_t sname_len, const uint8_t *hot, int32_t hot_len, const uint8_t *cold, int32_t cold_len);
+void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
+
+extern int32_t pipeline_module_num_funcs(void *module);
+extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
+
+/** 供 .x 读 lsp_diag_enabled（G-02f-163）。 */
+int lsp_diag_get_enabled(void)
+#endif
+{
     return lsp_diag_enabled ? 1 : 0;
 }
 
@@ -124,7 +181,12 @@ int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src, int32
 
 
 
-void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types)
+#else
+void driver_diagnostic_parse_fail_impl(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types)
+#endif
+{
     driver_diag_report_x_pipeline_code("XP001",
                                         ".x parse failed (main_idx=%d, num_funcs=%d, arena_num_types=%d)",
                                         (int)main_idx, (int)num_funcs, (int)arena_num_types);
@@ -160,8 +222,14 @@ int32_t driver_parse_strict_enabled(void) {
  * byte_pos 为源缓冲字节偏移；name 可为 NULL。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
-                                           const uint8_t *name) {
+                                           const uint8_t *name)
+#else
+void driver_diagnostic_parse_skip_function_impl(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                           const uint8_t *name)
+#endif
+{
     const char *tag;
     char namebuf[72];
     if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
@@ -206,7 +274,12 @@ void driver_diagnostic_typeck_fail(void) {
  * kind：5 = check_block 失败；-6 = 非 void 函数块末隐式尾表达式。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind)
+#else
+void driver_diagnostic_typeck_func_fail_impl(int32_t func_idx, const uint8_t *name, int32_t name_len, int32_t kind)
+#endif
+{
     char namebuf[72];
     int nl = (name && name_len > 0 && name_len <= 64) ? (int)name_len : 0;
     const char *why = kind == -6 ? "implicit tail return" : "check_block failed";
@@ -236,8 +309,14 @@ void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, i
 
 /** 诊断：FIELD_ACCESS 时 base 的类型与 *T 指向名；SHUX_TYPECK_PTR=1 时打印（含模块已登记的 struct_layouts 条数）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen, int32_t base_resolved_ref,
-                                      int32_t num_struct_layouts) {
+                                      int32_t num_struct_layouts)
+#else
+void driver_diagnostic_typeck_ptr_field_impl(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen, int32_t base_resolved_ref,
+                                      int32_t num_struct_layouts)
+#endif
+{
     if (!getenv("SHUX_TYPECK_PTR"))
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -250,7 +329,12 @@ void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int
 
 /** 诊断：EXPR_RETURN 失败；SHUX_TYPECK_RET=1 时额外打印 ref 调试。stage 1=operand check_expr -1；2=got 与期望 return_type_ref 不一致。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref)
+#else
+void driver_diagnostic_typeck_ret_fail_impl(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref)
+#endif
+{
     if (getenv("SHUX_TYPECK_RET")) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "typeck return debug: stage=%d op_expr_ref=%d expect_ty_ref=%d got_ty_ref=%d",
@@ -262,12 +346,22 @@ void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref, int32_t right_ref,
                                              int32_t left_kind, int32_t right_kind,
                                              int32_t left_block_ref, int32_t right_block_ref,
                                              int32_t left_ty_ref, int32_t right_ty_ref,
                                              const uint8_t *left_ty, int32_t left_ty_len,
-                                             const uint8_t *right_ty, int32_t right_ty_len) {
+                                             const uint8_t *right_ty, int32_t right_ty_len)
+#else
+void driver_diagnostic_typeck_binop_operands_impl(int32_t expr_ref, int32_t left_ref, int32_t right_ref,
+                                             int32_t left_kind, int32_t right_kind,
+                                             int32_t left_block_ref, int32_t right_block_ref,
+                                             int32_t left_ty_ref, int32_t right_ty_ref,
+                                             const uint8_t *left_ty, int32_t left_ty_len,
+                                             const uint8_t *right_ty, int32_t right_ty_len)
+#endif
+{
     char left_buf[112];
     char right_buf[112];
     if (!getenv("SHUX_TYPECK_BINOP"))
@@ -284,9 +378,16 @@ void driver_diagnostic_typeck_binop_operands(int32_t expr_ref, int32_t left_ref,
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parser_onefunc_param_ref(const uint8_t *func_name, int32_t func_name_len,
                                                 const uint8_t *param_name, int32_t param_name_len,
-                                                int32_t stage, int32_t param_idx, int32_t type_ref) {
+                                                int32_t stage, int32_t param_idx, int32_t type_ref)
+#else
+void driver_diagnostic_parser_onefunc_param_ref_impl(const uint8_t *func_name, int32_t func_name_len,
+                                                const uint8_t *param_name, int32_t param_name_len,
+                                                int32_t stage, int32_t param_idx, int32_t type_ref)
+#endif
+{
     char func_buf[72];
     char param_buf[72];
     if (!getenv("SHUX_PARSE_PARAM"))
@@ -487,9 +588,16 @@ void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col) {
 
 /** .x typeck：import 顶层 const 裸名访问时打印，与 typeck.c TYPECK_ERR 措辞对齐。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_import_const_must_be_qualified(int32_t line, int32_t col, const uint8_t *name,
                                                              int32_t name_len, const uint8_t *binding,
-                                                             int32_t binding_len) {
+                                                             int32_t binding_len)
+#else
+void driver_diagnostic_typeck_import_const_must_be_qualified_impl(int32_t line, int32_t col, const uint8_t *name,
+                                                             int32_t name_len, const uint8_t *binding,
+                                                             int32_t binding_len)
+#endif
+{
     if (binding && binding_len > 0) {
         lsp_diag_report_typeck((int)line, (int)col,
                                "import constant '%.*s' must be qualified; use %.*s.%.*s",
@@ -611,8 +719,14 @@ uint8_t *driver_typeck_diag_scratch_found(void) { return g_type_diag_scratch_fou
 
 /** 诊断：check_block_impl 入口打印块计数；SHUX_TYPECK_BLOCK=1（常与 SHUX_TYPECK_FN 同用）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, int32_t n_const, int32_t n_let, int32_t n_loop,
-                                          int32_t n_for, int32_t n_expr, int32_t final_ref) {
+                                          int32_t n_for, int32_t n_expr, int32_t final_ref)
+#else
+void driver_diagnostic_typeck_block_enter_impl(int32_t func_idx, int32_t block_ref, int32_t n_const, int32_t n_let, int32_t n_loop,
+                                          int32_t n_for, int32_t n_expr, int32_t final_ref)
+#endif
+{
     if (!getenv("SHUX_TYPECK_BLOCK"))
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -625,7 +739,12 @@ void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, i
 
 /** 诊断：typeck_x_ast_impl 逐函数入口；SHUX_TYPECK_FN=1 时打印 func_idx 与名称。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void driver_diagnostic_typeck_fn_enter(int32_t func_idx, const uint8_t *name, int32_t name_len) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_typeck_fn_enter(int32_t func_idx, const uint8_t *name, int32_t name_len)
+#else
+void driver_diagnostic_typeck_fn_enter_impl(int32_t func_idx, const uint8_t *name, int32_t name_len)
+#endif
+{
     char namebuf[72];
     if (!getenv("SHUX_TYPECK_FN"))
         return;
@@ -640,8 +759,14 @@ void driver_diagnostic_typeck_fn_enter(int32_t func_idx, const uint8_t *name, in
 
 /** 诊断：EXPR_VAR 解析来源；SHUX_TYPECK_VAR=1 时打印。source 1=block, 2=param, 3=top-level。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *name, int32_t name_len,
-                                             int32_t func_idx, int32_t block_ref, int32_t source, int32_t type_ref) {
+                                             int32_t func_idx, int32_t block_ref, int32_t source, int32_t type_ref)
+#else
+void driver_diagnostic_typeck_var_resolution_impl(int32_t expr_ref, const uint8_t *name, int32_t name_len,
+                                             int32_t func_idx, int32_t block_ref, int32_t source, int32_t type_ref)
+#endif
+{
     char namebuf[72];
     if (!getenv("SHUX_TYPECK_VAR"))
         return;
@@ -713,8 +838,14 @@ extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
  * 大模块 typeck 单函数 commit 失败时不应整文件 abort，由 seed parse 改 skip+continue。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
-                                         const uint8_t *name) {
+                                         const uint8_t *name)
+#else
+void driver_diagnostic_parse_commit_fail_impl(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len,
+                                         const uint8_t *name)
+#endif
+{
     const char *tag;
     char namebuf[72];
     int nl = (name && name_len > 0 && name_len < 64) ? (int)name_len : 0;
@@ -740,8 +871,14 @@ void driver_diagnostic_parse_commit_fail(int32_t byte_pos, int32_t num_funcs_so_
  * 环境变量 SHUX_DEBUG_PARSE_GENERIC=1。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
-                                          int32_t num_generic_params, int32_t is_main) {
+                                          int32_t num_generic_params, int32_t is_main)
+#else
+void driver_diagnostic_parse_func_generic_impl(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
+                                          int32_t num_generic_params, int32_t is_main)
+#endif
+{
     char namebuf[72];
     if (!getenv("SHUX_DEBUG_PARSE_GENERIC"))
         return;
@@ -760,12 +897,22 @@ void driver_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so
  * 环境变量 SHUX_DEBUG_PARSE_COMMIT=1。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
                                           int32_t phase, int32_t block_ref, int32_t pool_num_consts,
                                           int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions,
                                           int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets,
                                           int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order,
-                                          int32_t final_expr_ref) {
+                                          int32_t final_expr_ref)
+#else
+void driver_diagnostic_parse_commit_shape_impl(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
+                                          int32_t phase, int32_t block_ref, int32_t pool_num_consts,
+                                          int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions,
+                                          int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets,
+                                          int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order,
+                                          int32_t final_expr_ref)
+#endif
+{
     char namebuf[72];
     const char *phase_name;
     if (!getenv("SHUX_DEBUG_PARSE_COMMIT"))
@@ -784,12 +931,22 @@ void driver_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
                                           int32_t phase, int32_t block_ref, int32_t pool_num_consts,
                                           int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions,
                                           int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets,
                                           int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order,
-                                          int32_t final_expr_ref) {
+                                          int32_t final_expr_ref)
+#else
+void parser_diagnostic_parse_commit_shape_impl(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len,
+                                          int32_t phase, int32_t block_ref, int32_t pool_num_consts,
+                                          int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions,
+                                          int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets,
+                                          int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order,
+                                          int32_t final_expr_ref)
+#endif
+{
     driver_diagnostic_parse_commit_shape(byte_pos, num_funcs_so_far, name, name_len, phase, block_ref, pool_num_consts,
                                          pool_num_lets, pool_num_ifs, pool_num_regions, pool_num_stmt_order,
                                          block_num_consts, block_num_lets, block_num_ifs, block_num_regions,
@@ -803,7 +960,12 @@ void parser_diagnostic_parse_commit_shape(int32_t byte_pos, int32_t num_funcs_so
  * 诊断：entry 解析后 num_funcs / num_defined / num_extern 分项（A-11 typeck 截断：target num_defined=146）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void driver_diagnostic_after_entry_parse_module(void *module) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_after_entry_parse_module(void *module)
+#else
+void driver_diagnostic_after_entry_parse_module_impl(void *module)
+#endif
+{
     int32_t nf, i, ndef, next;
     if (!getenv("SHUX_DEBUG_PIPE") || !module)
         return;
@@ -852,7 +1014,12 @@ void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len) {
 
 /** codegen 失败时打印是第几个 dep（is_dep!=0）还是当前模块（is_dep==0），便于定位 -6。需要时取消注释 fprintf。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep)
+#else
+void driver_diagnostic_codegen_fail_impl(int32_t dep_index, int32_t is_dep)
+#endif
+{
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "codegen failed at %s (dep_index=%d)",
                  is_dep ? "dependency emission" : "entry module emission", (int)dep_index);
@@ -863,7 +1030,12 @@ void driver_diagnostic_codegen_fail(int32_t dep_index, int32_t is_dep) {
 
 /** codegen emit_func 失败时打印函数下标与名称（pipeline_glue / ast_pool 提供读 API）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void driver_diagnostic_codegen_emit_func_fail(void *module, int32_t func_index) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_codegen_emit_func_fail(void *module, int32_t func_index)
+#else
+void driver_diagnostic_codegen_emit_func_fail_impl(void *module, int32_t func_index)
+#endif
+{
     extern int32_t pipeline_module_func_name_len_at(void *m, int32_t fi);
     extern uint8_t pipeline_module_func_name_byte_at(void *m, int32_t fi, int32_t bi);
     int32_t nl;
@@ -970,7 +1142,12 @@ void driver_diagnostic_asm_set_current_func(const uint8_t *name, int32_t len) {
 
 /** backend_asm_codegen_ast_to_elf 返回 -1 时打印当前函数名（SHUX_ASM_DEBUG）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void driver_diagnostic_asm_print_current_func(void) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_asm_print_current_func(void)
+#else
+void driver_diagnostic_asm_print_current_func_impl(void)
+#endif
+{
     if (driver_diagnostic_asm_current_func_len > 0)
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "asm codegen failed in func=%.*s",
@@ -985,8 +1162,14 @@ void driver_diagnostic_asm_print_current_func(void) {
 
 /** asm 后端：EXPR_VAR 在 local_offset 未找到时由 backend.x 调用；若 num_locals>0 可传首槽名 first_slot/first_len 便于对比。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_asm_var_not_found(const uint8_t *name, int32_t len, int32_t num_locals,
-    const uint8_t *first_slot, int32_t first_len) {
+    const uint8_t *first_slot, int32_t first_len)
+#else
+void driver_diagnostic_asm_var_not_found_impl(const uint8_t *name, int32_t len, int32_t num_locals,
+    const uint8_t *first_slot, int32_t first_len)
+#endif
+{
     char namebuf[65];
     char firstbuf[65];
     const char *func_name = "?";
@@ -1014,7 +1197,12 @@ void driver_diagnostic_asm_var_not_found(const uint8_t *name, int32_t len, int32
 
 /** asm 后端：返回 -1 前调用，loc 表示失败位置（1=section_text 2=globl 3=label 4=prologue 5=block_body 6=block_inits 7=emit_expr 8=epilogue），便于定位 rc=-6。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void driver_diagnostic_asm_fail_at(int32_t loc) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_asm_fail_at(int32_t loc)
+#else
+void driver_diagnostic_asm_fail_at_impl(int32_t loc)
+#endif
+{
     const char *func_name = "?";
     int func_name_len = 1;
     if (driver_diagnostic_asm_current_func_len > 0) {
@@ -1036,7 +1224,12 @@ void driver_diagnostic_asm_fail_at(int32_t loc) {
 
 
 
-void driver_debug_log(int32_t step) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_debug_log(int32_t step)
+#else
+void driver_debug_log_impl(int32_t step)
+#endif
+{
     if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1047,7 +1240,12 @@ void driver_debug_log(int32_t step) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-void parser_diag_tok_kind(int32_t k) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void parser_diag_tok_kind(int32_t k)
+#else
+void parser_diag_tok_kind_impl(int32_t k)
+#endif
+{
     if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1058,7 +1256,12 @@ void parser_diag_tok_kind(int32_t k) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-void parser_diag_ident_len(int32_t len) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void parser_diag_ident_len(int32_t len)
+#else
+void parser_diag_ident_len_impl(int32_t len)
+#endif
+{
     if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1069,7 +1272,12 @@ void parser_diag_ident_len(int32_t len) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-void parser_diag_scan_fail(int32_t step) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void parser_diag_scan_fail(int32_t step)
+#else
+void parser_diag_scan_fail_impl(int32_t step)
+#endif
+{
     if (!getenv("SHUX_DEBUG_PARSE") && !driver_parse_strict_enabled())
         return;
     diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1088,8 +1296,14 @@ int parser_is_ident_allow(const uint8_t *ident, int len) {
 /** DOD-CL -pad-fields：相邻 atomic-sized 与普通字段同 cache line 且无 align(64) 分隔。
  * 须在 #if SHUX_USE_X_PIPELINE 外：C 前端 typeck.o（shux-c）也调用。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_warn_pad_fields_same_cache_line(const uint8_t *sname, int32_t sname_len, const uint8_t *f0,
-                                                       int32_t f0_len, const uint8_t *f1, int32_t f1_len) {
+                                                       int32_t f0_len, const uint8_t *f1, int32_t f1_len)
+#else
+void driver_diagnostic_warn_pad_fields_same_cache_line_impl(const uint8_t *sname, int32_t sname_len, const uint8_t *f0,
+                                                       int32_t f0_len, const uint8_t *f1, int32_t f1_len)
+#endif
+{
     char msg[384];
     snprintf(msg, sizeof msg,
              "-pad-fields: struct '%.*s' fields '%.*s' and '%.*s' share a 64-byte cache line; "
@@ -1108,8 +1322,14 @@ void driver_diagnostic_warn_pad_fields_same_cache_line(const uint8_t *sname, int
 
 /** DOD-CL-S2 -hot-reorder：热标量字段宜置大字段之前；C 前端 typeck.o 亦调用。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDD_THIN_FROM_X
 void driver_diagnostic_warn_hot_reorder_field(const uint8_t *sname, int32_t sname_len, const uint8_t *hot,
-                                              int32_t hot_len, const uint8_t *cold, int32_t cold_len) {
+                                              int32_t hot_len, const uint8_t *cold, int32_t cold_len)
+#else
+void driver_diagnostic_warn_hot_reorder_field_impl(const uint8_t *sname, int32_t sname_len, const uint8_t *hot,
+                                              int32_t hot_len, const uint8_t *cold, int32_t cold_len)
+#endif
+{
     char msg[256];
     snprintf(msg, sizeof msg,
              "-hot-reorder: struct '%.*s': consider moving hot field '%.*s' before '%.*s'",
@@ -1127,7 +1347,12 @@ void driver_diagnostic_warn_hot_reorder_field(const uint8_t *sname, int32_t snam
 
 /** L6-unused-hint：未使用的 let/const/import 绑定（SHUX_UNUSED_HINT=1；info 层，默认不阻断 check）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint8_t *name, int32_t name_len) {
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint8_t *name, int32_t name_len)
+#else
+void driver_diagnostic_hint_unused_binding_impl(int32_t line, int32_t col, const uint8_t *name, int32_t name_len)
+#endif
+{
     char msg[160];
     int ln = (line > 0) ? (int)line : 1;
     int cl = (col > 0) ? (int)col : 1;

@@ -843,19 +843,47 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-12：runtime_driver_abi / diagnostic seeds
-  for _pair in     "src/runtime_driver_abi.o:seeds/runtime_driver_abi.from_x.c"     "src/runtime_driver_diagnostic.o:seeds/runtime_driver_diagnostic.from_x.c"
-  do
-    _o="${_pair%%:*}"
-    _s="${_pair#*:}"
-    if [ -f "$_s" ]; then
-      if [ ! -f "$_o" ] || [ "$_s" -nt "$_o" ]; then
-        echo "g05_ensure: $_o ← seed (G-02f-12)"
+  # G-02f-12：runtime_driver_abi seed
+  _rdabi=seeds/runtime_driver_abi.from_x.c
+  if [ -f "$_rdabi" ]; then
+    if [ ! -f src/runtime_driver_abi.o ] || [ "$_rdabi" -nt src/runtime_driver_abi.o ]; then
+      echo "g05_ensure: src/runtime_driver_abi.o ← seed (G-02f-12)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_driver_abi.o "$_rdabi"
+    fi
+  fi
+  # G-02f-12 / G-02f-339：runtime_driver_diagnostic.o
+  # 默认整 seed；PREFER_X_O=1 时 diagnostic_thin.x（28 _impl 门闩）+ seed-rest ld -r
+  _rdd=seeds/runtime_driver_diagnostic.from_x.c
+  _rdd_thin_x=src/runtime_driver_diagnostic_thin.x
+  _rdd_o=src/runtime_driver_diagnostic.o
+  if [ -f "$_rdd" ]; then
+    if [ ! -f "$_rdd_o" ] || [ "$_rdd" -nt "$_rdd_o" ] \
+      || { [ -f "$_rdd_thin_x" ] && [ "$_rdd_thin_x" -nt "$_rdd_o" ]; }; then
+      _rdd_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rdd_thin_x" ]; then
+        _rdd_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdd_thin.XXXXXX") || true
+        _rdd_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdd_rest.XXXXXX") || true
         # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_o" "$_s"
+        if [ -n "$_rdd_thin_o" ] && [ -n "$_rdd_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_rdd_thin_x" "$_rdd_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RDD_THIN_FROM_X \
+               -c -o "$_rdd_rest_o" "$_rdd" \
+          && $CC -r -nostdlib -o "$_rdd_o" "$_rdd_thin_o" "$_rdd_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_rdd_o ← $_rdd_thin_x + seed-rest (G-02f-339 L2 hybrid diagnostic thin)"
+          _rdd_done=1
+        else
+          echo "g05_ensure: L2 hybrid runtime_driver_diagnostic failed; fallback full seed" >&2
+        fi
+        rm -f "$_rdd_thin_o" "$_rdd_rest_o"
+      fi
+      if [ "$_rdd_done" = "0" ]; then
+        echo "g05_ensure: $_rdd_o ← seed (G-02f-12)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rdd_o" "$_rdd"
       fi
     fi
-  done
+  fi
   # G-02f-12 / G-02f-331：lsp_diag_pipeline_ctx.o
   # 默认整 seed；PREFER_X_O=1 时 thin.x（别名门闩）+ seed-rest（C 尾 / _impl）ld -r
   _ldpc=seeds/lsp_diag_pipeline_ctx.from_x.c
