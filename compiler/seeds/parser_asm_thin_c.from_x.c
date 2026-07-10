@@ -6461,10 +6461,15 @@ void parser_asm_parse_assign_into_slice_c(void *arena, struct parser_asm_lexer l
                                          struct parser_asm_parse_expr_result *out);
 int labi_pthin_expr_ternary_slice_marker(void);
 #endif
-/* G-02f-290 P9 stretch lite：默认 #include；hybrid 时在 pthin_stretch.from_x.c
- * （suite ≈28k 仍下方 #include，不 hybrid） */
+/* G-02f-290/318 P9 stretch lite + suite：默认 #include；hybrid 时在 pthin_stretch.from_x.c */
 #ifndef SHUX_PTHIN_STRETCH_FROM_X
 #include "parser_asm_emit_heavy_stretch_slice.inc"
+struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
+                                                            struct parser_asm_slice_u8 *source);
+struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
+    struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+#include "parser_asm_emit_heavy_stretch_suite_slice.inc"
 #else
 int32_t parser_asm_stretch_token_run_len_c(int32_t kind);
 int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t path_len);
@@ -6480,13 +6485,13 @@ int32_t parser_asm_stretch_import_path_finalize_c(uint8_t *path_buf, int32_t pat
                                                   size_t source_len);
 int32_t parser_asm_stretch_bind_name_validate_c(const uint8_t *name, int32_t len);
 int labi_pthin_stretch_slice_marker(void);
-#endif
+int labi_pthin_stretch_suite_slice_marker(void);
 struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
                                                             struct parser_asm_slice_u8 *source);
 struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-#include "parser_asm_emit_heavy_stretch_suite_slice.inc"
+#endif
 #ifndef PARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 /* 瘦 parser_x.o 无 parse_into_buf 时由 seed slice 提供；全量 parser_x.o 链入时 Makefile 定义 NO_SEED_PARSE。 */
 /* G-02f-289 P8 seed_parse：默认 #include；hybrid 时在 pthin_seed_parse.from_x.c */

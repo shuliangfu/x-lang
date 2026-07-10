@@ -1062,7 +1062,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                -c -o "$_pthin_p9_o" "$_pthin_p9_seed"; then
             _pthin_p9_ok=1
             _pthin_rest_defs="$_pthin_rest_defs -DSHUX_PTHIN_STRETCH_FROM_X"
-            echo "g05_ensure: P9 stretch lite ← $_pthin_p9_seed (G-02f-290 seed slice; suite still rest)"
+            echo "g05_ensure: P9 stretch+suite ← $_pthin_p9_seed (G-02f-318 seed slice)"
           fi
         fi
         # G-02f-289 P8：仅 smoke -c（不进产品 hybrid ld -r；产品 rest 仍 NO_SEED_PARSE）
@@ -1121,7 +1121,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
           # shellcheck disable=SC2086
           if $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link "$_pthin_rest_o" 2>/dev/null; then
-            echo "g05_ensure: parser_asm_thin_glue.o ← P1–P7+P9 + thin rest (G-02f-290 hybrid; P8 smoke-only; suite in rest)"
+            echo "g05_ensure: parser_asm_thin_glue.o ← P1–P7+P9(stretch+suite) + thin rest (G-02f-318 hybrid; P8 smoke-only)"
             _pthin_done=1
           fi
         fi
