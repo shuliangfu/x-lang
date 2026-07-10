@@ -27,6 +27,7 @@
 // G-02f-238：pipeline_read_file 分阶段 pure；collect seed 队列 helper。
 // G-02f-239：parse_into_loaded pure；dep_prerun/large_stack 边界 pure。
 // G-02f-240：preprocess_raw_to_malloc + asm_codegen large_stack 边界 pure。
+// G-02f-241：thread_fn 边界 pure；collect process_one helper；emit prepare 边界。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -1810,8 +1811,15 @@ function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, d
 
 /* ---- G-02f-61：asm emit 编排 / large_stack codegen / load+merge paths ---- */
 
+// G-02f-241：entry emit 准备编排 pure（null 早退）
 #[no_mangle]
 function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *u8): void {
+  if (module == 0 as *u8) {
+    return;
+  }
+  if (arena == 0 as *u8) {
+    return;
+  }
   unsafe {
     asm_skip_heavy_set_pipeline_ctx(pctx);
     pipeline_fill_array_lit_types_for_skipped_typeck(module, arena);
@@ -2499,18 +2507,26 @@ function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, d
 
 
 
-/* ---- G-02f-95：pipeline large-stack thread fns 门闩 ---- */
+/* ---- G-02f-95 / G-02f-241：pipeline large-stack thread fns ---- */
 
+// G-02f-241：null 早退 pure；args 解包/run 仍 impl
 #[no_mangle]
 function pipeline_run_x_thread_fn(arg: *u8): *u8 {
+  if (arg == 0 as *u8) {
+    return 0 as *u8;
+  }
   unsafe {
     return pipeline_run_x_thread_fn_impl(arg);
   }
   return 0 as *u8;
 }
 
+// G-02f-241：null 早退 pure
 #[no_mangle]
 function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
+  if (arg == 0 as *u8) {
+    return 0 as *u8;
+  }
   unsafe {
     return shux_asm_codegen_elf_o_thread_fn_impl(arg);
   }
