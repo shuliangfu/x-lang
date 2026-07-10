@@ -2,9 +2,10 @@
  * G-02f-116 true .x pure helpers.
  * G-02f-104 helper gates.
  * G-02f-243: P1-6 open — entry_source_len_i32 saturate + scan_top_level_import pure.
+ * G-02f-244: phase index + stack want + path import orchestrate pure.
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
  *         merge flags/env/phase/peek/smoke/stack/defines; C argv scan + pthread bulk.
- * .x covers: + driver_argv_collect_defines + entry_len_i32 + import scan.
+ * .x covers: + argv_collect gate + entry_len_i32 + import scan + stack want + path orch.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -63,6 +64,8 @@ void driver_current_dep_path_store(const char *path);
 const char *driver_current_dep_path_load(void);
 void driver_print_check_ok_impl(const char *input_path);
 void driver_bump_stack_limit(void);
+void driver_bump_stack_limit_to_impl(int64_t want_bytes);
+int64_t driver_stack_limit_want_bytes(void);
 int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines, int max_defines);
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 void driver_pipeline_fail_code_rc_impl(int32_t rc);
@@ -71,10 +74,12 @@ void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int6
 void driver_print_x_smoke_parse_empty_impl(void);
 void driver_print_x_smoke_typeck_ok_impl(void);
 int driver_source_scan_top_level_import(const char *src, size_t src_len);
-int driver_source_has_top_level_import_path_impl(const char *path);
+char *driver_path_read_preprocess_malloc(const char *path);
+int64_t driver_path_last_preprocess_len(void);
 void driver_pipeline_entry_source_len_store(size_t len);
 size_t driver_pipeline_entry_source_len_load_and_maybe_debug(void);
 int32_t driver_compile_phase_timing_enabled(void);
+int32_t driver_compile_phase_index_ok(int32_t phase);
 
 /** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 X pipeline 共用）。 */
 static int driver_check_only_flag;
@@ -640,12 +645,21 @@ double compile_phase_now_sec(void) {
 
 
 
+/* G-02f-244：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t driver_compile_phase_index_ok(int32_t phase) {
+    if (phase < 0)
+        return 0;
+    if (phase >= SHUX_COMPILE_PHASE_MAX)
+        return 0;
+    return 1;
+}
+
 /**
  * 标记编译阶段开始；由 pipeline.x run_x_pipeline_impl 调用。
  * 参数：phase 0..2。
  */
 void driver_compile_phase_timing_begin_impl(int32_t phase) {
-    if (phase < 0 || phase >= SHUX_COMPILE_PHASE_MAX)
+    if (!driver_compile_phase_index_ok(phase))
         return;
     g_compile_phase_start_sec[phase] = compile_phase_now_sec();
     g_compile_phase_active[phase] = 1;
@@ -656,7 +670,7 @@ void driver_compile_phase_timing_begin_impl(int32_t phase) {
  * 参数：phase 0..2。
  */
 void driver_compile_phase_timing_end_impl(int32_t phase) {
-    if (phase < 0 || phase >= SHUX_COMPILE_PHASE_MAX || !g_compile_phase_active[phase])
+    if (!driver_compile_phase_index_ok(phase) || !g_compile_phase_active[phase])
         return;
     g_compile_phase_acc_ms[phase] += (compile_phase_now_sec() - g_compile_phase_start_sec[phase]) * 1000.0;
     g_compile_phase_active[phase] = 0;
@@ -682,15 +696,13 @@ void driver_compile_phase_timing_flush(void) {
  }));
 }
 
+/* G-02f-244：逻辑源 .x（门闩 → index_ok pure）；seed 保留同语义 C 供产品 cc */
 void driver_compile_phase_timing_end(int32_t phase) {
   (void)(({   {
     if ((driver_compile_phase_timing_enabled() ==0)) {
       return;
     }
-    if ((phase < 0)) {
-      return;
-    }
-    if ((phase >=3)) {
+    if ((driver_compile_phase_index_ok(phase) ==0)) {
       return;
     }
     (void)(driver_compile_phase_timing_end_impl(phase));
@@ -710,15 +722,13 @@ int32_t driver_compile_phase_timing_enabled(void) {
   return 0;
 }
 
+/* G-02f-244：逻辑源 .x（门闩 → index_ok pure）；seed 保留同语义 C 供产品 cc */
 void driver_compile_phase_timing_begin(int32_t phase) {
   (void)(({   {
     if ((driver_compile_phase_timing_enabled() ==0)) {
       return;
     }
-    if ((phase < 0)) {
-      return;
-    }
-    if ((phase >=3)) {
+    if ((driver_compile_phase_index_ok(phase) ==0)) {
       return;
     }
     (void)(driver_compile_phase_timing_begin_impl(phase));
@@ -782,6 +792,7 @@ int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines
     return ndefines;
 }
 
+/* G-02f-244：逻辑源 .x（门闩 + argc<=0）；seed 保留同语义 C 供产品 cc */
 int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines) {
   if (argv == NULL) {
     return 0;
@@ -790,6 +801,9 @@ int driver_argv_collect_defines(int argc, char **argv, const char **defines, int
     return 0;
   }
   if (max_defines <= 0) {
+    return 0;
+  }
+  if (argc <= 0) {
     return 0;
   }
   {
@@ -820,7 +834,11 @@ void driver_pipeline_fail_code(int rc, const uint8_t *path) {
  * .x pipeline 烟测 stderr 摘要；保留 parse OK / typeck OK 前缀供 run-import gate grep。
  * 参数：module ASTModule*；codegen_len 产出字节数（可为 0）。
  */
+/* G-02f-244：逻辑源 .x（null module 门闩）；seed 保留同语义 C 供产品 cc */
 void driver_print_x_smoke_summary(void *module, size_t codegen_len) {
+  if (module == NULL) {
+    return;
+  }
   {
     if (driver_check_diag_emitted_get() != 0) {
       return;
@@ -860,18 +878,43 @@ int driver_peek_source_file(const char *path, char *content, size_t cap) {
 /**
  * 大模块 pipeline 栈帧深；macOS 默认 RLIMIT_STACK 约 512KiB～8MiB，进入 pipeline 前抬高软上限。
  * NL-07 nostdlib：pthread 大栈桩无效，须把主线程软上限抬到 256MiB 以免 -o 编译栈溢出 SIGSEGV。
+ * G-02f-244：want pure 在 .x；setrlimit / nostdlib 覆盖 🔒 在 to_impl。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void driver_bump_stack_limit(void) {
+/* G-02f-244：逻辑源 .x（真迁 parse）；seed 保留同语义 C 供产品 cc */
+static int64_t driver_parse_u32_cstr(const char *s) {
+    int64_t n = 0;
+    int i = 0;
+    if (!s || !s[0])
+        return -1;
+    for (i = 0; i < 20 && s[i]; i++) {
+        unsigned char c = (unsigned char)s[i];
+        if (c < '0' || c > '9')
+            return -1;
+        n = n * 10 + (int64_t)(c - '0');
+    }
+    if (i == 0)
+        return -1;
+    return n;
+}
+
+int64_t driver_stack_limit_want_bytes(void) {
+    int64_t def = (int64_t)512 * 1024 * 1024;
+    const char *e = getenv("SHUX_STACK_LIMIT_MB");
+    int64_t mb;
+    if (!e || !e[0])
+        return def;
+    mb = driver_parse_u32_cstr(e);
+    if (mb < 64 || mb > 8192)
+        return def;
+    return mb * (int64_t)(1024 * 1024);
+}
+
+void driver_bump_stack_limit_to_impl(int64_t want_bytes) {
     #ifndef _WIN32
     struct rlimit rl;
-    rlim_t want = (rlim_t)(512 * 1024 * 1024);
-    const char *mb_env = getenv("SHUX_STACK_LIMIT_MB");
-    if (mb_env && mb_env[0]) {
-        unsigned long mb = strtoul(mb_env, NULL, 10);
-        if (mb >= 64 && mb <= 8192)
-            want = (rlim_t)mb * (rlim_t)(1024 * 1024);
-    }
+    rlim_t want = (rlim_t)want_bytes;
+    if (want_bytes <= 0)
+        want = (rlim_t)(512 * 1024 * 1024);
     if (bootstrap_nostdlib_pthread_is_stub())
         want = (rlim_t)(512 * 1024 * 1024);
     if (getrlimit(RLIMIT_STACK, &rl) == 0 && rl.rlim_cur < want) {
@@ -880,7 +923,14 @@ void driver_bump_stack_limit(void) {
             rl.rlim_cur = rl.rlim_max;
         (void)setrlimit(RLIMIT_STACK, &rl);
     }
+    #else
+    (void)want_bytes;
     #endif
+}
+
+/* G-02f-244：逻辑源 .x（want pure → to_impl）；seed 保留同语义 C 供产品 cc */
+void driver_bump_stack_limit(void) {
+    driver_bump_stack_limit_to_impl(driver_stack_limit_want_bytes());
 }
 
 
@@ -924,11 +974,14 @@ void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg) {
  * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，深递归 pipeline/typeck 须与大 pipeline 同路径。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-244：.x 门闩 null fn；主体 pthread 🔒 */
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
     pthread_attr_t attr;
     pthread_t tid;
     void *stk = NULL;
     size_t stack_sz = (size_t)256 * 1024 * 1024;
+    if (fn == NULL)
+        return;
     const char *mb_env = getenv("SHUX_STACK_LIMIT_MB");
     if (mb_env && mb_env[0]) {
         unsigned long mb = strtoul(mb_env, NULL, 10);
@@ -1038,33 +1091,63 @@ int driver_source_has_top_level_import(const char *src, size_t src_len) {
 }
 
 /**
- * 读入口 .x 并检测预处理后是否含顶层 import（compile.x asm 分派降级 C 后端用）。
- * 参数：path 源文件路径。
- * 返回值：1 含顶层 import；0 否或读/预处理失败。
+ * 读入口 .x 并预处理；返回 malloc 缓冲，长度经 driver_path_last_preprocess_len。
+ * G-02f-244：IO 🔒；编排在 .x（scan pure + free）。
  */
-int driver_source_has_top_level_import_path_impl(const char *path) {
+static size_t g_driver_path_last_preprocess_len;
+
+char *driver_path_read_preprocess_malloc(const char *path) {
     ShuxRuntimeFileView raw_view;
     size_t src_len = 0;
     char *src;
-    int has;
 
+    g_driver_path_last_preprocess_len = 0;
+    if (!path)
+        return NULL;
     if (runtime_read_file_view(path, &raw_view) != 0)
-        return 0;
+        return NULL;
     src = shux_preprocess(raw_view.data, raw_view.length, NULL, 0, &src_len);
     runtime_release_file_view(&raw_view);
     if (!src)
+        return NULL;
+    g_driver_path_last_preprocess_len = src_len;
+    return src;
+}
+
+int64_t driver_path_last_preprocess_len(void) {
+    return (int64_t)g_driver_path_last_preprocess_len;
+}
+
+/* 兼容旧名：整路径 has_import 仍可直接调 */
+int driver_source_has_top_level_import_path_impl(const char *path) {
+    char *src;
+    int has;
+    int64_t len;
+
+    src = driver_path_read_preprocess_malloc(path);
+    if (!src)
         return 0;
-    has = driver_source_has_top_level_import(src, src_len);
+    len = driver_path_last_preprocess_len();
+    has = driver_source_has_top_level_import(src, (size_t)len);
     free(src);
     return has;
 }
 
+/* G-02f-244：逻辑源 .x（真迁编排）；seed 保留同语义 C 供产品 cc */
 int driver_source_has_top_level_import_path(const char *path) {
   if (path == NULL) {
     return 0;
   }
   {
-    return driver_source_has_top_level_import_path_impl(path);
+    char *src = driver_path_read_preprocess_malloc(path);
+    int has;
+    int64_t len;
+    if (!src)
+      return 0;
+    len = driver_path_last_preprocess_len();
+    has = driver_source_has_top_level_import(src, (size_t)len);
+    free(src);
+    return has;
   }
   return 0;
 }
