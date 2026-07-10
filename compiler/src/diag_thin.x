@@ -18,6 +18,7 @@
 // f-386：get_use_color / code_table_has / json_get|set_state → _impl 门闩
 // f-415：diag_io_* stdio/fprint + code_table_len → _impl 门闩（共 62）
 // f-420：diag_ctx_set_all / get_file/source/len → _impl 门闩（共 66）
+// f-421：entry_* / code_table_*_at / stderr/stdout → _impl 门闩（共 76）
 
 // ---- rest / libc 提供的符号（勿与下方 thin public 同名，以免 -E 改名）----
 extern "C" function diag_ctx_get_use_color_impl(): i32;
@@ -26,9 +27,9 @@ extern "C" function diag_ctx_get_source_impl(): *u8;
 extern "C" function diag_ctx_get_source_len_impl(): i64;
 extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
 extern "C" function diag_code_table_has_impl(code: *u8): i32;
-extern "C" function diag_entry_kind(code: *u8): *u8;
-extern "C" function diag_entry_summary(code: *u8): *u8;
-extern "C" function diag_entry_details(code: *u8): *u8;
+extern "C" function diag_entry_kind_impl(code: *u8): *u8;
+extern "C" function diag_entry_summary_impl(code: *u8): *u8;
+extern "C" function diag_entry_details_impl(code: *u8): *u8;
 extern "C" function diag_push_file_apply_impl(path: *u8, source: *u8, source_len: i64): void;
 extern "C" function diag_should_color_impl(): i32;
 extern "C" function diag_color_reset_impl(): *u8;
@@ -175,7 +176,7 @@ function diag_code_is_known(code: *u8): i32 {
 #[no_mangle]
 function diag_code_kind(code: *u8): *u8 {
   unsafe {
-    return diag_entry_kind(code);
+    return diag_entry_kind_impl(code);
   }
   return 0;
 }
@@ -183,7 +184,7 @@ function diag_code_kind(code: *u8): *u8 {
 #[no_mangle]
 function diag_code_summary(code: *u8): *u8 {
   unsafe {
-    return diag_entry_summary(code);
+    return diag_entry_summary_impl(code);
   }
   return 0;
 }
@@ -191,7 +192,7 @@ function diag_code_summary(code: *u8): *u8 {
 #[no_mangle]
 function diag_code_details(code: *u8): *u8 {
   unsafe {
-    return diag_entry_details(code);
+    return diag_entry_details_impl(code);
   }
   return 0;
 }
@@ -743,4 +744,73 @@ function diag_ctx_get_source_len(): i64 {
 #[no_mangle]
 function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_color: i32): void {
   unsafe { diag_ctx_set_all_impl(path, source, source_len, use_color); }
+}
+
+// ---- G-02f-421：code table / entry / stdio handles → seed impl ----
+extern "C" function diag_code_table_code_at_impl(i: i64): *u8;
+extern "C" function diag_code_table_kind_at_impl(i: i64): *u8;
+extern "C" function diag_code_table_summary_at_impl(i: i64): *u8;
+extern "C" function diag_code_table_details_at_impl(i: i64): *u8;
+extern "C" function diag_entry_code_impl(code: *u8): *u8;
+extern "C" function diag_stderr_impl(): *u8;
+extern "C" function diag_stdout_impl(): *u8;
+
+#[no_mangle]
+function diag_code_table_code_at(i: i64): *u8 {
+  unsafe { return diag_code_table_code_at_impl(i); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_code_table_kind_at(i: i64): *u8 {
+  unsafe { return diag_code_table_kind_at_impl(i); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_code_table_summary_at(i: i64): *u8 {
+  unsafe { return diag_code_table_summary_at_impl(i); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_code_table_details_at(i: i64): *u8 {
+  unsafe { return diag_code_table_details_at_impl(i); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_entry_code(code: *u8): *u8 {
+  unsafe { return diag_entry_code_impl(code); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_entry_kind(code: *u8): *u8 {
+  unsafe { return diag_entry_kind_impl(code); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_entry_summary(code: *u8): *u8 {
+  unsafe { return diag_entry_summary_impl(code); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_entry_details(code: *u8): *u8 {
+  unsafe { return diag_entry_details_impl(code); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_stderr(): *u8 {
+  unsafe { return diag_stderr_impl(); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_stdout(): *u8 {
+  unsafe { return diag_stdout_impl(); }
+  return 0;
 }

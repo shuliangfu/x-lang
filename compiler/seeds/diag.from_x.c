@@ -305,7 +305,11 @@ static DiagPalette diag_palette_for_kind(const char *kind) {
 }
 
 /** 供 .x stdio 冷路径（G-02f-156）。 */
-FILE *diag_stderr(void) { return stderr; }
+/* G-02f-421：实现体始终 seed；public PREFER 时 thin pure forward */
+FILE *diag_stderr_impl(void) { return stderr; }
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+FILE *diag_stderr(void) { return diag_stderr_impl(); }
+#endif
 /* G-02f-415：实现体始终 seed（stdio/fmt）；public PREFER 时 thin pure forward */
 int diag_io_fputc_impl(FILE *o, int c) { return fputc(c, o); }
 #ifndef SHUX_L2_DIAG_THIN_FROM_X
@@ -774,43 +778,87 @@ size_t diag_code_table_len(void) {
     return diag_code_table_len_impl();
 }
 #endif
-const char *diag_code_table_code_at(size_t i) {
+/* G-02f-421：实现体始终 seed；public PREFER 时 thin pure forward */
+const char *diag_code_table_code_at_impl(size_t i) {
     if (i >= g_diag_code_table_count)
         return NULL;
     return g_diag_code_table[i].code;
 }
-const char *diag_code_table_kind_at(size_t i) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+const char *diag_code_table_code_at(size_t i) {
+    return diag_code_table_code_at_impl(i);
+}
+#endif
+const char *diag_code_table_kind_at_impl(size_t i) {
     if (i >= g_diag_code_table_count)
         return NULL;
     return g_diag_code_table[i].kind;
 }
-const char *diag_code_table_summary_at(size_t i) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+const char *diag_code_table_kind_at(size_t i) {
+    return diag_code_table_kind_at_impl(i);
+}
+#endif
+const char *diag_code_table_summary_at_impl(size_t i) {
     if (i >= g_diag_code_table_count)
         return NULL;
     return g_diag_code_table[i].summary;
 }
-const char *diag_code_table_details_at(size_t i) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+const char *diag_code_table_summary_at(size_t i) {
+    return diag_code_table_summary_at_impl(i);
+}
+#endif
+const char *diag_code_table_details_at_impl(size_t i) {
     if (i >= g_diag_code_table_count)
         return NULL;
     return g_diag_code_table[i].details;
 }
-const char *diag_entry_code(const char *code) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+const char *diag_code_table_details_at(size_t i) {
+    return diag_code_table_details_at_impl(i);
+}
+#endif
+const char *diag_entry_code_impl(const char *code) {
     const DiagCodeExplain *e = diag_lookup_code_explain(code);
     return e ? e->code : NULL;
 }
-const char *diag_entry_kind(const char *code) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+const char *diag_entry_code(const char *code) {
+    return diag_entry_code_impl(code);
+}
+#endif
+const char *diag_entry_kind_impl(const char *code) {
     const DiagCodeExplain *e = diag_lookup_code_explain(code);
     return e ? e->kind : NULL;
 }
-const char *diag_entry_summary(const char *code) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+const char *diag_entry_kind(const char *code) {
+    return diag_entry_kind_impl(code);
+}
+#endif
+const char *diag_entry_summary_impl(const char *code) {
     const DiagCodeExplain *e = diag_lookup_code_explain(code);
     return e ? e->summary : NULL;
 }
-const char *diag_entry_details(const char *code) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+const char *diag_entry_summary(const char *code) {
+    return diag_entry_summary_impl(code);
+}
+#endif
+const char *diag_entry_details_impl(const char *code) {
     const DiagCodeExplain *e = diag_lookup_code_explain(code);
     return e ? e->details : NULL;
 }
-FILE *diag_stdout(void) { return stdout; }
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+const char *diag_entry_details(const char *code) {
+    return diag_entry_details_impl(code);
+}
+#endif
+FILE *diag_stdout_impl(void) { return stdout; }
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+FILE *diag_stdout(void) { return diag_stdout_impl(); }
+#endif
 /* G-02f-415：code table io → seed impl + thin pure forward */
 void diag_io_fprint_unknown_code_impl(FILE *out, const char *code) {
     fprintf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
