@@ -138,6 +138,7 @@ function glue_type_ref_is_named_struct_layout(arena: *u8, mod: *u8, ty_ref: i32)
   return 0;
 }
 // G-02f-132：从 AsmFuncCtx 偏移 16 读 module_ref（4×i32 后，64 位 LE）
+// G-02f-138：dep_pipe 在 glue_AsmFuncCtx 偏移 1256（64 位 LE）
 function g02f_load_ptr_at(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
   let m: usize = 256;
@@ -152,6 +153,28 @@ function g02f_load_ptr_at(p: *u8, off: i32): *u8 {
   a = a + (p[off + 6] as usize) * (m4 * m2);
   a = a + (p[off + 7] as usize) * (m4 * m2 * m);
   return a as *u8;
+}
+
+// G-02f-138：向 out 槽写 64 位 LE 指针（供 **out 语义）
+function g02f_store_ptr_at(p: *u8, off: i32, val: *u8): void {
+  if (p == 0) { return; }
+  let a: usize = val as usize;
+  let m: usize = 256;
+  p[off + 0] = (a % m) as u8;
+  a = a / m;
+  p[off + 1] = (a % m) as u8;
+  a = a / m;
+  p[off + 2] = (a % m) as u8;
+  a = a / m;
+  p[off + 3] = (a % m) as u8;
+  a = a / m;
+  p[off + 4] = (a % m) as u8;
+  a = a / m;
+  p[off + 5] = (a % m) as u8;
+  a = a / m;
+  p[off + 6] = (a % m) as u8;
+  a = a / m;
+  p[off + 7] = (a % m) as u8;
 }
 
 #[no_mangle]
@@ -244,13 +267,19 @@ function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: i32): i
 
 // G-02f-110：+ fold/struct lit/field offset/vector binop 薄门闩。
 
-extern "C" function glue_call_lookup_callee_mod_fi_arena_impl(arena: *u8, call: i32, ctx: *u8, out_mod: *u8): i32;
 extern "C" function backend_enc_load_rbp_to_rax_arch(elf: *u8, offset: i32, ta: i32): i32;
 extern "C" function backend_enc_lea_rbp_to_rax_arch(elf: *u8, offset: i32, ta: i32): i32;
 extern "C" function backend_arch_emit_load_rbp_to_rax(out: *u8, off: i32, ta: i32): i32;
 extern "C" function backend_arch_emit_lea_rbp_to_rax(out: *u8, off: i32, ta: i32): i32;
 
-extern "C" function glue_inner_call_arg_for_field_access_impl(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_call_resolved_dep_index_at(arena: *u8, call: i32): i32;
+extern "C" function pipeline_expr_call_resolved_func_index_at(arena: *u8, call: i32): i32;
+extern "C" function pipeline_dep_ctx_arena_at(pctx: *u8, di: i32): *u8;
+extern "C" function pipeline_asm_emit_dep_pipe_c(): *u8;
+extern "C" function pipeline_expr_call_arg_ref(arena: *u8, er: i32, idx: i32): i32;
+extern "C" function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
 extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_array_lit_elem_ref(arena: *u8, er: i32, lane: i32): i32;
 extern "C" function pipeline_expr_struct_lit_init_ref(arena: *u8, lit: i32, fj: i32): i32;
@@ -276,10 +305,119 @@ extern "C" function pipeline_type_elem_ref_at(arena: *u8, tr: i32): i32;
 extern "C" function typeck_get_field_offset_from_layout_deps(mod: *u8, pctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
 extern "C" function pipeline_expr_field_access_layout_offset(arena: *u8, mod: *u8, fa: i32): i32;
 
-/* ---- G-02f-110 / G-02f-136：try_inline fold/field ---- */
+/* ---- G-02f-110 / G-02f-136 / G-02f-138：try_inline fold/field ---- */
 
+// G-02f-138：解析 CALL callee → out_ca/out_cm 指针槽（*u8 写 8B LE）+ out_fi
+// module_ref@16，dep_pipe@1256；FIELD_ACCESS=44，VAR=3
 #[no_mangle]
-function glue_call_lookup_callee_mod_fi_arena(arena: *u8, call: i32, ctx: *u8, out_mod: *u8): i32 { unsafe { return glue_call_lookup_callee_mod_fi_arena_impl(arena, call, ctx, out_mod); } return 0; }
+function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref: i32, ctx: *u8, out_ca: *u8, out_cm: *u8, out_fi: *i32): i32 {
+  if (caller_arena == 0) { return 0; }
+  if (call_ref <= 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (out_ca == 0) { return 0; }
+  if (out_cm == 0) { return 0; }
+  if (out_fi == 0) { return 0; }
+  unsafe {
+    let entry_mod: *u8 = g02f_load_ptr_at(ctx, 16);
+    if (entry_mod == 0) { return 0; }
+    g02f_store_ptr_at(out_ca, 0, caller_arena);
+    g02f_store_ptr_at(out_cm, 0, entry_mod);
+    out_fi[0] = 0 - 1;
+    let dep_ix: i32 = pipeline_expr_call_resolved_dep_index_at(caller_arena, call_ref);
+    let func_ix: i32 = pipeline_expr_call_resolved_func_index_at(caller_arena, call_ref);
+    if (func_ix >= 0) {
+      out_fi[0] = func_ix;
+      if (dep_ix >= 0) {
+        let pctx: *u8 = g02f_load_ptr_at(ctx, 1256);
+        if (pctx == 0) {
+          pctx = pipeline_asm_emit_dep_pipe_c();
+        }
+        if (pctx == 0) { return 0; }
+        let cm: *u8 = pipeline_dep_ctx_module_at(pctx, dep_ix);
+        if (cm == 0) { return 0; }
+        g02f_store_ptr_at(out_cm, 0, cm);
+        let da: *u8 = pipeline_dep_ctx_arena_at(pctx, dep_ix);
+        if (da != 0) {
+          g02f_store_ptr_at(out_ca, 0, da);
+        }
+      }
+      if (g02f_load_ptr_at(out_cm, 0) != 0) { return 1; }
+      return 0;
+    }
+    let callee_ref: i32 = pipeline_expr_call_callee_ref_at(caller_arena, call_ref);
+    if (callee_ref <= 0) { return 0; }
+    // import binding：FIELD_ACCESS callee
+    if (pipeline_expr_kind_ord_at(caller_arena, callee_ref) == 44) {
+      let field_len: i32 = pipeline_expr_field_access_name_len(caller_arena, callee_ref);
+      if (field_len > 0) {
+        if (field_len <= 63) {
+          let field_name: u8[64] = [];
+          pipeline_expr_field_access_name_into(caller_arena, callee_ref, &field_name[0]);
+          let pctx2: *u8 = g02f_load_ptr_at(ctx, 1256);
+          if (pctx2 == 0) {
+            pctx2 = pipeline_asm_emit_dep_pipe_c();
+          }
+          if (pctx2 != 0) {
+            let j: i32 = 0;
+            let nd: i32 = pipeline_dep_ctx_ndep(pctx2);
+            while (j < nd) {
+              let dm: *u8 = pipeline_dep_ctx_module_at(pctx2, j);
+              let da2: *u8 = pipeline_dep_ctx_arena_at(pctx2, j);
+              if (dm != 0) {
+                let fi2: i32 = glue_module_func_index_by_name(dm, &field_name[0], field_len);
+                if (fi2 >= 0) {
+                  out_fi[0] = fi2;
+                  g02f_store_ptr_at(out_cm, 0, dm);
+                  if (da2 != 0) {
+                    g02f_store_ptr_at(out_ca, 0, da2);
+                  }
+                  return 1;
+                }
+              }
+              j = j + 1;
+            }
+          }
+        }
+      }
+      return 0;
+    }
+    if (pipeline_expr_kind_ord_at(caller_arena, callee_ref) != 3) { return 0; }
+    let clen: i32 = pipeline_expr_var_name_len(caller_arena, callee_ref);
+    if (clen <= 0) { return 0; }
+    if (clen > 63) { return 0; }
+    let cname: u8[64] = [];
+    pipeline_expr_var_name_into(caller_arena, callee_ref, &cname[0]);
+    let fi3: i32 = glue_module_func_index_by_name(entry_mod, &cname[0], clen);
+    if (fi3 >= 0) {
+      out_fi[0] = fi3;
+      return 1;
+    }
+    let pctx3: *u8 = g02f_load_ptr_at(ctx, 1256);
+    if (pctx3 == 0) {
+      pctx3 = pipeline_asm_emit_dep_pipe_c();
+    }
+    if (pctx3 == 0) { return 0; }
+    let j2: i32 = 0;
+    let nd2: i32 = pipeline_dep_ctx_ndep(pctx3);
+    while (j2 < nd2) {
+      let dm2: *u8 = pipeline_dep_ctx_module_at(pctx3, j2);
+      let da3: *u8 = pipeline_dep_ctx_arena_at(pctx3, j2);
+      if (dm2 != 0) {
+        let fi4: i32 = glue_module_func_index_by_name(dm2, &cname[0], clen);
+        if (fi4 >= 0) {
+          out_fi[0] = fi4;
+          g02f_store_ptr_at(out_cm, 0, dm2);
+          if (da3 != 0) {
+            g02f_store_ptr_at(out_ca, 0, da3);
+          }
+          return 1;
+        }
+      }
+      j2 = j2 + 1;
+    }
+  }
+  return 0;
+}
 
 // G-02f-136：return param0 binop param1（两 i32 形参、非向量返回）；out=ko 4..8
 #[no_mangle]
@@ -420,8 +558,47 @@ function glue_struct_lit_field_index_by_name(arena: *u8, lit_ref: i32, fn: *u8, 
   }
   return 0 - 1;
 }
+// G-02f-138：外层 field_access 经 inner CALL（param struct lit）映射到实参
+// CALL=48，FIELD_ACCESS=44
 #[no_mangle]
-function glue_inner_call_arg_for_field_access(arena: *u8, er: i32): i32 { unsafe { return glue_inner_call_arg_for_field_access_impl(arena, er); } return 0; }
+function glue_inner_call_arg_for_field_access(arena: *u8, ctx: *u8, inner_call_ref: i32, outer_field_ref: i32, out_arg_ref: *i32): i32 {
+  if (out_arg_ref == 0) { return 0; }
+  if (inner_call_ref <= 0) { return 0; }
+  if (outer_field_ref <= 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (arena == 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, inner_call_ref) != 48) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, outer_field_ref) != 44) { return 0; }
+    let ca_slot: u8[8] = [];
+    let cm_slot: u8[8] = [];
+    let inner_fi: i32 = 0;
+    if (glue_call_lookup_callee_mod_fi_arena(arena, inner_call_ref, ctx, &ca_slot[0], &cm_slot[0], &inner_fi) == 0) {
+      return 0;
+    }
+    let callee_arena: *u8 = g02f_load_ptr_at(&ca_slot[0], 0);
+    let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
+    let lit_ref: i32 = 0;
+    if (glue_fold_func_returns_param_struct_lit(callee_arena, callee_mod, inner_fi, &lit_ref) == 0) {
+      return 0;
+    }
+    let flen: i32 = pipeline_expr_field_access_name_len(arena, outer_field_ref);
+    if (flen <= 0) { return 0; }
+    if (flen > 63) { return 0; }
+    let fname: u8[64] = [];
+    pipeline_expr_field_access_name_into(arena, outer_field_ref, &fname[0]);
+    let fj: i32 = glue_struct_lit_field_index_by_name(callee_arena, lit_ref, &fname[0], flen);
+    if (fj < 0) { return 0; }
+    let pix: i32 = 0;
+    if (glue_struct_lit_field_init_param_index(callee_arena, callee_mod, inner_fi, lit_ref, fj, &pix) != 0) {
+      return 0;
+    }
+    let arg: i32 = pipeline_expr_call_arg_ref(arena, inner_call_ref, pix);
+    out_arg_ref[0] = arg;
+    if (arg > 0) { return 1; }
+  }
+  return 0;
+}
 
 // G-02f-137：dep 编译单元 struct layout 按字段名查偏移；失败 -1
 #[no_mangle]
@@ -626,11 +803,13 @@ function glue_fold_func_returns_param0_index_const(arena: *u8, mod: *u8, func_id
 
 // G-02f-111：+ default_alloc / const struct lit fold 薄门闩。
 
-extern "C" function glue_emit_default_alloc_to_rbx_offset_impl(elf: *u8, off: i32): i32;
 extern "C" function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
-extern "C" function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
-extern "C" function pipeline_expr_field_access_name_len(arena: *u8, er: i32): i32;
-extern "C" function pipeline_expr_field_access_name_into(arena: *u8, er: i32, out: *u8): void;
+extern "C" function glue_with_arena_scope_active_c(): i32;
+extern "C" function glue_with_arena_scope_top_off_c(): i32;
+extern "C" function backend_enc_mov_imm64_to_rax_arch(elf: *u8, lo: i32, hi: i32, ta: i32): i32;
+extern "C" function backend_enc_store_rax_to_rbx_offset_arch(elf: *u8, off: i32, sz: i32, ta: i32): i32;
+extern "C" function backend_enc_call_arch(elf: *u8, name: *u8, nlen: i32, ta: i32): i32;
+extern "C" function backend_enc_mov_imm32_to_w0_arch(elf: *u8, imm: i32, ta: i32): i32;
 
 /* ---- G-02f-111 / G-02f-131：try_inline alloc/const-lit ---- */
 
@@ -695,8 +874,39 @@ function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, func_idx: 
   }
   return 0;
 }
+// G-02f-138：default_alloc 内联到 rbx+foff（with_arena 或 call runtime）
+// 符号名与 seed 一致；enc_call 名长保留 27
 #[no_mangle]
-function glue_emit_default_alloc_to_rbx_offset(elf: *u8, off: i32): i32 { unsafe { return glue_emit_default_alloc_to_rbx_offset_impl(elf, off); } return 0; }
+function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, fsz: i32, ta: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    if (glue_with_arena_scope_active_c() != 0) {
+      let wa_off: i32 = glue_with_arena_scope_top_off_c();
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, 1, 0, ta) != 0) { return 0 - 1; }
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, 8, ta) != 0) { return 0 - 1; }
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, wa_off, ta) != 0) { return 0 - 1; }
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta) != 0) { return 0 - 1; }
+      return 0;
+    }
+    // "std_heap_default_alloc"
+    let da: u8[32] = [];
+    da[0] = 115; da[1] = 116; da[2] = 100; da[3] = 95;
+    da[4] = 104; da[5] = 101; da[6] = 97; da[7] = 112;
+    da[8] = 95; da[9] = 100; da[10] = 101; da[11] = 102;
+    da[12] = 97; da[13] = 117; da[14] = 108; da[15] = 116;
+    da[16] = 95; da[17] = 97; da[18] = 108; da[19] = 108;
+    da[20] = 111; da[21] = 99;
+    if (backend_enc_call_arch(elf_ctx, &da[0], 27, ta) != 0) { return 0 - 1; }
+    let sz: i32 = fsz;
+    if (sz <= 0) { sz = 8; }
+    if (sz > 16) { sz = 16; }
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, sz, ta) != 0) { return 0 - 1; }
+    if (sz >= 16) { return 0; }
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+    return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta);
+  }
+  return 0 - 1;
+}
 
 // G-02f-136：return Struct{f: 常量…/default_alloc}；STRUCT_LIT=45，max fields=8
 #[no_mangle]

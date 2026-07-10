@@ -362,7 +362,8 @@ int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, in
  * 解析 CALL 的 callee（同模块或 typeck 填写的 import dep/func）；写 callee 模块/arena/函数下标。
  * 返回 1=命中，0=未匹配。
  */
-int32_t glue_call_lookup_callee_mod_fi_arena_impl(struct ast_ASTArena *caller_arena, int32_t call_ref,
+/* G-02f-138：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_call_lookup_callee_mod_fi_arena(struct ast_ASTArena *caller_arena, int32_t call_ref,
                                                     struct glue_AsmFuncCtx *ctx, struct ast_ASTArena **out_ca,
                                                     struct ast_Module **out_cm, int32_t *out_fi) {
   struct ast_PipelineDepCtx *pctx;
@@ -461,14 +462,6 @@ int32_t glue_call_lookup_callee_mod_fi_arena_impl(struct ast_ASTArena *caller_ar
       }
     }
     j = j + 1;
-  }
-  return 0;
-}
-int32_t glue_call_lookup_callee_mod_fi_arena(struct ast_ASTArena *caller_arena, int32_t call_ref,
-                                                    struct glue_AsmFuncCtx *ctx, struct ast_ASTArena **out_ca,
-                                                    struct ast_Module **out_cm, int32_t *out_fi) {
-  {
-    return glue_call_lookup_callee_mod_fi_arena_impl(caller_arena, call_ref, ctx, out_ca, out_cm, out_fi);
   }
   return 0;
 }
@@ -894,7 +887,8 @@ int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t 
 /**
  * 外层 field_access 经 inner CALL（struct_lit 按值返回）映射到实参 expr_ref。
  */
-int32_t glue_inner_call_arg_for_field_access_impl(struct ast_ASTArena *arena, struct glue_AsmFuncCtx *ctx,
+/* G-02f-138：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, struct glue_AsmFuncCtx *ctx,
                                                     int32_t inner_call_ref, int32_t outer_field_ref,
                                                     int32_t *out_arg_ref) {
   struct ast_ASTArena *callee_arena;
@@ -926,14 +920,6 @@ int32_t glue_inner_call_arg_for_field_access_impl(struct ast_ASTArena *arena, st
     return 0;
   *out_arg_ref = pipeline_expr_call_arg_ref(arena, inner_call_ref, pix);
   return (*out_arg_ref > 0) ? 1 : 0;
-}
-int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, struct glue_AsmFuncCtx *ctx,
-                                                    int32_t inner_call_ref, int32_t outer_field_ref,
-                                                    int32_t *out_arg_ref) {
-  {
-    return glue_inner_call_arg_for_field_access_impl(arena, ctx, inner_call_ref, outer_field_ref, out_arg_ref);
-  }
-  return 0;
 }
 
 
@@ -1857,9 +1843,10 @@ int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struc
 /**
  * default_alloc() 内联：with_arena 内写 kind=arena + 栈 Arena64*；否则 call runtime default_alloc。
  */
-int32_t glue_emit_default_alloc_to_rbx_offset_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
+/* G-02f-138：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
                                                          int32_t fsz, int32_t ta) {
-  static const uint8_t da_sym[21] = "std_heap_default_alloc";
+  static const uint8_t da_sym[24] = "std_heap_default_alloc";
   /** MEM-C1：块内 vec_u8_new 等须走 scope bump，勿 call 全局 heap default。 */
   if (glue_with_arena_scope_active_c() != 0) {
     int32_t wa_off = glue_with_arena_scope_top_off_c();
@@ -1887,13 +1874,6 @@ int32_t glue_emit_default_alloc_to_rbx_offset_impl(struct platform_elf_ElfCodege
   if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
     return -1;
   return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta);
-}
-int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
-                                                         int32_t fsz, int32_t ta) {
-  {
-    return glue_emit_default_alloc_to_rbx_offset_impl(elf_ctx, foff, fsz, ta);
-  }
-  return 0;
 }
 
 
