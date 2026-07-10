@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/372：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/373：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -296,6 +296,35 @@ function glue_type_kind_to_suffix_c(kind_ord: i32, out: *u8, out_cap: i32): i32 
 function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32 {
   unsafe {
     return glue_asm_emit_string_lit_ptr_rax_elf_c_impl(arena, elf_ctx, str_expr_ref, ta);
+  }
+  return 0 - 1;
+}
+
+// ---- G-02f-373：sysv n_stack / dep_export_sym / enc_call_redirected → seed impl ----
+extern "C" function glue_sysv_x86_call_n_stack_c_impl(arena: *u8, call_expr_ref: i32, nargs: i32): i32;
+extern "C" function glue_asm_build_dep_export_sym_c_impl(name: *u8, name_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function glue_asm_enc_call_redirected_impl(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
+
+#[no_mangle]
+function glue_sysv_x86_call_n_stack_c(arena: *u8, call_expr_ref: i32, nargs: i32): i32 {
+  unsafe {
+    return glue_sysv_x86_call_n_stack_c_impl(arena, call_expr_ref, nargs);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return glue_asm_build_dep_export_sym_c_impl(name, name_len, out, out_cap);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
+  unsafe {
+    return glue_asm_enc_call_redirected_impl(elf_ctx, name, name_len, ta);
   }
   return 0 - 1;
 }

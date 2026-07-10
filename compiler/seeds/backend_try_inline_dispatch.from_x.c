@@ -54,6 +54,9 @@ int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t ar
 int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_lane);
 int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t lit_ref, int32_t fj);
 int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_binop_ko);
+int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_lit_ref);
+int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_binop_ko);
+int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t call_ref);
 #endif
 
 
@@ -934,7 +937,8 @@ int32_t glue_struct_lit_field_init_param_index(struct ast_ASTArena *arena, struc
  * 函数体是否为 `return Struct { f: param… }`（各字段 init 均为形参 VAR）。
  */
 /* G-02f-135：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-373 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_fold_func_returns_param_struct_lit_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                        int32_t func_idx, int32_t *out_lit_ref) {
   int32_t ret_ref;
   int32_t nf;
@@ -961,6 +965,13 @@ int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *arena, stru
   return 1;
 
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                       int32_t func_idx, int32_t *out_lit_ref) {
+  return glue_fold_func_returns_param_struct_lit_impl(arena, mod, func_idx, out_lit_ref);
+}
+#endif
 
 
 /**
@@ -1517,7 +1528,8 @@ int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko) {
  * 成功写 *out_binop_ko（4=add,5=sub,6=mul,7=div,8=mod 等）。
  */
 /* G-02f-137：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-373 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_fold_func_returns_param01_vector_binop_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                            int32_t func_idx, int32_t *out_binop_ko) {
   int32_t ret_ref;
   int32_t ko;
@@ -1551,6 +1563,13 @@ int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *arena, 
   *out_binop_ko = ko;
   return 1;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                           int32_t func_idx, int32_t *out_binop_ko) {
+  return glue_fold_func_returns_param01_vector_binop_impl(arena, mod, func_idx, out_binop_ko);
+}
+#endif
 
 
 /**
@@ -1922,7 +1941,8 @@ extern int32_t glue_with_arena_scope_top_off_c(void);
  * 零实参 CALL 的 callee 是否为 `default_alloc` / `heap.default_alloc`。
  */
 /* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t call_ref) {
+/* G-02f-373 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_call_is_zero_arg_default_alloc_impl(struct ast_ASTArena *arena, int32_t call_ref) {
   int32_t callee_ref;
   int32_t nlen;
   int32_t narg;
@@ -1961,6 +1981,12 @@ int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t 
   return 0;
 
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t call_ref) {
+  return glue_call_is_zero_arg_default_alloc_impl(arena, call_ref);
+}
+#endif
 
 
 /**

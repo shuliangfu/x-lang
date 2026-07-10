@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/372：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/373：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -290,6 +290,35 @@ function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, func_idx: 
 function glue_fold_func_returns_param01_scalar_binop(arena: *u8, mod: *u8, func_idx: i32, out_binop_ko: *i32): i32 {
   unsafe {
     return glue_fold_func_returns_param01_scalar_binop_impl(arena, mod, func_idx, out_binop_ko);
+  }
+  return 0;
+}
+
+// ---- G-02f-373：param_struct_lit / vector_binop / default_alloc → seed impl ----
+extern "C" function glue_fold_func_returns_param_struct_lit_impl(arena: *u8, mod: *u8, func_idx: i32, out_lit_ref: *i32): i32;
+extern "C" function glue_fold_func_returns_param01_vector_binop_impl(arena: *u8, mod: *u8, func_idx: i32, out_binop_ko: *i32): i32;
+extern "C" function glue_call_is_zero_arg_default_alloc_impl(arena: *u8, call_ref: i32): i32;
+
+#[no_mangle]
+function glue_fold_func_returns_param_struct_lit(arena: *u8, mod: *u8, func_idx: i32, out_lit_ref: *i32): i32 {
+  unsafe {
+    return glue_fold_func_returns_param_struct_lit_impl(arena, mod, func_idx, out_lit_ref);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_fold_func_returns_param01_vector_binop(arena: *u8, mod: *u8, func_idx: i32, out_binop_ko: *i32): i32 {
+  unsafe {
+    return glue_fold_func_returns_param01_vector_binop_impl(arena, mod, func_idx, out_binop_ko);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_call_is_zero_arg_default_alloc(arena: *u8, call_ref: i32): i32 {
+  unsafe {
+    return glue_call_is_zero_arg_default_alloc_impl(arena, call_ref);
   }
   return 0;
 }

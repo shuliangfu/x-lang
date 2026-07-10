@@ -56,6 +56,9 @@ int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, int32_t
 int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out, int32_t out_cap);
 int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_cap);
 int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t str_expr_ref, int32_t ta);
+int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs);
+int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, uint8_t *out, int32_t out_cap);
+int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
 #endif
 
 
@@ -383,7 +386,8 @@ void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr
 
 /** SysV x86_64：统计走栈的实参个数（gp/xmm 寄存器用尽后的余量）。 */
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs) {
+/* G-02f-373 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs) {
   int32_t gp;
   int32_t xmm;
   int32_t stk;
@@ -407,6 +411,12 @@ int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_ex
   }
   return stk;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs) {
+  return glue_sysv_x86_call_n_stack_c_impl(arena, call_expr_ref, nargs);
+}
+#endif
 
 
 
@@ -652,7 +662,8 @@ int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_t pre_l
  * 无 dep 路径时返回裸函数名；成功返回符号字节长度，失败 -1。
  */
 /* G-02f-144：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, uint8_t *out, int32_t out_cap) {
+/* G-02f-373 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_asm_build_dep_export_sym_c_impl(const uint8_t *name, int32_t name_len, uint8_t *out, int32_t out_cap) {
   const char *dep_path;
   uint8_t prefix[128];
   int32_t plen;
@@ -676,6 +687,12 @@ int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, u
     out[pos++] = name[i];
   return pos > 0 ? pos : -1;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, uint8_t *out, int32_t out_cap) {
+  return glue_asm_build_dep_export_sym_c_impl(name, name_len, out, out_cap);
+}
+#endif
 
 /** 将 TypeKind 序数写成 overload mangled 后缀（对齐 codegen.c type_to_suffix 标量子集）。 */
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -1558,7 +1575,8 @@ int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t na
 
 /** 经 std.fs/net/std.heap 薄包装重定向表发射 call；无命中则直调 name。 */
 /* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
+/* G-02f-373 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                             int32_t ta) {
   uint8_t redir[64];
   int32_t rlen;
@@ -1577,6 +1595,13 @@ int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *elf_ctx,
   }
   return backend_enc_call_arch(elf_ctx, name, name_len, ta);
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
+                                            int32_t ta) {
+  return glue_asm_enc_call_redirected_impl(elf_ctx, name, name_len, ta);
+}
+#endif
 
 
 /**
