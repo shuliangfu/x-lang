@@ -6,8 +6,9 @@
 // G-02f-92：+ driver_ascii_toupper 门闩。
 // G-02f-94：+ large_stack trampoline / run_fn_on_current_large_stack 门闩。
 // G-02f-104：+ compile_phase_now_sec 门闩。
+// G-02f-243：P1-6 开局 — entry_source_len_i32 saturate + scan_top_level_import 字节扫描 pure。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
-// C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、argv defines 扫描、import 扫描。
+// C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、argv defines 扫描、path IO。
 // G-02f-57：+ driver_argv_collect_defines 薄门闩（扫描本体 C）。
 // 注意：set 侧禁止 if/else 写 *p → 直接 p[0]=v；禁止 if (ptr!=null) 整函数被 -E 丢掉。
 
@@ -20,7 +21,7 @@ extern "C" function driver_fmt_check_only_flag_slot(): *i32;
 extern "C" function driver_x_pipeline_skip_typeck_flag_slot(): *i32;
 extern "C" function driver_x_pipeline_skip_codegen_flag_slot(): *i32;
 extern "C" function driver_skip_codegen_dep_0_flag_slot(): *i32;
-extern "C" function driver_pipeline_entry_source_len_i32_impl(): i32;
+/* entry_source_len_i32：G-02f-243 下方真迁（load + saturate） */
 extern "C" function driver_large_stack_thread_flag_slot(): *i32;
 extern "C" function driver_current_dep_path_store(path: *u8): void;
 extern "C" function driver_current_dep_path_load(): *u8;
@@ -38,7 +39,7 @@ extern "C" function driver_get_module_main_func_index(m: *u8): i32;
 extern "C" function driver_print_x_smoke_parse_ok_impl(num_funcs: i32, main_ix: i32, codegen_len: i64): void;
 extern "C" function driver_print_x_smoke_parse_empty_impl(): void;
 extern "C" function driver_print_x_smoke_typeck_ok_impl(): void;
-extern "C" function driver_source_scan_top_level_import_impl(src: *u8, src_len: i64): i32;
+/* scan_top_level_import：G-02f-243 下方真迁（字节扫描） */
 extern "C" function driver_source_has_top_level_import_path_impl(path: *u8): i32;
 extern "C" function driver_pipeline_entry_source_len_store(len: i64): void;
 extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
@@ -513,10 +514,7 @@ function driver_source_has_top_level_import(src: *u8, src_len: i64): i32 {
   if (src_len < 9) {
     return 0;
   }
-  unsafe {
-    return driver_source_scan_top_level_import_impl(src, src_len);
-  }
-  return 0;
+  return driver_source_scan_top_level_import(src, src_len);
 }
 
 #[no_mangle]
@@ -574,37 +572,87 @@ function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, max_def
 }
 
 
-/* ---- G-02f-83：entry_source_len_i32 / scan_top_level_import 门闩 ---- */
+/* ---- G-02f-83 / G-02f-243：entry_source_len_i32 / scan_top_level_import pure ---- */
 
+// G-02f-243：size_t 全局 → i32 饱和（>0x7fffffff → INT_MAX）；load 可带 SHUX_DEBUG_PIPE 笔记
 #[no_mangle]
 function driver_pipeline_entry_source_len_i32(): i32 {
   unsafe {
-    return driver_pipeline_entry_source_len_i32_impl();
+    let len: i64 = driver_pipeline_entry_source_len_load_and_maybe_debug();
+    if (len > 2147483647) {
+      return 2147483647;
+    }
+    if (len < 0) {
+      return 0;
+    }
+    return len as i32;
   }
   return 0;
 }
 
+// G-02f-243：扫描 `import("` / `= import(`；无 memcmp，按字节 pure
 #[no_mangle]
 function driver_source_scan_top_level_import(src: *u8, src_len: i64): i32 {
   if (src == 0 as *u8) {
     return 0;
   }
-  if (src_len < 9) {
+  if (src_len < 8) {
     return 0;
   }
   unsafe {
-    return driver_source_scan_top_level_import_impl(src, src_len);
+    let i: i64 = 0;
+    while (i + 8 <= src_len) {
+      // import("
+      if (src[i] == 105) {
+        if (src[i + 1] == 109) {
+          if (src[i + 2] == 112) {
+            if (src[i + 3] == 111) {
+              if (src[i + 4] == 114) {
+                if (src[i + 5] == 116) {
+                  if (src[i + 6] == 40) {
+                    if (src[i + 7] == 34) {
+                      return 1;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      // = import(  （需 9 字节）
+      if (i + 9 <= src_len) {
+        if (src[i] == 61) {
+          if (src[i + 1] == 32) {
+            if (src[i + 2] == 105) {
+              if (src[i + 3] == 109) {
+                if (src[i + 4] == 112) {
+                  if (src[i + 5] == 111) {
+                    if (src[i + 6] == 114) {
+                      if (src[i + 7] == 116) {
+                        if (src[i + 8] == 40) {
+                          return 1;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      i = i + 1;
+    }
   }
   return 0;
 }
 
-/* ---- G-02f-92：ascii_toupper 门闩 ---- */
+/* ---- G-02f-92：ascii_toupper 真迁见文末 ---- */
 
+/* ---- G-02f-94：large_stack trampoline / run_fn 门闩（pthread/fn 指针 🔒）---- */
 
-
-/* ---- G-02f-94：large_stack trampoline / run_fn 门闩 ---- */
-
-/* ---- G-02f-104：phase clock 门闩 ---- */
+/* ---- G-02f-104：phase clock 门闩（gettimeofday 🔒）---- */
 
 #[no_mangle]
 function compile_phase_now_sec(): f64 {
@@ -616,6 +664,9 @@ function compile_phase_now_sec(): f64 {
 
 #[no_mangle]
 function driver_large_stack_thread_trampoline(v: *u8): *u8 {
+  if (v == 0 as *u8) {
+    return 0 as *u8;
+  }
   unsafe {
     return driver_large_stack_thread_trampoline_impl(v);
   }
@@ -624,6 +675,9 @@ function driver_large_stack_thread_trampoline(v: *u8): *u8 {
 
 #[no_mangle]
 function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
+  if (fn == 0 as *u8) {
+    return;
+  }
   unsafe {
     driver_run_fn_on_current_large_stack_impl(fn, arg);
   }

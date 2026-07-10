@@ -1,9 +1,10 @@
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
  * G-02f-116 true .x pure helpers.
  * G-02f-104 helper gates.
+ * G-02f-243: P1-6 open — entry_source_len_i32 saturate + scan_top_level_import pure.
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
  *         merge flags/env/phase/peek/smoke/stack/defines; C argv scan + pthread bulk.
- * .x covers: + driver_argv_collect_defines.
+ * .x covers: + driver_argv_collect_defines + entry_len_i32 + import scan.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -361,7 +362,7 @@ void driver_large_stack_thread_mark(int on) {
 static size_t g_pipeline_entry_source_len;
 
 /* G-02f-45 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-243：逻辑源 .x（真迁 saturate）；seed 保留同语义 C 供产品 cc */
 int32_t driver_pipeline_entry_source_len_i32(void) {
     if (g_pipeline_entry_source_len > (size_t)0x7fffffff)
         return 0x7fffffff;
@@ -891,9 +892,12 @@ typedef struct {
 } DriverLargeStackCall;
 
 /** pthread 入口：标记大栈线程并抬高 soft limit 后执行用户 fn。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-243：.x 门闩 null 边界；主体 🔒 pthread 解包 */
 void * driver_large_stack_thread_trampoline(void *v) {
-    DriverLargeStackCall *c = (DriverLargeStackCall *)v;
+    DriverLargeStackCall *c;
+    if (v == NULL)
+        return NULL;
+    c = (DriverLargeStackCall *)v;
     driver_large_stack_thread_mark(1);
     driver_bump_stack_limit();
     void *r = c->fn(c->arg);
@@ -901,12 +905,11 @@ void * driver_large_stack_thread_trampoline(void *v) {
     return r;
 }
 
-
-
-
 /** 在当前线程直接执行 fn(arg)，并临时标记大栈上下文。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-243：.x 门闩 null 边界；主体 mark/bump/fn 🔒 */
 void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg) {
+    if (fn == NULL)
+        return;
     driver_large_stack_thread_mark(1);
     driver_bump_stack_limit();
     fn(arg);
@@ -999,25 +1002,28 @@ void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
  * 扫描预处理后源码是否含顶层 import（`import("` 或 `= import(`）。
  * 参数：src 预处理后缓冲；src_len 有效字节数。
  * 返回值：1 含顶层 import；0 否。
+ * G-02f-243：逻辑源 .x（真迁字节扫描）；seed 保留同语义 C 供产品 cc。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int driver_source_scan_top_level_import(const char *src, size_t src_len) {
     const char *p;
     const char *end;
+    if (src == NULL)
+        return 0;
+    if (src_len < 8)
+        return 0;
     p = src;
     end = src + src_len;
-    while (p + 9 <= end) {
+    while (p + 8 <= end) {
         if (memcmp(p, "import(\"", 8) == 0)
             return 1;
-        if (memcmp(p, "= import(", 9) == 0)
+        if (p + 9 <= end && memcmp(p, "= import(", 9) == 0)
             return 1;
         p++;
     }
     return 0;
 }
 
-
-
+/* G-02f-243：逻辑源 .x（门闩 → scan pure）；seed 保留同语义 C 供产品 cc */
 int driver_source_has_top_level_import(const char *src, size_t src_len) {
   if (src == NULL) {
     return 0;
