@@ -42,11 +42,6 @@ function field_name_equal_strict_minimal(buf: *u8, len: i32, lit: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
-function pipeline_typeck_expr_is_any_assign_kind_strict_minimal(kind: i32): i32 {
-  unsafe { return pipeline_typeck_expr_is_any_assign_kind_strict_minimal_impl(kind); }
-  return 0;
-}
 
 extern "C" function pipeline_typeck_named_unqual_offset_strict_minimal_impl(buf: *u8, len: i32): i32;
 extern "C" function pipeline_typeck_find_func_index_in_module_by_name_strict_minimal_impl(mod: *u8, name: *u8, nlen: i32, arity: i32): i32;
@@ -158,3 +153,19 @@ function pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena: *u8
 function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, er: i32): i32 { unsafe { return pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, er); } return 0; }
 #[no_mangle]
 function pipeline_typeck_result_payload_type_from_name_strict_minimal(arena: *u8, name: *u8, nlen: i32): i32 { unsafe { return pipeline_typeck_result_payload_type_from_name_strict_minimal_impl(arena, name, nlen); } return 0; }
+
+// G-02f-113：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+// ast_ExprKind: EXPR_ASSIGN=28, EXPR_ADD_ASSIGN=29, EXPR_SHR_ASSIGN=38
+#[no_mangle]
+function pipeline_typeck_expr_is_any_assign_kind_strict_minimal(kind: i32): i32 {
+  if (kind == 28) {
+    return 1;
+  }
+  if (kind >= 29) {
+    if (kind <= 38) {
+      return 1;
+    }
+  }
+  return 0;
+}

@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-113 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
@@ -286,18 +287,14 @@ extern int32_t pipeline_module_struct_layout_field_offset_at(struct ast_Module *
 extern int32_t pipeline_asm_index_elem_byte_sz(struct ast_ASTArena *a, int32_t index_expr_ref);
 
 /** 向上取整到 8 字节（与 backend.x asm_align_up8 一致）。 */
-int32_t glue_align_up8_c_impl(int32_t n) {
+/* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_align_up8_c(int32_t n) {
   int32_t m = n % 8;
   if (m != 0)
     n += (8 - m);
   return n;
 }
-int32_t glue_align_up8_c(int32_t n) {
-  {
-    return glue_align_up8_c_impl(n);
-  }
-  return 0;
-}
+
 
 
 /**
@@ -1474,17 +1471,13 @@ int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t ar
 
 
 /** 向量逐 lane 标量 binop kind（与 pipeline_glue glue_is_vector_lane_scalar_binop_ko 一致）。 */
-int32_t glue_is_vector_lane_scalar_binop_ko_impl(int32_t ko) {
+/* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko) {
   if (ko == 51)
     ko = 4;
   return (ko >= 4 && ko <= 13) ? 1 : 0;
 }
-int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko) {
-  {
-    return glue_is_vector_lane_scalar_binop_ko_impl(ko);
-  }
-  return 0;
-}
+
 
 
 /**

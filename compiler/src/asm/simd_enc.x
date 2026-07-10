@@ -33,11 +33,6 @@ extern "C" function simd_x86_vpsubd_ymm0_ymm1_impl(elf: *u8): i32;
 
 /* ---- G-02f-108：simd_enc low-level helpers 门闩 ---- */
 
-#[no_mangle]
-function simd_rbp_disp32(slot: i32, lanes: i32, esz: i32): i32 {
-  unsafe { return simd_rbp_disp32_impl(slot, lanes, esz); }
-  return 0;
-}
 
 #[no_mangle]
 function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): i32 {
@@ -272,3 +267,14 @@ function simd_enc_emit_i32_select_ymm_seq(elf: *u8): i32 { unsafe { return simd_
 function simd_enc_emit_f32_select_ymm_seq(elf: *u8): i32 { unsafe { return simd_enc_emit_f32_select_ymm_seq_impl(elf); } return 0; }
 #[no_mangle]
 function simd_x86_pshufd_xmm1_xmm0(elf: *u8, imm: i32): i32 { unsafe { return simd_x86_pshufd_xmm1_xmm0_impl(elf, imm); } return 0; }
+
+// G-02f-113：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function simd_rbp_disp32(slot_off: i32, lanes: i32, esz: i32): i32 {
+  // lanes/esz reserved for future half-width; product path uses -slot_off.
+  if (slot_off < 0) {
+    return 0;
+  }
+  return 0 - slot_off;
+}

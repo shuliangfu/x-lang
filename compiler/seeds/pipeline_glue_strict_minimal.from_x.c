@@ -1,4 +1,5 @@
 /* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-11 product TU
+ * G-02f-113 true .x pure helpers.
  * G-02f-110 helper gates.
  * G-02f-108 helper gates.
  * G-02f-107 helper gates.
@@ -2095,18 +2096,13 @@ __attribute__((weak)) int32_t pipeline_typeck_check_block_one_region_c(struct as
     return 0;
   return typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
 }
-
-int32_t pipeline_typeck_expr_is_any_assign_kind_strict_minimal_impl(int32_t kind) {
+/* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_expr_is_any_assign_kind_strict_minimal(int32_t kind) {
   if (kind == (int32_t)ast_ExprKind_EXPR_ASSIGN)
     return 1;
   return kind >= (int32_t)ast_ExprKind_EXPR_ADD_ASSIGN && kind <= (int32_t)ast_ExprKind_EXPR_SHR_ASSIGN ? 1 : 0;
 }
-int32_t pipeline_typeck_expr_is_any_assign_kind_strict_minimal(int32_t kind) {
-  {
-    return pipeline_typeck_expr_is_any_assign_kind_strict_minimal_impl(kind);
-  }
-  return 0;
-}
+
 
 
 int32_t field_name_equal_strict_minimal_impl(uint8_t *buf, int32_t len, const char *lit) {

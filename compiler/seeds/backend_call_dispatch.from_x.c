@@ -1,4 +1,5 @@
 /* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-113 true .x pure helpers.
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
  * G-02f-108 helper gates.
@@ -514,23 +515,20 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena,
 /**
  * 当前架构整数 CALL 寄存器实参个数（x86_64 SysV=6，AAPCS64/RISC-V=8）。
  */
-int32_t glue_asm_call_reg_max_impl(int32_t ta) {
+/* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_call_reg_max(int32_t ta) {
   if (ta == 0)
     return 6;
   return 8;
 }
-int32_t glue_asm_call_reg_max(int32_t ta) {
-  {
-    return glue_asm_call_reg_max_impl(ta);
-  }
-  return 0;
-}
+
 
 
 /**
  * call 完成后须回收的 outgoing 栈字节数（含 16 字节对齐垫层）。
  */
-int32_t glue_asm_call_stack_cleanup_bytes_impl(int32_t ta, int32_t nargs) {
+/* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
   int32_t reg_max;
   int32_t n_stack;
   if (nargs <= 0)
@@ -549,12 +547,7 @@ int32_t glue_asm_call_stack_cleanup_bytes_impl(int32_t ta, int32_t nargs) {
     return -1;
   return (n_stack * 8 + 15) & ~15;
 }
-int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
-  {
-    return glue_asm_call_stack_cleanup_bytes_impl(ta, nargs);
-  }
-  return 0;
-}
+
 
 
 /**

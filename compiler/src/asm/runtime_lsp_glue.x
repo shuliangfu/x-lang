@@ -200,3 +200,66 @@ function lsp_format_document(src: *u8, out: *u8, cap: i32): i32 { unsafe { retur
 function lsp_doc_line_count(doc: *u8, out: *i32): void { unsafe { lsp_doc_line_count_impl(doc, out); } }
 #[no_mangle]
 function lsp_extract_string_value(s: *u8, from: i32, out: *u8, cap: i32): i32 { unsafe { return lsp_extract_string_value_impl(s, from, out, cap); } return 0; }
+
+// G-02f-113：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function lsp_fmt_is_atom_tail(c: u8): i32 {
+  if (c >= 97) {
+    if (c <= 122) { return 1; }
+  }
+  if (c >= 65) {
+    if (c <= 90) { return 1; }
+  }
+  if (c >= 48) {
+    if (c <= 57) { return 1; }
+  }
+  if (c == 95) { return 1; }
+  if (c == 41) { return 1; }
+  if (c == 93) { return 1; }
+  if (c == 125) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function lsp_fmt_is_atom_head(c: u8): i32 {
+  if (c >= 97) {
+    if (c <= 122) { return 1; }
+  }
+  if (c >= 65) {
+    if (c <= 90) { return 1; }
+  }
+  if (c >= 48) {
+    if (c <= 57) { return 1; }
+  }
+  if (c == 95) { return 1; }
+  if (c == 40) { return 1; }
+  if (c == 91) { return 1; }
+  if (c == 123) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function lsp_fmt_unary_lhs(prev: u8): i32 {
+  if (prev == 0) { return 1; }
+  if (prev == 40) { return 1; }
+  if (prev == 91) { return 1; }
+  if (prev == 123) { return 1; }
+  if (prev == 44) { return 1; }
+  if (prev == 58) { return 1; }
+  if (prev == 59) { return 1; }
+  if (prev == 61) { return 1; }
+  if (prev == 43) { return 1; }
+  if (prev == 45) { return 1; }
+  if (prev == 42) { return 1; }
+  if (prev == 47) { return 1; }
+  if (prev == 37) { return 1; }
+  if (prev == 38) { return 1; }
+  if (prev == 124) { return 1; }
+  if (prev == 94) { return 1; }
+  if (prev == 33) { return 1; }
+  if (prev == 126) { return 1; }
+  if (prev == 60) { return 1; }
+  if (prev == 62) { return 1; }
+  return 0;
+}

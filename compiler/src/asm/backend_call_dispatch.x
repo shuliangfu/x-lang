@@ -40,17 +40,7 @@ function glue_call_param_is_f32_c(arena: *u8, tr: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
-function glue_asm_call_reg_max(ta: i32): i32 {
-  unsafe { return glue_asm_call_reg_max_impl(ta); }
-  return 0;
-}
 
-#[no_mangle]
-function glue_asm_call_stack_cleanup_bytes(ta: i32, nargs: i32): i32 {
-  unsafe { return glue_asm_call_stack_cleanup_bytes_impl(ta, nargs); }
-  return 0;
-}
 
 #[no_mangle]
 function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, cap: i32): void {
@@ -155,3 +145,36 @@ function glue_asm_prefix_is_fmt_or_debug(pre: *u8, plen: i32): i32 { unsafe { re
 function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(arena: *u8, elf: *u8, er: i32): i32 { unsafe { return glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(arena, elf, er); } return 0; }
 #[no_mangle]
 function glue_asm_emit_call_with_cleanup(elf: *u8, name: *u8, nbytes: i32): i32 { unsafe { return glue_asm_emit_call_with_cleanup_impl(elf, name, nbytes); } return 0; }
+
+// G-02f-113：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function glue_asm_call_reg_max(ta: i32): i32 {
+  if (ta == 0) {
+    return 6;
+  }
+  return 8;
+}
+
+#[no_mangle]
+function glue_asm_call_stack_cleanup_bytes(ta: i32, nargs: i32): i32 {
+  if (nargs <= 0) {
+    return 0;
+  }
+  let reg_max: i32 = glue_asm_call_reg_max(ta);
+  let n_stack: i32 = nargs - reg_max;
+  if (n_stack <= 0) {
+    return 0;
+  }
+  if (ta == 0) {
+    let bytes: i32 = n_stack * 8;
+    if ((n_stack & 1) != 0) {
+      bytes = bytes + 8;
+    }
+    return bytes;
+  }
+  if (ta == 2) {
+    return -1;
+  }
+  return (n_stack * 8 + 15) & -16;
+}

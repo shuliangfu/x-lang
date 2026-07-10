@@ -1,4 +1,5 @@
 /* seeds/simd_enc.from_x.c — G-02f-7 product pure SIMD encode TU
+ * G-02f-113 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
@@ -20,19 +21,15 @@
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 
 /** slot_off 为 asm 局部槽距 fp 的正字节距（lane0 低址端，与向量 let init 的 lea 一致）；x86 disp = -slot_off。 */
-int32_t simd_rbp_disp32_impl(int32_t slot_off, int32_t lanes, int32_t esz) {
-    (void)lanes;
-    (void)esz;
-    if (slot_off < 0)
-        return 0;
-    return -slot_off;
-}
+/* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz) {
-  {
-    return simd_rbp_disp32_impl(slot_off, lanes, esz);
-  }
-  return 0;
+  (void)lanes;
+  (void)esz;
+  if (slot_off < 0)
+    return 0;
+  return -slot_off;
 }
+
 
 
 /**

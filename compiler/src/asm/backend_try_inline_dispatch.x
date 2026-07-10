@@ -113,3 +113,28 @@ function glue_const_struct_lit_field_can_inline(arena: *u8, lit: i32, ix: i32): 
 function glue_emit_default_alloc_to_rbx_offset(elf: *u8, off: i32): i32 { unsafe { return glue_emit_default_alloc_to_rbx_offset_impl(elf, off); } return 0; }
 #[no_mangle]
 function glue_fold_func_returns_const_struct_lit(arena: *u8, mod: *u8, fi: i32, out: *i32): i32 { unsafe { return glue_fold_func_returns_const_struct_lit_impl(arena, mod, fi, out); } return 0; }
+
+// G-02f-113：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function glue_align_up8_c(n: i32): i32 {
+  let m: i32 = n % 8;
+  if (m != 0) {
+    n = n + (8 - m);
+  }
+  return n;
+}
+
+#[no_mangle]
+function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32 {
+  if (ko == 51) {
+    ko = 4;
+  }
+  if (ko < 4) {
+    return 0;
+  }
+  if (ko > 13) {
+    return 0;
+  }
+  return 1;
+}

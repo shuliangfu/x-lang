@@ -1,4 +1,5 @@
 /* seeds/runtime_lsp_glue.from_x.c — G-02f-15 product TU
+ * G-02f-113 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
@@ -2705,43 +2706,31 @@ uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
 
 
 /** 标识符/数字尾字符，可作为二元运算符左操作数尾部。 */
-int lsp_fmt_is_atom_tail_impl(uint8_t c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == ')' || c == ']' || c == '}';
-}
+/* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int lsp_fmt_is_atom_tail(uint8_t c) {
-  {
-    return lsp_fmt_is_atom_tail_impl(c);
-  }
-  return 0;
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == ')' || c == ']' || c == '}';
 }
+
 
 
 /** 标识符/数字头或一元后缀，可作为二元运算符右操作数首部。 */
-int lsp_fmt_is_atom_head_impl(uint8_t c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '(' || c == '[' || c == '{';
-}
+/* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int lsp_fmt_is_atom_head(uint8_t c) {
-  {
-    return lsp_fmt_is_atom_head_impl(c);
-  }
-  return 0;
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '(' || c == '[' || c == '{';
 }
+
 
 
 /** 一元运算符左邻字符（含行首 0）。 */
-int lsp_fmt_unary_lhs_impl(uint8_t prev) {
-    if (prev == 0)
-        return 1;
-    return prev == '(' || prev == '[' || prev == '{' || prev == ',' || prev == ':' || prev == ';' || prev == '='
-        || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == '%' || prev == '&' || prev == '|'
-        || prev == '^' || prev == '!' || prev == '~' || prev == '<' || prev == '>';
-}
+/* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int lsp_fmt_unary_lhs(uint8_t prev) {
-  {
-    return lsp_fmt_unary_lhs_impl(prev);
-  }
-  return 0;
+  if (prev == 0)
+    return 1;
+  return prev == '(' || prev == '[' || prev == '{' || prev == ',' || prev == ':' || prev == ';' || prev == '='
+      || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == '%' || prev == '&' || prev == '|'
+      || prev == '^' || prev == '!' || prev == '~' || prev == '<' || prev == '>';
 }
+
 
 
 /** 源码 j 之前是否已有空白（避免 1 +  2 双空格）。 */
