@@ -1,4 +1,4 @@
-/* seeds/runtime.from_x.c — G-02f-14/85/86/87/71/72 product TU
+/* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/71/72 product TU
  * Product objects from this seed (flags select variants):
  *   runtime_driver_no_c.o  — RUNTIME_DRIVER_NO_C_CFLAGS (G05 product)
  *   runtime_driver.o / runtime_x.o / runtime.o / runtime_driver_asm_*
@@ -461,7 +461,7 @@ void runtime_diag_cli_usage_note(const char *argv0) {
 
 void driver_print_usage_c(void);
 
-static int runtime_test_status_to_rc(const char *script, int st) {
+int runtime_test_status_to_rc_impl(const char *script, int st) {
     if (st == -1) {
         runtime_diag_errno_path(script, "process error", "system(shux test)", script);
         return 1;
@@ -479,6 +479,13 @@ static int runtime_test_status_to_rc(const char *script, int st) {
                            script ? script : "?");
     return 1;
 }
+int runtime_test_status_to_rc(const char *script, int st) {
+  {
+    return runtime_test_status_to_rc_impl(script, st);
+  }
+  return 0;
+}
+
 
 #if defined(SHUX_USE_X_TYPECK) && !defined(SHUX_NO_C_FRONTEND)
 /* 6.1：.x typeck 入口；由 typeck.x 提供（库模块形式生成，符号为 typeck_typeck_entry），转调 C typeck_module */
@@ -3322,7 +3329,7 @@ int driver_fs_open_write(const uint8_t *path, int path_len) {
 
 
 /** 检测内存中的源码 content[0..n-1] 是否含泛型或 trait 语法（.x 流水线不支持，需走 C 路径）。 */
-static int content_has_generic_syntax(const char *content, size_t n) {
+int content_has_generic_syntax_impl(const char *content, size_t n) {
     static const char *generic_type_tokens[] = {
         "<i8>", "<i16>", "<i32>", "<i64>", "<u8>", "<u16>", "<u32>", "<u64>", "<f32>", "<f64>", "<bool>",
     };
@@ -3360,6 +3367,13 @@ static int content_has_generic_syntax(const char *content, size_t n) {
     }
     return 0;
 }
+int content_has_generic_syntax(const char *content, size_t n) {
+  {
+    return content_has_generic_syntax_impl(content, n);
+  }
+  return 0;
+}
+
 
 /** 检测 path 指向的源码文件是否含泛型语法（如 <T> 或 <i32>），有则返回 1 否则 0；供 .x driver 在 run_compiler_x_path_impl 中决定是否走 C 流水线。 */
 int driver_source_has_generic_syntax_impl(const uint8_t *path, int path_len) {
@@ -3389,7 +3403,7 @@ int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
 
 /** 检测内存源码是否含复合赋值（+= 等）；.x 解析器未覆盖时须走 C 流水线（run-compound-assign 等）。
  * 跳过 //、块注释与双引号字符串，避免注释/字面量中的 token 误触发 asm→C 降级。 */
-static int content_has_compound_assign_syntax(const char *content, size_t n) {
+int content_has_compound_assign_syntax_impl(const char *content, size_t n) {
     if (!content || n < 3)
         return 0;
     /* 长 token 优先，避免 `<<=` 被 `+=` 子串误伤。 */
@@ -3430,6 +3444,13 @@ static int content_has_compound_assign_syntax(const char *content, size_t n) {
     }
     return 0;
 }
+int content_has_compound_assign_syntax(const char *content, size_t n) {
+  {
+    return content_has_compound_assign_syntax_impl(content, n);
+  }
+  return 0;
+}
+
 
 /** 供 compile.x：源码含复合赋值则返回 1，默认 asm 应降级为 C。 */
 int driver_source_has_compound_assign_syntax_impl(const uint8_t *path, int path_len) {
@@ -3492,7 +3513,8 @@ static int driver_c_frontend_smoke(const char *input_path, char *src, const char
 extern int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n);
 
 /** check-only / asm entry-only：dep 路径是否均为 std.* / core.* import 闭包。 */
-static int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
+int driver_deps_are_std_core_closure_only_impl(char **dep_paths, int n_deps);
+int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
 
 /**
  * -backend asm 专用：读文件、跑 .x pipeline、写 .o 或调 ld。与 run_compiler_c 内 asm 路径逻辑一致，供 driver_run_compiler_full 转调。
@@ -4463,16 +4485,23 @@ static int driver_c_typeck_entry_large_stack(const char *input_path, char *src, 
 
 /** shux check：C typeck 入口（库模块无 main 时比 X pipeline 更稳；bootstrap 与 shux-c 共用）。 */
 #if !defined(SHUX_NO_C_FRONTEND)
-static int driver_check_only_c_typeck(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
+int driver_check_only_c_typeck_impl(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
     return driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, 1);
 }
+int driver_check_only_c_typeck(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
+  {
+    return driver_check_only_c_typeck_impl(input_path, src, lib_roots_arr, n_lib_roots);
+  }
+  return 0;
+}
+
 #endif
 
 /**
  * dep 列表是否全为 std./core. 闭包（符号由预编 .o / preamble 提供，勿 dep_prerun 全量 typeck）。
  * tests/multi-file 的 import("foo") 等用户 dep 返回 0，仍走 typeck_only。
  */
-static int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
+int driver_deps_are_std_core_closure_only_impl(char **dep_paths, int n_deps) {
     int k;
     if (!dep_paths || n_deps <= 0)
         return 0;
@@ -4486,12 +4515,19 @@ static int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
     }
     return 1;
 }
+int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
+  {
+    return driver_deps_are_std_core_closure_only_impl(dep_paths, n_deps);
+  }
+  return 0;
+}
+
 
 /**
  * `-E src/asm/asm.x` 的 compiler-internal 闭包仅需 parse 填 import/签名槽；
  * 对 `ast` 等大模块做 dep_prerun typeck 会显著拖慢甚至卡住 seed host 构建。
  */
-static int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path) {
+int driver_x_emit_asm_dep_parse_only_ok_impl(const char *input_path, const char *dep_path) {
     if (!input_path || !dep_path)
         return 0;
     if (strstr(input_path, "src/asm/asm.x") == NULL && strstr(input_path, "/asm/asm.x") == NULL)
@@ -4504,6 +4540,13 @@ static int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const cha
         return 1;
     return 0;
 }
+int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path) {
+  {
+    return driver_x_emit_asm_dep_parse_only_ok_impl(input_path, dep_path);
+  }
+  return 0;
+}
+
 
 int driver_x_emit_asm_direct_import_only_impl(const char *input_path) {
     if (!input_path)
@@ -4540,7 +4583,7 @@ int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const cha
 /**
  * 入口 AST 的直接 import 是否均为 core.*（L9 arena_align 等 shux-c -backend c -o 可走 C 前端）。
  */
-static int driver_c_mod_imports_are_core_only(ASTModule *mod) {
+int driver_c_mod_imports_are_core_only_impl(ASTModule *mod) {
     int i;
     if (!mod || mod->num_imports <= 0)
         return 0;
@@ -4551,6 +4594,13 @@ static int driver_c_mod_imports_are_core_only(ASTModule *mod) {
     }
     return 1;
 }
+int driver_c_mod_imports_are_core_only(ASTModule *mod) {
+  {
+    return driver_c_mod_imports_are_core_only_impl(mod);
+  }
+  return 0;
+}
+
 #endif
 
 /** argv[0] basename 是否等于给定名（如 shux-c，避免 sibling exec 自递归）。 */
@@ -5524,7 +5574,7 @@ int driver_lib_root_ptr_usable(const char *p) {
  * 写入默认 lib root：优先 SHUX_LIB（拷贝到 root_buf），否则 "."。
  * 参数：root_buf 输出缓冲（至少 512 字节）。
  */
-static void driver_lib_root_default(char root_buf[512]) {
+void driver_lib_root_default_impl(char root_buf[512]) {
     const char *def = getenv("SHUX_LIB");
     root_buf[0] = '.';
     root_buf[1] = '\0';
@@ -5533,6 +5583,12 @@ static void driver_lib_root_default(char root_buf[512]) {
     strncpy(root_buf, def, 511);
     root_buf[511] = '\0';
 }
+void driver_lib_root_default(char root_buf[512]) {
+  {
+    driver_lib_root_default_impl(root_buf);
+  }
+}
+
 
 /** 从 ast_pool sidecar 键填充 lib_roots 数组；返回根数量。 */
 static int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]) {
@@ -7403,14 +7459,28 @@ static char **runtime_argv_drop_subcommand_c(int argc, char **argv) {
 }
 
 /** shux check（C 前端）：委托 fmt_check_cmd（多文件/目录 + 诊断格式）。 */
-static int runtime_run_compiler_check_c(int argc, char **argv) {
+int runtime_run_compiler_check_c_impl(int argc, char **argv) {
     return driver_run_compiler_check(argc, argv);
 }
+int runtime_run_compiler_check_c(int argc, char **argv) {
+  {
+    return runtime_run_compiler_check_c_impl(argc, argv);
+  }
+  return 0;
+}
+
 
 /** shux fmt（C 前端）：读入 .x、按 LSP 规则格式化，变化时写回。 */
-static int runtime_run_fmt_c(int argc, char **argv) {
+int runtime_run_fmt_c_impl(int argc, char **argv) {
     return driver_run_fmt(argc, argv);
 }
+int runtime_run_fmt_c(int argc, char **argv) {
+  {
+    return runtime_run_fmt_c_impl(argc, argv);
+  }
+  return 0;
+}
+
 
 /** shux test（C 前端）：在仓库根目录执行 bash 测试脚本。 */
 static int runtime_run_test_c(int argc, char **argv) {

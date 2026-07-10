@@ -5,6 +5,7 @@
 // G-02f-85：smoke_diag / unlink_failed_out / asm direct-import 门闩。
 // G-02f-86：explain CLI / errno diag / legacy smoke summary 门闩。
 // G-02f-87：argv 令牌/path 后缀纯 helper（drv_eq_* / path_ends / lib_root_usable）门闩。
+// G-02f-88：源扫描 content_has_*、core-only deps/imports、check/fmt 薄委托门闩。
 // G-02f-71/72：driver compile/run 薄封装 + main_entry/argv/exec/fmt/大 run_* 门闩。
 // 产品：cc seeds/runtime.from_x.c + RUNTIME_DRIVER_NO_C_CFLAGS → src/runtime_driver_no_c.o
 // C 尾：argv 解析循环、#if 变体、大 driver 路径、syscall/fs。
@@ -92,6 +93,17 @@ extern "C" function drv_path_ends_x_impl(buf: *u8, len: i32): i32;
 extern "C" function drv_target_has_arm_impl(buf: *u8, len: i32): i32;
 extern "C" function driver_argv_has_emit_c_flag_impl(argc: i32, argv: *u8): i32;
 extern "C" function driver_argv0_basename_is_impl(argv0: *u8, base: *u8): i32;
+
+extern "C" function content_has_generic_syntax_impl(content: *u8, n: i64): i32;
+extern "C" function content_has_compound_assign_syntax_impl(content: *u8, n: i64): i32;
+extern "C" function driver_deps_are_std_core_closure_only_impl(dep_paths: *u8, n_deps: i32): i32;
+extern "C" function driver_c_mod_imports_are_core_only_impl(mod: *u8): i32;
+extern "C" function driver_x_emit_asm_dep_parse_only_ok_impl(input_path: *u8, dep_path: *u8): i32;
+extern "C" function driver_check_only_c_typeck_impl(input_path: *u8, src: *u8, lib_roots_arr: *u8, n_lib_roots: i32): i32;
+extern "C" function driver_lib_root_default_impl(root_buf: *u8): void;
+extern "C" function runtime_test_status_to_rc_impl(script: *u8, st: i32): i32;
+extern "C" function runtime_run_compiler_check_c_impl(argc: i32, argv: *u8): i32;
+extern "C" function runtime_run_fmt_c_impl(argc: i32, argv: *u8): i32;
 
 #[no_mangle]
 function run_compiler_c(argc: i32, argv: *u8): i32 {
@@ -673,6 +685,87 @@ function driver_argv_has_emit_c_flag(argc: i32, argv: *u8): i32 {
 function driver_argv0_basename_is(argv0: *u8, base: *u8): i32 {
   unsafe {
     return driver_argv0_basename_is_impl(argv0, base);
+  }
+  return 0;
+}
+
+/* ---- G-02f-88：源扫描 / core-only / check·fmt 薄委托 门闩 ---- */
+
+#[no_mangle]
+function content_has_generic_syntax(content: *u8, n: i64): i32 {
+  unsafe {
+    return content_has_generic_syntax_impl(content, n);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function content_has_compound_assign_syntax(content: *u8, n: i64): i32 {
+  unsafe {
+    return content_has_compound_assign_syntax_impl(content, n);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_deps_are_std_core_closure_only(dep_paths: *u8, n_deps: i32): i32 {
+  unsafe {
+    return driver_deps_are_std_core_closure_only_impl(dep_paths, n_deps);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_c_mod_imports_are_core_only(mod: *u8): i32 {
+  unsafe {
+    return driver_c_mod_imports_are_core_only_impl(mod);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_x_emit_asm_dep_parse_only_ok(input_path: *u8, dep_path: *u8): i32 {
+  unsafe {
+    return driver_x_emit_asm_dep_parse_only_ok_impl(input_path, dep_path);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_check_only_c_typeck(input_path: *u8, src: *u8, lib_roots_arr: *u8, n_lib_roots: i32): i32 {
+  unsafe {
+    return driver_check_only_c_typeck_impl(input_path, src, lib_roots_arr, n_lib_roots);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_lib_root_default(root_buf: *u8): void {
+  unsafe {
+    driver_lib_root_default_impl(root_buf);
+  }
+}
+
+#[no_mangle]
+function runtime_test_status_to_rc(script: *u8, st: i32): i32 {
+  unsafe {
+    return runtime_test_status_to_rc_impl(script, st);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function runtime_run_compiler_check_c(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return runtime_run_compiler_check_c_impl(argc, argv);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function runtime_run_fmt_c(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return runtime_run_fmt_c_impl(argc, argv);
   }
   return 0;
 }
