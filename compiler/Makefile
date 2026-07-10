@@ -1422,8 +1422,9 @@ src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pu
 # G-02f-7：simd_enc 产品单 TU seed（纯编码）
 src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc.x include/simd_enc.h include/target_cpu.h
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/simd_enc.from_x.c -o $@
-src/asm/simd_loop.o: src/asm/simd_loop.inc include/simd_loop.h include/simd_enc.h include/target_cpu.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/simd_loop.inc $@ -I. -Iinclude -Isrc
+# G-02f-8：simd_loop 产品单 TU seed
+src/asm/simd_loop.o: seeds/simd_loop.from_x.c src/asm/simd_loop.x include/simd_loop.h include/simd_enc.h include/target_cpu.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/simd_loop.from_x.c -o $@
 # G-02a Step 1：默认构建切 no_c 模式；默认 bootstrap 不链 LEXER_LINK_O / AST_LINK_O。
 # C 前端 .c（ast/lexer/parser/typeck/codegen）仍保留，因 build_shux_asm.sh + relink 脚本仍引用 ast_seed.o 等。
 # bootstrap-driver-seed：pipeline_x.o 为 -E-extern 编排；parser/lexer/typeck/codegen *_x.o 分 TU。

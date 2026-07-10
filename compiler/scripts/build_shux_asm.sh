@@ -3147,9 +3147,9 @@ ensure_bstrict_seed_support_objs() {
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/simd_enc.from_x.c -o src/asm/simd_enc.o
   fi
   if [ ! -f src/asm/simd_loop.o ] \
-  || [ "src/asm/simd_loop.inc" -nt src/asm/simd_loop.o ]; then
-  echo " cc -c src/asm/simd_loop.inc -> src/asm/simd_loop.o"
-  sh scripts/cc_inc_tu.sh src/asm/simd_loop.inc src/asm/simd_loop.o -I. -Iinclude -Isrc
+  || [ "seeds/simd_loop.from_x.c" -nt src/asm/simd_loop.o ]; then
+  echo " cc -c seeds/simd_loop.from_x.c -> src/asm/simd_loop.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/simd_loop.from_x.c -o src/asm/simd_loop.o
   fi
   if [ ! -f src/asm/user_asm_seed_bridge.o ] \
   || [ "src/asm/user_asm_seed_bridge.inc" -nt src/asm/user_asm_seed_bridge.o ]; then

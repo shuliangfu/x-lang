@@ -901,9 +901,9 @@ ensure_simd_glue_link_objs() {
   strict_glue_info "cc -c seeds/simd_enc.from_x.c -> src/asm/simd_enc.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/simd_enc.from_x.c -o src/asm/simd_enc.o
   fi
-  if [ ! -f src/asm/simd_loop.o ] || [ src/asm/simd_loop.inc -nt src/asm/simd_loop.o ]; then
-  strict_glue_info "cc -c src/asm/simd_loop.inc -> src/asm/simd_loop.o"
-  sh scripts/cc_inc_tu.sh src/asm/simd_loop.inc src/asm/simd_loop.o -I. -Iinclude -Isrc
+  if [ ! -f src/asm/simd_loop.o ] || [ seeds/simd_loop.from_x.c -nt src/asm/simd_loop.o ]; then
+  strict_glue_info "cc -c seeds/simd_loop.from_x.c -> src/asm/simd_loop.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/simd_loop.from_x.c -o src/asm/simd_loop.o
   fi
 }
 
