@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-350/351：fmt_check_cmd L2 thin — pure + lit 门闩。
+// G-02f-350/383：fmt_check_cmd L2 thin — pure + lit 门闩。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // 对照：src/driver/fmt_check_cmd.x；默认仍整 seed。
@@ -9,7 +9,8 @@
 // -E 约束：无 while 重赋值；无零参-only 不稳写法；6 参用扁平 if。
 //
 
-extern "C" function driver_collect_mode_is_check(): i32;
+extern "C" function driver_collect_mode_is_check_impl(): i32;
+extern "C" function check_user_passed_L_get_impl(): i32;
 extern "C" function driver_fmt_check_lit_check_error(): *u8;
 extern "C" function driver_fmt_check_lit_fmt_error(): *u8;
 extern "C" function driver_fmt_check_lit_chk002(): *u8;
@@ -112,7 +113,7 @@ function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
 #[no_mangle]
 function driver_collect_error_kind(): *u8 {
   unsafe {
-    if (driver_collect_mode_is_check() != 0) {
+    if (driver_collect_mode_is_check_impl() != 0) {
       return driver_fmt_check_lit_check_error();
     }
     return driver_fmt_check_lit_fmt_error();
@@ -123,10 +124,27 @@ function driver_collect_error_kind(): *u8 {
 #[no_mangle]
 function driver_collect_missing_path_code(): *u8 {
   unsafe {
-    if (driver_collect_mode_is_check() != 0) {
+    if (driver_collect_mode_is_check_impl() != 0) {
       return driver_fmt_check_lit_chk002();
     }
     return driver_fmt_check_lit_fmt001();
   }
   return 0 as *u8;
+}
+
+// ---- G-02f-383：collect_mode / user_passed_L → seed impl ----
+#[no_mangle]
+function driver_collect_mode_is_check(): i32 {
+  unsafe {
+    return driver_collect_mode_is_check_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function check_user_passed_L_get(): i32 {
+  unsafe {
+    return check_user_passed_L_get_impl();
+  }
+  return 0;
 }

@@ -82,6 +82,8 @@ int shux_path_is_absolute(const char *path);
 int check_one_finalize_rc(int rc, int warn_count);
 const char *driver_collect_error_kind(void);
 const char *driver_collect_missing_path_code(void);
+int32_t driver_collect_mode_is_check(void);
+int32_t check_user_passed_L_get(void);
 #endif
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
@@ -162,9 +164,16 @@ typedef enum DriverCollectMode {
 static DriverCollectMode s_collect_mode = DRIVER_COLLECT_MODE_FMT;
 
 /* G-02f-247：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t driver_collect_mode_is_check(void) {
+/* G-02f-383：实现体始终 seed；public PREFER 时 thin forward */
+int32_t driver_collect_mode_is_check_impl(void) {
     return s_collect_mode == DRIVER_COLLECT_MODE_CHECK ? 1 : 0;
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int32_t driver_collect_mode_is_check(void) {
+    return driver_collect_mode_is_check_impl();
+}
+#endif
 
 const char *driver_fmt_check_lit_check_error(void) { return "check error"; }
 const char *driver_fmt_check_lit_fmt_error(void) { return "fmt error"; }
@@ -210,9 +219,16 @@ const char *fmt_user_ignore_at(int i) {
 
 
 /* G-02f-248：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t check_user_passed_L_get(void) {
+/* G-02f-383：实现体始终 seed；public PREFER 时 thin forward */
+int32_t check_user_passed_L_get_impl(void) {
     return s_user_passed_L ? 1 : 0;
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int32_t check_user_passed_L_get(void) {
+    return check_user_passed_L_get_impl();
+}
+#endif
 
 /**
  * 若 dir 下同时存在 core/ 与 std/ 子目录，则作为仓库 lib 根注入 -L（去重）。
