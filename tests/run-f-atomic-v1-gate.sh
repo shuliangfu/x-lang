@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-atomic v1：std.atomic 去 C（atomic.c → atomic.x + runtime_atomic_glue.c）。
+# F-atomic v1：std.atomic 去 C（atomic.c → atomic.x + runtime_atomic_glue.inc）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_ATOMIC_V1_FAIL:-0}
@@ -11,7 +11,7 @@ echo "=== F-atomic v1: atomic.c → atomic.x ==="
 grep -q 'F-atomic v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
 [ -f std/atomic/atomic.x ] || die "missing atomic.x"
-[ -f compiler/src/asm/runtime_atomic_glue.c ] || die "missing runtime_atomic_glue.c"
+[ -f compiler/src/asm/runtime_atomic_glue.inc ] || die "missing runtime_atomic_glue.inc"
 [ ! -f std/atomic/atomic_glue.c ] || die "atomic_glue.c should be deleted"
 [ ! -f std/atomic/atomic.c ] || die "atomic.c should be deleted"
 while IFS=$'\t' read -r item_id kind anchor _n; do

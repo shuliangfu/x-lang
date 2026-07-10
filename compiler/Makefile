@@ -95,8 +95,8 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 
 # std.path：保留 mod.x 作为 F-path v1 源码锚点；path.o 由 C provider 产出，
 # 避免 bootstrap asm backend 在 dirname/last_slash 链上反复卡住。
-../std/path/path.o: ../std/path/mod.x src/asm/runtime_path_fast.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/path/path_core.o src/asm/runtime_path_fast.c && \
+../std/path/path.o: ../std/path/mod.x src/asm/runtime_path_fast.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_path_fast.inc ../std/path/path_core.o && \
 	ld -r -o ../std/path/path.o ../std/path/path_core.o && \
 	rm -f ../std/path/path_core.o
 
@@ -587,10 +587,10 @@ ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 $(SHUX_C): $(OBJS_CORE) $(LEGACY_SHUX_C_EXTRA)
 	$(CC) $(CFLAGS) -o $@ $^ $(PIPELINE_LIBS) $(WIN_LDFLAGS)
 
-# G-02a: lexer.o 从 runtime_lexer_glue.c 编译（lexer.c 已物理删除）。
+# G-02a: lexer.o 从 runtime_lexer_glue.inc 编译（G-02e-19：cc_inc_tu）。
 # 仅提供 lexer_new/lexer_free；lexer_next 由 lexer_x.o（.x）或 runtime_driver_strict_glue_stubs.o（weak 桩）提供。
-src/lexer/lexer.o: src/asm/runtime_lexer_glue.c src/lexer/lexer.h include/token.h
-	$(CC) $(CFLAGS) -c -o $@ src/asm/runtime_lexer_glue.c
+src/lexer/lexer.o: src/asm/runtime_lexer_glue.inc src/lexer/lexer.h include/token.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc $@
 
 # G-02a: ast.o 从 runtime_ast_glue.c 编译（LEGACY 模式 SHUX_LEGACY_C_FRONTEND=1）。
 # LEGACY parser.o 不引用 ast_expr_init_match_enum，安全。
@@ -788,41 +788,41 @@ runtime_compress_zlib_glue.o: src/asm/runtime_compress_zlib_glue.inc scripts/cc_
 runtime_time_os.o: src/asm/runtime_time_os.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_time_os.inc $@
 
-# F-ZC：queue 竞争烟测 pthread；与 queue.o 一并链入（见 runtime_queue_contention.c）
-runtime_queue_contention.o: src/asm/runtime_queue_contention.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：queue 竞争烟测 pthread；与 queue.o 一并链入（G-02e-19：.inc + cc_inc_tu）
+runtime_queue_contention.o: src/asm/runtime_queue_contention.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_queue_contention.inc $@
 
-# F-ZC：dynlib dlopen/LoadLibrary；与 dynlib.o 一并链入（见 runtime_dynlib_os.c）
-runtime_dynlib_os.o: src/asm/runtime_dynlib_os.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：dynlib dlopen/LoadLibrary；与 dynlib.o 一并链入（G-02e-19：.inc + cc_inc_tu）
+runtime_dynlib_os.o: src/asm/runtime_dynlib_os.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_dynlib_os.inc $@
 
-# F-ZC：env OS getenv/setenv/iter；与 env.o 一并链入（见 runtime_env_os.c）
-runtime_env_os.o: src/asm/runtime_env_os.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：env OS getenv/setenv/iter；与 env.o 一并链入（G-02e-19：.inc + cc_inc_tu）
+runtime_env_os.o: src/asm/runtime_env_os.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_env_os.inc $@
 
 # F-ZC：backtrace capture/symbolicate/crash evidence；与 backtrace.o 一并链入
 runtime_backtrace_platform.o: src/asm/runtime_backtrace_platform.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# F-ZC：log sink/轮转/异步；与 log.o 一并链入（见 runtime_log_os.c）
-runtime_log_os.o: src/asm/runtime_log_os.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：log sink/轮转/异步；与 log.o 一并链入（G-02e-19：.inc + cc_inc_tu）
+runtime_log_os.o: src/asm/runtime_log_os.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_log_os.inc $@
 
-# F-ZC：math libm/fenv；与 math.o 一并链入（须 -lm；见 runtime_math_libm.c）
-runtime_math_libm.o: src/asm/runtime_math_libm.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：math libm/fenv；与 math.o 一并链入（须 -lm；G-02e-19：.inc + cc_inc_tu）
+runtime_math_libm.o: src/asm/runtime_math_libm.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_math_libm.inc $@
 
-# F-ZC：atomic load/store/CAS/fence；与 atomic.o 一并链入（见 runtime_atomic_glue.c）
-runtime_atomic_glue.o: src/asm/runtime_atomic_glue.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：atomic load/store/CAS/fence；与 atomic.o 一并链入（G-02e-19：.inc + cc_inc_tu）
+runtime_atomic_glue.o: src/asm/runtime_atomic_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_atomic_glue.inc $@
 
 # F-ZC：channel 有界/无界/select；与 channel.o 一并链入（Unix 须 -lpthread；见 runtime_channel_glue.c）
 runtime_channel_glue.o: src/asm/runtime_channel_glue.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# F-ZC：net UDP batch recvmmsg/sendmmsg；与 net.o 一并链入（见 runtime_net_udp_batch.c）
-runtime_net_udp_batch.o: src/asm/runtime_net_udp_batch.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：net UDP batch recvmmsg/sendmmsg；与 net.o 一并链入（G-02e-19：.inc + cc_inc_tu）
+runtime_net_udp_batch.o: src/asm/runtime_net_udp_batch.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_net_udp_batch.inc $@
 
 # F-ZC：net accept worker 线程入口；与 net.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 runtime_net_workers.o: src/asm/runtime_net_workers.inc scripts/cc_inc_tu.sh
@@ -856,9 +856,9 @@ runtime_tls_mbedtls_bio.o: src/asm/runtime_tls_mbedtls_bio.inc scripts/cc_inc_tu
 runtime_kv_mmap_glue.o: src/asm/runtime_kv_mmap_glue.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_kv_mmap_glue.inc $@
 
-# F-ZC：db.arrow SIMD 胶层；与 arrow.o 按需同链
-runtime_arrow_simd_glue.o: src/asm/runtime_arrow_simd_glue.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：db.arrow SIMD 胶层；与 arrow.o 按需同链（G-02e-19：.inc + cc_inc_tu）
+runtime_arrow_simd_glue.o: src/asm/runtime_arrow_simd_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_arrow_simd_glue.inc $@
 
 # F-ZC：db.sqlite 胶层（libsqlite3）；与 sqlite.o 同链
 runtime_sqlite_glue.o: src/asm/runtime_sqlite_glue.c
@@ -1567,9 +1567,9 @@ ast_x.o: src/ast/ast_seed.o
 
 # G-02a: preprocess.c 已物理删除；preprocess.o 不再编译（preprocess_x.o 由 .x 生成）。
 
-# G-02a: lexer.o 从 runtime_lexer_glue.c 编译（lexer.c 已物理删除）。
-src/lexer/lexer.o: src/asm/runtime_lexer_glue.c src/lexer/lexer.h include/token.h
-	$(CC) $(CFLAGS) -c -o $@ src/asm/runtime_lexer_glue.c
+# G-02a: lexer.o 从 runtime_lexer_glue.inc 编译（G-02e-19：cc_inc_tu）。
+src/lexer/lexer.o: src/asm/runtime_lexer_glue.inc src/lexer/lexer.h include/token.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc $@
 
 # G-02a: typeck.c 已物理删除；typeck_x.o 由 typeck.x 生成，typeck_c_module_stubs.o 提供 weak 桩。
 

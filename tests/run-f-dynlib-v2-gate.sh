@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-dynlib v2：std.dynlib F-ZC（dynlib_os_glue.c → runtime_dynlib_os.c）。
+# F-dynlib v2：std.dynlib F-ZC（dynlib_os_glue.c → runtime_dynlib_os.inc）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_DYNLIB_V2_FAIL:-0}
@@ -11,7 +11,7 @@ echo "=== F-dynlib v2: logic → dynlib.x + runtime ==="
 grep -q 'F-dynlib v2' "$DOC" || die "doc marker"
 [ -f std/dynlib/dynlib.x ] || die "missing dynlib.x"
 [ ! -f std/dynlib/dynlib_os_glue.c ] || die "dynlib_os_glue.c should be deleted (F-ZC)"
-[ -f compiler/src/asm/runtime_dynlib_os.c ] || die "missing runtime_dynlib_os.c"
+[ -f compiler/src/asm/runtime_dynlib_os.inc ] || die "missing runtime_dynlib_os.inc"
 [ ! -f std/dynlib/dynlib_glue.c ] || die "dynlib_glue.c should be deleted"
 while IFS=$'\t' read -r item_id kind anchor _n; do
   [ -z "${item_id:-}" ] && continue
@@ -24,7 +24,7 @@ done < "$MANIFEST"
 grep -q 'dynlib_open_c' std/dynlib/dynlib.x || die "dynlib.x missing open"
 grep -q 'dynlib_last_error_copy_c' std/dynlib/dynlib.x || die "dynlib.x missing last_error"
 grep -q 'dynlib_f_dynlib_v2_marker_c' std/dynlib/dynlib.x || die "dynlib.x missing v2 marker"
-grep -q 'dynlib_os_open_c' compiler/src/asm/runtime_dynlib_os.c || die "runtime missing open"
+grep -q 'dynlib_os_open_c' compiler/src/asm/runtime_dynlib_os.inc || die "runtime missing open"
 grep -q 'dynlib_glue.c' compiler/Makefile && die "Makefile still references dynlib_glue.c"
 grep -q 'runtime_dynlib_os' compiler/Makefile || die "Makefile missing runtime_dynlib_os.o"
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-log v1：std.log 去 C（log.c → log.x + runtime_log_os.c）。
+# F-log v1：std.log 去 C（log.c → log.x + runtime_log_os.inc）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_LOG_V1_FAIL:-0}
@@ -11,7 +11,7 @@ echo "=== F-log v1: log.c → log.x ==="
 grep -q 'F-log v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
 [ -f std/log/log.x ] || die "missing log.x"
-[ -f compiler/src/asm/runtime_log_os.c ] || die "missing runtime_log_os.c"
+[ -f compiler/src/asm/runtime_log_os.inc ] || die "missing runtime_log_os.inc"
 [ ! -f std/log/log_os_glue.c ] || die "log_os_glue.c should be deleted"
 [ ! -f std/log/log.c ] || die "log.c should be deleted"
 while IFS=$'\t' read -r item_id kind anchor _n; do

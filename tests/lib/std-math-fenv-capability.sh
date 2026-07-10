@@ -22,7 +22,7 @@ std_math_fenv_cap_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/math/math.c" ] || [ "$path" = "std/math/math_libm_glue.c" ] || [ "$path" = "compiler/src/asm/runtime_math_libm.c" ]; then path="$math_c"; fi
+        if [ "$path" = "std/math/math.c" ] || [ "$path" = "std/math/math_libm_glue.c" ] || [ "$path" = "compiler/src/asm/runtime_math_libm.inc" ]; then path="$math_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-math-fenv-cap FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))

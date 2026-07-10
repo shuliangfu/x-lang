@@ -3,7 +3,7 @@
 fdynlib_doc	doc	analysis/phase-f-dynlib-v1.md	F-dynlib v1
 fdynlib_gate	gate	tests/run-f-dynlib-v1-gate.sh	聚合门禁
 dynlib_x	file	std/dynlib/dynlib.x	模块锚点 .x
-dynlib_glue_v1_absent	absent	std/dynlib/dynlib_glue.c	v2 已删；见 runtime_dynlib_os.c
+dynlib_glue_v1_absent	absent	std/dynlib/dynlib_glue.c	v2 已删；见 runtime_dynlib_os.inc
 dynlib_mod	file	std/dynlib/mod.x	对外 API
 dynlib_c_absent	absent	std/dynlib/dynlib.c	已删除
 makefile	makefile	compiler/Makefile	dynlib.o ld -r merge

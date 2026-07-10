@@ -73,7 +73,7 @@ entries = [
     ("src/runtime.c", driver_flags),
     ("src/runtime.c", base),
     ("src/main.c", base),
-    ("src/asm/runtime_lexer_glue.c", base),
+    ("src/asm/runtime_lexer_glue.inc", base),
     ("src/asm/runtime_ast_glue.c", base),
     ("src/asm/runtime_lsp_glue.c", base),
     ("src/main_driver.c", driver_flags),

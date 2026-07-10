@@ -3,8 +3,8 @@
 # 更新：SHUX_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh
 summary_std_c	0
 summary_core_c	0
-summary_compiler_src_c	67
-summary_total_c	67
+summary_compiler_src_c	57
+summary_total_c	57
 file	compiler/src/asm/asm_backend_compat_stubs.c
 file	compiler/src/asm/asm_experimental_symbol_bridge.c
 file	compiler/src/asm/backend_arch_emit_dispatch.c
@@ -21,25 +21,15 @@ file	compiler/src/asm/parser_asm_parse_expr_link.c
 file	compiler/src/asm/parser_asm_thin_c.c
 file	compiler/src/asm/pipeline_glue_standalone.c
 file	compiler/src/asm/pipeline_glue_strict_minimal.c
-file	compiler/src/asm/runtime_arrow_simd_glue.c
 file	compiler/src/asm/runtime_asm_io_stubs.c
 file	compiler/src/asm/runtime_ast_glue.c
-file	compiler/src/asm/runtime_atomic_glue.c
 file	compiler/src/asm/runtime_backtrace_platform.c
 file	compiler/src/asm/runtime_channel_glue.c
 file	compiler/src/asm/runtime_crypto_inc_glue.c
-file	compiler/src/asm/runtime_dynlib_os.c
-file	compiler/src/asm/runtime_env_os.c
-file	compiler/src/asm/runtime_lexer_glue.c
-file	compiler/src/asm/runtime_log_os.c
 file	compiler/src/asm/runtime_lsp_glue.c
-file	compiler/src/asm/runtime_math_libm.c
-file	compiler/src/asm/runtime_net_udp_batch.c
 file	compiler/src/asm/runtime_panic.c
 file	compiler/src/asm/runtime_panic_arm64.c
-file	compiler/src/asm/runtime_path_fast.c
 file	compiler/src/asm/runtime_process_os_glue.c
-file	compiler/src/asm/runtime_queue_contention.c
 file	compiler/src/asm/runtime_scheduler_glue.c
 file	compiler/src/asm/runtime_sqlite_glue.c
 file	compiler/src/asm/runtime_sync_lock_diag_tls.c

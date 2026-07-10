@@ -8,10 +8,10 @@ verify	section	## 4. 验证与门禁	gate
 api_rotate	api	set_rotate_limit	std/log/mod.x	轮转
 api_async_en	api	set_async_enabled	std/log/mod.x	异步开
 api_async_flush	api	async_flush	std/log/mod.x	刷盘
-symbol_rotate_c	symbol	log_set_rotate_c	compiler/src/asm/runtime_log_os.c	C 轮转
-symbol_async_c	symbol	log_set_async_enabled_c	compiler/src/asm/runtime_log_os.c	C 异步
-symbol_flush_c	symbol	log_async_flush_c	compiler/src/asm/runtime_log_os.c	C 刷盘
-symbol_smoke_c	symbol	log_rotate_async_smoke_c	compiler/src/asm/runtime_log_os.c	C 烟测
+symbol_rotate_c	symbol	log_set_rotate_c	compiler/src/asm/runtime_log_os.inc	C 轮转
+symbol_async_c	symbol	log_set_async_enabled_c	compiler/src/asm/runtime_log_os.inc	C 异步
+symbol_flush_c	symbol	log_async_flush_c	compiler/src/asm/runtime_log_os.inc	C 刷盘
+symbol_smoke_c	symbol	log_rotate_async_smoke_c	compiler/src/asm/runtime_log_os.inc	C 烟测
 smoke_c	file	tests/std-log/rotate_async_smoke_ok.c	C 入口
 smoke_x	smoke	tests/std-log/rotate_async.x	.x 烟测
 lib	script	lib/std-log-rotate-async.sh	tests/lib/std-log-rotate-async.sh

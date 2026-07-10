@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 . "$(dirname "$0")/lib/ci-host.sh"
 
 MOD_X="std/dynlib/mod.x"
-DYNLIB_RUNTIME="compiler/src/asm/runtime_dynlib_os.c"
+DYNLIB_RUNTIME="compiler/src/asm/runtime_dynlib_os.inc"
 DYNLIB_X="std/dynlib/dynlib.x"
 MANIFEST="tests/baseline/std-dynlib-last-error.tsv"
 SMOKE_X="tests/dynlib/last_error.x"

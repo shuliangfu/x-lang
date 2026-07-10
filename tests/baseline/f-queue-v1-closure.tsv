@@ -3,7 +3,7 @@
 fq_doc	doc	analysis/phase-f-queue-v1.md	F-queue v1
 fq_gate	gate	tests/run-f-queue-v1-gate.sh	聚合门禁
 qu_x	file	std/queue/queue.x	模块锚点 .x
-qu_glue_v1_absent	absent	std/queue/queue_glue.c	v2 已删；见 runtime_queue_contention.c
+qu_glue_v1_absent	absent	std/queue/queue_glue.c	v2 已删；见 runtime_queue_contention.inc
 qu_mod	file	std/queue/mod.x	对外 API
 qu_c_absent	absent	std/queue/queue.c	已删除
 makefile	makefile	compiler/Makefile	queue.o ld -r merge

@@ -3,7 +3,7 @@
 fa_doc	doc	analysis/phase-f-atomic-v1.md	F-atomic v1
 fa_gate	gate	tests/run-f-atomic-v1-gate.sh	聚合门禁
 atomic_x	file	std/atomic/atomic.x	模块锚点 .x
-atomic_runtime	file	compiler/src/asm/runtime_atomic_glue.c	原子胶层 runtime
+atomic_runtime	file	compiler/src/asm/runtime_atomic_glue.inc	原子胶层 runtime
 atomic_mod	file	std/atomic/mod.x	对外 API
 atomic_glue_absent	absent	std/atomic/atomic_glue.c	已迁入 runtime
 atomic_c_absent	absent	std/atomic/atomic.c	已删除

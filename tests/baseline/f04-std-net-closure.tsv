@@ -3,7 +3,7 @@
 doc	doc	analysis/phase-f-f04-v15.md	F-04 v15
 gate	gate	tests/run-f04-std-net-closure-gate.sh	v15 聚合
 deleted_c	absent	std/net/net.c	v14 删除
-glue_batch_runtime	file	compiler/src/asm/runtime_net_udp_batch.c	recvmmsg runtime
+glue_batch_runtime	file	compiler/src/asm/runtime_net_udp_batch.inc	recvmmsg runtime
 glue_workers_runtime	file	compiler/src/asm/runtime_net_workers.inc	线程入口 runtime
 glue_batch_absent	absent	std/net/udp_batch_glue.c	已迁入 runtime
 glue_workers_absent	absent	std/net/workers_glue.c	已迁入 runtime

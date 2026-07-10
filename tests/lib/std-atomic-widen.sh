@@ -22,7 +22,7 @@ std_atomic_widen_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "std/atomic/atomic_glue.c" ] || [ "$path" = "compiler/src/asm/runtime_atomic_glue.c" ]; then path="$atomic_c"; fi
+        if [ "$path" = "std/atomic/atomic_glue.c" ] || [ "$path" = "compiler/src/asm/runtime_atomic_glue.inc" ]; then path="$atomic_c"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-atomic-widen FAIL: missing '$anchor' in $path" >&2
           miss=$((miss + 1))

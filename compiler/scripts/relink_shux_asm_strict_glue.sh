@@ -1594,9 +1594,9 @@ ensure_ast_obj() {
 
 ensure_lexer_obj() {
   local o="src/lexer/lexer.o"
-  if [ ! -f "$o" ] || [ "src/asm/runtime_lexer_glue.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/asm/runtime_lexer_glue.c"
-  "$CC" $CFLAGS -c -o "$o" src/asm/runtime_lexer_glue.c
+  if [ ! -f "$o" ] || [ "src/asm/runtime_lexer_glue.inc" -nt "$o" ]; then
+  strict_glue_info "cc_inc_tu $o <- src/asm/runtime_lexer_glue.inc"
+  sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc "$o"
   fi
 }
 

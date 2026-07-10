@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_OBS_STRUCT_LOG_DOC:-analysis/obs-structured-log-v1.md}"
 MANIFEST="${SHUX_OBS_STRUCT_LOG_TSV:-tests/baseline/obs-structured-log.tsv}"
 LOG_X="std/log/log.x"
-LOG_RUNTIME="compiler/src/asm/runtime_log_os.c"
+LOG_RUNTIME="compiler/src/asm/runtime_log_os.inc"
 LOG_X="std/log/mod.x"
 SMOKE="tests/bench/obs_structured_log_smoke.c"
 LOG_O="std/log/log.o"
@@ -51,7 +51,7 @@ while IFS=$'\t' read -r item_id kind anchor notes; do
       ;;
     runtime_fn)
       if ! grep -qF "$anchor" "$LOG_X" 2>/dev/null && ! grep -qF "$anchor" "$LOG_RUNTIME" 2>/dev/null; then
-        echo "obs-structured-log FAIL: ${anchor} not in log.x/runtime_log_os.c" >&2
+        echo "obs-structured-log FAIL: ${anchor} not in log.x/runtime_log_os.inc" >&2
         MISS=$((MISS + 1))
       fi
       ;;

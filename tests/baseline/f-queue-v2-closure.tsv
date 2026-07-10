@@ -4,6 +4,6 @@ fqueue_v2_doc	doc	analysis/phase-f-queue-v2.md	F-queue v2 / F-ZC
 fqueue_v2_gate	gate	tests/run-f-queue-v2-gate.sh	聚合门禁
 queue_x	file	std/queue/queue.x	竞争 push 烟测
 queue_os_glue_absent	absent	std/queue/queue_contention_os_glue.c	F-ZC 已删除
-runtime_queue_contention	file	compiler/src/asm/runtime_queue_contention.c	pthread runtime
+runtime_queue_contention	file	compiler/src/asm/runtime_queue_contention.inc	pthread runtime
 queue_glue_v1_absent	absent	std/queue/queue_glue.c	v1 胶层已删除
 makefile	makefile	compiler/Makefile	queue.o 纯 .x

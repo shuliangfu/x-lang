@@ -11,7 +11,7 @@ api_fence_acq	api	fence_acquire	std/atomic/mod.x	获取栅栏
 api_fence_rel	api	fence_release	std/atomic/mod.x	释放栅栏
 const_relaxed	const	ORDER_RELAXED	std/atomic/mod.x	0
 const_seq_cst	const	ORDER_SEQ_CST	std/atomic/mod.x	4
-symbol_fence_sc	symbol	atomic_fence_seq_cst_c	compiler/src/asm/runtime_atomic_glue.c	C fence
+symbol_fence_sc	symbol	atomic_fence_seq_cst_c	compiler/src/asm/runtime_atomic_glue.inc	C fence
 smoke_ordering	smoke	tests/atomic/ordering_fence.x	烟测
 smoke_main	smoke	tests/atomic/main.x	回归
 lib	script	lib/std-atomic-ordering.sh	tests/lib/std-atomic-ordering.sh

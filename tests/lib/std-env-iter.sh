@@ -23,7 +23,7 @@ std_env_iter_symbols_ok() {
         local target="$mod_x"
         case "$mod_path" in
           std/env/env.c|std/env/env.x) target="$env_impl" ;;
-          std/env/env_os_glue.c|compiler/src/asm/runtime_env_os.c) target="$env_glue" ;;
+          std/env/env_os_glue.c|compiler/src/asm/runtime_env_os.inc) target="$env_glue" ;;
         esac
         if ! grep -qF "$anchor" "$target" 2>/dev/null; then
           echo "std-env-iter FAIL: missing '$anchor' in $target" >&2

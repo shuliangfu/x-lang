@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-env v1：std.env 去 C（env.c → env.x + runtime_env_os.c）。
+# F-env v1：std.env 去 C（env.c → env.x + runtime_env_os.inc）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_ENV_V1_FAIL:-0}
@@ -11,7 +11,7 @@ echo "=== F-env v1: env.c → env.x ==="
 grep -q 'F-env v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
 [ -f std/env/env.x ] || die "missing env.x"
-[ -f compiler/src/asm/runtime_env_os.c ] || die "missing runtime_env_os.c"
+[ -f compiler/src/asm/runtime_env_os.inc ] || die "missing runtime_env_os.inc"
 [ ! -f std/env/env_os_glue.c ] || die "env_os_glue.c should be deleted"
 [ ! -f std/env/env.c ] || die "env.c should be deleted"
 while IFS=$'\t' read -r item_id kind anchor _n; do

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-queue v2：std.queue 竞争烟测 F-ZC（queue_contention_os_glue.c → runtime_queue_contention.c）。
+# F-queue v2：std.queue 竞争烟测 F-ZC（queue_contention_os_glue.c → runtime_queue_contention.inc）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_QUEUE_V2_FAIL:-0}
@@ -11,7 +11,7 @@ echo "=== F-queue v2: contention smoke → queue.x + runtime ==="
 grep -q 'F-queue v2' "$DOC" || die "doc marker"
 [ -f std/queue/queue.x ] || die "missing queue.x"
 [ ! -f std/queue/queue_contention_os_glue.c ] || die "queue_contention_os_glue.c should be deleted (F-ZC)"
-[ -f compiler/src/asm/runtime_queue_contention.c ] || die "missing runtime_queue_contention.c"
+[ -f compiler/src/asm/runtime_queue_contention.inc ] || die "missing runtime_queue_contention.inc"
 [ ! -f std/queue/queue_glue.c ] || die "queue_glue.c should be deleted"
 while IFS=$'\t' read -r item_id kind anchor _n; do
   [ -z "${item_id:-}" ] && continue
@@ -24,7 +24,7 @@ done < "$MANIFEST"
 grep -q 'sync_queue_contention_smoke_c' std/queue/queue.x || die "queue.x missing smoke"
 grep -q 'queue_contention_worker_push_c' std/queue/queue.x || die "queue.x missing worker"
 grep -q 'queue_f_queue_v2_marker_c' std/queue/queue.x || die "queue.x missing v2 marker"
-grep -q 'queue_os_run_two_workers_c' compiler/src/asm/runtime_queue_contention.c || die "runtime missing workers"
+grep -q 'queue_os_run_two_workers_c' compiler/src/asm/runtime_queue_contention.inc || die "runtime missing workers"
 grep -q 'queue_glue.c' compiler/Makefile && die "Makefile still references queue_glue.c"
 grep -q 'runtime_queue_contention' compiler/Makefile || die "Makefile missing runtime_queue_contention.o"
 if [ -x ./compiler/shux-c ] || [ -x ./compiler/shux ]; then

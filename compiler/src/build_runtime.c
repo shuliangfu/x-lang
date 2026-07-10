@@ -263,7 +263,7 @@ int build_run_step(int step_id, const char *shu_path) {
       "%s %s -c -o src/main.o src/main.c && "
       "%s %s -c -o src/runtime.o src/runtime.c && "
       "%s %s -DSHUX_USE_X_PREPROCESS -c -o src/runtime_driver.o src/runtime.c && "
-      "%s %s -c -o src/lexer/lexer.o src/asm/runtime_lexer_glue.c && "
+      "%s %s -c -o src/lexer/lexer.o src/asm/runtime_lexer_glue.inc && "
       "%s %s -c -o src/ast/ast.o src/asm/runtime_ast_glue.c && "
       "%s %s -c -o src/lsp/lsp_diag.o src/asm/runtime_lsp_glue.c && "
       "%s %s -c -o std_fs_shim.o src/std_fs_shim.c && "

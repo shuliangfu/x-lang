@@ -26,7 +26,7 @@ std_atomic_ord_symbols_ok() {
         ;;
       symbol)
         case "$mod_path" in
-          std/atomic/atomic_glue.c|compiler/src/asm/runtime_atomic_glue.c) mod_path="$atomic_c" ;;
+          std/atomic/atomic_glue.c|compiler/src/asm/runtime_atomic_glue.inc) mod_path="$atomic_c" ;;
           *) mod_path="$mod_x" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then

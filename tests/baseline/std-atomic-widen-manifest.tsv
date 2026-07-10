@@ -5,8 +5,8 @@ api_doc	section	## 2. 16/64 API	analysis/std-atomic-widen-v1.md
 api_load_i16	api	load	std/atomic/mod.x	i16 load overload
 api_compare_i64	api	compare_exchange	std/atomic/mod.x	i64 CAS overload
 api_fetch_u64	api	fetch_add	std/atomic/mod.x	u64 fetch overload
-sym_i16_c	symbol	atomic_load_i16_c	compiler/src/asm/runtime_atomic_glue.c	C i16
-sym_ce_u64_c	symbol	atomic_compare_exchange_u64_c	compiler/src/asm/runtime_atomic_glue.c	C u64 CAS
+sym_i16_c	symbol	atomic_load_i16_c	compiler/src/asm/runtime_atomic_glue.inc	C i16
+sym_ce_u64_c	symbol	atomic_compare_exchange_u64_c	compiler/src/asm/runtime_atomic_glue.inc	C u64 CAS
 smoke_x	smoke	tests/atomic/widen_16_64.x	烟测
 gate_base	gate	tests/run-std-atomic-ordering-gate.sh	STD-046
 lib	script	tests/lib/std-atomic-widen.sh	lib

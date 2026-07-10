@@ -3229,12 +3229,12 @@ ensure_asm_driver_seed_frontend_c_objs() {
   return 0
   fi
   echo " cc -c asm_driver_seed/*.o <- lexer/ast_seed/typeck/codegen .c (SHUX_LEGACY_SEED_FRONTEND_CC archaeology)"
-  if [ ! -f src/asm/runtime_lexer_glue.c ] || [ ! -f src/asm/runtime_ast_glue.c ] \
+  if [ ! -f src/asm/runtime_lexer_glue.inc ] || [ ! -f src/asm/runtime_ast_glue.c ] \
   || [ ! -f src/typeck/typeck.c ]; then
   build_shux_asm_error "LEGACY seed frontend .c missing; use X companions or restore C sources"
   return 1
   fi
-  "$CC" $CFLAGS -c -o "$SEED_DIR/lexer.o" src/asm/runtime_lexer_glue.c
+  sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc "$SEED_DIR/lexer.o"
   "$CC" $CFLAGS -c -o "$SEED_DIR/ast_seed.o" src/asm/runtime_ast_glue.c
   "$CC" $CFLAGS -c -o "$SEED_DIR/typeck.o" src/typeck/typeck.c
   # G-02a: codegen.c 已物理删除；codegen.o 由 codegen.x 生成（codegen_x.o），编排桩由 codegen_pipeline_stubs.o 提供。
@@ -3897,9 +3897,9 @@ ensure_runtime_user_link_objs() {
   echo " cc_inc_tu runtime_time_os.o <- src/asm/runtime_time_os.inc"
   sh scripts/cc_inc_tu.sh src/asm/runtime_time_os.inc runtime_time_os.o
   fi
-  if [ ! -f runtime_env_os.o ] || [ src/asm/runtime_env_os.c -nt runtime_env_os.o ]; then
-  echo " cc -c runtime_env_os.o <- src/asm/runtime_env_os.c"
-  "$CC" $CFLAGS -c -o runtime_env_os.o src/asm/runtime_env_os.c
+  if [ ! -f runtime_env_os.o ] || [ src/asm/runtime_env_os.inc -nt runtime_env_os.o ]; then
+  echo " cc_inc_tu runtime_env_os.o <- src/asm/runtime_env_os.inc"
+  sh scripts/cc_inc_tu.sh src/asm/runtime_env_os.inc runtime_env_os.o
   fi
 }
 

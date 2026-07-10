@@ -44,9 +44,9 @@ ensure_async_cps_seed_objs
 # bootstrap-driver-seed 同款 C 种子 .o（experimental 链须 parser/typeck 等；缺则 ld 失败）。
 ensure_asm_driver_seed_c_objs() {
   mkdir -p "$SEED_O"
-  if [ ! -f "$SEED_O/lexer.o" ] || [ "src/asm/runtime_lexer_glue.c" -nt "$SEED_O/lexer.o" ]; then
-  experimental_bootstrap_info "cc $SEED_O/lexer.o"
-  "$CC" $CFLAGS -c -o "$SEED_O/lexer.o" src/asm/runtime_lexer_glue.c
+  if [ ! -f "$SEED_O/lexer.o" ] || [ "src/asm/runtime_lexer_glue.inc" -nt "$SEED_O/lexer.o" ]; then
+  experimental_bootstrap_info "cc_inc_tu $SEED_O/lexer.o"
+  sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc "$SEED_O/lexer.o"
   fi
   if [ ! -f "$SEED_O/ast_seed.o" ] || [ "src/asm/runtime_ast_glue.c" -nt "$SEED_O/ast_seed.o" ]; then
   experimental_bootstrap_info "cc $SEED_O/ast_seed.o"

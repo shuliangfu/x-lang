@@ -1,13 +1,13 @@
 # STD-027 std.dynlib Windows LoadLibrary manifest
 # 列：item_id	kind	doc_anchor	code_anchor	src	notes
 min_symbols	3
-win_open	code	-	LoadLibraryA	compiler/src/asm/runtime_dynlib_os.c	Windows open
-win_open_w	code	-	LoadLibraryW	compiler/src/asm/runtime_dynlib_os.c	STD-097 UTF-8 回退
-win_norm	code	-	dynlib_win_normalize_path	compiler/src/asm/runtime_dynlib_os.c	STD-097 /→\\
-win_sym	code	-	GetProcAddress	compiler/src/asm/runtime_dynlib_os.c	Windows sym
-win_close	code	-	FreeLibrary	compiler/src/asm/runtime_dynlib_os.c	Windows close
-posix_open	code	-	dlopen	compiler/src/asm/runtime_dynlib_os.c	POSIX open
-posix_sym	code	-	dlsym	compiler/src/asm/runtime_dynlib_os.c	POSIX sym
+win_open	code	-	LoadLibraryA	compiler/src/asm/runtime_dynlib_os.inc	Windows open
+win_open_w	code	-	LoadLibraryW	compiler/src/asm/runtime_dynlib_os.inc	STD-097 UTF-8 回退
+win_norm	code	-	dynlib_win_normalize_path	compiler/src/asm/runtime_dynlib_os.inc	STD-097 /→\\
+win_sym	code	-	GetProcAddress	compiler/src/asm/runtime_dynlib_os.inc	Windows sym
+win_close	code	-	FreeLibrary	compiler/src/asm/runtime_dynlib_os.inc	Windows close
+posix_open	code	-	dlopen	compiler/src/asm/runtime_dynlib_os.inc	POSIX open
+posix_sym	code	-	dlsym	compiler/src/asm/runtime_dynlib_os.inc	POSIX sym
 api_open	symbol	-	open	std/dynlib/mod.x	用户 API
 api_sym	symbol	-	sym	std/dynlib/mod.x	用户 API
 api_close	symbol	-	close	std/dynlib/mod.x	用户 API

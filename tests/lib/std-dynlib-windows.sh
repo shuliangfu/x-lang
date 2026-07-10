@@ -21,7 +21,7 @@ std_dynlib_win_manifest_ok() {
     case "$kind" in
       code)
         if ! grep -qF "$code_anchor" "$dynlib_c" 2>/dev/null; then
-          echo "std-dynlib-windows FAIL: runtime_dynlib_os.c missing '$code_anchor' ($item_id)" >&2
+          echo "std-dynlib-windows FAIL: runtime_dynlib_os.inc missing '$code_anchor' ($item_id)" >&2
           miss=$((miss + 1))
         fi
         ;;
