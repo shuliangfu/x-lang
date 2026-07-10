@@ -44,7 +44,6 @@ extern "C" function driver_pipeline_entry_source_len_store(len: i64): void;
 extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
 extern "C" function driver_bump_stack_limit_impl(): void;
 extern "C" function driver_argv_collect_defines_impl(argc: i32, argv: *u8, defines: *u8, max_defines: i32): i32;
-extern "C" function driver_ascii_toupper_impl(c: i32): i32;
 extern "C" function driver_large_stack_thread_trampoline_impl(v: *u8): *u8;
 extern "C" function driver_run_fn_on_current_large_stack_impl(fn: *u8, arg: *u8): void;
 
@@ -601,13 +600,7 @@ function driver_source_scan_top_level_import(src: *u8, src_len: i64): i32 {
 
 /* ---- G-02f-92：ascii_toupper 门闩 ---- */
 
-#[no_mangle]
-function driver_ascii_toupper(c: i32): i32 {
-  unsafe {
-    return driver_ascii_toupper_impl(c);
-  }
-  return c;
-}
+
 
 /* ---- G-02f-94：large_stack trampoline / run_fn 门闩 ---- */
 
@@ -645,4 +638,16 @@ function compile_phase_timing_enabled(): i32 {
     if (e != 0) { return 1; }
   }
   return 0;
+}
+
+// G-02f-119：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function driver_ascii_toupper(c: i32): i32 {
+  if (c >= 97) {
+    if (c <= 122) {
+      return c - 32;
+    }
+  }
+  return c;
 }

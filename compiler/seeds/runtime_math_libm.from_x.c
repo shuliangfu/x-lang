@@ -1,4 +1,5 @@
 /* seeds/runtime_math_libm.from_x.c — G-02f-19 product TU
+ * G-02f-119 true .x pure helpers.
  * G-02f-100 math helper gates.
  * Product: runtime_math_libm.o; logic still C until full .x port.
  */
@@ -111,19 +112,16 @@ double math_log1p_c(double x) { return log1p(x); }
 double math_expm1_c(double x) { return expm1(x); }
 
 /** 近似相等；1 是，0 否（STD-115 special_smoke 金样）。 */
-int math_special_near_impl(double a, double b, double eps) {
+/* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int math_special_near(double a, double b, double eps) {
   double d = a - b;
   if (d < 0.0) {
     d = -d;
   }
   return d <= eps ? 1 : 0;
 }
-int math_special_near(double a, double b, double eps) {
-  {
-    return math_special_near_impl(a, b, eps);
-  }
-  return 0;
-}
+
+
 
 
 /** STD-115 烟测：erf/log1p/expm1 金样；0 成功。 */

@@ -7,7 +7,6 @@
 // G-02f-106：+ parse_url / transport close/send/recv / format / drain 薄门闩。
 // G-02f-107：+ transport_start_tls 薄门闩。
 
-extern "C" function http_method_has_body_impl(method: *u8): i32;
 extern "C" function http_set_timeouts_impl(fd: i32, timeout_ms: u32): i32;
 extern "C" function http_connect_timeout_impl(fd: i32, res: *u8, timeout_ms: u32): i32;
 extern "C" function shu_http_send_all_impl(fd: i32, buf: *u8, len: i32, is_socket: i32): i32;
@@ -26,11 +25,7 @@ function runtime_http_glue_x_doc_anchor(): i32 {
 
 /* ---- G-02f-105：http helpers 门闩 ---- */
 
-#[no_mangle]
-function http_method_has_body(method: *u8): i32 {
-  unsafe { return http_method_has_body_impl(method); }
-  return 0;
-}
+
 
 #[no_mangle]
 function http_set_timeouts(fd: i32, timeout_ms: u32): i32 {
@@ -111,5 +106,25 @@ extern "C" function http_request_timeout_ex_c_impl(method: *u8, url: *u8, url_le
 #[no_mangle]
 function http_request_timeout_ex_c(method: *u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_request_timeout_ex_c_impl(method, url, url_len, body, body_len, out, out_cap, timeout_ms); }
+  return 0;
+}
+
+// G-02f-119：http_method_has_body 真迁 .x
+
+#[no_mangle]
+function http_method_has_body(method: *u8): i32 {
+  if (method == 0) { return 0; }
+  // POST
+  if (method[0] == 80 && method[1] == 79 && method[2] == 83 && method[3] == 84 && method[4] == 0) {
+    return 1;
+  }
+  // PUT
+  if (method[0] == 80 && method[1] == 85 && method[2] == 84 && method[3] == 0) {
+    return 1;
+  }
+  // PATCH
+  if (method[0] == 80 && method[1] == 65 && method[2] == 84 && method[3] == 67 && method[4] == 72 && method[5] == 0) {
+    return 1;
+  }
   return 0;
 }

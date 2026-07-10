@@ -6,7 +6,6 @@
 // 产品：cc seeds/runtime_math_libm.from_x.c → runtime_math_libm.o
 // G-02f-100：+ special_near / fenv mask/report 薄门闩。
 
-extern "C" function math_special_near_impl(a: f64, b: f64, eps: f64): i32;
 extern "C" function math_fenv_mask_to_fe_impl(mask: i32): i32;
 extern "C" function math_fenv_fe_to_mask_impl(fe: i32): i32;
 extern "C" function math_fenv_emit_cap_report_impl(avail: i32): void;
@@ -17,13 +16,7 @@ function runtime_math_libm_x_doc_anchor(): i32 {
 
 /* ---- G-02f-100：math helper 门闩 ---- */
 
-#[no_mangle]
-function math_special_near(a: f64, b: f64, eps: f64): i32 {
-  unsafe {
-    return math_special_near_impl(a, b, eps);
-  }
-  return 0;
-}
+
 
 #[no_mangle]
 function math_fenv_mask_to_fe(mask: i32): i32 {
@@ -46,4 +39,14 @@ function math_fenv_emit_cap_report(avail: i32): void {
   unsafe {
     math_fenv_emit_cap_report_impl(avail);
   }
+}
+
+// G-02f-119：math_special_near 真迁 .x
+
+#[no_mangle]
+function math_special_near(a: f64, b: f64, eps: f64): i32 {
+  let d: f64 = a - b;
+  if (d < 0.0) { d = 0.0 - d; }
+  if (d <= eps) { return 1; }
+  return 0;
 }

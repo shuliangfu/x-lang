@@ -1,4 +1,5 @@
 /* seeds/runtime_http_glue.from_x.c — G-02f-21 product TU
+ * G-02f-119 true .x pure helpers.
  * G-02f-112 helper gates.
  * G-02f-111 helper gates.
  * G-02f-107 helper gates.
@@ -254,18 +255,15 @@ int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t
 
 
 /** 判定 HTTP 方法是否携带请求体（POST/PUT/PATCH）。 */
-int http_method_has_body_impl(const char *method) {
+/* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int http_method_has_body(const char *method) {
   if (!method)
     return 0;
   return (strcmp(method, "POST") == 0 || strcmp(method, "PUT") == 0 ||
           strcmp(method, "PATCH") == 0);
 }
-int http_method_has_body(const char *method) {
-  {
-    return http_method_has_body_impl(method);
-  }
-  return 0;
-}
+
+
 
 
 /** 构建 HTTP/1.0 请求行与 Host 头；带 body 的方法附加 Content-Length。返回 req_len，失败 -1。 */

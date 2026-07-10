@@ -36,17 +36,14 @@
 #include <pthread.h>
 
 /** nostdlib 下勿用 glibc ctype 宏（会引用 __ctype_toupper_loc）；本地 ASCII 大写。 */
-char driver_ascii_toupper_impl(char c) {
+/* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+char driver_ascii_toupper(char c) {
     if (c >= 'a' && c <= 'z')
         return (char)(c + ('A' - 'a'));
     return c;
 }
-char driver_ascii_toupper(char c) {
-  {
-    return driver_ascii_toupper_impl(c);
-  }
-  return 0;
-}
+
+
 
 
 

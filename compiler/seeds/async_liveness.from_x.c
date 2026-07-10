@@ -1,4 +1,5 @@
 /* seeds/async_liveness.from_x.c — G-02f-18 product TU
+ * G-02f-119 true .x pure helpers.
  * G-02f-110 helper gates.
  * G-02f-108 helper gates.
  * Product: src/async/async_liveness.o; logic still C until full .x port.
@@ -622,15 +623,12 @@ void analyze_block_linear(const struct ASTBlock *b,
 
 
 /** 名称字典序比较（qsort 用）。 */
-int live_name_cmp_impl(const void *a, const void *b) {
+/* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int live_name_cmp(const void *a, const void *b) {
     return strcmp((const char *)a, (const char *)b);
 }
-int live_name_cmp(const void *a, const void *b) {
-  {
-    return live_name_cmp_impl(a, b);
-  }
-  return 0;
-}
+
+
 
 
 /** 函数名转 C 标识符（非 alnum/_ → _）。 */

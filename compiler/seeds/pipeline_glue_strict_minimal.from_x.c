@@ -1,4 +1,5 @@
 /* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-11 product TU
+ * G-02f-119 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
  * G-02f-110 helper gates.
  * G-02f-108 helper gates.
@@ -699,8 +700,8 @@ __attribute__((weak)) int32_t pipeline_typeck_get_dep_return_type_in_caller_aren
 __attribute__((weak)) void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module) {
   g_typeck_entry_module_for_dep_map_strict_minimal = module;
 }
-
-int32_t pipeline_typeck_named_unqual_offset_strict_minimal_impl(const uint8_t *buf, int32_t len) {
+/* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_named_unqual_offset_strict_minimal(const uint8_t *buf, int32_t len) {
   int32_t i;
   for (i = len - 1; i > 0; i--) {
     if (buf[i] == '.')
@@ -708,12 +709,8 @@ int32_t pipeline_typeck_named_unqual_offset_strict_minimal_impl(const uint8_t *b
   }
   return 0;
 }
-int32_t pipeline_typeck_named_unqual_offset_strict_minimal(const uint8_t *buf, int32_t len) {
-  {
-    return pipeline_typeck_named_unqual_offset_strict_minimal_impl(buf, len);
-  }
-  return 0;
-}
+
+
 
 
 int32_t pipeline_typeck_named_equal_strict_minimal_impl(struct ast_ASTArena *arena, int32_t a, int32_t b) {
