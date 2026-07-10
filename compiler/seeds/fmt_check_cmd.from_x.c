@@ -7,9 +7,10 @@
  * G-02f-247: P1-8 open — collect lit + path_should_ignore pure + null bounds.
  * G-02f-248: file_list_push orch pure + lib_root early pure.
  * G-02f-249: walk entry filter pure + collect_paths_from_arg orch pure.
+ * G-02f-250: default product dirs + check_one finalize pure; P1-8 soft near-close.
  * Regen: ./shux-c -E -L .. src/driver/fmt_check_cmd.x > /tmp/fcc.c
  *         merge quiet_ok; keep path walk / check argv / fmt CLI C.
- * .x covers: quiet_ok + collect lit + ignore + file_list + walk filter + collect orch.
+ * .x covers: quiet_ok + path pure path + walk/collect orch + check_one finalize.
  */
 #include "win32_compat.h"
 #include "driver/fmt_check_cmd.h"
@@ -579,30 +580,57 @@ void walk_dir_collect(const char *dir) {
 
 
 
-/**
- * 无路径参数时 check 的默认扫描范围（产品树，不含 tests 负例目录）。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void check_collect_default_product_dirs(void) {
-    char cwd[512];
-    char sub[560];
-    struct stat st;
+/* G-02f-250：逻辑源 .x（真迁 sub 表）；seed 保留同语义 C 供产品 cc */
+const char *fmt_default_product_sub_at(int i) {
     static const char *subs[] = {"compiler/src", "core", "std", "examples", NULL};
-    int i;
-    int any_product = 0;
+    int n = 0;
+    while (subs[n])
+        n++;
+    if (i < 0 || i >= n)
+        return NULL;
+    return subs[i];
+}
 
+/* getcwd+stat+walk 🔒；命中产品子目录返回 1 */
+int fmt_try_walk_if_product_subdir(const char *sub) {
+    char cwd[512];
+    char subp[560];
+    struct stat st;
+    if (!sub)
+        return 0;
+    if (!getcwd(cwd, sizeof cwd))
+        return 0;
+    snprintf(subp, sizeof subp, "%s/%s", cwd, sub);
+    if (stat(subp, &st) == 0 && S_ISDIR(st.st_mode)) {
+        walk_dir_collect(subp);
+        return 1;
+    }
+    return 0;
+}
+
+void fmt_walk_cwd_fallback_impl(void) {
+    char cwd[512];
     if (!getcwd(cwd, sizeof cwd))
         return;
-    for (i = 0; subs[i]; i++) {
-        snprintf(sub, sizeof sub, "%s/%s", cwd, subs[i]);
-        if (stat(sub, &st) == 0 && S_ISDIR(st.st_mode)) {
-            walk_dir_collect(sub);
+    walk_dir_collect(cwd);
+}
+
+/**
+ * 无路径参数时 check 的默认扫描范围（产品树，不含 tests 负例目录）。
+ * G-02f-250：逻辑源 .x（编排 pure）；getcwd/stat 🔒。
+ */
+void check_collect_default_product_dirs(void) {
+    int any_product = 0;
+    int i;
+    for (i = 0;; i++) {
+        const char *sub = fmt_default_product_sub_at(i);
+        if (!sub)
+            break;
+        if (fmt_try_walk_if_product_subdir(sub))
             any_product = 1;
-        }
     }
-    /* 在 tests/xxx 等子目录无产品树时，仍只检查当前目录（run-check 子目录用例）。 */
     if (!any_product)
-        walk_dir_collect(cwd);
+        fmt_walk_cwd_fallback_impl();
 }
 
 
@@ -799,11 +827,33 @@ int driver_run_fmt(int argc, char **argv) {
     return 0;
 }
 
+/* G-02f-250：逻辑源 .x（真迁 fallback/lint 判定）；seed 保留同语义 C 供产品 cc */
+int check_one_need_fallback_diag(int rc, int nd, int nd_errors, int nd_warnings, int nd_infos,
+                                int direct_diag) {
+    if (rc == 0)
+        return 0;
+    if (direct_diag != 0)
+        return 0;
+    if (nd == 0)
+        return 1;
+    if (nd_errors == 0 && nd_warnings == 0 && nd_infos == 0)
+        return 1;
+    return 0;
+}
+
+int check_one_finalize_rc(int rc, int warn_count) {
+    if (rc != 0)
+        return rc;
+    if (check_lint_fail_on_warnings() && warn_count > 0)
+        return 1;
+    return rc;
+}
+
 /**
  * 对单个 .x 运行 check；复用 driver_run_compiler_full。
+ * G-02f-250：主体 🔒；结果判定 pure。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int check_one_file(const char *path, int argc, char **argv) {
+int check_one_file_body_impl(const char *path, int argc, char **argv) {
     char *check_argv[64];
     ShuxRuntimeFileView diag_view = {0};
     int have_diag_view = 0;
@@ -865,14 +915,10 @@ int check_one_file(const char *path, int argc, char **argv) {
         nd_infos = lsp_diag_count_severity(3);
         direct_diag_emitted = driver_check_diag_emitted_get();
         diag_restore(&diag_snapshot);
-        if (rc != 0) {
-            if ((nd == 0 || (nd_errors == 0 && nd_warnings == 0 && nd_infos == 0))
-                && !direct_diag_emitted)
-                diag_reportf_with_code(path, 0, 0, "check error", "CHK001", NULL,
-                                       "check failed: %s", path);
-        } else if (check_lint_fail_on_warnings() && lsp_diag_count_severity(2) > 0) {
-            rc = 1;
-        }
+        if (check_one_need_fallback_diag(rc, nd, nd_errors, nd_warnings, nd_infos, direct_diag_emitted))
+            diag_reportf_with_code(path, 0, 0, "check error", "CHK001", NULL,
+                                   "check failed: %s", path);
+        rc = check_one_finalize_rc(rc, nd_warnings);
     }
 
     lsp_diag_collect_end();
@@ -880,6 +926,13 @@ int check_one_file(const char *path, int argc, char **argv) {
         runtime_release_file_view(&diag_view);
     fmt_check_dep_clear();
     return rc;
+}
+
+/* G-02f-250：逻辑源 .x（门闩）；seed 保留同语义 C 供产品 cc */
+int check_one_file(const char *path, int argc, char **argv) {
+    if (!path || !argv || argc <= 0)
+        return -1;
+    return check_one_file_body_impl(path, argc, argv);
 }
 
 

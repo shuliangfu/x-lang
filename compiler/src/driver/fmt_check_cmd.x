@@ -11,6 +11,7 @@
 // G-02f-247：P1-8 开局 — collect lit pure + path_should_ignore pure + 多门闩 null 边界。
 // G-02f-248：file_list_push 编排 pure（.x 后缀 + ignore）+ lib_root 早退 pure。
 // G-02f-249：walk 条目过滤 pure + collect_paths_from_arg 编排 pure。
+// G-02f-250：default product dirs 编排 pure + check_one 结果 pure；P1-8 soft 近闭。
 
 extern "C" function getenv(name: *u8): *u8;
 extern "C" function strstr(hay: *u8, needle: *u8): *u8;
@@ -39,12 +40,16 @@ extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, chec
 extern "C" function fmt_check_invoke_compile_impl(path: *u8): i32;
 /* walk：G-02f-249 过滤 pure；opendir 循环 🔒 */
 extern "C" function walk_dir_collect_impl(dir: *u8): void;
-extern "C" function check_collect_default_product_dirs_impl(): void;
+/* default dirs：G-02f-250 编排 pure；getcwd/stat 🔒 */
+extern "C" function fmt_default_product_sub_at(i: i32): *u8;
+extern "C" function fmt_try_walk_if_product_subdir(sub: *u8): i32;
+extern "C" function fmt_walk_cwd_fallback_impl(): void;
 /* collect_paths：G-02f-249 编排 pure；stat/diag 🔒 */
 extern "C" function fmt_path_stat_kind(path: *u8): i32;
 extern "C" function collect_paths_missing_diag_impl(path: *u8): void;
 extern "C" function parse_ignore_opt_impl(arg: *u8): void;
-extern "C" function check_one_file_impl(path: *u8): i32;
+/* check_one 主体 🔒；结果 pure 见 G-02f-250 */
+extern "C" function check_one_file_body_impl(path: *u8, argc: i32, argv: *u8): i32;
 extern "C" function closedir_win_impl(d: *u8): void;
 
 #[no_mangle]
@@ -304,10 +309,27 @@ function walk_dir_collect(dir: *u8): void {
   }
 }
 
+// G-02f-250：扫 compiler/src,core,std,examples；全无则 walk cwd
 #[no_mangle]
 function check_collect_default_product_dirs(): void {
-  unsafe {
-    check_collect_default_product_dirs_impl();
+  let any: i32 = 0;
+  let i: i32 = 0;
+  while (i < 8) {
+    unsafe {
+      let sub: *u8 = fmt_default_product_sub_at(i);
+      if (sub == 0 as *u8) {
+        break;
+      }
+      if (fmt_try_walk_if_product_subdir(sub) != 0) {
+        any = 1;
+      }
+    }
+    i = i + 1;
+  }
+  if (any == 0) {
+    unsafe {
+      fmt_walk_cwd_fallback_impl();
+    }
   }
 }
 
@@ -375,13 +397,56 @@ function parse_ignore_opt(arg: *u8): i32 {
   return 1;
 }
 
+// G-02f-250：check 失败且无诊断时是否补 CHK001
 #[no_mangle]
-function check_one_file(path: *u8): i32 {
+function check_one_need_fallback_diag(rc: i32, nd: i32, nd_errors: i32, nd_warnings: i32, nd_infos: i32, direct_diag: i32): i32 {
+  if (rc == 0) {
+    return 0;
+  }
+  if (direct_diag != 0) {
+    return 0;
+  }
+  if (nd == 0) {
+    return 1;
+  }
+  if (nd_errors == 0) {
+    if (nd_warnings == 0) {
+      if (nd_infos == 0) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+// G-02f-250：rc==0 且 lint warn 时改失败
+#[no_mangle]
+function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
+  if (rc != 0) {
+    return rc;
+  }
+  if (check_lint_fail_on_warnings() != 0) {
+    if (warn_count > 0) {
+      return 1;
+    }
+  }
+  return rc;
+}
+
+// G-02f-250：门闩 + body 🔒（argv 拼装/compile/diag IO）
+#[no_mangle]
+function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
   }
+  if (argv == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (argc <= 0) {
+    return 0 - 1;
+  }
   unsafe {
-    return check_one_file_impl(path);
+    return check_one_file_body_impl(path, argc, argv);
   }
   return 0 - 1;
 }
