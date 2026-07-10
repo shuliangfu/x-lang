@@ -1,11 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-339/340：runtime_driver_diagnostic L2 thin — pure _impl 门闩子集（无字符串字面量）。
+// G-02f-339～341：runtime_driver_diagnostic L2 thin — pure _impl 门闩子集（无字符串字面量）。
 // 产品 PREFER_X_O：g05_try_x_to_o → thin.o + seeds/runtime_driver_diagnostic.from_x.c rest
 //   （-DSHUX_L2_RDD_THIN_FROM_X）ld -r → src/runtime_driver_diagnostic.o
 // 完整逻辑源仍见 src/runtime_driver_diagnostic.x（整文件 -E 仍 typeck/字符串阻）。
-// 本 TU 门闩数：51（f-339+340）
+// 本 TU 门闩数：71（f-339～341）
 
 extern "C" function driver_debug_log_impl(step: i32): void;
 extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
@@ -394,12 +394,32 @@ function driver_diag_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32 {
   return at;
 }
 
+
+
+
+#[no_mangle]
+function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_len: i32): i32 {
+  if (dst == 0) { return 0; }
+  if (dst_size == 0) { return 0; }
+  let n: i32 = 0;
+  if (src != 0) {
+    if (src_len > 0) {
+      while (n < src_len) {
+        if ((n as i64) + 1 >= dst_size) { break; }
+        dst[n] = src[n];
+        n = n + 1;
+      }
+    }
+  }
+  dst[n] = 0;
+  return n;
+}
+
 // ---- G-02f-340 _impl gates ----
 extern "C" function driver_diagnostic_before_codegen_impl(num_funcs: i32, out_len: i32): void;
 extern "C" function driver_diagnostic_source_len_impl(len: i32): void;
 extern "C" function driver_diagnostic_after_entry_parse_impl(num_funcs: i32): void;
 extern "C" function driver_diagnostic_pipe_marker_impl(id: i32): void;
-extern "C" function driver_diag_copy_bytes_impl(dst: *u8, dst_size: i64, src: *u8, src_len: i32): i32;
 extern "C" function driver_diag_fill_expr_part_impl(dst: *u8, cap: i32, expr_buf: *u8, expr_len: i32): void;
 extern "C" function driver_diagnostic_typeck_if_condition_not_bool_impl(line: i32, col: i32): void;
 extern "C" function driver_diagnostic_typeck_while_condition_not_bool_impl(line: i32, col: i32): void;
@@ -440,13 +460,6 @@ function driver_diagnostic_pipe_marker(id: i32): void {
   }
 }
 
-#[no_mangle]
-function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_len: i32): i32 {
-  unsafe {
-    return driver_diag_copy_bytes_impl(dst, dst_size, src, src_len);
-  }
-  return 0;
-}
 
 #[no_mangle]
 function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void {
@@ -518,4 +531,172 @@ function driver_diagnostic_typeck_break_continue_outside(line: i32, col: i32, is
   }
 }
 
+// ---- G-02f-341 pure helpers / remaining gates ----
+
+#[no_mangle]
+function parser_is_ident_allow(ident: *u8, len: i32): i32 {
+  if (ident == 0) { return 0; }
+  if (len != 5) { return 0; }
+  if (ident[0] == 97 && ident[1] == 108 && ident[2] == 108 && ident[3] == 111 && ident[4] == 119) {
+    return 1;
+  }
+  return 0;
+}
+
+// ", found " without string literal
+
+
+// ---- G-02f-341 remaining string/C-tail gates ----
+extern "C" function driver_diag_build_expected_found_impl(msg: *u8, msg_cap: i32, pref: *u8, epart: *u8, fpart: *u8): void;
+extern "C" function driver_parse_strict_enabled_impl(): i32;
+extern "C" function driver_diag_report_prefixed_impl(line: i32, col: i32, msg: *u8): void;
+extern "C" function driver_diag_note_impl(msg: *u8): void;
+extern "C" function driver_diagnostic_typeck_return_unresolved_impl(line: i32, col: i32, expr_buf: *u8, expr_len: i32): void;
+extern "C" function driver_diagnostic_typeck_return_subexpr_impl(line: i32, col: i32, expr_buf: *u8, expr_len: i32): void;
+extern "C" function driver_diagnostic_typeck_return_mismatch_impl(line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
+extern "C" function driver_diagnostic_typeck_assign_mismatch_impl(is_compound: i32, line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
+extern "C" function driver_diagnostic_typeck_call_not_generic_impl(line: i32, col: i32, name: *u8, name_len: i32): void;
+extern "C" function driver_diagnostic_typeck_call_wrong_num_type_args_impl(line: i32, col: i32, name: *u8, name_len: i32, expect_n: i32, got_n: i32): void;
+extern "C" function driver_diagnostic_typeck_call_requires_type_args_impl(line: i32, col: i32, name: *u8, name_len: i32): void;
+extern "C" function driver_diagnostic_typeck_struct_padding_before_impl(sname: *u8, sname_len: i32, gap: i32, fname: *u8, fname_len: i32): void;
+extern "C" function driver_diagnostic_typeck_struct_padding_trailing_impl(sname: *u8, sname_len: i32, gap: i32): void;
+extern "C" function driver_diagnostic_typeck_struct_field_bad_size_impl(sname: *u8, sname_len: i32, fname: *u8, fname_len: i32): void;
+extern "C" function driver_diagnostic_asm_unsupported_expr_impl(kind: i32): void;
+extern "C" function driver_diagnostic_asm_elf_unresolved_patch_impl(name: *u8, len: i32): void;
+extern "C" function driver_diagnostic_asm_macho_empty_reloc_impl(reloc_idx: i32): void;
+extern "C" function driver_diagnostic_asm_macho_missing_und_reloc_impl(reloc_idx: i32): void;
+
+#[no_mangle]
+function driver_parse_strict_enabled(): i32 {
+  unsafe {
+    return driver_parse_strict_enabled_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_diag_report_prefixed(line: i32, col: i32, msg: *u8): void {
+  unsafe {
+    driver_diag_report_prefixed_impl(line, col, msg);
+  }
+}
+
+#[no_mangle]
+function driver_diag_note(msg: *u8): void {
+  unsafe {
+    driver_diag_note_impl(msg);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_return_unresolved(line: i32, col: i32, expr_buf: *u8, expr_len: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_return_unresolved_impl(line, col, expr_buf, expr_len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_return_subexpr(line: i32, col: i32, expr_buf: *u8, expr_len: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_return_subexpr_impl(line, col, expr_buf, expr_len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_return_mismatch(line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_return_mismatch_impl(line, col, expect_buf, expect_len, found_buf, found_len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_assign_mismatch_impl(is_compound, line, col, expect_buf, expect_len, found_buf, found_len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_call_not_generic(line: i32, col: i32, name: *u8, name_len: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_call_not_generic_impl(line, col, name, name_len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_call_wrong_num_type_args(line: i32, col: i32, name: *u8, name_len: i32, expect_n: i32, got_n: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_call_wrong_num_type_args_impl(line, col, name, name_len, expect_n, got_n);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_call_requires_type_args(line: i32, col: i32, name: *u8, name_len: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_call_requires_type_args_impl(line, col, name, name_len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_struct_padding_before(sname: *u8, sname_len: i32, gap: i32, fname: *u8, fname_len: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_struct_padding_before_impl(sname, sname_len, gap, fname, fname_len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_struct_padding_trailing(sname: *u8, sname_len: i32, gap: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_struct_padding_trailing_impl(sname, sname_len, gap);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname_len: i32, fname: *u8, fname_len: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_struct_field_bad_size_impl(sname, sname_len, fname, fname_len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_unsupported_expr(kind: i32): void {
+  unsafe {
+    driver_diagnostic_asm_unsupported_expr_impl(kind);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_elf_unresolved_patch(name: *u8, len: i32): void {
+  unsafe {
+    driver_diagnostic_asm_elf_unresolved_patch_impl(name, len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_macho_empty_reloc(reloc_idx: i32): void {
+  unsafe {
+    driver_diagnostic_asm_macho_empty_reloc_impl(reloc_idx);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void {
+  unsafe {
+    driver_diagnostic_asm_macho_missing_und_reloc_impl(reloc_idx);
+  }
+}
+
+#[no_mangle]
+function driver_diag_fill_expr_part(dst: *u8, cap: i32, expr_buf: *u8, expr_len: i32): void {
+  unsafe {
+    driver_diag_fill_expr_part_impl(dst, cap, expr_buf, expr_len);
+  }
+}
+
+#[no_mangle]
+function driver_diag_build_expected_found(msg: *u8, msg_cap: i32, pref: *u8, epart: *u8, fpart: *u8): void {
+  unsafe {
+    driver_diag_build_expected_found_impl(msg, msg_cap, pref, epart, fpart);
+  }
+}
 

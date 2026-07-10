@@ -30,7 +30,7 @@ src/**/*.x  →  工具链  →  *.o  →  link shux
 | 6 | `src/asm/parser_asm_parse_expr_link.x` | 并入 `parser_asm_parse_expr_link.o` | hybrid：thin.o（**weak** `debug_enabled`）+ seed-rest（`-DSHUX_L2_PEL_THIN_FROM_X` + SKIP_X）`cc -r` | f-333 |
 | 7 | `src/runtime_io_abi.x` | 并入 `runtime_io_abi.o` | hybrid：thin.o（**weak** fs/path/file_view 门闩）+ seed-rest（`-DSHUX_L2_RIO_THIN_FROM_X`，C 尾 `_impl` / `flags_impl`）`cc -r` | f-334 |
 | 8 | `src/diag_thin.x` | 并入 `diag.o` | hybrid：thin.o（**weak** **26** 门闩：…+ f-338 json/print/report/color→`_impl`）+ seed-rest（`-DSHUX_L2_DIAG_THIN_FROM_X`）`cc -r` | f-335～338 |
-| 9 | `src/runtime_driver_diagnostic_thin.x` | 并入 `runtime_driver_diagnostic.o` | hybrid：thin.o（**weak** **51** 门闩：f-339 28 + f-340 pure/append/固定 typeck msg）+ seed-rest（`-DSHUX_L2_RDD_THIN_FROM_X`）`cc -r` | f-339/340 |
+| 9 | `src/runtime_driver_diagnostic_thin.x` | 并入 `runtime_driver_diagnostic.o` | hybrid：thin.o（**weak** **~71** 门闩：覆盖几乎全部 rdd.x 导出）+ seed-rest（`-DSHUX_L2_RDD_THIN_FROM_X`）`cc -r` | f-339～341 |
 
 - **默认路径**：仍整 seed `cc`（冷启动/回滚安全）
 - **优先路径**：`SHUX_G05_PREFER_X_O=1`（显式 opt-in）
