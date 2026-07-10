@@ -37,15 +37,13 @@ extern "C" function driver_diagnostic_typeck_assign_mismatch_impl(is_compound: i
 extern "C" function driver_diagnostic_typeck_block_enter_impl(func_idx: i32, block_ref: i32, n_const: i32, n_let: i32, n_loop: i32, n_for: i32, n_expr: i32, final_ref: i32): void;
 extern "C" function driver_diagnostic_typeck_fn_enter_impl(func_idx: i32, name: *u8, name_len: i32): void;
 extern "C" function driver_diagnostic_typeck_var_resolution_impl(expr_ref: i32, name: *u8, name_len: i32, func_idx: i32, block_ref: i32, source: i32, type_ref: i32): void;
-extern "C" function driver_diagnostic_before_codegen_impl(num_funcs: i32, out_len: i32): void;
-extern "C" function driver_diagnostic_source_len_impl(len: i32): void;
-extern "C" function driver_diagnostic_after_entry_parse_impl(num_funcs: i32): void;
+extern "C" function driver_diag_env_debug_pipe(): i32;
+extern "C" function driver_diag_pipe_note(kind: i32, a: i32, b: i32): void;
 extern "C" function driver_diagnostic_parse_commit_fail_impl(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void;
 extern "C" function driver_diagnostic_parse_func_generic_impl(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, num_generic_params: i32, is_main: i32): void;
 extern "C" function driver_diagnostic_parse_commit_shape_impl(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void;
 extern "C" function parser_diagnostic_parse_commit_shape_impl(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32, pool_num_consts: i32, pool_num_lets: i32, pool_num_ifs: i32, pool_num_regions: i32, pool_num_stmt_order: i32, block_num_consts: i32, block_num_lets: i32, block_num_ifs: i32, block_num_regions: i32, block_num_stmt_order: i32, final_expr_ref: i32): void;
 extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
-extern "C" function driver_diagnostic_pipe_marker_impl(id: i32): void;
 extern "C" function driver_diagnostic_codegen_fail_impl(dep_index: i32, is_dep: i32): void;
 extern "C" function driver_diagnostic_codegen_emit_func_fail_impl(module: *u8, func_index: i32): void;
 extern "C" function driver_diagnostic_asm_unsupported_expr_impl(kind: i32): void;
@@ -333,24 +331,31 @@ function driver_diagnostic_typeck_var_resolution(expr_ref: i32, name: *u8, name_
   }
 }
 
+// G-02f-164：SHUX_DEBUG_PIPE 探测真迁；reportf 经 pipe_note
 #[no_mangle]
 function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): void {
   unsafe {
-    driver_diagnostic_before_codegen_impl(num_funcs, out_len);
+    if (driver_diag_env_debug_pipe() != 0) {
+      driver_diag_pipe_note(0, num_funcs, out_len);
+    }
   }
 }
 
 #[no_mangle]
 function driver_diagnostic_source_len(len: i32): void {
   unsafe {
-    driver_diagnostic_source_len_impl(len);
+    if (driver_diag_env_debug_pipe() != 0) {
+      driver_diag_pipe_note(1, len, 0);
+    }
   }
 }
 
 #[no_mangle]
 function driver_diagnostic_after_entry_parse(num_funcs: i32): void {
   unsafe {
-    driver_diagnostic_after_entry_parse_impl(num_funcs);
+    if (driver_diag_env_debug_pipe() != 0) {
+      driver_diag_pipe_note(2, num_funcs, 0);
+    }
   }
 }
 
@@ -392,7 +397,9 @@ function driver_diagnostic_after_entry_parse_module(module: *u8): void {
 #[no_mangle]
 function driver_diagnostic_pipe_marker(id: i32): void {
   unsafe {
-    driver_diagnostic_pipe_marker_impl(id);
+    if (driver_diag_env_debug_pipe() != 0) {
+      driver_diag_pipe_note(3, id, 0);
+    }
   }
 }
 

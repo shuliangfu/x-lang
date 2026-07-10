@@ -4,6 +4,7 @@
 // G-02f-18：async_liveness 产品源迁 seeds/async_liveness.from_x.c。
 // G-02f-161：frame_mangle_ident / frame_build_tag 真迁 .x。
 // G-02f-162：frame_live_add 真迁 .x（AsyncFrameLive names@0 n@4096）。
+// G-02f-164：frame_live_at_await 真迁 .x（char** defined LE 槽）。
 // 产品：cc seeds/async_liveness.from_x.c → src/async/async_liveness.o
 
 function async_liveness_x_doc_anchor(): i32 {
@@ -198,10 +199,9 @@ extern "C" function expr_count_await_impl(e: *u8): i32;
 extern "C" function expr_has_io_read_await_impl(e: *u8): i32;
 extern "C" function expr_has_io_write_await_impl(e: *u8): i32;
 extern "C" function expr_refs_var_impl(e: *u8, name: *u8): i32;
-extern "C" function frame_live_at_await_impl(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): void;
 extern "C" function analyze_block_linear_impl(b: *u8, out: *u8): void;
 
-/* ---- G-02f-110 / G-02f-161：async_liveness expr/frame 门闩 ---- */
+/* ---- G-02f-110 / G-02f-161 / G-02f-164：async_liveness expr/frame 门闩 ---- */
 
 #[no_mangle]
 function expr_has_await(e: *u8): i32 { unsafe { return expr_has_await_impl(e); } return 0; }
@@ -213,8 +213,43 @@ function expr_has_io_read_await(e: *u8): i32 { unsafe { return expr_has_io_read_
 function expr_has_io_write_await(e: *u8): i32 { unsafe { return expr_has_io_write_await_impl(e); } return 0; }
 #[no_mangle]
 function expr_refs_var(e: *u8, name: *u8): i32 { unsafe { return expr_refs_var_impl(e, name); } return 0; }
+
+// G-02f-164：defs 为 char**；槽 i 在偏移 i*8（LE 指针）
+function async_live_load_def_name(defs: *u8, i: i32): *u8 {
+  if (defs == 0) { return 0 as *u8; }
+  let off: i32 = i * 8;
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  let a: usize = defs[off] as usize;
+  a = a + (defs[off + 1] as usize) * m;
+  a = a + (defs[off + 2] as usize) * m2;
+  a = a + (defs[off + 3] as usize) * (m2 * m);
+  a = a + (defs[off + 4] as usize) * m4;
+  a = a + (defs[off + 5] as usize) * (m4 * m);
+  a = a + (defs[off + 6] as usize) * (m4 * m2);
+  a = a + (defs[off + 7] as usize) * (m4 * m2 * m);
+  return a as *u8;
+}
+
 #[no_mangle]
-function frame_live_at_await(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): void { unsafe { frame_live_at_await_impl(b, idx, defs, nd, out); } }
+function frame_live_at_await(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): void {
+  if (nd <= 0) { return; }
+  if (defs == 0) { return; }
+  if (out == 0) { return; }
+  let i: i32 = 0;
+  while (i < nd) {
+    let name: *u8 = async_live_load_def_name(defs, i);
+    if (name != 0) {
+      unsafe {
+        if (block_rest_refs_var(b, idx, name) != 0) {
+          frame_live_add(out, name);
+        }
+      }
+    }
+    i = i + 1;
+  }
+}
 
 #[no_mangle]
 function analyze_block_linear(b: *u8, out: *u8): void { unsafe { analyze_block_linear_impl(b, out); } }

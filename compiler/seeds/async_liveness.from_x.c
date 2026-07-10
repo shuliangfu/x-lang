@@ -554,18 +554,13 @@ void frame_live_add(AsyncFrameLive *out, const char *name) {
 
 
 /** 在 await 点将 defined[0..n_def) 中 continuation 仍引用的符号加入 frame。 */
-void frame_live_at_await_impl(const struct ASTBlock *b, int stmt_idx,
+/* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void frame_live_at_await(const struct ASTBlock *b, int stmt_idx,
     const char **defined, int n_def, AsyncFrameLive *frame) {
     for (int i = 0; i < n_def; i++) {
         if (defined[i] && block_rest_refs_var(b, stmt_idx, defined[i]))
             frame_live_add(frame, defined[i]);
     }
-}
-void frame_live_at_await(const struct ASTBlock *b, int stmt_idx,
-    const char **defined, int n_def, AsyncFrameLive *frame) {
-  {
-    frame_live_at_await_impl(b, stmt_idx, defined, n_def, frame);
-  }
 }
 
 

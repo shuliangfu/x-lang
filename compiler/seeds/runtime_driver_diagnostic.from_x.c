@@ -38,15 +38,13 @@ void driver_diagnostic_typeck_assign_mismatch_impl(int32_t is_compound, int32_t 
 void driver_diagnostic_typeck_block_enter_impl(int32_t func_idx, int32_t block_ref, int32_t n_const, int32_t n_let, int32_t n_loop, int32_t n_for, int32_t n_expr, int32_t final_ref);
 void driver_diagnostic_typeck_fn_enter_impl(int32_t func_idx, const uint8_t *name, int32_t name_len);
 void driver_diagnostic_typeck_var_resolution_impl(int32_t expr_ref, const uint8_t *name, int32_t name_len, int32_t func_idx, int32_t block_ref, int32_t source, int32_t type_ref);
-void driver_diagnostic_before_codegen_impl(int32_t num_funcs, int32_t out_len);
-void driver_diagnostic_source_len_impl(int32_t len);
-void driver_diagnostic_after_entry_parse_impl(int32_t num_funcs);
+
 void driver_diagnostic_parse_commit_fail_impl(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, const uint8_t *name);
 void driver_diagnostic_parse_func_generic_impl(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len, int32_t num_generic_params, int32_t is_main);
 void driver_diagnostic_parse_commit_shape_impl(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len, int32_t phase, int32_t block_ref, int32_t pool_num_consts, int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions, int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets, int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order, int32_t final_expr_ref);
 void parser_diagnostic_parse_commit_shape_impl(int32_t byte_pos, int32_t num_funcs_so_far, const uint8_t *name, int32_t name_len, int32_t phase, int32_t block_ref, int32_t pool_num_consts, int32_t pool_num_lets, int32_t pool_num_ifs, int32_t pool_num_regions, int32_t pool_num_stmt_order, int32_t block_num_consts, int32_t block_num_lets, int32_t block_num_ifs, int32_t block_num_regions, int32_t block_num_stmt_order, int32_t final_expr_ref);
 void driver_diagnostic_after_entry_parse_module_impl(void *module);
-void driver_diagnostic_pipe_marker_impl(int32_t id);
+
 void driver_diagnostic_codegen_fail_impl(int32_t dep_index, int32_t is_dep);
 void driver_diagnostic_codegen_emit_func_fail_impl(void *module, int32_t func_index);
 void driver_diagnostic_asm_unsupported_expr_impl(int32_t kind);
@@ -756,17 +754,31 @@ void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *na
 
 
 /** -x -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.len，便于排查 dep 产出为空。 */
-void driver_diagnostic_before_codegen_impl(int32_t num_funcs, int32_t out_len) {
-    if (getenv("SHUX_DEBUG_PIPE"))
+/** 供 .x 探测 SHUX_DEBUG_PIPE（G-02f-164）。 */
+int driver_diag_env_debug_pipe(void) {
+    const char *e = getenv("SHUX_DEBUG_PIPE");
+    return (e && e[0] && e[0] != '0') ? 1 : 0;
+}
+/** reportf 冷路径（va_list 限制，kind：0=before_codegen 1=source_len 2=after_entry 3=pipe_marker）。 */
+void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
+    if (kind == 0)
         diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: before_codegen num_funcs=%d out_len=%d",
-                     (int)num_funcs, (int)out_len);
+                     "pipeline debug: before_codegen num_funcs=%d out_len=%d", (int)a, (int)b);
+    else if (kind == 1)
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: entry_source_len=%d", (int)a);
+    else if (kind == 2)
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: after_entry_parse num_funcs=%d", (int)a);
+    else if (kind == 3)
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: pipe_marker=%d", (int)a);
 }
 
+/* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len) {
-  {
-    driver_diagnostic_before_codegen_impl(num_funcs, out_len);
-  }
+    if (driver_diag_env_debug_pipe())
+        driver_diag_pipe_note(0, num_funcs, out_len);
 }
 
 
@@ -776,30 +788,18 @@ void driver_diagnostic_entry_already(int32_t v) {
 }
 
 /** 诊断：解析前 source_len。由 pipeline.x 调用。需要时取消注释 fprintf。 */
-void driver_diagnostic_source_len_impl(int32_t len) {
-    if (getenv("SHUX_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: entry_source_len=%d", (int)len);
-}
-
+/* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_diagnostic_source_len(int32_t len) {
-  {
-    driver_diagnostic_source_len_impl(len);
-  }
+    if (driver_diag_env_debug_pipe())
+        driver_diag_pipe_note(1, len, 0);
 }
 
 
 /** 诊断：entry 解析后 module.num_funcs，便于确认是否未解析（0）。由 pipeline.x 调用。需要时取消注释 fprintf。 */
-void driver_diagnostic_after_entry_parse_impl(int32_t num_funcs) {
-    if (getenv("SHUX_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: after_entry_parse num_funcs=%d", (int)num_funcs);
-}
-
+/* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_diagnostic_after_entry_parse(int32_t num_funcs) {
-  {
-    driver_diagnostic_after_entry_parse_impl(num_funcs);
-  }
+    if (driver_diag_env_debug_pipe())
+        driver_diag_pipe_note(2, num_funcs, 0);
 }
 
 
@@ -963,16 +963,10 @@ void driver_diagnostic_after_entry_parse_module(void *module) {
 
 
 /** 诊断：pipeline/typeck 阶段 marker；SHUX_DEBUG_PIPE=1 时打印（1=merge 后，2=typeck library 入口，3=validate 后）。 */
-void driver_diagnostic_pipe_marker_impl(int32_t id) {
-    if (getenv("SHUX_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: pipe_marker=%d", (int)id);
-}
-
+/* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_diagnostic_pipe_marker(int32_t id) {
-  {
-    driver_diagnostic_pipe_marker_impl(id);
-  }
+    if (driver_diag_env_debug_pipe())
+        driver_diag_pipe_note(3, id, 0);
 }
 
 
