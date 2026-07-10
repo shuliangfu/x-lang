@@ -935,8 +935,9 @@ void file_list_clear(void) {
 
 /**
  * 运行 shux fmt（deno fmt 语义）。
+ * G-02f-410：实现体始终 seed；public PREFER 时 thin pure forward。
  */
-int driver_run_fmt(int argc, char **argv) {
+int driver_run_fmt_impl(int argc, char **argv) {
     int i;
     int fail_fast = 0;
     int any_path_arg = 0;
@@ -947,7 +948,7 @@ int driver_run_fmt(int argc, char **argv) {
     s_n_ignore = 0;
     s_unformatted_count = 0;
     s_collect_mode = DRIVER_COLLECT_MODE_FMT;
-    file_list_clear();
+    file_list_clear_impl();
 
     for (i = 1; i < argc; i++) {
         if (!argv[i])
@@ -962,19 +963,19 @@ int driver_run_fmt(int argc, char **argv) {
             continue;
         }
         if (strncmp(argv[i], "--ignore=", 9) == 0) {
-            parse_ignore_opt(argv[i]);
+            parse_ignore_opt_impl(argv[i]);
             continue;
         }
         if (argv[i][0] == '-')
             continue;
         any_path_arg = 1;
-        collect_paths_from_arg(argv[i]);
+        collect_paths_from_arg_impl(argv[i]);
     }
 
     if (!any_path_arg) {
         char cwd[512];
         if (getcwd(cwd, sizeof cwd))
-            walk_dir_collect(cwd);
+            walk_dir_collect_impl(cwd);
     }
 
     if (s_n_files == 0) {
@@ -1005,7 +1006,7 @@ int driver_run_fmt(int argc, char **argv) {
     }
 
     driver_fmt_check_only_set(0);
-    file_list_clear();
+    file_list_clear_impl();
 
     if (failed && check_mode) {
         int j;
@@ -1029,6 +1030,11 @@ int driver_run_fmt(int argc, char **argv) {
 
     return 0;
 }
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int driver_run_fmt(int argc, char **argv) {
+    return driver_run_fmt_impl(argc, argv);
+}
+#endif
 
 /* G-02f-250：逻辑源 .x（真迁 fallback/lint 判定）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
@@ -1162,8 +1168,9 @@ int check_one_file(const char *path, int argc, char **argv) {
 
 /**
  * 运行 shux check（deno check 语义：多文件/目录，失败打印诊断）。
+ * G-02f-410：实现体始终 seed；public PREFER 时 thin pure forward。
  */
-int driver_run_compiler_check(int argc, char **argv) {
+int driver_run_compiler_check_impl(int argc, char **argv) {
     int i;
     int fail_fast = 0;
     int any_path = 0;
@@ -1173,7 +1180,7 @@ int driver_run_compiler_check(int argc, char **argv) {
 
     s_check_quiet_ok = 1;
     s_collect_mode = DRIVER_COLLECT_MODE_CHECK;
-    file_list_clear();
+    file_list_clear_impl();
 
     /* main.x 传入 argv[1]=check；shux-c 已 drop 子命令时 argv[1] 为首个路径。 */
     if (argc >= 2 && argv[1] && strcmp(argv[1], "check") == 0)
@@ -1189,7 +1196,7 @@ int driver_run_compiler_check(int argc, char **argv) {
             continue;
         }
         if (strncmp(argv[i], "--ignore=", 9) == 0) {
-            parse_ignore_opt(argv[i]);
+            parse_ignore_opt_impl(argv[i]);
             continue;
         }
         if (strcmp(argv[i], "-L") == 0 || strcmp(argv[i], "-I") == 0 || strcmp(argv[i], "-o") == 0) {
@@ -1203,7 +1210,7 @@ int driver_run_compiler_check(int argc, char **argv) {
         if (argv[i][0] == '-')
             continue;
         any_path = 1;
-        collect_paths_from_arg(argv[i]);
+        collect_paths_from_arg_impl(argv[i]);
     }
 
     /*
@@ -1211,7 +1218,7 @@ int driver_run_compiler_check(int argc, char **argv) {
      * 有路径时仍由 collect_paths_from_arg 处理（可显式 shux check tests/...）。
      */
     if (!any_path)
-        check_collect_default_product_dirs();
+        check_collect_default_product_dirs_impl();
 
     if (s_n_files == 0) {
         if (any_path)
@@ -1232,7 +1239,7 @@ int driver_run_compiler_check(int argc, char **argv) {
         checked++;
     }
 
-    file_list_clear();
+    file_list_clear_impl();
 
     if (failed)
         return 1;
@@ -1243,4 +1250,9 @@ int driver_run_compiler_check(int argc, char **argv) {
 
     return 0;
 }
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int driver_run_compiler_check(int argc, char **argv) {
+    return driver_run_compiler_check_impl(argc, argv);
+}
+#endif
 

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-350/383/389/405–408：fmt_check_cmd L2 thin — pure + lit 门闩（32）。
+// G-02f-350/383/389/405–410：fmt_check_cmd L2 thin — pure + lit + entry 门闩（34）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // 对照：src/driver/fmt_check_cmd.x；默认仍整 seed。
@@ -351,4 +351,24 @@ function check_argv_append_default_libs_for_path(path: *u8, check_argv: *u8, n: 
   unsafe {
     check_argv_append_default_libs_for_path_impl(path, check_argv, n);
   }
+}
+
+// ---- G-02f-410：fmt/check entry → seed impl ----
+extern "C" function driver_run_fmt_impl(argc: i32, argv: *u8): i32;
+extern "C" function driver_run_compiler_check_impl(argc: i32, argv: *u8): i32;
+
+#[no_mangle]
+function driver_run_fmt(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return driver_run_fmt_impl(argc, argv);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_run_compiler_check(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return driver_run_compiler_check_impl(argc, argv);
+  }
+  return 0;
 }
