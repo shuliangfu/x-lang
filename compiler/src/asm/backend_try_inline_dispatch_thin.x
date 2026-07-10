@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/381：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/382：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -112,17 +112,34 @@ function pipeline_asm_struct_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32
 }
 
 // ---- G-02f-365：forward 壳（callee 仍 seed-rest）----
-extern "C" function glue_enc_local_slot_ptr_or_addr(arena: *u8, elf_ctx: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32;
-extern "C" function glue_arch_emit_local_slot_ptr_or_addr_text(arena: *u8, out: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32;
+// G-02f-382：6 参 local_slot public thin → seed _impl（pipeline 壳同调 _impl）
+extern "C" function glue_enc_local_slot_ptr_or_addr_impl(arena: *u8, elf_ctx: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32;
+extern "C" function glue_arch_emit_local_slot_ptr_or_addr_text_impl(arena: *u8, out: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32;
 extern "C" function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name: *u8, nlen: i32): i32;
 extern "C" function asm_ctx_local_find_offset(ctx: *u8, name: *u8, nlen: i32): i32;
 extern "C" function backend_fold_func_return_operand_ref(arena: *u8, mod: *u8, func_idx: i32): i32;
 extern "C" function glue_fold_func_return_operand_ref_module_impl(arena: *u8, mod: *u8, func_idx: i32): i32;
 
 #[no_mangle]
+function glue_enc_local_slot_ptr_or_addr(arena: *u8, elf_ctx: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
+  unsafe {
+    return glue_enc_local_slot_ptr_or_addr_impl(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_arch_emit_local_slot_ptr_or_addr_text(arena: *u8, out: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
+  unsafe {
+    return glue_arch_emit_local_slot_ptr_or_addr_text_impl(arena, out, arg_ref, slot_off, ta, asm_ctx);
+  }
+  return 0;
+}
+
+#[no_mangle]
 function pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf_ctx: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
   unsafe {
-    return glue_enc_local_slot_ptr_or_addr(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
+    return glue_enc_local_slot_ptr_or_addr_impl(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
   }
   return 0;
 }
@@ -130,7 +147,7 @@ function pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf_ctx: *u8,
 #[no_mangle]
 function pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(arena: *u8, out: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
   unsafe {
-    return glue_arch_emit_local_slot_ptr_or_addr_text(arena, out, arg_ref, slot_off, ta, asm_ctx);
+    return glue_arch_emit_local_slot_ptr_or_addr_text_impl(arena, out, arg_ref, slot_off, ta, asm_ctx);
   }
   return 0;
 }

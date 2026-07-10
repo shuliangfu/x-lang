@@ -42,6 +42,8 @@ int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t i
 int32_t pipeline_asm_struct_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
 int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
 int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
+int32_t glue_enc_local_slot_ptr_or_addr(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
+int32_t glue_arch_emit_local_slot_ptr_or_addr_text(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
 int32_t glue_try_inline_local_slot_off(uint8_t *ctx, struct ast_ASTArena *arena, uint8_t *name, int32_t name_len);
 int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx);
 int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t array_lit_ref);
@@ -895,16 +897,19 @@ int32_t glue_enc_local_slot_ptr_or_addr_impl(struct ast_ASTArena *arena, struct 
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta);
 }
 
+/* G-02f-382 try：public PREFER 时 thin forward */
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t glue_enc_local_slot_ptr_or_addr(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
   return glue_enc_local_slot_ptr_or_addr_impl(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
 }
+#endif
 
 #ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                       int32_t arg_ref, int32_t slot_off, int32_t ta,
                                                       uint8_t *asm_ctx) {
-  return glue_enc_local_slot_ptr_or_addr(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
+  return glue_enc_local_slot_ptr_or_addr_impl(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
 }
 #endif
 
@@ -915,15 +920,18 @@ int32_t glue_arch_emit_local_slot_ptr_or_addr_text_impl(struct ast_ASTArena *are
   return backend_arch_emit_lea_rbp_to_rax(out, slot_off, ta);
 }
 
+/* G-02f-382 try：public PREFER 时 thin forward */
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t glue_arch_emit_local_slot_ptr_or_addr_text(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
   return glue_arch_emit_local_slot_ptr_or_addr_text_impl(arena, out, arg_ref, slot_off, ta, asm_ctx);
 }
+#endif
 
 #ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena,
                                                              struct codegen_CodegenOutBuf *out, int32_t arg_ref,
                                                              int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
-  return glue_arch_emit_local_slot_ptr_or_addr_text(arena, out, arg_ref, slot_off, ta, asm_ctx);
+  return glue_arch_emit_local_slot_ptr_or_addr_text_impl(arena, out, arg_ref, slot_off, ta, asm_ctx);
 }
 #endif
 
@@ -1186,7 +1194,7 @@ int32_t try_inline_param0_single_field_call_elf_impl(struct ast_ASTArena *arena,
   slot_off = glue_try_inline_local_slot_off((uint8_t *)ctx, arena, vname, vlen);
   if (slot_off < 0)
     return 0;
-  if (glue_enc_local_slot_ptr_or_addr(arena, elf_ctx, arg_ref, slot_off, ta, (uint8_t *)ctx) != 0)
+  if (glue_enc_local_slot_ptr_or_addr_impl(arena, elf_ctx, arg_ref, slot_off, ta, (uint8_t *)ctx) != 0)
     return -1;
   if (backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta) != 0)
     return -1;
@@ -1417,7 +1425,7 @@ int32_t try_inline_var_field_sum_binop_elf_impl(struct ast_ASTArena *arena, stru
   slot_off = glue_try_inline_local_slot_off((uint8_t *)ctx, arena, vname, vlen);
   if (slot_off < 0)
     return 0;
-  if (glue_enc_local_slot_ptr_or_addr(arena, elf_ctx, base_l, slot_off, ta, (uint8_t *)ctx) != 0)
+  if (glue_enc_local_slot_ptr_or_addr_impl(arena, elf_ctx, base_l, slot_off, ta, (uint8_t *)ctx) != 0)
     return -1;
   if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
     return -1;
@@ -1514,7 +1522,7 @@ int32_t try_inline_param0_field_sum_call_elf_impl(struct ast_ASTArena *arena, st
   slot_off = glue_try_inline_local_slot_off((uint8_t *)ctx, arena, vname, vlen);
   if (slot_off < 0)
     return 0;
-  if (glue_enc_local_slot_ptr_or_addr(arena, elf_ctx, arg_ref, slot_off, ta, (uint8_t *)ctx) != 0)
+  if (glue_enc_local_slot_ptr_or_addr_impl(arena, elf_ctx, arg_ref, slot_off, ta, (uint8_t *)ctx) != 0)
     return -1;
   if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
     return -1;
