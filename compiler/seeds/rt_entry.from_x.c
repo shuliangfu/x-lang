@@ -1,8 +1,9 @@
-/* seeds/rt_entry.from_x.c — G-02f-301 P2 runtime R10-lite (entry pure gates)
+/* seeds/rt_entry.from_x.c — G-02f-301/310 P2 runtime R10 entry gates
  * Logic source: src/runtime/rt_entry.x
  * Hybrid: SHUX_RT_ENTRY_FROM_X + ld -r into runtime_driver_no_c.o
  *
- * Scope: explain CLI / smoke summary / fmt no-files thin gate.
+ * f-301: explain CLI / smoke summary / fmt no-files thin gate
+ * f-310: run_compiler_c 薄转调 + driver_build_build_x（system 🔒）
  * main_entry (!X_DRIVER) and full run_compiler orchestration remain mega.
  */
 #include <stddef.h>
@@ -26,6 +27,8 @@ extern void diag_print_code_explain(FILE *out, const char *code);
 extern void diag_print_known_codes(FILE *out);
 extern int diag_json_enabled(void);
 extern int driver_run_fmt(int argc, char **argv);
+extern int main_run_compiler_c(int argc, uint8_t *argv);
+extern int system(const char *command);
 
 /** explain 子命令 / --explain：-1=非 explain，0=成功，1=失败。 */
 int runtime_try_handle_explain_cli(int argc, char **argv) {
@@ -114,6 +117,31 @@ int driver_fmt_report_no_files(void) {
   argv_fmt[0] = "shux";
   argv_fmt[1] = "fmt";
   return driver_run_fmt(2, argv_fmt);
+}
+
+/** X driver：转调 main.x main_run_compiler_c。 */
+int run_compiler_c(int argc, char **argv) {
+  return main_run_compiler_c(argc, (uint8_t *)argv);
+}
+
+/**
+ * cmd_build：make build-tool 再 build_tool ./shux。
+ * 🔒 system() 经 libc。
+ */
+int driver_build_build_x(void) {
+  int rc = system("cd compiler && make -s build-tool 2>&1");
+  if (rc != 0) {
+    diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                           "make build-tool failed (exit %d)", rc);
+    return 1;
+  }
+  rc = system("cd compiler && ./build_tool ./shux 2>&1");
+  if (rc != 0) {
+    diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
+                           "build_tool failed (exit %d)", rc);
+    return 1;
+  }
+  return 0;
 }
 
 int labi_rt_entry_slice_marker(void) {

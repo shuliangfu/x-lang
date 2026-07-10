@@ -483,7 +483,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_ent_o" "$_rt_entry_seed"; then
             _rt_entry_ok=1
-            echo "g05_ensure: R10 entry gates ← $_rt_entry_seed (G-02f-301 seed slice)"
+            echo "g05_ensure: R10 entry gates ← $_rt_entry_seed (G-02f-301/310 seed slice)"
           fi
         fi
         if [ -n "$_rt_diag_o" ] && [ -f "$_rt_diag_seed" ]; then
@@ -633,7 +633,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
           # shellcheck disable=SC2086
           if $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
-            echo "g05_ensure: $_rt_o ← R2/R0/R1/R5-lite/R3/R6/R7/R9/R10/diag/emit_st/elf_diag/lib_root/parse_diag/fs_open/arena_buf + rest (G-02f-309 hybrid)"
+            echo "g05_ensure: $_rt_o ← R2/R0/R1/R5-lite/R3/R6/R7/R9/R10/diag/emit_st/elf_diag/lib_root/parse_diag/fs_open/arena_buf + rest (G-02f-310 hybrid)"
             _rt_done=1
           fi
         fi

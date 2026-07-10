@@ -975,13 +975,14 @@ int labi_rt_parse_diag_slice_marker(void);
 #ifdef SHUX_USE_X_DRIVER
 /* run_compiler_c 由 C 在此定义，转调 main.x 的 main_run_compiler_c，供 main_entry 等调用；不再依赖 driver_gen.c 追加。 */
 extern int main_run_compiler_c(int argc, uint8_t *argv);
-/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-310 R10 扩：run_compiler_c → rt_entry hybrid */
+#ifndef SHUX_RT_ENTRY_FROM_X
 int run_compiler_c(int argc, char **argv) {
   return main_run_compiler_c(argc, (uint8_t *)argv);
 }
-
-
+#else
+int run_compiler_c(int argc, char **argv);
+#endif
 
 #endif
 /* 6.1 后 typeck/pipeline 用 ctx；typeck dep 侧车见 runtime_pipeline_abi.c（E-04 v29）；typeck 入口见 v31 pipeline_typeck_module_for_ctx。 */
@@ -3275,7 +3276,8 @@ int driver_run_compiler_full(int argc, char **argv);
  * - 构造 argv {"shux","build.x",NULL} 调用 driver_run_compiler_full(2, fake_argv)，非 0 则返回 1。
  * - 编译成功后 fork / execv("./a.out", av)、waitpid，返回子进程正常退出码；信号等非正常退出返回 1。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-310 R10 扩：driver_build_build_x → rt_entry hybrid */
+#ifndef SHUX_RT_ENTRY_FROM_X
 int driver_build_build_x(void) {
     /* 生成 build_tool 并执行：等价 make build-tool && ./build_tool ./shux。
        build.x 没有 main，需结合 build_runtime.c 做成 build_tool 再跑。
@@ -3294,6 +3296,9 @@ int driver_build_build_x(void) {
     }
     return 0;
 }
+#else
+int driver_build_build_x(void);
+#endif
 
 
 
