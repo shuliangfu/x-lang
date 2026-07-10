@@ -1,4 +1,4 @@
-/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-220 block_impl/dep_map; G-02f-219 match/field; G-02f-11 product TU
+/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-221 linear/after_parse/block_const; G-02f-220 block_impl; G-02f-11 product TU
  * G-02f-135 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
@@ -573,6 +573,7 @@ extern int32_t pipeline_lsp_diag_parse_typeck_buf_impl_c(struct ast_Module *modu
                                                          uint8_t *source_data, int32_t source_len,
                                                          struct ast_PipelineDepCtx *ctx);
 
+/* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct ast_Module *module,
                                                                     struct shux_slice_uint8_t *source,
                                                                     struct ast_PipelineDepCtx *ctx) {
@@ -1090,7 +1091,7 @@ __attribute__((weak)) int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct
   return pipeline_type_find_or_alloc_slice(arena, u8_ref, (uint8_t *)lbl, 11);
 }
 
-/* G-02f-152：逻辑源仍需全局表（seed 保留）；折叠 _impl 薄包装 */
+/* G-02f-221：逻辑源 .x（真迁）；seed 保留全局表实现供产品 cc */
 int pipeline_typeck_linear_name_already_moved_strict_minimal(const uint8_t *name, int32_t name_len) {
   int i;
   for (i = 0; i < g_typeck_linear_moved_n; i++) {
@@ -1101,11 +1102,12 @@ int pipeline_typeck_linear_name_already_moved_strict_minimal(const uint8_t *name
   return 0;
 }
 
-
+/* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) void pipeline_typeck_linear_reset_c(void) {
   g_typeck_linear_moved_n = 0;
 }
 
+/* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTArena *arena, int32_t type_ref,
                                                                int32_t expr_ref, uint8_t *name, int32_t name_len) {
   int32_t line;
@@ -1543,6 +1545,7 @@ __attribute__((weak)) int32_t pipeline_asm_build_import_binding_call_sym_c(const
   return pos;
 }
 
+/* G-02f-221：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_block_const_init_is_const_c(struct ast_ASTArena *arena, int32_t block_ref,
                                                                           int32_t const_idx) {
   const char *names[64];
