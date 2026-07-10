@@ -11,8 +11,11 @@ function backend_try_inline_dispatch_x_doc_anchor(): i32 {
 
 // G-02f-109：+ align/const fold/module lookup/param 薄门闩。
 
-extern "C" function glue_module_named_type_has_struct_layout_impl(mod: *u8, name: *u8, nlen: i32): i32;
-extern "C" function glue_type_ref_is_named_struct_layout_impl(arena: *u8, mod: *u8, tr: i32): i32;
+extern "C" function pipeline_module_num_struct_layouts_at(mod: *u8): i32;
+extern "C" function pipeline_module_struct_layout_name_len(mod: *u8, idx: i32): i32;
+extern "C" function pipeline_module_struct_layout_name_byte_at(mod: *u8, idx: i32, off: i32): u8;
+extern "C" function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
+extern "C" function pipeline_type_named_name_into(arena: *u8, tr: i32, out64: *u8): i32;
 extern "C" function asm_local_var_slot_holds_indirect_ptr(arena: *u8, er: i32, mod: *u8, asm_ctx: *u8): i32;
 extern "C" function pipeline_asm_module_func_param_name_len_at(mod: *u8, fi: i32, pix: i32): i32;
 extern "C" function pipeline_asm_module_func_param_name_copy32(mod: *u8, fi: i32, pix: i32, dst: *u8): void;
@@ -89,9 +92,51 @@ function glue_const_scalar_binop_eval_i32(ko: i32, a: i32, b: i32, out: *i32): i
 }
 
 #[no_mangle]
-function glue_module_named_type_has_struct_layout(mod: *u8, name: *u8, nlen: i32): i32 { unsafe { return glue_module_named_type_has_struct_layout_impl(mod, name, nlen); } return 0; }
+// G-02f-135：模块内是否有命名 struct layout
 #[no_mangle]
-function glue_type_ref_is_named_struct_layout(arena: *u8, mod: *u8, tr: i32): i32 { unsafe { return glue_type_ref_is_named_struct_layout_impl(arena, mod, tr); } return 0; }
+function glue_module_named_type_has_struct_layout(mod: *u8, name: *u8, nlen: i32): i32 {
+  if (mod == 0) { return 0; }
+  if (name == 0) { return 0; }
+  if (nlen <= 0) { return 0; }
+  unsafe {
+    let n: i32 = pipeline_module_num_struct_layouts_at(mod);
+    let k: i32 = 0;
+    while (k < n) {
+      let ln: i32 = pipeline_module_struct_layout_name_len(mod, k);
+      if (ln == nlen) {
+        if (ln > 0) {
+          let j: i32 = 0;
+          let ok: i32 = 1;
+          while (j < nlen) {
+            if (pipeline_module_struct_layout_name_byte_at(mod, k, j) != name[j]) {
+              ok = 0;
+              break;
+            }
+            j = j + 1;
+          }
+          if (ok != 0) { return 1; }
+        }
+      }
+      k = k + 1;
+    }
+  }
+  return 0;
+}
+
+// G-02f-135：TYPE_NAMED=8 且模块有 layout
+#[no_mangle]
+function glue_type_ref_is_named_struct_layout(arena: *u8, mod: *u8, ty_ref: i32): i32 {
+  if (ty_ref <= 0) { return 0; }
+  if (mod == 0) { return 0; }
+  unsafe {
+    if (pipeline_type_kind_ord_at(arena, ty_ref) != 8) { return 0; }
+    let nm: u8[64] = [];
+    let nlen: i32 = pipeline_type_named_name_into(arena, ty_ref, &nm[0]);
+    if (nlen <= 0) { return 0; }
+    return glue_module_named_type_has_struct_layout(mod, &nm[0], nlen);
+  }
+  return 0;
+}
 // G-02f-132：从 AsmFuncCtx 偏移 16 读 module_ref（4×i32 后，64 位 LE）
 function g02f_load_ptr_at(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
@@ -205,7 +250,7 @@ extern "C" function backend_enc_load_rbp_to_rax_arch(elf: *u8, offset: i32, ta: 
 extern "C" function backend_enc_lea_rbp_to_rax_arch(elf: *u8, offset: i32, ta: i32): i32;
 extern "C" function backend_arch_emit_load_rbp_to_rax(out: *u8, off: i32, ta: i32): i32;
 extern "C" function backend_arch_emit_lea_rbp_to_rax(out: *u8, off: i32, ta: i32): i32;
-extern "C" function glue_fold_func_returns_param_struct_lit_impl(arena: *u8, mod: *u8, fi: i32, out: *i32): i32;
+
 extern "C" function glue_inner_call_arg_for_field_access_impl(arena: *u8, er: i32): i32;
 extern "C" function glue_dep_module_field_offset_by_name_impl(mod: *u8, name: *u8, nlen: i32): i32;
 extern "C" function glue_inline_var_field_access_offset_impl(arena: *u8, er: i32): i32;
@@ -265,7 +310,35 @@ function glue_struct_lit_field_init_param_index(arena: *u8, mod: *u8, fi: i32, l
 }
 
 #[no_mangle]
-function glue_fold_func_returns_param_struct_lit(arena: *u8, mod: *u8, fi: i32, out: *i32): i32 { unsafe { return glue_fold_func_returns_param_struct_lit_impl(arena, mod, fi, out); } return 0; }
+// G-02f-135：return Struct{f:param…}；STRUCT_LIT=45，max fields=8
+#[no_mangle]
+function glue_fold_func_returns_param_struct_lit(arena: *u8, mod: *u8, func_idx: i32, out_lit_ref: *i32): i32 {
+  if (out_lit_ref == 0) { return 0; }
+  if (arena == 0) { return 0; }
+  if (mod == 0) { return 0; }
+  unsafe {
+    let ret_ref: i32 = glue_fold_func_return_operand_ref_module(arena, mod, func_idx);
+    if (ret_ref <= 0) {
+      ret_ref = backend_fold_func_return_operand_ref(arena, mod, func_idx);
+    }
+    if (ret_ref <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, ret_ref) != 45) { return 0; }
+    let nf: i32 = pipeline_expr_struct_lit_num_fields(arena, ret_ref);
+    if (nf <= 0) { return 0; }
+    if (nf > 8) { return 0; }
+    let fj: i32 = 0;
+    while (fj < nf) {
+      let pix: i32 = 0;
+      if (glue_struct_lit_field_init_param_index(arena, mod, func_idx, ret_ref, fj, &pix) != 0) {
+        return 0;
+      }
+      fj = fj + 1;
+    }
+    out_lit_ref[0] = ret_ref;
+    return 1;
+  }
+  return 0;
+}
 
 // G-02f-134：struct lit 按字段名查下标
 #[no_mangle]

@@ -1,4 +1,5 @@
 /* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-11 product TU
+ * G-02f-135 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
@@ -1204,7 +1205,8 @@ int32_t pipeline_typeck_slice_region_conflict_strict_minimal(struct ast_ASTArena
 }
 
 
-int32_t pipeline_typeck_slice_region_escape_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expect_ref,
+/* G-02f-135：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_slice_region_escape_strict_minimal(struct ast_ASTArena *arena, int32_t expect_ref,
                                                                   int32_t src_ref) {
   if (!arena || expect_ref <= 0 || src_ref <= 0)
     return 0;
@@ -1215,13 +1217,7 @@ int32_t pipeline_typeck_slice_region_escape_strict_minimal_impl(struct ast_ASTAr
           pipeline_type_region_label_len_at(arena, expect_ref) <= 0)
              ? 1
              : 0;
-}
-int32_t pipeline_typeck_slice_region_escape_strict_minimal(struct ast_ASTArena *arena, int32_t expect_ref,
-                                                                  int32_t src_ref) {
-  {
-    return pipeline_typeck_slice_region_escape_strict_minimal_impl(arena, expect_ref, src_ref);
-  }
-  return 0;
+
 }
 
 

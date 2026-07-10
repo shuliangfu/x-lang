@@ -42,7 +42,8 @@ extern "C" function pipeline_typeck_find_func_return_type_in_module_by_name_stri
 extern "C" function pipeline_typeck_map_import_binding_named_to_caller_strict_minimal_impl(mod: *u8, dep: i32, arena: *u8, nm: *u8, nlen: i32): i32;
 extern "C" function pipeline_typeck_linear_name_already_moved_strict_minimal_impl(name: *u8, nlen: i32): i32;
 extern "C" function pipeline_typeck_slice_region_conflict_strict_minimal_impl(arena: *u8, a: i32, b: i32): i32;
-extern "C" function pipeline_typeck_slice_region_escape_strict_minimal_impl(arena: *u8, a: i32, b: i32): i32;
+extern "C" function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
+extern "C" function pipeline_type_region_label_len_at(arena: *u8, tr: i32): i32;
 extern "C" function pipeline_typeck_expr_diag_line_col_strict_minimal_impl(arena: *u8, er: i32, line: *i32, col: *i32): void;
 extern "C" function typeck_block_is_strict_ancestor_strict_minimal_impl(arena: *u8, a: i32, b: i32): i32;
 extern "C" function typeck_expr_lval_root_var_strict_minimal_impl(arena: *u8, er: i32, out: *u8, olen: *i32): i32;
@@ -85,8 +86,21 @@ function pipeline_typeck_slice_region_conflict_strict_minimal(arena: *u8, a: i32
 }
 
 #[no_mangle]
-function pipeline_typeck_slice_region_escape_strict_minimal(arena: *u8, a: i32, b: i32): i32 {
-  unsafe { return pipeline_typeck_slice_region_escape_strict_minimal_impl(arena, a, b); }
+// G-02f-135：SLICE=11；src 有 region 而 expect 无 → escape
+#[no_mangle]
+function pipeline_typeck_slice_region_escape_strict_minimal(arena: *u8, expect_ref: i32, src_ref: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (expect_ref <= 0) { return 0; }
+  if (src_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_type_kind_ord_at(arena, expect_ref) != 11) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, src_ref) != 11) { return 0; }
+    let sl: i32 = pipeline_type_region_label_len_at(arena, src_ref);
+    let el: i32 = pipeline_type_region_label_len_at(arena, expect_ref);
+    if (sl > 0) {
+      if (el <= 0) { return 1; }
+    }
+  }
   return 0;
 }
 

@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-135 true .x pure helpers.
  * G-02f-134 true .x pure helpers.
  * G-02f-133 true .x pure helpers.
  * G-02f-132 true .x pure helpers.
@@ -601,7 +602,8 @@ int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, 
 /**
  * 模块内是否存在与 name 同名的 struct_layout（与 backend.x asm_module_named_type_has_struct_layout 一致）。
  */
-int32_t glue_module_named_type_has_struct_layout_impl(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
+/* G-02f-135：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t k;
   int32_t nlen;
   int32_t j;
@@ -619,19 +621,15 @@ int32_t glue_module_named_type_has_struct_layout_impl(struct ast_Module *mod, ui
       return 1;
   }
   return 0;
-}
-int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
-  {
-    return glue_module_named_type_has_struct_layout_impl(mod, name, name_len);
-  }
-  return 0;
+
 }
 
 
 /**
  * 类型 ref 是否为模块内具 layout 的命名 struct（Pair 等）。
  */
-int32_t glue_type_ref_is_named_struct_layout_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-135：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_type_ref_is_named_struct_layout(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                     int32_t ty_ref) {
   uint8_t nm[64];
   int32_t nlen;
@@ -643,13 +641,7 @@ int32_t glue_type_ref_is_named_struct_layout_impl(struct ast_ASTArena *arena, st
   if (nlen <= 0)
     return 0;
   return glue_module_named_type_has_struct_layout(mod, nm, nlen);
-}
-int32_t glue_type_ref_is_named_struct_layout(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                    int32_t ty_ref) {
-  {
-    return glue_type_ref_is_named_struct_layout_impl(arena, mod, ty_ref);
-  }
-  return 0;
+
 }
 
 
@@ -842,7 +834,8 @@ int32_t glue_struct_lit_field_init_param_index(struct ast_ASTArena *arena, struc
 /**
  * 函数体是否为 `return Struct { f: param… }`（各字段 init 均为形参 VAR）。
  */
-int32_t glue_fold_func_returns_param_struct_lit_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-135：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                        int32_t func_idx, int32_t *out_lit_ref) {
   int32_t ret_ref;
   int32_t nf;
@@ -867,13 +860,7 @@ int32_t glue_fold_func_returns_param_struct_lit_impl(struct ast_ASTArena *arena,
   }
   *out_lit_ref = ret_ref;
   return 1;
-}
-int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                       int32_t func_idx, int32_t *out_lit_ref) {
-  {
-    return glue_fold_func_returns_param_struct_lit_impl(arena, mod, func_idx, out_lit_ref);
-  }
-  return 0;
+
 }
 
 
