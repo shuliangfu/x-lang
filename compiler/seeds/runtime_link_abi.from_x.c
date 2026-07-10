@@ -1,8 +1,9 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34/35 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34/35/36 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/link.c
  *         merge thin helpers; polish strings/signatures; SHUX_WEAK bootstrap;
- *         keep invoke_cc/ld + path suffix is_elf_o/want_exe C.
- * .x covers: forward_main, needs_panic/io, skip_native, bootstrap weak stubs.
+ *         keep invoke_cc/ld + path suffix is_elf_o/want_exe + argv-loop needs C.
+ * .x covers: forward_main, needs_panic/io, skip_native, freestanding_enabled,
+ *            link_abi_user_o_needs_* probes, bootstrap weak stubs.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -1414,17 +1415,37 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
  * 参数：driver_freestanding 非 0 表示 driver 已设 -freestanding。
  * 返回值：非 0 表示 freestanding 链启用。
  */
-int shux_link_freestanding_enabled(int driver_freestanding) {
-    const char *e;
-#if !defined(__linux__)
-    (void)driver_freestanding;
-    return 0;
+/** G-02f-36：OS 门闩槽 — .x freestanding_enabled 读此，避免 .x 内 #if。 */
+int shux_host_is_linux(void) {
+#if defined(__linux__)
+    return 1;
 #else
-    if (driver_freestanding)
-        return 1;
-    e = getenv("SHUX_FREESTANDING");
-    return e && e[0] && e[0] != '0';
+    return 0;
 #endif
+}
+
+int shux_link_freestanding_enabled(int driver_freestanding) {
+  (void)(({   {
+    char *e = getenv("SHUX_FREESTANDING");
+    if ((shux_host_is_linux() ==0)) {
+      return 0;
+    }
+    if ((driver_freestanding !=0)) {
+      return 1;
+    }
+    if ((e ==((char *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -2614,16 +2635,16 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
  */
 int invoke_cc_skip_native_tuning(void) {
   (void)(({   {
-    uint8_t * a = getenv("CI");
-    if ((a !=((uint8_t *)(0)))) {
+    char *a = getenv("CI");
+    if ((a !=((char *)(0)))) {
       return 1;
     }
-    uint8_t * b = getenv("SHUX_CI_DOCKER");
-    if ((b !=((uint8_t *)(0)))) {
+    char *b = getenv("SHUX_CI_DOCKER");
+    if ((b !=((char *)(0)))) {
       return 1;
     }
-    uint8_t * c = getenv("SHUX_NO_MARCH_NATIVE");
-    if ((c !=((uint8_t *)(0)))) {
+    char *c = getenv("SHUX_NO_MARCH_NATIVE");
+    if ((c !=((char *)(0)))) {
       return 1;
     }
     return 0;
@@ -2928,13 +2949,30 @@ static int link_abi_generated_c_needs_libc_heap(const char *c_path) {
 /**
  * 用户 .o 是否仍引用 libc 堆符号（F-03 v2：无 heap.o，由 -lc 解析）。
  */
-static int link_abi_user_o_needs_libc_heap(const char *user_o) {
-    return shux_link_obj_needs_undef_sym(user_o, "malloc")
-        || shux_link_obj_needs_undef_sym(user_o, "calloc")
-        || shux_link_obj_needs_undef_sym(user_o, "realloc")
-        || shux_link_obj_needs_undef_sym(user_o, "free")
-        || shux_link_obj_needs_undef_sym(user_o, "posix_memalign")
-        || shux_link_obj_needs_undef_sym(user_o, "getenv");
+int link_abi_user_o_needs_libc_heap(const char *user_o) {
+  (void)(({   {
+    if ((shux_link_obj_needs_undef_sym(user_o, "malloc") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "calloc") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "realloc") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "free") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "posix_memalign") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "getenv") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 static int link_abi_generated_c_needs_win32(const char *c_path) {
@@ -4068,39 +4106,101 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
 /**
  * 判断用户 .o 是否引用 std.net API（按需链 net.o，避免 hello 等最小链无条件链 net.o 触发 PIE/未定义符号）。
  */
-static int link_abi_user_o_needs_std_net(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 0;
-    return shux_link_obj_needs_undef_sym(user_o, "std_net_listen")
-        || shux_link_obj_needs_undef_sym(user_o, "std_net_connect")
-        || shux_link_obj_needs_undef_sym(user_o, "std_net_udp_bind")
-        || shux_link_obj_needs_undef_sym(user_o, "std_net_udp_recv_many_buf")
-        || shux_link_obj_needs_undef_sym(user_o, "std_net_udp_send_many_buf")
-        || shux_link_obj_needs_undef_sym(user_o, "std_net_addr_to_u32")
-        || shux_link_obj_needs_undef_sym(user_o, "std_net_close_udp")
-        || shux_link_obj_needs_undef_sym(user_o, "net_stream_write_batch_c")
-        || shux_link_obj_needs_undef_sym(user_o, "net_tcp_connect_c")
-        || shux_link_obj_needs_undef_sym(user_o, "net_tcp_listen_c")
-        || shux_link_obj_needs_undef_sym(user_o, "net_udp_bind_c")
-        || shux_link_obj_needs_undef_sym(user_o, "net_udp_recv_many_buf_c")
-        || shux_link_obj_needs_undef_sym(user_o, "net_udp_send_many_buf_c")
-        || shux_link_obj_needs_undef_sym(user_o, "net_close_socket_c")
-        || shux_link_obj_needs_undef_sym(user_o, "net_udp_send_c")
-        || shux_link_obj_needs_undef_sym(user_o, "net_dns_resolve_c")
-        || shux_link_obj_needs_undef_sym(user_o, "net_sock_create_c");
+int link_abi_user_o_needs_std_net(const char *user_o) {
+  if ((user_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((user_o)[0] ==0)) {
+      return 0;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_listen") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_connect") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_udp_bind") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_udp_recv_many_buf") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_udp_send_many_buf") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_addr_to_u32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_net_close_udp") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "net_stream_write_batch_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "net_tcp_connect_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "net_tcp_listen_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "net_udp_bind_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "net_udp_recv_many_buf_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "net_udp_send_many_buf_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "net_close_socket_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "net_udp_send_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "net_dns_resolve_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "net_sock_create_c") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
  * 判断用户 .o 是否引用 std.set API（按需链 set.o + heap.o）。
  */
-static int link_abi_user_o_needs_std_set(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 0;
-    return shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_insert")
-        || shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_contains")
-        || shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_remove")
-        || shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_len")
-        || shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_deinit");
+int link_abi_user_o_needs_std_set(const char *user_o) {
+  if ((user_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((user_o)[0] ==0)) {
+      return 0;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_insert") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_contains") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_remove") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_len") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_deinit") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -4145,25 +4245,57 @@ static int link_abi_link_needs_std_heap_import(const char *user_o, const char **
 /**
  * 判断用户 .o 是否引用 std.map API（按需链 map.o）。
  */
-static int link_abi_user_o_needs_std_map(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 0;
-    return shux_link_obj_needs_undef_sym(user_o, "std_map_empty_size");
+int link_abi_user_o_needs_std_map(const char *user_o) {
+  if ((user_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    int r = shux_link_obj_needs_undef_sym(user_o, "std_map_empty_size");
+    if (((user_o)[0] ==0)) {
+      return 0;
+    }
+    return r;
+  }
+ }));
+  return 0;
 }
 
 /**
  * 判断用户 .o 是否引用 std.test API（按需链 test.o，避免 hello 等最小链无条件链 test.o 触发 ld 重复）。
  */
-static int link_abi_user_o_needs_std_test(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 0;
-    return shux_link_obj_needs_undef_sym(user_o, "test_call_i32_void_c")
-        || shux_link_obj_needs_undef_sym(user_o, "test_runner_")
-        || shux_link_obj_needs_undef_sym(user_o, "test_expect_")
-        || shux_link_obj_needs_undef_sym(user_o, "test_bench_")
-        || shux_link_obj_needs_undef_sym(user_o, "test_f_test_")
-        || shux_link_obj_needs_undef_sym(user_o, "test_io_")
-        || shux_link_obj_needs_undef_sym(user_o, "test_fuzz_");
+int link_abi_user_o_needs_std_test(const char *user_o) {
+  if ((user_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((user_o)[0] ==0)) {
+      return 0;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "test_call_i32_void_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "test_runner_") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "test_expect_") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "test_bench_") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "test_f_test_") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "test_io_") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "test_fuzz_") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -4292,71 +4424,178 @@ static int link_abi_user_o_needs_async_scheduler(const char *user_o) {
     return 0;
 }
 
-static int link_abi_user_o_needs_core_mem(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 0;
-    return shux_link_obj_needs_undef_sym(user_o, "core_mem_align_up")
-        || shux_link_obj_needs_undef_sym(user_o, "core_mem_align_down")
-        || shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_copy")
-        || shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_set")
-        || shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_zero")
-        || shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_move")
-        || shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_compare");
+int link_abi_user_o_needs_core_mem(const char *user_o) {
+  if ((user_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((user_o)[0] ==0)) {
+      return 0;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_align_up") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_align_down") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_copy") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_set") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_zero") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_move") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_compare") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
-static int link_abi_user_o_needs_core_slice(const char *user_o) {
-    return shux_link_obj_needs_undef_sym(user_o, "core_slice_i32_from_ptr_c")
-        || shux_link_obj_needs_undef_sym(user_o, "core_subslice_i32_c")
-        || shux_link_obj_needs_undef_sym(user_o, "core_slice_u8_from_ptr_c")
-        || shux_link_obj_needs_undef_sym(user_o, "core_subslice_u8_c")
-        || shux_link_obj_needs_undef_sym(user_o, "core_slice_u64_from_ptr_c")
-        || shux_link_obj_needs_undef_sym(user_o, "core_subslice_u64_c");
+int link_abi_user_o_needs_core_slice(const char *user_o) {
+  (void)(({   {
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_slice_i32_from_ptr_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_subslice_i32_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_slice_u8_from_ptr_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_subslice_u8_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_slice_u64_from_ptr_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "core_subslice_u64_c") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
  * F-no-libc NL-03：判断 user_o 是否引用 std.heap.page_mmap API（freestanding mmap bump 堆）。
  * 按需链 page_mmap.o（其传递依赖 linux.o + core_mem.o 由 on_demand 后续块覆盖）。
  */
-static int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 0;
-    return shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_available")
-        || shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_init")
-        || shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_alloc")
-        || shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_deinit")
-        || shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_free");
+int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
+  if ((user_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((user_o)[0] ==0)) {
+      return 0;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_available") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_init") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_alloc") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_deinit") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_free") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
  * F-no-libc：判断 user_o 是否引用 std.sys.linux API（Linux freestanding syscall 薄封装）。
  */
-static int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 0;
-    return shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_invoke_available")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_anonymous_mmap")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_munmap")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_read")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_write")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_close")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_exit");
+int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
+  if ((user_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((user_o)[0] ==0)) {
+      return 0;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_invoke_available") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_anonymous_mmap") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_munmap") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_read") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_write") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_close") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_exit") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
  * F-no-libc：判断 user_o 是否引用 std.sys 门面 API（write_stdout/read/close/exit 等）。
  * sys/mod.x 在 Linux 编译时 #[cfg(target_os="linux")] 激活 linux import，故 sys.o 传递依赖 linux.o。
  */
-static int link_abi_user_o_needs_std_sys(const char *user_o) {
-    if (!user_o || !user_o[0])
-        return 0;
-    return shux_link_obj_needs_undef_sym(user_o, "std_sys_write_stdout")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_write_stderr")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_write")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_read")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_close")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_exit")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_freestanding_write_available")
-        || shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_syscall_table_available");
+int link_abi_user_o_needs_std_sys(const char *user_o) {
+  if ((user_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((user_o)[0] ==0)) {
+      return 0;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_write_stdout") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_write_stderr") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_write") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_read") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_close") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_exit") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_freestanding_write_available") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_syscall_table_available") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
