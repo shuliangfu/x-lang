@@ -262,6 +262,34 @@ void diag_io_fflush(FILE *o) { fflush(o); }
 void diag_io_fprint_line_col(FILE *o, int line, int col) {
     fprintf(o, ",\"line\":%d,\"col\":%d,\"message\":", line, col);
 }
+/** 供 .x report_human 位置/gutter 冷路径（G-02f-159）。 */
+void diag_io_fprint_loc_file_line_col(FILE *o, const char *pc, const char *file, int line, int col, const char *rs) {
+    fprintf(o, "%s --> %s:%d:%d%s\n", pc ? pc : "", file ? file : "", line, col, rs ? rs : "");
+}
+void diag_io_fprint_loc_file_line(FILE *o, const char *pc, const char *file, int line, const char *rs) {
+    fprintf(o, "%s --> %s:%d%s\n", pc ? pc : "", file ? file : "", line, rs ? rs : "");
+}
+void diag_io_fprint_loc_file(FILE *o, const char *pc, const char *file, const char *rs) {
+    fprintf(o, "%s --> %s%s\n", pc ? pc : "", file ? file : "", rs ? rs : "");
+}
+void diag_io_fprint_loc_line_col(FILE *o, const char *pc, int line, int col, const char *rs) {
+    fprintf(o, "%s --> %d:%d%s\n", pc ? pc : "", line, col, rs ? rs : "");
+}
+void diag_io_fprint_gutter_blank(FILE *o, int width) {
+    fprintf(o, "%*s |\n", width, "");
+}
+void diag_io_fprint_src_line(FILE *o, int line, const char *start, int len) {
+    fprintf(o, "%d | %.*s\n", line, len, start ? start : "");
+}
+void diag_io_fprint_gutter_bar(FILE *o, int width) {
+    fprintf(o, "%*s | ", width, "");
+}
+void diag_io_fprint_caret_mark(FILE *o, const char *cc, const char *rs, const char *detail) {
+    fprintf(o, "%s^%s", cc ? cc : "", rs ? rs : "");
+    if (detail && detail[0] != '\0')
+        fprintf(o, " %s", detail);
+    fputc('\n', o);
+}
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void diag_print_header(const char *kind, const char *code, const char *msg,
@@ -393,7 +421,7 @@ size_t diag_get_source_len(void) {
 void diag_report_json(const char *file, int line, int col,
                              const char *kind, const char *code, const char *msg);
 
-/** 人类可读诊断渲染（caret/位置）；JSON 路径在 report_with_code 分流。G-02f-158 */
+/* G-02f-159：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void diag_report_human(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail) {
     const char *actual_file = file ? file : g_diag_ctx.file_path;
     const char *line_start = NULL;

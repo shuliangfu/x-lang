@@ -11,10 +11,6 @@
 // C 尾：上下文静态、code 表、JSON/颜色、va_list reportf/vreportf、lookup。
 // 注意：va_list 入口仍留 C（语言/ABI 限制）。
 
-// G-02f-158：人类可读 caret 渲染仍在 seed（fprintf 冷路径）
-extern "C" function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8,
-                                          detail: *u8): void;
-
 extern "C" function diag_json_get_state(): i32;
 extern "C" function diag_json_set_state(v: i32): void;
 extern "C" function diag_ctx_get_use_color(): i32;
@@ -49,14 +45,133 @@ extern "C" function diag_io_fprint_line_col(o: *u8, line: i32, col: i32): void;
 extern "C" function diag_io_fprint_unknown_code(o: *u8, code: *u8): void;
 extern "C" function diag_io_fprint_code_table_hdr(o: *u8): void;
 extern "C" function diag_io_fprint_code_table_row(o: *u8, code: *u8, kind: *u8, summary: *u8): void;
+extern "C" function diag_io_fprint_loc_file_line_col(o: *u8, pc: *u8, file: *u8, line: i32, col: i32, rs: *u8): void;
+extern "C" function diag_io_fprint_loc_file_line(o: *u8, pc: *u8, file: *u8, line: i32, rs: *u8): void;
+extern "C" function diag_io_fprint_loc_file(o: *u8, pc: *u8, file: *u8, rs: *u8): void;
+extern "C" function diag_io_fprint_loc_line_col(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void;
+extern "C" function diag_io_fprint_gutter_blank(o: *u8, width: i32): void;
+extern "C" function diag_io_fprint_src_line(o: *u8, line: i32, start: *u8, len: i32): void;
+extern "C" function diag_io_fprint_gutter_bar(o: *u8, width: i32): void;
+extern "C" function diag_io_fprint_caret_mark(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
 
-// G-02f-158：report 分流 JSON / human
+// G-02f-159：palette 颜色（use_color 经 color_prefix）
+function diag_palette_kind_color(kind: *u8): *u8 {
+  unsafe {
+    if (kind == 0) { return diag_color_prefix("", "\x1b[1;37m"); }
+    if (kind[0] == 0) { return diag_color_prefix("", "\x1b[1;37m"); }
+    if (diag_kind_contains(kind, "error") != 0) { return diag_color_prefix("", "\x1b[1;31m"); }
+    if (diag_kind_contains(kind, "warning") != 0) { return diag_color_prefix("", "\x1b[1;33m"); }
+    if (diag_kind_is_exact(kind, "info") != 0) { return diag_color_prefix("", "\x1b[1;36m"); }
+    if (diag_kind_is_exact(kind, "note") != 0) { return diag_color_prefix("", "\x1b[1;34m"); }
+    if (diag_kind_is_exact(kind, "help") != 0) { return diag_color_prefix("", "\x1b[1;32m"); }
+    if (diag_kind_is_exact(kind, "hint") != 0) { return diag_color_prefix("", "\x1b[1;32m"); }
+    return diag_color_prefix("", "\x1b[1;37m");
+  }
+  return "";
+}
+
+function diag_palette_caret_color(kind: *u8): *u8 {
+  unsafe {
+    if (kind == 0) { return diag_color_prefix("", "\x1b[37m"); }
+    if (kind[0] == 0) { return diag_color_prefix("", "\x1b[37m"); }
+    if (diag_kind_contains(kind, "error") != 0) { return diag_color_prefix("", "\x1b[31m"); }
+    if (diag_kind_contains(kind, "warning") != 0) { return diag_color_prefix("", "\x1b[33m"); }
+    if (diag_kind_is_exact(kind, "info") != 0) { return diag_color_prefix("", "\x1b[36m"); }
+    if (diag_kind_is_exact(kind, "note") != 0) { return diag_color_prefix("", "\x1b[34m"); }
+    if (diag_kind_is_exact(kind, "help") != 0) { return diag_color_prefix("", "\x1b[32m"); }
+    if (diag_kind_is_exact(kind, "hint") != 0) { return diag_color_prefix("", "\x1b[32m"); }
+    return diag_color_prefix("", "\x1b[37m");
+  }
+  return "";
+}
+
+// G-02f-159：人类可读 caret / 位置渲染
+#[no_mangle]
+function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
+  unsafe {
+    let err: *u8 = diag_stderr();
+    let actual_file: *u8 = file;
+    if (actual_file == 0) { actual_file = diag_ctx_get_file(); }
+    let kind_color: *u8 = diag_palette_kind_color(kind);
+    let path_color: *u8 = diag_color_prefix("", "\x1b[34m");
+    let caret_color: *u8 = diag_palette_caret_color(kind);
+    let reset: *u8 = diag_color_reset();
+    let line_start_slot: u8[8] = [];
+    let line_len_slot: u8[8] = [];
+    let have_line: i32 = 0;
+    if (line > 0) {
+      if (diag_extract_line(line, &line_start_slot[0], &line_len_slot[0]) == 0) {
+        have_line = 1;
+      }
+    }
+    diag_print_header(kind, code, msg, kind_color, reset);
+    if (actual_file != 0) {
+      if (line > 0) {
+        if (col > 0) {
+          diag_io_fprint_loc_file_line_col(err, path_color, actual_file, line, col, reset);
+        } else {
+          diag_io_fprint_loc_file_line(err, path_color, actual_file, line, reset);
+        }
+      } else {
+        diag_io_fprint_loc_file(err, path_color, actual_file, reset);
+      }
+    } else {
+      if (line > 0) {
+        if (col > 0) {
+          diag_io_fprint_loc_line_col(err, path_color, line, col, reset);
+        }
+      }
+    }
+    if (have_line == 0) {
+      diag_io_fflush(err);
+      return;
+    }
+    if (line <= 0) {
+      diag_io_fflush(err);
+      return;
+    }
+    if (col <= 0) {
+      diag_io_fflush(err);
+      return;
+    }
+    let line_start: *u8 = diag_snap_load_ptr(&line_start_slot[0], 0);
+    let line_len_u: usize = diag_snap_load_usize(&line_len_slot[0], 0);
+    let line_len: i32 = line_len_u as i32;
+    let width: i32 = diag_line_digits(line);
+    diag_io_fprint_gutter_blank(err, width);
+    diag_io_fprint_src_line(err, line, line_start, line_len);
+    diag_io_fprint_gutter_bar(err, width);
+    let caret_col: i32 = 0;
+    if (col > 1) { caret_col = col - 1; }
+    let i: i32 = 0;
+    while (i < caret_col) {
+      if (i < line_len) {
+        if (line_start != 0) {
+          if (line_start[i] == 9) {
+            diag_io_fputc(9, err);
+          } else {
+            diag_io_fputc(32, err);
+          }
+        } else {
+          diag_io_fputc(32, err);
+        }
+      } else {
+        diag_io_fputc(32, err);
+      }
+      i = i + 1;
+    }
+    diag_io_fprint_caret_mark(err, caret_color, reset, detail);
+    diag_io_fflush(err);
+  }
+}
+
+// G-02f-158 / G-02f-159：report 分流 JSON / human
 #[no_mangle]
 function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
   diag_report_with_code(file, line, col, kind, 0 as *u8, msg, detail);
 }
 
-/* ---- G-02f-74 / G-02f-82 / G-02f-158 diag gates ---- */
+/* ---- G-02f-74 / G-02f-82 / G-02f-158 / G-02f-159 diag gates ---- */
 
 #[no_mangle]
 function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
