@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..43/50..53：真迁 .x — pipeline dep/import + debug/clear + path 转换门闩。
+// G-02f-32..43/50..54：真迁 .x — pipeline dep/import/path + preprocess/seed/entry_lib。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
 // C 尾：存储槽数组、import resolve/snprintf、clear 槽循环、malloc buf、大 pipeline。
-// G-02f-53：+ import_path_to_file_path / resolve_file_import_path / dep_slot_for_path。
+// G-02f-54：+ preprocess_raw_to_malloc / dep_seed_slots / entry_lib_name_from_path。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -38,6 +38,10 @@ extern "C" function driver_asm_fclose_asm_out_impl(fp: *u8): void;
 extern "C" function shux_import_path_to_file_path_impl(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void;
 extern "C" function shux_resolve_file_import_path_impl(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void;
 extern "C" function driver_dep_slot_for_path_scan(path: *u8): i32;
+extern "C" function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32;
+extern "C" function driver_dep_seed_slots_impl(arenas: *u8, modules: *u8, n: i32): void;
+extern "C" function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8;
+extern "C" function shux_cstr_typeck_lit(): *u8;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -574,4 +578,35 @@ function driver_dep_slot_for_path(path: *u8): i32 {
     return driver_dep_slot_for_path_scan(path);
   }
   return -1;
+}
+
+/* ---- G-02f-54：preprocess 薄封装 / dep seed_slots / entry lib name ---- */
+
+#[no_mangle]
+function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32): i32 {
+  unsafe {
+    return shux_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
+  }
+  return -1;
+}
+
+#[no_mangle]
+function driver_dep_seed_slots(arenas: *u8, modules: *u8, n: i32): void {
+  unsafe {
+    driver_dep_seed_slots_impl(arenas, modules, n);
+  }
+}
+
+#[no_mangle]
+function shux_entry_lib_name_from_path(input_path: *u8): *u8 {
+  if (input_path == 0 as *u8) {
+    unsafe {
+      return shux_cstr_typeck_lit();
+    }
+    return 0 as *u8;
+  }
+  unsafe {
+    return shux_entry_lib_name_from_path_impl(input_path);
+  }
+  return 0 as *u8;
 }

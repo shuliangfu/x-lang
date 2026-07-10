@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-29/41/45..49：真迁 .x — driver flags/env/phase + peek/fail/smoke/import/len。
+// G-02f-29/41/45..49/54：真迁 .x — driver flags/env/phase + peek/fail/smoke/import/len/stack。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
 // C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、argv defines、import 扫描。
-// G-02f-49：+ print_x_smoke_summary / source_has_top_level_import{,_path} / entry_source_len set/get。
+// G-02f-54：+ driver_bump_stack_limit（rlimit 本体 C）。
 // 注意：set 侧禁止 if/else 写 *p → 直接 p[0]=v；禁止 if (ptr!=null) 整函数被 -E 丢掉。
 
 extern "C" function getenv(name: *u8): *u8;
@@ -37,6 +37,7 @@ extern "C" function driver_source_scan_top_level_import(src: *u8, src_len: i64):
 extern "C" function driver_source_has_top_level_import_path_impl(path: *u8): i32;
 extern "C" function driver_pipeline_entry_source_len_store(len: i64): void;
 extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
+extern "C" function driver_bump_stack_limit_impl(): void;
 
 #[no_mangle]
 function driver_check_quiet_ok_get(): i32 {
@@ -527,4 +528,13 @@ function driver_pipeline_entry_source_len(): i64 {
     return driver_pipeline_entry_source_len_load_and_maybe_debug();
   }
   return 0;
+}
+
+/* ---- G-02f-54：抬高 RLIMIT_STACK 薄门闩 ---- */
+
+#[no_mangle]
+function driver_bump_stack_limit(): void {
+  unsafe {
+    driver_bump_stack_limit_impl();
+  }
 }

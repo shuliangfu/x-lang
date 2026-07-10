@@ -1,7 +1,7 @@
-/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..49 true .x + C tail).
+/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..49/54 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
- *         merge flags/env/phase/peek/fail/smoke/import/len; C gettimeofday + pthread bulk.
- * .x covers: + smoke summary, top-level import gates, entry_source_len set/get.
+ *         merge flags/env/phase/peek/smoke/import/len/stack; C pthread + argv defines.
+ * .x covers: + driver_bump_stack_limit.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -55,6 +55,7 @@ int32_t *driver_large_stack_thread_flag_slot(void);
 void driver_current_dep_path_store(const char *path);
 const char *driver_current_dep_path_load(void);
 void driver_print_check_ok_impl(const char *input_path);
+void driver_bump_stack_limit_impl(void);
 void driver_pipeline_fail_code_rc_impl(int32_t rc);
 void driver_pipeline_fail_code_path_impl(const uint8_t *path);
 void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int64_t codegen_len);
@@ -824,7 +825,7 @@ int driver_peek_source_file(const char *path, char *content, size_t cap) {
  * 大模块 pipeline 栈帧深；macOS 默认 RLIMIT_STACK 约 512KiB～8MiB，进入 pipeline 前抬高软上限。
  * NL-07 nostdlib：pthread 大栈桩无效，须把主线程软上限抬到 256MiB 以免 -o 编译栈溢出 SIGSEGV。
  */
-void driver_bump_stack_limit(void) {
+void driver_bump_stack_limit_impl(void) {
     #ifndef _WIN32
     struct rlimit rl;
     rlim_t want = (rlim_t)(512 * 1024 * 1024);
@@ -843,6 +844,12 @@ void driver_bump_stack_limit(void) {
         (void)setrlimit(RLIMIT_STACK, &rl);
     }
     #endif
+}
+
+void driver_bump_stack_limit(void) {
+  {
+    driver_bump_stack_limit_impl();
+  }
 }
 
 /** pthread 大栈调用参数（trampoline 解包 fn/arg）。 */

@@ -1,7 +1,7 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..53 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..54 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge path convert/resolve + dep_slot; C resolve multi + large pipeline.
- * .x covers: + import_path_to_file_path, resolve_file_import_path, dep_slot_for_path.
+ *         merge preprocess/seed_slots/entry_lib; C resolve + large pipeline bulk.
+ * .x covers: + preprocess_raw_to_malloc, dep_seed_slots, entry_lib_name_from_path.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -233,7 +233,7 @@ void pipeline_debug_trace_body_x_mega_pre_emit(void *module, void *arena) {
   }
 }
 
-static int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
+int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
     size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag) {
     int di;
     if (out_src)
@@ -437,7 +437,10 @@ void pipeline_set_ndep(int32_t n) {
  */
 int shux_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char **out_src, size_t *out_src_len,
     const char *path_diag, const char **defines, int ndefines) {
+  {
     return shux_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
+  }
+  return -1;
 }
 
 /**
@@ -755,7 +758,7 @@ void driver_dep_seeded_set(int32_t i, int32_t v) {
  * 批量预填 dep 槽指针并标记 seeded；entry pipeline 复用不重载。
  * 参数：arenas/modules 各 32 槽；n 有效 dep 数。
  */
-void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
+void driver_dep_seed_slots_impl(void *arenas[32], void *modules[32], int32_t n) {
     int j;
     for (j = 0; j < SHUX_DRIVER_DEP_SLOT_MAX && j < n; j++) {
         driver_dep_arena_ptrs[j] = arenas ? arenas[j] : NULL;
@@ -764,6 +767,12 @@ void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
     }
     for (; j < SHUX_DRIVER_DEP_SLOT_MAX; j++)
         driver_dep_seeded[j] = 0;
+}
+
+void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
+  {
+    driver_dep_seed_slots_impl(arenas, modules, n);
+  }
 }
 
 /**
@@ -894,6 +903,14 @@ int32_t typeck_driver_dep_seeded_get(int32_t i) {
 
 
 
+
+/* G-02f-54 helper protos */
+int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
+    size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag);
+void driver_dep_seed_slots_impl(void *arenas[32], void *modules[32], int32_t n);
+const char *shux_entry_lib_name_from_path_impl(const char *input_path);
+const char *shux_cstr_typeck_lit(void);
+
 /* G-02f-53 helper protos */
 void shux_import_path_to_file_path_impl(const char *lib_root, const char *import_path, char *path, size_t path_size);
 void shux_resolve_file_import_path_impl(const char *entry_dir, const char *import_path, char *path, size_t path_size);
@@ -995,7 +1012,7 @@ const char *shux_dep_prerun_entry_dir(const char *main_entry_dir, const char **l
  * 参数：input_path 入口 .x 路径。
  * 返回值：静态字符串字面量前缀名。
  */
-const char *shux_entry_lib_name_from_path(const char *input_path) {
+const char *shux_entry_lib_name_from_path_impl(const char *input_path) {
     static char stem_buf[128];
     const char *base;
     const char *dot;
@@ -1089,6 +1106,20 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
         }
     }
     return "typeck";
+}
+
+const char *shux_cstr_typeck_lit(void) {
+    return "typeck";
+}
+
+const char *shux_entry_lib_name_from_path(const char *input_path) {
+  if (input_path == NULL) {
+    return shux_cstr_typeck_lit();
+  }
+  {
+    return shux_entry_lib_name_from_path_impl(input_path);
+  }
+  return NULL;
 }
 
 /** -E 且入口为 pipeline.x 时输出 pipeline_glue.c include 行。 */
