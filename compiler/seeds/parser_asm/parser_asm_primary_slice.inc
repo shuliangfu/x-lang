@@ -174,7 +174,7 @@ extern int32_t ast_ast_arena_expr_alloc(void *arena);
 extern struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_lexer_result r);
 static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
 static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
-static void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
+/* parser_asm_lex_from_result_val_into: provided by P1 lex_skip (non-static) */
 struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
 
 /** 分配 EXPR_FLOAT_LIT 节点；与 parser.x parser_alloc_float_lit 一致。 */
