@@ -17,6 +17,10 @@
 #define diag_json_severity diag_json_severity_impl
 #define diag_code_suggest diag_code_suggest_impl
 #define diag_report_json diag_report_json_impl
+int diag_ctx_get_use_color(void);
+int diag_code_table_has(const char *code);
+int diag_json_get_state(void);
+void diag_json_set_state(int v);
 #endif
 
 #include <stdarg.h>
@@ -170,9 +174,16 @@ int diag_should_color_impl(void)
 
 
 /** 供 .x 读 g_diag_ctx.use_color（G-02f-154）。 */
-int diag_ctx_get_use_color(void) {
+/* G-02f-386：实现体始终 seed；public PREFER 时 thin forward */
+int diag_ctx_get_use_color_impl(void) {
     return g_diag_ctx.use_color ? 1 : 0;
 }
+
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+int diag_ctx_get_use_color(void) {
+    return diag_ctx_get_use_color_impl();
+}
+#endif
 
 /* G-02f-154：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-335：hybrid 时由 diag_thin.x 提供 */
@@ -651,9 +662,16 @@ void diag_reportf(const char *file, int line, int col, const char *kind, const c
 
 
 /** 供 .x 查 code 表是否存在（G-02f-155）。 */
-int diag_code_table_has(const char *code) {
+/* G-02f-386：实现体始终 seed；public PREFER 时 thin forward */
+int diag_code_table_has_impl(const char *code) {
     return diag_lookup_code_explain(code) ? 1 : 0;
 }
+
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+int diag_code_table_has(const char *code) {
+    return diag_code_table_has_impl(code);
+}
+#endif
 
 /* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-336：hybrid 时由 diag_thin.x 提供 */
@@ -932,12 +950,24 @@ void diag_set_json_mode_impl(int enable)
 }
 
 /** 供 .x 读写 g_diag_json 状态（-2=未决）。 */
-int diag_json_get_state(void) {
+/* G-02f-386：实现体始终 seed；public PREFER 时 thin forward（set 用 i32 壳） */
+int diag_json_get_state_impl(void) {
     return g_diag_json;
 }
-void diag_json_set_state(int v) {
+
+int diag_json_set_state_impl(int v) {
     g_diag_json = v;
+    return 0;
 }
+
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+int diag_json_get_state(void) {
+    return diag_json_get_state_impl();
+}
+void diag_json_set_state(int v) {
+    (void)diag_json_set_state_impl(v);
+}
+#endif
 
 /**
  * 当前是否启用 JSON 诊断输出。首次调用时按 SHUX_DIAG_JSON 环境变量惰性决定，

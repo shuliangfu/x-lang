@@ -1695,7 +1695,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_DIAG_THIN_FROM_X \
                -c -o "$_diag_rest_o" "$_diag" \
           && $CC -r -nostdlib -o "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-347 L2 hybrid diag thin push/restore)"
+          echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-347/386 L2 hybrid diag thin)"
           _diag_done=1
         else
           echo "g05_ensure: L2 hybrid diag thin failed; fallback full seed" >&2

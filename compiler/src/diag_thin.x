@@ -15,14 +15,15 @@
 //        report_with_code / report_human → _impl（共 32）
 // f-346：snap pure（store/load ptr/usize/i32 + le 写；定义在 push 前）→ 共 40
 // f-347：push = snap_save + apply_impl；restore = snap_load + ctx_set_all → 共 41
+// f-386：get_use_color / code_table_has / json_get|set_state → _impl 门闩
 
 // ---- rest / libc 提供的符号（勿与下方 thin public 同名，以免 -E 改名）----
-extern "C" function diag_ctx_get_use_color(): i32;
+extern "C" function diag_ctx_get_use_color_impl(): i32;
 extern "C" function diag_ctx_get_file(): *u8;
 extern "C" function diag_ctx_get_source(): *u8;
 extern "C" function diag_ctx_get_source_len(): i64;
 extern "C" function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
-extern "C" function diag_code_table_has(code: *u8): i32;
+extern "C" function diag_code_table_has_impl(code: *u8): i32;
 extern "C" function diag_entry_kind(code: *u8): *u8;
 extern "C" function diag_entry_summary(code: *u8): *u8;
 extern "C" function diag_entry_details(code: *u8): *u8;
@@ -127,7 +128,7 @@ function diag_kind_contains(kind: *u8, needle: *u8): i32 {
 #[no_mangle]
 function diag_color_prefix(plain: *u8, color: *u8): *u8 {
   unsafe {
-    if (diag_ctx_get_use_color() != 0) {
+    if (diag_ctx_get_use_color_impl() != 0) {
       return color;
     }
     return plain;
@@ -164,7 +165,7 @@ function diag_get_source_len(): i64 {
 #[no_mangle]
 function diag_code_is_known(code: *u8): i32 {
   unsafe {
-    return diag_code_table_has(code);
+    return diag_code_table_has_impl(code);
   }
   return 0;
 }
@@ -412,7 +413,7 @@ function diag_push_snap_save(snapshot: *u8): void {
     diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file());
     diag_snap_store_ptr(snapshot, 8, diag_ctx_get_source());
     diag_snap_store_usize(snapshot, 16, diag_ctx_get_source_len() as usize);
-    diag_snap_store_i32(snapshot, 24, diag_ctx_get_use_color());
+    diag_snap_store_i32(snapshot, 24, diag_ctx_get_use_color_impl());
   }
 }
 
@@ -575,3 +576,38 @@ function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
   return 0;
 }
 
+// ---- G-02f-386：ctx color / code_table_has / json state → seed impl ----
+extern "C" function diag_json_get_state_impl(): i32;
+extern "C" function diag_json_set_state_impl(v: i32): i32;
+
+#[no_mangle]
+function diag_ctx_get_use_color(): i32 {
+  unsafe {
+    return diag_ctx_get_use_color_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_code_table_has(code: *u8): i32 {
+  unsafe {
+    return diag_code_table_has_impl(code);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_json_get_state(): i32 {
+  unsafe {
+    return diag_json_get_state_impl();
+  }
+  return 0 - 2;
+}
+
+#[no_mangle]
+function diag_json_set_state(v: i32): i32 {
+  unsafe {
+    return diag_json_set_state_impl(v);
+  }
+  return 0;
+}
