@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343/344/345/387/388/400–402：runtime_driver_abi L2 thin（49 门闩）。
+// G-02f-343/344/345/387/388/400–402/413：runtime_driver_abi L2 thin（54 门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 //
 
@@ -494,4 +494,49 @@ function driver_os_define_lit(kind: i32): *u8 {
     return driver_os_define_lit_impl(kind);
   }
   return 0 as *u8;
+}
+
+// ---- G-02f-413：fail_code / smoke / peek / get_dep / argv_defines → seed impl ----
+extern "C" function driver_pipeline_fail_code_impl(rc: i32, path: *u8): void;
+extern "C" function driver_print_x_smoke_summary_impl(module: *u8, codegen_len: i64): void;
+extern "C" function driver_peek_source_file_impl(path: *u8, content: *u8, cap: i64): i32;
+extern "C" function driver_get_current_dep_path_for_codegen_impl(): *u8;
+extern "C" function driver_argv_collect_defines_impl(argc: i32, argv: *u8, defines: *u8, max_defines: i32): i32;
+
+#[no_mangle]
+function driver_pipeline_fail_code(rc: i32, path: *u8): void {
+  unsafe {
+    driver_pipeline_fail_code_impl(rc, path);
+  }
+}
+
+#[no_mangle]
+function driver_print_x_smoke_summary(module: *u8, codegen_len: i64): void {
+  unsafe {
+    driver_print_x_smoke_summary_impl(module, codegen_len);
+  }
+}
+
+#[no_mangle]
+function driver_peek_source_file(path: *u8, content: *u8, cap: i64): i32 {
+  unsafe {
+    return driver_peek_source_file_impl(path, content, cap);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_get_current_dep_path_for_codegen(): *u8 {
+  unsafe {
+    return driver_get_current_dep_path_for_codegen_impl();
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, max_defines: i32): i32 {
+  unsafe {
+    return driver_argv_collect_defines_impl(argc, argv, defines, max_defines);
+  }
+  return 0;
 }

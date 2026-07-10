@@ -844,7 +844,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-12 / G-02f-343/344/345：runtime_driver_abi.o
-  # 默认整 seed；PREFER_X_O=1 时 abi_thin.x（49：+ bump/set_entry/phase_timing/os_lit）+ rest ld -r
+  # 默认整 seed；PREFER_X_O=1 时 abi_thin.x（54：+ fail/smoke/peek/defines）+ rest ld -r
   _rdabi=seeds/runtime_driver_abi.from_x.c
   _rdabi_thin_x=src/runtime_driver_abi_thin.x
   _rdabi_o=src/runtime_driver_abi.o
@@ -861,7 +861,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RDABI_THIN_FROM_X \
                -c -o "$_rdabi_rest_o" "$_rdabi" \
           && $CC -r -nostdlib -o "$_rdabi_o" "$_rdabi_thin_o" "$_rdabi_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rdabi_o ← $_rdabi_thin_x + seed-rest (G-02f-343/402 L2 hybrid driver_abi thin)"
+          echo "g05_ensure: $_rdabi_o ← $_rdabi_thin_x + seed-rest (G-02f-343/413 L2 hybrid driver_abi thin)"
           _rdabi_done=1
         else
           echo "g05_ensure: L2 hybrid runtime_driver_abi failed; fallback full seed" >&2

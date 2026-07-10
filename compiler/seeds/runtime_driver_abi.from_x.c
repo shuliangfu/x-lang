@@ -775,14 +775,15 @@ void driver_set_current_dep_path_for_codegen(const char *path) {
  }));
 }
 #endif
-const char *driver_get_current_dep_path_for_codegen(void) {
-  (void)(({   {
-    const char * r = (const char *)driver_current_dep_path_load_impl();
-    return r;
-  }
- }));
-  return NULL;
+/* G-02f-413：实现体始终 seed；public PREFER 时 thin pure forward */
+const char *driver_get_current_dep_path_for_codegen_impl(void) {
+    return driver_current_dep_path_load_impl();
 }
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+const char *driver_get_current_dep_path_for_codegen(void) {
+    return driver_get_current_dep_path_for_codegen_impl();
+}
+#endif
 
 
 
@@ -1013,8 +1014,8 @@ int driver_argv_collect_append_uname_impl(const char **defines, int ndefines, in
     return ndefines;
 }
 
-/* G-02f-245：逻辑源 .x（真迁主循环）；seed 保留同语义 C 供产品 cc */
-int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines) {
+/* G-02f-245：逻辑源 .x；G-02f-413：实现体始终 seed；public PREFER 时 thin pure forward */
+int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines, int max_defines) {
     int ndefines = 0;
     const char *target_arg = NULL;
     int i;
@@ -1060,74 +1061,87 @@ int driver_argv_collect_defines(int argc, char **argv, const char **defines, int
         ndefines = driver_argv_collect_append_uname_impl(defines, ndefines, max_defines);
     return ndefines;
 }
-
-/* 兼容旧名：整函数实现已折叠为 pub */
-int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines, int max_defines) {
-    return driver_argv_collect_defines(argc, argv, defines, max_defines);
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines) {
+    return driver_argv_collect_defines_impl(argc, argv, defines, max_defines);
 }
+#endif
 
 /** pipeline_gen.c / main.x：module num_funcs 与 main 下标。 */
 extern int driver_get_module_num_funcs(void *m);
 extern int driver_get_module_main_func_index(void *m);
 
 /** pipeline 失败 rc 诊断；rc==-7 时打印 resolve 尝试路径。 */
-void driver_pipeline_fail_code(int rc, const uint8_t *path) {
-  {
+/* G-02f-413：实现体始终 seed；public PREFER 时 thin pure forward */
+void driver_pipeline_fail_code_impl(int rc, const uint8_t *path) {
     driver_pipeline_fail_code_rc_impl((int32_t)rc);
     if (rc != -7) {
-      return;
+        return;
     }
     if (path == NULL) {
-      return;
+        return;
     }
     driver_pipeline_fail_code_path_impl(path);
-  }
 }
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+void driver_pipeline_fail_code(int rc, const uint8_t *path) {
+    driver_pipeline_fail_code_impl(rc, path);
+}
+#endif
 
 /**
  * .x pipeline 烟测 stderr 摘要；保留 parse OK / typeck OK 前缀供 run-import gate grep。
  * 参数：module ASTModule*；codegen_len 产出字节数（可为 0）。
  */
-/* G-02f-244：逻辑源 .x（null module 门闩）；seed 保留同语义 C 供产品 cc */
-void driver_print_x_smoke_summary(void *module, size_t codegen_len) {
-  if (module == NULL) {
-    return;
-  }
-  {
-    if (driver_check_diag_emitted_get() != 0) {
-      return;
+/* G-02f-244/413：实现体始终 seed；public PREFER 时 thin pure forward */
+void driver_print_x_smoke_summary_impl(void *module, size_t codegen_len) {
+    int32_t num_funcs;
+    int32_t main_ix;
+    if (module == NULL) {
+        return;
     }
-    int32_t num_funcs = (int32_t)driver_get_module_num_funcs(module);
-    int32_t main_ix = (int32_t)driver_get_module_main_func_index(module);
+    if (driver_check_diag_emitted_get() != 0) {
+        return;
+    }
+    num_funcs = (int32_t)driver_get_module_num_funcs(module);
+    main_ix = (int32_t)driver_get_module_main_func_index(module);
     driver_print_x_smoke_parse_ok_impl(num_funcs, main_ix, (int64_t)codegen_len);
     if (num_funcs <= 0) {
-      driver_print_x_smoke_parse_empty_impl();
-      return;
+        driver_print_x_smoke_parse_empty_impl();
+        return;
     }
     driver_print_x_smoke_typeck_ok_impl();
-  }
 }
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+void driver_print_x_smoke_summary(void *module, size_t codegen_len) {
+    driver_print_x_smoke_summary_impl(module, codegen_len);
+}
+#endif
 
 /**
  * B-20：读源文件前缀到 content（最多 cap-1 字节）；成功返回读入字节数，失败 -1。
  * 参数：path 源路径；content/cap 输出缓冲；实现委托 runtime_io_abi。
  */
-int driver_peek_source_file(const char *path, char *content, size_t cap) {
-  if (path == NULL) {
-    return -1;
-  }
-  if (content == NULL) {
-    return -1;
-  }
-  if (cap <= 1) {
-    return -1;
-  }
-  {
-    int32_t n = shux_read_file_into_path(path, content, (size_t)(cap - 1));
+/* G-02f-413：实现体始终 seed；public PREFER 时 thin pure forward */
+int driver_peek_source_file_impl(const char *path, char *content, size_t cap) {
+    int32_t n;
+    if (path == NULL) {
+        return -1;
+    }
+    if (content == NULL) {
+        return -1;
+    }
+    if (cap <= 1) {
+        return -1;
+    }
+    n = shux_read_file_into_path(path, content, (size_t)(cap - 1));
     return (int)n;
-  }
-  return -1;
 }
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int driver_peek_source_file(const char *path, char *content, size_t cap) {
+    return driver_peek_source_file_impl(path, content, cap);
+}
+#endif
 
 /**
  * 大模块 pipeline 栈帧深；macOS 默认 RLIMIT_STACK 约 512KiB～8MiB，进入 pipeline 前抬高软上限。
