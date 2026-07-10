@@ -4,9 +4,10 @@
  * G-02f-107 helper gates.
  * G-02f-106 helper gates.
  * G-02f-97 pure helper gates.
+ * G-02f-247: P1-8 open — collect lit + path_should_ignore pure + null bounds.
  * Regen: ./shux-c -E -L .. src/driver/fmt_check_cmd.x > /tmp/fcc.c
  *         merge quiet_ok; keep path walk / check argv / fmt CLI C.
- * .x covers: driver_check_quiet_ok_get (strong silent-success).
+ * .x covers: quiet_ok + collect lit + path ignore + path_is_absolute + lint env.
  */
 #include "win32_compat.h"
 #include "driver/fmt_check_cmd.h"
@@ -139,18 +140,49 @@ typedef enum DriverCollectMode {
 } DriverCollectMode;
 
 static DriverCollectMode s_collect_mode = DRIVER_COLLECT_MODE_FMT;
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-const char * driver_collect_error_kind(void) {
-    return s_collect_mode == DRIVER_COLLECT_MODE_CHECK ? "check error" : "fmt error";
+/* G-02f-247：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t driver_collect_mode_is_check(void) {
+    return s_collect_mode == DRIVER_COLLECT_MODE_CHECK ? 1 : 0;
 }
 
+const char *driver_fmt_check_lit_check_error(void) { return "check error"; }
+const char *driver_fmt_check_lit_fmt_error(void) { return "fmt error"; }
+const char *driver_fmt_check_lit_chk002(void) { return "CHK002"; }
+const char *driver_fmt_check_lit_fmt001(void) { return "FMT001"; }
 
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-247：逻辑源 .x（真迁 mode→lit）；seed 保留同语义 C 供产品 cc */
+const char *driver_collect_error_kind(void) {
+    if (driver_collect_mode_is_check())
+        return driver_fmt_check_lit_check_error();
+    return driver_fmt_check_lit_fmt_error();
+}
 
+/* G-02f-247：逻辑源 .x（真迁 mode→lit）；seed 保留同语义 C 供产品 cc */
+const char *driver_collect_missing_path_code(void) {
+    if (driver_collect_mode_is_check())
+        return driver_fmt_check_lit_chk002();
+    return driver_fmt_check_lit_fmt001();
+}
 
-const char * driver_collect_missing_path_code(void) {
-    return s_collect_mode == DRIVER_COLLECT_MODE_CHECK ? "CHK002" : "FMT001";
+/* G-02f-247：ignore 槽访问（.x path_should_ignore pure） */
+const char *fmt_builtin_ignore_at(int i) {
+    int n = 0;
+    while (s_builtin_ignore[n])
+        n++;
+    if (i < 0 || i >= n)
+        return NULL;
+    return s_builtin_ignore[i];
+}
+
+int fmt_user_ignore_count(void) {
+    return s_n_ignore;
+}
+
+const char *fmt_user_ignore_at(int i) {
+    if (i < 0 || i >= s_n_ignore)
+        return NULL;
+    return s_ignore_paths[i];
 }
 
 
@@ -361,18 +393,24 @@ int driver_check_print_collected_diagnostics(const char *path) {
 
 /**
  * 路径是否应忽略（内置 + --ignore 子串匹配）。
+ * G-02f-247：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int path_should_ignore(const char *path) {
     int i;
+    int n;
     if (!path)
         return 1;
-    for (i = 0; s_builtin_ignore[i]; i++) {
-        if (strstr(path, s_builtin_ignore[i]))
+    for (i = 0;; i++) {
+        const char *b = fmt_builtin_ignore_at(i);
+        if (!b)
+            break;
+        if (strstr(path, b))
             return 1;
     }
-    for (i = 0; i < s_n_ignore; i++) {
-        if (s_ignore_paths[i][0] && strstr(path, s_ignore_paths[i]))
+    n = fmt_user_ignore_count();
+    for (i = 0; i < n; i++) {
+        const char *u = fmt_user_ignore_at(i);
+        if (u && u[0] && strstr(path, u))
             return 1;
     }
     return 0;
@@ -516,9 +554,9 @@ void collect_paths_from_arg(const char *arg) {
 
 /**
  * 解析 --ignore=a,b,c 写入 s_ignore_paths。
+ * G-02f-247：.x 前缀 pure；体写槽 🔒。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void parse_ignore_opt(const char *arg) {
+void parse_ignore_opt_impl(const char *arg) {
     char buf[512];
     char *p;
     char *tok;
@@ -537,6 +575,15 @@ void parse_ignore_opt(const char *arg) {
             s_n_ignore++;
         }
     }
+}
+
+/* G-02f-247：逻辑源 .x（前缀 pure）；seed 保留同语义 C 供产品 cc */
+void parse_ignore_opt(const char *arg) {
+    if (!arg)
+        return;
+    if (strncmp(arg, "--ignore=", 9) != 0)
+        return;
+    parse_ignore_opt_impl(arg);
 }
 
 
