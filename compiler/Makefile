@@ -140,7 +140,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	rm -f ../std/runtime/runtime_core.o
 
 # std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue 由 runtime_net_*_fast.inc 提供（G-02e-18）。
-../std/net/net.o: ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x src/asm/runtime_net_dns_fast.inc src/asm/runtime_net_io_batch_fast.inc src/asm/runtime_net_addr_fast.inc src/asm/runtime_net_ipv6_fast.inc src/asm/runtime_net_sock_fast.inc scripts/cc_inc_tu.sh
+../std/net/net.o: ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x seeds/runtime_net_dns_fast.from_x.c seeds/runtime_net_io_batch_fast.from_x.c seeds/runtime_net_addr_fast.from_x.c seeds/runtime_net_ipv6_fast.from_x.c seeds/runtime_net_sock_fast.from_x.c scripts/cc_inc_tu.sh
 	@objs=""; \
 	shux="$${SHUX:-}"; \
 	if [ -z "$$shux" ] || [ ! -x "$$shux" ]; then \
@@ -154,11 +154,11 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	  sh scripts/shux_compile_std_x.sh $$shux ../std/net/$$x.x ../std/net/$$x.o || exit 1; \
 	  objs="$$objs ../std/net/$$x.o"; \
 	  done; \
-	  sh scripts/cc_inc_tu.sh src/asm/runtime_net_dns_fast.inc ../std/net/net_dns_fast.o && \
-	  sh scripts/cc_inc_tu.sh src/asm/runtime_net_io_batch_fast.inc ../std/net/net_io_batch_fast.o && \
-	  sh scripts/cc_inc_tu.sh src/asm/runtime_net_addr_fast.inc ../std/net/net_addr_fast.o && \
-	  sh scripts/cc_inc_tu.sh src/asm/runtime_net_ipv6_fast.inc ../std/net/net_ipv6_fast.o && \
-	  sh scripts/cc_inc_tu.sh src/asm/runtime_net_sock_fast.inc ../std/net/net_sock_fast.o && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_dns_fast.from_x.c -o ../std/net/net_dns_fast.o && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_io_batch_fast.from_x.c -o ../std/net/net_io_batch_fast.o && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_addr_fast.from_x.c -o ../std/net/net_addr_fast.o && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_ipv6_fast.from_x.c -o ../std/net/net_ipv6_fast.o && \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_sock_fast.from_x.c -o ../std/net/net_sock_fast.o && \
 	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $$objs ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o && \
 	  rm -f ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o; \
 	else \
@@ -791,16 +791,18 @@ runtime_panic.o: src/asm/runtime_panic.inc $(RUNTIME_PANIC_PLATFORM_STAMP) scrip
 endif
 
 # seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）
-runtime_asm_io_stubs.o: src/asm/runtime_asm_io_stubs.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_asm_io_stubs.inc $@ -fPIE
+# G-02f-20：runtime_asm_io_stubs 产品 seed
+runtime_asm_io_stubs.o: seeds/runtime_asm_io_stubs.from_x.c src/asm/runtime_asm_io_stubs.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -fPIE -c seeds/runtime_asm_io_stubs.from_x.c -o $@
 
 # F-ZC：std.test fn-ptr invoke；与 test.o 一并链入（G-02e-16：.inc + cc_inc_tu）
 runtime_test_fn_invoke.o: src/asm/runtime_test_fn_invoke.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_test_fn_invoke.inc $@
 
 # F-ZC：CSPRNG OS fill；与 random.o 一并链入（G-02e-17：.inc + cc_inc_tu）
-runtime_random_fill.o: src/asm/runtime_random_fill.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_random_fill.inc $@
+# G-02f-20：runtime_random_fill 产品 seed
+runtime_random_fill.o: seeds/runtime_random_fill.from_x.c src/asm/runtime_random_fill.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_random_fill.from_x.c -o $@
 
 # zlib 宏包装桩；与 compress 同链（G-02e-17：.inc + cc_inc_tu）
 runtime_compress_zlib_glue.o: src/asm/runtime_compress_zlib_glue.inc scripts/cc_inc_tu.sh
@@ -816,8 +818,9 @@ runtime_queue_contention.o: src/asm/runtime_queue_contention.inc scripts/cc_inc_
 	sh scripts/cc_inc_tu.sh src/asm/runtime_queue_contention.inc $@
 
 # F-ZC：dynlib dlopen/LoadLibrary；与 dynlib.o 一并链入（G-02e-19：.inc + cc_inc_tu）
-runtime_dynlib_os.o: src/asm/runtime_dynlib_os.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_dynlib_os.inc $@
+# G-02f-20：runtime_dynlib_os 产品 seed
+runtime_dynlib_os.o: seeds/runtime_dynlib_os.from_x.c src/asm/runtime_dynlib_os.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_dynlib_os.from_x.c -o $@
 
 # F-ZC：env OS getenv/setenv/iter；与 env.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-19：runtime_env_os 产品 seed
@@ -850,12 +853,14 @@ runtime_channel_glue.o: seeds/runtime_channel_glue.from_x.c src/asm/runtime_chan
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_channel_glue.from_x.c -o $@
 
 # F-ZC：net UDP batch recvmmsg/sendmmsg；与 net.o 一并链入（G-02e-19：.inc + cc_inc_tu）
-runtime_net_udp_batch.o: src/asm/runtime_net_udp_batch.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_net_udp_batch.inc $@
+# G-02f-20：runtime_net_udp_batch 产品 seed
+runtime_net_udp_batch.o: seeds/runtime_net_udp_batch.from_x.c src/asm/runtime_net_udp_batch.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_udp_batch.from_x.c -o $@
 
 # F-ZC：net accept worker 线程入口；与 net.o 一并链入（G-02e-18：.inc + cc_inc_tu）
-runtime_net_workers.o: src/asm/runtime_net_workers.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_net_workers.inc $@
+# G-02f-20：runtime_net_workers 产品 seed
+runtime_net_workers.o: seeds/runtime_net_workers.from_x.c src/asm/runtime_net_workers.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_net_workers.from_x.c -o $@
 
 # F-ZC：sync Mutex/RwLock/Condvar + 锁诊断 TLS；与 sync.o 一并链入（G-02e-20）
 # G-02f-19：runtime_sync_os 产品 seed
@@ -902,16 +907,19 @@ runtime_sqlite_glue_stub.o: src/asm/runtime_sqlite_glue.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_sqlite_glue.inc $@
 
 # F-ZC：crypto SHA-512/HMAC 胶层；与 crypto.o 一并链入（G-02e-20）
-runtime_crypto_inc_glue.o: src/asm/runtime_crypto_inc_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_crypto_inc_glue.inc $@
+# G-02f-20：runtime_crypto_inc_glue 产品 seed
+runtime_crypto_inc_glue.o: seeds/runtime_crypto_inc_glue.from_x.c src/asm/runtime_crypto_inc_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_crypto_inc_glue.from_x.c -o $@
 
 # F-ZC：Ed25519 ref10（含 crypto/ed25519/*.c）；与 crypto.o 一并链入（G-02e-17 .inc）
-runtime_ed25519_ref10_glue.o: src/asm/runtime_ed25519_ref10_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_ed25519_ref10_glue.inc $@ -Isrc/asm
+# G-02f-20：runtime_ed25519_ref10_glue 产品 seed
+runtime_ed25519_ref10_glue.o: seeds/runtime_ed25519_ref10_glue.from_x.c src/asm/runtime_ed25519_ref10_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm -c seeds/runtime_ed25519_ref10_glue.from_x.c -o $@
 
 # F-ZC：codegen 入口 argc/argv 全局；与 process.o 一并链入（G-02e-18：.inc + cc_inc_tu）
-runtime_process_argv.o: src/asm/runtime_process_argv.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_process_argv.inc $@
+# G-02f-20：runtime_process_argv 产品 seed
+runtime_process_argv.o: seeds/runtime_process_argv.from_x.c src/asm/runtime_process_argv.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o $@
 
 # F-ZC：进程 OS 胶层（getenv/spawn/getcwd 等）；与 process.o 一并链入（G-02e-20）
 # G-02f-18：runtime_process_os_glue 产品 seed

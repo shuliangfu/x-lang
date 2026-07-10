@@ -3894,17 +3894,17 @@ ensure_asm_link_objs() {
 
 # 用户程序 asm 链预编译 runtime 对象（nostdlib shux_asm 无 fork+cc，须在 build 阶段产出）。
 ensure_runtime_user_link_objs() {
-  if [ ! -f runtime_asm_io_stubs.o ] || [ src/asm/runtime_asm_io_stubs.inc -nt runtime_asm_io_stubs.o ]; then
-  echo " cc_inc_tu runtime_asm_io_stubs.o <- src/asm/runtime_asm_io_stubs.inc"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_asm_io_stubs.inc runtime_asm_io_stubs.o
+  if [ ! -f runtime_asm_io_stubs.o ] || [ seeds/runtime_asm_io_stubs.from_x.c -nt runtime_asm_io_stubs.o ]; then
+  echo " cc_inc_tu runtime_asm_io_stubs.o <- seeds/runtime_asm_io_stubs.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -fPIE -c seeds/runtime_asm_io_stubs.from_x.c -o runtime_asm_io_stubs.o
   fi
-  if [ ! -f runtime_process_argv.o ] || [ src/asm/runtime_process_argv.inc -nt runtime_process_argv.o ]; then
-  echo " cc_inc_tu runtime_process_argv.o <- src/asm/runtime_process_argv.inc"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_process_argv.inc runtime_process_argv.o
+  if [ ! -f runtime_process_argv.o ] || [ seeds/runtime_process_argv.from_x.c -nt runtime_process_argv.o ]; then
+  echo " cc_inc_tu runtime_process_argv.o <- seeds/runtime_process_argv.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o runtime_process_argv.o
   fi
-  if [ ! -f runtime_random_fill.o ] || [ src/asm/runtime_random_fill.inc -nt runtime_random_fill.o ]; then
-  echo " cc_inc_tu runtime_random_fill.o <- src/asm/runtime_random_fill.inc"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_random_fill.inc runtime_random_fill.o
+  if [ ! -f runtime_random_fill.o ] || [ seeds/runtime_random_fill.from_x.c -nt runtime_random_fill.o ]; then
+  echo " cc_inc_tu runtime_random_fill.o <- seeds/runtime_random_fill.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_random_fill.from_x.c -o runtime_random_fill.o
   fi
   if [ ! -f runtime_time_os.o ] || [ seeds/runtime_time_os.from_x.c -nt runtime_time_os.o ]; then
   echo " cc_inc_tu runtime_time_os.o <- seeds/runtime_time_os.from_x.c"
