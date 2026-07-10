@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-335～338/342/346：diag L2 thin — pure helper + 门闩子集（无字符串字面量，-E 稳定）。
+// G-02f-335～338/342/346/386/415：diag L2 thin — pure helper + 门闩子集（无字符串字面量，-E 稳定）。
 // 产品 PREFER_X_O：g05_try_x_to_o → thin.o + seeds/diag.from_x.c rest
 //   （-DSHUX_L2_DIAG_THIN_FROM_X）ld -r → src/diag.o
 // 完整逻辑源仍见 src/diag.x（整文件 -E 仍会截断/挂起）。
@@ -16,6 +16,7 @@
 // f-346：snap pure（store/load ptr/usize/i32 + le 写；定义在 push 前）→ 共 40
 // f-347：push = snap_save + apply_impl；restore = snap_load + ctx_set_all → 共 41
 // f-386：get_use_color / code_table_has / json_get|set_state → _impl 门闩
+// f-415：diag_io_* stdio/fprint + code_table_len → _impl 门闩（共 62）
 
 // ---- rest / libc 提供的符号（勿与下方 thin public 同名，以免 -E 改名）----
 extern "C" function diag_ctx_get_use_color_impl(): i32;
@@ -610,4 +611,111 @@ function diag_json_set_state(v: i32): i32 {
     return diag_json_set_state_impl(v);
   }
   return 0;
+}
+
+// ---- G-02f-415：stdio / fprint 冷路径 + code_table_len → seed impl ----
+extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
+extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
+extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
+extern "C" function diag_io_fflush_impl(o: *u8): void;
+extern "C" function diag_io_fprint_line_col_impl(o: *u8, line: i32, col: i32): void;
+extern "C" function diag_io_fprint_loc_file_line_col_impl(o: *u8, pc: *u8, file: *u8, line: i32, col: i32, rs: *u8): void;
+extern "C" function diag_io_fprint_loc_file_line_impl(o: *u8, pc: *u8, file: *u8, line: i32, rs: *u8): void;
+extern "C" function diag_io_fprint_loc_file_impl(o: *u8, pc: *u8, file: *u8, rs: *u8): void;
+extern "C" function diag_io_fprint_loc_line_col_impl(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void;
+extern "C" function diag_io_fprint_gutter_blank_impl(o: *u8, width: i32): void;
+extern "C" function diag_io_fprint_src_line_impl(o: *u8, line: i32, start: *u8, len: i32): void;
+extern "C" function diag_io_fprint_gutter_bar_impl(o: *u8, width: i32): void;
+extern "C" function diag_io_fprint_caret_mark_impl(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
+extern "C" function diag_code_table_len_impl(): i64;
+extern "C" function diag_io_fprint_unknown_code_impl(out: *u8, code: *u8): void;
+extern "C" function diag_io_fprint_code_table_hdr_impl(out: *u8): void;
+extern "C" function diag_io_fprint_code_table_row_impl(out: *u8, code: *u8, kind: *u8, summary: *u8): void;
+
+#[no_mangle]
+function diag_io_fputc(o: *u8, c: i32): i32 {
+  unsafe { return diag_io_fputc_impl(o, c); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_io_fputs(s: *u8, o: *u8): i32 {
+  unsafe { return diag_io_fputs_impl(s, o); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_io_fputs_u04x(o: *u8, c: u32): void {
+  unsafe { diag_io_fputs_u04x_impl(o, c); }
+}
+
+#[no_mangle]
+function diag_io_fflush(o: *u8): void {
+  unsafe { diag_io_fflush_impl(o); }
+}
+
+#[no_mangle]
+function diag_io_fprint_line_col(o: *u8, line: i32, col: i32): void {
+  unsafe { diag_io_fprint_line_col_impl(o, line, col); }
+}
+
+#[no_mangle]
+function diag_io_fprint_loc_file_line_col(o: *u8, pc: *u8, file: *u8, line: i32, col: i32, rs: *u8): void {
+  unsafe { diag_io_fprint_loc_file_line_col_impl(o, pc, file, line, col, rs); }
+}
+
+#[no_mangle]
+function diag_io_fprint_loc_file_line(o: *u8, pc: *u8, file: *u8, line: i32, rs: *u8): void {
+  unsafe { diag_io_fprint_loc_file_line_impl(o, pc, file, line, rs); }
+}
+
+#[no_mangle]
+function diag_io_fprint_loc_file(o: *u8, pc: *u8, file: *u8, rs: *u8): void {
+  unsafe { diag_io_fprint_loc_file_impl(o, pc, file, rs); }
+}
+
+#[no_mangle]
+function diag_io_fprint_loc_line_col(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void {
+  unsafe { diag_io_fprint_loc_line_col_impl(o, pc, line, col, rs); }
+}
+
+#[no_mangle]
+function diag_io_fprint_gutter_blank(o: *u8, width: i32): void {
+  unsafe { diag_io_fprint_gutter_blank_impl(o, width); }
+}
+
+#[no_mangle]
+function diag_io_fprint_src_line(o: *u8, line: i32, start: *u8, len: i32): void {
+  unsafe { diag_io_fprint_src_line_impl(o, line, start, len); }
+}
+
+#[no_mangle]
+function diag_io_fprint_gutter_bar(o: *u8, width: i32): void {
+  unsafe { diag_io_fprint_gutter_bar_impl(o, width); }
+}
+
+#[no_mangle]
+function diag_io_fprint_caret_mark(o: *u8, cc: *u8, rs: *u8, detail: *u8): void {
+  unsafe { diag_io_fprint_caret_mark_impl(o, cc, rs, detail); }
+}
+
+#[no_mangle]
+function diag_code_table_len(): i64 {
+  unsafe { return diag_code_table_len_impl(); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_io_fprint_unknown_code(out: *u8, code: *u8): void {
+  unsafe { diag_io_fprint_unknown_code_impl(out, code); }
+}
+
+#[no_mangle]
+function diag_io_fprint_code_table_hdr(out: *u8): void {
+  unsafe { diag_io_fprint_code_table_hdr_impl(out); }
+}
+
+#[no_mangle]
+function diag_io_fprint_code_table_row(out: *u8, code: *u8, kind: *u8, summary: *u8): void {
+  unsafe { diag_io_fprint_code_table_row_impl(out, code, kind, summary); }
 }
