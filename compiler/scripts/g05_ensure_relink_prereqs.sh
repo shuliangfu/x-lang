@@ -133,19 +133,23 @@ g05_ensure_l2_or_seed() {
 
 if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   echo "g05_ensure_relink_prereqs: hot rebuild (cc, no make)"
-  # G-02f-13 / G-02f-267：runtime_link_abi.o ← seed（G05 hot）
-  # PREFER_X_O=1：L0 path pure hybrid（labi_path_pure + rest -DSHUX_LABI_PATH_PURE_FROM_X）
+  # G-02f-13 / G-02f-267～268：runtime_link_abi.o ← seed（G05 hot）
+  # PREFER_X_O=1：L0 path pure + L1 diag pure hybrid → rest（SHUX_LABI_*_FROM_X）
   _rlink=seeds/runtime_link_abi.from_x.c
   _labi_l0_seed=seeds/labi_path_pure.from_x.c
+  _labi_l1_seed=seeds/labi_diag_pure.from_x.c
   _labi_o=src/runtime_link_abi.o
   if [ -f "$_rlink" ]; then
     if [ ! -f "$_labi_o" ] || [ "$_rlink" -nt "$_labi_o" ] \
-      || { [ -f "$_labi_l0_seed" ] && [ "$_labi_l0_seed" -nt "$_labi_o" ]; }; then
+      || { [ -f "$_labi_l0_seed" ] && [ "$_labi_l0_seed" -nt "$_labi_o" ]; } \
+      || { [ -f "$_labi_l1_seed" ] && [ "$_labi_l1_seed" -nt "$_labi_o" ]; }; then
       _labi_done=0
       if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_labi_l0_seed" ]; then
         _labi_l0_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l0.XXXXXX") || true
+        _labi_l1_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l1.XXXXXX") || true
         _labi_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_rest.XXXXXX") || true
         _labi_l0_ok=0
+        _labi_l1_ok=0
         if [ -n "$_labi_l0_o" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l0_o" "$_labi_l0_seed"; then
@@ -153,17 +157,35 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: L0 path pure ← $_labi_l0_seed (G-02f-267 seed slice)"
           fi
         fi
+        if [ -n "$_labi_l1_o" ] && [ -f "$_labi_l1_seed" ]; then
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l1_o" "$_labi_l1_seed"; then
+            _labi_l1_ok=1
+            echo "g05_ensure: L1 diag pure ← $_labi_l1_seed (G-02f-268 seed slice)"
+          fi
+        fi
+        _labi_rest_defs="-DSHUX_LABI_PATH_PURE_FROM_X"
+        if [ "$_labi_l1_ok" = "1" ]; then
+          _labi_rest_defs="$_labi_rest_defs -DSHUX_LABI_DIAG_PURE_FROM_X"
+        fi
         # shellcheck disable=SC2086
         if [ "$_labi_l0_ok" = "1" ] && [ -n "$_labi_rest_o" ] \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_LABI_PATH_PURE_FROM_X \
-               -c -o "$_labi_rest_o" "$_rlink" \
-          && $CC -r -nostdlib -o "$_labi_o" "$_labi_l0_o" "$_labi_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_labi_o ← L0 + link_abi rest (G-02f-267 hybrid)"
-          _labi_done=1
-        else
-          echo "g05_ensure: L0 link_abi hybrid failed; fallback full seed" >&2
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $_labi_rest_defs \
+               -c -o "$_labi_rest_o" "$_rlink"; then
+          _labi_link="$_labi_l0_o"
+          if [ "$_labi_l1_ok" = "1" ]; then
+            _labi_link="$_labi_link $_labi_l1_o"
+          fi
+          # shellcheck disable=SC2086
+          if $CC -r -nostdlib -o "$_labi_o" $_labi_link "$_labi_rest_o" 2>/dev/null; then
+            echo "g05_ensure: $_labi_o ← L0/L1 + link_abi rest (G-02f-268 hybrid)"
+            _labi_done=1
+          fi
         fi
-        rm -f "$_labi_l0_o" "$_labi_rest_o"
+        if [ "$_labi_done" = "0" ]; then
+          echo "g05_ensure: L0/L1 link_abi hybrid failed; fallback full seed" >&2
+        fi
+        rm -f "$_labi_l0_o" "$_labi_l1_o" "$_labi_rest_o"
       fi
       if [ "$_labi_done" = "0" ]; then
         echo "g05_ensure: runtime_link_abi.o ← seed (G-02f-13)"

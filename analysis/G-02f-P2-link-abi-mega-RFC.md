@@ -209,3 +209,4 @@ cc -o /tmp/labi0_ut tests_or_inline_ut.c seeds/labi_path_pure.from_x.c && /tmp/l
 |------|------|
 | 2026-07-11 | f-266 初版：link_abi mega 拆分 RFC |
 | 2026-07-11 | **f-267 L0 落地**：`labi_path_pure.x` + `seeds/labi_path_pure.from_x.c`（`shux_path_last_sep` / `has_sep` / `link_abi_ld_argv_entry_is_obj` / `shux_output_is_elf_o`）；`SHUX_LABI_PATH_PURE_FROM_X`；prefer hybrid `L0+rest → runtime_link_abi.o`。 |
+| 2026-07-11 | **f-268 L1 落地**：`labi_diag_pure.*`（`link_diag_code_for_kind` + resolve/missing/freestanding/ld_debug 薄 report；不含 wait/errno 系）；`SHUX_LABI_DIAG_PURE_FROM_X`；hybrid **L0+L1+rest**。 |
