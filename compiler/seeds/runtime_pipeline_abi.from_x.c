@@ -8,6 +8,7 @@
  * G-02f-224: path_registry scan + seed_slots pure.
  * G-02f-225: sidecar_clear + preprocess/import diag pure.
  * G-02f-226: entry_lib keywords + set_dep_slots pure.
+ * G-02f-227: lsp free_loaded + import_open_fail_once pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -138,6 +139,7 @@ int32_t pipeline_diag_emitted_get(void) {
 }
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
+/* G-02f-227：逻辑源 .x（真迁）；seed 保留 printf 细文案 + 去重表 */
 void pipeline_diag_import_open_fail_once(const char *import_path, const char *resolved_path) {
     const char *import_key = import_path ? import_path : "?";
     const char *resolved_key = resolved_path ? resolved_path : "?";
@@ -2701,6 +2703,7 @@ int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx
     return 0;
 }
 
+/* G-02f-227：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void) {
   if (module == NULL) {
     return -1;
@@ -2712,6 +2715,13 @@ int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void
 }
 
 /** 释放 shu_lsp_resolve_and_load_imports 写入的 all_dep_mods / all_dep_paths（不含 entry 模块本身）。 */
+/* G-02f-227：槽清空（.x free 循环后写回 NULL） */
+void shu_lsp_ptr_slot_clear(void **arr, int32_t i) {
+    if (!arr || i < 0)
+        return;
+    arr[i] = NULL;
+}
+
 void shu_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all) {
     int i;
 
@@ -2727,6 +2737,7 @@ void shu_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths,
     }
 }
 
+/* G-02f-227：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_dep_paths, int n_all) {
   if (all_dep_mods == NULL) {
     return;

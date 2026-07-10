@@ -13,6 +13,7 @@
 // G-02f-224：path_registry scan + seed_slots pure。
 // G-02f-225：sidecar_clear + preprocess/import 诊断 pure（note + report_with_code）。
 // G-02f-226：entry_lib 关键词 pure + set_dep_slots pure。
+// G-02f-227：lsp free_loaded 循环 + import_open_fail_once 去重 pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -34,7 +35,9 @@ extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
 extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
 /* shux_dep_prerun_entry_dir_pick：G-02f-223 下方真迁 */
 extern "C" function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8, ctx: *u8): i32;
-extern "C" function shu_lsp_free_loaded_imports_impl(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void;
+extern "C" function free(p: *u8): void;
+extern "C" function ast_module_free(mod: *u8): void;
+extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
 extern "C" function shux_pipeline_pctx_update_dep_slots_no_reset_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void;
 extern "C" function pipeline_run_x_thread_fn_impl(arg: *u8): *u8;
 extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
@@ -57,7 +60,7 @@ extern "C" function pipeline_dep_arena_slot_set(i: i32, p: *u8): void;
 extern "C" function pipeline_dep_module_slot_set(i: i32, p: *u8): void;
 extern "C" function pipeline_dep_arena_slot_at(i: i32): *u8;
 extern "C" function pipeline_dep_module_slot_at(i: i32): *u8;
-extern "C" function pipeline_diag_import_open_fail_once_impl(import_path: *u8, resolved_path: *u8): void;
+/* import_open_fail_once：G-02f-227 下方真迁 */
 extern "C" function pipeline_asm_debug_enabled_impl(): i32;
 extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
@@ -870,10 +873,67 @@ function pipeline_get_dep_module_slot(i: i32): *u8 {
   return 0 as *u8;
 }
 
+// G-02f-227：import open 失败去重诊断
+let g_import_open_valid: i32 = 0;
+let g_import_open_import: u8[65] = [];
+let g_import_open_resolved: u8[512] = [];
+
+function pipe_cstr_copy(dst: *u8, cap: i32, src: *u8): void {
+  let i: i32 = 0;
+  if (dst == 0 as *u8) { return; }
+  if (cap <= 0) { return; }
+  if (src == 0 as *u8) {
+    dst[0] = 0;
+    return;
+  }
+  unsafe {
+    while (i < (cap - 1)) {
+      let c: u8 = src[i];
+      dst[i] = c;
+      if (c == 0) { return; }
+      i = i + 1;
+    }
+    dst[cap - 1] = 0;
+  }
+}
+
 #[no_mangle]
 function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_path: *u8): void {
+  let q: u8[2] = [];
+  q[0] = 63; // '?'
+  q[1] = 0;
+  let import_key: *u8 = import_path;
+  let resolved_key: *u8 = resolved_path;
+  if (import_key == 0 as *u8) { import_key = &q[0]; }
+  if (resolved_key == 0 as *u8) { resolved_key = &q[0]; }
   unsafe {
-    pipeline_diag_import_open_fail_once_impl(import_path, resolved_path);
+    if (g_import_open_valid != 0) {
+      if (pipe_cstr_eq(&g_import_open_import[0], import_key) != 0) {
+        if (pipe_cstr_eq(&g_import_open_resolved[0], resolved_key) != 0) {
+          pipeline_diag_emitted_note();
+          return;
+        }
+      }
+    }
+    pipe_cstr_copy(&g_import_open_import[0], 65, import_key);
+    pipe_cstr_copy(&g_import_open_resolved[0], 512, resolved_key);
+    g_import_open_valid = 1;
+    pipeline_diag_emitted_note();
+    let kind: u8[16] = [];
+    let code: u8[8] = [];
+    let msg: u8[32] = [];
+    // "import error"
+    kind[0]=105;kind[1]=109;kind[2]=112;kind[3]=111;kind[4]=114;kind[5]=116;kind[6]=32;kind[7]=101;
+    kind[8]=114;kind[9]=114;kind[10]=111;kind[11]=114;kind[12]=0;
+    // "IMP001"
+    code[0]=73;code[1]=77;code[2]=80;code[3]=48;code[4]=48;code[5]=49;code[6]=0;
+    // "cannot open import"
+    msg[0]=99;msg[1]=97;msg[2]=110;msg[3]=110;msg[4]=111;msg[5]=116;msg[6]=32;msg[7]=111;
+    msg[8]=112;msg[9]=101;msg[10]=110;msg[11]=32;msg[12]=105;msg[13]=109;msg[14]=112;msg[15]=111;
+    msg[16]=114;msg[17]=116;msg[18]=0;
+    let file: *u8 = resolved_path;
+    if (file == 0 as *u8) { file = import_path; }
+    diag_report_with_code(file, 0, 0, &kind[0], &code[0], &msg[0], 0 as *u8);
   }
 }
 
@@ -1194,19 +1254,27 @@ function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8): i32 
   return 0 - 1;
 }
 
+// G-02f-227：释放 LSP 已加载 dep mods/paths 列表
 #[no_mangle]
 function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void {
-  if (all_dep_mods == 0 as *u8) {
-    return;
-  }
-  if (all_dep_paths == 0 as *u8) {
-    return;
-  }
-  if (n_all <= 0) {
-    return;
-  }
-  unsafe {
-    shu_lsp_free_loaded_imports_impl(all_dep_mods, all_dep_paths, n_all);
+  if (all_dep_mods == 0 as *u8) { return; }
+  if (all_dep_paths == 0 as *u8) { return; }
+  if (n_all <= 0) { return; }
+  let i: i32 = 0;
+  while (i < n_all) {
+    unsafe {
+      let p: *u8 = pipe_load_ptr_slot(all_dep_paths, i);
+      if (p != 0 as *u8) {
+        free(p);
+        shu_lsp_ptr_slot_clear(all_dep_paths, i);
+      }
+      let m: *u8 = pipe_load_ptr_slot(all_dep_mods, i);
+      if (m != 0 as *u8) {
+        ast_module_free(m);
+        shu_lsp_ptr_slot_clear(all_dep_mods, i);
+      }
+    }
+    i = i + 1;
   }
 }
 
