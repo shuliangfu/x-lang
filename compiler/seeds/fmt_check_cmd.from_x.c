@@ -96,6 +96,12 @@ void check_init_user_lib_flags(int argc, char **argv, int path_start);
 void driver_check_set_current_file(const char *path);
 int driver_check_print_collected_diagnostics(const char *path);
 int check_one_file(const char *path, int argc, char **argv);
+int path_should_ignore(const char *path);
+int file_list_push(const char *path);
+void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg);
+void walk_dir_collect(const char *dir);
+void parse_ignore_opt(const char *arg);
+void file_list_clear(void);
 #endif
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
@@ -516,7 +522,8 @@ int driver_check_print_collected_diagnostics(const char *path) {
  * 路径是否应忽略（内置 + --ignore 子串匹配）。
  * G-02f-247：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc。
  */
-int path_should_ignore(const char *path) {
+/* G-02f-407：实现体始终 seed；public PREFER 时 thin forward */
+int path_should_ignore_impl(const char *path) {
     int i;
     int n;
     if (!path)
@@ -536,6 +543,12 @@ int path_should_ignore(const char *path) {
     }
     return 0;
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int path_should_ignore(const char *path) {
+  return path_should_ignore_impl(path);
+}
+#endif
 
 
 
@@ -602,7 +615,8 @@ int fmt_file_list_store_impl(const char *abs_path) {
  * 将相对/绝对路径加入待处理列表（去重由调用方保证顺序）。
  * G-02f-248：逻辑源 .x（编排 pure）；getcwd/strdup 🔒。
  */
-int file_list_push(const char *path) {
+/* G-02f-407：实现体始终 seed；public PREFER 时 thin forward */
+int file_list_push_impl(const char *path) {
     const char *abs_path;
     if (!path)
         return -1;
@@ -611,12 +625,18 @@ int file_list_push(const char *path) {
     abs_path = fmt_path_resolve_abs(path);
     if (!abs_path)
         return -1;
-    if (path_should_ignore(abs_path))
+    if (path_should_ignore_impl(abs_path))
         return 0;
     if (!fmt_path_ends_with_dot_x(abs_path))
         return 0;
     return fmt_file_list_store_impl(abs_path);
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int file_list_push(const char *path) {
+  return file_list_push_impl(path);
+}
+#endif
 
 
 
@@ -634,20 +654,28 @@ int fmt_walk_skip_dot_name(const char *name) {
 
 
 void walk_dir_collect(const char *dir);
+void walk_dir_collect_impl(const char *dir);
 
 /* G-02f-249：逻辑源 .x（真迁 ignore/递归/.x 入表）；seed 保留同语义 C 供产品 cc */
-void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg) {
+/* G-02f-407：实现体始终 seed；public PREFER 时 thin forward */
+void walk_dir_collect_process_child_impl(const char *child, int is_dir, int is_reg) {
     if (!child)
         return;
-    if (path_should_ignore(child))
+    if (path_should_ignore_impl(child))
         return;
     if (is_dir) {
-        walk_dir_collect(child);
+        walk_dir_collect_impl(child);
         return;
     }
-    if (is_reg && fmt_path_ends_with_dot_x(child))
-        file_list_push(child);
+    if (is_reg && fmt_path_ends_with_dot_x_impl(child))
+        file_list_push_impl(child);
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg) {
+  walk_dir_collect_process_child_impl(child, is_dir, is_reg);
+}
+#endif
 
 /**
  * 递归遍历目录，收集 .x 文件。
@@ -680,17 +708,20 @@ void walk_dir_collect_impl(const char *dir) {
             else if (stat(child, &st) == 0 && S_ISREG(st.st_mode))
                 is_reg = 1;
         }
-        walk_dir_collect_process_child(child, is_dir, is_reg);
+        walk_dir_collect_process_child_impl(child, is_dir, is_reg);
     }
     closedir(d);
 }
 
 /* G-02f-249：逻辑源 .x（门闩）；seed 保留同语义 C 供产品 cc */
+/* G-02f-407：public PREFER 时 thin → existing impl */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void walk_dir_collect(const char *dir) {
     if (!dir)
         return;
     walk_dir_collect_impl(dir);
 }
+#endif
 
 
 
@@ -827,6 +858,8 @@ void parse_ignore_opt_impl(const char *arg) {
 }
 
 /* G-02f-247：逻辑源 .x（前缀 pure）；seed 保留同语义 C 供产品 cc */
+/* G-02f-407：public PREFER 时 thin → existing impl */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void parse_ignore_opt(const char *arg) {
     if (!arg)
         return;
@@ -834,6 +867,7 @@ void parse_ignore_opt(const char *arg) {
         return;
     parse_ignore_opt_impl(arg);
 }
+#endif
 
 
 
@@ -842,12 +876,19 @@ void parse_ignore_opt(const char *arg) {
  * 释放文件列表。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void file_list_clear(void) {
+/* G-02f-407：实现体始终 seed；public PREFER 时 thin forward */
+void file_list_clear_impl(void) {
     int i;
     for (i = 0; i < s_n_files; i++)
         free(s_file_list[i]);
     s_n_files = 0;
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+void file_list_clear(void) {
+  file_list_clear_impl();
+}
+#endif
 
 
 

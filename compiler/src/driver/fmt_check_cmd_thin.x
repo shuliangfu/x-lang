@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-350/383/389/405/406：fmt_check_cmd L2 thin — pure + lit 门闩（21）。
+// G-02f-350/383/389/405–407：fmt_check_cmd L2 thin — pure + lit 门闩（27）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // 对照：src/driver/fmt_check_cmd.x；默认仍整 seed。
@@ -256,4 +256,56 @@ function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
     return check_one_file_impl(path, argc, argv);
   }
   return 0 - 1;
+}
+
+// ---- G-02f-407：ignore / file_list / walk / parse_ignore → seed impl ----
+extern "C" function path_should_ignore_impl(path: *u8): i32;
+extern "C" function file_list_push_impl(path: *u8): i32;
+extern "C" function walk_dir_collect_process_child_impl(child: *u8, is_dir: i32, is_reg: i32): void;
+extern "C" function walk_dir_collect_impl(dir: *u8): void;
+extern "C" function parse_ignore_opt_impl(arg: *u8): void;
+extern "C" function file_list_clear_impl(): void;
+
+#[no_mangle]
+function path_should_ignore(path: *u8): i32 {
+  unsafe {
+    return path_should_ignore_impl(path);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function file_list_push(path: *u8): i32 {
+  unsafe {
+    return file_list_push_impl(path);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: i32): void {
+  unsafe {
+    walk_dir_collect_process_child_impl(child, is_dir, is_reg);
+  }
+}
+
+#[no_mangle]
+function walk_dir_collect(dir: *u8): void {
+  unsafe {
+    walk_dir_collect_impl(dir);
+  }
+}
+
+#[no_mangle]
+function parse_ignore_opt(arg: *u8): void {
+  unsafe {
+    parse_ignore_opt_impl(arg);
+  }
+}
+
+#[no_mangle]
+function file_list_clear(): void {
+  unsafe {
+    file_list_clear_impl();
+  }
 }

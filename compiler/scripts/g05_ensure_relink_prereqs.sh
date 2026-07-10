@@ -1796,7 +1796,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -DSHUX_L2_FMT_CHECK_THIN_FROM_X \
                -c -o "$_fcc_rest_o" "$_fcc" \
           && $CC -r -nostdlib -o "$_fcc_o" "$_fcc_thin_o" "$_fcc_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_fcc_o ← $_fcc_thin_x + seed-rest (G-02f-350/406 L2 hybrid fmt_check thin)"
+          echo "g05_ensure: $_fcc_o ← $_fcc_thin_x + seed-rest (G-02f-350/407 L2 hybrid fmt_check thin)"
           _fcc_done=1
         else
           echo "g05_ensure: L2 hybrid fmt_check thin failed; fallback full seed" >&2
