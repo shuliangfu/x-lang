@@ -1,4 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
+ * G-02f-128 true .x pure helpers.
  * G-02f-124 true .x pure helpers.
  * G-02f-121 true .x pure helpers.
  * G-02f-115 true .x pure helpers.
@@ -109,18 +110,13 @@ int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t 
 
 
 /** INDEX 的下标是否为归纳变量 i。 */
-int32_t glue_index_uses_var_c_impl(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref) {
+/* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref) {
     int32_t idx_ref;
     if (pipeline_expr_kind_ord_at(arena, index_expr_ref) != GLUE_EXPR_INDEX)
         return 0;
     idx_ref = pipeline_expr_index_index_ref(arena, index_expr_ref);
     return glue_expr_same_var_c(arena, idx_ref, i_var_ref);
-}
-int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref) {
-  {
-    return glue_index_uses_var_c_impl(arena, index_expr_ref, i_var_ref);
-  }
-  return 0;
 }
 
 

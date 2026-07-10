@@ -18,7 +18,7 @@ extern "C" function glue_type_ref_is_named_struct_layout_impl(arena: *u8, mod: *
 extern "C" function glue_local_var_slot_holds_indirect_ptr_impl(arena: *u8, er: i32, ctx: *u8): i32;
 extern "C" function glue_expr_is_func_param_at_impl(arena: *u8, mod: *u8, fi: i32, er: i32, pix: i32): i32;
 extern "C" function glue_fold_func_return_operand_ref_module_impl(arena: *u8, mod: *u8, fi: i32): i32;
-extern "C" function glue_try_fold_func_return_operand_ref_impl(arena: *u8, mod: *u8, fi: i32): i32;
+extern "C" function backend_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: i32): i32;
 
 /* ---- G-02f-109：try_inline helpers 门闩 ---- */
 
@@ -37,8 +37,17 @@ function glue_local_var_slot_holds_indirect_ptr(arena: *u8, er: i32, ctx: *u8): 
 function glue_expr_is_func_param_at(arena: *u8, mod: *u8, fi: i32, er: i32, pix: i32): i32 { unsafe { return glue_expr_is_func_param_at_impl(arena, mod, fi, er, pix); } return 0; }
 #[no_mangle]
 function glue_fold_func_return_operand_ref_module(arena: *u8, mod: *u8, fi: i32): i32 { unsafe { return glue_fold_func_return_operand_ref_module_impl(arena, mod, fi); } return 0; }
+
+// G-02f-128：glue_try_fold_func_return_operand_ref 真迁 .x
 #[no_mangle]
-function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: i32): i32 { unsafe { return glue_try_fold_func_return_operand_ref_impl(arena, mod, fi); } return 0; }
+function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: i32): i32 {
+  unsafe {
+    let r: i32 = backend_fold_func_return_operand_ref(arena, mod, fi);
+    if (r > 0) { return r; }
+    return glue_fold_func_return_operand_ref_module(arena, mod, fi);
+  }
+  return 0;
+}
 
 
 // G-02f-110：+ fold/struct lit/field offset/vector binop 薄门闩。

@@ -1,4 +1,5 @@
 /* seeds/backend_x86_64_enc_c.from_x.c
+ * G-02f-128 true .x pure helpers.
  * G-02f-124 true .x pure helpers.
  * G-02f-102 helper gates.
  * G-02f-101 x86 enc helper gates. — G-02f-15 product TU
@@ -41,19 +42,14 @@ int32_t x86_enc_u8(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t b) {
 
 
 /** 追加 imm32 小端。 */
-int32_t x86_enc_u32_le_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
+/* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t x86_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
   uint8_t buf[4];
   buf[0] = (uint8_t)(imm & 255);
   buf[1] = (uint8_t)((imm >> 8) & 255);
   buf[2] = (uint8_t)((imm >> 16) & 255);
   buf[3] = (uint8_t)((imm >> 24) & 255);
   return pipeline_elf_ctx_append_bytes(x86_enc_ctx_bytes(elf_ctx), buf, 4);
-}
-int32_t x86_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
-  {
-    return x86_enc_u32_le_impl(elf_ctx, imm);
-  }
-  return 0 - 1;
 }
 
 

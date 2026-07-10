@@ -8,10 +8,11 @@
 // G-02f-107：+ parse/peel/slot glue 薄门闩。
 
 extern "C" function glue_expr_same_var_c_impl(arena: *u8, a_ref: i32, b_ref: i32): i32;
-extern "C" function glue_index_uses_var_c_impl(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32;
 extern "C" function glue_var_array_i32_size_c_impl(arena: *u8, var_ref: i32): i32;
 extern "C" function glue_simd_loop_cpu_features_c_impl(): u32;
 extern "C" function glue_simd_loop_pick_lanes_c_impl(feats: u32, binop_ko: i32, lanes_out: *i32): i32;
+extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+extern "C" function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
 
 function simd_loop_x_doc_anchor(): i32 {
   return 0;
@@ -25,9 +26,14 @@ function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
   return 0;
 }
 
+// G-02f-128：glue_index_uses_var_c 真迁 .x（GLUE_EXPR_INDEX=47）
 #[no_mangle]
 function glue_index_uses_var_c(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32 {
-  unsafe { return glue_index_uses_var_c_impl(arena, index_expr_ref, i_var_ref); }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, index_expr_ref) != 47) { return 0; }
+    let idx_ref: i32 = pipeline_expr_index_index_ref(arena, index_expr_ref);
+    return glue_expr_same_var_c(arena, idx_ref, i_var_ref);
+  }
   return 0;
 }
 

@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-128 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
  * G-02f-126 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
@@ -175,20 +176,14 @@ int32_t glue_fold_func_return_operand_ref_module(struct ast_ASTArena *arena, str
 
 
 /** 读取函数 return 操作数：backend 真 emit 优先，否则 module body_ref 路径。 */
-int32_t glue_try_fold_func_return_operand_ref_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                      int32_t func_idx) {
   int32_t r;
   r = backend_fold_func_return_operand_ref(arena, mod, func_idx);
   if (r > 0)
     return r;
   return glue_fold_func_return_operand_ref_module(arena, mod, func_idx);
-}
-int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                     int32_t func_idx) {
-  {
-    return glue_try_fold_func_return_operand_ref_impl(arena, mod, func_idx);
-  }
-  return 0;
 }
 
 

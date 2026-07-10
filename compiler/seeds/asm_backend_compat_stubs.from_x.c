@@ -1,4 +1,5 @@
 /* seeds/asm_backend_compat_stubs.from_x.c — G-02f-15 product TU
+ * G-02f-128 true .x pure helpers.
  * G-02f-99 format/append/arm64 mov gates.
  * Product object from this seed; logic still C until full .x port.
  */
@@ -212,7 +213,8 @@ extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, i
  * 向 ctx.code_data 追加 4 字节小端指令；须经 pipeline_elf_ctx_append_bytes，
  * 勿手算 code_data 偏移（前缀含 labels/patches 等大表，sizeof 小 header 会写错区导致 udf/SIGILL）。
  */
-int32_t shu_elf_ctx_append_u32_le_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
+/* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t shu_elf_ctx_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
   uint8_t bytes[4];
   if (!elf_ctx)
     return -1;
@@ -222,18 +224,13 @@ int32_t shu_elf_ctx_append_u32_le_impl(struct platform_elf_ElfCodegenCtx *elf_ct
   bytes[3] = (uint8_t)((word >> 24) & 255u);
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, bytes, 4);
 }
-int32_t shu_elf_ctx_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
-  {
-    return shu_elf_ctx_append_u32_le_impl(elf_ctx, word);
-  }
-  return 0 - 1;
-}
 
 
 /**
  * arm64 MOVZ/MOVK 将 imm32 装入 w0；绕过 partial.o，避免 type_kind_ordinal 首条 cmp 时 Abort。
  */
-int32_t shu_arm64_mov_imm32_to_w0_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
+/* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t shu_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
   uint32_t lo;
   uint32_t hi;
   lo = (uint32_t)imm32 & 65535u;
@@ -243,12 +240,6 @@ int32_t shu_arm64_mov_imm32_to_w0_c_impl(struct platform_elf_ElfCodegenCtx *elf_
   if (hi != 0 && shu_elf_ctx_append_u32_le(elf_ctx, 0x72800000u | (hi << 5)) != 0)
     return -1;
   return 0;
-}
-int32_t shu_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
-  {
-    return shu_arm64_mov_imm32_to_w0_c_impl(elf_ctx, imm32);
-  }
-  return 0 - 1;
 }
 
 

@@ -62,8 +62,6 @@ extern "C" function main_entry_impl(argc: i32, argv: *u8): i32;
 
 
 extern "C" function driver_unlink_failed_output_impl(out_path: *u8): void;
-extern "C" function driver_x_emit_asm_direct_import_only_impl(input_path: *u8): i32;
-extern "C" function driver_x_emit_asm_dep_parse_skip_typeck_ok_impl(input_path: *u8, dep_path: *u8): i32;
 
 
 extern "C" function runtime_diag_cli_usage_note_impl(argv0: *u8): void;
@@ -459,21 +457,7 @@ function driver_unlink_failed_output(out_path: *u8): void {
   }
 }
 
-#[no_mangle]
-function driver_x_emit_asm_direct_import_only(input_path: *u8): i32 {
-  unsafe {
-    return driver_x_emit_asm_direct_import_only_impl(input_path);
-  }
-  return 0;
-}
-
-#[no_mangle]
-function driver_x_emit_asm_dep_parse_skip_typeck_ok(input_path: *u8, dep_path: *u8): i32 {
-  unsafe {
-    return driver_x_emit_asm_dep_parse_skip_typeck_ok_impl(input_path, dep_path);
-  }
-  return 0;
-}
+// G-02f-128：asm emit path helpers 真迁 .x（见文件尾）
 
 
 /* ---- G-02f-86：explain / errno diag / smoke summary 门闩 ---- */
@@ -1250,5 +1234,76 @@ function runtime_run_compiler_check_c(argc: i32, argv: *u8): i32 {
     return driver_run_compiler_check(argc, argv);
   }
   return 0 - 1;
+}
+
+// G-02f-128：asm emit path pure helpers 真迁 .x
+
+#[no_mangle]
+function driver_x_emit_asm_direct_import_only(input_path: *u8): i32 {
+  if (input_path == 0) { return 0; }
+  let plen: i32 = 0;
+  while (plen < 4096) {
+    if (input_path[plen] == 0) { break; }
+    plen = plen + 1;
+  }
+  // "src/asm/asm.x" (13)
+  let s: i32 = 0;
+  while (s + 13 <= plen) {
+    if (input_path[s]==115 && input_path[s+1]==114 && input_path[s+2]==99 && input_path[s+3]==47
+        && input_path[s+4]==97 && input_path[s+5]==115 && input_path[s+6]==109 && input_path[s+7]==47
+        && input_path[s+8]==97 && input_path[s+9]==115 && input_path[s+10]==109 && input_path[s+11]==46
+        && input_path[s+12]==120) {
+      return 1;
+    }
+    s = s + 1;
+  }
+  // "/asm/asm.x" (10)
+  s = 0;
+  while (s + 10 <= plen) {
+    if (input_path[s]==47 && input_path[s+1]==97 && input_path[s+2]==115 && input_path[s+3]==109
+        && input_path[s+4]==47 && input_path[s+5]==97 && input_path[s+6]==115 && input_path[s+7]==109
+        && input_path[s+8]==46 && input_path[s+9]==120) {
+      return 1;
+    }
+    s = s + 1;
+  }
+  // "src/asm/asm_seed_full.x" (23)
+  s = 0;
+  while (s + 23 <= plen) {
+    if (input_path[s]==115 && input_path[s+1]==114 && input_path[s+2]==99 && input_path[s+3]==47
+        && input_path[s+4]==97 && input_path[s+5]==115 && input_path[s+6]==109 && input_path[s+7]==47
+        && input_path[s+8]==97 && input_path[s+9]==115 && input_path[s+10]==109 && input_path[s+11]==95
+        && input_path[s+12]==115 && input_path[s+13]==101 && input_path[s+14]==101 && input_path[s+15]==100
+        && input_path[s+16]==95 && input_path[s+17]==102 && input_path[s+18]==117 && input_path[s+19]==108
+        && input_path[s+20]==108 && input_path[s+21]==46 && input_path[s+22]==120) {
+      return 1;
+    }
+    s = s + 1;
+  }
+  // "/asm/asm_seed_full.x" (20)
+  s = 0;
+  while (s + 20 <= plen) {
+    if (input_path[s]==47 && input_path[s+1]==97 && input_path[s+2]==115 && input_path[s+3]==109
+        && input_path[s+4]==47 && input_path[s+5]==97 && input_path[s+6]==115 && input_path[s+7]==109
+        && input_path[s+8]==95 && input_path[s+9]==115 && input_path[s+10]==101 && input_path[s+11]==101
+        && input_path[s+12]==100 && input_path[s+13]==95 && input_path[s+14]==102 && input_path[s+15]==117
+        && input_path[s+16]==108 && input_path[s+17]==108 && input_path[s+18]==46 && input_path[s+19]==120) {
+      return 1;
+    }
+    s = s + 1;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_x_emit_asm_dep_parse_skip_typeck_ok(input_path: *u8, dep_path: *u8): i32 {
+  if (driver_x_emit_asm_direct_import_only(input_path) == 0) { return 0; }
+  if (dep_path == 0) { return 0; }
+  // strcmp(dep_path, "backend") == 0
+  if (dep_path[0]==98 && dep_path[1]==97 && dep_path[2]==99 && dep_path[3]==107
+      && dep_path[4]==101 && dep_path[5]==110 && dep_path[6]==100 && dep_path[7]==0) {
+    return 1;
+  }
+  return 0;
 }
 

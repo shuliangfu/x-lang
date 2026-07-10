@@ -1,4 +1,5 @@
 /* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+ * G-02f-128 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
  * G-02f-126 true .x pure helpers.
  * G-02f-125 true .x pure helpers.
@@ -4656,7 +4657,8 @@ int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_
 }
 
 
-int driver_x_emit_asm_direct_import_only_impl(const char *input_path) {
+/* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int driver_x_emit_asm_direct_import_only(const char *input_path) {
     if (!input_path)
         return 0;
     if (strstr(input_path, "src/asm/asm.x") != NULL || strstr(input_path, "/asm/asm.x") != NULL)
@@ -4666,24 +4668,13 @@ int driver_x_emit_asm_direct_import_only_impl(const char *input_path) {
         return 1;
     return 0;
 }
-int driver_x_emit_asm_direct_import_only(const char *input_path) {
-  {
-    return driver_x_emit_asm_direct_import_only_impl(input_path);
-  }
-  return 0;
-}
 
 
-int driver_x_emit_asm_dep_parse_skip_typeck_ok_impl(const char *input_path, const char *dep_path) {
+/* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const char *dep_path) {
     if (!driver_x_emit_asm_direct_import_only(input_path) || !dep_path)
         return 0;
     return strcmp(dep_path, "backend") == 0;
-}
-int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const char *dep_path) {
-  {
-    return driver_x_emit_asm_dep_parse_skip_typeck_ok_impl(input_path, dep_path);
-  }
-  return 0;
 }
 
 
