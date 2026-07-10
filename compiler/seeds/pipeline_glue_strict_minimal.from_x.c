@@ -1,4 +1,4 @@
-/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-218 slice/try; G-02f-217 reject/soa; G-02f-11 product TU
+/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-219 match/field/dispatch; G-02f-218 slice; G-02f-11 product TU
  * G-02f-135 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
@@ -1660,6 +1660,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_AS
   return 0;
 }
 
+/* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_expr_match_c(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                  int32_t expr_ref, int32_t return_type_ref,
                                                                  struct ast_PipelineDepCtx *ctx) {
@@ -1692,6 +1693,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_match_c(struct ast_Modu
   return 0;
 }
 
+/* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module,
                                                                        struct ast_ASTArena *arena, int32_t expr_ref,
                                                                        int32_t return_type_ref,
@@ -2039,6 +2041,7 @@ int32_t field_name_equal_strict_minimal(uint8_t *buf, int32_t len, const char *l
 
 
 
+/* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module,
                                                                         struct ast_ASTArena *arena, int32_t expr_ref,
                                                                         int32_t return_type_ref,
@@ -2135,6 +2138,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_field_access_c(struct a
   return 0;
 }
 
+/* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_Module *module,
                                                                      struct ast_ASTArena *arena, int32_t expr_ref,
                                                                      int32_t return_type_ref,
@@ -2179,6 +2183,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_impl_mega_c(struct ast_
   return 0;
 }
 
+/* G-02f-219：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_expr_impl_c(struct ast_Module *module,
                                                                 struct ast_ASTArena *arena, int32_t expr_ref,
                                                                 int32_t return_type_ref,
