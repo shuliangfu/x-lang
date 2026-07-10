@@ -22,7 +22,6 @@ extern "C" function getenv(name: *u8): *u8;
 extern "C" function shux_host_is_linux(): i32;
 extern "C" function shux_host_is_apple_aarch64(): i32;
 extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
-extern "C" function driver_copy_cstr_n_impl(src: *u8, buf: *u8, max: i32): i32;
 extern "C" function shux_path_is_nonempty_regular_file_impl(path: *u8): i32;
 extern "C" function link_abi_obj_exports_marker_impl(obj_o: *u8, marker: *u8): i32;
 extern "C" function link_abi_obj_has_undef_sym_impl(obj_o: *u8, sym: *u8): i32;
@@ -66,8 +65,6 @@ extern "C" function shux_ensure_runtime_thread_glue_o_impl(argv0: *u8): i32;
 extern "C" function shux_ensure_runtime_time_os_o_impl(argv0: *u8): i32;
 extern "C" function shux_ensure_runtime_tls_mbedtls_bio_o_impl(argv0: *u8): i32;
 
-extern "C" function shux_path_last_sep_impl(s: *u8): *u8;
-extern "C" function shux_path_has_sep_impl(s: *u8): i32;
 extern "C" function link_diag_code_for_kind_impl(kind: *u8): *u8;
 extern "C" function link_diag_tool_status_impl(tool: *u8, status: i32): void;
 extern "C" function link_diag_runtime_source_missing_impl(obj_name: *u8, source_path: *u8): void;
@@ -1249,7 +1246,7 @@ function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i3
     if (s == 0 as *u8) {
       return 0 - 1;
     }
-    let r: i32 = driver_copy_cstr_n_impl(s, buf, max);
+    let r: i32 = driver_copy_cstr_n(s, buf, max);
     return r;
   }
   return 0 - 1;
@@ -2014,13 +2011,7 @@ function shux_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): void {
 
 /* ---- G-02f-83：cstr 拷贝 / nm 未定义符号探测门闩 ---- */
 
-#[no_mangle]
-function driver_copy_cstr_n(src: *u8, buf: *u8, max: i32): i32 {
-  unsafe {
-    return driver_copy_cstr_n_impl(src, buf, max);
-  }
-  return 0 - 1;
-}
+
 
 #[no_mangle]
 function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
@@ -2032,21 +2023,9 @@ function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
 
 /* ---- G-02f-89：path sep / lib_root / link_diag 薄 helper 门闩 ---- */
 
-#[no_mangle]
-function shux_path_last_sep(s: *u8): *u8 {
-  unsafe {
-    return shux_path_last_sep_impl(s);
-  }
-  return 0 as *u8;
-}
 
-#[no_mangle]
-function shux_path_has_sep(s: *u8): i32 {
-  unsafe {
-    return shux_path_has_sep_impl(s);
-  }
-  return 0;
-}
+
+
 
 #[no_mangle]
 function link_diag_code_for_kind(kind: *u8): *u8 {
@@ -2327,3 +2306,52 @@ function shux_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
   if (p[0] == 0) { return 0; }
   return 1;
 }
+
+// G-02f-118：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function driver_copy_cstr_n(src: *u8, buf: *u8, max: i32): i32 {
+  if (src == 0) { return 0 - 1; }
+  if (buf == 0) { return 0 - 1; }
+  if (max <= 0) { return 0 - 1; }
+  let n: i32 = max - 1;
+  let j: i32 = 0;
+  while (j < n) {
+    let c: u8 = src[j];
+    if (c == 0) { break; }
+    buf[j] = c;
+    j = j + 1;
+  }
+  buf[j] = 0;
+  return j;
+}
+
+#[no_mangle]
+function shux_path_has_sep(s: *u8): i32 {
+  if (s == 0) { return 0; }
+  let i: i32 = 0;
+  while (i < 4096) {
+    let c: u8 = s[i];
+    if (c == 0) { break; }
+    if (c == 47) { return 1; } // '/'
+    if (c == 92) { return 1; } // '\\'
+    i = i + 1;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_path_last_sep(s: *u8): *u8 {
+  if (s == 0) { return 0 as *u8; }
+  let last: *u8 = 0 as *u8;
+  let i: i32 = 0;
+  while (i < 4096) {
+    let c: u8 = s[i];
+    if (c == 0) { break; }
+    if (c == 47) { last = s + i; }
+    if (c == 92) { last = s + i; }
+    i = i + 1;
+  }
+  return last;
+}
+

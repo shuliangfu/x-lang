@@ -83,7 +83,8 @@ extern void driver_dep_seeded_clear_all(void);
  * 绝对路径当相对路径拼接到 getcwd，产生 C:\cwd/C:/abs/path 双重前缀。
  * 【Invariant】path 非空时返回 1 表示绝对路径（POSIX / 或 Windows 盘符）。
  * 【Asm/Perf】纯 ASCII 比较，零运行时开销。 */
-int shux_path_is_absolute_impl(const char *path) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int shux_path_is_absolute(const char *path) {
     if (!path || !path[0])
         return 0;
     if (path[0] == '/')
@@ -95,12 +96,8 @@ int shux_path_is_absolute_impl(const char *path) {
 #endif
     return 0;
 }
-int shux_path_is_absolute(const char *path) {
-  {
-    return shux_path_is_absolute_impl(path);
-  }
-  return 0;
-}
+
+
 
 
 /** 单目录遍历时最多收集的 .x 路径数。 */

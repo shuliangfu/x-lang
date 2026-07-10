@@ -9,7 +9,6 @@
 // G-02f-106：+ path_should_ignore / file_list / dep_clear / lib_root 门闩。
 // G-02f-107：+ walk/collect/compile/check_one 薄门闩。
 
-extern "C" function shux_path_is_absolute_impl(path: *u8): i32;
 extern "C" function driver_collect_error_kind_impl(): *u8;
 extern "C" function driver_collect_missing_path_code_impl(): *u8;
 extern "C" function check_lint_fail_on_warnings_impl(): i32;
@@ -28,13 +27,7 @@ function driver_check_quiet_ok_get(): i32 {
 
 /* ---- G-02f-97：path / collect / lint 门闩 ---- */
 
-#[no_mangle]
-function shux_path_is_absolute(path: *u8): i32 {
-  unsafe {
-    return shux_path_is_absolute_impl(path);
-  }
-  return 0;
-}
+
 
 #[no_mangle]
 function driver_collect_error_kind(): *u8 {
@@ -169,3 +162,26 @@ function check_lint_fail_on_warnings(): i32 {
   }
   return 0;
 }
+
+// G-02f-118：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function shux_path_is_absolute(path: *u8): i32 {
+  if (path == 0) { return 0; }
+  if (path[0] == 0) { return 0; }
+  if (path[0] == 47) { return 1; } // '/'
+  // Windows drive letter: A-Z/a-z then ':'
+  let c0: u8 = path[0];
+  let ok: i32 = 0;
+  if (c0 >= 65) {
+    if (c0 <= 90) { ok = 1; }
+  }
+  if (c0 >= 97) {
+    if (c0 <= 122) { ok = 1; }
+  }
+  if (ok != 0) {
+    if (path[1] == 58) { return 1; }
+  }
+  return 0;
+}
+

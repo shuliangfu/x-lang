@@ -122,7 +122,8 @@ const char *shux_empty_cstr(void) {
  * POSIX 上 strchr(s, '\\') 通常为 NULL（文件名极少含反斜杠），行为不变。
  * 返回值：指向最后分隔符的指针，找不到返回 NULL。
  */
-char * shux_path_last_sep_impl(const char *s) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+char * shux_path_last_sep(const char *s) {
     char *p = s ? strrchr(s, '/') : NULL;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     if (s) {
@@ -133,16 +134,13 @@ char * shux_path_last_sep_impl(const char *s) {
 #endif
     return p;
 }
-char * shux_path_last_sep(const char *s) {
-  {
-    return shux_path_last_sep_impl(s);
-  }
-  return ((char *)0);
-}
+
+
 
 
 /** 字符串是否包含任意路径分隔符（POSIX '/' 或 Windows '\\')。 */
-int shux_path_has_sep_impl(const char *s) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int shux_path_has_sep(const char *s) {
     if (!s)
         return 0;
     if (strchr(s, '/'))
@@ -153,12 +151,8 @@ int shux_path_has_sep_impl(const char *s) {
 #endif
     return 0;
 }
-int shux_path_has_sep(const char *s) {
-  {
-    return shux_path_has_sep_impl(s);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -7119,8 +7113,8 @@ const char *driver_argv_at(char **argv, int i) {
         return NULL;
     return argv[i];
 }
-
-int driver_copy_cstr_n_impl(const char *src, char *buf, int max) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int driver_copy_cstr_n(const char *src, char *buf, int max) {
     size_t n;
     size_t j;
     if (!src || !buf || max <= 0)
@@ -7134,12 +7128,8 @@ int driver_copy_cstr_n_impl(const char *src, char *buf, int max) {
     buf[j] = '\0';
     return (int)j;
 }
-int driver_copy_cstr_n(const char *src, char *buf, int max) {
-  {
-    return driver_copy_cstr_n_impl(src, buf, max);
-  }
-  return -1;
-}
+
+
 
 
 int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {

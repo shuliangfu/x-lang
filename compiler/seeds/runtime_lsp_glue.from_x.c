@@ -1,4 +1,5 @@
 /* seeds/runtime_lsp_glue.from_x.c — G-02f-15 product TU
+ * G-02f-118 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-110 helper gates.
@@ -716,18 +717,15 @@ static ASTModule *lsp_ensure_module(const uint8_t *source, int source_len, int c
 }
 
 /** 判断 (line_1,col_1) 是否落在标识符 name 从 start_col 开始的列区间内（1-based，含首列）。 */
-int col_in_ident_span_impl(int line_1, int col_1, int start_line, int start_col, const char *name) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, const char *name) {
     if (!name || start_line != line_1 || start_col <= 0) return 0;
     int len = (int)strlen(name);
     if (len <= 0) return 0;
     return col_1 >= start_col && col_1 < start_col + len;
 }
-int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, const char *name) {
-  {
-    return col_in_ident_span_impl(line_1, col_1, start_line, start_col, name);
-  }
-  return 0;
-}
+
+
 
 
 /** 判断 (line_1, col_1) 是否与表达式起点一致（1-based）；VAR 按标识符宽度匹配。 */
@@ -2118,7 +2116,8 @@ int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key)
 
 
 /** 从 offset 起解析一个非负整数，写入 *out，返回解析结束后的偏移；非法返回 -1。 */
-int lsp_parse_int_impl(const uint8_t *body, int len, int offset, int *out) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int lsp_parse_int(const uint8_t *body, int len, int offset, int *out) {
     if (offset >= len || !out) return -1;
     *out = 0;
     while (offset < len && body[offset] >= '0' && body[offset] <= '9') {
@@ -2127,12 +2126,8 @@ int lsp_parse_int_impl(const uint8_t *body, int len, int offset, int *out) {
     }
     return offset;
 }
-int lsp_parse_int(const uint8_t *body, int len, int offset, int *out) {
-  {
-    return lsp_parse_int_impl(body, len, offset, out);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -2637,19 +2632,16 @@ void lsp_format_line_update_depth(const uint8_t *doc, int line_start, int line_l
  * 写入 out_buf，返回长度；越界返回 -1。
  */
 /** 行 [start, start+len) 内是否出现块注释结束符 \c *\/ 。 */
-int lsp_line_has_block_comment_end_impl(const uint8_t *doc, int start, int len) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
     for (int i = 0; i + 1 < len; i++) {
         if (doc[start + i] == '*' && doc[start + i + 1] == '/')
             return 1;
     }
     return 0;
 }
-int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
-  {
-    return lsp_line_has_block_comment_end_impl(doc, start, len);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -2671,7 +2663,8 @@ int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content
 
 
 /** 输出缓冲中最后一个非空白字符；无则返回 0。 */
-uint8_t lsp_fmt_last_out_impl(const uint8_t *out_buf, int out_len) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
     int k;
     for (k = out_len - 1; k >= 0; k--) {
         if (out_buf[k] != ' ' && out_buf[k] != '\t')
@@ -2679,16 +2672,13 @@ uint8_t lsp_fmt_last_out_impl(const uint8_t *out_buf, int out_len) {
     }
     return 0;
 }
-uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
-  {
-    return lsp_fmt_last_out_impl(out_buf, out_len);
-  }
-  return 0;
-}
+
+
 
 
 /** 源码 [start+j) 之前最后一个非空白字符；无则返回 0。 */
-uint8_t lsp_fmt_prev_src_impl(const uint8_t *doc, int start, int j) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
     int k;
     for (k = j - 1; k >= 0; k--) {
         uint8_t c = doc[start + k];
@@ -2697,12 +2687,8 @@ uint8_t lsp_fmt_prev_src_impl(const uint8_t *doc, int start, int j) {
     }
     return 0;
 }
-uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
-  {
-    return lsp_fmt_prev_src_impl(doc, start, j);
-  }
-  return 0;
-}
+
+
 
 
 /** 标识符/数字尾字符，可作为二元运算符左操作数尾部。 */
@@ -2734,7 +2720,8 @@ int lsp_fmt_unary_lhs(uint8_t prev) {
 
 
 /** 源码 j 之前是否已有空白（避免 1 +  2 双空格）。 */
-int lsp_fmt_src_ws_before_impl(const uint8_t *doc, int start, int j) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
     int k = j - 1;
     while (k >= 0) {
         uint8_t c = doc[start + k];
@@ -2746,16 +2733,13 @@ int lsp_fmt_src_ws_before_impl(const uint8_t *doc, int start, int j) {
     }
     return 0;
 }
-int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
-  {
-    return lsp_fmt_src_ws_before_impl(doc, start, j);
-  }
-  return 0;
-}
+
+
 
 
 /** 源码 j 之后是否已有空白。 */
-int lsp_fmt_src_ws_after_impl(const uint8_t *doc, int start, int len, int j) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
     int k = j + 1;
     while (k < len) {
         uint8_t c = doc[start + k];
@@ -2767,12 +2751,8 @@ int lsp_fmt_src_ws_after_impl(const uint8_t *doc, int start, int len, int j) {
     }
     return 0;
 }
-int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
-  {
-    return lsp_fmt_src_ws_after_impl(doc, start, len, j);
-  }
-  return 0;
-}
+
+
 
 
 /** 在 out 中补一个前导空格（若需要且容量足够）。 */

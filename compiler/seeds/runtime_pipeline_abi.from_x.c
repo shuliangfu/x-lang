@@ -239,8 +239,8 @@ extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
-
-int pipeline_debug_body_func_match_impl(const char *filter, const char *name) {
+/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int pipeline_debug_body_func_match(const char *filter, const char *name) {
     const char *p;
     size_t name_len;
     if (!filter || !filter[0] || filter[0] == '0' || !name || !name[0])
@@ -267,12 +267,8 @@ int pipeline_debug_body_func_match_impl(const char *filter, const char *name) {
     }
     return 0;
 }
-int pipeline_debug_body_func_match(const char *filter, const char *name) {
-  {
-    return pipeline_debug_body_func_match_impl(filter, name);
-  }
-  return 0;
-}
+
+
 
 
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {

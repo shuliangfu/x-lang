@@ -31,7 +31,6 @@ extern "C" function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_root
 extern "C" function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8, ctx: *u8): i32;
 extern "C" function shu_lsp_free_loaded_imports_impl(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void;
 extern "C" function shux_pipeline_pctx_update_dep_slots_no_reset_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void;
-extern "C" function pipeline_debug_body_func_match_impl(filter: *u8, name: *u8): i32;
 extern "C" function pipeline_run_x_thread_fn_impl(arg: *u8): *u8;
 extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
 extern "C" function shux_find_loaded_import_index_scan_impl(path: *u8, all_paths: *u8, n_all: i32): i32;
@@ -1198,13 +1197,7 @@ function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, d
   }
 }
 
-#[no_mangle]
-function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
-  unsafe {
-    return pipeline_debug_body_func_match_impl(filter, name);
-  }
-  return 0;
-}
+
 
 /* ---- G-02f-95：pipeline large-stack thread fns 门闩 ---- */
 
@@ -1236,3 +1229,65 @@ function pipeline_asm_debug_enabled(): i32 {
   }
   return 0;
 }
+
+// G-02f-118：pipeline_debug_body_func_match 真迁 .x
+
+#[no_mangle]
+function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
+  if (filter == 0) { return 0; }
+  if (filter[0] == 0) { return 0; }
+  if (filter[0] == 48) { return 0; } // '0'
+  if (name == 0) { return 0; }
+  if (name[0] == 0) { return 0; }
+  // name_len
+  let name_len: i32 = 0;
+  while (name_len < 512) {
+    if (name[name_len] == 0) { break; }
+    name_len = name_len + 1;
+  }
+  let p: i32 = 0;
+  while (p < 4096) {
+    let c: u8 = filter[p];
+    if (c == 0) { break; }
+    // skip spaces/tabs/commas
+    while (p < 4096) {
+      c = filter[p];
+      if (c == 0) { break; }
+      if (c == 32) { p = p + 1; continue; }
+      if (c == 9) { p = p + 1; continue; }
+      if (c == 44) { p = p + 1; continue; }
+      break;
+    }
+    c = filter[p];
+    if (c == 0) { break; }
+    let start: i32 = p;
+    while (p < 4096) {
+      c = filter[p];
+      if (c == 0) { break; }
+      if (c == 44) { break; }
+      p = p + 1;
+    }
+    let end: i32 = p;
+    // trim trailing space/tab
+    while (end > start) {
+      let pc: u8 = filter[end - 1];
+      if (pc == 32) { end = end - 1; continue; }
+      if (pc == 9) { end = end - 1; continue; }
+      break;
+    }
+    let tok_len: i32 = end - start;
+    if (tok_len > 0) {
+      if (tok_len == name_len) {
+        let k: i32 = 0;
+        let eq: i32 = 1;
+        while (k < tok_len) {
+          if (filter[start + k] != name[k]) { eq = 0; break; }
+          k = k + 1;
+        }
+        if (eq != 0) { return 1; }
+      }
+    }
+  }
+  return 0;
+}
+
