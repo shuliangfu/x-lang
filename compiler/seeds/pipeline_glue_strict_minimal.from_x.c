@@ -1,4 +1,4 @@
-/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-219 match/field/dispatch; G-02f-218 slice; G-02f-11 product TU
+/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-220 block_impl/dep_map; G-02f-219 match/field; G-02f-11 product TU
  * G-02f-135 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
@@ -554,6 +554,7 @@ __attribute__((weak)) int32_t codegen_x_ast(void *module, void *arena, void *out
 /** runtime 调用的裸名 parse_into_init → partial 导出的 parser_parse_into_init。 */
 extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTArena *arena);
 
+/* G-02f-220：逻辑源 .x（真迁）；seed 保留 debug getenv 冷路径 */
 __attribute__((weak)) int32_t ast_pipeline_module_func_num_generic_params_at(struct ast_Module *m, int32_t fi) {
   int32_t n = pipeline_module_func_num_generic_params_at(m, fi);
   if (getenv("SHUX_DEBUG_FUNC_GENERIC_GET"))
@@ -701,6 +702,7 @@ __attribute__((weak)) int32_t pipeline_typeck_get_dep_return_type_in_caller_aren
                                                                                      struct ast_ASTArena *caller_arena,
                                                                                      struct ast_PipelineDepCtx *ctx);
 
+/* G-02f-220：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) void pipeline_typeck_set_entry_module_for_dep_map_c(struct ast_Module *module) {
   g_typeck_entry_module_for_dep_map_strict_minimal = module;
 }
@@ -1061,6 +1063,7 @@ __attribute__((weak)) int32_t pipeline_typeck_resolve_call_func_index_for_emit_c
   return pipeline_typeck_resolve_call_func_index_c(m, a, call_expr_ref);
 }
 
+/* G-02f-220：🔒 PipelineDepCtx.typeck_loop_depth 字段写 helper */
 __attribute__((weak)) void pipeline_typeck_loop_depth_set_c(struct ast_PipelineDepCtx *ctx, int32_t depth) {
   if (!ctx)
     return;
@@ -1611,6 +1614,7 @@ __attribute__((weak)) int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t
   return 0;
 }
 
+/* G-02f-220：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
                                                                                       int32_t dep_return_type_ref,
                                                                                       struct ast_ASTArena *caller_arena,
@@ -2211,6 +2215,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_impl_c(struct ast_Modul
   return pipeline_typeck_check_expr_impl_mega_c(module, arena, expr_ref, return_type_ref, ctx);
 }
 
+/* G-02f-220：🔒 PipelineDepCtx.current_block_ref 字段写 helper（typeck.x 勿直写字段） */
 __attribute__((weak)) int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_PipelineDepCtx *ctx, int32_t block_ref) {
   int32_t saved;
   if (!ctx)
@@ -2220,6 +2225,7 @@ __attribute__((weak)) int32_t pipeline_typeck_block_impl_bind_ctx_c(struct ast_P
   return saved;
 }
 
+/* G-02f-220：🔒 current_block_ref 恢复 */
 __attribute__((weak)) void pipeline_typeck_block_impl_restore_ctx_c(struct ast_PipelineDepCtx *ctx,
                                                                     int32_t saved_block_ref) {
   if (!ctx)
@@ -2227,6 +2233,7 @@ __attribute__((weak)) void pipeline_typeck_block_impl_restore_ctx_c(struct ast_P
   ctx->current_block_ref = saved_block_ref;
 }
 
+/* G-02f-220：🔒 current_block_ref 触摸 */
 __attribute__((weak)) void pipeline_typeck_block_impl_touch_ctx_block_c(struct ast_PipelineDepCtx *ctx,
                                                                         int32_t block_ref) {
   if (!ctx)
@@ -2234,6 +2241,7 @@ __attribute__((weak)) void pipeline_typeck_block_impl_touch_ctx_block_c(struct a
   ctx->current_block_ref = block_ref;
 }
 
+/* G-02f-220：逻辑源 .x（真迁，经 bind/restore）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_block_impl_c(struct ast_Module *module,
                                                                  struct ast_ASTArena *arena, int32_t block_ref,
                                                                  int32_t return_type_ref,
