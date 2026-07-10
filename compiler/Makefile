@@ -1549,12 +1549,17 @@ bootstrap-driver-seed-x-frontend: $(SHUX_C) migrate-x-objs driver_x.o preprocess
 # 无补丁：driver_gen.c 仅由 -E -E-extern 生成；run_compiler_c 在 runtime.c 中定义并转调 main_run_compiler_c；其余从 main.x/codegen 根源修
 # LSP 诊断：G-02a lsp_diag.c 已删；仅 lsp_diag_x.o + stubs。
 
+# 非产品 / shux-c 弱占位链：仍用手写 .inc（含 weak fill_paths 等）
 src/lsp/lsp_diag_pipeline_sizes.o: src/lsp/lsp_diag_pipeline_sizes.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_sizes.inc $@ -I. -Iinclude -Isrc
 
-# bootstrap/relink 同时链 lsp_diag_pipeline_ctx.o；Cygwin 无 weak，须省略 sizes 内占位符号。
-src/lsp/lsp_diag_pipeline_sizes_nostub.o: src/lsp/lsp_diag_pipeline_sizes.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_sizes.inc $@ -DSHUX_LSP_PIPELINE_CTX_LINKED -I. -Iinclude -Isrc
+# G-02f-1：产品 G05 nostub 真迁 .x（#[no_mangle] 三枚 sizeof）
+# 源：src/lsp/lsp_diag_pipeline_sizes.x
+# 冷启动产物：seeds/lsp_diag_pipeline_sizes.from_x.c
+#   regen: ./shux-c src/lsp/lsp_diag_pipeline_sizes.x -E > seeds/lsp_diag_pipeline_sizes.from_x.c
+# bootstrap/relink 同时链 lsp_diag_pipeline_ctx.o；.x 产物无 weak 占位（等同旧 nostub）。
+src/lsp/lsp_diag_pipeline_sizes_nostub.o: seeds/lsp_diag_pipeline_sizes.from_x.c src/lsp/lsp_diag_pipeline_sizes.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_sizes.from_x.c -o $@
 
 # G-02e-8：lsp_diag_x_alias 已并入本 TU。
 src/lsp/lsp_diag_pipeline_ctx.o: src/lsp/lsp_diag_pipeline_ctx.inc scripts/cc_inc_tu.sh

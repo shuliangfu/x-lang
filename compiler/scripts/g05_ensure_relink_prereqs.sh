@@ -78,6 +78,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC -c -o src/typeck/typeck_f64_bits.o "$_f64s"
     fi
   fi
+  # G-02f-1：lsp_diag_pipeline_sizes_nostub 来自 .x 冷启动 C（非 .inc）
+  _sizes_from_x=seeds/lsp_diag_pipeline_sizes.from_x.c
+  if [ -f "$_sizes_from_x" ]; then
+    if [ ! -f src/lsp/lsp_diag_pipeline_sizes_nostub.o ] || [ "$_sizes_from_x" -nt src/lsp/lsp_diag_pipeline_sizes_nostub.o ] \
+      || [ src/lsp/lsp_diag_pipeline_sizes.x -nt src/lsp/lsp_diag_pipeline_sizes_nostub.o ] 2>/dev/null; then
+      echo "g05_ensure: cc -c $_sizes_from_x → src/lsp/lsp_diag_pipeline_sizes_nostub.o (G-02f-1 .x)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -c -o src/lsp/lsp_diag_pipeline_sizes_nostub.o "$_sizes_from_x"
+    fi
+  fi
   # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
   if [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
     _tg_before=$(wc -c < typeck_gen.c | tr -d ' ')
@@ -102,8 +112,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
     # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
     case "$o" in
-      # 已在热路径专用 flags 编译
-      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|build_asm/*|*.s) continue ;;
+      # 已在热路径专用 flags / .x seed 编译
+      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|build_asm/*|*.s) continue ;;
       # G-02e-7：link_alias 并入；产品默认 SKIP 前缀别名（与 Makefile PARSER_ASM_LINK_ALIAS_CFLAGS 一致）
       src/asm/parser_asm_parse_expr_link.o)
         if [ -n "$src" ] && { [ ! -f "$o" ] || [ "$src" -nt "$o" ]; }; then

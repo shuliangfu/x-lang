@@ -1,7 +1,10 @@
 /**
- * lsp_diag_pipeline_sizes.c — 仅为 lsp_diag.c 提供 ASTArena / Module / PipelineDepCtx 的 sizeof。
+ * lsp_diag_pipeline_sizes.inc — 非产品链（含 weak fill_paths 占位）的瘦 sizeof + 弱桩。
  *
- * 须与 ast.x 中 ASTArena / Module / PipelineDepCtx 布局一致；调整池化/瘦身后请同步本文件。
+ * G-02f-1：产品 G05 的 `lsp_diag_pipeline_sizes_nostub.o` 已改由
+ * `src/lsp/lsp_diag_pipeline_sizes.x`（#[no_mangle]）→ `seeds/lsp_diag_pipeline_sizes.from_x.c` 提供；
+ * 本 .inc 仅供 `lsp_diag_pipeline_sizes.o`（shux-c / 无 ctx 链）继续使用。
+ * 瘦 sizeof 常量须与 .x 一致：arena=16 / module=40 / dep_ctx=1368。
  */
 #include <stddef.h>
 #include <stdint.h>
