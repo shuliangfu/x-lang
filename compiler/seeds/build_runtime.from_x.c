@@ -1,4 +1,5 @@
 /* seeds/build_runtime.from_x.c — G-02f-81 product cold-start TU
+ * G-02f-105 helper gates.
  * Promoted from compiler/src/build_runtime.inc (build.x C backend).
  */
 /**
@@ -23,13 +24,25 @@
 
 #define PIPELINE_GEN_PATCH_BUF_SIZE (512 * 1024)
 
-static void build_runtime_info(const char *msg) {
+void build_runtime_info_impl(const char *msg) {
   diag_report(NULL, 0, 0, "info", msg ? msg : "build step complete", NULL);
 }
+void build_runtime_info(const char *msg) {
+  {
+    build_runtime_info_impl(msg);
+  }
+}
 
-static void build_runtime_warn(const char *msg) {
+
+void build_runtime_warn_impl(const char *msg) {
   diag_report(NULL, 0, 0, "warning", msg ? msg : "build step degraded", NULL);
 }
+void build_runtime_warn(const char *msg) {
+  {
+    build_runtime_warn_impl(msg);
+  }
+}
+
 
 /**
  * 从源头去补丁：pipeline.x 已用 run_x_pipeline_impl、get_ndep()；codegen 已对 slice/数组形参生成 -> 与 *。

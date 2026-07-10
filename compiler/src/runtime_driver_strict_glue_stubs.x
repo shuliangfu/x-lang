@@ -124,3 +124,15 @@ function typeck_call_resolve_func_idx_peek(): i32 {
   }
   return 0;
 }
+
+/* ---- G-02f-105：codegen text append 门闩 ---- */
+
+extern "C" function append_text_to_codegen_buf_impl(out: *u8, text: *u8): i32;
+
+#[no_mangle]
+function append_text_to_codegen_buf(out: *u8, text: *u8): i32 {
+  unsafe {
+    return append_text_to_codegen_buf_impl(out, text);
+  }
+  return 0 - 1;
+}

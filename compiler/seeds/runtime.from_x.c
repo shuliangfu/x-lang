@@ -1,4 +1,5 @@
 /* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+ * G-02f-105 helper gates.
  * Product objects from this seed (flags select variants):
  *   runtime_driver_no_c.o  — RUNTIME_DRIVER_NO_C_CFLAGS (G05 product)
  *   runtime_driver.o / runtime_x.o / runtime.o / runtime_driver_asm_*
@@ -213,7 +214,7 @@ int runtime_try_handle_explain_cli(int argc, char **argv) {
  * 和 bootstrap-parse-file 继续工作。后续若迁移 parse OK/typeck OK，只改这一处出口。
  */
 /* 结构化 smoke 是否启用：`--diag-json` 或 SHUX_SMOKE_DIAG=1；定义延后到 <stdlib.h> 可见处。 */
-static int shux_smoke_diag_enabled(void);
+int shux_smoke_diag_enabled(void);
 
 void driver_emit_legacy_smoke_summary_stdout_impl(const char *main_name, int main_final_lit,
                                                     int has_main_body) {

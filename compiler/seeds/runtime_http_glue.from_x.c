@@ -1,4 +1,5 @@
 /* seeds/runtime_http_glue.from_x.c — G-02f-21 product TU
+ * G-02f-105 helper gates.
  * Logic still C until full .x port.
  */
 /**
@@ -210,12 +211,19 @@ static int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, 
 }
 
 /** 判定 HTTP 方法是否携带请求体（POST/PUT/PATCH）。 */
-static int http_method_has_body(const char *method) {
+int http_method_has_body_impl(const char *method) {
   if (!method)
     return 0;
   return (strcmp(method, "POST") == 0 || strcmp(method, "PUT") == 0 ||
           strcmp(method, "PATCH") == 0);
 }
+int http_method_has_body(const char *method) {
+  {
+    return http_method_has_body_impl(method);
+  }
+  return 0;
+}
+
 
 /** 构建 HTTP/1.0 请求行与 Host 头；带 body 的方法附加 Content-Length。返回 req_len，失败 -1。 */
 static int http_format_request(const char *method, const char *path_buf, const char *host_buf,
@@ -339,7 +347,7 @@ int32_t http_request_method_c(uint8_t method_u8, const uint8_t *url, int32_t url
 #endif
 
 /** 为 fd 设置收发超时（毫秒）；0 表示不设。 */
-static int32_t http_set_timeouts(int fd, uint32_t timeout_ms) {
+int32_t http_set_timeouts_impl(int fd, uint32_t timeout_ms) {
   if (timeout_ms == 0) return 0;
 #if defined(_WIN32) || defined(_WIN64)
   DWORD ms = (DWORD)timeout_ms;
@@ -354,9 +362,16 @@ static int32_t http_set_timeouts(int fd, uint32_t timeout_ms) {
 #endif
   return 0;
 }
+int32_t http_set_timeouts(int fd, uint32_t timeout_ms) {
+  {
+    return http_set_timeouts_impl(fd, timeout_ms);
+  }
+  return 0;
+}
+
 
 /** 带超时 connect（非阻塞 connect + poll）；超时返回 HTTP_ERR_TIMEOUT。 */
-static int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms) {
+int32_t http_connect_timeout_impl(int fd, const struct addrinfo *res, uint32_t timeout_ms) {
 #if defined(_WIN32) || defined(_WIN64)
   u_long nb = 1;
   if (ioctlsocket((SOCKET)fd, FIONBIO, &nb) != 0) return -1;
@@ -406,6 +421,13 @@ done:
 #endif
   return 0;
 }
+int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms) {
+  {
+    return http_connect_timeout_impl(fd, res, timeout_ms);
+  }
+  return 0;
+}
+
 
 /** 通用 HTTP 客户端（带 connect/recv 超时毫秒；0=阻塞；支持 http/https）。 */
 static int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_t url_len,
@@ -665,7 +687,7 @@ static int32_t http_drain_request(int fd) {
 }
 
 /** 循环 send 直至 len 字节发完。 */
-static int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket) {
+int32_t shu_http_send_all_impl(int fd, const char *buf, int len, int is_socket) {
   int sent = 0;
   (void)is_socket;
   if (fd < 0 || !buf || len <= 0) return -1;
@@ -680,6 +702,13 @@ static int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket
   }
   return 0;
 }
+int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket) {
+  {
+    return shu_http_send_all_impl(fd, buf, len, is_socket);
+  }
+  return 0;
+}
+
 
 #include "http_server_pool.inc"
 #include "http_reqresp.inc"

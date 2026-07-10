@@ -1,4 +1,5 @@
 /* seeds/async_cps_codegen.from_x.c — G-02f-18 product TU
+ * G-02f-105 helper gates.
  * Product: src/async/async_cps_codegen.o; logic still C until full .x port.
  */
 /**
@@ -142,7 +143,7 @@ void async_cps_codegen_emit_param_statics(const struct ASTFunc *f, FILE *out) {
 }
 
 /** 块内 used let 全部 hoist 到 switch 之前（A3 v0 线性函数）。 */
-static void emit_hoisted_lets(const struct ASTFunc *f, FILE *out) {
+void emit_hoisted_lets_impl(const struct ASTFunc *f, FILE *out) {
     const struct ASTBlock *b = f && f->body ? f->body : NULL;
     if (!b || !b->let_decls) return;
     for (int i = 0; i < b->num_lets; i++) {
@@ -153,6 +154,12 @@ static void emit_hoisted_lets(const struct ASTFunc *f, FILE *out) {
         fprintf(out, "  static %s %s;\n", cty, name);
     }
 }
+void emit_hoisted_lets(const struct ASTFunc *f, FILE *out) {
+  {
+    emit_hoisted_lets_impl(f, out);
+  }
+}
+
 
 void async_cps_codegen_begin(AsyncCpsCodegenCtx *ctx, const struct ASTFunc *f,
     const AsyncFrameLayout *layout, FILE *out) {
@@ -213,7 +220,7 @@ void async_cps_codegen_end(AsyncCpsCodegenCtx *ctx, FILE *out) {
 }
 
 /** callee 是否为 IO-A5 await 目标（std.io 同步 API / shux_io_* C 入口）。 */
-static int async_cps_callee_is_io(const struct ASTFunc *callee) {
+int async_cps_callee_is_io_impl(const struct ASTFunc *callee) {
     const char *name;
     if (!callee || !callee->name || !callee->name[0])
         return 0;
@@ -232,6 +239,13 @@ static int async_cps_callee_is_io(const struct ASTFunc *callee) {
         return 1;
     return 0;
 }
+int async_cps_callee_is_io(const struct ASTFunc *callee) {
+  {
+    return async_cps_callee_is_io_impl(callee);
+  }
+  return 0;
+}
+
 
 int async_cps_expr_is_io_await(const struct ASTExpr *await_expr) {
     const struct ASTExpr *op;
@@ -306,7 +320,7 @@ int async_cps_expr_is_await_write(const struct ASTExpr *await_expr) {
 }
 
 /** callee 是否为 Future 等待（future_wait / runtime_wait_future / C 符号）。 */
-static int async_cps_callee_is_future_wait_by_name(const char *n) {
+int async_cps_callee_is_future_wait_by_name_impl(const char *n) {
     if (!n || !n[0])
         return 0;
     if (strcmp(n, "future_wait") == 0)
@@ -325,12 +339,26 @@ static int async_cps_callee_is_future_wait_by_name(const char *n) {
         return 1;
     return 0;
 }
+int async_cps_callee_is_future_wait_by_name(const char *n) {
+  {
+    return async_cps_callee_is_future_wait_by_name_impl(n);
+  }
+  return 0;
+}
 
-static int async_cps_callee_is_future_wait(const struct ASTFunc *callee) {
+
+int async_cps_callee_is_future_wait_impl(const struct ASTFunc *callee) {
     if (!callee || !callee->name)
         return 0;
     return async_cps_callee_is_future_wait_by_name(callee->name);
 }
+int async_cps_callee_is_future_wait(const struct ASTFunc *callee) {
+  {
+    return async_cps_callee_is_future_wait_impl(callee);
+  }
+  return 0;
+}
+
 
 /** await future_wait(...)：Pending 时走 suspend_io 循环（STD-041 Future 绑定）。 */
 int async_cps_expr_is_await_future_wait(const struct ASTExpr *await_expr) {

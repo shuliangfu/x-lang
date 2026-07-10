@@ -1,4 +1,5 @@
 /* Generated from src/runtime_driver_strict_glue_stubs.x (G-02f-32/33 true .x + C tail).
+ * G-02f-105 helper gates.
  * Regen: ./shux-c -E -L .. src/runtime_driver_strict_glue_stubs.x > /tmp/sgs.c
  *         merge thin forwards/metrics peek; weak polish; heap_user/slot arrays C.
  * .x covers: asm_driver_*, i32_ptr_*, metrics init/read, call_resolve peek.
@@ -353,7 +354,7 @@ static const char *lsp_gen_extern_block =
     "}\n";
 
 /** 追加文本到 CodegenOutBuf；容量不足返回 -1。 */
-static int append_text_to_codegen_buf(struct codegen_CodegenOutBuf *out, const char *text) {
+int append_text_to_codegen_buf_impl(struct codegen_CodegenOutBuf *out, const char *text) {
   size_t n;
   if (!out || !text)
     return -1;
@@ -364,6 +365,13 @@ static int append_text_to_codegen_buf(struct codegen_CodegenOutBuf *out, const c
   out->len += (int32_t)n;
   return 0;
 }
+int append_text_to_codegen_buf(struct codegen_CodegenOutBuf *out, const char *text) {
+  {
+    return append_text_to_codegen_buf_impl(out, text);
+  }
+  return 0;
+}
+
 
 void lsp_codegen_emit_heap_alias_block(FILE *out) {
   if (out)
