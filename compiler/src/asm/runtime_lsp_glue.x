@@ -173,12 +173,6 @@ function lsp_fmt_last_out(out: *u8, n: i32): u8 { unsafe { return lsp_fmt_last_o
 #[no_mangle]
 function lsp_fmt_prev_src(doc: *u8, i: i32, j: i32): u8 { unsafe { return lsp_fmt_prev_src_impl(doc, i, j); } return 0; }
 #[no_mangle]
-function lsp_fmt_is_atom_tail(c: u8): i32 { unsafe { return lsp_fmt_is_atom_tail_impl(c); } return 0; }
-#[no_mangle]
-function lsp_fmt_is_atom_head(c: u8): i32 { unsafe { return lsp_fmt_is_atom_head_impl(c); } return 0; }
-#[no_mangle]
-function lsp_fmt_unary_lhs(c: u8): i32 { unsafe { return lsp_fmt_unary_lhs_impl(c); } return 0; }
-#[no_mangle]
 function lsp_fmt_src_ws_before(doc: *u8, i: i32): i32 { unsafe { return lsp_fmt_src_ws_before_impl(doc, i); } return 0; }
 #[no_mangle]
 function lsp_fmt_src_ws_after(doc: *u8, i: i32): i32 { unsafe { return lsp_fmt_src_ws_after_impl(doc, i); } return 0; }

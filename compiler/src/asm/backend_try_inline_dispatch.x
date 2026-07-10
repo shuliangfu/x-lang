@@ -26,8 +26,6 @@ extern "C" function glue_try_inline_local_slot_off_impl(ctx: *u8, arena: *u8, na
 /* ---- G-02f-109：try_inline helpers 门闩 ---- */
 
 #[no_mangle]
-function glue_align_up8_c(n: i32): i32 { unsafe { return glue_align_up8_c_impl(n); } return 0; }
-#[no_mangle]
 function glue_module_func_index_by_name(mod: *u8, name: *u8, nlen: i32): i32 { unsafe { return glue_module_func_index_by_name_impl(mod, name, nlen); } return 0; }
 #[no_mangle]
 function glue_try_expr_const_i32(arena: *u8, er: i32, out: *i32): i32 { unsafe { return glue_try_expr_const_i32_impl(arena, er, out); } return 0; }
@@ -89,8 +87,6 @@ function glue_dep_module_field_offset_by_name(mod: *u8, name: *u8, nlen: i32): i
 function glue_inline_var_field_access_offset(arena: *u8, er: i32): i32 { unsafe { return glue_inline_var_field_access_offset_impl(arena, er); } return 0; }
 #[no_mangle]
 function glue_try_array_lit_lane_const_i32(arena: *u8, er: i32, lane: i32, out: *i32): i32 { unsafe { return glue_try_array_lit_lane_const_i32_impl(arena, er, lane, out); } return 0; }
-#[no_mangle]
-function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32 { unsafe { return glue_is_vector_lane_scalar_binop_ko_impl(ko); } return 0; }
 #[no_mangle]
 function glue_fold_func_returns_param01_vector_binop(arena: *u8, mod: *u8, fi: i32, out: *i32): i32 { unsafe { return glue_fold_func_returns_param01_vector_binop_impl(arena, mod, fi, out); } return 0; }
 #[no_mangle]
