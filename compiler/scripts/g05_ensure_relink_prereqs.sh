@@ -82,14 +82,14 @@ g05_try_x_to_o() {
   fi
   mkdir -p "$(dirname "$_xout")"
   _xtmp=$(mktemp "${TMPDIR:-/tmp}/g05_x_XXXXXX.c") || return 1
+  # 优先默认 -E（Linux 上 -backend c -E 可能 SIGSEGV）；再回退 -backend c -E
   # shellcheck disable=SC2086
-  if ! "$_xshux" -backend c -E "$_xsrc" >"$_xtmp" 2>/dev/null; then
-    rm -f "$_xtmp"
-    return 1
-  fi
-  if [ ! -s "$_xtmp" ]; then
-    rm -f "$_xtmp"
-    return 1
+  if ! "$_xshux" -E "$_xsrc" >"$_xtmp" 2>/dev/null || [ ! -s "$_xtmp" ]; then
+    : >"$_xtmp"
+    if ! "$_xshux" -backend c -E "$_xsrc" >"$_xtmp" 2>/dev/null || [ ! -s "$_xtmp" ]; then
+      rm -f "$_xtmp"
+      return 1
+    fi
   fi
   if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
