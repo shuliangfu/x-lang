@@ -1,7 +1,8 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..55 true .x + C tail).
+
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..56 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge dep slots + import open diag; C resolve + large pipeline bulk.
- * .x covers: + get_dep_arena/module_slot, diag_import_open_fail_once.
+ *         merge resolve/read/parse loaded import; C multi resolve + large pipeline.
+ * .x covers: + pipeline_resolve_path, read_file, parse_into_loaded_import.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -24,6 +25,11 @@ extern int32_t preprocess_x_buf(const uint8_t *source_buf, ptrdiff_t source_len,
 extern void preprocess_define_reset(void);
 extern int32_t preprocess_if_stack_len(void);
 extern void preprocess_define_add(const char *name);
+
+/* G-02f-56 helper protos */
+int32_t pipeline_resolve_path_impl(const uint8_t *path_ptr, int32_t path_len);
+int32_t pipeline_read_file_impl(void);
+int32_t pipeline_parse_into_loaded_import_impl(void *arena, void *module);
 
 /* G-02f-33 forward slots (defs near storage) */
 int shux_cstr_ends_with_dot_x(const char *s);
@@ -1468,7 +1474,7 @@ void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
 }
 
 /** 将 import 逻辑路径解析为文件系统路径写入内部 buffer。 */
-int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
+int32_t pipeline_resolve_path_impl(const uint8_t *path_ptr, int32_t path_len) {
     char path_c[65];
     size_t k = 0;
     if (path_len <= 0 || path_len > 64)
@@ -1484,8 +1490,18 @@ int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
     return 0;
 }
 
+int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
+  if (path_ptr == NULL) {
+    return -1;
+  }
+  {
+    return pipeline_resolve_path_impl(path_ptr, path_len);
+  }
+  return -1;
+}
+
 /** 读 resolved 路径文件并 preprocess，结果写入 loaded buffer。 */
-int32_t pipeline_read_file(void) {
+int32_t pipeline_read_file_impl(void) {
     ShuxRuntimeFileView raw_view;
     char *prep = NULL;
     size_t prep_len = 0;
@@ -1519,6 +1535,13 @@ int32_t pipeline_read_file(void) {
     pipeline_loaded_import_len = prep_len;
     free(prep);
     return 0;
+}
+
+int32_t pipeline_read_file(void) {
+  {
+    return pipeline_read_file_impl();
+  }
+  return -1;
 }
 
 /** 取 dep arena 槽指针。 */
@@ -1558,7 +1581,7 @@ void *pipeline_get_dep_module_slot(int32_t i) {
 }
 
 /** 将 loaded import 缓冲 parse 进 module。 */
-int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
+int32_t pipeline_parse_into_loaded_import_impl(void *arena, void *module) {
     struct shux_slice_uint8_t slice = {
         .data = pipeline_loaded_import_buf ? (uint8_t *)pipeline_loaded_import_buf : NULL,
         .length = pipeline_loaded_import_len
@@ -1569,6 +1592,19 @@ int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
     parser_parse_into_init(module, arena);
     pr = parser_parse_into(arena, module, &slice);
     return pr.ok == 0 ? 0 : -1;
+}
+
+int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
+  if (arena == NULL) {
+    return -1;
+  }
+  if (module == NULL) {
+    return -1;
+  }
+  {
+    return pipeline_parse_into_loaded_import_impl(arena, module);
+  }
+  return -1;
 }
 
 /** pipeline_run_x_pipeline 大栈线程参数。 */

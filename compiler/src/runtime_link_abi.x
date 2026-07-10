@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..44/47/53/55：真迁 .x — link_abi needs_* / skip_missing / 空 .o / bank_push。
+// G-02f-34..44/47/53/55/56：真迁 .x — link_abi needs_* / 空 .o / bank / runtime .o 路径门闩。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
 // C 尾：invoke_cc/ld、路径后缀、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
-// G-02f-55：+ shux_asm_ld_bank_push（snprintf 槽拷贝在 C）。
+// G-02f-56：+ asm_io_stubs/process_argv .o 路径 + effective_link_argv0。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
 extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -19,6 +19,9 @@ extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
 extern "C" function link_abi_generated_c_contains_substr(c_path: *u8, needle: *u8): i32;
 extern "C" function shux_empty_cstr(): *u8;
 extern "C" function shux_asm_ld_bank_push_impl(b: *u8, path: *u8): *u8;
+extern "C" function shux_runtime_asm_io_stubs_o_path_impl(argv0: *u8): *u8;
+extern "C" function shux_runtime_process_argv_o_path_impl(argv0: *u8): *u8;
+extern "C" function shux_asm_ld_effective_link_argv0_impl(link_argv0: *u8, syn_buf: *u8, syn_sz: i32): *u8;
 
 #[no_mangle]
 function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
@@ -1217,6 +1220,16 @@ function shux_std_compress_o_path(argv0: *u8): *u8 {
   return 0 as *u8;
 }
 
+/* ---- G-02f-56：effective link argv0（靠前以免 -E 尾丢）---- */
+
+#[no_mangle]
+function shux_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, syn_sz: i32): *u8 {
+  unsafe {
+    return shux_asm_ld_effective_link_argv0_impl(link_argv0, syn_buf, syn_sz);
+  }
+  return 0 as *u8;
+}
+
 /* ---- G-02f-55：ld path bank push 门闩 ---- */
 
 #[no_mangle]
@@ -1232,6 +1245,24 @@ function shux_asm_ld_bank_push(b: *u8, path: *u8): *u8 {
       return 0 as *u8;
     }
     return shux_asm_ld_bank_push_impl(b, path);
+  }
+  return 0 as *u8;
+}
+
+/* ---- G-02f-56：runtime .o 路径 + effective link argv0 ---- */
+
+#[no_mangle]
+function shux_runtime_asm_io_stubs_o_path(argv0: *u8): *u8 {
+  unsafe {
+    return shux_runtime_asm_io_stubs_o_path_impl(argv0);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function shux_runtime_process_argv_o_path(argv0: *u8): *u8 {
+  unsafe {
+    return shux_runtime_process_argv_o_path_impl(argv0);
   }
   return 0 as *u8;
 }

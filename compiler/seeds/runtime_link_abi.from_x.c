@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..47/53/55 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
- *         merge needs/skip/empty paths/bank_push; C invoke_cc/ld bulk.
- * .x covers: + shux_asm_ld_bank_push.
+ *         merge needs/empty/bank/runtime o paths/effective argv0; C invoke bulk.
+ * .x covers: + asm_io_stubs/process_argv o_path, effective_link_argv0.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -14,6 +14,9 @@
 
 /* G-02f-53: empty C string for retired .o path APIs */
 const char *shux_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path);
+const char *shux_runtime_asm_io_stubs_o_path_impl(const char *argv0);
+const char *shux_runtime_process_argv_o_path_impl(const char *argv0);
+const char *shux_asm_ld_effective_link_argv0_impl(const char *link_argv0, char *syn_buf, size_t syn_sz);
 const char *shux_empty_cstr(void) {
     static char buf[1];
     buf[0] = '\0';
@@ -589,7 +592,7 @@ int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz
  * 参数：link_argv0 调用方 argv[0]；syn_buf/syn_sz 合成路径缓冲。
  * 返回值：有效 link argv0 或 NULL。
  */
-const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz) {
+const char *shux_asm_ld_effective_link_argv0_impl(const char *link_argv0, char *syn_buf, size_t syn_sz) {
     char comp_dir[PATH_MAX];
     int nn;
     if (link_argv0 && link_argv0[0])
@@ -603,6 +606,13 @@ const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_b
     if (nn < 0 || (size_t)nn >= syn_sz)
         return NULL;
     return syn_buf;
+}
+
+const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_buf, size_t syn_sz) {
+  {
+    return shux_asm_ld_effective_link_argv0_impl(link_argv0, syn_buf, syn_sz);
+  }
+  return NULL;
 }
 
 /**
@@ -935,11 +945,18 @@ static int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_asm_io_stubs_o_path(const char *argv0) {
+const char *shux_runtime_asm_io_stubs_o_path_impl(const char *argv0) {
     static char resolved[PATH_MAX];
     if (shux_runtime_compiler_o_path_copy(argv0, "runtime_asm_io_stubs.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
+}
+
+const char *shux_runtime_asm_io_stubs_o_path(const char *argv0) {
+  {
+    return shux_runtime_asm_io_stubs_o_path_impl(argv0);
+  }
+  return NULL;
 }
 
 /**
@@ -947,11 +964,18 @@ const char *shux_runtime_asm_io_stubs_o_path(const char *argv0) {
  * 参数：argv0 可选 shux 路径。
  * 返回值：.o 路径或空串。
  */
-const char *shux_runtime_process_argv_o_path(const char *argv0) {
+const char *shux_runtime_process_argv_o_path_impl(const char *argv0) {
     static char resolved[PATH_MAX];
     if (shux_runtime_compiler_o_path_copy(argv0, "runtime_process_argv.o", resolved, sizeof resolved) != 0)
         resolved[0] = '\0';
     return resolved;
+}
+
+const char *shux_runtime_process_argv_o_path(const char *argv0) {
+  {
+    return shux_runtime_process_argv_o_path_impl(argv0);
+  }
+  return NULL;
 }
 
 const char *shux_runtime_process_os_glue_o_path(const char *argv0) {
