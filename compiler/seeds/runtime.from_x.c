@@ -1,8 +1,8 @@
-/* seeds/runtime.from_x.c — G-02f-14/71 product TU
+/* seeds/runtime.from_x.c — G-02f-14/71/72 product TU
  * Product objects from this seed (flags select variants):
  *   runtime_driver_no_c.o  — RUNTIME_DRIVER_NO_C_CFLAGS (G05 product)
  *   runtime_driver.o / runtime_x.o / runtime.o / runtime_driver_asm_*
- * G-02f-71: thin .x gates for driver compile/run wrappers; bulk still C.
+ * G-02f-71/72: thin .x gates for driver compile/run + main_entry/argv/exec/fmt; bulk still C.
  * Logic still C until full .x port.
  */
 /**
@@ -110,6 +110,23 @@ void driver_compile_resolve_target_cpu_c_impl(DriverCompileStateSU *state);
 int driver_run_compiler_full_impl(int argc, char **argv);
 int driver_run_test_impl(int argc, char **argv);
 int driver_fmt_report_no_files_impl(void);
+/* G-02f-72 driver mid gates */
+int run_compiler_x_path_impl(int argc, char **argv);
+int driver_want_asm_emit_to_file_impl(int argc, char **argv);
+int driver_exec_compiled_impl(int argc, uint8_t *argv_opaque);
+int driver_build_build_x_impl(void);
+int driver_fs_open_write_impl(const uint8_t *path, int path_len);
+int driver_source_has_generic_syntax_impl(const uint8_t *path, int path_len);
+int driver_source_has_compound_assign_syntax_impl(const uint8_t *path, int path_len);
+int driver_run_asm_backend_impl(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots, const char *target, int argc, char **argv);
+void driver_compile_parse_argv_scan_c_impl(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state);
+void driver_compile_argv_copy_path_c_impl(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen);
+int32_t driver_compile_argv_is_help_c_impl(int32_t argc, uint8_t *argv_opaque);
+void driver_print_usage_c_impl(void);
+int driver_argv_parse_x_emit_c_impl(int argc, char **argv);
+int driver_run_x_emit_c_impl(void);
+int driver_fmt_one_file_impl(const uint8_t *path, int path_len);
+int main_entry_impl(int argc, char **argv);
 
 
 static const char *runtime_diag_code_for_kind(const char *kind) {
@@ -2538,7 +2555,7 @@ int RUN_CC_FUNC(int argc, char **argv) {
  * 否则直接转调 run_compiler_c。完全自举时 run_compiler_x_path 由 main.x 提供，C 不定义以免重复符号。
  */
 #if !defined(SHUX_USE_X_DRIVER)
-int run_compiler_x_path(int argc, char **argv) {
+int run_compiler_x_path_impl(int argc, char **argv) {
 #if !defined(SHUX_USE_X_FRONTEND) || !defined(SHUX_USE_X_PIPELINE)
     return run_compiler_c(argc, argv);
 #else
@@ -2936,6 +2953,14 @@ int run_compiler_x_path(int argc, char **argv) {
 #undef X_PATH_MAX_LIB_ROOTS
 #endif
 }
+
+int run_compiler_x_path(int argc, char **argv) {
+  {
+    return run_compiler_x_path_impl(argc, argv);
+  }
+  return -1;
+}
+
 #endif /* !defined(SHUX_USE_X_DRIVER)：run_compiler_x_path 仅在不使用 .x driver 时由 C 提供 */
 
 
@@ -3021,7 +3046,7 @@ int driver_run_x_emit_c_set_emit_extern(int v) {
  *
  * 【返回值】1 → 走 \c driver_run_compiler_full（内含 asm）；0 → 旧逻辑走 \c pipeline_run_x_pipeline_impl 轻路径（主要为兼容未再生成的 driver_gen.c）。
  */
-int driver_want_asm_emit_to_file(int argc, char **argv) {
+int driver_want_asm_emit_to_file_impl(int argc, char **argv) {
     int want_asm = 1;
     char cur[512];
     char nx[512];
@@ -3050,14 +3075,21 @@ int driver_want_asm_emit_to_file(int argc, char **argv) {
     return want_asm ? 1 : 0;
 }
 
+int driver_want_asm_emit_to_file(int argc, char **argv) {
+  {
+    return driver_want_asm_emit_to_file_impl(argc, argv);
+  }
+  return -1;
+}
+
+
 /* driver_get_argv_i / driver_argv_drop_subcommand / driver_resolve_target_arch → runtime_abi.c（E-04 v2） */
 
 /**
  * cmd_run（driver/run.x）：编译成功后 exec 产物。从 argv 扫描 `-o` 下一参数为可执行路径，缺省 `a.out`。
  * 子进程 argv 仅为 [ exe, NULL ]；ABI 上 argv 与 char** 同址。
  */
-int driver_exec_compiled(int argc, uint8_t *argv_opaque)
-{
+int driver_exec_compiled_impl(int argc, uint8_t *argv_opaque) {
     char **argv = (char **)argv_opaque;
     const char *exe = "a.out";
     int i;
@@ -3120,6 +3152,14 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque)
     }
 }
 
+int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
+  {
+    return driver_exec_compiled_impl(argc, argv_opaque);
+  }
+  return -1;
+}
+
+
 /* 前置声明：定义在本文件后部 driver_run_compiler_full；此处须在定义之前调用。 */
 int driver_run_compiler_full(int argc, char **argv);
 
@@ -3129,8 +3169,7 @@ int driver_run_compiler_full(int argc, char **argv);
  * - 构造 argv {"shux","build.x",NULL} 调用 driver_run_compiler_full(2, fake_argv)，非 0 则返回 1。
  * - 编译成功后 fork / execv("./a.out", av)、waitpid，返回子进程正常退出码；信号等非正常退出返回 1。
  */
-int driver_build_build_x(void)
-{
+int driver_build_build_x_impl(void) {
     /* 生成 build_tool 并执行：等价 make build-tool && ./build_tool ./shux。
        build.x 没有 main，需结合 build_runtime.c 做成 build_tool 再跑。
        Makefile 在 compiler 子目录，build_tool 也生成在 compiler 下。 */
@@ -3148,6 +3187,14 @@ int driver_build_build_x(void)
     }
     return 0;
 }
+
+int driver_build_build_x(void) {
+  {
+    return driver_build_build_x_impl();
+  }
+  return -1;
+}
+
 
 /** 6.2 静态 arena/module 缓冲，供 driver_run_x_emit_x 避免栈上超大数组。
  * arena 对应 .x codegen 之 `struct ast_ASTArena`，须 ≥ pipeline_sizeof_arena()；
@@ -3193,7 +3240,7 @@ int driver_fs_open_read_path(const uint8_t *path, int path_len) {
 
 
 /** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开写文件（O_WRONLY|O_CREAT|O_TRUNC），返回 fd，失败 -1。供 -backend asm -o 时 main.x 写 -o 文件。 */
-int driver_fs_open_write(const uint8_t *path, int path_len) {
+int driver_fs_open_write_impl(const uint8_t *path, int path_len) {
     if (!path || path_len <= 0 || path_len >= 512) return -1;
     char buf[512];
     memcpy(buf, path, (size_t)path_len);
@@ -3207,6 +3254,14 @@ int driver_fs_open_write(const uint8_t *path, int path_len) {
 #endif
     return -1;
 }
+
+int driver_fs_open_write(const uint8_t *path, int path_len) {
+  {
+    return driver_fs_open_write_impl(path, path_len);
+  }
+  return -1;
+}
+
 
 /** 检测内存中的源码 content[0..n-1] 是否含泛型或 trait 语法（.x 流水线不支持，需走 C 路径）。 */
 static int content_has_generic_syntax(const char *content, size_t n) {
@@ -3249,7 +3304,7 @@ static int content_has_generic_syntax(const char *content, size_t n) {
 }
 
 /** 检测 path 指向的源码文件是否含泛型语法（如 <T> 或 <i32>），有则返回 1 否则 0；供 .x driver 在 run_compiler_x_path_impl 中决定是否走 C 流水线。 */
-int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
+int driver_source_has_generic_syntax_impl(const uint8_t *path, int path_len) {
     char content[65536];
     int rn;
     size_t n;
@@ -3265,6 +3320,14 @@ int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
     n = (size_t)rn;
     return content_has_generic_syntax(content, n);
 }
+
+int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
+  {
+    return driver_source_has_generic_syntax_impl(path, path_len);
+  }
+  return -1;
+}
+
 
 /** 检测内存源码是否含复合赋值（+= 等）；.x 解析器未覆盖时须走 C 流水线（run-compound-assign 等）。
  * 跳过 //、块注释与双引号字符串，避免注释/字面量中的 token 误触发 asm→C 降级。 */
@@ -3311,7 +3374,7 @@ static int content_has_compound_assign_syntax(const char *content, size_t n) {
 }
 
 /** 供 compile.x：源码含复合赋值则返回 1，默认 asm 应降级为 C。 */
-int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) {
+int driver_source_has_compound_assign_syntax_impl(const uint8_t *path, int path_len) {
     char content[65536];
     int rn;
     size_t n;
@@ -3331,6 +3394,14 @@ int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) 
         content[n] = '\0';
     return content_has_compound_assign_syntax(content, n);
 }
+
+int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) {
+  {
+    return driver_source_has_compound_assign_syntax_impl(path, path_len);
+  }
+  return -1;
+}
+
 
 
 /** shux_collect_deps_transitive / shux_merge_direct_then_transitive_deps / shux_load_direct_imports_for_asm_layout 见 runtime_pipeline_abi.c（E-04 v35）。 */
@@ -3368,7 +3439,7 @@ static int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
 /**
  * -backend asm 专用：读文件、跑 .x pipeline、写 .o 或调 ld。与 run_compiler_c 内 asm 路径逻辑一致，供 driver_run_compiler_full 转调。
  */
-int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
+int driver_run_asm_backend_impl(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
     const char *target, int argc, char **argv) {
     const char *defines[MAX_DEFINES];
     int ndefines = 0;
@@ -4128,6 +4199,15 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     free(src);
     return (ec != 0) ? 1 : 0;
 }
+
+int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
+    const char *target, int argc, char **argv) {
+  {
+    return driver_run_asm_backend_impl(input_path, out_path, lib_roots_arr, n_lib_roots, target, argc, argv);
+  }
+  return -1;
+}
+
 #endif /* SHUX_USE_X_DRIVER && SHUX_USE_X_PIPELINE */
 
 #define X_FULL_MAX_LIB_ROOTS 16
@@ -5743,7 +5823,7 @@ static int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompile
 /**
  * argv[1..] 扫描 loop（C step_c）；compile.x parse_argv X 编排调本符号。
  */
-void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
+void driver_compile_parse_argv_scan_c_impl(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
     char **argv = (char **)argv_opaque;
     char arg_buf[512];
     int i;
@@ -5753,6 +5833,13 @@ void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, Driver
     for (i = 1; i < argc;)
         i = driver_compile_parse_argv_step_c(argc, argv, state, i, arg_buf, (int)sizeof arg_buf);
 }
+
+void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
+  {
+    driver_compile_parse_argv_scan_c_impl(argc, argv_opaque, state);
+  }
+}
+
 
 /**
  * 完整 argv 解析（C mega）：init → scan → finalize。
@@ -5796,7 +5883,7 @@ void cfg_sync_compile_target_from_state_c(void *state) {
  * 将 argv 路径字节拷入 state.path_buf 并写 path_len（cap 511）。
  * EMIT_HEAVY 下 X while+INDEX 形参 field 易误折叠/漏 emit；与 impl_c 一样走 C 原语。
  */
-void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen) {
+void driver_compile_argv_copy_path_c_impl(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen) {
     int32_t k;
     int32_t n;
     if (!state || !arg_buf || plen <= 0)
@@ -5808,6 +5895,13 @@ void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_b
         state->path_buf[k] = arg_buf[k];
     state->path_len = n;
 }
+
+void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen) {
+  {
+    driver_compile_argv_copy_path_c_impl(state, arg_buf, plen);
+  }
+}
+
 
 /**
  * 无显式 -L 时向 sidecar 追加默认 lib_root "."（与 compile.x ensure_default_lib 语义一致）。
@@ -6239,7 +6333,7 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
  * 扫描 argv 是否含 `-h` 或 `--help`。
  * 返回 1 表示应打印用法并 exit 0。
  */
-int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
+int32_t driver_compile_argv_is_help_c_impl(int32_t argc, uint8_t *argv_opaque) {
     char **argv = (char **)argv_opaque;
     char buf[16];
     int len;
@@ -6257,12 +6351,20 @@ int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
     return 0;
 }
 
+int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
+  {
+    return driver_compile_argv_is_help_c_impl(argc, argv_opaque);
+  }
+  return -1;
+}
+
+
 /**
  * 打印 shux 用法摘要（fd 1）。
  * 【Why write(1)】B-strict / -nostartfiles 链路上 libc 未完整初始化 stdout，
  * fputs/fwrite 到 stdout 在 Linux 上可静默 0 字节；write(STDOUT_FILENO) 仍可靠。
  */
-void driver_print_usage_c(void) {
+void driver_print_usage_c_impl(void) {
     static const char usage[] =
         "Shux (shux) compiler\n"
         "\n"
@@ -6298,6 +6400,13 @@ void driver_print_usage_c(void) {
         "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
     (void)write(STDOUT_FILENO, usage, sizeof(usage) - 1u);
 }
+
+void driver_print_usage_c(void) {
+  {
+    driver_print_usage_c_impl();
+  }
+}
+
 
 /**
  * 完整编译 C 入口：堆 state + parse_argv + post_parse（standalone / 非 asm 链回退）。
@@ -6388,7 +6497,7 @@ int driver_run_test(int argc, char **argv) {
 
 
 /** 扫描 argv：若存在 -x -E <path> 则记下 path 及此前出现的 -L path，返回 1，否则返回 0。保留供未迁完时链接。 */
-int driver_argv_parse_x_emit_c(int argc, char **argv) {
+int driver_argv_parse_x_emit_c_impl(int argc, char **argv) {
     char ab[512];
     char nx[512];
     driver_x_emit_c_path = NULL;
@@ -6422,6 +6531,14 @@ int driver_argv_parse_x_emit_c(int argc, char **argv) {
     }
     return 0;
 }
+
+int driver_argv_parse_x_emit_c(int argc, char **argv) {
+  {
+    return driver_argv_parse_x_emit_c_impl(argc, argv);
+  }
+  return -1;
+}
+
 
 #if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
 /**
@@ -6579,7 +6696,7 @@ static int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
 #endif /* SHUX_USE_X_DRIVER && SHUX_USE_X_PIPELINE */
 
 /** 执行刚解析的 -x -E（读文件、.x pipeline、写 stdout）；成功 0，失败 1。无 SHUX_USE_X_PIPELINE 时返回 1。 */
-int driver_run_x_emit_c(void) {
+int driver_run_x_emit_c_impl(void) {
     const char *input_path = driver_x_emit_c_path;
     driver_x_emit_c_path = NULL;
     if (!input_path) return 1;
@@ -6973,13 +7090,21 @@ x_emit_c_done:
     return 1;
 #endif
 }
+
+int driver_run_x_emit_c(void) {
+  {
+    return driver_run_x_emit_c_impl();
+  }
+  return -1;
+}
+
 #endif /* SHUX_USE_X_DRIVER */
 
 /**
  * shux fmt 单文件：读入 .x、按 LSP 规则格式化；内容变化时写回。供 fmt.x argv 循环调用。
  * path 为 NUL 终止路径（path_len 不含 NUL）；成功 0，失败 1。
  */
-int driver_fmt_one_file(const uint8_t *path, int path_len) {
+int driver_fmt_one_file_impl(const uint8_t *path, int path_len) {
     char pathbuf[512];
     ShuxRuntimeFileView raw_view;
     size_t cap;
@@ -7040,6 +7165,14 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
     runtime_release_file_view(&raw_view);
     return 0;
 }
+
+int driver_fmt_one_file(const uint8_t *path, int path_len) {
+  {
+    return driver_fmt_one_file_impl(path, path_len);
+  }
+  return -1;
+}
+
 
 extern int driver_run_compiler_check(int argc, char **argv);
 extern int driver_run_fmt(int argc, char **argv);
@@ -7104,7 +7237,7 @@ static int runtime_run_test_c(int argc, char **argv) {
 #if !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(_WIN32)
 SHUX_WEAK
 #endif
-int main_entry(int argc, char **argv) {
+int main_entry_impl(int argc, char **argv) {
     /* --diag-json：切换为 NDJSON 诊断输出（供 CI / 工具消费）；亦可通过 SHUX_DIAG_JSON=1 启用。
      * 作为全局标志可在任意位置出现（含子命令之前/之后），此处就地剔除 argv 以免下游误判为未知选项。 */
     {
@@ -7134,4 +7267,12 @@ int main_entry(int argc, char **argv) {
     }
     return run_compiler_c(argc, argv);
 }
+
+int main_entry(int argc, char **argv) {
+  {
+    return main_entry_impl(argc, argv);
+  }
+  return -1;
+}
+
 #endif

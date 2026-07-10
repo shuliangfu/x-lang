@@ -1,8 +1,8 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-14/71：runtime 产品源 seeds/runtime.from_x.c + 真迁 .x 门闩。
-// G-02f-71：driver compile/run 薄封装门闩（argv set/apply、run_*、fmt/test）。
+// G-02f-14/71/72：runtime 产品源 seeds/runtime.from_x.c + 真迁 .x 门闩。
+// G-02f-71/72：driver compile/run 薄封装 + main_entry/argv/exec/fmt/大 run_* 门闩。
 // 产品：cc seeds/runtime.from_x.c + RUNTIME_DRIVER_NO_C_CFLAGS → src/runtime_driver_no_c.o
 // C 尾：argv 解析循环、#if 变体、大 driver 路径、syscall/fs。
 
@@ -36,6 +36,23 @@ extern "C" function driver_compile_resolve_target_cpu_c_impl(state: *u8): void;
 extern "C" function driver_run_compiler_full_impl(argc: i32, argv: *u8): i32;
 extern "C" function driver_run_test_impl(argc: i32, argv: *u8): i32;
 extern "C" function driver_fmt_report_no_files_impl(): i32;
+
+extern "C" function run_compiler_x_path_impl(argc: i32, argv: *u8): i32;
+extern "C" function driver_want_asm_emit_to_file_impl(argc: i32, argv: *u8): i32;
+extern "C" function driver_exec_compiled_impl(argc: i32, argv_opaque: *u8): i32;
+extern "C" function driver_build_build_x_impl(): i32;
+extern "C" function driver_fs_open_write_impl(path: *u8, path_len: i32): i32;
+extern "C" function driver_source_has_generic_syntax_impl(path: *u8, path_len: i32): i32;
+extern "C" function driver_source_has_compound_assign_syntax_impl(path: *u8, path_len: i32): i32;
+extern "C" function driver_run_asm_backend_impl(input_path: *u8, out_path: *u8, lib_roots_arr: *u8, n_lib_roots: i32, target: *u8, argc: i32, argv: *u8): i32;
+extern "C" function driver_compile_parse_argv_scan_c_impl(argc: i32, argv_opaque: *u8, state: *u8): void;
+extern "C" function driver_compile_argv_copy_path_c_impl(state: *u8, arg_buf: *u8, plen: i32): void;
+extern "C" function driver_compile_argv_is_help_c_impl(argc: i32, argv_opaque: *u8): i32;
+extern "C" function driver_print_usage_c_impl(): void;
+extern "C" function driver_argv_parse_x_emit_c_impl(argc: i32, argv: *u8): i32;
+extern "C" function driver_run_x_emit_c_impl(): i32;
+extern "C" function driver_fmt_one_file_impl(path: *u8, path_len: i32): i32;
+extern "C" function main_entry_impl(argc: i32, argv: *u8): i32;
 
 /* ---- G-02f-71：driver compile/run 薄门闩 ---- */
 
@@ -258,6 +275,133 @@ function driver_run_test(argc: i32, argv: *u8): i32 {
 function driver_fmt_report_no_files(): i32 {
   unsafe {
     return driver_fmt_report_no_files_impl();
+  }
+  return 0 - 1;
+}
+
+/* ---- G-02f-72：driver mid gates (argv scan / main_entry / emit / fmt) ---- */
+
+#[no_mangle]
+function run_compiler_x_path(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return run_compiler_x_path_impl(argc, argv);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_want_asm_emit_to_file(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return driver_want_asm_emit_to_file_impl(argc, argv);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_exec_compiled(argc: i32, argv_opaque: *u8): i32 {
+  unsafe {
+    return driver_exec_compiled_impl(argc, argv_opaque);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_build_build_x(): i32 {
+  unsafe {
+    return driver_build_build_x_impl();
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_fs_open_write(path: *u8, path_len: i32): i32 {
+  unsafe {
+    return driver_fs_open_write_impl(path, path_len);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_source_has_generic_syntax(path: *u8, path_len: i32): i32 {
+  unsafe {
+    return driver_source_has_generic_syntax_impl(path, path_len);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_source_has_compound_assign_syntax(path: *u8, path_len: i32): i32 {
+  unsafe {
+    return driver_source_has_compound_assign_syntax_impl(path, path_len);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_run_asm_backend(input_path: *u8, out_path: *u8, lib_roots_arr: *u8, n_lib_roots: i32, target: *u8, argc: i32, argv: *u8): i32 {
+  unsafe {
+    return driver_run_asm_backend_impl(input_path, out_path, lib_roots_arr, n_lib_roots, target, argc, argv);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_compile_parse_argv_scan_c(argc: i32, argv_opaque: *u8, state: *u8): void {
+  unsafe {
+    driver_compile_parse_argv_scan_c_impl(argc, argv_opaque, state);
+  }
+}
+
+#[no_mangle]
+function driver_compile_argv_copy_path_c(state: *u8, arg_buf: *u8, plen: i32): void {
+  unsafe {
+    driver_compile_argv_copy_path_c_impl(state, arg_buf, plen);
+  }
+}
+
+#[no_mangle]
+function driver_compile_argv_is_help_c(argc: i32, argv_opaque: *u8): i32 {
+  unsafe {
+    return driver_compile_argv_is_help_c_impl(argc, argv_opaque);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_print_usage_c(): void {
+  unsafe {
+    driver_print_usage_c_impl();
+  }
+}
+
+#[no_mangle]
+function driver_argv_parse_x_emit_c(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return driver_argv_parse_x_emit_c_impl(argc, argv);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_run_x_emit_c(): i32 {
+  unsafe {
+    return driver_run_x_emit_c_impl();
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_fmt_one_file(path: *u8, path_len: i32): i32 {
+  unsafe {
+    return driver_fmt_one_file_impl(path, path_len);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function main_entry(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return main_entry_impl(argc, argv);
   }
   return 0 - 1;
 }
