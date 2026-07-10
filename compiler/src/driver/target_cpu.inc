@@ -1,8 +1,8 @@
 /**
  * target_cpu.inc — SIMD-S1：宿主机 CPU feature 探测与 `-target-cpu` 规格解析。
  *
- * G-02f-2/3：pending + SIMD 拼写已迁 `target_cpu_pure.x`
- *（产品链 ld -r pure + 本 TU → target_cpu.o）。
+ * G-02f-2/3/4：pending + SIMD 拼写 + resolve 已迁 `target_cpu_pure.x`
+ *（产品链 ld -r pure + 本 TU → target_cpu.o；本 TU 仅 detect/generic/print）。
  *
  * Linux：读 /proc/cpuinfo flags/Features；
  * macOS：sysctl hw.optional.* / machdep.cpu.leaf7_features；
@@ -10,7 +10,6 @@
  */
 #include "target_cpu.h"
 
-#include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -25,27 +24,6 @@
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #endif
-
-/**
- * 忽略大小写比较 spec 与 literal（spec_len 为 spec 有效长度）。
- */
-static int spec_eq_ci(const char *spec, size_t spec_len, const char *literal) {
-    size_t i;
-    size_t lit_len;
-
-    if (!spec || !literal)
-        return 0;
-    lit_len = strlen(literal);
-    if (spec_len != lit_len)
-        return 0;
-    for (i = 0; i < spec_len; i++) {
-        unsigned char a = (unsigned char)spec[i];
-        unsigned char b = (unsigned char)literal[i];
-        if (tolower(a) != tolower(b))
-            return 0;
-    }
-    return 1;
-}
 
 /**
  * 在 flags 行（x86）或 Features 行（arm）中查找 token（前后空白/逗号分隔）。
@@ -304,81 +282,7 @@ uint32_t shu_target_cpu_generic_for_host(void) {
 #endif
 }
 
-/**
- * 解析具名特性或 microarch level（x86-64-v2/v3/v4）。
- */
-static int shu_target_cpu_parse_named(const char *spec, size_t spec_len, uint32_t *out) {
-    if (spec_eq_ci(spec, spec_len, "native")) {
-        *out = shu_target_cpu_detect_host();
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "generic")) {
-        *out = shu_target_cpu_generic_for_host();
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "sse2")) {
-        *out = SHUX_CPU_FEAT_SSE2;
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "sse4.1") || spec_eq_ci(spec, spec_len, "sse4_1")) {
-        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41;
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "avx")) {
-        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_AVX;
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "avx2")) {
-        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_AVX | SHUX_CPU_FEAT_AVX2;
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "avx512") || spec_eq_ci(spec, spec_len, "avx512f")) {
-        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_AVX | SHUX_CPU_FEAT_AVX2 |
-               SHUX_CPU_FEAT_AVX512F;
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "x86-64-v2")) {
-        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_POPCNT;
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "x86-64-v3")) {
-        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_AVX | SHUX_CPU_FEAT_AVX2 |
-               SHUX_CPU_FEAT_POPCNT | SHUX_CPU_FEAT_BMI2;
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "x86-64-v4")) {
-        *out = SHUX_CPU_FEAT_SSE2 | SHUX_CPU_FEAT_SSE41 | SHUX_CPU_FEAT_AVX | SHUX_CPU_FEAT_AVX2 |
-               SHUX_CPU_FEAT_AVX512F | SHUX_CPU_FEAT_POPCNT | SHUX_CPU_FEAT_BMI2;
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "neon")) {
-        *out = SHUX_CPU_FEAT_NEON;
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "sve")) {
-        *out = SHUX_CPU_FEAT_NEON | SHUX_CPU_FEAT_SVE;
-        return 0;
-    }
-    if (spec_eq_ci(spec, spec_len, "rvv")) {
-        *out = SHUX_CPU_FEAT_RVV;
-        return 0;
-    }
-    return -1;
-}
-
-int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out) {
-    if (!out)
-        return -1;
-    if (!spec || spec_len == 0)
-        return shu_target_cpu_parse_named("native", 6, out);
-    while (spec_len > 0 && (spec[0] == ' ' || spec[0] == '\t')) {
-        spec++;
-        spec_len--;
-    }
-    while (spec_len > 0 && (spec[spec_len - 1] == ' ' || spec[spec_len - 1] == '\t'))
-        spec_len--;
-    return shu_target_cpu_parse_named(spec, spec_len, out);
-}
+/* G-02f-4：shu_target_cpu_resolve / parse_named 已迁 target_cpu_pure。 */
 
 /**
  * 追加单个 feature 名到 buf（逗号分隔）。
