@@ -1,14 +1,8 @@
-/* seeds/runtime_driver_diagnostic.from_x.c — G-02f-12 product TU
- * Product object from this seed; logic still C until full .x port.
+/* Generated from src/runtime_driver_diagnostic.x (G-02f-30 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
+ *         merge fixed-msg wrappers + parse_strict; polish slice strings; keep snprintf C.
+ * .x covers: fixed typeck msgs, entry_already/after_dep no-ops, parse_strict env.
  */
-/**
- * runtime_driver_diagnostic.c — pipeline/typeck/asm 诊断输出（Phase E-04 v34）
- *
- * 文件职责：driver_diagnostic_*、parser_diag_*、typeck 诊断 scratch；供 pipeline.x / typeck.x / backend.x 链接。
- * 所属模块：compiler 运行时 driver 诊断；bootstrap driver seed 与 shux-c 均链入。
- * 与其它文件的关系：依赖 lsp_diag、runtime_driver_abi（check_only）；不依赖 C 前端头。
- */
-
 #include "runtime_driver_diagnostic.h"
 #include "runtime_driver_abi.h"
 #include "runtime_diag_codes.h"
@@ -66,7 +60,6 @@ static int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src
     return n;
 }
 
-
 void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types) {
     driver_diag_report_x_pipeline_code("XP001",
                                         ".x parse failed (main_idx=%d, num_funcs=%d, arena_num_types=%d)",
@@ -78,8 +71,21 @@ void driver_diagnostic_parse_fail(int32_t main_idx, int32_t num_funcs, int32_t a
  * 环境变量 SHUX_PARSE_STRICT=1。
  */
 int32_t driver_parse_strict_enabled(void) {
-    const char *e = getenv("SHUX_PARSE_STRICT");
-    return (e && e[0] && e[0] != '0') ? 1 : 0;
+  (void)(({   {
+    uint8_t * e = getenv("SHUX_PARSE_STRICT");
+    if ((e ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -316,30 +322,48 @@ void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, 
 }
 
 void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col) {
-    lsp_diag_report_typeck((int)line, (int)col, "if condition must be bool (no implicit int-to-bool)");
+  (void)(({   {
+    (void)(lsp_diag_report_typeck(line, col, "if condition must be bool (no implicit int-to-bool)"));
+  }
+ }));
 }
 
 void driver_diagnostic_typeck_while_condition_not_bool(int32_t line, int32_t col) {
-    lsp_diag_report_typeck((int)line, (int)col, "while condition must be bool (no implicit int-to-bool)");
+  (void)(({   {
+    (void)(lsp_diag_report_typeck(line, col, "while condition must be bool (no implicit int-to-bool)"));
+  }
+ }));
 }
 
 void driver_diagnostic_typeck_for_condition_not_bool(int32_t line, int32_t col) {
-    lsp_diag_report_typeck((int)line, (int)col, "for condition must be bool (no implicit int-to-bool)");
+  (void)(({   {
+    (void)(lsp_diag_report_typeck(line, col, "for condition must be bool (no implicit int-to-bool)"));
+  }
+ }));
 }
 
 /** LANG-007 v2：S0 内 *T 解引用须在 unsafe { } 内。 */
 void driver_diagnostic_typeck_deref_outside_unsafe(int32_t line, int32_t col) {
-    lsp_diag_report_typeck((int)line, (int)col, "pointer dereference requires unsafe block");
+  (void)(({   {
+    (void)(lsp_diag_report_typeck(line, col, "pointer dereference requires unsafe block"));
+  }
+ }));
 }
 
 /** LANG-007 v2：S0 内 extern 调用须在 unsafe { } 内。 */
 void driver_diagnostic_typeck_extern_call_outside_unsafe(int32_t line, int32_t col) {
-    lsp_diag_report_typeck((int)line, (int)col, "extern call requires unsafe block");
+  (void)(({   {
+    (void)(lsp_diag_report_typeck(line, col, "extern call requires unsafe block"));
+  }
+ }));
 }
 
 /** .x typeck：对 linear 值取址时打印，与 typeck.c「cannot take address of linear value」一致。 */
 void driver_diagnostic_typeck_linear_addr_of(int32_t line, int32_t col) {
-    lsp_diag_report_typeck((int)line, (int)col, "cannot take address of linear value");
+  (void)(({   {
+    (void)(lsp_diag_report_typeck(line, col, "cannot take address of linear value"));
+  }
+ }));
 }
 
 /** .x typeck：import 顶层 const 裸名访问时打印，与 typeck.c TYPECK_ERR 措辞对齐。 */
@@ -502,7 +526,7 @@ void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len) {
 
 /** 诊断：pipeline 入口 ctx.entry_already_parsed。由 pipeline.x 调用。需要时取消注释 fprintf。 */
 void driver_diagnostic_entry_already(int32_t v) {
-    (void)v;
+  (void)(0);
 }
 
 /** 诊断：解析前 source_len。由 pipeline.x 调用。需要时取消注释 fprintf。 */
@@ -640,8 +664,7 @@ void driver_diagnostic_pipe_marker(int32_t id) {
 
 /** 每个 dep codegen 后打印 j 与 out_buf.len，确认 buffer 是否递增。需要时取消注释 fprintf。 */
 void driver_diagnostic_after_dep_codegen(int32_t j, int32_t out_len) {
-    (void)j;
-    (void)out_len;
+  (void)(0);
 }
 
 /** codegen 失败时打印是第几个 dep（is_dep!=0）还是当前模块（is_dep==0），便于定位 -6。需要时取消注释 fprintf。 */
@@ -811,6 +834,7 @@ int parser_is_ident_allow(const uint8_t *ident, int len) {
     if (!ident || len != 5) return 0;
     return (ident[0] == 'a' && ident[1] == 'l' && ident[2] == 'l' && ident[3] == 'o' && ident[4] == 'w') ? 1 : 0;
 }
+
 /** DOD-CL -pad-fields：相邻 atomic-sized 与普通字段同 cache line 且无 align(64) 分隔。
  * 须在 #if SHUX_USE_X_PIPELINE 外：C 前端 typeck.o（shux-c）也调用。 */
 void driver_diagnostic_warn_pad_fields_same_cache_line(const uint8_t *sname, int32_t sname_len, const uint8_t *f0,
@@ -855,3 +879,4 @@ void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint
     else
         diag_report(NULL, ln, cl, "info", msg, NULL);
 }
+

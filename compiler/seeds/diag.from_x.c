@@ -1,5 +1,7 @@
-/* seeds/diag.from_x.c — G-02f-11 product TU
- * Product object from this seed; logic still C until full .x port.
+/* Generated from src/diag.x (G-02f-30 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/diag.x > /tmp/diag.c
+ *         merge diag_report from .x; keep code table / va_list / JSON C tail.
+ * .x covers: diag_report → diag_report_with_code(NULL code).
  */
 #include "diag.h"
 
@@ -383,7 +385,7 @@ void diag_report_with_code(const char *file, int line, int col, const char *kind
 }
 
 void diag_report(const char *file, int line, int col, const char *kind, const char *msg, const char *detail) {
-    diag_report_with_code(file, line, col, kind, NULL, msg, detail);
+  diag_report_with_code(file, line, col, kind, NULL, msg, detail);
 }
 
 void diag_vreportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, va_list ap) {
@@ -664,3 +666,4 @@ static void diag_report_json(const char *file, int line, int col,
     fputs("}\n", stderr);
     fflush(stderr);
 }
+
