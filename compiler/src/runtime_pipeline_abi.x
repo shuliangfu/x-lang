@@ -33,8 +33,7 @@ extern "C" function shu_lsp_free_loaded_imports_impl(all_dep_mods: *u8, all_dep_
 extern "C" function shux_pipeline_pctx_update_dep_slots_no_reset_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void;
 extern "C" function pipeline_run_x_thread_fn_impl(arg: *u8): *u8;
 extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
-extern "C" function shux_find_loaded_import_index_scan_impl(path: *u8, all_paths: *u8, n_all: i32): i32;
-extern "C" function shux_merge_deps_path_already_out_scan_impl(path: *u8, out_paths: *u8, n_out: i32): i32;
+
 extern "C" function shux_emit_pipeline_glue_include_impl(): void;
 extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
 extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
@@ -513,10 +512,7 @@ function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: 
   if (n_all <= 0) {
     return -1;
   }
-  unsafe {
-    return shux_find_loaded_import_index_scan_impl(import_path, all_paths, n_all);
-  }
-  return -1;
+  return shux_find_loaded_import_index_scan(import_path, all_paths, n_all);
 }
 
 #[no_mangle]
@@ -530,10 +526,7 @@ function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32)
   if (n_out <= 0) {
     return 0;
   }
-  unsafe {
-    return shux_merge_deps_path_already_out_scan_impl(path, out_paths, n_out);
-  }
-  return 0;
+  return shux_merge_deps_path_already_out_scan(path, out_paths, n_out);
 }
 
 #[no_mangle]
@@ -1152,38 +1145,66 @@ function driver_dep_module_ptr_set(i: i32, module: *u8): void {
 }
 
 
-/* ---- G-02f-85：import path scan 门闩 ---- */
+/* ---- G-02f-85 / G-02f-134：import path scan ---- */
+
+function pipe_cstr_eq(a: *u8, b: *u8): i32 {
+  if (a == 0) { return 0; }
+  if (b == 0) { return 0; }
+  let i: i32 = 0;
+  while (i < 4096) {
+    if (a[i] != b[i]) { return 0; }
+    if (a[i] == 0) { return 1; }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// char** 槽位：all_paths 为指针数组首地址
+function pipe_load_ptr_slot(base: *u8, i: i32): *u8 {
+  if (base == 0) { return 0 as *u8; }
+  let off: i32 = i * 8;
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  let a: usize = base[off] as usize;
+  a = a + (base[off + 1] as usize) * m;
+  a = a + (base[off + 2] as usize) * m2;
+  a = a + (base[off + 3] as usize) * (m2 * m);
+  a = a + (base[off + 4] as usize) * m4;
+  a = a + (base[off + 5] as usize) * (m4 * m);
+  a = a + (base[off + 6] as usize) * (m4 * m2);
+  a = a + (base[off + 7] as usize) * (m4 * m2 * m);
+  return a as *u8;
+}
 
 #[no_mangle]
 function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32 {
-  if (path == 0 as *u8) {
-    return 0 - 1;
-  }
-  if (all_paths == 0 as *u8) {
-    return 0 - 1;
-  }
-  if (n_all <= 0) {
-    return 0 - 1;
-  }
-  unsafe {
-    return shux_find_loaded_import_index_scan_impl(path, all_paths, n_all);
+  if (path == 0 as *u8) { return 0 - 1; }
+  if (all_paths == 0 as *u8) { return 0 - 1; }
+  if (n_all <= 0) { return 0 - 1; }
+  let i: i32 = 0;
+  while (i < n_all) {
+    let p: *u8 = pipe_load_ptr_slot(all_paths, i);
+    if (p != 0) {
+      if (pipe_cstr_eq(p, path) != 0) { return i; }
+    }
+    i = i + 1;
   }
   return 0 - 1;
 }
 
 #[no_mangle]
 function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32 {
-  if (path == 0 as *u8) {
-    return 0;
-  }
-  if (out_paths == 0 as *u8) {
-    return 0;
-  }
-  if (n_out <= 0) {
-    return 0;
-  }
-  unsafe {
-    return shux_merge_deps_path_already_out_scan_impl(path, out_paths, n_out);
+  if (path == 0 as *u8) { return 0; }
+  if (out_paths == 0 as *u8) { return 0; }
+  if (n_out <= 0) { return 0; }
+  let j: i32 = 0;
+  while (j < n_out) {
+    let p: *u8 = pipe_load_ptr_slot(out_paths, j);
+    if (p != 0) {
+      if (pipe_cstr_eq(p, path) != 0) { return 1; }
+    }
+    j = j + 1;
   }
   return 0;
 }

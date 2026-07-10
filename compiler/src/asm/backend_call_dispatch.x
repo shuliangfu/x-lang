@@ -40,18 +40,80 @@ function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, cap: i32
 
 // G-02f-109：+ overload/export_c/import path/heap redirect 薄门闩。
 
-extern "C" function glue_module_func_overload_count_c_impl(m: *u8, name: *u8, nlen: i32): i32;
-extern "C" function glue_asm_import_segment_at_impl(mod: *u8, ix: i32, want: i32, ostr: *i32, olen: *i32): i32;
 extern "C" function parser_get_module_import_path(mod: *u8, ix: i32, path_bytes: *u8): void;
 extern "C" function glue_codegen_import_path_to_c_prefix_into(path: *u8, pre: *u8, cap: i32): void;
+extern "C" function pipeline_module_num_funcs(m: *u8): i32;
+extern "C" function pipeline_asm_module_func_is_extern_at(m: *u8, i: i32): i32;
+extern "C" function pipeline_module_func_name_equal_at(m: *u8, i: i32, name: *u8, nlen: i32): i32;
+extern "C" function parser_get_module_num_imports(mod: *u8): i32;
+extern "C" function pipeline_module_import_path_len(mod: *u8, idx: i32): i32;
+extern "C" function pipeline_module_import_path_byte_at(mod: *u8, idx: i32, k: i32): u8;
 
-/* ---- G-02f-109 / G-02f-133：call_dispatch more helpers ---- */
+/* ---- G-02f-109 / G-02f-133 / G-02f-134：call_dispatch more helpers ---- */
 
+// G-02f-134：非 extern 同名函数计数
 #[no_mangle]
-function glue_module_func_overload_count_c(m: *u8, name: *u8, nlen: i32): i32 { unsafe { return glue_module_func_overload_count_c_impl(m, name, nlen); } return 0; }
+function glue_module_func_overload_count_c(m: *u8, name: *u8, nlen: i32): i32 {
+  if (m == 0) { return 0; }
+  if (name == 0) { return 0; }
+  if (nlen <= 0) { return 0; }
+  unsafe {
+    let c: i32 = 0;
+    let n: i32 = pipeline_module_num_funcs(m);
+    let i: i32 = 0;
+    while (i < n) {
+      if (pipeline_asm_module_func_is_extern_at(m, i) == 0) {
+        if (pipeline_module_func_name_equal_at(m, i, name, nlen) != 0) {
+          c = c + 1;
+        }
+      }
+      i = i + 1;
+    }
+    return c;
+  }
+  return 0;
+}
 
+// G-02f-134：import path 第 want_seg 段起止
 #[no_mangle]
-function glue_asm_import_segment_at(mod: *u8, ix: i32, want: i32, ostr: *i32, olen: *i32): i32 { unsafe { return glue_asm_import_segment_at_impl(mod, ix, want, ostr, olen); } return 0; }
+function glue_asm_import_segment_at(mod: *u8, ix: i32, want_seg: i32, ostr: *i32, olen: *i32): i32 {
+  if (mod == 0) { return 0; }
+  if (ix < 0) { return 0; }
+  if (ostr == 0) { return 0; }
+  if (olen == 0) { return 0; }
+  unsafe {
+    if (ix >= parser_get_module_num_imports(mod)) { return 0; }
+    let pl: i32 = pipeline_module_import_path_len(mod, ix);
+    if (pl <= 0) { return 0; }
+    if (pl > 63) { return 0; }
+    let ci: i32 = 0;
+    let ss: i32 = 0;
+    let k: i32 = 0;
+    while (k <= pl) {
+      let at_end: i32 = 0;
+      if (k == pl) { at_end = 1; }
+      let dot: i32 = 0;
+      if (at_end == 0) {
+        if (k < pl) {
+          if (pipeline_module_import_path_byte_at(mod, ix, k) == 46) { dot = 1; }
+        }
+      }
+      if (at_end != 0 || dot != 0) {
+        let seg_len_here: i32 = k - ss;
+        if (seg_len_here <= 0) { return 0; }
+        if (ci == want_seg) {
+          ostr[0] = ss;
+          olen[0] = seg_len_here;
+          return 1;
+        }
+        if (dot != 0) { ss = k + 1; }
+        ci = ci + 1;
+      }
+      k = k + 1;
+    }
+  }
+  return 0;
+}
 
 // G-02f-133：import path → C 前缀
 #[no_mangle]

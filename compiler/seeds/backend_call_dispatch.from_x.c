@@ -1,4 +1,5 @@
 /* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-134 true .x pure helpers.
  * G-02f-133 true .x pure helpers.
  * G-02f-125 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
@@ -709,7 +710,8 @@ int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_c
 
 
 /** 统计模块内同名函数个数（>1 时 emit/call 须 mangled 符号）。 */
-int32_t glue_module_func_overload_count_c_impl(struct ast_Module *m, const uint8_t *name, int32_t name_len) {
+/* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *name, int32_t name_len) {
   int32_t i;
   int32_t c;
   if (!m || !name || name_len <= 0)
@@ -722,12 +724,7 @@ int32_t glue_module_func_overload_count_c_impl(struct ast_Module *m, const uint8
       c++;
   }
   return c;
-}
-int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *name, int32_t name_len) {
-  {
-    return glue_module_func_overload_count_c_impl(m, name, name_len);
-  }
-  return 0;
+
 }
 
 
@@ -883,7 +880,8 @@ int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t im
 
 
 /** pipeline_module_import_path 内第 want_seg 段起点偏移与长度。 */
-int32_t glue_asm_import_segment_at_impl(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr,
+/* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr,
                                           int32_t *olen) {
   int32_t pl;
   int32_t ci;
@@ -914,13 +912,7 @@ int32_t glue_asm_import_segment_at_impl(struct ast_Module *module, int32_t imp_i
     }
   }
   return 0;
-}
-int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr,
-                                          int32_t *olen) {
-  {
-    return glue_asm_import_segment_at_impl(module, imp_ix, want_seg, ostr, olen);
-  }
-  return 0;
+
 }
 
 

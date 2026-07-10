@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-134 true .x pure helpers.
  * G-02f-133 true .x pure helpers.
  * G-02f-132 true .x pure helpers.
  * G-02f-131 true .x pure helpers.
@@ -131,7 +132,8 @@ extern int32_t backend_fold_func_x_plus_k_chain(struct ast_ASTArena *arena, stru
  * C 路径读函数 return 操作数（与 pipeline_glue.c glue_fold_func_return_operand_ref_c 一致）。
  * B-strict backend.o 桩 fold 失败时供 struct/field 内联 fold 使用。
  */
-int32_t glue_fold_func_return_operand_ref_module_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_fold_func_return_operand_ref_module(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                         int32_t func_idx) {
   int32_t body_ref;
   int32_t fin;
@@ -169,13 +171,7 @@ int32_t glue_fold_func_return_operand_ref_module_impl(struct ast_ASTArena *arena
     }
   }
   return found == 1 ? op_ref : 0;
-}
-int32_t glue_fold_func_return_operand_ref_module(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                        int32_t func_idx) {
-  {
-    return glue_fold_func_return_operand_ref_module_impl(arena, mod, func_idx);
-  }
-  return 0;
+
 }
 
 
@@ -480,7 +476,8 @@ int32_t glue_call_lookup_callee_mod_fi_arena(struct ast_ASTArena *caller_arena, 
 /**
  * 按名称查本模块函数下标；-1 未找到。
  */
-int32_t glue_module_func_index_by_name_impl(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
+/* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t fi;
   int32_t flen;
   uint8_t fb[64];
@@ -500,12 +497,7 @@ int32_t glue_module_func_index_by_name_impl(struct ast_Module *mod, uint8_t *nam
       return fi;
   }
   return -1;
-}
-int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
-  {
-    return glue_module_func_index_by_name_impl(mod, name, name_len);
-  }
-  return 0;
+
 }
 
 
@@ -821,7 +813,8 @@ int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module
 /**
  * struct_lit 第 field_j 字段 init 来自哪一形参；成功写 out_param_ix。
  */
-int32_t glue_struct_lit_field_init_param_index_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_struct_lit_field_init_param_index(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                       int32_t func_idx, int32_t lit_ref, int32_t field_j,
                                                       int32_t *out_param_ix) {
   int32_t init_ref;
@@ -842,14 +835,7 @@ int32_t glue_struct_lit_field_init_param_index_impl(struct ast_ASTArena *arena, 
     pi = pi + 1;
   }
   return -1;
-}
-int32_t glue_struct_lit_field_init_param_index(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                      int32_t func_idx, int32_t lit_ref, int32_t field_j,
-                                                      int32_t *out_param_ix) {
-  {
-    return glue_struct_lit_field_init_param_index_impl(arena, mod, func_idx, lit_ref, field_j, out_param_ix);
-  }
-  return 0;
+
 }
 
 
@@ -894,7 +880,8 @@ int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *arena, stru
 /**
  * struct_lit 中字段名 fn/fnlen 对应的字段下标；失败返回 -1。
  */
-int32_t glue_struct_lit_field_index_by_name_impl(struct ast_ASTArena *arena, int32_t lit_ref, uint8_t *fn,
+/* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t lit_ref, uint8_t *fn,
                                                    int32_t fnlen) {
   int32_t nf;
   int32_t j;
@@ -919,13 +906,7 @@ int32_t glue_struct_lit_field_index_by_name_impl(struct ast_ASTArena *arena, int
     j = j + 1;
   }
   return -1;
-}
-int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t lit_ref, uint8_t *fn,
-                                                   int32_t fnlen) {
-  {
-    return glue_struct_lit_field_index_by_name_impl(arena, lit_ref, fn, fnlen);
-  }
-  return 0;
+
 }
 
 
