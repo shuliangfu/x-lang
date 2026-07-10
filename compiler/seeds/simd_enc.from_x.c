@@ -36,6 +36,10 @@ int32_t simd_append(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *b
 int32_t simd_append_disp32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp);
 int32_t simd_x86_addps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
 int32_t simd_x86_paddd_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_psubd_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_vpsubd_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_vpaddd_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_mulps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
 #endif
 
 /** slot_off 为 asm 局部槽距 fp 的正字节距（lane0 低址端，与向量 let init 的 lea 一致）；x86 disp = -slot_off。 */
@@ -197,10 +201,17 @@ int32_t simd_x86_vmovups_ymm1_from_rbp(struct platform_elf_ElfCodegenCtx *elf_ct
 
 /** x86 AVX2：vpaddd ymm0, ymm0, ymm1（C5 FD FE C1）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_vpaddd_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-390：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_vpaddd_ymm0_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0xc5, 0xfd, 0xfe, 0xc1};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_vpaddd_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_vpaddd_ymm0_ymm1_impl(elf_ctx);
+}
+#endif
 
 
 
@@ -219,20 +230,34 @@ int32_t simd_x86_vmovups_ymm0_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx,
 
 /** x86：psubd xmm0, xmm1（66 0F FA C1）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_psubd_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-390：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_psubd_xmm0_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0x66, 0x0f, 0xfa, 0xc1};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_psubd_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_psubd_xmm0_xmm1_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 AVX2：vpsubd ymm0, ymm0, ymm1（C5 FD FA C1）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_vpsubd_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-390：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_vpsubd_ymm0_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0xc5, 0xfd, 0xfa, 0xc1};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_vpsubd_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_vpsubd_ymm0_ymm1_impl(elf_ctx);
+}
+#endif
 
 
 
@@ -259,10 +284,17 @@ int32_t simd_x86_vpmulld_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 /** x86：mulps xmm0, xmm1（0F 59 C1）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_mulps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-390：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_mulps_xmm0_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[3] = {0x0f, 0x59, 0xc1};
     return simd_append_impl(elf_ctx, insn, 3);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_mulps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_mulps_xmm0_xmm1_impl(elf_ctx);
+}
+#endif
 
 
 
@@ -312,10 +344,10 @@ int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodegenCtx *
         if (simd_x86_vmovups_ymm1_from_rbp(elf_ctx, db) != 0)
             return -1;
         if (is_sub) {
-            if (simd_x86_vpsubd_ymm0_ymm1(elf_ctx) != 0)
+            if (simd_x86_vpsubd_ymm0_ymm1_impl(elf_ctx) != 0)
                 return -1;
         } else {
-            if (simd_x86_vpaddd_ymm0_ymm1(elf_ctx) != 0)
+            if (simd_x86_vpaddd_ymm0_ymm1_impl(elf_ctx) != 0)
                 return -1;
         }
         if (simd_x86_vmovups_ymm0_to_rbp(elf_ctx, dd) != 0)
@@ -328,7 +360,7 @@ int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodegenCtx *
         if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0)
             return -1;
         if (is_sub) {
-            if (simd_x86_psubd_xmm0_xmm1(elf_ctx) != 0)
+            if (simd_x86_psubd_xmm0_xmm1_impl(elf_ctx) != 0)
                 return -1;
         } else {
             if (simd_x86_paddd_xmm0_xmm1_impl(elf_ctx) != 0)
@@ -449,7 +481,7 @@ int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
         return -1;
     if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0)
         return -1;
-    if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0)
+    if (simd_x86_mulps_xmm0_xmm1_impl(elf_ctx) != 0)
         return -1;
     if (simd_x86_movups_xmm0_to_rbp(elf_ctx, dd) != 0)
         return -1;
@@ -490,7 +522,7 @@ int32_t simd_enc_try_hw_vector_fma_rbp(struct platform_elf_ElfCodegenCtx *elf_ct
             return -1;
         if (simd_x86_movups_xmm1_from_rbp(elf_ctx, db) != 0)
             return -1;
-        if (simd_x86_mulps_xmm0_xmm1(elf_ctx) != 0)
+        if (simd_x86_mulps_xmm0_xmm1_impl(elf_ctx) != 0)
             return -1;
         if (simd_x86_movups_xmm1_from_rbp(elf_ctx, da) != 0)
             return -1;
@@ -597,13 +629,13 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCt
         if (simd_x86_vmovups_ymm1_from_rbx_rax4(elf_ctx) != 0)
             return -1;
         if (binop_ko == 5) {
-            if (simd_x86_vpsubd_ymm0_ymm1(elf_ctx) != 0)
+            if (simd_x86_vpsubd_ymm0_ymm1_impl(elf_ctx) != 0)
                 return -1;
         } else if (binop_ko == 6) {
             if (simd_x86_vpmulld_ymm0_ymm1(elf_ctx) != 0)
                 return -1;
         } else {
-            if (simd_x86_vpaddd_ymm0_ymm1(elf_ctx) != 0)
+            if (simd_x86_vpaddd_ymm0_ymm1_impl(elf_ctx) != 0)
                 return -1;
         }
         if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_d, ta) != 0)
@@ -624,7 +656,7 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCt
         if (simd_x86_movups_xmm1_from_rbx_rax4(elf_ctx) != 0)
             return -1;
         if (binop_ko == 5) {
-            if (simd_x86_psubd_xmm0_xmm1(elf_ctx) != 0)
+            if (simd_x86_psubd_xmm0_xmm1_impl(elf_ctx) != 0)
                 return -1;
         } else if (binop_ko == 6) {
             if (simd_x86_pmulld_xmm0_xmm1(elf_ctx) != 0)
