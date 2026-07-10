@@ -1,8 +1,8 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..61 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..62 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge prepare_entry/load/merge/large_stack; C collect/transitive bulk.
- * .x covers: + prepare_entry_elf_emit, asm_codegen large_stack, load_direct, merge paths.
+ *         merge collect/merge/debug_trace gates; C transitive bulk remains.
+ * .x covers: + collect_deps/paths, merge_direct deps, debug_trace_named_func_bodies.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -30,6 +30,17 @@ extern void preprocess_define_add(const char *name);
 
 
 
+
+
+/* G-02f-62 helper protos */
+void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena);
+int shux_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
+    int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n);
+int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
+    size_t dep_lens[], char *dep_paths[], int *n_deps);
+int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps);
 
 /* G-02f-61 helper protos */
 int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
@@ -221,7 +232,7 @@ static int pipeline_debug_body_func_match(const char *filter, const char *name) 
     return 0;
 }
 
-void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena) {
+void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {
     const char *filter = getenv("SHUX_DEBUG_BODY_FUNC");
     int32_t nf;
     int32_t fi;
@@ -255,6 +266,19 @@ void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, voi
                      body_ref > 0 ? (int)ast_ast_block_final_expr_ref(arena, body_ref) : -1);
     }
 }
+
+void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena) {
+  if (module == NULL) {
+    return;
+  }
+  if (arena == NULL) {
+    return;
+  }
+  {
+    pipeline_debug_trace_named_func_bodies_impl(phase, module, arena);
+  }
+}
+
 void pipeline_debug_trace_body_x_mega_pre_reset(void *module, void *arena) {
   {
     pipeline_debug_trace_named_func_bodies("x_mega_pre_reset", module, arena);
@@ -2055,7 +2079,7 @@ int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots
  * 将 shux_collect_deps_transitive 得到的 closure（调用方已对 triple 数组做过反转）合并为 pipeline/asm_elf dep 列表。
  * 前 n_imports 项与入口 module import 槽对齐；传递依赖按 closure 顺序追加并路径去重。
  */
-int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
+int shux_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
     int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n) {
     unsigned char used[SHUX_DRIVER_DEP_SLOT_MAX];
     int mi = 0;
@@ -2106,6 +2130,21 @@ int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char
     *out_n = mi;
     return 0;
 }
+
+int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
+    int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n) {
+  if (module == NULL) {
+    return -1;
+  }
+  if (out_n == NULL) {
+    return -1;
+  }
+  {
+    return shux_merge_direct_then_transitive_deps_impl(module, n_imports, cls, clens, cpaths, n_closure, out_src, out_lens, out_paths, out_n);
+  }
+  return -1;
+}
+
 
 int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imports, char *cpaths[], int n_closure,
     char *out_paths[], int *out_n) {
@@ -2174,7 +2213,7 @@ int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports,
  * 传递加载 dep：从 main 的 import 出发递归解析子 import，填满 dep_sources/dep_lens/dep_paths。
  * 返回 0 成功，1 失败（调用方负责释放已分配）。
  */
-int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps) {
     int n = 0;
@@ -2311,7 +2350,23 @@ fail_to_load:
     return 1;
 }
 
-int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
+    size_t dep_lens[], char *dep_paths[], int *n_deps) {
+  if (module == NULL) {
+    return -1;
+  }
+  if (n_deps == NULL) {
+    return -1;
+  }
+  {
+    return shux_collect_deps_transitive_impl(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines, dep_sources, dep_lens, dep_paths, n_deps);
+  }
+  return -1;
+}
+
+
+int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps) {
     int n = 0;
     char *to_load[SHUX_DRIVER_DEP_SLOT_MAX];
@@ -2446,6 +2501,21 @@ fail_to_load:
     }
     return 1;
 }
+
+int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps) {
+  if (module == NULL) {
+    return -1;
+  }
+  if (n_deps == NULL) {
+    return -1;
+  }
+  {
+    return shux_collect_dep_paths_transitive_impl(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines, dep_paths, n_deps);
+  }
+  return -1;
+}
+
 
 /** asm emit 桩判定与 ARRAY_LIT/SoA 补类型（ast_pool.c / pipeline_glue.c）。 */
 extern void asm_skip_heavy_set_pipeline_ctx(void *ctx);
