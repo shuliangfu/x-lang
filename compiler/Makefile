@@ -1,7 +1,7 @@
 # Shux 编译器（compiler）构建
 #
 # 【G-05 日常入口】优先仓库根 ./shux-build.sh build 或本目录 ./build_tool ./shux
-# → scripts/g05_build_shux_asm.sh → g05_prepare_and_relink（纯 shell，零 make；FULL=1 → bstrict）
+#   → scripts/g05_build_shux_asm.sh → g05_prepare_and_relink（纯 shell，零 make；FULL=1 → bstrict）
 # 【本 Makefile】冷启动单文件 .o 规则、CI 历史目标、test/bootstrap-* — 兜底（非用户日常入口）。
 # 【build-tool】默认 copy seeds/build_*_gen.c 链出 build_tool（不依赖已删 C 前端 -E-extern）。
 #
@@ -10,8 +10,8 @@
 # 【生成 C 后无补丁】-E 产出 pipeline_gen.c / driver_gen.c 后不再做 sed/awk/perl/echo 后处理。
 # pipeline_gen.c：包装/size/debug 由 runtime.c 在 -E 且入口为 pipeline.x 时追加 pipeline_glue.c 到 stdout。
 
-CC ?= cc
-CFLAGS ?= -Wall -Wextra -I. -Iinclude -Isrc
+CC      ?= cc
+CFLAGS  ?= -Wall -Wextra -I. -Iinclude -Isrc
 # Windows/MinGW: __attribute__((weak)) 函数符号不被 PE 格式支持，
 # 所有 weak 函数在 stub 文件中变为正常定义；用 --allow-multiple-definition 解决重复定义冲突。
 ifeq ($(OS),Windows_NT)
@@ -27,40 +27,40 @@ CC_IS_CLANG := $(findstring clang,$(shell $(CC) -v 2>&1))
 PIPELINE_GEN_CFLAGS = $(PIPELINE_GEN_CFLAGS_BASE) $(if $(CC_IS_CLANG),$(PIPELINE_GEN_CFLAGS_CLANG))
 # 阶段 8：make OPT=1 时为 shux 启用 -O2，便于开发时快速运行测试
 ifeq ($(OPT),1)
- CFLAGS += -O2
+  CFLAGS += -O2
 endif
 # 宿主 OS/架构（runtime_panic / freestanding / crt0 规则共用）
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
 UNAME_M := $(shell uname -m 2>/dev/null || echo unknown)
 SEED_LINUX_X86_64_OK := 0
 ifeq ($(UNAME_S),Linux)
- ifneq (,$(filter x86_64 amd64,$(UNAME_M)))
- SEED_LINUX_X86_64_OK := 1
- endif
+  ifneq (,$(filter x86_64 amd64,$(UNAME_M)))
+    SEED_LINUX_X86_64_OK := 1
+  endif
 endif
 ALPINE := $(shell test -f /etc/alpine-release && echo 1)
 # Darwin：ld -r 须显式 -arch（与 cc 默认 triple 一致）。
 LD ?= ld
 ifeq ($(UNAME_S),Darwin)
- ifneq (,$(filter arm64 aarch64,$(UNAME_M)))
- LD_RELFLAGS = -arch arm64
- else ifneq (,$(filter x86_64 amd64,$(UNAME_M)))
- LD_RELFLAGS = -arch x86_64
- else
- LD_RELFLAGS =
- endif
+  ifneq (,$(filter arm64 aarch64,$(UNAME_M)))
+    LD_RELFLAGS = -arch arm64
+  else ifneq (,$(filter x86_64 amd64,$(UNAME_M)))
+    LD_RELFLAGS = -arch x86_64
+  else
+    LD_RELFLAGS =
+  endif
 else
- LD_RELFLAGS =
+  LD_RELFLAGS =
 endif
-TARGET = shux
-SRCS = src/main.c src/runtime.c src/async/async_liveness.c src/async/async_cps_codegen.c
+TARGET  = shux
+SRCS    = src/main.c src/runtime.c src/async/async_liveness.c src/async/async_cps_codegen.c
 # OBJS_CORE：G-06 默认 shux-c=bootstrap_shuxc；仅 SHUX_LEGACY_C_FRONTEND=1 时链下列 runtime 桩（无 C 前端 .c）。
 OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 # 考古冷启动：完整 C 前端 shux-c（仅用于生成/刷新 seeds/ 预编译种子）
 OBJS_CORE = src/main.o src/runtime.o src/diag.o src/driver/fmt_check_cmd.o src/lexer/lexer.o src/lexer/cfg_eval_bootstrap_stub.o src/ast/ast.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_c_import.o
 endif
-OBJS = $(OBJS_CORE)
+OBJS      = $(OBJS_CORE)
 # 注：lsp.x 生成的 lsp_gen 与 lsp_diag 中 lsp_build_* 同名；若把 InitializeResult/response 外壳迁入 .x，
 # 默认 shux 须链 lsp_x.o、lsp_io_x.o；F-03 v2/v3 std.io 由 .x codegen 提供，无 io.o。
 
@@ -144,25 +144,25 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	@objs=""; \
 	shux="$${SHUX:-}"; \
 	if [ -z "$$shux" ] || [ ! -x "$$shux" ]; then \
-	 if [ -x ./shux-c ]; then shux=./shux-c; \
-	 elif [ -x ./shux_asm ]; then shux=./shux_asm; \
-	 elif [ -x ./shux ]; then shux=./shux; \
-	 else shux=; fi; \
+	  if [ -x ./shux-c ]; then shux=./shux-c; \
+	  elif [ -x ./shux_asm ]; then shux=./shux_asm; \
+	  elif [ -x ./shux ]; then shux=./shux; \
+	  else shux=; fi; \
 	fi; \
 	if [ -n "$$shux" ]; then \
-	 for x in alpn udp tcp udp_batch workers; do \
-	 sh scripts/shux_compile_std_x.sh $$shux ../std/net/$$x.x ../std/net/$$x.o || exit 1; \
-	 objs="$$objs ../std/net/$$x.o"; \
-	 done; \
-	 $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_dns_fast.o src/asm/runtime_net_dns_fast.c && \
-	 $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_io_batch_fast.o src/asm/runtime_net_io_batch_fast.c && \
-	 $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_addr_fast.o src/asm/runtime_net_addr_fast.c && \
-	 $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_ipv6_fast.o src/asm/runtime_net_ipv6_fast.c && \
-	 $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_sock_fast.o src/asm/runtime_net_sock_fast.c && \
-	 ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $$objs ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o && \
-	 rm -f ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o; \
+	  for x in alpn udp tcp udp_batch workers; do \
+	    sh scripts/shux_compile_std_x.sh $$shux ../std/net/$$x.x ../std/net/$$x.o || exit 1; \
+	    objs="$$objs ../std/net/$$x.o"; \
+	  done; \
+	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_dns_fast.o src/asm/runtime_net_dns_fast.c && \
+	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_io_batch_fast.o src/asm/runtime_net_io_batch_fast.c && \
+	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_addr_fast.o src/asm/runtime_net_addr_fast.c && \
+	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_ipv6_fast.o src/asm/runtime_net_ipv6_fast.c && \
+	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_sock_fast.o src/asm/runtime_net_sock_fast.c && \
+	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $$objs ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o && \
+	  rm -f ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o; \
 	else \
-	 echo "net.o: need shux-c to merge net_*.x"; exit 0; \
+	  echo "net.o: need shux-c to merge net_*.x"; exit 0; \
 	fi
 
 net-o-stub:
@@ -171,36 +171,36 @@ net-o-stub:
 # TLS：F-04 v8 net-o-openssl 编译 std/net/tls_openssl.x（不再 #include tls_openssl.inc.c）。
 net-o-openssl:
 	@if [ -x ./shux_asm ]; then \
-	 ./shux_asm -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
-	 $(MAKE) net-o-stub; \
+	  ./shux_asm -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
+	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux ]; then \
-	 ./shux -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
-	 $(MAKE) net-o-stub; \
+	  ./shux -backend asm -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
+	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux-c ]; then \
-	 ./shux-c -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
-	 $(MAKE) net-o-stub; \
+	  ./shux-c -L .. ../std/net/tls_openssl.x -o ../std/net/tls_openssl.o && \
+	  $(MAKE) net-o-stub; \
 	else \
-	 echo "net-o-openssl: need shux_asm, shux, or shux-c"; exit 1; \
+	  echo "net-o-openssl: need shux_asm, shux, or shux-c"; exit 1; \
 	fi
 
 net-o-mbedtls:
 	@if [ -x ./shux_asm ]; then \
-	 ./shux_asm -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
-	 $(MAKE) runtime_tls_mbedtls_bio.o && \
-	 ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
-	 $(MAKE) net-o-stub; \
+	  ./shux_asm -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
+	  $(MAKE) runtime_tls_mbedtls_bio.o && \
+	  ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
+	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux ]; then \
-	 ./shux -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
-	 $(MAKE) runtime_tls_mbedtls_bio.o && \
-	 ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
-	 $(MAKE) net-o-stub; \
+	  ./shux -backend asm -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
+	  $(MAKE) runtime_tls_mbedtls_bio.o && \
+	  ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
+	  $(MAKE) net-o-stub; \
 	elif [ -x ./shux-c ]; then \
-	 ./shux-c -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
-	 $(MAKE) runtime_tls_mbedtls_bio.o && \
-	 ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
-	 $(MAKE) net-o-stub; \
+	  ./shux-c -L .. ../std/net/tls_mbedtls.x -o ../std/net/tls_mbedtls_main.o && \
+	  $(MAKE) runtime_tls_mbedtls_bio.o && \
+	  ld -r -o ../std/net/tls_mbedtls.o ../std/net/tls_mbedtls_main.o runtime_tls_mbedtls_bio.o && \
+	  $(MAKE) net-o-stub; \
 	else \
-	 echo "net-o-mbedtls: need shux_asm, shux, or shux-c"; exit 1; \
+	  echo "net-o-mbedtls: need shux_asm, shux, or shux-c"; exit 1; \
 	fi
 
 # std.thread：F-thread v2 纯 .x（F-ZC）；pthread 胶层在 runtime_thread_glue.o；Unix 需 -lpthread。
@@ -311,14 +311,14 @@ net-o-mbedtls:
 # LANG-007 v2：shux-c -E → cc -c 库模块；fallback shux_compile_std_x.sh。
 ../std/math/math.o: ../std/math/math.x
 	@if [ -x ./shux-c ]; then \
-	 ./shux-c -E -L .. ../std/math/math.x > ../std/math/math_core_gen.c && \
-	 $(CC) $(CFLAGS) -c -o ../std/math/math.o ../std/math/math_core_gen.c && \
-	 rm -f ../std/math/math_core_gen.c; \
+	  ./shux-c -E -L .. ../std/math/math.x > ../std/math/math_core_gen.c && \
+	  $(CC) $(CFLAGS) -c -o ../std/math/math.o ../std/math/math_core_gen.c && \
+	  rm -f ../std/math/math_core_gen.c; \
 	elif [ -x ./shux_asm ]; then shux=./shux_asm; \
 	elif [ -x ./shux ]; then shux=./shux; \
 	else echo "make math.o: need shux-c or shux (F-math zero-c)" >&2; exit 0; fi; \
 	if [ ! -f ../std/math/math.o ]; then \
-	 sh scripts/shux_compile_std_x.sh auto ../std/math/math.x ../std/math/math.o; \
+	  sh scripts/shux_compile_std_x.sh auto ../std/math/math.x ../std/math/math.o; \
 	fi
 
 # std.sort：F-sort v1 纯 .x（sort.x）；无胶层 C。
@@ -481,11 +481,11 @@ sqlite-o-stub:
 	elif [ -x ./shux-c ]; then shux=./shux-c; \
 	else shux=; fi; \
 	if [ -n "$$shux" ]; then \
-	 sh scripts/shux_compile_std_x.sh auto ../std/db/sqlite/sqlite.x ../std/db/sqlite/sqlite_main.o || exit 1; \
-	 ld -r -o ../std/db/sqlite/sqlite.o ../std/db/sqlite/sqlite_main.o runtime_sqlite_glue_stub.o; \
+	  sh scripts/shux_compile_std_x.sh auto ../std/db/sqlite/sqlite.x ../std/db/sqlite/sqlite_main.o || exit 1; \
+	  ld -r -o ../std/db/sqlite/sqlite.o ../std/db/sqlite/sqlite_main.o runtime_sqlite_glue_stub.o; \
 	else \
-	 ld -r -o ../std/db/sqlite/sqlite.o runtime_sqlite_glue_stub.o; \
-	 echo "sqlite.o-stub: need shux-c to merge sqlite.x"; \
+	  ld -r -o ../std/db/sqlite/sqlite.o runtime_sqlite_glue_stub.o; \
+	  echo "sqlite.o-stub: need shux-c to merge sqlite.x"; \
 	fi
 
 # std.elf：F-elf v2 + F-ZC 纯 elf.x → elf.o（无 glue；无 shux 时 exit 0）。
@@ -536,7 +536,7 @@ compress-o-zlib compress-o-zlib-zstd compress-o-brotli compress-o-zlib-zstd-brot
 	elif [ -x ./shux ]; then shux=./shux; \
 	elif [ -x ./shux-c ]; then shux=./shux-c; \
 	else \
-	 echo "socketio.o: need shux-c to compile socketio.x"; exit 0; \
+	  echo "socketio.o: need shux-c to compile socketio.x"; exit 0; \
 	fi; \
 	sh scripts/shux_compile_std_x.sh auto ../std/socketio/socketio.x ../std/socketio/socketio_main.o || exit 1; \
 	objs="$$objs ../std/socketio/socketio_main.o"; \
@@ -695,26 +695,26 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x src/lexer/cfg_eval_link_alias.c
 	$(MAKE) $(SHUX_C); \
 	rm -f src/lexer/cfg_eval_x.o; \
 	if command -v timeout >/dev/null 2>&1; then \
-	 timeout "${SHUX_CFG_EVAL_ASM_TIMEOUT:-120}" ./$(SHUX_C) -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
-	 || rm -f src/lexer/cfg_eval_x.o; \
+	  timeout "${SHUX_CFG_EVAL_ASM_TIMEOUT:-120}" ./$(SHUX_C) -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
+	    || rm -f src/lexer/cfg_eval_x.o; \
 	else \
-	 ./$(SHUX_C) -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
-	 || rm -f src/lexer/cfg_eval_x.o; \
+	  ./$(SHUX_C) -o src/lexer/cfg_eval_x.o -L .. src/lexer/cfg_eval.x 2>/dev/null \
+	    || rm -f src/lexer/cfg_eval_x.o; \
 	fi; \
 	if [ -s src/lexer/cfg_eval_x.o ]; then \
-	 $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_link_alias.o src/lexer/cfg_eval_link_alias.c; \
-	 $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
-	 echo "cfg_eval.o from cfg_eval.x (default pipeline + alias)"; \
+	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_link_alias.o src/lexer/cfg_eval_link_alias.c; \
+	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
+	  echo "cfg_eval.o from cfg_eval.x (default pipeline + alias)"; \
 	elif ./$(SHUX_C) -E -E-extern -L .. src/lexer/cfg_eval.x > src/lexer/cfg_eval_gen.c 2>/dev/null \
-	 && [ -s src/lexer/cfg_eval_gen.c ]; then \
-	 $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c; \
-	 $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_link_alias.o src/lexer/cfg_eval_link_alias.c; \
-	 $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
-	 echo "cfg_eval.o from cfg_eval.x (-E-extern + alias)"; \
+	  && [ -s src/lexer/cfg_eval_gen.c ]; then \
+	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c; \
+	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_link_alias.o src/lexer/cfg_eval_link_alias.c; \
+	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
+	  echo "cfg_eval.o from cfg_eval.x (-E-extern + alias)"; \
 	else \
-	 $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_bootstrap_stub.o src/lexer/cfg_eval_bootstrap_stub.c && \
-	 cp -f src/lexer/cfg_eval_bootstrap_stub.o $@ && \
-	 echo "cfg_eval.o from bootstrap stub (cfg_eval.x unavailable at cold start)"; \
+	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_bootstrap_stub.o src/lexer/cfg_eval_bootstrap_stub.c && \
+	  cp -f src/lexer/cfg_eval_bootstrap_stub.o $@ && \
+	  echo "cfg_eval.o from bootstrap stub (cfg_eval.x unavailable at cold start)"; \
 	fi
 
 # G-02a：preprocess 已迁 preprocess.x；不再编译 preprocess.c。
@@ -733,17 +733,17 @@ PIPELINE_X_FRONTEND_OBJS = typeck_x.o codegen_x.o x_frontend_link_alias.o
 # parser_x / seed partial / C typeck·codegen·bridge + 卫星 .o（对齐 DRIVER_SEED_OBJS 除 main_x/runtime_x 外的链接依赖）。
 # fmt_check_cmd.o（非 _driver）：runtime_x 无 SHUX_USE_X_DRIVER，fmt/check 走 run_compiler_c 桩，避免缺 driver_run_compiler_full。
 PIPELINE_X_SATELLITE_OBJS = lexer_x.o preprocess_x.o \
- src/driver/fmt_check_cmd.o src/driver/target_cpu.o \
- src/asm/simd_enc.o src/asm/simd_loop.o \
- src/async/async_liveness.o src/async/async_cps_codegen.o \
- $(AST_POOL_L5_BRIDGE_O) src/lsp/lsp_codegen_extern.o
+  src/driver/fmt_check_cmd.o src/driver/target_cpu.o \
+  src/asm/simd_enc.o src/asm/simd_loop.o \
+  src/async/async_liveness.o src/async/async_cps_codegen.o \
+  $(AST_POOL_L5_BRIDGE_O) src/lsp/lsp_codegen_extern.o
 PIPELINE_X_LINK_OBJS = parser_x.o typeck_x.o codegen_x.o src/x_seed_bridge.o pipeline_bootstrap_orchestration.o $(PIPELINE_X_SATELLITE_OBJS) $(USER_ASM_LINK)
 PIPELINE_X_SUPPORT_OBJS = build-seed-asm-host $(PIPELINE_X_LINK_OBJS)
 
 # shux-x-pipeline：F-03 v2/v3 std.io 纯 .x；Linux 链 -lpthread（net/thread）；无 -luring。
 PIPELINE_LIBS :=
 ifeq ($(UNAME_S),Linux)
- PIPELINE_LIBS := -lpthread
+  PIPELINE_LIBS := -lpthread
 endif
 
 # asm 后端 -o <exe> 时链接用：提供 shux_panic_；Linux x86_64 有 .s 时用纯 syscall .s，否则 .c
@@ -955,7 +955,7 @@ clean:
 	rm -f .lldb_* *.bak pipeline_gen.c.bak lsp_gen.c.bak
 	rm -f 0 2>/dev/null || true
 	@for f in _*; do \
-	 case "$$f" in _stubs.c|_x_stubs.c|_x_stubs2.c|_stubs_driver.c) ;; *) rm -rf "$$f" ;; esac; \
+	  case "$$f" in _stubs.c|_x_stubs.c|_x_stubs2.c|_stubs_driver.c) ;; *) rm -rf "$$f" ;; esac; \
 	done 2>/dev/null || true
 	find . -name '*.o' -delete 2>/dev/null || true
 	find . -name '*.o.tmp' -delete 2>/dev/null || true
@@ -1011,75 +1011,75 @@ bootstrap-parse-file: $(TARGET) $(STD_AND_PANIC_O) bootstrap-parser
 # 须 shux-x -x -E 全量 TU；shux-c 瘦 gen 缺 copy_module_import_path64 / parse_expr_into 等。
 parser_gen.c: ast_gen2.c src/parser/parser.x
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
-	 tmp="$@.tmp"; \
-	 if [ -f $(SHUX_X) ]; then \
-	 echo "parser_gen.c: ./$(SHUX_X) -x -E -E-extern ... [forced regen]" >&2; \
-	 if ./$(SHUX_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
-	 && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
-	 mv -f "$$tmp" $@; \
-	 else \
-	 rm -f "$$tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" && mv -f "$$tmp" $@; \
-	 fi; \
-	 else \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" && mv -f "$$tmp" $@; \
-	 fi; \
+	  tmp="$@.tmp"; \
+	  if [ -f $(SHUX_X) ]; then \
+	    echo "parser_gen.c: ./$(SHUX_X) -x -E -E-extern ... [forced regen]" >&2; \
+	    if ./$(SHUX_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
+	       && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
+	      mv -f "$$tmp" $@; \
+	    else \
+	      rm -f "$$tmp"; \
+	      $(MAKE) $(SHUX_C) && \
+	      ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" && mv -f "$$tmp" $@; \
+	    fi; \
+	  else \
+	    $(MAKE) $(SHUX_C) && \
+	    ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" && mv -f "$$tmp" $@; \
+	  fi; \
 	elif [ -s parser_gen.c ]; then \
-	 echo "parser_gen.c: pinned ($$(wc -c < parser_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
+	  echo "parser_gen.c: pinned ($$(wc -c < parser_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
 	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/parser_gen.linux.x86_64.c ] && [ ! -s parser_gen.c ]; then \
-	 cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c; \
-	 echo "parser_gen.c: restored from seeds/parser_gen.linux.x86_64.c"; \
+	  cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c; \
+	  echo "parser_gen.c: restored from seeds/parser_gen.linux.x86_64.c"; \
 	else \
-	 tmp="$@.tmp"; \
-	 if [ -f $(SHUX_X) ]; then \
-	 echo "parser_gen.c: ./$(SHUX_X) -x -E -E-extern ..." >&2; \
-	 if ./$(SHUX_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
-	 && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
-	 mv -f "$$tmp" $@; \
-	 else \
-	 echo "parser_gen.c: shux-x failed or thin output; fallback shux-c" >&2; \
-	 rm -f "$$tmp" 2>/dev/null || true; \
-	 if $(MAKE) $(SHUX_C) >/dev/null \
-	 && ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
-	 && [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
-	 mv -f "$$tmp" $@; \
-	 elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then \
-	 cp -f seeds/parser_gen.linux.x86_64.c $@; \
-	 echo "parser_gen.c: fallback seeds/parser_gen.linux.x86_64.c (shux-c -E failed)" >&2; \
-	 else \
-	 rm -f "$$tmp" 2>/dev/null || true; \
-	 echo "parser_gen.c: FAIL (no shux-x/shux-c -E and no seed)" >&2; exit 1; \
-	 fi; \
-	 fi; \
-	 else \
-	 if $(MAKE) $(SHUX_C) >/dev/null \
-	 && ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
-	 && [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
-	 mv -f "$$tmp" $@; \
-	 elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then \
-	 cp -f seeds/parser_gen.linux.x86_64.c $@; \
-	 echo "parser_gen.c: fallback seeds/parser_gen.linux.x86_64.c" >&2; \
-	 else \
-	 rm -f "$$tmp" 2>/dev/null || true; \
-	 echo "parser_gen.c: FAIL (shux-c -E failed and no seed)" >&2; exit 1; \
-	 fi; \
-	 fi; \
+	  tmp="$@.tmp"; \
+	  if [ -f $(SHUX_X) ]; then \
+	    echo "parser_gen.c: ./$(SHUX_X) -x -E -E-extern ..." >&2; \
+	    if ./$(SHUX_X) -x -E -L .. -L src/lexer -L src/ast -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
+	       && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
+	      mv -f "$$tmp" $@; \
+	    else \
+	      echo "parser_gen.c: shux-x failed or thin output; fallback shux-c" >&2; \
+	      rm -f "$$tmp" 2>/dev/null || true; \
+	      if $(MAKE) $(SHUX_C) >/dev/null \
+	         && ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
+	         && [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
+	        mv -f "$$tmp" $@; \
+	      elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then \
+	        cp -f seeds/parser_gen.linux.x86_64.c $@; \
+	        echo "parser_gen.c: fallback seeds/parser_gen.linux.x86_64.c (shux-c -E failed)" >&2; \
+	      else \
+	        rm -f "$$tmp" 2>/dev/null || true; \
+	        echo "parser_gen.c: FAIL (no shux-x/shux-c -E and no seed)" >&2; exit 1; \
+	      fi; \
+	    fi; \
+	  else \
+	    if $(MAKE) $(SHUX_C) >/dev/null \
+	       && ./$(SHUX_C) -L .. -L src/lexer -L src/ast -E -E-extern src/parser/parser.x > "$$tmp" 2>/dev/null \
+	       && [ -s "$$tmp" ] && grep -q 'parser_copy_module_import_path64' "$$tmp"; then \
+	      mv -f "$$tmp" $@; \
+	    elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then \
+	      cp -f seeds/parser_gen.linux.x86_64.c $@; \
+	      echo "parser_gen.c: fallback seeds/parser_gen.linux.x86_64.c" >&2; \
+	    else \
+	      rm -f "$$tmp" 2>/dev/null || true; \
+	      echo "parser_gen.c: FAIL (shux-c -E failed and no seed)" >&2; exit 1; \
+	    fi; \
+	  fi; \
 	fi
 	perl -i -ne 'print unless /^struct shux_slice_uint8_t/ && $$seen++' $@ 2>/dev/null || true
 	@if ! grep -q 'C-04 -E-extern TU aliases' $@ 2>/dev/null; then \
-	 echo "parser_gen.c: FAIL missing C-04 -E-extern TU aliases (need shux-c -E-extern codegen; no perl fallback)" >&2; \
-	 exit 1; \
+	  echo "parser_gen.c: FAIL missing C-04 -E-extern TU aliases (need shux-c -E-extern codegen; no perl fallback)" >&2; \
+	  exit 1; \
 	fi
 	@if ! grep -q 'C-04 parser: ast_expr_init_match_enum after struct ast_Expr' $@ 2>/dev/null; then \
-	 echo "parser_gen.c: FAIL missing C-04 parser pool marker (need shux-c -E-extern codegen; no perl fallback)" >&2; \
-	 exit 1; \
+	  echo "parser_gen.c: FAIL missing C-04 parser pool marker (need shux-c -E-extern codegen; no perl fallback)" >&2; \
+	  exit 1; \
 	fi
 	@if ! grep -q 'parser_copy_module_import_path64' $@; then \
-	 echo "parser_gen.c: inject extern parser_copy_module_import_path64 (parser_asm_parse_expr_link/thin_c)" >&2; \
-	 printf '%s\n' '/* pipeline extern parser_copy_module_import_path64 (thin parser_gen TU) */' \
-	 'extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);' >> $@; \
+	  echo "parser_gen.c: inject extern parser_copy_module_import_path64 (parser_asm_parse_expr_link/thin_c)" >&2; \
+	  printf '%s\n' '/* pipeline extern parser_copy_module_import_path64 (thin parser_gen TU) */' \
+	    'extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);' >> $@; \
 	fi
 	@echo "parser_gen.c: normalize ast_pipeline onefunc const extern aliases" >&2; \
 	perl -0pi -e 's@^extern int32_t ast_pipeline_onefunc_append_const\(.*\);\n@@mg; s@^extern int32_t ast_pipeline_onefunc_const_init_ref\(.*\);\n@@mg; s@^extern int32_t ast_pipeline_onefunc_const_type_ref\(.*\);\n@@mg; s@/\* C-04 -E-extern TU aliases \*/\n@extern int32_t ast_pipeline_onefunc_append_const(uint8_t * restrict out, uint8_t * restrict name, int32_t name_len, int32_t init_val, int32_t init_ref, int32_t type_ref);\nextern int32_t ast_pipeline_onefunc_const_init_ref(uint8_t * restrict out, int32_t i);\nextern int32_t ast_pipeline_onefunc_const_type_ref(uint8_t * restrict out, int32_t i);\n/* C-04 -E-extern TU aliases */\n@s' $@
@@ -1092,61 +1092,61 @@ parser_x.o: parser_gen.c
 # lexer.x：须 shux-x -x -E 走 C parser/codegen 全量 TU；shux-c 无 -x 时仅 ~57 行缺 advance_one/next_body。
 lexer_gen.c: src/lexer/lexer.x
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
-	 tmp="$@.tmp"; \
-	 if [ -f $(SHUX_X) ]; then \
-	 echo "lexer_gen.c: ./$(SHUX_X) -x -E -E-extern ... [forced regen]" >&2; \
-	 if ./$(SHUX_X) -x -E -L src/lexer -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
-	 && grep -q 'lexer_advance_one' "$$tmp"; then \
-	 mv -f "$$tmp" $@; \
-	 else \
-	 rm -f "$$tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" && mv -f "$$tmp" $@; \
-	 fi; \
-	 else \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" && mv -f "$$tmp" $@; \
-	 fi; \
+	  tmp="$@.tmp"; \
+	  if [ -f $(SHUX_X) ]; then \
+	    echo "lexer_gen.c: ./$(SHUX_X) -x -E -E-extern ... [forced regen]" >&2; \
+	    if ./$(SHUX_X) -x -E -L src/lexer -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
+	       && grep -q 'lexer_advance_one' "$$tmp"; then \
+	      mv -f "$$tmp" $@; \
+	    else \
+	      rm -f "$$tmp"; \
+	      $(MAKE) $(SHUX_C) && \
+	      ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" && mv -f "$$tmp" $@; \
+	    fi; \
+	  else \
+	    $(MAKE) $(SHUX_C) && \
+	    ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" && mv -f "$$tmp" $@; \
+	  fi; \
 	elif [ -s lexer_gen.c ]; then \
-	 echo "lexer_gen.c: pinned ($$(wc -c < lexer_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
+	  echo "lexer_gen.c: pinned ($$(wc -c < lexer_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
 	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/lexer_gen.linux.x86_64.c ] && [ ! -s lexer_gen.c ]; then \
-	 cp -f seeds/lexer_gen.linux.x86_64.c lexer_gen.c; \
-	 echo "lexer_gen.c: restored from seeds/lexer_gen.linux.x86_64.c"; \
+	  cp -f seeds/lexer_gen.linux.x86_64.c lexer_gen.c; \
+	  echo "lexer_gen.c: restored from seeds/lexer_gen.linux.x86_64.c"; \
 	else \
-	 tmp="$@.tmp"; \
-	 if [ -f $(SHUX_X) ]; then \
-	 echo "lexer_gen.c: ./$(SHUX_X) -x -E -E-extern ..." >&2; \
-	 if ./$(SHUX_X) -x -E -L src/lexer -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
-	 && grep -q 'lexer_advance_one' "$$tmp"; then \
-	 mv -f "$$tmp" $@; \
-	 else \
-	 echo "lexer_gen.c: shux-x failed or thin output; fallback shux-c" >&2; \
-	 rm -f "$$tmp" 2>/dev/null || true; \
-	 if $(MAKE) $(SHUX_C) >/dev/null \
-	 && ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
-	 && [ -s "$$tmp" ] && grep -q 'lexer_advance_one' "$$tmp"; then \
-	 mv -f "$$tmp" $@; \
-	 elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/lexer_gen.linux.x86_64.c ]; then \
-	 cp -f seeds/lexer_gen.linux.x86_64.c $@; \
-	 echo "lexer_gen.c: fallback seeds/lexer_gen.linux.x86_64.c (shux-c -E failed)" >&2; \
-	 else \
-	 rm -f "$$tmp" 2>/dev/null || true; \
-	 echo "lexer_gen.c: FAIL (no shux-x/shux-c -E and no seed)" >&2; exit 1; \
-	 fi; \
-	 fi; \
-	 else \
-	 if $(MAKE) $(SHUX_C) >/dev/null \
-	 && ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
-	 && [ -s "$$tmp" ] && grep -q 'lexer_advance_one' "$$tmp"; then \
-	 mv -f "$$tmp" $@; \
-	 elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/lexer_gen.linux.x86_64.c ]; then \
-	 cp -f seeds/lexer_gen.linux.x86_64.c $@; \
-	 echo "lexer_gen.c: fallback seeds/lexer_gen.linux.x86_64.c" >&2; \
-	 else \
-	 rm -f "$$tmp" 2>/dev/null || true; \
-	 echo "lexer_gen.c: FAIL (shux-c -E failed and no seed)" >&2; exit 1; \
-	 fi; \
-	 fi; \
+	  tmp="$@.tmp"; \
+	  if [ -f $(SHUX_X) ]; then \
+	    echo "lexer_gen.c: ./$(SHUX_X) -x -E -E-extern ..." >&2; \
+	    if ./$(SHUX_X) -x -E -L src/lexer -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
+	       && grep -q 'lexer_advance_one' "$$tmp"; then \
+	      mv -f "$$tmp" $@; \
+	    else \
+	      echo "lexer_gen.c: shux-x failed or thin output; fallback shux-c" >&2; \
+	      rm -f "$$tmp" 2>/dev/null || true; \
+	      if $(MAKE) $(SHUX_C) >/dev/null \
+	         && ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
+	         && [ -s "$$tmp" ] && grep -q 'lexer_advance_one' "$$tmp"; then \
+	        mv -f "$$tmp" $@; \
+	      elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/lexer_gen.linux.x86_64.c ]; then \
+	        cp -f seeds/lexer_gen.linux.x86_64.c $@; \
+	        echo "lexer_gen.c: fallback seeds/lexer_gen.linux.x86_64.c (shux-c -E failed)" >&2; \
+	      else \
+	        rm -f "$$tmp" 2>/dev/null || true; \
+	        echo "lexer_gen.c: FAIL (no shux-x/shux-c -E and no seed)" >&2; exit 1; \
+	      fi; \
+	    fi; \
+	  else \
+	    if $(MAKE) $(SHUX_C) >/dev/null \
+	       && ./$(SHUX_C) -L src/lexer -E -E-extern src/lexer/lexer.x > "$$tmp" 2>/dev/null \
+	       && [ -s "$$tmp" ] && grep -q 'lexer_advance_one' "$$tmp"; then \
+	      mv -f "$$tmp" $@; \
+	    elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/lexer_gen.linux.x86_64.c ]; then \
+	      cp -f seeds/lexer_gen.linux.x86_64.c $@; \
+	      echo "lexer_gen.c: fallback seeds/lexer_gen.linux.x86_64.c" >&2; \
+	    else \
+	      rm -f "$$tmp" 2>/dev/null || true; \
+	      echo "lexer_gen.c: FAIL (shux-c -E failed and no seed)" >&2; exit 1; \
+	    fi; \
+	  fi; \
 	fi
 	perl scripts/fix_slim_arena_gen_c.pl $@
 	@perl scripts/sync_lexer_gen_token_enum.pl lexer_gen.c
@@ -1205,10 +1205,10 @@ build-seed-asm-host: src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c
 $(USER_ASM_SEED_HOST_STUBS): pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SEED_OBJS) scripts/gen_asm_full_link_stubs.pl
 	@mkdir -p $(USER_ASM_SEED_HOST_DIR)
 	@_scan="pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SEED_OBJS)"; \
-	 [ -f $(USER_ASM_SEED_HOST_DIR)/asm_full.o ] && _scan="$(USER_ASM_SEED_HOST_DIR)/asm_full.o $$_scan"; \
-	 [ -f $(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o ] && _scan="$(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o $$_scan"; \
-	 perl scripts/gen_asm_full_link_stubs.pl $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.c $$_scan && \
-	 $(CC) $(CFLAGS) -c -o $@ $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.c
+	  [ -f $(USER_ASM_SEED_HOST_DIR)/asm_full.o ] && _scan="$(USER_ASM_SEED_HOST_DIR)/asm_full.o $$_scan"; \
+	  [ -f $(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o ] && _scan="$(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o $$_scan"; \
+	  perl scripts/gen_asm_full_link_stubs.pl $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.c $$_scan && \
+	  $(CC) $(CFLAGS) -c -o $@ $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.c
 
 $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 
@@ -1270,48 +1270,48 @@ src/asm/parser_asm_parse_expr_link.o: src/asm/parser_asm_parse_expr_link.c
 build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o: src/asm/backend_x86_64_enc_c.o build_asm/seed_host/asm_backend_partial.o
 	@mkdir -p build_asm
 	@src_syms=build_asm/bootstrap_seed_backend_x86_64_enc_c.syms; \
-	 part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
-	 keep_syms=build_asm/bootstrap_seed_backend_x86_64_enc_c.keep; \
-	 nm src/asm/backend_x86_64_enc_c.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
-	 nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
-	 comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	 ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/backend_x86_64_enc_c.o
+	  part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
+	  keep_syms=build_asm/bootstrap_seed_backend_x86_64_enc_c.keep; \
+	  nm src/asm/backend_x86_64_enc_c.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
+	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
+	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
+	  ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/backend_x86_64_enc_c.o
 
 build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o: src/asm/user_asm_seed_bridge.o build_asm/seed_host/asm_backend_partial.o
 	@mkdir -p build_asm
 	@src_syms=build_asm/bootstrap_seed_user_asm_seed_bridge.syms; \
-	 part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
-	 keep_syms=build_asm/bootstrap_seed_user_asm_seed_bridge.keep; \
-	 nm src/asm/user_asm_seed_bridge.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
-	 nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
-	 comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	 ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/user_asm_seed_bridge.o
+	  part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
+	  keep_syms=build_asm/bootstrap_seed_user_asm_seed_bridge.keep; \
+	  nm src/asm/user_asm_seed_bridge.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
+	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
+	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
+	  ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/user_asm_seed_bridge.o
 
 build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: src/asm/asm_backend_compat_stubs.o build_asm/seed_host/asm_backend_partial.o
 	@mkdir -p build_asm
 	@src_syms=build_asm/bootstrap_seed_asm_backend_compat_stubs.syms; \
-	 part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
-	 keep_syms=build_asm/bootstrap_seed_asm_backend_compat_stubs.keep; \
-	 nm src/asm/asm_backend_compat_stubs.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
-	 nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
-	 comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	 ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/asm_backend_compat_stubs.o
+	  part_syms=build_asm/bootstrap_seed_backend_partial.syms; \
+	  keep_syms=build_asm/bootstrap_seed_asm_backend_compat_stubs.keep; \
+	  nm src/asm/asm_backend_compat_stubs.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
+	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
+	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
+	  ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/asm_backend_compat_stubs.o
 
 build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_x.o build_asm/seed_host/asm_backend_partial.o build_asm/pipeline_glue_strict_minimal.o
 	@mkdir -p build_asm
 	@all_syms=build_asm/bootstrap_seed_pipeline.syms; \
-	 keep_syms=build_asm/bootstrap_seed_pipeline.keep; \
-	 omit_syms=build_asm/bootstrap_seed_pipeline.omit; \
-	 : > "$$omit_syms"; \
-	 nm pipeline_x.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$all_syms"; \
-	 for dep_o in typeck_x.o codegen_x.o build_asm/seed_host/asm_backend_partial.o build_asm/pipeline_glue_strict_minimal.o; do \
-	 if [ -f "$$dep_o" ]; then \
-	 nm "$$dep_o" 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' >> "$$omit_syms"; \
-	 fi; \
-	 done; \
-	 sort -u "$$omit_syms" -o "$$omit_syms"; \
-	 comm -23 "$$all_syms" "$$omit_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	 ld -r -exported_symbols_list "$$keep_syms" -o $@ pipeline_x.o
+	  keep_syms=build_asm/bootstrap_seed_pipeline.keep; \
+	  omit_syms=build_asm/bootstrap_seed_pipeline.omit; \
+	  : > "$$omit_syms"; \
+	  nm pipeline_x.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$all_syms"; \
+	  for dep_o in typeck_x.o codegen_x.o build_asm/seed_host/asm_backend_partial.o build_asm/pipeline_glue_strict_minimal.o; do \
+	    if [ -f "$$dep_o" ]; then \
+	      nm "$$dep_o" 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' >> "$$omit_syms"; \
+	    fi; \
+	  done; \
+	  sort -u "$$omit_syms" -o "$$omit_syms"; \
+	  comm -23 "$$all_syms" "$$omit_syms" | sed 's/^/_/' > "$$keep_syms"; \
+	  ld -r -exported_symbols_list "$$keep_syms" -o $@ pipeline_x.o
 
 src/asm/asm_experimental_symbol_bridge.o: src/asm/asm_experimental_symbol_bridge.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
@@ -1323,17 +1323,17 @@ migrate-x-objs: parser_x.o typeck_x.o codegen_x.o
 # ast_gen2.c：fix_slim_arena_gen_c.pl 注入 ast_ast_* 原型（typeck/codegen 单文件编译依赖）
 ast_gen2.c: src/ast/ast.x
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L src/ast -E -E-extern src/ast/ast.x > "$$tmp" && mv -f "$$tmp" $@; \
-	 perl scripts/fix_slim_arena_gen_c.pl $@; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) -L src/ast -E -E-extern src/ast/ast.x > "$$tmp" && mv -f "$$tmp" $@; \
+	  perl scripts/fix_slim_arena_gen_c.pl $@; \
 	elif [ -s ast_gen2.c ]; then \
-	 echo "ast_gen2.c: pinned ($$(wc -c < ast_gen2.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
+	  echo "ast_gen2.c: pinned ($$(wc -c < ast_gen2.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L src/ast -E -E-extern src/ast/ast.x > "$$tmp" && mv -f "$$tmp" $@; \
-	 perl scripts/fix_slim_arena_gen_c.pl $@; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) -L src/ast -E -E-extern src/ast/ast.x > "$$tmp" && mv -f "$$tmp" $@; \
+	  perl scripts/fix_slim_arena_gen_c.pl $@; \
 	fi
 
 ast_gen2.o: ast_gen2.c
@@ -1341,19 +1341,19 @@ ast_gen2.o: ast_gen2.c
 
 typeck_gen.c: ast_gen2.c src/typeck/typeck.x
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
-	 tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.x -E-extern > "$$tmp" && mv "$$tmp" $@; \
+	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.x -E-extern > "$$tmp" && mv "$$tmp" $@; \
 	elif [ -s typeck_gen.c ]; then \
-	 echo "typeck_gen.c: pinned ($$(wc -c < typeck_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
+	  echo "typeck_gen.c: pinned ($$(wc -c < typeck_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
 	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/typeck_gen.linux.x86_64.c ] && [ ! -s typeck_gen.c ]; then \
-	 cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c; \
-	 echo "typeck_gen.c: restored from seeds/typeck_gen.linux.x86_64.c"; \
+	  cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c; \
+	  echo "typeck_gen.c: restored from seeds/typeck_gen.linux.x86_64.c"; \
 	else \
-	 tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.x -E-extern > "$$tmp" && mv "$$tmp" $@ || \
-	 { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/typeck_gen.linux.x86_64.c ]; then cp -f seeds/typeck_gen.linux.x86_64.c $@ && echo "typeck_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
+	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser src/typeck/typeck.x -E-extern > "$$tmp" && mv "$$tmp" $@ || \
+	    { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/typeck_gen.linux.x86_64.c ]; then cp -f seeds/typeck_gen.linux.x86_64.c $@ && echo "typeck_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	fi
 	perl scripts/fix_slim_arena_gen_c.pl $@
 
@@ -1364,19 +1364,19 @@ typeck_x.o: typeck_gen.c
 
 codegen_gen.c: ast_gen2.c src/codegen/codegen.x
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
-	 tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.x -E-extern > "$$tmp" && mv "$$tmp" $@; \
+	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.x -E-extern > "$$tmp" && mv "$$tmp" $@; \
 	elif [ -s codegen_gen.c ]; then \
-	 echo "codegen_gen.c: pinned ($$(wc -c < codegen_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
+	  echo "codegen_gen.c: pinned ($$(wc -c < codegen_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
 	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/codegen_gen.linux.x86_64.c ] && [ ! -s codegen_gen.c ]; then \
-	 cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c; \
-	 echo "codegen_gen.c: restored from seeds/codegen_gen.linux.x86_64.c"; \
+	  cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c; \
+	  echo "codegen_gen.c: restored from seeds/codegen_gen.linux.x86_64.c"; \
 	else \
-	 tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.x -E-extern > "$$tmp" && mv "$$tmp" $@ || \
-	 { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/codegen_gen.linux.x86_64.c ]; then cp -f seeds/codegen_gen.linux.x86_64.c $@ && echo "codegen_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
+	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck src/codegen/codegen.x -E-extern > "$$tmp" && mv "$$tmp" $@ || \
+	    { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/codegen_gen.linux.x86_64.c ]; then cp -f seeds/codegen_gen.linux.x86_64.c $@ && echo "codegen_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
 	fi
 	perl scripts/fix_slim_arena_gen_c.pl $@
 
@@ -1420,7 +1420,7 @@ src/asm/simd_loop.o: src/asm/simd_loop.c include/simd_loop.h include/simd_enc.h 
 # C 前端 .c（ast/lexer/parser/typeck/codegen）仍保留，因 build_shux_asm.sh + relink 脚本仍引用 ast_seed.o 等。
 # bootstrap-driver-seed：pipeline_x.o 为 -E-extern 编排；parser/lexer/typeck/codegen *_x.o 分 TU。
 # C-06 v1 默认：不链 C parser/typeck/codegen.o（SHUX_LEGACY_C_FRONTEND=1 恢复双轨）。
-# seed 链：lexer_x.o + （X 词法）；默认不链 C lexer.o（E-03 v2）。
+# seed 链：lexer_x.o + x_frontend_link_alias.o（X 词法）；默认不链 C lexer.o（E-03 v2）。
 # G-02a: preprocess.c 已物理删除；SHUX_LEGACY_PREPROCESS_C 路径已死（preprocess_for_driver.o 无法编译）。
 # runtime preprocess() 走 preprocess.x（preprocess_x.o）；PREPROCESS_LINK_O 恒空。
 PREPROCESS_LINK_O =
@@ -1551,7 +1551,7 @@ src/lsp/lsp_diag_pipeline_sizes.o: src/lsp/lsp_diag_pipeline_sizes.c
 src/lsp/lsp_diag_pipeline_sizes_nostub.o: src/lsp/lsp_diag_pipeline_sizes.c
 	$(CC) $(CFLAGS) -DSHUX_LSP_PIPELINE_CTX_LINKED -I. -Iinclude -Isrc -c -o $@ $<
 
-# G-02e-8：lsp_diag_x_alias 已并入本 TU（typeck_* → 无前缀 / bootstrap 覆盖）。
+# G-02e-8：lsp_diag_x_alias 已并入本 TU。
 src/lsp/lsp_diag_pipeline_ctx.o: src/lsp/lsp_diag_pipeline_ctx.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
@@ -1585,21 +1585,21 @@ src/lexer/lexer.o: src/asm/runtime_lexer_glue.c src/lexer/lexer.h include/token.
 
 lsp_diag_gen.c: src/lsp/lsp_diag.x
 	@if [ -s lsp_diag_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "lsp_diag_gen.c: pinned ($$(wc -c < lsp_diag_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
+	  echo "lsp_diag_gen.c: pinned ($$(wc -c < lsp_diag_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
 	elif [ -f seeds/lsp_diag_gen.linux.x86_64.c ] && [ ! -s lsp_diag_gen.c ]; then \
-	 cp -f seeds/lsp_diag_gen.linux.x86_64.c lsp_diag_gen.c; \
-	 echo "lsp_diag_gen.c: restored from seeds/lsp_diag_gen.linux.x86_64.c"; \
+	  cp -f seeds/lsp_diag_gen.linux.x86_64.c lsp_diag_gen.c; \
+	  echo "lsp_diag_gen.c: restored from seeds/lsp_diag_gen.linux.x86_64.c"; \
 	else \
-	 echo "lsp_diag_gen.c: $(SHUX_C) -E -E-extern (avoid shux-x -x -E: broken TU for lsp_diag.x)" >&2; \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(LSP_X_E_DIRS) -L src/pipeline src/lsp/lsp_diag.x -E -E-extern > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/lsp_diag_gen.linux.x86_64.c ]; then cp -f seeds/lsp_diag_gen.linux.x86_64.c $@ && echo "lsp_diag_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  echo "lsp_diag_gen.c: $(SHUX_C) -E -E-extern (avoid shux-x -x -E: broken TU for lsp_diag.x)" >&2; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(LSP_X_E_DIRS) -L src/pipeline src/lsp/lsp_diag.x -E -E-extern > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ -f seeds/lsp_diag_gen.linux.x86_64.c ]; then cp -f seeds/lsp_diag_gen.linux.x86_64.c $@ && echo "lsp_diag_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 	@if ! grep -q 'C-04 -E-extern TU aliases' $@ 2>/dev/null; then \
-	 if [ -f seeds/lsp_diag_gen.linux.x86_64.c ]; then cp -f seeds/lsp_diag_gen.linux.x86_64.c $@; \
-	 else echo "lsp_diag_gen.c: FAIL missing C-04 -E-extern TU aliases (need shux-c -E-extern codegen; no perl fallback)" >&2; exit 1; fi; \
+	  if [ -f seeds/lsp_diag_gen.linux.x86_64.c ]; then cp -f seeds/lsp_diag_gen.linux.x86_64.c $@; \
+	  else echo "lsp_diag_gen.c: FAIL missing C-04 -E-extern TU aliases (need shux-c -E-extern codegen; no perl fallback)" >&2; exit 1; fi; \
 	fi
 
 lsp_diag_x.o: lsp_diag_gen.c
@@ -1608,30 +1608,30 @@ lsp_diag_x.o: lsp_diag_gen.c
 # lsp_io.x：C-04 v0 要求 shux-c 自动生成 import extern；shux-x 仍走旧块时回退 shux-c。
 lsp_io_gen.c: src/lsp/lsp_io.x
 	@if [ -s lsp_io_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "lsp_io_gen.c: pinned ($$(wc -c < lsp_io_gen.c | tr -d ' ') bytes)"; \
+	  echo "lsp_io_gen.c: pinned ($$(wc -c < lsp_io_gen.c | tr -d ' ') bytes)"; \
 	elif [ -f seeds/lsp_io_gen.linux.x86_64.c ] && [ ! -s lsp_io_gen.c ]; then \
-	 cp -f seeds/lsp_io_gen.linux.x86_64.c lsp_io_gen.c; \
-	 echo "lsp_io_gen.c: restored from seeds/lsp_io_gen.linux.x86_64.c"; \
+	  cp -f seeds/lsp_io_gen.linux.x86_64.c lsp_io_gen.c; \
+	  echo "lsp_io_gen.c: restored from seeds/lsp_io_gen.linux.x86_64.c"; \
 	elif [ -f $(SHUX_X) ]; then \
-	 echo "lsp_io_gen.c: ./$(SHUX_X) -x -E ..." >&2; \
-	 ./$(SHUX_X) -x -E $(LSP_X_E_DIRS) -E-extern src/lsp/lsp_io.x > $@.tmp 2>/dev/null || true; \
-	 if [ -s $@.tmp ] && ! grep -q 'lsp_io -E-extern stubs (io.o' $@.tmp; then \
-	 mv $@.tmp $@; \
-	 else \
-	 rm -f $@.tmp; \
-	 echo "lsp_io_gen.c: fallback to shux-c -E -E-extern (C-04)" >&2; \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io.x -E -E-extern > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/lsp_io_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_gen.linux.x86_64.c $@ && echo "lsp_io_gen.c: fallback seed" >&2; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	 fi; \
+	  echo "lsp_io_gen.c: ./$(SHUX_X) -x -E ..." >&2; \
+	  ./$(SHUX_X) -x -E $(LSP_X_E_DIRS) -E-extern src/lsp/lsp_io.x > $@.tmp 2>/dev/null || true; \
+	  if [ -s $@.tmp ] && ! grep -q 'lsp_io -E-extern stubs (io.o' $@.tmp; then \
+	    mv $@.tmp $@; \
+	  else \
+	    rm -f $@.tmp; \
+	    echo "lsp_io_gen.c: fallback to shux-c -E -E-extern (C-04)" >&2; \
+	    tmp="$@.tmp"; \
+	    $(MAKE) $(SHUX_C) && \
+	    ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io.x -E -E-extern > "$$tmp" || \
+	      { rm -f "$$tmp"; if [ -f seeds/lsp_io_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_gen.linux.x86_64.c $@ && echo "lsp_io_gen.c: fallback seed" >&2; else exit 1; fi; }; \
+	    if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  fi; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io.x -E -E-extern > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/lsp_io_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_gen.linux.x86_64.c $@ && echo "lsp_io_gen.c: fallback seed" >&2; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io.x -E -E-extern > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ -f seeds/lsp_io_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_gen.linux.x86_64.c $@ && echo "lsp_io_gen.c: fallback seed" >&2; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 
 # LSP 模块：main.x 依赖 lsp；std.io 由 .x codegen 提供（F-03 v2/v3，无 io.o）。
@@ -1648,30 +1648,30 @@ src/seed_link_compat.o: src/seed_link_compat.c
 
 lsp_gen.c: src/lsp/lsp.x
 	@if [ -s lsp_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "lsp_gen.c: pinned ($$(wc -c < lsp_gen.c | tr -d ' ') bytes)"; \
+	  echo "lsp_gen.c: pinned ($$(wc -c < lsp_gen.c | tr -d ' ') bytes)"; \
 	elif [ -f seeds/lsp_gen.linux.x86_64.c ] && [ ! -s lsp_gen.c ]; then \
-	 cp -f seeds/lsp_gen.linux.x86_64.c lsp_gen.c; \
-	 echo "lsp_gen.c: restored from seeds/lsp_gen.linux.x86_64.c"; \
+	  cp -f seeds/lsp_gen.linux.x86_64.c lsp_gen.c; \
+	  echo "lsp_gen.c: restored from seeds/lsp_gen.linux.x86_64.c"; \
 	elif [ -f $(SHUX_X) ]; then \
-	 echo "lsp_gen.c: ./$(SHUX_X) -x -E ..." >&2; \
-	 ./$(SHUX_X) -x -E $(LSP_X_E_DIRS) -E-extern src/lsp/lsp.x > $@.tmp 2>/dev/null || true; \
-	 if [ -s $@.tmp ] && grep -q typeck_lsp_main_impl $@.tmp && ! grep -q 'lsp.x -E-extern stubs (lsp_io_x' $@.tmp; then \
-	 mv $@.tmp $@; \
-	 else \
-	 rm -f $@.tmp; \
-	 echo "lsp_gen.c: shux-x failed or old extern block, fallback to shux-c -E -E-extern" >&2; \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp.x -E -E-extern > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/lsp_gen.linux.x86_64.c ]; then cp -f seeds/lsp_gen.linux.x86_64.c $@ && echo "lsp_gen.c: fallback seed" >&2; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	 fi; \
+	  echo "lsp_gen.c: ./$(SHUX_X) -x -E ..." >&2; \
+	  ./$(SHUX_X) -x -E $(LSP_X_E_DIRS) -E-extern src/lsp/lsp.x > $@.tmp 2>/dev/null || true; \
+	  if [ -s $@.tmp ] && grep -q typeck_lsp_main_impl $@.tmp && ! grep -q 'lsp.x -E-extern stubs (lsp_io_x' $@.tmp; then \
+	    mv $@.tmp $@; \
+	  else \
+	    rm -f $@.tmp; \
+	    echo "lsp_gen.c: shux-x failed or old extern block, fallback to shux-c -E -E-extern" >&2; \
+	    tmp="$@.tmp"; \
+	    $(MAKE) $(SHUX_C) && \
+	    ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp.x -E -E-extern > "$$tmp" || \
+	      { rm -f "$$tmp"; if [ -f seeds/lsp_gen.linux.x86_64.c ]; then cp -f seeds/lsp_gen.linux.x86_64.c $@ && echo "lsp_gen.c: fallback seed" >&2; else exit 1; fi; }; \
+	    if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  fi; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp.x -E -E-extern > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/lsp_gen.linux.x86_64.c ]; then cp -f seeds/lsp_gen.linux.x86_64.c $@ && echo "lsp_gen.c: fallback seed" >&2; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp.x -E -E-extern > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ -f seeds/lsp_gen.linux.x86_64.c ]; then cp -f seeds/lsp_gen.linux.x86_64.c $@ && echo "lsp_gen.c: fallback seed" >&2; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 	@sed -i.bak 's/uint8_t state_buf\[16388\] = { 0 }/extern uint8_t g_lsp_state_buf[16388]/' lsp_gen.c 2>/dev/null || true
 	@sed -i.bak 's/(state_buf)/(g_lsp_state_buf)/g' lsp_gen.c 2>/dev/null || true
@@ -1679,30 +1679,30 @@ lsp_gen.c: src/lsp/lsp.x
 # std_heap_* 由 lsp_io_std_heap.x 提供（转调 libc malloc/free/calloc）；shux-x 路径下 extern 由 codegen.x 输出。
 lsp_io_std_heap_gen.c: src/lsp/lsp_io_std_heap.x
 	@if [ -s lsp_io_std_heap_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "lsp_io_std_heap_gen.c: pinned ($$(wc -c < lsp_io_std_heap_gen.c | tr -d ' ') bytes)"; \
+	  echo "lsp_io_std_heap_gen.c: pinned ($$(wc -c < lsp_io_std_heap_gen.c | tr -d ' ') bytes)"; \
 	elif [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ] && [ ! -s lsp_io_std_heap_gen.c ]; then \
-	 cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c lsp_io_std_heap_gen.c; \
-	 echo "lsp_io_std_heap_gen.c: restored from seeds/lsp_io_std_heap_gen.linux.x86_64.c"; \
+	  cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c lsp_io_std_heap_gen.c; \
+	  echo "lsp_io_std_heap_gen.c: restored from seeds/lsp_io_std_heap_gen.linux.x86_64.c"; \
 	elif [ -f $(SHUX_X) ]; then \
-	 echo "lsp_io_std_heap_gen.c: ./$(SHUX_X) -x -E ..." >&2; \
-	 ./$(SHUX_X) -x -E $(LSP_X_E_DIRS) -E-extern src/lsp/lsp_io_std_heap.x > $@.tmp 2>/dev/null || true; \
-	 if [ -s $@.tmp ]; then \
-	 mv $@.tmp $@; \
-	 else \
-	 rm -f $@.tmp; \
-	 echo "lsp_io_std_heap_gen.c: shux-x failed/OOM, fallback to shux-c -E -E-extern" >&2; \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io_std_heap.x -E -E-extern > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c $@ && echo "lsp_io_std_heap_gen.c: fallback seed" >&2; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
-	 fi; \
+	  echo "lsp_io_std_heap_gen.c: ./$(SHUX_X) -x -E ..." >&2; \
+	  ./$(SHUX_X) -x -E $(LSP_X_E_DIRS) -E-extern src/lsp/lsp_io_std_heap.x > $@.tmp 2>/dev/null || true; \
+	  if [ -s $@.tmp ]; then \
+	    mv $@.tmp $@; \
+	  else \
+	    rm -f $@.tmp; \
+	    echo "lsp_io_std_heap_gen.c: shux-x failed/OOM, fallback to shux-c -E -E-extern" >&2; \
+	    tmp="$@.tmp"; \
+	    $(MAKE) $(SHUX_C) && \
+	    ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io_std_heap.x -E -E-extern > "$$tmp" || \
+	      { rm -f "$$tmp"; if [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c $@ && echo "lsp_io_std_heap_gen.c: fallback seed" >&2; else exit 1; fi; }; \
+	    if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  fi; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io_std_heap.x -E -E-extern > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c $@ && echo "lsp_io_std_heap_gen.c: fallback seed" >&2; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(LSP_X_E_DIRS) src/lsp/lsp_io_std_heap.x -E -E-extern > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ -f seeds/lsp_io_std_heap_gen.linux.x86_64.c ]; then cp -f seeds/lsp_io_std_heap_gen.linux.x86_64.c $@ && echo "lsp_io_std_heap_gen.c: fallback seed" >&2; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 	@sed -i.bak '/^extern uint8_t \* malloc/d; /^extern void free(/d; /^extern uint8_t \* calloc/d' $@ 2>/dev/null || true
 	@perl -i.bak -0pe 's/(uint8_t \* typeck_std_heap_alloc\(size_t size\);)/#define std_heap_alloc typeck_std_heap_alloc\n#define std_heap_free typeck_std_heap_free\n#define std_heap_alloc_zeroed typeck_std_heap_alloc_zeroed\n$$1/s' $@ 2>/dev/null || true
@@ -1712,11 +1712,11 @@ lsp_io_std_heap_x.o: lsp_io_std_heap_gen.c
 # bootstrap-driver-seed / relink-shux 共用：lsp_io / lsp 生成 C → .o
 lsp_io_x.o: lsp_io_gen.c src/lsp/lsp_io.x Makefile
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. \
-	 -Dstd_io_read=io_read -Dstd_io_write=io_write \
-	 -Dstd_heap_alloc_usize=typeck_std_heap_alloc -Dstd_heap_free_u8_ptr=typeck_std_heap_free \
-	 -Dtypeck_std_heap_alloc=lsp_io_std_heap_std_heap_alloc \
-	 -Dtypeck_std_heap_free=lsp_io_std_heap_std_heap_free \
-	 -c lsp_io_gen.c -o lsp_io_x.o
+	  -Dstd_io_read=io_read -Dstd_io_write=io_write \
+	  -Dstd_heap_alloc_usize=typeck_std_heap_alloc -Dstd_heap_free_u8_ptr=typeck_std_heap_free \
+	  -Dtypeck_std_heap_alloc=lsp_io_std_heap_std_heap_alloc \
+	  -Dtypeck_std_heap_free=lsp_io_std_heap_std_heap_free \
+	  -c lsp_io_gen.c -o lsp_io_x.o
 
 lsp_x.o: lsp_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c lsp_gen.c -o lsp_x.o
@@ -1728,94 +1728,94 @@ DRIVER_SUBCMD_DIRS = -L .. -L src -L src/lexer -L src/ast
 
 driver_fmt_gen.c: src/driver/fmt.x
 	@if [ -s driver_fmt_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "driver_fmt_gen.c: pinned ($$(wc -c < driver_fmt_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_fmt_gen.c: pinned ($$(wc -c < driver_fmt_gen.c | tr -d ' ') bytes)"; \
 	elif [ -f seeds/driver_fmt_gen.linux.x86_64.c ] && [ ! -s driver_fmt_gen.c ]; then \
-	 cp -f seeds/driver_fmt_gen.linux.x86_64.c driver_fmt_gen.c; \
-	 echo "driver_fmt_gen.c: restored from seed"; \
+	  cp -f seeds/driver_fmt_gen.linux.x86_64.c driver_fmt_gen.c; \
+	  echo "driver_fmt_gen.c: restored from seed"; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/fmt.x > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/driver_fmt_gen.linux.x86_64.c ]; then cp -f seeds/driver_fmt_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/fmt.x > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ -f seeds/driver_fmt_gen.linux.x86_64.c ]; then cp -f seeds/driver_fmt_gen.linux.x86_64.c $@; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 driver_check_gen.c: src/driver/check.x
 	@if [ -s driver_check_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "driver_check_gen.c: pinned ($$(wc -c < driver_check_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_check_gen.c: pinned ($$(wc -c < driver_check_gen.c | tr -d ' ') bytes)"; \
 	elif [ -f seeds/driver_check_gen.linux.x86_64.c ] && [ ! -s driver_check_gen.c ]; then \
-	 cp -f seeds/driver_check_gen.linux.x86_64.c driver_check_gen.c; \
-	 echo "driver_check_gen.c: restored from seed"; \
+	  cp -f seeds/driver_check_gen.linux.x86_64.c driver_check_gen.c; \
+	  echo "driver_check_gen.c: restored from seed"; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/check.x > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/driver_check_gen.linux.x86_64.c ]; then cp -f seeds/driver_check_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/check.x > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ -f seeds/driver_check_gen.linux.x86_64.c ]; then cp -f seeds/driver_check_gen.linux.x86_64.c $@; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 driver_test_gen.c: src/driver/test.x
 	@if [ -s driver_test_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "driver_test_gen.c: pinned ($$(wc -c < driver_test_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_test_gen.c: pinned ($$(wc -c < driver_test_gen.c | tr -d ' ') bytes)"; \
 	elif [ -f seeds/driver_test_gen.linux.x86_64.c ] && [ ! -s driver_test_gen.c ]; then \
-	 cp -f seeds/driver_test_gen.linux.x86_64.c driver_test_gen.c; \
-	 echo "driver_test_gen.c: restored from seed"; \
+	  cp -f seeds/driver_test_gen.linux.x86_64.c driver_test_gen.c; \
+	  echo "driver_test_gen.c: restored from seed"; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/test.x > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/driver_test_gen.linux.x86_64.c ]; then cp -f seeds/driver_test_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/test.x > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ -f seeds/driver_test_gen.linux.x86_64.c ]; then cp -f seeds/driver_test_gen.linux.x86_64.c $@; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 driver_compile_gen.c: src/driver/compile.x
 	@if [ -s driver_compile_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "driver_compile_gen.c: pinned ($$(wc -c < driver_compile_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_compile_gen.c: pinned ($$(wc -c < driver_compile_gen.c | tr -d ' ') bytes)"; \
 	elif [ -f seeds/driver_compile_gen.linux.x86_64.c ] && [ ! -s driver_compile_gen.c ]; then \
-	 cp -f seeds/driver_compile_gen.linux.x86_64.c driver_compile_gen.c; \
-	 echo "driver_compile_gen.c: restored from seed"; \
+	  cp -f seeds/driver_compile_gen.linux.x86_64.c driver_compile_gen.c; \
+	  echo "driver_compile_gen.c: restored from seed"; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/compile.x > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/driver_compile_gen.linux.x86_64.c ]; then cp -f seeds/driver_compile_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/compile.x > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ -f seeds/driver_compile_gen.linux.x86_64.c ]; then cp -f seeds/driver_compile_gen.linux.x86_64.c $@; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 driver_build_gen.c: src/driver/build.x
 	@if [ -s driver_build_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "driver_build_gen.c: pinned ($$(wc -c < driver_build_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_build_gen.c: pinned ($$(wc -c < driver_build_gen.c | tr -d ' ') bytes)"; \
 	elif [ -f seeds/driver_build_gen.linux.x86_64.c ] && [ ! -s driver_build_gen.c ]; then \
-	 cp -f seeds/driver_build_gen.linux.x86_64.c driver_build_gen.c; \
-	 echo "driver_build_gen.c: restored from seed"; \
+	  cp -f seeds/driver_build_gen.linux.x86_64.c driver_build_gen.c; \
+	  echo "driver_build_gen.c: restored from seed"; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/build.x > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/driver_build_gen.linux.x86_64.c ]; then cp -f seeds/driver_build_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/build.x > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ -f seeds/driver_build_gen.linux.x86_64.c ]; then cp -f seeds/driver_build_gen.linux.x86_64.c $@; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 driver_run_gen.c: src/driver/run.x
 	@if [ -s driver_run_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "driver_run_gen.c: pinned ($$(wc -c < driver_run_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_run_gen.c: pinned ($$(wc -c < driver_run_gen.c | tr -d ' ') bytes)"; \
 	elif [ -f seeds/driver_run_gen.linux.x86_64.c ] && [ ! -s driver_run_gen.c ]; then \
-	 cp -f seeds/driver_run_gen.linux.x86_64.c driver_run_gen.c; \
-	 echo "driver_run_gen.c: restored from seed"; \
+	  cp -f seeds/driver_run_gen.linux.x86_64.c driver_run_gen.c; \
+	  echo "driver_run_gen.c: restored from seed"; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/run.x > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/driver_run_gen.linux.x86_64.c ]; then cp -f seeds/driver_run_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -E -E-extern src/driver/run.x > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ -f seeds/driver_run_gen.linux.x86_64.c ]; then cp -f seeds/driver_run_gen.linux.x86_64.c $@; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 driver_emit_gen.c: src/driver/emit.x
 	@if [ -s driver_emit_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "driver_emit_gen.c: pinned ($$(wc -c < driver_emit_gen.c | tr -d ' ') bytes)"; \
+	  echo "driver_emit_gen.c: pinned ($$(wc -c < driver_emit_gen.c | tr -d ' ') bytes)"; \
 	elif [ -f seeds/driver_emit_gen.linux.x86_64.c ] && [ ! -s driver_emit_gen.c ]; then \
-	 cp -f seeds/driver_emit_gen.linux.x86_64.c driver_emit_gen.c; \
-	 echo "driver_emit_gen.c: restored from seed"; \
+	  cp -f seeds/driver_emit_gen.linux.x86_64.c driver_emit_gen.c; \
+	  echo "driver_emit_gen.c: restored from seed"; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -L ../std/fs -L src/preprocess -L src/pipeline -L src/codegen -E -E-extern src/driver/emit.x > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ -f seeds/driver_emit_gen.linux.x86_64.c ]; then cp -f seeds/driver_emit_gen.linux.x86_64.c $@; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(DRIVER_SUBCMD_DIRS) -L ../std/fs -L src/preprocess -L src/pipeline -L src/codegen -E -E-extern src/driver/emit.x > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ -f seeds/driver_emit_gen.linux.x86_64.c ]; then cp -f seeds/driver_emit_gen.linux.x86_64.c $@; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 
 driver_fmt_x.o: driver_fmt_gen.c
@@ -1861,17 +1861,17 @@ pipeline_x.o: $(PIPELINE_X_FORCE_PREREQ) pipeline_gen.c $(PIPELINE_X_DEPS)
 	STALE=0; \
 	if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ] || [ "$(PIPELINE_X_FORCE_COMPILE)" = "1" ]; then STALE=1; fi; \
 	if [ -f "$$GEN_DRV" ]; then \
-	 for dep in pipeline_gen.c $(PIPELINE_X_DEPS); do \
-	 if [ "$$dep" -nt "$$GEN_DRV" ]; then STALE=1; break; fi; \
-	 done; \
+	  for dep in pipeline_gen.c $(PIPELINE_X_DEPS); do \
+	    if [ "$$dep" -nt "$$GEN_DRV" ]; then STALE=1; break; fi; \
+	  done; \
 	else \
-	 STALE=1; \
+	  STALE=1; \
 	fi; \
 	if [ "$$STALE" -eq 0 ] && [ -f "$$GEN_DRV" ]; then \
-	 cp "$$GEN_DRV" $@ && echo "pipeline_x.o: from build_asm/gen_driver"; \
+	  cp "$$GEN_DRV" $@ && echo "pipeline_x.o: from build_asm/gen_driver"; \
 	else \
-	 $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -DSHUX_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS -I.. -Dstd_io_driver_driver_read_ptr_len=shux_io_read_ptr_len -Dstd_io_driver_driver_read_ptr=shux_io_read_ptr -c pipeline_gen.c -o $@ && \
-	 mkdir -p build_asm/gen_driver && cp $@ "$$GEN_DRV"; \
+	  $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -DSHUX_PIPELINE_GLUE_OMIT_X_DUP_EXPORTS -I.. -Dstd_io_driver_driver_read_ptr_len=shux_io_read_ptr_len -Dstd_io_driver_driver_read_ptr=shux_io_read_ptr -c pipeline_gen.c -o $@ && \
+	  mkdir -p build_asm/gen_driver && cp $@ "$$GEN_DRV"; \
 	fi
 FORCE:
 
@@ -1883,42 +1883,42 @@ FORCE:
 driver_gen.c: $(MAIN_X_DEPS)
 	@need_regen=0; \
 	if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
-	 need_regen=1; \
+	  need_regen=1; \
 	elif [ -s $@ ]; then \
-	 for dep in $(MAIN_X_DEPS); do \
-	 if [ "$$dep" -nt $@ ]; then \
-	 need_regen=1; \
-	 break; \
-	 fi; \
-	 done; \
+	  for dep in $(MAIN_X_DEPS); do \
+	    if [ "$$dep" -nt $@ ]; then \
+	      need_regen=1; \
+	      break; \
+	    fi; \
+	  done; \
 	else \
-	 need_regen=1; \
+	  need_regen=1; \
 	fi; \
 	if [ "$$need_regen" = "0" ]; then \
-	 echo "driver_gen.c: pinned ($$(wc -c < $@ | tr -d ' ') bytes; up-to-date with MAIN_X_DEPS)"; \
+	  echo "driver_gen.c: pinned ($$(wc -c < $@ | tr -d ' ') bytes; up-to-date with MAIN_X_DEPS)"; \
 	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ] && [ ! -s $@ ]; then \
-	 cp -f seeds/driver_gen.linux.x86_64.c $@; \
-	 echo "driver_gen.c: restored from seeds/driver_gen.linux.x86_64.c"; \
+	  cp -f seeds/driver_gen.linux.x86_64.c $@; \
+	  echo "driver_gen.c: restored from seeds/driver_gen.linux.x86_64.c"; \
 	elif [ -f $(SHUX_X) ]; then \
-	 echo "driver_gen.c: ./$(SHUX_X) -x -E ..." >&2; \
-	 ./$(SHUX_X) -x -E $(MAIN_X_E_DIRS) -E-extern src/main.x > $@.tmp 2>/dev/null || true; \
-	 if [ -s $@.tmp ] && grep -q 'argc < 3' $@.tmp && grep -q 'main_eq_minus_E(arg_buf, len) != 0' $@.tmp; then \
-	 mv $@.tmp $@; \
-	 else \
-	 rm -f $@.tmp; \
-	 echo "driver_gen.c: shux-x failed or old bare -E block, fallback to shux-c -E -E-extern" >&2; \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv "$$tmp" $@; fi; \
-	 fi; \
+	  echo "driver_gen.c: ./$(SHUX_X) -x -E ..." >&2; \
+	  ./$(SHUX_X) -x -E $(MAIN_X_E_DIRS) -E-extern src/main.x > $@.tmp 2>/dev/null || true; \
+	  if [ -s $@.tmp ] && grep -q 'argc < 3' $@.tmp && grep -q 'main_eq_minus_E(arg_buf, len) != 0' $@.tmp; then \
+	    mv $@.tmp $@; \
+	  else \
+	    rm -f $@.tmp; \
+	    echo "driver_gen.c: shux-x failed or old bare -E block, fallback to shux-c -E -E-extern" >&2; \
+	    tmp="$@.tmp"; \
+	    $(MAKE) $(SHUX_C) && \
+	    ./$(SHUX_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || \
+	      { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
+	    if [ -s "$$tmp" ]; then mv "$$tmp" $@; fi; \
+	  fi; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) $(MAIN_X_E_DIRS) src/main.x -E -E-extern > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/driver_gen.linux.x86_64.c ]; then cp -f seeds/driver_gen.linux.x86_64.c $@ && echo "driver_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv "$$tmp" $@; fi; \
 	fi
 	perl scripts/fix_driver_gen_duplicate_main.pl $@
 
@@ -1928,16 +1928,16 @@ driver_x.o: driver_gen.c $(MAIN_X_DEPS)
 # preprocess_gen.c / preprocess_x.o：runtime SHUX_USE_X_PREPROCESS 路径。
 preprocess_gen.c: $(PREPROCESS_X_DEPS)
 	@if [ -s preprocess_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
-	 echo "preprocess_gen.c: pinned ($$(wc -c < preprocess_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
+	  echo "preprocess_gen.c: pinned ($$(wc -c < preprocess_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
 	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/preprocess_gen.linux.x86_64.c ] && [ ! -s preprocess_gen.c ]; then \
-	 cp -f seeds/preprocess_gen.linux.x86_64.c preprocess_gen.c; \
-	 echo "preprocess_gen.c: restored from seeds/preprocess_gen.linux.x86_64.c"; \
+	  cp -f seeds/preprocess_gen.linux.x86_64.c preprocess_gen.c; \
+	  echo "preprocess_gen.c: restored from seeds/preprocess_gen.linux.x86_64.c"; \
 	else \
-	 tmp="$@.tmp"; \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L src/lexer -E -E-extern src/preprocess/preprocess.x > "$$tmp" || \
-	 { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/preprocess_gen.linux.x86_64.c ]; then cp -f seeds/preprocess_gen.linux.x86_64.c $@ && echo "preprocess_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
-	 if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
+	  tmp="$@.tmp"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) -L src/lexer -E -E-extern src/preprocess/preprocess.x > "$$tmp" || \
+	    { rm -f "$$tmp"; if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/preprocess_gen.linux.x86_64.c ]; then cp -f seeds/preprocess_gen.linux.x86_64.c $@ && echo "preprocess_gen.c: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
+	  if [ -s "$$tmp" ]; then mv -f "$$tmp" $@; fi; \
 	fi
 
 preprocess_x.o: preprocess_gen.c $(PREPROCESS_X_DEPS)
@@ -1968,25 +1968,25 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_min
 	@# 冷启动：phase1 须链 dispatch/bridge + partial（seed 或 gen_g06_phase1_backend_stub 弱桩）。
 	@chmod +x scripts/build_seed_asm_host.sh scripts/gen_g06_phase1_backend_stub.sh 2>/dev/null || true
 	@os=$$(uname -s | tr '[:upper:]' '[:lower:]'); arch=$$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]'); \
-	 case "$$arch" in x86_64|amd64) arch=x86_64 ;; aarch64|arm64) arch=arm64 ;; esac; \
-	 case "$$os" in darwin) os=darwin ;; linux) os=linux ;; esac; \
-	 seed_partial="seeds/asm_backend_partial.$${os}.$${arch}.o"; \
-	 if [ ! -s build_asm/seed_host/asm_backend_partial.o ] && [ -f "$$seed_partial" ] && [ -s "$$seed_partial" ]; then \
-	 if nm "$$seed_partial" 2>/dev/null | awk '/ T / { s=$$3; sub(/^_/, "", s); if (s=="backend_asm_codegen_ast_seed_mega") found=1 } END { exit !found }'; then \
-	 mkdir -p build_asm/seed_host; cp -f "$$seed_partial" build_asm/seed_host/asm_backend_partial.o; \
-	 echo "bootstrap-driver-seed: seed partial <- $$seed_partial" >&2; \
-	 else \
-	 echo "bootstrap-driver-seed: ignore non-real seed partial $$seed_partial (missing strong seed_mega)" >&2; \
-	 fi; \
-	 fi
+	  case "$$arch" in x86_64|amd64) arch=x86_64 ;; aarch64|arm64) arch=arm64 ;; esac; \
+	  case "$$os" in darwin) os=darwin ;; linux) os=linux ;; esac; \
+	  seed_partial="seeds/asm_backend_partial.$${os}.$${arch}.o"; \
+	  if [ ! -s build_asm/seed_host/asm_backend_partial.o ] && [ -f "$$seed_partial" ] && [ -s "$$seed_partial" ]; then \
+	    if nm "$$seed_partial" 2>/dev/null | awk '/ T / { s=$$3; sub(/^_/, "", s); if (s=="backend_asm_codegen_ast_seed_mega") found=1 } END { exit !found }'; then \
+	      mkdir -p build_asm/seed_host; cp -f "$$seed_partial" build_asm/seed_host/asm_backend_partial.o; \
+	      echo "bootstrap-driver-seed: seed partial <- $$seed_partial" >&2; \
+	    else \
+	      echo "bootstrap-driver-seed: ignore non-real seed partial $$seed_partial (missing strong seed_mega)" >&2; \
+	    fi; \
+	  fi
 	@$(MAKE) src/asm/bootstrap_seed_io_stubs.o
 	@$(MAKE) $(USER_ASM_SEED_OBJS)
 	@# pipeline_x.o / pipeline_glue_standalone.o 引用的 arch_*_enc_enc_* 须 weak 桩；真 partial 导出不含时由 stubs.o 补齐。
 	@$(MAKE) $(ASM_GLUE_STANDALONE_O)
 	@$(MAKE) build-seed-asm-host
 	@if [ ! -s build_asm/seed_host/asm_backend_partial.o ]; then \
-	 echo "bootstrap-driver-seed: no seed partial, gen phase1 backend stub ..." >&2; \
-	 ./scripts/gen_g06_phase1_backend_stub.sh; \
+	  echo "bootstrap-driver-seed: no seed partial, gen phase1 backend stub ..." >&2; \
+	  ./scripts/gen_g06_phase1_backend_stub.sh; \
 	fi
 	@mkdir -p build_asm/seed_host
 	@rm -f $(USER_ASM_SEED_HOST_STUBS) $(USER_ASM_SEED_HOST_DIR)/asm_full_link_stubs.c
@@ -1996,7 +1996,7 @@ bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_min
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o shux-seed-phase1 $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(USER_ASM_SEED_HOST_STUBS) build_asm/seed_host/asm_backend_partial.o $(DRIVER_SEED_GLUE_SUFFIX)
 	@echo "bootstrap-driver-seed: build-seed-asm-host via shux-seed-phase1 ..."
 	@SHUX_E=./shux-seed-phase1 ./scripts/build_seed_asm_host.sh || \
-	 (./scripts/gen_g06_phase1_backend_stub.sh && echo "bootstrap-driver-seed: WARN asm.x -E failed, final link uses phase1 stub partial" >&2)
+	  (./scripts/gen_g06_phase1_backend_stub.sh && echo "bootstrap-driver-seed: WARN asm.x -E failed, final link uses phase1 stub partial" >&2)
 	@$(MAKE) $(USER_ASM_SEED_HOST_STUBS)
 	@echo "bootstrap-driver-seed: final link (+ USER_ASM partial) ..."
 	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(BOOTSTRAP_DRIVER_SEED_LINK_BASE) $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS) $(DRIVER_SEED_GLUE_SUFFIX)
@@ -2034,21 +2034,21 @@ build_asm/pipeline_glue_strict_minimal.o: src/asm/pipeline_glue_strict_minimal.c
 
 # relink-shux 与 bootstrap-driver-seed 链接同一组 .o；须声明为 prerequisite，否则冷启动仅 make all 后缺 main_driver.o 等。
 RELINK_SHUX_PREREQS = build-seed-asm-host $(RELINK_SHUX_FILTERED_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(DRIVER_SUBCMD_GEN) \
- $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o $(RELINK_SHUX_PIPELINE_LINK_O) pipeline_bootstrap_orchestration.o \
- lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c \
- lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o \
- $(DRIVER_SUBCMD_OBJS) _stubs_driver.o \
- src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o \
- src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_x.o \
+  $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o $(RELINK_SHUX_PIPELINE_LINK_O) pipeline_bootstrap_orchestration.o \
+  lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c \
+  lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o \
+  $(DRIVER_SUBCMD_OBJS) _stubs_driver.o \
+  src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o \
+  src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o lsp_io_std_heap_x.o \
 # driver/fmt_check 变更后快速重链 shux（不跑 asm.x -E；需已有 build_asm/seed_host/asm_backend_partial.o）
 # relink-shux-lexer：仅重建 lexer_x.o 并重链，不触发 driver/typeck *_gen.c 再生（迭代 token enum 修复用）。
 # 提供真实 shux_asm 目标，避免同名旧文件让 `make shux_asm` 静默跳过重建。
 # Darwin 等宿主直接走 relink-shux 的已过滤拓扑，避免 build_shux_asm.sh 直链 seed_host partial 时重复符号。
 # G-05 100%：产品路径编排在 scripts/g05_*.sh（零 make 于 prepare/ensure/export/link）。
 # 下列目标仅：
-# - 单文件 .o 规则（冷启动隐式）
-# - 薄包装兼容 `make shux_asm` / `make relink-shux` → 委托 shell
-# - g05-ensure / g05-export 兼容别名 → 同名 shell 脚本
+#   - 单文件 .o 规则（冷启动隐式）
+#   - 薄包装兼容 `make shux_asm` / `make relink-shux` → 委托 shell
+#   - g05-ensure / g05-export 兼容别名 → 同名 shell 脚本
 .PHONY: shux_asm relink-shux relink-shux-lexer refresh-shux-asm-gate \
 	g05-ensure-relink-prereqs g05-export-relink
 
@@ -2142,7 +2142,7 @@ refresh-shux-asm-gate: migrate-x-objs relink-shux
 # 等价：./scripts/relink_shux_asm_bstrict_runtime_objs.sh（附带 bridge/Docker skip 环境）。
 bootstrap-driver-bstrict-relink:
 	@if [ ! -d build_asm ] || [ ! -f build_asm/pipeline.o ]; then \
-	 echo "bootstrap-driver-bstrict-relink: need prior bootstrap (make bootstrap-driver-bstrict)" >&2; exit 1; fi
+	  echo "bootstrap-driver-bstrict-relink: need prior bootstrap (make bootstrap-driver-bstrict)" >&2; exit 1; fi
 	@SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1 \
 	 SHUX_ASM_SKIP_STRICT_SMOKE=1 \
 	 SHUX_ASM_SKIP_MAIN_O_REBUILD=1 \
@@ -2166,7 +2166,7 @@ bootstrap-driver-crt0: bootstrap-driver-seed
 	grep -qE 'Target-B-partial|LINK_MODE=crt0|no C runtime driver' /tmp/build_shux_crt0.log || \
 	(echo "bootstrap-driver-crt0: expected crt0 link in log" >&2; exit 1); \
 	if grep -q 'cc -c pipeline_gen.c' /tmp/build_shux_crt0.log; then \
-	 echo "bootstrap-driver-crt0: crt0 path must not cc -c pipeline_gen.c" >&2; exit 1; fi; \
+	  echo "bootstrap-driver-crt0: crt0 path must not cc -c pipeline_gen.c" >&2; exit 1; fi; \
 	test -f shux_asm && echo "bootstrap-driver-crt0 OK (shux_asm via crt0 + build_asm/*.o)"
 
 # build-user-asm-backend：自 shux 编 build_asm/*.o（完整 asm 自举）；seed 默认用 build-seed-asm-host（shux-c -E）。
@@ -2176,7 +2176,7 @@ build-user-asm-backend:
 # Goal 2（用 asm 后端构建 shux）：构建最小 C 桩 + 可选执行 asm 自举脚本（需先 bootstrap-driver）
 bootstrap-asm: $(TARGET) src/asm/runtime_asm_build.o src/runtime_driver.o
 	@echo "bootstrap-asm: runtime_asm_build.o + runtime_driver.o ready."
-	@echo " Full asm build: SHUX=./$(TARGET) ./scripts/build_shux_asm.sh (requires bootstrap-driver first)"
+	@echo "  Full asm build: SHUX=./$(TARGET) ./scripts/build_shux_asm.sh (requires bootstrap-driver first)"
 bootstrap-asm-full: bootstrap-driver bootstrap-asm
 	@SHUX=./$(TARGET) ./scripts/build_shux_asm.sh
 
@@ -2194,18 +2194,18 @@ first-time: build-tool
 
 # 阶段 7：build.x 驱动 build_tool（G-05：build_runner + build_runtime_x，无 build_runtime.c）
 # G-05（2026-07-10）：
-# - 默认用 seeds/ 下 pinned *_gen.c（-x -E 对 build_runner.entry / 大 TU 仍不稳定；C 前端 -E-extern 已随 G-02a 不可用）
-# - 可选：SHUX_BUILD_TOOL_REGEN=1 且 ./shux 可 -x -E 时尝试刷新 build_gen + build_runtime_x_gen
-# - build_run_asm_build 默认 `make shux_asm`（与 relink 定稿一致）；FULL=1 → bootstrap-driver-bstrict
-# - main 调用 entry（build_runner.x），非 build_entry
+#   - 默认用 seeds/ 下 pinned *_gen.c（-x -E 对 build_runner.entry / 大 TU 仍不稳定；C 前端 -E-extern 已随 G-02a 不可用）
+#   - 可选：SHUX_BUILD_TOOL_REGEN=1 且 ./shux 可 -x -E 时尝试刷新 build_gen + build_runtime_x_gen
+#   - build_run_asm_build 默认 `make shux_asm`（与 relink 定稿一致）；FULL=1 → bootstrap-driver-bstrict
+#   - main 调用 entry（build_runner.x），非 build_entry
 build-tool:
 	@if [ "$${SHUX_BUILD_TOOL_REGEN:-0}" = "1" ] && [ -x ./shux ]; then \
-	 echo "build-tool: regen build_gen + build_runtime_x_gen via ./shux -x -E"; \
-	 ./shux -x -E -L .. ../build.x > build_gen.c || cp -f seeds/build_gen.c build_gen.c; \
-	 ./shux -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c || cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
+	  echo "build-tool: regen build_gen + build_runtime_x_gen via ./shux -x -E"; \
+	  ./shux -x -E -L .. ../build.x > build_gen.c || cp -f seeds/build_gen.c build_gen.c; \
+	  ./shux -x -E -L .. ../build_runtime_x.x > build_runtime_x_gen.c || cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
 	else \
-	 cp -f seeds/build_gen.c build_gen.c; \
-	 cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
+	  cp -f seeds/build_gen.c build_gen.c; \
+	  cp -f seeds/build_runtime_x_gen.c build_runtime_x_gen.c; \
 	fi
 	cp -f seeds/build_runner_gen.c build_runner_gen.c
 	$(CC) $(CFLAGS) -Wno-unused -c build_gen.c -o build_tool.o
@@ -2242,8 +2242,8 @@ bootstrap-self: bootstrap-driver-seed
 	./$(TARGET)_stage2 ../tests/return-value/main.x -o /tmp/out_self && \
 	ft=`file -b /tmp/out_self 2>/dev/null || true`; BIN=/tmp/out_self; \
 	case "$$ft" in \
-	 *Mach-O*|*ELF*|*PE32*) ;; \
-	 *) $(CC) $(CFLAGS) -x c -std=c11 -Wall -Wextra -o /tmp/out_self.bin /tmp/out_self && BIN=/tmp/out_self.bin ;; \
+	  *Mach-O*|*ELF*|*PE32*) ;; \
+	  *) $(CC) $(CFLAGS) -x c -std=c11 -Wall -Wextra -o /tmp/out_self.bin /tmp/out_self && BIN=/tmp/out_self.bin ;; \
 	esac && \
 	$$BIN; EX=$$?; [ $$EX -eq 42 ] && echo "bootstrap-self OK (shux1 -> shux2)" || (echo "bootstrap-self FAIL: stage2 or out_self exit=$$EX"; exit 1)
 
@@ -2251,15 +2251,15 @@ bootstrap-self: bootstrap-driver-seed
 check-7.2: bootstrap-self
 	@ROOT=$$(pwd)/..; CDIR=$$(pwd); \
 	for ST in $(TARGET)_stage1 $(TARGET)_stage2; do \
-	 cp "$$CDIR/$$ST" "$$CDIR/$(TARGET)" && \
-	 cd "$$ROOT" && \
-	 SHUX="$$CDIR/$$ST" ./tests/run-return-value.sh && \
-	 SHUX="$$CDIR/$$ST" ./tests/run-hello.sh && \
-	 SHUX="$$CDIR/$$ST" ./tests/run-lexer.sh && \
-	 SHUX="$$CDIR/$$ST" ./tests/run-typeck.sh && \
-	 SHUX="$$CDIR/$$ST" ./tests/run-bootstrap-semantic-smoke-vec-map-heap.sh && \
-	 SHUX="$$CDIR/$$ST" ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh || \
-	 (echo "check-7.2 FAIL: $$ST"; exit 1); \
+	  cp "$$CDIR/$$ST" "$$CDIR/$(TARGET)" && \
+	  cd "$$ROOT" && \
+	  SHUX="$$CDIR/$$ST" ./tests/run-return-value.sh && \
+	  SHUX="$$CDIR/$$ST" ./tests/run-hello.sh && \
+	  SHUX="$$CDIR/$$ST" ./tests/run-lexer.sh && \
+	  SHUX="$$CDIR/$$ST" ./tests/run-typeck.sh && \
+	  SHUX="$$CDIR/$$ST" ./tests/run-bootstrap-semantic-smoke-vec-map-heap.sh && \
+	  SHUX="$$CDIR/$$ST" ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh || \
+	  (echo "check-7.2 FAIL: $$ST"; exit 1); \
 	done && \
 	echo "check-7.2 OK (both stages: return-value, hello, lexer, typeck, vec/map/heap + parser/typeck dogfood)"
 
@@ -2269,25 +2269,25 @@ check-7.2: bootstrap-self
 # 仅有 const+let 导致声明被提到函数首、顺序错乱。故 -E 须固定用 seed 而非 $(TARGET)。
 # pipeline_gen.c 必须是真文件目标，且默认沿用 pinned 生成物：
 # 1) 若把它挂在 bootstrap-pipeline 这种伪目标下，经 pipeline_x.o / asm_full_link_stubs.o 间接依赖时会反复触发
-# bootstrap-pipeline -> legacy-shux-c-ready -> make -B shux-c。
+#    bootstrap-pipeline -> legacy-shux-c-ready -> make -B shux-c。
 # 2) 若把 legacy-shux-c-ready 作为 order-only 前置，Make 仍会在“检查 pipeline_gen.c”时先执行那段 -B 重编。
 # 因此这里把 legacy frontend 刷新收进真正需要重生的分支里：仅当文件缺失或显式 SHUX_FORCE_REGEN_GEN=1 时才刷新并生成；
 # 其余情况直接沿用 pinned pipeline_gen.c。
 pipeline_gen.c:
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c || exit 1; \
-	 echo "bootstrap-pipeline: pipeline_gen.c (-E-extern thin TU; forced regen)"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c || exit 1; \
+	  echo "bootstrap-pipeline: pipeline_gen.c (-E-extern thin TU; forced regen)"; \
 	elif [ -s pipeline_gen.c ]; then \
-	 echo "bootstrap-pipeline: pinned pipeline_gen.c ($$(wc -c < pipeline_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
+	  echo "bootstrap-pipeline: pinned pipeline_gen.c ($$(wc -c < pipeline_gen.c | tr -d ' ') bytes; SHUX_FORCE_REGEN_GEN=1 to regen)"; \
 	elif [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/pipeline_gen.linux.x86_64.c ] && [ ! -s pipeline_gen.c ]; then \
-	 cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c; \
-	 echo "bootstrap-pipeline: restored from seeds/pipeline_gen.linux.x86_64.c"; \
+	  cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c; \
+	  echo "bootstrap-pipeline: restored from seeds/pipeline_gen.linux.x86_64.c"; \
 	else \
-	 $(MAKE) $(SHUX_C) && \
-	 ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c || \
-	 { if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/pipeline_gen.linux.x86_64.c ]; then cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c && echo "bootstrap-pipeline: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
-	 echo "bootstrap-pipeline: pipeline_gen.c (-E-extern thin TU; codegen 无 perl 后处理)"; \
+	  $(MAKE) $(SHUX_C) && \
+	  ./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c || \
+	    { if [ "$(SEED_LINUX_X86_64_OK)" = "1" ] && [ -f seeds/pipeline_gen.linux.x86_64.c ]; then cp -f seeds/pipeline_gen.linux.x86_64.c pipeline_gen.c && echo "bootstrap-pipeline: fallback seed (shux-c -E failed)" >&2; else exit 1; fi; }; \
+	  echo "bootstrap-pipeline: pipeline_gen.c (-E-extern thin TU; codegen 无 perl 后处理)"; \
 	fi
 
 .PHONY: bootstrap-pipeline
@@ -2329,13 +2329,13 @@ check-7.2-bstrict: bootstrap-driver-bstrict
 	@sh ./verify-selfhost-stage2-bstrict.sh
 	@ROOT=$$(pwd)/..; CDIR=$$(pwd); \
 	for ST in shux_asm_stage1 shux_asm2; do \
-	 test -x "$$CDIR/$$ST" || { echo "check-7.2-bstrict: $$ST missing"; exit 1; }; \
-	 cd "$$ROOT" && \
-	 SHUX="$$CDIR/$$ST" ./tests/run-lexer.sh && \
-	 SHUX="$$CDIR/$$ST" ./tests/run-typeck.sh && \
-	 SHUX="$$CDIR/$$ST" ./tests/run-bootstrap-semantic-smoke-vec-map-heap.sh && \
-	 SHUX="$$CDIR/$$ST" ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh || \
-	 (echo "check-7.2-bstrict FAIL: $$ST"; exit 1); \
+	  test -x "$$CDIR/$$ST" || { echo "check-7.2-bstrict: $$ST missing"; exit 1; }; \
+	  cd "$$ROOT" && \
+	  SHUX="$$CDIR/$$ST" ./tests/run-lexer.sh && \
+	  SHUX="$$CDIR/$$ST" ./tests/run-typeck.sh && \
+	  SHUX="$$CDIR/$$ST" ./tests/run-bootstrap-semantic-smoke-vec-map-heap.sh && \
+	  SHUX="$$CDIR/$$ST" ./tests/run-bootstrap-stage2-dogfood-parser-typeck.sh || \
+	  (echo "check-7.2-bstrict FAIL: $$ST"; exit 1); \
 	done && \
 	echo "check-7.2-bstrict OK (shux_asm gen1/gen2: stage2 + lexer + typeck + vec/map/heap + parser/typeck dogfood)"
 
