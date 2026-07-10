@@ -1,14 +1,17 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-29：真迁 .x — std.fs / posix 薄 shim（open_read flags=0 跨平台）。
+// G-02f-29/44：真迁 .x — std.fs / posix 薄 shim（open_read/write）。
 // 产品：./shux-c -E → seeds/runtime_io_abi.from_x.c（+ C 尾段）。
-// C 尾：open_write（O_CREAT/TRUNC 平台相关）、file_view/malloc 读路径、os_read_file_into。
+// C 尾：open_write flags/mode 槽（O_CREAT/TRUNC 平台相关）、file_view、os_read_file_into。
+// G-02f-44：+ std_fs_fs_open_write（经 shux_fs_open_write_flags/mode 槽）。
 
 extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 extern "C" function close(fd: i32): i32;
 extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function shux_fs_open_write_flags(): i32;
+extern "C" function shux_fs_open_write_mode(): i32;
 
 #[no_mangle]
 function std_fs_fs_open_read(path: *u8): i32 {
@@ -18,6 +21,20 @@ function std_fs_fs_open_read(path: *u8): i32 {
   unsafe {
     // O_RDONLY|SHUX_O_BINARY == 0 on POSIX hosts used by product gates.
     let r: i32 = open(path, 0, 0);
+    return r;
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function std_fs_fs_open_write(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    let fl: i32 = shux_fs_open_write_flags();
+    let md: i32 = shux_fs_open_write_mode();
+    let r: i32 = open(path, fl, md);
     return r;
   }
   return 0 - 1;

@@ -1,7 +1,7 @@
-/* Generated from src/runtime_io_abi.x (G-02f-29 true .x + C tail).
- * Regen: ./shux-c -E -L .. src/runtime_io_abi.x > /tmp/rio.c
- *         then merge fs shim from .x; keep file_view/open_write/os_read C tail.
- * .x covers: std_fs open_read/close/read/write/invalid + fs_posix_* aliases.
+/* Generated from src/runtime_io_abi.x (G-02f-29/44 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/runtime_io_abi.x > /tmp/io.c
+ *         merge fs shim; open_write via flags/mode slots; file_view/os_read C.
+ * .x covers: open_read/write/close/read/write/invalid + fs_posix_* aliases.
  */
 #include "win32_compat.h"
 #include "runtime_io_abi.h"
@@ -221,6 +221,16 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
 /* G-02e：原 std_fs_shim.c / std_sys_shim.c 并入本 TU（产品链减 2 个手写 C 文件）。 */
 /* -------------------------------------------------------------------------- */
 
+
+/** G-02f-44：open_write 平台 flags/mode 槽（.x 调 open）。 */
+int32_t shux_fs_open_write_flags(void) {
+    return (int32_t)(O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY);
+}
+
+int32_t shux_fs_open_write_mode(void) {
+    return (int32_t)0644;
+}
+
 int32_t std_fs_fs_open_read(uint8_t * path) {
   if ((path ==((uint8_t *)(0)))) {
     return (0 - 1);
@@ -233,10 +243,18 @@ int32_t std_fs_fs_open_read(uint8_t * path) {
   return (0 - 1);
 }
 
-int32_t std_fs_fs_open_write(uint8_t *path) {
-  if (!path)
-    return -1;
-  return (int32_t)open((char *)path, O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY, (mode_t)0644);
+int32_t std_fs_fs_open_write(uint8_t * path) {
+  if ((path ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  (void)(({   {
+    int32_t fl = shux_fs_open_write_flags();
+    int32_t md = shux_fs_open_write_mode();
+    int32_t r = open(path, fl, md);
+    return r;
+  }
+ }));
+  return (0 - 1);
 }
 
 int32_t std_fs_fs_close(int32_t fd) {

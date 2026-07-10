@@ -1,15 +1,18 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..39/43：真迁 .x — link_abi needs_* / compress / generated_c / target arch。
+// G-02f-34..39/43/44：真迁 .x — link_abi needs_* / generated_c / target / argv_i。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
-// C 尾：invoke_cc/ld、路径后缀、nm/popen、fileview、argv 循环、#if host 槽。
-// G-02f-43：+ driver_resolve_target_arch（经 shux_host_is_apple_aarch64）。
+// C 尾：invoke_cc/ld、路径后缀、nm/popen、fileview、cstr 拷贝循环、#if host 槽。
+// G-02f-44：+ driver_get_argv_i（经 argv_at + copy_cstr_n C 辅助）。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
 extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
 extern "C" function getenv(name: *u8): *u8;
 extern "C" function shux_host_is_linux(): i32;
+extern "C" function shux_host_is_apple_aarch64(): i32;
+extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
+extern "C" function driver_copy_cstr_n(src: *u8, buf: *u8, max: i32): i32;
 extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
 extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
 extern "C" function link_abi_generated_c_contains_substr(c_path: *u8, needle: *u8): i32;
@@ -1115,6 +1118,36 @@ function shux_generated_c_needs_async_scheduler(c_path: *u8): i32 {
   }
   return 0;
 }
+/* ---- G-02f-44：argv[i] 拷贝到 buf（循环在 C）---- */
+
+#[no_mangle]
+function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i32 {
+  if (argv == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (max <= 0) {
+    return 0 - 1;
+  }
+  if (i < 0) {
+    return 0 - 1;
+  }
+  if (i >= argc) {
+    return 0 - 1;
+  }
+  unsafe {
+    let s: *u8 = driver_argv_at(argv, i);
+    if (s == 0 as *u8) {
+      return 0 - 1;
+    }
+    let r: i32 = driver_copy_cstr_n(s, buf, max);
+    return r;
+  }
+  return 0 - 1;
+}
+
 /* ---- G-02f-43：target arch 解析（OS 门闩经 C 槽）---- */
 
 #[no_mangle]

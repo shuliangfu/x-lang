@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..39/43 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..44 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/link.c
- *         merge needs/compress/generated_c/resolve_target; C host slots + invoke.
- * .x covers: needs_*, freestanding, compress, generated_c_needs_*, resolve_target_arch.
+ *         merge needs/compress/generated_c/resolve/argv_i; C host + cstr helpers.
+ * .x covers: needs_*, freestanding, compress, generated_c, resolve_target, get_argv_i.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -6197,17 +6197,55 @@ const char *asm_link_obj_skip_missing(const char *path) {
 /* G-02e：原 runtime_abi.c 并入本 TU（argv/target 薄原语 + nostdlib weak 桩）。 */
 /* -------------------------------------------------------------------------- */
 
-int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
-    if (!argv || !buf || max <= 0 || i < 0 || i >= argc || !argv[i])
+
+/** G-02f-44：argv 下标与 C 串拷贝（.x driver_get_argv_i 用）。 */
+const char *driver_argv_at(char **argv, int i) {
+    if (!argv || i < 0 || !argv[i])
+        return NULL;
+    return argv[i];
+}
+
+int driver_copy_cstr_n(const char *src, char *buf, int max) {
+    size_t n;
+    size_t j;
+    if (!src || !buf || max <= 0)
         return -1;
-    size_t n = (size_t)max - 1;
-    size_t j = 0;
-    while (argv[i][j] && j < n) {
-        buf[j] = argv[i][j];
+    n = (size_t)max - 1;
+    j = 0;
+    while (src[j] && j < n) {
+        buf[j] = src[j];
         j++;
     }
     buf[j] = '\0';
     return (int)j;
+}
+
+int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
+  if ((argv ==NULL)) {
+    return (0 - 1);
+  }
+  if ((buf ==NULL)) {
+    return (0 - 1);
+  }
+  if ((max <=0)) {
+    return (0 - 1);
+  }
+  if ((i < 0)) {
+    return (0 - 1);
+  }
+  if ((i >=argc)) {
+    return (0 - 1);
+  }
+  (void)(({   {
+    char *s = driver_argv_at(argv, i);
+    if ((s ==NULL)) {
+      return (0 - 1);
+    }
+    int r = driver_copy_cstr_n(s, buf, max);
+    return r;
+  }
+ }));
+  return (0 - 1);
 }
 
 uint8_t *driver_argv_drop_subcommand(int argc, uint8_t *argv_opaque) {
@@ -6259,7 +6297,7 @@ SHUX_WEAK void bootstrap_init_environ(int argc, char **argv) {
   (void)(0);
 }
 
-int bootstrap_nostdlib_pthread_is_stub(void) {
+SHUX_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
   return 0;
 }
 
