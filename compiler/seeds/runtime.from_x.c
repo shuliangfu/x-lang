@@ -6167,10 +6167,16 @@ void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32
 
 /** -flto：置 use_lto。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-264 */
+#ifndef SHUX_RT_EMIT_FLAGS_FROM_X
 void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state) {
     if (state)
         state->use_lto = 1;
 }
+#else
+void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state);
+#endif
+
 
 
 
@@ -6270,10 +6276,16 @@ void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, in
 
 /** `--print-target-cpu`：仅打印 feature 后退出。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-264 */
+#ifndef SHUX_RT_EMIT_FLAGS_FROM_X
 void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state) {
     if (state)
         state->print_target_cpu = 1;
 }
+#else
+void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state);
+#endif
+
 
 
 
@@ -6323,6 +6335,8 @@ int driver_run_x_emit_c(void);
 
 /** argv 是否含 `-E` / `-E-extern`（G-06 build_seed_asm_host 用 `shux -E file.x`，勿走 asm 后端）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-264 R5-lite flags */
+#ifndef SHUX_RT_EMIT_FLAGS_FROM_X
 int driver_argv_has_emit_c_flag(int argc, char **argv) {
     int i;
     if (argc < 2 || !argv)
@@ -6333,6 +6347,10 @@ int driver_argv_has_emit_c_flag(int argc, char **argv) {
     }
     return 0;
 }
+#else
+int driver_argv_has_emit_c_flag(int argc, char **argv);
+#endif
+
 
 
 
