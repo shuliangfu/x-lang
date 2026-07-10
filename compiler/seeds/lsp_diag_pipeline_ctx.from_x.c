@@ -1,4 +1,5 @@
 /* Generated from src/lsp/lsp_diag_pipeline_ctx.x (G-02f-28 true .x + C tail; G-02f-74/98 lsp ctx gates).
+ * G-02f-331：PREFER_X_O hybrid 时 thin 别名由 .x→-E，rest 用 SHUX_L2_LSP_CTX_THIN_FROM_X。
  * Regen: ./shux-c -E -L .. src/lsp/lsp_diag_pipeline_ctx.x > /tmp/ldpc.c
  *         then re-apply weak polish + C tail (fill_paths/state/write_all).
  * .x covers: sizeof bridge + typeck_ → bare name aliases.
@@ -26,6 +27,7 @@ extern int32_t typeck_lsp_diag_references_at(uint8_t * source, int32_t source_le
 extern int32_t typeck_lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_line, int32_t * out_col);
 extern int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * doc_buf, int32_t doc_len, uint8_t * out_buf, int32_t out_cap);
 extern void lsp_diag_invalidate_cache(void);
+#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
 size_t lsp_diag_x_alloc_dep_ctx_size(void) {
   (void)(({   {
     size_t r = pipeline_sizeof_dep_ctx();
@@ -97,6 +99,19 @@ __attribute__((weak)) void lsp_io_lsp_diag_invalidate_cache(void) {
  }));
 }
 
+#else
+/* G-02f-331：thin 由 src/lsp/lsp_diag_pipeline_ctx.x（-E）提供；rest 仅 C 尾 / _impl */
+extern size_t lsp_diag_x_alloc_dep_ctx_size(void);
+extern int32_t lsp_build_diagnostics_response(int32_t, uint8_t *, int32_t, uint8_t *, int32_t);
+extern int32_t lsp_diag_hover_at(uint8_t *, int32_t, int32_t, int32_t, uint8_t *, int32_t);
+extern int32_t lsp_diag_references_at(uint8_t *, int32_t, int32_t, int32_t, int32_t *, int32_t *, int32_t);
+extern int32_t lsp_hover_at(uint8_t *, int32_t, int32_t, int32_t, uint8_t *, int32_t);
+extern int32_t lsp_references_at(uint8_t *, int32_t, int32_t, int32_t, int32_t *, int32_t *, int32_t);
+extern int32_t lsp_diag_definition_at(uint8_t *, int32_t, int32_t, int32_t, int32_t *, int32_t *);
+extern int32_t lsp_build_semantic_tokens_response(int32_t, uint8_t *, int32_t, uint8_t *, int32_t);
+extern void lsp_io_lsp_diag_invalidate_cache(void);
+#endif
+
 /* ---- C tail (G-02f-28): fill_paths / state buf / large-stack main / write_all ---- */
 
 struct ast_PipelineDepCtx {
@@ -137,7 +152,12 @@ struct ast_PipelineDepCtx {
 extern int32_t pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint8_t *path, int32_t len);
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots) {
+#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots)
+#else
+void lsp_diag_pipeline_ctx_fill_paths_impl(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots)
+#endif
+{
     struct ast_PipelineDepCtx *ctx = (struct ast_PipelineDepCtx *)ctx_void;
     int i;
     if (!ctx) return;
@@ -173,6 +193,8 @@ __attribute__((weak)) int lsp_definition_at(const uint8_t *source, int source_le
 }
 
 extern int32_t typeck_lsp_main(void);
+extern int32_t typeck_lsp_main_impl(void);
+extern int32_t lsp_main_impl(void);
 extern void driver_bump_stack_limit(void);
 extern void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg);
 
@@ -184,7 +206,12 @@ typedef struct LspMainThreadArgs {
 
 /* G-02f-98：LSP IO policy / debug env gates. */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void lsp_debug_report_sqpoll_env(void) {
+#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+void lsp_debug_report_sqpoll_env(void)
+#else
+void lsp_debug_report_sqpoll_env_impl(void)
+#endif
+{
     const char *dbg = getenv("SHUX_LSP_IO_DEBUG");
     const char *sq = getenv("SHUX_IO_URING_SQPOLL");
     if (!dbg || dbg[0] == '\0' || dbg[0] == '0')
@@ -198,7 +225,12 @@ void lsp_debug_report_sqpoll_env(void) {
 
 
 
-void lsp_apply_default_io_policy(void) {
+#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+void lsp_apply_default_io_policy(void)
+#else
+void lsp_apply_default_io_policy_impl(void)
+#endif
+{
     const char *sq = getenv("SHUX_IO_URING_SQPOLL");
     if (!sq || sq[0] == '\0')
         (void)setenv("SHUX_IO_URING_SQPOLL", "0", 1);
@@ -209,16 +241,28 @@ void lsp_apply_default_io_policy(void) {
 static void *lsp_main_large_stack_thread_fn(void *arg) {
     LspMainThreadArgs *a = (LspMainThreadArgs *)arg;
     driver_bump_stack_limit();
-    a->result = typeck_lsp_main();
+    /* G-02f-331：大栈线程跑真实 lsp_main（勿调 typeck_lsp_main[_impl] 编排层） */
+    a->result = lsp_main_impl();
     return NULL;
 }
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int32_t typeck_lsp_main(void) {
+#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+int32_t typeck_lsp_main(void)
+#else
+/* thin typeck_lsp_main → typeck_lsp_main_impl（本函数为大栈编排） */
+int32_t typeck_lsp_main_impl(void)
+#endif
+{
     LspMainThreadArgs args;
     args.result = -1;
+#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
     lsp_apply_default_io_policy();
     lsp_debug_report_sqpoll_env();
+#else
+    lsp_apply_default_io_policy_impl();
+    lsp_debug_report_sqpoll_env_impl();
+#endif
     driver_run_on_large_stack_pthread(lsp_main_large_stack_thread_fn, &args);
     return args.result;
 }
@@ -231,7 +275,12 @@ uint8_t *lsp_state_buf_ptr(void) {
 }
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int32_t lsp_write_all(int32_t fd, const uint8_t *buf, int32_t len) {
+#ifndef SHUX_L2_LSP_CTX_THIN_FROM_X
+int32_t lsp_write_all(int32_t fd, const uint8_t *buf, int32_t len)
+#else
+int32_t lsp_write_all_impl(int32_t fd, const uint8_t *buf, int32_t len)
+#endif
+{
     int32_t off = 0;
     if (fd < 0 || !buf) {
         return -1;

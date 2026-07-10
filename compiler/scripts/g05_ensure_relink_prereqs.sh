@@ -13,7 +13,7 @@
 #   G05_SKIP_HOT_REBUILD=1  跳过热路径 cc 重编（仅检查）
 #   G05_CC                  覆盖编译器（默认 cc）
 #   SHUX_G05_PREFER_X_O=1   L2：优先 .x→C(-E)→.o（失败回退 seed；见 analysis/G-02f-L2-x-o-pilot.md）
-#                           TUs：sizes + target_cpu_flags + strict_glue_thin（G-02f-256～258）
+#                           TUs：sizes + target_cpu_flags + strict_glue_thin + lsp_ctx thin（G-02f-256～258/331）
 
 set -e
 cd "$(dirname "$0")/.."
@@ -81,7 +81,8 @@ g05_try_x_to_o() {
     return 1
   fi
   mkdir -p "$(dirname "$_xout")"
-  _xtmp=$(mktemp "${TMPDIR:-/tmp}/g05_x_XXXXXX.c") || return 1
+  # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
+  _xtmp=$(mktemp "${TMPDIR:-/tmp}/g05_x.XXXXXX") || return 1
   # 优先默认 -E（Linux 上 -backend c -E 可能 SIGSEGV）；再回退 -backend c -E
   # shellcheck disable=SC2086
   if ! "$_xshux" -E "$_xsrc" >"$_xtmp" 2>/dev/null || [ ! -s "$_xtmp" ]; then
@@ -96,7 +97,8 @@ g05_try_x_to_o() {
     perl -i -pe 's/^(void|int32_t|int|size_t|uint8_t|uint32_t|uint64_t)\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
   fi
   # shellcheck disable=SC2086
-  if ! $CC $BASE_CFLAGS "$@" -c -o "$_xout" "$_xtmp"; then
+  # -x c：mktemp 无扩展名时 clang 否则不当作 C 源
+  if ! $CC $BASE_CFLAGS "$@" -x c -c -o "$_xout" "$_xtmp"; then
     rm -f "$_xtmp"
     return 1
   fi
@@ -779,8 +781,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c -o src/runtime_pipeline_abi.o "$_rpabi"
     fi
   fi
-  # G-02f-12：runtime_io / driver_abi / diagnostic / lsp ctx seeds
-  for _pair in     "src/runtime_io_abi.o:seeds/runtime_io_abi.from_x.c"     "src/runtime_driver_abi.o:seeds/runtime_driver_abi.from_x.c"     "src/runtime_driver_diagnostic.o:seeds/runtime_driver_diagnostic.from_x.c"     "src/lsp/lsp_diag_pipeline_ctx.o:seeds/lsp_diag_pipeline_ctx.from_x.c"
+  # G-02f-12：runtime_io / driver_abi / diagnostic seeds
+  for _pair in     "src/runtime_io_abi.o:seeds/runtime_io_abi.from_x.c"     "src/runtime_driver_abi.o:seeds/runtime_driver_abi.from_x.c"     "src/runtime_driver_diagnostic.o:seeds/runtime_driver_diagnostic.from_x.c"
   do
     _o="${_pair%%:*}"
     _s="${_pair#*:}"
@@ -792,6 +794,39 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   done
+  # G-02f-12 / G-02f-331：lsp_diag_pipeline_ctx.o
+  # 默认整 seed；PREFER_X_O=1 时 thin.x（别名门闩）+ seed-rest（C 尾 / _impl）ld -r
+  _ldpc=seeds/lsp_diag_pipeline_ctx.from_x.c
+  _ldpc_x=src/lsp/lsp_diag_pipeline_ctx.x
+  _ldpc_o=src/lsp/lsp_diag_pipeline_ctx.o
+  if [ -f "$_ldpc" ]; then
+    if [ ! -f "$_ldpc_o" ] || [ "$_ldpc" -nt "$_ldpc_o" ] \
+      || { [ -f "$_ldpc_x" ] && [ "$_ldpc_x" -nt "$_ldpc_o" ]; }; then
+      _ldpc_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_ldpc_x" ]; then
+        _ldpc_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_ldpc_thin_XXXXXX.o") || true
+        _ldpc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_ldpc_rest_XXXXXX.o") || true
+        # shellcheck disable=SC2086
+        # thin 别名 weak，避免与 bootstrap/filtered 强符号冲突（对齐 strict_glue）
+        if [ -n "$_ldpc_thin_o" ] && [ -n "$_ldpc_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_ldpc_x" "$_ldpc_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_LSP_CTX_THIN_FROM_X \
+               -c -o "$_ldpc_rest_o" "$_ldpc" \
+          && $CC -r -nostdlib -o "$_ldpc_o" "$_ldpc_thin_o" "$_ldpc_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_ldpc_o ← $_ldpc_x + seed-rest (G-02f-331 L2 hybrid ctx thin)"
+          _ldpc_done=1
+        else
+          echo "g05_ensure: L2 hybrid lsp_diag_pipeline_ctx failed; fallback full seed" >&2
+        fi
+        rm -f "$_ldpc_thin_o" "$_ldpc_rest_o"
+      fi
+      if [ "$_ldpc_done" = "0" ]; then
+        echo "g05_ensure: $_ldpc_o ← seed (G-02f-12)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_ldpc_o" "$_ldpc"
+      fi
+    fi
+  fi
   # G-02f-11：pipeline_glue_strict_minimal 产品 seed
   _pglue=seeds/pipeline_glue_strict_minimal.from_x.c
   if [ -f "$_pglue" ]; then
