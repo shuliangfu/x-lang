@@ -7,9 +7,7 @@
 // G-02f-101：+ x86_enc_u8 / u32_le / bytes / jcc_rel32 薄门闩。
 // G-02f-102：+ movq/lea/movl/store/alu rbp helpers 薄门闩。
 
-extern "C" function x86_enc_u8_impl(elf_ctx: *u8, b: u8): i32;
 extern "C" function x86_enc_u32_le_impl(elf_ctx: *u8, imm: i32): i32;
-extern "C" function x86_enc_bytes_impl(elf_ctx: *u8, buf: *u8, n: i32): i32;
 extern "C" function x86_enc_jcc_rel32_impl(elf_ctx: *u8, opcode2: u8, label: *u8, label_len: i32): i32;
 extern "C" function x86_enc_movq_from_rbp_neg_impl(elf_ctx: *u8, offset: i32, disp8_modrm: u8, disp32_modrm: u8): i32;
 extern "C" function x86_enc_lea_from_rbp_neg_impl(elf_ctx: *u8, offset: i32, disp8_modrm: u8, disp32_modrm: u8): i32;
@@ -24,13 +22,7 @@ function backend_x86_64_enc_c_x_doc_anchor(): i32 {
 
 /* ---- G-02f-101：x86 enc primitive 门闩 ---- */
 
-#[no_mangle]
-function x86_enc_u8(elf_ctx: *u8, b: u8): i32 {
-  unsafe {
-    return x86_enc_u8_impl(elf_ctx, b);
-  }
-  return 0 - 1;
-}
+
 
 #[no_mangle]
 function x86_enc_u32_le(elf_ctx: *u8, imm: i32): i32 {
@@ -40,13 +32,7 @@ function x86_enc_u32_le(elf_ctx: *u8, imm: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
-function x86_enc_bytes(elf_ctx: *u8, buf: *u8, n: i32): i32 {
-  unsafe {
-    return x86_enc_bytes_impl(elf_ctx, buf, n);
-  }
-  return 0 - 1;
-}
+
 
 #[no_mangle]
 function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: u8, label: *u8, label_len: i32): i32 {
@@ -105,3 +91,25 @@ function x86_enc_store_rdx_to_rbp_neg(elf_ctx: *u8, offset: i32): i32 {
   }
   return 0 - 1;
 }
+
+// G-02f-124：x86_enc_u8 / x86_enc_bytes 真迁 .x
+
+extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+
+#[no_mangle]
+function x86_enc_u8(elf_ctx: *u8, b: u8): i32 {
+  let bb: u8 = b;
+  unsafe {
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &bb, 1);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function x86_enc_bytes(elf_ctx: *u8, buf: *u8, n: i32): i32 {
+  unsafe {
+    return pipeline_elf_ctx_append_bytes(elf_ctx, buf, n);
+  }
+  return 0 - 1;
+}
+

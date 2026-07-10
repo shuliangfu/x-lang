@@ -794,7 +794,8 @@ void diag_json_write_str(FILE *out, const char *s) {
  * 由诊断 kind 推导 JSON severity 字段。
  * 含 "warning" → warning；精确 "info"/"note"/"help"/"hint" → 同名；其余（含 error/parse error/...）→ error。
  */
-const char * diag_json_severity_impl(const char *kind) {
+/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+const char * diag_json_severity(const char *kind) {
     if (!kind || !kind[0])
         return "error";
     if (strstr(kind, "warning"))
@@ -807,12 +808,8 @@ const char * diag_json_severity_impl(const char *kind) {
         return "help";
     return "error";
 }
-const char * diag_json_severity(const char *kind) {
-  {
-    return diag_json_severity_impl(kind);
-  }
-  return ((const char *)0);
-}
+
+
 
 
 /**

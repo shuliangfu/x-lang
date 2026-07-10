@@ -1,4 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
+ * G-02f-124 true .x pure helpers.
  * G-02f-121 true .x pure helpers.
  * G-02f-115 true .x pure helpers.
  * G-02f-108 helper gates.
@@ -440,18 +441,15 @@ int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenCtx *elf
 
 
 /** x86：cmp eax, ebx（i - n 置标志，紧接 jge 表示 i>=n 退出）。 */
-int32_t glue_simd_x86_cmp_rax_rbx_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[2] = {0x39, 0xd8};
     if (!elf_ctx)
         return -1;
     return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)insn, 2);
 }
-int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  {
-    return glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx);
-  }
-  return 0;
-}
+
+
 
 
 /** 编译期 trip count 整段 peel（N 为 lanes 的整数倍）。 */

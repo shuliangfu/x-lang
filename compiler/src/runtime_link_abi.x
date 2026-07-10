@@ -65,7 +65,6 @@ extern "C" function shux_ensure_runtime_thread_glue_o_impl(argv0: *u8): i32;
 extern "C" function shux_ensure_runtime_time_os_o_impl(argv0: *u8): i32;
 extern "C" function shux_ensure_runtime_tls_mbedtls_bio_o_impl(argv0: *u8): i32;
 
-extern "C" function link_diag_code_for_kind_impl(kind: *u8): *u8;
 extern "C" function link_diag_tool_status_impl(tool: *u8, status: i32): void;
 extern "C" function link_diag_runtime_source_missing_impl(obj_name: *u8, source_path: *u8): void;
 extern "C" function link_diag_runtime_source_missing_under_impl(obj_name: *u8, base_dir: *u8, suffix: *u8): void;
@@ -2027,13 +2026,7 @@ function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
 
 
 
-#[no_mangle]
-function link_diag_code_for_kind(kind: *u8): *u8 {
-  unsafe {
-    return link_diag_code_for_kind_impl(kind);
-  }
-  return 0 as *u8;
-}
+
 
 #[no_mangle]
 function link_diag_tool_status(tool: *u8, status: i32): void {
@@ -2353,5 +2346,25 @@ function shux_path_last_sep(s: *u8): *u8 {
     i = i + 1;
   }
   return last;
+}
+
+// G-02f-124：link_diag_code_for_kind 真迁 .x
+
+#[no_mangle]
+function link_diag_code_for_kind(kind: *u8): *u8 {
+  if (kind == 0) { return "PRC001"; }
+  // "build error"
+  if (kind[0]==98 && kind[1]==117 && kind[2]==105 && kind[3]==108 && kind[4]==100
+      && kind[5]==32 && kind[6]==101 && kind[7]==114 && kind[8]==114 && kind[9]==111
+      && kind[10]==114 && kind[11]==0) {
+    return "BLD001";
+  }
+  // "process error"
+  if (kind[0]==112 && kind[1]==114 && kind[2]==111 && kind[3]==99 && kind[4]==101
+      && kind[5]==115 && kind[6]==115 && kind[7]==32 && kind[8]==101 && kind[9]==114
+      && kind[10]==114 && kind[11]==111 && kind[12]==114 && kind[13]==0) {
+    return "PRC001";
+  }
+  return 0 as *u8;
 }
 

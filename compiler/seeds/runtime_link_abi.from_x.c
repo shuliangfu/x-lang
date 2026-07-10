@@ -311,9 +311,8 @@ int shux_spawn_sync(const char *prog, const char *const *argv) {
   }
   return 0;
 }
-
-
-const char * link_diag_code_for_kind_impl(const char *kind) {
+/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+const char * link_diag_code_for_kind(const char *kind) {
     if (!kind)
         return SHUX_DIAG_CODE_PROCESS_PRC001;
     if (strcmp(kind, "build error") == 0)
@@ -322,12 +321,8 @@ const char * link_diag_code_for_kind_impl(const char *kind) {
         return SHUX_DIAG_CODE_PROCESS_PRC001;
     return NULL;
 }
-const char * link_diag_code_for_kind(const char *kind) {
-  {
-    return link_diag_code_for_kind_impl(kind);
-  }
-  return ((const char *)0);
-}
+
+
 
 
 void link_diag_tool_status_impl(const char *tool, int status) {

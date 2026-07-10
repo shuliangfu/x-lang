@@ -37,7 +37,6 @@ extern "C" function diag_line_digits_impl(line: i32): i32;
 extern "C" function diag_print_header_impl(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void;
 extern "C" function diag_extract_line_impl(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32;
 extern "C" function diag_json_write_str_impl(out: *u8, s: *u8): void;
-extern "C" function diag_json_severity_impl(kind: *u8): *u8;
 extern "C" function diag_levenshtein_ci_impl(a: *u8, b: *u8): i32;
 
 #[no_mangle]
@@ -191,13 +190,7 @@ function diag_json_write_str(out: *u8, s: *u8): void {
   }
 }
 
-#[no_mangle]
-function diag_json_severity(kind: *u8): *u8 {
-  unsafe {
-    return diag_json_severity_impl(kind);
-  }
-  return 0 as *u8;
-}
+
 
 /* ---- G-02f-98：levenshtein 门闩 ---- */
 
@@ -268,3 +261,27 @@ function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
   }
   return 0;
 }
+
+// G-02f-124：diag_json_severity 真迁 .x
+
+#[no_mangle]
+function diag_json_severity(kind: *u8): *u8 {
+  if (kind == 0) { return "error"; }
+  if (kind[0] == 0) { return "error"; }
+  // contains "warning"
+  let i: i32 = 0;
+  while (i < 256) {
+    if (kind[i] == 0) { break; }
+    if (kind[i]==119 && kind[i+1]==97 && kind[i+2]==114 && kind[i+3]==110 && kind[i+4]==105 && kind[i+5]==110 && kind[i+6]==103) {
+      return "warning";
+    }
+    i = i + 1;
+  }
+  // exact info
+  if (kind[0]==105 && kind[1]==110 && kind[2]==102 && kind[3]==111 && kind[4]==0) { return "info"; }
+  if (kind[0]==110 && kind[1]==111 && kind[2]==116 && kind[3]==101 && kind[4]==0) { return "note"; }
+  if (kind[0]==104 && kind[1]==101 && kind[2]==108 && kind[3]==112 && kind[4]==0) { return "help"; }
+  if (kind[0]==104 && kind[1]==105 && kind[2]==110 && kind[3]==116 && kind[4]==0) { return "help"; }
+  return "error";
+}
+

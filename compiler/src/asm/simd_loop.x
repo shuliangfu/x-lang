@@ -51,7 +51,6 @@ extern "C" function glue_parse_i_plus_one_step_c_impl(arena: *u8, step_ref: i32,
 extern "C" function glue_parse_index_binop_assign_c_impl(arena: *u8, assign_ref: i32, i_var_ref: i32, out_a: *i32, out_b: *i32, out_op: *i32): i32;
 extern "C" function glue_parse_i_lt_bound_c_impl(arena: *u8, block_ref: i32, cond_ref: i32, i_var_ref: i32, out_bound: *i32): i32;
 extern "C" function glue_simd_local_var_stack_off_c_impl(arena: *u8, ctx: *u8, var_ref: i32): i32;
-extern "C" function glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx: *u8): i32;
 extern "C" function glue_var_array_size_c_impl(arena: *u8, var_ref: i32): i32;
 extern "C" function glue_soa_f32_col_rbp_disp32_impl(off_col0: i32, start_idx: i32): i32;
 extern "C" function glue_f32_slot_rbp_disp32_impl(slot_off: i32): i32;
@@ -88,11 +87,7 @@ function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_ref: i32): i3
   return 0;
 }
 
-#[no_mangle]
-function glue_simd_x86_cmp_rax_rbx_c(elf_ctx: *u8): i32 {
-  unsafe { return glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx); }
-  return 0;
-}
+
 
 #[no_mangle]
 function glue_var_array_size_c(arena: *u8, var_ref: i32): i32 {
@@ -180,3 +175,20 @@ function glue_var_is_array_i32_n_c(arena: *u8, var_ref: i32, n: i32): i32 {
   }
   return 0;
 }
+
+// G-02f-124：glue_simd_x86_cmp_rax_rbx_c 真迁 .x
+
+extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+
+#[no_mangle]
+function glue_simd_x86_cmp_rax_rbx_c(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let b0: u8 = 0x39;
+  let b1: u8 = 0xd8;
+  unsafe {
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b0, 1) != 0) { return 0 - 1; }
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1);
+  }
+  return 0 - 1;
+}
+

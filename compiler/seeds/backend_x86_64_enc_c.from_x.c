@@ -1,4 +1,5 @@
 /* seeds/backend_x86_64_enc_c.from_x.c
+ * G-02f-124 true .x pure helpers.
  * G-02f-102 helper gates.
  * G-02f-101 x86 enc helper gates. — G-02f-15 product TU
  * Product object from this seed; logic still C until full .x port.
@@ -31,15 +32,12 @@ static uint8_t *x86_enc_ctx_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 }
 
 /** 追加 1 字节机器码。 */
-int32_t x86_enc_u8_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t b) {
+/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t x86_enc_u8(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t b) {
   return pipeline_elf_ctx_append_bytes(x86_enc_ctx_bytes(elf_ctx), &b, 1);
 }
-int32_t x86_enc_u8(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t b) {
-  {
-    return x86_enc_u8_impl(elf_ctx, b);
-  }
-  return 0 - 1;
-}
+
+
 
 
 /** 追加 imm32 小端。 */
@@ -60,15 +58,12 @@ int32_t x86_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) 
 
 
 /** 追加固定字节序列。 */
-int32_t x86_enc_bytes_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *buf, int32_t n) {
+/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t x86_enc_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *buf, int32_t n) {
   return pipeline_elf_ctx_append_bytes(x86_enc_ctx_bytes(elf_ctx), (uint8_t *)buf, n);
 }
-int32_t x86_enc_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *buf, int32_t n) {
-  {
-    return x86_enc_bytes_impl(elf_ctx, buf, n);
-  }
-  return 0 - 1;
-}
+
+
 
 
 #define X86_ENC_FIXED(ctx, arr) x86_enc_bytes((ctx), (const uint8_t *)(arr), (int32_t)sizeof(arr))
