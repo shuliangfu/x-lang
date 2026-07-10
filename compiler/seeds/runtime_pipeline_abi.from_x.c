@@ -1,7 +1,7 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..54 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..55 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge preprocess/seed_slots/entry_lib; C resolve + large pipeline bulk.
- * .x covers: + preprocess_raw_to_malloc, dep_seed_slots, entry_lib_name_from_path.
+ *         merge dep slots + import open diag; C resolve + large pipeline bulk.
+ * .x covers: + get_dep_arena/module_slot, diag_import_open_fail_once.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -70,7 +70,7 @@ int32_t pipeline_diag_emitted_get(void) {
   return 0;
 }
 
-void pipeline_diag_import_open_fail_once(const char *import_path, const char *resolved_path) {
+void pipeline_diag_import_open_fail_once_impl(const char *import_path, const char *resolved_path) {
     const char *import_key = import_path ? import_path : "?";
     const char *resolved_key = resolved_path ? resolved_path : "?";
     if (pipeline_last_import_open_valid &&
@@ -87,6 +87,12 @@ void pipeline_diag_import_open_fail_once(const char *import_path, const char *re
                  "cannot open import '%s' (tried %s)",
                  import_key,
                  resolved_key);
+}
+
+void pipeline_diag_import_open_fail_once(const char *import_path, const char *resolved_path) {
+  {
+    pipeline_diag_import_open_fail_once_impl(import_path, resolved_path);
+  }
 }
 
 static void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
@@ -1516,17 +1522,39 @@ int32_t pipeline_read_file(void) {
 }
 
 /** 取 dep arena 槽指针。 */
-void *pipeline_get_dep_arena_slot(int32_t i) {
-    if (i < 0 || i >= 32)
-        return NULL;
+void *pipeline_dep_arena_slot_at(int32_t i) {
     return pipeline_dep_arena_slots[i];
 }
 
+void *pipeline_get_dep_arena_slot(int32_t i) {
+  if (i < 0) {
+    return NULL;
+  }
+  if (i >= 32) {
+    return NULL;
+  }
+  {
+    return pipeline_dep_arena_slot_at(i);
+  }
+  return NULL;
+}
+
 /** 取 dep module 槽指针。 */
-void *pipeline_get_dep_module_slot(int32_t i) {
-    if (i < 0 || i >= 32)
-        return NULL;
+void *pipeline_dep_module_slot_at(int32_t i) {
     return pipeline_dep_module_slots[i];
+}
+
+void *pipeline_get_dep_module_slot(int32_t i) {
+  if (i < 0) {
+    return NULL;
+  }
+  if (i >= 32) {
+    return NULL;
+  }
+  {
+    return pipeline_dep_module_slot_at(i);
+  }
+  return NULL;
 }
 
 /** 将 loaded import 缓冲 parse 进 module。 */

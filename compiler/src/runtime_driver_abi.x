@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-29/41/45..49/54：真迁 .x — driver flags/env/phase + peek/fail/smoke/import/len/stack。
+// G-02f-29/41/45..49/54/55：真迁 .x — driver flags/env/phase + peek/smoke/import/stack。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
 // C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、argv defines、import 扫描。
-// G-02f-54：+ driver_bump_stack_limit（rlimit 本体 C）。
+// G-02f-55：+ driver_run_thread_on_large_stack 薄门闩（pthread 本体 C）。
 // 注意：set 侧禁止 if/else 写 *p → 直接 p[0]=v；禁止 if (ptr!=null) 整函数被 -E 丢掉。
 
 extern "C" function getenv(name: *u8): *u8;
@@ -27,7 +27,7 @@ extern "C" function driver_compile_phase_timing_flush_impl(): void;
 extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 extern "C" function driver_pipeline_fail_code_rc_impl(rc: i32): void;
 extern "C" function driver_pipeline_fail_code_path_impl(path: *u8): void;
-extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void;
+extern "C" function driver_run_thread_on_large_stack_impl(fn: *u8, arg: *u8): void;
 extern "C" function driver_get_module_num_funcs(m: *u8): i32;
 extern "C" function driver_get_module_main_func_index(m: *u8): i32;
 extern "C" function driver_print_x_smoke_parse_ok_impl(num_funcs: i32, main_ix: i32, codegen_len: i64): void;
@@ -461,6 +461,13 @@ function driver_pipeline_fail_code(rc: i32, path: *u8): void {
       return;
     }
     driver_pipeline_fail_code_path_impl(path);
+  }
+}
+
+#[no_mangle]
+function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
+  unsafe {
+    driver_run_thread_on_large_stack_impl(fn, arg);
   }
 }
 

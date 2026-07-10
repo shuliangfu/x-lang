@@ -1,7 +1,7 @@
-/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..49/54 true .x + C tail).
+/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..49/54/55 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
- *         merge flags/env/phase/peek/smoke/import/len/stack; C pthread + argv defines.
- * .x covers: + driver_bump_stack_limit.
+ *         merge flags/env/phase/peek/smoke/import/stack; C pthread bulk + argv defines.
+ * .x covers: + driver_run_thread_on_large_stack thin gate.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -56,6 +56,7 @@ void driver_current_dep_path_store(const char *path);
 const char *driver_current_dep_path_load(void);
 void driver_print_check_ok_impl(const char *input_path);
 void driver_bump_stack_limit_impl(void);
+void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg);
 void driver_pipeline_fail_code_rc_impl(int32_t rc);
 void driver_pipeline_fail_code_path_impl(const uint8_t *path);
 void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int64_t codegen_len);
@@ -880,7 +881,7 @@ static void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg)
  * 在大栈 pthread 上执行 fn(arg)；默认 256MiB，可用 SHUX_STACK_LIMIT_MB 覆盖。
  * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，深递归 pipeline/typeck 须与大 pipeline 同路径。
  */
-void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
+void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg) {
     pthread_attr_t attr;
     pthread_t tid;
     void *stk = NULL;
@@ -943,6 +944,12 @@ void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
     }
     pthread_join(tid, NULL);
     pthread_attr_destroy(&attr);
+}
+
+void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
+  {
+    driver_run_thread_on_large_stack_impl(fn, arg);
+  }
 }
 
 /** 对外别名：LSP 主循环等在 256MiB 栈 pthread 上执行 fn(arg)。 */

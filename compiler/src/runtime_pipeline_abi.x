@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..43/50..54：真迁 .x — pipeline dep/import/path + preprocess/seed/entry_lib。
+// G-02f-32..43/50..55：真迁 .x — pipeline dep/import/path + preprocess + 槽/diag 门闩。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
 // C 尾：存储槽数组、import resolve/snprintf、clear 槽循环、malloc buf、大 pipeline。
-// G-02f-54：+ preprocess_raw_to_malloc / dep_seed_slots / entry_lib_name_from_path。
+// G-02f-55：+ get_dep_*_slot / diag_import_open_fail_once。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -42,6 +42,9 @@ extern "C" function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, o
 extern "C" function driver_dep_seed_slots_impl(arenas: *u8, modules: *u8, n: i32): void;
 extern "C" function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8;
 extern "C" function shux_cstr_typeck_lit(): *u8;
+extern "C" function pipeline_dep_arena_slot_at(i: i32): *u8;
+extern "C" function pipeline_dep_module_slot_at(i: i32): *u8;
+extern "C" function pipeline_diag_import_open_fail_once_impl(import_path: *u8, resolved_path: *u8): void;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -609,4 +612,41 @@ function shux_entry_lib_name_from_path(input_path: *u8): *u8 {
     return shux_entry_lib_name_from_path_impl(input_path);
   }
   return 0 as *u8;
+}
+
+/* ---- G-02f-55：pipeline dep 槽访问 + import open 诊断门闩 ---- */
+
+#[no_mangle]
+function pipeline_get_dep_arena_slot(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return pipeline_dep_arena_slot_at(i);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function pipeline_get_dep_module_slot(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  if (i >= 32) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return pipeline_dep_module_slot_at(i);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_path: *u8): void {
+  unsafe {
+    pipeline_diag_import_open_fail_once_impl(import_path, resolved_path);
+  }
 }

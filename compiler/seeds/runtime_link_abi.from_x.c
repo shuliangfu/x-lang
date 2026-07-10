@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..47/53 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..47/53/55 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
- *         merge needs/argv/skip + empty io/compress paths; C invoke_cc/ld bulk.
- * .x covers: + shux_std_io_o_path / shux_std_compress_o_path empty stubs.
+ *         merge needs/skip/empty paths/bank_push; C invoke_cc/ld bulk.
+ * .x covers: + shux_asm_ld_bank_push.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -13,6 +13,7 @@
 #include "runtime_diag_codes.h"
 
 /* G-02f-53: empty C string for retired .o path APIs */
+const char *shux_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path);
 const char *shux_empty_cstr(void) {
     static char buf[1];
     buf[0] = '\0';
@@ -658,12 +659,28 @@ const char *shux_repo_root_from_argv0(const char *argv0) {
  * 将 path 复制到 bank 下一槽（path 常为栈上 snprintf 结果）；成功返回持久指针；满则返回 NULL。
  * 参数：b bank；path 候选路径。
  */
-const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path) {
-    if (!b || !path || !path[0] || b->n >= SHUX_ASM_LD_PATH_BANK_SLOTS)
+const char *shux_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path) {
+    if (!b || b->n >= SHUX_ASM_LD_PATH_BANK_SLOTS)
         return NULL;
     if (snprintf(b->slots[b->n], sizeof(b->slots[0]), "%s", path) >= (int)sizeof(b->slots[0]))
         return NULL;
     return b->slots[b->n++];
+}
+
+const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path) {
+  if (b == NULL) {
+    return NULL;
+  }
+  if (path == NULL) {
+    return NULL;
+  }
+  {
+    if (path[0] == 0) {
+      return NULL;
+    }
+    return shux_asm_ld_bank_push_impl(b, path);
+  }
+  return NULL;
 }
 
 /**
