@@ -25,6 +25,7 @@
 // G-02f-236：load_direct_imports_for_asm_layout 编排 pure。
 // G-02f-237：pipeline_resolve_path pure + collect 空 import 早退。
 // G-02f-238：pipeline_read_file 分阶段 pure；collect seed 队列 helper。
+// G-02f-239：parse_into_loaded pure；dep_prerun/large_stack 边界 pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -94,7 +95,10 @@ extern "C" function pipeline_resolve_path_into_static(path_c: *u8): void;
 /* pipeline_read_file：G-02f-238 下方真迁 */
 extern "C" function pipeline_read_file_stage_prep(): i32;
 extern "C" function pipeline_read_file_commit_prep(): i32;
-extern "C" function pipeline_parse_into_loaded_import_impl(arena: *u8, module: *u8): i32;
+/* parse_into_loaded_import：G-02f-239 下方真迁 */
+extern "C" function pipeline_loaded_import_data(): *u8;
+extern "C" function pipeline_loaded_import_len_get(): i64;
+extern "C" function pipeline_parse_into_bytes(arena: *u8, module: *u8, data: *u8, len: i64): i32;
 extern "C" function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
 extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
 extern "C" function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32;
@@ -1211,91 +1215,121 @@ function pipeline_read_file(): i32 {
   return 0;
 }
 
+// G-02f-239：loaded 缓冲 → parse_into（bytes helper 🔒）
 #[no_mangle]
 function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 {
   if (arena == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   if (module == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   unsafe {
-    return pipeline_parse_into_loaded_import_impl(arena, module);
+    let data: *u8 = pipeline_loaded_import_data();
+    if (data == 0 as *u8) {
+      return 0 - 1;
+    }
+    let len: i64 = pipeline_loaded_import_len_get();
+    return pipeline_parse_into_bytes(arena, module, data, len);
   }
-  return -1;
+  return 0 - 1;
 }
 
-/* ---- G-02f-57：大栈 pthread 上跑 X pipeline ---- */
+/* ---- G-02f-57 / G-02f-239：大栈 pthread 上跑 X pipeline ---- */
 
+// G-02f-239：参数边界 pure；pthread 仍 impl
 #[no_mangle]
 function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (source_data == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (source_len <= 0) {
+    return 0 - 1;
+  }
   unsafe {
     return shux_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
   }
-  return -1;
+  return 0 - 1;
 }
 
-/* ---- G-02f-58：dep 预跑 parse 门闩 ---- */
+/* ---- G-02f-58 / G-02f-239：dep 预跑 parse 门闩 ---- */
 
+// G-02f-239：边界 pure；skip flags + large_stack 仍 impl
 #[no_mangle]
 function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+  if (dep_mod == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (dep_arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (src == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len <= 0) {
+    return 0 - 1;
+  }
   unsafe {
     return shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
   }
-  return -1;
+  return 0 - 1;
 }
 
 #[no_mangle]
 function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
   if (dep_mod == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   if (dep_arena == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   if (src == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
-  if (len == 0) {
-    return -1;
+  if (len <= 0) {
+    return 0 - 1;
   }
   unsafe {
     return shux_pipeline_dep_prerun_parse_only_impl(dep_mod, dep_arena, src, len);
   }
-  return -1;
+  return 0 - 1;
 }
 
-/* ---- G-02f-59：dep prerun typeck + multi-root resolve ---- */
+/* ---- G-02f-59 / G-02f-239：dep prerun typeck ---- */
 
 #[no_mangle]
 function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
   if (dep_mod == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   if (dep_arena == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   if (src == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
-  if (len == 0) {
-    return -1;
+  if (len <= 0) {
+    return 0 - 1;
   }
   if (one_ctx == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   unsafe {
     return shux_pipeline_dep_prerun_typeck_only_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
   }
-  return -1;
+  return 0 - 1;
 }
 
+// G-02f-239：asm module.o 预跑 = typeck_only
 #[no_mangle]
 function shux_pipeline_dep_prerun_for_asm_module_o(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
-  unsafe {
-    return shux_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
-  }
-  return -1;
+  return shux_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
 }
 
 // G-02f-232 内部：POSIX R_OK=4

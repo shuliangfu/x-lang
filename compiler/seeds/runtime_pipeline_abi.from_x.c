@@ -20,6 +20,7 @@
  * G-02f-236: load_direct_imports_for_asm_layout pure.
  * G-02f-237: resolve_path pure + collect empty-import early.
  * G-02f-238: read_file staged pure + collect seed_to_load helper.
+ * G-02f-239: parse_into_loaded pure + dep_prerun/large_stack bounds.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -91,11 +92,13 @@ void shux_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_
     const char *import_path, char *path, size_t path_size);
 
 /* G-02f-58 helper protos */
-int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx);
 int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len);
 
-/* G-02f-57 helper protos */
+/* G-02f-57 / G-02f-239 helper protos */
+int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+    void *out_buf, void *ctx);
 int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx);
 
@@ -1980,19 +1983,37 @@ void *pipeline_get_dep_module_slot(int32_t i) {
 }
 
 /** 将 loaded import 缓冲 parse 进 module。 */
-int32_t pipeline_parse_into_loaded_import_impl(void *arena, void *module) {
-    struct shux_slice_uint8_t slice = {
-        .data = pipeline_loaded_import_buf ? (uint8_t *)pipeline_loaded_import_buf : NULL,
-        .length = pipeline_loaded_import_len
-    };
+/* G-02f-239：loaded 缓冲访问（.x parse pure） */
+uint8_t *pipeline_loaded_import_data(void) {
+    return pipeline_loaded_import_buf ? (uint8_t *)pipeline_loaded_import_buf : NULL;
+}
+
+size_t pipeline_loaded_import_len_get(void) {
+    return pipeline_loaded_import_len;
+}
+
+/* G-02f-239：parse bytes 🔒 */
+int32_t pipeline_parse_into_bytes(void *arena, void *module, uint8_t *data, size_t len) {
+    struct shux_slice_uint8_t slice;
     struct parser_ParseIntoResult pr;
-    if (!slice.data)
+    if (!arena || !module || !data)
         return -1;
+    slice.data = data;
+    slice.length = len;
     parser_parse_into_init(module, arena);
     pr = parser_parse_into(arena, module, &slice);
     return pr.ok == 0 ? 0 : -1;
 }
 
+/* G-02f-239：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_parse_into_loaded_import_impl(void *arena, void *module) {
+    uint8_t *data = pipeline_loaded_import_data();
+    if (!data)
+        return -1;
+    return pipeline_parse_into_bytes(arena, module, data, pipeline_loaded_import_len_get());
+}
+
+/* G-02f-239：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_parse_into_loaded_import(void *arena, void *module) {
   if (arena == NULL) {
     return -1;
@@ -2036,8 +2057,8 @@ void * pipeline_run_x_thread_fn(void *arg) {
 
 
 /** 大栈 pthread 上调用 pipeline_run_x_pipeline；pthread 失败时回退当前线程。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+/* G-02f-239：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
+int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx) {
     PipelineRunSuArgs args;
     driver_set_pipeline_entry_source_len(source_len);
@@ -2054,11 +2075,19 @@ int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const ui
     return args.result;
 }
 
+/* G-02f-239：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
+int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+    void *out_buf, void *ctx) {
+    if (!module || !arena || !source_data || source_len == 0)
+        return -1;
+    return shux_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
+}
+
 
 
 /** dep 预跑：完整 parse，跳过 typeck/codegen。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+/* G-02f-239：flags + large_stack 🔒 body */
+int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
     int saved = driver_check_only_get();
     int saved_entry_only = 0;
@@ -2078,6 +2107,14 @@ int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, c
         pctx->asm_entry_module_only = saved_entry_only;
     driver_check_only_set(saved ? 1 : 0);
     return ec;
+}
+
+/* G-02f-239：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
+int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+    void *dep_out, void *one_ctx) {
+    if (!dep_mod || !dep_arena || !src || len == 0)
+        return -1;
+    return shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
 }
 
 
@@ -2596,6 +2633,38 @@ int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path) {
     return 0;
 }
 
+/* G-02f-239：从已 parse 的 tmp_module 入队子 import（未 loaded / 未在 to_load） */
+void shux_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n, char *dep_paths[],
+    int n_loaded) {
+    int n_imp;
+    int jj;
+    if (!tmp_module || !to_load || !to_load_n)
+        return;
+    n_imp = parser_get_module_num_imports(tmp_module);
+    if (n_imp <= 0)
+        return;
+    for (jj = 0; jj < n_imp && jj < SHUX_DRIVER_DEP_SLOT_MAX && *to_load_n < SHUX_DRIVER_DEP_SLOT_MAX; jj++) {
+        uint8_t sub_buf[64];
+        char sub_c[65];
+        size_t kk = 0;
+
+        parser_get_module_import_path(tmp_module, jj, sub_buf);
+        while (kk < sizeof(sub_buf) && sub_buf[kk]) {
+            sub_c[kk] = (char)sub_buf[kk];
+            kk++;
+        }
+        sub_c[kk] = '\0';
+        if (shux_find_loaded_import_index(sub_c, dep_paths, n_loaded) >= 0)
+            continue;
+        if (shux_collect_to_load_has(to_load, *to_load_n, sub_c))
+            continue;
+        to_load[*to_load_n] = strdup(sub_c);
+        if (!to_load[*to_load_n])
+            continue;
+        (*to_load_n)++;
+    }
+}
+
 int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps) {
@@ -2659,28 +2728,8 @@ int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t modu
                                  "pipeline debug: collect parse dep=%s pr_ok=%d n_imp=%d",
                                  dep_paths[n - 1] ? dep_paths[n - 1] : "?", (int)pr_dep.ok, n_imp);
                 }
-                if (n_imp > 0) {
-                    for (int jj = 0; jj < n_imp && jj < SHUX_DRIVER_DEP_SLOT_MAX && to_load_n < SHUX_DRIVER_DEP_SLOT_MAX;
-                         jj++) {
-                        uint8_t sub_buf[64];
-                        char sub_c[65];
-                        size_t kk = 0;
-
-                        parser_get_module_import_path(tmp_module, jj, sub_buf);
-                        while (kk < sizeof(sub_buf) && sub_buf[kk]) {
-                            sub_c[kk] = (char)sub_buf[kk];
-                            kk++;
-                        }
-                        sub_c[kk] = '\0';
-                        if (shux_find_loaded_import_index(sub_c, dep_paths, n) >= 0)
-                            continue;
-                        if (shux_collect_to_load_has(to_load, to_load_n, sub_c))
-                            continue;
-                        to_load[to_load_n++] = strdup(sub_c);
-                        if (!to_load[to_load_n - 1])
-                            to_load_n--;
-                    }
-                }
+                (void)n_imp;
+                shux_collect_enqueue_module_imports(tmp_module, to_load, &to_load_n, dep_paths, n);
             }
         }
     }
@@ -2793,28 +2842,8 @@ int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t
                                  "pipeline debug: collect parse dep=%s pr_ok=%d n_imp=%d",
                                  path_c ? path_c : "?", (int)pr_dep.ok, n_imp);
                 }
-                if (n_imp > 0) {
-                    for (int jj = 0; jj < n_imp && jj < SHUX_DRIVER_DEP_SLOT_MAX && to_load_n < SHUX_DRIVER_DEP_SLOT_MAX;
-                         jj++) {
-                        uint8_t sub_buf[64];
-                        char sub_c[65];
-                        size_t kk = 0;
-
-                        parser_get_module_import_path(tmp_module, jj, sub_buf);
-                        while (kk < sizeof(sub_buf) && sub_buf[kk]) {
-                            sub_c[kk] = (char)sub_buf[kk];
-                            kk++;
-                        }
-                        sub_c[kk] = '\0';
-                        if (shux_find_loaded_import_index(sub_c, dep_paths, n) >= 0)
-                            continue;
-                        if (shux_collect_to_load_has(to_load, to_load_n, sub_c))
-                            continue;
-                        to_load[to_load_n++] = strdup(sub_c);
-                        if (!to_load[to_load_n - 1])
-                            to_load_n--;
-                    }
-                }
+                (void)n_imp;
+                shux_collect_enqueue_module_imports(tmp_module, to_load, &to_load_n, dep_paths, n);
             }
             free(prep);
         }
