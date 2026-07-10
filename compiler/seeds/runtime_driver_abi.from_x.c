@@ -1,7 +1,7 @@
-/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45 true .x + C tail).
+/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45/46 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
- *         merge flags/env/skip_large/large_stack; C slots + pthread timing.
- * .x covers: quiet_ok, env probes, flag get/set, typeck_skip_large_entry, large_stack mark.
+ *         merge flags/env/skip/large_stack/dep_path/print_check; C slots + pthread.
+ * .x covers: quiet_ok, env, flags, skip_large, large_stack, dep_path, print_check_ok.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -52,6 +52,9 @@ int32_t *driver_x_pipeline_skip_codegen_flag_slot(void);
 int32_t *driver_skip_codegen_dep_0_flag_slot(void);
 int32_t driver_pipeline_entry_source_len_i32(void);
 int32_t *driver_large_stack_thread_flag_slot(void);
+void driver_current_dep_path_store(const char *path);
+const char *driver_current_dep_path_load(void);
+void driver_print_check_ok_impl(const char *input_path);
 
 /** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 X pipeline 共用）。 */
 static int driver_check_only_flag;
@@ -216,10 +219,13 @@ SHUX_WEAK int32_t driver_check_quiet_ok_get(void) {
  * 参数：input_path 被检查文件路径（可为 NULL）。
  */
 void driver_print_check_ok(const char *input_path) {
-    if (driver_check_quiet_ok_get())
-        return;
-    diag_reportf(NULL, 0, 0, "info", NULL,
-                 "check OK: %s", input_path ? input_path : "?");
+  (void)(({   {
+    if ((driver_check_quiet_ok_get() !=0)) {
+      return;
+    }
+    (void)(driver_print_check_ok_impl(input_path));
+  }
+ }));
 }
 
 /** 非 0 时 pipeline_impl_typecheck 跳过 .x typeck。 */
@@ -505,18 +511,40 @@ int32_t driver_skip_codegen_dep_0_get(void) {
 /** 当前 codegen 的 dep 逻辑路径（如 std.io.driver），供 .x codegen 前缀 C 符号。 */
 static const char *driver_current_dep_path_for_codegen;
 
+/* G-02f-46: dep path store/load + print_check_ok diag impl */
+void driver_current_dep_path_store(const char *path) {
+    driver_current_dep_path_for_codegen = path;
+}
+
+const char *driver_current_dep_path_load(void) {
+    return driver_current_dep_path_for_codegen;
+}
+
+void driver_print_check_ok_impl(const char *input_path) {
+    diag_reportf(NULL, 0, 0, "info", NULL,
+                 "check OK: %s", input_path ? input_path : "?");
+}
+
+
 /**
  * 设置当前 dep 路径；pipeline codegen 循环每 dep 调用。
  * 参数：path import 逻辑路径或 NULL 清槽。
  */
 void driver_set_current_dep_path_for_codegen(const char *path) {
-    driver_current_dep_path_for_codegen = path;
+  (void)(({   {
+    (void)(driver_current_dep_path_store(path));
+  }
+ }));
+}
+const char *driver_get_current_dep_path_for_codegen(void) {
+  (void)(({   {
+    const char * r = (const char *)driver_current_dep_path_load();
+    return r;
+  }
+ }));
+  return NULL;
 }
 
-/** 查询当前 dep 路径；ast_pool / codegen 生成 C 符号前缀时读取。 */
-const char *driver_get_current_dep_path_for_codegen(void) {
-    return driver_current_dep_path_for_codegen;
-}
 
 /** OBS-001：编译阶段耗时；phase 0=parse 1=typeck 2=codegen。 */
 #define SHUX_COMPILE_PHASE_MAX 3
