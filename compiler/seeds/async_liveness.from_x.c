@@ -1,5 +1,5 @@
 /* seeds/async_liveness.from_x.c — G-02f-18 product TU
- * G-02f-166～168 await AST true .x; G-02f-132 true .x pure helpers.
+ * G-02f-169～171 refs/analyze true .x; G-02f-166～168 await AST true .x; G-02f-132 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
  * G-02f-110 helper gates.
@@ -376,7 +376,7 @@ int block_has_io_write_await(const struct ASTBlock *b) {
     return 0;
 }
 /** 表达式是否引用变量 name。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-169：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int expr_refs_var(const struct ASTExpr *e, const char *name) {
     if (!e || !name || !name[0]) return 0;
     if (e->kind == AST_EXPR_VAR && e->value.var.name && strcmp(e->value.var.name, name) == 0)
@@ -437,7 +437,7 @@ int expr_refs_var(const struct ASTExpr *e, const char *name) {
     }
 }
 /** 块内是否引用变量 name（A3 v0 不递归 loop/for）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-169：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int block_refs_var(const struct ASTBlock *b, const char *name) {
     if (!b) return 0;
     for (int i = 0; i < b->num_lets; i++) {
@@ -449,7 +449,7 @@ int block_refs_var(const struct ASTBlock *b, const char *name) {
     return 0;
 }
 /** continuation 是否引用 name（从 stmt_order[from_exclusive+1] 起到块末）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-170：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int block_rest_refs_var(const struct ASTBlock *b, int from_exclusive,
     const char *name) {
     if (!b || !name || !name[0]) return 0;
@@ -497,7 +497,7 @@ void frame_live_at_await(const struct ASTBlock *b, int stmt_idx,
 
 
 /** 按 stmt_order 线性扫描并更新 frame（A3 v0：不进入 loop/for 体）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-171：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void analyze_block_linear(const struct ASTBlock *b,
     const char **prefix_defined, int n_prefix, AsyncFrameLive *frame) {
     const char *defined[ASYNC_LIVE_MAX_VARS];

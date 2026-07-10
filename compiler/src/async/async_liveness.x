@@ -7,6 +7,7 @@
 // G-02f-164：frame_live_at_await 真迁 .x（char** defined LE 槽）。
 // G-02f-165：thin _impl 批折叠。
 // G-02f-166～168：expr/block await + count + io_await 真迁 .x（AST LE 偏移表）。
+// G-02f-169～171：expr/block refs_var + rest_refs + analyze_block_linear 真迁 .x。
 // 产品：cc seeds/async_liveness.from_x.c → src/async/async_liveness.o
 
 function async_liveness_x_doc_anchor(): i32 {
@@ -648,7 +649,255 @@ function block_has_io_write_await(b: *u8): i32 {
   return 0;
 }
 
-// G-02f-169～：expr_refs_var / block_refs / rest / analyze 仍 seed（strcmp/stmt_order）。
+// ---- G-02f-169：cstr + expr_refs_var / block_refs_var ----
+function async_live_cstr_eq(a: *u8, b: *u8): i32 {
+  if (a == 0) { return 0; }
+  if (b == 0) { return 0; }
+  let i: i32 = 0;
+  while (i < 4096) {
+    let ca: u8 = a[i];
+    let cb: u8 = b[i];
+    if (ca != cb) { return 0; }
+    if (ca == 0) { return 1; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+function async_live_cstr_copy64(dst: *u8, src: *u8): void {
+  if (dst == 0) { return; }
+  if (src == 0) {
+    dst[0] = 0;
+    return;
+  }
+  let j: i32 = 0;
+  while (j < 63) {
+    let c: u8 = src[j];
+    if (c == 0) { break; }
+    dst[j] = c;
+    j = j + 1;
+  }
+  dst[j] = 0;
+}
+
+function async_live_def_row(defs: *u8, i: i32): *u8 {
+  if (defs == 0) { return 0 as *u8; }
+  let q: *u8 = defs;
+  let off: i32 = i * 64;
+  let k: i32 = 0;
+  while (k < off) {
+    q = q + 1;
+    k = k + 1;
+  }
+  return q;
+}
+
+// char** 槽 i：偏移 i*8（LE 指针）
+function async_live_load_def_name(defs: *u8, i: i32): *u8 {
+  if (defs == 0) { return 0 as *u8; }
+  let off: i32 = i * 8;
+  return async_live_load_ptr(defs, off);
+}
+
+#[no_mangle]
+function expr_refs_var(e: *u8, name: *u8): i32 {
+  if (e == 0) { return 0; }
+  if (name == 0) { return 0; }
+  if (name[0] == 0) { return 0; }
+  let k: i32 = async_live_expr_kind(e);
+  // AST_EXPR_VAR = 3；value.var.name @24
+  if (k == 3) {
+    let vn: *u8 = async_live_load_ptr(e, 24);
+    if (vn != 0) {
+      if (async_live_cstr_eq(vn, name) != 0) { return 1; }
+    }
+    return 0;
+  }
+  if (async_live_is_binop_kind(k) != 0) {
+    if (expr_refs_var(async_live_load_ptr(e, 24), name) != 0) { return 1; }
+    return expr_refs_var(async_live_load_ptr(e, 32), name);
+  }
+  // unary + AWAIT(54)
+  if (async_live_is_unary_kind(k) != 0) {
+    return expr_refs_var(async_live_load_ptr(e, 24), name);
+  }
+  if (k == 54) {
+    return expr_refs_var(async_live_load_ptr(e, 24), name);
+  }
+  if (k == 53) {
+    return expr_refs_var(async_live_load_ptr(e, 24), name);
+  }
+  if (k == 25) {
+    if (expr_refs_var(async_live_load_ptr(e, 24), name) != 0) { return 1; }
+    if (expr_refs_var(async_live_load_ptr(e, 32), name) != 0) { return 1; }
+    let el: *u8 = async_live_load_ptr(e, 40);
+    if (el != 0) {
+      if (expr_refs_var(el, name) != 0) { return 1; }
+    }
+    return 0;
+  }
+  if (k == 27) {
+    if (expr_refs_var(async_live_load_ptr(e, 24), name) != 0) { return 1; }
+    if (expr_refs_var(async_live_load_ptr(e, 32), name) != 0) { return 1; }
+    let el2: *u8 = async_live_load_ptr(e, 40);
+    if (el2 != 0) {
+      if (expr_refs_var(el2, name) != 0) { return 1; }
+    }
+    return 0;
+  }
+  if (k == 26) {
+    return block_refs_var(async_live_load_ptr(e, 24), name);
+  }
+  if (k == 44) {
+    return expr_refs_var(async_live_load_ptr(e, 24), name);
+  }
+  if (k == 47) {
+    if (expr_refs_var(async_live_load_ptr(e, 24), name) != 0) { return 1; }
+    return expr_refs_var(async_live_load_ptr(e, 32), name);
+  }
+  if (k == 48) {
+    if (expr_refs_var(async_live_load_ptr(e, 24), name) != 0) { return 1; }
+    let args: *u8 = async_live_load_ptr(e, 32);
+    let n: i32 = async_live_load_i32(e, 40);
+    let i: i32 = 0;
+    while (i < n) {
+      if (expr_refs_var(async_live_ptr_at(args, i), name) != 0) { return 1; }
+      i = i + 1;
+    }
+    return 0;
+  }
+  if (k == 49) {
+    if (expr_refs_var(async_live_load_ptr(e, 24), name) != 0) { return 1; }
+    let args2: *u8 = async_live_load_ptr(e, 40);
+    let n2: i32 = async_live_load_i32(e, 48);
+    let j: i32 = 0;
+    while (j < n2) {
+      if (expr_refs_var(async_live_ptr_at(args2, j), name) != 0) { return 1; }
+      j = j + 1;
+    }
+    return 0;
+  }
+  if (k == 45) {
+    let inits: *u8 = async_live_load_ptr(e, 40);
+    let nf: i32 = async_live_load_i32(e, 48);
+    let fi: i32 = 0;
+    while (fi < nf) {
+      if (expr_refs_var(async_live_ptr_at(inits, fi), name) != 0) { return 1; }
+      fi = fi + 1;
+    }
+    return 0;
+  }
+  if (k == 46) {
+    let elems: *u8 = async_live_load_ptr(e, 24);
+    let ne: i32 = async_live_load_i32(e, 32);
+    let ei: i32 = 0;
+    while (ei < ne) {
+      if (expr_refs_var(async_live_ptr_at(elems, ei), name) != 0) { return 1; }
+      ei = ei + 1;
+    }
+    return 0;
+  }
+  if (k == 43) {
+    if (expr_refs_var(async_live_load_ptr(e, 24), name) != 0) { return 1; }
+    let arms: *u8 = async_live_load_ptr(e, 32);
+    let na: i32 = async_live_load_i32(e, 40);
+    let ai: i32 = 0;
+    while (ai < na) {
+      if (arms == 0) { return 0; }
+      let arm: *u8 = arms + (ai * 88);
+      if (expr_refs_var(async_live_load_ptr(arm, 80), name) != 0) { return 1; }
+      ai = ai + 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function block_refs_var(b: *u8, name: *u8): i32 {
+  if (b == 0) { return 0; }
+  if (name == 0) { return 0; }
+  let nlets: i32 = async_live_load_i32(b, 24);
+  let lets: *u8 = async_live_load_ptr(b, 16);
+  let i: i32 = 0;
+  while (i < nlets) {
+    if (lets != 0) {
+      let ld: *u8 = lets + (i * 48);
+      let init: *u8 = async_live_load_ptr(ld, 16);
+      if (init != 0) {
+        if (expr_refs_var(init, name) != 0) { return 1; }
+      }
+    }
+    i = i + 1;
+  }
+  let nst: i32 = async_live_load_i32(b, 104);
+  let stmts: *u8 = async_live_load_ptr(b, 96);
+  let j: i32 = 0;
+  while (j < nst) {
+    if (expr_refs_var(async_live_ptr_at(stmts, j), name) != 0) { return 1; }
+    j = j + 1;
+  }
+  let fin: *u8 = async_live_load_ptr(b, 112);
+  if (fin != 0) {
+    if (expr_refs_var(fin, name) != 0) { return 1; }
+  }
+  return 0;
+}
+
+// G-02f-170：block_rest_refs_var — stmt_order@172 entry size 8 kind@0 idx@4
+#[no_mangle]
+function block_rest_refs_var(b: *u8, from_exclusive: i32, name: *u8): i32 {
+  if (b == 0) { return 0; }
+  if (name == 0) { return 0; }
+  if (name[0] == 0) { return 0; }
+  let norder: i32 = async_live_load_i32(b, 120);
+  if (norder > 0) {
+    let nlets: i32 = async_live_load_i32(b, 24);
+    let lets: *u8 = async_live_load_ptr(b, 16);
+    let nst: i32 = async_live_load_i32(b, 104);
+    let stmts: *u8 = async_live_load_ptr(b, 96);
+    let si: i32 = from_exclusive + 1;
+    while (si < norder) {
+      let base: i32 = 172 + si * 8;
+      let sk: i32 = b[base] as i32;
+      let idx: i32 = async_live_load_i32(b, base + 4);
+      if (sk == 1) {
+        if (lets != 0) {
+          if (idx >= 0) {
+            if (idx < nlets) {
+              let ld: *u8 = lets + (idx * 48);
+              let init: *u8 = async_live_load_ptr(ld, 16);
+              if (init != 0) {
+                if (expr_refs_var(init, name) != 0) { return 1; }
+              }
+            }
+          }
+        }
+      } else {
+        if (sk == 2) {
+          if (stmts != 0) {
+            if (idx >= 0) {
+              if (idx < nst) {
+                if (expr_refs_var(async_live_ptr_at(stmts, idx), name) != 0) { return 1; }
+              }
+            }
+          }
+        }
+      }
+      si = si + 1;
+    }
+    let fin: *u8 = async_live_load_ptr(b, 112);
+    if (fin != 0) {
+      if (expr_refs_var(fin, name) != 0) { return 1; }
+    }
+    return 0;
+  }
+  let fin2: *u8 = async_live_load_ptr(b, 112);
+  if (fin2 != 0) {
+    if (expr_refs_var(fin2, name) != 0) { return 1; }
+  }
+  return 0;
+}
 
 // G-02f-162：AsyncFrameLive — names[64][64] @0，n:i32 @4096
 function frame_live_load_n(out: *u8): i32 {
@@ -742,30 +991,9 @@ function frame_live_add(out: *u8, name: *u8): void {
   frame_live_store_n(out, n + 1);
 }
 
-// G-02f-169～：refs/analyze 仍 seed；frame 真迁如下。
 /* ---- G-02f-161 / G-02f-164：async_liveness frame 真迁 ---- */
 
-// G-02f-164 / G-02f-165：block_rest_refs_var 为 seed public C
-extern "C" function block_rest_refs_var(b: *u8, from: i32, name: *u8): i32;
-
-// G-02f-164：defs 为 char**；槽 i 在偏移 i*8（LE 指针）
-function async_live_load_def_name(defs: *u8, i: i32): *u8 {
-  if (defs == 0) { return 0 as *u8; }
-  let off: i32 = i * 8;
-  let m: usize = 256;
-  let m2: usize = m * m;
-  let m4: usize = m2 * m2;
-  let a: usize = defs[off] as usize;
-  a = a + (defs[off + 1] as usize) * m;
-  a = a + (defs[off + 2] as usize) * m2;
-  a = a + (defs[off + 3] as usize) * (m2 * m);
-  a = a + (defs[off + 4] as usize) * m4;
-  a = a + (defs[off + 5] as usize) * (m4 * m);
-  a = a + (defs[off + 6] as usize) * (m4 * m2);
-  a = a + (defs[off + 7] as usize) * (m4 * m2 * m);
-  return a as *u8;
-}
-
+// G-02f-164：defs 为 char**；block_rest_refs_var 已真迁
 #[no_mangle]
 function frame_live_at_await(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): void {
   if (nd <= 0) { return; }
@@ -775,9 +1003,26 @@ function frame_live_at_await(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): vo
   while (i < nd) {
     let name: *u8 = async_live_load_def_name(defs, i);
     if (name != 0) {
-      unsafe {
-        if (block_rest_refs_var(b, idx, name) != 0) {
-          frame_live_add(out, name);
+      if (block_rest_refs_var(b, idx, name) != 0) {
+        frame_live_add(out, name);
+      }
+    }
+    i = i + 1;
+  }
+}
+
+// G-02f-171：analyze_block_linear — def 名拷入本地 64×64，避免 char** 栈
+function async_live_analyze_at_await(b: *u8, si: i32, defs: *u8, n_def: i32, frame: *u8): void {
+  if (n_def <= 0) { return; }
+  if (defs == 0) { return; }
+  if (frame == 0) { return; }
+  let i: i32 = 0;
+  while (i < n_def) {
+    let name: *u8 = async_live_def_row(defs, i);
+    if (name != 0) {
+      if (name[0] != 0) {
+        if (block_rest_refs_var(b, si, name) != 0) {
+          frame_live_add(frame, name);
         }
       }
     }
@@ -785,7 +1030,92 @@ function frame_live_at_await(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): vo
   }
 }
 
-// analyze_block_linear：seed public C（G-02f-165 折叠）。
+#[no_mangle]
+function analyze_block_linear(b: *u8, prefix: *u8, n_prefix: i32, frame: *u8): void {
+  if (b == 0) { return; }
+  if (frame == 0) { return; }
+  let def_names: u8[4096] = [];
+  let n_def: i32 = 0;
+  let pi: i32 = 0;
+  while (pi < n_prefix) {
+    if (n_def >= 64) { break; }
+    let pn: *u8 = async_live_load_def_name(prefix, pi);
+    if (pn != 0) {
+      if (pn[0] != 0) {
+        async_live_cstr_copy64(async_live_def_row(&def_names[0], n_def), pn);
+        n_def = n_def + 1;
+      }
+    }
+    pi = pi + 1;
+  }
+  let norder: i32 = async_live_load_i32(b, 120);
+  if (norder > 0) {
+    let nlets: i32 = async_live_load_i32(b, 24);
+    let lets: *u8 = async_live_load_ptr(b, 16);
+    let nst: i32 = async_live_load_i32(b, 104);
+    let stmts: *u8 = async_live_load_ptr(b, 96);
+    let si: i32 = 0;
+    while (si < norder) {
+      let base: i32 = 172 + si * 8;
+      let sk: i32 = b[base] as i32;
+      let idx: i32 = async_live_load_i32(b, base + 4);
+      if (sk == 1) {
+        if (lets != 0) {
+          if (idx >= 0) {
+            if (idx < nlets) {
+              let ld: *u8 = lets + (idx * 48);
+              let init: *u8 = async_live_load_ptr(ld, 16);
+              if (init != 0) {
+                if (expr_has_await(init) != 0) {
+                  async_live_analyze_at_await(b, si, &def_names[0], n_def, frame);
+                }
+              }
+              if (n_def < 64) {
+                let lname: *u8 = async_live_load_ptr(ld, 0);
+                if (lname != 0) {
+                  if (lname[0] != 0) {
+                    async_live_cstr_copy64(async_live_def_row(&def_names[0], n_def), lname);
+                    n_def = n_def + 1;
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else {
+        if (sk == 2) {
+          if (stmts != 0) {
+            if (idx >= 0) {
+              if (idx < nst) {
+                let ex: *u8 = async_live_ptr_at(stmts, idx);
+                if (ex != 0) {
+                  if (expr_has_await(ex) != 0) {
+                    async_live_analyze_at_await(b, si, &def_names[0], n_def, frame);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      si = si + 1;
+    }
+    let fin: *u8 = async_live_load_ptr(b, 112);
+    if (fin != 0) {
+      if (expr_has_await(fin) != 0) {
+        async_live_analyze_at_await(b, norder - 1, &def_names[0], n_def, frame);
+      }
+    }
+    return;
+  }
+  let fin2: *u8 = async_live_load_ptr(b, 112);
+  if (fin2 != 0) {
+    if (expr_has_await(fin2) != 0) {
+      async_live_analyze_at_await(b, 0 - 1, &def_names[0], n_def, frame);
+    }
+  }
+}
+
 
 // G-02f-161：函数名 → C 标识符（非 alnum/_ → _）
 #[no_mangle]
