@@ -18,9 +18,6 @@
 #include <unistd.h>
 
 /* G-02f-74 diag gates */
-void diag_set_file_impl(const char *path, const char *source, size_t source_len);
-void diag_push_file_impl(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len);
-void diag_restore_impl(const DiagContextSnapshot *snapshot);
 void diag_print_known_codes_impl(FILE *out);
 void diag_print_code_explain_impl(FILE *out, const char *code);
 void diag_print_code_table_impl(FILE *out);
@@ -259,12 +256,27 @@ static DiagPalette diag_palette_for_kind(const char *kind) {
     return pal;
 }
 
-void diag_print_header_impl(const char *kind, const char *code, const char *msg,
+/** 供 .x stdio 冷路径（G-02f-156）。 */
+FILE *diag_stderr(void) { return stderr; }
+int diag_io_fputc(FILE *o, int c) { return fputc(c, o); }
+int diag_io_fputs(const char *s, FILE *o) { return fputs(s ? s : "", o); }
+void diag_io_fputs_u04x(FILE *o, unsigned c) { fprintf(o, "\\u%04x", c); }
+void diag_io_fflush(FILE *o) { fflush(o); }
+void diag_io_fprint_line_col(FILE *o, int line, int col) {
+    fprintf(o, ",\"line\":%d,\"col\":%d,\"message\":", line, col);
+}
+
+/* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void diag_print_header(const char *kind, const char *code, const char *msg,
                               const char *kind_color, const char *reset) {
     if (!msg)
         msg = "";
     if (!kind)
         kind = "";
+    if (!kind_color)
+        kind_color = "";
+    if (!reset)
+        reset = "";
     if (kind[0] == '\0') {
         fprintf(stderr, "%s\n", msg);
         return;
@@ -273,12 +285,6 @@ void diag_print_header_impl(const char *kind, const char *code, const char *msg,
         fprintf(stderr, "%s%s[%s]%s: %s\n", kind_color, kind, code, reset, msg);
     else
         fprintf(stderr, "%s%s%s: %s\n", kind_color, kind, reset, msg);
-}
-void diag_print_header(const char *kind, const char *code, const char *msg,
-                              const char *kind_color, const char *reset) {
-  {
-    diag_print_header_impl(kind, code, msg, kind_color, reset);
-  }
 }
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int diag_line_digits(int line) {
@@ -320,21 +326,24 @@ int diag_extract_line(int line_no, const char **line_start_out, size_t *line_len
 }
 
 
-void diag_set_file_impl(const char *path, const char *source, size_t source_len) {
+/** 供 .x 写 g_diag_ctx（G-02f-156）。 */
+void diag_ctx_set_all(const char *path, const char *source, size_t source_len, int use_color) {
+    g_diag_ctx.file_path = path;
+    g_diag_ctx.source = source;
+    g_diag_ctx.source_len = source_len;
+    g_diag_ctx.use_color = use_color;
+}
+
+/* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void diag_set_file(const char *path, const char *source, size_t source_len) {
     g_diag_ctx.file_path = path;
     g_diag_ctx.source = source;
     g_diag_ctx.source_len = source_len;
     g_diag_ctx.use_color = diag_should_color();
 }
 
-void diag_set_file(const char *path, const char *source, size_t source_len) {
-  {
-    diag_set_file_impl(path, source, source_len);
-  }
-}
-
-
-void diag_push_file_impl(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len) {
+/* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len) {
     if (snapshot) {
         snapshot->file_path = g_diag_ctx.file_path;
         snapshot->source = g_diag_ctx.source;
@@ -347,26 +356,14 @@ void diag_push_file_impl(DiagContextSnapshot *snapshot, const char *path, const 
     g_diag_ctx.use_color = diag_should_color();
 }
 
-void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len) {
-  {
-    diag_push_file_impl(snapshot, path, source, source_len);
-  }
-}
-
-
-void diag_restore_impl(const DiagContextSnapshot *snapshot) {
+/* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void diag_restore(const DiagContextSnapshot *snapshot) {
     if (!snapshot)
         return;
     g_diag_ctx.file_path = snapshot->file_path;
     g_diag_ctx.source = snapshot->source;
     g_diag_ctx.source_len = snapshot->source_len;
     g_diag_ctx.use_color = snapshot->use_color;
-}
-
-void diag_restore(const DiagContextSnapshot *snapshot) {
-  {
-    diag_restore_impl(snapshot);
-  }
 }
 
 
@@ -729,7 +726,8 @@ int diag_json_enabled(void) {
  * 将单个字符串以 JSON 字符串字面量形式写入 out（含两端引号）。
  * 转义 "、\ 与控制字符（\\uXXXX）；NULL 视作空串。仅在诊断冷路径调用。
  */
-void diag_json_write_str_impl(FILE *out, const char *s) {
+/* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void diag_json_write_str(FILE *out, const char *s) {
     const unsigned char *p = (const unsigned char *)(s ? s : "");
     fputc('"', out);
     for (; *p; p++) {
@@ -750,11 +748,6 @@ void diag_json_write_str_impl(FILE *out, const char *s) {
         }
     }
     fputc('"', out);
-}
-void diag_json_write_str(FILE *out, const char *s) {
-  {
-    diag_json_write_str_impl(out, s);
-  }
 }
 
 
@@ -785,7 +778,8 @@ const char * diag_json_severity(const char *kind) {
  * 字段：severity、code（可能为 null）、file（可能为 null）、line、col、message。
  * line/col 为 0 时仍输出（语义：未知）；调用方按需忽略。
  */
-void diag_report_json_impl(const char *file, int line, int col,
+/* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void diag_report_json(const char *file, int line, int col,
                              const char *kind, const char *code, const char *msg) {
     const char *sev = diag_json_severity(kind);
     fputs("{\"severity\":", stderr);
@@ -804,12 +798,6 @@ void diag_report_json_impl(const char *file, int line, int col,
     diag_json_write_str(stderr, msg ? msg : "");
     fputs("}\n", stderr);
     fflush(stderr);
-}
-void diag_report_json(const char *file, int line, int col,
-                             const char *kind, const char *code, const char *msg) {
-  {
-    diag_report_json_impl(file, line, col, kind, code, msg);
-  }
 }
 
 
