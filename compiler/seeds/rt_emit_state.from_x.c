@@ -1,8 +1,9 @@
-/* seeds/rt_emit_state.from_x.c — G-02f-303 P2 runtime rest (-E emit state)
+/* seeds/rt_emit_state.from_x.c — G-02f-303/304 P2 runtime rest (-E emit state)
  * Logic source: src/runtime/rt_emit_state.x
  * Hybrid: SHUX_RT_EMIT_STATE_FROM_X + ld -r into runtime_driver_no_c.o
  *
- * Shared emit state (non-static) for main.x setters + rest driver_run_x_emit_c.
+ * f-303: shared emit state + setters
+ * f-304: driver_argv_parse_x_emit_c（扫 -L / -x -E 灌入状态槽）
  * Full emit pipeline remains mega rest.
  */
 #include <stddef.h>
@@ -10,6 +11,8 @@
 #include <string.h>
 
 #define X_EMIT_MAX_LIB_ROOTS 16
+
+extern int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max);
 
 /* 与 seeds/runtime.from_x.c 原 static 同布局；hybrid 时 rest 以 extern 引用。 */
 const char *driver_x_emit_c_path;
@@ -45,6 +48,43 @@ int driver_run_x_emit_c_set_n_lib_roots(int n) {
 
 int driver_run_x_emit_c_set_emit_extern(int v) {
   driver_x_emit_c_want_extern = v ? 1 : 0;
+  return 0;
+}
+
+/**
+ * 扫描 argv：若存在 -x -E <path> 则记下 path 及此前出现的 -L path，返回 1，否则返回 0。
+ */
+int driver_argv_parse_x_emit_c(int argc, char **argv) {
+  char ab[512];
+  char nx[512];
+  driver_x_emit_c_path = NULL;
+  driver_x_emit_n_lib_roots = 0;
+  if (argc < 4 || !argv)
+    return 0;
+  for (int i = 1; i < argc; i++) {
+    if (driver_get_argv_i(argc, argv, i, ab, (int)sizeof ab) < 0)
+      continue;
+    if (strcmp(ab, "-L") == 0 && i + 1 < argc) {
+      int k = driver_x_emit_n_lib_roots;
+      if (k < X_EMIT_MAX_LIB_ROOTS) {
+        int ln = driver_get_argv_i(argc, argv, i + 1, driver_x_emit_lib_bufs[k], 256);
+        if (ln < 0)
+          return 0;
+        driver_x_emit_lib_roots[k] = driver_x_emit_lib_bufs[k];
+        driver_x_emit_n_lib_roots++;
+      }
+      i++;
+      continue;
+    }
+    if (strcmp(ab, "-x") == 0 && i + 2 < argc) {
+      if (driver_get_argv_i(argc, argv, i + 1, nx, (int)sizeof nx) < 0 || strcmp(nx, "-E") != 0)
+        continue;
+      if (driver_get_argv_i(argc, argv, i + 2, driver_x_emit_path_buf, (int)sizeof driver_x_emit_path_buf) < 0)
+        return 0;
+      driver_x_emit_c_path = driver_x_emit_path_buf;
+      return 1;
+    }
+  }
   return 0;
 }
 

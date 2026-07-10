@@ -843,8 +843,8 @@ typedef struct {
     RuntimePipelineElfPatchEntry patches[RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP];
     int32_t num_patches;
 } RuntimePipelineElfCtxAccess;
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-304：elf ctx diag → rt_pipeline_elf_diag hybrid */
+#ifndef SHUX_RT_PIPELINE_ELF_DIAG_FROM_X
 void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
     RuntimePipelineElfCtxAccess *ctx;
     int32_t l;
@@ -883,6 +883,10 @@ void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
     }
     diag_report(NULL, 0, 0, "note", "elf no label match for first patch", NULL);
 }
+#else
+void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes);
+int labi_rt_pipeline_elf_diag_slice_marker(void);
+#endif
 
 
 
@@ -6682,8 +6686,9 @@ int driver_run_test(int argc, char **argv) {
 
 
 
-/** 扫描 argv：若存在 -x -E <path> 则记下 path 及此前出现的 -L path，返回 1，否则返回 0。保留供未迁完时链接。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/** 扫描 argv：若存在 -x -E <path> 则记下 path 及此前出现的 -L path，返回 1，否则返回 0。 */
+/* G-02f-304：argv 扫描 → rt_emit_state hybrid（与 emit 状态槽同片） */
+#ifndef SHUX_RT_EMIT_STATE_FROM_X
 int driver_argv_parse_x_emit_c(int argc, char **argv) {
     char ab[512];
     char nx[512];
@@ -6718,6 +6723,9 @@ int driver_argv_parse_x_emit_c(int argc, char **argv) {
     }
     return 0;
 }
+#else
+int driver_argv_parse_x_emit_c(int argc, char **argv);
+#endif
 
 
 
