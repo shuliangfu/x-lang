@@ -23,10 +23,10 @@ extern "C" function diag_code_is_known_impl(code: *u8): i32;
 extern "C" function diag_print_known_codes_impl(out: *u8): void;
 extern "C" function diag_print_code_explain_impl(out: *u8, code: *u8): void;
 extern "C" function diag_print_code_table_impl(out: *u8): void;
-extern "C" function diag_set_json_mode_impl(enable: i32): void;
-extern "C" function diag_json_enabled_impl(): i32;
-
-extern "C" function diag_should_color_impl(): i32;
+extern "C" function diag_json_get_state(): i32;
+extern "C" function diag_json_set_state(v: i32): void;
+extern "C" function getenv(name: *u8): *u8;
+extern "C" function isatty(fd: i32): i32;
 extern "C" function diag_color_prefix_impl(plain: *u8, color: *u8): *u8;
 extern "C" function diag_color_reset_impl(): *u8;
 extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
@@ -119,27 +119,56 @@ function diag_print_code_table(out: *u8): void {
   }
 }
 
+// G-02f-153：JSON 模式与颜色探测
 #[no_mangle]
 function diag_set_json_mode(enable: i32): void {
   unsafe {
-    diag_set_json_mode_impl(enable);
+    if (enable != 0) {
+      diag_json_set_state(1);
+    } else {
+      diag_json_set_state(0);
+    }
   }
 }
 
 #[no_mangle]
 function diag_json_enabled(): i32 {
   unsafe {
-    return diag_json_enabled_impl();
+    let s: i32 = diag_json_get_state();
+    // -2 = unset
+    if (s == 0 - 2) {
+      let k: u8[16] = [];
+      // SHUX_DIAG_JSON
+      k[0]=83;k[1]=72;k[2]=85;k[3]=88;k[4]=95;k[5]=68;k[6]=73;k[7]=65;k[8]=71;k[9]=95;
+      k[10]=74;k[11]=83;k[12]=79;k[13]=78;k[14]=0;
+      let e: *u8 = getenv(&k[0]);
+      let v: i32 = 0;
+      if (e != 0) {
+        if (e[0] != 0) {
+          if (e[0] != 48) { v = 1; }
+        }
+      }
+      diag_json_set_state(v);
+      s = v;
+    }
+    if (s == 1) { return 1; }
+    return 0;
   }
-  return 0 - 1;
+  return 0;
 }
 
-/* ---- G-02f-96：color / kind / code_eq / line_digits 门闩 ---- */
+/* ---- G-02f-96 / G-02f-153：color ---- */
 
 #[no_mangle]
 function diag_should_color(): i32 {
   unsafe {
-    return diag_should_color_impl();
+    let k: u8[16] = [];
+    // SHUX_NO_COLOR
+    k[0]=83;k[1]=72;k[2]=85;k[3]=88;k[4]=95;k[5]=78;k[6]=79;k[7]=95;
+    k[8]=67;k[9]=79;k[10]=76;k[11]=79;k[12]=82;k[13]=0;
+    if (getenv(&k[0]) != 0) { return 0; }
+    // fileno(stderr) — 用 2 as STDERR_FILENO 跨平台简化
+    if (isatty(2) != 0) { return 1; }
   }
   return 0;
 }

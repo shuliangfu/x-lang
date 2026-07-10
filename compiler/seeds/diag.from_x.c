@@ -25,8 +25,6 @@ int diag_code_is_known_impl(const char *code);
 void diag_print_known_codes_impl(FILE *out);
 void diag_print_code_explain_impl(FILE *out, const char *code);
 void diag_print_code_table_impl(FILE *out);
-void diag_set_json_mode_impl(int enable);
-int diag_json_enabled_impl(void);
 #endif
 #endif
 
@@ -149,7 +147,8 @@ static const DiagCodeExplain g_diag_code_table[] = {
 };
 static const size_t g_diag_code_table_count = sizeof(g_diag_code_table) / sizeof(g_diag_code_table[0]);
 
-int diag_should_color_impl(void) {
+/* G-02f-153：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int diag_should_color(void) {
 #if defined(_WIN32)
     return 0;
 #else
@@ -157,12 +156,6 @@ int diag_should_color_impl(void) {
         return 0;
     return isatty(fileno(stderr)) ? 1 : 0;
 #endif
-}
-int diag_should_color(void) {
-  {
-    return diag_should_color_impl();
-  }
-  return 0;
 }
 
 
@@ -718,34 +711,30 @@ void diag_print_code_table(FILE *out) {
  * enable 非 0 时强制开启；0 时强制关闭（覆盖 SHUX_DIAG_JSON 环境变量）。
  * 仅供 driver 在解析 --diag-json 等 CLI 标志后调用；冷路径，零性能影响。
  */
-void diag_set_json_mode_impl(int enable) {
+/* G-02f-153：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void diag_set_json_mode(int enable) {
     g_diag_json = enable ? 1 : 0;
 }
 
-void diag_set_json_mode(int enable) {
-  {
-    diag_set_json_mode_impl(enable);
-  }
+/** 供 .x 读写 g_diag_json 状态（-2=未决）。 */
+int diag_json_get_state(void) {
+    return g_diag_json;
 }
-
+void diag_json_set_state(int v) {
+    g_diag_json = v;
+}
 
 /**
  * 当前是否启用 JSON 诊断输出。首次调用时按 SHUX_DIAG_JSON 环境变量惰性决定，
  * 之后缓存；diag_set_json_mode 的显式设置优先于环境变量。
  */
-int diag_json_enabled_impl(void) {
+/* G-02f-153：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int diag_json_enabled(void) {
     if (g_diag_json == -2) {
         const char *e = getenv("SHUX_DIAG_JSON");
         g_diag_json = (e && e[0] && e[0] != '0') ? 1 : 0;
     }
     return g_diag_json == 1 ? 1 : 0;
-}
-
-int diag_json_enabled(void) {
-  {
-    return diag_json_enabled_impl();
-  }
-  return -1;
 }
 
 

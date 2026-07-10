@@ -6,8 +6,8 @@
 // G-02f-103 / G-02f-152：parse_triple_literals 真迁 .x。
 // G-02f-112：+ cfg_eval_expr 薄门闩。
 // G-02f-151：cfg_triple_contains_ci / cfg_lit_eq_ci 真迁 .x
+// G-02f-153：cfg_eval_expr 真迁 .x（effective_os/arch + freestanding 导出）
 
-extern "C" function cfg_eval_expr_impl(s: *u8): i32;
 extern "C" function cfg_host_os_lit(): *u8;
 extern "C" function cfg_host_arch_lit(): *u8;
 
@@ -182,10 +182,204 @@ function cfg_parse_triple_literals(triple: *u8, len: i32, os_out: *u8, os_sz: us
   }
 }
 
-/* ---- G-02f-112：cfg_eval_expr 门闩 ---- */
+/* ---- G-02f-112 / G-02f-153：cfg_eval_expr 真迁 ---- */
+
+extern "C" function cfg_effective_os_lit(): *u8;
+extern "C" function cfg_effective_arch_lit(): *u8;
+extern "C" function cfg_get_freestanding(): i32;
+
+function cfg_skip_ws_range(buf: *u8, b: i32, end: i32): i32 {
+  let p: i32 = b;
+  while (p < end) {
+    let c: u8 = buf[p];
+    // space tab nl cr
+    if (c == 32) { p = p + 1; continue; }
+    if (c == 9) { p = p + 1; continue; }
+    if (c == 10) { p = p + 1; continue; }
+    if (c == 13) { p = p + 1; continue; }
+    break;
+  }
+  return p;
+}
+
+function cfg_prefix4(buf: *u8, p: i32, end: i32, c0: u8, c1: u8, c2: u8, c3: u8): i32 {
+  if (p + 4 > end) { return 0; }
+  if (buf[p] != c0) { return 0; }
+  if (buf[p + 1] != c1) { return 0; }
+  if (buf[p + 2] != c2) { return 0; }
+  if (buf[p + 3] != c3) { return 0; }
+  return 1;
+}
+
+// G-02f-153：递归求值 buf[b..end)
+function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
+  if (buf == 0) { return 0; }
+  let p: i32 = cfg_skip_ws_range(buf, b, end);
+  if (p >= end) { return 0; }
+  // all(
+  if (cfg_prefix4(buf, p, end, 97, 108, 108, 40) != 0) {
+    p = p + 4;
+    while (p < end) {
+      p = cfg_skip_ws_range(buf, p, end);
+      // also skip commas
+      while (p < end) {
+        let c: u8 = buf[p];
+        if (c == 32) { p = p + 1; continue; }
+        if (c == 9) { p = p + 1; continue; }
+        if (c == 44) { p = p + 1; continue; }
+        if (c == 10) { p = p + 1; continue; }
+        if (c == 13) { p = p + 1; continue; }
+        break;
+      }
+      if (p >= end) { break; }
+      if (buf[p] == 41) { return 1; }
+      let part: i32 = p;
+      let depth: i32 = 0;
+      while (p < end) {
+        if (buf[p] == 40) {
+          depth = depth + 1;
+        } else {
+          if (buf[p] == 41) {
+            if (depth == 0) { break; }
+            depth = depth - 1;
+          } else {
+            if (buf[p] == 44) {
+              if (depth == 0) { break; }
+            }
+          }
+        }
+        p = p + 1;
+      }
+      if (cfg_eval_expr_range(buf, part, p) == 0) { return 0; }
+      if (p < end) {
+        if (buf[p] == 41) { return 1; }
+      }
+    }
+    return 1;
+  }
+  // not(
+  if (cfg_prefix4(buf, p, end, 110, 111, 116, 40) != 0) {
+    let inner: i32 = p + 4;
+    let close: i32 = inner;
+    let depth: i32 = 1;
+    while (close < end) {
+      if (depth <= 0) { break; }
+      if (buf[close] == 40) {
+        depth = depth + 1;
+      } else {
+        if (buf[close] == 41) {
+          depth = depth - 1;
+        }
+      }
+      if (depth > 0) {
+        close = close + 1;
+      }
+    }
+    if (cfg_eval_expr_range(buf, inner, close) != 0) { return 0; }
+    return 1;
+  }
+  // target_os
+  if (p + 9 <= end) {
+    if (buf[p]==116&&buf[p+1]==97&&buf[p+2]==114&&buf[p+3]==103&&buf[p+4]==101&&buf[p+5]==116&&buf[p+6]==95&&buf[p+7]==111&&buf[p+8]==115) {
+      p = p + 9;
+      p = cfg_skip_ws_range(buf, p, end);
+      if (p >= end) { return 0; }
+      if (buf[p] != 61) { return 0; }
+      p = p + 1;
+      if (p < end) {
+        if (buf[p] == 61) { p = p + 1; }
+      }
+      p = cfg_skip_ws_range(buf, p, end);
+      if (p >= end) { return 0; }
+      if (buf[p] != 34) { return 0; }
+      p = p + 1;
+      let lit: i32 = p;
+      while (p < end) {
+        if (buf[p] == 34) { break; }
+        p = p + 1;
+      }
+      unsafe {
+        let os: *u8 = cfg_effective_os_lit();
+        let alen: usize = (p - lit) as usize;
+        return cfg_lit_eq_ci(&buf[lit], alen, os);
+      }
+    }
+  }
+  // target_arch
+  if (p + 11 <= end) {
+    if (buf[p]==116&&buf[p+1]==97&&buf[p+2]==114&&buf[p+3]==103&&buf[p+4]==101&&buf[p+5]==116&&buf[p+6]==95&&buf[p+7]==97&&buf[p+8]==114&&buf[p+9]==99&&buf[p+10]==104) {
+      p = p + 11;
+      p = cfg_skip_ws_range(buf, p, end);
+      if (p >= end) { return 0; }
+      if (buf[p] != 61) { return 0; }
+      p = p + 1;
+      if (p < end) {
+        if (buf[p] == 61) { p = p + 1; }
+      }
+      p = cfg_skip_ws_range(buf, p, end);
+      if (p >= end) { return 0; }
+      if (buf[p] != 34) { return 0; }
+      p = p + 1;
+      let lit2: i32 = p;
+      while (p < end) {
+        if (buf[p] == 34) { break; }
+        p = p + 1;
+      }
+      unsafe {
+        let arch: *u8 = cfg_effective_arch_lit();
+        let alen2: usize = (p - lit2) as usize;
+        return cfg_lit_eq_ci(&buf[lit2], alen2, arch);
+      }
+    }
+  }
+  // freestanding bare flag
+  {
+    let q: i32 = p;
+    while (q < end) {
+      let c: u8 = buf[q];
+      if (c >= 65) {
+        if (c <= 90) { q = q + 1; continue; }
+      }
+      if (c >= 97) {
+        if (c <= 122) { q = q + 1; continue; }
+      }
+      if (c >= 48) {
+        if (c <= 57) { q = q + 1; continue; }
+      }
+      if (c == 95) { q = q + 1; continue; }
+      break;
+    }
+    let n_fs: u8[16] = [];
+    n_fs[0]=102;n_fs[1]=114;n_fs[2]=101;n_fs[3]=101;n_fs[4]=115;n_fs[5]=116;
+    n_fs[6]=97;n_fs[7]=110;n_fs[8]=100;n_fs[9]=105;n_fs[10]=110;n_fs[11]=103;n_fs[12]=0;
+    let alen3: usize = (q - p) as usize;
+    if (cfg_lit_eq_ci(&buf[p], alen3, &n_fs[0]) != 0) {
+      unsafe { return cfg_get_freestanding(); }
+    }
+  }
+  return 0;
+}
+
+// start/end 指针 API：用下标差求值
+#[no_mangle]
+function cfg_eval_expr(start: *u8, end: *u8): i32 {
+  if (start == 0) { return 0; }
+  if (end == 0) { return 0; }
+  // compute len via scan (end - start) without pointer sub if needed - use byte walk
+  let len: i32 = 0;
+  let p: *u8 = start;
+  while (1 == 1) {
+    if (p == end) { break; }
+    if (len > 65536) { break; }
+    p = p + 1;
+    len = len + 1;
+  }
+  return cfg_eval_expr_range(start, 0, len);
+}
 
 #[no_mangle]
-function cfg_eval_expr(s: *u8): i32 {
-  unsafe { return cfg_eval_expr_impl(s); }
-  return 0;
+function cfg_eval_expr_c(start: *u8, len: i32): i32 {
+  if (start == 0) { return 0; }
+  if (len <= 0) { return 0; }
+  return cfg_eval_expr_range(start, 0, len);
 }

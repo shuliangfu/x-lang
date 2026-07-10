@@ -123,18 +123,23 @@ void cfg_parse_triple_literals(const char *triple, int len, char *os_out, size_t
 }
 
 
-/** effective target_os（triple 覆盖或 host）。 */
-static const char *cfg_effective_os_lit(void) {
+/** effective target_os（triple 覆盖或 host）；供 .x 真迁调用。 */
+const char *cfg_effective_os_lit(void) {
   if (g_cfg_has_target_override && g_cfg_os_override[0])
     return g_cfg_os_override;
   return cfg_host_os_lit();
 }
 
-/** effective target_arch（triple 覆盖或 host）。 */
-static const char *cfg_effective_arch_lit(void) {
+/** effective target_arch（triple 覆盖或 host）；供 .x 真迁调用。 */
+const char *cfg_effective_arch_lit(void) {
   if (g_cfg_has_target_override && g_cfg_arch_override[0])
     return g_cfg_arch_override;
   return cfg_host_arch_lit();
+}
+
+/** freestanding 标志读取（供 .x cfg_eval 真迁）。 */
+int cfg_get_freestanding(void) {
+  return g_cfg_freestanding;
 }
 
 /** 忽略大小写比较 [a, a+alen) 与 C 字符串 b。 */
@@ -162,7 +167,8 @@ int cfg_lit_eq_ci(const char *a, size_t alen, const char *b) {
 
 
 /** 递归求值 cfg 表达式；end 不含。 */
-int cfg_eval_expr_impl(const char *start, const char *end) {
+/* G-02f-153：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int cfg_eval_expr(const char *start, const char *end) {
   const char *p = start;
 
   while (p < end && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'))
@@ -193,7 +199,7 @@ int cfg_eval_expr_impl(const char *start, const char *end) {
           break;
         p++;
       }
-      if (!cfg_eval_expr_impl(part, p))
+      if (!cfg_eval_expr(part, p))
         return 0;
       if (p < end && *p == ')')
         return 1;
@@ -216,7 +222,7 @@ int cfg_eval_expr_impl(const char *start, const char *end) {
       if (depth > 0)
         close++;
     }
-    return !cfg_eval_expr_impl(inner, close);
+    return !cfg_eval_expr(inner, close);
   }
   if ((size_t)(end - p) >= 9 && strncmp(p, "target_os", 9) == 0) {
     const char *lit;
@@ -269,12 +275,6 @@ int cfg_eval_expr_impl(const char *start, const char *end) {
     }
     if (cfg_lit_eq_ci(p, (size_t)(q - p), "freestanding"))
       return g_cfg_freestanding;
-  }
-  return 0;
-}
-int cfg_eval_expr(const char *start, const char *end) {
-  {
-    return cfg_eval_expr_impl(start, end);
   }
   return 0;
 }
