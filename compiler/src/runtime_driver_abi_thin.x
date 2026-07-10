@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343/344/345/387/388/400：runtime_driver_abi L2 thin（41 门闩）。
+// G-02f-343/344/345/387/388/400/401：runtime_driver_abi L2 thin（45 门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 //
 
@@ -14,7 +14,10 @@ extern "C" function driver_x_pipeline_skip_typeck_flag_slot(): *i32;
 extern "C" function driver_x_pipeline_skip_codegen_flag_slot(): *i32;
 extern "C" function driver_skip_codegen_dep_0_flag_slot(): *i32;
 extern "C" function driver_large_stack_thread_flag_slot(): *i32;
-extern "C" function driver_current_dep_path_store(path: *u8): void;
+extern "C" function driver_current_dep_path_store_impl(path: *u8): void;
+extern "C" function driver_current_dep_path_load_impl(): *u8;
+extern "C" function driver_pipeline_entry_source_len_store_impl(len: i64): void;
+extern "C" function driver_target_arg_os_kind_impl(target: *u8): i32;
 extern "C" function driver_pipeline_entry_source_len_i32_impl(): i32;
 extern "C" function driver_sanitize_address_env_enabled_impl(): i32;
 
@@ -105,8 +108,38 @@ function driver_check_only_get(): i32 {
 #[no_mangle]
 function driver_set_current_dep_path_for_codegen(path: *u8): void {
   unsafe {
-    driver_current_dep_path_store(path);
+    driver_current_dep_path_store_impl(path);
   }
+}
+
+#[no_mangle]
+function driver_current_dep_path_store(path: *u8): void {
+  unsafe {
+    driver_current_dep_path_store_impl(path);
+  }
+}
+
+#[no_mangle]
+function driver_current_dep_path_load(): *u8 {
+  unsafe {
+    return driver_current_dep_path_load_impl();
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function driver_pipeline_entry_source_len_store(len: i64): void {
+  unsafe {
+    driver_pipeline_entry_source_len_store_impl(len);
+  }
+}
+
+#[no_mangle]
+function driver_target_arg_os_kind(target: *u8): i32 {
+  unsafe {
+    return driver_target_arg_os_kind_impl(target);
+  }
+  return 0;
 }
 
 #[no_mangle]

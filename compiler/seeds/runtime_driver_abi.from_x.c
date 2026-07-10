@@ -39,6 +39,10 @@ int32_t driver_pipeline_entry_source_len_i32(void);
 void driver_defines_set_at(const char **defines, int i, const char *s);
 int64_t driver_stack_limit_want_bytes(void);
 int64_t driver_path_last_preprocess_len(void);
+void driver_current_dep_path_store(const char *path);
+const char *driver_current_dep_path_load(void);
+void driver_pipeline_entry_source_len_store(size_t len);
+int32_t driver_target_arg_os_kind(const char *target);
 #define compile_phase_now_sec compile_phase_now_sec_impl
 #define driver_compile_phase_timing_enabled driver_compile_phase_timing_enabled_impl
 #endif
@@ -482,9 +486,16 @@ int32_t driver_pipeline_entry_source_len_i32(void) {
 
 
 
-void driver_pipeline_entry_source_len_store(size_t len) {
+/* G-02f-401：实现体始终 seed；public PREFER 时 thin forward */
+void driver_pipeline_entry_source_len_store_impl(size_t len) {
     g_pipeline_entry_source_len = len;
 }
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+void driver_pipeline_entry_source_len_store(size_t len) {
+    driver_pipeline_entry_source_len_store_impl(len);
+}
+#endif
 
 size_t driver_pipeline_entry_source_len_load_and_maybe_debug(void) {
     if (getenv("SHUX_DEBUG_PIPE"))
@@ -499,7 +510,7 @@ size_t driver_pipeline_entry_source_len_load_and_maybe_debug(void) {
  */
 void driver_set_pipeline_entry_source_len(size_t len) {
   {
-    driver_pipeline_entry_source_len_store(len);
+    driver_pipeline_entry_source_len_store_impl(len);
   }
 }
 
@@ -692,13 +703,26 @@ int32_t driver_skip_codegen_dep_0_get(void) {
 static const char *driver_current_dep_path_for_codegen;
 
 /* G-02f-46: dep path store/load + print_check_ok diag impl */
-void driver_current_dep_path_store(const char *path) {
+/* G-02f-401：实现体始终 seed；public PREFER 时 thin forward */
+void driver_current_dep_path_store_impl(const char *path) {
     driver_current_dep_path_for_codegen = path;
 }
 
-const char *driver_current_dep_path_load(void) {
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+void driver_current_dep_path_store(const char *path) {
+    driver_current_dep_path_store_impl(path);
+}
+#endif
+
+const char *driver_current_dep_path_load_impl(void) {
     return driver_current_dep_path_for_codegen;
 }
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+const char *driver_current_dep_path_load(void) {
+    return driver_current_dep_path_load_impl();
+}
+#endif
 
 void driver_print_check_ok_impl(const char *input_path) {
     diag_reportf(NULL, 0, 0, "info", NULL,
@@ -739,14 +763,14 @@ void driver_print_x_smoke_typeck_ok_impl(void) {
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_set_current_dep_path_for_codegen(const char *path) {
   (void)(({   {
-    (void)(driver_current_dep_path_store(path));
+    (void)(driver_current_dep_path_store_impl(path));
   }
  }));
 }
 #endif
 const char *driver_get_current_dep_path_for_codegen(void) {
   (void)(({   {
-    const char * r = (const char *)driver_current_dep_path_load();
+    const char * r = (const char *)driver_current_dep_path_load_impl();
     return r;
   }
  }));
@@ -926,7 +950,8 @@ const char *driver_os_define_lit(int kind) {
 }
 
 /* G-02f-245：逻辑源 .x（真迁 target→OS kind）；seed 保留同语义 C 供产品 cc */
-int32_t driver_target_arg_os_kind(const char *target) {
+/* G-02f-401：strstr 字面量体始终 seed；public PREFER 时 thin forward */
+int32_t driver_target_arg_os_kind_impl(const char *target) {
     if (!target)
         return 0;
     if (strstr(target, "linux") != NULL)
@@ -939,6 +964,12 @@ int32_t driver_target_arg_os_kind(const char *target) {
         return 4;
     return 0;
 }
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_target_arg_os_kind(const char *target) {
+    return driver_target_arg_os_kind_impl(target);
+}
+#endif
 
 /* G-02f-245：uname + SHUX_OS_/SHUX_ARCH_ 🔒 */
 int driver_argv_collect_append_uname_impl(const char **defines, int ndefines, int max_defines) {
@@ -997,7 +1028,7 @@ int driver_argv_collect_defines(int argc, char **argv, const char **defines, int
         }
     }
     if (target_arg && ndefines < max_defines) {
-        int k = (int)driver_target_arg_os_kind(target_arg);
+        int k = (int)driver_target_arg_os_kind_impl(target_arg);
         if (k != 0) {
             const char *lit = driver_os_define_lit(k);
             if (lit)
