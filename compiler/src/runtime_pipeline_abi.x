@@ -28,6 +28,7 @@
 // G-02f-239：parse_into_loaded pure；dep_prerun/large_stack 边界 pure。
 // G-02f-240：preprocess_raw_to_malloc + asm_codegen large_stack 边界 pure。
 // G-02f-241：thread_fn 边界 pure；collect process_one helper；emit prepare 边界。
+// G-02f-242：typeck_module_for_ctx 编排 pure；P1-5 soft 近闭。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -48,7 +49,9 @@ extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
 extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
 /* shux_dep_prerun_entry_dir_pick：G-02f-223 下方真迁 */
-extern "C" function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8, ctx: *u8): i32;
+/* typeck_module_for_ctx：G-02f-242 下方真迁 */
+extern "C" function typeck_module_entry_only(module: *u8): i32;
+extern "C" function typeck_module_with_sidecar(module: *u8): i32;
 extern "C" function free(p: *u8): void;
 extern "C" function ast_module_free(mod: *u8): void;
 extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
@@ -2186,15 +2189,23 @@ function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: 
   }
 }
 
-/* ---- G-02f-63：typeck_for_ctx / lsp free_loaded 门闩 ---- */
+/* ---- G-02f-63 / G-02f-242：typeck_for_ctx / lsp free_loaded ---- */
 
+// G-02f-242：ndep>0 走 sidecar deps，否则 entry-only；arena/ctx 未用
 #[no_mangle]
 function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8): i32 {
   if (module == 0 as *u8) {
     return 0 - 1;
   }
+  // arena/ctx 保留 ABI；C typeck 不消费
+  let _a: *u8 = arena;
+  let _c: *u8 = ctx;
+  let n: i32 = get_ndep();
   unsafe {
-    return pipeline_typeck_module_for_ctx_impl(module, arena, ctx);
+    if (n > 0) {
+      return typeck_module_with_sidecar(module);
+    }
+    return typeck_module_entry_only(module);
   }
   return 0 - 1;
 }

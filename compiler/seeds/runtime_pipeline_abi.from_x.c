@@ -23,6 +23,7 @@
  * G-02f-239: parse_into_loaded pure + dep_prerun/large_stack bounds.
  * G-02f-240: preprocess + asm codegen large_stack bounds pure.
  * G-02f-241: thread_fn bounds + collect process_one + emit prepare bounds.
+ * G-02f-242: typeck_module_for_ctx pure; P1-5 soft near-close.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -3031,17 +3032,34 @@ extern int typeck_module(void *module, void **dep_mods, int ndep, void *a, int b
 /**
  * 使用已填充的 typeck_ndep / typeck_dep_module_ptrs 对入口模块做 C 类型检查（大模块 asm 构建用）。
  * SHUX_NO_C_FRONTEND 时仍导出符号供 pipeline_asm_typecheck_alias 链接。
- * G-02f-63 / G-02f-241：主体 _impl；.x 门闩 null 检查后转发。
+ * G-02f-242：entry-only / sidecar 两路径（.x 编排 pure）。
  */
-int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void) {
-    (void)arena;
-    (void)ctx_void;
+int32_t typeck_module_entry_only(void *module) {
+    if (!module)
+        return -1;
+    if (typeck_module(module, NULL, 0, NULL, 0) != 0)
+        return -1;
+    return 0;
+}
+
+int32_t typeck_module_with_sidecar(void *module) {
+    if (!module)
+        return -1;
     if (typeck_module(module, typeck_ndep > 0 ? (void **)typeck_dep_module_ptrs : NULL, typeck_ndep, NULL, 0) != 0)
         return -1;
     return 0;
 }
 
-/* G-02f-227 / G-02f-241：逻辑源 .x（门闩）；seed 保留同语义 C 供产品 cc */
+/* G-02f-242：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void) {
+    (void)arena;
+    (void)ctx_void;
+    if (typeck_ndep > 0)
+        return typeck_module_with_sidecar(module);
+    return typeck_module_entry_only(module);
+}
+
+/* G-02f-242：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void) {
   if (module == NULL) {
     return -1;
