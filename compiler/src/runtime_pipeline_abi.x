@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..43/50..52：真迁 .x — pipeline dep/import + debug 转发 + clear/entry_dir。
+// G-02f-32..43/50..53：真迁 .x — pipeline dep/import + debug/clear + path 转换门闩。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
 // C 尾：存储槽数组、import resolve/snprintf、clear 槽循环、malloc buf、大 pipeline。
-// G-02f-52：+ mega debug 转发 / seeded+sidecar clear / get_entry_dir / asm_fclose。
+// G-02f-53：+ import_path_to_file_path / resolve_file_import_path / dep_slot_for_path。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -35,6 +35,9 @@ extern "C" function driver_typeck_dep_sidecar_clear_impl(): void;
 extern "C" function driver_dep_seeded_clear_slots_impl(): void;
 extern "C" function shux_get_entry_dir_impl(input_path: *u8, entry_dir: *u8, size: i64): void;
 extern "C" function driver_asm_fclose_asm_out_impl(fp: *u8): void;
+extern "C" function shux_import_path_to_file_path_impl(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void;
+extern "C" function shux_resolve_file_import_path_impl(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void;
+extern "C" function driver_dep_slot_for_path_scan(path: *u8): i32;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -526,4 +529,49 @@ function driver_asm_fclose_asm_out(fp: *u8): void {
   unsafe {
     driver_asm_fclose_asm_out_impl(fp);
   }
+}
+
+/* ---- G-02f-53：import 路径转换 / resolve 文件 import / dep 槽查路径 ---- */
+
+#[no_mangle]
+function shux_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+  if (path == 0 as *u8) {
+    return;
+  }
+  if (path_size == 0) {
+    return;
+  }
+  unsafe {
+    shux_import_path_to_file_path_impl(lib_root, import_path, path, path_size);
+  }
+}
+
+#[no_mangle]
+function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+  if (path == 0 as *u8) {
+    return;
+  }
+  if (path_size == 0) {
+    return;
+  }
+  if (import_path == 0 as *u8) {
+    unsafe {
+      path[0] = 0;
+    }
+    return;
+  }
+  unsafe {
+    shux_resolve_file_import_path_impl(entry_dir, import_path, path, path_size);
+  }
+}
+
+#[no_mangle]
+function driver_dep_slot_for_path(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return -1;
+  }
+  unsafe {
+    return driver_dep_slot_for_path_scan(path);
+  }
+  return -1;
 }

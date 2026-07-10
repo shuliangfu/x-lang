@@ -1,7 +1,7 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..52 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..53 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge debug/clear/entry_dir/fclose; C resolve + large pipeline bulk.
- * .x covers: + mega debug wrappers, seeded/sidecar clear, get_entry_dir, asm_fclose.
+ *         merge path convert/resolve + dep_slot; C resolve multi + large pipeline.
+ * .x covers: + import_path_to_file_path, resolve_file_import_path, dep_slot_for_path.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -445,10 +445,10 @@ int shux_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char
  * 参数：见 runtime_pipeline_abi.h。
  * 副作用：写入 path，保证 NUL 结尾（path_size>0 时）。
  */
-void shux_import_path_to_file_path(const char *lib_root, const char *import_path, char *path, size_t path_size) {
+void shux_import_path_to_file_path_impl(const char *lib_root, const char *import_path, char *path, size_t path_size) {
     const char *r = lib_root && lib_root[0] ? lib_root : ".";
     size_t off = (size_t)snprintf(path, path_size, "%s/", r);
-    for (const char *s = import_path; *s && off + 1 < path_size; s++) {
+    for (const char *s = import_path ? import_path : ""; *s && off + 1 < path_size; s++) {
         if (*s == '.')
             path[off++] = '/';
         else
@@ -456,6 +456,18 @@ void shux_import_path_to_file_path(const char *lib_root, const char *import_path
     }
     if (off + 4 <= path_size)
         snprintf(path + off, path_size - off, ".x");
+}
+
+void shux_import_path_to_file_path(const char *lib_root, const char *import_path, char *path, size_t path_size) {
+  if (path == NULL) {
+    return;
+  }
+  if (path_size == 0) {
+    return;
+  }
+  {
+    shux_import_path_to_file_path_impl(lib_root, import_path, path, path_size);
+  }
 }
 
 /**
@@ -547,7 +559,7 @@ int shux_import_path_is_file_path(const char *import_path) {
  * 将相对/绝对文件路径解析为可打开的 .x 路径（相对 entry_dir）。
  * 参数：见 runtime_pipeline_abi.h。
  */
-void shux_resolve_file_import_path(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
+void shux_resolve_file_import_path_impl(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
     char tmp[1024];
     if (import_path[0] == '/') {
         (void)snprintf(tmp, sizeof(tmp), "%s", import_path);
@@ -566,6 +578,22 @@ void shux_resolve_file_import_path(const char *entry_dir, const char *import_pat
     }
 #endif
     (void)snprintf(path, path_size, "%s", tmp);
+}
+
+void shux_resolve_file_import_path(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
+  if (path == NULL) {
+    return;
+  }
+  if (path_size == 0) {
+    return;
+  }
+  if (import_path == NULL) {
+    path[0] = '\0';
+    return;
+  }
+  {
+    shux_resolve_file_import_path_impl(entry_dir, import_path, path, path_size);
+  }
 }
 
 /**
@@ -762,15 +790,23 @@ void driver_dep_publish_slot(int32_t i, void *arena, void *module, const char *i
  * 按 import 逻辑路径查 dep 预跑全局槽。
  * 返回值：槽下标 0..31，未 publish 返回 -1。
  */
-int32_t driver_dep_slot_for_path(const char *path) {
+int32_t driver_dep_slot_for_path_scan(const char *path) {
     int i;
-    if (!path)
-        return -1;
     for (i = 0; i < SHUX_DRIVER_DEP_SLOT_MAX; i++) {
         if (driver_dep_path_registry[i] && strcmp(driver_dep_path_registry[i], path) == 0)
             return i;
     }
     return -1;
+}
+
+int32_t driver_dep_slot_for_path(const char *path) {
+  if (path == NULL) {
+    return -1;
+  }
+  {
+    return driver_dep_slot_for_path_scan(path);
+  }
+  return -1;
 }
 
 /**
@@ -856,6 +892,12 @@ int32_t typeck_driver_dep_seeded_get(int32_t i) {
  * 返回值：下标或 -1。
  */
 
+
+
+/* G-02f-53 helper protos */
+void shux_import_path_to_file_path_impl(const char *lib_root, const char *import_path, char *path, size_t path_size);
+void shux_resolve_file_import_path_impl(const char *entry_dir, const char *import_path, char *path, size_t path_size);
+int32_t driver_dep_slot_for_path_scan(const char *path);
 
 /* G-02f-52 helper protos */
 void driver_typeck_dep_sidecar_clear_impl(void);

@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..44/47：真迁 .x — link_abi needs_* / argv_i / skip_missing。
+// G-02f-34..44/47/53：真迁 .x — link_abi needs_* / argv_i / skip_missing / 空 .o 桩。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
 // C 尾：invoke_cc/ld、路径后缀、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
-// G-02f-47：+ asm_link_obj_skip_missing（经 path_is_nonempty_regular_file）。
+// G-02f-53：+ shux_std_io_o_path / shux_std_compress_o_path（空串桩）。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
 extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -17,6 +17,7 @@ extern "C" function shux_path_is_nonempty_regular_file(path: *u8): i32;
 extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
 extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
 extern "C" function link_abi_generated_c_contains_substr(c_path: *u8, needle: *u8): i32;
+extern "C" function shux_empty_cstr(): *u8;
 
 #[no_mangle]
 function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
@@ -1195,4 +1196,22 @@ function bootstrap_init_environ(argc: i32, argv: *u8): void {
 #[no_mangle]
 function bootstrap_nostdlib_pthread_is_stub(): i32 {
   return 0;
+}
+
+/* ---- G-02f-53：std.io / std.compress 已无 .o，返回空串 ---- */
+
+#[no_mangle]
+function shux_std_io_o_path(argv0: *u8): *u8 {
+  unsafe {
+    return shux_empty_cstr();
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function shux_std_compress_o_path(argv0: *u8): *u8 {
+  unsafe {
+    return shux_empty_cstr();
+  }
+  return 0 as *u8;
 }

@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..47 true .x + C tail).
- * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/link.c
- *         merge needs/argv/skip_missing; C stat + invoke bulk.
- * .x covers: needs_*, freestanding, compress, generated_c, resolve, argv_i, skip_missing.
+/* Generated from src/runtime_link_abi.x (G-02f-34..47/53 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
+ *         merge needs/argv/skip + empty io/compress paths; C invoke_cc/ld bulk.
+ * .x covers: + shux_std_io_o_path / shux_std_compress_o_path empty stubs.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -11,6 +11,14 @@
 #include "runtime_abi.h"
 #include "diag.h"
 #include "runtime_diag_codes.h"
+
+/* G-02f-53: empty C string for retired .o path APIs */
+const char *shux_empty_cstr(void) {
+    static char buf[1];
+    buf[0] = '\0';
+    return buf;
+}
+
 
 #include <errno.h>
 #include <limits.h>
@@ -602,10 +610,11 @@ const char *shux_asm_ld_effective_link_argv0(const char *link_argv0, char *syn_b
  * 返回值：空串（调用方应改用 shux_repo_root_from_argv0 的 process.o 路径）。
  */
 const char *shux_std_io_o_path(const char *argv0) {
-    (void)argv0;
-    static char buf[1];
-    buf[0] = '\0';
-    return buf;
+  (void)argv0;
+  {
+    return shux_empty_cstr();
+  }
+  return NULL;
 }
 
 /**
@@ -614,10 +623,11 @@ const char *shux_std_io_o_path(const char *argv0) {
  * 返回值：空串（压缩库由 user .o / 生成 C 扫描按需 -lz/-lzstd/-lbrotli*）。
  */
 const char *shux_std_compress_o_path(const char *argv0) {
-    (void)argv0;
-    static char buf[1];
-    buf[0] = '\0';
-    return buf;
+  (void)argv0;
+  {
+    return shux_empty_cstr();
+  }
+  return NULL;
 }
 
 /**
