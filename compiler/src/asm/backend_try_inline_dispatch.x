@@ -3,6 +3,7 @@
 //
 // G-02f-9：backend_try_inline_dispatch 产品源迁 seeds/backend_try_inline_dispatch.from_x.c。
 // G-02f-184/185：array/struct lit stack 字节 pure 真迁。
+// G-02f-196：index elem sz + local_var_slot_indirect pure；pipeline 薄包装。
 // 产品：cc seeds/backend_try_inline_dispatch.from_x.c → src/asm/backend_try_inline_dispatch.o
 
 function backend_try_inline_dispatch_x_doc_anchor(): i32 {
@@ -16,7 +17,6 @@ extern "C" function pipeline_module_struct_layout_name_len(mod: *u8, idx: i32): 
 extern "C" function pipeline_module_struct_layout_name_byte_at(mod: *u8, idx: i32, off: i32): u8;
 extern "C" function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
 extern "C" function pipeline_type_named_name_into(arena: *u8, tr: i32, out64: *u8): i32;
-extern "C" function asm_local_var_slot_holds_indirect_ptr(arena: *u8, er: i32, mod: *u8, asm_ctx: *u8): i32;
 extern "C" function pipeline_asm_module_func_param_name_len_at(mod: *u8, fi: i32, pix: i32): i32;
 extern "C" function pipeline_asm_module_func_param_name_copy32(mod: *u8, fi: i32, pix: i32, dst: *u8): void;
 extern "C" function pipeline_asm_module_func_num_params_at(mod: *u8, fi: i32): i32;
@@ -32,6 +32,9 @@ extern "C" function pipeline_expr_struct_lit_num_fields(arena: *u8, lit: i32): i
 extern "C" function pipeline_expr_struct_lit_field_name_len(arena: *u8, lit: i32, j: i32): i32;
 extern "C" function pipeline_expr_struct_lit_field_name_into(arena: *u8, lit: i32, j: i32, dst: *u8): void;
 extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena: *u8, mod: *u8, er: i32): i32;
+extern "C" function pipeline_asm_var_is_emit_func_param_ptr_c(arena: *u8, mod: *u8, asm_ctx: *u8, er: i32): i32;
+extern "C" function pipeline_asm_index_elem_byte_sz(arena: *u8, index_expr_ref: i32): i32;
 extern "C" function pipeline_asm_array_lit_elem_type_ref(arena: *u8, array_lit: i32): i32;
 extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
@@ -178,16 +181,77 @@ function g02f_store_ptr_at(p: *u8, off: i32, val: *u8): void {
   p[off + 7] = (a % m) as u8;
 }
 
+// G-02f-196：局部槽是否间接指针（*T / 大 struct 形参 hidden ptr；块内 let struct 则 lea）
+// GLUE_EXPR_VAR=3 TYPE_PTR=9 TYPE_NAMED=8
+#[no_mangle]
+function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32, mod: *u8, asm_ctx: *u8): i32 {
+  if (arena == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  let has_block_decl: i32 = 0;
+  let decl_ty: i32 = 0;
+  let ko: i32 = 0;
+  unsafe { ko = pipeline_expr_kind_ord_at(arena, expr_ref); }
+  if (asm_ctx != 0) {
+    if (ko == 3) {
+      let vlen: i32 = 0;
+      unsafe { vlen = pipeline_expr_var_name_len(arena, expr_ref); }
+      if (vlen > 0) {
+        if (vlen <= 63) {
+          let vname: u8[64] = [];
+          unsafe { pipeline_expr_var_name_into(arena, expr_ref, &vname[0]); }
+          let scope_br: i32 = 0;
+          unsafe { scope_br = asm_ctx_scope_block_ref_at(asm_ctx); }
+          if (scope_br > 0) {
+            unsafe { decl_ty = pipeline_block_resolve_var_type_ref(arena, scope_br, &vname[0], vlen); }
+            if (decl_ty > 0) { has_block_decl = 1; }
+          }
+        }
+      }
+    }
+  }
+  if (has_block_decl != 0) {
+    let kind: i32 = 0;
+    unsafe { kind = pipeline_type_kind_ord_at(arena, decl_ty); }
+    if (kind == 9) { return 1; }
+    if (glue_type_ref_is_named_struct_layout(arena, mod, decl_ty) != 0) { return 0; }
+    return 0;
+  }
+  let tr: i32 = 0;
+  unsafe { tr = pipeline_expr_resolved_type_ref(arena, expr_ref); }
+  if (tr <= 0) {
+    unsafe {
+      if (pipeline_asm_var_is_emit_func_param_ptr_c(arena, mod, asm_ctx, expr_ref) != 0) { return 1; }
+      if (mod != 0) {
+        if (pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, mod, expr_ref) != 0) { return 1; }
+      }
+    }
+    return 0;
+  }
+  let kind2: i32 = 0;
+  unsafe { kind2 = pipeline_type_kind_ord_at(arena, tr); }
+  if (kind2 == 9) { return 1; }
+  if (glue_type_ref_is_named_struct_layout(arena, mod, tr) != 0) {
+    if (mod != 0) {
+      unsafe {
+        if (pipeline_asm_emit_func_param_is_indirect_struct_slot_c(arena, mod, expr_ref) != 0) { return 1; }
+      }
+    }
+    return 0;
+  }
+  if (kind2 == 8) { return 0; }
+  unsafe {
+    if (pipeline_asm_var_is_emit_func_param_ptr_c(arena, mod, asm_ctx, expr_ref) != 0) { return 1; }
+  }
+  return 0;
+}
+
 #[no_mangle]
 function glue_local_var_slot_holds_indirect_ptr(arena: *u8, er: i32, asm_ctx: *u8): i32 {
   let mod_ref: *u8 = 0 as *u8;
   if (asm_ctx != 0) {
     mod_ref = g02f_load_ptr_at(asm_ctx, 16);
   }
-  unsafe {
-    return asm_local_var_slot_holds_indirect_ptr(arena, er, mod_ref, asm_ctx);
-  }
-  return 0;
+  return asm_local_var_slot_holds_indirect_ptr(arena, er, mod_ref, asm_ctx);
 }
 
 // G-02f-132：VAR 是否为指定形参
@@ -1713,5 +1777,25 @@ function asm_struct_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32 {
 #[no_mangle]
 function pipeline_asm_struct_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32): i32 {
   return asm_struct_lit_reserve_stack_bytes(arena, init_ref);
+}
+
+// G-02f-196：INDEX 元素宽委托 pipeline_glue（避免 X Type 按值）
+#[no_mangle]
+function asm_index_elem_byte_sz(arena: *u8, index_expr_ref: i32): i32 {
+  unsafe {
+    return pipeline_asm_index_elem_byte_sz(arena, index_expr_ref);
+  }
+  return 0;
+}
+
+// G-02f-196：pipeline 入口薄包装 → 已真迁 glue_enc / glue_arch
+#[no_mangle]
+function pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
+  return glue_enc_local_slot_ptr_or_addr(arena, elf, arg_ref, slot_off, ta, asm_ctx);
+}
+
+#[no_mangle]
+function pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(arena: *u8, out: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
+  return glue_arch_emit_local_slot_ptr_or_addr_text(arena, out, arg_ref, slot_off, ta, asm_ctx);
 }
 

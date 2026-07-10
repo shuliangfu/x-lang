@@ -1,4 +1,4 @@
-/* seeds/backend_try_inline_dispatch.from_x.c — G-02f-184/185 lit stack pure; G-02f-9 product backend dispatch TU
+/* seeds/backend_try_inline_dispatch.from_x.c — G-02f-196 local_slot/index pure; G-02f-184/185 lit stack pure; G-02f-9 product backend dispatch TU
  * G-02f-135 true .x pure helpers.
  * G-02f-134 true .x pure helpers.
  * G-02f-133 true .x pure helpers.
@@ -640,6 +640,7 @@ int32_t glue_type_ref_is_named_struct_layout(struct ast_ASTArena *arena, struct 
  * 块内 let struct（Pair 等）已按 layout 直写栈槽，field/index 基址须 lea 勿 load。
  * asm_ctx 非空时优先读块内 let/const 声明类型（expr.resolved_type 可能误标为 *T）。
  */
+/* G-02f-196：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref,
                                             struct ast_Module *mod, uint8_t *asm_ctx) {
   int32_t tr;
@@ -703,6 +704,7 @@ int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_
 /**
  * INDEX 元素字节宽；委托 pipeline_glue.c（避免 X Type 按值 emit）。
  */
+/* G-02f-196：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_ref) {
   return pipeline_asm_index_elem_byte_sz(arena, index_expr_ref);
 }
