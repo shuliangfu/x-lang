@@ -5,6 +5,7 @@
  * .x covers: + ends_with/.x magic, typeck_for_ctx, lsp_free_loaded_imports, preprocess diag + dep slot stores (G-02f-84).
  * G-02f-93/95: dep-slot/debug match + pipeline thread fns gates.
  * G-02f-223: entry_dir_pick + import_dep_dir pure; dep set/ndep bounds.
+ * G-02f-224: path_registry scan + seed_slots pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -862,6 +863,13 @@ int32_t *driver_dep_seeded_slot(int32_t i) {
     return (int32_t *)&driver_dep_seeded[i];
 }
 
+/* G-02f-224：path registry 读槽（供 .x scan 真迁） */
+const char *driver_dep_path_registry_at(int32_t i) {
+    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
+        return NULL;
+    return driver_dep_path_registry[i];
+}
+
 extern size_t pipeline_sizeof_arena(void);
 extern size_t pipeline_sizeof_module(void);
 
@@ -892,6 +900,7 @@ void driver_dep_module_ptr_set(int32_t i, void *module) {
 
 
 
+/* G-02f-224：逻辑源 .x（真迁边界）；seed 保留同语义 C 供产品 cc */
 void driver_dep_path_registry_set(int32_t i, const char *path) {
     if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
         return;
@@ -940,7 +949,7 @@ void driver_dep_seeded_set(int32_t i, int32_t v) {
  * 批量预填 dep 槽指针并标记 seeded；entry pipeline 复用不重载。
  * 参数：arenas/modules 各 32 槽；n 有效 dep 数。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
     int j;
     for (j = 0; j < SHUX_DRIVER_DEP_SLOT_MAX && j < n; j++) {
@@ -978,6 +987,7 @@ void driver_dep_publish_slot(int32_t i, void *arena, void *module, const char *i
  * 按 import 逻辑路径查 dep 预跑全局槽。
  * 返回值：槽下标 0..31，未 publish 返回 -1。
  */
+/* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t driver_dep_slot_for_path_scan(const char *path) {
     int i;
     for (i = 0; i < SHUX_DRIVER_DEP_SLOT_MAX; i++) {
@@ -987,6 +997,7 @@ int32_t driver_dep_slot_for_path_scan(const char *path) {
     return -1;
 }
 
+/* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t driver_dep_slot_for_path(const char *path) {
   if (path == NULL) {
     return -1;

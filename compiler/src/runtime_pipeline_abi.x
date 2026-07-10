@@ -10,6 +10,7 @@
 // G-02f-93：+ pctx_update_dep_slots_no_reset / debug_body_func_match 门闩。
 // G-02f-95：+ pipeline_run_x_thread_fn / asm_codegen_elf_o_thread_fn 门闩。
 // G-02f-223：entry_dir_pick + import_dep_dir pure；dep set/ndep 边界。
+// G-02f-224：path_registry scan + seed_slots pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -22,6 +23,7 @@ extern "C" function typeck_dep_arena_set_impl(i: i32, arena: *u8): void;
 extern "C" function driver_dep_arena_ptr_set_impl(i: i32, arena: *u8): void;
 extern "C" function driver_dep_module_ptr_set_impl(i: i32, module: *u8): void;
 extern "C" function driver_dep_path_registry_set(i: i32, path: *u8): void;
+extern "C" function driver_dep_path_registry_at(i: i32): *u8;
 extern "C" function driver_dep_module_buf(i: i32): *u8;
 extern "C" function driver_dep_arena_buf(i: i32): *u8;
 extern "C" function strchr(s: *u8, c: i32): *u8;
@@ -44,7 +46,7 @@ extern "C" function shux_get_entry_dir_impl(input_path: *u8, entry_dir: *u8, siz
 extern "C" function driver_asm_fclose_asm_out_impl(fp: *u8): void;
 extern "C" function shux_import_path_to_file_path_impl(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void;
 extern "C" function shux_resolve_file_import_path_impl(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void;
-extern "C" function driver_dep_slot_for_path_scan(path: *u8): i32;
+/* driver_dep_slot_for_path_scan：G-02f-224 下方真迁 */
 extern "C" function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32;
 extern "C" function driver_dep_seed_slots_impl(arenas: *u8, modules: *u8, n: i32): void;
 extern "C" function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8;
@@ -694,15 +696,29 @@ function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *
   }
 }
 
+// G-02f-224：按 path 扫 path_registry（32 槽）
+#[no_mangle]
+function driver_dep_slot_for_path_scan(path: *u8): i32 {
+  if (path == 0 as *u8) { return 0 - 1; }
+  unsafe {
+    let i: i32 = 0;
+    while (i < 32) {
+      let reg: *u8 = driver_dep_path_registry_at(i);
+      if (reg != 0 as *u8) {
+        if (pipe_cstr_eq(reg, path) != 0) { return i; }
+      }
+      i = i + 1;
+    }
+  }
+  return 0 - 1;
+}
+
 #[no_mangle]
 function driver_dep_slot_for_path(path: *u8): i32 {
   if (path == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
-  unsafe {
-    return driver_dep_slot_for_path_scan(path);
-  }
-  return -1;
+  return driver_dep_slot_for_path_scan(path);
 }
 
 /* ---- G-02f-54：preprocess 薄封装 / dep seed_slots / entry lib name ---- */
@@ -715,10 +731,29 @@ function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out
   return -1;
 }
 
+// G-02f-224：批量预填 dep 槽 + seeded 标记
 #[no_mangle]
 function driver_dep_seed_slots(arenas: *u8, modules: *u8, n: i32): void {
-  unsafe {
-    driver_dep_seed_slots_impl(arenas, modules, n);
+  let j: i32 = 0;
+  while (j < 32) {
+    if (j < n) {
+      unsafe {
+        let a: *u8 = 0 as *u8;
+        let m: *u8 = 0 as *u8;
+        if (arenas != 0 as *u8) {
+          a = pipe_load_ptr_slot(arenas, j);
+        }
+        if (modules != 0 as *u8) {
+          m = pipe_load_ptr_slot(modules, j);
+        }
+        driver_dep_arena_ptr_set(j, a);
+        driver_dep_module_ptr_set(j, m);
+        driver_dep_seeded_set(j, 1);
+      }
+    } else {
+      driver_dep_seeded_set(j, 0);
+    }
+    j = j + 1;
   }
 }
 
@@ -1162,8 +1197,11 @@ function typeck_dep_arena_set(i: i32, arena: *u8): void {
   }
 }
 
+// G-02f-224：driver dep 指针槽边界
 #[no_mangle]
 function driver_dep_arena_ptr_set(i: i32, arena: *u8): void {
+  if (i < 0) { return; }
+  if (i >= 32) { return; }
   unsafe {
     driver_dep_arena_ptr_set_impl(i, arena);
   }
@@ -1171,6 +1209,8 @@ function driver_dep_arena_ptr_set(i: i32, arena: *u8): void {
 
 #[no_mangle]
 function driver_dep_module_ptr_set(i: i32, module: *u8): void {
+  if (i < 0) { return; }
+  if (i >= 32) { return; }
   unsafe {
     driver_dep_module_ptr_set_impl(i, module);
   }
