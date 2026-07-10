@@ -3716,9 +3716,9 @@ ensure_runtime_proc_abi_obj() {
 
 ensure_runtime_link_abi_obj() {
   local o="src/runtime_link_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_link_abi.inc" -nt "$o" ]; then
-  echo " cc -c $o <- src/runtime_link_abi.inc (E-04 v5 link/cc ABI helpers)"
-  sh scripts/cc_inc_tu.sh src/runtime_link_abi.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_link_abi.from_x.c" -nt "$o" ]; then
+  echo " cc -c $o <- seeds/runtime_link_abi.from_x.c (E-04 v5 link/cc ABI helpers)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_link_abi.from_x.c -o "$o"
   fi
 }
 

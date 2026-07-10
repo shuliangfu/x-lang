@@ -637,8 +637,9 @@ src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/run
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o $@
 
 
-src/runtime_link_abi.o: src/runtime_link_abi.inc src/runtime_link_abi.h src/runtime_proc_abi.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/runtime_link_abi.inc $@
+# G-02f-13：runtime_link_abi 产品 seed（G05 hot）
+src/runtime_link_abi.o: seeds/runtime_link_abi.from_x.c src/runtime_link_abi.x src/runtime_link_abi.h src/runtime_proc_abi.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_link_abi.from_x.c -o $@
 
 # G-02f-12：runtime_driver_abi 产品 seed
 src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_abi.x src/runtime_driver_abi.h

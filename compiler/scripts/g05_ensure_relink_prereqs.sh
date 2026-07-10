@@ -58,7 +58,15 @@ g05_cc_c() {
 
 if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   echo "g05_ensure_relink_prereqs: hot rebuild (cc, no make)"
-  g05_cc_c src/runtime_link_abi.o src/runtime_link_abi.inc
+  # G-02f-13：runtime_link_abi 产品 seed（G05 hot）
+  _rlink=seeds/runtime_link_abi.from_x.c
+  if [ -f "$_rlink" ]; then
+    if [ ! -f src/runtime_link_abi.o ] || [ "$_rlink" -nt src/runtime_link_abi.o ]; then
+      echo "g05_ensure: runtime_link_abi.o ← seed (G-02f-13)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_link_abi.o "$_rlink"
+    fi
+  fi
   # 注意：.o 名是 runtime_driver_no_c.o，源文件是 runtime.inc + NO_C flags
   g05_cc_c src/runtime_driver_no_c.o src/runtime.inc $RUNTIME_DRIVER_NO_C_CFLAGS
   # G-02f-12：runtime_pipeline_abi 产品 seed（须 SHUX_USE_X_PIPELINE）
