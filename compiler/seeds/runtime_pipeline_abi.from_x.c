@@ -16,6 +16,7 @@
  * G-02f-232: resolve_import_file_path_multi pure (access locked).
  * G-02f-233: one_ctx early pure + map_impl; set_ndep pure.
  * G-02f-234: fclose/emit_glue + merge dep_paths pure.
+ * G-02f-235: merge_direct_then_transitive_deps pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -2290,6 +2291,20 @@ int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots
  * 将 shux_collect_deps_transitive 得到的 closure（调用方已对 triple 数组做过反转）合并为 pipeline/asm_elf dep 列表。
  * 前 n_imports 项与入口 module import 槽对齐；传递依赖按 closure 顺序追加并路径去重。
  */
+/* G-02f-235：size_t 槽读写（.x merge deps pure） */
+size_t shux_size_slot_get(size_t *arr, int32_t i) {
+    if (!arr || i < 0)
+        return 0;
+    return arr[i];
+}
+
+void shux_size_slot_set(size_t *arr, int32_t i, size_t v) {
+    if (!arr || i < 0)
+        return;
+    arr[i] = v;
+}
+
+/* G-02f-235：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int shux_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
     int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n) {
     unsigned char used[SHUX_DRIVER_DEP_SLOT_MAX];
@@ -2342,6 +2357,7 @@ int shux_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports,
     return 0;
 }
 
+/* G-02f-235：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
     int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n) {
   if (module == NULL) {

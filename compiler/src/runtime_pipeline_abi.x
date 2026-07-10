@@ -21,6 +21,7 @@
 // G-02f-232：resolve_import_file_path_multi 编排 pure（access 🔒）。
 // G-02f-233：one_ctx_for_dep_prerun 早退 pure + map 🔒；set_ndep pure。
 // G-02f-234：fclose/emit_glue pure + merge dep_paths 编排 pure。
+// G-02f-235：merge_direct_then_transitive_deps pure（src/lens/path）。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -110,7 +111,9 @@ extern "C" function shux_load_direct_imports_for_asm_layout_impl(module: *u8, li
 extern "C" function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void;
 extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 extern "C" function shux_i32_store(p: *i32, v: i32): void;
-extern "C" function shux_merge_direct_then_transitive_deps_impl(module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32, out_src: *u8, out_lens: *u8, out_paths: *u8, out_n: *i32): i32;
+/* merge_direct_then_transitive_deps：G-02f-235 下方真迁 */
+extern "C" function shux_size_slot_get(arr: *u8, i: i32): i64;
+extern "C" function shux_size_slot_set(arr: *u8, i: i32, v: i64): void;
 extern "C" function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
 extern "C" function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32;
 extern "C" function pipeline_debug_trace_named_func_bodies_impl(phase: *u8, module: *u8, arena: *u8): void;
@@ -1851,20 +1854,141 @@ function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_imports: i32
   return 0;
 }
 
-/* ---- G-02f-62：collect/merge 传递闭包 + debug body trace ---- */
+/* ---- G-02f-62 / G-02f-235：collect/merge 传递闭包 + debug body trace ---- */
 
+// G-02f-235：与 dep_paths 同构，另写 out_src / out_lens
 #[no_mangle]
 function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32, out_src: *u8, out_lens: *u8, out_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   if (out_n == 0 as *i32) {
-    return -1;
+    return 0 - 1;
+  }
+  if (out_paths == 0 as *u8) {
+    return 0 - 1;
+  }
+  let used: u8[32] = [];
+  let ui: i32 = 0;
+  while (ui < 32) {
+    used[ui] = 0;
+    ui = ui + 1;
+  }
+  let mi: i32 = 0;
+  let i: i32 = 0;
+  while (i < n_imports) {
+    if (i >= 32) { break; }
+    if (mi >= 32) { break; }
+    let path_c: u8[65] = [];
+    unsafe {
+      shux_module_import_path_cstr(module, i, &path_c[0], 65);
+    }
+    let found: i32 = 0 - 1;
+    let kk: i32 = 0;
+    while (kk < n_closure) {
+      unsafe {
+        let cp: *u8 = 0 as *u8;
+        if (cpaths != 0 as *u8) {
+          cp = pipe_load_ptr_slot(cpaths, kk);
+        }
+        if (cp != 0 as *u8) {
+          if (pipe_cstr_eq(cp, &path_c[0]) != 0) {
+            found = kk;
+          }
+        }
+      }
+      if (found >= 0) { break; }
+      kk = kk + 1;
+    }
+    if (found < 0) {
+      pipeline_diag_merge_dep_missing(&path_c[0]);
+      return 1;
+    }
+    unsafe {
+      let pfound: *u8 = 0 as *u8;
+      let sfound: *u8 = 0 as *u8;
+      let lfound: i64 = 0;
+      if (cpaths != 0 as *u8) {
+        pfound = pipe_load_ptr_slot(cpaths, found);
+      }
+      if (cls != 0 as *u8) {
+        sfound = pipe_load_ptr_slot(cls, found);
+      }
+      if (clens != 0 as *u8) {
+        lfound = shux_size_slot_get(clens, found);
+      }
+      if (out_src != 0 as *u8) {
+        shux_ptr_slot_set(out_src, mi, sfound);
+      }
+      if (out_lens != 0 as *u8) {
+        shux_size_slot_set(out_lens, mi, lfound);
+      }
+      shux_ptr_slot_set(out_paths, mi, pfound);
+    }
+    if (found < 32) {
+      used[found] = 1;
+    }
+    mi = mi + 1;
+    i = i + 1;
+  }
+  let kj: i32 = 0;
+  while (kj < n_closure) {
+    if (mi >= 32) { break; }
+    if (kj < 32) {
+      if (used[kj] == 0) {
+        unsafe {
+          let cp2: *u8 = 0 as *u8;
+          if (cpaths != 0 as *u8) {
+            cp2 = pipe_load_ptr_slot(cpaths, kj);
+          }
+          if (cp2 != 0 as *u8) {
+            if (shux_merge_deps_path_already_out(cp2, out_paths, mi) != 0) {
+              used[kj] = 1;
+            } else {
+              let s2: *u8 = 0 as *u8;
+              let l2: i64 = 0;
+              if (cls != 0 as *u8) {
+                s2 = pipe_load_ptr_slot(cls, kj);
+              }
+              if (clens != 0 as *u8) {
+                l2 = shux_size_slot_get(clens, kj);
+              }
+              if (out_src != 0 as *u8) {
+                shux_ptr_slot_set(out_src, mi, s2);
+              }
+              if (out_lens != 0 as *u8) {
+                shux_size_slot_set(out_lens, mi, l2);
+              }
+              shux_ptr_slot_set(out_paths, mi, cp2);
+              mi = mi + 1;
+            }
+          } else {
+            let s3: *u8 = 0 as *u8;
+            let l3: i64 = 0;
+            if (cls != 0 as *u8) {
+              s3 = pipe_load_ptr_slot(cls, kj);
+            }
+            if (clens != 0 as *u8) {
+              l3 = shux_size_slot_get(clens, kj);
+            }
+            if (out_src != 0 as *u8) {
+              shux_ptr_slot_set(out_src, mi, s3);
+            }
+            if (out_lens != 0 as *u8) {
+              shux_size_slot_set(out_lens, mi, l3);
+            }
+            shux_ptr_slot_set(out_paths, mi, cp2);
+            mi = mi + 1;
+          }
+        }
+      }
+    }
+    kj = kj + 1;
   }
   unsafe {
-    return shux_merge_direct_then_transitive_deps_impl(module, n_imports, cls, clens, cpaths, n_closure, out_src, out_lens, out_paths, out_n);
+    shux_i32_store(out_n, mi);
   }
-  return -1;
+  return 0;
 }
 
 #[no_mangle]
