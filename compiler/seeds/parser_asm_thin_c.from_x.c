@@ -6461,7 +6461,26 @@ void parser_asm_parse_assign_into_slice_c(void *arena, struct parser_asm_lexer l
                                          struct parser_asm_parse_expr_result *out);
 int labi_pthin_expr_ternary_slice_marker(void);
 #endif
+/* G-02f-290 P9 stretch lite：默认 #include；hybrid 时在 pthin_stretch.from_x.c
+ * （suite ≈28k 仍下方 #include，不 hybrid） */
+#ifndef SHUX_PTHIN_STRETCH_FROM_X
 #include "parser_asm_emit_heavy_stretch_slice.inc"
+#else
+int32_t parser_asm_stretch_token_run_len_c(int32_t kind);
+int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t path_len);
+int32_t parser_asm_stretch_struct_field_name_kind_c(int32_t kind);
+int32_t parser_asm_stretch_struct_field_continues_kind_c(int32_t kind);
+int32_t parser_asm_stretch_token_is_label_start_c(int32_t cur_kind, int32_t next_kind);
+int32_t parser_asm_stretch_diag_after_imports_kind_c(int32_t kind);
+int32_t parser_asm_stretch_import_path_normalize_c(uint8_t *path_buf, int32_t path_len);
+size_t parser_asm_stretch_skip_ws_and_comments_c(const uint8_t *data, size_t len, size_t pos);
+int32_t parser_asm_stretch_verify_kw_spelling_c(const uint8_t *data, size_t len, size_t token_start, int32_t kind,
+                                                int32_t run_len);
+int32_t parser_asm_stretch_import_path_finalize_c(uint8_t *path_buf, int32_t path_len, const uint8_t *source,
+                                                  size_t source_len);
+int32_t parser_asm_stretch_bind_name_validate_c(const uint8_t *name, int32_t len);
+int labi_pthin_stretch_slice_marker(void);
+#endif
 struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
                                                             struct parser_asm_slice_u8 *source);
 struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
