@@ -373,6 +373,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_dispatch_impl_seed=seeds/rt_dispatch_impl.from_x.c
   _rt_run_x_emit_seed=seeds/rt_run_x_emit.from_x.c
   _rt_run_asm_backend_seed=seeds/rt_run_asm_backend.from_x.c
+  _rt_run_compiler_parsed_seed=seeds/rt_run_compiler_parsed.from_x.c
   _rt_o=src/runtime_driver_no_c.o
   if [ -f "$_rt" ]; then
     if [ ! -f "$_rt_o" ] || [ "$_rt" -nt "$_rt_o" ] \
@@ -397,6 +398,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_dispatch_impl_seed" ] && [ "$_rt_dispatch_impl_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_run_x_emit_seed" ] && [ "$_rt_run_x_emit_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_run_asm_backend_seed" ] && [ "$_rt_run_asm_backend_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_run_compiler_parsed_seed" ] && [ "$_rt_run_compiler_parsed_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_content_x" ] && [ "$_rt_content_x" -nt "$_rt_o" ]; }; then
       _rt_done=0
       if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_content_seed" ]; then
@@ -421,6 +423,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _rt_di_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_dispatch_impl.XXXXXX") || true
         _rt_xe_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_run_x_emit.XXXXXX") || true
         _rt_abk_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_run_asm_backend.XXXXXX") || true
+        _rt_rcp_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_run_compiler_parsed.XXXXXX") || true
         _rt_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_rest.XXXXXX") || true
         _rt_content_ok=0
         _rt_util_ok=0
@@ -443,6 +446,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _rt_di_ok=0
         _rt_xe_ok=0
         _rt_abk_ok=0
+        _rt_rcp_ok=0
         if [ -n "$_rt_c_o" ] && [ -f "$_rt_content_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_c_o" "$_rt_content_seed"; then
@@ -592,6 +596,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: rest run_asm_backend ← $_rt_run_asm_backend_seed (G-02f-315 seed slice)"
           fi
         fi
+        if [ -n "$_rt_rcp_o" ] && [ -f "$_rt_run_compiler_parsed_seed" ]; then
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_rcp_o" "$_rt_run_compiler_parsed_seed"; then
+            _rt_rcp_ok=1
+            echo "g05_ensure: rest run_compiler_parsed ← $_rt_run_compiler_parsed_seed (G-02f-316 seed slice)"
+          fi
+        fi
         _rt_rest_defs="-DSHUX_RT_CONTENT_FROM_X"
         if [ "$_rt_util_ok" = "1" ]; then
           _rt_rest_defs="$_rt_rest_defs -DSHUX_RT_UTIL_FROM_X"
@@ -652,6 +663,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ "$_rt_abk_ok" = "1" ]; then
           _rt_rest_defs="$_rt_rest_defs -DSHUX_RT_RUN_ASM_BACKEND_FROM_X"
+        fi
+        if [ "$_rt_rcp_ok" = "1" ]; then
+          _rt_rest_defs="$_rt_rest_defs -DSHUX_RT_RUN_COMPILER_PARSED_FROM_X"
         fi
         # shellcheck disable=SC2086
         if [ "$_rt_content_ok" = "1" ] && [ -n "$_rt_rest_o" ] \
@@ -718,16 +732,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ "$_rt_abk_ok" = "1" ]; then
             _rt_link_objs="$_rt_link_objs $_rt_abk_o"
           fi
+          if [ "$_rt_rcp_ok" = "1" ]; then
+            _rt_link_objs="$_rt_link_objs $_rt_rcp_o"
+          fi
           # shellcheck disable=SC2086
           if $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
-            echo "g05_ensure: $_rt_o ← R2/R0/R1/R5-lite/R3/R6/R7/R9/R10/diag/emit_st/elf_diag/lib_root/parse_diag/fs_open/arena_buf/fmt_one/dispatch_thin/dispatch_impl/run_x_emit/run_asm_backend + rest (G-02f-315 hybrid)"
+            echo "g05_ensure: $_rt_o ← R2/R0/R1/R5-lite/R3/R6/R7/R9/R10/diag/emit_st/elf_diag/lib_root/parse_diag/fs_open/arena_buf/fmt_one/dispatch_thin/dispatch_impl/run_x_emit/run_asm_backend/run_compiler_parsed + rest (G-02f-316 hybrid)"
             _rt_done=1
           fi
         fi
         if [ "$_rt_done" = "0" ]; then
           echo "g05_ensure: L2 hybrid runtime slices failed; fallback full seed" >&2
         fi
-        rm -f "$_rt_c_o" "$_rt_u_o" "$_rt_a_o" "$_rt_e_o" "$_rt_p_o" "$_rt_cmp_o" "$_rt_run_o" "$_rt_asm_o" "$_rt_ent_o" "$_rt_diag_o" "$_rt_est_o" "$_rt_elfd_o" "$_rt_lr_o" "$_rt_pd_o" "$_rt_fs_o" "$_rt_ab_o" "$_rt_fo_o" "$_rt_dt_o" "$_rt_di_o" "$_rt_xe_o" "$_rt_abk_o" "$_rt_rest_o"
+        rm -f "$_rt_c_o" "$_rt_u_o" "$_rt_a_o" "$_rt_e_o" "$_rt_p_o" "$_rt_cmp_o" "$_rt_run_o" "$_rt_asm_o" "$_rt_ent_o" "$_rt_diag_o" "$_rt_est_o" "$_rt_elfd_o" "$_rt_lr_o" "$_rt_pd_o" "$_rt_fs_o" "$_rt_ab_o" "$_rt_fo_o" "$_rt_dt_o" "$_rt_di_o" "$_rt_xe_o" "$_rt_abk_o" "$_rt_rcp_o" "$_rt_rest_o"
       fi
       if [ "$_rt_done" = "0" ]; then
         echo "g05_ensure: runtime_driver_no_c.o ← seed + NO_C (G-02f-14)"

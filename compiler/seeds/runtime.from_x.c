@@ -4716,6 +4716,8 @@ int driver_argv0_basename_is(const char *argv0, const char *base);
 
 
 
+/* G-02f-316：parsed dispatch → rt_run_compiler_parsed hybrid */
+#ifndef SHUX_RT_RUN_COMPILER_PARSED_FROM_X
 /**
  * argv 已解析后的编译执行：泛型降级、asm/C 分派、pipeline/cc。
  * 由 driver/compile.x 经 driver_run_compiler_dispatch_c 调用。
@@ -5636,6 +5638,10 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     pipeline_dep_ctx_heap_destroy(pctx);
     return 0;
 }
+#else
+int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv);
+int labi_rt_run_compiler_parsed_slice_marker(void);
+#endif
 
 
 
