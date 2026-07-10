@@ -60,7 +60,7 @@ ensure_asm_driver_seed_c_objs() {
   fi
   if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ] || [ "src/lsp/lsp_diag_pipeline_ctx.inc" -nt src/lsp/lsp_diag_pipeline_ctx.o ]; then
   experimental_bootstrap_info "cc src/lsp/lsp_diag_pipeline_ctx.o"
-  sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_ctx.inc src/lsp/lsp_diag_pipeline_ctx.o
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_ctx.from_x.c -o src/lsp/lsp_diag_pipeline_ctx.o
   fi
 }
 ensure_asm_driver_seed_c_objs
@@ -111,9 +111,9 @@ ensure_runtime_abi_obj() {
 }
 ensure_runtime_io_abi_obj() {
   local o="src/runtime_io_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_io_abi.inc" -nt "$o" ]; then
+  if [ ! -f "$o" ] || [ "seeds/runtime_io_abi.from_x.c" -nt "$o" ]; then
   experimental_bootstrap_info "cc $o <- src/runtime_io_abi.inc"
-  sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc "$o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o "$o"
   fi
 }
 ensure_runtime_proc_abi_obj() {
@@ -170,7 +170,7 @@ ensure_experimental_companion_objs() {
   fi
   if [ ! -f src/runtime_io_abi.o ] || [ src/runtime_io_abi.inc -nt src/runtime_io_abi.o ]; then
   experimental_bootstrap_info "cc runtime_io_abi.o (incl. fs/sys shim)"
-  sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc src/runtime_io_abi.o
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
   fi
   if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "seeds/x_seed_bridge.from_x.c" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
   experimental_bootstrap_info "cc x_seed_bridge.o (G-02f-11 seed)"

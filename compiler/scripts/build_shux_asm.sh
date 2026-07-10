@@ -3039,9 +3039,9 @@ ensure_asm_bootstrap_x_companion_objs() {
   src/runtime_io_abi.o src/asm/parser_asm_parse_expr_link.o
   fi
   # G-02e: fs/sys shim symbols live in runtime_io_abi.o
-  if [ ! -f src/runtime_io_abi.o ] || [ src/runtime_io_abi.inc -nt src/runtime_io_abi.o ]; then
-  echo " cc -c src/runtime_io_abi.inc -> src/runtime_io_abi.o"
-  sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc src/runtime_io_abi.o
+  if [ ! -f src/runtime_io_abi.o ] || [ seeds/runtime_io_abi.from_x.c -nt src/runtime_io_abi.o ]; then
+  echo " cc -c seeds/runtime_io_abi.from_x.c -> src/runtime_io_abi.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
   fi
   if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "seeds/x_seed_bridge.from_x.c" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
   echo " cc -c seeds/x_seed_bridge.from_x.c -> $BUILD_DIR/x_seed_bridge.o (G-02f-11)"
@@ -3227,8 +3227,8 @@ ensure_asm_driver_seed_support_c_objs() {
   ensure_lsp_diag_seed_obj "$SEED_DIR"
   LSP_DIAG_SEED_O=$(lsp_diag_seed_obj_path "$SEED_DIR")
   export LSP_DIAG_SEED_O
-  if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ] || [ src/lsp/lsp_diag_pipeline_ctx.inc -nt src/lsp/lsp_diag_pipeline_ctx.o ]; then
-  sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_ctx.inc src/lsp/lsp_diag_pipeline_ctx.o
+  if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ] || [ seeds/lsp_diag_pipeline_ctx.from_x.c -nt src/lsp/lsp_diag_pipeline_ctx.o ]; then
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_ctx.from_x.c -o src/lsp/lsp_diag_pipeline_ctx.o
   fi
 }
 
@@ -3335,9 +3335,9 @@ ensure_asm_driver_seed_c_objs() {
 # - pipeline_fill_dep_strict_alias：strict 链仅 fill_dep 裸名（勿整包 pipeline_run_x_link_alias）
 ensure_asm_strict_link_extra_objs() {
   # G-02e: std_sys_shim merged into runtime_io_abi.o (ensured above / DRIVER_SEED)
-  if [ ! -f src/runtime_io_abi.o ] || [ src/runtime_io_abi.inc -nt src/runtime_io_abi.o ]; then
-  echo " cc -c src/runtime_io_abi.inc -> src/runtime_io_abi.o"
-  sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc src/runtime_io_abi.o
+  if [ ! -f src/runtime_io_abi.o ] || [ seeds/runtime_io_abi.from_x.c -nt src/runtime_io_abi.o ]; then
+  echo " cc -c seeds/runtime_io_abi.from_x.c -> src/runtime_io_abi.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
   fi
   if [ ! -f src/asm/parser_asm_parse_expr_link.o ] \
   || [ seeds/parser_asm_parse_expr_link.from_x.c -nt src/asm/parser_asm_parse_expr_link.o ]; then
@@ -3700,9 +3700,9 @@ ensure_runtime_abi_obj() {
 
 ensure_runtime_io_abi_obj() {
   local o="src/runtime_io_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_io_abi.inc" -nt "$o" ]; then
-  echo " cc -c $o <- src/runtime_io_abi.inc (E-04 v3 I/O ABI)"
-  sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_io_abi.from_x.c" -nt "$o" ]; then
+  echo " cc -c $o <- seeds/runtime_io_abi.from_x.c (E-04 v3 I/O ABI)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o "$o"
   fi
 }
 
@@ -3724,21 +3724,21 @@ ensure_runtime_link_abi_obj() {
 
 ensure_runtime_pipeline_abi_obj() {
   local o="src/runtime_pipeline_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_pipeline_abi.inc" -nt "$o" ] || [ "Makefile" -nt "$o" ]; then
-  echo " cc -c $o <- src/runtime_pipeline_abi.inc (E-04 v32 pipeline import + preprocess ABI)"
+  if [ ! -f "$o" ] || [ "seeds/runtime_pipeline_abi.from_x.c" -nt "$o" ] || [ "Makefile" -nt "$o" ]; then
+  echo " cc -c $o <- seeds/runtime_pipeline_abi.from_x.c (E-04 v32 pipeline import + preprocess ABI)"
   local pa_flags="-DSHUX_USE_X_PIPELINE"
   if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
   pa_flags="$pa_flags -DSHUX_LEGACY_PREPROCESS_C"
   fi
-  sh scripts/cc_inc_tu.sh src/runtime_pipeline_abi.inc "$o" $pa_flags
+  $CC $CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c seeds/runtime_pipeline_abi.from_x.c -o "$o"
   fi
 }
 
 ensure_runtime_driver_abi_obj() {
   local o="src/runtime_driver_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_abi.inc" -nt "$o" ]; then
-  echo " cc -c $o <- src/runtime_driver_abi.inc (E-04 driver ABI: stack bump / dep path)"
-  sh scripts/cc_inc_tu.sh src/runtime_driver_abi.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_driver_abi.from_x.c" -nt "$o" ]; then
+  echo " cc -c $o <- seeds/runtime_driver_abi.from_x.c (E-04 driver ABI: stack bump / dep path)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_abi.from_x.c -o "$o"
   fi
 }
 
@@ -3752,9 +3752,9 @@ ensure_diag_obj() {
 
 ensure_runtime_driver_diagnostic_obj() {
   local o="src/runtime_driver_diagnostic.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_diagnostic.inc" -nt "$o" ]; then
-  echo " cc -c $o <- src/runtime_driver_diagnostic.inc (E-04 typeck diagnostic hooks)"
-  sh scripts/cc_inc_tu.sh src/runtime_driver_diagnostic.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_driver_diagnostic.from_x.c" -nt "$o" ]; then
+  echo " cc -c $o <- seeds/runtime_driver_diagnostic.from_x.c (E-04 typeck diagnostic hooks)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_diagnostic.from_x.c -o "$o"
   fi
 }
 

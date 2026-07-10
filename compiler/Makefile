@@ -632,18 +632,21 @@ src/main.o: src/main.inc scripts/cc_inc_tu.sh
 
 # E-04 v2/v3：argv/target 与 POSIX I/O ABI 薄壳；默认 seed / B-strict 均链入。
 
-src/runtime_io_abi.o: src/runtime_io_abi.inc src/runtime_io_abi.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc $@
+# G-02f-12：runtime_io_abi 产品 seed
+src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/runtime_io_abi.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o $@
 
 
 src/runtime_link_abi.o: src/runtime_link_abi.inc src/runtime_link_abi.h src/runtime_proc_abi.h scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/runtime_link_abi.inc $@
 
-src/runtime_driver_abi.o: src/runtime_driver_abi.inc src/runtime_driver_abi.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/runtime_driver_abi.inc $@
+# G-02f-12：runtime_driver_abi 产品 seed
+src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_abi.x src/runtime_driver_abi.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_abi.from_x.c -o $@
 
-src/runtime_pipeline_abi.o: src/runtime_pipeline_abi.inc src/runtime_pipeline_abi.h Makefile scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/runtime_pipeline_abi.inc $@ $(RUNTIME_PIPELINE_ABI_CFLAGS)
+# G-02f-12：runtime_pipeline_abi 产品 seed（须 SHUX_USE_X_PIPELINE）
+src/runtime_pipeline_abi.o: seeds/runtime_pipeline_abi.from_x.c src/runtime_pipeline_abi.x src/runtime_pipeline_abi.h Makefile
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(RUNTIME_PIPELINE_ABI_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_pipeline_abi.from_x.c -o $@
 
 src/runtime_c_import.o: src/runtime_c_import.inc src/runtime_c_import.h scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/runtime_c_import.inc $@
@@ -657,8 +660,9 @@ src/async/async_cps_codegen.o: src/async/async_cps_codegen.inc scripts/cc_inc_tu
 src/async/async_asm_pool.o: src/async/async_asm_pool.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/async/async_asm_pool.inc $@
 
-src/runtime_driver_diagnostic.o: src/runtime_driver_diagnostic.inc src/runtime_driver_diagnostic.h include/diag.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/runtime_driver_diagnostic.inc $@
+# G-02f-12：runtime_driver_diagnostic 产品 seed
+src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/runtime_driver_diagnostic.x src/runtime_driver_diagnostic.h include/diag.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_diagnostic.from_x.c -o $@
 
 # 6.3：runtime.c 提供 run_compiler_c 与弱符号 main_entry；带 .x 入口时用 runtime_driver.o（含 driver_*/pipeline_*）
 src/runtime.o: src/runtime.inc include/diag.h scripts/cc_inc_tu.sh
@@ -1569,8 +1573,9 @@ src/lsp/lsp_diag_pipeline_sizes_nostub.o: seeds/lsp_diag_pipeline_sizes.from_x.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_sizes.from_x.c -o $@
 
 # G-02e-8：lsp_diag_x_alias 已并入本 TU。
-src/lsp/lsp_diag_pipeline_ctx.o: src/lsp/lsp_diag_pipeline_ctx.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_ctx.inc $@ -I. -Iinclude -Isrc
+# G-02f-12：lsp_diag_pipeline_ctx 产品 seed
+src/lsp/lsp_diag_pipeline_ctx.o: seeds/lsp_diag_pipeline_ctx.from_x.c src/lsp/lsp_diag_pipeline_ctx.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_ctx.from_x.c -o $@
 
 # G-02f-11：runtime_driver_strict_glue_stubs 产品 seed（内含 runtime_heap_user.inc）
 src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.from_x.c src/runtime_driver_strict_glue_stubs.x src/runtime_heap_user.inc

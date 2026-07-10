@@ -61,8 +61,28 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   g05_cc_c src/runtime_link_abi.o src/runtime_link_abi.inc
   # 注意：.o 名是 runtime_driver_no_c.o，源文件是 runtime.inc + NO_C flags
   g05_cc_c src/runtime_driver_no_c.o src/runtime.inc $RUNTIME_DRIVER_NO_C_CFLAGS
-  # 与 Makefile RUNTIME_PIPELINE_ABI_CFLAGS 一致（须 SHUX_USE_X_PIPELINE，避免链 preprocess_c_fallback）
-  g05_cc_c src/runtime_pipeline_abi.o src/runtime_pipeline_abi.inc -DSHUX_USE_X_PIPELINE
+  # G-02f-12：runtime_pipeline_abi 产品 seed（须 SHUX_USE_X_PIPELINE）
+  _rpabi=seeds/runtime_pipeline_abi.from_x.c
+  if [ -f "$_rpabi" ]; then
+    if [ ! -f src/runtime_pipeline_abi.o ] || [ "$_rpabi" -nt src/runtime_pipeline_abi.o ]; then
+      echo "g05_ensure: runtime_pipeline_abi.o ← seed -DSHUX_USE_X_PIPELINE (G-02f-12)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c -o src/runtime_pipeline_abi.o "$_rpabi"
+    fi
+  fi
+  # G-02f-12：runtime_io / driver_abi / diagnostic / lsp ctx seeds
+  for _pair in     "src/runtime_io_abi.o:seeds/runtime_io_abi.from_x.c"     "src/runtime_driver_abi.o:seeds/runtime_driver_abi.from_x.c"     "src/runtime_driver_diagnostic.o:seeds/runtime_driver_diagnostic.from_x.c"     "src/lsp/lsp_diag_pipeline_ctx.o:seeds/lsp_diag_pipeline_ctx.from_x.c"
+  do
+    _o="${_pair%%:*}"
+    _s="${_pair#*:}"
+    if [ -f "$_s" ]; then
+      if [ ! -f "$_o" ] || [ "$_s" -nt "$_o" ]; then
+        echo "g05_ensure: $_o ← seed (G-02f-12)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_o" "$_s"
+      fi
+    fi
+  done
   # G-02f-11：pipeline_glue_strict_minimal 产品 seed
   _pglue=seeds/pipeline_glue_strict_minimal.from_x.c
   if [ -f "$_pglue" ]; then
@@ -226,7 +246,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
     case "$o" in
       # 已在热路径专用 flags / .x seed 编译
-      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|src/asm/parser_asm_parse_expr_link.o|parser_asm_thin_glue.o|src/diag.o|src/x_seed_bridge.o|src/seed_link_compat.o|src/runtime_driver_strict_glue_stubs.o|src/driver/fmt_check_cmd_driver.o|build_asm/*|*.s) continue ;;
+      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/runtime_io_abi.o|src/runtime_driver_abi.o|src/runtime_driver_diagnostic.o|src/lsp/lsp_diag_pipeline_ctx.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|src/asm/parser_asm_parse_expr_link.o|parser_asm_thin_glue.o|src/diag.o|src/x_seed_bridge.o|src/seed_link_compat.o|src/runtime_driver_strict_glue_stubs.o|src/driver/fmt_check_cmd_driver.o|build_asm/*|*.s) continue ;;
     esac
 
     if [ -n "$src" ]; then

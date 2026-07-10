@@ -1496,9 +1496,9 @@ fi
 
 ensure_runtime_driver_diagnostic_obj() {
   local o="src/runtime_driver_diagnostic.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_diagnostic.inc" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_driver_diagnostic.inc"
-  sh scripts/cc_inc_tu.sh src/runtime_driver_diagnostic.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_driver_diagnostic.from_x.c" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- seeds/runtime_driver_diagnostic.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_diagnostic.from_x.c -o "$o"
   fi
 }
 
@@ -1513,17 +1513,17 @@ ensure_diag_obj() {
 # 与 build_shux_asm.sh 一致：pipeline_x/typeck_x 引用 driver_typeck_skip_large_entry / pipeline_get_dep_arena_slot。
 ensure_runtime_driver_abi_obj() {
   local o="src/runtime_driver_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_abi.inc" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_driver_abi.inc"
-  sh scripts/cc_inc_tu.sh src/runtime_driver_abi.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_driver_abi.from_x.c" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- seeds/runtime_driver_abi.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_abi.from_x.c -o "$o"
   fi
 }
 
 ensure_runtime_pipeline_abi_obj() {
   local o="src/runtime_pipeline_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_pipeline_abi.inc" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_pipeline_abi.inc"
-  sh scripts/cc_inc_tu.sh src/runtime_pipeline_abi.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_pipeline_abi.from_x.c" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- seeds/runtime_pipeline_abi.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c seeds/runtime_pipeline_abi.from_x.c -o "$o"
   fi
 }
 
@@ -1542,9 +1542,9 @@ ensure_runtime_abi_obj() {
 }
 ensure_runtime_io_abi_obj() {
   local o="src/runtime_io_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_io_abi.inc" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_io_abi.inc"
-  sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_io_abi.from_x.c" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- seeds/runtime_io_abi.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o "$o"
   fi
 }
 ensure_runtime_proc_abi_obj() {
@@ -1568,9 +1568,9 @@ ensure_runtime_pipeline_abi_obj() {
   if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
   cf="$cf -DSHUX_LEGACY_PREPROCESS_C"
   fi
-  if [ ! -f "$o" ] || [ "src/runtime_pipeline_abi.inc" -nt "$o" ] || [ Makefile -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_pipeline_abi.inc"
-  sh scripts/cc_inc_tu.sh src/runtime_pipeline_abi.inc "$o" $cf
+  if [ ! -f "$o" ] || [ "seeds/runtime_pipeline_abi.from_x.c" -nt "$o" ] || [ Makefile -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- seeds/runtime_pipeline_abi.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c seeds/runtime_pipeline_abi.from_x.c -o "$o"
   fi
 }
 
@@ -1689,9 +1689,9 @@ ensure_lsp_codegen_extern_obj() {
 
 ensure_lsp_pipeline_ctx_obj() {
   local o="src/lsp/lsp_diag_pipeline_ctx.o"
-  if [ ! -f "$o" ] || [ "src/lsp/lsp_diag_pipeline_ctx.inc" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- src/lsp/lsp_diag_pipeline_ctx.inc"
-    sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_ctx.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/lsp_diag_pipeline_ctx.from_x.c" -nt "$o" ]; then
+    strict_glue_info "cc -c $o <- seeds/lsp_diag_pipeline_ctx.from_x.c"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_ctx.from_x.c -o "$o"
   fi
 }
 ensure_backend_seed_mega_fallback_obj() {
