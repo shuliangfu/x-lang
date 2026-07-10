@@ -1,11 +1,12 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-291 / P2 runtime R6-lite：compile 路径 pure deps 判定（库根/阶段编排仍 mega）。
+// G-02f-291/292 / P2 runtime R6 compile pure helpers。
 // 产品实现：seeds/rt_compile.from_x.c；hybrid 宏 SHUX_RT_COMPILE_FROM_X。
-// 符号：driver_deps_are_std_core_closure_only / driver_x_emit_asm_*。
 //
-// 完整 driver_compile_* 主编排（IO/阶段）后续 R6 深切；本步仅 pure 串判定。
+// f-291：deps_std_core + emit_asm path pure
+// f-292：argv state — copy_path / freestanding / help
+// 主编排/IO 仍 mega。
 
 extern "C" function strncmp(a: *u8, b: *u8, n: usize): i32;
 extern "C" function strcmp(a: *u8, b: *u8): i32;
@@ -27,7 +28,6 @@ function driver_deps_are_std_core_closure_only(dep_paths: **u8, n_deps: i32): i3
       if (p[0] == 0) {
         return 0;
       }
-      // seed C 实现用 strncmp("std."/"core.")；此处仅锚点
       if (strncmp(p, "std." as *u8, 4 as usize) == 0) {
         k = k + 1;
       } else {

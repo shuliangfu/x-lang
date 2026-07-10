@@ -4567,6 +4567,11 @@ int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
 int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path);
 int driver_x_emit_asm_direct_import_only(const char *input_path);
 int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const char *dep_path);
+void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen);
+void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state);
+void driver_compile_argv_set_legacy_f32_abi_c(void);
+void driver_compile_argv_set_sanitize_address_c(void);
+int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque);
 int labi_rt_compile_slice_marker(void);
 #endif /* !SHUX_RT_COMPILE_FROM_X */
 
@@ -6046,6 +6051,8 @@ void cfg_sync_compile_target_from_state_c(void *state) {
  * EMIT_HEAVY 下 X while+INDEX 形参 field 易误折叠/漏 emit；与 impl_c 一样走 C 原语。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-292 R6：copy_path / freestanding / help → rt_compile hybrid */
+#ifndef SHUX_RT_COMPILE_FROM_X
 void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen) {
     int32_t k;
     int32_t n;
@@ -6058,6 +6065,9 @@ void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_b
         state->path_buf[k] = arg_buf[k];
     state->path_len = n;
 }
+#else
+void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen);
+#endif
 
 
 
@@ -6189,7 +6199,8 @@ void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state);
 
 
 /** `-freestanding`：置 use_freestanding 并同步 driver_freestanding_set（S4 nostdlib 链）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-292 R6 → rt_compile hybrid */
+#ifndef SHUX_RT_COMPILE_FROM_X
 void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state) {
     if (!state)
         return;
@@ -6198,23 +6209,20 @@ void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state) {
     cfg_set_freestanding(1);
 }
 
-
-
-
 /** `-legacy-f32-abi`：等价 SHUX_ABI_F32_XMM=0（legacy f64 widen + callee cvtsd2ss）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void driver_compile_argv_set_legacy_f32_abi_c(void) {
     setenv("SHUX_ABI_F32_XMM", "0", 1);
 }
 
-
-
-
 /** `-fsanitize=address`：M-6 debug 边界插桩（release 默认关闭，零开销）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void driver_compile_argv_set_sanitize_address_c(void) {
     driver_sanitize_address_set(1);
 }
+#else
+void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state);
+void driver_compile_argv_set_legacy_f32_abi_c(void);
+void driver_compile_argv_set_sanitize_address_c(void);
+#endif
 
 
 
@@ -6463,7 +6471,8 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
  * 扫描 argv 是否含 `-h` 或 `--help`。
  * 返回 1 表示应打印用法并 exit 0。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-292 R6 → rt_compile hybrid */
+#ifndef SHUX_RT_COMPILE_FROM_X
 int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
     char **argv = (char **)argv_opaque;
     char buf[16];
@@ -6481,6 +6490,9 @@ int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
     }
     return 0;
 }
+#else
+int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque);
+#endif
 
 
 
