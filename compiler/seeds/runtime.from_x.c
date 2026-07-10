@@ -3123,11 +3123,10 @@ int driver_run_x_emit_c_set_emit_extern(int v) {
 /**
  * 是否与 \c driver_run_compiler_full 默认一致：默认可走 asm 后端；仅当 argv 含 \c `-backend c` 时为 0。
  *
- * 【历史说明】曾仅靠 `-backend asm` 为真；现 shux 默认 asm，`driver_run_asm_backend` 仍由 \c driver_run_compiler_full 在无 \c `-backend c` 时选用。
- *
- * 【返回值】1 → 走 \c driver_run_compiler_full（内含 asm）；0 → 旧逻辑走 \c pipeline_run_x_pipeline_impl 轻路径（主要为兼容未再生成的 driver_gen.c）。
+ * 【返回值】1 → 走 \c driver_run_compiler_full（内含 asm）；0 → 旧逻辑走 \c pipeline_run_x_pipeline_impl 轻路径。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-297 R7-lite → rt_run_exec hybrid */
+#ifndef SHUX_RT_RUN_EXEC_FROM_X
 int driver_want_asm_emit_to_file(int argc, char **argv) {
     int want_asm = 1;
     char cur[512];
@@ -3135,8 +3134,6 @@ int driver_want_asm_emit_to_file(int argc, char **argv) {
     int i;
     if (!argv || argc < 2)
         return 0;
-    /* 与 driver_run_compiler_full 一致：经 main.x 传入的 argv 在 ABI 上与 char** 同址，但若用错位索引会破坏 -L；
-     * 必须用 driver_get_argv_i 逐项拷贝，与同文件 main.x/driver_get_argv_i 语义对齐。 */
     for (i = 1; i < argc; i++) {
         if (driver_get_argv_i(argc, argv, i, cur, (int)sizeof cur) < 0)
             continue;
@@ -3152,10 +3149,13 @@ int driver_want_asm_emit_to_file(int argc, char **argv) {
             want_asm = 0;
         if (strcmp(nx, "asm") == 0)
             want_asm = 1;
-        i++; /* -backend 已消费；下一外层循环会跳过 backend 参数令牌 */
+        i++;
     }
     return want_asm ? 1 : 0;
 }
+#else
+int driver_want_asm_emit_to_file(int argc, char **argv);
+#endif
 
 
 
@@ -6523,10 +6523,9 @@ int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque);
 
 /**
  * 打印 shux 用法摘要（fd 1）。
- * 【Why write(1)】B-strict / -nostartfiles 链路上 libc 未完整初始化 stdout，
- * fputs/fwrite 到 stdout 在 Linux 上可静默 0 字节；write(STDOUT_FILENO) 仍可靠。
+ * G-02f-297 R7-lite → rt_run_exec hybrid
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RT_RUN_EXEC_FROM_X
 void driver_print_usage_c(void) {
     static const char usage[] =
         "Shux (shux) compiler\n"
@@ -6563,6 +6562,10 @@ void driver_print_usage_c(void) {
         "See compiler/docs/F32_XMM_ABI.md for f32 ABI and deprecation timeline.\n";
     (void)write(STDOUT_FILENO, usage, sizeof(usage) - 1u);
 }
+#else
+void driver_print_usage_c(void);
+int labi_rt_run_exec_slice_marker(void);
+#endif
 
 
 
