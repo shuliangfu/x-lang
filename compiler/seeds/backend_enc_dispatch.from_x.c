@@ -1,3 +1,5 @@
+/* G-02f-352：PREFER hybrid thin 由 src/asm/backend_enc_dispatch_thin.x；rest SHUX_L2_ENC_DISPATCH_THIN_FROM_X。
+ */
 /* seeds/backend_enc_dispatch.from_x.c — G-02f-208 enc_dispatch *_arch closed; G-02f-9 product TU
  * G-02f-130 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
@@ -15,6 +17,12 @@
 #include <string.h>
 
 struct platform_elf_ElfCodegenCtx;
+
+#ifdef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
+int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
+int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes);
+#endif
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx_bytes);
@@ -88,6 +96,7 @@ int32_t backend_enc_arm64_call_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
   return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, at, name, name_len);
 }
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
   int32_t imm12;
   if (!elf_ctx)
@@ -99,7 +108,10 @@ int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_
     imm12 = 4095;
   return backend_enc_append_u32_le_c(elf_ctx, 0x910003ffu | ((uint32_t)imm12 << 10));
 }
+#endif
+
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
   int32_t imm12;
   if (!elf_ctx)
@@ -111,7 +123,10 @@ int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_
     imm12 = 4095;
   return backend_enc_append_u32_le_c(elf_ctx, 0xd10003ffu | ((uint32_t)imm12 << 10));
 }
+#endif
+
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes) {
   int32_t off;
   int32_t imm12;
@@ -125,6 +140,8 @@ int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *
     imm12 = 4095;
   return backend_enc_append_u32_le_c(elf_ctx, 0xf90003e0u | ((uint32_t)imm12 << 10));
 }
+#endif
+
 
 
 
