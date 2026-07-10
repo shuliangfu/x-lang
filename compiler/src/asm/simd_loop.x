@@ -7,8 +7,8 @@
 // G-02f-106：+ expr/index/array/cpu/lanes pure glue 薄门闩。
 // G-02f-107：+ parse/peel/slot glue 薄门闩。
 // G-02f-213：try_simd_peel f32_soa_sum / index_add while 真迁 .x。
+// G-02f-214：parse/local/chunk/const-peel 中层真迁；runtime/f32-strip 仍 seed。
 
-extern "C" function glue_simd_loop_pick_lanes_c_impl(feats: u32, binop_ko: i32, lanes_out: *i32): i32;
 extern "C" function driver_get_pending_target_cpu_features(): u32;
 extern "C" function shu_target_cpu_detect_host(): u32;
 extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
@@ -97,23 +97,275 @@ function glue_simd_loop_cpu_features_c(): u32 {
 
 
 
-/* ---- G-02f-213：full-arity seed helpers (product C) + peel true-port ---- */
+/* ---- G-02f-214：parse/local/short-emit true-port；runtime/f32-strip 仍 seed ---- */
 
-extern "C" function glue_block_let_init_lit_c(arena: *u8, block_ref: i32, var_ref: i32, out_lit: *i32): i32;
-extern "C" function glue_parse_i_plus_one_step_c(arena: *u8, step_ref: i32, i_var_ref: i32): i32;
-extern "C" function glue_parse_index_binop_assign_c(arena: *u8, assign_ref: i32, i_var_ref: i32, binop_ko: *i32, dst_base: *i32, a_base: *i32, b_base: *i32): i32;
-extern "C" function glue_parse_i_lt_bound_c(arena: *u8, block_ref: i32, cond_ref: i32, i_var_ref: *i32, n_lit: *i32, n_is_const: *i32, n_var_ref: *i32): i32;
-extern "C" function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_ref: i32): i32;
-extern "C" function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: i32, off_b: i32, off_d: i32, n_lit: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+// GLUE_EXPR_*: VAR=3 ADD=4 SUB=5 MUL=6 LT=16 ASSIGN=28 ADD_ASSIGN=29 INDEX=47 FIELD=44
+// GLUE_TYPE_*: I32=0 ARRAY=10 F32=14；LIT kind=0
+
+extern "C" function pipeline_expr_int_val_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_binop_left_ref_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_binop_right_ref_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_index_base_ref(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_field_access_soa_stride(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_field_access_is_enum_variant(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_field_access_offset(arena: *u8, er: i32): i32;
+extern "C" function ast_ast_block_num_lets(arena: *u8, br: i32): i32;
+extern "C" function pipeline_block_let_name_len(arena: *u8, br: i32, li: i32): i32;
+extern "C" function pipeline_block_let_name_copy64(arena: *u8, br: i32, li: i32, dst: *u8): void;
+extern "C" function pipeline_block_let_init_ref(arena: *u8, br: i32, li: i32): i32;
+extern "C" function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i32;
+extern "C" function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name: *u8, name_len: i32): i32;
+extern "C" function simd_enc_try_hw_vector_iadd_rbp(elf: *u8, a: i32, b: i32, d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+extern "C" function simd_enc_try_hw_vector_isub_rbp(elf: *u8, a: i32, b: i32, d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+extern "C" function simd_enc_try_hw_vector_imul_rbp(elf: *u8, a: i32, b: i32, d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
 extern "C" function glue_emit_runtime_strip_loop_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, binop_ko: i32, off_i: i32, off_n: i32, off_a: i32, off_b: i32, off_d: i32, array_n: i32, lanes: i32, feats: u32): i32;
-extern "C" function glue_parse_f32_soa_sum_assign_c(arena: *u8, assign_ref: i32, i_var_ref: i32, sum_ref: *i32, arr_ref: *i32, fa_ref: *i32): i32;
 extern "C" function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, off_col0: i32, off_s: i32, off_i: i32, off_n: i32, n_lit: i32, lanes: i32, feats: u32): i32;
 extern "C" function ast_ast_block_while_cond_ref(arena: *u8, block_ref: i32, loop_idx: i32): i32;
 extern "C" function ast_ast_block_while_body_ref(arena: *u8, block_ref: i32, loop_idx: i32): i32;
 extern "C" function ast_ast_block_num_expr_stmts(arena: *u8, body: i32): i32;
 extern "C" function ast_ast_block_expr_stmt_ref(arena: *u8, body: i32, ei: i32): i32;
-extern "C" function pipeline_expr_field_access_offset(arena: *u8, expr_ref: i32): i32;
 extern "C" function getenv(name: *u8): *u8;
+
+// G-02f-214：block let 初值 lit
+#[no_mangle]
+function glue_block_let_init_lit_c(arena: *u8, block_ref: i32, var_ref: i32, out_lit: *i32): i32 {
+  if (out_lit == 0) { return 0; }
+  if (var_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) { return 0; }
+    let vlen: i32 = pipeline_expr_var_name_len(arena, var_ref);
+    if (vlen <= 0) { return 0; }
+    if (vlen > 63) { return 0; }
+    let vbuf: u8[64] = [];
+    pipeline_expr_var_name_into(arena, var_ref, &vbuf[0]);
+    let nlet: i32 = ast_ast_block_num_lets(arena, block_ref);
+    let li: i32 = 0;
+    while (li < nlet) {
+      let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
+      if (llen == vlen) {
+        let lb: u8[64] = [];
+        pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
+        let match: i32 = 1;
+        let k: i32 = 0;
+        while (k < vlen) {
+          if (lb[k] != vbuf[k]) { match = 0; }
+          k = k + 1;
+        }
+        if (match != 0) {
+          let init_ref: i32 = pipeline_block_let_init_ref(arena, block_ref, li);
+          if (init_ref <= 0) { return 0; }
+          if (pipeline_expr_kind_ord_at(arena, init_ref) != 0) { return 0; }
+          out_lit[0] = pipeline_expr_int_val_at(arena, init_ref);
+          return 1;
+        }
+      }
+      li = li + 1;
+    }
+  }
+  return 0;
+}
+
+// G-02f-214：i = i + 1 / i += 1
+#[no_mangle]
+function glue_parse_i_plus_one_step_c(arena: *u8, step_ref: i32, i_var_ref: i32): i32 {
+  unsafe {
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, step_ref);
+    if (ko == 29) {
+      let left_ref: i32 = pipeline_expr_binop_left_ref_at(arena, step_ref);
+      let right_ref: i32 = pipeline_expr_binop_right_ref_at(arena, step_ref);
+      if (glue_expr_same_var_c(arena, left_ref, i_var_ref) == 0) { return 0; }
+      if (pipeline_expr_kind_ord_at(arena, right_ref) != 0) { return 0; }
+      if (pipeline_expr_int_val_at(arena, right_ref) == 1) { return 1; }
+      return 0;
+    }
+    if (ko != 28) { return 0; }
+    let left_ref2: i32 = pipeline_expr_binop_left_ref_at(arena, step_ref);
+    let right_ref2: i32 = pipeline_expr_binop_right_ref_at(arena, step_ref);
+    if (glue_expr_same_var_c(arena, left_ref2, i_var_ref) == 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, right_ref2) != 4) { return 0; }
+    let add_l: i32 = pipeline_expr_binop_left_ref_at(arena, right_ref2);
+    let add_r: i32 = pipeline_expr_binop_right_ref_at(arena, right_ref2);
+    if (glue_expr_same_var_c(arena, add_l, i_var_ref) == 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, add_r) != 0) { return 0; }
+    if (pipeline_expr_int_val_at(arena, add_r) != 1) { return 0; }
+  }
+  return 1;
+}
+
+// G-02f-214：d[i] = a[i] ±/* b[i]
+#[no_mangle]
+function glue_parse_index_binop_assign_c(arena: *u8, assign_ref: i32, i_var_ref: i32, binop_ko: *i32, dst_base_ref: *i32, a_base_ref: *i32, b_base_ref: *i32): i32 {
+  if (binop_ko == 0) { return 0; }
+  if (dst_base_ref == 0) { return 0; }
+  if (a_base_ref == 0) { return 0; }
+  if (b_base_ref == 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, assign_ref) != 28) { return 0; }
+    let left_ref: i32 = pipeline_expr_binop_left_ref_at(arena, assign_ref);
+    let right_ref: i32 = pipeline_expr_binop_right_ref_at(arena, assign_ref);
+    if (glue_index_uses_var_c(arena, left_ref, i_var_ref) == 0) { return 0; }
+    let rko: i32 = pipeline_expr_kind_ord_at(arena, right_ref);
+    if (rko != 4) {
+      if (rko != 5) {
+        if (rko != 6) { return 0; }
+      }
+    }
+    let al: i32 = pipeline_expr_binop_left_ref_at(arena, right_ref);
+    let ar: i32 = pipeline_expr_binop_right_ref_at(arena, right_ref);
+    if (glue_index_uses_var_c(arena, al, i_var_ref) == 0) { return 0; }
+    if (glue_index_uses_var_c(arena, ar, i_var_ref) == 0) { return 0; }
+    let dst_base: i32 = pipeline_expr_index_base_ref(arena, left_ref);
+    let a_base: i32 = pipeline_expr_index_base_ref(arena, al);
+    let b_base: i32 = pipeline_expr_index_base_ref(arena, ar);
+    if (dst_base <= 0) { return 0; }
+    if (a_base <= 0) { return 0; }
+    if (b_base <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, dst_base) != 3) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, a_base) != 3) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, b_base) != 3) { return 0; }
+    binop_ko[0] = rko;
+    dst_base_ref[0] = dst_base;
+    a_base_ref[0] = a_base;
+    b_base_ref[0] = b_base;
+  }
+  return 1;
+}
+
+// G-02f-214：i < n / i < lit
+#[no_mangle]
+function glue_parse_i_lt_bound_c(arena: *u8, block_ref: i32, cond_ref: i32, i_var_ref: *i32, n_lit: *i32, n_is_const: *i32, n_var_ref: *i32): i32 {
+  if (i_var_ref == 0) { return 0; }
+  if (n_lit == 0) { return 0; }
+  if (n_is_const == 0) { return 0; }
+  if (n_var_ref == 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, cond_ref) != 16) { return 0; }
+    let left_ref: i32 = pipeline_expr_binop_left_ref_at(arena, cond_ref);
+    let right_ref: i32 = pipeline_expr_binop_right_ref_at(arena, cond_ref);
+    if (pipeline_expr_kind_ord_at(arena, left_ref) != 3) { return 0; }
+    i_var_ref[0] = left_ref;
+    let rko: i32 = pipeline_expr_kind_ord_at(arena, right_ref);
+    if (rko == 0) {
+      n_lit[0] = pipeline_expr_int_val_at(arena, right_ref);
+      if (n_lit[0] <= 0) { return 0; }
+      n_is_const[0] = 1;
+      n_var_ref[0] = 0;
+      return 1;
+    }
+    if (rko != 3) { return 0; }
+    n_var_ref[0] = right_ref;
+    let prop: i32 = glue_block_let_init_lit_c(arena, block_ref, right_ref, n_lit);
+    if (prop != 0) {
+      if (n_lit[0] <= 0) { return 0; }
+      n_is_const[0] = 1;
+      return 1;
+    }
+    n_is_const[0] = 0;
+  }
+  return 1;
+}
+
+// G-02f-214：局部槽 offset
+#[no_mangle]
+function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32 {
+  if (arena == 0) { return 0 - 1; }
+  if (ctx == 0) { return 0 - 1; }
+  if (var_expr_ref <= 0) { return 0 - 1; }
+  unsafe {
+    let vlen: i32 = pipeline_expr_var_name_len(arena, var_expr_ref);
+    if (vlen <= 0) { return 0 - 1; }
+    if (vlen > 63) { return 0 - 1; }
+    let vname: u8[64] = [];
+    pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
+    let off: i32 = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
+    if (off < 0) {
+      off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
+    }
+    return off;
+  }
+  return 0 - 1;
+}
+
+// G-02f-214：f32 SoA sum assign 形
+#[no_mangle]
+function glue_parse_f32_soa_sum_assign_c(arena: *u8, assign_ref: i32, i_var_ref: i32, sum_ref: *i32, arr_ref: *i32, fa_ref: *i32): i32 {
+  if (sum_ref == 0) { return 0; }
+  if (arr_ref == 0) { return 0; }
+  if (fa_ref == 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, assign_ref) != 28) { return 0; }
+    let left_ref: i32 = pipeline_expr_binop_left_ref_at(arena, assign_ref);
+    let right_ref: i32 = pipeline_expr_binop_right_ref_at(arena, assign_ref);
+    if (pipeline_expr_kind_ord_at(arena, right_ref) != 4) { return 0; }
+    let add_l: i32 = pipeline_expr_binop_left_ref_at(arena, right_ref);
+    let add_r: i32 = pipeline_expr_binop_right_ref_at(arena, right_ref);
+    if (glue_expr_same_var_c(arena, left_ref, add_l) == 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, add_r) != 44) { return 0; }
+    if (pipeline_expr_field_access_is_enum_variant(arena, add_r) != 0) { return 0; }
+    if (pipeline_expr_field_access_soa_stride(arena, add_r) <= 0) { return 0; }
+    let fa_tr: i32 = pipeline_expr_resolved_type_ref(arena, add_r);
+    if (fa_tr <= 0) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, fa_tr) != 14) { return 0; }
+    let sum_tr: i32 = pipeline_expr_resolved_type_ref(arena, left_ref);
+    if (sum_tr <= 0) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, sum_tr) != 14) { return 0; }
+    let idx_base: i32 = pipeline_expr_field_access_base_ref(arena, add_r);
+    if (pipeline_expr_kind_ord_at(arena, idx_base) != 47) { return 0; }
+    if (glue_index_uses_var_c(arena, idx_base, i_var_ref) == 0) { return 0; }
+    idx_base = pipeline_expr_index_base_ref(arena, idx_base);
+    if (pipeline_expr_kind_ord_at(arena, idx_base) != 3) { return 0; }
+    sum_ref[0] = left_ref;
+    arr_ref[0] = idx_base;
+    fa_ref[0] = add_r;
+  }
+  return 1;
+}
+
+// G-02f-214：chunk binop → try_hw
+#[no_mangle]
+function glue_simd_loop_emit_chunk_binop_c(elf_ctx: *u8, binop_ko: i32, chunk_off_a: i32, chunk_off_b: i32, chunk_off_d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32 {
+  if (binop_ko == 5) {
+    return simd_enc_try_hw_vector_isub_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
+  }
+  if (binop_ko == 6) {
+    return simd_enc_try_hw_vector_imul_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
+  }
+  return simd_enc_try_hw_vector_iadd_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
+}
+
+// G-02f-214：const n 整 peel
+#[no_mangle]
+function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: i32, off_b: i32, off_d: i32, n_lit: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32 {
+  let chunks: i32 = n_lit / lanes;
+  if (chunks <= 0) { return 0; }
+  if ((chunks * lanes) != n_lit) { return 0; }
+  let chunk: i32 = 0;
+  while (chunk < chunks) {
+    let start: i32 = chunk * lanes;
+    let chunk_off_a: i32 = off_a - start * esz;
+    let chunk_off_b: i32 = off_b - start * esz;
+    let chunk_off_d: i32 = off_d - start * esz;
+    if (glue_simd_loop_emit_chunk_binop_c(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats) != 0) {
+      unsafe {
+        let name: u8[24] = [];
+        // SHUX_SIMD_HW_STRICT
+        name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
+        name[4] = 95; name[5] = 83; name[6] = 73; name[7] = 77;
+        name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
+        name[12] = 95; name[13] = 83; name[14] = 84; name[15] = 82;
+        name[16] = 73; name[17] = 67; name[18] = 84; name[19] = 0;
+        let p: *u8 = getenv(&name[0]);
+        if (p != 0) {
+          if (p[0] != 48) { return 0 - 1; }
+        }
+      }
+      return 0;
+    }
+    chunk = chunk + 1;
+  }
+  return 1;
+}
 
 // getenv SHUX_SIMD_HW disable: name bytes
 // S H U X _ S I M D _ H W \0

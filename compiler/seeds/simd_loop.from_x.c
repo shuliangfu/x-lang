@@ -1,5 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
- * G-02f-213 peel f32_soa_sum/index_add while true .x.
+ * G-02f-214 parse/local/const-peel true .x; G-02f-213 peel entries.
  * G-02f-133 true .x pure helpers.
  * G-02f-130 true .x pure helpers.
  * G-02f-129 true .x pure helpers.
@@ -146,6 +146,7 @@ int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
 
 /** 同块 let 初值为整型字面量（`let n: i32 = K` 常量传播）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
                                          int32_t *out_lit) {
     uint8_t vbuf[64];
@@ -201,6 +202,7 @@ int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, i
 
 /** 解析 `i = i + 1` 或 `i += 1` 步进语句。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
     int32_t left_ref;
     int32_t right_ref;
@@ -241,6 +243,7 @@ int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_re
 
 /** 解析 `dst[i]=a[i](+|-|*)b[i]`；binop_ko 输出 4=ADD / 5=SUB / 6=MUL。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
                                                int32_t *binop_ko, int32_t *dst_base_ref, int32_t *a_base_ref,
                                                int32_t *b_base_ref) {
@@ -286,6 +289,7 @@ int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32_t assi
 
 /** 解析 `i < N`：N 为字面量或同块 let 整型初值；n_is_const=1 时写 n_lit。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t cond_ref,
                                        int32_t *i_var_ref, int32_t *n_lit, int32_t *n_is_const, int32_t *n_var_ref) {
     int32_t left_ref;
@@ -327,6 +331,7 @@ int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, i
 
 /** EXPR_VAR 局部在 rbp 上的偏移；失败 -1。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                 int32_t var_expr_ref) {
     uint8_t vname[64];
@@ -387,6 +392,7 @@ int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *l
 
 /** 发射单 chunk 硬件向量 binop；0=成功，-1=失败。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko,
                                                   int32_t chunk_off_a, int32_t chunk_off_b, int32_t chunk_off_d,
                                                   int32_t lanes, int32_t esz, int32_t ta, uint32_t feats) {
@@ -414,6 +420,7 @@ int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx) 
 
 /** 编译期 trip count 整段 peel（N 为 lanes 的整数倍）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t off_a,
                                            int32_t off_b, int32_t off_d, int32_t n_lit, int32_t lanes, int32_t esz,
                                            int32_t ta, uint32_t feats) {
@@ -576,6 +583,7 @@ int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
  * field 须 soa_stride>0 且 resolved f32。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_parse_f32_soa_sum_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
                                                int32_t *sum_ref, int32_t *arr_ref, int32_t *fa_ref) {
     int32_t left_ref;
