@@ -30,11 +30,14 @@
 #include <string.h>
 
 #ifdef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+struct ast_ASTArena;
 int32_t glue_f32_slot_rbp_disp32(int32_t off);
 int32_t glue_soa_f32_col_rbp_disp32(int32_t off_col0, int32_t start_idx);
 int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *lanes_out);
 int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref);
 int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, int32_t n);
+int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref);
+int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref);
 #endif
 
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -94,7 +97,8 @@ extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, i
 
 /** 两 EXPR_VAR 是否同名。 */
 /* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
+/* G-02f-384：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_expr_same_var_c_impl(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
     uint8_t an[64];
     uint8_t bn[64];
     int32_t alen;
@@ -116,16 +120,29 @@ int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t 
     return 1;
 }
 
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
+    return glue_expr_same_var_c_impl(arena, a_ref, b_ref);
+}
+#endif
+
 
 /** INDEX 的下标是否为归纳变量 i。 */
 /* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref) {
+/* G-02f-384：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_index_uses_var_c_impl(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref) {
     int32_t idx_ref;
     if (pipeline_expr_kind_ord_at(arena, index_expr_ref) != GLUE_EXPR_INDEX)
         return 0;
     idx_ref = pipeline_expr_index_index_ref(arena, index_expr_ref);
-    return glue_expr_same_var_c(arena, idx_ref, i_var_ref);
+    return glue_expr_same_var_c_impl(arena, idx_ref, i_var_ref);
 }
+
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref) {
+    return glue_index_uses_var_c_impl(arena, index_expr_ref, i_var_ref);
+}
+#endif
 
 
 /** VAR 的 i32[N] 定长数组元素个数；失败 0。 */

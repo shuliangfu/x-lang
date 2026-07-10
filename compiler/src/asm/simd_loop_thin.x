@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-349：simd_loop L2 thin — pure glue 子集（无栈数组、无 u32 回传门闩）。
+// G-02f-349/384：simd_loop L2 thin — pure glue 子集（无栈数组、无 u32 回传门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_SIMD_LOOP_THIN_FROM_X）ld -r → simd_loop.o
 // 对照：src/asm/simd_loop.x；默认仍整 seed。
 //
@@ -99,6 +99,26 @@ function glue_var_is_array_i32_n_c(arena: *u8, var_ref: i32, n: i32): i32 {
       return 1;
     }
     return 0;
+  }
+  return 0;
+}
+
+// ---- G-02f-384：same_var / index_uses_var → seed impl ----
+extern "C" function glue_expr_same_var_c_impl(arena: *u8, a_ref: i32, b_ref: i32): i32;
+extern "C" function glue_index_uses_var_c_impl(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32;
+
+#[no_mangle]
+function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
+  unsafe {
+    return glue_expr_same_var_c_impl(arena, a_ref, b_ref);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_index_uses_var_c(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32 {
+  unsafe {
+    return glue_index_uses_var_c_impl(arena, index_expr_ref, i_var_ref);
   }
   return 0;
 }
