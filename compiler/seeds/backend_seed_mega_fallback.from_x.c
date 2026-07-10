@@ -1,3 +1,7 @@
+/* seeds/backend_seed_mega_fallback.from_x.c — G-02f-80 product cold-start TU
+ * Promoted from compiler/src/asm/backend_seed_mega_fallback.inc (stub/bridge; retired .inc).
+ * Compile: cc -c / cc_inc_tu seeds/backend_seed_mega_fallback.from_x.c
+ */
 #include <stdint.h>
 #include <string.h>
 

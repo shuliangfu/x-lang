@@ -61,7 +61,7 @@ PIPELINE_ABI_H="compiler/src/runtime_pipeline_abi.h"
 CRT0_LINUX="compiler/src/asm/crt0_x86_64.s"
 CRT0_DARWIN_ARM="compiler/src/asm/crt0_arm64.s"
 CRT0_DARWIN_X64="compiler/src/asm/crt0_darwin_x86_64.s"
-CRT0_MINGW="compiler/src/asm/crt0_mingw.inc"
+CRT0_MINGW="compiler/seeds/crt0_mingw.from_x.c"
 
 die() {
   echo "e04 gate FAIL: $*" >&2

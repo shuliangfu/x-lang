@@ -19388,7 +19388,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(struct ast_Module *m
 }
 
 #include "ast_pool.c"
-#include "src/async/async_asm_pool.inc"
+#include "seeds/async_asm_pool.from_x.c"
 
 extern void parser_parse_into_init(struct ast_Module *module, struct ast_ASTArena *arena);
 extern struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena *arena, struct ast_Module *module,

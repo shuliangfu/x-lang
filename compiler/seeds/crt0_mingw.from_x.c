@@ -1,3 +1,7 @@
+/* seeds/crt0_mingw.from_x.c — G-02f-80 product cold-start TU
+ * Promoted from compiler/src/asm/crt0_mingw.inc (stub/bridge; retired .inc).
+ * Compile: cc -c / cc_inc_tu seeds/crt0_mingw.from_x.c
+ */
 /**
  * crt0_mingw.c — MinGW/MSYS2/Windows PE 入口（Phase E-04 v21）
  *

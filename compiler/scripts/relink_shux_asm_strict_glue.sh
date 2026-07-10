@@ -189,9 +189,9 @@ ensure_pipeline_asm_orchestration_partial_obj() {
   PARTIAL="$BUILD_DIR/pipeline_asm_orchestration_partial.o"
   SYMS="$BUILD_DIR/pipeline_asm_orchestration_export.txt"
   ALIAS_O="$BUILD_DIR/pipeline_asm_orchestration_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_asm_orchestration_alias.inc" -nt "$ALIAS_O" ]; then
-  strict_glue_info "cc_inc_tu src/asm/pipeline_asm_orchestration_alias.inc -> $ALIAS_O"
-  sh scripts/cc_inc_tu.sh src/asm/pipeline_asm_orchestration_alias.inc "$ALIAS_O"
+  if [ ! -f "$ALIAS_O" ] || [ "seeds/pipeline_asm_orchestration_alias.from_x.c" -nt "$ALIAS_O" ]; then
+  strict_glue_info "cc_inc_tu seeds/pipeline_asm_orchestration_alias.from_x.c -> $ALIAS_O"
+  sh scripts/cc_inc_tu.sh seeds/pipeline_asm_orchestration_alias.from_x.c "$ALIAS_O"
   fi
   if [ ! -f "$PARTIAL" ] || [ "$ALIAS_O" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
   cat > "$SYMS" <<'EOF'
@@ -369,7 +369,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
   fi
   if [ ! -f "$PARTIAL" ] || [ "$0" -nt "$PARTIAL" ] || [ "$PO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$PARTIAL" ]; } || \
-  [ "src/asm/pipeline_asm_orchestration_alias.inc" -nt "$PARTIAL" ]; then
+  [ "seeds/pipeline_asm_orchestration_alias.from_x.c" -nt "$PARTIAL" ]; then
   strict_glue_info "ld partial export $SYMS pipeline.o -> $PARTIAL"
   ld_partial_export "$SYMS" "$PARTIAL" "$PO" || return 1
   fi
@@ -1672,9 +1672,9 @@ ensure_ast_pool_l5_bridge_obj() {
 
 ensure_asm_experimental_symbol_bridge_obj() {
   local o="src/asm/asm_experimental_symbol_bridge.o"
-  if [ ! -f "$o" ] || [ "src/asm/asm_experimental_symbol_bridge.inc" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/asm/asm_experimental_symbol_bridge.inc"
-  sh scripts/cc_inc_tu.sh src/asm/asm_experimental_symbol_bridge.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/asm_experimental_symbol_bridge.from_x.c" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- seeds/asm_experimental_symbol_bridge.from_x.c"
+  sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c "$o"
   fi
 }
 
@@ -1696,7 +1696,7 @@ ensure_lsp_pipeline_ctx_obj() {
 }
 ensure_backend_seed_mega_fallback_obj() {
   local o="$BUILD_DIR/backend_seed_mega_fallback.o"
-  local src="src/asm/backend_seed_mega_fallback.inc"
+  local src="seeds/backend_seed_mega_fallback.from_x.c"
   if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
   strict_glue_info "cc_inc_tu $o <- $src (weak backend stubs)"
   sh scripts/cc_inc_tu.sh "$src" "$o"

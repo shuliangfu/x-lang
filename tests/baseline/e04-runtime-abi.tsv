@@ -88,7 +88,7 @@ e04_driver_check_only	abi_sym	runtime_driver_abi.from_x.c:driver_check_only_get	
 e04_driver_freestanding	abi_sym	runtime_driver_abi.from_x.c:driver_freestanding_get	active	-backend asm	grep	driver_freestanding_get
 e04_seed_links_driver_abi	E-04	compiler/Makefile	active	runtime_driver_abi.o	grep	src/runtime_driver_abi.o
 e04_v21_doc	doc	analysis/phase-e-e04-v21.md	active	n/a	grep	E-04 v21
-e04_crt0_mingw	E-04	compiler/src/asm/crt0_mingw.inc	active	main_entry	grep	shux_forward_main_to_main_entry
+e04_crt0_mingw	E-04	compiler/seeds/crt0_mingw.from_x.c	active	main_entry	grep	shux_forward_main_to_main_entry
 e04_win_host	E-04	compiler/Makefile	active	SHUX_IS_WIN_HOST	grep	SHUX_IS_WIN_HOST
 e04_v20_doc	doc	analysis/phase-e-e04-v20.md	active	n/a	grep	E-04 v20
 e04_crt0_arm64	E-04	compiler/src/asm/crt0_arm64.s	active	main_entry	grep	_main_entry

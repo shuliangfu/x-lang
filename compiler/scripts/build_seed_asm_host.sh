@@ -291,7 +291,7 @@ has_real_partial_seed_mega() {
   } END { exit !found }'
 }
 
-BACKEND_FALLBACK_SRC="src/asm/backend_seed_mega_fallback.inc"
+BACKEND_FALLBACK_SRC="seeds/backend_seed_mega_fallback.from_x.c"
 
 build_backend_partial_from_c_fallback() {
   rm -f "$BACKEND_PARTIAL"

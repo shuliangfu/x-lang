@@ -1,3 +1,7 @@
+/* seeds/async_asm_pool.from_x.c — G-02f-80 product cold-start TU
+ * Promoted from compiler/src/async/async_asm_pool.inc (stub/bridge; retired .inc).
+ * Compile: cc -c / cc_inc_tu seeds/async_asm_pool.from_x.c
+ */
 /**
  * async_asm_pool.c — pool AST async CPS 帧 layout 分析（WPO-S3 / asm 后端）
  *

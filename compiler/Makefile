@@ -665,8 +665,8 @@ src/async/async_liveness.o: seeds/async_liveness.from_x.c src/async/async_livene
 src/async/async_cps_codegen.o: seeds/async_cps_codegen.from_x.c src/async/async_cps_codegen.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_cps_codegen.from_x.c -o $@
 
-src/async/async_asm_pool.o: src/async/async_asm_pool.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/async/async_asm_pool.inc $@
+src/async/async_asm_pool.o: seeds/async_asm_pool.from_x.c scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh seeds/async_asm_pool.from_x.c $@
 
 # G-02f-12：runtime_driver_diagnostic 产品 seed
 src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/runtime_driver_diagnostic.x src/runtime_driver_diagnostic.h include/diag.h
@@ -734,7 +734,7 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c sc
 	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
 	  echo "cfg_eval.o from cfg_eval.x (-E-extern + alias)"; \
 	else \
-	  sh scripts/cc_inc_tu.sh src/lexer/cfg_eval_bootstrap_stub.inc src/lexer/cfg_eval_bootstrap_stub.o && \
+	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c src/lexer/cfg_eval_bootstrap_stub.o && \
 	  cp -f src/lexer/cfg_eval_bootstrap_stub.o $@ && \
 	  echo "cfg_eval.o from bootstrap stub (cfg_eval.x unavailable at cold start)"; \
 	fi
@@ -886,8 +886,8 @@ runtime_thread_glue.o: seeds/runtime_thread_glue.from_x.c src/asm/runtime_thread
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_thread_glue.from_x.c -o $@
 
 # F-ZC：async 协作调度 + async_net_fs；与 scheduler.o 一并链入（按需 -pthread）
-# G-02f-18：runtime_scheduler_glue 产品 seed（#include async_net_fs.inc）
-runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_scheduler_glue.x src/asm/async_net_fs.inc
+# G-02f-18：runtime_scheduler_glue 产品 seed（#include async_net_fs.from_x.c）
+runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_scheduler_glue.x seeds/async_net_fs.from_x.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm -c seeds/runtime_scheduler_glue.from_x.c -o $@
 
 # F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入（G-02e-21）
@@ -957,8 +957,8 @@ crt0_user.o: src/asm/crt0_user_x86_64.o
 freestanding_io.o: src/asm/freestanding_io_x86_64.o
 	cp $< $@
 # NL-07 v2：bootstrap crt0 nostdlib 最小 libc 桩
-src/asm/bootstrap_nostdlib_stubs.o: src/asm/bootstrap_nostdlib_stubs.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/bootstrap_nostdlib_stubs.inc $@
+src/asm/bootstrap_nostdlib_stubs.o: seeds/bootstrap_nostdlib_stubs.from_x.c scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh seeds/bootstrap_nostdlib_stubs.from_x.c $@
 endif
 endif
 # E-04 v20：Darwin bootstrap 默认 crt0（arm64 / x86_64 Mach-O）
@@ -973,8 +973,8 @@ endif
 endif
 # E-04 v21：Windows/MinGW/MSYS bootstrap 默认 crt0_mingw 替代 main_driver.o
 ifeq ($(SHUX_IS_WIN_HOST),1)
-src/asm/crt0_mingw.o: src/asm/crt0_mingw.inc Makefile scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/crt0_mingw.inc $@ $(WIN32_O_CFLAGS)
+src/asm/crt0_mingw.o: seeds/crt0_mingw.from_x.c Makefile scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh seeds/crt0_mingw.from_x.c $@ $(WIN32_O_CFLAGS)
 endif
 
 # asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi（G-02e：全平台 .s，零 C）。
@@ -1384,8 +1384,8 @@ build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_x.o build_asm/seed_host/a
 	  comm -23 "$$all_syms" "$$omit_syms" | sed 's/^/_/' > "$$keep_syms"; \
 	  ld -r -exported_symbols_list "$$keep_syms" -o $@ pipeline_x.o
 
-src/asm/asm_experimental_symbol_bridge.o: src/asm/asm_experimental_symbol_bridge.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/asm_experimental_symbol_bridge.inc $@
+src/asm/asm_experimental_symbol_bridge.o: seeds/asm_experimental_symbol_bridge.from_x.c scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c $@
 
 # 迁移到 .x：parser/typeck/codegen 独立 -E-extern 产物；pipeline_x.o 仅编排（-E-extern），seed 链 typeck_x.o/codegen_x.o。
 migrate-x-objs: parser_x.o typeck_x.o codegen_x.o

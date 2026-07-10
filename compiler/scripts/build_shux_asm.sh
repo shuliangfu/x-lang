@@ -1449,9 +1449,9 @@ ensure_pipeline_asm_orchestration_partial_obj() {
   PARTIAL="$BUILD_DIR/pipeline_asm_orchestration_partial.o"
   SYMS="$BUILD_DIR/pipeline_asm_orchestration_export.txt"
   ALIAS_O="$BUILD_DIR/pipeline_asm_orchestration_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_asm_orchestration_alias.inc" -nt "$ALIAS_O" ]; then
-  echo " cc_inc_tu src/asm/pipeline_asm_orchestration_alias.inc -> $ALIAS_O"
-  sh scripts/cc_inc_tu.sh src/asm/pipeline_asm_orchestration_alias.inc "$ALIAS_O"
+  if [ ! -f "$ALIAS_O" ] || [ "seeds/pipeline_asm_orchestration_alias.from_x.c" -nt "$ALIAS_O" ]; then
+  echo " cc_inc_tu seeds/pipeline_asm_orchestration_alias.from_x.c -> $ALIAS_O"
+  sh scripts/cc_inc_tu.sh seeds/pipeline_asm_orchestration_alias.from_x.c "$ALIAS_O"
   fi
   if [ ! -f "$PARTIAL" ] || [ "$ALIAS_O" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
   cat > "$SYMS" <<'EOF'
@@ -1646,7 +1646,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
   if [ ! -f "$PARTIAL" ] || [ "$0" -nt "$PARTIAL" ] || [ "$PO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$PARTIAL" ]; } || \
   { [ -f "$BUILD_DIR/pipeline_x_glue_support_export.txt" ] && [ "$BUILD_DIR/pipeline_x_glue_support_export.txt" -nt "$PARTIAL" ]; } || \
-  [ "src/asm/pipeline_asm_orchestration_alias.inc" -nt "$PARTIAL" ]; then
+  [ "seeds/pipeline_asm_orchestration_alias.from_x.c" -nt "$PARTIAL" ]; then
   if asm_strict_typeck_x_glue_via_pipeline_x && [ -f "$BUILD_DIR/pipeline_x_glue_support_export.txt" ] && \
   [ -s "$BUILD_DIR/pipeline_x_glue_support_export.txt" ]; then
   sort -u "$SYMS" -o "$SYMS"
@@ -1694,7 +1694,7 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   rm -f "$tmp" 2>/dev/null || true
   done
   fi
-  if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ] || [ "src/asm/pipeline_asm_orchestration_alias.inc" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ] || [ "seeds/pipeline_asm_orchestration_alias.from_x.c" -nt "$SYMS" ] || \
   { ensure_pipeline_glue_standalone_export_syms_txt && [ "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" -nt "$SYMS" ]; }; then
   nm "$WPO_E" 2>/dev/null | awk '/ T / {print $3}' | grep -vE \
   '^(run_x_pipeline_impl|run_x_pipeline_parse_entry_do_parse|run_x_pipeline_parse_entry_if_needed|run_x_pipeline_typecheck_entry|parse_into_with_init_buf|parse_into_with_init|pipeline_run_x_pipeline_impl|pipeline_run_x_pipeline|pipeline_should_skip_x_typeck)$' \
@@ -2657,9 +2657,9 @@ asm_strict_keep_build_asm_typeck_backend() {
 # 实验 asm-only 链：build_asm 裸符号名 → runtime 期望名（首链 experimental 仍需要；strict 链不链 bridge）。
 ensure_asm_experimental_symbol_bridge_obj() {
   BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"
-  if [ ! -f "$BRIDGE_OBJ" ] || [ "src/asm/asm_experimental_symbol_bridge.inc" -nt "$BRIDGE_OBJ" ]; then
-  echo " cc -c src/asm/asm_experimental_symbol_bridge.inc -> $BRIDGE_OBJ"
-  sh scripts/cc_inc_tu.sh src/asm/asm_experimental_symbol_bridge.inc "$BRIDGE_OBJ"
+  if [ ! -f "$BRIDGE_OBJ" ] || [ "seeds/asm_experimental_symbol_bridge.from_x.c" -nt "$BRIDGE_OBJ" ]; then
+  echo " cc -c seeds/asm_experimental_symbol_bridge.from_x.c -> $BRIDGE_OBJ"
+  sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c "$BRIDGE_OBJ"
   fi
 }
 
@@ -3927,10 +3927,10 @@ ensure_freestanding_io_x86_64_obj() {
 }
 
 ensure_bootstrap_nostdlib_stubs_obj() {
-  if [ -f src/asm/bootstrap_nostdlib_stubs.inc ]; then
-  if [ ! -f src/asm/bootstrap_nostdlib_stubs.o ] || [ src/asm/bootstrap_nostdlib_stubs.inc -nt src/asm/bootstrap_nostdlib_stubs.o ]; then
-  echo " cc -c src/asm/bootstrap_nostdlib_stubs.o <- src/asm/bootstrap_nostdlib_stubs.inc"
-  sh scripts/cc_inc_tu.sh src/asm/bootstrap_nostdlib_stubs.inc src/asm/bootstrap_nostdlib_stubs.o
+  if [ -f seeds/bootstrap_nostdlib_stubs.from_x.c ]; then
+  if [ ! -f src/asm/bootstrap_nostdlib_stubs.o ] || [ seeds/bootstrap_nostdlib_stubs.from_x.c -nt src/asm/bootstrap_nostdlib_stubs.o ]; then
+  echo " cc -c src/asm/bootstrap_nostdlib_stubs.o <- seeds/bootstrap_nostdlib_stubs.from_x.c"
+  sh scripts/cc_inc_tu.sh seeds/bootstrap_nostdlib_stubs.from_x.c src/asm/bootstrap_nostdlib_stubs.o
   fi
   fi
 }

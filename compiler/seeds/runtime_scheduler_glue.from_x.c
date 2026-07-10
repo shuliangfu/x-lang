@@ -5,7 +5,7 @@
  * runtime_scheduler_glue.c — F-ZC：自 std/async/scheduler_glue.c 迁入 — A1/A2 协作调度胶层（F-async v1）
  *
  * 【文件职责】协作帧、computed-goto dispatch、MPSC 环、CPS suspend、IO 等待队列；
- * 经 ld -r 与 scheduler.x 合并为 scheduler.o；末尾 #include async_net_fs.inc。
+ * 经 ld -r 与 scheduler.x 合并为 scheduler.o；末尾 #include async_net_fs.from_x.c。
  * 【链接】-pthread（MPSC 烟测）；按需链入；环境变量见原 scheduler.c 注释。
  */
 #include <stddef.h>
@@ -998,4 +998,4 @@ void shux_async_asm_frame_load_to_ptr(uint32_t fn_id, int32_t data_off, void *ds
     memcpy(dst, s->data + data_off, (size_t)nbytes);
 }
 
-#include "async_net_fs.inc"
+#include "seeds/async_net_fs.from_x.c"

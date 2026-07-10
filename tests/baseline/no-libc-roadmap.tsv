@@ -30,7 +30,7 @@ n07_manifest	manifest	done	tests/baseline/nolibc-n07-bootstrap-prep.tsv	-lc 链�
 n07_lc_baseline	manifest	done	tests/baseline/nolibc-n07-bootstrap-lc-track.tsv	lc 行数基线
 n07_gate	gate	done	tests/run-nolibc-n07-bootstrap-prep-gate.sh	NL-07 track + B-32 委托
 n07_v2_doc	doc	done	analysis/phase-f-n07-v2.md	bootstrap nostdlib 首试
-n07_v2_stubs	file	done	compiler/src/asm/bootstrap_nostdlib_stubs.inc	最小 libc 桩
+n07_v2_stubs	file	done	compiler/seeds/bootstrap_nostdlib_stubs.from_x.c	最小 libc 桩
 n07_v2_gate	gate	done	tests/run-nolibc-n07-v2-prep-gate.sh	v2 prep gate
 n07_v3_doc	doc	done	analysis/phase-f-n07-v3.md	bootstrap nostdlib 链入烟测
 n07_v3_gate	gate	done	tests/run-nolibc-n07-v3-link-gate.sh	v3 link smoke gate

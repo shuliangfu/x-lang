@@ -1,3 +1,7 @@
+/* seeds/cfg_eval_bootstrap_stub.from_x.c — G-02f-80 product cold-start TU
+ * Promoted from compiler/src/lexer/cfg_eval_bootstrap_stub.inc (stub/bridge; retired .inc).
+ * Compile: cc -c / cc_inc_tu seeds/cfg_eval_bootstrap_stub.from_x.c
+ */
 /**
  * cfg_eval_bootstrap_stub.c — 冷启动 #[cfg] 求值（cfg_eval.x 尚不可编时链入）
  *

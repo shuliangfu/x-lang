@@ -8,7 +8,7 @@ sched_glue_absent	absent	std/async/scheduler_glue.c	已迁入 runtime
 fut_x	file	std/async/future.x	Future 纯 .x（F-async-future v2）
 fut_glue_absent	absent	std/async/future_glue.c	已删除（v2）
 async_mod	file	std/async/mod.x	对外 API
-async_inc	file	compiler/src/asm/async_net_fs.inc	net/fs 烟测 inc
+async_inc	file	compiler/seeds/async_net_fs.from_x.c	net/fs 烟测 inc
 sched_c_absent	absent	std/async/scheduler.c	已删除
 fut_c_absent	absent	std/async/future.c	已删除
 makefile	makefile	compiler/Makefile	scheduler.o 纯 .x + runtime_scheduler_glue.o

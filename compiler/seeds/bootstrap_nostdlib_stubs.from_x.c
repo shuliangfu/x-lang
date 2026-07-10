@@ -1,3 +1,7 @@
+/* seeds/bootstrap_nostdlib_stubs.from_x.c — G-02f-80 product cold-start TU
+ * Promoted from compiler/src/asm/bootstrap_nostdlib_stubs.inc (stub/bridge; retired .inc).
+ * Compile: cc -c / cc_inc_tu seeds/bootstrap_nostdlib_stubs.from_x.c
+ */
 /**
  * bootstrap_nostdlib_stubs.c — NL-07 v2：编译器 bootstrap crt0 链 nostdlib 最小 libc 桩
  *

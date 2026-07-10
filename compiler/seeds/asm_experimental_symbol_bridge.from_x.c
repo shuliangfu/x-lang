@@ -1,3 +1,7 @@
+/* seeds/asm_experimental_symbol_bridge.from_x.c — G-02f-80 product cold-start TU
+ * Promoted from compiler/src/asm/asm_experimental_symbol_bridge.inc (stub/bridge; retired .inc).
+ * Compile: cc -c / cc_inc_tu seeds/asm_experimental_symbol_bridge.from_x.c
+ */
 /**
  * asm_experimental_symbol_bridge.c — 实验 asm-only 链符号桥
  *

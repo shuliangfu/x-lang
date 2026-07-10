@@ -90,9 +90,9 @@ ensure_pipeline_x_fresh_for_ast_pool() {
 ensure_pipeline_x_fresh_for_ast_pool || true
 
 # experimental 链符号桥（缺则 ld 失败）。
-if [ ! -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ] || [ "src/asm/asm_experimental_symbol_bridge.inc" -nt "$BUILD_DIR/asm_experimental_symbol_bridge.o" ]; then
+if [ ! -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ] || [ "seeds/asm_experimental_symbol_bridge.from_x.c" -nt "$BUILD_DIR/asm_experimental_symbol_bridge.o" ]; then
   experimental_bootstrap_info "cc asm_experimental_symbol_bridge.o"
-  sh scripts/cc_inc_tu.sh src/asm/asm_experimental_symbol_bridge.inc "$BUILD_DIR/asm_experimental_symbol_bridge.o"
+  sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c "$BUILD_DIR/asm_experimental_symbol_bridge.o"
 fi
 
 # runtime_asm_build.o（首链 bootstrap-asm 产物；缺则 ld 失败）。

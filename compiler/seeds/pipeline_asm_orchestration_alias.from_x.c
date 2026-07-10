@@ -1,3 +1,7 @@
+/* seeds/pipeline_asm_orchestration_alias.from_x.c — G-02f-80 product cold-start TU
+ * Promoted from compiler/src/asm/pipeline_asm_orchestration_alias.inc (stub/bridge; retired .inc).
+ * Compile: cc -c / cc_inc_tu seeds/pipeline_asm_orchestration_alias.from_x.c
+ */
 /**
  * pipeline_asm_orchestration_alias.c — strict 链 pipeline 编排 C 实现
  *

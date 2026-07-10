@@ -1,3 +1,7 @@
+/* seeds/async_net_fs.from_x.c — G-02f-80 product cold-start TU
+ * Promoted from compiler/src/asm/async_net_fs.inc (stub/bridge; retired .inc).
+ * Compile: cc -c / cc_inc_tu seeds/async_net_fs.from_x.c
+ */
 /**
  * std/async/async_net_fs.inc.c — async net/fs fd 读写烟测（STD-049 / #79）
  *
