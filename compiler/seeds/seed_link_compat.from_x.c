@@ -258,7 +258,8 @@ __attribute__((weak)) int32_t backend_fold_func_return_operand_ref(void *arena, 
   return found == 1 ? op_ref : 0;
 }
 
-static int32_t shux_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
+/* G-02f-99：expr/param/func-index helpers export gates. */
+int32_t shux_expr_is_func_param_at_impl(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
                                           int32_t param_ix) {
   uint8_t pbuf[32];
   uint8_t vbuf[64];
@@ -280,14 +281,29 @@ static int32_t shux_expr_is_func_param_at(void *arena, struct ast_Module *mod, i
   }
   return 1;
 }
+int32_t shux_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
+                                          int32_t param_ix) {
+  {
+    return shux_expr_is_func_param_at_impl(arena, mod, func_idx, expr_ref, param_ix);
+  }
+  return 0;
+}
 
-static int32_t shux_expr_is_param0_field_access(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref) {
+
+int32_t shux_expr_is_param0_field_access_impl(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref) {
   if (!arena || !mod || func_idx < 0 || expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, expr_ref) != 44)
     return 0;
   return shux_expr_is_func_param_at(arena, mod, func_idx, pipeline_expr_field_access_base_ref(arena, expr_ref), 0);
 }
+int32_t shux_expr_is_param0_field_access(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref) {
+  {
+    return shux_expr_is_param0_field_access_impl(arena, mod, func_idx, expr_ref);
+  }
+  return 0;
+}
 
-static int32_t shux_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
+
+int32_t shux_module_func_index_by_name_impl(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t fi;
   int32_t flen;
   uint8_t fb[64];
@@ -308,6 +324,12 @@ static int32_t shux_module_func_index_by_name(struct ast_Module *mod, uint8_t *n
       return fi;
   }
   return -1;
+}
+int32_t shux_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
+  {
+    return shux_module_func_index_by_name_impl(mod, name, name_len);
+  }
+  return 0 - 1;
 }
 
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-28：真迁 .x — seed 链接兼容：LSP/heap 名桥 + 简单 weak 转发/回退桩。
+// G-02f-99：+ expr/param/func-index helpers 薄门闩。
 // 产品：./shux-c -E → seeds/seed_link_compat.from_x.c（+ C 尾段 + weak 抛光）。
 // C 尾：weak 空指针守卫调用、backend_fold 表达式分析、x86/arm/riscv emit、va_list asmf。
 
@@ -16,6 +17,11 @@ extern "C" function std_sys_os_read_file_into(path: *u8, buf: *u8, cap: i32): i3
 extern "C" function std_heap_free(ptr: *u8): void;
 extern "C" function pipeline_module_struct_layout_set_packed(module: *u8, idx: i32, v: i32): void;
 extern "C" function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32;
+
+extern "C" function shux_expr_is_func_param_at_impl(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32,
+                                                    param_ix: i32): i32;
+extern "C" function shux_expr_is_param0_field_access_impl(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32): i32;
+extern "C" function shux_module_func_index_by_name_impl(mod: *u8, name: *u8, name_len: i32): i32;
 
 /* ---- typeck/lsp name bridge ---- */
 
@@ -139,5 +145,31 @@ function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0
 #[no_mangle]
 function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32,
                                 out_col: *i32): i32 {
+  return 0 - 1;
+}
+
+/* ---- G-02f-99：expr/param/func-index 门闩 ---- */
+
+#[no_mangle]
+function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32 {
+  unsafe {
+    return shux_expr_is_func_param_at_impl(arena, mod, func_idx, expr_ref, param_ix);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_expr_is_param0_field_access(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32): i32 {
+  unsafe {
+    return shux_expr_is_param0_field_access_impl(arena, mod, func_idx, expr_ref);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_module_func_index_by_name(mod: *u8, name: *u8, name_len: i32): i32 {
+  unsafe {
+    return shux_module_func_index_by_name_impl(mod, name, name_len);
+  }
   return 0 - 1;
 }
