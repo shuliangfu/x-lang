@@ -6337,7 +6337,15 @@ void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer 
                                           struct parser_asm_parse_expr_result *out);
 int labi_pthin_expr_primary_slice_marker(void);
 #endif
+/* G-02f-283 P4 unary：默认 #include；hybrid 时在 pthin_expr_unary.from_x.c */
+#ifndef SHUX_PTHIN_EXPR_UNARY_FROM_X
 #include "parser_asm_unary_slice.inc"
+#else
+void parser_asm_parse_unary_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                        struct parser_asm_slice_u8 *source,
+                                        struct parser_asm_parse_expr_result *out);
+int labi_pthin_expr_unary_slice_marker(void);
+#endif
 #include "parser_asm_expr_binop_slice.inc"
 #include "parser_asm_ternary_assign_slice.inc"
 #include "parser_asm_emit_heavy_stretch_slice.inc"
