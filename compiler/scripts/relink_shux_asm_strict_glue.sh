@@ -284,9 +284,9 @@ lsp_diag_seed_obj_path() {
 ensure_lsp_diag_seed_obj() {
   local seed_dir="$1"
   if [ "${SHUX_LEGACY_LSP_DIAG_C:-0}" = "1" ]; then
-  if [ ! -f "$seed_dir/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.inc" -nt "$seed_dir/lsp_diag.o" ]; then
+  if [ ! -f "$seed_dir/lsp_diag.o" ] || [ "seeds/runtime_lsp_glue.from_x.c" -nt "$seed_dir/lsp_diag.o" ]; then
   strict_glue_info "cc -c $seed_dir/lsp_diag.o <- lsp_diag.c (LEGACY)"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_lsp_glue.inc "$seed_dir/lsp_diag.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lsp_glue.from_x.c -o "$seed_dir/lsp_diag.o"
   fi
   else
   if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "src/lsp/lsp_diag_stubs_no_c.inc" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then
@@ -881,9 +881,9 @@ ensure_backend_o_strict_link_partial_obj() {
 
 ensure_asm_backend_compat_stubs_obj() {
   local STUB_O="$BUILD_DIR/asm_backend_compat_stubs.o"
-  if [ ! -f "$STUB_O" ] || [ src/asm/asm_backend_compat_stubs.inc -nt "$STUB_O" ]; then
-  strict_glue_info "cc -c src/asm/asm_backend_compat_stubs.inc -> $STUB_O"
-  sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc "$STUB_O"
+  if [ ! -f "$STUB_O" ] || [ seeds/asm_backend_compat_stubs.from_x.c -nt "$STUB_O" ]; then
+  strict_glue_info "cc -c seeds/asm_backend_compat_stubs.from_x.c -> $STUB_O"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o "$STUB_O"
   fi
 }
 
@@ -1704,10 +1704,10 @@ ensure_backend_seed_mega_fallback_obj() {
 }
 ensure_backend_x86_64_enc_c_obj() {
   local o="$BUILD_DIR/backend_x86_64_enc_c.o"
-  local src="src/asm/backend_x86_64_enc_c.inc"
+  local src="seeds/backend_x86_64_enc_c.from_x.c"
   if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
-  strict_glue_info "cc_inc_tu $o <- $src (x86_64 enc fallback)"
-  sh scripts/cc_inc_tu.sh "$src" "$o"
+  strict_glue_info "cc -c $o <- $src (G-02f-15 x86_64 enc)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c "$src" -o "$o"
   fi
 }
 ensure_typeck_f64_bits_obj() {

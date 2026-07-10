@@ -2301,9 +2301,9 @@ ensure_backend_asm_strict_fallback_alias_obj() {
 # strict 链：compat stubs 须随源码重编（勿用 src/asm/*.o 陈旧副本）。
 ensure_asm_backend_compat_stubs_obj() {
   local STUB_O="$BUILD_DIR/asm_backend_compat_stubs.o"
-  if [ ! -f "$STUB_O" ] || [ src/asm/asm_backend_compat_stubs.inc -nt "$STUB_O" ]; then
-  echo " cc -c src/asm/asm_backend_compat_stubs.inc -> $STUB_O"
-  sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc "$STUB_O"
+  if [ ! -f "$STUB_O" ] || [ seeds/asm_backend_compat_stubs.from_x.c -nt "$STUB_O" ]; then
+  echo " cc -c seeds/asm_backend_compat_stubs.from_x.c -> $STUB_O"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o "$STUB_O"
   fi
 }
 
@@ -3121,9 +3121,9 @@ ensure_bstrict_seed_support_objs() {
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/backend_asm_strict_fallback_alias.o" backend_asm_strict_fallback_alias.c
   fi
   if [ ! -f src/asm/asm_backend_compat_stubs.o ] \
-  || [ "src/asm/asm_backend_compat_stubs.inc" -nt src/asm/asm_backend_compat_stubs.o ]; then
-  echo " cc -c src/asm/asm_backend_compat_stubs.inc -> src/asm/asm_backend_compat_stubs.o"
-  sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc src/asm/asm_backend_compat_stubs.o
+  || [ "seeds/asm_backend_compat_stubs.from_x.c" -nt src/asm/asm_backend_compat_stubs.o ]; then
+  echo " cc -c seeds/asm_backend_compat_stubs.from_x.c -> src/asm/asm_backend_compat_stubs.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o src/asm/asm_backend_compat_stubs.o
   fi
   for _disp in backend_enc_dispatch backend_arch_emit_dispatch backend_try_inline_dispatch backend_call_dispatch; do
   if [ -f "seeds/${_disp}.from_x.c" ]; then
@@ -3138,9 +3138,9 @@ ensure_bstrict_seed_support_objs() {
   fi
   fi
   done
-  if [ ! -f src/asm/backend_x86_64_enc_c.o ] || [ "src/asm/backend_x86_64_enc_c.inc" -nt src/asm/backend_x86_64_enc_c.o ]; then
-  echo " cc -c src/asm/backend_x86_64_enc_c.inc -> src/asm/backend_x86_64_enc_c.o"
-  sh scripts/cc_inc_tu.sh src/asm/backend_x86_64_enc_c.inc src/asm/backend_x86_64_enc_c.o -I. -Iinclude -Isrc
+  if [ ! -f src/asm/backend_x86_64_enc_c.o ] || [ "seeds/backend_x86_64_enc_c.from_x.c" -nt src/asm/backend_x86_64_enc_c.o ]; then
+  echo " cc -c seeds/backend_x86_64_enc_c.from_x.c -> src/asm/backend_x86_64_enc_c.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/backend_x86_64_enc_c.from_x.c -o src/asm/backend_x86_64_enc_c.o -I. -Iinclude -Isrc
   fi
   if [ ! -f src/driver/fmt_check_cmd_driver.o ] \
   || [ "seeds/fmt_check_cmd.from_x.c" -nt src/driver/fmt_check_cmd_driver.o ]; then
@@ -3163,9 +3163,9 @@ ensure_bstrict_seed_support_objs() {
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/simd_loop.from_x.c -o src/asm/simd_loop.o
   fi
   if [ ! -f src/asm/user_asm_seed_bridge.o ] \
-  || [ "src/asm/user_asm_seed_bridge.inc" -nt src/asm/user_asm_seed_bridge.o ]; then
-  echo " cc -c src/asm/user_asm_seed_bridge.inc -> src/asm/user_asm_seed_bridge.o"
-  sh scripts/cc_inc_tu.sh src/asm/user_asm_seed_bridge.inc src/asm/user_asm_seed_bridge.o
+  || [ "seeds/user_asm_seed_bridge.from_x.c" -nt src/asm/user_asm_seed_bridge.o ]; then
+  echo " cc -c seeds/user_asm_seed_bridge.from_x.c -> src/asm/user_asm_seed_bridge.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/user_asm_seed_bridge.from_x.c -o src/asm/user_asm_seed_bridge.o
   fi
   # parser EMIT_HEAVY extern bl _glue：须与 Makefile USER_ASM_SEED_OBJS 同步链入 shux_asm。
   PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
@@ -3194,9 +3194,9 @@ lsp_diag_seed_obj_path() {
 ensure_lsp_diag_seed_obj() {
   local seed_dir="$1"
   if [ "${SHUX_LEGACY_LSP_DIAG_C:-0}" = "1" ]; then
-  if [ ! -f "$seed_dir/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.inc" -nt "$seed_dir/lsp_diag.o" ]; then
+  if [ ! -f "$seed_dir/lsp_diag.o" ] || [ "seeds/runtime_lsp_glue.from_x.c" -nt "$seed_dir/lsp_diag.o" ]; then
   echo " cc -c $seed_dir/lsp_diag.o <- lsp_diag.c (LEGACY)"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_lsp_glue.inc "$seed_dir/lsp_diag.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lsp_glue.from_x.c -o "$seed_dir/lsp_diag.o"
   fi
   else
   if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "src/lsp/lsp_diag_stubs_no_c.inc" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then

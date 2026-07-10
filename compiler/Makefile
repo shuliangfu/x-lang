@@ -614,8 +614,9 @@ src/diag.o: seeds/diag.from_x.c src/diag.x include/diag.h
 
 # G-02a: lsp_diag.c 迁移到 runtime_lsp_glue.inc（24 个符号被 lsp_x.o/fmt_check_cmd*.o/runtime*.o 引用）
 # 全局规则，LEGACY 和默认模式共用。
-src/lsp/lsp_diag.o: src/asm/runtime_lsp_glue.inc src/lsp/lsp_diag.h include/diag.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_lsp_glue.inc $@
+# G-02f-15：lsp_diag 产品 seed（原 runtime_lsp_glue）
+src/lsp/lsp_diag.o: seeds/runtime_lsp_glue.from_x.c src/asm/runtime_lsp_glue.x src/lsp/lsp_diag.h include/diag.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_lsp_glue.from_x.c -o $@
 
 # `shux-c` 默认模式可能只是 bootstrap_shuxc 的同步副本；凡是依赖 `-E/-E-extern`
 # 生成当前源码对应 C 的目标，必须先强制刷新一次 legacy C frontend，避免继续吃旧语义。
@@ -1230,18 +1231,21 @@ $(USER_ASM_SEED_HOST_STUBS): pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SE
 
 $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 
-src/asm/user_asm_seed_bridge.o: src/asm/user_asm_seed_bridge.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/user_asm_seed_bridge.inc $@
+# G-02f-15：user_asm_seed_bridge 产品 seed
+src/asm/user_asm_seed_bridge.o: seeds/user_asm_seed_bridge.from_x.c src/asm/user_asm_seed_bridge.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/user_asm_seed_bridge.from_x.c -o $@
 
-src/asm/asm_backend_compat_stubs.o: src/asm/asm_backend_compat_stubs.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc $@
+# G-02f-15：asm_backend_compat_stubs 产品 seed
+src/asm/asm_backend_compat_stubs.o: seeds/asm_backend_compat_stubs.from_x.c src/asm/asm_backend_compat_stubs.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o $@
 
 # G-02f-9：backend_*_dispatch 产品 seed 单 TU
 src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/backend_enc_dispatch.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_enc_dispatch.from_x.c -o $@
 
-src/asm/backend_x86_64_enc_c.o: src/asm/backend_x86_64_enc_c.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/backend_x86_64_enc_c.inc $@
+# G-02f-15：backend_x86_64_enc_c 产品 seed
+src/asm/backend_x86_64_enc_c.o: seeds/backend_x86_64_enc_c.from_x.c src/asm/backend_x86_64_enc_c.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_x86_64_enc_c.from_x.c -o $@
 
 src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c src/asm/backend_arch_emit_dispatch.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_arch_emit_dispatch.from_x.c -o $@

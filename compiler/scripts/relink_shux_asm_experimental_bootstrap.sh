@@ -54,9 +54,9 @@ ensure_asm_driver_seed_c_objs() {
   fi
   # G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），编排桩由 typeck_c_module_stubs.o 提供。
   # G-02a: codegen.c 已物理删除；codegen.o 由 codegen.x 生成（codegen_x.o），编排桩由 codegen_pipeline_stubs.o 提供。
-  if [ ! -f "$SEED_O/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.inc" -nt "$SEED_O/lsp_diag.o" ]; then
+  if [ ! -f "$SEED_O/lsp_diag.o" ] || [ "seeds/runtime_lsp_glue.from_x.c" -nt "$SEED_O/lsp_diag.o" ]; then
   experimental_bootstrap_info "cc $SEED_O/lsp_diag.o"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_lsp_glue.inc "$SEED_O/lsp_diag.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lsp_glue.from_x.c -o "$SEED_O/lsp_diag.o"
   fi
   if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ] || [ "src/lsp/lsp_diag_pipeline_ctx.inc" -nt src/lsp/lsp_diag_pipeline_ctx.o ]; then
   experimental_bootstrap_info "cc src/lsp/lsp_diag_pipeline_ctx.o"
@@ -184,13 +184,13 @@ ensure_experimental_companion_objs() {
   experimental_bootstrap_info "build_seed_asm_host (asm_backend_partial.o)"
   ./scripts/build_seed_asm_host.sh
   fi
-  if [ ! -f src/asm/asm_backend_compat_stubs.o ] || [ "src/asm/asm_backend_compat_stubs.inc" -nt src/asm/asm_backend_compat_stubs.o ]; then
+  if [ ! -f src/asm/asm_backend_compat_stubs.o ] || [ "seeds/asm_backend_compat_stubs.from_x.c" -nt src/asm/asm_backend_compat_stubs.o ]; then
   experimental_bootstrap_info "cc asm_backend_compat_stubs.o"
-  sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc src/asm/asm_backend_compat_stubs.o
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o src/asm/asm_backend_compat_stubs.o
   fi
-  if [ ! -f src/asm/user_asm_seed_bridge.o ] || [ "src/asm/user_asm_seed_bridge.inc" -nt src/asm/user_asm_seed_bridge.o ]; then
+  if [ ! -f src/asm/user_asm_seed_bridge.o ] || [ "seeds/user_asm_seed_bridge.from_x.c" -nt src/asm/user_asm_seed_bridge.o ]; then
   experimental_bootstrap_info "cc user_asm_seed_bridge.o"
-  sh scripts/cc_inc_tu.sh src/asm/user_asm_seed_bridge.inc src/asm/user_asm_seed_bridge.o
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/user_asm_seed_bridge.from_x.c -o src/asm/user_asm_seed_bridge.o
   fi
 }
 ensure_experimental_companion_objs
