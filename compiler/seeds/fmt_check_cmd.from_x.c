@@ -1,4 +1,4 @@
-/* G-02f-350：PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x；rest SHUX_L2_FMT_CHECK_THIN_FROM_X。
+/* G-02f-350/351：PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x；rest SHUX_L2_FMT_CHECK_THIN_FROM_X。
  * Generated from src/driver/fmt_check_cmd.x (G-02f-31 true .x + C tail).
  * G-02f-116 true .x pure helpers.
  * G-02f-112 helper gates.
@@ -72,12 +72,16 @@ void closedir_win(DIR *d) {
 #include <sys/stat.h>
 #ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #ifdef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int32_t driver_check_quiet_ok_get(void);
 int fmt_walk_skip_dot_name(const char *name);
 int check_one_need_fallback_diag(int rc, int nd, int nd_errors, int nd_warnings, int nd_infos, int direct_diag);
-#endif
+int shux_path_is_absolute(const char *path);
+int check_one_finalize_rc(int rc, int warn_count);
+const char *driver_collect_error_kind(void);
+const char *driver_collect_missing_path_code(void);
 #endif
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
@@ -92,7 +96,8 @@ extern void driver_dep_seeded_clear_all(void);
  * 绝对路径当相对路径拼接到 getcwd，产生 C:\cwd/C:/abs/path 双重前缀。
  * 【Invariant】path 非空时返回 1 表示绝对路径（POSIX / 或 Windows 盘符）。
  * 【Asm/Perf】纯 ASCII 比较，零运行时开销。 */
-/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-118/351：逻辑源 .x；hybrid 时 pure 由 fmt_check_cmd_thin */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int shux_path_is_absolute(const char *path) {
     if (!path || !path[0])
         return 0;
@@ -105,6 +110,8 @@ int shux_path_is_absolute(const char *path) {
 #endif
     return 0;
 }
+#endif
+
 
 
 
@@ -164,19 +171,20 @@ const char *driver_fmt_check_lit_fmt_error(void) { return "fmt error"; }
 const char *driver_fmt_check_lit_chk002(void) { return "CHK002"; }
 const char *driver_fmt_check_lit_fmt001(void) { return "FMT001"; }
 
-/* G-02f-247：逻辑源 .x（真迁 mode→lit）；seed 保留同语义 C 供产品 cc */
+/* G-02f-247/351：逻辑源 .x（mode→lit）；hybrid 时由 thin 门闩 */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 const char *driver_collect_error_kind(void) {
     if (driver_collect_mode_is_check())
         return driver_fmt_check_lit_check_error();
     return driver_fmt_check_lit_fmt_error();
 }
 
-/* G-02f-247：逻辑源 .x（真迁 mode→lit）；seed 保留同语义 C 供产品 cc */
 const char *driver_collect_missing_path_code(void) {
     if (driver_collect_mode_is_check())
         return driver_fmt_check_lit_chk002();
     return driver_fmt_check_lit_fmt001();
 }
+#endif
 
 /* G-02f-247：ignore 槽访问（.x path_should_ignore pure） */
 const char *fmt_builtin_ignore_at(int i) {
@@ -857,6 +865,7 @@ int check_one_need_fallback_diag(int rc, int nd, int nd_errors, int nd_warnings,
 #endif
 
 
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int check_one_finalize_rc(int rc, int warn_count) {
     if (rc != 0)
         return rc;
@@ -864,6 +873,14 @@ int check_one_finalize_rc(int rc, int warn_count) {
         return 1;
     return rc;
 }
+#else
+int check_one_finalize_rc_lint_impl(int warn_count) {
+    if (check_lint_fail_on_warnings() && warn_count > 0)
+        return 1;
+    return 0;
+}
+#endif
+
 
 /**
  * 对单个 .x 运行 check；复用 driver_run_compiler_full。
