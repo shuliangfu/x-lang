@@ -177,7 +177,8 @@ __attribute__((weak)) void parser_diagnostic_parse_commit_post(struct ast_ASTAre
 }
 
 // #region debug-point A:try-propagate-state
-void debug_try_propagate_report_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expr_ref, int32_t func_ix,
+/* G-02f-155：逻辑源 .x 门闩；seed 保留 curl/system 调试体（语言限制） */
+void debug_try_propagate_report_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, int32_t func_ix,
                                                       int32_t return_type_ref, int32_t func_ret,
                                                       int32_t enclosing_return_type_ref, int32_t op_ty) {
   FILE *fp;
@@ -214,14 +215,6 @@ void debug_try_propagate_report_strict_minimal_impl(struct ast_ASTArena *arena, 
            url, session, expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
   (void)system(cmd);
 }
-void debug_try_propagate_report_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, int32_t func_ix,
-                                                      int32_t return_type_ref, int32_t func_ret,
-                                                      int32_t enclosing_return_type_ref, int32_t op_ty) {
-  {
-    debug_try_propagate_report_strict_minimal_impl(arena, expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
-  }
-}
-
 // #endregion
 
 enum ast_TypeKind {

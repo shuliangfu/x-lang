@@ -21,7 +21,6 @@
 void diag_set_file_impl(const char *path, const char *source, size_t source_len);
 void diag_push_file_impl(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len);
 void diag_restore_impl(const DiagContextSnapshot *snapshot);
-int diag_code_is_known_impl(const char *code);
 void diag_print_known_codes_impl(FILE *out);
 void diag_print_code_explain_impl(FILE *out, const char *code);
 void diag_print_code_table_impl(FILE *out);
@@ -371,30 +370,30 @@ void diag_restore(const DiagContextSnapshot *snapshot) {
 }
 
 
+/** 供 .x 读 g_diag_ctx 字段（G-02f-155）。 */
+const char *diag_ctx_get_file(void) {
+    return g_diag_ctx.file_path;
+}
+const char *diag_ctx_get_source(void) {
+    return g_diag_ctx.source;
+}
+size_t diag_ctx_get_source_len(void) {
+    return g_diag_ctx.source_len;
+}
+
+/* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 const char *diag_get_file(void) {
     return g_diag_ctx.file_path;
 }
 
-const char *diag_get_source_impl(void) {
+/* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+const char *diag_get_source(void) {
     return g_diag_ctx.source;
 }
 
-const char *diag_get_source(void) {
-  {
-    return diag_get_source_impl();
-  }
-  return ((void *)0);
-}
-
-size_t diag_get_source_len_impl(void) {
-    return g_diag_ctx.source_len;
-}
-
+/* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 size_t diag_get_source_len(void) {
-  {
-    return diag_get_source_len_impl();
-  }
-  return 0;
+    return g_diag_ctx.source_len;
 }
 
 void diag_report_json(const char *file, int line, int col,
@@ -506,15 +505,14 @@ void diag_reportf(const char *file, int line, int col, const char *kind, const c
 
 
 
-int diag_code_is_known_impl(const char *code) {
+/** 供 .x 查 code 表是否存在（G-02f-155）。 */
+int diag_code_table_has(const char *code) {
     return diag_lookup_code_explain(code) ? 1 : 0;
 }
 
+/* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int diag_code_is_known(const char *code) {
-  {
-    return diag_code_is_known_impl(code);
-  }
-  return -1;
+    return diag_lookup_code_explain(code) ? 1 : 0;
 }
 
 

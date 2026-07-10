@@ -408,8 +408,8 @@ function typeck_expr_is_addr_of_block_local_strict_minimal(module: *u8, arena: *
 
 // G-02f-110：+ dep_return/const_expr/result_payload/debug_propagate 薄门闩。
 // G-02f-141：dep_return_type 真迁 .x
+// G-02f-155：debug_try_propagate 折叠 seed _impl；curl/system 体仍在 seed（语言限制）
 
-extern "C" function debug_try_propagate_report_strict_minimal_impl(arena: *u8, er: i32, fi: i32, rt: i32, f: i32): void;
 extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_array_lit_elem_ref(arena: *u8, er: i32, i: i32): i32;
 extern "C" function pipeline_expr_binop_left_ref_at(arena: *u8, er: i32): i32;
@@ -434,8 +434,21 @@ function g02f_load_ptr_at(p: *u8, off: i32): *u8 {
 
 /* ---- G-02f-110 / G-02f-140 / G-02f-141：pipeline remaining typeck ---- */
 
+// 产品路径链 seed C（含 getenv/fopen/curl/system）；.x 仅逻辑锚点 / 签名对齐
 #[no_mangle]
-function debug_try_propagate_report_strict_minimal(arena: *u8, er: i32, fi: i32, rt: i32, f: i32): void { unsafe { debug_try_propagate_report_strict_minimal_impl(arena, er, fi, rt, f); } }
+function debug_try_propagate_report_strict_minimal(arena: *u8, er: i32, fi: i32, rt: i32, f: i32): void {
+  let _a: *u8 = arena;
+  let _e: i32 = er;
+  let _f: i32 = fi;
+  let _r: i32 = rt;
+  let _x: i32 = f;
+  if (_a == 0) { return; }
+  if (_e == 0 - 1) { return; }
+  if (_f == 0 - 1) { return; }
+  if (_r == 0 - 1) { return; }
+  if (_x == 0 - 1) { return; }
+  // seed 实现启用 SHUX_DEBUG_RESULT_TRY 时上报；此处 no-op
+}
 
 // G-02f-141：dep 返回类型映射到 caller arena
 // TYPE: I32=0 BOOL=1 U8=2 U32=3 U64=4 I64=5 USIZE=6 ISIZE=7 NAMED=8 PTR=9 ARRAY=10 SLICE=11 LINEAR=12 VECTOR=13 F32=14 F64=15 VOID=16

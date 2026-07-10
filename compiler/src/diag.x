@@ -13,19 +13,20 @@
 
 extern "C" function diag_report_with_code_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8,
                                           detail: *u8): void;
-extern "C" function diag_get_source_impl(): *u8;
-extern "C" function diag_get_source_len_impl(): i64;
 
 extern "C" function diag_set_file_impl(path: *u8, source: *u8, source_len: i64): void;
 extern "C" function diag_push_file_impl(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void;
 extern "C" function diag_restore_impl(snapshot: *u8): void;
-extern "C" function diag_code_is_known_impl(code: *u8): i32;
 extern "C" function diag_print_known_codes_impl(out: *u8): void;
 extern "C" function diag_print_code_explain_impl(out: *u8, code: *u8): void;
 extern "C" function diag_print_code_table_impl(out: *u8): void;
 extern "C" function diag_json_get_state(): i32;
 extern "C" function diag_json_set_state(v: i32): void;
 extern "C" function diag_ctx_get_use_color(): i32;
+extern "C" function diag_ctx_get_file(): *u8;
+extern "C" function diag_ctx_get_source(): *u8;
+extern "C" function diag_ctx_get_source_len(): i64;
+extern "C" function diag_code_table_has(code: *u8): i32;
 extern "C" function getenv(name: *u8): *u8;
 extern "C" function isatty(fd: i32): i32;
 extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
@@ -51,10 +52,19 @@ function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: 
   }
 }
 
+// G-02f-155：上下文 getter 真迁
+#[no_mangle]
+function diag_get_file(): *u8 {
+  unsafe {
+    return diag_ctx_get_file();
+  }
+  return 0 as *u8;
+}
+
 #[no_mangle]
 function diag_get_source(): *u8 {
   unsafe {
-    return diag_get_source_impl();
+    return diag_ctx_get_source();
   }
   return 0 as *u8;
 }
@@ -62,7 +72,7 @@ function diag_get_source(): *u8 {
 #[no_mangle]
 function diag_get_source_len(): i64 {
   unsafe {
-    return diag_get_source_len_impl();
+    return diag_ctx_get_source_len();
   }
   return 0;
 }
@@ -88,12 +98,13 @@ function diag_restore(snapshot: *u8): void {
   }
 }
 
+// G-02f-155：code 表存在性
 #[no_mangle]
 function diag_code_is_known(code: *u8): i32 {
   unsafe {
-    return diag_code_is_known_impl(code);
+    return diag_code_table_has(code);
   }
-  return 0 - 1;
+  return 0;
 }
 
 #[no_mangle]
@@ -255,8 +266,8 @@ function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8)
   if (line_start_out == 0) { return 0 - 1; }
   if (line_len_out == 0) { return 0 - 1; }
   unsafe {
-    let src: *u8 = diag_get_source_impl();
-    let len64: i64 = diag_get_source_len_impl();
+    let src: *u8 = diag_ctx_get_source();
+    let len64: i64 = diag_ctx_get_source_len();
     if (src == 0) { return 0 - 1; }
     if (len64 <= 0) { return 0 - 1; }
     let len: i32 = len64 as i32;
@@ -279,7 +290,7 @@ function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8)
       if (c == 13) { break; }
       i = i + 1;
     }
-    // src + start via byte walk (no pointer arithmetic of large offsets if needed)
+    // src + start via byte walk
     let p: *u8 = src;
     let k: i32 = 0;
     while (k < start) {
