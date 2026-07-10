@@ -34,11 +34,18 @@
 #include <pthread.h>
 
 /** nostdlib 下勿用 glibc ctype 宏（会引用 __ctype_toupper_loc）；本地 ASCII 大写。 */
-static char driver_ascii_toupper(char c) {
+char driver_ascii_toupper_impl(char c) {
     if (c >= 'a' && c <= 'z')
         return (char)(c + ('A' - 'a'));
     return c;
 }
+char driver_ascii_toupper(char c) {
+  {
+    return driver_ascii_toupper_impl(c);
+  }
+  return 0;
+}
+
 
 
 /* G-02f-41: flag slot protos (defs after static storage) */
@@ -614,9 +621,16 @@ static double g_compile_phase_start_sec[SHUX_COMPILE_PHASE_MAX];
 static int g_compile_phase_active[SHUX_COMPILE_PHASE_MAX];
 
 /** 是否启用 SHUX_COMPILE_PHASE_TIMING 阶段计时。 */
-static int compile_phase_timing_enabled(void) {
+int compile_phase_timing_enabled_impl(void) {
     return getenv("SHUX_COMPILE_PHASE_TIMING") != NULL;
 }
+int compile_phase_timing_enabled(void) {
+  {
+    return compile_phase_timing_enabled_impl();
+  }
+  return 0;
+}
+
 
 /** 单调 wall-clock 秒（gettimeofday）。 */
 static double compile_phase_now_sec(void) {

@@ -1,8 +1,8 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70/89/91 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70/89/91/92 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
  *         merge invoke_cc + linux_harden + remaining link gates.
  * .x covers: + shux_invoke_cc, append_linux_link_harden; link_abi exported set nearly gated.
- * G-02f-89/91: path/diag + needs/argv/path-copy helpers gated over _impl.
+ * G-02f-89/91/92: path/diag + needs/argv + cc/spawn/glue push helpers gated over _impl.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -231,7 +231,7 @@ static int shux_cc_compile_sync_ex(const char *src, const char *out_o,
  * shux_cc_compile_sync 的简化包装：无额外标志。
  * G-02e-17：若 src 以 .inc 结尾，写临时 wrap.c（#include 绝对路径）再 cc，结束后删除 wrap。
  */
-static int shux_cc_compile_sync(const char *src, const char *out_o,
+int shux_cc_compile_sync_impl(const char *src, const char *out_o,
                                 const char *inc0, const char *inc1, const char *inc2,
                                 int from_asm_s) {
     size_t n;
@@ -255,6 +255,15 @@ static int shux_cc_compile_sync(const char *src, const char *out_o,
     }
     return shux_cc_compile_sync_ex(src, out_o, inc0, inc1, inc2, from_asm_s, NULL);
 }
+int shux_cc_compile_sync(const char *src, const char *out_o,
+                                const char *inc0, const char *inc1, const char *inc2,
+                                int from_asm_s) {
+  {
+    return shux_cc_compile_sync_impl(src, out_o, inc0, inc1, inc2, from_asm_s);
+  }
+  return 0;
+}
+
 
 /**
  * 同步执行子进程：POSIX 上 fork+execvp+waitpid，Windows 上 _spawnvp(_P_WAIT,...)。
@@ -262,7 +271,7 @@ static int shux_cc_compile_sync(const char *src, const char *out_o,
  * 返回值：0 成功（exit 0），非 0 失败（exit code 或 -1）。
  * 设计目的：shux_asm_invoke_ld_platform 中 6 处 fork+execvp+waitpid 统一封装。
  */
-static int shux_spawn_sync(const char *prog, const char *const *argv) {
+int shux_spawn_sync_impl(const char *prog, const char *const *argv) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     {
         intptr_t rc = _spawnvp(_P_WAIT, prog, (const char *const *)argv);
@@ -290,6 +299,13 @@ static int shux_spawn_sync(const char *prog, const char *const *argv) {
     return 0;
 #endif
 }
+int shux_spawn_sync(const char *prog, const char *const *argv) {
+  {
+    return shux_spawn_sync_impl(prog, argv);
+  }
+  return 0;
+}
+
 
 const char * link_diag_code_for_kind_impl(const char *kind) {
     if (!kind)
@@ -533,7 +549,7 @@ void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
 }
 
 
-static void shux_link_perror(const char *msg) {
+void shux_link_perror_impl(const char *msg) {
     char op_buf[128];
     char path_buf[160];
     const char *text = msg;
@@ -568,6 +584,12 @@ static void shux_link_perror(const char *msg) {
     }
     link_diag_errno("process error", text);
 }
+void shux_link_perror(const char *msg) {
+  {
+    shux_link_perror_impl(msg);
+  }
+}
+
 
 #define perror(msg) shux_link_perror((msg))
 
@@ -3405,7 +3427,7 @@ int link_abi_user_o_needs_compress_libs(const char *user_o) {
 }
 
 /** macOS Homebrew /usr/local：便于 -lz / -lzstd 解析。 */
-static void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
+void ld_append_brew_lib_paths_impl(const char **argv, int *la, int max_la) {
 #if defined(__APPLE__)
     if (*la < max_la - 1)
         argv[(*la)++] = "-L/opt/homebrew/lib";
@@ -3417,6 +3439,12 @@ static void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
     (void)max_la;
 #endif
 }
+void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
+  {
+    ld_append_brew_lib_paths_impl(argv, la, max_la);
+  }
+}
+
 
 /**
  * ASM 链接：按 compress.o / 用户 .o 实际依赖追加 -lz / -lzstd / -lbrotli*。
@@ -3498,7 +3526,7 @@ void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char
 /**
  * B-20 v1：扫描生成 C 是否含任一子串（invoke_cc 按需链入判定）。
  */
-static int link_abi_generated_c_contains_any_substr(const char *c_path, const char **needles, int n_needles) {
+int link_abi_generated_c_contains_any_substr_impl(const char *c_path, const char **needles, int n_needles) {
     ShuxRuntimeFileView view;
     int i;
     int found = 0;
@@ -3530,6 +3558,13 @@ static int link_abi_generated_c_contains_any_substr(const char *c_path, const ch
     runtime_release_file_view(&view);
     return found;
 }
+int link_abi_generated_c_contains_any_substr(const char *c_path, const char **needles, int n_needles) {
+  {
+    return link_abi_generated_c_contains_any_substr_impl(c_path, needles, n_needles);
+  }
+  return 0;
+}
+
 
 /** G-02f-39：单 needle 包装，供 .x generated_c_needs_* 调用。 */
 int link_abi_generated_c_contains_substr(const char *c_path, const char *needle) {
@@ -5426,7 +5461,7 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
  * F-03：仅当对应 std/*.o 已入链时才追加 runtime_*_glue.o，避免 glue 引用 log_write_c 等未定义符号。
  * ensure_fn 非 NULL 时在 push 前 cc -c 生成 glue .o（Docker/CI 无预编译 glue 时须 ensure）。
  */
-static void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const char *argv0),
+void link_abi_asm_ld_push_glue_after_std_impl(int have_std, int (*ensure_fn)(const char *argv0),
     const char *glue_primary, const char *link_argv0, const char *glue_rel, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
     if (!have_std)
@@ -5435,6 +5470,14 @@ static void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(c
         return;
     link_abi_asm_ld_push_obj(glue_primary, link_argv0, glue_rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
+void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(const char *argv0),
+    const char *glue_primary, const char *link_argv0, const char *glue_rel, const char **lib_roots, int n_lib_roots,
+    ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
+  {
+    link_abi_asm_ld_push_glue_after_std_impl(have_std, ensure_fn, glue_primary, link_argv0, glue_rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+  }
+}
+
 
 #if defined(__linux__) || defined(__APPLE__)
 int link_abi_user_o_needs_async_scheduler(const char *user_o) {
@@ -5728,7 +5771,7 @@ int link_abi_user_o_needs_std_sys(const char *user_o) {
  * nostdlib 最小 gcc 链（user.o+-lc）仍须链入的 compiler runtime 桩；hello 等依赖 std_fmt_println。
  * popen 桩恒失败时 has_undef 误判为自包含，勿因此省略 io_stubs。
  */
-static void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
+void link_abi_asm_ld_push_minimal_runtime_objs_impl(const char *link_argv0, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
     char io_stubs_o[PATH_MAX];
     char process_argv_o[PATH_MAX];
@@ -5745,6 +5788,13 @@ static void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, co
     link_abi_asm_ld_push_obj(shux_runtime_panic_o_path(link_argv0), link_argv0,
         "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
 }
+void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
+    ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la) {
+  {
+    link_abi_asm_ld_push_minimal_runtime_objs_impl(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+  }
+}
+
 
 #if defined(__linux__)
 /**

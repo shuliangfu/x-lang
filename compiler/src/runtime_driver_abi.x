@@ -3,6 +3,7 @@
 //
 // G-02f-29/41/45..49/54/55/57：真迁 .x — driver flags/env/phase + peek/smoke/stack/defines。
 // G-02f-83：+ driver_source_scan_top_level_import / entry_source_len_i32 门闩。
+// G-02f-92：+ driver_ascii_toupper 门闩。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
 // C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、argv defines 扫描、import 扫描。
 // G-02f-57：+ driver_argv_collect_defines 薄门闩（扫描本体 C）。
@@ -40,6 +41,7 @@ extern "C" function driver_pipeline_entry_source_len_store(len: i64): void;
 extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
 extern "C" function driver_bump_stack_limit_impl(): void;
 extern "C" function driver_argv_collect_defines_impl(argc: i32, argv: *u8, defines: *u8, max_defines: i32): i32;
+extern "C" function driver_ascii_toupper_impl(c: i32): i32;
 
 #[no_mangle]
 function driver_check_quiet_ok_get(): i32 {
@@ -590,5 +592,15 @@ function driver_source_scan_top_level_import(src: *u8, src_len: i64): i32 {
     return driver_source_scan_top_level_import_impl(src, src_len);
   }
   return 0;
+}
+
+/* ---- G-02f-92：ascii_toupper 门闩 ---- */
+
+#[no_mangle]
+function driver_ascii_toupper(c: i32): i32 {
+  unsafe {
+    return driver_ascii_toupper_impl(c);
+  }
+  return c;
 }
 
