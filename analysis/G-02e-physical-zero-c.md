@@ -1,7 +1,7 @@
 # G-02e：compiler 物理去 C（终局清场）
 
 > **目标**：仓库内手写 `.c/.h` → 0（允许：平台 `.s` crt0、预编译 seed 二进制、`*_gen.c` 由 .x 再生后不再入库）。  
-> **现状（2026-07-10）**：`compiler/src` 手写 C **103**（G-04 permanent 白名单）；产品 G05 链 **52** objs，其中约半数仍源自 C。
+> **现状（2026-07-10）**：`compiler/src` 手写 C **102**（G-04 permanent 白名单）；产品 G05 链 **51** objs，其中约半数仍源自 C。
 
 ## 1. 分层（务必按层砍，禁止无回归乱删）
 
@@ -43,13 +43,13 @@
 | G-02e-11 | `lsp_codegen_extern.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 106→105 src；G05 55→54 |
 | G-02e-12 | `runtime_pipeline_abi_shux_c_stubs.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 105→104 src；G05 54→53 |
 | G-02e-13 | `ast_pool_l5_bridge.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 104→103 src；G05 53→52 |
+| G-02e-14 | `runtime_heap_user.c`→`.inc` + glue_stubs；link_abi ensure 写 wrap 产用户链 `.o`；G05 −1 | ✅ 103→102 src；G05 52→51 |
 
 ## 4. 建议下一刀（工作量升序）
 
-1. **`runtime_heap_user`**：并入 companion 时须改 `link_abi` 用户程序按需链路径  
-2. **拆 `runtime_link_abi` / `runtime.c`**：先抽纯逻辑到 `.x`，C 只留 `posix_spawn`/`stat`  
-3. **backend dispatch / simd**：asm.x 固定点后删 C dispatch  
-4. **P3 整批**：http `.inc` + ed25519 改预编译 seed 或 .x，permanent 批量摘牌  
+1. **拆 `runtime_link_abi` / `runtime.c`**：先抽纯逻辑到 `.x`，C 只留 `posix_spawn`/`stat`  
+2. **backend dispatch / simd**：asm.x 固定点后删 C dispatch  
+3. **P3 整批**：http `.inc` + ed25519 改预编译 seed 或 .x，permanent 批量摘牌  
 
 
 每批门禁：

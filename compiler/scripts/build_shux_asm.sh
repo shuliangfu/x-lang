@@ -3156,11 +3156,6 @@ ensure_bstrict_seed_support_objs() {
   echo " cc -c src/asm/user_asm_seed_bridge.c -> src/asm/user_asm_seed_bridge.o"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/user_asm_seed_bridge.o src/asm/user_asm_seed_bridge.c
   fi
-  if [ ! -f src/runtime_heap_user.o ] \
-  || [ "src/runtime_heap_user.c" -nt src/runtime_heap_user.o ]; then
-  echo " cc -c src/runtime_heap_user.c -> src/runtime_heap_user.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_heap_user.o src/runtime_heap_user.c
-  fi
   # parser EMIT_HEAVY extern bl _glue：须与 Makefile USER_ASM_SEED_OBJS 同步链入 shux_asm。
   PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
   if [ ! -f parser_asm_thin_glue.o ] \
@@ -3804,16 +3799,11 @@ ensure_asm_bootstrap_support_extra_objs() {
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/runtime_driver_strict_glue_stubs.c
   fi
   ensure_typeck_c_module_stubs_obj
-  o="src/runtime_heap_user.o"
-  if [ ! -f "$o" ] || [ "src/runtime_heap_user.c" -nt "$o" ]; then
-  echo " cc -c $o <- src/runtime_heap_user.c (heap_alloc_c for lsp_io_std_heap)"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/runtime_heap_user.c
-  fi
 }
 
-# experimental / strict runtime 链：与 Makefile DRIVER_SEED_SUPPORT_EXTRA 一致。
+# experimental / strict runtime 链：heap_*_c 在 runtime_driver_strict_glue_stubs.o（G-02e-14）。
 asm_bootstrap_support_extra_link() {
-  echo "src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_heap_user.o"
+  echo "src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_driver_strict_glue_stubs.o"
 }
 
 # 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。

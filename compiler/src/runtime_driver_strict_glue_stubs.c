@@ -3,6 +3,7 @@
   * G-02e-11：原 lsp_codegen_extern.c 并入本 TU。
  * G-02e-12：原 runtime_pipeline_abi_shux_c_stubs.c 并入本 TU。
  * G-02e-13：原 ast_pool_l5_bridge.c 并入本 TU。
+ * G-02e-14：#include runtime_heap_user.inc（原 runtime_heap_user.c）。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -12,6 +13,7 @@
 #include "token.h"
 #include "codegen/codegen.h"
 #include <string.h>
+#include "runtime_heap_user.inc"
 
 /* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
  * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */

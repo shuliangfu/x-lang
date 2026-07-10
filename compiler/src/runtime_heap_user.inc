@@ -1,12 +1,19 @@
 /**
- * runtime_heap_user.c — 用户 asm 程序链接 heap_*_c 符号（转调 libc）
+ * runtime_heap_user.inc — 用户 asm / 产品链 heap_*_c（转调 libc）
  *
- * co-emit std.heap 薄模块仅含 allocator_* 时，call redirect 指向本 TU；
- * 与 lsp_heap_bootstrap.c 语义一致，独立编译供 runtime_link_abi 按需链入。
+ * G-02e-14：原 runtime_heap_user.c。
+ * - 产品：由 runtime_driver_strict_glue_stubs.c #include
+ * - 用户链：link_abi ensure 写临时 wrap.c 再 cc -c → compiler/runtime_heap_user.o
  */
+#ifndef SHUX_RUNTIME_HEAP_USER_INC
+#define SHUX_RUNTIME_HEAP_USER_INC
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(__unix__) || defined(__APPLE__)
+#include <stdlib.h>
+#endif
 
 /** std.heap Arena64 布局（chunk/cap/off 各 8B）。 */
 typedef struct ShuxHeapArena64 {
@@ -48,9 +55,16 @@ uint8_t *heap_alloc_aligned_c(size_t align_bytes, size_t size) {
     void *p = NULL;
     if (size == 0 || align_bytes == 0)
         return (uint8_t *)0;
+#if defined(_WIN32) || defined(_WIN64)
+    p = _aligned_malloc(size, align_bytes);
+    if (!p)
+        return (uint8_t *)0;
+    return (uint8_t *)p;
+#else
     if (posix_memalign(&p, align_bytes, size) != 0)
         return (uint8_t *)0;
     return (uint8_t *)p;
+#endif
 }
 
 /** 初始化 Arena64；cap==0 时用 4096 默认 chunk。 */
@@ -107,3 +121,5 @@ void heap_arena64_deinit_c(ShuxHeapArena64 *a) {
     a->cap = 0;
     a->off = 0;
 }
+
+#endif /* SHUX_RUNTIME_HEAP_USER_INC */

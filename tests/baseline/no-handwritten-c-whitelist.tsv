@@ -101,7 +101,6 @@ file	compiler/src/runtime_c_import.c
 file	compiler/src/runtime_driver_abi.c
 file	compiler/src/runtime_driver_diagnostic.c
 file	compiler/src/runtime_driver_strict_glue_stubs.c
-file	compiler/src/runtime_heap_user.c
 file	compiler/src/runtime_io_abi.c
 file	compiler/src/runtime_link_abi.c
 file	compiler/src/runtime_pipeline_abi.c

@@ -127,7 +127,7 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   src/async/async_liveness.o src/async/async_cps_codegen.o \
   src/runtime_c_import.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o \
   src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o \
-  src/runtime_heap_user.o src/x_seed_bridge_stage2.o src/seed_link_compat.o src/std_fs_shim.o src/std_sys_shim.o \
+  src/x_seed_bridge_stage2.o src/seed_link_compat.o src/std_fs_shim.o src/std_sys_shim.o \
   \
   token_x2.o ast_x2.o lexer_x2.o parser_x2.o typeck_x2.o codegen_x2.o preprocess_x2.o "$PIPELINE_X2_FILTERED" \
   x_frontend_link_alias.o \
