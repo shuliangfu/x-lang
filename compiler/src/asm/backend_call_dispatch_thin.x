@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/375：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/376：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -383,6 +383,35 @@ function glue_spill_struct16_call_arg_to_lea_elf_c(arena: *u8, elf_ctx: *u8, ctx
 function pipeline_asm_resolve_whole_import_qualified_symbol_c(arena: *u8, cur_mod: *u8, callee_expr_ref: i32, sym_flat: *u8, out_match_imp_j: *i32): i32 {
   unsafe {
     return pipeline_asm_resolve_whole_import_qualified_symbol_c_impl(arena, cur_mod, callee_expr_ref, sym_flat, out_match_imp_j);
+  }
+  return 0 - 1;
+}
+
+// ---- G-02f-376：emit_call_elf / emit_method_call / emit_call_args_text → seed impl ----
+extern "C" function pipeline_asm_emit_call_elf_c_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+extern "C" function pipeline_asm_emit_method_call_elf_c_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+extern "C" function pipeline_asm_emit_call_args_text_c_impl(arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32, nargs: i32): i32;
+
+#[no_mangle]
+function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return pipeline_asm_emit_call_elf_c_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return pipeline_asm_emit_method_call_elf_c_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function pipeline_asm_emit_call_args_text_c(arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32, nargs: i32): i32 {
+  unsafe {
+    return pipeline_asm_emit_call_args_text_c_impl(arena, out, expr_ref, ctx, target_arch, nargs);
   }
   return 0 - 1;
 }
