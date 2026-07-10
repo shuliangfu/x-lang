@@ -47,13 +47,15 @@ extern int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module, st
                                                     int32_t layout_idx, int32_t depth);
 extern int32_t pipeline_module_struct_layout_name_len(struct ast_Module *m, int32_t idx);
 extern uint8_t pipeline_module_struct_layout_name_byte_at(struct ast_Module *m, int32_t idx, int32_t bi);
+extern int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m);
 
 /** C AST_EXPR_AWAIT(54) 与 X EXPR_AS(54) 碰撞；X EXPR_AWAIT=55。 */
 #define ASM_POOL_KIND_ORD54 54
 #define ASM_POOL_KIND_X_AWAIT 55
 
 /** X pool EXPR_AWAIT(55) 或 C parser await（序 54 且非 as cast）。 */
-int32_t asm_pool_expr_is_await_impl(struct ast_ASTArena *a, int32_t er) {
+/* G-02f-142：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t asm_pool_expr_is_await(struct ast_ASTArena *a, int32_t er) {
     int32_t ko, uop;
     if (!a || er <= 0)
         return 0;
@@ -69,16 +71,11 @@ int32_t asm_pool_expr_is_await_impl(struct ast_ASTArena *a, int32_t er) {
     uop = pipeline_expr_unary_operand_ref_at(a, er);
     return uop > 0 ? 1 : 0;
 }
-int32_t asm_pool_expr_is_await(struct ast_ASTArena *a, int32_t er) {
-  {
-    return asm_pool_expr_is_await_impl(a, er);
-  }
-  return 0;
-}
 
 
 /** 表达式树是否含 await。 */
-int32_t asm_pool_expr_has_await_impl(struct ast_ASTArena *a, int32_t er) {
+/* G-02f-142：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t asm_pool_expr_has_await(struct ast_ASTArena *a, int32_t er) {
     int32_t ko;
     if (!a || er <= 0)
         return 0;
@@ -98,16 +95,11 @@ int32_t asm_pool_expr_has_await_impl(struct ast_ASTArena *a, int32_t er) {
                asm_pool_expr_has_await(a, pipeline_expr_index_index_ref(a, er));
     return 0;
 }
-int32_t asm_pool_expr_has_await(struct ast_ASTArena *a, int32_t er) {
-  {
-    return asm_pool_expr_has_await_impl(a, er);
-  }
-  return 0;
-}
 
 
 /** VAR 是否引用给定 let 名。 */
-int32_t asm_pool_expr_is_var_named_impl(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
+/* G-02f-142：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t asm_pool_expr_is_var_named(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
     int32_t vlen;
     uint8_t vbuf[64];
     int32_t i;
@@ -125,16 +117,11 @@ int32_t asm_pool_expr_is_var_named_impl(struct ast_ASTArena *a, int32_t er, cons
     }
     return 1;
 }
-int32_t asm_pool_expr_is_var_named(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
-  {
-    return asm_pool_expr_is_var_named_impl(a, er, name, nlen);
-  }
-  return 0;
-}
 
 
 /** 表达式是否引用变量名。 */
-int32_t asm_pool_expr_refs_name_impl(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
+/* G-02f-142：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t asm_pool_expr_refs_name(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
     int32_t ko;
     if (!a || er <= 0 || !name || nlen <= 0)
         return 0;
@@ -154,16 +141,11 @@ int32_t asm_pool_expr_refs_name_impl(struct ast_ASTArena *a, int32_t er, const u
                asm_pool_expr_refs_name(a, pipeline_expr_index_index_ref(a, er), name, nlen);
     return 0;
 }
-int32_t asm_pool_expr_refs_name(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
-  {
-    return asm_pool_expr_refs_name_impl(a, er, name, nlen);
-  }
-  return 0;
-}
 
 
 /** stmt_order(from_exclusive+1..) 是否仍引用 name。 */
-int32_t asm_pool_block_rest_refs_name_impl(struct ast_ASTArena *a, int32_t br, int32_t from_exclusive,
+/* G-02f-142：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t asm_pool_block_rest_refs_name(struct ast_ASTArena *a, int32_t br, int32_t from_exclusive,
                                              const uint8_t *name, int32_t nlen) {
     int32_t nso;
     int32_t si;
@@ -190,21 +172,16 @@ int32_t asm_pool_block_rest_refs_name_impl(struct ast_ASTArena *a, int32_t br, i
     }
     return 0;
 }
-int32_t asm_pool_block_rest_refs_name(struct ast_ASTArena *a, int32_t br, int32_t from_exclusive,
-                                             const uint8_t *name, int32_t nlen) {
-  {
-    return asm_pool_block_rest_refs_name_impl(a, br, from_exclusive, name, nlen);
-  }
-  return 0;
-}
 
 
 /** let 类型字节数（i32/struct 等；失败时默认 8）。 */
-int32_t asm_pool_type_size_bytes_impl(struct ast_ASTArena *a, struct ast_Module *m, int32_t type_ref) {
+/* G-02f-142：避免 m->num_struct_layouts（forward Module）；走 pipeline_module_num_struct_layouts_at */
+int32_t asm_pool_type_size_bytes(struct ast_ASTArena *a, struct ast_Module *m, int32_t type_ref) {
     int32_t kind;
     uint8_t name[64];
     int32_t nlen;
     int32_t k;
+    int32_t nlay;
     if (!a || type_ref <= 0)
         return 8;
     kind = pipeline_type_kind_ord_at(a, type_ref);
@@ -218,7 +195,8 @@ int32_t asm_pool_type_size_bytes_impl(struct ast_ASTArena *a, struct ast_Module 
         nlen = pipeline_type_named_name_into(a, type_ref, name);
         if (nlen <= 0 || !m)
             return 8;
-        for (k = 0; k < (int32_t)m->num_struct_layouts; k++) {
+        nlay = pipeline_module_num_struct_layouts_at(m);
+        for (k = 0; k < nlay; k++) {
             int32_t ln = pipeline_module_struct_layout_name_len(m, k);
             int32_t j;
             int32_t eq = 1;
@@ -238,12 +216,6 @@ int32_t asm_pool_type_size_bytes_impl(struct ast_ASTArena *a, struct ast_Module 
         return 8;
     }
     return 8;
-}
-int32_t asm_pool_type_size_bytes(struct ast_ASTArena *a, struct ast_Module *m, int32_t type_ref) {
-  {
-    return asm_pool_type_size_bytes_impl(a, m, type_ref);
-  }
-  return 0;
 }
 
 

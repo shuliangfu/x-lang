@@ -1216,7 +1216,8 @@ void pipeline_typeck_expr_diag_line_col_strict_minimal(struct ast_ASTArena *aren
 }
 
 
-int32_t typeck_block_is_strict_ancestor_strict_minimal_impl(struct ast_ASTArena *arena, int32_t ancestor,
+/* G-02f-142：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t typeck_block_is_strict_ancestor_strict_minimal(struct ast_ASTArena *arena, int32_t ancestor,
                                                               int32_t descendant) {
   struct ast_Block *block;
   int32_t cur;
@@ -1233,13 +1234,6 @@ int32_t typeck_block_is_strict_ancestor_strict_minimal_impl(struct ast_ASTArena 
       return 1;
     cur = block->parent_block_ref;
     depth++;
-  }
-  return 0;
-}
-int32_t typeck_block_is_strict_ancestor_strict_minimal(struct ast_ASTArena *arena, int32_t ancestor,
-                                                              int32_t descendant) {
-  {
-    return typeck_block_is_strict_ancestor_strict_minimal_impl(arena, ancestor, descendant);
   }
   return 0;
 }

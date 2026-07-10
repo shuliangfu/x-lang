@@ -113,7 +113,7 @@ function pipeline_expr_is_func_param_at_strict_minimal(arena: *u8, mod: *u8, fun
 extern "C" function pipeline_typeck_linear_name_already_moved_strict_minimal_impl(name: *u8, nlen: i32): i32;
 extern "C" function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
 extern "C" function pipeline_type_region_label_len_at(arena: *u8, tr: i32): i32;
-extern "C" function typeck_block_is_strict_ancestor_strict_minimal_impl(arena: *u8, a: i32, b: i32): i32;
+extern "C" function pipeline_arena_block_ptr(arena: *u8, br: i32): *u8;
 extern "C" function pipeline_module_num_funcs(mod: *u8): i32;
 extern "C" function pipeline_dep_ctx_current_func_index(ctx: *u8): i32;
 extern "C" function pipeline_dep_ctx_current_block_ref_at(ctx: *u8): i32;
@@ -291,9 +291,36 @@ function pipeline_typeck_expr_diag_line_col_strict_minimal(arena: *u8, expr_ref:
   }
 }
 
+// G-02f-142：block 祖先链；ast_Block.parent_block_ref @ offset 88（22×i32）
+function g02f_load_i32_le(p: *u8, off: i32): i32 {
+  if (p == 0) { return 0; }
+  let m: i32 = 256;
+  let a: i32 = p[off] as i32;
+  a = a + (p[off + 1] as i32) * m;
+  a = a + (p[off + 2] as i32) * (m * m);
+  a = a + (p[off + 3] as i32) * (m * m * m);
+  return a;
+}
+
 #[no_mangle]
-function typeck_block_is_strict_ancestor_strict_minimal(arena: *u8, a: i32, b: i32): i32 {
-  unsafe { return typeck_block_is_strict_ancestor_strict_minimal_impl(arena, a, b); }
+function typeck_block_is_strict_ancestor_strict_minimal(arena: *u8, ancestor: i32, descendant: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (ancestor <= 0) { return 0; }
+  if (descendant <= 0) { return 0; }
+  if (ancestor == descendant) { return 0; }
+  unsafe {
+    let cur: i32 = descendant;
+    let depth: i32 = 0;
+    while (cur > 0) {
+      if (depth >= 128) { break; }
+      let bp: *u8 = pipeline_arena_block_ptr(arena, cur);
+      if (bp == 0) { break; }
+      let parent: i32 = g02f_load_i32_le(bp, 88);
+      if (parent == ancestor) { return 1; }
+      cur = parent;
+      depth = depth + 1;
+    }
+  }
   return 0;
 }
 

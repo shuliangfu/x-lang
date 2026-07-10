@@ -181,9 +181,14 @@ extern "C" function pipeline_asm_redirect_std_c_wrapper_sym(name: *u8, nlen: i32
 extern "C" function backend_enc_call_arch(elf: *u8, name: *u8, nlen: i32, ta: i32): i32;
 extern "C" function pipeline_asm_emit_call_args_elf_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32, nargs: i32): i32;
 extern "C" function backend_enc_call_stack_cleanup_arch(elf: *u8, nbytes: i32, ta: i32): i32;
-extern "C" function glue_asm_call_reg_max(ta: i32): i32;
+/* ---- G-02f-110 / G-02f-141 / G-02f-142：call_dispatch emit helpers ---- */
 
-/* ---- G-02f-110 / G-02f-141：call_dispatch emit helpers ---- */
+// G-02f-142：CALL 整数寄存器实参个数（x86_64 SysV=6，AAPCS64/RISC-V=8）
+#[no_mangle]
+function glue_asm_call_reg_max(ta: i32): i32 {
+  if (ta == 0) { return 6; }
+  return 8;
+}
 
 #[no_mangle]
 function glue_asm_emit_jmp_skip_string_then_lea(ctx: *u8, ta: i32, reg: i32, sbuf: *u8, slen: i32): i32 { unsafe { return glue_asm_emit_jmp_skip_string_then_lea_impl(ctx, ta, reg, sbuf, slen); } return 0; }
