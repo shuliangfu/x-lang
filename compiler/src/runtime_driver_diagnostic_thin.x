@@ -1,11 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-339～341：runtime_driver_diagnostic L2 thin — pure _impl 门闩子集（无字符串字面量）。
+// G-02f-339～341/409：runtime_driver_diagnostic L2 thin — pure _impl 门闩子集（无字符串字面量）。
 // 产品 PREFER_X_O：g05_try_x_to_o → thin.o + seeds/runtime_driver_diagnostic.from_x.c rest
 //   （-DSHUX_L2_RDD_THIN_FROM_X）ld -r → src/runtime_driver_diagnostic.o
 // 完整逻辑源仍见 src/runtime_driver_diagnostic.x（整文件 -E 仍 typeck/字符串阻）。
-// 本 TU 门闩数：71（f-339～341）
+// 本 TU 门闩数：76（f-339～341 + f-387 env + f-409 pipe/storage shells）
 
 extern "C" function driver_debug_log_impl(step: i32): void;
 extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
@@ -262,9 +262,11 @@ function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name: *u8, n
 // ---- G-02f-340 pure full bodies ----
 extern "C" function driver_check_only_get(): i32;
 extern "C" function driver_check_diag_emitted_get(): i32;
-extern "C" function driver_diagnostic_asm_last_expr_kind_set(k: i32): void;
-extern "C" function driver_diagnostic_asm_current_func_store(name: *u8, len: i32): void;
-extern "C" function driver_diagnostic_asm_current_func_maybe_trace(): void;
+// G-02f-409：storage / pipe shells → seed *_impl
+extern "C" function driver_diagnostic_asm_last_expr_kind_set_impl(k: i32): void;
+extern "C" function driver_diagnostic_asm_current_func_store_impl(name: *u8, len: i32): void;
+extern "C" function driver_diagnostic_asm_current_func_maybe_trace_impl(): void;
+extern "C" function driver_diag_pipe_note_impl(kind: i32, a: i32, b: i32): void;
 
 #[no_mangle]
 function driver_diagnostic_entry_already(v: i32): void {
@@ -283,17 +285,45 @@ function driver_diagnostic_typeck_fail(): void {
 }
 
 #[no_mangle]
+function driver_diagnostic_asm_last_expr_kind_set(k: i32): void {
+  unsafe {
+    driver_diagnostic_asm_last_expr_kind_set_impl(k);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_current_func_store(name: *u8, len: i32): void {
+  unsafe {
+    driver_diagnostic_asm_current_func_store_impl(name, len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_current_func_maybe_trace(): void {
+  unsafe {
+    driver_diagnostic_asm_current_func_maybe_trace_impl();
+  }
+}
+
+#[no_mangle]
+function driver_diag_pipe_note(kind: i32, a: i32, b: i32): void {
+  unsafe {
+    driver_diag_pipe_note_impl(kind, a, b);
+  }
+}
+
+#[no_mangle]
 function driver_diagnostic_asm_set_last_expr_kind(k: i32): void {
   unsafe {
-    driver_diagnostic_asm_last_expr_kind_set(k);
+    driver_diagnostic_asm_last_expr_kind_set_impl(k);
   }
 }
 
 #[no_mangle]
 function driver_diagnostic_asm_set_current_func(name: *u8, len: i32): void {
   unsafe {
-    driver_diagnostic_asm_current_func_store(name, len);
-    driver_diagnostic_asm_current_func_maybe_trace();
+    driver_diagnostic_asm_current_func_store_impl(name, len);
+    driver_diagnostic_asm_current_func_maybe_trace_impl();
   }
 }
 

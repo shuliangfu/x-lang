@@ -932,7 +932,8 @@ int driver_diag_env_debug_pipe(void) {
 }
 #endif
 /** reportf 冷路径（va_list 限制，kind：0=before_codegen 1=source_len 2=after_entry 3=pipe_marker）。 */
-void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
+/* G-02f-409：实现体始终 seed；public PREFER 时 thin pure forward */
+void driver_diag_pipe_note_impl(int32_t kind, int32_t a, int32_t b) {
     if (kind == 0)
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: before_codegen num_funcs=%d out_len=%d", (int)a, (int)b);
@@ -946,6 +947,11 @@ void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: pipe_marker=%d", (int)a);
 }
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
+    driver_diag_pipe_note_impl(kind, a, b);
+}
+#endif
 
 /* G-02f-164：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
@@ -955,7 +961,7 @@ void driver_diagnostic_before_codegen_impl(int32_t num_funcs, int32_t out_len)
 #endif
 {
     if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note(0, num_funcs, out_len);
+        driver_diag_pipe_note_impl(0, num_funcs, out_len);
 }
 
 
@@ -975,7 +981,7 @@ void driver_diagnostic_source_len_impl(int32_t len)
 #endif
 {
     if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note(1, len, 0);
+        driver_diag_pipe_note_impl(1, len, 0);
 }
 
 
@@ -988,7 +994,7 @@ void driver_diagnostic_after_entry_parse_impl(int32_t num_funcs)
 #endif
 {
     if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note(2, num_funcs, 0);
+        driver_diag_pipe_note_impl(2, num_funcs, 0);
 }
 
 
@@ -1170,7 +1176,7 @@ void driver_diagnostic_pipe_marker_impl(int32_t id)
 #endif
 {
     if (driver_diag_env_debug_pipe())
-        driver_diag_pipe_note(3, id, 0);
+        driver_diag_pipe_note_impl(3, id, 0);
 }
 
 
@@ -1292,14 +1298,17 @@ void driver_diagnostic_asm_macho_missing_und_reloc_impl(int32_t reloc_idx)
 
 /** asm 后端：记录当前正在 emit 的 ExprKind 序数，供 fail_at 时打印。 */
 static int driver_diagnostic_asm_last_expr_kind = -1;
-/** 供 .x 写 last_expr_kind（G-02f-163）。 */
-void driver_diagnostic_asm_last_expr_kind_set(int32_t k) {
+/** 供 .x 写 last_expr_kind（G-02f-163/409）。实现体始终 seed；public PREFER 时 thin pure forward。 */
+void driver_diagnostic_asm_last_expr_kind_set_impl(int32_t k) {
     driver_diagnostic_asm_last_expr_kind = (int)k;
 }
-/* G-02f-163：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-163/409：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_asm_last_expr_kind_set(int32_t k) {
+    driver_diagnostic_asm_last_expr_kind_set_impl(k);
+}
 void driver_diagnostic_asm_set_last_expr_kind(int32_t k) {
-    driver_diagnostic_asm_last_expr_kind = (int)k;
+    driver_diagnostic_asm_last_expr_kind_set_impl(k);
 }
 #endif
 
@@ -1307,16 +1316,16 @@ void driver_diagnostic_asm_set_last_expr_kind(int32_t k) {
 /** asm 后端：记录当前正在 codegen 的函数名，供 var_not_found 时打印。 */
 static uint8_t driver_diagnostic_asm_current_func[72];
 static int driver_diagnostic_asm_current_func_len = 0;
-/** 供 .x 写 current_func 缓冲（G-02f-163）。 */
-void driver_diagnostic_asm_current_func_store(const uint8_t *name, int32_t len) {
+/** 供 .x 写 current_func 缓冲（G-02f-163/409）。实现体始终 seed；public PREFER 时 thin pure forward。 */
+void driver_diagnostic_asm_current_func_store_impl(const uint8_t *name, int32_t len) {
     driver_diagnostic_asm_current_func_len = (len > 0 && len <= 64) ? (int)len : 0;
     if (name && driver_diagnostic_asm_current_func_len > 0) {
         for (int i = 0; i < driver_diagnostic_asm_current_func_len; i++)
             driver_diagnostic_asm_current_func[i] = name[i];
     }
 }
-/** SHUX_ASM_FUNC_TRACE 冷路径（va_list reportf 仍留 C）。 */
-void driver_diagnostic_asm_current_func_maybe_trace(void) {
+/** SHUX_ASM_FUNC_TRACE 冷路径（va_list reportf 仍留 C）；public PREFER 时 thin pure forward。 */
+void driver_diagnostic_asm_current_func_maybe_trace_impl(void) {
     const char *trace = getenv("SHUX_ASM_FUNC_TRACE");
     if (trace && trace[0] != '\0' && trace[0] != '0' && driver_diagnostic_asm_current_func_len > 0) {
         diag_reportf(NULL, 0, 0, "note", NULL,
@@ -1324,11 +1333,17 @@ void driver_diagnostic_asm_current_func_maybe_trace(void) {
                      (const char *)driver_diagnostic_asm_current_func);
     }
 }
-/* G-02f-163：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-163/409：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_RDD_THIN_FROM_X
+void driver_diagnostic_asm_current_func_store(const uint8_t *name, int32_t len) {
+    driver_diagnostic_asm_current_func_store_impl(name, len);
+}
+void driver_diagnostic_asm_current_func_maybe_trace(void) {
+    driver_diagnostic_asm_current_func_maybe_trace_impl();
+}
 void driver_diagnostic_asm_set_current_func(const uint8_t *name, int32_t len) {
-    driver_diagnostic_asm_current_func_store(name, len);
-    driver_diagnostic_asm_current_func_maybe_trace();
+    driver_diagnostic_asm_current_func_store_impl(name, len);
+    driver_diagnostic_asm_current_func_maybe_trace_impl();
 }
 #endif
 
