@@ -3171,9 +3171,9 @@ ensure_bstrict_seed_support_objs() {
   PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
   if [ ! -f parser_asm_thin_glue.o ] \
   || [ "seeds/parser_asm_thin_c.from_x.c" -nt parser_asm_thin_glue.o ] \
-  || [ "src/asm/parser_asm_struct_layout_slice.inc" -nt parser_asm_thin_glue.o ] \
-  || [ "src/asm/parser_asm_block_from_res_slice.inc" -nt parser_asm_thin_glue.o ] \
-  || [ "src/asm/parser_asm_if_stmt_slice.inc" -nt parser_asm_thin_glue.o ]; then
+  || [ "seeds/parser_asm/parser_asm_struct_layout_slice.inc" -nt parser_asm_thin_glue.o ] \
+  || [ "seeds/parser_asm/parser_asm_block_from_res_slice.inc" -nt parser_asm_thin_glue.o ] \
+  || [ "seeds/parser_asm/parser_asm_if_stmt_slice.inc" -nt parser_asm_thin_glue.o ]; then
   echo " cc -c seeds/parser_asm_thin_c.from_x.c -> parser_asm_thin_glue.o"
   $CC $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm \
     -c seeds/parser_asm_thin_c.from_x.c -o parser_asm_thin_glue.o
@@ -3647,7 +3647,7 @@ GEN_DRIVER_TYPECK_COMPANIONS="typeck_x.o x_frontend_link_alias.o"
 ensure_lsp_diag_pipeline_sizes_obj() {
   if [ ! -f src/lsp/lsp_diag_pipeline_sizes.o ]; then
   echo " cc -c src/lsp/lsp_diag_pipeline_sizes.o"
-  sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_sizes.inc src/lsp/lsp_diag_pipeline_sizes.o
+  sh scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c src/lsp/lsp_diag_pipeline_sizes.o
   fi
 }
 

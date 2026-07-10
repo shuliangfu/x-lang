@@ -13,7 +13,7 @@ for f in build.x analysis/phase-c-c08-v1.md shux-build.sh \
 done
 grep -q 'build_use_asm_only' build.x || { echo "c08 build-x FAIL: build.x missing build_use_asm_only" >&2; exit 1; }
 grep -q 'build_tool' build.x || { echo "c08 build-x FAIL: build.x missing build_tool ref" >&2; exit 1; }
-[ -f compiler/src/build_runtime.inc ] || { echo "c08 build-x FAIL: missing build_runtime.inc" >&2; exit 1; }
+[ -f compiler/seeds/build_runtime.from_x.c ] || { echo "c08 build-x FAIL: missing build_runtime.inc" >&2; exit 1; }
 grep -q 'build-tool' compiler/Makefile || { echo "c08 build-x FAIL: Makefile missing build-tool target" >&2; exit 1; }
 
 # G-05：统一入口与 build_tool

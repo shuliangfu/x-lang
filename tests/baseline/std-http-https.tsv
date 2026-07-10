@@ -8,7 +8,7 @@ api_avail	api	https_is_available	std/http/mod.x	TLS 探测
 api_smoke	api	https_smoke	std/http/mod.x	C 烟测
 symbol_avail_c	symbol	http_is_https_available_c	compiler/seeds/runtime_http_glue.from_x.c	C 探测
 symbol_smoke_c	symbol	http_https_smoke_c	compiler/seeds/runtime_http_glue.from_x.c	C 烟测
-symbol_tls_bridge	file	compiler/src/asm/http/http_tls_bridge.inc	weak 桩
+symbol_tls_bridge	file	compiler/seeds/http/http_tls_bridge.inc	weak 桩
 impl_https	file	compiler/seeds/runtime_http_glue.from_x.c	parse_http_url https
 smoke_x	smoke	tests/http/https_smoke.x	桩/offline
 smoke_c	smoke	tests/http/https_smoke_ok.c	C 入口

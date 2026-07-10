@@ -10,8 +10,8 @@ api_chunked	api	has_chunked_encoding	std/http/mod.x	chunked 检测
 api_keepalive	api	has_keep_alive	std/http/mod.x	keep-alive
 api_decode	api	decode_chunked_body	std/http/mod.x	解码
 api_build	api	build_get_keep_alive	std/http/mod.x	请求构建
-symbol_decode_c	symbol	http_decode_chunked_body_c	compiler/src/asm/http/http_chunked.inc	C 解码
-symbol_keepalive_c	symbol	http_has_keep_alive_c	compiler/src/asm/http/http_chunked.inc	C 检测
+symbol_decode_c	symbol	http_decode_chunked_body_c	compiler/seeds/http/http_chunked.inc	C 解码
+symbol_keepalive_c	symbol	http_has_keep_alive_c	compiler/seeds/http/http_chunked.inc	C 检测
 include_chunked	cross_ref	http_chunked.inc	compiler/seeds/runtime_http_glue.from_x.c	include
 smoke_chunked	smoke	tests/http/chunked_keepalive.x	烟测
 bench_decode	file	tests/bench/http_chunked_decode_bench.x	可复现 bench

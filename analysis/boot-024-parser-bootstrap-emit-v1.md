@@ -60,7 +60,7 @@ shux: [SHUX_BOOT024] status=ok bootstrap_minimal_ok=1 bootstrap_full_emit=0 skip
 - 波次表：`tests/baseline/parser-bootstrap-emit-wave.tsv`
 - 父波次：`run-boot-023-mega7-full-emit-gate.sh`
 - 矩阵：`comp-parser-mega7-matrix.tsv`（C3 `emit_target`）
-- C TU：`compiler/src/asm/parser_asm_parse_bootstrap_obj.c`
+- C TU：`compiler/seeds/parser_asm/parser_asm_parse_bootstrap_obj.c`
 
 ---
 

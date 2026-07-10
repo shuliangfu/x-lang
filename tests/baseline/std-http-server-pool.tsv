@@ -10,10 +10,10 @@ api_serve	api	serve_one	std/http/mod.x	accept+respond
 api_pool_create	api	client_pool_create	std/http/mod.x	创建池
 api_pool_destroy	api	client_pool_destroy	std/http/mod.x	销毁池
 api_pool_get	api	client_pool_get	std/http/mod.x	池化 GET
-symbol_listen_c	symbol	http_listen_c	compiler/src/asm/http/http_server_pool.inc	C listen
-symbol_serve_c	symbol	http_serve_one_c	compiler/src/asm/http/http_server_pool.inc	C serve
-symbol_pool_c	symbol	http_client_pool_get_c	compiler/src/asm/http/http_server_pool.inc	C pool GET
-symbol_smoke_c	symbol	http_server_pool_smoke_c	compiler/src/asm/http/http_server_pool.inc	C 烟测
+symbol_listen_c	symbol	http_listen_c	compiler/seeds/http/http_server_pool.inc	C listen
+symbol_serve_c	symbol	http_serve_one_c	compiler/seeds/http/http_server_pool.inc	C serve
+symbol_pool_c	symbol	http_client_pool_get_c	compiler/seeds/http/http_server_pool.inc	C pool GET
+symbol_smoke_c	symbol	http_server_pool_smoke_c	compiler/seeds/http/http_server_pool.inc	C 烟测
 smoke_c	file	tests/http/server_pool_smoke_ok.c	C 入口
 smoke_x	smoke	tests/http/server_pool.x	.x 烟测
 lib	script	lib/std-http-server-pool.sh	tests/lib/std-http-server-pool.sh

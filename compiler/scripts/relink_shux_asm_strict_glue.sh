@@ -1027,7 +1027,7 @@ PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
 PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
 PARSER_ASM_THIN_C="parser_asm_thin_glue.o"
 if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "seeds/parser_asm_thin_c.from_x.c" -nt "$PARSER_ASM_THIN_C" ] \
-  || [ "src/asm/parser_asm_if_stmt_slice.inc" -nt "$PARSER_ASM_THIN_C" ]; then
+  || [ "seeds/parser_asm/parser_asm_if_stmt_slice.inc" -nt "$PARSER_ASM_THIN_C" ]; then
   strict_glue_info "cc seeds/parser_asm_thin_c.from_x.c → parser_asm_thin_glue.o (G-02f-10)"
   $CC $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm \
     -c seeds/parser_asm_thin_c.from_x.c -o "$PARSER_ASM_THIN_C"

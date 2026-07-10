@@ -5,7 +5,7 @@
  * ed25519_ref10_glue.c — F-04 v19：Ed25519 ref10 曲线运算胶层（orlp/zlib）
  *
  * 【文件职责】
- * 链入 compiler/src/asm/crypto/ed25519/ 下 fe/ge/sc/sha512/keypair/sign/verify 为同一翻译单元；
+ * 链入 compiler/seeds/crypto/ed25519/ 下 fe/ge/sc/sha512/keypair/sign/verify 为同一翻译单元；
  * 对外 C ABI（public_from_seed/sign/verify/smoke）见 ed25519.x。
  *
  * 【分层】
@@ -34,14 +34,14 @@
 #define sha512_final ed25519_ref10_sha512_final
 #define sha512_compress ed25519_ref10_sha512_compress
 
-#include "crypto/ed25519/fixedint.h"
-#include "crypto/ed25519/sha512.inc"
-#include "crypto/ed25519/fe.inc"
-#include "crypto/ed25519/ge.inc"
-#include "crypto/ed25519/sc.inc"
-#include "crypto/ed25519/keypair.inc"
-#include "crypto/ed25519/sign.inc"
-#include "crypto/ed25519/verify.inc"
+#include "seeds/crypto/ed25519/fixedint.h"
+#include "seeds/crypto/ed25519/sha512.inc"
+#include "seeds/crypto/ed25519/fe.inc"
+#include "seeds/crypto/ed25519/ge.inc"
+#include "seeds/crypto/ed25519/sc.inc"
+#include "seeds/crypto/ed25519/keypair.inc"
+#include "seeds/crypto/ed25519/sign.inc"
+#include "seeds/crypto/ed25519/verify.inc"
 
 /*
  * 兼容旧 crypto.o：mod.x 高层占用 ed25519_sign/verify 名；底层为 ed25519_ref10_*。

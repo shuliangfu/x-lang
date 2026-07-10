@@ -23,17 +23,17 @@ std_http_h2_symbols_ok() {
         case "$mod_path" in
           std/http/mod.x) mod_path="$mod_x" ;;
           compiler/seeds/runtime_http_glue.from_x.c) mod_path="$http_c" ;;
-          compiler/src/asm/http/http2.inc) mod_path="compiler/src/asm/http/http2.inc" ;;
-          compiler/src/asm/http/hpack.inc.c) mod_path="compiler/src/asm/http/hpack.inc.c" ;;
-          compiler/src/asm/http/hpack_dyn.inc.c) mod_path="compiler/src/asm/http/hpack_dyn.inc.c" ;;
-          compiler/src/asm/http/client.inc.c) mod_path="compiler/src/asm/http/client.inc.c" ;;
-          compiler/src/asm/http/network.inc.c) mod_path="compiler/src/asm/http/network.inc.c" ;;
-          compiler/src/asm/http/flow.inc.c) mod_path="compiler/src/asm/http/flow.inc.c" ;;
-          compiler/src/asm/http/flow_state.inc.c) mod_path="compiler/src/asm/http/flow_state.inc.c" ;;
-          compiler/src/asm/http/flow_recv.inc.c) mod_path="compiler/src/asm/http/flow_recv.inc.c" ;;
-          compiler/src/asm/http/push_h2c.inc.c) mod_path="compiler/src/asm/http/push_h2c.inc.c" ;;
-          compiler/src/asm/http/push_fetch.inc.c) mod_path="compiler/src/asm/http/push_fetch.inc.c" ;;
-          compiler/src/asm/http/network.inc.c) mod_path="compiler/src/asm/http/network.inc.c" ;;
+          compiler/seeds/http/http2.inc) mod_path="compiler/seeds/http/http2.inc" ;;
+          compiler/seeds/http/hpack.inc.c) mod_path="compiler/seeds/http/hpack.inc.c" ;;
+          compiler/seeds/http/hpack_dyn.inc.c) mod_path="compiler/seeds/http/hpack_dyn.inc.c" ;;
+          compiler/seeds/http/client.inc.c) mod_path="compiler/seeds/http/client.inc.c" ;;
+          compiler/seeds/http/network.inc.c) mod_path="compiler/seeds/http/network.inc.c" ;;
+          compiler/seeds/http/flow.inc.c) mod_path="compiler/seeds/http/flow.inc.c" ;;
+          compiler/seeds/http/flow_state.inc.c) mod_path="compiler/seeds/http/flow_state.inc.c" ;;
+          compiler/seeds/http/flow_recv.inc.c) mod_path="compiler/seeds/http/flow_recv.inc.c" ;;
+          compiler/seeds/http/push_h2c.inc.c) mod_path="compiler/seeds/http/push_h2c.inc.c" ;;
+          compiler/seeds/http/push_fetch.inc.c) mod_path="compiler/seeds/http/push_fetch.inc.c" ;;
+          compiler/seeds/http/network.inc.c) mod_path="compiler/seeds/http/network.inc.c" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then
           echo "std-http-h2 FAIL: missing '$anchor' in $mod_path" >&2

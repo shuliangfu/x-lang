@@ -39,8 +39,8 @@
 |------|------|
 | force_stub 判定 | `compiler/ast_pool.c` → `asm_parser_emit_heavy_force_stub` |
 | thin delegate | `k_asm_parser_thin_delegate`（padding → glue 名） |
-| if-expr C 包装 | `compiler/src/asm/parser_asm_if_expr_slice.inc` |
-| float alloc C | `compiler/src/asm/parser_asm_primary_slice.inc` |
+| if-expr C 包装 | `compiler/seeds/parser_asm/parser_asm_if_expr_slice.inc` |
+| float alloc C | `compiler/seeds/parser_asm/parser_asm_primary_slice.inc` |
 | padding glue | `parser_asm_thin_c.c` → `parser_try_skip_allow_padding_struct_*_glue` |
 
 **禁止**：批量将 force_stub 项迁入 safe_helper 白名单（已证 Segfault / elf_ec=-1）。

@@ -1,3 +1,6 @@
+/* seeds/build_runtime.from_x.c — G-02f-81 product cold-start TU
+ * Promoted from compiler/src/build_runtime.inc (build.x C backend).
+ */
 /**
  * build_runtime.inc — build.x（Zig build.zig 类比）的 C 执行后端
  *

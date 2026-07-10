@@ -1,5 +1,10 @@
+/* seeds/lsp_diag_pipeline_sizes_weak.from_x.c — G-02f-81
+ * Non-product shux-c chain: sizeof + weak fill_paths stubs.
+ * Product G05 uses seeds/lsp_diag_pipeline_sizes.from_x.c (nostub).
+ * Promoted from compiler/src/lsp/lsp_diag_pipeline_sizes.inc.
+ */
 /**
- * lsp_diag_pipeline_sizes.inc — 非产品链（含 weak fill_paths 占位）的瘦 sizeof + 弱桩。
+ * lsp_diag_pipeline_sizes_weak.from_x.c — 非产品链（含 weak fill_paths 占位）的瘦 sizeof + 弱桩。
  *
  * G-02f-1：产品 G05 的 `lsp_diag_pipeline_sizes_nostub.o` 已改由
  * `src/lsp/lsp_diag_pipeline_sizes.x`（#[no_mangle]）→ `seeds/lsp_diag_pipeline_sizes.from_x.c` 提供；

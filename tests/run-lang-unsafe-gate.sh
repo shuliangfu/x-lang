@@ -42,7 +42,7 @@ for f in \
   fi
 done
 # U4：unsafe 关键字须在 lexer 保留列表中
-if ! grep -q '"unsafe"' compiler/src/asm/parser_asm_emit_heavy_stretch_slice.inc 2>/dev/null \
+if ! grep -q '"unsafe"' compiler/seeds/parser_asm/parser_asm_emit_heavy_stretch_slice.inc 2>/dev/null \
   && ! grep -q 'unsafe' compiler/src/lexer/token.x 2>/dev/null; then
   echo "lang-unsafe gate FAIL: unsafe keyword not reserved in lexer" >&2
   exit 1

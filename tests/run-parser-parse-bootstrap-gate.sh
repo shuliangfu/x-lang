@@ -15,7 +15,7 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-BOOT_SRC="compiler/src/asm/parser_asm_parse_bootstrap_obj.inc"
+BOOT_SRC="compiler/seeds/parser_asm/parser_asm_parse_bootstrap_obj.inc"
 BOOT_O="/tmp/shux_parser_parse_bootstrap_gate.$$.o"
 rm -f "$BOOT_O" 2>/dev/null || true
 

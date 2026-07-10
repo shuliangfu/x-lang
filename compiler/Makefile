@@ -892,8 +892,8 @@ runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_
 
 # F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入（G-02e-21）
 # G-02f-21：runtime_http_glue 产品 seed（#include http2/*.inc）
-runtime_http_glue.o: seeds/runtime_http_glue.from_x.c src/asm/http/runtime_http_glue.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm/http -c seeds/runtime_http_glue.from_x.c -o $@
+runtime_http_glue.o: seeds/runtime_http_glue.from_x.c seeds/http/runtime_http_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Iseeds/http -c seeds/runtime_http_glue.from_x.c -o $@
 
 # F-ZC：mbedTLS BIO 胶层；net-o-mbedtls 时 ld -r 并入 tls_mbedtls.o（G-02e-18 .inc）
 # G-02f-21：runtime_tls_mbedtls_bio 产品 seed
@@ -1312,28 +1312,28 @@ PARSER_ASM_THIN_GLUE_CFLAGS = -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
 # G-02f-10：thin glue / parse_expr_link 产品 seed
 parser_asm_thin_glue.o: seeds/parser_asm_thin_c.from_x.c src/asm/parser_asm_thin_c.x \
- src/asm/parser_asm_type_ref_slice.inc \
- src/asm/parser_asm_struct_layout_slice.inc \
- src/asm/parser_asm_library_slice.inc \
- src/asm/parser_asm_body_let_slice.inc \
- src/asm/parser_asm_top_level_let_slice.inc \
- src/asm/parser_asm_type_alias_slice.inc \
- src/asm/parser_asm_one_function_buf_slice.inc \
- src/asm/parser_asm_block_from_res_slice.inc \
- src/asm/parser_asm_if_stmt_slice.inc \
- src/asm/parser_asm_match_subject_slice.inc \
- src/asm/parser_asm_simd_builtin_slice.inc \
- src/asm/parser_asm_if_expr_slice.inc \
- src/asm/parser_asm_finish_struct_lit_slice.inc \
- src/asm/parser_asm_as_suffix_slice.inc \
- src/asm/parser_asm_primary_slice.inc \
- src/asm/parser_asm_unary_slice.inc \
- src/asm/parser_asm_expr_binop_slice.inc \
- src/asm/parser_asm_ternary_assign_slice.inc \
- src/asm/parser_asm_emit_heavy_stretch_slice.inc \
- src/asm/parser_asm_emit_heavy_stretch_suite_slice.inc \
- src/asm/parser_asm_seed_parse_into_buf_slice.inc
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -c seeds/parser_asm_thin_c.from_x.c -o $@
+ seeds/parser_asm/parser_asm_type_ref_slice.inc \
+ seeds/parser_asm/parser_asm_struct_layout_slice.inc \
+ seeds/parser_asm/parser_asm_library_slice.inc \
+ seeds/parser_asm/parser_asm_body_let_slice.inc \
+ seeds/parser_asm/parser_asm_top_level_let_slice.inc \
+ seeds/parser_asm/parser_asm_type_alias_slice.inc \
+ seeds/parser_asm/parser_asm_one_function_buf_slice.inc \
+ seeds/parser_asm/parser_asm_block_from_res_slice.inc \
+ seeds/parser_asm/parser_asm_if_stmt_slice.inc \
+ seeds/parser_asm/parser_asm_match_subject_slice.inc \
+ seeds/parser_asm/parser_asm_simd_builtin_slice.inc \
+ seeds/parser_asm/parser_asm_if_expr_slice.inc \
+ seeds/parser_asm/parser_asm_finish_struct_lit_slice.inc \
+ seeds/parser_asm/parser_asm_as_suffix_slice.inc \
+ seeds/parser_asm/parser_asm_primary_slice.inc \
+ seeds/parser_asm/parser_asm_unary_slice.inc \
+ seeds/parser_asm/parser_asm_expr_binop_slice.inc \
+ seeds/parser_asm/parser_asm_ternary_assign_slice.inc \
+ seeds/parser_asm/parser_asm_emit_heavy_stretch_slice.inc \
+ seeds/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc \
+ seeds/parser_asm/parser_asm_seed_parse_into_buf_slice.inc
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm -c seeds/parser_asm_thin_c.from_x.c -o $@
 
 src/asm/parser_asm_parse_expr_link.o: seeds/parser_asm_parse_expr_link.from_x.c src/asm/parser_asm_parse_expr_link.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(PARSER_ASM_LINK_ALIAS_CFLAGS) -I. -Iinclude -Isrc -c seeds/parser_asm_parse_expr_link.from_x.c -o $@
@@ -1619,8 +1619,8 @@ bootstrap-driver-seed-x-frontend: $(SHUX_C) migrate-x-objs driver_x.o preprocess
 # LSP 诊断：G-02a lsp_diag.c 已删；仅 lsp_diag_x.o + stubs。
 
 # 非产品 / shux-c 弱占位链：仍用手写 .inc（含 weak fill_paths 等）
-src/lsp/lsp_diag_pipeline_sizes.o: src/lsp/lsp_diag_pipeline_sizes.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_sizes.inc $@ -I. -Iinclude -Isrc
+src/lsp/lsp_diag_pipeline_sizes.o: seeds/lsp_diag_pipeline_sizes_weak.from_x.c scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c $@ -I. -Iinclude -Isrc
 
 # G-02f-1：产品 G05 nostub 真迁 .x（#[no_mangle] 三枚 sizeof）
 # 源：src/lsp/lsp_diag_pipeline_sizes.x

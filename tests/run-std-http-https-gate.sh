@@ -21,7 +21,7 @@ MIN_APIS=2
 
 echo "=== STD-HTTP-HTTPS: manifest ==="
 for f in "$DOC" "$MANIFEST" "$LIB" "$MOD_X" "$HTTP_C" "$SMOKE_X" "$SMOKE_C" \
-  compiler/src/asm/http/http_tls_bridge.inc std/http/README.md; do
+  compiler/seeds/http/http_tls_bridge.inc std/http/README.md; do
   [ -f "$f" ] || { echo "std-http-https gate FAIL: missing $f" >&2; exit 1; }
 done
 
