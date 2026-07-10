@@ -1,4 +1,5 @@
 /* seeds/runtime_lsp_glue.from_x.c — G-02f-15 product TU
+ * G-02f-133 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-122 true .x pure helpers.
  * G-02f-118 true .x pure helpers.
@@ -743,14 +744,10 @@ int expr_at(const struct ASTExpr *e, int line_1, int col_1) {
 
 
 /** 函数名是否覆盖光标（支持点击长标识符中间字符）。 */
-int func_name_covers_impl(const struct ASTFunc *f, int line_1, int col_1) {
-    return f && f->name && col_in_ident_span(line_1, col_1, f->line, f->col, f->name);
-}
+/* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int func_name_covers(const struct ASTFunc *f, int line_1, int col_1) {
-  {
-    return func_name_covers_impl(f, line_1, col_1);
-  }
-  return 0;
+    return f && f->name && col_in_ident_span(line_1, col_1, f->line, f->col, f->name);
+
 }
 
 

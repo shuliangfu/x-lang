@@ -1,4 +1,5 @@
 /* seeds/backend_seed_mega_fallback.from_x.c — G-02f-80 product cold-start TU
+ * G-02f-133 true .x pure helpers.
  * G-02f-104 helper gates.
  * Promoted from compiler/src/asm/backend_seed_mega_fallback.inc (stub/bridge; retired .inc).
  * Compile: cc -c / cc_inc_tu seeds/backend_seed_mega_fallback.from_x.c
@@ -90,14 +91,10 @@ void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, struct as
 }
 
 
-int32_t pipeline_dep_ctx_target_arch_local_impl(struct ast_PipelineDepCtx *ctx) {
-  return ctx ? ctx->target_arch : 0;
-}
+/* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_dep_ctx_target_arch_local(struct ast_PipelineDepCtx *ctx) {
-  {
-    return pipeline_dep_ctx_target_arch_local_impl(ctx);
-  }
-  return 0;
+  return ctx ? ctx->target_arch : 0;
+
 }
 
 

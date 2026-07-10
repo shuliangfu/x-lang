@@ -7,8 +7,9 @@
 // G-02f-106：+ expr/index/array/cpu/lanes pure glue 薄门闩。
 // G-02f-107：+ parse/peel/slot glue 薄门闩。
 
-extern "C" function glue_simd_loop_cpu_features_c_impl(): u32;
 extern "C" function glue_simd_loop_pick_lanes_c_impl(feats: u32, binop_ko: i32, lanes_out: *i32): i32;
+extern "C" function driver_get_pending_target_cpu_features(): u32;
+extern "C" function shu_target_cpu_detect_host(): u32;
 extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 extern "C" function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
 extern "C" function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
@@ -82,8 +83,14 @@ function glue_var_array_i32_size_c(arena: *u8, var_ref: i32): i32 {
 
 
 #[no_mangle]
+// G-02f-133：pending features，否则 host detect
+#[no_mangle]
 function glue_simd_loop_cpu_features_c(): u32 {
-  unsafe { return glue_simd_loop_cpu_features_c_impl(); }
+  unsafe {
+    let feats: u32 = driver_get_pending_target_cpu_features();
+    if (feats != 0) { return feats; }
+    return shu_target_cpu_detect_host();
+  }
   return 0;
 }
 

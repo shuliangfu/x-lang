@@ -1,4 +1,5 @@
 /* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-133 true .x pure helpers.
  * G-02f-125 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-122 true .x pure helpers.
@@ -924,7 +925,8 @@ int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, in
 
 
 /** 将 module 第 imp_ix 槽 import 逻辑路径转成 C ABI 前缀；成功返回前缀字节长度。 */
-int32_t glue_asm_fill_c_prefix_from_module_import_impl(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf) {
+/* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf) {
   uint8_t path_bytes[64];
   int32_t pre_len;
   parser_get_module_import_path(cur_mod, imp_ix, path_bytes);
@@ -935,12 +937,7 @@ int32_t glue_asm_fill_c_prefix_from_module_import_impl(struct ast_Module *cur_mo
   while (pre_len < 128 && pre_buf[pre_len] != 0)
     pre_len++;
   return pre_len > 0 ? pre_len : -1;
-}
-int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf) {
-  {
-    return glue_asm_fill_c_prefix_from_module_import_impl(cur_mod, imp_ix, pre_buf);
-  }
-  return 0;
+
 }
 
 

@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-133 true .x pure helpers.
  * G-02f-132 true .x pure helpers.
  * G-02f-131 true .x pure helpers.
  * G-02f-129 true .x pure helpers.
@@ -1417,7 +1418,8 @@ int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform
 }
 
 /** ARRAY_LIT 第 lane 个元素是否为整型常量；成功写 *out。 */
-int32_t glue_try_array_lit_lane_const_i32_impl(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane,
+/* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane,
                                                  int32_t *out) {
   int32_t elem_ref;
   if (!arena || arr_ref <= 0 || !out || lane < 0)
@@ -1428,13 +1430,7 @@ int32_t glue_try_array_lit_lane_const_i32_impl(struct ast_ASTArena *arena, int32
     return 0;
   elem_ref = pipeline_expr_array_lit_elem_ref(arena, arr_ref, lane);
   return glue_try_expr_const_i32(arena, elem_ref, out);
-}
-int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane,
-                                                 int32_t *out) {
-  {
-    return glue_try_array_lit_lane_const_i32_impl(arena, arr_ref, lane, out);
-  }
-  return 0;
+
 }
 
 
@@ -1902,7 +1898,8 @@ int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t 
 /**
  * const struct lit 单字段是否可内联到 let 栈槽（仅校验，不发射指令）。
  */
-int32_t glue_const_struct_lit_field_can_inline_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                       int32_t func_idx, int32_t lit_ref, int32_t fj) {
   int32_t init_ref;
   int32_t ko;
@@ -1916,13 +1913,7 @@ int32_t glue_const_struct_lit_field_can_inline_impl(struct ast_ASTArena *arena, 
   if (ko == GLUE_EXPR_CALL)
     return glue_call_is_zero_arg_default_alloc(arena, init_ref);
   return (ko == 0 || ko == 1 || ko == 2) ? 1 : 0;
-}
-int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                      int32_t func_idx, int32_t lit_ref, int32_t fj) {
-  {
-    return glue_const_struct_lit_field_can_inline_impl(arena, mod, func_idx, lit_ref, fj);
-  }
-  return 0;
+
 }
 
 

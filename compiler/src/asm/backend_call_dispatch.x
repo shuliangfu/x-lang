@@ -42,21 +42,36 @@ function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, cap: i32
 
 extern "C" function glue_module_func_overload_count_c_impl(m: *u8, name: *u8, nlen: i32): i32;
 extern "C" function glue_asm_import_segment_at_impl(mod: *u8, ix: i32, want: i32, ostr: *i32, olen: *i32): i32;
-extern "C" function glue_asm_fill_c_prefix_from_module_import_impl(mod: *u8, ix: i32, pre: *u8): i32;
+extern "C" function parser_get_module_import_path(mod: *u8, ix: i32, path_bytes: *u8): void;
+extern "C" function glue_codegen_import_path_to_c_prefix_into(path: *u8, pre: *u8, cap: i32): void;
 
-/* ---- G-02f-109：call_dispatch more helpers 门闩 ---- */
+/* ---- G-02f-109 / G-02f-133：call_dispatch more helpers ---- */
 
 #[no_mangle]
 function glue_module_func_overload_count_c(m: *u8, name: *u8, nlen: i32): i32 { unsafe { return glue_module_func_overload_count_c_impl(m, name, nlen); } return 0; }
 
-
-
-
-
 #[no_mangle]
 function glue_asm_import_segment_at(mod: *u8, ix: i32, want: i32, ostr: *i32, olen: *i32): i32 { unsafe { return glue_asm_import_segment_at_impl(mod, ix, want, ostr, olen); } return 0; }
+
+// G-02f-133：import path → C 前缀
 #[no_mangle]
-function glue_asm_fill_c_prefix_from_module_import(mod: *u8, ix: i32, pre: *u8): i32 { unsafe { return glue_asm_fill_c_prefix_from_module_import_impl(mod, ix, pre); } return 0; }
+function glue_asm_fill_c_prefix_from_module_import(mod: *u8, ix: i32, pre: *u8): i32 {
+  if (mod == 0) { return 0 - 1; }
+  if (pre == 0) { return 0 - 1; }
+  let path_bytes: u8[64] = [];
+  unsafe {
+    parser_get_module_import_path(mod, ix, &path_bytes[0]);
+    if (path_bytes[0] == 0) { return 0 - 1; }
+    glue_codegen_import_path_to_c_prefix_into(&path_bytes[0], pre, 128);
+  }
+  let pre_len: i32 = 0;
+  while (pre_len < 128) {
+    if (pre[pre_len] == 0) { break; }
+    pre_len = pre_len + 1;
+  }
+  if (pre_len > 0) { return pre_len; }
+  return 0 - 1;
+}
 
 
 

@@ -1,4 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
+ * G-02f-133 true .x pure helpers.
  * G-02f-130 true .x pure helpers.
  * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
@@ -366,18 +367,13 @@ int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backe
 
 
 /** 读取 SIMD-S1 已解析的 target CPU feature 掩码。 */
-uint32_t glue_simd_loop_cpu_features_c_impl(void) {
+/* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+uint32_t glue_simd_loop_cpu_features_c(void) {
     uint32_t feats;
     feats = driver_get_pending_target_cpu_features();
     if (feats != 0)
         return feats;
     return shu_target_cpu_detect_host();
-}
-uint32_t glue_simd_loop_cpu_features_c(void) {
-  {
-    return glue_simd_loop_cpu_features_c_impl();
-  }
-  return 0;
 }
 
 

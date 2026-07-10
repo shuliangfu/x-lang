@@ -19,7 +19,6 @@ extern "C" function lsp_init_lib_roots_once_impl(): void;
 extern "C" function lsp_diag_copy_text_impl(dst: *u8, cap: i32, src: *u8): void;
 extern "C" function lsp_diag_x_ctx_alloc_size_impl(): i64;
 extern "C" function json_escape_str_impl(msg: *u8, out: *u8, cap: i32): i32;
-extern "C" function func_name_covers_impl(f: *u8, line: i32, col: i32): i32;
 extern "C" function build_line_index_impl(mod: *u8): void;
 extern "C" function line_index_of_func_impl(f: *u8): i32;
 
@@ -43,8 +42,7 @@ function lsp_diag_x_ctx_alloc_size(): i64 { unsafe { return lsp_diag_x_ctx_alloc
 function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 { unsafe { return json_escape_str_impl(msg, out, cap); } return 0; }
 
 
-#[no_mangle]
-function func_name_covers(f: *u8, line: i32, col: i32): i32 { unsafe { return func_name_covers_impl(f, line, col); } return 0; }
+// G-02f-133：func_name_covers 见文件尾（依赖 col_in_ident_span）
 #[no_mangle]
 function build_line_index(mod: *u8): void { unsafe { build_line_index_impl(mod); } }
 #[no_mangle]
@@ -243,6 +241,42 @@ function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *u8): i3
   if (col < sc) { return 0; }
   if (col >= sc + len) { return 0; }
   return 1;
+}
+
+// G-02f-133：ASTFunc line@0 col@4 name@+8
+function lsp_load_i32_at(p: *u8, off: i32): i32 {
+  let m: i32 = 256;
+  let a: i32 = p[off] as i32;
+  a = a + (p[off + 1] as i32) * m;
+  a = a + (p[off + 2] as i32) * (m * m);
+  a = a + (p[off + 3] as i32) * (m * m * m);
+  return a;
+}
+
+function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
+  if (p == 0) { return 0 as *u8; }
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  let a: usize = p[off] as usize;
+  a = a + (p[off + 1] as usize) * m;
+  a = a + (p[off + 2] as usize) * m2;
+  a = a + (p[off + 3] as usize) * (m2 * m);
+  a = a + (p[off + 4] as usize) * m4;
+  a = a + (p[off + 5] as usize) * (m4 * m);
+  a = a + (p[off + 6] as usize) * (m4 * m2);
+  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
+  return a as *u8;
+}
+
+#[no_mangle]
+function func_name_covers(f: *u8, line: i32, col: i32): i32 {
+  if (f == 0) { return 0; }
+  let name: *u8 = lsp_load_ptr_at(f, 8);
+  if (name == 0) { return 0; }
+  let sl: i32 = lsp_load_i32_at(f, 0);
+  let sc: i32 = lsp_load_i32_at(f, 4);
+  return col_in_ident_span(line, col, sl, sc, name);
 }
 
 #[no_mangle]
