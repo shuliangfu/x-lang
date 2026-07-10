@@ -1,4 +1,4 @@
-/* Generated from src/diag.x (G-02f-30 true .x + C tail; G-02f-74 diag gates).
+/* Generated from src/diag.x (G-02f-82 +) (G-02f-30 true .x + C tail; G-02f-74/82 diag gates).
  * Regen: ./shux-c -E -L .. src/diag.x > /tmp/diag.c
  *         merge diag_report from .x; keep code table / va_list / JSON C tail.
  * .x covers: diag_report → diag_report_with_code(NULL code).
@@ -348,18 +348,32 @@ const char *diag_get_file(void) {
     return g_diag_ctx.file_path;
 }
 
-const char *diag_get_source(void) {
+const char *diag_get_source_impl(void) {
     return g_diag_ctx.source;
 }
 
-size_t diag_get_source_len(void) {
+const char *diag_get_source(void) {
+  {
+    return diag_get_source_impl();
+  }
+  return ((void *)0);
+}
+
+size_t diag_get_source_len_impl(void) {
     return g_diag_ctx.source_len;
+}
+
+size_t diag_get_source_len(void) {
+  {
+    return diag_get_source_len_impl();
+  }
+  return 0;
 }
 
 static void diag_report_json(const char *file, int line, int col,
                              const char *kind, const char *code, const char *msg);
 
-void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail) {
+void diag_report_with_code_impl(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail) {
     const char *actual_file = file ? file : g_diag_ctx.file_path;
     if (diag_json_enabled()) {
         diag_report_json(actual_file, line, col, kind, code, msg);
@@ -415,9 +429,17 @@ void diag_report_with_code(const char *file, int line, int col, const char *kind
     fputc('\n', stderr);
     fflush(stderr);
 }
+void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail) {
+  {
+    diag_report_with_code_impl(file, line, col, kind, code, msg, detail);
+  }
+}
+
 
 void diag_report(const char *file, int line, int col, const char *kind, const char *msg, const char *detail) {
-  diag_report_with_code(file, line, col, kind, NULL, msg, detail);
+  {
+    diag_report_with_code_impl(file, line, col, kind, NULL, msg, detail);
+  }
 }
 
 void diag_vreportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, va_list ap) {
@@ -426,7 +448,7 @@ void diag_vreportf_with_code(const char *file, int line, int col, const char *ki
     if (!fmt)
         fmt = "";
     (void)vsnprintf(buf, sizeof(buf), fmt, ap);
-    diag_report_with_code(file, line, col, kind, code, buf, detail ? detail : buf);
+    diag_report_with_code_impl(file, line, col, kind, code, buf, detail ? detail : buf);
 }
 
 void diag_vreportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt, va_list ap) {

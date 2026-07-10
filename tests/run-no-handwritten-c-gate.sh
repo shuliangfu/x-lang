@@ -90,6 +90,9 @@ if [ -f tests/run-f-path-v1-gate.sh ]; then
   fi
 fi
 
+echo "=== F-09 / G-02f: delegate run-g02f-src-no-inc-gate (src .inc=0) ==="
+./tests/run-g02f-src-no-inc-gate.sh
+
 if [ -f tests/run-f-uuid-v1-gate.sh ]; then
   echo "=== F-09 v1: delegate run-f-uuid-v1-gate (manifest track) ==="
   chmod +x tests/run-f-uuid-v1-gate.sh
