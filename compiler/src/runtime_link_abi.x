@@ -1,9 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..44/47/53/55/56/64..66：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
+// G-02f-34..44/47/53/55/56/64..67：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
 // C 尾：invoke_cc/ld 主体、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
+// G-02f-67：+ shux_ensure_* 族门闩（argv0 单参标准模板）。
 // G-02f-66：+ invoke_ld_for_exe / mach+unix tail libs 门闩。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
@@ -25,6 +26,36 @@ extern "C" function shux_asm_ld_effective_link_argv0_impl(link_argv0: *u8, syn_b
 extern "C" function shux_invoke_ld_for_exe_impl(o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32, link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32): i32;
 extern "C" function shux_asm_ld_append_mach_tail_libs_impl(compress_o: *u8, user_o: *u8, flags: *u8, argv: *u8, la: *i32, max_la: i32, append_lsystem: i32): void;
 extern "C" function shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o: *u8, user_o: *u8, flags: *u8, need_pt: i32, argv: *u8, la: *i32, max_la: i32): void;
+extern "C" function shux_ensure_runtime_arrow_simd_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_asm_io_stubs_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_atomic_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_backtrace_platform_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_channel_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_compress_zlib_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_crypto_inc_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_dynlib_os_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_ed25519_ref10_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_env_os_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_heap_user_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_http_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_kv_mmap_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_log_os_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_math_libm_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_net_udp_batch_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_net_workers_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_panic_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_process_argv_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_process_os_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_queue_contention_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_random_fill_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_scheduler_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_sqlite_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_sync_lock_diag_tls_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_sync_os_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_test_fn_invoke_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_thread_glue_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_time_os_o_impl(argv0: *u8): i32;
+extern "C" function shux_ensure_runtime_tls_mbedtls_bio_o_impl(argv0: *u8): i32;
 
 #[no_mangle]
 function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
@@ -1462,4 +1493,266 @@ function shux_asm_ld_append_unix_gcc_tail_libs(compress_o: *u8, user_o: *u8, fla
     }
     shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o, user_o, flags, need_pt, argv, la, max_la);
   }
+}
+
+extern "C" function shux_ensure_crt0_user_o_impl(argv0: *u8, driver_freestanding: i32): i32;
+
+extern "C" function shux_ensure_freestanding_io_o_impl(argv0: *u8, driver_freestanding: i32): i32;
+
+/* ---- G-02f-67：ensure_* 标准模板门闩（argv0） ---- */
+
+#[no_mangle]
+function shux_ensure_runtime_arrow_simd_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_arrow_simd_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_asm_io_stubs_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_asm_io_stubs_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_atomic_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_atomic_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_backtrace_platform_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_backtrace_platform_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_channel_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_channel_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_compress_zlib_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_compress_zlib_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_crypto_inc_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_crypto_inc_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_dynlib_os_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_dynlib_os_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_ed25519_ref10_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_ed25519_ref10_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_env_os_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_env_os_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_heap_user_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_heap_user_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_http_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_http_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_kv_mmap_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_kv_mmap_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_log_os_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_log_os_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_math_libm_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_math_libm_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_net_udp_batch_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_net_udp_batch_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_net_workers_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_net_workers_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_panic_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_panic_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_process_argv_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_process_argv_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_process_os_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_process_os_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_queue_contention_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_queue_contention_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_random_fill_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_random_fill_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_scheduler_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_scheduler_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_sqlite_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_sqlite_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_sync_lock_diag_tls_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_sync_os_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_sync_os_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_test_fn_invoke_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_test_fn_invoke_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_thread_glue_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_time_os_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_time_os_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_runtime_tls_mbedtls_bio_o(argv0: *u8): i32 {
+  unsafe {
+    return shux_ensure_runtime_tls_mbedtls_bio_o_impl(argv0);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i32 {
+  unsafe {
+    return shux_ensure_crt0_user_o_impl(argv0, driver_freestanding);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i32): i32 {
+  unsafe {
+    return shux_ensure_freestanding_io_o_impl(argv0, driver_freestanding);
+  }
+  return 0 - 1;
 }

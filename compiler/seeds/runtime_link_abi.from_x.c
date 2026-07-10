@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..66 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..67 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
- *         merge invoke_ld_for_exe + mach/unix tail libs gates.
- * .x covers: + shux_invoke_ld_for_exe, append_mach/unix_gcc_tail_libs.
+ *         merge ensure_* (argv0) gates + invoke_ld/tail libs.
+ * .x covers: + shux_ensure_* argv0 family, invoke_ld_for_exe, tail libs.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -25,6 +25,39 @@ void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *
     const char **argv, int *la, int max_la, int append_lsystem);
 void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la);
+/* G-02f-67 ensure impls */
+int shux_ensure_freestanding_io_o_impl(const char *argv0, int driver_freestanding);
+int shux_ensure_crt0_user_o_impl(const char *argv0, int driver_freestanding);
+int shux_ensure_runtime_arrow_simd_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_asm_io_stubs_o_impl(const char *argv0);
+int shux_ensure_runtime_atomic_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_backtrace_platform_o_impl(const char *argv0);
+int shux_ensure_runtime_channel_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_compress_zlib_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_crypto_inc_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_dynlib_os_o_impl(const char *argv0);
+int shux_ensure_runtime_ed25519_ref10_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_env_os_o_impl(const char *argv0);
+int shux_ensure_runtime_heap_user_o_impl(const char *argv0);
+int shux_ensure_runtime_http_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_kv_mmap_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_log_os_o_impl(const char *argv0);
+int shux_ensure_runtime_math_libm_o_impl(const char *argv0);
+int shux_ensure_runtime_net_udp_batch_o_impl(const char *argv0);
+int shux_ensure_runtime_net_workers_o_impl(const char *argv0);
+int shux_ensure_runtime_panic_o_impl(const char *argv0);
+int shux_ensure_runtime_process_argv_o_impl(const char *argv0);
+int shux_ensure_runtime_process_os_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_queue_contention_o_impl(const char *argv0);
+int shux_ensure_runtime_random_fill_o_impl(const char *argv0);
+int shux_ensure_runtime_scheduler_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_sqlite_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_sync_lock_diag_tls_o_impl(const char *argv0);
+int shux_ensure_runtime_sync_os_o_impl(const char *argv0);
+int shux_ensure_runtime_test_fn_invoke_o_impl(const char *argv0);
+int shux_ensure_runtime_thread_glue_o_impl(const char *argv0);
+int shux_ensure_runtime_time_os_o_impl(const char *argv0);
+int shux_ensure_runtime_tls_mbedtls_bio_o_impl(const char *argv0);
 const char *shux_empty_cstr(void) {
     static char buf[1];
     buf[0] = '\0';
@@ -1414,7 +1447,7 @@ const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_panic_o(const char *argv0) {
+int shux_ensure_runtime_panic_o_impl(const char *argv0) {
     if (asm_link_obj_skip_missing(shux_runtime_panic_o_path(argv0)))
         return 0;
     char comp[PATH_MAX];
@@ -1466,6 +1499,14 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
     }
     return 0;
 }
+
+int shux_ensure_runtime_panic_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_panic_o_impl(argv0);
+  }
+  return -1;
+}
+
 
 /**
  * SHUX_FREESTANDING=1 或 driver -freestanding：Linux x86_64 上用户程序 -nostdlib 静态链（S4）。
@@ -1521,7 +1562,7 @@ int shux_link_freestanding_enabled(int driver_freestanding) {
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
+int shux_ensure_runtime_asm_io_stubs_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -1556,13 +1597,21 @@ int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_asm_io_stubs_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_process_argv.o 尚不存在则用 cc -c 从 src/asm/runtime_process_argv.inc 生成到 shux 同目录，
  * 以便链 process.o 时提供 shux_process_argc/argv 与 process_shux_argc_get。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_process_argv_o(const char *argv0) {
+int shux_ensure_runtime_process_argv_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -1596,7 +1645,15 @@ int shux_ensure_runtime_process_argv_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
+int shux_ensure_runtime_process_argv_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_process_argv_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_process_os_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -1630,13 +1687,21 @@ int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_process_os_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_test_fn_invoke.o 尚不存在则生成到 shux 同目录。
  * G-02e-16：源为 src/asm/runtime_test_fn_invoke.inc；写临时 wrap.c 再 cc -c。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
+int shux_ensure_runtime_test_fn_invoke_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char inc_path[PATH_MAX];
@@ -1683,12 +1748,20 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_test_fn_invoke_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_random_fill.o 尚不存在则用 cc -c 从 src/asm/runtime_random_fill.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_random_fill_o(const char *argv0) {
+int shux_ensure_runtime_random_fill_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -1722,11 +1795,19 @@ int shux_ensure_runtime_random_fill_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_random_fill_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_random_fill_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_compress_zlib_glue.o 尚不存在则用 cc -c 从 src/asm/runtime_compress_zlib_glue.inc 生成。
  * 提供 deflateInit2/inflateInit2 真实函数符号（zlib.h 中为宏，无函数符号）。
  */
-int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
+int shux_ensure_runtime_compress_zlib_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -1760,12 +1841,20 @@ int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_compress_zlib_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_heap_user.o 尚不存在则生成到 shux 同目录。
  * G-02e-14：源为 src/runtime_heap_user.inc（无手写 .c）；写临时 wrap.c 再 cc -c。
  * co-emit std.heap allocator_* redirect 的 heap_alloc_c / heap_arena64_alloc_c 等符号。
  */
-int shux_ensure_runtime_heap_user_o(const char *argv0) {
+int shux_ensure_runtime_heap_user_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char inc_path[PATH_MAX];
@@ -1813,12 +1902,20 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_heap_user_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_heap_user_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_time_os.o 尚不存在则用 cc -c 从 src/asm/runtime_time_os.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_time_os_o(const char *argv0) {
+int shux_ensure_runtime_time_os_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -1852,12 +1949,20 @@ int shux_ensure_runtime_time_os_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_time_os_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_time_os_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_queue_contention.o 尚不存在则用 cc -c 从 src/asm/runtime_queue_contention.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_queue_contention_o(const char *argv0) {
+int shux_ensure_runtime_queue_contention_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -1891,12 +1996,20 @@ int shux_ensure_runtime_queue_contention_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_queue_contention_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_queue_contention_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_dynlib_os.o 尚不存在则用 cc -c 从 src/asm/runtime_dynlib_os.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
+int shux_ensure_runtime_dynlib_os_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -1930,12 +2043,20 @@ int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_dynlib_os_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_env_os.o 尚不存在则用 cc -c 从 src/asm/runtime_env_os.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_env_os_o(const char *argv0) {
+int shux_ensure_runtime_env_os_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -1969,12 +2090,20 @@ int shux_ensure_runtime_env_os_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_env_os_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_env_os_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_backtrace_platform.o 尚不存在则用 cc -c 从 src/asm/runtime_backtrace_platform.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
+int shux_ensure_runtime_backtrace_platform_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2008,12 +2137,20 @@ int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_backtrace_platform_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_log_os.o 尚不存在则用 cc -c 从 src/asm/runtime_log_os.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_log_os_o(const char *argv0) {
+int shux_ensure_runtime_log_os_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2047,12 +2184,20 @@ int shux_ensure_runtime_log_os_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_log_os_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_log_os_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_math_libm.o 尚不存在则用 cc -c 从 src/asm/runtime_math_libm.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_math_libm_o(const char *argv0) {
+int shux_ensure_runtime_math_libm_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2086,12 +2231,20 @@ int shux_ensure_runtime_math_libm_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_math_libm_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_math_libm_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_atomic_glue.o 尚不存在则用 cc -c 从 src/asm/runtime_atomic_glue.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
+int shux_ensure_runtime_atomic_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2125,12 +2278,20 @@ int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_atomic_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_channel_glue.o 尚不存在则用 cc -c 从 src/asm/runtime_channel_glue.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_channel_glue_o(const char *argv0) {
+int shux_ensure_runtime_channel_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2164,12 +2325,20 @@ int shux_ensure_runtime_channel_glue_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_channel_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_channel_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_net_udp_batch.o 尚不存在则用 cc -c 从 src/asm/runtime_net_udp_batch.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
+int shux_ensure_runtime_net_udp_batch_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2203,12 +2372,20 @@ int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_net_udp_batch_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 runtime_net_workers.o 尚不存在则用 cc -c 从 src/asm/runtime_net_workers.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
-int shux_ensure_runtime_net_workers_o(const char *argv0) {
+int shux_ensure_runtime_net_workers_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2242,7 +2419,15 @@ int shux_ensure_runtime_net_workers_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_sync_os_o(const char *argv0) {
+int shux_ensure_runtime_net_workers_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_net_workers_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_sync_os_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2276,7 +2461,15 @@ int shux_ensure_runtime_sync_os_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
+int shux_ensure_runtime_sync_os_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_sync_os_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_sync_lock_diag_tls_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2310,7 +2503,15 @@ int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_thread_glue_o(const char *argv0) {
+int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_sync_lock_diag_tls_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_thread_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2344,7 +2545,15 @@ int shux_ensure_runtime_thread_glue_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
+int shux_ensure_runtime_thread_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_thread_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_scheduler_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2378,7 +2587,15 @@ int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_http_glue_o(const char *argv0) {
+int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_scheduler_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_http_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2412,7 +2629,15 @@ int shux_ensure_runtime_http_glue_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
+int shux_ensure_runtime_http_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_http_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_tls_mbedtls_bio_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2448,7 +2673,15 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
+int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_tls_mbedtls_bio_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_kv_mmap_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2482,7 +2715,15 @@ int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
+int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_kv_mmap_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_arrow_simd_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2516,7 +2757,15 @@ int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
+int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_arrow_simd_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_sqlite_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2551,7 +2800,15 @@ int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
+int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_sqlite_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_crypto_inc_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2585,7 +2842,15 @@ int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
     return 0;
 }
 
-int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
+int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_crypto_inc_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
+int shux_ensure_runtime_ed25519_ref10_glue_o_impl(const char *argv0) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
@@ -2619,12 +2884,20 @@ int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
     return 0;
 }
 
+int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
+  {
+    return shux_ensure_runtime_ed25519_ref10_glue_o_impl(argv0);
+  }
+  return -1;
+}
+
+
 /**
  * 若 crt0_user.o 尚不存在则从 crt0_user_x86_64.s 编译到 shux 同目录（仅 SHUX_FREESTANDING 路径需要）。
  * 参数：argv0；driver_freestanding 同 shux_link_freestanding_enabled。
  * 返回值：0 成功；未启用 freestanding 时 no-op 返回 0。
  */
-int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding) {
+int shux_ensure_crt0_user_o_impl(const char *argv0, int driver_freestanding) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_s[PATH_MAX];
@@ -2657,12 +2930,20 @@ int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding) {
     return 0;
 }
 
+int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding) {
+  {
+    return shux_ensure_crt0_user_o_impl(argv0, driver_freestanding);
+  }
+  return -1;
+}
+
+
 /**
  * 若 freestanding_io.o 尚不存在则从 freestanding_io_x86_64.s 编译（SHUX_FREESTANDING 链入 shux_sys_write）。
  * 参数：argv0；driver_freestanding 同 shux_link_freestanding_enabled。
  * 返回值：0 成功；未启用 freestanding 时 no-op 返回 0。
  */
-int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
+int shux_ensure_freestanding_io_o_impl(const char *argv0, int driver_freestanding) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_s[PATH_MAX];
@@ -2694,6 +2975,14 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
     }
     return 0;
 }
+
+int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
+  {
+    return shux_ensure_freestanding_io_o_impl(argv0, driver_freestanding);
+  }
+  return -1;
+}
+
 
 /**
  * CI/Docker/musl 上 -march=native/-flto 可能导致 cc 异常退出（exit -1）。
