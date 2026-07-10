@@ -1,4 +1,4 @@
-/* Generated from src/diag.x (G-02f-30 true .x + C tail).
+/* Generated from src/diag.x (G-02f-30 true .x + C tail; G-02f-74 diag gates).
  * Regen: ./shux-c -E -L .. src/diag.x > /tmp/diag.c
  *         merge diag_report from .x; keep code table / va_list / JSON C tail.
  * .x covers: diag_report → diag_report_with_code(NULL code).
@@ -13,6 +13,17 @@
 #if !defined(_WIN32)
 #ifndef _WIN32
 #include <unistd.h>
+
+/* G-02f-74 diag gates */
+void diag_set_file_impl(const char *path, const char *source, size_t source_len);
+void diag_push_file_impl(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len);
+void diag_restore_impl(const DiagContextSnapshot *snapshot);
+int diag_code_is_known_impl(const char *code);
+void diag_print_known_codes_impl(FILE *out);
+void diag_print_code_explain_impl(FILE *out, const char *code);
+void diag_print_code_table_impl(FILE *out);
+void diag_set_json_mode_impl(int enable);
+int diag_json_enabled_impl(void);
 #endif
 #endif
 
@@ -283,14 +294,21 @@ static int diag_extract_line(int line_no, const char **line_start_out, size_t *l
     return 0;
 }
 
-void diag_set_file(const char *path, const char *source, size_t source_len) {
+void diag_set_file_impl(const char *path, const char *source, size_t source_len) {
     g_diag_ctx.file_path = path;
     g_diag_ctx.source = source;
     g_diag_ctx.source_len = source_len;
     g_diag_ctx.use_color = diag_should_color();
 }
 
-void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len) {
+void diag_set_file(const char *path, const char *source, size_t source_len) {
+  {
+    diag_set_file_impl(path, source, source_len);
+  }
+}
+
+
+void diag_push_file_impl(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len) {
     if (snapshot) {
         snapshot->file_path = g_diag_ctx.file_path;
         snapshot->source = g_diag_ctx.source;
@@ -303,7 +321,14 @@ void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char 
     g_diag_ctx.use_color = diag_should_color();
 }
 
-void diag_restore(const DiagContextSnapshot *snapshot) {
+void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len) {
+  {
+    diag_push_file_impl(snapshot, path, source, source_len);
+  }
+}
+
+
+void diag_restore_impl(const DiagContextSnapshot *snapshot) {
     if (!snapshot)
         return;
     g_diag_ctx.file_path = snapshot->file_path;
@@ -311,6 +336,13 @@ void diag_restore(const DiagContextSnapshot *snapshot) {
     g_diag_ctx.source_len = snapshot->source_len;
     g_diag_ctx.use_color = snapshot->use_color;
 }
+
+void diag_restore(const DiagContextSnapshot *snapshot) {
+  {
+    diag_restore_impl(snapshot);
+  }
+}
+
 
 const char *diag_get_file(void) {
     return g_diag_ctx.file_path;
@@ -401,6 +433,8 @@ void diag_vreportf(const char *file, int line, int col, const char *kind, const 
     diag_vreportf_with_code(file, line, col, kind, NULL, detail, fmt, ap);
 }
 
+
+
 void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, ...) {
     va_list ap;
 
@@ -408,6 +442,10 @@ void diag_reportf_with_code(const char *file, int line, int col, const char *kin
     diag_vreportf_with_code(file, line, col, kind, code, detail, fmt, ap);
     va_end(ap);
 }
+
+
+
+
 
 void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt, ...) {
     va_list ap;
@@ -417,9 +455,19 @@ void diag_reportf(const char *file, int line, int col, const char *kind, const c
     va_end(ap);
 }
 
-int diag_code_is_known(const char *code) {
+
+
+int diag_code_is_known_impl(const char *code) {
     return diag_lookup_code_explain(code) ? 1 : 0;
 }
+
+int diag_code_is_known(const char *code) {
+  {
+    return diag_code_is_known_impl(code);
+  }
+  return -1;
+}
+
 
 const char *diag_code_kind(const char *code) {
     const DiagCodeExplain *entry = diag_lookup_code_explain(code);
@@ -436,7 +484,7 @@ const char *diag_code_details(const char *code) {
     return entry ? entry->details : NULL;
 }
 
-void diag_print_known_codes(FILE *out) {
+void diag_print_known_codes_impl(FILE *out) {
     size_t i;
     if (!out)
         out = stdout;
@@ -445,7 +493,14 @@ void diag_print_known_codes(FILE *out) {
     fputc('\n', out);
 }
 
-void diag_print_code_explain(FILE *out, const char *code) {
+void diag_print_known_codes(FILE *out) {
+  {
+    diag_print_known_codes_impl(out);
+  }
+}
+
+
+void diag_print_code_explain_impl(FILE *out, const char *code) {
     const DiagCodeExplain *entry;
     if (!out)
         out = stdout;
@@ -461,6 +516,13 @@ void diag_print_code_explain(FILE *out, const char *code) {
     fprintf(out, "Summary: %s\n", entry->summary);
     fprintf(out, "Details: %s\n", entry->details);
 }
+
+void diag_print_code_explain(FILE *out, const char *code) {
+  {
+    diag_print_code_explain_impl(out, code);
+  }
+}
+
 
 /**
  * 有界 Levenshtein 编辑距离（大小写不敏感）。
@@ -563,7 +625,7 @@ const char *diag_code_suggest(const char *code, char *out, size_t out_cap) {
  * 打印完整诊断码表（用户面：`shux explain --list` / `shux --explain --list`）。
  * 格式：列对齐的 CODE / KIND / Summary，便于人工浏览全部已知码。
  */
-void diag_print_code_table(FILE *out) {
+void diag_print_code_table_impl(FILE *out) {
     size_t i;
     if (!out)
         out = stdout;
@@ -575,26 +637,48 @@ void diag_print_code_table(FILE *out) {
     }
 }
 
+void diag_print_code_table(FILE *out) {
+  {
+    diag_print_code_table_impl(out);
+  }
+}
+
+
 /**
  * JSON 诊断输出模式开关。
  * enable 非 0 时强制开启；0 时强制关闭（覆盖 SHUX_DIAG_JSON 环境变量）。
  * 仅供 driver 在解析 --diag-json 等 CLI 标志后调用；冷路径，零性能影响。
  */
-void diag_set_json_mode(int enable) {
+void diag_set_json_mode_impl(int enable) {
     g_diag_json = enable ? 1 : 0;
 }
+
+void diag_set_json_mode(int enable) {
+  {
+    diag_set_json_mode_impl(enable);
+  }
+}
+
 
 /**
  * 当前是否启用 JSON 诊断输出。首次调用时按 SHUX_DIAG_JSON 环境变量惰性决定，
  * 之后缓存；diag_set_json_mode 的显式设置优先于环境变量。
  */
-int diag_json_enabled(void) {
+int diag_json_enabled_impl(void) {
     if (g_diag_json == -2) {
         const char *e = getenv("SHUX_DIAG_JSON");
         g_diag_json = (e && e[0] && e[0] != '0') ? 1 : 0;
     }
     return g_diag_json == 1 ? 1 : 0;
 }
+
+int diag_json_enabled(void) {
+  {
+    return diag_json_enabled_impl();
+  }
+  return -1;
+}
+
 
 /**
  * 将单个字符串以 JSON 字符串字面量形式写入 out（含两端引号）。
