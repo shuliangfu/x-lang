@@ -1,5 +1,5 @@
 /* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97/98 true .x + C tail; G-02f-74/82 diag gates).
- * G-02f-335～338：PREFER_X_O hybrid 时 pure thin 由 src/diag_thin.x→-E；rest 用
+ * G-02f-335～342：PREFER_X_O hybrid 时 pure thin 由 src/diag_thin.x→-E；rest 用
  *   SHUX_L2_DIAG_THIN_FROM_X（省略 26 个 public 门闩；C 尾出 _impl 供 thin 调）。
  * G-02f-181: P0-1 close-out — code table + reportf/vreportf 🔒 (priority doc §4.3).
  * G-02f-130 true .x pure helpers.
@@ -10,6 +10,14 @@
  * .x covers: report/human/json/print/code-query/levenshtein/…; C: table data + va_list.
  */
 #include "diag.h"
+#ifdef SHUX_L2_DIAG_THIN_FROM_X
+#define diag_code_eq diag_code_eq_impl
+#define diag_levenshtein_ci diag_levenshtein_ci_impl
+#define diag_json_write_str diag_json_write_str_impl
+#define diag_json_severity diag_json_severity_impl
+#define diag_code_suggest diag_code_suggest_impl
+#define diag_report_json diag_report_json_impl
+#endif
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -187,7 +195,12 @@ const char * diag_color_reset_impl(void)
     return g_diag_ctx.use_color ? "\x1b[0m" : "";
 }
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int diag_code_eq(const char *lhs, const char *rhs) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+int diag_code_eq(const char *lhs, const char *rhs)
+#else
+int diag_code_eq_impl(const char *lhs, const char *rhs)
+#endif
+{
   size_t i;
   if (!lhs || !rhs)
     return 0;
@@ -780,7 +793,12 @@ void diag_print_code_explain_impl(FILE *out, const char *code)
  * G-02f-98：export gate.
  */
 /* G-02f-152 / G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int diag_levenshtein_ci(const char *a, const char *b) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+int diag_levenshtein_ci(const char *a, const char *b)
+#else
+int diag_levenshtein_ci_impl(const char *a, const char *b)
+#endif
+{
     size_t la = a ? strlen(a) : 0;
     size_t lb = b ? strlen(b) : 0;
     size_t i, j;
@@ -945,7 +963,12 @@ int diag_json_enabled_impl(void)
  * 转义 "、\ 与控制字符（\\uXXXX）；NULL 视作空串。仅在诊断冷路径调用。
  */
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void diag_json_write_str(FILE *out, const char *s) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+void diag_json_write_str(FILE *out, const char *s)
+#else
+void diag_json_write_str_impl(FILE *out, const char *s)
+#endif
+{
     const unsigned char *p = (const unsigned char *)(s ? s : "");
     fputc('"', out);
     for (; *p; p++) {
@@ -974,7 +997,12 @@ void diag_json_write_str(FILE *out, const char *s) {
  * 含 "warning" → warning；精确 "info"/"note"/"help"/"hint" → 同名；其余（含 error/parse error/...）→ error。
  */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-const char * diag_json_severity(const char *kind) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+const char * diag_json_severity(const char *kind)
+#else
+const char * diag_json_severity_impl(const char *kind)
+#endif
+{
     if (!kind || !kind[0])
         return "error";
     if (strstr(kind, "warning"))
@@ -997,8 +1025,14 @@ const char * diag_json_severity(const char *kind) {
  * line/col 为 0 时仍输出（语义：未知）；调用方按需忽略。
  */
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
 void diag_report_json(const char *file, int line, int col,
-                             const char *kind, const char *code, const char *msg) {
+                             const char *kind, const char *code, const char *msg)
+#else
+void diag_report_json_impl(const char *file, int line, int col,
+                             const char *kind, const char *code, const char *msg)
+#endif
+{
     const char *sev = diag_json_severity(kind);
     fputs("{\"severity\":", stderr);
     diag_json_write_str(stderr, sev);

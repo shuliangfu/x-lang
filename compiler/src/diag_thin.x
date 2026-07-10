@@ -9,7 +9,9 @@
 // f-335：line_digits / kind_is_exact / kind_contains / color_prefix
 // f-336：get_file/source/len / code_* / set_file / report
 // f-337：push_file / restore → _impl
-// f-338：should_color / color_reset / json_* / extract_line / print_* /
+// f-338：should_color / color_reset / json_mode / extract_line / print_* /
+// f-342：code_eq / levenshtein / json_write/report/severity / code_suggest
+// f-338 cont：
 //        report_with_code / report_human → _impl（共 26）
 
 // ---- rest / libc 提供的符号（勿与下方 thin public 同名，以免 -E 改名）----
@@ -309,3 +311,58 @@ function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8,
     diag_report_human_impl(file, line, col, kind, code, msg, detail);
   }
 }
+
+// ---- G-02f-342：code/json 残余门闩 ----
+extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
+extern "C" function diag_levenshtein_ci_impl(a: *u8, b: *u8): i32;
+extern "C" function diag_json_write_str_impl(out: *u8, s: *u8): void;
+extern "C" function diag_report_json_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void;
+extern "C" function diag_json_severity_impl(kind: *u8): *u8;
+extern "C" function diag_code_suggest_impl(code: *u8, out: *u8, out_cap: i64): *u8;
+
+#[no_mangle]
+function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
+  unsafe {
+    return diag_code_eq_impl(lhs, rhs);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
+  unsafe {
+    return diag_levenshtein_ci_impl(a, b);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_json_write_str(out: *u8, s: *u8): void {
+  unsafe {
+    diag_json_write_str_impl(out, s);
+  }
+}
+
+#[no_mangle]
+function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
+  unsafe {
+    diag_report_json_impl(file, line, col, kind, code, msg);
+  }
+}
+
+#[no_mangle]
+function diag_json_severity(kind: *u8): *u8 {
+  unsafe {
+    return diag_json_severity_impl(kind);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
+  unsafe {
+    return diag_code_suggest_impl(code, out, out_cap);
+  }
+  return 0;
+}
+
