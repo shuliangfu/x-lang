@@ -27,7 +27,7 @@ grep -q 'NL-07 v4' "$DOC" || die "doc missing NL-07 v4 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
 [ -f "$BUILD_ASM" ] || die "missing $BUILD_ASM"
 grep -q 'bootstrap_link_tail_driver' "$BUILD_ASM" || die "build_shux_asm missing bootstrap_link_tail_driver"
-[ -f compiler/src/runtime_pipeline_abi_shux_c_stubs.c ] || die "missing runtime_pipeline_abi_shux_c_stubs.c"
+[ -f compiler/src/runtime_driver_strict_glue_stubs.c ] || die "missing runtime_driver_strict_glue_stubs.c"
 
 while IFS=$'\t' read -r item_id category anchor check_type notes; do
   [ -z "${item_id:-}" ] && continue

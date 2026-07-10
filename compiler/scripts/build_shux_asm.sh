@@ -3797,10 +3797,10 @@ ensure_asm_bootstrap_support_extra_objs() {
   fi
   fi
   ensure_typeck_f64_bits_obj
-  o="src/runtime_pipeline_abi_shux_c_stubs.o"
-  if [ ! -f "$o" ] || [ "src/runtime_pipeline_abi_shux_c_stubs.c" -nt "$o" ]; then
-  echo " cc -c $o <- src/runtime_pipeline_abi_shux_c_stubs.c (pipeline ABI weak stubs)"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/runtime_pipeline_abi_shux_c_stubs.c
+  o="src/runtime_driver_strict_glue_stubs.o"
+  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt "$o" ]; then
+  echo " cc -c $o <- src/runtime_driver_strict_glue_stubs.c (pipeline ABI weak stubs)"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/runtime_driver_strict_glue_stubs.c
   fi
   ensure_typeck_c_module_stubs_obj
   o="src/runtime_heap_user.o"
@@ -3812,7 +3812,7 @@ ensure_asm_bootstrap_support_extra_objs() {
 
 # experimental / strict runtime 链：与 Makefile DRIVER_SEED_SUPPORT_EXTRA 一致。
 asm_bootstrap_support_extra_link() {
-  echo "src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_heap_user.o"
+  echo "src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o $BUILD_DIR/typeck_c_module_stubs.o src/runtime_heap_user.o"
 }
 
 # 确保 typeck_f64_bits.o 存在（pipeline_x / parser 浮点字面量位拆分）。

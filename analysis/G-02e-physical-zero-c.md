@@ -1,7 +1,7 @@
 # G-02e：compiler 物理去 C（终局清场）
 
 > **目标**：仓库内手写 `.c/.h` → 0（允许：平台 `.s` crt0、预编译 seed 二进制、`*_gen.c` 由 .x 再生后不再入库）。  
-> **现状（2026-07-10）**：`compiler/src` 手写 C **105**（G-04 permanent 白名单）；产品 G05 链 **54** objs，其中约半数仍源自 C。
+> **现状（2026-07-10）**：`compiler/src` 手写 C **104**（G-04 permanent 白名单）；产品 G05 链 **53** objs，其中约半数仍源自 C。
 
 ## 1. 分层（务必按层砍，禁止无回归乱删）
 
@@ -41,10 +41,11 @@
 | G-02e-9 | `bootstrap_seed_io_stubs`→`x_seed_bridge`；`lsp_state`→`lsp_diag_pipeline_ctx`；G05 −2 objs | ✅ 108→106 src；G05 59→57 |
 | G-02e-10 | `_stubs_driver`→`runtime_driver_strict_glue_stubs`；产品链去掉 NO_WRAPPER orch 占位 TU；G05 −2 objs | ✅ src 106；G05 57→55 |
 | G-02e-11 | `lsp_codegen_extern.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 106→105 src；G05 55→54 |
+| G-02e-12 | `runtime_pipeline_abi_shux_c_stubs.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 105→104 src；G05 54→53 |
 
 ## 4. 建议下一刀（工作量升序）
 
-1. **其它 G05 薄 companion**（`runtime_heap_user` / `ast_pool_l5_bridge` 等）再并  
+1. **其它 G05 薄 companion**（`runtime_heap_user` 需同步 link_abi 用户链路径；`ast_pool_l5_bridge` 等）  
 2. **拆 `runtime_link_abi` / `runtime.c`**：先抽纯逻辑到 `.x`，C 只留 `posix_spawn`/`stat`  
 3. **backend dispatch / simd**：asm.x 固定点后删 C dispatch  
 4. **P3 整批**：http `.inc` + ed25519 改预编译 seed 或 .x，permanent 批量摘牌  

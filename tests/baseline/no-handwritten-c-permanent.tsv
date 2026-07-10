@@ -132,7 +132,6 @@ file	compiler/src/runtime_heap_user.c
 file	compiler/src/runtime_io_abi.c
 file	compiler/src/runtime_link_abi.c
 file	compiler/src/runtime_pipeline_abi.c
-file	compiler/src/runtime_pipeline_abi_shux_c_stubs.c
 file	compiler/src/seed_link_compat.c
 file	compiler/src/x_seed_bridge.c
 file	compiler/src/x_stubs.c

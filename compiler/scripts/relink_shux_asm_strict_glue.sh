@@ -1613,10 +1613,11 @@ ensure_runtime_c_import_obj() {
 }
 
 ensure_runtime_pipeline_abi_shux_c_stubs_obj() {
-  local o="src/runtime_pipeline_abi_shux_c_stubs.o"
-  if [ ! -f "$o" ] || [ "src/runtime_pipeline_abi_shux_c_stubs.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_pipeline_abi_shux_c_stubs.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_pipeline_abi_shux_c_stubs.c
+  # G-02e-12：实现已并入 runtime_driver_strict_glue_stubs.c
+  local o="src/runtime_driver_strict_glue_stubs.o"
+  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt "$o" ]; then
+    strict_glue_info "cc -c $o <- src/runtime_driver_strict_glue_stubs.c (former pipeline_abi_shux_c_stubs)"
+    "$CC" $CFLAGS -c -o "$o" src/runtime_driver_strict_glue_stubs.c
   fi
 }
 ensure_codegen_pipeline_stubs_obj() {

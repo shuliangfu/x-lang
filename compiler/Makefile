@@ -55,7 +55,7 @@ endif
 TARGET = shux
 SRCS = src/main.c src/runtime.c src/async/async_liveness.c src/async/async_cps_codegen.c
 # OBJS_CORE：G-06 默认 shux-c=bootstrap_shuxc；仅 SHUX_LEGACY_C_FRONTEND=1 时链下列 runtime 桩（无 C 前端 .c）。
-OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
+OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 # 考古冷启动：完整 C 前端 shux-c（仅用于生成/刷新 seeds/ 预编译种子）
 OBJS_CORE = src/main.o src/runtime.o src/diag.o src/driver/fmt_check_cmd.o src/lexer/lexer.o src/lexer/cfg_eval_bootstrap_stub.o src/ast/ast.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_c_import.o
@@ -581,7 +581,7 @@ bootstrap_shuxc: scripts/bootstrap_shuxc_create.sh scripts/select_bootstrap_shux
 	@./scripts/select_bootstrap_shuxc.sh
 
 # 考古 shux-c 额外链 runtime ABI 薄壳（runtime.c 已拆分，LEGACY C 前端仍依赖这些符号）
-LEGACY_SHUX_C_EXTRA = src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_driver_strict_glue_stubs.o
+LEGACY_SHUX_C_EXTRA = src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_driver_strict_glue_stubs.o
 
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 $(SHUX_C): $(OBJS_CORE) $(LEGACY_SHUX_C_EXTRA)
@@ -1440,7 +1440,7 @@ else ifeq ($(SHUX_NO_C_SEED_LINK),1)
 # 非 SHUX_NO_C_FRONTEND 编译单元引用（lsp_diag.c 未走 no_c 守卫，仍需符号满足链接）。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_heap_user.o
+DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_heap_user.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 else
@@ -1448,7 +1448,7 @@ else
 # 2026-07-08：从 seed-compat 切换到 no_c；macOS arm64 check ✅、compile 走 -E+cc fallback ✅；Linux x86_64 全绿。
 DRIVER_SEED_RUNTIME_O = src/runtime_driver_no_c.o
 DRIVER_SEED_FRONTEND_EXTRA =
-DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_heap_user.o
+DRIVER_SEED_SUPPORT_EXTRA = src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval.o src/typeck/typeck_f64_bits.o src/runtime_heap_user.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver_no_c.o
 endif
