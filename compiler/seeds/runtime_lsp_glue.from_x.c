@@ -8,6 +8,7 @@
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
  * G-02f-251: P1-9 open — uri↔path pure + copy_text pure.
+ * G-02f-252: json_escape_str pure + entry_dir path split pure.
  * Product object from this seed; more logic still C until further L1 port.
  */
 /**
@@ -220,25 +221,59 @@ void lsp_fs_path_to_uri(const char *path, char *uri, size_t cap) {
 
 
 
+/* G-02f-252：entry 槽写 🔒 */
+void lsp_entry_dir_set_dot(void) {
+    s_entry_dir[0] = '.';
+    s_entry_dir[1] = '\0';
+}
+
+void lsp_entry_fs_path_store(const char *path) {
+    if (!path)
+        return;
+    (void)snprintf(s_entry_fs_path, sizeof(s_entry_fs_path), "%s", path);
+}
+
+void lsp_entry_dir_store_prefix(const char *path, int n) {
+    if (!path || n < 0)
+        return;
+    if ((size_t)n >= sizeof(s_entry_dir))
+        n = (int)sizeof(s_entry_dir) - 1;
+    memcpy(s_entry_dir, path, (size_t)n);
+    s_entry_dir[n] = '\0';
+}
+
+/* G-02f-252：逻辑源 .x（真迁 last slash）；seed 保留同语义 C 供产品 cc */
+int lsp_path_last_slash(const char *path) {
+    int last = -1;
+    int i;
+    if (!path)
+        return -1;
+    for (i = 0; path[i] && i < 4096; i++) {
+        if (path[i] == '/')
+            last = i;
+    }
+    return last;
+}
+
 /** 根据 entry 文件路径更新 import 解析用的 entry_dir。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-252：逻辑源 .x（真迁编排 pure）；槽写 🔒 */
 void lsp_update_entry_dir(const char *fs_path) {
+    int last;
+    int n;
     if (!fs_path || !fs_path[0]) {
-        s_entry_dir[0] = '.';
-        s_entry_dir[1] = '\0';
+        lsp_entry_dir_set_dot();
         return;
     }
-    (void)snprintf(s_entry_fs_path, sizeof(s_entry_fs_path), "%s", fs_path);
-    const char *slash = strrchr(fs_path, '/');
-    if (slash) {
-        size_t n = (size_t)(slash - fs_path);
-        if (n >= sizeof(s_entry_dir)) n = sizeof(s_entry_dir) - 1;
-        memcpy(s_entry_dir, fs_path, n);
-        s_entry_dir[n] = '\0';
-    } else {
-        s_entry_dir[0] = '.';
-        s_entry_dir[1] = '\0';
+    lsp_entry_fs_path_store(fs_path);
+    last = lsp_path_last_slash(fs_path);
+    if (last < 0) {
+        lsp_entry_dir_set_dot();
+        return;
     }
+    n = last;
+    if (n > 511)
+        n = 511;
+    lsp_entry_dir_store_prefix(fs_path, n);
 }
 
 
@@ -491,24 +526,34 @@ void lsp_diag_x_reset_parse_buffers(void) {
 
 /** 将 msg 按 JSON 字符串转义写入 out，返回写入长度；out_cap 为 out 的容量。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-252：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 int json_escape_str(const char *msg, char *out, int out_cap) {
     int k = 0;
-    if (!msg || !out || out_cap <= 0) return 0;
+    if (!out || out_cap <= 0)
+        return 0;
+    if (!msg) {
+        out[0] = '\0';
+        return 0;
+    }
     for (; *msg != '\0' && k < out_cap - 1; msg++) {
         if (*msg == '"' || *msg == '\\') {
-            if (k + 2 > out_cap - 1) break;
+            if (k + 2 > out_cap - 1)
+                break;
             out[k++] = '\\';
             out[k++] = *msg;
         } else if (*msg == '\n') {
-            if (k + 2 > out_cap - 1) break;
+            if (k + 2 > out_cap - 1)
+                break;
             out[k++] = '\\';
             out[k++] = 'n';
         } else if (*msg == '\r') {
-            if (k + 2 > out_cap - 1) break;
+            if (k + 2 > out_cap - 1)
+                break;
             out[k++] = '\\';
             out[k++] = 'r';
         } else if (*msg == '\t') {
-            if (k + 2 > out_cap - 1) break;
+            if (k + 2 > out_cap - 1)
+                break;
             out[k++] = '\\';
             out[k++] = 't';
         } else {

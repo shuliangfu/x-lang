@@ -5,6 +5,7 @@
 // 本文件为语义对照 / 后续真迁 .x 锚点；实现仍在 seed C。
 // 产品：cc seeds/runtime_lsp_glue.from_x.c → src/lsp/lsp_diag.o
 // G-02f-251：P1-9 开局 — uri↔path pure + copy_text pure。
+// G-02f-252：json_escape_str pure + entry_dir 路径拆分 pure。
 
 function runtime_lsp_glue_x_doc_anchor(): i32 {
   return 0;
@@ -13,12 +14,13 @@ function runtime_lsp_glue_x_doc_anchor(): i32 {
 // G-02f-109：+ uri/path/json/hash/line_index 薄门闩。
 
 extern "C" function lsp_free_import_cache_impl(): void;
-/* uri↔path：G-02f-251 下方真迁 pure */
-extern "C" function lsp_update_entry_dir_impl(path: *u8): void;
+/* uri↔path / copy_text：G-02f-251 pure；entry_dir：G-02f-252 pure + 槽写 🔒 */
+extern "C" function lsp_entry_dir_set_dot(): void;
+extern "C" function lsp_entry_fs_path_store(path: *u8): void;
+extern "C" function lsp_entry_dir_store_prefix(path: *u8, n: i32): void;
 extern "C" function lsp_init_lib_roots_once_impl(): void;
-/* copy_text：G-02f-251 下方真迁 pure */
 extern "C" function lsp_diag_x_ctx_alloc_size_impl(): i64;
-extern "C" function json_escape_str_impl(msg: *u8, out: *u8, cap: i32): i32;
+/* json_escape：G-02f-252 下方真迁 pure */
 extern "C" function build_line_index_impl(mod: *u8): void;
 extern "C" function line_index_of_func_impl(f: *u8): i32;
 
@@ -192,13 +194,53 @@ function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i64): void {
   }
 }
 
+// G-02f-252：最后 '/' 下标；无则 -1
 #[no_mangle]
-function lsp_update_entry_dir(path: *u8): void {
+function lsp_path_last_slash(path: *u8): i32 {
   if (path == 0 as *u8) {
-    return;
+    return 0 - 1;
   }
   unsafe {
-    lsp_update_entry_dir_impl(path);
+    let last: i32 = 0 - 1;
+    let i: i32 = 0;
+    while (i < 4096) {
+      if (path[i] == 0) {
+        break;
+      }
+      if (path[i] == 47) {
+        last = i;
+      }
+      i = i + 1;
+    }
+    return last;
+  }
+  return 0 - 1;
+}
+
+// G-02f-252：目录前缀 → entry_dir 槽；空路径 → "."
+#[no_mangle]
+function lsp_update_entry_dir(path: *u8): void {
+  unsafe {
+    if (path == 0 as *u8) {
+      lsp_entry_dir_set_dot();
+      return;
+    }
+    if (path[0] == 0) {
+      lsp_entry_dir_set_dot();
+      return;
+    }
+    lsp_entry_fs_path_store(path);
+    let last: i32 = lsp_path_last_slash(path);
+    if (last < 0) {
+      lsp_entry_dir_set_dot();
+      return;
+    }
+    // cap 512；prefix 长度 last（不含 slash）
+    let n: i32 = last;
+    if (n > 511) {
+      n = 511;
+    }
+    lsp_entry_dir_store_prefix(path, n);
   }
 }
 
@@ -244,6 +286,7 @@ function lsp_diag_x_ctx_alloc_size(): i64 {
   return 0;
 }
 
+// G-02f-252：JSON 字符串转义 pure（\" \\ \n \r \t）
 #[no_mangle]
 function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 {
   if (out == 0 as *u8) {
@@ -252,8 +295,81 @@ function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 {
   if (cap <= 0) {
     return 0;
   }
+  if (msg == 0 as *u8) {
+    unsafe {
+      out[0] = 0;
+    }
+    return 0;
+  }
   unsafe {
-    return json_escape_str_impl(msg, out, cap);
+    let k: i32 = 0;
+    let i: i32 = 0;
+    while (k < cap - 1) {
+      let c: u8 = msg[i];
+      if (c == 0) {
+        break;
+      }
+      if (c == 34) {
+        // "
+        if (k + 2 > cap - 1) {
+          break;
+        }
+        out[k] = 92;
+        k = k + 1;
+        out[k] = 34;
+        k = k + 1;
+      } else {
+        if (c == 92) {
+          // \\
+          if (k + 2 > cap - 1) {
+            break;
+          }
+          out[k] = 92;
+          k = k + 1;
+          out[k] = 92;
+          k = k + 1;
+        } else {
+          if (c == 10) {
+            // \n
+            if (k + 2 > cap - 1) {
+              break;
+            }
+            out[k] = 92;
+            k = k + 1;
+            out[k] = 110;
+            k = k + 1;
+          } else {
+            if (c == 13) {
+              // \r
+              if (k + 2 > cap - 1) {
+                break;
+              }
+              out[k] = 92;
+              k = k + 1;
+              out[k] = 114;
+              k = k + 1;
+            } else {
+              if (c == 9) {
+                // \t
+                if (k + 2 > cap - 1) {
+                  break;
+                }
+                out[k] = 92;
+                k = k + 1;
+                out[k] = 116;
+                k = k + 1;
+              } else {
+                out[k] = c;
+                k = k + 1;
+              }
+            }
+          }
+        }
+      }
+      i = i + 1;
+    }
+    out[k] = 0;
+    return k;
   }
   return 0;
 }
