@@ -6344,7 +6344,6 @@ int32_t parser_asm_append_block_lets_from_res_c(void *arena, int32_t block_ref,
 #ifndef SHUX_PTHIN_CTRL_FROM_X
 #include "parser_asm_if_stmt_slice.inc"
 #include "parser_asm_match_subject_slice.inc"
-#include "parser_asm_simd_builtin_slice.inc"
 #include "parser_asm_if_expr_slice.inc"
 #else
 struct parser_asm_parse_block_result {
@@ -6369,8 +6368,15 @@ void parser_asm_parse_if_expr_into_c(void *arena, struct parser_asm_lexer lex_at
                                      struct parser_asm_slice_u8 *source, int32_t type_ref,
                                      struct parser_asm_parse_expr_result *out);
 int labi_pthin_ctrl_slice_marker(void);
-/* simd 仍在 rest（P7 另册）；P5 hybrid 时不连带 simd */
+#endif
+/* G-02f-288 P7 simd：默认 #include；hybrid 时在 pthin_simd.from_x.c */
+#ifndef SHUX_PTHIN_SIMD_FROM_X
 #include "parser_asm_simd_builtin_slice.inc"
+#else
+void parser_asm_parse_at_simd_builtin_into_c(void *arena, struct parser_asm_lexer_result r0,
+                                             struct parser_asm_slice_u8 *source,
+                                             struct parser_asm_parse_expr_result *out);
+int labi_pthin_simd_slice_marker(void);
 #endif
 /* G-02f-285 P4 as_suffix：默认 #include；hybrid 时在 pthin_expr_as_suffix.from_x.c */
 #ifndef SHUX_PTHIN_EXPR_AS_SUFFIX_FROM_X
