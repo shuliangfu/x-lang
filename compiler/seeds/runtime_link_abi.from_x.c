@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..56 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56/64 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
- *         merge needs/empty/bank/runtime o paths/effective argv0; C invoke bulk.
- * .x covers: + asm_io_stubs/process_argv o_path, effective_link_argv0.
+ *         merge output_is_elf_o/want_exe true logic; C invoke bulk remains.
+ * .x covers: + shux_output_is_elf_o / shux_output_want_exe path-suffix logic.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -6178,30 +6178,82 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
  * 参数：path 为 -o 参数；NULL 则返回 0。
  * 返回值：非 0 表示对象文件后缀。
  */
+/* G-02f-64：真逻辑来自 .x（逐字节后缀；无 _impl）。 */
 int shux_output_is_elf_o(const char *path) {
-    if (!path)
+    size_t n;
+    if (path == NULL) {
         return 0;
-    size_t n = strlen(path);
-    if (n >= 2 && path[n - 2] == '.' && (path[n - 1] == 'o' || path[n - 1] == 'O'))
-        return 1;
-    return n >= 4 && path[n - 4] == '.' && path[n - 3] == 'o' && path[n - 2] == 'b' && path[n - 1] == 'j';
+    }
+    n = 0;
+    while (path[n] != 0) {
+        n = n + 1;
+    }
+    if (n >= 2) {
+        if (path[n - 2] == '.') {
+            if (path[n - 1] == 'o') {
+                return 1;
+            }
+            if (path[n - 1] == 'O') {
+                return 1;
+            }
+        }
+    }
+    if (n >= 4) {
+        if (path[n - 4] == '.') {
+            if (path[n - 3] == 'o') {
+                if (path[n - 2] == 'b') {
+                    if (path[n - 1] == 'j') {
+                        return 1;
+                    }
+                }
+            }
+        }
+    }
+    return 0;
 }
 
 /**
  * 判断 -o 路径是否表示可执行文件名（非 .o/.obj/.s 后缀）。
  * 参数：path 为 -o 参数；空串或 NULL 则返回 0。
  * 返回值：非 0 表示 -backend asm 应自动调 ld 出 exe。
+ * G-02f-64：真逻辑来自 .x。
  */
 int shux_output_want_exe(const char *path) {
-    if (!path || !*path)
+    size_t n;
+    if (path == NULL) {
         return 0;
-    size_t n = strlen(path);
-    if (n >= 2 && path[n - 2] == '.' && (path[n - 1] == 'o' || path[n - 1] == 'O'))
+    }
+    if (path[0] == 0) {
         return 0;
-    if (n >= 4 && path[n - 4] == '.' && path[n - 3] == 'o' && path[n - 2] == 'b' && path[n - 1] == 'j')
-        return 0;
-    if (n >= 2 && path[n - 2] == '.' && path[n - 1] == 's')
-        return 0;
+    }
+    n = 0;
+    while (path[n] != 0) {
+        n = n + 1;
+    }
+    if (n >= 2) {
+        if (path[n - 2] == '.') {
+            if (path[n - 1] == 'o') {
+                return 0;
+            }
+            if (path[n - 1] == 'O') {
+                return 0;
+            }
+            if (path[n - 1] == 's') {
+                return 0;
+            }
+        }
+    }
+    if (n >= 4) {
+        if (path[n - 4] == '.') {
+            if (path[n - 3] == 'o') {
+                if (path[n - 2] == 'b') {
+                    if (path[n - 1] == 'j') {
+                        return 0;
+                    }
+                }
+            }
+        }
+    }
     return 1;
 }
 

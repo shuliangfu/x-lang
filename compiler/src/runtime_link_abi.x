@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..44/47/53/55/56：真迁 .x — link_abi needs_* / 空 .o / bank / runtime .o 路径门闩。
+// G-02f-34..44/47/53/55/56/64：真迁 .x — link_abi needs_* / 空 .o / bank / 路径后缀。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
-// C 尾：invoke_cc/ld、路径后缀、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
-// G-02f-56：+ asm_io_stubs/process_argv .o 路径 + effective_link_argv0。
+// C 尾：invoke_cc/ld、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
+// G-02f-64：+ shux_output_is_elf_o / shux_output_want_exe 真逻辑（.o/.obj/.s 后缀）。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
 extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -1265,4 +1265,91 @@ function shux_runtime_process_argv_o_path(argv0: *u8): *u8 {
     return shux_runtime_process_argv_o_path_impl(argv0);
   }
   return 0 as *u8;
+}
+
+/* ---- G-02f-64：-o 路径后缀形态（真逻辑，无 _impl）---- */
+
+/* .o / .O / .obj → 对象文件路径（非自动 ld exe）。 */
+#[no_mangle]
+function shux_output_is_elf_o(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let n: i64 = 0;
+    while (path[n] != 0) {
+      n = n + 1;
+    }
+    /* ".o" / ".O" */
+    if (n >= 2) {
+      if (path[n - 2] == 46) {
+        if (path[n - 1] == 111) {
+          return 1;
+        }
+        if (path[n - 1] == 79) {
+          return 1;
+        }
+      }
+    }
+    /* ".obj" */
+    if (n >= 4) {
+      if (path[n - 4] == 46) {
+        if (path[n - 3] == 111) {
+          if (path[n - 2] == 98) {
+            if (path[n - 1] == 106) {
+              return 1;
+            }
+          }
+        }
+      }
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/* 非 .o/.obj/.s 后缀 → asm 应自动 ld 出 exe。 */
+#[no_mangle]
+function shux_output_want_exe(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (path[0] == 0) {
+      return 0;
+    }
+    let n: i64 = 0;
+    while (path[n] != 0) {
+      n = n + 1;
+    }
+    /* ".o" / ".O" */
+    if (n >= 2) {
+      if (path[n - 2] == 46) {
+        if (path[n - 1] == 111) {
+          return 0;
+        }
+        if (path[n - 1] == 79) {
+          return 0;
+        }
+        /* ".s" */
+        if (path[n - 1] == 115) {
+          return 0;
+        }
+      }
+    }
+    /* ".obj" */
+    if (n >= 4) {
+      if (path[n - 4] == 46) {
+        if (path[n - 3] == 111) {
+          if (path[n - 2] == 98) {
+            if (path[n - 1] == 106) {
+              return 0;
+            }
+          }
+        }
+      }
+    }
+    return 1;
+  }
+  return 0;
 }
