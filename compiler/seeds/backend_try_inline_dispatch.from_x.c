@@ -51,6 +51,9 @@ int32_t glue_type_ref_is_named_struct_layout(struct ast_ASTArena *arena, struct 
 int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref, int32_t param_ix);
 int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t lit_ref, uint8_t *fn, int32_t fnlen);
 int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane, int32_t *out);
+int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_lane);
+int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t lit_ref, int32_t fj);
+int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_binop_ko);
 #endif
 
 
@@ -624,7 +627,8 @@ int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b,
  * 成功写 *out_binop_ko（4=add,5=sub,6=mul,7=div,8=mod）。
  */
 /* G-02f-136：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-372 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_fold_func_returns_param01_scalar_binop_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                            int32_t func_idx, int32_t *out_binop_ko) {
   int32_t ret_ref;
   int32_t ko;
@@ -654,6 +658,13 @@ int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, 
   *out_binop_ko = ko;
   return 1;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                           int32_t func_idx, int32_t *out_binop_ko) {
+  return glue_fold_func_returns_param01_scalar_binop_impl(arena, mod, func_idx, out_binop_ko);
+}
+#endif
 
 
 /**
@@ -1546,7 +1557,8 @@ int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *arena, 
  * callee 是否为 `return param0[index_const]`（单形参、标量返回）；成功写 *out_lane。
  */
 /* G-02f-136：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-372 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_fold_func_returns_param0_index_const_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                          int32_t func_idx, int32_t *out_lane) {
   int32_t ret_ref;
   int32_t base_ref;
@@ -1568,6 +1580,13 @@ int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, st
   *out_lane = lane;
   return 1;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                         int32_t func_idx, int32_t *out_lane) {
+  return glue_fold_func_returns_param0_index_const_impl(arena, mod, func_idx, out_lane);
+}
+#endif
 
 
 /**
@@ -1948,7 +1967,8 @@ int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t 
  * const struct lit 单字段是否可内联到 let 栈槽（仅校验，不发射指令）。
  */
 /* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-372 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_const_struct_lit_field_can_inline_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                       int32_t func_idx, int32_t lit_ref, int32_t fj) {
   int32_t init_ref;
   int32_t ko;
@@ -1962,8 +1982,14 @@ int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struc
   if (ko == GLUE_EXPR_CALL)
     return glue_call_is_zero_arg_default_alloc(arena, init_ref);
   return (ko == 0 || ko == 1 || ko == 2) ? 1 : 0;
-
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                      int32_t func_idx, int32_t lit_ref, int32_t fj) {
+  return glue_const_struct_lit_field_can_inline_impl(arena, mod, func_idx, lit_ref, fj);
+}
+#endif
 
 
 /**

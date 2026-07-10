@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/371：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/372：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -260,6 +260,36 @@ function glue_struct_lit_field_index_by_name(arena: *u8, lit_ref: i32, fn: *u8, 
 function glue_try_array_lit_lane_const_i32(arena: *u8, arr_ref: i32, lane: i32, out: *i32): i32 {
   unsafe {
     return glue_try_array_lit_lane_const_i32_impl(arena, arr_ref, lane, out);
+  }
+  return 0;
+}
+
+// ---- G-02f-372：param0 index const / const struct field can_inline / scalar binop → seed impl ----
+// Note: glue_fold_func_return_operand_ref_module stays seed-only (extern+no_mangle name clash mangles -E).
+extern "C" function glue_fold_func_returns_param0_index_const_impl(arena: *u8, mod: *u8, func_idx: i32, out_lane: *i32): i32;
+extern "C" function glue_const_struct_lit_field_can_inline_impl(arena: *u8, mod: *u8, func_idx: i32, lit_ref: i32, fj: i32): i32;
+extern "C" function glue_fold_func_returns_param01_scalar_binop_impl(arena: *u8, mod: *u8, func_idx: i32, out_binop_ko: *i32): i32;
+
+#[no_mangle]
+function glue_fold_func_returns_param0_index_const(arena: *u8, mod: *u8, func_idx: i32, out_lane: *i32): i32 {
+  unsafe {
+    return glue_fold_func_returns_param0_index_const_impl(arena, mod, func_idx, out_lane);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_const_struct_lit_field_can_inline(arena: *u8, mod: *u8, func_idx: i32, lit_ref: i32, fj: i32): i32 {
+  unsafe {
+    return glue_const_struct_lit_field_can_inline_impl(arena, mod, func_idx, lit_ref, fj);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_fold_func_returns_param01_scalar_binop(arena: *u8, mod: *u8, func_idx: i32, out_binop_ko: *i32): i32 {
+  unsafe {
+    return glue_fold_func_returns_param01_scalar_binop_impl(arena, mod, func_idx, out_binop_ko);
   }
   return 0;
 }

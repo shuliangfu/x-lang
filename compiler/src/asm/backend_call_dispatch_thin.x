@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/371：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/372：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -269,4 +269,33 @@ function glue_try_std_string_shux_redirect_sym_local(name: *u8, name_len: i32, s
     return glue_try_std_string_shux_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
   }
   return 0;
+}
+
+// ---- G-02f-372：encoding redirect / type_kind_suffix / string_lit_ptr_rax → seed impl ----
+extern "C" function glue_try_std_encoding_redirect_sym_local_impl(name: *u8, name_len: i32, sym_out: *u8, out_cap: i32): i32;
+extern "C" function glue_type_kind_to_suffix_c_impl(kind_ord: i32, out: *u8, out_cap: i32): i32;
+extern "C" function glue_asm_emit_string_lit_ptr_rax_elf_c_impl(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32;
+
+#[no_mangle]
+function glue_try_std_encoding_redirect_sym_local(name: *u8, name_len: i32, sym_out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return glue_try_std_encoding_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_type_kind_to_suffix_c(kind_ord: i32, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return glue_type_kind_to_suffix_c_impl(kind_ord, out, out_cap);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_asm_emit_string_lit_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, str_expr_ref: i32, ta: i32): i32 {
+  unsafe {
+    return glue_asm_emit_string_lit_ptr_rax_elf_c_impl(arena, elf_ctx, str_expr_ref, ta);
+  }
+  return 0 - 1;
 }

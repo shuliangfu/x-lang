@@ -34,6 +34,7 @@
 #ifdef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
 struct ast_ASTArena;
 struct ast_Module;
+struct platform_elf_ElfCodegenCtx;
 int32_t glue_asm_call_reg_max(int32_t ta);
 int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs);
 int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap);
@@ -52,6 +53,9 @@ int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len);
 int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr, int32_t *olen);
 int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name, int32_t field_len, uint8_t *out_name);
 int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out, int32_t out_cap);
+int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out, int32_t out_cap);
+int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_cap);
+int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t str_expr_ref, int32_t ta);
 #endif
 
 
@@ -675,7 +679,8 @@ int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, u
 
 /** 将 TypeKind 序数写成 overload mangled 后缀（对齐 codegen.c type_to_suffix 标量子集）。 */
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_cap) {
+/* G-02f-372 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_type_kind_to_suffix_c_impl(int32_t kind_ord, uint8_t *out, int32_t out_cap) {
   static const uint8_t lit_i32[3] = { 105, 51, 50 };
   static const uint8_t lit_i64[3] = { 105, 54, 52 };
   static const uint8_t lit_u8[2] = { 117, 56 };
@@ -725,6 +730,12 @@ int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_c
     out[i] = src[i];
   return slen;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_cap) {
+  return glue_type_kind_to_suffix_c_impl(kind_ord, out, out_cap);
+}
+#endif
 
 
 
@@ -1512,7 +1523,8 @@ int32_t glue_asm_build_call_export_sym_c(struct ast_ASTArena *arena, int32_t cal
  * co-emit std.encoding/mod.x：std_encoding_utf8_valid -> encoding_utf8_valid_c（链 std/encoding/encoding.o）。
  */
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+/* G-02f-372 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_try_std_encoding_redirect_sym_local_impl(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
                                                         int32_t out_cap) {
   const int32_t prefix_len = 13; /* "std_encoding_" */
   int32_t suffix_len;
@@ -1533,6 +1545,13 @@ int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t na
   sym_out[9 + suffix_len + 1] = 'c';
   return out_len;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+                                                        int32_t out_cap) {
+  return glue_try_std_encoding_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
+}
+#endif
 
 
 
@@ -1588,7 +1607,8 @@ int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len) {
  * 供 fmt.println 特化与其它须 *u8 实参的路径复用。
  */
 /* G-02f-146：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* G-02f-372 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_asm_emit_string_lit_ptr_rax_elf_c_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                int32_t str_expr_ref, int32_t ta) {
   uint8_t sbuf[64];
   int32_t slen;
@@ -1604,6 +1624,13 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struc
     return -1;
   return 0;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                               int32_t str_expr_ref, int32_t ta) {
+  return glue_asm_emit_string_lit_ptr_rax_elf_c_impl(arena, elf_ctx, str_expr_ref, ta);
+}
+#endif
 
 /**
  * fmt/debug `binding.println("…")` / `print("…")`：内嵌 rodata + call std_fmt_println(ptr,len)。
