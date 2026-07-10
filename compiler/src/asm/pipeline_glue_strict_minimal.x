@@ -941,3 +941,246 @@ function main_run_compiler_c(argc: i32, argv: *u8): i32 {
   }
   return 0 - 1;
 }
+
+/* ---- G-02f-216：pipeline_glue 中等 pure（import_sym / read_ptr / coerce / one_region / thin） ---- */
+
+extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, er: i32, ty: i32): void;
+extern "C" function pipeline_block_region_body_ref(arena: *u8, br: i32, idx: i32): i32;
+extern "C" function typeck_check_block(module: *u8, arena: *u8, body_ref: i32, return_type_ref: i32, ctx: *u8): i32;
+extern "C" function pipeline_typeck_after_parse_ok_impl_c(arena: *u8, module: *u8, source: *u8, ctx: *u8): i32;
+extern "C" function pipeline_lsp_diag_parse_typeck_buf_impl_c(module: *u8, arena: *u8, source_data: *u8, source_len: i32, ctx: *u8): i32;
+extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_int64_val_at(arena: *u8, er: i32): i64;
+
+// G-02f-216 内部：name[0..name_len) 与 lit[0..lit_len) 全等
+function glue_name_bytes_eq_c(name: *u8, name_len: i32, lit: *u8, lit_len: i32): i32 {
+  if (name == 0) { return 0; }
+  if (lit == 0) { return 0; }
+  if (name_len != lit_len) { return 0; }
+  if (name_len <= 0) { return 0; }
+  let i: i32 = 0;
+  while (i < name_len) {
+    if (name[i] != lit[i]) { return 0; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+// G-02f-216：import binding 符号名 = prefix? + field（同前缀则不重复）
+#[no_mangle]
+function pipeline_asm_build_import_binding_call_sym_c(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32 {
+  if (field_name == 0) { return 0 - 1; }
+  if (field_len <= 0) { return 0 - 1; }
+  if (out_name == 0) { return 0 - 1; }
+  let pos: i32 = 0;
+  let pi: i32 = 0;
+  let same_prefix: i32 = 0;
+  if (pre != 0) {
+    if (pre_len > 0) {
+      if (field_len >= pre_len) {
+        same_prefix = 1;
+        pi = 0;
+        while (pi < pre_len) {
+          if (field_name[pi] != pre[pi]) {
+            same_prefix = 0;
+            pi = pre_len;
+          } else {
+            pi = pi + 1;
+          }
+        }
+      }
+    }
+  }
+  pi = 0;
+  if (pre != 0) {
+    if (pre_len > 0) {
+      if (same_prefix == 0) {
+        while (pi < pre_len) {
+          if (pos < 63) {
+            out_name[pos] = pre[pi];
+            pos = pos + 1;
+            pi = pi + 1;
+          } else {
+            pi = pre_len;
+          }
+        }
+      }
+    }
+  }
+  pi = 0;
+  while (pi < field_len) {
+    if (pos < 63) {
+      out_name[pos] = field_name[pi];
+      pos = pos + 1;
+      pi = pi + 1;
+    } else {
+      pi = field_len;
+    }
+  }
+  if (pos <= 0) { return 0 - 1; }
+  return pos;
+}
+
+// G-02f-216：read_ptr_slice 族 callee 名匹配（字节比较；用字面量完整长度）
+#[no_mangle]
+function pipeline_typeck_is_read_ptr_slice_callee_c(name: *u8, name_len: i32): i32 {
+  if (name == 0) { return 0; }
+  if (name_len <= 0) { return 0; }
+  // "read_ptr_slice" 14
+  let n0: u8[16] = [];
+  n0[0] = 114; n0[1] = 101; n0[2] = 97; n0[3] = 100; n0[4] = 95;
+  n0[5] = 112; n0[6] = 116; n0[7] = 114; n0[8] = 95; n0[9] = 115;
+  n0[10] = 108; n0[11] = 105; n0[12] = 99; n0[13] = 101; n0[14] = 0;
+  if (glue_name_bytes_eq_c(name, name_len, &n0[0], 14) != 0) { return 1; }
+  // "shux_io_read_ptr_slice" 22
+  let n1: u8[24] = [];
+  n1[0] = 115; n1[1] = 104; n1[2] = 117; n1[3] = 120; n1[4] = 95;
+  n1[5] = 105; n1[6] = 111; n1[7] = 95; n1[8] = 114; n1[9] = 101;
+  n1[10] = 97; n1[11] = 100; n1[12] = 95; n1[13] = 112; n1[14] = 116;
+  n1[15] = 114; n1[16] = 95; n1[17] = 115; n1[18] = 108; n1[19] = 105;
+  n1[20] = 99; n1[21] = 101; n1[22] = 0;
+  if (glue_name_bytes_eq_c(name, name_len, &n1[0], 22) != 0) { return 1; }
+  // "driver_read_ptr_slice" 21
+  let n2: u8[24] = [];
+  n2[0] = 100; n2[1] = 114; n2[2] = 105; n2[3] = 118; n2[4] = 101;
+  n2[5] = 114; n2[6] = 95; n2[7] = 114; n2[8] = 101; n2[9] = 97;
+  n2[10] = 100; n2[11] = 95; n2[12] = 112; n2[13] = 116; n2[14] = 114;
+  n2[15] = 95; n2[16] = 115; n2[17] = 108; n2[18] = 105; n2[19] = 99;
+  n2[20] = 101; n2[21] = 0;
+  if (glue_name_bytes_eq_c(name, name_len, &n2[0], 21) != 0) { return 1; }
+  // "io_read_ptr_slice" 17
+  let n3: u8[20] = [];
+  n3[0] = 105; n3[1] = 111; n3[2] = 95; n3[3] = 114; n3[4] = 101;
+  n3[5] = 97; n3[6] = 100; n3[7] = 95; n3[8] = 112; n3[9] = 116;
+  n3[10] = 114; n3[11] = 95; n3[12] = 115; n3[13] = 108; n3[14] = 105;
+  n3[15] = 99; n3[16] = 101; n3[17] = 0;
+  if (glue_name_bytes_eq_c(name, name_len, &n3[0], 17) != 0) { return 1; }
+  // 兼容 seed 历史短 len 检查（19/18/16 前缀）
+  if (name_len == 19) {
+    if (glue_name_bytes_eq_c(name, 19, &n1[0], 19) != 0) { return 1; }
+  }
+  if (name_len == 18) {
+    if (glue_name_bytes_eq_c(name, 18, &n2[0], 18) != 0) { return 1; }
+  }
+  if (name_len == 16) {
+    if (glue_name_bytes_eq_c(name, 16, &n3[0], 16) != 0) { return 1; }
+  }
+  return 0;
+}
+
+// G-02f-216：i8/i16 TYPE_NAMED + binop/NEG 初值 → 强制 resolved 为 decl
+// TYPE: I32=0 U64=4 I64=5 USIZE=6 NAMED=8
+// EXPR: ADD=4 SUB=5 MUL=6 DIV=7 NEG=22
+#[no_mangle]
+function pipeline_typeck_coerce_init_int_binop_to_decl_c(arena: *u8, init_ref: i32, decl_ty_ref: i32, decl_kind: i32, init_kind: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (init_ref <= 0) { return 0; }
+  if (decl_kind != 0) {
+    if (decl_kind != 4) {
+      if (decl_kind != 5) {
+        if (decl_kind != 6) {
+          if (decl_kind != 8) { return 0; }
+        }
+      }
+    }
+  }
+  if (init_kind != 4) {
+    if (init_kind != 5) {
+      if (init_kind != 6) {
+        if (init_kind != 7) {
+          if (init_kind != 22) { return 0; }
+        }
+      }
+    }
+  }
+  if (decl_kind == 8) {
+    unsafe {
+      let nm: u8[64] = [];
+      let nlen: i32 = pipeline_type_named_name_into(arena, decl_ty_ref, &nm[0]);
+      // "i8" = [105,56] len2; "i16" = [105,49,54] len3
+      let ok: i32 = 0;
+      if (nlen == 2) {
+        if (nm[0] == 105) {
+          if (nm[1] == 56) { ok = 1; }
+        }
+      }
+      if (nlen == 3) {
+        if (nm[0] == 105) {
+          if (nm[1] == 49) {
+            if (nm[2] == 54) { ok = 1; }
+          }
+        }
+      }
+      if (ok == 0) { return 0; }
+    }
+  }
+  unsafe {
+    pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+  }
+  return 1;
+}
+
+// G-02f-216：单 region body → typeck_check_block
+#[no_mangle]
+function pipeline_typeck_check_block_one_region_c(module: *u8, arena: *u8, block_ref: i32, region_idx: i32, return_type_ref: i32, ctx: *u8): i32 {
+  if (module == 0) { return 0; }
+  if (arena == 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (block_ref <= 0) { return 0; }
+  if (region_idx < 0) { return 0; }
+  unsafe {
+    let body_ref: i32 = pipeline_block_region_body_ref(arena, block_ref, region_idx);
+    if (body_ref <= 0) { return 0; }
+    return typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
+  }
+  return 0;
+}
+
+// G-02f-216：after_parse_ok thin → impl
+#[no_mangle]
+function pipeline_typeck_after_parse_ok(arena: *u8, module: *u8, source: *u8, ctx: *u8): i32 {
+  unsafe {
+    return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
+  }
+  return 0 - 1;
+}
+
+// G-02f-216：lsp diag parse+typeck thin → impl
+#[no_mangle]
+function pipeline_lsp_diag_parse_typeck_buf(module: *u8, arena: *u8, source_data: *u8, source_len: i32, ctx: *u8): i32 {
+  unsafe {
+    return pipeline_lsp_diag_parse_typeck_buf_impl_c(module, arena, source_data, source_len, ctx);
+  }
+  return 0 - 1;
+}
+
+// G-02f-216：int lit 未 resolve 时按 i32/i64 范围设类型
+// INT32_MAX=2147483647 INT32_MIN=-2147483648
+#[no_mangle]
+function pipeline_typeck_check_expr_int_lit_c(arena: *u8, expr_ref: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_resolved_type_ref(arena, expr_ref) != 0) { return 0; }
+    let value: i64 = pipeline_expr_int64_val_at(arena, expr_ref);
+    let imax: i64 = 2147483647;
+    let imin: i64 = 0 - 2147483647;
+    imin = imin - 1;
+    let ty: i32 = 0;
+    if (value > imax) {
+      // TYPE_I64=5
+      ty = pipeline_type_ensure_by_kind_ord(arena, 5);
+    } else {
+      if (value < imin) {
+        ty = pipeline_type_ensure_by_kind_ord(arena, 5);
+      } else {
+        // TYPE_I32=0
+        ty = pipeline_type_ensure_by_kind_ord(arena, 0);
+      }
+    }
+    if (ty > 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, ty);
+    }
+  }
+  return 0;
+}

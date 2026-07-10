@@ -1,4 +1,4 @@
-/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-210 pure residual; G-02f-11 product TU
+/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-216 med pure; G-02f-210 residual; G-02f-11 product TU
  * G-02f-135 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
@@ -604,12 +604,14 @@ __attribute__((weak)) int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_A
   return tc;
 }
 
+/* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
                                                              struct shux_slice_uint8_t *source,
                                                              struct ast_PipelineDepCtx *ctx) {
   return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
 }
 
+/* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                   uint8_t *source_data, int32_t source_len,
                                                                   struct ast_PipelineDepCtx *ctx) {
@@ -1400,6 +1402,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_struct_stack_escape_assign_c
   return 0;
 }
 
+/* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(struct ast_ASTArena *arena,
                                                                                int32_t init_ref, int32_t decl_ty_ref,
                                                                                int32_t decl_kind, int32_t init_kind) {
@@ -1498,6 +1501,7 @@ __attribute__((weak)) int32_t pipeline_asm_init_is_empty_array_lit_c(struct ast_
   return pipeline_expr_array_lit_num_elems_at(arena, init_ref) == 0 ? 1 : 0;
 }
 
+/* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_asm_build_import_binding_call_sym_c(const uint8_t *pre, int32_t pre_len,
                                                                            const uint8_t *field_name, int32_t field_len,
                                                                            uint8_t *out_name) {
@@ -1575,6 +1579,8 @@ __attribute__((weak)) void pipeline_typeck_hot_reorder_warn_layout(struct ast_Mo
   (void)li;
 }
 
+/* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc
+ * 字面量完整长度 14/22/21/17；并兼容历史短 len 19/18/16 前缀匹配。 */
 __attribute__((weak)) int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t *name, int32_t name_len) {
   static const uint8_t n0[] = "read_ptr_slice";
   static const uint8_t n1[] = "shux_io_read_ptr_slice";
@@ -1584,6 +1590,13 @@ __attribute__((weak)) int32_t pipeline_typeck_is_read_ptr_slice_callee_c(uint8_t
     return 0;
   if (name_len == 14 && memcmp(name, n0, 14) == 0)
     return 1;
+  if (name_len == 22 && memcmp(name, n1, 22) == 0)
+    return 1;
+  if (name_len == 21 && memcmp(name, n2, 21) == 0)
+    return 1;
+  if (name_len == 17 && memcmp(name, n3, 17) == 0)
+    return 1;
+  /* 兼容历史 seed 短 len */
   if (name_len == 19 && memcmp(name, n1, 19) == 0)
     return 1;
   if (name_len == 18 && memcmp(name, n2, 18) == 0)
@@ -1624,6 +1637,7 @@ __attribute__((weak)) int32_t pipeline_typeck_get_dep_return_type_in_caller_aren
   return pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena, dep_return_type_ref, caller_arena);
 }
 
+/* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_expr_int_lit_c(struct ast_ASTArena *arena, int32_t expr_ref) {
   int64_t value;
   int32_t ty;
@@ -1985,6 +1999,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_call_slice_region_c(struct a
   return 0;
 }
 
+/* G-02f-216：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module,
                                                                        struct ast_ASTArena *arena, int32_t block_ref,
                                                                        int32_t region_idx, int32_t return_type_ref,
