@@ -17,10 +17,7 @@
 #ifndef _WIN32
 #include <unistd.h>
 
-/* G-02f-74 diag gates */
-void diag_print_known_codes_impl(FILE *out);
-void diag_print_code_explain_impl(FILE *out, const char *code);
-void diag_print_code_table_impl(FILE *out);
+/* G-02f-74 / G-02f-157：print_* 已折叠为 public */
 #endif
 #endif
 
@@ -513,22 +510,78 @@ int diag_code_is_known(const char *code) {
 }
 
 
+/** 供 .x 遍历 / 查询 code 表（G-02f-157）。 */
+size_t diag_code_table_len(void) {
+    return g_diag_code_table_count;
+}
+const char *diag_code_table_code_at(size_t i) {
+    if (i >= g_diag_code_table_count)
+        return NULL;
+    return g_diag_code_table[i].code;
+}
+const char *diag_code_table_kind_at(size_t i) {
+    if (i >= g_diag_code_table_count)
+        return NULL;
+    return g_diag_code_table[i].kind;
+}
+const char *diag_code_table_summary_at(size_t i) {
+    if (i >= g_diag_code_table_count)
+        return NULL;
+    return g_diag_code_table[i].summary;
+}
+const char *diag_code_table_details_at(size_t i) {
+    if (i >= g_diag_code_table_count)
+        return NULL;
+    return g_diag_code_table[i].details;
+}
+const char *diag_entry_code(const char *code) {
+    const DiagCodeExplain *e = diag_lookup_code_explain(code);
+    return e ? e->code : NULL;
+}
+const char *diag_entry_kind(const char *code) {
+    const DiagCodeExplain *e = diag_lookup_code_explain(code);
+    return e ? e->kind : NULL;
+}
+const char *diag_entry_summary(const char *code) {
+    const DiagCodeExplain *e = diag_lookup_code_explain(code);
+    return e ? e->summary : NULL;
+}
+const char *diag_entry_details(const char *code) {
+    const DiagCodeExplain *e = diag_lookup_code_explain(code);
+    return e ? e->details : NULL;
+}
+FILE *diag_stdout(void) { return stdout; }
+void diag_io_fprint_unknown_code(FILE *out, const char *code) {
+    fprintf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
+}
+void diag_io_fprint_code_table_hdr(FILE *out) {
+    fprintf(out, "%-8s %-18s %s\n", "CODE", "KIND", "SUMMARY");
+    fprintf(out, "%-8s %-18s %s\n", "----", "----", "-------");
+}
+void diag_io_fprint_code_table_row(FILE *out, const char *code, const char *kind, const char *summary) {
+    fprintf(out, "%-8s %-18s %s\n", code ? code : "", kind ? kind : "", summary ? summary : "");
+}
+
+/* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 const char *diag_code_kind(const char *code) {
     const DiagCodeExplain *entry = diag_lookup_code_explain(code);
     return entry ? entry->kind : NULL;
 }
 
+/* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 const char *diag_code_summary(const char *code) {
     const DiagCodeExplain *entry = diag_lookup_code_explain(code);
     return entry ? entry->summary : NULL;
 }
 
+/* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 const char *diag_code_details(const char *code) {
     const DiagCodeExplain *entry = diag_lookup_code_explain(code);
     return entry ? entry->details : NULL;
 }
 
-void diag_print_known_codes_impl(FILE *out) {
+/* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void diag_print_known_codes(FILE *out) {
     size_t i;
     if (!out)
         out = stdout;
@@ -537,14 +590,8 @@ void diag_print_known_codes_impl(FILE *out) {
     fputc('\n', out);
 }
 
-void diag_print_known_codes(FILE *out) {
-  {
-    diag_print_known_codes_impl(out);
-  }
-}
-
-
-void diag_print_code_explain_impl(FILE *out, const char *code) {
+/* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void diag_print_code_explain(FILE *out, const char *code) {
     const DiagCodeExplain *entry;
     if (!out)
         out = stdout;
@@ -559,12 +606,6 @@ void diag_print_code_explain_impl(FILE *out, const char *code) {
     fprintf(out, "Kind: %s\n", entry->kind);
     fprintf(out, "Summary: %s\n", entry->summary);
     fprintf(out, "Details: %s\n", entry->details);
-}
-
-void diag_print_code_explain(FILE *out, const char *code) {
-  {
-    diag_print_code_explain_impl(out, code);
-  }
 }
 
 
@@ -671,7 +712,8 @@ const char *diag_code_suggest(const char *code, char *out, size_t out_cap) {
  * 打印完整诊断码表（用户面：`shux explain --list` / `shux --explain --list`）。
  * 格式：列对齐的 CODE / KIND / Summary，便于人工浏览全部已知码。
  */
-void diag_print_code_table_impl(FILE *out) {
+/* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void diag_print_code_table(FILE *out) {
     size_t i;
     if (!out)
         out = stdout;
@@ -681,12 +723,6 @@ void diag_print_code_table_impl(FILE *out) {
         const DiagCodeExplain *e = &g_diag_code_table[i];
         fprintf(out, "%-8s %-18s %s\n", e->code, e->kind, e->summary);
     }
-}
-
-void diag_print_code_table(FILE *out) {
-  {
-    diag_print_code_table_impl(out);
-  }
 }
 
 

@@ -14,9 +14,6 @@
 extern "C" function diag_report_with_code_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8,
                                           detail: *u8): void;
 
-extern "C" function diag_print_known_codes_impl(out: *u8): void;
-extern "C" function diag_print_code_explain_impl(out: *u8, code: *u8): void;
-extern "C" function diag_print_code_table_impl(out: *u8): void;
 extern "C" function diag_json_get_state(): i32;
 extern "C" function diag_json_set_state(v: i32): void;
 extern "C" function diag_ctx_get_use_color(): i32;
@@ -25,19 +22,32 @@ extern "C" function diag_ctx_get_source(): *u8;
 extern "C" function diag_ctx_get_source_len(): i64;
 extern "C" function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
 extern "C" function diag_code_table_has(code: *u8): i32;
+extern "C" function diag_code_table_len(): i64;
+extern "C" function diag_code_table_code_at(i: i64): *u8;
+extern "C" function diag_code_table_kind_at(i: i64): *u8;
+extern "C" function diag_code_table_summary_at(i: i64): *u8;
+extern "C" function diag_code_table_details_at(i: i64): *u8;
+extern "C" function diag_entry_code(code: *u8): *u8;
+extern "C" function diag_entry_kind(code: *u8): *u8;
+extern "C" function diag_entry_summary(code: *u8): *u8;
+extern "C" function diag_entry_details(code: *u8): *u8;
 extern "C" function getenv(name: *u8): *u8;
 extern "C" function isatty(fd: i32): i32;
 extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
 extern "C" function diag_kind_is_exact_impl(kind: *u8, needle: *u8): i32;
 extern "C" function diag_line_digits_impl(line: i32): i32;
 
-// G-02f-156：stdio 冷路径桥
+// G-02f-156 / G-02f-157：stdio 冷路径桥
 extern "C" function diag_stderr(): *u8;
+extern "C" function diag_stdout(): *u8;
 extern "C" function diag_io_fputc(o: *u8, c: i32): i32;
 extern "C" function diag_io_fputs(s: *u8, o: *u8): i32;
 extern "C" function diag_io_fputs_u04x(o: *u8, c: i32): void;
 extern "C" function diag_io_fflush(o: *u8): void;
 extern "C" function diag_io_fprint_line_col(o: *u8, line: i32, col: i32): void;
+extern "C" function diag_io_fprint_unknown_code(o: *u8, code: *u8): void;
+extern "C" function diag_io_fprint_code_table_hdr(o: *u8): void;
+extern "C" function diag_io_fprint_code_table_row(o: *u8, code: *u8, kind: *u8, summary: *u8): void;
 
 #[no_mangle]
 function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
@@ -227,7 +237,7 @@ function diag_restore(snapshot: *u8): void {
   }
 }
 
-// G-02f-155：code 表存在性
+// G-02f-155 / G-02f-157：code 表
 #[no_mangle]
 function diag_code_is_known(code: *u8): i32 {
   unsafe {
@@ -237,23 +247,97 @@ function diag_code_is_known(code: *u8): i32 {
 }
 
 #[no_mangle]
+function diag_code_kind(code: *u8): *u8 {
+  unsafe {
+    return diag_entry_kind(code);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function diag_code_summary(code: *u8): *u8 {
+  unsafe {
+    return diag_entry_summary(code);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function diag_code_details(code: *u8): *u8 {
+  unsafe {
+    return diag_entry_details(code);
+  }
+  return 0 as *u8;
+}
+
+// G-02f-157：已知码列表（comma 分隔）
+#[no_mangle]
 function diag_print_known_codes(out: *u8): void {
   unsafe {
-    diag_print_known_codes_impl(out);
+    let o: *u8 = out;
+    if (o == 0) { o = diag_stdout(); }
+    let n: i64 = diag_code_table_len();
+    let i: i64 = 0;
+    while (i < n) {
+      let c: *u8 = diag_code_table_code_at(i);
+      if (i != 0) {
+        diag_io_fputs(", ", o);
+      }
+      if (c != 0) {
+        diag_io_fputs(c, o);
+      }
+      i = i + 1;
+    }
+    diag_io_fputc(10, o);
   }
 }
 
+// G-02f-157：单码解释 / 未知时列已知码
 #[no_mangle]
 function diag_print_code_explain(out: *u8, code: *u8): void {
   unsafe {
-    diag_print_code_explain_impl(out, code);
+    let o: *u8 = out;
+    if (o == 0) { o = diag_stdout(); }
+    let ec: *u8 = diag_entry_code(code);
+    if (ec == 0) {
+      diag_io_fprint_unknown_code(o, code);
+      diag_io_fputs("Known codes: ", o);
+      diag_print_known_codes(o);
+      return;
+    }
+    diag_io_fputs(ec, o);
+    diag_io_fputc(10, o);
+    diag_io_fputs("Kind: ", o);
+    let k: *u8 = diag_entry_kind(code);
+    if (k != 0) { diag_io_fputs(k, o); }
+    diag_io_fputc(10, o);
+    diag_io_fputs("Summary: ", o);
+    let s: *u8 = diag_entry_summary(code);
+    if (s != 0) { diag_io_fputs(s, o); }
+    diag_io_fputc(10, o);
+    diag_io_fputs("Details: ", o);
+    let d: *u8 = diag_entry_details(code);
+    if (d != 0) { diag_io_fputs(d, o); }
+    diag_io_fputc(10, o);
   }
 }
 
+// G-02f-157：完整 code 表
 #[no_mangle]
 function diag_print_code_table(out: *u8): void {
   unsafe {
-    diag_print_code_table_impl(out);
+    let o: *u8 = out;
+    if (o == 0) { o = diag_stdout(); }
+    diag_io_fprint_code_table_hdr(o);
+    let n: i64 = diag_code_table_len();
+    let i: i64 = 0;
+    while (i < n) {
+      let c: *u8 = diag_code_table_code_at(i);
+      let k: *u8 = diag_code_table_kind_at(i);
+      let s: *u8 = diag_code_table_summary_at(i);
+      diag_io_fprint_code_table_row(o, c, k, s);
+      i = i + 1;
+    }
   }
 }
 
