@@ -3906,13 +3906,13 @@ ensure_runtime_user_link_objs() {
   echo " cc_inc_tu runtime_random_fill.o <- src/asm/runtime_random_fill.inc"
   sh scripts/cc_inc_tu.sh src/asm/runtime_random_fill.inc runtime_random_fill.o
   fi
-  if [ ! -f runtime_time_os.o ] || [ src/asm/runtime_time_os.inc -nt runtime_time_os.o ]; then
-  echo " cc_inc_tu runtime_time_os.o <- src/asm/runtime_time_os.inc"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_time_os.inc runtime_time_os.o
+  if [ ! -f runtime_time_os.o ] || [ seeds/runtime_time_os.from_x.c -nt runtime_time_os.o ]; then
+  echo " cc_inc_tu runtime_time_os.o <- seeds/runtime_time_os.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_time_os.from_x.c -o runtime_time_os.o
   fi
-  if [ ! -f runtime_env_os.o ] || [ src/asm/runtime_env_os.inc -nt runtime_env_os.o ]; then
-  echo " cc_inc_tu runtime_env_os.o <- src/asm/runtime_env_os.inc"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_env_os.inc runtime_env_os.o
+  if [ ! -f runtime_env_os.o ] || [ seeds/runtime_env_os.from_x.c -nt runtime_env_os.o ]; then
+  echo " cc_inc_tu runtime_env_os.o <- seeds/runtime_env_os.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_env_os.from_x.c -o runtime_env_os.o
   fi
 }
 

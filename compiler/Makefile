@@ -807,8 +807,9 @@ runtime_compress_zlib_glue.o: src/asm/runtime_compress_zlib_glue.inc scripts/cc_
 	sh scripts/cc_inc_tu.sh src/asm/runtime_compress_zlib_glue.inc $@
 
 # F-ZC：time OS syscall；与 time.o 一并链入（G-02e-18：.inc + cc_inc_tu）
-runtime_time_os.o: src/asm/runtime_time_os.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_time_os.inc $@
+# G-02f-19：runtime_time_os 产品 seed
+runtime_time_os.o: seeds/runtime_time_os.from_x.c src/asm/runtime_time_os.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_time_os.from_x.c -o $@
 
 # F-ZC：queue 竞争烟测 pthread；与 queue.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 runtime_queue_contention.o: src/asm/runtime_queue_contention.inc scripts/cc_inc_tu.sh
@@ -819,24 +820,29 @@ runtime_dynlib_os.o: src/asm/runtime_dynlib_os.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_dynlib_os.inc $@
 
 # F-ZC：env OS getenv/setenv/iter；与 env.o 一并链入（G-02e-19：.inc + cc_inc_tu）
-runtime_env_os.o: src/asm/runtime_env_os.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_env_os.inc $@
+# G-02f-19：runtime_env_os 产品 seed
+runtime_env_os.o: seeds/runtime_env_os.from_x.c src/asm/runtime_env_os.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_env_os.from_x.c -o $@
 
 # F-ZC：backtrace capture/symbolicate/crash evidence；与 backtrace.o 一并链入（G-02e-20）
-runtime_backtrace_platform.o: src/asm/runtime_backtrace_platform.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_backtrace_platform.inc $@
+# G-02f-19：runtime_backtrace_platform 产品 seed
+runtime_backtrace_platform.o: seeds/runtime_backtrace_platform.from_x.c src/asm/runtime_backtrace_platform.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_backtrace_platform.from_x.c -o $@
 
 # F-ZC：log sink/轮转/异步；与 log.o 一并链入（G-02e-19：.inc + cc_inc_tu）
-runtime_log_os.o: src/asm/runtime_log_os.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_log_os.inc $@
+# G-02f-19：runtime_log_os 产品 seed
+runtime_log_os.o: seeds/runtime_log_os.from_x.c src/asm/runtime_log_os.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_log_os.from_x.c -o $@
 
 # F-ZC：math libm/fenv；与 math.o 一并链入（须 -lm；G-02e-19：.inc + cc_inc_tu）
-runtime_math_libm.o: src/asm/runtime_math_libm.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_math_libm.inc $@
+# G-02f-19：runtime_math_libm 产品 seed
+runtime_math_libm.o: seeds/runtime_math_libm.from_x.c src/asm/runtime_math_libm.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_math_libm.from_x.c -o $@
 
 # F-ZC：atomic load/store/CAS/fence；与 atomic.o 一并链入（G-02e-19：.inc + cc_inc_tu）
-runtime_atomic_glue.o: src/asm/runtime_atomic_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_atomic_glue.inc $@
+# G-02f-19：runtime_atomic_glue 产品 seed
+runtime_atomic_glue.o: seeds/runtime_atomic_glue.from_x.c src/asm/runtime_atomic_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_atomic_glue.from_x.c -o $@
 
 # F-ZC：channel 有界/无界/select；与 channel.o 一并链入（G-02e-20：.inc + cc_inc_tu）
 # G-02f-18：runtime_channel_glue 产品 seed
@@ -852,11 +858,13 @@ runtime_net_workers.o: src/asm/runtime_net_workers.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_net_workers.inc $@
 
 # F-ZC：sync Mutex/RwLock/Condvar + 锁诊断 TLS；与 sync.o 一并链入（G-02e-20）
-runtime_sync_os.o: src/asm/runtime_sync_os.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_sync_os.inc $@
+# G-02f-19：runtime_sync_os 产品 seed
+runtime_sync_os.o: seeds/runtime_sync_os.from_x.c src/asm/runtime_sync_os.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_sync_os.from_x.c -o $@
 
-runtime_sync_lock_diag_tls.o: src/asm/runtime_sync_lock_diag_tls.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_sync_lock_diag_tls.inc $@
+# G-02f-19：runtime_sync_lock_diag_tls 产品 seed
+runtime_sync_lock_diag_tls.o: seeds/runtime_sync_lock_diag_tls.from_x.c src/asm/runtime_sync_lock_diag_tls.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_sync_lock_diag_tls.from_x.c -o $@
 
 # F-ZC：thread pthread/CreateThread；与 thread.o 一并链入（G-02e-20）
 # G-02f-18：runtime_thread_glue 产品 seed
