@@ -1,7 +1,7 @@
-/* Generated from src/runtime_io_abi.x (G-02f-29/44/57 true .x + C tail).
+/* Generated from src/runtime_io_abi.x (G-02f-29/44/57/58 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_io_abi.x > /tmp/io.c
- *         merge fs shim + path read/write gates; C file_view mmap bulk.
- * .x covers: + shux_read_file_into_path, write_path_bytes, release_file_view.
+ *         merge fs/path R/W + file_view gates; C mmap bulk + os_read loop.
+ * .x covers: + runtime_read_file_view, read_file_malloc, os_read_file_into.
  */
 #include "win32_compat.h"
 #include "runtime_io_abi.h"
@@ -95,12 +95,18 @@ static int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFi
 }
 
 
+
+/* G-02f-58 helper protos */
+int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out);
+char *runtime_read_file_malloc_impl(const char *path, size_t *out_len);
+int32_t std_sys_os_read_file_into_impl(uint8_t *path, uint8_t *buf, int32_t cap);
+
 /* G-02f-57 helper protos */
 int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap);
 int shux_write_path_bytes_impl(const char *path, const void *data, size_t len);
 void runtime_release_file_view_impl(ShuxRuntimeFileView *view);
 
-int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
+int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     int fd;
     int fd_fallback;
     struct stat st;
@@ -139,6 +145,19 @@ int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
     return 0;
 }
 
+int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
+  if (path == NULL) {
+    return -1;
+  }
+  if (out == NULL) {
+    return -1;
+  }
+  {
+    return runtime_read_file_view_impl(path, out);
+  }
+  return -1;
+}
+
 void runtime_release_file_view_impl(ShuxRuntimeFileView *view) {
     if (view->needs_munmap && view->data && view->length > 0)
         munmap((void *)view->data, view->length);
@@ -163,7 +182,7 @@ void runtime_release_file_view(ShuxRuntimeFileView *view) {
  * B-20：POSIX open/fstat/read 读整文件到堆缓冲。
  * 参数：见 runtime_io_abi.h。
  */
-char *runtime_read_file_malloc(const char *path, size_t *out_len) {
+char *runtime_read_file_malloc_impl(const char *path, size_t *out_len) {
     ShuxRuntimeFileView view;
     char *buf;
 
@@ -181,6 +200,16 @@ char *runtime_read_file_malloc(const char *path, size_t *out_len) {
         *out_len = view.length;
     runtime_release_file_view(&view);
     return buf;
+}
+
+char *runtime_read_file_malloc(const char *path, size_t *out_len) {
+  if (path == NULL) {
+    return NULL;
+  }
+  {
+    return runtime_read_file_malloc_impl(path, out_len);
+  }
+  return NULL;
 }
 
 /**
@@ -354,7 +383,7 @@ ssize_t fs_posix_read_c(int32_t fd, uint8_t * buf, size_t count) {
  * std.sys.os_read_file_into 的 C 链接符号（-E-extern import 名）。
  * 成功返回读入字节数；失败 -1。
  */
-int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
+int32_t std_sys_os_read_file_into_impl(uint8_t *path, uint8_t *buf, int32_t cap) {
   int32_t fd;
   int32_t total;
   if (!path || !buf || cap <= 0)
@@ -376,5 +405,21 @@ int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
   }
   close(fd);
   return total;
+}
+
+int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
+  if (path == NULL) {
+    return -1;
+  }
+  if (buf == NULL) {
+    return -1;
+  }
+  if (cap <= 0) {
+    return -1;
+  }
+  {
+    return std_sys_os_read_file_into_impl(path, buf, cap);
+  }
+  return -1;
 }
 

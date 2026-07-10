@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..43/50..57：真迁 .x — pipeline dep/import/path + resolve/read/parse + large_stack 跑。
+// G-02f-32..43/50..58：真迁 .x — pipeline dep/import/path + large_stack + dep 预跑门闩。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
 // C 尾：存储槽数组、import resolve/snprintf、clear 槽循环、malloc buf、大 pipeline。
-// G-02f-57：+ shux_pipeline_run_x_pipeline_large_stack。
+// G-02f-58：+ dep_prerun_parse_skip_typeck / dep_prerun_parse_only。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -49,6 +49,8 @@ extern "C" function pipeline_resolve_path_impl(path_ptr: *u8, path_len: i32): i3
 extern "C" function pipeline_read_file_impl(): i32;
 extern "C" function pipeline_parse_into_loaded_import_impl(arena: *u8, module: *u8): i32;
 extern "C" function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
+extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
+extern "C" function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -696,6 +698,36 @@ function pipeline_parse_into_loaded_import(arena: *u8, module: *u8): i32 {
 function shux_pipeline_run_x_pipeline_large_stack(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32 {
   unsafe {
     return shux_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
+  }
+  return -1;
+}
+
+/* ---- G-02f-58：dep 预跑 parse 门闩 ---- */
+
+#[no_mangle]
+function shux_pipeline_dep_prerun_parse_skip_typeck(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+  unsafe {
+    return shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+  }
+  return -1;
+}
+
+#[no_mangle]
+function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32 {
+  if (dep_mod == 0 as *u8) {
+    return -1;
+  }
+  if (dep_arena == 0 as *u8) {
+    return -1;
+  }
+  if (src == 0 as *u8) {
+    return -1;
+  }
+  if (len == 0) {
+    return -1;
+  }
+  unsafe {
+    return shux_pipeline_dep_prerun_parse_only_impl(dep_mod, dep_arena, src, len);
   }
   return -1;
 }

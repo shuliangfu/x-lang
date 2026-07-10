@@ -1,8 +1,8 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..57 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..58 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge resolve/read/parse + large_stack run; C multi resolve + bulk.
- * .x covers: + shux_pipeline_run_x_pipeline_large_stack.
+ *         merge dep prerun parse gates; C multi resolve + large pipeline bulk.
+ * .x covers: + dep_prerun_parse_skip_typeck, dep_prerun_parse_only.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -26,6 +26,12 @@ extern void preprocess_define_reset(void);
 extern int32_t preprocess_if_stack_len(void);
 extern void preprocess_define_add(const char *name);
 
+
+
+/* G-02f-58 helper protos */
+int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+    void *dep_out, void *one_ctx);
+int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len);
 
 /* G-02f-57 helper protos */
 int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
@@ -1664,7 +1670,7 @@ int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const ui
 }
 
 /** dep 预跑：完整 parse，跳过 typeck/codegen。 */
-int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
     int saved = driver_check_only_get();
     int saved_entry_only = 0;
@@ -1684,6 +1690,14 @@ int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, c
         pctx->asm_entry_module_only = saved_entry_only;
     driver_check_only_set(saved ? 1 : 0);
     return ec;
+}
+
+int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+    void *dep_out, void *one_ctx) {
+  {
+    return shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+  }
+  return -1;
 }
 
 /** dep 预跑：parse+typeck（C glue 直调），跳过 codegen；勿走 X run_x_pipeline_impl（大模块 ctx 易丢）。 */
@@ -1740,7 +1754,7 @@ int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const u
  * 须走 pipeline_parse_set_main_from_buf_c（parse_into_with_init_buf）；直调 parser_parse_into 的 slice
  * 路径对大库模块（如 std/string/mod.x）常 ok=-2 且仅 ~2 func，co-emit 缺 std_string_* 符号。
  */
-int shux_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
+int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
     int32_t parse_rc;
     if (!dep_mod || !dep_arena || !src || len == 0)
         return -1;
@@ -1758,6 +1772,25 @@ int shux_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const ui
                      "asm debug: dep_prerun_parse_only done rc=%d funcs=%d",
                      (int)parse_rc, pipeline_module_num_funcs(dep_mod));
     return (parse_rc == 0) ? 0 : -1;
+}
+
+int shux_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
+  if (dep_mod == NULL) {
+    return -1;
+  }
+  if (dep_arena == NULL) {
+    return -1;
+  }
+  if (src == NULL) {
+    return -1;
+  }
+  if (len == 0) {
+    return -1;
+  }
+  {
+    return shux_pipeline_dep_prerun_parse_only_impl(dep_mod, dep_arena, src, len);
+  }
+  return -1;
 }
 
 /** asm 单模块 -o：dep 预跑走 typeck_only。 */
