@@ -7,14 +7,29 @@
 // G-02f-105：+ emit_hoisted_lets / callee_is_io / future_wait 薄门闩。
 
 extern "C" function emit_hoisted_lets_impl(f: *u8, out: *u8): void;
-extern "C" function async_cps_callee_is_io_impl(callee: *u8): i32;
-extern "C" function async_cps_callee_is_future_wait_impl(callee: *u8): i32;
 
 function async_cps_codegen_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-105：async cps helpers 门闩 ---- */
+/* ---- G-02f-105 / G-02f-132：async cps helpers ---- */
+
+// ASTFunc: line:i32 + col:i32 + name:*char → name 在偏移 8
+function async_cps_load_func_name(callee: *u8): *u8 {
+  if (callee == 0) { return 0 as *u8; }
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  let a: usize = callee[8] as usize;
+  a = a + (callee[9] as usize) * m;
+  a = a + (callee[10] as usize) * m2;
+  a = a + (callee[11] as usize) * (m2 * m);
+  a = a + (callee[12] as usize) * m4;
+  a = a + (callee[13] as usize) * (m4 * m);
+  a = a + (callee[14] as usize) * (m4 * m2);
+  a = a + (callee[15] as usize) * (m4 * m2 * m);
+  return a as *u8;
+}
 
 #[no_mangle]
 function emit_hoisted_lets(f: *u8, out: *u8): void {
@@ -23,20 +38,57 @@ function emit_hoisted_lets(f: *u8, out: *u8): void {
   }
 }
 
+// G-02f-132：IO await 目标名表真迁 .x
 #[no_mangle]
 function async_cps_callee_is_io(callee: *u8): i32 {
-  unsafe {
-    return async_cps_callee_is_io_impl(callee);
+  let name: *u8 = async_cps_load_func_name(callee);
+  if (name == 0) { return 0; }
+  if (name[0] == 0) { return 0; }
+  // shux_io_
+  if (name[0]==115 && name[1]==104 && name[2]==117 && name[3]==120 && name[4]==95
+      && name[5]==105 && name[6]==111 && name[7]==95) {
+    return 1;
   }
-  return 0;
-}
-
-
-
-#[no_mangle]
-function async_cps_callee_is_future_wait(callee: *u8): i32 {
-  unsafe {
-    return async_cps_callee_is_future_wait_impl(callee);
+  // read / write
+  if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==100 && name[4]==0) { return 1; }
+  if (name[0]==119 && name[1]==114 && name[2]==105 && name[3]==116 && name[4]==101 && name[5]==0) { return 1; }
+  // submit_read / submit_write
+  if (name[0]==115 && name[1]==117 && name[2]==98 && name[3]==109 && name[4]==105 && name[5]==116
+      && name[6]==95 && name[7]==114 && name[8]==101 && name[9]==97 && name[10]==100 && name[11]==0) {
+    return 1;
+  }
+  if (name[0]==115 && name[1]==117 && name[2]==98 && name[3]==109 && name[4]==105 && name[5]==116
+      && name[6]==95 && name[7]==119 && name[8]==114 && name[9]==105 && name[10]==116 && name[11]==101
+      && name[12]==0) {
+    return 1;
+  }
+  // read_fd / write_fd
+  if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==100 && name[4]==95 && name[5]==102
+      && name[6]==100 && name[7]==0) {
+    return 1;
+  }
+  if (name[0]==119 && name[1]==114 && name[2]==105 && name[3]==116 && name[4]==101 && name[5]==95
+      && name[6]==102 && name[7]==100 && name[8]==0) {
+    return 1;
+  }
+  // read_ptr / read_stdin_ptr
+  if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==100 && name[4]==95 && name[5]==112
+      && name[6]==116 && name[7]==114 && name[8]==0) {
+    return 1;
+  }
+  if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==100 && name[4]==95 && name[5]==115
+      && name[6]==116 && name[7]==100 && name[8]==105 && name[9]==110 && name[10]==95 && name[11]==112
+      && name[12]==116 && name[13]==114 && name[14]==0) {
+    return 1;
+  }
+  // read_into / write_from
+  if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==100 && name[4]==95 && name[5]==105
+      && name[6]==110 && name[7]==116 && name[8]==111 && name[9]==0) {
+    return 1;
+  }
+  if (name[0]==119 && name[1]==114 && name[2]==105 && name[3]==116 && name[4]==101 && name[5]==95
+      && name[6]==102 && name[7]==114 && name[8]==111 && name[9]==109 && name[10]==0) {
+    return 1;
   }
   return 0;
 }
@@ -112,4 +164,12 @@ function async_cps_callee_is_future_wait_by_name(n: *u8): i32 {
     i = i + 1;
   }
   return 0;
+}
+
+// G-02f-132：future_wait 经 by_name（须在 by_name 之后）
+#[no_mangle]
+function async_cps_callee_is_future_wait(callee: *u8): i32 {
+  let name: *u8 = async_cps_load_func_name(callee);
+  if (name == 0) { return 0; }
+  return async_cps_callee_is_future_wait_by_name(name);
 }

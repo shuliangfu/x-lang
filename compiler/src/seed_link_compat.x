@@ -18,13 +18,15 @@ extern "C" function std_heap_free(ptr: *u8): void;
 extern "C" function pipeline_module_struct_layout_set_packed(module: *u8, idx: i32, v: i32): void;
 extern "C" function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32;
 
-extern "C" function shux_expr_is_func_param_at_impl(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32,
-                                                    param_ix: i32): i32;
 extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
 extern "C" function pipeline_module_num_funcs(mod: *u8): i32;
 extern "C" function pipeline_asm_module_func_name_len_at(mod: *u8, fi: i32): i32;
 extern "C" function pipeline_asm_module_func_name_copy64(mod: *u8, fi: i32, dst: *u8): void;
+extern "C" function pipeline_module_func_param_name_len_at(mod: *u8, func_idx: i32, param_ix: i32): i32;
+extern "C" function pipeline_module_func_param_name_copy32(mod: *u8, func_idx: i32, param_ix: i32, dst: *u8): void;
 
 /* ---- typeck/lsp name bridge ---- */
 
@@ -154,9 +156,30 @@ function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0
 /* ---- G-02f-99：expr/param/func-index 门闩 ---- */
 
 #[no_mangle]
+// G-02f-132：VAR 是否为指定形参名
+#[no_mangle]
 function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (mod == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  if (param_ix < 0) { return 0; }
   unsafe {
-    return shux_expr_is_func_param_at_impl(arena, mod, func_idx, expr_ref, param_ix);
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 3) { return 0; }
+    let plen: i32 = pipeline_module_func_param_name_len_at(mod, func_idx, param_ix);
+    let vlen: i32 = pipeline_expr_var_name_len(arena, expr_ref);
+    if (plen <= 0) { return 0; }
+    if (plen != vlen) { return 0; }
+    if (plen > 31) { return 0; }
+    let pbuf: u8[32] = [];
+    let vbuf: u8[64] = [];
+    pipeline_module_func_param_name_copy32(mod, func_idx, param_ix, &pbuf[0]);
+    pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);
+    let k: i32 = 0;
+    while (k < plen) {
+      if (pbuf[k] != vbuf[k]) { return 0; }
+      k = k + 1;
+    }
+    return 1;
   }
   return 0;
 }

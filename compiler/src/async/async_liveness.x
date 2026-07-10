@@ -9,10 +9,8 @@ function async_liveness_x_doc_anchor(): i32 {
   return 0;
 }
 
-// G-02f-108：+ await/io/block/frame helpers 薄门闩。
+// G-02f-108 / G-02f-132：await/io/block/frame helpers
 
-extern "C" function async_liveness_callee_is_io_read_impl(f: *u8): i32;
-extern "C" function async_liveness_callee_is_io_write_impl(f: *u8): i32;
 extern "C" function block_count_await_impl(b: *u8): i32;
 extern "C" function block_has_io_read_await_impl(b: *u8): i32;
 extern "C" function block_has_io_write_await_impl(b: *u8): i32;
@@ -20,17 +18,52 @@ extern "C" function block_refs_var_impl(b: *u8, name: *u8): i32;
 extern "C" function block_rest_refs_var_impl(b: *u8, from: i32, name: *u8): i32;
 extern "C" function frame_live_add_impl(out: *u8, name: *u8): void;
 
-/* ---- G-02f-108：async_liveness helpers 门闩 ---- */
+/* ---- G-02f-108 / G-02f-132：async_liveness helpers ---- */
+
+// ASTFunc.name 偏移 8（line+col）
+function async_live_load_func_name(callee: *u8): *u8 {
+  if (callee == 0) { return 0 as *u8; }
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  let a: usize = callee[8] as usize;
+  a = a + (callee[9] as usize) * m;
+  a = a + (callee[10] as usize) * m2;
+  a = a + (callee[11] as usize) * (m2 * m);
+  a = a + (callee[12] as usize) * m4;
+  a = a + (callee[13] as usize) * (m4 * m);
+  a = a + (callee[14] as usize) * (m4 * m2);
+  a = a + (callee[15] as usize) * (m4 * m2 * m);
+  return a as *u8;
+}
 
 #[no_mangle]
 function async_liveness_callee_is_io_read(f: *u8): i32 {
-  unsafe { return async_liveness_callee_is_io_read_impl(f); }
+  let name: *u8 = async_live_load_func_name(f);
+  if (name == 0) { return 0; }
+  // read
+  if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==100 && name[4]==0) { return 1; }
+  // read_fd
+  if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==100 && name[4]==95
+      && name[5]==102 && name[6]==100 && name[7]==0) {
+    return 1;
+  }
   return 0;
 }
 
 #[no_mangle]
 function async_liveness_callee_is_io_write(f: *u8): i32 {
-  unsafe { return async_liveness_callee_is_io_write_impl(f); }
+  let name: *u8 = async_live_load_func_name(f);
+  if (name == 0) { return 0; }
+  // write
+  if (name[0]==119 && name[1]==114 && name[2]==105 && name[3]==116 && name[4]==101 && name[5]==0) {
+    return 1;
+  }
+  // write_fd
+  if (name[0]==119 && name[1]==114 && name[2]==105 && name[3]==116 && name[4]==101 && name[5]==95
+      && name[6]==102 && name[7]==100 && name[8]==0) {
+    return 1;
+  }
   return 0;
 }
 

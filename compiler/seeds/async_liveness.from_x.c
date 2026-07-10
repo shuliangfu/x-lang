@@ -1,4 +1,5 @@
 /* seeds/async_liveness.from_x.c — G-02f-18 product TU
+ * G-02f-132 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
  * G-02f-110 helper gates.
@@ -191,30 +192,22 @@ int block_count_await(const struct ASTBlock *b) {
 
 
 /** callee 是否为 IO read await 目标（read / read_fd）。 */
-int async_liveness_callee_is_io_read_impl(const struct ASTFunc *callee) {
+/* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int async_liveness_callee_is_io_read(const struct ASTFunc *callee) {
     if (!callee || !callee->name)
         return 0;
     return strcmp(callee->name, "read") == 0 || strcmp(callee->name, "read_fd") == 0;
-}
-int async_liveness_callee_is_io_read(const struct ASTFunc *callee) {
-  {
-    return async_liveness_callee_is_io_read_impl(callee);
-  }
-  return 0;
+
 }
 
 
 /** callee 是否为 IO write await 目标（write / write_fd）。 */
-int async_liveness_callee_is_io_write_impl(const struct ASTFunc *callee) {
+/* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int async_liveness_callee_is_io_write(const struct ASTFunc *callee) {
     if (!callee || !callee->name)
         return 0;
     return strcmp(callee->name, "write") == 0 || strcmp(callee->name, "write_fd") == 0;
-}
-int async_liveness_callee_is_io_write(const struct ASTFunc *callee) {
-  {
-    return async_liveness_callee_is_io_write_impl(callee);
-  }
-  return 0;
+
 }
 
 

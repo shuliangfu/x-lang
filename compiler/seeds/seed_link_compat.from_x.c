@@ -1,4 +1,5 @@
 /* Generated from src/seed_link_compat.x (G-02f-28 true .x + C tail).
+ * G-02f-132 true .x pure helpers.
  * G-02f-131 true .x pure helpers.
  * Regen: ./shux-c -E -L .. src/seed_link_compat.x > /tmp/slc.c
  *         then merge into this seed (weak polish + fold/arch C tail).
@@ -260,7 +261,8 @@ __attribute__((weak)) int32_t backend_fold_func_return_operand_ref(void *arena, 
 }
 
 /* G-02f-99：expr/param/func-index helpers export gates. */
-int32_t shux_expr_is_func_param_at_impl(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
+/* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t shux_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
                                           int32_t param_ix) {
   uint8_t pbuf[32];
   uint8_t vbuf[64];
@@ -281,13 +283,7 @@ int32_t shux_expr_is_func_param_at_impl(void *arena, struct ast_Module *mod, int
       return 0;
   }
   return 1;
-}
-int32_t shux_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
-                                          int32_t param_ix) {
-  {
-    return shux_expr_is_func_param_at_impl(arena, mod, func_idx, expr_ref, param_ix);
-  }
-  return 0;
+
 }
 
 

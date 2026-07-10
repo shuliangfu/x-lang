@@ -1,4 +1,5 @@
 /* target_cpu_pure.from_x.c — G-02f-2/3/4/5 product pure half of target_cpu.o
+ * G-02f-132 true .x pure helpers.
  * G-02f-131 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-110 helper gates.
@@ -144,7 +145,8 @@ int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out) {
   return tcp_parse_named(s, start, end, out);
 }
 
-int32_t tcp_eq5_impl(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
+/* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
   uint8_t lit[5];
   lit[0] = a0;
   lit[1] = a1;
@@ -152,16 +154,12 @@ int32_t tcp_eq5_impl(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, ui
   lit[3] = a3;
   lit[4] = a4;
   return tcp_eq_at(name, 0, 5, lit);
-}
-int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
-  {
-    return tcp_eq5_impl(name, a0, a1, a2, a3, a4);
-  }
-  return 0;
+
 }
 
 
-int32_t tcp_eq6_impl(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
+/* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
                        uint8_t a5) {
   uint8_t lit[6];
   lit[0] = a0;
@@ -171,13 +169,7 @@ int32_t tcp_eq6_impl(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, ui
   lit[4] = a4;
   lit[5] = a5;
   return tcp_eq_at(name, 0, 6, lit);
-}
-int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
-                       uint8_t a5) {
-  {
-    return tcp_eq6_impl(name, a0, a1, a2, a3, a4, a5);
-  }
-  return 0;
+
 }
 
 

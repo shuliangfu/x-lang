@@ -1,4 +1,5 @@
 /* seeds/async_cps_codegen.from_x.c — G-02f-18 product TU
+ * G-02f-132 true .x pure helpers.
  * G-02f-120 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-105 helper gates.
@@ -236,7 +237,8 @@ void async_cps_codegen_end(AsyncCpsCodegenCtx *ctx, FILE *out) {
 }
 
 /** callee 是否为 IO-A5 await 目标（std.io 同步 API / shux_io_* C 入口）。 */
-int async_cps_callee_is_io_impl(const struct ASTFunc *callee) {
+/* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int async_cps_callee_is_io(const struct ASTFunc *callee) {
     const char *name;
     if (!callee || !callee->name || !callee->name[0])
         return 0;
@@ -254,12 +256,7 @@ int async_cps_callee_is_io_impl(const struct ASTFunc *callee) {
     if (strcmp(name, "read_into") == 0 || strcmp(name, "write_from") == 0)
         return 1;
     return 0;
-}
-int async_cps_callee_is_io(const struct ASTFunc *callee) {
-  {
-    return async_cps_callee_is_io_impl(callee);
-  }
-  return 0;
+
 }
 
 
@@ -360,16 +357,12 @@ int async_cps_callee_is_future_wait_by_name(const char *n) {
 
 
 
-int async_cps_callee_is_future_wait_impl(const struct ASTFunc *callee) {
+/* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int async_cps_callee_is_future_wait(const struct ASTFunc *callee) {
     if (!callee || !callee->name)
         return 0;
     return async_cps_callee_is_future_wait_by_name(callee->name);
-}
-int async_cps_callee_is_future_wait(const struct ASTFunc *callee) {
-  {
-    return async_cps_callee_is_future_wait_impl(callee);
-  }
-  return 0;
+
 }
 
 

@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-132 true .x pure helpers.
  * G-02f-131 true .x pure helpers.
  * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
@@ -735,19 +736,14 @@ int32_t asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_re
  * 局部 VAR 槽是否为间接指针（内部用，try_inline 路径）。
  * 须传入 ctx->module_ref，否则 let Pair 等会误判为形参指针槽。
  */
-int32_t glue_local_var_slot_holds_indirect_ptr_impl(struct ast_ASTArena *arena, int32_t expr_ref,
+/* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref,
                                                       uint8_t *asm_ctx) {
   struct ast_Module *mod_ref = 0;
   if (asm_ctx)
     mod_ref = ((struct glue_AsmFuncCtx *)asm_ctx)->module_ref;
   return asm_local_var_slot_holds_indirect_ptr(arena, expr_ref, mod_ref, asm_ctx);
-}
-int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref,
-                                                      uint8_t *asm_ctx) {
-  {
-    return glue_local_var_slot_holds_indirect_ptr_impl(arena, expr_ref, asm_ctx);
-  }
-  return 0;
+
 }
 
 
@@ -794,7 +790,8 @@ int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena
 /**
  * expr 是否为 func 第 param_ix 形参同名 VAR。
  */
-int32_t glue_expr_is_func_param_at_impl(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
+/* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
                                           int32_t expr_ref, int32_t param_ix) {
   uint8_t pbuf[32];
   uint8_t vbuf[64];
@@ -816,13 +813,7 @@ int32_t glue_expr_is_func_param_at_impl(struct ast_ASTArena *arena, struct ast_M
     k = k + 1;
   }
   return 1;
-}
-int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
-                                          int32_t expr_ref, int32_t param_ix) {
-  {
-    return glue_expr_is_func_param_at_impl(arena, mod, func_idx, expr_ref, param_ix);
-  }
-  return 0;
+
 }
 
 
