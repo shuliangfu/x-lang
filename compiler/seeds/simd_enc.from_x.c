@@ -63,6 +63,12 @@ int32_t simd_x86_vcmpgtps_ymm2_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx);
 int32_t simd_x86_vandps_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx);
 int32_t simd_x86_vandnps_ymm2_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
 int32_t simd_x86_vorps_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_vmovups_ymm0_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_vmovups_ymm1_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_vmovups_ymm0_to_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_movups_xmm0_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_movups_xmm1_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_movups_xmm0_to_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx);
 #endif
 
 /** slot_off 为 asm 局部槽距 fp 的正字节距（lane0 低址端，与向量 let init 的 lea 一致）；x86 disp = -slot_off。 */
@@ -580,60 +586,102 @@ int32_t simd_enc_try_hw_vector_fma_rbp(struct platform_elf_ElfCodegenCtx *elf_ct
 
 /** x86 AVX2：vmovups ymm0, [rbx+rax*4]（C4 E2 7D 10 04 83）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_vmovups_ymm0_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-396：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_vmovups_ymm0_from_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[6] = {0xc4, 0xe2, 0x7d, 0x10, 0x04, 0x83};
     return simd_append_impl(elf_ctx, insn, 6);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_vmovups_ymm0_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_vmovups_ymm0_from_rbx_rax4_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 AVX2：vmovups ymm1, [rbx+rax*4]（C4 E2 75 10 04 83）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_vmovups_ymm1_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-396：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_vmovups_ymm1_from_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[6] = {0xc4, 0xe2, 0x75, 0x10, 0x04, 0x83};
     return simd_append_impl(elf_ctx, insn, 6);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_vmovups_ymm1_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_vmovups_ymm1_from_rbx_rax4_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 AVX2：vmovups [rbx+rax*4], ymm0（C4 E2 7D 11 04 83）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_vmovups_ymm0_to_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-396：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_vmovups_ymm0_to_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[6] = {0xc4, 0xe2, 0x7d, 0x11, 0x04, 0x83};
     return simd_append_impl(elf_ctx, insn, 6);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_vmovups_ymm0_to_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_vmovups_ymm0_to_rbx_rax4_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 SSE：movups xmm0, [rbx+rax*4]（C5 F8 10 04 83）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_movups_xmm0_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-396：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_movups_xmm0_from_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[5] = {0xc5, 0xf8, 0x10, 0x04, 0x83};
     return simd_append_impl(elf_ctx, insn, 5);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_movups_xmm0_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_movups_xmm0_from_rbx_rax4_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 SSE：movups xmm1, [rbx+rax*4]（C5 F0 10 04 83）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_movups_xmm1_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-396：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_movups_xmm1_from_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[5] = {0xc5, 0xf0, 0x10, 0x04, 0x83};
     return simd_append_impl(elf_ctx, insn, 5);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_movups_xmm1_from_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_movups_xmm1_from_rbx_rax4_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 SSE：movups [rbx+rax*4], xmm0（C5 F8 11 04 83）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_movups_xmm0_to_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-396：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_movups_xmm0_to_rbx_rax4_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[5] = {0xc5, 0xf8, 0x11, 0x04, 0x83};
     return simd_append_impl(elf_ctx, insn, 5);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_movups_xmm0_to_rbx_rax4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_movups_xmm0_to_rbx_rax4_impl(elf_ctx);
+}
+#endif
 
 
 
@@ -666,11 +714,11 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCt
     if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_a, ta) != 0)
         return -1;
     if (lanes == 8 && (cpu_features & SHUX_CPU_FEAT_AVX2) != 0) {
-        if (simd_x86_vmovups_ymm0_from_rbx_rax4(elf_ctx) != 0)
+        if (simd_x86_vmovups_ymm0_from_rbx_rax4_impl(elf_ctx) != 0)
             return -1;
         if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_b, ta) != 0)
             return -1;
-        if (simd_x86_vmovups_ymm1_from_rbx_rax4(elf_ctx) != 0)
+        if (simd_x86_vmovups_ymm1_from_rbx_rax4_impl(elf_ctx) != 0)
             return -1;
         if (binop_ko == 5) {
             if (simd_x86_vpsubd_ymm0_ymm1_impl(elf_ctx) != 0)
@@ -684,7 +732,7 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCt
         }
         if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_d, ta) != 0)
             return -1;
-        if (simd_x86_vmovups_ymm0_to_rbx_rax4(elf_ctx) != 0)
+        if (simd_x86_vmovups_ymm0_to_rbx_rax4_impl(elf_ctx) != 0)
             return -1;
         return 0;
     }
@@ -693,11 +741,11 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCt
             return -1;
         if (binop_ko != 6 && (cpu_features & SHUX_CPU_FEAT_SSE2) == 0)
             return -1;
-        if (simd_x86_movups_xmm0_from_rbx_rax4(elf_ctx) != 0)
+        if (simd_x86_movups_xmm0_from_rbx_rax4_impl(elf_ctx) != 0)
             return -1;
         if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_b, ta) != 0)
             return -1;
-        if (simd_x86_movups_xmm1_from_rbx_rax4(elf_ctx) != 0)
+        if (simd_x86_movups_xmm1_from_rbx_rax4_impl(elf_ctx) != 0)
             return -1;
         if (binop_ko == 5) {
             if (simd_x86_psubd_xmm0_xmm1_impl(elf_ctx) != 0)
@@ -711,7 +759,7 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCt
         }
         if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_d, ta) != 0)
             return -1;
-        if (simd_x86_movups_xmm0_to_rbx_rax4(elf_ctx) != 0)
+        if (simd_x86_movups_xmm0_to_rbx_rax4_impl(elf_ctx) != 0)
             return -1;
         return 0;
     }
