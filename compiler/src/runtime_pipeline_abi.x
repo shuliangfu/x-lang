@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..43/50..62：真迁 .x — pipeline dep/import/path + emit + collect/merge 门闩。
+// G-02f-32..43/50..63：真迁 .x — pipeline dep/import/path + emit + collect/merge 门闩。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
 // C 尾：存储槽数组、import resolve/snprintf、clear 槽循环、malloc buf、大 pipeline。
-// G-02f-62：+ collect_deps/paths_transitive / merge_direct_then_transitive_deps / debug_trace。
+// G-02f-63：+ ends_with/.x 魔数真逻辑；typeck_for_ctx / lsp_free_loaded 门闩。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -20,12 +20,12 @@ extern "C" function driver_dep_path_registry_set(i: i32, path: *u8): void;
 extern "C" function driver_dep_module_buf(i: i32): *u8;
 extern "C" function driver_dep_arena_buf(i: i32): *u8;
 extern "C" function strchr(s: *u8, c: i32): *u8;
-extern "C" function shux_cstr_ends_with_dot_x(s: *u8): i32;
 extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
 extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
-extern "C" function shux_asm_out_buf_is_object_magic(data: *u8): i32;
 extern "C" function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8;
+extern "C" function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8, ctx: *u8): i32;
+extern "C" function shu_lsp_free_loaded_imports_impl(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void;
 extern "C" function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32;
 extern "C" function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32;
 extern "C" function shux_emit_pipeline_glue_include_impl(): void;
@@ -295,7 +295,79 @@ function typeck_driver_dep_arena_buf(i: i32): *u8 {
   return 0 as *u8;
 }
 
-/* ---- G-02f-50：import 路径形态 + asm dep 门闩 + object 魔数 ---- */
+/* ---- G-02f-50/63：import 路径形态 + asm dep 门闩 + object 魔数（真逻辑） ---- */
+
+/* 真逻辑：后缀是否为 ".x"（无 strlen 语言限制；逐字节扫）。 */
+#[no_mangle]
+function shux_cstr_ends_with_dot_x(s: *u8): i32 {
+  if (s == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let n: i64 = 0;
+    while (s[n] != 0) {
+      n = n + 1;
+    }
+    if (n < 2) {
+      return 0;
+    }
+    /* '.' == 46, 'x' == 120 */
+    if (s[n - 2] != 46) {
+      return 0;
+    }
+    if (s[n - 1] != 120) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/* 真逻辑：Mach-O 64 / CIGAM / ELF 魔数（前 4 字节）。 */
+#[no_mangle]
+function shux_asm_out_buf_is_object_magic(data: *u8): i32 {
+  if (data == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let b0: u8 = data[0];
+    let b1: u8 = data[1];
+    let b2: u8 = data[2];
+    let b3: u8 = data[3];
+    /* MH_MAGIC_64 LE: cf fa ed fe */
+    if (b0 == 207) {
+      if (b1 == 250) {
+        if (b2 == 237) {
+          if (b3 == 254) {
+            return 1;
+          }
+        }
+      }
+    }
+    /* MH_CIGAM_64: fe ed fa cf */
+    if (b0 == 254) {
+      if (b1 == 237) {
+        if (b2 == 250) {
+          if (b3 == 207) {
+            return 1;
+          }
+        }
+      }
+    }
+    /* ELF: 7f 'E' 'L' 'F' */
+    if (b0 == 127) {
+      if (b1 == 69) {
+        if (b2 == 76) {
+          if (b3 == 70) {
+            return 1;
+          }
+        }
+      }
+    }
+    return 0;
+  }
+  return 0;
+}
 
 #[no_mangle]
 function shux_import_path_is_file_path(import_path: *u8): i32 {
@@ -959,5 +1031,34 @@ function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: 
   }
   unsafe {
     pipeline_debug_trace_named_func_bodies_impl(phase, module, arena);
+  }
+}
+
+/* ---- G-02f-63：typeck_for_ctx / lsp free_loaded 门闩 ---- */
+
+#[no_mangle]
+function pipeline_typeck_module_for_ctx(module: *u8, arena: *u8, ctx: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    return pipeline_typeck_module_for_ctx_impl(module, arena, ctx);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void {
+  if (all_dep_mods == 0 as *u8) {
+    return;
+  }
+  if (all_dep_paths == 0 as *u8) {
+    return;
+  }
+  if (n_all <= 0) {
+    return;
+  }
+  unsafe {
+    shu_lsp_free_loaded_imports_impl(all_dep_mods, all_dep_paths, n_all);
   }
 }

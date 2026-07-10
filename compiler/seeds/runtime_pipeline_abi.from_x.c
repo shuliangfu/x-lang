@@ -1,8 +1,8 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..62 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge collect/merge/debug_trace gates; C transitive bulk remains.
- * .x covers: + collect_deps/paths, merge_direct deps, debug_trace_named_func_bodies.
+ *         merge ends_with/magic true logic + typeck/lsp free gates; C bulk remains.
+ * .x covers: + ends_with/.x magic, typeck_for_ctx, lsp_free_loaded_imports.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -31,6 +31,10 @@ extern void preprocess_define_add(const char *name);
 
 
 
+
+/* G-02f-63 helper protos */
+int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void);
+void shu_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all);
 
 /* G-02f-62 helper protos */
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena);
@@ -588,25 +592,70 @@ void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
  * 返回值：非 0 表示文件路径形式。
  */
 
+/* G-02f-63：真逻辑来自 .x（逐字节扫 / 魔数比较；无 _impl）。 */
 int shux_cstr_ends_with_dot_x(const char *s) {
     size_t n;
-    if (!s)
+    if (s == NULL) {
         return 0;
-    n = strlen(s);
-    if (n < 2)
+    }
+    n = 0;
+    while (s[n] != 0) {
+        n = n + 1;
+    }
+    if (n < 2) {
         return 0;
-    return s[n - 2] == '.' && s[n - 1] == 'x';
+    }
+    if (s[n - 2] != '.') {
+        return 0;
+    }
+    if (s[n - 1] != 'x') {
+        return 0;
+    }
+    return 1;
 }
 
 int shux_asm_out_buf_is_object_magic(const unsigned char *data) {
-    if (!data)
+    unsigned char b0;
+    unsigned char b1;
+    unsigned char b2;
+    unsigned char b3;
+    if (data == NULL) {
         return 0;
-    if (data[0] == 0xcf && data[1] == 0xfa && data[2] == 0xed && data[3] == 0xfe)
-        return 1;
-    if (data[0] == 0xfe && data[1] == 0xed && data[2] == 0xfa && data[3] == 0xcf)
-        return 1;
-    if (data[0] == 0x7f && data[1] == 'E' && data[2] == 'L' && data[3] == 'F')
-        return 1;
+    }
+    b0 = data[0];
+    b1 = data[1];
+    b2 = data[2];
+    b3 = data[3];
+    /* MH_MAGIC_64 LE */
+    if (b0 == 0xcf) {
+        if (b1 == 0xfa) {
+            if (b2 == 0xed) {
+                if (b3 == 0xfe) {
+                    return 1;
+                }
+            }
+        }
+    }
+    /* MH_CIGAM_64 */
+    if (b0 == 0xfe) {
+        if (b1 == 0xed) {
+            if (b2 == 0xfa) {
+                if (b3 == 0xcf) {
+                    return 1;
+                }
+            }
+        }
+    }
+    /* ELF */
+    if (b0 == 0x7f) {
+        if (b1 == 'E') {
+            if (b2 == 'L') {
+                if (b3 == 'F') {
+                    return 1;
+                }
+            }
+        }
+    }
     return 0;
 }
 
@@ -2589,8 +2638,9 @@ extern int typeck_module(void *module, void **dep_mods, int ndep, void *a, int b
 /**
  * 使用已填充的 typeck_ndep / typeck_dep_module_ptrs 对入口模块做 C 类型检查（大模块 asm 构建用）。
  * SHUX_NO_C_FRONTEND 时仍导出符号供 pipeline_asm_typecheck_alias 链接。
+ * G-02f-63：主体 _impl；.x 门闩 null 检查后转发。
  */
-int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void) {
+int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void) {
     (void)arena;
     (void)ctx_void;
     if (typeck_module(module, typeck_ndep > 0 ? (void **)typeck_dep_module_ptrs : NULL, typeck_ndep, NULL, 0) != 0)
@@ -2598,12 +2648,20 @@ int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void
     return 0;
 }
 
+int32_t pipeline_typeck_module_for_ctx(void *module, void *arena, void *ctx_void) {
+  if (module == NULL) {
+    return -1;
+  }
+  {
+    return pipeline_typeck_module_for_ctx_impl(module, arena, ctx_void);
+  }
+  return -1;
+}
+
 /** 释放 shu_lsp_resolve_and_load_imports 写入的 all_dep_mods / all_dep_paths（不含 entry 模块本身）。 */
-void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_dep_paths, int n_all) {
+void shu_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all) {
     int i;
 
-    if (!all_dep_mods || !all_dep_paths || n_all <= 0)
-        return;
     for (i = 0; i < n_all; i++) {
         if (all_dep_paths[i]) {
             free(all_dep_paths[i]);
@@ -2614,6 +2672,21 @@ void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_de
             all_dep_mods[i] = NULL;
         }
     }
+}
+
+void shu_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_dep_paths, int n_all) {
+  if (all_dep_mods == NULL) {
+    return;
+  }
+  if (all_dep_paths == NULL) {
+    return;
+  }
+  if (n_all <= 0) {
+    return;
+  }
+  {
+    shu_lsp_free_loaded_imports_impl((void **)all_dep_mods, all_dep_paths, n_all);
+  }
 }
 
 /**
