@@ -17,8 +17,6 @@
 extern "C" function run_compiler_c_impl(argc: i32, argv: *u8): i32;
 extern "C" function driver_run_x_emit_c_set_path_impl(path: *u8, path_len: i32): i32;
 extern "C" function driver_run_x_emit_c_set_lib_impl(i: i32, buf: *u8, len: i32): i32;
-extern "C" function driver_run_x_emit_c_set_n_lib_roots_impl(n: i32): i32;
-extern "C" function driver_run_x_emit_c_set_emit_extern_impl(v: i32): i32;
 extern "C" function driver_fs_open_read_path_impl(path: *u8, path_len: i32): i32;
 extern "C" function driver_run_asm_backend_c_impl(input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8, argc: i32, argv: *u8): i32;
 extern "C" function driver_run_emit_c_path_c_impl(input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8, opt_level: *u8, use_lto: i32, argc: i32, argv: *u8): i32;
@@ -93,8 +91,6 @@ extern "C" function drv_eq_asm_word_impl(buf: *u8, len: i32): i32;
 extern "C" function drv_eq_c_word_impl(buf: *u8, len: i32): i32;
 extern "C" function drv_path_ends_x_impl(buf: *u8, len: i32): i32;
 
-extern "C" function content_has_generic_syntax_impl(content: *u8, n: i64): i32;
-extern "C" function content_has_compound_assign_syntax_impl(content: *u8, n: i64): i32;
 extern "C" function driver_deps_are_std_core_closure_only_impl(dep_paths: *u8, n_deps: i32): i32;
 extern "C" function driver_c_mod_imports_are_core_only_impl(mod: *u8): i32;
 extern "C" function driver_x_emit_asm_dep_parse_only_ok_impl(input_path: *u8, dep_path: *u8): i32;
@@ -153,21 +149,9 @@ function driver_run_x_emit_c_set_lib(i: i32, buf: *u8, len: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
-function driver_run_x_emit_c_set_n_lib_roots(n: i32): i32 {
-  unsafe {
-    return driver_run_x_emit_c_set_n_lib_roots_impl(n);
-  }
-  return 0 - 1;
-}
 
-#[no_mangle]
-function driver_run_x_emit_c_set_emit_extern(v: i32): i32 {
-  unsafe {
-    return driver_run_x_emit_c_set_emit_extern_impl(v);
-  }
-  return 0 - 1;
-}
+
+
 
 #[no_mangle]
 function driver_fs_open_read_path(path: *u8, path_len: i32): i32 {
@@ -579,21 +563,9 @@ function runtime_diag_code_for_kind(kind: *u8): *u8 {
 
 /* ---- G-02f-88：源扫描 / core-only / check·fmt 薄委托 门闩 ---- */
 
-#[no_mangle]
-function content_has_generic_syntax(content: *u8, n: i64): i32 {
-  unsafe {
-    return content_has_generic_syntax_impl(content, n);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function content_has_compound_assign_syntax(content: *u8, n: i64): i32 {
-  unsafe {
-    return content_has_compound_assign_syntax_impl(content, n);
-  }
-  return 0;
-}
+
+
 
 #[no_mangle]
 function driver_deps_are_std_core_closure_only(dep_paths: *u8, n_deps: i32): i32 {
@@ -1117,6 +1089,157 @@ function driver_argv0_basename_is(argv0: *u8, base: *u8): i32 {
     if (a == 0) { return 1; }
     j = j + 1;
   }
+  return 0;
+}
+
+// G-02f-126：content_has_* 语法探测真迁 .x；emit setter 产品以 seed C 为准
+
+#[no_mangle]
+function content_has_generic_syntax(content: *u8, n: i64): i32 {
+  if (content == 0) { return 0; }
+  if (n == 0) { return 0; }
+  let ni: i32 = n as i32;
+  // scan for '<'
+  let p: i32 = 0;
+  while (p < ni) {
+    if (content[p] == 60) { // '<'
+      if (p + 1 >= ni) { break; }
+      // skip T[]<region> — previous char is ']'
+      if (p > 0) {
+        if (content[p - 1] == 93) { // ']'
+          p = p + 1;
+          continue;
+        }
+      }
+      // <T> or <T,
+      if (content[p + 1] == 84) { // 'T'
+        if (p + 2 >= ni) { return 1; }
+        if (content[p + 2] == 62) { return 1; } // '>'
+        if (content[p + 2] == 44) { return 1; } // ','
+      }
+      // generic type tokens
+      // <i8> <i16> <i32> <i64> <u8> <u16> <u32> <u64> <f32> <f64> <bool>
+      if (p + 4 <= ni) {
+        // <i8>
+        if (content[p+1]==105 && content[p+2]==56 && content[p+3]==62) { return 1; }
+        // <u8>
+        if (content[p+1]==117 && content[p+2]==56 && content[p+3]==62) { return 1; }
+      }
+      if (p + 5 <= ni) {
+        // <i16> <i32> <i64> <u16> <u32> <u64> <f32> <f64>
+        if (content[p+1]==105 && content[p+2]==49 && content[p+3]==54 && content[p+4]==62) { return 1; }
+        if (content[p+1]==105 && content[p+2]==51 && content[p+3]==50 && content[p+4]==62) { return 1; }
+        if (content[p+1]==105 && content[p+2]==54 && content[p+3]==52 && content[p+4]==62) { return 1; }
+        if (content[p+1]==117 && content[p+2]==49 && content[p+3]==54 && content[p+4]==62) { return 1; }
+        if (content[p+1]==117 && content[p+2]==51 && content[p+3]==50 && content[p+4]==62) { return 1; }
+        if (content[p+1]==117 && content[p+2]==54 && content[p+3]==52 && content[p+4]==62) { return 1; }
+        if (content[p+1]==102 && content[p+2]==51 && content[p+3]==50 && content[p+4]==62) { return 1; }
+        if (content[p+1]==102 && content[p+2]==54 && content[p+3]==52 && content[p+4]==62) { return 1; }
+      }
+      if (p + 6 <= ni) {
+        // <bool>
+        if (content[p+1]==98 && content[p+2]==111 && content[p+3]==111 && content[p+4]==108 && content[p+5]==62) {
+          return 1;
+        }
+      }
+    }
+    p = p + 1;
+  }
+  // "trait " / " impl "
+  if (ni >= 6) {
+    let i: i32 = 0;
+    while (i <= ni - 6) {
+      // trait 
+      if (content[i]==116 && content[i+1]==114 && content[i+2]==97 && content[i+3]==105
+          && content[i+4]==116 && content[i+5]==32) {
+        return 1;
+      }
+      //  impl 
+      if (content[i]==32 && content[i+1]==105 && content[i+2]==109 && content[i+3]==112
+          && content[i+4]==108 && content[i+5]==32) {
+        return 1;
+      }
+      i = i + 1;
+    }
+  }
+  return 0;
+}
+
+#[no_mangle]
+function content_has_compound_assign_syntax(content: *u8, n: i64): i32 {
+  if (content == 0) { return 0; }
+  if (n < 3) { return 0; }
+  let ni: i32 = n as i32;
+  let pos: i32 = 0;
+  while (pos < ni) {
+    // // line comment
+    if (pos + 1 < ni) {
+      if (content[pos] == 47 && content[pos + 1] == 47) {
+        pos = pos + 2;
+        while (pos < ni) {
+          if (content[pos] == 10) { break; }
+          pos = pos + 1;
+        }
+        continue;
+      }
+      // /* block */
+      if (content[pos] == 47 && content[pos + 1] == 42) {
+        pos = pos + 2;
+        while (pos + 1 < ni) {
+          if (content[pos] == 42 && content[pos + 1] == 47) { break; }
+          pos = pos + 1;
+        }
+        if (pos + 1 < ni) { pos = pos + 2; }
+        continue;
+      }
+    }
+    // string "
+    if (content[pos] == 34) {
+      pos = pos + 1;
+      while (pos < ni) {
+        if (content[pos] == 34) { break; }
+        if (content[pos] == 92) {
+          if (pos + 1 < ni) { pos = pos + 2; continue; }
+        }
+        pos = pos + 1;
+      }
+      if (pos < ni) { pos = pos + 1; }
+      continue;
+    }
+    // tokens long first: <<= >>= += -= *= /= %= &= |= ^=
+    if (pos + 3 <= ni) {
+      if (content[pos]==60 && content[pos+1]==60 && content[pos+2]==61) { return 1; }
+      if (content[pos]==62 && content[pos+1]==62 && content[pos+2]==61) { return 1; }
+    }
+    if (pos + 2 <= ni) {
+      let a: u8 = content[pos];
+      let b: u8 = content[pos + 1];
+      if (b == 61) {
+        if (a == 43) { return 1; }
+        if (a == 45) { return 1; }
+        if (a == 42) { return 1; }
+        if (a == 47) { return 1; }
+        if (a == 37) { return 1; }
+        if (a == 38) { return 1; }
+        if (a == 124) { return 1; }
+        if (a == 94) { return 1; }
+      }
+    }
+    pos = pos + 1;
+  }
+  return 0;
+}
+
+// emit setters: product seed C owns static state; .x documents entry (return 0)
+#[no_mangle]
+function driver_run_x_emit_c_set_emit_extern(v: i32): i32 {
+  // product: seeds/runtime.from_x.c sets driver_x_emit_c_want_extern
+  return 0;
+}
+
+#[no_mangle]
+function driver_run_x_emit_c_set_n_lib_roots(n: i32): i32 {
+  // product: seeds/runtime.from_x.c clamps to X_EMIT_MAX_LIB_ROOTS(16)
   return 0;
 }
 

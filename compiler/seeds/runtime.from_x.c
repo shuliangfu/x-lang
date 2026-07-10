@@ -1,4 +1,5 @@
 /* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+ * G-02f-126 true .x pure helpers.
  * G-02f-125 true .x pure helpers.
  * G-02f-122 true .x pure helpers.
  * G-02f-117 true .x pure helpers.
@@ -97,8 +98,6 @@ typedef struct DriverCompileStateSU DriverCompileStateSU;
 int run_compiler_c_impl(int argc, char **argv);
 int driver_run_x_emit_c_set_path_impl(const uint8_t *path, int path_len);
 int driver_run_x_emit_c_set_lib_impl(int i, const uint8_t *buf, int len);
-int driver_run_x_emit_c_set_n_lib_roots_impl(int n);
-int driver_run_x_emit_c_set_emit_extern_impl(int v);
 int driver_fs_open_read_path_impl(const uint8_t *path, int path_len);
 int32_t driver_run_asm_backend_c_impl(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target, int32_t argc, uint8_t *argv);
 int32_t driver_run_emit_c_path_c_impl(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target, uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv);
@@ -3158,35 +3157,26 @@ int driver_run_x_emit_c_set_lib(int i, const uint8_t *buf, int len) {
   }
   return -1;
 }
+/* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
-
-int driver_run_x_emit_c_set_n_lib_roots_impl(int n) {
+int driver_run_x_emit_c_set_n_lib_roots(int n) {
     driver_x_emit_n_lib_roots = (n >= 0 && n <= X_EMIT_MAX_LIB_ROOTS) ? n : 0;
     return 0;
 }
 
-int driver_run_x_emit_c_set_n_lib_roots(int n) {
-  {
-    return driver_run_x_emit_c_set_n_lib_roots_impl(n);
-  }
-  return -1;
-}
+
 
 
 /** main.x 在解析到 -E-extern 后置 1；driver_run_x_emit_c 消费后清零。与 C 路径 emit_extern_imports 对齐。 */
 static int driver_x_emit_c_want_extern;
+/* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
-int driver_run_x_emit_c_set_emit_extern_impl(int v) {
+int driver_run_x_emit_c_set_emit_extern(int v) {
     driver_x_emit_c_want_extern = v ? 1 : 0;
     return 0;
 }
 
-int driver_run_x_emit_c_set_emit_extern(int v) {
-  {
-    return driver_run_x_emit_c_set_emit_extern_impl(v);
-  }
-  return -1;
-}
+
 
 
 /**
@@ -3414,7 +3404,8 @@ int driver_fs_open_write(const uint8_t *path, int path_len) {
 
 
 /** 检测内存中的源码 content[0..n-1] 是否含泛型或 trait 语法（.x 流水线不支持，需走 C 路径）。 */
-int content_has_generic_syntax_impl(const char *content, size_t n) {
+/* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int content_has_generic_syntax(const char *content, size_t n) {
     static const char *generic_type_tokens[] = {
         "<i8>", "<i16>", "<i32>", "<i64>", "<u8>", "<u16>", "<u32>", "<u64>", "<f32>", "<f64>", "<bool>",
     };
@@ -3452,12 +3443,8 @@ int content_has_generic_syntax_impl(const char *content, size_t n) {
     }
     return 0;
 }
-int content_has_generic_syntax(const char *content, size_t n) {
-  {
-    return content_has_generic_syntax_impl(content, n);
-  }
-  return 0;
-}
+
+
 
 
 /** 检测 path 指向的源码文件是否含泛型语法（如 <T> 或 <i32>），有则返回 1 否则 0；供 .x driver 在 run_compiler_x_path_impl 中决定是否走 C 流水线。 */
@@ -3488,7 +3475,8 @@ int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
 
 /** 检测内存源码是否含复合赋值（+= 等）；.x 解析器未覆盖时须走 C 流水线（run-compound-assign 等）。
  * 跳过 //、块注释与双引号字符串，避免注释/字面量中的 token 误触发 asm→C 降级。 */
-int content_has_compound_assign_syntax_impl(const char *content, size_t n) {
+/* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int content_has_compound_assign_syntax(const char *content, size_t n) {
     if (!content || n < 3)
         return 0;
     /* 长 token 优先，避免 `<<=` 被 `+=` 子串误伤。 */
@@ -3529,12 +3517,8 @@ int content_has_compound_assign_syntax_impl(const char *content, size_t n) {
     }
     return 0;
 }
-int content_has_compound_assign_syntax(const char *content, size_t n) {
-  {
-    return content_has_compound_assign_syntax_impl(content, n);
-  }
-  return 0;
-}
+
+
 
 
 /** 供 compile.x：源码含复合赋值则返回 1，默认 asm 应降级为 C。 */

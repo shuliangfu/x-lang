@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-126 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-110 helper gates.
@@ -512,7 +513,8 @@ int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, in
 
 
 /** EXPR_LIT(0) / EXPR_BOOL_LIT(2) 读整型常量；失败返回 0。 */
-int32_t glue_try_expr_const_i32_impl(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out) {
+/* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out) {
   int32_t ko;
   if (!arena || expr_ref <= 0 || !out)
     return 0;
@@ -523,12 +525,8 @@ int32_t glue_try_expr_const_i32_impl(struct ast_ASTArena *arena, int32_t expr_re
   }
   return 0;
 }
-int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out) {
-  {
-    return glue_try_expr_const_i32_impl(arena, expr_ref, out);
-  }
-  return 0;
-}
+
+
 
 
 int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,

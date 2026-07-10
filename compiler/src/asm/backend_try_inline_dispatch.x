@@ -12,7 +12,6 @@ function backend_try_inline_dispatch_x_doc_anchor(): i32 {
 // G-02f-109：+ align/const fold/module lookup/param 薄门闩。
 
 extern "C" function glue_module_func_index_by_name_impl(mod: *u8, name: *u8, nlen: i32): i32;
-extern "C" function glue_try_expr_const_i32_impl(arena: *u8, er: i32, out: *i32): i32;
 extern "C" function glue_const_scalar_binop_eval_i32_impl(ko: i32, a: i32, b: i32, out: *i32): i32;
 extern "C" function glue_module_named_type_has_struct_layout_impl(mod: *u8, name: *u8, nlen: i32): i32;
 extern "C" function glue_type_ref_is_named_struct_layout_impl(arena: *u8, mod: *u8, tr: i32): i32;
@@ -26,8 +25,7 @@ extern "C" function glue_try_inline_local_slot_off_impl(ctx: *u8, arena: *u8, na
 
 #[no_mangle]
 function glue_module_func_index_by_name(mod: *u8, name: *u8, nlen: i32): i32 { unsafe { return glue_module_func_index_by_name_impl(mod, name, nlen); } return 0; }
-#[no_mangle]
-function glue_try_expr_const_i32(arena: *u8, er: i32, out: *i32): i32 { unsafe { return glue_try_expr_const_i32_impl(arena, er, out); } return 0; }
+
 #[no_mangle]
 function glue_const_scalar_binop_eval_i32(ko: i32, a: i32, b: i32, out: *i32): i32 { unsafe { return glue_const_scalar_binop_eval_i32_impl(ko, a, b, out); } return 0; }
 #[no_mangle]
@@ -132,3 +130,29 @@ function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32 {
   }
   return 1;
 }
+
+// G-02f-126：glue_try_expr_const_i32 真迁 .x
+
+extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_int_val_at(arena: *u8, er: i32): i32;
+
+#[no_mangle]
+function glue_try_expr_const_i32(arena: *u8, er: i32, out: *i32): i32 {
+  if (arena == 0) { return 0; }
+  if (er <= 0) { return 0; }
+  if (out == 0) { return 0; }
+  unsafe {
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, er);
+    // EXPR_INT / related lit kinds 0 or 2 in pipeline ord
+    if (ko == 0) {
+      out[0] = pipeline_expr_int_val_at(arena, er);
+      return 1;
+    }
+    if (ko == 2) {
+      out[0] = pipeline_expr_int_val_at(arena, er);
+      return 1;
+    }
+  }
+  return 0;
+}
+
