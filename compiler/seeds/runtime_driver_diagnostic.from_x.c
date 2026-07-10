@@ -1,4 +1,4 @@
-/* Generated from (G-02f-86 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-30/31/73 true .x + C tail).
+/* Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-30/31/73 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
  * .x covers: fixed typeck msgs (f-30/31) + remaining diags gated f-73
@@ -86,15 +86,12 @@ void driver_diag_report_prefixed(int32_t line, int32_t col, const char *msg) {
 }
 
 
-static void driver_diag_report_x_pipeline_code(const char *code, const char *fmt, ...) {
-    va_list ap;
+void driver_diag_report_x_pipeline_code_impl(const char *code, const char *fmt, va_list ap) {
     char buf[256];
 
     if (!fmt)
         fmt = "";
-    va_start(ap, fmt);
     (void)vsnprintf(buf, sizeof(buf), fmt, ap);
-    va_end(ap);
     if (lsp_diag_enabled) {
         lsp_diag_add_code(1, 1, 1, code, buf);
         return;
@@ -103,6 +100,15 @@ static void driver_diag_report_x_pipeline_code(const char *code, const char *fmt
         driver_check_diag_emitted_note();
     diag_report_with_code(NULL, 0, 0, "pipeline error", code, buf, NULL);
 }
+void driver_diag_report_x_pipeline_code(const char *code, const char *fmt, ...) {
+  {
+    va_list ap;
+    va_start(ap, fmt);
+    driver_diag_report_x_pipeline_code_impl(code, fmt, ap);
+    va_end(ap);
+  }
+}
+
 
 int driver_diag_copy_bytes_impl(char *dst, size_t dst_size, const uint8_t *src, int32_t src_len) {
     int n = 0;

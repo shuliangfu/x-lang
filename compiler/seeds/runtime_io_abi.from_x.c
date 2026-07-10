@@ -41,7 +41,7 @@
  * B-20：POSIX read 循环读 fd 到 buf[0..cap-1]；成功返回读入字节数，失败 -1。
  * 参数：fd 已打开描述符；buf/cap 输出缓冲与容量。
  */
-static int shux_read_fd_into_buf(int fd, void *buf, size_t cap) {
+int shux_read_fd_into_buf_impl(int fd, void *buf, size_t cap) {
     size_t off;
     ssize_t n;
 
@@ -58,8 +58,15 @@ static int shux_read_fd_into_buf(int fd, void *buf, size_t cap) {
     }
     return (int)off;
 }
+int shux_read_fd_into_buf(int fd, void *buf, size_t cap) {
+  {
+    return shux_read_fd_into_buf_impl(fd, buf, cap);
+  }
+  return 0;
+}
 
-static int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFileView *out) {
+
+int shux_runtime_file_view_read_malloc_impl(int fd, size_t size, ShuxRuntimeFileView *out) {
     size_t off;
     char *buf;
     ssize_t n;
@@ -93,6 +100,13 @@ static int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFi
     out->needs_munmap = 0;
     return 0;
 }
+int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFileView *out) {
+  {
+    return shux_runtime_file_view_read_malloc_impl(fd, size, out);
+  }
+  return 0;
+}
+
 
 
 

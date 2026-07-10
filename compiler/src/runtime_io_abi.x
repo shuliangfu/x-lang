@@ -5,6 +5,7 @@
 // 产品：./shux-c -E → seeds/runtime_io_abi.from_x.c（+ C 尾段）。
 // C 尾：open_write flags/mode 平台常量、file_view mmap bulk、os_read_file_into 循环。
 // G-02f-59：+ shux_fs_open_write_flags / mode 薄门闩（常量本体 C）。
+// G-02f-96：+ shux_read_fd_into_buf / file_view_read_malloc 门闩。
 
 extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 extern "C" function close(fd: i32): i32;
@@ -18,6 +19,8 @@ extern "C" function runtime_release_file_view_impl(view: *u8): void;
 extern "C" function runtime_read_file_view_impl(path: *u8, out: *u8): i32;
 extern "C" function runtime_read_file_malloc_impl(path: *u8, out_len: *u8): *u8;
 extern "C" function std_sys_os_read_file_into_impl(path: *u8, buf: *u8, cap: i32): i32;
+extern "C" function shux_read_fd_into_buf_impl(fd: i32, buf: *u8, cap: i64): i32;
+extern "C" function shux_runtime_file_view_read_malloc_impl(fd: i32, size: i64, out: *u8): i32;
 
 #[no_mangle]
 function std_fs_fs_open_read(path: *u8): i32 {
@@ -204,4 +207,22 @@ function std_sys_os_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
     return std_sys_os_read_file_into_impl(path, buf, cap);
   }
   return -1;
+}
+
+/* ---- G-02f-96：fd 读缓冲 / file_view malloc 门闩 ---- */
+
+#[no_mangle]
+function shux_read_fd_into_buf(fd: i32, buf: *u8, cap: i64): i32 {
+  unsafe {
+    return shux_read_fd_into_buf_impl(fd, buf, cap);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_runtime_file_view_read_malloc(fd: i32, size: i64, out: *u8): i32 {
+  unsafe {
+    return shux_runtime_file_view_read_malloc_impl(fd, size, out);
+  }
+  return 0 - 1;
 }

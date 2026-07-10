@@ -1,4 +1,4 @@
-/* Generated from src/diag.x (G-02f-82 +) (G-02f-30 true .x + C tail; G-02f-74/82 diag gates).
+/* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96 true .x + C tail; G-02f-74/82 diag gates).
  * Regen: ./shux-c -E -L .. src/diag.x > /tmp/diag.c
  *         merge diag_report from .x; keep code table / va_list / JSON C tail.
  * .x covers: diag_report → diag_report_with_code(NULL code).
@@ -146,7 +146,7 @@ static const DiagCodeExplain g_diag_code_table[] = {
 };
 static const size_t g_diag_code_table_count = sizeof(g_diag_code_table) / sizeof(g_diag_code_table[0]);
 
-static int diag_should_color(void) {
+int diag_should_color_impl(void) {
 #if defined(_WIN32)
     return 0;
 #else
@@ -155,16 +155,37 @@ static int diag_should_color(void) {
     return isatty(fileno(stderr)) ? 1 : 0;
 #endif
 }
+int diag_should_color(void) {
+  {
+    return diag_should_color_impl();
+  }
+  return 0;
+}
 
-static const char *diag_color_prefix(const char *plain, const char *color) {
+
+const char * diag_color_prefix_impl(const char *plain, const char *color) {
     return g_diag_ctx.use_color ? color : plain;
 }
-
-static const char *diag_color_reset(void) {
-    return g_diag_ctx.use_color ? "\x1b[0m" : "";
+const char * diag_color_prefix(const char *plain, const char *color) {
+  {
+    return diag_color_prefix_impl(plain, color);
+  }
+  return ((const char *)0);
 }
 
-static int diag_code_eq(const char *lhs, const char *rhs) {
+
+const char * diag_color_reset_impl(void) {
+    return g_diag_ctx.use_color ? "\x1b[0m" : "";
+}
+const char * diag_color_reset(void) {
+  {
+    return diag_color_reset_impl();
+  }
+  return ((const char *)0);
+}
+
+
+int diag_code_eq_impl(const char *lhs, const char *rhs) {
     size_t i;
     if (!lhs || !rhs)
         return 0;
@@ -180,6 +201,13 @@ static int diag_code_eq(const char *lhs, const char *rhs) {
     }
     return lhs[i] == '\0' && rhs[i] == '\0' ? 1 : 0;
 }
+int diag_code_eq(const char *lhs, const char *rhs) {
+  {
+    return diag_code_eq_impl(lhs, rhs);
+  }
+  return 0;
+}
+
 
 static const DiagCodeExplain *diag_lookup_code_explain(const char *code) {
     size_t i;
@@ -197,17 +225,31 @@ typedef struct DiagPalette {
     const char *caret_color;
 } DiagPalette;
 
-static int diag_kind_is_exact(const char *kind, const char *needle) {
+int diag_kind_is_exact_impl(const char *kind, const char *needle) {
     if (!kind || !needle)
         return 0;
     return strcmp(kind, needle) == 0 ? 1 : 0;
 }
+int diag_kind_is_exact(const char *kind, const char *needle) {
+  {
+    return diag_kind_is_exact_impl(kind, needle);
+  }
+  return 0;
+}
 
-static int diag_kind_contains(const char *kind, const char *needle) {
+
+int diag_kind_contains_impl(const char *kind, const char *needle) {
     if (!kind || !needle || needle[0] == '\0')
         return 0;
     return strstr(kind, needle) != NULL ? 1 : 0;
 }
+int diag_kind_contains(const char *kind, const char *needle) {
+  {
+    return diag_kind_contains_impl(kind, needle);
+  }
+  return 0;
+}
+
 
 static DiagPalette diag_palette_for_kind(const char *kind) {
     DiagPalette pal;
@@ -259,7 +301,7 @@ static void diag_print_header(const char *kind, const char *code, const char *ms
         fprintf(stderr, "%s%s%s: %s\n", kind_color, kind, reset, msg);
 }
 
-static int diag_line_digits(int line) {
+int diag_line_digits_impl(int line) {
     int width = 1;
     while (line >= 10) {
         line /= 10;
@@ -267,6 +309,13 @@ static int diag_line_digits(int line) {
     }
     return width;
 }
+int diag_line_digits(int line) {
+  {
+    return diag_line_digits_impl(line);
+  }
+  return 0;
+}
+
 
 static int diag_extract_line(int line_no, const char **line_start_out, size_t *line_len_out) {
     const char *src = g_diag_ctx.source;

@@ -3,6 +3,7 @@
 //
 // G-02f-30/31/73：真迁 .x — 固定措辞 typeck 诊断薄包装 + parse_strict + 空桩。
 // G-02f-86：driver_diag_copy_bytes / report_prefixed 门闩。
+// G-02f-96：driver_diag_report_x_pipeline_code 门闩（va_list 本体 C _impl）。
 // 产品：./shux-c -E → seeds/runtime_driver_diagnostic.from_x.c（+ C 尾 + 字符串抛光）。
 // C 尾：snprintf 诊断、va_list pipeline 码、scratch 缓冲、debug getenv 详细路径。
 // 注意：字符串字面量经 -E 成 slice；seed 抛光为 C 字符串传 lsp_diag_report_typeck。

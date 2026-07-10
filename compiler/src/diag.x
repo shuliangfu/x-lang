@@ -4,6 +4,7 @@
 // G-02f-30：真迁 .x — diag_report 无 code 入口薄转发到 with_code。
 // G-02f-74：+ remaining diag_* gates.
 // G-02f-82：+ diag_get_source / diag_get_source_len / diag_report_with_code 门闩。
+// G-02f-96：+ color/kind/code_eq/line_digits 薄 helper 门闩。
 // 产品：./shux-c -E → seeds/diag.from_x.c（+ C 尾段）。
 // C 尾：上下文静态、code 表、JSON/颜色、va_list reportf/vreportf、lookup。
 // 注意：va_list 入口仍留 C（语言/ABI 限制）。
@@ -22,6 +23,14 @@ extern "C" function diag_print_code_explain_impl(out: *u8, code: *u8): void;
 extern "C" function diag_print_code_table_impl(out: *u8): void;
 extern "C" function diag_set_json_mode_impl(enable: i32): void;
 extern "C" function diag_json_enabled_impl(): i32;
+
+extern "C" function diag_should_color_impl(): i32;
+extern "C" function diag_color_prefix_impl(plain: *u8, color: *u8): *u8;
+extern "C" function diag_color_reset_impl(): *u8;
+extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
+extern "C" function diag_kind_is_exact_impl(kind: *u8, needle: *u8): i32;
+extern "C" function diag_kind_contains_impl(kind: *u8, needle: *u8): i32;
+extern "C" function diag_line_digits_impl(line: i32): i32;
 
 #[no_mangle]
 function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
@@ -118,4 +127,62 @@ function diag_json_enabled(): i32 {
     return diag_json_enabled_impl();
   }
   return 0 - 1;
+}
+
+/* ---- G-02f-96：color / kind / code_eq / line_digits 门闩 ---- */
+
+#[no_mangle]
+function diag_should_color(): i32 {
+  unsafe {
+    return diag_should_color_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_color_prefix(plain: *u8, color: *u8): *u8 {
+  unsafe {
+    return diag_color_prefix_impl(plain, color);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function diag_color_reset(): *u8 {
+  unsafe {
+    return diag_color_reset_impl();
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
+  unsafe {
+    return diag_code_eq_impl(lhs, rhs);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
+  unsafe {
+    return diag_kind_is_exact_impl(kind, needle);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_kind_contains(kind: *u8, needle: *u8): i32 {
+  unsafe {
+    return diag_kind_contains_impl(kind, needle);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_line_digits(line: i32): i32 {
+  unsafe {
+    return diag_line_digits_impl(line);
+  }
+  return 1;
 }
