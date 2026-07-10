@@ -1,4 +1,4 @@
-/* G-02f-363：PREFER hybrid thin 由 src/asm/backend_try_inline_dispatch_thin.x；rest SHUX_L2_TRY_INLINE_THIN_FROM_X。
+/* G-02f-363/365：PREFER hybrid thin 由 src/asm/backend_try_inline_dispatch_thin.x；rest SHUX_L2_TRY_INLINE_THIN_FROM_X。
  * seeds/backend_try_inline_dispatch.from_x.c — G-02f-196 local_slot/index pure; G-02f-184/185 lit stack pure; G-02f-9 product backend dispatch TU
  * G-02f-135 true .x pure helpers.
  * G-02f-134 true .x pure helpers.
@@ -179,6 +179,7 @@ int32_t glue_fold_func_return_operand_ref_module(struct ast_ASTArena *arena, str
 
 /** 读取函数 return 操作数：backend 真 emit 优先，否则 module body_ref 路径。 */
 /* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                      int32_t func_idx) {
   int32_t r;
@@ -187,6 +188,7 @@ int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct
     return r;
   return glue_fold_func_return_operand_ref_module(arena, mod, func_idx);
 }
+#endif
 
 
 extern int32_t pipeline_asm_emit_expr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -199,6 +201,7 @@ extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t na
  * try_inline 路径查局部槽：scope 子树优先，未命中回退全表（while 内外层 let）。
  */
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t glue_try_inline_local_slot_off(uint8_t *ctx, struct ast_ASTArena *arena, uint8_t *name, int32_t name_len) {
   int32_t off;
   off = asm_ctx_local_find_offset_scoped(ctx, arena, name, name_len);
@@ -206,6 +209,7 @@ int32_t glue_try_inline_local_slot_off(uint8_t *ctx, struct ast_ASTArena *arena,
     off = asm_ctx_local_find_offset(ctx, name, name_len);
   return off;
 }
+#endif
 
 
 
@@ -291,6 +295,10 @@ int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b,
 int32_t asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_ref);
 int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
 int32_t pipeline_asm_struct_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
+int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
+int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
+int32_t glue_try_inline_local_slot_off(uint8_t *ctx, struct ast_ASTArena *arena, uint8_t *name, int32_t name_len);
+int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx);
 #endif
 
 #ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
@@ -757,12 +765,14 @@ int32_t glue_enc_local_slot_ptr_or_addr(struct ast_ASTArena *arena, struct platf
 }
 
 
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                       int32_t arg_ref, int32_t slot_off, int32_t ta,
                                                       uint8_t *asm_ctx) {
   return glue_enc_local_slot_ptr_or_addr(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
 }
+#endif
 
 /* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_arch_emit_local_slot_ptr_or_addr_text(struct ast_ASTArena *arena,
@@ -775,11 +785,13 @@ int32_t glue_arch_emit_local_slot_ptr_or_addr_text(struct ast_ASTArena *arena,
 }
 
 
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena,
                                                              struct codegen_CodegenOutBuf *out, int32_t arg_ref,
                                                              int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
   return glue_arch_emit_local_slot_ptr_or_addr_text(arena, out, arg_ref, slot_off, ta, asm_ctx);
 }
+#endif
 
 /** 小 struct 按值返回：struct_lit 字段数上限（Pair 等）。 */
 #define GLUE_INLINE_MAX_STRUCT_LIT_FIELDS 8

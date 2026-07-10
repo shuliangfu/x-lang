@@ -1,4 +1,4 @@
-/* G-02f-364：PREFER hybrid thin 由 src/asm/backend_call_dispatch_thin.x；rest SHUX_L2_CALL_DISPATCH_THIN_FROM_X。
+/* G-02f-364/365：PREFER hybrid thin 由 src/asm/backend_call_dispatch_thin.x；rest SHUX_L2_CALL_DISPATCH_THIN_FROM_X。
  * seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
  * G-02f-134 true .x pure helpers.
  * G-02f-133 true .x pure helpers.
@@ -23,6 +23,15 @@
  * 本 TU 供 pipeline_asm_emit_call_elf_c / pipeline_asm_emit_method_call_elf_c / pipeline_asm_emit_call_args_elf_c 真 emit。
  */
 #include <stdint.h>
+
+#ifdef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+struct ast_ASTArena; /* incomplete OK for thin protos */
+int32_t glue_asm_call_reg_max(int32_t ta);
+int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs);
+int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap);
+int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref);
+#endif
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -102,6 +111,7 @@ extern int32_t pipeline_expr_var_name_len_for_string_lit_c(struct ast_ASTArena *
 
 /** STRING_LIT（kind 59）字节长度。 */
 /* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
 int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref) {
   if (!arena || expr_ref <= 0)
     return 0;
@@ -109,6 +119,7 @@ int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref) {
     return 0;
   return pipeline_expr_var_name_len_for_string_lit_c(arena, expr_ref);
 }
+#endif
 
 
 
@@ -490,12 +501,6 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena,
  * 当前架构整数 CALL 寄存器实参个数（x86_64 SysV=6，AAPCS64/RISC-V=8）。
  */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifdef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
-int32_t glue_asm_call_reg_max(int32_t ta);
-int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs);
-int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap);
-#endif
-
 #ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
 int32_t glue_asm_call_reg_max(int32_t ta) {
   if (ta == 0)
