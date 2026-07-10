@@ -1,3 +1,7 @@
+/* seeds/pipeline_asm_typecheck_alias.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/asm/pipeline_asm_typecheck_alias.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/pipeline_asm_typecheck_alias.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * pipeline_asm_typecheck_alias.c — strict asm 编排链：仅 pipeline_impl_typecheck。
  *

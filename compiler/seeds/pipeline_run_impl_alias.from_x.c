@@ -1,3 +1,7 @@
+/* seeds/pipeline_run_impl_alias.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/asm/pipeline_run_impl_alias.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/pipeline_run_impl_alias.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * pipeline_run_impl_alias.c — 实验 asm-only 链：build_asm/pipeline.o 导出 run_x_pipeline_impl，
  * runtime/glue 期望 pipeline_run_x_pipeline_impl（与 pipeline_gen.c 一致）。仅在不链 pipeline_x.o 时并入。

@@ -1,3 +1,7 @@
+/* seeds/pipeline_glue_standalone.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/asm/pipeline_glue_standalone.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/pipeline_glue_standalone.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * pipeline_glue_standalone.c — Target B 实验链：独立 pipeline_glue+ast_pool TU（不含 pipeline.x 函数体）。
  *

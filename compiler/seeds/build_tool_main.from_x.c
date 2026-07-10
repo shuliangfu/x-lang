@@ -1,3 +1,7 @@
+/* seeds/build_tool_main.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/build_tool_main.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/build_tool_main.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * build_tool_main.c — build_tool 极薄 main（G-05：替代 build_runtime.c 的 main）
  *

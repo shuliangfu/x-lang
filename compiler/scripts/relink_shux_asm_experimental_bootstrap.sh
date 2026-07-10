@@ -353,9 +353,9 @@ for o in pipeline_x.o pipeline_bootstrap_orchestration.o preprocess_x.o lexer_x.
 done
 
 PIPELINE_RUN_X_ALIAS_O="src/asm/pipeline_run_x_link_alias.o"
-if [ ! -f "$PIPELINE_RUN_X_ALIAS_O" ] || [ "src/asm/pipeline_run_x_link_alias.inc" -nt "$PIPELINE_RUN_X_ALIAS_O" ]; then
+if [ ! -f "$PIPELINE_RUN_X_ALIAS_O" ] || [ "seeds/pipeline_run_x_link_alias.from_x.c" -nt "$PIPELINE_RUN_X_ALIAS_O" ]; then
   experimental_bootstrap_info "cc pipeline_run_x_link_alias.o"
-  sh scripts/cc_inc_tu.sh src/asm/pipeline_run_x_link_alias.inc "$PIPELINE_RUN_X_ALIAS_O"
+  sh scripts/cc_inc_tu.sh seeds/pipeline_run_x_link_alias.from_x.c "$PIPELINE_RUN_X_ALIAS_O"
 fi
 
 # Linux：std/io io_uring 须 -luring（与 build_shux_asm.sh PIPELINE_LIBS 一致）。
@@ -389,11 +389,11 @@ fi
 ST_LSP_DIAG_STUB="$BUILD_DIR/asm_shux_lsp_diag_stub.o"
 GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"
 PIPELINE_GEN_CFLAGS="-O2 -g -fno-strict-aliasing -DPIPELINE_GEN_STANDALONE"
-if [ ! -f "$GLUE_O" ] || [ "src/asm/pipeline_glue_standalone.inc" -nt "$GLUE_O" ] \
+if [ ! -f "$GLUE_O" ] || [ "seeds/pipeline_glue_standalone.from_x.c" -nt "$GLUE_O" ] \
   || [ "pipeline_glue.c" -nt "$GLUE_O" ] || [ "ast_pool.c" -nt "$GLUE_O" ]; then
   experimental_bootstrap_info "cc pipeline_glue_standalone.o"
   mkdir -p "$BUILD_DIR"
-  sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_standalone.inc "$GLUE_O" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
+  sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$GLUE_O" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
 fi
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   EXP_ALLOW_MULTIDEF="-Wl,-multiply_defined -Wl,suppress"

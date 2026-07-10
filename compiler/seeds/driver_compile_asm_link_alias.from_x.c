@@ -1,3 +1,7 @@
+/* seeds/driver_compile_asm_link_alias.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/asm/driver_compile_asm_link_alias.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/driver_compile_asm_link_alias.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * driver_compile_asm_link_alias.c — strict 链 driver X 符号别名
  *

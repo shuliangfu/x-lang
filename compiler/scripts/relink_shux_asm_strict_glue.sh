@@ -237,7 +237,7 @@ ensure_pipeline_wpo_helpers_partial_obj() {
 # WPO opt-in：typecheck emit 桥（helper 内 X typecheck_entry thin bl 依赖）。
 ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
   local BR_O="$BUILD_DIR/pipeline_wpo_typecheck_emit_bridge.o"
-  local BR_SRC="src/asm/pipeline_wpo_typecheck_emit_bridge.inc"
+  local BR_SRC="seeds/pipeline_wpo_typecheck_emit_bridge.from_x.c"
   [ -f "$BR_SRC" ] || return 1
   if [ ! -f "$BR_O" ] || [ "$BR_SRC" -nt "$BR_O" ]; then
   strict_glue_info "cc_inc_tu $BR_SRC -> $BR_O"
@@ -246,7 +246,7 @@ ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
   return 0
 }
 
-# B-hybrid / strict_glue：lsp_x.o 缺的 LSP 响应桩；typeck_lsp_io 见 src/lsp/typeck_lsp_io_stub.inc。
+# B-hybrid / strict_glue：lsp_x.o 缺的 LSP 响应桩；typeck_lsp_io 见 seeds/typeck_lsp_io_stub.from_x.c。
 # strict 链：ast.x 裸名 → pipeline_glue ast_ast_*（typeck_strict_link_partial 去重后缺 ast_block_if_*）。
 ensure_ast_asm_bare_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/ast_asm_bare_link_alias.o"
@@ -259,7 +259,7 @@ ensure_ast_asm_bare_link_alias_obj() {
 ensure_asm_shux_lsp_diag_stub_obj() {
   local STUB_C="scripts/asm_shux_lsp_diag_stub.c"
   local STUB_O="$BUILD_DIR/asm_shux_lsp_diag_stub.o"
-  local LSP_IO_STUB="src/lsp/typeck_lsp_io_stub.inc"
+  local LSP_IO_STUB="seeds/typeck_lsp_io_stub.from_x.c"
   local LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"
   if [ ! -f "$LSP_IO_O" ] || [ "$LSP_IO_STUB" -nt "$LSP_IO_O" ]; then
   strict_glue_info "cc_inc_tu $LSP_IO_O <- $LSP_IO_STUB"
@@ -563,12 +563,12 @@ ensure_asm_pipeline_run_impl_alias_obj() {
   if asm_strict_x_orchestration_ok; then
   ALIAS_CFLAGS="$CFLAGS -DSHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES=0"
   fi
-  if [ ! -f "$ALIAS_OBJ" ] || [ "src/asm/pipeline_run_impl_alias.inc" -nt "$ALIAS_OBJ" ] || \
+  if [ ! -f "$ALIAS_OBJ" ] || [ "seeds/pipeline_run_impl_alias.from_x.c" -nt "$ALIAS_OBJ" ] || \
   [ ! -f "$BUILD_DIR/.pipeline_run_impl_alias_x_orch" ] || \
   { asm_strict_x_orchestration_ok && [ "$(cat "$BUILD_DIR/.pipeline_run_impl_alias_x_orch" 2>/dev/null)" != "1" ]; } || \
   { ! asm_strict_x_orchestration_ok && [ "$(cat "$BUILD_DIR/.pipeline_run_impl_alias_x_orch" 2>/dev/null)" = "1" ]; }; then
-  strict_glue_info "cc -c src/asm/pipeline_run_impl_alias.inc -> $ALIAS_OBJ (X orch=$(asm_strict_x_orchestration_ok && echo 1 || echo 0))"
-  sh scripts/cc_inc_tu.sh src/asm/pipeline_run_impl_alias.inc "$ALIAS_OBJ"
+  strict_glue_info "cc -c seeds/pipeline_run_impl_alias.from_x.c -> $ALIAS_OBJ (X orch=$(asm_strict_x_orchestration_ok && echo 1 || echo 0))"
+  sh scripts/cc_inc_tu.sh seeds/pipeline_run_impl_alias.from_x.c "$ALIAS_OBJ"
   if asm_strict_x_orchestration_ok; then echo "1" >"$BUILD_DIR/.pipeline_run_impl_alias_x_orch"; else echo "0" >"$BUILD_DIR/.pipeline_run_impl_alias_x_orch"; fi
   fi
 }
@@ -996,7 +996,7 @@ rebuild_pipeline_o_wpo_strict_helpers_if_needed() {
 # S5 WPO strict 链：pipeline_wpo.o + glue 入口/typecheck emit 别名（替代 C orchestration partial）。
 ensure_pipeline_wpo_strict_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/pipeline_wpo_strict_link_alias.o"
-  local ALIAS_SRC="src/asm/pipeline_wpo_strict_link_alias.inc"
+  local ALIAS_SRC="seeds/pipeline_wpo_strict_link_alias.from_x.c"
   if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -ne 1 ] || ! asm_pipeline_wpo_strict_reach_ok; then
   return 0
   fi
@@ -1041,7 +1041,7 @@ if asm_strict_typeck_x_glue_via_pipeline_x; then
   strict_glue_info "ST_GLUE glue_strict_minimal + pipeline_x glue support (X orch)"
 else
   strict_glue_info "cc pipeline_glue_standalone.o <- ast_pool.c"
-  sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_standalone.inc "$BUILD_DIR/pipeline_glue_standalone.o" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
+  sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c "$BUILD_DIR/pipeline_glue_standalone.o" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
 fi
 
@@ -1343,9 +1343,9 @@ ensure_pipeline_run_bootstrap_trampoline_obj() {
   TRAMP_CFLAGS="$CFLAGS -DSTRICT_LINK_BUILD_ASM_PIPELINE=1"
   fi
   fi
-  if [ ! -f "$TRAMP_O" ] || [ "src/asm/pipeline_run_bootstrap_trampoline.inc" -nt "$TRAMP_O" ]; then
+  if [ ! -f "$TRAMP_O" ] || [ "seeds/pipeline_run_bootstrap_trampoline.from_x.c" -nt "$TRAMP_O" ]; then
   strict_glue_info "cc pipeline_run_bootstrap_trampoline.o"
-  sh scripts/cc_inc_tu.sh src/asm/pipeline_run_bootstrap_trampoline.inc "$TRAMP_O"
+  sh scripts/cc_inc_tu.sh seeds/pipeline_run_bootstrap_trampoline.from_x.c "$TRAMP_O"
   fi
 }
 ST_WPO_ALIAS=""
@@ -1431,14 +1431,14 @@ if [ -f src/asm/pipeline_fill_dep_strict_alias.x ] \
   if [ -x "$SHUX_REL" ] && "$SHUX_REL" -backend asm -o src/asm/pipeline_fill_dep_strict_alias.o $LIBROOT_REL \
   src/asm/pipeline_fill_dep_strict_alias.x 2>/dev/null; then
   strict_glue_info "$SHUX_REL -backend asm pipeline_fill_dep_strict_alias.x"
-  elif [ -f src/asm/pipeline_fill_dep_strict_alias.inc ]; then
-  strict_glue_info "cc -c src/asm/pipeline_fill_dep_strict_alias.inc (fallback)"
-  sh scripts/cc_inc_tu.sh src/asm/pipeline_fill_dep_strict_alias.inc src/asm/pipeline_fill_dep_strict_alias.o
+  elif [ -f seeds/pipeline_fill_dep_strict_alias.from_x.c ]; then
+  strict_glue_info "cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c (fallback)"
+  sh scripts/cc_inc_tu.sh seeds/pipeline_fill_dep_strict_alias.from_x.c src/asm/pipeline_fill_dep_strict_alias.o
   fi
 elif [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
-  && [ -f src/asm/pipeline_fill_dep_strict_alias.inc ]; then
-  strict_glue_info "cc -c src/asm/pipeline_fill_dep_strict_alias.inc"
-  sh scripts/cc_inc_tu.sh src/asm/pipeline_fill_dep_strict_alias.inc src/asm/pipeline_fill_dep_strict_alias.o
+  && [ -f seeds/pipeline_fill_dep_strict_alias.from_x.c ]; then
+  strict_glue_info "cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c"
+  sh scripts/cc_inc_tu.sh seeds/pipeline_fill_dep_strict_alias.from_x.c src/asm/pipeline_fill_dep_strict_alias.o
 fi
 ST_BSTRICT_LINK_EXTRA="src/std_sys_shim.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o"
 ensure_ast_asm_bare_link_alias_obj
@@ -1736,10 +1736,10 @@ ensure_typeck_f64_bits_obj() {
 ensure_cfg_eval_obj() {
   local o="src/lexer/cfg_eval.o"
   local ld_cmd="${LD:-ld}"
-  if [ ! -f "$o" ] || [ "src/lexer/cfg_eval_gen.c" -nt "$o" ] || [ "src/lexer/cfg_eval_link_alias.inc" -nt "$o" ]; then
-  strict_glue_info "cc/ld src/lexer/cfg_eval.o <- cfg_eval_gen.c + cfg_eval_link_alias.inc"
+  if [ ! -f "$o" ] || [ "src/lexer/cfg_eval_gen.c" -nt "$o" ] || [ "seeds/cfg_eval_link_alias.from_x.c" -nt "$o" ]; then
+  strict_glue_info "cc/ld src/lexer/cfg_eval.o <- cfg_eval_gen.c + cfg_eval_link_alias.from_x.c"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c
-  sh scripts/cc_inc_tu.sh src/lexer/cfg_eval_link_alias.inc src/lexer/cfg_eval_link_alias.o
+  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o
   "$ld_cmd" $LD_RELFLAGS -r -o "$o" src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o
   fi
 }

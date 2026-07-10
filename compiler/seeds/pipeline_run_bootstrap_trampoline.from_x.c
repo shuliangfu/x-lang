@@ -1,3 +1,7 @@
+/* seeds/pipeline_run_bootstrap_trampoline.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/asm/pipeline_run_bootstrap_trampoline.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/pipeline_run_bootstrap_trampoline.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * pipeline_run_bootstrap_trampoline.c — B-strict 链 runtime 入口薄壳
  *

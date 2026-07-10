@@ -1,3 +1,7 @@
+/* seeds/pipeline_asm_run_all_alias.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/asm/pipeline_asm_run_all_alias.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/pipeline_asm_run_all_alias.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * pipeline_asm_run_all_alias.c — strict 链：pipeline_impl_run_all / run_x_pipeline_impl 的 C 实现。
  *

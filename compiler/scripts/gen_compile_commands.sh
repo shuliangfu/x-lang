@@ -85,7 +85,7 @@ entries = [
         "-Ibuild_asm", "-DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER",
         "-include", "ide/clangd_glued_preamble.h",
     ]),
-    ("src/asm/pipeline_glue_standalone.inc", base + [
+    ("seeds/pipeline_glue_standalone.from_x.c", base + [
         "-Ibuild_asm", "-Wno-unused-function",
     ]),
 ]

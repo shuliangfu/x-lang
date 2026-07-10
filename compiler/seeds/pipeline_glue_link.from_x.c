@@ -1,3 +1,7 @@
+/* seeds/pipeline_glue_link.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/asm/pipeline_glue_link.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/pipeline_glue_link.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * pipeline_glue_link.c — Target B 实验链用最小 C 桥（不拉整份 pipeline_gen.c）。
  *

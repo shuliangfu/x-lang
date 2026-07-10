@@ -712,7 +712,7 @@ src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_c
 
 # G-02-B1：cfg_eval 仅 cfg_eval.x（无 cfg_eval.c 回退）。
 # cold bootstrap 时 shux-c 默认 pipeline 可能挂起；timeout 后回退 -E-extern / stub。
-src/lexer/cfg_eval.o: src/lexer/cfg_eval.x src/lexer/cfg_eval_link_alias.inc scripts/cc_inc_tu.sh
+src/lexer/cfg_eval.o: src/lexer/cfg_eval.x seeds/cfg_eval_link_alias.from_x.c scripts/cc_inc_tu.sh
 	@set -e; \
 	$(MAKE) $(SHUX_C); \
 	rm -f src/lexer/cfg_eval_x.o; \
@@ -724,13 +724,13 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x src/lexer/cfg_eval_link_alias.inc scr
 	  || rm -f src/lexer/cfg_eval_x.o; \
 	fi; \
 	if [ -s src/lexer/cfg_eval_x.o ]; then \
-	  sh scripts/cc_inc_tu.sh src/lexer/cfg_eval_link_alias.inc src/lexer/cfg_eval_link_alias.o; \
+	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o; \
 	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
 	  echo "cfg_eval.o from cfg_eval.x (default pipeline + alias)"; \
 	elif ./$(SHUX_C) -E -E-extern -L .. src/lexer/cfg_eval.x > src/lexer/cfg_eval_gen.c 2>/dev/null \
 	  && [ -s src/lexer/cfg_eval_gen.c ]; then \
 	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c; \
-	  sh scripts/cc_inc_tu.sh src/lexer/cfg_eval_link_alias.inc src/lexer/cfg_eval_link_alias.o; \
+	  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o; \
 	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
 	  echo "cfg_eval.o from cfg_eval.x (-E-extern + alias)"; \
 	else \
@@ -1717,8 +1717,8 @@ lsp_io_gen.c: src/lsp/lsp_io.x
 # LSP state 单独 .c，避免 lsp_main 内大数组导致 state 被覆盖
 
 # lsp_gen.c 期望 typeck_read_message 等；lsp_io -E-extern 未产出时由桩提供（G-02e-16 .inc）。
-src/lsp/typeck_lsp_io_stub.o: src/lsp/typeck_lsp_io_stub.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/lsp/typeck_lsp_io_stub.inc $@
+src/lsp/typeck_lsp_io_stub.o: seeds/typeck_lsp_io_stub.from_x.c scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh seeds/typeck_lsp_io_stub.from_x.c $@
 
 # G-02f-11：seed_link_compat 产品 seed
 src/seed_link_compat.o: seeds/seed_link_compat.from_x.c src/seed_link_compat.x
@@ -2102,9 +2102,9 @@ build_asm/pipeline_glue_types.inc: pipeline_gen.c scripts/extract_pipeline_glue_
 pipeline_bootstrap_orchestration.o: seeds/pipeline_bootstrap_orchestration.from_x.c pipeline_bootstrap_orchestration.x pipeline_gen.c build_asm/pipeline_glue_types.inc
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER -c -o $@ seeds/pipeline_bootstrap_orchestration.from_x.c
 
-$(ASM_GLUE_STANDALONE_O): src/asm/pipeline_glue_standalone.inc build_asm/pipeline_glue_types.inc pipeline_glue.c ast_pool.c scripts/cc_inc_tu.sh
+$(ASM_GLUE_STANDALONE_O): seeds/pipeline_glue_standalone.from_x.c build_asm/pipeline_glue_types.inc pipeline_glue.c ast_pool.c scripts/cc_inc_tu.sh
 	@mkdir -p build_asm
-	sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_standalone.inc $@ $(PIPELINE_GEN_CFLAGS) -Wno-error=return-type -Ibuild_asm
+	sh scripts/cc_inc_tu.sh seeds/pipeline_glue_standalone.from_x.c $@ $(PIPELINE_GEN_CFLAGS) -Wno-error=return-type -Ibuild_asm
 
 # G-02f-11：pipeline_glue_strict_minimal 产品 seed
 build_asm/pipeline_glue_strict_minimal.o: seeds/pipeline_glue_strict_minimal.from_x.c src/asm/pipeline_glue_strict_minimal.x
@@ -2288,15 +2288,15 @@ build-tool:
 	fi
 	cp -f seeds/build_runner_gen.c build_runner_gen.c
 	$(CC) $(CFLAGS) -Wno-unused -c build_gen.c -o build_tool.o
-	sh scripts/cc_inc_tu.sh src/build_tool_libc_bridge.inc build_tool_libc_bridge.o
+	sh scripts/cc_inc_tu.sh seeds/build_tool_libc_bridge.from_x.c build_tool_libc_bridge.o
 	$(CC) $(CFLAGS) -c build_runner_gen.c -o build_runner.o
 	$(CC) $(CFLAGS) -Wno-unused -c build_runtime_x_gen.c -o build_runtime_x.o
-	sh scripts/cc_inc_tu.sh src/build_tool_main.inc build_tool_main.o
+	sh scripts/cc_inc_tu.sh seeds/build_tool_main.from_x.c build_tool_main.o
 	$(CC) $(CFLAGS) -o build_tool build_tool_main.o build_runner.o build_tool.o build_runtime_x.o build_tool_libc_bridge.o -lc
 	@echo "build_tool OK（./build_tool ./shux [asm|legacy]；G-05 pinned seeds）"
 
-src/build_tool_main.o: src/build_tool_main.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/build_tool_main.inc $@
+src/build_tool_main.o: seeds/build_tool_main.from_x.c scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh seeds/build_tool_main.from_x.c $@
 
 # 别名：与 build-tool 相同（历史 target 名）
 build-tool-x: build-tool

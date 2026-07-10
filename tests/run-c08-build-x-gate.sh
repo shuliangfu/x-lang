@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 echo "=== C-08 / G-05: build.x + daily entry policy ==="
 for f in build.x analysis/phase-c-c08-v1.md shux-build.sh \
          compiler/scripts/g05_build_shux_asm.sh \
-         compiler/src/build_tool_libc_bridge.inc; do
+         compiler/seeds/build_tool_libc_bridge.from_x.c; do
   [ -f "$f" ] || { echo "c08 build-x FAIL: missing $f" >&2; exit 1; }
 done
 grep -q 'build_use_asm_only' build.x || { echo "c08 build-x FAIL: build.x missing build_use_asm_only" >&2; exit 1; }
@@ -21,7 +21,7 @@ grep -q 'build_tool' shux-build.sh || { echo "c08 build-x FAIL: shux-build.sh mi
 grep -q 'g05_build_shux_asm' shux-build.sh || true  # optional mention in help
 
 # G-05 单点：libc bridge 必须调 g05 脚本（不再裸 make shux_asm 字符串作默认路径）
-grep -q 'g05_build_shux_asm.sh' compiler/src/build_tool_libc_bridge.inc || {
+grep -q 'g05_build_shux_asm.sh' compiler/seeds/build_tool_libc_bridge.from_x.c || {
   echo "c08 build-x FAIL: build_tool_libc_bridge must invoke scripts/g05_build_shux_asm.sh" >&2
   exit 1
 }

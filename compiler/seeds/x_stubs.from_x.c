@@ -1,3 +1,7 @@
+/* seeds/x_stubs.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/x_stubs.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/x_stubs.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * x_stubs.c — X 管线链接桩
  *

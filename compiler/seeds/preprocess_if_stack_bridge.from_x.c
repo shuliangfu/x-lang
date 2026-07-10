@@ -1,3 +1,7 @@
+/* seeds/preprocess_if_stack_bridge.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/preprocess_if_stack_bridge.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/preprocess_if_stack_bridge.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * preprocess_if_stack_bridge.c — verify-selfhost-stage2 / 分 TU 链：提供 preprocess_if_stack_*。
  *

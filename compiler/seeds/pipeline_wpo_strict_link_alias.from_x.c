@@ -1,3 +1,7 @@
+/* seeds/pipeline_wpo_strict_link_alias.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/asm/pipeline_wpo_strict_link_alias.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/pipeline_wpo_strict_link_alias.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * pipeline_wpo_strict_link_alias.c — strict WPO 链 glue：pipeline_wpo.o X 编排 + runtime 期望名。
  *

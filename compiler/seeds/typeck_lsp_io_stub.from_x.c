@@ -1,3 +1,7 @@
+/* seeds/typeck_lsp_io_stub.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/lsp/typeck_lsp_io_stub.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/typeck_lsp_io_stub.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * typeck_lsp_io_stub.c — lsp_gen.c 期望的 typeck_* IO 符号桩（seed shux / strict_glue 共用）。
  *

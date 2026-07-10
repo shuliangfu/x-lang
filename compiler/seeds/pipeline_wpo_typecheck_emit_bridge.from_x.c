@@ -1,3 +1,7 @@
+/* seeds/pipeline_wpo_typecheck_emit_bridge.from_x.c — G-02f-79 product cold-start TU
+ * Promoted from compiler/src/asm/pipeline_wpo_typecheck_emit_bridge.inc (alias/stub; retired .inc).
+ * Compile: cc -c seeds/pipeline_wpo_typecheck_emit_bridge.from_x.c  (or cc_inc_tu wrap).
+ */
 /**
  * pipeline_wpo_typecheck_emit_bridge.c — WPO helper 链：X typecheck_entry thin bl 依赖 emit 桥。
  *
