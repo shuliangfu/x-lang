@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343/344：runtime_driver_abi L2 thin（28 门闩：flag pure + check_ok/now_sec/large_stack + timing 全套）。
+// G-02f-343/344/345：runtime_driver_abi L2 thin（31 门闩：+ ascii_toupper / typeck_skip / sanitize_get）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 //
 
@@ -15,6 +15,8 @@ extern "C" function driver_x_pipeline_skip_codegen_flag_slot(): *i32;
 extern "C" function driver_skip_codegen_dep_0_flag_slot(): *i32;
 extern "C" function driver_large_stack_thread_flag_slot(): *i32;
 extern "C" function driver_current_dep_path_store(path: *u8): void;
+extern "C" function driver_pipeline_entry_source_len_i32(): i32;
+extern "C" function driver_sanitize_address_env_enabled_impl(): i32;
 
 #[no_mangle]
 function driver_fmt_check_only_set(v: i32): void {
@@ -293,5 +295,42 @@ function driver_compile_phase_timing_flush(): void {
     }
     driver_compile_phase_timing_flush_impl();
   }
+}
+
+// ---- G-02f-345：ascii_toupper / typeck_skip / sanitize_get ----
+// -E：嵌套 if 会丢整函数体，用早退扁平控制流
+#[no_mangle]
+function driver_ascii_toupper(c: i32): i32 {
+  if (c < 97) {
+    return c;
+  }
+  if (c > 122) {
+    return c;
+  }
+  return c - 32;
+}
+
+#[no_mangle]
+function driver_typeck_skip_large_entry(): i32 {
+  unsafe {
+    let len: i32 = driver_pipeline_entry_source_len_i32();
+    if (len > 150000) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_sanitize_address_get(): i32 {
+  unsafe {
+    let p: *i32 = driver_sanitize_address_flag_slot();
+    if (p[0] != 0) {
+      return 1;
+    }
+    return driver_sanitize_address_env_enabled_impl();
+  }
+  return 0;
 }
 

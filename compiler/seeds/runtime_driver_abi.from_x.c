@@ -1,4 +1,4 @@
-/* G-02f-343/344：PREFER hybrid thin 由 src/runtime_driver_abi_thin.x；rest SHUX_L2_RDABI_THIN_FROM_X。
+/* G-02f-343/344/345：PREFER hybrid thin 由 src/runtime_driver_abi_thin.x；rest SHUX_L2_RDABI_THIN_FROM_X。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
  * G-02f-116 true .x pure helpers.
@@ -26,6 +26,9 @@ int32_t driver_is_large_stack_thread(void);
 void driver_large_stack_thread_mark(int on);
 void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg);
 int32_t driver_compile_phase_index_ok(int32_t phase);
+char driver_ascii_toupper(char c);
+int32_t driver_typeck_skip_large_entry(void);
+int32_t driver_sanitize_address_get(void);
 #define compile_phase_now_sec compile_phase_now_sec_impl
 #define driver_compile_phase_timing_enabled driver_compile_phase_timing_enabled_impl
 #endif
@@ -54,11 +57,13 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
 
 /** nostdlib 下勿用 glibc ctype 宏（会引用 __ctype_toupper_loc）；本地 ASCII 大写。 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 char driver_ascii_toupper(char c) {
     if (c >= 'a' && c <= 'z')
         return (char)(c + ('A' - 'a'));
     return c;
 }
+#endif
 
 
 
@@ -219,6 +224,25 @@ void driver_sanitize_address_set(int32_t v) {
  * 查询 sanitize=address；显式标志或 SHUX_SANITIZE_ADDRESS 环境变量。
  * 返回值：1 表示启用边界检查插桩。
  */
+#ifdef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_sanitize_address_env_enabled_impl(void) {
+  (void)(({   {
+    char *e = getenv("SHUX_SANITIZE_ADDRESS");
+    if ((e ==((char *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
+}
+#else
 int32_t driver_sanitize_address_get(void) {
   (void)(({   {
     int32_t * p = driver_sanitize_address_flag_slot();
@@ -240,6 +264,7 @@ int32_t driver_sanitize_address_get(void) {
  }));
   return 0;
 }
+#endif
 
 static int driver_fmt_check_only_flag;
 
@@ -469,6 +494,7 @@ size_t driver_pipeline_entry_source_len(void) {
  * 非 0 表示入口源码过大，应跳过 merge/library 全量 typeck（.x 路径上易 segfault）。
  * 返回值：len > 150000 时为 1，否则 0。
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_typeck_skip_large_entry(void) {
   (void)(({   {
     int32_t len = driver_pipeline_entry_source_len_i32();
@@ -480,6 +506,7 @@ int32_t driver_typeck_skip_large_entry(void) {
  }));
   return 0;
 }
+#endif
 
 /**
  * build_shux_asm 单模块 -o：SHUX_ASM_BUILD_SKIP_TYPECK=1 时跳过 .x typeck。
