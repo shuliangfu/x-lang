@@ -1,4 +1,5 @@
 /* seeds/backend_enc_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-127 true .x pure helpers.
  * G-02f-100/101 enc helper gates.
  * Source intent: src/asm/backend_enc_dispatch.x (doc) + this seed (full C body).
  * Product: → src/asm/backend_enc_dispatch.o. Logic still C until full .x port.
@@ -51,9 +52,8 @@ int32_t backend_enc_x86_jcc_rel32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
   }
   return 0;
 }
-
-
-int32_t backend_enc_append_u32_le_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
   uint8_t buf[4];
   if (!elf_ctx)
     return -1;
@@ -63,12 +63,8 @@ int32_t backend_enc_append_u32_le_c_impl(struct platform_elf_ElfCodegenCtx *elf_
   buf[3] = (uint8_t)((word >> 24) & 255u);
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, buf, 4);
 }
-int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
-  {
-    return backend_enc_append_u32_le_c_impl(elf_ctx, word);
-  }
-  return 0;
-}
+
+
 
 
 int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
@@ -100,9 +96,8 @@ int32_t backend_enc_arm64_call_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
   }
   return 0;
 }
-
-
-int32_t backend_enc_arm64_add_sp_imm12_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
   int32_t imm12;
   if (!elf_ctx)
     return -1;
@@ -113,15 +108,8 @@ int32_t backend_enc_arm64_add_sp_imm12_c_impl(struct platform_elf_ElfCodegenCtx 
     imm12 = 4095;
   return backend_enc_append_u32_le_c(elf_ctx, 0x910003ffu | ((uint32_t)imm12 << 10));
 }
-int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
-  {
-    return backend_enc_arm64_add_sp_imm12_c_impl(elf_ctx, imm);
-  }
-  return 0;
-}
-
-
-int32_t backend_enc_arm64_sub_sp_imm12_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
   int32_t imm12;
   if (!elf_ctx)
     return -1;
@@ -132,15 +120,8 @@ int32_t backend_enc_arm64_sub_sp_imm12_c_impl(struct platform_elf_ElfCodegenCtx 
     imm12 = 4095;
   return backend_enc_append_u32_le_c(elf_ctx, 0xd10003ffu | ((uint32_t)imm12 << 10));
 }
-int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
-  {
-    return backend_enc_arm64_sub_sp_imm12_c_impl(elf_ctx, imm);
-  }
-  return 0;
-}
-
-
-int32_t backend_enc_arm64_str_x0_sp_offset_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes) {
   int32_t off;
   int32_t imm12;
   if (!elf_ctx)
@@ -153,12 +134,8 @@ int32_t backend_enc_arm64_str_x0_sp_offset_c_impl(struct platform_elf_ElfCodegen
     imm12 = 4095;
   return backend_enc_append_u32_le_c(elf_ctx, 0xf90003e0u | ((uint32_t)imm12 << 10));
 }
-int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes) {
-  {
-    return backend_enc_arm64_str_x0_sp_offset_c_impl(elf_ctx, off_bytes);
-  }
-  return 0;
-}
+
+
 
 
 /** x86_64 cdqe；定义见本文件末尾。 */
@@ -1113,7 +1090,8 @@ int32_t backend_enc_load_rbp_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_
 /**
  * arm64：LDUR w0, [x29, #-offset]（f32/i32 单向量 lane load）。
  */
-int32_t arm64_enc_load_w0_from_rbp_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t arm64_enc_load_w0_from_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
   int32_t simm9;
   int32_t u9;
   int32_t base;
@@ -1128,12 +1106,8 @@ int32_t arm64_enc_load_w0_from_rbp_c_impl(struct platform_elf_ElfCodegenCtx *elf
   insn = (uint32_t)base | ((uint32_t)u9 << 12) | (29u << 5);
   return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)insn);
 }
-int32_t arm64_enc_load_w0_from_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  {
-    return arm64_enc_load_w0_from_rbp_c_impl(elf_ctx, offset);
-  }
-  return 0 - 1;
-}
+
+
 
 
 /**
@@ -1161,7 +1135,8 @@ int32_t backend_enc_load_rbp_lane_to_rbx_arch(struct platform_elf_ElfCodegenCtx 
 /**
  * arm64：STUR w0, [x29, #-offset]（f32 局部 let/assign；勿 64 位 str x0 覆盖相邻 4B 槽）。
  */
-int32_t arm64_enc_store_w0_to_rbp_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t arm64_enc_store_w0_to_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
   int32_t simm9;
   int32_t u9;
   uint32_t insn;
@@ -1174,12 +1149,8 @@ int32_t arm64_enc_store_w0_to_rbp_c_impl(struct platform_elf_ElfCodegenCtx *elf_
   insn = 0xB8000000u | ((uint32_t)u9 << 12) | (29u << 5);
   return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)insn);
 }
-int32_t arm64_enc_store_w0_to_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  {
-    return arm64_enc_store_w0_to_rbp_c_impl(elf_ctx, offset);
-  }
-  return 0 - 1;
-}
+
+
 
 
 /**

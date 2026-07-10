@@ -1,4 +1,5 @@
 /* seeds/async_liveness.from_x.c — G-02f-18 product TU
+ * G-02f-127 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
  * G-02f-110 helper gates.
  * G-02f-108 helper gates.
@@ -162,15 +163,12 @@ int expr_count_await(const struct ASTExpr *e) {
 
 
 /** 块内是否存在 await（A3 v0 不扫描 loop/for 体）。 */
-int block_has_await_impl(const struct ASTBlock *b) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int block_has_await(const struct ASTBlock *b) {
     return block_count_await(b) > 0;
 }
-int block_has_await(const struct ASTBlock *b) {
-  {
-    return block_has_await_impl(b);
-  }
-  return 0;
-}
+
+
 
 
 /** 块内 await 个数（A3 v0 不扫描 loop/for 体）。 */

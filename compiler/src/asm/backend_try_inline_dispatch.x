@@ -19,7 +19,6 @@ extern "C" function glue_local_var_slot_holds_indirect_ptr_impl(arena: *u8, er: 
 extern "C" function glue_expr_is_func_param_at_impl(arena: *u8, mod: *u8, fi: i32, er: i32, pix: i32): i32;
 extern "C" function glue_fold_func_return_operand_ref_module_impl(arena: *u8, mod: *u8, fi: i32): i32;
 extern "C" function glue_try_fold_func_return_operand_ref_impl(arena: *u8, mod: *u8, fi: i32): i32;
-extern "C" function glue_try_inline_local_slot_off_impl(ctx: *u8, arena: *u8, name: *u8, nlen: i32): i32;
 
 /* ---- G-02f-109：try_inline helpers 门闩 ---- */
 
@@ -40,8 +39,7 @@ function glue_expr_is_func_param_at(arena: *u8, mod: *u8, fi: i32, er: i32, pix:
 function glue_fold_func_return_operand_ref_module(arena: *u8, mod: *u8, fi: i32): i32 { unsafe { return glue_fold_func_return_operand_ref_module_impl(arena, mod, fi); } return 0; }
 #[no_mangle]
 function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: i32): i32 { unsafe { return glue_try_fold_func_return_operand_ref_impl(arena, mod, fi); } return 0; }
-#[no_mangle]
-function glue_try_inline_local_slot_off(ctx: *u8, arena: *u8, name: *u8, nlen: i32): i32 { unsafe { return glue_try_inline_local_slot_off_impl(ctx, arena, name, nlen); } return 0; }
+
 
 // G-02f-110：+ fold/struct lit/field offset/vector binop 薄门闩。
 
@@ -154,5 +152,22 @@ function glue_try_expr_const_i32(arena: *u8, er: i32, out: *i32): i32 {
     }
   }
   return 0;
+}
+
+// G-02f-127：glue_try_inline_local_slot_off 真迁 .x
+
+extern "C" function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name: *u8, nlen: i32): i32;
+extern "C" function asm_ctx_local_find_offset(ctx: *u8, name: *u8, nlen: i32): i32;
+
+#[no_mangle]
+function glue_try_inline_local_slot_off(ctx: *u8, arena: *u8, name: *u8, nlen: i32): i32 {
+  unsafe {
+    let off: i32 = asm_ctx_local_find_offset_scoped(ctx, arena, name, nlen);
+    if (off < 0) {
+      off = asm_ctx_local_find_offset(ctx, name, nlen);
+    }
+    return off;
+  }
+  return 0 - 1;
 }
 

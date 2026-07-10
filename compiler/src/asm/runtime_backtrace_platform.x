@@ -8,7 +8,6 @@
 // G-02f-106：+ capture_and_check_gold 薄门闩。
 
 extern "C" function backtrace_u8_hex2_impl(b: u8, out: *u8): void;
-extern "C" function name_has_gold_anchor_impl(name: *u8): i32;
 extern "C" function backtrace_capture_and_check_gold_c_impl(): i32;
 
 function runtime_backtrace_platform_x_doc_anchor(): i32 {
@@ -24,13 +23,7 @@ function backtrace_u8_hex2(b: u8, out: *u8): void {
   }
 }
 
-#[no_mangle]
-function name_has_gold_anchor(name: *u8): i32 {
-  unsafe {
-    return name_has_gold_anchor_impl(name);
-  }
-  return 0;
-}
+
 
 /* ---- G-02f-106：capture gold 门闩 ---- */
 
@@ -41,3 +34,16 @@ function backtrace_capture_and_check_gold_c(): i32 {
   }
   return 0;
 }
+
+// G-02f-127：name_has_gold_anchor 真迁 .x
+
+extern "C" function backtrace_name_has_gold_anchor_c(name: *u8): i32;
+
+#[no_mangle]
+function name_has_gold_anchor(name: *u8): i32 {
+  unsafe {
+    return backtrace_name_has_gold_anchor_c(name);
+  }
+  return 0;
+}
+

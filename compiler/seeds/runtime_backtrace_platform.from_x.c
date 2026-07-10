@@ -1,4 +1,5 @@
 /* seeds/runtime_backtrace_platform.from_x.c — G-02f-19 product TU
+ * G-02f-127 true .x pure helpers.
  * G-02f-106 helper gates.
  * G-02f-101 hex2/gold_anchor gates.
  * Product: runtime_backtrace_platform.o; logic still C until full .x port.
@@ -347,15 +348,12 @@ const char *backtrace_xplat_platform_name_c(void) {
 }
 
 /** 检查符号名是否含 gold_anchor。 */
-int32_t name_has_gold_anchor_impl(const char *name) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t name_has_gold_anchor(const char *name) {
   return backtrace_name_has_gold_anchor_c((const uint8_t *)name);
 }
-int32_t name_has_gold_anchor(const char *name) {
-  {
-    return name_has_gold_anchor_impl(name);
-  }
-  return 0;
-}
+
+
 
 
 /** STD-147 跨平台符号质量探测。 */

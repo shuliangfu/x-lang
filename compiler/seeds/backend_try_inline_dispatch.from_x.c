@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-127 true .x pure helpers.
  * G-02f-126 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
  * G-02f-111 helper gates.
@@ -200,19 +201,16 @@ extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t na
 /**
  * try_inline 路径查局部槽：scope 子树优先，未命中回退全表（while 内外层 let）。
  */
-int32_t glue_try_inline_local_slot_off_impl(uint8_t *ctx, struct ast_ASTArena *arena, uint8_t *name, int32_t name_len) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_try_inline_local_slot_off(uint8_t *ctx, struct ast_ASTArena *arena, uint8_t *name, int32_t name_len) {
   int32_t off;
   off = asm_ctx_local_find_offset_scoped(ctx, arena, name, name_len);
   if (off < 0)
     off = asm_ctx_local_find_offset(ctx, name, name_len);
   return off;
 }
-int32_t glue_try_inline_local_slot_off(uint8_t *ctx, struct ast_ASTArena *arena, uint8_t *name, int32_t name_len) {
-  {
-    return glue_try_inline_local_slot_off_impl(ctx, arena, name, name_len);
-  }
-  return 0;
-}
+
+
 
 
 extern int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);

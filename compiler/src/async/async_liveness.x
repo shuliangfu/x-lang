@@ -13,7 +13,6 @@ function async_liveness_x_doc_anchor(): i32 {
 
 extern "C" function async_liveness_callee_is_io_read_impl(f: *u8): i32;
 extern "C" function async_liveness_callee_is_io_write_impl(f: *u8): i32;
-extern "C" function block_has_await_impl(b: *u8): i32;
 extern "C" function block_count_await_impl(b: *u8): i32;
 extern "C" function block_has_io_read_await_impl(b: *u8): i32;
 extern "C" function block_has_io_write_await_impl(b: *u8): i32;
@@ -35,11 +34,7 @@ function async_liveness_callee_is_io_write(f: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
-function block_has_await(b: *u8): i32 {
-  unsafe { return block_has_await_impl(b); }
-  return 0;
-}
+
 
 #[no_mangle]
 function block_count_await(b: *u8): i32 {
@@ -131,3 +126,16 @@ function live_name_cmp(a: *u8, b: *u8): i32 {
   }
   return 0;
 }
+
+// G-02f-127：block_has_await 真迁 .x（组合 block_count_await）
+
+extern "C" function block_count_await(b: *u8): i32;
+
+#[no_mangle]
+function block_has_await(b: *u8): i32 {
+  unsafe {
+    if (block_count_await(b) > 0) { return 1; }
+  }
+  return 0;
+}
+

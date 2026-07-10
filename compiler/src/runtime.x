@@ -14,7 +14,6 @@
 // 产品：cc seeds/runtime.from_x.c + RUNTIME_DRIVER_NO_C_CFLAGS → src/runtime_driver_no_c.o
 // C 尾：argv 解析循环、#if 变体、大 driver 路径、syscall/fs。
 
-extern "C" function run_compiler_c_impl(argc: i32, argv: *u8): i32;
 extern "C" function driver_run_x_emit_c_set_path_impl(path: *u8, path_len: i32): i32;
 extern "C" function driver_run_x_emit_c_set_lib_impl(i: i32, buf: *u8, len: i32): i32;
 extern "C" function driver_fs_open_read_path_impl(path: *u8, path_len: i32): i32;
@@ -97,8 +96,6 @@ extern "C" function driver_x_emit_asm_dep_parse_only_ok_impl(input_path: *u8, de
 extern "C" function driver_check_only_c_typeck_impl(input_path: *u8, src: *u8, lib_roots_arr: *u8, n_lib_roots: i32): i32;
 extern "C" function driver_lib_root_default_impl(root_buf: *u8): void;
 extern "C" function runtime_test_status_to_rc_impl(script: *u8, st: i32): i32;
-extern "C" function runtime_run_compiler_check_c_impl(argc: i32, argv: *u8): i32;
-extern "C" function runtime_run_fmt_c_impl(argc: i32, argv: *u8): i32;
 
 extern "C" function shux_get_tmp_prefix_impl(): *u8;
 extern "C" function dce_is_func_used_impl(ctx: *u8, mod: *u8, func: *u8): i32;
@@ -125,13 +122,7 @@ extern "C" function codegen_emit_include_pipeline_glue_c_impl(out: *u8, argv0: *
 extern "C" function runtime_pipeline_elf_ctx_diag_note_impl(ctx_bytes: *u8): void;
 extern "C" function driver_compile_parse_argv_step_c_impl(argc: i32, argv: *u8, state: *u8, i: i32, arg_buf: *u8, arg_cap: i32): i32;
 
-#[no_mangle]
-function run_compiler_c(argc: i32, argv: *u8): i32 {
-  unsafe {
-    return run_compiler_c_impl(argc, argv);
-  }
-  return 0 - 1;
-}
+
 
 #[no_mangle]
 function driver_run_x_emit_c_set_path(path: *u8, path_len: i32): i32 {
@@ -614,21 +605,9 @@ function runtime_test_status_to_rc(script: *u8, st: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
-function runtime_run_compiler_check_c(argc: i32, argv: *u8): i32 {
-  unsafe {
-    return runtime_run_compiler_check_c_impl(argc, argv);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function runtime_run_fmt_c(argc: i32, argv: *u8): i32 {
-  unsafe {
-    return runtime_run_fmt_c_impl(argc, argv);
-  }
-  return 0;
-}
+
+
 
 /* ---- G-02f-90：DCE 回调 / tmp 前缀 / parse fail / lib_roots / run_test 门闩 ---- */
 
@@ -1241,5 +1220,35 @@ function driver_run_x_emit_c_set_emit_extern(v: i32): i32 {
 function driver_run_x_emit_c_set_n_lib_roots(n: i32): i32 {
   // product: seeds/runtime.from_x.c clamps to X_EMIT_MAX_LIB_ROOTS(16)
   return 0;
+}
+
+// G-02f-127：runtime 入口转发真迁 .x
+
+extern "C" function main_run_compiler_c(argc: i32, argv: *u8): i32;
+extern "C" function driver_run_fmt(argc: i32, argv: *u8): i32;
+extern "C" function driver_run_compiler_check(argc: i32, argv: *u8): i32;
+
+#[no_mangle]
+function run_compiler_c(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return main_run_compiler_c(argc, argv);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function runtime_run_fmt_c(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return driver_run_fmt(argc, argv);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function runtime_run_compiler_check_c(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return driver_run_compiler_check(argc, argv);
+  }
+  return 0 - 1;
 }
 

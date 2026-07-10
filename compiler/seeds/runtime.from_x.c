@@ -1,4 +1,5 @@
 /* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+ * G-02f-127 true .x pure helpers.
  * G-02f-126 true .x pure helpers.
  * G-02f-125 true .x pure helpers.
  * G-02f-122 true .x pure helpers.
@@ -95,7 +96,6 @@ const char * shux_get_tmp_prefix(void) {
 /* forward for G-02f-71 protos (full typedef later in file) */
 typedef struct DriverCompileStateSU DriverCompileStateSU;
 /* G-02f-71 driver thin gates */
-int run_compiler_c_impl(int argc, char **argv);
 int driver_run_x_emit_c_set_path_impl(const uint8_t *path, int path_len);
 int driver_run_x_emit_c_set_lib_impl(int i, const uint8_t *buf, int len);
 int driver_fs_open_read_path_impl(const uint8_t *path, int path_len);
@@ -979,16 +979,13 @@ int runtime_report_precise_parse_failure_if_known(const char *input_path, const 
 #ifdef SHUX_USE_X_DRIVER
 /* run_compiler_c 由 C 在此定义，转调 main.x 的 main_run_compiler_c，供 main_entry 等调用；不再依赖 driver_gen.c 追加。 */
 extern int main_run_compiler_c(int argc, uint8_t *argv);
-int run_compiler_c_impl(int argc, char **argv) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+
+int run_compiler_c(int argc, char **argv) {
   return main_run_compiler_c(argc, (uint8_t *)argv);
 }
 
-int run_compiler_c(int argc, char **argv) {
-  {
-    return run_compiler_c_impl(argc, argv);
-  }
-  return -1;
-}
+
 
 #endif
 /* 6.1 后 typeck/pipeline 用 ctx；typeck dep 侧车见 runtime_pipeline_abi.c（E-04 v29）；typeck 入口见 v31 pipeline_typeck_module_for_ctx。 */
@@ -7515,27 +7512,21 @@ static char **runtime_argv_drop_subcommand_c(int argc, char **argv) {
 }
 
 /** shux check（C 前端）：委托 fmt_check_cmd（多文件/目录 + 诊断格式）。 */
-int runtime_run_compiler_check_c_impl(int argc, char **argv) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int runtime_run_compiler_check_c(int argc, char **argv) {
     return driver_run_compiler_check(argc, argv);
 }
-int runtime_run_compiler_check_c(int argc, char **argv) {
-  {
-    return runtime_run_compiler_check_c_impl(argc, argv);
-  }
-  return 0;
-}
+
+
 
 
 /** shux fmt（C 前端）：读入 .x、按 LSP 规则格式化，变化时写回。 */
-int runtime_run_fmt_c_impl(int argc, char **argv) {
+/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int runtime_run_fmt_c(int argc, char **argv) {
     return driver_run_fmt(argc, argv);
 }
-int runtime_run_fmt_c(int argc, char **argv) {
-  {
-    return runtime_run_fmt_c_impl(argc, argv);
-  }
-  return 0;
-}
+
+
 
 
 /** shux test（C 前端）：在仓库根目录执行 bash 测试脚本。 */
