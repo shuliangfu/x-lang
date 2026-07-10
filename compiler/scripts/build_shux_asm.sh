@@ -2821,7 +2821,7 @@ filter_strict_asm_objs() {
       asm_backend_compat_stubs.o|\
       std_fs_shim.o|x_seed_bridge.o|\
       parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|lsp_codegen_extern.o|\
-      parser_asm_link_alias.o|parser_asm_minimal_partial.o|\
+      parser_asm_minimal_partial.o|\
       ast_pool_l5_bridge.o|\
       lexer.o|peephole.o|platform_elf.o|macho.o|coff.o)
         continue
@@ -3334,7 +3334,7 @@ ensure_asm_strict_link_extra_objs() {
   if [ ! -f src/asm/parser_asm_parse_expr_link.o ] \
     || [ src/asm/parser_asm_parse_expr_link.c -nt src/asm/parser_asm_parse_expr_link.o ]; then
     echo "  cc -c src/asm/parser_asm_parse_expr_link.c -> src/asm/parser_asm_parse_expr_link.o"
-    "$CC" $CFLAGS -c -o src/asm/parser_asm_parse_expr_link.o src/asm/parser_asm_parse_expr_link.c
+    "$CC" $CFLAGS -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS -c -o src/asm/parser_asm_parse_expr_link.o src/asm/parser_asm_parse_expr_link.c
   fi
   # G-02-B1：优先 .x（-backend asm）；无 shux 或失败时回退 .c（删 C 前须 Docker Stage2 回归）。
   if [ -f src/asm/pipeline_fill_dep_strict_alias.x ] \

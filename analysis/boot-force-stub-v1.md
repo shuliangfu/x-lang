@@ -22,9 +22,9 @@
 
 | stub_id | 函数 | 根因 | 策略 | 回归 |
 |---------|------|------|------|------|
-| wrap_block | `wrap_block_ref_as_expr` | if 表达式块→EXPR 包装；X 真 emit code_len/SIG | C slice `parser_asm_if_expr_slice.c` + force_stub | `run-if-expr.sh` |
+| wrap_block | `wrap_block_ref_as_expr` | if 表达式块→EXPR 包装；X 真 emit code_len/SIG | C slice `parser_asm_if_expr_slice.inc` + force_stub | `run-if-expr.sh` |
 | alloc_bool | `parser_alloc_true_bool_lit` | 深循环内 bool 字面量节点分配 | force_stub；调用路径走 glue/已 emit helper | `run-if-expr.sh` |
-| alloc_float | `parser_alloc_float_lit` | 浮点 primary 路径 alloc | C slice `parser_asm_primary_slice.c` + force_stub | `run-float.sh` |
+| alloc_float | `parser_alloc_float_lit` | 浮点 primary 路径 alloc | C slice `parser_asm_primary_slice.inc` + force_stub | `run-float.sh` |
 | wrap_return | `parser_expr_wrap_in_return` | 单表达式函数体 RETURN 包装 | C seed slice + force_stub | `tests/parser/if_expr_return.x` |
 | skip_padding | `try_skip_allow_padding_struct` | allow(padding) 深循环；X emit elf_ec=-1 | extern→`parser_try_skip_allow_padding_struct_glue` | `tests/struct/padding_allow.x` |
 | skip_padding_buf | `try_skip_allow_padding_struct_buf` | buf 路径同上 | thin_c buf glue + force_stub | `tests/unsafe/allow_padding_ok.x` |
@@ -39,8 +39,8 @@
 |------|------|
 | force_stub 判定 | `compiler/ast_pool.c` → `asm_parser_emit_heavy_force_stub` |
 | thin delegate | `k_asm_parser_thin_delegate`（padding → glue 名） |
-| if-expr C 包装 | `compiler/src/asm/parser_asm_if_expr_slice.c` |
-| float alloc C | `compiler/src/asm/parser_asm_primary_slice.c` |
+| if-expr C 包装 | `compiler/src/asm/parser_asm_if_expr_slice.inc` |
+| float alloc C | `compiler/src/asm/parser_asm_primary_slice.inc` |
 | padding glue | `parser_asm_thin_c.c` → `parser_try_skip_allow_padding_struct_*_glue` |
 
 **禁止**：批量将 force_stub 项迁入 safe_helper 白名单（已证 Segfault / elf_ec=-1）。

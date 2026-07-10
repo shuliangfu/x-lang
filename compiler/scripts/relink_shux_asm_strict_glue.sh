@@ -1165,7 +1165,7 @@ filter_strict_asm_objs() {
       parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|lsp_codegen_extern.o|\
       ast_pool_l5_bridge.o|\
       lexer.o|peephole.o|platform_elf.o|macho.o|coff.o|\
-      parser_asm_link_alias.o|parser_asm_minimal_partial.o|parser_asm_thin_c.o|\
+      parser_asm_minimal_partial.o|parser_asm_thin_c.o|\
       driver_compile.o|driver_compile_asm_link_alias.o|driver_compile_emit_heavy.o|driver_compile_link.o)
       continue
       ;;
@@ -1255,10 +1255,10 @@ if [ ! -f parser_x.o ] && ensure_parser_asm_minimal_partial_obj; then
   PARSER_ASM_PARTIAL="$BUILD_DIR/parser_asm_minimal_partial.o"
 fi
 
-PARSER_ALIAS_O="$BUILD_DIR/parser_asm_link_alias.o"
-if [ ! -f "$PARSER_ALIAS_O" ] || [ "src/asm/parser_asm_link_alias.c" -nt "$PARSER_ALIAS_O" ]; then
-  strict_glue_info "cc parser_asm_link_alias.o"
-  "$CC" $CFLAGS $PARSER_ASM_LINK_ALIAS_CFLAGS -c -o "$PARSER_ALIAS_O" src/asm/parser_asm_link_alias.c
+PARSER_EXPR_LINK_O="src/asm/parser_asm_parse_expr_link.o"
+if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "src/asm/parser_asm_parse_expr_link.c" -nt "$PARSER_EXPR_LINK_O" ]; then
+  strict_glue_info "cc parser_asm_parse_expr_link.o"
+  "$CC" $CFLAGS $PARSER_ASM_LINK_ALIAS_CFLAGS -c -o "$PARSER_EXPR_LINK_O" src/asm/parser_asm_parse_expr_link.c
 fi
 
 ST_LAYOUT_PARTIAL=""
@@ -1475,7 +1475,6 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
 fi
 
 ST_PARSER_X_TAIL=""
-PARSER_ALIAS_LINK=""
 if [ -f parser_x.o ]; then
   ST_PARSER_X_TAIL="parser_x.o"
   if [ -f lexer_x.o ]; then
@@ -1483,11 +1482,9 @@ if [ -f parser_x.o ]; then
   else
     strict_glue_warn "missing lexer_x.o (make lexer_x.o); strict link may have undefined symbols"
   fi
-  # parser_x.o 已导出 parse_expr_into / parser_copy_module_import_path64 等；勿再链 partial 与 link_alias。
+  # parser_x.o 已导出 parse_expr_into / parser_copy_module_import_path64 等；勿再链 partial。
+  # 弱 parse 桩 / parse_expr 桥在 src/asm/parser_asm_parse_expr_link.o（ST_BSTRICT_LINK_EXTRA）。
   PARSER_ASM_PARTIAL=""
-  PARSER_ALIAS_LINK=""
-else
-  PARSER_ALIAS_LINK="$PARSER_ALIAS_O"
 fi
 
 ST_TYPECK_X_TAIL=""
@@ -1823,7 +1820,6 @@ LINK_START_S=$(date +%s 2>/dev/null || echo 0)
   "$ST_GLUE_OBJ" \
   $ASM_TRY_OBJS \
   $PARSER_ASM_PARTIAL \
-  $PARSER_ALIAS_LINK \
   "$PARSER_ASM_THIN_C" \
   $ST_AST_BARE_ALIAS \
   $ST_WPO_ALIAS \

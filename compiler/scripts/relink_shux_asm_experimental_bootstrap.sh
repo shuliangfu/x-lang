@@ -9,7 +9,7 @@ CC=${CC:-cc}
 CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 SEED_O="$BUILD_DIR/asm_driver_seed"
 BSTRICT_DISPATCH="src/asm/backend_enc_dispatch.o src/asm/backend_x86_64_enc_c.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
-PARSER_ALIAS_O="$BUILD_DIR/parser_asm_link_alias.o"
+PARSER_EXPR_LINK_O="src/asm/parser_asm_parse_expr_link.o"
 PARSER_ASM_PARTIAL="$BUILD_DIR/parser_asm_minimal_partial.o"
 
 experimental_bootstrap_info() {
@@ -211,10 +211,10 @@ if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.c" -nt "$PARSER
   "$CC" $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -c -o "$PARSER_ASM_THIN_C" src/asm/parser_asm_thin_c.c
 fi
 
-# parser 别名 TU（pipeline_bootstrap_link_alias 已废弃：weak dispatch 在 pipeline_glue.c）
-if [ ! -f "$PARSER_ALIAS_O" ] || [ "src/asm/parser_asm_link_alias.c" -nt "$PARSER_ALIAS_O" ]; then
-  experimental_bootstrap_info "cc parser_asm_link_alias.o"
-  "$CC" $CFLAGS $PARSER_ASM_LINK_ALIAS_CFLAGS -c -o "$PARSER_ALIAS_O" src/asm/parser_asm_link_alias.c
+# parse_expr_into 桥 + pipeline 弱 parse 桩（G-02e-7：原 parser_asm_link_alias 并入）
+if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "src/asm/parser_asm_parse_expr_link.c" -nt "$PARSER_EXPR_LINK_O" ]; then
+  experimental_bootstrap_info "cc parser_asm_parse_expr_link.o"
+  "$CC" $CFLAGS $PARSER_ASM_LINK_ALIAS_CFLAGS -c -o "$PARSER_EXPR_LINK_O" src/asm/parser_asm_parse_expr_link.c
 fi
 if [ ! -f "$PARSER_ASM_PARTIAL" ] && [ -f "$BUILD_DIR/parser.o" ]; then
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
@@ -442,7 +442,7 @@ fi
   "$SEED_O/lsp_state.o" \
   src/lsp/lsp_diag_pipeline_sizes.o \
   "$PARSER_ASM_THIN_C" \
-  "$PARSER_ALIAS_O" \
+  "$PARSER_EXPR_LINK_O" \
   parser_x.o lexer_x.o typeck_x.o codegen_x.o \
   lexer_x_link_alias.o typeck_x_link_alias.o codegen_x_link_alias.o \
   -lm -lc $PIPELINE_LIBS 2>"$BUILD_DIR/.relink_experimental_bootstrap_err"

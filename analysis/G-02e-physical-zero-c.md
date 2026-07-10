@@ -1,7 +1,7 @@
 # G-02e：compiler 物理去 C（终局清场）
 
 > **目标**：仓库内手写 `.c/.h` → 0（允许：平台 `.s` crt0、预编译 seed 二进制、`*_gen.c` 由 .x 再生后不再入库）。  
-> **现状（2026-07-10）**：`compiler/src` 手写 C **175**（G-04 permanent 白名单）；产品 G05 链 ~70 objs，其中约半数仍源自 C。
+> **现状（2026-07-10）**：`compiler/src` 手写 C **109**（G-04 permanent 白名单）；产品 G05 链 **62** objs，其中约半数仍源自 C。
 
 ## 1. 分层（务必按层砍，禁止无回归乱删）
 
@@ -36,16 +36,15 @@
 | G-02e-4 | `runtime_proc_abi.c`→`runtime_link_abi.c`；g05_ensure 自动补编缺失产品 `.o`；G05 −1 obj | ✅ 113→112 |
 | G-02e-5 | `runtime_abi.c`→`runtime_link_abi.c`（argv/target + nostdlib weak）；G05 −1 obj | ✅ 112→111 |
 | G-02e-6 | `codegen_pipeline_stubs.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 111→110 |
+| G-02e-7 | `parser_asm_link_alias.c`→`parser_asm_parse_expr_link.c`；G05 −1 obj | ✅ 110→109 |
 
 ## 4. 建议下一刀（工作量升序）
 
-1. **`pipeline_abi_f32_xmm.c`** → 静态默认 on + 去掉 getenv，或 `.x` + 薄 asm 读 env  
-2. **link_alias / stubs 薄文件**（`*_link_alias.c`、`typeck_c_module_stubs.c`）合并进 companion 或删弱符号  
-3. **`std_fs_shim` / `std_sys_shim`** → `std.sys` syscall 路径（G-03 已有底座）  
-4. **`lsp_heap_bootstrap.c`** → 链 `std/heap.o` 或 nolibc bump  
-5. **拆 `runtime_link_abi` / `runtime.c`**：先抽纯逻辑到 `.x`，C 只留 `posix_spawn`/`stat`  
-6. **backend dispatch / simd**：asm.x 固定点后删 C dispatch  
-7. **P3 整批**：http `.inc.c` + ed25519 改预编译 seed 或 .x，permanent 批量摘牌  
+1. **其它 `*_link_alias.c` 薄文件**合并进 companion 或删弱符号  
+2. **拆 `runtime_link_abi` / `runtime.c`**：先抽纯逻辑到 `.x`，C 只留 `posix_spawn`/`stat`  
+3. **backend dispatch / simd**：asm.x 固定点后删 C dispatch  
+4. **P3 整批**：http `.inc` + ed25519 改预编译 seed 或 .x，permanent 批量摘牌  
+
 
 每批门禁：
 

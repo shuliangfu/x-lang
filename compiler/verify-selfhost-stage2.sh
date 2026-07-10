@@ -139,7 +139,7 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   build_asm/seed_host/asm_full_link_stubs.o build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o \
   build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o \
   src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o \
-  src/asm/backend_call_dispatch.o parser_asm_thin_glue.o parser_asm_link_alias.o \
+  src/asm/backend_call_dispatch.o parser_asm_thin_glue.o \
   src/asm/parser_asm_parse_expr_link.o build_asm/pipeline_glue_strict_minimal.o
 
 echo "shux-x2 linked: $(ls -lh shux-x2 | awk '{print $5}')"

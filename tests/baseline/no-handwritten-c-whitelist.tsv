@@ -18,7 +18,6 @@ file	compiler/src/asm/bootstrap_seed_io_stubs.c
 file	compiler/src/asm/crt0_mingw.c
 file	compiler/src/asm/driver_compile_asm_link_alias.c
 file	compiler/src/asm/http/runtime_http_glue.c
-file	compiler/src/asm/parser_asm_link_alias.c
 file	compiler/src/asm/parser_asm_parse_bootstrap_obj.c
 file	compiler/src/asm/parser_asm_parse_expr_link.c
 file	compiler/src/asm/parser_asm_thin_c.c
