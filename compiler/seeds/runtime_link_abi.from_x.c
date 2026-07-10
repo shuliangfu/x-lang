@@ -2438,25 +2438,31 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
  * 参数：无。
  * 返回值：非 0 表示跳过 native 调优。
  */
-int invoke_cc_skip_native_tuning(void) {
-  (void)(({   {
-    char *a = getenv("CI");
-    if ((a !=NULL)) {
-      return 1;
-    }
-    char *b = getenv("SHUX_CI_DOCKER");
-    if ((b !=NULL)) {
-      return 1;
-    }
-    char *c = getenv("SHUX_NO_MARCH_NATIVE");
-    if ((c !=NULL)) {
-      return 1;
-    }
-    return 0;
-  }
- }));
-  return 0;
-}
+/* G-02f-274 L5 invoke_cc list pure */
+#ifndef SHUX_LABI_INVOKE_CC_LIST_FROM_X
+#include "seeds/labi_invoke_cc_list.from_x.c"
+#else
+int labi_linux_harden_flag_count(void);
+const char *labi_linux_harden_flag_at(int i);
+int labi_invoke_cc_skip_native_env_count(void);
+const char *labi_invoke_cc_skip_native_env_at(int i);
+int invoke_cc_skip_native_tuning(void);
+const char *labi_icc_rel_core_builtin_o(void);
+const char *labi_icc_rel_core_builtin_abi_h(void);
+const char *labi_icc_rel_core_mem_o(void);
+const char *labi_icc_rel_core_slice_o(void);
+const char *labi_icc_rel_db_kv_o(void);
+const char *labi_icc_rel_db_arrow_o(void);
+const char *labi_icc_rel_csv_o(void);
+const char *labi_icc_rel_error_o(void);
+const char *labi_icc_rel_heap_o(void);
+const char *labi_icc_rel_json_o(void);
+const char *labi_icc_rel_log_o(void);
+const char *labi_icc_rel_socketio_o(void);
+int labi_icc_needs_rel_count(void);
+const char *labi_icc_needs_rel_at(int i);
+#endif
+
 
 /**
  * invoke_cc 子进程：仅当 path 指向已存在的 .o 时追加到 argv（可选 realpath）。
@@ -3434,22 +3440,22 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                     needs_libc_heap = 1;
             }
             if (needs_core_builtin) {
-                const char *abi_h = shux_rel_o_path_from_argv0(include_root, "core/builtin/builtin_abi.h");
+                const char *abi_h = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_abi_h());
                 if (abi_h && abi_h[0]) {
                     if (i < argv_cap - 2) {
                         argv[i++] = (char *)"-include";
                         argv[i++] = (char *)abi_h;
                     }
                 }
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "core/builtin/builtin.o"));
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_builtin_o()));
             }
             if (needs_core_mem)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "core/mem/mem.o"));
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_mem_o()));
             if (needs_core_slice)
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "core/slice/slice.o"));
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_core_slice_o()));
 
             if (needs_db_kv) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "std/db/kv/kv.o"));
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_db_kv_o()));
                 {
                     const char *rkv = shux_runtime_kv_mmap_glue_o_path(NULL);
                     if (rkv && rkv[0])
@@ -3457,7 +3463,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                 }
             }
             if (needs_db_arrow) {
-                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "std/db/arrow/arrow.o"));
+                (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_db_arrow_o()));
                 {
                     const char *rar = shux_runtime_arrow_simd_glue_o_path(NULL);
                     if (rar && rar[0])
@@ -3671,7 +3677,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             }
         }
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap,
-                shux_rel_o_path_from_argv0(include_root, "std/log/log.o"))) {
+                shux_rel_o_path_from_argv0(include_root, labi_icc_rel_log_o()))) {
             {
                 const char *rlo = shux_runtime_log_os_o_path(NULL);
                 if (rlo && rlo[0])
@@ -3738,9 +3744,9 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, elf_o);
         /* shux_rel_o_path_from_argv0 用静态缓冲；须在 push 时按 rel 重解析，勿用 runtime.c 早先保存的 json_o 指针。 */
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-            shux_rel_o_path_from_argv0(include_root, "std/json/json.o"));
+            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_json_o()));
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap,
-            shux_rel_o_path_from_argv0(include_root, "std/csv/csv.o"));
+            shux_rel_o_path_from_argv0(include_root, labi_icc_rel_csv_o()));
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, regex_o);
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, compress_o))
             invoke_cc_append_compress_ld(argv, &i, argv_cap, compress_o, NULL);
@@ -3804,12 +3810,12 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                 argv[i++] = (char *)"-lws2_32";
 #endif
         }
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "std/socketio/socketio.o"));
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_socketio_o()));
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, tar_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, simd_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, context_o);
         /* F-闭合：error.o 提供 std_error_http_err_cancelled/timeout 等，http.o 依赖 */
-        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, "std/error/error.o"));
+        (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_error_o()));
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, datetime_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, uuid_o);
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, url_o);
@@ -3870,7 +3876,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
          * 【Invariant】须在所有 std 各 .o push 之后、-lc 之前；argv 反映当前已推入的 .o。
          * 【Asm/Perf】nm -u 子进程 O(n×m)，n=argv 中 .o 数，m=heap API 符号数；仅链接期一次。 */
         if (link_abi_link_needs_std_heap_import(NULL, (const char **)argv, i)) {
-            const char *heap_o_ondemand = shux_rel_o_path_from_argv0(include_root, "std/heap/heap.o");
+            const char *heap_o_ondemand = shux_rel_o_path_from_argv0(include_root, labi_icc_rel_heap_o());
             (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, heap_o_ondemand);
         }
 #if defined(__linux__) || defined(__APPLE__)
@@ -5962,20 +5968,20 @@ void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *u
  * Linux release 链接硬化：PIE + NX（GNU_STACK 无 E）+ partial RELRO。
  * 参数：argv/la/cap 为 gcc/ld 链接 argv 构建状态。
  */
+/* G-02f-274：linux harden flags from pure table */
 void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap) {
+    int n;
+    int k;
     if (!argv || !la || *la < 0)
         return;
-    if (*la < cap - 1)
-        argv[(*la)++] = "-pie";
-    if (*la < cap - 1)
-        argv[(*la)++] = "-fpie";
-    if (*la < cap - 1)
-        argv[(*la)++] = "-Wl,-z,noexecstack";
-    if (*la < cap - 1)
-        argv[(*la)++] = "-Wl,-z,relro";
-    /** import("core.mem") 将 mem 符号编入用户 .o；全量 std 链 sort/net 等亦内联 mem，须允许多定义。 */
-    if (*la < cap - 1)
-        argv[(*la)++] = "-Wl,--allow-multiple-definition";
+    n = labi_linux_harden_flag_count();
+    for (k = 0; k < n; k++) {
+        const char *f = labi_linux_harden_flag_at(k);
+        if (!f || !f[0])
+            continue;
+        if (*la < cap - 1)
+            argv[(*la)++] = (char *)f;
+    }
 }
 
 
