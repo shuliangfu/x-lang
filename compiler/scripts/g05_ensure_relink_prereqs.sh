@@ -130,7 +130,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   done
+  # G-02f-10：parser parse_expr_link + thin_glue seed
+  _pel=seeds/parser_asm_parse_expr_link.from_x.c
+  if [ -f "$_pel" ]; then
+    if [ ! -f src/asm/parser_asm_parse_expr_link.o ] || [ "$_pel" -nt src/asm/parser_asm_parse_expr_link.o ]; then
+      echo "g05_ensure: parser_asm_parse_expr_link.o ← seed (G-02f-10 SKIP_X)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS -c -o src/asm/parser_asm_parse_expr_link.o "$_pel"
+    fi
+  fi
+  _pthin=seeds/parser_asm_thin_c.from_x.c
+  if [ -f "$_pthin" ]; then
+    if [ ! -f parser_asm_thin_glue.o ] || [ "$_pthin" -nt parser_asm_thin_glue.o ]; then
+      echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE \
+        -c -o parser_asm_thin_glue.o "$_pthin"
+    fi
+  fi
   # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
+
 
   if [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
     _tg_before=$(wc -c < typeck_gen.c | tr -d ' ')
@@ -156,16 +175,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
     case "$o" in
       # 已在热路径专用 flags / .x seed 编译
-      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|build_asm/*|*.s) continue ;;
-
-      # G-02e-7：link_alias 并入；产品默认 SKIP 前缀别名（与 Makefile PARSER_ASM_LINK_ALIAS_CFLAGS 一致）
-      src/asm/parser_asm_parse_expr_link.o)
-        if [ -n "$src" ] && { [ ! -f "$o" ] || [ "$src" -nt "$o" ]; }; then
-          g05_cc_c "$o" "$src" -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
-        fi
-        continue
-        ;;
+      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|src/asm/parser_asm_parse_expr_link.o|parser_asm_thin_glue.o|build_asm/*|*.s) continue ;;
     esac
+
     if [ -n "$src" ]; then
       if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
         g05_cc_c "$o" "$src"

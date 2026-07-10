@@ -1246,7 +1246,8 @@ src/asm/backend_call_dispatch.o: seeds/backend_call_dispatch.from_x.c src/asm/ba
 # 全量 parser_x.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。
 PARSER_ASM_THIN_GLUE_CFLAGS = -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
-parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.inc \
+# G-02f-10：thin glue / parse_expr_link 产品 seed
+parser_asm_thin_glue.o: seeds/parser_asm_thin_c.from_x.c src/asm/parser_asm_thin_c.x \
  src/asm/parser_asm_type_ref_slice.inc \
  src/asm/parser_asm_struct_layout_slice.inc \
  src/asm/parser_asm_library_slice.inc \
@@ -1268,11 +1269,10 @@ parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.inc \
  src/asm/parser_asm_emit_heavy_stretch_slice.inc \
  src/asm/parser_asm_emit_heavy_stretch_suite_slice.inc \
  src/asm/parser_asm_seed_parse_into_buf_slice.inc
-	sh scripts/cc_inc_tu.sh src/asm/parser_asm_thin_c.inc $@ $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -c seeds/parser_asm_thin_c.from_x.c -o $@
 
-# parse_expr_into 桥 + pipeline 弱 parse 桩 / 可选 parser_* 别名（G-02e-7 并入 link_alias）。
-src/asm/parser_asm_parse_expr_link.o: src/asm/parser_asm_parse_expr_link.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/parser_asm_parse_expr_link.inc $@ $(PARSER_ASM_LINK_ALIAS_CFLAGS)
+src/asm/parser_asm_parse_expr_link.o: seeds/parser_asm_parse_expr_link.from_x.c src/asm/parser_asm_parse_expr_link.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(PARSER_ASM_LINK_ALIAS_CFLAGS) -I. -Iinclude -Isrc -c seeds/parser_asm_parse_expr_link.from_x.c -o $@
 
 build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o: src/asm/backend_x86_64_enc_c.o build_asm/seed_host/asm_backend_partial.o
 	@mkdir -p build_asm

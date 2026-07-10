@@ -1026,10 +1026,11 @@ fi
 PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
 PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
 PARSER_ASM_THIN_C="parser_asm_thin_glue.o"
-if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.inc" -nt "$PARSER_ASM_THIN_C" ] \
+if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "seeds/parser_asm_thin_c.from_x.c" -nt "$PARSER_ASM_THIN_C" ] \
   || [ "src/asm/parser_asm_if_stmt_slice.inc" -nt "$PARSER_ASM_THIN_C" ]; then
-  strict_glue_info "cc parser_asm_thin_glue.o (parse_peek / skip_balanced thin C)"
-  sh scripts/cc_inc_tu.sh src/asm/parser_asm_thin_c.inc "$PARSER_ASM_THIN_C" $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer
+  strict_glue_info "cc seeds/parser_asm_thin_c.from_x.c → parser_asm_thin_glue.o (G-02f-10)"
+  $CC $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm \
+    -c seeds/parser_asm_thin_c.from_x.c -o "$PARSER_ASM_THIN_C"
 fi
 if [ ! -f "$BUILD_DIR/pipeline_glue_strict_minimal.o" ] || [ "src/asm/pipeline_glue_strict_minimal.inc" -nt "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
   strict_glue_info "cc pipeline_glue_strict_minimal.o"
@@ -1256,9 +1257,10 @@ if [ ! -f parser_x.o ] && ensure_parser_asm_minimal_partial_obj; then
 fi
 
 PARSER_EXPR_LINK_O="src/asm/parser_asm_parse_expr_link.o"
-if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "src/asm/parser_asm_parse_expr_link.inc" -nt "$PARSER_EXPR_LINK_O" ]; then
-  strict_glue_info "cc parser_asm_parse_expr_link.o"
-  sh scripts/cc_inc_tu.sh src/asm/parser_asm_parse_expr_link.inc "$PARSER_EXPR_LINK_O" $PARSER_ASM_LINK_ALIAS_CFLAGS
+if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "seeds/parser_asm_parse_expr_link.from_x.c" -nt "$PARSER_EXPR_LINK_O" ]; then
+  strict_glue_info "cc seeds/parser_asm_parse_expr_link.from_x.c → parse_expr_link.o (G-02f-10)"
+  $CC $CFLAGS $PARSER_ASM_LINK_ALIAS_CFLAGS -I. -Iinclude -Isrc \
+    -c seeds/parser_asm_parse_expr_link.from_x.c -o "$PARSER_EXPR_LINK_O"
 fi
 
 ST_LAYOUT_PARTIAL=""

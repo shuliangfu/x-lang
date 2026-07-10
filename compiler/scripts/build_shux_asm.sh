@@ -3170,12 +3170,13 @@ ensure_bstrict_seed_support_objs() {
   # parser EMIT_HEAVY extern bl _glue：须与 Makefile USER_ASM_SEED_OBJS 同步链入 shux_asm。
   PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
   if [ ! -f parser_asm_thin_glue.o ] \
-  || [ "src/asm/parser_asm_thin_c.inc" -nt parser_asm_thin_glue.o ] \
+  || [ "seeds/parser_asm_thin_c.from_x.c" -nt parser_asm_thin_glue.o ] \
   || [ "src/asm/parser_asm_struct_layout_slice.inc" -nt parser_asm_thin_glue.o ] \
   || [ "src/asm/parser_asm_block_from_res_slice.inc" -nt parser_asm_thin_glue.o ] \
   || [ "src/asm/parser_asm_if_stmt_slice.inc" -nt parser_asm_thin_glue.o ]; then
-  echo " cc -c src/asm/parser_asm_thin_c.inc -> parser_asm_thin_glue.o"
-  sh scripts/cc_inc_tu.sh src/asm/parser_asm_thin_c.inc parser_asm_thin_glue.o $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer
+  echo " cc -c seeds/parser_asm_thin_c.from_x.c -> parser_asm_thin_glue.o"
+  $CC $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm \
+    -c seeds/parser_asm_thin_c.from_x.c -o parser_asm_thin_glue.o
   fi
 }
 
@@ -3339,9 +3340,10 @@ ensure_asm_strict_link_extra_objs() {
   sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc src/runtime_io_abi.o
   fi
   if [ ! -f src/asm/parser_asm_parse_expr_link.o ] \
-  || [ src/asm/parser_asm_parse_expr_link.inc -nt src/asm/parser_asm_parse_expr_link.o ]; then
-  echo " cc -c src/asm/parser_asm_parse_expr_link.inc -> src/asm/parser_asm_parse_expr_link.o"
-  sh scripts/cc_inc_tu.sh src/asm/parser_asm_parse_expr_link.inc src/asm/parser_asm_parse_expr_link.o -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
+  || [ seeds/parser_asm_parse_expr_link.from_x.c -nt src/asm/parser_asm_parse_expr_link.o ]; then
+  echo " cc -c seeds/parser_asm_parse_expr_link.from_x.c -> src/asm/parser_asm_parse_expr_link.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS \
+    -c seeds/parser_asm_parse_expr_link.from_x.c -o src/asm/parser_asm_parse_expr_link.o
   fi
   # G-02-B1：优先 .x（-backend asm）；无 shux 或失败时回退 .c（删 C 前须 Docker Stage2 回归）。
   if [ -f src/asm/pipeline_fill_dep_strict_alias.x ] \
