@@ -6346,7 +6346,42 @@ void parser_asm_parse_unary_into_slice_c(void *arena, struct parser_asm_lexer le
                                         struct parser_asm_parse_expr_result *out);
 int labi_pthin_expr_unary_slice_marker(void);
 #endif
+/* G-02f-284 P4 binop：默认 #include；hybrid 时在 pthin_expr_binop.from_x.c */
+#ifndef SHUX_PTHIN_EXPR_BINOP_FROM_X
 #include "parser_asm_expr_binop_slice.inc"
+#else
+void parser_asm_parse_term_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                       struct parser_asm_slice_u8 *source,
+                                       struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_addsub_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                         struct parser_asm_slice_u8 *source,
+                                         struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_shift_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                        struct parser_asm_slice_u8 *source,
+                                        struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_relcompare_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                             struct parser_asm_slice_u8 *source,
+                                             struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_compare_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                          struct parser_asm_slice_u8 *source,
+                                          struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_bitand_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                         struct parser_asm_slice_u8 *source,
+                                         struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_bitxor_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                         struct parser_asm_slice_u8 *source,
+                                         struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_bitor_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                        struct parser_asm_slice_u8 *source,
+                                        struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_logand_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                         struct parser_asm_slice_u8 *source,
+                                         struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_logor_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                        struct parser_asm_slice_u8 *source,
+                                        struct parser_asm_parse_expr_result *out);
+int labi_pthin_expr_binop_slice_marker(void);
+#endif
 #include "parser_asm_ternary_assign_slice.inc"
 #include "parser_asm_emit_heavy_stretch_slice.inc"
 struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
