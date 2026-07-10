@@ -43,6 +43,7 @@ int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct
 int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t array_lit_ref);
 int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
 int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *asm_ctx);
+int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out);
 #endif
 
 
@@ -540,7 +541,8 @@ int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, in
 
 /** EXPR_LIT(0) / EXPR_BOOL_LIT(2) 读整型常量；失败返回 0。 */
 /* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out) {
+/* G-02f-369 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_try_expr_const_i32_impl(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out) {
   int32_t ko;
   if (!arena || expr_ref <= 0 || !out)
     return 0;
@@ -551,6 +553,12 @@ int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, in
   }
   return 0;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out) {
+  return glue_try_expr_const_i32_impl(arena, expr_ref, out);
+}
+#endif
 
 
 
@@ -773,15 +781,16 @@ int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32
 /**
  * 将局部 VAR 有效地址装入 rax/x0（指针槽 load，值槽 lea）。
  */
-/* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_enc_local_slot_ptr_or_addr(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                              int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
+/* G-02f-131 / G-02f-369：impl + 产品 public（6 参暂不 thin） */
+int32_t glue_enc_local_slot_ptr_or_addr_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
   if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0)
     return backend_enc_load_rbp_to_rax_arch(elf_ctx, slot_off, ta);
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta);
-
 }
 
+int32_t glue_enc_local_slot_ptr_or_addr(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
+  return glue_enc_local_slot_ptr_or_addr_impl(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
+}
 
 #ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena,
@@ -792,16 +801,16 @@ int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena
 }
 #endif
 
-/* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_arch_emit_local_slot_ptr_or_addr_text(struct ast_ASTArena *arena,
-                                                          struct codegen_CodegenOutBuf *out, int32_t arg_ref,
-                                                          int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
+/* G-02f-131 / G-02f-369：arch_emit 装址（6 参暂不 thin） */
+int32_t glue_arch_emit_local_slot_ptr_or_addr_text_impl(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
   if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0)
     return backend_arch_emit_load_rbp_to_rax(out, slot_off, ta);
   return backend_arch_emit_lea_rbp_to_rax(out, slot_off, ta);
-
 }
 
+int32_t glue_arch_emit_local_slot_ptr_or_addr_text(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
+  return glue_arch_emit_local_slot_ptr_or_addr_text_impl(arena, out, arg_ref, slot_off, ta, asm_ctx);
+}
 
 #ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena,

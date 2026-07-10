@@ -41,6 +41,9 @@ int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_exp
 int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
 int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name, int32_t name_len);
 int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len);
+int32_t glue_asm_import_path_slice_equal(struct ast_Module *module, int32_t imp_ix, int32_t off, int32_t seg_len, const uint8_t *nm, int32_t nm_len);
+int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm, int32_t nm_len);
+int32_t pipeline_asm_emit_get_call_f32_xmm_c(void);
 #endif
 
 
@@ -284,9 +287,15 @@ void pipeline_asm_emit_set_call_f32_xmm(int32_t on) {
   g_pipeline_asm_emit_call_f32_xmm = on != 0 ? 1 : 0;
 }
 
-int32_t pipeline_asm_emit_get_call_f32_xmm_c(void) {
+int32_t glue_f32_xmm_flag_get_body(void) {
   return g_pipeline_asm_emit_call_f32_xmm;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t pipeline_asm_emit_get_call_f32_xmm_c(void) {
+  return glue_f32_xmm_flag_get_body();
+}
+#endif
 
 #define GLUE_TYPE_F32_ORD 14
 
@@ -850,8 +859,8 @@ int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len
 
 /** 比较 module import 路径切片与外部字节序列是否相等。 */
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_import_path_slice_equal(struct ast_Module *module, int32_t imp_ix, int32_t off,
-                                                int32_t seg_len, const uint8_t *nm, int32_t nm_len) {
+/* G-02f-369 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_asm_import_path_slice_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t off, int32_t seg_len, const uint8_t *nm, int32_t nm_len) {
   int32_t i;
   if (seg_len != nm_len || seg_len <= 0)
     return 0;
@@ -862,13 +871,19 @@ int32_t glue_asm_import_path_slice_equal(struct ast_Module *module, int32_t imp_
   return 1;
 }
 
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_import_path_slice_equal(struct ast_Module *module, int32_t imp_ix, int32_t off, int32_t seg_len, const uint8_t *nm, int32_t nm_len) {
+  return glue_asm_import_path_slice_equal_impl(module, imp_ix, off, seg_len, nm, nm_len);
+}
+#endif
+
 
 
 
 /** 比较 import 绑定名与外部字节序列是否相等。 */
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm,
-                                                  int32_t nm_len) {
+/* G-02f-369 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_asm_import_binding_name_equal_impl(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm, int32_t nm_len) {
   int32_t bl;
   int32_t i;
   bl = pipeline_module_import_binding_name_len(module, imp_ix);
@@ -880,6 +895,12 @@ int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t im
   }
   return 1;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm, int32_t nm_len) {
+  return glue_asm_import_binding_name_equal_impl(module, imp_ix, nm, nm_len);
+}
+#endif
 
 
 

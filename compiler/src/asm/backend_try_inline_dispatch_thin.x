@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/368：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/369：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -193,4 +193,15 @@ function glue_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32, asm_c
   return 0;
 }
 
+// ---- G-02f-369：6 参 local_slot + try_expr_const → seed impl ----
+extern "C" function glue_try_expr_const_i32_impl(arena: *u8, expr_ref: i32, out: *i32): i32;
 
+
+
+#[no_mangle]
+function glue_try_expr_const_i32(arena: *u8, expr_ref: i32, out: *i32): i32 {
+  unsafe {
+    return glue_try_expr_const_i32_impl(arena, expr_ref, out);
+  }
+  return 0;
+}
