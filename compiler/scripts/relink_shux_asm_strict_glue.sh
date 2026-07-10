@@ -284,9 +284,9 @@ lsp_diag_seed_obj_path() {
 ensure_lsp_diag_seed_obj() {
   local seed_dir="$1"
   if [ "${SHUX_LEGACY_LSP_DIAG_C:-0}" = "1" ]; then
-  if [ ! -f "$seed_dir/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.c" -nt "$seed_dir/lsp_diag.o" ]; then
+  if [ ! -f "$seed_dir/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.inc" -nt "$seed_dir/lsp_diag.o" ]; then
   strict_glue_info "cc -c $seed_dir/lsp_diag.o <- lsp_diag.c (LEGACY)"
-  "$CC" $CFLAGS -c -o "$seed_dir/lsp_diag.o" src/asm/runtime_lsp_glue.c
+  sh scripts/cc_inc_tu.sh src/asm/runtime_lsp_glue.inc "$seed_dir/lsp_diag.o"
   fi
   else
   if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "src/lsp/lsp_diag_stubs_no_c.c" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then
@@ -881,9 +881,9 @@ ensure_backend_o_strict_link_partial_obj() {
 
 ensure_asm_backend_compat_stubs_obj() {
   local STUB_O="$BUILD_DIR/asm_backend_compat_stubs.o"
-  if [ ! -f "$STUB_O" ] || [ src/asm/asm_backend_compat_stubs.c -nt "$STUB_O" ]; then
-  strict_glue_info "cc -c src/asm/asm_backend_compat_stubs.c -> $STUB_O"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$STUB_O" src/asm/asm_backend_compat_stubs.c
+  if [ ! -f "$STUB_O" ] || [ src/asm/asm_backend_compat_stubs.inc -nt "$STUB_O" ]; then
+  strict_glue_info "cc -c src/asm/asm_backend_compat_stubs.inc -> $STUB_O"
+  sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc "$STUB_O"
   fi
 }
 
@@ -1040,7 +1040,7 @@ if asm_strict_typeck_x_glue_via_pipeline_x; then
   strict_glue_info "ST_GLUE glue_strict_minimal + pipeline_x glue support (X orch)"
 else
   strict_glue_info "cc pipeline_glue_standalone.o <- ast_pool.c"
-  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR" -c -o "$BUILD_DIR/pipeline_glue_standalone.o" src/asm/pipeline_glue_standalone.c
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_standalone.inc "$BUILD_DIR/pipeline_glue_standalone.o" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_standalone.o"
 fi
 
@@ -1586,9 +1586,9 @@ ensure_runtime_driver_obj() {
 
 ensure_ast_obj() {
   local o="src/ast/ast.o"
-  if [ ! -f "$o" ] || [ "src/asm/runtime_ast_glue.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/asm/runtime_ast_glue.c"
-  "$CC" $CFLAGS -c -o "$o" src/asm/runtime_ast_glue.c
+  if [ ! -f "$o" ] || [ "src/asm/runtime_ast_glue.inc" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/asm/runtime_ast_glue.inc"
+  sh scripts/cc_inc_tu.sh src/asm/runtime_ast_glue.inc "$o"
   fi
 }
 
@@ -1670,9 +1670,9 @@ ensure_ast_pool_l5_bridge_obj() {
 
 ensure_asm_experimental_symbol_bridge_obj() {
   local o="src/asm/asm_experimental_symbol_bridge.o"
-  if [ ! -f "$o" ] || [ "src/asm/asm_experimental_symbol_bridge.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/asm/asm_experimental_symbol_bridge.c"
-  "$CC" $CFLAGS -c -o "$o" src/asm/asm_experimental_symbol_bridge.c
+  if [ ! -f "$o" ] || [ "src/asm/asm_experimental_symbol_bridge.inc" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/asm/asm_experimental_symbol_bridge.inc"
+  sh scripts/cc_inc_tu.sh src/asm/asm_experimental_symbol_bridge.inc "$o"
   fi
 }
 

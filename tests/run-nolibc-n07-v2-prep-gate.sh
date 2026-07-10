@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 FAIL=${SHUX_NOLIBC_N07_V2_FAIL:-0}
 DOC="analysis/phase-f-n07-v2.md"
 MANIFEST="tests/baseline/nolibc-n07-v2-prep.tsv"
-STUBS="compiler/src/asm/bootstrap_nostdlib_stubs.c"
+STUBS="compiler/src/asm/bootstrap_nostdlib_stubs.inc"
 BUILD_ASM="compiler/scripts/build_shux_asm.sh"
 
 die() {

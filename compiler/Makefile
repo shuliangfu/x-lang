@@ -592,10 +592,10 @@ $(SHUX_C): $(OBJS_CORE) $(LEGACY_SHUX_C_EXTRA)
 src/lexer/lexer.o: src/asm/runtime_lexer_glue.inc src/lexer/lexer.h include/token.h scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc $@
 
-# G-02a: ast.o 从 runtime_ast_glue.c 编译（LEGACY 模式 SHUX_LEGACY_C_FRONTEND=1）。
+# G-02a: ast.o 从 runtime_ast_glue.inc 编译（LEGACY 模式 SHUX_LEGACY_C_FRONTEND=1）。
 # LEGACY parser.o 不引用 ast_expr_init_match_enum，安全。
-src/ast/ast.o: src/asm/runtime_ast_glue.c include/ast.h
-	$(CC) $(CFLAGS) -c -o $@ src/asm/runtime_ast_glue.c
+src/ast/ast.o: src/asm/runtime_ast_glue.inc include/ast.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_ast_glue.inc $@
 
 src/diag.o: src/diag.c include/diag.h
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -611,10 +611,10 @@ $(SHUX_C): bootstrap_shuxc
 	@if [ -z "$${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then cp -f bootstrap_shuxc $@; else echo "shux-c: SHUX_SKIP_SUBSCRIPT_MAKE=1, skip cp (preserve real C frontend)"; fi
 endif
 
-# G-02a: lsp_diag.c 迁移到 runtime_lsp_glue.c（24 个符号被 lsp_x.o/fmt_check_cmd*.o/runtime*.o 引用）
+# G-02a: lsp_diag.c 迁移到 runtime_lsp_glue.inc（24 个符号被 lsp_x.o/fmt_check_cmd*.o/runtime*.o 引用）
 # 全局规则，LEGACY 和默认模式共用。
-src/lsp/lsp_diag.o: src/asm/runtime_lsp_glue.c src/lsp/lsp_diag.h include/diag.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/lsp/lsp_diag.o: src/asm/runtime_lsp_glue.inc src/lsp/lsp_diag.h include/diag.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_lsp_glue.inc $@
 
 # `shux-c` 默认模式可能只是 bootstrap_shuxc 的同步副本；凡是依赖 `-E/-E-extern`
 # 生成当前源码对应 C 的目标，必须先强制刷新一次 legacy C frontend，避免继续吃旧语义。
@@ -710,7 +710,7 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x src/lexer/cfg_eval_link_alias.inc scr
 	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
 	  echo "cfg_eval.o from cfg_eval.x (-E-extern + alias)"; \
 	else \
-	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_bootstrap_stub.o src/lexer/cfg_eval_bootstrap_stub.c && \
+	  sh scripts/cc_inc_tu.sh src/lexer/cfg_eval_bootstrap_stub.inc src/lexer/cfg_eval_bootstrap_stub.o && \
 	  cp -f src/lexer/cfg_eval_bootstrap_stub.o $@ && \
 	  echo "cfg_eval.o from bootstrap stub (cfg_eval.x unavailable at cold start)"; \
 	fi
@@ -840,12 +840,12 @@ runtime_thread_glue.o: src/asm/runtime_thread_glue.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_thread_glue.inc $@
 
 # F-ZC：async 协作调度 + async_net_fs；与 scheduler.o 一并链入（按需 -pthread）
-runtime_scheduler_glue.o: src/asm/runtime_scheduler_glue.c src/asm/async_net_fs.inc
-	$(CC) $(CFLAGS) -Isrc/asm -c -o $@ src/asm/runtime_scheduler_glue.c
+runtime_scheduler_glue.o: src/asm/runtime_scheduler_glue.inc src/asm/async_net_fs.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_scheduler_glue.inc $@ -Isrc/asm
 
-# F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入
-runtime_http_glue.o: src/asm/http/runtime_http_glue.c
-	$(CC) $(CFLAGS) -Isrc/asm/http -c -o $@ $<
+# F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入（G-02e-21）
+runtime_http_glue.o: src/asm/http/runtime_http_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/http/runtime_http_glue.inc $@ -Isrc/asm/http
 
 # F-ZC：mbedTLS BIO 胶层；net-o-mbedtls 时 ld -r 并入 tls_mbedtls.o（G-02e-18 .inc）
 runtime_tls_mbedtls_bio.o: src/asm/runtime_tls_mbedtls_bio.inc scripts/cc_inc_tu.sh
@@ -901,8 +901,8 @@ crt0_user.o: src/asm/crt0_user_x86_64.o
 freestanding_io.o: src/asm/freestanding_io_x86_64.o
 	cp $< $@
 # NL-07 v2：bootstrap crt0 nostdlib 最小 libc 桩
-src/asm/bootstrap_nostdlib_stubs.o: src/asm/bootstrap_nostdlib_stubs.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/asm/bootstrap_nostdlib_stubs.o: src/asm/bootstrap_nostdlib_stubs.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/bootstrap_nostdlib_stubs.inc $@
 endif
 endif
 # E-04 v20：Darwin bootstrap 默认 crt0（arm64 / x86_64 Mach-O）
@@ -1211,11 +1211,11 @@ $(USER_ASM_SEED_HOST_STUBS): pipeline_x.o $(ASM_GLUE_STANDALONE_O) $(USER_ASM_SE
 
 $(USER_ASM_SEED_HOST_OBJS): build-seed-asm-host
 
-src/asm/user_asm_seed_bridge.o: src/asm/user_asm_seed_bridge.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/asm/user_asm_seed_bridge.o: src/asm/user_asm_seed_bridge.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/user_asm_seed_bridge.inc $@
 
-src/asm/asm_backend_compat_stubs.o: src/asm/asm_backend_compat_stubs.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/asm/asm_backend_compat_stubs.o: src/asm/asm_backend_compat_stubs.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc $@
 
 src/asm/backend_enc_dispatch.o: src/asm/backend_enc_dispatch.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
@@ -1310,8 +1310,8 @@ build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_x.o build_asm/seed_host/a
 	  comm -23 "$$all_syms" "$$omit_syms" | sed 's/^/_/' > "$$keep_syms"; \
 	  ld -r -exported_symbols_list "$$keep_syms" -o $@ pipeline_x.o
 
-src/asm/asm_experimental_symbol_bridge.o: src/asm/asm_experimental_symbol_bridge.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/asm/asm_experimental_symbol_bridge.o: src/asm/asm_experimental_symbol_bridge.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/asm_experimental_symbol_bridge.inc $@
 
 # 迁移到 .x：parser/typeck/codegen 独立 -E-extern 产物；pipeline_x.o 仅编排（-E-extern），seed 链 typeck_x.o/codegen_x.o。
 migrate-x-objs: parser_x.o typeck_x.o codegen_x.o
@@ -1555,11 +1555,11 @@ src/lsp/lsp_diag_pipeline_ctx.o: src/lsp/lsp_diag_pipeline_ctx.c
 src/runtime_driver_strict_glue_stubs.o: src/runtime_driver_strict_glue_stubs.c src/runtime_heap_user.inc
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
-# G-02a：ast_seed.o 从 runtime_ast_glue.c 编译（从 src/ast/ast.c 迁移）。
+# G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
 # 提供 ast_module_free/ast_expr_free/ast_block_free 等 8 个内存管理函数。
 # 不含 ast_expr_init_match_enum（no_c 模式下由 x_seed_bridge.o 提供）。
-src/ast/ast_seed.o: src/asm/runtime_ast_glue.c include/ast.h
-	$(CC) $(CFLAGS) -c -o $@ src/asm/runtime_ast_glue.c
+src/ast/ast_seed.o: src/asm/runtime_ast_glue.inc include/ast.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_ast_glue.inc $@
 
 # G-02a: ast_x.o alias — ast_seed.o 提供 C ABI 内存管理实现。
 ast_x.o: src/ast/ast_seed.o
@@ -2014,9 +2014,9 @@ build_asm/pipeline_glue_types.inc: pipeline_gen.c scripts/extract_pipeline_glue_
 pipeline_bootstrap_orchestration.o: pipeline_bootstrap_orchestration.c pipeline_gen.c build_asm/pipeline_glue_types.inc
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER -c -o $@ pipeline_bootstrap_orchestration.c
 
-$(ASM_GLUE_STANDALONE_O): src/asm/pipeline_glue_standalone.c build_asm/pipeline_glue_types.inc pipeline_glue.c ast_pool.c
+$(ASM_GLUE_STANDALONE_O): src/asm/pipeline_glue_standalone.inc build_asm/pipeline_glue_types.inc pipeline_glue.c ast_pool.c scripts/cc_inc_tu.sh
 	@mkdir -p build_asm
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -Wno-error=return-type -I. -Iinclude -Isrc -Ibuild_asm -c -o $@ src/asm/pipeline_glue_standalone.c
+	sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_standalone.inc $@ $(PIPELINE_GEN_CFLAGS) -Wno-error=return-type -Ibuild_asm
 
 build_asm/pipeline_glue_strict_minimal.o: src/asm/pipeline_glue_strict_minimal.c
 	@mkdir -p build_asm

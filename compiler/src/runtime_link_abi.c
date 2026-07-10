@@ -2271,7 +2271,7 @@ int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_scheduler_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_scheduler_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_scheduler_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_scheduler_glue", src_c);
         return -1;
     }
@@ -2305,7 +2305,7 @@ int shux_ensure_runtime_http_glue_o(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_http_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/http/runtime_http_glue.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/http/runtime_http_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_http_glue", src_c);
         return -1;
     }

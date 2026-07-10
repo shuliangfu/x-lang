@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 . "$(dirname "$0")/lib/ci-host.sh"
 
 MOD_X="std/async/mod.x"
-SCHED_C="compiler/src/asm/runtime_scheduler_glue.c"
+SCHED_C="compiler/src/asm/runtime_scheduler_glue.inc"
 SMOKE_CANCEL="tests/async/context_cancel_drain.x"
 SMOKE_SPAWN="tests/async/spawn_context_inherit.x"
 PREFIX="shux: [SHUX_STD090_ASYNC_CTX]"
@@ -37,7 +37,7 @@ for sym in bind_ctx err_ctx_abort runtime runtime_reset drain \
   case "$sym" in
     shux_async_bind_context_c|shux_async_task_submit_with_ctx|shux_async_spawn_ctx_smoke_c)
       if ! grep -qF "$sym" "$SCHED_C" 2>/dev/null; then
-        echo "async-context gate FAIL: missing $sym in runtime_scheduler_glue.c" >&2
+        echo "async-context gate FAIL: missing $sym in runtime_scheduler_glue.inc" >&2
         exit 1
       fi
       ;;
@@ -50,7 +50,7 @@ for sym in bind_ctx err_ctx_abort runtime runtime_reset drain \
   esac
 done
 if ! grep -qF 'ctx_slots' "$SCHED_C" 2>/dev/null; then
-  echo "async-context gate FAIL: missing ctx_slots in runtime_scheduler_glue.c" >&2
+  echo "async-context gate FAIL: missing ctx_slots in runtime_scheduler_glue.inc" >&2
   exit 1
 fi
 echo "async-context manifest OK"

@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_HTTP_METHODS_DOC:-analysis/std-http-methods-v1.md}"
 MANIFEST="${SHUX_STD_HTTP_METHODS_TSV:-tests/baseline/std-http-methods.tsv}"
 MOD_X="std/http/mod.x"
-HTTP_C="compiler/src/asm/http/runtime_http_glue.c"
+HTTP_C="compiler/src/asm/http/runtime_http_glue.inc"
 LIB="tests/lib/std-http-methods.sh"
 METHODS_X="tests/http/methods_status.x"
 MIN_APIS=3

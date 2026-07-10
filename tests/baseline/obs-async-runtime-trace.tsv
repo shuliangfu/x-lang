@@ -9,8 +9,8 @@ env_slow_us	SHUX_ASYNC_RUNTIME_TRACE_SLOW_US	SHUX_ASYNC_RUNTIME_TRACE_SLOW_US	�
 output_prefix	stderr_line	shux: [SHUX_ASYNC_RUNTIME_TRACE]	grep 锚点
 field_summary	output_field	summary events=	摘要行
 field_rank	output_field	rank=	明细行
-impl_flush	runtime_fn	shu_async_runtime_trace_flush	runtime_scheduler_glue.c
-impl_push	runtime_fn	shu_async_trace_push	runtime_scheduler_glue.c 内部
+impl_flush	runtime_fn	shu_async_runtime_trace_flush	runtime_scheduler_glue.inc
+impl_push	runtime_fn	shu_async_trace_push	runtime_scheduler_glue.inc 内部
 hook_task_run	event_kind	task_run	drain fn()
 hook_suspend	event_kind	suspend	SUSPENDED
 hook_io_wake	event_kind	io_wake	shu_async_io_wake

@@ -18,7 +18,7 @@ MIN_ROWS=4
 
 echo "=== BOOT-024: parser bootstrap emit manifest ==="
 for f in "$DOC" "$MANIFEST" "$WAVE" "$LIB" "$MATRIX" \
-  compiler/src/asm/parser_asm_parse_bootstrap_obj.c \
+  compiler/src/asm/parser_asm_parse_bootstrap_obj.inc \
   tests/run-parser-parse-bootstrap-gate.sh \
   tests/run-parser-parse-bootstrap-link-smoke.sh \
   tests/run-parser-parse-bootstrap-bisect-gate.sh \

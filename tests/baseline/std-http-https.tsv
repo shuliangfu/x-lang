@@ -6,10 +6,10 @@ https_api	section	## 2. HTTPS 语义	https_is_available
 verify	section	## 4. 验证与门禁	gate
 api_avail	api	https_is_available	std/http/mod.x	TLS 探测
 api_smoke	api	https_smoke	std/http/mod.x	C 烟测
-symbol_avail_c	symbol	http_is_https_available_c	compiler/src/asm/http/runtime_http_glue.c	C 探测
-symbol_smoke_c	symbol	http_https_smoke_c	compiler/src/asm/http/runtime_http_glue.c	C 烟测
+symbol_avail_c	symbol	http_is_https_available_c	compiler/src/asm/http/runtime_http_glue.inc	C 探测
+symbol_smoke_c	symbol	http_https_smoke_c	compiler/src/asm/http/runtime_http_glue.inc	C 烟测
 symbol_tls_bridge	file	compiler/src/asm/http/http_tls_bridge.inc	weak 桩
-impl_https	file	compiler/src/asm/http/runtime_http_glue.c	parse_http_url https
+impl_https	file	compiler/src/asm/http/runtime_http_glue.inc	parse_http_url https
 smoke_x	smoke	tests/http/https_smoke.x	桩/offline
 smoke_c	smoke	tests/http/https_smoke_ok.c	C 入口
 lib	script	lib/std-http-https.sh	tests/lib/std-http-https.sh

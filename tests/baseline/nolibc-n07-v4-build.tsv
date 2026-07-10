@@ -2,7 +2,7 @@
 # 列：item_id	category	anchor	check_type	notes
 n07_v4_doc	doc	analysis/phase-f-n07-v4.md	grep	NL-07 v4
 n07_v4_shux_c_stubs	file	compiler/src/runtime_driver_strict_glue_stubs.c	exists	shux-c 冷链桩
-n07_v4_posix_stubs	file	compiler/src/asm/bootstrap_nostdlib_stubs.c	grep	bootstrap_syscall3
+n07_v4_posix_stubs	file	compiler/src/asm/bootstrap_nostdlib_stubs.inc	grep	bootstrap_syscall3
 n07_v4_io_abi_fix	file	compiler/src/runtime_io_abi.c	grep	stdint.h
 n07_v4_gate	gate	tests/run-nolibc-n07-v4-build-gate.sh	gate_ref	v4 build gate
 n07_v3_prereq	gate_ref	tests/run-nolibc-n07-v3-link-gate.sh	gate_ref	NL-07 v3

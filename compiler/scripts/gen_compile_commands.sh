@@ -74,8 +74,8 @@ entries = [
     ("src/runtime.c", base),
     ("src/main.c", base),
     ("src/asm/runtime_lexer_glue.inc", base),
-    ("src/asm/runtime_ast_glue.c", base),
-    ("src/asm/runtime_lsp_glue.c", base),
+    ("src/asm/runtime_ast_glue.inc", base),
+    ("src/asm/runtime_lsp_glue.inc", base),
     ("src/main_driver.c", driver_flags),
     ("src/runtime_driver.c", driver_flags),
     ("src/driver/fmt_check_cmd.c", base),
@@ -85,7 +85,7 @@ entries = [
         "-Ibuild_asm", "-DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER",
         "-include", "ide/clangd_glued_preamble.h",
     ]),
-    ("src/asm/pipeline_glue_standalone.c", base + [
+    ("src/asm/pipeline_glue_standalone.inc", base + [
         "-Ibuild_asm", "-Wno-unused-function",
     ]),
 ]

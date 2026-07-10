@@ -7,7 +7,7 @@ api_post_ctx	api	post_ctx	std/http/mod.x	POST+Context
 api_head_ctx	api	head_ctx	std/http/mod.x	HEAD+Context
 err_timeout	api	http_err_timeout	std/error/mod.x	-1220
 err_cancelled	api	http_err_cancelled	std/error/mod.x	-1221
-api_timeout_c	symbol	http_get_timeout_c	compiler/src/asm/http/runtime_http_glue.c	STD-095
+api_timeout_c	symbol	http_get_timeout_c	compiler/src/asm/http/runtime_http_glue.inc	STD-095
 api_map	api	map_http_c_result	std/http/mod.x	C→su 错误码
 smoke_timeout_c	smoke	tests/http/http_timeout_smoke.c	C 超时烟测
 smoke_connect_to	smoke	tests/http/context_connect_timeout.x	map_http_c_result 离线

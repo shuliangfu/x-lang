@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # x PARSE_BOOTSTRAP_EMIT 轨道门禁：全量 parser.x 真 emit parse_into* 在 seed/shux_asm 上仍 139（已知）。
-# C seed TU（parser_asm_parse_bootstrap_obj.c）为默认路径；本门禁记录 x 探测结果，防回归为「静默成功但无 .o」。
+# C seed TU（parser_asm_parse_bootstrap_obj.inc）为默认路径；本门禁记录 x 探测结果，防回归为「静默成功但无 .o」。
 # 用法：
 #   ./tests/run-parser-parse-bootstrap-x-emit-gate.sh
 #   SHUX_PARSER_PARSE_BOOTSTRAP_X_EMIT_FAIL=1 ./tests/run-parser-parse-bootstrap-x-emit-gate.sh
@@ -108,7 +108,7 @@ if [ "$MIN_EC" -ne 0 ] || [ "$MIN_HAS_INIT" != "1" ] || [ "$MIN_HAS_BUF_SZ" -gt 
 fi
 
 if [ "$EC" -eq 139 ] || [ "$EC" -eq 134 ] || [ "$EC" -ne 0 ]; then
-  echo "parser-parse-bootstrap-x-emit-gate PASS (known x bootstrap fail ec=$EC; MINIMAL OK; use parser_asm_parse_bootstrap_obj.c)"
+  echo "parser-parse-bootstrap-x-emit-gate PASS (known x bootstrap fail ec=$EC; MINIMAL OK; use parser_asm_parse_bootstrap_obj.inc)"
   rm -f "$LOG" 2>/dev/null || true
   exit 0
 fi

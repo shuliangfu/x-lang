@@ -18,7 +18,7 @@ std_http_https_symbols_ok() {
         ;;
       symbol)
         case "$mod_path" in
-          compiler/src/asm/http/runtime_http_glue.c) mod_path="$http_c" ;;
+          compiler/src/asm/http/runtime_http_glue.inc) mod_path="$http_c" ;;
         esac
         grep -qF "$anchor" "$mod_path" 2>/dev/null || miss=$((miss + 1))
         ;;

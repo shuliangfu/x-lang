@@ -31,28 +31,18 @@
 # - std_runtime_fast: panic/abort 符号别名 → shux_panic_
 # - lsp_codegen_extern: 大块 C 源字符串 + strstr 路径探测（codegen -E preamble）
 # - preprocess_if_stack_bridge: G-02e-15 已 .inc+cc_inc_tu（不再计手写 .c）
-file	compiler/src/asm/asm_backend_compat_stubs.c
-file	compiler/src/asm/asm_experimental_symbol_bridge.c
 file	compiler/src/asm/backend_arch_emit_dispatch.c
 file	compiler/src/asm/backend_call_dispatch.c
 file	compiler/src/asm/backend_enc_dispatch.c
 file	compiler/src/asm/backend_seed_mega_fallback.c
 file	compiler/src/asm/backend_try_inline_dispatch.c
 file	compiler/src/asm/backend_x86_64_enc_c.c
-file	compiler/src/asm/bootstrap_nostdlib_stubs.c
 file	compiler/src/asm/crt0_mingw.c
-file	compiler/src/asm/http/runtime_http_glue.c
-file	compiler/src/asm/parser_asm_parse_bootstrap_obj.c
 file	compiler/src/asm/parser_asm_parse_expr_link.c
 file	compiler/src/asm/parser_asm_thin_c.c
-file	compiler/src/asm/pipeline_glue_standalone.c
 file	compiler/src/asm/pipeline_glue_strict_minimal.c
-file	compiler/src/asm/runtime_ast_glue.c
-file	compiler/src/asm/runtime_lsp_glue.c
-file	compiler/src/asm/runtime_scheduler_glue.c
 file	compiler/src/asm/simd_enc.c
 file	compiler/src/asm/simd_loop.c
-file	compiler/src/asm/user_asm_seed_bridge.c
 file	compiler/src/async/async_asm_pool.c
 file	compiler/src/async/async_cps_codegen.c
 file	compiler/src/async/async_liveness.c
@@ -62,7 +52,6 @@ file	compiler/src/build_tool_main.c
 file	compiler/src/diag.c
 file	compiler/src/driver/fmt_check_cmd.c
 file	compiler/src/driver/target_cpu.c
-file	compiler/src/lexer/cfg_eval_bootstrap_stub.c
 file	compiler/src/lsp/lsp_diag_pipeline_ctx.c
 file	compiler/src/lsp/lsp_diag_pipeline_sizes.c
 file	compiler/src/lsp/lsp_diag_stubs_no_c.c

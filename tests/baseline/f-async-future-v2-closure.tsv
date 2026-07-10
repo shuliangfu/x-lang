@@ -4,6 +4,6 @@ faf2_doc	doc	analysis/phase-f-async-future-v2.md	F-async-future v2
 faf2_gate	gate	tests/run-f-async-future-v2-gate.sh	逻辑下沉门禁
 fut_x	file	std/async/future.x	Future/Poll 纯 .x
 fut_glue_absent	absent	std/async/future_glue.c	已删除
-sched_glue	file	compiler/src/asm/runtime_scheduler_glue.c	调度胶层（v2 暂留）
+sched_glue	file	compiler/src/asm/runtime_scheduler_glue.inc	调度胶层（v2 暂留）
 async_mod	file	std/async/mod.x	对外 API
 makefile	makefile	compiler/Makefile	纯 future.x → future.o

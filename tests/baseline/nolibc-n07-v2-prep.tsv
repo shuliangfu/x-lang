@@ -1,7 +1,7 @@
 # NL-07 v2 bootstrap nostdlib 首试 manifest
 # 列：item_id	category	anchor	check_type	notes
 n07_v2_doc	doc	analysis/phase-f-n07-v2.md	grep	NL-07 v2
-n07_v2_stubs	file	compiler/src/asm/bootstrap_nostdlib_stubs.c	exists	最小 libc 桩
+n07_v2_stubs	file	compiler/src/asm/bootstrap_nostdlib_stubs.inc	exists	最小 libc 桩
 n07_v2_makefile	make	compiler/Makefile	grep	bootstrap_nostdlib_stubs
 n07_v2_build_flag	build	compiler/scripts/build_shux_asm.sh	grep	SHUX_BOOTSTRAP_NOSTDLIB
 n07_v2_link_tail	build	compiler/scripts/build_shux_asm.sh	grep	bootstrap_link_tail_driver

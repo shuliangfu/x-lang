@@ -11,7 +11,7 @@ echo "=== F-async-future v2: Future/Poll → future.x (zero glue) ==="
 grep -q 'F-async-future v2' "$DOC" || die "doc marker"
 [ -f std/async/future.x ] || die "missing future.x"
 [ ! -f std/async/future_glue.c ] || die "future_glue.c should be deleted"
-[ -f compiler/src/asm/runtime_scheduler_glue.c ] || die "runtime_scheduler_glue.c should remain (v1)"
+[ -f compiler/src/asm/runtime_scheduler_glue.inc ] || die "runtime_scheduler_glue.inc should remain (v1)"
 while IFS=$'\t' read -r item_id kind anchor _n; do
   [ -z "${item_id:-}" ] && continue
   case "$item_id" in \#*) continue ;; esac

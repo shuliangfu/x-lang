@@ -48,15 +48,15 @@ ensure_asm_driver_seed_c_objs() {
   experimental_bootstrap_info "cc_inc_tu $SEED_O/lexer.o"
   sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc "$SEED_O/lexer.o"
   fi
-  if [ ! -f "$SEED_O/ast_seed.o" ] || [ "src/asm/runtime_ast_glue.c" -nt "$SEED_O/ast_seed.o" ]; then
+  if [ ! -f "$SEED_O/ast_seed.o" ] || [ "src/asm/runtime_ast_glue.inc" -nt "$SEED_O/ast_seed.o" ]; then
   experimental_bootstrap_info "cc $SEED_O/ast_seed.o"
-  "$CC" $CFLAGS -c -o "$SEED_O/ast_seed.o" src/asm/runtime_ast_glue.c
+  sh scripts/cc_inc_tu.sh src/asm/runtime_ast_glue.inc "$SEED_O/ast_seed.o"
   fi
   # G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），编排桩由 typeck_c_module_stubs.o 提供。
   # G-02a: codegen.c 已物理删除；codegen.o 由 codegen.x 生成（codegen_x.o），编排桩由 codegen_pipeline_stubs.o 提供。
-  if [ ! -f "$SEED_O/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.c" -nt "$SEED_O/lsp_diag.o" ]; then
+  if [ ! -f "$SEED_O/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.inc" -nt "$SEED_O/lsp_diag.o" ]; then
   experimental_bootstrap_info "cc $SEED_O/lsp_diag.o"
-  "$CC" $CFLAGS -c -o "$SEED_O/lsp_diag.o" src/asm/runtime_lsp_glue.c
+  sh scripts/cc_inc_tu.sh src/asm/runtime_lsp_glue.inc "$SEED_O/lsp_diag.o"
   fi
   if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ] || [ "src/lsp/lsp_diag_pipeline_ctx.c" -nt src/lsp/lsp_diag_pipeline_ctx.o ]; then
   experimental_bootstrap_info "cc src/lsp/lsp_diag_pipeline_ctx.o"
@@ -90,9 +90,9 @@ ensure_pipeline_x_fresh_for_ast_pool() {
 ensure_pipeline_x_fresh_for_ast_pool || true
 
 # experimental 链符号桥（缺则 ld 失败）。
-if [ ! -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ] || [ "src/asm/asm_experimental_symbol_bridge.c" -nt "$BUILD_DIR/asm_experimental_symbol_bridge.o" ]; then
+if [ ! -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ] || [ "src/asm/asm_experimental_symbol_bridge.inc" -nt "$BUILD_DIR/asm_experimental_symbol_bridge.o" ]; then
   experimental_bootstrap_info "cc asm_experimental_symbol_bridge.o"
-  "$CC" $CFLAGS -c -o "$BUILD_DIR/asm_experimental_symbol_bridge.o" src/asm/asm_experimental_symbol_bridge.c
+  sh scripts/cc_inc_tu.sh src/asm/asm_experimental_symbol_bridge.inc "$BUILD_DIR/asm_experimental_symbol_bridge.o"
 fi
 
 # runtime_asm_build.o（首链 bootstrap-asm 产物；缺则 ld 失败）。
@@ -184,13 +184,13 @@ ensure_experimental_companion_objs() {
   experimental_bootstrap_info "build_seed_asm_host (asm_backend_partial.o)"
   ./scripts/build_seed_asm_host.sh
   fi
-  if [ ! -f src/asm/asm_backend_compat_stubs.o ] || [ "src/asm/asm_backend_compat_stubs.c" -nt src/asm/asm_backend_compat_stubs.o ]; then
+  if [ ! -f src/asm/asm_backend_compat_stubs.o ] || [ "src/asm/asm_backend_compat_stubs.inc" -nt src/asm/asm_backend_compat_stubs.o ]; then
   experimental_bootstrap_info "cc asm_backend_compat_stubs.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/asm_backend_compat_stubs.o src/asm/asm_backend_compat_stubs.c
+  sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc src/asm/asm_backend_compat_stubs.o
   fi
-  if [ ! -f src/asm/user_asm_seed_bridge.o ] || [ "src/asm/user_asm_seed_bridge.c" -nt src/asm/user_asm_seed_bridge.o ]; then
+  if [ ! -f src/asm/user_asm_seed_bridge.o ] || [ "src/asm/user_asm_seed_bridge.inc" -nt src/asm/user_asm_seed_bridge.o ]; then
   experimental_bootstrap_info "cc user_asm_seed_bridge.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/user_asm_seed_bridge.o src/asm/user_asm_seed_bridge.c
+  sh scripts/cc_inc_tu.sh src/asm/user_asm_seed_bridge.inc src/asm/user_asm_seed_bridge.o
   fi
 }
 ensure_experimental_companion_objs
@@ -252,13 +252,13 @@ ensure_parser_x_obj
 # 瘦 parser_x.o 无 parse_into_buf：默认 cc seed slice TU；X PARSE_BOOTSTRAP_EMIT 仍 139，仅 opt-in 探测。
 ensure_parser_parse_bootstrap_asm_obj() {
   PARSER_PARSE_BOOT_O="$BUILD_DIR/parser_parse_bootstrap.o"
-  PBOOT_C_SRC="src/asm/parser_asm_parse_bootstrap_obj.c"
+  PBOOT_C_SRC="src/asm/parser_asm_parse_bootstrap_obj.inc"
   PBOOT_SEED_SLICE="src/asm/parser_asm_seed_parse_into_buf_slice.inc"
   mkdir -p "$BUILD_DIR"
 
   compile_parser_parse_bootstrap_cc_obj() {
-  experimental_bootstrap_info "cc parser_asm_parse_bootstrap_obj.c -> $PARSER_PARSE_BOOT_O"
-  if ! "$CC" $CFLAGS -c -o "$PARSER_PARSE_BOOT_O" "$PBOOT_C_SRC"; then
+  experimental_bootstrap_info "cc parser_asm_parse_bootstrap_obj.inc -> $PARSER_PARSE_BOOT_O"
+  if ! sh scripts/cc_inc_tu.sh "$PBOOT_C_SRC" "$PARSER_PARSE_BOOT_O"; then
   experimental_bootstrap_warn "cc parser_parse_bootstrap.o failed"
   rm -f "$PARSER_PARSE_BOOT_O"
   return 1
@@ -389,11 +389,11 @@ fi
 ST_LSP_DIAG_STUB="$BUILD_DIR/asm_shux_lsp_diag_stub.o"
 GLUE_O="$BUILD_DIR/pipeline_glue_standalone.o"
 PIPELINE_GEN_CFLAGS="-O2 -g -fno-strict-aliasing -DPIPELINE_GEN_STANDALONE"
-if [ ! -f "$GLUE_O" ] || [ "src/asm/pipeline_glue_standalone.c" -nt "$GLUE_O" ] \
+if [ ! -f "$GLUE_O" ] || [ "src/asm/pipeline_glue_standalone.inc" -nt "$GLUE_O" ] \
   || [ "pipeline_glue.c" -nt "$GLUE_O" ] || [ "ast_pool.c" -nt "$GLUE_O" ]; then
   experimental_bootstrap_info "cc pipeline_glue_standalone.o"
   mkdir -p "$BUILD_DIR"
-  "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR" -c -o "$GLUE_O" src/asm/pipeline_glue_standalone.c
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_standalone.inc "$GLUE_O" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"
 fi
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   EXP_ALLOW_MULTIDEF="-Wl,-multiply_defined -Wl,suppress"

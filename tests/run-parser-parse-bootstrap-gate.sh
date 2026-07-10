@@ -15,11 +15,11 @@ if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   exit 0
 fi
 
-BOOT_SRC="compiler/src/asm/parser_asm_parse_bootstrap_obj.c"
+BOOT_SRC="compiler/src/asm/parser_asm_parse_bootstrap_obj.inc"
 BOOT_O="/tmp/shux_parser_parse_bootstrap_gate.$$.o"
 rm -f "$BOOT_O" 2>/dev/null || true
 
-echo "parser-parse-bootstrap-gate: cc parser_asm_parse_bootstrap_obj.c ..."
+echo "parser-parse-bootstrap-gate: cc parser_asm_parse_bootstrap_obj.inc ..."
 if ! $CC $CFLAGS -c -o "$BOOT_O" "$BOOT_SRC" > /tmp/shux_parser_boot_gate.log 2>&1; then
   echo "parser-parse-bootstrap-gate FAIL: cc compile" >&2
   tail -n 12 /tmp/shux_parser_boot_gate.log 2>/dev/null || true

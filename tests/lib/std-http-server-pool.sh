@@ -23,7 +23,7 @@ std_http_server_pool_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ "$path" = "compiler/src/asm/http/runtime_http_glue.c" ]; then path="$http_c"; fi
+        if [ "$path" = "compiler/src/asm/http/runtime_http_glue.inc" ]; then path="$http_c"; fi
         if [ "$path" = "compiler/src/asm/http/http_server_pool.inc" ]; then path="$pool_inc"; fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-http-server-pool FAIL: missing '$anchor' in $path" >&2

@@ -81,7 +81,7 @@ if [ -x ./shux ] && [ "${SHUX_FORCE_FULL_BOOTSTRAP:-}" != "1" ]; then
 else
   progress "cold: build DRIVER_SEED prereqs (parallel, no asm -E yet)"
   # cfg_eval.x 的 asm 编译极慢；冷启动直接用 stub
-  cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_bootstrap_stub.o src/lexer/cfg_eval_bootstrap_stub.c
+  cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_bootstrap_stub.o src/lexer/cfg_eval_bootstrap_stub.inc
   cp -f src/lexer/cfg_eval_bootstrap_stub.o src/lexer/cfg_eval.o
   make -j"$(nproc 2>/dev/null || echo 4)" \
   parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o lexer_x.o x_frontend_link_alias.o \

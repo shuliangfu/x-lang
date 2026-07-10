@@ -2301,9 +2301,9 @@ ensure_backend_asm_strict_fallback_alias_obj() {
 # strict 链：compat stubs 须随源码重编（勿用 src/asm/*.o 陈旧副本）。
 ensure_asm_backend_compat_stubs_obj() {
   local STUB_O="$BUILD_DIR/asm_backend_compat_stubs.o"
-  if [ ! -f "$STUB_O" ] || [ src/asm/asm_backend_compat_stubs.c -nt "$STUB_O" ]; then
-  echo " cc -c src/asm/asm_backend_compat_stubs.c -> $STUB_O"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$STUB_O" src/asm/asm_backend_compat_stubs.c
+  if [ ! -f "$STUB_O" ] || [ src/asm/asm_backend_compat_stubs.inc -nt "$STUB_O" ]; then
+  echo " cc -c src/asm/asm_backend_compat_stubs.inc -> $STUB_O"
+  sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc "$STUB_O"
   fi
 }
 
@@ -2657,9 +2657,9 @@ asm_strict_keep_build_asm_typeck_backend() {
 # 实验 asm-only 链：build_asm 裸符号名 → runtime 期望名（首链 experimental 仍需要；strict 链不链 bridge）。
 ensure_asm_experimental_symbol_bridge_obj() {
   BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"
-  if [ ! -f "$BRIDGE_OBJ" ] || [ "src/asm/asm_experimental_symbol_bridge.c" -nt "$BRIDGE_OBJ" ]; then
-  echo " cc -c src/asm/asm_experimental_symbol_bridge.c -> $BRIDGE_OBJ"
-  "$CC" $CFLAGS -c -o "$BRIDGE_OBJ" src/asm/asm_experimental_symbol_bridge.c
+  if [ ! -f "$BRIDGE_OBJ" ] || [ "src/asm/asm_experimental_symbol_bridge.inc" -nt "$BRIDGE_OBJ" ]; then
+  echo " cc -c src/asm/asm_experimental_symbol_bridge.inc -> $BRIDGE_OBJ"
+  sh scripts/cc_inc_tu.sh src/asm/asm_experimental_symbol_bridge.inc "$BRIDGE_OBJ"
   fi
 }
 
@@ -2963,9 +2963,9 @@ ensure_asm_pipeline_glue_standalone_obj() {
   perl -i -0777 -pe 's/\nenum ast_ExprKind parser_compound_assign_token_to_expr_kind\(enum token_TokenKind kind\) \{\n return compound_assign_token_to_expr_kind_from_glue\(kind\);\n\}//g' "$GLUE_TYPES" 2>/dev/null || true
   fi
   fi
-  if [ ! -f "$GLUE_STANDALONE_OBJ" ] || [ "src/asm/pipeline_glue_standalone.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "$GLUE_TYPES" -nt "$GLUE_STANDALONE_OBJ" ] || [ "ast_pool.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "pipeline_glue.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/extract_pipeline_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/patch_ide_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ]; then
-  build_shux_asm_info "cc -c src/asm/pipeline_glue_standalone.c -> $GLUE_STANDALONE_OBJ"
-  if ! "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR" -c -o "$GLUE_STANDALONE_OBJ" src/asm/pipeline_glue_standalone.c; then
+  if [ ! -f "$GLUE_STANDALONE_OBJ" ] || [ "src/asm/pipeline_glue_standalone.inc" -nt "$GLUE_STANDALONE_OBJ" ] || [ "$GLUE_TYPES" -nt "$GLUE_STANDALONE_OBJ" ] || [ "ast_pool.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "pipeline_glue.c" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/extract_pipeline_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ] || [ "scripts/patch_ide_glue_types.pl" -nt "$GLUE_STANDALONE_OBJ" ]; then
+  build_shux_asm_info "cc -c src/asm/pipeline_glue_standalone.inc -> $GLUE_STANDALONE_OBJ"
+  if ! sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_standalone.inc "$GLUE_STANDALONE_OBJ" $PIPELINE_GEN_CFLAGS -I"$BUILD_DIR"; then
   build_shux_asm_warn "pipeline_glue_standalone.o compile failed (strict 链可继续用 pipeline_glue_strict_minimal)"
   rm -f "$GLUE_STANDALONE_OBJ" 2>/dev/null || true
   fi
@@ -3121,9 +3121,9 @@ ensure_bstrict_seed_support_objs() {
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/backend_asm_strict_fallback_alias.o" backend_asm_strict_fallback_alias.c
   fi
   if [ ! -f src/asm/asm_backend_compat_stubs.o ] \
-  || [ "src/asm/asm_backend_compat_stubs.c" -nt src/asm/asm_backend_compat_stubs.o ]; then
-  echo " cc -c src/asm/asm_backend_compat_stubs.c -> src/asm/asm_backend_compat_stubs.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/asm_backend_compat_stubs.o src/asm/asm_backend_compat_stubs.c
+  || [ "src/asm/asm_backend_compat_stubs.inc" -nt src/asm/asm_backend_compat_stubs.o ]; then
+  echo " cc -c src/asm/asm_backend_compat_stubs.inc -> src/asm/asm_backend_compat_stubs.o"
+  sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc src/asm/asm_backend_compat_stubs.o
   fi
   for _disp in backend_enc_dispatch backend_x86_64_enc_c backend_arch_emit_dispatch backend_try_inline_dispatch backend_call_dispatch; do
   if [ ! -f "src/asm/${_disp}.o" ] || [ "src/asm/${_disp}.c" -nt "src/asm/${_disp}.o" ]; then
@@ -3152,9 +3152,9 @@ ensure_bstrict_seed_support_objs() {
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_loop.o src/asm/simd_loop.c
   fi
   if [ ! -f src/asm/user_asm_seed_bridge.o ] \
-  || [ "src/asm/user_asm_seed_bridge.c" -nt src/asm/user_asm_seed_bridge.o ]; then
-  echo " cc -c src/asm/user_asm_seed_bridge.c -> src/asm/user_asm_seed_bridge.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/user_asm_seed_bridge.o src/asm/user_asm_seed_bridge.c
+  || [ "src/asm/user_asm_seed_bridge.inc" -nt src/asm/user_asm_seed_bridge.o ]; then
+  echo " cc -c src/asm/user_asm_seed_bridge.inc -> src/asm/user_asm_seed_bridge.o"
+  sh scripts/cc_inc_tu.sh src/asm/user_asm_seed_bridge.inc src/asm/user_asm_seed_bridge.o
   fi
   # parser EMIT_HEAVY extern bl _glue：须与 Makefile USER_ASM_SEED_OBJS 同步链入 shux_asm。
   PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
@@ -3182,9 +3182,9 @@ lsp_diag_seed_obj_path() {
 ensure_lsp_diag_seed_obj() {
   local seed_dir="$1"
   if [ "${SHUX_LEGACY_LSP_DIAG_C:-0}" = "1" ]; then
-  if [ ! -f "$seed_dir/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.c" -nt "$seed_dir/lsp_diag.o" ]; then
+  if [ ! -f "$seed_dir/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.inc" -nt "$seed_dir/lsp_diag.o" ]; then
   echo " cc -c $seed_dir/lsp_diag.o <- lsp_diag.c (LEGACY)"
-  "$CC" $CFLAGS -c -o "$seed_dir/lsp_diag.o" src/asm/runtime_lsp_glue.c
+  sh scripts/cc_inc_tu.sh src/asm/runtime_lsp_glue.inc "$seed_dir/lsp_diag.o"
   fi
   else
   if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "src/lsp/lsp_diag_stubs_no_c.c" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then
@@ -3229,13 +3229,13 @@ ensure_asm_driver_seed_frontend_c_objs() {
   return 0
   fi
   echo " cc -c asm_driver_seed/*.o <- lexer/ast_seed/typeck/codegen .c (SHUX_LEGACY_SEED_FRONTEND_CC archaeology)"
-  if [ ! -f src/asm/runtime_lexer_glue.inc ] || [ ! -f src/asm/runtime_ast_glue.c ] \
+  if [ ! -f src/asm/runtime_lexer_glue.inc ] || [ ! -f src/asm/runtime_ast_glue.inc ] \
   || [ ! -f src/typeck/typeck.c ]; then
   build_shux_asm_error "LEGACY seed frontend .c missing; use X companions or restore C sources"
   return 1
   fi
   sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc "$SEED_DIR/lexer.o"
-  "$CC" $CFLAGS -c -o "$SEED_DIR/ast_seed.o" src/asm/runtime_ast_glue.c
+  sh scripts/cc_inc_tu.sh src/asm/runtime_ast_glue.inc "$SEED_DIR/ast_seed.o"
   "$CC" $CFLAGS -c -o "$SEED_DIR/typeck.o" src/typeck/typeck.c
   # G-02a: codegen.c 已物理删除；codegen.o 由 codegen.x 生成（codegen_x.o），编排桩由 codegen_pipeline_stubs.o 提供。
   if [ -f src/codegen/codegen.c ]; then
@@ -3914,10 +3914,10 @@ ensure_freestanding_io_x86_64_obj() {
 }
 
 ensure_bootstrap_nostdlib_stubs_obj() {
-  if [ -f src/asm/bootstrap_nostdlib_stubs.c ]; then
-  if [ ! -f src/asm/bootstrap_nostdlib_stubs.o ] || [ src/asm/bootstrap_nostdlib_stubs.c -nt src/asm/bootstrap_nostdlib_stubs.o ]; then
-  echo " cc -c src/asm/bootstrap_nostdlib_stubs.o <- src/asm/bootstrap_nostdlib_stubs.c"
-  "$CC" $CFLAGS -c -o src/asm/bootstrap_nostdlib_stubs.o src/asm/bootstrap_nostdlib_stubs.c
+  if [ -f src/asm/bootstrap_nostdlib_stubs.inc ]; then
+  if [ ! -f src/asm/bootstrap_nostdlib_stubs.o ] || [ src/asm/bootstrap_nostdlib_stubs.inc -nt src/asm/bootstrap_nostdlib_stubs.o ]; then
+  echo " cc -c src/asm/bootstrap_nostdlib_stubs.o <- src/asm/bootstrap_nostdlib_stubs.inc"
+  sh scripts/cc_inc_tu.sh src/asm/bootstrap_nostdlib_stubs.inc src/asm/bootstrap_nostdlib_stubs.o
   fi
   fi
 }
@@ -3962,7 +3962,7 @@ bootstrap_link_tail_driver() {
   fi
 }
 
-# NL-07 v5：nostdlib 静态链不链 libpthread（libpthread 依赖 libc；桩见 bootstrap_nostdlib_stubs.c）。
+# NL-07 v5：nostdlib 静态链不链 libpthread（libpthread 依赖 libc；桩见 bootstrap_nostdlib_stubs.inc）。
 bootstrap_pipeline_libs() {
   if bootstrap_wants_nostdlib; then
   echo "-lc -lgcc -lgcc_eh"
