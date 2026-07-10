@@ -55,10 +55,10 @@ endif
 TARGET = shux
 SRCS = src/main.c src/runtime.c src/async/async_liveness.c src/async/async_cps_codegen.c
 # OBJS_CORE：G-06 默认 shux-c=bootstrap_shuxc；仅 SHUX_LEGACY_C_FRONTEND=1 时链下列 runtime 桩（无 C 前端 .c）。
-OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
+OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_pipeline_abi_shux_c_stubs.o src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 # 考古冷启动：完整 C 前端 shux-c（仅用于生成/刷新 seeds/ 预编译种子）
-OBJS_CORE = src/main.o src/runtime.o src/diag.o src/driver/fmt_check_cmd.o src/lexer/lexer.o src/lexer/cfg_eval_bootstrap_stub.o src/ast/ast.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_c_import.o
+OBJS_CORE = src/main.o src/runtime.o src/diag.o src/driver/fmt_check_cmd.o src/lexer/lexer.o src/lexer/cfg_eval_bootstrap_stub.o src/ast/ast.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_c_import.o
 endif
 OBJS = $(OBJS_CORE)
 # 注：lsp.x 生成的 lsp_gen 与 lsp_diag 中 lsp_build_* 同名；若把 InitializeResult/response 外壳迁入 .x，
@@ -683,8 +683,6 @@ src/driver/fmt_check_cmd_driver.o: src/driver/fmt_check_cmd.c
 
 # G-02a：C 前端 lexer/ast/parser/typeck/codegen/preprocess/autovec/lsp_diag 已物理删除；见对应 .x。
 
-src/lsp/lsp_codegen_extern.o: src/lsp/lsp_codegen_extern.c src/lsp/lsp_codegen_extern.h
-	$(CC) $(CFLAGS) -c -o $@ $<
 
 # SHUX_NO_C_FRONTEND 实验链接：满足 pipeline 对 codegen_set_* 的引用，无 codegen.c
 
@@ -736,7 +734,7 @@ PIPELINE_X_SATELLITE_OBJS = lexer_x.o preprocess_x.o \
   src/driver/fmt_check_cmd.o src/driver/target_cpu.o \
   src/asm/simd_enc.o src/asm/simd_loop.o \
   src/async/async_liveness.o src/async/async_cps_codegen.o \
-  $(AST_POOL_L5_BRIDGE_O) src/lsp/lsp_codegen_extern.o
+  $(AST_POOL_L5_BRIDGE_O)
 PIPELINE_X_LINK_OBJS = parser_x.o typeck_x.o codegen_x.o src/x_seed_bridge.o $(PIPELINE_X_SATELLITE_OBJS) $(USER_ASM_LINK)
 PIPELINE_X_SUPPORT_OBJS = build-seed-asm-host $(PIPELINE_X_LINK_OBJS)
 
@@ -1388,7 +1386,7 @@ bootstrap-typeck: $(TARGET) $(SHUX_C) bootstrap_shuxc $(RELINK_SHUX_PREREQS)
 	./$(SHUX_C) -L .. -L src -L src/lexer -L src/ast -L src/parser -E -E-extern src/typeck/typeck.x > "$$tmp" || { rc=$$?; rm -f "$$tmp"; exit $$rc; }; \
 	mv "$$tmp" typeck_gen.c
 	$(CC) $(CFLAGS) -c typeck_gen.c -o typeck_x.o
-	$(CC) $(CFLAGS) -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_SHUX_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_SHUX_USER_ASM_LINK) $(RELINK_SHUX_GLUE_SUFFIX)
+	$(CC) $(CFLAGS) -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_SHUX_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_SHUX_USER_ASM_LINK) $(RELINK_SHUX_GLUE_SUFFIX)
 	@echo "bootstrap-typeck OK"
 
 # 6.2：.x codegen 入口与 C AST 对接；编译 typeck.x + codegen.x 生成 _gen.c，链接进 shux，使 typeck 与 codegen 均由 .x 入口转调 C
@@ -1401,7 +1399,7 @@ bootstrap-codegen: $(TARGET) $(SHUX_C) bootstrap_shuxc $(RELINK_SHUX_PREREQS)
 	mv "$$tmp" codegen_gen.c
 	$(CC) $(CFLAGS) -c typeck_gen.c -o typeck_x.o
 	$(CC) $(CFLAGS) -c codegen_gen.c -o codegen_x.o
-	$(CC) $(CFLAGS) -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_SHUX_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_SHUX_USER_ASM_LINK) $(RELINK_SHUX_GLUE_SUFFIX)
+	$(CC) $(CFLAGS) -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_SHUX_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_SHUX_USER_ASM_LINK) $(RELINK_SHUX_GLUE_SUFFIX)
 	@echo "bootstrap-codegen OK"
 
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 SHUX_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
@@ -1947,10 +1945,10 @@ bootstrap-driver-seed:
 	@test -x '$(TARGET)' || $(MAKE) bootstrap-driver-seed SHUX_SKIP_SUBSCRIPT_MAKE= SHUX_RUN_ALL_BOOTSTRAP_SHUX=1
 else
 # G-06 两阶段 seed：先无 USER_ASM 链 shux-seed-phase1，再用其跑 asm.x -E 生成 partial，最后全量链 shux。
-DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
-BOOTSTRAP_DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
+DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
+BOOTSTRAP_DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
 
-DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o driver_x.o preprocess_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o $(AST_POOL_L5_BRIDGE_O) src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
+DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o driver_x.o preprocess_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o $(AST_POOL_L5_BRIDGE_O) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
 
 bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
 bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_minimal.o
@@ -2032,7 +2030,7 @@ RELINK_SHUX_PREREQS = build-seed-asm-host $(RELINK_SHUX_FILTERED_OBJS) $(USER_AS
   lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c \
   lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o \
   $(DRIVER_SUBCMD_OBJS) \
-  src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o \
+  $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o \
   src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o \
 # driver/fmt_check 变更后快速重链 shux（不跑 asm.x -E；需已有 build_asm/seed_host/asm_backend_partial.o）
 # relink-shux-lexer：仅重建 lexer_x.o 并重链，不触发 driver/typeck *_gen.c 再生（迭代 token enum 修复用）。
@@ -2068,7 +2066,7 @@ relink-shux-lexer: lexer_x.o
 	@test -f driver_x.o && test -f pipeline_x.o && test -f parser_x.o && test -f typeck_x.o && test -f codegen_x.o || (echo "relink-shux-lexer: missing *_x.o (make bootstrap-driver-seed first)" >&2; exit 1)
 	@$(MAKE) $(RELINK_SHUX_FILTERED_OBJS)
 	@$(MAKE) $(RELINK_SHUX_GLUE_SUFFIX)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_SHUX_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_SHUX_USER_ASM_LINK) $(RELINK_SHUX_GLUE_SUFFIX)
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET) $(DRIVER_SEED_GLUE_PREFIX) $(DRIVER_SEED_OBJS) driver_x.o $(RELINK_SHUX_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(RELINK_SHUX_USER_ASM_LINK) $(RELINK_SHUX_GLUE_SUFFIX)
 	cp -f $(TARGET) $(SHUX_C)
 	cp -f $(TARGET) bootstrap_shuxc
 	@echo "relink-shux-lexer OK (lexer_x.o only; shux-c synced)"
@@ -2093,7 +2091,7 @@ regen-lsp-gens-x:
 # 仅重链 ./shux-x；pipeline/driver/preprocess 的 .x 变更会经对应 *_x.o 目标触发重编后再链接。
 shux-x: build-seed-asm-host $(DRIVER_SEED_OBJS) $(SHUX_X_PIPELINE_LINK_O) $(SHUX_X_USER_ASM_OBJS) driver_x.o preprocess_x.o $(RELINK_SHUX_GLUE_SUFFIX)
 	@test -f driver_x.o && test -f lsp_x.o && test -f lsp_diag_x.o && test -f lsp_io_x.o && test -f preprocess_x.o && test -f lsp_io_std_heap_x.o && test -f driver_fmt_x.o && test -f driver_check_x.o && test -f driver_test_x.o && test -f driver_compile_x.o && test -f driver_build_x.o && test -f driver_run_x.o && test -f || (echo "缺少 driver_x.o 等，请先: make bootstrap-driver-seed" && exit 1)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $@ $(DRIVER_SEED_OBJS) driver_x.o $(SHUX_X_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(SHUX_X_USER_ASM_OBJS) $(RELINK_SHUX_GLUE_SUFFIX)
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $@ $(DRIVER_SEED_OBJS) driver_x.o $(SHUX_X_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(SHUX_X_USER_ASM_OBJS) $(RELINK_SHUX_GLUE_SUFFIX)
 	@echo "shux-x OK"
 
 # Stage2：shux-x 用 -x -E-extern 生成 _gen2.c 并链出 shux-x2，与 shux-x 行为对比（脚本内会 make shux-x / bootstrap-driver-seed）
@@ -2231,7 +2229,7 @@ bootstrap-self: bootstrap-driver-seed
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Dstd_io_read=io_read -Dstd_io_write=io_write -c lsp_io_gen.c -o lsp_io_x.o && \
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c lsp_gen.c -o lsp_x.o && \
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c lsp_io_std_heap_gen.c -o lsp_io_std_heap_x.o && \
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET)_stage2 $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) src/lsp/lsp_codegen_extern.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(USER_ASM_LINK) && \
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(MAIN_LINK_FLAGS) -o $(TARGET)_stage2 $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS) $(USER_ASM_LINK) && \
 	rm -f /tmp/out_self /tmp/out_self.bin && \
 	./$(TARGET)_stage2 ../tests/return-value/main.x -o /tmp/out_self && \
 	ft=`file -b /tmp/out_self 2>/dev/null || true`; BIN=/tmp/out_self; \

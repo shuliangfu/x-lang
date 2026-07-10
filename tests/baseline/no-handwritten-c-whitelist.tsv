@@ -90,7 +90,6 @@ file	compiler/src/driver/fmt_check_cmd.c
 file	compiler/src/driver/target_cpu.c
 file	compiler/src/lexer/cfg_eval_bootstrap_stub.c
 file	compiler/src/lexer/cfg_eval_link_alias.c
-file	compiler/src/lsp/lsp_codegen_extern.c
 file	compiler/src/lsp/lsp_diag_pipeline_ctx.c
 file	compiler/src/lsp/lsp_diag_pipeline_sizes.c
 file	compiler/src/lsp/lsp_diag_stubs_no_c.c

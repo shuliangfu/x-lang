@@ -2693,7 +2693,7 @@ filter_experimental_asm_objs() {
   backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|\
   asm_backend_compat_stubs.o|\
   std_fs_shim.o|x_seed_bridge.o|\
-  parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|lsp_codegen_extern.o)
+  parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o)
   continue
   ;;
   esac
@@ -2820,7 +2820,7 @@ filter_strict_asm_objs() {
   backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|\
   asm_backend_compat_stubs.o|\
   std_fs_shim.o|x_seed_bridge.o|\
-  parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|lsp_codegen_extern.o|\
+  parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|\
   parser_asm_minimal_partial.o|\
   ast_pool_l5_bridge.o|\
   lexer.o|peephole.o|platform_elf.o|macho.o|coff.o)
@@ -3660,8 +3660,8 @@ ensure_asm_shux_lsp_diag_stub_obj() {
 
 # codegen.o（C seed）引用 lsp_codegen_emit_*；小 TU，不与 pipeline_x.o 重复
 ensure_asm_lsp_codegen_extern_obj() {
-  LCE_C="src/lsp/lsp_codegen_extern.c"
-  LCE_O="$BUILD_DIR/lsp_codegen_extern.o"
+  LCE_C="src/runtime_driver_strict_glue_stubs.c"
+  LCE_O=src/runtime_driver_strict_glue_stubs.o
   if [ ! -f "$LCE_O" ] || [ "$LCE_C" -nt "$LCE_O" ]; then
   echo " cc -c $LCE_O <- $LCE_C"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$LCE_O" "$LCE_C"
@@ -4166,7 +4166,7 @@ shux_asm_bstrict_relink_runtime_only() {
   $ST_BRIDGE_OBJ \
   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
   $ST_TYPECK_LSP_STUB \
-  "$BUILD_DIR/lsp_codegen_extern.o" \
+  src/runtime_driver_strict_glue_stubs.o \
   $ST_SEED_PREPROCESS_LINK \
   $ST_SEED_PARSER_TCK \
   $ST_STRICT_COMPANIONS \
@@ -4437,7 +4437,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   \
   "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
-  "$BUILD_DIR/lsp_codegen_extern.o" \
+  src/runtime_driver_strict_glue_stubs.o \
   $ASM_SEED_FRONTEND_LINK \
   "$SEED_O/async_liveness.o" \
   "$SEED_O/async_cps_codegen.o" \
@@ -4798,7 +4798,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   $ST_BRIDGE_OBJ \
   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
   $ST_TYPECK_LSP_STUB \
-  "$BUILD_DIR/lsp_codegen_extern.o" \
+  src/runtime_driver_strict_glue_stubs.o \
   $ST_SEED_PREPROCESS_LINK \
   $ST_SEED_PARSER_TCK \
   $ST_STRICT_COMPANIONS \
@@ -4863,7 +4863,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
   $ST_TYPECK_LSP_STUB \
-  "$BUILD_DIR/lsp_codegen_extern.o" \
+  src/runtime_driver_strict_glue_stubs.o \
   $ST_SEED_PREPROCESS_LINK \
   $ST_SEED_PARSER_TCK \
   $ST_STRICT_FB_X_TAIL \
@@ -5052,7 +5052,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   $GEN_DRIVER_X_PIPELINE_COMPANIONS \
   "$GEN_O/lsp_x.o" \
   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
-  "$BUILD_DIR/lsp_codegen_extern.o" \
+  src/runtime_driver_strict_glue_stubs.o \
   "$GEN_O/lsp_io_x.o" \
   "$GEN_O/lsp_io_std_heap_x.o" \
   "$LSP_DIAG_SEED_O" \
@@ -5127,7 +5127,7 @@ else
   "$GEN_O/lsp_x.o" \
   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
   "$BUILD_DIR/typeck_lsp_io_stub.o" \
-  "$BUILD_DIR/lsp_codegen_extern.o" \
+  src/runtime_driver_strict_glue_stubs.o \
   "$GEN_O/lsp_io_x.o" \
   "$GEN_O/lsp_io_std_heap_x.o" \
   "$LSP_DIAG_SEED_O" \

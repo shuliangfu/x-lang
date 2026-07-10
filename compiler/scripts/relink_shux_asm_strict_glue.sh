@@ -1162,7 +1162,7 @@ filter_strict_asm_objs() {
   backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|backend_seed_mega_fallback.o|\
   asm_backend_compat_stubs.o|\
   std_fs_shim.o|x_seed_bridge.o|\
-  parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|lsp_codegen_extern.o|\
+  parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|\
   ast_pool_l5_bridge.o|\
   lexer.o|peephole.o|platform_elf.o|macho.o|coff.o|\
   parser_asm_minimal_partial.o|parser_asm_thin_c.o|\
@@ -1675,10 +1675,11 @@ ensure_asm_experimental_symbol_bridge_obj() {
 }
 
 ensure_lsp_codegen_extern_obj() {
-  local o="src/lsp/lsp_codegen_extern.o"
-  if [ ! -f "$o" ] || [ "src/lsp/lsp_codegen_extern.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/lsp/lsp_codegen_extern.c"
-  "$CC" $CFLAGS -c -o "$o" src/lsp/lsp_codegen_extern.c
+  # G-02e-11：实现已并入 runtime_driver_strict_glue_stubs.c
+  local o="src/runtime_driver_strict_glue_stubs.o"
+  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt "$o" ]; then
+    strict_glue_info "cc -c $o <- src/runtime_driver_strict_glue_stubs.c (former lsp_codegen_extern)"
+    "$CC" $CFLAGS -c -o "$o" src/runtime_driver_strict_glue_stubs.c
   fi
 }
 
@@ -1828,7 +1829,7 @@ LINK_START_S=$(date +%s 2>/dev/null || echo 0)
   src/asm/asm_experimental_symbol_bridge.o \
   "$BUILD_DIR/asm_shux_lsp_diag_stub.o" \
   $ST_TYPECK_LSP_STUB \
-  src/lsp/lsp_codegen_extern.o \
+  \
   $ST_PREPROCESS_SEED \
   $ST_SEED_PARSER_TCK \
   $ST_STRICT_COMPANIONS \

@@ -180,9 +180,9 @@ ensure_experimental_companion_objs() {
   experimental_bootstrap_info "cc ast_pool_l5_bridge.o"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/ast_pool_l5_bridge.o" src/ast_pool_l5_bridge.c
   fi
-  if [ ! -f "$BUILD_DIR/lsp_codegen_extern.o" ] || [ "src/lsp/lsp_codegen_extern.c" -nt "$BUILD_DIR/lsp_codegen_extern.o" ]; then
+  if [ ! -f src/runtime_driver_strict_glue_stubs.o ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt src/runtime_driver_strict_glue_stubs.o ]; then
   experimental_bootstrap_info "cc lsp_codegen_extern.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/lsp_codegen_extern.o" src/lsp/lsp_codegen_extern.c
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_driver_strict_glue_stubs.o src/runtime_driver_strict_glue_stubs.c
   fi
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.x" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
   experimental_bootstrap_info "build_seed_asm_host (asm_backend_partial.o)"
@@ -431,7 +431,7 @@ fi
   "$BUILD_DIR/asm_experimental_symbol_bridge.o" \
   ${PARSER_PARSE_BOOT_O:+"$PARSER_PARSE_BOOT_O"} \
   $ST_LSP_DIAG_STUB \
-  "$BUILD_DIR/lsp_codegen_extern.o" \
+  src/runtime_driver_strict_glue_stubs.o \
   "$SEED_O/async_liveness.o" \
   "$SEED_O/async_cps_codegen.o" \
   "$SEED_O/ast_seed.o" \

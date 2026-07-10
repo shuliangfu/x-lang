@@ -1,7 +1,7 @@
 /**
  * lsp_codegen_extern.h — LSP -E-extern 跨 TU 符号声明（io.o / heap.o / lsp_io_x.o 桥接）。
  *
- * 原内嵌于 codegen.c 的 lsp_io_extern / lsp_gen_extern 等价块，集中于此供 C codegen 与 codegen.x 共用。
+ * 声明保留；实现见 runtime_driver_strict_glue_stubs.c（G-02e-11 自 lsp_codegen_extern.c 并入）。
  */
 #ifndef SHUX_LSP_CODEGEN_EXTERN_H
 #define SHUX_LSP_CODEGEN_EXTERN_H

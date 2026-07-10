@@ -133,7 +133,7 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   x_frontend_link_alias.o \
   driver_x.o pipeline_bootstrap_orchestration.o \
   driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o \
-  src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_stubs_no_c.o src/lsp/lsp_diag_pipeline_sizes_nostub.o \
+  src/lsp/lsp_diag_stubs_no_c.o src/lsp/lsp_diag_pipeline_sizes_nostub.o \
   src/lsp/lsp_diag_pipeline_ctx.o lsp_x.o lsp_diag_x.o \
   lsp_io_x.o lsp_io_std_heap_x.o build_asm/seed_host/asm_backend_partial.o \
   build_asm/seed_host/asm_full_link_stubs.o build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o \
