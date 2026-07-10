@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/377：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/378：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -441,6 +441,35 @@ function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf_ctx: *u8, expr_r
 function glue_asm_emit_call_with_cleanup(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, nargs: i32, cname: *u8, clen: i32): i32 {
   unsafe {
     return glue_asm_emit_call_with_cleanup_impl(arena, elf_ctx, expr_ref, ctx, ta, nargs, cname, clen);
+  }
+  return 0 - 1;
+}
+
+// ---- G-02f-378：emit_one_call_arg / build_call_export_sym / fmt_string_lit_import_call → seed impl ----
+extern "C" function glue_emit_one_call_arg_elf_c_impl(arena: *u8, elf_ctx: *u8, call_expr_ref: i32, arg_ref: i32, arg_index: i32, ctx: *u8, ta: i32): i32;
+extern "C" function glue_asm_build_call_export_sym_c_impl(arena: *u8, call_expr_ref: i32, callee_ref: i32, mod: *u8, dep_pipe: *u8, out: *u8, out_cap: i32): i32;
+extern "C" function glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(arena: *u8, elf_ctx: *u8, call_expr_ref: i32, ctx: *u8, ta: i32, pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32): i32;
+
+#[no_mangle]
+function glue_emit_one_call_arg_elf_c(arena: *u8, elf_ctx: *u8, call_expr_ref: i32, arg_ref: i32, arg_index: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return glue_emit_one_call_arg_elf_c_impl(arena, elf_ctx, call_expr_ref, arg_ref, arg_index, ctx, ta);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function glue_asm_build_call_export_sym_c(arena: *u8, call_expr_ref: i32, callee_ref: i32, mod: *u8, dep_pipe: *u8, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return glue_asm_build_call_export_sym_c_impl(arena, call_expr_ref, callee_ref, mod, dep_pipe, out, out_cap);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(arena: *u8, elf_ctx: *u8, call_expr_ref: i32, ctx: *u8, ta: i32, pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32): i32 {
+  unsafe {
+    return glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(arena, elf_ctx, call_expr_ref, ctx, ta, pre_buf, pre_len, field_name, field_len);
   }
   return 0 - 1;
 }

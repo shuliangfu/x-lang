@@ -72,6 +72,9 @@ int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform
 int32_t glue_inline_var_field_access_offset(struct ast_ASTArena *arena, struct ast_Module *mod, struct ast_PipelineDepCtx *pctx, uint8_t *asm_ctx, int32_t fa_ref);
 int32_t try_inline_param0_field_sum_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta);
 int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta);
+int32_t glue_struct_lit_field_init_param_index(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t lit_ref, int32_t field_j, int32_t *out_param_ix);
+int32_t try_inline_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_ref, struct glue_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off);
+int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_ref, struct glue_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off);
 #endif
 
 
@@ -923,7 +926,8 @@ int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module
  * struct_lit 第 field_j 字段 init 来自哪一形参；成功写 out_param_ix。
  */
 /* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_struct_lit_field_init_param_index(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-378 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_struct_lit_field_init_param_index_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                       int32_t func_idx, int32_t lit_ref, int32_t field_j,
                                                       int32_t *out_param_ix) {
   int32_t init_ref;
@@ -946,6 +950,14 @@ int32_t glue_struct_lit_field_init_param_index(struct ast_ASTArena *arena, struc
   return -1;
 
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_struct_lit_field_init_param_index(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                      int32_t func_idx, int32_t lit_ref, int32_t field_j,
+                                                      int32_t *out_param_ix) {
+  return glue_struct_lit_field_init_param_index_impl(arena, mod, func_idx, lit_ref, field_j, out_param_ix);
+}
+#endif
 
 
 /**
@@ -2229,7 +2241,8 @@ int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, stru
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
 /* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena,
+/* G-02f-378 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t try_inline_const_struct_lit_return_call_to_slot_elf_impl(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t call_ref, struct glue_AsmFuncCtx *ctx, int32_t ta,
                                                             int32_t stack_slot_off) {
@@ -2292,12 +2305,22 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
   return 1;
 }
 
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena,
+                                                            struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                            int32_t call_ref, struct glue_AsmFuncCtx *ctx, int32_t ta,
+                                                            int32_t stack_slot_off) {
+  return try_inline_const_struct_lit_return_call_to_slot_elf_impl(arena, elf_ctx, call_ref, ctx, ta, stack_slot_off);
+}
+#endif
+
 /**
  * let p: Struct = mk(...) 内联：callee 为 return Struct { f: param… } 时，CALL 实参直写 let 栈槽。
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
 /* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t try_inline_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena,
+/* G-02f-378 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t try_inline_struct_lit_return_call_to_slot_elf_impl(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_ref,
                                                       struct glue_AsmFuncCtx *ctx, int32_t ta,
                                                       int32_t stack_slot_off) {
@@ -2343,3 +2366,12 @@ int32_t try_inline_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena
   }
   return 1;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t try_inline_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena,
+                                                      struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_ref,
+                                                      struct glue_AsmFuncCtx *ctx, int32_t ta,
+                                                      int32_t stack_slot_off) {
+  return try_inline_struct_lit_return_call_to_slot_elf_impl(arena, elf_ctx, call_ref, ctx, ta, stack_slot_off);
+}
+#endif

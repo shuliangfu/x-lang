@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/377：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/378：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -435,6 +435,35 @@ function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, expr_ref
 function try_call_wpo_mono_vector_lane_of_binop_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   unsafe {
     return try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  }
+  return 0;
+}
+
+// ---- G-02f-378：field_init_param_index / struct_lit_return_to_slot / const_struct_lit_to_slot → seed impl ----
+extern "C" function glue_struct_lit_field_init_param_index_impl(arena: *u8, mod: *u8, func_idx: i32, lit_ref: i32, field_j: i32, out_param_ix: *i32): i32;
+extern "C" function try_inline_struct_lit_return_call_to_slot_elf_impl(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
+extern "C" function try_inline_const_struct_lit_return_call_to_slot_elf_impl(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
+
+#[no_mangle]
+function glue_struct_lit_field_init_param_index(arena: *u8, mod: *u8, func_idx: i32, lit_ref: i32, field_j: i32, out_param_ix: *i32): i32 {
+  unsafe {
+    return glue_struct_lit_field_init_param_index_impl(arena, mod, func_idx, lit_ref, field_j, out_param_ix);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function try_inline_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32 {
+  unsafe {
+    return try_inline_struct_lit_return_call_to_slot_elf_impl(arena, elf_ctx, call_ref, ctx, ta, stack_slot_off);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function try_inline_const_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32 {
+  unsafe {
+    return try_inline_const_struct_lit_return_call_to_slot_elf_impl(arena, elf_ctx, call_ref, ctx, ta, stack_slot_off);
   }
   return 0;
 }
