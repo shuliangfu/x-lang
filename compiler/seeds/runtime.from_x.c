@@ -452,8 +452,8 @@ void runtime_diag_cli_usage_note(const char *argv0) {
 
 
 void driver_print_usage_c(void);
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-298 R7-lite → rt_run_exec hybrid */
+#ifndef SHUX_RT_RUN_EXEC_FROM_X
 int runtime_test_status_to_rc(const char *script, int st) {
     if (st == -1) {
         runtime_diag_errno_path(script, "process error", "system(shux test)", script);
@@ -472,6 +472,9 @@ int runtime_test_status_to_rc(const char *script, int st) {
                            script ? script : "?");
     return 1;
 }
+#else
+int runtime_test_status_to_rc(const char *script, int st);
+#endif
 
 
 
@@ -6326,12 +6329,16 @@ void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state);
 
 
 
-/** X run_compiler_full_x：`--print-target-cpu` 早退（与 driver_run_compiler_full_x_impl_c 对齐）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/** X run_compiler_full_x：`--print-target-cpu` 早退。 */
+/* G-02f-298 R7-lite → rt_run_exec hybrid */
+#ifndef SHUX_RT_RUN_EXEC_FROM_X
 int32_t driver_print_target_cpu_features_c(int32_t features) {
     shu_target_cpu_print(stdout, (uint32_t)features);
     return 0;
 }
+#else
+int32_t driver_print_target_cpu_features_c(int32_t features);
+#endif
 
 
 
