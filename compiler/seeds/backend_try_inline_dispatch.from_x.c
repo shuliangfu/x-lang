@@ -927,6 +927,7 @@ int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, struct 
  * ELF CALL 内联：同模块 f(arg0) 且 f 为 return p.f（param0 单字段）时字段 load。
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
+/* G-02f-148：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t try_inline_param0_single_field_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                 int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
   struct ast_ASTArena *callee_arena;
@@ -1105,6 +1106,7 @@ int32_t glue_inline_var_field_access_offset(struct ast_ASTArena *arena, struct a
  * p.a + p.b 内联：同一 VAR 基址两字段 load32 + add（WPO-S3 cross_ret 等）。
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
+/* G-02f-148：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t try_inline_var_field_sum_binop_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                            int32_t left_ref, int32_t right_ref, struct glue_AsmFuncCtx *ctx,
                                            int32_t ta) {
@@ -1202,6 +1204,7 @@ int32_t try_inline_var_field_sum_binop_elf(struct ast_ASTArena *arena, struct pl
  * ELF CALL 内联：同模块 f(arg0) 且 f 为 return p.f0 + p.f1 时字段 load + add。
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
+/* G-02f-148：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t try_inline_param0_field_sum_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                              int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
   struct ast_ASTArena *callee_arena;
@@ -1289,6 +1292,7 @@ int32_t try_inline_param0_field_sum_call_elf(struct ast_ASTArena *arena, struct 
  * ELF CALL 简单内联：同模块 f(x) 且 f 为 x+K 链时 emit 实参后 add K。
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
+/* G-02f-148：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
   struct ast_Module *mod_ref;
