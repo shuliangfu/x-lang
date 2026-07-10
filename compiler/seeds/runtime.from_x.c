@@ -5614,7 +5614,8 @@ extern void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, i
  * 参数：p 候选 lib root 字符串指针。
  * 返回值：非 0 表示可用。
  */
-/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-305：lib root helpers → rt_lib_root hybrid */
+#ifndef SHUX_RT_LIB_ROOT_FROM_X
 int driver_lib_root_ptr_usable(const char *p) {
   return p && (uintptr_t)p >= 4096u && p[0] != '\0';
 }
@@ -5625,7 +5626,6 @@ int driver_lib_root_ptr_usable(const char *p) {
  * 写入默认 lib root：优先 SHUX_LIB（拷贝到 root_buf），否则 "."。
  * 参数：root_buf 输出缓冲（至少 512 字节）。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void driver_lib_root_default(char root_buf[512]) {
     const char *def = getenv("SHUX_LIB");
     root_buf[0] = '.';
@@ -5640,7 +5640,6 @@ void driver_lib_root_default(char root_buf[512]) {
 
 
 /** 从 ast_pool sidecar 键填充 lib_roots 数组；返回根数量。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]) {
     int n = (int)driver_emit_lib_root_count(lib_key);
     int i;
@@ -5664,6 +5663,12 @@ int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[
     }
     return n;
 }
+#else
+int driver_lib_root_ptr_usable(const char *p);
+void driver_lib_root_default(char root_buf[512]);
+int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]);
+int labi_rt_lib_root_slice_marker(void);
+#endif
 
 
 
