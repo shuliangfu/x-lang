@@ -1,7 +1,7 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..43/50 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..51 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge dep slots + import path gates + asm dep thin; C resolve bulk.
- * .x covers: diag/ndep/dep get-set/publish/buf + import_path_is_file + asm_user_* + out_buf object.
+ *         merge dep/import gates + find/dedup/glue; C resolve + large pipeline bulk.
+ * .x covers: + dep_prerun_entry_dir, find_loaded_import, merge_already_out, glue include, dep_dir.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -826,11 +826,28 @@ int32_t typeck_driver_dep_seeded_get(int32_t i) {
  * 参数：import_path 逻辑路径；all_paths/n_all 已加载列表。
  * 返回值：下标或 -1。
  */
+
+/* G-02f-51 helper protos (defs later near dep_prerun) */
+const char *shux_dep_prerun_entry_dir_pick(const char *main_entry_dir, const char **lib_roots, int n_lib_roots);
+int shux_find_loaded_import_index_scan(const char *import_path, char **all_paths, int n_all);
+int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], int n_out);
+void shux_emit_pipeline_glue_include_impl(void);
+int shux_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t dep_dir_size);
+
 int shux_find_loaded_import_index(const char *import_path, char **all_paths, int n_all) {
-    for (int i = 0; i < n_all; i++)
-        if (all_paths[i] && strcmp(all_paths[i], import_path) == 0)
-            return i;
+  if (import_path == NULL) {
     return -1;
+  }
+  if (all_paths == NULL) {
+    return -1;
+  }
+  if (n_all <= 0) {
+    return -1;
+  }
+  {
+    return shux_find_loaded_import_index_scan(import_path, all_paths, n_all);
+  }
+  return -1;
 }
 
 /**
@@ -838,10 +855,61 @@ int shux_find_loaded_import_index(const char *import_path, char **all_paths, int
  * 参数：main_entry_dir 入口目录；lib_roots/n_lib_roots 与 -L 一致。
  * 返回值：优先 lib_roots[0] 或 main_entry_dir。
  */
-const char *shux_dep_prerun_entry_dir(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
+
+const char *shux_dep_prerun_entry_dir_pick(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
     if (lib_roots && n_lib_roots > 0 && lib_roots[0] && lib_roots[0][0])
         return lib_roots[0];
     return main_entry_dir;
+}
+
+int shux_find_loaded_import_index_scan(const char *import_path, char **all_paths, int n_all) {
+    int i;
+    for (i = 0; i < n_all; i++) {
+        if (all_paths[i] && strcmp(all_paths[i], import_path) == 0)
+            return i;
+    }
+    return -1;
+}
+
+int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], int n_out) {
+    int j;
+    for (j = 0; j < n_out; j++) {
+        if (out_paths[j] && strcmp(out_paths[j], path) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+void shux_emit_pipeline_glue_include_impl(void) {
+    fputs("\n#include \"pipeline_glue.c\"\n", stdout);
+}
+
+int shux_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t dep_dir_size) {
+    const char *slash;
+    if (!path || !dep_dir || dep_dir_size == 0)
+        return -1;
+    slash = strrchr(path, '/');
+    if (slash) {
+        size_t dlen = (size_t)(slash - path);
+        if (dlen >= dep_dir_size)
+            return -1;
+        memcpy(dep_dir, path, dlen);
+        dep_dir[dlen] = '\0';
+    } else {
+        if (dep_dir_size < 2)
+            return -1;
+        snprintf(dep_dir, dep_dir_size, ".");
+    }
+    return 0;
+}
+const char *shux_dep_prerun_entry_dir(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
+  {
+    if (n_lib_roots <= 0) {
+      return main_entry_dir;
+    }
+    return shux_dep_prerun_entry_dir_pick(main_entry_dir, lib_roots, n_lib_roots);
+  }
+  return main_entry_dir;
 }
 
 /**
@@ -947,7 +1015,9 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
 
 /** -E 且入口为 pipeline.x 时输出 pipeline_glue.c include 行。 */
 void shux_emit_pipeline_glue_include(void) {
-    fputs("\n#include \"pipeline_glue.c\"\n", stdout);
+  {
+    shux_emit_pipeline_glue_include_impl();
+  }
 }
 
 /**
@@ -1510,35 +1580,36 @@ extern void ast_module_free(struct ast_Module *mod);
 
 /** 从绝对/相对源文件 path 提取所在目录写入 dep_dir；供 load_one_import 递归 import 切换 dep_dir。 */
 int shux_import_dep_dir_from_path(const char *path, char *dep_dir, size_t dep_dir_size) {
-    const char *slash;
-
-    if (!path || !dep_dir || dep_dir_size == 0)
-        return -1;
-    slash = strrchr(path, '/');
-    if (slash) {
-        size_t dlen = (size_t)(slash - path);
-        if (dlen >= dep_dir_size)
-            return -1;
-        memcpy(dep_dir, path, dlen);
-        dep_dir[dlen] = '\0';
-    } else {
-        if (dep_dir_size < 2)
-            return -1;
-        snprintf(dep_dir, dep_dir_size, ".");
-    }
-    return 0;
+  if (path == NULL) {
+    return -1;
+  }
+  if (dep_dir == NULL) {
+    return -1;
+  }
+  if (dep_dir_size == 0) {
+    return -1;
+  }
+  {
+    return shux_import_dep_dir_from_path_impl(path, dep_dir, dep_dir_size);
+  }
+  return -1;
 }
 
 /** 判断 import 路径是否已在 out_paths[0..n_out) 中（asm dep merge 去重）。 */
 int shux_merge_deps_path_already_out(const char *path, char *out_paths[], int n_out) {
-    int j;
-
-    if (!path || !out_paths || n_out <= 0)
-        return 0;
-    for (j = 0; j < n_out; j++)
-        if (out_paths[j] && strcmp(out_paths[j], path) == 0)
-            return 1;
+  if (path == NULL) {
     return 0;
+  }
+  if (out_paths == NULL) {
+    return 0;
+  }
+  if (n_out <= 0) {
+    return 0;
+  }
+  {
+    return shux_merge_deps_path_already_out_scan(path, out_paths, n_out);
+  }
+  return 0;
 }
 
 /** parser.x：读 module import 路径与 parse_into（dep 传递闭包收集用）。 */

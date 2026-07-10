@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..43/50：真迁 .x — pipeline 占位 + dep + import 路径判定 + asm dep 门闩。
+// G-02f-32..43/50/51：真迁 .x — pipeline dep + import 路径 + 查找/去重门闩。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
 // C 尾：存储槽数组、import resolve/snprintf、seeded_clear、malloc buf、大 pipeline。
-// G-02f-50：+ import_path_is_file_path / asm_user_*_dep 薄门闩 / asm_out_buf_is_object。
+// G-02f-51：+ dep_prerun_entry_dir / find_loaded_import_index / merge_deps_already_out / glue include。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -25,6 +25,11 @@ extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
 extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
 extern "C" function shux_asm_out_buf_is_object_magic(data: *u8): i32;
+extern "C" function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8;
+extern "C" function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32;
+extern "C" function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32;
+extern "C" function shux_emit_pipeline_glue_include_impl(): void;
+extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -360,4 +365,75 @@ function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
     return shux_asm_out_buf_is_object_magic(data);
   }
   return 0;
+}
+
+/* ---- G-02f-51：prerun entry_dir / import 查找去重 / glue include / dep_dir ---- */
+
+#[no_mangle]
+function shux_dep_prerun_entry_dir(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
+  unsafe {
+    if (n_lib_roots <= 0) {
+      return main_entry_dir;
+    }
+    return shux_dep_prerun_entry_dir_pick(main_entry_dir, lib_roots, n_lib_roots);
+  }
+  return main_entry_dir;
+}
+
+#[no_mangle]
+function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: i32): i32 {
+  if (import_path == 0 as *u8) {
+    return -1;
+  }
+  if (all_paths == 0 as *u8) {
+    return -1;
+  }
+  if (n_all <= 0) {
+    return -1;
+  }
+  unsafe {
+    return shux_find_loaded_import_index_scan(import_path, all_paths, n_all);
+  }
+  return -1;
+}
+
+#[no_mangle]
+function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32): i32 {
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  if (out_paths == 0 as *u8) {
+    return 0;
+  }
+  if (n_out <= 0) {
+    return 0;
+  }
+  unsafe {
+    return shux_merge_deps_path_already_out_scan(path, out_paths, n_out);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_emit_pipeline_glue_include(): void {
+  unsafe {
+    shux_emit_pipeline_glue_include_impl();
+  }
+}
+
+#[no_mangle]
+function shux_import_dep_dir_from_path(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32 {
+  if (path == 0 as *u8) {
+    return -1;
+  }
+  if (dep_dir == 0 as *u8) {
+    return -1;
+  }
+  if (dep_dir_size == 0) {
+    return -1;
+  }
+  unsafe {
+    return shux_import_dep_dir_from_path_impl(path, dep_dir, dep_dir_size);
+  }
+  return -1;
 }
