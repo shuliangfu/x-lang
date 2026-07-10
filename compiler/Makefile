@@ -1185,6 +1185,19 @@ src/x_seed_bridge.o: seeds/x_seed_bridge.from_x.c src/x_seed_bridge.x
 # G-02f-16：x_frontend_link_alias 产品 seed（G-02e-8 三 alias 并入体）
 x_frontend_link_alias.o: seeds/x_frontend_link_alias.from_x.c x_frontend_link_alias.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/x_frontend_link_alias.from_x.c -o $@
+
+# G-02f-17：strict/bootstrap bare alias + typeck stubs seeds
+ast_asm_bare_link_alias.o: seeds/ast_asm_bare_link_alias.from_x.c ast_asm_bare_link_alias.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/ast_asm_bare_link_alias.from_x.c -o $@
+
+backend_asm_bare_link_alias.o: seeds/backend_asm_bare_link_alias.from_x.c backend_asm_bare_link_alias.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_asm_bare_link_alias.from_x.c -o $@
+
+backend_asm_strict_fallback_alias.o: seeds/backend_asm_strict_fallback_alias.from_x.c backend_asm_strict_fallback_alias.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_asm_strict_fallback_alias.from_x.c -o $@
+
+typeck_c_module_stubs.o: seeds/typeck_c_module_stubs.from_x.c typeck_c_module_stubs.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/typeck_c_module_stubs.from_x.c -o $@
 # seed shux 用户程序 -backend asm：shux-c -E 编出的 backend/peephole/platform + user_asm_seed_bridge（无 weak 桩、无 C 回退）
 USER_ASM_SEED_HOST_DIR = build_asm/seed_host
 USER_ASM_SEED_HOST_OBJS = $(USER_ASM_SEED_HOST_DIR)/asm_backend_partial.o
@@ -2047,8 +2060,9 @@ build_asm/pipeline_glue_types.inc: pipeline_gen.c scripts/extract_pipeline_glue_
 	@mkdir -p build_asm
 	perl scripts/extract_pipeline_glue_types.pl pipeline_gen.c > $@
 
-pipeline_bootstrap_orchestration.o: pipeline_bootstrap_orchestration.c pipeline_gen.c build_asm/pipeline_glue_types.inc
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER -c -o $@ pipeline_bootstrap_orchestration.c
+# G-02f-17：pipeline_bootstrap_orchestration 产品 seed
+pipeline_bootstrap_orchestration.o: seeds/pipeline_bootstrap_orchestration.from_x.c pipeline_bootstrap_orchestration.x pipeline_gen.c build_asm/pipeline_glue_types.inc
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Ibuild_asm -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER -c -o $@ seeds/pipeline_bootstrap_orchestration.from_x.c
 
 $(ASM_GLUE_STANDALONE_O): src/asm/pipeline_glue_standalone.inc build_asm/pipeline_glue_types.inc pipeline_glue.c ast_pool.c scripts/cc_inc_tu.sh
 	@mkdir -p build_asm

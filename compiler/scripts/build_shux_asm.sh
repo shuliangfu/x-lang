@@ -2088,10 +2088,10 @@ ensure_typeck_o_strict_link_partial_obj() {
 ensure_pipeline_bootstrap_orchestration_strict_obj() {
   local ORCH_O
   ORCH_O="$BUILD_DIR/pipeline_bootstrap_orchestration_strict.o"
-  if [ ! -f "$ORCH_O" ] || [ "pipeline_bootstrap_orchestration.c" -nt "$ORCH_O" ]; then
-  echo " cc -c pipeline_bootstrap_orchestration.c -> $ORCH_O (strict, no pipeline_run wrapper)"
+  if [ ! -f "$ORCH_O" ] || [ "seeds/pipeline_bootstrap_orchestration.from_x.c" -nt "$ORCH_O" ]; then
+  echo " cc -c seeds/pipeline_bootstrap_orchestration.from_x.c -> $ORCH_O (strict, no pipeline_run wrapper)"
   "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -I"$BUILD_DIR" -DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER \
-  -c -o "$ORCH_O" pipeline_bootstrap_orchestration.c
+  -c -o "$ORCH_O" seeds/pipeline_bootstrap_orchestration.from_x.c
   fi
 }
 
@@ -2280,21 +2280,21 @@ asm_strict_backend_selfhosted() {
   [ "$t" -gt 1024 ] 2>/dev/null
 }
 
-# strict WPO 链：backend_asm_bare_link_alias.c（glue backend_* → build_asm 裸符号）。
+# strict WPO 链：seeds/backend_asm_bare_link_alias.from_x.c（glue backend_* → build_asm 裸符号）。
 ensure_backend_asm_bare_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/backend_asm_bare_link_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ backend_asm_bare_link_alias.c -nt "$ALIAS_O" ]; then
-  echo " cc -c backend_asm_bare_link_alias.c -> $ALIAS_O"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$ALIAS_O" backend_asm_bare_link_alias.c
+  if [ ! -f "$ALIAS_O" ] || [ seeds/backend_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+  echo " cc -c seeds/backend_asm_bare_link_alias.from_x.c -> $ALIAS_O"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$ALIAS_O" seeds/backend_asm_bare_link_alias.from_x.c
   fi
 }
 
 # strict 非 WPO backend fallback：给 user_asm_seed_bridge 提供 backend_* 强桥接，避免落到 seed weak return -1 桩。
 ensure_backend_asm_strict_fallback_alias_obj() {
   local ALIAS_O="$BUILD_DIR/backend_asm_strict_fallback_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ backend_asm_strict_fallback_alias.c -nt "$ALIAS_O" ]; then
-  echo " cc -c backend_asm_strict_fallback_alias.c -> $ALIAS_O"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$ALIAS_O" backend_asm_strict_fallback_alias.c
+  if [ ! -f "$ALIAS_O" ] || [ seeds/backend_asm_strict_fallback_alias.from_x.c -nt "$ALIAS_O" ]; then
+  echo " cc -c seeds/backend_asm_strict_fallback_alias.from_x.c -> $ALIAS_O"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$ALIAS_O" seeds/backend_asm_strict_fallback_alias.from_x.c
   fi
 }
 
@@ -2631,9 +2631,9 @@ EOF
 # strict 整链 typeck.o 时：用 weak 桩满足 lsp_diag.c / runtime 对 C typeck_module 的链接，不再 ld -r 抽 seed typeck.o。
 ensure_typeck_c_module_stubs_obj() {
   local OBJ="$BUILD_DIR/typeck_c_module_stubs.o"
-  if [ ! -f "$OBJ" ] || [ typeck_c_module_stubs.c -nt "$OBJ" ]; then
-  build_shux_asm_info "cc -c typeck_c_module_stubs.c -> $OBJ"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$OBJ" typeck_c_module_stubs.c
+  if [ ! -f "$OBJ" ] || [ seeds/typeck_c_module_stubs.from_x.c -nt "$OBJ" ]; then
+  build_shux_asm_info "cc -c seeds/typeck_c_module_stubs.from_x.c -> $OBJ"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$OBJ" seeds/typeck_c_module_stubs.from_x.c
   fi
 }
 
@@ -3064,7 +3064,7 @@ ensure_asm_bootstrap_x_companion_objs() {
   ./scripts/build_seed_asm_host.sh
   fi
   ensure_ast_pool_l5_bridge_obj
-  if [ ! -f pipeline_bootstrap_orchestration.o ] || [ pipeline_bootstrap_orchestration.c -nt pipeline_bootstrap_orchestration.o ]; then
+  if [ ! -f pipeline_bootstrap_orchestration.o ] || [ seeds/pipeline_bootstrap_orchestration.from_x.c -nt pipeline_bootstrap_orchestration.o ]; then
   make pipeline_bootstrap_orchestration.o
   fi
   SHUX_ASM_BOOTSTRAP_X_COMPANIONS_READY=1
@@ -3116,9 +3116,9 @@ GEN_DRIVER_X_PIPELINE_COMPANIONS="parser_x.o lexer_x.o codegen_x.o x_frontend_li
 # 与 Makefile bootstrap-driver-seed / relink-shux 对齐：pipeline_x.o 经 glue 引用的 backend 桥与 check/fmt C 实现。
 ensure_bstrict_seed_support_objs() {
   if [ ! -f "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ] \
-  || [ "backend_asm_strict_fallback_alias.c" -nt "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ]; then
-  echo " cc -c backend_asm_strict_fallback_alias.c -> $BUILD_DIR/backend_asm_strict_fallback_alias.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/backend_asm_strict_fallback_alias.o" backend_asm_strict_fallback_alias.c
+  || [ "seeds/backend_asm_strict_fallback_alias.from_x.c" -nt "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ]; then
+  echo " cc -c seeds/backend_asm_strict_fallback_alias.from_x.c -> $BUILD_DIR/backend_asm_strict_fallback_alias.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/backend_asm_strict_fallback_alias.o" seeds/backend_asm_strict_fallback_alias.from_x.c
   fi
   if [ ! -f src/asm/asm_backend_compat_stubs.o ] \
   || [ "seeds/asm_backend_compat_stubs.from_x.c" -nt src/asm/asm_backend_compat_stubs.o ]; then
@@ -4360,7 +4360,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ensure_pipeline_run_x_link_alias_obj
   ensure_asm_experimental_lsp_objs
   ensure_ast_pool_l5_bridge_obj
-  if [ ! -f pipeline_bootstrap_orchestration.o ] || [ pipeline_bootstrap_orchestration.c -nt pipeline_bootstrap_orchestration.o ]; then
+  if [ ! -f pipeline_bootstrap_orchestration.o ] || [ seeds/pipeline_bootstrap_orchestration.from_x.c -nt pipeline_bootstrap_orchestration.o ]; then
   make pipeline_bootstrap_orchestration.o
   fi
   SEED_O="$BUILD_DIR/asm_driver_seed"

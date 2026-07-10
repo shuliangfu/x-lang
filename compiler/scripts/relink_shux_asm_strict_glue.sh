@@ -175,9 +175,9 @@ ensure_typeck_c_user_precheck_obj() {
   return 0
   fi
   strict_glue_warn "typeck_c_orchestration_partial failed; using fallback stubs"
-  if [ ! -f "$BUILD_DIR/typeck_c_module_stubs.o" ] || [ typeck_c_module_stubs.c -nt "$BUILD_DIR/typeck_c_module_stubs.o" ]; then
-  strict_glue_info "cc -c typeck_c_module_stubs.c -> $BUILD_DIR/typeck_c_module_stubs.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/typeck_c_module_stubs.o" typeck_c_module_stubs.c
+  if [ ! -f "$BUILD_DIR/typeck_c_module_stubs.o" ] || [ seeds/typeck_c_module_stubs.from_x.c -nt "$BUILD_DIR/typeck_c_module_stubs.o" ]; then
+  strict_glue_info "cc -c seeds/typeck_c_module_stubs.from_x.c -> $BUILD_DIR/typeck_c_module_stubs.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/typeck_c_module_stubs.o" seeds/typeck_c_module_stubs.from_x.c
   fi
   echo "$BUILD_DIR/typeck_c_module_stubs.o"
   return 1
@@ -250,9 +250,9 @@ ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
 # strict 链：ast.x 裸名 → pipeline_glue ast_ast_*（typeck_strict_link_partial 去重后缺 ast_block_if_*）。
 ensure_ast_asm_bare_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/ast_asm_bare_link_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ ast_asm_bare_link_alias.c -nt "$ALIAS_O" ]; then
+  if [ ! -f "$ALIAS_O" ] || [ seeds/ast_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
   strict_glue_info "cc ast_asm_bare_link_alias.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -I"$BUILD_DIR" -c -o "$ALIAS_O" ast_asm_bare_link_alias.c
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -I"$BUILD_DIR" -c -o "$ALIAS_O" seeds/ast_asm_bare_link_alias.from_x.c
   fi
 }
 
@@ -763,9 +763,9 @@ asm_strict_backend_selfhosted() {
 
 ensure_backend_asm_bare_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/backend_asm_bare_link_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ backend_asm_bare_link_alias.c -nt "$ALIAS_O" ]; then
-  strict_glue_info "cc -c backend_asm_bare_link_alias.c -> $ALIAS_O"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$ALIAS_O" backend_asm_bare_link_alias.c
+  if [ ! -f "$ALIAS_O" ] || [ seeds/backend_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+  strict_glue_info "cc -c seeds/backend_asm_bare_link_alias.from_x.c -> $ALIAS_O"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$ALIAS_O" seeds/backend_asm_bare_link_alias.from_x.c
   fi
 }
 
