@@ -7,22 +7,45 @@
 // G-02f-106：+ expr/index/array/cpu/lanes pure glue 薄门闩。
 // G-02f-107：+ parse/peel/slot glue 薄门闩。
 
-extern "C" function glue_expr_same_var_c_impl(arena: *u8, a_ref: i32, b_ref: i32): i32;
-extern "C" function glue_var_array_i32_size_c_impl(arena: *u8, var_ref: i32): i32;
 extern "C" function glue_simd_loop_cpu_features_c_impl(): u32;
 extern "C" function glue_simd_loop_pick_lanes_c_impl(feats: u32, binop_ko: i32, lanes_out: *i32): i32;
 extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 extern "C" function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
+extern "C" function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
+extern "C" function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out: *u8): void;
+extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+extern "C" function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
+extern "C" function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
 
 function simd_loop_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-106：simd_loop pure glue 门闩 ---- */
+/* ---- G-02f-106 / G-02f-129：simd_loop pure glue 真迁 ---- */
 
+// G-02f-129：两 EXPR_VAR 是否同名（GLUE_EXPR_VAR=3）
 #[no_mangle]
 function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
-  unsafe { return glue_expr_same_var_c_impl(arena, a_ref, b_ref); }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, a_ref) != 3) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, b_ref) != 3) { return 0; }
+    let alen: i32 = pipeline_expr_var_name_len(arena, a_ref);
+    let blen: i32 = pipeline_expr_var_name_len(arena, b_ref);
+    if (alen <= 0) { return 0; }
+    if (alen != blen) { return 0; }
+    if (alen > 63) { return 0; }
+    let an: u8[64] = [];
+    let bn: u8[64] = [];
+    pipeline_expr_var_name_into(arena, a_ref, &an[0]);
+    pipeline_expr_var_name_into(arena, b_ref, &bn[0]);
+    let k: i32 = 0;
+    while (k < alen) {
+      if (an[k] != bn[k]) { return 0; }
+      k = k + 1;
+    }
+    return 1;
+  }
   return 0;
 }
 
@@ -37,9 +60,22 @@ function glue_index_uses_var_c(arena: *u8, index_expr_ref: i32, i_var_ref: i32):
   return 0;
 }
 
+// G-02f-129：VAR 的 i32[N] 定长数组元素个数（GLUE_TYPE_ARRAY=10, GLUE_TYPE_I32=0）
 #[no_mangle]
 function glue_var_array_i32_size_c(arena: *u8, var_ref: i32): i32 {
-  unsafe { return glue_var_array_i32_size_c_impl(arena, var_ref); }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) { return 0; }
+    let tr: i32 = pipeline_expr_resolved_type_ref(arena, var_ref);
+    if (tr <= 0) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, tr) != 10) { return 0; }
+    let asz: i32 = pipeline_type_array_size_at(arena, tr);
+    if (asz <= 0) { return 0; }
+    if (asz > 256) { return 0; }
+    let elem: i32 = pipeline_type_elem_ref_at(arena, tr);
+    if (elem <= 0) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, elem) != 0) { return 0; }
+    return asz;
+  }
   return 0;
 }
 

@@ -1,4 +1,5 @@
 /* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+ * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
  * G-02f-126 true .x pure helpers.
@@ -4636,7 +4637,8 @@ int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
  * `-E src/asm/asm.x` 的 compiler-internal 闭包仅需 parse 填 import/签名槽；
  * 对 `ast` 等大模块做 dep_prerun typeck 会显著拖慢甚至卡住 seed host 构建。
  */
-int driver_x_emit_asm_dep_parse_only_ok_impl(const char *input_path, const char *dep_path) {
+/* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path) {
     if (!input_path || !dep_path)
         return 0;
     if (strstr(input_path, "src/asm/asm.x") == NULL && strstr(input_path, "/asm/asm.x") == NULL)
@@ -4648,12 +4650,6 @@ int driver_x_emit_asm_dep_parse_only_ok_impl(const char *input_path, const char 
         strncmp(dep_path, "platform.", 9) == 0)
         return 1;
     return 0;
-}
-int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path) {
-  {
-    return driver_x_emit_asm_dep_parse_only_ok_impl(input_path, dep_path);
-  }
-  return 0;
 }
 
 

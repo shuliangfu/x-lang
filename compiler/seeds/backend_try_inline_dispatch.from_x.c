@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
  * G-02f-126 true .x pure helpers.
@@ -526,7 +527,8 @@ int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module
                                           int32_t expr_ref, int32_t param_ix);
 
 /** 标量 i32 binop 编译期求值；不支持的 ko 或除零返回 0。 */
-int32_t glue_const_scalar_binop_eval_i32_impl(int32_t binop_ko, int32_t a, int32_t b, int32_t *out) {
+/* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b, int32_t *out) {
   int64_t wide;
   if (!out)
     return 0;
@@ -555,12 +557,6 @@ int32_t glue_const_scalar_binop_eval_i32_impl(int32_t binop_ko, int32_t a, int32
   }
   *out = (int32_t)wide;
   return 1;
-}
-int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b, int32_t *out) {
-  {
-    return glue_const_scalar_binop_eval_i32_impl(binop_ko, a, b, out);
-  }
-  return 0;
 }
 
 

@@ -1,4 +1,5 @@
 /* seeds/backend_x86_64_enc_c.from_x.c
+ * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
  * G-02f-124 true .x pure helpers.
  * G-02f-102 helper gates.
@@ -65,7 +66,8 @@ int32_t x86_enc_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t 
 #define X86_ENC_FIXED(ctx, arr) x86_enc_bytes((ctx), (const uint8_t *)(arr), (int32_t)sizeof(arr))
 
 /** x86 rel32 条件跳转 + patch（与 x86_64_enc.x enc_jz/enc_jge 一致）。 */
-int32_t x86_enc_jcc_rel32_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2, uint8_t *label,
+/* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2, uint8_t *label,
                                  int32_t label_len) {
   uint8_t buf[6];
   int32_t rel32_at;
@@ -82,13 +84,6 @@ int32_t x86_enc_jcc_rel32_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8
   if (pipeline_elf_ctx_ensure_label(cb, label, label_len) != 0)
     return -1;
   return pipeline_elf_ctx_append_patch(cb, rel32_at, label, label_len, 0);
-}
-int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2, uint8_t *label,
-                                 int32_t label_len) {
-  {
-    return x86_enc_jcc_rel32_impl(elf_ctx, opcode2, label, label_len);
-  }
-  return 0 - 1;
 }
 
 

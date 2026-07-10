@@ -90,7 +90,6 @@ extern "C" function drv_path_ends_x_impl(buf: *u8, len: i32): i32;
 
 extern "C" function driver_deps_are_std_core_closure_only_impl(dep_paths: *u8, n_deps: i32): i32;
 extern "C" function driver_c_mod_imports_are_core_only_impl(mod: *u8): i32;
-extern "C" function driver_x_emit_asm_dep_parse_only_ok_impl(input_path: *u8, dep_path: *u8): i32;
 extern "C" function driver_check_only_c_typeck_impl(input_path: *u8, src: *u8, lib_roots_arr: *u8, n_lib_roots: i32): i32;
 extern "C" function driver_lib_root_default_impl(root_buf: *u8): void;
 extern "C" function runtime_test_status_to_rc_impl(script: *u8, st: i32): i32;
@@ -558,13 +557,7 @@ function driver_c_mod_imports_are_core_only(mod: *u8): i32 {
   return 0;
 }
 
-#[no_mangle]
-function driver_x_emit_asm_dep_parse_only_ok(input_path: *u8, dep_path: *u8): i32 {
-  unsafe {
-    return driver_x_emit_asm_dep_parse_only_ok_impl(input_path, dep_path);
-  }
-  return 0;
-}
+// G-02f-129：driver_x_emit_asm_dep_parse_only_ok 真迁见文件尾
 
 #[no_mangle]
 function driver_check_only_c_typeck(input_path: *u8, src: *u8, lib_roots_arr: *u8, n_lib_roots: i32): i32 {
@@ -1302,6 +1295,69 @@ function driver_x_emit_asm_dep_parse_skip_typeck_ok(input_path: *u8, dep_path: *
   // strcmp(dep_path, "backend") == 0
   if (dep_path[0]==98 && dep_path[1]==97 && dep_path[2]==99 && dep_path[3]==107
       && dep_path[4]==101 && dep_path[5]==110 && dep_path[6]==100 && dep_path[7]==0) {
+    return 1;
+  }
+  return 0;
+}
+
+// G-02f-129：asm.x dep 仅 parse 白名单
+#[no_mangle]
+function driver_x_emit_asm_dep_parse_only_ok(input_path: *u8, dep_path: *u8): i32 {
+  if (input_path == 0) { return 0; }
+  if (dep_path == 0) { return 0; }
+  // must contain "src/asm/asm.x" or "/asm/asm.x"
+  let plen: i32 = 0;
+  while (plen < 4096) {
+    if (input_path[plen] == 0) { break; }
+    plen = plen + 1;
+  }
+  let hit: i32 = 0;
+  let s: i32 = 0;
+  while (s + 13 <= plen) {
+    if (input_path[s]==115 && input_path[s+1]==114 && input_path[s+2]==99 && input_path[s+3]==47
+        && input_path[s+4]==97 && input_path[s+5]==115 && input_path[s+6]==109 && input_path[s+7]==47
+        && input_path[s+8]==97 && input_path[s+9]==115 && input_path[s+10]==109 && input_path[s+11]==46
+        && input_path[s+12]==120) {
+      hit = 1;
+      break;
+    }
+    s = s + 1;
+  }
+  if (hit == 0) {
+    s = 0;
+    while (s + 10 <= plen) {
+      if (input_path[s]==47 && input_path[s+1]==97 && input_path[s+2]==115 && input_path[s+3]==109
+          && input_path[s+4]==47 && input_path[s+5]==97 && input_path[s+6]==115 && input_path[s+7]==109
+          && input_path[s+8]==46 && input_path[s+9]==120) {
+        hit = 1;
+        break;
+      }
+      s = s + 1;
+    }
+  }
+  if (hit == 0) { return 0; }
+  // exact: ast / codegen / backend / peephole
+  if (dep_path[0]==97 && dep_path[1]==115 && dep_path[2]==116 && dep_path[3]==0) { return 1; }
+  if (dep_path[0]==99 && dep_path[1]==111 && dep_path[2]==100 && dep_path[3]==101
+      && dep_path[4]==103 && dep_path[5]==101 && dep_path[6]==110 && dep_path[7]==0) {
+    return 1;
+  }
+  if (dep_path[0]==98 && dep_path[1]==97 && dep_path[2]==99 && dep_path[3]==107
+      && dep_path[4]==101 && dep_path[5]==110 && dep_path[6]==100 && dep_path[7]==0) {
+    return 1;
+  }
+  if (dep_path[0]==112 && dep_path[1]==101 && dep_path[2]==101 && dep_path[3]==112
+      && dep_path[4]==104 && dep_path[5]==111 && dep_path[6]==108 && dep_path[7]==101
+      && dep_path[8]==0) {
+    return 1;
+  }
+  // prefixes: asm. / arch. / platform.
+  if (dep_path[0]==97 && dep_path[1]==115 && dep_path[2]==109 && dep_path[3]==46) { return 1; }
+  if (dep_path[0]==97 && dep_path[1]==114 && dep_path[2]==99 && dep_path[3]==104 && dep_path[4]==46) {
+    return 1;
+  }
+  if (dep_path[0]==112 && dep_path[1]==108 && dep_path[2]==97 && dep_path[3]==116 && dep_path[4]==102
+      && dep_path[5]==111 && dep_path[6]==114 && dep_path[7]==109 && dep_path[8]==46) {
     return 1;
   }
   return 0;

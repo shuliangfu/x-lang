@@ -12,7 +12,6 @@ function backend_try_inline_dispatch_x_doc_anchor(): i32 {
 // G-02f-109：+ align/const fold/module lookup/param 薄门闩。
 
 extern "C" function glue_module_func_index_by_name_impl(mod: *u8, name: *u8, nlen: i32): i32;
-extern "C" function glue_const_scalar_binop_eval_i32_impl(ko: i32, a: i32, b: i32, out: *i32): i32;
 extern "C" function glue_module_named_type_has_struct_layout_impl(mod: *u8, name: *u8, nlen: i32): i32;
 extern "C" function glue_type_ref_is_named_struct_layout_impl(arena: *u8, mod: *u8, tr: i32): i32;
 extern "C" function glue_local_var_slot_holds_indirect_ptr_impl(arena: *u8, er: i32, ctx: *u8): i32;
@@ -25,8 +24,30 @@ extern "C" function backend_fold_func_return_operand_ref(arena: *u8, mod: *u8, f
 #[no_mangle]
 function glue_module_func_index_by_name(mod: *u8, name: *u8, nlen: i32): i32 { unsafe { return glue_module_func_index_by_name_impl(mod, name, nlen); } return 0; }
 
+// G-02f-129：标量 i32 binop 编译期求值（4=add..8=mod）
 #[no_mangle]
-function glue_const_scalar_binop_eval_i32(ko: i32, a: i32, b: i32, out: *i32): i32 { unsafe { return glue_const_scalar_binop_eval_i32_impl(ko, a, b, out); } return 0; }
+function glue_const_scalar_binop_eval_i32(ko: i32, a: i32, b: i32, out: *i32): i32 {
+  if (out == 0) { return 0; }
+  let wide: i64 = 0;
+  if (ko == 4) {
+    wide = (a as i64) + (b as i64);
+  } else if (ko == 5) {
+    wide = (a as i64) - (b as i64);
+  } else if (ko == 6) {
+    wide = (a as i64) * (b as i64);
+  } else if (ko == 7) {
+    if (b == 0) { return 0; }
+    wide = (a as i64) / (b as i64);
+  } else if (ko == 8) {
+    if (b == 0) { return 0; }
+    wide = (a as i64) % (b as i64);
+  } else {
+    return 0;
+  }
+  unsafe { out[0] = wide as i32; }
+  return 1;
+}
+
 #[no_mangle]
 function glue_module_named_type_has_struct_layout(mod: *u8, name: *u8, nlen: i32): i32 { unsafe { return glue_module_named_type_has_struct_layout_impl(mod, name, nlen); } return 0; }
 #[no_mangle]

@@ -1,4 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
+ * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
  * G-02f-124 true .x pure helpers.
  * G-02f-121 true .x pure helpers.
@@ -80,7 +81,8 @@ extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, i
 #define GLUE_TYPE_I32 0
 
 /** 两 EXPR_VAR 是否同名。 */
-int32_t glue_expr_same_var_c_impl(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
+/* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
     uint8_t an[64];
     uint8_t bn[64];
     int32_t alen;
@@ -101,12 +103,6 @@ int32_t glue_expr_same_var_c_impl(struct ast_ASTArena *arena, int32_t a_ref, int
     }
     return 1;
 }
-int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
-  {
-    return glue_expr_same_var_c_impl(arena, a_ref, b_ref);
-  }
-  return 0;
-}
 
 
 /** INDEX 的下标是否为归纳变量 i。 */
@@ -121,7 +117,8 @@ int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref
 
 
 /** VAR 的 i32[N] 定长数组元素个数；失败 0。 */
-int32_t glue_var_array_i32_size_c_impl(struct ast_ASTArena *arena, int32_t var_ref) {
+/* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
     int32_t tr;
     int32_t elem;
     int32_t asz;
@@ -141,12 +138,6 @@ int32_t glue_var_array_i32_size_c_impl(struct ast_ASTArena *arena, int32_t var_r
     if (pipeline_type_kind_ord_at(arena, elem) != GLUE_TYPE_I32)
         return 0;
     return asz;
-}
-int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
-  {
-    return glue_var_array_i32_size_c_impl(arena, var_ref);
-  }
-  return 0;
 }
 
 
