@@ -110,38 +110,111 @@ function pipeline_expr_is_func_param_at_strict_minimal(arena: *u8, mod: *u8, fun
 
 
 
-extern "C" function pipeline_typeck_find_func_index_in_module_by_name_strict_minimal_impl(mod: *u8, name: *u8, nlen: i32, arity: i32): i32;
-extern "C" function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal_impl(mod: *u8, arena: *u8, name: *u8, nlen: i32, a: i32, b: i32, c: *u8, d: *u8): i32;
-extern "C" function pipeline_typeck_map_import_binding_named_to_caller_strict_minimal_impl(mod: *u8, dep: i32, arena: *u8, nm: *u8, nlen: i32): i32;
 extern "C" function pipeline_typeck_linear_name_already_moved_strict_minimal_impl(name: *u8, nlen: i32): i32;
 extern "C" function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
 extern "C" function pipeline_type_region_label_len_at(arena: *u8, tr: i32): i32;
-extern "C" function pipeline_typeck_expr_diag_line_col_strict_minimal_impl(arena: *u8, er: i32, line: *i32, col: *i32): void;
 extern "C" function typeck_block_is_strict_ancestor_strict_minimal_impl(arena: *u8, a: i32, b: i32): i32;
-extern "C" function typeck_expr_lval_root_var_strict_minimal_impl(arena: *u8, er: i32, out: *u8, olen: *i32): i32;
 extern "C" function typeck_name_is_block_local_strict_minimal_impl(mod: *u8, arena: *u8, ctx: *u8, name: *u8): i32;
 extern "C" function typeck_expr_is_addr_of_block_local_strict_minimal_impl(mod: *u8, arena: *u8, ctx: *u8, er: i32): i32;
+extern "C" function pipeline_module_num_funcs(mod: *u8): i32;
+extern "C" function pipeline_module_func_name_equal_at(mod: *u8, fi: i32, name: *u8, nlen: i32): i32;
+extern "C" function pipeline_module_func_num_params_at(mod: *u8, fi: i32): i32;
+extern "C" function pipeline_module_func_return_type_at(mod: *u8, fi: i32): i32;
+extern "C" function pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep: i32, ret_ty: i32, arena: *u8, ctx: *u8): i32;
+extern "C" function pipeline_module_import_kind_at(mod: *u8, dep: i32): i32;
+extern "C" function pipeline_type_find_or_alloc_named(arena: *u8, name: *u8, nlen: i32): i32;
+extern "C" function pipeline_type_ensure_by_kind_ord(arena: *u8, kind: i32): i32;
+extern "C" function pipeline_expr_line_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_col_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_index_base_ref(arena: *u8, er: i32): i32;
 // G-02f-117：pipeline_typeck_const_name_matches_strict_minimal 真迁 .x
+// G-02f-140：find_func / map_binding / diag / lval_root / result_payload 真迁 .x
 
-/* ---- G-02f-108：strict minimal more typeck helpers 门闩 ---- */
+/* ---- G-02f-108 / G-02f-140：strict minimal more typeck helpers ---- */
 
-
-
+// G-02f-140：按名找函数下标；want_arity>=0 时优先 arity 匹配
 #[no_mangle]
-function pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(mod: *u8, name: *u8, nlen: i32, arity: i32): i32 {
-  unsafe { return pipeline_typeck_find_func_index_in_module_by_name_strict_minimal_impl(mod, name, nlen, arity); }
+function pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(mod: *u8, name: *u8, name_len: i32, want_arity: i32): i32 {
+  if (mod == 0) { return 0 - 1; }
+  if (name == 0) { return 0 - 1; }
+  if (name_len <= 0) { return 0 - 1; }
+  unsafe {
+    let first_match: i32 = 0 - 1;
+    let n: i32 = pipeline_module_num_funcs(mod);
+    let j: i32 = 0;
+    while (j < n) {
+      if (pipeline_module_func_name_equal_at(mod, j, name, name_len) != 0) {
+        if (first_match < 0) { first_match = j; }
+        if (want_arity >= 0) {
+          if (pipeline_module_func_num_params_at(mod, j) == want_arity) { return j; }
+        }
+      }
+      j = j + 1;
+    }
+    return first_match;
+  }
+  return 0 - 1;
+}
+
+// G-02f-140：按名找返回类型；from_dep_index>=0 时映射到 caller arena
+#[no_mangle]
+function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
+  mod: *u8, caller_arena: *u8, name: *u8, name_len: i32, from_dep_index: i32, want_arity: i32, ctx: *u8, func_index_out: *i32
+): i32 {
+  unsafe {
+    let func_ix: i32 = pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(mod, name, name_len, want_arity);
+    if (func_ix < 0) { return 0; }
+    if (func_index_out != 0) {
+      func_index_out[0] = func_ix;
+    }
+    let ret_ty: i32 = pipeline_module_func_return_type_at(mod, func_ix);
+    if (from_dep_index < 0) { return ret_ty; }
+    return pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, ret_ty, caller_arena, ctx);
+  }
   return 0;
 }
 
+// G-02f-140：import binding 限定名 → caller arena TYPE_NAMED
 #[no_mangle]
-function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(mod: *u8, arena: *u8, name: *u8, nlen: i32, a: i32, b: i32, c: *u8, d: *u8): i32 {
-  unsafe { return pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal_impl(mod, arena, name, nlen, a, b, c, d); }
-  return 0;
-}
-
-#[no_mangle]
-function pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(mod: *u8, dep: i32, arena: *u8, nm: *u8, nlen: i32): i32 {
-  unsafe { return pipeline_typeck_map_import_binding_named_to_caller_strict_minimal_impl(mod, dep, arena, nm, nlen); }
+function pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(
+  entry_mod: *u8, dep_ix: i32, caller_arena: *u8, nm: *u8, nlen: i32
+): i32 {
+  if (caller_arena == 0) { return 0; }
+  if (nm == 0) { return 0; }
+  if (nlen <= 0) { return 0; }
+  unsafe {
+    if (entry_mod == 0) {
+      return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
+    }
+    if (dep_ix < 0) {
+      return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
+    }
+    if (pipeline_module_import_kind_at(entry_mod, dep_ix) != 1) {
+      return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
+    }
+    let bl: i32 = pipeline_module_import_binding_name_len(entry_mod, dep_ix);
+    if (bl <= 0) {
+      return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
+    }
+    if (bl + 1 + nlen > 63) {
+      return pipeline_type_find_or_alloc_named(caller_arena, nm, nlen);
+    }
+    let qnm: u8[64] = [];
+    let i: i32 = 0;
+    while (i < bl) {
+      qnm[i] = pipeline_module_import_binding_name_byte_at(entry_mod, dep_ix, i);
+      i = i + 1;
+    }
+    qnm[bl] = 46; // '.'
+    let k: i32 = 0;
+    while (k < nlen) {
+      qnm[bl + 1 + k] = nm[k];
+      k = k + 1;
+    }
+    let qlen: i32 = bl + 1 + nlen;
+    return pipeline_type_find_or_alloc_named(caller_arena, &qnm[0], qlen);
+  }
   return 0;
 }
 
@@ -197,9 +270,17 @@ function pipeline_typeck_slice_region_escape_strict_minimal(arena: *u8, expect_r
   return 0;
 }
 
+// G-02f-140：expr 诊断行列
 #[no_mangle]
-function pipeline_typeck_expr_diag_line_col_strict_minimal(arena: *u8, er: i32, line: *i32, col: *i32): void {
-  unsafe { pipeline_typeck_expr_diag_line_col_strict_minimal_impl(arena, er, line, col); }
+function pipeline_typeck_expr_diag_line_col_strict_minimal(arena: *u8, expr_ref: i32, line: *i32, col: *i32): void {
+  if (line != 0) { line[0] = 0; }
+  if (col != 0) { col[0] = 0; }
+  if (arena == 0) { return; }
+  if (expr_ref <= 0) { return; }
+  unsafe {
+    if (line != 0) { line[0] = pipeline_expr_line_at(arena, expr_ref); }
+    if (col != 0) { col[0] = pipeline_expr_col_at(arena, expr_ref); }
+  }
 }
 
 #[no_mangle]
@@ -208,9 +289,37 @@ function typeck_block_is_strict_ancestor_strict_minimal(arena: *u8, a: i32, b: i
   return 0;
 }
 
+// G-02f-140：lval 根 VAR 名；FIELD_ACCESS=44 INDEX=47 VAR=3
 #[no_mangle]
-function typeck_expr_lval_root_var_strict_minimal(arena: *u8, er: i32, out: *u8, olen: *i32): i32 {
-  unsafe { return typeck_expr_lval_root_var_strict_minimal_impl(arena, er, out, olen); }
+function typeck_expr_lval_root_var_strict_minimal(arena: *u8, expr_ref: i32, out: *u8, out_len: *i32): i32 {
+  if (arena == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  if (out == 0) { return 0; }
+  if (out_len == 0) { return 0; }
+  unsafe {
+    let cur: i32 = expr_ref;
+    while (1 == 1) {
+      let kind: i32 = pipeline_expr_kind_ord_at(arena, cur);
+      if (kind == 3) {
+        let nlen: i32 = pipeline_expr_var_name_len(arena, cur);
+        out_len[0] = nlen;
+        if (nlen <= 0) { return 0; }
+        if (nlen > 63) { return 0; }
+        pipeline_expr_var_name_into(arena, cur, out);
+        return 1;
+      }
+      if (kind == 44) {
+        cur = pipeline_expr_field_access_base_ref(arena, cur);
+      } else {
+        if (kind == 47) {
+          cur = pipeline_expr_index_base_ref(arena, cur);
+        } else {
+          return 0;
+        }
+      }
+      if (cur <= 0) { return 0; }
+    }
+  }
   return 0;
 }
 
@@ -232,9 +341,8 @@ function typeck_expr_is_addr_of_block_local_strict_minimal(mod: *u8, arena: *u8,
 extern "C" function debug_try_propagate_report_strict_minimal_impl(arena: *u8, er: i32, fi: i32, rt: i32, f: i32): void;
 extern "C" function pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(dep_arena: *u8, dep_rt: i32, caller: *u8): i32;
 extern "C" function pipeline_typeck_const_expr_ref_strict_minimal_impl(arena: *u8, er: i32): i32;
-extern "C" function pipeline_typeck_result_payload_type_from_name_strict_minimal_impl(arena: *u8, name: *u8, nlen: i32): i32;
 
-/* ---- G-02f-110：pipeline remaining typeck 门闩 ---- */
+/* ---- G-02f-110 / G-02f-140：pipeline remaining typeck ---- */
 
 #[no_mangle]
 function debug_try_propagate_report_strict_minimal(arena: *u8, er: i32, fi: i32, rt: i32, f: i32): void { unsafe { debug_try_propagate_report_strict_minimal_impl(arena, er, fi, rt, f); } }
@@ -242,8 +350,107 @@ function debug_try_propagate_report_strict_minimal(arena: *u8, er: i32, fi: i32,
 function pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena: *u8, dep_rt: i32, caller: *u8): i32 { unsafe { return pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(dep_arena, dep_rt, caller); } return 0; }
 #[no_mangle]
 function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, er: i32): i32 { unsafe { return pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, er); } return 0; }
+
+// G-02f-140：Result_<payload> → payload type ref；prefix "Result_"=7
+// TYPE_I32=0 BOOL=1 U8=2 U64=4 I64=5 USIZE=6 ISIZE=7
 #[no_mangle]
-function pipeline_typeck_result_payload_type_from_name_strict_minimal(arena: *u8, name: *u8, nlen: i32): i32 { unsafe { return pipeline_typeck_result_payload_type_from_name_strict_minimal_impl(arena, name, nlen); } return 0; }
+function pipeline_typeck_result_payload_type_from_name_strict_minimal(arena: *u8, name: *u8, name_len: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (name == 0) { return 0; }
+  if (name_len <= 0) { return 0; }
+  if (name_len < 7) { return 0; }
+  // "Result_"
+  if (name[0] != 82) { return 0; }
+  if (name[1] != 101) { return 0; }
+  if (name[2] != 115) { return 0; }
+  if (name[3] != 117) { return 0; }
+  if (name[4] != 108) { return 0; }
+  if (name[5] != 116) { return 0; }
+  if (name[6] != 95) { return 0; }
+  let suffix_off: i32 = 7;
+  let suffix_len: i32 = name_len - suffix_off;
+  unsafe {
+    // i32
+    if (suffix_len == 3) {
+      if (name[suffix_off] == 105) {
+        if (name[suffix_off + 1] == 51) {
+          if (name[suffix_off + 2] == 50) {
+            return pipeline_type_ensure_by_kind_ord(arena, 0);
+          }
+        }
+      }
+    }
+    // u8
+    if (suffix_len == 2) {
+      if (name[suffix_off] == 117) {
+        if (name[suffix_off + 1] == 56) {
+          return pipeline_type_ensure_by_kind_ord(arena, 2);
+        }
+      }
+    }
+    // i64
+    if (suffix_len == 3) {
+      if (name[suffix_off] == 105) {
+        if (name[suffix_off + 1] == 54) {
+          if (name[suffix_off + 2] == 52) {
+            return pipeline_type_ensure_by_kind_ord(arena, 5);
+          }
+        }
+      }
+    }
+    // u64
+    if (suffix_len == 3) {
+      if (name[suffix_off] == 117) {
+        if (name[suffix_off + 1] == 54) {
+          if (name[suffix_off + 2] == 52) {
+            return pipeline_type_ensure_by_kind_ord(arena, 4);
+          }
+        }
+      }
+    }
+    // usize
+    if (suffix_len == 5) {
+      if (name[suffix_off] == 117) {
+        if (name[suffix_off + 1] == 115) {
+          if (name[suffix_off + 2] == 105) {
+            if (name[suffix_off + 3] == 122) {
+              if (name[suffix_off + 4] == 101) {
+                return pipeline_type_ensure_by_kind_ord(arena, 6);
+              }
+            }
+          }
+        }
+      }
+    }
+    // isize
+    if (suffix_len == 5) {
+      if (name[suffix_off] == 105) {
+        if (name[suffix_off + 1] == 115) {
+          if (name[suffix_off + 2] == 105) {
+            if (name[suffix_off + 3] == 122) {
+              if (name[suffix_off + 4] == 101) {
+                return pipeline_type_ensure_by_kind_ord(arena, 7);
+              }
+            }
+          }
+        }
+      }
+    }
+    // bool
+    if (suffix_len == 4) {
+      if (name[suffix_off] == 98) {
+        if (name[suffix_off + 1] == 111) {
+          if (name[suffix_off + 2] == 111) {
+            if (name[suffix_off + 3] == 108) {
+              return pipeline_type_ensure_by_kind_ord(arena, 1);
+            }
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
 
 // G-02f-113：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
 

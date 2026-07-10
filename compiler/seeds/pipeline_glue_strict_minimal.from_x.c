@@ -772,7 +772,8 @@ int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct ast_Modu
 }
 
 
-int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal_impl(struct ast_Module *mod, uint8_t *name,
+/* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(struct ast_Module *mod, uint8_t *name,
                                                                                  int32_t name_len, int32_t want_arity) {
   int32_t j;
   int32_t first_match;
@@ -789,16 +790,10 @@ int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal_impl(st
   }
   return first_match;
 }
-int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(struct ast_Module *mod, uint8_t *name,
-                                                                                 int32_t name_len, int32_t want_arity) {
-  {
-    return pipeline_typeck_find_func_index_in_module_by_name_strict_minimal_impl(mod, name, name_len, want_arity);
-  }
-  return 0;
-}
 
 
-int32_t pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal_impl(
+/* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
     struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len, int32_t from_dep_index,
     int32_t want_arity, struct ast_PipelineDepCtx *ctx, int32_t *func_index_out) {
   int32_t func_ix;
@@ -813,17 +808,10 @@ int32_t pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal_i
     return ret_ty;
   return pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, ret_ty, caller_arena, ctx);
 }
-int32_t pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
-    struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len, int32_t from_dep_index,
-    int32_t want_arity, struct ast_PipelineDepCtx *ctx, int32_t *func_index_out) {
-  {
-    return pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal_impl(mod, caller_arena, name, name_len, from_dep_index, want_arity, ctx, func_index_out);
-  }
-  return 0;
-}
 
 
-int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal_impl(struct ast_Module *entry_mod,
+/* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(struct ast_Module *entry_mod,
                                                                                   int32_t dep_ix,
                                                                                   struct ast_ASTArena *caller_arena,
                                                                                   uint8_t *nm, int32_t nlen) {
@@ -846,15 +834,6 @@ int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal_impl(s
   memcpy(qnm + bl + 1, nm, (size_t)nlen);
   qlen = bl + 1 + nlen;
   return pipeline_type_find_or_alloc_named(caller_arena, qnm, qlen);
-}
-int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(struct ast_Module *entry_mod,
-                                                                                  int32_t dep_ix,
-                                                                                  struct ast_ASTArena *caller_arena,
-                                                                                  uint8_t *nm, int32_t nlen) {
-  {
-    return pipeline_typeck_map_import_binding_named_to_caller_strict_minimal_impl(entry_mod, dep_ix, caller_arena, nm, nlen);
-  }
-  return 0;
 }
 
 
@@ -1228,7 +1207,8 @@ int pipeline_expr_is_func_param_at_strict_minimal(struct ast_ASTArena *arena, st
 }
 
 
-void pipeline_typeck_expr_diag_line_col_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *line,
+/* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void pipeline_typeck_expr_diag_line_col_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *line,
                                                               int32_t *col) {
   if (line)
     *line = 0;
@@ -1240,12 +1220,6 @@ void pipeline_typeck_expr_diag_line_col_strict_minimal_impl(struct ast_ASTArena 
     *line = pipeline_expr_line_at(arena, expr_ref);
   if (col)
     *col = pipeline_expr_col_at(arena, expr_ref);
-}
-void pipeline_typeck_expr_diag_line_col_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *line,
-                                                              int32_t *col) {
-  {
-    pipeline_typeck_expr_diag_line_col_strict_minimal_impl(arena, expr_ref, line, col);
-  }
 }
 
 
@@ -1278,7 +1252,8 @@ int32_t typeck_block_is_strict_ancestor_strict_minimal(struct ast_ASTArena *aren
 }
 
 
-int32_t typeck_expr_lval_root_var_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out,
+/* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t typeck_expr_lval_root_var_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out,
                                                         int32_t *out_len) {
   int32_t cur;
   int32_t kind;
@@ -1303,13 +1278,6 @@ int32_t typeck_expr_lval_root_var_strict_minimal_impl(struct ast_ASTArena *arena
     if (cur <= 0)
       return 0;
   }
-}
-int32_t typeck_expr_lval_root_var_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out,
-                                                        int32_t *out_len) {
-  {
-    return typeck_expr_lval_root_var_strict_minimal_impl(arena, expr_ref, out, out_len);
-  }
-  return 0;
 }
 
 
@@ -1914,7 +1882,8 @@ __attribute__((weak)) int32_t pipeline_typeck_check_return_slice_region_c(struct
   return 0;
 }
 
-int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal_impl(struct ast_ASTArena *arena, uint8_t *name,
+/* G-02f-140：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal(struct ast_ASTArena *arena, uint8_t *name,
                                                                             int32_t name_len) {
   static const uint8_t prefix[] = "Result_";
   static const uint8_t n_i32[] = "i32";
@@ -1948,13 +1917,6 @@ int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal_impl(struct
     return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_ISIZE);
   if (suffix_len == (int32_t)(sizeof(n_bool) - 1) && memcmp(name + suffix_off, n_bool, sizeof(n_bool) - 1) == 0)
     return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_BOOL);
-  return 0;
-}
-int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal(struct ast_ASTArena *arena, uint8_t *name,
-                                                                            int32_t name_len) {
-  {
-    return pipeline_typeck_result_payload_type_from_name_strict_minimal_impl(arena, name, name_len);
-  }
   return 0;
 }
 
