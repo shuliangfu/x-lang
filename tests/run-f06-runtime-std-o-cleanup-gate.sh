@@ -8,8 +8,8 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_F06_RUNTIME_CLEANUP_FAIL:-0}
 DOC="analysis/phase-f-f06-v1.md"
-RUNTIME="compiler/src/runtime.c"
-LINK_ABI="compiler/src/runtime_link_abi.c"
+RUNTIME="compiler/src/runtime.inc"
+LINK_ABI="compiler/src/runtime_link_abi.inc"
 BUILD_ASM="compiler/scripts/build_shux_asm.sh"
 RELINK_EXP="compiler/scripts/relink_shux_asm_experimental_bootstrap.sh"
 RELINK_GLUE="compiler/scripts/relink_shux_asm_strict_glue.sh"
@@ -33,10 +33,10 @@ done
 grep -q 'F-06 v1' "$RUNTIME" || die "runtime.c missing F-06 v1 marker"
 
 if grep -q 'link_abi_asm_ld_push_obj.*std/compress/compress.o' "$LINK_ABI" 2>/dev/null; then
-  die "runtime_link_abi.c still push std/compress/compress.o"
+  die "runtime_link_abi.inc still push std/compress/compress.o"
 fi
-grep -q 'link_abi_generated_c_needs_zlib' "$LINK_ABI" || die "runtime_link_abi.c missing generated C zlib scan"
-grep -q 'shux_std_compress_o_path' "$LINK_ABI" || die "runtime_link_abi.c missing shux_std_compress_o_path"
+grep -q 'link_abi_generated_c_needs_zlib' "$LINK_ABI" || die "runtime_link_abi.inc missing generated C zlib scan"
+grep -q 'shux_std_compress_o_path' "$LINK_ABI" || die "runtime_link_abi.inc missing shux_std_compress_o_path"
 
 for f in "$BUILD_ASM" "$RELINK_EXP" "$RELINK_GLUE"; do
   [ -f "$f" ] || die "missing $f"

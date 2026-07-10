@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_B20_GENERATED_C_SCAN_FAIL:-0}
-RT="compiler/src/runtime.c"
+RT="compiler/src/runtime.inc"
 
 if [ ! -f "$RT" ]; then
   echo "b20-generated-c-scan-gate: SKIP (no runtime.c)"

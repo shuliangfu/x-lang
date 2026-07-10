@@ -298,9 +298,9 @@ ensure_lsp_diag_seed_obj() {
 
 ensure_diag_seed_obj() {
   local seed_dir="$1"
-  if [ ! -f "$seed_dir/diag.o" ] || [ "src/diag.c" -nt "$seed_dir/diag.o" ] || [ "include/diag.h" -nt "$seed_dir/diag.o" ]; then
-  strict_glue_info "cc -c $seed_dir/diag.o <- src/diag.c"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$seed_dir/diag.o" src/diag.c
+  if [ ! -f "$seed_dir/diag.o" ] || [ "src/diag.inc" -nt "$seed_dir/diag.o" ] || [ "include/diag.h" -nt "$seed_dir/diag.o" ]; then
+  strict_glue_info "cc -c $seed_dir/diag.o <- src/diag.inc"
+  sh scripts/cc_inc_tu.sh src/diag.inc "$seed_dir/diag.o" -I. -Iinclude -Isrc
   fi
 }
 
@@ -643,7 +643,7 @@ ensure_pipeline_glue_strict_minimal_export_syms_txt() {
   local GLUE_O="$BUILD_DIR/pipeline_glue_strict_minimal.o"
   local OUT="$BUILD_DIR/.pipeline_glue_strict_minimal_export_syms.txt"
   [ -f "$GLUE_O" ] || return 1
-  if [ ! -f "$OUT" ] || [ "$GLUE_O" -nt "$OUT" ] || [ "src/asm/pipeline_glue_strict_minimal.c" -nt "$OUT" ]; then
+  if [ ! -f "$OUT" ] || [ "$GLUE_O" -nt "$OUT" ] || [ "src/asm/pipeline_glue_strict_minimal.inc" -nt "$OUT" ]; then
   nm "$GLUE_O" 2>/dev/null | awk '/ T / {print $3}' | sort -u >"$OUT"
   fi
   [ -s "$OUT" ] || return 1
@@ -893,17 +893,17 @@ ensure_simd_glue_link_objs() {
   strict_glue_info "cc -c src/asm/pipeline_abi_f32_xmm.c -> src/asm/pipeline_abi_f32_xmm.o"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/pipeline_abi_f32_xmm.o src/asm/pipeline_abi_f32_xmm.c
   fi
-  if [ ! -f src/driver/target_cpu.o ] || [ src/driver/target_cpu.c -nt src/driver/target_cpu.o ]; then
-  strict_glue_info "cc -c src/driver/target_cpu.c -> src/driver/target_cpu.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/driver/target_cpu.o src/driver/target_cpu.c
+  if [ ! -f src/driver/target_cpu.o ] || [ src/driver/target_cpu.inc -nt src/driver/target_cpu.o ]; then
+  strict_glue_info "cc -c src/driver/target_cpu.inc -> src/driver/target_cpu.o"
+  sh scripts/cc_inc_tu.sh src/driver/target_cpu.inc src/driver/target_cpu.o -I. -Iinclude -Isrc
   fi
-  if [ ! -f src/asm/simd_enc.o ] || [ src/asm/simd_enc.c -nt src/asm/simd_enc.o ]; then
-  strict_glue_info "cc -c src/asm/simd_enc.c -> src/asm/simd_enc.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_enc.o src/asm/simd_enc.c
+  if [ ! -f src/asm/simd_enc.o ] || [ src/asm/simd_enc.inc -nt src/asm/simd_enc.o ]; then
+  strict_glue_info "cc -c src/asm/simd_enc.inc -> src/asm/simd_enc.o"
+  sh scripts/cc_inc_tu.sh src/asm/simd_enc.inc src/asm/simd_enc.o -I. -Iinclude -Isrc
   fi
-  if [ ! -f src/asm/simd_loop.o ] || [ src/asm/simd_loop.c -nt src/asm/simd_loop.o ]; then
-  strict_glue_info "cc -c src/asm/simd_loop.c -> src/asm/simd_loop.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_loop.o src/asm/simd_loop.c
+  if [ ! -f src/asm/simd_loop.o ] || [ src/asm/simd_loop.inc -nt src/asm/simd_loop.o ]; then
+  strict_glue_info "cc -c src/asm/simd_loop.inc -> src/asm/simd_loop.o"
+  sh scripts/cc_inc_tu.sh src/asm/simd_loop.inc src/asm/simd_loop.o -I. -Iinclude -Isrc
   fi
 }
 
@@ -1026,14 +1026,14 @@ fi
 PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
 PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
 PARSER_ASM_THIN_C="parser_asm_thin_glue.o"
-if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.c" -nt "$PARSER_ASM_THIN_C" ] \
+if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.inc" -nt "$PARSER_ASM_THIN_C" ] \
   || [ "src/asm/parser_asm_if_stmt_slice.inc" -nt "$PARSER_ASM_THIN_C" ]; then
   strict_glue_info "cc parser_asm_thin_glue.o (parse_peek / skip_balanced thin C)"
-  "$CC" $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -c -o "$PARSER_ASM_THIN_C" src/asm/parser_asm_thin_c.c
+  sh scripts/cc_inc_tu.sh src/asm/parser_asm_thin_c.inc "$PARSER_ASM_THIN_C" $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer
 fi
-if [ ! -f "$BUILD_DIR/pipeline_glue_strict_minimal.o" ] || [ "src/asm/pipeline_glue_strict_minimal.c" -nt "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
+if [ ! -f "$BUILD_DIR/pipeline_glue_strict_minimal.o" ] || [ "src/asm/pipeline_glue_strict_minimal.inc" -nt "$BUILD_DIR/pipeline_glue_strict_minimal.o" ]; then
   strict_glue_info "cc pipeline_glue_strict_minimal.o"
-  "$CC" $CFLAGS -c -o "$BUILD_DIR/pipeline_glue_strict_minimal.o" src/asm/pipeline_glue_strict_minimal.c
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_strict_minimal.inc "$BUILD_DIR/pipeline_glue_strict_minimal.o"
 fi
 if asm_strict_typeck_x_glue_via_pipeline_x; then
   ST_GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
@@ -1464,9 +1464,9 @@ fi
 if [ "${STRICT_LINK_BUILD_ASM_BACKEND_WPO:-0}" -eq 1 ] && asm_backend_wpo_strict_reach_ok; then
   strict_glue_info "link backend_wpo.o (WPO reach OK)"
 fi
-if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "src/seed_link_compat.c" -nt "$BUILD_DIR/seed_link_compat.o" ]; then
-  strict_glue_info "cc -c $BUILD_DIR/seed_link_compat.o <- src/seed_link_compat.c"
-  "$CC" $CFLAGS -c -o "$BUILD_DIR/seed_link_compat.o" src/seed_link_compat.c
+if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "src/seed_link_compat.inc" -nt "$BUILD_DIR/seed_link_compat.o" ]; then
+  strict_glue_info "cc -c $BUILD_DIR/seed_link_compat.o <- src/seed_link_compat.inc"
+  sh scripts/cc_inc_tu.sh src/seed_link_compat.inc "$BUILD_DIR/seed_link_compat.o"
 fi
 ST_STRICT_COMPANIONS="src/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o $ST_DRIVER_COMPILE_O driver_emit_x.o $ST_BSTRICT_LINK_EXTRA"
 ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS src/codegen/codegen_pipeline_stubs.o src/typeck/typeck_f64_bits.o src/lexer/cfg_eval.o"
@@ -1494,34 +1494,34 @@ fi
 
 ensure_runtime_driver_diagnostic_obj() {
   local o="src/runtime_driver_diagnostic.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_diagnostic.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_driver_diagnostic.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_driver_diagnostic.c
+  if [ ! -f "$o" ] || [ "src/runtime_driver_diagnostic.inc" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/runtime_driver_diagnostic.inc"
+  sh scripts/cc_inc_tu.sh src/runtime_driver_diagnostic.inc "$o"
   fi
 }
 
 ensure_diag_obj() {
   local o="src/diag.o"
-  if [ ! -f "$o" ] || [ "src/diag.c" -nt "$o" ] || [ "include/diag.h" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/diag.c"
-  "$CC" $CFLAGS -c -o "$o" src/diag.c
+  if [ ! -f "$o" ] || [ "src/diag.inc" -nt "$o" ] || [ "include/diag.h" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/diag.inc"
+  sh scripts/cc_inc_tu.sh src/diag.inc "$o"
   fi
 }
 
 # 与 build_shux_asm.sh 一致：pipeline_x/typeck_x 引用 driver_typeck_skip_large_entry / pipeline_get_dep_arena_slot。
 ensure_runtime_driver_abi_obj() {
   local o="src/runtime_driver_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_abi.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_driver_abi.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_driver_abi.c
+  if [ ! -f "$o" ] || [ "src/runtime_driver_abi.inc" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/runtime_driver_abi.inc"
+  sh scripts/cc_inc_tu.sh src/runtime_driver_abi.inc "$o"
   fi
 }
 
 ensure_runtime_pipeline_abi_obj() {
   local o="src/runtime_pipeline_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_pipeline_abi.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_pipeline_abi.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_pipeline_abi.c
+  if [ ! -f "$o" ] || [ "src/runtime_pipeline_abi.inc" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/runtime_pipeline_abi.inc"
+  sh scripts/cc_inc_tu.sh src/runtime_pipeline_abi.inc "$o"
   fi
 }
 
@@ -1540,9 +1540,9 @@ ensure_runtime_abi_obj() {
 }
 ensure_runtime_io_abi_obj() {
   local o="src/runtime_io_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_io_abi.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_io_abi.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_io_abi.c
+  if [ ! -f "$o" ] || [ "src/runtime_io_abi.inc" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/runtime_io_abi.inc"
+  sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc "$o"
   fi
 }
 ensure_runtime_proc_abi_obj() {
@@ -1554,9 +1554,9 @@ ensure_runtime_proc_abi_obj() {
 }
 ensure_runtime_link_abi_obj() {
   local o="src/runtime_link_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_link_abi.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_link_abi.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_link_abi.c
+  if [ ! -f "$o" ] || [ "src/runtime_link_abi.inc" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/runtime_link_abi.inc"
+  sh scripts/cc_inc_tu.sh src/runtime_link_abi.inc "$o"
   fi
 }
 
@@ -1566,9 +1566,9 @@ ensure_runtime_pipeline_abi_obj() {
   if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
   cf="$cf -DSHUX_LEGACY_PREPROCESS_C"
   fi
-  if [ ! -f "$o" ] || [ "src/runtime_pipeline_abi.c" -nt "$o" ] || [ Makefile -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_pipeline_abi.c"
-  "$CC" $cf -c -o "$o" src/runtime_pipeline_abi.c
+  if [ ! -f "$o" ] || [ "src/runtime_pipeline_abi.inc" -nt "$o" ] || [ Makefile -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/runtime_pipeline_abi.inc"
+  sh scripts/cc_inc_tu.sh src/runtime_pipeline_abi.inc "$o" $cf
   fi
 }
 
@@ -1578,9 +1578,9 @@ ensure_runtime_driver_obj() {
   if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
   cf="$cf -DSHUX_LEGACY_PREPROCESS_C"
   fi
-  if [ ! -f "$o" ] || [ "src/runtime.c" -nt "$o" ] || [ Makefile -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime.c (X driver/pipeline)"
-  "$CC" $cf -c -o "$o" src/runtime.c
+  if [ ! -f "$o" ] || [ "src/runtime.inc" -nt "$o" ] || [ Makefile -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/runtime.inc (X driver/pipeline)"
+  sh scripts/cc_inc_tu.sh src/runtime.inc "$o" $cf
   fi
 }
 
@@ -1613,11 +1613,11 @@ ensure_runtime_c_import_obj() {
 }
 
 ensure_runtime_pipeline_abi_shux_c_stubs_obj() {
-  # G-02e-12：实现已并入 runtime_driver_strict_glue_stubs.c
+  # G-02e-12：实现已并入 runtime_driver_strict_glue_stubs.inc
   local o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- src/runtime_driver_strict_glue_stubs.c (former pipeline_abi_shux_c_stubs)"
-    "$CC" $CFLAGS -c -o "$o" src/runtime_driver_strict_glue_stubs.c
+  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.inc" -nt "$o" ]; then
+    strict_glue_info "cc -c $o <- src/runtime_driver_strict_glue_stubs.inc (former pipeline_abi_shux_c_stubs)"
+    sh scripts/cc_inc_tu.sh src/runtime_driver_strict_glue_stubs.inc "$o"
   fi
 }
 ensure_codegen_pipeline_stubs_obj() {
@@ -1630,9 +1630,9 @@ ensure_codegen_pipeline_stubs_obj() {
 
 ensure_runtime_driver_strict_glue_stubs_obj() {
   local o="$BUILD_DIR/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_driver_strict_glue_stubs.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_driver_strict_glue_stubs.c
+  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.inc" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/runtime_driver_strict_glue_stubs.inc"
+  sh scripts/cc_inc_tu.sh src/runtime_driver_strict_glue_stubs.inc "$o"
   fi
 }
 ensure_runtime_asm_build_obj() {
@@ -1653,18 +1653,18 @@ ensure_std_fs_shim_obj() {
 
 ensure_x_seed_bridge_obj() {
   local o="src/x_seed_bridge.o"
-  if [ ! -f "$o" ] || [ "src/x_seed_bridge.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/x_seed_bridge.c"
-  "$CC" $CFLAGS -c -o "$o" src/x_seed_bridge.c
+  if [ ! -f "$o" ] || [ "src/x_seed_bridge.inc" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/x_seed_bridge.inc"
+  sh scripts/cc_inc_tu.sh src/x_seed_bridge.inc "$o"
   fi
 }
 
 ensure_ast_pool_l5_bridge_obj() {
-  # G-02e-13：实现已并入 runtime_driver_strict_glue_stubs.c
+  # G-02e-13：实现已并入 runtime_driver_strict_glue_stubs.inc
   local o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt "$o" ]; then
-    echo "  cc -c $o <- src/runtime_driver_strict_glue_stubs.c (former ast_pool_l5_bridge)" >&2
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/runtime_driver_strict_glue_stubs.c
+  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.inc" -nt "$o" ]; then
+    echo "  cc -c $o <- src/runtime_driver_strict_glue_stubs.inc (former ast_pool_l5_bridge)" >&2
+    sh scripts/cc_inc_tu.sh src/runtime_driver_strict_glue_stubs.inc "$o" -I. -Iinclude -Isrc
   fi
 }
 
@@ -1677,19 +1677,19 @@ ensure_asm_experimental_symbol_bridge_obj() {
 }
 
 ensure_lsp_codegen_extern_obj() {
-  # G-02e-11：实现已并入 runtime_driver_strict_glue_stubs.c
+  # G-02e-11：实现已并入 runtime_driver_strict_glue_stubs.inc
   local o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- src/runtime_driver_strict_glue_stubs.c (former lsp_codegen_extern)"
-    "$CC" $CFLAGS -c -o "$o" src/runtime_driver_strict_glue_stubs.c
+  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.inc" -nt "$o" ]; then
+    strict_glue_info "cc -c $o <- src/runtime_driver_strict_glue_stubs.inc (former lsp_codegen_extern)"
+    sh scripts/cc_inc_tu.sh src/runtime_driver_strict_glue_stubs.inc "$o"
   fi
 }
 
 ensure_lsp_pipeline_ctx_obj() {
   local o="src/lsp/lsp_diag_pipeline_ctx.o"
-  if [ ! -f "$o" ] || [ "src/lsp/lsp_diag_pipeline_ctx.c" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- src/lsp/lsp_diag_pipeline_ctx.c"
-    "$CC" $CFLAGS -c -o "$o" src/lsp/lsp_diag_pipeline_ctx.c
+  if [ ! -f "$o" ] || [ "src/lsp/lsp_diag_pipeline_ctx.inc" -nt "$o" ]; then
+    strict_glue_info "cc -c $o <- src/lsp/lsp_diag_pipeline_ctx.inc"
+    sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_ctx.inc "$o"
   fi
 }
 ensure_backend_seed_mega_fallback_obj() {

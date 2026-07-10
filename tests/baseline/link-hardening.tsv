@@ -3,4 +3,4 @@
 read_path	section	P1-7	analysis/安全与性能.md	PIE+NX
 case_smoke	case	link_hardening_smoke	tests/link_hardening_smoke.x	exit 42
 gate	script	run-link-hardening-gate.sh	tests/run-link-hardening-gate.sh	readelf
-runtime	hook	shux_append_linux_link_harden	compiler/src/runtime_link_abi.c	Linux -pie
+runtime	hook	shux_append_linux_link_harden	compiler/src/runtime_link_abi.inc	Linux -pie

@@ -74,16 +74,16 @@ done < "$MF"
 echo "e05 inventory: active_headers=${ACT} soft_retired_or_absent=${RET} (on disk unless not_exists)"
 
 # E-05 v2：C 前端头须在 SHUX_NO_C_FRONTEND 守卫之后；preprocess/target_cpu/lsp_diag 仍无条件 include
-guard_line=$(grep -n '#if !defined(SHUX_NO_C_FRONTEND)' compiler/src/runtime.c | head -1 | cut -d: -f1)
+guard_line=$(grep -n '#if !defined(SHUX_NO_C_FRONTEND)' compiler/src/runtime.inc | head -1 | cut -d: -f1)
 [ -n "$guard_line" ] || die "runtime.c missing SHUX_NO_C_FRONTEND guard"
 for hdr in 'lexer/lexer.h' 'parser/parser.h' 'typeck/typeck.h' 'codegen/codegen.h' 'ast.h'; do
-  ln=$(grep -n "#include \"$hdr\"" compiler/src/runtime.c | head -1 | cut -d: -f1 || true)
+  ln=$(grep -n "#include \"$hdr\"" compiler/src/runtime.inc | head -1 | cut -d: -f1 || true)
   if [ -n "$ln" ] && [ "$ln" -le "$guard_line" ]; then
     die "runtime.c unguarded include $hdr (line $ln, guard $guard_line)"
   fi
 done
 for h in preprocess.h target_cpu.h lsp/lsp_diag.h; do
-  grep -q "#include \"$h\"" compiler/src/runtime.c || die "runtime.c must still include $h"
+  grep -q "#include \"$h\"" compiler/src/runtime.inc || die "runtime.c must still include $h"
 done
 echo "e05 v2: runtime.c NO_C include guard OK"
 

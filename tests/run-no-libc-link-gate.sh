@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 FAIL=${SHUX_NOLIBC_LINK_FAIL:-0}
 DOC="analysis/phase-f-no-libc-v1.md"
 POLICY="tests/baseline/no-libc-link-policy.tsv"
-RT="compiler/src/runtime_link_abi.c"
+RT="compiler/src/runtime_link_abi.inc"
 DRIVER="compiler/src/driver/compile.x"
 BUILD_ASM="compiler/scripts/build_shux_asm.sh"
 

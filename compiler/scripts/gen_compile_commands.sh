@@ -70,9 +70,9 @@ glued = [
     "ast_pool_bootstrap_glue.c",
 ]
 entries = [
-    ("src/runtime.c", driver_flags),
-    ("src/runtime.c", base),
-    ("src/main.c", base),
+    ("src/runtime.inc", driver_flags),
+    ("src/runtime.inc", base),
+    ("src/main.inc", base),
     ("src/asm/runtime_lexer_glue.inc", base),
     ("src/asm/runtime_ast_glue.inc", base),
     ("src/asm/runtime_lsp_glue.inc", base),

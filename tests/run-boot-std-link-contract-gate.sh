@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_BOOT_LINK_DOC:-analysis/boot-std-link-contract-v1.md}"
 MANIFEST="${SHUX_BOOT_LINK_TSV:-tests/baseline/boot-std-link-contract.tsv}"
-RUNTIME="${SHUX_BOOT_LINK_RUNTIME:-compiler/src/runtime.c}"
+RUNTIME="${SHUX_BOOT_LINK_RUNTIME:-compiler/src/runtime.inc}"
 MAKEFILE="${SHUX_BOOT_LINK_MAKEFILE:-compiler/Makefile}"
 LIB="tests/lib/boot-std-link-contract.sh"
 JSON_X="tests/json/object_array_parse.x"

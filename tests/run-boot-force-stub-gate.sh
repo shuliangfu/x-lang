@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 MATRIX="${SHUX_BOOT_FORCE_STUB_TSV:-tests/baseline/boot-force-stub-matrix.tsv}"
 PARSER_X="compiler/src/parser/parser.x"
 AST_POOL="compiler/ast_pool.c"
-THIN_C="compiler/src/asm/parser_asm_thin_c.c"
+THIN_C="compiler/src/asm/parser_asm_thin_c.inc"
 MIN_STUB=6
 
 # shellcheck source=tests/lib/ci-host.sh

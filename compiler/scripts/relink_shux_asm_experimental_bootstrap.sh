@@ -58,9 +58,9 @@ ensure_asm_driver_seed_c_objs() {
   experimental_bootstrap_info "cc $SEED_O/lsp_diag.o"
   sh scripts/cc_inc_tu.sh src/asm/runtime_lsp_glue.inc "$SEED_O/lsp_diag.o"
   fi
-  if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ] || [ "src/lsp/lsp_diag_pipeline_ctx.c" -nt src/lsp/lsp_diag_pipeline_ctx.o ]; then
+  if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ] || [ "src/lsp/lsp_diag_pipeline_ctx.inc" -nt src/lsp/lsp_diag_pipeline_ctx.o ]; then
   experimental_bootstrap_info "cc src/lsp/lsp_diag_pipeline_ctx.o"
-  "$CC" $CFLAGS -c -o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_pipeline_ctx.c
+  sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_ctx.inc src/lsp/lsp_diag_pipeline_ctx.o
   fi
 }
 ensure_asm_driver_seed_c_objs
@@ -111,9 +111,9 @@ ensure_runtime_abi_obj() {
 }
 ensure_runtime_io_abi_obj() {
   local o="src/runtime_io_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_io_abi.c" -nt "$o" ]; then
-  experimental_bootstrap_info "cc $o <- src/runtime_io_abi.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_io_abi.c
+  if [ ! -f "$o" ] || [ "src/runtime_io_abi.inc" -nt "$o" ]; then
+  experimental_bootstrap_info "cc $o <- src/runtime_io_abi.inc"
+  sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc "$o"
   fi
 }
 ensure_runtime_proc_abi_obj() {
@@ -128,10 +128,10 @@ ensure_runtime_driver_asm_strict_obj() {
   ensure_runtime_io_abi_obj
   ensure_runtime_proc_abi_obj
   local o="src/runtime_driver_asm_strict.o"
-  if [ ! -f "$o" ] || [ "src/runtime.c" -nt "$o" ]; then
-  experimental_bootstrap_info "cc $o <- src/runtime.c (-DSHUX_ASM_USE_COMPILER_IMPL_C)"
+  if [ ! -f "$o" ] || [ "src/runtime.inc" -nt "$o" ]; then
+  experimental_bootstrap_info "cc $o <- src/runtime.inc (-DSHUX_ASM_USE_COMPILER_IMPL_C)"
   "$CC" $CFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS \
-  -DSHUX_ASM_USE_COMPILER_IMPL_C -c -o "$o" src/runtime.c
+  -DSHUX_ASM_USE_COMPILER_IMPL_C -c -o "$o" src/runtime.inc
   fi
 }
 ensure_runtime_driver_asm_strict_obj
@@ -139,21 +139,21 @@ ensure_runtime_driver_asm_strict_obj
 # pipeline_glue / pipeline_x 引用 target_cpu / simd_enc / simd_loop（SIMD-S1–S4）。
 ensure_simd_glue_link_objs() {
   # G-02e: f32 xmm ABI 并入 backend_call_dispatch.o（无独立 pipeline_abi_f32_xmm.o）
-  if [ ! -f src/asm/backend_call_dispatch.o ] || [ src/asm/backend_call_dispatch.c -nt src/asm/backend_call_dispatch.o ]; then
+  if [ ! -f src/asm/backend_call_dispatch.o ] || [ src/asm/backend_call_dispatch.inc -nt src/asm/backend_call_dispatch.o ]; then
   experimental_bootstrap_info "cc src/asm/backend_call_dispatch.o (incl. f32 xmm ABI)"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/backend_call_dispatch.o src/asm/backend_call_dispatch.c
+  sh scripts/cc_inc_tu.sh src/asm/backend_call_dispatch.inc src/asm/backend_call_dispatch.o -I. -Iinclude -Isrc
   fi
-  if [ ! -f src/driver/target_cpu.o ] || [ src/driver/target_cpu.c -nt src/driver/target_cpu.o ]; then
+  if [ ! -f src/driver/target_cpu.o ] || [ src/driver/target_cpu.inc -nt src/driver/target_cpu.o ]; then
   experimental_bootstrap_info "cc src/driver/target_cpu.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/driver/target_cpu.o src/driver/target_cpu.c
+  sh scripts/cc_inc_tu.sh src/driver/target_cpu.inc src/driver/target_cpu.o -I. -Iinclude -Isrc
   fi
-  if [ ! -f src/asm/simd_enc.o ] || [ src/asm/simd_enc.c -nt src/asm/simd_enc.o ]; then
+  if [ ! -f src/asm/simd_enc.o ] || [ src/asm/simd_enc.inc -nt src/asm/simd_enc.o ]; then
   experimental_bootstrap_info "cc src/asm/simd_enc.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_enc.o src/asm/simd_enc.c
+  sh scripts/cc_inc_tu.sh src/asm/simd_enc.inc src/asm/simd_enc.o -I. -Iinclude -Isrc
   fi
-  if [ ! -f src/asm/simd_loop.o ] || [ src/asm/simd_loop.c -nt src/asm/simd_loop.o ]; then
+  if [ ! -f src/asm/simd_loop.o ] || [ src/asm/simd_loop.inc -nt src/asm/simd_loop.o ]; then
   experimental_bootstrap_info "cc src/asm/simd_loop.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_loop.o src/asm/simd_loop.c
+  sh scripts/cc_inc_tu.sh src/asm/simd_loop.inc src/asm/simd_loop.o -I. -Iinclude -Isrc
   fi
 }
 ensure_simd_glue_link_objs
@@ -168,17 +168,17 @@ ensure_experimental_companion_objs() {
   driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
   pipeline_bootstrap_orchestration.o 2>/dev/null || true
   fi
-  if [ ! -f src/runtime_io_abi.o ] || [ src/runtime_io_abi.c -nt src/runtime_io_abi.o ]; then
+  if [ ! -f src/runtime_io_abi.o ] || [ src/runtime_io_abi.inc -nt src/runtime_io_abi.o ]; then
   experimental_bootstrap_info "cc runtime_io_abi.o (incl. fs/sys shim)"
-  "$CC" $CFLAGS -c -o src/runtime_io_abi.o src/runtime_io_abi.c
+  sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc src/runtime_io_abi.o
   fi
-  if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "src/x_seed_bridge.c" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
+  if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "src/x_seed_bridge.inc" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
   experimental_bootstrap_info "cc x_seed_bridge.o"
-  "$CC" $CFLAGS -c -o "$BUILD_DIR/x_seed_bridge.o" src/x_seed_bridge.c
+  sh scripts/cc_inc_tu.sh src/x_seed_bridge.inc "$BUILD_DIR/x_seed_bridge.o"
   fi
-  if [ ! -f src/runtime_driver_strict_glue_stubs.o ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt src/runtime_driver_strict_glue_stubs.o ]; then
+  if [ ! -f src/runtime_driver_strict_glue_stubs.o ] || [ "src/runtime_driver_strict_glue_stubs.inc" -nt src/runtime_driver_strict_glue_stubs.o ]; then
     experimental_bootstrap_info "cc runtime_driver_strict_glue_stubs.o"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_driver_strict_glue_stubs.o src/runtime_driver_strict_glue_stubs.c
+    sh scripts/cc_inc_tu.sh src/runtime_driver_strict_glue_stubs.inc src/runtime_driver_strict_glue_stubs.o -I. -Iinclude -Isrc
   fi
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.x" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
   experimental_bootstrap_info "build_seed_asm_host (asm_backend_partial.o)"
@@ -199,12 +199,12 @@ ensure_experimental_companion_objs
 PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
 PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
 PARSER_ASM_THIN_C="parser_asm_thin_glue.o"
-if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.c" -nt "$PARSER_ASM_THIN_C" ] \
+if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.inc" -nt "$PARSER_ASM_THIN_C" ] \
   || [ "src/asm/parser_asm_struct_layout_slice.inc" -nt "$PARSER_ASM_THIN_C" ] \
   || [ "src/asm/parser_asm_block_from_res_slice.inc" -nt "$PARSER_ASM_THIN_C" ] \
   || [ "src/asm/parser_asm_if_stmt_slice.inc" -nt "$PARSER_ASM_THIN_C" ]; then
   experimental_bootstrap_info "cc parser_asm_thin_glue.o"
-  "$CC" $CFLAGS $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -c -o "$PARSER_ASM_THIN_C" src/asm/parser_asm_thin_c.c
+  sh scripts/cc_inc_tu.sh src/asm/parser_asm_thin_c.inc "$PARSER_ASM_THIN_C" $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer
 fi
 
 # parse_expr_into 桥 + pipeline 弱 parse 桩（G-02e-7：原 parser_asm_link_alias 并入）

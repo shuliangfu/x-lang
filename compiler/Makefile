@@ -53,7 +53,7 @@ else
   LD_RELFLAGS =
 endif
 TARGET = shux
-SRCS = src/main.c src/runtime.c src/async/async_liveness.inc src/async/async_cps_codegen.inc
+SRCS = src/main.inc src/runtime.inc src/async/async_liveness.inc src/async/async_cps_codegen.inc
 # OBJS_CORE：G-06 默认 shux-c=bootstrap_shuxc；仅 SHUX_LEGACY_C_FRONTEND=1 时链下列 runtime 桩（无 C 前端 .c）。
 OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
@@ -597,8 +597,8 @@ src/lexer/lexer.o: src/asm/runtime_lexer_glue.inc src/lexer/lexer.h include/toke
 src/ast/ast.o: src/asm/runtime_ast_glue.inc include/ast.h scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_ast_glue.inc $@
 
-src/diag.o: src/diag.c include/diag.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/diag.o: src/diag.inc include/diag.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/diag.inc $@
 
 # G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），C 编排由 typeck_c_module_stubs.o 提供。
 
@@ -626,23 +626,23 @@ LEGACY_SHUX_C_READY_TARGETS = build-tool
 
 $(LEGACY_SHUX_C_READY_TARGETS): | legacy-shux-c-ready
 
-src/main.o: src/main.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/main.o: src/main.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/main.inc $@
 
 # E-04 v2/v3：argv/target 与 POSIX I/O ABI 薄壳；默认 seed / B-strict 均链入。
 
-src/runtime_io_abi.o: src/runtime_io_abi.c src/runtime_io_abi.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/runtime_io_abi.o: src/runtime_io_abi.inc src/runtime_io_abi.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc $@
 
 
-src/runtime_link_abi.o: src/runtime_link_abi.c src/runtime_link_abi.h src/runtime_proc_abi.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/runtime_link_abi.o: src/runtime_link_abi.inc src/runtime_link_abi.h src/runtime_proc_abi.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/runtime_link_abi.inc $@
 
-src/runtime_driver_abi.o: src/runtime_driver_abi.c src/runtime_driver_abi.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/runtime_driver_abi.o: src/runtime_driver_abi.inc src/runtime_driver_abi.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/runtime_driver_abi.inc $@
 
-src/runtime_pipeline_abi.o: src/runtime_pipeline_abi.c src/runtime_pipeline_abi.h Makefile
-	$(CC) $(CFLAGS) $(RUNTIME_PIPELINE_ABI_CFLAGS) -c -o $@ $<
+src/runtime_pipeline_abi.o: src/runtime_pipeline_abi.inc src/runtime_pipeline_abi.h Makefile scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/runtime_pipeline_abi.inc $@ $(RUNTIME_PIPELINE_ABI_CFLAGS)
 
 src/runtime_c_import.o: src/runtime_c_import.inc src/runtime_c_import.h scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/runtime_c_import.inc $@
@@ -656,12 +656,12 @@ src/async/async_cps_codegen.o: src/async/async_cps_codegen.inc scripts/cc_inc_tu
 src/async/async_asm_pool.o: src/async/async_asm_pool.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/async/async_asm_pool.inc $@
 
-src/runtime_driver_diagnostic.o: src/runtime_driver_diagnostic.c src/runtime_driver_diagnostic.h include/diag.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/runtime_driver_diagnostic.o: src/runtime_driver_diagnostic.inc src/runtime_driver_diagnostic.h include/diag.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/runtime_driver_diagnostic.inc $@
 
 # 6.3：runtime.c 提供 run_compiler_c 与弱符号 main_entry；带 .x 入口时用 runtime_driver.o（含 driver_*/pipeline_*）
-src/runtime.o: src/runtime.c include/diag.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/runtime.o: src/runtime.inc include/diag.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/runtime.inc $@
 # Makefile 为 prerequisite：编译宏（如 SHUX_USE_X_PREPROCESS）变更时须重编，否则 runtime_driver.o 缺 preprocess() 导致链接 Undefined _preprocess。
 # SHUX_ASM_USE_COMPILER_IMPL_C：driver_run_compiler_full 走 impl_c（parse_argv+post_parse），避免 compile.x X emit 路径 silent fail（与 B-strict shux_asm 同）。
 # E-03 v2：SHUX_LEGACY_PREPROCESS_C=1 时 runtime preprocess() 仍调 C preprocess_c_fallback。
@@ -676,13 +676,13 @@ RUNTIME_PIPELINE_ABI_CFLAGS = -DSHUX_USE_X_PIPELINE
 ifeq ($(SHUX_LEGACY_PREPROCESS_C),1)
 RUNTIME_PIPELINE_ABI_CFLAGS += -DSHUX_LEGACY_PREPROCESS_C
 endif
-src/runtime_driver.o: src/runtime.c Makefile include/diag.h
-	$(CC) $(CFLAGS) $(RUNTIME_DRIVER_CFLAGS) -c -o $@ $<
+src/runtime_driver.o: src/runtime.inc Makefile include/diag.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/runtime.inc $@ $(RUNTIME_DRIVER_CFLAGS)
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（SHUX_LEGACY_PREPROCESS_C 路径已死）。
 # shux_x 用：仅 -DSHUX_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
-src/runtime_x.o: src/runtime.c include/diag.h
-	$(CC) $(CFLAGS) -DSHUX_USE_X_PIPELINE -c -o $@ $<
+src/runtime_x.o: src/runtime.inc include/diag.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/runtime.inc $@ -DSHUX_USE_X_PIPELINE
 
 src/driver/fmt_check_cmd.o: src/driver/fmt_check_cmd.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/driver/fmt_check_cmd.inc $@
@@ -727,12 +727,12 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x src/lexer/cfg_eval_link_alias.inc scr
 # G-02a：preprocess 已迁 preprocess.x；不再编译 preprocess.c。
 
 # runtime.c：不引用 C lexer/parser/typeck/codegen（见 SHUX_NO_C_FRONTEND 包裹的 load_one_import 等）
-src/runtime_driver_no_c.o: src/runtime.c Makefile
-	$(CC) $(CFLAGS) $(RUNTIME_DRIVER_NO_C_CFLAGS) -c -o $@ $<
+src/runtime_driver_no_c.o: src/runtime.inc Makefile scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/runtime.inc $@ $(RUNTIME_DRIVER_NO_C_CFLAGS)
 
 # shux_x 使用带 -DSHUX_USE_X_PIPELINE 编译的 main，否则 #ifdef 块不会生效
-src/main_x.o: src/main.c
-	$(CC) $(CFLAGS) -DSHUX_USE_X_PIPELINE -c -o $@ $<
+src/main_x.o: src/main.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/main.inc $@ -DSHUX_USE_X_PIPELINE
 
 # shux_x：pipeline_x.o 编排 typeck_x/codegen_x（G-02a: typeck.c + codegen.c 已删；X pipeline 独立）。
 PIPELINE_X_BASE_OBJS = src/main_x.o src/runtime_x.o src/diag.o src/lexer/lexer.o src/ast/ast_seed.o
@@ -1166,8 +1166,8 @@ lexer_x.o: lexer_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c lexer_gen.c -o lexer_x.o
 	@echo "lexer_x.o OK"
 
-src/x_seed_bridge.o: src/x_seed_bridge.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/x_seed_bridge.o: src/x_seed_bridge.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/x_seed_bridge.inc $@ -I. -Iinclude -Isrc
 
 # pipeline_x.o 仍引用 typeck_typeck_* / codegen_codegen_* / lexer_lexer_*；*_x.o 导出无重复前缀名。
 # G-02e-8：原 lexer/typeck/codegen_x_link_alias 三 TU 并入 x_frontend_link_alias.c。
@@ -1226,26 +1226,26 @@ src/asm/user_asm_seed_bridge.o: src/asm/user_asm_seed_bridge.inc scripts/cc_inc_
 src/asm/asm_backend_compat_stubs.o: src/asm/asm_backend_compat_stubs.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/asm_backend_compat_stubs.inc $@
 
-src/asm/backend_enc_dispatch.o: src/asm/backend_enc_dispatch.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/asm/backend_enc_dispatch.o: src/asm/backend_enc_dispatch.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/backend_enc_dispatch.inc $@ -I. -Iinclude -Isrc
 
 src/asm/backend_x86_64_enc_c.o: src/asm/backend_x86_64_enc_c.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/backend_x86_64_enc_c.inc $@
 
-src/asm/backend_arch_emit_dispatch.o: src/asm/backend_arch_emit_dispatch.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/asm/backend_arch_emit_dispatch.o: src/asm/backend_arch_emit_dispatch.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/backend_arch_emit_dispatch.inc $@ -I. -Iinclude -Isrc
 
-src/asm/backend_try_inline_dispatch.o: src/asm/backend_try_inline_dispatch.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/asm/backend_try_inline_dispatch.o: src/asm/backend_try_inline_dispatch.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/backend_try_inline_dispatch.inc $@ -I. -Iinclude -Isrc
 
-src/asm/backend_call_dispatch.o: src/asm/backend_call_dispatch.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/asm/backend_call_dispatch.o: src/asm/backend_call_dispatch.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/backend_call_dispatch.inc $@ -I. -Iinclude -Isrc
 
 # parser EMIT_HEAVY thin delegate C 目标：bootstrap shux 须链入，extern bl 白名单 emit 才不 segfault。
 # 全量 parser_x.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。
 PARSER_ASM_THIN_GLUE_CFLAGS = -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 PARSER_ASM_LINK_ALIAS_CFLAGS = -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
-parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c \
+parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.inc \
  src/asm/parser_asm_type_ref_slice.inc \
  src/asm/parser_asm_struct_layout_slice.inc \
  src/asm/parser_asm_library_slice.inc \
@@ -1267,7 +1267,7 @@ parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c \
  src/asm/parser_asm_emit_heavy_stretch_slice.inc \
  src/asm/parser_asm_emit_heavy_stretch_suite_slice.inc \
  src/asm/parser_asm_seed_parse_into_buf_slice.inc
-	$(CC) $(CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -c -o $@ src/asm/parser_asm_thin_c.c
+	sh scripts/cc_inc_tu.sh src/asm/parser_asm_thin_c.inc $@ $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer
 
 # parse_expr_into 桥 + pipeline 弱 parse 桩 / 可选 parser_* 别名（G-02e-7 并入 link_alias）。
 src/asm/parser_asm_parse_expr_link.o: src/asm/parser_asm_parse_expr_link.inc scripts/cc_inc_tu.sh
@@ -1413,15 +1413,15 @@ bootstrap-codegen: $(TARGET) $(SHUX_C) bootstrap_shuxc $(RELINK_SHUX_PREREQS)
 	@echo "bootstrap-codegen OK"
 
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 SHUX_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
-src/main_driver.o: src/main.c Makefile
-	$(CC) $(CFLAGS) -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -c -o $@ $<
+src/main_driver.o: src/main.inc Makefile scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/main.inc $@ -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE
 # G-02a: preprocess.c 已物理删除；runtime preprocess() 走 preprocess.x（preprocess_x.o）。
-src/driver/target_cpu.o: src/driver/target_cpu.c include/target_cpu.h
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
-src/asm/simd_enc.o: src/asm/simd_enc.c include/simd_enc.h include/target_cpu.h
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
-src/asm/simd_loop.o: src/asm/simd_loop.c include/simd_loop.h include/simd_enc.h include/target_cpu.h
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/driver/target_cpu.o: src/driver/target_cpu.inc include/target_cpu.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/driver/target_cpu.inc $@ -I. -Iinclude -Isrc
+src/asm/simd_enc.o: src/asm/simd_enc.inc include/simd_enc.h include/target_cpu.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/simd_enc.inc $@ -I. -Iinclude -Isrc
+src/asm/simd_loop.o: src/asm/simd_loop.inc include/simd_loop.h include/simd_enc.h include/target_cpu.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/simd_loop.inc $@ -I. -Iinclude -Isrc
 # G-02a Step 1：默认构建切 no_c 模式；默认 bootstrap 不链 LEXER_LINK_O / AST_LINK_O。
 # C 前端 .c（ast/lexer/parser/typeck/codegen）仍保留，因 build_shux_asm.sh + relink 脚本仍引用 ast_seed.o 等。
 # bootstrap-driver-seed：pipeline_x.o 为 -E-extern 编排；parser/lexer/typeck/codegen *_x.o 分 TU。
@@ -1549,20 +1549,20 @@ bootstrap-driver-seed-x-frontend: $(SHUX_C) migrate-x-objs driver_x.o preprocess
 # 无补丁：driver_gen.c 仅由 -E -E-extern 生成；run_compiler_c 在 runtime.c 中定义并转调 main_run_compiler_c；其余从 main.x/codegen 根源修
 # LSP 诊断：G-02a lsp_diag.c 已删；仅 lsp_diag_x.o + stubs。
 
-src/lsp/lsp_diag_pipeline_sizes.o: src/lsp/lsp_diag_pipeline_sizes.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/lsp/lsp_diag_pipeline_sizes.o: src/lsp/lsp_diag_pipeline_sizes.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_sizes.inc $@ -I. -Iinclude -Isrc
 
 # bootstrap/relink 同时链 lsp_diag_pipeline_ctx.o；Cygwin 无 weak，须省略 sizes 内占位符号。
-src/lsp/lsp_diag_pipeline_sizes_nostub.o: src/lsp/lsp_diag_pipeline_sizes.c
-	$(CC) $(CFLAGS) -DSHUX_LSP_PIPELINE_CTX_LINKED -I. -Iinclude -Isrc -c -o $@ $<
+src/lsp/lsp_diag_pipeline_sizes_nostub.o: src/lsp/lsp_diag_pipeline_sizes.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_sizes.inc $@ -DSHUX_LSP_PIPELINE_CTX_LINKED -I. -Iinclude -Isrc
 
 # G-02e-8：lsp_diag_x_alias 已并入本 TU。
-src/lsp/lsp_diag_pipeline_ctx.o: src/lsp/lsp_diag_pipeline_ctx.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/lsp/lsp_diag_pipeline_ctx.o: src/lsp/lsp_diag_pipeline_ctx.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_ctx.inc $@ -I. -Iinclude -Isrc
 
 # G-02e-14：heap_*_c 在 runtime_heap_user.inc（由 glue_stubs 与 link_abi ensure 共用）。
-src/runtime_driver_strict_glue_stubs.o: src/runtime_driver_strict_glue_stubs.c src/runtime_heap_user.inc
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/runtime_driver_strict_glue_stubs.o: src/runtime_driver_strict_glue_stubs.inc src/runtime_heap_user.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/runtime_driver_strict_glue_stubs.inc $@ -I. -Iinclude -Isrc
 
 # G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
 # 提供 ast_module_free/ast_expr_free/ast_block_free 等 8 个内存管理函数。
@@ -1644,8 +1644,8 @@ lsp_io_gen.c: src/lsp/lsp_io.x
 src/lsp/typeck_lsp_io_stub.o: src/lsp/typeck_lsp_io_stub.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/lsp/typeck_lsp_io_stub.inc $@
 
-src/seed_link_compat.o: src/seed_link_compat.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/seed_link_compat.o: src/seed_link_compat.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/seed_link_compat.inc $@ -I. -Iinclude -Isrc
 
 lsp_gen.c: src/lsp/lsp.x
 	@if [ -s lsp_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
@@ -1722,7 +1722,7 @@ lsp_io_x.o: lsp_io_gen.c src/lsp/lsp_io.x Makefile
 lsp_x.o: lsp_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -c lsp_gen.c -o lsp_x.o
 
-# fmt/check/test/compile/build/run：独立 .x -E-extern 产出；asm_driver_* 仍由 runtime_driver_strict_glue_stubs.c 提供
+# fmt/check/test/compile/build/run：独立 .x -E-extern 产出；asm_driver_* 仍由 runtime_driver_strict_glue_stubs.inc 提供
 DRIVER_SUBCMD_GEN = driver_fmt_gen.c driver_check_gen.c driver_test_gen.c driver_compile_gen.c driver_build_gen.c driver_run_gen.c driver_emit_gen.c
 DRIVER_SUBCMD_OBJS = driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o
 DRIVER_SUBCMD_DIRS = -L .. -L src -L src/lexer -L src/ast
@@ -2027,9 +2027,9 @@ $(ASM_GLUE_STANDALONE_O): src/asm/pipeline_glue_standalone.inc build_asm/pipelin
 	@mkdir -p build_asm
 	sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_standalone.inc $@ $(PIPELINE_GEN_CFLAGS) -Wno-error=return-type -Ibuild_asm
 
-build_asm/pipeline_glue_strict_minimal.o: src/asm/pipeline_glue_strict_minimal.c
+build_asm/pipeline_glue_strict_minimal.o: src/asm/pipeline_glue_strict_minimal.inc
 	@mkdir -p build_asm
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ src/asm/pipeline_glue_strict_minimal.c
+	sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_strict_minimal.inc $@ -I. -Iinclude -Isrc
 
 # relink-shux 与 bootstrap-driver-seed 链接同一组 .o；须声明为 prerequisite，否则冷启动仅 make all 后缺 main_driver.o 等。
 RELINK_SHUX_PREREQS = build-seed-asm-host $(RELINK_SHUX_FILTERED_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(DRIVER_SUBCMD_GEN) \
@@ -2191,7 +2191,7 @@ check-6.4: $(TARGET)
 # 首次/从零构建：一条命令得到 shux-c + build_tool（build-tool 仅依赖 shux-c，与 lsp_gen 生成物无环）。与 README「读者一次做对」一致。
 first-time: build-tool
 
-# 阶段 7：build.x 驱动 build_tool（G-05：build_runner + build_runtime_x，无 build_runtime.c）
+# 阶段 7：build.x 驱动 build_tool（G-05：build_runner + build_runtime_x，无 build_runtime.inc）
 # G-05（2026-07-10）：
 # - 默认用 seeds/ 下 pinned *_gen.c（-x -E 对 build_runner.entry / 大 TU 仍不稳定；C 前端 -E-extern 已随 G-02a 不可用）
 # - 可选：SHUX_BUILD_TOOL_REGEN=1 且 ./shux 可 -x -E 时尝试刷新 build_gen + build_runtime_x_gen

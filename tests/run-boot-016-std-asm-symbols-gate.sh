@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_BOOT016_DOC:-analysis/boot-016-std-asm-symbols-v1.md}"
 MANIFEST="${SHUX_BOOT016_TSV:-tests/baseline/boot-016-std-asm-symbols.tsv}"
-RUNTIME="${SHUX_BOOT016_RUNTIME:-compiler/src/runtime.c}"
+RUNTIME="${SHUX_BOOT016_RUNTIME:-compiler/src/runtime.inc}"
 LIB="tests/lib/boot-016-std-asm-symbols.sh"
 MIN_TOP=12
 

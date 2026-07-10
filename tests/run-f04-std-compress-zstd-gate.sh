@@ -43,7 +43,7 @@ fi
 if grep 'STD_AND_PANIC_O' compiler/Makefile | grep -q 'compress/compress.o'; then
   die "STD_AND_PANIC_O still lists compress.o"
 fi
-grep -q 'link_abi_user_o_needs_compress_libs' compiler/src/runtime_link_abi.c || die "missing compress user_o link helper"
+grep -q 'link_abi_user_o_needs_compress_libs' compiler/src/runtime_link_abi.inc || die "missing compress user_o link helper"
 
 MANIFEST="tests/baseline/f04-std-compress-zstd.tsv"
 if [ -f "$MANIFEST" ]; then

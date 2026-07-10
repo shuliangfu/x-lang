@@ -11,8 +11,8 @@ cd "$(dirname "$0")/.."
 FAIL=${SHUX_E03_PREPROCESS_FAIL:-0}
 DOC="analysis/phase-e-e03-v2-preprocess.md"
 MF="compiler/Makefile"
-RUNTIME="compiler/src/runtime.c"
-PIPELINE_ABI_C="compiler/src/runtime_pipeline_abi.c"
+RUNTIME="compiler/src/runtime.inc"
+PIPELINE_ABI_C="compiler/src/runtime_pipeline_abi.inc"
 PREPROCESS_C="compiler/src/preprocess.c"
 
 die() {
@@ -30,8 +30,8 @@ grep -q 'PREPROCESS_LINK_O' "$MF" || die "Makefile missing PREPROCESS_LINK_O"
 grep -q 'SHUX_LEGACY_PREPROCESS_C' "$MF" || die "Makefile missing SHUX_LEGACY_PREPROCESS_C"
 grep -q 'RUNTIME_PIPELINE_ABI_CFLAGS' "$MF" || die "Makefile missing RUNTIME_PIPELINE_ABI_CFLAGS (E-04 v32)"
 grep -q 'Phase E soft-retired' "$PREPROCESS_C" || die "preprocess.c missing Phase E marker"
-grep -q 'SHUX_LEGACY_PREPROCESS_C' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.c missing SHUX_LEGACY_PREPROCESS_C branch"
-grep -q 'shux_preprocess' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.c missing shux_preprocess default path"
+grep -q 'SHUX_LEGACY_PREPROCESS_C' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing SHUX_LEGACY_PREPROCESS_C branch"
+grep -q 'shux_preprocess' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_preprocess default path"
 grep -q 'SHUX_RUNTIME_PREPROCESS' "$RUNTIME" || die "runtime.c missing SHUX_RUNTIME_PREPROCESS macro"
 
 # DRIVER_SEED_OBJS 默认不得硬编码 preprocess_for_driver.o

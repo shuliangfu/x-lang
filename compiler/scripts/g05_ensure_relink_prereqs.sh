@@ -58,10 +58,10 @@ g05_cc_c() {
 
 if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   echo "g05_ensure_relink_prereqs: hot rebuild (cc, no make)"
-  g05_cc_c src/runtime_link_abi.o src/runtime_link_abi.c
+  g05_cc_c src/runtime_link_abi.o src/runtime_link_abi.inc
   # 注意：.o 名是 runtime_driver_no_c.o，源文件是 runtime.c + NO_C flags
-  g05_cc_c src/runtime_driver_no_c.o src/runtime.c $RUNTIME_DRIVER_NO_C_CFLAGS
-  g05_cc_c build_asm/pipeline_glue_strict_minimal.o src/asm/pipeline_glue_strict_minimal.c
+  g05_cc_c src/runtime_driver_no_c.o src/runtime.inc $RUNTIME_DRIVER_NO_C_CFLAGS
+  g05_cc_c build_asm/pipeline_glue_strict_minimal.o src/asm/pipeline_glue_strict_minimal.inc
   # G-02e：typeck_f64_bits 纯 .s
   _f64s=""
   case "${G05_UNAME_S:-$(uname -s)}/${G05_UNAME_M:-$(uname -m)}" in

@@ -561,7 +561,7 @@ if seed_partial_needs_regen; then
       echo "$_extra" >>"$SYMS"
     fi
   done
-  # backend_enc_dispatch.c 依赖 arch_*_enc_enc_*，backend_arch_emit_dispatch.c 依赖 arch_*_emit_*。
+  # backend_enc_dispatch.inc 依赖 arch_*_enc_enc_*，backend_arch_emit_dispatch.inc 依赖 arch_*_emit_*。
   nm "$ASM_FULL_O" | awk '/ T / && $3 ~ /^_?arch_(arm64|x86_64|riscv64)_enc_enc_/ {print $3}' >>"$SYMS"
   nm "$ASM_FULL_O" | awk '/ T / && $3 ~ /^_?arch_(arm64|x86_64|riscv64)_emit_/ {print $3}' >>"$SYMS"
   sort -u -o "$SYMS" "$SYMS"

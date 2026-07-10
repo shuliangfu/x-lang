@@ -19,7 +19,7 @@ io_io_c	x	done	std/io/backend.x	F-03 v3 sync fallback；io_uring 延后 F-04
 net_freestanding_linux	x	done	std/net/freestanding_linux.x	NL-02 socket facade
 nolibc_socket_gate	gate	done	tests/run-no-libc-socket-gate.sh	socket+close smoke
 net_net_c	x	deleted	std/net/mod.x	F-04 v14：net.c 删；hosted net.o 纯 .x+胶层
-link_nostdlib	driver	done	compiler/src/runtime_link_abi.c	NL-05 freestanding user ld -nostdlib
+link_nostdlib	driver	done	compiler/src/runtime_link_abi.inc	NL-05 freestanding user ld -nostdlib
 link_no_lc	user_gate	done	tests/run-no-libc-link-gate.sh	用户链无 -lc；编译器 track
 nolibc_link_gate	gate	done	tests/run-no-libc-link-gate.sh	NL-05 链接策略
 n06_doc	doc	done	analysis/phase-f-n06-v1.md	NL-06 v1 首批发

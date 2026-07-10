@@ -1,91 +1,91 @@
 # E-04 v2/v3/v4 runtime ABI 薄壳清单
 # 列：item_id	e_task	path	status	replacement	check_type	notes
 e04_v35_doc	doc	analysis/phase-e-e04-v35.md	active	n/a	grep	E-04 v35
-e04_pipeline_collect_deps	abi_sym	runtime_pipeline_abi.c:shux_collect_deps_transitive	active	driver/runtime	grep	shux_collect_deps_transitive
-e04_pipeline_merge_deps_direct	abi_sym	runtime_pipeline_abi.c:shux_merge_direct_then_transitive_deps	active	asm layout	grep	shux_merge_direct_then_transitive_deps
-e04_pipeline_load_direct_layout	abi_sym	runtime_pipeline_abi.c:shux_load_direct_imports_for_asm_layout	active	ENTRY_MODULE_ONLY	grep	shux_load_direct_imports_for_asm_layout
+e04_pipeline_collect_deps	abi_sym	runtime_pipeline_abi.inc:shux_collect_deps_transitive	active	driver/runtime	grep	shux_collect_deps_transitive
+e04_pipeline_merge_deps_direct	abi_sym	runtime_pipeline_abi.inc:shux_merge_direct_then_transitive_deps	active	asm layout	grep	shux_merge_direct_then_transitive_deps
+e04_pipeline_load_direct_layout	abi_sym	runtime_pipeline_abi.inc:shux_load_direct_imports_for_asm_layout	active	ENTRY_MODULE_ONLY	grep	shux_load_direct_imports_for_asm_layout
 e04_runtime_collect_deps_ref	abi_sym	runtime.c:shux_collect_deps_transitive	active	E-04 v35	grep	shux_collect_deps_transitive
 e04_v34_doc	doc	analysis/phase-e-e04-v34.md	active	n/a	grep	E-04 v34
-e04_driver_diag_tu	abi_tu	compiler/src/runtime_driver_diagnostic.c	active	pipeline/typeck/asm	exists	driver diagnostic TU
-e04_driver_diag_parse_fail	abi_sym	runtime_driver_diagnostic.c:driver_diagnostic_parse_fail	active	pipeline.x	grep	driver_diagnostic_parse_fail
-e04_driver_diag_unused_hint	abi_sym	runtime_driver_diagnostic.c:driver_diagnostic_hint_unused_binding	active	C typeck	grep	driver_diagnostic_hint_unused_binding
-e04_runtime_diag_ref	abi_sym	runtime.c:runtime_driver_diagnostic.c	active	E-04 v34	grep	runtime_driver_diagnostic.c
+e04_driver_diag_tu	abi_tu	compiler/src/runtime_driver_diagnostic.inc	active	pipeline/typeck/asm	exists	driver diagnostic TU
+e04_driver_diag_parse_fail	abi_sym	runtime_driver_diagnostic.inc:driver_diagnostic_parse_fail	active	pipeline.x	grep	driver_diagnostic_parse_fail
+e04_driver_diag_unused_hint	abi_sym	runtime_driver_diagnostic.inc:driver_diagnostic_hint_unused_binding	active	C typeck	grep	driver_diagnostic_hint_unused_binding
+e04_runtime_diag_ref	abi_sym	runtime.c:runtime_driver_diagnostic.inc	active	E-04 v34	grep	runtime_driver_diagnostic.inc
 e04_objs_core_driver_diag	E-04	compiler/Makefile	active	shux-c + seed	grep	runtime_driver_diagnostic\.o
 e04_v33_doc	doc	analysis/phase-e-e04-v33.md	active	n/a	grep	E-04 v33
 e04_c_import_tu	abi_tu	compiler/src/runtime_c_import.inc	active	shux-c only	exists	C import load
 e04_c_import_resolve	abi_sym	runtime_c_import.inc:shu_c_resolve_and_load_imports	active	run_compiler_c	grep	shu_c_resolve_and_load_imports
 e04_c_import_lsp	abi_sym	runtime_c_import.inc:shu_lsp_resolve_and_load_imports	active	lsp_diag	grep	shu_lsp_resolve_and_load_imports
-e04_driver_top_level_import	abi_sym	runtime_driver_abi.c:driver_source_has_top_level_import_path	active	compile.x	grep	driver_source_has_top_level_import_path
-e04_pipeline_merge_deps	abi_sym	runtime_pipeline_abi.c:shux_merge_deps_path_already_out	active	asm layout	grep	shux_merge_deps_path_already_out
+e04_driver_top_level_import	abi_sym	runtime_driver_abi.inc:driver_source_has_top_level_import_path	active	compile.x	grep	driver_source_has_top_level_import_path
+e04_pipeline_merge_deps	abi_sym	runtime_pipeline_abi.inc:shux_merge_deps_path_already_out	active	asm layout	grep	shux_merge_deps_path_already_out
 e04_objs_core_c_import	E-04	compiler/Makefile	active	shux-c cold start	grep	runtime_c_import\.o
 e04_v32_doc	doc	analysis/phase-e-e04-v32.md	active	n/a	grep	E-04 v32
-e04_pipeline_shux_preprocess	abi_sym	runtime_pipeline_abi.c:shux_preprocess	active	driver/runtime	grep	shux_preprocess
+e04_pipeline_shux_preprocess	abi_sym	runtime_pipeline_abi.inc:shux_preprocess	active	driver/runtime	grep	shux_preprocess
 e04_runtime_preprocess_macro	abi_sym	runtime.c:SHUX_RUNTIME_PREPROCESS	active	shux-c/driver	grep	SHUX_RUNTIME_PREPROCESS
 e04_v31_doc	doc	analysis/phase-e-e04-v31.md	active	n/a	grep	E-04 v31
-e04_pipeline_import_dep_dir	abi_sym	runtime_pipeline_abi.c:shux_import_dep_dir_from_path	active	load_one_import	grep	shux_import_dep_dir_from_path
-e04_pipeline_asm_prepare_elf	abi_sym	runtime_pipeline_abi.c:shux_driver_asm_prepare_entry_elf_emit	active	asm elf_o	grep	shux_driver_asm_prepare_entry_elf_emit
-e04_pipeline_asm_elf_large	abi_sym	runtime_pipeline_abi.c:shux_asm_codegen_elf_o_large_stack	active	asm backend	grep	shux_asm_codegen_elf_o_large_stack
-e04_pipeline_typeck_for_ctx	abi_sym	runtime_pipeline_abi.c:pipeline_typeck_module_for_ctx	active	asm typecheck	grep	pipeline_typeck_module_for_ctx
-e04_pipeline_lsp_free_imports	abi_sym	runtime_pipeline_abi.c:shu_lsp_free_loaded_imports	active	lsp_diag	grep	shu_lsp_free_loaded_imports
+e04_pipeline_import_dep_dir	abi_sym	runtime_pipeline_abi.inc:shux_import_dep_dir_from_path	active	load_one_import	grep	shux_import_dep_dir_from_path
+e04_pipeline_asm_prepare_elf	abi_sym	runtime_pipeline_abi.inc:shux_driver_asm_prepare_entry_elf_emit	active	asm elf_o	grep	shux_driver_asm_prepare_entry_elf_emit
+e04_pipeline_asm_elf_large	abi_sym	runtime_pipeline_abi.inc:shux_asm_codegen_elf_o_large_stack	active	asm backend	grep	shux_asm_codegen_elf_o_large_stack
+e04_pipeline_typeck_for_ctx	abi_sym	runtime_pipeline_abi.inc:pipeline_typeck_module_for_ctx	active	asm typecheck	grep	pipeline_typeck_module_for_ctx
+e04_pipeline_lsp_free_imports	abi_sym	runtime_pipeline_abi.inc:shu_lsp_free_loaded_imports	active	lsp_diag	grep	shu_lsp_free_loaded_imports
 e04_v30_doc	doc	analysis/phase-e-e04-v30.md	active	n/a	grep	E-04 v30
-e04_pipeline_set_entry_dir	abi_sym	runtime_pipeline_abi.c:pipeline_set_entry_dir	active	pipeline.x	grep	pipeline_set_entry_dir
-e04_pipeline_read_file	abi_sym	runtime_pipeline_abi.c:pipeline_read_file	active	import load	grep	pipeline_read_file
-e04_pipeline_run_large_stack	abi_sym	runtime_pipeline_abi.c:shux_pipeline_run_x_pipeline_large_stack	active	dep prerun	grep	shux_pipeline_run_x_pipeline_large_stack
-e04_pipeline_dep_prerun_parse	abi_sym	runtime_pipeline_abi.c:shux_pipeline_dep_prerun_parse_only	active	asm -o	grep	shux_pipeline_dep_prerun_parse_only
-e04_pipeline_dep_prerun_skip	abi_sym	runtime_pipeline_abi.c:shux_pipeline_dep_prerun_parse_skip_typeck	active	std.net	grep	shux_pipeline_dep_prerun_parse_skip_typeck
+e04_pipeline_set_entry_dir	abi_sym	runtime_pipeline_abi.inc:pipeline_set_entry_dir	active	pipeline.x	grep	pipeline_set_entry_dir
+e04_pipeline_read_file	abi_sym	runtime_pipeline_abi.inc:pipeline_read_file	active	import load	grep	pipeline_read_file
+e04_pipeline_run_large_stack	abi_sym	runtime_pipeline_abi.inc:shux_pipeline_run_x_pipeline_large_stack	active	dep prerun	grep	shux_pipeline_run_x_pipeline_large_stack
+e04_pipeline_dep_prerun_parse	abi_sym	runtime_pipeline_abi.inc:shux_pipeline_dep_prerun_parse_only	active	asm -o	grep	shux_pipeline_dep_prerun_parse_only
+e04_pipeline_dep_prerun_skip	abi_sym	runtime_pipeline_abi.inc:shux_pipeline_dep_prerun_parse_skip_typeck	active	std.net	grep	shux_pipeline_dep_prerun_parse_skip_typeck
 e04_v29_doc	doc	analysis/phase-e-e04-v29.md	active	n/a	grep	E-04 v29
-e04_driver_bump_stack	abi_sym	runtime_driver_abi.c:driver_bump_stack_limit	active	pipeline entry	grep	driver_bump_stack_limit
-e04_driver_large_stack	abi_sym	runtime_driver_abi.c:driver_run_thread_on_large_stack	active	LSP/pipeline	grep	driver_run_thread_on_large_stack
-e04_driver_large_stack_pthread	abi_sym	runtime_driver_abi.c:driver_run_on_large_stack_pthread	active	lsp_state	grep	driver_run_on_large_stack_pthread
-e04_pipeline_preprocess_raw	abi_sym	runtime_pipeline_abi.c:shux_preprocess_raw_to_malloc	active	preprocess/import	grep	shux_preprocess_raw_to_malloc
-e04_pipeline_typeck_ndep	abi_sym	runtime_pipeline_abi.c:typeck_ndep	active	pipeline_gen	grep	typeck_ndep
-e04_pipeline_get_dep_module	abi_sym	runtime_pipeline_abi.c:get_dep_module	active	pipeline_gen	grep	get_dep_module
-e04_pipeline_set_dep	abi_sym	runtime_pipeline_abi.c:pipeline_set_dep	active	pipeline.x	grep	pipeline_set_dep
-e04_typeck_dep_sidecar	abi_sym	runtime_pipeline_abi.c:driver_typeck_dep_sidecar_clear	active	clear hook	grep	driver_typeck_dep_sidecar_clear
+e04_driver_bump_stack	abi_sym	runtime_driver_abi.inc:driver_bump_stack_limit	active	pipeline entry	grep	driver_bump_stack_limit
+e04_driver_large_stack	abi_sym	runtime_driver_abi.inc:driver_run_thread_on_large_stack	active	LSP/pipeline	grep	driver_run_thread_on_large_stack
+e04_driver_large_stack_pthread	abi_sym	runtime_driver_abi.inc:driver_run_on_large_stack_pthread	active	lsp_state	grep	driver_run_on_large_stack_pthread
+e04_pipeline_preprocess_raw	abi_sym	runtime_pipeline_abi.inc:shux_preprocess_raw_to_malloc	active	preprocess/import	grep	shux_preprocess_raw_to_malloc
+e04_pipeline_typeck_ndep	abi_sym	runtime_pipeline_abi.inc:typeck_ndep	active	pipeline_gen	grep	typeck_ndep
+e04_pipeline_get_dep_module	abi_sym	runtime_pipeline_abi.inc:get_dep_module	active	pipeline_gen	grep	get_dep_module
+e04_pipeline_set_dep	abi_sym	runtime_pipeline_abi.inc:pipeline_set_dep	active	pipeline.x	grep	pipeline_set_dep
+e04_typeck_dep_sidecar	abi_sym	runtime_pipeline_abi.inc:driver_typeck_dep_sidecar_clear	active	clear hook	grep	driver_typeck_dep_sidecar_clear
 e04_v28_doc	doc	analysis/phase-e-e04-v28.md	active	n/a	grep	E-04 v28
 e04_pipeline_ctx_struct	abi_sym	runtime_pipeline_abi.h:struct ast_PipelineDepCtx	active	pipeline.x	grep	struct ast_PipelineDepCtx
-e04_pipeline_fill_ctx	abi_sym	runtime_pipeline_abi.c:shux_pipeline_fill_ctx_path_buffers	active	dep prerun	grep	shux_pipeline_fill_ctx_path_buffers
-e04_pipeline_seed_slots	abi_sym	runtime_pipeline_abi.c:shux_pipeline_pctx_seed_dep_slots	active	pctx sidecar	grep	shux_pipeline_pctx_seed_dep_slots
-e04_pipeline_one_ctx_prerun	abi_sym	runtime_pipeline_abi.c:shux_pipeline_one_ctx_for_dep_prerun	active	dep prerun	grep	shux_pipeline_one_ctx_for_dep_prerun
-e04_pipeline_asm_user_skip	abi_sym	runtime_pipeline_abi.c:shux_asm_user_std_dep_skip_x_typeck	active	asm backend	grep	shux_asm_user_std_dep_skip_x_typeck
-e04_driver_pipeline_fail	abi_sym	runtime_driver_abi.c:driver_pipeline_fail_code	active	main.x extern	grep	driver_pipeline_fail_code
-e04_driver_smoke_summary	abi_sym	runtime_driver_abi.c:driver_print_x_smoke_summary	active	emit.x extern	grep	driver_print_x_smoke_summary
-e04_driver_peek_source	abi_sym	runtime_driver_abi.c:driver_peek_source_file	active	syntax probe	grep	driver_peek_source_file
+e04_pipeline_fill_ctx	abi_sym	runtime_pipeline_abi.inc:shux_pipeline_fill_ctx_path_buffers	active	dep prerun	grep	shux_pipeline_fill_ctx_path_buffers
+e04_pipeline_seed_slots	abi_sym	runtime_pipeline_abi.inc:shux_pipeline_pctx_seed_dep_slots	active	pctx sidecar	grep	shux_pipeline_pctx_seed_dep_slots
+e04_pipeline_one_ctx_prerun	abi_sym	runtime_pipeline_abi.inc:shux_pipeline_one_ctx_for_dep_prerun	active	dep prerun	grep	shux_pipeline_one_ctx_for_dep_prerun
+e04_pipeline_asm_user_skip	abi_sym	runtime_pipeline_abi.inc:shux_asm_user_std_dep_skip_x_typeck	active	asm backend	grep	shux_asm_user_std_dep_skip_x_typeck
+e04_driver_pipeline_fail	abi_sym	runtime_driver_abi.inc:driver_pipeline_fail_code	active	main.x extern	grep	driver_pipeline_fail_code
+e04_driver_smoke_summary	abi_sym	runtime_driver_abi.inc:driver_print_x_smoke_summary	active	emit.x extern	grep	driver_print_x_smoke_summary
+e04_driver_peek_source	abi_sym	runtime_driver_abi.inc:driver_peek_source_file	active	syntax probe	grep	driver_peek_source_file
 e04_v27_doc	doc	analysis/phase-e-e04-v27.md	active	n/a	grep	E-04 v27
-e04_pipeline_find_loaded	abi_sym	runtime_pipeline_abi.c:shux_find_loaded_import_index	active	load_one_import	grep	shux_find_loaded_import_index
-e04_pipeline_dep_prerun_dir	abi_sym	runtime_pipeline_abi.c:shux_dep_prerun_entry_dir	active	dep prerun	grep	shux_dep_prerun_entry_dir
-e04_pipeline_entry_lib_name	abi_sym	runtime_pipeline_abi.c:shux_entry_lib_name_from_path	active	-E codegen	grep	shux_entry_lib_name_from_path
-e04_pipeline_glue_include	abi_sym	runtime_pipeline_abi.c:shux_emit_pipeline_glue_include	active	-E pipeline	grep	shux_emit_pipeline_glue_include
-e04_pipeline_asm_fclose	abi_sym	runtime_pipeline_abi.c:driver_asm_fclose_asm_out	active	asm backend	grep	driver_asm_fclose_asm_out
-e04_pipeline_asm_out_object	abi_sym	runtime_pipeline_abi.c:shux_asm_out_buf_is_object	active	elf_o detect	grep	shux_asm_out_buf_is_object
-e04_driver_argv_defines	abi_sym	runtime_driver_abi.c:driver_argv_collect_defines	active	run_compiler_c	grep	driver_argv_collect_defines
+e04_pipeline_find_loaded	abi_sym	runtime_pipeline_abi.inc:shux_find_loaded_import_index	active	load_one_import	grep	shux_find_loaded_import_index
+e04_pipeline_dep_prerun_dir	abi_sym	runtime_pipeline_abi.inc:shux_dep_prerun_entry_dir	active	dep prerun	grep	shux_dep_prerun_entry_dir
+e04_pipeline_entry_lib_name	abi_sym	runtime_pipeline_abi.inc:shux_entry_lib_name_from_path	active	-E codegen	grep	shux_entry_lib_name_from_path
+e04_pipeline_glue_include	abi_sym	runtime_pipeline_abi.inc:shux_emit_pipeline_glue_include	active	-E pipeline	grep	shux_emit_pipeline_glue_include
+e04_pipeline_asm_fclose	abi_sym	runtime_pipeline_abi.inc:driver_asm_fclose_asm_out	active	asm backend	grep	driver_asm_fclose_asm_out
+e04_pipeline_asm_out_object	abi_sym	runtime_pipeline_abi.inc:shux_asm_out_buf_is_object	active	elf_o detect	grep	shux_asm_out_buf_is_object
+e04_driver_argv_defines	abi_sym	runtime_driver_abi.inc:driver_argv_collect_defines	active	run_compiler_c	grep	driver_argv_collect_defines
 e04_v26_doc	doc	analysis/phase-e-e04-v26.md	active	n/a	grep	E-04 v26
-e04_pipeline_dep_publish	abi_sym	runtime_pipeline_abi.c:driver_dep_publish_slot	active	dep prerun	grep	driver_dep_publish_slot
-e04_pipeline_dep_arena_buf	abi_sym	runtime_pipeline_abi.c:driver_dep_arena_buf	active	pipeline.x	grep	driver_dep_arena_buf
-e04_pipeline_dep_clear	abi_sym	runtime_pipeline_abi.c:driver_dep_seeded_clear_all	active	after pipeline	grep	driver_dep_seeded_clear_all
+e04_pipeline_dep_publish	abi_sym	runtime_pipeline_abi.inc:driver_dep_publish_slot	active	dep prerun	grep	driver_dep_publish_slot
+e04_pipeline_dep_arena_buf	abi_sym	runtime_pipeline_abi.inc:driver_dep_arena_buf	active	pipeline.x	grep	driver_dep_arena_buf
+e04_pipeline_dep_clear	abi_sym	runtime_pipeline_abi.inc:driver_dep_seeded_clear_all	active	after pipeline	grep	driver_dep_seeded_clear_all
 e04_pipeline_dep_slot_max	abi_sym	runtime_pipeline_abi.h:SHUX_DRIVER_DEP_SLOT_MAX	active	32 slots	grep	SHUX_DRIVER_DEP_SLOT_MAX
 e04_v25_doc	doc	analysis/phase-e-e04-v25.md	active	n/a	grep	E-04 v25
-e04_driver_asm_skip_typeck	abi_sym	runtime_driver_abi.c:driver_asm_build_skip_typeck	active	build_shux_asm	grep	driver_asm_build_skip_typeck
-e04_driver_phase_timing	abi_sym	runtime_driver_abi.c:driver_compile_phase_timing_begin	active	OBS-001	grep	driver_compile_phase_timing_begin
-e04_driver_entry_source_len	abi_sym	runtime_driver_abi.c:driver_set_pipeline_entry_source_len	active	large entry typeck	grep	driver_set_pipeline_entry_source_len
-e04_driver_asm_entry_only	abi_sym	runtime_driver_abi.c:driver_asm_entry_module_only_from_env	active	SHUX_ASM_ENTRY_MODULE_ONLY	grep	driver_asm_entry_module_only_from_env
+e04_driver_asm_skip_typeck	abi_sym	runtime_driver_abi.inc:driver_asm_build_skip_typeck	active	build_shux_asm	grep	driver_asm_build_skip_typeck
+e04_driver_phase_timing	abi_sym	runtime_driver_abi.inc:driver_compile_phase_timing_begin	active	OBS-001	grep	driver_compile_phase_timing_begin
+e04_driver_entry_source_len	abi_sym	runtime_driver_abi.inc:driver_set_pipeline_entry_source_len	active	large entry typeck	grep	driver_set_pipeline_entry_source_len
+e04_driver_asm_entry_only	abi_sym	runtime_driver_abi.inc:driver_asm_entry_module_only_from_env	active	SHUX_ASM_ENTRY_MODULE_ONLY	grep	driver_asm_entry_module_only_from_env
 e04_v24_doc	doc	analysis/phase-e-e04-v24.md	active	n/a	grep	E-04 v24
-e04_pipeline_abi_c	abi_tu	compiler/src/runtime_pipeline_abi.c	active_bootstrap	runtime.c split	exists	import path resolve
-e04_pipeline_abi_h	abi_tu	compiler/src/runtime_pipeline_abi.h	active_bootstrap	runtime_pipeline_abi.c	exists	pipeline ABI 声明
-e04_pipeline_resolve_multi	abi_sym	runtime_pipeline_abi.c:shux_resolve_import_file_path_multi	active	load_one_import	grep	shux_resolve_import_file_path_multi
-e04_pipeline_get_entry_dir	abi_sym	runtime_pipeline_abi.c:shux_get_entry_dir	active	run_compiler_c	grep	shux_get_entry_dir
-e04_pipeline_import_is_file	abi_sym	runtime_pipeline_abi.c:shux_import_path_is_file_path	active	resolve	grep	shux_import_path_is_file_path
+e04_pipeline_abi_c	abi_tu	compiler/src/runtime_pipeline_abi.inc	active_bootstrap	runtime.c split	exists	import path resolve
+e04_pipeline_abi_h	abi_tu	compiler/src/runtime_pipeline_abi.h	active_bootstrap	runtime_pipeline_abi.inc	exists	pipeline ABI 声明
+e04_pipeline_resolve_multi	abi_sym	runtime_pipeline_abi.inc:shux_resolve_import_file_path_multi	active	load_one_import	grep	shux_resolve_import_file_path_multi
+e04_pipeline_get_entry_dir	abi_sym	runtime_pipeline_abi.inc:shux_get_entry_dir	active	run_compiler_c	grep	shux_get_entry_dir
+e04_pipeline_import_is_file	abi_sym	runtime_pipeline_abi.inc:shux_import_path_is_file_path	active	resolve	grep	shux_import_path_is_file_path
 e04_seed_links_pipeline_abi	E-04	compiler/Makefile	active	runtime_pipeline_abi.o	grep	src/runtime_pipeline_abi.o
 e04_objs_core_pipeline_abi	E-04	compiler/Makefile	active	E-04 v24	grep	runtime_pipeline_abi\.o
 e04_v23_doc	doc	analysis/phase-e-e04-v23.md	active	n/a	grep	E-04 v23
-e04_link_invoke_ld_for_exe	abi_sym	runtime_link_abi.c:shux_invoke_ld_for_exe	active	invoke_ld	grep	shux_invoke_ld_for_exe
-e04_link_output_want_exe	abi_sym	runtime_link_abi.c:shux_output_want_exe	active	-o suffix	grep	shux_output_want_exe
-e04_link_output_is_elf_o	abi_sym	runtime_link_abi.c:shux_output_is_elf_o	active	-o suffix	grep	shux_output_is_elf_o
+e04_link_invoke_ld_for_exe	abi_sym	runtime_link_abi.inc:shux_invoke_ld_for_exe	active	invoke_ld	grep	shux_invoke_ld_for_exe
+e04_link_output_want_exe	abi_sym	runtime_link_abi.inc:shux_output_want_exe	active	-o suffix	grep	shux_output_want_exe
+e04_link_output_is_elf_o	abi_sym	runtime_link_abi.inc:shux_output_is_elf_o	active	-o suffix	grep	shux_output_is_elf_o
 e04_v22_doc	doc	analysis/phase-e-e04-v22.md	active	n/a	grep	E-04 v22
-e04_driver_abi_c	abi_tu	compiler/src/runtime_driver_abi.c	active_bootstrap	runtime.c split	exists	driver CLI flags
-e04_driver_abi_h	abi_tu	compiler/src/runtime_driver_abi.h	active_bootstrap	runtime_driver_abi.c	exists	driver ABI 声明
-e04_driver_check_only	abi_sym	runtime_driver_abi.c:driver_check_only_get	active	pipeline/fmt	grep	driver_check_only_get
-e04_driver_freestanding	abi_sym	runtime_driver_abi.c:driver_freestanding_get	active	-backend asm	grep	driver_freestanding_get
+e04_driver_abi_c	abi_tu	compiler/src/runtime_driver_abi.inc	active_bootstrap	runtime.c split	exists	driver CLI flags
+e04_driver_abi_h	abi_tu	compiler/src/runtime_driver_abi.h	active_bootstrap	runtime_driver_abi.inc	exists	driver ABI 声明
+e04_driver_check_only	abi_sym	runtime_driver_abi.inc:driver_check_only_get	active	pipeline/fmt	grep	driver_check_only_get
+e04_driver_freestanding	abi_sym	runtime_driver_abi.inc:driver_freestanding_get	active	-backend asm	grep	driver_freestanding_get
 e04_seed_links_driver_abi	E-04	compiler/Makefile	active	runtime_driver_abi.o	grep	src/runtime_driver_abi.o
 e04_v21_doc	doc	analysis/phase-e-e04-v21.md	active	n/a	grep	E-04 v21
 e04_crt0_mingw	E-04	compiler/src/asm/crt0_mingw.inc	active	main_entry	grep	shux_forward_main_to_main_entry
@@ -100,62 +100,62 @@ e04_crt0_main_entry	E-04	compiler/src/asm/crt0_x86_64.s	active	main_entry	grep	c
 e04_legacy_main_c	E-04	compiler/Makefile	active	SHUX_LEGACY_MAIN_C	grep	SHUX_LEGACY_MAIN_C
 e04_v18_doc	doc	analysis/phase-e-e04-v18.md	active	n/a	grep	E-04 v18
 e04_abi_main_fwd	abi_sym	runtime_abi.c:shux_forward_main_to_main_entry	active	main.c crt0	grep	shux_forward_main_to_main_entry
-e04_main_uses_abi	E-04	compiler/src/main.c	active	shux_forward_main_to_main_entry	grep	E-04 v21 minimal main
+e04_main_uses_abi	E-04	compiler/src/main.inc	active	shux_forward_main_to_main_entry	grep	E-04 v21 minimal main
 e04_v17_doc	doc	analysis/phase-e-e04-v17.md	active	n/a	grep	E-04 v17
-e04_link_invoke_cc	abi_sym	runtime_link_abi.c:shux_invoke_cc	active	runtime driver	grep	shux_invoke_cc
-e04_link_gen_c_async	abi_sym	runtime_link_abi.c:shux_generated_c_needs_async_scheduler	active	invoke_cc prep	grep	shux_generated_c_needs_async_scheduler
+e04_link_invoke_cc	abi_sym	runtime_link_abi.inc:shux_invoke_cc	active	runtime driver	grep	shux_invoke_cc
+e04_link_gen_c_async	abi_sym	runtime_link_abi.inc:shux_generated_c_needs_async_scheduler	active	invoke_cc prep	grep	shux_generated_c_needs_async_scheduler
 e04_invoke_cc_max_c	abi_sym	runtime_link_abi.h:SHUX_INVOKE_CC_MAX_C_FILES	active	multi .c	grep	SHUX_INVOKE_CC_MAX_C_FILES
 e04_v16_doc	doc	analysis/phase-e-e04-v16.md	active	n/a	grep	E-04 v16
-e04_f06_no_legacy_std_o	E-04/F-06	compiler/src/runtime.c	active	F-06 v1 no fs/heap/compress .o	grep	F-06 v1
+e04_f06_no_legacy_std_o	E-04/F-06	compiler/src/runtime.inc	active	F-06 v1 no fs/heap/compress .o	grep	F-06 v1
 e04_v15_doc	doc	analysis/phase-e-e04-v15.md	active	n/a	grep	E-04 v15
-e04_link_invoke_ld	abi_sym	runtime_link_abi.c:shux_asm_invoke_ld_platform	active	invoke_ld	grep	shux_asm_invoke_ld_platform
+e04_link_invoke_ld	abi_sym	runtime_link_abi.inc:shux_asm_invoke_ld_platform	active	invoke_ld	grep	shux_asm_invoke_ld_platform
 e04_v14_doc	doc	analysis/phase-e-e04-v14.md	active	n/a	grep	E-04 v14
-e04_link_prepare	abi_sym	runtime_link_abi.c:shux_asm_ld_prepare_for_exe_link	active	invoke_ld	grep	shux_asm_ld_prepare_for_exe_link
-e04_link_user_undef	abi_sym	runtime_link_abi.c:shux_asm_user_o_has_undef_syms	active	minimal gcc	grep	shux_asm_user_o_has_undef_syms
-e04_link_mach_tail	abi_sym	runtime_link_abi.c:shux_asm_ld_append_mach_tail_libs	active	mach ld	grep	shux_asm_ld_append_mach_tail_libs
-e04_link_unix_tail	abi_sym	runtime_link_abi.c:shux_asm_ld_append_unix_gcc_tail_libs	active	unix gcc ld	grep	shux_asm_ld_append_unix_gcc_tail_libs
+e04_link_prepare	abi_sym	runtime_link_abi.inc:shux_asm_ld_prepare_for_exe_link	active	invoke_ld	grep	shux_asm_ld_prepare_for_exe_link
+e04_link_user_undef	abi_sym	runtime_link_abi.inc:shux_asm_user_o_has_undef_syms	active	minimal gcc	grep	shux_asm_user_o_has_undef_syms
+e04_link_mach_tail	abi_sym	runtime_link_abi.inc:shux_asm_ld_append_mach_tail_libs	active	mach ld	grep	shux_asm_ld_append_mach_tail_libs
+e04_link_unix_tail	abi_sym	runtime_link_abi.inc:shux_asm_ld_append_unix_gcc_tail_libs	active	unix gcc ld	grep	shux_asm_ld_append_unix_gcc_tail_libs
 e04_ld_argv_cap	abi_sym	runtime_link_abi.h:SHUX_LD_ARGV_CAP	active	asm ld	grep	SHUX_LD_ARGV_CAP
 e04_v13_doc	doc	analysis/phase-e-e04-v13.md	active	n/a	grep	E-04 v13
 e04_link_std_flags	abi_sym	runtime_link_abi.h:ShuAsmLdStdLinkFlags	active	asm ld	grep	ShuAsmLdStdLinkFlags
-e04_link_rel_path	abi_sym	runtime_link_abi.c:shux_rel_o_path_from_argv0	active	std .o	grep	shux_rel_o_path_from_argv0
-e04_link_nm_undef	abi_sym	runtime_link_abi.c:shux_link_obj_needs_undef_sym	active	on_demand	grep	shux_link_obj_needs_undef_sym
-e04_link_append_std	abi_sym	runtime_link_abi.c:shux_asm_ld_append_std_objs	active	asm_invoke_ld	grep	shux_asm_ld_append_std_objs
-e04_link_append_od	abi_sym	runtime_link_abi.c:shux_asm_ld_append_on_demand_user_objs	active	asm_invoke_ld	grep	shux_asm_ld_append_on_demand_user_objs
+e04_link_rel_path	abi_sym	runtime_link_abi.inc:shux_rel_o_path_from_argv0	active	std .o	grep	shux_rel_o_path_from_argv0
+e04_link_nm_undef	abi_sym	runtime_link_abi.inc:shux_link_obj_needs_undef_sym	active	on_demand	grep	shux_link_obj_needs_undef_sym
+e04_link_append_std	abi_sym	runtime_link_abi.inc:shux_asm_ld_append_std_objs	active	asm_invoke_ld	grep	shux_asm_ld_append_std_objs
+e04_link_append_od	abi_sym	runtime_link_abi.inc:shux_asm_ld_append_on_demand_user_objs	active	asm_invoke_ld	grep	shux_asm_ld_append_on_demand_user_objs
 e04_v12_doc	doc	analysis/phase-e-e04-v12.md	active	n/a	grep	E-04 v12
-e04_link_path_bank	abi_sym	runtime_link_abi.c:ShuAsmLdPathBank	active	asm ld	grep	ShuAsmLdPathBank
-e04_link_bank_push	abi_sym	runtime_link_abi.c:shux_asm_ld_bank_push	active	asm ld	grep	shux_asm_ld_bank_push
-e04_link_lib_roots	abi_sym	runtime_link_abi.c:shux_asm_ld_try_under_lib_roots	active	asm ld	grep	shux_asm_ld_try_under_lib_roots
-e04_link_io_o_path	abi_sym	runtime_link_abi.c:shux_std_io_o_path	active	invoke_cc	grep	shux_std_io_o_path
-e04_link_repo_root	abi_sym	runtime_link_abi.c:shux_repo_root_from_argv0	active	invoke_cc -I	grep	shux_repo_root_from_argv0
+e04_link_path_bank	abi_sym	runtime_link_abi.inc:ShuAsmLdPathBank	active	asm ld	grep	ShuAsmLdPathBank
+e04_link_bank_push	abi_sym	runtime_link_abi.inc:shux_asm_ld_bank_push	active	asm ld	grep	shux_asm_ld_bank_push
+e04_link_lib_roots	abi_sym	runtime_link_abi.inc:shux_asm_ld_try_under_lib_roots	active	asm ld	grep	shux_asm_ld_try_under_lib_roots
+e04_link_io_o_path	abi_sym	runtime_link_abi.inc:shux_std_io_o_path	active	invoke_cc	grep	shux_std_io_o_path
+e04_link_repo_root	abi_sym	runtime_link_abi.inc:shux_repo_root_from_argv0	active	invoke_cc -I	grep	shux_repo_root_from_argv0
 e04_v11_doc	doc	analysis/phase-e-e04-v11.md	active	n/a	grep	E-04 v11
-e04_link_freestanding_en	abi_sym	runtime_link_abi.c:shux_link_freestanding_enabled	active	freestanding	grep	shux_link_freestanding_enabled
-e04_link_ensure_io_stubs	abi_sym	runtime_link_abi.c:shux_ensure_runtime_asm_io_stubs_o	active	invoke_ld	grep	shux_ensure_runtime_asm_io_stubs_o
-e04_link_ensure_crt0	abi_sym	runtime_link_abi.c:shux_ensure_crt0_user_o	active	freestanding	grep	shux_ensure_crt0_user_o
-e04_link_ensure_fs_io	abi_sym	runtime_link_abi.c:shux_ensure_freestanding_io_o	active	freestanding	grep	shux_ensure_freestanding_io_o
+e04_link_freestanding_en	abi_sym	runtime_link_abi.inc:shux_link_freestanding_enabled	active	freestanding	grep	shux_link_freestanding_enabled
+e04_link_ensure_io_stubs	abi_sym	runtime_link_abi.inc:shux_ensure_runtime_asm_io_stubs_o	active	invoke_ld	grep	shux_ensure_runtime_asm_io_stubs_o
+e04_link_ensure_crt0	abi_sym	runtime_link_abi.inc:shux_ensure_crt0_user_o	active	freestanding	grep	shux_ensure_crt0_user_o
+e04_link_ensure_fs_io	abi_sym	runtime_link_abi.inc:shux_ensure_freestanding_io_o	active	freestanding	grep	shux_ensure_freestanding_io_o
 e04_v10_doc	doc	analysis/phase-e-e04-v10.md	active	n/a	grep	E-04 v10
-e04_link_crt0_o	abi_sym	runtime_link_abi.c:shux_crt0_user_o_path	active	freestanding	grep	shux_crt0_user_o_path
-e04_link_freestanding_io	abi_sym	runtime_link_abi.c:shux_freestanding_io_o_path	active	freestanding	grep	shux_freestanding_io_o_path
-e04_link_io_stubs	abi_sym	runtime_link_abi.c:shux_runtime_asm_io_stubs_o_path	active	asm ld	grep	shux_runtime_asm_io_stubs_o_path
-e04_link_ensure_panic	abi_sym	runtime_link_abi.c:shux_ensure_runtime_panic_o	active	invoke_ld	grep	shux_ensure_runtime_panic_o
+e04_link_crt0_o	abi_sym	runtime_link_abi.inc:shux_crt0_user_o_path	active	freestanding	grep	shux_crt0_user_o_path
+e04_link_freestanding_io	abi_sym	runtime_link_abi.inc:shux_freestanding_io_o_path	active	freestanding	grep	shux_freestanding_io_o_path
+e04_link_io_stubs	abi_sym	runtime_link_abi.inc:shux_runtime_asm_io_stubs_o_path	active	asm ld	grep	shux_runtime_asm_io_stubs_o_path
+e04_link_ensure_panic	abi_sym	runtime_link_abi.inc:shux_ensure_runtime_panic_o	active	invoke_ld	grep	shux_ensure_runtime_panic_o
 e04_v9_doc	doc	analysis/phase-e-e04-v9.md	active	n/a	grep	E-04 v9
-e04_link_panic_o	abi_sym	runtime_link_abi.c:shux_runtime_panic_o_path	active	invoke_cc/asm_ld	grep	shux_runtime_panic_o_path
-e04_link_async_sched	abi_sym	runtime_link_abi.c:shux_std_async_scheduler_o_path	active	task/scheduler	grep	shux_std_async_scheduler_o_path
+e04_link_panic_o	abi_sym	runtime_link_abi.inc:shux_runtime_panic_o_path	active	invoke_cc/asm_ld	grep	shux_runtime_panic_o_path
+e04_link_async_sched	abi_sym	runtime_link_abi.inc:shux_std_async_scheduler_o_path	active	task/scheduler	grep	shux_std_async_scheduler_o_path
 e04_v8_doc	doc	analysis/phase-e-e04-v8.md	active	n/a	grep	E-04 v8
-e04_link_compiler_dir	abi_sym	runtime_link_abi.c:shu_resolve_compiler_dir	active	runtime panic/io	grep	shu_resolve_compiler_dir
-e04_link_effective_argv0	abi_sym	runtime_link_abi.c:shux_asm_ld_effective_link_argv0	active	invoke_ld	grep	shux_asm_ld_effective_link_argv0
+e04_link_compiler_dir	abi_sym	runtime_link_abi.inc:shu_resolve_compiler_dir	active	runtime panic/io	grep	shu_resolve_compiler_dir
+e04_link_effective_argv0	abi_sym	runtime_link_abi.inc:shux_asm_ld_effective_link_argv0	active	invoke_ld	grep	shux_asm_ld_effective_link_argv0
 e04_v7_doc	doc	analysis/phase-e-e04-v7.md	active	n/a	grep	E-04 v7
-e04_link_harden	abi_sym	runtime_link_abi.c:shux_append_linux_link_harden	active	invoke_cc/asm_ld	grep	shux_append_linux_link_harden
+e04_link_harden	abi_sym	runtime_link_abi.inc:shux_append_linux_link_harden	active	invoke_cc/asm_ld	grep	shux_append_linux_link_harden
 e04_v6_doc	doc	analysis/phase-e-e04-v6.md	active	n/a	grep	E-04 v6
-e04_link_compress	abi_sym	runtime_link_abi.c:invoke_cc_append_compress_ld	active	invoke_cc	grep	invoke_cc_append_compress_ld
-e04_link_asm_compress	abi_sym	runtime_link_abi.c:asm_ld_append_compress_libs	active	asm_invoke_ld	grep	asm_ld_append_compress_libs
-e04_link_net_tls	abi_sym	runtime_link_abi.c:invoke_cc_append_net_tls_ld	active	invoke_cc	grep	invoke_cc_append_net_tls_ld
-e04_link_net_auto	abi_sym	runtime_link_abi.c:ensure_std_net_o_auto_tls	active	invoke_cc	grep	ensure_std_net_o_auto_tls
+e04_link_compress	abi_sym	runtime_link_abi.inc:invoke_cc_append_compress_ld	active	invoke_cc	grep	invoke_cc_append_compress_ld
+e04_link_asm_compress	abi_sym	runtime_link_abi.inc:asm_ld_append_compress_libs	active	asm_invoke_ld	grep	asm_ld_append_compress_libs
+e04_link_net_tls	abi_sym	runtime_link_abi.inc:invoke_cc_append_net_tls_ld	active	invoke_cc	grep	invoke_cc_append_net_tls_ld
+e04_link_net_auto	abi_sym	runtime_link_abi.inc:ensure_std_net_o_auto_tls	active	invoke_cc	grep	ensure_std_net_o_auto_tls
 e04_v5_doc	doc	analysis/phase-e-e04-v5.md	active	n/a	grep	E-04 v5
-e04_link_abi_c	abi_tu	compiler/src/runtime_link_abi.c	active_bootstrap	runtime.c split	exists	invoke_cc argv helpers
-e04_link_abi_h	abi_tu	compiler/src/runtime_link_abi.h	active_bootstrap	runtime_link_abi.c	exists	link ABI 声明
-e04_link_argv_push	abi_sym	runtime_link_abi.c:invoke_cc_argv_push_existing	active	invoke_cc	grep	invoke_cc_argv_push_existing
-e04_link_skip_tune	abi_sym	runtime_link_abi.c:invoke_cc_skip_native_tuning	active	invoke_cc	grep	invoke_cc_skip_native_tuning
-e04_link_sched	abi_sym	runtime_link_abi.c:scheduler_o_for_task_link	active	invoke_cc/asm_ld	grep	scheduler_o_for_task_link
+e04_link_abi_c	abi_tu	compiler/src/runtime_link_abi.inc	active_bootstrap	runtime.c split	exists	invoke_cc argv helpers
+e04_link_abi_h	abi_tu	compiler/src/runtime_link_abi.h	active_bootstrap	runtime_link_abi.inc	exists	link ABI 声明
+e04_link_argv_push	abi_sym	runtime_link_abi.inc:invoke_cc_argv_push_existing	active	invoke_cc	grep	invoke_cc_argv_push_existing
+e04_link_skip_tune	abi_sym	runtime_link_abi.inc:invoke_cc_skip_native_tuning	active	invoke_cc	grep	invoke_cc_skip_native_tuning
+e04_link_sched	abi_sym	runtime_link_abi.inc:scheduler_o_for_task_link	active	invoke_cc/asm_ld	grep	scheduler_o_for_task_link
 e04_seed_links_link	E-04	compiler/Makefile	active	runtime_link_abi.o	grep	src/runtime_link_abi.o
 e04_objs_core_link	E-04	compiler/Makefile	active	E-03 v5	grep	runtime_link_abi\.o
 e04_v4_doc	doc	analysis/phase-e-e04-v4.md	active	n/a	grep	E-04 v4
@@ -164,24 +164,24 @@ e04_v2_doc	doc	analysis/phase-e-e04-v2.md	active	n/a	grep	E-04 v2
 e04_gate	gate	tests/run-e04-runtime-soft-gate.sh	active	n/a	gate_ref	E-04 v2/v3/v4/v5/v6/v7/v8/v9/v10/v11/v12/v13/v14/v15/v16/v17/v18/v19/v20/v21/v22/v23/v24/v25/v26/v27/v28/v29/v30/v31/v32/v33/v34/v35
 e04_abi_c	abi_tu	compiler/src/runtime_abi.c	active_bootstrap	runtime.c split	exists	argv/target 原语
 e04_abi_h	abi_tu	compiler/src/runtime_abi.h	active_bootstrap	runtime_abi.c	exists	ABI 声明
-e04_io_abi_c	abi_tu	compiler/src/runtime_io_abi.c	active_bootstrap	runtime.c split	exists	POSIX I/O
-e04_io_abi_h	abi_tu	compiler/src/runtime_io_abi.h	active_bootstrap	runtime_io_abi.c	exists	I/O 声明
+e04_io_abi_c	abi_tu	compiler/src/runtime_io_abi.inc	active_bootstrap	runtime.c split	exists	POSIX I/O
+e04_io_abi_h	abi_tu	compiler/src/runtime_io_abi.h	active_bootstrap	runtime_io_abi.inc	exists	I/O 声明
 e04_proc_abi_c	abi_tu	compiler/src/runtime_proc_abi.c	active_bootstrap	runtime.c split	exists	waitpid/link skip
 e04_proc_abi_h	abi_tu	compiler/src/runtime_proc_abi.h	active_bootstrap	runtime_proc_abi.c	exists	proc 声明
 e04_abi_get_argv	abi_sym	runtime_abi.c:driver_get_argv_i	active	main.x extern	grep	driver_get_argv_i
 e04_abi_drop_sub	abi_sym	runtime_abi.c:driver_argv_drop_subcommand	active	main.x extern	grep	driver_argv_drop_subcommand
 e04_abi_target_arch	abi_sym	runtime_abi.c:driver_resolve_target_arch	active	compile.x extern	grep	driver_resolve_target_arch
-e04_io_read_malloc	abi_sym	runtime_io_abi.c:runtime_read_file_malloc	active	runtime.c macro	grep	runtime_read_file_malloc
-e04_io_read_into	abi_sym	runtime_io_abi.c:shux_read_file_into_path	active	ast_pool extern	grep	shux_read_file_into_path
-e04_io_write_bytes	abi_sym	runtime_io_abi.c:shux_write_path_bytes	active	runtime fmt	grep	shux_write_path_bytes
+e04_io_read_malloc	abi_sym	runtime_io_abi.inc:runtime_read_file_malloc	active	runtime.c macro	grep	runtime_read_file_malloc
+e04_io_read_into	abi_sym	runtime_io_abi.inc:shux_read_file_into_path	active	ast_pool extern	grep	shux_read_file_into_path
+e04_io_write_bytes	abi_sym	runtime_io_abi.inc:shux_write_path_bytes	active	runtime fmt	grep	shux_write_path_bytes
 e04_proc_waitpid	abi_sym	runtime_proc_abi.c:shu_waitpid_retry	active	invoke_cc/ld	grep	shu_waitpid_retry
 e04_proc_link_skip	abi_sym	runtime_proc_abi.c:asm_link_obj_skip_missing	active	invoke_cc/ld	grep	asm_link_obj_skip_missing
 e04_seed_links_abi	E-04	compiler/Makefile	active	runtime_abi.o	grep	src/runtime_abi.o
 e04_seed_links_io	E-04	compiler/Makefile	active	runtime_io_abi.o	grep	src/runtime_io_abi.o
 e04_seed_links_proc	E-04	compiler/Makefile	active	runtime_proc_abi.o	grep	src/runtime_proc_abi.o
-e04_runtime_still_active	E-04	compiler/src/runtime.c	active	E-04 v23+ pipeline body	grep	Phase E active
+e04_runtime_still_active	E-04	compiler/src/runtime.inc	active	E-04 v23+ pipeline body	grep	Phase E active
 e04_objs_core_driver_abi	E-04	compiler/Makefile	active	E-04 v22	grep	runtime_driver_abi\.o
-e04_main_still_active	E-04	compiler/src/main.c	active	LEGACY/shux-c only	grep	Phase E active
+e04_main_still_active	E-04	compiler/src/main.inc	active	LEGACY/shux-c only	grep	Phase E active
 e04_objs_core_runtime	E-04	compiler/Makefile	track-only	shux-c cold start	grep	OBJS_CORE.*runtime\.o
 e04_objs_core_abi	E-04	compiler/Makefile	active	E-03 v4	grep	runtime_abi\.o
 e04_objs_core_io	E-04	compiler/Makefile	active	shux-c I/O ABI	grep	runtime_io_abi\.o

@@ -20,7 +20,7 @@ if ! echo '#include <zlib.h>' | "$CC" -E -x c - >/dev/null 2>&1; then
   echo "compress test: skipped (zlib.h not available)"
   exit 0
 fi
-# 追加常见 lib 搜索路径（与 runtime_link_abi.c ld_append_brew_lib_paths 对齐），尝试链接四个压缩库
+# 追加常见 lib 搜索路径（与 runtime_link_abi.inc ld_append_brew_lib_paths 对齐），尝试链接四个压缩库
 SHUX_COMPRESS_LIB_DIRS=""
 for d in /opt/homebrew/lib /usr/local/lib /usr/lib /lib; do
   [ -d "$d" ] && SHUX_COMPRESS_LIB_DIRS="$SHUX_COMPRESS_LIB_DIRS -L$d"

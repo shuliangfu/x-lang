@@ -128,7 +128,7 @@ fi
 if [ "$EMIT_HEAVY" = "1" ] && [ "${SHUX_PARSER_SECOND_PASS_SEED_METRIC_DYNAMIC:-1}" = "1" ]; then
   SEED_METRIC_TMP="/tmp/shux_parser_seed_metric.$$.o"
   SEED_METRIC_TMP2="/tmp/shux_parser_seed_metric_noseed.$$.o"
-  THIN_SRC="compiler/src/asm/parser_asm_thin_c.c"
+  THIN_SRC="compiler/src/asm/parser_asm_thin_c.inc"
   if [ -f "$THIN_SRC" ] && command -v cc >/dev/null 2>&1; then
     if cc -Wall -Icompiler -Icompiler/include -Icompiler/src -Icompiler/src/lexer \
       -c -o "$SEED_METRIC_TMP" "$THIN_SRC" 2>/dev/null \
@@ -149,7 +149,7 @@ COMBINED_AUDIT=$((COMBINED_TEXT + SEED_PARSE_METRIC_BYTES))
 TEXT_SUFFIX=""
 [ "$EMIT_HEAVY" = "1" ] && TEXT_SUFFIX=" (thin_glue=${GLUE_TEXT}B combined=${COMBINED_TEXT}B audit=${COMBINED_AUDIT}B)"
 
-# EMIT_HEAVY：parser.o thin delegate 须 bl→parser_asm_thin_c.c 的 *_glue（undef sym 顶 256；防 c_len 截断）。
+# EMIT_HEAVY：parser.o thin delegate 须 bl→parser_asm_thin_c.inc 的 *_glue（undef sym 顶 256；防 c_len 截断）。
 if [ "$EMIT_HEAVY" = "1" ] && [ -f "$TMP" ]; then
   NM_BAD=0
   while IFS= read -r sym; do

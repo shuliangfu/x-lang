@@ -8,9 +8,9 @@ matrix	section	## 3. 验证矩阵	comp-win-backend-matrix.tsv	-	sample
 golden	section	## 4. Golden 文件	analysis/comp-win-backend-v1.md	-	coff
 verify	section	## 6. 验证与门禁	analysis/comp-win-backend-v1.md	-	gate
 layer_w1	layers	W1-coff-writer	compiler/src/asm/platform/coff.x	coff	write_coff_o_to_buf
-layer_w2	layers	W2-target-triple	compiler/src/runtime.c	triple	windows
+layer_w2	layers	W2-target-triple	compiler/src/runtime.inc	triple	windows
 layer_w3	layers	W3-ctx-flag	compiler/src/ast/ast.x	ctx	use_coff_o
-layer_w4	layers	W4-ld-link	compiler/src/runtime.c	ld	lld-link
+layer_w4	layers	W4-ld-link	compiler/src/runtime.inc	ld	lld-link
 layer_w5	layers	W5-cross-emit	tests/run-asm.sh	cross	emit
 layer_w6	layers	W6-min-sample	tests/asm/windows_min.x	sample	42
 sym_coff	symbol	write_coff_o_to_buf	compiler/src/asm/platform/coff.x	writer	PE

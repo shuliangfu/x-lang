@@ -34,8 +34,8 @@ fi
 if grep -q '../std/io/io.o' compiler/Makefile 2>/dev/null; then
   die "Makefile still references ../std/io/io.o"
 fi
-if grep -q 'link_abi_asm_ld_push_obj.*std/io/io.o' compiler/src/runtime_link_abi.c 2>/dev/null; then
-  die "runtime_link_abi.c still pushes std/io/io.o"
+if grep -q 'link_abi_asm_ld_push_obj.*std/io/io.o' compiler/src/runtime_link_abi.inc 2>/dev/null; then
+  die "runtime_link_abi.inc still pushes std/io/io.o"
 fi
 grep -q 'shux_io_uring_is_available_c' std/io/stubs.x || die "io_stubs missing uring probe"
 
