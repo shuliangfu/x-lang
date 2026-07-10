@@ -123,6 +123,8 @@ const char *shux_empty_cstr(void) {
  * 返回值：指向最后分隔符的指针，找不到返回 NULL。
  */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-267 L0 path pure */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 char * shux_path_last_sep(const char *s) {
     char *p = s ? strrchr(s, '/') : NULL;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
@@ -134,12 +136,18 @@ char * shux_path_last_sep(const char *s) {
 #endif
     return p;
 }
+#else
+char *shux_path_last_sep(const char *s);
+#endif
+
 
 
 
 
 /** 字符串是否包含任意路径分隔符（POSIX '/' 或 Windows '\\')。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-267 L0 path pure */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 int shux_path_has_sep(const char *s) {
     if (!s)
         return 0;
@@ -151,6 +159,10 @@ int shux_path_has_sep(const char *s) {
 #endif
     return 0;
 }
+#else
+int shux_path_has_sep(const char *s);
+#endif
+
 
 
 
@@ -4756,6 +4768,8 @@ int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
 
 /** ld argv 项是否为已解析的 .o/.obj 路径（跳过 -o、编译器驱动等）。 */
 /* G-02f-65：真逻辑来自 .x（.o / .obj 后缀；原 static 提升为导出）。 */
+/* G-02f-267 L0 path pure */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 int link_abi_ld_argv_entry_is_obj(const char *s) {
     size_t n;
     if (s == NULL) {
@@ -4788,6 +4802,10 @@ int link_abi_ld_argv_entry_is_obj(const char *s) {
     }
     return 0;
 }
+#else
+int link_abi_ld_argv_entry_is_obj(const char *s);
+#endif
+
 
 /**
  * 用户主 .o 或已入链 argv 中的 std/*.o 是否仍引用 heap_*_c。
@@ -6657,6 +6675,8 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
  * 返回值：非 0 表示对象文件后缀。
  */
 /* G-02f-64：真逻辑来自 .x（逐字节后缀；无 _impl）。 */
+/* G-02f-267 L0 path pure */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 int shux_output_is_elf_o(const char *path) {
     size_t n;
     if (path == NULL) {
@@ -6689,6 +6709,10 @@ int shux_output_is_elf_o(const char *path) {
     }
     return 0;
 }
+#else
+int shux_output_is_elf_o(const char *path);
+#endif
+
 
 /**
  * 判断 -o 路径是否表示可执行文件名（非 .o/.obj/.s 后缀）。

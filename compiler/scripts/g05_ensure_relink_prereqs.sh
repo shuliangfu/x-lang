@@ -133,13 +133,43 @@ g05_ensure_l2_or_seed() {
 
 if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   echo "g05_ensure_relink_prereqs: hot rebuild (cc, no make)"
-  # G-02f-13：runtime_link_abi 产品 seed（G05 hot）
+  # G-02f-13 / G-02f-267：runtime_link_abi.o ← seed（G05 hot）
+  # PREFER_X_O=1：L0 path pure hybrid（labi_path_pure + rest -DSHUX_LABI_PATH_PURE_FROM_X）
   _rlink=seeds/runtime_link_abi.from_x.c
+  _labi_l0_seed=seeds/labi_path_pure.from_x.c
+  _labi_o=src/runtime_link_abi.o
   if [ -f "$_rlink" ]; then
-    if [ ! -f src/runtime_link_abi.o ] || [ "$_rlink" -nt src/runtime_link_abi.o ]; then
-      echo "g05_ensure: runtime_link_abi.o ← seed (G-02f-13)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_link_abi.o "$_rlink"
+    if [ ! -f "$_labi_o" ] || [ "$_rlink" -nt "$_labi_o" ] \
+      || { [ -f "$_labi_l0_seed" ] && [ "$_labi_l0_seed" -nt "$_labi_o" ]; }; then
+      _labi_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_labi_l0_seed" ]; then
+        _labi_l0_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l0.XXXXXX") || true
+        _labi_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_rest.XXXXXX") || true
+        _labi_l0_ok=0
+        if [ -n "$_labi_l0_o" ]; then
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l0_o" "$_labi_l0_seed"; then
+            _labi_l0_ok=1
+            echo "g05_ensure: L0 path pure ← $_labi_l0_seed (G-02f-267 seed slice)"
+          fi
+        fi
+        # shellcheck disable=SC2086
+        if [ "$_labi_l0_ok" = "1" ] && [ -n "$_labi_rest_o" ] \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_LABI_PATH_PURE_FROM_X \
+               -c -o "$_labi_rest_o" "$_rlink" \
+          && $CC -r -nostdlib -o "$_labi_o" "$_labi_l0_o" "$_labi_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_labi_o ← L0 + link_abi rest (G-02f-267 hybrid)"
+          _labi_done=1
+        else
+          echo "g05_ensure: L0 link_abi hybrid failed; fallback full seed" >&2
+        fi
+        rm -f "$_labi_l0_o" "$_labi_rest_o"
+      fi
+      if [ "$_labi_done" = "0" ]; then
+        echo "g05_ensure: runtime_link_abi.o ← seed (G-02f-13)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_o" "$_rlink"
+      fi
     fi
   fi
   # G-02f-14 / G-02f-261～265：runtime_driver_no_c.o ← seeds/runtime.from_x.c + NO_C flags
