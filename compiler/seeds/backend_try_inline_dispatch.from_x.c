@@ -560,7 +560,8 @@ int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b,
  * callee 是否为 `return param0 binop param1`（两 i32 形参、非向量返回）。
  * 成功写 *out_binop_ko（4=add,5=sub,6=mul,7=div,8=mod）。
  */
-int32_t glue_fold_func_returns_param01_scalar_binop_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-136：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                            int32_t func_idx, int32_t *out_binop_ko) {
   int32_t ret_ref;
   int32_t ko;
@@ -589,13 +590,6 @@ int32_t glue_fold_func_returns_param01_scalar_binop_impl(struct ast_ASTArena *ar
     return 0;
   *out_binop_ko = ko;
   return 1;
-}
-int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                           int32_t func_idx, int32_t *out_binop_ko) {
-  {
-    return glue_fold_func_returns_param01_scalar_binop_impl(arena, mod, func_idx, out_binop_ko);
-  }
-  return 0;
 }
 
 
@@ -1462,7 +1456,8 @@ int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *arena, 
 /**
  * callee 是否为 `return param0[index_const]`（单形参、标量返回）；成功写 *out_lane。
  */
-int32_t glue_fold_func_returns_param0_index_const_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-136：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                          int32_t func_idx, int32_t *out_lane) {
   int32_t ret_ref;
   int32_t base_ref;
@@ -1483,13 +1478,6 @@ int32_t glue_fold_func_returns_param0_index_const_impl(struct ast_ASTArena *aren
     return 0;
   *out_lane = lane;
   return 1;
-}
-int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                         int32_t func_idx, int32_t *out_lane) {
-  {
-    return glue_fold_func_returns_param0_index_const_impl(arena, mod, func_idx, out_lane);
-  }
-  return 0;
 }
 
 
@@ -1931,7 +1919,8 @@ int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCodegenCtx 
 /**
  * 函数体是否为 `return Struct { f: 常量… }`（各字段 init 均为整型/浮点字面量，无形参）。
  */
-int32_t glue_fold_func_returns_const_struct_lit_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-136：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                        int32_t func_idx, int32_t *out_lit_ref) {
   int32_t ret_ref;
   int32_t nf;
@@ -1977,13 +1966,6 @@ int32_t glue_fold_func_returns_const_struct_lit_impl(struct ast_ASTArena *arena,
   }
   *out_lit_ref = ret_ref;
   return 1;
-}
-int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                       int32_t func_idx, int32_t *out_lit_ref) {
-  {
-    return glue_fold_func_returns_const_struct_lit_impl(arena, mod, func_idx, out_lit_ref);
-  }
-  return 0;
 }
 
 
