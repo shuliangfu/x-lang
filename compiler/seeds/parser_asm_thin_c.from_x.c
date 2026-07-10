@@ -6470,7 +6470,30 @@ struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_
 #include "parser_asm_emit_heavy_stretch_suite_slice.inc"
 #ifndef PARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 /* 瘦 parser_x.o 无 parse_into_buf 时由 seed slice 提供；全量 parser_x.o 链入时 Makefile 定义 NO_SEED_PARSE。 */
+/* G-02f-289 P8 seed_parse：默认 #include；hybrid 时在 pthin_seed_parse.from_x.c */
+#ifndef SHUX_PTHIN_SEED_PARSE_FROM_X
 #include "parser_asm_seed_parse_into_buf_slice.inc"
+#else
+struct parser_asm_seed_parse_into_result {
+  int32_t ok;
+  int32_t main_idx;
+};
+struct parser_asm_seed_slice_u8 {
+  uint8_t *data;
+  size_t length;
+};
+struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *arena, void *module, uint8_t *data,
+                                                                         int32_t len);
+struct parser_asm_seed_parse_into_result parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len);
+struct parser_asm_seed_parse_into_result parser_parse_into_buf(void *arena, void *module, uint8_t *data, int32_t len);
+struct parser_asm_seed_parse_into_result parse_into(void *arena, void *module,
+                                                    struct parser_asm_seed_slice_u8 *source);
+struct parser_asm_seed_parse_into_result parser_parse_into(void *arena, void *module,
+                                                           struct parser_asm_seed_slice_u8 *source);
+void parse_into_set_main_index(void *module, int32_t main_idx);
+void parser_parse_into_set_main_index(void *module, int32_t main_idx);
+int labi_pthin_seed_parse_slice_marker(void);
+#endif
 #endif
 
 /** 参数/返回值标量或命名类型 token（不含 * 与 []）。 */

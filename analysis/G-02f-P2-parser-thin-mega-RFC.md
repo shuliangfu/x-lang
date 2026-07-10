@@ -250,3 +250,4 @@ nm -g parser_asm_thin_glue.o | head
 | 2026-07-11 | **f-286 P5 ctrl**：`pthin_ctrl.*`（if_stmt + match_subject + if_expr；simd 仍 rest）；`SHUX_PTHIN_CTRL_FROM_X`；rest 保留 `parse_block_result`；prefer hybrid **P1–P5+rest** |
 | 2026-07-11 | **f-287 P6 fn/block**：`pthin_fn_block.*`（struct_layout + library + one_function_buf + block_from_res）；`SHUX_PTHIN_FN_BLOCK_FROM_X`；library scan 仍 rest；prefer hybrid **P1–P6+rest** |
 | 2026-07-11 | **f-288 P7 simd**：`pthin_simd.*`（simd_builtin_slice）；`SHUX_PTHIN_SIMD_FROM_X`；从 CTRL 块旁路独立出来；prefer hybrid **P1–P7+rest** |
+| 2026-07-11 | **f-289 P8 seed_parse**：`pthin_seed_parse.*`（seed_parse_into_buf_slice）；`SHUX_PTHIN_SEED_PARSE_FROM_X` 嵌套于 `!NO_SEED_PARSE`；产品 G05 仍 NO_SEED_PARSE + smoke -c；不 ld -r 进产品 glue |
