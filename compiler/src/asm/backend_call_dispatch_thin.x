@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/380：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/381：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -178,7 +178,7 @@ function glue_asm_import_path_segment_count(path: *u8, path_len: i32): i32 {
 // ---- G-02f-369：import 比较 + f32 flag get → seed impl ----
 extern "C" function glue_asm_import_path_slice_equal_impl(module: *u8, imp_ix: i32, off: i32, seg_len: i32, nm: *u8, nm_len: i32): i32;
 extern "C" function glue_asm_import_binding_name_equal_impl(module: *u8, imp_ix: i32, nm: *u8, nm_len: i32): i32;
-extern "C" function glue_f32_xmm_flag_get_body(): i32;
+extern "C" function glue_f32_xmm_flag_get_body_impl(): i32;
 
 #[no_mangle]
 function glue_asm_import_path_slice_equal(module: *u8, imp_ix: i32, off: i32, seg_len: i32, nm: *u8, nm_len: i32): i32 {
@@ -199,7 +199,7 @@ function glue_asm_import_binding_name_equal(module: *u8, imp_ix: i32, nm: *u8, n
 #[no_mangle]
 function pipeline_asm_emit_get_call_f32_xmm_c(): i32 {
   unsafe {
-    return glue_f32_xmm_flag_get_body();
+    return glue_f32_xmm_flag_get_body_impl();
   }
   return 0;
 }
@@ -508,6 +508,15 @@ function glue_asm_string_lit_into(arena: *u8, expr_ref: i32, out64: *u8): i32 {
 function glue_sysv_x86_call_arg_slot_c(arena: *u8, call_expr_ref: i32, nargs: i32, arg_index: i32, out_kind: *i32, out_reg_k: *i32, out_stack_k: *i32): i32 {
   unsafe {
     return glue_sysv_x86_call_arg_slot_c_impl(arena, call_expr_ref, nargs, arg_index, out_kind, out_reg_k, out_stack_k);
+  }
+  return 0;
+}
+
+// ---- G-02f-381：f32 flag get_body public thin shell ----
+#[no_mangle]
+function glue_f32_xmm_flag_get_body(): i32 {
+  unsafe {
+    return glue_f32_xmm_flag_get_body_impl();
   }
   return 0;
 }

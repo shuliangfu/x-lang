@@ -80,6 +80,7 @@ void pipeline_asm_emit_set_call_f32_xmm(int32_t on);
 void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap);
 void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64);
 void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs, int32_t arg_index, int32_t *out_kind, int32_t *out_reg_k, int32_t *out_stack_k);
+int32_t glue_f32_xmm_flag_get_body(void);
 #endif
 
 
@@ -354,9 +355,16 @@ void pipeline_asm_emit_set_call_f32_xmm(int32_t on) {
 }
 #endif
 
-int32_t glue_f32_xmm_flag_get_body(void) {
+/* G-02f-381 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_f32_xmm_flag_get_body_impl(void) {
   return g_pipeline_asm_emit_call_f32_xmm;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_f32_xmm_flag_get_body(void) {
+  return glue_f32_xmm_flag_get_body_impl();
+}
+#endif
 
 #ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
 int32_t pipeline_asm_emit_get_call_f32_xmm_c(void) {

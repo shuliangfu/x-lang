@@ -77,6 +77,10 @@ int32_t try_inline_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena
 int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_ref, struct glue_AsmFuncCtx *ctx, int32_t ta, int32_t stack_slot_off);
 int32_t glue_call_lookup_callee_mod_fi_arena(struct ast_ASTArena *caller_arena, int32_t call_ref, struct glue_AsmFuncCtx *ctx, struct ast_ASTArena **out_ca, struct ast_Module **out_cm, int32_t *out_fi);
 int32_t try_inline_var_field_sum_binop_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t left_ref, int32_t right_ref, struct glue_AsmFuncCtx *ctx, int32_t ta);
+int32_t glue_fold_func_return_operand_ref_module(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx);
+int32_t asm_array_lit_elem_byte_sz(struct ast_ASTArena *arena, int32_t array_lit_ref);
+int32_t asm_array_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
+int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref, struct ast_Module *mod, uint8_t *asm_ctx);
 #endif
 
 
@@ -194,7 +198,8 @@ extern int32_t backend_fold_func_x_plus_k_chain(struct ast_ASTArena *arena, stru
  * B-strict backend.o 桩 fold 失败时供 struct/field 内联 fold 使用。
  */
 /* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_fold_func_return_operand_ref_module(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-381 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_fold_func_return_operand_ref_module_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                         int32_t func_idx) {
   int32_t body_ref;
   int32_t fin;
@@ -234,6 +239,13 @@ int32_t glue_fold_func_return_operand_ref_module(struct ast_ASTArena *arena, str
   return found == 1 ? op_ref : 0;
 
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_fold_func_return_operand_ref_module(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                        int32_t func_idx) {
+  return glue_fold_func_return_operand_ref_module_impl(arena, mod, func_idx);
+}
+#endif
 
 
 /** 读取函数 return 操作数：backend 真 emit 优先，否则 module body_ref 路径。 */
@@ -362,7 +374,8 @@ int32_t glue_align_up8_c(int32_t n) {
  * ARRAY_LIT 元素字节宽；与 pipeline_glue.c pipeline_asm_array_lit_elem_byte_sz_c 一致。
  */
 /* G-02f-184：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t asm_array_lit_elem_byte_sz(struct ast_ASTArena *arena, int32_t array_lit_ref) {
+/* G-02f-381 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t asm_array_lit_elem_byte_sz_impl(struct ast_ASTArena *arena, int32_t array_lit_ref) {
   int32_t elem_ty;
   int32_t kind_ord;
   if (!arena || array_lit_ref <= 0)
@@ -379,6 +392,12 @@ int32_t asm_array_lit_elem_byte_sz(struct ast_ASTArena *arena, int32_t array_lit
 }
 
 #ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t asm_array_lit_elem_byte_sz(struct ast_ASTArena *arena, int32_t array_lit_ref) {
+  return asm_array_lit_elem_byte_sz_impl(arena, array_lit_ref);
+}
+#endif
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t array_lit_ref) {
   return asm_array_lit_elem_byte_sz(arena, array_lit_ref);
 }
@@ -388,7 +407,8 @@ int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_
  * 定长 ARRAY_LIT 初值在栈 temp 区占用字节数（不含 8 字节指针槽）。
  */
 /* G-02f-185：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t asm_array_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref) {
+/* G-02f-381 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t asm_array_lit_reserve_stack_bytes_impl(struct ast_ASTArena *arena, int32_t init_ref) {
   int32_t n;
   int32_t esz;
   if (!arena || init_ref <= 0)
@@ -398,9 +418,15 @@ int32_t asm_array_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t in
   n = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
   if (n <= 0)
     return 0;
-  esz = asm_array_lit_elem_byte_sz(arena, init_ref);
+  esz = asm_array_lit_elem_byte_sz_impl(arena, init_ref);
   return glue_align_up8_c(n * esz);
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t asm_array_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref) {
+  return asm_array_lit_reserve_stack_bytes_impl(arena, init_ref);
+}
+#endif
 
 #ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref) {
@@ -764,7 +790,8 @@ int32_t glue_type_ref_is_named_struct_layout(struct ast_ASTArena *arena, struct 
  * asm_ctx 非空时优先读块内 let/const 声明类型（expr.resolved_type 可能误标为 *T）。
  */
 /* G-02f-196：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref,
+/* G-02f-381 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t asm_local_var_slot_holds_indirect_ptr_impl(struct ast_ASTArena *arena, int32_t expr_ref,
                                             struct ast_Module *mod, uint8_t *asm_ctx) {
   int32_t tr;
   int32_t kind;
@@ -823,6 +850,13 @@ int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_
     return 1;
   return 0;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref,
+                                            struct ast_Module *mod, uint8_t *asm_ctx) {
+  return asm_local_var_slot_holds_indirect_ptr_impl(arena, expr_ref, mod, asm_ctx);
+}
+#endif
 
 /**
  * INDEX 元素字节宽；委托 pipeline_glue.c（避免 X Type 按值 emit）。

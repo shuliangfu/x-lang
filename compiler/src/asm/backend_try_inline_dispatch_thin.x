@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/379：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/381：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -117,7 +117,7 @@ extern "C" function glue_arch_emit_local_slot_ptr_or_addr_text(arena: *u8, out: 
 extern "C" function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name: *u8, nlen: i32): i32;
 extern "C" function asm_ctx_local_find_offset(ctx: *u8, name: *u8, nlen: i32): i32;
 extern "C" function backend_fold_func_return_operand_ref(arena: *u8, mod: *u8, func_idx: i32): i32;
-extern "C" function glue_fold_func_return_operand_ref_module(arena: *u8, mod: *u8, func_idx: i32): i32;
+extern "C" function glue_fold_func_return_operand_ref_module_impl(arena: *u8, mod: *u8, func_idx: i32): i32;
 
 #[no_mangle]
 function pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf_ctx: *u8, arg_ref: i32, slot_off: i32, ta: i32, asm_ctx: *u8): i32 {
@@ -152,19 +152,35 @@ function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, func_idx: i
     if (backend_fold_func_return_operand_ref(arena, mod, func_idx) > 0) {
       return backend_fold_func_return_operand_ref(arena, mod, func_idx);
     }
-    return glue_fold_func_return_operand_ref_module(arena, mod, func_idx);
+    return glue_fold_func_return_operand_ref_module_impl(arena, mod, func_idx);
   }
   return 0;
 }
 
 // ---- G-02f-366：array lit forward + try_expr_const ----
-extern "C" function asm_array_lit_elem_byte_sz(arena: *u8, array_lit_ref: i32): i32;
-extern "C" function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32;
+extern "C" function asm_array_lit_elem_byte_sz_impl(arena: *u8, array_lit_ref: i32): i32;
+extern "C" function asm_array_lit_reserve_stack_bytes_impl(arena: *u8, init_ref: i32): i32;
+
+#[no_mangle]
+function asm_array_lit_elem_byte_sz(arena: *u8, array_lit_ref: i32): i32 {
+  unsafe {
+    return asm_array_lit_elem_byte_sz_impl(arena, array_lit_ref);
+  }
+  return 4;
+}
+
+#[no_mangle]
+function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32 {
+  unsafe {
+    return asm_array_lit_reserve_stack_bytes_impl(arena, init_ref);
+  }
+  return 0;
+}
 
 #[no_mangle]
 function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, array_lit_ref: i32): i32 {
   unsafe {
-    return asm_array_lit_elem_byte_sz(arena, array_lit_ref);
+    return asm_array_lit_elem_byte_sz_impl(arena, array_lit_ref);
   }
   return 4;
 }
@@ -172,14 +188,14 @@ function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, array_lit_ref: i32): 
 #[no_mangle]
 function pipeline_asm_array_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32): i32 {
   unsafe {
-    return asm_array_lit_reserve_stack_bytes(arena, init_ref);
+    return asm_array_lit_reserve_stack_bytes_impl(arena, init_ref);
   }
   return 0;
 }
 
 // ---- G-02f-368：local_slot 间接指针 + enc/arch 装址（无同文件 no_mangle 互调）----
 extern "C" function glue_asm_ctx_module_ref_c(asm_ctx: *u8): *u8;
-extern "C" function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32, mod_ref: *u8, asm_ctx: *u8): i32;
+extern "C" function asm_local_var_slot_holds_indirect_ptr_impl(arena: *u8, expr_ref: i32, mod_ref: *u8, asm_ctx: *u8): i32;
 extern "C" function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, slot_off: i32, ta: i32): i32;
 extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, slot_off: i32, ta: i32): i32;
 extern "C" function backend_arch_emit_load_rbp_to_rax(out: *u8, slot_off: i32, ta: i32): i32;
@@ -188,7 +204,7 @@ extern "C" function backend_arch_emit_lea_rbp_to_rax(out: *u8, slot_off: i32, ta
 #[no_mangle]
 function glue_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32, asm_ctx: *u8): i32 {
   unsafe {
-    return asm_local_var_slot_holds_indirect_ptr(arena, expr_ref, glue_asm_ctx_module_ref_c(asm_ctx), asm_ctx);
+    return asm_local_var_slot_holds_indirect_ptr_impl(arena, expr_ref, glue_asm_ctx_module_ref_c(asm_ctx), asm_ctx);
   }
   return 0;
 }
@@ -265,7 +281,7 @@ function glue_try_array_lit_lane_const_i32(arena: *u8, arr_ref: i32, lane: i32, 
 }
 
 // ---- G-02f-372：param0 index const / const struct field can_inline / scalar binop → seed impl ----
-// Note: glue_fold_func_return_operand_ref_module stays seed-only (extern+no_mangle name clash mangles -E).
+// G-02f-381: fold_module / array_lit / local_var_slot public via _impl (no same-name extern clash).
 extern "C" function glue_fold_func_returns_param0_index_const_impl(arena: *u8, mod: *u8, func_idx: i32, out_lane: *i32): i32;
 extern "C" function glue_const_struct_lit_field_can_inline_impl(arena: *u8, mod: *u8, func_idx: i32, lit_ref: i32, fj: i32): i32;
 extern "C" function glue_fold_func_returns_param01_scalar_binop_impl(arena: *u8, mod: *u8, func_idx: i32, out_binop_ko: *i32): i32;
@@ -484,6 +500,23 @@ function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref: i32, 
 function try_inline_var_field_sum_binop_elf(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
   unsafe {
     return try_inline_var_field_sum_binop_elf_impl(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+  }
+  return 0;
+}
+
+// ---- G-02f-381：fold_module / local_var_slot public thin shells ----
+#[no_mangle]
+function glue_fold_func_return_operand_ref_module(arena: *u8, mod: *u8, func_idx: i32): i32 {
+  unsafe {
+    return glue_fold_func_return_operand_ref_module_impl(arena, mod, func_idx);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32, mod_ref: *u8, asm_ctx: *u8): i32 {
+  unsafe {
+    return asm_local_var_slot_holds_indirect_ptr_impl(arena, expr_ref, mod_ref, asm_ctx);
   }
   return 0;
 }
