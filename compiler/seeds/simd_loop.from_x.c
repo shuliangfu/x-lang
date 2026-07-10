@@ -418,14 +418,19 @@ int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backe
 
 
 /** 读取 SIMD-S1 已解析的 target CPU feature 掩码。 */
-/* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-uint32_t glue_simd_loop_cpu_features_c(void) {
+/* G-02f-133：逻辑源 .x；G-02f-412：实现体始终 seed；public PREFER 时 thin pure forward */
+uint32_t glue_simd_loop_cpu_features_c_impl(void) {
     uint32_t feats;
     feats = driver_get_pending_target_cpu_features();
     if (feats != 0)
         return feats;
     return shu_target_cpu_detect_host();
 }
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+uint32_t glue_simd_loop_cpu_features_c(void) {
+    return glue_simd_loop_cpu_features_c_impl();
+}
+#endif
 
 
 /** 按 binop 与 CPU feature 选取 SIMD lane 宽（add/sub→SSE2/AVX2，mul→SSE4.1/AVX2）。 */
@@ -684,9 +689,8 @@ int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
  * 解析 `s = s + arr[i].field`（SoA f32 列累加）。
  * field 须 soa_stride>0 且 resolved f32。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_parse_f32_soa_sum_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
+/* G-02f-165/214：逻辑源 .x；G-02f-412：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t glue_parse_f32_soa_sum_assign_c_impl(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
                                                int32_t *sum_ref, int32_t *arr_ref, int32_t *fa_ref) {
     int32_t left_ref;
     int32_t right_ref;
@@ -705,7 +709,7 @@ int32_t glue_parse_f32_soa_sum_assign_c(struct ast_ASTArena *arena, int32_t assi
         return 0;
     add_l = pipeline_expr_binop_left_ref_at(arena, right_ref);
     add_r = pipeline_expr_binop_right_ref_at(arena, right_ref);
-    if (!glue_expr_same_var_c(arena, left_ref, add_l))
+    if (!glue_expr_same_var_c_impl(arena, left_ref, add_l))
         return 0;
     if (pipeline_expr_kind_ord_at(arena, add_r) != GLUE_EXPR_FIELD_ACCESS)
         return 0;
@@ -722,7 +726,7 @@ int32_t glue_parse_f32_soa_sum_assign_c(struct ast_ASTArena *arena, int32_t assi
     idx_base = pipeline_expr_field_access_base_ref(arena, add_r);
     if (pipeline_expr_kind_ord_at(arena, idx_base) != GLUE_EXPR_INDEX)
         return 0;
-    if (!glue_index_uses_var_c(arena, idx_base, i_var_ref))
+    if (!glue_index_uses_var_c_impl(arena, idx_base, i_var_ref))
         return 0;
     idx_base = pipeline_expr_index_base_ref(arena, idx_base);
     if (pipeline_expr_kind_ord_at(arena, idx_base) != GLUE_EXPR_VAR)
@@ -732,6 +736,13 @@ int32_t glue_parse_f32_soa_sum_assign_c(struct ast_ASTArena *arena, int32_t assi
     *fa_ref = add_r;
     return 1;
 }
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_parse_f32_soa_sum_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
+                                               int32_t *sum_ref, int32_t *arr_ref, int32_t *fa_ref) {
+    return glue_parse_f32_soa_sum_assign_c_impl(arena, assign_ref, i_var_ref, sum_ref, arr_ref, fa_ref);
+}
+#endif
+
 
 
 
@@ -740,9 +751,8 @@ int32_t glue_parse_f32_soa_sum_assign_c(struct ast_ASTArena *arena, int32_t assi
  * f32 SoA 列 reduce 条带：movups/addps 主循环 + 水平归约写 s + 标量 epilogue（余数/i++1）。
  * 匹配 while i < n { s += arr[i].field; i++ }，n 可为字面量/let 常量或局部变量 n。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-215：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* G-02f-165/215：逻辑源 .x；G-02f-412：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t glue_emit_f32_soa_sum_strip_c_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                               struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref,
                                               int32_t off_col0, int32_t off_s, int32_t off_i, int32_t off_n,
                                               int32_t n_lit, int32_t lanes, uint32_t feats) {
@@ -851,6 +861,15 @@ int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct platfor
         return -1;
     return 1;
 }
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                              struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref,
+                                              int32_t off_col0, int32_t off_s, int32_t off_i, int32_t off_n,
+                                              int32_t n_lit, int32_t lanes, uint32_t feats) {
+    return glue_emit_f32_soa_sum_strip_c_impl(arena, elf_ctx, ctx, ta, assign_body_ref, off_col0, off_s, off_i, off_n,
+                                              n_lit, lanes, feats);
+}
+#endif
 
 
 
@@ -858,8 +877,8 @@ int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct platfor
 /**
  * 尝试将 `while i < n { s = s + arr[i].field; i++ }`（SoA f32 列）矢量化 reduce peel。
  */
-/* G-02f-213：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
+/* G-02f-213：逻辑源 .x；G-02f-412：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c_impl(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref,
                                                     int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta) {
     int32_t cond_ref;
@@ -900,7 +919,7 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
     assign_step_ref = ast_ast_block_expr_stmt_ref(arena, body_ref, 1);
     if (assign_body_ref <= 0 || assign_step_ref <= 0)
         return 0;
-    if (!glue_parse_f32_soa_sum_assign_c(arena, assign_body_ref, i_var_ref, &sum_ref, &arr_ref, &fa_ref))
+    if (!glue_parse_f32_soa_sum_assign_c_impl(arena, assign_body_ref, i_var_ref, &sum_ref, &arr_ref, &fa_ref))
         return 0;
     if (!glue_parse_i_plus_one_step_c_impl(arena, assign_step_ref, i_var_ref))
         return 0;
@@ -921,7 +940,7 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
     off_i = glue_simd_local_var_stack_off_c_impl(arena, ctx, i_var_ref);
     if (off_col0 < 0 || off_s < 0 || off_i < 0)
         return 0;
-    feats = glue_simd_loop_cpu_features_c();
+    feats = glue_simd_loop_cpu_features_c_impl();
     lanes = 4;
     if ((feats & SHUX_CPU_FEAT_SSE2) == 0)
         return 0;
@@ -930,12 +949,19 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
         off_n = glue_simd_local_var_stack_off_c_impl(arena, ctx, n_var_ref);
     if (!n_is_const && off_n < 0)
         return 0;
-    return glue_emit_f32_soa_sum_strip_c(arena, elf_ctx, ctx, ta, assign_body_ref, off_col0, off_s, off_i, off_n,
+    return glue_emit_f32_soa_sum_strip_c_impl(arena, elf_ctx, ctx, ta, assign_body_ref, off_col0, off_s, off_i, off_n,
                                          n_lit, lanes, feats);
 }
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
+                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref,
+                                                    int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+    return glue_try_simd_peel_f32_soa_sum_while_elf_c_impl(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+}
+#endif
 
-/* G-02f-213：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
+/* G-02f-213：逻辑源 .x；G-02f-412：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t glue_try_simd_peel_index_add_while_elf_c_impl(struct ast_ASTArena *arena,
                                                  struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref,
                                                  int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta) {
     int32_t cond_ref;
@@ -994,7 +1020,7 @@ int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
     off_i = glue_simd_local_var_stack_off_c_impl(arena, ctx, i_var_ref);
     if (off_a < 0 || off_b < 0 || off_d < 0 || off_i < 0)
         return 0;
-    feats = glue_simd_loop_cpu_features_c();
+    feats = glue_simd_loop_cpu_features_c_impl();
     esz = 4;
     if (glue_simd_loop_pick_lanes_c(feats, binop_ko, &lanes) != 0)
         return 0;
@@ -1013,3 +1039,12 @@ int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
     }
     return 0;
 }
+
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
+                                                 struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref,
+                                                 int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta) {
+    return glue_try_simd_peel_index_add_while_elf_c_impl(arena, elf_ctx, block_ref, loop_idx, ctx, ta);
+}
+#endif
+
