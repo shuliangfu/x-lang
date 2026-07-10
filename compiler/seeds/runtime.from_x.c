@@ -947,8 +947,8 @@ extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source)
 extern int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t *source, void *module);
 extern int32_t pipeline_parse_one_function_ok(struct shux_slice_uint8_t *source, void *arena);
 extern int32_t pipeline_typeck_after_parse_ok(void *arena, void *module, struct shux_slice_uint8_t *source, void *ctx);
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-307：precise parse diag → rt_parse_diag hybrid */
+#ifndef SHUX_RT_PARSE_DIAG_FROM_X
 int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
     struct shux_slice_uint8_t diag_src_slice;
     int32_t fail_tok;
@@ -965,6 +965,10 @@ int runtime_report_precise_parse_failure_if_known(const char *input_path, const 
     }
     return 0;
 }
+#else
+int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len);
+int labi_rt_parse_diag_slice_marker(void);
+#endif
 
 
 
