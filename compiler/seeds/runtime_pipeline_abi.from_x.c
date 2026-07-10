@@ -1,7 +1,7 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32/33/34/40 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..42 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge no-ops/flags/dep_seeded/dep ptr API; C slots + clear_all + import/path.
- * .x covers: placeholders, diag_emitted, ndep, dep_seeded, get/set_dep module/arena.
+ *         merge no-ops/flags/dep_seeded/dep ptr/publish; C slots + clear_all + import/path.
+ * .x covers: placeholders, ndep, dep_seeded, get/set_dep, publish_slot, module_buf fwd.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -605,6 +605,28 @@ extern size_t pipeline_sizeof_module(void);
  * 参数：i 槽下标 0..31。
  * 返回值：1 已 seeded，0 否或 i 越界。
  */
+
+/* G-02f-42: driver dep pointer/path slots for .x publish_slot */
+void driver_dep_arena_ptr_set(int32_t i, void *arena) {
+    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
+        return;
+    driver_dep_arena_ptrs[i] = arena;
+}
+
+void driver_dep_module_ptr_set(int32_t i, void *module) {
+    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
+        return;
+    driver_dep_module_ptrs[i] = module;
+}
+
+void driver_dep_path_registry_set(int32_t i, const char *path) {
+    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
+        return;
+    if (!path)
+        return;
+    driver_dep_path_registry[i] = path;
+}
+
 int32_t driver_dep_seeded_get(int32_t i) {
   if ((i < 0)) {
     return 0;
@@ -661,13 +683,19 @@ void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
  * 参数：import_path 逻辑路径指针须存活至 clear_all（通常 dep_paths[j]）。
  */
 void driver_dep_publish_slot(int32_t i, void *arena, void *module, const char *import_path) {
-    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
-        return;
-    driver_dep_arena_ptrs[i] = arena;
-    driver_dep_module_ptrs[i] = module;
-    driver_dep_seeded[i] = 1;
-    if (import_path)
-        driver_dep_path_registry[i] = import_path;
+  if ((i < 0)) {
+    return;
+  }
+  if ((i >=32)) {
+    return;
+  }
+  (void)(({   {
+    (void)(driver_dep_arena_ptr_set(i, arena));
+    (void)(driver_dep_module_ptr_set(i, module));
+    (void)(driver_dep_seeded_set(i, 1));
+    (void)(driver_dep_path_registry_set(i, import_path));
+  }
+ }));
 }
 
 /**
@@ -735,7 +763,12 @@ uint8_t *driver_dep_module_buf(int32_t i) {
 
 /** typeck.x 导出名：转发 driver_dep_module_buf。 */
 uint8_t *typeck_driver_dep_module_buf(int32_t i) {
-    return driver_dep_module_buf(i);
+  (void)(({   {
+    uint8_t * r = driver_dep_module_buf(i);
+    return r;
+  }
+ }));
+  return ((void *)(0));
 }
 
 /** typeck.x 导出名：转发 driver_dep_seeded_get。 */

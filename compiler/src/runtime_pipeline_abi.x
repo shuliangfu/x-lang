@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32/33/34/40：真迁 .x — pipeline_abi 占位桩 + 标志/ndep/dep_seeded/dep 指针 API。
+// G-02f-32..42：真迁 .x — pipeline 占位 + ndep/dep_seeded/dep 指针 + publish。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
-// C 尾：存储槽、dep 指针数组本体、import/path、seeded_clear 循环（while 语言限制）。
-// G-02f-40：+ get_dep_module/arena、pipeline_set_dep、typeck_get_dep_*（经 C get/set 槽）。
+// C 尾：存储槽数组、import/path、seeded_clear 循环、malloc buf、path 扫描。
+// G-02f-42：publish_slot 与 typeck module_buf 转发（经 C 指针/path 槽）。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -14,6 +14,10 @@ extern "C" function typeck_dep_module_get(i: i32): *u8;
 extern "C" function typeck_dep_arena_get(i: i32): *u8;
 extern "C" function typeck_dep_module_set(i: i32, mod: *u8): void;
 extern "C" function typeck_dep_arena_set(i: i32, arena: *u8): void;
+extern "C" function driver_dep_arena_ptr_set(i: i32, arena: *u8): void;
+extern "C" function driver_dep_module_ptr_set(i: i32, module: *u8): void;
+extern "C" function driver_dep_path_registry_set(i: i32, path: *u8): void;
+extern "C" function driver_dep_module_buf(i: i32): *u8;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -204,4 +208,32 @@ function pipeline_set_dep(i: i32, mod: *u8, arena: *u8): void {
     typeck_dep_module_set(i, mod);
     typeck_dep_arena_set(i, arena);
   }
+}
+
+/* ---- G-02f-42：driver dep publish + typeck buf 转发 ---- */
+
+#[no_mangle]
+function driver_dep_publish_slot(i: i32, arena: *u8, module: *u8, import_path: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  unsafe {
+    driver_dep_arena_ptr_set(i, arena);
+    driver_dep_module_ptr_set(i, module);
+    driver_dep_seeded_set(i, 1);
+    /* 始终调 path 槽：if (path!=null) 会被 -E 丢整函数；null 在 C 槽内忽略 */
+    driver_dep_path_registry_set(i, import_path);
+  }
+}
+
+#[no_mangle]
+function typeck_driver_dep_module_buf(i: i32): *u8 {
+  unsafe {
+    let r: *u8 = driver_dep_module_buf(i);
+    return r;
+  }
+  return 0 as *u8;
 }
