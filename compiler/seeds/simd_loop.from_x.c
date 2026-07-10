@@ -41,6 +41,9 @@ int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref
 int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx);
 int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref);
 int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t chunk_off_a, int32_t chunk_off_b, int32_t chunk_off_d, int32_t lanes, int32_t esz, int32_t ta, uint32_t feats);
+int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t var_expr_ref);
+int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t off_a, int32_t off_b, int32_t off_d, int32_t n_lit, int32_t lanes, int32_t esz, int32_t ta, uint32_t feats);
+int32_t glue_emit_runtime_strip_loop_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref, int32_t binop_ko, int32_t off_i, int32_t off_n, int32_t off_a, int32_t off_b, int32_t off_d, int32_t array_n, int32_t lanes, uint32_t feats);
 #endif
 
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -367,8 +370,8 @@ int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, i
 /** EXPR_VAR 局部在 rbp 上的偏移；失败 -1。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                int32_t var_expr_ref) {
+/* G-02f-404：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_simd_local_var_stack_off_c_impl(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t var_expr_ref) {
     uint8_t vname[64];
     int32_t vlen;
     int32_t off;
@@ -383,6 +386,12 @@ int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backe
         off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
     return off;
 }
+
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx, int32_t var_expr_ref) {
+  return glue_simd_local_var_stack_off_c_impl(arena, ctx, var_expr_ref);
+}
+#endif
 
 
 
@@ -471,9 +480,8 @@ int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx) 
 /** 编译期 trip count 整段 peel（N 为 lanes 的整数倍）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t off_a,
-                                           int32_t off_b, int32_t off_d, int32_t n_lit, int32_t lanes, int32_t esz,
-                                           int32_t ta, uint32_t feats) {
+/* G-02f-404：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_emit_full_const_peel_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t off_a, int32_t off_b, int32_t off_d, int32_t n_lit, int32_t lanes, int32_t esz, int32_t ta, uint32_t feats) {
     int32_t chunks;
     int32_t chunk;
     const char *strict_env;
@@ -496,6 +504,12 @@ int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
     return 1;
 }
 
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t off_a, int32_t off_b, int32_t off_d, int32_t n_lit, int32_t lanes, int32_t esz, int32_t ta, uint32_t feats) {
+  return glue_emit_full_const_peel_c_impl(elf_ctx, binop_ko, off_a, off_b, off_d, n_lit, lanes, esz, ta, feats);
+}
+#endif
+
 
 
 
@@ -506,11 +520,8 @@ int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-215：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_emit_runtime_strip_loop_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                             struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref,
-                                             int32_t binop_ko, int32_t off_i, int32_t off_n, int32_t off_a,
-                                             int32_t off_b, int32_t off_d, int32_t array_n, int32_t lanes,
-                                             uint32_t feats) {
+/* G-02f-404：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_emit_runtime_strip_loop_c_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref, int32_t binop_ko, int32_t off_i, int32_t off_n, int32_t off_a, int32_t off_b, int32_t off_d, int32_t array_n, int32_t lanes, uint32_t feats) {
     uint8_t vec_loop[64];
     uint8_t epi_loop[64];
     uint8_t epi_done[64];
@@ -581,6 +592,12 @@ int32_t glue_emit_runtime_strip_loop_c(struct ast_ASTArena *arena, struct platfo
         return -1;
     return 1;
 }
+
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_emit_runtime_strip_loop_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref, int32_t binop_ko, int32_t off_i, int32_t off_n, int32_t off_a, int32_t off_b, int32_t off_d, int32_t array_n, int32_t lanes, uint32_t feats) {
+  return glue_emit_runtime_strip_loop_c_impl(arena, elf_ctx, ctx, ta, assign_body_ref, binop_ko, off_i, off_n, off_a, off_b, off_d, array_n, lanes, feats);
+}
+#endif
 
 
 
@@ -875,12 +892,12 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
     } else if (n_var_ref <= 0) {
         return 0;
     }
-    off_col0 = glue_simd_local_var_stack_off_c(arena, ctx, arr_ref);
+    off_col0 = glue_simd_local_var_stack_off_c_impl(arena, ctx, arr_ref);
     col_base = pipeline_expr_field_access_offset(arena, fa_ref);
     if (col_base > 0)
         off_col0 -= col_base;
-    off_s = glue_simd_local_var_stack_off_c(arena, ctx, sum_ref);
-    off_i = glue_simd_local_var_stack_off_c(arena, ctx, i_var_ref);
+    off_s = glue_simd_local_var_stack_off_c_impl(arena, ctx, sum_ref);
+    off_i = glue_simd_local_var_stack_off_c_impl(arena, ctx, i_var_ref);
     if (off_col0 < 0 || off_s < 0 || off_i < 0)
         return 0;
     feats = glue_simd_loop_cpu_features_c();
@@ -889,7 +906,7 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
         return 0;
     off_n = -1;
     if (n_var_ref > 0)
-        off_n = glue_simd_local_var_stack_off_c(arena, ctx, n_var_ref);
+        off_n = glue_simd_local_var_stack_off_c_impl(arena, ctx, n_var_ref);
     if (!n_is_const && off_n < 0)
         return 0;
     return glue_emit_f32_soa_sum_strip_c(arena, elf_ctx, ctx, ta, assign_body_ref, off_col0, off_s, off_i, off_n,
@@ -950,10 +967,10 @@ int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
     if (array_n <= 0 || glue_var_array_i32_size_c(arena, a_base) != array_n ||
         glue_var_array_i32_size_c(arena, b_base) != array_n)
         return 0;
-    off_a = glue_simd_local_var_stack_off_c(arena, ctx, a_base);
-    off_b = glue_simd_local_var_stack_off_c(arena, ctx, b_base);
-    off_d = glue_simd_local_var_stack_off_c(arena, ctx, dst_base);
-    off_i = glue_simd_local_var_stack_off_c(arena, ctx, i_var_ref);
+    off_a = glue_simd_local_var_stack_off_c_impl(arena, ctx, a_base);
+    off_b = glue_simd_local_var_stack_off_c_impl(arena, ctx, b_base);
+    off_d = glue_simd_local_var_stack_off_c_impl(arena, ctx, dst_base);
+    off_i = glue_simd_local_var_stack_off_c_impl(arena, ctx, i_var_ref);
     if (off_a < 0 || off_b < 0 || off_d < 0 || off_i < 0)
         return 0;
     feats = glue_simd_loop_cpu_features_c();
@@ -963,14 +980,14 @@ int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
     /** 编译期 n 且整除 lanes：整段 peel。 */
     if (n_is_const && n_lit > 0 && (n_lit % lanes) == 0 && n_lit <= array_n &&
         glue_var_is_array_i32_n_c(arena, dst_base, n_lit)) {
-        return glue_emit_full_const_peel_c(elf_ctx, binop_ko, off_a, off_b, off_d, n_lit, lanes, esz, ta, feats);
+        return glue_emit_full_const_peel_c_impl(elf_ctx, binop_ko, off_a, off_b, off_d, n_lit, lanes, esz, ta, feats);
     }
     /** 可变 n 或 n 非 lanes 整数倍：条带主循环 + 标量 epilogue。 */
     if (n_var_ref > 0) {
-        off_n = glue_simd_local_var_stack_off_c(arena, ctx, n_var_ref);
+        off_n = glue_simd_local_var_stack_off_c_impl(arena, ctx, n_var_ref);
         if (off_n < 0)
             return 0;
-        return glue_emit_runtime_strip_loop_c(arena, elf_ctx, ctx, ta, assign_body_ref, binop_ko, off_i, off_n, off_a,
+        return glue_emit_runtime_strip_loop_c_impl(arena, elf_ctx, ctx, ta, assign_body_ref, binop_ko, off_i, off_n, off_a,
                                               off_b, off_d, array_n, lanes, feats);
     }
     return 0;

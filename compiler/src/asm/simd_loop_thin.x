@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-349/384/403：simd_loop L2 thin — pure glue 子集（10 门闩）。
+// G-02f-349/384/403/404：simd_loop L2 thin — pure glue 子集（13 门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_SIMD_LOOP_THIN_FROM_X）ld -r → simd_loop.o
 // 对照：src/asm/simd_loop.x；默认仍整 seed。
 //
@@ -150,4 +150,33 @@ function glue_simd_loop_emit_chunk_binop_c(elf_ctx: *u8, binop_ko: i32, chunk_of
     return glue_simd_loop_emit_chunk_binop_c_impl(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
   }
   return 0 - 1;
+}
+
+// ---- G-02f-404：local_off / const_peel / runtime_strip → seed impl ----
+extern "C" function glue_simd_local_var_stack_off_c_impl(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+extern "C" function glue_emit_full_const_peel_c_impl(elf_ctx: *u8, binop_ko: i32, off_a: i32, off_b: i32, off_d: i32, n_lit: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+extern "C" function glue_emit_runtime_strip_loop_c_impl(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, binop_ko: i32, off_i: i32, off_n: i32, off_a: i32, off_b: i32, off_d: i32, array_n: i32, lanes: i32, feats: u32): i32;
+
+#[no_mangle]
+function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32 {
+  unsafe {
+    return glue_simd_local_var_stack_off_c_impl(arena, ctx, var_expr_ref);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: i32, off_b: i32, off_d: i32, n_lit: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32 {
+  unsafe {
+    return glue_emit_full_const_peel_c_impl(elf_ctx, binop_ko, off_a, off_b, off_d, n_lit, lanes, esz, ta, feats);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_emit_runtime_strip_loop_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, binop_ko: i32, off_i: i32, off_n: i32, off_a: i32, off_b: i32, off_d: i32, array_n: i32, lanes: i32, feats: u32): i32 {
+  unsafe {
+    return glue_emit_runtime_strip_loop_c_impl(arena, elf_ctx, ctx, ta, assign_body_ref, binop_ko, off_i, off_n, off_a, off_b, off_d, array_n, lanes, feats);
+  }
+  return 0;
 }
