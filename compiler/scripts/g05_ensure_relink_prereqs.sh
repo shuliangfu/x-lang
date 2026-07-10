@@ -1004,14 +1004,37 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-7：simd_enc.o 纯编码 seed
+  # G-02f-7 / G-02f-348：simd_enc.o
+  # 默认整 seed；PREFER_X_O=1 时 simd_enc_thin.x（3 pure）+ seed-rest ld -r
   _simd_enc=seeds/simd_enc.from_x.c
+  _simd_enc_thin_x=src/asm/simd_enc_thin.x
+  _simd_enc_o=src/asm/simd_enc.o
   if [ -f "$_simd_enc" ]; then
-    if [ ! -f src/asm/simd_enc.o ] || [ "$_simd_enc" -nt src/asm/simd_enc.o ] \
-      || [ src/asm/simd_enc.x -nt src/asm/simd_enc.o ] 2>/dev/null; then
-      echo "g05_ensure: simd_enc.o ← simd_enc.from_x (G-02f-7)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_enc.o "$_simd_enc"
+    if [ ! -f "$_simd_enc_o" ] || [ "$_simd_enc" -nt "$_simd_enc_o" ] \
+      || { [ -f "$_simd_enc_thin_x" ] && [ "$_simd_enc_thin_x" -nt "$_simd_enc_o" ]; } \
+      || [ src/asm/simd_enc.x -nt "$_simd_enc_o" ] 2>/dev/null; then
+      _simd_enc_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_simd_enc_thin_x" ]; then
+        _simd_enc_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_enc_thin.XXXXXX") || true
+        _simd_enc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_enc_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_simd_enc_thin_o" ] && [ -n "$_simd_enc_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_simd_enc_thin_x" "$_simd_enc_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_SIMD_ENC_THIN_FROM_X \
+               -c -o "$_simd_enc_rest_o" "$_simd_enc" \
+          && $CC -r -nostdlib -o "$_simd_enc_o" "$_simd_enc_thin_o" "$_simd_enc_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_simd_enc_o ← $_simd_enc_thin_x + seed-rest (G-02f-348 L2 hybrid simd_enc thin)"
+          _simd_enc_done=1
+        else
+          echo "g05_ensure: L2 hybrid simd_enc thin failed; fallback full seed" >&2
+        fi
+        rm -f "$_simd_enc_thin_o" "$_simd_enc_rest_o"
+      fi
+      if [ "$_simd_enc_done" = "0" ]; then
+        echo "g05_ensure: $_simd_enc_o ← simd_enc.from_x (G-02f-7)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_simd_enc_o" "$_simd_enc"
+      fi
     fi
   fi
   # G-02f-8：simd_loop.o seed

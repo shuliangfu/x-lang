@@ -1,4 +1,5 @@
 /* seeds/simd_enc.from_x.c — G-02f-212 select/pshufd/binop; G-02f-211/7 product pure SIMD encode TU
+ * G-02f-348：PREFER hybrid thin 由 src/asm/simd_enc_thin.x；rest SHUX_L2_SIMD_ENC_THIN_FROM_X。
  * G-02f-125 true .x pure helpers.
  * G-02f-124 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
@@ -26,9 +27,15 @@
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 
+#ifdef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz);
+int32_t simd_arm64_rbp_lea_off_128half(int32_t slot_off, int32_t half, int32_t esz);
+uint32_t simd_arm64_ins_v1_from_v0_s(int32_t dst_lane, int32_t src_lane);
+#endif
+
 /** slot_off 为 asm 局部槽距 fp 的正字节距（lane0 低址端，与向量 let init 的 lea 一致）；x86 disp = -slot_off。 */
-/* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-113/211/348：逻辑源 .x；hybrid 时 pure 由 simd_enc_thin */
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz) {
   (void)lanes;
   (void)esz;
@@ -36,20 +43,21 @@ int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz) {
     return 0;
   return -slot_off;
 }
-
-
+#endif
 
 /**
  * arm64 128-bit 半幅 lea 正偏移（sub x29,#off 用）。
  * slot_off 为 lane0 距 fp 的字节距；lane 序号增大时地址升高、#off 减小，
  * 故 half1 = slot_off - 16（非 +16）；与 let 向量 init 的 [base+lane*esz] 一致。
  */
-/* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-120/348：逻辑源 .x；hybrid 时 pure 由 simd_enc_thin */
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
 int32_t simd_arm64_rbp_lea_off_128half(int32_t slot_off, int32_t half, int32_t esz) {
     if (slot_off < 0 || esz <= 0 || half < 0)
         return slot_off;
     return slot_off - half * 4 * esz;
 }
+#endif
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_append(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *bytes, int32_t n) {
     if (!elf_ctx || !bytes || n <= 0)
@@ -619,10 +627,12 @@ int32_t simd_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t 
  * arm64 NEON：INS V1.S[dst_lane], V0.S[src_lane]（V0 源 / V1 目的，Rn=0 Rd=1）。
  * 低 16 位须为 0x401（clang -c 烟测）；误写 |1 会被 otool 解成 EXT，shuffle 结果错误。
  */
-/* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-115/348：逻辑源 .x；hybrid 时 pure 由 simd_enc_thin */
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
 uint32_t simd_arm64_ins_v1_from_v0_s(int32_t dst_lane, int32_t src_lane) {
   return (uint32_t)(0x6E040000U | ((dst_lane & 3) << 19) | ((src_lane & 3) << 13) | 0x401U);
 }
+#endif
 
 
 
