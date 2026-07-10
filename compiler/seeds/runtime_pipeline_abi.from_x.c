@@ -15,6 +15,7 @@
  * G-02f-231: resolve_file_import join pure + set_entry_dir pure.
  * G-02f-232: resolve_import_file_path_multi pure (access locked).
  * G-02f-233: one_ctx early pure + map_impl; set_ndep pure.
+ * G-02f-234: fclose/emit_glue + merge dep_paths pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -1196,9 +1197,13 @@ int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], i
     }
     return 0;
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-234：fputs 到 stdout（.x emit_glue pure） */
+void shux_fputs_stdout(const char *s) {
+    if (s)
+        fputs(s, stdout);
+}
 
-
+/* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void shux_emit_pipeline_glue_include(void) {
     fputs("\n#include \"pipeline_glue.c\"\n", stdout);
 }
@@ -1370,7 +1375,21 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
  * asm 后端写出 FILE *：stdout 仅 fflush，避免 fclose(stdout)。
  * 参数：fp 汇编输出流，可为 NULL。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-234：stdout 判定 / fflush / fclose helpers */
+int driver_asm_fp_is_stdout(FILE *fp) {
+    return fp == stdout ? 1 : 0;
+}
+
+void driver_asm_fflush_stdout(void) {
+    fflush(stdout);
+}
+
+void driver_asm_fclose_file(FILE *fp) {
+    if (fp)
+        fclose(fp);
+}
+
+/* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_asm_fclose_asm_out(FILE *fp) {
     if (!fp || fp == stdout)
         fflush(stdout);
@@ -2338,6 +2357,35 @@ int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char
 }
 
 
+/* G-02f-234：import path 拷到 C 字符串（供 .x merge pure） */
+void shux_module_import_path_cstr(void *module, int32_t idx, uint8_t *buf, int32_t cap) {
+    uint8_t path_buf[64];
+    int32_t k = 0;
+    if (!buf || cap <= 0)
+        return;
+    buf[0] = 0;
+    if (!module)
+        return;
+    parser_get_module_import_path(module, idx, path_buf);
+    while (k < 64 && path_buf[k] && k + 1 < cap) {
+        buf[k] = path_buf[k];
+        k++;
+    }
+    buf[k] = 0;
+}
+
+void shux_ptr_slot_set(void **arr, int32_t i, void *p) {
+    if (!arr || i < 0)
+        return;
+    arr[i] = p;
+}
+
+void shux_i32_store(int32_t *p, int32_t v) {
+    if (p)
+        *p = v;
+}
+
+/* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imports, char *cpaths[], int n_closure,
     char *out_paths[], int *out_n) {
     unsigned char used[SHUX_DRIVER_DEP_SLOT_MAX];
@@ -2369,7 +2417,8 @@ int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imp
             return 1;
         }
         out_paths[mi] = cpaths[found];
-        used[found] = 1;
+        if (found >= 0 && found < SHUX_DRIVER_DEP_SLOT_MAX)
+            used[found] = 1;
         mi++;
     }
     for (int kj = 0; kj < n_closure && mi < SHUX_DRIVER_DEP_SLOT_MAX; kj++) {
@@ -2386,6 +2435,7 @@ int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imp
     return 0;
 }
 
+/* G-02f-234：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports, char *cpaths[], int n_closure,
     char *out_paths[], int *out_n) {
   if (module == NULL) {

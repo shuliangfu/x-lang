@@ -20,6 +20,7 @@
 // G-02f-231：resolve_file_import 拼接 pure + set_entry_dir 编排 pure。
 // G-02f-232：resolve_import_file_path_multi 编排 pure（access 🔒）。
 // G-02f-233：one_ctx_for_dep_prerun 早退 pure + map 🔒；set_ndep pure。
+// G-02f-234：fclose/emit_glue pure + merge dep_paths 编排 pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -53,12 +54,16 @@ extern "C" function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void;
 extern "C" function pipeline_run_x_thread_fn_impl(arg: *u8): *u8;
 extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
 
-extern "C" function shux_emit_pipeline_glue_include_impl(): void;
+/* emit_pipeline_glue_include：G-02f-234 下方真迁 */
+extern "C" function shux_fputs_stdout(s: *u8): void;
 extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
 extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
 /* seeded_clear_slots：G-02f-230 下方真迁 */
 /* get_entry_dir / import_path_to_file_path：G-02f-229 下方真迁 */
-extern "C" function driver_asm_fclose_asm_out_impl(fp: *u8): void;
+/* fclose_asm_out：G-02f-234 下方真迁 */
+extern "C" function driver_asm_fp_is_stdout(fp: *u8): i32;
+extern "C" function driver_asm_fflush_stdout(): void;
+extern "C" function driver_asm_fclose_file(fp: *u8): void;
 /* resolve_file_import_path：G-02f-231 下方真迁（join pure；realpath 🔒） */
 extern "C" function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void;
 extern "C" function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void;
@@ -101,7 +106,10 @@ extern "C" function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void
 extern "C" function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
 extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
 extern "C" function shux_load_direct_imports_for_asm_layout_impl(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32;
-extern "C" function shux_merge_direct_then_transitive_dep_paths_impl(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32;
+/* merge_direct_then_transitive_dep_paths：G-02f-234 下方真迁 */
+extern "C" function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void;
+extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
+extern "C" function shux_i32_store(p: *i32, v: i32): void;
 extern "C" function shux_merge_direct_then_transitive_deps_impl(module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32, out_src: *u8, out_lens: *u8, out_paths: *u8, out_n: *i32): i32;
 extern "C" function shux_collect_deps_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
 extern "C" function shux_collect_dep_paths_transitive_impl(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32;
@@ -555,10 +563,17 @@ function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32)
   return shux_merge_deps_path_already_out_scan(path, out_paths, n_out);
 }
 
+// G-02f-234：输出 pipeline_glue include 行
 #[no_mangle]
 function shux_emit_pipeline_glue_include(): void {
+  // "\n#include \"pipeline_glue.c\"\n"
+  let s: u8[32] = [];
+  s[0]=10;s[1]=35;s[2]=105;s[3]=110;s[4]=99;s[5]=108;s[6]=117;s[7]=100;
+  s[8]=101;s[9]=32;s[10]=34;s[11]=112;s[12]=105;s[13]=112;s[14]=101;s[15]=108;
+  s[16]=105;s[17]=110;s[18]=101;s[19]=95;s[20]=103;s[21]=108;s[22]=117;s[23]=101;
+  s[24]=46;s[25]=99;s[26]=34;s[27]=10;s[28]=0;
   unsafe {
-    shux_emit_pipeline_glue_include_impl();
+    shux_fputs_stdout(&s[0]);
   }
 }
 
@@ -731,10 +746,19 @@ function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
   }
 }
 
+// G-02f-234：stdout 仅 fflush；其它 fclose
 #[no_mangle]
 function driver_asm_fclose_asm_out(fp: *u8): void {
   unsafe {
-    driver_asm_fclose_asm_out_impl(fp);
+    if (fp == 0 as *u8) {
+      driver_asm_fflush_stdout();
+      return;
+    }
+    if (driver_asm_fp_is_stdout(fp) != 0) {
+      driver_asm_fflush_stdout();
+      return;
+    }
+    driver_asm_fclose_file(fp);
   }
 }
 
@@ -1737,18 +1761,94 @@ function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_
   return -1;
 }
 
+// G-02f-234：direct imports 先入 out，再补 closure 未用路径
 #[no_mangle]
 function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   if (out_n == 0 as *i32) {
-    return -1;
+    return 0 - 1;
+  }
+  if (out_paths == 0 as *u8) {
+    return 0 - 1;
+  }
+  let used: u8[32] = [];
+  let ui: i32 = 0;
+  while (ui < 32) {
+    used[ui] = 0;
+    ui = ui + 1;
+  }
+  let mi: i32 = 0;
+  let i: i32 = 0;
+  while (i < n_imports) {
+    if (i >= 32) { break; }
+    if (mi >= 32) { break; }
+    let path_c: u8[65] = [];
+    unsafe {
+      shux_module_import_path_cstr(module, i, &path_c[0], 65);
+    }
+    let found: i32 = 0 - 1;
+    let kk: i32 = 0;
+    while (kk < n_closure) {
+      unsafe {
+        let cp: *u8 = 0 as *u8;
+        if (cpaths != 0 as *u8) {
+          cp = pipe_load_ptr_slot(cpaths, kk);
+        }
+        if (cp != 0 as *u8) {
+          if (pipe_cstr_eq(cp, &path_c[0]) != 0) {
+            found = kk;
+          }
+        }
+      }
+      if (found >= 0) { break; }
+      kk = kk + 1;
+    }
+    if (found < 0) {
+      pipeline_diag_merge_dep_missing(&path_c[0]);
+      return 1;
+    }
+    unsafe {
+      let pfound: *u8 = pipe_load_ptr_slot(cpaths, found);
+      shux_ptr_slot_set(out_paths, mi, pfound);
+    }
+    if (found < 32) {
+      used[found] = 1;
+    }
+    mi = mi + 1;
+    i = i + 1;
+  }
+  let kj: i32 = 0;
+  while (kj < n_closure) {
+    if (mi >= 32) { break; }
+    if (kj < 32) {
+      if (used[kj] == 0) {
+        unsafe {
+          let cp2: *u8 = 0 as *u8;
+          if (cpaths != 0 as *u8) {
+            cp2 = pipe_load_ptr_slot(cpaths, kj);
+          }
+          if (cp2 != 0 as *u8) {
+            if (shux_merge_deps_path_already_out(cp2, out_paths, mi) != 0) {
+              used[kj] = 1;
+            } else {
+              shux_ptr_slot_set(out_paths, mi, cp2);
+              mi = mi + 1;
+            }
+          } else {
+            shux_ptr_slot_set(out_paths, mi, cp2);
+            mi = mi + 1;
+          }
+        }
+      }
+    }
+    kj = kj + 1;
   }
   unsafe {
-    return shux_merge_direct_then_transitive_dep_paths_impl(module, n_imports, cpaths, n_closure, out_paths, out_n);
+    shux_i32_store(out_n, mi);
   }
-  return -1;
+  return 0;
 }
 
 /* ---- G-02f-62：collect/merge 传递闭包 + debug body trace ---- */
