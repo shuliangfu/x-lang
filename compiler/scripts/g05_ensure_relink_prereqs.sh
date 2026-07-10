@@ -67,8 +67,15 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_link_abi.o "$_rlink"
     fi
   fi
-  # 注意：.o 名是 runtime_driver_no_c.o，源文件是 runtime.inc + NO_C flags
-  g05_cc_c src/runtime_driver_no_c.o src/runtime.inc $RUNTIME_DRIVER_NO_C_CFLAGS
+  # G-02f-14：runtime_driver_no_c.o ← seeds/runtime.from_x.c + NO_C flags
+  _rt=seeds/runtime.from_x.c
+  if [ -f "$_rt" ]; then
+    if [ ! -f src/runtime_driver_no_c.o ] || [ "$_rt" -nt src/runtime_driver_no_c.o ]; then
+      echo "g05_ensure: runtime_driver_no_c.o ← seed + NO_C (G-02f-14)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_driver_no_c.o "$_rt"
+    fi
+  fi
   # G-02f-12：runtime_pipeline_abi 产品 seed（须 SHUX_USE_X_PIPELINE）
   _rpabi=seeds/runtime_pipeline_abi.from_x.c
   if [ -f "$_rpabi" ]; then

@@ -666,8 +666,9 @@ src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/ru
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_diagnostic.from_x.c -o $@
 
 # 6.3：runtime.c 提供 run_compiler_c 与弱符号 main_entry；带 .x 入口时用 runtime_driver.o（含 driver_*/pipeline_*）
-src/runtime.o: src/runtime.inc include/diag.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/runtime.inc $@
+# G-02f-14：runtime 产品 seed（多变体）
+src/runtime.o: seeds/runtime.from_x.c src/runtime.x include/diag.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime.from_x.c -o $@
 # Makefile 为 prerequisite：编译宏（如 SHUX_USE_X_PREPROCESS）变更时须重编，否则 runtime_driver.o 缺 preprocess() 导致链接 Undefined _preprocess。
 # SHUX_ASM_USE_COMPILER_IMPL_C：driver_run_compiler_full 走 impl_c（parse_argv+post_parse），避免 compile.x X emit 路径 silent fail（与 B-strict shux_asm 同）。
 # E-03 v2：SHUX_LEGACY_PREPROCESS_C=1 时 runtime preprocess() 仍调 C preprocess_c_fallback。
@@ -682,13 +683,13 @@ RUNTIME_PIPELINE_ABI_CFLAGS = -DSHUX_USE_X_PIPELINE
 ifeq ($(SHUX_LEGACY_PREPROCESS_C),1)
 RUNTIME_PIPELINE_ABI_CFLAGS += -DSHUX_LEGACY_PREPROCESS_C
 endif
-src/runtime_driver.o: src/runtime.inc Makefile include/diag.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/runtime.inc $@ $(RUNTIME_DRIVER_CFLAGS)
+src/runtime_driver.o: seeds/runtime.from_x.c src/runtime.x Makefile include/diag.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(RUNTIME_DRIVER_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime.from_x.c -o $@
 
 # G-02a: preprocess.c 已物理删除；preprocess_for_driver.o 不再编译（SHUX_LEGACY_PREPROCESS_C 路径已死）。
 # shux_x 用：仅 -DSHUX_USE_X_PIPELINE，提供 asm_codegen_ast、pipeline_parse_into_buf、main_entry（弱符号）等
-src/runtime_x.o: src/runtime.inc include/diag.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/runtime.inc $@ -DSHUX_USE_X_PIPELINE
+src/runtime_x.o: seeds/runtime.from_x.c src/runtime.x include/diag.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c seeds/runtime.from_x.c -o $@
 
 # G-02f-11：fmt_check_cmd 产品 seed（driver 变体须 SHUX_USE_X_PIPELINE）
 src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd.x
@@ -734,8 +735,9 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x src/lexer/cfg_eval_link_alias.inc scr
 # G-02a：preprocess 已迁 preprocess.x；不再编译 preprocess.c。
 
 # runtime.c：不引用 C lexer/parser/typeck/codegen（见 SHUX_NO_C_FRONTEND 包裹的 load_one_import 等）
-src/runtime_driver_no_c.o: src/runtime.inc Makefile scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/runtime.inc $@ $(RUNTIME_DRIVER_NO_C_CFLAGS)
+# G-02f-14：G05 产品 runtime_driver_no_c
+src/runtime_driver_no_c.o: seeds/runtime.from_x.c src/runtime.x Makefile
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(RUNTIME_DRIVER_NO_C_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime.from_x.c -o $@
 
 # shux_x 使用带 -DSHUX_USE_X_PIPELINE 编译的 main，否则 #ifdef 块不会生效
 src/main_x.o: src/main.inc scripts/cc_inc_tu.sh

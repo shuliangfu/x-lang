@@ -128,10 +128,10 @@ ensure_runtime_driver_asm_strict_obj() {
   ensure_runtime_io_abi_obj
   ensure_runtime_proc_abi_obj
   local o="src/runtime_driver_asm_strict.o"
-  if [ ! -f "$o" ] || [ "src/runtime.inc" -nt "$o" ]; then
-  experimental_bootstrap_info "cc $o <- src/runtime.inc (-DSHUX_ASM_USE_COMPILER_IMPL_C)"
+  if [ ! -f "$o" ] || [ "seeds/runtime.from_x.c" -nt "$o" ]; then
+  experimental_bootstrap_info "cc $o <- seeds/runtime.from_x.c (-DSHUX_ASM_USE_COMPILER_IMPL_C)"
   "$CC" $CFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS \
-  -DSHUX_ASM_USE_COMPILER_IMPL_C -c -o "$o" src/runtime.inc
+  -DSHUX_ASM_USE_COMPILER_IMPL_C -c -o "$o" seeds/runtime.from_x.c
   fi
 }
 ensure_runtime_driver_asm_strict_obj

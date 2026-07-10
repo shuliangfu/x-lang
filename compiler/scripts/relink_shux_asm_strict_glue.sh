@@ -1580,9 +1580,9 @@ ensure_runtime_driver_obj() {
   if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
   cf="$cf -DSHUX_LEGACY_PREPROCESS_C"
   fi
-  if [ ! -f "$o" ] || [ "src/runtime.inc" -nt "$o" ] || [ Makefile -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime.inc (X driver/pipeline)"
-  sh scripts/cc_inc_tu.sh src/runtime.inc "$o" $cf
+  if [ ! -f "$o" ] || [ "seeds/runtime.from_x.c" -nt "$o" ] || [ Makefile -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- seeds/runtime.from_x.c (X driver/pipeline)"
+  $CC $CFLAGS -I. -Iinclude -Isrc $cf -c seeds/runtime.from_x.c -o "$o"
   fi
 }
 

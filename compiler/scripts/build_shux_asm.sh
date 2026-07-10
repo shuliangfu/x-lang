@@ -3681,12 +3681,12 @@ ensure_asm_lsp_codegen_extern_obj() {
 ensure_runtime_cc_stubs() {
   echo " cc -c src/asm/runtime_asm_build.o <- src/asm/runtime_asm_build.inc"
   sh scripts/cc_inc_tu.sh src/asm/runtime_asm_build.inc src/asm/runtime_asm_build.o
-  echo " cc -c src/runtime_driver.o <- src/runtime.inc (-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS)"
+  echo " cc -c src/runtime_driver.o <- seeds/runtime.from_x.c (-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS)"
   local rt_flags="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS"
   if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
   rt_flags="$rt_flags -DSHUX_LEGACY_PREPROCESS_C"
   fi
-  sh scripts/cc_inc_tu.sh src/runtime.inc src/runtime_driver.o $rt_flags
+  $CC $CFLAGS -I. -Iinclude -Isrc $rt_flags -c seeds/runtime.from_x.c -o src/runtime_driver.o
 }
 
 # B-strict shux_asm：driver_run_compiler_full 走 impl_c（完整 parse_argv），勿与 seed 共用 runtime_driver.o 宏。
@@ -3768,13 +3768,13 @@ ensure_runtime_driver_asm_strict_obj() {
   ensure_diag_obj
   ensure_runtime_driver_diagnostic_obj
   local o="src/runtime_driver_asm_bstrict.o"
-  if [ ! -f "$o" ] || [ "src/runtime.inc" -nt "$o" ] || [ "scripts/build_shux_asm.sh" -nt "$o" ]; then
-  echo " cc -c $o <- src/runtime.inc (-DSHUX_ASM_USE_COMPILER_IMPL_C -DSHUX_NO_C_FRONTEND)"
+  if [ ! -f "$o" ] || [ "seeds/runtime.from_x.c" -nt "$o" ] || [ "scripts/build_shux_asm.sh" -nt "$o" ]; then
+  echo " cc -c $o <- seeds/runtime.from_x.c (-DSHUX_ASM_USE_COMPILER_IMPL_C -DSHUX_NO_C_FRONTEND)"
   local rt_flags="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS -DSHUX_ASM_USE_COMPILER_IMPL_C -DSHUX_NO_C_FRONTEND"
   if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
   rt_flags="$rt_flags -DSHUX_LEGACY_PREPROCESS_C"
   fi
-  sh scripts/cc_inc_tu.sh src/runtime.inc "$o" $rt_flags
+  $CC $CFLAGS -I. -Iinclude -Isrc $rt_flags -c seeds/runtime.from_x.c -o "$o"
   fi
   # 兼容旧链脚本/规则仍引用 runtime_driver_asm_strict.o
   cp -f "$o" src/runtime_driver_asm_strict.o 2>/dev/null || true
