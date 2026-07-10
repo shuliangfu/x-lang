@@ -1,7 +1,7 @@
-/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45/46 true .x + C tail).
+/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45/46/47 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
- *         merge flags/env/skip/large_stack/dep_path/print_check; C slots + pthread.
- * .x covers: quiet_ok, env, flags, skip_large, large_stack, dep_path, print_check_ok.
+ *         merge flags/env/phase timing gates; C gettimeofday + pthread.
+ * .x covers: quiet_ok, env, flags, skip_large, dep_path, print_check, phase timing.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -55,6 +55,7 @@ int32_t *driver_large_stack_thread_flag_slot(void);
 void driver_current_dep_path_store(const char *path);
 const char *driver_current_dep_path_load(void);
 void driver_print_check_ok_impl(const char *input_path);
+int32_t driver_compile_phase_timing_enabled(void);
 
 /** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 X pipeline 共用）。 */
 static int driver_check_only_flag;
@@ -546,6 +547,7 @@ const char *driver_get_current_dep_path_for_codegen(void) {
 }
 
 
+
 /** OBS-001：编译阶段耗时；phase 0=parse 1=typeck 2=codegen。 */
 #define SHUX_COMPILE_PHASE_MAX 3
 
@@ -573,8 +575,8 @@ static double compile_phase_now_sec(void) {
  * 标记编译阶段开始；由 pipeline.x run_x_pipeline_impl 调用。
  * 参数：phase 0..2。
  */
-void driver_compile_phase_timing_begin(int32_t phase) {
-    if (!compile_phase_timing_enabled() || phase < 0 || phase >= SHUX_COMPILE_PHASE_MAX)
+void driver_compile_phase_timing_begin_impl(int32_t phase) {
+    if (phase < 0 || phase >= SHUX_COMPILE_PHASE_MAX)
         return;
     g_compile_phase_start_sec[phase] = compile_phase_now_sec();
     g_compile_phase_active[phase] = 1;
@@ -584,17 +586,15 @@ void driver_compile_phase_timing_begin(int32_t phase) {
  * 累加阶段耗时（毫秒）；同 phase 可多次 begin/end 叠加。
  * 参数：phase 0..2。
  */
-void driver_compile_phase_timing_end(int32_t phase) {
-    if (!compile_phase_timing_enabled() || phase < 0 || phase >= SHUX_COMPILE_PHASE_MAX || !g_compile_phase_active[phase])
+void driver_compile_phase_timing_end_impl(int32_t phase) {
+    if (phase < 0 || phase >= SHUX_COMPILE_PHASE_MAX || !g_compile_phase_active[phase])
         return;
     g_compile_phase_acc_ms[phase] += (compile_phase_now_sec() - g_compile_phase_start_sec[phase]) * 1000.0;
     g_compile_phase_active[phase] = 0;
 }
 
 /** 打印 parse/typeck/codegen/total 毫秒汇总行并清零；SHUX_COMPILE_PHASE_TIMING 启用时生效。 */
-void driver_compile_phase_timing_flush(void) {
-    if (!compile_phase_timing_enabled())
-        return;
+void driver_compile_phase_timing_flush_impl(void) {
     double total = g_compile_phase_acc_ms[0] + g_compile_phase_acc_ms[1] + g_compile_phase_acc_ms[2];
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "compile phase timing: parse_ms=%.3f typeck_ms=%.3f codegen_ms=%.3f total_ms=%.3f",
@@ -602,6 +602,61 @@ void driver_compile_phase_timing_flush(void) {
     memset(g_compile_phase_acc_ms, 0, sizeof(g_compile_phase_acc_ms));
     memset(g_compile_phase_active, 0, sizeof(g_compile_phase_active));
 }
+
+void driver_compile_phase_timing_flush(void) {
+  (void)(({   {
+    if ((driver_compile_phase_timing_enabled() ==0)) {
+      return;
+    }
+    (void)(driver_compile_phase_timing_flush_impl());
+  }
+ }));
+}
+
+void driver_compile_phase_timing_end(int32_t phase) {
+  (void)(({   {
+    if ((driver_compile_phase_timing_enabled() ==0)) {
+      return;
+    }
+    if ((phase < 0)) {
+      return;
+    }
+    if ((phase >=3)) {
+      return;
+    }
+    (void)(driver_compile_phase_timing_end_impl(phase));
+  }
+ }));
+}
+
+int32_t driver_compile_phase_timing_enabled(void) {
+  (void)(({   {
+    char *e = getenv("SHUX_COMPILE_PHASE_TIMING");
+    if ((e ==((char *)(0)))) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
+}
+
+void driver_compile_phase_timing_begin(int32_t phase) {
+  (void)(({   {
+    if ((driver_compile_phase_timing_enabled() ==0)) {
+      return;
+    }
+    if ((phase < 0)) {
+      return;
+    }
+    if ((phase >=3)) {
+      return;
+    }
+    (void)(driver_compile_phase_timing_begin_impl(phase));
+  }
+ }));
+}
+
 
 /**
  * 从 argv 收集 -D / -DFOO 与 -target 推导 OS_*、uname 的 SHUX_OS_/SHUX_ARCH_（run_compiler_c / asm 后端共用）。

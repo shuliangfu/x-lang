@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-29/41/45/46：真迁 .x — driver flag/env/skip/large_stack/dep_path/print_check。
+// G-02f-29/41/45/46/47：真迁 .x — driver flag/env/skip/dep_path/print + phase timing 门闩。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
-// C 尾：flag/len/path 槽本体、大栈 pthread、阶段计时、diag format 实现。
-// G-02f-46：+ current_dep_path get/set、print_check_ok（经 C diag 实现）。
+// C 尾：flag/len/path 槽、大栈 pthread、gettimeofday 累加、diag format。
+// G-02f-47：+ compile_phase_timing enabled/begin/end/flush（计时本体 C）。
 // 注意：set 侧禁止 if/else 写 *p → 直接 p[0]=v。
 
 extern "C" function getenv(name: *u8): *u8;
@@ -21,6 +21,9 @@ extern "C" function driver_large_stack_thread_flag_slot(): *i32;
 extern "C" function driver_current_dep_path_store(path: *u8): void;
 extern "C" function driver_current_dep_path_load(): *u8;
 extern "C" function driver_print_check_ok_impl(input_path: *u8): void;
+extern "C" function driver_compile_phase_timing_begin_impl(phase: i32): void;
+extern "C" function driver_compile_phase_timing_end_impl(phase: i32): void;
+extern "C" function driver_compile_phase_timing_flush_impl(): void;
 
 #[no_mangle]
 function driver_check_quiet_ok_get(): i32 {
@@ -354,5 +357,61 @@ function driver_print_check_ok(input_path: *u8): void {
       return;
     }
     driver_print_check_ok_impl(input_path);
+  }
+}
+
+/* ---- G-02f-47：compile phase timing 门闩与边界（累加在 C）---- */
+
+#[no_mangle]
+function driver_compile_phase_timing_enabled(): i32 {
+  unsafe {
+    let e: *u8 = getenv("SHUX_COMPILE_PHASE_TIMING");
+    if (e == 0 as *u8) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_compile_phase_timing_begin(phase: i32): void {
+  unsafe {
+    if (driver_compile_phase_timing_enabled() == 0) {
+      return;
+    }
+    if (phase < 0) {
+      return;
+    }
+    if (phase >= 3) {
+      return;
+    }
+    driver_compile_phase_timing_begin_impl(phase);
+  }
+}
+
+#[no_mangle]
+function driver_compile_phase_timing_end(phase: i32): void {
+  unsafe {
+    if (driver_compile_phase_timing_enabled() == 0) {
+      return;
+    }
+    if (phase < 0) {
+      return;
+    }
+    if (phase >= 3) {
+      return;
+    }
+    driver_compile_phase_timing_end_impl(phase);
+  }
+}
+
+#[no_mangle]
+function driver_compile_phase_timing_flush(): void {
+  unsafe {
+    if (driver_compile_phase_timing_enabled() == 0) {
+      return;
+    }
+    driver_compile_phase_timing_flush_impl();
   }
 }

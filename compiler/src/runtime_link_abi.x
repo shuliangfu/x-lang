@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..39/43/44：真迁 .x — link_abi needs_* / generated_c / target / argv_i。
+// G-02f-34..44/47：真迁 .x — link_abi needs_* / argv_i / skip_missing。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
-// C 尾：invoke_cc/ld、路径后缀、nm/popen、fileview、cstr 拷贝循环、#if host 槽。
-// G-02f-44：+ driver_get_argv_i（经 argv_at + copy_cstr_n C 辅助）。
+// C 尾：invoke_cc/ld、路径后缀、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
+// G-02f-47：+ asm_link_obj_skip_missing（经 path_is_nonempty_regular_file）。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
 extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -13,6 +13,7 @@ extern "C" function shux_host_is_linux(): i32;
 extern "C" function shux_host_is_apple_aarch64(): i32;
 extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
 extern "C" function driver_copy_cstr_n(src: *u8, buf: *u8, max: i32): i32;
+extern "C" function shux_path_is_nonempty_regular_file(path: *u8): i32;
 extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
 extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
 extern "C" function link_abi_generated_c_contains_substr(c_path: *u8, needle: *u8): i32;
@@ -1118,6 +1119,25 @@ function shux_generated_c_needs_async_scheduler(c_path: *u8): i32 {
   }
   return 0;
 }
+/* ---- G-02f-47：已存在非空常规文件则返回 path ---- */
+
+#[no_mangle]
+function asm_link_obj_skip_missing(path: *u8): *u8 {
+  if (path == 0 as *u8) {
+    return 0 as *u8;
+  }
+  unsafe {
+    if (path[0] == 0) {
+      return 0 as *u8;
+    }
+    if (shux_path_is_nonempty_regular_file(path) == 0) {
+      return 0 as *u8;
+    }
+    return path;
+  }
+  return 0 as *u8;
+}
+
 /* ---- G-02f-44：argv[i] 拷贝到 buf（循环在 C）---- */
 
 #[no_mangle]

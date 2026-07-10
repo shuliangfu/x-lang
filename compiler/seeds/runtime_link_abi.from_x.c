@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..44 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..47 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/link.c
- *         merge needs/compress/generated_c/resolve/argv_i; C host + cstr helpers.
- * .x covers: needs_*, freestanding, compress, generated_c, resolve_target, get_argv_i.
+ *         merge needs/argv/skip_missing; C stat + invoke bulk.
+ * .x covers: needs_*, freestanding, compress, generated_c, resolve, argv_i, skip_missing.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -1441,7 +1441,7 @@ int shux_link_freestanding_enabled(int driver_freestanding) {
     if ((driver_freestanding !=0)) {
       return 1;
     }
-    if ((e ==((char *)(0)))) {
+    if ((e ==NULL)) {
       return 0;
     }
     if (((e)[0] ==0)) {
@@ -2644,15 +2644,15 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
 int invoke_cc_skip_native_tuning(void) {
   (void)(({   {
     char *a = getenv("CI");
-    if ((a !=((char *)(0)))) {
+    if ((a !=NULL)) {
       return 1;
     }
     char *b = getenv("SHUX_CI_DOCKER");
-    if ((b !=((char *)(0)))) {
+    if ((b !=NULL)) {
       return 1;
     }
     char *c = getenv("SHUX_NO_MARCH_NATIVE");
-    if ((c !=((char *)(0)))) {
+    if ((c !=NULL)) {
       return 1;
     }
     return 0;
@@ -2794,7 +2794,7 @@ static int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
 
 /** 任意 .o 是否依赖 libz（marker 或 zlib 未定义符号）。F-04 v4：含用户 .x 链出的 .o。 */
 int link_abi_obj_needs_zlib(const char *obj_o) {
-  if ((obj_o ==((char *)(0)))) {
+  if ((obj_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -2824,7 +2824,7 @@ int link_abi_obj_needs_zlib(const char *obj_o) {
 
 /** 任意 .o 是否依赖 libzstd（F-04 v7+：zstd .x 用户链）。 */
 int link_abi_obj_needs_zstd(const char *obj_o) {
-  if ((obj_o ==((char *)(0)))) {
+  if ((obj_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -2848,7 +2848,7 @@ int link_abi_obj_needs_zstd(const char *obj_o) {
 
 /** 任意 .o 是否依赖 libbrotli（F-04 v6：lib.x 用户链）。 */
 int link_abi_obj_needs_brotli(const char *obj_o) {
-  if ((obj_o ==((char *)(0)))) {
+  if ((obj_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -3425,6 +3425,34 @@ int shux_generated_c_needs_async_scheduler(const char *c_path) {
   }
  }));
   return 0;
+}
+/** G-02f-47：path 为已存在且 size>0 的常规文件。 */
+int shux_path_is_nonempty_regular_file(const char *path) {
+    struct stat st;
+    if (!path || !path[0])
+        return 0;
+    if (stat(path, &st) != 0 || !S_ISREG(st.st_mode))
+        return 0;
+    if (st.st_size <= 0)
+        return 0;
+    return 1;
+}
+
+const char *asm_link_obj_skip_missing(const char *path) {
+  if ((path ==NULL)) {
+    return NULL;
+  }
+  (void)(({   {
+    if (((path)[0] ==0)) {
+      return NULL;
+    }
+    if ((shux_path_is_nonempty_regular_file(path) ==0)) {
+      return NULL;
+    }
+    return path;
+  }
+ }));
+  return NULL;
 }
 
 /* F-06 v1 前向声明：invoke_cc 按需链入 heap.o 时复用 ASM 后端检测逻辑 */
@@ -4418,7 +4446,7 @@ int shux_freestanding_user_o_needs_panic(const char *user_o) {
  * 判断用户 .o 是否引用 std.net API（按需链 net.o，避免 hello 等最小链无条件链 net.o 触发 PIE/未定义符号）。
  */
 int link_abi_user_o_needs_std_net(const char *user_o) {
-  if ((user_o ==((char *)(0)))) {
+  if ((user_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -4486,7 +4514,7 @@ int link_abi_user_o_needs_std_net(const char *user_o) {
  * 判断用户 .o 是否引用 std.set API（按需链 set.o + heap.o）。
  */
 int link_abi_user_o_needs_std_set(const char *user_o) {
-  if ((user_o ==((char *)(0)))) {
+  if ((user_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -4524,7 +4552,7 @@ int link_abi_user_o_needs_std_set(const char *user_o) {
  * 【Asm/Perf】nm -u 子进程调用 O(n×m)，n=argv 中 .o 数，m=符号数；仅在链接期触发一次，可接受。
  */
 int link_abi_user_o_needs_std_heap_api(const char *user_o) {
-  if ((user_o ==((char *)(0)))) {
+  if ((user_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -4571,7 +4599,7 @@ int link_abi_user_o_needs_std_heap_api(const char *user_o) {
 }
 
 int link_abi_user_o_needs_heap_user_syms(const char *user_o) {
-  if ((user_o ==((char *)(0)))) {
+  if ((user_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -4616,7 +4644,7 @@ static int link_abi_link_needs_std_heap_import(const char *user_o, const char **
  * 判断用户 .o 是否引用 std.map API（按需链 map.o）。
  */
 int link_abi_user_o_needs_std_map(const char *user_o) {
-  if ((user_o ==((char *)(0)))) {
+  if ((user_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -4634,7 +4662,7 @@ int link_abi_user_o_needs_std_map(const char *user_o) {
  * 判断用户 .o 是否引用 std.test API（按需链 test.o，避免 hello 等最小链无条件链 test.o 触发 ld 重复）。
  */
 int link_abi_user_o_needs_std_test(const char *user_o) {
-  if ((user_o ==((char *)(0)))) {
+  if ((user_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -4884,7 +4912,7 @@ int link_abi_user_o_needs_async_scheduler(const char *user_o) {
 }
 
 int link_abi_user_o_needs_core_mem(const char *user_o) {
-  if ((user_o ==((char *)(0)))) {
+  if ((user_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -4949,7 +4977,7 @@ int link_abi_user_o_needs_core_slice(const char *user_o) {
  * 按需链 page_mmap.o（其传递依赖 linux.o + core_mem.o 由 on_demand 后续块覆盖）。
  */
 int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
-  if ((user_o ==((char *)(0)))) {
+  if ((user_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -4981,7 +5009,7 @@ int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
  * F-no-libc：判断 user_o 是否引用 std.sys.linux API（Linux freestanding syscall 薄封装）。
  */
 int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
-  if ((user_o ==((char *)(0)))) {
+  if ((user_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -5020,7 +5048,7 @@ int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
  * sys/mod.x 在 Linux 编译时 #[cfg(target_os="linux")] 激活 linux import，故 sys.o 传递依赖 linux.o。
  */
 int link_abi_user_o_needs_std_sys(const char *user_o) {
-  if ((user_o ==((char *)(0)))) {
+  if ((user_o ==NULL)) {
     return 0;
   }
   (void)(({   {
@@ -6181,16 +6209,8 @@ int shu_waitpid_retry(pid_t pid, int *status_out) {
 /**
  * 仅当 path 指向已存在且非空的常规文件时返回 path，供 clang/ld argv 追加。
  */
-const char *asm_link_obj_skip_missing(const char *path) {
-    struct stat st;
-    if (!path || !path[0])
-        return NULL;
-    if (stat(path, &st) != 0 || !S_ISREG(st.st_mode))
-        return NULL;
-    if (st.st_size <= 0)
-        return NULL;
-    return path;
-}
+
+
 
 
 /* -------------------------------------------------------------------------- */
