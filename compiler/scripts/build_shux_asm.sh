@@ -3889,9 +3889,9 @@ ensure_runtime_user_link_objs() {
   echo " cc -c runtime_process_argv.o <- src/asm/runtime_process_argv.c"
   "$CC" $CFLAGS -c -o runtime_process_argv.o src/asm/runtime_process_argv.c
   fi
-  if [ ! -f runtime_random_fill.o ] || [ src/asm/runtime_random_fill.c -nt runtime_random_fill.o ]; then
-  echo " cc -c runtime_random_fill.o <- src/asm/runtime_random_fill.c"
-  "$CC" $CFLAGS -c -o runtime_random_fill.o src/asm/runtime_random_fill.c
+  if [ ! -f runtime_random_fill.o ] || [ src/asm/runtime_random_fill.inc -nt runtime_random_fill.o ]; then
+  echo " cc_inc_tu runtime_random_fill.o <- src/asm/runtime_random_fill.inc"
+  sh scripts/cc_inc_tu.sh src/asm/runtime_random_fill.inc runtime_random_fill.o
   fi
   if [ ! -f runtime_time_os.o ] || [ src/asm/runtime_time_os.c -nt runtime_time_os.o ]; then
   echo " cc -c runtime_time_os.o <- src/asm/runtime_time_os.c"

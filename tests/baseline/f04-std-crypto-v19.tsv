@@ -4,5 +4,5 @@ symbol_public_c	symbol	crypto_ed25519_public_from_seed_c	std/crypto/ed25519.x	�
 symbol_sign_c	symbol	crypto_ed25519_sign_c	std/crypto/ed25519.x	签名
 symbol_verify_c	symbol	crypto_ed25519_verify_c	std/crypto/ed25519.x	验签
 symbol_smoke_c	symbol	crypto_ed25519_smoke_c	std/crypto/ed25519.x	烟测
-glue_ref10	file	compiler/src/asm/runtime_ed25519_ref10_glue.c	ref10 胶层（F-ZC）
+glue_ref10	file	compiler/src/asm/runtime_ed25519_ref10_glue.inc	ref10 胶层（F-ZC）
 deleted_inc	absent	std/crypto/ed25519.inc.c	v19 删除

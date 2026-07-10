@@ -96,8 +96,8 @@ std_crypto_resolve_impl_path() {
     std/crypto/ed25519.x|std/crypto/ed25519.inc.c|std/crypto/aes_gcm.x|std/crypto/chacha20_poly1305.x)
       echo "std/crypto/$(basename "$mod_path")"
       ;;
-    std/crypto/ed25519_ref10_glue.c|compiler/src/asm/runtime_ed25519_ref10_glue.c)
-      echo "compiler/src/asm/runtime_ed25519_ref10_glue.c"
+    std/crypto/ed25519_ref10_glue.c|compiler/src/asm/runtime_ed25519_ref10_glue.inc)
+      echo "compiler/src/asm/runtime_ed25519_ref10_glue.inc"
       ;;
     *) echo "$mod_path" ;;
   esac

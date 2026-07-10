@@ -87,8 +87,8 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 
 # std.string：F 闭合 — mod.x + string.x 用 -E-extern 编译（裸符号），
 # ld -r 合并 runtime_string_fast.o（提供 string_*_c fast-path 定义）。
-../std/string/string.o: ../std/string/mod.x ../std/string/string.x scripts/shux_compile_std_module.sh src/asm/runtime_string_fast.c
-	@$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@.fast src/asm/runtime_string_fast.c && \
+../std/string/string.o: ../std/string/mod.x ../std/string/string.x scripts/shux_compile_std_module.sh src/asm/runtime_string_fast.inc scripts/cc_inc_tu.sh
+	@sh scripts/cc_inc_tu.sh src/asm/runtime_string_fast.inc $@.fast && \
 	sh scripts/shux_compile_std_module.sh --bare-impl $@.core ../std/string/mod.x ../std/string/string.x && \
 	ld -r -o $@ $@.core $@.fast && \
 	rm -f $@.core $@.fast
@@ -776,13 +776,13 @@ runtime_asm_io_stubs.o: src/asm/runtime_asm_io_stubs.c
 runtime_test_fn_invoke.o: src/asm/runtime_test_fn_invoke.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_test_fn_invoke.inc $@
 
-# F-ZC：CSPRNG OS fill；与 random.o 一并链入（见 runtime_random_fill.c）
-runtime_random_fill.o: src/asm/runtime_random_fill.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：CSPRNG OS fill；与 random.o 一并链入（G-02e-17：.inc + cc_inc_tu）
+runtime_random_fill.o: src/asm/runtime_random_fill.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_random_fill.inc $@
 
-# zlib 宏包装桩；与 compress 同链（deflateInit2/inflateInit2 是宏，需真实函数符号）
-runtime_compress_zlib_glue.o: src/asm/runtime_compress_zlib_glue.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# zlib 宏包装桩；与 compress 同链（G-02e-17：.inc + cc_inc_tu）
+runtime_compress_zlib_glue.o: src/asm/runtime_compress_zlib_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_compress_zlib_glue.inc $@
 
 # F-ZC：time OS syscall；与 time.o 一并链入（见 runtime_time_os.c）
 runtime_time_os.o: src/asm/runtime_time_os.c
@@ -851,9 +851,9 @@ runtime_http_glue.o: src/asm/http/runtime_http_glue.c
 runtime_tls_mbedtls_bio.o: src/asm/runtime_tls_mbedtls_bio.c
 	$(CC) $(CFLAGS) -I/opt/homebrew/opt/mbedtls/include -c -o $@ $< 2>/dev/null || $(CC) $(CFLAGS) -c -o $@ $<
 
-# F-ZC：db.kv mmap 胶层；与 kv.o 按需同链
-runtime_kv_mmap_glue.o: src/asm/runtime_kv_mmap_glue.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：db.kv mmap 胶层；与 kv.o 按需同链（G-02e-17：.inc + cc_inc_tu）
+runtime_kv_mmap_glue.o: src/asm/runtime_kv_mmap_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_kv_mmap_glue.inc $@
 
 # F-ZC：db.arrow SIMD 胶层；与 arrow.o 按需同链
 runtime_arrow_simd_glue.o: src/asm/runtime_arrow_simd_glue.c
@@ -871,9 +871,9 @@ runtime_sqlite_glue_stub.o: src/asm/runtime_sqlite_glue.c
 runtime_crypto_inc_glue.o: src/asm/runtime_crypto_inc_glue.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# F-ZC：Ed25519 ref10（含 crypto/ed25519/*.c）；与 crypto.o 一并链入
-runtime_ed25519_ref10_glue.o: src/asm/runtime_ed25519_ref10_glue.c
-	$(CC) $(CFLAGS) -Isrc/asm -c -o $@ $<
+# F-ZC：Ed25519 ref10（含 crypto/ed25519/*.c）；与 crypto.o 一并链入（G-02e-17 .inc）
+runtime_ed25519_ref10_glue.o: src/asm/runtime_ed25519_ref10_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_ed25519_ref10_glue.inc $@ -Isrc/asm
 
 # F-ZC：codegen 入口 argc/argv 全局；与 process.o 一并链入（见 runtime_process_argv.c）
 runtime_process_argv.o: src/asm/runtime_process_argv.c
@@ -2350,6 +2350,6 @@ size-baseline:
 perf-baseline:
 	@if [ -f ../tests/run-perf-baseline.sh ]; then (cd .. && chmod +x tests/run-perf-baseline.sh && SHUX=./compiler/shux-c ./tests/run-perf-baseline.sh); fi
 
-# core.slice：语言限制 C 桩（slice 字面量未实现），源码迁至 compiler/src/asm/runtime_slice_glue.c（G-01：core/ 零 C）。
-../core/slice/slice.o: src/asm/runtime_slice_glue.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+# core.slice：语言限制 C 桩（G-01 core 零 C；G-02e-17：.inc + cc_inc_tu）。
+../core/slice/slice.o: src/asm/runtime_slice_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_slice_glue.inc $@

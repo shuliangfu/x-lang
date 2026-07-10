@@ -6,7 +6,7 @@ x_kv	file	std/db/kv/kv.x	KV 纯 .x
 x_arrow	file	std/db/arrow/arrow.x	Arrow 纯 .x
 x_sqlite	file	std/db/sqlite/sqlite.x	SQLite 纯 .x
 glue_arrow_runtime	file	compiler/src/asm/runtime_arrow_simd_glue.c	SIMD 胶层 runtime
-glue_kv_runtime	file	compiler/src/asm/runtime_kv_mmap_glue.c	mmap 胶层 runtime
+glue_kv_runtime	file	compiler/src/asm/runtime_kv_mmap_glue.inc	mmap 胶层 runtime
 glue_sqlite_runtime	file	compiler/src/asm/runtime_sqlite_glue.c	sqlite3 胶层 runtime
 glue_arrow_absent	absent	std/db/arrow/arrow_simd_glue.c	已迁入 runtime
 glue_kv_absent	absent	std/db/kv/kv_mmap_glue.c	已迁入 runtime

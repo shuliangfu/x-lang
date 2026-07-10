@@ -16,7 +16,7 @@
 
 // std/random/random.x — CSPRNG 非 OS 逻辑（F-random v1；替代 random.c 主体）
 //
-// 【文件职责】random_u32/u64、SplitMix64 PRNG 烟测；OS fill 见 runtime_random_fill.c（compiler）。
+// 【文件职责】random_u32/u64、SplitMix64 PRNG 烟测；OS fill 见 runtime_random_fill.inc（compiler）。
 
 /** OS 胶层：密码学安全随机字节。 */
 extern function random_fill_bytes_c(buf: *u8, len: i32): i32;

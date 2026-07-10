@@ -7,7 +7,7 @@ deleted_aes_inc	absent	std/crypto/aes_gcm.inc.c	v17 删除
 deleted_chacha_inc	absent	std/crypto/chacha20_poly1305.inc.c	v18 删除
 deleted_ed25519_inc	absent	std/crypto/ed25519.inc.c	v19 删除
 glue_inc	file	compiler/src/asm/runtime_crypto_inc_glue.c	SHA-512 胶层（F-ZC）
-glue_ref10	file	compiler/src/asm/runtime_ed25519_ref10_glue.c	ref10 胶层（F-ZC）
+glue_ref10	file	compiler/src/asm/runtime_ed25519_ref10_glue.inc	ref10 胶层（F-ZC）
 absent_std_glue_inc	absent	std/crypto/crypto_inc_glue.c	F-ZC 迁出
 absent_std_glue_ref10	absent	std/crypto/ed25519_ref10_glue.c	F-ZC 迁出
 x_core	file	std/crypto/core.x	v16
