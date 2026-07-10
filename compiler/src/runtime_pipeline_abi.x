@@ -22,6 +22,7 @@
 // G-02f-233：one_ctx_for_dep_prerun 早退 pure + map 🔒；set_ndep pure。
 // G-02f-234：fclose/emit_glue pure + merge dep_paths 编排 pure。
 // G-02f-235：merge_direct_then_transitive_deps pure（src/lens/path）。
+// G-02f-236：load_direct_imports_for_asm_layout 编排 pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -106,7 +107,10 @@ extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8): void
 extern "C" function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void;
 extern "C" function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
 extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
-extern "C" function shux_load_direct_imports_for_asm_layout_impl(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32;
+/* load_direct_imports_for_asm_layout：G-02f-236 下方真迁 */
+extern "C" function shux_module_num_imports(module: *u8): i32;
+extern "C" function shux_load_one_direct_import_at(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_key: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, mi: i32): i32;
+extern "C" function shux_load_direct_fail_cleanup(dep_sources: *u8, dep_paths: *u8, mi: i32): void;
 /* merge_direct_then_transitive_dep_paths：G-02f-234 下方真迁 */
 extern "C" function shux_module_import_path_cstr(module: *u8, idx: i32, buf: *u8, cap: i32): void;
 extern "C" function shux_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
@@ -1750,18 +1754,52 @@ function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, e
   return -1;
 }
 
+// G-02f-236：仅 direct imports（不递归）；每项 resolve+read+preprocess 🔒
 #[no_mangle]
 function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32 {
   if (module == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   if (out_n == 0 as *i32) {
-    return -1;
+    return 0 - 1;
   }
   unsafe {
-    return shux_load_direct_imports_for_asm_layout_impl(module, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, out_n);
+    shux_i32_store(out_n, 0);
   }
-  return -1;
+  let n_imports: i32 = 0;
+  unsafe {
+    n_imports = shux_module_num_imports(module);
+  }
+  if (n_imports <= 0) {
+    return 0;
+  }
+  let mi: i32 = 0;
+  let i: i32 = 0;
+  while (i < n_imports) {
+    if (i >= 32) { break; }
+    if (mi >= 32) { break; }
+    let path_c: u8[65] = [];
+    unsafe {
+      shux_module_import_path_cstr(module, i, &path_c[0], 65);
+    }
+    let rc: i32 = 0;
+    unsafe {
+      rc = shux_load_one_direct_import_at(lib_roots, n_lib_roots, entry_dir, &path_c[0], defines, ndefines, dep_sources, dep_lens, dep_paths, mi);
+    }
+    if (rc != 0) {
+      unsafe {
+        shux_load_direct_fail_cleanup(dep_sources, dep_paths, mi);
+        shux_i32_store(out_n, 0);
+      }
+      return 1;
+    }
+    mi = mi + 1;
+    i = i + 1;
+  }
+  unsafe {
+    shux_i32_store(out_n, mi);
+  }
+  return 0;
 }
 
 // G-02f-234：direct imports 先入 out，再补 closure 未用路径

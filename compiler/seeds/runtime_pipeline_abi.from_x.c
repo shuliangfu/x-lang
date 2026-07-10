@@ -17,6 +17,7 @@
  * G-02f-233: one_ctx early pure + map_impl; set_ndep pure.
  * G-02f-234: fclose/emit_glue + merge dep_paths pure.
  * G-02f-235: merge_direct_then_transitive_deps pure.
+ * G-02f-236: load_direct_imports_for_asm_layout pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -2210,10 +2211,75 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * 供 parse-only 填 dep struct layout；避免 shux_collect_deps_transitive 耗时/失败。
  * 返回 0 成功；失败时释放已写入 dep_sources/dep_paths 并返回 1。
  */
+/* G-02f-236：module import 计数（.x 编排） */
+int32_t shux_module_num_imports(void *module) {
+    if (!module)
+        return 0;
+    return parser_get_module_num_imports(module);
+}
+
+/* G-02f-236：单项 resolve+read+preprocess → dep 槽 mi；0 成功，1 失败（未写槽） */
+int shux_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots, const char *entry_dir,
+    const char *import_key, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
+    char *dep_paths[], int32_t mi) {
+    char resolved[PATH_MAX];
+    ShuxRuntimeFileView raw_view;
+    size_t prep_len = 0;
+    char *prep = NULL;
+
+    if (!import_key || mi < 0)
+        return 1;
+    shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, import_key, resolved, sizeof(resolved));
+    if (runtime_read_file_view(resolved, &raw_view) != 0) {
+        pipeline_diag_import_open_fail_once(import_key, resolved);
+        return 1;
+    }
+    if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
+            resolved, ndefines > 0 ? defines : NULL, ndefines) != 0) {
+        runtime_release_file_view(&raw_view);
+        return 1;
+    }
+    runtime_release_file_view(&raw_view);
+    if (!prep) {
+        pipeline_diag_import_preprocess_fail(import_key, resolved);
+        return 1;
+    }
+    if (dep_sources)
+        dep_sources[mi] = prep;
+    if (dep_lens)
+        dep_lens[mi] = prep_len;
+    if (dep_paths) {
+        dep_paths[mi] = strdup(import_key);
+        if (!dep_paths[mi]) {
+            free(prep);
+            if (dep_sources)
+                dep_sources[mi] = NULL;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* G-02f-236：失败时释放 0..mi-1 已写 dep_sources/dep_paths */
+void shux_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int32_t mi) {
+    while (mi > 0) {
+        mi--;
+        if (dep_sources && dep_sources[mi]) {
+            free(dep_sources[mi]);
+            dep_sources[mi] = NULL;
+        }
+        if (dep_paths && dep_paths[mi]) {
+            free(dep_paths[mi]);
+            dep_paths[mi] = NULL;
+        }
+    }
+}
+
+/* G-02f-236：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int shux_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *out_n) {
-    int32_t n_imports = parser_get_module_num_imports(module);
+    int32_t n_imports = shux_module_num_imports(module);
     int mi = 0;
 
     *out_n = 0;
@@ -2223,10 +2289,6 @@ int shux_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_
         uint8_t path_buf[64];
         char path_c[65];
         size_t k = 0;
-        char resolved[PATH_MAX];
-        ShuxRuntimeFileView raw_view;
-        size_t prep_len = 0;
-        char *prep;
 
         parser_get_module_import_path(module, i, path_buf);
         while (k < sizeof(path_buf) && path_buf[k] && k < 64) {
@@ -2234,43 +2296,19 @@ int shux_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_
             k++;
         }
         path_c[k] = '\0';
-        shux_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, path_c, resolved, sizeof(resolved));
-        if (runtime_read_file_view(resolved, &raw_view) != 0) {
-            pipeline_diag_import_open_fail_once(path_c, resolved);
-            goto fail_partial;
-        }
-        prep = NULL;
-        if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
-                resolved, ndefines > 0 ? defines : NULL, ndefines) != 0) {
-            runtime_release_file_view(&raw_view);
-            goto fail_partial;
-        }
-        runtime_release_file_view(&raw_view);
-        if (!prep) {
-            pipeline_diag_import_preprocess_fail(path_c, resolved);
-            goto fail_partial;
-        }
-        dep_sources[mi] = prep;
-        dep_lens[mi] = prep_len;
-        dep_paths[mi] = strdup(path_c);
-        if (!dep_paths[mi]) {
-            free(prep);
-            goto fail_partial;
+        if (shux_load_one_direct_import_at(lib_roots_arr, n_lib_roots, entry_dir, path_c, defines, ndefines,
+                dep_sources, dep_lens, dep_paths, mi) != 0) {
+            shux_load_direct_fail_cleanup(dep_sources, dep_paths, mi);
+            *out_n = 0;
+            return 1;
         }
         mi++;
     }
     *out_n = mi;
     return 0;
-fail_partial:
-    while (mi > 0) {
-        mi--;
-        free(dep_sources[mi]);
-        free(dep_paths[mi]);
-    }
-    *out_n = 0;
-    return 1;
 }
 
+/* G-02f-236：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *out_n) {
