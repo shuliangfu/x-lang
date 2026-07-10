@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..56/64/65 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..66 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
- *         merge path_is_nonempty gate + ld_argv_entry_is_obj true logic.
- * .x covers: + path_is_nonempty_regular_file, link_abi_ld_argv_entry_is_obj.
+ *         merge invoke_ld_for_exe + mach/unix tail libs gates.
+ * .x covers: + shux_invoke_ld_for_exe, append_mach/unix_gcc_tail_libs.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -12,13 +12,19 @@
 #include "diag.h"
 #include "runtime_diag_codes.h"
 
-/* G-02f-53/65: empty C string + path_is_nonempty impl */
+/* G-02f-53/65/66: empty C string + path/ld helpers */
 const char *shux_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path);
 const char *shux_runtime_asm_io_stubs_o_path_impl(const char *argv0);
 const char *shux_runtime_process_argv_o_path_impl(const char *argv0);
 const char *shux_asm_ld_effective_link_argv0_impl(const char *link_argv0, char *syn_buf, size_t syn_sz);
 int shux_path_is_nonempty_regular_file_impl(const char *path);
 int link_abi_ld_argv_entry_is_obj(const char *s);
+int shux_invoke_ld_for_exe_impl(const char *o_path, const char *exe_path, const char *target,
+    int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots);
+void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+    const char **argv, int *la, int max_la, int append_lsystem);
+void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+    int need_pt, const char **argv, int *la, int max_la);
 const char *shux_empty_cstr(void) {
     static char buf[1];
     buf[0] = '\0';
@@ -5728,13 +5734,11 @@ int shux_asm_user_o_has_undef_syms(const char *o_path) {
 
 /**
  * macOS asm ld/clang：按 std 链入标记追加 -lm、压缩库、-lsqlite3、-pthread、-lSystem。
- * 参数：compress_o std/compress/compress.o 路径；user_o 用户主 .o；append_lsystem 非 0 时在 ld 路径追加 -lSystem。
+ * G-02f-66：主体 _impl；.x 门闩 null 检查后转发。
  */
-void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     const char **argv, int *la, int max_la, int append_lsystem) {
     int need_pt;
-    if (!flags || !argv || !la || *la < 0)
-        return;
     need_pt = flags->have_thread || flags->have_sync || flags->have_channel;
     if (flags->have_math && *la < max_la - 1)
         argv[(*la)++] = "-lm";
@@ -5748,14 +5752,31 @@ void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_
         argv[(*la)++] = "-lSystem";
 }
 
+void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+    const char **argv, int *la, int max_la, int append_lsystem) {
+  if (flags == NULL) {
+    return;
+  }
+  if (argv == NULL) {
+    return;
+  }
+  if (la == NULL) {
+    return;
+  }
+  if (*la < 0) {
+    return;
+  }
+  {
+    shux_asm_ld_append_mach_tail_libs_impl(compress_o, user_o, flags, argv, la, max_la, append_lsystem);
+  }
+}
+
 /**
  * Linux/Unix gcc 或裸 ld 路径：按 std 链入标记追加 -pthread、-lm、压缩库、-ldl、-lc（F-03 v2/v3 无 -luring）。
- * 参数：compress_o std/compress/compress.o 路径；user_o 用户主 .o；need_pt 已由 thread/sync/channel 推导。
+ * G-02f-66：主体 _impl；.x 门闩 null 检查后转发。
  */
-void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la) {
-    if (!flags || !argv || !la || *la < 0)
-        return;
     if (flags->have_io) {
         if (need_pt && *la < max_la - 1)
             argv[(*la)++] = "-pthread";
@@ -5831,6 +5852,25 @@ void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *u
             argv[(*la)++] = "-lc";
 #endif
     }
+}
+
+void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+    int need_pt, const char **argv, int *la, int max_la) {
+  if (flags == NULL) {
+    return;
+  }
+  if (argv == NULL) {
+    return;
+  }
+  if (la == NULL) {
+    return;
+  }
+  if (*la < 0) {
+    return;
+  }
+  {
+    shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o, user_o, flags, need_pt, argv, la, max_la);
+  }
 }
 
 #if defined(__linux__)
@@ -6296,17 +6336,14 @@ int shux_output_want_exe(const char *path) {
 
 /**
  * ASM -o exe 薄包装：ensure .o + shux_asm_ld_prepare_for_exe_link + shux_asm_invoke_ld_platform。
- * 参数：link_argv0 用于 std/.o 路径解析，可为 NULL；lib_roots 与 driver -L 一致。
- * 返回值：0 成功，-1 失败。
+ * G-02f-66：主体 _impl（PATH_MAX 合成缓冲）；.x 门闩 null 检查后转发。
  */
-int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
+int shux_invoke_ld_for_exe_impl(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots) {
     char link_argv_syn[PATH_MAX];
     const char *link_eff;
     int freestanding;
 
-    if (!o_path || !exe_path)
-        return -1;
     link_eff = shux_asm_ld_effective_link_argv0(link_argv0, link_argv_syn, sizeof link_argv_syn);
     if (!link_eff)
         return -1;
@@ -6315,6 +6352,20 @@ int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char 
         return -1;
     return shux_asm_invoke_ld_platform(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots,
         freestanding);
+}
+
+int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
+    int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots) {
+  if (o_path == NULL) {
+    return -1;
+  }
+  if (exe_path == NULL) {
+    return -1;
+  }
+  {
+    return shux_invoke_ld_for_exe_impl(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots);
+  }
+  return -1;
 }
 
 /* -------------------------------------------------------------------------- */

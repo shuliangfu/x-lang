@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..44/47/53/55/56/64/65：真迁 .x — link_abi needs_* / 空 .o / bank / 路径后缀。
+// G-02f-34..44/47/53/55/56/64..66：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
-// C 尾：invoke_cc/ld、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
-// G-02f-65：+ path_is_nonempty 门闩；ld_argv_entry_is_obj 真逻辑。
+// C 尾：invoke_cc/ld 主体、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
+// G-02f-66：+ invoke_ld_for_exe / mach+unix tail libs 门闩。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
 extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -22,6 +22,9 @@ extern "C" function shux_asm_ld_bank_push_impl(b: *u8, path: *u8): *u8;
 extern "C" function shux_runtime_asm_io_stubs_o_path_impl(argv0: *u8): *u8;
 extern "C" function shux_runtime_process_argv_o_path_impl(argv0: *u8): *u8;
 extern "C" function shux_asm_ld_effective_link_argv0_impl(link_argv0: *u8, syn_buf: *u8, syn_sz: i32): *u8;
+extern "C" function shux_invoke_ld_for_exe_impl(o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32, link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32): i32;
+extern "C" function shux_asm_ld_append_mach_tail_libs_impl(compress_o: *u8, user_o: *u8, flags: *u8, argv: *u8, la: *i32, max_la: i32, append_lsystem: i32): void;
+extern "C" function shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o: *u8, user_o: *u8, flags: *u8, need_pt: i32, argv: *u8, la: *i32, max_la: i32): void;
 
 #[no_mangle]
 function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
@@ -1405,4 +1408,58 @@ function link_abi_ld_argv_entry_is_obj(s: *u8): i32 {
     return 0;
   }
   return 0;
+}
+
+/* ---- G-02f-66：asm -o exe 编排 + tail libs 门闩 ---- */
+
+#[no_mangle]
+function shux_invoke_ld_for_exe(o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32, link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32): i32 {
+  if (o_path == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (exe_path == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    return shux_invoke_ld_for_exe_impl(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_asm_ld_append_mach_tail_libs(compress_o: *u8, user_o: *u8, flags: *u8, argv: *u8, la: *i32, max_la: i32, append_lsystem: i32): void {
+  if (flags == 0 as *u8) {
+    return;
+  }
+  if (argv == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    if (*la < 0) {
+      return;
+    }
+    shux_asm_ld_append_mach_tail_libs_impl(compress_o, user_o, flags, argv, la, max_la, append_lsystem);
+  }
+}
+
+#[no_mangle]
+function shux_asm_ld_append_unix_gcc_tail_libs(compress_o: *u8, user_o: *u8, flags: *u8, need_pt: i32, argv: *u8, la: *i32, max_la: i32): void {
+  if (flags == 0 as *u8) {
+    return;
+  }
+  if (argv == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    if (*la < 0) {
+      return;
+    }
+    shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o, user_o, flags, need_pt, argv, la, max_la);
+  }
 }
