@@ -1756,40 +1756,121 @@ int shux_link_freestanding_enabled(int driver_freestanding) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
+/* G-02f-273 L4 ensure catalog pure */
+#ifndef SHUX_LABI_ENSURE_LIST_FROM_X
+#include "seeds/labi_ensure_list.from_x.c"
+#else
+enum {
+  LABI_ENS_FLAG_NONE = 0,
+  LABI_ENS_FLAG_PIE = 1,
+  LABI_ENS_FLAG_SQLITE = 2
+};
+enum {
+  LABI_ENS_ASM_IO_STUBS = 0,
+  LABI_ENS_PROCESS_ARGV,
+  LABI_ENS_PROCESS_OS_GLUE,
+  LABI_ENS_RANDOM_FILL,
+  LABI_ENS_COMPRESS_ZLIB_GLUE,
+  LABI_ENS_TIME_OS,
+  LABI_ENS_QUEUE_CONTENTION,
+  LABI_ENS_DYNLIB_OS,
+  LABI_ENS_ENV_OS,
+  LABI_ENS_BACKTRACE_PLATFORM,
+  LABI_ENS_LOG_OS,
+  LABI_ENS_MATH_LIBM,
+  LABI_ENS_ATOMIC_GLUE,
+  LABI_ENS_CHANNEL_GLUE,
+  LABI_ENS_NET_UDP_BATCH,
+  LABI_ENS_NET_WORKERS,
+  LABI_ENS_SYNC_OS,
+  LABI_ENS_SYNC_LOCK_DIAG_TLS,
+  LABI_ENS_THREAD_GLUE,
+  LABI_ENS_SCHEDULER_GLUE,
+  LABI_ENS_HTTP_GLUE,
+  LABI_ENS_KV_MMAP_GLUE,
+  LABI_ENS_ARROW_SIMD_GLUE,
+  LABI_ENS_SQLITE_GLUE,
+  LABI_ENS_CRYPTO_INC_GLUE,
+  LABI_ENS_ED25519_REF10_GLUE,
+  LABI_ENS_COUNT
+};
+int labi_ensure_catalog_count(void);
+int labi_ensure_catalog_step_at(int i, const char **stem_out, const char **out_base_out,
+                                const char **seed_base_out, int *flags_out,
+                                const char **hint_out);
+const char *labi_ensure_catalog_stem(int i);
+const char *labi_ensure_catalog_out_base(int i);
+const char *labi_ensure_catalog_seed_base(int i);
+int labi_ensure_catalog_flags(int i);
+#endif
+
+/**
+ * G-02f-273：通用 ensure — 读纯目录表，缺 .o 则 seeds/*.from_x.c → cc -c。
+ * path_fn：对应 shux_runtime_*_o_path（探活 / 最终校验）。
+ * 返回值：0 成功，-1 失败并已写诊断。
+ */
+static int link_abi_ensure_from_catalog(const char *argv0, int catalog_idx,
+    const char *(*path_fn)(const char *argv0)) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_c[PATH_MAX];
     char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_asm_io_stubs_o_path(argv0)))
+    const char *stem = NULL;
+    const char *out_base = NULL;
+    const char *seed_base = NULL;
+    const char *hint = NULL;
+    int flags = 0;
+    if (!path_fn)
+        return -1;
+    if (!labi_ensure_catalog_step_at(catalog_idx, &stem, &out_base, &seed_base, &flags, &hint))
+        return -1;
+    if (!stem || !out_base || !seed_base)
+        return -1;
+    if (asm_link_obj_skip_missing(path_fn(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_asm_io_stubs.o", "try: make -C compiler runtime_asm_io_stubs.o");
+        link_diag_runtime_obj_resolve_fail(out_base, hint);
         return -1;
     }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_asm_io_stubs.o", comp) >= sizeof out_o)
+    if ((size_t)snprintf(out_o, sizeof out_o, "%s/%s", comp, out_base) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_asm_io_stubs.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_asm_io_stubs", src_c);
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/%s", comp, seed_base) >= sizeof src_c
+        || access(src_c, R_OK) != 0) {
+        link_diag_runtime_source_missing(stem, src_c);
         return -1;
     }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
+    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0
+        || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
         || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
         return -1;
     {
-        const char *extra_flags[] = { "-fPIE", NULL };
-        int rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
+        int rc;
+        if (flags == LABI_ENS_FLAG_PIE) {
+            const char *extra_flags[] = { "-fPIE", NULL };
+            rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
+        } else if (flags == LABI_ENS_FLAG_SQLITE) {
+            const char *extra_flags[] = { "-DSHUX_DB_USE_SQLITE3", NULL };
+            rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
+        } else {
+            rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
+        }
         if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_asm_io_stubs.o", rc);
+            link_diag_runtime_obj_build_status(out_base, rc);
             return -1;
         }
     }
-    if (!asm_link_obj_skip_missing(shux_runtime_asm_io_stubs_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_asm_io_stubs.o", out_o);
+    if (!asm_link_obj_skip_missing(path_fn(argv0))) {
+        link_diag_runtime_obj_missing(out_base, out_o);
         return -1;
     }
     return 0;
 }
+
+/* G-02f-273 L4 ensure catalog thin wrap */
+int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ASM_IO_STUBS, shux_runtime_asm_io_stubs_o_path);
+}
+
 
 
 
@@ -1801,77 +1882,21 @@ int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_process_argv_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_process_argv_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_process_argv.o", "try: make -C compiler runtime_process_argv.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_process_argv.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_process_argv.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_process_argv", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_process_argv.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_process_argv_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_process_argv.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_PROCESS_ARGV, shux_runtime_process_argv_o_path);
 }
+
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_process_os_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_process_os_glue.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_process_os_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_process_os_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_process_os_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_process_os_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_process_os_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_process_os_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_PROCESS_OS_GLUE, shux_runtime_process_os_glue_o_path);
 }
+
 
 
 
@@ -1939,39 +1964,11 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_random_fill_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_random_fill_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_random_fill.o", "try: make -C compiler runtime_random_fill.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_random_fill.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_random_fill.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_random_fill", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_random_fill.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_random_fill_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_random_fill.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_RANDOM_FILL, shux_runtime_random_fill_o_path);
 }
+
 
 
 
@@ -1981,39 +1978,11 @@ int shux_ensure_runtime_random_fill_o(const char *argv0) {
  * 提供 deflateInit2/inflateInit2 真实函数符号（zlib.h 中为宏，无函数符号）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_compress_zlib_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_compress_zlib_glue.o", "try: make -C compiler runtime_compress_zlib_glue.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_compress_zlib_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_compress_zlib_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_compress_zlib_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_compress_zlib_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_compress_zlib_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_compress_zlib_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_COMPRESS_ZLIB_GLUE, shux_runtime_compress_zlib_glue_o_path);
 }
+
 
 
 
@@ -2081,39 +2050,11 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_time_os_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_time_os_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_time_os.o", "try: make -C compiler runtime_time_os.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_time_os.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_time_os.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_time_os", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_time_os.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_time_os_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_time_os.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_TIME_OS, shux_runtime_time_os_o_path);
 }
+
 
 
 
@@ -2124,39 +2065,11 @@ int shux_ensure_runtime_time_os_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_queue_contention_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_queue_contention_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_queue_contention.o", "try: make -C compiler runtime_queue_contention.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_queue_contention.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_queue_contention.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_queue_contention", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_queue_contention.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_queue_contention_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_queue_contention.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_QUEUE_CONTENTION, shux_runtime_queue_contention_o_path);
 }
+
 
 
 
@@ -2167,39 +2080,11 @@ int shux_ensure_runtime_queue_contention_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_dynlib_os_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_dynlib_os.o", "try: make -C compiler runtime_dynlib_os.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_dynlib_os.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_dynlib_os.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_dynlib_os", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_dynlib_os.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_dynlib_os_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_dynlib_os.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_DYNLIB_OS, shux_runtime_dynlib_os_o_path);
 }
+
 
 
 
@@ -2210,39 +2095,11 @@ int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_env_os_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_env_os_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_env_os.o", "try: make -C compiler runtime_env_os.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_env_os.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_env_os.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_env_os", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_env_os.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_env_os_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_env_os.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ENV_OS, shux_runtime_env_os_o_path);
 }
+
 
 
 
@@ -2253,39 +2110,11 @@ int shux_ensure_runtime_env_os_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_backtrace_platform_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_backtrace_platform.o", "try: make -C compiler runtime_backtrace_platform.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_backtrace_platform.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_backtrace_platform.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_backtrace_platform", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_backtrace_platform.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_backtrace_platform_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_backtrace_platform.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_BACKTRACE_PLATFORM, shux_runtime_backtrace_platform_o_path);
 }
+
 
 
 
@@ -2296,39 +2125,11 @@ int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_log_os_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_log_os_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_log_os.o", "try: make -C compiler runtime_log_os.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_log_os.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_log_os.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_log_os", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_log_os.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_log_os_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_log_os.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_LOG_OS, shux_runtime_log_os_o_path);
 }
+
 
 
 
@@ -2339,39 +2140,11 @@ int shux_ensure_runtime_log_os_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_math_libm_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_math_libm_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_math_libm.o", "try: make -C compiler runtime_math_libm.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_math_libm.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_math_libm.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_math_libm", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_math_libm.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_math_libm_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_math_libm.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_MATH_LIBM, shux_runtime_math_libm_o_path);
 }
+
 
 
 
@@ -2382,39 +2155,11 @@ int shux_ensure_runtime_math_libm_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_atomic_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_atomic_glue.o", "try: make -C compiler runtime_atomic_glue.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_atomic_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_atomic_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_atomic_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_atomic_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_atomic_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_atomic_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ATOMIC_GLUE, shux_runtime_atomic_glue_o_path);
 }
+
 
 
 
@@ -2425,39 +2170,11 @@ int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_channel_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_channel_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_channel_glue.o", "try: make -C compiler runtime_channel_glue.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_channel_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_channel_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_channel_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_channel_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_channel_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_channel_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_CHANNEL_GLUE, shux_runtime_channel_glue_o_path);
 }
+
 
 
 
@@ -2468,39 +2185,11 @@ int shux_ensure_runtime_channel_glue_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_net_udp_batch_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_net_udp_batch.o", "try: make -C compiler runtime_net_udp_batch.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_net_udp_batch.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_net_udp_batch.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_net_udp_batch", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_net_udp_batch.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_net_udp_batch_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_net_udp_batch.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_NET_UDP_BATCH, shux_runtime_net_udp_batch_o_path);
 }
+
 
 
 
@@ -2511,229 +2200,61 @@ int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_net_workers_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_net_workers_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_net_workers.o", "try: make -C compiler runtime_net_workers.o");
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_net_workers.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_net_workers.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_net_workers", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_net_workers.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_net_workers_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_net_workers.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_NET_WORKERS, shux_runtime_net_workers_o_path);
 }
+
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
 
 
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_sync_os_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_sync_os_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_sync_os.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_sync_os.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_sync_os.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_sync_os", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_sync_os.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_sync_os_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_sync_os.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SYNC_OS, shux_runtime_sync_os_o_path);
 }
+
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_sync_lock_diag_tls_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_sync_lock_diag_tls.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_sync_lock_diag_tls.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_sync_lock_diag_tls.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_sync_lock_diag_tls", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_sync_lock_diag_tls.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_sync_lock_diag_tls_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_sync_lock_diag_tls.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SYNC_LOCK_DIAG_TLS, shux_runtime_sync_lock_diag_tls_o_path);
 }
+
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
 
 
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_thread_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_thread_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_thread_glue.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_thread_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_thread_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_thread_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_thread_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_thread_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_thread_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_THREAD_GLUE, shux_runtime_thread_glue_o_path);
 }
+
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_scheduler_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_scheduler_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_scheduler_glue.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_scheduler_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_scheduler_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_scheduler_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s/src/asm", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_scheduler_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_scheduler_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_scheduler_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SCHEDULER_GLUE, shux_runtime_scheduler_glue_o_path);
 }
+
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
 
 
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_http_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_http_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_http_glue.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_http_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_http_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_http_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s/src/asm/http", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_http_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_http_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_http_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_HTTP_GLUE, shux_runtime_http_glue_o_path);
 }
+
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -2779,192 +2300,51 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
 
 
 
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_kv_mmap_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_kv_mmap_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_kv_mmap_glue.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_kv_mmap_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_kv_mmap_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_kv_mmap_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_kv_mmap_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_kv_mmap_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_kv_mmap_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_KV_MMAP_GLUE, shux_runtime_kv_mmap_glue_o_path);
 }
+
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_arrow_simd_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_arrow_simd_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_arrow_simd_glue.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_arrow_simd_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_arrow_simd_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_arrow_simd_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_arrow_simd_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_arrow_simd_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_arrow_simd_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ARROW_SIMD_GLUE, shux_runtime_arrow_simd_glue_o_path);
 }
+
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
 
 
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_sqlite_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_sqlite_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_sqlite_glue.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_sqlite_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_sqlite_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_sqlite_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        const char *extra_flags[] = { "-DSHUX_DB_USE_SQLITE3", NULL };
-        int rc = shux_cc_compile_sync_ex(src_c, out_o, inc0, inc1, inc2, 0, extra_flags);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_sqlite_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_sqlite_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_sqlite_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_SQLITE_GLUE, shux_runtime_sqlite_glue_o_path);
 }
+
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_crypto_inc_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_crypto_inc_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_crypto_inc_glue.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_crypto_inc_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_crypto_inc_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_crypto_inc_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_crypto_inc_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_crypto_inc_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_crypto_inc_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_CRYPTO_INC_GLUE, shux_runtime_crypto_inc_glue_o_path);
 }
+
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
+/* G-02f-273 L4 ensure catalog thin wrap */
 int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
-    char comp[PATH_MAX];
-    char out_o[PATH_MAX];
-    char src_c[PATH_MAX];
-    char inc0[PATH_MAX], inc1[PATH_MAX], inc2[PATH_MAX];
-    if (asm_link_obj_skip_missing(shux_runtime_ed25519_ref10_glue_o_path(argv0)))
-        return 0;
-    if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("runtime_ed25519_ref10_glue.o", NULL);
-        return -1;
-    }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_ed25519_ref10_glue.o", comp) >= sizeof out_o)
-        return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_ed25519_ref10_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_ed25519_ref10_glue", src_c);
-        return -1;
-    }
-    if ((size_t)snprintf(inc0, sizeof inc0, "%s/src/asm", comp) >= sizeof inc0 || (size_t)snprintf(inc1, sizeof inc1, "%s/include", comp) >= sizeof inc1
-        || (size_t)snprintf(inc2, sizeof inc2, "%s/src", comp) >= sizeof inc2)
-        return -1;
-    {
-        int rc = shux_cc_compile_sync(src_c, out_o, inc0, inc1, inc2, 0);
-        if (rc != 0) {
-            link_diag_runtime_obj_build_status("runtime_ed25519_ref10_glue.o", rc);
-            return -1;
-        }
-    }
-    if (!asm_link_obj_skip_missing(shux_runtime_ed25519_ref10_glue_o_path(argv0))) {
-        link_diag_runtime_obj_missing("runtime_ed25519_ref10_glue.o", out_o);
-        return -1;
-    }
-    return 0;
+  return link_abi_ensure_from_catalog(argv0, LABI_ENS_ED25519_REF10_GLUE, shux_runtime_ed25519_ref10_glue_o_path);
 }
+
 
 
 
