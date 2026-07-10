@@ -175,7 +175,7 @@ G05_SYNC_ASM=1 sh scripts/g05_prepare_and_relink.sh
 |------|--------|
 | **runtime**（本文） | f-260 RFC ✅ → 下步可落地 **R2** |
 | **link_abi**（~6.9k） | 另文 f-303：cc/spawn/std `.o` ensure 🔒 边界 |
-| **parser_asm_thin**（~22k） | 另文 f-304：God-View + 切片序；禁止无 RFC 硬啃 |
+| **parser_asm_thin**（~22k） | **f-278/f-304 RFC 已写** → [`G-02f-P2-parser-thin-mega-RFC.md`](G-02f-P2-parser-thin-mega-RFC.md)；禁止无计划硬啃 |
 
 ---
 

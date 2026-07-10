@@ -189,7 +189,7 @@ cc -o /tmp/labi0_ut tests_or_inline_ut.c seeds/labi_path_pure.from_x.c && /tmp/l
 |------|------|--------|
 | **runtime** | 五切片 hybrid 已落地（f-261～265） | R6 compile 深切可选 |
 | **link_abi** | 本文 RFC | **f-267 = L0 path pure 真迁** |
-| **parser_asm_thin** | 未开 | f-304 God-View RFC |
+| **parser_asm_thin** | **RFC 已写**（f-278/f-304） | [`G-02f-P2-parser-thin-mega-RFC.md`](G-02f-P2-parser-thin-mega-RFC.md)；首迁 P2 let/alias |
 
 ---
 
