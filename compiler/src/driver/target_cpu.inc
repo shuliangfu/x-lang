@@ -1,8 +1,8 @@
 /**
  * target_cpu.inc — SIMD-S1：宿主机 CPU feature 探测与 `-target-cpu` 规格解析。
  *
- * G-02f-2/3/4：pending + SIMD 拼写 + resolve 已迁 `target_cpu_pure.x`
- *（产品链 ld -r pure + 本 TU → target_cpu.o；本 TU 仅 detect/generic/print）。
+ * G-02f-2～5：pending + SIMD + resolve + print 已迁 pure 半边
+ *（产品链 ld -r pure + 本 TU → target_cpu.o；本 TU 仅 detect_host / generic_for_host）。
  *
  * Linux：读 /proc/cpuinfo flags/Features；
  * macOS：sysctl hw.optional.* / machdep.cpu.leaf7_features；
@@ -282,56 +282,4 @@ uint32_t shu_target_cpu_generic_for_host(void) {
 #endif
 }
 
-/* G-02f-4：shu_target_cpu_resolve / parse_named 已迁 target_cpu_pure。 */
-
-/**
- * 追加单个 feature 名到 buf（逗号分隔）。
- */
-static void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name) {
-    size_t nlen;
-    if (!buf || !pos || !name || *pos >= cap)
-        return;
-    if (*pos > 0 && *pos + 1 < cap)
-        buf[(*pos)++] = ',';
-    nlen = strlen(name);
-    if (*pos + nlen >= cap)
-        return;
-    memcpy(buf + *pos, name, nlen);
-    *pos += nlen;
-    buf[*pos] = '\0';
-}
-
-void shu_target_cpu_print(FILE *out, uint32_t features) {
-    char list[256];
-    size_t pos = 0;
-
-    if (!out)
-        return;
-    list[0] = '\0';
-    if (features & SHUX_CPU_FEAT_SSE2)
-        append_feat_name(list, sizeof(list), &pos, "sse2");
-    if (features & SHUX_CPU_FEAT_SSE41)
-        append_feat_name(list, sizeof(list), &pos, "sse4.1");
-    if (features & SHUX_CPU_FEAT_AVX)
-        append_feat_name(list, sizeof(list), &pos, "avx");
-    if (features & SHUX_CPU_FEAT_AVX2)
-        append_feat_name(list, sizeof(list), &pos, "avx2");
-    if (features & SHUX_CPU_FEAT_AVX512F)
-        append_feat_name(list, sizeof(list), &pos, "avx512f");
-    if (features & SHUX_CPU_FEAT_POPCNT)
-        append_feat_name(list, sizeof(list), &pos, "popcnt");
-    if (features & SHUX_CPU_FEAT_BMI2)
-        append_feat_name(list, sizeof(list), &pos, "bmi2");
-    if (features & SHUX_CPU_FEAT_NEON)
-        append_feat_name(list, sizeof(list), &pos, "neon");
-    if (features & SHUX_CPU_FEAT_SVE)
-        append_feat_name(list, sizeof(list), &pos, "sve");
-    if (features & SHUX_CPU_FEAT_RVV)
-        append_feat_name(list, sizeof(list), &pos, "rvv");
-    fprintf(out, "target_cpu_features=0x%08x\n", features);
-    fprintf(out, "target_cpu_features_list=%s\n", list[0] ? list : "(none)");
-    fprintf(out, "target_cpu_host_features=0x%08x\n", shu_target_cpu_detect_host());
-}
-
-/* G-02f-3：shu_simd_is_vector_type_spelling / shu_simd_vector_lanes_esz_from_spelling
- * 已迁 target_cpu_pure.x（产品链 pure.from_x.c）。 */
+/* G-02f-3/4/5：SIMD / resolve / print 已迁 target_cpu_pure（seed）。 */

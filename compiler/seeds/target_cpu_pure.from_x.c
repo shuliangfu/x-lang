@@ -1,14 +1,16 @@
-/* target_cpu_pure.from_x.c — G-02f-2/3/4 product pure half of target_cpu.o
+/* target_cpu_pure.from_x.c — G-02f-2/3/4/5 product pure half of target_cpu.o
  *
- * Source of truth: src/driver/target_cpu_pure.x
+ * Source of truth: src/driver/target_cpu_pure.x (+ print is stdio C co-located; f-5)
  * Hand-synced when full shux-c -E hangs on multi-helper TUs.
  * Product: ld -r pure.o + target_cpu_detect.o → target_cpu.o
  *
- * Exports: pending set/get, resolve, simd is_vector / lanes_esz.
+ * Exports: pending, resolve, simd spelling, print.
  * U: shu_target_cpu_detect_host, shu_target_cpu_generic_for_host (detect.o).
  */
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <string.h>
 
 static uint32_t g_driver_pending_target_cpu_features;
 
@@ -195,4 +197,52 @@ int shu_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, i
   *out_lanes = lanes;
   *out_esz = esz;
   return 0;
+}
+
+/* --- G-02f-5：print（stdio / FILE* 语言限制，逻辑与原 target_cpu.inc 一致）--- */
+
+static void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name) {
+  size_t nlen;
+  if (!buf || !pos || !name || *pos >= cap)
+    return;
+  if (*pos > 0 && *pos + 1 < cap)
+    buf[(*pos)++] = ',';
+  nlen = strlen(name);
+  if (*pos + nlen >= cap)
+    return;
+  memcpy(buf + *pos, name, nlen);
+  *pos += nlen;
+  buf[*pos] = '\0';
+}
+
+void shu_target_cpu_print(FILE *out, uint32_t features) {
+  char list[256];
+  size_t pos = 0;
+
+  if (!out)
+    return;
+  list[0] = '\0';
+  if (features & 1u) /* SSE2 */
+    append_feat_name(list, sizeof(list), &pos, "sse2");
+  if (features & 2u) /* SSE41 */
+    append_feat_name(list, sizeof(list), &pos, "sse4.1");
+  if (features & 4u) /* AVX */
+    append_feat_name(list, sizeof(list), &pos, "avx");
+  if (features & 8u) /* AVX2 */
+    append_feat_name(list, sizeof(list), &pos, "avx2");
+  if (features & 16u) /* AVX512F */
+    append_feat_name(list, sizeof(list), &pos, "avx512f");
+  if (features & 32u) /* POPCNT */
+    append_feat_name(list, sizeof(list), &pos, "popcnt");
+  if (features & 64u) /* BMI2 */
+    append_feat_name(list, sizeof(list), &pos, "bmi2");
+  if (features & 256u) /* NEON */
+    append_feat_name(list, sizeof(list), &pos, "neon");
+  if (features & 512u) /* SVE */
+    append_feat_name(list, sizeof(list), &pos, "sve");
+  if (features & 65536u) /* RVV */
+    append_feat_name(list, sizeof(list), &pos, "rvv");
+  fprintf(out, "target_cpu_features=0x%08x\n", features);
+  fprintf(out, "target_cpu_features_list=%s\n", list[0] ? list : "(none)");
+  fprintf(out, "target_cpu_host_features=0x%08x\n", shu_target_cpu_detect_host());
 }
