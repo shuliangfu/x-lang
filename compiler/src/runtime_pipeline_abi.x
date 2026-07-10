@@ -14,6 +14,7 @@
 // G-02f-225：sidecar_clear + preprocess/import 诊断 pure（note + report_with_code）。
 // G-02f-226：entry_lib 关键词 pure + set_dep_slots pure。
 // G-02f-227：lsp free_loaded 循环 + import_open_fail_once 去重 pure。
+// G-02f-228：pctx seed_dep_slots / import_paths_only / update_dep_slots_no_reset pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -38,7 +39,12 @@ extern "C" function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8,
 extern "C" function free(p: *u8): void;
 extern "C" function ast_module_free(mod: *u8): void;
 extern "C" function shu_lsp_ptr_slot_clear(arr: *u8, i: i32): void;
-extern "C" function shux_pipeline_pctx_update_dep_slots_no_reset_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void;
+/* pctx_update_dep_slots_no_reset：G-02f-228 下方真迁 */
+extern "C" function ast_pipeline_dep_ctx_reset(ctx: *u8): void;
+extern "C" function ast_pipeline_dep_ctx_set_module(ctx: *u8, idx: i32, m: *u8): void;
+extern "C" function ast_pipeline_dep_ctx_set_arena(ctx: *u8, idx: i32, a: *u8): void;
+extern "C" function ast_pipeline_dep_ctx_set_import_path(ctx: *u8, idx: i32, bytes: *u8, len: i32): void;
+extern "C" function ast_pipeline_dep_ctx_set_ndep(ctx: *u8, n: i32): void;
 extern "C" function pipeline_run_x_thread_fn_impl(arg: *u8): *u8;
 extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
 
@@ -77,8 +83,7 @@ extern "C" function shux_resolve_import_file_path_multi_impl(lib_roots: *u8, n_l
 extern "C" function pipeline_set_entry_dir_impl(path: *u8): void;
 extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8): void;
 extern "C" function shux_pipeline_fill_ctx_path_buffers_impl(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void;
-extern "C" function shux_pipeline_pctx_seed_dep_slots_impl(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void;
-extern "C" function shux_pipeline_pctx_seed_dep_import_paths_only_impl(ctx: *u8, import_paths: *u8, n: i32): void;
+/* pctx_seed_dep_slots / import_paths_only：G-02f-228 下方真迁 */
 extern "C" function shux_pipeline_one_ctx_for_dep_prerun_impl(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
 extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
 extern "C" function shux_load_direct_imports_for_asm_layout_impl(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32;
@@ -1104,23 +1109,75 @@ function shux_pipeline_fill_ctx_path_buffers(ctx: *u8, entry_dir: *u8, lib_roots
   }
 }
 
+// G-02f-228 内部：C 字符串长度（上限 65536）
+function pipe_cstr_len(s: *u8): i32 {
+  if (s == 0 as *u8) { return 0; }
+  let i: i32 = 0;
+  while (i < 65536) {
+    if (s[i] == 0) { return i; }
+    i = i + 1;
+  }
+  return i;
+}
+
+// G-02f-228：reset + 写 module/arena/import_path 槽 + set_ndep
 #[no_mangle]
 function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
   unsafe {
-    shux_pipeline_pctx_seed_dep_slots_impl(ctx, dep_mods, dep_ar, import_paths, n);
+    ast_pipeline_dep_ctx_reset(ctx);
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    unsafe {
+      let m: *u8 = 0 as *u8;
+      let a: *u8 = 0 as *u8;
+      if (dep_mods != 0 as *u8) {
+        m = pipe_load_ptr_slot(dep_mods, i);
+      }
+      if (dep_ar != 0 as *u8) {
+        a = pipe_load_ptr_slot(dep_ar, i);
+      }
+      ast_pipeline_dep_ctx_set_module(ctx, i, m);
+      ast_pipeline_dep_ctx_set_arena(ctx, i, a);
+      if (import_paths != 0 as *u8) {
+        let p: *u8 = pipe_load_ptr_slot(import_paths, i);
+        if (p != 0 as *u8) {
+          let pl: i32 = pipe_cstr_len(p);
+          ast_pipeline_dep_ctx_set_import_path(ctx, i, p, pl);
+        }
+      }
+    }
+    i = i + 1;
+  }
+  unsafe {
+    ast_pipeline_dep_ctx_set_ndep(ctx, n);
   }
 }
 
+// G-02f-228：仅镜像 import path；ndep 保持 0（reset 后不 set_ndep）
 #[no_mangle]
 function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_paths: *u8, n: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
   unsafe {
-    shux_pipeline_pctx_seed_dep_import_paths_only_impl(ctx, import_paths, n);
+    ast_pipeline_dep_ctx_reset(ctx);
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    if (import_paths != 0 as *u8) {
+      unsafe {
+        let p: *u8 = pipe_load_ptr_slot(import_paths, i);
+        if (p != 0 as *u8) {
+          let pl: i32 = pipe_cstr_len(p);
+          ast_pipeline_dep_ctx_set_import_path(ctx, i, p, pl);
+        }
+      }
+    }
+    i = i + 1;
   }
 }
 
@@ -1524,12 +1581,39 @@ function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out:
   return 0;
 }
 
-/* ---- G-02f-93：pctx dep-slot update / body filter match 门闩 ---- */
+/* ---- G-02f-93 / G-02f-228：pctx dep-slot update（无 reset，保留 lib_root 等） ---- */
 
+// G-02f-228：写 module/arena/import_path + set_ndep，不 reset
 #[no_mangle]
 function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  let i: i32 = 0;
+  while (i < n) {
+    unsafe {
+      let m: *u8 = 0 as *u8;
+      let a: *u8 = 0 as *u8;
+      if (dep_mods != 0 as *u8) {
+        m = pipe_load_ptr_slot(dep_mods, i);
+      }
+      if (dep_ars != 0 as *u8) {
+        a = pipe_load_ptr_slot(dep_ars, i);
+      }
+      ast_pipeline_dep_ctx_set_module(ctx, i, m);
+      ast_pipeline_dep_ctx_set_arena(ctx, i, a);
+      if (import_paths != 0 as *u8) {
+        let p: *u8 = pipe_load_ptr_slot(import_paths, i);
+        if (p != 0 as *u8) {
+          let pl: i32 = pipe_cstr_len(p);
+          ast_pipeline_dep_ctx_set_import_path(ctx, i, p, pl);
+        }
+      }
+    }
+    i = i + 1;
+  }
   unsafe {
-    shux_pipeline_pctx_update_dep_slots_no_reset_impl(ctx, dep_mods, dep_ars, import_paths, n);
+    ast_pipeline_dep_ctx_set_ndep(ctx, n);
   }
 }
 

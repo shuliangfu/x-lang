@@ -9,6 +9,7 @@
  * G-02f-225: sidecar_clear + preprocess/import diag pure.
  * G-02f-226: entry_lib keywords + set_dep_slots pure.
  * G-02f-227: lsp free_loaded + import_open_fail_once pure.
+ * G-02f-228: pctx seed_dep_slots / import_paths_only / update_no_reset pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -1419,6 +1420,7 @@ void shux_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const c
  * 将 C 侧 dep 槽写入 PipelineDepCtx sidecar（与 ast.x pipeline_dep_ctx_* 对齐）。
  * 参数：dep_mods/dep_ar/import_paths 长度 n；ctx 输出 sidecar。
  */
+/* G-02f-228：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void shux_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
     char **import_paths, int n) {
     int i;
@@ -1436,6 +1438,7 @@ void shux_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, void
     ast_pipeline_dep_ctx_set_ndep(ctx, n);
 }
 
+/* G-02f-228：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 void shux_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
     char **import_paths, int n) {
   if (ctx == NULL) {
@@ -1447,6 +1450,7 @@ void shux_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **de
 }
 
 
+/* G-02f-228：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void shux_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
     int i;
     if (!ctx)
@@ -1461,6 +1465,7 @@ void shux_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepCt
     /* 仅镜像 import path；ndep 保持 0，让 entry pipeline 自行 load/sync direct imports。 */
 }
 
+/* G-02f-228：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 void shux_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
   if (ctx == NULL) {
     return;
@@ -1474,7 +1479,7 @@ void shux_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ct
 /**
  * 更新 dep 槽 module/arena/path，不调用 ast_pipeline_dep_ctx_reset（保留 lib_root 等路径缓冲）。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-228：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void shux_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
                                                          void **dep_ars, char **import_paths, int n) {
     int i;
