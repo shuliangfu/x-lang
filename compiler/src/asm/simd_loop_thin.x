@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-349/384：simd_loop L2 thin — pure glue 子集（无栈数组、无 u32 回传门闩）。
+// G-02f-349/384/403：simd_loop L2 thin — pure glue 子集（10 门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_SIMD_LOOP_THIN_FROM_X）ld -r → simd_loop.o
 // 对照：src/asm/simd_loop.x；默认仍整 seed。
 //
@@ -121,4 +121,33 @@ function glue_index_uses_var_c(arena: *u8, index_expr_ref: i32, i_var_ref: i32):
     return glue_index_uses_var_c_impl(arena, index_expr_ref, i_var_ref);
   }
   return 0;
+}
+
+// ---- G-02f-403：cmp / array_size / chunk_binop → seed impl ----
+extern "C" function glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx: *u8): i32;
+extern "C" function glue_var_array_size_c_impl(arena: *u8, var_ref: i32): i32;
+extern "C" function glue_simd_loop_emit_chunk_binop_c_impl(elf_ctx: *u8, binop_ko: i32, chunk_off_a: i32, chunk_off_b: i32, chunk_off_d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+
+#[no_mangle]
+function glue_simd_x86_cmp_rax_rbx_c(elf_ctx: *u8): i32 {
+  unsafe {
+    return glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function glue_var_array_size_c(arena: *u8, var_ref: i32): i32 {
+  unsafe {
+    return glue_var_array_size_c_impl(arena, var_ref);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_simd_loop_emit_chunk_binop_c(elf_ctx: *u8, binop_ko: i32, chunk_off_a: i32, chunk_off_b: i32, chunk_off_d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32 {
+  unsafe {
+    return glue_simd_loop_emit_chunk_binop_c_impl(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
+  }
+  return 0 - 1;
 }

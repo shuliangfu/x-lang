@@ -38,6 +38,9 @@ int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref);
 int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, int32_t n);
 int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref);
 int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref);
+int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref);
+int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t chunk_off_a, int32_t chunk_off_b, int32_t chunk_off_d, int32_t lanes, int32_t esz, int32_t ta, uint32_t feats);
 #endif
 
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -428,9 +431,8 @@ int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *l
 /** 发射单 chunk 硬件向量 binop；0=成功，-1=失败。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko,
-                                                  int32_t chunk_off_a, int32_t chunk_off_b, int32_t chunk_off_d,
-                                                  int32_t lanes, int32_t esz, int32_t ta, uint32_t feats) {
+/* G-02f-403：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_simd_loop_emit_chunk_binop_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t chunk_off_a, int32_t chunk_off_b, int32_t chunk_off_d, int32_t lanes, int32_t esz, int32_t ta, uint32_t feats) {
     if (binop_ko == GLUE_EXPR_SUB)
         return simd_enc_try_hw_vector_isub_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
     if (binop_ko == GLUE_EXPR_MUL)
@@ -438,17 +440,30 @@ int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenCtx *elf
     return simd_enc_try_hw_vector_iadd_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
 }
 
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t chunk_off_a, int32_t chunk_off_b, int32_t chunk_off_d, int32_t lanes, int32_t esz, int32_t ta, uint32_t feats) {
+  return glue_simd_loop_emit_chunk_binop_c_impl(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
+}
+#endif
+
 
 
 
 /** x86：cmp eax, ebx（i - n 置标志，紧接 jge 表示 i>=n 退出）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-403：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_simd_x86_cmp_rax_rbx_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[2] = {0x39, 0xd8};
     if (!elf_ctx)
         return -1;
     return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)insn, 2);
 }
+
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx);
+}
+#endif
 
 
 
@@ -470,7 +485,7 @@ int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
         int32_t chunk_off_a = off_a - start * esz;
         int32_t chunk_off_b = off_b - start * esz;
         int32_t chunk_off_d = off_d - start * esz;
-        if (glue_simd_loop_emit_chunk_binop_c(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta,
+        if (glue_simd_loop_emit_chunk_binop_c_impl(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta,
                                               feats) != 0) {
             strict_env = getenv("SHUX_SIMD_HW_STRICT");
             if (strict_env && strict_env[0] != '0')
@@ -526,7 +541,7 @@ int32_t glue_emit_runtime_strip_loop_c(struct ast_ASTArena *arena, struct platfo
         return -1;
     if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
         return -1;
-    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0)
+    if (glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx) != 0)
         return -1;
     if (backend_enc_jge_arch(elf_ctx, epi_loop, epi_len, ta) != 0)
         return -1;
@@ -548,7 +563,7 @@ int32_t glue_emit_runtime_strip_loop_c(struct ast_ASTArena *arena, struct platfo
         return -1;
     if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, off_n, ta) != 0)
         return -1;
-    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0)
+    if (glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx) != 0)
         return -1;
     if (backend_enc_jge_arch(elf_ctx, epi_done, done_len, ta) != 0)
         return -1;
@@ -604,7 +619,8 @@ int32_t glue_f32_slot_rbp_disp32(int32_t off) {
 
 /** VAR 定长数组元素个数；失败 0。 */
 /* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
+/* G-02f-403：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_var_array_size_c_impl(struct ast_ASTArena *arena, int32_t var_ref) {
     int32_t tr;
     int32_t asz;
     if (pipeline_expr_kind_ord_at(arena, var_ref) != GLUE_EXPR_VAR)
@@ -618,6 +634,12 @@ int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
     return asz;
 
 }
+
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
+  return glue_var_array_size_c_impl(arena, var_ref);
+}
+#endif
 
 
 /**
@@ -727,7 +749,7 @@ int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct platfor
         return -1;
     if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
         return -1;
-    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0)
+    if (glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx) != 0)
         return -1;
     if (backend_enc_jge_arch(elf_ctx, epi_merge, merge_len, ta) != 0)
         return -1;
@@ -773,7 +795,7 @@ int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct platfor
         if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
             return -1;
     }
-    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0)
+    if (glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx) != 0)
         return -1;
     if (backend_enc_jge_arch(elf_ctx, epi_done, done_len, ta) != 0)
         return -1;
@@ -844,7 +866,7 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
         return 0;
     if (!glue_parse_i_plus_one_step_c(arena, assign_step_ref, i_var_ref))
         return 0;
-    array_n = glue_var_array_size_c(arena, arr_ref);
+    array_n = glue_var_array_size_c_impl(arena, arr_ref);
     if (n_is_const) {
         if (n_lit <= 0)
             return 0;
