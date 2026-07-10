@@ -19,6 +19,7 @@
 // G-02f-230：seeded_clear 槽循环 + fill_ctx_path_buffers 编排 pure。
 // G-02f-231：resolve_file_import 拼接 pure + set_entry_dir 编排 pure。
 // G-02f-232：resolve_import_file_path_multi 编排 pure（access 🔒）。
+// G-02f-233：one_ctx_for_dep_prerun 早退 pure + map 🔒；set_ndep pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -95,7 +96,9 @@ extern "C" function pipeline_entry_dir_set_dot(): void;
 extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8): void;
 /* fill_ctx_path_buffers：G-02f-230 下方真迁 */
 /* pctx_seed_dep_slots / import_paths_only：G-02f-228 下方真迁 */
-extern "C" function shux_pipeline_one_ctx_for_dep_prerun_impl(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
+/* one_ctx_for_dep_prerun：G-02f-233 下方真迁（早退 pure；map 🔒） */
+extern "C" function pipeline_dep_ctx_set_use_asm_backend(ctx: *u8, v: i32): void;
+extern "C" function shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
 extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
 extern "C" function shux_load_direct_imports_for_asm_layout_impl(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32;
 extern "C" function shux_merge_direct_then_transitive_dep_paths_impl(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32;
@@ -193,11 +196,10 @@ function get_ndep(): i32 {
 
 /* ---- G-02f-34：set_ndep + dep_seeded get/set ---- */
 
+// G-02f-233：ndep 写入（边界在 typeck_ndep_store）
 #[no_mangle]
 function pipeline_set_ndep(n: i32): void {
-  unsafe {
-    typeck_ndep_store_impl(n);
-  }
+  typeck_ndep_store(n);
 }
 
 #[no_mangle]
@@ -1653,13 +1655,49 @@ function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_paths: *
   }
 }
 
+// G-02f-233：早退 pure；parse/map 走 map_impl（malloc/parser 🔒）
 #[no_mangle]
 function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
   if (ctx == 0 as *u8) {
     return;
   }
+  // j unused（与 C 一致）
+  let _j: i32 = j;
   unsafe {
-    shux_pipeline_one_ctx_for_dep_prerun_impl(ctx, j, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
+    pipeline_dep_ctx_set_use_asm_backend(ctx, 0);
+  }
+  if (dep_mods == 0 as *u8) {
+    unsafe { ast_pipeline_dep_ctx_set_ndep(ctx, 0); }
+    return;
+  }
+  if (dep_ars == 0 as *u8) {
+    unsafe { ast_pipeline_dep_ctx_set_ndep(ctx, 0); }
+    return;
+  }
+  if (dep_paths == 0 as *u8) {
+    unsafe { ast_pipeline_dep_ctx_set_ndep(ctx, 0); }
+    return;
+  }
+  if (ndep <= 0) {
+    unsafe { ast_pipeline_dep_ctx_set_ndep(ctx, 0); }
+    return;
+  }
+  if (dep_src == 0 as *u8) {
+    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    return;
+  }
+  if (dep_src_len <= 0) {
+    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    return;
+  }
+  // INT32_MAX
+  let imax: i64 = 2147483647;
+  if (dep_src_len > imax) {
+    shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+    return;
+  }
+  unsafe {
+    shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
   }
 }
 

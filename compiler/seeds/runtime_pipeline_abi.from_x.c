@@ -14,6 +14,7 @@
  * G-02f-230: seeded_clear + fill_ctx_path_buffers pure.
  * G-02f-231: resolve_file_import join pure + set_entry_dir pure.
  * G-02f-232: resolve_import_file_path_multi pure (access locked).
+ * G-02f-233: one_ctx early pure + map_impl; set_ndep pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -1564,7 +1565,15 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * 单 dep 预跑 ctx：按 dep 自身 import 表过滤 ctx 槽（import_idx 与 ctx 下标一一对应）。
  * 勿写入 entry 全量 dep 表：coff→[elf,codegen,ast] 时 codegen 仅 import ast，ndep=3 会使 sync/typeck 错位 ec=-5。
  */
-void shux_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
+/* G-02f-233：字段写 helper（.x 早退编排调用） */
+void pipeline_dep_ctx_set_use_asm_backend(struct ast_PipelineDepCtx *ctx, int32_t v) {
+    if (!ctx)
+        return;
+    ctx->use_asm_backend = v;
+}
+
+/* G-02f-233：malloc/parse/map 🔒（早退路径由 .x pure） */
+void shux_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
                                           void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
                                           size_t dep_src_len) {
     int32_t n_imp;
@@ -1572,18 +1581,8 @@ void shux_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, i
     void *tmp_arena = NULL;
     void *tmp_module = NULL;
 
-    (void)j;
     if (!ctx)
         return;
-    ctx->use_asm_backend = 0;
-    if (!dep_mods || !dep_ars || !dep_paths || ndep <= 0) {
-        ast_pipeline_dep_ctx_set_ndep(ctx, 0);
-        return;
-    }
-    if (!dep_src || dep_src_len == 0 || dep_src_len > (size_t)INT32_MAX) {
-        shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
-        return;
-    }
     tmp_arena = malloc(pipeline_sizeof_arena());
     tmp_module = malloc(pipeline_sizeof_module());
     if (!tmp_arena || !tmp_module) {
@@ -1641,6 +1640,26 @@ void shux_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, i
     ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
 }
 
+/* G-02f-233：逻辑源 .x（早退 pure）；seed 保留同语义全路径 C 供产品 cc */
+void shux_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
+                                          void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
+                                          size_t dep_src_len) {
+    (void)j;
+    if (!ctx)
+        return;
+    pipeline_dep_ctx_set_use_asm_backend(ctx, 0);
+    if (!dep_mods || !dep_ars || !dep_paths || ndep <= 0) {
+        ast_pipeline_dep_ctx_set_ndep(ctx, 0);
+        return;
+    }
+    if (!dep_src || dep_src_len == 0 || dep_src_len > (size_t)INT32_MAX) {
+        shux_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+        return;
+    }
+    shux_pipeline_one_ctx_for_dep_prerun_map_impl(ctx, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
+}
+
+/* G-02f-233：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
                                           void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
                                           size_t dep_src_len) {
