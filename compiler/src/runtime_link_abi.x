@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34/35/36：真迁 .x — link_abi 入口转发 / freestanding / needs_* 探针 / bootstrap 桩。
+// G-02f-34/35/36/37：真迁 .x — link_abi 入口 / freestanding / needs_* / heap 探针 / async。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
-// C 尾：invoke_cc/ld、路径后缀 is_elf_o/want_exe、object 扫描、argv 循环 needs。
-// G-02f-36：+ link_abi_user_o_needs_* 按需链探针；freestanding_enabled（经 host_is_linux 槽）。
+// C 尾：invoke_cc/ld、路径后缀、object 扫描、argv 循环（heap import 半边仍 C）。
+// G-02f-37：+ async_scheduler 展开 if 链；std_heap_api / heap_user_c 单路径探针。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
 extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -451,6 +451,197 @@ function link_abi_user_o_needs_std_net(user_o: *u8): i32 {
       return 1;
     }
     if (shux_link_obj_needs_undef_sym(user_o, "net_sock_create_c") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+
+/* ---- G-02f-37：std.heap API / heap_*_c 单路径探针（argv 循环仍 C）---- */
+
+#[no_mangle]
+function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (user_o[0] == 0) {
+      return 0;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_u8") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_free_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_free_u8") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_size_zero") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_usize") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_free_u8_ptr") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_arena64_alloc_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_free_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_aligned_c") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_user_o_needs_heap_user_syms(user_o: *u8): i32 {
+  if (user_o == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (user_o[0] == 0) {
+      return 0;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "heap_alloc_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "heap_free_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "heap_realloc_c") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "heap_arena64_alloc_c") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/* ---- G-02f-37：async scheduler 按需链（原 static 符号表展开为 if）---- */
+
+#[no_mangle]
+function link_abi_user_o_needs_async_scheduler(user_o: *u8): i32 {
+  unsafe {
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_coop_pingpong") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_coop_pingpong_jmp") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_cps_suspend") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_phase_by_id") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_store_from_ptr") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_load_to_ptr") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_reset_by_id") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_cps_suspend_io") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_task_submit") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_task_submit_to") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_scheduler_drain") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_drain") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_count") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_pending") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_queue_reset") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_scheduler_pending") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_io_wake_all") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_io_waiters_pending") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_io_completions_ready") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_set_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_reset") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_u32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_i64") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_valid") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_i32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_u32") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_i64") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_submit_read_async") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_read_async") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_read_async_slot") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_submit_write_async") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_write_async") != 0) {
+      return 1;
+    }
+    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_write_async_slot") != 0) {
       return 1;
     }
     return 0;

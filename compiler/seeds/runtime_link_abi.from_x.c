@@ -1,9 +1,9 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34/35/36 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..37 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/link.c
  *         merge thin helpers; polish strings/signatures; SHUX_WEAK bootstrap;
- *         keep invoke_cc/ld + path suffix is_elf_o/want_exe + argv-loop needs C.
- * .x covers: forward_main, needs_panic/io, skip_native, freestanding_enabled,
- *            link_abi_user_o_needs_* probes, bootstrap weak stubs.
+ *         keep invoke_cc/ld + path suffix + argv-loop heap wrappers C.
+ * .x covers: forward_main, needs_*, freestanding_enabled, async_scheduler,
+ *            std_heap_api / heap_user_syms probes, bootstrap weak stubs.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -3111,6 +3111,9 @@ int shux_generated_c_needs_async_scheduler(const char *c_path) {
 }
 
 /* F-06 v1 前向声明：invoke_cc 按需链入 heap.o 时复用 ASM 后端检测逻辑 */
+int link_abi_user_o_needs_std_heap_api(const char *user_o);
+int link_abi_user_o_needs_heap_user_syms(const char *user_o);
+int link_abi_user_o_needs_async_scheduler(const char *user_o);
 static int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
 
 /**
@@ -4023,26 +4026,17 @@ static int link_abi_ld_argv_entry_is_obj(const char *s) {
  * hash/sort 等经 libc.x 编译，hello 全量 std 链时 user.o 本身可无 heap 符号。
  */
 static int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int la) {
-    static const char *heap_syms[] = {
-        "heap_alloc_c", "heap_free_c", "heap_realloc_c", "heap_arena64_alloc_c",
-    };
-    size_t si;
+    /* G-02f-37：单路径探针 .x link_abi_user_o_needs_heap_user_syms；argv 循环仍 C。 */
     int i;
-    if (user_o && user_o[0]) {
-        for (si = 0; si < sizeof(heap_syms) / sizeof(heap_syms[0]); si++) {
-            if (shux_link_obj_needs_undef_sym(user_o, heap_syms[si]))
-                return 1;
-        }
-    }
+    if (user_o && user_o[0] && link_abi_user_o_needs_heap_user_syms(user_o))
+        return 1;
     if (!argv || la <= 0)
         return 0;
     for (i = 0; i < la && argv[i]; i++) {
         if (!link_abi_ld_argv_entry_is_obj(argv[i]))
             continue;
-        for (si = 0; si < sizeof(heap_syms) / sizeof(heap_syms[0]); si++) {
-            if (shux_link_obj_needs_undef_sym(argv[i], heap_syms[si]))
-                return 1;
-        }
+        if (link_abi_user_o_needs_heap_user_syms(argv[i]))
+            return 1;
     }
     return 0;
 }
@@ -4212,32 +4206,91 @@ int link_abi_user_o_needs_std_set(const char *user_o) {
  * 【Invariant】调用点必须在 string.o/http.o/crypto.o 等已入链之后；argv 须反映当前已推入的 .o。
  * 【Asm/Perf】nm -u 子进程调用 O(n×m)，n=argv 中 .o 数，m=符号数；仅在链接期触发一次，可接受。
  */
-static int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la) {
-    static const char *heap_api_syms[] = {
-        "std_heap_alloc_i32", "std_heap_alloc_u8",
-        "std_heap_free_i32", "std_heap_free_u8",
-        "std_heap_alloc_size_zero",
-        /* F-闭合新增：-E-extern 编译后 std/http.o、std/string.o 引用的内部 API */
-        "std_heap_alloc_usize", "std_heap_free_u8_ptr",
-        "std_heap_libc_heap_arena64_alloc_c", "std_heap_libc_heap_alloc_c",
-        "std_heap_libc_heap_free_c", "std_heap_libc_heap_alloc_aligned_c",
-    };
-    size_t si;
-    int i;
-    if (user_o && user_o[0]) {
-        for (si = 0; si < sizeof(heap_api_syms) / sizeof(heap_api_syms[0]); si++)
-            if (shux_link_obj_needs_undef_sym(user_o, heap_api_syms[si]))
-                return 1;
+int link_abi_user_o_needs_std_heap_api(const char *user_o) {
+  if ((user_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((user_o)[0] ==0)) {
+      return 0;
     }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_u8") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_free_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_free_u8") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_size_zero") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_usize") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_free_u8_ptr") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_arena64_alloc_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_free_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_aligned_c") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
+
+int link_abi_user_o_needs_heap_user_syms(const char *user_o) {
+  if ((user_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((user_o)[0] ==0)) {
+      return 0;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "heap_alloc_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "heap_free_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "heap_realloc_c") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "heap_arena64_alloc_c") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
+
+static int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la) {
+    /* G-02f-37：单路径探针 .x link_abi_user_o_needs_std_heap_api；argv 循环仍 C。 */
+    int i;
+    if (user_o && user_o[0] && link_abi_user_o_needs_std_heap_api(user_o))
+        return 1;
     if (!argv || la <= 0)
         return 0;
     for (i = 0; i < la && argv[i]; i++) {
         if (!link_abi_ld_argv_entry_is_obj(argv[i]))
             continue;
-        for (si = 0; si < sizeof(heap_api_syms) / sizeof(heap_api_syms[0]); si++) {
-            if (shux_link_obj_needs_undef_sym(argv[i], heap_api_syms[si]))
-                return 1;
-        }
+        if (link_abi_user_o_needs_std_heap_api(argv[i]))
+            return 1;
     }
     return 0;
 }
@@ -4400,28 +4453,117 @@ static void link_abi_asm_ld_push_glue_after_std(int have_std, int (*ensure_fn)(c
 }
 
 #if defined(__linux__) || defined(__APPLE__)
-static int link_abi_user_o_needs_async_scheduler(const char *user_o) {
-    static const char *syms[] = {
-        "shux_async_coop_pingpong", "shux_async_coop_pingpong_jmp", "shux_async_cps_suspend",
-        "shux_async_asm_frame_phase_by_id", "shux_async_asm_frame_store_from_ptr",
-        "shux_async_asm_frame_load_to_ptr", "shux_async_asm_frame_reset_by_id",
-        "shux_async_cps_suspend_io", "shux_async_run_i32", "shux_async_task_submit",
-        "shux_async_task_submit_to", "shux_async_scheduler_drain", "shux_async_worker_drain",
-        "shux_async_worker_count", "shux_async_worker_pending", "shux_async_queue_reset",
-        "shux_async_scheduler_pending", "shux_async_io_wake_all", "shux_async_io_waiters_pending",
-        "shux_async_io_completions_ready", "shux_async_run_seed_set_i32", "shux_async_run_seed_reset",
-        "shux_async_run_seed_push_i32", "shux_async_run_seed_push_u32", "shux_async_run_seed_push_i64",
-        "shux_async_run_seed_valid", "shux_async_run_seed_take_i32", "shux_async_run_seed_take_u32",
-        "shux_async_run_seed_take_i64", "shux_io_submit_read_async", "shux_io_complete_read_async",
-        "shux_io_complete_read_async_slot", "shux_io_submit_write_async", "shux_io_complete_write_async",
-        "shux_io_complete_write_async_slot",
-    };
-    size_t i;
-    for (i = 0; i < sizeof(syms) / sizeof(syms[0]); i++) {
-        if (shux_link_obj_needs_undef_sym(user_o, syms[i]))
-            return 1;
+int link_abi_user_o_needs_async_scheduler(const char *user_o) {
+  (void)(({   {
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_coop_pingpong") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_coop_pingpong_jmp") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_cps_suspend") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_phase_by_id") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_store_from_ptr") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_load_to_ptr") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_reset_by_id") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_cps_suspend_io") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_task_submit") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_task_submit_to") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_scheduler_drain") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_drain") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_count") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_pending") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_queue_reset") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_scheduler_pending") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_io_wake_all") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_io_waiters_pending") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_io_completions_ready") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_set_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_reset") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_u32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_i64") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_valid") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_i32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_u32") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_i64") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_submit_read_async") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_read_async") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_read_async_slot") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_submit_write_async") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_write_async") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_write_async_slot") !=0)) {
+      return 1;
     }
     return 0;
+  }
+ }));
+  return 0;
 }
 
 int link_abi_user_o_needs_core_mem(const char *user_o) {
