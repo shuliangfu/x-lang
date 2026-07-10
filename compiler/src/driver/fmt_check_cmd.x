@@ -10,6 +10,7 @@
 // G-02f-107：+ walk/collect/compile/check_one 薄门闩。
 // G-02f-247：P1-8 开局 — collect lit pure + path_should_ignore pure + 多门闩 null 边界。
 // G-02f-248：file_list_push 编排 pure（.x 后缀 + ignore）+ lib_root 早退 pure。
+// G-02f-249：walk 条目过滤 pure + collect_paths_from_arg 编排 pure。
 
 extern "C" function getenv(name: *u8): *u8;
 extern "C" function strstr(hay: *u8, needle: *u8): *u8;
@@ -36,9 +37,12 @@ extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir
 extern "C" function check_append_repo_lib_roots_impl(check_argv: *u8, n: *i32): void;
 extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
 extern "C" function fmt_check_invoke_compile_impl(path: *u8): i32;
+/* walk：G-02f-249 过滤 pure；opendir 循环 🔒 */
 extern "C" function walk_dir_collect_impl(dir: *u8): void;
 extern "C" function check_collect_default_product_dirs_impl(): void;
-extern "C" function collect_paths_from_arg_impl(arg: *u8): void;
+/* collect_paths：G-02f-249 编排 pure；stat/diag 🔒 */
+extern "C" function fmt_path_stat_kind(path: *u8): i32;
+extern "C" function collect_paths_missing_diag_impl(path: *u8): void;
 extern "C" function parse_ignore_opt_impl(arg: *u8): void;
 extern "C" function check_one_file_impl(path: *u8): i32;
 extern "C" function closedir_win_impl(d: *u8): void;
@@ -253,6 +257,43 @@ function fmt_check_invoke_compile(path: *u8): i32 {
   return 0 - 1;
 }
 
+// G-02f-249：dirent 名以 '.' 开头（含 . / ..）则跳过
+#[no_mangle]
+function fmt_walk_skip_dot_name(name: *u8): i32 {
+  if (name == 0 as *u8) {
+    return 1;
+  }
+  unsafe {
+    if (name[0] == 0) {
+      return 1;
+    }
+    if (name[0] == 46) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+// G-02f-249：已 join 的 child；ignore / 递归 / .x 入表 pure
+#[no_mangle]
+function walk_dir_collect_process_child(child: *u8, is_dir: i32, is_reg: i32): void {
+  if (child == 0 as *u8) {
+    return;
+  }
+  if (path_should_ignore(child) != 0) {
+    return;
+  }
+  if (is_dir != 0) {
+    walk_dir_collect(child);
+    return;
+  }
+  if (is_reg != 0) {
+    if (fmt_path_ends_with_dot_x(child) != 0) {
+      file_list_push(child);
+    }
+  }
+}
+
 #[no_mangle]
 function walk_dir_collect(dir: *u8): void {
   if (dir == 0 as *u8) {
@@ -270,13 +311,27 @@ function check_collect_default_product_dirs(): void {
   }
 }
 
+// G-02f-249：stat kind → missing diag / walk / file_list pure 编排
+// kind: -1 不可访问；1 目录；0 文件
 #[no_mangle]
 function collect_paths_from_arg(arg: *u8): void {
   if (arg == 0 as *u8) {
     return;
   }
   unsafe {
-    collect_paths_from_arg_impl(arg);
+    let k: i32 = fmt_path_stat_kind(arg);
+    if (k < 0) {
+      collect_paths_missing_diag_impl(arg);
+      return;
+    }
+    if (k == 1) {
+      let base: *u8 = fmt_path_resolve_abs(arg);
+      if (base != 0 as *u8) {
+        walk_dir_collect(base);
+      }
+      return;
+    }
+    file_list_push(arg);
   }
 }
 

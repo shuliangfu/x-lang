@@ -6,9 +6,10 @@
  * G-02f-97 pure helper gates.
  * G-02f-247: P1-8 open — collect lit + path_should_ignore pure + null bounds.
  * G-02f-248: file_list_push orch pure + lib_root early pure.
+ * G-02f-249: walk entry filter pure + collect_paths_from_arg orch pure.
  * Regen: ./shux-c -E -L .. src/driver/fmt_check_cmd.x > /tmp/fcc.c
  *         merge quiet_ok; keep path walk / check argv / fmt CLI C.
- * .x covers: quiet_ok + collect lit + path ignore + file_list orch + path_abs + lint.
+ * .x covers: quiet_ok + collect lit + ignore + file_list + walk filter + collect orch.
  */
 #include "win32_compat.h"
 #include "driver/fmt_check_cmd.h"
@@ -507,36 +508,72 @@ int file_list_push(const char *path) {
 
 
 
+/* G-02f-249：逻辑源 .x（真迁 skip '.' 名）；seed 保留同语义 C 供产品 cc */
+int fmt_walk_skip_dot_name(const char *name) {
+    if (!name || !name[0])
+        return 1;
+    if (name[0] == '.')
+        return 1;
+    return 0;
+}
+
+void walk_dir_collect(const char *dir);
+
+/* G-02f-249：逻辑源 .x（真迁 ignore/递归/.x 入表）；seed 保留同语义 C 供产品 cc */
+void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg) {
+    if (!child)
+        return;
+    if (path_should_ignore(child))
+        return;
+    if (is_dir) {
+        walk_dir_collect(child);
+        return;
+    }
+    if (is_reg && fmt_path_ends_with_dot_x(child))
+        file_list_push(child);
+}
+
 /**
  * 递归遍历目录，收集 .x 文件。
+ * G-02f-249：opendir 循环 🔒；过滤/递归编排 pure。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void walk_dir_collect(const char *dir) {
-    DIR *d = opendir(dir);
+void walk_dir_collect_impl(const char *dir) {
+    DIR *d;
     struct dirent *ent;
     char child[768];
+    if (!dir)
+        return;
+    d = opendir(dir);
     if (!d)
         return;
     while ((ent = readdir(d)) != NULL) {
-        if (ent->d_name[0] == '.')
+        int is_dir = 0;
+        int is_reg = 0;
+        if (fmt_walk_skip_dot_name(ent->d_name))
             continue;
         snprintf(child, sizeof child, "%s/%s", dir, ent->d_name);
-        if (path_should_ignore(child))
-            continue;
         if (ent->d_type == DT_DIR || ent->d_type == DT_UNKNOWN) {
             struct stat st;
-            if (stat(child, &st) == 0 && S_ISDIR(st.st_mode)) {
-                walk_dir_collect(child);
-                continue;
-            }
+            if (stat(child, &st) == 0 && S_ISDIR(st.st_mode))
+                is_dir = 1;
         }
-        if (ent->d_type == DT_REG || ent->d_type == DT_UNKNOWN) {
-            size_t n = strlen(child);
-            if (n > 2 && strcmp(child + n - 2, ".x") == 0)
-                file_list_push(child);
+        if (!is_dir && (ent->d_type == DT_REG || ent->d_type == DT_UNKNOWN)) {
+            struct stat st;
+            if (ent->d_type == DT_REG)
+                is_reg = 1;
+            else if (stat(child, &st) == 0 && S_ISREG(st.st_mode))
+                is_reg = 1;
         }
+        walk_dir_collect_process_child(child, is_dir, is_reg);
     }
     closedir(d);
+}
+
+/* G-02f-249：逻辑源 .x（门闩）；seed 保留同语义 C 供产品 cc */
+void walk_dir_collect(const char *dir) {
+    if (!dir)
+        return;
+    walk_dir_collect_impl(dir);
 }
 
 
@@ -571,31 +608,41 @@ void check_collect_default_product_dirs(void) {
 
 
 
+/* G-02f-249：-1 不可访问；1 目录；0 文件/其它 */
+int fmt_path_stat_kind(const char *path) {
+    struct stat st;
+    if (!path)
+        return -1;
+    if (stat(path, &st) != 0)
+        return -1;
+    if (S_ISDIR(st.st_mode))
+        return 1;
+    return 0;
+}
+
+void collect_paths_missing_diag_impl(const char *path) {
+    diag_reportf_with_code(path, 0, 0, driver_collect_error_kind(),
+                           driver_collect_missing_path_code(), NULL,
+                           "cannot access path '%s'", path);
+}
+
 /**
  * 解析路径参数：文件直接加入；目录递归收集。
+ * G-02f-249：逻辑源 .x（编排 pure）；stat/diag 🔒。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void collect_paths_from_arg(const char *arg) {
-    struct stat st;
+    int k;
     if (!arg)
         return;
-    if (stat(arg, &st) != 0) {
-        diag_reportf_with_code(arg, 0, 0, driver_collect_error_kind(),
-                               driver_collect_missing_path_code(), NULL,
-                               "cannot access path '%s'", arg);
+    k = fmt_path_stat_kind(arg);
+    if (k < 0) {
+        collect_paths_missing_diag_impl(arg);
         return;
     }
-    if (S_ISDIR(st.st_mode)) {
-        char base[512];
-        if (shux_path_is_absolute(arg))
-            snprintf(base, sizeof base, "%s", arg);
-        else {
-            if (!getcwd(base, sizeof base))
-                return;
-            size_t n = strlen(base);
-            snprintf(base + n, sizeof base - n, "/%s", arg);
-        }
-        walk_dir_collect(base);
+    if (k == 1) {
+        const char *base = fmt_path_resolve_abs(arg);
+        if (base)
+            walk_dir_collect(base);
         return;
     }
     file_list_push(arg);
