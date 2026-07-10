@@ -1,16 +1,18 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-352：backend_enc_dispatch L2 thin — arm64 SP/imm pure encode 门闩。
+// G-02f-352/353：backend_enc_dispatch L2 thin — arm64 encode 门闩（5）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_ENC_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_enc_dispatch.o
 // 对照：src/asm/backend_enc_dispatch.x；默认仍整 seed。
 //
-// 常量：ADD 0x910003ff / SUB 0xd10003ff / STR 0xf90003e0；imm12 占 [21:10]。
-// -E 可能以有符号同比特写出，传给 append 的 uint32 形参仍正确。
+// SP：ADD/SUB 0x910003ff/0xd10003ff / STR 0xf90003e0；imm12 占 [21:10]。
+// RBP lane：LDUR 0xB8400000 / STUR 0xB8000000 + simm9 + Rn=x29。
+// -E 大立即数可能写成有符号同比特，传 append/u32_le 仍正确。
 //
 
 extern "C" function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
+extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i32;
 
 // ADD X31, X31, #imm12  （SP+imm）
 #[no_mangle]
@@ -74,6 +76,50 @@ function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i32): i32
   }
   unsafe {
     return backend_enc_append_u32_le_c(elf_ctx, 4177527776 | (((off_bytes / 8) as u32) * 1024));
+  }
+  return 0 - 1;
+}
+
+// LDUR w0, [x29, #-offset]（offset>256 钳到 simm9=-256）
+#[no_mangle]
+function arm64_enc_load_w0_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (offset < 0) {
+    return 0 - 1;
+  }
+  if (offset > 256) {
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (3091202048 | (256 * 4096) | 928) as i32);
+    }
+    return 0 - 1;
+  }
+  unsafe {
+    let u9: i32 = (0 - offset) & 511;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (3091202048 | ((u9 as u32) * 4096) | 928) as i32);
+  }
+  return 0 - 1;
+}
+
+// STUR w0, [x29, #-offset]
+#[no_mangle]
+function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (offset < 0) {
+    return 0 - 1;
+  }
+  if (offset > 256) {
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | (256 * 4096) | 928) as i32);
+    }
+    return 0 - 1;
+  }
+  unsafe {
+    let u9: i32 = (0 - offset) & 511;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | ((u9 as u32) * 4096) | 928) as i32);
   }
   return 0 - 1;
 }
