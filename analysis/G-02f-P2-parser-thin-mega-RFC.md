@@ -248,3 +248,4 @@ nm -g parser_asm_thin_glue.o | head
 | 2026-07-11 | **f-284 P4 binop**：`pthin_expr_binop.*`（term…logor 十级）；`SHUX_PTHIN_EXPR_BINOP_FROM_X`；prefer hybrid **P1–P4binop+rest** |
 | 2026-07-11 | **f-285 P4 收口**：`pthin_expr_as_suffix.*` + `pthin_expr_ternary.*`；`SHUX_PTHIN_EXPR_AS_SUFFIX_FROM_X` / `SHUX_PTHIN_EXPR_TERNARY_FROM_X`；prefer hybrid **P1–P4 全 + rest**（expr 册齐） |
 | 2026-07-11 | **f-286 P5 ctrl**：`pthin_ctrl.*`（if_stmt + match_subject + if_expr；simd 仍 rest）；`SHUX_PTHIN_CTRL_FROM_X`；rest 保留 `parse_block_result`；prefer hybrid **P1–P5+rest** |
+| 2026-07-11 | **f-287 P6 fn/block**：`pthin_fn_block.*`（struct_layout + library + one_function_buf + block_from_res）；`SHUX_PTHIN_FN_BLOCK_FROM_X`；library scan 仍 rest；prefer hybrid **P1–P6+rest** |

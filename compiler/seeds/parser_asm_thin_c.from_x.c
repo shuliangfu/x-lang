@@ -6272,8 +6272,22 @@ int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct par
                                                         struct parser_asm_lexer *out_lex);
 int labi_pthin_type_ref_slice_marker(void);
 #endif
+/* G-02f-287 P6 fn/block（前半）：struct_layout + library；后半见 let_alias 之后 */
+#ifndef SHUX_PTHIN_FN_BLOCK_FROM_X
 #include "parser_asm_struct_layout_slice.inc"
 #include "parser_asm_library_slice.inc"
+#else
+int32_t parser_asm_struct_layout_name_exists_arr_c(void *module, uint8_t *nm, int32_t nlen);
+int32_t parser_asm_struct_layout_first_name_match_idx_c(void *module, uint8_t *nm, int32_t nlen);
+int32_t parser_asm_struct_layout_placeholder_idx_c(void *module, uint8_t *nm, int32_t nlen);
+int32_t parser_asm_parse_struct_record_layout_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
+                                                          struct parser_asm_slice_u8 *source,
+                                                          struct parser_asm_lexer *out_lex, int32_t allow_pad,
+                                                          int32_t force_soa, int32_t repr_compat);
+struct parser_asm_library_parse_result parser_asm_parse_one_function_library_slice_c(
+    void *arena, void *module, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+int labi_pthin_fn_block_slice_marker(void);
+#endif
 /* G-02f-279 P2 let/alias：默认仍 #include；hybrid 时函数体在 pthin_let_alias.from_x.c */
 #ifndef SHUX_PTHIN_LET_ALIAS_FROM_X
 #include "parser_asm_body_let_slice.inc"
@@ -6312,8 +6326,19 @@ void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, str
                                                   struct parser_asm_type_alias_result *out);
 int labi_pthin_let_alias_slice_marker(void);
 #endif
+/* G-02f-287 P6 fn/block（后半）：one_function_buf + block_from_res */
+#ifndef SHUX_PTHIN_FN_BLOCK_FROM_X
 #include "parser_asm_one_function_buf_slice.inc"
 #include "parser_asm_block_from_res_slice.inc"
+#else
+void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *out, void *arena,
+                                              struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+int32_t parser_asm_fill_block_const_let_from_res_c(void *arena, int32_t block_ref,
+                                                   struct parser_asm_onefunc_result *res, int32_t type_ref);
+int32_t parser_asm_append_block_lets_from_res_c(void *arena, int32_t block_ref,
+                                                struct parser_asm_onefunc_result *res, int32_t let_base,
+                                                int32_t type_ref);
+#endif
 /* G-02f-286 P5 ctrl：默认 #include；hybrid 时在 pthin_ctrl.from_x.c
  * rest 须保留 parse_block_result（primary 等同 TU 仍可能需要布局）。 */
 #ifndef SHUX_PTHIN_CTRL_FROM_X
