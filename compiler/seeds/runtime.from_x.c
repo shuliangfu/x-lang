@@ -3298,9 +3298,9 @@ int driver_build_build_x(void) {
 
 
 
-/** 6.2 静态 arena/module 缓冲，供 driver_run_x_emit_x 避免栈上超大数组。
- * arena 对应 .x codegen 之 `struct ast_ASTArena`，须 ≥ pipeline_sizeof_arena()；
- * 池扩大后（types/exprs/blocks/funcs 四倍）宿主约 ~90MiB，预留 128MiB 避免静默越界。 */
+/** 6.2 静态 arena/module 缓冲，供 driver_run_x_emit_x 避免栈上超大数组。 */
+/* G-02f-309：arena/module buf → rt_arena_buf hybrid */
+#ifndef SHUX_RT_ARENA_BUF_FROM_X
 #define DRIVER_ARENA_STATIC_SIZE (128 * 1024 * 1024)
 #define DRIVER_MODULE_STATIC_SIZE (2 * 1024 * 1024)
 static uint8_t driver_arena_static[DRIVER_ARENA_STATIC_SIZE];
@@ -3323,6 +3323,11 @@ uint8_t *driver_module_buf(void) {
     memset(driver_module_static, 0, DRIVER_MODULE_STATIC_SIZE);
     return driver_module_static;
 }
+#else
+uint8_t *driver_arena_buf(void);
+uint8_t *driver_module_buf(void);
+int labi_rt_arena_buf_slice_marker(void);
+#endif
 
 /** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开读文件，返回 fd，失败 -1。 */
 /* G-02f-308：path open → rt_fs_open hybrid */
