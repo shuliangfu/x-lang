@@ -171,7 +171,7 @@ function glue_asm_fill_c_prefix_from_module_import(mod: *u8, ix: i32, pre: *u8):
 
 // G-02f-110：+ jmp/lea/arg slot/export/call cleanup 薄门闩。
 
-extern "C" function glue_asm_emit_jmp_skip_string_then_lea_impl(ctx: *u8, ta: i32, reg: i32, sbuf: *u8, slen: i32): i32;
+extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
 extern "C" function glue_spill_struct16_call_arg_to_lea_elf_c_impl(arena: *u8, elf: *u8, c: *u8): i32;
 extern "C" function glue_emit_call_args_elf_sysv_f32_xmm_c_impl(arena: *u8, elf: *u8, er: i32, c: *u8): i32;
 extern "C" function glue_emit_one_call_arg_elf_c_impl(arena: *u8, elf: *u8, call: i32, a: i32, b: i32): i32;
@@ -190,8 +190,43 @@ function glue_asm_call_reg_max(ta: i32): i32 {
   return 8;
 }
 
+// G-02f-143：x86_64 jmp over string lit then lea reg,[rip+disp]
+// reg_k：0→rdi，1→rax；仅 ta==0
 #[no_mangle]
-function glue_asm_emit_jmp_skip_string_then_lea(ctx: *u8, ta: i32, reg: i32, sbuf: *u8, slen: i32): i32 { unsafe { return glue_asm_emit_jmp_skip_string_then_lea_impl(ctx, ta, reg, sbuf, slen); } return 0; }
+function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, reg_k: i32, sbuf: *u8, slen: i32): i32 {
+  if (ctx_bytes == 0) { return 0 - 1; }
+  if (sbuf == 0) { return 0 - 1; }
+  if (slen <= 0) { return 0 - 1; }
+  if (slen > 63) { return 0 - 1; }
+  if (ta != 0) { return 0 - 1; }
+  if (slen + 1 > 127) { return 0 - 1; }
+  unsafe {
+    let jmp2: u8[2] = [];
+    jmp2[0] = 235; // 0xeb
+    jmp2[1] = (slen + 1) as u8;
+    if (pipeline_elf_ctx_append_bytes(ctx_bytes, &jmp2[0], 2) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(ctx_bytes, sbuf, slen) != 0) { return 0 - 1; }
+    let z: u8 = 0;
+    if (pipeline_elf_ctx_append_bytes(ctx_bytes, &z, 1) != 0) { return 0 - 1; }
+    // disp32 = -slen - 8（有符号 LE）
+    let d: i32 = 0 - slen - 8;
+    let u: u32 = d as u32;
+    let lea7: u8[7] = [];
+    lea7[0] = 72; // 0x48
+    lea7[1] = 141; // 0x8d
+    if (reg_k == 0) {
+      lea7[2] = 61; // 0x3d rdi
+    } else {
+      lea7[2] = 5; // 0x05 rax
+    }
+    lea7[3] = (u & 255) as u8;
+    lea7[4] = ((u / 256) & 255) as u8;
+    lea7[5] = ((u / 65536) & 255) as u8;
+    lea7[6] = ((u / 16777216) & 255) as u8;
+    return pipeline_elf_ctx_append_bytes(ctx_bytes, &lea7[0], 7);
+  }
+  return 0 - 1;
+}
 
 // G-02f-141：SysV x86_64 第 arg_index 实参槽（0=gp 1=xmm 2=stack）
 #[no_mangle]

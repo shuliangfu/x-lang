@@ -413,7 +413,27 @@ function typeck_expr_is_addr_of_block_local_strict_minimal(module: *u8, arena: *
 // G-02f-141：dep_return_type 真迁 .x
 
 extern "C" function debug_try_propagate_report_strict_minimal_impl(arena: *u8, er: i32, fi: i32, rt: i32, f: i32): void;
-extern "C" function pipeline_typeck_const_expr_ref_strict_minimal_impl(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_array_lit_elem_ref(arena: *u8, er: i32, i: i32): i32;
+extern "C" function pipeline_expr_binop_left_ref_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_binop_right_ref_at(arena: *u8, er: i32): i32;
+
+// G-02f-143：从 char** 槽读指针（64 位 LE）
+function g02f_load_ptr_at(p: *u8, off: i32): *u8 {
+  if (p == 0) { return 0 as *u8; }
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  let a: usize = p[off] as usize;
+  a = a + (p[off + 1] as usize) * m;
+  a = a + (p[off + 2] as usize) * m2;
+  a = a + (p[off + 3] as usize) * (m2 * m);
+  a = a + (p[off + 4] as usize) * m4;
+  a = a + (p[off + 5] as usize) * (m4 * m);
+  a = a + (p[off + 6] as usize) * (m4 * m2);
+  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
+  return a as *u8;
+}
 
 /* ---- G-02f-110 / G-02f-140 / G-02f-141：pipeline remaining typeck ---- */
 
@@ -485,8 +505,71 @@ function pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena: *u8
   return 0;
 }
 
+// G-02f-143：常量表达式判定；const_names 为 *u8 数组（char** LE 槽）
+// LIT=0 FLOAT=1 BOOL=2 VAR=3 ADD..LOGOR=4..21 NEG=22 BITNOT=23 LOGNOT=24 ARRAY_LIT=46
 #[no_mangle]
-function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, er: i32): i32 { unsafe { return pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, er); } return 0; }
+function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, expr_ref: i32, const_names: *u8, n_const_names: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  unsafe {
+    let kind: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (kind == 0) { return 1; }
+    if (kind == 1) { return 1; }
+    if (kind == 2) { return 1; }
+    if (kind == 3) {
+      let name_len: i32 = pipeline_expr_var_name_len(arena, expr_ref);
+      if (name_len <= 0) { return 0; }
+      if (name_len > 63) { return 0; }
+      let name_buf: u8[64] = [];
+      pipeline_expr_var_name_into(arena, expr_ref, &name_buf[0]);
+      if (const_names == 0) { return 0; }
+      let i: i32 = 0;
+      while (i < n_const_names) {
+        // const_names[i] 指针槽 @ i*8
+        let lit: *u8 = g02f_load_ptr_at(const_names, i * 8);
+        if (lit != 0) {
+          if (pipeline_typeck_const_name_matches_strict_minimal(&name_buf[0], name_len, lit) != 0) {
+            return 1;
+          }
+        }
+        i = i + 1;
+      }
+      return 0;
+    }
+    if (kind >= 4) {
+      if (kind <= 21) {
+        let L: i32 = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+        let R: i32 = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+        if (pipeline_typeck_const_expr_ref_strict_minimal(arena, L, const_names, n_const_names) == 0) {
+          return 0;
+        }
+        return pipeline_typeck_const_expr_ref_strict_minimal(arena, R, const_names, n_const_names);
+      }
+    }
+    if (kind == 22) {
+      return pipeline_typeck_const_expr_ref_strict_minimal(arena, pipeline_expr_unary_operand_ref_at(arena, expr_ref), const_names, n_const_names);
+    }
+    if (kind == 23) {
+      return pipeline_typeck_const_expr_ref_strict_minimal(arena, pipeline_expr_unary_operand_ref_at(arena, expr_ref), const_names, n_const_names);
+    }
+    if (kind == 24) {
+      return pipeline_typeck_const_expr_ref_strict_minimal(arena, pipeline_expr_unary_operand_ref_at(arena, expr_ref), const_names, n_const_names);
+    }
+    if (kind == 46) {
+      let ne: i32 = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+      let j: i32 = 0;
+      while (j < ne) {
+        let el: i32 = pipeline_expr_array_lit_elem_ref(arena, expr_ref, j);
+        if (pipeline_typeck_const_expr_ref_strict_minimal(arena, el, const_names, n_const_names) == 0) {
+          return 0;
+        }
+        j = j + 1;
+      }
+      return 1;
+    }
+  }
+  return 0;
+}
 
 // G-02f-140：Result_<payload> → payload type ref；prefix "Result_"=7
 // TYPE_I32=0 BOOL=1 U8=2 U64=4 I64=5 USIZE=6 ISIZE=7

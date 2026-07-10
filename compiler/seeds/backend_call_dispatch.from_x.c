@@ -127,7 +127,8 @@ void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint
  * x86_64：jmp 跳过尾挂字面量，再 lea reg,[rip+disp] 指向字面量（避免字面量落在指令流中被执行）。
  * reg_k：0→rdi（fmt 实参 ptr），1→rax（*u8 表达式结果）。
  */
-int32_t glue_asm_emit_jmp_skip_string_then_lea_impl(uint8_t *ctx_bytes, int32_t ta, int32_t reg_k,
+/* G-02f-143：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_emit_jmp_skip_string_then_lea(uint8_t *ctx_bytes, int32_t ta, int32_t reg_k,
     const uint8_t *sbuf, int32_t slen) {
   uint8_t jmp2[2];
   uint8_t lea7[7];
@@ -141,7 +142,7 @@ int32_t glue_asm_emit_jmp_skip_string_then_lea_impl(uint8_t *ctx_bytes, int32_t 
   jmp2[1] = (uint8_t)(slen + 1);
   if (pipeline_elf_ctx_append_bytes(ctx_bytes, jmp2, 2) != 0)
     return -1;
-  if (pipeline_elf_ctx_append_bytes(ctx_bytes, sbuf, slen) != 0)
+  if (pipeline_elf_ctx_append_bytes(ctx_bytes, (uint8_t *)sbuf, slen) != 0)
     return -1;
   z = 0;
   if (pipeline_elf_ctx_append_bytes(ctx_bytes, &z, 1) != 0)
@@ -155,13 +156,6 @@ int32_t glue_asm_emit_jmp_skip_string_then_lea_impl(uint8_t *ctx_bytes, int32_t 
   lea7[5] = (uint8_t)((uint32_t)disp32 >> 16);
   lea7[6] = (uint8_t)((uint32_t)disp32 >> 24);
   return pipeline_elf_ctx_append_bytes(ctx_bytes, lea7, 7);
-}
-int32_t glue_asm_emit_jmp_skip_string_then_lea(uint8_t *ctx_bytes, int32_t ta, int32_t reg_k,
-    const uint8_t *sbuf, int32_t slen) {
-  {
-    return glue_asm_emit_jmp_skip_string_then_lea_impl(ctx_bytes, ta, reg_k, sbuf, slen);
-  }
-  return 0;
 }
 
 extern int32_t pipeline_expr_field_access_base_ref(struct ast_ASTArena *a, int32_t expr_ref);

@@ -24,8 +24,15 @@ extern "C" function ast_ast_block_stmt_order_idx(a: *u8, br: i32, si: i32): i32;
 extern "C" function pipeline_block_let_init_ref(a: *u8, br: i32, li: i32): i32;
 extern "C" function ast_pipeline_block_expr_stmt_ref(a: *u8, br: i32, ei: i32): i32;
 extern "C" function pipeline_asm_block_final_expr_ref_at(a: *u8, br: i32): i32;
-extern "C" function asm_pool_type_size_bytes_impl(a: *u8, m: *u8, type_ref: i32): i32;
 extern "C" function asm_pool_live_add_impl(lay: *u8, name: *u8, nlen: i32, sz: i32): void;
+extern "C" function pipeline_type_kind_ord_at(a: *u8, tr: i32): i32;
+extern "C" function pipeline_type_named_name_into(a: *u8, tr: i32, out: *u8): i32;
+extern "C" function pipeline_module_num_struct_layouts_at(m: *u8): i32;
+extern "C" function pipeline_module_struct_layout_name_len(m: *u8, k: i32): i32;
+extern "C" function pipeline_module_struct_layout_name_byte_at(m: *u8, k: i32, j: i32): u8;
+extern "C" function typeck_x_type_size_from_layout_glue(m: *u8, a: *u8, k: i32, depth: i32): i32;
+extern "C" function pipeline_module_func_is_async_at(m: *u8, fi: i32): i32;
+extern "C" function pipeline_module_func_body_ref_at(m: *u8, fi: i32): i32;
 
 function async_asm_pool_x_doc_anchor(): i32 {
   return 0;
@@ -216,13 +223,53 @@ function asm_pool_block_rest_refs_name(a: *u8, br: i32, from_exclusive: i32, nam
   return 0;
 }
 
-// type_size / live_add 仍 seed（layout / grow 结构）
+// G-02f-142/143：type_size 真迁；live_add 仍 seed（layout 结构字段）
 #[no_mangle]
 function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
+  if (a == 0) { return 8; }
+  if (type_ref <= 0) { return 8; }
   unsafe {
-    return asm_pool_type_size_bytes_impl(a, m, type_ref);
+    let kind: i32 = pipeline_type_kind_ord_at(a, type_ref);
+    if (kind == 0) { return 4; }
+    if (kind == 1) { return 4; }
+    if (kind == 2) { return 1; }
+    if (kind == 3) { return 8; }
+    if (kind == 4) { return 8; }
+    if (kind == 5) { return 8; }
+    if (kind == 6) { return 8; }
+    if (kind == 7) { return 8; }
+    if (kind == 9) { return 8; }
+    if (kind == 8) {
+      let name: u8[64] = [];
+      let nlen: i32 = pipeline_type_named_name_into(a, type_ref, &name[0]);
+      if (nlen <= 0) { return 8; }
+      if (m == 0) { return 8; }
+      let nlay: i32 = pipeline_module_num_struct_layouts_at(m);
+      let k: i32 = 0;
+      while (k < nlay) {
+        let ln: i32 = pipeline_module_struct_layout_name_len(m, k);
+        if (ln == nlen) {
+          let j: i32 = 0;
+          let eq: i32 = 1;
+          while (j < nlen) {
+            if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) {
+              eq = 0;
+              break;
+            }
+            j = j + 1;
+          }
+          if (eq != 0) {
+            let sz: i32 = typeck_x_type_size_from_layout_glue(m, a, k, 0);
+            if (sz > 0) { return sz; }
+            return 8;
+          }
+        }
+        k = k + 1;
+      }
+      return 8;
+    }
   }
-  return 0;
+  return 8;
 }
 
 #[no_mangle]
@@ -230,4 +277,45 @@ function asm_pool_live_add(lay: *u8, name: *u8, nlen: i32, sz: i32): void {
   unsafe {
     asm_pool_live_add_impl(lay, name, nlen, sz);
   }
+}
+
+// G-02f-143：FNV-1a 函数名 → fn_id
+#[no_mangle]
+function async_asm_pool_fn_id_from_name(name: *u8, name_len: i32): u32 {
+  if (name == 0) { return 1; }
+  if (name_len <= 0) { return 1; }
+  let h: u32 = 2166136261;
+  let i: i32 = 0;
+  while (i < name_len) {
+    h = (h ^ (name[i] as u32)) * 16777619;
+    i = i + 1;
+  }
+  if (h == 0) { return 1; }
+  return h;
+}
+
+// G-02f-143：async 且体中含 await
+#[no_mangle]
+function async_asm_pool_func_needs_cps(arena: *u8, mod: *u8, func_index: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (mod == 0) { return 0; }
+  if (func_index < 0) { return 0; }
+  unsafe {
+    if (pipeline_module_func_is_async_at(mod, func_index) == 0) { return 0; }
+    let br: i32 = pipeline_module_func_body_ref_at(mod, func_index);
+    if (br <= 0) { return 0; }
+    let nso: i32 = ast_ast_block_num_stmt_order(arena, br);
+    let si: i32 = 0;
+    while (si < nso) {
+      if (ast_ast_block_stmt_order_kind(arena, br, si) == 1) {
+        let li: i32 = ast_ast_block_stmt_order_idx(arena, br, si);
+        let init: i32 = pipeline_block_let_init_ref(arena, br, li);
+        if (init > 0) {
+          if (asm_pool_expr_has_await(arena, init) != 0) { return 1; }
+        }
+      }
+      si = si + 1;
+    }
+  }
+  return 0;
 }

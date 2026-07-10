@@ -1443,7 +1443,8 @@ int32_t pipeline_typeck_const_name_matches_strict_minimal(uint8_t *name, int32_t
 
 
 
-int32_t pipeline_typeck_const_expr_ref_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expr_ref,
+/* G-02f-143：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref,
                                                              const char *const_names[], int32_t n_const_names) {
   int32_t kind;
   int32_t i;
@@ -1467,29 +1468,22 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal_impl(struct ast_ASTArena *
     return 0;
   }
   if (kind >= (int32_t)ast_ExprKind_EXPR_ADD && kind <= (int32_t)ast_ExprKind_EXPR_LOGOR)
-    return pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+    return pipeline_typeck_const_expr_ref_strict_minimal(arena, pipeline_expr_binop_left_ref_at(arena, expr_ref),
                                                          const_names, n_const_names) &&
-           pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, pipeline_expr_binop_right_ref_at(arena, expr_ref),
+           pipeline_typeck_const_expr_ref_strict_minimal(arena, pipeline_expr_binop_right_ref_at(arena, expr_ref),
                                                          const_names, n_const_names);
   if (kind == (int32_t)ast_ExprKind_EXPR_NEG || kind == (int32_t)ast_ExprKind_EXPR_BITNOT ||
       kind == (int32_t)ast_ExprKind_EXPR_LOGNOT)
-    return pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, pipeline_expr_unary_operand_ref_at(arena, expr_ref),
+    return pipeline_typeck_const_expr_ref_strict_minimal(arena, pipeline_expr_unary_operand_ref_at(arena, expr_ref),
                                                          const_names, n_const_names);
   if (kind == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
     int32_t ne = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
     for (i = 0; i < ne; i++) {
-      if (!pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, pipeline_expr_array_lit_elem_ref(arena, expr_ref, i),
+      if (!pipeline_typeck_const_expr_ref_strict_minimal(arena, pipeline_expr_array_lit_elem_ref(arena, expr_ref, i),
                                                          const_names, n_const_names))
         return 0;
     }
     return 1;
-  }
-  return 0;
-}
-int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref,
-                                                             const char *const_names[], int32_t n_const_names) {
-  {
-    return pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, expr_ref, const_names, n_const_names);
   }
   return 0;
 }

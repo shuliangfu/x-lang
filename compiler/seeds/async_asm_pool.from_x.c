@@ -246,6 +246,7 @@ void asm_pool_live_add(AsyncAsmPoolLayout *lay, const uint8_t *name, int32_t nle
 }
 
 
+/* G-02f-143：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint32_t async_asm_pool_fn_id_from_name(const uint8_t *name, int32_t name_len) {
     uint32_t h = 2166136261u;
     int32_t i;
@@ -256,6 +257,7 @@ uint32_t async_asm_pool_fn_id_from_name(const uint8_t *name, int32_t name_len) {
     return h ? h : 1u;
 }
 
+/* G-02f-143：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t async_asm_pool_func_needs_cps(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index) {
     int32_t br;
     if (!arena || !mod || func_index < 0)
