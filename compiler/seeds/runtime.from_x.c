@@ -4590,6 +4590,11 @@ void driver_compile_parse_argv_init_c(DriverCompileStateSU *state);
 int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
                                      int arg_cap);
 void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state);
+void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state);
+void cfg_sync_compile_target_from_state_c(void *state);
+int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state);
+DriverCompileStateSU *driver_compile_state_alloc_c(void);
+void driver_compile_state_free_c(DriverCompileStateSU *state);
 int labi_rt_compile_slice_marker(void);
 #endif /* !SHUX_RT_COMPILE_FROM_X */
 
@@ -5794,8 +5799,10 @@ void driver_compile_argv_set_sanitize_address_c(void);
 void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state);
 
 /**
- * 堆分配 DriverCompileState（与 impl_c 默认字段一致）；供 compile.x run_compiler_full_x X emit。
+ * 堆分配 / 释放 DriverCompileState。
+ * G-02f-296 R6 → rt_compile hybrid
  */
+#ifndef SHUX_RT_COMPILE_FROM_X
 DriverCompileStateSU *driver_compile_state_alloc_c(void) {
     DriverCompileStateSU *state;
 
@@ -5809,12 +5816,14 @@ DriverCompileStateSU *driver_compile_state_alloc_c(void) {
     return state;
 }
 
-/** 释放 driver_compile_state_alloc_c 分配的 state。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void driver_compile_state_free_c(DriverCompileStateSU *state) {
     if (state)
         free(state);
 }
+#else
+DriverCompileStateSU *driver_compile_state_alloc_c(void);
+void driver_compile_state_free_c(DriverCompileStateSU *state);
+#endif
 
 
 
@@ -6032,9 +6041,10 @@ void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, Driver
 
 
 /**
- * 完整 argv 解析（C mega）：init → scan → finalize。
- * strict emit 下 X parse_argv_step 对 `-L`/`-o` 等分支会跳过 side-effect；scan 仍走 C step_c。
+ * 完整 argv 解析：init → scan → finalize。
+ * G-02f-296 R6 → rt_compile hybrid（含 resolve / cfg_sync）
  */
+#ifndef SHUX_RT_COMPILE_FROM_X
 int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
     if (argc < 2 || !state)
         return 1;
@@ -6051,10 +6061,7 @@ int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, Dri
     return 0;
 }
 
-/**
- * B-02：按 DriverCompileState 的 -target 同步 #[cfg] 求值上下文。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/** B-02：按 DriverCompileState 的 -target 同步 #[cfg] 求值上下文。 */
 void cfg_sync_compile_target_from_state_c(void *state) {
     DriverCompileStateSU *st = (DriverCompileStateSU *)state;
     if (st && st->parse_saw_target && st->target_len > 0)
@@ -6062,6 +6069,10 @@ void cfg_sync_compile_target_from_state_c(void *state) {
     else
         cfg_reset_compile_target();
 }
+#else
+int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state);
+void cfg_sync_compile_target_from_state_c(void *state);
+#endif
 
 
 
@@ -6327,9 +6338,9 @@ int32_t driver_print_target_cpu_features_c(int32_t features) {
 
 /**
  * finalize：按 target_cpu_buf（空则 native）解析 feature 掩码。
- * 未知规格时 stderr 告警并回退 generic baseline。
+ * G-02f-296 R6 → rt_compile hybrid
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RT_COMPILE_FROM_X
 void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
     const char *spec;
     size_t spec_len;
@@ -6351,6 +6362,9 @@ void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
     }
     state->target_cpu_features = (int32_t)feats;
 }
+#else
+void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state);
+#endif
 
 
 

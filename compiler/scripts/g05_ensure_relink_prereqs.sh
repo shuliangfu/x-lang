@@ -422,7 +422,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_cmp_o" "$_rt_compile_seed"; then
             _rt_compile_ok=1
-            echo "g05_ensure: R6 compile pure ← $_rt_compile_seed (G-02f-291~295 seed slice)"
+            echo "g05_ensure: R6 compile pure ← $_rt_compile_seed (G-02f-291~296 seed slice)"
           fi
         fi
         _rt_rest_defs="-DSHUX_RT_CONTENT_FROM_X"
@@ -463,7 +463,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
           # shellcheck disable=SC2086
           if $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
-            echo "g05_ensure: $_rt_o ← R2/R0/R1/R5-lite/R3/R6 + rest (G-02f-295 hybrid)"
+            echo "g05_ensure: $_rt_o ← R2/R0/R1/R5-lite/R3/R6 + rest (G-02f-296 hybrid)"
             _rt_done=1
           fi
         fi

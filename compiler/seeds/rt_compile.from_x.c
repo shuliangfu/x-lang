@@ -1,13 +1,9 @@
-/* seeds/rt_compile.from_x.c — G-02f-291～295 P2 runtime R6 compile helpers
+/* seeds/rt_compile.from_x.c — G-02f-291～296 P2 runtime R6 compile helpers
  * Logic source: src/runtime/rt_compile.x
  * Hybrid: SHUX_RT_COMPILE_FROM_X + ld -r into runtime_driver_no_c.o
  *
- * f-291: deps_std_core + emit_asm path pure
- * f-292: argv state field helpers (copy_path / freestanding / help)
- * f-293: apply_minus_o/L/O + backend/target/target_cpu next
- * f-294: parse_argv_init + ensure_default_lib + append_lib_root
- * f-295: parse_argv_step + scan
- * Full parse_argv_impl + resolve_target_cpu remain mega rest.
+ * f-291～295: deps / flags / apply_* / init-ensure / step-scan
+ * f-296: parse_argv_impl + resolve_target_cpu + cfg_sync + state_alloc/free
  */
 #if !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 200809L
@@ -64,6 +60,12 @@ extern int drv_eq_asm_word(const char *buf, int len);
 extern int drv_eq_c_word(const char *buf, int len);
 extern int drv_path_ends_x(const char *buf, int len);
 extern int drv_target_has_arm(const char *buf, int len);
+extern int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out);
+extern uint32_t shu_target_cpu_generic_for_host(void);
+extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt,
+                         ...);
+extern void cfg_apply_compile_target_from_triple(const char *triple, int32_t len);
+extern int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_flag);
 
 /**
  * dep 列表是否全为 std./core. 闭包（符号由预编 .o / preamble 提供，勿 dep_prerun 全量 typeck）。
@@ -406,6 +408,78 @@ void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, Driver
     return;
   for (i = 1; i < argc;)
     i = driver_compile_parse_argv_step_c(argc, argv, state, i, arg_buf, (int)sizeof arg_buf);
+}
+
+/* --- G-02f-296: impl + resolve + cfg_sync + state alloc/free --- */
+
+/**
+ * finalize：按 target_cpu_buf（空则 native）解析 feature 掩码。
+ */
+void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
+  const char *spec;
+  size_t spec_len;
+  uint32_t feats = 0;
+
+  if (!state)
+    return;
+  spec = "native";
+  spec_len = 6;
+  if (state->target_cpu_len > 0) {
+    spec = (const char *)state->target_cpu_buf;
+    spec_len = (size_t)state->target_cpu_len;
+  }
+  if (shu_target_cpu_resolve(spec, spec_len, &feats) != 0) {
+    diag_reportf(NULL, 0, 0, "note", NULL, "unknown -target-cpu '%.*s'; using generic baseline", (int)spec_len,
+                 spec ? spec : "");
+    feats = shu_target_cpu_generic_for_host();
+  }
+  state->target_cpu_features = (int32_t)feats;
+}
+
+/** B-02：按 DriverCompileState 的 -target 同步 #[cfg] 求值上下文。 */
+void cfg_sync_compile_target_from_state_c(void *state) {
+  DriverCompileStateSU *st = (DriverCompileStateSU *)state;
+  if (st && st->parse_saw_target && st->target_len > 0)
+    cfg_apply_compile_target_from_triple((const char *)st->target_buf, st->target_len);
+  else
+    cfg_reset_compile_target();
+}
+
+/**
+ * 完整 argv 解析：init → scan → finalize。
+ */
+int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
+  if (argc < 2 || !state)
+    return 1;
+  driver_compile_parse_argv_init_c(state);
+  driver_compile_parse_argv_scan_c(argc, argv_opaque, state);
+  driver_compile_resolve_target_cpu_c(state);
+  if (state->print_target_cpu)
+    return 0;
+  if (state->path_len <= 0)
+    return 1;
+  state->target_arch = driver_resolve_target_arch(state->target_arch, state->parse_saw_target);
+  cfg_sync_compile_target_from_state_c(state);
+  driver_compile_ensure_default_lib_c((uint8_t *)state);
+  return 0;
+}
+
+DriverCompileStateSU *driver_compile_state_alloc_c(void) {
+  DriverCompileStateSU *state;
+
+  state = (DriverCompileStateSU *)malloc(sizeof(DriverCompileStateSU));
+  if (!state)
+    return NULL;
+  memset(state, 0, sizeof(*state));
+  state->use_asm_backend = 1;
+  state->opt_level_buf[0] = (uint8_t)'2';
+  state->opt_level_len = 1;
+  return state;
+}
+
+void driver_compile_state_free_c(DriverCompileStateSU *state) {
+  if (state)
+    free(state);
 }
 
 int labi_rt_compile_slice_marker(void) {
