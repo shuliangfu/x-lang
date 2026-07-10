@@ -394,6 +394,7 @@ ptrdiff_t io_write_batch_buf(int32_t fd, const ShuxIoBatchBuf *bufs, int32_t n, 
 
 #if defined(__linux__) && defined(__GLIBC__)
 #define SHUX_NET_UDP_GLUE_WEAK __attribute__((weak))
-#include "runtime_net_udp_batch.c"
+/* G-02f-259：.c 已 seed 化为 runtime_net_udp_batch.from_x.c（同目录 #include） */
+#include "runtime_net_udp_batch.from_x.c"
 #undef SHUX_NET_UDP_GLUE_WEAK
 #endif
