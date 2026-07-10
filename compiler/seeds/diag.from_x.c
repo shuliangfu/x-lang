@@ -1,4 +1,6 @@
 /* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97/98 true .x + C tail; G-02f-74/82 diag gates).
+ * G-02f-335：PREFER_X_O hybrid 时 pure thin 由 src/diag_thin.x→-E；rest 用
+ *   SHUX_L2_DIAG_THIN_FROM_X（省略 line_digits / kind_is_exact / kind_contains / color_prefix）。
  * G-02f-181: P0-1 close-out — code table + reportf/vreportf 🔒 (priority doc §4.3).
  * G-02f-130 true .x pure helpers.
  * G-02f-116 true .x pure helpers.
@@ -159,9 +161,14 @@ int diag_ctx_get_use_color(void) {
 }
 
 /* G-02f-154：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-335：hybrid 时由 diag_thin.x 提供 */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
 const char * diag_color_prefix(const char *plain, const char *color) {
     return g_diag_ctx.use_color ? color : plain;
 }
+#else
+extern const char *diag_color_prefix(const char *plain, const char *color);
+#endif
 
 /* G-02f-154：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 const char * diag_color_reset(void) {
@@ -203,21 +210,28 @@ typedef struct DiagPalette {
     const char *caret_color;
 } DiagPalette;
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-335：hybrid 时由 diag_thin.x 提供 */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
 int diag_kind_is_exact(const char *kind, const char *needle) {
   if (!kind || !needle)
     return 0;
   return strcmp(kind, needle) == 0 ? 1 : 0;
 }
-
-
+#else
+extern int diag_kind_is_exact(const char *kind, const char *needle);
+#endif
 
 /* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-335：hybrid 时由 diag_thin.x 提供 */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
 int diag_kind_contains(const char *kind, const char *needle) {
     if (!kind || !needle || needle[0] == '\0')
         return 0;
     return strstr(kind, needle) != NULL ? 1 : 0;
-
 }
+#else
+extern int diag_kind_contains(const char *kind, const char *needle);
+#endif
 
 
 static DiagPalette diag_palette_for_kind(const char *kind) {
@@ -313,6 +327,8 @@ void diag_print_header(const char *kind, const char *code, const char *msg,
         fprintf(stderr, "%s%s%s: %s\n", kind_color, kind, reset, msg);
 }
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-335：hybrid 时由 diag_thin.x 提供 */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
 int diag_line_digits(int line) {
   int width = 1;
   while (line >= 10) {
@@ -321,8 +337,9 @@ int diag_line_digits(int line) {
   }
   return width;
 }
-
-
+#else
+extern int diag_line_digits(int line);
+#endif
 
 /* G-02f-154：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int diag_extract_line(int line_no, const char **line_start_out, size_t *line_len_out) {

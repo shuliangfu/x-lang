@@ -94,7 +94,8 @@ g05_try_x_to_o() {
   fi
   if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
-    perl -i -pe 's/^(void|int32_t|int|size_t|uint8_t|uint32_t|uint64_t)\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
+    # G-02f-335：含 uint8_t * / char * 返回（diag_color_prefix 等）
+    perl -i -pe 's/^((?:void|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
   fi
   # G-02f-332/334：-E 缺 ssize_t / open 原型；前置 POSIX 头，并删掉 -E 里冲突的 libc extern
   {
@@ -1463,13 +1464,36 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-11：中型产品桥 seed 单 TU
+  # G-02f-11 / G-02f-335：diag.o
+  # 默认整 seed；PREFER_X_O=1 时 diag_thin.x（4 pure helpers）+ seed-rest ld -r
   _diag=seeds/diag.from_x.c
+  _diag_thin_x=src/diag_thin.x
+  _diag_o=src/diag.o
   if [ -f "$_diag" ]; then
-    if [ ! -f src/diag.o ] || [ "$_diag" -nt src/diag.o ]; then
-      echo "g05_ensure: diag.o ← seed (G-02f-11)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/diag.o "$_diag"
+    if [ ! -f "$_diag_o" ] || [ "$_diag" -nt "$_diag_o" ] \
+      || { [ -f "$_diag_thin_x" ] && [ "$_diag_thin_x" -nt "$_diag_o" ]; }; then
+      _diag_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_diag_thin_x" ]; then
+        _diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_thin.XXXXXX") || true
+        _diag_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_diag_thin_o" ] && [ -n "$_diag_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_diag_thin_x" "$_diag_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_DIAG_THIN_FROM_X \
+               -c -o "$_diag_rest_o" "$_diag" \
+          && $CC -r -nostdlib -o "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-335 L2 hybrid diag thin)"
+          _diag_done=1
+        else
+          echo "g05_ensure: L2 hybrid diag thin failed; fallback full seed" >&2
+        fi
+        rm -f "$_diag_thin_o" "$_diag_rest_o"
+      fi
+      if [ "$_diag_done" = "0" ]; then
+        echo "g05_ensure: $_diag_o ← seed (G-02f-11)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_diag_o" "$_diag"
+      fi
     fi
   fi
   # G-02f-11 / G-02f-332：x_seed_bridge.o
