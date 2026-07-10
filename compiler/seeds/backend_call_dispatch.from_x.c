@@ -35,6 +35,7 @@
 struct ast_ASTArena;
 struct ast_Module;
 struct platform_elf_ElfCodegenCtx;
+struct backend_AsmFuncCtx;
 int32_t glue_asm_call_reg_max(int32_t ta);
 int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs);
 int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap);
@@ -62,6 +63,9 @@ int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *elf_ctx,
 int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out, int32_t out_cap);
 int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
 int32_t glue_asm_build_func_export_sym_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix, uint8_t *out, int32_t out_cap);
+int32_t glue_asm_emit_jmp_skip_string_then_lea(uint8_t *ctx_bytes, int32_t ta, int32_t reg_k, const uint8_t *sbuf, int32_t slen);
+int32_t glue_spill_struct16_call_arg_to_lea_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, struct backend_AsmFuncCtx *ctx, int32_t pty, int32_t ta);
+int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(struct ast_ASTArena *arena, struct ast_Module *cur_mod, int32_t callee_expr_ref, uint8_t *sym_flat, int32_t *out_match_imp_j);
 #endif
 
 
@@ -166,7 +170,8 @@ void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint
  * reg_k：0→rdi（fmt 实参 ptr），1→rax（*u8 表达式结果）。
  */
 /* G-02f-143：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_emit_jmp_skip_string_then_lea(uint8_t *ctx_bytes, int32_t ta, int32_t reg_k,
+/* G-02f-375 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_asm_emit_jmp_skip_string_then_lea_impl(uint8_t *ctx_bytes, int32_t ta, int32_t reg_k,
     const uint8_t *sbuf, int32_t slen) {
   uint8_t jmp2[2];
   uint8_t lea7[7];
@@ -195,6 +200,13 @@ int32_t glue_asm_emit_jmp_skip_string_then_lea(uint8_t *ctx_bytes, int32_t ta, i
   lea7[6] = (uint8_t)((uint32_t)disp32 >> 24);
   return pipeline_elf_ctx_append_bytes(ctx_bytes, lea7, 7);
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_emit_jmp_skip_string_then_lea(uint8_t *ctx_bytes, int32_t ta, int32_t reg_k,
+    const uint8_t *sbuf, int32_t slen) {
+  return glue_asm_emit_jmp_skip_string_then_lea_impl(ctx_bytes, ta, reg_k, sbuf, slen);
+}
+#endif
 
 extern int32_t pipeline_expr_field_access_base_ref(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_field_access_name_len(struct ast_ASTArena *a, int32_t expr_ref);
@@ -435,7 +447,8 @@ int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_ex
  * 9–16B struct 实参：CALL 结果在 rax/rdx，须 spill 到栈再 lea 传址（C callee / import 与 lea VAR 一致）。
  */
 /* G-02f-145：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_spill_struct16_call_arg_to_lea_elf_c(struct ast_ASTArena *arena,
+/* G-02f-375 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_spill_struct16_call_arg_to_lea_elf_c_impl(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           struct backend_AsmFuncCtx *ctx, int32_t pty,
                                                           int32_t ta) {
@@ -466,6 +479,15 @@ int32_t glue_spill_struct16_call_arg_to_lea_elf_c(struct ast_ASTArena *arena,
   ly->next_offset = off + 16;
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_spill_struct16_call_arg_to_lea_elf_c(struct ast_ASTArena *arena,
+                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                          struct backend_AsmFuncCtx *ctx, int32_t pty,
+                                                          int32_t ta) {
+  return glue_spill_struct16_call_arg_to_lea_elf_c_impl(arena, elf_ctx, ctx, pty, ta);
+}
+#endif
 
 
 /** x86 SysV f32 xmm CALL 实参：gp/xmm 分轨 + 栈实参（SHUX_ABI_F32_XMM=1）。 */
@@ -1053,7 +1075,8 @@ int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, in
  * pipe 参数保留兼容，查找一律基于 cur_mod->imports。
  */
 /* G-02f-147：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(struct ast_ASTArena *arena, struct ast_Module *cur_mod,
+/* G-02f-375 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c_impl(struct ast_ASTArena *arena, struct ast_Module *cur_mod,
                                                               int32_t callee_expr_ref, uint8_t *sym_flat,
                                                               int32_t *out_match_imp_j) {
   int32_t cur_ref;
@@ -1155,6 +1178,14 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(struct ast_ASTArena
   }
   return -1;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(struct ast_ASTArena *arena, struct ast_Module *cur_mod,
+                                                              int32_t callee_expr_ref, uint8_t *sym_flat,
+                                                              int32_t *out_match_imp_j) {
+  return pipeline_asm_resolve_whole_import_qualified_symbol_c_impl(arena, cur_mod, callee_expr_ref, sym_flat, out_match_imp_j);
+}
+#endif
 
 /**
  * text 路径：为 call 准备至多 6 个实参（与 backend.x asm_emit_call_args_text 语义一致）。

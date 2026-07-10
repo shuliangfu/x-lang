@@ -31,6 +31,7 @@
 #ifdef SHUX_L2_TRY_INLINE_THIN_FROM_X
 struct ast_ASTArena;
 struct ast_Module;
+struct glue_AsmFuncCtx;
 struct ast_PipelineDepCtx;
 struct platform_elf_ElfCodegenCtx;
 int32_t glue_align_up8_c(int32_t n);
@@ -62,6 +63,9 @@ int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t 
 int32_t glue_dep_module_field_offset_by_name(struct ast_PipelineDepCtx *pctx, uint8_t *field_name, int32_t flen);
 int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_lit_ref);
 int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff, int32_t fsz, int32_t ta);
+int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, struct glue_AsmFuncCtx *ctx, int32_t inner_call_ref, int32_t outer_field_ref, int32_t *out_arg_ref);
+int32_t try_inline_wpo_const_scalar_binop_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta);
+int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta);
 #endif
 
 
@@ -1024,7 +1028,8 @@ int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t 
  * 外层 field_access 经 inner CALL（struct_lit 按值返回）映射到实参 expr_ref。
  */
 /* G-02f-138：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, struct glue_AsmFuncCtx *ctx,
+/* G-02f-375 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_inner_call_arg_for_field_access_impl(struct ast_ASTArena *arena, struct glue_AsmFuncCtx *ctx,
                                                     int32_t inner_call_ref, int32_t outer_field_ref,
                                                     int32_t *out_arg_ref) {
   struct ast_ASTArena *callee_arena;
@@ -1057,6 +1062,14 @@ int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, struct 
   *out_arg_ref = pipeline_expr_call_arg_ref(arena, inner_call_ref, pix);
   return (*out_arg_ref > 0) ? 1 : 0;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, struct glue_AsmFuncCtx *ctx,
+                                                    int32_t inner_call_ref, int32_t outer_field_ref,
+                                                    int32_t *out_arg_ref) {
+  return glue_inner_call_arg_for_field_access_impl(arena, ctx, inner_call_ref, outer_field_ref, out_arg_ref);
+}
+#endif
 
 
 /**
@@ -1437,7 +1450,8 @@ int32_t try_inline_param0_field_sum_call_elf(struct ast_ASTArena *arena, struct 
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
 /* G-02f-148：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* G-02f-375 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t try_inline_x_plus_k_call_elf_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
   struct ast_Module *mod_ref;
   int32_t callee_ref;
@@ -1499,6 +1513,13 @@ int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform
     return -1;
   return 1;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                     int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
+  return try_inline_x_plus_k_call_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+}
+#endif
 
 /** ARRAY_LIT 第 lane 个元素是否为整型常量；成功写 *out。 */
 /* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -1707,7 +1728,8 @@ int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf(struct ast_ASTArena *
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
 /* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t try_inline_wpo_const_scalar_binop_call_elf(struct ast_ASTArena *arena,
+/* G-02f-375 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t try_inline_wpo_const_scalar_binop_call_elf_impl(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                     struct glue_AsmFuncCtx *ctx, int32_t ta) {
   struct ast_Module *mod_ref;
@@ -1758,6 +1780,14 @@ int32_t try_inline_wpo_const_scalar_binop_call_elf(struct ast_ASTArena *arena,
     return -1;
   return 1;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t try_inline_wpo_const_scalar_binop_call_elf(struct ast_ASTArena *arena,
+                                                    struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                    struct glue_AsmFuncCtx *ctx, int32_t ta) {
+  return try_inline_wpo_const_scalar_binop_call_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+}
+#endif
 
 /**
  * WPO-S2 monomorphize：SHUX_WPO_MONO=1 时将全常量实参 call 改调单态符号（零实参 thunk）。
