@@ -13,15 +13,15 @@ api_send2	api	select_send	std/channel/mod.x	阻塞双路 send
 api_try_send_n	api	select_try_send_n	std/channel/mod.x	非阻塞 N 路 send
 api_send_n	api	select_send_n	std/channel/mod.x	阻塞 N 路 send
 api_chs_set	api	select_chs_set	std/channel/mod.x	槽位写入
-symbol_try_c	symbol	channel_select_try_recv_2_c	compiler/src/asm/runtime_channel_glue.c	C try recv 双路
-symbol_recv_c	symbol	channel_select_recv_2_c	compiler/src/asm/runtime_channel_glue.c	C recv 双路
-symbol_try_n_c	symbol	channel_select_try_recv_n_c	compiler/src/asm/runtime_channel_glue.c	C try recv N 路
-symbol_recv_n_c	symbol	channel_select_recv_n_c	compiler/src/asm/runtime_channel_glue.c	C recv N 路
-symbol_try_send2_c	symbol	channel_select_try_send_2_c	compiler/src/asm/runtime_channel_glue.c	C try send 双路
-symbol_send2_c	symbol	channel_select_send_2_c	compiler/src/asm/runtime_channel_glue.c	C send 双路
-symbol_try_send_n_c	symbol	channel_select_try_send_n_c	compiler/src/asm/runtime_channel_glue.c	C try send N 路
-symbol_send_n_c	symbol	channel_select_send_n_c	compiler/src/asm/runtime_channel_glue.c	C send N 路
-symbol_chs_set_c	symbol	channel_select_chs_set_c	compiler/src/asm/runtime_channel_glue.c	槽位 C
+symbol_try_c	symbol	channel_select_try_recv_2_c	compiler/src/asm/runtime_channel_glue.inc	C try recv 双路
+symbol_recv_c	symbol	channel_select_recv_2_c	compiler/src/asm/runtime_channel_glue.inc	C recv 双路
+symbol_try_n_c	symbol	channel_select_try_recv_n_c	compiler/src/asm/runtime_channel_glue.inc	C try recv N 路
+symbol_recv_n_c	symbol	channel_select_recv_n_c	compiler/src/asm/runtime_channel_glue.inc	C recv N 路
+symbol_try_send2_c	symbol	channel_select_try_send_2_c	compiler/src/asm/runtime_channel_glue.inc	C try send 双路
+symbol_send2_c	symbol	channel_select_send_2_c	compiler/src/asm/runtime_channel_glue.inc	C send 双路
+symbol_try_send_n_c	symbol	channel_select_try_send_n_c	compiler/src/asm/runtime_channel_glue.inc	C try send N 路
+symbol_send_n_c	symbol	channel_select_send_n_c	compiler/src/asm/runtime_channel_glue.inc	C send N 路
+symbol_chs_set_c	symbol	channel_select_chs_set_c	compiler/src/asm/runtime_channel_glue.inc	槽位 C
 smoke2	smoke	tests/channel/select_2.x	双路 recv
 smoke_n	smoke	tests/channel/select_n.x	N 路 recv
 smoke_send2	smoke	tests/channel/select_send_2.x	双路 send
@@ -31,9 +31,9 @@ api_mixed2	api	select_mixed	std/channel/mod.x	阻塞混合双路
 api_try_mixed_n	api	select_try_mixed_n	std/channel/mod.x	非阻塞混合 N 路
 api_mixed_n	api	select_mixed_n	std/channel/mod.x	阻塞混合 N 路
 api_dirs_set	api	select_dirs_set	std/channel/mod.x	方向槽
-symbol_try_mixed2_c	symbol	channel_select_try_mixed_2_c	compiler/src/asm/runtime_channel_glue.c	C 混合双路 try
-symbol_mixed2_c	symbol	channel_select_mixed_2_c	compiler/src/asm/runtime_channel_glue.c	C 混合双路 block
-symbol_try_mixed_n_c	symbol	channel_select_try_mixed_n_c	compiler/src/asm/runtime_channel_glue.c	C 混合 N try
-symbol_mixed_n_c	symbol	channel_select_mixed_n_c	compiler/src/asm/runtime_channel_glue.c	C 混合 N block
-symbol_dirs_c	symbol	channel_select_dirs_set_c	compiler/src/asm/runtime_channel_glue.c	方向 C
+symbol_try_mixed2_c	symbol	channel_select_try_mixed_2_c	compiler/src/asm/runtime_channel_glue.inc	C 混合双路 try
+symbol_mixed2_c	symbol	channel_select_mixed_2_c	compiler/src/asm/runtime_channel_glue.inc	C 混合双路 block
+symbol_try_mixed_n_c	symbol	channel_select_try_mixed_n_c	compiler/src/asm/runtime_channel_glue.inc	C 混合 N try
+symbol_mixed_n_c	symbol	channel_select_mixed_n_c	compiler/src/asm/runtime_channel_glue.inc	C 混合 N block
+symbol_dirs_c	symbol	channel_select_dirs_set_c	compiler/src/asm/runtime_channel_glue.inc	方向 C
 gate	script	run-std-channel-select-gate.sh	tests/run-std-channel-select-gate.sh

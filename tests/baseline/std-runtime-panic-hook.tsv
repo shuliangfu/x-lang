@@ -5,10 +5,10 @@ section_chain	section	## 2. 终止链	analysis/std-runtime-panic-hook-v1.md	RFC
 section_platform	section	## 3. 三平台终止矩阵	analysis/std-runtime-panic-hook-v1.md	平台表
 exc_cross	cross_ref	exc-panic-abort-v1-rfc.md	-	analysis/std-runtime-panic-hook-v1.md	EXC-002
 hook_api	symbol	-	panic_hook_collect	std/runtime/mod.x	STD-028
-runtime_panic_c	code	-	shux_crash_evidence_collect_c	compiler/src/asm/runtime_panic.c	Linux/Win/mac .c
-runtime_panic_arm	code	-	_exit(1)	compiler/src/asm/runtime_panic_arm64.c	macOS 备选
+runtime_panic_c	code	-	shux_crash_evidence_collect_c	compiler/src/asm/runtime_panic.inc	Linux/Win/mac .c
+runtime_panic_arm	code	-	_exit(1)	compiler/src/asm/runtime_panic_arm64.inc	macOS 备选
 runtime_bridge	code	-	shux_panic_	std/runtime/runtime.x	门面
-panic_collect_weak	code	-	__attribute__((weak))	compiler/src/asm/runtime_panic.c	弱钩子
+panic_collect_weak	code	-	__attribute__((weak))	compiler/src/asm/runtime_panic.inc	弱钩子
 runtime_syscall	code	-	shux_panic_	compiler/src/asm/runtime_panic_x86_64.s	Linux .s
 test_hook	file	-	panic_hook_align.x	tests/exc/panic_hook_align.x	烟测
 test_ready	file	-	runtime_ready.x	tests/exc/runtime_ready.x	EXC-002

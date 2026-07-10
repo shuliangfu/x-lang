@@ -3,7 +3,7 @@
 fbt2_doc	doc	analysis/phase-f-backtrace-v2.md	F-backtrace v2
 fbt2_gate	gate	tests/run-f-backtrace-v2-gate.sh	逻辑下沉门禁
 bt_x	file	std/backtrace/backtrace.x	帧辅助/烟测
-bt_runtime	file	compiler/src/asm/runtime_backtrace_platform.c	capture/symbolicate/crash
+bt_runtime	file	compiler/src/asm/runtime_backtrace_platform.inc	capture/symbolicate/crash
 bt_platform_glue_absent	absent	std/backtrace/backtrace_platform_glue.c	F-ZC 已迁入 compiler
 bt_mod	file	std/backtrace/mod.x	对外 API
 bt_glue_v1_absent	absent	std/backtrace/backtrace_glue.c	v1 胶层已删除

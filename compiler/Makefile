@@ -744,7 +744,7 @@ ifeq ($(UNAME_S),Linux)
   PIPELINE_LIBS := -lpthread
 endif
 
-# asm 后端 -o <exe> 时链接用：提供 shux_panic_；Linux x86_64 有 .s 时用纯 syscall .s，否则 .c
+# asm 后端 -o <exe> 时链接用：提供 shux_panic_；Linux x86_64 有 .s 时用纯 syscall .s，否则 .inc（G-02e-20）
 RUNTIME_PANIC_S := $(wildcard src/asm/runtime_panic_x86_64.s)
 RUNTIME_PANIC_PLATFORM_STAMP = build_asm/runtime_panic.$(UNAME_S).$(UNAME_M).stamp
 $(RUNTIME_PANIC_PLATFORM_STAMP):
@@ -756,21 +756,21 @@ ifneq (,$(RUNTIME_PANIC_S))
 runtime_panic.o: src/asm/runtime_panic_x86_64.s $(RUNTIME_PANIC_PLATFORM_STAMP)
 	$(CC) -c -o $@ $<
 else
-runtime_panic.o: src/asm/runtime_panic.c $(RUNTIME_PANIC_PLATFORM_STAMP)
-	$(CC) $(CFLAGS) -c -o $@ $<
+runtime_panic.o: src/asm/runtime_panic.inc $(RUNTIME_PANIC_PLATFORM_STAMP) scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_panic.inc $@
 endif
 else
-runtime_panic.o: src/asm/runtime_panic_arm64.c $(RUNTIME_PANIC_PLATFORM_STAMP)
-	$(CC) $(CFLAGS) -c -o $@ $<
+runtime_panic.o: src/asm/runtime_panic_arm64.inc $(RUNTIME_PANIC_PLATFORM_STAMP) scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_panic_arm64.inc $@
 endif
 else
-runtime_panic.o: src/asm/runtime_panic.c $(RUNTIME_PANIC_PLATFORM_STAMP)
-	$(CC) $(CFLAGS) -c -o $@ $<
+runtime_panic.o: src/asm/runtime_panic.inc $(RUNTIME_PANIC_PLATFORM_STAMP) scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_panic.inc $@
 endif
 
-# seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（见 runtime_asm_io_stubs.c）
-runtime_asm_io_stubs.o: src/asm/runtime_asm_io_stubs.c
-	$(CC) $(CFLAGS) -fPIE -c -o $@ $<
+# seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）
+runtime_asm_io_stubs.o: src/asm/runtime_asm_io_stubs.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_asm_io_stubs.inc $@ -fPIE
 
 # F-ZC：std.test fn-ptr invoke；与 test.o 一并链入（G-02e-16：.inc + cc_inc_tu）
 runtime_test_fn_invoke.o: src/asm/runtime_test_fn_invoke.inc scripts/cc_inc_tu.sh
@@ -800,9 +800,9 @@ runtime_dynlib_os.o: src/asm/runtime_dynlib_os.inc scripts/cc_inc_tu.sh
 runtime_env_os.o: src/asm/runtime_env_os.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_env_os.inc $@
 
-# F-ZC：backtrace capture/symbolicate/crash evidence；与 backtrace.o 一并链入
-runtime_backtrace_platform.o: src/asm/runtime_backtrace_platform.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：backtrace capture/symbolicate/crash evidence；与 backtrace.o 一并链入（G-02e-20）
+runtime_backtrace_platform.o: src/asm/runtime_backtrace_platform.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_backtrace_platform.inc $@
 
 # F-ZC：log sink/轮转/异步；与 log.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 runtime_log_os.o: src/asm/runtime_log_os.inc scripts/cc_inc_tu.sh
@@ -816,9 +816,9 @@ runtime_math_libm.o: src/asm/runtime_math_libm.inc scripts/cc_inc_tu.sh
 runtime_atomic_glue.o: src/asm/runtime_atomic_glue.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_atomic_glue.inc $@
 
-# F-ZC：channel 有界/无界/select；与 channel.o 一并链入（Unix 须 -lpthread；见 runtime_channel_glue.c）
-runtime_channel_glue.o: src/asm/runtime_channel_glue.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：channel 有界/无界/select；与 channel.o 一并链入（G-02e-20：.inc + cc_inc_tu）
+runtime_channel_glue.o: src/asm/runtime_channel_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_channel_glue.inc $@
 
 # F-ZC：net UDP batch recvmmsg/sendmmsg；与 net.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 runtime_net_udp_batch.o: src/asm/runtime_net_udp_batch.inc scripts/cc_inc_tu.sh
@@ -828,16 +828,16 @@ runtime_net_udp_batch.o: src/asm/runtime_net_udp_batch.inc scripts/cc_inc_tu.sh
 runtime_net_workers.o: src/asm/runtime_net_workers.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_net_workers.inc $@
 
-# F-ZC：sync Mutex/RwLock/Condvar + 锁诊断 TLS；与 sync.o 一并链入（Unix 须 -lpthread）
-runtime_sync_os.o: src/asm/runtime_sync_os.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：sync Mutex/RwLock/Condvar + 锁诊断 TLS；与 sync.o 一并链入（G-02e-20）
+runtime_sync_os.o: src/asm/runtime_sync_os.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_sync_os.inc $@
 
-runtime_sync_lock_diag_tls.o: src/asm/runtime_sync_lock_diag_tls.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+runtime_sync_lock_diag_tls.o: src/asm/runtime_sync_lock_diag_tls.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_sync_lock_diag_tls.inc $@
 
-# F-ZC：thread pthread/CreateThread；与 thread.o 一并链入（Unix 须 -lpthread）
-runtime_thread_glue.o: src/asm/runtime_thread_glue.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：thread pthread/CreateThread；与 thread.o 一并链入（G-02e-20）
+runtime_thread_glue.o: src/asm/runtime_thread_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_thread_glue.inc $@
 
 # F-ZC：async 协作调度 + async_net_fs；与 scheduler.o 一并链入（按需 -pthread）
 runtime_scheduler_glue.o: src/asm/runtime_scheduler_glue.c src/asm/async_net_fs.inc
@@ -860,17 +860,17 @@ runtime_kv_mmap_glue.o: src/asm/runtime_kv_mmap_glue.inc scripts/cc_inc_tu.sh
 runtime_arrow_simd_glue.o: src/asm/runtime_arrow_simd_glue.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_arrow_simd_glue.inc $@
 
-# F-ZC：db.sqlite 胶层（libsqlite3）；与 sqlite.o 同链
-runtime_sqlite_glue.o: src/asm/runtime_sqlite_glue.c
-	$(CC) $(CFLAGS) -DSHUX_DB_USE_SQLITE3 -c -o $@ $<
+# F-ZC：db.sqlite 胶层（libsqlite3）；与 sqlite.o 同链（G-02e-20）
+runtime_sqlite_glue.o: src/asm/runtime_sqlite_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_sqlite_glue.inc $@ -DSHUX_DB_USE_SQLITE3
 
-# F-ZC：db.sqlite stub 胶层（无 libsqlite3）；sqlite-o-stub 时 ld -r 并入 sqlite.o
-runtime_sqlite_glue_stub.o: src/asm/runtime_sqlite_glue.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：db.sqlite stub 胶层（无 libsqlite3）；sqlite-o-stub 时 ld -r 并入 sqlite.o（G-02e-20）
+runtime_sqlite_glue_stub.o: src/asm/runtime_sqlite_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_sqlite_glue.inc $@
 
-# F-ZC：crypto SHA-512/HMAC 胶层；与 crypto.o 一并链入
-runtime_crypto_inc_glue.o: src/asm/runtime_crypto_inc_glue.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：crypto SHA-512/HMAC 胶层；与 crypto.o 一并链入（G-02e-20）
+runtime_crypto_inc_glue.o: src/asm/runtime_crypto_inc_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_crypto_inc_glue.inc $@
 
 # F-ZC：Ed25519 ref10（含 crypto/ed25519/*.c）；与 crypto.o 一并链入（G-02e-17 .inc）
 runtime_ed25519_ref10_glue.o: src/asm/runtime_ed25519_ref10_glue.inc scripts/cc_inc_tu.sh
@@ -880,9 +880,9 @@ runtime_ed25519_ref10_glue.o: src/asm/runtime_ed25519_ref10_glue.inc scripts/cc_
 runtime_process_argv.o: src/asm/runtime_process_argv.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_process_argv.inc $@
 
-# F-ZC：进程 OS 胶层（getenv/spawn/getcwd 等）；与 process.o 一并链入
-runtime_process_os_glue.o: src/asm/runtime_process_os_glue.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：进程 OS 胶层（getenv/spawn/getcwd 等）；与 process.o 一并链入（G-02e-20）
+runtime_process_os_glue.o: src/asm/runtime_process_os_glue.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_process_os_glue.inc $@
 
 # 无 C 自举：crt0 提供 _start 与 driver_get_argv_i；链接 asm 版 shux 时用本 .o 替代 main.o / runtime_asm_build.o
 ifeq ($(UNAME_S),Linux)

@@ -4,6 +4,6 @@ fcrypto_doc	doc	analysis/phase-f-crypto-v1.md	F-crypto v1
 fcrypto_gate	gate	tests/run-f-crypto-v1-gate.sh	聚合门禁
 f04_closure	gate	tests/run-f04-std-crypto-closure-gate.sh	F-04 v21
 x_core	file	std/crypto/core.x	v16
-glue_inc	file	compiler/src/asm/runtime_crypto_inc_glue.c	SHA-512 胶层（F-ZC）
+glue_inc	file	compiler/src/asm/runtime_crypto_inc_glue.inc	SHA-512 胶层（F-ZC）
 crypto_c_absent	absent	std/crypto/crypto.c	已删除 v16
 makefile	makefile	compiler/Makefile	crypto.o ld -r

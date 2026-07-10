@@ -25,10 +25,10 @@ cc -Wall -Wextra -I. -Iinclude -Isrc -o shux $OBJS
 echo "shux built: $(ls -lh shux | awk '{print $5}')"
 
 # invoke_cc 会链 ./runtime_panic.o（见 runtime.c get_runtime_panic_o_path）；冷启动未跑 Makefile 时需先产出。
-if [ -f src/asm/runtime_panic_arm64.c ] && [ "$(uname -m 2>/dev/null)" = arm64 ]; then
-  cc -Wall -Wextra -I. -Iinclude -Isrc -c -o runtime_panic.o src/asm/runtime_panic_arm64.c
+if [ -f src/asm/runtime_panic_arm64.inc ] && [ "$(uname -m 2>/dev/null)" = arm64 ]; then
+  sh scripts/cc_inc_tu.sh src/asm/runtime_panic_arm64.inc runtime_panic.o
 else
-  cc -Wall -Wextra -I. -Iinclude -Isrc -c -o runtime_panic.o src/asm/runtime_panic.c
+  sh scripts/cc_inc_tu.sh src/asm/runtime_panic.inc runtime_panic.o
 fi
 echo "runtime_panic.o ready"
 

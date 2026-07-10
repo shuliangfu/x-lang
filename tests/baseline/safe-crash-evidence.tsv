@@ -7,8 +7,8 @@ env	section	## 3. 环境变量	analysis/safe-crash-evidence-v1.md	-	SHUX_CRASH_E
 panic_hook	section	## 4. panic 挂钩	analysis/safe-crash-evidence-v1.md	-	runtime_panic
 verify	section	## 6. 验证与门禁	analysis/safe-crash-evidence-v1.md	-	gate
 api_collect	api	collect_crash_evidence	std/backtrace/mod.x	core	手动/自动
-impl_c	file	compiler/src/asm/runtime_backtrace_platform.c	compiler/src/asm/runtime_backtrace_platform.c	impl	收集
-impl_panic	file	compiler/src/asm/runtime_panic.c	compiler/src/asm/runtime_panic.c	hook	弱符号
+impl_c	file	compiler/src/asm/runtime_backtrace_platform.inc	compiler/src/asm/runtime_backtrace_platform.inc	impl	收集
+impl_panic	file	compiler/src/asm/runtime_panic.inc	compiler/src/asm/runtime_panic.inc	hook	弱符号
 case_manual	case	evidence_manual	tests/crash/evidence_manual.x	0	显式收集
 case_panic	case	div_zero	tests/ub/div_zero.x	panic	除零 panic
 lib	script	lib/safe-crash.sh	tests/lib/safe-crash.sh	-	共享库

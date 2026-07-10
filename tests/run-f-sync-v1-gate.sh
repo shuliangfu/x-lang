@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-sync v1：std.sync 去 C（sync.x + runtime_sync_os.c + runtime_sync_lock_diag_tls.c）。
+# F-sync v1：std.sync 去 C（sync.x + runtime_sync_os.inc + runtime_sync_lock_diag_tls.inc）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_SYNC_V1_FAIL:-0}
@@ -10,8 +10,8 @@ echo "=== F-sync v1: sync.c → sync.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-sync v1' "$DOC" || die "doc marker"
 [ -f std/sync/sync.x ] || die "missing sync.x"
-[ -f compiler/src/asm/runtime_sync_os.c ] || die "missing runtime_sync_os.c"
-[ -f compiler/src/asm/runtime_sync_lock_diag_tls.c ] || die "missing runtime_sync_lock_diag_tls.c"
+[ -f compiler/src/asm/runtime_sync_os.inc ] || die "missing runtime_sync_os.inc"
+[ -f compiler/src/asm/runtime_sync_lock_diag_tls.inc ] || die "missing runtime_sync_lock_diag_tls.inc"
 [ ! -f std/sync/sync_os_glue.c ] || die "sync_os_glue.c should be deleted"
 [ ! -f std/sync/sync_lock_diag_tls_glue.c ] || die "sync_lock_diag_tls_glue.c should be deleted"
 [ ! -f std/sync/sync.c ] || die "sync.c should be deleted"

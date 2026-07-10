@@ -27,7 +27,7 @@ std_channel_select_symbols_ok() {
         ;;
       symbol)
         case "$mod_path" in
-          std/channel/channel_glue.c|compiler/src/asm/runtime_channel_glue.c) mod_path="$channel_c" ;;
+          std/channel/channel_glue.c|compiler/src/asm/runtime_channel_glue.inc) mod_path="$channel_c" ;;
           *) mod_path="$mod_x" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then

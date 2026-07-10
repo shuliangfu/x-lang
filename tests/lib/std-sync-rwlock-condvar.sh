@@ -28,7 +28,7 @@ std_sync_rc_symbols_ok() {
         ;;
       symbol)
         case "$mod_path" in
-          std/sync/sync.c|std/sync/sync_os_glue.c|compiler/src/asm/runtime_sync_os.c) mod_path="$sync_os_glue" ;;
+          std/sync/sync.c|std/sync/sync_os_glue.c|compiler/src/asm/runtime_sync_os.inc) mod_path="$sync_os_glue" ;;
           *) mod_path="$mod_x" ;;
         esac
         if ! grep -qF "$anchor" "$mod_path" 2>/dev/null; then

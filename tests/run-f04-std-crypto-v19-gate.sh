@@ -10,7 +10,7 @@ FAIL=${SHUX_F04_CRYPTO_V19_FAIL:-0}
 DOC="analysis/phase-f-f04-v19.md"
 ED25519="std/crypto/ed25519.x"
 GLUE="compiler/src/asm/runtime_ed25519_ref10_glue.inc"
-INC_GLUE="compiler/src/asm/runtime_crypto_inc_glue.c"
+INC_GLUE="compiler/src/asm/runtime_crypto_inc_glue.inc"
 
 # shellcheck source=tests/lib/std-crypto.sh
 . tests/lib/std-crypto.sh

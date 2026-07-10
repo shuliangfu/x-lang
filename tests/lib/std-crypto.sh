@@ -90,8 +90,8 @@ std_crypto_resolve_impl_path() {
   local mod_path="$1"
   case "$mod_path" in
     std/crypto/crypto.c|std/crypto/core.x) echo "std/crypto/core.x" ;;
-    std/crypto/crypto_inc_glue.c|compiler/src/asm/runtime_crypto_inc_glue.c)
-      echo "compiler/src/asm/runtime_crypto_inc_glue.c"
+    std/crypto/crypto_inc_glue.c|compiler/src/asm/runtime_crypto_inc_glue.inc)
+      echo "compiler/src/asm/runtime_crypto_inc_glue.inc"
       ;;
     std/crypto/ed25519.x|std/crypto/ed25519.inc.c|std/crypto/aes_gcm.x|std/crypto/chacha20_poly1305.x)
       echo "std/crypto/$(basename "$mod_path")"

@@ -3853,12 +3853,12 @@ ensure_asm_link_objs() {
   if [ "$UNAME_S" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
   echo " cc -c runtime_panic.o <- src/asm/runtime_panic_x86_64.s"
   "$CC" -c -o runtime_panic.o src/asm/runtime_panic_x86_64.s
-  elif [ -f src/asm/runtime_panic_arm64.c ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
-  echo " cc -c runtime_panic.o <- src/asm/runtime_panic_arm64.c"
-  "$CC" $CFLAGS -c -o runtime_panic.o src/asm/runtime_panic_arm64.c
+  elif [ -f src/asm/runtime_panic_arm64.inc ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
+  echo " cc_inc_tu runtime_panic.o <- src/asm/runtime_panic_arm64.inc"
+  sh scripts/cc_inc_tu.sh src/asm/runtime_panic_arm64.inc runtime_panic.o
   else
-  echo " cc -c runtime_panic.o <- src/asm/runtime_panic.c"
-  "$CC" $CFLAGS -c -o runtime_panic.o src/asm/runtime_panic.c
+  echo " cc_inc_tu runtime_panic.o <- src/asm/runtime_panic.inc"
+  sh scripts/cc_inc_tu.sh src/asm/runtime_panic.inc runtime_panic.o
   fi
   if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
   echo " cc -c src/asm/crt0_x86_64.o <- src/asm/crt0_x86_64.s"
@@ -3881,9 +3881,9 @@ ensure_asm_link_objs() {
 
 # 用户程序 asm 链预编译 runtime 对象（nostdlib shux_asm 无 fork+cc，须在 build 阶段产出）。
 ensure_runtime_user_link_objs() {
-  if [ ! -f runtime_asm_io_stubs.o ] || [ src/asm/runtime_asm_io_stubs.c -nt runtime_asm_io_stubs.o ]; then
-  echo " cc -c runtime_asm_io_stubs.o <- src/asm/runtime_asm_io_stubs.c"
-  "$CC" $CFLAGS -c -o runtime_asm_io_stubs.o src/asm/runtime_asm_io_stubs.c
+  if [ ! -f runtime_asm_io_stubs.o ] || [ src/asm/runtime_asm_io_stubs.inc -nt runtime_asm_io_stubs.o ]; then
+  echo " cc_inc_tu runtime_asm_io_stubs.o <- src/asm/runtime_asm_io_stubs.inc"
+  sh scripts/cc_inc_tu.sh src/asm/runtime_asm_io_stubs.inc runtime_asm_io_stubs.o
   fi
   if [ ! -f runtime_process_argv.o ] || [ src/asm/runtime_process_argv.inc -nt runtime_process_argv.o ]; then
   echo " cc_inc_tu runtime_process_argv.o <- src/asm/runtime_process_argv.inc"

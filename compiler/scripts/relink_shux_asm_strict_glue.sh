@@ -1779,17 +1779,17 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   _panic_src=""
   if [ "$_arch" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
   _panic_src="src/asm/runtime_panic_x86_64.s"
-  elif { [ "$_arch" = "aarch64" ] || [ "$_arch" = "arm64" ]; } && [ -f src/asm/runtime_panic_arm64.c ]; then
-  _panic_src="src/asm/runtime_panic_arm64.c"
-  elif [ -f src/asm/runtime_panic.c ]; then
-  _panic_src="src/asm/runtime_panic.c"
+  elif { [ "$_arch" = "aarch64" ] || [ "$_arch" = "arm64" ]; } && [ -f src/asm/runtime_panic_arm64.inc ]; then
+  _panic_src="src/asm/runtime_panic_arm64.inc"
+  elif [ -f src/asm/runtime_panic.inc ]; then
+  _panic_src="src/asm/runtime_panic.inc"
   fi
   if [ -n "$_panic_src" ] && { [ ! -f runtime_panic.o ] || [ "$_panic_src" -nt runtime_panic.o ]; }; then
   strict_glue_info "cc runtime_panic.o <- $_panic_src"
   if [ "${_panic_src##*.}" = "s" ]; then
   "$CC" -c -o runtime_panic.o "$_panic_src"
   else
-  "$CC" $CFLAGS -c -o runtime_panic.o "$_panic_src"
+  sh scripts/cc_inc_tu.sh "$_panic_src" runtime_panic.o
   fi
   fi
   [ -f runtime_panic.o ] && ST_RUNTIME_PANIC="runtime_panic.o"
