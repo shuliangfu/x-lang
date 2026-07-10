@@ -3324,8 +3324,9 @@ uint8_t *driver_module_buf(void) {
     return driver_module_static;
 }
 
-/** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开读文件，返回 fd，失败 -1。供 driver_run_x_emit_x 读入口文件，避免生成代码顺序导致 path_buf 未填就 open。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开读文件，返回 fd，失败 -1。 */
+/* G-02f-308：path open → rt_fs_open hybrid */
+#ifndef SHUX_RT_FS_OPEN_FROM_X
 int driver_fs_open_read_path(const uint8_t *path, int path_len) {
     if (!path || path_len <= 0 || path_len >= 512) return -1;
     char buf[512];
@@ -3337,8 +3338,7 @@ int driver_fs_open_read_path(const uint8_t *path, int path_len) {
 
 
 
-/** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开写文件（O_WRONLY|O_CREAT|O_TRUNC），返回 fd，失败 -1。供 -backend asm -o 时 main.x 写 -o 文件。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开写文件（O_WRONLY|O_CREAT|O_TRUNC），返回 fd，失败 -1。 */
 int driver_fs_open_write(const uint8_t *path, int path_len) {
     if (!path || path_len <= 0 || path_len >= 512) return -1;
     char buf[512];
@@ -3353,6 +3353,11 @@ int driver_fs_open_write(const uint8_t *path, int path_len) {
 #endif
     return -1;
 }
+#else
+int driver_fs_open_read_path(const uint8_t *path, int path_len);
+int driver_fs_open_write(const uint8_t *path, int path_len);
+int labi_rt_fs_open_slice_marker(void);
+#endif
 
 
 
