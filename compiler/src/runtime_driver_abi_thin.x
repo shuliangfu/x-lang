@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343：runtime_driver_abi L2 thin（23 门闩：flag pure + check_ok/now_sec/large_stack）。
+// G-02f-343/344：runtime_driver_abi L2 thin（28 门闩：flag pure + check_ok/now_sec/large_stack + timing 全套）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 //
 
@@ -231,6 +231,67 @@ function compile_phase_now_sec(): f64 {
 function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   unsafe {
     driver_call_fn_void_arg_impl(fn, arg);
+  }
+}
+
+// ---- G-02f-344：timing 全套 ----
+extern "C" function driver_compile_phase_timing_begin_impl(phase: i32): void;
+extern "C" function driver_compile_phase_timing_end_impl(phase: i32): void;
+extern "C" function driver_compile_phase_timing_flush_impl(): void;
+extern "C" function driver_compile_phase_timing_enabled_impl(): i32;
+
+#[no_mangle]
+function driver_compile_phase_index_ok(phase: i32): i32 {
+  if (phase < 0) {
+    return 0;
+  }
+  if (phase >= 3) {
+    return 0;
+  }
+  return 1;
+}
+
+#[no_mangle]
+function driver_compile_phase_timing_enabled(): i32 {
+  unsafe {
+    return driver_compile_phase_timing_enabled_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_compile_phase_timing_begin(phase: i32): void {
+  unsafe {
+    if (driver_compile_phase_timing_enabled_impl() == 0) {
+      return;
+    }
+    if (driver_compile_phase_index_ok(phase) == 0) {
+      return;
+    }
+    driver_compile_phase_timing_begin_impl(phase);
+  }
+}
+
+#[no_mangle]
+function driver_compile_phase_timing_end(phase: i32): void {
+  unsafe {
+    if (driver_compile_phase_timing_enabled_impl() == 0) {
+      return;
+    }
+    if (driver_compile_phase_index_ok(phase) == 0) {
+      return;
+    }
+    driver_compile_phase_timing_end_impl(phase);
+  }
+}
+
+#[no_mangle]
+function driver_compile_phase_timing_flush(): void {
+  unsafe {
+    if (driver_compile_phase_timing_enabled_impl() == 0) {
+      return;
+    }
+    driver_compile_phase_timing_flush_impl();
   }
 }
 

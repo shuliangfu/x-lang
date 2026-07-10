@@ -1,4 +1,4 @@
-/* G-02f-343：PREFER hybrid thin 由 src/runtime_driver_abi_thin.x；rest SHUX_L2_RDABI_THIN_FROM_X。
+/* G-02f-343/344：PREFER hybrid thin 由 src/runtime_driver_abi_thin.x；rest SHUX_L2_RDABI_THIN_FROM_X。
  */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
  * G-02f-116 true .x pure helpers.
@@ -25,7 +25,9 @@ int32_t driver_check_diag_emitted_get(void);
 int32_t driver_is_large_stack_thread(void);
 void driver_large_stack_thread_mark(int on);
 void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg);
+int32_t driver_compile_phase_index_ok(int32_t phase);
 #define compile_phase_now_sec compile_phase_now_sec_impl
+#define driver_compile_phase_timing_enabled driver_compile_phase_timing_enabled_impl
 #endif
 
 #include <stdio.h>
@@ -710,6 +712,7 @@ double compile_phase_now_sec_impl(void)
 
 
 /* G-02f-244：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_compile_phase_index_ok(int32_t phase) {
     if (phase < 0)
         return 0;
@@ -717,6 +720,7 @@ int32_t driver_compile_phase_index_ok(int32_t phase) {
         return 0;
     return 1;
 }
+#endif
 
 /**
  * 标记编译阶段开始；由 pipeline.x run_x_pipeline_impl 调用。
@@ -750,6 +754,7 @@ void driver_compile_phase_timing_flush_impl(void) {
     memset(g_compile_phase_active, 0, sizeof(g_compile_phase_active));
 }
 
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_flush(void) {
   (void)(({   {
     if ((driver_compile_phase_timing_enabled() ==0)) {
@@ -759,8 +764,10 @@ void driver_compile_phase_timing_flush(void) {
   }
  }));
 }
+#endif
 
 /* G-02f-244：逻辑源 .x（门闩 → index_ok pure）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_end(int32_t phase) {
   (void)(({   {
     if ((driver_compile_phase_timing_enabled() ==0)) {
@@ -773,8 +780,14 @@ void driver_compile_phase_timing_end(int32_t phase) {
   }
  }));
 }
+#endif
 
-int32_t driver_compile_phase_timing_enabled(void) {
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_compile_phase_timing_enabled(void)
+#else
+int32_t driver_compile_phase_timing_enabled_impl(void)
+#endif
+{
   (void)(({   {
     char *e = getenv("SHUX_COMPILE_PHASE_TIMING");
     if ((e ==((char *)(0)))) {
@@ -787,6 +800,7 @@ int32_t driver_compile_phase_timing_enabled(void) {
 }
 
 /* G-02f-244：逻辑源 .x（门闩 → index_ok pure）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_begin(int32_t phase) {
   (void)(({   {
     if ((driver_compile_phase_timing_enabled() ==0)) {
@@ -799,6 +813,7 @@ void driver_compile_phase_timing_begin(int32_t phase) {
   }
  }));
 }
+#endif
 
 
 /**
