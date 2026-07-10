@@ -179,3 +179,66 @@ function simd_arm64_select_128_rbp(elf: *u8, lea_mask: i32, lea_a: i32, lea_b: i
 function simd_x86_pshufd_xmm0_imm8(elf: *u8, imm8: i32): i32 { unsafe { return simd_x86_pshufd_xmm0_imm8_impl(elf, imm8); } return 0; }
 #[no_mangle]
 function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 { unsafe { return simd_x86_vpshufd_ymm0_imm8_impl(elf, imm8); } return 0; }
+
+// G-02f-110：+ more x86 select/mask vector ops 薄门闩。
+
+extern "C" function simd_x86_vmovups_ymm2_from_rbp_impl(elf: *u8, disp: i32): i32;
+extern "C" function simd_x86_pxor_xmm3_xmm3_impl(elf: *u8): i32;
+extern "C" function simd_x86_pcmpgtd_xmm2_xmm3_impl(elf: *u8): i32;
+extern "C" function simd_x86_pand_xmm0_xmm2_impl(elf: *u8): i32;
+extern "C" function simd_x86_pandn_xmm2_xmm1_impl(elf: *u8): i32;
+extern "C" function simd_x86_por_xmm0_xmm2_impl(elf: *u8): i32;
+extern "C" function simd_x86_xorps_xmm3_xmm3_impl(elf: *u8): i32;
+extern "C" function simd_x86_andps_xmm0_xmm2_impl(elf: *u8): i32;
+extern "C" function simd_x86_andnps_xmm2_xmm1_impl(elf: *u8): i32;
+extern "C" function simd_x86_orps_xmm0_xmm2_impl(elf: *u8): i32;
+extern "C" function simd_x86_vpxor_ymm3_ymm3_impl(elf: *u8): i32;
+extern "C" function simd_x86_vpcmpgtd_ymm2_ymm3_impl(elf: *u8): i32;
+extern "C" function simd_x86_vpand_ymm0_ymm2_impl(elf: *u8): i32;
+extern "C" function simd_x86_vpandn_ymm2_ymm1_impl(elf: *u8): i32;
+extern "C" function simd_x86_vpor_ymm0_ymm2_impl(elf: *u8): i32;
+extern "C" function simd_x86_cmpgtps_xmm2_xmm3_impl(elf: *u8): i32;
+extern "C" function simd_x86_vxorps_ymm3_ymm3_impl(elf: *u8): i32;
+extern "C" function simd_x86_vcmpgtps_ymm2_ymm3_impl(elf: *u8): i32;
+extern "C" function simd_x86_vandps_ymm0_ymm2_impl(elf: *u8): i32;
+
+/* ---- G-02f-110：simd_enc mask/select ops 门闩 ---- */
+
+#[no_mangle]
+function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 { unsafe { return simd_x86_vmovups_ymm2_from_rbp_impl(elf, disp); } return 0; }
+#[no_mangle]
+function simd_x86_pxor_xmm3_xmm3(elf: *u8): i32 { unsafe { return simd_x86_pxor_xmm3_xmm3_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_pcmpgtd_xmm2_xmm3(elf: *u8): i32 { unsafe { return simd_x86_pcmpgtd_xmm2_xmm3_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_pand_xmm0_xmm2(elf: *u8): i32 { unsafe { return simd_x86_pand_xmm0_xmm2_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_pandn_xmm2_xmm1(elf: *u8): i32 { unsafe { return simd_x86_pandn_xmm2_xmm1_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_por_xmm0_xmm2(elf: *u8): i32 { unsafe { return simd_x86_por_xmm0_xmm2_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_xorps_xmm3_xmm3(elf: *u8): i32 { unsafe { return simd_x86_xorps_xmm3_xmm3_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_andps_xmm0_xmm2(elf: *u8): i32 { unsafe { return simd_x86_andps_xmm0_xmm2_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_andnps_xmm2_xmm1(elf: *u8): i32 { unsafe { return simd_x86_andnps_xmm2_xmm1_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_orps_xmm0_xmm2(elf: *u8): i32 { unsafe { return simd_x86_orps_xmm0_xmm2_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vpxor_ymm3_ymm3(elf: *u8): i32 { unsafe { return simd_x86_vpxor_ymm3_ymm3_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vpcmpgtd_ymm2_ymm3(elf: *u8): i32 { unsafe { return simd_x86_vpcmpgtd_ymm2_ymm3_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vpand_ymm0_ymm2(elf: *u8): i32 { unsafe { return simd_x86_vpand_ymm0_ymm2_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vpandn_ymm2_ymm1(elf: *u8): i32 { unsafe { return simd_x86_vpandn_ymm2_ymm1_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vpor_ymm0_ymm2(elf: *u8): i32 { unsafe { return simd_x86_vpor_ymm0_ymm2_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_cmpgtps_xmm2_xmm3(elf: *u8): i32 { unsafe { return simd_x86_cmpgtps_xmm2_xmm3_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 { unsafe { return simd_x86_vxorps_ymm3_ymm3_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 { unsafe { return simd_x86_vcmpgtps_ymm2_ymm3_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 { unsafe { return simd_x86_vandps_ymm0_ymm2_impl(elf); } return 0; }

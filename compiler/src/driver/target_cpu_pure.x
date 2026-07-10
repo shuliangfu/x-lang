@@ -248,3 +248,33 @@ function flags_has_token(hay: *u8, token: *u8): i32 {
   }
   return 0;
 }
+
+// G-02f-110：+ platform detect helpers 薄门闩。
+
+extern "C" function shu_target_cpu_detect_x86_macro_fallback_impl(): i32;
+extern "C" function shu_target_cpu_detect_x86_linux_impl(): i32;
+extern "C" function shu_target_cpu_detect_x86_macos_impl(): i32;
+extern "C" function shu_target_cpu_detect_x86_impl(): i32;
+extern "C" function shu_target_cpu_detect_arm64_linux_impl(): i32;
+extern "C" function shu_target_cpu_detect_arm64_macos_impl(): i32;
+extern "C" function shu_target_cpu_detect_arm64_impl(): i32;
+extern "C" function shu_target_cpu_detect_riscv64_linux_impl(): i32;
+
+/* ---- G-02f-110：target_cpu detect 门闩 ---- */
+
+#[no_mangle]
+function shu_target_cpu_detect_x86_macro_fallback(): i32 { unsafe { return shu_target_cpu_detect_x86_macro_fallback_impl(); } return 0; }
+#[no_mangle]
+function shu_target_cpu_detect_x86_linux(): i32 { unsafe { return shu_target_cpu_detect_x86_linux_impl(); } return 0; }
+#[no_mangle]
+function shu_target_cpu_detect_x86_macos(): i32 { unsafe { return shu_target_cpu_detect_x86_macos_impl(); } return 0; }
+#[no_mangle]
+function shu_target_cpu_detect_x86(): i32 { unsafe { return shu_target_cpu_detect_x86_impl(); } return 0; }
+#[no_mangle]
+function shu_target_cpu_detect_arm64_linux(): i32 { unsafe { return shu_target_cpu_detect_arm64_linux_impl(); } return 0; }
+#[no_mangle]
+function shu_target_cpu_detect_arm64_macos(): i32 { unsafe { return shu_target_cpu_detect_arm64_macos_impl(); } return 0; }
+#[no_mangle]
+function shu_target_cpu_detect_arm64(): i32 { unsafe { return shu_target_cpu_detect_arm64_impl(); } return 0; }
+#[no_mangle]
+function shu_target_cpu_detect_riscv64_linux(): i32 { unsafe { return shu_target_cpu_detect_riscv64_linux_impl(); } return 0; }

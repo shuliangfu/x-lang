@@ -1,4 +1,5 @@
 /* target_cpu_pure.from_x.c — G-02f-2/3/4/5 product pure half of target_cpu.o
+ * G-02f-110 helper gates.
  * G-02f-103 helper gates.
  * G-02f-97 pure helper gates.
  *
@@ -337,7 +338,7 @@ int flags_has_token(const char *hay, const char *token) {
 /**
  * 编译期宏兜底（交叉编译或无 /proc/cpuinfo 时仍给出合理缺省）。
  */
-static uint32_t shu_target_cpu_detect_x86_macro_fallback(void) {
+uint32_t shu_target_cpu_detect_x86_macro_fallback_impl(void) {
     uint32_t f = SHUX_CPU_FEAT_SSE2;
 #if defined(__SSE4_1__)
     f |= SHUX_CPU_FEAT_SSE41;
@@ -362,12 +363,19 @@ static uint32_t shu_target_cpu_detect_x86_macro_fallback(void) {
 #endif
     return f;
 }
+uint32_t shu_target_cpu_detect_x86_macro_fallback(void) {
+  {
+    return shu_target_cpu_detect_x86_macro_fallback_impl();
+  }
+  return 0;
+}
+
 
 #if defined(__linux__)
 /**
  * Linux x86：解析 /proc/cpuinfo 首条 flags 行。
  */
-static uint32_t shu_target_cpu_detect_x86_linux(void) {
+uint32_t shu_target_cpu_detect_x86_linux_impl(void) {
     FILE *fp;
     char line[512];
     uint32_t f = 0;
@@ -401,13 +409,20 @@ static uint32_t shu_target_cpu_detect_x86_linux(void) {
         f = shu_target_cpu_detect_x86_macro_fallback();
     return f;
 }
+uint32_t shu_target_cpu_detect_x86_linux(void) {
+  {
+    return shu_target_cpu_detect_x86_linux_impl();
+  }
+  return 0;
+}
+
 #endif
 
 #if defined(__APPLE__)
 /**
  * macOS x86：sysctl machdep.cpu.leaf7_features / machdep.cpu.feature_bits。
  */
-static uint32_t shu_target_cpu_detect_x86_macos(void) {
+uint32_t shu_target_cpu_detect_x86_macos_impl(void) {
     uint64_t leaf7 = 0;
     uint64_t feat = 0;
     size_t sz;
@@ -435,9 +450,16 @@ static uint32_t shu_target_cpu_detect_x86_macos(void) {
         f = shu_target_cpu_detect_x86_macro_fallback();
     return f;
 }
+uint32_t shu_target_cpu_detect_x86_macos(void) {
+  {
+    return shu_target_cpu_detect_x86_macos_impl();
+  }
+  return 0;
+}
+
 #endif
 
-static uint32_t shu_target_cpu_detect_x86(void) {
+uint32_t shu_target_cpu_detect_x86_impl(void) {
 #if defined(__linux__)
     return shu_target_cpu_detect_x86_linux();
 #elif defined(__APPLE__)
@@ -446,6 +468,13 @@ static uint32_t shu_target_cpu_detect_x86(void) {
     return shu_target_cpu_detect_x86_macro_fallback();
 #endif
 }
+uint32_t shu_target_cpu_detect_x86(void) {
+  {
+    return shu_target_cpu_detect_x86_impl();
+  }
+  return 0;
+}
+
 
 #endif /* x86 */
 
@@ -455,7 +484,7 @@ static uint32_t shu_target_cpu_detect_x86(void) {
 /**
  * Linux arm64：/proc/cpuinfo Features 行（asimd=NEON，sve=SVE）。
  */
-static uint32_t shu_target_cpu_detect_arm64_linux(void) {
+uint32_t shu_target_cpu_detect_arm64_linux_impl(void) {
     FILE *fp;
     char line[512];
     uint32_t f = SHUX_CPU_FEAT_NEON;
@@ -475,11 +504,18 @@ static uint32_t shu_target_cpu_detect_arm64_linux(void) {
     fclose(fp);
     return f;
 }
+uint32_t shu_target_cpu_detect_arm64_linux(void) {
+  {
+    return shu_target_cpu_detect_arm64_linux_impl();
+  }
+  return 0;
+}
+
 #endif
 
 #if defined(__APPLE__)
 /** macOS arm64：NEON 为 mandatory；SVE 通过 hw.optional.arm.FEAT_SVE 探测。 */
-static uint32_t shu_target_cpu_detect_arm64_macos(void) {
+uint32_t shu_target_cpu_detect_arm64_macos_impl(void) {
     uint32_t f = SHUX_CPU_FEAT_NEON;
     int sve = 0;
     size_t sz = sizeof(sve);
@@ -488,9 +524,16 @@ static uint32_t shu_target_cpu_detect_arm64_macos(void) {
         f |= SHUX_CPU_FEAT_SVE;
     return f;
 }
+uint32_t shu_target_cpu_detect_arm64_macos(void) {
+  {
+    return shu_target_cpu_detect_arm64_macos_impl();
+  }
+  return 0;
+}
+
 #endif
 
-static uint32_t shu_target_cpu_detect_arm64(void) {
+uint32_t shu_target_cpu_detect_arm64_impl(void) {
 #if defined(__linux__)
     return shu_target_cpu_detect_arm64_linux();
 #elif defined(__APPLE__)
@@ -499,6 +542,13 @@ static uint32_t shu_target_cpu_detect_arm64(void) {
     return SHUX_CPU_FEAT_NEON;
 #endif
 }
+uint32_t shu_target_cpu_detect_arm64(void) {
+  {
+    return shu_target_cpu_detect_arm64_impl();
+  }
+  return 0;
+}
+
 
 #endif /* arm64 */
 
@@ -506,7 +556,7 @@ static uint32_t shu_target_cpu_detect_arm64(void) {
 
 #if defined(__linux__)
 /** Linux riscv64：isa 行含 'v' 时认为有 RVV。 */
-static uint32_t shu_target_cpu_detect_riscv64_linux(void) {
+uint32_t shu_target_cpu_detect_riscv64_linux_impl(void) {
     FILE *fp;
     char line[256];
     uint32_t f = 0;
@@ -531,6 +581,13 @@ static uint32_t shu_target_cpu_detect_riscv64_linux(void) {
     fclose(fp);
     return f;
 }
+uint32_t shu_target_cpu_detect_riscv64_linux(void) {
+  {
+    return shu_target_cpu_detect_riscv64_linux_impl();
+  }
+  return 0;
+}
+
 #endif
 
 static uint32_t shu_target_cpu_detect_riscv64(void) {

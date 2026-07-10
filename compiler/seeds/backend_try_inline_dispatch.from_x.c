@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-110 helper gates.
  * G-02f-109 helper gates.
  * Source intent: src/asm/backend_try_inline_dispatch.x (doc) + this seed (full C body).
  * Product: → src/asm/backend_try_inline_dispatch.o. Logic still C until full .x port.
@@ -368,7 +369,7 @@ int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, in
  * 解析 CALL 的 callee（同模块或 typeck 填写的 import dep/func）；写 callee 模块/arena/函数下标。
  * 返回 1=命中，0=未匹配。
  */
-static int32_t glue_call_lookup_callee_mod_fi_arena(struct ast_ASTArena *caller_arena, int32_t call_ref,
+int32_t glue_call_lookup_callee_mod_fi_arena_impl(struct ast_ASTArena *caller_arena, int32_t call_ref,
                                                     struct glue_AsmFuncCtx *ctx, struct ast_ASTArena **out_ca,
                                                     struct ast_Module **out_cm, int32_t *out_fi) {
   struct ast_PipelineDepCtx *pctx;
@@ -470,6 +471,15 @@ static int32_t glue_call_lookup_callee_mod_fi_arena(struct ast_ASTArena *caller_
   }
   return 0;
 }
+int32_t glue_call_lookup_callee_mod_fi_arena(struct ast_ASTArena *caller_arena, int32_t call_ref,
+                                                    struct glue_AsmFuncCtx *ctx, struct ast_ASTArena **out_ca,
+                                                    struct ast_Module **out_cm, int32_t *out_fi) {
+  {
+    return glue_call_lookup_callee_mod_fi_arena_impl(caller_arena, call_ref, ctx, out_ca, out_cm, out_fi);
+  }
+  return 0;
+}
+
 
 /**
  * 按名称查本模块函数下标；-1 未找到。
@@ -569,7 +579,7 @@ int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b,
  * callee 是否为 `return param0 binop param1`（两 i32 形参、非向量返回）。
  * 成功写 *out_binop_ko（4=add,5=sub,6=mul,7=div,8=mod）。
  */
-static int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
+int32_t glue_fold_func_returns_param01_scalar_binop_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                            int32_t func_idx, int32_t *out_binop_ko) {
   int32_t ret_ref;
   int32_t ko;
@@ -599,6 +609,14 @@ static int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *
   *out_binop_ko = ko;
   return 1;
 }
+int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                           int32_t func_idx, int32_t *out_binop_ko) {
+  {
+    return glue_fold_func_returns_param01_scalar_binop_impl(arena, mod, func_idx, out_binop_ko);
+  }
+  return 0;
+}
+
 
 /**
  * 模块内是否存在与 name 同名的 struct_layout（与 backend.x asm_module_named_type_has_struct_layout 一致）。
@@ -750,12 +768,20 @@ int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32
 /**
  * 将局部 VAR 有效地址装入 rax/x0（指针槽 load，值槽 lea）。
  */
-static int32_t glue_enc_local_slot_ptr_or_addr(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+int32_t glue_enc_local_slot_ptr_or_addr_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                               int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
   if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0)
     return backend_enc_load_rbp_to_rax_arch(elf_ctx, slot_off, ta);
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta);
 }
+int32_t glue_enc_local_slot_ptr_or_addr(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                              int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
+  {
+    return glue_enc_local_slot_ptr_or_addr_impl(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
+  }
+  return 0;
+}
+
 
 int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -764,13 +790,22 @@ int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena
   return glue_enc_local_slot_ptr_or_addr(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
 }
 
-static int32_t glue_arch_emit_local_slot_ptr_or_addr_text(struct ast_ASTArena *arena,
+int32_t glue_arch_emit_local_slot_ptr_or_addr_text_impl(struct ast_ASTArena *arena,
                                                           struct codegen_CodegenOutBuf *out, int32_t arg_ref,
                                                           int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
   if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0)
     return backend_arch_emit_load_rbp_to_rax(out, slot_off, ta);
   return backend_arch_emit_lea_rbp_to_rax(out, slot_off, ta);
 }
+int32_t glue_arch_emit_local_slot_ptr_or_addr_text(struct ast_ASTArena *arena,
+                                                          struct codegen_CodegenOutBuf *out, int32_t arg_ref,
+                                                          int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
+  {
+    return glue_arch_emit_local_slot_ptr_or_addr_text_impl(arena, out, arg_ref, slot_off, ta, asm_ctx);
+  }
+  return 0;
+}
+
 
 int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena,
                                                              struct codegen_CodegenOutBuf *out, int32_t arg_ref,
@@ -819,7 +854,7 @@ int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module
 /**
  * struct_lit 第 field_j 字段 init 来自哪一形参；成功写 out_param_ix。
  */
-static int32_t glue_struct_lit_field_init_param_index(struct ast_ASTArena *arena, struct ast_Module *mod,
+int32_t glue_struct_lit_field_init_param_index_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                       int32_t func_idx, int32_t lit_ref, int32_t field_j,
                                                       int32_t *out_param_ix) {
   int32_t init_ref;
@@ -841,11 +876,20 @@ static int32_t glue_struct_lit_field_init_param_index(struct ast_ASTArena *arena
   }
   return -1;
 }
+int32_t glue_struct_lit_field_init_param_index(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                      int32_t func_idx, int32_t lit_ref, int32_t field_j,
+                                                      int32_t *out_param_ix) {
+  {
+    return glue_struct_lit_field_init_param_index_impl(arena, mod, func_idx, lit_ref, field_j, out_param_ix);
+  }
+  return 0;
+}
+
 
 /**
  * 函数体是否为 `return Struct { f: param… }`（各字段 init 均为形参 VAR）。
  */
-static int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
+int32_t glue_fold_func_returns_param_struct_lit_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                        int32_t func_idx, int32_t *out_lit_ref) {
   int32_t ret_ref;
   int32_t nf;
@@ -871,11 +915,19 @@ static int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *aren
   *out_lit_ref = ret_ref;
   return 1;
 }
+int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                       int32_t func_idx, int32_t *out_lit_ref) {
+  {
+    return glue_fold_func_returns_param_struct_lit_impl(arena, mod, func_idx, out_lit_ref);
+  }
+  return 0;
+}
+
 
 /**
  * struct_lit 中字段名 fn/fnlen 对应的字段下标；失败返回 -1。
  */
-static int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t lit_ref, uint8_t *fn,
+int32_t glue_struct_lit_field_index_by_name_impl(struct ast_ASTArena *arena, int32_t lit_ref, uint8_t *fn,
                                                    int32_t fnlen) {
   int32_t nf;
   int32_t j;
@@ -901,11 +953,19 @@ static int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, i
   }
   return -1;
 }
+int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t lit_ref, uint8_t *fn,
+                                                   int32_t fnlen) {
+  {
+    return glue_struct_lit_field_index_by_name_impl(arena, lit_ref, fn, fnlen);
+  }
+  return 0;
+}
+
 
 /**
  * 外层 field_access 经 inner CALL（struct_lit 按值返回）映射到实参 expr_ref。
  */
-static int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, struct glue_AsmFuncCtx *ctx,
+int32_t glue_inner_call_arg_for_field_access_impl(struct ast_ASTArena *arena, struct glue_AsmFuncCtx *ctx,
                                                     int32_t inner_call_ref, int32_t outer_field_ref,
                                                     int32_t *out_arg_ref) {
   struct ast_ASTArena *callee_arena;
@@ -938,6 +998,15 @@ static int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, 
   *out_arg_ref = pipeline_expr_call_arg_ref(arena, inner_call_ref, pix);
   return (*out_arg_ref > 0) ? 1 : 0;
 }
+int32_t glue_inner_call_arg_for_field_access(struct ast_ASTArena *arena, struct glue_AsmFuncCtx *ctx,
+                                                    int32_t inner_call_ref, int32_t outer_field_ref,
+                                                    int32_t *out_arg_ref) {
+  {
+    return glue_inner_call_arg_for_field_access_impl(arena, ctx, inner_call_ref, outer_field_ref, out_arg_ref);
+  }
+  return 0;
+}
+
 
 /**
  * ELF CALL 内联：同模块 f(arg0) 且 f 为 return p.f（param0 单字段）时字段 load。
@@ -1000,7 +1069,7 @@ int32_t try_inline_param0_single_field_call_elf(struct ast_ASTArena *arena, stru
 /**
  * 在 dep 编译单元 struct layout 中按字段名查偏移（import Pair 等 caller 无 layout 时）。
  */
-static int32_t glue_dep_module_field_offset_by_name(struct ast_PipelineDepCtx *pctx, uint8_t *field_name,
+int32_t glue_dep_module_field_offset_by_name_impl(struct ast_PipelineDepCtx *pctx, uint8_t *field_name,
                                                     int32_t flen) {
   int32_t nd;
   int32_t di;
@@ -1038,11 +1107,19 @@ static int32_t glue_dep_module_field_offset_by_name(struct ast_PipelineDepCtx *p
   }
   return -1;
 }
+int32_t glue_dep_module_field_offset_by_name(struct ast_PipelineDepCtx *pctx, uint8_t *field_name,
+                                                    int32_t flen) {
+  {
+    return glue_dep_module_field_offset_by_name_impl(pctx, field_name, flen);
+  }
+  return 0;
+}
+
 
 /**
  * 解析 VAR 基址 FIELD_ACCESS 的字节偏移；import struct layout 在 dep 模块时走 deps 回落。
  */
-static int32_t glue_inline_var_field_access_offset(struct ast_ASTArena *arena, struct ast_Module *mod,
+int32_t glue_inline_var_field_access_offset_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    struct ast_PipelineDepCtx *pctx, uint8_t *asm_ctx,
                                                    int32_t fa_ref) {
   int32_t base_ref;
@@ -1112,6 +1189,15 @@ static int32_t glue_inline_var_field_access_offset(struct ast_ASTArena *arena, s
   }
   return pipeline_expr_field_access_layout_offset(arena, mod, fa_ref);
 }
+int32_t glue_inline_var_field_access_offset(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                   struct ast_PipelineDepCtx *pctx, uint8_t *asm_ctx,
+                                                   int32_t fa_ref) {
+  {
+    return glue_inline_var_field_access_offset_impl(arena, mod, pctx, asm_ctx, fa_ref);
+  }
+  return 0;
+}
+
 
 /**
  * p.a + p.b 内联：同一 VAR 基址两字段 load32 + add（WPO-S3 cross_ret 等）。
@@ -1365,7 +1451,7 @@ int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform
 }
 
 /** ARRAY_LIT 第 lane 个元素是否为整型常量；成功写 *out。 */
-static int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane,
+int32_t glue_try_array_lit_lane_const_i32_impl(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane,
                                                  int32_t *out) {
   int32_t elem_ref;
   if (!arena || arr_ref <= 0 || !out || lane < 0)
@@ -1377,19 +1463,34 @@ static int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int
   elem_ref = pipeline_expr_array_lit_elem_ref(arena, arr_ref, lane);
   return glue_try_expr_const_i32(arena, elem_ref, out);
 }
+int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane,
+                                                 int32_t *out) {
+  {
+    return glue_try_array_lit_lane_const_i32_impl(arena, arr_ref, lane, out);
+  }
+  return 0;
+}
+
 
 /** 向量逐 lane 标量 binop kind（与 pipeline_glue glue_is_vector_lane_scalar_binop_ko 一致）。 */
-static int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko) {
+int32_t glue_is_vector_lane_scalar_binop_ko_impl(int32_t ko) {
   if (ko == 51)
     ko = 4;
   return (ko >= 4 && ko <= 13) ? 1 : 0;
 }
+int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko) {
+  {
+    return glue_is_vector_lane_scalar_binop_ko_impl(ko);
+  }
+  return 0;
+}
+
 
 /**
  * callee 是否为 `return param0 binop param1`（两形参、SIMD 向量返回）。
  * 成功写 *out_binop_ko（4=add,5=sub,6=mul,7=div,8=mod 等）。
  */
-static int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
+int32_t glue_fold_func_returns_param01_vector_binop_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                            int32_t func_idx, int32_t *out_binop_ko) {
   int32_t ret_ref;
   int32_t ko;
@@ -1423,11 +1524,19 @@ static int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *
   *out_binop_ko = ko;
   return 1;
 }
+int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                           int32_t func_idx, int32_t *out_binop_ko) {
+  {
+    return glue_fold_func_returns_param01_vector_binop_impl(arena, mod, func_idx, out_binop_ko);
+  }
+  return 0;
+}
+
 
 /**
  * callee 是否为 `return param0[index_const]`（单形参、标量返回）；成功写 *out_lane。
  */
-static int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, struct ast_Module *mod,
+int32_t glue_fold_func_returns_param0_index_const_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                          int32_t func_idx, int32_t *out_lane) {
   int32_t ret_ref;
   int32_t base_ref;
@@ -1449,6 +1558,14 @@ static int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *ar
   *out_lane = lane;
   return 1;
 }
+int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                         int32_t func_idx, int32_t *out_lane) {
+  {
+    return glue_fold_func_returns_param0_index_const_impl(arena, mod, func_idx, out_lane);
+  }
+  return 0;
+}
+
 
 /**
  * WPO-S2 vec 特化：laneK(vec_binop([const…],[const…])) 编译期 fold 为标量 imm（rax）。

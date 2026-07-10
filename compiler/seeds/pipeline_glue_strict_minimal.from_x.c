@@ -1,4 +1,5 @@
 /* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-11 product TU
+ * G-02f-110 helper gates.
  * G-02f-108 helper gates.
  * G-02f-107 helper gates.
  * Product object from this seed; logic still C until full .x port.
@@ -172,7 +173,7 @@ __attribute__((weak)) void parser_diagnostic_parse_commit_post(struct ast_ASTAre
 }
 
 // #region debug-point A:try-propagate-state
-static void debug_try_propagate_report_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, int32_t func_ix,
+void debug_try_propagate_report_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expr_ref, int32_t func_ix,
                                                       int32_t return_type_ref, int32_t func_ret,
                                                       int32_t enclosing_return_type_ref, int32_t op_ty) {
   FILE *fp;
@@ -209,6 +210,14 @@ static void debug_try_propagate_report_strict_minimal(struct ast_ASTArena *arena
            url, session, expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
   (void)system(cmd);
 }
+void debug_try_propagate_report_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, int32_t func_ix,
+                                                      int32_t return_type_ref, int32_t func_ret,
+                                                      int32_t enclosing_return_type_ref, int32_t op_ty) {
+  {
+    debug_try_propagate_report_strict_minimal_impl(arena, expr_ref, func_ix, return_type_ref, func_ret, enclosing_return_type_ref, op_ty);
+  }
+}
+
 // #endregion
 
 enum ast_TypeKind {
@@ -860,7 +869,7 @@ int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(struct
 }
 
 
-static int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTArena *dep_arena,
+int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(struct ast_ASTArena *dep_arena,
                                                                          int32_t dep_return_type_ref,
                                                                          struct ast_ASTArena *caller_arena) {
   int32_t kind;
@@ -890,7 +899,7 @@ static int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct a
   elem_ref = pipeline_type_elem_ref_at(dep_arena, dep_return_type_ref);
   inner_mapped = 0;
   if (elem_ref > 0) {
-    inner_mapped = pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena, elem_ref, caller_arena);
+    inner_mapped = pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(dep_arena, elem_ref, caller_arena);
     if (inner_mapped == 0)
       return 0;
   }
@@ -920,6 +929,15 @@ static int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct a
     return 0;
   return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
 }
+int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTArena *dep_arena,
+                                                                         int32_t dep_return_type_ref,
+                                                                         struct ast_ASTArena *caller_arena) {
+  {
+    return pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(dep_arena, dep_return_type_ref, caller_arena);
+  }
+  return 0;
+}
+
 
 __attribute__((weak)) int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   int32_t kind;
@@ -1515,7 +1533,7 @@ int32_t pipeline_typeck_const_name_matches_strict_minimal(uint8_t *name, int32_t
 }
 
 
-static int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref,
+int32_t pipeline_typeck_const_expr_ref_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expr_ref,
                                                              const char *const_names[], int32_t n_const_names) {
   int32_t kind;
   int32_t i;
@@ -1539,18 +1557,18 @@ static int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena
     return 0;
   }
   if (kind >= (int32_t)ast_ExprKind_EXPR_ADD && kind <= (int32_t)ast_ExprKind_EXPR_LOGOR)
-    return pipeline_typeck_const_expr_ref_strict_minimal(arena, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+    return pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, pipeline_expr_binop_left_ref_at(arena, expr_ref),
                                                          const_names, n_const_names) &&
-           pipeline_typeck_const_expr_ref_strict_minimal(arena, pipeline_expr_binop_right_ref_at(arena, expr_ref),
+           pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, pipeline_expr_binop_right_ref_at(arena, expr_ref),
                                                          const_names, n_const_names);
   if (kind == (int32_t)ast_ExprKind_EXPR_NEG || kind == (int32_t)ast_ExprKind_EXPR_BITNOT ||
       kind == (int32_t)ast_ExprKind_EXPR_LOGNOT)
-    return pipeline_typeck_const_expr_ref_strict_minimal(arena, pipeline_expr_unary_operand_ref_at(arena, expr_ref),
+    return pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, pipeline_expr_unary_operand_ref_at(arena, expr_ref),
                                                          const_names, n_const_names);
   if (kind == (int32_t)ast_ExprKind_EXPR_ARRAY_LIT) {
     int32_t ne = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
     for (i = 0; i < ne; i++) {
-      if (!pipeline_typeck_const_expr_ref_strict_minimal(arena, pipeline_expr_array_lit_elem_ref(arena, expr_ref, i),
+      if (!pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, pipeline_expr_array_lit_elem_ref(arena, expr_ref, i),
                                                          const_names, n_const_names))
         return 0;
     }
@@ -1558,6 +1576,14 @@ static int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena
   }
   return 0;
 }
+int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref,
+                                                             const char *const_names[], int32_t n_const_names) {
+  {
+    return pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, expr_ref, const_names, n_const_names);
+  }
+  return 0;
+}
+
 
 __attribute__((weak)) int32_t pipeline_asm_init_is_empty_array_lit_c(struct ast_ASTArena *arena, int32_t init_ref) {
   if (!arena || init_ref <= 0)
@@ -1921,7 +1947,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_return_slice_region_c(struct
   return 0;
 }
 
-static int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal(struct ast_ASTArena *arena, uint8_t *name,
+int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal_impl(struct ast_ASTArena *arena, uint8_t *name,
                                                                             int32_t name_len) {
   static const uint8_t prefix[] = "Result_";
   static const uint8_t n_i32[] = "i32";
@@ -1957,6 +1983,14 @@ static int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal(stru
     return pipeline_type_ensure_by_kind_ord(arena, (int32_t)ast_TypeKind_TYPE_BOOL);
   return 0;
 }
+int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal(struct ast_ASTArena *arena, uint8_t *name,
+                                                                            int32_t name_len) {
+  {
+    return pipeline_typeck_result_payload_type_from_name_strict_minimal_impl(arena, name, name_len);
+  }
+  return 0;
+}
+
 
 __attribute__((weak)) int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module,
                                                                          struct ast_ASTArena *arena, int32_t expr_ref,

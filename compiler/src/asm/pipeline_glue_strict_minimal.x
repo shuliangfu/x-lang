@@ -140,3 +140,21 @@ function pipeline_typeck_const_name_matches_strict_minimal(name: *u8, nlen: i32,
   unsafe { return pipeline_typeck_const_name_matches_strict_minimal_impl(name, nlen, lit); }
   return 0;
 }
+
+// G-02f-110：+ dep_return/const_expr/result_payload/debug_propagate 薄门闩。
+
+extern "C" function debug_try_propagate_report_strict_minimal_impl(arena: *u8, er: i32, fi: i32, rt: i32, f: i32): void;
+extern "C" function pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(dep_arena: *u8, dep_rt: i32, caller: *u8): i32;
+extern "C" function pipeline_typeck_const_expr_ref_strict_minimal_impl(arena: *u8, er: i32): i32;
+extern "C" function pipeline_typeck_result_payload_type_from_name_strict_minimal_impl(arena: *u8, name: *u8, nlen: i32): i32;
+
+/* ---- G-02f-110：pipeline remaining typeck 门闩 ---- */
+
+#[no_mangle]
+function debug_try_propagate_report_strict_minimal(arena: *u8, er: i32, fi: i32, rt: i32, f: i32): void { unsafe { debug_try_propagate_report_strict_minimal_impl(arena, er, fi, rt, f); } }
+#[no_mangle]
+function pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena: *u8, dep_rt: i32, caller: *u8): i32 { unsafe { return pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(dep_arena, dep_rt, caller); } return 0; }
+#[no_mangle]
+function pipeline_typeck_const_expr_ref_strict_minimal(arena: *u8, er: i32): i32 { unsafe { return pipeline_typeck_const_expr_ref_strict_minimal_impl(arena, er); } return 0; }
+#[no_mangle]
+function pipeline_typeck_result_payload_type_from_name_strict_minimal(arena: *u8, name: *u8, nlen: i32): i32 { unsafe { return pipeline_typeck_result_payload_type_from_name_strict_minimal_impl(arena, name, nlen); } return 0; }

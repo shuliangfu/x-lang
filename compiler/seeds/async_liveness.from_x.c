@@ -1,4 +1,5 @@
 /* seeds/async_liveness.from_x.c — G-02f-18 product TU
+ * G-02f-110 helper gates.
  * G-02f-108 helper gates.
  * Product: src/async/async_liveness.o; logic still C until full .x port.
  */
@@ -13,17 +14,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int expr_has_await(const struct ASTExpr *e);
+int expr_has_await(const struct ASTExpr *e);
 int block_has_await(const struct ASTBlock *b);
 int block_has_io_read_await(const struct ASTBlock *b);
 int block_has_io_write_await(const struct ASTBlock *b);
-static int expr_count_await(const struct ASTExpr *e);
+int expr_count_await(const struct ASTExpr *e);
 int block_count_await(const struct ASTBlock *b);
-static int expr_refs_var(const struct ASTExpr *e, const char *name);
+int expr_refs_var(const struct ASTExpr *e, const char *name);
 int block_refs_var(const struct ASTBlock *b, const char *name);
 
 /** 表达式是否含 await（递归）。 */
-static int expr_has_await(const struct ASTExpr *e) {
+int expr_has_await_impl(const struct ASTExpr *e) {
     if (!e) return 0;
     if (e->kind == AST_EXPR_AWAIT) return 1;
     switch (e->kind) {
@@ -37,56 +38,63 @@ static int expr_has_await(const struct ASTExpr *e) {
         case AST_EXPR_DIV_ASSIGN: case AST_EXPR_MOD_ASSIGN:
         case AST_EXPR_BITAND_ASSIGN: case AST_EXPR_BITOR_ASSIGN: case AST_EXPR_BITXOR_ASSIGN:
         case AST_EXPR_SHL_ASSIGN: case AST_EXPR_SHR_ASSIGN:
-            return expr_has_await(e->value.binop.left) || expr_has_await(e->value.binop.right);
+            return expr_has_await_impl(e->value.binop.left) || expr_has_await_impl(e->value.binop.right);
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT:
         case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
         case AST_EXPR_RETURN: case AST_EXPR_PANIC:
-            return expr_has_await(e->value.unary.operand);
+            return expr_has_await_impl(e->value.unary.operand);
         case AST_EXPR_AS:
-            return expr_has_await(e->value.as_type.operand);
+            return expr_has_await_impl(e->value.as_type.operand);
         case AST_EXPR_IF: case AST_EXPR_TERNARY:
-            return expr_has_await(e->value.if_expr.cond)
-                || expr_has_await(e->value.if_expr.then_expr)
-                || (e->value.if_expr.else_expr && expr_has_await(e->value.if_expr.else_expr));
+            return expr_has_await_impl(e->value.if_expr.cond)
+                || expr_has_await_impl(e->value.if_expr.then_expr)
+                || (e->value.if_expr.else_expr && expr_has_await_impl(e->value.if_expr.else_expr));
         case AST_EXPR_BLOCK:
             return block_has_await(e->value.block);
         case AST_EXPR_FIELD_ACCESS:
-            return expr_has_await(e->value.field_access.base);
+            return expr_has_await_impl(e->value.field_access.base);
         case AST_EXPR_INDEX:
-            return expr_has_await(e->value.index.base) || expr_has_await(e->value.index.index_expr);
+            return expr_has_await_impl(e->value.index.base) || expr_has_await_impl(e->value.index.index_expr);
         case AST_EXPR_CALL:
-            if (expr_has_await(e->value.call.callee)) return 1;
+            if (expr_has_await_impl(e->value.call.callee)) return 1;
             for (int i = 0; i < e->value.call.num_args; i++)
-                if (expr_has_await(e->value.call.args[i])) return 1;
+                if (expr_has_await_impl(e->value.call.args[i])) return 1;
             return 0;
         case AST_EXPR_METHOD_CALL:
-            if (expr_has_await(e->value.method_call.base)) return 1;
+            if (expr_has_await_impl(e->value.method_call.base)) return 1;
             for (int i = 0; i < e->value.method_call.num_args; i++)
-                if (expr_has_await(e->value.method_call.args[i])) return 1;
+                if (expr_has_await_impl(e->value.method_call.args[i])) return 1;
             return 0;
         case AST_EXPR_STRUCT_LIT:
             for (int i = 0; i < e->value.struct_lit.num_fields; i++)
-                if (expr_has_await(e->value.struct_lit.inits[i])) return 1;
+                if (expr_has_await_impl(e->value.struct_lit.inits[i])) return 1;
             return 0;
         case AST_EXPR_ARRAY_LIT:
             for (int i = 0; i < e->value.array_lit.num_elems; i++)
-                if (expr_has_await(e->value.array_lit.elems[i])) return 1;
+                if (expr_has_await_impl(e->value.array_lit.elems[i])) return 1;
             return 0;
         case AST_EXPR_MATCH:
-            if (expr_has_await(e->value.match_expr.matched_expr)) return 1;
+            if (expr_has_await_impl(e->value.match_expr.matched_expr)) return 1;
             for (int i = 0; i < e->value.match_expr.num_arms; i++)
-                if (expr_has_await(e->value.match_expr.arms[i].result)) return 1;
+                if (expr_has_await_impl(e->value.match_expr.arms[i].result)) return 1;
             return 0;
         default:
             return 0;
     }
 }
+int expr_has_await(const struct ASTExpr *e) {
+  {
+    return expr_has_await_impl(e);
+  }
+  return 0;
+}
+
 
 /** 统计表达式内 await 个数（递归累加）。 */
-static int expr_count_await(const struct ASTExpr *e) {
+int expr_count_await_impl(const struct ASTExpr *e) {
     if (!e) return 0;
     if (e->kind == AST_EXPR_AWAIT)
-        return 1 + expr_count_await(e->value.unary.operand);
+        return 1 + expr_count_await_impl(e->value.unary.operand);
     switch (e->kind) {
         case AST_EXPR_ADD: case AST_EXPR_SUB: case AST_EXPR_MUL: case AST_EXPR_DIV:
         case AST_EXPR_MOD: case AST_EXPR_SHL: case AST_EXPR_SHR:
@@ -98,52 +106,59 @@ static int expr_count_await(const struct ASTExpr *e) {
         case AST_EXPR_DIV_ASSIGN: case AST_EXPR_MOD_ASSIGN:
         case AST_EXPR_BITAND_ASSIGN: case AST_EXPR_BITOR_ASSIGN: case AST_EXPR_BITXOR_ASSIGN:
         case AST_EXPR_SHL_ASSIGN: case AST_EXPR_SHR_ASSIGN:
-            return expr_count_await(e->value.binop.left) + expr_count_await(e->value.binop.right);
+            return expr_count_await_impl(e->value.binop.left) + expr_count_await_impl(e->value.binop.right);
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT:
         case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
         case AST_EXPR_RETURN: case AST_EXPR_PANIC:
-            return expr_count_await(e->value.unary.operand);
+            return expr_count_await_impl(e->value.unary.operand);
         case AST_EXPR_AS:
-            return expr_count_await(e->value.as_type.operand);
+            return expr_count_await_impl(e->value.as_type.operand);
         case AST_EXPR_IF: case AST_EXPR_TERNARY:
-            return expr_count_await(e->value.if_expr.cond)
-                + expr_count_await(e->value.if_expr.then_expr)
-                + (e->value.if_expr.else_expr ? expr_count_await(e->value.if_expr.else_expr) : 0);
+            return expr_count_await_impl(e->value.if_expr.cond)
+                + expr_count_await_impl(e->value.if_expr.then_expr)
+                + (e->value.if_expr.else_expr ? expr_count_await_impl(e->value.if_expr.else_expr) : 0);
         case AST_EXPR_BLOCK:
             return block_count_await(e->value.block);
         case AST_EXPR_FIELD_ACCESS:
-            return expr_count_await(e->value.field_access.base);
+            return expr_count_await_impl(e->value.field_access.base);
         case AST_EXPR_INDEX:
-            return expr_count_await(e->value.index.base) + expr_count_await(e->value.index.index_expr);
+            return expr_count_await_impl(e->value.index.base) + expr_count_await_impl(e->value.index.index_expr);
         case AST_EXPR_CALL:
-            { int n = expr_count_await(e->value.call.callee);
+            { int n = expr_count_await_impl(e->value.call.callee);
               for (int i = 0; i < e->value.call.num_args; i++)
-                  n += expr_count_await(e->value.call.args[i]);
+                  n += expr_count_await_impl(e->value.call.args[i]);
               return n; }
         case AST_EXPR_METHOD_CALL:
-            { int n = expr_count_await(e->value.method_call.base);
+            { int n = expr_count_await_impl(e->value.method_call.base);
               for (int i = 0; i < e->value.method_call.num_args; i++)
-                  n += expr_count_await(e->value.method_call.args[i]);
+                  n += expr_count_await_impl(e->value.method_call.args[i]);
               return n; }
         case AST_EXPR_STRUCT_LIT:
             { int n = 0;
               for (int i = 0; i < e->value.struct_lit.num_fields; i++)
-                  n += expr_count_await(e->value.struct_lit.inits[i]);
+                  n += expr_count_await_impl(e->value.struct_lit.inits[i]);
               return n; }
         case AST_EXPR_ARRAY_LIT:
             { int n = 0;
               for (int i = 0; i < e->value.array_lit.num_elems; i++)
-                  n += expr_count_await(e->value.array_lit.elems[i]);
+                  n += expr_count_await_impl(e->value.array_lit.elems[i]);
               return n; }
         case AST_EXPR_MATCH:
-            { int n = expr_count_await(e->value.match_expr.matched_expr);
+            { int n = expr_count_await_impl(e->value.match_expr.matched_expr);
               for (int i = 0; i < e->value.match_expr.num_arms; i++)
-                  n += expr_count_await(e->value.match_expr.arms[i].result);
+                  n += expr_count_await_impl(e->value.match_expr.arms[i].result);
               return n; }
         default:
             return 0;
     }
 }
+int expr_count_await(const struct ASTExpr *e) {
+  {
+    return expr_count_await_impl(e);
+  }
+  return 0;
+}
+
 
 /** 块内是否存在 await（A3 v0 不扫描 loop/for 体）。 */
 int block_has_await_impl(const struct ASTBlock *b) {
@@ -205,7 +220,7 @@ int async_liveness_callee_is_io_write(const struct ASTFunc *callee) {
 
 
 /** 表达式是否含 await read/read_fd（递归）。 */
-static int expr_has_io_read_await(const struct ASTExpr *e) {
+int expr_has_io_read_await_impl(const struct ASTExpr *e) {
     const struct ASTExpr *op;
     const struct ASTFunc *callee;
     if (!e)
@@ -222,7 +237,7 @@ static int expr_has_io_read_await(const struct ASTExpr *e) {
         /* 复用 await 扫描路径：对含 await 的子树递归（避免漏嵌套 expr）。 */
         switch (e->kind) {
             case AST_EXPR_AWAIT:
-                return expr_has_io_read_await(e->value.unary.operand);
+                return expr_has_io_read_await_impl(e->value.unary.operand);
             case AST_EXPR_ADD: case AST_EXPR_SUB: case AST_EXPR_MUL: case AST_EXPR_DIV:
             case AST_EXPR_MOD: case AST_EXPR_SHL: case AST_EXPR_SHR:
             case AST_EXPR_BITAND: case AST_EXPR_BITOR: case AST_EXPR_BITXOR:
@@ -233,47 +248,47 @@ static int expr_has_io_read_await(const struct ASTExpr *e) {
             case AST_EXPR_DIV_ASSIGN: case AST_EXPR_MOD_ASSIGN:
             case AST_EXPR_BITAND_ASSIGN: case AST_EXPR_BITOR_ASSIGN: case AST_EXPR_BITXOR_ASSIGN:
             case AST_EXPR_SHL_ASSIGN: case AST_EXPR_SHR_ASSIGN:
-                return expr_has_io_read_await(e->value.binop.left)
-                    || expr_has_io_read_await(e->value.binop.right);
+                return expr_has_io_read_await_impl(e->value.binop.left)
+                    || expr_has_io_read_await_impl(e->value.binop.right);
             case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT:
             case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
             case AST_EXPR_RETURN: case AST_EXPR_PANIC:
-                return expr_has_io_read_await(e->value.unary.operand);
+                return expr_has_io_read_await_impl(e->value.unary.operand);
             case AST_EXPR_AS:
-                return expr_has_io_read_await(e->value.as_type.operand);
+                return expr_has_io_read_await_impl(e->value.as_type.operand);
             case AST_EXPR_IF: case AST_EXPR_TERNARY:
-                return expr_has_io_read_await(e->value.if_expr.cond)
-                    || expr_has_io_read_await(e->value.if_expr.then_expr)
-                    || (e->value.if_expr.else_expr && expr_has_io_read_await(e->value.if_expr.else_expr));
+                return expr_has_io_read_await_impl(e->value.if_expr.cond)
+                    || expr_has_io_read_await_impl(e->value.if_expr.then_expr)
+                    || (e->value.if_expr.else_expr && expr_has_io_read_await_impl(e->value.if_expr.else_expr));
             case AST_EXPR_BLOCK:
                 return block_has_io_read_await(e->value.block);
             case AST_EXPR_FIELD_ACCESS:
-                return expr_has_io_read_await(e->value.field_access.base);
+                return expr_has_io_read_await_impl(e->value.field_access.base);
             case AST_EXPR_INDEX:
-                return expr_has_io_read_await(e->value.index.base)
-                    || expr_has_io_read_await(e->value.index.index_expr);
+                return expr_has_io_read_await_impl(e->value.index.base)
+                    || expr_has_io_read_await_impl(e->value.index.index_expr);
             case AST_EXPR_CALL:
-                if (expr_has_io_read_await(e->value.call.callee)) return 1;
+                if (expr_has_io_read_await_impl(e->value.call.callee)) return 1;
                 for (int i = 0; i < e->value.call.num_args; i++)
-                    if (expr_has_io_read_await(e->value.call.args[i])) return 1;
+                    if (expr_has_io_read_await_impl(e->value.call.args[i])) return 1;
                 return 0;
             case AST_EXPR_METHOD_CALL:
-                if (expr_has_io_read_await(e->value.method_call.base)) return 1;
+                if (expr_has_io_read_await_impl(e->value.method_call.base)) return 1;
                 for (int i = 0; i < e->value.method_call.num_args; i++)
-                    if (expr_has_io_read_await(e->value.method_call.args[i])) return 1;
+                    if (expr_has_io_read_await_impl(e->value.method_call.args[i])) return 1;
                 return 0;
             case AST_EXPR_STRUCT_LIT:
                 for (int i = 0; i < e->value.struct_lit.num_fields; i++)
-                    if (expr_has_io_read_await(e->value.struct_lit.inits[i])) return 1;
+                    if (expr_has_io_read_await_impl(e->value.struct_lit.inits[i])) return 1;
                 return 0;
             case AST_EXPR_ARRAY_LIT:
                 for (int i = 0; i < e->value.array_lit.num_elems; i++)
-                    if (expr_has_io_read_await(e->value.array_lit.elems[i])) return 1;
+                    if (expr_has_io_read_await_impl(e->value.array_lit.elems[i])) return 1;
                 return 0;
             case AST_EXPR_MATCH:
-                if (expr_has_io_read_await(e->value.match_expr.matched_expr)) return 1;
+                if (expr_has_io_read_await_impl(e->value.match_expr.matched_expr)) return 1;
                 for (int i = 0; i < e->value.match_expr.num_arms; i++)
-                    if (expr_has_io_read_await(e->value.match_expr.arms[i].result)) return 1;
+                    if (expr_has_io_read_await_impl(e->value.match_expr.arms[i].result)) return 1;
                 return 0;
             default:
                 return 0;
@@ -281,9 +296,16 @@ static int expr_has_io_read_await(const struct ASTExpr *e) {
     }
     return 0;
 }
+int expr_has_io_read_await(const struct ASTExpr *e) {
+  {
+    return expr_has_io_read_await_impl(e);
+  }
+  return 0;
+}
+
 
 /** 表达式是否含 await write/write_fd（递归）。 */
-static int expr_has_io_write_await(const struct ASTExpr *e) {
+int expr_has_io_write_await_impl(const struct ASTExpr *e) {
     const struct ASTExpr *op;
     const struct ASTFunc *callee;
     if (!e)
@@ -299,7 +321,7 @@ static int expr_has_io_write_await(const struct ASTExpr *e) {
     if (expr_has_await(e)) {
         switch (e->kind) {
             case AST_EXPR_AWAIT:
-                return expr_has_io_write_await(e->value.unary.operand);
+                return expr_has_io_write_await_impl(e->value.unary.operand);
             case AST_EXPR_ADD: case AST_EXPR_SUB: case AST_EXPR_MUL: case AST_EXPR_DIV:
             case AST_EXPR_MOD: case AST_EXPR_SHL: case AST_EXPR_SHR:
             case AST_EXPR_BITAND: case AST_EXPR_BITOR: case AST_EXPR_BITXOR:
@@ -310,47 +332,47 @@ static int expr_has_io_write_await(const struct ASTExpr *e) {
             case AST_EXPR_DIV_ASSIGN: case AST_EXPR_MOD_ASSIGN:
             case AST_EXPR_BITAND_ASSIGN: case AST_EXPR_BITOR_ASSIGN: case AST_EXPR_BITXOR_ASSIGN:
             case AST_EXPR_SHL_ASSIGN: case AST_EXPR_SHR_ASSIGN:
-                return expr_has_io_write_await(e->value.binop.left)
-                    || expr_has_io_write_await(e->value.binop.right);
+                return expr_has_io_write_await_impl(e->value.binop.left)
+                    || expr_has_io_write_await_impl(e->value.binop.right);
             case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT:
             case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
             case AST_EXPR_RETURN: case AST_EXPR_PANIC:
-                return expr_has_io_write_await(e->value.unary.operand);
+                return expr_has_io_write_await_impl(e->value.unary.operand);
             case AST_EXPR_AS:
-                return expr_has_io_write_await(e->value.as_type.operand);
+                return expr_has_io_write_await_impl(e->value.as_type.operand);
             case AST_EXPR_IF: case AST_EXPR_TERNARY:
-                return expr_has_io_write_await(e->value.if_expr.cond)
-                    || expr_has_io_write_await(e->value.if_expr.then_expr)
-                    || (e->value.if_expr.else_expr && expr_has_io_write_await(e->value.if_expr.else_expr));
+                return expr_has_io_write_await_impl(e->value.if_expr.cond)
+                    || expr_has_io_write_await_impl(e->value.if_expr.then_expr)
+                    || (e->value.if_expr.else_expr && expr_has_io_write_await_impl(e->value.if_expr.else_expr));
             case AST_EXPR_BLOCK:
                 return block_has_io_write_await(e->value.block);
             case AST_EXPR_FIELD_ACCESS:
-                return expr_has_io_write_await(e->value.field_access.base);
+                return expr_has_io_write_await_impl(e->value.field_access.base);
             case AST_EXPR_INDEX:
-                return expr_has_io_write_await(e->value.index.base)
-                    || expr_has_io_write_await(e->value.index.index_expr);
+                return expr_has_io_write_await_impl(e->value.index.base)
+                    || expr_has_io_write_await_impl(e->value.index.index_expr);
             case AST_EXPR_CALL:
-                if (expr_has_io_write_await(e->value.call.callee)) return 1;
+                if (expr_has_io_write_await_impl(e->value.call.callee)) return 1;
                 for (int i = 0; i < e->value.call.num_args; i++)
-                    if (expr_has_io_write_await(e->value.call.args[i])) return 1;
+                    if (expr_has_io_write_await_impl(e->value.call.args[i])) return 1;
                 return 0;
             case AST_EXPR_METHOD_CALL:
-                if (expr_has_io_write_await(e->value.method_call.base)) return 1;
+                if (expr_has_io_write_await_impl(e->value.method_call.base)) return 1;
                 for (int i = 0; i < e->value.method_call.num_args; i++)
-                    if (expr_has_io_write_await(e->value.method_call.args[i])) return 1;
+                    if (expr_has_io_write_await_impl(e->value.method_call.args[i])) return 1;
                 return 0;
             case AST_EXPR_STRUCT_LIT:
                 for (int i = 0; i < e->value.struct_lit.num_fields; i++)
-                    if (expr_has_io_write_await(e->value.struct_lit.inits[i])) return 1;
+                    if (expr_has_io_write_await_impl(e->value.struct_lit.inits[i])) return 1;
                 return 0;
             case AST_EXPR_ARRAY_LIT:
                 for (int i = 0; i < e->value.array_lit.num_elems; i++)
-                    if (expr_has_io_write_await(e->value.array_lit.elems[i])) return 1;
+                    if (expr_has_io_write_await_impl(e->value.array_lit.elems[i])) return 1;
                 return 0;
             case AST_EXPR_MATCH:
-                if (expr_has_io_write_await(e->value.match_expr.matched_expr)) return 1;
+                if (expr_has_io_write_await_impl(e->value.match_expr.matched_expr)) return 1;
                 for (int i = 0; i < e->value.match_expr.num_arms; i++)
-                    if (expr_has_io_write_await(e->value.match_expr.arms[i].result)) return 1;
+                    if (expr_has_io_write_await_impl(e->value.match_expr.arms[i].result)) return 1;
                 return 0;
             default:
                 return 0;
@@ -358,6 +380,13 @@ static int expr_has_io_write_await(const struct ASTExpr *e) {
     }
     return 0;
 }
+int expr_has_io_write_await(const struct ASTExpr *e) {
+  {
+    return expr_has_io_write_await_impl(e);
+  }
+  return 0;
+}
+
 
 /** 块内是否含 await read/read_fd。 */
 int block_has_io_read_await_impl(const struct ASTBlock *b) {
@@ -404,7 +433,7 @@ int block_has_io_write_await(const struct ASTBlock *b) {
 
 
 /** 表达式是否引用变量 name。 */
-static int expr_refs_var(const struct ASTExpr *e, const char *name) {
+int expr_refs_var_impl(const struct ASTExpr *e, const char *name) {
     if (!e || !name || !name[0]) return 0;
     if (e->kind == AST_EXPR_VAR && e->value.var.name && strcmp(e->value.var.name, name) == 0)
         return 1;
@@ -419,50 +448,57 @@ static int expr_refs_var(const struct ASTExpr *e, const char *name) {
         case AST_EXPR_DIV_ASSIGN: case AST_EXPR_MOD_ASSIGN:
         case AST_EXPR_BITAND_ASSIGN: case AST_EXPR_BITOR_ASSIGN: case AST_EXPR_BITXOR_ASSIGN:
         case AST_EXPR_SHL_ASSIGN: case AST_EXPR_SHR_ASSIGN:
-            return expr_refs_var(e->value.binop.left, name) || expr_refs_var(e->value.binop.right, name);
+            return expr_refs_var_impl(e->value.binop.left, name) || expr_refs_var_impl(e->value.binop.right, name);
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT:
         case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF: case AST_EXPR_AWAIT:
         case AST_EXPR_RETURN: case AST_EXPR_PANIC:
-            return expr_refs_var(e->value.unary.operand, name);
+            return expr_refs_var_impl(e->value.unary.operand, name);
         case AST_EXPR_AS:
-            return expr_refs_var(e->value.as_type.operand, name);
+            return expr_refs_var_impl(e->value.as_type.operand, name);
         case AST_EXPR_IF: case AST_EXPR_TERNARY:
-            return expr_refs_var(e->value.if_expr.cond, name)
-                || expr_refs_var(e->value.if_expr.then_expr, name)
-                || (e->value.if_expr.else_expr && expr_refs_var(e->value.if_expr.else_expr, name));
+            return expr_refs_var_impl(e->value.if_expr.cond, name)
+                || expr_refs_var_impl(e->value.if_expr.then_expr, name)
+                || (e->value.if_expr.else_expr && expr_refs_var_impl(e->value.if_expr.else_expr, name));
         case AST_EXPR_BLOCK:
             return block_refs_var(e->value.block, name);
         case AST_EXPR_FIELD_ACCESS:
-            return expr_refs_var(e->value.field_access.base, name);
+            return expr_refs_var_impl(e->value.field_access.base, name);
         case AST_EXPR_INDEX:
-            return expr_refs_var(e->value.index.base, name) || expr_refs_var(e->value.index.index_expr, name);
+            return expr_refs_var_impl(e->value.index.base, name) || expr_refs_var_impl(e->value.index.index_expr, name);
         case AST_EXPR_CALL:
-            if (expr_refs_var(e->value.call.callee, name)) return 1;
+            if (expr_refs_var_impl(e->value.call.callee, name)) return 1;
             for (int i = 0; i < e->value.call.num_args; i++)
-                if (expr_refs_var(e->value.call.args[i], name)) return 1;
+                if (expr_refs_var_impl(e->value.call.args[i], name)) return 1;
             return 0;
         case AST_EXPR_METHOD_CALL:
-            if (expr_refs_var(e->value.method_call.base, name)) return 1;
+            if (expr_refs_var_impl(e->value.method_call.base, name)) return 1;
             for (int i = 0; i < e->value.method_call.num_args; i++)
-                if (expr_refs_var(e->value.method_call.args[i], name)) return 1;
+                if (expr_refs_var_impl(e->value.method_call.args[i], name)) return 1;
             return 0;
         case AST_EXPR_STRUCT_LIT:
             for (int i = 0; i < e->value.struct_lit.num_fields; i++)
-                if (expr_refs_var(e->value.struct_lit.inits[i], name)) return 1;
+                if (expr_refs_var_impl(e->value.struct_lit.inits[i], name)) return 1;
             return 0;
         case AST_EXPR_ARRAY_LIT:
             for (int i = 0; i < e->value.array_lit.num_elems; i++)
-                if (expr_refs_var(e->value.array_lit.elems[i], name)) return 1;
+                if (expr_refs_var_impl(e->value.array_lit.elems[i], name)) return 1;
             return 0;
         case AST_EXPR_MATCH:
-            if (expr_refs_var(e->value.match_expr.matched_expr, name)) return 1;
+            if (expr_refs_var_impl(e->value.match_expr.matched_expr, name)) return 1;
             for (int i = 0; i < e->value.match_expr.num_arms; i++)
-                if (expr_refs_var(e->value.match_expr.arms[i].result, name)) return 1;
+                if (expr_refs_var_impl(e->value.match_expr.arms[i].result, name)) return 1;
             return 0;
         default:
             return 0;
     }
 }
+int expr_refs_var(const struct ASTExpr *e, const char *name) {
+  {
+    return expr_refs_var_impl(e, name);
+  }
+  return 0;
+}
+
 
 /** 块内是否引用变量 name（A3 v0 不递归 loop/for）。 */
 int block_refs_var_impl(const struct ASTBlock *b, const char *name) {
@@ -530,16 +566,23 @@ void frame_live_add(AsyncFrameLive *out, const char *name) {
 
 
 /** 在 await 点将 defined[0..n_def) 中 continuation 仍引用的符号加入 frame。 */
-static void frame_live_at_await(const struct ASTBlock *b, int stmt_idx,
+void frame_live_at_await_impl(const struct ASTBlock *b, int stmt_idx,
     const char **defined, int n_def, AsyncFrameLive *frame) {
     for (int i = 0; i < n_def; i++) {
         if (defined[i] && block_rest_refs_var(b, stmt_idx, defined[i]))
             frame_live_add(frame, defined[i]);
     }
 }
+void frame_live_at_await(const struct ASTBlock *b, int stmt_idx,
+    const char **defined, int n_def, AsyncFrameLive *frame) {
+  {
+    frame_live_at_await_impl(b, stmt_idx, defined, n_def, frame);
+  }
+}
+
 
 /** 按 stmt_order 线性扫描并更新 frame（A3 v0：不进入 loop/for 体）。 */
-static void analyze_block_linear(const struct ASTBlock *b,
+void analyze_block_linear_impl(const struct ASTBlock *b,
     const char **prefix_defined, int n_prefix, AsyncFrameLive *frame) {
     const char *defined[ASYNC_LIVE_MAX_VARS];
     int n_def = 0;
@@ -570,14 +613,28 @@ static void analyze_block_linear(const struct ASTBlock *b,
     if (b->final_expr && expr_has_await(b->final_expr))
         frame_live_at_await(b, -1, defined, n_def, frame);
 }
-
-/** 名称字典序比较（qsort 用）。 */
-static int live_name_cmp(const void *a, const void *b) {
-    return strcmp((const char *)a, (const char *)b);
+void analyze_block_linear(const struct ASTBlock *b,
+    const char **prefix_defined, int n_prefix, AsyncFrameLive *frame) {
+  {
+    analyze_block_linear_impl(b, prefix_defined, n_prefix, frame);
+  }
 }
 
+
+/** 名称字典序比较（qsort 用）。 */
+int live_name_cmp_impl(const void *a, const void *b) {
+    return strcmp((const char *)a, (const char *)b);
+}
+int live_name_cmp(const void *a, const void *b) {
+  {
+    return live_name_cmp_impl(a, b);
+  }
+  return 0;
+}
+
+
 /** 函数名转 C 标识符（非 alnum/_ → _）。 */
-static void frame_mangle_ident(const char *fn, char *out, size_t n) {
+void frame_mangle_ident_impl(const char *fn, char *out, size_t n) {
     if (!out || n == 0) return;
     if (!fn || !fn[0]) {
         strncpy(out, "fn", n - 1);
@@ -594,13 +651,25 @@ static void frame_mangle_ident(const char *fn, char *out, size_t n) {
     }
     out[j] = '\0';
 }
+void frame_mangle_ident(const char *fn, char *out, size_t n) {
+  {
+    frame_mangle_ident_impl(fn, out, n);
+  }
+}
+
 
 /** 构造协程帧 C 类型名 __shux_async_frame_<mangled>。 */
-static void frame_build_tag(const struct ASTFunc *f, char *buf, size_t n) {
+void frame_build_tag_impl(const struct ASTFunc *f, char *buf, size_t n) {
     char m[64];
     frame_mangle_ident(f && f->name ? f->name : "fn", m, sizeof(m));
     (void)snprintf(buf, n, "__shux_async_frame_%s", m);
 }
+void frame_build_tag(const struct ASTFunc *f, char *buf, size_t n) {
+  {
+    frame_build_tag_impl(f, buf, n);
+  }
+}
+
 
 /** 在函数体/形参中查找变量类型。 */
 const struct ASTType *async_liveness_lookup_var_type(const struct ASTFunc *f, const char *name) {

@@ -116,3 +116,42 @@ function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: *u8, ca
 function glue_try_std_string_shux_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 { unsafe { return glue_try_std_string_shux_redirect_sym_local_impl(name, nlen, out, cap); } return 0; }
 #[no_mangle]
 function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32): i32 { unsafe { return glue_sysv_x86_call_n_stack_c_impl(arena, call, nargs); } return 0; }
+
+// G-02f-110：+ jmp/lea/arg slot/export/call cleanup 薄门闩。
+
+extern "C" function glue_asm_emit_jmp_skip_string_then_lea_impl(ctx: *u8, ta: i32, reg: i32, sbuf: *u8, slen: i32): i32;
+extern "C" function glue_sysv_x86_call_arg_slot_c_impl(arena: *u8, call: i32, nargs: i32, aidx: i32, out: *i32): void;
+extern "C" function glue_spill_struct16_call_arg_to_lea_elf_c_impl(arena: *u8, elf: *u8, c: *u8): i32;
+extern "C" function glue_emit_call_args_elf_sysv_f32_xmm_c_impl(arena: *u8, elf: *u8, er: i32, c: *u8): i32;
+extern "C" function glue_emit_one_call_arg_elf_c_impl(arena: *u8, elf: *u8, call: i32, a: i32, b: i32): i32;
+extern "C" function glue_asm_build_call_export_sym_c_impl(pre: *u8, name: *u8, out: *u8, cap: i32): i32;
+extern "C" function glue_try_std_encoding_redirect_sym_local_impl(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
+extern "C" function glue_asm_enc_call_redirected_impl(elf: *u8, name: *u8): i32;
+extern "C" function glue_asm_prefix_is_fmt_or_debug_impl(pre: *u8, plen: i32): i32;
+extern "C" function glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(arena: *u8, elf: *u8, er: i32): i32;
+extern "C" function glue_asm_emit_call_with_cleanup_impl(elf: *u8, name: *u8, nbytes: i32): i32;
+
+/* ---- G-02f-110：call_dispatch emit helpers 门闩 ---- */
+
+#[no_mangle]
+function glue_asm_emit_jmp_skip_string_then_lea(ctx: *u8, ta: i32, reg: i32, sbuf: *u8, slen: i32): i32 { unsafe { return glue_asm_emit_jmp_skip_string_then_lea_impl(ctx, ta, reg, sbuf, slen); } return 0; }
+#[no_mangle]
+function glue_sysv_x86_call_arg_slot_c(arena: *u8, call: i32, nargs: i32, aidx: i32, out: *i32): void { unsafe { glue_sysv_x86_call_arg_slot_c_impl(arena, call, nargs, aidx, out); } }
+#[no_mangle]
+function glue_spill_struct16_call_arg_to_lea_elf_c(arena: *u8, elf: *u8, c: *u8): i32 { unsafe { return glue_spill_struct16_call_arg_to_lea_elf_c_impl(arena, elf, c); } return 0; }
+#[no_mangle]
+function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er: i32, c: *u8): i32 { unsafe { return glue_emit_call_args_elf_sysv_f32_xmm_c_impl(arena, elf, er, c); } return 0; }
+#[no_mangle]
+function glue_emit_one_call_arg_elf_c(arena: *u8, elf: *u8, call: i32, a: i32, b: i32): i32 { unsafe { return glue_emit_one_call_arg_elf_c_impl(arena, elf, call, a, b); } return 0; }
+#[no_mangle]
+function glue_asm_build_call_export_sym_c(pre: *u8, name: *u8, out: *u8, cap: i32): i32 { unsafe { return glue_asm_build_call_export_sym_c_impl(pre, name, out, cap); } return 0; }
+#[no_mangle]
+function glue_try_std_encoding_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 { unsafe { return glue_try_std_encoding_redirect_sym_local_impl(name, nlen, out, cap); } return 0; }
+#[no_mangle]
+function glue_asm_enc_call_redirected(elf: *u8, name: *u8): i32 { unsafe { return glue_asm_enc_call_redirected_impl(elf, name); } return 0; }
+#[no_mangle]
+function glue_asm_prefix_is_fmt_or_debug(pre: *u8, plen: i32): i32 { unsafe { return glue_asm_prefix_is_fmt_or_debug_impl(pre, plen); } return 0; }
+#[no_mangle]
+function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(arena: *u8, elf: *u8, er: i32): i32 { unsafe { return glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(arena, elf, er); } return 0; }
+#[no_mangle]
+function glue_asm_emit_call_with_cleanup(elf: *u8, name: *u8, nbytes: i32): i32 { unsafe { return glue_asm_emit_call_with_cleanup_impl(elf, name, nbytes); } return 0; }

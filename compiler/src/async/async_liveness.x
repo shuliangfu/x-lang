@@ -75,3 +75,39 @@ function block_rest_refs_var(b: *u8, from: i32, name: *u8): i32 {
 function frame_live_add(out: *u8, name: *u8): void {
   unsafe { frame_live_add_impl(out, name); }
 }
+
+// G-02f-110：+ expr await/refs + frame analyze 薄门闩。
+
+extern "C" function expr_has_await_impl(e: *u8): i32;
+extern "C" function expr_count_await_impl(e: *u8): i32;
+extern "C" function expr_has_io_read_await_impl(e: *u8): i32;
+extern "C" function expr_has_io_write_await_impl(e: *u8): i32;
+extern "C" function expr_refs_var_impl(e: *u8, name: *u8): i32;
+extern "C" function frame_live_at_await_impl(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): void;
+extern "C" function live_name_cmp_impl(a: *u8, b: *u8): i32;
+extern "C" function analyze_block_linear_impl(b: *u8, out: *u8): void;
+extern "C" function frame_mangle_ident_impl(in_name: *u8, out: *u8, cap: i32): void;
+extern "C" function frame_build_tag_impl(name: *u8, out: *u8, cap: i32): void;
+
+/* ---- G-02f-110：async_liveness expr/frame 门闩 ---- */
+
+#[no_mangle]
+function expr_has_await(e: *u8): i32 { unsafe { return expr_has_await_impl(e); } return 0; }
+#[no_mangle]
+function expr_count_await(e: *u8): i32 { unsafe { return expr_count_await_impl(e); } return 0; }
+#[no_mangle]
+function expr_has_io_read_await(e: *u8): i32 { unsafe { return expr_has_io_read_await_impl(e); } return 0; }
+#[no_mangle]
+function expr_has_io_write_await(e: *u8): i32 { unsafe { return expr_has_io_write_await_impl(e); } return 0; }
+#[no_mangle]
+function expr_refs_var(e: *u8, name: *u8): i32 { unsafe { return expr_refs_var_impl(e, name); } return 0; }
+#[no_mangle]
+function frame_live_at_await(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): void { unsafe { frame_live_at_await_impl(b, idx, defs, nd, out); } }
+#[no_mangle]
+function live_name_cmp(a: *u8, b: *u8): i32 { unsafe { return live_name_cmp_impl(a, b); } return 0; }
+#[no_mangle]
+function analyze_block_linear(b: *u8, out: *u8): void { unsafe { analyze_block_linear_impl(b, out); } }
+#[no_mangle]
+function frame_mangle_ident(in_name: *u8, out: *u8, cap: i32): void { unsafe { frame_mangle_ident_impl(in_name, out, cap); } }
+#[no_mangle]
+function frame_build_tag(name: *u8, out: *u8, cap: i32): void { unsafe { frame_build_tag_impl(name, out, cap); } }
