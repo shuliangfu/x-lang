@@ -1,4 +1,4 @@
-/* Generated from src/runtime_driver_diagnostic.x (G-02f-30/31/73 true .x + C tail).
+/* Generated from (G-02f-86 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-30/31/73 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
  * .x covers: fixed typeck msgs (f-30/31) + remaining diags gated f-73
@@ -70,7 +70,7 @@ void driver_diagnostic_hint_unused_binding_impl(int32_t line, int32_t col, const
 extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
 
-static void driver_diag_report_prefixed(int32_t line, int32_t col, const char *msg) {
+void driver_diag_report_prefixed_impl(int32_t line, int32_t col, const char *msg) {
     if (lsp_diag_enabled) {
         lsp_diag_add(line > 0 ? (int)line : 1, col > 0 ? (int)col : 1, 1, msg ? msg : "");
         return;
@@ -79,6 +79,12 @@ static void driver_diag_report_prefixed(int32_t line, int32_t col, const char *m
         driver_check_diag_emitted_note();
     diag_report(NULL, (int)line, (int)col, NULL, msg ? msg : "", msg ? msg : "");
 }
+void driver_diag_report_prefixed(int32_t line, int32_t col, const char *msg) {
+  {
+    driver_diag_report_prefixed_impl(line, col, msg);
+  }
+}
+
 
 static void driver_diag_report_x_pipeline_code(const char *code, const char *fmt, ...) {
     va_list ap;
@@ -98,7 +104,7 @@ static void driver_diag_report_x_pipeline_code(const char *code, const char *fmt
     diag_report_with_code(NULL, 0, 0, "pipeline error", code, buf, NULL);
 }
 
-static int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src, int32_t src_len) {
+int driver_diag_copy_bytes_impl(char *dst, size_t dst_size, const uint8_t *src, int32_t src_len) {
     int n = 0;
     if (!dst || dst_size == 0)
         return 0;
@@ -111,6 +117,13 @@ static int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src
     dst[n] = '\0';
     return n;
 }
+int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src, int32_t src_len) {
+  {
+    return driver_diag_copy_bytes_impl(dst, dst_size, src, src_len);
+  }
+  return 0;
+}
+
 
 void driver_diagnostic_parse_fail_impl(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types) {
     driver_diag_report_x_pipeline_code("XP001",

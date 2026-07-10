@@ -3,6 +3,7 @@
 //
 // G-02f-14/71/72：runtime 产品源 seeds/runtime.from_x.c + 真迁 .x 门闩。
 // G-02f-85：smoke_diag / unlink_failed_out / asm direct-import 门闩。
+// G-02f-86：explain CLI / errno diag / legacy smoke summary 门闩。
 // G-02f-71/72：driver compile/run 薄封装 + main_entry/argv/exec/fmt/大 run_* 门闩。
 // 产品：cc seeds/runtime.from_x.c + RUNTIME_DRIVER_NO_C_CFLAGS → src/runtime_driver_no_c.o
 // C 尾：argv 解析循环、#if 变体、大 driver 路径、syscall/fs。
@@ -62,6 +63,15 @@ extern "C" function shux_smoke_diag_enabled_impl(): i32;
 extern "C" function driver_unlink_failed_output_impl(out_path: *u8): void;
 extern "C" function driver_x_emit_asm_direct_import_only_impl(input_path: *u8): i32;
 extern "C" function driver_x_emit_asm_dep_parse_skip_typeck_ok_impl(input_path: *u8, dep_path: *u8): i32;
+
+
+extern "C" function runtime_diag_cli_usage_note_impl(argv0: *u8): void;
+extern "C" function runtime_diag_errno_impl(file: *u8, kind: *u8, op: *u8): void;
+extern "C" function runtime_diag_errno_path_impl(file: *u8, kind: *u8, op: *u8, path: *u8): void;
+extern "C" function runtime_diag_errno_path_pair_impl(file: *u8, kind: *u8, op: *u8, from_path: *u8, to_path: *u8): void;
+extern "C" function runtime_try_handle_explain_cli_impl(argc: i32, argv: *u8): i32;
+extern "C" function driver_emit_legacy_smoke_summary_stdout_impl(main_name: *u8, main_final_lit: i32, has_main_body: i32): void;
+extern "C" function runtime_diag_code_for_kind_impl(kind: *u8): *u8;
 
 #[no_mangle]
 function run_compiler_c(argc: i32, argv: *u8): i32 {
@@ -445,5 +455,59 @@ function driver_x_emit_asm_dep_parse_skip_typeck_ok(input_path: *u8, dep_path: *
     return driver_x_emit_asm_dep_parse_skip_typeck_ok_impl(input_path, dep_path);
   }
   return 0;
+}
+
+
+/* ---- G-02f-86：explain / errno diag / smoke summary 门闩 ---- */
+
+#[no_mangle]
+function runtime_diag_cli_usage_note(argv0: *u8): void {
+  unsafe {
+    runtime_diag_cli_usage_note_impl(argv0);
+  }
+}
+
+#[no_mangle]
+function runtime_diag_errno(file: *u8, kind: *u8, op: *u8): void {
+  unsafe {
+    runtime_diag_errno_impl(file, kind, op);
+  }
+}
+
+#[no_mangle]
+function runtime_diag_errno_path(file: *u8, kind: *u8, op: *u8, path: *u8): void {
+  unsafe {
+    runtime_diag_errno_path_impl(file, kind, op, path);
+  }
+}
+
+#[no_mangle]
+function runtime_diag_errno_path_pair(file: *u8, kind: *u8, op: *u8, from_path: *u8, to_path: *u8): void {
+  unsafe {
+    runtime_diag_errno_path_pair_impl(file, kind, op, from_path, to_path);
+  }
+}
+
+#[no_mangle]
+function runtime_try_handle_explain_cli(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return runtime_try_handle_explain_cli_impl(argc, argv);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_emit_legacy_smoke_summary_stdout(main_name: *u8, main_final_lit: i32, has_main_body: i32): void {
+  unsafe {
+    driver_emit_legacy_smoke_summary_stdout_impl(main_name, main_final_lit, has_main_body);
+  }
+}
+
+#[no_mangle]
+function runtime_diag_code_for_kind(kind: *u8): *u8 {
+  unsafe {
+    return runtime_diag_code_for_kind_impl(kind);
+  }
+  return 0 as *u8;
 }
 

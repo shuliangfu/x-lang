@@ -1,4 +1,4 @@
-/* seeds/runtime.from_x.c — G-02f-14/85/71/72 product TU
+/* seeds/runtime.from_x.c — G-02f-14/85/86/71/72 product TU
  * Product objects from this seed (flags select variants):
  *   runtime_driver_no_c.o  — RUNTIME_DRIVER_NO_C_CFLAGS (G05 product)
  *   runtime_driver.o / runtime_x.o / runtime.o / runtime_driver_asm_*
@@ -129,7 +129,7 @@ int driver_fmt_one_file_impl(const uint8_t *path, int path_len);
 int main_entry_impl(int argc, char **argv);
 
 
-static const char *runtime_diag_code_for_kind(const char *kind) {
+const char *runtime_diag_code_for_kind_impl(const char *kind) {
     if (!kind)
         return SHUX_DIAG_CODE_BUILD_BLD001;
     if (strcmp(kind, "io error") == 0)
@@ -140,8 +140,14 @@ static const char *runtime_diag_code_for_kind(const char *kind) {
         return SHUX_DIAG_CODE_BUILD_BLD001;
     return NULL;
 }
+const char *runtime_diag_code_for_kind(const char *kind) {
+  {
+    return runtime_diag_code_for_kind_impl(kind);
+  }
+  return ((const char *)0);
+}
 
-static int runtime_try_handle_explain_cli(int argc, char **argv) {
+int runtime_try_handle_explain_cli_impl(int argc, char **argv) {
     const char *code = NULL;
     if (argc < 2 || !argv || !argv[1])
         return -1;
@@ -187,6 +193,13 @@ static int runtime_try_handle_explain_cli(int argc, char **argv) {
     diag_print_code_explain(stdout, code);
     return 0;
 }
+int runtime_try_handle_explain_cli(int argc, char **argv) {
+  {
+    return runtime_try_handle_explain_cli_impl(argc, argv);
+  }
+  return 0;
+}
+
 
 /**
  * 兼容 smoke summary：保留 stdout 与精确文本，供 run-lexer golden、run-std/run-typeck grep
@@ -195,7 +208,7 @@ static int runtime_try_handle_explain_cli(int argc, char **argv) {
 /* 结构化 smoke 是否启用：`--diag-json` 或 SHUX_SMOKE_DIAG=1；定义延后到 <stdlib.h> 可见处。 */
 static int shux_smoke_diag_enabled(void);
 
-static void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_final_lit,
+void driver_emit_legacy_smoke_summary_stdout_impl(const char *main_name, int main_final_lit,
                                                     int has_main_body) {
     const char *name = main_name ? main_name : "?";
     if (has_main_body) {
@@ -225,6 +238,13 @@ static void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int m
         diag_report_with_code(NULL, 0, 0, "info", SHUX_DIAG_CODE_SMOKE_SMOKE002, "typeck OK", NULL);
     }
 }
+void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_final_lit,
+                                                    int has_main_body) {
+  {
+    driver_emit_legacy_smoke_summary_stdout_impl(main_name, main_final_lit, has_main_body);
+  }
+}
+
 
 /** 本文件内 read_file 调用映射至 E-04 v3 I/O ABI TU。 */
 #define read_file runtime_read_file_malloc
@@ -340,7 +360,7 @@ void driver_unlink_failed_output(const char *out_path) {
 #define PATH_MAX 4096
 #endif
 
-static void runtime_diag_errno(const char *file, const char *kind, const char *op) {
+void runtime_diag_errno_impl(const char *file, const char *kind, const char *op) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
     const char *resolved_kind = kind ? kind : "build error";
@@ -357,8 +377,14 @@ static void runtime_diag_errno(const char *file, const char *kind, const char *o
                      err ? err : "unknown error");
     }
 }
+void runtime_diag_errno(const char *file, const char *kind, const char *op) {
+  {
+    runtime_diag_errno_impl(file, kind, op);
+  }
+}
 
-static void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path) {
+
+void runtime_diag_errno_path_impl(const char *file, const char *kind, const char *op, const char *path) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
     const char *resolved_kind = kind ? kind : "build error";
@@ -381,8 +407,14 @@ static void runtime_diag_errno_path(const char *file, const char *kind, const ch
     }
     runtime_diag_errno(file, resolved_kind, op);
 }
+void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path) {
+  {
+    runtime_diag_errno_path_impl(file, kind, op, path);
+  }
+}
 
-static void runtime_diag_errno_path_pair(const char *file, const char *kind, const char *op,
+
+void runtime_diag_errno_path_pair_impl(const char *file, const char *kind, const char *op,
                                          const char *from_path, const char *to_path) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
@@ -404,15 +436,28 @@ static void runtime_diag_errno_path_pair(const char *file, const char *kind, con
                      err ? err : "unknown error");
     }
 }
+void runtime_diag_errno_path_pair(const char *file, const char *kind, const char *op,
+                                         const char *from_path, const char *to_path) {
+  {
+    runtime_diag_errno_path_pair_impl(file, kind, op, from_path, to_path);
+  }
+}
+
 
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((unused))
 #endif
-static void runtime_diag_cli_usage_note(const char *argv0) {
+void runtime_diag_cli_usage_note_impl(const char *argv0) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.x> [ -o <out> ]",
                  argv0 ? argv0 : "shux");
 }
+void runtime_diag_cli_usage_note(const char *argv0) {
+  {
+    runtime_diag_cli_usage_note_impl(argv0);
+  }
+}
+
 
 void driver_print_usage_c(void);
 

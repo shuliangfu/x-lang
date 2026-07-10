@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-30/31/73：真迁 .x — 固定措辞 typeck 诊断薄包装 + parse_strict + 空桩。
+// G-02f-86：driver_diag_copy_bytes / report_prefixed 门闩。
 // 产品：./shux-c -E → seeds/runtime_driver_diagnostic.from_x.c（+ C 尾 + 字符串抛光）。
 // C 尾：snprintf 诊断、va_list pipeline 码、scratch 缓冲、debug getenv 详细路径。
 // 注意：字符串字面量经 -E 成 slice；seed 抛光为 C 字符串传 lsp_diag_report_typeck。
@@ -62,6 +63,10 @@ extern "C" function parser_is_ident_allow_impl(ident: *u8, len: i32): i32;
 extern "C" function driver_diagnostic_warn_pad_fields_same_cache_line_impl(sname: *u8, sname_len: i32, f0: *u8, f0_len: i32, f1: *u8, f1_len: i32): void;
 extern "C" function driver_diagnostic_warn_hot_reorder_field_impl(sname: *u8, sname_len: i32, hot: *u8, hot_len: i32, cold: *u8, cold_len: i32): void;
 extern "C" function driver_diagnostic_hint_unused_binding_impl(line: i32, col: i32, name: *u8, name_len: i32): void;
+
+
+extern "C" function driver_diag_copy_bytes_impl(dst: *u8, dst_size: i64, src: *u8, src_len: i32): i32;
+extern "C" function driver_diag_report_prefixed_impl(line: i32, col: i32, msg: *u8): void;
 
 #[no_mangle]
 function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void {
@@ -519,3 +524,22 @@ function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name: *u8, n
     driver_diagnostic_hint_unused_binding_impl(line, col, name, name_len);
   }
 }
+
+
+/* ---- G-02f-86：diag copy_bytes / report_prefixed 门闩 ---- */
+
+#[no_mangle]
+function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_len: i32): i32 {
+  unsafe {
+    return driver_diag_copy_bytes_impl(dst, dst_size, src, src_len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_diag_report_prefixed(line: i32, col: i32, msg: *u8): void {
+  unsafe {
+    driver_diag_report_prefixed_impl(line, col, msg);
+  }
+}
+
