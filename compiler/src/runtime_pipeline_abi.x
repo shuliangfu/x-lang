@@ -26,6 +26,7 @@
 // G-02f-237：pipeline_resolve_path pure + collect 空 import 早退。
 // G-02f-238：pipeline_read_file 分阶段 pure；collect seed 队列 helper。
 // G-02f-239：parse_into_loaded pure；dep_prerun/large_stack 边界 pure。
+// G-02f-240：preprocess_raw_to_malloc + asm_codegen large_stack 边界 pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -964,14 +965,26 @@ function driver_dep_slot_for_path(path: *u8): i32 {
   return driver_dep_slot_for_path_scan(path);
 }
 
-/* ---- G-02f-54：preprocess 薄封装 / dep seed_slots / entry lib name ---- */
+/* ---- G-02f-54 / G-02f-240：preprocess 薄封装 / dep seed_slots / entry lib name ---- */
 
+// G-02f-240：边界 pure；scratch/preprocess_x_buf 仍 impl（emit_diag=1）
 #[no_mangle]
 function shux_preprocess_raw_to_malloc(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32): i32 {
+  if (raw_len < 0) {
+    return 0 - 1;
+  }
+  if (raw == 0 as *u8) {
+    if (raw_len > 0) {
+      return 0 - 1;
+    }
+  }
+  if (ndefines < 0) {
+    return 0 - 1;
+  }
   unsafe {
     return shux_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
   }
-  return -1;
+  return 0 - 1;
 }
 
 // G-02f-224：批量预填 dep 槽 + seeded 标记
@@ -1809,12 +1822,22 @@ function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *
   }
 }
 
+// G-02f-240：参数边界 pure；大栈 pthread 仍 impl
 #[no_mangle]
 function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
+  if (module == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (arena == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out_buf == 0 as *u8) {
+    return 0 - 1;
+  }
   unsafe {
     return shux_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
   }
-  return -1;
+  return 0 - 1;
 }
 
 // G-02f-236：仅 direct imports（不递归）；每项 resolve+read+preprocess 🔒

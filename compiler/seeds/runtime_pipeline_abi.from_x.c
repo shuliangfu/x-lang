@@ -21,6 +21,7 @@
  * G-02f-237: resolve_path pure + collect empty-import early.
  * G-02f-238: read_file staged pure + collect seed_to_load helper.
  * G-02f-239: parse_into_loaded pure + dep_prerun/large_stack bounds.
+ * G-02f-240: preprocess + asm codegen large_stack bounds pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -64,7 +65,9 @@ int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t modu
 int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps);
 
-/* G-02f-61 helper protos */
+/* G-02f-61 / G-02f-240 helper protos */
+int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
 int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
 int shux_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_roots_arr, int n_lib_roots,
@@ -404,8 +407,13 @@ int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len,
     return 0;
 }
 
+/* G-02f-240：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
 int shux_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char **out_src, size_t *out_src_len,
     const char *path_diag, const char **defines, int ndefines) {
+  if (raw == NULL && raw_len > 0)
+    return -1;
+  if (ndefines < 0)
+    return -1;
   {
     return shux_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
   }
@@ -2940,8 +2948,8 @@ void * shux_asm_codegen_elf_o_thread_fn(void *arg) {
 
 
 /** 在 256MiB 栈 pthread 上调用 asm_asm_codegen_elf_o；主线程栈已深时避免 lexer emit Abort。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
+/* G-02f-240：pthread body 🔒 */
+int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
     ShuxAsmCodegenElfLargeArgs args;
 
@@ -2955,6 +2963,14 @@ int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
     if (args.result == -99)
         return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
     return args.result;
+}
+
+/* G-02f-240：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
+int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
+    if (!module || !arena || !out_buf)
+        return -1;
+    return shux_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
 }
 
 
