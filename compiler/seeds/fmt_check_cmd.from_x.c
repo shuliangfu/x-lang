@@ -84,6 +84,9 @@ const char *driver_collect_error_kind(void);
 const char *driver_collect_missing_path_code(void);
 int32_t driver_collect_mode_is_check(void);
 int32_t check_user_passed_L_get(void);
+int fmt_user_ignore_count(void);
+int fmt_path_ends_with_dot_x(const char *path);
+int fmt_file_list_n(void);
 #endif
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
@@ -205,9 +208,16 @@ const char *fmt_builtin_ignore_at(int i) {
     return s_builtin_ignore[i];
 }
 
-int fmt_user_ignore_count(void) {
+/* G-02f-389：实现体始终 seed；public PREFER 时 thin forward */
+int fmt_user_ignore_count_impl(void) {
     return s_n_ignore;
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int fmt_user_ignore_count(void) {
+    return fmt_user_ignore_count_impl();
+}
+#endif
 
 const char *fmt_user_ignore_at(int i) {
     if (i < 0 || i >= s_n_ignore)
@@ -477,7 +487,8 @@ int path_should_ignore(const char *path) {
 
 
 /* G-02f-248：逻辑源 .x（真迁 .x 后缀）；seed 保留同语义 C 供产品 cc */
-int fmt_path_ends_with_dot_x(const char *path) {
+/* G-02f-389：实现体始终 seed；public PREFER 时 thin forward */
+int fmt_path_ends_with_dot_x_impl(const char *path) {
     size_t len;
     if (!path)
         return 0;
@@ -487,9 +498,22 @@ int fmt_path_ends_with_dot_x(const char *path) {
     return path[len - 2] == '.' && path[len - 1] == 'x';
 }
 
-int fmt_file_list_n(void) {
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int fmt_path_ends_with_dot_x(const char *path) {
+    return fmt_path_ends_with_dot_x_impl(path);
+}
+#endif
+
+/* G-02f-389：实现体始终 seed；public PREFER 时 thin forward */
+int fmt_file_list_n_impl(void) {
     return s_n_files;
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int fmt_file_list_n(void) {
+    return fmt_file_list_n_impl();
+}
+#endif
 
 /* getcwd + 相对拼接 🔒；返回静态缓冲指针（勿 free） */
 const char *fmt_path_resolve_abs(const char *path) {

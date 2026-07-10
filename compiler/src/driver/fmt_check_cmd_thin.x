@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-350/383：fmt_check_cmd L2 thin — pure + lit 门闩。
+// G-02f-350/383/389：fmt_check_cmd L2 thin — pure + lit 门闩（12）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // 对照：src/driver/fmt_check_cmd.x；默认仍整 seed。
@@ -11,6 +11,9 @@
 
 extern "C" function driver_collect_mode_is_check_impl(): i32;
 extern "C" function check_user_passed_L_get_impl(): i32;
+extern "C" function fmt_user_ignore_count_impl(): i32;
+extern "C" function fmt_path_ends_with_dot_x_impl(path: *u8): i32;
+extern "C" function fmt_file_list_n_impl(): i32;
 extern "C" function driver_fmt_check_lit_check_error(): *u8;
 extern "C" function driver_fmt_check_lit_fmt_error(): *u8;
 extern "C" function driver_fmt_check_lit_chk002(): *u8;
@@ -145,6 +148,31 @@ function driver_collect_mode_is_check(): i32 {
 function check_user_passed_L_get(): i32 {
   unsafe {
     return check_user_passed_L_get_impl();
+  }
+  return 0;
+}
+
+// ---- G-02f-389：ignore count / .x 后缀 / file list n → seed impl ----
+#[no_mangle]
+function fmt_user_ignore_count(): i32 {
+  unsafe {
+    return fmt_user_ignore_count_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function fmt_path_ends_with_dot_x(path: *u8): i32 {
+  unsafe {
+    return fmt_path_ends_with_dot_x_impl(path);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function fmt_file_list_n(): i32 {
+  unsafe {
+    return fmt_file_list_n_impl();
   }
   return 0;
 }
