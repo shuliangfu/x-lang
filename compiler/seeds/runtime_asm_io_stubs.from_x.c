@@ -1,4 +1,5 @@
 /* seeds/runtime_asm_io_stubs.from_x.c — G-02f-20 product TU
+ * G-02f-100 seed io syscall/write gates.
  * Product: runtime_asm_io_stubs.o; logic still C until full .x port.
  */
 /**
@@ -24,7 +25,7 @@
  * timeout_ms 在 seed 桩 v1 中忽略（同步写完全部 count 或返回错误）。
  */
 #if defined(__linux__) && defined(__x86_64__)
-static long seed_io_syscall_write(int fd, const void *buf, unsigned long count) {
+long seed_io_syscall_write_impl(int fd, const void *buf, unsigned long count) {
   long ret;
   __asm__ volatile("syscall"
                    : "=a"(ret)
@@ -32,15 +33,28 @@ static long seed_io_syscall_write(int fd, const void *buf, unsigned long count) 
                    : "rcx", "r11", "memory");
   return ret;
 }
+long seed_io_syscall_write(int fd, const void *buf, unsigned long count) {
+  {
+    return seed_io_syscall_write_impl(fd, buf, count);
+  }
+  return 0;
+}
 
-/** Linux x86_64 裸 syscall read(2)。 */
-static long seed_io_syscall_read(int fd, void *buf, unsigned long count) {
+
+/** Linux x86_64 裸 syscall read(2)。 G-02f-100 gate. */
+long seed_io_syscall_read_impl(int fd, void *buf, unsigned long count) {
   long ret;
   __asm__ volatile("syscall"
                    : "=a"(ret)
                    : "0"(0L), "D"((long)fd), "S"(buf), "d"(count)
                    : "rcx", "r11", "memory");
   return ret;
+}
+long seed_io_syscall_read(int fd, void *buf, unsigned long count) {
+  {
+    return seed_io_syscall_read_impl(fd, buf, count);
+  }
+  return 0;
 }
 #endif
 
@@ -166,7 +180,7 @@ int32_t std_io_read(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms
 }
 
 /** stdout 写：供 std_io_write_stdout / write_with_timeout 桩使用。 */
-static int32_t seed_io_write_fd1(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
+int32_t seed_io_write_fd1_impl(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
   ptrdiff_t r;
   if (!ptr && len > 0)
     return -1;
@@ -174,6 +188,12 @@ static int32_t seed_io_write_fd1(uint8_t *ptr, size_t len, uint32_t timeout_ms) 
   if (r < 0)
     return -1;
   return (int32_t)r;
+}
+int32_t seed_io_write_fd1(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
+  {
+    return seed_io_write_fd1_impl(ptr, len, timeout_ms);
+  }
+  return 0 - 1;
 }
 
 int32_t std_io_print_i32(int32_t x) {

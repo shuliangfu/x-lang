@@ -1,4 +1,5 @@
 /* seeds/backend_enc_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-100 enc helper gates.
  * Source intent: src/asm/backend_enc_dispatch.x (doc) + this seed (full C body).
  * Product: → src/asm/backend_enc_dispatch.o. Logic still C until full .x port.
  */
@@ -24,7 +25,7 @@ extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset,
  * x86_64 条件跳转 rel32：0F opcode2 00 00 00 00 + patch（与 x86_64_enc.x enc_jle/enc_jl 一致）。
  * 供 pipeline_glue LCG 计数循环；bootstrap partial.o 未导出 enc_jle/enc_jl 时用 C 路由。
  */
-static int32_t backend_enc_x86_jcc_rel32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2,
+int32_t backend_enc_x86_jcc_rel32_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2,
                                            uint8_t *label, int32_t label_len) {
   uint8_t buf[6];
   int32_t rel32_at;
@@ -43,8 +44,16 @@ static int32_t backend_enc_x86_jcc_rel32_c(struct platform_elf_ElfCodegenCtx *el
     return -1;
   return pipeline_elf_ctx_append_patch((uint8_t *)elf_ctx, rel32_at, label, label_len, 32);
 }
+int32_t backend_enc_x86_jcc_rel32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2,
+                                           uint8_t *label, int32_t label_len) {
+  {
+    return backend_enc_x86_jcc_rel32_c_impl(elf_ctx, opcode2, label, label_len);
+  }
+  return 0;
+}
 
-static int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
+
+int32_t backend_enc_append_u32_le_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
   uint8_t buf[4];
   if (!elf_ctx)
     return -1;
@@ -54,8 +63,15 @@ static int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *el
   buf[3] = (uint8_t)((word >> 24) & 255u);
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, buf, 4);
 }
+int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
+  {
+    return backend_enc_append_u32_le_c_impl(elf_ctx, word);
+  }
+  return 0;
+}
 
-static int32_t backend_enc_arm64_call_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
+
+int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
   uint8_t reloc_name[64];
   int32_t at;
   int32_t reloc_len;
@@ -78,8 +94,15 @@ static int32_t backend_enc_arm64_call_c(struct platform_elf_ElfCodegenCtx *elf_c
   }
   return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, at, name, name_len);
 }
+int32_t backend_enc_arm64_call_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
+  {
+    return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);
+  }
+  return 0;
+}
 
-static int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
+
+int32_t backend_enc_arm64_add_sp_imm12_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
   int32_t imm12;
   if (!elf_ctx)
     return -1;
@@ -90,8 +113,15 @@ static int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCt
     imm12 = 4095;
   return backend_enc_append_u32_le_c(elf_ctx, 0x910003ffu | ((uint32_t)imm12 << 10));
 }
+int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
+  {
+    return backend_enc_arm64_add_sp_imm12_c_impl(elf_ctx, imm);
+  }
+  return 0;
+}
 
-static int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
+
+int32_t backend_enc_arm64_sub_sp_imm12_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
   int32_t imm12;
   if (!elf_ctx)
     return -1;
@@ -102,8 +132,15 @@ static int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCt
     imm12 = 4095;
   return backend_enc_append_u32_le_c(elf_ctx, 0xd10003ffu | ((uint32_t)imm12 << 10));
 }
+int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
+  {
+    return backend_enc_arm64_sub_sp_imm12_c_impl(elf_ctx, imm);
+  }
+  return 0;
+}
 
-static int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes) {
+
+int32_t backend_enc_arm64_str_x0_sp_offset_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes) {
   int32_t off;
   int32_t imm12;
   if (!elf_ctx)
@@ -116,6 +153,13 @@ static int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodeg
     imm12 = 4095;
   return backend_enc_append_u32_le_c(elf_ctx, 0xf90003e0u | ((uint32_t)imm12 << 10));
 }
+int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes) {
+  {
+    return backend_enc_arm64_str_x0_sp_offset_c_impl(elf_ctx, off_bytes);
+  }
+  return 0;
+}
+
 
 /** x86_64 cdqe；定义见本文件末尾。 */
 int32_t arch_x86_64_enc_enc_cdqe_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);

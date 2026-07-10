@@ -1,4 +1,5 @@
 /* seeds/runtime_math_libm.from_x.c — G-02f-19 product TU
+ * G-02f-100 math helper gates.
  * Product: runtime_math_libm.o; logic still C until full .x port.
  */
 /**
@@ -110,13 +111,20 @@ double math_log1p_c(double x) { return log1p(x); }
 double math_expm1_c(double x) { return expm1(x); }
 
 /** 近似相等；1 是，0 否（STD-115 special_smoke 金样）。 */
-static int math_special_near(double a, double b, double eps) {
+int math_special_near_impl(double a, double b, double eps) {
   double d = a - b;
   if (d < 0.0) {
     d = -d;
   }
   return d <= eps ? 1 : 0;
 }
+int math_special_near(double a, double b, double eps) {
+  {
+    return math_special_near_impl(a, b, eps);
+  }
+  return 0;
+}
+
 
 /** STD-115 烟测：erf/log1p/expm1 金样；0 成功。 */
 int32_t math_special_smoke_c(void) {
@@ -140,7 +148,7 @@ int32_t math_special_smoke_c(void) {
 
 #if SHUX_MATH_HAVE_FENV
 /** 将 Shux fenv 掩码转为 FE_* 位。 */
-static int math_fenv_mask_to_fe(int32_t mask) {
+int math_fenv_mask_to_fe_impl(int32_t mask) {
   int fe = 0;
   if (mask & 1) fe |= FE_INVALID;
   if (mask & 2) fe |= FE_DIVBYZERO;
@@ -149,9 +157,16 @@ static int math_fenv_mask_to_fe(int32_t mask) {
   if (mask & 16) fe |= FE_INEXACT;
   return fe;
 }
+int math_fenv_mask_to_fe(int32_t mask) {
+  {
+    return math_fenv_mask_to_fe_impl(mask);
+  }
+  return 0;
+}
+
 
 /** 将 FE_* 位转为 Shux fenv 掩码。 */
-static int32_t math_fenv_fe_to_mask(int fe) {
+int32_t math_fenv_fe_to_mask_impl(int fe) {
   int32_t m = 0;
   if (fe & FE_INVALID) m |= 1;
   if (fe & FE_DIVBYZERO) m |= 2;
@@ -160,10 +175,17 @@ static int32_t math_fenv_fe_to_mask(int fe) {
   if (fe & FE_INEXACT) m |= 16;
   return m;
 }
+int32_t math_fenv_fe_to_mask(int fe) {
+  {
+    return math_fenv_fe_to_mask_impl(fe);
+  }
+  return 0;
+}
+
 #endif
 
 /** 输出 STD-149 fenv 能力报告行到 stderr。 */
-static void math_fenv_emit_cap_report(int32_t avail) {
+void math_fenv_emit_cap_report_impl(int32_t avail) {
   const char *plat = "Unknown";
 #if defined(__APPLE__)
   plat = "Darwin";
@@ -176,6 +198,12 @@ static void math_fenv_emit_cap_report(int32_t avail) {
                "math fenv cap: platform=%s available=%d",
                plat, (int)avail);
 }
+void math_fenv_emit_cap_report(int32_t avail) {
+  {
+    math_fenv_emit_cap_report_impl(avail);
+  }
+}
+
 
 /**
  * 当前平台是否支持 fenv API。

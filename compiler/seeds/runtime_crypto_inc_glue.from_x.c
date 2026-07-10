@@ -1,4 +1,5 @@
 /* seeds/runtime_crypto_inc_glue.from_x.c — G-02f-20 product TU
+ * G-02f-100 sha256_block gate.
  * G-02f-99 SHA-256 pure helper gates.
  * Product: runtime_crypto_inc_glue.o; logic still C until full .x port.
  */
@@ -76,7 +77,7 @@ uint32_t shu_sha256_maj(uint32_t x, uint32_t y, uint32_t z) {
   return 0;
 }
 
-static void shu_sha256_block(uint32_t *H, const uint8_t *block) {
+void shu_sha256_block_impl(uint32_t *H, const uint8_t *block) {
   uint32_t W[64];
   int i;
   for (i = 0; i < 16; i++) {
@@ -106,6 +107,12 @@ static void shu_sha256_block(uint32_t *H, const uint8_t *block) {
   H[0] += a; H[1] += b; H[2] += c; H[3] += d;
   H[4] += e; H[5] += f; H[6] += g; H[7] += h;
 }
+void shu_sha256_block(uint32_t *H, const uint8_t *block) {
+  {
+    shu_sha256_block_impl(H, block);
+  }
+}
+
 
 CRYPTO_HOT
 void crypto_sha256_c(const uint8_t * restrict msg, int32_t len, uint8_t * restrict out) {
