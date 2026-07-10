@@ -1166,18 +1166,38 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-9：backend_call_dispatch seed
-  for _disp in backend_call_dispatch; do
-    _ds="seeds/${_disp}.from_x.c"
-    _do="src/asm/${_disp}.o"
-    if [ -f "$_ds" ]; then
-      if [ ! -f "$_do" ] || [ "$_ds" -nt "$_do" ]; then
-        echo "g05_ensure: ${_disp}.o ← ${_disp}.from_x (G-02f-9)"
+  # G-02f-9 / G-02f-364：backend_call_dispatch.o
+  # 默认整 seed；PREFER 时 thin pure 门闩 + rest ld -r
+  _bcd=seeds/backend_call_dispatch.from_x.c
+  _bcd_thin_x=src/asm/backend_call_dispatch_thin.x
+  _bcd_o=src/asm/backend_call_dispatch.o
+  if [ -f "$_bcd" ]; then
+    if [ ! -f "$_bcd_o" ] || [ "$_bcd" -nt "$_bcd_o" ] \
+      || { [ -f "$_bcd_thin_x" ] && [ "$_bcd_thin_x" -nt "$_bcd_o" ]; }; then
+      _bcd_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_bcd_thin_x" ]; then
+        _bcd_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_bcd_thin.XXXXXX") || true
+        _bcd_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bcd_rest.XXXXXX") || true
         # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_do" "$_ds"
+        if [ -n "$_bcd_thin_o" ] && [ -n "$_bcd_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_bcd_thin_x" "$_bcd_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_CALL_DISPATCH_THIN_FROM_X \
+               -c -o "$_bcd_rest_o" "$_bcd" \
+          && $CC -r -nostdlib -o "$_bcd_o" "$_bcd_thin_o" "$_bcd_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_bcd_o ← $_bcd_thin_x + seed-rest (G-02f-364 L2 hybrid call_dispatch thin)"
+          _bcd_done=1
+        else
+          echo "g05_ensure: L2 hybrid call_dispatch thin failed; fallback full seed" >&2
+        fi
+        rm -f "$_bcd_thin_o" "$_bcd_rest_o"
+      fi
+      if [ "$_bcd_done" = "0" ]; then
+        echo "g05_ensure: backend_call_dispatch.o ← backend_call_dispatch.from_x (G-02f-9)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_bcd_o" "$_bcd"
       fi
     fi
-  done
+  fi
   # G-02f-10 / G-02f-333：parser_asm_parse_expr_link.o
   # 默认整 seed（SKIP_X）；PREFER_X_O=1 时 .x thin（debug_enabled 门闩）+ seed-rest ld -r
   _pel=seeds/parser_asm_parse_expr_link.from_x.c

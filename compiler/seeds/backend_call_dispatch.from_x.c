@@ -1,4 +1,5 @@
-/* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+/* G-02f-364：PREFER hybrid thin 由 src/asm/backend_call_dispatch_thin.x；rest SHUX_L2_CALL_DISPATCH_THIN_FROM_X。
+ * seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
  * G-02f-134 true .x pure helpers.
  * G-02f-133 true .x pure helpers.
  * G-02f-125 true .x pure helpers.
@@ -489,11 +490,19 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena,
  * 当前架构整数 CALL 寄存器实参个数（x86_64 SysV=6，AAPCS64/RISC-V=8）。
  */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifdef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_call_reg_max(int32_t ta);
+int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs);
+int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap);
+#endif
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
 int32_t glue_asm_call_reg_max(int32_t ta) {
   if (ta == 0)
     return 6;
   return 8;
 }
+#endif
 
 
 
@@ -501,6 +510,7 @@ int32_t glue_asm_call_reg_max(int32_t ta) {
  * call 完成后须回收的 outgoing 栈字节数（含 16 字节对齐垫层）。
  */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
 int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
   int32_t reg_max;
   int32_t n_stack;
@@ -520,6 +530,7 @@ int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
     return -1;
   return (n_stack * 8 + 15) & ~15;
 }
+#endif
 
 
 
@@ -721,6 +732,7 @@ int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(const uint8_t *fname,
 
 /** 在 sym[sym_len] 处追加 _c；空间不足则返回原 sym_len。 */
 /* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
 int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap) {
   if (!sym || sym_len <= 0 || sym_len + 2 >= cap)
     return sym_len;
@@ -728,6 +740,7 @@ int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t c
   sym[sym_len + 1] = 'c';
   return sym_len + 2;
 }
+#endif
 
 
 
