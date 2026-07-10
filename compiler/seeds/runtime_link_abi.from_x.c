@@ -5741,6 +5741,162 @@ int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const c
 #endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
+/* G-02f-271 L8 std list pure plan (+ accessors) */
+#ifndef SHUX_LABI_STD_LIST_FROM_X
+enum {
+  LABI_STD_OP_STD = 1,
+  LABI_STD_OP_IO_STUBS = 2,
+  LABI_STD_OP_PRIMARY_PANIC = 3,
+  LABI_STD_OP_PRIMARY_TIME_OS = 4,
+  LABI_STD_OP_PRIMARY_RANDOM_FILL = 5,
+  LABI_STD_OP_PRIMARY_ENV_OS = 6,
+  LABI_STD_OP_GLUE_THREAD = 10,
+  LABI_STD_OP_GLUE_SYNC_PAIR = 11,
+  LABI_STD_OP_GLUE_CRYPTO_PAIR = 12,
+  LABI_STD_OP_GLUE_LOG = 13,
+  LABI_STD_OP_GLUE_ATOMIC = 14,
+  LABI_STD_OP_GLUE_CHANNEL = 15,
+  LABI_STD_OP_GLUE_BACKTRACE = 16,
+  LABI_STD_OP_GLUE_MATH = 17,
+  LABI_STD_OP_GLUE_SQLITE = 18,
+  LABI_STD_OP_GLUE_DYNLIB = 19,
+  LABI_STD_OP_GLUE_HTTP = 20,
+  LABI_STD_OP_TASK_SPECIAL = 30
+};
+typedef struct LabiStdPlanStep {
+  int op;
+  const char *rel;
+  int flag_kind;
+} LabiStdPlanStep;
+static const LabiStdPlanStep g_labi_std_plan[] = {
+    {LABI_STD_OP_IO_STUBS, "compiler/runtime_asm_io_stubs.o", 0},
+    {LABI_STD_OP_STD, "std/process/process.o", 1},
+    {LABI_STD_OP_STD, "std/string/string.o", 0},
+    {LABI_STD_OP_STD, "std/path/path.o", 0},
+    {LABI_STD_OP_STD, "std/runtime/runtime.o", 0},
+    {LABI_STD_OP_PRIMARY_PANIC, "compiler/runtime_panic.o", 0},
+    {LABI_STD_OP_STD, "std/thread/thread.o", 2},
+    {LABI_STD_OP_GLUE_THREAD, "compiler/runtime_thread_glue.o", 0},
+    {LABI_STD_OP_PRIMARY_TIME_OS, "compiler/runtime_time_os.o", 0},
+    {LABI_STD_OP_STD, "std/time/time.o", 0},
+    {LABI_STD_OP_PRIMARY_RANDOM_FILL, "compiler/runtime_random_fill.o", 0},
+    {LABI_STD_OP_STD, "std/random/random.o", 0},
+    {LABI_STD_OP_PRIMARY_ENV_OS, "compiler/runtime_env_os.o", 0},
+    {LABI_STD_OP_STD, "std/env/env.o", 0},
+    {LABI_STD_OP_STD, "std/sync/sync.o", 3},
+    {LABI_STD_OP_GLUE_SYNC_PAIR, "compiler/runtime_sync_lock_diag_tls.o", 0},
+    {LABI_STD_OP_STD, "std/encoding/encoding.o", 0},
+    {LABI_STD_OP_STD, "std/base64/base64.o", 0},
+    {LABI_STD_OP_STD, "std/crypto/crypto.o", 4},
+    {LABI_STD_OP_GLUE_CRYPTO_PAIR, "compiler/runtime_ed25519_ref10_glue.o", 0},
+    {LABI_STD_OP_STD, "std/log/log.o", 5},
+    {LABI_STD_OP_GLUE_LOG, "compiler/runtime_log_os.o", 0},
+    {LABI_STD_OP_STD, "std/atomic/atomic.o", 6},
+    {LABI_STD_OP_GLUE_ATOMIC, "compiler/runtime_atomic_glue.o", 0},
+    {LABI_STD_OP_STD, "std/channel/channel.o", 7},
+    {LABI_STD_OP_GLUE_CHANNEL, "compiler/runtime_channel_glue.o", 0},
+    {LABI_STD_OP_STD, "std/backtrace/backtrace.o", 8},
+    {LABI_STD_OP_GLUE_BACKTRACE, "compiler/runtime_backtrace_platform.o", 0},
+    {LABI_STD_OP_STD, "std/hash/hash.o", 0},
+    {LABI_STD_OP_STD, "std/math/math.o", 9},
+    {LABI_STD_OP_GLUE_MATH, "compiler/runtime_math_libm.o", 0},
+    {LABI_STD_OP_STD, "std/sort/sort.o", 0},
+    {LABI_STD_OP_STD, "std/ffi/ffi.o", 0},
+    {LABI_STD_OP_STD, "std/db/sqlite/sqlite.o", 10},
+    {LABI_STD_OP_GLUE_SQLITE, "compiler/runtime_sqlite_glue.o", 0},
+    {LABI_STD_OP_STD, "std/elf/elf.o", 11},
+    {LABI_STD_OP_STD, "std/json/json.o", 0},
+    {LABI_STD_OP_STD, "std/csv/csv.o", 0},
+    {LABI_STD_OP_STD, "std/regex/regex.o", 0},
+    {LABI_STD_OP_STD, "std/unicode/unicode.o", 0},
+    {LABI_STD_OP_STD, "std/dynlib/dynlib.o", 12},
+    {LABI_STD_OP_GLUE_DYNLIB, "compiler/runtime_dynlib_os.o", 0},
+    {LABI_STD_OP_STD, "std/http/http.o", 13},
+    {LABI_STD_OP_GLUE_HTTP, "compiler/runtime_http_glue.o", 0},
+    {LABI_STD_OP_STD, "std/socketio/socketio.o", 0},
+    {LABI_STD_OP_STD, "std/tar/tar.o", 0},
+    {LABI_STD_OP_STD, "std/simd/simd.o", 0},
+    {LABI_STD_OP_STD, "std/context/context.o", 0},
+    {LABI_STD_OP_STD, "std/error/error.o", 0},
+    {LABI_STD_OP_STD, "std/datetime/datetime.o", 0},
+    {LABI_STD_OP_STD, "std/uuid/uuid.o", 0},
+    {LABI_STD_OP_STD, "std/url/url.o", 0},
+    {LABI_STD_OP_STD, "std/cli/cli.o", 0},
+    {LABI_STD_OP_STD, "std/security/security.o", 0},
+    {LABI_STD_OP_STD, "std/config/config.o", 0},
+    {LABI_STD_OP_STD, "std/cache/cache.o", 0},
+    {LABI_STD_OP_STD, "std/trace/trace.o", 0},
+    {LABI_STD_OP_TASK_SPECIAL, "std/task/task.o", 0},
+};
+int labi_std_plan_count(void) {
+  return (int)(sizeof g_labi_std_plan / sizeof g_labi_std_plan[0]);
+}
+int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_kind_out) {
+  int n = labi_std_plan_count();
+  if (i < 0 || i >= n)
+    return 0;
+  if (op_out)
+    *op_out = g_labi_std_plan[i].op;
+  if (rel_out)
+    *rel_out = g_labi_std_plan[i].rel;
+  if (flag_kind_out)
+    *flag_kind_out = g_labi_std_plan[i].flag_kind;
+  return 1;
+}
+int labi_std_default_std_rel_count(void) {
+  int n = labi_std_plan_count();
+  int i;
+  int c = 0;
+  for (i = 0; i < n; i++) {
+    if (g_labi_std_plan[i].op == LABI_STD_OP_STD)
+      c = c + 1;
+  }
+  return c;
+}
+const char *labi_std_default_std_rel_at(int j) {
+  int n = labi_std_plan_count();
+  int i;
+  int c = 0;
+  if (j < 0)
+    return NULL;
+  for (i = 0; i < n; i++) {
+    if (g_labi_std_plan[i].op != LABI_STD_OP_STD)
+      continue;
+    if (c == j)
+      return g_labi_std_plan[i].rel;
+    c = c + 1;
+  }
+  return NULL;
+}
+#else
+enum {
+  LABI_STD_OP_STD = 1,
+  LABI_STD_OP_IO_STUBS = 2,
+  LABI_STD_OP_PRIMARY_PANIC = 3,
+  LABI_STD_OP_PRIMARY_TIME_OS = 4,
+  LABI_STD_OP_PRIMARY_RANDOM_FILL = 5,
+  LABI_STD_OP_PRIMARY_ENV_OS = 6,
+  LABI_STD_OP_GLUE_THREAD = 10,
+  LABI_STD_OP_GLUE_SYNC_PAIR = 11,
+  LABI_STD_OP_GLUE_CRYPTO_PAIR = 12,
+  LABI_STD_OP_GLUE_LOG = 13,
+  LABI_STD_OP_GLUE_ATOMIC = 14,
+  LABI_STD_OP_GLUE_CHANNEL = 15,
+  LABI_STD_OP_GLUE_BACKTRACE = 16,
+  LABI_STD_OP_GLUE_MATH = 17,
+  LABI_STD_OP_GLUE_SQLITE = 18,
+  LABI_STD_OP_GLUE_DYNLIB = 19,
+  LABI_STD_OP_GLUE_HTTP = 20,
+  LABI_STD_OP_TASK_SPECIAL = 30
+};
+int labi_std_plan_count(void);
+int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_kind_out);
+int labi_std_default_std_rel_count(void);
+const char *labi_std_default_std_rel_at(int j);
+#endif
+
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-271：列表纯 plan + 本函数 IO 解释器 */
 void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
     const char *p;
@@ -5752,152 +5908,188 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
     int have_atomic = 0;
     int have_backtrace = 0;
     int have_http = 0;
+    int n_steps;
+    int si;
     if (flags)
         memset(flags, 0, sizeof *flags);
     if (flags)
         flags->have_fs = 1;
     if (flags)
         flags->have_io = 1;
-    if (shux_runtime_compiler_o_path_copy(link_argv0, "runtime_asm_io_stubs.o", io_stubs_o, sizeof io_stubs_o) == 0)
-        io_stubs_p = io_stubs_o;
-    link_abi_asm_ld_push_obj(io_stubs_p, link_argv0,
-        "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/process/process.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_process);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/string/string.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/path/path.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/runtime/runtime.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(shux_runtime_panic_o_path(link_argv0), link_argv0,
-        "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/thread/thread.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_thread : NULL);
-    link_abi_asm_ld_push_glue_after_std(flags && flags->have_thread, shux_ensure_runtime_thread_glue_o,
-        shux_runtime_thread_glue_o_path(link_argv0), link_argv0,
-        "compiler/runtime_thread_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-    link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
-        "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/time/time.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(shux_runtime_random_fill_o_path(link_argv0), link_argv0,
-        "compiler/runtime_random_fill.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/random/random.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(shux_runtime_env_os_o_path(link_argv0), link_argv0,
-        "compiler/runtime_env_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/env/env.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sync/sync.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_sync : NULL);
-    if (flags && flags->have_sync) {
-        link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_sync_lock_diag_tls_o,
-            shux_runtime_sync_lock_diag_tls_o_path(link_argv0), link_argv0,
-            "compiler/runtime_sync_lock_diag_tls.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-        link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_sync_os_o,
-            shux_runtime_sync_os_o_path(link_argv0), link_argv0,
-            "compiler/runtime_sync_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-    }
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/encoding/encoding.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/base64/base64.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/crypto/crypto.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_crypto);
-    if (have_crypto) {
-        link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_ed25519_ref10_glue_o,
-            shux_runtime_ed25519_ref10_glue_o_path(link_argv0), link_argv0,
-            "compiler/runtime_ed25519_ref10_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-        link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_crypto_inc_glue_o,
-            shux_runtime_crypto_inc_glue_o_path(link_argv0), link_argv0,
-            "compiler/runtime_crypto_inc_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-    }
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/log/log.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_log);
-    link_abi_asm_ld_push_glue_after_std(have_log, shux_ensure_runtime_log_os_o,
-        shux_runtime_log_os_o_path(link_argv0), link_argv0,
-        "compiler/runtime_log_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/atomic/atomic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_atomic);
-    link_abi_asm_ld_push_glue_after_std(have_atomic, shux_ensure_runtime_atomic_glue_o,
-        shux_runtime_atomic_glue_o_path(link_argv0), link_argv0,
-        "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/channel/channel.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_channel : NULL);
-    link_abi_asm_ld_push_glue_after_std(flags && flags->have_channel, shux_ensure_runtime_channel_glue_o,
-        shux_runtime_channel_glue_o_path(link_argv0), link_argv0,
-        "compiler/runtime_channel_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/backtrace/backtrace.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_backtrace);
-    link_abi_asm_ld_push_glue_after_std(have_backtrace, shux_ensure_runtime_backtrace_platform_o,
-        shux_runtime_backtrace_platform_o_path(link_argv0), link_argv0,
-        "compiler/runtime_backtrace_platform.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/hash/hash.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/math/math.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_math : NULL);
-    link_abi_asm_ld_push_glue_after_std(flags && flags->have_math, shux_ensure_runtime_math_libm_o,
-        shux_runtime_math_libm_o_path(link_argv0), link_argv0,
-        "compiler/runtime_math_libm.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sort/sort.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/ffi/ffi.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/db/sqlite/sqlite.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_sqlite : NULL);
-    link_abi_asm_ld_push_glue_after_std(flags && flags->have_sqlite, shux_ensure_runtime_sqlite_glue_o,
-        shux_runtime_sqlite_glue_o_path(link_argv0), link_argv0,
-        "compiler/runtime_sqlite_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/elf/elf.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_elf : NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/json/json.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/csv/csv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/regex/regex.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    /* F-06 v1 / F-04 v7：compress 已纯 .x，无 compress.o；tail libs 由 user_o 扫描按需 -lz/-lzstd/-lbrotli* */
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/unicode/unicode.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/dynlib/dynlib.o", lib_roots, n_lib_roots, bank, argv, la, max_la, flags ? &flags->have_dynlib : NULL);
-    link_abi_asm_ld_push_glue_after_std(flags && flags->have_dynlib, shux_ensure_runtime_dynlib_os_o,
-        shux_runtime_dynlib_os_o_path(link_argv0), link_argv0,
-        "compiler/runtime_dynlib_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/http/http.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_http);
-    link_abi_asm_ld_push_glue_after_std(have_http, shux_ensure_runtime_http_glue_o,
-        shux_runtime_http_glue_o_path(link_argv0), link_argv0,
-        "compiler/runtime_http_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/socketio/socketio.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/tar/tar.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/simd/simd.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/context/context.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/error/error.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/datetime/datetime.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/uuid/uuid.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/url/url.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/cli/cli.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/security/security.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/config/config.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/cache/cache.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    link_abi_asm_ld_push_obj(NULL, link_argv0, "std/trace/trace.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, "std/task/task.o"));
-    if (!p && bank)
-        p = shux_asm_ld_try_under_lib_roots("std/task/task.o", lib_roots, n_lib_roots, bank);
-    if (p && la && *la < max_la - 1) {
-        const char *task_o;
-        if (bank) {
-            const char *bp = shux_asm_ld_bank_push(bank, p);
-            if (bp)
-                p = bp;
-        }
-        task_o = p;
-        if (!link_abi_asm_ld_argv_has_obj(argv, *la, p))
-            argv[(*la)++] = p;
-        {
-            const char *sched = scheduler_o_for_task_link(task_o, NULL);
-            if (!sched)
-                sched = asm_link_obj_skip_missing(shux_std_async_scheduler_o_path(link_argv0));
-            if (!sched && bank)
-                sched = shux_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
-            if (sched && bank) {
-                const char *sb = shux_asm_ld_bank_push(bank, sched);
-                if (sb)
-                    sched = sb;
+    n_steps = labi_std_plan_count();
+    for (si = 0; si < n_steps; si++) {
+        int op = 0;
+        const char *rel = NULL;
+        int fk = 0;
+        int *flag_out = NULL;
+        if (!labi_std_plan_step_at(si, &op, &rel, &fk))
+            continue;
+        switch (op) {
+        case LABI_STD_OP_IO_STUBS:
+            if (shux_runtime_compiler_o_path_copy(link_argv0, "runtime_asm_io_stubs.o", io_stubs_o, sizeof io_stubs_o) == 0)
+                io_stubs_p = io_stubs_o;
+            link_abi_asm_ld_push_obj(io_stubs_p, link_argv0,
+                rel ? rel : "compiler/runtime_asm_io_stubs.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            break;
+        case LABI_STD_OP_PRIMARY_PANIC:
+            link_abi_asm_ld_push_obj(shux_runtime_panic_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_panic.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            break;
+        case LABI_STD_OP_PRIMARY_TIME_OS:
+            link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            break;
+        case LABI_STD_OP_PRIMARY_RANDOM_FILL:
+            link_abi_asm_ld_push_obj(shux_runtime_random_fill_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_random_fill.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            break;
+        case LABI_STD_OP_PRIMARY_ENV_OS:
+            link_abi_asm_ld_push_obj(shux_runtime_env_os_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_env_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            break;
+        case LABI_STD_OP_STD:
+            flag_out = NULL;
+            if (fk == 1)
+                flag_out = &have_process;
+            else if (fk == 2)
+                flag_out = flags ? &flags->have_thread : NULL;
+            else if (fk == 3)
+                flag_out = flags ? &flags->have_sync : NULL;
+            else if (fk == 4)
+                flag_out = &have_crypto;
+            else if (fk == 5)
+                flag_out = &have_log;
+            else if (fk == 6)
+                flag_out = &have_atomic;
+            else if (fk == 7)
+                flag_out = flags ? &flags->have_channel : NULL;
+            else if (fk == 8)
+                flag_out = &have_backtrace;
+            else if (fk == 9)
+                flag_out = flags ? &flags->have_math : NULL;
+            else if (fk == 10)
+                flag_out = flags ? &flags->have_sqlite : NULL;
+            else if (fk == 11)
+                flag_out = flags ? &flags->have_elf : NULL;
+            else if (fk == 12)
+                flag_out = flags ? &flags->have_dynlib : NULL;
+            else if (fk == 13)
+                flag_out = &have_http;
+            if (rel && rel[0])
+                link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
+            break;
+        case LABI_STD_OP_GLUE_THREAD:
+            link_abi_asm_ld_push_glue_after_std(flags && flags->have_thread, shux_ensure_runtime_thread_glue_o,
+                shux_runtime_thread_glue_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_thread_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            break;
+        case LABI_STD_OP_GLUE_SYNC_PAIR:
+            if (flags && flags->have_sync) {
+                link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_sync_lock_diag_tls_o,
+                    shux_runtime_sync_lock_diag_tls_o_path(link_argv0), link_argv0,
+                    "compiler/runtime_sync_lock_diag_tls.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+                link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_sync_os_o,
+                    shux_runtime_sync_os_o_path(link_argv0), link_argv0,
+                    "compiler/runtime_sync_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
             }
-            if (sched && *la < max_la - 1 && !link_abi_asm_ld_argv_has_obj(argv, *la, sched))
-                argv[(*la)++] = sched;
-            if (sched && *la < max_la - 1) {
-                const char *rsg = asm_link_obj_skip_missing(shux_runtime_scheduler_glue_o_path(link_argv0));
-                if (!rsg && bank)
-                    rsg = shux_asm_ld_try_under_lib_roots("compiler/runtime_scheduler_glue.o", lib_roots, n_lib_roots, bank);
-                if (rsg && bank) {
-                    const char *rb = shux_asm_ld_bank_push(bank, rsg);
-                    if (rb)
-                        rsg = rb;
+            break;
+        case LABI_STD_OP_GLUE_CRYPTO_PAIR:
+            if (have_crypto) {
+                link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_ed25519_ref10_glue_o,
+                    shux_runtime_ed25519_ref10_glue_o_path(link_argv0), link_argv0,
+                    "compiler/runtime_ed25519_ref10_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+                link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_crypto_inc_glue_o,
+                    shux_runtime_crypto_inc_glue_o_path(link_argv0), link_argv0,
+                    "compiler/runtime_crypto_inc_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            }
+            break;
+        case LABI_STD_OP_GLUE_LOG:
+            link_abi_asm_ld_push_glue_after_std(have_log, shux_ensure_runtime_log_os_o,
+                shux_runtime_log_os_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_log_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            break;
+        case LABI_STD_OP_GLUE_ATOMIC:
+            link_abi_asm_ld_push_glue_after_std(have_atomic, shux_ensure_runtime_atomic_glue_o,
+                shux_runtime_atomic_glue_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_atomic_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            break;
+        case LABI_STD_OP_GLUE_CHANNEL:
+            link_abi_asm_ld_push_glue_after_std(flags && flags->have_channel, shux_ensure_runtime_channel_glue_o,
+                shux_runtime_channel_glue_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_channel_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            break;
+        case LABI_STD_OP_GLUE_BACKTRACE:
+            link_abi_asm_ld_push_glue_after_std(have_backtrace, shux_ensure_runtime_backtrace_platform_o,
+                shux_runtime_backtrace_platform_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_backtrace_platform.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            break;
+        case LABI_STD_OP_GLUE_MATH:
+            link_abi_asm_ld_push_glue_after_std(flags && flags->have_math, shux_ensure_runtime_math_libm_o,
+                shux_runtime_math_libm_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_math_libm.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            break;
+        case LABI_STD_OP_GLUE_SQLITE:
+            link_abi_asm_ld_push_glue_after_std(flags && flags->have_sqlite, shux_ensure_runtime_sqlite_glue_o,
+                shux_runtime_sqlite_glue_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_sqlite_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            break;
+        case LABI_STD_OP_GLUE_DYNLIB:
+            link_abi_asm_ld_push_glue_after_std(flags && flags->have_dynlib, shux_ensure_runtime_dynlib_os_o,
+                shux_runtime_dynlib_os_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_dynlib_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            break;
+        case LABI_STD_OP_GLUE_HTTP:
+            link_abi_asm_ld_push_glue_after_std(have_http, shux_ensure_runtime_http_glue_o,
+                shux_runtime_http_glue_o_path(link_argv0), link_argv0,
+                rel ? rel : "compiler/runtime_http_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            break;
+        case LABI_STD_OP_TASK_SPECIAL:
+            p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, rel ? rel : "std/task/task.o"));
+            if (!p && bank)
+                p = shux_asm_ld_try_under_lib_roots(rel ? rel : "std/task/task.o", lib_roots, n_lib_roots, bank);
+            if (p && la && *la < max_la - 1) {
+                const char *task_o;
+                if (bank) {
+                    const char *bp = shux_asm_ld_bank_push(bank, p);
+                    if (bp)
+                        p = bp;
                 }
-                if (rsg && *la < max_la - 1 && !link_abi_asm_ld_argv_has_obj(argv, *la, rsg))
-                    argv[(*la)++] = rsg;
+                task_o = p;
+                if (!link_abi_asm_ld_argv_has_obj(argv, *la, p))
+                    argv[(*la)++] = p;
+                {
+                    const char *sched = scheduler_o_for_task_link(task_o, NULL);
+                    if (!sched)
+                        sched = asm_link_obj_skip_missing(shux_std_async_scheduler_o_path(link_argv0));
+                    if (!sched && bank)
+                        sched = shux_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
+                    if (sched && bank) {
+                        const char *sb = shux_asm_ld_bank_push(bank, sched);
+                        if (sb)
+                            sched = sb;
+                    }
+                    if (sched && *la < max_la - 1 && !link_abi_asm_ld_argv_has_obj(argv, *la, sched))
+                        argv[(*la)++] = sched;
+                    if (sched && *la < max_la - 1) {
+                        const char *rsg = asm_link_obj_skip_missing(shux_runtime_scheduler_glue_o_path(link_argv0));
+                        if (!rsg && bank)
+                            rsg = shux_asm_ld_try_under_lib_roots("compiler/runtime_scheduler_glue.o", lib_roots, n_lib_roots, bank);
+                        if (rsg && bank) {
+                            const char *rb = shux_asm_ld_bank_push(bank, rsg);
+                            if (rb)
+                                rsg = rb;
+                        }
+                        if (rsg && *la < max_la - 1 && !link_abi_asm_ld_argv_has_obj(argv, *la, rsg))
+                            argv[(*la)++] = rsg;
+                    }
+                }
             }
+            break;
+        default:
+            break;
         }
     }
 }
-
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
