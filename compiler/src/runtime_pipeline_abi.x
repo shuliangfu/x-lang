@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..43/50..58：真迁 .x — pipeline dep/import/path + large_stack + dep 预跑门闩。
+// G-02f-32..43/50..59：真迁 .x — pipeline dep/import/path + dep 预跑 + multi resolve 门闩。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
 // C 尾：存储槽数组、import resolve/snprintf、clear 槽循环、malloc buf、大 pipeline。
-// G-02f-58：+ dep_prerun_parse_skip_typeck / dep_prerun_parse_only。
+// G-02f-59：+ dep_prerun_typeck_only / for_asm_module_o / resolve_import_file_path_multi。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -51,6 +51,8 @@ extern "C" function pipeline_parse_into_loaded_import_impl(arena: *u8, module: *
 extern "C" function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
 extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
 extern "C" function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32;
+extern "C" function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
+extern "C" function shux_resolve_import_file_path_multi_impl(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -730,4 +732,56 @@ function shux_pipeline_dep_prerun_parse_only(dep_mod: *u8, dep_arena: *u8, src: 
     return shux_pipeline_dep_prerun_parse_only_impl(dep_mod, dep_arena, src, len);
   }
   return -1;
+}
+
+/* ---- G-02f-59：dep prerun typeck + multi-root resolve ---- */
+
+#[no_mangle]
+function shux_pipeline_dep_prerun_typeck_only(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+  if (dep_mod == 0 as *u8) {
+    return -1;
+  }
+  if (dep_arena == 0 as *u8) {
+    return -1;
+  }
+  if (src == 0 as *u8) {
+    return -1;
+  }
+  if (len == 0) {
+    return -1;
+  }
+  if (one_ctx == 0 as *u8) {
+    return -1;
+  }
+  unsafe {
+    return shux_pipeline_dep_prerun_typeck_only_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+  }
+  return -1;
+}
+
+#[no_mangle]
+function shux_pipeline_dep_prerun_for_asm_module_o(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32 {
+  unsafe {
+    return shux_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+  }
+  return -1;
+}
+
+#[no_mangle]
+function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
+  if (path == 0 as *u8) {
+    return;
+  }
+  if (path_size == 0) {
+    return;
+  }
+  if (import_path == 0 as *u8) {
+    unsafe {
+      path[0] = 0;
+    }
+    return;
+  }
+  unsafe {
+    shux_resolve_import_file_path_multi_impl(lib_roots, n_lib_roots, entry_dir, import_path, path, path_size);
+  }
 }

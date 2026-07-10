@@ -1,7 +1,7 @@
-/* Generated from src/runtime_io_abi.x (G-02f-29/44/57/58 true .x + C tail).
+/* Generated from src/runtime_io_abi.x (G-02f-29/44/57..59 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_io_abi.x > /tmp/io.c
- *         merge fs/path R/W + file_view gates; C mmap bulk + os_read loop.
- * .x covers: + runtime_read_file_view, read_file_malloc, os_read_file_into.
+ *         merge fs/path/file_view + open_write flag slots; C mmap bulk.
+ * .x covers: + shux_fs_open_write_flags/mode thin gates.
  */
 #include "win32_compat.h"
 #include "runtime_io_abi.h"
@@ -95,6 +95,11 @@ static int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFi
 }
 
 
+
+
+/* G-02f-59 io helper protos */
+int32_t shux_fs_open_write_flags_impl(void);
+int32_t shux_fs_open_write_mode_impl(void);
 
 /* G-02f-58 helper protos */
 int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out);
@@ -292,12 +297,26 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
 
 
 /** G-02f-44：open_write 平台 flags/mode 槽（.x 调 open）。 */
-int32_t shux_fs_open_write_flags(void) {
+int32_t shux_fs_open_write_flags_impl(void) {
     return (int32_t)(O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY);
 }
 
-int32_t shux_fs_open_write_mode(void) {
+int32_t shux_fs_open_write_mode_impl(void) {
     return (int32_t)0644;
+}
+
+int32_t shux_fs_open_write_flags(void) {
+  {
+    return shux_fs_open_write_flags_impl();
+  }
+  return 0;
+}
+
+int32_t shux_fs_open_write_mode(void) {
+  {
+    return shux_fs_open_write_mode_impl();
+  }
+  return 0;
 }
 
 int32_t std_fs_fs_open_read(uint8_t * path) {

@@ -1,8 +1,8 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..58 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..59 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge dep prerun parse gates; C multi resolve + large pipeline bulk.
- * .x covers: + dep_prerun_parse_skip_typeck, dep_prerun_parse_only.
+ *         merge dep prerun typeck/for_asm + multi resolve; C bulk remains.
+ * .x covers: + dep_prerun_typeck_only, for_asm_module_o, resolve_import multi.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -27,6 +27,13 @@ extern int32_t preprocess_if_stack_len(void);
 extern void preprocess_define_add(const char *name);
 
 
+
+
+/* G-02f-59 helper protos */
+int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
+    void *one_ctx);
+void shux_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_roots, const char *entry_dir,
+    const char *import_path, char *path, size_t path_size);
 
 /* G-02f-58 helper protos */
 int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
@@ -626,7 +633,7 @@ void shux_resolve_file_import_path(const char *entry_dir, const char *import_pat
  * 在 lib_roots 与 entry_dir 下解析 import 到可读 .x 路径。
  * 参数：见 runtime_pipeline_abi.h；未找到时 path 仍写入最后一次尝试路径。
  */
-void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir,
+void shux_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char *import_path, char *path, size_t path_size) {
     if (shux_import_path_is_file_path(import_path)) {
         shux_resolve_file_import_path(entry_dir, import_path, path, path_size);
@@ -694,6 +701,23 @@ void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots
         if (access(path, R_OK) == 0)
             return;
     }
+}
+
+void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir,
+    const char *import_path, char *path, size_t path_size) {
+  if (path == NULL) {
+    return;
+  }
+  if (path_size == 0) {
+    return;
+  }
+  if (import_path == NULL) {
+    path[0] = '\0';
+    return;
+  }
+  {
+    shux_resolve_import_file_path_multi_impl(lib_roots, n_lib_roots, entry_dir, import_path, path, path_size);
+  }
 }
 
 /** pipeline dep 全局槽：arena/module 指针、import 路径注册表、seeded 标记。 */
@@ -1701,7 +1725,7 @@ int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, c
 }
 
 /** dep 预跑：parse+typeck（C glue 直调），跳过 codegen；勿走 X run_x_pipeline_impl（大模块 ctx 易丢）。 */
-int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
+int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
     void *one_ctx) {
     int32_t len_i32;
     int32_t parse_rc;
@@ -1747,6 +1771,29 @@ int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const u
                      (int)tc_rc, (int)pipeline_module_num_funcs(dep_mod),
                      (int)pipeline_module_main_func_index(dep_mod), one_ctx);
     return tc_rc;
+}
+
+int shux_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
+    void *one_ctx) {
+  if (dep_mod == NULL) {
+    return -1;
+  }
+  if (dep_arena == NULL) {
+    return -1;
+  }
+  if (src == NULL) {
+    return -1;
+  }
+  if (len == 0) {
+    return -1;
+  }
+  if (one_ctx == NULL) {
+    return -1;
+  }
+  {
+    return shux_pipeline_dep_prerun_typeck_only_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+  }
+  return -1;
 }
 
 /**
