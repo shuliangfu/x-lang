@@ -1,4 +1,5 @@
 /* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-123 true .x pure helpers.
  * G-02f-122 true .x pure helpers.
  * G-02f-121 true .x pure helpers.
  * G-02f-120 true .x pure helpers.
@@ -1321,7 +1322,8 @@ int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_l
 /**
  * co-emit std.string 时 extern shux_string_* 带 std_string_ 前缀；redirect 到 string.o 符号。
  */
-int32_t glue_try_std_string_shux_redirect_sym_local_impl(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
                                                             int32_t out_cap) {
   int32_t suffix_len;
   if (!name || name_len <= 11 || !sym_out || out_cap <= 0)
@@ -1336,13 +1338,8 @@ int32_t glue_try_std_string_shux_redirect_sym_local_impl(const uint8_t *name, in
   memcpy(sym_out, name + 11, (size_t)suffix_len);
   return suffix_len;
 }
-int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
-                                                            int32_t out_cap) {
-  {
-    return glue_try_std_string_shux_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -1460,7 +1457,8 @@ int32_t glue_asm_build_call_export_sym_c(struct ast_ASTArena *arena, int32_t cal
 /**
  * co-emit std.encoding/mod.x：std_encoding_utf8_valid -> encoding_utf8_valid_c（链 std/encoding/encoding.o）。
  */
-int32_t glue_try_std_encoding_redirect_sym_local_impl(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
                                                         int32_t out_cap) {
   const int32_t prefix_len = 13; /* "std_encoding_" */
   int32_t suffix_len;
@@ -1481,13 +1479,8 @@ int32_t glue_try_std_encoding_redirect_sym_local_impl(const uint8_t *name, int32
   sym_out[9 + suffix_len + 1] = 'c';
   return out_len;
 }
-int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
-                                                        int32_t out_cap) {
-  {
-    return glue_try_std_encoding_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /** 经 std.fs/net/std.heap 薄包装重定向表发射 call；无命中则直调 name。 */

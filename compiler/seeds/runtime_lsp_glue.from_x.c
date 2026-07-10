@@ -1,4 +1,5 @@
 /* seeds/runtime_lsp_glue.from_x.c — G-02f-15 product TU
+ * G-02f-123 true .x pure helpers.
  * G-02f-122 true .x pure helpers.
  * G-02f-118 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
@@ -518,7 +519,8 @@ int json_escape_str(const char *msg, char *out, int out_cap) {
 
 
 /** 快速 32 位哈希：64 位状态 + 8 字节块 mix，折叠为 32 位；大文档缓存校验比 djb2 更快。 */
-unsigned lsp_hash_source_impl(const uint8_t *src, int len) {
+/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+unsigned lsp_hash_source(const uint8_t *src, int len) {
     uint64_t h = (uint64_t)(unsigned)len;
     int i = 0;
     for (; i + 8 <= len; i += 8) {
@@ -530,12 +532,8 @@ unsigned lsp_hash_source_impl(const uint8_t *src, int len) {
         h = (h * 0x9e3779b97f4a7c15ULL) + (uint64_t)(unsigned)src[i];
     return (unsigned)(h ^ (h >> 32));
 }
-unsigned lsp_hash_source(const uint8_t *src, int len) {
-  {
-    return lsp_hash_source_impl(src, len);
-  }
-  return 0;
-}
+
+
 
 
 /** 加载 import 依赖并对 entry 模块做 typeck（含跨模块符号解析）。 */
@@ -2288,7 +2286,8 @@ int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len,
 /**
  * 将标识符写入 esc，转义 JSON 中的 " 与 \\；返回写入长度（esc 以 NUL 结尾）。
  */
-int lsp_json_escape_ident_impl(const char *s, char *esc, int esc_cap) {
+/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int lsp_json_escape_ident(const char *s, char *esc, int esc_cap) {
     int e = 0;
     if (!s || !esc || esc_cap < 4)
         return 0;
@@ -2303,12 +2302,8 @@ int lsp_json_escape_ident_impl(const char *s, char *esc, int esc_cap) {
     esc[e] = '\0';
     return e;
 }
-int lsp_json_escape_ident(const char *s, char *esc, int esc_cap) {
-  {
-    return lsp_json_escape_ident_impl(s, esc, esc_cap);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -2765,7 +2760,8 @@ int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf,
 
 
 /** 在 out 中补一个后继空格（若需要且容量足够）。 */
-int lsp_fmt_space_after_impl(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap) {
+/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap) {
     int k;
     if (lsp_fmt_src_ws_after(doc, start, len, j))
         return 0;
@@ -2781,12 +2777,8 @@ int lsp_fmt_space_after_impl(const uint8_t *doc, int start, int len, int j, uint
     }
     return 0;
 }
-int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap) {
-  {
-    return lsp_fmt_space_after_impl(doc, start, len, j, out_buf, out_len, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /**

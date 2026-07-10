@@ -1,4 +1,5 @@
 /* seeds/simd_enc.from_x.c — G-02f-7 product pure SIMD encode TU
+ * G-02f-123 true .x pure helpers.
  * G-02f-122 true .x pure helpers.
  * G-02f-120 true .x pure helpers.
  * G-02f-115 true .x pure helpers.
@@ -46,21 +47,14 @@ int32_t simd_arm64_rbp_lea_off_128half(int32_t slot_off, int32_t half, int32_t e
         return slot_off;
     return slot_off - half * 4 * esz;
 }
-
-
-
-
-int32_t simd_append_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *bytes, int32_t n) {
+/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t simd_append(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *bytes, int32_t n) {
     if (!elf_ctx || !bytes || n <= 0)
         return -1;
     return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)bytes, n);
 }
-int32_t simd_append(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *bytes, int32_t n) {
-  {
-    return simd_append_impl(elf_ctx, bytes, n);
-  }
-  return 0;
-}
+
+
 
 
 /** 向指令尾追加 disp32（小端）。 */
@@ -668,7 +662,8 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCt
 }
 
 /** 向指令流追加 little-endian u32 机器字（arm64 NEON 等）。 */
-int32_t simd_append_u32_le_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
+/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t simd_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
     uint8_t b[4];
     b[0] = (uint8_t)(word & 0xffU);
     b[1] = (uint8_t)((word >> 8) & 0xffU);
@@ -676,12 +671,8 @@ int32_t simd_append_u32_le_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint
     b[3] = (uint8_t)((word >> 24) & 0xffU);
     return simd_append(elf_ctx, b, 4);
 }
-int32_t simd_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
-  {
-    return simd_append_u32_le_impl(elf_ctx, word);
-  }
-  return 0;
-}
+
+
 
 
 /**

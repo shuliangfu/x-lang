@@ -9,7 +9,6 @@
 extern "C" function pipeline_typeck_named_equal_strict_minimal_impl(a: *u8, alen: i32, b: *u8, blen: i32): i32;
 extern "C" function pipeline_typeck_import_binding_name_equal_strict_minimal_impl(a: *u8, alen: i32, b: *u8, blen: i32): i32;
 extern "C" function pipeline_expr_is_func_param_at_strict_minimal_impl(arena: *u8, mod: *u8, fi: i32, er: i32, pix: i32): i32;
-extern "C" function field_name_equal_strict_minimal_impl(buf: *u8, len: i32, lit: *u8): i32;
 
 function pipeline_glue_strict_minimal_x_doc_anchor(): i32 {
   return 0;
@@ -35,11 +34,7 @@ function pipeline_expr_is_func_param_at_strict_minimal(arena: *u8, mod: *u8, fi:
   return 0;
 }
 
-#[no_mangle]
-function field_name_equal_strict_minimal(buf: *u8, len: i32, lit: *u8): i32 {
-  unsafe { return field_name_equal_strict_minimal_impl(buf, len, lit); }
-  return 0;
-}
+
 
 
 extern "C" function pipeline_typeck_find_func_index_in_module_by_name_strict_minimal_impl(mod: *u8, name: *u8, nlen: i32, arity: i32): i32;
@@ -186,4 +181,21 @@ function pipeline_typeck_named_unqual_offset_strict_minimal(buf: *u8, len: i32):
     i = i - 1;
   }
   return 0;
+}
+
+// G-02f-123：field_name_equal_strict_minimal 真迁 .x
+
+#[no_mangle]
+function field_name_equal_strict_minimal(buf: *u8, len: i32, lit: *u8): i32 {
+  if (buf == 0) { return 0; }
+  if (lit == 0) { return 0; }
+  if (len <= 0) { return 0; }
+  let i: i32 = 0;
+  while (i < len) {
+    if (lit[i] == 0) { return 0; }
+    if (buf[i] != lit[i]) { return 0; }
+    i = i + 1;
+  }
+  if (lit[len] != 0) { return 0; }
+  return 1;
 }

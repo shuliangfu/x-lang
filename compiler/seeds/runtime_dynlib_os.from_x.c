@@ -21,7 +21,8 @@ typedef HMODULE dynlib_handle_t;
  * 参数：out 输出缓冲；out_cap 容量；path UTF-8 路径。
  * 返回值：写入长度（不含 NUL）；失败 0。
  */
-size_t dynlib_win_normalize_path_impl(char *out, size_t out_cap, const char *path) {
+/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
     size_t i = 0;
     if (!out || out_cap < 2 || !path)
         return 0;
@@ -34,12 +35,8 @@ size_t dynlib_win_normalize_path_impl(char *out, size_t out_cap, const char *pat
     out[i] = '\0';
     return i;
 }
-size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
-  {
-    return dynlib_win_normalize_path_impl(out, out_cap, path);
-  }
-  return 0;
-}
+
+
 
 
 /** UTF-8 路径转宽字符后 LoadLibraryW（STD-097）。 */

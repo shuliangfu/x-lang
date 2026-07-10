@@ -19,7 +19,6 @@ extern "C" function lsp_init_lib_roots_once_impl(): void;
 extern "C" function lsp_diag_copy_text_impl(dst: *u8, cap: i32, src: *u8): void;
 extern "C" function lsp_diag_x_ctx_alloc_size_impl(): i64;
 extern "C" function json_escape_str_impl(msg: *u8, out: *u8, cap: i32): i32;
-extern "C" function lsp_hash_source_impl(src: *u8, len: i32): u32;
 extern "C" function func_name_covers_impl(f: *u8, line: i32, col: i32): i32;
 extern "C" function build_line_index_impl(mod: *u8): void;
 extern "C" function line_index_of_func_impl(f: *u8): i32;
@@ -42,8 +41,7 @@ function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void { unsafe { lsp_d
 function lsp_diag_x_ctx_alloc_size(): i64 { unsafe { return lsp_diag_x_ctx_alloc_size_impl(); } return 0; }
 #[no_mangle]
 function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 { unsafe { return json_escape_str_impl(msg, out, cap); } return 0; }
-#[no_mangle]
-function lsp_hash_source(src: *u8, len: i32): u32 { unsafe { return lsp_hash_source_impl(src, len); } return 0; }
+
 
 #[no_mangle]
 function func_name_covers(f: *u8, line: i32, col: i32): i32 { unsafe { return func_name_covers_impl(f, line, col); } return 0; }
@@ -113,10 +111,8 @@ extern "C" function line_char_to_offset_impl(doc: *u8, line: i32, ch: i32): i32;
 extern "C" function parse_first_content_change_impl(json: *u8, out: *u8): i32;
 extern "C" function lsp_find_text_value_from_impl(s: *u8, from: i32, out: *u8, cap: i32): i32;
 extern "C" function lsp_find_text_value_impl(s: *u8, out: *u8, cap: i32): i32;
-extern "C" function lsp_json_escape_ident_impl(src: *u8, dst: *u8, cap: i32): i32;
 extern "C" function lsp_extract_formatting_options_impl(json: *u8, out: *u8): i32;
 extern "C" function lsp_format_line_update_depth_impl(line: *u8, depth: *i32): void;
-extern "C" function lsp_fmt_space_after_impl(a: u8, b: u8): i32;
 extern "C" function lsp_fmt_try_emit_op_impl(ctx: *u8): i32;
 extern "C" function lsp_format_emit_segment_impl(ctx: *u8): i32;
 extern "C" function lsp_fmt_comma_expand_extra_impl(ctx: *u8): i32;
@@ -139,8 +135,7 @@ function lsp_find_text_value_from(s: *u8, from: i32, out: *u8, cap: i32): i32 { 
 function lsp_find_text_value(s: *u8, out: *u8, cap: i32): i32 { unsafe { return lsp_find_text_value_impl(s, out, cap); } return 0; }
 
 
-#[no_mangle]
-function lsp_json_escape_ident(src: *u8, dst: *u8, cap: i32): i32 { unsafe { return lsp_json_escape_ident_impl(src, dst, cap); } return 0; }
+
 
 #[no_mangle]
 function lsp_extract_formatting_options(json: *u8, out: *u8): i32 { unsafe { return lsp_extract_formatting_options_impl(json, out); } return 0; }
@@ -153,8 +148,7 @@ function lsp_format_line_update_depth(line: *u8, depth: *i32): void { unsafe { l
 
 
 
-#[no_mangle]
-function lsp_fmt_space_after(a: u8, b: u8): i32 { unsafe { return lsp_fmt_space_after_impl(a, b); } return 0; }
+
 #[no_mangle]
 function lsp_fmt_try_emit_op(ctx: *u8): i32 { unsafe { return lsp_fmt_try_emit_op_impl(ctx); } return 0; }
 #[no_mangle]
@@ -412,4 +406,92 @@ function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_le
     }
   }
   return 0;
+}
+
+// G-02f-123：LSP pure helpers 真迁 .x（签名与产品 seed C 对齐）
+
+#[no_mangle]
+function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
+  if (out_buf == 0) { return 0; }
+  if (out_len == 0) { return 0; }
+  if (lsp_fmt_src_ws_after(doc, start, len, j) != 0) { return 0; }
+  let k: i32 = j + 1;
+  while (k < len) {
+    let n: u8 = doc[start + k];
+    if (n == 32) { k = k + 1; continue; }
+    if (n == 9) { k = k + 1; continue; }
+    if (n == 13) { k = k + 1; continue; }
+    if (lsp_fmt_is_atom_head(n) != 0) {
+      unsafe {
+        let olen: i32 = out_len[0];
+        if (olen < out_cap - 1) {
+          out_buf[olen] = 32;
+          out_len[0] = olen + 1;
+          return 1;
+        }
+      }
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
+  if (s == 0) { return 0; }
+  if (esc == 0) { return 0; }
+  if (esc_cap < 4) { return 0; }
+  let e: i32 = 0;
+  let i: i32 = 0;
+  while (s[i] != 0) {
+    if (e >= esc_cap - 3) { break; }
+    let c: u8 = s[i];
+    if (c == 34) { // '"'
+      esc[e] = 92;
+      e = e + 1;
+      if (e >= esc_cap - 1) { break; }
+      esc[e] = c;
+      e = e + 1;
+    } else if (c == 92) { // '\\'
+      esc[e] = 92;
+      e = e + 1;
+      if (e >= esc_cap - 1) { break; }
+      esc[e] = c;
+      e = e + 1;
+    } else {
+      esc[e] = c;
+      e = e + 1;
+    }
+    i = i + 1;
+  }
+  esc[e] = 0;
+  return e;
+}
+
+
+#[no_mangle]
+function lsp_hash_source(src: *u8, len: i32): u32 {
+  if (src == 0) { return 0; }
+  let h: u64 = len as u64;
+  let i: i32 = 0;
+  while (i + 8 <= len) {
+    let x: u64 = 0;
+    let k: i32 = 0;
+    while (k < 8) {
+      let b: u64 = src[i + k] as u64;
+      // little-endian pack
+      let shift: u64 = 1;
+      let s: i32 = 0;
+      while (s < k) { shift = shift * 256; s = s + 1; }
+      x = x + b * shift;
+      k = k + 1;
+    }
+    h = h * 11400714819323198485 + x; // 0x9e3779b97f4a7c15
+    i = i + 8;
+  }
+  while (i < len) {
+    h = h * 11400714819323198485 + (src[i] as u64);
+    i = i + 1;
+  }
+  return (h ^ (h / 4294967296)) as u32;
 }

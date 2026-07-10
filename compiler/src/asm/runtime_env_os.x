@@ -6,7 +6,6 @@
 // 产品：cc seeds/runtime_env_os.from_x.c → runtime_env_os.o
 // G-02f-103：+ env_build_key 薄门闩。
 
-extern "C" function env_build_key_impl(key: *u8, key_len: i32, key_buf: *u8): i32;
 
 function runtime_env_os_x_doc_anchor(): i32 {
   return 0;
@@ -14,10 +13,20 @@ function runtime_env_os_x_doc_anchor(): i32 {
 
 /* ---- G-02f-103：env key build 门闩 ---- */
 
+// G-02f-123：env_build_key 真迁 .x
+
 #[no_mangle]
 function env_build_key(key: *u8, key_len: i32, key_buf: *u8): i32 {
-  unsafe {
-    return env_build_key_impl(key, key_len, key_buf);
+  // ENV_KEY_MAX = 256
+  if (key == 0) { return 0 - 1; }
+  if (key_buf == 0) { return 0 - 1; }
+  if (key_len <= 0) { return 0 - 1; }
+  if (key_len >= 256) { return 0 - 1; }
+  let i: i32 = 0;
+  while (i < key_len) {
+    key_buf[i] = key[i];
+    i = i + 1;
   }
-  return 0 - 1;
+  key_buf[key_len] = 0;
+  return 0;
 }

@@ -1,4 +1,5 @@
 /* seeds/runtime_path_fast.from_x.c — G-02f-21 product TU
+ * G-02f-123 true .x pure helpers.
  * G-02f-98 pure path helper gates.
  * Logic still C until full .x port.
  */
@@ -28,11 +29,8 @@ int32_t path_last_sep_c(uint8_t *path, int32_t path_len) {
     }
     return -1;
 }
-
-
-
-
-int32_t path_last_dot_c_impl(uint8_t *path, int32_t start, int32_t len) {
+/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t path_last_dot_c(uint8_t *path, int32_t start, int32_t len) {
     int32_t i;
     for (i = start + len - 1; i >= start; i--) {
         if (path[i] == (uint8_t)46)
@@ -40,12 +38,8 @@ int32_t path_last_dot_c_impl(uint8_t *path, int32_t start, int32_t len) {
     }
     return -1;
 }
-int32_t path_last_dot_c(uint8_t *path, int32_t start, int32_t len) {
-  {
-    return path_last_dot_c_impl(path, start, len);
-  }
-  return 0 - 1;
-}
+
+
 
 int32_t std_path_empty_len(void) { return 0; }
 

@@ -15,7 +15,6 @@ function simd_enc_x_doc_anchor(): i32 {
 
 // G-02f-108：+ rbp/append/x86 movups/padd 薄门闩。
 
-extern "C" function simd_append_impl(elf: *u8, bytes: *u8, n: i32): i32;
 extern "C" function simd_x86_movups_xmm0_from_rbp_impl(elf: *u8, disp: i32): i32;
 extern "C" function simd_x86_movups_xmm1_from_rbp_impl(elf: *u8, disp: i32): i32;
 extern "C" function simd_x86_addps_xmm0_xmm1_impl(elf: *u8): i32;
@@ -33,11 +32,7 @@ extern "C" function simd_x86_vpsubd_ymm0_ymm1_impl(elf: *u8): i32;
 
 
 
-#[no_mangle]
-function simd_append(elf: *u8, bytes: *u8, n: i32): i32 {
-  unsafe { return simd_append_impl(elf, bytes, n); }
-  return 0;
-}
+
 
 
 
@@ -120,7 +115,6 @@ extern "C" function simd_x86_vmovups_ymm0_to_rbx_rax4_impl(elf: *u8): i32;
 extern "C" function simd_x86_movups_xmm0_from_rbx_rax4_impl(elf: *u8): i32;
 extern "C" function simd_x86_movups_xmm1_from_rbx_rax4_impl(elf: *u8): i32;
 extern "C" function simd_x86_movups_xmm0_to_rbx_rax4_impl(elf: *u8): i32;
-extern "C" function simd_append_u32_le_impl(elf: *u8, word: u32): i32;
 extern "C" function simd_arm64_ins_v1_from_v0_s_impl(dst: i32, src: i32): u32;
 extern "C" function simd_arm64_pshufd_imm8_128_rbp_impl(elf: *u8, lea_src: i32, lea_dst: i32, imm8: i32): i32;
 extern "C" function simd_arm64_select_128_rbp_impl(elf: *u8, lea_mask: i32, lea_a: i32, lea_b: i32): i32;
@@ -151,8 +145,7 @@ function simd_x86_movups_xmm0_from_rbx_rax4(elf: *u8): i32 { unsafe { return sim
 function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 { unsafe { return simd_x86_movups_xmm1_from_rbx_rax4_impl(elf); } return 0; }
 #[no_mangle]
 function simd_x86_movups_xmm0_to_rbx_rax4(elf: *u8): i32 { unsafe { return simd_x86_movups_xmm0_to_rbx_rax4_impl(elf); } return 0; }
-#[no_mangle]
-function simd_append_u32_le(elf: *u8, word: u32): i32 { unsafe { return simd_append_u32_le_impl(elf, word); } return 0; }
+
 
 // G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
 
@@ -186,3 +179,32 @@ function simd_append_disp32(elf: *u8, disp: i32): i32 {
   return 0 - 1;
 }
 
+// G-02f-123：simd_append / simd_append_u32_le 真迁 .x
+
+extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+
+#[no_mangle]
+function simd_append(elf: *u8, bytes: *u8, n: i32): i32 {
+  if (elf == 0) { return 0 - 1; }
+  if (bytes == 0) { return 0 - 1; }
+  if (n <= 0) { return 0 - 1; }
+  unsafe {
+    return pipeline_elf_ctx_append_bytes(elf, bytes, n);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_append_u32_le(elf: *u8, word: u32): i32 {
+  let b0: u8 = (word & 255) as u8;
+  let b1: u8 = ((word / 256) & 255) as u8;
+  let b2: u8 = ((word / 65536) & 255) as u8;
+  let b3: u8 = ((word / 16777216) & 255) as u8;
+  unsafe {
+    if (simd_append(elf, &b0, 1) != 0) { return 0 - 1; }
+    if (simd_append(elf, &b1, 1) != 0) { return 0 - 1; }
+    if (simd_append(elf, &b2, 1) != 0) { return 0 - 1; }
+    return simd_append(elf, &b3, 1);
+  }
+  return 0 - 1;
+}

@@ -44,7 +44,6 @@ extern "C" function glue_module_func_overload_count_c_impl(m: *u8, name: *u8, nl
 extern "C" function glue_asm_import_segment_at_impl(mod: *u8, ix: i32, want: i32, ostr: *i32, olen: *i32): i32;
 extern "C" function glue_asm_fill_c_prefix_from_module_import_impl(mod: *u8, ix: i32, pre: *u8): i32;
 extern "C" function glue_try_std_heap_redirect_sym_local_impl(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
-extern "C" function glue_try_std_string_shux_redirect_sym_local_impl(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
 
 /* ---- G-02f-109：call_dispatch more helpers 门闩 ---- */
 
@@ -62,8 +61,7 @@ function glue_asm_fill_c_prefix_from_module_import(mod: *u8, ix: i32, pre: *u8):
 
 #[no_mangle]
 function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 { unsafe { return glue_try_std_heap_redirect_sym_local_impl(name, nlen, out, cap); } return 0; }
-#[no_mangle]
-function glue_try_std_string_shux_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 { unsafe { return glue_try_std_string_shux_redirect_sym_local_impl(name, nlen, out, cap); } return 0; }
+
 
 
 // G-02f-110：+ jmp/lea/arg slot/export/call cleanup 薄门闩。
@@ -74,7 +72,6 @@ extern "C" function glue_spill_struct16_call_arg_to_lea_elf_c_impl(arena: *u8, e
 extern "C" function glue_emit_call_args_elf_sysv_f32_xmm_c_impl(arena: *u8, elf: *u8, er: i32, c: *u8): i32;
 extern "C" function glue_emit_one_call_arg_elf_c_impl(arena: *u8, elf: *u8, call: i32, a: i32, b: i32): i32;
 extern "C" function glue_asm_build_call_export_sym_c_impl(pre: *u8, name: *u8, out: *u8, cap: i32): i32;
-extern "C" function glue_try_std_encoding_redirect_sym_local_impl(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
 extern "C" function glue_asm_enc_call_redirected_impl(elf: *u8, name: *u8): i32;
 extern "C" function glue_asm_prefix_is_fmt_or_debug_impl(pre: *u8, plen: i32): i32;
 extern "C" function glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(arena: *u8, elf: *u8, er: i32): i32;
@@ -94,8 +91,7 @@ function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er: i32, c
 function glue_emit_one_call_arg_elf_c(arena: *u8, elf: *u8, call: i32, a: i32, b: i32): i32 { unsafe { return glue_emit_one_call_arg_elf_c_impl(arena, elf, call, a, b); } return 0; }
 #[no_mangle]
 function glue_asm_build_call_export_sym_c(pre: *u8, name: *u8, out: *u8, cap: i32): i32 { unsafe { return glue_asm_build_call_export_sym_c_impl(pre, name, out, cap); } return 0; }
-#[no_mangle]
-function glue_try_std_encoding_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 { unsafe { return glue_try_std_encoding_redirect_sym_local_impl(name, nlen, out, cap); } return 0; }
+
 #[no_mangle]
 function glue_asm_enc_call_redirected(elf: *u8, name: *u8): i32 { unsafe { return glue_asm_enc_call_redirected_impl(elf, name); } return 0; }
 
@@ -384,4 +380,63 @@ function glue_call_param_type_ref_at(arena: *u8, call: i32, pix: i32): i32 {
     return pipeline_asm_call_param_type_ref_at_c(arena, call, pix);
   }
   return 0;
+}
+
+// G-02f-123：std redirect pure helpers 真迁 .x
+
+#[no_mangle]
+function glue_try_std_string_shux_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
+  if (name == 0) { return 0; }
+  if (nlen <= 11) { return 0; }
+  if (out == 0) { return 0; }
+  if (cap <= 0) { return 0; }
+  // "std_string_"
+  if (name[0]!=115||name[1]!=116||name[2]!=100||name[3]!=95||name[4]!=115||name[5]!=116
+      ||name[6]!=114||name[7]!=105||name[8]!=110||name[9]!=103||name[10]!=95) {
+    return 0;
+  }
+  let suffix_len: i32 = nlen - 11;
+  if (suffix_len < 12) { return 0; }
+  // "shux_string_"
+  if (name[11]!=115||name[12]!=104||name[13]!=117||name[14]!=120||name[15]!=95
+      ||name[16]!=115||name[17]!=116||name[18]!=114||name[19]!=105||name[20]!=110
+      ||name[21]!=103||name[22]!=95) {
+    return 0;
+  }
+  if (suffix_len + 1 > cap) { return 0; }
+  let i: i32 = 0;
+  while (i < suffix_len) {
+    out[i] = name[11 + i];
+    i = i + 1;
+  }
+  return suffix_len;
+}
+
+#[no_mangle]
+function glue_try_std_encoding_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
+  if (name == 0) { return 0; }
+  if (out == 0) { return 0; }
+  if (cap <= 0) { return 0; }
+  let prefix_len: i32 = 13; // "std_encoding_"
+  if (nlen <= prefix_len) { return 0; }
+  // std_encoding_
+  if (name[0]!=115||name[1]!=116||name[2]!=100||name[3]!=95||name[4]!=101||name[5]!=110
+      ||name[6]!=99||name[7]!=111||name[8]!=100||name[9]!=105||name[10]!=110||name[11]!=103
+      ||name[12]!=95) {
+    return 0;
+  }
+  let suffix_len: i32 = nlen - prefix_len;
+  if (suffix_len <= 0) { return 0; }
+  let out_len: i32 = 9 + suffix_len + 2; // encoding_ + suffix + _c
+  if (out_len >= cap) { return 0; }
+  // encoding_
+  out[0]=101; out[1]=110; out[2]=99; out[3]=111; out[4]=100; out[5]=105; out[6]=110; out[7]=103; out[8]=95;
+  let i: i32 = 0;
+  while (i < suffix_len) {
+    out[9 + i] = name[prefix_len + i];
+    i = i + 1;
+  }
+  out[9 + suffix_len] = 95;
+  out[9 + suffix_len + 1] = 99;
+  return out_len;
 }

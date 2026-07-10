@@ -6,7 +6,6 @@
 // G-02f-107：+ scalar token / token copy / extern fail 薄门闩。
 // 注：expr_set_common_zeros / onefunc_wired 仍为 seed 内 static（.inc 前向 static 声明冲突；struct 返回不适合薄门闩）。
 
-extern "C" function parser_asm_is_fn_sig_scalar_type_token_c_impl(tok: i32): i32;
 extern "C" function parser_asm_copy_token_bytes_to_buf64_impl(src: *u8, n: i32, dst: *u8): void;
 extern "C" function parser_asm_extern_parse_set_fail_c_impl(of: *u8, code: i32): void;
 
@@ -16,11 +15,7 @@ function parser_asm_thin_c_x_doc_anchor(): i32 {
 
 /* ---- G-02f-107：parser thin helpers 门闩 ---- */
 
-#[no_mangle]
-function parser_asm_is_fn_sig_scalar_type_token_c(tok: i32): i32 {
-  unsafe { return parser_asm_is_fn_sig_scalar_type_token_c_impl(tok); }
-  return 0;
-}
+
 
 #[no_mangle]
 function parser_asm_copy_token_bytes_to_buf64(src: *u8, n: i32, dst: *u8): void {
@@ -76,4 +71,21 @@ function parser_asm_write_try_skip_allow_result(out: *u8, a: i32, b: i32): void 
 #[no_mangle]
 function parser_asm_lex_from_lr_next_c(lex: *u8, r: *u8): void {
   unsafe { parser_asm_lex_from_lr_next_c_impl(lex, r); }
+}
+
+// G-02f-123：parser_asm_is_fn_sig_scalar_type_token_c 真迁 .x
+// TokenKind from token.h (cc-verified): IDENT=59 I32=60 BOOL=61 U8=62 U32=63 U64=64 I64=65 USIZE=66 VOID=79
+
+#[no_mangle]
+function parser_asm_is_fn_sig_scalar_type_token_c(tok: i32): i32 {
+  if (tok == 60) { return 1; } // I32
+  if (tok == 65) { return 1; } // I64
+  if (tok == 61) { return 1; } // BOOL
+  if (tok == 62) { return 1; } // U8
+  if (tok == 63) { return 1; } // U32
+  if (tok == 64) { return 1; } // U64
+  if (tok == 66) { return 1; } // USIZE
+  if (tok == 79) { return 1; } // VOID
+  if (tok == 59) { return 1; } // IDENT
+  return 0;
 }

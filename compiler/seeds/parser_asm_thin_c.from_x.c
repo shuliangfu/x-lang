@@ -1,4 +1,5 @@
 /* seeds/parser_asm_thin_c.from_x.c — G-02f-10 product parser EMIT_HEAVY thin glue
+ * G-02f-123 true .x pure helpers.
  * G-02f-112 helper gates.
  * G-02f-111 helper gates.
  * G-02f-107 helper gates.
@@ -6637,17 +6638,14 @@ struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_
 #endif
 
 /** 参数/返回值标量或命名类型 token（不含 * 与 []）。 */
-int32_t parser_asm_is_fn_sig_scalar_type_token_c_impl(int32_t kind) {
+/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t parser_asm_is_fn_sig_scalar_type_token_c(int32_t kind) {
   return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL
       || kind == (int32_t)TOKEN_U8 || kind == (int32_t)TOKEN_U32 || kind == (int32_t)TOKEN_U64
       || kind == (int32_t)TOKEN_USIZE || kind == (int32_t)TOKEN_VOID || kind == (int32_t)TOKEN_IDENT;
 }
-int32_t parser_asm_is_fn_sig_scalar_type_token_c(int32_t kind) {
-  {
-    return parser_asm_is_fn_sig_scalar_type_token_c_impl(kind);
-  }
-  return 0;
-}
+
+
 
 
 /**
