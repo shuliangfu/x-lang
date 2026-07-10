@@ -17,6 +17,7 @@
 // G-02f-228：pctx seed_dep_slots / import_paths_only / update_dep_slots_no_reset pure。
 // G-02f-229：get_entry_dir + import_path_to_file_path pure。
 // G-02f-230：seeded_clear 槽循环 + fill_ctx_path_buffers 编排 pure。
+// G-02f-231：resolve_file_import 拼接 pure + set_entry_dir 编排 pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -56,7 +57,8 @@ extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *
 /* seeded_clear_slots：G-02f-230 下方真迁 */
 /* get_entry_dir / import_path_to_file_path：G-02f-229 下方真迁 */
 extern "C" function driver_asm_fclose_asm_out_impl(fp: *u8): void;
-extern "C" function shux_resolve_file_import_path_impl(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void;
+/* resolve_file_import_path：G-02f-231 下方真迁（join pure；realpath 🔒） */
+extern "C" function shux_path_try_realpath_inplace(path: *u8, path_size: i64): void;
 extern "C" function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void;
 extern "C" function pipeline_dep_ctx_copy_entry_dir(ctx: *u8, entry_dir: *u8): void;
 extern "C" function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32;
@@ -84,7 +86,9 @@ extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8
 extern "C" function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32;
 extern "C" function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
 extern "C" function shux_resolve_import_file_path_multi_impl(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void;
-extern "C" function pipeline_set_entry_dir_impl(path: *u8): void;
+/* set_entry_dir：G-02f-231 下方真迁 */
+extern "C" function pipeline_entry_dir_copy(path: *u8): void;
+extern "C" function pipeline_entry_dir_set_dot(): void;
 extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8): void;
 /* fill_ctx_path_buffers：G-02f-230 下方真迁 */
 /* pctx_seed_dep_slots / import_paths_only：G-02f-228 下方真迁 */
@@ -814,6 +818,45 @@ function shux_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u
   }
 }
 
+// G-02f-231 内部：a + '/' + b → dst（cap 含 NUL）
+function pipe_cstr_join_slash(dst: *u8, cap: i32, a: *u8, b: *u8): void {
+  if (dst == 0 as *u8) { return; }
+  if (cap <= 0) { return; }
+  let off: i32 = 0;
+  unsafe {
+    if (a != 0 as *u8) {
+      let i: i32 = 0;
+      while (i < 4096) {
+        if (a[i] == 0) { break; }
+        if (off + 1 >= cap) { break; }
+        dst[off] = a[i];
+        off = off + 1;
+        i = i + 1;
+      }
+    }
+    if (off + 1 < cap) {
+      dst[off] = 47;
+      off = off + 1;
+    }
+    if (b != 0 as *u8) {
+      let j: i32 = 0;
+      while (j < 4096) {
+        if (b[j] == 0) { break; }
+        if (off + 1 >= cap) { break; }
+        dst[off] = b[j];
+        off = off + 1;
+        j = j + 1;
+      }
+    }
+    if (off < cap) {
+      dst[off] = 0;
+    } else {
+      dst[cap - 1] = 0;
+    }
+  }
+}
+
+// G-02f-231：拼路径 pure，再 try realpath（OS 🔒 helper）
 #[no_mangle]
 function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
@@ -828,8 +871,26 @@ function shux_resolve_file_import_path(entry_dir: *u8, import_path: *u8, path: *
     }
     return;
   }
+  let cap: i32 = path_size as i32;
+  if (cap <= 0) {
+    return;
+  }
   unsafe {
-    shux_resolve_file_import_path_impl(entry_dir, import_path, path, path_size);
+    // absolute
+    if (import_path[0] == 47) {
+      pipe_cstr_copy(path, cap, import_path);
+    } else {
+      if (entry_dir != 0 as *u8) {
+        if (entry_dir[0] != 0) {
+          pipe_cstr_join_slash(path, cap, entry_dir, import_path);
+        } else {
+          pipe_cstr_copy(path, cap, import_path);
+        }
+      } else {
+        pipe_cstr_copy(path, cap, import_path);
+      }
+    }
+    shux_path_try_realpath_inplace(path, path_size);
   }
 }
 
@@ -1193,10 +1254,19 @@ function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, e
 
 /* ---- G-02f-60：entry_dir / dep 槽 / ctx path 与 dep seed ---- */
 
+// G-02f-231：非空 path → copy 到静态 buf；否则 "."
 #[no_mangle]
 function pipeline_set_entry_dir(path: *u8): void {
   unsafe {
-    pipeline_set_entry_dir_impl(path);
+    if (path == 0 as *u8) {
+      pipeline_entry_dir_set_dot();
+      return;
+    }
+    if (path[0] == 0) {
+      pipeline_entry_dir_set_dot();
+      return;
+    }
+    pipeline_entry_dir_copy(path);
   }
 }
 

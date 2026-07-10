@@ -12,6 +12,7 @@
  * G-02f-228: pctx seed_dep_slots / import_paths_only / update_no_reset pure.
  * G-02f-229: get_entry_dir + import_path_to_file_path pure.
  * G-02f-230: seeded_clear + fill_ctx_path_buffers pure.
+ * G-02f-231: resolve_file_import join pure + set_entry_dir pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -718,6 +719,22 @@ int shux_import_path_is_file_path(const char *import_path) {
  * 将相对/绝对文件路径解析为可打开的 .x 路径（相对 entry_dir）。
  * 参数：见 runtime_pipeline_abi.h。
  */
+/* G-02f-231：realpath 🔒（.x join 后调用；失败则保留原 path） */
+void shux_path_try_realpath_inplace(char *path, size_t path_size) {
+    if (!path || path_size == 0)
+        return;
+#if defined(_POSIX_VERSION) || defined(__APPLE__)
+    {
+        char resolved[1024];
+        if (realpath(path, resolved) != NULL)
+            (void)snprintf(path, path_size, "%s", resolved);
+    }
+#else
+    (void)path_size;
+#endif
+}
+
+/* G-02f-231：逻辑源 .x（join pure）；seed 保留同语义 C 供产品 cc */
 void shux_resolve_file_import_path_impl(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
     char tmp[1024];
     if (import_path[0] == '/') {
@@ -727,18 +744,11 @@ void shux_resolve_file_import_path_impl(const char *entry_dir, const char *impor
     } else {
         (void)snprintf(tmp, sizeof(tmp), "%s", import_path);
     }
-#if defined(_POSIX_VERSION) || defined(__APPLE__)
-    {
-        char resolved[1024];
-        if (realpath(tmp, resolved) != NULL) {
-            (void)snprintf(path, path_size, "%s", resolved);
-            return;
-        }
-    }
-#endif
     (void)snprintf(path, path_size, "%s", tmp);
+    shux_path_try_realpath_inplace(path, path_size);
 }
 
+/* G-02f-231：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 void shux_resolve_file_import_path(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
   if (path == NULL) {
     return;
@@ -1723,13 +1733,25 @@ extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, 
 extern int32_t pipeline_module_num_funcs(void *module);
 
 /** 设置 pipeline resolve/read 用的 entry 目录。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-231：静态 entry_dir 缓冲写（.x 编排调用） */
+void pipeline_entry_dir_copy(const char *path) {
+    if (!path)
+        return;
+    (void)snprintf(pipeline_entry_dir_buf, sizeof(pipeline_entry_dir_buf), "%s", path);
+    pipeline_entry_dir = pipeline_entry_dir_buf;
+}
+
+/* G-02f-231：entry_dir 回落为 "." */
+void pipeline_entry_dir_set_dot(void) {
+    pipeline_entry_dir = ".";
+}
+
+/* G-02f-231：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void pipeline_set_entry_dir(const char *path) {
     if (path && path[0]) {
-        (void)snprintf(pipeline_entry_dir_buf, sizeof(pipeline_entry_dir_buf), "%s", path);
-        pipeline_entry_dir = pipeline_entry_dir_buf;
+        pipeline_entry_dir_copy(path);
     } else {
-        pipeline_entry_dir = ".";
+        pipeline_entry_dir_set_dot();
     }
 }
 
