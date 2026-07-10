@@ -78,7 +78,7 @@ entries = [
     ("src/asm/runtime_lsp_glue.inc", base),
     ("src/main_driver.c", driver_flags),
     ("src/runtime_driver.c", driver_flags),
-    ("src/driver/fmt_check_cmd.inc", base),
+    ("seeds/fmt_check_cmd.from_x.c", base),
     ("src/async/async_liveness.inc", base),
     ("src/async/async_cps_codegen.inc", base),
     ("pipeline_bootstrap_orchestration.c", base + [

@@ -9,8 +9,8 @@ env_iter_count	symbol	iter_count	std/env/mod.x
 args_iter_fn	symbol	args_iter	std/env/mod.x
 args_iter_next	symbol	args_iter_next	std/env/mod.x
 args_iter_count	symbol	args_iter_count	std/env/mod.x
-c_iter_count	symbol	env_iter_count_c	compiler/src/asm/runtime_env_os.inc
-c_iter_at	symbol	env_iter_at_c	compiler/src/asm/runtime_env_os.inc
+c_iter_count	symbol	env_iter_count_c	compiler/seeds/runtime_env_os.from_x.c
+c_iter_at	symbol	env_iter_at_c	compiler/seeds/runtime_env_os.from_x.c
 c_args_count	symbol	args_iter_count_c	std/env/env.x
 c_args_at	symbol	args_iter_at_c	std/env/env.x
 test_smoke	file	env_iter.x	tests/env/env_iter.x	烟测

@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_SYNC_LOCK_DIAG_V2_FAIL:-0}
 DOC="analysis/phase-f-sync-lock-diag-v2.md"
 MANIFEST="tests/baseline/f-sync-lock-diag-v2-closure.tsv"
-SYNC_TLS_RUNTIME="compiler/src/asm/runtime_sync_lock_diag_tls.inc"
+SYNC_TLS_RUNTIME="compiler/seeds/runtime_sync_lock_diag_tls.from_x.c"
 die() { echo "f-sync-lock-diag-v2 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0; }
 echo "=== F-sync-lock-diag v2: diag logic → sync.x ==="
 [ -f "$DOC" ] || die "missing $DOC"

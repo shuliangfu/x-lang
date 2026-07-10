@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-channel v1：std.channel 去 C（channel.c → channel.x + runtime_channel_glue.inc）。
+# F-channel v1：std.channel 去 C（channel.c → channel.x + seeds/runtime_channel_glue.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_CHANNEL_V1_FAIL:-0}
@@ -11,7 +11,7 @@ echo "=== F-channel v1: channel.c → channel.x ==="
 grep -q 'F-channel v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
 [ -f std/channel/channel.x ] || die "missing channel.x"
-[ -f compiler/src/asm/runtime_channel_glue.inc ] || die "missing runtime_channel_glue.inc"
+[ -f compiler/seeds/runtime_channel_glue.from_x.c ] || die "missing runtime_channel_glue.from_x.c"
 [ ! -f std/channel/channel_glue.c ] || die "channel_glue.c should be deleted"
 [ ! -f std/channel/channel.c ] || die "channel.c should be deleted"
 while IFS=$'\t' read -r item_id kind anchor _n; do

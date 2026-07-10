@@ -51,13 +51,13 @@ fi
   if rg -q '\bshu_io_|\b__shu_frame\b|\bshu_async_' \
   --glob '!*_gen*.c' --glob '!*.base' --glob '!tests/baseline/*' --glob '!tests/run-no-legacy-shux-gate.sh' \
   --glob '!std/标准库api命名规范.md' --glob '!core/核心库api命名规范.md' \
-  --glob '!std/async/mod.x' --glob '!compiler/src/asm/runtime_scheduler_glue.inc' \
+  --glob '!std/async/mod.x' --glob '!compiler/seeds/runtime_scheduler_glue.from_x.c' \
   compiler core std tests scripts tools editors 2>/dev/null; then
   bad "legacy shu_io / __shu_frame / shu_async ABI names remain (non-doc)"
   rg -n '\bshu_io_|\b__shu_frame\b|\bshu_async_' \
     --glob '!*_gen*.c' --glob '!*.base' --glob '!tests/baseline/*' --glob '!tests/run-no-legacy-shux-gate.sh' \
     --glob '!std/标准库api命名规范.md' --glob '!core/核心库api命名规范.md' \
-    --glob '!std/async/mod.x' --glob '!compiler/src/asm/runtime_scheduler_glue.inc' \
+    --glob '!std/async/mod.x' --glob '!compiler/seeds/runtime_scheduler_glue.from_x.c' \
     compiler core std tests scripts tools editors 2>/dev/null | head -20 | sed 's/^/  /'
 fi
 

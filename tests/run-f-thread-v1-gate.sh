@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-thread v1：std.thread 去 C（thread.x + runtime_thread_glue.inc）。
+# F-thread v1：std.thread 去 C（thread.x + seeds/runtime_thread_glue.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_THREAD_V1_FAIL:-0}
@@ -10,7 +10,7 @@ echo "=== F-thread v1: thread.c → thread.x ==="
 [ -f "$DOC" ] || die "missing $DOC"
 [ -f "$MANIFEST" ] || die "missing manifest"
 [ -f std/thread/thread.x ] || die "missing thread.x"
-[ -f compiler/src/asm/runtime_thread_glue.inc ] || die "missing runtime_thread_glue.inc"
+[ -f compiler/seeds/runtime_thread_glue.from_x.c ] || die "missing runtime_thread_glue.inc"
 [ ! -f std/thread/thread_glue.c ] || die "thread_glue.c should be deleted"
 [ ! -f std/thread/thread.c ] || die "thread.c should be deleted"
 while IFS=$'\t' read -r item_id kind anchor _n; do

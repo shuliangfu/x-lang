@@ -9,8 +9,8 @@ api_erfc	api	erfc	std/math/mod.x	互补误差
 api_log1p	api	log1p	std/math/mod.x	log(1+x)
 api_expm1	api	expm1	std/math/mod.x	exp(x)-1
 api_smoke	api	special_smoke	std/math/mod.x	C 烟测
-symbol_erf_c	symbol	math_erf_c	compiler/src/asm/runtime_math_libm.inc	libm 胶层
-symbol_smoke_c	symbol	math_special_smoke_c	compiler/src/asm/runtime_math_libm.inc	烟测
+symbol_erf_c	symbol	math_erf_c	compiler/seeds/runtime_math_libm.from_x.c	libm 胶层
+symbol_smoke_c	symbol	math_special_smoke_c	compiler/seeds/runtime_math_libm.from_x.c	烟测
 vectors	vectors	tests/baseline/std-math-special-vectors.tsv	金样
 smoke_c	file	tests/std-math/special_smoke_ok.c	C 入口
 smoke_x	smoke	tests/std-math/special_funcs.x	.x 烟测

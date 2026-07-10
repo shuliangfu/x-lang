@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 DOC="analysis/std-atomic-widen-v1.md"
 MANIFEST="tests/baseline/std-atomic-widen-manifest.tsv"
 MOD_X="std/atomic/mod.x"
-ATOMIC_RUNTIME="${SHUX_STD_ATOMIC_IMPL:-compiler/src/asm/runtime_atomic_glue.inc}"
+ATOMIC_RUNTIME="${SHUX_STD_ATOMIC_IMPL:-compiler/seeds/runtime_atomic_glue.from_x.c}"
 LIB="tests/lib/std-atomic-widen.sh"
 SMOKE_X="tests/atomic/widen_16_64.x"
 

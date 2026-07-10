@@ -4,6 +4,6 @@ fdynlib_v2_doc	doc	analysis/phase-f-dynlib-v2.md	F-dynlib v2 / F-ZC
 fdynlib_v2_gate	gate	tests/run-f-dynlib-v2-gate.sh	聚合门禁
 dynlib_x	file	std/dynlib/dynlib.x	open/sym/last_error
 dynlib_os_glue_absent	absent	std/dynlib/dynlib_os_glue.c	F-ZC 已删除
-runtime_dynlib_os	file	compiler/src/asm/runtime_dynlib_os.inc	dlopen runtime
+runtime_dynlib_os	file	compiler/seeds/runtime_dynlib_os.from_x.c	dlopen runtime
 dynlib_glue_v1_absent	absent	std/dynlib/dynlib_glue.c	v1 胶层已删除
 makefile	makefile	compiler/Makefile	dynlib.o 纯 .x

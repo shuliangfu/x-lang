@@ -25,7 +25,7 @@ std_env_platform_encoding_symbols_ok() {
         local path="$mod_path"
         case "$path" in
           std/env/env.c|std/env/env.x) path="$env_x" ;;
-          std/env/env_os_glue.c|compiler/src/asm/runtime_env_os.inc) path="$env_glue" ;;
+          std/env/env_os_glue.c|compiler/seeds/runtime_env_os.from_x.c) path="$env_glue" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-env-platform-encoding FAIL: missing '$anchor' in $path" >&2

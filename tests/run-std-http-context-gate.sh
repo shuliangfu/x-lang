@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 . "$(dirname "$0")/lib/ci-host.sh"
 
 MOD_X="std/http/mod.x"
-HTTP_C="compiler/src/asm/http/runtime_http_glue.inc"
+HTTP_C="compiler/seeds/runtime_http_glue.from_x.c"
 ERR_X="std/error/mod.x"
 SMOKE="tests/http/context_get.x"
 SMOKE_TO="tests/http/context_connect_timeout.x"

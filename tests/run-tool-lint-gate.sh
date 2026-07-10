@@ -29,7 +29,7 @@ native_shu() {
 }
 
 echo "=== TOOL-002: linter rules manifest ==="
-for f in "$DOC" "$MANIFEST" "$PROFILE" compiler/src/lsp/lsp_diag.h compiler/src/driver/fmt_check_cmd.inc; do
+for f in "$DOC" "$MANIFEST" "$PROFILE" compiler/src/lsp/lsp_diag.h compiler/seeds/fmt_check_cmd.from_x.c; do
   if [ ! -f "$f" ]; then
     echo "tool-lint gate FAIL: missing $f" >&2
     exit 1

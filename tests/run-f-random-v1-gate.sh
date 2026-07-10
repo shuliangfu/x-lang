@@ -22,7 +22,7 @@ grep -q 'F-random v1' "$DOC" || die "doc missing F-random v1 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
 [ -f std/random/random.x ] || die "missing std/random/random.x"
 [ ! -f std/random/random_os_glue.c ] || die "random_os_glue.c should be deleted (F-ZC)"
-[ -f compiler/src/asm/runtime_random_fill.inc ] || die "missing runtime_random_fill.inc"
+[ -f compiler/seeds/runtime_random_fill.from_x.c ] || die "missing runtime_random_fill.inc"
 [ ! -f std/random/random.c ] || die "std/random/random.c should be deleted"
 
 while IFS=$'\t' read -r item_id kind anchor _notes; do

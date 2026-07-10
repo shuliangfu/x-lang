@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_STD_DYNLIB_WIN_DOC:-analysis/std-dynlib-windows-v1.md}"
 MANIFEST="${SHUX_STD_DYNLIB_WIN_TSV:-tests/baseline/std-dynlib-windows.tsv}"
-DYNLIB_RUNTIME="compiler/src/asm/runtime_dynlib_os.inc"
+DYNLIB_RUNTIME="compiler/seeds/runtime_dynlib_os.from_x.c"
 DYNLIB_X="std/dynlib/dynlib.x"
 DYNLIB_X="std/dynlib/dynlib.x"
 MOD_X="std/dynlib/mod.x"

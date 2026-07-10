@@ -18,7 +18,7 @@ MIN_LAYERS=3
 
 echo "=== STD-006: std.crypto manifest ==="
 for f in "$DOC" "$MANIFEST" "$VECTORS" "$CRYPTO_MOD" "$RAND_MOD" \
-  std/crypto/core.x compiler/src/asm/runtime_crypto_inc_glue.inc std/random/random.x compiler/src/asm/runtime_random_fill.inc tests/lib/std-crypto.sh; do
+  std/crypto/core.x compiler/seeds/runtime_crypto_inc_glue.from_x.c std/random/random.x compiler/seeds/runtime_random_fill.from_x.c tests/lib/std-crypto.sh; do
   if [ ! -f "$f" ]; then
     echo "std-crypto gate FAIL: missing $f" >&2
     exit 1

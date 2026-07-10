@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# F-math v1：std.math 去 C（math.c → math.x + runtime_math_libm.inc）。
+# F-math v1：std.math 去 C（math.c → math.x + seeds/runtime_math_libm.from_x.c）。
 set -e
 cd "$(dirname "$0")/.."
 FAIL=${SHUX_F_MATH_V1_FAIL:-0}
@@ -11,7 +11,7 @@ echo "=== F-math v1: std.math math.c → math.x + runtime libm ==="
 grep -q 'F-math v1' "$DOC" || die "doc marker"
 [ -f "$MANIFEST" ] || die "missing manifest"
 [ -f std/math/math.x ] || die "missing math.x"
-[ -f compiler/src/asm/runtime_math_libm.inc ] || die "missing runtime_math_libm.inc"
+[ -f compiler/seeds/runtime_math_libm.from_x.c ] || die "missing runtime_math_libm.inc"
 [ ! -f std/math/math_libm_glue.c ] || die "math_libm_glue.c should be deleted"
 [ ! -f std/math/math.c ] || die "math.c should be deleted"
 while IFS=$'\t' read -r item_id kind anchor _n; do

@@ -32,7 +32,7 @@ done
   echo "std-sqlite gate FAIL: sqlite.c should be deleted (F-05 v3)" >&2
   exit 1
 }
-[ -f compiler/src/asm/runtime_sqlite_glue.inc ] || {
+[ -f compiler/seeds/runtime_sqlite_glue.from_x.c ] || {
   echo "std-sqlite gate FAIL: missing sqlite_glue.c" >&2
   exit 1
 }

@@ -10,7 +10,7 @@ e01_lsp_io_extern_h	E-01	compiler/src/lsp/lsp_io_extern.h	soft_retired	lsp_codeg
 e01_lsp_gen_extern_h	E-01	compiler/src/lsp/lsp_gen_extern.h	soft_retired	lsp_codegen_extern.c	not_exists	已内嵌
 e01_lsp_codegen_extern_c	E-01	compiler/src/runtime_driver_strict_glue_stubs.inc	active	C codegen 路径	exists	C -E 仍用
 e02_lsp_diag_c	E-02	compiler/src/lsp/lsp_diag.c	hard_retired	lsp_diag_stubs_no_c.o	not_exists	E-02 默认 stubs; G-02a physical delete
-e02_stubs_c	E-02	compiler/src/lsp/lsp_diag_stubs_no_c.inc	active	LSP_DIAG_LINK_O	exists	E-02 默认链
+e02_stubs_c	E-02	compiler/seeds/lsp_diag_stubs_no_c.from_x.c	active	LSP_DIAG_LINK_O	exists	E-02 默认链
 e02_gate	gate	tests/run-e02-lsp-diag-soft-gate.sh	active	n/a	gate_ref	E-02 委托
 e03_parser_c	E-03	compiler/src/parser/parser.c	hard_retired	parser_x.o	not_exists	C-06 默认不链; G-02a physical delete
 e03_typeck_c	E-03	compiler/src/typeck/typeck.c	hard_retired	typeck_x.o	not_exists	C-06 默认不链; G-02a physical delete

@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_TIME_DOC:-analysis/std-time-precision-v1.md}"
 MANIFEST="${SHUX_STD_TIME_MANIFEST:-tests/baseline/std-time-manifest.tsv}"
 MOD_X="${SHUX_STD_TIME_MOD:-std/time/mod.x}"
-TIME_RUNTIME="compiler/src/asm/runtime_time_os.inc"
+TIME_RUNTIME="compiler/seeds/runtime_time_os.from_x.c"
 TIME_X="std/time/time.x"
 MIN_APIS=13
 

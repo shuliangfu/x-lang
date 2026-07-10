@@ -51,7 +51,7 @@ std_backtrace_sym_symbols_ok() {
         ;;
       symbol)
         local path="$mod_path"
-        if [ -z "$path" ] || [ "$path" = "std/backtrace/backtrace_platform_glue.c" ] || [ "$path" = "compiler/src/asm/runtime_backtrace_platform.inc" ]; then
+        if [ -z "$path" ] || [ "$path" = "std/backtrace/backtrace_platform_glue.c" ] || [ "$path" = "compiler/seeds/runtime_backtrace_platform.from_x.c" ]; then
           path="$bt_c"
         fi
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then

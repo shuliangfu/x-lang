@@ -3,7 +3,7 @@
 fa_doc	doc	analysis/phase-f-async-v1.md	F-async v1
 fa_gate	gate	tests/run-f-async-v1-gate.sh	聚合门禁
 sched_x	file	std/async/scheduler.x	调度锚点 .x
-sched_glue	file	compiler/src/asm/runtime_scheduler_glue.inc	调度胶层 runtime
+sched_glue	file	compiler/seeds/runtime_scheduler_glue.from_x.c	调度胶层 runtime
 sched_glue_absent	absent	std/async/scheduler_glue.c	已迁入 runtime
 fut_x	file	std/async/future.x	Future 纯 .x（F-async-future v2）
 fut_glue_absent	absent	std/async/future_glue.c	已删除（v2）

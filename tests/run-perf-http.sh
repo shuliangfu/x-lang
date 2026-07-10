@@ -68,7 +68,7 @@ SERVER_BIN="/tmp/http_bench_server_$$"
 CLIENT_BIN="/tmp/http_get_bench_$$"
 bench_cleanup
 
-if ! cc -O2 -Icompiler/src/asm/http tests/bench/http_bench_server.c compiler/src/asm/http/runtime_http_glue.inc -o "$SERVER_BIN" 2>/tmp/http_bench_server_build.log; then
+if ! cc -O2 -Icompiler/src/asm/http tests/bench/http_bench_server.c compiler/seeds/runtime_http_glue.from_x.c -o "$SERVER_BIN" 2>/tmp/http_bench_server_build.log; then
   cat /tmp/http_bench_server_build.log >&2
   exit 1
 fi

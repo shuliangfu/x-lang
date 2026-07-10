@@ -3,7 +3,7 @@
 ftst2_doc	doc	analysis/phase-f-test-v2.md	F-test v2
 ftst2_gate	gate	tests/run-f-test-v2-gate.sh	逻辑下沉门禁
 ts_x	file	std/test/test.x	expect/runner/bench/fuzz/IO 全量
-runtime_test_fn	file	compiler/src/asm/runtime_test_fn_invoke.inc	fn-ptr（F-ZC）
+runtime_test_fn	file	compiler/seeds/runtime_test_fn_invoke.from_x.c	fn-ptr（F-ZC）
 ts_mod	file	std/test/mod.x	对外 API
 ts_glue_absent	absent	std/test/test_glue.c	F-ZC 已删除
 ts_c_absent	absent	std/test/test.c	已删除

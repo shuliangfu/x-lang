@@ -21,7 +21,7 @@ EXC_GATE="tests/run-exc-panic-abort-gate.sh"
 echo "=== STD-028: runtime panic hook manifest ==="
 for f in "$DOC" "$MANIFEST" "$LIB" "$RUNTIME_X" "$RUNTIME_IMPL" "$README" \
   "$HOOK_X" "$READY_X" analysis/exc-panic-abort-v1-rfc.md \
-  compiler/src/asm/runtime_panic.inc compiler/src/asm/runtime_panic_arm64.inc \
+  compiler/seeds/runtime_panic.from_x.c compiler/seeds/runtime_panic_arm64.from_x.c \
   compiler/src/asm/runtime_panic_x86_64.s; do
   if [ ! -f "$f" ]; then
     echo "std-runtime-panic gate FAIL: missing $f" >&2

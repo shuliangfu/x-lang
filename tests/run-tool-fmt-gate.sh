@@ -27,7 +27,7 @@ native_shu() {
 }
 
 echo "=== TOOL-001: formatter style manifest ==="
-for f in "$DOC" "$MANIFEST" compiler/src/driver/fmt.x compiler/src/driver/fmt_check_cmd.inc; do
+for f in "$DOC" "$MANIFEST" compiler/src/driver/fmt.x compiler/seeds/fmt_check_cmd.from_x.c; do
   if [ ! -f "$f" ]; then
     echo "tool-fmt gate FAIL: missing $f" >&2
     exit 1

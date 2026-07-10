@@ -25,7 +25,7 @@ std_log_rotate_async_symbols_ok() {
         local path="$mod_path"
         case "$path" in
           std/log/log.c|std/log/log.x) path="$log_x" ;;
-          std/log/log_os_glue.c|compiler/src/asm/runtime_log_os.inc) path="$log_glue" ;;
+          std/log/log_os_glue.c|compiler/seeds/runtime_log_os.from_x.c) path="$log_glue" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-log-rotate-async FAIL: missing '$anchor' in $path" >&2

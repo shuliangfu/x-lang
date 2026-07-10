@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 . "$(dirname "$0")/lib/ci-host.sh"
 
 MOD_X="std/async/mod.x"
-SCHED_C="compiler/src/asm/runtime_scheduler_glue.inc"
+SCHED_C="compiler/seeds/runtime_scheduler_glue.from_x.c"
 SMOKE_CANCEL="tests/async/context_cancel_drain.x"
 SMOKE_SPAWN="tests/async/spawn_context_inherit.x"
 PREFIX="shux: [SHUX_STD090_ASYNC_CTX]"

@@ -7,7 +7,7 @@ die() { echo "f-test-v1 gate FAIL: $*" >&2; [ "$FAIL" = "1" ] && exit 1; exit 0;
 echo "=== F-test v1: std.test test.c → test.x (F-ZC) ==="
 [ -f analysis/phase-f-test-v1.md ] || die "missing phase-f-test-v1.md"
 [ -f std/test/test.x ] || die "missing test.x"
-[ -f compiler/src/asm/runtime_test_fn_invoke.inc ] || die "missing runtime_test_fn_invoke.inc"
+[ -f compiler/seeds/runtime_test_fn_invoke.from_x.c ] || die "missing runtime_test_fn_invoke.inc"
 [ ! -f std/test/test_glue.c ] || die "test_glue.c should be deleted"
 [ ! -f std/test/test.c ] || die "test.c should be deleted"
 grep -q 'test.x' compiler/Makefile || die "Makefile missing test.x"

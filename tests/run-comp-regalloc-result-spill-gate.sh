@@ -15,7 +15,7 @@ source tests/lib/gate-progress.sh
 SRC="tests/codegen/regalloc_result_spill.x"
 WANT_EXIT=225
 DOC="analysis/自举前必须清单.md"
-GLUE="compiler/src/asm/backend_call_dispatch.inc"
+GLUE="compiler/seeds/backend_call_dispatch.from_x.c"
 
 gate_progress "§五 C5: regalloc Result spill manifest ..."
 for f in "$SRC" "$DOC" tests/run-result.sh "$GLUE"; do

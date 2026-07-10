@@ -13,9 +13,9 @@ api_file	api	set_file_sink	std/log/mod.x	文件
 api_close	api	close_file_sink	std/log/mod.x	关闭
 const_stderr	const	SINK_STDERR	std/log/mod.x	1
 const_file	const	SINK_FILE	std/log/mod.x	2
-symbol_mask_c	symbol	log_set_sink_mask_c	compiler/src/asm/runtime_log_os.inc	C 掩码
-symbol_file_c	symbol	log_set_file_sink_c	compiler/src/asm/runtime_log_os.inc	C 文件
-symbol_smoke_c	symbol	log_multi_sink_smoke_c	compiler/src/asm/runtime_log_os.inc	C 烟测
+symbol_mask_c	symbol	log_set_sink_mask_c	compiler/seeds/runtime_log_os.from_x.c	C 掩码
+symbol_file_c	symbol	log_set_file_sink_c	compiler/seeds/runtime_log_os.from_x.c	C 文件
+symbol_smoke_c	symbol	log_multi_sink_smoke_c	compiler/seeds/runtime_log_os.from_x.c	C 烟测
 smoke_c	file	tests/std-log/multi_sink_ok.c	C 入口
 smoke_level	smoke	tests/std-log/level_filter.x	级别
 lib	script	lib/std-log-multi-sink.sh	tests/lib/std-log-multi-sink.sh

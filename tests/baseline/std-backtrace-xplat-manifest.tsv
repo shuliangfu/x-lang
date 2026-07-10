@@ -3,7 +3,7 @@
 read_path	section	## 1. 目标	analysis/std-backtrace-xplat-v1.md
 platform_doc	section	## 2. 平台质量向量	analysis/std-backtrace-xplat-v1.md
 verify	section	## 4. Gate	analysis/std-backtrace-xplat-v1.md
-symbol_quality	symbol	backtrace_xplat_quality_c	compiler/src/asm/runtime_backtrace_platform.inc	C 探测
+symbol_quality	symbol	backtrace_xplat_quality_c	compiler/seeds/runtime_backtrace_platform.from_x.c	C 探测
 vectors_tsv	file	tests/baseline/std-backtrace-xplat.tsv	平台向量
 smoke_c	smoke	tests/backtrace/xplat_quality.c	C 烟测
 gate_base	gate	tests/run-std-backtrace-symbolicate-gate.sh	STD-052

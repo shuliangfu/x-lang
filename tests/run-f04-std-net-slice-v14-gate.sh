@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_F04_NET_SLICE_V14_FAIL:-0}
 DOC="analysis/phase-f-f04-v14.md"
-NET_RUNTIME="compiler/src/asm/runtime_net_workers.inc"
+NET_RUNTIME="compiler/seeds/runtime_net_workers.from_x.c"
 
 die() {
   echo "f04-net-slice-v14 gate FAIL: $*" >&2
@@ -21,7 +21,7 @@ echo "=== F-04 v14: std.net workers remove from net.c (delete net.c) ==="
 grep -q 'F-04 v14' "$DOC" || die "doc missing F-04 v14 marker"
 [ ! -f std/net/net.c ] || die "std/net/net.c should be deleted"
 [ -f std/net/workers.x ] || die "missing workers.x"
-[ -f "$NET_RUNTIME" ] || die "missing runtime_net_workers.inc"
+[ -f "$NET_RUNTIME" ] || die "missing runtime_net_workers.from_x.c"
 [ ! -f std/net/workers_glue.c ] || die "net_workers_glue.c should be deleted"
 grep -q 'net_run_accept_workers_c' std/net/workers.x || die "workers.x missing API"
 grep -q 'net_run_accept_workers_c_real' std/net/workers.x || die "workers.x missing _real alias"

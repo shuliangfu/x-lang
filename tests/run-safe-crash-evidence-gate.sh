@@ -25,8 +25,8 @@ native_shu() {
 }
 
 echo "=== SAFE-007: crash evidence manifest ==="
-for f in "$DOC" "$MANIFEST" std/backtrace/mod.x compiler/src/asm/runtime_backtrace_platform.inc \
-  compiler/src/asm/runtime_panic.inc tests/crash/evidence_manual.x tests/ub/div_zero.x; do
+for f in "$DOC" "$MANIFEST" std/backtrace/mod.x compiler/seeds/runtime_backtrace_platform.from_x.c \
+  compiler/seeds/runtime_panic.from_x.c tests/crash/evidence_manual.x tests/ub/div_zero.x; do
   if [ ! -f "$f" ]; then
     echo "safe-crash-evidence gate FAIL: missing $f" >&2
     exit 1
@@ -67,13 +67,13 @@ while IFS=$'\t' read -r item_id kind anchor src _tier _notes; do
         MISS=$((MISS + 1))
       fi
       if [ "$item_id" = "impl_c" ]; then
-        if ! grep -qF 'shux_crash_evidence_collect_c' compiler/src/asm/runtime_backtrace_platform.inc 2>/dev/null; then
+        if ! grep -qF 'shux_crash_evidence_collect_c' compiler/seeds/runtime_backtrace_platform.from_x.c 2>/dev/null; then
           echo "safe-crash FAIL: missing collect impl" >&2
           MISS=$((MISS + 1))
         fi
       fi
       if [ "$item_id" = "impl_panic" ]; then
-        if ! grep -qF 'shux_crash_evidence_collect_c' compiler/src/asm/runtime_panic.inc 2>/dev/null; then
+        if ! grep -qF 'shux_crash_evidence_collect_c' compiler/seeds/runtime_panic.from_x.c 2>/dev/null; then
           echo "safe-crash FAIL: panic hook missing" >&2
           MISS=$((MISS + 1))
         fi

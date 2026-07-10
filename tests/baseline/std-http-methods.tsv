@@ -16,13 +16,13 @@ api_delete	api	delete	std/http/mod.x	HTTP DELETE
 api_patch	api	patch	std/http/mod.x	HTTP PATCH
 api_options	api	options	std/http/mod.x	HTTP OPTIONS
 api_parse	api	parse_status_line	std/http/mod.x	状态码解析
-symbol_put_c	symbol	http_put_c	compiler/src/asm/http/runtime_http_glue.inc	C PUT
-symbol_delete_c	symbol	http_delete_c	compiler/src/asm/http/runtime_http_glue.inc	C DELETE
-symbol_patch_c	symbol	http_patch_c	compiler/src/asm/http/runtime_http_glue.inc	C PATCH
-symbol_options_c	symbol	http_options_c	compiler/src/asm/http/runtime_http_glue.inc	C OPTIONS
-symbol_method_c	symbol	http_request_method_c	compiler/src/asm/http/runtime_http_glue.inc	C 统一
-symbol_parse_c	symbol	http_parse_status_line_c	compiler/src/asm/http/runtime_http_glue.inc	C 解析
-impl_c	file	compiler/src/asm/http/runtime_http_glue.inc	http_request_ex_c
+symbol_put_c	symbol	http_put_c	compiler/seeds/runtime_http_glue.from_x.c	C PUT
+symbol_delete_c	symbol	http_delete_c	compiler/seeds/runtime_http_glue.from_x.c	C DELETE
+symbol_patch_c	symbol	http_patch_c	compiler/seeds/runtime_http_glue.from_x.c	C PATCH
+symbol_options_c	symbol	http_options_c	compiler/seeds/runtime_http_glue.from_x.c	C OPTIONS
+symbol_method_c	symbol	http_request_method_c	compiler/seeds/runtime_http_glue.from_x.c	C 统一
+symbol_parse_c	symbol	http_parse_status_line_c	compiler/seeds/runtime_http_glue.from_x.c	C 解析
+impl_c	file	compiler/seeds/runtime_http_glue.from_x.c	http_request_ex_c
 smoke_methods	smoke	tests/http/methods_status.x	离线+可选网络
 hook_http	hook_script	run-http.sh	GET 烟测
 cross_std009	cross_ref	tests/baseline/std-http-manifest.tsv	STD-009 GET/server

@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_HTTP_DOC:-analysis/std-http-bench-v1.md}"
 MANIFEST="${SHUX_STD_HTTP_MANIFEST:-tests/baseline/std-http-manifest.tsv}"
 MOD_X="${SHUX_STD_HTTP_MOD:-std/http/mod.x}"
-HTTP_C="${SHUX_STD_HTTP_C:-compiler/src/asm/http/runtime_http_glue.inc}"
+HTTP_C="${SHUX_STD_HTTP_C:-compiler/seeds/runtime_http_glue.from_x.c}"
 MIN_APIS=2
 
 # shellcheck source=tests/lib/perf-http.sh
@@ -91,7 +91,7 @@ while IFS=$'\t' read -r item_id kind anchor _notes; do
         echo "std-http FAIL: missing $anchor" >&2
         MISS=$((MISS + 1))
       fi
-      if [ "$anchor" = "compiler/src/asm/http/runtime_http_glue.inc" ]; then
+      if [ "$anchor" = "compiler/seeds/runtime_http_glue.from_x.c" ]; then
         if ! grep -qF 'http_respond_get_ok_c' "$HTTP_C" 2>/dev/null; then
           echo "std-http FAIL: missing http_respond_get_ok_c" >&2
           MISS=$((MISS + 1))

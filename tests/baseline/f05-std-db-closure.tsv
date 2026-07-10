@@ -5,9 +5,9 @@ gate	gate	tests/run-f05-std-db-closure-gate.sh	聚合门禁
 x_kv	file	std/db/kv/kv.x	KV 纯 .x
 x_arrow	file	std/db/arrow/arrow.x	Arrow 纯 .x
 x_sqlite	file	std/db/sqlite/sqlite.x	SQLite 纯 .x
-glue_arrow_runtime	file	compiler/src/asm/runtime_arrow_simd_glue.inc	SIMD 胶层 runtime
-glue_kv_runtime	file	compiler/src/asm/runtime_kv_mmap_glue.inc	mmap 胶层 runtime
-glue_sqlite_runtime	file	compiler/src/asm/runtime_sqlite_glue.inc	sqlite3 胶层 runtime
+glue_arrow_runtime	file	compiler/seeds/runtime_arrow_simd_glue.from_x.c	SIMD 胶层 runtime
+glue_kv_runtime	file	compiler/seeds/runtime_kv_mmap_glue.from_x.c	mmap 胶层 runtime
+glue_sqlite_runtime	file	compiler/seeds/runtime_sqlite_glue.from_x.c	sqlite3 胶层 runtime
 glue_arrow_absent	absent	std/db/arrow/arrow_simd_glue.c	已迁入 runtime
 glue_kv_absent	absent	std/db/kv/kv_mmap_glue.c	已迁入 runtime
 glue_sqlite_absent	absent	std/db/sqlite/sqlite_glue.c	已迁入 runtime

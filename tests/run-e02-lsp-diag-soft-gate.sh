@@ -13,7 +13,7 @@ DOC="analysis/phase-e-e02-v1.md"
 MF="compiler/Makefile"
 BUILD="compiler/scripts/build_shux_asm.sh"
 LSP_C="compiler/src/lsp/lsp_diag.c"
-STUBS="compiler/src/lsp/lsp_diag_stubs_no_c.inc"
+STUBS="compiler/seeds/lsp_diag_stubs_no_c.from_x.c"
 
 die() {
   echo "e02 gate FAIL: $*" >&2

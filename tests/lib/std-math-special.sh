@@ -23,7 +23,7 @@ std_math_special_symbols_ok() {
       symbol)
         local path="$mod_path"
         case "$path" in
-          std/math/math.c|std/math/math_libm_glue.c|compiler/src/asm/runtime_math_libm.inc) path="$math_c" ;;
+          std/math/math.c|std/math/math_libm_glue.c|compiler/seeds/runtime_math_libm.from_x.c) path="$math_c" ;;
           std/math/math.x) path="std/math/math.x" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then

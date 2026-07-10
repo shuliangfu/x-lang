@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 FAIL=${SHUX_F04_NET_SLICE_V13B_FAIL:-0}
 DOC="analysis/phase-f-f04-v13b.md"
 NET_C="std/net/net.c"
-NET_RUNTIME="compiler/src/asm/runtime_net_udp_batch.inc"
+NET_RUNTIME="compiler/seeds/runtime_net_udp_batch.from_x.c"
 
 die() {
   echo "f04-net-slice-v13b gate FAIL: $*" >&2
@@ -21,7 +21,7 @@ echo "=== F-04 v13b: std.net UDP batch remove from net.c ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-04 v13b' "$DOC" || die "doc missing F-04 v13b marker"
 [ -f std/net/udp_batch.x ] || die "missing udp_batch.x"
-[ -f "$NET_RUNTIME" ] || die "missing runtime_net_udp_batch.inc"
+[ -f "$NET_RUNTIME" ] || die "missing runtime_net_udp_batch.from_x.c"
 [ ! -f std/net/udp_batch_glue.c ] || die "net_udp_batch_glue.c should be deleted"
 grep -q 'net_udp_recv_many_c' std/net/udp_batch.x || die "batch.x missing recv_many"
 grep -q 'net_udp_send_many_buf_c' std/net/udp_batch.x || die "batch.x missing send_many_buf"

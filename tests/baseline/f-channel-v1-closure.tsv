@@ -3,7 +3,7 @@
 fch_doc	doc	analysis/phase-f-channel-v1.md	F-channel v1
 fch_gate	gate	tests/run-f-channel-v1-gate.sh	聚合门禁
 ch_x	file	std/channel/channel.x	模块锚点 .x
-ch_runtime	file	compiler/src/asm/runtime_channel_glue.inc	channel 胶层 runtime
+ch_runtime	file	compiler/seeds/runtime_channel_glue.from_x.c	channel 胶层 runtime
 ch_mod	file	std/channel/mod.x	对外 API
 ch_glue_absent	absent	std/channel/channel_glue.c	已迁入 runtime
 ch_c_absent	absent	std/channel/channel.c	已删除

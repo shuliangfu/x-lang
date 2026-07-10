@@ -24,7 +24,7 @@ symbol_net_fs_smoke	symbol	net_fs_async_smoke	std/async/mod.x	pipe 烟测
 symbol_net_fs_smoke_c	symbol	shux_async_net_fs_smoke_c	compiler/src/asm/async_net_fs.inc	C 烟测
 smoke_net_fs	smoke	tests/async/net_fs_async_smoke.x	net/fs async
 symbol_uring_c	symbol	shux_io_uring_is_available_c	std/io/mod.x	C 探测
-symbol_suspend_c	symbol	shux_async_cps_suspend_io	compiler/src/asm/runtime_scheduler_glue.inc	C IO suspend
+symbol_suspend_c	symbol	shux_async_cps_suspend_io	compiler/seeds/runtime_scheduler_glue.from_x.c	C IO suspend
 symbol_poll_c	symbol	shux_io_poll_async_completions	std/io/mod.x	C poll
 smoke_align	smoke	tests/async/io_cps_align.x	门面对齐
 smoke_io_uring	smoke	tests/async/io_uring_facade.x	STD-049 门面

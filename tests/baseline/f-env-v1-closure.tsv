@@ -3,7 +3,7 @@
 fenv_doc	doc	analysis/phase-f-env-v1.md	F-env v1
 fenv_gate	gate	tests/run-f-env-v1-gate.sh	聚合门禁
 env_x	file	std/env/env.x	逻辑层 .x
-env_runtime	file	compiler/src/asm/runtime_env_os.inc	OS 胶层（F-ZC）
+env_runtime	file	compiler/seeds/runtime_env_os.from_x.c	OS 胶层（F-ZC）
 env_glue_absent	absent	std/env/env_os_glue.c	已迁入 compiler
 env_mod	file	std/env/mod.x	对外 API
 env_c_absent	absent	std/env/env.c	已删除

@@ -23,7 +23,7 @@ std_time_format_tz_symbols_ok() {
         local path="$mod_path"
         case "$path" in
           std/time/time.c|std/time/time.x) path="$time_c" ;;
-          std/time/time_os_glue.c|compiler/src/asm/runtime_time_os.inc) path="${time_runtime:-compiler/src/asm/runtime_time_os.inc}" ;;
+          std/time/time_os_glue.c|compiler/seeds/runtime_time_os.from_x.c) path="${time_runtime:-compiler/seeds/runtime_time_os.from_x.c}" ;;
         esac
         if ! grep -qF "$anchor" "$path" 2>/dev/null; then
           echo "std-time-format-tz FAIL: missing '$anchor'" >&2

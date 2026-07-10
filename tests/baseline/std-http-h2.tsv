@@ -84,9 +84,9 @@ api_stream_reg_open	api	open	std/http/mod.x	分配 stream
 api_stream_reg_close	api	close	std/http/mod.x	关闭 stream
 api_stream_reg_smoke	api	registry_smoke	std/http/mod.x	注册表烟测
 struct_stream_reg	struct	Http2StreamRegistry	std/http/mod.x	多 stream
-symbol_h2c_get_c	symbol	http_h2c_get_c	compiler/src/asm/http/runtime_http_glue.inc	h2c GET C
-symbol_h2c_request_c	symbol	http_h2c_request_c	compiler/src/asm/http/runtime_http_glue.inc	h2c 多 method C
-symbol_h2c_client_smoke_c	symbol	http_h2c_client_smoke_c	compiler/src/asm/http/runtime_http_glue.inc	h2c 烟测 C
+symbol_h2c_get_c	symbol	http_h2c_get_c	compiler/seeds/runtime_http_glue.from_x.c	h2c GET C
+symbol_h2c_request_c	symbol	http_h2c_request_c	compiler/seeds/runtime_http_glue.from_x.c	h2c 多 method C
+symbol_h2c_client_smoke_c	symbol	http_h2c_client_smoke_c	compiler/seeds/runtime_http_glue.from_x.c	h2c 烟测 C
 symbol_stream_reg_c	symbol	http2_stream_registry_smoke_c	compiler/src/asm/http/stream_registry.inc.c	注册表 C
 smoke_h2c_client	smoke	tests/http/h2c_client.x	h2c URL 烟测
 smoke_stream_registry	smoke	tests/http/stream_registry.x	多 stream 烟测
@@ -272,8 +272,8 @@ symbol_flow_recv_c	symbol	http2_flow_recv_smoke_c	compiler/src/asm/http/flow_rec
 symbol_push_h2c_c	symbol	http2_push_h2c_smoke_c	compiler/src/asm/http/push_h2c.inc.c	push/h2c C
 symbol_flow_state_c	symbol	http2_flow_state_smoke_c	compiler/src/asm/http/flow_state.inc.c	流控 C
 symbol_network_c	symbol	http2_network_smoke_c	compiler/src/asm/http/network.inc.c	网络 C
-symbol_h2_request_c	symbol	http_h2_request_c	compiler/src/asm/http/runtime_http_glue.inc	h2 多 method C
-symbol_h2_get_c	symbol	http_h2_get_c	compiler/src/asm/http/runtime_http_glue.inc	h2 GET C
+symbol_h2_request_c	symbol	http_h2_request_c	compiler/seeds/runtime_http_glue.from_x.c	h2 多 method C
+symbol_h2_get_c	symbol	http_h2_get_c	compiler/seeds/runtime_http_glue.from_x.c	h2 GET C
 symbol_dyn_smoke_c	symbol	http2_hpack_dyn_smoke_c	compiler/src/asm/http/hpack_dyn.inc.c	动态表 C
 symbol_encode_request_c	symbol	http2_hpack_encode_request_c	compiler/src/asm/http/hpack_dyn.inc.c	多 method HPACK
 symbol_req_headers_c	symbol	http2_build_request_headers_frame_c	compiler/src/asm/http/client.inc.c	多 method HEADERS

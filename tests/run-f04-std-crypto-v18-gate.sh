@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 FAIL=${SHUX_F04_CRYPTO_V18_FAIL:-0}
 DOC="analysis/phase-f-f04-v18.md"
 CHACHA="std/crypto/chacha20_poly1305.x"
-GLUE="compiler/src/asm/runtime_crypto_inc_glue.inc"
+GLUE="compiler/seeds/runtime_crypto_inc_glue.from_x.c"
 
 # shellcheck source=tests/lib/std-crypto.sh
 . tests/lib/std-crypto.sh

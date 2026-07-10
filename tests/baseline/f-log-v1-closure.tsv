@@ -1,5 +1,5 @@
 log_x	file	std/log/log.x	逻辑层 .x
-log_runtime	file	compiler/src/asm/runtime_log_os.inc	OS 胶层（F-ZC）
+log_runtime	file	compiler/seeds/runtime_log_os.from_x.c	OS 胶层（F-ZC）
 log_glue_absent	absent	std/log/log_os_glue.c	已迁入 compiler
 log_mod	file	std/log/mod.x	对外 API
 log_c_absent	absent	std/log/log.c	已删除

@@ -9,7 +9,7 @@ api_try_u	api	try_recv_unbounded	std/channel/mod.x	无界 try
 api_close_u	api	unbounded_close	std/channel/mod.x	无界 close
 api_is_u	api	unbounded_is_closed	std/channel/mod.x	关闭态
 api_is	api	is_closed	std/channel/mod.x	通用 is_closed
-symbol_is_c	symbol	channel_i32_is_closed_c	compiler/src/asm/runtime_channel_glue.inc	C 关闭态
+symbol_is_c	symbol	channel_i32_is_closed_c	compiler/seeds/runtime_channel_glue.from_x.c	C 关闭态
 smoke_ub	smoke	tests/channel/unbounded_roundtrip.x	无界烟测
 smoke_main	smoke	tests/channel/main.x	有界烟测
 gate	script	run-std-channel-unbounded-gate.sh	tests/run-std-channel-unbounded-gate.sh

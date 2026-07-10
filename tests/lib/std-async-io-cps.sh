@@ -26,7 +26,7 @@ std_async_io_cps_symbols_ok() {
         case "$mod_path" in
           std/async/mod.x) mod_path="$mod_x" ;;
           std/io/mod.x) mod_path="$io_x" ;;
-          compiler/src/asm/runtime_scheduler_glue.inc) mod_path="$sched_c" ;;
+          compiler/seeds/runtime_scheduler_glue.from_x.c) mod_path="$sched_c" ;;
           std/io/mod.x) mod_path="$io_x" ;;
           std/io/io.c) mod_path="$io_c" ;;
         esac

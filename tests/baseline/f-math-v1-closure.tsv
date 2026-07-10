@@ -1,5 +1,5 @@
 math_x	file	std/math/math.x	常量/signum/special
-math_runtime	file	compiler/src/asm/runtime_math_libm.inc	libm fenv
+math_runtime	file	compiler/seeds/runtime_math_libm.from_x.c	libm fenv
 math_glue_absent	absent	std/math/math_libm_glue.c	F-ZC 已迁入 compiler
 math_mod	file	std/math/mod.x	对外 API
 math_c_absent	absent	std/math/math.c	已删除

@@ -22,7 +22,7 @@ grep -q 'F-time v1' "$DOC" || die "doc missing F-time v1 marker"
 [ -f "$MANIFEST" ] || die "missing $MANIFEST"
 [ -f std/time/time.x ] || die "missing std/time/time.x"
 [ ! -f std/time/time_os_glue.c ] || die "time_os_glue.c should be deleted (F-ZC)"
-[ -f compiler/src/asm/runtime_time_os.inc ] || die "missing runtime_time_os.inc"
+[ -f compiler/seeds/runtime_time_os.from_x.c ] || die "missing runtime_time_os.inc"
 [ ! -f std/time/time.c ] || die "std/time/time.c should be deleted"
 
 while IFS=$'\t' read -r item_id kind anchor _notes; do
