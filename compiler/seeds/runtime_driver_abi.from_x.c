@@ -898,7 +898,7 @@ typedef struct {
 } DriverLargeStackCall;
 
 /** pthread 入口：标记大栈线程并抬高 soft limit 后执行用户 fn。 */
-static void *driver_large_stack_thread_trampoline(void *v) {
+void * driver_large_stack_thread_trampoline_impl(void *v) {
     DriverLargeStackCall *c = (DriverLargeStackCall *)v;
     driver_large_stack_thread_mark(1);
     driver_bump_stack_limit();
@@ -906,14 +906,27 @@ static void *driver_large_stack_thread_trampoline(void *v) {
     driver_large_stack_thread_mark(0);
     return r;
 }
+void * driver_large_stack_thread_trampoline(void *v) {
+  {
+    return driver_large_stack_thread_trampoline_impl(v);
+  }
+  return ((void *)0);
+}
+
 
 /** 在当前线程直接执行 fn(arg)，并临时标记大栈上下文。 */
-static void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg) {
+void driver_run_fn_on_current_large_stack_impl(void *(*fn)(void *), void *arg) {
     driver_large_stack_thread_mark(1);
     driver_bump_stack_limit();
     fn(arg);
     driver_large_stack_thread_mark(0);
 }
+void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg) {
+  {
+    driver_run_fn_on_current_large_stack_impl(fn, arg);
+  }
+}
+
 
 /**
  * 在大栈 pthread 上执行 fn(arg)；默认 256MiB，可用 SHUX_STACK_LIMIT_MB 覆盖。

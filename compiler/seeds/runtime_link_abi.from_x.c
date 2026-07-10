@@ -1,8 +1,8 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70/89/91/92 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70/89/91/92/94 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
  *         merge invoke_cc + linux_harden + remaining link gates.
  * .x covers: + shux_invoke_cc, append_linux_link_harden; link_abi exported set nearly gated.
- * G-02f-89/91/92: path/diag + needs/argv + cc/spawn/glue push helpers gated over _impl.
+ * G-02f-89/91/92/94: path/diag/needs + cc_ex/nm/nostdlib helpers gated over _impl.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -168,7 +168,7 @@ int shux_path_has_sep(const char *s) {
  * 设计目的：消除 30+ 处 ensure_runtime_*_o 函数中重复的 fork+execlp+waitpid 三段式，
  *           并让 Windows 宿主走 _spawnvp 同步路径（无 fork）。
  */
-static int shux_cc_compile_sync_ex(const char *src, const char *out_o,
+int shux_cc_compile_sync_ex_impl(const char *src, const char *out_o,
                                     const char *inc0, const char *inc1, const char *inc2,
                                     int from_asm_s,
                                     const char *const *extra_flags) {
@@ -226,6 +226,16 @@ static int shux_cc_compile_sync_ex(const char *src, const char *out_o,
     return 0;
 #endif
 }
+int shux_cc_compile_sync_ex(const char *src, const char *out_o,
+                                    const char *inc0, const char *inc1, const char *inc2,
+                                    int from_asm_s,
+                                    const char *const *extra_flags) {
+  {
+    return shux_cc_compile_sync_ex_impl(src, out_o, inc0, inc1, inc2, from_asm_s, extra_flags);
+  }
+  return 0;
+}
+
 
 /**
  * shux_cc_compile_sync 的简化包装：无额外标志。
@@ -3271,7 +3281,7 @@ const char *scheduler_o_for_task_link(const char *task_o, const char *explicit_s
  * 参数：obj_o 目标 .o；marker 符号名子串。
  * 返回值：1 命中，0 否。
  */
-static int link_abi_obj_exports_marker(const char *obj_o, const char *marker) {
+int link_abi_obj_exports_marker_impl(const char *obj_o, const char *marker) {
     char cmd[PATH_MAX + 96];
     FILE *fp;
     char line[512];
@@ -3297,13 +3307,20 @@ static int link_abi_obj_exports_marker(const char *obj_o, const char *marker) {
     pclose(fp);
     return 0;
 }
+int link_abi_obj_exports_marker(const char *obj_o, const char *marker) {
+  {
+    return link_abi_obj_exports_marker_impl(obj_o, marker);
+  }
+  return 0;
+}
+
 
 /**
  * 检测 .o 是否含未定义符号 sym（nm 行含 " U " 与 sym 子串）。
  * 参数：obj_o 目标 .o；sym 符号名子串。
  * 返回值：1 含未定义 sym，0 否。
  */
-static int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
+int link_abi_obj_has_undef_sym_impl(const char *obj_o, const char *sym) {
     char cmd[PATH_MAX + 96];
     FILE *fp;
     char line[512];
@@ -3329,6 +3346,13 @@ static int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
     pclose(fp);
     return 0;
 }
+int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
+  {
+    return link_abi_obj_has_undef_sym_impl(obj_o, sym);
+  }
+  return 0;
+}
+
 
 /** 任意 .o 是否依赖 libz（marker 或 zlib 未定义符号）。F-04 v4：含用户 .x 链出的 .o。 */
 int link_abi_obj_needs_zlib(const char *obj_o) {
@@ -5804,7 +5828,7 @@ void link_abi_asm_ld_push_minimal_runtime_objs(const char *link_argv0, const cha
  * 参数：link_eff 有效 argv0/compiler 目录；lib_roots 与 driver -L 一致。
  * 返回值：0 成功，-1 失败。
  */
-static int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const char *exe_path,
+int shux_asm_nostdlib_minimal_selfcontained_exe_link_impl(const char *o_path, const char *exe_path,
     const char *link_eff, const char **lib_roots, int n_lib_roots) {
     static ShuAsmLdPathBank bank;
     const char *argv[24];
@@ -5863,6 +5887,14 @@ static int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, 
 #endif
     return 0;
 }
+int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, const char *exe_path,
+    const char *link_eff, const char **lib_roots, int n_lib_roots) {
+  {
+    return shux_asm_nostdlib_minimal_selfcontained_exe_link_impl(o_path, exe_path, link_eff, lib_roots, n_lib_roots);
+  }
+  return 0;
+}
+
 #endif /* __linux__ */
 #endif
 

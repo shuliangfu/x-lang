@@ -1,4 +1,4 @@
-/* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/71/72 product TU
+/* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/71/72 product TU
  * Product objects from this seed (flags select variants):
  *   runtime_driver_no_c.o  — RUNTIME_DRIVER_NO_C_CFLAGS (G05 product)
  *   runtime_driver.o / runtime_x.o / runtime.o / runtime_driver_asm_*
@@ -1100,7 +1100,7 @@ typedef struct {
 } DriverSmokeLexDumpArgs;
 
 /** pthread 入口：遍历 src 并 stdout 打印 token（与 run-lexer 期望格式一致）。 */
-static void *driver_smoke_lex_dump_thread_fn(void *arg) {
+void * driver_smoke_lex_dump_thread_fn_impl(void *arg) {
     const DriverSmokeLexDumpArgs *a = (const DriverSmokeLexDumpArgs *)arg;
     Lexer *lex2;
     Token tok;
@@ -1130,6 +1130,13 @@ static void *driver_smoke_lex_dump_thread_fn(void *arg) {
     lexer_free(lex2);
     return NULL;
 }
+void * driver_smoke_lex_dump_thread_fn(void *arg) {
+  {
+    return driver_smoke_lex_dump_thread_fn_impl(arg);
+  }
+  return ((void *)0);
+}
+
 
 /** 在大栈 pthread 上执行 token dump，避免 typeck 深递归后二次 lexer 栈溢出。 */
 void driver_smoke_lex_dump_on_large_stack_impl(const char *src) {
@@ -3558,7 +3565,8 @@ int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const c
 #endif
 
 #if !defined(SHUX_NO_C_FRONTEND)
-static int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots);
+int driver_c_frontend_smoke_impl(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots);
+int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots);
 #endif
 
 /** ast_pool_bootstrap_glue.c：用户 dep 是否须 asm co-emit（非 std/core 链接桩可跳过）。 */
@@ -4364,7 +4372,7 @@ typedef struct DriverCompileParsed {
  */
 
 /** C 前端烟测：stderr 打印 parse OK / typeck OK（run-import、run-stdlib-import grep）。 */
-static int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
+int driver_c_frontend_smoke_impl(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
     diag_set_file(input_path, src, src ? strlen(src) : 0);
     Lexer *lex = lexer_new(src);
     ASTModule *mod = NULL;
@@ -4409,6 +4417,13 @@ static int driver_c_frontend_smoke(const char *input_path, char *src, const char
     ast_module_free(mod);
     return 0;
 }
+int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
+  {
+    return driver_c_frontend_smoke_impl(input_path, src, lib_roots_arr, n_lib_roots);
+  }
+  return 0;
+}
+
 
 #if defined(SHUX_USE_X_PIPELINE)
 /** shux check 后 X 栈逃逸 gate 大栈线程参数。 */
@@ -5760,7 +5775,7 @@ int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t
 
 /** C 后端 C 桥：供 compile.x 调用（want_asm_backend=0 走 driver_run_compiler_parsed）。 */
 /** 含 import 时 seed 的 X codegen 易重复符号；若同目录有 shux-c 则委托其完成 -o 链接（与 run-hello 一致）。 */
-static int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
+int driver_try_compile_via_shu_c_sibling_impl(int argc, char **argv) {
     char shu_c[512];
     const char *self;
     const char *slash;
@@ -5817,6 +5832,13 @@ static int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     }
 #endif
 }
+int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
+  {
+    return driver_try_compile_via_shu_c_sibling_impl(argc, argv);
+  }
+  return 0;
+}
+
 
 /** C 后端 C mega：lib_key→lib_roots；含 import 时可选 exec 同目录 shux-c；否则 driver_run_compiler_parsed。 */
 int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,

@@ -7,6 +7,7 @@
 // G-02f-89：+ path sep / lib_root / link_diag 薄 helper 门闩。
 // G-02f-91：+ needs_heap / argv_has_obj / push_obj / runtime_o path 门闩。
 // G-02f-92：+ cc_compile_sync / spawn_sync / link_perror / glue+minimal push 门闩。
+// G-02f-94：+ cc_compile_sync_ex / nostdlib minimal link / nm exports+undef 门闩。
 // G-02f-83：+ driver_copy_cstr_n / shux_link_obj_needs_undef_sym 门闩。
 // G-02f-76：ensure_* 冷启动源统一 seeds/*.from_x.c（修 f-75 已删 wrapper 的 ensure 空洞）。
 // G-02f-70：+ shux_invoke_cc / linux_link_harden 门闩（link_abi 导出集基本门闩化）。
@@ -23,8 +24,8 @@ extern "C" function shux_host_is_apple_aarch64(): i32;
 extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
 extern "C" function driver_copy_cstr_n_impl(src: *u8, buf: *u8, max: i32): i32;
 extern "C" function shux_path_is_nonempty_regular_file_impl(path: *u8): i32;
-extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
-extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
+extern "C" function link_abi_obj_exports_marker_impl(obj_o: *u8, marker: *u8): i32;
+extern "C" function link_abi_obj_has_undef_sym_impl(obj_o: *u8, sym: *u8): i32;
 extern "C" function link_abi_generated_c_contains_substr(c_path: *u8, needle: *u8): i32;
 extern "C" function shux_empty_cstr(): *u8;
 extern "C" function shux_asm_ld_bank_push_impl(b: *u8, path: *u8): *u8;
@@ -100,6 +101,9 @@ extern "C" function ld_append_brew_lib_paths_impl(argv: *u8, la: *i32, max_la: i
 extern "C" function link_abi_generated_c_contains_any_substr_impl(c_path: *u8, needles: *u8, n_needles: i32): i32;
 extern "C" function link_abi_asm_ld_push_glue_after_std_impl(have_std: i32, ensure_fn: *u8, glue_primary: *u8, link_argv0: *u8, glue_rel: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32): void;
 extern "C" function link_abi_asm_ld_push_minimal_runtime_objs_impl(link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32): void;
+
+extern "C" function shux_cc_compile_sync_ex_impl(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32, extra_flags: *u8): i32;
+extern "C" function shux_asm_nostdlib_minimal_selfcontained_exe_link_impl(o_path: *u8, exe_path: *u8, link_eff: *u8, lib_roots: *u8, n_lib_roots: i32): i32;
 
 #[no_mangle]
 function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
@@ -2275,5 +2279,39 @@ function link_abi_asm_ld_push_minimal_runtime_objs(link_argv0: *u8, lib_roots: *
   unsafe {
     link_abi_asm_ld_push_minimal_runtime_objs_impl(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
   }
+}
+
+/* ---- G-02f-94：cc_ex / nostdlib minimal / nm marker+undef 门闩 ---- */
+
+#[no_mangle]
+function shux_cc_compile_sync_ex(src: *u8, out_o: *u8, inc0: *u8, inc1: *u8, inc2: *u8, from_asm_s: i32, extra_flags: *u8): i32 {
+  unsafe {
+    return shux_cc_compile_sync_ex_impl(src, out_o, inc0, inc1, inc2, from_asm_s, extra_flags);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_asm_nostdlib_minimal_selfcontained_exe_link(o_path: *u8, exe_path: *u8, link_eff: *u8, lib_roots: *u8, n_lib_roots: i32): i32 {
+  unsafe {
+    return shux_asm_nostdlib_minimal_selfcontained_exe_link_impl(o_path, exe_path, link_eff, lib_roots, n_lib_roots);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32 {
+  unsafe {
+    return link_abi_obj_exports_marker_impl(obj_o, marker);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32 {
+  unsafe {
+    return link_abi_obj_has_undef_sym_impl(obj_o, sym);
+  }
+  return 0;
 }
 
