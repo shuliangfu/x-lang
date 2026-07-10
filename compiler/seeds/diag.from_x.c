@@ -393,12 +393,9 @@ size_t diag_get_source_len(void) {
 void diag_report_json(const char *file, int line, int col,
                              const char *kind, const char *code, const char *msg);
 
-void diag_report_with_code_impl(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail) {
+/** 人类可读诊断渲染（caret/位置）；JSON 路径在 report_with_code 分流。G-02f-158 */
+void diag_report_human(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail) {
     const char *actual_file = file ? file : g_diag_ctx.file_path;
-    if (diag_json_enabled()) {
-        diag_report_json(actual_file, line, col, kind, code, msg);
-        return;
-    }
     const char *line_start = NULL;
     size_t line_len = 0;
     int have_line = 0;
@@ -449,17 +446,20 @@ void diag_report_with_code_impl(const char *file, int line, int col, const char 
     fputc('\n', stderr);
     fflush(stderr);
 }
+
+/* G-02f-158：逻辑源 .x（JSON 分流真迁）；seed 保留同语义 C 供产品 cc */
 void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail) {
-  {
-    diag_report_with_code_impl(file, line, col, kind, code, msg, detail);
-  }
+    const char *actual_file = file ? file : g_diag_ctx.file_path;
+    if (diag_json_enabled()) {
+        diag_report_json(actual_file, line, col, kind, code, msg);
+        return;
+    }
+    diag_report_human(file, line, col, kind, code, msg, detail);
 }
 
-
+/* G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void diag_report(const char *file, int line, int col, const char *kind, const char *msg, const char *detail) {
-  {
-    diag_report_with_code_impl(file, line, col, kind, NULL, msg, detail);
-  }
+    diag_report_with_code(file, line, col, kind, NULL, msg, detail);
 }
 
 void diag_vreportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, va_list ap) {
@@ -468,7 +468,7 @@ void diag_vreportf_with_code(const char *file, int line, int col, const char *ki
     if (!fmt)
         fmt = "";
     (void)vsnprintf(buf, sizeof(buf), fmt, ap);
-    diag_report_with_code_impl(file, line, col, kind, code, buf, detail ? detail : buf);
+    diag_report_with_code(file, line, col, kind, code, buf, detail ? detail : buf);
 }
 
 void diag_vreportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt, va_list ap) {
@@ -616,7 +616,7 @@ void diag_print_code_explain(FILE *out, const char *code) {
  * 返回将 a 变换为 b 的最小单字符编辑（插入/删除/替换）次数。
  * G-02f-98：export gate.
  */
-/* G-02f-152：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-152 / G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int diag_levenshtein_ci(const char *a, const char *b) {
     size_t la = a ? strlen(a) : 0;
     size_t lb = b ? strlen(b) : 0;
@@ -673,6 +673,7 @@ int diag_levenshtein_ci(const char *a, const char *b) {
  * 阈值说明：诊断码长度通常 3~6 字符，距离 <=3 视为「明显拼写偏差」；同时要求建议码
  * 与查询等长或仅差 1，避免把任意短查询都建议成首个已知码。
  */
+/* G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 const char *diag_code_suggest(const char *code, char *out, size_t out_cap) {
     size_t i;
     int best_dist = 999;

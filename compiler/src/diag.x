@@ -11,7 +11,8 @@
 // C 尾：上下文静态、code 表、JSON/颜色、va_list reportf/vreportf、lookup。
 // 注意：va_list 入口仍留 C（语言/ABI 限制）。
 
-extern "C" function diag_report_with_code_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8,
+// G-02f-158：人类可读 caret 渲染仍在 seed（fprintf 冷路径）
+extern "C" function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8,
                                           detail: *u8): void;
 
 extern "C" function diag_json_get_state(): i32;
@@ -49,19 +50,24 @@ extern "C" function diag_io_fprint_unknown_code(o: *u8, code: *u8): void;
 extern "C" function diag_io_fprint_code_table_hdr(o: *u8): void;
 extern "C" function diag_io_fprint_code_table_row(o: *u8, code: *u8, kind: *u8, summary: *u8): void;
 
+// G-02f-158：report 分流 JSON / human
 #[no_mangle]
 function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
-  unsafe {
-    diag_report_with_code_impl(file, line, col, kind, 0 as *u8, msg, detail);
-  }
+  diag_report_with_code(file, line, col, kind, 0 as *u8, msg, detail);
 }
 
-/* ---- G-02f-74 / G-02f-82 diag gates ---- */
+/* ---- G-02f-74 / G-02f-82 / G-02f-158 diag gates ---- */
 
 #[no_mangle]
 function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
   unsafe {
-    diag_report_with_code_impl(file, line, col, kind, code, msg, detail);
+    if (diag_json_enabled() != 0) {
+      let f: *u8 = file;
+      if (f == 0) { f = diag_ctx_get_file(); }
+      diag_report_json(f, line, col, kind, code, msg);
+      return;
+    }
+    diag_report_human(file, line, col, kind, code, msg, detail);
   }
 }
 
@@ -633,6 +639,55 @@ function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, 
 }
 
 /* ---- G-02f-98 / G-02f-152：levenshtein 真迁 ---- */
+
+// G-02f-158：did-you-mean 建议码
+#[no_mangle]
+function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
+  if (code == 0) { return 0 as *u8; }
+  unsafe {
+    let n: i64 = diag_code_table_len();
+    if (n <= 0) { return 0 as *u8; }
+    let code_len: i32 = 0;
+    while (code_len < 256) {
+      if (code[code_len] == 0) { break; }
+      code_len = code_len + 1;
+    }
+    if (code_len <= 0) { return 0 as *u8; }
+    let best_dist: i32 = 999;
+    let best: *u8 = 0 as *u8;
+    let i: i64 = 0;
+    while (i < n) {
+      let cand: *u8 = diag_code_table_code_at(i);
+      if (cand != 0) {
+        let d: i32 = diag_levenshtein_ci(code, cand);
+        if (d < best_dist) {
+          best_dist = d;
+          best = cand;
+        }
+      }
+      i = i + 1;
+    }
+    if (best == 0) { return 0 as *u8; }
+    if (best_dist > 3) { return 0 as *u8; }
+    if (best_dist > code_len + 1) { return 0 as *u8; }
+    if (out != 0) {
+      if (out_cap > 0) {
+        let lim: i64 = out_cap - 1;
+        let j: i64 = 0;
+        while (j < lim) {
+          let ch: u8 = best[j as i32];
+          if (ch == 0) { break; }
+          out[j as i32] = ch;
+          j = j + 1;
+        }
+        out[j as i32] = 0;
+        return out;
+      }
+    }
+    return best;
+  }
+  return 0 as *u8;
+}
 
 // G-02f-152：有界 Levenshtein（大小写不敏感）；码长 <64
 #[no_mangle]
