@@ -1518,20 +1518,15 @@ __attribute__((weak)) int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(st
 __attribute__((weak)) void pipeline_typeck_const_init_not_constant_c(int32_t line, int32_t col) {
   lsp_diag_report_typeck((int)line, (int)col, "const init must be constant expression");
 }
-
-int32_t pipeline_typeck_const_name_matches_strict_minimal_impl(uint8_t *name, int32_t name_len, const char *lit) {
+/* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_const_name_matches_strict_minimal(uint8_t *name, int32_t name_len, const char *lit) {
   size_t lit_len;
   if (!name || !lit || name_len <= 0)
     return 0;
   lit_len = strlen(lit);
   return name_len == (int32_t)lit_len && memcmp(name, lit, lit_len) == 0 ? 1 : 0;
 }
-int32_t pipeline_typeck_const_name_matches_strict_minimal(uint8_t *name, int32_t name_len, const char *lit) {
-  {
-    return pipeline_typeck_const_name_matches_strict_minimal_impl(name, name_len, lit);
-  }
-  return 0;
-}
+
 
 
 int32_t pipeline_typeck_const_expr_ref_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expr_ref,

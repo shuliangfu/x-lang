@@ -54,7 +54,7 @@ extern "C" function typeck_block_is_strict_ancestor_strict_minimal_impl(arena: *
 extern "C" function typeck_expr_lval_root_var_strict_minimal_impl(arena: *u8, er: i32, out: *u8, olen: *i32): i32;
 extern "C" function typeck_name_is_block_local_strict_minimal_impl(mod: *u8, arena: *u8, ctx: *u8, name: *u8): i32;
 extern "C" function typeck_expr_is_addr_of_block_local_strict_minimal_impl(mod: *u8, arena: *u8, ctx: *u8, er: i32): i32;
-extern "C" function pipeline_typeck_const_name_matches_strict_minimal_impl(name: *u8, nlen: i32, lit: *u8): i32;
+// G-02f-117：pipeline_typeck_const_name_matches_strict_minimal 真迁 .x
 
 /* ---- G-02f-108：strict minimal more typeck helpers 门闩 ---- */
 
@@ -129,11 +129,6 @@ function typeck_expr_is_addr_of_block_local_strict_minimal(mod: *u8, arena: *u8,
   return 0;
 }
 
-#[no_mangle]
-function pipeline_typeck_const_name_matches_strict_minimal(name: *u8, nlen: i32, lit: *u8): i32 {
-  unsafe { return pipeline_typeck_const_name_matches_strict_minimal_impl(name, nlen, lit); }
-  return 0;
-}
 
 // G-02f-110：+ dep_return/const_expr/result_payload/debug_propagate 薄门闩。
 
@@ -167,4 +162,21 @@ function pipeline_typeck_expr_is_any_assign_kind_strict_minimal(kind: i32): i32 
     }
   }
   return 0;
+}
+
+// G-02f-117：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function pipeline_typeck_const_name_matches_strict_minimal(name: *u8, name_len: i32, lit: *u8): i32 {
+  if (name == 0) { return 0; }
+  if (lit == 0) { return 0; }
+  if (name_len <= 0) { return 0; }
+  let i: i32 = 0;
+  while (i < name_len) {
+    if (lit[i] == 0) { return 0; }
+    if (name[i] != lit[i]) { return 0; }
+    i = i + 1;
+  }
+  if (lit[name_len] != 0) { return 0; }
+  return 1;
 }

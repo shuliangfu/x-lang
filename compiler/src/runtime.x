@@ -65,7 +65,6 @@ extern "C" function main_entry_impl(argc: i32, argv: *u8): i32;
 /* ---- G-02f-71：driver compile/run 薄门闩 ---- */
 
 
-extern "C" function shux_smoke_diag_enabled_impl(): i32;
 extern "C" function driver_unlink_failed_output_impl(out_path: *u8): void;
 extern "C" function driver_x_emit_asm_direct_import_only_impl(input_path: *u8): i32;
 extern "C" function driver_x_emit_asm_dep_parse_skip_typeck_ok_impl(input_path: *u8, dep_path: *u8): i32;
@@ -487,13 +486,6 @@ function main_entry(argc: i32, argv: *u8): i32 {
 
 /* ---- G-02f-85：smoke / failed-output unlink / asm path 门闩 ---- */
 
-#[no_mangle]
-function shux_smoke_diag_enabled(): i32 {
-  unsafe {
-    return shux_smoke_diag_enabled_impl();
-  }
-  return 0;
-}
 
 #[no_mangle]
 function driver_unlink_failed_output(out_path: *u8): void {
@@ -1032,4 +1024,24 @@ function driver_lib_root_ptr_usable(p: *u8): i32 {
   if (p == 0) { return 0; }
   if (p[0] == 0) { return 0; }
   return 1;
+}
+
+extern "C" function getenv(name: *u8): *u8;
+
+extern "C" function diag_json_enabled(): i32;
+
+// G-02f-117：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function shux_smoke_diag_enabled(): i32 {
+  unsafe {
+    let j: i32 = diag_json_enabled();
+    if (j != 0) { return 1; }
+    let e: *u8 = getenv("SHUX_SMOKE_DIAG");
+    if (e == 0) { return 0; }
+    if (e[0] == 0) { return 0; }
+    if (e[0] == 48) { return 0; }
+    return 1;
+  }
+  return 0;
 }

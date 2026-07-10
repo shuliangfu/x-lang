@@ -1,4 +1,5 @@
 /* seeds/runtime_scheduler_glue.from_x.c — G-02f-18 product TU
+ * G-02f-117 true .x pure helpers.
  * G-02f-116 true .x pure helpers.
  * G-02f-115 true .x pure helpers.
  * G-02f-108 helper gates.
@@ -88,53 +89,41 @@ int shu_async_runtime_trace_enabled(void) {
 
 
 /** 解析 SHUX_ASYNC_RUNTIME_TRACE_TOPN（1..64，默认 20）。 */
-unsigned shu_async_trace_topn_impl(void) {
-    const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_TOPN");
-    long v = (e && e[0]) ? strtol(e, NULL, 10) : 20;
-    if (v < 1)
-        v = 1;
-    if (v > 64)
-        v = 64;
-    return (unsigned)v;
-}
+/* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 unsigned shu_async_trace_topn(void) {
-  {
-    return shu_async_trace_topn_impl();
-  }
-  return 0;
+  const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_TOPN");
+  long v = (e && e[0]) ? strtol(e, NULL, 10) : 20;
+  if (v < 1)
+    v = 1;
+  if (v > 64)
+    v = 64;
+  return (unsigned)v;
 }
+
 
 
 /** 解析 SHUX_ASYNC_RUNTIME_TRACE_SAMPLE（默认 1 = 每条）。 */
-unsigned shu_async_trace_sample_rate_impl(void) {
-    const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SAMPLE");
-    long v = (e && e[0]) ? strtol(e, NULL, 10) : 1;
-    if (v < 1)
-        v = 1;
-    return (unsigned)v;
-}
+/* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 unsigned shu_async_trace_sample_rate(void) {
-  {
-    return shu_async_trace_sample_rate_impl();
-  }
-  return 0;
+  const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SAMPLE");
+  long v = (e && e[0]) ? strtol(e, NULL, 10) : 1;
+  if (v < 1)
+    v = 1;
+  return (unsigned)v;
 }
+
 
 
 /** 解析 SHUX_ASYNC_RUNTIME_TRACE_SLOW_US（默认 500）。 */
-uint64_t shu_async_trace_slow_us_impl(void) {
-    const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SLOW_US");
-    long v = (e && e[0]) ? strtol(e, NULL, 10) : 500;
-    if (v < 0)
-        v = 0;
-    return (uint64_t)v;
-}
+/* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint64_t shu_async_trace_slow_us(void) {
-  {
-    return shu_async_trace_slow_us_impl();
-  }
-  return 0;
+  const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SLOW_US");
+  long v = (e && e[0]) ? strtol(e, NULL, 10) : 500;
+  if (v < 0)
+    v = 0;
+  return (uint64_t)v;
 }
+
 
 
 /** 单调时钟微秒（trace 耗时）。 */
@@ -304,16 +293,12 @@ static shux_async_task_fn_t shux_async_io_wait[SHUX_ASYNC_IO_WAIT_CAP];
 static uint32_t shux_async_io_wait_n;
 
 /** SHUX_ASYNC_IO_WAIT=1 时 suspend 任务进入 IO 等待队列而非就绪环。 */
-int shux_async_io_wait_enabled_impl(void) {
-    const char *e = getenv("SHUX_ASYNC_IO_WAIT");
-    return e && e[0] == '1' && e[1] == '\0';
-}
+/* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int shux_async_io_wait_enabled(void) {
-  {
-    return shux_async_io_wait_enabled_impl();
-  }
-  return 0;
+  const char *e = getenv("SHUX_ASYNC_IO_WAIT");
+  return e && e[0] == '1' && e[1] == '\0';
 }
+
 
 
 /** IO-A5：最近一次 suspend 来自 await IO（由 shux_async_cps_suspend_io 置位，drain 消费）。 */
@@ -785,16 +770,12 @@ int shux_async_task_submit_with_ctx(shux_async_task_fn_t fn, int64_t ctx_handle)
 }
 
 /** SHUX_ASYNC_AFFINITY=1 时 worker drain 尝试绑核。 */
-int shux_async_affinity_enabled_impl(void) {
-    const char *e = getenv("SHUX_ASYNC_AFFINITY");
-    return e && e[0] == '1' && e[1] == '\0';
-}
+/* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int shux_async_affinity_enabled(void) {
-  {
-    return shux_async_affinity_enabled_impl();
-  }
-  return 0;
+  const char *e = getenv("SHUX_ASYNC_AFFINITY");
+  return e && e[0] == '1' && e[1] == '\0';
 }
+
 
 
 /** worker drain 前绑核（SHUX_ASYNC_AFFINITY=1 时调用 thread_set_affinity_self_c）。 */

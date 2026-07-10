@@ -1,4 +1,5 @@
 /* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+ * G-02f-117 true .x pure helpers.
  * G-02f-114 true .x pure helpers.
  * G-02f-112 helper gates.
  * G-02f-111 helper gates.
@@ -340,19 +341,15 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
  * 结构化 smoke 是否启用：`--diag-json`（diag_json_enabled）或 SHUX_SMOKE_DIAG=1。
  * 默认关闭，保持 stdout 旧行（grep/golden 兼容）；启用时另向 stderr 输出带编号的 info 诊断。
  */
-int shux_smoke_diag_enabled_impl(void) {
-    const char *e;
-    if (diag_json_enabled())
-        return 1;
-    e = getenv("SHUX_SMOKE_DIAG");
-    return (e && e[0] && e[0] != '0') ? 1 : 0;
-}
+/* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int shux_smoke_diag_enabled(void) {
-  {
-    return shux_smoke_diag_enabled_impl();
-  }
-  return 0;
+  const char *e;
+  if (diag_json_enabled())
+    return 1;
+  e = getenv("SHUX_SMOKE_DIAG");
+  return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
+
 
 
 /* 编译/链接失败时删除 -o 目标，避免遗留 0 字节或半写入产物污染后续增量构建。 */
