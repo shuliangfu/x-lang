@@ -6700,12 +6700,14 @@ int driver_run_compiler_full(int argc, char **argv) {
  * shux test 入口：在仓库根目录执行 bash 测试脚本；默认 tests/run-all.sh，亦可通过首参指定相对/绝对路径。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-311 R7 扩：driver_run_test → rt_run_exec hybrid */
+#ifndef SHUX_RT_RUN_EXEC_FROM_X
 int driver_run_test(int argc, char **argv) {
     const char *root = shux_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
     const char *rel = "tests/run-all.sh";
     char script[768];
     char cmd[1024];
-    if (argc >= 2 && argv[1][0] != '-') {
+    if (argc >= 2 && argv[1] && argv[1][0] != '-') {
         rel = argv[1];
     }
     if (rel[0] == '/')
@@ -6717,6 +6719,9 @@ int driver_run_test(int argc, char **argv) {
                  "test script: %s", script);
     return runtime_test_status_to_rc(script, system(cmd));
 }
+#else
+int driver_run_test(int argc, char **argv);
+#endif
 
 
 
@@ -7329,7 +7334,8 @@ x_emit_c_done:
  * shux fmt 单文件：读入 .x、按 LSP 规则格式化；内容变化时写回。供 fmt.x argv 循环调用。
  * path 为 NUL 终止路径（path_len 不含 NUL）；成功 0，失败 1。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-311：fmt one → rt_fmt_one hybrid */
+#ifndef SHUX_RT_FMT_ONE_FROM_X
 int driver_fmt_one_file(const uint8_t *path, int path_len) {
     char pathbuf[512];
     ShuxRuntimeFileView raw_view;
@@ -7391,6 +7397,10 @@ int driver_fmt_one_file(const uint8_t *path, int path_len) {
     runtime_release_file_view(&raw_view);
     return 0;
 }
+#else
+int driver_fmt_one_file(const uint8_t *path, int path_len);
+int labi_rt_fmt_one_slice_marker(void);
+#endif
 
 
 

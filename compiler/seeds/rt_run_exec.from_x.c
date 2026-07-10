@@ -1,11 +1,12 @@
-/* seeds/rt_run_exec.from_x.c — G-02f-297～299 P2 runtime R7 (run/exec gates)
+/* seeds/rt_run_exec.from_x.c — G-02f-297～299/311 P2 runtime R7 (run/exec gates)
  * Logic source: src/runtime/rt_run_exec.x
  * Hybrid: SHUX_RT_RUN_EXEC_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * f-297: want_asm_emit_to_file + print_usage
  * f-298: runtime_test_status_to_rc + print_target_cpu_features
  * f-299: exec pure path helpers + driver_exec_compiled (spawn 🔒 在本 seed)
- * main_entry / fmt IO remain mega rest.
+ * f-311: driver_run_test（bash tests/run-all.sh；🔒 system）
+ * main_entry / full emit orchestration remain mega rest.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -20,12 +21,18 @@
 
 #include "runtime_diag_codes.h"
 
+#include <stdlib.h>
+
 extern int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max);
 extern void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path);
 extern void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code,
                                    const char *detail, const char *fmt, ...);
+extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt,
+                         ...);
 extern void shu_target_cpu_print(FILE *out, uint32_t features);
 extern int shu_waitpid_retry(pid_t pid, int *status_out);
+extern const char *shux_repo_root_from_argv0(const char *argv0);
+extern int system(const char *command);
 
 /**
  * 是否与 driver_run_compiler_full 默认一致：默认可走 asm 后端；
@@ -205,6 +212,24 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
     }
 #endif
   }
+}
+
+/** shux test：在仓库根执行 bash 测试脚本。🔒 system。 */
+int driver_run_test(int argc, char **argv) {
+  const char *root = shux_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
+  const char *rel = "tests/run-all.sh";
+  char script[768];
+  char cmd[1024];
+  if (argc >= 2 && argv[1] && argv[1][0] != '-') {
+    rel = argv[1];
+  }
+  if (rel[0] == '/')
+    snprintf(script, sizeof script, "%s", rel);
+  else
+    snprintf(script, sizeof script, "%s/%s", root, rel);
+  snprintf(cmd, sizeof cmd, "cd \"%s\" && bash \"%s\"", root, script);
+  diag_reportf(NULL, 0, 0, "info", NULL, "test script: %s", script);
+  return runtime_test_status_to_rc(script, system(cmd));
 }
 
 int labi_rt_run_exec_slice_marker(void) {
