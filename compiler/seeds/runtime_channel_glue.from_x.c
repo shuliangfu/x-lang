@@ -1,4 +1,5 @@
 /* seeds/runtime_channel_glue.from_x.c — G-02f-18 product TU
+ * G-02f-106 helper gates.
  * Product: runtime_channel_glue.o; logic still C until full .x port.
  */
 /**
@@ -71,7 +72,7 @@ typedef struct {
 } channel_i32_impl_t;
 
 /** 初始化 channel 同步原语；失败返回非 0。 */
-static int32_t channel_sync_init(channel_i32_impl_t *c) {
+int32_t channel_sync_init_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     InitializeCriticalSection(&c->mutex);
     InitializeConditionVariable(&c->cond_not_empty);
@@ -91,9 +92,16 @@ static int32_t channel_sync_init(channel_i32_impl_t *c) {
     return 0;
 #endif
 }
+int32_t channel_sync_init(channel_i32_impl_t *c) {
+  {
+    return channel_sync_init_impl(c);
+  }
+  return 0;
+}
+
 
 /** 销毁 channel 同步原语。 */
-static void channel_sync_destroy(channel_i32_impl_t *c) {
+void channel_sync_destroy_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     DeleteCriticalSection(&c->mutex);
 #else
@@ -102,60 +110,102 @@ static void channel_sync_destroy(channel_i32_impl_t *c) {
     pthread_cond_destroy(&c->cond_not_full);
 #endif
 }
+void channel_sync_destroy(channel_i32_impl_t *c) {
+  {
+    channel_sync_destroy_impl(c);
+  }
+}
+
 
 /** 加锁 channel。 */
-static void channel_lock(channel_i32_impl_t *c) {
+void channel_lock_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     EnterCriticalSection(&c->mutex);
 #else
     pthread_mutex_lock(&c->mutex);
 #endif
 }
+void channel_lock(channel_i32_impl_t *c) {
+  {
+    channel_lock_impl(c);
+  }
+}
+
 
 /** 解锁 channel。 */
-static void channel_unlock(channel_i32_impl_t *c) {
+void channel_unlock_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     LeaveCriticalSection(&c->mutex);
 #else
     pthread_mutex_unlock(&c->mutex);
 #endif
 }
+void channel_unlock(channel_i32_impl_t *c) {
+  {
+    channel_unlock_impl(c);
+  }
+}
+
 
 /** 唤醒一个等待 recv 的线程。 */
-static void channel_signal_not_empty(channel_i32_impl_t *c) {
+void channel_signal_not_empty_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeConditionVariable(&c->cond_not_empty);
 #else
     pthread_cond_signal(&c->cond_not_empty);
 #endif
 }
+void channel_signal_not_empty(channel_i32_impl_t *c) {
+  {
+    channel_signal_not_empty_impl(c);
+  }
+}
+
 
 /** 唤醒一个等待 send 的线程。 */
-static void channel_signal_not_full(channel_i32_impl_t *c) {
+void channel_signal_not_full_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeConditionVariable(&c->cond_not_full);
 #else
     pthread_cond_signal(&c->cond_not_full);
 #endif
 }
+void channel_signal_not_full(channel_i32_impl_t *c) {
+  {
+    channel_signal_not_full_impl(c);
+  }
+}
+
 
 /** 广播唤醒所有等待 recv 的线程。 */
-static void channel_broadcast_not_empty(channel_i32_impl_t *c) {
+void channel_broadcast_not_empty_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeAllConditionVariable(&c->cond_not_empty);
 #else
     pthread_cond_broadcast(&c->cond_not_empty);
 #endif
 }
+void channel_broadcast_not_empty(channel_i32_impl_t *c) {
+  {
+    channel_broadcast_not_empty_impl(c);
+  }
+}
+
 
 /** 广播唤醒所有等待 send 的线程。 */
-static void channel_broadcast_not_full(channel_i32_impl_t *c) {
+void channel_broadcast_not_full_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeAllConditionVariable(&c->cond_not_full);
 #else
     pthread_cond_broadcast(&c->cond_not_full);
 #endif
 }
+void channel_broadcast_not_full(channel_i32_impl_t *c) {
+  {
+    channel_broadcast_not_full_impl(c);
+  }
+}
+
 
 /** 阻塞等待直到 buffer 非空或 channel 关闭。 */
 static void channel_wait_not_empty(channel_i32_impl_t *c) {

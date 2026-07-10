@@ -5,9 +5,11 @@
 // 实现仍在 seed C；本文件为文档锚点。
 // 产品：cc seeds/runtime_backtrace_platform.from_x.c → runtime_backtrace_platform.o
 // G-02f-101：+ hex2 / gold_anchor 薄门闩。
+// G-02f-106：+ capture_and_check_gold 薄门闩。
 
 extern "C" function backtrace_u8_hex2_impl(b: u8, out: *u8): void;
 extern "C" function name_has_gold_anchor_impl(name: *u8): i32;
+extern "C" function backtrace_capture_and_check_gold_c_impl(): i32;
 
 function runtime_backtrace_platform_x_doc_anchor(): i32 {
   return 0;
@@ -26,6 +28,16 @@ function backtrace_u8_hex2(b: u8, out: *u8): void {
 function name_has_gold_anchor(name: *u8): i32 {
   unsafe {
     return name_has_gold_anchor_impl(name);
+  }
+  return 0;
+}
+
+/* ---- G-02f-106：capture gold 门闩 ---- */
+
+#[no_mangle]
+function backtrace_capture_and_check_gold_c(): i32 {
+  unsafe {
+    return backtrace_capture_and_check_gold_c_impl();
   }
   return 0;
 }

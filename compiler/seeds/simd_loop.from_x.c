@@ -1,4 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
+ * G-02f-106 helper gates.
  * Source intent: src/asm/simd_loop.x (doc) + this seed (full C body).
  * Product: → src/asm/simd_loop.o. Logic still C until full .x port.
  */
@@ -73,7 +74,7 @@ extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, i
 #define GLUE_TYPE_I32 0
 
 /** 两 EXPR_VAR 是否同名。 */
-static int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
+int32_t glue_expr_same_var_c_impl(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
     uint8_t an[64];
     uint8_t bn[64];
     int32_t alen;
@@ -94,18 +95,32 @@ static int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, i
     }
     return 1;
 }
+int32_t glue_expr_same_var_c(struct ast_ASTArena *arena, int32_t a_ref, int32_t b_ref) {
+  {
+    return glue_expr_same_var_c_impl(arena, a_ref, b_ref);
+  }
+  return 0;
+}
+
 
 /** INDEX 的下标是否为归纳变量 i。 */
-static int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref) {
+int32_t glue_index_uses_var_c_impl(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref) {
     int32_t idx_ref;
     if (pipeline_expr_kind_ord_at(arena, index_expr_ref) != GLUE_EXPR_INDEX)
         return 0;
     idx_ref = pipeline_expr_index_index_ref(arena, index_expr_ref);
     return glue_expr_same_var_c(arena, idx_ref, i_var_ref);
 }
+int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref, int32_t i_var_ref) {
+  {
+    return glue_index_uses_var_c_impl(arena, index_expr_ref, i_var_ref);
+  }
+  return 0;
+}
+
 
 /** VAR 的 i32[N] 定长数组元素个数；失败 0。 */
-static int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
+int32_t glue_var_array_i32_size_c_impl(struct ast_ASTArena *arena, int32_t var_ref) {
     int32_t tr;
     int32_t elem;
     int32_t asz;
@@ -126,6 +141,13 @@ static int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var
         return 0;
     return asz;
 }
+int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
+  {
+    return glue_var_array_i32_size_c_impl(arena, var_ref);
+  }
+  return 0;
+}
+
 
 /** 同块 let 初值为整型字面量（`let n: i32 = K` 常量传播）。 */
 static int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
@@ -170,9 +192,16 @@ static int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t blo
 }
 
 /** VAR 是否为 i32[N] 栈数组（resolved 类型）。 */
-static int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, int32_t n) {
+int32_t glue_var_is_array_i32_n_c_impl(struct ast_ASTArena *arena, int32_t var_ref, int32_t n) {
     return glue_var_array_i32_size_c(arena, var_ref) == n ? 1 : 0;
 }
+int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, int32_t n) {
+  {
+    return glue_var_is_array_i32_n_c_impl(arena, var_ref, n);
+  }
+  return 0;
+}
+
 
 /** 解析 `i = i + 1` 或 `i += 1` 步进语句。 */
 static int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
@@ -307,16 +336,23 @@ static int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struc
 }
 
 /** 读取 SIMD-S1 已解析的 target CPU feature 掩码。 */
-static uint32_t glue_simd_loop_cpu_features_c(void) {
+uint32_t glue_simd_loop_cpu_features_c_impl(void) {
     uint32_t feats;
     feats = driver_get_pending_target_cpu_features();
     if (feats != 0)
         return feats;
     return shu_target_cpu_detect_host();
 }
+uint32_t glue_simd_loop_cpu_features_c(void) {
+  {
+    return glue_simd_loop_cpu_features_c_impl();
+  }
+  return 0;
+}
+
 
 /** 按 binop 与 CPU feature 选取 SIMD lane 宽（add/sub→SSE2/AVX2，mul→SSE4.1/AVX2）。 */
-static int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *lanes_out) {
+int32_t glue_simd_loop_pick_lanes_c_impl(uint32_t feats, int32_t binop_ko, int32_t *lanes_out) {
     if (binop_ko == GLUE_EXPR_MUL) {
         if ((feats & SHUX_CPU_FEAT_AVX2) != 0) {
             *lanes_out = 8;
@@ -338,6 +374,13 @@ static int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int
     }
     return -1;
 }
+int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *lanes_out) {
+  {
+    return glue_simd_loop_pick_lanes_c_impl(feats, binop_ko, lanes_out);
+  }
+  return 0;
+}
+
 
 /** 发射单 chunk 硬件向量 binop；0=成功，-1=失败。 */
 static int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko,

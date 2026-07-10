@@ -1,4 +1,5 @@
 /* seeds/runtime_scheduler_glue.from_x.c — G-02f-18 product TU
+ * G-02f-106 helper gates.
  * Product: runtime_scheduler_glue.o; logic still C until full .x port.
  */
 /**
@@ -74,13 +75,20 @@ static unsigned shu_async_trace_events_total;
 static unsigned shu_async_trace_sample_tick;
 
 /** 是否启用 trace（SHUX_ASYNC_RUNTIME_TRACE 非空且非 0）。 */
-static int shu_async_runtime_trace_enabled(void) {
+int shu_async_runtime_trace_enabled_impl(void) {
     const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE");
     return e && e[0] && !(e[0] == '0' && e[1] == '\0');
 }
+int shu_async_runtime_trace_enabled(void) {
+  {
+    return shu_async_runtime_trace_enabled_impl();
+  }
+  return 0;
+}
+
 
 /** 解析 SHUX_ASYNC_RUNTIME_TRACE_TOPN（1..64，默认 20）。 */
-static unsigned shu_async_trace_topn(void) {
+unsigned shu_async_trace_topn_impl(void) {
     const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_TOPN");
     long v = (e && e[0]) ? strtol(e, NULL, 10) : 20;
     if (v < 1)
@@ -89,32 +97,60 @@ static unsigned shu_async_trace_topn(void) {
         v = 64;
     return (unsigned)v;
 }
+unsigned shu_async_trace_topn(void) {
+  {
+    return shu_async_trace_topn_impl();
+  }
+  return 0;
+}
+
 
 /** 解析 SHUX_ASYNC_RUNTIME_TRACE_SAMPLE（默认 1 = 每条）。 */
-static unsigned shu_async_trace_sample_rate(void) {
+unsigned shu_async_trace_sample_rate_impl(void) {
     const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SAMPLE");
     long v = (e && e[0]) ? strtol(e, NULL, 10) : 1;
     if (v < 1)
         v = 1;
     return (unsigned)v;
 }
+unsigned shu_async_trace_sample_rate(void) {
+  {
+    return shu_async_trace_sample_rate_impl();
+  }
+  return 0;
+}
+
 
 /** 解析 SHUX_ASYNC_RUNTIME_TRACE_SLOW_US（默认 500）。 */
-static uint64_t shu_async_trace_slow_us(void) {
+uint64_t shu_async_trace_slow_us_impl(void) {
     const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SLOW_US");
     long v = (e && e[0]) ? strtol(e, NULL, 10) : 500;
     if (v < 0)
         v = 0;
     return (uint64_t)v;
 }
+uint64_t shu_async_trace_slow_us(void) {
+  {
+    return shu_async_trace_slow_us_impl();
+  }
+  return 0;
+}
+
 
 /** 单调时钟微秒（trace 耗时）。 */
-static uint64_t shu_async_trace_now_us(void) {
+uint64_t shu_async_trace_now_us_impl(void) {
     struct timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
         return 0;
     return (uint64_t)ts.tv_sec * 1000000ull + (uint64_t)ts.tv_nsec / 1000ull;
 }
+uint64_t shu_async_trace_now_us(void) {
+  {
+    return shu_async_trace_now_us_impl();
+  }
+  return 0;
+}
+
 
 /**
  * 记录一条 trace 事件（采样 + 慢路径必录；ring 满时丢弃最慢旧项）。
@@ -262,10 +298,17 @@ static shux_async_task_fn_t shux_async_io_wait[SHUX_ASYNC_IO_WAIT_CAP];
 static uint32_t shux_async_io_wait_n;
 
 /** SHUX_ASYNC_IO_WAIT=1 时 suspend 任务进入 IO 等待队列而非就绪环。 */
-static int shux_async_io_wait_enabled(void) {
+int shux_async_io_wait_enabled_impl(void) {
     const char *e = getenv("SHUX_ASYNC_IO_WAIT");
     return e && e[0] == '1' && e[1] == '\0';
 }
+int shux_async_io_wait_enabled(void) {
+  {
+    return shux_async_io_wait_enabled_impl();
+  }
+  return 0;
+}
+
 
 /** IO-A5：最近一次 suspend 来自 await IO（由 shux_async_cps_suspend_io 置位，drain 消费）。 */
 static int shux_async_suspend_io_flag;
@@ -698,10 +741,17 @@ int shux_async_task_submit_with_ctx(shux_async_task_fn_t fn, int64_t ctx_handle)
 }
 
 /** SHUX_ASYNC_AFFINITY=1 时 worker drain 尝试绑核。 */
-static int shux_async_affinity_enabled(void) {
+int shux_async_affinity_enabled_impl(void) {
     const char *e = getenv("SHUX_ASYNC_AFFINITY");
     return e && e[0] == '1' && e[1] == '\0';
 }
+int shux_async_affinity_enabled(void) {
+  {
+    return shux_async_affinity_enabled_impl();
+  }
+  return 0;
+}
+
 
 /** worker drain 前绑核（SHUX_ASYNC_AFFINITY=1 时调用 thread_set_affinity_self_c）。 */
 static void shux_async_maybe_bind_worker(uint32_t worker_id) {

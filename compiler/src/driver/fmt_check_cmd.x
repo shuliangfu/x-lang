@@ -6,11 +6,18 @@
 // C 尾：路径收集、walk_dir、fmt/check CLI、argv 拼装、lint 策略。
 // 说明：本 TU 提供 driver_check_quiet_ok_get 强符号（覆盖 driver_abi weak 默认）。
 // G-02f-97：+ path_is_absolute / collect_error_kind / missing_path_code / lint_fail_on_warnings 门闩。
+// G-02f-106：+ path_should_ignore / file_list / dep_clear / lib_root 门闩。
 
 extern "C" function shux_path_is_absolute_impl(path: *u8): i32;
 extern "C" function driver_collect_error_kind_impl(): *u8;
 extern "C" function driver_collect_missing_path_code_impl(): *u8;
 extern "C" function check_lint_fail_on_warnings_impl(): i32;
+extern "C" function path_should_ignore_impl(path: *u8): i32;
+extern "C" function file_list_push_impl(path: *u8): i32;
+extern "C" function file_list_clear_impl(): void;
+extern "C" function fmt_check_dep_clear_impl(): void;
+extern "C" function check_init_user_lib_flags_impl(argc: i32, argv: *u8, path_start: i32): void;
+extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir: *u8): void;
 
 #[no_mangle]
 function driver_check_quiet_ok_get(): i32 {
@@ -50,4 +57,38 @@ function check_lint_fail_on_warnings(): i32 {
     return check_lint_fail_on_warnings_impl();
   }
   return 0;
+}
+
+/* ---- G-02f-106：path/list/dep/lib 门闩 ---- */
+
+#[no_mangle]
+function path_should_ignore(path: *u8): i32 {
+  unsafe { return path_should_ignore_impl(path); }
+  return 0;
+}
+
+#[no_mangle]
+function file_list_push(path: *u8): i32 {
+  unsafe { return file_list_push_impl(path); }
+  return 0;
+}
+
+#[no_mangle]
+function file_list_clear(): void {
+  unsafe { file_list_clear_impl(); }
+}
+
+#[no_mangle]
+function fmt_check_dep_clear(): void {
+  unsafe { fmt_check_dep_clear_impl(); }
+}
+
+#[no_mangle]
+function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void {
+  unsafe { check_init_user_lib_flags_impl(argc, argv, path_start); }
+}
+
+#[no_mangle]
+function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
+  unsafe { check_try_append_lib_root_impl(check_argv, n, dir); }
 }

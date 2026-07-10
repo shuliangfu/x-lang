@@ -1,4 +1,5 @@
 /* seeds/runtime_http_glue.from_x.c — G-02f-21 product TU
+ * G-02f-106 helper gates.
  * G-02f-105 helper gates.
  * Logic still C until full .x port.
  */
@@ -75,7 +76,7 @@ int32_t http_parse_status_line_c(const uint8_t *line, int32_t len, int32_t *out_
 #define HTTP_ERR_TIMEOUT (-1220)
 
 /** 解析 http(s)://host[:port][/path]；*out_is_https=1 表示 https；默认端口 80/443。 */
-static int parse_http_url(const uint8_t *url, int32_t url_len,
+int parse_http_url_impl(const uint8_t *url, int32_t url_len,
                          char *host_buf, int host_cap,
                          char *port_buf, int port_cap,
                          char *path_buf, int path_cap,
@@ -135,6 +136,17 @@ static int parse_http_url(const uint8_t *url, int32_t url_len,
   }
   return 0;
 }
+int parse_http_url(const uint8_t *url, int32_t url_len,
+                         char *host_buf, int host_cap,
+                         char *port_buf, int port_cap,
+                         char *path_buf, int path_cap,
+                         int32_t *out_is_https) {
+  {
+    return parse_http_url_impl(url, url_len, host_buf, host_cap, port_buf, port_cap, path_buf, path_cap, out_is_https);
+  }
+  return 0;
+}
+
 
 /** 客户端传输层：明文 fd 或 TLS ctx。 */
 typedef struct {
@@ -143,7 +155,7 @@ typedef struct {
 } http_transport_t;
 
 /** 关闭传输层（含 TLS 与 socket）。 */
-static void http_transport_close(http_transport_t *tr) {
+void http_transport_close_impl(http_transport_t *tr) {
   if (!tr) return;
   if (tr->tls_ctx != 0) {
     net_tls_close_c(tr->tls_ctx);
@@ -154,6 +166,12 @@ static void http_transport_close(http_transport_t *tr) {
     tr->fd = -1;
   }
 }
+void http_transport_close(http_transport_t *tr) {
+  {
+    http_transport_close_impl(tr);
+  }
+}
+
 
 /** HTTPS 时在已连接 fd 上建立 TLS；明文时 tls_ctx 保持 0。 */
 static int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const char *host) {
@@ -165,7 +183,7 @@ static int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, 
 }
 
 /** 发送全部字节；失败 -1。 */
-static int32_t http_transport_send_all(http_transport_t *tr, const char *data, int len) {
+int32_t http_transport_send_all_impl(http_transport_t *tr, const char *data, int len) {
   int sent = 0;
   if (!tr || !data || len <= 0) return -1;
   while (sent < len) {
@@ -184,9 +202,16 @@ static int32_t http_transport_send_all(http_transport_t *tr, const char *data, i
   }
   return 0;
 }
+int32_t http_transport_send_all(http_transport_t *tr, const char *data, int len) {
+  {
+    return http_transport_send_all_impl(tr, data, len);
+  }
+  return 0;
+}
+
 
 /** 读取响应到 out_buf；返回总字节数。 */
-static int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap,
+int32_t http_transport_recv_fill_impl(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap,
                                         uint32_t timeout_ms) {
   int32_t total = 0;
   if (!tr || !out_buf || out_cap <= 0) return -1;
@@ -209,6 +234,14 @@ static int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, 
   }
   return total;
 }
+int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap,
+                                        uint32_t timeout_ms) {
+  {
+    return http_transport_recv_fill_impl(tr, out_buf, out_cap, timeout_ms);
+  }
+  return 0;
+}
+
 
 /** 判定 HTTP 方法是否携带请求体（POST/PUT/PATCH）。 */
 int http_method_has_body_impl(const char *method) {
@@ -226,7 +259,7 @@ int http_method_has_body(const char *method) {
 
 
 /** 构建 HTTP/1.0 请求行与 Host 头；带 body 的方法附加 Content-Length。返回 req_len，失败 -1。 */
-static int http_format_request(const char *method, const char *path_buf, const char *host_buf,
+int http_format_request_impl(const char *method, const char *path_buf, const char *host_buf,
                                int32_t body_len, char *req, int req_cap) {
   int req_len;
   if (http_method_has_body(method)) {
@@ -241,6 +274,14 @@ static int http_format_request(const char *method, const char *path_buf, const c
     return -1;
   return req_len;
 }
+int http_format_request(const char *method, const char *path_buf, const char *host_buf,
+                               int32_t body_len, char *req, int req_cap) {
+  {
+    return http_format_request_impl(method, path_buf, host_buf, body_len, req, req_cap);
+  }
+  return 0;
+}
+
 
 /** u8 方法码 → C 字符串（0=GET … 6=OPTIONS，与 std.http.Method 一致）；非法返回 NULL。 */
 static const char *http_method_from_u8(uint8_t method_u8) {
@@ -666,7 +707,7 @@ int32_t http_https_smoke_c(void) {
 #endif
 
 /** 读并丢弃客户端请求头（至 \\r\\n\\r\\n）。 */
-static int32_t http_drain_request(int fd) {
+int32_t http_drain_request_impl(int fd) {
   uint8_t buf[4096];
   int32_t total = 0;
   int32_t off;
@@ -685,6 +726,13 @@ static int32_t http_drain_request(int fd) {
   }
   return 0;
 }
+int32_t http_drain_request(int fd) {
+  {
+    return http_drain_request_impl(fd);
+  }
+  return 0;
+}
+
 
 /** 循环 send 直至 len 字节发完。 */
 int32_t shu_http_send_all_impl(int fd, const char *buf, int len, int is_socket) {

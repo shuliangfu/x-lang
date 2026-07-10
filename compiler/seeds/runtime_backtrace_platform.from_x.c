@@ -1,4 +1,5 @@
 /* seeds/runtime_backtrace_platform.from_x.c — G-02f-19 product TU
+ * G-02f-106 helper gates.
  * G-02f-101 hex2/gold_anchor gates.
  * Product: runtime_backtrace_platform.o; logic still C until full .x port.
  */
@@ -267,7 +268,7 @@ void *backtrace_gold_anchor_addr_c(void) {
 }
 
 /** 从当前栈 capture 并检查是否含 gold_anchor 符号。 */
-static int32_t backtrace_capture_and_check_gold_c(void) {
+int32_t backtrace_capture_and_check_gold_c_impl(void) {
   uint8_t buf[512];
   uint8_t names[1024];
   int32_t n;
@@ -289,6 +290,13 @@ static int32_t backtrace_capture_and_check_gold_c(void) {
   }
   return 12;
 }
+int32_t backtrace_capture_and_check_gold_c(void) {
+  {
+    return backtrace_capture_and_check_gold_c_impl();
+  }
+  return 0;
+}
+
 
 /** platform glue 金样锚点回调：烟测模式下在栈内 capture。 */
 int32_t backtrace_gold_anchor_smoke_enter_c(void) {

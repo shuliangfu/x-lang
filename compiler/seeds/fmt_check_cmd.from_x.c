@@ -1,4 +1,5 @@
 /* Generated from src/driver/fmt_check_cmd.x (G-02f-31 true .x + C tail).
+ * G-02f-106 helper gates.
  * G-02f-97 pure helper gates.
  * Regen: ./shux-c -E -L .. src/driver/fmt_check_cmd.x > /tmp/fcc.c
  *         merge quiet_ok; keep path walk / check argv / fmt CLI C.
@@ -160,7 +161,7 @@ const char * driver_collect_missing_path_code(void) {
 /**
  * 若 dir 下同时存在 core/ 与 std/ 子目录，则作为仓库 lib 根注入 -L（去重）。
  */
-static void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
+void check_try_append_lib_root_impl(char **check_argv, int *n, const char *dir) {
     char core_path[560];
     char std_path[560];
     struct stat st;
@@ -184,6 +185,12 @@ static void check_try_append_lib_root(char **check_argv, int *n, const char *dir
     check_argv[(*n)++] = "-L";
     check_argv[(*n)++] = s_check_lib_bufs[s_n_check_lib_bufs++];
 }
+void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
+  {
+    check_try_append_lib_root_impl(check_argv, n, dir);
+  }
+}
+
 
 /**
  * 从 path 所在目录向上查找含 core/ + std/ 的仓库根并注入 -L。
@@ -240,7 +247,7 @@ static void check_append_repo_lib_roots(const char *path, char **check_argv, int
 /**
  * 扫描 argv：用户是否已传 -L（有则不再注入默认库根）。
  */
-static void check_init_user_lib_flags(int argc, char **argv, int path_start) {
+void check_init_user_lib_flags_impl(int argc, char **argv, int path_start) {
     int i;
     s_user_passed_L = 0;
     s_n_check_lib_bufs = 0;
@@ -251,6 +258,12 @@ static void check_init_user_lib_flags(int argc, char **argv, int path_start) {
         }
     }
 }
+void check_init_user_lib_flags(int argc, char **argv, int path_start) {
+  {
+    check_init_user_lib_flags_impl(argc, argv, path_start);
+  }
+}
+
 
 /**
  * 按待检查文件路径注入默认 -L（在单文件路径之前）。
@@ -314,11 +327,17 @@ static int fmt_check_invoke_compile(int argc, char **check_argv) {
 /**
  * check 批次结束后清理 dep 槽（仅 X pipeline 需要）。
  */
-static void fmt_check_dep_clear(void) {
+void fmt_check_dep_clear_impl(void) {
 #ifdef SHUX_USE_X_PIPELINE
     driver_dep_seeded_clear_all();
 #endif
 }
+void fmt_check_dep_clear(void) {
+  {
+    fmt_check_dep_clear_impl();
+  }
+}
+
 
 /**
  * 记录当前 check 的源文件路径，供诊断前缀使用。
@@ -343,7 +362,7 @@ int driver_check_print_collected_diagnostics(const char *path) {
 /**
  * 路径是否应忽略（内置 + --ignore 子串匹配）。
  */
-static int path_should_ignore(const char *path) {
+int path_should_ignore_impl(const char *path) {
     int i;
     if (!path)
         return 1;
@@ -357,11 +376,18 @@ static int path_should_ignore(const char *path) {
     }
     return 0;
 }
+int path_should_ignore(const char *path) {
+  {
+    return path_should_ignore_impl(path);
+  }
+  return 0;
+}
+
 
 /**
  * 将相对/绝对路径加入待处理列表（去重由调用方保证顺序）。
  */
-static int file_list_push(const char *path) {
+int file_list_push_impl(const char *path) {
     char ab[512];
     if (!path || s_n_files >= DRIVER_FMT_MAX_FILES)
         return -1;
@@ -389,6 +415,13 @@ static int file_list_push(const char *path) {
     s_n_files++;
     return 0;
 }
+int file_list_push(const char *path) {
+  {
+    return file_list_push_impl(path);
+  }
+  return 0;
+}
+
 
 /**
  * 递归遍历目录，收集 .x 文件。
@@ -502,12 +535,18 @@ static void parse_ignore_opt(const char *arg) {
 /**
  * 释放文件列表。
  */
-static void file_list_clear(void) {
+void file_list_clear_impl(void) {
     int i;
     for (i = 0; i < s_n_files; i++)
         free(s_file_list[i]);
     s_n_files = 0;
 }
+void file_list_clear(void) {
+  {
+    file_list_clear_impl();
+  }
+}
+
 
 /**
  * 运行 shux fmt（deno fmt 语义）。

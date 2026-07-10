@@ -4,7 +4,19 @@
 // G-02f-20：runtime_process_argv 产品源迁 seeds/runtime_process_argv.from_x.c。
 // 实现仍在 seed C；本文件为文档锚点。
 // 产品：cc seeds/runtime_process_argv.from_x.c → runtime_process_argv.o
+// G-02f-106：+ bind_from_crt 薄门闩。
+
+extern "C" function shux_process_argv_bind_from_crt_impl(argc: i32, argv: *u8): void;
 
 function runtime_process_argv_x_doc_anchor(): i32 {
   return 0;
+}
+
+/* ---- G-02f-106：process argv 门闩 ---- */
+
+#[no_mangle]
+function shux_process_argv_bind_from_crt(argc: i32, argv: *u8): void {
+  unsafe {
+    shux_process_argv_bind_from_crt_impl(argc, argv);
+  }
 }

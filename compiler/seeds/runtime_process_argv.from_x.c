@@ -1,4 +1,5 @@
 /* seeds/runtime_process_argv.from_x.c — G-02f-20 product TU
+ * G-02f-106 helper gates.
  * Product: runtime_process_argv.o; logic still C until full .x port.
  */
 /**
@@ -33,7 +34,7 @@ char **shux_process_argv = NULL;
  * 从 CRT 绑定 argc/argv（asm 用户 main 无参、gcc -pie 链入时）。
  * 若已由 codegen 写入则 no-op。
  */
-static void shux_process_argv_bind_from_crt(void) {
+void shux_process_argv_bind_from_crt_impl(void) {
   if (shux_process_argc > 0 && shux_process_argv != NULL)
     return;
 #if defined(__APPLE__)
@@ -104,6 +105,12 @@ static void shux_process_argv_bind_from_crt(void) {
   }
 #endif
 }
+void shux_process_argv_bind_from_crt(void) {
+  {
+    shux_process_argv_bind_from_crt_impl();
+  }
+}
+
 
 /** asm 用户程序：main 前绑定 argc/argv（优先级低于 codegen 显式赋值）。 */
 __attribute__((constructor(65535))) static void shux_process_argv_ctor_bind(void) {
