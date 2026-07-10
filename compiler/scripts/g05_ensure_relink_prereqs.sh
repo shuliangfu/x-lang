@@ -1223,84 +1223,111 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
           rm -f "$_pthin_p8_smoke"
         fi
-        # shellcheck disable=SC2086
-        if { [ "$_pthin_p1_ok" = "1" ] || [ "$_pthin_p2_ok" = "1" ] || [ "$_pthin_p3_ok" = "1" ] || [ "$_pthin_p4p_ok" = "1" ] || [ "$_pthin_p4u_ok" = "1" ] || [ "$_pthin_p4b_ok" = "1" ] || [ "$_pthin_p4as_ok" = "1" ] || [ "$_pthin_p4t_ok" = "1" ] || [ "$_pthin_p5_ok" = "1" ] || [ "$_pthin_p6_ok" = "1" ] || [ "$_pthin_p7_ok" = "1" ] || [ "$_pthin_p9_ok" = "1" ] || [ "$_pthin_p10_ok" = "1" ] || [ "$_pthin_p11_ok" = "1" ] || [ "$_pthin_p12_ok" = "1" ] || [ "$_pthin_p13_ok" = "1" ] || [ "$_pthin_p14_ok" = "1" ] || [ "$_pthin_p15_ok" = "1" ] || [ "$_pthin_p16_ok" = "1" ] || [ "$_pthin_p17_ok" = "1" ] || [ "$_pthin_p18_ok" = "1" ] || [ "$_pthin_p19_ok" = "1" ] || [ "$_pthin_p20_ok" = "1" ]; } && [ -n "$_pthin_rest_o" ] \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               $_pthin_rest_defs -c -o "$_pthin_rest_o" "$_pthin"; then
-          _pthin_link=""
-          if [ "$_pthin_p1_ok" = "1" ]; then
-            _pthin_link="$_pthin_p1_o"
-          fi
-          if [ "$_pthin_p3_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p3_o"
-          fi
-          if [ "$_pthin_p2_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p2_o"
-          fi
-          if [ "$_pthin_p6_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p6_o"
-          fi
-          if [ "$_pthin_p4as_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p4as_o"
-          fi
-          if [ "$_pthin_p4p_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p4p_o"
-          fi
-          if [ "$_pthin_p4u_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p4u_o"
-          fi
-          if [ "$_pthin_p4b_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p4b_o"
-          fi
-          if [ "$_pthin_p4t_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p4t_o"
-          fi
-          if [ "$_pthin_p5_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p5_o"
-          fi
-          if [ "$_pthin_p7_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p7_o"
-          fi
-          if [ "$_pthin_p9_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p9_o"
-          fi
-          if [ "$_pthin_p11_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p11_o"
-          fi
-          if [ "$_pthin_p12_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p12_o"
-          fi
-          if [ "$_pthin_p14_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p14_o"
-          fi
-          if [ "$_pthin_p15_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p15_o"
-          fi
-          if [ "$_pthin_p16_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p16_o"
-          fi
-          if [ "$_pthin_p17_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p17_o"
-          fi
-          if [ "$_pthin_p18_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p18_o"
-          fi
-          if [ "$_pthin_p19_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p19_o"
-          fi
-          if [ "$_pthin_p20_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p20_o"
-          fi
-          if [ "$_pthin_p13_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p13_o"
-          fi
-          if [ "$_pthin_p10_ok" = "1" ]; then
-            _pthin_link="$_pthin_link $_pthin_p10_o"
-          fi
+        # 拼 hybrid link 列表（P8 smoke-only 不入）
+        _pthin_link=""
+        if [ "$_pthin_p1_ok" = "1" ]; then
+          _pthin_link="$_pthin_p1_o"
+        fi
+        if [ "$_pthin_p3_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p3_o"
+        fi
+        if [ "$_pthin_p2_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p2_o"
+        fi
+        if [ "$_pthin_p6_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p6_o"
+        fi
+        if [ "$_pthin_p4as_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p4as_o"
+        fi
+        if [ "$_pthin_p4p_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p4p_o"
+        fi
+        if [ "$_pthin_p4u_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p4u_o"
+        fi
+        if [ "$_pthin_p4b_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p4b_o"
+        fi
+        if [ "$_pthin_p4t_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p4t_o"
+        fi
+        if [ "$_pthin_p5_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p5_o"
+        fi
+        if [ "$_pthin_p7_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p7_o"
+        fi
+        if [ "$_pthin_p9_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p9_o"
+        fi
+        if [ "$_pthin_p11_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p11_o"
+        fi
+        if [ "$_pthin_p12_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p12_o"
+        fi
+        if [ "$_pthin_p14_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p14_o"
+        fi
+        if [ "$_pthin_p15_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p15_o"
+        fi
+        if [ "$_pthin_p16_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p16_o"
+        fi
+        if [ "$_pthin_p17_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p17_o"
+        fi
+        if [ "$_pthin_p18_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p18_o"
+        fi
+        if [ "$_pthin_p19_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p19_o"
+        fi
+        if [ "$_pthin_p20_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p20_o"
+        fi
+        if [ "$_pthin_p13_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p13_o"
+        fi
+        if [ "$_pthin_p10_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p10_o"
+        fi
+        # G-02f-330：全产品切片齐（P1–P7+P9–P20）时 mega rest 无全局 T，跳过 rest 编译与 ld -r
+        _pthin_full=0
+        if [ "$_pthin_p1_ok" = "1" ] && [ "$_pthin_p2_ok" = "1" ] && [ "$_pthin_p3_ok" = "1" ] \
+          && [ "$_pthin_p4p_ok" = "1" ] && [ "$_pthin_p4u_ok" = "1" ] && [ "$_pthin_p4b_ok" = "1" ] \
+          && [ "$_pthin_p4as_ok" = "1" ] && [ "$_pthin_p4t_ok" = "1" ] && [ "$_pthin_p5_ok" = "1" ] \
+          && [ "$_pthin_p6_ok" = "1" ] && [ "$_pthin_p7_ok" = "1" ] && [ "$_pthin_p9_ok" = "1" ] \
+          && [ "$_pthin_p10_ok" = "1" ] && [ "$_pthin_p11_ok" = "1" ] && [ "$_pthin_p12_ok" = "1" ] \
+          && [ "$_pthin_p13_ok" = "1" ] && [ "$_pthin_p14_ok" = "1" ] && [ "$_pthin_p15_ok" = "1" ] \
+          && [ "$_pthin_p16_ok" = "1" ] && [ "$_pthin_p17_ok" = "1" ] && [ "$_pthin_p18_ok" = "1" ] \
+          && [ "$_pthin_p19_ok" = "1" ] && [ "$_pthin_p20_ok" = "1" ] && [ -n "$_pthin_link" ]; then
+          _pthin_full=1
+        fi
+        if [ "$_pthin_full" = "1" ]; then
           # shellcheck disable=SC2086
-          if $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link "$_pthin_rest_o" 2>/dev/null; then
-            echo "g05_ensure: parser_asm_thin_glue.o ← P1–P7+P9–P20(foundation) + thin rest (G-02f-329 hybrid; P8 smoke-only; rest T=0)"
+          if $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
+            echo "g05_ensure: parser_asm_thin_glue.o ← P1–P7+P9–P20 only (G-02f-330 omit empty rest; P8 smoke-only)"
             _pthin_done=1
+          fi
+        elif { [ "$_pthin_p1_ok" = "1" ] || [ "$_pthin_p2_ok" = "1" ] || [ "$_pthin_p3_ok" = "1" ] || [ "$_pthin_p4p_ok" = "1" ] || [ "$_pthin_p4u_ok" = "1" ] || [ "$_pthin_p4b_ok" = "1" ] || [ "$_pthin_p4as_ok" = "1" ] || [ "$_pthin_p4t_ok" = "1" ] || [ "$_pthin_p5_ok" = "1" ] || [ "$_pthin_p6_ok" = "1" ] || [ "$_pthin_p7_ok" = "1" ] || [ "$_pthin_p9_ok" = "1" ] || [ "$_pthin_p10_ok" = "1" ] || [ "$_pthin_p11_ok" = "1" ] || [ "$_pthin_p12_ok" = "1" ] || [ "$_pthin_p13_ok" = "1" ] || [ "$_pthin_p14_ok" = "1" ] || [ "$_pthin_p15_ok" = "1" ] || [ "$_pthin_p16_ok" = "1" ] || [ "$_pthin_p17_ok" = "1" ] || [ "$_pthin_p18_ok" = "1" ] || [ "$_pthin_p19_ok" = "1" ] || [ "$_pthin_p20_ok" = "1" ]; } \
+          && [ -n "$_pthin_rest_o" ] && [ -n "$_pthin_link" ]; then
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               $_pthin_rest_defs -c -o "$_pthin_rest_o" "$_pthin"; then
+            _pthin_rest_t=$(nm -gU "$_pthin_rest_o" 2>/dev/null | awk '$2=="T"{c++} END{print c+0}')
+            # shellcheck disable=SC2086
+            if [ "${_pthin_rest_t:-1}" = "0" ]; then
+              if $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
+                echo "g05_ensure: parser_asm_thin_glue.o ← hybrid slices only (rest T=0 omit; G-02f-330)"
+                _pthin_done=1
+              fi
+            elif $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link "$_pthin_rest_o" 2>/dev/null; then
+              echo "g05_ensure: parser_asm_thin_glue.o ← hybrid slices + thin rest (G-02f-330 partial; rest T=$_pthin_rest_t)"
+              _pthin_done=1
+            fi
           fi
         fi
         if [ "$_pthin_done" = "0" ]; then
