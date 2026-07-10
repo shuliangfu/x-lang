@@ -1,13 +1,8 @@
-/* seeds/fmt_check_cmd.from_x.c — G-02f-11 product TU
- * Product object from this seed; logic still C until full .x port.
+/* Generated from src/driver/fmt_check_cmd.x (G-02f-31 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/driver/fmt_check_cmd.x > /tmp/fcc.c
+ *         merge quiet_ok; keep path walk / check argv / fmt CLI C.
+ * .x covers: driver_check_quiet_ok_get (strong silent-success).
  */
-/**
- * fmt_check_cmd.c — shux fmt / shux check CLI（对标 deno fmt、deno check）
- *
- * fmt：无路径参数时递归处理当前目录 *.x；--check 全通过时无输出；失败时列出需格式化的文件。
- * check：多文件/目录；诊断格式 path:line:col - error: message；全通过时无输出。
- */
-
 #include "win32_compat.h"
 #include "driver/fmt_check_cmd.h"
 #include "diag.h"
@@ -50,6 +45,7 @@ static void closedir_win(DIR *d) {
     if (d && d->handle != -1) _findclose(d->handle);
     free(d);
 }
+
 #define opendir opendir_win
 #define readdir readdir_win
 #define closedir closedir_win
@@ -106,8 +102,8 @@ static int s_check_quiet_ok = 1;
 /**
  * 供 runtime.c 查询：check 子命令是否抑制逐文件 check OK 行。
  */
-int driver_check_quiet_ok_get(void) {
-    return s_check_quiet_ok;
+int32_t driver_check_quiet_ok_get(void) {
+  return 1;
 }
 
 static char s_unformatted_paths[DRIVER_FMT_MAX_FILES][512];
@@ -746,3 +742,4 @@ int driver_run_compiler_check(int argc, char **argv) {
 
     return 0;
 }
+

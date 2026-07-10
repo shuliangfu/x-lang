@@ -1,10 +1,13 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-11：fmt_check_cmd 产品源迁 seeds/fmt_check_cmd.from_x.c。
-// 本文件为语义对照 / 后续真迁 .x 锚点；fmt/check CLI 仍在 seed C。
-// 产品：cc seeds/fmt_check_cmd.from_x.c → fmt_check_cmd.o / fmt_check_cmd_driver.o（后者 -DSHUX_USE_X_PIPELINE）
+// G-02f-31：真迁 .x — shux check 静默成功查询（deno check 语义）。
+// 产品：./shux-c -E → seeds/fmt_check_cmd.from_x.c（+ C 尾段）。
+// C 尾：路径收集、walk_dir、fmt/check CLI、argv 拼装、lint 策略。
+// 说明：本 TU 提供 driver_check_quiet_ok_get 强符号（覆盖 driver_abi weak 默认）。
 
-function fmt_check_cmd_x_doc_anchor(): i32 {
-  return 0;
+#[no_mangle]
+function driver_check_quiet_ok_get(): i32 {
+  // deno check：全部成功时不打印逐文件 check OK。
+  return 1;
 }

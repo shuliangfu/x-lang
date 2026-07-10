@@ -1,7 +1,7 @@
-/* Generated from src/runtime_driver_diagnostic.x (G-02f-30 true .x + C tail).
+/* Generated from src/runtime_driver_diagnostic.x (G-02f-30/31 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
- *         merge fixed-msg wrappers + parse_strict; polish slice strings; keep snprintf C.
- * .x covers: fixed typeck msgs, entry_already/after_dep no-ops, parse_strict env.
+ *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
+ * .x covers: fixed typeck msgs, fail, no-ops, parse_strict (f-30/31).
  */
 #include "runtime_driver_diagnostic.h"
 #include "runtime_driver_abi.h"
@@ -123,12 +123,11 @@ void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_s
  * 与 C 路径 lsp_diag_report_typeck 在 !lsp_diag_enabled 时的前缀一致，供 run-typeck.sh、check-7.2 等识别（.x typeck 当前不向 stderr 逐条报原因）。
  */
 void driver_diagnostic_typeck_fail(void) {
-    /*
-     * .x check/compile 失败前通常已由更具体的 typeck 诊断（例如 XT001 或 lsp/typeck 细节）
-     * 说明根因；这里不再追加泛化摘要，避免用户面出现重复的 ".x pipeline type check failed"。
-     */
-    (void)driver_check_only_get();
-    (void)driver_check_diag_emitted_get();
+  (void)(({   {
+    int32_t _a = driver_check_only_get();
+    int32_t _b = driver_check_diag_emitted_get();
+  }
+ }));
 }
 
 /**
@@ -317,8 +316,17 @@ void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32_t col,
  */
 /** .x typeck：break/continue 不在循环内时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
 void driver_diagnostic_typeck_break_continue_outside(int32_t line, int32_t col, int32_t is_break) {
-    const char *kw = is_break ? "break" : "continue";
-    lsp_diag_report_typeck((int)line, (int)col, "'%s' only allowed inside a loop", kw);
+  if ((is_break !=0)) {
+    {
+      (void)(lsp_diag_report_typeck(line, col, "break only allowed inside a loop"));
+    }
+  } else {
+    {
+      (void)(lsp_diag_report_typeck(line, col, "continue only allowed inside a loop"));
+    }
+  }
+  (void)(0);
+  return;
 }
 
 void driver_diagnostic_typeck_if_condition_not_bool(int32_t line, int32_t col) {
@@ -390,32 +398,26 @@ void driver_diagnostic_typeck_import_const_must_be_qualified(int32_t line, int32
 
 /** .x typeck：match 臂 Enum.Variant 在模块枚举表中未命中（与 typeck.c TYPECK_ERR 措辞一致）。 */
 void driver_diagnostic_typeck_enum_no_variant(int32_t line, int32_t col) {
-    const char *msg = "typeck error: enum has no variant";
-    if (lsp_diag_enabled) {
-        lsp_diag_add((int)line, (int)col, 1, msg);
-        return;
-    }
-    driver_diag_report_prefixed(line, col, msg);
+  (void)(({   {
+    (void)(lsp_diag_report_typeck(line, col, "enum has no variant"));
+  }
+ }));
 }
 
 /** .x typeck：下标基类型非数组/切片/指针时打印，与 typeck.c TYPECK_ERR 措辞一致。 */
 void driver_diagnostic_typeck_subscript_base(int32_t line, int32_t col) {
-    const char *msg = "subscript base must be array, slice or pointer";
-    if (lsp_diag_enabled) {
-        lsp_diag_add_code((int)line, (int)col, 1, "T001", msg);
-        return;
-    }
-    diag_report_with_code(NULL, (int)line, (int)col, "typeck error", "T001", msg, msg);
+  (void)(({   {
+    (void)(lsp_diag_report_typeck(line, col, "subscript base must be array, slice or pointer"));
+  }
+ }));
 }
 
 /** ERR-01：`?` 要求 enclosing function 返回与 operand 同型的 Result（run-typeck result_try_bad.x）。 */
 void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t col) {
-    const char *msg = "`?` requires the enclosing function to return the same Result type";
-    if (lsp_diag_enabled) {
-        lsp_diag_report_typeck_code("T001", (int)line, (int)col, "%s", msg);
-        return;
-    }
-    diag_report_with_code(NULL, (int)line, (int)col, "typeck error", "T001", msg, msg);
+  (void)(({   {
+    (void)(lsp_diag_report_typeck(line, col, "`?` requires the enclosing function to return the same Result t"));
+  }
+ }));
 }
 
 /** .x typeck：结构体 §11.1 隐式 padding 前间隙；行文与 typeck.c TYPECK_ERR_AT 一致。 */
