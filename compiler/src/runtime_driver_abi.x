@@ -1,11 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-29/41/45/46/47：真迁 .x — driver flag/env/skip/dep_path/print + phase timing 门闩。
+// G-02f-29/41/45/46/47/48：真迁 .x — driver flags/env/phase + peek/fail/large_stack 薄门闩。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
-// C 尾：flag/len/path 槽、大栈 pthread、gettimeofday 累加、diag format。
-// G-02f-47：+ compile_phase_timing enabled/begin/end/flush（计时本体 C）。
-// 注意：set 侧禁止 if/else 写 *p → 直接 p[0]=v。
+// C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday 累加、diag format、argv defines。
+// G-02f-48：+ peek_source_file / pipeline_fail_code / run_on_large_stack_pthread。
+// 注意：set 侧禁止 if/else 写 *p → 直接 p[0]=v；禁止 if (ptr!=null) 整函数被 -E 丢掉。
 
 extern "C" function getenv(name: *u8): *u8;
 extern "C" function driver_check_only_flag_slot(): *i32;
@@ -24,6 +24,10 @@ extern "C" function driver_print_check_ok_impl(input_path: *u8): void;
 extern "C" function driver_compile_phase_timing_begin_impl(phase: i32): void;
 extern "C" function driver_compile_phase_timing_end_impl(phase: i32): void;
 extern "C" function driver_compile_phase_timing_flush_impl(): void;
+extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
+extern "C" function driver_pipeline_fail_code_rc_impl(rc: i32): void;
+extern "C" function driver_pipeline_fail_code_path_impl(path: *u8): void;
+extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void;
 
 #[no_mangle]
 function driver_check_quiet_ok_get(): i32 {
@@ -413,5 +417,46 @@ function driver_compile_phase_timing_flush(): void {
       return;
     }
     driver_compile_phase_timing_flush_impl();
+  }
+}
+
+/* ---- G-02f-48：peek_source_file / pipeline_fail_code / large_stack 薄别名 ---- */
+
+#[no_mangle]
+function driver_peek_source_file(path: *u8, content: *u8, cap: i64): i32 {
+  if (path == 0 as *u8) {
+    return -1;
+  }
+  if (content == 0 as *u8) {
+    return -1;
+  }
+  if (cap <= 1) {
+    return -1;
+  }
+  unsafe {
+    let n: i32 = shux_read_file_into_path(path, content, cap - 1);
+    return n;
+  }
+  return -1;
+}
+
+#[no_mangle]
+function driver_pipeline_fail_code(rc: i32, path: *u8): void {
+  unsafe {
+    driver_pipeline_fail_code_rc_impl(rc);
+    if (rc != -7) {
+      return;
+    }
+    if (path == 0 as *u8) {
+      return;
+    }
+    driver_pipeline_fail_code_path_impl(path);
+  }
+}
+
+#[no_mangle]
+function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
+  unsafe {
+    driver_run_thread_on_large_stack(fn, arg);
   }
 }

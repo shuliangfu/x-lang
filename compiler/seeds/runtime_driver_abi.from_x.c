@@ -1,7 +1,7 @@
-/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45/46/47 true .x + C tail).
+/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45/46/47/48 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
- *         merge flags/env/phase timing gates; C gettimeofday + pthread.
- * .x covers: quiet_ok, env, flags, skip_large, dep_path, print_check, phase timing.
+ *         merge flags/env/phase/peek/fail/pthread-alias; C gettimeofday + pthread bulk.
+ * .x covers: quiet_ok, env, flags, skip_large, dep_path, print_check, phase, peek, fail, large_stack alias.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -55,6 +55,8 @@ int32_t *driver_large_stack_thread_flag_slot(void);
 void driver_current_dep_path_store(const char *path);
 const char *driver_current_dep_path_load(void);
 void driver_print_check_ok_impl(const char *input_path);
+void driver_pipeline_fail_code_rc_impl(int32_t rc);
+void driver_pipeline_fail_code_path_impl(const uint8_t *path);
 int32_t driver_compile_phase_timing_enabled(void);
 
 /** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 X pipeline 共用）。 */
@@ -526,6 +528,16 @@ void driver_print_check_ok_impl(const char *input_path) {
                  "check OK: %s", input_path ? input_path : "?");
 }
 
+void driver_pipeline_fail_code_rc_impl(int32_t rc) {
+    diag_reportf_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP003, NULL,
+                           "pipeline failed rc=%d", (int)rc);
+}
+
+void driver_pipeline_fail_code_path_impl(const uint8_t *path) {
+    diag_reportf_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP004, NULL,
+                           "resolve path tried: %s", path ? (const char *)path : "?");
+}
+
 
 /**
  * 设置当前 dep 路径；pipeline codegen 循环每 dep 调用。
@@ -719,12 +731,16 @@ extern int driver_get_module_main_func_index(void *m);
 
 /** pipeline 失败 rc 诊断；rc==-7 时打印 resolve 尝试路径。 */
 void driver_pipeline_fail_code(int rc, const uint8_t *path) {
-    diag_reportf_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP003, NULL,
-                           "pipeline failed rc=%d", rc);
-    if (rc == -7 && path != NULL) {
-        diag_reportf_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP004, NULL,
-                               "resolve path tried: %s", (const char *)path);
+  {
+    driver_pipeline_fail_code_rc_impl((int32_t)rc);
+    if (rc != -7) {
+      return;
     }
+    if (path == NULL) {
+      return;
+    }
+    driver_pipeline_fail_code_path_impl(path);
+  }
 }
 
 /**
@@ -752,9 +768,20 @@ void driver_print_x_smoke_summary(void *module, size_t codegen_len) {
  * 参数：path 源路径；content/cap 输出缓冲；实现委托 runtime_io_abi。
  */
 int driver_peek_source_file(const char *path, char *content, size_t cap) {
-    if (!path || !content || cap <= 1)
-        return -1;
-    return shux_read_file_into_path(path, content, cap - 1);
+  if (path == NULL) {
+    return -1;
+  }
+  if (content == NULL) {
+    return -1;
+  }
+  if (cap <= 1) {
+    return -1;
+  }
+  {
+    int32_t n = shux_read_file_into_path(path, content, (size_t)(cap - 1));
+    return (int)n;
+  }
+  return -1;
 }
 
 /**
@@ -877,7 +904,9 @@ void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
 
 /** 对外别名：LSP 主循环等在 256MiB 栈 pthread 上执行 fn(arg)。 */
 void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
+  {
     driver_run_thread_on_large_stack(fn, arg);
+  }
 }
 
 /**
