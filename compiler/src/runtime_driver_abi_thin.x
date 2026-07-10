@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343/344/345/387/388：runtime_driver_abi L2 thin（38 门闩）。
+// G-02f-343/344/345/387/388/400：runtime_driver_abi L2 thin（41 门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 //
 
@@ -396,6 +396,34 @@ function driver_asm_parse_metric_only_from_env(): i32 {
 function driver_pipeline_entry_source_len_i32(): i32 {
   unsafe {
     return driver_pipeline_entry_source_len_i32_impl();
+  }
+  return 0;
+}
+
+// ---- G-02f-400：defines_set_at / stack_limit_want / path_last_preprocess_len → seed impl ----
+extern "C" function driver_defines_set_at_impl(defines: *u8, i: i32, s: *u8): void;
+extern "C" function driver_stack_limit_want_bytes_impl(): i64;
+extern "C" function driver_path_last_preprocess_len_impl(): i64;
+
+#[no_mangle]
+function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void {
+  unsafe {
+    driver_defines_set_at_impl(defines, i, s);
+  }
+}
+
+#[no_mangle]
+function driver_stack_limit_want_bytes(): i64 {
+  unsafe {
+    return driver_stack_limit_want_bytes_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_path_last_preprocess_len(): i64 {
+  unsafe {
+    return driver_path_last_preprocess_len_impl();
   }
   return 0;
 }
