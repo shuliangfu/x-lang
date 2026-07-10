@@ -1,12 +1,7 @@
-/* seeds/runtime_heap_user.from_x.c — G-02f-22 product TU
- * Logic still C until full .x port.
- */
-/**
- * runtime_heap_user.inc — 用户 asm / 产品链 heap_*_c（转调 libc）
- *
- * G-02e-14：原 runtime_heap_user.c。
- * - 产品：由 runtime_driver_strict_glue_stubs.c #include
- * - 用户链：link_abi ensure 写临时 wrap.c 再 cc -c → compiler/runtime_heap_user.o
+/* Generated from src/runtime_heap_user.x (G-02f-27 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/runtime_heap_user.x > /tmp/rhu.c
+ *         then re-apply C tail (aligned alloc + Arena64).
+ * .x covers: heap_alloc_c / free_c / realloc_c / alloc_zeroed_c.
  */
 #ifndef SHUX_RUNTIME_HEAP_USER_INC
 #define SHUX_RUNTIME_HEAP_USER_INC
@@ -18,39 +13,47 @@
 #include <stdlib.h>
 #endif
 
-/** std.heap Arena64 布局（chunk/cap/off 各 8B）。 */
-typedef struct ShuxHeapArena64 {
-    uint8_t *chunk;
-    size_t cap;
-    size_t off;
-} ShuxHeapArena64;
-
-/** 堆分配：转调 malloc。 */
-uint8_t *heap_alloc_c(size_t size) {
-    if (size == 0)
-        return (uint8_t *)0;
-    return (uint8_t *)malloc(size);
+uint8_t * heap_alloc_c(size_t size) {
+  if ((size ==0)) {
+    return ((uint8_t *)(0));
+  }
+  (void)(({   {
+    uint8_t * r = malloc(size);
+    return r;
+  }
+ }));
+  return ((uint8_t *)(0));
 }
-
-/** 堆释放：转调 free。 */
-void heap_free_c(uint8_t *ptr) {
-    free((void *)ptr);
+void heap_free_c(uint8_t * ptr) {
+  (void)(({   {
+    (void)(free(ptr));
+  }
+ }));
 }
-
-/** 堆调整：转调 realloc。 */
-uint8_t *heap_realloc_c(uint8_t *ptr, size_t new_size) {
-    if (new_size == 0) {
-        free((void *)ptr);
-        return (uint8_t *)0;
+uint8_t * heap_realloc_c(uint8_t * ptr, size_t new_size) {
+  if ((new_size ==0)) {
+    {
+      (void)(free(ptr));
     }
-    return (uint8_t *)realloc((void *)ptr, new_size);
+    return ((uint8_t *)(0));
+  }
+  (void)(({   {
+    uint8_t * r = realloc(ptr, new_size);
+    return r;
+  }
+ }));
+  return ((uint8_t *)(0));
 }
-
-/** 清零分配：转调 calloc。 */
-uint8_t *heap_alloc_zeroed_c(size_t size) {
-    if (size == 0)
-        return (uint8_t *)0;
-    return (uint8_t *)calloc(1, size);
+uint8_t * heap_alloc_zeroed_c(size_t size) {
+  if ((size ==0)) {
+    return ((uint8_t *)(0));
+  }
+  (void)(({   {
+    uint8_t * r = calloc(1, size);
+    return r;
+  }
+ }));
+  return ((uint8_t *)(0));
 }
 
 /** posix_memalign 薄封装；失败返回 null。 */
@@ -69,6 +72,13 @@ uint8_t *heap_alloc_aligned_c(size_t align_bytes, size_t size) {
     return (uint8_t *)p;
 #endif
 }
+
+/** std.heap Arena64 布局（chunk/cap/off 各 8B）。 */
+typedef struct ShuxHeapArena64 {
+    uint8_t *chunk;
+    size_t cap;
+    size_t off;
+} ShuxHeapArena64;
 
 /** 初始化 Arena64；cap==0 时用 4096 默认 chunk。 */
 int32_t heap_arena_init_c(ShuxHeapArena64 *a, size_t cap) {
