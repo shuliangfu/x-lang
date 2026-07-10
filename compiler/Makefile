@@ -597,9 +597,6 @@ src/lexer/lexer.o: src/asm/runtime_lexer_glue.inc src/lexer/lexer.h include/toke
 src/ast/ast.o: src/asm/runtime_ast_glue.inc include/ast.h scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_ast_glue.inc $@
 
-src/diag.o: src/diag.inc include/diag.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/diag.inc $@
-
 # G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），C 编排由 typeck_c_module_stubs.o 提供。
 
 # G-02a: codegen.c 已物理删除；codegen_x.o 由 codegen.x 生成，codegen_pipeline_stubs.o 提供 weak 桩。
@@ -610,6 +607,10 @@ else
 $(SHUX_C): bootstrap_shuxc
 	@if [ -z "$${SHUX_SKIP_SUBSCRIPT_MAKE:-}" ]; then cp -f bootstrap_shuxc $@; else echo "shux-c: SHUX_SKIP_SUBSCRIPT_MAKE=1, skip cp (preserve real C frontend)"; fi
 endif
+
+# G-02f-11：diag 产品 seed（全局规则，LEGACY 与默认共用）
+src/diag.o: seeds/diag.from_x.c src/diag.x include/diag.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/diag.from_x.c -o $@
 
 # G-02a: lsp_diag.c 迁移到 runtime_lsp_glue.inc（24 个符号被 lsp_x.o/fmt_check_cmd*.o/runtime*.o 引用）
 # 全局规则，LEGACY 和默认模式共用。
@@ -684,11 +685,12 @@ src/runtime_driver.o: src/runtime.inc Makefile include/diag.h scripts/cc_inc_tu.
 src/runtime_x.o: src/runtime.inc include/diag.h scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/runtime.inc $@ -DSHUX_USE_X_PIPELINE
 
-src/driver/fmt_check_cmd.o: src/driver/fmt_check_cmd.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/driver/fmt_check_cmd.inc $@
+# G-02f-11：fmt_check_cmd 产品 seed（driver 变体须 SHUX_USE_X_PIPELINE）
+src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/fmt_check_cmd.from_x.c -o $@
 
-src/driver/fmt_check_cmd_driver.o: src/driver/fmt_check_cmd.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/driver/fmt_check_cmd.inc $@ -DSHUX_USE_X_PIPELINE
+src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o $@
 
 # G-02a：C 前端 lexer/ast/parser/typeck/codegen/preprocess/autovec/lsp_diag 已物理删除；见对应 .x。
 
@@ -1166,8 +1168,9 @@ lexer_x.o: lexer_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c lexer_gen.c -o lexer_x.o
 	@echo "lexer_x.o OK"
 
-src/x_seed_bridge.o: src/x_seed_bridge.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/x_seed_bridge.inc $@ -I. -Iinclude -Isrc
+# G-02f-11：x_seed_bridge 产品 seed
+src/x_seed_bridge.o: seeds/x_seed_bridge.from_x.c src/x_seed_bridge.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/x_seed_bridge.from_x.c -o $@
 
 # pipeline_x.o 仍引用 typeck_typeck_* / codegen_codegen_* / lexer_lexer_*；*_x.o 导出无重复前缀名。
 # G-02e-8：原 lexer/typeck/codegen_x_link_alias 三 TU 并入 x_frontend_link_alias.c。
@@ -1569,9 +1572,9 @@ src/lsp/lsp_diag_pipeline_sizes_nostub.o: seeds/lsp_diag_pipeline_sizes.from_x.c
 src/lsp/lsp_diag_pipeline_ctx.o: src/lsp/lsp_diag_pipeline_ctx.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_pipeline_ctx.inc $@ -I. -Iinclude -Isrc
 
-# G-02e-14：heap_*_c 在 runtime_heap_user.inc（由 glue_stubs 与 link_abi ensure 共用）。
-src/runtime_driver_strict_glue_stubs.o: src/runtime_driver_strict_glue_stubs.inc src/runtime_heap_user.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/runtime_driver_strict_glue_stubs.inc $@ -I. -Iinclude -Isrc
+# G-02f-11：runtime_driver_strict_glue_stubs 产品 seed（内含 runtime_heap_user.inc）
+src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.from_x.c src/runtime_driver_strict_glue_stubs.x src/runtime_heap_user.inc
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o $@
 
 # G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
 # 提供 ast_module_free/ast_expr_free/ast_block_free 等 8 个内存管理函数。
@@ -1653,8 +1656,9 @@ lsp_io_gen.c: src/lsp/lsp_io.x
 src/lsp/typeck_lsp_io_stub.o: src/lsp/typeck_lsp_io_stub.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/lsp/typeck_lsp_io_stub.inc $@
 
-src/seed_link_compat.o: src/seed_link_compat.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/seed_link_compat.inc $@ -I. -Iinclude -Isrc
+# G-02f-11：seed_link_compat 产品 seed
+src/seed_link_compat.o: seeds/seed_link_compat.from_x.c src/seed_link_compat.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o $@
 
 lsp_gen.c: src/lsp/lsp.x
 	@if [ -s lsp_gen.c ] && [ "$(SHUX_FORCE_REGEN_GEN)" != "1" ]; then \
@@ -2036,9 +2040,10 @@ $(ASM_GLUE_STANDALONE_O): src/asm/pipeline_glue_standalone.inc build_asm/pipelin
 	@mkdir -p build_asm
 	sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_standalone.inc $@ $(PIPELINE_GEN_CFLAGS) -Wno-error=return-type -Ibuild_asm
 
-build_asm/pipeline_glue_strict_minimal.o: src/asm/pipeline_glue_strict_minimal.inc
+# G-02f-11：pipeline_glue_strict_minimal 产品 seed
+build_asm/pipeline_glue_strict_minimal.o: seeds/pipeline_glue_strict_minimal.from_x.c src/asm/pipeline_glue_strict_minimal.x
 	@mkdir -p build_asm
-	sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_strict_minimal.inc $@ -I. -Iinclude -Isrc
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/pipeline_glue_strict_minimal.from_x.c -o $@
 
 # relink-shux 与 bootstrap-driver-seed 链接同一组 .o；须声明为 prerequisite，否则冷启动仅 make all 后缺 main_driver.o 等。
 RELINK_SHUX_PREREQS = build-seed-asm-host $(RELINK_SHUX_FILTERED_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(DRIVER_SUBCMD_GEN) \

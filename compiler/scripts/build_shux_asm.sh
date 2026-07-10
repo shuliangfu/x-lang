@@ -2115,19 +2115,19 @@ ensure_pipeline_run_bootstrap_trampoline_obj() {
 # B-strict：最小 glue（无 ast_pool）；编排真机在 ast_pool.c glue_standalone。
 ensure_asm_pipeline_glue_strict_minimal_obj() {
   local GLUE_OBJ="$BUILD_DIR/pipeline_glue_strict_minimal.o"
-  if [ ! -f "$GLUE_OBJ" ] || [ "src/asm/pipeline_glue_strict_minimal.inc" -nt "$GLUE_OBJ" ]; then
-  echo " cc -c src/asm/pipeline_glue_strict_minimal.inc -> $GLUE_OBJ"
-  sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_strict_minimal.inc "$GLUE_OBJ"
+  if [ ! -f "$GLUE_OBJ" ] || [ "seeds/pipeline_glue_strict_minimal.from_x.c" -nt "$GLUE_OBJ" ]; then
+  echo " cc -c seeds/pipeline_glue_strict_minimal.from_x.c -> $GLUE_OBJ (G-02f-11)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/pipeline_glue_strict_minimal.from_x.c -o "$GLUE_OBJ"
   fi
 }
 
 # B-strict：preprocess -D 与 labeled 名写入（ast_pool_l5_bridge.c）。
 ensure_ast_pool_l5_bridge_obj() {
-  # G-02e-13：实现已并入 runtime_driver_strict_glue_stubs.inc
+  # G-02f-11：实现已并入 seeds/runtime_driver_strict_glue_stubs.from_x.c
   local o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.inc" -nt "$o" ]; then
-    echo "  cc -c $o <- src/runtime_driver_strict_glue_stubs.inc (former ast_pool_l5_bridge)" >&2
-    sh scripts/cc_inc_tu.sh src/runtime_driver_strict_glue_stubs.inc "$o" -I. -Iinclude -Isrc
+  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
+    echo "  cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11)" >&2
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
   fi
 }
 
@@ -3043,13 +3043,13 @@ ensure_asm_bootstrap_x_companion_objs() {
   echo " cc -c src/runtime_io_abi.inc -> src/runtime_io_abi.o"
   sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc src/runtime_io_abi.o
   fi
-  if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "src/x_seed_bridge.inc" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
-  echo " cc -c src/x_seed_bridge.inc -> $BUILD_DIR/x_seed_bridge.o"
-  sh scripts/cc_inc_tu.sh src/x_seed_bridge.inc "$BUILD_DIR/x_seed_bridge.o"
+  if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "seeds/x_seed_bridge.from_x.c" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
+  echo " cc -c seeds/x_seed_bridge.from_x.c -> $BUILD_DIR/x_seed_bridge.o (G-02f-11)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/x_seed_bridge.from_x.c -o "$BUILD_DIR/x_seed_bridge.o"
   fi
-  if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "src/seed_link_compat.inc" -nt "$BUILD_DIR/seed_link_compat.o" ]; then
-  echo " cc -c src/seed_link_compat.inc -> $BUILD_DIR/seed_link_compat.o"
-  sh scripts/cc_inc_tu.sh src/seed_link_compat.inc "$BUILD_DIR/seed_link_compat.o" -I. -Iinclude -Isrc
+  if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "seeds/seed_link_compat.from_x.c" -nt "$BUILD_DIR/seed_link_compat.o" ]; then
+  echo " cc -c seeds/seed_link_compat.from_x.c -> $BUILD_DIR/seed_link_compat.o (G-02f-11)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o "$BUILD_DIR/seed_link_compat.o"
   fi
   if [ ! -f "$BUILD_DIR/preprocess_if_stack_bridge.o" ] || [ "src/preprocess_if_stack_bridge.inc" -nt "$BUILD_DIR/preprocess_if_stack_bridge.o" ]; then
   echo " cc -c src/preprocess_if_stack_bridge.inc -> $BUILD_DIR/preprocess_if_stack_bridge.o"
@@ -3143,9 +3143,9 @@ ensure_bstrict_seed_support_objs() {
   sh scripts/cc_inc_tu.sh src/asm/backend_x86_64_enc_c.inc src/asm/backend_x86_64_enc_c.o -I. -Iinclude -Isrc
   fi
   if [ ! -f src/driver/fmt_check_cmd_driver.o ] \
-  || [ "src/driver/fmt_check_cmd.inc" -nt src/driver/fmt_check_cmd_driver.o ]; then
-  echo " cc -c src/driver/fmt_check_cmd.inc -> src/driver/fmt_check_cmd_driver.o"
-  sh scripts/cc_inc_tu.sh src/driver/fmt_check_cmd.inc src/driver/fmt_check_cmd_driver.o -DSHUX_USE_X_PIPELINE
+  || [ "seeds/fmt_check_cmd.from_x.c" -nt src/driver/fmt_check_cmd_driver.o ]; then
+  echo " cc -c seeds/fmt_check_cmd.from_x.c -> src/driver/fmt_check_cmd_driver.o (G-02f-11)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_driver.o
   fi
   if [ ! -f src/driver/target_cpu.o ] \
   || [ "seeds/target_cpu_pure.from_x.c" -nt src/driver/target_cpu.o ]; then
@@ -3208,9 +3208,9 @@ ensure_lsp_diag_seed_obj() {
 
 ensure_diag_seed_obj() {
   local seed_dir="$1"
-  if [ ! -f "$seed_dir/diag.o" ] || [ "src/diag.inc" -nt "$seed_dir/diag.o" ] || [ "include/diag.h" -nt "$seed_dir/diag.o" ]; then
-  echo " cc -c $seed_dir/diag.o <- src/diag.inc"
-  sh scripts/cc_inc_tu.sh src/diag.inc "$seed_dir/diag.o" -I. -Iinclude -Isrc
+  if [ ! -f "$seed_dir/diag.o" ] || [ "seeds/diag.from_x.c" -nt "$seed_dir/diag.o" ] || [ "include/diag.h" -nt "$seed_dir/diag.o" ]; then
+  echo " cc -c $seed_dir/diag.o <- seeds/diag.from_x.c (G-02f-11)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/diag.from_x.c -o "$seed_dir/diag.o"
   fi
 }
 
@@ -3669,10 +3669,10 @@ ensure_asm_shux_lsp_diag_stub_obj() {
 
 # codegen.o（C seed）引用 lsp_codegen_emit_*；小 TU，不与 pipeline_x.o 重复
 ensure_asm_lsp_codegen_extern_obj() {
-  LCE_C="src/runtime_driver_strict_glue_stubs.inc"
+  LCE_C="seeds/runtime_driver_strict_glue_stubs.from_x.c"
   LCE_O=src/runtime_driver_strict_glue_stubs.o
   if [ ! -f "$LCE_O" ] || [ "$LCE_C" -nt "$LCE_O" ]; then
-  echo " cc -c $LCE_O <- $LCE_C"
+  echo " cc -c $LCE_O <- $LCE_C (G-02f-11)"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$LCE_O" "$LCE_C"
   fi
 }
@@ -3744,9 +3744,9 @@ ensure_runtime_driver_abi_obj() {
 
 ensure_diag_obj() {
   local o="src/diag.o"
-  if [ ! -f "$o" ] || [ "src/diag.inc" -nt "$o" ] || [ "include/diag.h" -nt "$o" ]; then
-  echo " cc -c $o <- src/diag.inc"
-  sh scripts/cc_inc_tu.sh src/diag.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/diag.from_x.c" -nt "$o" ] || [ "include/diag.h" -nt "$o" ]; then
+  echo " cc -c $o <- seeds/diag.from_x.c (G-02f-11)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/diag.from_x.c -o "$o"
   fi
 }
 
@@ -3807,9 +3807,9 @@ ensure_asm_bootstrap_support_extra_objs() {
   fi
   ensure_typeck_f64_bits_obj
   o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.inc" -nt "$o" ]; then
-  echo " cc -c $o <- src/runtime_driver_strict_glue_stubs.inc (pipeline ABI weak stubs)"
-  sh scripts/cc_inc_tu.sh src/runtime_driver_strict_glue_stubs.inc "$o" -I. -Iinclude -Isrc
+  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
+  echo " cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
   fi
   ensure_typeck_c_module_stubs_obj
 }

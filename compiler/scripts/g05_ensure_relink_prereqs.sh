@@ -63,7 +63,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   g05_cc_c src/runtime_driver_no_c.o src/runtime.inc $RUNTIME_DRIVER_NO_C_CFLAGS
   # 与 Makefile RUNTIME_PIPELINE_ABI_CFLAGS 一致（须 SHUX_USE_X_PIPELINE，避免链 preprocess_c_fallback）
   g05_cc_c src/runtime_pipeline_abi.o src/runtime_pipeline_abi.inc -DSHUX_USE_X_PIPELINE
-  g05_cc_c build_asm/pipeline_glue_strict_minimal.o src/asm/pipeline_glue_strict_minimal.inc
+  # G-02f-11：pipeline_glue_strict_minimal 产品 seed
+  _pglue=seeds/pipeline_glue_strict_minimal.from_x.c
+  if [ -f "$_pglue" ]; then
+    if [ ! -f build_asm/pipeline_glue_strict_minimal.o ] || [ "$_pglue" -nt build_asm/pipeline_glue_strict_minimal.o ]; then
+      echo "g05_ensure: pipeline_glue_strict_minimal.o ← seed (G-02f-11)"
+      mkdir -p build_asm
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o build_asm/pipeline_glue_strict_minimal.o "$_pglue"
+    fi
+  fi
   # G-02e：typeck_f64_bits 纯 .s
   _f64s=""
   case "${G05_UNAME_S:-$(uname -s)}/${G05_UNAME_M:-$(uname -m)}" in
@@ -148,6 +157,48 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         -c -o parser_asm_thin_glue.o "$_pthin"
     fi
   fi
+  # G-02f-11：中型产品桥 seed 单 TU
+  _diag=seeds/diag.from_x.c
+  if [ -f "$_diag" ]; then
+    if [ ! -f src/diag.o ] || [ "$_diag" -nt src/diag.o ]; then
+      echo "g05_ensure: diag.o ← seed (G-02f-11)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/diag.o "$_diag"
+    fi
+  fi
+  _xsb=seeds/x_seed_bridge.from_x.c
+  if [ -f "$_xsb" ]; then
+    if [ ! -f src/x_seed_bridge.o ] || [ "$_xsb" -nt src/x_seed_bridge.o ]; then
+      echo "g05_ensure: x_seed_bridge.o ← seed (G-02f-11)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/x_seed_bridge.o "$_xsb"
+    fi
+  fi
+  _slc=seeds/seed_link_compat.from_x.c
+  if [ -f "$_slc" ]; then
+    if [ ! -f src/seed_link_compat.o ] || [ "$_slc" -nt src/seed_link_compat.o ]; then
+      echo "g05_ensure: seed_link_compat.o ← seed (G-02f-11)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/seed_link_compat.o "$_slc"
+    fi
+  fi
+  _rdss=seeds/runtime_driver_strict_glue_stubs.from_x.c
+  if [ -f "$_rdss" ]; then
+    if [ ! -f src/runtime_driver_strict_glue_stubs.o ] || [ "$_rdss" -nt src/runtime_driver_strict_glue_stubs.o ] \
+      || [ src/runtime_heap_user.inc -nt src/runtime_driver_strict_glue_stubs.o ] 2>/dev/null; then
+      echo "g05_ensure: runtime_driver_strict_glue_stubs.o ← seed (G-02f-11)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_driver_strict_glue_stubs.o "$_rdss"
+    fi
+  fi
+  _fcc=seeds/fmt_check_cmd.from_x.c
+  if [ -f "$_fcc" ]; then
+    if [ ! -f src/driver/fmt_check_cmd_driver.o ] || [ "$_fcc" -nt src/driver/fmt_check_cmd_driver.o ]; then
+      echo "g05_ensure: fmt_check_cmd_driver.o ← seed -DSHUX_USE_X_PIPELINE (G-02f-11)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c -o src/driver/fmt_check_cmd_driver.o "$_fcc"
+    fi
+  fi
   # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
 
 
@@ -175,7 +226,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
     case "$o" in
       # 已在热路径专用 flags / .x seed 编译
-      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|src/asm/parser_asm_parse_expr_link.o|parser_asm_thin_glue.o|build_asm/*|*.s) continue ;;
+      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|src/asm/parser_asm_parse_expr_link.o|parser_asm_thin_glue.o|src/diag.o|src/x_seed_bridge.o|src/seed_link_compat.o|src/runtime_driver_strict_glue_stubs.o|src/driver/fmt_check_cmd_driver.o|build_asm/*|*.s) continue ;;
     esac
 
     if [ -n "$src" ]; then

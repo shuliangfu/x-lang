@@ -172,13 +172,13 @@ ensure_experimental_companion_objs() {
   experimental_bootstrap_info "cc runtime_io_abi.o (incl. fs/sys shim)"
   sh scripts/cc_inc_tu.sh src/runtime_io_abi.inc src/runtime_io_abi.o
   fi
-  if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "src/x_seed_bridge.inc" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
-  experimental_bootstrap_info "cc x_seed_bridge.o"
-  sh scripts/cc_inc_tu.sh src/x_seed_bridge.inc "$BUILD_DIR/x_seed_bridge.o"
+  if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "seeds/x_seed_bridge.from_x.c" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
+  experimental_bootstrap_info "cc x_seed_bridge.o (G-02f-11 seed)"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/x_seed_bridge.from_x.c -o "$BUILD_DIR/x_seed_bridge.o"
   fi
-  if [ ! -f src/runtime_driver_strict_glue_stubs.o ] || [ "src/runtime_driver_strict_glue_stubs.inc" -nt src/runtime_driver_strict_glue_stubs.o ]; then
-    experimental_bootstrap_info "cc runtime_driver_strict_glue_stubs.o"
-    sh scripts/cc_inc_tu.sh src/runtime_driver_strict_glue_stubs.inc src/runtime_driver_strict_glue_stubs.o -I. -Iinclude -Isrc
+  if [ ! -f src/runtime_driver_strict_glue_stubs.o ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt src/runtime_driver_strict_glue_stubs.o ]; then
+    experimental_bootstrap_info "cc runtime_driver_strict_glue_stubs.o (G-02f-11 seed)"
+    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o src/runtime_driver_strict_glue_stubs.o
   fi
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.x" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
   experimental_bootstrap_info "build_seed_asm_host (asm_backend_partial.o)"
