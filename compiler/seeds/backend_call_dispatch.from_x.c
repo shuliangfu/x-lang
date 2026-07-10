@@ -906,6 +906,7 @@ int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, in
  * `import a.b…` + `a.b….method(args)` 形式解析 C ABI 符号；成功写 sym_flat 并返回长度。
  * pipe 参数保留兼容，查找一律基于 cur_mod->imports。
  */
+/* G-02f-147：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(struct ast_ASTArena *arena, struct ast_Module *cur_mod,
                                                               int32_t callee_expr_ref, uint8_t *sym_flat,
                                                               int32_t *out_match_imp_j) {
@@ -1013,6 +1014,7 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(struct ast_ASTArena
  * text 路径：为 call 准备至多 6 个实参（与 backend.x asm_emit_call_args_text 语义一致）。
  * 供 backend.x 薄包装 bl 委托（M8-tail）。
  */
+/* G-02f-147：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_asm_emit_call_args_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out,
                                            int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t target_arch,
                                            int32_t nargs) {
@@ -1569,6 +1571,7 @@ int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struct platf
  * EXPR_CALL ELF 全路径：IMPORT_BINDING / whole-import FIELD_ACCESS callee、VAR callee、try_inline。
  * 供 pipeline_asm_emit_expr_elf_rec 与 backend.x emit_expr_elf_call 委托。
  */
+/* G-02f-147：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   struct glue_AsmFuncCtxCall *ly;
@@ -1758,6 +1761,7 @@ extern int32_t pipeline_expr_method_call_arg_ref(struct ast_ASTArena *a, int32_t
  * EXPR_METHOD_CALL ELF：receiver 作 arg0，实参 arg1..argN，enc_call(method_name)。
  * 供 backend.x emit_expr_elf_method_call 薄包装（M8-tail）。
  */
+/* G-02f-147：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_asm_emit_method_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                             int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   struct glue_AsmFuncCtxCall *ly;
