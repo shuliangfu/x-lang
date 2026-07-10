@@ -1,15 +1,8 @@
-/* seeds/runtime_io_abi.from_x.c — G-02f-12 product TU
- * Product object from this seed; logic still C until full .x port.
+/* Generated from src/runtime_io_abi.x (G-02f-29 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/runtime_io_abi.x > /tmp/rio.c
+ *         then merge fs shim from .x; keep file_view/open_write/os_read C tail.
+ * .x covers: std_fs open_read/close/read/write/invalid + fs_posix_* aliases.
  */
-/**
- * runtime_io_abi.c — 编译器 C 侧文件 I/O ABI 实现（Phase E-04 v3）
- *
- * 文件职责：POSIX 读/写文件原语；自 runtime.c 拆出，逐步收成 E-04 ABI 薄壳。
- * 所属模块：compiler 运行时 I/O；被 runtime.c、ast_pool（shux_read_file_into_path）链接。
- * 与其它文件的关系：替代 C stdio fopen/fread 用于驱动与 pipeline 读源码。
- * 重要约定：read 路径失败返回 NULL/-1，不写 stderr；调用方负责 free(malloc 缓冲)。
- */
-
 #include "win32_compat.h"
 #include "runtime_io_abi.h"
 
@@ -228,10 +221,16 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
 /* G-02e：原 std_fs_shim.c / std_sys_shim.c 并入本 TU（产品链减 2 个手写 C 文件）。 */
 /* -------------------------------------------------------------------------- */
 
-int32_t std_fs_fs_open_read(uint8_t *path) {
-  if (!path)
-    return -1;
-  return (int32_t)open((char *)path, O_RDONLY | SHUX_O_BINARY, 0);
+int32_t std_fs_fs_open_read(uint8_t * path) {
+  if ((path ==((uint8_t *)(0)))) {
+    return (0 - 1);
+  }
+  (void)(({   {
+    int32_t r = open(path, 0, 0);
+    return r;
+  }
+ }));
+  return (0 - 1);
 }
 
 int32_t std_fs_fs_open_write(uint8_t *path) {
@@ -241,34 +240,55 @@ int32_t std_fs_fs_open_write(uint8_t *path) {
 }
 
 int32_t std_fs_fs_close(int32_t fd) {
-  return (int32_t)close(fd);
+  (void)(({   {
+    int32_t r = close(fd);
+    return r;
+  }
+ }));
+  return (0 - 1);
 }
 
 int32_t std_fs_fs_invalid_handle(void) {
-  return -1;
+  return (0 - 1);
 }
 
-ptrdiff_t std_fs_fs_read(int32_t fd, uint8_t *buf, size_t count) {
-  if (!buf)
-    return -1;
-  return (ptrdiff_t)read(fd, buf, count);
+ssize_t std_fs_fs_read(int32_t fd, uint8_t * buf, size_t count) {
+  if ((buf ==((uint8_t *)(0)))) {
+    ssize_t neg = ((ssize_t)((0 - 1)));
+    return neg;
+  }
+  (void)(({   {
+    ssize_t n = read(fd, buf, count);
+    return n;
+  }
+ }));
+  ssize_t neg2 = ((ssize_t)((0 - 1)));
+  return neg2;
 }
 
-ptrdiff_t std_fs_fs_write(int32_t fd, uint8_t *buf, size_t count) {
-  if (!buf)
-    return -1;
-  return (ptrdiff_t)write(fd, buf, count);
+ssize_t std_fs_fs_write(int32_t fd, uint8_t * buf, size_t count) {
+  if ((buf ==((uint8_t *)(0)))) {
+    ssize_t neg = ((ssize_t)((0 - 1)));
+    return neg;
+  }
+  (void)(({   {
+    ssize_t n = write(fd, buf, count);
+    return n;
+  }
+ }));
+  ssize_t neg2 = ((ssize_t)((0 - 1)));
+  return neg2;
 }
 
 int32_t fs_posix_close_c(int32_t fd) {
   return std_fs_fs_close(fd);
 }
 
-ptrdiff_t fs_posix_write_c(int32_t fd, uint8_t *buf, size_t count) {
+ssize_t fs_posix_write_c(int32_t fd, uint8_t * buf, size_t count) {
   return std_fs_fs_write(fd, buf, count);
 }
 
-ptrdiff_t fs_posix_read_c(int32_t fd, uint8_t *buf, size_t count) {
+ssize_t fs_posix_read_c(int32_t fd, uint8_t * buf, size_t count) {
   return std_fs_fs_read(fd, buf, count);
 }
 
@@ -299,3 +319,4 @@ int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
   close(fd);
   return total;
 }
+

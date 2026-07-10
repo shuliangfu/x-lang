@@ -1,14 +1,8 @@
-/* seeds/runtime_driver_abi.from_x.c — G-02f-12 product TU
- * Product object from this seed; logic still C until full .x port.
+/* Generated from src/runtime_driver_abi.x (G-02f-29 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/rda.c
+ *         then merge env/quiet from .x; polish getenv slice→C string; keep flag statics C.
+ * .x covers: quiet_ok + typeck_force_c / asm_* env queries.
  */
-/**
- * runtime_driver_abi.c — 编译器 C 侧 driver 状态 ABI 实现（Phase E-04 v22～v29）
- *
- * 文件职责：driver CLI / pipeline 跳过标志、check 输出、大栈 pthread、栈上限；v25 起 asm 环境与阶段计时；v33 顶层 import 检测。
- * 所属模块：compiler 运行时；被 runtime.c、fmt_check_cmd、pipeline glue、ast_pool 链接。
- * 与其它文件的关系：pipeline/run_compiler_c 主体仍留 runtime.c。
- */
-
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
 #include "runtime_io_abi.h"
@@ -133,8 +127,8 @@ int32_t driver_fmt_check_only_get(void) {
  * 【Invariant】deno check 语义：成功时静默。weak 默认值必须返回 1（静默），保证无论
  * Windows 链接器选中哪个版本，driver_print_check_ok 都不输出逐文件 check OK。
  * 【Asm/Perf】macOS/Linux 上 weak 正常工作，强符号覆盖 weak 默认值，此改动无影响。 */
-SHUX_WEAK int driver_check_quiet_ok_get(void) {
-    return 1;
+SHUX_WEAK int32_t driver_check_quiet_ok_get(void) {
+  return 1;
 }
 
 /**
@@ -179,8 +173,21 @@ void driver_x_pipeline_skip_codegen_set(int32_t v) {
  * 返回值：1 表示 SHUX_TYPECK_FORCE_C 已启用。
  */
 int32_t driver_typeck_force_c_enabled(void) {
-    const char *e = getenv("SHUX_TYPECK_FORCE_C");
-    return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
+  (void)(({   {
+    uint8_t * e = getenv("SHUX_TYPECK_FORCE_C");
+    if ((e ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
 }
 
 /** 当前线程是否已在 driver_run_thread_on_large_stack 创建的大栈 pthread 内。 */
@@ -242,8 +249,21 @@ int32_t driver_typeck_skip_large_entry(void) {
  * 返回值：环境变量非空且非 '0' 时为 1。
  */
 int32_t driver_asm_build_skip_typeck(void) {
-    const char *e = getenv("SHUX_ASM_BUILD_SKIP_TYPECK");
-    return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
+  (void)(({   {
+    uint8_t * e = getenv("SHUX_ASM_BUILD_SKIP_TYPECK");
+    if ((e ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -251,8 +271,21 @@ int32_t driver_asm_build_skip_typeck(void) {
  * 返回值：环境变量非空且非 '0' 时为 1。
  */
 int32_t driver_asm_entry_emit_heavy(void) {
-    const char *e = getenv("SHUX_ASM_ENTRY_EMIT_HEAVY");
-    return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
+  (void)(({   {
+    uint8_t * e = getenv("SHUX_ASM_ENTRY_EMIT_HEAVY");
+    if ((e ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -260,8 +293,21 @@ int32_t driver_asm_entry_emit_heavy(void) {
  * 返回值：环境变量非空且非 '0' 时为 1。
  */
 int32_t driver_asm_entry_module_only_from_env(void) {
-    const char *e = getenv("SHUX_ASM_ENTRY_MODULE_ONLY");
-    return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
+  (void)(({   {
+    uint8_t * e = getenv("SHUX_ASM_ENTRY_MODULE_ONLY");
+    if ((e ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -269,8 +315,21 @@ int32_t driver_asm_entry_module_only_from_env(void) {
  * 返回值：SHUX_ASM_PARSE_METRIC_ONLY 非空且非 '0' 时为 1。
  */
 int32_t driver_asm_parse_metric_only_from_env(void) {
-    const char *e = getenv("SHUX_ASM_PARSE_METRIC_ONLY");
-    return (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
+  (void)(({   {
+    uint8_t * e = getenv("SHUX_ASM_PARSE_METRIC_ONLY");
+    if ((e ==((uint8_t *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
 }
 
 /** -o 可执行文件路径：非 0 时 pipeline 跳过 dep 0 的 codegen。 */
@@ -625,3 +684,4 @@ int driver_source_has_top_level_import_path(const char *path) {
     free(src);
     return has;
 }
+
