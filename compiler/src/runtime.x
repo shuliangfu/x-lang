@@ -7,6 +7,7 @@
 // G-02f-87：argv 令牌/path 后缀纯 helper（drv_eq_* / path_ends / lib_root_usable）门闩。
 // G-02f-88：源扫描 content_has_*、core-only deps/imports、check/fmt 薄委托门闩。
 // G-02f-90：DCE 回调 / tmp 前缀 / parse fail / lib_roots_from_key / run_test 门闩。
+// G-02f-93：large-stack helpers / prepare_dce_ctx / x_emit_from_compile_state 门闩。
 // G-02f-71/72：driver compile/run 薄封装 + main_entry/argv/exec/fmt/大 run_* 门闩。
 // 产品：cc seeds/runtime.from_x.c + RUNTIME_DRIVER_NO_C_CFLAGS → src/runtime_driver_no_c.o
 // C 尾：argv 解析循环、#if 变体、大 driver 路径、syscall/fs。
@@ -113,6 +114,14 @@ extern "C" function dce_is_type_used_impl(ctx: *u8, mod: *u8, type_name: *u8): i
 extern "C" function runtime_report_precise_parse_failure_if_known_impl(input_path: *u8, src: *u8, src_len: i64): i32;
 extern "C" function runtime_run_test_c_impl(argc: i32, argv: *u8): i32;
 extern "C" function driver_lib_roots_from_key_impl(lib_key: *u8, out_arr: *u8, bufs: *u8): i32;
+
+extern "C" function driver_smoke_lex_dump_on_large_stack_impl(src: *u8): void;
+extern "C" function driver_stack_esc_gate_thread_fn_impl(arg: *u8): *u8;
+extern "C" function driver_stack_esc_gate_large_stack_impl(src: *u8, src_len: i32): i32;
+extern "C" function driver_c_typeck_entry_thread_fn_impl(arg: *u8): *u8;
+extern "C" function driver_c_typeck_entry_large_stack_impl(input_path: *u8, src: *u8, lib_roots_arr: *u8, n_lib_roots: i32, print_ok: i32): i32;
+extern "C" function runtime_prepare_dce_ctx_impl(mod: *u8, all_dep_mods: *u8, n_all: i32, used_funcs: *u8, n_used: *i32, used_mono: *u8, used_type_names: *u8, n_used_types: *i32, wpo_reach: *u8, dce: *u8, dce_ready: *i32): void;
+extern "C" function driver_run_x_emit_c_from_compile_state_impl(state: *u8, argc: i32, argv: *u8): i32;
 
 #[no_mangle]
 function run_compiler_c(argc: i32, argv: *u8): i32 {
@@ -835,5 +844,61 @@ function driver_lib_roots_from_key(lib_key: *u8, out_arr: *u8, bufs: *u8): i32 {
     return driver_lib_roots_from_key_impl(lib_key, out_arr, bufs);
   }
   return 0;
+}
+
+/* ---- G-02f-93：large-stack / prepare_dce / x_emit_from_state 门闩 ---- */
+
+#[no_mangle]
+function driver_smoke_lex_dump_on_large_stack(src: *u8): void {
+  unsafe {
+    driver_smoke_lex_dump_on_large_stack_impl(src);
+  }
+}
+
+#[no_mangle]
+function driver_stack_esc_gate_thread_fn(arg: *u8): *u8 {
+  unsafe {
+    return driver_stack_esc_gate_thread_fn_impl(arg);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function driver_stack_esc_gate_large_stack(src: *u8, src_len: i32): i32 {
+  unsafe {
+    return driver_stack_esc_gate_large_stack_impl(src, src_len);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function driver_c_typeck_entry_thread_fn(arg: *u8): *u8 {
+  unsafe {
+    return driver_c_typeck_entry_thread_fn_impl(arg);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function driver_c_typeck_entry_large_stack(input_path: *u8, src: *u8, lib_roots_arr: *u8, n_lib_roots: i32, print_ok: i32): i32 {
+  unsafe {
+    return driver_c_typeck_entry_large_stack_impl(input_path, src, lib_roots_arr, n_lib_roots, print_ok);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function runtime_prepare_dce_ctx(mod: *u8, all_dep_mods: *u8, n_all: i32, used_funcs: *u8, n_used: *i32, used_mono: *u8, used_type_names: *u8, n_used_types: *i32, wpo_reach: *u8, dce: *u8, dce_ready: *i32): void {
+  unsafe {
+    runtime_prepare_dce_ctx_impl(mod, all_dep_mods, n_all, used_funcs, n_used, used_mono, used_type_names, n_used_types, wpo_reach, dce, dce_ready);
+  }
+}
+
+#[no_mangle]
+function driver_run_x_emit_c_from_compile_state(state: *u8, argc: i32, argv: *u8): i32 {
+  unsafe {
+    return driver_run_x_emit_c_from_compile_state_impl(state, argc, argv);
+  }
+  return 0 - 1;
 }
 

@@ -1,8 +1,9 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
  *         merge ends_with/magic true logic + typeck/lsp free gates; C bulk remains.
  * .x covers: + ends_with/.x magic, typeck_for_ctx, lsp_free_loaded_imports, preprocess diag + dep slot stores (G-02f-84).
+ * G-02f-93: pipeline_debug_body_func_match + pctx_update_dep_slots_no_reset gates.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -245,7 +246,7 @@ extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
 extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
 
-static int pipeline_debug_body_func_match(const char *filter, const char *name) {
+int pipeline_debug_body_func_match_impl(const char *filter, const char *name) {
     const char *p;
     size_t name_len;
     if (!filter || !filter[0] || filter[0] == '0' || !name || !name[0])
@@ -272,6 +273,13 @@ static int pipeline_debug_body_func_match(const char *filter, const char *name) 
     }
     return 0;
 }
+int pipeline_debug_body_func_match(const char *filter, const char *name) {
+  {
+    return pipeline_debug_body_func_match_impl(filter, name);
+  }
+  return 0;
+}
+
 
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {
     const char *filter = getenv("SHUX_DEBUG_BODY_FUNC");
@@ -1503,7 +1511,7 @@ void shux_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ct
 /**
  * 更新 dep 槽 module/arena/path，不调用 ast_pipeline_dep_ctx_reset（保留 lib_root 等路径缓冲）。
  */
-static void shux_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
+void shux_pipeline_pctx_update_dep_slots_no_reset_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
                                                          void **dep_ars, char **import_paths, int n) {
     int i;
     if (!ctx)
@@ -1518,6 +1526,13 @@ static void shux_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepC
     }
     ast_pipeline_dep_ctx_set_ndep(ctx, n);
 }
+void shux_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
+                                                         void **dep_ars, char **import_paths, int n) {
+  {
+    shux_pipeline_pctx_update_dep_slots_no_reset_impl(ctx, dep_mods, dep_ars, import_paths, n);
+  }
+}
+
 
 /** parser.x 符号（dep 预跑 import 扫描与 pipeline_parse_into_loaded_import 共用）。 */
 struct parser_ParseIntoResult {

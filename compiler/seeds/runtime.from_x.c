@@ -1,4 +1,4 @@
-/* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/71/72 product TU
+/* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/71/72 product TU
  * Product objects from this seed (flags select variants):
  *   runtime_driver_no_c.o  — RUNTIME_DRIVER_NO_C_CFLAGS (G05 product)
  *   runtime_driver.o / runtime_x.o / runtime.o / runtime_driver_asm_*
@@ -1132,11 +1132,17 @@ static void *driver_smoke_lex_dump_thread_fn(void *arg) {
 }
 
 /** 在大栈 pthread 上执行 token dump，避免 typeck 深递归后二次 lexer 栈溢出。 */
-static void driver_smoke_lex_dump_on_large_stack(const char *src) {
+void driver_smoke_lex_dump_on_large_stack_impl(const char *src) {
     DriverSmokeLexDumpArgs args;
     args.src = src;
     driver_run_thread_on_large_stack(driver_smoke_lex_dump_thread_fn, &args);
 }
+void driver_smoke_lex_dump_on_large_stack(const char *src) {
+  {
+    driver_smoke_lex_dump_on_large_stack_impl(src);
+  }
+}
+
 #endif /* !SHUX_USE_X_DRIVER */
 
 #if !defined(SHUX_USE_X_DRIVER)
@@ -1156,7 +1162,7 @@ struct dce_ctx {
 #define RUNTIME_MAX_USED_FUNCS 256
 #define RUNTIME_MAX_DCE_MODULES 33
 /** 填充 DCE 上下文：classic compute_used + 可选 WPO reach；*dce_ready 非 0 时可传 dce 回调。 */
-static void runtime_prepare_dce_ctx(struct ASTModule *mod, struct ASTModule **all_dep_mods, int n_all,
+void runtime_prepare_dce_ctx_impl(struct ASTModule *mod, struct ASTModule **all_dep_mods, int n_all,
     ASTFunc **used_funcs, int *n_used, int used_mono[RUNTIME_MAX_DCE_MODULES][64],
     const char **used_type_names, int *n_used_types,
     CodegenWpoReach *wpo_reach, struct dce_ctx *dce, int *dce_ready) {
@@ -1189,6 +1195,15 @@ static void runtime_prepare_dce_ctx(struct ASTModule *mod, struct ASTModule **al
         *dce_ready = 1;
     }
 }
+void runtime_prepare_dce_ctx(struct ASTModule *mod, struct ASTModule **all_dep_mods, int n_all,
+    ASTFunc **used_funcs, int *n_used, int used_mono[RUNTIME_MAX_DCE_MODULES][64],
+    const char **used_type_names, int *n_used_types,
+    CodegenWpoReach *wpo_reach, struct dce_ctx *dce, int *dce_ready) {
+  {
+    runtime_prepare_dce_ctx_impl(mod, all_dep_mods, n_all, used_funcs, n_used, used_mono, used_type_names, n_used_types, wpo_reach, dce, dce_ready);
+  }
+}
+
 int dce_is_func_used_impl(void *ctx, const ASTModule *mod, const ASTFunc *func) {
     const struct dce_ctx *c = (const struct dce_ctx *)ctx;
     if (!c) return 1;
@@ -3536,7 +3551,9 @@ int32_t driver_asm_output_want_exe(uint8_t *path) {
 #if !defined(SHUX_NO_C_FRONTEND)
 /** C 前端 typeck（定义见 driver_c_typeck_entry）；asm 编译前预检。 */
 static int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok);
-static int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots,
+int driver_c_typeck_entry_large_stack_impl(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots,
+    int print_ok);
+int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots,
     int print_ok);
 #endif
 
@@ -4402,16 +4419,23 @@ typedef struct {
 } DriverStackEscGateArgs;
 
 /** pthread 入口：WPO-S3 post-scan gate。 */
-static void *driver_stack_esc_gate_thread_fn(void *arg) {
+void * driver_stack_esc_gate_thread_fn_impl(void *arg) {
     DriverStackEscGateArgs *a = (DriverStackEscGateArgs *)arg;
     a->result = pipeline_typeck_x_stack_escape_gate_from_src_c(a->src, a->src_len);
     return NULL;
 }
+void * driver_stack_esc_gate_thread_fn(void *arg) {
+  {
+    return driver_stack_esc_gate_thread_fn_impl(arg);
+  }
+  return ((void *)0);
+}
+
 
 /**
  * 在 256MiB 栈 pthread 上跑 X struct 栈逃逸 gate（check 路径；勿在主线程 parse）。
  */
-static int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) {
+int32_t driver_stack_esc_gate_large_stack_impl(uint8_t *src, int32_t src_len) {
     DriverStackEscGateArgs args;
     args.src = src;
     args.src_len = src_len;
@@ -4421,6 +4445,13 @@ static int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) 
         return pipeline_typeck_x_stack_escape_gate_from_src_c(src, src_len);
     return args.result;
 }
+int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) {
+  {
+    return driver_stack_esc_gate_large_stack_impl(src, src_len);
+  }
+  return 0;
+}
+
 #endif
 
 static int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok) {
@@ -4492,16 +4523,23 @@ typedef struct {
 } DriverCTypeckLargeArgs;
 
 /** pthread 入口：driver_c_typeck_entry 并将 rc 写入 args->result。 */
-static void *driver_c_typeck_entry_thread_fn(void *arg) {
+void * driver_c_typeck_entry_thread_fn_impl(void *arg) {
     DriverCTypeckLargeArgs *a = (DriverCTypeckLargeArgs *)arg;
     a->result = driver_c_typeck_entry(a->input_path, a->src, a->lib_roots_arr, a->n_lib_roots, a->print_ok);
     return NULL;
 }
+void * driver_c_typeck_entry_thread_fn(void *arg) {
+  {
+    return driver_c_typeck_entry_thread_fn_impl(arg);
+  }
+  return ((void *)0);
+}
+
 
 /**
  * 在 256MiB 栈 pthread 上执行 C typeck 预检；避免 lexer 等大模块在主线程耗尽栈后 asm emit Abort。
  */
-static int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr,
+int driver_c_typeck_entry_large_stack_impl(const char *input_path, char *src, const char **lib_roots_arr,
     int n_lib_roots, int print_ok) {
     DriverCTypeckLargeArgs args;
     args.input_path = input_path;
@@ -4515,6 +4553,14 @@ static int driver_c_typeck_entry_large_stack(const char *input_path, char *src, 
         return driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, print_ok);
     return args.result;
 }
+int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr,
+    int n_lib_roots, int print_ok) {
+  {
+    return driver_c_typeck_entry_large_stack_impl(input_path, src, lib_roots_arr, n_lib_roots, print_ok);
+  }
+  return 0;
+}
+
 
 #endif /* !SHUX_NO_C_FRONTEND — C parse/typeck 辅助；compile.x / driver_run_compiler_full glue 须在 NO_C seed 链可见 */
 
@@ -6536,7 +6582,7 @@ int driver_argv_has_emit_c_flag(int argc, char **argv) {
  * `-E` 专用：将 compile state 中的 path/lib_roots 灌入 driver_run_x_emit_c，走 .x pipeline 出 C（deps+main）。
  * 返回 driver_run_x_emit_c 的 exit code（0 成功）。
  */
-static int32_t driver_run_x_emit_c_from_compile_state(DriverCompileStateSU *state, int argc, char **argv) {
+int32_t driver_run_x_emit_c_from_compile_state_impl(DriverCompileStateSU *state, int argc, char **argv) {
     const char *lib_roots[X_EMIT_MAX_LIB_ROOTS];
     /** 须与 driver_lib_roots_from_key 的 bufs[X_FULL_MAX_LIB_ROOTS][512] 一致；[256] 会在多 -L 时栈溢出。 */
     char lib_bufs[X_FULL_MAX_LIB_ROOTS][512];
@@ -6563,6 +6609,13 @@ static int32_t driver_run_x_emit_c_from_compile_state(DriverCompileStateSU *stat
     }
     return (int32_t)driver_run_x_emit_c();
 }
+int32_t driver_run_x_emit_c_from_compile_state(DriverCompileStateSU *state, int argc, char **argv) {
+  {
+    return driver_run_x_emit_c_from_compile_state_impl(state, argc, argv);
+  }
+  return 0;
+}
+
 #endif
 
 /** parse 完成后后端选择 + 分派；compile.x 薄包装 bl 本符号（EMIT_HEAVY 勿 X 真 emit，宿主 SIGSEGV）。 */

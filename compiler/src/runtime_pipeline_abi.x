@@ -7,6 +7,7 @@
 // G-02f-63：+ ends_with/.x 魔数真逻辑；typeck_for_ctx / lsp_free_loaded 门闩。
 // G-02f-84：pipeline preprocess diag + dep slot store 门闩。
 // G-02f-85：import index / path-already-out scan 门闩。
+// G-02f-93：+ pctx_update_dep_slots_no_reset / debug_body_func_match 门闩。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -28,6 +29,8 @@ extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32
 extern "C" function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8;
 extern "C" function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8, ctx: *u8): i32;
 extern "C" function shu_lsp_free_loaded_imports_impl(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void;
+extern "C" function shux_pipeline_pctx_update_dep_slots_no_reset_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void;
+extern "C" function pipeline_debug_body_func_match_impl(filter: *u8, name: *u8): i32;
 extern "C" function shux_find_loaded_import_index_scan_impl(path: *u8, all_paths: *u8, n_all: i32): i32;
 extern "C" function shux_merge_deps_path_already_out_scan_impl(path: *u8, out_paths: *u8, n_out: i32): i32;
 extern "C" function shux_emit_pipeline_glue_include_impl(): void;
@@ -1186,6 +1189,23 @@ function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out:
   }
   unsafe {
     return shux_merge_deps_path_already_out_scan_impl(path, out_paths, n_out);
+  }
+  return 0;
+}
+
+/* ---- G-02f-93：pctx dep-slot update / body filter match 门闩 ---- */
+
+#[no_mangle]
+function shux_pipeline_pctx_update_dep_slots_no_reset(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void {
+  unsafe {
+    shux_pipeline_pctx_update_dep_slots_no_reset_impl(ctx, dep_mods, dep_ars, import_paths, n);
+  }
+}
+
+#[no_mangle]
+function pipeline_debug_body_func_match(filter: *u8, name: *u8): i32 {
+  unsafe {
+    return pipeline_debug_body_func_match_impl(filter, name);
   }
   return 0;
 }
