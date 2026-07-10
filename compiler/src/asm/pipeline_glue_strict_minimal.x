@@ -1424,3 +1424,328 @@ function pipeline_typeck_check_struct_stack_escape_assign_c(module: *u8, arena: 
   }
   return 0;
 }
+
+/* ---- G-02f-218：slice region assign/return/call + try_propagate ---- */
+
+extern "C" function typeck_check_expr(module: *u8, arena: *u8, er: i32, ret_ty: i32, ctx: *u8): i32;
+extern "C" function driver_diagnostic_typeck_try_propagate_bad_enclosing(line: i32, col: i32): void;
+extern "C" function pipeline_expr_call_resolved_dep_index_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_call_arg_ref(arena: *u8, er: i32, idx: i32): i32;
+extern "C" function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
+extern "C" function lsp_diag_report_typeck(line: i32, col: i32, fmt: *u8): void;
+
+// G-02f-218 内部：向 dst 追加 src[0..n)，返回新 pos
+function glue_msg_append_c(dst: *u8, pos: i32, cap: i32, src: *u8, n: i32): i32 {
+  if (dst == 0) { return pos; }
+  if (src == 0) { return pos; }
+  if (n <= 0) { return pos; }
+  let i: i32 = 0;
+  while (i < n) {
+    if (pos >= (cap - 1)) {
+      i = n;
+    } else {
+      dst[pos] = src[i];
+      pos = pos + 1;
+      i = i + 1;
+    }
+  }
+  return pos;
+}
+
+// G-02f-218 内部：固定前缀 + <label> + 后缀
+function glue_msg_with_label_c(dst: *u8, cap: i32, pre: *u8, pre_n: i32, label: *u8, label_n: i32, post: *u8, post_n: i32): void {
+  let pos: i32 = 0;
+  pos = glue_msg_append_c(dst, pos, cap, pre, pre_n);
+  // "<"
+  if (pos < (cap - 1)) {
+    dst[pos] = 60;
+    pos = pos + 1;
+  }
+  if (label_n > 0) {
+    pos = glue_msg_append_c(dst, pos, cap, label, label_n);
+  }
+  // ">"
+  if (pos < (cap - 1)) {
+    dst[pos] = 62;
+    pos = pos + 1;
+  }
+  pos = glue_msg_append_c(dst, pos, cap, post, post_n);
+  if (pos < cap) {
+    dst[pos] = 0;
+  } else {
+    if (cap > 0) { dst[cap - 1] = 0; }
+  }
+}
+
+// G-02f-218：slice 赋值 region 检查（TYPE_SLICE=11）
+#[no_mangle]
+function pipeline_typeck_check_slice_region_assign_c(arena: *u8, site_expr_ref: i32, expect_ref: i32, src_ref: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (expect_ref <= 0) { return 0; }
+  if (src_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_type_kind_ord_at(arena, expect_ref) != 11) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, src_ref) != 11) { return 0; }
+    let line: i32 = 0;
+    let col: i32 = 0;
+    if (site_expr_ref > 0) {
+      line = pipeline_expr_line_at(arena, site_expr_ref);
+      col = pipeline_expr_col_at(arena, site_expr_ref);
+    }
+    if (pipeline_typeck_slice_region_escape_strict_minimal(arena, expect_ref, src_ref) != 0) {
+      let sb: u8[64] = [];
+      let slen: i32 = pipeline_type_region_label_into(arena, src_ref, &sb[0]);
+      if (slen < 0) { slen = 0; }
+      if (slen > 63) { slen = 63; }
+      // "slice region escape: cannot assign " + <lab> + " slice to unbound T[]"
+      let pre: u8[40] = [];
+      pre[0]=115;pre[1]=108;pre[2]=105;pre[3]=99;pre[4]=101;pre[5]=32;pre[6]=114;pre[7]=101;
+      pre[8]=103;pre[9]=105;pre[10]=111;pre[11]=110;pre[12]=32;pre[13]=101;pre[14]=115;pre[15]=99;
+      pre[16]=97;pre[17]=112;pre[18]=101;pre[19]=58;pre[20]=32;pre[21]=99;pre[22]=97;pre[23]=110;
+      pre[24]=110;pre[25]=111;pre[26]=116;pre[27]=32;pre[28]=97;pre[29]=115;pre[30]=115;pre[31]=105;
+      pre[32]=103;pre[33]=110;pre[34]=32;pre[35]=0;
+      let post: u8[32] = [];
+      post[0]=32;post[1]=115;post[2]=108;post[3]=105;post[4]=99;post[5]=101;post[6]=32;post[7]=116;
+      post[8]=111;post[9]=32;post[10]=117;post[11]=110;post[12]=98;post[13]=111;post[14]=117;post[15]=110;
+      post[16]=100;post[17]=32;post[18]=84;post[19]=91;post[20]=93;post[21]=0;
+      let msg: u8[160] = [];
+      glue_msg_with_label_c(&msg[0], 160, &pre[0], 35, &sb[0], slen, &post[0], 21);
+      lsp_diag_report_typeck(line, col, &msg[0]);
+      return 0 - 1;
+    }
+    if (pipeline_typeck_slice_region_conflict_strict_minimal(arena, expect_ref, src_ref) != 0) {
+      let eb: u8[64] = [];
+      let sb2: u8[64] = [];
+      let elen: i32 = pipeline_type_region_label_into(arena, expect_ref, &eb[0]);
+      let slen2: i32 = pipeline_type_region_label_into(arena, src_ref, &sb2[0]);
+      if (elen < 0) { elen = 0; }
+      if (slen2 < 0) { slen2 = 0; }
+      if (elen > 63) { elen = 63; }
+      if (slen2 > 63) { slen2 = 63; }
+      // "slice region mismatch: expected <e>, found <s>"
+      let msg2: u8[192] = [];
+      let pos: i32 = 0;
+      let p0: u8[40] = [];
+      p0[0]=115;p0[1]=108;p0[2]=105;p0[3]=99;p0[4]=101;p0[5]=32;p0[6]=114;p0[7]=101;
+      p0[8]=103;p0[9]=105;p0[10]=111;p0[11]=110;p0[12]=32;p0[13]=109;p0[14]=105;p0[15]=115;
+      p0[16]=109;p0[17]=97;p0[18]=116;p0[19]=99;p0[20]=104;p0[21]=58;p0[22]=32;p0[23]=101;
+      p0[24]=120;p0[25]=112;p0[26]=101;p0[27]=99;p0[28]=116;p0[29]=101;p0[30]=100;p0[31]=32;
+      p0[32]=0;
+      pos = glue_msg_append_c(&msg2[0], pos, 192, &p0[0], 32);
+      if (pos < 191) { msg2[pos] = 60; pos = pos + 1; }
+      pos = glue_msg_append_c(&msg2[0], pos, 192, &eb[0], elen);
+      if (pos < 191) { msg2[pos] = 62; pos = pos + 1; }
+      let mid: u8[16] = [];
+      mid[0]=44;mid[1]=32;mid[2]=102;mid[3]=111;mid[4]=117;mid[5]=110;mid[6]=100;mid[7]=32;
+      mid[8]=0;
+      pos = glue_msg_append_c(&msg2[0], pos, 192, &mid[0], 8);
+      if (pos < 191) { msg2[pos] = 60; pos = pos + 1; }
+      pos = glue_msg_append_c(&msg2[0], pos, 192, &sb2[0], slen2);
+      if (pos < 191) { msg2[pos] = 62; pos = pos + 1; }
+      if (pos < 192) { msg2[pos] = 0; } else { msg2[191] = 0; }
+      lsp_diag_report_typeck(line, col, &msg2[0]);
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+// G-02f-218：return 时 slice region
+#[no_mangle]
+function pipeline_typeck_check_return_slice_region_c(arena: *u8, ret_site_ref: i32, op_ref: i32, func_return_ref: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (op_ref <= 0) { return 0; }
+  if (func_return_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_type_kind_ord_at(arena, func_return_ref) != 11) { return 0; }
+    let got_ref: i32 = pipeline_expr_resolved_type_ref(arena, op_ref);
+    if (got_ref <= 0) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, got_ref) != 11) { return 0; }
+    let line: i32 = 0;
+    let col: i32 = 0;
+    pipeline_typeck_expr_diag_line_col_strict_minimal(arena, ret_site_ref, &line, &col);
+    if (pipeline_typeck_slice_region_escape_strict_minimal(arena, func_return_ref, got_ref) != 0) {
+      let sb: u8[64] = [];
+      let slen: i32 = pipeline_type_region_label_into(arena, got_ref, &sb[0]);
+      if (slen < 0) { slen = 0; }
+      if (slen > 63) { slen = 63; }
+      // "slice region escape: cannot return " + <lab> + " slice as unbound T[]"
+      let pre: u8[40] = [];
+      pre[0]=115;pre[1]=108;pre[2]=105;pre[3]=99;pre[4]=101;pre[5]=32;pre[6]=114;pre[7]=101;
+      pre[8]=103;pre[9]=105;pre[10]=111;pre[11]=110;pre[12]=32;pre[13]=101;pre[14]=115;pre[15]=99;
+      pre[16]=97;pre[17]=112;pre[18]=101;pre[19]=58;pre[20]=32;pre[21]=99;pre[22]=97;pre[23]=110;
+      pre[24]=110;pre[25]=111;pre[26]=116;pre[27]=32;pre[28]=114;pre[29]=101;pre[30]=116;pre[31]=117;
+      pre[32]=114;pre[33]=110;pre[34]=32;pre[35]=0;
+      let post: u8[32] = [];
+      post[0]=32;post[1]=115;post[2]=108;post[3]=105;post[4]=99;post[5]=101;post[6]=32;post[7]=97;
+      post[8]=115;post[9]=32;post[10]=117;post[11]=110;post[12]=98;post[13]=111;post[14]=117;post[15]=110;
+      post[16]=100;post[17]=32;post[18]=84;post[19]=91;post[20]=93;post[21]=0;
+      let msg: u8[160] = [];
+      glue_msg_with_label_c(&msg[0], 160, &pre[0], 35, &sb[0], slen, &post[0], 21);
+      lsp_diag_report_typeck(line, col, &msg[0]);
+      return 0 - 1;
+    }
+    if (pipeline_typeck_slice_region_conflict_strict_minimal(arena, func_return_ref, got_ref) != 0) {
+      let eb: u8[64] = [];
+      let sb2: u8[64] = [];
+      let elen: i32 = pipeline_type_region_label_into(arena, func_return_ref, &eb[0]);
+      let slen2: i32 = pipeline_type_region_label_into(arena, got_ref, &sb2[0]);
+      if (elen < 0) { elen = 0; }
+      if (slen2 < 0) { slen2 = 0; }
+      if (elen > 63) { elen = 63; }
+      if (slen2 > 63) { slen2 = 63; }
+      // "slice region mismatch in return: expected <e>, found <s>"
+      let msg2: u8[192] = [];
+      let pos: i32 = 0;
+      let p0: u8[48] = [];
+      p0[0]=115;p0[1]=108;p0[2]=105;p0[3]=99;p0[4]=101;p0[5]=32;p0[6]=114;p0[7]=101;
+      p0[8]=103;p0[9]=105;p0[10]=111;p0[11]=110;p0[12]=32;p0[13]=109;p0[14]=105;p0[15]=115;
+      p0[16]=109;p0[17]=97;p0[18]=116;p0[19]=99;p0[20]=104;p0[21]=32;p0[22]=105;p0[23]=110;
+      p0[24]=32;p0[25]=114;p0[26]=101;p0[27]=116;p0[28]=117;p0[29]=114;p0[30]=110;p0[31]=58;
+      p0[32]=32;p0[33]=101;p0[34]=120;p0[35]=112;p0[36]=101;p0[37]=99;p0[38]=116;p0[39]=101;
+      p0[40]=100;p0[41]=32;p0[42]=0;
+      pos = glue_msg_append_c(&msg2[0], pos, 192, &p0[0], 42);
+      if (pos < 191) { msg2[pos] = 60; pos = pos + 1; }
+      pos = glue_msg_append_c(&msg2[0], pos, 192, &eb[0], elen);
+      if (pos < 191) { msg2[pos] = 62; pos = pos + 1; }
+      let mid: u8[16] = [];
+      mid[0]=44;mid[1]=32;mid[2]=102;mid[3]=111;mid[4]=117;mid[5]=110;mid[6]=100;mid[7]=32;
+      mid[8]=0;
+      pos = glue_msg_append_c(&msg2[0], pos, 192, &mid[0], 8);
+      if (pos < 191) { msg2[pos] = 60; pos = pos + 1; }
+      pos = glue_msg_append_c(&msg2[0], pos, 192, &sb2[0], slen2);
+      if (pos < 191) { msg2[pos] = 62; pos = pos + 1; }
+      if (pos < 192) { msg2[pos] = 0; } else { msg2[191] = 0; }
+      lsp_diag_report_typeck(line, col, &msg2[0]);
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+// G-02f-218：call 参数 slice region
+#[no_mangle]
+function pipeline_typeck_check_call_slice_region_c(module: *u8, arena: *u8, call_expr_ref: i32, ctx: *u8): i32 {
+  if (module == 0) { return 0; }
+  if (arena == 0) { return 0; }
+  if (call_expr_ref <= 0) { return 0; }
+  unsafe {
+    let func_ix: i32 = pipeline_expr_call_resolved_func_index_at(arena, call_expr_ref);
+    let dep_ix: i32 = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
+    if (func_ix < 0) {
+      func_ix = pipeline_typeck_resolve_call_func_index_c(module, arena, call_expr_ref);
+    }
+    if (func_ix < 0) { return 0; }
+    let callee_mod: *u8 = module;
+    if (dep_ix >= 0) {
+      if (ctx != 0) {
+        let dm: *u8 = pipeline_dep_ctx_module_at(ctx, dep_ix);
+        if (dm != 0) { callee_mod = dm; }
+      }
+    }
+    let num_args: i32 = pipeline_expr_call_num_args_at(arena, call_expr_ref);
+    let np: i32 = pipeline_module_func_num_params_at(callee_mod, func_ix);
+    if (num_args != np) { return 0; }
+    let i: i32 = 0;
+    while (i < num_args) {
+      let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, call_expr_ref, i);
+      let param_ref: i32 = pipeline_module_func_param_type_ref_at(callee_mod, func_ix, i);
+      let arg_ty: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
+      if (pipeline_typeck_check_slice_region_assign_c(arena, arg_ref, param_ref, arg_ty) != 0) {
+        return 0 - 1;
+      }
+      i = i + 1;
+    }
+  }
+  return 0;
+}
+
+// G-02f-218：try? 传播（Result_ 前缀 + payload resolve）
+// TYPE_NAMED=8
+#[no_mangle]
+function pipeline_typeck_check_expr_try_propagate_c(module: *u8, arena: *u8, expr_ref: i32, return_type_ref: i32, ctx: *u8): i32 {
+  if (module == 0) { return 0; }
+  if (arena == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  unsafe {
+    let op_ref: i32 = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    let line: i32 = pipeline_expr_line_at(arena, expr_ref);
+    let col: i32 = pipeline_expr_col_at(arena, expr_ref);
+    if (typeck_check_expr(module, arena, op_ref, return_type_ref, ctx) != 0) {
+      return 0 - 1;
+    }
+    let op_ty: i32 = pipeline_expr_resolved_type_ref(arena, op_ref);
+    let enclosing: i32 = return_type_ref;
+    let func_ret: i32 = 0;
+    let func_ix: i32 = 0 - 1;
+    if (ctx != 0) {
+      func_ix = pipeline_dep_ctx_current_func_index(ctx);
+    }
+    if (func_ix >= 0) {
+      if (func_ix < pipeline_module_num_funcs(module)) {
+        func_ret = pipeline_module_func_return_type_at(module, func_ix);
+        if (func_ret > 0) { enclosing = func_ret; }
+      }
+    }
+    // debug no-op (seed 侧 getenv 冷路径)
+    if (op_ty <= 0) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    if (pipeline_type_kind_ord_at(arena, op_ty) != 8) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    let rname: u8[64] = [];
+    let rlen: i32 = pipeline_type_named_name_into(arena, op_ty, &rname[0]);
+    // "Result_" len 7
+    if (rlen < 7) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    if (rname[0] != 82) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    if (rname[1] != 101) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    if (rname[2] != 115) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    if (rname[3] != 117) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    if (rname[4] != 108) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    if (rname[5] != 116) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    if (rname[6] != 95) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    if (enclosing <= 0) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    if (pipeline_typeck_type_refs_equal_c(arena, enclosing, op_ty) == 0) {
+      driver_diagnostic_typeck_try_propagate_bad_enclosing(line, col);
+      return 0 - 1;
+    }
+    let payload_ty: i32 = pipeline_typeck_result_payload_type_from_name_strict_minimal(arena, &rname[0], rlen);
+    if (payload_ty > 0) {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, payload_ty);
+    } else {
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, op_ty);
+    }
+  }
+  return 0;
+}

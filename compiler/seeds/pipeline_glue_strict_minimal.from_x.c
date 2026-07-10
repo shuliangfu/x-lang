@@ -1,4 +1,4 @@
-/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-217 reject/soa/borrow; G-02f-216 med pure; G-02f-11 product TU
+/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-218 slice/try; G-02f-217 reject/soa; G-02f-11 product TU
  * G-02f-135 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
@@ -1310,6 +1310,7 @@ int32_t typeck_expr_is_addr_of_block_local_strict_minimal(struct ast_Module *mod
 }
 
 
+/* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena,
                                                                           int32_t site_expr_ref, int32_t expect_ref,
                                                                           int32_t src_ref) {
@@ -1836,6 +1837,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_allocator_region_assign_c(st
   return 0;
 }
 
+/* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_return_slice_region_c(struct ast_ASTArena *arena,
                                                                           int32_t ret_site_ref, int32_t op_ref,
                                                                           int32_t func_return_ref) {
@@ -1913,6 +1915,7 @@ int32_t pipeline_typeck_result_payload_type_from_name_strict_minimal(struct ast_
 }
 
 
+/* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_expr_try_propagate_c(struct ast_Module *module,
                                                                          struct ast_ASTArena *arena, int32_t expr_ref,
                                                                          int32_t return_type_ref,
@@ -1966,6 +1969,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_try_propagate_c(struct 
   return 0;
 }
 
+/* G-02f-218：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_call_slice_region_c(struct ast_Module *module,
                                                                         struct ast_ASTArena *arena,
                                                                         int32_t call_expr_ref,
