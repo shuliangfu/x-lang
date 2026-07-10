@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..43/50/51：真迁 .x — pipeline dep + import 路径 + 查找/去重门闩。
+// G-02f-32..43/50..52：真迁 .x — pipeline dep/import + debug 转发 + clear/entry_dir。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
-// C 尾：存储槽数组、import resolve/snprintf、seeded_clear、malloc buf、大 pipeline。
-// G-02f-51：+ dep_prerun_entry_dir / find_loaded_import_index / merge_deps_already_out / glue include。
+// C 尾：存储槽数组、import resolve/snprintf、clear 槽循环、malloc buf、大 pipeline。
+// G-02f-52：+ mega debug 转发 / seeded+sidecar clear / get_entry_dir / asm_fclose。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -30,6 +30,11 @@ extern "C" function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8
 extern "C" function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32;
 extern "C" function shux_emit_pipeline_glue_include_impl(): void;
 extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
+extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
+extern "C" function driver_typeck_dep_sidecar_clear_impl(): void;
+extern "C" function driver_dep_seeded_clear_slots_impl(): void;
+extern "C" function shux_get_entry_dir_impl(input_path: *u8, entry_dir: *u8, size: i64): void;
+extern "C" function driver_asm_fclose_asm_out_impl(fp: *u8): void;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -436,4 +441,89 @@ function shux_import_dep_dir_from_path(path: *u8, dep_dir: *u8, dep_dir_size: i6
     return shux_import_dep_dir_from_path_impl(path, dep_dir, dep_dir_size);
   }
   return -1;
+}
+
+/* ---- G-02f-52：mega debug 转发 / clear / entry_dir / fclose ---- */
+
+#[no_mangle]
+function pipeline_debug_trace_body_x_mega_pre_reset(module: *u8, arena: *u8): void {
+  unsafe {
+    pipeline_debug_trace_named_func_bodies("x_mega_pre_reset", module, arena);
+  }
+}
+
+#[no_mangle]
+function pipeline_debug_trace_body_x_mega_post_reset(module: *u8, arena: *u8): void {
+  unsafe {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_reset", module, arena);
+  }
+}
+
+#[no_mangle]
+function pipeline_debug_trace_body_x_mega_post_params(module: *u8, arena: *u8): void {
+  unsafe {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_params", module, arena);
+  }
+}
+
+#[no_mangle]
+function pipeline_debug_trace_body_x_mega_post_frame(module: *u8, arena: *u8): void {
+  unsafe {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_frame", module, arena);
+  }
+}
+
+#[no_mangle]
+function pipeline_debug_trace_body_x_mega_post_locals(module: *u8, arena: *u8): void {
+  unsafe {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_locals", module, arena);
+  }
+}
+
+#[no_mangle]
+function pipeline_debug_trace_body_x_mega_pre_emit(module: *u8, arena: *u8): void {
+  unsafe {
+    pipeline_debug_trace_named_func_bodies("x_mega_pre_emit", module, arena);
+  }
+}
+
+#[no_mangle]
+function driver_typeck_dep_sidecar_clear(): void {
+  unsafe {
+    driver_typeck_dep_sidecar_clear_impl();
+  }
+}
+
+#[no_mangle]
+function driver_dep_seeded_clear_all(): void {
+  unsafe {
+    driver_dep_seeded_clear_slots_impl();
+    driver_typeck_dep_sidecar_clear();
+  }
+}
+
+#[no_mangle]
+function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
+  if (entry_dir == 0 as *u8) {
+    return;
+  }
+  if (size == 0) {
+    return;
+  }
+  if (input_path == 0 as *u8) {
+    unsafe {
+      entry_dir[0] = 0;
+    }
+    return;
+  }
+  unsafe {
+    shux_get_entry_dir_impl(input_path, entry_dir, size);
+  }
+}
+
+#[no_mangle]
+function driver_asm_fclose_asm_out(fp: *u8): void {
+  unsafe {
+    driver_asm_fclose_asm_out_impl(fp);
+  }
 }

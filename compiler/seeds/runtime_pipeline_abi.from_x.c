@@ -1,7 +1,7 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..51 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..52 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge dep/import gates + find/dedup/glue; C resolve + large pipeline bulk.
- * .x covers: + dep_prerun_entry_dir, find_loaded_import, merge_already_out, glue include, dep_dir.
+ *         merge debug/clear/entry_dir/fclose; C resolve + large pipeline bulk.
+ * .x covers: + mega debug wrappers, seeded/sidecar clear, get_entry_dir, asm_fclose.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -202,29 +202,35 @@ void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, voi
                      body_ref > 0 ? (int)ast_ast_block_final_expr_ref(arena, body_ref) : -1);
     }
 }
-
 void pipeline_debug_trace_body_x_mega_pre_reset(void *module, void *arena) {
+  {
     pipeline_debug_trace_named_func_bodies("x_mega_pre_reset", module, arena);
+  }
 }
-
 void pipeline_debug_trace_body_x_mega_post_reset(void *module, void *arena) {
+  {
     pipeline_debug_trace_named_func_bodies("x_mega_post_reset", module, arena);
+  }
 }
-
 void pipeline_debug_trace_body_x_mega_post_params(void *module, void *arena) {
+  {
     pipeline_debug_trace_named_func_bodies("x_mega_post_params", module, arena);
+  }
 }
-
 void pipeline_debug_trace_body_x_mega_post_frame(void *module, void *arena) {
+  {
     pipeline_debug_trace_named_func_bodies("x_mega_post_frame", module, arena);
+  }
 }
-
 void pipeline_debug_trace_body_x_mega_post_locals(void *module, void *arena) {
+  {
     pipeline_debug_trace_named_func_bodies("x_mega_post_locals", module, arena);
+  }
 }
-
 void pipeline_debug_trace_body_x_mega_pre_emit(void *module, void *arena) {
+  {
     pipeline_debug_trace_named_func_bodies("x_mega_pre_emit", module, arena);
+  }
 }
 
 static int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
@@ -331,13 +337,19 @@ void typeck_dep_arena_set(int32_t i, void *arena) {
 /**
  * 清 typeck dep 侧车；driver_dep_seeded_clear_all 调用，避免悬空指针。
  */
-void driver_typeck_dep_sidecar_clear(void) {
+void driver_typeck_dep_sidecar_clear_impl(void) {
     int i;
     typeck_ndep = 0;
     for (i = 0; i < 32; i++) {
         typeck_dep_arena_ptrs[i] = NULL;
         typeck_dep_module_ptrs[i] = NULL;
     }
+}
+
+void driver_typeck_dep_sidecar_clear(void) {
+  {
+    driver_typeck_dep_sidecar_clear_impl();
+  }
 }
 
 /** 按 dep 下标取 module 指针；越界返回 NULL。 */
@@ -450,12 +462,7 @@ void shux_import_path_to_file_path(const char *lib_root, const char *import_path
  * 从入口 .x 路径得到所在目录；无目录时写入 "."。
  * 参数：见 runtime_pipeline_abi.h。
  */
-void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
-    if (!input_path || !entry_dir || size == 0) {
-        if (size)
-            entry_dir[0] = '\0';
-        return;
-    }
+void shux_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t size) {
     const char *last = strrchr(input_path, '/');
     if (!last) {
         (void)snprintf(entry_dir, size, ".");
@@ -466,6 +473,22 @@ void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
         len = size - 1;
     memcpy(entry_dir, input_path, len);
     entry_dir[len] = '\0';
+}
+
+void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
+  if (entry_dir == NULL) {
+    return;
+  }
+  if (size == 0) {
+    return;
+  }
+  if (input_path == NULL) {
+    entry_dir[0] = '\0';
+    return;
+  }
+  {
+    shux_get_entry_dir_impl(input_path, entry_dir, size);
+  }
 }
 
 /**
@@ -753,7 +776,7 @@ int32_t driver_dep_slot_for_path(const char *path) {
 /**
  * entry pipeline 返回后清除 seeded 与槽指针；并同步清 runtime.c typeck dep 侧车。
  */
-void driver_dep_seeded_clear_all(void) {
+void driver_dep_seeded_clear_slots_impl(void) {
     int i;
     for (i = 0; i < SHUX_DRIVER_DEP_SLOT_MAX; i++) {
         driver_dep_seeded[i] = 0;
@@ -761,7 +784,13 @@ void driver_dep_seeded_clear_all(void) {
         driver_dep_arena_ptrs[i] = NULL;
         driver_dep_module_ptrs[i] = NULL;
     }
+}
+
+void driver_dep_seeded_clear_all(void) {
+  {
+    driver_dep_seeded_clear_slots_impl();
     driver_typeck_dep_sidecar_clear();
+  }
 }
 
 /**
@@ -826,6 +855,13 @@ int32_t typeck_driver_dep_seeded_get(int32_t i) {
  * 参数：import_path 逻辑路径；all_paths/n_all 已加载列表。
  * 返回值：下标或 -1。
  */
+
+
+/* G-02f-52 helper protos */
+void driver_typeck_dep_sidecar_clear_impl(void);
+void driver_dep_seeded_clear_slots_impl(void);
+void shux_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t size);
+void driver_asm_fclose_asm_out_impl(FILE *fp);
 
 /* G-02f-51 helper protos (defs later near dep_prerun) */
 const char *shux_dep_prerun_entry_dir_pick(const char *main_entry_dir, const char **lib_roots, int n_lib_roots);
@@ -1024,11 +1060,17 @@ void shux_emit_pipeline_glue_include(void) {
  * asm 后端写出 FILE *：stdout 仅 fflush，避免 fclose(stdout)。
  * 参数：fp 汇编输出流，可为 NULL。
  */
-void driver_asm_fclose_asm_out(FILE *fp) {
+void driver_asm_fclose_asm_out_impl(FILE *fp) {
     if (!fp || fp == stdout)
         fflush(stdout);
     else
         fclose(fp);
+}
+
+void driver_asm_fclose_asm_out(FILE *fp) {
+  {
+    driver_asm_fclose_asm_out_impl(fp);
+  }
 }
 
 /**
