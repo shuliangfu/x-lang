@@ -13,7 +13,8 @@
 // f-342：code_eq / levenshtein / json_write/report/severity / code_suggest
 // f-338 cont：
 //        report_with_code / report_human → _impl（共 32）
-// f-346：snap pure（store/load ptr/usize/i32 + le 写）→ 共 40；push/restore 仍 _impl
+// f-346：snap pure（store/load ptr/usize/i32 + le 写；定义在 push 前）→ 共 40
+// f-347：push = snap_save + apply_impl；restore = snap_load + ctx_set_all → 共 41
 
 // ---- rest / libc 提供的符号（勿与下方 thin public 同名，以免 -E 改名）----
 extern "C" function diag_ctx_get_use_color(): i32;
@@ -25,8 +26,7 @@ extern "C" function diag_code_table_has(code: *u8): i32;
 extern "C" function diag_entry_kind(code: *u8): *u8;
 extern "C" function diag_entry_summary(code: *u8): *u8;
 extern "C" function diag_entry_details(code: *u8): *u8;
-extern "C" function diag_push_file_impl(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void;
-extern "C" function diag_restore_impl(snapshot: *u8): void;
+extern "C" function diag_push_file_apply_impl(path: *u8, source: *u8, source_len: i64): void;
 extern "C" function diag_should_color_impl(): i32;
 extern "C" function diag_color_reset_impl(): *u8;
 extern "C" function diag_set_json_mode_impl(enable: i32): void;
@@ -209,162 +209,6 @@ function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail
     let z: *u8 = 0;
     diag_report_with_code_impl(file, line, col, kind, z, msg, detail);
   }
-}
-
-// ---- G-02f-337：snapshot push/restore ----
-
-#[no_mangle]
-function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void {
-  unsafe {
-    diag_push_file_impl(snapshot, path, source, source_len);
-  }
-}
-
-#[no_mangle]
-function diag_restore(snapshot: *u8): void {
-  if (snapshot == 0) {
-    return;
-  }
-  unsafe {
-    diag_restore_impl(snapshot);
-  }
-}
-
-// ---- G-02f-338：color / json / print / report 门闩 ----
-
-#[no_mangle]
-function diag_should_color(): i32 {
-  unsafe {
-    return diag_should_color_impl();
-  }
-  return 0;
-}
-
-#[no_mangle]
-function diag_color_reset(): *u8 {
-  unsafe {
-    return diag_color_reset_impl();
-  }
-  return 0;
-}
-
-#[no_mangle]
-function diag_set_json_mode(enable: i32): void {
-  unsafe {
-    diag_set_json_mode_impl(enable);
-  }
-}
-
-#[no_mangle]
-function diag_json_enabled(): i32 {
-  unsafe {
-    return diag_json_enabled_impl();
-  }
-  return 0;
-}
-
-#[no_mangle]
-function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32 {
-  unsafe {
-    return diag_extract_line_impl(line_no, line_start_out, line_len_out);
-  }
-  return 0 - 1;
-}
-
-#[no_mangle]
-function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void {
-  unsafe {
-    diag_print_header_impl(kind, code, msg, kind_color, reset);
-  }
-}
-
-#[no_mangle]
-function diag_print_code_table(out: *u8): void {
-  unsafe {
-    diag_print_code_table_impl(out);
-  }
-}
-
-#[no_mangle]
-function diag_print_known_codes(out: *u8): void {
-  unsafe {
-    diag_print_known_codes_impl(out);
-  }
-}
-
-#[no_mangle]
-function diag_print_code_explain(out: *u8, code: *u8): void {
-  unsafe {
-    diag_print_code_explain_impl(out, code);
-  }
-}
-
-#[no_mangle]
-function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
-  unsafe {
-    diag_report_with_code_impl(file, line, col, kind, code, msg, detail);
-  }
-}
-
-#[no_mangle]
-function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
-  unsafe {
-    diag_report_human_impl(file, line, col, kind, code, msg, detail);
-  }
-}
-
-// ---- G-02f-342：code/json 残余门闩 ----
-extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
-extern "C" function diag_levenshtein_ci_impl(a: *u8, b: *u8): i32;
-extern "C" function diag_json_write_str_impl(out: *u8, s: *u8): void;
-extern "C" function diag_report_json_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void;
-extern "C" function diag_json_severity_impl(kind: *u8): *u8;
-extern "C" function diag_code_suggest_impl(code: *u8, out: *u8, out_cap: i64): *u8;
-
-#[no_mangle]
-function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
-  unsafe {
-    return diag_code_eq_impl(lhs, rhs);
-  }
-  return 0;
-}
-
-#[no_mangle]
-function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
-  unsafe {
-    return diag_levenshtein_ci_impl(a, b);
-  }
-  return 0;
-}
-
-#[no_mangle]
-function diag_json_write_str(out: *u8, s: *u8): void {
-  unsafe {
-    diag_json_write_str_impl(out, s);
-  }
-}
-
-#[no_mangle]
-function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
-  unsafe {
-    diag_report_json_impl(file, line, col, kind, code, msg);
-  }
-}
-
-#[no_mangle]
-function diag_json_severity(kind: *u8): *u8 {
-  unsafe {
-    return diag_json_severity_impl(kind);
-  }
-  return 0;
-}
-
-#[no_mangle]
-function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
-  unsafe {
-    return diag_code_suggest_impl(code, out, out_cap);
-  }
-  return 0;
 }
 
 // ---- G-02f-346：diag snap pure（-E：无 let 再赋值；snap+off 指针算术）----
@@ -551,6 +395,182 @@ function diag_snap_load_i32(snap: *u8, off: i32): i32 {
     let a2: i32 = a1 + (q[2] as i32) * m * m;
     let a3: i32 = a2 + (q[3] as i32) * m * m * m;
     return a3;
+  }
+  return 0;
+}
+
+
+// ---- G-02f-337/347：snapshot push/restore（snap pure orch；apply 指针三元仍 seed）----
+
+// -E：嵌套 path/source null if 会丢整函数；snap 保存用早退 helper
+#[no_mangle]
+function diag_push_snap_save(snapshot: *u8): void {
+  if (snapshot == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file());
+    diag_snap_store_ptr(snapshot, 8, diag_ctx_get_source());
+    diag_snap_store_usize(snapshot, 16, diag_ctx_get_source_len() as usize);
+    diag_snap_store_i32(snapshot, 24, diag_ctx_get_use_color());
+  }
+}
+
+#[no_mangle]
+function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void {
+  diag_push_snap_save(snapshot);
+  unsafe {
+    diag_push_file_apply_impl(path, source, source_len);
+  }
+}
+
+#[no_mangle]
+function diag_restore(snapshot: *u8): void {
+  if (snapshot == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    let p: *u8 = diag_snap_load_ptr(snapshot, 0);
+    let s: *u8 = diag_snap_load_ptr(snapshot, 8);
+    let sl: usize = diag_snap_load_usize(snapshot, 16);
+    let c: i32 = diag_snap_load_i32(snapshot, 24);
+    diag_ctx_set_all(p, s, sl as i64, c);
+  }
+}
+
+// ---- G-02f-338：color / json / print / report 门闩 ----
+
+#[no_mangle]
+function diag_should_color(): i32 {
+  unsafe {
+    return diag_should_color_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_color_reset(): *u8 {
+  unsafe {
+    return diag_color_reset_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_set_json_mode(enable: i32): void {
+  unsafe {
+    diag_set_json_mode_impl(enable);
+  }
+}
+
+#[no_mangle]
+function diag_json_enabled(): i32 {
+  unsafe {
+    return diag_json_enabled_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32 {
+  unsafe {
+    return diag_extract_line_impl(line_no, line_start_out, line_len_out);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void {
+  unsafe {
+    diag_print_header_impl(kind, code, msg, kind_color, reset);
+  }
+}
+
+#[no_mangle]
+function diag_print_code_table(out: *u8): void {
+  unsafe {
+    diag_print_code_table_impl(out);
+  }
+}
+
+#[no_mangle]
+function diag_print_known_codes(out: *u8): void {
+  unsafe {
+    diag_print_known_codes_impl(out);
+  }
+}
+
+#[no_mangle]
+function diag_print_code_explain(out: *u8, code: *u8): void {
+  unsafe {
+    diag_print_code_explain_impl(out, code);
+  }
+}
+
+#[no_mangle]
+function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
+  unsafe {
+    diag_report_with_code_impl(file, line, col, kind, code, msg, detail);
+  }
+}
+
+#[no_mangle]
+function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
+  unsafe {
+    diag_report_human_impl(file, line, col, kind, code, msg, detail);
+  }
+}
+
+// ---- G-02f-342：code/json 残余门闩 ----
+extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
+extern "C" function diag_levenshtein_ci_impl(a: *u8, b: *u8): i32;
+extern "C" function diag_json_write_str_impl(out: *u8, s: *u8): void;
+extern "C" function diag_report_json_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void;
+extern "C" function diag_json_severity_impl(kind: *u8): *u8;
+extern "C" function diag_code_suggest_impl(code: *u8, out: *u8, out_cap: i64): *u8;
+
+#[no_mangle]
+function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
+  unsafe {
+    return diag_code_eq_impl(lhs, rhs);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
+  unsafe {
+    return diag_levenshtein_ci_impl(a, b);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_json_write_str(out: *u8, s: *u8): void {
+  unsafe {
+    diag_json_write_str_impl(out, s);
+  }
+}
+
+#[no_mangle]
+function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
+  unsafe {
+    diag_report_json_impl(file, line, col, kind, code, msg);
+  }
+}
+
+#[no_mangle]
+function diag_json_severity(kind: *u8): *u8 {
+  unsafe {
+    return diag_json_severity_impl(kind);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
+  unsafe {
+    return diag_code_suggest_impl(code, out, out_cap);
   }
   return 0;
 }

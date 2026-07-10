@@ -1,6 +1,6 @@
 /* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97/98 true .x + C tail; G-02f-74/82 diag gates).
- * G-02f-335～346：PREFER_X_O hybrid 时 pure thin 由 src/diag_thin.x→-E；rest 用
- *   SHUX_L2_DIAG_THIN_FROM_X（省略 public 门闩；C 尾出 _impl；f-346 snap pure 仅 thin）。
+ * G-02f-335～347：PREFER_X_O hybrid 时 pure thin 由 src/diag_thin.x→-E；rest 用
+ *   SHUX_L2_DIAG_THIN_FROM_X（省略 public；f-347 push apply_impl / restore 全 thin snap）。
  * G-02f-181: P0-1 close-out — code table + reportf/vreportf 🔒 (priority doc §4.3).
  * G-02f-130 true .x pure helpers.
  * G-02f-116 true .x pure helpers.
@@ -429,12 +429,9 @@ extern void diag_set_file(const char *path, const char *source, size_t source_le
 #endif
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-337：hybrid 时 public 由 thin 门闩提供，本文件出 _impl */
+/* G-02f-337/347：hybrid 时 push = thin snap_save + apply_impl；restore = thin snap_load */
 #ifndef SHUX_L2_DIAG_THIN_FROM_X
 void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len)
-#else
-void diag_push_file_impl(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len)
-#endif
 {
     if (snapshot) {
         snapshot->file_path = g_diag_ctx.file_path;
@@ -445,20 +442,23 @@ void diag_push_file_impl(DiagContextSnapshot *snapshot, const char *path, const 
     g_diag_ctx.file_path = path ? path : g_diag_ctx.file_path;
     g_diag_ctx.source = source ? source : g_diag_ctx.source;
     g_diag_ctx.source_len = source ? source_len : g_diag_ctx.source_len;
-#ifdef SHUX_L2_DIAG_THIN_FROM_X
-    g_diag_ctx.use_color = diag_should_color_impl();
-#else
     g_diag_ctx.use_color = diag_should_color();
-#endif
 }
+#else
+/* thin 负责 snapshot 字节布局；此处仅写 g_diag_ctx（path/source 三元） */
+void diag_push_file_apply_impl(const char *path, const char *source, size_t source_len)
+{
+    g_diag_ctx.file_path = path ? path : g_diag_ctx.file_path;
+    g_diag_ctx.source = source ? source : g_diag_ctx.source;
+    g_diag_ctx.source_len = source ? source_len : g_diag_ctx.source_len;
+    g_diag_ctx.use_color = diag_should_color_impl();
+}
+#endif
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-337：hybrid 时 public 由 thin 门闩提供，本文件出 _impl */
+/* G-02f-347：hybrid 时 restore 全由 thin snap_load + diag_ctx_set_all */
 #ifndef SHUX_L2_DIAG_THIN_FROM_X
 void diag_restore(const DiagContextSnapshot *snapshot)
-#else
-void diag_restore_impl(const DiagContextSnapshot *snapshot)
-#endif
 {
     if (!snapshot)
         return;
@@ -467,6 +467,7 @@ void diag_restore_impl(const DiagContextSnapshot *snapshot)
     g_diag_ctx.source_len = snapshot->source_len;
     g_diag_ctx.use_color = snapshot->use_color;
 }
+#endif
 
 
 /** 供 .x 读 g_diag_ctx 字段（G-02f-155）。 */

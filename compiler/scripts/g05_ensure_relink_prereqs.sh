@@ -1516,7 +1516,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-11 / G-02f-335～346：diag.o
-  # 默认整 seed；PREFER_X_O=1 时 diag_thin.x（40 门闩：+ snap pure）+ seed-rest（_impl）ld -r
+  # 默认整 seed；PREFER_X_O=1 时 diag_thin.x（41 门闩：snap + push/restore orch）+ seed-rest ld -r
   _diag=seeds/diag.from_x.c
   _diag_thin_x=src/diag_thin.x
   _diag_o=src/diag.o
@@ -1533,7 +1533,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_DIAG_THIN_FROM_X \
                -c -o "$_diag_rest_o" "$_diag" \
           && $CC -r -nostdlib -o "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-346 L2 hybrid diag thin snap)"
+          echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-347 L2 hybrid diag thin push/restore)"
           _diag_done=1
         else
           echo "g05_ensure: L2 hybrid diag thin failed; fallback full seed" >&2
