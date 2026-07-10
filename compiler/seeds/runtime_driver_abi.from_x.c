@@ -1,7 +1,7 @@
-/* Generated from src/runtime_driver_abi.x (G-02f-29 true .x + C tail).
- * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/rda.c
- *         then merge env/quiet from .x; polish getenv slice→C string; keep flag statics C.
- * .x covers: quiet_ok + typeck_force_c / asm_* env queries.
+/* Generated from src/runtime_driver_abi.x (G-02f-29/41 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
+ *         merge quiet_ok/env + flag get/set; polish getenv; C flag slots/timing.
+ * .x covers: env probes, check_only/freestanding/fmt/skip flags via slots.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -40,6 +40,17 @@ static char driver_ascii_toupper(char c) {
     return c;
 }
 
+
+/* G-02f-41: flag slot protos (defs after static storage) */
+int32_t *driver_check_only_flag_slot(void);
+int32_t *driver_check_diag_emitted_flag_slot(void);
+int32_t *driver_freestanding_flag_slot(void);
+int32_t *driver_sanitize_address_flag_slot(void);
+int32_t *driver_fmt_check_only_flag_slot(void);
+int32_t *driver_x_pipeline_skip_typeck_flag_slot(void);
+int32_t *driver_x_pipeline_skip_codegen_flag_slot(void);
+int32_t *driver_skip_codegen_dep_0_flag_slot(void);
+
 /** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 X pipeline 共用）。 */
 static int driver_check_only_flag;
 static int driver_check_diag_emitted_flag;
@@ -49,7 +60,11 @@ static int driver_check_diag_emitted_flag;
  * 参数：v 非 0 启用。
  */
 void driver_check_only_set(int32_t v) {
-    driver_check_only_flag = (v != 0);
+  (void)(({   {
+    int32_t * p = driver_check_only_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
 }
 
 /**
@@ -57,19 +72,43 @@ void driver_check_only_set(int32_t v) {
  * 返回值：1 表示启用，0 表示否。
  */
 int32_t driver_check_only_get(void) {
-    return driver_check_only_flag ? 1 : 0;
+  (void)(({   {
+    int32_t * p = driver_check_only_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 void driver_check_diag_emitted_reset(void) {
-    driver_check_diag_emitted_flag = 0;
+  (void)(({   {
+    int32_t * p = driver_check_diag_emitted_flag_slot();
+    (void)(((p)[0] = 0));
+  }
+ }));
 }
 
 void driver_check_diag_emitted_note(void) {
-    driver_check_diag_emitted_flag = 1;
+  (void)(({   {
+    int32_t * p = driver_check_diag_emitted_flag_slot();
+    (void)(((p)[0] = 1));
+  }
+ }));
 }
 
 int32_t driver_check_diag_emitted_get(void) {
-    return driver_check_diag_emitted_flag ? 1 : 0;
+  (void)(({   {
+    int32_t * p = driver_check_diag_emitted_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** `-freestanding` / SHUX_FREESTANDING：用户程序 nostdlib 静态链（S4）。 */
@@ -77,12 +116,24 @@ static int driver_freestanding_flag;
 
 /** 设置 freestanding 链接模式。 */
 void driver_freestanding_set(int32_t v) {
-    driver_freestanding_flag = (v != 0);
+  (void)(({   {
+    int32_t * p = driver_freestanding_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
 }
 
 /** 查询 freestanding 链接模式。 */
 int32_t driver_freestanding_get(void) {
-    return driver_freestanding_flag ? 1 : 0;
+  (void)(({   {
+    int32_t * p = driver_freestanding_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** M-6：`-fsanitize=address` 时强制数组/切片 INDEX 边界检查。 */
@@ -90,7 +141,11 @@ static int driver_sanitize_address_flag;
 
 /** 设置 sanitize=address 标志。 */
 void driver_sanitize_address_set(int32_t v) {
-    driver_sanitize_address_flag = (v != 0);
+  (void)(({   {
+    int32_t * p = driver_sanitize_address_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
 }
 
 /**
@@ -98,26 +153,49 @@ void driver_sanitize_address_set(int32_t v) {
  * 返回值：1 表示启用边界检查插桩。
  */
 int32_t driver_sanitize_address_get(void) {
-    if (driver_sanitize_address_flag)
-        return 1;
-    {
-        const char *e = getenv("SHUX_SANITIZE_ADDRESS");
-        if (e && e[0] && e[0] != '0')
-            return 1;
+  (void)(({   {
+    int32_t * p = driver_sanitize_address_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
     }
-    return 0;
+    char *e = getenv("SHUX_SANITIZE_ADDRESS");
+    if ((e ==((char *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
 }
 
 static int driver_fmt_check_only_flag;
 
 /** shux fmt --check：仅校验格式，不写回。 */
 void driver_fmt_check_only_set(int32_t v) {
-    driver_fmt_check_only_flag = (v != 0);
+  (void)(({   {
+    int32_t * p = driver_fmt_check_only_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
 }
 
 /** 查询 fmt --check 模式。 */
 int32_t driver_fmt_check_only_get(void) {
-    return driver_fmt_check_only_flag ? 1 : 0;
+  (void)(({   {
+    int32_t * p = driver_fmt_check_only_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /* 【Why 根源】MinGW PE 格式不真正支持 __attribute__((weak))：weak 函数被当作普通强符号，
@@ -147,12 +225,24 @@ static int driver_x_pipeline_skip_typeck_flag;
 
 /** 供 pipeline.x 读取：是否跳过 X typeck。 */
 int32_t driver_x_pipeline_skip_typeck_get(void) {
-    return driver_x_pipeline_skip_typeck_flag ? 1 : 0;
+  (void)(({   {
+    int32_t * p = driver_x_pipeline_skip_typeck_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 设置 X typeck 跳过标志（C 预检后由 runtime 置位/清位）。 */
 void driver_x_pipeline_skip_typeck_set(int32_t v) {
-    driver_x_pipeline_skip_typeck_flag = (v != 0);
+  (void)(({   {
+    int32_t * p = driver_x_pipeline_skip_typeck_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
 }
 
 /** 非 0 时 pipeline_impl_run_all 跳过 .x C codegen。 */
@@ -160,12 +250,24 @@ static int driver_x_pipeline_skip_codegen_flag;
 
 /** 供 pipeline.x 读取：是否跳过 X C codegen。 */
 int32_t driver_x_pipeline_skip_codegen_get(void) {
-    return driver_x_pipeline_skip_codegen_flag ? 1 : 0;
+  (void)(({   {
+    int32_t * p = driver_x_pipeline_skip_codegen_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 设置 X C codegen 跳过标志。 */
 void driver_x_pipeline_skip_codegen_set(int32_t v) {
-    driver_x_pipeline_skip_codegen_flag = (v != 0);
+  (void)(({   {
+    int32_t * p = driver_x_pipeline_skip_codegen_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
 }
 
 /**
@@ -174,8 +276,8 @@ void driver_x_pipeline_skip_codegen_set(int32_t v) {
  */
 int32_t driver_typeck_force_c_enabled(void) {
   (void)(({   {
-    uint8_t * e = getenv("SHUX_TYPECK_FORCE_C");
-    if ((e ==((uint8_t *)(0)))) {
+    char *e = getenv("SHUX_TYPECK_FORCE_C");
+    if ((e ==((char *)(0)))) {
       return 0;
     }
     if (((e)[0] ==0)) {
@@ -250,8 +352,8 @@ int32_t driver_typeck_skip_large_entry(void) {
  */
 int32_t driver_asm_build_skip_typeck(void) {
   (void)(({   {
-    uint8_t * e = getenv("SHUX_ASM_BUILD_SKIP_TYPECK");
-    if ((e ==((uint8_t *)(0)))) {
+    char *e = getenv("SHUX_ASM_BUILD_SKIP_TYPECK");
+    if ((e ==((char *)(0)))) {
       return 0;
     }
     if (((e)[0] ==0)) {
@@ -272,8 +374,8 @@ int32_t driver_asm_build_skip_typeck(void) {
  */
 int32_t driver_asm_entry_emit_heavy(void) {
   (void)(({   {
-    uint8_t * e = getenv("SHUX_ASM_ENTRY_EMIT_HEAVY");
-    if ((e ==((uint8_t *)(0)))) {
+    char *e = getenv("SHUX_ASM_ENTRY_EMIT_HEAVY");
+    if ((e ==((char *)(0)))) {
       return 0;
     }
     if (((e)[0] ==0)) {
@@ -294,8 +396,8 @@ int32_t driver_asm_entry_emit_heavy(void) {
  */
 int32_t driver_asm_entry_module_only_from_env(void) {
   (void)(({   {
-    uint8_t * e = getenv("SHUX_ASM_ENTRY_MODULE_ONLY");
-    if ((e ==((uint8_t *)(0)))) {
+    char *e = getenv("SHUX_ASM_ENTRY_MODULE_ONLY");
+    if ((e ==((char *)(0)))) {
       return 0;
     }
     if (((e)[0] ==0)) {
@@ -316,8 +418,8 @@ int32_t driver_asm_entry_module_only_from_env(void) {
  */
 int32_t driver_asm_parse_metric_only_from_env(void) {
   (void)(({   {
-    uint8_t * e = getenv("SHUX_ASM_PARSE_METRIC_ONLY");
-    if ((e ==((uint8_t *)(0)))) {
+    char *e = getenv("SHUX_ASM_PARSE_METRIC_ONLY");
+    if ((e ==((char *)(0)))) {
       return 0;
     }
     if (((e)[0] ==0)) {
@@ -335,14 +437,37 @@ int32_t driver_asm_parse_metric_only_from_env(void) {
 /** -o 可执行文件路径：非 0 时 pipeline 跳过 dep 0 的 codegen。 */
 static int driver_skip_codegen_dep_0_flag;
 
+/* G-02f-41: flag slot implementations */
+int32_t *driver_check_only_flag_slot(void) { return (int32_t *)&driver_check_only_flag; }
+int32_t *driver_check_diag_emitted_flag_slot(void) { return (int32_t *)&driver_check_diag_emitted_flag; }
+int32_t *driver_freestanding_flag_slot(void) { return (int32_t *)&driver_freestanding_flag; }
+int32_t *driver_sanitize_address_flag_slot(void) { return (int32_t *)&driver_sanitize_address_flag; }
+int32_t *driver_fmt_check_only_flag_slot(void) { return (int32_t *)&driver_fmt_check_only_flag; }
+int32_t *driver_x_pipeline_skip_typeck_flag_slot(void) { return (int32_t *)&driver_x_pipeline_skip_typeck_flag; }
+int32_t *driver_x_pipeline_skip_codegen_flag_slot(void) { return (int32_t *)&driver_x_pipeline_skip_codegen_flag; }
+int32_t *driver_skip_codegen_dep_0_flag_slot(void) { return (int32_t *)&driver_skip_codegen_dep_0_flag; }
+
+
 /** 设置 skip_codegen_dep_0 标志（driver -o exe 路径）。 */
 void driver_skip_codegen_dep_0_set(int32_t v) {
-    driver_skip_codegen_dep_0_flag = (v != 0);
+  (void)(({   {
+    int32_t * p = driver_skip_codegen_dep_0_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
 }
 
 /** 查询 skip_codegen_dep_0；pipeline.x dep_j==0 时读取。 */
 int32_t driver_skip_codegen_dep_0_get(void) {
-    return driver_skip_codegen_dep_0_flag ? 1 : 0;
+  (void)(({   {
+    int32_t * p = driver_skip_codegen_dep_0_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 当前 codegen 的 dep 逻辑路径（如 std.io.driver），供 .x codegen 前缀 C 符号。 */
