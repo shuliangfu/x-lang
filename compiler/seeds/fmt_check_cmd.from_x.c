@@ -1,4 +1,5 @@
 /* Generated from src/driver/fmt_check_cmd.x (G-02f-31 true .x + C tail).
+ * G-02f-116 true .x pure helpers.
  * G-02f-112 helper gates.
  * G-02f-107 helper gates.
  * G-02f-106 helper gates.
@@ -321,16 +322,12 @@ void check_argv_append_default_libs_for_path(const char *path, char **check_argv
 /**
  * SHUX_LINT_CI_FAIL_ON=warn 时 warning 层诊断亦令 check 非零退出。
  */
-int check_lint_fail_on_warnings_impl(void) {
-    const char *v = getenv("SHUX_LINT_CI_FAIL_ON");
-    return v && (strcmp(v, "warn") == 0 || strcmp(v, "warning") == 0);
-}
+/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int check_lint_fail_on_warnings(void) {
-  {
-    return check_lint_fail_on_warnings_impl();
-  }
-  return 0;
+  const char *v = getenv("SHUX_LINT_CI_FAIL_ON");
+  return v && (strcmp(v, "warn") == 0 || strcmp(v, "warning") == 0);
 }
+
 
 
 /**

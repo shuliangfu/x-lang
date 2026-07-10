@@ -497,13 +497,6 @@ function parser_diag_scan_fail(step: i32): void {
   }
 }
 
-#[no_mangle]
-function parser_is_ident_allow(ident: *u8, len: i32): i32 {
-  unsafe {
-    return parser_is_ident_allow_impl(ident, len);
-  }
-  return 0 - 1;
-}
 
 #[no_mangle]
 function driver_diagnostic_warn_pad_fields_same_cache_line(sname: *u8, sname_len: i32, f0: *u8, f0_len: i32, f1: *u8, f1_len: i32): void {
@@ -544,3 +537,15 @@ function driver_diag_report_prefixed(line: i32, col: i32, msg: *u8): void {
   }
 }
 
+// G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function parser_is_ident_allow(ident: *u8, len: i32): i32 {
+  if (ident == 0) { return 0; }
+  if (len != 5) { return 0; }
+  // "allow"
+  if (ident[0] == 97 && ident[1] == 108 && ident[2] == 108 && ident[3] == 111 && ident[4] == 119) {
+    return 1;
+  }
+  return 0;
+}

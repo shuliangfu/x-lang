@@ -14,17 +14,26 @@ function parser_asm_parse_expr_link_x_doc_anchor(): i32 {
 
 /* ---- G-02f-102：parse_expr debug 门闩 ---- */
 
-#[no_mangle]
-function parser_asm_parse_expr_debug_enabled(): i32 {
-  unsafe {
-    return parser_asm_parse_expr_debug_enabled_impl();
-  }
-  return 0;
-}
 
 #[no_mangle]
 function parser_asm_parse_expr_debug_snippet_c(source: *u8, pos: usize): void {
   unsafe {
     parser_asm_parse_expr_debug_snippet_c_impl(source, pos);
   }
+}
+
+// G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+extern "C" function getenv(name: *u8): *u8;
+
+#[no_mangle]
+function parser_asm_parse_expr_debug_enabled(): i32 {
+  unsafe {
+    let e: *u8 = getenv("SHUX_PARSER_ASM_DEBUG");
+    if (e == 0) { return 0; }
+    if (e[0] == 0) { return 0; }
+    if (e[0] == 48) { return 0; }
+    return 1;
+  }
+  return 0;
 }

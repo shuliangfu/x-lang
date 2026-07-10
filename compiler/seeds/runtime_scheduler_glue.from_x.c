@@ -1,4 +1,5 @@
 /* seeds/runtime_scheduler_glue.from_x.c — G-02f-18 product TU
+ * G-02f-116 true .x pure helpers.
  * G-02f-115 true .x pure helpers.
  * G-02f-108 helper gates.
  * G-02f-107 helper gates.
@@ -78,16 +79,12 @@ static unsigned shu_async_trace_events_total;
 static unsigned shu_async_trace_sample_tick;
 
 /** 是否启用 trace（SHUX_ASYNC_RUNTIME_TRACE 非空且非 0）。 */
-int shu_async_runtime_trace_enabled_impl(void) {
-    const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE");
-    return e && e[0] && !(e[0] == '0' && e[1] == '\0');
-}
+/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int shu_async_runtime_trace_enabled(void) {
-  {
-    return shu_async_runtime_trace_enabled_impl();
-  }
-  return 0;
+  const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE");
+  return e && e[0] && !(e[0] == '0' && e[1] == '\0');
 }
+
 
 
 /** 解析 SHUX_ASYNC_RUNTIME_TRACE_TOPN（1..64，默认 20）。 */

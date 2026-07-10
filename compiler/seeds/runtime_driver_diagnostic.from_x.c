@@ -62,7 +62,7 @@ void driver_debug_log_impl(int32_t step);
 void parser_diag_tok_kind_impl(int32_t k);
 void parser_diag_ident_len_impl(int32_t len);
 void parser_diag_scan_fail_impl(int32_t step);
-int parser_is_ident_allow_impl(const uint8_t *ident, int len);
+int parser_is_ident_allow(const uint8_t *ident, int len);
 void driver_diagnostic_warn_pad_fields_same_cache_line_impl(const uint8_t *sname, int32_t sname_len, const uint8_t *f0, int32_t f0_len, const uint8_t *f1, int32_t f1_len);
 void driver_diagnostic_warn_hot_reorder_field_impl(const uint8_t *sname, int32_t sname_len, const uint8_t *hot, int32_t hot_len, const uint8_t *cold, int32_t cold_len);
 void driver_diagnostic_hint_unused_binding_impl(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
@@ -1254,19 +1254,12 @@ void parser_diag_scan_fail(int32_t step) {
     parser_diag_scan_fail_impl(step);
   }
 }
-
-
-int parser_is_ident_allow_impl(const uint8_t *ident, int len) {
-    if (!ident || len != 5) return 0;
-    return (ident[0] == 'a' && ident[1] == 'l' && ident[2] == 'l' && ident[3] == 'o' && ident[4] == 'w') ? 1 : 0;
-}
-
+/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int parser_is_ident_allow(const uint8_t *ident, int len) {
-  {
-    return parser_is_ident_allow_impl(ident, len);
-  }
-  return -1;
+  if (!ident || len != 5) return 0;
+  return (ident[0] == 'a' && ident[1] == 'l' && ident[2] == 'l' && ident[3] == 'o' && ident[4] == 'w') ? 1 : 0;
 }
+
 
 
 /** DOD-CL -pad-fields：相邻 atomic-sized 与普通字段同 cache line 且无 align(64) 分隔。

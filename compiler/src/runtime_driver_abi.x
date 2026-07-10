@@ -636,3 +636,13 @@ function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
   }
 }
 
+// G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function compile_phase_timing_enabled(): i32 {
+  unsafe {
+    let e: *u8 = getenv("SHUX_COMPILE_PHASE_TIMING");
+    if (e != 0) { return 1; }
+  }
+  return 0;
+}

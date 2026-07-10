@@ -1,4 +1,5 @@
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
+ * G-02f-116 true .x pure helpers.
  * G-02f-104 helper gates.
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
  *         merge flags/env/phase/peek/smoke/stack/defines; C argv scan + pthread bulk.
@@ -622,15 +623,11 @@ static double g_compile_phase_start_sec[SHUX_COMPILE_PHASE_MAX];
 static int g_compile_phase_active[SHUX_COMPILE_PHASE_MAX];
 
 /** 是否启用 SHUX_COMPILE_PHASE_TIMING 阶段计时。 */
-int compile_phase_timing_enabled_impl(void) {
-    return getenv("SHUX_COMPILE_PHASE_TIMING") != NULL;
-}
+/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int compile_phase_timing_enabled(void) {
-  {
-    return compile_phase_timing_enabled_impl();
-  }
-  return 0;
+  return getenv("SHUX_COMPILE_PHASE_TIMING") != NULL;
 }
+
 
 
 /** 单调 wall-clock 秒（gettimeofday）。 */

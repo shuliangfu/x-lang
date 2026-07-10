@@ -163,37 +163,9 @@ function diag_color_reset(): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
-function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
-  unsafe {
-    return diag_code_eq_impl(lhs, rhs);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
-  unsafe {
-    return diag_kind_is_exact_impl(kind, needle);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function diag_kind_contains(kind: *u8, needle: *u8): i32 {
-  unsafe {
-    return diag_kind_contains_impl(kind, needle);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function diag_line_digits(line: i32): i32 {
-  unsafe {
-    return diag_line_digits_impl(line);
-  }
-  return 1;
-}
 
 /* ---- G-02f-97：print_header / extract_line / json 门闩 ---- */
 
@@ -246,4 +218,53 @@ extern "C" function diag_report_json_impl(file: *u8, line: i32, col: i32, kind: 
 #[no_mangle]
 function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
   unsafe { diag_report_json_impl(file, line, col, kind, code, msg); }
+}
+
+// G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function diag_line_digits(line: i32): i32 {
+  let width: i32 = 1;
+  while (line >= 10) {
+    line = line / 10;
+    width = width + 1;
+  }
+  return width;
+}
+
+#[no_mangle]
+function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
+  if (kind == 0) { return 0; }
+  if (needle == 0) { return 0; }
+  let i: i32 = 0;
+  while (i < 4096) {
+    let a: u8 = kind[i];
+    let b: u8 = needle[i];
+    if (a != b) { return 0; }
+    if (a == 0) { return 1; }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// Case-insensitive code equality (ASCII a-z).
+#[no_mangle]
+function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
+  if (lhs == 0) { return 0; }
+  if (rhs == 0) { return 0; }
+  let i: i32 = 0;
+  while (i < 4096) {
+    let a: u8 = lhs[i];
+    let b: u8 = rhs[i];
+    if (a >= 97) {
+      if (a <= 122) { a = a - 32; }
+    }
+    if (b >= 97) {
+      if (b <= 122) { b = b - 32; }
+    }
+    if (a != b) { return 0; }
+    if (a == 0) { return 1; }
+    i = i + 1;
+  }
+  return 0;
 }

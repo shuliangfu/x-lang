@@ -22,27 +22,15 @@ struct codegen_CodegenOutBuf {
   uint8_t data[8388608];
   int32_t len;
 };
-
-int seed_asm_debug_enabled_impl(void) {
+/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int seed_asm_debug_enabled(void) {
   return getenv("SHUX_ASM_DEBUG") != NULL;
 }
-int seed_asm_debug_enabled(void) {
-  {
-    return seed_asm_debug_enabled_impl();
-  }
-  return 0;
-}
-
-
-int seed_asm_emit_trace_enabled_impl(void) {
+/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int seed_asm_emit_trace_enabled(void) {
   return getenv("SHUX_ASM_EMIT_TRACE") != NULL;
 }
-int seed_asm_emit_trace_enabled(void) {
-  {
-    return seed_asm_emit_trace_enabled_impl();
-  }
-  return 0;
-}
+
 
 
 struct ast_Module;

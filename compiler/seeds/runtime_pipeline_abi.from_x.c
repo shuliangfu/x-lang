@@ -222,17 +222,11 @@ void pipeline_diag_merge_dep_missing(const char *import_path) {
     pipeline_diag_merge_dep_missing_impl(import_path);
   }
 }
-
-
-int pipeline_asm_debug_enabled_impl(void) {
-    return getenv("SHUX_ASM_DEBUG") != NULL;
-}
+/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int pipeline_asm_debug_enabled(void) {
-  {
-    return pipeline_asm_debug_enabled_impl();
-  }
-  return 0;
+  return getenv("SHUX_ASM_DEBUG") != NULL;
 }
+
 
 
 extern int32_t pipeline_module_num_funcs(void *module);

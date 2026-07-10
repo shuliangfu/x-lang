@@ -21,11 +21,6 @@ function runtime_scheduler_glue_x_doc_anchor(): i32 {
 
 /* ---- G-02f-106：async scheduler helpers 门闩 ---- */
 
-#[no_mangle]
-function shu_async_runtime_trace_enabled(): i32 {
-  unsafe { return shu_async_runtime_trace_enabled_impl(); }
-  return 0;
-}
 
 #[no_mangle]
 function shu_async_trace_topn(): i32 {
@@ -139,4 +134,22 @@ function shux_async_spawn_ctx_echo_task(): i32 {
 #[no_mangle]
 function shux_async_q_occupancy(head: u32, tail: u32): u32 {
   return tail - head;
+}
+
+// G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+extern "C" function getenv(name: *u8): *u8;
+
+#[no_mangle]
+function shu_async_runtime_trace_enabled(): i32 {
+  unsafe {
+    let e: *u8 = getenv("SHUX_ASYNC_RUNTIME_TRACE");
+    if (e == 0) { return 0; }
+    if (e[0] == 0) { return 0; }
+    if (e[0] == 48) {
+      if (e[1] == 0) { return 0; }
+    }
+    return 1;
+  }
+  return 0;
 }

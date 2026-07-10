@@ -1,4 +1,5 @@
 /* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97/98 true .x + C tail; G-02f-74/82 diag gates).
+ * G-02f-116 true .x pure helpers.
  * G-02f-109 helper gates.
  * Regen: ./shux-c -E -L .. src/diag.x > /tmp/diag.c
  *         merge diag_report from .x; keep code table / va_list / JSON C tail.
@@ -184,30 +185,24 @@ const char * diag_color_reset(void) {
   }
   return ((const char *)0);
 }
-
-
-int diag_code_eq_impl(const char *lhs, const char *rhs) {
-    size_t i;
-    if (!lhs || !rhs)
-        return 0;
-    for (i = 0; lhs[i] && rhs[i]; i++) {
-        unsigned char a = (unsigned char)lhs[i];
-        unsigned char b = (unsigned char)rhs[i];
-        if (a >= 'a' && a <= 'z')
-            a = (unsigned char)(a - 'a' + 'A');
-        if (b >= 'a' && b <= 'z')
-            b = (unsigned char)(b - 'a' + 'A');
-        if (a != b)
-            return 0;
-    }
-    return lhs[i] == '\0' && rhs[i] == '\0' ? 1 : 0;
-}
+/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int diag_code_eq(const char *lhs, const char *rhs) {
-  {
-    return diag_code_eq_impl(lhs, rhs);
+  size_t i;
+  if (!lhs || !rhs)
+    return 0;
+  for (i = 0; lhs[i] && rhs[i]; i++) {
+    unsigned char a = (unsigned char)lhs[i];
+    unsigned char b = (unsigned char)rhs[i];
+    if (a >= 'a' && a <= 'z')
+      a = (unsigned char)(a - 'a' + 'A');
+    if (b >= 'a' && b <= 'z')
+      b = (unsigned char)(b - 'a' + 'A');
+    if (a != b)
+      return 0;
   }
-  return 0;
+  return lhs[i] == '\0' && rhs[i] == '\0' ? 1 : 0;
 }
+
 
 
 static const DiagCodeExplain *diag_lookup_code_explain(const char *code) {
@@ -225,18 +220,13 @@ typedef struct DiagPalette {
     const char *kind_color;
     const char *caret_color;
 } DiagPalette;
-
-int diag_kind_is_exact_impl(const char *kind, const char *needle) {
-    if (!kind || !needle)
-        return 0;
-    return strcmp(kind, needle) == 0 ? 1 : 0;
-}
+/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int diag_kind_is_exact(const char *kind, const char *needle) {
-  {
-    return diag_kind_is_exact_impl(kind, needle);
-  }
-  return 0;
+  if (!kind || !needle)
+    return 0;
+  return strcmp(kind, needle) == 0 ? 1 : 0;
 }
+
 
 
 int diag_kind_contains_impl(const char *kind, const char *needle) {
@@ -307,22 +297,16 @@ void diag_print_header(const char *kind, const char *code, const char *msg,
     diag_print_header_impl(kind, code, msg, kind_color, reset);
   }
 }
-
-
-int diag_line_digits_impl(int line) {
-    int width = 1;
-    while (line >= 10) {
-        line /= 10;
-        width++;
-    }
-    return width;
-}
+/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int diag_line_digits(int line) {
-  {
-    return diag_line_digits_impl(line);
+  int width = 1;
+  while (line >= 10) {
+    line /= 10;
+    width++;
   }
-  return 0;
+  return width;
 }
+
 
 
 int diag_extract_line_impl(int line_no, const char **line_start_out, size_t *line_len_out) {

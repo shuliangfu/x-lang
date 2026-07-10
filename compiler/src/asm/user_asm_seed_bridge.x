@@ -21,21 +21,7 @@ function user_asm_seed_bridge_x_doc_anchor(): i32 {
 
 /* ---- G-02f-97：debug / trace / elf_ctx 门闩 ---- */
 
-#[no_mangle]
-function seed_asm_debug_enabled(): i32 {
-  unsafe {
-    return seed_asm_debug_enabled_impl();
-  }
-  return 0;
-}
 
-#[no_mangle]
-function seed_asm_emit_trace_enabled(): i32 {
-  unsafe {
-    return seed_asm_emit_trace_enabled_impl();
-  }
-  return 0;
-}
 
 #[no_mangle]
 function seed_elf_ctx_set_macho_leading_underscore(elf_ctx: *u8, on: i32): void {
@@ -76,4 +62,26 @@ function seed_platform_coff_write_coff_o_to_buf(elf_ctx: *u8, out_buf: *u8): i32
     return seed_platform_coff_write_coff_o_to_buf_impl(elf_ctx, out_buf);
   }
   return 0 - 1;
+}
+
+// G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+extern "C" function getenv(name: *u8): *u8;
+
+#[no_mangle]
+function seed_asm_debug_enabled(): i32 {
+  unsafe {
+    let e: *u8 = getenv("SHUX_ASM_DEBUG");
+    if (e != 0) { return 1; }
+  }
+  return 0;
+}
+
+#[no_mangle]
+function seed_asm_emit_trace_enabled(): i32 {
+  unsafe {
+    let e: *u8 = getenv("SHUX_ASM_EMIT_TRACE");
+    if (e != 0) { return 1; }
+  }
+  return 0;
 }

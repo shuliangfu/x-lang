@@ -52,13 +52,6 @@ function driver_collect_missing_path_code(): *u8 {
   return 0 as *u8;
 }
 
-#[no_mangle]
-function check_lint_fail_on_warnings(): i32 {
-  unsafe {
-    return check_lint_fail_on_warnings_impl();
-  }
-  return 0;
-}
 
 /* ---- G-02f-106：path/list/dep/lib 门闩 ---- */
 
@@ -157,4 +150,22 @@ extern "C" function closedir_win_impl(d: *u8): void;
 #[no_mangle]
 function closedir_win(d: *u8): void {
   unsafe { closedir_win_impl(d); }
+}
+
+// G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+extern "C" function getenv(name: *u8): *u8;
+
+#[no_mangle]
+function check_lint_fail_on_warnings(): i32 {
+  unsafe {
+    let v: *u8 = getenv("SHUX_LINT_CI_FAIL_ON");
+    if (v == 0) { return 0; }
+    // "warn" or "warning"
+    if (v[0] == 119 && v[1] == 97 && v[2] == 114 && v[3] == 110) {
+      if (v[4] == 0) { return 1; }
+      if (v[4] == 105 && v[5] == 110 && v[6] == 103 && v[7] == 0) { return 1; }
+    }
+  }
+  return 0;
 }

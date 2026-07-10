@@ -1081,13 +1081,6 @@ function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_al
 
 /* ---- G-02f-84：preprocess diag / asm debug / dep slot store 门闩 ---- */
 
-#[no_mangle]
-function pipeline_asm_debug_enabled(): i32 {
-  unsafe {
-    return pipeline_asm_debug_enabled_impl();
-  }
-  return 0;
-}
 
 #[no_mangle]
 function pipeline_diag_preprocess_unclosed_if(path_diag: *u8): void {
@@ -1231,3 +1224,15 @@ function shux_asm_codegen_elf_o_thread_fn(arg: *u8): *u8 {
   return 0 as *u8;
 }
 
+// G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+extern "C" function getenv(name: *u8): *u8;
+
+#[no_mangle]
+function pipeline_asm_debug_enabled(): i32 {
+  unsafe {
+    let e: *u8 = getenv("SHUX_ASM_DEBUG");
+    if (e != 0) { return 1; }
+  }
+  return 0;
+}
