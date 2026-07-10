@@ -1,4 +1,4 @@
-/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57 true .x + C tail).
+/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
  *         merge flags/env/phase/peek/smoke/stack/defines; C argv scan + pthread bulk.
  * .x covers: + driver_argv_collect_defines.
@@ -355,11 +355,18 @@ void driver_large_stack_thread_mark(int on) {
 static size_t g_pipeline_entry_source_len;
 
 /* G-02f-45 */
-int32_t driver_pipeline_entry_source_len_i32(void) {
+int32_t driver_pipeline_entry_source_len_i32_impl(void) {
     if (g_pipeline_entry_source_len > (size_t)0x7fffffff)
         return 0x7fffffff;
     return (int32_t)g_pipeline_entry_source_len;
 }
+int32_t driver_pipeline_entry_source_len_i32(void) {
+  {
+    return driver_pipeline_entry_source_len_i32_impl();
+  }
+  return 0;
+}
+
 
 
 void driver_pipeline_entry_source_len_store(size_t len) {
@@ -981,7 +988,7 @@ void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
  * 参数：src 预处理后缓冲；src_len 有效字节数。
  * 返回值：1 含顶层 import；0 否。
  */
-int driver_source_scan_top_level_import(const char *src, size_t src_len) {
+int driver_source_scan_top_level_import_impl(const char *src, size_t src_len) {
     const char *p;
     const char *end;
     p = src;
@@ -995,6 +1002,13 @@ int driver_source_scan_top_level_import(const char *src, size_t src_len) {
     }
     return 0;
 }
+int driver_source_scan_top_level_import(const char *src, size_t src_len) {
+  {
+    return driver_source_scan_top_level_import_impl(src, src_len);
+  }
+  return 0;
+}
+
 int driver_source_has_top_level_import(const char *src, size_t src_len) {
   if (src == NULL) {
     return 0;
@@ -1003,7 +1017,7 @@ int driver_source_has_top_level_import(const char *src, size_t src_len) {
     return 0;
   }
   {
-    return driver_source_scan_top_level_import(src, src_len);
+    return driver_source_scan_top_level_import_impl(src, src_len);
   }
   return 0;
 }

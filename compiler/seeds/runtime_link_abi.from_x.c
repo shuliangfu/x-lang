@@ -1468,7 +1468,7 @@ const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
 
 /**
  * 若 runtime_panic.o 尚不存在则用 cc -c 从 src/asm 下源码生成到 shux 同目录，以便 ASM -o exe 链接能提供 shux_panic_。
- * G-02f-76：产品冷启动源统一 seeds/*.from_x.c。Linux 优先 x86_64 .s；Apple arm64 优先 seeds/runtime_panic_arm64.from_x.c；否则 seeds/runtime_panic.from_x.c。
+ * G-02f-76/83：产品冷启动源统一 seeds/*.from_x.c。Linux 优先 x86_64 .s；Apple arm64 优先 seeds/runtime_panic_arm64.from_x.c；否则 seeds/runtime_panic.from_x.c。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -4757,7 +4757,7 @@ const char *shux_rel_o_path_from_argv0(const char *argv0, const char *rel) {
 }
 
 /** 扫描用户 .o 未定义符号；nm 失败时返回 0（勿臆测缺符号，避免 on_demand 误链 net/heap）。 */
-int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
+int shux_link_obj_needs_undef_sym_impl(const char *o_path, const char *sym) {
     char cmd[PATH_MAX + 160];
     FILE *fp;
     char line[512];
@@ -4789,6 +4789,13 @@ int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
     pclose(fp);
     return 0;
 }
+int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
+  {
+    return shux_link_obj_needs_undef_sym_impl(o_path, sym);
+  }
+  return 0;
+}
+
 
 /** ld argv 项是否为已解析的 .o/.obj 路径（跳过 -o、编译器驱动等）。 */
 /* G-02f-65：真逻辑来自 .x（.o / .obj 后缀；原 static 提升为导出）。 */
@@ -6853,7 +6860,7 @@ const char *driver_argv_at(char **argv, int i) {
     return argv[i];
 }
 
-int driver_copy_cstr_n(const char *src, char *buf, int max) {
+int driver_copy_cstr_n_impl(const char *src, char *buf, int max) {
     size_t n;
     size_t j;
     if (!src || !buf || max <= 0)
@@ -6867,6 +6874,13 @@ int driver_copy_cstr_n(const char *src, char *buf, int max) {
     buf[j] = '\0';
     return (int)j;
 }
+int driver_copy_cstr_n(const char *src, char *buf, int max) {
+  {
+    return driver_copy_cstr_n_impl(src, buf, max);
+  }
+  return -1;
+}
+
 
 int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
   if ((argv ==NULL)) {

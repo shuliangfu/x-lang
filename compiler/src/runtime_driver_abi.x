@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-29/41/45..49/54/55/57：真迁 .x — driver flags/env/phase + peek/smoke/stack/defines。
+// G-02f-83：+ driver_source_scan_top_level_import / entry_source_len_i32 门闩。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
 // C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、argv defines 扫描、import 扫描。
 // G-02f-57：+ driver_argv_collect_defines 薄门闩（扫描本体 C）。
@@ -16,7 +17,7 @@ extern "C" function driver_fmt_check_only_flag_slot(): *i32;
 extern "C" function driver_x_pipeline_skip_typeck_flag_slot(): *i32;
 extern "C" function driver_x_pipeline_skip_codegen_flag_slot(): *i32;
 extern "C" function driver_skip_codegen_dep_0_flag_slot(): *i32;
-extern "C" function driver_pipeline_entry_source_len_i32(): i32;
+extern "C" function driver_pipeline_entry_source_len_i32_impl(): i32;
 extern "C" function driver_large_stack_thread_flag_slot(): *i32;
 extern "C" function driver_current_dep_path_store(path: *u8): void;
 extern "C" function driver_current_dep_path_load(): *u8;
@@ -33,7 +34,7 @@ extern "C" function driver_get_module_main_func_index(m: *u8): i32;
 extern "C" function driver_print_x_smoke_parse_ok_impl(num_funcs: i32, main_ix: i32, codegen_len: i64): void;
 extern "C" function driver_print_x_smoke_parse_empty_impl(): void;
 extern "C" function driver_print_x_smoke_typeck_ok_impl(): void;
-extern "C" function driver_source_scan_top_level_import(src: *u8, src_len: i64): i32;
+extern "C" function driver_source_scan_top_level_import_impl(src: *u8, src_len: i64): i32;
 extern "C" function driver_source_has_top_level_import_path_impl(path: *u8): i32;
 extern "C" function driver_pipeline_entry_source_len_store(len: i64): void;
 extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
@@ -507,7 +508,7 @@ function driver_source_has_top_level_import(src: *u8, src_len: i64): i32 {
     return 0;
   }
   unsafe {
-    return driver_source_scan_top_level_import(src, src_len);
+    return driver_source_scan_top_level_import_impl(src, src_len);
   }
   return 0;
 }
@@ -565,3 +566,29 @@ function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, max_def
   }
   return 0;
 }
+
+
+/* ---- G-02f-83：entry_source_len_i32 / scan_top_level_import 门闩 ---- */
+
+#[no_mangle]
+function driver_pipeline_entry_source_len_i32(): i32 {
+  unsafe {
+    return driver_pipeline_entry_source_len_i32_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_source_scan_top_level_import(src: *u8, src_len: i64): i32 {
+  if (src == 0 as *u8) {
+    return 0;
+  }
+  if (src_len < 9) {
+    return 0;
+  }
+  unsafe {
+    return driver_source_scan_top_level_import_impl(src, src_len);
+  }
+  return 0;
+}
+

@@ -4,6 +4,7 @@
 // G-02f-34..44/47/53/55/56/64..70：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
 // C 尾：invoke_cc/ld 主体、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
+// G-02f-83：+ driver_copy_cstr_n / shux_link_obj_needs_undef_sym 门闩。
 // G-02f-76：ensure_* 冷启动源统一 seeds/*.from_x.c（修 f-75 已删 wrapper 的 ensure 空洞）。
 // G-02f-70：+ shux_invoke_cc / linux_link_harden 门闩（link_abi 导出集基本门闩化）。
 // G-02f-69：+ invoke_ld_platform / resolve_dir / append_std/on_demand 门闩。
@@ -12,12 +13,12 @@
 // G-02f-66：+ invoke_ld_for_exe / mach+unix tail libs 门闩。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
-extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
+extern "C" function shux_link_obj_needs_undef_sym_impl(user_o: *u8, sym: *u8): i32;
 extern "C" function getenv(name: *u8): *u8;
 extern "C" function shux_host_is_linux(): i32;
 extern "C" function shux_host_is_apple_aarch64(): i32;
 extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
-extern "C" function driver_copy_cstr_n(src: *u8, buf: *u8, max: i32): i32;
+extern "C" function driver_copy_cstr_n_impl(src: *u8, buf: *u8, max: i32): i32;
 extern "C" function shux_path_is_nonempty_regular_file_impl(path: *u8): i32;
 extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
 extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
@@ -73,7 +74,7 @@ function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
 #[no_mangle]
 function shux_freestanding_user_o_needs_panic(user_o: *u8): i32 {
   unsafe {
-    let r: i32 = shux_link_obj_needs_undef_sym(user_o, "shux_panic_");
+    let r: i32 = shux_link_obj_needs_undef_sym_impl(user_o, "shux_panic_");
     return r;
   }
   return 0;
@@ -82,43 +83,43 @@ function shux_freestanding_user_o_needs_panic(user_o: *u8): i32 {
 #[no_mangle]
 function shux_freestanding_user_o_needs_io(user_o: *u8): i32 {
   unsafe {
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_write") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_write") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_read") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_read") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_close") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_close") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_exit") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_exit") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_open") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_open") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_openat") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_openat") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_mmap") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_mmap") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_munmap") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_munmap") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_socket") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_socket") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_connect") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_connect") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_bind") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_bind") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_listen") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_listen") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_sys_accept") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_sys_accept") != 0) {
       return 1;
     }
     return 0;
@@ -178,22 +179,22 @@ function shux_link_freestanding_enabled(driver_freestanding: i32): i32 {
 #[no_mangle]
 function link_abi_user_o_needs_libc_heap(user_o: *u8): i32 {
   unsafe {
-    if (shux_link_obj_needs_undef_sym(user_o, "malloc") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "malloc") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "calloc") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "calloc") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "realloc") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "realloc") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "free") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "free") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "posix_memalign") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "posix_memalign") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "getenv") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "getenv") != 0) {
       return 1;
     }
     return 0;
@@ -210,7 +211,7 @@ function link_abi_user_o_needs_std_map(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
-    let r: i32 = shux_link_obj_needs_undef_sym(user_o, "std_map_empty_size");
+    let r: i32 = shux_link_obj_needs_undef_sym_impl(user_o, "std_map_empty_size");
     return r;
   }
   return 0;
@@ -225,19 +226,19 @@ function link_abi_user_o_needs_std_set(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_insert") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_set_i32_insert") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_contains") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_set_i32_contains") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_remove") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_set_i32_remove") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_len") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_set_i32_len") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_set_set_i32_deinit") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_set_set_i32_deinit") != 0) {
       return 1;
     }
     return 0;
@@ -254,25 +255,25 @@ function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "test_call_i32_void_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "test_call_i32_void_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "test_runner_") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "test_runner_") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "test_expect_") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "test_expect_") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "test_bench_") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "test_bench_") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "test_f_test_") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "test_f_test_") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "test_io_") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "test_io_") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "test_fuzz_") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "test_fuzz_") != 0) {
       return 1;
     }
     return 0;
@@ -289,25 +290,25 @@ function link_abi_user_o_needs_core_mem(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_mem_align_up") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_mem_align_up") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_mem_align_down") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_mem_align_down") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_copy") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_mem_mem_copy") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_set") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_mem_mem_set") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_zero") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_mem_mem_zero") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_move") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_mem_mem_move") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_mem_mem_compare") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_mem_mem_compare") != 0) {
       return 1;
     }
     return 0;
@@ -318,22 +319,22 @@ function link_abi_user_o_needs_core_mem(user_o: *u8): i32 {
 #[no_mangle]
 function link_abi_user_o_needs_core_slice(user_o: *u8): i32 {
   unsafe {
-    if (shux_link_obj_needs_undef_sym(user_o, "core_slice_i32_from_ptr_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_slice_i32_from_ptr_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_subslice_i32_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_subslice_i32_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_slice_u8_from_ptr_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_slice_u8_from_ptr_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_subslice_u8_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_subslice_u8_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_slice_u64_from_ptr_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_slice_u64_from_ptr_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "core_subslice_u64_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "core_subslice_u64_c") != 0) {
       return 1;
     }
     return 0;
@@ -350,19 +351,19 @@ function link_abi_user_o_needs_std_heap_page_mmap(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_available") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_page_mmap_page_mmap_heap_available") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_init") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_page_mmap_page_mmap_heap_init") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_alloc") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_page_mmap_page_mmap_heap_alloc") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_deinit") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_page_mmap_page_mmap_heap_deinit") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_page_mmap_page_mmap_heap_free") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_page_mmap_page_mmap_heap_free") != 0) {
       return 1;
     }
     return 0;
@@ -379,25 +380,25 @@ function link_abi_user_o_needs_std_sys_linux(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_invoke_available") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_linux_linux_syscall_invoke_available") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_anonymous_mmap") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_linux_linux_anonymous_mmap") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_munmap") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_linux_linux_syscall_munmap") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_read") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_linux_linux_syscall_read") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_write") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_linux_linux_syscall_write") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_close") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_linux_linux_syscall_close") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_linux_syscall_exit") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_linux_linux_syscall_exit") != 0) {
       return 1;
     }
     return 0;
@@ -414,28 +415,28 @@ function link_abi_user_o_needs_std_sys(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_write_stdout") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_write_stdout") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_write_stderr") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_write_stderr") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_write") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_write") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_read") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_read") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_close") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_close") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_exit") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_exit") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_freestanding_write_available") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_freestanding_write_available") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_sys_linux_syscall_table_available") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_sys_linux_syscall_table_available") != 0) {
       return 1;
     }
     return 0;
@@ -452,55 +453,55 @@ function link_abi_user_o_needs_std_net(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_net_listen") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_net_listen") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_net_connect") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_net_connect") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_net_udp_bind") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_net_udp_bind") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_net_udp_recv_many_buf") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_net_udp_recv_many_buf") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_net_udp_send_many_buf") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_net_udp_send_many_buf") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_net_addr_to_u32") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_net_addr_to_u32") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_net_close_udp") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_net_close_udp") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "net_stream_write_batch_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "net_stream_write_batch_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "net_tcp_connect_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "net_tcp_connect_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "net_tcp_listen_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "net_tcp_listen_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "net_udp_bind_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "net_udp_bind_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "net_udp_recv_many_buf_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "net_udp_recv_many_buf_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "net_udp_send_many_buf_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "net_udp_send_many_buf_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "net_close_socket_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "net_close_socket_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "net_udp_send_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "net_udp_send_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "net_dns_resolve_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "net_dns_resolve_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "net_sock_create_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "net_sock_create_c") != 0) {
       return 1;
     }
     return 0;
@@ -520,37 +521,37 @@ function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_i32") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_alloc_i32") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_u8") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_alloc_u8") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_free_i32") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_free_i32") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_free_u8") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_free_u8") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_size_zero") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_alloc_size_zero") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_alloc_usize") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_alloc_usize") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_free_u8_ptr") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_free_u8_ptr") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_arena64_alloc_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_arena64_alloc_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_alloc_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_free_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_free_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "std_heap_libc_heap_alloc_aligned_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "std_heap_libc_heap_alloc_aligned_c") != 0) {
       return 1;
     }
     return 0;
@@ -567,16 +568,16 @@ function link_abi_user_o_needs_heap_user_syms(user_o: *u8): i32 {
     if (user_o[0] == 0) {
       return 0;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "heap_alloc_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "heap_alloc_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "heap_free_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "heap_free_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "heap_realloc_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "heap_realloc_c") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "heap_arena64_alloc_c") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "heap_arena64_alloc_c") != 0) {
       return 1;
     }
     return 0;
@@ -589,109 +590,109 @@ function link_abi_user_o_needs_heap_user_syms(user_o: *u8): i32 {
 #[no_mangle]
 function link_abi_user_o_needs_async_scheduler(user_o: *u8): i32 {
   unsafe {
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_coop_pingpong") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_coop_pingpong") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_coop_pingpong_jmp") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_coop_pingpong_jmp") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_cps_suspend") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_cps_suspend") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_phase_by_id") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_asm_frame_phase_by_id") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_store_from_ptr") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_asm_frame_store_from_ptr") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_load_to_ptr") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_asm_frame_load_to_ptr") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_asm_frame_reset_by_id") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_asm_frame_reset_by_id") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_cps_suspend_io") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_cps_suspend_io") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_i32") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_run_i32") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_task_submit") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_task_submit") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_task_submit_to") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_task_submit_to") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_scheduler_drain") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_scheduler_drain") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_drain") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_worker_drain") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_count") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_worker_count") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_worker_pending") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_worker_pending") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_queue_reset") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_queue_reset") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_scheduler_pending") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_scheduler_pending") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_io_wake_all") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_io_wake_all") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_io_waiters_pending") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_io_waiters_pending") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_io_completions_ready") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_io_completions_ready") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_set_i32") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_run_seed_set_i32") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_reset") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_run_seed_reset") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_i32") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_run_seed_push_i32") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_u32") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_run_seed_push_u32") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_push_i64") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_run_seed_push_i64") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_valid") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_run_seed_valid") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_i32") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_run_seed_take_i32") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_u32") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_run_seed_take_u32") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_async_run_seed_take_i64") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_async_run_seed_take_i64") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_submit_read_async") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_io_submit_read_async") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_read_async") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_io_complete_read_async") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_read_async_slot") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_io_complete_read_async_slot") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_submit_write_async") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_io_submit_write_async") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_write_async") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_io_complete_write_async") != 0) {
       return 1;
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_write_async_slot") != 0) {
+    if (shux_link_obj_needs_undef_sym_impl(user_o, "shux_io_complete_write_async_slot") != 0) {
       return 1;
     }
     return 0;
@@ -1205,7 +1206,7 @@ function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i3
     if (s == 0 as *u8) {
       return 0 - 1;
     }
-    let r: i32 = driver_copy_cstr_n(s, buf, max);
+    let r: i32 = driver_copy_cstr_n_impl(s, buf, max);
     return r;
   }
   return 0 - 1;
@@ -1966,3 +1967,23 @@ function shux_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): void {
     shux_append_linux_link_harden_impl(argv, la, cap);
   }
 }
+
+
+/* ---- G-02f-83：cstr 拷贝 / nm 未定义符号探测门闩 ---- */
+
+#[no_mangle]
+function driver_copy_cstr_n(src: *u8, buf: *u8, max: i32): i32 {
+  unsafe {
+    return driver_copy_cstr_n_impl(src, buf, max);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
+  unsafe {
+    return shux_link_obj_needs_undef_sym_impl(user_o, sym);
+  }
+  return 0;
+}
+
