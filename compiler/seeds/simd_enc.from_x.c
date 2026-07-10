@@ -1,4 +1,4 @@
-/* seeds/simd_enc.from_x.c — G-02f-7 product pure SIMD encode TU
+/* seeds/simd_enc.from_x.c — G-02f-211 try_hw/x86 shells; G-02f-7 product pure SIMD encode TU
  * G-02f-125 true .x pure helpers.
  * G-02f-124 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
@@ -28,6 +28,7 @@ extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, i
 
 /** slot_off 为 asm 局部槽距 fp 的正字节距（lane0 低址端，与向量 let init 的 lea 一致）；x86 disp = -slot_off。 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz) {
   (void)lanes;
   (void)esz;
@@ -249,6 +250,7 @@ int32_t simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(struct platform_elf_ElfCodegenCtx *e
 
 /** 发射整型向量 add/sub 公共路径（SSE paddd/psubd 或 AVX2 vpaddd/vpsubd）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                                     int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes,
                                                     int32_t esz, int32_t ta, uint32_t cpu_features, int32_t is_sub) {
@@ -301,6 +303,7 @@ int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodegenCtx *
 
 
 
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_try_hw_vector_iadd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
@@ -308,6 +311,7 @@ int32_t simd_enc_try_hw_vector_iadd_rbp(struct platform_elf_ElfCodegenCtx *elf_c
                                                 cpu_features, 0);
 }
 
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_try_hw_vector_isub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
@@ -315,6 +319,7 @@ int32_t simd_enc_try_hw_vector_isub_rbp(struct platform_elf_ElfCodegenCtx *elf_c
                                                 cpu_features, 1);
 }
 
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_try_hw_vector_imul_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
@@ -354,6 +359,7 @@ int32_t simd_enc_try_hw_vector_imul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
     return -1;
 }
 
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_try_hw_vector_fadd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
@@ -381,6 +387,7 @@ int32_t simd_enc_try_hw_vector_fadd_rbp(struct platform_elf_ElfCodegenCtx *elf_c
     return 0;
 }
 
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
@@ -408,6 +415,7 @@ int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
     return 0;
 }
 
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_try_hw_vector_fma_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                        int32_t slot_off_b, int32_t slot_off_c, int32_t slot_off_dst, int32_t lanes,
                                        int32_t esz, int32_t ta, uint32_t cpu_features) {
@@ -1140,6 +1148,7 @@ int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf
 }
 
 /** x86：xorps xmm0, xmm0（acc 清零）。 */
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_x86_xorps_xmm0_zero(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[3] = {0x0f, 0x57, 0xc0};
     if (!elf_ctx)
@@ -1148,6 +1157,7 @@ int32_t simd_enc_x86_xorps_xmm0_zero(struct platform_elf_ElfCodegenCtx *elf_ctx)
 }
 
 /** x86：movups xmm1, [rbp+disp32]（f32 SoA 列块 load）。 */
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_x86_movups_xmm1_rbp_disp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
     if (!elf_ctx)
         return -1;
@@ -1155,6 +1165,7 @@ int32_t simd_enc_x86_movups_xmm1_rbp_disp(struct platform_elf_ElfCodegenCtx *elf
 }
 
 /** x86：addps xmm0, xmm1（f32 向量累加）。 */
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_x86_addps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     if (!elf_ctx)
         return -1;
@@ -1182,6 +1193,7 @@ int32_t simd_x86_pshufd_xmm1_xmm0(struct platform_elf_ElfCodegenCtx *elf_ctx, ui
  * x86：xmm0 内 4×f32 归约为标量（低 lane = 四 lane 之和）。
  * pshufd/addps 三指令序列（无栈 spill，避免大栈帧下 RSP 破坏）。
  */
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_x86_horizontal_addps_xmm0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     if (!elf_ctx)
         return -1;
@@ -1195,6 +1207,7 @@ int32_t simd_enc_x86_horizontal_addps_xmm0(struct platform_elf_ElfCodegenCtx *el
 }
 
 /** x86：movss xmm0 → [rbp+disp32]（f32 标量写回累加槽）。 */
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_x86_movss_xmm0_rbp_disp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
     static const uint8_t prefix[3] = {0xf3, 0x0f, 0x11};
     if (!elf_ctx)
@@ -1212,6 +1225,7 @@ int32_t simd_enc_x86_movss_xmm0_rbp_disp(struct platform_elf_ElfCodegenCtx *elf_
 /**
  * f32 SoA 列：movups xmm1, [col0 + i*4]（col0 为 x[0] 栈正偏移，i 在 rbp+off_i）。
  */
+/* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_f32_soa_col_movups_xmm1_at_idx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_col0,
                                                 int32_t off_i, int32_t ta) {
     if (!elf_ctx || off_col0 < 0 || off_i < 0 || ta != 0)
