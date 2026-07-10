@@ -6,6 +6,7 @@
 // C 尾：存储槽数组、import resolve/snprintf、clear 槽循环、malloc buf、大 pipeline。
 // G-02f-63：+ ends_with/.x 魔数真逻辑；typeck_for_ctx / lsp_free_loaded 门闩。
 // G-02f-84：pipeline preprocess diag + dep slot store 门闩。
+// G-02f-85：import index / path-already-out scan 门闩。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -27,8 +28,8 @@ extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32
 extern "C" function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8;
 extern "C" function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8, ctx: *u8): i32;
 extern "C" function shu_lsp_free_loaded_imports_impl(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void;
-extern "C" function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32;
-extern "C" function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32;
+extern "C" function shux_find_loaded_import_index_scan_impl(path: *u8, all_paths: *u8, n_all: i32): i32;
+extern "C" function shux_merge_deps_path_already_out_scan_impl(path: *u8, out_paths: *u8, n_out: i32): i32;
 extern "C" function shux_emit_pipeline_glue_include_impl(): void;
 extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
 extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
@@ -508,7 +509,7 @@ function shux_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: 
     return -1;
   }
   unsafe {
-    return shux_find_loaded_import_index_scan(import_path, all_paths, n_all);
+    return shux_find_loaded_import_index_scan_impl(import_path, all_paths, n_all);
   }
   return -1;
 }
@@ -525,7 +526,7 @@ function shux_merge_deps_path_already_out(path: *u8, out_paths: *u8, n_out: i32)
     return 0;
   }
   unsafe {
-    return shux_merge_deps_path_already_out_scan(path, out_paths, n_out);
+    return shux_merge_deps_path_already_out_scan_impl(path, out_paths, n_out);
   }
   return 0;
 }
@@ -1150,5 +1151,42 @@ function driver_dep_module_ptr_set(i: i32, module: *u8): void {
   unsafe {
     driver_dep_module_ptr_set_impl(i, module);
   }
+}
+
+
+/* ---- G-02f-85：import path scan 门闩 ---- */
+
+#[no_mangle]
+function shux_find_loaded_import_index_scan(path: *u8, all_paths: *u8, n_all: i32): i32 {
+  if (path == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (all_paths == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (n_all <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    return shux_find_loaded_import_index_scan_impl(path, all_paths, n_all);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_merge_deps_path_already_out_scan(path: *u8, out_paths: *u8, n_out: i32): i32 {
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  if (out_paths == 0 as *u8) {
+    return 0;
+  }
+  if (n_out <= 0) {
+    return 0;
+  }
+  unsafe {
+    return shux_merge_deps_path_already_out_scan_impl(path, out_paths, n_out);
+  }
+  return 0;
 }
 

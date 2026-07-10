@@ -1,5 +1,5 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
  *         merge ends_with/magic true logic + typeck/lsp free gates; C bulk remains.
  * .x covers: + ends_with/.x magic, typeck_for_ctx, lsp_free_loaded_imports, preprocess diag + dep slot stores (G-02f-84).
@@ -1135,7 +1135,9 @@ void driver_asm_fclose_asm_out_impl(FILE *fp);
 /* G-02f-51 helper protos (defs later near dep_prerun) */
 const char *shux_dep_prerun_entry_dir_pick(const char *main_entry_dir, const char **lib_roots, int n_lib_roots);
 int shux_find_loaded_import_index_scan(const char *import_path, char **all_paths, int n_all);
+int shux_find_loaded_import_index_scan_impl(const char *import_path, char **all_paths, int n_all);
 int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], int n_out);
+int shux_merge_deps_path_already_out_scan_impl(const char *path, char *out_paths[], int n_out);
 void shux_emit_pipeline_glue_include_impl(void);
 int shux_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t dep_dir_size);
 
@@ -1150,7 +1152,7 @@ int shux_find_loaded_import_index(const char *import_path, char **all_paths, int
     return -1;
   }
   {
-    return shux_find_loaded_import_index_scan(import_path, all_paths, n_all);
+    return shux_find_loaded_import_index_scan_impl(import_path, all_paths, n_all);
   }
   return -1;
 }
@@ -1167,7 +1169,7 @@ const char *shux_dep_prerun_entry_dir_pick(const char *main_entry_dir, const cha
     return main_entry_dir;
 }
 
-int shux_find_loaded_import_index_scan(const char *import_path, char **all_paths, int n_all) {
+int shux_find_loaded_import_index_scan_impl(const char *import_path, char **all_paths, int n_all) {
     int i;
     for (i = 0; i < n_all; i++) {
         if (all_paths[i] && strcmp(all_paths[i], import_path) == 0)
@@ -1175,8 +1177,15 @@ int shux_find_loaded_import_index_scan(const char *import_path, char **all_paths
     }
     return -1;
 }
+int shux_find_loaded_import_index_scan(const char *import_path, char **all_paths, int n_all) {
+  {
+    return shux_find_loaded_import_index_scan_impl(import_path, all_paths, n_all);
+  }
+  return 0;
+}
 
-int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], int n_out) {
+
+int shux_merge_deps_path_already_out_scan_impl(const char *path, char *out_paths[], int n_out) {
     int j;
     for (j = 0; j < n_out; j++) {
         if (out_paths[j] && strcmp(out_paths[j], path) == 0)
@@ -1184,6 +1193,13 @@ int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], i
     }
     return 0;
 }
+int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], int n_out) {
+  {
+    return shux_merge_deps_path_already_out_scan_impl(path, out_paths, n_out);
+  }
+  return 0;
+}
+
 
 void shux_emit_pipeline_glue_include_impl(void) {
     fputs("\n#include \"pipeline_glue.c\"\n", stdout);
@@ -2100,7 +2116,7 @@ int shux_merge_deps_path_already_out(const char *path, char *out_paths[], int n_
     return 0;
   }
   {
-    return shux_merge_deps_path_already_out_scan(path, out_paths, n_out);
+    return shux_merge_deps_path_already_out_scan_impl(path, out_paths, n_out);
   }
   return 0;
 }

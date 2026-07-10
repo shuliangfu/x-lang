@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-14/71/72：runtime 产品源 seeds/runtime.from_x.c + 真迁 .x 门闩。
+// G-02f-85：smoke_diag / unlink_failed_out / asm direct-import 门闩。
 // G-02f-71/72：driver compile/run 薄封装 + main_entry/argv/exec/fmt/大 run_* 门闩。
 // 产品：cc seeds/runtime.from_x.c + RUNTIME_DRIVER_NO_C_CFLAGS → src/runtime_driver_no_c.o
 // C 尾：argv 解析循环、#if 变体、大 driver 路径、syscall/fs。
@@ -55,6 +56,12 @@ extern "C" function driver_fmt_one_file_impl(path: *u8, path_len: i32): i32;
 extern "C" function main_entry_impl(argc: i32, argv: *u8): i32;
 
 /* ---- G-02f-71：driver compile/run 薄门闩 ---- */
+
+
+extern "C" function shux_smoke_diag_enabled_impl(): i32;
+extern "C" function driver_unlink_failed_output_impl(out_path: *u8): void;
+extern "C" function driver_x_emit_asm_direct_import_only_impl(input_path: *u8): i32;
+extern "C" function driver_x_emit_asm_dep_parse_skip_typeck_ok_impl(input_path: *u8, dep_path: *u8): i32;
 
 #[no_mangle]
 function run_compiler_c(argc: i32, argv: *u8): i32 {
@@ -405,3 +412,38 @@ function main_entry(argc: i32, argv: *u8): i32 {
   }
   return 0 - 1;
 }
+
+
+/* ---- G-02f-85：smoke / failed-output unlink / asm path 门闩 ---- */
+
+#[no_mangle]
+function shux_smoke_diag_enabled(): i32 {
+  unsafe {
+    return shux_smoke_diag_enabled_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_unlink_failed_output(out_path: *u8): void {
+  unsafe {
+    driver_unlink_failed_output_impl(out_path);
+  }
+}
+
+#[no_mangle]
+function driver_x_emit_asm_direct_import_only(input_path: *u8): i32 {
+  unsafe {
+    return driver_x_emit_asm_direct_import_only_impl(input_path);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_x_emit_asm_dep_parse_skip_typeck_ok(input_path: *u8, dep_path: *u8): i32 {
+  unsafe {
+    return driver_x_emit_asm_dep_parse_skip_typeck_ok_impl(input_path, dep_path);
+  }
+  return 0;
+}
+

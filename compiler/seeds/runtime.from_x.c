@@ -1,4 +1,4 @@
-/* seeds/runtime.from_x.c — G-02f-14/71/72 product TU
+/* seeds/runtime.from_x.c — G-02f-14/85/71/72 product TU
  * Product objects from this seed (flags select variants):
  *   runtime_driver_no_c.o  — RUNTIME_DRIVER_NO_C_CFLAGS (G05 product)
  *   runtime_driver.o / runtime_x.o / runtime.o / runtime_driver_asm_*
@@ -309,20 +309,33 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
  * 结构化 smoke 是否启用：`--diag-json`（diag_json_enabled）或 SHUX_SMOKE_DIAG=1。
  * 默认关闭，保持 stdout 旧行（grep/golden 兼容）；启用时另向 stderr 输出带编号的 info 诊断。
  */
-static int shux_smoke_diag_enabled(void) {
+int shux_smoke_diag_enabled_impl(void) {
     const char *e;
     if (diag_json_enabled())
         return 1;
     e = getenv("SHUX_SMOKE_DIAG");
     return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
+int shux_smoke_diag_enabled(void) {
+  {
+    return shux_smoke_diag_enabled_impl();
+  }
+  return 0;
+}
+
 
 /* 编译/链接失败时删除 -o 目标，避免遗留 0 字节或半写入产物污染后续增量构建。 */
-static void driver_unlink_failed_output(const char *out_path) {
+void driver_unlink_failed_output_impl(const char *out_path) {
     if (!out_path || !out_path[0])
         return;
     (void)unlink(out_path);
 }
+void driver_unlink_failed_output(const char *out_path) {
+  {
+    driver_unlink_failed_output_impl(out_path);
+  }
+}
+
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
@@ -4447,7 +4460,7 @@ static int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const cha
     return 0;
 }
 
-static int driver_x_emit_asm_direct_import_only(const char *input_path) {
+int driver_x_emit_asm_direct_import_only_impl(const char *input_path) {
     if (!input_path)
         return 0;
     if (strstr(input_path, "src/asm/asm.x") != NULL || strstr(input_path, "/asm/asm.x") != NULL)
@@ -4457,12 +4470,26 @@ static int driver_x_emit_asm_direct_import_only(const char *input_path) {
         return 1;
     return 0;
 }
+int driver_x_emit_asm_direct_import_only(const char *input_path) {
+  {
+    return driver_x_emit_asm_direct_import_only_impl(input_path);
+  }
+  return 0;
+}
 
-static int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const char *dep_path) {
+
+int driver_x_emit_asm_dep_parse_skip_typeck_ok_impl(const char *input_path, const char *dep_path) {
     if (!driver_x_emit_asm_direct_import_only(input_path) || !dep_path)
         return 0;
     return strcmp(dep_path, "backend") == 0;
 }
+int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const char *dep_path) {
+  {
+    return driver_x_emit_asm_dep_parse_skip_typeck_ok_impl(input_path, dep_path);
+  }
+  return 0;
+}
+
 
 #if !defined(SHUX_NO_C_FRONTEND)
 /**
