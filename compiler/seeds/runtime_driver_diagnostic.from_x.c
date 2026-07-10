@@ -77,9 +77,6 @@ void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint
 
 extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
-
-/** 供 .x 读 lsp_diag_enabled（G-02f-163）。 */
-int lsp_diag_get_enabled(void)
 #else
 void driver_diagnostic_parse_fail_impl(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types);
 void driver_diagnostic_parse_skip_function(int32_t byte_pos, int32_t num_funcs_so_far, int32_t name_len, const uint8_t *name);
@@ -129,13 +126,17 @@ void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint
 
 extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_is_extern_at(void *module, int32_t fi);
-
-/** 供 .x 读 lsp_diag_enabled（G-02f-163）。 */
-int lsp_diag_get_enabled(void)
 #endif
-{
+
+/** 供 .x 读 lsp_diag_enabled（G-02f-163/416）。实现体始终 seed；public PREFER 时 thin pure forward。 */
+int lsp_diag_get_enabled_impl(void) {
     return lsp_diag_enabled ? 1 : 0;
 }
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+int lsp_diag_get_enabled(void) {
+    return lsp_diag_get_enabled_impl();
+}
+#endif
 
 /* G-02f-163：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_RDD_THIN_FROM_X

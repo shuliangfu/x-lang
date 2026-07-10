@@ -1,11 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-339～341/409：runtime_driver_diagnostic L2 thin — pure _impl 门闩子集（无字符串字面量）。
+// G-02f-339～341/409/416：runtime_driver_diagnostic L2 thin — pure _impl 门闩子集（无字符串字面量）。
 // 产品 PREFER_X_O：g05_try_x_to_o → thin.o + seeds/runtime_driver_diagnostic.from_x.c rest
 //   （-DSHUX_L2_RDD_THIN_FROM_X）ld -r → src/runtime_driver_diagnostic.o
 // 完整逻辑源仍见 src/runtime_driver_diagnostic.x（整文件 -E 仍 typeck/字符串阻）。
-// 本 TU 门闩数：76（f-339～341 + f-387 env + f-409 pipe/storage shells）
+// 本 TU 门闩数：77（f-339～341 + f-387 env + f-409 pipe/storage + f-416 lsp_diag_get）
 
 extern "C" function driver_debug_log_impl(step: i32): void;
 extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
@@ -737,6 +737,17 @@ extern "C" function driver_diag_env_debug_pipe_impl(): i32;
 function driver_diag_env_debug_pipe(): i32 {
   unsafe {
     return driver_diag_env_debug_pipe_impl();
+  }
+  return 0;
+}
+
+// ---- G-02f-416：lsp_diag_enabled getter → seed impl ----
+extern "C" function lsp_diag_get_enabled_impl(): i32;
+
+#[no_mangle]
+function lsp_diag_get_enabled(): i32 {
+  unsafe {
+    return lsp_diag_get_enabled_impl();
   }
   return 0;
 }

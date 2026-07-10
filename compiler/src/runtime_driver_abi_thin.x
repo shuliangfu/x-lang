@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343/344/345/387/388/400–402/413/414：runtime_driver_abi L2 thin（59 门闩）。
+// G-02f-343/344/345/387/388/400–402/413/414/416：runtime_driver_abi L2 thin（61 门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 //
 
@@ -584,4 +584,24 @@ function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
   unsafe {
     driver_run_on_large_stack_pthread_impl(fn, arg);
   }
+}
+
+// ---- G-02f-416：entry_source_len load/query → seed impl ----
+extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug_impl(): i64;
+extern "C" function driver_pipeline_entry_source_len_impl(): i64;
+
+#[no_mangle]
+function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64 {
+  unsafe {
+    return driver_pipeline_entry_source_len_load_and_maybe_debug_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_pipeline_entry_source_len(): i64 {
+  unsafe {
+    return driver_pipeline_entry_source_len_impl();
+  }
+  return 0;
 }

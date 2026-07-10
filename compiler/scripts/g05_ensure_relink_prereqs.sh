@@ -844,7 +844,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-12 / G-02f-343/344/345：runtime_driver_abi.o
-  # 默认整 seed；PREFER_X_O=1 时 abi_thin.x（59：+ import scan/large-stack）+ rest ld -r
+  # 默认整 seed；PREFER_X_O=1 时 abi_thin.x（61：+ entry_source_len load）+ rest ld -r
   _rdabi=seeds/runtime_driver_abi.from_x.c
   _rdabi_thin_x=src/runtime_driver_abi_thin.x
   _rdabi_o=src/runtime_driver_abi.o
@@ -861,7 +861,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RDABI_THIN_FROM_X \
                -c -o "$_rdabi_rest_o" "$_rdabi" \
           && $CC -r -nostdlib -o "$_rdabi_o" "$_rdabi_thin_o" "$_rdabi_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rdabi_o ← $_rdabi_thin_x + seed-rest (G-02f-343/414 L2 hybrid driver_abi thin)"
+          echo "g05_ensure: $_rdabi_o ← $_rdabi_thin_x + seed-rest (G-02f-343/416 L2 hybrid driver_abi thin)"
           _rdabi_done=1
         else
           echo "g05_ensure: L2 hybrid runtime_driver_abi failed; fallback full seed" >&2
@@ -876,7 +876,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-12 / G-02f-339：runtime_driver_diagnostic.o
-  # 默认整 seed；PREFER_X_O=1 时 diagnostic_thin.x（76 门闩）+ seed-rest ld -r
+  # 默认整 seed；PREFER_X_O=1 时 diagnostic_thin.x（77 门闩）+ seed-rest ld -r
   _rdd=seeds/runtime_driver_diagnostic.from_x.c
   _rdd_thin_x=src/runtime_driver_diagnostic_thin.x
   _rdd_o=src/runtime_driver_diagnostic.o
@@ -893,7 +893,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RDD_THIN_FROM_X \
                -c -o "$_rdd_rest_o" "$_rdd" \
           && $CC -r -nostdlib -o "$_rdd_o" "$_rdd_thin_o" "$_rdd_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rdd_o ← $_rdd_thin_x + seed-rest (G-02f-341/409 L2 hybrid diagnostic thin)"
+          echo "g05_ensure: $_rdd_o ← $_rdd_thin_x + seed-rest (G-02f-341/416 L2 hybrid diagnostic thin)"
           _rdd_done=1
         else
           echo "g05_ensure: L2 hybrid runtime_driver_diagnostic failed; fallback full seed" >&2

@@ -501,12 +501,18 @@ void driver_pipeline_entry_source_len_store(size_t len) {
 }
 #endif
 
-size_t driver_pipeline_entry_source_len_load_and_maybe_debug(void) {
+/* G-02f-416：getenv/reportf 体始终 seed；public PREFER 时 thin pure forward */
+size_t driver_pipeline_entry_source_len_load_and_maybe_debug_impl(void) {
     if (getenv("SHUX_DEBUG_PIPE"))
         diag_reportf(NULL, 0, 0, "note", NULL,
                      "pipeline debug: entry_source_len_global=%zu", g_pipeline_entry_source_len);
     return g_pipeline_entry_source_len;
 }
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+size_t driver_pipeline_entry_source_len_load_and_maybe_debug(void) {
+    return driver_pipeline_entry_source_len_load_and_maybe_debug_impl();
+}
+#endif
 
 /**
  * 记录 pipeline 入口源码字节数（大栈 pthread 进入 pipeline 前调用）。
@@ -525,12 +531,15 @@ void driver_set_pipeline_entry_source_len(size_t len) {
  * 查询当前记录的入口源码长度；SHUX_DEBUG_PIPE=1 时打印。
  * 返回值：最近一次 driver_set_pipeline_entry_source_len 写入的长度。
  */
-size_t driver_pipeline_entry_source_len(void) {
-  {
-    return driver_pipeline_entry_source_len_load_and_maybe_debug();
-  }
-  return 0;
+/* G-02f-416：public PREFER 时 thin pure forward */
+size_t driver_pipeline_entry_source_len_impl(void) {
+    return driver_pipeline_entry_source_len_load_and_maybe_debug_impl();
 }
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+size_t driver_pipeline_entry_source_len(void) {
+    return driver_pipeline_entry_source_len_impl();
+}
+#endif
 
 /**
  * 非 0 表示入口源码过大，应跳过 merge/library 全量 typeck（.x 路径上易 segfault）。
