@@ -1,9 +1,10 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95/223 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
  *         merge ends_with/magic true logic + typeck/lsp free gates; C bulk remains.
  * .x covers: + ends_with/.x magic, typeck_for_ctx, lsp_free_loaded_imports, preprocess diag + dep slot stores (G-02f-84).
  * G-02f-93/95: dep-slot/debug match + pipeline thread fns gates.
+ * G-02f-223: entry_dir_pick + import_dep_dir pure; dep set/ndep bounds.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -416,8 +417,7 @@ int typeck_ndep;
 int32_t *typeck_ndep_slot(void) {
     return (int32_t *)&typeck_ndep;
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void typeck_ndep_store(int32_t n) {
     typeck_ndep = (n <= 32) ? n : 32;
 }
@@ -437,18 +437,14 @@ void *typeck_dep_arena_get(int32_t i) {
         return NULL;
     return typeck_dep_arena_ptrs[i];
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void typeck_dep_module_set(int32_t i, void *mod) {
     if (i < 0 || i >= 32)
         return;
     typeck_dep_module_ptrs[i] = mod;
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-
-
-
+/* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void typeck_dep_arena_set(int32_t i, void *arena) {
     if (i < 0 || i >= 32)
         return;
@@ -1134,6 +1130,7 @@ int shux_find_loaded_import_index(const char *import_path, char **all_paths, int
  * 返回值：优先 lib_roots[0] 或 main_entry_dir。
  */
 
+/* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 const char *shux_dep_prerun_entry_dir_pick(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
     if (lib_roots && n_lib_roots > 0 && lib_roots[0] && lib_roots[0][0])
         return lib_roots[0];
@@ -2032,6 +2029,7 @@ int shux_pipeline_dep_prerun_for_asm_module_o(void *dep_mod, void *dep_arena, co
 extern void ast_module_free(struct ast_Module *mod);
 
 /** 从绝对/相对源文件 path 提取所在目录写入 dep_dir；供 load_one_import 递归 import 切换 dep_dir。 */
+/* G-02f-223：逻辑源 .x（真迁 pure）；seed 仍可走 _impl 同语义 */
 int shux_import_dep_dir_from_path(const char *path, char *dep_dir, size_t dep_dir_size) {
   if (path == NULL) {
     return -1;

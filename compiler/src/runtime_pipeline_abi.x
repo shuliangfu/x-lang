@@ -9,6 +9,7 @@
 // G-02f-85：import index / path-already-out scan 门闩。
 // G-02f-93：+ pctx_update_dep_slots_no_reset / debug_body_func_match 门闩。
 // G-02f-95：+ pipeline_run_x_thread_fn / asm_codegen_elf_o_thread_fn 门闩。
+// G-02f-223：entry_dir_pick + import_dep_dir pure；dep set/ndep 边界。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -27,7 +28,7 @@ extern "C" function strchr(s: *u8, c: i32): *u8;
 extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
 extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
 extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
-extern "C" function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8;
+/* shux_dep_prerun_entry_dir_pick：G-02f-223 下方真迁 */
 extern "C" function pipeline_typeck_module_for_ctx_impl(module: *u8, arena: *u8, ctx: *u8): i32;
 extern "C" function shu_lsp_free_loaded_imports_impl(all_dep_mods: *u8, all_dep_paths: *u8, n_all: i32): void;
 extern "C" function shux_pipeline_pctx_update_dep_slots_no_reset_impl(ctx: *u8, dep_mods: *u8, dep_ars: *u8, import_paths: *u8, n: i32): void;
@@ -536,21 +537,42 @@ function shux_emit_pipeline_glue_include(): void {
   }
 }
 
+// G-02f-223：从 path 取目录（最后 '/' 前）；无 path 时写 "."
 #[no_mangle]
 function shux_import_dep_dir_from_path(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32 {
-  if (path == 0 as *u8) {
-    return -1;
-  }
-  if (dep_dir == 0 as *u8) {
-    return -1;
-  }
-  if (dep_dir_size == 0) {
-    return -1;
-  }
+  if (path == 0 as *u8) { return 0 - 1; }
+  if (dep_dir == 0 as *u8) { return 0 - 1; }
+  if (dep_dir_size == 0) { return 0 - 1; }
   unsafe {
-    return shux_import_dep_dir_from_path_impl(path, dep_dir, dep_dir_size);
+    let n: i64 = 0;
+    while (n < 4096) {
+      if (path[n] == 0) { break; }
+      n = n + 1;
+    }
+    let last_slash: i64 = 0 - 1;
+    let i: i64 = 0;
+    while (i < n) {
+      // '/'
+      if (path[i] == 47) { last_slash = i; }
+      i = i + 1;
+    }
+    if (last_slash < 0) {
+      if (dep_dir_size < 2) { return 0 - 1; }
+      dep_dir[0] = 46; // '.'
+      dep_dir[1] = 0;
+      return 0;
+    }
+    let dlen: i64 = last_slash;
+    if (dlen >= dep_dir_size) { return 0 - 1; }
+    let j: i64 = 0;
+    while (j < dlen) {
+      dep_dir[j] = path[j];
+      j = j + 1;
+    }
+    dep_dir[dlen] = 0;
+    return 0;
   }
-  return -1;
+  return 0 - 1;
 }
 
 /* ---- G-02f-52：mega debug 转发 / clear / entry_dir / fclose ---- */
@@ -1109,22 +1131,32 @@ function pipeline_diag_merge_dep_missing(import_path: *u8): void {
   }
 }
 
+// G-02f-223：ndep 上限 32
 #[no_mangle]
 function typeck_ndep_store(n: i32): void {
+  let v: i32 = n;
+  if (v > 32) { v = 32; }
+  if (v < 0) { v = 0; }
   unsafe {
-    typeck_ndep_store_impl(n);
+    typeck_ndep_store_impl(v);
   }
 }
 
+// G-02f-223：dep module 槽写（边界 + 槽 API）
 #[no_mangle]
 function typeck_dep_module_set(i: i32, mod: *u8): void {
+  if (i < 0) { return; }
+  if (i >= 32) { return; }
   unsafe {
     typeck_dep_module_set_impl(i, mod);
   }
 }
 
+// G-02f-223：dep arena 槽写
 #[no_mangle]
 function typeck_dep_arena_set(i: i32, arena: *u8): void {
+  if (i < 0) { return; }
+  if (i >= 32) { return; }
   unsafe {
     typeck_dep_arena_set_impl(i, arena);
   }
@@ -1175,6 +1207,20 @@ function pipe_load_ptr_slot(base: *u8, i: i32): *u8 {
   a = a + (base[off + 6] as usize) * (m4 * m2);
   a = a + (base[off + 7] as usize) * (m4 * m2 * m);
   return a as *u8;
+}
+
+// G-02f-223：-L lib_roots[0] 优先于 main_entry_dir
+#[no_mangle]
+function shux_dep_prerun_entry_dir_pick(main_entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): *u8 {
+  if (lib_roots == 0 as *u8) { return main_entry_dir; }
+  if (n_lib_roots <= 0) { return main_entry_dir; }
+  unsafe {
+    let r0: *u8 = pipe_load_ptr_slot(lib_roots, 0);
+    if (r0 != 0 as *u8) {
+      if (r0[0] != 0) { return r0; }
+    }
+  }
+  return main_entry_dir;
 }
 
 #[no_mangle]
