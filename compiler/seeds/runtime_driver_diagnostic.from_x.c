@@ -1,4 +1,4 @@
-/* Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
+/* Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-178 padding true .x; G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
  * .x covers: fixed typeck msgs (f-30/31) + remaining diags gated f-73
@@ -536,7 +536,7 @@ void driver_diagnostic_typeck_try_propagate_bad_enclosing(int32_t line, int32_t 
 }
 
 /** .x typeck：结构体 §11.1 隐式 padding 前间隙；行文与 typeck.c TYPECK_ERR_AT 一致。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-178：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_diagnostic_typeck_struct_padding_before(const uint8_t *sname, int32_t sname_len, int32_t gap,
                                                     const uint8_t *fname, int32_t fname_len) {
     lsp_diag_report_typeck(
@@ -547,7 +547,7 @@ void driver_diagnostic_typeck_struct_padding_before(const uint8_t *sname, int32_
 }
 
 
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-178：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
 
 void driver_diagnostic_typeck_struct_padding_trailing(const uint8_t *sname, int32_t sname_len, int32_t gap) {
@@ -556,9 +556,7 @@ void driver_diagnostic_typeck_struct_padding_trailing(const uint8_t *sname, int3
                            (int)(sname_len > 0 ? sname_len : 0), (const char *)(sname ? sname : (const uint8_t *)""),
                            (int)gap);
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
+/* G-02f-178：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
 
 void driver_diagnostic_typeck_struct_field_bad_size(const uint8_t *sname, int32_t sname_len, const uint8_t *fname,

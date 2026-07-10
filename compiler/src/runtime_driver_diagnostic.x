@@ -7,6 +7,7 @@
 // G-02f-175：return_unresolved / return_subexpr 消息拼装真迁（copy_bytes + report_prefixed）。
 // G-02f-176：return_mismatch / assign_mismatch 消息拼装真迁。
 // G-02f-177：call_not_generic / wrong_num_type_args / requires_type_args 拼装真迁。
+// G-02f-178：struct_padding_before/trailing / field_bad_size 拼装真迁。
 // G-02f-96：driver_diag_report_x_pipeline_code 门闩（va_list 本体 C _impl）。
 // 产品：./shux-c -E → seeds/runtime_driver_diagnostic.from_x.c（+ C 尾 + 字符串抛光）。
 // C 尾：snprintf 诊断、va_list pipeline 码、scratch 缓冲、debug getenv 详细路径。
@@ -27,9 +28,6 @@ extern "C" function driver_diagnostic_typeck_ret_fail_impl(stage: i32, op_expr_r
 extern "C" function driver_diagnostic_typeck_binop_operands_impl(expr_ref: i32, left_ref: i32, right_ref: i32, left_kind: i32, right_kind: i32, left_block_ref: i32, right_block_ref: i32, left_ty_ref: i32, right_ty_ref: i32, left_ty: *u8, left_ty_len: i32, right_ty: *u8, right_ty_len: i32): void;
 extern "C" function driver_diagnostic_parser_onefunc_param_ref_impl(func_name: *u8, func_name_len: i32, param_name: *u8, param_name_len: i32, stage: i32, param_idx: i32, type_ref: i32): void;
 extern "C" function driver_diagnostic_typeck_import_const_must_be_qualified_impl(line: i32, col: i32, name: *u8, name_len: i32, binding: *u8, binding_len: i32): void;
-extern "C" function driver_diagnostic_typeck_struct_padding_before_impl(sname: *u8, sname_len: i32, gap: i32, fname: *u8, fname_len: i32): void;
-extern "C" function driver_diagnostic_typeck_struct_padding_trailing_impl(sname: *u8, sname_len: i32, gap: i32): void;
-extern "C" function driver_diagnostic_typeck_struct_field_bad_size_impl(sname: *u8, sname_len: i32, fname: *u8, fname_len: i32): void;
 extern "C" function driver_diagnostic_typeck_block_enter_impl(func_idx: i32, block_ref: i32, n_const: i32, n_let: i32, n_loop: i32, n_for: i32, n_expr: i32, final_ref: i32): void;
 extern "C" function driver_diagnostic_typeck_fn_enter_impl(func_idx: i32, name: *u8, name_len: i32): void;
 extern "C" function driver_diagnostic_typeck_var_resolution_impl(expr_ref: i32, name: *u8, name_len: i32, func_idx: i32, block_ref: i32, source: i32, type_ref: i32): void;
@@ -241,26 +239,8 @@ function driver_diagnostic_typeck_import_const_must_be_qualified(line: i32, col:
   }
 }
 
-#[no_mangle]
-function driver_diagnostic_typeck_struct_padding_before(sname: *u8, sname_len: i32, gap: i32, fname: *u8, fname_len: i32): void {
-  unsafe {
-    driver_diagnostic_typeck_struct_padding_before_impl(sname, sname_len, gap, fname, fname_len);
-  }
-}
+// struct_padding_* / field_bad_size：见文件尾 G-02f-178 真迁
 
-#[no_mangle]
-function driver_diagnostic_typeck_struct_padding_trailing(sname: *u8, sname_len: i32, gap: i32): void {
-  unsafe {
-    driver_diagnostic_typeck_struct_padding_trailing_impl(sname, sname_len, gap);
-  }
-}
-
-#[no_mangle]
-function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname_len: i32, fname: *u8, fname_len: i32): void {
-  unsafe {
-    driver_diagnostic_typeck_struct_field_bad_size_impl(sname, sname_len, fname, fname_len);
-  }
-}
 
 // assign_mismatch：见文件尾 G-02f-176 真迁
 
@@ -721,6 +701,48 @@ function driver_diagnostic_typeck_call_requires_type_args(line: i32, col: i32, n
   at = driver_diag_append_cstr(&msg[0], 280, at, "<Type>(...))");
   unsafe {
     lsp_diag_report_typeck(line, col, &msg[0]);
+  }
+}
+
+// G-02f-178：struct padding / field size 诊断（line/col 固定 0,0，与 seed 一致）
+#[no_mangle]
+function driver_diagnostic_typeck_struct_padding_before(sname: *u8, sname_len: i32, gap: i32, fname: *u8, fname_len: i32): void {
+  let msg: u8[320] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 320, 0, "struct '");
+  at = driver_diag_append_name(&msg[0], 320, at, sname, sname_len);
+  at = driver_diag_append_cstr(&msg[0], 320, at, "' has ");
+  at = driver_diag_append_i32(&msg[0], 320, at, gap);
+  at = driver_diag_append_cstr(&msg[0], 320, at, " byte(s) implicit padding before field '");
+  at = driver_diag_append_name(&msg[0], 320, at, fname, fname_len);
+  at = driver_diag_append_cstr(&msg[0], 320, at, "'; add explicit padding field or allow(padding)");
+  unsafe {
+    lsp_diag_report_typeck(0, 0, &msg[0]);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_struct_padding_trailing(sname: *u8, sname_len: i32, gap: i32): void {
+  let msg: u8[320] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 320, 0, "struct '");
+  at = driver_diag_append_name(&msg[0], 320, at, sname, sname_len);
+  at = driver_diag_append_cstr(&msg[0], 320, at, "' has ");
+  at = driver_diag_append_i32(&msg[0], 320, at, gap);
+  at = driver_diag_append_cstr(&msg[0], 320, at, " byte(s) implicit trailing padding; add explicit padding field or allow(padding)");
+  unsafe {
+    lsp_diag_report_typeck(0, 0, &msg[0]);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname_len: i32, fname: *u8, fname_len: i32): void {
+  let msg: u8[280] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 280, 0, "struct '");
+  at = driver_diag_append_name(&msg[0], 280, at, sname, sname_len);
+  at = driver_diag_append_cstr(&msg[0], 280, at, "' field '");
+  at = driver_diag_append_name(&msg[0], 280, at, fname, fname_len);
+  at = driver_diag_append_cstr(&msg[0], 280, at, "' has unknown or invalid type size");
+  unsafe {
+    lsp_diag_report_typeck(0, 0, &msg[0]);
   }
 }
 
