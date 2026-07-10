@@ -17,13 +17,14 @@
 // f-347：push = snap_save + apply_impl；restore = snap_load + ctx_set_all → 共 41
 // f-386：get_use_color / code_table_has / json_get|set_state → _impl 门闩
 // f-415：diag_io_* stdio/fprint + code_table_len → _impl 门闩（共 62）
+// f-420：diag_ctx_set_all / get_file/source/len → _impl 门闩（共 66）
 
 // ---- rest / libc 提供的符号（勿与下方 thin public 同名，以免 -E 改名）----
 extern "C" function diag_ctx_get_use_color_impl(): i32;
-extern "C" function diag_ctx_get_file(): *u8;
-extern "C" function diag_ctx_get_source(): *u8;
-extern "C" function diag_ctx_get_source_len(): i64;
-extern "C" function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
+extern "C" function diag_ctx_get_file_impl(): *u8;
+extern "C" function diag_ctx_get_source_impl(): *u8;
+extern "C" function diag_ctx_get_source_len_impl(): i64;
+extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
 extern "C" function diag_code_table_has_impl(code: *u8): i32;
 extern "C" function diag_entry_kind(code: *u8): *u8;
 extern "C" function diag_entry_summary(code: *u8): *u8;
@@ -142,7 +143,7 @@ function diag_color_prefix(plain: *u8, color: *u8): *u8 {
 #[no_mangle]
 function diag_get_file(): *u8 {
   unsafe {
-    return diag_ctx_get_file();
+    return diag_ctx_get_file_impl();
   }
   return 0;
 }
@@ -150,7 +151,7 @@ function diag_get_file(): *u8 {
 #[no_mangle]
 function diag_get_source(): *u8 {
   unsafe {
-    return diag_ctx_get_source();
+    return diag_ctx_get_source_impl();
   }
   return 0;
 }
@@ -158,7 +159,7 @@ function diag_get_source(): *u8 {
 #[no_mangle]
 function diag_get_source_len(): i64 {
   unsafe {
-    return diag_ctx_get_source_len();
+    return diag_ctx_get_source_len_impl();
   }
   return 0;
 }
@@ -200,7 +201,7 @@ function diag_code_details(code: *u8): *u8 {
 function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
   unsafe {
     let c: i32 = diag_should_color_impl();
-    diag_ctx_set_all(path, source, source_len, c);
+    diag_ctx_set_all_impl(path, source, source_len, c);
   }
 }
 
@@ -411,9 +412,9 @@ function diag_push_snap_save(snapshot: *u8): void {
     return;
   }
   unsafe {
-    diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file());
-    diag_snap_store_ptr(snapshot, 8, diag_ctx_get_source());
-    diag_snap_store_usize(snapshot, 16, diag_ctx_get_source_len() as usize);
+    diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file_impl());
+    diag_snap_store_ptr(snapshot, 8, diag_ctx_get_source_impl());
+    diag_snap_store_usize(snapshot, 16, diag_ctx_get_source_len_impl() as usize);
     diag_snap_store_i32(snapshot, 24, diag_ctx_get_use_color_impl());
   }
 }
@@ -436,7 +437,7 @@ function diag_restore(snapshot: *u8): void {
     let s: *u8 = diag_snap_load_ptr(snapshot, 8);
     let sl: usize = diag_snap_load_usize(snapshot, 16);
     let c: i32 = diag_snap_load_i32(snapshot, 24);
-    diag_ctx_set_all(p, s, sl as i64, c);
+    diag_ctx_set_all_impl(p, s, sl as i64, c);
   }
 }
 
@@ -718,4 +719,28 @@ function diag_io_fprint_code_table_hdr(out: *u8): void {
 #[no_mangle]
 function diag_io_fprint_code_table_row(out: *u8, code: *u8, kind: *u8, summary: *u8): void {
   unsafe { diag_io_fprint_code_table_row_impl(out, code, kind, summary); }
+}
+
+// ---- G-02f-420：ctx field get/set → seed impl pure forward ----
+#[no_mangle]
+function diag_ctx_get_file(): *u8 {
+  unsafe { return diag_ctx_get_file_impl(); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_ctx_get_source(): *u8 {
+  unsafe { return diag_ctx_get_source_impl(); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_ctx_get_source_len(): i64 {
+  unsafe { return diag_ctx_get_source_len_impl(); }
+  return 0;
+}
+
+#[no_mangle]
+function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_color: i32): void {
+  unsafe { diag_ctx_set_all_impl(path, source, source_len, use_color); }
 }

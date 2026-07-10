@@ -477,12 +477,18 @@ int diag_extract_line_impl(int line_no, const char **line_start_out, size_t *lin
 
 
 /** 供 .x 写 g_diag_ctx（G-02f-156）。 */
-void diag_ctx_set_all(const char *path, const char *source, size_t source_len, int use_color) {
+/* G-02f-420：实现体始终 seed；public PREFER 时 thin pure forward */
+void diag_ctx_set_all_impl(const char *path, const char *source, size_t source_len, int use_color) {
     g_diag_ctx.file_path = path;
     g_diag_ctx.source = source;
     g_diag_ctx.source_len = source_len;
     g_diag_ctx.use_color = use_color;
 }
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+void diag_ctx_set_all(const char *path, const char *source, size_t source_len, int use_color) {
+    diag_ctx_set_all_impl(path, source, source_len, use_color);
+}
+#endif
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-336：hybrid 时由 diag_thin.x 提供 */
@@ -540,15 +546,31 @@ void diag_restore(const DiagContextSnapshot *snapshot)
 
 
 /** 供 .x 读 g_diag_ctx 字段（G-02f-155）。 */
-const char *diag_ctx_get_file(void) {
+/* G-02f-420：实现体始终 seed；public PREFER 时 thin pure forward */
+const char *diag_ctx_get_file_impl(void) {
     return g_diag_ctx.file_path;
 }
-const char *diag_ctx_get_source(void) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+const char *diag_ctx_get_file(void) {
+    return diag_ctx_get_file_impl();
+}
+#endif
+const char *diag_ctx_get_source_impl(void) {
     return g_diag_ctx.source;
 }
-size_t diag_ctx_get_source_len(void) {
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+const char *diag_ctx_get_source(void) {
+    return diag_ctx_get_source_impl();
+}
+#endif
+size_t diag_ctx_get_source_len_impl(void) {
     return g_diag_ctx.source_len;
 }
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+size_t diag_ctx_get_source_len(void) {
+    return diag_ctx_get_source_len_impl();
+}
+#endif
 
 /* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-336：hybrid 时由 diag_thin.x 提供 */
