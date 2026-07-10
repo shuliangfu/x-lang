@@ -4425,21 +4425,18 @@ typedef struct {
     int32_t result;
 } DriverStackEscGateArgs;
 
+/* G-02f-317 R8-lite：stack esc → rt_stack hybrid */
+#ifndef SHUX_RT_STACK_FROM_X
 /** pthread 入口：WPO-S3 post-scan gate。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void * driver_stack_esc_gate_thread_fn(void *arg) {
     DriverStackEscGateArgs *a = (DriverStackEscGateArgs *)arg;
     a->result = pipeline_typeck_x_stack_escape_gate_from_src_c(a->src, a->src_len);
     return NULL;
 }
 
-
-
-
 /**
  * 在 256MiB 栈 pthread 上跑 X struct 栈逃逸 gate（check 路径；勿在主线程 parse）。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) {
     DriverStackEscGateArgs args;
     args.src = src;
@@ -4450,8 +4447,11 @@ int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) {
         return pipeline_typeck_x_stack_escape_gate_from_src_c(src, src_len);
     return args.result;
 }
-
-
+#else
+void *driver_stack_esc_gate_thread_fn(void *arg);
+int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len);
+int labi_rt_stack_slice_marker(void);
+#endif
 
 #endif
 
