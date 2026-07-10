@@ -897,6 +897,8 @@ const char *shux_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path) {
     return b->slots[b->n++];
 }
 
+/* G-02f-277 L9 gates */
+#ifndef SHUX_LABI_GATES_FROM_X
 const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path) {
   if (b == NULL) {
     return NULL;
@@ -912,6 +914,9 @@ const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path) {
   }
   return NULL;
 }
+#else
+const char *shux_asm_ld_bank_push(ShuAsmLdPathBank *b, const char *path);
+#endif
 
 /**
  * 在每个 -L（lib root）根下尝试 rel（如 std/process/process.o）；命中则拷入 bank 并返回指针。
@@ -4039,6 +4044,8 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
     return 0;
 }
 
+/* G-02f-277 L9 gates */
+#ifndef SHUX_LABI_GATES_FROM_X
 int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
   if (c_paths == NULL) {
     return -1;
@@ -4051,6 +4058,9 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
   }
   return -1;
 }
+#else
+int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o);
+#endif
 
 
 /**
@@ -5874,6 +5884,8 @@ void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *
         argv[(*la)++] = labi_ld_flag_lSystem();
 }
 
+/* G-02f-277 L9 gates */
+#ifndef SHUX_LABI_GATES_FROM_X
 void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     const char **argv, int *la, int max_la, int append_lsystem) {
   if (flags == NULL) {
@@ -5892,6 +5904,10 @@ void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_
     shux_asm_ld_append_mach_tail_libs_impl(compress_o, user_o, flags, argv, la, max_la, append_lsystem);
   }
 }
+#else
+void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+    const char **argv, int *la, int max_la, int append_lsystem);
+#endif
 
 /**
  * Linux/Unix gcc 或裸 ld 路径：按 std 链入标记追加 -pthread、-lm、压缩库、-ldl、-lc（F-03 v2/v3 无 -luring）。
@@ -5977,6 +5993,8 @@ void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const ch
     }
 }
 
+/* G-02f-277 L9 gates */
+#ifndef SHUX_LABI_GATES_FROM_X
 void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la) {
   if (flags == NULL) {
@@ -5995,6 +6013,10 @@ void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *u
     shux_asm_ld_append_unix_gcc_tail_libs_impl(compress_o, user_o, flags, need_pt, argv, la, max_la);
   }
 }
+#else
+void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
+    int need_pt, const char **argv, int *la, int max_la);
+#endif
 
 #if defined(__linux__)
 /**
@@ -6026,6 +6048,8 @@ void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap) {
 }
 #endif
 
+/* G-02f-277 L9 gates */
+#ifndef SHUX_LABI_GATES_FROM_X
 void shux_append_linux_link_harden(char *argv[], int *la, int cap) {
   if (argv == NULL) {
     return;
@@ -6037,6 +6061,9 @@ void shux_append_linux_link_harden(char *argv[], int *la, int cap) {
     shux_append_linux_link_harden_impl(argv, la, cap);
   }
 }
+#else
+void shux_append_linux_link_harden(char *argv[], int *la, int cap);
+#endif
 
 
 /**
@@ -6507,6 +6534,8 @@ int shux_invoke_ld_for_exe_impl(const char *o_path, const char *exe_path, const 
         freestanding);
 }
 
+/* G-02f-277 L9 gates */
+#ifndef SHUX_LABI_GATES_FROM_X
 int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots) {
   if (o_path == NULL) {
@@ -6520,6 +6549,11 @@ int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char 
   }
   return -1;
 }
+#else
+int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char *target,
+    int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots);
+int labi_gates_count(void);
+#endif
 
 /* -------------------------------------------------------------------------- */
 /* G-02e：原 runtime_proc_abi.c 并入本 TU（产品链减 1 个手写 C 文件）。 */
