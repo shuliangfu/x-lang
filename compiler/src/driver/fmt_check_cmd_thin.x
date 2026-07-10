@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-350/383/389/405–407：fmt_check_cmd L2 thin — pure + lit 门闩（27）。
+// G-02f-350/383/389/405–408：fmt_check_cmd L2 thin — pure + lit 门闩（32）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // 对照：src/driver/fmt_check_cmd.x；默认仍整 seed。
@@ -307,5 +307,48 @@ function parse_ignore_opt(arg: *u8): void {
 function file_list_clear(): void {
   unsafe {
     file_list_clear_impl();
+  }
+}
+
+// ---- G-02f-408：collect/walk product dirs / lib roots → seed impl ----
+extern "C" function fmt_try_walk_if_product_subdir_impl(sub: *u8): i32;
+extern "C" function check_collect_default_product_dirs_impl(): void;
+extern "C" function collect_paths_from_arg_impl(arg: *u8): void;
+extern "C" function check_append_repo_lib_roots_impl(path: *u8, check_argv: *u8, n: *i32): void;
+extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
+
+#[no_mangle]
+function fmt_try_walk_if_product_subdir(sub: *u8): i32 {
+  unsafe {
+    return fmt_try_walk_if_product_subdir_impl(sub);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function check_collect_default_product_dirs(): void {
+  unsafe {
+    check_collect_default_product_dirs_impl();
+  }
+}
+
+#[no_mangle]
+function collect_paths_from_arg(arg: *u8): void {
+  unsafe {
+    collect_paths_from_arg_impl(arg);
+  }
+}
+
+#[no_mangle]
+function check_append_repo_lib_roots(path: *u8, check_argv: *u8, n: *i32): void {
+  unsafe {
+    check_append_repo_lib_roots_impl(path, check_argv, n);
+  }
+}
+
+#[no_mangle]
+function check_argv_append_default_libs_for_path(path: *u8, check_argv: *u8, n: *i32): void {
+  unsafe {
+    check_argv_append_default_libs_for_path_impl(path, check_argv, n);
   }
 }

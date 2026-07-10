@@ -102,6 +102,11 @@ void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg);
 void walk_dir_collect(const char *dir);
 void parse_ignore_opt(const char *arg);
 void file_list_clear(void);
+int fmt_try_walk_if_product_subdir(const char *sub);
+void check_collect_default_product_dirs(void);
+void collect_paths_from_arg(const char *arg);
+void check_append_repo_lib_roots(const char *path, char **check_argv, int *n);
+void check_argv_append_default_libs_for_path(const char *path, char **check_argv, int *n);
 #endif
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
@@ -309,7 +314,8 @@ void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
  * 从 path 所在目录向上查找含 core/ + std/ 的仓库根并注入 -L。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
+/* G-02f-408：实现体始终 seed；public PREFER 时 thin forward */
+void check_append_repo_lib_roots_impl(const char *path, char **check_argv, int *n) {
     char start[512];
     char cur[512];
     char parent[512];
@@ -358,6 +364,12 @@ void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
     }
 }
 
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
+  check_append_repo_lib_roots_impl(path, check_argv, n);
+}
+#endif
+
 
 
 
@@ -392,7 +404,8 @@ void check_init_user_lib_flags(int argc, char **argv, int path_start) {
  * 始终注入仓库根；compiler/src 下文件再追加 compiler/src 库根（裸 import lexer/token）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void check_argv_append_default_libs_for_path(const char *path, char **check_argv, int *n) {
+/* G-02f-408：实现体始终 seed；public PREFER 时 thin forward */
+void check_argv_append_default_libs_for_path_impl(const char *path, char **check_argv, int *n) {
     char cwd_buf[512];
     char cs[560];
     struct stat st;
@@ -420,6 +433,12 @@ void check_argv_append_default_libs_for_path(const char *path, char **check_argv
         }
     }
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+void check_argv_append_default_libs_for_path(const char *path, char **check_argv, int *n) {
+  check_argv_append_default_libs_for_path_impl(path, check_argv, n);
+}
+#endif
 
 
 
@@ -738,7 +757,8 @@ const char *fmt_default_product_sub_at(int i) {
 }
 
 /* getcwd+stat+walk 🔒；命中产品子目录返回 1 */
-int fmt_try_walk_if_product_subdir(const char *sub) {
+/* G-02f-408：实现体始终 seed；public PREFER 时 thin forward */
+int fmt_try_walk_if_product_subdir_impl(const char *sub) {
     char cwd[512];
     char subp[560];
     struct stat st;
@@ -754,6 +774,12 @@ int fmt_try_walk_if_product_subdir(const char *sub) {
     return 0;
 }
 
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int fmt_try_walk_if_product_subdir(const char *sub) {
+  return fmt_try_walk_if_product_subdir_impl(sub);
+}
+#endif
+
 void fmt_walk_cwd_fallback_impl(void) {
     char cwd[512];
     if (!getcwd(cwd, sizeof cwd))
@@ -765,19 +791,26 @@ void fmt_walk_cwd_fallback_impl(void) {
  * 无路径参数时 check 的默认扫描范围（产品树，不含 tests 负例目录）。
  * G-02f-250：逻辑源 .x（编排 pure）；getcwd/stat 🔒。
  */
-void check_collect_default_product_dirs(void) {
+/* G-02f-408：实现体始终 seed；public PREFER 时 thin forward */
+void check_collect_default_product_dirs_impl(void) {
     int any_product = 0;
     int i;
     for (i = 0;; i++) {
         const char *sub = fmt_default_product_sub_at(i);
         if (!sub)
             break;
-        if (fmt_try_walk_if_product_subdir(sub))
+        if (fmt_try_walk_if_product_subdir_impl(sub))
             any_product = 1;
     }
     if (!any_product)
         fmt_walk_cwd_fallback_impl();
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+void check_collect_default_product_dirs(void) {
+  check_collect_default_product_dirs_impl();
+}
+#endif
 
 
 
@@ -811,7 +844,8 @@ void collect_paths_missing_diag_impl(const char *path) {
  * 解析路径参数：文件直接加入；目录递归收集。
  * G-02f-249：逻辑源 .x（编排 pure）；stat/diag 🔒。
  */
-void collect_paths_from_arg(const char *arg) {
+/* G-02f-408：实现体始终 seed；public PREFER 时 thin forward */
+void collect_paths_from_arg_impl(const char *arg) {
     int k;
     if (!arg)
         return;
@@ -828,6 +862,12 @@ void collect_paths_from_arg(const char *arg) {
     }
     file_list_push(arg);
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+void collect_paths_from_arg(const char *arg) {
+  collect_paths_from_arg_impl(arg);
+}
+#endif
 
 
 
