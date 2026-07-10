@@ -4,6 +4,7 @@
 // G-02f-34..44/47/53/55/56/64..70：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
 // C 尾：invoke_cc/ld 主体、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
+// G-02f-89：+ path sep / lib_root / link_diag 薄 helper 门闩。
 // G-02f-83：+ driver_copy_cstr_n / shux_link_obj_needs_undef_sym 门闩。
 // G-02f-76：ensure_* 冷启动源统一 seeds/*.from_x.c（修 f-75 已删 wrapper 的 ensure 空洞）。
 // G-02f-70：+ shux_invoke_cc / linux_link_harden 门闩（link_abi 导出集基本门闩化）。
@@ -61,6 +62,26 @@ extern "C" function shux_ensure_runtime_test_fn_invoke_o_impl(argv0: *u8): i32;
 extern "C" function shux_ensure_runtime_thread_glue_o_impl(argv0: *u8): i32;
 extern "C" function shux_ensure_runtime_time_os_o_impl(argv0: *u8): i32;
 extern "C" function shux_ensure_runtime_tls_mbedtls_bio_o_impl(argv0: *u8): i32;
+
+extern "C" function shux_path_last_sep_impl(s: *u8): *u8;
+extern "C" function shux_path_has_sep_impl(s: *u8): i32;
+extern "C" function link_diag_code_for_kind_impl(kind: *u8): *u8;
+extern "C" function link_diag_tool_status_impl(tool: *u8, status: i32): void;
+extern "C" function link_diag_runtime_source_missing_impl(obj_name: *u8, source_path: *u8): void;
+extern "C" function link_diag_runtime_source_missing_under_impl(obj_name: *u8, base_dir: *u8, suffix: *u8): void;
+extern "C" function link_diag_runtime_obj_missing_impl(obj_name: *u8, out_o: *u8): void;
+extern "C" function link_diag_runtime_obj_resolve_fail_impl(obj_name: *u8, hint: *u8): void;
+extern "C" function link_diag_runtime_obj_build_status_impl(obj_name: *u8, status: i32): void;
+extern "C" function link_diag_errno_impl(kind: *u8, op: *u8): void;
+extern "C" function link_diag_errno_path_impl(kind: *u8, op: *u8, path: *u8): void;
+extern "C" function link_diag_freestanding_missing_impl(obj_name: *u8, symbol_name: *u8): void;
+extern "C" function link_diag_freestanding_unsupported_impl(): void;
+extern "C" function link_diag_ld_debug_push_impl(rel: *u8, stage: *u8, path: *u8): void;
+extern "C" function link_diag_ld_debug_argv_impl(label: *u8, argv: *u8): void;
+extern "C" function shux_asm_ld_lib_root_ptr_usable_impl(p: *u8): i32;
+extern "C" function shux_asm_ld_lib_root_default_impl(root_buf: *u8): void;
+extern "C" function shux_linux_host_gcc_path_impl(): *u8;
+extern "C" function shux_linux_ld_child_path_impl(): void;
 
 #[no_mangle]
 function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
@@ -1985,5 +2006,145 @@ function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32 {
     return shux_link_obj_needs_undef_sym_impl(user_o, sym);
   }
   return 0;
+}
+
+/* ---- G-02f-89：path sep / lib_root / link_diag 薄 helper 门闩 ---- */
+
+#[no_mangle]
+function shux_path_last_sep(s: *u8): *u8 {
+  unsafe {
+    return shux_path_last_sep_impl(s);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function shux_path_has_sep(s: *u8): i32 {
+  unsafe {
+    return shux_path_has_sep_impl(s);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_diag_code_for_kind(kind: *u8): *u8 {
+  unsafe {
+    return link_diag_code_for_kind_impl(kind);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function link_diag_tool_status(tool: *u8, status: i32): void {
+  unsafe {
+    link_diag_tool_status_impl(tool, status);
+  }
+}
+
+#[no_mangle]
+function link_diag_runtime_source_missing(obj_name: *u8, source_path: *u8): void {
+  unsafe {
+    link_diag_runtime_source_missing_impl(obj_name, source_path);
+  }
+}
+
+#[no_mangle]
+function link_diag_runtime_source_missing_under(obj_name: *u8, base_dir: *u8, suffix: *u8): void {
+  unsafe {
+    link_diag_runtime_source_missing_under_impl(obj_name, base_dir, suffix);
+  }
+}
+
+#[no_mangle]
+function link_diag_runtime_obj_missing(obj_name: *u8, out_o: *u8): void {
+  unsafe {
+    link_diag_runtime_obj_missing_impl(obj_name, out_o);
+  }
+}
+
+#[no_mangle]
+function link_diag_runtime_obj_resolve_fail(obj_name: *u8, hint: *u8): void {
+  unsafe {
+    link_diag_runtime_obj_resolve_fail_impl(obj_name, hint);
+  }
+}
+
+#[no_mangle]
+function link_diag_runtime_obj_build_status(obj_name: *u8, status: i32): void {
+  unsafe {
+    link_diag_runtime_obj_build_status_impl(obj_name, status);
+  }
+}
+
+#[no_mangle]
+function link_diag_errno(kind: *u8, op: *u8): void {
+  unsafe {
+    link_diag_errno_impl(kind, op);
+  }
+}
+
+#[no_mangle]
+function link_diag_errno_path(kind: *u8, op: *u8, path: *u8): void {
+  unsafe {
+    link_diag_errno_path_impl(kind, op, path);
+  }
+}
+
+#[no_mangle]
+function link_diag_freestanding_missing(obj_name: *u8, symbol_name: *u8): void {
+  unsafe {
+    link_diag_freestanding_missing_impl(obj_name, symbol_name);
+  }
+}
+
+#[no_mangle]
+function link_diag_freestanding_unsupported(): void {
+  unsafe {
+    link_diag_freestanding_unsupported_impl();
+  }
+}
+
+#[no_mangle]
+function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void {
+  unsafe {
+    link_diag_ld_debug_push_impl(rel, stage, path);
+  }
+}
+
+#[no_mangle]
+function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
+  unsafe {
+    link_diag_ld_debug_argv_impl(label, argv);
+  }
+}
+
+#[no_mangle]
+function shux_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
+  unsafe {
+    return shux_asm_ld_lib_root_ptr_usable_impl(p);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_asm_ld_lib_root_default(root_buf: *u8): void {
+  unsafe {
+    shux_asm_ld_lib_root_default_impl(root_buf);
+  }
+}
+
+#[no_mangle]
+function shux_linux_host_gcc_path(): *u8 {
+  unsafe {
+    return shux_linux_host_gcc_path_impl();
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function shux_linux_ld_child_path(): void {
+  unsafe {
+    shux_linux_ld_child_path_impl();
+  }
 }
 

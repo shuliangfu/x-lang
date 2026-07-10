@@ -1,7 +1,8 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70/89 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
  *         merge invoke_cc + linux_harden + remaining link gates.
  * .x covers: + shux_invoke_cc, append_linux_link_harden; link_abi exported set nearly gated.
+ * G-02f-89: path sep + lib_root + link_diag thin helpers gated over _impl.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -119,7 +120,7 @@ const char *shux_empty_cstr(void) {
  * POSIX 上 strchr(s, '\\') 通常为 NULL（文件名极少含反斜杠），行为不变。
  * 返回值：指向最后分隔符的指针，找不到返回 NULL。
  */
-static char *shux_path_last_sep(const char *s) {
+char * shux_path_last_sep_impl(const char *s) {
     char *p = s ? strrchr(s, '/') : NULL;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     if (s) {
@@ -130,9 +131,16 @@ static char *shux_path_last_sep(const char *s) {
 #endif
     return p;
 }
+char * shux_path_last_sep(const char *s) {
+  {
+    return shux_path_last_sep_impl(s);
+  }
+  return ((char *)0);
+}
+
 
 /** 字符串是否包含任意路径分隔符（POSIX '/' 或 Windows '\\')。 */
-static int shux_path_has_sep(const char *s) {
+int shux_path_has_sep_impl(const char *s) {
     if (!s)
         return 0;
     if (strchr(s, '/'))
@@ -143,6 +151,13 @@ static int shux_path_has_sep(const char *s) {
 #endif
     return 0;
 }
+int shux_path_has_sep(const char *s) {
+  {
+    return shux_path_has_sep_impl(s);
+  }
+  return 0;
+}
+
 
 /**
  * 同步执行 cc 编译 .c/.s → .o；POSIX 上 fork+execvp+waitpid，Windows 上 _spawnvp(_P_WAIT,...)。
@@ -276,7 +291,7 @@ static int shux_spawn_sync(const char *prog, const char *const *argv) {
 #endif
 }
 
-static const char *link_diag_code_for_kind(const char *kind) {
+const char * link_diag_code_for_kind_impl(const char *kind) {
     if (!kind)
         return SHUX_DIAG_CODE_PROCESS_PRC001;
     if (strcmp(kind, "build error") == 0)
@@ -285,8 +300,15 @@ static const char *link_diag_code_for_kind(const char *kind) {
         return SHUX_DIAG_CODE_PROCESS_PRC001;
     return NULL;
 }
+const char * link_diag_code_for_kind(const char *kind) {
+  {
+    return link_diag_code_for_kind_impl(kind);
+  }
+  return ((const char *)0);
+}
 
-static void link_diag_tool_status(const char *tool, int status) {
+
+void link_diag_tool_status_impl(const char *tool, int status) {
     if (!tool)
         tool = "tool";
     if (WIFSIGNALED(status)) {
@@ -297,8 +319,14 @@ static void link_diag_tool_status(const char *tool, int status) {
                                "%s failed (exit %d)", tool, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
     }
 }
+void link_diag_tool_status(const char *tool, int status) {
+  {
+    link_diag_tool_status_impl(tool, status);
+  }
+}
 
-static void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint) {
+
+void link_diag_runtime_obj_resolve_fail_impl(const char *obj_name, const char *hint) {
     if (!obj_name)
         obj_name = "runtime object";
     if (hint && hint[0] != '\0') {
@@ -311,16 +339,28 @@ static void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char 
                                obj_name);
     }
 }
+void link_diag_runtime_obj_resolve_fail(const char *obj_name, const char *hint) {
+  {
+    link_diag_runtime_obj_resolve_fail_impl(obj_name, hint);
+  }
+}
 
-static void link_diag_runtime_source_missing(const char *obj_name, const char *source_path) {
+
+void link_diag_runtime_source_missing_impl(const char *obj_name, const char *source_path) {
     if (!obj_name)
         obj_name = "runtime object";
     diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
                            "%s source not found at %s",
                            obj_name, source_path ? source_path : "?");
 }
+void link_diag_runtime_source_missing(const char *obj_name, const char *source_path) {
+  {
+    link_diag_runtime_source_missing_impl(obj_name, source_path);
+  }
+}
 
-static void link_diag_runtime_source_missing_under(const char *obj_name, const char *base_dir,
+
+void link_diag_runtime_source_missing_under_impl(const char *obj_name, const char *base_dir,
                                                    const char *suffix) {
     if (!obj_name)
         obj_name = "runtime object";
@@ -328,16 +368,29 @@ static void link_diag_runtime_source_missing_under(const char *obj_name, const c
                            "%s source not found under %s%s",
                            obj_name, base_dir ? base_dir : "?", suffix ? suffix : "");
 }
+void link_diag_runtime_source_missing_under(const char *obj_name, const char *base_dir,
+                                                   const char *suffix) {
+  {
+    link_diag_runtime_source_missing_under_impl(obj_name, base_dir, suffix);
+  }
+}
 
-static void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o) {
+
+void link_diag_runtime_obj_missing_impl(const char *obj_name, const char *out_o) {
     if (!obj_name)
         obj_name = "runtime object";
     diag_reportf_with_code(NULL, 0, 0, "build error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
                            "%s missing after cc -c (expected near %s)",
                            obj_name, out_o ? out_o : "?");
 }
+void link_diag_runtime_obj_missing(const char *obj_name, const char *out_o) {
+  {
+    link_diag_runtime_obj_missing_impl(obj_name, out_o);
+  }
+}
 
-static void link_diag_runtime_obj_build_status(const char *obj_name, int status) {
+
+void link_diag_runtime_obj_build_status_impl(const char *obj_name, int status) {
     if (!obj_name)
         obj_name = "runtime object";
     if (WIFSIGNALED(status)) {
@@ -350,8 +403,14 @@ static void link_diag_runtime_obj_build_status(const char *obj_name, int status)
                                obj_name, WIFEXITED(status) ? WEXITSTATUS(status) : -1);
     }
 }
+void link_diag_runtime_obj_build_status(const char *obj_name, int status) {
+  {
+    link_diag_runtime_obj_build_status_impl(obj_name, status);
+  }
+}
 
-static void link_diag_errno(const char *kind, const char *op) {
+
+void link_diag_errno_impl(const char *kind, const char *op) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
     const char *resolved_kind = kind ? kind : "process error";
@@ -368,8 +427,14 @@ static void link_diag_errno(const char *kind, const char *op) {
                      err ? err : "unknown error");
     }
 }
+void link_diag_errno(const char *kind, const char *op) {
+  {
+    link_diag_errno_impl(kind, op);
+  }
+}
 
-static void link_diag_errno_path(const char *kind, const char *op, const char *path) {
+
+void link_diag_errno_path_impl(const char *kind, const char *op, const char *path) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
     const char *resolved_kind = kind ? kind : "process error";
@@ -392,11 +457,17 @@ static void link_diag_errno_path(const char *kind, const char *op, const char *p
     }
     link_diag_errno(resolved_kind, op);
 }
+void link_diag_errno_path(const char *kind, const char *op, const char *path) {
+  {
+    link_diag_errno_path_impl(kind, op, path);
+  }
+}
+
 
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((unused))
 #endif
-static void link_diag_freestanding_missing(const char *obj_name, const char *symbol_name) {
+void link_diag_freestanding_missing_impl(const char *obj_name, const char *symbol_name) {
     if (symbol_name && symbol_name[0]) {
         diag_reportf_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001, NULL,
                      "freestanding link missing %s (user references %s)",
@@ -408,22 +479,40 @@ static void link_diag_freestanding_missing(const char *obj_name, const char *sym
                  "freestanding link missing %s",
                  obj_name ? obj_name : "runtime object");
 }
+void link_diag_freestanding_missing(const char *obj_name, const char *symbol_name) {
+  {
+    link_diag_freestanding_missing_impl(obj_name, symbol_name);
+  }
+}
 
-static void link_diag_freestanding_unsupported(void) {
+
+void link_diag_freestanding_unsupported_impl(void) {
     diag_report_with_code(NULL, 0, 0, "link error", SHUX_DIAG_CODE_BUILD_BLD001,
                 "-freestanding / SHUX_FREESTANDING is only supported for Linux ELF x86_64 (-o prog, not .o/.obj on macOS/COFF)",
                 NULL);
 }
+void link_diag_freestanding_unsupported(void) {
+  {
+    link_diag_freestanding_unsupported_impl();
+  }
+}
 
-static void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path) {
+
+void link_diag_ld_debug_push_impl(const char *rel, const char *stage, const char *path) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "ld debug: push %s %s=%s",
                  rel ? rel : "(null)",
                  stage ? stage : "path",
                  path ? path : "(null)");
 }
+void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path) {
+  {
+    link_diag_ld_debug_push_impl(rel, stage, path);
+  }
+}
 
-static void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
+
+void link_diag_ld_debug_argv_impl(const char *label, const char *const *argv) {
     int di;
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "ld debug: %s",
@@ -437,6 +526,12 @@ static void link_diag_ld_debug_argv(const char *label, const char *const *argv) 
                      argv[di]);
     }
 }
+void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
+  {
+    link_diag_ld_debug_argv_impl(label, argv);
+  }
+}
+
 
 static void shux_link_perror(const char *msg) {
     char op_buf[128];
@@ -481,15 +576,22 @@ static void shux_link_perror(const char *msg) {
  * 参数：p 候选 lib root 字符串指针。
  * 返回值：非 0 表示可用。
  */
-static int shux_asm_ld_lib_root_ptr_usable(const char *p) {
+int shux_asm_ld_lib_root_ptr_usable_impl(const char *p) {
     return p && (uintptr_t)p >= 4096u && p[0] != '\0';
 }
+int shux_asm_ld_lib_root_ptr_usable(const char *p) {
+  {
+    return shux_asm_ld_lib_root_ptr_usable_impl(p);
+  }
+  return 0;
+}
+
 
 /**
  * 写入默认 lib root 到 root_buf（SHUX_LIB 或 "."）。
  * 参数：root_buf 至少 512 字节。
  */
-static void shux_asm_ld_lib_root_default(char root_buf[512]) {
+void shux_asm_ld_lib_root_default_impl(char root_buf[512]) {
     const char *def = getenv("SHUX_LIB");
     root_buf[0] = '.';
     root_buf[1] = '\0';
@@ -498,21 +600,40 @@ static void shux_asm_ld_lib_root_default(char root_buf[512]) {
     strncpy(root_buf, def, 511);
     root_buf[511] = '\0';
 }
+void shux_asm_ld_lib_root_default(char root_buf[512]) {
+  {
+    shux_asm_ld_lib_root_default_impl(root_buf);
+  }
+}
+
 
 #if defined(__linux__)
 /** nostdlib 链 environ 可能无 PATH：链接子进程优先用绝对路径 gcc（含 gcc 官方镜像 /usr/local/bin）。 */
-static const char *shux_linux_host_gcc_path(void) {
+const char * shux_linux_host_gcc_path_impl(void) {
     if (access("/usr/bin/gcc", X_OK) == 0)
         return "/usr/bin/gcc";
     if (access("/usr/local/bin/gcc", X_OK) == 0)
         return "/usr/local/bin/gcc";
     return "gcc";
 }
+const char * shux_linux_host_gcc_path(void) {
+  {
+    return shux_linux_host_gcc_path_impl();
+  }
+  return ((const char *)0);
+}
+
 
 /** Linux 链接子进程 PATH：gcc 官方镜像仅提供 /usr/local/bin/gcc。 */
-static void shux_linux_ld_child_path(void) {
+void shux_linux_ld_child_path_impl(void) {
     (void)setenv("PATH", "/usr/local/bin:/usr/bin:/bin", 1);
 }
+void shux_linux_ld_child_path(void) {
+  {
+    shux_linux_ld_child_path_impl();
+  }
+}
+
 #endif
 
 /* #region debug-point A:hello-stage1-segv */
