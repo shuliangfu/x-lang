@@ -6,6 +6,7 @@
 // G-02f-86：explain CLI / errno diag / legacy smoke summary 门闩。
 // G-02f-87：argv 令牌/path 后缀纯 helper（drv_eq_* / path_ends / lib_root_usable）门闩。
 // G-02f-88：源扫描 content_has_*、core-only deps/imports、check/fmt 薄委托门闩。
+// G-02f-90：DCE 回调 / tmp 前缀 / parse fail / lib_roots_from_key / run_test 门闩。
 // G-02f-71/72：driver compile/run 薄封装 + main_entry/argv/exec/fmt/大 run_* 门闩。
 // 产品：cc seeds/runtime.from_x.c + RUNTIME_DRIVER_NO_C_CFLAGS → src/runtime_driver_no_c.o
 // C 尾：argv 解析循环、#if 变体、大 driver 路径、syscall/fs。
@@ -104,6 +105,14 @@ extern "C" function driver_lib_root_default_impl(root_buf: *u8): void;
 extern "C" function runtime_test_status_to_rc_impl(script: *u8, st: i32): i32;
 extern "C" function runtime_run_compiler_check_c_impl(argc: i32, argv: *u8): i32;
 extern "C" function runtime_run_fmt_c_impl(argc: i32, argv: *u8): i32;
+
+extern "C" function shux_get_tmp_prefix_impl(): *u8;
+extern "C" function dce_is_func_used_impl(ctx: *u8, mod: *u8, func: *u8): i32;
+extern "C" function dce_is_mono_used_impl(ctx: *u8, mod: *u8, k: i32): i32;
+extern "C" function dce_is_type_used_impl(ctx: *u8, mod: *u8, type_name: *u8): i32;
+extern "C" function runtime_report_precise_parse_failure_if_known_impl(input_path: *u8, src: *u8, src_len: i64): i32;
+extern "C" function runtime_run_test_c_impl(argc: i32, argv: *u8): i32;
+extern "C" function driver_lib_roots_from_key_impl(lib_key: *u8, out_arr: *u8, bufs: *u8): i32;
 
 #[no_mangle]
 function run_compiler_c(argc: i32, argv: *u8): i32 {
@@ -766,6 +775,64 @@ function runtime_run_compiler_check_c(argc: i32, argv: *u8): i32 {
 function runtime_run_fmt_c(argc: i32, argv: *u8): i32 {
   unsafe {
     return runtime_run_fmt_c_impl(argc, argv);
+  }
+  return 0;
+}
+
+/* ---- G-02f-90：DCE 回调 / tmp 前缀 / parse fail / lib_roots / run_test 门闩 ---- */
+
+#[no_mangle]
+function shux_get_tmp_prefix(): *u8 {
+  unsafe {
+    return shux_get_tmp_prefix_impl();
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function dce_is_func_used(ctx: *u8, mod: *u8, func: *u8): i32 {
+  unsafe {
+    return dce_is_func_used_impl(ctx, mod, func);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function dce_is_mono_used(ctx: *u8, mod: *u8, k: i32): i32 {
+  unsafe {
+    return dce_is_mono_used_impl(ctx, mod, k);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function dce_is_type_used(ctx: *u8, mod: *u8, type_name: *u8): i32 {
+  unsafe {
+    return dce_is_type_used_impl(ctx, mod, type_name);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function runtime_report_precise_parse_failure_if_known(input_path: *u8, src: *u8, src_len: i64): i32 {
+  unsafe {
+    return runtime_report_precise_parse_failure_if_known_impl(input_path, src, src_len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function runtime_run_test_c(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return runtime_run_test_c_impl(argc, argv);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_lib_roots_from_key(lib_key: *u8, out_arr: *u8, bufs: *u8): i32 {
+  unsafe {
+    return driver_lib_roots_from_key_impl(lib_key, out_arr, bufs);
   }
   return 0;
 }

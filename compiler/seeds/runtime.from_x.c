@@ -1,4 +1,4 @@
-/* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/71/72 product TU
+/* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/71/72 product TU
  * Product objects from this seed (flags select variants):
  *   runtime_driver_no_c.o  — RUNTIME_DRIVER_NO_C_CFLAGS (G05 product)
  *   runtime_driver.o / runtime_x.o / runtime.o / runtime_driver_asm_*
@@ -48,7 +48,7 @@
 #else
 /* Windows: 用 TEMP 环境变量替代 /tmp */
 #include <stdio.h>
-static const char *shux_get_tmp_prefix(void) {
+const char * shux_get_tmp_prefix_impl(void) {
     const char *tmp = getenv("TEMP");
     if (!tmp || !tmp[0]) tmp = getenv("TMP");
     if (!tmp || !tmp[0]) tmp = ".";
@@ -61,6 +61,13 @@ static const char *shux_get_tmp_prefix(void) {
         snprintf(buf, sizeof(buf), "%sshux_", tmp);
     return buf;
 }
+const char * shux_get_tmp_prefix(void) {
+  {
+    return shux_get_tmp_prefix_impl();
+  }
+  return ((const char *)0);
+}
+
 #define SHUX_TMP_PREFIX shux_get_tmp_prefix()
 #endif
 
@@ -919,7 +926,7 @@ extern int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t
 extern int32_t pipeline_parse_one_function_ok(struct shux_slice_uint8_t *source, void *arena);
 extern int32_t pipeline_typeck_after_parse_ok(void *arena, void *module, struct shux_slice_uint8_t *source, void *ctx);
 
-static int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
+int runtime_report_precise_parse_failure_if_known_impl(const char *input_path, const char *src, size_t src_len) {
     struct shux_slice_uint8_t diag_src_slice;
     int32_t fail_tok;
     if (!src || src_len == 0)
@@ -935,6 +942,13 @@ static int runtime_report_precise_parse_failure_if_known(const char *input_path,
     }
     return 0;
 }
+int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
+  {
+    return runtime_report_precise_parse_failure_if_known_impl(input_path, src, src_len);
+  }
+  return 0;
+}
+
 #ifdef SHUX_USE_X_DRIVER
 /* run_compiler_c 由 C 在此定义，转调 main.x 的 main_run_compiler_c，供 main_entry 等调用；不再依赖 driver_gen.c 追加。 */
 extern int main_run_compiler_c(int argc, uint8_t *argv);
@@ -1175,7 +1189,7 @@ static void runtime_prepare_dce_ctx(struct ASTModule *mod, struct ASTModule **al
         *dce_ready = 1;
     }
 }
-static int dce_is_func_used(void *ctx, const ASTModule *mod, const ASTFunc *func) {
+int dce_is_func_used_impl(void *ctx, const ASTModule *mod, const ASTFunc *func) {
     const struct dce_ctx *c = (const struct dce_ctx *)ctx;
     if (!c) return 1;
     if (func && func->is_extern) return 1;
@@ -1188,7 +1202,14 @@ static int dce_is_func_used(void *ctx, const ASTModule *mod, const ASTFunc *func
         if (c->used[i] == func) return 1;
     return 0;
 }
-static int dce_is_mono_used(void *ctx, const ASTModule *mod, int k) {
+int dce_is_func_used(void *ctx, const ASTModule *mod, const ASTFunc *func) {
+  {
+    return dce_is_func_used_impl(ctx, mod, func);
+  }
+  return 0;
+}
+
+int dce_is_mono_used_impl(void *ctx, const ASTModule *mod, int k) {
     const struct dce_ctx *c = (const struct dce_ctx *)ctx;
     if (!c || !c->mono || k < 0 || k >= 64) return 1;
     /* 库模块：始终保留单态化实例，避免入口引用的泛型 import 被误删 */
@@ -1200,9 +1221,16 @@ static int dce_is_mono_used(void *ctx, const ASTModule *mod, int k) {
     if (idx < 0 || idx >= c->mono_rows) return 1;
     return c->mono[idx][k];
 }
+int dce_is_mono_used(void *ctx, const ASTModule *mod, int k) {
+  {
+    return dce_is_mono_used_impl(ctx, mod, k);
+  }
+  return 0;
+}
+
 
 /** 阶段 8.1 DCE 扩展：类型名在 used_type_names 中则保留，否则删除；库模块类型始终保留。 */
-static int dce_is_type_used(void *ctx, const ASTModule *mod, const char *type_name) {
+int dce_is_type_used_impl(void *ctx, const ASTModule *mod, const char *type_name) {
     const struct dce_ctx *c = (const struct dce_ctx *)ctx;
     if (!c || !type_name) return 1;
     if (mod != c->entry) return 1;
@@ -1211,6 +1239,13 @@ static int dce_is_type_used(void *ctx, const ASTModule *mod, const char *type_na
         if (c->used_type_names[i] && strcmp(c->used_type_names[i], type_name) == 0) return 1;
     return 0;
 }
+int dce_is_type_used(void *ctx, const ASTModule *mod, const char *type_name) {
+  {
+    return dce_is_type_used_impl(ctx, mod, type_name);
+  }
+  return 0;
+}
+
 #endif /* !SHUX_USE_X_DRIVER */
 
 /**
@@ -5591,7 +5626,7 @@ void driver_lib_root_default(char root_buf[512]) {
 
 
 /** 从 ast_pool sidecar 键填充 lib_roots 数组；返回根数量。 */
-static int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]) {
+int driver_lib_roots_from_key_impl(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]) {
     int n = (int)driver_emit_lib_root_count(lib_key);
     int i;
     if (n <= 0) {
@@ -5614,6 +5649,13 @@ static int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, cha
     }
     return n;
 }
+int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]) {
+  {
+    return driver_lib_roots_from_key_impl(lib_key, out_arr, bufs);
+  }
+  return 0;
+}
+
 
 /**
  * compile.x DriverCompileState 布局（字段顺序与 compile.x 一致；EMIT_HEAVY impl_c 与 X parse_argv 共用）。
@@ -7483,7 +7525,7 @@ int runtime_run_fmt_c(int argc, char **argv) {
 
 
 /** shux test（C 前端）：在仓库根目录执行 bash 测试脚本。 */
-static int runtime_run_test_c(int argc, char **argv) {
+int runtime_run_test_c_impl(int argc, char **argv) {
     const char *root = shux_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
     const char *rel = "tests/run-all.sh";
     char script[768];
@@ -7499,6 +7541,13 @@ static int runtime_run_test_c(int argc, char **argv) {
                  "test script: %s", script);
     return runtime_test_status_to_rc(script, system(cmd));
 }
+int runtime_run_test_c(int argc, char **argv) {
+  {
+    return runtime_run_test_c_impl(argc, argv);
+  }
+  return 0;
+}
+
 
 /** 6.3：无 .x 入口时由 runtime 提供 main_entry 桩；链接 main.x 时由 main.x 的 main_entry 覆盖。
  * Cygwin/MinGW 上 weak 符号可能不被链接器解析，故仅在非 Windows 环境使用 weak。 */
