@@ -43,7 +43,6 @@ function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, cap: i32
 extern "C" function glue_module_func_overload_count_c_impl(m: *u8, name: *u8, nlen: i32): i32;
 extern "C" function glue_asm_import_segment_at_impl(mod: *u8, ix: i32, want: i32, ostr: *i32, olen: *i32): i32;
 extern "C" function glue_asm_fill_c_prefix_from_module_import_impl(mod: *u8, ix: i32, pre: *u8): i32;
-extern "C" function glue_try_std_heap_redirect_sym_local_impl(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
 
 /* ---- G-02f-109：call_dispatch more helpers 门闩 ---- */
 
@@ -59,8 +58,7 @@ function glue_asm_import_segment_at(mod: *u8, ix: i32, want: i32, ostr: *i32, ol
 #[no_mangle]
 function glue_asm_fill_c_prefix_from_module_import(mod: *u8, ix: i32, pre: *u8): i32 { unsafe { return glue_asm_fill_c_prefix_from_module_import_impl(mod, ix, pre); } return 0; }
 
-#[no_mangle]
-function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 { unsafe { return glue_try_std_heap_redirect_sym_local_impl(name, nlen, out, cap); } return 0; }
+
 
 
 
@@ -439,4 +437,916 @@ function glue_try_std_encoding_redirect_sym_local(name: *u8, nlen: i32, out: *u8
   out[9 + suffix_len] = 95;
   out[9 + suffix_len + 1] = 99;
   return out_len;
+}
+
+// G-02f-125：glue_try_std_heap_redirect_sym_local 真迁 .x
+
+#[no_mangle]
+function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
+  if (name == 0) { return 0; }
+  if (nlen <= 0) { return 0; }
+  if (out == 0) { return 0; }
+  if (cap <= 0) { return 0; }
+  if (nlen == 5) {
+    if (name[0]==97 && name[1]==108 && name[2]==108 && name[3]==111 && name[4]==99) {
+      if (12 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 108;
+      out[7] = 108;
+      out[8] = 111;
+      out[9] = 99;
+      out[10] = 95;
+      out[11] = 99;
+      return 12;
+    }
+  }
+  if (nlen == 7) {
+    if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==108 && name[4]==108 && name[5]==111 && name[6]==99) {
+      if (14 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 114;
+      out[6] = 101;
+      out[7] = 97;
+      out[8] = 108;
+      out[9] = 108;
+      out[10] = 111;
+      out[11] = 99;
+      out[12] = 95;
+      out[13] = 99;
+      return 14;
+    }
+  }
+  if (nlen == 4) {
+    if (name[0]==102 && name[1]==114 && name[2]==101 && name[3]==101) {
+      if (11 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 102;
+      out[6] = 114;
+      out[7] = 101;
+      out[8] = 101;
+      out[9] = 95;
+      out[10] = 99;
+      return 11;
+    }
+  }
+  if (nlen == 9) {
+    if (name[0]==97 && name[1]==108 && name[2]==108 && name[3]==111 && name[4]==99 && name[5]==95 && name[6]==105 && name[7]==51 && name[8]==50) {
+      if (16 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 108;
+      out[7] = 108;
+      out[8] = 111;
+      out[9] = 99;
+      out[10] = 95;
+      out[11] = 105;
+      out[12] = 51;
+      out[13] = 50;
+      out[14] = 95;
+      out[15] = 99;
+      return 16;
+    }
+  }
+  if (nlen == 21) {
+    if (name[0]==97 && name[1]==108 && name[2]==108 && name[3]==111 && name[4]==99 && name[5]==95 && name[6]==105 && name[7]==51 && name[8]==50 && name[9]==95 && name[10]==114 && name[11]==101 && name[12]==116 && name[13]==95 && name[14]==105 && name[15]==51 && name[16]==50 && name[17]==95 && name[18]==112 && name[19]==116 && name[20]==114) {
+      if (16 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 108;
+      out[7] = 108;
+      out[8] = 111;
+      out[9] = 99;
+      out[10] = 95;
+      out[11] = 105;
+      out[12] = 51;
+      out[13] = 50;
+      out[14] = 95;
+      out[15] = 99;
+      return 16;
+    }
+  }
+  if (nlen == 20) {
+    if (name[0]==97 && name[1]==108 && name[2]==108 && name[3]==111 && name[4]==99 && name[5]==95 && name[6]==105 && name[7]==51 && name[8]==50 && name[9]==95 && name[10]==114 && name[11]==101 && name[12]==116 && name[13]==95 && name[14]==117 && name[15]==56 && name[16]==95 && name[17]==112 && name[18]==116 && name[19]==114) {
+      if (15 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 108;
+      out[7] = 108;
+      out[8] = 111;
+      out[9] = 99;
+      out[10] = 95;
+      out[11] = 117;
+      out[12] = 56;
+      out[13] = 95;
+      out[14] = 99;
+      return 15;
+    }
+  }
+  if (nlen == 21) {
+    if (name[0]==97 && name[1]==108 && name[2]==108 && name[3]==111 && name[4]==99 && name[5]==95 && name[6]==105 && name[7]==51 && name[8]==50 && name[9]==95 && name[10]==114 && name[11]==101 && name[12]==116 && name[13]==95 && name[14]==117 && name[15]==54 && name[16]==52 && name[17]==95 && name[18]==112 && name[19]==116 && name[20]==114) {
+      if (16 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 108;
+      out[7] = 108;
+      out[8] = 111;
+      out[9] = 99;
+      out[10] = 95;
+      out[11] = 117;
+      out[12] = 54;
+      out[13] = 52;
+      out[14] = 95;
+      out[15] = 99;
+      return 16;
+    }
+  }
+  if (nlen == 21) {
+    if (name[0]==97 && name[1]==108 && name[2]==108 && name[3]==111 && name[4]==99 && name[5]==95 && name[6]==105 && name[7]==51 && name[8]==50 && name[9]==95 && name[10]==114 && name[11]==101 && name[12]==116 && name[13]==95 && name[14]==102 && name[15]==54 && name[16]==52 && name[17]==95 && name[18]==112 && name[19]==116 && name[20]==114) {
+      if (16 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 108;
+      out[7] = 108;
+      out[8] = 111;
+      out[9] = 99;
+      out[10] = 95;
+      out[11] = 102;
+      out[12] = 54;
+      out[13] = 52;
+      out[14] = 95;
+      out[15] = 99;
+      return 16;
+    }
+  }
+  if (nlen == 21) {
+    if (name[0]==97 && name[1]==108 && name[2]==108 && name[3]==111 && name[4]==99 && name[5]==95 && name[6]==105 && name[7]==51 && name[8]==50 && name[9]==95 && name[10]==114 && name[11]==101 && name[12]==116 && name[13]==95 && name[14]==102 && name[15]==51 && name[16]==50 && name[17]==95 && name[18]==112 && name[19]==116 && name[20]==114) {
+      if (16 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 108;
+      out[7] = 108;
+      out[8] = 111;
+      out[9] = 99;
+      out[10] = 95;
+      out[11] = 102;
+      out[12] = 51;
+      out[13] = 50;
+      out[14] = 95;
+      out[15] = 99;
+      return 16;
+    }
+  }
+  if (nlen == 11) {
+    if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==108 && name[4]==108 && name[5]==111 && name[6]==99 && name[7]==95 && name[8]==105 && name[9]==51 && name[10]==50) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 114;
+      out[6] = 101;
+      out[7] = 97;
+      out[8] = 108;
+      out[9] = 108;
+      out[10] = 111;
+      out[11] = 99;
+      out[12] = 95;
+      out[13] = 105;
+      out[14] = 51;
+      out[15] = 50;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 23) {
+    if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==108 && name[4]==108 && name[5]==111 && name[6]==99 && name[7]==95 && name[8]==105 && name[9]==51 && name[10]==50 && name[11]==95 && name[12]==114 && name[13]==101 && name[14]==116 && name[15]==95 && name[16]==105 && name[17]==51 && name[18]==50 && name[19]==95 && name[20]==112 && name[21]==116 && name[22]==114) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 114;
+      out[6] = 101;
+      out[7] = 97;
+      out[8] = 108;
+      out[9] = 108;
+      out[10] = 111;
+      out[11] = 99;
+      out[12] = 95;
+      out[13] = 105;
+      out[14] = 51;
+      out[15] = 50;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 23) {
+    if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==108 && name[4]==108 && name[5]==111 && name[6]==99 && name[7]==95 && name[8]==117 && name[9]==54 && name[10]==52 && name[11]==95 && name[12]==114 && name[13]==101 && name[14]==116 && name[15]==95 && name[16]==117 && name[17]==54 && name[18]==52 && name[19]==95 && name[20]==112 && name[21]==116 && name[22]==114) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 114;
+      out[6] = 101;
+      out[7] = 97;
+      out[8] = 108;
+      out[9] = 108;
+      out[10] = 111;
+      out[11] = 99;
+      out[12] = 95;
+      out[13] = 117;
+      out[14] = 54;
+      out[15] = 52;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 23) {
+    if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==108 && name[4]==108 && name[5]==111 && name[6]==99 && name[7]==95 && name[8]==102 && name[9]==54 && name[10]==52 && name[11]==95 && name[12]==114 && name[13]==101 && name[14]==116 && name[15]==95 && name[16]==102 && name[17]==54 && name[18]==52 && name[19]==95 && name[20]==112 && name[21]==116 && name[22]==114) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 114;
+      out[6] = 101;
+      out[7] = 97;
+      out[8] = 108;
+      out[9] = 108;
+      out[10] = 111;
+      out[11] = 99;
+      out[12] = 95;
+      out[13] = 102;
+      out[14] = 54;
+      out[15] = 52;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 23) {
+    if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==108 && name[4]==108 && name[5]==111 && name[6]==99 && name[7]==95 && name[8]==102 && name[9]==51 && name[10]==50 && name[11]==95 && name[12]==114 && name[13]==101 && name[14]==116 && name[15]==95 && name[16]==102 && name[17]==51 && name[18]==50 && name[19]==95 && name[20]==112 && name[21]==116 && name[22]==114) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 114;
+      out[6] = 101;
+      out[7] = 97;
+      out[8] = 108;
+      out[9] = 108;
+      out[10] = 111;
+      out[11] = 99;
+      out[12] = 95;
+      out[13] = 102;
+      out[14] = 51;
+      out[15] = 50;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 21) {
+    if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==108 && name[4]==108 && name[5]==111 && name[6]==99 && name[7]==95 && name[8]==117 && name[9]==56 && name[10]==95 && name[11]==114 && name[12]==101 && name[13]==116 && name[14]==95 && name[15]==117 && name[16]==56 && name[17]==95 && name[18]==112 && name[19]==116 && name[20]==114) {
+      if (17 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 114;
+      out[6] = 101;
+      out[7] = 97;
+      out[8] = 108;
+      out[9] = 108;
+      out[10] = 111;
+      out[11] = 99;
+      out[12] = 95;
+      out[13] = 117;
+      out[14] = 56;
+      out[15] = 95;
+      out[16] = 99;
+      return 17;
+    }
+  }
+  if (nlen == 8) {
+    if (name[0]==102 && name[1]==114 && name[2]==101 && name[3]==101 && name[4]==95 && name[5]==105 && name[6]==51 && name[7]==50) {
+      if (15 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 102;
+      out[6] = 114;
+      out[7] = 101;
+      out[8] = 101;
+      out[9] = 95;
+      out[10] = 105;
+      out[11] = 51;
+      out[12] = 50;
+      out[13] = 95;
+      out[14] = 99;
+      return 15;
+    }
+  }
+  if (nlen == 12) {
+    if (name[0]==102 && name[1]==114 && name[2]==101 && name[3]==101 && name[4]==95 && name[5]==105 && name[6]==51 && name[7]==50 && name[8]==95 && name[9]==112 && name[10]==116 && name[11]==114) {
+      if (15 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 102;
+      out[6] = 114;
+      out[7] = 101;
+      out[8] = 101;
+      out[9] = 95;
+      out[10] = 105;
+      out[11] = 51;
+      out[12] = 50;
+      out[13] = 95;
+      out[14] = 99;
+      return 15;
+    }
+  }
+  if (nlen == 12) {
+    if (name[0]==102 && name[1]==114 && name[2]==101 && name[3]==101 && name[4]==95 && name[5]==117 && name[6]==54 && name[7]==52 && name[8]==95 && name[9]==112 && name[10]==116 && name[11]==114) {
+      if (15 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 102;
+      out[6] = 114;
+      out[7] = 101;
+      out[8] = 101;
+      out[9] = 95;
+      out[10] = 117;
+      out[11] = 54;
+      out[12] = 52;
+      out[13] = 95;
+      out[14] = 99;
+      return 15;
+    }
+  }
+  if (nlen == 12) {
+    if (name[0]==102 && name[1]==114 && name[2]==101 && name[3]==101 && name[4]==95 && name[5]==102 && name[6]==54 && name[7]==52 && name[8]==95 && name[9]==112 && name[10]==116 && name[11]==114) {
+      if (15 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 102;
+      out[6] = 114;
+      out[7] = 101;
+      out[8] = 101;
+      out[9] = 95;
+      out[10] = 102;
+      out[11] = 54;
+      out[12] = 52;
+      out[13] = 95;
+      out[14] = 99;
+      return 15;
+    }
+  }
+  if (nlen == 12) {
+    if (name[0]==102 && name[1]==114 && name[2]==101 && name[3]==101 && name[4]==95 && name[5]==102 && name[6]==51 && name[7]==50 && name[8]==95 && name[9]==112 && name[10]==116 && name[11]==114) {
+      if (15 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 102;
+      out[6] = 114;
+      out[7] = 101;
+      out[8] = 101;
+      out[9] = 95;
+      out[10] = 102;
+      out[11] = 51;
+      out[12] = 50;
+      out[13] = 95;
+      out[14] = 99;
+      return 15;
+    }
+  }
+  if (nlen == 8) {
+    if (name[0]==97 && name[1]==108 && name[2]==108 && name[3]==111 && name[4]==99 && name[5]==95 && name[6]==117 && name[7]==56) {
+      if (15 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 108;
+      out[7] = 108;
+      out[8] = 111;
+      out[9] = 99;
+      out[10] = 95;
+      out[11] = 117;
+      out[12] = 56;
+      out[13] = 95;
+      out[14] = 99;
+      return 15;
+    }
+  }
+  if (nlen == 10) {
+    if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==108 && name[4]==108 && name[5]==111 && name[6]==99 && name[7]==95 && name[8]==117 && name[9]==56) {
+      if (17 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 114;
+      out[6] = 101;
+      out[7] = 97;
+      out[8] = 108;
+      out[9] = 108;
+      out[10] = 111;
+      out[11] = 99;
+      out[12] = 95;
+      out[13] = 117;
+      out[14] = 56;
+      out[15] = 95;
+      out[16] = 99;
+      return 17;
+    }
+  }
+  if (nlen == 7) {
+    if (name[0]==102 && name[1]==114 && name[2]==101 && name[3]==101 && name[4]==95 && name[5]==117 && name[6]==56) {
+      if (14 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 102;
+      out[6] = 114;
+      out[7] = 101;
+      out[8] = 101;
+      out[9] = 95;
+      out[10] = 117;
+      out[11] = 56;
+      out[12] = 95;
+      out[13] = 99;
+      return 14;
+    }
+  }
+  if (nlen == 9) {
+    if (name[0]==97 && name[1]==108 && name[2]==108 && name[3]==111 && name[4]==99 && name[5]==95 && name[6]==102 && name[7]==51 && name[8]==50) {
+      if (16 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 108;
+      out[7] = 108;
+      out[8] = 111;
+      out[9] = 99;
+      out[10] = 95;
+      out[11] = 102;
+      out[12] = 51;
+      out[13] = 50;
+      out[14] = 95;
+      out[15] = 99;
+      return 16;
+    }
+  }
+  if (nlen == 11) {
+    if (name[0]==114 && name[1]==101 && name[2]==97 && name[3]==108 && name[4]==108 && name[5]==111 && name[6]==99 && name[7]==95 && name[8]==102 && name[9]==51 && name[10]==50) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 114;
+      out[6] = 101;
+      out[7] = 97;
+      out[8] = 108;
+      out[9] = 108;
+      out[10] = 111;
+      out[11] = 99;
+      out[12] = 95;
+      out[13] = 102;
+      out[14] = 51;
+      out[15] = 50;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 8) {
+    if (name[0]==102 && name[1]==114 && name[2]==101 && name[3]==101 && name[4]==95 && name[5]==102 && name[6]==51 && name[7]==50) {
+      if (15 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 102;
+      out[6] = 114;
+      out[7] = 101;
+      out[8] = 101;
+      out[9] = 95;
+      out[10] = 102;
+      out[11] = 51;
+      out[12] = 50;
+      out[13] = 95;
+      out[14] = 99;
+      return 15;
+    }
+  }
+  if (nlen == 11) {
+    if (name[0]==99 && name[1]==111 && name[2]==112 && name[3]==121 && name[4]==95 && name[5]==105 && name[6]==51 && name[7]==50 && name[8]==95 && name[9]==97 && name[10]==116) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 99;
+      out[6] = 111;
+      out[7] = 112;
+      out[8] = 121;
+      out[9] = 95;
+      out[10] = 105;
+      out[11] = 51;
+      out[12] = 50;
+      out[13] = 95;
+      out[14] = 97;
+      out[15] = 116;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 10) {
+    if (name[0]==99 && name[1]==111 && name[2]==112 && name[3]==121 && name[4]==95 && name[5]==117 && name[6]==56 && name[7]==95 && name[8]==97 && name[9]==116) {
+      if (17 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 99;
+      out[6] = 111;
+      out[7] = 112;
+      out[8] = 121;
+      out[9] = 95;
+      out[10] = 117;
+      out[11] = 56;
+      out[12] = 95;
+      out[13] = 97;
+      out[14] = 116;
+      out[15] = 95;
+      out[16] = 99;
+      return 17;
+    }
+  }
+  if (nlen == 11) {
+    if (name[0]==99 && name[1]==111 && name[2]==112 && name[3]==121 && name[4]==95 && name[5]==102 && name[6]==51 && name[7]==50 && name[8]==95 && name[9]==97 && name[10]==116) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 99;
+      out[6] = 111;
+      out[7] = 112;
+      out[8] = 121;
+      out[9] = 95;
+      out[10] = 102;
+      out[11] = 51;
+      out[12] = 50;
+      out[13] = 95;
+      out[14] = 97;
+      out[15] = 116;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 11) {
+    if (name[0]==99 && name[1]==111 && name[2]==112 && name[3]==121 && name[4]==95 && name[5]==117 && name[6]==54 && name[7]==52 && name[8]==95 && name[9]==97 && name[10]==116) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 99;
+      out[6] = 111;
+      out[7] = 112;
+      out[8] = 121;
+      out[9] = 95;
+      out[10] = 117;
+      out[11] = 54;
+      out[12] = 52;
+      out[13] = 95;
+      out[14] = 97;
+      out[15] = 116;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 11) {
+    if (name[0]==99 && name[1]==111 && name[2]==112 && name[3]==121 && name[4]==95 && name[5]==102 && name[6]==54 && name[7]==52 && name[8]==95 && name[9]==97 && name[10]==116) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 99;
+      out[6] = 111;
+      out[7] = 112;
+      out[8] = 121;
+      out[9] = 95;
+      out[10] = 102;
+      out[11] = 54;
+      out[12] = 52;
+      out[13] = 95;
+      out[14] = 97;
+      out[15] = 116;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 28) {
+    if (name[0]==99 && name[1]==111 && name[2]==112 && name[3]==121 && name[4]==95 && name[5]==105 && name[6]==51 && name[7]==50 && name[8]==95 && name[9]==112 && name[10]==116 && name[11]==114 && name[12]==95 && name[13]==105 && name[14]==51 && name[15]==50 && name[16]==95 && name[17]==105 && name[18]==51 && name[19]==50 && name[20]==95 && name[21]==112 && name[22]==116 && name[23]==114 && name[24]==95 && name[25]==105 && name[26]==51 && name[27]==50) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 99;
+      out[6] = 111;
+      out[7] = 112;
+      out[8] = 121;
+      out[9] = 95;
+      out[10] = 105;
+      out[11] = 51;
+      out[12] = 50;
+      out[13] = 95;
+      out[14] = 97;
+      out[15] = 116;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 26) {
+    if (name[0]==99 && name[1]==111 && name[2]==112 && name[3]==121 && name[4]==95 && name[5]==117 && name[6]==56 && name[7]==95 && name[8]==112 && name[9]==116 && name[10]==114 && name[11]==95 && name[12]==105 && name[13]==51 && name[14]==50 && name[15]==95 && name[16]==117 && name[17]==56 && name[18]==95 && name[19]==112 && name[20]==116 && name[21]==114 && name[22]==95 && name[23]==105 && name[24]==51 && name[25]==50) {
+      if (17 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 99;
+      out[6] = 111;
+      out[7] = 112;
+      out[8] = 121;
+      out[9] = 95;
+      out[10] = 117;
+      out[11] = 56;
+      out[12] = 95;
+      out[13] = 97;
+      out[14] = 116;
+      out[15] = 95;
+      out[16] = 99;
+      return 17;
+    }
+  }
+  if (nlen == 28) {
+    if (name[0]==99 && name[1]==111 && name[2]==112 && name[3]==121 && name[4]==95 && name[5]==102 && name[6]==51 && name[7]==50 && name[8]==95 && name[9]==112 && name[10]==116 && name[11]==114 && name[12]==95 && name[13]==105 && name[14]==51 && name[15]==50 && name[16]==95 && name[17]==102 && name[18]==51 && name[19]==50 && name[20]==95 && name[21]==112 && name[22]==116 && name[23]==114 && name[24]==95 && name[25]==105 && name[26]==51 && name[27]==50) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 99;
+      out[6] = 111;
+      out[7] = 112;
+      out[8] = 121;
+      out[9] = 95;
+      out[10] = 102;
+      out[11] = 51;
+      out[12] = 50;
+      out[13] = 95;
+      out[14] = 97;
+      out[15] = 116;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 28) {
+    if (name[0]==99 && name[1]==111 && name[2]==112 && name[3]==121 && name[4]==95 && name[5]==117 && name[6]==54 && name[7]==52 && name[8]==95 && name[9]==112 && name[10]==116 && name[11]==114 && name[12]==95 && name[13]==105 && name[14]==51 && name[15]==50 && name[16]==95 && name[17]==117 && name[18]==54 && name[19]==52 && name[20]==95 && name[21]==112 && name[22]==116 && name[23]==114 && name[24]==95 && name[25]==105 && name[26]==51 && name[27]==50) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 99;
+      out[6] = 111;
+      out[7] = 112;
+      out[8] = 121;
+      out[9] = 95;
+      out[10] = 117;
+      out[11] = 54;
+      out[12] = 52;
+      out[13] = 95;
+      out[14] = 97;
+      out[15] = 116;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 28) {
+    if (name[0]==99 && name[1]==111 && name[2]==112 && name[3]==121 && name[4]==95 && name[5]==102 && name[6]==54 && name[7]==52 && name[8]==95 && name[9]==112 && name[10]==116 && name[11]==114 && name[12]==95 && name[13]==105 && name[14]==51 && name[15]==50 && name[16]==95 && name[17]==102 && name[18]==54 && name[19]==52 && name[20]==95 && name[21]==112 && name[22]==116 && name[23]==114 && name[24]==95 && name[25]==105 && name[26]==51 && name[27]==50) {
+      if (18 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 99;
+      out[6] = 111;
+      out[7] = 112;
+      out[8] = 121;
+      out[9] = 95;
+      out[10] = 102;
+      out[11] = 54;
+      out[12] = 52;
+      out[13] = 95;
+      out[14] = 97;
+      out[15] = 116;
+      out[16] = 95;
+      out[17] = 99;
+      return 18;
+    }
+  }
+  if (nlen == 12) {
+    if (name[0]==97 && name[1]==114 && name[2]==101 && name[3]==110 && name[4]==97 && name[5]==54 && name[6]==52 && name[7]==95 && name[8]==105 && name[9]==110 && name[10]==105 && name[11]==116) {
+      if (19 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 114;
+      out[7] = 101;
+      out[8] = 110;
+      out[9] = 97;
+      out[10] = 54;
+      out[11] = 52;
+      out[12] = 95;
+      out[13] = 105;
+      out[14] = 110;
+      out[15] = 105;
+      out[16] = 116;
+      out[17] = 95;
+      out[18] = 99;
+      return 19;
+    }
+  }
+  if (nlen == 13) {
+    if (name[0]==97 && name[1]==114 && name[2]==101 && name[3]==110 && name[4]==97 && name[5]==54 && name[6]==52 && name[7]==95 && name[8]==97 && name[9]==108 && name[10]==108 && name[11]==111 && name[12]==99) {
+      if (20 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 114;
+      out[7] = 101;
+      out[8] = 110;
+      out[9] = 97;
+      out[10] = 54;
+      out[11] = 52;
+      out[12] = 95;
+      out[13] = 97;
+      out[14] = 108;
+      out[15] = 108;
+      out[16] = 111;
+      out[17] = 99;
+      out[18] = 95;
+      out[19] = 99;
+      return 20;
+    }
+  }
+  if (nlen == 14) {
+    if (name[0]==97 && name[1]==114 && name[2]==101 && name[3]==110 && name[4]==97 && name[5]==54 && name[6]==52 && name[7]==95 && name[8]==100 && name[9]==101 && name[10]==105 && name[11]==110 && name[12]==105 && name[13]==116) {
+      if (21 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 97;
+      out[6] = 114;
+      out[7] = 101;
+      out[8] = 110;
+      out[9] = 97;
+      out[10] = 54;
+      out[11] = 52;
+      out[12] = 95;
+      out[13] = 100;
+      out[14] = 101;
+      out[15] = 105;
+      out[16] = 110;
+      out[17] = 105;
+      out[18] = 116;
+      out[19] = 95;
+      out[20] = 99;
+      return 21;
+    }
+  }
+  if (nlen == 7) {
+    if (name[0]==112 && name[1]==116 && name[2]==114 && name[3]==95 && name[4]==109 && name[5]==111 && name[6]==100) {
+      if (14 + 1 > cap) { return 0; }
+      out[0] = 104;
+      out[1] = 101;
+      out[2] = 97;
+      out[3] = 112;
+      out[4] = 95;
+      out[5] = 112;
+      out[6] = 116;
+      out[7] = 114;
+      out[8] = 95;
+      out[9] = 109;
+      out[10] = 111;
+      out[11] = 100;
+      out[12] = 95;
+      out[13] = 99;
+      return 14;
+    }
+  }
+  return 0;
 }

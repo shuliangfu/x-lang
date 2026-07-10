@@ -1,4 +1,5 @@
 /* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+ * G-02f-125 true .x pure helpers.
  * G-02f-122 true .x pure helpers.
  * G-02f-117 true .x pure helpers.
  * G-02f-114 true .x pure helpers.
@@ -4730,7 +4731,8 @@ int driver_c_mod_imports_are_core_only(ASTModule *mod) {
 #endif
 
 /** argv[0] basename 是否等于给定名（如 shux-c，避免 sibling exec 自递归）。 */
-int driver_argv0_basename_is_impl(const char *argv0, const char *base) {
+/* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int driver_argv0_basename_is(const char *argv0, const char *base) {
     const char *slash;
     const char *name;
     if (!base)
@@ -4746,12 +4748,8 @@ int driver_argv0_basename_is_impl(const char *argv0, const char *base) {
     name = slash ? slash + 1 : (argv0 ? argv0 : "");
     return strcmp(name, base) == 0;
 }
-int driver_argv0_basename_is(const char *argv0, const char *base) {
-  {
-    return driver_argv0_basename_is_impl(argv0, base);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -6028,9 +6026,8 @@ int drv_path_ends_x(const char *buf, int len) {
     return 1;
   return 0;
 }
-
-
-int drv_target_has_arm_impl(const char *buf, int len) {
+/* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int drv_target_has_arm(const char *buf, int len) {
     int start;
     for (start = 0; start + 5 <= len; start++) {
         if (buf[start] == 'a' && buf[start + 1] == 'r' && buf[start + 2] == 'm' && buf[start + 3] == '6' &&
@@ -6039,12 +6036,8 @@ int drv_target_has_arm_impl(const char *buf, int len) {
     }
     return 0;
 }
-int drv_target_has_arm(const char *buf, int len) {
-  {
-    return drv_target_has_arm_impl(buf, len);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -6540,7 +6533,8 @@ void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
 int driver_run_x_emit_c(void);
 
 /** argv 是否含 `-E` / `-E-extern`（G-06 build_seed_asm_host 用 `shux -E file.x`，勿走 asm 后端）。 */
-int driver_argv_has_emit_c_flag_impl(int argc, char **argv) {
+/* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int driver_argv_has_emit_c_flag(int argc, char **argv) {
     int i;
     if (argc < 2 || !argv)
         return 0;
@@ -6550,12 +6544,8 @@ int driver_argv_has_emit_c_flag_impl(int argc, char **argv) {
     }
     return 0;
 }
-int driver_argv_has_emit_c_flag(int argc, char **argv) {
-  {
-    return driver_argv_has_emit_c_flag_impl(argc, argv);
-  }
-  return 0;
-}
+
+
 
 
 /**

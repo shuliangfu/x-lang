@@ -1,4 +1,5 @@
 /* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-125 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-122 true .x pure helpers.
  * G-02f-121 true .x pure helpers.
@@ -1247,7 +1248,8 @@ int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct pla
  * std.heap 薄包装 → heap_*_c / libc 符号。
  * co-emit 时 std.heap 模块常仅含 allocator_*（无 alloc/arena64_alloc 体）；须 redirect 避免 std_heap_* UND。
  */
-int32_t glue_try_std_heap_redirect_sym_local_impl(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+/* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
                                                     int32_t out_cap) {
   static const struct {
     const char *from;
@@ -1310,13 +1312,8 @@ int32_t glue_try_std_heap_redirect_sym_local_impl(const uint8_t *name, int32_t n
   }
   return 0;
 }
-int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
-                                                    int32_t out_cap) {
-  {
-    return glue_try_std_heap_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /**

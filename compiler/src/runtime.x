@@ -92,9 +92,6 @@ extern "C" function drv_eq_print_target_cpu_impl(buf: *u8, len: i32): i32;
 extern "C" function drv_eq_asm_word_impl(buf: *u8, len: i32): i32;
 extern "C" function drv_eq_c_word_impl(buf: *u8, len: i32): i32;
 extern "C" function drv_path_ends_x_impl(buf: *u8, len: i32): i32;
-extern "C" function drv_target_has_arm_impl(buf: *u8, len: i32): i32;
-extern "C" function driver_argv_has_emit_c_flag_impl(argc: i32, argv: *u8): i32;
-extern "C" function driver_argv0_basename_is_impl(argv0: *u8, base: *u8): i32;
 
 extern "C" function content_has_generic_syntax_impl(content: *u8, n: i64): i32;
 extern "C" function content_has_compound_assign_syntax_impl(content: *u8, n: i64): i32;
@@ -574,29 +571,11 @@ function runtime_diag_code_for_kind(kind: *u8): *u8 {
 
 
 
-#[no_mangle]
-function drv_target_has_arm(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_target_has_arm_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function driver_argv_has_emit_c_flag(argc: i32, argv: *u8): i32 {
-  unsafe {
-    return driver_argv_has_emit_c_flag_impl(argc, argv);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function driver_argv0_basename_is(argv0: *u8, base: *u8): i32 {
-  unsafe {
-    return driver_argv0_basename_is_impl(argv0, base);
-  }
-  return 0;
-}
+
+
+
 
 /* ---- G-02f-88：源扫描 / core-only / check·fmt 薄委托 门闩 ---- */
 
@@ -1050,3 +1029,94 @@ function driver_asm_output_want_exe(path: *u8): i32 {
   }
   return 0;
 }
+
+// G-02f-125：driver pure argv/target/basename helpers 真迁 .x
+
+extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
+
+#[no_mangle]
+function drv_target_has_arm(buf: *u8, len: i32): i32 {
+  if (buf == 0) { return 0; }
+  let start: i32 = 0;
+  while (start + 5 <= len) {
+    // arm64
+    if (buf[start]==97 && buf[start+1]==114 && buf[start+2]==109 && buf[start+3]==54 && buf[start+4]==52) {
+      return 1;
+    }
+    start = start + 1;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_argv_has_emit_c_flag(argc: i32, argv: *u8): i32 {
+  if (argc < 2) { return 0; }
+  if (argv == 0) { return 0; }
+  let i: i32 = 1;
+  while (i < argc) {
+    unsafe {
+      let s: *u8 = driver_argv_at(argv, i);
+      if (s != 0) {
+        // "-E"
+        if (s[0]==45 && s[1]==69 && s[2]==0) { return 1; }
+        // "-E-extern"
+        if (s[0]==45 && s[1]==69 && s[2]==45 && s[3]==101 && s[4]==120 && s[5]==116
+            && s[6]==101 && s[7]==114 && s[8]==110 && s[9]==0) {
+          return 1;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_argv0_basename_is(argv0: *u8, base: *u8): i32 {
+  if (base == 0) { return 0; }
+  // find last / or \
+  let name: *u8 = argv0;
+  if (argv0 != 0) {
+    let i: i32 = 0;
+    let last: i32 = 0 - 1;
+    while (i < 4096) {
+      let c: u8 = argv0[i];
+      if (c == 0) { break; }
+      if (c == 47) { last = i; }
+      if (c == 92) { last = i; }
+      i = i + 1;
+    }
+    if (last >= 0) {
+      // name = argv0 + last + 1
+      unsafe {
+        // compare from last+1
+        let j: i32 = 0;
+        while (j < 256) {
+          let a: u8 = argv0[last + 1 + j];
+          let b: u8 = base[j];
+          if (a != b) { return 0; }
+          if (a == 0) { return 1; }
+          j = j + 1;
+        }
+      }
+      return 0;
+    }
+  } else {
+    name = 0 as *u8;
+  }
+  // no slash: compare argv0 or empty with base
+  if (argv0 == 0) {
+    if (base[0] == 0) { return 1; }
+    return 0;
+  }
+  let j: i32 = 0;
+  while (j < 256) {
+    let a: u8 = argv0[j];
+    let b: u8 = base[j];
+    if (a != b) { return 0; }
+    if (a == 0) { return 1; }
+    j = j + 1;
+  }
+  return 0;
+}
+
