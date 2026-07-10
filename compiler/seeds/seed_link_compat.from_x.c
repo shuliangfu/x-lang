@@ -1,5 +1,7 @@
-/* seeds/seed_link_compat.from_x.c — G-02f-11 product TU
- * Product object from this seed; logic still C until full .x port.
+/* Generated from src/seed_link_compat.x (G-02f-28 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/seed_link_compat.x > /tmp/slc.c
+ *         then merge into this seed (weak polish + fold/arch C tail).
+ * .x covers: typeck_lsp_* / std_heap/sys bridges / lsp_diag_* weak -1 stubs.
  */
 #include <stdarg.h>
 #include <stddef.h>
@@ -29,58 +31,25 @@ extern int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32
 extern int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
                                       int32_t *out_line, int32_t *out_col) __attribute__((weak));
 
-__attribute__((weak)) int32_t lsp_diag_lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len,
-                                                                      uint8_t *out_buf, int32_t out_cap) {
-  (void)id_val;
-  (void)source;
-  (void)source_len;
-  (void)out_buf;
-  (void)out_cap;
-  return -1;
+
+__attribute__((weak)) int32_t lsp_diag_lsp_build_diagnostics_response(int32_t id_val, uint8_t * source, int32_t source_len, uint8_t * out_buf, int32_t out_cap) {
+  return (0 - 1);
 }
 
-__attribute__((weak)) int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
-                                                                         uint8_t *out_buf, int32_t out_cap) {
-  (void)id_val;
-  (void)doc_buf;
-  (void)doc_len;
-  (void)out_buf;
-  (void)out_cap;
-  return -1;
+__attribute__((weak)) int32_t lsp_diag_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * doc_buf, int32_t doc_len, uint8_t * out_buf, int32_t out_cap) {
+  return (0 - 1);
 }
 
-__attribute__((weak)) int32_t lsp_diag_hover_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
-                                                uint8_t *out_buf, int32_t out_cap) {
-  (void)source;
-  (void)source_len;
-  (void)line_0;
-  (void)col_0;
-  (void)out_buf;
-  (void)out_cap;
-  return -1;
+__attribute__((weak)) int32_t lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, uint8_t * out_buf, int32_t out_cap) {
+  return (0 - 1);
 }
 
-__attribute__((weak)) int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
-                                                     int32_t *out_lines, int32_t *out_cols, int32_t max_refs) {
-  (void)source;
-  (void)source_len;
-  (void)line_0;
-  (void)col_0;
-  (void)out_lines;
-  (void)out_cols;
-  (void)max_refs;
-  return -1;
+__attribute__((weak)) int32_t lsp_diag_references_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_lines, int32_t * out_cols, int32_t max_refs) {
+  return (0 - 1);
 }
 
-__attribute__((weak)) int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
-                                                     int32_t *out_line, int32_t *out_col) {
-  (void)source;
-  (void)source_len;
-  (void)line_0;
-  (void)col_0;
-  (void)out_line;
-  (void)out_col;
-  return -1;
+__attribute__((weak)) int32_t lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_line, int32_t * out_col) {
+  return (0 - 1);
 }
 
 extern uint8_t *lsp_io_std_heap_std_heap_alloc(size_t size);
@@ -125,12 +94,21 @@ __attribute__((weak)) uint8_t *typeck_lsp_alloc(size_t size) {
   return lsp_io_lsp_alloc(size);
 }
 
-__attribute__((weak)) void typeck_lsp_free(uint8_t *ptr) {
-  lsp_io_lsp_free(ptr);
+
+__attribute__((weak)) void typeck_lsp_free(uint8_t * ptr) {
+  (void)(({   {
+    (void)(lsp_io_lsp_free(ptr));
+  }
+ }));
 }
 
-__attribute__((weak)) int32_t typeck_lsp_is_null(uint8_t *ptr) {
-  return lsp_io_lsp_is_null(ptr);
+__attribute__((weak)) int32_t typeck_lsp_is_null(uint8_t * ptr) {
+  (void)(({   {
+    int32_t r = lsp_io_lsp_is_null(ptr);
+    return r;
+  }
+ }));
+  return 0;
 }
 
 __attribute__((weak)) ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf) {
@@ -138,7 +116,12 @@ __attribute__((weak)) ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_ou
 }
 
 __attribute__((weak)) int32_t typeck_lsp_main_impl(void) {
-  return lsp_main_impl();
+  (void)(({   {
+    int32_t r = lsp_main_impl();
+    return r;
+  }
+ }));
+  return 0;
 }
 
 __attribute__((weak)) int32_t typeck_lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len,
@@ -185,16 +168,28 @@ __attribute__((weak)) uint8_t *typeck_std_heap_alloc_zeroed(size_t size) {
   return lsp_io_std_heap_std_heap_alloc_zeroed(size);
 }
 
-__attribute__((weak)) void typeck_std_heap_free(uint8_t *ptr) {
-  lsp_io_std_heap_std_heap_free(ptr);
+
+__attribute__((weak)) void typeck_std_heap_free(uint8_t * ptr) {
+  (void)(({   {
+    (void)(lsp_io_std_heap_std_heap_free(ptr));
+  }
+ }));
 }
 
-__attribute__((weak)) int32_t std_sys_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
-  return std_sys_os_read_file_into(path, buf, cap);
+__attribute__((weak)) int32_t std_sys_read_file_into(uint8_t * path, uint8_t * buf, int32_t cap) {
+  (void)(({   {
+    int32_t r = std_sys_os_read_file_into(path, buf, cap);
+    return r;
+  }
+ }));
+  return 0;
 }
 
-__attribute__((weak)) void std_heap_free_u8_ptr(uint8_t *ptr) {
-  std_heap_free(ptr);
+__attribute__((weak)) void std_heap_free_u8_ptr(uint8_t * ptr) {
+  (void)(({   {
+    (void)(std_heap_free(ptr));
+  }
+ }));
 }
 
 __attribute__((weak)) int32_t std_io_read_usize_u8_ptr_usize_u32(size_t handle, uint8_t *ptr, size_t len,
@@ -207,12 +202,20 @@ __attribute__((weak)) int32_t std_io_write_usize_u8_ptr_usize_u32(size_t handle,
   return (int32_t)io_write((int)handle, ptr, len, (unsigned)timeout_ms);
 }
 
-__attribute__((weak)) void ast_pipeline_module_struct_layout_set_packed(struct ast_Module *module, int32_t idx, int32_t v) {
-  pipeline_module_struct_layout_set_packed(module, idx, v);
+__attribute__((weak)) void ast_pipeline_module_struct_layout_set_packed(uint8_t * module, int32_t idx, int32_t v) {
+  (void)(({   {
+    (void)(pipeline_module_struct_layout_set_packed(module, idx, v));
+  }
+ }));
 }
 
-__attribute__((weak)) int32_t backend_asm_ctx_slot_offset(struct backend_AsmFuncCtx *ctx, int32_t slot_idx) {
-  return asm_ctx_local_offset_at((uint8_t *)ctx, slot_idx);
+__attribute__((weak)) int32_t backend_asm_ctx_slot_offset(uint8_t * ctx, int32_t slot_idx) {
+  (void)(({   {
+    int32_t r = asm_ctx_local_offset_at(ctx, slot_idx);
+    return r;
+  }
+ }));
+  return 0;
 }
 
 __attribute__((weak)) int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod, int32_t func_idx) {
@@ -306,6 +309,7 @@ static int32_t shux_module_func_index_by_name(struct ast_Module *mod, uint8_t *n
   }
   return -1;
 }
+
 
 __attribute__((weak)) int32_t backend_fold_func_returns_param0_field_sum(void *arena, struct ast_Module *mod,
                                                                          int32_t func_idx) {
@@ -422,6 +426,7 @@ static const char *shux_x86_arg_reg_name(int32_t k) {
     k = 5;
   return regs[k];
 }
+
 
 __attribute__((weak)) int32_t arch_x86_64_emit_prologue(struct codegen_CodegenOutBuf *out, int32_t frame_sz) {
   if (frame_sz < 0)
@@ -752,6 +757,7 @@ SHUX_ARCH_TEXT_STUB2(arch_riscv64_emit_store_rax_to_rbx_offset, int32_t, offset,
 SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_sub_rbx_rax_then_mov)
 SHUX_ARCH_TEXT_STUB0(arch_riscv64_emit_xor_rbx_rax)
 
+
 __attribute__((weak)) int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t val) {
   uint8_t bytes[4];
   bytes[0] = (uint8_t)(val & 255);
@@ -982,3 +988,4 @@ SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rsub_rbx_a3)
 SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rbx_plus_a2_scale1)
 SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rbx_plus_a2_scale4)
 SHUX_ARCH_ENC_STUB0(arch_riscv64_enc_enc_rbx_plus_a2_scale8)
+
