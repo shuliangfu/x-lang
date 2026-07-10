@@ -439,7 +439,8 @@ int32_t simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(struct platform_elf_ElfCodegenCtx *e
 /** 发射整型向量 add/sub 公共路径（SSE paddd/psubd 或 AVX2 vpaddd/vpsubd）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+/* G-02f-418：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t simd_enc_try_hw_vector_iadd_isub_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                                     int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes,
                                                     int32_t esz, int32_t ta, uint32_t cpu_features, int32_t is_sub) {
     int32_t da;
@@ -488,13 +489,21 @@ int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodegenCtx *
     return -1;
 }
 
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                                    int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes,
+                                                    int32_t esz, int32_t ta, uint32_t cpu_features, int32_t is_sub) {
+  return simd_enc_try_hw_vector_iadd_isub_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features, is_sub);
+}
+#endif
+
 
 
 
 /* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-398：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_enc_try_hw_vector_iadd_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a, int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz, int32_t ta, uint32_t cpu_features) {
-    return simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta,
+    return simd_enc_try_hw_vector_iadd_isub_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta,
                                                 cpu_features, 0);
 }
 
@@ -507,7 +516,7 @@ int32_t simd_enc_try_hw_vector_iadd_rbp(struct platform_elf_ElfCodegenCtx *elf_c
 /* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-399：实现体始终 seed；public PREFER 时 thin forward */
 int32_t simd_enc_try_hw_vector_isub_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a, int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz, int32_t ta, uint32_t cpu_features) {
-    return simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta,
+    return simd_enc_try_hw_vector_iadd_isub_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta,
                                                 cpu_features, 1);
 }
 
@@ -518,7 +527,8 @@ int32_t simd_enc_try_hw_vector_isub_rbp(struct platform_elf_ElfCodegenCtx *elf_c
 #endif
 
 /* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_enc_try_hw_vector_imul_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+/* G-02f-418：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t simd_enc_try_hw_vector_imul_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
     int32_t da;
@@ -557,8 +567,17 @@ int32_t simd_enc_try_hw_vector_imul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
     return -1;
 }
 
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_imul_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                        int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
+                                        int32_t ta, uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_imul_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features);
+}
+#endif
+
 /* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_enc_try_hw_vector_fadd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+/* G-02f-418：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t simd_enc_try_hw_vector_fadd_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
     int32_t da;
@@ -585,8 +604,17 @@ int32_t simd_enc_try_hw_vector_fadd_rbp(struct platform_elf_ElfCodegenCtx *elf_c
     return 0;
 }
 
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_fadd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                        int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
+                                        int32_t ta, uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_fadd_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features);
+}
+#endif
+
 /* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+/* G-02f-418：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t simd_enc_try_hw_vector_fmul_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
                                         int32_t ta, uint32_t cpu_features) {
     int32_t da;
@@ -613,8 +641,17 @@ int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_c
     return 0;
 }
 
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_fmul_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                        int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
+                                        int32_t ta, uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_fmul_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features);
+}
+#endif
+
 /* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_enc_try_hw_vector_fma_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+/* G-02f-418：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t simd_enc_try_hw_vector_fma_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                        int32_t slot_off_b, int32_t slot_off_c, int32_t slot_off_dst, int32_t lanes,
                                        int32_t esz, int32_t ta, uint32_t cpu_features) {
     int32_t da;
@@ -658,6 +695,14 @@ int32_t simd_enc_try_hw_vector_fma_rbp(struct platform_elf_ElfCodegenCtx *elf_ct
         return -1;
     return 0;
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_fma_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                       int32_t slot_off_b, int32_t slot_off_c, int32_t slot_off_dst, int32_t lanes,
+                                       int32_t esz, int32_t ta, uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_fma_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_c, slot_off_dst, lanes, esz, ta, cpu_features);
+}
+#endif
 
 /** x86 AVX2：vmovups ymm0, [rbx+rax*4]（C4 E2 7D 10 04 83）。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -769,7 +814,8 @@ extern int32_t backend_enc_lea_rbp_to_rbx_arch(struct platform_elf_ElfCodegenCtx
                                                int32_t ta);
 
 /* G-02f-212：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_a,
+/* G-02f-418：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t simd_enc_try_hw_vector_binop_rbp_at_idx_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_a,
                                                 int32_t off_b, int32_t off_d, int32_t off_i, int32_t array_n,
                                                 int32_t binop_ko, int32_t lanes, int32_t esz, int32_t ta,
                                                 uint32_t cpu_features) {
@@ -841,6 +887,15 @@ int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCt
     return -1;
 }
 
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_binop_rbp_at_idx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_a,
+                                                int32_t off_b, int32_t off_d, int32_t off_i, int32_t array_n,
+                                                int32_t binop_ko, int32_t lanes, int32_t esz, int32_t ta,
+                                                uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_binop_rbp_at_idx_impl(elf_ctx, off_a, off_b, off_d, off_i, array_n, binop_ko, lanes, esz, ta, cpu_features);
+}
+#endif
+
 /** 向指令流追加 little-endian u32 机器字（arm64 NEON 等）。 */
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-399：实现体始终 seed；public PREFER 时 thin forward */
@@ -881,7 +936,8 @@ uint32_t simd_arm64_ins_v1_from_v0_s(int32_t dst_lane, int32_t src_lane) {
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-212：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_arm64_pshufd_imm8_128_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lea_src,
+/* G-02f-418：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t simd_arm64_pshufd_imm8_128_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lea_src,
                                               int32_t lea_dst, int32_t imm8, int32_t ta) {
     int32_t li;
     int32_t src_lane;
@@ -904,6 +960,13 @@ int32_t simd_arm64_pshufd_imm8_128_rbp(struct platform_elf_ElfCodegenCtx *elf_ct
     return 0;
 }
 
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_arm64_pshufd_imm8_128_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lea_src,
+                                              int32_t lea_dst, int32_t imm8, int32_t ta) {
+  return simd_arm64_pshufd_imm8_128_rbp_impl(elf_ctx, lea_src, lea_dst, imm8, ta);
+}
+#endif
+
 
 
 
@@ -913,7 +976,8 @@ int32_t simd_arm64_pshufd_imm8_128_rbp(struct platform_elf_ElfCodegenCtx *elf_ct
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-212：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_arm64_select_128_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lea_mask,
+/* G-02f-418：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t simd_arm64_select_128_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lea_mask,
                                        int32_t lea_a, int32_t lea_b, int32_t lea_dst, int32_t is_f32,
                                        int32_t ta) {
     if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_mask, ta) != 0)
@@ -946,6 +1010,14 @@ int32_t simd_arm64_select_128_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, in
         return -1;
     return 0;
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_arm64_select_128_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lea_mask,
+                                       int32_t lea_a, int32_t lea_b, int32_t lea_dst, int32_t is_f32,
+                                       int32_t ta) {
+  return simd_arm64_select_128_rbp_impl(elf_ctx, lea_mask, lea_a, lea_b, lea_dst, is_f32, ta);
+}
+#endif
 
 
 
@@ -993,7 +1065,8 @@ int32_t simd_x86_vpshufd_ymm0_imm8(struct platform_elf_ElfCodegenCtx *elf_ctx, i
 
 
 /* G-02f-212：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_src,
+/* G-02f-418：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t simd_enc_try_pshufd_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_src,
                                 int32_t slot_off_dst, int32_t imm8, int32_t lanes, int32_t ta,
                                 uint32_t cpu_features) {
     int32_t ds;
@@ -1008,15 +1081,15 @@ int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
         ds = simd_arm64_rbp_lea_off_128half(slot_off_src, 0, 4);
         dd = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, 4);
         if (lanes == 4)
-            return simd_arm64_pshufd_imm8_128_rbp(elf_ctx, ds, dd, imm8, ta);
+            return simd_arm64_pshufd_imm8_128_rbp_impl(elf_ctx, ds, dd, imm8, ta);
         if (lanes == 8) {
             int32_t ds1;
             int32_t dd1;
             ds1 = simd_arm64_rbp_lea_off_128half(slot_off_src, 1, 4);
             dd1 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, 4);
-            if (simd_arm64_pshufd_imm8_128_rbp(elf_ctx, ds, dd, imm8, ta) != 0)
+            if (simd_arm64_pshufd_imm8_128_rbp_impl(elf_ctx, ds, dd, imm8, ta) != 0)
                 return -1;
-            if (simd_arm64_pshufd_imm8_128_rbp(elf_ctx, ds1, dd1, imm8, ta) != 0)
+            if (simd_arm64_pshufd_imm8_128_rbp_impl(elf_ctx, ds1, dd1, imm8, ta) != 0)
                 return -1;
             return 0;
         }
@@ -1044,6 +1117,14 @@ int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
     }
     return -1;
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_pshufd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_src,
+                                int32_t slot_off_dst, int32_t imm8, int32_t lanes, int32_t ta,
+                                uint32_t cpu_features) {
+  return simd_enc_try_pshufd_rbp_impl(elf_ctx, slot_off_src, slot_off_dst, imm8, lanes, ta, cpu_features);
+}
+#endif
 
 /** x86 AVX2：vmovups ymm2, [rbp+disp32]（C5 FE 10 95 disp32）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -1513,7 +1594,8 @@ int32_t simd_enc_emit_f32_select_ymm_seq(struct platform_elf_ElfCodegenCtx *elf_
 
 
 /* G-02f-212：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_mask,
+/* G-02f-418：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t simd_enc_try_hw_vector_select_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_mask,
                                           int32_t slot_off_a, int32_t slot_off_b, int32_t slot_off_dst,
                                           int32_t lanes, int32_t is_f32, int32_t ta, uint32_t cpu_features) {
     int32_t dm;
@@ -1535,7 +1617,7 @@ int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf
         db = simd_arm64_rbp_lea_off_128half(slot_off_b, 0, 4);
         dd = simd_arm64_rbp_lea_off_128half(slot_off_dst, 0, 4);
         if (lanes == 4)
-            return simd_arm64_select_128_rbp(elf_ctx, dm, da, db, dd, is_f32, ta);
+            return simd_arm64_select_128_rbp_impl(elf_ctx, dm, da, db, dd, is_f32, ta);
         if (lanes == 8) {
             int32_t dm1;
             int32_t da1;
@@ -1545,9 +1627,9 @@ int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf
             da1 = simd_arm64_rbp_lea_off_128half(slot_off_a, 1, 4);
             db1 = simd_arm64_rbp_lea_off_128half(slot_off_b, 1, 4);
             dd1 = simd_arm64_rbp_lea_off_128half(slot_off_dst, 1, 4);
-            if (simd_arm64_select_128_rbp(elf_ctx, dm, da, db, dd, is_f32, ta) != 0)
+            if (simd_arm64_select_128_rbp_impl(elf_ctx, dm, da, db, dd, is_f32, ta) != 0)
                 return -1;
-            if (simd_arm64_select_128_rbp(elf_ctx, dm1, da1, db1, dd1, is_f32, ta) != 0)
+            if (simd_arm64_select_128_rbp_impl(elf_ctx, dm1, da1, db1, dd1, is_f32, ta) != 0)
                 return -1;
             return 0;
         }
@@ -1593,6 +1675,14 @@ int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf
     }
     return -1;
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_mask,
+                                          int32_t slot_off_a, int32_t slot_off_b, int32_t slot_off_dst,
+                                          int32_t lanes, int32_t is_f32, int32_t ta, uint32_t cpu_features) {
+  return simd_enc_try_hw_vector_select_rbp_impl(elf_ctx, slot_off_mask, slot_off_a, slot_off_b, slot_off_dst, lanes, is_f32, ta, cpu_features);
+}
+#endif
 
 /** x86：xorps xmm0, xmm0（acc 清零）。 */
 /* G-02f-211：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */

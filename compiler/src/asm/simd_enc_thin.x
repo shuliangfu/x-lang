@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-348/385/390–399/417：simd_enc L2 thin — pure 编码助手 + insn forward（64 门闩）。
+// G-02f-348/385/390–399/417/418：simd_enc L2 thin — pure + insn + try_hw forward（74 门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_SIMD_ENC_THIN_FROM_X）ld -r → simd_enc.o
 // 完整逻辑对照：src/asm/simd_enc.x；产品默认仍整 seed。
 //
@@ -573,5 +573,77 @@ function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: i32): i32 {
 #[no_mangle]
 function simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx: *u8, off_col0: i32, off_i: i32, ta: i32): i32 {
   unsafe { return simd_enc_f32_soa_col_movups_xmm1_at_idx_impl(elf_ctx, off_col0, off_i, ta); }
+  return 0 - 1;
+}
+
+// ---- G-02f-418：try_hw / arm64 pshufd-select closeout → seed impl ----
+extern "C" function simd_enc_try_hw_vector_iadd_isub_rbp_impl(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32, is_sub: i32): i32;
+extern "C" function simd_enc_try_hw_vector_imul_rbp_impl(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32;
+extern "C" function simd_enc_try_hw_vector_fadd_rbp_impl(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32;
+extern "C" function simd_enc_try_hw_vector_fmul_rbp_impl(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32;
+extern "C" function simd_enc_try_hw_vector_fma_rbp_impl(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_c: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32;
+extern "C" function simd_enc_try_hw_vector_binop_rbp_at_idx_impl(elf_ctx: *u8, off_a: i32, off_b: i32, off_d: i32, off_i: i32, array_n: i32, binop_ko: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32;
+extern "C" function simd_arm64_pshufd_imm8_128_rbp_impl(elf_ctx: *u8, lea_src: i32, lea_dst: i32, imm8: i32, ta: i32): i32;
+extern "C" function simd_arm64_select_128_rbp_impl(elf_ctx: *u8, lea_mask: i32, lea_a: i32, lea_b: i32, lea_dst: i32, is_f32: i32, ta: i32): i32;
+extern "C" function simd_enc_try_pshufd_rbp_impl(elf_ctx: *u8, slot_off_src: i32, slot_off_dst: i32, imm8: i32, lanes: i32, ta: i32, cpu_features: u32): i32;
+extern "C" function simd_enc_try_hw_vector_select_rbp_impl(elf_ctx: *u8, slot_off_mask: i32, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, is_f32: i32, ta: i32, cpu_features: u32): i32;
+
+#[no_mangle]
+function simd_enc_try_hw_vector_iadd_isub_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32, is_sub: i32): i32 {
+  unsafe { return simd_enc_try_hw_vector_iadd_isub_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features, is_sub); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_try_hw_vector_imul_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+  unsafe { return simd_enc_try_hw_vector_imul_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_try_hw_vector_fadd_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+  unsafe { return simd_enc_try_hw_vector_fadd_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_try_hw_vector_fmul_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+  unsafe { return simd_enc_try_hw_vector_fmul_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_try_hw_vector_fma_rbp(elf_ctx: *u8, slot_off_a: i32, slot_off_b: i32, slot_off_c: i32, slot_off_dst: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+  unsafe { return simd_enc_try_hw_vector_fma_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_c, slot_off_dst, lanes, esz, ta, cpu_features); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32, off_b: i32, off_d: i32, off_i: i32, array_n: i32, binop_ko: i32, lanes: i32, esz: i32, ta: i32, cpu_features: u32): i32 {
+  unsafe { return simd_enc_try_hw_vector_binop_rbp_at_idx_impl(elf_ctx, off_a, off_b, off_d, off_i, array_n, binop_ko, lanes, esz, ta, cpu_features); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_arm64_pshufd_imm8_128_rbp(elf_ctx: *u8, lea_src: i32, lea_dst: i32, imm8: i32, ta: i32): i32 {
+  unsafe { return simd_arm64_pshufd_imm8_128_rbp_impl(elf_ctx, lea_src, lea_dst, imm8, ta); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i32, lea_b: i32, lea_dst: i32, is_f32: i32, ta: i32): i32 {
+  unsafe { return simd_arm64_select_128_rbp_impl(elf_ctx, lea_mask, lea_a, lea_b, lea_dst, is_f32, ta); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_try_pshufd_rbp(elf_ctx: *u8, slot_off_src: i32, slot_off_dst: i32, imm8: i32, lanes: i32, ta: i32, cpu_features: u32): i32 {
+  unsafe { return simd_enc_try_pshufd_rbp_impl(elf_ctx, slot_off_src, slot_off_dst, imm8, lanes, ta, cpu_features); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_try_hw_vector_select_rbp(elf_ctx: *u8, slot_off_mask: i32, slot_off_a: i32, slot_off_b: i32, slot_off_dst: i32, lanes: i32, is_f32: i32, ta: i32, cpu_features: u32): i32 {
+  unsafe { return simd_enc_try_hw_vector_select_rbp_impl(elf_ctx, slot_off_mask, slot_off_a, slot_off_b, slot_off_dst, lanes, is_f32, ta, cpu_features); }
   return 0 - 1;
 }
