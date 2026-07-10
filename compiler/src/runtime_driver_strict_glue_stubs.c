@@ -1,3 +1,6 @@
+/**
+ * runtime_driver_strict_glue_stubs.c — seed/no_c weak stubs + asm_driver_* 桥（G-02e-10 并入 _stubs_driver）。
+ */
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -250,4 +253,17 @@ SHUX_WEAK void codegen_dump_wpo_callgraph_json(FILE *out,
     struct ASTModule **all_mods, const char **all_paths, int n_all) {
   (void)entry; (void)entry_path; (void)all_mods; (void)all_paths; (void)n_all;
   if (out) fputs("{\"version\":2,\"nodes\":[]}\n", out);
+}
+
+/* ---- G-02e-10：原 _stubs_driver.c（pipeline_gen asm_driver_* → driver_*）---- */
+
+extern int32_t driver_skip_codegen_dep_0_get(void);
+extern void driver_set_current_dep_path_for_codegen(const char *path);
+
+int32_t asm_driver_skip_codegen_dep_0_get(void) {
+  return driver_skip_codegen_dep_0_get();
+}
+
+void asm_driver_set_current_dep_path_for_codegen(uint8_t *path) {
+  driver_set_current_dep_path_for_codegen((const char *)path);
 }
