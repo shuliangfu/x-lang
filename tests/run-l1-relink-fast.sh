@@ -92,7 +92,7 @@ else
   src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o \
   src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
   src/x_seed_bridge.o src/std_fs_shim.o src/std_sys_shim.o \
-  src/ast_pool_l5_bridge.o src/lsp/lsp_diag_pipeline_sizes_nostub.o \
+  src/lsp/lsp_diag_pipeline_sizes_nostub.o \
   src/lsp/lsp_diag_pipeline_ctx.o \
   typeck_c_module_stubs.o \
   src/runtime_heap_user.o src/runtime_heap_user.o \

@@ -96,7 +96,7 @@ ld -r -exported_symbols_list "$PIPELINE_X2_KEEP" -o "$PIPELINE_X2_FILTERED" pipe
 echo ""
 echo "── 编译 C 侧与 seed 桥（与 bootstrap-driver-seed 同拓扑）──"
 ${MAKE:-make} -q build-seed-asm-host 2>/dev/null || ${MAKE:-make} build-seed-asm-host
-cc $CFLAGS -c src/ast_pool_l5_bridge.c -o src/ast_pool_l5_bridge.o
+cc $CFLAGS -c src/runtime_driver_strict_glue_stubs.c -o
 cc $CFLAGS -DX_VERIFY_STAGE2 -c src/x_seed_bridge.c -o src/x_seed_bridge_stage2.o
 cc $CFLAGS -c typeck_x_link_alias.c -o x_frontend_link_alias.o
 cc $CFLAGS -c codegen_x_link_alias.c -o x_frontend_link_alias.o
@@ -128,7 +128,7 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   src/runtime_c_import.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o \
   src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o \
   src/runtime_heap_user.o src/x_seed_bridge_stage2.o src/seed_link_compat.o src/std_fs_shim.o src/std_sys_shim.o \
-  src/ast_pool_l5_bridge.o \
+  \
   token_x2.o ast_x2.o lexer_x2.o parser_x2.o typeck_x2.o codegen_x2.o preprocess_x2.o "$PIPELINE_X2_FILTERED" \
   x_frontend_link_alias.o \
   driver_x.o pipeline_bootstrap_orchestration.o \

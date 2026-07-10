@@ -176,13 +176,9 @@ ensure_experimental_companion_objs() {
   experimental_bootstrap_info "cc x_seed_bridge.o"
   "$CC" $CFLAGS -c -o "$BUILD_DIR/x_seed_bridge.o" src/x_seed_bridge.c
   fi
-  if [ ! -f "$BUILD_DIR/ast_pool_l5_bridge.o" ] || [ "src/ast_pool_l5_bridge.c" -nt "$BUILD_DIR/ast_pool_l5_bridge.o" ]; then
-  experimental_bootstrap_info "cc ast_pool_l5_bridge.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/ast_pool_l5_bridge.o" src/ast_pool_l5_bridge.c
-  fi
   if [ ! -f src/runtime_driver_strict_glue_stubs.o ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt src/runtime_driver_strict_glue_stubs.o ]; then
-  experimental_bootstrap_info "cc lsp_codegen_extern.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_driver_strict_glue_stubs.o src/runtime_driver_strict_glue_stubs.c
+    experimental_bootstrap_info "cc runtime_driver_strict_glue_stubs.o"
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_driver_strict_glue_stubs.o src/runtime_driver_strict_glue_stubs.c
   fi
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.x" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
   experimental_bootstrap_info "build_seed_asm_host (asm_backend_partial.o)"
@@ -414,7 +410,7 @@ fi
   pipeline_x.o \
   pipeline_bootstrap_orchestration.o \
   preprocess_x.o \
-  "$BUILD_DIR/ast_pool_l5_bridge.o" \
+  "src/runtime_driver_strict_glue_stubs.o" \
   driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
   src/runtime_io_abi.o \
   src/runtime_io_abi.o \

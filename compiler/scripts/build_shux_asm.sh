@@ -2123,10 +2123,11 @@ ensure_asm_pipeline_glue_strict_minimal_obj() {
 
 # B-strict：preprocess -D 与 labeled 名写入（ast_pool_l5_bridge.c）。
 ensure_ast_pool_l5_bridge_obj() {
-  local OBJ="$BUILD_DIR/ast_pool_l5_bridge.o"
-  if [ ! -f "$OBJ" ] || [ "src/ast_pool_l5_bridge.c" -nt "$OBJ" ] || [ "ast_pool.c" -nt "$OBJ" ]; then
-  echo " cc -c src/ast_pool_l5_bridge.c -> $OBJ"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$OBJ" src/ast_pool_l5_bridge.c
+  # G-02e-13：实现已并入 runtime_driver_strict_glue_stubs.c
+  local o="src/runtime_driver_strict_glue_stubs.o"
+  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt "$o" ]; then
+    echo "  cc -c $o <- src/runtime_driver_strict_glue_stubs.c (former ast_pool_l5_bridge)" >&2
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/runtime_driver_strict_glue_stubs.c
   fi
 }
 
@@ -2822,7 +2823,7 @@ filter_strict_asm_objs() {
   std_fs_shim.o|x_seed_bridge.o|\
   parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|\
   parser_asm_minimal_partial.o|\
-  ast_pool_l5_bridge.o|\
+  \
   lexer.o|peephole.o|platform_elf.o|macho.o|coff.o)
   continue
   ;;
@@ -3110,7 +3111,7 @@ refresh_bstrict_link_variants() {
 GEN_DRIVER_BSTRICT_COMPANIONS="src/runtime_io_abi.o $BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $BUILD_DIR/seed_host/asm_backend_partial.o $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o"
 
 # gen_driver 回退链：pipeline_x.o / runtime_driver 须 parser/lexer/codegen X + driver 子命令 + orchestration（Darwin 勿仅 SEED parser.o）。
-GEN_DRIVER_X_PIPELINE_COMPANIONS="parser_x.o lexer_x.o codegen_x.o x_frontend_link_alias.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o pipeline_bootstrap_orchestration.o $BUILD_DIR/ast_pool_l5_bridge.o"
+GEN_DRIVER_X_PIPELINE_COMPANIONS="parser_x.o lexer_x.o codegen_x.o x_frontend_link_alias.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o pipeline_bootstrap_orchestration.o src/runtime_driver_strict_glue_stubs.o"
 
 # 与 Makefile bootstrap-driver-seed / relink-shux 对齐：pipeline_x.o 经 glue 引用的 backend 桥与 check/fmt C 实现。
 ensure_bstrict_seed_support_objs() {
@@ -4111,7 +4112,7 @@ shux_asm_bstrict_relink_runtime_only() {
   refresh_bstrict_link_variants
   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
   ST_BSTRICT_LINK_EXTRA="src/runtime_io_abi.o src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/preprocess_if_stack_bridge.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
+  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/preprocess_if_stack_bridge.o src/runtime_driver_strict_glue_stubs.o $ST_DRIVER_CLI_OBJS"
   ensure_pipeline_o_strict_link_partial_obj || true
   filter_strict_asm_objs
   ASM_TRY_OBJS="$FILTERED"
@@ -4416,7 +4417,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   "$BSTRICT_PIPELINE_LINK_O" \
   pipeline_bootstrap_orchestration.o \
   preprocess_x.o \
-  "$BUILD_DIR/ast_pool_l5_bridge.o" \
+  "src/runtime_driver_strict_glue_stubs.o" \
   driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
   src/runtime_io_abi.o \
   src/runtime_io_abi.o \
@@ -4697,7 +4698,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   fi
   ensure_asm_backend_compat_stubs_obj
   refresh_bstrict_link_variants
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/preprocess_if_stack_bridge.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
+  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/preprocess_if_stack_bridge.o src/runtime_driver_strict_glue_stubs.o $ST_DRIVER_CLI_OBJS"
   else
   # legacy：须 seed C 前端 *.o 在前、*_x.o 在后（macOS ld 重复符号取后定义）。
   # E-06 v3 X：仅 async seed + X glue；parser_x.o 在 ST_PARSER_X_TAIL 压过重复符号。
@@ -4712,7 +4713,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ST_BACKEND_COMPANIONS=$(strict_asm_backend_companion_objs) || ST_BACKEND_COMPANIONS="$BUILD_DIR/seed_host/asm_backend_partial.o"
   ensure_asm_backend_compat_stubs_obj
   refresh_bstrict_link_variants
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/preprocess_if_stack_bridge.o $BUILD_DIR/ast_pool_l5_bridge.o $ST_DRIVER_CLI_OBJS"
+  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_USER_ASM_SEED_BRIDGE_LINK $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_OBJS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $BUILD_DIR/preprocess_if_stack_bridge.o src/runtime_driver_strict_glue_stubs.o $ST_DRIVER_CLI_OBJS"
   fi
   elif [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
   ST_BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"

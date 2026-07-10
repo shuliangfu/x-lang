@@ -104,7 +104,6 @@ file	compiler/src/asm/runtime_tls_mbedtls_bio.c
 file	compiler/src/asm/simd_enc.c
 file	compiler/src/asm/simd_loop.c
 file	compiler/src/asm/user_asm_seed_bridge.c
-file	compiler/src/ast_pool_l5_bridge.c
 file	compiler/src/async/async_asm_pool.c
 file	compiler/src/async/async_cps_codegen.c
 file	compiler/src/async/async_liveness.c

@@ -1163,7 +1163,7 @@ filter_strict_asm_objs() {
   asm_backend_compat_stubs.o|\
   std_fs_shim.o|x_seed_bridge.o|\
   parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_shux_lsp_diag_stub.o|\
-  ast_pool_l5_bridge.o|\
+  \
   lexer.o|peephole.o|platform_elf.o|macho.o|coff.o|\
   parser_asm_minimal_partial.o|parser_asm_thin_c.o|\
   driver_compile.o|driver_compile_asm_link_alias.o|driver_compile_emit_heavy.o|driver_compile_link.o)
@@ -1468,7 +1468,7 @@ if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "src/seed_link_compat.c" -nt "$
   strict_glue_info "cc -c $BUILD_DIR/seed_link_compat.o <- src/seed_link_compat.c"
   "$CC" $CFLAGS -c -o "$BUILD_DIR/seed_link_compat.o" src/seed_link_compat.c
 fi
-ST_STRICT_COMPANIONS="src/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o src/ast_pool_l5_bridge.o driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o $ST_DRIVER_COMPILE_O driver_emit_x.o $ST_BSTRICT_LINK_EXTRA"
+ST_STRICT_COMPANIONS="src/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS src/asm/user_asm_seed_bridge.o $BUILD_DIR/asm_backend_compat_stubs.o $BSTRICT_DISPATCH src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o $ST_DRIVER_COMPILE_O driver_emit_x.o $ST_BSTRICT_LINK_EXTRA"
 ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS src/codegen/codegen_pipeline_stubs.o src/typeck/typeck_f64_bits.o src/lexer/cfg_eval.o"
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   ST_STRICT_COMPANIONS="$ST_STRICT_COMPANIONS $BUILD_DIR/backend_seed_mega_fallback.o"
@@ -1660,10 +1660,11 @@ ensure_x_seed_bridge_obj() {
 }
 
 ensure_ast_pool_l5_bridge_obj() {
-  local o="src/ast_pool_l5_bridge.o"
-  if [ ! -f "$o" ] || [ "src/ast_pool_l5_bridge.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/ast_pool_l5_bridge.c"
-  "$CC" $CFLAGS -c -o "$o" src/ast_pool_l5_bridge.c
+  # G-02e-13：实现已并入 runtime_driver_strict_glue_stubs.c
+  local o="src/runtime_driver_strict_glue_stubs.o"
+  if [ ! -f "$o" ] || [ "src/runtime_driver_strict_glue_stubs.c" -nt "$o" ]; then
+    echo "  cc -c $o <- src/runtime_driver_strict_glue_stubs.c (former ast_pool_l5_bridge)" >&2
+    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/runtime_driver_strict_glue_stubs.c
   fi
 }
 
