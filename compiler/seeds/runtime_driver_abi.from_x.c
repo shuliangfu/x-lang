@@ -43,6 +43,10 @@ void driver_current_dep_path_store(const char *path);
 const char *driver_current_dep_path_load(void);
 void driver_pipeline_entry_source_len_store(size_t len);
 int32_t driver_target_arg_os_kind(const char *target);
+void driver_bump_stack_limit(void);
+void driver_set_pipeline_entry_source_len(size_t len);
+int compile_phase_timing_enabled(void);
+const char *driver_os_define_lit(int kind);
 #define compile_phase_now_sec compile_phase_now_sec_impl
 #define driver_compile_phase_timing_enabled driver_compile_phase_timing_enabled_impl
 #endif
@@ -508,11 +512,14 @@ size_t driver_pipeline_entry_source_len_load_and_maybe_debug(void) {
  * 记录 pipeline 入口源码字节数（大栈 pthread 进入 pipeline 前调用）。
  * 参数：len 预处理后的入口源码长度。
  */
+/* G-02f-402：public PREFER 时 thin → store_impl */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_set_pipeline_entry_source_len(size_t len) {
   {
     driver_pipeline_entry_source_len_store_impl(len);
   }
 }
+#endif
 
 /**
  * 查询当前记录的入口源码长度；SHUX_DEBUG_PIPE=1 时打印。
@@ -788,9 +795,16 @@ static int g_compile_phase_active[SHUX_COMPILE_PHASE_MAX];
 
 /** 是否启用 SHUX_COMPILE_PHASE_TIMING 阶段计时。 */
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int compile_phase_timing_enabled(void) {
+/* G-02f-402：getenv 体始终 seed；public PREFER 时 thin forward */
+int compile_phase_timing_enabled_impl(void) {
   return getenv("SHUX_COMPILE_PHASE_TIMING") != NULL;
 }
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int compile_phase_timing_enabled(void) {
+  return compile_phase_timing_enabled_impl();
+}
+#endif
 
 
 
@@ -937,7 +951,8 @@ void driver_defines_set_at(const char **defines, int i, const char *s) {
 }
 #endif
 
-const char *driver_os_define_lit(int kind) {
+/* G-02f-402：字符串字面量体始终 seed；public PREFER 时 thin forward */
+const char *driver_os_define_lit_impl(int kind) {
     if (kind == 1)
         return "OS_LINUX";
     if (kind == 2)
@@ -948,6 +963,12 @@ const char *driver_os_define_lit(int kind) {
         return "OS_WINDOWS";
     return NULL;
 }
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+const char *driver_os_define_lit(int kind) {
+    return driver_os_define_lit_impl(kind);
+}
+#endif
 
 /* G-02f-245：逻辑源 .x（真迁 target→OS kind）；seed 保留同语义 C 供产品 cc */
 /* G-02f-401：strstr 字面量体始终 seed；public PREFER 时 thin forward */
@@ -1030,7 +1051,7 @@ int driver_argv_collect_defines(int argc, char **argv, const char **defines, int
     if (target_arg && ndefines < max_defines) {
         int k = (int)driver_target_arg_os_kind_impl(target_arg);
         if (k != 0) {
-            const char *lit = driver_os_define_lit(k);
+            const char *lit = driver_os_define_lit_impl(k);
             if (lit)
                 defines[ndefines++] = lit;
         }
@@ -1169,9 +1190,12 @@ void driver_bump_stack_limit_to_impl(int64_t want_bytes) {
 }
 
 /* G-02f-244：逻辑源 .x（want pure → to_impl）；seed 保留同语义 C 供产品 cc */
+/* G-02f-402：public PREFER 时 thin → want_impl + to_impl */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_bump_stack_limit(void) {
     driver_bump_stack_limit_to_impl(driver_stack_limit_want_bytes_impl());
 }
+#endif
 
 
 

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343/344/345/387/388/400/401：runtime_driver_abi L2 thin（45 门闩）。
+// G-02f-343/344/345/387/388/400–402：runtime_driver_abi L2 thin（49 门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 //
 
@@ -459,4 +459,39 @@ function driver_path_last_preprocess_len(): i64 {
     return driver_path_last_preprocess_len_impl();
   }
   return 0;
+}
+
+// ---- G-02f-402：bump_stack / set_entry_len / phase_timing / os_define_lit ----
+extern "C" function driver_bump_stack_limit_to_impl(want_bytes: i64): void;
+extern "C" function compile_phase_timing_enabled_impl(): i32;
+extern "C" function driver_os_define_lit_impl(kind: i32): *u8;
+
+#[no_mangle]
+function driver_bump_stack_limit(): void {
+  unsafe {
+    driver_bump_stack_limit_to_impl(driver_stack_limit_want_bytes_impl());
+  }
+}
+
+#[no_mangle]
+function driver_set_pipeline_entry_source_len(len: i64): void {
+  unsafe {
+    driver_pipeline_entry_source_len_store_impl(len);
+  }
+}
+
+#[no_mangle]
+function compile_phase_timing_enabled(): i32 {
+  unsafe {
+    return compile_phase_timing_enabled_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_os_define_lit(kind: i32): *u8 {
+  unsafe {
+    return driver_os_define_lit_impl(kind);
+  }
+  return 0 as *u8;
 }
