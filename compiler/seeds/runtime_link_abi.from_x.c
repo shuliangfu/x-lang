@@ -2703,14 +2703,52 @@ int link_abi_user_o_needs_compress_libs(const char *user_o) {
   return 0;
 }
 
+/* G-02f-275 L6 invoke_ld list pure */
+#ifndef SHUX_LABI_INVOKE_LD_LIST_FROM_X
+#include "seeds/labi_invoke_ld_list.from_x.c"
+#else
+int labi_ld_brew_lib_path_count(void);
+const char *labi_ld_brew_lib_path_at(int i);
+const char *labi_ld_flag_lz(void);
+const char *labi_ld_flag_lzstd(void);
+const char *labi_ld_flag_lbrotlienc(void);
+const char *labi_ld_flag_lbrotlidec(void);
+int labi_ld_compress_flag_count(void);
+const char *labi_ld_compress_flag_at(int i);
+const char *labi_ld_flag_lm(void);
+const char *labi_ld_flag_lsqlite3(void);
+const char *labi_ld_flag_pthread(void);
+const char *labi_ld_flag_lpthread(void);
+const char *labi_ld_flag_ldl(void);
+const char *labi_ld_flag_lc(void);
+const char *labi_ld_flag_lSystem(void);
+const char *labi_ld_flag_lws2_32(void);
+const char *labi_ld_flag_lbcrypt(void);
+const char *labi_ld_driver_clang(void);
+const char *labi_ld_driver_ld(void);
+const char *labi_ld_driver_gcc(void);
+const char *labi_ld_driver_cc(void);
+const char *labi_ld_mach_entry_main(void);
+const char *labi_ld_flag_e(void);
+const char *labi_ld_flag_o(void);
+int labi_ld_common_tail_flag_count(void);
+const char *labi_ld_common_tail_flag_at(int i);
+#endif
+
 /** macOS Homebrew /usr/local：便于 -lz / -lzstd 解析。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-275：brew -L 表驱动 */
 void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
 #if defined(__APPLE__)
-    if (*la < max_la - 1)
-        argv[(*la)++] = "-L/opt/homebrew/lib";
-    if (*la < max_la - 1)
-        argv[(*la)++] = "-L/usr/local/lib";
+    int n = labi_ld_brew_lib_path_count();
+    int k;
+    for (k = 0; k < n; k++) {
+        const char *p = labi_ld_brew_lib_path_at(k);
+        if (!p || !p[0])
+            continue;
+        if (*la < max_la - 1)
+            argv[(*la)++] = p;
+    }
 #else
     (void)argv;
     (void)la;
@@ -2726,13 +2764,14 @@ void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
  * 参数：compress_o std/compress .o；user_o 用户主 .o（F-04 v4 libz.x）；argv/la/max_la 为 ld argv 构建状态。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-275：compress -l* from pure table */
 void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la) {
     if (!argv || !la)
         return;
     if (link_abi_obj_needs_zlib(compress_o) || link_abi_obj_needs_zlib(user_o)) {
         ld_append_brew_lib_paths(argv, la, max_la);
         if (*la < max_la - 1)
-            argv[(*la)++] = "-lz";
+            argv[(*la)++] = labi_ld_flag_lz();
         /* zlib 宏包装桩：deflateInit2/inflateInit2 是宏，需真实函数符号 */
         (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
         {
@@ -2744,14 +2783,14 @@ void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, con
     if (link_abi_obj_needs_zstd(compress_o) || link_abi_obj_needs_zstd(user_o)) {
         ld_append_brew_lib_paths(argv, la, max_la);
         if (*la < max_la - 1)
-            argv[(*la)++] = "-lzstd";
+            argv[(*la)++] = labi_ld_flag_lzstd();
     }
     if (link_abi_obj_needs_brotli(compress_o) || link_abi_obj_needs_brotli(user_o)) {
         ld_append_brew_lib_paths(argv, la, max_la);
         if (*la < max_la - 1)
-            argv[(*la)++] = "-lbrotlienc";
+            argv[(*la)++] = labi_ld_flag_lbrotlienc();
         if (*la < max_la - 1)
-            argv[(*la)++] = "-lbrotlidec";
+            argv[(*la)++] = labi_ld_flag_lbrotlidec();
     }
 }
 
@@ -2763,13 +2802,14 @@ void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, con
  * 参数：argv/i/argv_cap 为 cc 链接 argv；compress_o 候选 compress .o；user_o 用户 .o（可 NULL）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-275：invoke_cc compress -l* from pure table */
 void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o) {
     if (!argv || !i || *i >= argv_cap - 1)
         return;
     if (link_abi_obj_needs_zlib(compress_o) || link_abi_obj_needs_zlib(user_o)) {
         ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
         if (*i < argv_cap - 1)
-            argv[(*i)++] = (char *)"-lz";
+            argv[(*i)++] = (char *)labi_ld_flag_lz();
         /* zlib 宏包装桩：deflateInit2/inflateInit2 是宏，需真实函数符号 */
         (void)shux_ensure_runtime_compress_zlib_glue_o(NULL);
         (void)invoke_cc_argv_push_existing(argv, i, argv_cap,
@@ -2778,14 +2818,14 @@ void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char
     if (link_abi_obj_needs_zstd(compress_o) || link_abi_obj_needs_zstd(user_o)) {
         ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
         if (*i < argv_cap - 1)
-            argv[(*i)++] = (char *)"-lzstd";
+            argv[(*i)++] = (char *)labi_ld_flag_lzstd();
     }
     if (link_abi_obj_needs_brotli(compress_o) || link_abi_obj_needs_brotli(user_o)) {
         ld_append_brew_lib_paths((const char **)argv, i, argv_cap);
         if (*i < argv_cap - 1)
-            argv[(*i)++] = (char *)"-lbrotlienc";
+            argv[(*i)++] = (char *)labi_ld_flag_lbrotlienc();
         if (*i < argv_cap - 1)
-            argv[(*i)++] = (char *)"-lbrotlidec";
+            argv[(*i)++] = (char *)labi_ld_flag_lbrotlidec();
     }
 }
 
@@ -3491,7 +3531,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                  * MinGW 不自动链 bcrypt；needs_random 路径须显式加 -lbcrypt，与下方 random_o 存在性路径对齐。
                  * 【Invariant】仅 Windows 需 -lbcrypt；Linux/macOS 走 getrandom/getentropy。 */
                 if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-lbcrypt";
+                    argv[i++] = (char *)labi_ld_flag_lbcrypt();
 #endif
             }
             if (needs_time) {
@@ -3515,7 +3555,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             if (needs_win32_wsa) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
                 if (i < argv_cap - 1)
-                    argv[i++] = (char *)"-lws2_32";
+                    argv[i++] = (char *)labi_ld_flag_lws2_32();
 #endif
             }
             if (needs_libc_heap) {
@@ -3616,7 +3656,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                winsock 符号；MinGW 不自动链 ws2_32。
                【Invariant】仅 Windows 需 -lws2_32；Linux/macOS 走 libc。 */
             if (i < argv_cap - 1)
-                argv[i++] = (char *)"-lws2_32";
+                argv[i++] = (char *)labi_ld_flag_lws2_32();
 #endif
         }
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, thread_o)) {
@@ -3641,7 +3681,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
             }
 #if defined(_WIN32) || defined(_WIN64)
             if (i < argv_cap - 1)
-                argv[i++] = (char *)"-lbcrypt";
+                argv[i++] = (char *)labi_ld_flag_lbcrypt();
 #endif
         }
         if (invoke_cc_argv_push_existing(argv, &i, argv_cap, env_o)) {
@@ -3807,7 +3847,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                MinGW 不自动链 ws2_32。net_o 链入块已推 -lws2_32，但 http 可能独立链入。
                【Invariant】仅 Windows 需 -lws2_32；Linux/macOS 走 libc。 */
             if (i < argv_cap - 1)
-                argv[i++] = (char *)"-lws2_32";
+                argv[i++] = (char *)labi_ld_flag_lws2_32();
 #endif
         }
         (void)invoke_cc_argv_push_existing(argv, &i, argv_cap, shux_rel_o_path_from_argv0(include_root, labi_icc_rel_socketio_o()));
@@ -5826,20 +5866,21 @@ int shux_asm_user_o_has_undef_syms(const char *o_path) {
  * macOS asm ld/clang：按 std 链入标记追加 -lm、压缩库、-lsqlite3、-pthread、-lSystem。
  * G-02f-66：主体 _impl；.x 门闩 null 检查后转发。
  */
+/* G-02f-275：mach tail -l* from pure table */
 void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     const char **argv, int *la, int max_la, int append_lsystem) {
     int need_pt;
     need_pt = flags->have_thread || flags->have_sync || flags->have_channel;
     if (flags->have_math && *la < max_la - 1)
-        argv[(*la)++] = "-lm";
+        argv[(*la)++] = labi_ld_flag_lm();
     if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
         asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
     if (flags->have_sqlite && *la < max_la - 1)
-        argv[(*la)++] = "-lsqlite3";
+        argv[(*la)++] = labi_ld_flag_lsqlite3();
     if (need_pt && *la < max_la - 1)
-        argv[(*la)++] = "-pthread";
+        argv[(*la)++] = labi_ld_flag_pthread();
     if (append_lsystem && *la < max_la - 1)
-        argv[(*la)++] = "-lSystem";
+        argv[(*la)++] = labi_ld_flag_lSystem();
 }
 
 void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
@@ -5865,81 +5906,82 @@ void shux_asm_ld_append_mach_tail_libs(const char *compress_o, const char *user_
  * Linux/Unix gcc 或裸 ld 路径：按 std 链入标记追加 -pthread、-lm、压缩库、-ldl、-lc（F-03 v2/v3 无 -luring）。
  * G-02f-66：主体 _impl；.x 门闩 null 检查后转发。
  */
+/* G-02f-275：unix tail -l* from pure table */
 void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la) {
     if (flags->have_io) {
         if (need_pt && *la < max_la - 1)
-            argv[(*la)++] = "-pthread";
+            argv[(*la)++] = labi_ld_flag_pthread();
         if (flags->have_math && *la < max_la - 1)
-            argv[(*la)++] = "-lm";
+            argv[(*la)++] = labi_ld_flag_lm();
         if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
             asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
         if (flags->have_sqlite && *la < max_la - 1)
-            argv[(*la)++] = "-lsqlite3";
+            argv[(*la)++] = labi_ld_flag_lsqlite3();
 #if defined(__linux__)
         if (flags->have_dynlib && *la < max_la - 1)
-            argv[(*la)++] = "-ldl";
+            argv[(*la)++] = labi_ld_flag_ldl();
 #endif
         if (*la < max_la - 1)
-            argv[(*la)++] = "-lc";
+            argv[(*la)++] = labi_ld_flag_lc();
     } else if (flags->have_net && need_pt) {
         if (*la < max_la - 1)
-            argv[(*la)++] = "-lpthread";
+            argv[(*la)++] = labi_ld_flag_lpthread();
         if (flags->have_math && *la < max_la - 1)
-            argv[(*la)++] = "-lm";
+            argv[(*la)++] = labi_ld_flag_lm();
         if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
             asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
         if (flags->have_sqlite && *la < max_la - 1)
-            argv[(*la)++] = "-lsqlite3";
+            argv[(*la)++] = labi_ld_flag_lsqlite3();
 #if defined(__linux__)
         if (flags->have_dynlib && *la < max_la - 1)
-            argv[(*la)++] = "-ldl";
+            argv[(*la)++] = labi_ld_flag_ldl();
 #endif
         if (*la < max_la - 1)
-            argv[(*la)++] = "-lc";
+            argv[(*la)++] = labi_ld_flag_lc();
     } else if (flags->have_net) {
         if (flags->have_math && *la < max_la - 1)
-            argv[(*la)++] = "-lm";
+            argv[(*la)++] = labi_ld_flag_lm();
         if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
             asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
         if (flags->have_sqlite && *la < max_la - 1)
-            argv[(*la)++] = "-lsqlite3";
+            argv[(*la)++] = labi_ld_flag_lsqlite3();
 #if defined(__linux__)
         if (flags->have_dynlib && *la < max_la - 1)
-            argv[(*la)++] = "-ldl";
+            argv[(*la)++] = labi_ld_flag_ldl();
 #endif
         if (*la < max_la - 1)
-            argv[(*la)++] = "-lc";
+            argv[(*la)++] = labi_ld_flag_lc();
     } else if (need_pt) {
         if (*la < max_la - 1)
-            argv[(*la)++] = "-lpthread";
+            argv[(*la)++] = labi_ld_flag_lpthread();
         if (flags->have_math && *la < max_la - 1)
-            argv[(*la)++] = "-lm";
+            argv[(*la)++] = labi_ld_flag_lm();
         if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
             asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
         if (flags->have_sqlite && *la < max_la - 1)
-            argv[(*la)++] = "-lsqlite3";
+            argv[(*la)++] = labi_ld_flag_lsqlite3();
 #if defined(__linux__)
         if (flags->have_dynlib && *la < max_la - 1)
-            argv[(*la)++] = "-ldl";
+            argv[(*la)++] = labi_ld_flag_ldl();
 #endif
         if (*la < max_la - 1)
-            argv[(*la)++] = "-lc";
+            argv[(*la)++] = labi_ld_flag_lc();
     } else {
         if (flags->have_math && *la < max_la - 1)
-            argv[(*la)++] = "-lm";
+            argv[(*la)++] = labi_ld_flag_lm();
         if (flags->have_compress || link_abi_user_o_needs_compress_libs(user_o))
             asm_ld_append_compress_libs(compress_o, user_o, argv, la, max_la);
         if (flags->have_sqlite && *la < max_la - 1)
-            argv[(*la)++] = "-lsqlite3";
+            argv[(*la)++] = labi_ld_flag_lsqlite3();
 #if defined(__linux__)
         if (flags->have_dynlib && *la < max_la - 1)
-            argv[(*la)++] = "-ldl";
+            argv[(*la)++] = labi_ld_flag_ldl();
 #endif
 #if defined(__linux__) || defined(__APPLE__)
         if ((flags->have_libc_heap || flags->have_fs || flags->have_math || flags->have_compress || flags->have_sqlite
                 || flags->have_dynlib) && *la < max_la - 1)
-            argv[(*la)++] = "-lc";
+            argv[(*la)++] = labi_ld_flag_lc();
 #endif
     }
 }
@@ -6074,8 +6116,8 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
         compress_o = NULL; /* F-06 v1 / F-04 v7：无 compress.o，tail libs 由 user_o 扫描 */
 #if defined(__APPLE__)
         if (use_macho_o) {
-            argv[la++] = "clang";
-            argv[la++] = "-o";
+            argv[la++] = labi_ld_driver_clang();
+            argv[la++] = labi_ld_flag_o();
             argv[la++] = exe_path;
             argv[la++] = o_path;
             shux_asm_ld_append_std_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
@@ -6083,17 +6125,17 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 0);
             argv[la] = NULL;
             {
-                int rc = shux_spawn_sync("clang", (const char *const *)argv);
+                int rc = shux_spawn_sync(labi_ld_driver_clang(), (const char *const *)argv);
                 if (rc == 0)
                     return 0;
             }
             la = 0;
             ld_bank->n = 0;
             memset(ld_bank->slots, 0, sizeof ld_bank->slots);
-            argv[la++] = "ld";
-            argv[la++] = "-e";
-            argv[la++] = "_main";
-            argv[la++] = "-o";
+            argv[la++] = labi_ld_driver_ld();
+            argv[la++] = labi_ld_flag_e();
+            argv[la++] = labi_ld_mach_entry_main();
+            argv[la++] = labi_ld_flag_o();
             argv[la++] = exe_path;
             argv[la++] = o_path;
             shux_asm_ld_append_std_objs(link_eff, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, SHUX_LD_ARGV_CAP, &ldflags);
@@ -6101,7 +6143,7 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
             shux_asm_ld_append_mach_tail_libs(compress_o, o_path, &ldflags, (const char **)argv, &la, SHUX_LD_ARGV_CAP, 1);
             argv[la] = NULL;
             {
-                int rc = shux_spawn_sync("ld", (const char *const *)argv);
+                int rc = shux_spawn_sync(labi_ld_driver_ld(), (const char *const *)argv);
                 if (rc != 0) {
                     link_diag_tool_status("ld", rc);
                     return -1;
