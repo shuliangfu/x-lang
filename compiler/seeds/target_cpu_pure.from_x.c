@@ -1,4 +1,5 @@
 /* target_cpu_pure.from_x.c — G-02f-2/3/4/5 product pure half of target_cpu.o
+ * G-02f-131 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-110 helper gates.
  * G-02f-103 helper gates.
@@ -27,33 +28,25 @@ uint32_t driver_get_pending_target_cpu_features(void) {
   return g_driver_pending_target_cpu_features;
 }
 
-uint8_t tcp_tolower_impl(uint8_t c) {
+/* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+uint8_t tcp_tolower(uint8_t c) {
   if (c >= 65 && c <= 90)
     return (uint8_t)(c + 32);
   return c;
-}
-uint8_t tcp_tolower(uint8_t c) {
-  {
-    return tcp_tolower_impl(c);
-  }
-  return 0;
+
 }
 
 
 /** Compare name[base..base+n) case-insensitively to lowercase lit[0..n). */
-int32_t tcp_eq_at_impl(const uint8_t *name, size_t base, size_t n, const uint8_t *lit) {
+/* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8_t *lit) {
   size_t i;
   for (i = 0; i < n; i++) {
     if (tcp_tolower(name[base + i]) != lit[i])
       return 0;
   }
   return 1;
-}
-int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8_t *lit) {
-  {
-    return tcp_eq_at_impl(name, base, n, lit);
-  }
-  return 0;
+
 }
 
 

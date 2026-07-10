@@ -1,4 +1,5 @@
 /* Generated from src/seed_link_compat.x (G-02f-28 true .x + C tail).
+ * G-02f-131 true .x pure helpers.
  * Regen: ./shux-c -E -L .. src/seed_link_compat.x > /tmp/slc.c
  *         then merge into this seed (weak polish + fold/arch C tail).
  * .x covers: typeck_lsp_* / std_heap/sys bridges / lsp_diag_* weak -1 stubs.
@@ -290,20 +291,17 @@ int32_t shux_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t 
 }
 
 
-int32_t shux_expr_is_param0_field_access_impl(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref) {
+/* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t shux_expr_is_param0_field_access(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref) {
   if (!arena || !mod || func_idx < 0 || expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, expr_ref) != 44)
     return 0;
   return shux_expr_is_func_param_at(arena, mod, func_idx, pipeline_expr_field_access_base_ref(arena, expr_ref), 0);
-}
-int32_t shux_expr_is_param0_field_access(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref) {
-  {
-    return shux_expr_is_param0_field_access_impl(arena, mod, func_idx, expr_ref);
-  }
-  return 0;
+
 }
 
 
-int32_t shux_module_func_index_by_name_impl(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
+/* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t shux_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t fi;
   int32_t flen;
   uint8_t fb[64];
@@ -324,12 +322,7 @@ int32_t shux_module_func_index_by_name_impl(struct ast_Module *mod, uint8_t *nam
       return fi;
   }
   return -1;
-}
-int32_t shux_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
-  {
-    return shux_module_func_index_by_name_impl(mod, name, name_len);
-  }
-  return 0 - 1;
+
 }
 
 

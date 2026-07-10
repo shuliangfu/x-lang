@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-131 true .x pure helpers.
  * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
@@ -753,18 +754,13 @@ int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32
 /**
  * 将局部 VAR 有效地址装入 rax/x0（指针槽 load，值槽 lea）。
  */
-int32_t glue_enc_local_slot_ptr_or_addr_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_enc_local_slot_ptr_or_addr(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                               int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
   if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0)
     return backend_enc_load_rbp_to_rax_arch(elf_ctx, slot_off, ta);
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, slot_off, ta);
-}
-int32_t glue_enc_local_slot_ptr_or_addr(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                              int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
-  {
-    return glue_enc_local_slot_ptr_or_addr_impl(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
-  }
-  return 0;
+
 }
 
 
@@ -775,20 +771,14 @@ int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena
   return glue_enc_local_slot_ptr_or_addr(arena, elf_ctx, arg_ref, slot_off, ta, asm_ctx);
 }
 
-int32_t glue_arch_emit_local_slot_ptr_or_addr_text_impl(struct ast_ASTArena *arena,
+/* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_arch_emit_local_slot_ptr_or_addr_text(struct ast_ASTArena *arena,
                                                           struct codegen_CodegenOutBuf *out, int32_t arg_ref,
                                                           int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
   if (glue_local_var_slot_holds_indirect_ptr(arena, arg_ref, asm_ctx) != 0)
     return backend_arch_emit_load_rbp_to_rax(out, slot_off, ta);
   return backend_arch_emit_lea_rbp_to_rax(out, slot_off, ta);
-}
-int32_t glue_arch_emit_local_slot_ptr_or_addr_text(struct ast_ASTArena *arena,
-                                                          struct codegen_CodegenOutBuf *out, int32_t arg_ref,
-                                                          int32_t slot_off, int32_t ta, uint8_t *asm_ctx) {
-  {
-    return glue_arch_emit_local_slot_ptr_or_addr_text_impl(arena, out, arg_ref, slot_off, ta, asm_ctx);
-  }
-  return 0;
+
 }
 
 
@@ -1876,7 +1866,8 @@ extern int32_t glue_with_arena_scope_top_off_c(void);
 /**
  * 零实参 CALL 的 callee 是否为 `default_alloc` / `heap.default_alloc`。
  */
-int32_t glue_call_is_zero_arg_default_alloc_impl(struct ast_ASTArena *arena, int32_t call_ref) {
+/* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t call_ref) {
   int32_t callee_ref;
   int32_t nlen;
   int32_t narg;
@@ -1913,12 +1904,7 @@ int32_t glue_call_is_zero_arg_default_alloc_impl(struct ast_ASTArena *arena, int
   backend_try_inline_debugf("default alloc callee kind=%d ref=%d call=%d",
                             (int)pipeline_expr_kind_ord_at(arena, callee_ref), (int)callee_ref, (int)call_ref);
   return 0;
-}
-int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t call_ref) {
-  {
-    return glue_call_is_zero_arg_default_alloc_impl(arena, call_ref);
-  }
-  return 0;
+
 }
 
 

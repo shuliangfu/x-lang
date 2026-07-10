@@ -20,8 +20,11 @@ extern "C" function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32;
 
 extern "C" function shux_expr_is_func_param_at_impl(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32,
                                                     param_ix: i32): i32;
-extern "C" function shux_expr_is_param0_field_access_impl(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32): i32;
-extern "C" function shux_module_func_index_by_name_impl(mod: *u8, name: *u8, name_len: i32): i32;
+extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
+extern "C" function pipeline_module_num_funcs(mod: *u8): i32;
+extern "C" function pipeline_asm_module_func_name_len_at(mod: *u8, fi: i32): i32;
+extern "C" function pipeline_asm_module_func_name_copy64(mod: *u8, fi: i32, dst: *u8): void;
 
 /* ---- typeck/lsp name bridge ---- */
 
@@ -158,18 +161,46 @@ function shux_expr_is_func_param_at(arena: *u8, mod: *u8, func_idx: i32, expr_re
   return 0;
 }
 
+// G-02f-131：FIELD_ACCESS base 是否为 param0（kind 44）
 #[no_mangle]
 function shux_expr_is_param0_field_access(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (mod == 0) { return 0; }
+  if (func_idx < 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
   unsafe {
-    return shux_expr_is_param0_field_access_impl(arena, mod, func_idx, expr_ref);
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 44) { return 0; }
+    let base_ref: i32 = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    return shux_expr_is_func_param_at(arena, mod, func_idx, base_ref, 0);
   }
   return 0;
 }
 
+// G-02f-131：按名查找 module 函数下标
 #[no_mangle]
 function shux_module_func_index_by_name(mod: *u8, name: *u8, name_len: i32): i32 {
+  if (mod == 0) { return 0 - 1; }
+  if (name == 0) { return 0 - 1; }
+  if (name_len <= 0) { return 0 - 1; }
+  if (name_len > 63) { return 0 - 1; }
   unsafe {
-    return shux_module_func_index_by_name_impl(mod, name, name_len);
+    let nfuncs: i32 = pipeline_module_num_funcs(mod);
+    let fi: i32 = 0;
+    while (fi < nfuncs) {
+      let flen: i32 = pipeline_asm_module_func_name_len_at(mod, fi);
+      if (flen == name_len) {
+        let fb: u8[64] = [];
+        pipeline_asm_module_func_name_copy64(mod, fi, &fb[0]);
+        let k: i32 = 0;
+        let ok: i32 = 1;
+        while (k < name_len) {
+          if (fb[k] != name[k]) { ok = 0; break; }
+          k = k + 1;
+        }
+        if (ok != 0) { return fi; }
+      }
+      fi = fi + 1;
+    }
   }
   return 0 - 1;
 }
