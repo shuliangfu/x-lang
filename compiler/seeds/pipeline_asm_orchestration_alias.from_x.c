@@ -66,7 +66,8 @@ extern int32_t run_x_pipeline_codegen_entry(struct ast_Module *module, struct as
  * strict parse：pipeline_strict_parse_into_init + parser_parse_into_buf；
  * 与 pipeline_phase_parse_only_alias.c / bootstrap monolith 一致，避免双重 init。
  */
-static struct parser_ParseIntoResult parse_into_with_init_buf_impl(struct ast_ASTArena *arena, struct ast_Module *module,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+struct parser_ParseIntoResult parse_into_with_init_buf(struct ast_ASTArena *arena, struct ast_Module *module,
                                                                    uint8_t *data, int32_t len) {
   struct parser_ParseIntoResult r;
   pipeline_strict_parse_into_init(arena, module);
@@ -74,11 +75,9 @@ static struct parser_ParseIntoResult parse_into_with_init_buf_impl(struct ast_AS
   return r;
 }
 
+
 /** 对外符号：pipeline.x parse_into_with_init_buf。 */
-struct parser_ParseIntoResult parse_into_with_init_buf(struct ast_ASTArena *arena, struct ast_Module *module,
-                                                       uint8_t *data, int32_t len) {
-  return parse_into_with_init_buf_impl(arena, module, data, len);
-}
+
 
 /** pipeline.x run_x_pipeline_parse_entry_do_parse；与 X emit 一致（set_main + 诊断）。 */
 int32_t run_x_pipeline_parse_entry_do_parse(struct ast_Module *module, struct ast_ASTArena *arena,

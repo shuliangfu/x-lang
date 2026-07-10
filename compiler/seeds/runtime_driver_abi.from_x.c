@@ -61,9 +61,9 @@ int32_t *driver_large_stack_thread_flag_slot(void);
 void driver_current_dep_path_store(const char *path);
 const char *driver_current_dep_path_load(void);
 void driver_print_check_ok_impl(const char *input_path);
-void driver_bump_stack_limit_impl(void);
+void driver_bump_stack_limit(void);
 int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines, int max_defines);
-void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg);
+void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 void driver_pipeline_fail_code_rc_impl(int32_t rc);
 void driver_pipeline_fail_code_path_impl(const uint8_t *path);
 void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int64_t codegen_len);
@@ -361,17 +361,14 @@ void driver_large_stack_thread_mark(int on) {
 static size_t g_pipeline_entry_source_len;
 
 /* G-02f-45 */
-int32_t driver_pipeline_entry_source_len_i32_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t driver_pipeline_entry_source_len_i32(void) {
     if (g_pipeline_entry_source_len > (size_t)0x7fffffff)
         return 0x7fffffff;
     return (int32_t)g_pipeline_entry_source_len;
 }
-int32_t driver_pipeline_entry_source_len_i32(void) {
-  {
-    return driver_pipeline_entry_source_len_i32_impl();
-  }
-  return 0;
-}
+
+
 
 
 
@@ -628,7 +625,8 @@ int compile_phase_timing_enabled(void) {
 
 
 /** 单调 wall-clock 秒（gettimeofday）。 */
-double compile_phase_now_sec_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+double compile_phase_now_sec(void) {
     struct timeval tv;
     #ifndef _WIN32
     gettimeofday(&tv, NULL);
@@ -637,12 +635,8 @@ double compile_phase_now_sec_impl(void) {
 #endif
     return (double)tv.tv_sec + (double)tv.tv_usec * 1e-6;
 }
-double compile_phase_now_sec(void) {
-  {
-    return compile_phase_now_sec_impl();
-  }
-  return 0.0;
-}
+
+
 
 
 /**
@@ -866,7 +860,8 @@ int driver_peek_source_file(const char *path, char *content, size_t cap) {
  * 大模块 pipeline 栈帧深；macOS 默认 RLIMIT_STACK 约 512KiB～8MiB，进入 pipeline 前抬高软上限。
  * NL-07 nostdlib：pthread 大栈桩无效，须把主线程软上限抬到 256MiB 以免 -o 编译栈溢出 SIGSEGV。
  */
-void driver_bump_stack_limit_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_bump_stack_limit(void) {
     #ifndef _WIN32
     struct rlimit rl;
     rlim_t want = (rlim_t)(512 * 1024 * 1024);
@@ -887,11 +882,7 @@ void driver_bump_stack_limit_impl(void) {
     #endif
 }
 
-void driver_bump_stack_limit(void) {
-  {
-    driver_bump_stack_limit_impl();
-  }
-}
+
 
 /** pthread 大栈调用参数（trampoline 解包 fn/arg）。 */
 typedef struct {
@@ -900,7 +891,8 @@ typedef struct {
 } DriverLargeStackCall;
 
 /** pthread 入口：标记大栈线程并抬高 soft limit 后执行用户 fn。 */
-void * driver_large_stack_thread_trampoline_impl(void *v) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void * driver_large_stack_thread_trampoline(void *v) {
     DriverLargeStackCall *c = (DriverLargeStackCall *)v;
     driver_large_stack_thread_mark(1);
     driver_bump_stack_limit();
@@ -908,33 +900,28 @@ void * driver_large_stack_thread_trampoline_impl(void *v) {
     driver_large_stack_thread_mark(0);
     return r;
 }
-void * driver_large_stack_thread_trampoline(void *v) {
-  {
-    return driver_large_stack_thread_trampoline_impl(v);
-  }
-  return ((void *)0);
-}
+
+
 
 
 /** 在当前线程直接执行 fn(arg)，并临时标记大栈上下文。 */
-void driver_run_fn_on_current_large_stack_impl(void *(*fn)(void *), void *arg) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg) {
     driver_large_stack_thread_mark(1);
     driver_bump_stack_limit();
     fn(arg);
     driver_large_stack_thread_mark(0);
 }
-void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg) {
-  {
-    driver_run_fn_on_current_large_stack_impl(fn, arg);
-  }
-}
+
+
 
 
 /**
  * 在大栈 pthread 上执行 fn(arg)；默认 256MiB，可用 SHUX_STACK_LIMIT_MB 覆盖。
  * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，深递归 pipeline/typeck 须与大 pipeline 同路径。
  */
-void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
     pthread_attr_t attr;
     pthread_t tid;
     void *stk = NULL;
@@ -999,11 +986,7 @@ void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg) {
     pthread_attr_destroy(&attr);
 }
 
-void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
-  {
-    driver_run_thread_on_large_stack_impl(fn, arg);
-  }
-}
+
 
 /** 对外别名：LSP 主循环等在 256MiB 栈 pthread 上执行 fn(arg)。 */
 void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
@@ -1017,7 +1000,8 @@ void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
  * 参数：src 预处理后缓冲；src_len 有效字节数。
  * 返回值：1 含顶层 import；0 否。
  */
-int driver_source_scan_top_level_import_impl(const char *src, size_t src_len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_source_scan_top_level_import(const char *src, size_t src_len) {
     const char *p;
     const char *end;
     p = src;
@@ -1031,12 +1015,8 @@ int driver_source_scan_top_level_import_impl(const char *src, size_t src_len) {
     }
     return 0;
 }
-int driver_source_scan_top_level_import(const char *src, size_t src_len) {
-  {
-    return driver_source_scan_top_level_import_impl(src, src_len);
-  }
-  return 0;
-}
+
+
 
 int driver_source_has_top_level_import(const char *src, size_t src_len) {
   if (src == NULL) {
@@ -1046,7 +1026,7 @@ int driver_source_has_top_level_import(const char *src, size_t src_len) {
     return 0;
   }
   {
-    return driver_source_scan_top_level_import_impl(src, src_len);
+    return driver_source_scan_top_level_import(src, src_len);
   }
   return 0;
 }

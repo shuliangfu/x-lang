@@ -76,10 +76,11 @@ int parser_asm_parse_expr_debug_enabled(void) {
   const char *v = getenv("SHUX_PARSER_ASM_DEBUG");
   return v && *v && *v != '0';
 }
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
 
-void parser_asm_parse_expr_debug_snippet_c_impl(struct parser_asm_slice_u8 *source, size_t pos) {
+void parser_asm_parse_expr_debug_snippet_c(struct parser_asm_slice_u8 *source, size_t pos) {
   size_t start;
   size_t end;
   size_t i;
@@ -113,11 +114,8 @@ void parser_asm_parse_expr_debug_snippet_c_impl(struct parser_asm_slice_u8 *sour
   }
   fputc('\n', stderr);
 }
-void parser_asm_parse_expr_debug_snippet_c(struct parser_asm_slice_u8 *source, size_t pos) {
-  {
-    parser_asm_parse_expr_debug_snippet_c_impl(source, pos);
-  }
-}
+
+
 
 
 /**

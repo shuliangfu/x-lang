@@ -354,7 +354,8 @@ static const char *lsp_gen_extern_block =
     "}\n";
 
 /** 追加文本到 CodegenOutBuf；容量不足返回 -1。 */
-int append_text_to_codegen_buf_impl(struct codegen_CodegenOutBuf *out, const char *text) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int append_text_to_codegen_buf(struct codegen_CodegenOutBuf *out, const char *text) {
   size_t n;
   if (!out || !text)
     return -1;
@@ -365,12 +366,8 @@ int append_text_to_codegen_buf_impl(struct codegen_CodegenOutBuf *out, const cha
   out->len += (int32_t)n;
   return 0;
 }
-int append_text_to_codegen_buf(struct codegen_CodegenOutBuf *out, const char *text) {
-  {
-    return append_text_to_codegen_buf_impl(out, text);
-  }
-  return 0;
-}
+
+
 
 
 void lsp_codegen_emit_heap_alias_block(FILE *out) {

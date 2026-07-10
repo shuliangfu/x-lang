@@ -18,13 +18,10 @@
 #include <fcntl.h>
 #include <sys/stat.h> /* _S_IWRITE 声明在此 */
 #define STDERR_FILENO 2
-int log_write_fd_impl(int fd, const void *buf, size_t len) { return (int)_write((int)fd, buf, (unsigned)len); }
-int log_write_fd(int fd, const void *buf, size_t len) {
-  {
-    return log_write_fd_impl(fd, buf, len);
-  }
-  return 0;
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int log_write_fd(int fd, const void *buf, size_t len) { return (int)_write((int)fd, buf, (unsigned)len); }
+
+
 
 #else
 #ifndef _WIN32
@@ -67,7 +64,8 @@ int32_t log_write_sync(const void *buf, size_t len);
 int32_t log_async_flush_c(void);
 
 /** 首次写日志时读取 SHUX_LOG_MIN_LEVEL（0–3）。 */
-void log_apply_env_once_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void log_apply_env_once(void) {
   if (s_env_applied) return;
   s_env_applied = 1;
   const char *v = getenv("SHUX_LOG_MIN_LEVEL");
@@ -76,11 +74,8 @@ void log_apply_env_once_impl(void) {
     if (l >= 0 && l <= 3) s_min_level = (int32_t)l;
   }
 }
-void log_apply_env_once(void) {
-  {
-    log_apply_env_once_impl();
-  }
-}
+
+
 
 void log_set_min_level_c(int32_t level) {
   if (level >= 0 && level <= 3) s_min_level = level;
@@ -129,7 +124,8 @@ void log_close_file_sink_c(void) {
 }
 
 /** 文件 sink 超限时轮转：max_backups=0 截断，1..8 备份 path.N。 */
-int32_t log_do_rotate_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t log_do_rotate(void) {
   char oldpath[520];
   char newpath[520];
   int32_t max_b;
@@ -168,15 +164,12 @@ int32_t log_do_rotate_impl(void) {
   s_file_bytes = 0;
   return (s_file_fd >= 0) ? 0 : -1;
 }
-int32_t log_do_rotate(void) {
-  {
-    return log_do_rotate_impl();
-  }
-  return 0 - 1;
-}
+
+
 
 /** 同步写文件 sink（含轮转计数）。 */
-int32_t log_write_file_sync_impl(const void *buf, size_t len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t log_write_file_sync(const void *buf, size_t len) {
   if (!(s_sink_mask & LOG_SINK_FILE) || s_file_fd < 0) return 0;
   if (s_rotate_max_bytes > 0 && s_file_bytes + (int64_t)len > s_rotate_max_bytes) {
     if (log_do_rotate() != 0) return -1;
@@ -185,30 +178,24 @@ int32_t log_write_file_sync_impl(const void *buf, size_t len) {
   s_file_bytes += (int64_t)len;
   return 0;
 }
-int32_t log_write_file_sync(const void *buf, size_t len) {
-  {
-    return log_write_file_sync_impl(buf, len);
-  }
-  return 0 - 1;
-}
+
+
 
 /** 同步写所有活跃 sink（不经异步队列）。 */
-int32_t log_write_sync_impl(const void *buf, size_t len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t log_write_sync(const void *buf, size_t len) {
   if (s_sink_mask & LOG_SINK_STDERR) {
     if (log_write_fd(STDERR_FILENO, buf, len) != (int)len) return -1;
   }
   if (log_write_file_sync(buf, len) != 0) return -1;
   return 0;
 }
-int32_t log_write_sync(const void *buf, size_t len) {
-  {
-    return log_write_sync_impl(buf, len);
-  }
-  return 0 - 1;
-}
+
+
 
 /** 入队一行；队列满时先 flush。 */
-int32_t log_async_enqueue_impl(const void *buf, size_t len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t log_async_enqueue(const void *buf, size_t len) {
   if (len > LOG_ASYNC_SLOT_SIZE) return -1;
   if (s_async_count >= LOG_ASYNC_SLOTS) {
     if (log_async_flush_c() != 0) return -1;
@@ -219,24 +206,17 @@ int32_t log_async_enqueue_impl(const void *buf, size_t len) {
   s_async_count++;
   return 0;
 }
-int32_t log_async_enqueue(const void *buf, size_t len) {
-  {
-    return log_async_enqueue_impl(buf, len);
-  }
-  return 0 - 1;
-}
+
+
 
 /** 写一行：异步模式下入队，否则直写 sink。 */
-int32_t log_emit_bytes_impl(const void *buf, size_t len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t log_emit_bytes(const void *buf, size_t len) {
   if (s_async_enabled) return log_async_enqueue(buf, len);
   return log_write_sync(buf, len);
 }
-int32_t log_emit_bytes(const void *buf, size_t len) {
-  {
-    return log_emit_bytes_impl(buf, len);
-  }
-  return 0 - 1;
-}
+
+
 
 /** 设置轮转阈值；须先 set_file_sink。成功 0，失败 -1。 */
 int32_t log_set_rotate_c(int32_t max_bytes, int32_t max_backups) {

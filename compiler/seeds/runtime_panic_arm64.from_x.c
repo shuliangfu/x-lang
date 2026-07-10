@@ -10,7 +10,8 @@
 #include <stdio.h>
 
 /** 无 backtrace.o 时的最小证据包（SHUX_CRASH_EVIDENCE=1）。 */
-void shux_crash_evidence_minimal_impl(int has_msg, int msg_val) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void shux_crash_evidence_minimal(int has_msg, int msg_val) {
   const char *en = getenv("SHUX_CRASH_EVIDENCE");
   if (!en || en[0] != '1') {
     return;
@@ -30,11 +31,8 @@ void shux_crash_evidence_minimal_impl(int has_msg, int msg_val) {
     }
   }
 }
-void shux_crash_evidence_minimal(int has_msg, int msg_val) {
-  {
-    shux_crash_evidence_minimal_impl(has_msg, msg_val);
-  }
-}
+
+
 
 
 __attribute__((weak)) void shux_crash_evidence_collect_c(int has_msg, int msg_val) {

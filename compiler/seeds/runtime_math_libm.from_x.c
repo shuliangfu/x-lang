@@ -146,7 +146,8 @@ int32_t math_special_smoke_c(void) {
 
 #if SHUX_MATH_HAVE_FENV
 /** 将 Shux fenv 掩码转为 FE_* 位。 */
-int math_fenv_mask_to_fe_impl(int32_t mask) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int math_fenv_mask_to_fe(int32_t mask) {
   int fe = 0;
   if (mask & 1) fe |= FE_INVALID;
   if (mask & 2) fe |= FE_DIVBYZERO;
@@ -155,16 +156,13 @@ int math_fenv_mask_to_fe_impl(int32_t mask) {
   if (mask & 16) fe |= FE_INEXACT;
   return fe;
 }
-int math_fenv_mask_to_fe(int32_t mask) {
-  {
-    return math_fenv_mask_to_fe_impl(mask);
-  }
-  return 0;
-}
+
+
 
 
 /** 将 FE_* 位转为 Shux fenv 掩码。 */
-int32_t math_fenv_fe_to_mask_impl(int fe) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t math_fenv_fe_to_mask(int fe) {
   int32_t m = 0;
   if (fe & FE_INVALID) m |= 1;
   if (fe & FE_DIVBYZERO) m |= 2;
@@ -173,17 +171,14 @@ int32_t math_fenv_fe_to_mask_impl(int fe) {
   if (fe & FE_INEXACT) m |= 16;
   return m;
 }
-int32_t math_fenv_fe_to_mask(int fe) {
-  {
-    return math_fenv_fe_to_mask_impl(fe);
-  }
-  return 0;
-}
+
+
 
 #endif
 
 /** 输出 STD-149 fenv 能力报告行到 stderr。 */
-void math_fenv_emit_cap_report_impl(int32_t avail) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void math_fenv_emit_cap_report(int32_t avail) {
   const char *plat = "Unknown";
 #if defined(__APPLE__)
   plat = "Darwin";
@@ -196,11 +191,8 @@ void math_fenv_emit_cap_report_impl(int32_t avail) {
                "math fenv cap: platform=%s available=%d",
                plat, (int)avail);
 }
-void math_fenv_emit_cap_report(int32_t avail) {
-  {
-    math_fenv_emit_cap_report_impl(avail);
-  }
-}
+
+
 
 
 /**

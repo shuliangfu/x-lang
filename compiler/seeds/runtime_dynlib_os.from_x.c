@@ -40,7 +40,8 @@ size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
 
 
 /** UTF-8 路径转宽字符后 LoadLibraryW（STD-097）。 */
-HMODULE dynlib_win_load_library_w_utf8_impl(const char *path_utf8) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
     wchar_t wpath[512];
     char norm[512];
     int n;
@@ -53,12 +54,8 @@ HMODULE dynlib_win_load_library_w_utf8_impl(const char *path_utf8) {
         return NULL;
     return LoadLibraryW(wpath);
 }
-HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
-  {
-    return dynlib_win_load_library_w_utf8_impl(path_utf8);
-  }
-  return 0;
-}
+
+
 
 #else
 #include <dlfcn.h>

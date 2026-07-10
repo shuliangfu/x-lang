@@ -34,7 +34,8 @@ char **shux_process_argv = NULL;
  * 从 CRT 绑定 argc/argv（asm 用户 main 无参、gcc -pie 链入时）。
  * 若已由 codegen 写入则 no-op。
  */
-void shux_process_argv_bind_from_crt_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void shux_process_argv_bind_from_crt(void) {
   if (shux_process_argc > 0 && shux_process_argv != NULL)
     return;
 #if defined(__APPLE__)
@@ -105,11 +106,8 @@ void shux_process_argv_bind_from_crt_impl(void) {
   }
 #endif
 }
-void shux_process_argv_bind_from_crt(void) {
-  {
-    shux_process_argv_bind_from_crt_impl();
-  }
-}
+
+
 
 
 /** asm 用户程序：main 前绑定 argc/argv（优先级低于 codegen 显式赋值）。 */

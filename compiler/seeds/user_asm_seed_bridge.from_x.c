@@ -170,16 +170,14 @@ extern int32_t peephole_elf_run(void *elf_ctx);
 #define SHUX_ELF_CTX_MACHO_UNDERSCORE_OFF 598052
 
 /** Darwin -o：call/reloc 符号须 leading `_`（与 asm.x::asm_codegen_elf_o 一致）。 */
-void seed_elf_ctx_set_macho_leading_underscore_impl(void *elf_ctx, int32_t on) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void seed_elf_ctx_set_macho_leading_underscore(void *elf_ctx, int32_t on) {
   if (!elf_ctx)
     return;
   *(int32_t *)((uint8_t *)elf_ctx + SHUX_ELF_CTX_MACHO_UNDERSCORE_OFF) = on ? 1 : 0;
 }
-void seed_elf_ctx_set_macho_leading_underscore(void *elf_ctx, int32_t on) {
-  {
-    seed_elf_ctx_set_macho_leading_underscore_impl(elf_ctx, on);
-  }
-}
+
+
 
 /** asm 失败时打印 backend.x 记录的当前函数名。 */
 extern void driver_diagnostic_asm_print_current_func(void);
@@ -227,7 +225,8 @@ extern int32_t pipeline_elf_ctx_total_code_len(uint8_t *ctx_bytes);
  * 用户 .o 须含非空 __text；code_len==0 时拒绝写出（避免 576B 空 .o + U main 误导 ld）。
  * G-02f-98：export gate.
  */
-int32_t seed_asm_reject_empty_elf_text_impl(void *module, void *elf_ctx) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
   int32_t nf;
   int32_t clen;
   int32_t total_code_len;
@@ -244,12 +243,8 @@ int32_t seed_asm_reject_empty_elf_text_impl(void *module, void *elf_ctx) {
     return 0;
   return SHUX_ASM_CODEGEN_ELF_EMPTY_TEXT_RC;
 }
-int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
-  {
-    return seed_asm_reject_empty_elf_text_impl(module, elf_ctx);
-  }
-  return 0;
-}
+
+
 
 /*
  * Seed bridge 仅消费 seed_host/asm_backend_partial.o 提供的真实 writer。
@@ -261,8 +256,9 @@ extern int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf)
 #elif defined(_WIN32) || defined(_WIN64)
 extern int32_t platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) __attribute__((weak));
 #endif
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int32_t seed_platform_macho_write_macho_o_to_buf_impl(void *elf_ctx, void *out_buf) {
+int32_t seed_platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
 #if defined(__APPLE__)
   if (!platform_macho_write_macho_o_to_buf)
     return -1;
@@ -273,15 +269,12 @@ int32_t seed_platform_macho_write_macho_o_to_buf_impl(void *elf_ctx, void *out_b
   return -1;
 #endif
 }
-int32_t seed_platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
-  {
-    return seed_platform_macho_write_macho_o_to_buf_impl(elf_ctx, out_buf);
-  }
-  return 0 - 1;
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-int32_t seed_platform_coff_write_coff_o_to_buf_impl(void *elf_ctx, void *out_buf) {
+
+
+int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
 #if defined(_WIN32) || defined(_WIN64)
   if (!platform_coff_write_coff_o_to_buf)
     return -1;
@@ -292,12 +285,8 @@ int32_t seed_platform_coff_write_coff_o_to_buf_impl(void *elf_ctx, void *out_buf
   return -1;
 #endif
 }
-int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
-  {
-    return seed_platform_coff_write_coff_o_to_buf_impl(elf_ctx, out_buf);
-  }
-  return 0 - 1;
-}
+
+
 
 /** .x 模块名修饰后的 pipeline_module_num_funcs 转发（asm/backend 分 TU 链接）。 */
 int32_t asm_pipeline_module_num_funcs(struct ast_Module *m) {

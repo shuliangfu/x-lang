@@ -76,8 +76,9 @@ int lsp_diag_enabled = 0;
 void lsp_diag_clear(void) {
     s_diag_count = 0;
 }
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
+void lsp_diag_copy_text(char *dst, int cap, const char *src) {
     size_t n = 0;
     if (!dst || cap <= 0)
         return;
@@ -91,11 +92,8 @@ void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
     }
     dst[n] = '\0';
 }
-void lsp_diag_copy_text(char *dst, int cap, const char *src) {
-  {
-    lsp_diag_copy_text_impl(dst, cap, src);
-  }
-}
+
+
 
 
 void lsp_diag_add_code(int line, int col, int severity, const char *code, const char *msg) {
@@ -130,7 +128,8 @@ void lsp_diag_collect_end(void) {
 }
 
 /* JSON 字符串转义辅助 */
-int json_escape_str_impl(const char *msg, char *out, int out_cap) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int json_escape_str(const char *msg, char *out, int out_cap) {
     int k = 0;
     if (!msg || !out || out_cap <= 0) return 0;
     for (int i = 0; msg[i] != '\0' && k < out_cap - 2; i++) {
@@ -150,12 +149,8 @@ int json_escape_str_impl(const char *msg, char *out, int out_cap) {
     if (k < out_cap) out[k] = '\0';
     return k;
 }
-int json_escape_str(const char *msg, char *out, int out_cap) {
-  {
-    return json_escape_str_impl(msg, out, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 int lsp_diag_format_diagnostics_json(char *out, int out_cap) {

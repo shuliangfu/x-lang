@@ -41,7 +41,8 @@
  * B-20：POSIX read 循环读 fd 到 buf[0..cap-1]；成功返回读入字节数，失败 -1。
  * 参数：fd 已打开描述符；buf/cap 输出缓冲与容量。
  */
-int shux_read_fd_into_buf_impl(int fd, void *buf, size_t cap) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int shux_read_fd_into_buf(int fd, void *buf, size_t cap) {
     size_t off;
     ssize_t n;
 
@@ -58,15 +59,12 @@ int shux_read_fd_into_buf_impl(int fd, void *buf, size_t cap) {
     }
     return (int)off;
 }
-int shux_read_fd_into_buf(int fd, void *buf, size_t cap) {
-  {
-    return shux_read_fd_into_buf_impl(fd, buf, cap);
-  }
-  return 0;
-}
 
 
-int shux_runtime_file_view_read_malloc_impl(int fd, size_t size, ShuxRuntimeFileView *out) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFileView *out) {
     size_t off;
     char *buf;
     ssize_t n;
@@ -100,19 +98,15 @@ int shux_runtime_file_view_read_malloc_impl(int fd, size_t size, ShuxRuntimeFile
     out->needs_munmap = 0;
     return 0;
 }
-int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFileView *out) {
-  {
-    return shux_runtime_file_view_read_malloc_impl(fd, size, out);
-  }
-  return 0;
-}
+
+
 
 
 
 
 
 /* G-02f-59 io helper protos */
-int32_t shux_fs_open_write_flags_impl(void);
+int32_t shux_fs_open_write_flags(void);
 /* G-02f-58 helper protos */
 int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out);
 char *runtime_read_file_malloc_impl(const char *path, size_t *out_len);
@@ -309,22 +303,17 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
 
 
 /** G-02f-44：open_write 平台 flags/mode 槽（.x 调 open）。 */
-int32_t shux_fs_open_write_flags_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t shux_fs_open_write_flags(void) {
     return (int32_t)(O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY);
 }
+
 /* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
 int32_t shux_fs_open_write_mode(void) {
     return (int32_t)0644;
 }
 
-
-int32_t shux_fs_open_write_flags(void) {
-  {
-    return shux_fs_open_write_flags_impl();
-  }
-  return 0;
-}
 
 
 int32_t std_fs_fs_open_read(uint8_t * path) {

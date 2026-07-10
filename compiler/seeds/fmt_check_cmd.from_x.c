@@ -46,15 +46,13 @@ static struct dirent *readdir_win(DIR *d) {
     d->ent.d_type = (d->fd.attrib & _A_SUBDIR) ? DT_DIR : DT_REG;
     return &d->ent;
 }
-void closedir_win_impl(DIR *d) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void closedir_win(DIR *d) {
     if (d && d->handle != -1) _findclose(d->handle);
     free(d);
 }
-void closedir_win(DIR *d) {
-  {
-    closedir_win_impl(d);
-  }
-}
+
+
 
 
 #define opendir opendir_win
@@ -141,33 +139,28 @@ typedef enum DriverCollectMode {
 } DriverCollectMode;
 
 static DriverCollectMode s_collect_mode = DRIVER_COLLECT_MODE_FMT;
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-const char * driver_collect_error_kind_impl(void) {
+const char * driver_collect_error_kind(void) {
     return s_collect_mode == DRIVER_COLLECT_MODE_CHECK ? "check error" : "fmt error";
 }
-const char * driver_collect_error_kind(void) {
-  {
-    return driver_collect_error_kind_impl();
-  }
-  return ((const char *)0);
-}
 
 
-const char * driver_collect_missing_path_code_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+const char * driver_collect_missing_path_code(void) {
     return s_collect_mode == DRIVER_COLLECT_MODE_CHECK ? "CHK002" : "FMT001";
 }
-const char * driver_collect_missing_path_code(void) {
-  {
-    return driver_collect_missing_path_code_impl();
-  }
-  return ((const char *)0);
-}
+
+
 
 
 /**
  * 若 dir 下同时存在 core/ 与 std/ 子目录，则作为仓库 lib 根注入 -L（去重）。
  */
-void check_try_append_lib_root_impl(char **check_argv, int *n, const char *dir) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
     char core_path[560];
     char std_path[560];
     struct stat st;
@@ -191,17 +184,15 @@ void check_try_append_lib_root_impl(char **check_argv, int *n, const char *dir) 
     check_argv[(*n)++] = "-L";
     check_argv[(*n)++] = s_check_lib_bufs[s_n_check_lib_bufs++];
 }
-void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
-  {
-    check_try_append_lib_root_impl(check_argv, n, dir);
-  }
-}
+
+
 
 
 /**
  * 从 path 所在目录向上查找含 core/ + std/ 的仓库根并注入 -L。
  */
-void check_append_repo_lib_roots_impl(const char *path, char **check_argv, int *n) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
     char start[512];
     char cur[512];
     char parent[512];
@@ -249,17 +240,15 @@ void check_append_repo_lib_roots_impl(const char *path, char **check_argv, int *
         }
     }
 }
-void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
-  {
-    check_append_repo_lib_roots_impl(path, check_argv, n);
-  }
-}
+
+
 
 
 /**
  * 扫描 argv：用户是否已传 -L（有则不再注入默认库根）。
  */
-void check_init_user_lib_flags_impl(int argc, char **argv, int path_start) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void check_init_user_lib_flags(int argc, char **argv, int path_start) {
     int i;
     s_user_passed_L = 0;
     s_n_check_lib_bufs = 0;
@@ -270,18 +259,16 @@ void check_init_user_lib_flags_impl(int argc, char **argv, int path_start) {
         }
     }
 }
-void check_init_user_lib_flags(int argc, char **argv, int path_start) {
-  {
-    check_init_user_lib_flags_impl(argc, argv, path_start);
-  }
-}
+
+
 
 
 /**
  * 按待检查文件路径注入默认 -L（在单文件路径之前）。
  * 始终注入仓库根；compiler/src 下文件再追加 compiler/src 库根（裸 import lexer/token）。
  */
-void check_argv_append_default_libs_for_path_impl(const char *path, char **check_argv, int *n) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void check_argv_append_default_libs_for_path(const char *path, char **check_argv, int *n) {
     char cwd_buf[512];
     char cs[560];
     struct stat st;
@@ -309,11 +296,8 @@ void check_argv_append_default_libs_for_path_impl(const char *path, char **check
         }
     }
 }
-void check_argv_append_default_libs_for_path(const char *path, char **check_argv, int *n) {
-  {
-    check_argv_append_default_libs_for_path_impl(path, check_argv, n);
-  }
-}
+
+
 
 
 /**
@@ -330,34 +314,29 @@ int check_lint_fail_on_warnings(void) {
 /**
  * 单文件 check：X pipeline 走 driver_run_compiler_full，shux-c 走 run_compiler_c。
  */
-int fmt_check_invoke_compile_impl(int argc, char **check_argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int fmt_check_invoke_compile(int argc, char **check_argv) {
 #ifdef SHUX_USE_X_PIPELINE
     return driver_run_compiler_full(argc, check_argv);
 #else
     return run_compiler_c(argc, check_argv);
 #endif
 }
-int fmt_check_invoke_compile(int argc, char **check_argv) {
-  {
-    return fmt_check_invoke_compile_impl(argc, check_argv);
-  }
-  return 0;
-}
+
+
 
 
 /**
  * check 批次结束后清理 dep 槽（仅 X pipeline 需要）。
  */
-void fmt_check_dep_clear_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void fmt_check_dep_clear(void) {
 #ifdef SHUX_USE_X_PIPELINE
     driver_dep_seeded_clear_all();
 #endif
 }
-void fmt_check_dep_clear(void) {
-  {
-    fmt_check_dep_clear_impl();
-  }
-}
+
+
 
 
 /**
@@ -383,7 +362,8 @@ int driver_check_print_collected_diagnostics(const char *path) {
 /**
  * 路径是否应忽略（内置 + --ignore 子串匹配）。
  */
-int path_should_ignore_impl(const char *path) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int path_should_ignore(const char *path) {
     int i;
     if (!path)
         return 1;
@@ -397,18 +377,15 @@ int path_should_ignore_impl(const char *path) {
     }
     return 0;
 }
-int path_should_ignore(const char *path) {
-  {
-    return path_should_ignore_impl(path);
-  }
-  return 0;
-}
+
+
 
 
 /**
  * 将相对/绝对路径加入待处理列表（去重由调用方保证顺序）。
  */
-int file_list_push_impl(const char *path) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int file_list_push(const char *path) {
     char ab[512];
     if (!path || s_n_files >= DRIVER_FMT_MAX_FILES)
         return -1;
@@ -436,18 +413,15 @@ int file_list_push_impl(const char *path) {
     s_n_files++;
     return 0;
 }
-int file_list_push(const char *path) {
-  {
-    return file_list_push_impl(path);
-  }
-  return 0;
-}
+
+
 
 
 /**
  * 递归遍历目录，收集 .x 文件。
  */
-void walk_dir_collect_impl(const char *dir) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void walk_dir_collect(const char *dir) {
     DIR *d = opendir(dir);
     struct dirent *ent;
     char child[768];
@@ -462,7 +436,7 @@ void walk_dir_collect_impl(const char *dir) {
         if (ent->d_type == DT_DIR || ent->d_type == DT_UNKNOWN) {
             struct stat st;
             if (stat(child, &st) == 0 && S_ISDIR(st.st_mode)) {
-                walk_dir_collect_impl(child);
+                walk_dir_collect(child);
                 continue;
             }
         }
@@ -474,17 +448,15 @@ void walk_dir_collect_impl(const char *dir) {
     }
     closedir(d);
 }
-void walk_dir_collect(const char *dir) {
-  {
-    walk_dir_collect_impl(dir);
-  }
-}
+
+
 
 
 /**
  * 无路径参数时 check 的默认扫描范围（产品树，不含 tests 负例目录）。
  */
-void check_collect_default_product_dirs_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void check_collect_default_product_dirs(void) {
     char cwd[512];
     char sub[560];
     struct stat st;
@@ -505,17 +477,15 @@ void check_collect_default_product_dirs_impl(void) {
     if (!any_product)
         walk_dir_collect(cwd);
 }
-void check_collect_default_product_dirs(void) {
-  {
-    check_collect_default_product_dirs_impl();
-  }
-}
+
+
 
 
 /**
  * 解析路径参数：文件直接加入；目录递归收集。
  */
-void collect_paths_from_arg_impl(const char *arg) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void collect_paths_from_arg(const char *arg) {
     struct stat st;
     if (!arg)
         return;
@@ -540,17 +510,15 @@ void collect_paths_from_arg_impl(const char *arg) {
     }
     file_list_push(arg);
 }
-void collect_paths_from_arg(const char *arg) {
-  {
-    collect_paths_from_arg_impl(arg);
-  }
-}
+
+
 
 
 /**
  * 解析 --ignore=a,b,c 写入 s_ignore_paths。
  */
-void parse_ignore_opt_impl(const char *arg) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void parse_ignore_opt(const char *arg) {
     char buf[512];
     char *p;
     char *tok;
@@ -570,27 +538,22 @@ void parse_ignore_opt_impl(const char *arg) {
         }
     }
 }
-void parse_ignore_opt(const char *arg) {
-  {
-    parse_ignore_opt_impl(arg);
-  }
-}
+
+
 
 
 /**
  * 释放文件列表。
  */
-void file_list_clear_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void file_list_clear(void) {
     int i;
     for (i = 0; i < s_n_files; i++)
         free(s_file_list[i]);
     s_n_files = 0;
 }
-void file_list_clear(void) {
-  {
-    file_list_clear_impl();
-  }
-}
+
+
 
 
 /**
@@ -693,7 +656,8 @@ int driver_run_fmt(int argc, char **argv) {
 /**
  * 对单个 .x 运行 check；复用 driver_run_compiler_full。
  */
-int check_one_file_impl(const char *path, int argc, char **argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int check_one_file(const char *path, int argc, char **argv) {
     char *check_argv[64];
     ShuxRuntimeFileView diag_view = {0};
     int have_diag_view = 0;
@@ -771,12 +735,8 @@ int check_one_file_impl(const char *path, int argc, char **argv) {
     fmt_check_dep_clear();
     return rc;
 }
-int check_one_file(const char *path, int argc, char **argv) {
-  {
-    return check_one_file_impl(path, argc, argv);
-  }
-  return 0;
-}
+
+
 
 
 /**

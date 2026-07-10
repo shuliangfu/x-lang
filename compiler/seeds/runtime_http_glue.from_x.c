@@ -80,7 +80,8 @@ int32_t http_parse_status_line_c(const uint8_t *line, int32_t len, int32_t *out_
 #define HTTP_ERR_TIMEOUT (-1220)
 
 /** 解析 http(s)://host[:port][/path]；*out_is_https=1 表示 https；默认端口 80/443。 */
-int parse_http_url_impl(const uint8_t *url, int32_t url_len,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int parse_http_url(const uint8_t *url, int32_t url_len,
                          char *host_buf, int host_cap,
                          char *port_buf, int port_cap,
                          char *path_buf, int path_cap,
@@ -140,16 +141,8 @@ int parse_http_url_impl(const uint8_t *url, int32_t url_len,
   }
   return 0;
 }
-int parse_http_url(const uint8_t *url, int32_t url_len,
-                         char *host_buf, int host_cap,
-                         char *port_buf, int port_cap,
-                         char *path_buf, int path_cap,
-                         int32_t *out_is_https) {
-  {
-    return parse_http_url_impl(url, url_len, host_buf, host_cap, port_buf, port_cap, path_buf, path_cap, out_is_https);
-  }
-  return 0;
-}
+
+
 
 
 /** 客户端传输层：明文 fd 或 TLS ctx。 */
@@ -159,7 +152,8 @@ typedef struct {
 } http_transport_t;
 
 /** 关闭传输层（含 TLS 与 socket）。 */
-void http_transport_close_impl(http_transport_t *tr) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void http_transport_close(http_transport_t *tr) {
   if (!tr) return;
   if (tr->tls_ctx != 0) {
     net_tls_close_c(tr->tls_ctx);
@@ -170,31 +164,26 @@ void http_transport_close_impl(http_transport_t *tr) {
     tr->fd = -1;
   }
 }
-void http_transport_close(http_transport_t *tr) {
-  {
-    http_transport_close_impl(tr);
-  }
-}
+
+
 
 
 /** HTTPS 时在已连接 fd 上建立 TLS；明文时 tls_ctx 保持 0。 */
-int32_t http_transport_start_tls_impl(http_transport_t *tr, int32_t is_https, const char *host) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const char *host) {
   if (!is_https) return 0;
   if (net_tls_is_available_c() == 0) return HTTP_ERR_TLS_NOT_IMPL;
   tr->tls_ctx = net_tls_connect_client_c(tr->fd, host);
   if (tr->tls_ctx == 0) return -1;
   return 0;
 }
-int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const char *host) {
-  {
-    return http_transport_start_tls_impl(tr, is_https, host);
-  }
-  return 0;
-}
+
+
 
 
 /** 发送全部字节；失败 -1。 */
-int32_t http_transport_send_all_impl(http_transport_t *tr, const char *data, int len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t http_transport_send_all(http_transport_t *tr, const char *data, int len) {
   int sent = 0;
   if (!tr || !data || len <= 0) return -1;
   while (sent < len) {
@@ -213,16 +202,13 @@ int32_t http_transport_send_all_impl(http_transport_t *tr, const char *data, int
   }
   return 0;
 }
-int32_t http_transport_send_all(http_transport_t *tr, const char *data, int len) {
-  {
-    return http_transport_send_all_impl(tr, data, len);
-  }
-  return 0;
-}
+
+
 
 
 /** 读取响应到 out_buf；返回总字节数。 */
-int32_t http_transport_recv_fill_impl(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap,
                                         uint32_t timeout_ms) {
   int32_t total = 0;
   if (!tr || !out_buf || out_cap <= 0) return -1;
@@ -245,13 +231,8 @@ int32_t http_transport_recv_fill_impl(http_transport_t *tr, uint8_t *out_buf, in
   }
   return total;
 }
-int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap,
-                                        uint32_t timeout_ms) {
-  {
-    return http_transport_recv_fill_impl(tr, out_buf, out_cap, timeout_ms);
-  }
-  return 0;
-}
+
+
 
 
 /** 判定 HTTP 方法是否携带请求体（POST/PUT/PATCH）。 */
@@ -267,7 +248,8 @@ int http_method_has_body(const char *method) {
 
 
 /** 构建 HTTP/1.0 请求行与 Host 头；带 body 的方法附加 Content-Length。返回 req_len，失败 -1。 */
-int http_format_request_impl(const char *method, const char *path_buf, const char *host_buf,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int http_format_request(const char *method, const char *path_buf, const char *host_buf,
                                int32_t body_len, char *req, int req_cap) {
   int req_len;
   if (http_method_has_body(method)) {
@@ -282,13 +264,8 @@ int http_format_request_impl(const char *method, const char *path_buf, const cha
     return -1;
   return req_len;
 }
-int http_format_request(const char *method, const char *path_buf, const char *host_buf,
-                               int32_t body_len, char *req, int req_cap) {
-  {
-    return http_format_request_impl(method, path_buf, host_buf, body_len, req, req_cap);
-  }
-  return 0;
-}
+
+
 
 
 /** u8 方法码 → C 字符串（0=GET … 6=OPTIONS，与 std.http.Method 一致）；非法返回 NULL。 */
@@ -396,7 +373,8 @@ int32_t http_request_method_c(uint8_t method_u8, const uint8_t *url, int32_t url
 #endif
 
 /** 为 fd 设置收发超时（毫秒）；0 表示不设。 */
-int32_t http_set_timeouts_impl(int fd, uint32_t timeout_ms) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t http_set_timeouts(int fd, uint32_t timeout_ms) {
   if (timeout_ms == 0) return 0;
 #if defined(_WIN32) || defined(_WIN64)
   DWORD ms = (DWORD)timeout_ms;
@@ -411,16 +389,13 @@ int32_t http_set_timeouts_impl(int fd, uint32_t timeout_ms) {
 #endif
   return 0;
 }
-int32_t http_set_timeouts(int fd, uint32_t timeout_ms) {
-  {
-    return http_set_timeouts_impl(fd, timeout_ms);
-  }
-  return 0;
-}
+
+
 
 
 /** 带超时 connect（非阻塞 connect + poll）；超时返回 HTTP_ERR_TIMEOUT。 */
-int32_t http_connect_timeout_impl(int fd, const struct addrinfo *res, uint32_t timeout_ms) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms) {
 #if defined(_WIN32) || defined(_WIN64)
   u_long nb = 1;
   if (ioctlsocket((SOCKET)fd, FIONBIO, &nb) != 0) return -1;
@@ -470,12 +445,8 @@ done:
 #endif
   return 0;
 }
-int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms) {
-  {
-    return http_connect_timeout_impl(fd, res, timeout_ms);
-  }
-  return 0;
-}
+
+
 
 
 /** 通用 HTTP 客户端（带 connect/recv 超时毫秒；0=阻塞；支持 http/https）。 */
@@ -724,7 +695,8 @@ int32_t http_https_smoke_c(void) {
 #endif
 
 /** 读并丢弃客户端请求头（至 \\r\\n\\r\\n）。 */
-int32_t http_drain_request_impl(int fd) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t http_drain_request(int fd) {
   uint8_t buf[4096];
   int32_t total = 0;
   int32_t off;
@@ -743,16 +715,13 @@ int32_t http_drain_request_impl(int fd) {
   }
   return 0;
 }
-int32_t http_drain_request(int fd) {
-  {
-    return http_drain_request_impl(fd);
-  }
-  return 0;
-}
+
+
 
 
 /** 循环 send 直至 len 字节发完。 */
-int32_t shu_http_send_all_impl(int fd, const char *buf, int len, int is_socket) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket) {
   int sent = 0;
   (void)is_socket;
   if (fd < 0 || !buf || len <= 0) return -1;
@@ -767,12 +736,8 @@ int32_t shu_http_send_all_impl(int fd, const char *buf, int len, int is_socket) 
   }
   return 0;
 }
-int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket) {
-  {
-    return shu_http_send_all_impl(fd, buf, len, is_socket);
-  }
-  return 0;
-}
+
+
 
 
 #include "http_server_pool.inc"

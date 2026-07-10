@@ -48,7 +48,7 @@ int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps);
 
 /* G-02f-61 helper protos */
-int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
+int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
 int shux_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
@@ -57,8 +57,8 @@ int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imp
     char *out_paths[], int *out_n);
 
 /* G-02f-60 helper protos */
-void pipeline_set_entry_dir_impl(const char *path);
-void pipeline_set_dep_slots_impl(void *arenas[32], void *modules[32]);
+void pipeline_set_entry_dir(const char *path);
+void pipeline_set_dep_slots(void *arenas[32], void *modules[32]);
 void shux_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
     const char **lib_roots, int n_lib_roots);
 void shux_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
@@ -75,17 +75,17 @@ void shux_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_
     const char *import_path, char *path, size_t path_size);
 
 /* G-02f-58 helper protos */
-int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx);
 int shux_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len);
 
 /* G-02f-57 helper protos */
-int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx);
 
 /* G-02f-56 helper protos */
 int32_t pipeline_resolve_path_impl(const uint8_t *path_ptr, int32_t path_len);
-int32_t pipeline_read_file_impl(void);
+int32_t pipeline_read_file(void);
 int32_t pipeline_parse_into_loaded_import_impl(void *arena, void *module);
 
 /* G-02f-33 forward slots (defs near storage) */
@@ -132,8 +132,9 @@ int32_t pipeline_diag_emitted_get(void) {
  }));
   return 0;
 }
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-void pipeline_diag_import_open_fail_once_impl(const char *import_path, const char *resolved_path) {
+void pipeline_diag_import_open_fail_once(const char *import_path, const char *resolved_path) {
     const char *import_key = import_path ? import_path : "?";
     const char *resolved_key = resolved_path ? resolved_path : "?";
     if (pipeline_last_import_open_valid &&
@@ -152,64 +153,53 @@ void pipeline_diag_import_open_fail_once_impl(const char *import_path, const cha
                  resolved_key);
 }
 
-void pipeline_diag_import_open_fail_once(const char *import_path, const char *resolved_path) {
-  {
-    pipeline_diag_import_open_fail_once_impl(import_path, resolved_path);
-  }
-}
 
-void pipeline_diag_preprocess_unclosed_if_impl(const char *path_diag) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
     pipeline_diag_emitted_note();
     diag_report_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP001, "unclosed #if", NULL);
 }
-void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
-  {
-    pipeline_diag_preprocess_unclosed_if_impl(path_diag);
-  }
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-void pipeline_diag_preprocess_fail_impl(const char *path_diag) {
+
+
+void pipeline_diag_preprocess_fail(const char *path_diag) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
                  ".x preprocess failed for '%s'",
                  path_diag ? path_diag : "?");
 }
-void pipeline_diag_preprocess_fail(const char *path_diag) {
-  {
-    pipeline_diag_preprocess_fail_impl(path_diag);
-  }
-}
 
 
-void pipeline_diag_import_preprocess_fail_impl(const char *import_path, const char *resolved_path) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+void pipeline_diag_import_preprocess_fail(const char *import_path, const char *resolved_path) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(resolved_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_IMPORT_IMP002, NULL,
                  "preprocess failed for import '%s' (%s)",
                  import_path ? import_path : "?",
                  resolved_path ? resolved_path : "?");
 }
-void pipeline_diag_import_preprocess_fail(const char *import_path, const char *resolved_path) {
-  {
-    pipeline_diag_import_preprocess_fail_impl(import_path, resolved_path);
-  }
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-void pipeline_diag_preprocess_alloc_fail_impl(const char *path_diag, const char *what) {
+
+
+void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(path_diag, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005, NULL,
                  "%s allocation failed during .x preprocess",
                  what ? what : "buffer");
 }
-void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what) {
-  {
-    pipeline_diag_preprocess_alloc_fail_impl(path_diag, what);
-  }
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-void pipeline_diag_merge_dep_missing_impl(const char *import_path) {
+
+
+void pipeline_diag_merge_dep_missing(const char *import_path) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(import_path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP004, NULL,
                  "direct import '%s' was not found in the resolved dependency closure",
@@ -217,11 +207,8 @@ void pipeline_diag_merge_dep_missing_impl(const char *import_path) {
     diag_report(NULL, 0, 0, "note",
                 "dependency closure construction failed before merge_deps completed", NULL);
 }
-void pipeline_diag_merge_dep_missing(const char *import_path) {
-  {
-    pipeline_diag_merge_dep_missing_impl(import_path);
-  }
-}
+
+
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int pipeline_asm_debug_enabled(void) {
   return getenv("SHUX_ASM_DEBUG") != NULL;
@@ -410,6 +397,16 @@ int shux_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len,
     return 0;
 }
 
+int shux_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char **out_src, size_t *out_src_len,
+    const char *path_diag, const char **defines, int ndefines) {
+  {
+    return shux_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
+  }
+  return -1;
+}
+
+
+
 /** typeck/pipeline 兼容 dep 侧车（pipeline_gen.c get_dep_* / pipeline_set_dep）。 */
 void *typeck_dep_module_ptrs[32];
 void *typeck_dep_arena_ptrs[32];
@@ -419,15 +416,13 @@ int typeck_ndep;
 int32_t *typeck_ndep_slot(void) {
     return (int32_t *)&typeck_ndep;
 }
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-void typeck_ndep_store_impl(int32_t n) {
+void typeck_ndep_store(int32_t n) {
     typeck_ndep = (n <= 32) ? n : 32;
 }
-void typeck_ndep_store(int32_t n) {
-  {
-    typeck_ndep_store_impl(n);
-  }
-}
+
+
 
 
 /* G-02f-40: opaque dep pointer get/set slots for .x API */
@@ -442,36 +437,33 @@ void *typeck_dep_arena_get(int32_t i) {
         return NULL;
     return typeck_dep_arena_ptrs[i];
 }
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-void typeck_dep_module_set_impl(int32_t i, void *mod) {
+void typeck_dep_module_set(int32_t i, void *mod) {
     if (i < 0 || i >= 32)
         return;
     typeck_dep_module_ptrs[i] = mod;
 }
-void typeck_dep_module_set(int32_t i, void *mod) {
-  {
-    typeck_dep_module_set_impl(i, mod);
-  }
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-void typeck_dep_arena_set_impl(int32_t i, void *arena) {
+
+
+void typeck_dep_arena_set(int32_t i, void *arena) {
     if (i < 0 || i >= 32)
         return;
     typeck_dep_arena_ptrs[i] = arena;
 }
-void typeck_dep_arena_set(int32_t i, void *arena) {
-  {
-    typeck_dep_arena_set_impl(i, arena);
-  }
-}
+
+
 
 
 
 /**
  * 清 typeck dep 侧车；driver_dep_seeded_clear_all 调用，避免悬空指针。
  */
-void driver_typeck_dep_sidecar_clear_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_typeck_dep_sidecar_clear(void) {
     int i;
     typeck_ndep = 0;
     for (i = 0; i < 32; i++) {
@@ -480,11 +472,7 @@ void driver_typeck_dep_sidecar_clear_impl(void) {
     }
 }
 
-void driver_typeck_dep_sidecar_clear(void) {
-  {
-    driver_typeck_dep_sidecar_clear_impl();
-  }
-}
+
 
 /** 按 dep 下标取 module 指针；越界返回 NULL。 */
 void *get_dep_module(int32_t i) {
@@ -569,13 +557,7 @@ void pipeline_set_ndep(int32_t n) {
  * 参数：path_diag 用于错误信息；defines/ndefines 注入 -D 宏。
  * 返回值：0 成功；否则写 stderr、不分配 *out_src。
  */
-int shux_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char **out_src, size_t *out_src_len,
-    const char *path_diag, const char **defines, int ndefines) {
-  {
-    return shux_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
-  }
-  return -1;
-}
+
 
 /**
  * 将逻辑 import 路径转为 lib_root 下的 .x 文件路径（'.' → '/'）。
@@ -894,28 +876,24 @@ extern size_t pipeline_sizeof_module(void);
  */
 
 /* G-02f-42: driver dep pointer/path slots for .x publish_slot */
-void driver_dep_arena_ptr_set_impl(int32_t i, void *arena) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_dep_arena_ptr_set(int32_t i, void *arena) {
     if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
         return;
     driver_dep_arena_ptrs[i] = arena;
 }
-void driver_dep_arena_ptr_set(int32_t i, void *arena) {
-  {
-    driver_dep_arena_ptr_set_impl(i, arena);
-  }
-}
 
 
-void driver_dep_module_ptr_set_impl(int32_t i, void *module) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+void driver_dep_module_ptr_set(int32_t i, void *module) {
     if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
         return;
     driver_dep_module_ptrs[i] = module;
 }
-void driver_dep_module_ptr_set(int32_t i, void *module) {
-  {
-    driver_dep_module_ptr_set_impl(i, module);
-  }
-}
+
+
 
 
 void driver_dep_path_registry_set(int32_t i, const char *path) {
@@ -966,7 +944,8 @@ void driver_dep_seeded_set(int32_t i, int32_t v) {
  * 批量预填 dep 槽指针并标记 seeded；entry pipeline 复用不重载。
  * 参数：arenas/modules 各 32 槽；n 有效 dep 数。
  */
-void driver_dep_seed_slots_impl(void *arenas[32], void *modules[32], int32_t n) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
     int j;
     for (j = 0; j < SHUX_DRIVER_DEP_SLOT_MAX && j < n; j++) {
         driver_dep_arena_ptrs[j] = arenas ? arenas[j] : NULL;
@@ -977,11 +956,7 @@ void driver_dep_seed_slots_impl(void *arenas[32], void *modules[32], int32_t n) 
         driver_dep_seeded[j] = 0;
 }
 
-void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
-  {
-    driver_dep_seed_slots_impl(arenas, modules, n);
-  }
-}
+
 
 /**
  * 单槽发布：dep 预跑 parse 完成后供 pipeline_load 按 import 路径绑定。
@@ -1185,11 +1160,13 @@ int shux_merge_deps_path_already_out_scan(const char *path, char *out_paths[], i
     }
     return 0;
 }
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-void shux_emit_pipeline_glue_include_impl(void) {
+void shux_emit_pipeline_glue_include(void) {
     fputs("\n#include \"pipeline_glue.c\"\n", stdout);
 }
+
 
 int shux_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t dep_dir_size) {
     const char *slash;
@@ -1335,28 +1312,21 @@ const char *shux_entry_lib_name_from_path(const char *input_path) {
 }
 
 /** -E 且入口为 pipeline.x 时输出 pipeline_glue.c include 行。 */
-void shux_emit_pipeline_glue_include(void) {
-  {
-    shux_emit_pipeline_glue_include_impl();
-  }
-}
+
 
 /**
  * asm 后端写出 FILE *：stdout 仅 fflush，避免 fclose(stdout)。
  * 参数：fp 汇编输出流，可为 NULL。
  */
-void driver_asm_fclose_asm_out_impl(FILE *fp) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_asm_fclose_asm_out(FILE *fp) {
     if (!fp || fp == stdout)
         fflush(stdout);
     else
         fclose(fp);
 }
 
-void driver_asm_fclose_asm_out(FILE *fp) {
-  {
-    driver_asm_fclose_asm_out_impl(fp);
-  }
-}
+
 
 /**
  * 判断缓冲前缀是否为 Mach-O/ELF 对象魔数（asm_codegen_elf_o 产出检测）。
@@ -1489,7 +1459,8 @@ void shux_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ct
 /**
  * 更新 dep 槽 module/arena/path，不调用 ast_pipeline_dep_ctx_reset（保留 lib_root 等路径缓冲）。
  */
-void shux_pipeline_pctx_update_dep_slots_no_reset_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void shux_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
                                                          void **dep_ars, char **import_paths, int n) {
     int i;
     if (!ctx)
@@ -1504,12 +1475,8 @@ void shux_pipeline_pctx_update_dep_slots_no_reset_impl(struct ast_PipelineDepCtx
     }
     ast_pipeline_dep_ctx_set_ndep(ctx, n);
 }
-void shux_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
-                                                         void **dep_ars, char **import_paths, int n) {
-  {
-    shux_pipeline_pctx_update_dep_slots_no_reset_impl(ctx, dep_mods, dep_ars, import_paths, n);
-  }
-}
+
+
 
 
 /** parser.x 符号（dep 预跑 import 扫描与 pipeline_parse_into_loaded_import 共用）。 */
@@ -1707,7 +1674,8 @@ extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, 
 extern int32_t pipeline_module_num_funcs(void *module);
 
 /** 设置 pipeline resolve/read 用的 entry 目录。 */
-void pipeline_set_entry_dir_impl(const char *path) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void pipeline_set_entry_dir(const char *path) {
     if (path && path[0]) {
         (void)snprintf(pipeline_entry_dir_buf, sizeof(pipeline_entry_dir_buf), "%s", path);
         pipeline_entry_dir = pipeline_entry_dir_buf;
@@ -1716,26 +1684,19 @@ void pipeline_set_entry_dir_impl(const char *path) {
     }
 }
 
-void pipeline_set_entry_dir(const char *path) {
-  {
-    pipeline_set_entry_dir_impl(path);
-  }
-}
+
 
 
 /** 写入 dep arena/module 槽（collect_deps 预分配缓冲）。 */
-void pipeline_set_dep_slots_impl(void *arenas[32], void *modules[32]) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
     for (int i = 0; i < 32; i++) {
         pipeline_dep_arena_slots[i] = arenas ? arenas[i] : NULL;
         pipeline_dep_module_slots[i] = modules ? modules[i] : NULL;
     }
 }
 
-void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
-  {
-    pipeline_set_dep_slots_impl(arenas, modules);
-  }
-}
+
 
 
 /** 将 import 逻辑路径解析为文件系统路径写入内部 buffer。 */
@@ -1766,7 +1727,8 @@ int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
 }
 
 /** 读 resolved 路径文件并 preprocess，结果写入 loaded buffer。 */
-int32_t pipeline_read_file_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_read_file(void) {
     ShuxRuntimeFileView raw_view;
     char *prep = NULL;
     size_t prep_len = 0;
@@ -1802,12 +1764,7 @@ int32_t pipeline_read_file_impl(void) {
     return 0;
 }
 
-int32_t pipeline_read_file(void) {
-  {
-    return pipeline_read_file_impl();
-  }
-  return -1;
-}
+
 
 /** 取 dep arena 槽指针。 */
 void *pipeline_dep_arena_slot_at(int32_t i) {
@@ -1884,7 +1841,8 @@ typedef struct {
 } PipelineRunSuArgs;
 
 /** pthread 入口：跑 pipeline_run_x_pipeline 并写回 ec。 */
-void * pipeline_run_x_thread_fn_impl(void *arg) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void * pipeline_run_x_thread_fn(void *arg) {
     PipelineRunSuArgs *a = (PipelineRunSuArgs *)arg;
     driver_set_pipeline_entry_source_len(a->source_len);
     if (getenv("SHUX_DEBUG_PIPE"))
@@ -1896,16 +1854,13 @@ void * pipeline_run_x_thread_fn_impl(void *arg) {
                      "pipeline debug: pipeline thread done ec=%d", a->result);
     return NULL;
 }
-void * pipeline_run_x_thread_fn(void *arg) {
-  {
-    return pipeline_run_x_thread_fn_impl(arg);
-  }
-  return ((void *)0);
-}
+
+
 
 
 /** 大栈 pthread 上调用 pipeline_run_x_pipeline；pthread 失败时回退当前线程。 */
-int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx) {
     PipelineRunSuArgs args;
     driver_set_pipeline_entry_source_len(source_len);
@@ -1922,16 +1877,11 @@ int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, con
     return args.result;
 }
 
-int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
-    void *out_buf, void *ctx) {
-  {
-    return shux_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
-  }
-  return -1;
-}
+
 
 /** dep 预跑：完整 parse，跳过 typeck/codegen。 */
-int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
     void *dep_out, void *one_ctx) {
     int saved = driver_check_only_get();
     int saved_entry_only = 0;
@@ -1953,13 +1903,7 @@ int shux_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_are
     return ec;
 }
 
-int shux_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
-    void *dep_out, void *one_ctx) {
-  {
-    return shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
-  }
-  return -1;
-}
+
 
 /** dep 预跑：parse+typeck（C glue 直调），跳过 codegen；勿走 X run_x_pipeline_impl（大模块 ctx 易丢）。 */
 int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
@@ -2682,22 +2626,20 @@ extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struc
     void *out_buf);
 
 /** pthread 入口：调用 asm_asm_codegen_elf_o 并将 ec 写入 args->result。 */
-void * shux_asm_codegen_elf_o_thread_fn_impl(void *arg) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void * shux_asm_codegen_elf_o_thread_fn(void *arg) {
     ShuxAsmCodegenElfLargeArgs *a = (ShuxAsmCodegenElfLargeArgs *)arg;
 
     a->result = asm_asm_codegen_elf_o(a->module, a->arena, a->ctx, a->elf_ctx, a->out_buf);
     return NULL;
 }
-void * shux_asm_codegen_elf_o_thread_fn(void *arg) {
-  {
-    return shux_asm_codegen_elf_o_thread_fn_impl(arg);
-  }
-  return ((void *)0);
-}
+
+
 
 
 /** 在 256MiB 栈 pthread 上调用 asm_asm_codegen_elf_o；主线程栈已深时避免 lexer emit Abort。 */
-int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
     ShuxAsmCodegenElfLargeArgs args;
 
@@ -2713,13 +2655,7 @@ int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void 
     return args.result;
 }
 
-int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
-    struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
-  {
-    return shux_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
-  }
-  return -1;
-}
+
 
 
 /** C typecheck 入口；由 typeck.c 提供。 */

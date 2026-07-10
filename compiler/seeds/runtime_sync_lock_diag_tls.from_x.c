@@ -55,7 +55,8 @@ extern int32_t sync_mutex_unlock_c(void *m);
 extern void sync_mutex_free_c(void *m);
 
 /** 查找 mutex 对应元数据索引；不存在 -1。 */
-int32_t sync_lock_diag_find_meta_idx_impl(void *m) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t sync_lock_diag_find_meta_idx(void *m) {
     int32_t i;
     if (m == NULL) {
         return -1;
@@ -67,28 +68,21 @@ int32_t sync_lock_diag_find_meta_idx_impl(void *m) {
     }
     return -1;
 }
-int32_t sync_lock_diag_find_meta_idx(void *m) {
-  {
-    return sync_lock_diag_find_meta_idx_impl(m);
-  }
-  return 0 - 1;
-}
+
+
 
 
 /** 读取 mutex 绑定的锁序 id；未绑定返回 0。 */
-int32_t sync_lock_diag_get_order_impl(void *m) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t sync_lock_diag_get_order(void *m) {
     int32_t idx = sync_lock_diag_find_meta_idx(m);
     if (idx < 0) {
         return 0;
     }
     return g_sync_meta[idx].order;
 }
-int32_t sync_lock_diag_get_order(void *m) {
-  {
-    return sync_lock_diag_get_order_impl(m);
-  }
-  return 0;
-}
+
+
 
 
 /** 入栈；满返回 -1。 */

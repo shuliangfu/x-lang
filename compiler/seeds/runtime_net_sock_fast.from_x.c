@@ -24,25 +24,21 @@ extern void net_udp_set_addr_port_buf_c(uint8_t *sin, uint32_t addr_u32, uint32_
  * 【Asm/Perf】constructor 仅执行一次，热路径无开销。 */
 #if defined(_WIN32) || defined(_WIN64)
 static int net_wsa_done = 0;
-void net_ensure_wsa_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void net_ensure_wsa(void) {
     WSADATA data;
     if (net_wsa_done) return;
     if (WSAStartup(MAKEWORD(2, 2), &data) == 0)
         net_wsa_done = 1;
 }
-void net_ensure_wsa(void) {
-  {
-    net_ensure_wsa_impl();
-  }
-}
+
+
 
 __attribute__((constructor(65534)))
-void net_wsa_ctor_impl(void) { net_ensure_wsa(); }
-void net_wsa_ctor(void) {
-  {
-    net_wsa_ctor_impl();
-  }
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void net_wsa_ctor(void) { net_ensure_wsa(); }
+
+
 
 #endif
 

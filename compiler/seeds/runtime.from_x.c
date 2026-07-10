@@ -59,7 +59,8 @@
 #else
 /* Windows: 用 TEMP 环境变量替代 /tmp */
 #include <stdio.h>
-const char * shux_get_tmp_prefix_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+const char * shux_get_tmp_prefix(void) {
     const char *tmp = getenv("TEMP");
     if (!tmp || !tmp[0]) tmp = getenv("TMP");
     if (!tmp || !tmp[0]) tmp = ".";
@@ -72,12 +73,8 @@ const char * shux_get_tmp_prefix_impl(void) {
         snprintf(buf, sizeof(buf), "%sshux_", tmp);
     return buf;
 }
-const char * shux_get_tmp_prefix(void) {
-  {
-    return shux_get_tmp_prefix_impl();
-  }
-  return ((const char *)0);
-}
+
+
 
 #define SHUX_TMP_PREFIX shux_get_tmp_prefix()
 #endif
@@ -98,52 +95,53 @@ const char * shux_get_tmp_prefix(void) {
 /* forward for G-02f-71 protos (full typedef later in file) */
 typedef struct DriverCompileStateSU DriverCompileStateSU;
 /* G-02f-71 driver thin gates */
-int driver_run_x_emit_c_set_path_impl(const uint8_t *path, int path_len);
-int driver_run_x_emit_c_set_lib_impl(int i, const uint8_t *buf, int len);
-int driver_fs_open_read_path_impl(const uint8_t *path, int path_len);
-int32_t driver_run_asm_backend_c_impl(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target, int32_t argc, uint8_t *argv);
-int32_t driver_run_emit_c_path_c_impl(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target, uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv);
-void driver_compile_state_free_c_impl(DriverCompileStateSU *state);
-void cfg_sync_compile_target_from_state_c_impl(void *state);
-void driver_compile_ensure_default_lib_c_impl(uint8_t *key);
-void driver_compile_parse_argv_init_c_impl(DriverCompileStateSU *state);
-void driver_compile_append_lib_root_c_impl(DriverCompileStateSU *state, uint8_t *path, int32_t len);
-void driver_compile_argv_apply_minus_o_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i);
-void driver_compile_argv_apply_minus_L_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i, uint8_t *arg_buf, int32_t arg_cap);
-void driver_compile_argv_apply_minus_O_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i);
-void driver_compile_argv_set_use_lto_c_impl(DriverCompileStateSU *state);
-void driver_compile_argv_set_use_freestanding_c_impl(DriverCompileStateSU *state);
-void driver_compile_argv_set_legacy_f32_abi_c_impl(void);
-void driver_compile_argv_set_sanitize_address_c_impl(void);
-void driver_compile_argv_apply_backend_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i, uint8_t *arg_buf, int32_t arg_cap);
-void driver_compile_argv_apply_target_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i);
-void driver_compile_argv_apply_target_cpu_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i);
-void driver_compile_argv_set_print_target_cpu_c_impl(DriverCompileStateSU *state);
-int32_t driver_print_target_cpu_features_c_impl(int32_t features);
-void driver_compile_resolve_target_cpu_c_impl(DriverCompileStateSU *state);
-int driver_run_compiler_full_impl(int argc, char **argv);
-int driver_run_test_impl(int argc, char **argv);
-int driver_fmt_report_no_files_impl(void);
+int driver_run_x_emit_c_set_path(const uint8_t *path, int path_len);
+int driver_run_x_emit_c_set_lib(int i, const uint8_t *buf, int len);
+int driver_fs_open_read_path(const uint8_t *path, int path_len);
+int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target, int32_t argc, uint8_t *argv);
+int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target, uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv);
+void driver_compile_state_free_c(DriverCompileStateSU *state);
+void cfg_sync_compile_target_from_state_c(void *state);
+void driver_compile_ensure_default_lib_c(uint8_t *key);
+void driver_compile_parse_argv_init_c(DriverCompileStateSU *state);
+void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
+void driver_compile_argv_apply_minus_o_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i);
+void driver_compile_argv_apply_minus_L_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i, uint8_t *arg_buf, int32_t arg_cap);
+void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i);
+void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state);
+void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state);
+void driver_compile_argv_set_legacy_f32_abi_c(void);
+void driver_compile_argv_set_sanitize_address_c(void);
+void driver_compile_argv_apply_backend_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i, uint8_t *arg_buf, int32_t arg_cap);
+void driver_compile_argv_apply_target_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i);
+void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque, int32_t i);
+void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state);
+int32_t driver_print_target_cpu_features_c(int32_t features);
+void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state);
+int driver_run_compiler_full(int argc, char **argv);
+int driver_run_test(int argc, char **argv);
+int driver_fmt_report_no_files(void);
 /* G-02f-72 driver mid gates */
-int run_compiler_x_path_impl(int argc, char **argv);
-int driver_want_asm_emit_to_file_impl(int argc, char **argv);
-int driver_exec_compiled_impl(int argc, uint8_t *argv_opaque);
-int driver_build_build_x_impl(void);
-int driver_fs_open_write_impl(const uint8_t *path, int path_len);
-int driver_source_has_generic_syntax_impl(const uint8_t *path, int path_len);
-int driver_source_has_compound_assign_syntax_impl(const uint8_t *path, int path_len);
-int driver_run_asm_backend_impl(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots, const char *target, int argc, char **argv);
-void driver_compile_parse_argv_scan_c_impl(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state);
-void driver_compile_argv_copy_path_c_impl(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen);
-int32_t driver_compile_argv_is_help_c_impl(int32_t argc, uint8_t *argv_opaque);
-void driver_print_usage_c_impl(void);
-int driver_argv_parse_x_emit_c_impl(int argc, char **argv);
-int driver_run_x_emit_c_impl(void);
-int driver_fmt_one_file_impl(const uint8_t *path, int path_len);
-int main_entry_impl(int argc, char **argv);
+int run_compiler_x_path(int argc, char **argv);
+int driver_want_asm_emit_to_file(int argc, char **argv);
+int driver_exec_compiled(int argc, uint8_t *argv_opaque);
+int driver_build_build_x(void);
+int driver_fs_open_write(const uint8_t *path, int path_len);
+int driver_source_has_generic_syntax(const uint8_t *path, int path_len);
+int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len);
+int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots, const char *target, int argc, char **argv);
+void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state);
+void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen);
+int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque);
+void driver_print_usage_c(void);
+int driver_argv_parse_x_emit_c(int argc, char **argv);
+int driver_run_x_emit_c(void);
+int driver_fmt_one_file(const uint8_t *path, int path_len);
+int main_entry(int argc, char **argv);
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-const char *runtime_diag_code_for_kind_impl(const char *kind) {
+const char *runtime_diag_code_for_kind(const char *kind) {
     if (!kind)
         return SHUX_DIAG_CODE_BUILD_BLD001;
     if (strcmp(kind, "io error") == 0)
@@ -154,14 +152,11 @@ const char *runtime_diag_code_for_kind_impl(const char *kind) {
         return SHUX_DIAG_CODE_BUILD_BLD001;
     return NULL;
 }
-const char *runtime_diag_code_for_kind(const char *kind) {
-  {
-    return runtime_diag_code_for_kind_impl(kind);
-  }
-  return ((const char *)0);
-}
 
-int runtime_try_handle_explain_cli_impl(int argc, char **argv) {
+
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+int runtime_try_handle_explain_cli(int argc, char **argv) {
     const char *code = NULL;
     if (argc < 2 || !argv || !argv[1])
         return -1;
@@ -207,12 +202,8 @@ int runtime_try_handle_explain_cli_impl(int argc, char **argv) {
     diag_print_code_explain(stdout, code);
     return 0;
 }
-int runtime_try_handle_explain_cli(int argc, char **argv) {
-  {
-    return runtime_try_handle_explain_cli_impl(argc, argv);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -221,8 +212,9 @@ int runtime_try_handle_explain_cli(int argc, char **argv) {
  */
 /* 结构化 smoke 是否启用：`--diag-json` 或 SHUX_SMOKE_DIAG=1；定义延后到 <stdlib.h> 可见处。 */
 int shux_smoke_diag_enabled(void);
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-void driver_emit_legacy_smoke_summary_stdout_impl(const char *main_name, int main_final_lit,
+void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_final_lit,
                                                     int has_main_body) {
     const char *name = main_name ? main_name : "?";
     if (has_main_body) {
@@ -252,12 +244,8 @@ void driver_emit_legacy_smoke_summary_stdout_impl(const char *main_name, int mai
         diag_report_with_code(NULL, 0, 0, "info", SHUX_DIAG_CODE_SMOKE_SMOKE002, "typeck OK", NULL);
     }
 }
-void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_final_lit,
-                                                    int has_main_body) {
-  {
-    driver_emit_legacy_smoke_summary_stdout_impl(main_name, main_final_lit, has_main_body);
-  }
-}
+
+
 
 
 /** 本文件内 read_file 调用映射至 E-04 v3 I/O ABI TU。 */
@@ -355,22 +343,21 @@ int shux_smoke_diag_enabled(void) {
 
 
 /* 编译/链接失败时删除 -o 目标，避免遗留 0 字节或半写入产物污染后续增量构建。 */
-void driver_unlink_failed_output_impl(const char *out_path) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_unlink_failed_output(const char *out_path) {
     if (!out_path || !out_path[0])
         return;
     (void)unlink(out_path);
 }
-void driver_unlink_failed_output(const char *out_path) {
-  {
-    driver_unlink_failed_output_impl(out_path);
-  }
-}
+
+
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-void runtime_diag_errno_impl(const char *file, const char *kind, const char *op) {
+void runtime_diag_errno(const char *file, const char *kind, const char *op) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
     const char *resolved_kind = kind ? kind : "build error";
@@ -387,14 +374,12 @@ void runtime_diag_errno_impl(const char *file, const char *kind, const char *op)
                      err ? err : "unknown error");
     }
 }
-void runtime_diag_errno(const char *file, const char *kind, const char *op) {
-  {
-    runtime_diag_errno_impl(file, kind, op);
-  }
-}
 
 
-void runtime_diag_errno_path_impl(const char *file, const char *kind, const char *op, const char *path) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
     const char *resolved_kind = kind ? kind : "build error";
@@ -417,14 +402,12 @@ void runtime_diag_errno_path_impl(const char *file, const char *kind, const char
     }
     runtime_diag_errno(file, resolved_kind, op);
 }
-void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path) {
-  {
-    runtime_diag_errno_path_impl(file, kind, op, path);
-  }
-}
 
 
-void runtime_diag_errno_path_pair_impl(const char *file, const char *kind, const char *op,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+void runtime_diag_errno_path_pair(const char *file, const char *kind, const char *op,
                                          const char *from_path, const char *to_path) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
@@ -446,32 +429,27 @@ void runtime_diag_errno_path_pair_impl(const char *file, const char *kind, const
                      err ? err : "unknown error");
     }
 }
-void runtime_diag_errno_path_pair(const char *file, const char *kind, const char *op,
-                                         const char *from_path, const char *to_path) {
-  {
-    runtime_diag_errno_path_pair_impl(file, kind, op, from_path, to_path);
-  }
-}
+
+
 
 
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((unused))
 #endif
-void runtime_diag_cli_usage_note_impl(const char *argv0) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void runtime_diag_cli_usage_note(const char *argv0) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.x> [ -o <out> ]",
                  argv0 ? argv0 : "shux");
 }
-void runtime_diag_cli_usage_note(const char *argv0) {
-  {
-    runtime_diag_cli_usage_note_impl(argv0);
-  }
-}
+
+
 
 
 void driver_print_usage_c(void);
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int runtime_test_status_to_rc_impl(const char *script, int st) {
+int runtime_test_status_to_rc(const char *script, int st) {
     if (st == -1) {
         runtime_diag_errno_path(script, "process error", "system(shux test)", script);
         return 1;
@@ -489,12 +467,8 @@ int runtime_test_status_to_rc_impl(const char *script, int st) {
                            script ? script : "?");
     return 1;
 }
-int runtime_test_status_to_rc(const char *script, int st) {
-  {
-    return runtime_test_status_to_rc_impl(script, st);
-  }
-  return 0;
-}
+
+
 
 
 #if defined(SHUX_USE_X_TYPECK) && !defined(SHUX_NO_C_FRONTEND)
@@ -512,7 +486,8 @@ extern int typeck_typeck_entry(struct ASTModule *mod, struct ASTModule **deps, i
 
 #if defined(SHUX_USE_X_PIPELINE)
 /** 向生成 C 写入 std.io / std.net 内联 ABI（原 io_abi.h、net_abi.h 内容），不再依赖该二头文件。成功返回 0。 */
-int write_io_net_abi_inline_impl(FILE *cf) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int write_io_net_abi_inline(FILE *cf) {
     static const char *lines[] = {
         "#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L\n#error \"Generated code needs C11. Compile with -std=gnu11 or -std=c11.\"\n#endif\n",
         "#include <stddef.h>\n",
@@ -718,16 +693,13 @@ int write_io_net_abi_inline_impl(FILE *cf) {
     }
     return 0;
 }
-int write_io_net_abi_inline(FILE *cf) {
-  {
-    return write_io_net_abi_inline_impl(cf);
-  }
-  return 0;
-}
+
+
 
 
 /** 向生成 C 写入 std.fs / std.path / std.map / std.error 内联 ABI（F-ZC Z9：不再 #include std/*_abi.h）。成功返回 0。 */
-int write_fs_path_map_error_abi_inline_impl(FILE *cf) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int write_fs_path_map_error_abi_inline(FILE *cf) {
     static const char *lines[] = {
         "typedef struct std_fs_FsIovecBuf fs_iovec_buf_t;\n",
         "extern int32_t fs_open_read_c(uint8_t *path);\n",
@@ -757,17 +729,14 @@ int write_fs_path_map_error_abi_inline_impl(FILE *cf) {
     }
     return 0;
 }
-int write_fs_path_map_error_abi_inline(FILE *cf) {
-  {
-    return write_fs_path_map_error_abi_inline_impl(cf);
-  }
-  return 0;
-}
+
+
 
 #endif /* SHUX_USE_X_PIPELINE */
 
 #if !defined(SHUX_USE_X_DRIVER)
-void codegen_emit_include_pipeline_glue_c_impl(FILE *out, const char *argv0) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
     char rel[PATH_MAX];
     static char canon[PATH_MAX];
     rel[0] = '\0';
@@ -801,11 +770,8 @@ void codegen_emit_include_pipeline_glue_c_impl(FILE *out, const char *argv0) {
         fprintf(out, "\n#include \"%s\"\n", canon);
     }
 }
-void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
-  {
-    codegen_emit_include_pipeline_glue_c_impl(out, argv0);
-  }
-}
+
+
 
 #endif /* !SHUX_USE_X_DRIVER */
 
@@ -857,8 +823,9 @@ typedef struct {
     RuntimePipelineElfPatchEntry patches[RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP];
     int32_t num_patches;
 } RuntimePipelineElfCtxAccess;
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-void runtime_pipeline_elf_ctx_diag_note_impl(uint8_t *ctx_bytes) {
+void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
     RuntimePipelineElfCtxAccess *ctx;
     int32_t l;
     char namebuf[65];
@@ -896,11 +863,8 @@ void runtime_pipeline_elf_ctx_diag_note_impl(uint8_t *ctx_bytes) {
     }
     diag_report(NULL, 0, 0, "note", "elf no label match for first patch", NULL);
 }
-void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
-  {
-    runtime_pipeline_elf_ctx_diag_note_impl(ctx_bytes);
-  }
-}
+
+
 
 
 /** 调试：打印 module 中每个 func 的 name_len/name（由 Makefile 追加到 pipeline_gen.c）；便于定位 mai/ba 截断 */
@@ -954,8 +918,9 @@ extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source)
 extern int32_t parser_diag_token_after_collect_imports(struct shux_slice_uint8_t *source, void *module);
 extern int32_t pipeline_parse_one_function_ok(struct shux_slice_uint8_t *source, void *arena);
 extern int32_t pipeline_typeck_after_parse_ok(void *arena, void *module, struct shux_slice_uint8_t *source, void *ctx);
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int runtime_report_precise_parse_failure_if_known_impl(const char *input_path, const char *src, size_t src_len) {
+int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
     struct shux_slice_uint8_t diag_src_slice;
     int32_t fail_tok;
     if (!src || src_len == 0)
@@ -971,12 +936,8 @@ int runtime_report_precise_parse_failure_if_known_impl(const char *input_path, c
     }
     return 0;
 }
-int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
-  {
-    return runtime_report_precise_parse_failure_if_known_impl(input_path, src, src_len);
-  }
-  return 0;
-}
+
+
 
 #ifdef SHUX_USE_X_DRIVER
 /* run_compiler_c 由 C 在此定义，转调 main.x 的 main_run_compiler_c，供 main_entry 等调用；不再依赖 driver_gen.c 追加。 */
@@ -1126,7 +1087,8 @@ typedef struct {
 } DriverSmokeLexDumpArgs;
 
 /** pthread 入口：遍历 src 并 stdout 打印 token（与 run-lexer 期望格式一致）。 */
-void * driver_smoke_lex_dump_thread_fn_impl(void *arg) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void * driver_smoke_lex_dump_thread_fn(void *arg) {
     const DriverSmokeLexDumpArgs *a = (const DriverSmokeLexDumpArgs *)arg;
     Lexer *lex2;
     Token tok;
@@ -1156,25 +1118,19 @@ void * driver_smoke_lex_dump_thread_fn_impl(void *arg) {
     lexer_free(lex2);
     return NULL;
 }
-void * driver_smoke_lex_dump_thread_fn(void *arg) {
-  {
-    return driver_smoke_lex_dump_thread_fn_impl(arg);
-  }
-  return ((void *)0);
-}
+
+
 
 
 /** 在大栈 pthread 上执行 token dump，避免 typeck 深递归后二次 lexer 栈溢出。 */
-void driver_smoke_lex_dump_on_large_stack_impl(const char *src) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_smoke_lex_dump_on_large_stack(const char *src) {
     DriverSmokeLexDumpArgs args;
     args.src = src;
     driver_run_thread_on_large_stack(driver_smoke_lex_dump_thread_fn, &args);
 }
-void driver_smoke_lex_dump_on_large_stack(const char *src) {
-  {
-    driver_smoke_lex_dump_on_large_stack_impl(src);
-  }
-}
+
+
 
 #endif /* !SHUX_USE_X_DRIVER */
 
@@ -1195,7 +1151,8 @@ struct dce_ctx {
 #define RUNTIME_MAX_USED_FUNCS 256
 #define RUNTIME_MAX_DCE_MODULES 33
 /** 填充 DCE 上下文：classic compute_used + 可选 WPO reach；*dce_ready 非 0 时可传 dce 回调。 */
-void runtime_prepare_dce_ctx_impl(struct ASTModule *mod, struct ASTModule **all_dep_mods, int n_all,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void runtime_prepare_dce_ctx(struct ASTModule *mod, struct ASTModule **all_dep_mods, int n_all,
     ASTFunc **used_funcs, int *n_used, int used_mono[RUNTIME_MAX_DCE_MODULES][64],
     const char **used_type_names, int *n_used_types,
     CodegenWpoReach *wpo_reach, struct dce_ctx *dce, int *dce_ready) {
@@ -1228,16 +1185,11 @@ void runtime_prepare_dce_ctx_impl(struct ASTModule *mod, struct ASTModule **all_
         *dce_ready = 1;
     }
 }
-void runtime_prepare_dce_ctx(struct ASTModule *mod, struct ASTModule **all_dep_mods, int n_all,
-    ASTFunc **used_funcs, int *n_used, int used_mono[RUNTIME_MAX_DCE_MODULES][64],
-    const char **used_type_names, int *n_used_types,
-    CodegenWpoReach *wpo_reach, struct dce_ctx *dce, int *dce_ready) {
-  {
-    runtime_prepare_dce_ctx_impl(mod, all_dep_mods, n_all, used_funcs, n_used, used_mono, used_type_names, n_used_types, wpo_reach, dce, dce_ready);
-  }
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int dce_is_func_used_impl(void *ctx, const ASTModule *mod, const ASTFunc *func) {
+
+
+int dce_is_func_used(void *ctx, const ASTModule *mod, const ASTFunc *func) {
     const struct dce_ctx *c = (const struct dce_ctx *)ctx;
     if (!c) return 1;
     if (func && func->is_extern) return 1;
@@ -1250,14 +1202,11 @@ int dce_is_func_used_impl(void *ctx, const ASTModule *mod, const ASTFunc *func) 
         if (c->used[i] == func) return 1;
     return 0;
 }
-int dce_is_func_used(void *ctx, const ASTModule *mod, const ASTFunc *func) {
-  {
-    return dce_is_func_used_impl(ctx, mod, func);
-  }
-  return 0;
-}
 
-int dce_is_mono_used_impl(void *ctx, const ASTModule *mod, int k) {
+
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+int dce_is_mono_used(void *ctx, const ASTModule *mod, int k) {
     const struct dce_ctx *c = (const struct dce_ctx *)ctx;
     if (!c || !c->mono || k < 0 || k >= 64) return 1;
     /* 库模块：始终保留单态化实例，避免入口引用的泛型 import 被误删 */
@@ -1269,16 +1218,13 @@ int dce_is_mono_used_impl(void *ctx, const ASTModule *mod, int k) {
     if (idx < 0 || idx >= c->mono_rows) return 1;
     return c->mono[idx][k];
 }
-int dce_is_mono_used(void *ctx, const ASTModule *mod, int k) {
-  {
-    return dce_is_mono_used_impl(ctx, mod, k);
-  }
-  return 0;
-}
+
+
 
 
 /** 阶段 8.1 DCE 扩展：类型名在 used_type_names 中则保留，否则删除；库模块类型始终保留。 */
-int dce_is_type_used_impl(void *ctx, const ASTModule *mod, const char *type_name) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int dce_is_type_used(void *ctx, const ASTModule *mod, const char *type_name) {
     const struct dce_ctx *c = (const struct dce_ctx *)ctx;
     if (!c || !type_name) return 1;
     if (mod != c->entry) return 1;
@@ -1287,12 +1233,8 @@ int dce_is_type_used_impl(void *ctx, const ASTModule *mod, const char *type_name
         if (c->used_type_names[i] && strcmp(c->used_type_names[i], type_name) == 0) return 1;
     return 0;
 }
-int dce_is_type_used(void *ctx, const ASTModule *mod, const char *type_name) {
-  {
-    return dce_is_type_used_impl(ctx, mod, type_name);
-  }
-  return 0;
-}
+
+
 
 #endif /* !SHUX_USE_X_DRIVER */
 
@@ -2703,7 +2645,8 @@ int RUN_CC_FUNC(int argc, char **argv) {
  * 否则直接转调 run_compiler_c。完全自举时 run_compiler_x_path 由 main.x 提供，C 不定义以免重复符号。
  */
 #if !defined(SHUX_USE_X_DRIVER)
-int run_compiler_x_path_impl(int argc, char **argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int run_compiler_x_path(int argc, char **argv) {
 #if !defined(SHUX_USE_X_FRONTEND) || !defined(SHUX_USE_X_PIPELINE)
     return run_compiler_c(argc, argv);
 #else
@@ -3102,12 +3045,7 @@ int run_compiler_x_path_impl(int argc, char **argv) {
 #endif
 }
 
-int run_compiler_x_path(int argc, char **argv) {
-  {
-    return run_compiler_x_path_impl(argc, argv);
-  }
-  return -1;
-}
+
 
 #endif /* !defined(SHUX_USE_X_DRIVER)：run_compiler_x_path 仅在不使用 .x driver 时由 C 提供 */
 
@@ -3124,8 +3062,9 @@ static int driver_x_emit_n_lib_roots;
 /* 供 main.x 在 -x -E 时把 path/lib_roots 灌入 C 侧，再调 driver_run_x_emit_c，以走完整多文件（deps+main）路径。 */
 static char driver_x_emit_path_buf[512];
 static char driver_x_emit_lib_bufs[X_EMIT_MAX_LIB_ROOTS][256];
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int driver_run_x_emit_c_set_path_impl(const uint8_t *path, int path_len) {
+int driver_run_x_emit_c_set_path(const uint8_t *path, int path_len) {
     driver_x_emit_c_path = NULL;
     if (!path || path_len <= 0 || path_len >= (int)sizeof(driver_x_emit_path_buf)) return 0;
     memcpy(driver_x_emit_path_buf, path, (size_t)path_len);
@@ -3133,16 +3072,12 @@ int driver_run_x_emit_c_set_path_impl(const uint8_t *path, int path_len) {
     driver_x_emit_c_path = driver_x_emit_path_buf;
     return 0;
 }
-
-int driver_run_x_emit_c_set_path(const uint8_t *path, int path_len) {
-  {
-    return driver_run_x_emit_c_set_path_impl(path, path_len);
-  }
-  return -1;
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-int driver_run_x_emit_c_set_lib_impl(int i, const uint8_t *buf, int len) {
+
+
+int driver_run_x_emit_c_set_lib(int i, const uint8_t *buf, int len) {
     if (i < 0 || i >= X_EMIT_MAX_LIB_ROOTS || !buf || len < 0 || len >= 256) return 0;
     memcpy(driver_x_emit_lib_bufs[i], buf, (size_t)len);
     driver_x_emit_lib_bufs[i][len] = '\0';
@@ -3150,12 +3085,7 @@ int driver_run_x_emit_c_set_lib_impl(int i, const uint8_t *buf, int len) {
     return 0;
 }
 
-int driver_run_x_emit_c_set_lib(int i, const uint8_t *buf, int len) {
-  {
-    return driver_run_x_emit_c_set_lib_impl(i, buf, len);
-  }
-  return -1;
-}
+
 /* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
 int driver_run_x_emit_c_set_n_lib_roots(int n) {
@@ -3185,7 +3115,8 @@ int driver_run_x_emit_c_set_emit_extern(int v) {
  *
  * 【返回值】1 → 走 \c driver_run_compiler_full（内含 asm）；0 → 旧逻辑走 \c pipeline_run_x_pipeline_impl 轻路径（主要为兼容未再生成的 driver_gen.c）。
  */
-int driver_want_asm_emit_to_file_impl(int argc, char **argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_want_asm_emit_to_file(int argc, char **argv) {
     int want_asm = 1;
     char cur[512];
     char nx[512];
@@ -3214,12 +3145,7 @@ int driver_want_asm_emit_to_file_impl(int argc, char **argv) {
     return want_asm ? 1 : 0;
 }
 
-int driver_want_asm_emit_to_file(int argc, char **argv) {
-  {
-    return driver_want_asm_emit_to_file_impl(argc, argv);
-  }
-  return -1;
-}
+
 
 
 /* driver_get_argv_i / driver_argv_drop_subcommand / driver_resolve_target_arch → runtime_abi.c（E-04 v2） */
@@ -3228,7 +3154,8 @@ int driver_want_asm_emit_to_file(int argc, char **argv) {
  * cmd_run（driver/run.x）：编译成功后 exec 产物。从 argv 扫描 `-o` 下一参数为可执行路径，缺省 `a.out`。
  * 子进程 argv 仅为 [ exe, NULL ]；ABI 上 argv 与 char** 同址。
  */
-int driver_exec_compiled_impl(int argc, uint8_t *argv_opaque) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
     char **argv = (char **)argv_opaque;
     const char *exe = "a.out";
     int i;
@@ -3291,12 +3218,7 @@ int driver_exec_compiled_impl(int argc, uint8_t *argv_opaque) {
     }
 }
 
-int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
-  {
-    return driver_exec_compiled_impl(argc, argv_opaque);
-  }
-  return -1;
-}
+
 
 
 /* 前置声明：定义在本文件后部 driver_run_compiler_full；此处须在定义之前调用。 */
@@ -3308,7 +3230,8 @@ int driver_run_compiler_full(int argc, char **argv);
  * - 构造 argv {"shux","build.x",NULL} 调用 driver_run_compiler_full(2, fake_argv)，非 0 则返回 1。
  * - 编译成功后 fork / execv("./a.out", av)、waitpid，返回子进程正常退出码；信号等非正常退出返回 1。
  */
-int driver_build_build_x_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_build_build_x(void) {
     /* 生成 build_tool 并执行：等价 make build-tool && ./build_tool ./shux。
        build.x 没有 main，需结合 build_runtime.c 做成 build_tool 再跑。
        Makefile 在 compiler 子目录，build_tool 也生成在 compiler 下。 */
@@ -3327,12 +3250,7 @@ int driver_build_build_x_impl(void) {
     return 0;
 }
 
-int driver_build_build_x(void) {
-  {
-    return driver_build_build_x_impl();
-  }
-  return -1;
-}
+
 
 
 /** 6.2 静态 arena/module 缓冲，供 driver_run_x_emit_x 避免栈上超大数组。
@@ -3362,7 +3280,8 @@ uint8_t *driver_module_buf(void) {
 }
 
 /** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开读文件，返回 fd，失败 -1。供 driver_run_x_emit_x 读入口文件，避免生成代码顺序导致 path_buf 未填就 open。 */
-int driver_fs_open_read_path_impl(const uint8_t *path, int path_len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_fs_open_read_path(const uint8_t *path, int path_len) {
     if (!path || path_len <= 0 || path_len >= 512) return -1;
     char buf[512];
     memcpy(buf, path, (size_t)path_len);
@@ -3370,16 +3289,12 @@ int driver_fs_open_read_path_impl(const uint8_t *path, int path_len) {
     return open(buf, O_RDONLY);
 }
 
-int driver_fs_open_read_path(const uint8_t *path, int path_len) {
-  {
-    return driver_fs_open_read_path_impl(path, path_len);
-  }
-  return -1;
-}
+
 
 
 /** 6.2 极薄原语：以 path[0..path_len-1] 为路径打开写文件（O_WRONLY|O_CREAT|O_TRUNC），返回 fd，失败 -1。供 -backend asm -o 时 main.x 写 -o 文件。 */
-int driver_fs_open_write_impl(const uint8_t *path, int path_len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_fs_open_write(const uint8_t *path, int path_len) {
     if (!path || path_len <= 0 || path_len >= 512) return -1;
     char buf[512];
     memcpy(buf, path, (size_t)path_len);
@@ -3394,12 +3309,7 @@ int driver_fs_open_write_impl(const uint8_t *path, int path_len) {
     return -1;
 }
 
-int driver_fs_open_write(const uint8_t *path, int path_len) {
-  {
-    return driver_fs_open_write_impl(path, path_len);
-  }
-  return -1;
-}
+
 
 
 /** 检测内存中的源码 content[0..n-1] 是否含泛型或 trait 语法（.x 流水线不支持，需走 C 路径）。 */
@@ -3446,8 +3356,9 @@ int content_has_generic_syntax(const char *content, size_t n) {
 
 
 
-/** 检测 path 指向的源码文件是否含泛型语法（如 <T> 或 <i32>），有则返回 1 否则 0；供 .x driver 在 run_compiler_x_path_impl 中决定是否走 C 流水线。 */
-int driver_source_has_generic_syntax_impl(const uint8_t *path, int path_len) {
+/** 检测 path 指向的源码文件是否含泛型语法（如 <T> 或 <i32>），有则返回 1 否则 0；供 .x driver 在 run_compiler_x_path 中决定是否走 C 流水线。 */
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
     char content[65536];
     int rn;
     size_t n;
@@ -3464,12 +3375,7 @@ int driver_source_has_generic_syntax_impl(const uint8_t *path, int path_len) {
     return content_has_generic_syntax(content, n);
 }
 
-int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
-  {
-    return driver_source_has_generic_syntax_impl(path, path_len);
-  }
-  return -1;
-}
+
 
 
 /** 检测内存源码是否含复合赋值（+= 等）；.x 解析器未覆盖时须走 C 流水线（run-compound-assign 等）。
@@ -3521,7 +3427,8 @@ int content_has_compound_assign_syntax(const char *content, size_t n) {
 
 
 /** 供 compile.x：源码含复合赋值则返回 1，默认 asm 应降级为 C。 */
-int driver_source_has_compound_assign_syntax_impl(const uint8_t *path, int path_len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) {
     char content[65536];
     int rn;
     size_t n;
@@ -3542,12 +3449,7 @@ int driver_source_has_compound_assign_syntax_impl(const uint8_t *path, int path_
     return content_has_compound_assign_syntax(content, n);
 }
 
-int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) {
-  {
-    return driver_source_has_compound_assign_syntax_impl(path, path_len);
-  }
-  return -1;
-}
+
 
 
 /** shux_collect_deps_transitive / shux_merge_direct_then_transitive_deps / shux_load_direct_imports_for_asm_layout 见 runtime_pipeline_abi.c（E-04 v35）。 */
@@ -3565,14 +3467,14 @@ int32_t driver_asm_output_want_exe(uint8_t *path) {
 #if !defined(SHUX_NO_C_FRONTEND)
 /** C 前端 typeck（定义见 driver_c_typeck_entry）；asm 编译前预检。 */
 int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok);
-int driver_c_typeck_entry_large_stack_impl(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots,
+int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots,
     int print_ok);
 int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots,
     int print_ok);
 #endif
 
 #if !defined(SHUX_NO_C_FRONTEND)
-int driver_c_frontend_smoke_impl(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots);
+int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots);
 int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots);
 #endif
 
@@ -3580,13 +3482,14 @@ int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_
 extern int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n);
 
 /** check-only / asm entry-only：dep 路径是否均为 std.* / core.* import 闭包。 */
-int driver_deps_are_std_core_closure_only_impl(char **dep_paths, int n_deps);
+int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
 int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
 
 /**
  * -backend asm 专用：读文件、跑 .x pipeline、写 .o 或调 ld。与 run_compiler_c 内 asm 路径逻辑一致，供 driver_run_compiler_full 转调。
  */
-int driver_run_asm_backend_impl(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
     const char *target, int argc, char **argv) {
     const char *defines[MAX_DEFINES];
     int ndefines = 0;
@@ -4347,13 +4250,7 @@ int driver_run_asm_backend_impl(const char *input_path, const char *out_path, co
     return (ec != 0) ? 1 : 0;
 }
 
-int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
-    const char *target, int argc, char **argv) {
-  {
-    return driver_run_asm_backend_impl(input_path, out_path, lib_roots_arr, n_lib_roots, target, argc, argv);
-  }
-  return -1;
-}
+
 
 #endif /* SHUX_USE_X_DRIVER && SHUX_USE_X_PIPELINE */
 
@@ -4379,7 +4276,8 @@ typedef struct DriverCompileParsed {
  */
 
 /** C 前端烟测：stderr 打印 parse OK / typeck OK（run-import、run-stdlib-import grep）。 */
-int driver_c_frontend_smoke_impl(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
     diag_set_file(input_path, src, src ? strlen(src) : 0);
     Lexer *lex = lexer_new(src);
     ASTModule *mod = NULL;
@@ -4424,12 +4322,8 @@ int driver_c_frontend_smoke_impl(const char *input_path, char *src, const char *
     ast_module_free(mod);
     return 0;
 }
-int driver_c_frontend_smoke(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
-  {
-    return driver_c_frontend_smoke_impl(input_path, src, lib_roots_arr, n_lib_roots);
-  }
-  return 0;
-}
+
+
 
 
 #if defined(SHUX_USE_X_PIPELINE)
@@ -4441,23 +4335,21 @@ typedef struct {
 } DriverStackEscGateArgs;
 
 /** pthread 入口：WPO-S3 post-scan gate。 */
-void * driver_stack_esc_gate_thread_fn_impl(void *arg) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void * driver_stack_esc_gate_thread_fn(void *arg) {
     DriverStackEscGateArgs *a = (DriverStackEscGateArgs *)arg;
     a->result = pipeline_typeck_x_stack_escape_gate_from_src_c(a->src, a->src_len);
     return NULL;
 }
-void * driver_stack_esc_gate_thread_fn(void *arg) {
-  {
-    return driver_stack_esc_gate_thread_fn_impl(arg);
-  }
-  return ((void *)0);
-}
+
+
 
 
 /**
  * 在 256MiB 栈 pthread 上跑 X struct 栈逃逸 gate（check 路径；勿在主线程 parse）。
  */
-int32_t driver_stack_esc_gate_large_stack_impl(uint8_t *src, int32_t src_len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) {
     DriverStackEscGateArgs args;
     args.src = src;
     args.src_len = src_len;
@@ -4467,12 +4359,8 @@ int32_t driver_stack_esc_gate_large_stack_impl(uint8_t *src, int32_t src_len) {
         return pipeline_typeck_x_stack_escape_gate_from_src_c(src, src_len);
     return args.result;
 }
-int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) {
-  {
-    return driver_stack_esc_gate_large_stack_impl(src, src_len);
-  }
-  return 0;
-}
+
+
 
 #endif
 
@@ -4552,23 +4440,21 @@ typedef struct {
 } DriverCTypeckLargeArgs;
 
 /** pthread 入口：driver_c_typeck_entry 并将 rc 写入 args->result。 */
-void * driver_c_typeck_entry_thread_fn_impl(void *arg) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void * driver_c_typeck_entry_thread_fn(void *arg) {
     DriverCTypeckLargeArgs *a = (DriverCTypeckLargeArgs *)arg;
     a->result = driver_c_typeck_entry(a->input_path, a->src, a->lib_roots_arr, a->n_lib_roots, a->print_ok);
     return NULL;
 }
-void * driver_c_typeck_entry_thread_fn(void *arg) {
-  {
-    return driver_c_typeck_entry_thread_fn_impl(arg);
-  }
-  return ((void *)0);
-}
+
+
 
 
 /**
  * 在 256MiB 栈 pthread 上执行 C typeck 预检；避免 lexer 等大模块在主线程耗尽栈后 asm emit Abort。
  */
-int driver_c_typeck_entry_large_stack_impl(const char *input_path, char *src, const char **lib_roots_arr,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr,
     int n_lib_roots, int print_ok) {
     DriverCTypeckLargeArgs args;
     args.input_path = input_path;
@@ -4582,28 +4468,20 @@ int driver_c_typeck_entry_large_stack_impl(const char *input_path, char *src, co
         return driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, print_ok);
     return args.result;
 }
-int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr,
-    int n_lib_roots, int print_ok) {
-  {
-    return driver_c_typeck_entry_large_stack_impl(input_path, src, lib_roots_arr, n_lib_roots, print_ok);
-  }
-  return 0;
-}
+
+
 
 
 #endif /* !SHUX_NO_C_FRONTEND — C parse/typeck 辅助；compile.x / driver_run_compiler_full glue 须在 NO_C seed 链可见 */
 
 /** shux check：C typeck 入口（库模块无 main 时比 X pipeline 更稳；bootstrap 与 shux-c 共用）。 */
 #if !defined(SHUX_NO_C_FRONTEND)
-int driver_check_only_c_typeck_impl(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_check_only_c_typeck(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
     return driver_c_typeck_entry(input_path, src, lib_roots_arr, n_lib_roots, 1);
 }
-int driver_check_only_c_typeck(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots) {
-  {
-    return driver_check_only_c_typeck_impl(input_path, src, lib_roots_arr, n_lib_roots);
-  }
-  return 0;
-}
+
+
 
 #endif
 
@@ -4611,7 +4489,8 @@ int driver_check_only_c_typeck(const char *input_path, char *src, const char **l
  * dep 列表是否全为 std./core. 闭包（符号由预编 .o / preamble 提供，勿 dep_prerun 全量 typeck）。
  * tests/multi-file 的 import("foo") 等用户 dep 返回 0，仍走 typeck_only。
  */
-int driver_deps_are_std_core_closure_only_impl(char **dep_paths, int n_deps) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
     int k;
     if (!dep_paths || n_deps <= 0)
         return 0;
@@ -4625,12 +4504,8 @@ int driver_deps_are_std_core_closure_only_impl(char **dep_paths, int n_deps) {
     }
     return 1;
 }
-int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
-  {
-    return driver_deps_are_std_core_closure_only_impl(dep_paths, n_deps);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -4678,7 +4553,8 @@ int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const cha
 /**
  * 入口 AST 的直接 import 是否均为 core.*（L9 arena_align 等 shux-c -backend c -o 可走 C 前端）。
  */
-int driver_c_mod_imports_are_core_only_impl(ASTModule *mod) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_c_mod_imports_are_core_only(ASTModule *mod) {
     int i;
     if (!mod || mod->num_imports <= 0)
         return 0;
@@ -4689,12 +4565,8 @@ int driver_c_mod_imports_are_core_only_impl(ASTModule *mod) {
     }
     return 1;
 }
-int driver_c_mod_imports_are_core_only(ASTModule *mod) {
-  {
-    return driver_c_mod_imports_are_core_only_impl(mod);
-  }
-  return 0;
-}
+
+
 
 #endif
 
@@ -4724,7 +4596,8 @@ int driver_argv0_basename_is(const char *argv0, const char *base) {
  * argv 已解析后的编译执行：泛型降级、asm/C 分派、pipeline/cc。
  * 由 driver/compile.x 经 driver_run_compiler_dispatch_c 调用。
  */
-int driver_run_compiler_parsed_impl(DriverCompileParsed *p, int argc, char **argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     /* 【Why 根源】-lib-name 仅 C 前端 RUN_CC_FUNC 路径需要（shux_compile_std_module.sh --bare-impl）；
      * x-pipeline 路径（shux-x）不编译 std 模块，用 NULL 走 path-based lib_name。 */
     const char *lib_name_override = NULL;
@@ -5639,12 +5512,8 @@ int driver_run_compiler_parsed_impl(DriverCompileParsed *p, int argc, char **arg
     pipeline_dep_ctx_heap_destroy(pctx);
     return 0;
 }
-int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
-  {
-    return driver_run_compiler_parsed_impl(p, argc, argv);
-  }
-  return 0;
-}
+
+
 
 
 extern int32_t driver_emit_lib_root_count(uint8_t *state);
@@ -5669,7 +5538,8 @@ int driver_lib_root_ptr_usable(const char *p) {
  * 写入默认 lib root：优先 SHUX_LIB（拷贝到 root_buf），否则 "."。
  * 参数：root_buf 输出缓冲（至少 512 字节）。
  */
-void driver_lib_root_default_impl(char root_buf[512]) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_lib_root_default(char root_buf[512]) {
     const char *def = getenv("SHUX_LIB");
     root_buf[0] = '.';
     root_buf[1] = '\0';
@@ -5678,15 +5548,13 @@ void driver_lib_root_default_impl(char root_buf[512]) {
     strncpy(root_buf, def, 511);
     root_buf[511] = '\0';
 }
-void driver_lib_root_default(char root_buf[512]) {
-  {
-    driver_lib_root_default_impl(root_buf);
-  }
-}
+
+
 
 
 /** 从 ast_pool sidecar 键填充 lib_roots 数组；返回根数量。 */
-int driver_lib_roots_from_key_impl(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]) {
     int n = (int)driver_emit_lib_root_count(lib_key);
     int i;
     if (n <= 0) {
@@ -5709,12 +5577,8 @@ int driver_lib_roots_from_key_impl(uint8_t *lib_key, const char **out_arr, char 
     }
     return n;
 }
-int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]) {
-  {
-    return driver_lib_roots_from_key_impl(lib_key, out_arr, bufs);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -5758,23 +5622,19 @@ int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, ui
 }
 
 /** 兼容旧符号名；新路径 compile.x 经 compile_dispatch_* 调 impl_c。 */
-int32_t driver_run_asm_backend_c_impl(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                  int32_t argc, uint8_t *argv) {
     return driver_run_asm_backend_impl_c(input_path, out_path, lib_key, target, argc, argv);
 }
 
-int32_t driver_run_asm_backend_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
-                                 int32_t argc, uint8_t *argv) {
-  {
-    return driver_run_asm_backend_c_impl(input_path, out_path, lib_key, target, argc, argv);
-  }
-  return -1;
-}
+
 
 
 /** C 后端 C 桥：供 compile.x 调用（want_asm_backend=0 走 driver_run_compiler_parsed）。 */
 /** 含 import 时 seed 的 X codegen 易重复符号；若同目录有 shux-c 则委托其完成 -o 链接（与 run-hello 一致）。 */
-int driver_try_compile_via_shu_c_sibling_impl(int argc, char **argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
     char shu_c[512];
     const char *self;
     const char *slash;
@@ -5831,12 +5691,8 @@ int driver_try_compile_via_shu_c_sibling_impl(int argc, char **argv) {
     }
 #endif
 }
-int driver_try_compile_via_shu_c_sibling(int argc, char **argv) {
-  {
-    return driver_try_compile_via_shu_c_sibling_impl(argc, argv);
-  }
-  return 0;
-}
+
+
 
 
 /** C 后端 C mega：lib_key→lib_roots；含 import 时可选 exec 同目录 shux-c；否则 driver_run_compiler_parsed。 */
@@ -5872,18 +5728,13 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
 }
 
 /** 兼容旧符号名；新路径 compile.x 经 compile_dispatch_* 调 impl_c。 */
-int32_t driver_run_emit_c_path_c_impl(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                  uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
     return driver_run_emit_c_path_impl_c(input_path, out_path, lib_key, target, opt_level, use_lto, argc, argv);
 }
 
-int32_t driver_run_emit_c_path_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
-                                 uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
-  {
-    return driver_run_emit_c_path_c_impl(input_path, out_path, lib_key, target, opt_level, use_lto, argc, argv);
-  }
-  return -1;
-}
+
 
 
 /** `-freestanding` / argv 解析 glue：前置声明（parse_argv_step_c 早于本 TU 内定义；GCC 禁止隐式声明）。 */
@@ -5909,16 +5760,13 @@ DriverCompileStateSU *driver_compile_state_alloc_c(void) {
 }
 
 /** 释放 driver_compile_state_alloc_c 分配的 state。 */
-void driver_compile_state_free_c_impl(DriverCompileStateSU *state) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_state_free_c(DriverCompileStateSU *state) {
     if (state)
         free(state);
 }
 
-void driver_compile_state_free_c(DriverCompileStateSU *state) {
-  {
-    driver_compile_state_free_c_impl(state);
-  }
-}
+
 
 
 /** compile.x EMIT_HEAVY 真 emit 的 parse_argv 链；impl_c 在 C 栈上持 state 后调用。 */
@@ -6012,7 +5860,8 @@ int drv_target_has_arm(const char *buf, int len) {
  * 处理 argv[i] 一项（C 实现；strict emit 下 X step 的 if+side-effect+return 会错序提前 return）。
  * 返回下一 argv 下标。
  */
-int driver_compile_parse_argv_step_c_impl(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
                                             int arg_cap) {
     int len = driver_get_argv_i(argc, argv, i, arg_buf, arg_cap);
     if (len < 0)
@@ -6090,16 +5939,12 @@ int driver_compile_parse_argv_step_c_impl(int argc, char **argv, DriverCompileSt
         driver_compile_argv_copy_path_c(state, (uint8_t *)arg_buf, len);
     return i + 1;
 }
-int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
-                                            int arg_cap) {
-  {
-    return driver_compile_parse_argv_step_c_impl(argc, argv, state, i, arg_buf, arg_cap);
-  }
-  return 0;
-}
 
 
-void driver_compile_parse_argv_scan_c_impl(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
     char **argv = (char **)argv_opaque;
     char arg_buf[512];
     int i;
@@ -6110,11 +5955,7 @@ void driver_compile_parse_argv_scan_c_impl(int32_t argc, uint8_t *argv_opaque, D
         i = driver_compile_parse_argv_step_c(argc, argv, state, i, arg_buf, (int)sizeof arg_buf);
 }
 
-void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
-  {
-    driver_compile_parse_argv_scan_c_impl(argc, argv_opaque, state);
-  }
-}
+
 
 
 /**
@@ -6140,7 +5981,8 @@ int32_t driver_compile_parse_argv_impl_c(int32_t argc, uint8_t *argv_opaque, Dri
 /**
  * B-02：按 DriverCompileState 的 -target 同步 #[cfg] 求值上下文。
  */
-void cfg_sync_compile_target_from_state_c_impl(void *state) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void cfg_sync_compile_target_from_state_c(void *state) {
     DriverCompileStateSU *st = (DriverCompileStateSU *)state;
     if (st && st->parse_saw_target && st->target_len > 0)
         cfg_apply_compile_target_from_triple((const char *)st->target_buf, st->target_len);
@@ -6148,18 +5990,15 @@ void cfg_sync_compile_target_from_state_c_impl(void *state) {
         cfg_reset_compile_target();
 }
 
-void cfg_sync_compile_target_from_state_c(void *state) {
-  {
-    cfg_sync_compile_target_from_state_c_impl(state);
-  }
-}
+
 
 
 /**
  * 将 argv 路径字节拷入 state.path_buf 并写 path_len（cap 511）。
  * EMIT_HEAVY 下 X while+INDEX 形参 field 易误折叠/漏 emit；与 impl_c 一样走 C 原语。
  */
-void driver_compile_argv_copy_path_c_impl(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen) {
     int32_t k;
     int32_t n;
     if (!state || !arg_buf || plen <= 0)
@@ -6172,18 +6011,15 @@ void driver_compile_argv_copy_path_c_impl(DriverCompileStateSU *state, uint8_t *
     state->path_len = n;
 }
 
-void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_buf, int32_t plen) {
-  {
-    driver_compile_argv_copy_path_c_impl(state, arg_buf, plen);
-  }
-}
+
 
 
 /**
  * 无显式 -L 时向 sidecar 追加默认 lib_root "."（与 compile.x ensure_default_lib 语义一致）。
  * EMIT_HEAVY driver_compile.o 中 X 体常为 ret0 桩；finalize 与薄包装均 bl 本符号。
  */
-void driver_compile_ensure_default_lib_c_impl(uint8_t *key) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_ensure_default_lib_c(uint8_t *key) {
     static const uint8_t dot[1] = {46};
     if (!key)
         return;
@@ -6191,18 +6027,15 @@ void driver_compile_ensure_default_lib_c_impl(uint8_t *key) {
         (void)driver_emit_append_lib_root(key, (uint8_t *)dot, 1);
 }
 
-void driver_compile_ensure_default_lib_c(uint8_t *key) {
-  {
-    driver_compile_ensure_default_lib_c_impl(key);
-  }
-}
+
 
 
 /**
  * 重置 DriverCompileState 默认值并清空 lib_root sidecar（与 compile.x parse_argv_init 语义一致）。
  * EMIT_HEAVY 下对 *DriverCompileState 形参的 field store 易写成 fp 槽地址+offset，须走 C。
  */
-void driver_compile_parse_argv_init_c_impl(DriverCompileStateSU *state) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_parse_argv_init_c(DriverCompileStateSU *state) {
     if (!state)
         return;
     cfg_reset_compile_target();
@@ -6226,29 +6059,23 @@ void driver_compile_parse_argv_init_c_impl(DriverCompileStateSU *state) {
     driver_emit_lib_root_reset((uint8_t *)state);
 }
 
-void driver_compile_parse_argv_init_c(DriverCompileStateSU *state) {
-  {
-    driver_compile_parse_argv_init_c_impl(state);
-  }
-}
+
 
 
 /** parse_argv -L 分支：直接用 state 指针作 sidecar 键（与 init_c/ensure_default 一致）。 */
-void driver_compile_append_lib_root_c_impl(DriverCompileStateSU *state, uint8_t *path, int32_t len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len) {
     if (!state || !path || len <= 0)
         return;
     (void)driver_emit_append_lib_root((uint8_t *)state, path, len);
 }
 
-void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len) {
-  {
-    driver_compile_append_lib_root_c_impl(state, path, len);
-  }
-}
+
 
 
 /** -o：下一 argv 写入 out_path_buf/out_path_len（EMIT_HEAVY step 勿 X field store）。 */
-void driver_compile_argv_apply_minus_o_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_apply_minus_o_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                               int32_t i) {
     char **argv = (char **)argv_opaque;
     int32_t olen;
@@ -6260,16 +6087,12 @@ void driver_compile_argv_apply_minus_o_next_c_impl(DriverCompileStateSU *state, 
         state->out_path_len = olen;
 }
 
-void driver_compile_argv_apply_minus_o_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
-                                              int32_t i) {
-  {
-    driver_compile_argv_apply_minus_o_next_c_impl(state, argc, argv_opaque, i);
-  }
-}
+
 
 
 /** -L：下一 argv 经 arg_buf 追加 lib_root sidecar。 */
-void driver_compile_argv_apply_minus_L_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_apply_minus_L_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                                int32_t i, uint8_t *arg_buf, int32_t arg_cap) {
     char **argv = (char **)argv_opaque;
     int32_t llen;
@@ -6281,16 +6104,12 @@ void driver_compile_argv_apply_minus_L_next_c_impl(DriverCompileStateSU *state, 
         driver_compile_append_lib_root_c(state, arg_buf, llen);
 }
 
-void driver_compile_argv_apply_minus_L_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
-                                               int32_t i, uint8_t *arg_buf, int32_t arg_cap) {
-  {
-    driver_compile_argv_apply_minus_L_next_c_impl(state, argc, argv_opaque, i, arg_buf, arg_cap);
-  }
-}
+
 
 
 /** -O：下一 argv 写入 opt_level_buf/opt_level_len。 */
-void driver_compile_argv_apply_minus_O_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                               int32_t i) {
     char **argv = (char **)argv_opaque;
     int32_t olen;
@@ -6302,29 +6121,22 @@ void driver_compile_argv_apply_minus_O_next_c_impl(DriverCompileStateSU *state, 
         state->opt_level_len = olen;
 }
 
-void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
-                                              int32_t i) {
-  {
-    driver_compile_argv_apply_minus_O_next_c_impl(state, argc, argv_opaque, i);
-  }
-}
+
 
 
 /** -flto：置 use_lto。 */
-void driver_compile_argv_set_use_lto_c_impl(DriverCompileStateSU *state) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state) {
     if (state)
         state->use_lto = 1;
 }
 
-void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state) {
-  {
-    driver_compile_argv_set_use_lto_c_impl(state);
-  }
-}
+
 
 
 /** `-freestanding`：置 use_freestanding 并同步 driver_freestanding_set（S4 nostdlib 链）。 */
-void driver_compile_argv_set_use_freestanding_c_impl(DriverCompileStateSU *state) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state) {
     if (!state)
         return;
     state->use_freestanding = 1;
@@ -6332,39 +6144,30 @@ void driver_compile_argv_set_use_freestanding_c_impl(DriverCompileStateSU *state
     cfg_set_freestanding(1);
 }
 
-void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state) {
-  {
-    driver_compile_argv_set_use_freestanding_c_impl(state);
-  }
-}
+
 
 
 /** `-legacy-f32-abi`：等价 SHUX_ABI_F32_XMM=0（legacy f64 widen + callee cvtsd2ss）。 */
-void driver_compile_argv_set_legacy_f32_abi_c_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_set_legacy_f32_abi_c(void) {
     setenv("SHUX_ABI_F32_XMM", "0", 1);
 }
 
-void driver_compile_argv_set_legacy_f32_abi_c(void) {
-  {
-    driver_compile_argv_set_legacy_f32_abi_c_impl();
-  }
-}
+
 
 
 /** `-fsanitize=address`：M-6 debug 边界插桩（release 默认关闭，零开销）。 */
-void driver_compile_argv_set_sanitize_address_c_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_set_sanitize_address_c(void) {
     driver_sanitize_address_set(1);
 }
 
-void driver_compile_argv_set_sanitize_address_c(void) {
-  {
-    driver_compile_argv_set_sanitize_address_c_impl();
-  }
-}
+
 
 
 /** -backend <asm|c>：更新 use_asm_backend/backend_asm_explicit。 */
-void driver_compile_argv_apply_backend_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_apply_backend_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                               int32_t i, uint8_t *arg_buf, int32_t arg_cap) {
     char **argv = (char **)argv_opaque;
     int32_t vlen;
@@ -6382,16 +6185,12 @@ void driver_compile_argv_apply_backend_next_c_impl(DriverCompileStateSU *state, 
     }
 }
 
-void driver_compile_argv_apply_backend_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
-                                              int32_t i, uint8_t *arg_buf, int32_t arg_cap) {
-  {
-    driver_compile_argv_apply_backend_next_c_impl(state, argc, argv_opaque, i, arg_buf, arg_cap);
-  }
-}
+
 
 
 /** -target：写入 target_buf/target_len/parse_saw_target/target_arch。 */
-void driver_compile_argv_apply_target_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_apply_target_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                              int32_t i) {
     char **argv = (char **)argv_opaque;
     int32_t tlen;
@@ -6407,16 +6206,12 @@ void driver_compile_argv_apply_target_next_c_impl(DriverCompileStateSU *state, i
     }
 }
 
-void driver_compile_argv_apply_target_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
-                                             int32_t i) {
-  {
-    driver_compile_argv_apply_target_next_c_impl(state, argc, argv_opaque, i);
-  }
-}
+
 
 
 /** `-target-cpu`：下一 argv 写入 target_cpu_buf/target_cpu_len。 */
-void driver_compile_argv_apply_target_cpu_next_c_impl(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                                   int32_t i) {
     char **argv = (char **)argv_opaque;
     int32_t tlen;
@@ -6429,46 +6224,35 @@ void driver_compile_argv_apply_target_cpu_next_c_impl(DriverCompileStateSU *stat
         state->target_cpu_len = tlen;
 }
 
-void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
-                                                  int32_t i) {
-  {
-    driver_compile_argv_apply_target_cpu_next_c_impl(state, argc, argv_opaque, i);
-  }
-}
+
 
 
 /** `--print-target-cpu`：仅打印 feature 后退出。 */
-void driver_compile_argv_set_print_target_cpu_c_impl(DriverCompileStateSU *state) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state) {
     if (state)
         state->print_target_cpu = 1;
 }
 
-void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state) {
-  {
-    driver_compile_argv_set_print_target_cpu_c_impl(state);
-  }
-}
+
 
 
 /** X run_compiler_full_x：`--print-target-cpu` 早退（与 driver_run_compiler_full_x_impl_c 对齐）。 */
-int32_t driver_print_target_cpu_features_c_impl(int32_t features) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t driver_print_target_cpu_features_c(int32_t features) {
     shu_target_cpu_print(stdout, (uint32_t)features);
     return 0;
 }
 
-int32_t driver_print_target_cpu_features_c(int32_t features) {
-  {
-    return driver_print_target_cpu_features_c_impl(features);
-  }
-  return -1;
-}
+
 
 
 /**
  * finalize：按 target_cpu_buf（空则 native）解析 feature 掩码。
  * 未知规格时 stderr 告警并回退 generic baseline。
  */
-void driver_compile_resolve_target_cpu_c_impl(DriverCompileStateSU *state) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
     const char *spec;
     size_t spec_len;
     uint32_t feats = 0;
@@ -6490,11 +6274,7 @@ void driver_compile_resolve_target_cpu_c_impl(DriverCompileStateSU *state) {
     state->target_cpu_features = (int32_t)feats;
 }
 
-void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
-  {
-    driver_compile_resolve_target_cpu_c_impl(state);
-  }
-}
+
 
 
 #if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
@@ -6520,7 +6300,8 @@ int driver_argv_has_emit_c_flag(int argc, char **argv) {
  * `-E` 专用：将 compile state 中的 path/lib_roots 灌入 driver_run_x_emit_c，走 .x pipeline 出 C（deps+main）。
  * 返回 driver_run_x_emit_c 的 exit code（0 成功）。
  */
-int32_t driver_run_x_emit_c_from_compile_state_impl(DriverCompileStateSU *state, int argc, char **argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t driver_run_x_emit_c_from_compile_state(DriverCompileStateSU *state, int argc, char **argv) {
     const char *lib_roots[X_EMIT_MAX_LIB_ROOTS];
     /** 须与 driver_lib_roots_from_key 的 bufs[X_FULL_MAX_LIB_ROOTS][512] 一致；[256] 会在多 -L 时栈溢出。 */
     char lib_bufs[X_FULL_MAX_LIB_ROOTS][512];
@@ -6547,12 +6328,8 @@ int32_t driver_run_x_emit_c_from_compile_state_impl(DriverCompileStateSU *state,
     }
     return (int32_t)driver_run_x_emit_c();
 }
-int32_t driver_run_x_emit_c_from_compile_state(DriverCompileStateSU *state, int argc, char **argv) {
-  {
-    return driver_run_x_emit_c_from_compile_state_impl(state, argc, argv);
-  }
-  return 0;
-}
+
+
 
 #endif
 
@@ -6620,7 +6397,8 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
  * 扫描 argv 是否含 `-h` 或 `--help`。
  * 返回 1 表示应打印用法并 exit 0。
  */
-int32_t driver_compile_argv_is_help_c_impl(int32_t argc, uint8_t *argv_opaque) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
     char **argv = (char **)argv_opaque;
     char buf[16];
     int len;
@@ -6638,12 +6416,7 @@ int32_t driver_compile_argv_is_help_c_impl(int32_t argc, uint8_t *argv_opaque) {
     return 0;
 }
 
-int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
-  {
-    return driver_compile_argv_is_help_c_impl(argc, argv_opaque);
-  }
-  return -1;
-}
+
 
 
 /**
@@ -6651,7 +6424,8 @@ int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
  * 【Why write(1)】B-strict / -nostartfiles 链路上 libc 未完整初始化 stdout，
  * fputs/fwrite 到 stdout 在 Linux 上可静默 0 字节；write(STDOUT_FILENO) 仍可靠。
  */
-void driver_print_usage_c_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void driver_print_usage_c(void) {
     static const char usage[] =
         "Shux (shux) compiler\n"
         "\n"
@@ -6688,11 +6462,7 @@ void driver_print_usage_c_impl(void) {
     (void)write(STDOUT_FILENO, usage, sizeof(usage) - 1u);
 }
 
-void driver_print_usage_c(void) {
-  {
-    driver_print_usage_c_impl();
-  }
-}
+
 
 
 /**
@@ -6737,7 +6507,8 @@ int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
 /**
  * 完整编译入口：argv 解析在 driver/compile.x；B-strict shux_asm 走 impl_c（完整 parse_argv+finalize），避免 X emit 的 driver_run_compiler_full_x 在 strict 链 silent fail。
  */
-int driver_run_compiler_full_impl(int argc, char **argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_run_compiler_full(int argc, char **argv) {
 #if defined(SHUX_ASM_USE_COMPILER_IMPL_C)
     return (int)driver_run_compiler_full_x_impl_c((int32_t)argc, (uint8_t *)argv);
 #else
@@ -6746,18 +6517,14 @@ int driver_run_compiler_full_impl(int argc, char **argv) {
 #endif
 }
 
-int driver_run_compiler_full(int argc, char **argv) {
-  {
-    return driver_run_compiler_full_impl(argc, argv);
-  }
-  return -1;
-}
+
 
 
 /**
  * shux test 入口：在仓库根目录执行 bash 测试脚本；默认 tests/run-all.sh，亦可通过首参指定相对/绝对路径。
  */
-int driver_run_test_impl(int argc, char **argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_run_test(int argc, char **argv) {
     const char *root = shux_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
     const char *rel = "tests/run-all.sh";
     char script[768];
@@ -6775,16 +6542,12 @@ int driver_run_test_impl(int argc, char **argv) {
     return runtime_test_status_to_rc(script, system(cmd));
 }
 
-int driver_run_test(int argc, char **argv) {
-  {
-    return driver_run_test_impl(argc, argv);
-  }
-  return -1;
-}
+
 
 
 /** 扫描 argv：若存在 -x -E <path> 则记下 path 及此前出现的 -L path，返回 1，否则返回 0。保留供未迁完时链接。 */
-int driver_argv_parse_x_emit_c_impl(int argc, char **argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_argv_parse_x_emit_c(int argc, char **argv) {
     char ab[512];
     char nx[512];
     driver_x_emit_c_path = NULL;
@@ -6819,12 +6582,7 @@ int driver_argv_parse_x_emit_c_impl(int argc, char **argv) {
     return 0;
 }
 
-int driver_argv_parse_x_emit_c(int argc, char **argv) {
-  {
-    return driver_argv_parse_x_emit_c_impl(argc, argv);
-  }
-  return -1;
-}
+
 
 
 #if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
@@ -6833,7 +6591,8 @@ int driver_argv_parse_x_emit_c(int argc, char **argv) {
  * 说明：codegen_emit_dep_types_only / codegen_library_module_to_c 依赖 C ASTModule；parser_parse_into 的 .x Module 布局不同，故不能复用 x parse 结果。
  */
 #if !defined(SHUX_NO_C_FRONTEND)
-int driver_run_x_emit_c_extern_via_cparser_impl(const char *input_path) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
     /* 【Why 根源】-lib-name 仅 C 前端 RUN_CC_FUNC 路径需要（shux_compile_std_module.sh --bare-impl）；
      * x-pipeline 路径（shux-x）不编译 std 模块，用 NULL 走 path-based lib_name。 */
     const char *lib_name_override = NULL;
@@ -6979,18 +6738,15 @@ int driver_run_x_emit_c_extern_via_cparser_impl(const char *input_path) {
     free(src);
     return ec != 0 ? 1 : 0;
 }
-int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
-  {
-    return driver_run_x_emit_c_extern_via_cparser_impl(input_path);
-  }
-  return 0;
-}
+
+
 
 #endif /* !SHUX_NO_C_FRONTEND */
 #endif /* SHUX_USE_X_DRIVER && SHUX_USE_X_PIPELINE */
 
 /** 执行刚解析的 -x -E（读文件、.x pipeline、写 stdout）；成功 0，失败 1。无 SHUX_USE_X_PIPELINE 时返回 1。 */
-int driver_run_x_emit_c_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_run_x_emit_c(void) {
     const char *input_path = driver_x_emit_c_path;
     driver_x_emit_c_path = NULL;
     if (!input_path) return 1;
@@ -7385,12 +7141,7 @@ x_emit_c_done:
 #endif
 }
 
-int driver_run_x_emit_c(void) {
-  {
-    return driver_run_x_emit_c_impl();
-  }
-  return -1;
-}
+
 
 #endif /* SHUX_USE_X_DRIVER */
 
@@ -7398,7 +7149,8 @@ int driver_run_x_emit_c(void) {
  * shux fmt 单文件：读入 .x、按 LSP 规则格式化；内容变化时写回。供 fmt.x argv 循环调用。
  * path 为 NUL 终止路径（path_len 不含 NUL）；成功 0，失败 1。
  */
-int driver_fmt_one_file_impl(const uint8_t *path, int path_len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_fmt_one_file(const uint8_t *path, int path_len) {
     char pathbuf[512];
     ShuxRuntimeFileView raw_view;
     size_t cap;
@@ -7460,12 +7212,7 @@ int driver_fmt_one_file_impl(const uint8_t *path, int path_len) {
     return 0;
 }
 
-int driver_fmt_one_file(const uint8_t *path, int path_len) {
-  {
-    return driver_fmt_one_file_impl(path, path_len);
-  }
-  return -1;
-}
+
 
 
 extern int driver_run_compiler_check(int argc, char **argv);
@@ -7474,19 +7221,15 @@ extern int driver_run_fmt(int argc, char **argv);
 /**
  * 兼容旧 driver_fmt_gen.c 的 extern；新实现委托 driver_run_fmt（支持无参递归 cwd）。
  */
-int driver_fmt_report_no_files_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int driver_fmt_report_no_files(void) {
     char *argv_fmt[2];
     argv_fmt[0] = "shux";
     argv_fmt[1] = "fmt";
     return driver_run_fmt(2, argv_fmt);
 }
 
-int driver_fmt_report_no_files(void) {
-  {
-    return driver_fmt_report_no_files_impl();
-  }
-  return -1;
-}
+
 
 
 #ifndef SHUX_USE_X_DRIVER
@@ -7517,7 +7260,8 @@ int runtime_run_fmt_c(int argc, char **argv) {
 
 
 /** shux test（C 前端）：在仓库根目录执行 bash 测试脚本。 */
-int runtime_run_test_c_impl(int argc, char **argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int runtime_run_test_c(int argc, char **argv) {
     const char *root = shux_repo_root_from_argv0(argc > 0 ? argv[0] : NULL);
     const char *rel = "tests/run-all.sh";
     char script[768];
@@ -7533,12 +7277,8 @@ int runtime_run_test_c_impl(int argc, char **argv) {
                  "test script: %s", script);
     return runtime_test_status_to_rc(script, system(cmd));
 }
-int runtime_run_test_c(int argc, char **argv) {
-  {
-    return runtime_run_test_c_impl(argc, argv);
-  }
-  return 0;
-}
+
+
 
 
 /** 6.3：无 .x 入口时由 runtime 提供 main_entry 桩；链接 main.x 时由 main.x 的 main_entry 覆盖。
@@ -7546,7 +7286,8 @@ int runtime_run_test_c(int argc, char **argv) {
 #if !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(_WIN32)
 SHUX_WEAK
 #endif
-int main_entry_impl(int argc, char **argv) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int main_entry(int argc, char **argv) {
     /* --diag-json：切换为 NDJSON 诊断输出（供 CI / 工具消费）；亦可通过 SHUX_DIAG_JSON=1 启用。
      * 作为全局标志可在任意位置出现（含子命令之前/之后），此处就地剔除 argv 以免下游误判为未知选项。 */
     {
@@ -7577,11 +7318,6 @@ int main_entry_impl(int argc, char **argv) {
     return run_compiler_c(argc, argv);
 }
 
-int main_entry(int argc, char **argv) {
-  {
-    return main_entry_impl(argc, argv);
-  }
-  return -1;
-}
+
 
 #endif

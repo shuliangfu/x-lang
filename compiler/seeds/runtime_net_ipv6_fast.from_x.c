@@ -32,8 +32,9 @@ void net_ipv6_set_addr_port_buf_c(uint8_t *sin, uint8_t *addr_16, uint32_t port_
     sa6->sin6_flowinfo = 0;
     memcpy(&sa6->sin6_addr, addr_16, 16);
 }
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int32_t net_ipv6_ensure_wsa_c_impl(void) {
+int32_t net_ipv6_ensure_wsa_c(void) {
 #if defined(_WIN32) || defined(_WIN64)
     WSADATA data;
     if (net_ipv6_wsa_done)
@@ -44,30 +45,24 @@ int32_t net_ipv6_ensure_wsa_c_impl(void) {
 #endif
     return 0;
 }
-int32_t net_ipv6_ensure_wsa_c(void) {
-  {
-    return net_ipv6_ensure_wsa_c_impl();
-  }
-  return 0;
-}
 
 
-int32_t net_ipv6_close_socket_c_impl(int32_t fd) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+int32_t net_ipv6_close_socket_c(int32_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
     return closesocket(fd) == 0 ? 0 : -1;
 #else
     return close(fd) == 0 ? 0 : -1;
 #endif
 }
-int32_t net_ipv6_close_socket_c(int32_t fd) {
-  {
-    return net_ipv6_close_socket_c_impl(fd);
-  }
-  return 0;
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-int32_t net_ipv6_set_nonblock_c_impl(int32_t fd) {
+
+
+int32_t net_ipv6_set_nonblock_c(int32_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
     u_long one = 1;
     return ioctlsocket(fd, FIONBIO, &one) == 0 ? 0 : -1;
@@ -78,15 +73,12 @@ int32_t net_ipv6_set_nonblock_c_impl(int32_t fd) {
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0 ? 0 : -1;
 #endif
 }
-int32_t net_ipv6_set_nonblock_c(int32_t fd) {
-  {
-    return net_ipv6_set_nonblock_c_impl(fd);
-  }
-  return 0;
-}
 
 
-int32_t net_ipv6_poll_writable_c_impl(int32_t fd, uint32_t timeout_ms) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+int32_t net_ipv6_poll_writable_c(int32_t fd, uint32_t timeout_ms) {
 #if defined(_WIN32) || defined(_WIN64)
     (void)fd;
     (void)timeout_ms;
@@ -103,27 +95,20 @@ int32_t net_ipv6_poll_writable_c_impl(int32_t fd, uint32_t timeout_ms) {
     return 0;
 #endif
 }
-int32_t net_ipv6_poll_writable_c(int32_t fd, uint32_t timeout_ms) {
-  {
-    return net_ipv6_poll_writable_c_impl(fd, timeout_ms);
-  }
-  return 0;
-}
 
 
-int32_t net_ipv6_connect_retry_ok_c_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+int32_t net_ipv6_connect_retry_ok_c(void) {
 #if defined(_WIN32) || defined(_WIN64)
     return 1;
 #else
     return (errno == EINPROGRESS || errno == EAGAIN) ? 1 : 0;
 #endif
 }
-int32_t net_ipv6_connect_retry_ok_c(void) {
-  {
-    return net_ipv6_connect_retry_ok_c_impl();
-  }
-  return 0;
-}
+
+
 
 
 int32_t net_tcp_connect_ipv6_c(uint8_t *addr_16, uint32_t port_u32, uint32_t timeout_ms) {

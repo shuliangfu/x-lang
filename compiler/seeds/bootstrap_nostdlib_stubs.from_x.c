@@ -242,7 +242,8 @@ size_t bootstrap_align16(size_t n) {
 
 
 /** 扩展 bump 区；失败返回 NULL。 */
-int bootstrap_heap_grow_impl(size_t need) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int bootstrap_heap_grow(size_t need) {
     unsigned long chunk = 1024UL * 1024UL;
     void *p;
     if (need > chunk)
@@ -255,12 +256,8 @@ int bootstrap_heap_grow_impl(size_t need) {
     bootstrap_heap_limit = bootstrap_heap_base + chunk;
     return 0;
 }
-int bootstrap_heap_grow(size_t need) {
-  {
-    return bootstrap_heap_grow_impl(need);
-  }
-  return 0;
-}
+
+
 
 
 /** malloc 最小实现；bootstrap 链按需。 */
@@ -511,7 +508,8 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
 }
 
 /** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f（%f 精度有限）。 */
-int bootstrap_format_double_impl(double x, char *out, size_t cap) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int bootstrap_format_double(double x, char *out, size_t cap) {
     size_t n = 0;
     long ipart;
     unsigned frac6;
@@ -551,12 +549,8 @@ int bootstrap_format_double_impl(double x, char *out, size_t cap) {
     }
     return (int)n;
 }
-int bootstrap_format_double(double x, char *out, size_t cap) {
-  {
-    return bootstrap_format_double_impl(x, out, cap);
-  }
-  return 0;
-}
+
+
 
 
 /** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f（%f 精度有限）。 */
@@ -738,7 +732,8 @@ int snprintf(char *buf, size_t size, const char *fmt, ...) {
 }
 
 /** 向 fd 格式化输出；返回写入字节数。 */
-int bootstrap_vfprintf_fd_impl(int fd, const char *fmt, va_list ap) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) {
     char stack_buf[512];
     char *heap_buf = NULL;
     char *use_buf = stack_buf;
@@ -764,12 +759,8 @@ int bootstrap_vfprintf_fd_impl(int fd, const char *fmt, va_list ap) {
     free(heap_buf);
     return wrote;
 }
-int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) {
-  {
-    return bootstrap_vfprintf_fd_impl(fd, fmt, ap);
-  }
-  return 0;
-}
+
+
 
 
 /** fprintf 最小实现；仅 stdout/stderr fd 路径。 */
@@ -888,32 +879,26 @@ int feraiseexcept(int excepts) {
 #if defined(__linux__) && defined(__x86_64__)
 
 /** Linux x86_64 三参数 syscall 助手。 */
-long bootstrap_syscall3_impl(long nr, long a0, long a1, long a2) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+long bootstrap_syscall3(long nr, long a0, long a1, long a2) {
     long ret;
     __asm__ volatile("syscall" : "=a"(ret) : "a"(nr), "D"(a0), "S"(a1), "d"(a2) : "rcx", "r11", "memory");
     return ret;
 }
-long bootstrap_syscall3(long nr, long a0, long a1, long a2) {
-  {
-    return bootstrap_syscall3_impl(nr, a0, a1, a2);
-  }
-  return 0;
-}
+
+
 
 
 /** Linux x86_64 四参数 syscall 助手（waitpid 等）。 */
-long bootstrap_syscall4_impl(long nr, long a0, long a1, long a2, long a3) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3) {
     long ret;
     register long r10 asm("r10") = a3;
     __asm__ volatile("syscall" : "=a"(ret) : "a"(nr), "D"(a0), "S"(a1), "d"(a2), "r"(r10) : "rcx", "r11", "memory");
     return ret;
 }
-long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3) {
-  {
-    return bootstrap_syscall4_impl(nr, a0, a1, a2, a3);
-  }
-  return 0;
-}
+
+
 
 
 #endif

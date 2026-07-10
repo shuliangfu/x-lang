@@ -144,7 +144,8 @@ int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
 
 
 /** 同块 let 初值为整型字面量（`let n: i32 = K` 常量传播）。 */
-int32_t glue_block_let_init_lit_c_impl(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
                                          int32_t *out_lit) {
     uint8_t vbuf[64];
     int32_t vlen;
@@ -184,13 +185,8 @@ int32_t glue_block_let_init_lit_c_impl(struct ast_ASTArena *arena, int32_t block
     }
     return 0;
 }
-int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
-                                         int32_t *out_lit) {
-  {
-    return glue_block_let_init_lit_c_impl(arena, block_ref, var_ref, out_lit);
-  }
-  return 0;
-}
+
+
 
 
 /** VAR 是否为 i32[N] 栈数组（resolved 类型）。 */
@@ -203,7 +199,8 @@ int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, i
 
 
 /** 解析 `i = i + 1` 或 `i += 1` 步进语句。 */
-int32_t glue_parse_i_plus_one_step_c_impl(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
     int32_t left_ref;
     int32_t right_ref;
     int32_t add_l;
@@ -237,16 +234,13 @@ int32_t glue_parse_i_plus_one_step_c_impl(struct ast_ASTArena *arena, int32_t st
         return 0;
     return 1;
 }
-int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
-  {
-    return glue_parse_i_plus_one_step_c_impl(arena, step_ref, i_var_ref);
-  }
-  return 0;
-}
+
+
 
 
 /** 解析 `dst[i]=a[i](+|-|*)b[i]`；binop_ko 输出 4=ADD / 5=SUB / 6=MUL。 */
-int32_t glue_parse_index_binop_assign_c_impl(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
                                                int32_t *binop_ko, int32_t *dst_base_ref, int32_t *a_base_ref,
                                                int32_t *b_base_ref) {
     int32_t left_ref;
@@ -285,18 +279,13 @@ int32_t glue_parse_index_binop_assign_c_impl(struct ast_ASTArena *arena, int32_t
     *b_base_ref = b_base;
     return 1;
 }
-int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
-                                               int32_t *binop_ko, int32_t *dst_base_ref, int32_t *a_base_ref,
-                                               int32_t *b_base_ref) {
-  {
-    return glue_parse_index_binop_assign_c_impl(arena, assign_ref, i_var_ref, binop_ko, dst_base_ref, a_base_ref, b_base_ref);
-  }
-  return 0;
-}
+
+
 
 
 /** 解析 `i < N`：N 为字面量或同块 let 整型初值；n_is_const=1 时写 n_lit。 */
-int32_t glue_parse_i_lt_bound_c_impl(struct ast_ASTArena *arena, int32_t block_ref, int32_t cond_ref,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t cond_ref,
                                        int32_t *i_var_ref, int32_t *n_lit, int32_t *n_is_const, int32_t *n_var_ref) {
     int32_t left_ref;
     int32_t right_ref;
@@ -331,17 +320,13 @@ int32_t glue_parse_i_lt_bound_c_impl(struct ast_ASTArena *arena, int32_t block_r
     *n_is_const = 0;
     return 1;
 }
-int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t cond_ref,
-                                       int32_t *i_var_ref, int32_t *n_lit, int32_t *n_is_const, int32_t *n_var_ref) {
-  {
-    return glue_parse_i_lt_bound_c_impl(arena, block_ref, cond_ref, i_var_ref, n_lit, n_is_const, n_var_ref);
-  }
-  return 0;
-}
+
+
 
 
 /** EXPR_VAR 局部在 rbp 上的偏移；失败 -1。 */
-int32_t glue_simd_local_var_stack_off_c_impl(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                 int32_t var_expr_ref) {
     uint8_t vname[64];
     int32_t vlen;
@@ -357,13 +342,8 @@ int32_t glue_simd_local_var_stack_off_c_impl(struct ast_ASTArena *arena, struct 
         off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
     return off;
 }
-int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
-                                                int32_t var_expr_ref) {
-  {
-    return glue_simd_local_var_stack_off_c_impl(arena, ctx, var_expr_ref);
-  }
-  return 0;
-}
+
+
 
 
 /** 读取 SIMD-S1 已解析的 target CPU feature 掩码。 */
@@ -405,7 +385,8 @@ int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *l
 
 
 /** 发射单 chunk 硬件向量 binop；0=成功，-1=失败。 */
-int32_t glue_simd_loop_emit_chunk_binop_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko,
                                                   int32_t chunk_off_a, int32_t chunk_off_b, int32_t chunk_off_d,
                                                   int32_t lanes, int32_t esz, int32_t ta, uint32_t feats) {
     if (binop_ko == GLUE_EXPR_SUB)
@@ -414,14 +395,8 @@ int32_t glue_simd_loop_emit_chunk_binop_c_impl(struct platform_elf_ElfCodegenCtx
         return simd_enc_try_hw_vector_imul_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
     return simd_enc_try_hw_vector_iadd_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
 }
-int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko,
-                                                  int32_t chunk_off_a, int32_t chunk_off_b, int32_t chunk_off_d,
-                                                  int32_t lanes, int32_t esz, int32_t ta, uint32_t feats) {
-  {
-    return glue_simd_loop_emit_chunk_binop_c_impl(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
-  }
-  return 0;
-}
+
+
 
 
 /** x86：cmp eax, ebx（i - n 置标志，紧接 jge 表示 i>=n 退出）。 */
@@ -437,7 +412,8 @@ int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx) 
 
 
 /** 编译期 trip count 整段 peel（N 为 lanes 的整数倍）。 */
-int32_t glue_emit_full_const_peel_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t off_a,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t off_a,
                                            int32_t off_b, int32_t off_d, int32_t n_lit, int32_t lanes, int32_t esz,
                                            int32_t ta, uint32_t feats) {
     int32_t chunks;
@@ -461,14 +437,8 @@ int32_t glue_emit_full_const_peel_c_impl(struct platform_elf_ElfCodegenCtx *elf_
     }
     return 1;
 }
-int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t off_a,
-                                           int32_t off_b, int32_t off_d, int32_t n_lit, int32_t lanes, int32_t esz,
-                                           int32_t ta, uint32_t feats) {
-  {
-    return glue_emit_full_const_peel_c_impl(elf_ctx, binop_ko, off_a, off_b, off_d, n_lit, lanes, esz, ta, feats);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -476,7 +446,8 @@ int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
  *   while i < n { dst[i]=a[i] op b[i]; i++ }
  * → SIMD 块（i += lanes）+ 余数标量 while。
  */
-int32_t glue_emit_runtime_strip_loop_c_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t glue_emit_runtime_strip_loop_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                              struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref,
                                              int32_t binop_ko, int32_t off_i, int32_t off_n, int32_t off_a,
                                              int32_t off_b, int32_t off_d, int32_t array_n, int32_t lanes,
@@ -551,16 +522,8 @@ int32_t glue_emit_runtime_strip_loop_c_impl(struct ast_ASTArena *arena, struct p
         return -1;
     return 1;
 }
-int32_t glue_emit_runtime_strip_loop_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                             struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref,
-                                             int32_t binop_ko, int32_t off_i, int32_t off_n, int32_t off_a,
-                                             int32_t off_b, int32_t off_d, int32_t array_n, int32_t lanes,
-                                             uint32_t feats) {
-  {
-    return glue_emit_runtime_strip_loop_c_impl(arena, elf_ctx, ctx, ta, assign_body_ref, binop_ko, off_i, off_n, off_a, off_b, off_d, array_n, lanes, feats);
-  }
-  return 0;
-}
+
+
 
 
 extern int32_t pipeline_expr_field_access_soa_stride(struct ast_ASTArena *a, int32_t expr_ref);
@@ -611,7 +574,8 @@ int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
  * 解析 `s = s + arr[i].field`（SoA f32 列累加）。
  * field 须 soa_stride>0 且 resolved f32。
  */
-int32_t glue_parse_f32_soa_sum_assign_c_impl(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t glue_parse_f32_soa_sum_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
                                                int32_t *sum_ref, int32_t *arr_ref, int32_t *fa_ref) {
     int32_t left_ref;
     int32_t right_ref;
@@ -657,20 +621,16 @@ int32_t glue_parse_f32_soa_sum_assign_c_impl(struct ast_ASTArena *arena, int32_t
     *fa_ref = add_r;
     return 1;
 }
-int32_t glue_parse_f32_soa_sum_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
-                                               int32_t *sum_ref, int32_t *arr_ref, int32_t *fa_ref) {
-  {
-    return glue_parse_f32_soa_sum_assign_c_impl(arena, assign_ref, i_var_ref, sum_ref, arr_ref, fa_ref);
-  }
-  return 0;
-}
+
+
 
 
 /**
  * f32 SoA 列 reduce 条带：movups/addps 主循环 + 水平归约写 s + 标量 epilogue（余数/i++1）。
  * 匹配 while i < n { s += arr[i].field; i++ }，n 可为字面量/let 常量或局部变量 n。
  */
-int32_t glue_emit_f32_soa_sum_strip_c_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                               struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref,
                                               int32_t off_col0, int32_t off_s, int32_t off_i, int32_t off_n,
                                               int32_t n_lit, int32_t lanes, uint32_t feats) {
@@ -779,15 +739,8 @@ int32_t glue_emit_f32_soa_sum_strip_c_impl(struct ast_ASTArena *arena, struct pl
         return -1;
     return 1;
 }
-int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                              struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref,
-                                              int32_t off_col0, int32_t off_s, int32_t off_i, int32_t off_n,
-                                              int32_t n_lit, int32_t lanes, uint32_t feats) {
-  {
-    return glue_emit_f32_soa_sum_strip_c_impl(arena, elf_ctx, ctx, ta, assign_body_ref, off_col0, off_s, off_i, off_n, n_lit, lanes, feats);
-  }
-  return 0;
-}
+
+
 
 
 /**

@@ -127,18 +127,15 @@ uint64_t shu_async_trace_slow_us(void) {
 
 
 /** 单调时钟微秒（trace 耗时）。 */
-uint64_t shu_async_trace_now_us_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+uint64_t shu_async_trace_now_us(void) {
     struct timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
         return 0;
     return (uint64_t)ts.tv_sec * 1000000ull + (uint64_t)ts.tv_nsec / 1000ull;
 }
-uint64_t shu_async_trace_now_us(void) {
-  {
-    return shu_async_trace_now_us_impl();
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -257,7 +254,8 @@ static int shux_async_workers_inited;
 static _Thread_local uint32_t shux_async_tls_worker;
 
 /** 解析 SHUX_ASYNC_WORKERS（1..SHUX_ASYNC_MAX_WORKERS，默认 1）。 */
-void shux_async_init_workers_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void shux_async_init_workers(void) {
     const char *e;
     long v;
     if (shux_async_workers_inited)
@@ -271,11 +269,8 @@ void shux_async_init_workers_impl(void) {
     if (v >= 1 && v <= SHUX_ASYNC_MAX_WORKERS)
         shux_async_n_workers = (uint32_t)v;
 }
-void shux_async_init_workers(void) {
-  {
-    shux_async_init_workers_impl();
-  }
-}
+
+
 
 
 /** 返回配置的 worker 数（lazy init）。 */
@@ -319,31 +314,31 @@ void shux_async_run_seed_reset(void) {
 }
 
 /** 追加 int64 seed（内部）。 */
-static void shux_async_run_seed_push_i64_impl(int64_t v) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void shux_async_run_seed_push_i64(int64_t v) {
     if (shux_async_run_seed_n >= SHUX_ASYNC_RUN_SEED_MAX)
         return;
     shux_async_run_seed_vals[shux_async_run_seed_n++] = v;
     shux_async_run_seed_on = 1;
 }
 
+
 /** 追加 i32 实参到 seed 队列。 */
 void shux_async_run_seed_push_i32(int32_t v) {
-    shux_async_run_seed_push_i64_impl((int64_t)v);
+    shux_async_run_seed_push_i64((int64_t)v);
 }
 
 /** 追加 u32 实参到 seed 队列。 */
 void shux_async_run_seed_push_u32(uint32_t v) {
-    shux_async_run_seed_push_i64_impl((int64_t)(uint64_t)v);
+    shux_async_run_seed_push_i64((int64_t)(uint64_t)v);
 }
 
 /** 追加 i64 实参到 seed 队列。 */
-void shux_async_run_seed_push_i64(int64_t v) {
-    shux_async_run_seed_push_i64_impl(v);
-}
+
 
 /** 追加 usize 实参到 seed 队列（IO handle / fd 等；内部按 uint64 存储）。 */
 void shux_async_run_seed_push_usize(size_t v) {
-    shux_async_run_seed_push_i64_impl((int64_t)(uint64_t)v);
+    shux_async_run_seed_push_i64((int64_t)(uint64_t)v);
 }
 
 /**
@@ -369,7 +364,8 @@ static int64_t shux_async_spawn_ctx_expected;
 extern int32_t ctx_is_cancelled_c(int64_t handle);
 
 /** 检测栈顶绑定 Context 是否已取消；无绑定返回 0。 */
-int shux_async_bound_ctx_cancelled_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int shux_async_bound_ctx_cancelled(void) {
     int64_t h;
     if (ctx_slots_depth <= 0)
         return 0;
@@ -378,12 +374,8 @@ int shux_async_bound_ctx_cancelled_impl(void) {
         return 0;
     return ctx_is_cancelled_c(h) != 0;
 }
-int shux_async_bound_ctx_cancelled(void) {
-  {
-    return shux_async_bound_ctx_cancelled_impl();
-  }
-  return 0;
-}
+
+
 
 
 /** 绑定 Context 供后续 spawn/drain 取消传播（STD-090）。 */
@@ -416,32 +408,26 @@ int shux_async_spawn_i32(int32_t (*fn)(void), int32_t seed) {
 }
 
 /** 取出并清除 IO await suspend 标记；drain 见 SUSPENDED 时用于选 IO 等待队列。 */
-int shux_async_take_suspend_io_flag_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int shux_async_take_suspend_io_flag(void) {
     int v = shux_async_suspend_io_flag;
     shux_async_suspend_io_flag = 0;
     return v;
 }
-int shux_async_take_suspend_io_flag(void) {
-  {
-    return shux_async_take_suspend_io_flag_impl();
-  }
-  return 0;
-}
+
+
 
 
 /** 将任务放入 IO 等待队列；返回 0 成功。 */
-int shux_async_io_wait_push_impl(shux_async_task_fn_t fn) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int shux_async_io_wait_push(shux_async_task_fn_t fn) {
     if (!fn || shux_async_io_wait_n >= SHUX_ASYNC_IO_WAIT_CAP)
         return -1;
     shux_async_io_wait[shux_async_io_wait_n++] = fn;
     return 0;
 }
-int shux_async_io_wait_push(shux_async_task_fn_t fn) {
-  {
-    return shux_async_io_wait_push_impl(fn);
-  }
-  return 0;
-}
+
+
 
 
 /** 队列占用（tail - head；计数器可绕回 uint32）。 */
@@ -462,7 +448,8 @@ typedef struct {
  * 单任务一步（computed goto 跳转表）：phase 0↔1 交替并 ops++。
  * 返回 0=可继续，1=结束（本 bench 永不返回 1）。
  */
-int shu_coop_frame_step_jmp_impl(shu_coop_frame_t *f) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int shu_coop_frame_step_jmp(shu_coop_frame_t *f) {
     if (!f)
         return 1;
 #if defined(__GNUC__) && !defined(__STRICT_ANSI__)
@@ -497,12 +484,8 @@ coop_done:
     }
 #endif
 }
-int shu_coop_frame_step_jmp(shu_coop_frame_t *f) {
-  {
-    return shu_coop_frame_step_jmp_impl(f);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -523,7 +506,8 @@ int64_t shux_async_coop_pingpong_jmp(int64_t rounds) {
 }
 
 /** A1：switch 版单帧步进（对照 jmp 路径开销）。 */
-int shu_coop_frame_step_switch_impl(shu_coop_frame_t *f) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int shu_coop_frame_step_switch(shu_coop_frame_t *f) {
     if (!f)
         return 1;
     switch (f->phase) {
@@ -541,12 +525,8 @@ int shu_coop_frame_step_switch_impl(shu_coop_frame_t *f) {
         return 0;
     }
 }
-int shu_coop_frame_step_switch(shu_coop_frame_t *f) {
-  {
-    return shu_coop_frame_step_switch_impl(f);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -779,7 +759,8 @@ int shux_async_affinity_enabled(void) {
 
 
 /** worker drain 前绑核（SHUX_ASYNC_AFFINITY=1 时调用 thread_set_affinity_self_c）。 */
-void shux_async_maybe_bind_worker_impl(uint32_t worker_id) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void shux_async_maybe_bind_worker(uint32_t worker_id) {
 #if defined(__GNUC__) || defined(__clang__)
     if (!shux_async_affinity_enabled())
         return;
@@ -788,15 +769,13 @@ void shux_async_maybe_bind_worker_impl(uint32_t worker_id) {
     (void)worker_id;
 #endif
 }
-void shux_async_maybe_bind_worker(uint32_t worker_id) {
-  {
-    shux_async_maybe_bind_worker_impl(worker_id);
-  }
-}
+
+
 
 
 /** 单 worker 就绪环 drain；suspend 任务 re-queue 到 tls worker；acc 非空时累加已完成任务返回值。 */
-int32_t shux_async_drain_queue_impl(shux_async_task_queue_t *q, uint32_t worker_id, int32_t *acc) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t shux_async_drain_queue(shux_async_task_queue_t *q, uint32_t worker_id, int32_t *acc) {
     int32_t last = 0;
     shux_async_maybe_bind_worker(worker_id);
     shux_async_tls_worker = worker_id;
@@ -838,12 +817,8 @@ int32_t shux_async_drain_queue_impl(shux_async_task_queue_t *q, uint32_t worker_
     }
     return last;
 }
-int32_t shux_async_drain_queue(shux_async_task_queue_t *q, uint32_t worker_id, int32_t *acc) {
-  {
-    return shux_async_drain_queue_impl(q, worker_id, acc);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -944,7 +919,8 @@ int32_t shux_async_run_i32(int32_t (*fn)(void)) {
 }
 
 /** spawn 烟测 echo 任务：校验继承 Context 并返回 seed*10。 */
-int32_t shux_async_spawn_ctx_echo_task_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t shux_async_spawn_ctx_echo_task(void) {
     int32_t seed = 0;
     if (shux_async_run_seed_valid())
         seed = shux_async_run_seed_take_i32();
@@ -953,12 +929,8 @@ int32_t shux_async_spawn_ctx_echo_task_impl(void) {
         return -99;
     return seed * 10;
 }
-int32_t shux_async_spawn_ctx_echo_task(void) {
-  {
-    return shux_async_spawn_ctx_echo_task_impl();
-  }
-  return 0;
-}
+
+
 
 
 /**

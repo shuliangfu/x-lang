@@ -4,7 +4,7 @@
 // G-02f-2～6：target_cpu 真迁 pure seed 单 TU。
 // - pending（f-2）· SIMD（f-3）· resolve（f-4）· print（f-5）
 // - OS detect_host/generic（f-6；#if/sysctl/proc 在 seed C）
-// G-02f-97：+ tcp_tolower / tcp_eq5 / tcp_eq6 纯 helper 导出门闩（#[no_mangle]）。
+// G-02f-165 批折叠 detect；G-02f-97：+ tcp_tolower / tcp_eq5 / tcp_eq6 纯 helper 导出门闩（#[no_mangle]）。
 // G-02f-103 / G-02f-160：append_feat_name / flags_has_token 真迁 .x
 //
 // 产品：seeds/target_cpu_pure.from_x.c → src/driver/target_cpu.o（无 ld -r）
@@ -310,41 +310,5 @@ function flags_has_token(hay: *u8, token: *u8): i32 {
   return 0;
 }
 
-// G-02f-110：+ platform detect helpers 薄门闩。
-
-extern "C" function shu_target_cpu_detect_x86_macro_fallback_impl(): i32;
-extern "C" function shu_target_cpu_detect_x86_linux_impl(): i32;
-extern "C" function shu_target_cpu_detect_x86_macos_impl(): i32;
-extern "C" function shu_target_cpu_detect_x86_impl(): i32;
-extern "C" function shu_target_cpu_detect_arm64_linux_impl(): i32;
-extern "C" function shu_target_cpu_detect_arm64_macos_impl(): i32;
-extern "C" function shu_target_cpu_detect_arm64_impl(): i32;
-extern "C" function shu_target_cpu_detect_riscv64_linux_impl(): i32;
-
-/* ---- G-02f-110：target_cpu detect 门闩 ---- */
-
-#[no_mangle]
-function shu_target_cpu_detect_x86_macro_fallback(): i32 { unsafe { return shu_target_cpu_detect_x86_macro_fallback_impl(); } return 0; }
-#[no_mangle]
-function shu_target_cpu_detect_x86_linux(): i32 { unsafe { return shu_target_cpu_detect_x86_linux_impl(); } return 0; }
-#[no_mangle]
-function shu_target_cpu_detect_x86_macos(): i32 { unsafe { return shu_target_cpu_detect_x86_macos_impl(); } return 0; }
-#[no_mangle]
-function shu_target_cpu_detect_x86(): i32 { unsafe { return shu_target_cpu_detect_x86_impl(); } return 0; }
-#[no_mangle]
-function shu_target_cpu_detect_arm64_linux(): i32 { unsafe { return shu_target_cpu_detect_arm64_linux_impl(); } return 0; }
-#[no_mangle]
-function shu_target_cpu_detect_arm64_macos(): i32 { unsafe { return shu_target_cpu_detect_arm64_macos_impl(); } return 0; }
-#[no_mangle]
-function shu_target_cpu_detect_arm64(): i32 { unsafe { return shu_target_cpu_detect_arm64_impl(); } return 0; }
-#[no_mangle]
-function shu_target_cpu_detect_riscv64_linux(): i32 { unsafe { return shu_target_cpu_detect_riscv64_linux_impl(); } return 0; }
-
-// G-02f-111：+ shu_target_cpu_detect_riscv64 薄门闩。
-
-extern "C" function shu_target_cpu_detect_riscv64_impl(): i32;
-
-/* ---- G-02f-111：riscv64 detect 门闩 ---- */
-
-#[no_mangle]
-function shu_target_cpu_detect_riscv64(): i32 { unsafe { return shu_target_cpu_detect_riscv64_impl(); } return 0; }
+// G-02f-165：platform detect_* 批折叠 — public C 在 seeds/target_cpu_pure.from_x.c（#if/OS 仍 seed）。
+/* ---- G-02f-165：detect 无门闩 _impl ---- */

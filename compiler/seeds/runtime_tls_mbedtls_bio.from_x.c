@@ -17,7 +17,8 @@
 #include <sys/socket.h>
 
 /** mbedTLS BIO send：非阻塞时映射 EAGAIN → WANT_WRITE。 */
-int shu_mbedtls_bio_send_impl(void *ctx, const unsigned char *buf, size_t len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int shu_mbedtls_bio_send(void *ctx, const unsigned char *buf, size_t len) {
     int fd = *(int *)ctx;
     ssize_t r = send(fd, buf, len, 0);
     if (r < 0) {
@@ -27,16 +28,13 @@ int shu_mbedtls_bio_send_impl(void *ctx, const unsigned char *buf, size_t len) {
     }
     return (int)r;
 }
-int shu_mbedtls_bio_send(void *ctx, const unsigned char *buf, size_t len) {
-  {
-    return shu_mbedtls_bio_send_impl(ctx, buf, len);
-  }
-  return 0;
-}
+
+
 
 
 /** mbedTLS BIO recv：EOF / EAGAIN 映射 mbedTLS 错误码。 */
-int shu_mbedtls_bio_recv_impl(void *ctx, unsigned char *buf, size_t len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int shu_mbedtls_bio_recv(void *ctx, unsigned char *buf, size_t len) {
     int fd = *(int *)ctx;
     ssize_t r = recv(fd, buf, len, 0);
     if (r < 0) {
@@ -48,12 +46,8 @@ int shu_mbedtls_bio_recv_impl(void *ctx, unsigned char *buf, size_t len) {
         return MBEDTLS_ERR_SSL_CONN_EOF;
     return (int)r;
 }
-int shu_mbedtls_bio_recv(void *ctx, unsigned char *buf, size_t len) {
-  {
-    return shu_mbedtls_bio_recv_impl(ctx, buf, len);
-  }
-  return 0;
-}
+
+
 
 
 #endif /* Unix BIO */

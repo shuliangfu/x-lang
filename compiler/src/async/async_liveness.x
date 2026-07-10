@@ -5,6 +5,7 @@
 // G-02f-161：frame_mangle_ident / frame_build_tag 真迁 .x。
 // G-02f-162：frame_live_add 真迁 .x（AsyncFrameLive names@0 n@4096）。
 // G-02f-164：frame_live_at_await 真迁 .x（char** defined LE 槽）。
+// G-02f-165：expr/block await/refs + analyze_block_linear 批折叠（public C 在 seed）。
 // 产品：cc seeds/async_liveness.from_x.c → src/async/async_liveness.o
 
 function async_liveness_x_doc_anchor(): i32 {
@@ -13,13 +14,10 @@ function async_liveness_x_doc_anchor(): i32 {
 
 // G-02f-108 / G-02f-132：await/io/block/frame helpers
 
-extern "C" function block_count_await_impl(b: *u8): i32;
-extern "C" function block_has_io_read_await_impl(b: *u8): i32;
-extern "C" function block_has_io_write_await_impl(b: *u8): i32;
-extern "C" function block_refs_var_impl(b: *u8, name: *u8): i32;
-extern "C" function block_rest_refs_var_impl(b: *u8, from: i32, name: *u8): i32;
+// G-02f-165：block_* / expr_* AST walk 产品符号在 seeds/async_liveness.from_x.c（已无 _impl）。
+// 真迁 AST 递归仍属后续 Wave A 步进；此处仅保留已真迁 helper + live_at_await。
 
-/* ---- G-02f-108 / G-02f-132：async_liveness helpers ---- */
+/* ---- G-02f-108 / G-02f-132 / G-02f-165：async_liveness helpers ---- */
 
 // ASTFunc.name 偏移 8（line+col）
 function async_live_load_func_name(callee: *u8): *u8 {
@@ -70,35 +68,7 @@ function async_liveness_callee_is_io_write(f: *u8): i32 {
 
 
 
-#[no_mangle]
-function block_count_await(b: *u8): i32 {
-  unsafe { return block_count_await_impl(b); }
-  return 0;
-}
-
-#[no_mangle]
-function block_has_io_read_await(b: *u8): i32 {
-  unsafe { return block_has_io_read_await_impl(b); }
-  return 0;
-}
-
-#[no_mangle]
-function block_has_io_write_await(b: *u8): i32 {
-  unsafe { return block_has_io_write_await_impl(b); }
-  return 0;
-}
-
-#[no_mangle]
-function block_refs_var(b: *u8, name: *u8): i32 {
-  unsafe { return block_refs_var_impl(b, name); }
-  return 0;
-}
-
-#[no_mangle]
-function block_rest_refs_var(b: *u8, from: i32, name: *u8): i32 {
-  unsafe { return block_rest_refs_var_impl(b, from, name); }
-  return 0;
-}
+// G-02f-165：block_count/has_io/refs/rest_refs — 见 seed public C（无门闩 _impl）。
 
 // G-02f-162：AsyncFrameLive — names[64][64] @0，n:i32 @4096
 function frame_live_load_n(out: *u8): i32 {
@@ -192,27 +162,11 @@ function frame_live_add(out: *u8, name: *u8): void {
   frame_live_store_n(out, n + 1);
 }
 
-// G-02f-110：+ expr await/refs + frame analyze 薄门闩。
+// G-02f-165：expr_has/count/io/refs + analyze_block_linear — seed public C（批折叠）。
+/* ---- G-02f-161 / G-02f-164：async_liveness frame 真迁 ---- */
 
-extern "C" function expr_has_await_impl(e: *u8): i32;
-extern "C" function expr_count_await_impl(e: *u8): i32;
-extern "C" function expr_has_io_read_await_impl(e: *u8): i32;
-extern "C" function expr_has_io_write_await_impl(e: *u8): i32;
-extern "C" function expr_refs_var_impl(e: *u8, name: *u8): i32;
-extern "C" function analyze_block_linear_impl(b: *u8, out: *u8): void;
-
-/* ---- G-02f-110 / G-02f-161 / G-02f-164：async_liveness expr/frame 门闩 ---- */
-
-#[no_mangle]
-function expr_has_await(e: *u8): i32 { unsafe { return expr_has_await_impl(e); } return 0; }
-#[no_mangle]
-function expr_count_await(e: *u8): i32 { unsafe { return expr_count_await_impl(e); } return 0; }
-#[no_mangle]
-function expr_has_io_read_await(e: *u8): i32 { unsafe { return expr_has_io_read_await_impl(e); } return 0; }
-#[no_mangle]
-function expr_has_io_write_await(e: *u8): i32 { unsafe { return expr_has_io_write_await_impl(e); } return 0; }
-#[no_mangle]
-function expr_refs_var(e: *u8, name: *u8): i32 { unsafe { return expr_refs_var_impl(e, name); } return 0; }
+// G-02f-164 / G-02f-165：block_rest_refs_var 为 seed public C
+extern "C" function block_rest_refs_var(b: *u8, from: i32, name: *u8): i32;
 
 // G-02f-164：defs 为 char**；槽 i 在偏移 i*8（LE 指针）
 function async_live_load_def_name(defs: *u8, i: i32): *u8 {
@@ -251,8 +205,7 @@ function frame_live_at_await(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): vo
   }
 }
 
-#[no_mangle]
-function analyze_block_linear(b: *u8, out: *u8): void { unsafe { analyze_block_linear_impl(b, out); } }
+// analyze_block_linear：seed public C（G-02f-165 折叠）。
 
 // G-02f-161：函数名 → C 标识符（非 alnum/_ → _）
 #[no_mangle]

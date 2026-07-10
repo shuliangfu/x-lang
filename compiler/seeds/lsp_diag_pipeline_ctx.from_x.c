@@ -14,9 +14,9 @@
 #include <unistd.h>
 
 /* G-02f-74 lsp ctx gates */
-void lsp_diag_pipeline_ctx_fill_paths_impl(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots);
-int32_t typeck_lsp_main_impl(void);
-int32_t lsp_write_all_impl(int32_t fd, const uint8_t *buf, int32_t len);
+void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots);
+int32_t typeck_lsp_main(void);
+int32_t lsp_write_all(int32_t fd, const uint8_t *buf, int32_t len);
 #endif
 
 extern size_t pipeline_sizeof_dep_ctx(void);
@@ -135,8 +135,9 @@ struct ast_PipelineDepCtx {
 };
 
 extern int32_t pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx *ctx, uint8_t *path, int32_t len);
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-void lsp_diag_pipeline_ctx_fill_paths_impl(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots) {
+void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots) {
     struct ast_PipelineDepCtx *ctx = (struct ast_PipelineDepCtx *)ctx_void;
     int i;
     if (!ctx) return;
@@ -157,11 +158,7 @@ void lsp_diag_pipeline_ctx_fill_paths_impl(void *ctx_void, const char *entry_dir
     }
 }
 
-void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, const char **lib_roots, int n_lib_roots) {
-  {
-    lsp_diag_pipeline_ctx_fill_paths_impl(ctx_void, entry_dir, lib_roots, n_lib_roots);
-  }
-}
+
 
 
 /** bootstrap driver：强符号覆盖 lsp_diag.c 内 weak 实现，统一走 parse_into_buf。 */
@@ -175,7 +172,7 @@ __attribute__((weak)) int lsp_definition_at(const uint8_t *source, int source_le
   return 1;
 }
 
-extern int32_t typeck_lsp_main_impl(void);
+extern int32_t typeck_lsp_main(void);
 extern void driver_bump_stack_limit(void);
 extern void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg);
 
@@ -186,7 +183,8 @@ typedef struct LspMainThreadArgs {
 } LspMainThreadArgs;
 
 /* G-02f-98：LSP IO policy / debug env gates. */
-void lsp_debug_report_sqpoll_env_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void lsp_debug_report_sqpoll_env(void) {
     const char *dbg = getenv("SHUX_LSP_IO_DEBUG");
     const char *sq = getenv("SHUX_IO_URING_SQPOLL");
     if (!dbg || dbg[0] == '\0' || dbg[0] == '0')
@@ -195,32 +193,28 @@ void lsp_debug_report_sqpoll_env_impl(void) {
                  "lsp io debug: SHUX_IO_URING_SQPOLL=%s",
                  (sq && sq[0]) ? sq : "<unset>");
 }
-void lsp_debug_report_sqpoll_env(void) {
-  {
-    lsp_debug_report_sqpoll_env_impl();
-  }
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-void lsp_apply_default_io_policy_impl(void) {
+
+
+void lsp_apply_default_io_policy(void) {
     const char *sq = getenv("SHUX_IO_URING_SQPOLL");
     if (!sq || sq[0] == '\0')
         (void)setenv("SHUX_IO_URING_SQPOLL", "0", 1);
 }
-void lsp_apply_default_io_policy(void) {
-  {
-    lsp_apply_default_io_policy_impl();
-  }
-}
+
+
 
 static void *lsp_main_large_stack_thread_fn(void *arg) {
     LspMainThreadArgs *a = (LspMainThreadArgs *)arg;
     driver_bump_stack_limit();
-    a->result = typeck_lsp_main_impl();
+    a->result = typeck_lsp_main();
     return NULL;
 }
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int32_t typeck_lsp_main_impl(void) {
+int32_t typeck_lsp_main(void) {
     LspMainThreadArgs args;
     args.result = -1;
     lsp_apply_default_io_policy();
@@ -229,19 +223,15 @@ int32_t typeck_lsp_main_impl(void) {
     return args.result;
 }
 
-int32_t typeck_lsp_main(void) {
-  {
-    return typeck_lsp_main_impl();
-  }
-  return -1;
-}
+
 
 
 uint8_t *lsp_state_buf_ptr(void) {
     return g_lsp_state_buf;
 }
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int32_t lsp_write_all_impl(int32_t fd, const uint8_t *buf, int32_t len) {
+int32_t lsp_write_all(int32_t fd, const uint8_t *buf, int32_t len) {
     int32_t off = 0;
     if (fd < 0 || !buf) {
         return -1;
@@ -265,10 +255,5 @@ int32_t lsp_write_all_impl(int32_t fd, const uint8_t *buf, int32_t len) {
     return 0;
 }
 
-int32_t lsp_write_all(int32_t fd, const uint8_t *buf, int32_t len) {
-  {
-    return lsp_write_all_impl(fd, buf, len);
-  }
-  return -1;
-}
+
 

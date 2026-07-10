@@ -138,7 +138,8 @@ static int s_refs_cols[LSP_LINE_INDEX_MAX][LSP_REFS_PER_FUNC_MAX];
 static int s_refs_count[LSP_LINE_INDEX_MAX];
 
 /** 释放 import 依赖缓存（不含 entry 模块 s_cached_mod）。 */
-void lsp_free_import_cache_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void lsp_free_import_cache(void) {
     shu_lsp_free_loaded_imports(s_all_dep_mods, s_all_dep_paths, s_n_all_deps);
     s_n_all_deps = 0;
     s_ndirect_deps = 0;
@@ -146,15 +147,13 @@ void lsp_free_import_cache_impl(void) {
     memset(s_all_dep_paths, 0, sizeof(s_all_dep_paths));
     memset(s_all_dep_fs, 0, sizeof(s_all_dep_fs));
 }
-void lsp_free_import_cache(void) {
-  {
-    lsp_free_import_cache_impl();
-  }
-}
+
+
 
 
 /** 从 file URI 提取本地路径写入 out（简单 file:// 解码，足够 macOS/Linux 开发）。 */
-void lsp_uri_to_fs_path_impl(const char *uri, char *out, size_t cap) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void lsp_uri_to_fs_path(const char *uri, char *out, size_t cap) {
     size_t k = 0;
     if (!uri || !out || cap == 0) return;
     out[0] = '\0';
@@ -178,15 +177,13 @@ void lsp_uri_to_fs_path_impl(const char *uri, char *out, size_t cap) {
     }
     out[k] = '\0';
 }
-void lsp_uri_to_fs_path(const char *uri, char *out, size_t cap) {
-  {
-    lsp_uri_to_fs_path_impl(uri, out, cap);
-  }
-}
+
+
 
 
 /** 本地路径 → file URI（空格转 %20）。 */
-void lsp_fs_path_to_uri_impl(const char *path, char *uri, size_t cap) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void lsp_fs_path_to_uri(const char *path, char *uri, size_t cap) {
     size_t k = 0;
     if (!path || !uri || cap < 8) return;
     uri[k++] = 'f'; uri[k++] = 'i'; uri[k++] = 'l'; uri[k++] = 'e';
@@ -197,15 +194,13 @@ void lsp_fs_path_to_uri_impl(const char *path, char *uri, size_t cap) {
     }
     uri[k] = '\0';
 }
-void lsp_fs_path_to_uri(const char *path, char *uri, size_t cap) {
-  {
-    lsp_fs_path_to_uri_impl(path, uri, cap);
-  }
-}
+
+
 
 
 /** 根据 entry 文件路径更新 import 解析用的 entry_dir。 */
-void lsp_update_entry_dir_impl(const char *fs_path) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void lsp_update_entry_dir(const char *fs_path) {
     if (!fs_path || !fs_path[0]) {
         s_entry_dir[0] = '.';
         s_entry_dir[1] = '\0';
@@ -223,15 +218,13 @@ void lsp_update_entry_dir_impl(const char *fs_path) {
         s_entry_dir[1] = '\0';
     }
 }
-void lsp_update_entry_dir(const char *fs_path) {
-  {
-    lsp_update_entry_dir_impl(fs_path);
-  }
-}
+
+
 
 
 /** 初始化 libRoots（环境变量 SHUX_LSP_LIB_ROOTS 优先，否则仓库默认布局）。 */
-void lsp_init_lib_roots_once_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void lsp_init_lib_roots_once(void) {
     int i;
     if (s_lib_roots_inited) return;
     s_lib_roots_inited = 1;
@@ -261,11 +254,8 @@ void lsp_init_lib_roots_once_impl(void) {
         s_n_lib_roots = 4;
     }
 }
-void lsp_init_lib_roots_once(void) {
-  {
-    lsp_init_lib_roots_once_impl();
-  }
-}
+
+
 
 
 /** 查找函数 f 所属模块的 .x 文件路径；entry 模块用 s_entry_fs_path。 */
@@ -318,8 +308,9 @@ void lsp_diag_invalidate_cache(void) {
     s_line_index_n = 0;
     s_typeck_full = 0;
 }
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
+void lsp_diag_copy_text(char *dst, int cap, const char *src) {
     size_t n = 0;
     if (!dst || cap <= 0)
         return;
@@ -333,11 +324,8 @@ void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
     }
     dst[n] = '\0';
 }
-void lsp_diag_copy_text(char *dst, int cap, const char *src) {
-  {
-    lsp_diag_copy_text_impl(dst, cap, src);
-  }
-}
+
+
 
 
 void lsp_diag_add_code(int line, int col, int severity, const char *code, const char *msg) {
@@ -450,18 +438,15 @@ void *lsp_diag_x_module_ptr(void) {
 }
 
 /** 返回 LSP X pipeline 用的 PipelineDepCtx 分配尺寸。 */
-size_t lsp_diag_x_ctx_alloc_size_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+size_t lsp_diag_x_ctx_alloc_size(void) {
     size_t sz = lsp_diag_x_alloc_dep_ctx_size();
     if (sz > lsp_diag_pipeline_sizeof_dep_ctx())
         return sz;
     return lsp_diag_pipeline_sizeof_dep_ctx();
 }
-size_t lsp_diag_x_ctx_alloc_size(void) {
-  {
-    return lsp_diag_x_ctx_alloc_size_impl();
-  }
-  return 0;
-}
+
+
 
 
 void *lsp_diag_x_ctx_ptr(void) {
@@ -484,7 +469,8 @@ void lsp_diag_x_reset_parse_buffers(void) {
 }
 
 /** 将 msg 按 JSON 字符串转义写入 out，返回写入长度；out_cap 为 out 的容量。 */
-int json_escape_str_impl(const char *msg, char *out, int out_cap) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int json_escape_str(const char *msg, char *out, int out_cap) {
     int k = 0;
     if (!msg || !out || out_cap <= 0) return 0;
     for (; *msg != '\0' && k < out_cap - 1; msg++) {
@@ -511,12 +497,8 @@ int json_escape_str_impl(const char *msg, char *out, int out_cap) {
     out[k] = '\0';
     return k;
 }
-int json_escape_str(const char *msg, char *out, int out_cap) {
-  {
-    return json_escape_str_impl(msg, out, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /** 快速 32 位哈希：64 位状态 + 8 字节块 mix，折叠为 32 位；大文档缓存校验比 djb2 更快。 */
@@ -538,7 +520,8 @@ unsigned lsp_hash_source(const uint8_t *src, int len) {
 
 
 /** 加载 import 依赖并对 entry 模块做 typeck（含跨模块符号解析）。 */
-void lsp_typeck_entry_module_impl(ASTModule *mod, int only_func_index) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void lsp_typeck_entry_module(ASTModule *mod, int only_func_index) {
     lsp_init_lib_roots_once();
     lsp_free_import_cache();
     s_ndirect_deps = 0;
@@ -554,11 +537,8 @@ void lsp_typeck_entry_module_impl(ASTModule *mod, int only_func_index) {
     else
         (void)typeck_module(mod, s_direct_deps, s_ndirect_deps, s_all_dep_mods, s_n_all_deps);
 }
-void lsp_typeck_entry_module(ASTModule *mod, int only_func_index) {
-  {
-    lsp_typeck_entry_module_impl(mod, only_func_index);
-  }
-}
+
+
 
 
 /**
@@ -729,18 +709,15 @@ int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, cons
 
 
 /** 判断 (line_1, col_1) 是否与表达式起点一致（1-based）；VAR 按标识符宽度匹配。 */
-int expr_at_impl(const struct ASTExpr *e, int line_1, int col_1) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int expr_at(const struct ASTExpr *e, int line_1, int col_1) {
     if (!e || e->line != line_1) return 0;
     if (e->kind == AST_EXPR_VAR && e->value.var.name)
         return col_in_ident_span(line_1, col_1, e->line, e->col, e->value.var.name);
     return e->col == col_1;
 }
-int expr_at(const struct ASTExpr *e, int line_1, int col_1) {
-  {
-    return expr_at_impl(e, line_1, col_1);
-  }
-  return 0;
-}
+
+
 
 
 /** 函数名是否覆盖光标（支持点击长标识符中间字符）。 */
@@ -775,78 +752,76 @@ static struct ASTFunc *find_func_in_module_by_name(const struct ASTModule *mod, 
 /* ---------- 行/区间索引：按行快速定位所在函数，减少 definition/references/hover 的全 AST 遍历 ---------- */
 
 /** 求表达式中出现的最大行号（递归）。 */
-int expr_max_line_impl(const struct ASTExpr *e) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int expr_max_line(const struct ASTExpr *e) {
     if (!e) return 0;
     int m = e->line;
     switch (e->kind) {
         case AST_EXPR_CALL:
-            if (e->value.call.callee) { int t = expr_max_line_impl(e->value.call.callee); if (t > m) m = t; }
+            if (e->value.call.callee) { int t = expr_max_line(e->value.call.callee); if (t > m) m = t; }
             for (int i = 0; i < e->value.call.num_args; i++)
-                if (e->value.call.args[i]) { int t = expr_max_line_impl(e->value.call.args[i]); if (t > m) m = t; }
+                if (e->value.call.args[i]) { int t = expr_max_line(e->value.call.args[i]); if (t > m) m = t; }
             break;
         case AST_EXPR_METHOD_CALL:
-            if (e->value.method_call.base) { int t = expr_max_line_impl(e->value.method_call.base); if (t > m) m = t; }
+            if (e->value.method_call.base) { int t = expr_max_line(e->value.method_call.base); if (t > m) m = t; }
             for (int i = 0; i < e->value.method_call.num_args; i++)
-                if (e->value.method_call.args[i]) { int t = expr_max_line_impl(e->value.method_call.args[i]); if (t > m) m = t; }
+                if (e->value.method_call.args[i]) { int t = expr_max_line(e->value.method_call.args[i]); if (t > m) m = t; }
             break;
         case AST_EXPR_ADD: case AST_EXPR_SUB: case AST_EXPR_MUL: case AST_EXPR_DIV: case AST_EXPR_MOD:
         case AST_EXPR_SHL: case AST_EXPR_SHR: case AST_EXPR_BITAND: case AST_EXPR_BITOR: case AST_EXPR_BITXOR:
         case AST_EXPR_EQ: case AST_EXPR_NE: case AST_EXPR_LT: case AST_EXPR_LE: case AST_EXPR_GT: case AST_EXPR_GE:
         case AST_EXPR_LOGAND: case AST_EXPR_LOGOR:
         case AST_EXPR_ASSIGN:
-            if (e->value.binop.left) { int t = expr_max_line_impl(e->value.binop.left); if (t > m) m = t; }
-            if (e->value.binop.right) { int t = expr_max_line_impl(e->value.binop.right); if (t > m) m = t; }
+            if (e->value.binop.left) { int t = expr_max_line(e->value.binop.left); if (t > m) m = t; }
+            if (e->value.binop.right) { int t = expr_max_line(e->value.binop.right); if (t > m) m = t; }
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
         case AST_EXPR_RETURN: case AST_EXPR_PANIC:
-            if (e->value.unary.operand) { int t = expr_max_line_impl(e->value.unary.operand); if (t > m) m = t; }
+            if (e->value.unary.operand) { int t = expr_max_line(e->value.unary.operand); if (t > m) m = t; }
             break;
         case AST_EXPR_IF: case AST_EXPR_TERNARY:
-            if (e->value.if_expr.cond) { int t = expr_max_line_impl(e->value.if_expr.cond); if (t > m) m = t; }
-            if (e->value.if_expr.then_expr) { int t = expr_max_line_impl(e->value.if_expr.then_expr); if (t > m) m = t; }
-            if (e->value.if_expr.else_expr) { int t = expr_max_line_impl(e->value.if_expr.else_expr); if (t > m) m = t; }
+            if (e->value.if_expr.cond) { int t = expr_max_line(e->value.if_expr.cond); if (t > m) m = t; }
+            if (e->value.if_expr.then_expr) { int t = expr_max_line(e->value.if_expr.then_expr); if (t > m) m = t; }
+            if (e->value.if_expr.else_expr) { int t = expr_max_line(e->value.if_expr.else_expr); if (t > m) m = t; }
             break;
         case AST_EXPR_BLOCK:
             /* 块内行号由 block_max_line 覆盖，此处仅取本节点 */
             break;
         case AST_EXPR_MATCH:
-            if (e->value.match_expr.matched_expr) { int t = expr_max_line_impl(e->value.match_expr.matched_expr); if (t > m) m = t; }
+            if (e->value.match_expr.matched_expr) { int t = expr_max_line(e->value.match_expr.matched_expr); if (t > m) m = t; }
             for (int i = 0; i < e->value.match_expr.num_arms; i++)
-                if (e->value.match_expr.arms[i].result) { int t = expr_max_line_impl(e->value.match_expr.arms[i].result); if (t > m) m = t; }
+                if (e->value.match_expr.arms[i].result) { int t = expr_max_line(e->value.match_expr.arms[i].result); if (t > m) m = t; }
             break;
         case AST_EXPR_FIELD_ACCESS:
-            if (e->value.field_access.base) { int t = expr_max_line_impl(e->value.field_access.base); if (t > m) m = t; }
+            if (e->value.field_access.base) { int t = expr_max_line(e->value.field_access.base); if (t > m) m = t; }
             break;
         case AST_EXPR_STRUCT_LIT:
             for (int i = 0; i < e->value.struct_lit.num_fields; i++)
-                if (e->value.struct_lit.inits[i]) { int t = expr_max_line_impl(e->value.struct_lit.inits[i]); if (t > m) m = t; }
+                if (e->value.struct_lit.inits[i]) { int t = expr_max_line(e->value.struct_lit.inits[i]); if (t > m) m = t; }
             break;
         case AST_EXPR_ARRAY_LIT:
             for (int i = 0; i < e->value.array_lit.num_elems; i++)
-                if (e->value.array_lit.elems[i]) { int t = expr_max_line_impl(e->value.array_lit.elems[i]); if (t > m) m = t; }
+                if (e->value.array_lit.elems[i]) { int t = expr_max_line(e->value.array_lit.elems[i]); if (t > m) m = t; }
             break;
         case AST_EXPR_INDEX:
-            if (e->value.index.base) { int t = expr_max_line_impl(e->value.index.base); if (t > m) m = t; }
-            if (e->value.index.index_expr) { int t = expr_max_line_impl(e->value.index.index_expr); if (t > m) m = t; }
+            if (e->value.index.base) { int t = expr_max_line(e->value.index.base); if (t > m) m = t; }
+            if (e->value.index.index_expr) { int t = expr_max_line(e->value.index.index_expr); if (t > m) m = t; }
             break;
         case AST_EXPR_AS:
-            if (e->value.as_type.operand) { int t = expr_max_line_impl(e->value.as_type.operand); if (t > m) m = t; }
+            if (e->value.as_type.operand) { int t = expr_max_line(e->value.as_type.operand); if (t > m) m = t; }
             break;
         default:
             break;
     }
     return m;
 }
-int expr_max_line(const struct ASTExpr *e) {
-  {
-    return expr_max_line_impl(e);
-  }
-  return 0;
-}
+
+
 
 
 /** 求块内出现的最大行号。 */
-int block_max_line_impl(const struct ASTBlock *b) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int block_max_line(const struct ASTBlock *b) {
     if (!b) return 0;
     int m = 0;
     int i;
@@ -856,14 +831,14 @@ int block_max_line_impl(const struct ASTBlock *b) {
         if (b->let_decls[i].init) { int t = expr_max_line(b->let_decls[i].init); if (t > m) m = t; }
     for (i = 0; i < b->num_loops; i++) {
         if (b->loops[i].cond) { int t = expr_max_line(b->loops[i].cond); if (t > m) m = t; }
-        if (b->loops[i].body) { int t = block_max_line_impl(b->loops[i].body); if (t > m) m = t; }
+        if (b->loops[i].body) { int t = block_max_line(b->loops[i].body); if (t > m) m = t; }
     }
     for (i = 0; i < b->num_for_loops; i++) {
         struct ASTForLoop *fl = &b->for_loops[i];
         if (fl->init) { int t = expr_max_line(fl->init); if (t > m) m = t; }
         if (fl->cond) { int t = expr_max_line(fl->cond); if (t > m) m = t; }
         if (fl->step) { int t = expr_max_line(fl->step); if (t > m) m = t; }
-        if (fl->body) { int t = block_max_line_impl(fl->body); if (t > m) m = t; }
+        if (fl->body) { int t = block_max_line(fl->body); if (t > m) m = t; }
     }
     for (i = 0; i < b->num_labeled_stmts; i++)
         if (b->labeled_stmts[i].kind == AST_STMT_RETURN && b->labeled_stmts[i].u.return_expr)
@@ -873,16 +848,13 @@ int block_max_line_impl(const struct ASTBlock *b) {
     if (b->final_expr) { int t = expr_max_line(b->final_expr); if (t > m) m = t; }
     return m;
 }
-int block_max_line(const struct ASTBlock *b) {
-  {
-    return block_max_line_impl(b);
-  }
-  return 0;
-}
+
+
 
 
 /** 根据模块构建行→函数索引（每个函数的 [start_line, end_line]），供 get_function_at_line 使用。 */
-void build_line_index_impl(const struct ASTModule *mod) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void build_line_index(const struct ASTModule *mod) {
     s_line_index_n = 0;
     if (!mod || !mod->funcs) return;
     for (int i = 0; i < mod->num_funcs && s_line_index_n < LSP_LINE_INDEX_MAX; i++) {
@@ -900,29 +872,24 @@ void build_line_index_impl(const struct ASTModule *mod) {
         s_line_index_n++;
     }
 }
-void build_line_index(const struct ASTModule *mod) {
-  {
-    build_line_index_impl(mod);
-  }
-}
+
+
 
 
 /** 返回 func 在 s_line_index 中的下标，未找到返回 -1。 */
-int line_index_of_func_impl(const struct ASTFunc *func) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int line_index_of_func(const struct ASTFunc *func) {
     for (int i = 0; i < s_line_index_n; i++)
         if (s_line_index[i].func == func) return i;
     return -1;
 }
-int line_index_of_func(const struct ASTFunc *func) {
-  {
-    return line_index_of_func_impl(func);
-  }
-  return 0;
-}
+
+
 
 
 /** 向 func 对应的引用表追加 (line, col)；用于构建引用索引。 */
-void add_ref_for_func_impl(const struct ASTFunc *func, int line, int col) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void add_ref_for_func(const struct ASTFunc *func, int line, int col) {
     int j = line_index_of_func(func);
     if (j < 0 || s_refs_count[j] >= LSP_REFS_PER_FUNC_MAX) return;
     for (int i = 0; i < s_refs_count[j]; i++)
@@ -931,15 +898,13 @@ void add_ref_for_func_impl(const struct ASTFunc *func, int line, int col) {
     s_refs_cols[j][s_refs_count[j]] = col;
     s_refs_count[j]++;
 }
-void add_ref_for_func(const struct ASTFunc *func, int line, int col) {
-  {
-    add_ref_for_func_impl(func, line, col);
-  }
-}
+
+
 
 
 /** 遍历表达式，将 resolved_callee_func / resolved_impl_func 的调用点加入引用索引。 */
-void collect_refs_index_in_expr_impl(const struct ASTExpr *e) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void collect_refs_index_in_expr(const struct ASTExpr *e) {
     if (!e) return;
     if (e->kind == AST_EXPR_CALL && e->value.call.resolved_callee_func) {
         const struct ASTExpr *callee = e->value.call.callee;
@@ -948,70 +913,68 @@ void collect_refs_index_in_expr_impl(const struct ASTExpr *e) {
         add_ref_for_func(e->value.method_call.resolved_impl_func, e->line, e->col);
     switch (e->kind) {
         case AST_EXPR_CALL:
-            if (e->value.call.callee) collect_refs_index_in_expr_impl(e->value.call.callee);
+            if (e->value.call.callee) collect_refs_index_in_expr(e->value.call.callee);
             for (int i = 0; i < e->value.call.num_args; i++)
-                if (e->value.call.args[i]) collect_refs_index_in_expr_impl(e->value.call.args[i]);
+                if (e->value.call.args[i]) collect_refs_index_in_expr(e->value.call.args[i]);
             break;
         case AST_EXPR_METHOD_CALL:
-            collect_refs_index_in_expr_impl(e->value.method_call.base);
+            collect_refs_index_in_expr(e->value.method_call.base);
             for (int i = 0; i < e->value.method_call.num_args; i++)
-                if (e->value.method_call.args[i]) collect_refs_index_in_expr_impl(e->value.method_call.args[i]);
+                if (e->value.method_call.args[i]) collect_refs_index_in_expr(e->value.method_call.args[i]);
             break;
         case AST_EXPR_ADD: case AST_EXPR_SUB: case AST_EXPR_MUL: case AST_EXPR_DIV: case AST_EXPR_MOD:
         case AST_EXPR_SHL: case AST_EXPR_SHR: case AST_EXPR_BITAND: case AST_EXPR_BITOR: case AST_EXPR_BITXOR:
         case AST_EXPR_EQ: case AST_EXPR_NE: case AST_EXPR_LT: case AST_EXPR_LE: case AST_EXPR_GT: case AST_EXPR_GE:
         case AST_EXPR_LOGAND: case AST_EXPR_LOGOR:
-            collect_refs_index_in_expr_impl(e->value.binop.left);
-            collect_refs_index_in_expr_impl(e->value.binop.right);
+            collect_refs_index_in_expr(e->value.binop.left);
+            collect_refs_index_in_expr(e->value.binop.right);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
         case AST_EXPR_RETURN: case AST_EXPR_PANIC:
-            collect_refs_index_in_expr_impl(e->value.unary.operand);
+            collect_refs_index_in_expr(e->value.unary.operand);
             break;
         case AST_EXPR_IF: case AST_EXPR_TERNARY:
-            collect_refs_index_in_expr_impl(e->value.if_expr.cond);
-            collect_refs_index_in_expr_impl(e->value.if_expr.then_expr);
-            collect_refs_index_in_expr_impl(e->value.if_expr.else_expr);
+            collect_refs_index_in_expr(e->value.if_expr.cond);
+            collect_refs_index_in_expr(e->value.if_expr.then_expr);
+            collect_refs_index_in_expr(e->value.if_expr.else_expr);
             break;
         case AST_EXPR_ASSIGN:
-            collect_refs_index_in_expr_impl(e->value.binop.left);
-            collect_refs_index_in_expr_impl(e->value.binop.right);
+            collect_refs_index_in_expr(e->value.binop.left);
+            collect_refs_index_in_expr(e->value.binop.right);
             break;
         case AST_EXPR_MATCH:
-            collect_refs_index_in_expr_impl(e->value.match_expr.matched_expr);
+            collect_refs_index_in_expr(e->value.match_expr.matched_expr);
             for (int i = 0; i < e->value.match_expr.num_arms; i++)
-                collect_refs_index_in_expr_impl(e->value.match_expr.arms[i].result);
+                collect_refs_index_in_expr(e->value.match_expr.arms[i].result);
             break;
         case AST_EXPR_FIELD_ACCESS:
-            collect_refs_index_in_expr_impl(e->value.field_access.base);
+            collect_refs_index_in_expr(e->value.field_access.base);
             break;
         case AST_EXPR_STRUCT_LIT:
             for (int i = 0; i < e->value.struct_lit.num_fields; i++)
-                collect_refs_index_in_expr_impl(e->value.struct_lit.inits[i]);
+                collect_refs_index_in_expr(e->value.struct_lit.inits[i]);
             break;
         case AST_EXPR_ARRAY_LIT:
             for (int i = 0; i < e->value.array_lit.num_elems; i++)
-                collect_refs_index_in_expr_impl(e->value.array_lit.elems[i]);
+                collect_refs_index_in_expr(e->value.array_lit.elems[i]);
             break;
         case AST_EXPR_INDEX:
-            collect_refs_index_in_expr_impl(e->value.index.base);
-            collect_refs_index_in_expr_impl(e->value.index.index_expr);
+            collect_refs_index_in_expr(e->value.index.base);
+            collect_refs_index_in_expr(e->value.index.index_expr);
             break;
         case AST_EXPR_AS:
-            collect_refs_index_in_expr_impl(e->value.as_type.operand);
+            collect_refs_index_in_expr(e->value.as_type.operand);
             break;
         default:
             break;
     }
 }
-void collect_refs_index_in_expr(const struct ASTExpr *e) {
-  {
-    collect_refs_index_in_expr_impl(e);
-  }
-}
 
 
-void collect_refs_index_in_block_impl(const struct ASTBlock *b) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+void collect_refs_index_in_block(const struct ASTBlock *b) {
     if (!b) return;
     int i;
     for (i = 0; i < b->num_consts; i++)
@@ -1020,14 +983,14 @@ void collect_refs_index_in_block_impl(const struct ASTBlock *b) {
         if (b->let_decls[i].init) collect_refs_index_in_expr(b->let_decls[i].init);
     for (i = 0; i < b->num_loops; i++) {
         if (b->loops[i].cond) collect_refs_index_in_expr(b->loops[i].cond);
-        if (b->loops[i].body) collect_refs_index_in_block_impl(b->loops[i].body);
+        if (b->loops[i].body) collect_refs_index_in_block(b->loops[i].body);
     }
     for (i = 0; i < b->num_for_loops; i++) {
         struct ASTForLoop *fl = &b->for_loops[i];
         if (fl->init) collect_refs_index_in_expr(fl->init);
         if (fl->cond) collect_refs_index_in_expr(fl->cond);
         if (fl->step) collect_refs_index_in_expr(fl->step);
-        if (fl->body) collect_refs_index_in_block_impl(fl->body);
+        if (fl->body) collect_refs_index_in_block(fl->body);
     }
     for (i = 0; i < b->num_labeled_stmts; i++)
         if (b->labeled_stmts[i].kind == AST_STMT_RETURN && b->labeled_stmts[i].u.return_expr)
@@ -1036,15 +999,13 @@ void collect_refs_index_in_block_impl(const struct ASTBlock *b) {
         if (b->expr_stmts[i]) collect_refs_index_in_expr(b->expr_stmts[i]);
     if (b->final_expr) collect_refs_index_in_expr(b->final_expr);
 }
-void collect_refs_index_in_block(const struct ASTBlock *b) {
-  {
-    collect_refs_index_in_block_impl(b);
-  }
-}
+
+
 
 
 /** 在 build_line_index 之后调用：一次遍历全模块，为每个函数填好引用索引。 */
-void build_refs_index_impl(const struct ASTModule *mod) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void build_refs_index(const struct ASTModule *mod) {
     for (int i = 0; i < s_line_index_n; i++) {
         s_refs_count[i] = 0;
         add_ref_for_func(s_line_index[i].func, s_line_index[i].func->line, s_line_index[i].func->col);
@@ -1053,11 +1014,8 @@ void build_refs_index_impl(const struct ASTModule *mod) {
     for (int i = 0; i < mod->num_funcs; i++)
         if (mod->funcs[i]->body) collect_refs_index_in_block(mod->funcs[i]->body);
 }
-void build_refs_index(const struct ASTModule *mod) {
-  {
-    build_refs_index_impl(mod);
-  }
-}
+
+
 
 
 /** 返回包含行 line_1（1-based）的函数；若多函数包含该行则取区间最小的（最内层）。无则返回 NULL。 */
@@ -1082,14 +1040,15 @@ static struct ASTFunc *get_function_at_line(const struct ASTModule *mod, int lin
  * 若该位置在函数调用上（call 或 callee），且已解析到 resolved_callee_func / resolved_impl_func，则写出定义行列并返回 1。
  * 先递归子表达式，以便命中“调用内的标识符”；否则再检查本节点是否为 CALL/METHOD_CALL 且位置匹配。
  */
-int find_def_in_expr_impl(const struct ASTModule *mod, const struct ASTExpr *e, int line_1, int col_1, int *out_line, int *out_col) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int find_def_in_expr(const struct ASTModule *mod, const struct ASTExpr *e, int line_1, int col_1, int *out_line, int *out_col) {
     if (!mod || !e || !out_line || !out_col) return 0;
     switch (e->kind) {
         case AST_EXPR_CALL: {
             const struct ASTExpr *callee = e->value.call.callee;
-            if (callee && find_def_in_expr_impl(mod, callee, line_1, col_1, out_line, out_col)) return 1;
+            if (callee && find_def_in_expr(mod, callee, line_1, col_1, out_line, out_col)) return 1;
             for (int i = 0; i < e->value.call.num_args; i++)
-                if (e->value.call.args[i] && find_def_in_expr_impl(mod, e->value.call.args[i], line_1, col_1, out_line, out_col)) return 1;
+                if (e->value.call.args[i] && find_def_in_expr(mod, e->value.call.args[i], line_1, col_1, out_line, out_col)) return 1;
             if ((expr_at(e, line_1, col_1) || (callee && expr_at(callee, line_1, col_1))) && e->value.call.resolved_callee_func) {
                 struct ASTFunc *f = e->value.call.resolved_callee_func;
                 s_def_target_func = f;
@@ -1100,9 +1059,9 @@ int find_def_in_expr_impl(const struct ASTModule *mod, const struct ASTExpr *e, 
             return 0;
         }
         case AST_EXPR_METHOD_CALL: {
-            if (e->value.method_call.base && find_def_in_expr_impl(mod, e->value.method_call.base, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.method_call.base && find_def_in_expr(mod, e->value.method_call.base, line_1, col_1, out_line, out_col)) return 1;
             for (int i = 0; i < e->value.method_call.num_args; i++)
-                if (e->value.method_call.args[i] && find_def_in_expr_impl(mod, e->value.method_call.args[i], line_1, col_1, out_line, out_col)) return 1;
+                if (e->value.method_call.args[i] && find_def_in_expr(mod, e->value.method_call.args[i], line_1, col_1, out_line, out_col)) return 1;
             if (expr_at(e, line_1, col_1) && e->value.method_call.resolved_impl_func) {
                 struct ASTFunc *f = e->value.method_call.resolved_impl_func;
                 s_def_target_func = f;
@@ -1116,56 +1075,56 @@ int find_def_in_expr_impl(const struct ASTModule *mod, const struct ASTExpr *e, 
         case AST_EXPR_SHL: case AST_EXPR_SHR: case AST_EXPR_BITAND: case AST_EXPR_BITOR: case AST_EXPR_BITXOR:
         case AST_EXPR_EQ: case AST_EXPR_NE: case AST_EXPR_LT: case AST_EXPR_LE: case AST_EXPR_GT: case AST_EXPR_GE:
         case AST_EXPR_LOGAND: case AST_EXPR_LOGOR:
-            if (e->value.binop.left && find_def_in_expr_impl(mod, e->value.binop.left, line_1, col_1, out_line, out_col)) return 1;
-            if (e->value.binop.right && find_def_in_expr_impl(mod, e->value.binop.right, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.binop.left && find_def_in_expr(mod, e->value.binop.left, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.binop.right && find_def_in_expr(mod, e->value.binop.right, line_1, col_1, out_line, out_col)) return 1;
             return 0;
         case AST_EXPR_NEG:
         case AST_EXPR_BITNOT:
         case AST_EXPR_LOGNOT:
         case AST_EXPR_ADDR_OF:
         case AST_EXPR_DEREF:
-            return e->value.unary.operand ? find_def_in_expr_impl(mod, e->value.unary.operand, line_1, col_1, out_line, out_col) : 0;
+            return e->value.unary.operand ? find_def_in_expr(mod, e->value.unary.operand, line_1, col_1, out_line, out_col) : 0;
         case AST_EXPR_IF:
-            if (e->value.if_expr.cond && find_def_in_expr_impl(mod, e->value.if_expr.cond, line_1, col_1, out_line, out_col)) return 1;
-            if (e->value.if_expr.then_expr && find_def_in_expr_impl(mod, e->value.if_expr.then_expr, line_1, col_1, out_line, out_col)) return 1;
-            if (e->value.if_expr.else_expr && find_def_in_expr_impl(mod, e->value.if_expr.else_expr, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.if_expr.cond && find_def_in_expr(mod, e->value.if_expr.cond, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.if_expr.then_expr && find_def_in_expr(mod, e->value.if_expr.then_expr, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.if_expr.else_expr && find_def_in_expr(mod, e->value.if_expr.else_expr, line_1, col_1, out_line, out_col)) return 1;
             return 0;
         case AST_EXPR_BLOCK:
             return e->value.block ? find_def_in_block(mod, e->value.block, line_1, col_1, out_line, out_col) : 0;
         case AST_EXPR_TERNARY:
-            if (e->value.if_expr.cond && find_def_in_expr_impl(mod, e->value.if_expr.cond, line_1, col_1, out_line, out_col)) return 1;
-            if (e->value.if_expr.then_expr && find_def_in_expr_impl(mod, e->value.if_expr.then_expr, line_1, col_1, out_line, out_col)) return 1;
-            if (e->value.if_expr.else_expr && find_def_in_expr_impl(mod, e->value.if_expr.else_expr, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.if_expr.cond && find_def_in_expr(mod, e->value.if_expr.cond, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.if_expr.then_expr && find_def_in_expr(mod, e->value.if_expr.then_expr, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.if_expr.else_expr && find_def_in_expr(mod, e->value.if_expr.else_expr, line_1, col_1, out_line, out_col)) return 1;
             return 0;
         case AST_EXPR_ASSIGN:
-            if (e->value.binop.left && find_def_in_expr_impl(mod, e->value.binop.left, line_1, col_1, out_line, out_col)) return 1;
-            if (e->value.binop.right && find_def_in_expr_impl(mod, e->value.binop.right, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.binop.left && find_def_in_expr(mod, e->value.binop.left, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.binop.right && find_def_in_expr(mod, e->value.binop.right, line_1, col_1, out_line, out_col)) return 1;
             return 0;
         case AST_EXPR_RETURN:
-            return e->value.unary.operand ? find_def_in_expr_impl(mod, e->value.unary.operand, line_1, col_1, out_line, out_col) : 0;
+            return e->value.unary.operand ? find_def_in_expr(mod, e->value.unary.operand, line_1, col_1, out_line, out_col) : 0;
         case AST_EXPR_PANIC:
-            return e->value.unary.operand ? find_def_in_expr_impl(mod, e->value.unary.operand, line_1, col_1, out_line, out_col) : 0;
+            return e->value.unary.operand ? find_def_in_expr(mod, e->value.unary.operand, line_1, col_1, out_line, out_col) : 0;
         case AST_EXPR_MATCH:
-            if (e->value.match_expr.matched_expr && find_def_in_expr_impl(mod, e->value.match_expr.matched_expr, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.match_expr.matched_expr && find_def_in_expr(mod, e->value.match_expr.matched_expr, line_1, col_1, out_line, out_col)) return 1;
             for (int i = 0; i < e->value.match_expr.num_arms; i++)
-                if (e->value.match_expr.arms[i].result && find_def_in_expr_impl(mod, e->value.match_expr.arms[i].result, line_1, col_1, out_line, out_col)) return 1;
+                if (e->value.match_expr.arms[i].result && find_def_in_expr(mod, e->value.match_expr.arms[i].result, line_1, col_1, out_line, out_col)) return 1;
             return 0;
         case AST_EXPR_FIELD_ACCESS:
-            return e->value.field_access.base ? find_def_in_expr_impl(mod, e->value.field_access.base, line_1, col_1, out_line, out_col) : 0;
+            return e->value.field_access.base ? find_def_in_expr(mod, e->value.field_access.base, line_1, col_1, out_line, out_col) : 0;
         case AST_EXPR_STRUCT_LIT:
             for (int i = 0; i < e->value.struct_lit.num_fields; i++)
-                if (e->value.struct_lit.inits[i] && find_def_in_expr_impl(mod, e->value.struct_lit.inits[i], line_1, col_1, out_line, out_col)) return 1;
+                if (e->value.struct_lit.inits[i] && find_def_in_expr(mod, e->value.struct_lit.inits[i], line_1, col_1, out_line, out_col)) return 1;
             return 0;
         case AST_EXPR_ARRAY_LIT:
             for (int i = 0; i < e->value.array_lit.num_elems; i++)
-                if (e->value.array_lit.elems[i] && find_def_in_expr_impl(mod, e->value.array_lit.elems[i], line_1, col_1, out_line, out_col)) return 1;
+                if (e->value.array_lit.elems[i] && find_def_in_expr(mod, e->value.array_lit.elems[i], line_1, col_1, out_line, out_col)) return 1;
             return 0;
         case AST_EXPR_INDEX:
-            if (e->value.index.base && find_def_in_expr_impl(mod, e->value.index.base, line_1, col_1, out_line, out_col)) return 1;
-            if (e->value.index.index_expr && find_def_in_expr_impl(mod, e->value.index.index_expr, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.index.base && find_def_in_expr(mod, e->value.index.base, line_1, col_1, out_line, out_col)) return 1;
+            if (e->value.index.index_expr && find_def_in_expr(mod, e->value.index.index_expr, line_1, col_1, out_line, out_col)) return 1;
             return 0;
         case AST_EXPR_AS:
-            return e->value.as_type.operand ? find_def_in_expr_impl(mod, e->value.as_type.operand, line_1, col_1, out_line, out_col) : 0;
+            return e->value.as_type.operand ? find_def_in_expr(mod, e->value.as_type.operand, line_1, col_1, out_line, out_col) : 0;
         case AST_EXPR_VAR: {
             if (!expr_at(e, line_1, col_1)) return 0;
             struct ASTFunc *f = find_func_in_module_by_name(mod, e->value.var.name);
@@ -1181,16 +1140,13 @@ int find_def_in_expr_impl(const struct ASTModule *mod, const struct ASTExpr *e, 
             return 0;
     }
 }
-int find_def_in_expr(const struct ASTModule *mod, const struct ASTExpr *e, int line_1, int col_1, int *out_line, int *out_col) {
-  {
-    return find_def_in_expr_impl(mod, e, line_1, col_1, out_line, out_col);
-  }
-  return 0;
-}
+
+
 
 
 /** 在块 b 内所有表达式（const/let init、循环、expr_stmts、final_expr）中查找定义。 */
-int find_def_in_block_impl(const struct ASTModule *mod, const struct ASTBlock *b, int line_1, int col_1, int *out_line, int *out_col) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int find_def_in_block(const struct ASTModule *mod, const struct ASTBlock *b, int line_1, int col_1, int *out_line, int *out_col) {
     if (!mod || !b || !out_line || !out_col) return 0;
     int i;
     for (i = 0; i < b->num_consts; i++)
@@ -1199,14 +1155,14 @@ int find_def_in_block_impl(const struct ASTModule *mod, const struct ASTBlock *b
         if (b->let_decls[i].init && find_def_in_expr(mod, b->let_decls[i].init, line_1, col_1, out_line, out_col)) return 1;
     for (i = 0; i < b->num_loops; i++) {
         if (b->loops[i].cond && find_def_in_expr(mod, b->loops[i].cond, line_1, col_1, out_line, out_col)) return 1;
-        if (b->loops[i].body && find_def_in_block_impl(mod, b->loops[i].body, line_1, col_1, out_line, out_col)) return 1;
+        if (b->loops[i].body && find_def_in_block(mod, b->loops[i].body, line_1, col_1, out_line, out_col)) return 1;
     }
     for (i = 0; i < b->num_for_loops; i++) {
         struct ASTForLoop *fl = &b->for_loops[i];
         if (fl->init && find_def_in_expr(mod, fl->init, line_1, col_1, out_line, out_col)) return 1;
         if (fl->cond && find_def_in_expr(mod, fl->cond, line_1, col_1, out_line, out_col)) return 1;
         if (fl->step && find_def_in_expr(mod, fl->step, line_1, col_1, out_line, out_col)) return 1;
-        if (fl->body && find_def_in_block_impl(mod, fl->body, line_1, col_1, out_line, out_col)) return 1;
+        if (fl->body && find_def_in_block(mod, fl->body, line_1, col_1, out_line, out_col)) return 1;
     }
     for (i = 0; i < b->num_labeled_stmts; i++)
         if (b->labeled_stmts[i].kind == AST_STMT_RETURN && b->labeled_stmts[i].u.return_expr &&
@@ -1216,16 +1172,13 @@ int find_def_in_block_impl(const struct ASTModule *mod, const struct ASTBlock *b
     if (b->final_expr && find_def_in_expr(mod, b->final_expr, line_1, col_1, out_line, out_col)) return 1;
     return 0;
 }
-int find_def_in_block(const struct ASTModule *mod, const struct ASTBlock *b, int line_1, int col_1, int *out_line, int *out_col) {
-  {
-    return find_def_in_block_impl(mod, b, line_1, col_1, out_line, out_col);
-  }
-  return 0;
-}
+
+
 
 
 /** 在模块中查找位置对应的定义；先按行索引定位到包含该行的函数，只遍历该函数 body，减少大文件下的全 AST 遍历。 */
-int find_def_in_module_impl(const struct ASTModule *mod, int line_1, int col_1, int *out_line, int *out_col) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int find_def_in_module(const struct ASTModule *mod, int line_1, int col_1, int *out_line, int *out_col) {
     if (!mod || !out_line || !out_col) return 0;
     /* 若光标在函数名上（含长标识符中间字符），定义即该函数（含 extern 声明）。 */
     for (int i = 0; i < mod->num_funcs; i++) {
@@ -1242,12 +1195,8 @@ int find_def_in_module_impl(const struct ASTModule *mod, int line_1, int col_1, 
         return find_def_in_block(mod, containing->body, line_1, col_1, out_line, out_col);
     return 0;
 }
-int find_def_in_module(const struct ASTModule *mod, int line_1, int col_1, int *out_line, int *out_col) {
-  {
-    return find_def_in_module_impl(mod, line_1, col_1, out_line, out_col);
-  }
-  return 0;
-}
+
+
 
 
 /* ---------- References：目标函数 + 收集引用 ---------- */
@@ -1380,7 +1329,8 @@ static struct ASTFunc *find_target_function_at(const struct ASTModule *mod, int 
 }
 
 /** 收集对 func 的所有引用位置（定义 + 各调用点），写入 out_lines/out_cols，返回个数，最多 max_refs。 */
-int collect_refs_add_impl(int line, int col, int *out_lines, int *out_cols, int *count, int max_refs) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int collect_refs_add(int line, int col, int *out_lines, int *out_cols, int *count, int max_refs) {
     if (*count >= max_refs) return 0;
     for (int i = 0; i < *count; i++)
         if (out_lines[i] == line && out_cols[i] == col) return 0; /* 去重 */
@@ -1389,15 +1339,12 @@ int collect_refs_add_impl(int line, int col, int *out_lines, int *out_cols, int 
     (*count)++;
     return 1;
 }
-int collect_refs_add(int line, int col, int *out_lines, int *out_cols, int *count, int max_refs) {
-  {
-    return collect_refs_add_impl(line, col, out_lines, out_cols, count, max_refs);
-  }
-  return 0;
-}
 
 
-void collect_refs_in_expr_impl(const struct ASTExpr *e, const struct ASTFunc *func, int *out_lines, int *out_cols, int *count, int max_refs) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+void collect_refs_in_expr(const struct ASTExpr *e, const struct ASTFunc *func, int *out_lines, int *out_cols, int *count, int max_refs) {
     if (!e || *count >= max_refs) return;
     if (e->kind == AST_EXPR_CALL && e->value.call.resolved_callee_func == func) {
         const struct ASTExpr *callee = e->value.call.callee;
@@ -1409,69 +1356,67 @@ void collect_refs_in_expr_impl(const struct ASTExpr *e, const struct ASTFunc *fu
         case AST_EXPR_SHL: case AST_EXPR_SHR: case AST_EXPR_BITAND: case AST_EXPR_BITOR: case AST_EXPR_BITXOR:
         case AST_EXPR_EQ: case AST_EXPR_NE: case AST_EXPR_LT: case AST_EXPR_LE: case AST_EXPR_GT: case AST_EXPR_GE:
         case AST_EXPR_LOGAND: case AST_EXPR_LOGOR:
-            collect_refs_in_expr_impl(e->value.binop.left, func, out_lines, out_cols, count, max_refs);
-            collect_refs_in_expr_impl(e->value.binop.right, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.binop.left, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.binop.right, func, out_lines, out_cols, count, max_refs);
             break;
         case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF:
         case AST_EXPR_RETURN: case AST_EXPR_PANIC:
-            collect_refs_in_expr_impl(e->value.unary.operand, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.unary.operand, func, out_lines, out_cols, count, max_refs);
             break;
         case AST_EXPR_IF: case AST_EXPR_TERNARY:
-            collect_refs_in_expr_impl(e->value.if_expr.cond, func, out_lines, out_cols, count, max_refs);
-            collect_refs_in_expr_impl(e->value.if_expr.then_expr, func, out_lines, out_cols, count, max_refs);
-            collect_refs_in_expr_impl(e->value.if_expr.else_expr, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.if_expr.cond, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.if_expr.then_expr, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.if_expr.else_expr, func, out_lines, out_cols, count, max_refs);
             break;
         case AST_EXPR_BLOCK:
             break;
         case AST_EXPR_ASSIGN:
-            collect_refs_in_expr_impl(e->value.binop.left, func, out_lines, out_cols, count, max_refs);
-            collect_refs_in_expr_impl(e->value.binop.right, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.binop.left, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.binop.right, func, out_lines, out_cols, count, max_refs);
             break;
         case AST_EXPR_MATCH:
-            collect_refs_in_expr_impl(e->value.match_expr.matched_expr, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.match_expr.matched_expr, func, out_lines, out_cols, count, max_refs);
             for (int i = 0; i < e->value.match_expr.num_arms; i++)
-                collect_refs_in_expr_impl(e->value.match_expr.arms[i].result, func, out_lines, out_cols, count, max_refs);
+                collect_refs_in_expr(e->value.match_expr.arms[i].result, func, out_lines, out_cols, count, max_refs);
             break;
         case AST_EXPR_FIELD_ACCESS:
-            collect_refs_in_expr_impl(e->value.field_access.base, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.field_access.base, func, out_lines, out_cols, count, max_refs);
             break;
         case AST_EXPR_STRUCT_LIT:
             for (int i = 0; i < e->value.struct_lit.num_fields; i++)
-                collect_refs_in_expr_impl(e->value.struct_lit.inits[i], func, out_lines, out_cols, count, max_refs);
+                collect_refs_in_expr(e->value.struct_lit.inits[i], func, out_lines, out_cols, count, max_refs);
             break;
         case AST_EXPR_ARRAY_LIT:
             for (int i = 0; i < e->value.array_lit.num_elems; i++)
-                collect_refs_in_expr_impl(e->value.array_lit.elems[i], func, out_lines, out_cols, count, max_refs);
+                collect_refs_in_expr(e->value.array_lit.elems[i], func, out_lines, out_cols, count, max_refs);
             break;
         case AST_EXPR_INDEX:
-            collect_refs_in_expr_impl(e->value.index.base, func, out_lines, out_cols, count, max_refs);
-            collect_refs_in_expr_impl(e->value.index.index_expr, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.index.base, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.index.index_expr, func, out_lines, out_cols, count, max_refs);
             break;
         case AST_EXPR_CALL:
-            if (e->value.call.callee) collect_refs_in_expr_impl(e->value.call.callee, func, out_lines, out_cols, count, max_refs);
+            if (e->value.call.callee) collect_refs_in_expr(e->value.call.callee, func, out_lines, out_cols, count, max_refs);
             for (int i = 0; i < e->value.call.num_args; i++)
-                collect_refs_in_expr_impl(e->value.call.args[i], func, out_lines, out_cols, count, max_refs);
+                collect_refs_in_expr(e->value.call.args[i], func, out_lines, out_cols, count, max_refs);
             break;
         case AST_EXPR_METHOD_CALL:
-            collect_refs_in_expr_impl(e->value.method_call.base, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.method_call.base, func, out_lines, out_cols, count, max_refs);
             for (int i = 0; i < e->value.method_call.num_args; i++)
-                collect_refs_in_expr_impl(e->value.method_call.args[i], func, out_lines, out_cols, count, max_refs);
+                collect_refs_in_expr(e->value.method_call.args[i], func, out_lines, out_cols, count, max_refs);
             break;
         case AST_EXPR_AS:
-            collect_refs_in_expr_impl(e->value.as_type.operand, func, out_lines, out_cols, count, max_refs);
+            collect_refs_in_expr(e->value.as_type.operand, func, out_lines, out_cols, count, max_refs);
             break;
         default:
             break;
     }
 }
-void collect_refs_in_expr(const struct ASTExpr *e, const struct ASTFunc *func, int *out_lines, int *out_cols, int *count, int max_refs) {
-  {
-    collect_refs_in_expr_impl(e, func, out_lines, out_cols, count, max_refs);
-  }
-}
 
 
-void collect_refs_in_block_impl(const struct ASTBlock *b, const struct ASTFunc *func, int *out_lines, int *out_cols, int *count, int max_refs) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+
+
+void collect_refs_in_block(const struct ASTBlock *b, const struct ASTFunc *func, int *out_lines, int *out_cols, int *count, int max_refs) {
     if (!b) return;
     int i;
     for (i = 0; i < b->num_consts; i++)
@@ -1480,14 +1425,14 @@ void collect_refs_in_block_impl(const struct ASTBlock *b, const struct ASTFunc *
         if (b->let_decls[i].init) collect_refs_in_expr(b->let_decls[i].init, func, out_lines, out_cols, count, max_refs);
     for (i = 0; i < b->num_loops; i++) {
         if (b->loops[i].cond) collect_refs_in_expr(b->loops[i].cond, func, out_lines, out_cols, count, max_refs);
-        if (b->loops[i].body) collect_refs_in_block_impl(b->loops[i].body, func, out_lines, out_cols, count, max_refs);
+        if (b->loops[i].body) collect_refs_in_block(b->loops[i].body, func, out_lines, out_cols, count, max_refs);
     }
     for (i = 0; i < b->num_for_loops; i++) {
         struct ASTForLoop *fl = &b->for_loops[i];
         if (fl->init) collect_refs_in_expr(fl->init, func, out_lines, out_cols, count, max_refs);
         if (fl->cond) collect_refs_in_expr(fl->cond, func, out_lines, out_cols, count, max_refs);
         if (fl->step) collect_refs_in_expr(fl->step, func, out_lines, out_cols, count, max_refs);
-        if (fl->body) collect_refs_in_block_impl(fl->body, func, out_lines, out_cols, count, max_refs);
+        if (fl->body) collect_refs_in_block(fl->body, func, out_lines, out_cols, count, max_refs);
     }
     for (i = 0; i < b->num_labeled_stmts; i++)
         if (b->labeled_stmts[i].kind == AST_STMT_RETURN && b->labeled_stmts[i].u.return_expr)
@@ -1496,26 +1441,20 @@ void collect_refs_in_block_impl(const struct ASTBlock *b, const struct ASTFunc *
         if (b->expr_stmts[i]) collect_refs_in_expr(b->expr_stmts[i], func, out_lines, out_cols, count, max_refs);
     if (b->final_expr) collect_refs_in_expr(b->final_expr, func, out_lines, out_cols, count, max_refs);
 }
-void collect_refs_in_block(const struct ASTBlock *b, const struct ASTFunc *func, int *out_lines, int *out_cols, int *count, int max_refs) {
-  {
-    collect_refs_in_block_impl(b, func, out_lines, out_cols, count, max_refs);
-  }
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-int collect_refs_to_func_impl(const struct ASTModule *mod, const struct ASTFunc *func, int *out_lines, int *out_cols, int max_refs) {
+
+
+int collect_refs_to_func(const struct ASTModule *mod, const struct ASTFunc *func, int *out_lines, int *out_cols, int max_refs) {
     int count = 0;
     collect_refs_add(func->line, func->col, out_lines, out_cols, &count, max_refs);
     for (int i = 0; i < mod->num_funcs; i++)
         if (mod->funcs[i]->body) collect_refs_in_block(mod->funcs[i]->body, func, out_lines, out_cols, &count, max_refs);
     return count;
 }
-int collect_refs_to_func(const struct ASTModule *mod, const struct ASTFunc *func, int *out_lines, int *out_cols, int max_refs) {
-  {
-    return collect_refs_to_func_impl(mod, func, out_lines, out_cols, max_refs);
-  }
-  return 0;
-}
+
+
 
 
 /* ---------- Hover：按位置找表达式 + 类型转字符串 ---------- */
@@ -1632,7 +1571,8 @@ static struct ASTExpr *get_expr_at_in_module(const struct ASTModule *mod, int li
 }
 
 /** 将 ASTType 格式化为字符串写入 buf，返回长度；cap 为 buf 容量。 */
-int type_to_string_impl(const struct ASTType *ty, char *buf, int cap) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int type_to_string(const struct ASTType *ty, char *buf, int cap) {
     if (!ty || !buf || cap <= 0) return 0;
     switch (ty->kind) {
         case AST_TYPE_I32: return snprintf(buf, (size_t)cap, "i32");
@@ -1649,37 +1589,33 @@ int type_to_string_impl(const struct ASTType *ty, char *buf, int cap) {
         case AST_TYPE_NAMED: return snprintf(buf, (size_t)cap, "%s", ty->name ? ty->name : "?");
         case AST_TYPE_PTR: {
             char inner[64];
-            int n = ty->elem_type ? type_to_string_impl(ty->elem_type, inner, (int)sizeof(inner)) : 0;
+            int n = ty->elem_type ? type_to_string(ty->elem_type, inner, (int)sizeof(inner)) : 0;
             if (n <= 0) return snprintf(buf, (size_t)cap, "*?");
             return snprintf(buf, (size_t)cap, "*%s", inner);
         }
         case AST_TYPE_ARRAY: {
             char inner[64];
-            int n = ty->elem_type ? type_to_string_impl(ty->elem_type, inner, (int)sizeof(inner)) : 0;
+            int n = ty->elem_type ? type_to_string(ty->elem_type, inner, (int)sizeof(inner)) : 0;
             if (n <= 0) return snprintf(buf, (size_t)cap, "[%d]?", ty->array_size);
             return snprintf(buf, (size_t)cap, "[%d]%s", ty->array_size, inner);
         }
         case AST_TYPE_SLICE: {
             char inner[64];
-            int n = ty->elem_type ? type_to_string_impl(ty->elem_type, inner, (int)sizeof(inner)) : 0;
+            int n = ty->elem_type ? type_to_string(ty->elem_type, inner, (int)sizeof(inner)) : 0;
             if (n <= 0) return snprintf(buf, (size_t)cap, "[]?");
             return snprintf(buf, (size_t)cap, "[]%s", inner);
         }
         case AST_TYPE_VECTOR: {
             char inner[64];
-            int n = ty->elem_type ? type_to_string_impl(ty->elem_type, inner, (int)sizeof(inner)) : 0;
+            int n = ty->elem_type ? type_to_string(ty->elem_type, inner, (int)sizeof(inner)) : 0;
             if (n <= 0) return snprintf(buf, (size_t)cap, "?x%d", ty->array_size);
             return snprintf(buf, (size_t)cap, "%x%d", inner, ty->array_size);
         }
         default: return snprintf(buf, (size_t)cap, "?");
     }
 }
-int type_to_string(const struct ASTType *ty, char *buf, int cap) {
-  {
-    return type_to_string_impl(ty, buf, cap);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -1793,7 +1729,8 @@ static int s_doc_len = 0;
 /** lsp_alloc/lsp_free/lsp_is_null、read_message、extract_document_text 已迁至 lsp_io.x；不再提供 lsp_peek_u8/lsp_poke_u8/lsp_ptr_add。 */
 
 /** 若 body 含 contentChanges 且当前有文档，则解析并应用第一项 range 替换，成功返回 1，否则 0。 */
-int try_apply_content_changes_impl(const uint8_t *body, int body_len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int try_apply_content_changes(const uint8_t *body, int body_len) {
     if (!s_doc_ptr || s_doc_len < 0) return 0;
     uint8_t text_buf[256 * 1024];
     int text_len = 0;
@@ -1817,12 +1754,8 @@ int try_apply_content_changes_impl(const uint8_t *body, int body_len) {
     s_doc_len = (int)new_len;
     return 1;
 }
-int try_apply_content_changes(const uint8_t *body, int body_len) {
-  {
-    return try_apply_content_changes_impl(body, body_len);
-  }
-  return 0;
-}
+
+
 
 
 /** 从 didOpen/didChange 的 body 中提取文档内容，存入内部缓冲（替换旧文档）。若有 contentChanges 且当前有文档则做增量 range 替换，否则整份替换。先使 LSP 模块缓存失效，再释放旧缓冲，避免旧 AST 指向已释放内存。 */
@@ -1870,7 +1803,8 @@ int lsp_get_document_len(void) {
 /** lsp_read_c、lsp_read_at、lsp_read_message、lsp_write_c 已迁至 lsp_io.x（std.io）。 */
 
 /** 将 (line, character) 转为文档中的字节偏移；line/character 为 0-based。 */
-int line_char_to_offset_impl(const uint8_t *doc, int len, int line, int character) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int line_char_to_offset(const uint8_t *doc, int len, int line, int character) {
     int cur_line = 0;
     int i = 0;
     while (i < len && cur_line < line) {
@@ -1886,16 +1820,13 @@ int line_char_to_offset_impl(const uint8_t *doc, int len, int line, int characte
     if (col != character) return -1;
     return i;
 }
-int line_char_to_offset(const uint8_t *doc, int len, int line, int character) {
-  {
-    return line_char_to_offset_impl(doc, len, line, character);
-  }
-  return 0;
-}
+
+
 
 
 /** 从 body 中解析 contentChanges[0]：range.start.line/character、range.end.line/character、text；成功返回 1 并写入 *out_*，否则 0。 */
-int parse_first_content_change_impl(const uint8_t *body, int len,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int parse_first_content_change(const uint8_t *body, int len,
     int *out_start_line, int *out_start_char, int *out_end_line, int *out_end_char,
     uint8_t *out_text, int out_text_cap, int *out_text_len) {
     const char *key_cc = "\"contentChanges\":[";
@@ -1954,18 +1885,13 @@ int parse_first_content_change_impl(const uint8_t *body, int len,
     *out_text_len = text_len;
     return 1;
 }
-int parse_first_content_change(const uint8_t *body, int len,
-    int *out_start_line, int *out_start_char, int *out_end_line, int *out_end_char,
-    uint8_t *out_text, int out_text_cap, int *out_text_len) {
-  {
-    return parse_first_content_change_impl(body, len, out_start_line, out_start_char, out_end_line, out_end_char, out_text, out_text_cap, out_text_len);
-  }
-  return 0;
-}
+
+
 
 
 /** 在 body[search_start..len) 中找 "text" 键（支持 "text":"、"text": "、"text" : " 等），取 JSON 字符串值到 out_buf，做 unescape；返回 out 长度，未找到或出错 -1。 */
-int lsp_find_text_value_from_impl(const uint8_t *body, int len, int search_start, uint8_t *out_buf, int out_cap) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int lsp_find_text_value_from(const uint8_t *body, int len, int search_start, uint8_t *out_buf, int out_cap) {
     const int key6_len = 6;  /* "\"text\"" */
     int i = search_start;
     while (i + key6_len <= len) {
@@ -2003,16 +1929,13 @@ int lsp_find_text_value_from_impl(const uint8_t *body, int len, int search_start
     }
     return -1;
 }
-int lsp_find_text_value_from(const uint8_t *body, int len, int search_start, uint8_t *out_buf, int out_cap) {
-  {
-    return lsp_find_text_value_from_impl(body, len, search_start, out_buf, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /** 在 body[0..len) 中找 didOpen 的 text：先定位到 "textDocument" 对象内再找 "text" 键，取 JSON 字符串值到 out_buf；返回 out 长度，未找到 -1。 */
-int lsp_find_text_value_impl(const uint8_t *body, int len, uint8_t *out_buf, int out_cap) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, int out_cap) {
     const char *td = "\"textDocument\"";
     const int td_len = 14;
     int i = 0;
@@ -2025,12 +1948,8 @@ int lsp_find_text_value_impl(const uint8_t *body, int len, uint8_t *out_buf, int
     /* 未找到 textDocument 时回退：整段 body 中找第一个 "text" 键（兼容旧或简化的请求） */
     return lsp_find_text_value_from(body, len, 0, out_buf, out_cap);
 }
-int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, int out_cap) {
-  {
-    return lsp_find_text_value_impl(body, len, out_buf, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -2525,7 +2444,8 @@ int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *ke
 
 
 /** 从 params.options 提取格式化选项（见下方默认值）；成功返回 0。 */
-int lsp_extract_formatting_options_impl(const uint8_t *body, int len,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int lsp_extract_formatting_options(const uint8_t *body, int len,
     int *out_tab_size, int *out_insert_spaces, int *out_max_line_length,
     int *out_insert_final_newline, int *out_trim_trailing_whitespace, int *out_trim_final_newlines) {
     if (!body || len <= 0 || !out_tab_size || !out_insert_spaces || !out_max_line_length) return -1;
@@ -2555,20 +2475,15 @@ int lsp_extract_formatting_options_impl(const uint8_t *body, int len,
     if (out_trim_final_newlines) lsp_parse_bool_after(body, len, opt, "\"trimFinalNewlines\":", out_trim_final_newlines);
     return 0;
 }
-int lsp_extract_formatting_options(const uint8_t *body, int len,
-    int *out_tab_size, int *out_insert_spaces, int *out_max_line_length,
-    int *out_insert_final_newline, int *out_trim_trailing_whitespace, int *out_trim_final_newlines) {
-  {
-    return lsp_extract_formatting_options_impl(body, len, out_tab_size, out_insert_spaces, out_max_line_length, out_insert_final_newline, out_trim_trailing_whitespace, out_trim_final_newlines);
-  }
-  return 0;
-}
+
+
 
 
 /**
  * 在本行 [line_start, line_start+line_len) 内更新花括号 depth，忽略 // 注释与 "..." 字符串内的 { }。
  */
-void lsp_format_line_update_depth_impl(const uint8_t *doc, int line_start, int line_len, int *depth) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void lsp_format_line_update_depth(const uint8_t *doc, int line_start, int line_len, int *depth) {
     int in_line_comment = 0;
     int in_string = 0;
     int escape = 0;
@@ -2606,11 +2521,8 @@ void lsp_format_line_update_depth_impl(const uint8_t *doc, int line_start, int l
             (*depth)--;
     }
 }
-void lsp_format_line_update_depth(const uint8_t *doc, int line_start, int line_len, int *depth) {
-  {
-    lsp_format_line_update_depth_impl(doc, line_start, line_len, depth);
-  }
-}
+
+
 
 
 /**
@@ -2781,7 +2693,8 @@ int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *
 /**
  * 尝试在 j 处匹配 len_op 的多字符运算符；匹配则写出（含两侧空格）并返回消耗长度，否则返回 0。
  */
-int lsp_fmt_try_emit_op_impl(const uint8_t *doc, int start, int len, int j, const char *op, int op_len,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int lsp_fmt_try_emit_op(const uint8_t *doc, int start, int len, int j, const char *op, int op_len,
                                uint8_t *out_buf, int *out_len, int out_cap) {
     int k;
     uint8_t prev;
@@ -2815,20 +2728,16 @@ int lsp_fmt_try_emit_op_impl(const uint8_t *doc, int start, int len, int j, cons
     (void)lsp_fmt_space_after(doc, start, len, j + op_len - 1, out_buf, out_len, out_cap);
     return op_len;
 }
-int lsp_fmt_try_emit_op(const uint8_t *doc, int start, int len, int j, const char *op, int op_len,
-                               uint8_t *out_buf, int *out_len, int out_cap) {
-  {
-    return lsp_fmt_try_emit_op_impl(doc, start, len, j, op, op_len, out_buf, out_len, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /**
  * 将 doc[start .. start+len) 写入 out_buf：分号后空格、数组/列表元素逗号后空格、二元运算符两侧空格（字符串与 // 内不处理）。
  * 不对 . : :: ()[]{} 强行加空格，保持 arr[i]、let x: i32、f() 等惯写法；`, ` 仅在 ] } 前不补空格。
  */
-int lsp_format_emit_segment_impl(const uint8_t *doc, int start, int len, uint8_t *out_buf, int out_len, int out_cap) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int lsp_format_emit_segment(const uint8_t *doc, int start, int len, uint8_t *out_buf, int out_len, int out_cap) {
     int in_string = 0;
     int escape = 0;
     int in_line_comment = 0;
@@ -2977,18 +2886,15 @@ emit_raw:
     }
     return out_len;
 }
-int lsp_format_emit_segment(const uint8_t *doc, int start, int len, uint8_t *out_buf, int out_len, int out_cap) {
-  {
-    return lsp_format_emit_segment_impl(doc, start, len, out_buf, out_len, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /**
  * 估算 [pos, break_at) 经 emit_segment 后相对原长多出的字符数（主要为紧凑逗号后补空格）。
  */
-int lsp_fmt_comma_expand_extra_impl(const uint8_t *doc, int content_start, int pos, int break_at, int content_len) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int lsp_fmt_comma_expand_extra(const uint8_t *doc, int content_start, int pos, int break_at, int content_len) {
     int extra = 0;
     int k;
     int seg_len = break_at - pos;
@@ -3018,12 +2924,8 @@ int lsp_fmt_comma_expand_extra_impl(const uint8_t *doc, int content_start, int p
     }
     return extra;
 }
-int lsp_fmt_comma_expand_extra(const uint8_t *doc, int content_start, int pos, int break_at, int content_len) {
-  {
-    return lsp_fmt_comma_expand_extra_impl(doc, content_start, pos, break_at, content_len);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -3031,7 +2933,8 @@ int lsp_fmt_comma_expand_extra(const uint8_t *doc, int content_start, int pos, i
  * 候选断点须满足 emit_segment 后（含逗号补空格）不超过 room，保证 fmt 幂等。
  * 若无安全断点则返回 content_len（整段剩余保持一行，允许超 max_line_length）。
  */
-int lsp_format_find_break_impl(const uint8_t *doc, int content_start, int pos, int content_len, int room) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int lsp_format_find_break(const uint8_t *doc, int content_start, int pos, int content_len, int room) {
     int end = pos + room;
     int k;
     if (end > content_len)
@@ -3061,15 +2964,12 @@ int lsp_format_find_break_impl(const uint8_t *doc, int content_start, int pos, i
     }
     return content_len;
 }
-int lsp_format_find_break(const uint8_t *doc, int content_start, int pos, int content_len, int room) {
-  {
-    return lsp_format_find_break_impl(doc, content_start, pos, content_len, room);
-  }
-  return 0;
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-int lsp_format_document_impl(const uint8_t *doc, int doc_len, int tab_size, int insert_spaces, int max_line_length,
+
+
+int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, int insert_spaces, int max_line_length,
                                int trim_trailing_whitespace, int insert_final_newline, int trim_final_newlines,
                                uint8_t *out_buf, int out_cap) {
     if (!doc || !out_buf || out_cap <= 0) return -1;
@@ -3178,14 +3078,8 @@ int lsp_format_document_impl(const uint8_t *doc, int doc_len, int tab_size, int 
     }
     return out_len;
 }
-int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, int insert_spaces, int max_line_length,
-                               int trim_trailing_whitespace, int insert_final_newline, int trim_final_newlines,
-                               uint8_t *out_buf, int out_cap) {
-  {
-    return lsp_format_document_impl(doc, doc_len, tab_size, insert_spaces, max_line_length, trim_trailing_whitespace, insert_final_newline, trim_final_newlines, out_buf, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /** shux fmt CLI：默认 tabSize=2、空格缩进、maxLineLength=100，与 LSP formatting 一致。 */
@@ -3194,7 +3088,8 @@ int shu_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int
 }
 
 /** 统计文档行数（0-based 最后一行号）与最后一行的字符数。 */
-void lsp_doc_line_count_impl(const uint8_t *doc, int len, int *out_last_line, int *out_last_line_char) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void lsp_doc_line_count(const uint8_t *doc, int len, int *out_last_line, int *out_last_line_char) {
     int lines = 0;
     int last_char = 0;
     for (int i = 0; i < len; i++) {
@@ -3207,11 +3102,8 @@ void lsp_doc_line_count_impl(const uint8_t *doc, int len, int *out_last_line, in
     *out_last_line = lines > 0 ? lines - 1 : 0;
     *out_last_line_char = last_char;
 }
-void lsp_doc_line_count(const uint8_t *doc, int len, int *out_last_line, int *out_last_line_char) {
-  {
-    lsp_doc_line_count_impl(doc, len, out_last_line, out_last_line_char);
-  }
-}
+
+
 
 
 /** 格式化结果 JSON（单条 TextEdit）最大长度，避免栈上 result_buf 过大。 */
@@ -3273,8 +3165,9 @@ int lsp_build_formatting_response(int id_val, const uint8_t *body, int body_len,
 }
 
 /* ---------- textDocument/rename ---------- */
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-int lsp_extract_string_value_impl(const uint8_t *body, int len, const char *key, char *out_buf, int out_cap) {
+int lsp_extract_string_value(const uint8_t *body, int len, const char *key, char *out_buf, int out_cap) {
     char search[128];
     int sl = snprintf(search, sizeof(search), "\"%s\":\"", key);
     if (sl <= 0 || sl >= (int)sizeof(search)) return -1;
@@ -3291,12 +3184,8 @@ int lsp_extract_string_value_impl(const uint8_t *body, int len, const char *key,
     out_buf[out_len] = '\0';
     return out_len;
 }
-int lsp_extract_string_value(const uint8_t *body, int len, const char *key, char *out_buf, int out_cap) {
-  {
-    return lsp_extract_string_value_impl(body, len, key, out_buf, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /**

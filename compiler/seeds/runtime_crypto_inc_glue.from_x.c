@@ -60,9 +60,10 @@ uint32_t shu_sha256_ch(uint32_t x, uint32_t y, uint32_t z) {
 uint32_t shu_sha256_maj(uint32_t x, uint32_t y, uint32_t z) {
   return (x & y) ^ (x & z) ^ (y & z);
 }
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-void shu_sha256_block_impl(uint32_t *H, const uint8_t *block) {
+void shu_sha256_block(uint32_t *H, const uint8_t *block) {
   uint32_t W[64];
   int i;
   for (i = 0; i < 16; i++) {
@@ -92,11 +93,8 @@ void shu_sha256_block_impl(uint32_t *H, const uint8_t *block) {
   H[0] += a; H[1] += b; H[2] += c; H[3] += d;
   H[4] += e; H[5] += f; H[6] += g; H[7] += h;
 }
-void shu_sha256_block(uint32_t *H, const uint8_t *block) {
-  {
-    shu_sha256_block_impl(H, block);
-  }
-}
+
+
 
 
 CRYPTO_HOT

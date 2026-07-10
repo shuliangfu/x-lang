@@ -66,7 +66,8 @@ void backtrace_write_frame_addr_c(uint8_t *buf, int32_t i, void *addr) {
 }
 
 /** 单字节转两位小写十六进制。 */
-void backtrace_u8_hex2_impl(uint8_t b, char *out) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void backtrace_u8_hex2(uint8_t b, char *out) {
   uint8_t hi = (uint8_t)((b >> 4) & 0x0fu);
   uint8_t lo = (uint8_t)(b & 0x0fu);
   if (!out) {
@@ -75,11 +76,8 @@ void backtrace_u8_hex2_impl(uint8_t b, char *out) {
   out[0] = (char)(hi < 10 ? ('0' + hi) : ('a' + hi - 10));
   out[1] = (char)(lo < 10 ? ('0' + lo) : ('a' + lo - 10));
 }
-void backtrace_u8_hex2(uint8_t b, char *out) {
-  {
-    backtrace_u8_hex2_impl(b, out);
-  }
-}
+
+
 
 
 /** 复制符号名到 out（最多 name_cap-1 字节 + NUL）。 */
@@ -269,7 +267,8 @@ void *backtrace_gold_anchor_addr_c(void) {
 }
 
 /** 从当前栈 capture 并检查是否含 gold_anchor 符号。 */
-int32_t backtrace_capture_and_check_gold_c_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t backtrace_capture_and_check_gold_c(void) {
   uint8_t buf[512];
   uint8_t names[1024];
   int32_t n;
@@ -291,12 +290,8 @@ int32_t backtrace_capture_and_check_gold_c_impl(void) {
   }
   return 12;
 }
-int32_t backtrace_capture_and_check_gold_c(void) {
-  {
-    return backtrace_capture_and_check_gold_c_impl();
-  }
-  return 0;
-}
+
+
 
 
 /** platform glue 金样锚点回调：烟测模式下在栈内 capture。 */

@@ -4473,7 +4473,8 @@ static struct parser_asm_lexer parser_asm_align_lex_to_keyword_prefix_c(struct p
  * 从 trait/impl 等顶层块关键字位置扫描至匹配 `}` 之后。
  * 使用 lexer 跳过空白/注释，再以 token 级大括号配对，避免 `{`/`}` 落在注释里时错位。
  */
-void parser_asm_skip_trait_impl_block_raw_c_impl(struct parser_asm_lexer *out, struct parser_asm_lexer start,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void parser_asm_skip_trait_impl_block_raw_c(struct parser_asm_lexer *out, struct parser_asm_lexer start,
                                                    struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer lex;
   struct parser_asm_lexer_result r;
@@ -4496,12 +4497,8 @@ void parser_asm_skip_trait_impl_block_raw_c_impl(struct parser_asm_lexer *out, s
     parser_asm_lex_from_result_val_into(&lex, r);
   }
 }
-void parser_asm_skip_trait_impl_block_raw_c(struct parser_asm_lexer *out, struct parser_asm_lexer start,
-                                                   struct parser_asm_slice_u8 *source) {
-  {
-    parser_asm_skip_trait_impl_block_raw_c_impl(out, start, source);
-  }
-}
+
+
 
 
 /**
@@ -7504,7 +7501,8 @@ int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_import
 /**
  * B-01/B-19：跳过一条顶层 `let ... ;`（与 const 跳过对称；cfg 不匹配时须跳过 let 而非仅 const）。
  */
-void parser_asm_skip_one_top_level_let_into_slice_c_impl(struct parser_asm_lexer *out,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void parser_asm_skip_one_top_level_let_into_slice_c(struct parser_asm_lexer *out,
                                                              struct parser_asm_lexer lex,
                                                              struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
@@ -7530,20 +7528,16 @@ void parser_asm_skip_one_top_level_let_into_slice_c_impl(struct parser_asm_lexer
     lex = r.next_lex;
   *out = lex;
 }
-void parser_asm_skip_one_top_level_let_into_slice_c(struct parser_asm_lexer *out,
-                                                             struct parser_asm_lexer lex,
-                                                             struct parser_asm_slice_u8 *source) {
-  {
-    parser_asm_skip_one_top_level_let_into_slice_c_impl(out, lex, source);
-  }
-}
+
+
 
 
 /**
  * B-01/B-19：跳过一条顶层 `const ... ;`（含 const x = import("path");），不建 AST。
  * lex 位于 const 之前；*out 写出跳过后的 lex。
  */
-void parser_asm_skip_one_top_level_const_into_slice_c_impl(struct parser_asm_lexer *out,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void parser_asm_skip_one_top_level_const_into_slice_c(struct parser_asm_lexer *out,
                                                                struct parser_asm_lexer lex,
                                                                struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
@@ -7569,13 +7563,8 @@ void parser_asm_skip_one_top_level_const_into_slice_c_impl(struct parser_asm_lex
     lex = r.next_lex;
   *out = lex;
 }
-void parser_asm_skip_one_top_level_const_into_slice_c(struct parser_asm_lexer *out,
-                                                               struct parser_asm_lexer lex,
-                                                               struct parser_asm_slice_u8 *source) {
-  {
-    parser_asm_skip_one_top_level_const_into_slice_c_impl(out, lex, source);
-  }
-}
+
+
 
 
 /** 前向声明：cfg 跳过路径在定义之前调用。 */
@@ -7588,7 +7577,8 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
  * B-02/B-19：import/collect 区段 `#[cfg]` 不匹配时跳过紧随其后的顶层 const/struct/function。
  * lex 位于待跳过项之前；*pending 置 0 后 *lex 写出跳过后的位置。
  */
-void parser_asm_cfg_skip_pending_top_level_into_slice_c_impl(struct parser_asm_lexer *lex,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void parser_asm_cfg_skip_pending_top_level_into_slice_c(struct parser_asm_lexer *lex,
                                                                 struct parser_asm_slice_u8 *source,
                                                                 int32_t *pending) {
   if (!lex || !source || !pending || !*pending)
@@ -7624,20 +7614,16 @@ void parser_asm_cfg_skip_pending_top_level_into_slice_c_impl(struct parser_asm_l
   }
   *pending = 0;
 }
-void parser_asm_cfg_skip_pending_top_level_into_slice_c(struct parser_asm_lexer *lex,
-                                                                struct parser_asm_slice_u8 *source,
-                                                                int32_t *pending) {
-  {
-    parser_asm_cfg_skip_pending_top_level_into_slice_c_impl(lex, source, pending);
-  }
-}
+
+
 
 
 /**
  * 若 lex 位于 const 之后，尝试跳过整条 const [=|{]= import("path"); 语句。
  * 成功返回 1 并更新 *lex；否则返回 0。
  */
-int32_t parser_asm_try_skip_const_import_stmt_impl(struct parser_asm_lexer *lex,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *lex,
                                                      struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer_result r2;
@@ -7667,13 +7653,8 @@ int32_t parser_asm_try_skip_const_import_stmt_impl(struct parser_asm_lexer *lex,
   (void)i;
   return 0;
 }
-int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *lex,
-                                                     struct parser_asm_slice_u8 *source) {
-  {
-    return parser_asm_try_skip_const_import_stmt_impl(lex, source);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -7726,7 +7707,8 @@ struct parser_asm_lexer parser_asm_skip_imports_buf_c(struct parser_asm_lexer le
 }
 
 /** 将 source[token_start..+tok_len) 复制到 64 字节缓冲（不足 zero-pad）。 */
-void parser_asm_copy_token_bytes_to_buf64_impl(struct parser_asm_slice_u8 *source, size_t token_start,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void parser_asm_copy_token_bytes_to_buf64(struct parser_asm_slice_u8 *source, size_t token_start,
                                                  int32_t tok_len, uint8_t *buf) {
   int32_t bi;
   if (!buf)
@@ -7738,18 +7720,15 @@ void parser_asm_copy_token_bytes_to_buf64_impl(struct parser_asm_slice_u8 *sourc
       buf[bi] = 0;
   }
 }
-void parser_asm_copy_token_bytes_to_buf64(struct parser_asm_slice_u8 *source, size_t token_start,
-                                                 int32_t tok_len, uint8_t *buf) {
-  {
-    parser_asm_copy_token_bytes_to_buf64_impl(source, token_start, tok_len, buf);
-  }
-}
+
+
 
 
 /**
  * 从 out.lex 当前位解析 import("path"); 成功更新 out.lex 并返回 1。
  */
-int32_t parser_asm_collect_imports_consume_path_impl(struct parser_asm_collect_imports_result *out,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
                                                       struct parser_asm_slice_u8 *source, uint8_t *path_buf,
                                                       int32_t *path_len) {
   struct parser_asm_lexer_result r;
@@ -7806,14 +7785,8 @@ int32_t parser_asm_collect_imports_consume_path_impl(struct parser_asm_collect_i
   parser_asm_lex_from_result_val_into(&out->lex, r);
   return 1;
 }
-int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
-                                                      struct parser_asm_slice_u8 *source, uint8_t *path_buf,
-                                                      int32_t *path_len) {
-  {
-    return parser_asm_collect_imports_consume_path_impl(out, source, path_buf, path_len);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -11312,7 +11285,8 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
 }
 
 /** 将 extern 解析失败快照写入 out（name_len=-1）。 */
-void parser_asm_extern_parse_set_fail_c_impl(struct parser_asm_extern_parse_result *out,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void parser_asm_extern_parse_set_fail_c(struct parser_asm_extern_parse_result *out,
                                                struct parser_asm_lexer lex) {
   if (!out)
     return;
@@ -11323,12 +11297,8 @@ void parser_asm_extern_parse_set_fail_c_impl(struct parser_asm_extern_parse_resu
   out->num_params = 0;
   out->abi_kind = 0;
 }
-void parser_asm_extern_parse_set_fail_c(struct parser_asm_extern_parse_result *out,
-                                               struct parser_asm_lexer lex) {
-  {
-    parser_asm_extern_parse_set_fail_c_impl(out, lex);
-  }
-}
+
+
 
 
 /**
@@ -12039,7 +12009,8 @@ struct parser_asm_lexer_result parser_asm_body_skip_let_const_then_if_buf_c(stru
 }
 
 /** 写入 TrySkipAllowResult 三字段（_pad 清零）。 */
-void parser_asm_write_try_skip_allow_result_impl(struct parser_asm_try_skip_allow_result *out,
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void parser_asm_write_try_skip_allow_result(struct parser_asm_try_skip_allow_result *out,
                                                    struct parser_asm_lexer lex, int32_t skipped) {
   if (!out)
     return;
@@ -12047,12 +12018,8 @@ void parser_asm_write_try_skip_allow_result_impl(struct parser_asm_try_skip_allo
   out->skipped = skipped;
   memset(out->_pad, 0, sizeof(out->_pad));
 }
-void parser_asm_write_try_skip_allow_result(struct parser_asm_try_skip_allow_result *out,
-                                                   struct parser_asm_lexer lex, int32_t skipped) {
-  {
-    parser_asm_write_try_skip_allow_result_impl(out, lex, skipped);
-  }
-}
+
+
 
 
 /**
@@ -15152,15 +15119,13 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_buf
 }
 
 /** LexerResult.next_lex → 当前 Lexer（与 parser.x lex_from_next_into 一致）。 */
-void parser_asm_lex_from_lr_next_c_impl(struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void parser_asm_lex_from_lr_next_c(struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r) {
   if (lex && r)
     *lex = r->next_lex;
 }
-void parser_asm_lex_from_lr_next_c(struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r) {
-  {
-    parser_asm_lex_from_lr_next_c_impl(lex, r);
-  }
-}
+
+
 
 
 /**

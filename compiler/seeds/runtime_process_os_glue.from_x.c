@@ -311,12 +311,10 @@ int32_t process_self_exe_path_cached_len_c(void) {
 
 #if !defined(_WIN32) && !defined(_WIN64)
 /** 空 SIGCHLD handler，用于 spawn 前临时替换 SIG_IGN，使子进程可被 waitpid 回收（SIG_IGN 时系统会自动回收，waitpid 得 ECHILD）。 */
-void process_nop_sigchld_impl(int sig) { (void)sig; }
-void process_nop_sigchld(int sig) {
-  {
-    process_nop_sigchld_impl(sig);
-  }
-}
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void process_nop_sigchld(int sig) { (void)sig; }
+
+
 
 #endif
 
@@ -444,17 +442,14 @@ typedef struct {
 
 #if !defined(_WIN32) && !defined(_WIN64)
 /** POSIX：在子进程 dup2 指定 fd 到 stdio 后 execve。 */
-int process_dup_stdio_posix_impl(int32_t fd, int slot) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int process_dup_stdio_posix(int32_t fd, int slot) {
     if (fd < 0) return 0;
     if (dup2(fd, slot) < 0) return -1;
     return 0;
 }
-int process_dup_stdio_posix(int32_t fd, int slot) {
-  {
-    return process_dup_stdio_posix_impl(fd, slot);
-  }
-  return 0;
-}
+
+
 
 #endif
 

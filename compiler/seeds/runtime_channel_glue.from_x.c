@@ -73,7 +73,8 @@ typedef struct {
 } channel_i32_impl_t;
 
 /** 初始化 channel 同步原语；失败返回非 0。 */
-int32_t channel_sync_init_impl(channel_i32_impl_t *c) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t channel_sync_init(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     InitializeCriticalSection(&c->mutex);
     InitializeConditionVariable(&c->cond_not_empty);
@@ -93,16 +94,13 @@ int32_t channel_sync_init_impl(channel_i32_impl_t *c) {
     return 0;
 #endif
 }
-int32_t channel_sync_init(channel_i32_impl_t *c) {
-  {
-    return channel_sync_init_impl(c);
-  }
-  return 0;
-}
+
+
 
 
 /** 销毁 channel 同步原语。 */
-void channel_sync_destroy_impl(channel_i32_impl_t *c) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_sync_destroy(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     DeleteCriticalSection(&c->mutex);
 #else
@@ -111,135 +109,117 @@ void channel_sync_destroy_impl(channel_i32_impl_t *c) {
     pthread_cond_destroy(&c->cond_not_full);
 #endif
 }
-void channel_sync_destroy(channel_i32_impl_t *c) {
-  {
-    channel_sync_destroy_impl(c);
-  }
-}
+
+
 
 
 /** 加锁 channel。 */
-void channel_lock_impl(channel_i32_impl_t *c) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_lock(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     EnterCriticalSection(&c->mutex);
 #else
     pthread_mutex_lock(&c->mutex);
 #endif
 }
-void channel_lock(channel_i32_impl_t *c) {
-  {
-    channel_lock_impl(c);
-  }
-}
+
+
 
 
 /** 解锁 channel。 */
-void channel_unlock_impl(channel_i32_impl_t *c) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_unlock(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     LeaveCriticalSection(&c->mutex);
 #else
     pthread_mutex_unlock(&c->mutex);
 #endif
 }
-void channel_unlock(channel_i32_impl_t *c) {
-  {
-    channel_unlock_impl(c);
-  }
-}
+
+
 
 
 /** 唤醒一个等待 recv 的线程。 */
-void channel_signal_not_empty_impl(channel_i32_impl_t *c) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_signal_not_empty(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeConditionVariable(&c->cond_not_empty);
 #else
     pthread_cond_signal(&c->cond_not_empty);
 #endif
 }
-void channel_signal_not_empty(channel_i32_impl_t *c) {
-  {
-    channel_signal_not_empty_impl(c);
-  }
-}
+
+
 
 
 /** 唤醒一个等待 send 的线程。 */
-void channel_signal_not_full_impl(channel_i32_impl_t *c) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_signal_not_full(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeConditionVariable(&c->cond_not_full);
 #else
     pthread_cond_signal(&c->cond_not_full);
 #endif
 }
-void channel_signal_not_full(channel_i32_impl_t *c) {
-  {
-    channel_signal_not_full_impl(c);
-  }
-}
+
+
 
 
 /** 广播唤醒所有等待 recv 的线程。 */
-void channel_broadcast_not_empty_impl(channel_i32_impl_t *c) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_broadcast_not_empty(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeAllConditionVariable(&c->cond_not_empty);
 #else
     pthread_cond_broadcast(&c->cond_not_empty);
 #endif
 }
-void channel_broadcast_not_empty(channel_i32_impl_t *c) {
-  {
-    channel_broadcast_not_empty_impl(c);
-  }
-}
+
+
 
 
 /** 广播唤醒所有等待 send 的线程。 */
-void channel_broadcast_not_full_impl(channel_i32_impl_t *c) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_broadcast_not_full(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeAllConditionVariable(&c->cond_not_full);
 #else
     pthread_cond_broadcast(&c->cond_not_full);
 #endif
 }
-void channel_broadcast_not_full(channel_i32_impl_t *c) {
-  {
-    channel_broadcast_not_full_impl(c);
-  }
-}
+
+
 
 
 /** 阻塞等待直到 buffer 非空或 channel 关闭。 */
-void channel_wait_not_empty_impl(channel_i32_impl_t *c) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_wait_not_empty(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_empty, &c->mutex, INFINITE);
 #else
     pthread_cond_wait(&c->cond_not_empty, &c->mutex);
 #endif
 }
-void channel_wait_not_empty(channel_i32_impl_t *c) {
-  {
-    channel_wait_not_empty_impl(c);
-  }
-}
+
+
 
 
 /** 阻塞等待直到 buffer 有空间或 channel 关闭。 */
-void channel_wait_not_full_impl(channel_i32_impl_t *c) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_wait_not_full(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_full, &c->mutex, INFINITE);
 #else
     pthread_cond_wait(&c->cond_not_full, &c->mutex);
 #endif
 }
-void channel_wait_not_full(channel_i32_impl_t *c) {
-  {
-    channel_wait_not_full_impl(c);
-  }
-}
+
+
 
 
 /** 限时等待 buffer 非空（select 轮询用）。 */
-void channel_timedwait_not_empty_impl(channel_i32_impl_t *c, int32_t ms) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_timedwait_not_empty(channel_i32_impl_t *c, int32_t ms) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_empty, &c->mutex, (DWORD)ms);
 #else
@@ -253,15 +233,13 @@ void channel_timedwait_not_empty_impl(channel_i32_impl_t *c, int32_t ms) {
     pthread_cond_timedwait(&c->cond_not_empty, &c->mutex, &ts);
 #endif
 }
-void channel_timedwait_not_empty(channel_i32_impl_t *c, int32_t ms) {
-  {
-    channel_timedwait_not_empty_impl(c, ms);
-  }
-}
+
+
 
 
 /** 限时等待 buffer 有空间（select 轮询用）。 */
-void channel_timedwait_not_full_impl(channel_i32_impl_t *c, int32_t ms) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_timedwait_not_full(channel_i32_impl_t *c, int32_t ms) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_full, &c->mutex, (DWORD)ms);
 #else
@@ -275,15 +253,13 @@ void channel_timedwait_not_full_impl(channel_i32_impl_t *c, int32_t ms) {
     pthread_cond_timedwait(&c->cond_not_full, &c->mutex, &ts);
 #endif
 }
-void channel_timedwait_not_full(channel_i32_impl_t *c, int32_t ms) {
-  {
-    channel_timedwait_not_full_impl(c, ms);
-  }
-}
+
+
 
 
 /** 无界 channel 缓冲满时翻倍扩容并整理为连续布局。 */
-int32_t channel_unbounded_grow_impl(channel_i32_impl_t *c) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t channel_unbounded_grow(channel_i32_impl_t *c) {
     int32_t new_cap = c->cap * 2;
     int32_t *n;
     int32_t i, j;
@@ -297,12 +273,8 @@ int32_t channel_unbounded_grow_impl(channel_i32_impl_t *c) {
     c->head = 0;
     return 0;
 }
-int32_t channel_unbounded_grow(channel_i32_impl_t *c) {
-  {
-    return channel_unbounded_grow_impl(c);
-  }
-  return 0;
-}
+
+
 
 
 /** 有界 channel：容量 cap，send 满时阻塞。返回句柄或 NULL。 */
@@ -465,7 +437,8 @@ static void *channel_select_chs_get(int64_t *slots, int32_t idx) {
 }
 
 /** recv case 仍有可能：未关闭或缓冲仍有数据。 */
-int32_t channel_select_recv_case_live_impl(void *ch) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t channel_select_recv_case_live(void *ch) {
     channel_i32_impl_t *c;
     int32_t live;
     if (!ch) return 0;
@@ -475,16 +448,13 @@ int32_t channel_select_recv_case_live_impl(void *ch) {
     channel_unlock(c);
     return live;
 }
-int32_t channel_select_recv_case_live(void *ch) {
-  {
-    return channel_select_recv_case_live_impl(ch);
-  }
-  return 0;
-}
+
+
 
 
 /** send case 仍有可能：channel 未关闭。 */
-int32_t channel_select_send_case_live_impl(void *ch) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+int32_t channel_select_send_case_live(void *ch) {
     channel_i32_impl_t *c;
     int32_t live;
     if (!ch) return 0;
@@ -494,16 +464,13 @@ int32_t channel_select_send_case_live_impl(void *ch) {
     channel_unlock(c);
     return live;
 }
-int32_t channel_select_send_case_live(void *ch) {
-  {
-    return channel_select_send_case_live_impl(ch);
-  }
-  return 0;
-}
+
+
 
 
 /** 单路 recv 阻塞等待：轮询 try 之间的 timedwait（5ms）。 */
-void channel_select_wait_recv_one_impl(void *ch) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_select_wait_recv_one(void *ch) {
     channel_i32_impl_t *c;
     if (!ch) return;
     c = (channel_i32_impl_t *)ch;
@@ -515,15 +482,13 @@ void channel_select_wait_recv_one_impl(void *ch) {
     channel_timedwait_not_empty(c, SELECT_TIMEDWAIT_MS);
     channel_unlock(c);
 }
-void channel_select_wait_recv_one(void *ch) {
-  {
-    channel_select_wait_recv_one_impl(ch);
-  }
-}
+
+
 
 
 /** 单路 send 阻塞等待：轮询 try 之间的 timedwait（5ms）。 */
-void channel_select_wait_send_one_impl(void *ch) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void channel_select_wait_send_one(void *ch) {
     channel_i32_impl_t *c;
     if (!ch) return;
     c = (channel_i32_impl_t *)ch;
@@ -535,11 +500,8 @@ void channel_select_wait_send_one_impl(void *ch) {
     channel_timedwait_not_full(c, SELECT_TIMEDWAIT_MS);
     channel_unlock(c);
 }
-void channel_select_wait_send_one(void *ch) {
-  {
-    channel_select_wait_send_one_impl(ch);
-  }
-}
+
+
 
 
 /** 非阻塞双路 recv；ch0 优先于 ch1。 */

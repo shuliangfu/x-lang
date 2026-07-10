@@ -36,8 +36,9 @@
 #if defined(_WIN32) || defined(_WIN64)
 static INIT_ONCE g_random_init_once = INIT_ONCE_STATIC_INIT;
 static BCRYPT_ALG_HANDLE g_random_alg = NULL;
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-BOOL CALLBACK random_init_callback_impl(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
+BOOL CALLBACK random_init_callback(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
     (void)InitOnce;
     (void)Parameter;
     BCRYPT_ALG_HANDLE alg = NULL;
@@ -46,26 +47,19 @@ BOOL CALLBACK random_init_callback_impl(PINIT_ONCE InitOnce, PVOID Parameter, PV
     *(BCRYPT_ALG_HANDLE *)Context = alg;
     return TRUE;
 }
-BOOL CALLBACK random_init_callback(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
-  {
-    return random_init_callback_impl(InitOnce, Parameter, Context);
-  }
-  return 0;
-}
+
+
 
 
 /** Windows：懒初始化 BCrypt RNG 算法句柄；失败返回 NULL。 */
-BCRYPT_ALG_HANDLE random_get_alg_impl(void) {
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+BCRYPT_ALG_HANDLE random_get_alg(void) {
     if (!InitOnceExecuteOnce(&g_random_init_once, random_init_callback, NULL, (PVOID *)&g_random_alg))
         return NULL;
     return g_random_alg;
 }
-BCRYPT_ALG_HANDLE random_get_alg(void) {
-  {
-    return random_get_alg_impl();
-  }
-  return 0;
-}
+
+
 
 #endif
 
