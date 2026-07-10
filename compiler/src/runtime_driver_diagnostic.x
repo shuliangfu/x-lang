@@ -9,9 +9,10 @@
 // G-02f-177：call_not_generic / wrong_num_type_args / requires_type_args 拼装真迁。
 // G-02f-178：struct_padding_before/trailing / field_bad_size 拼装真迁。
 // G-02f-179：asm unsupported / elf patch / macho reloc 笔记拼装真迁。
-// G-02f-96：driver_diag_report_x_pipeline_code 门闩（va_list 本体 C _impl）。
+// G-02f-180：P0-4 审计 — 见 analysis/G-02f-自举剩余优先级.md §4.2；va_list/pipeline_code 🔒。
+// G-02f-96：driver_diag_report_x_pipeline_code 门闩（va_list 本体 C _impl，f-180 🔒）。
 // 产品：./shux-c -E → seeds/runtime_driver_diagnostic.from_x.c（+ C 尾 + 字符串抛光）。
-// C 尾：snprintf 诊断、va_list pipeline 码、scratch 缓冲、debug getenv 详细路径。
+// C 尾：snprintf 调试诊断、va_list pipeline 码、scratch 缓冲、getenv 冷路径。
 // 注意：字符串字面量经 -E 成 slice；seed 抛光为 C 字符串传 lsp_diag_report_typeck。
 // G-02f-73：+ remaining snprintf/asm/parser diag wrappers as gates.
 // G-02f-31：+ fail/break-continue/enum/subscript/try 固定消息。
