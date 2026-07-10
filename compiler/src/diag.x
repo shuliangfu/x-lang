@@ -36,7 +36,6 @@ extern "C" function diag_line_digits_impl(line: i32): i32;
 extern "C" function diag_print_header_impl(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void;
 extern "C" function diag_extract_line_impl(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32;
 extern "C" function diag_json_write_str_impl(out: *u8, s: *u8): void;
-extern "C" function diag_levenshtein_ci_impl(a: *u8, b: *u8): i32;
 
 #[no_mangle]
 function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
@@ -191,14 +190,67 @@ function diag_json_write_str(out: *u8, s: *u8): void {
 
 
 
-/* ---- G-02f-98：levenshtein 门闩 ---- */
+/* ---- G-02f-98 / G-02f-152：levenshtein 真迁 ---- */
 
+// G-02f-152：有界 Levenshtein（大小写不敏感）；码长 <64
 #[no_mangle]
 function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
-  unsafe {
-    return diag_levenshtein_ci_impl(a, b);
+  if (a == 0) { return 999; }
+  if (b == 0) { return 999; }
+  let la: i32 = 0;
+  while (la < 64) {
+    if (a[la] == 0) { break; }
+    la = la + 1;
   }
-  return 999;
+  let lb: i32 = 0;
+  while (lb < 64) {
+    if (b[lb] == 0) { break; }
+    lb = lb + 1;
+  }
+  if (la >= 64) { return 999; }
+  if (lb >= 64) { return 999; }
+  if (la == 0) { return lb; }
+  if (lb == 0) { return la; }
+  let prev: i32[64] = [];
+  let cur: i32[64] = [];
+  let j: i32 = 0;
+  while (j <= lb) {
+    prev[j] = j;
+    j = j + 1;
+  }
+  let i: i32 = 1;
+  while (i <= la) {
+    cur[0] = i;
+    j = 1;
+    while (j <= lb) {
+      let ca: u8 = a[i - 1];
+      let cb: u8 = b[j - 1];
+      // to upper: a-z 97-122
+      if (ca >= 97) {
+        if (ca <= 122) { ca = ca - 32; }
+      }
+      if (cb >= 97) {
+        if (cb <= 122) { cb = cb - 32; }
+      }
+      let cost: i32 = 1;
+      if (ca == cb) { cost = 0; }
+      let del: i32 = prev[j] + 1;
+      let ins: i32 = cur[j - 1] + 1;
+      let sub: i32 = prev[j - 1] + cost;
+      let m: i32 = del;
+      if (ins < m) { m = ins; }
+      if (sub < m) { m = sub; }
+      cur[j] = m;
+      j = j + 1;
+    }
+    j = 0;
+    while (j <= lb) {
+      prev[j] = cur[j];
+      j = j + 1;
+    }
+    i = i + 1;
+  }
+  return prev[lb];
 }
 
 // G-02f-109：+ diag_report_json 薄门闩。

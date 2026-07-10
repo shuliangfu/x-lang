@@ -16,8 +16,8 @@
 #include <stdint.h>
 #include <string.h>
 
-/** 返回当前 host 的 target_os 字面量。 */
-static const char *cfg_host_os_lit(void) {
+/** 返回当前 host 的 target_os 字面量（供 .x parse 真迁调用）。 */
+const char *cfg_host_os_lit(void) {
 #if defined(__APPLE__)
   return "macos";
 #elif defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MSYS__)
@@ -31,8 +31,8 @@ static const char *cfg_host_os_lit(void) {
 #endif
 }
 
-/** 返回当前 host 的 target_arch 字面量。 */
-static const char *cfg_host_arch_lit(void) {
+/** 返回当前 host 的 target_arch 字面量（供 .x parse 真迁调用）。 */
+const char *cfg_host_arch_lit(void) {
 #if defined(__aarch64__) || defined(_M_ARM64)
   return "aarch64";
 #elif defined(__x86_64__) || defined(_M_X64) || defined(__amd64__)
@@ -89,7 +89,8 @@ int cfg_triple_contains_ci(const char *triple, int len, const char *needle) {
 
 
 /** 从 `-target` triple 解析 os/arch；失败回退 host。 */
-void cfg_parse_triple_literals_impl(const char *triple, int len, char *os_out, size_t os_sz, char *arch_out,
+/* G-02f-152：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void cfg_parse_triple_literals(const char *triple, int len, char *os_out, size_t os_sz, char *arch_out,
                                       size_t arch_sz) {
   const char *host_os;
   const char *host_arch;
@@ -119,12 +120,6 @@ void cfg_parse_triple_literals_impl(const char *triple, int len, char *os_out, s
   else if (cfg_triple_contains_ci(triple, len, "riscv64"))
     strncpy(arch_out, "riscv64", arch_sz - 1);
   arch_out[arch_sz - 1] = '\0';
-}
-void cfg_parse_triple_literals(const char *triple, int len, char *os_out, size_t os_sz, char *arch_out,
-                                      size_t arch_sz) {
-  {
-    cfg_parse_triple_literals_impl(triple, len, os_out, os_sz, arch_out, arch_sz);
-  }
 }
 
 

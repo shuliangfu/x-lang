@@ -1079,18 +1079,13 @@ __attribute__((weak)) int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct
   return pipeline_type_find_or_alloc_slice(arena, u8_ref, (uint8_t *)lbl, 11);
 }
 
-int pipeline_typeck_linear_name_already_moved_strict_minimal_impl(const uint8_t *name, int32_t name_len) {
+/* G-02f-152：逻辑源仍需全局表（seed 保留）；折叠 _impl 薄包装 */
+int pipeline_typeck_linear_name_already_moved_strict_minimal(const uint8_t *name, int32_t name_len) {
   int i;
   for (i = 0; i < g_typeck_linear_moved_n; i++) {
     if (g_typeck_linear_moved_lens[i] == name_len && name_len > 0 &&
         memcmp(g_typeck_linear_moved_names[i], name, (size_t)name_len) == 0)
       return 1;
-  }
-  return 0;
-}
-int pipeline_typeck_linear_name_already_moved_strict_minimal(const uint8_t *name, int32_t name_len) {
-  {
-    return pipeline_typeck_linear_name_already_moved_strict_minimal_impl(name, name_len);
   }
   return 0;
 }

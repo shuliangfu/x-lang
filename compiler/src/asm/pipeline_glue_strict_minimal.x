@@ -110,7 +110,8 @@ function pipeline_expr_is_func_param_at_strict_minimal(arena: *u8, mod: *u8, fun
 
 
 
-extern "C" function pipeline_typeck_linear_name_already_moved_strict_minimal_impl(name: *u8, nlen: i32): i32;
+// G-02f-152：linear 全局表仍在 seed（无 _impl 薄层）
+extern "C" function pipeline_typeck_linear_name_already_moved_strict_minimal(name: *u8, nlen: i32): i32;
 extern "C" function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
 extern "C" function pipeline_type_region_label_len_at(arena: *u8, tr: i32): i32;
 extern "C" function pipeline_arena_block_ptr(arena: *u8, br: i32): *u8;
@@ -226,11 +227,7 @@ function pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(
   return 0;
 }
 
-#[no_mangle]
-function pipeline_typeck_linear_name_already_moved_strict_minimal(name: *u8, nlen: i32): i32 {
-  unsafe { return pipeline_typeck_linear_name_already_moved_strict_minimal_impl(name, nlen); }
-  return 0;
-}
+// public 实现于 seed C（全局 moved 表）；.x 仅锚点/文档（无薄 _impl）
 
 // G-02f-139：两 SLICE region label 均有且不等 → conflict
 #[no_mangle]

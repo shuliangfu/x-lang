@@ -598,7 +598,8 @@ void diag_print_code_explain(FILE *out, const char *code) {
  * 返回将 a 变换为 b 的最小单字符编辑（插入/删除/替换）次数。
  * G-02f-98：export gate.
  */
-int diag_levenshtein_ci_impl(const char *a, const char *b) {
+/* G-02f-152：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int diag_levenshtein_ci(const char *a, const char *b) {
     size_t la = a ? strlen(a) : 0;
     size_t lb = b ? strlen(b) : 0;
     size_t i, j;
@@ -640,12 +641,6 @@ int diag_levenshtein_ci_impl(const char *a, const char *b) {
         memcpy(prev, cur, (lb + 1) * sizeof(int));
     }
     return prev[lb];
-}
-int diag_levenshtein_ci(const char *a, const char *b) {
-  {
-    return diag_levenshtein_ci_impl(a, b);
-  }
-  return 999;
 }
 
 /**
