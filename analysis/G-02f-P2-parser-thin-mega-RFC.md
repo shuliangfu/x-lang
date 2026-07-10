@@ -259,3 +259,4 @@ nm -g parser_asm_thin_glue.o | head
 | 2026-07-11 | **f-322 P13 try_skip_allow**：`pthin_try_skip_allow.*` + `parser_asm_try_skip_allow_slice.inc`（allow(padding) 跳过 ≈1.6k）；`SHUX_PTHIN_TRY_SKIP_ALLOW_FROM_X`；prefer hybrid **P1–P7+P9–P13+rest**；rest T **≈59** |
 | 2026-07-11 | **f-323 P14 skip_if**：`pthin_skip_if.*` + `parser_asm_skip_if_slice.inc`（if skip + trait/impl block ≈955）；`SHUX_PTHIN_SKIP_IF_FROM_X`；prefer hybrid **P1–P7+P9–P14+rest**；rest T **≈53** |
 | 2026-07-11 | **f-324 P15 library wrap**：`pthin_library.*` + `parser_asm_library_wrap_slice.inc`（into/buf/scan + late lex_from ≈1.8k；P6 core `library_slice.inc` 不动）；`SHUX_PTHIN_LIBRARY_FROM_X`；prefer hybrid **P1–P7+P9–P15+rest**；rest T **≈45** |
+| 2026-07-11 | **f-325 P16 diag_pipeline**：`pthin_diag_pipeline.*` + `parser_asm_diag_pipeline_slice.inc`（parse_one/diag_lex/module import ≈914）；`SHUX_PTHIN_DIAG_PIPELINE_FROM_X`；prefer hybrid **P1–P7+P9–P16+rest**；rest T **≈35** |
