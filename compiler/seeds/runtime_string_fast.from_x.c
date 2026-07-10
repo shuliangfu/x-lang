@@ -57,7 +57,8 @@ int32_t shux_string_memrchr_c(uint8_t *ptr, uint8_t c, int32_t n) {
     return -1;
 }
 
-int32_t shux_string_portable_memmem_c_impl(uint8_t *hay, int32_t hay_len, uint8_t *needle, int32_t needle_len) {
+/* G-02f-151：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t shux_string_portable_memmem_c(uint8_t *hay, int32_t hay_len, uint8_t *needle, int32_t needle_len) {
     int32_t i;
     int32_t j;
     if (needle_len <= 0)
@@ -75,12 +76,6 @@ int32_t shux_string_portable_memmem_c_impl(uint8_t *hay, int32_t hay_len, uint8_
             return i;
     }
     return -1;
-}
-int32_t shux_string_portable_memmem_c(uint8_t *hay, int32_t hay_len, uint8_t *needle, int32_t needle_len) {
-  {
-    return shux_string_portable_memmem_c_impl(hay, hay_len, needle, needle_len);
-  }
-  return 0 - 1;
 }
 
 int32_t shux_string_memmem_c(uint8_t *hay, int32_t hay_len, uint8_t *needle, int32_t needle_len) {

@@ -57,7 +57,8 @@ static int g_cfg_has_target_override;
 static int g_cfg_freestanding;
 
 /** triple 子串忽略大小写匹配。 */
-int cfg_triple_contains_ci_impl(const char *triple, int len, const char *needle) {
+/* G-02f-151：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int cfg_triple_contains_ci(const char *triple, int len, const char *needle) {
   size_t nlen;
   int i;
   if (!triple || len <= 0 || !needle)
@@ -82,12 +83,6 @@ int cfg_triple_contains_ci_impl(const char *triple, int len, const char *needle)
     }
     if (ok)
       return 1;
-  }
-  return 0;
-}
-int cfg_triple_contains_ci(const char *triple, int len, const char *needle) {
-  {
-    return cfg_triple_contains_ci_impl(triple, len, needle);
   }
   return 0;
 }
@@ -148,7 +143,8 @@ static const char *cfg_effective_arch_lit(void) {
 }
 
 /** 忽略大小写比较 [a, a+alen) 与 C 字符串 b。 */
-int cfg_lit_eq_ci_impl(const char *a, size_t alen, const char *b) {
+/* G-02f-151：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int cfg_lit_eq_ci(const char *a, size_t alen, const char *b) {
   size_t blen;
   size_t i;
   if (!a || !b)
@@ -167,12 +163,6 @@ int cfg_lit_eq_ci_impl(const char *a, size_t alen, const char *b) {
       return 0;
   }
   return 1;
-}
-int cfg_lit_eq_ci(const char *a, size_t alen, const char *b) {
-  {
-    return cfg_lit_eq_ci_impl(a, alen, b);
-  }
-  return 0;
 }
 
 

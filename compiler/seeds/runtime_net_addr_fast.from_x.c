@@ -15,17 +15,12 @@ typedef int shux_socklen_t;
 typedef socklen_t shux_socklen_t;
 #endif
 
-int64_t net_sockaddr_in_pack_addr_port_c_impl(uint8_t *sin_ptr) {
+/* G-02f-151：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int64_t net_sockaddr_in_pack_addr_port_c(uint8_t *sin_ptr) {
     struct sockaddr_in *sa = (struct sockaddr_in *)(void *)sin_ptr;
     uint32_t addr = ntohl(sa->sin_addr.s_addr);
     uint32_t port = (uint32_t)ntohs(sa->sin_port);
     return ((int64_t)addr << 32) | (int64_t)(port & 0xffffu);
-}
-int64_t net_sockaddr_in_pack_addr_port_c(uint8_t *sin_ptr) {
-  {
-    return net_sockaddr_in_pack_addr_port_c_impl(sin_ptr);
-  }
-  return 0;
 }
 
 
