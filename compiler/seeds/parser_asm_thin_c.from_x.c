@@ -6604,7 +6604,52 @@ static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
 }
 
 
+/* G-02f-280 P3 type_ref：默认 #include；hybrid 时函数体在 pthin_type_ref.from_x.c */
+#ifndef SHUX_PTHIN_TYPE_REF_FROM_X
 #include "parser_asm_type_ref_slice.inc"
+#else
+/* 布局 / TypeKind 须与 type_ref_slice.inc 一致（as_suffix 等后续 slice 依赖）。 */
+struct ast_Type {
+  int32_t kind;
+  uint8_t name[64];
+  int32_t name_len;
+  int32_t elem_type_ref;
+  int32_t array_size;
+  uint8_t region_label[64];
+  int32_t region_label_len;
+};
+enum {
+  PARSER_ASM_TYPE_I32 = 0,
+  PARSER_ASM_TYPE_BOOL = 1,
+  PARSER_ASM_TYPE_U8 = 2,
+  PARSER_ASM_TYPE_U32 = 3,
+  PARSER_ASM_TYPE_U64 = 4,
+  PARSER_ASM_TYPE_I64 = 5,
+  PARSER_ASM_TYPE_USIZE = 6,
+  PARSER_ASM_TYPE_ISIZE = 7,
+  PARSER_ASM_TYPE_NAMED = 8,
+  PARSER_ASM_TYPE_PTR = 9,
+  PARSER_ASM_TYPE_ARRAY = 10,
+  PARSER_ASM_TYPE_SLICE = 11,
+  PARSER_ASM_TYPE_LINEAR = 12,
+  PARSER_ASM_TYPE_VECTOR = 13,
+  PARSER_ASM_TYPE_F32 = 14,
+  PARSER_ASM_TYPE_F64 = 15,
+  PARSER_ASM_TYPE_VOID = 16
+};
+int32_t parser_asm_consume_qualified_type_ident_name_c(struct parser_asm_slice_u8 *source,
+                                                      struct parser_asm_lexer_result *r, uint8_t *out,
+                                                      int32_t *out_len);
+int32_t parser_asm_alloc_vector_type_ref_c(void *arena, int32_t elem_ord, int32_t lanes);
+int32_t parser_asm_vector_type_ref_from_ident_spelling_c(void *arena, struct parser_asm_slice_u8 *source,
+                                                        struct parser_asm_lexer_result r);
+int32_t parser_asm_alloc_pointee_type_ref_from_tok_c(void *arena, struct parser_asm_slice_u8 *source,
+                                                    struct parser_asm_lexer_result *r);
+int32_t parser_asm_parse_type_ref_for_arena_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                                        struct parser_asm_slice_u8 *source,
+                                                        struct parser_asm_lexer *out_lex);
+int labi_pthin_type_ref_slice_marker(void);
+#endif
 #include "parser_asm_struct_layout_slice.inc"
 #include "parser_asm_library_slice.inc"
 /* G-02f-279 P2 let/alias：默认仍 #include；hybrid 时函数体在 pthin_let_alias.from_x.c */
