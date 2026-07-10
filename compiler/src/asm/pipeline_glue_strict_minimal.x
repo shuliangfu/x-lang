@@ -1184,3 +1184,243 @@ function pipeline_typeck_check_expr_int_lit_c(arena: *u8, expr_ref: i32): i32 {
   }
   return 0;
 }
+
+/* ---- G-02f-217：reject linear / soa storage / const diag / scope borrow / stack escape ---- */
+
+extern "C" function pipeline_block_resolve_var_type_ref(arena: *u8, br: i32, name: *u8, nlen: i32): i32;
+extern "C" function typeck_x_type_size(module: *u8, arena: *u8, tr: i32, depth: i32): i32;
+extern "C" function typeck_x_type_align(module: *u8, arena: *u8, tr: i32, depth: i32): i32;
+extern "C" function typeck_entry_module_find_struct_layout_index(mod: *u8, nm: *u8, nlen: i32): i32;
+extern "C" function pipeline_module_struct_layout_soa_at(mod: *u8, li: i32): i32;
+extern "C" function pipeline_module_struct_layout_num_fields(mod: *u8, li: i32): i32;
+extern "C" function pipeline_module_struct_layout_field_type_ref(mod: *u8, li: i32, j: i32): i32;
+extern "C" function driver_diagnostic_typeck_linear_addr_of(line: i32, col: i32): void;
+extern "C" function pipeline_module_func_param_type_ref_at(mod: *u8, fi: i32, pi: i32): i32;
+extern "C" function lsp_diag_report_typeck(line: i32, col: i32, fmt: *u8): void;
+
+// G-02f-217：&linear 拒绝（TYPE_LINEAR=12；EXPR_VAR=3）
+#[no_mangle]
+function pipeline_typeck_reject_addr_of_linear_c(arena: *u8, op_ref: i32, addr_expr_ref: i32, module: *u8, ctx: *u8): i32 {
+  if (arena == 0) { return 0; }
+  if (module == 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (op_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, op_ref) != 3) { return 0; }
+    let vnlen: i32 = pipeline_expr_var_name_len(arena, op_ref);
+    if (vnlen <= 0) { return 0; }
+    if (vnlen > 63) { return 0; }
+    let vbuf: u8[64] = [];
+    pipeline_expr_var_name_into(arena, op_ref, &vbuf[0]);
+    let block_ref: i32 = pipeline_dep_ctx_current_block_ref_at(ctx);
+    if (block_ref > 0) {
+      let vd_tr: i32 = pipeline_block_resolve_var_type_ref(arena, block_ref, &vbuf[0], vnlen);
+      if (vd_tr > 0) {
+        if (pipeline_type_kind_ord_at(arena, vd_tr) == 12) {
+          let line: i32 = 0;
+          let col: i32 = 0;
+          if (addr_expr_ref > 0) {
+            line = pipeline_expr_line_at(arena, addr_expr_ref);
+            col = pipeline_expr_col_at(arena, addr_expr_ref);
+          }
+          driver_diagnostic_typeck_linear_addr_of(line, col);
+          return 0 - 1;
+        }
+      }
+    }
+    let func_ix: i32 = pipeline_dep_ctx_current_func_index(ctx);
+    if (func_ix >= 0) {
+      if (func_ix < pipeline_module_num_funcs(module)) {
+        let pr: i32 = pipeline_module_func_param_type_ref_for_name(module, func_ix, &vbuf[0], vnlen);
+        if (pr > 0) {
+          if (pipeline_type_kind_ord_at(arena, pr) == 12) {
+            let line2: i32 = 0;
+            let col2: i32 = 0;
+            if (addr_expr_ref > 0) {
+              line2 = pipeline_expr_line_at(arena, addr_expr_ref);
+              col2 = pipeline_expr_col_at(arena, addr_expr_ref);
+            }
+            driver_diagnostic_typeck_linear_addr_of(line2, col2);
+            return 0 - 1;
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+// G-02f-217：SoA 数组布局存储字节（TYPE_NAMED=8）
+#[no_mangle]
+function typeck_soa_array_storage_size_glue(module: *u8, arena: *u8, elem_type_ref: i32, array_len: i32, depth: i32): i32 {
+  if (module == 0) { return 0; }
+  if (arena == 0) { return 0; }
+  if (elem_type_ref <= 0) { return 0; }
+  if (array_len <= 0) { return 0; }
+  if (depth > 64) { return 0; }
+  unsafe {
+    if (pipeline_type_kind_ord_at(arena, elem_type_ref) != 8) { return 0; }
+    let name: u8[64] = [];
+    let nlen: i32 = pipeline_type_named_name_into(arena, elem_type_ref, &name[0]);
+    if (nlen <= 0) { return 0; }
+    let li: i32 = typeck_entry_module_find_struct_layout_index(module, &name[0], nlen);
+    if (li < 0) { return 0; }
+    if (pipeline_module_struct_layout_soa_at(module, li) == 0) { return 0; }
+    let nf: i32 = pipeline_module_struct_layout_num_fields(module, li);
+    let col: i32 = 0;
+    let max_al: i32 = 1;
+    let j: i32 = 0;
+    while (j < nf) {
+      let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, li, j);
+      if (ftr > 0) {
+        let al: i32 = typeck_x_type_align(module, arena, ftr, depth + 1);
+        let fsize: i32 = typeck_x_type_size(module, arena, ftr, depth + 1);
+        if (al <= 0) { al = 1; }
+        if (fsize <= 0) { fsize = 4; }
+        let rem: i32 = col % al;
+        if (rem != 0) {
+          col = col + (al - rem);
+        }
+        col = col + (array_len * fsize);
+        if (al > max_al) { max_al = al; }
+      }
+      j = j + 1;
+    }
+    if (max_al > 1) {
+      let rem2: i32 = col % max_al;
+      if (rem2 != 0) {
+        col = col + (max_al - rem2);
+      }
+    }
+    if (col > 0) { return col; }
+  }
+  return 0;
+}
+
+// G-02f-217：const 初值非常量诊断
+#[no_mangle]
+function pipeline_typeck_const_init_not_constant_c(line: i32, col: i32): void {
+  // "const init must be constant expression"
+  let msg: u8[48] = [];
+  msg[0] = 99; msg[1] = 111; msg[2] = 110; msg[3] = 115; msg[4] = 116;
+  msg[5] = 32; msg[6] = 105; msg[7] = 110; msg[8] = 105; msg[9] = 116;
+  msg[10] = 32; msg[11] = 109; msg[12] = 117; msg[13] = 115; msg[14] = 116;
+  msg[15] = 32; msg[16] = 98; msg[17] = 101; msg[18] = 32; msg[19] = 99;
+  msg[20] = 111; msg[21] = 110; msg[22] = 115; msg[23] = 116; msg[24] = 97;
+  msg[25] = 110; msg[26] = 116; msg[27] = 32; msg[28] = 101; msg[29] = 120;
+  msg[30] = 112; msg[31] = 114; msg[32] = 101; msg[33] = 115; msg[34] = 115;
+  msg[35] = 105; msg[36] = 111; msg[37] = 110; msg[38] = 0;
+  unsafe {
+    lsp_diag_report_typeck(line, col, &msg[0]);
+  }
+}
+
+// G-02f-217：scope borrow escape（&local 赋给外层左值）
+#[no_mangle]
+function pipeline_typeck_check_scope_borrow_assign_c(module: *u8, arena: *u8, site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8): i32 {
+  if (module == 0) { return 0; }
+  if (arena == 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (left_ref <= 0) { return 0; }
+  if (right_ref <= 0) { return 0; }
+  unsafe {
+    if (typeck_expr_is_addr_of_block_local_strict_minimal(module, arena, ctx, right_ref) == 0) { return 0; }
+    let lname: u8[64] = [];
+    let llen: i32 = 0;
+    if (typeck_expr_lval_root_var_strict_minimal(arena, left_ref, &lname[0], &llen) == 0) { return 0; }
+    // EXPR_ADDR_OF=51
+    if (pipeline_expr_kind_ord_at(arena, right_ref) != 51) { return 0; }
+    let op_ref: i32 = pipeline_expr_unary_operand_ref_at(arena, right_ref);
+    if (op_ref <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, op_ref) != 3) { return 0; }
+    let rlen: i32 = pipeline_expr_var_name_len(arena, op_ref);
+    if (rlen <= 0) { return 0; }
+    if (rlen > 63) { return 0; }
+    let rname: u8[64] = [];
+    pipeline_expr_var_name_into(arena, op_ref, &rname[0]);
+    let site_block: i32 = pipeline_dep_ctx_current_block_ref_at(ctx);
+    if (site_block <= 0) {
+      let cfi: i32 = pipeline_dep_ctx_current_func_index(ctx);
+      if (cfi >= 0) {
+        site_block = pipeline_module_func_body_ref_at(module, cfi);
+      }
+    }
+    if (site_block <= 0) { return 0; }
+    let lblock: i32 = pipeline_block_find_var_decl_block_ref(arena, site_block, &lname[0], llen);
+    let rblock: i32 = pipeline_block_find_var_decl_block_ref(arena, site_block, &rname[0], rlen);
+    if (lblock <= 0) { return 0; }
+    if (rblock <= 0) { return 0; }
+    if (lblock == rblock) { return 0; }
+    if (typeck_block_is_strict_ancestor_strict_minimal(arena, lblock, rblock) == 0) { return 0; }
+    let line: i32 = 0;
+    let col: i32 = 0;
+    pipeline_typeck_expr_diag_line_col_strict_minimal(arena, site_expr_ref, &line, &col);
+    // "scope borrow escape"
+    let msg: u8[24] = [];
+    msg[0] = 115; msg[1] = 99; msg[2] = 111; msg[3] = 112; msg[4] = 101;
+    msg[5] = 32; msg[6] = 98; msg[7] = 111; msg[8] = 114; msg[9] = 114;
+    msg[10] = 111; msg[11] = 119; msg[12] = 32; msg[13] = 101; msg[14] = 115;
+    msg[15] = 99; msg[16] = 97; msg[17] = 112; msg[18] = 101; msg[19] = 0;
+    lsp_diag_report_typeck(line, col, &msg[0]);
+  }
+  return 0 - 1;
+}
+
+// G-02f-217：struct stack escape（&local_struct 写入 param 指针字段）
+// EXPR_ADDR_OF=51 EXPR_VAR=3 EXPR_FIELD_ACCESS=44 TYPE_PTR=9
+#[no_mangle]
+function pipeline_typeck_check_struct_stack_escape_assign_c(module: *u8, arena: *u8, site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *u8): i32 {
+  if (module == 0) { return 0; }
+  if (arena == 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (left_ref <= 0) { return 0; }
+  if (right_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, right_ref) != 51) { return 0; }
+    let op_ref: i32 = pipeline_expr_unary_operand_ref_at(arena, right_ref);
+    if (pipeline_expr_kind_ord_at(arena, op_ref) != 3) { return 0; }
+    let name_len: i32 = pipeline_expr_var_name_len(arena, op_ref);
+    if (name_len <= 0) { return 0; }
+    if (name_len > 63) { return 0; }
+    let name_buf: u8[64] = [];
+    pipeline_expr_var_name_into(arena, op_ref, &name_buf[0]);
+    let br: i32 = pipeline_dep_ctx_current_block_ref_at(ctx);
+    if (br <= 0) { return 0; }
+    if (pipeline_block_resolve_var_type_ref(arena, br, &name_buf[0], name_len) <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, left_ref) != 44) { return 0; }
+    let base_ref: i32 = pipeline_expr_field_access_base_ref(arena, left_ref);
+    let func_ix: i32 = pipeline_dep_ctx_current_func_index(ctx);
+    if (func_ix < 0) { return 0; }
+    let np: i32 = pipeline_module_func_num_params_at(module, func_ix);
+    let pi: i32 = 0;
+    while (pi < np) {
+      if (pipeline_expr_is_func_param_at_strict_minimal(arena, module, func_ix, base_ref, pi) != 0) {
+        let pty: i32 = pipeline_module_func_param_type_ref_at(module, func_ix, pi);
+        if (pipeline_type_kind_ord_at(arena, pty) == 9) {
+          let line: i32 = 0;
+          let col: i32 = 0;
+          if (site_expr_ref > 0) {
+            line = pipeline_expr_line_at(arena, site_expr_ref);
+            col = pipeline_expr_col_at(arena, site_expr_ref);
+          }
+          // "struct stack escape: cannot store address of local struct in outer lifetime"
+          let t: u8[80] = [];
+          t[0]=115;t[1]=116;t[2]=114;t[3]=117;t[4]=99;t[5]=116;t[6]=32;t[7]=115;
+          t[8]=116;t[9]=97;t[10]=99;t[11]=107;t[12]=32;t[13]=101;t[14]=115;t[15]=99;
+          t[16]=97;t[17]=112;t[18]=101;t[19]=58;t[20]=32;t[21]=99;t[22]=97;t[23]=110;
+          t[24]=110;t[25]=111;t[26]=116;t[27]=32;t[28]=115;t[29]=116;t[30]=111;t[31]=114;
+          t[32]=101;t[33]=32;t[34]=97;t[35]=100;t[36]=100;t[37]=114;t[38]=101;t[39]=115;
+          t[40]=115;t[41]=32;t[42]=111;t[43]=102;t[44]=32;t[45]=108;t[46]=111;t[47]=99;
+          t[48]=97;t[49]=108;t[50]=32;t[51]=115;t[52]=116;t[53]=114;t[54]=117;t[55]=99;
+          t[56]=116;t[57]=32;t[58]=105;t[59]=110;t[60]=32;t[61]=111;t[62]=117;t[63]=116;
+          t[64]=101;t[65]=114;t[66]=32;t[67]=108;t[68]=105;t[69]=102;t[70]=101;t[71]=116;
+          t[72]=105;t[73]=109;t[74]=101;t[75]=0;
+          lsp_diag_report_typeck(line, col, &t[0]);
+          return 0 - 1;
+        }
+      }
+      pi = pi + 1;
+    }
+  }
+  return 0;
+}

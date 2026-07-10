@@ -1,4 +1,4 @@
-/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-216 med pure; G-02f-210 residual; G-02f-11 product TU
+/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-217 reject/soa/borrow; G-02f-216 med pure; G-02f-11 product TU
  * G-02f-135 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
@@ -644,6 +644,7 @@ __attribute__((weak)) int32_t typeck_x_type_align_from_layout_glue(struct ast_Mo
   return al > 0 ? al : 1;
 }
 
+/* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t typeck_soa_array_storage_size_glue(struct ast_Module *module,
                                                                  struct ast_ASTArena *arena, int32_t elem_type_ref,
                                                                  int32_t array_len, int32_t depth) {
@@ -949,6 +950,7 @@ __attribute__((weak)) int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTAr
   }
 }
 
+/* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_reject_addr_of_linear_c(struct ast_ASTArena *arena, int32_t op_ref,
                                                                       int32_t addr_expr_ref, struct ast_Module *module,
                                                                       struct ast_PipelineDepCtx *ctx) {
@@ -1348,6 +1350,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_slice_region_assign_c(struct
   return 0;
 }
 
+/* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_struct_stack_escape_assign_c(struct ast_Module *module,
                                                                                   struct ast_ASTArena *arena,
                                                                                   int32_t site_expr_ref,
@@ -1432,6 +1435,7 @@ __attribute__((weak)) int32_t pipeline_typeck_coerce_init_int_binop_to_decl_c(st
   return 1;
 }
 
+/* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) void pipeline_typeck_const_init_not_constant_c(int32_t line, int32_t col) {
   lsp_diag_report_typeck((int)line, (int)col, "const init must be constant expression");
 }
@@ -1771,6 +1775,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_expr_method_call_c(struct as
   return -1;
 }
 
+/* G-02f-217：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_scope_borrow_assign_c(struct ast_Module *module,
                                                                           struct ast_ASTArena *arena,
                                                                           int32_t site_expr_ref, int32_t left_ref,
