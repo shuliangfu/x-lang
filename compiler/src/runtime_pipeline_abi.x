@@ -24,6 +24,7 @@
 // G-02f-235：merge_direct_then_transitive_deps pure（src/lens/path）。
 // G-02f-236：load_direct_imports_for_asm_layout 编排 pure。
 // G-02f-237：pipeline_resolve_path pure + collect 空 import 早退。
+// G-02f-238：pipeline_read_file 分阶段 pure；collect seed 队列 helper。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -90,7 +91,9 @@ extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: 
 
 /* pipeline_resolve_path：G-02f-237 下方真迁 */
 extern "C" function pipeline_resolve_path_into_static(path_c: *u8): void;
-extern "C" function pipeline_read_file_impl(): i32;
+/* pipeline_read_file：G-02f-238 下方真迁 */
+extern "C" function pipeline_read_file_stage_prep(): i32;
+extern "C" function pipeline_read_file_commit_prep(): i32;
 extern "C" function pipeline_parse_into_loaded_import_impl(arena: *u8, module: *u8): i32;
 extern "C" function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
 extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
@@ -1194,12 +1197,18 @@ function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
   return 0;
 }
 
+// G-02f-238：resolved 读+preprocess → 写入 loaded 缓冲（两阶段 🔒）
 #[no_mangle]
 function pipeline_read_file(): i32 {
   unsafe {
-    return pipeline_read_file_impl();
+    if (pipeline_read_file_stage_prep() != 0) {
+      return 0 - 1;
+    }
+    if (pipeline_read_file_commit_prep() != 0) {
+      return 0 - 1;
+    }
   }
-  return -1;
+  return 0;
 }
 
 #[no_mangle]

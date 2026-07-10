@@ -19,6 +19,7 @@
  * G-02f-235: merge_direct_then_transitive_deps pure.
  * G-02f-236: load_direct_imports_for_asm_layout pure.
  * G-02f-237: resolve_path pure + collect empty-import early.
+ * G-02f-238: read_file staged pure + collect seed_to_load helper.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -1873,19 +1874,26 @@ int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
 }
 
 /** 读 resolved 路径文件并 preprocess，结果写入 loaded buffer。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t pipeline_read_file(void) {
+/* G-02f-238：stage 暂存 prep（.x read_file 分阶段） */
+static char *pipeline_rf_stage_prep;
+static size_t pipeline_rf_stage_prep_len;
+
+/* G-02f-238：读 resolved + preprocess → stage prep；0 成功 */
+int32_t pipeline_read_file_stage_prep(void) {
     ShuxRuntimeFileView raw_view;
     char *prep = NULL;
     size_t prep_len = 0;
+
+    free(pipeline_rf_stage_prep);
+    pipeline_rf_stage_prep = NULL;
+    pipeline_rf_stage_prep_len = 0;
 
     if (runtime_read_file_view(pipeline_resolved_path_buf, &raw_view) != 0) {
         pipeline_diag_import_open_fail_once(NULL, pipeline_resolved_path_buf);
         return -1;
     }
     if (shux_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
-            pipeline_resolved_path_buf,
-            NULL, 0) != 0) {
+            pipeline_resolved_path_buf, NULL, 0) != 0) {
         runtime_release_file_view(&raw_view);
         return -1;
     }
@@ -1894,6 +1902,20 @@ int32_t pipeline_read_file(void) {
         pipeline_diag_import_preprocess_fail(NULL, pipeline_resolved_path_buf);
         return -1;
     }
+    pipeline_rf_stage_prep = prep;
+    pipeline_rf_stage_prep_len = prep_len;
+    return 0;
+}
+
+/* G-02f-238：stage prep → loaded 缓冲并释放 stage；0 成功 */
+int32_t pipeline_read_file_commit_prep(void) {
+    char *prep = pipeline_rf_stage_prep;
+    size_t prep_len = pipeline_rf_stage_prep_len;
+
+    pipeline_rf_stage_prep = NULL;
+    pipeline_rf_stage_prep_len = 0;
+    if (!prep)
+        return -1;
     if (prep_len > pipeline_loaded_import_cap || !pipeline_loaded_import_buf) {
         free(pipeline_loaded_import_buf);
         pipeline_loaded_import_cap = prep_len < SHUX_PIPELINE_IMPORT_BUF_CAP ? SHUX_PIPELINE_IMPORT_BUF_CAP
@@ -1907,6 +1929,15 @@ int32_t pipeline_read_file(void) {
     memcpy(pipeline_loaded_import_buf, prep, prep_len);
     pipeline_loaded_import_len = prep_len;
     free(prep);
+    return 0;
+}
+
+/* G-02f-238：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_read_file(void) {
+    if (pipeline_read_file_stage_prep() != 0)
+        return -1;
+    if (pipeline_read_file_commit_prep() != 0)
+        return -1;
     return 0;
 }
 
@@ -2519,17 +2550,16 @@ int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports,
  * 传递加载 dep：从 main 的 import 出发递归解析子 import，填满 dep_sources/dep_lens/dep_paths。
  * 返回 0 成功，1 失败（调用方负责释放已分配）。
  */
-int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
-    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
-    size_t dep_lens[], char *dep_paths[], int *n_deps) {
-    int n = 0;
-    char *to_load[SHUX_DRIVER_DEP_SLOT_MAX];
-    int to_load_n = 0;
-    void *tmp_arena = NULL;
-    void *tmp_module = NULL;
-    int32_t n_imports = parser_get_module_num_imports(module);
+/* G-02f-238：入口 import → to_load 队列（strdup）；0 成功，1 OOM（已清队列） */
+int shux_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
+    int32_t n_imports;
+    int j;
 
-    for (int j = 0; j < n_imports && j < SHUX_DRIVER_DEP_SLOT_MAX && to_load_n < SHUX_DRIVER_DEP_SLOT_MAX; j++) {
+    if (!to_load || !to_load_n)
+        return 1;
+    *to_load_n = 0;
+    n_imports = shux_module_num_imports(module);
+    for (j = 0; j < n_imports && j < SHUX_DRIVER_DEP_SLOT_MAX && *to_load_n < SHUX_DRIVER_DEP_SLOT_MAX; j++) {
         uint8_t path_buf[64];
         char path_c[65];
         size_t k = 0;
@@ -2540,10 +2570,43 @@ int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t modu
             k++;
         }
         path_c[k] = '\0';
-        to_load[to_load_n++] = strdup(path_c);
-        if (!to_load[to_load_n - 1])
-            goto fail_to_load;
+        to_load[*to_load_n] = strdup(path_c);
+        if (!to_load[*to_load_n]) {
+            while (*to_load_n > 0) {
+                (*to_load_n)--;
+                free(to_load[*to_load_n]);
+                to_load[*to_load_n] = NULL;
+            }
+            return 1;
+        }
+        (*to_load_n)++;
     }
+    return 0;
+}
+
+/* G-02f-238：to_load 是否已有 path */
+int shux_collect_to_load_has(char *to_load[], int to_load_n, const char *path) {
+    int t;
+    if (!to_load || !path)
+        return 0;
+    for (t = 0; t < to_load_n; t++) {
+        if (to_load[t] && strcmp(to_load[t], path) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
+    size_t dep_lens[], char *dep_paths[], int *n_deps) {
+    int n = 0;
+    char *to_load[SHUX_DRIVER_DEP_SLOT_MAX];
+    int to_load_n = 0;
+    void *tmp_arena = NULL;
+    void *tmp_module = NULL;
+
+    if (shux_collect_seed_to_load(module, to_load, &to_load_n) != 0)
+        goto fail_to_load;
     while (to_load_n > 0 && n < SHUX_DRIVER_DEP_SLOT_MAX) {
         char *path_c = to_load[--to_load_n];
         if (shux_find_loaded_import_index(path_c, dep_paths, n) >= 0) {
@@ -2611,16 +2674,8 @@ int shux_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t modu
                         sub_c[kk] = '\0';
                         if (shux_find_loaded_import_index(sub_c, dep_paths, n) >= 0)
                             continue;
-                        {
-                            int found = 0;
-                            for (int t = 0; t < to_load_n; t++)
-                                if (to_load[t] && strcmp(to_load[t], sub_c) == 0) {
-                                    found = 1;
-                                    break;
-                                }
-                            if (found)
-                                continue;
-                        }
+                        if (shux_collect_to_load_has(to_load, to_load_n, sub_c))
+                            continue;
                         to_load[to_load_n++] = strdup(sub_c);
                         if (!to_load[to_load_n - 1])
                             to_load_n--;
@@ -2684,23 +2739,9 @@ int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t
     int to_load_n = 0;
     void *tmp_arena = NULL;
     void *tmp_module = NULL;
-    int32_t n_imports = parser_get_module_num_imports(module);
 
-    for (int j = 0; j < n_imports && j < SHUX_DRIVER_DEP_SLOT_MAX && to_load_n < SHUX_DRIVER_DEP_SLOT_MAX; j++) {
-        uint8_t path_buf[64];
-        char path_c[65];
-        size_t k = 0;
-
-        parser_get_module_import_path(module, j, path_buf);
-        while (k < sizeof(path_buf) && path_buf[k]) {
-            path_c[k] = (char)path_buf[k];
-            k++;
-        }
-        path_c[k] = '\0';
-        to_load[to_load_n++] = strdup(path_c);
-        if (!to_load[to_load_n - 1])
-            goto fail_to_load;
-    }
+    if (shux_collect_seed_to_load(module, to_load, &to_load_n) != 0)
+        goto fail_to_load;
     while (to_load_n > 0 && n < SHUX_DRIVER_DEP_SLOT_MAX) {
         char *path_c = to_load[--to_load_n];
         if (shux_find_loaded_import_index(path_c, dep_paths, n) >= 0) {
@@ -2767,16 +2808,8 @@ int shux_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t
                         sub_c[kk] = '\0';
                         if (shux_find_loaded_import_index(sub_c, dep_paths, n) >= 0)
                             continue;
-                        {
-                            int found = 0;
-                            for (int t = 0; t < to_load_n; t++)
-                                if (to_load[t] && strcmp(to_load[t], sub_c) == 0) {
-                                    found = 1;
-                                    break;
-                                }
-                            if (found)
-                                continue;
-                        }
+                        if (shux_collect_to_load_has(to_load, to_load_n, sub_c))
+                            continue;
                         to_load[to_load_n++] = strdup(sub_c);
                         if (!to_load[to_load_n - 1])
                             to_load_n--;
