@@ -1,7 +1,7 @@
-/* Generated from src/runtime_driver_abi.x (G-02f-29/41 true .x + C tail).
+/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
- *         merge quiet_ok/env + flag get/set; polish getenv; C flag slots/timing.
- * .x covers: env probes, check_only/freestanding/fmt/skip flags via slots.
+ *         merge flags/env/skip_large/large_stack; C slots + pthread timing.
+ * .x covers: quiet_ok, env probes, flag get/set, typeck_skip_large_entry, large_stack mark.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -50,6 +50,8 @@ int32_t *driver_fmt_check_only_flag_slot(void);
 int32_t *driver_x_pipeline_skip_typeck_flag_slot(void);
 int32_t *driver_x_pipeline_skip_codegen_flag_slot(void);
 int32_t *driver_skip_codegen_dep_0_flag_slot(void);
+int32_t driver_pipeline_entry_source_len_i32(void);
+int32_t *driver_large_stack_thread_flag_slot(void);
 
 /** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 X pipeline 共用）。 */
 static int driver_check_only_flag;
@@ -295,12 +297,27 @@ int32_t driver_typeck_force_c_enabled(void) {
 /** 当前线程是否已在 driver_run_thread_on_large_stack 创建的大栈 pthread 内。 */
 static _Thread_local int g_driver_on_large_stack_thread;
 
+/* G-02f-45 */
+int32_t *driver_large_stack_thread_flag_slot(void) {
+    return (int32_t *)&g_driver_on_large_stack_thread;
+}
+
+
 /**
  * 供 ast_pool / pipeline glue 查询：LSP 主循环已在大栈线程上时，typeck 勿再 spawn 嵌套 pthread。
  * 返回值：非 0 表示当前在大栈线程上下文。
  */
-int driver_is_large_stack_thread(void) {
-    return g_driver_on_large_stack_thread;
+
+int32_t driver_is_large_stack_thread(void) {
+  (void)(({   {
+    int32_t * p = driver_large_stack_thread_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -308,11 +325,23 @@ int driver_is_large_stack_thread(void) {
  * 参数：on 非 0 进入，0 退出。
  */
 void driver_large_stack_thread_mark(int on) {
-    g_driver_on_large_stack_thread = on ? 1 : 0;
+  (void)(({   {
+    int32_t * p = driver_large_stack_thread_flag_slot();
+    (void)(((p)[0] = on));
+  }
+ }));
 }
 
 /** 当前 pipeline 入口源码长度；供 .x 按体积跳过大库 merge/typeck。 */
 static size_t g_pipeline_entry_source_len;
+
+/* G-02f-45 */
+int32_t driver_pipeline_entry_source_len_i32(void) {
+    if (g_pipeline_entry_source_len > (size_t)0x7fffffff)
+        return 0x7fffffff;
+    return (int32_t)g_pipeline_entry_source_len;
+}
+
 
 /**
  * 记录 pipeline 入口源码字节数（大栈 pthread 进入 pipeline 前调用）。
@@ -338,12 +367,15 @@ size_t driver_pipeline_entry_source_len(void) {
  * 返回值：len > 150000 时为 1，否则 0。
  */
 int32_t driver_typeck_skip_large_entry(void) {
-    int32_t skip = g_pipeline_entry_source_len > 150000u ? 1 : 0;
-    if (getenv("SHUX_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: typeck_skip_large_entry=%d len=%zu",
-                     (int)skip, g_pipeline_entry_source_len);
-    return skip;
+  (void)(({   {
+    int32_t len = driver_pipeline_entry_source_len_i32();
+    if ((len > 150000)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
