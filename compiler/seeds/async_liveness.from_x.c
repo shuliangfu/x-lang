@@ -1,4 +1,5 @@
 /* seeds/async_liveness.from_x.c — G-02f-18 product TU
+ * G-02f-108 helper gates.
  * Product: src/async/async_liveness.o; logic still C until full .x port.
  */
 /**
@@ -13,13 +14,13 @@
 #include <string.h>
 
 static int expr_has_await(const struct ASTExpr *e);
-static int block_has_await(const struct ASTBlock *b);
-static int block_has_io_read_await(const struct ASTBlock *b);
-static int block_has_io_write_await(const struct ASTBlock *b);
+int block_has_await(const struct ASTBlock *b);
+int block_has_io_read_await(const struct ASTBlock *b);
+int block_has_io_write_await(const struct ASTBlock *b);
 static int expr_count_await(const struct ASTExpr *e);
-static int block_count_await(const struct ASTBlock *b);
+int block_count_await(const struct ASTBlock *b);
 static int expr_refs_var(const struct ASTExpr *e, const char *name);
-static int block_refs_var(const struct ASTBlock *b, const char *name);
+int block_refs_var(const struct ASTBlock *b, const char *name);
 
 /** 表达式是否含 await（递归）。 */
 static int expr_has_await(const struct ASTExpr *e) {
@@ -145,12 +146,19 @@ static int expr_count_await(const struct ASTExpr *e) {
 }
 
 /** 块内是否存在 await（A3 v0 不扫描 loop/for 体）。 */
-static int block_has_await(const struct ASTBlock *b) {
+int block_has_await_impl(const struct ASTBlock *b) {
     return block_count_await(b) > 0;
 }
+int block_has_await(const struct ASTBlock *b) {
+  {
+    return block_has_await_impl(b);
+  }
+  return 0;
+}
+
 
 /** 块内 await 个数（A3 v0 不扫描 loop/for 体）。 */
-static int block_count_await(const struct ASTBlock *b) {
+int block_count_await_impl(const struct ASTBlock *b) {
     if (!b) return 0;
     int n = 0;
     for (int i = 0; i < b->num_lets; i++)
@@ -160,20 +168,41 @@ static int block_count_await(const struct ASTBlock *b) {
     if (b->final_expr) n += expr_count_await(b->final_expr);
     return n;
 }
+int block_count_await(const struct ASTBlock *b) {
+  {
+    return block_count_await_impl(b);
+  }
+  return 0;
+}
+
 
 /** callee 是否为 IO read await 目标（read / read_fd）。 */
-static int async_liveness_callee_is_io_read(const struct ASTFunc *callee) {
+int async_liveness_callee_is_io_read_impl(const struct ASTFunc *callee) {
     if (!callee || !callee->name)
         return 0;
     return strcmp(callee->name, "read") == 0 || strcmp(callee->name, "read_fd") == 0;
 }
+int async_liveness_callee_is_io_read(const struct ASTFunc *callee) {
+  {
+    return async_liveness_callee_is_io_read_impl(callee);
+  }
+  return 0;
+}
+
 
 /** callee 是否为 IO write await 目标（write / write_fd）。 */
-static int async_liveness_callee_is_io_write(const struct ASTFunc *callee) {
+int async_liveness_callee_is_io_write_impl(const struct ASTFunc *callee) {
     if (!callee || !callee->name)
         return 0;
     return strcmp(callee->name, "write") == 0 || strcmp(callee->name, "write_fd") == 0;
 }
+int async_liveness_callee_is_io_write(const struct ASTFunc *callee) {
+  {
+    return async_liveness_callee_is_io_write_impl(callee);
+  }
+  return 0;
+}
+
 
 /** 表达式是否含 await read/read_fd（递归）。 */
 static int expr_has_io_read_await(const struct ASTExpr *e) {
@@ -331,7 +360,7 @@ static int expr_has_io_write_await(const struct ASTExpr *e) {
 }
 
 /** 块内是否含 await read/read_fd。 */
-static int block_has_io_read_await(const struct ASTBlock *b) {
+int block_has_io_read_await_impl(const struct ASTBlock *b) {
     if (!b)
         return 0;
     for (int i = 0; i < b->num_lets; i++)
@@ -344,9 +373,16 @@ static int block_has_io_read_await(const struct ASTBlock *b) {
         return 1;
     return 0;
 }
+int block_has_io_read_await(const struct ASTBlock *b) {
+  {
+    return block_has_io_read_await_impl(b);
+  }
+  return 0;
+}
+
 
 /** 块内是否含 await write/write_fd。 */
-static int block_has_io_write_await(const struct ASTBlock *b) {
+int block_has_io_write_await_impl(const struct ASTBlock *b) {
     if (!b)
         return 0;
     for (int i = 0; i < b->num_lets; i++)
@@ -359,6 +395,13 @@ static int block_has_io_write_await(const struct ASTBlock *b) {
         return 1;
     return 0;
 }
+int block_has_io_write_await(const struct ASTBlock *b) {
+  {
+    return block_has_io_write_await_impl(b);
+  }
+  return 0;
+}
+
 
 /** 表达式是否引用变量 name。 */
 static int expr_refs_var(const struct ASTExpr *e, const char *name) {
@@ -422,7 +465,7 @@ static int expr_refs_var(const struct ASTExpr *e, const char *name) {
 }
 
 /** 块内是否引用变量 name（A3 v0 不递归 loop/for）。 */
-static int block_refs_var(const struct ASTBlock *b, const char *name) {
+int block_refs_var_impl(const struct ASTBlock *b, const char *name) {
     if (!b) return 0;
     for (int i = 0; i < b->num_lets; i++) {
         if (b->let_decls[i].init && expr_refs_var(b->let_decls[i].init, name)) return 1;
@@ -432,9 +475,16 @@ static int block_refs_var(const struct ASTBlock *b, const char *name) {
     if (b->final_expr && expr_refs_var(b->final_expr, name)) return 1;
     return 0;
 }
+int block_refs_var(const struct ASTBlock *b, const char *name) {
+  {
+    return block_refs_var_impl(b, name);
+  }
+  return 0;
+}
+
 
 /** continuation 是否引用 name（从 stmt_order[from_exclusive+1] 起到块末）。 */
-static int block_rest_refs_var(const struct ASTBlock *b, int from_exclusive,
+int block_rest_refs_var_impl(const struct ASTBlock *b, int from_exclusive,
     const char *name) {
     if (!b || !name || !name[0]) return 0;
     if (b->num_stmt_order > 0) {
@@ -453,9 +503,17 @@ static int block_rest_refs_var(const struct ASTBlock *b, int from_exclusive,
     if (b->final_expr && expr_refs_var(b->final_expr, name)) return 1;
     return 0;
 }
+int block_rest_refs_var(const struct ASTBlock *b, int from_exclusive,
+    const char *name) {
+  {
+    return block_rest_refs_var_impl(b, from_exclusive, name);
+  }
+  return 0;
+}
+
 
 /** 将 name 插入 out（去重，超上限静默丢弃）。 */
-static void frame_live_add(AsyncFrameLive *out, const char *name) {
+void frame_live_add_impl(AsyncFrameLive *out, const char *name) {
     if (!out || !name || !name[0]) return;
     for (int i = 0; i < out->n; i++)
         if (strcmp(out->names[i], name) == 0) return;
@@ -464,6 +522,12 @@ static void frame_live_add(AsyncFrameLive *out, const char *name) {
     out->names[out->n][sizeof(out->names[0]) - 1] = '\0';
     out->n++;
 }
+void frame_live_add(AsyncFrameLive *out, const char *name) {
+  {
+    frame_live_add_impl(out, name);
+  }
+}
+
 
 /** 在 await 点将 defined[0..n_def) 中 continuation 仍引用的符号加入 frame。 */
 static void frame_live_at_await(const struct ASTBlock *b, int stmt_idx,

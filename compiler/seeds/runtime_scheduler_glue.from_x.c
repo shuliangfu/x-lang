@@ -1,4 +1,5 @@
 /* seeds/runtime_scheduler_glue.from_x.c — G-02f-18 product TU
+ * G-02f-108 helper gates.
  * G-02f-107 helper gates.
  * G-02f-106 helper gates.
  * Product: runtime_scheduler_glue.o; logic still C until full .x port.
@@ -269,7 +270,7 @@ static int shux_async_workers_inited;
 static _Thread_local uint32_t shux_async_tls_worker;
 
 /** 解析 SHUX_ASYNC_WORKERS（1..SHUX_ASYNC_MAX_WORKERS，默认 1）。 */
-static void shux_async_init_workers(void) {
+void shux_async_init_workers_impl(void) {
     const char *e;
     long v;
     if (shux_async_workers_inited)
@@ -283,6 +284,12 @@ static void shux_async_init_workers(void) {
     if (v >= 1 && v <= SHUX_ASYNC_MAX_WORKERS)
         shux_async_n_workers = (uint32_t)v;
 }
+void shux_async_init_workers(void) {
+  {
+    shux_async_init_workers_impl();
+  }
+}
+
 
 /** 返回配置的 worker 数（lazy init）。 */
 uint32_t shux_async_worker_count(void) {
@@ -440,12 +447,19 @@ int shux_async_take_suspend_io_flag(void) {
 
 
 /** 将任务放入 IO 等待队列；返回 0 成功。 */
-static int shux_async_io_wait_push(shux_async_task_fn_t fn) {
+int shux_async_io_wait_push_impl(shux_async_task_fn_t fn) {
     if (!fn || shux_async_io_wait_n >= SHUX_ASYNC_IO_WAIT_CAP)
         return -1;
     shux_async_io_wait[shux_async_io_wait_n++] = fn;
     return 0;
 }
+int shux_async_io_wait_push(shux_async_task_fn_t fn) {
+  {
+    return shux_async_io_wait_push_impl(fn);
+  }
+  return 0;
+}
+
 
 /** 队列占用（tail - head；计数器可绕回 uint32）。 */
 uint32_t shux_async_q_occupancy_impl(uint32_t head, uint32_t tail) {
@@ -790,7 +804,7 @@ int shux_async_affinity_enabled(void) {
 
 
 /** worker drain 前绑核（SHUX_ASYNC_AFFINITY=1 时调用 thread_set_affinity_self_c）。 */
-static void shux_async_maybe_bind_worker(uint32_t worker_id) {
+void shux_async_maybe_bind_worker_impl(uint32_t worker_id) {
 #if defined(__GNUC__) || defined(__clang__)
     if (!shux_async_affinity_enabled())
         return;
@@ -799,9 +813,15 @@ static void shux_async_maybe_bind_worker(uint32_t worker_id) {
     (void)worker_id;
 #endif
 }
+void shux_async_maybe_bind_worker(uint32_t worker_id) {
+  {
+    shux_async_maybe_bind_worker_impl(worker_id);
+  }
+}
+
 
 /** 单 worker 就绪环 drain；suspend 任务 re-queue 到 tls worker；acc 非空时累加已完成任务返回值。 */
-static int32_t shux_async_drain_queue(shux_async_task_queue_t *q, uint32_t worker_id, int32_t *acc) {
+int32_t shux_async_drain_queue_impl(shux_async_task_queue_t *q, uint32_t worker_id, int32_t *acc) {
     int32_t last = 0;
     shux_async_maybe_bind_worker(worker_id);
     shux_async_tls_worker = worker_id;
@@ -843,6 +863,13 @@ static int32_t shux_async_drain_queue(shux_async_task_queue_t *q, uint32_t worke
     }
     return last;
 }
+int32_t shux_async_drain_queue(shux_async_task_queue_t *q, uint32_t worker_id, int32_t *acc) {
+  {
+    return shux_async_drain_queue_impl(q, worker_id, acc);
+  }
+  return 0;
+}
+
 
 /**
  * A4 v2：单 consumer  drain 指定 worker 就绪环直至为空。
@@ -942,7 +969,7 @@ int32_t shux_async_run_i32(int32_t (*fn)(void)) {
 }
 
 /** spawn 烟测 echo 任务：校验继承 Context 并返回 seed*10。 */
-static int32_t shux_async_spawn_ctx_echo_task(void) {
+int32_t shux_async_spawn_ctx_echo_task_impl(void) {
     int32_t seed = 0;
     if (shux_async_run_seed_valid())
         seed = shux_async_run_seed_take_i32();
@@ -951,6 +978,13 @@ static int32_t shux_async_spawn_ctx_echo_task(void) {
         return -99;
     return seed * 10;
 }
+int32_t shux_async_spawn_ctx_echo_task(void) {
+  {
+    return shux_async_spawn_ctx_echo_task_impl();
+  }
+  return 0;
+}
+
 
 /**
  * F-task v2：返回 task.o 中 task_echo_fn_c 入口（.x 同模块尚不能取函数址）。

@@ -101,3 +101,40 @@ function shu_coop_frame_step_switch(frame: *u8): i32 {
   return 0;
 }
 
+// G-02f-108：+ init_workers / io_wait_push / bind / drain / echo 薄门闩。
+
+extern "C" function shux_async_init_workers_impl(): void;
+extern "C" function shux_async_io_wait_push_impl(fn: *u8): i32;
+extern "C" function shux_async_maybe_bind_worker_impl(wid: u32): void;
+extern "C" function shux_async_drain_queue_impl(q: *u8, wid: u32, acc: *i32): i32;
+extern "C" function shux_async_spawn_ctx_echo_task_impl(): i32;
+
+/* ---- G-02f-108：scheduler workers/queue 门闩 ---- */
+
+#[no_mangle]
+function shux_async_init_workers(): void {
+  unsafe { shux_async_init_workers_impl(); }
+}
+
+#[no_mangle]
+function shux_async_io_wait_push(fn: *u8): i32 {
+  unsafe { return shux_async_io_wait_push_impl(fn); }
+  return 0;
+}
+
+#[no_mangle]
+function shux_async_maybe_bind_worker(wid: u32): void {
+  unsafe { shux_async_maybe_bind_worker_impl(wid); }
+}
+
+#[no_mangle]
+function shux_async_drain_queue(q: *u8, wid: u32, acc: *i32): i32 {
+  unsafe { return shux_async_drain_queue_impl(q, wid, acc); }
+  return 0;
+}
+
+#[no_mangle]
+function shux_async_spawn_ctx_echo_task(): i32 {
+  unsafe { return shux_async_spawn_ctx_echo_task_impl(); }
+  return 0;
+}

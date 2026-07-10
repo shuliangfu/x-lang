@@ -1,4 +1,5 @@
 /* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-108 helper gates.
  * Source intent: src/asm/backend_call_dispatch.x (doc) + this seed (full C body).
  * Product: → src/asm/backend_call_dispatch.o. Logic still C until full .x port.
  */
@@ -87,16 +88,23 @@ extern struct ast_Expr *pipeline_arena_expr_ptr(struct ast_ASTArena *a, int32_t 
 extern int32_t pipeline_expr_var_name_len_for_string_lit_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
 /** STRING_LIT（kind 59）字节长度。 */
-static int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref) {
+int32_t glue_asm_string_lit_len_impl(struct ast_ASTArena *arena, int32_t expr_ref) {
   if (!arena || expr_ref <= 0)
     return 0;
   if (pipeline_expr_kind_ord_at(arena, expr_ref) != GLUE_EXPR_STRING_LIT_ORD)
     return 0;
   return pipeline_expr_var_name_len_for_string_lit_c(arena, expr_ref);
 }
+int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref) {
+  {
+    return glue_asm_string_lit_len_impl(arena, expr_ref);
+  }
+  return 0;
+}
+
 
 /** 拷贝 STRING_LIT 内容到 out64（至多 63 字节）。 */
-static void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
+void glue_asm_string_lit_into_impl(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
   if (!out64)
     return;
   memset(out64, 0, 64);
@@ -104,6 +112,12 @@ static void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_re
     return;
   pipeline_expr_var_name_into(arena, expr_ref, out64);
 }
+void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
+  {
+    glue_asm_string_lit_into_impl(arena, expr_ref, out64);
+  }
+}
+
 
 /**
  * x86_64：jmp 跳过尾挂字面量，再 lea reg,[rip+disp] 指向字面量（避免字面量落在指令流中被执行）。
@@ -257,11 +271,18 @@ static int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct p
                                             struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /** 形参/实参 type_ref 是否为 f32。 */
-static int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
+int32_t glue_call_param_is_f32_c_impl(struct ast_ASTArena *arena, int32_t type_ref) {
   if (!arena || type_ref <= 0)
     return 0;
   return pipeline_type_kind_ord_at(arena, type_ref) == GLUE_TYPE_F32_ORD ? 1 : 0;
 }
+int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
+  {
+    return glue_call_param_is_f32_c_impl(arena, type_ref);
+  }
+  return 0;
+}
+
 
 /** SysV x86_64：第 arg_index 个实参的寄存器/栈归属（0=gp 1=xmm 2=stack）。 */
 static void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs,
@@ -449,16 +470,23 @@ static int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena
 /**
  * 当前架构整数 CALL 寄存器实参个数（x86_64 SysV=6，AAPCS64/RISC-V=8）。
  */
-static int32_t glue_asm_call_reg_max(int32_t ta) {
+int32_t glue_asm_call_reg_max_impl(int32_t ta) {
   if (ta == 0)
     return 6;
   return 8;
 }
+int32_t glue_asm_call_reg_max(int32_t ta) {
+  {
+    return glue_asm_call_reg_max_impl(ta);
+  }
+  return 0;
+}
+
 
 /**
  * call 完成后须回收的 outgoing 栈字节数（含 16 字节对齐垫层）。
  */
-static int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
+int32_t glue_asm_call_stack_cleanup_bytes_impl(int32_t ta, int32_t nargs) {
   int32_t reg_max;
   int32_t n_stack;
   if (nargs <= 0)
@@ -477,11 +505,18 @@ static int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
     return -1;
   return (n_stack * 8 + 15) & ~15;
 }
+int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
+  {
+    return glue_asm_call_stack_cleanup_bytes_impl(ta, nargs);
+  }
+  return 0;
+}
+
 
 /**
  * 将 import 路径转为 C 符号前缀（`.`→`_`，末尾再补 `_`），与 codegen.x codegen_import_path_to_c_prefix_into 一致。
  */
-static void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
+void glue_codegen_import_path_to_c_prefix_into_impl(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
   int32_t off;
   int32_t pi;
   if (!buf || buf_cap <= 0)
@@ -504,9 +539,15 @@ static void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8
   }
   buf[off] = 0;
 }
+void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
+  {
+    glue_codegen_import_path_to_c_prefix_into_impl(path, buf, buf_cap);
+  }
+}
+
 
 /** 前缀为 ASCII 「build_」（6 字节）且 name 已含此前缀时返回 1。 */
-static int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name,
+int32_t glue_asm_c_prefix_redundant_with_name_impl(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name,
                                                      int32_t name_len) {
   int32_t i;
   if (!prefix || !name || prefix_len != 6 || name_len < prefix_len)
@@ -520,9 +561,17 @@ static int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int3
   }
   return 1;
 }
+int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name,
+                                                     int32_t name_len) {
+  {
+    return glue_asm_c_prefix_redundant_with_name_impl(prefix, prefix_len, name, name_len);
+  }
+  return 0;
+}
+
 
 /** 将 C 前缀与字段名拼成至多 63 字节的 call 符号；成功返回长度，失败 -1。 */
-static int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name,
+int32_t glue_asm_build_import_binding_call_sym_impl(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name,
                                                       int32_t field_len, uint8_t *out_name) {
   int32_t pos;
   int32_t pi;
@@ -538,6 +587,14 @@ static int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_
     out_name[pos++] = field_name[pi++];
   return pos > 0 ? pos : -1;
 }
+int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name,
+                                                      int32_t field_len, uint8_t *out_name) {
+  {
+    return glue_asm_build_import_binding_call_sym_impl(pre, pre_len, field_name, field_len, out_name);
+  }
+  return 0;
+}
+
 
 /**
  * co-emit dep 模块时函数标签与同模块 call 须带 import 路径前缀（与 import 限定 call 一致）。
@@ -569,7 +626,7 @@ int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, u
 }
 
 /** 将 TypeKind 序数写成 overload mangled 后缀（对齐 codegen.c type_to_suffix 标量子集）。 */
-static int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_cap) {
+int32_t glue_type_kind_to_suffix_c_impl(int32_t kind_ord, uint8_t *out, int32_t out_cap) {
   static const uint8_t lit_i32[3] = { 105, 51, 50 };
   static const uint8_t lit_i64[3] = { 105, 54, 52 };
   static const uint8_t lit_u8[2] = { 117, 56 };
@@ -619,6 +676,13 @@ static int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_
     out[i] = src[i];
   return slen;
 }
+int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_cap) {
+  {
+    return glue_type_kind_to_suffix_c_impl(kind_ord, out, out_cap);
+  }
+  return 0;
+}
+
 
 /** 统计模块内同名函数个数（>1 时 emit/call 须 mangled 符号）。 */
 static int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *name, int32_t name_len) {

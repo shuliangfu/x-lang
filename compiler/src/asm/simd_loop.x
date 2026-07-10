@@ -122,3 +122,42 @@ function glue_f32_slot_rbp_disp32(slot_off: i32): i32 {
   return 0;
 }
 
+// G-02f-108：+ peel/strip/soa emit 薄门闩。
+
+extern "C" function glue_simd_loop_emit_chunk_binop_c_impl(elf: *u8, binop: i32, a: i32, b: i32): i32;
+extern "C" function glue_emit_full_const_peel_c_impl(elf: *u8, binop: i32, a: i32, b: i32, c: i32): i32;
+extern "C" function glue_emit_runtime_strip_loop_c_impl(arena: *u8, elf: *u8, c: *u8): i32;
+extern "C" function glue_parse_f32_soa_sum_assign_c_impl(arena: *u8, ar: i32, ir: i32, sum: *i32, arr: *i32): i32;
+extern "C" function glue_emit_f32_soa_sum_strip_c_impl(arena: *u8, elf: *u8, c: *u8): i32;
+
+/* ---- G-02f-108：simd_loop peel/strip 门闩 ---- */
+
+#[no_mangle]
+function glue_simd_loop_emit_chunk_binop_c(elf: *u8, binop: i32, a: i32, b: i32): i32 {
+  unsafe { return glue_simd_loop_emit_chunk_binop_c_impl(elf, binop, a, b); }
+  return 0;
+}
+
+#[no_mangle]
+function glue_emit_full_const_peel_c(elf: *u8, binop: i32, a: i32, b: i32, c: i32): i32 {
+  unsafe { return glue_emit_full_const_peel_c_impl(elf, binop, a, b, c); }
+  return 0;
+}
+
+#[no_mangle]
+function glue_emit_runtime_strip_loop_c(arena: *u8, elf: *u8, c: *u8): i32 {
+  unsafe { return glue_emit_runtime_strip_loop_c_impl(arena, elf, c); }
+  return 0;
+}
+
+#[no_mangle]
+function glue_parse_f32_soa_sum_assign_c(arena: *u8, ar: i32, ir: i32, sum: *i32, arr: *i32): i32 {
+  unsafe { return glue_parse_f32_soa_sum_assign_c_impl(arena, ar, ir, sum, arr); }
+  return 0;
+}
+
+#[no_mangle]
+function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf: *u8, c: *u8): i32 {
+  unsafe { return glue_emit_f32_soa_sum_strip_c_impl(arena, elf, c); }
+  return 0;
+}

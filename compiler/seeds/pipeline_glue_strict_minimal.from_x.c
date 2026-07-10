@@ -1,4 +1,5 @@
 /* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-11 product TU
+ * G-02f-108 helper gates.
  * G-02f-107 helper gates.
  * Product object from this seed; logic still C until full .x port.
  */
@@ -689,7 +690,7 @@ __attribute__((weak)) void pipeline_typeck_set_entry_module_for_dep_map_c(struct
   g_typeck_entry_module_for_dep_map_strict_minimal = module;
 }
 
-static int32_t pipeline_typeck_named_unqual_offset_strict_minimal(const uint8_t *buf, int32_t len) {
+int32_t pipeline_typeck_named_unqual_offset_strict_minimal_impl(const uint8_t *buf, int32_t len) {
   int32_t i;
   for (i = len - 1; i > 0; i--) {
     if (buf[i] == '.')
@@ -697,6 +698,13 @@ static int32_t pipeline_typeck_named_unqual_offset_strict_minimal(const uint8_t 
   }
   return 0;
 }
+int32_t pipeline_typeck_named_unqual_offset_strict_minimal(const uint8_t *buf, int32_t len) {
+  {
+    return pipeline_typeck_named_unqual_offset_strict_minimal_impl(buf, len);
+  }
+  return 0;
+}
+
 
 int32_t pipeline_typeck_named_equal_strict_minimal_impl(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   uint8_t buf_a[64];
@@ -766,7 +774,7 @@ int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct ast_Modu
 }
 
 
-static int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(struct ast_Module *mod, uint8_t *name,
+int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal_impl(struct ast_Module *mod, uint8_t *name,
                                                                                  int32_t name_len, int32_t want_arity) {
   int32_t j;
   int32_t first_match;
@@ -783,8 +791,16 @@ static int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(
   }
   return first_match;
 }
+int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(struct ast_Module *mod, uint8_t *name,
+                                                                                 int32_t name_len, int32_t want_arity) {
+  {
+    return pipeline_typeck_find_func_index_in_module_by_name_strict_minimal_impl(mod, name, name_len, want_arity);
+  }
+  return 0;
+}
 
-static int32_t pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
+
+int32_t pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal_impl(
     struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len, int32_t from_dep_index,
     int32_t want_arity, struct ast_PipelineDepCtx *ctx, int32_t *func_index_out) {
   int32_t func_ix;
@@ -799,8 +815,17 @@ static int32_t pipeline_typeck_find_func_return_type_in_module_by_name_strict_mi
     return ret_ty;
   return pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index, ret_ty, caller_arena, ctx);
 }
+int32_t pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
+    struct ast_Module *mod, struct ast_ASTArena *caller_arena, uint8_t *name, int32_t name_len, int32_t from_dep_index,
+    int32_t want_arity, struct ast_PipelineDepCtx *ctx, int32_t *func_index_out) {
+  {
+    return pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal_impl(mod, caller_arena, name, name_len, from_dep_index, want_arity, ctx, func_index_out);
+  }
+  return 0;
+}
 
-static int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(struct ast_Module *entry_mod,
+
+int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal_impl(struct ast_Module *entry_mod,
                                                                                   int32_t dep_ix,
                                                                                   struct ast_ASTArena *caller_arena,
                                                                                   uint8_t *nm, int32_t nlen) {
@@ -824,6 +849,16 @@ static int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal
   qlen = bl + 1 + nlen;
   return pipeline_type_find_or_alloc_named(caller_arena, qnm, qlen);
 }
+int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(struct ast_Module *entry_mod,
+                                                                                  int32_t dep_ix,
+                                                                                  struct ast_ASTArena *caller_arena,
+                                                                                  uint8_t *nm, int32_t nlen) {
+  {
+    return pipeline_typeck_map_import_binding_named_to_caller_strict_minimal_impl(entry_mod, dep_ix, caller_arena, nm, nlen);
+  }
+  return 0;
+}
+
 
 static int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTArena *dep_arena,
                                                                          int32_t dep_return_type_ref,
@@ -1065,7 +1100,7 @@ __attribute__((weak)) int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct
   return pipeline_type_find_or_alloc_slice(arena, u8_ref, (uint8_t *)lbl, 11);
 }
 
-static int pipeline_typeck_linear_name_already_moved_strict_minimal(const uint8_t *name, int32_t name_len) {
+int pipeline_typeck_linear_name_already_moved_strict_minimal_impl(const uint8_t *name, int32_t name_len) {
   int i;
   for (i = 0; i < g_typeck_linear_moved_n; i++) {
     if (g_typeck_linear_moved_lens[i] == name_len && name_len > 0 &&
@@ -1074,6 +1109,13 @@ static int pipeline_typeck_linear_name_already_moved_strict_minimal(const uint8_
   }
   return 0;
 }
+int pipeline_typeck_linear_name_already_moved_strict_minimal(const uint8_t *name, int32_t name_len) {
+  {
+    return pipeline_typeck_linear_name_already_moved_strict_minimal_impl(name, name_len);
+  }
+  return 0;
+}
+
 
 __attribute__((weak)) void pipeline_typeck_linear_reset_c(void) {
   g_typeck_linear_moved_n = 0;
@@ -1116,7 +1158,7 @@ __attribute__((weak)) int32_t pipeline_typeck_linear_accepts_init_c(struct ast_A
   return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, decl_ref), init_ref);
 }
 
-static int32_t pipeline_typeck_slice_region_conflict_strict_minimal(struct ast_ASTArena *arena, int32_t expect_ref,
+int32_t pipeline_typeck_slice_region_conflict_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expect_ref,
                                                                     int32_t src_ref) {
   int32_t ek;
   int32_t sk;
@@ -1136,8 +1178,16 @@ static int32_t pipeline_typeck_slice_region_conflict_strict_minimal(struct ast_A
     return 0;
   return (ek != sk || memcmp(eb, sb, (size_t)ek) != 0) ? 1 : 0;
 }
+int32_t pipeline_typeck_slice_region_conflict_strict_minimal(struct ast_ASTArena *arena, int32_t expect_ref,
+                                                                    int32_t src_ref) {
+  {
+    return pipeline_typeck_slice_region_conflict_strict_minimal_impl(arena, expect_ref, src_ref);
+  }
+  return 0;
+}
 
-static int32_t pipeline_typeck_slice_region_escape_strict_minimal(struct ast_ASTArena *arena, int32_t expect_ref,
+
+int32_t pipeline_typeck_slice_region_escape_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expect_ref,
                                                                   int32_t src_ref) {
   if (!arena || expect_ref <= 0 || src_ref <= 0)
     return 0;
@@ -1149,6 +1199,14 @@ static int32_t pipeline_typeck_slice_region_escape_strict_minimal(struct ast_AST
              ? 1
              : 0;
 }
+int32_t pipeline_typeck_slice_region_escape_strict_minimal(struct ast_ASTArena *arena, int32_t expect_ref,
+                                                                  int32_t src_ref) {
+  {
+    return pipeline_typeck_slice_region_escape_strict_minimal_impl(arena, expect_ref, src_ref);
+  }
+  return 0;
+}
+
 
 int pipeline_expr_is_func_param_at_strict_minimal_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                          int32_t func_idx, int32_t expr_ref, int32_t param_ix) {
@@ -1180,7 +1238,7 @@ int pipeline_expr_is_func_param_at_strict_minimal(struct ast_ASTArena *arena, st
 }
 
 
-static void pipeline_typeck_expr_diag_line_col_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *line,
+void pipeline_typeck_expr_diag_line_col_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *line,
                                                               int32_t *col) {
   if (line)
     *line = 0;
@@ -1193,8 +1251,15 @@ static void pipeline_typeck_expr_diag_line_col_strict_minimal(struct ast_ASTAren
   if (col)
     *col = pipeline_expr_col_at(arena, expr_ref);
 }
+void pipeline_typeck_expr_diag_line_col_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *line,
+                                                              int32_t *col) {
+  {
+    pipeline_typeck_expr_diag_line_col_strict_minimal_impl(arena, expr_ref, line, col);
+  }
+}
 
-static int32_t typeck_block_is_strict_ancestor_strict_minimal(struct ast_ASTArena *arena, int32_t ancestor,
+
+int32_t typeck_block_is_strict_ancestor_strict_minimal_impl(struct ast_ASTArena *arena, int32_t ancestor,
                                                               int32_t descendant) {
   struct ast_Block *block;
   int32_t cur;
@@ -1214,8 +1279,16 @@ static int32_t typeck_block_is_strict_ancestor_strict_minimal(struct ast_ASTAren
   }
   return 0;
 }
+int32_t typeck_block_is_strict_ancestor_strict_minimal(struct ast_ASTArena *arena, int32_t ancestor,
+                                                              int32_t descendant) {
+  {
+    return typeck_block_is_strict_ancestor_strict_minimal_impl(arena, ancestor, descendant);
+  }
+  return 0;
+}
 
-static int32_t typeck_expr_lval_root_var_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out,
+
+int32_t typeck_expr_lval_root_var_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out,
                                                         int32_t *out_len) {
   int32_t cur;
   int32_t kind;
@@ -1241,8 +1314,16 @@ static int32_t typeck_expr_lval_root_var_strict_minimal(struct ast_ASTArena *are
       return 0;
   }
 }
+int32_t typeck_expr_lval_root_var_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out,
+                                                        int32_t *out_len) {
+  {
+    return typeck_expr_lval_root_var_strict_minimal_impl(arena, expr_ref, out, out_len);
+  }
+  return 0;
+}
 
-static int32_t typeck_name_is_block_local_strict_minimal(struct ast_Module *module, struct ast_ASTArena *arena,
+
+int32_t typeck_name_is_block_local_strict_minimal_impl(struct ast_Module *module, struct ast_ASTArena *arena,
                                                          struct ast_PipelineDepCtx *ctx, uint8_t *name, int32_t name_len) {
   int32_t func_ix;
   int32_t site_block;
@@ -1258,8 +1339,16 @@ static int32_t typeck_name_is_block_local_strict_minimal(struct ast_Module *modu
     return 0;
   return pipeline_block_find_var_decl_block_ref(arena, site_block, name, name_len) > 0 ? 1 : 0;
 }
+int32_t typeck_name_is_block_local_strict_minimal(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                         struct ast_PipelineDepCtx *ctx, uint8_t *name, int32_t name_len) {
+  {
+    return typeck_name_is_block_local_strict_minimal_impl(module, arena, ctx, name, name_len);
+  }
+  return 0;
+}
 
-static int32_t typeck_expr_is_addr_of_block_local_strict_minimal(struct ast_Module *module, struct ast_ASTArena *arena,
+
+int32_t typeck_expr_is_addr_of_block_local_strict_minimal_impl(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                  struct ast_PipelineDepCtx *ctx, int32_t expr_ref) {
   uint8_t vbuf[64];
   int32_t vlen;
@@ -1275,6 +1364,14 @@ static int32_t typeck_expr_is_addr_of_block_local_strict_minimal(struct ast_Modu
     return 0;
   return typeck_name_is_block_local_strict_minimal(module, arena, ctx, vbuf, vlen);
 }
+int32_t typeck_expr_is_addr_of_block_local_strict_minimal(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                                 struct ast_PipelineDepCtx *ctx, int32_t expr_ref) {
+  {
+    return typeck_expr_is_addr_of_block_local_strict_minimal_impl(module, arena, ctx, expr_ref);
+  }
+  return 0;
+}
+
 
 __attribute__((weak)) int32_t pipeline_typeck_check_slice_region_assign_c(struct ast_ASTArena *arena,
                                                                           int32_t site_expr_ref, int32_t expect_ref,
@@ -1403,13 +1500,20 @@ __attribute__((weak)) void pipeline_typeck_const_init_not_constant_c(int32_t lin
   lsp_diag_report_typeck((int)line, (int)col, "const init must be constant expression");
 }
 
-static int32_t pipeline_typeck_const_name_matches_strict_minimal(uint8_t *name, int32_t name_len, const char *lit) {
+int32_t pipeline_typeck_const_name_matches_strict_minimal_impl(uint8_t *name, int32_t name_len, const char *lit) {
   size_t lit_len;
   if (!name || !lit || name_len <= 0)
     return 0;
   lit_len = strlen(lit);
   return name_len == (int32_t)lit_len && memcmp(name, lit, lit_len) == 0 ? 1 : 0;
 }
+int32_t pipeline_typeck_const_name_matches_strict_minimal(uint8_t *name, int32_t name_len, const char *lit) {
+  {
+    return pipeline_typeck_const_name_matches_strict_minimal_impl(name, name_len, lit);
+  }
+  return 0;
+}
+
 
 static int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref,
                                                              const char *const_names[], int32_t n_const_names) {
