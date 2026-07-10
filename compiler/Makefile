@@ -629,7 +629,7 @@ LEGACY_SHUX_C_READY_TARGETS = build-tool
 $(LEGACY_SHUX_C_READY_TARGETS): | legacy-shux-c-ready
 
 # G-02f-16：main 产品 seed（LEGACY 极简入口）
-src/main.o: seeds/main.from_x.c src/main.x
+src/main.o: seeds/main.from_x.c src/main_c_entry.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/main.from_x.c -o $@
 
 # E-04 v2/v3：argv/target 与 POSIX I/O ABI 薄壳；默认 seed / B-strict 均链入。
@@ -742,7 +742,7 @@ src/runtime_driver_no_c.o: seeds/runtime.from_x.c src/runtime.x Makefile
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(RUNTIME_DRIVER_NO_C_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime.from_x.c -o $@
 
 # shux_x 使用带 -DSHUX_USE_X_PIPELINE 编译的 main，否则 #ifdef 块不会生效
-src/main_x.o: seeds/main.from_x.c src/main.x
+src/main_x.o: seeds/main.from_x.c src/main_c_entry.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c seeds/main.from_x.c -o $@
 
 # shux_x：pipeline_x.o 编排 typeck_x/codegen_x（G-02a: typeck.c + codegen.c 已删；X pipeline 独立）。
@@ -1430,7 +1430,7 @@ bootstrap-codegen: $(TARGET) $(SHUX_C) bootstrap_shuxc $(RELINK_SHUX_PREREQS)
 
 # 6.3/6.4：入口在 main.x；链接时用 main_driver.o（带 SHUX_USE_X_DRIVER/PIPELINE 以启用 -backend asm）+ runtime_driver.o + ...
 # G-02f-16：main_driver 与 main 同源 seed
-src/main_driver.o: seeds/main.from_x.c src/main.x Makefile
+src/main_driver.o: seeds/main.from_x.c src/main_c_entry.x Makefile
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -c seeds/main.from_x.c -o $@
 # G-02a: preprocess.c 已物理删除；runtime preprocess() 走 preprocess.x（preprocess_x.o）。
 # G-02f-6：target_cpu.o 单 TU（pure seed 含 OS detect；无 ld -r）
