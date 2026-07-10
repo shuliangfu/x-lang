@@ -3166,36 +3166,44 @@ int driver_want_asm_emit_to_file(int argc, char **argv);
 /* driver_get_argv_i / driver_argv_drop_subcommand / driver_resolve_target_arch → runtime_abi.c（E-04 v2） */
 
 /**
- * cmd_run（driver/run.x）：编译成功后 exec 产物。从 argv 扫描 `-o` 下一参数为可执行路径，缺省 `a.out`。
- * 子进程 argv 仅为 [ exe, NULL ]；ABI 上 argv 与 char** 同址。
+ * cmd_run：编译成功后 exec 产物。
+ * G-02f-299 R7 → rt_run_exec hybrid（pure scan + path gate + spawn 在 seed）
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RT_RUN_EXEC_FROM_X
+const char *driver_exec_scan_out_path(int argc, char **argv) {
+    int i;
+    if (!argv || argc < 1)
+        return "a.out";
+    for (i = 1; i < argc - 1; i++) {
+        if (argv[i] && strcmp(argv[i], "-o") == 0 && argv[i + 1] && argv[i + 1][0])
+            return argv[i + 1];
+    }
+    return "a.out";
+}
+
+int driver_exec_path_is_non_exe(const char *exe) {
+    size_t n;
+    if (!exe)
+        return 1;
+    n = strlen(exe);
+    if (n >= 2 && exe[n - 2] == '.' && (exe[n - 1] == 'o' || exe[n - 1] == 'O'))
+        return 1;
+    if (n >= 4 && exe[n - 4] == '.' && exe[n - 3] == 'o' && exe[n - 2] == 'b' && exe[n - 1] == 'j')
+        return 1;
+    if (n >= 2 && exe[n - 2] == '.' && exe[n - 1] == 's')
+        return 1;
+    return 0;
+}
+
 int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
     char **argv = (char **)argv_opaque;
-    const char *exe = "a.out";
-    int i;
+    const char *exe;
 
     if (!argv || argc < 1)
         return 1;
-    for (i = 1; i < argc - 1; i++) {
-        if (argv[i] && strcmp(argv[i], "-o") == 0 && argv[i + 1] && argv[i + 1][0]) {
-            exe = argv[i + 1];
-            break;
-        }
-    }
-    /*
-     * `shux` / `shux run` 默认在编译成功后 exec 产物。-o 为对象文件或汇编列表时不应执行（execv(.o) → EACCES）。
-     * 与 shux_output_want_exe 后缀规则对齐。
-     */
-    {
-        size_t n = strlen(exe);
-        if (n >= 2 && exe[n - 2] == '.' && (exe[n - 1] == 'o' || exe[n - 1] == 'O'))
-            return 0;
-        if (n >= 4 && exe[n - 4] == '.' && exe[n - 3] == 'o' && exe[n - 2] == 'b' && exe[n - 1] == 'j')
-            return 0;
-        if (n >= 2 && exe[n - 2] == '.' && exe[n - 1] == 's')
-            return 0;
-    }
+    exe = driver_exec_scan_out_path(argc, argv);
+    if (driver_exec_path_is_non_exe(exe))
+        return 0;
     {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
         char *av[2];
@@ -3232,6 +3240,11 @@ int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
 #endif
     }
 }
+#else
+const char *driver_exec_scan_out_path(int argc, char **argv);
+int driver_exec_path_is_non_exe(const char *exe);
+int driver_exec_compiled(int argc, uint8_t *argv_opaque);
+#endif
 
 
 

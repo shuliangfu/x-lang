@@ -1,17 +1,22 @@
-/* seeds/rt_run_exec.from_x.c — G-02f-297/298 P2 runtime R7-lite (run/exec pure gates)
+/* seeds/rt_run_exec.from_x.c — G-02f-297～299 P2 runtime R7 (run/exec gates)
  * Logic source: src/runtime/rt_run_exec.x
  * Hybrid: SHUX_RT_RUN_EXEC_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * f-297: want_asm_emit_to_file + print_usage
  * f-298: runtime_test_status_to_rc + print_target_cpu_features
- * driver_exec_compiled / main_entry / fmt IO remain mega rest (🔒).
+ * f-299: exec pure path helpers + driver_exec_compiled (spawn 🔒 在本 seed)
+ * main_entry / fmt IO remain mega rest.
  */
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+#include <process.h>
+#endif
 
 #include "runtime_diag_codes.h"
 
@@ -20,6 +25,7 @@ extern void runtime_diag_errno_path(const char *file, const char *kind, const ch
 extern void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code,
                                    const char *detail, const char *fmt, ...);
 extern void shu_target_cpu_print(FILE *out, uint32_t features);
+extern int shu_waitpid_retry(pid_t pid, int *status_out);
 
 /**
  * 是否与 driver_run_compiler_full 默认一致：默认可走 asm 后端；
@@ -117,6 +123,88 @@ int runtime_test_status_to_rc(const char *script, int st) {
 int32_t driver_print_target_cpu_features_c(int32_t features) {
   shu_target_cpu_print(stdout, (uint32_t)features);
   return 0;
+}
+
+/* --- G-02f-299: exec path pure + driver_exec_compiled --- */
+
+/** 从 argv 扫描 `-o` 下一参数；缺省 `"a.out"`（可能指向 argv 槽或静态字面量）。 */
+const char *driver_exec_scan_out_path(int argc, char **argv) {
+  int i;
+  if (!argv || argc < 1)
+    return "a.out";
+  for (i = 1; i < argc - 1; i++) {
+    if (argv[i] && strcmp(argv[i], "-o") == 0 && argv[i + 1] && argv[i + 1][0])
+      return argv[i + 1];
+  }
+  return "a.out";
+}
+
+/**
+ * 路径是否为不应 exec 的对象/汇编产物（.o/.O/.obj/.s）。
+ * 与 shux_output_want_exe 后缀规则对齐。
+ */
+int driver_exec_path_is_non_exe(const char *exe) {
+  size_t n;
+  if (!exe)
+    return 1;
+  n = strlen(exe);
+  if (n >= 2 && exe[n - 2] == '.' && (exe[n - 1] == 'o' || exe[n - 1] == 'O'))
+    return 1;
+  if (n >= 4 && exe[n - 4] == '.' && exe[n - 3] == 'o' && exe[n - 2] == 'b' && exe[n - 1] == 'j')
+    return 1;
+  if (n >= 2 && exe[n - 2] == '.' && exe[n - 1] == 's')
+    return 1;
+  return 0;
+}
+
+/**
+ * cmd_run：编译成功后 exec 产物。spawn/fork 为 🔒 OS 路径，留在本 seed。
+ */
+int driver_exec_compiled(int argc, uint8_t *argv_opaque) {
+  char **argv = (char **)argv_opaque;
+  const char *exe;
+
+  if (!argv || argc < 1)
+    return 1;
+  exe = driver_exec_scan_out_path(argc, argv);
+  if (driver_exec_path_is_non_exe(exe))
+    return 0;
+  {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    char *av[2];
+    intptr_t rc;
+    av[0] = (char *)exe;
+    av[1] = NULL;
+    rc = _spawnvp(_P_WAIT, exe, (const char *const *)av);
+    if (rc == -1) {
+      runtime_diag_errno_path(NULL, "process error", "spawnvp (driver_exec_compiled)", exe);
+      return 1;
+    }
+    return (int)rc;
+#else
+    pid_t pid = fork();
+    if (pid < 0) {
+      runtime_diag_errno_path(NULL, "process error", "fork (driver_exec_compiled)", exe);
+      return 1;
+    }
+    if (pid == 0) {
+      char *av[2];
+      av[0] = (char *)exe;
+      av[1] = NULL;
+      execv(exe, av);
+      runtime_diag_errno_path(NULL, "process error", "execv (driver_exec_compiled)", exe);
+      _exit(127);
+    }
+    {
+      int st = 0;
+      if (shu_waitpid_retry(pid, &st) != 0)
+        return 1;
+      if (WIFEXITED(st))
+        return WEXITSTATUS(st);
+      return 1;
+    }
+#endif
+  }
 }
 
 int labi_rt_run_exec_slice_marker(void) {
