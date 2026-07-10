@@ -1,4 +1,4 @@
-/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-11 product TU
+/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-210 pure residual; G-02f-11 product TU
  * G-02f-135 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
@@ -530,15 +530,18 @@ static int32_t g_typeck_linear_moved_lens[TYPECK_LINEAR_MOVED_MAX];
 extern int32_t driver_run_compiler_full(int32_t argc, char **argv);
 
 /** runtime 期望的程序入口名；weak 以便与 asm_experimental_symbol_bridge 共存（B-strict 链 build_asm/pipeline.o 时）。 */
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t main_entry(int32_t argc, char **argv) {
   return driver_run_compiler_full(argc, argv);
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t main_run_compiler_c(int32_t argc, uint8_t *argv) {
   return driver_run_compiler_full(argc, (char **)argv);
 }
 
 /** pipeline 非 asm 分支 weak 桩（asm 路径不走此符号）。 */
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t codegen_x_ast(void *module, void *arena, void *out_buf, void *ctx, int32_t dep_index) {
   (void)module;
   (void)arena;
@@ -559,6 +562,7 @@ __attribute__((weak)) int32_t ast_pipeline_module_func_num_generic_params_at(str
   return n;
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void parse_into_init(void *module, void *arena) {
   parser_parse_into_init((struct ast_Module *)module, (struct ast_ASTArena *)arena);
 }
@@ -612,6 +616,7 @@ __attribute__((weak)) int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Modu
   return pipeline_lsp_diag_parse_typeck_buf_impl_c(module, arena, source_data, source_len, ctx);
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t typeck_x_type_size_from_layout_glue(struct ast_Module *module,
                                                                    struct ast_ASTArena *arena, int32_t li,
                                                                    int32_t depth) {
@@ -624,6 +629,7 @@ __attribute__((weak)) int32_t typeck_x_type_size_from_layout_glue(struct ast_Mod
   return sz;
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t typeck_x_type_align_from_layout_glue(struct ast_Module *module,
                                                                     struct ast_ASTArena *arena, int32_t li,
                                                                     int32_t depth) {
@@ -989,6 +995,7 @@ reject:
  * 因此需要在末尾覆盖 pipeline_x.o 里的旧 addr_of 快照实现。
  * &var / &base.field / &base[idx] 都可直接复用现有左值有效地址发射。
  */
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_asm_emit_addr_of_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                         int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta) {
   int32_t op_ref;
@@ -1012,6 +1019,7 @@ int32_t pipeline_asm_emit_addr_of_elf_c(struct ast_ASTArena *arena, struct platf
   return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_resolve_call_func_index_c(struct ast_Module *m, struct ast_ASTArena *a,
                                                                         int32_t call_expr_ref) {
   int32_t fx;
@@ -1042,6 +1050,7 @@ __attribute__((weak)) int32_t pipeline_typeck_resolve_call_func_index_c(struct a
   return -1;
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(struct ast_Module *m,
                                                                                  struct ast_ASTArena *a,
                                                                                  int32_t call_expr_ref) {
@@ -1054,6 +1063,7 @@ __attribute__((weak)) void pipeline_typeck_loop_depth_set_c(struct ast_PipelineD
   ctx->typeck_loop_depth = depth;
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) void pipeline_typeck_pad_fields_warn_layout(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                   int32_t li) {
   (void)module;
@@ -1061,6 +1071,7 @@ __attribute__((weak)) void pipeline_typeck_pad_fields_warn_layout(struct ast_Mod
   (void)li;
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_read_ptr_slice_return_ref_c(struct ast_ASTArena *arena) {
   static const uint8_t lbl[] = "io_read_ptr";
   int32_t u8_ref;
@@ -1114,6 +1125,7 @@ __attribute__((weak)) int32_t pipeline_typeck_linear_use_var_c(struct ast_ASTAre
   return 0;
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_linear_accepts_init_c(struct ast_ASTArena *arena, int32_t decl_ref,
                                                                     int32_t init_ref) {
   if (!arena || decl_ref <= 0 || init_ref <= 0)
@@ -1477,6 +1489,7 @@ int32_t pipeline_typeck_const_expr_ref_strict_minimal(struct ast_ASTArena *arena
 }
 
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_asm_init_is_empty_array_lit_c(struct ast_ASTArena *arena, int32_t init_ref) {
   if (!arena || init_ref <= 0)
     return 0;
@@ -1543,6 +1556,7 @@ __attribute__((weak)) int32_t pipeline_typeck_block_const_init_is_const_c(struct
   return pipeline_typeck_const_expr_ref_strict_minimal(arena, init_ref, names, n);
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_type_stamp_block_let_region_c(struct ast_ASTArena *arena, int32_t block_ref,
                                                                      int32_t let_idx,
                                                                      struct ast_PipelineDepCtx *ctx) {
@@ -1553,6 +1567,7 @@ __attribute__((weak)) int32_t pipeline_type_stamp_block_let_region_c(struct ast_
   return 0;
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) void pipeline_typeck_hot_reorder_warn_layout(struct ast_Module *module,
                                                                    struct ast_ASTArena *arena, int32_t li) {
   (void)module;
@@ -1788,6 +1803,7 @@ __attribute__((weak)) int32_t pipeline_typeck_check_scope_borrow_assign_c(struct
   return -1;
 }
 
+/* G-02f-210：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_check_allocator_region_assign_c(struct ast_Module *module,
                                                                               struct ast_ASTArena *arena,
                                                                               int32_t site_expr_ref,

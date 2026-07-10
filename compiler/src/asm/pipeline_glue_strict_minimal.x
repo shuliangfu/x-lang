@@ -6,6 +6,7 @@
 // G-02f-107：+ named_equal / binding / param / field / assign_kind 薄门闩。
 // G-02f-108：+ unqual/find/map/slice/ancestor/const_name 薄门闩。
 // G-02f-139：named_equal / binding_name_equal / is_func_param / slice_region_conflict 真迁 .x
+// G-02f-210：addr_of/resolve_call/empty_array_lit/noops 等 pure 弱壳真迁 .x
 
 extern "C" function pipeline_type_named_name_into(arena: *u8, tr: i32, out64: *u8): i32;
 extern "C" function pipeline_module_import_binding_name_len(mod: *u8, idx: i32): i32;
@@ -742,4 +743,201 @@ function field_name_equal_strict_minimal(buf: *u8, len: i32, lit: *u8): i32 {
   }
   if (lit[len] != 0) { return 0; }
   return 1;
+}
+
+extern "C" function parser_parse_into_init(module: *u8, arena: *u8): void;
+extern "C" function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+extern "C" function pipeline_expr_call_resolved_func_index_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_apply_call_resolve(arena: *u8, call_er: i32, dep: i32, fi: i32): void;
+extern "C" function typeck_typeck_struct_layout_metrics(module: *u8, arena: *u8, li: i32, depth: i32, flags: i32, out_sz: *i32, out_al: *i32): i32;
+extern "C" function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i32;
+extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
+
+/* ---- G-02f-210：pure weak / residual shells ---- */
+
+// G-02f-210：parse bridge
+#[no_mangle]
+function parse_into_init(module: *u8, arena: *u8): void {
+  if (module == 0) { return; }
+  if (arena == 0) { return; }
+  unsafe {
+    parser_parse_into_init(module, arena);
+  }
+}
+
+// G-02f-210：&var / &field / &index → lvalue eff addr；否则 -99
+#[no_mangle]
+function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  if (arena == 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (ctx == 0) { return 0 - 1; }
+  if (expr_ref <= 0) { return 0 - 1; }
+  unsafe {
+    let op_ref: i32 = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    if (op_ref <= 0) { return 0 - 1; }
+    let op_kind: i32 = pipeline_expr_kind_ord_at(arena, op_ref);
+    // EXPR_VAR=3 FIELD=44 INDEX=47
+    if (op_kind == 3) {
+      return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op_ref, ctx, ta);
+    }
+    if (op_kind == 44) {
+      return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op_ref, ctx, ta);
+    }
+    if (op_kind == 47) {
+      return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op_ref, ctx, ta);
+    }
+  }
+  return 0 - 99;
+}
+
+// G-02f-210：按 callee 名 resolve call 函数下标
+#[no_mangle]
+function pipeline_typeck_resolve_call_func_index_c(m: *u8, a: *u8, call_expr_ref: i32): i32 {
+  if (m == 0) { return 0 - 1; }
+  if (a == 0) { return 0 - 1; }
+  if (call_expr_ref <= 0) { return 0 - 1; }
+  unsafe {
+    let fx: i32 = pipeline_expr_call_resolved_func_index_at(a, call_expr_ref);
+    if (fx >= 0) { return fx; }
+    let callee_ref: i32 = pipeline_expr_call_callee_ref_at(a, call_expr_ref);
+    if (callee_ref <= 0) { return 0 - 1; }
+    if (pipeline_expr_kind_ord_at(a, callee_ref) != 3) { return 0 - 1; }
+    let callee_name_len: i32 = pipeline_expr_var_name_len(a, callee_ref);
+    if (callee_name_len <= 0) { return 0 - 1; }
+    if (callee_name_len > 63) { return 0 - 1; }
+    let callee_name: u8[64] = [];
+    pipeline_expr_var_name_into(a, callee_ref, &callee_name[0]);
+    let i: i32 = 0;
+    let n: i32 = pipeline_module_num_funcs(m);
+    while (i < n) {
+      if (pipeline_module_func_name_equal_at(m, i, &callee_name[0], callee_name_len) != 0) {
+        pipeline_expr_apply_call_resolve(a, call_expr_ref, 0 - 1, i);
+        return i;
+      }
+      i = i + 1;
+    }
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8, call_expr_ref: i32): i32 {
+  return pipeline_typeck_resolve_call_func_index_c(m, a, call_expr_ref);
+}
+
+// G-02f-210：空 array lit 初值？
+#[no_mangle]
+function pipeline_asm_init_is_empty_array_lit_c(arena: *u8, init_ref: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (init_ref <= 0) { return 0; }
+  unsafe {
+    // EXPR_ARRAY_LIT=46
+    if (pipeline_expr_kind_ord_at(arena, init_ref) != 46) { return 0; }
+    if (pipeline_expr_array_lit_num_elems_at(arena, init_ref) == 0) { return 1; }
+  }
+  return 0;
+}
+
+// G-02f-210：layout metrics → size/align glue
+#[no_mangle]
+function typeck_x_type_size_from_layout_glue(module: *u8, arena: *u8, li: i32, depth: i32): i32 {
+  if (li < 0) { return 0; }
+  unsafe {
+    let sz: i32 = 0;
+    let al: i32 = 1;
+    if (typeck_typeck_struct_layout_metrics(module, arena, li, depth, 0, &sz, &al) != 0) { return 0; }
+    return sz;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function typeck_x_type_align_from_layout_glue(module: *u8, arena: *u8, li: i32, depth: i32): i32 {
+  if (li < 0) { return 1; }
+  unsafe {
+    let sz: i32 = 0;
+    let al: i32 = 1;
+    if (typeck_typeck_struct_layout_metrics(module, arena, li, depth, 0, &sz, &al) != 0) { return 1; }
+    if (al > 0) { return al; }
+  }
+  return 1;
+}
+
+// G-02f-210：read_ptr_slice 返回类型 []u8 @io_read_ptr
+#[no_mangle]
+function pipeline_typeck_read_ptr_slice_return_ref_c(arena: *u8): i32 {
+  if (arena == 0) { return 0; }
+  unsafe {
+    // TYPE_U8=2
+    let u8_ref: i32 = pipeline_type_ensure_by_kind_ord(arena, 2);
+    if (u8_ref <= 0) { return 0; }
+    // "io_read_ptr" 11 bytes
+    let lbl: u8[16] = [];
+    lbl[0] = 105; lbl[1] = 111; lbl[2] = 95; lbl[3] = 114; lbl[4] = 101;
+    lbl[5] = 97; lbl[6] = 100; lbl[7] = 95; lbl[8] = 112; lbl[9] = 116;
+    lbl[10] = 114; lbl[11] = 0;
+    return pipeline_type_find_or_alloc_slice(arena, u8_ref, &lbl[0], 11);
+  }
+  return 0;
+}
+
+// G-02f-210：linear init 接受（decl LINEAR 且 refs equal 或 elem equal）
+#[no_mangle]
+function pipeline_typeck_linear_accepts_init_c(arena: *u8, decl_ref: i32, init_ref: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (decl_ref <= 0) { return 0; }
+  if (init_ref <= 0) { return 0; }
+  unsafe {
+    // TYPE_LINEAR=12
+    if (pipeline_type_kind_ord_at(arena, decl_ref) != 12) { return 0; }
+    if (pipeline_typeck_type_refs_equal_c(arena, decl_ref, init_ref) != 0) { return 1; }
+    let elem: i32 = pipeline_type_elem_ref_at(arena, decl_ref);
+    return pipeline_typeck_type_refs_equal_c(arena, elem, init_ref);
+  }
+  return 0;
+}
+
+// G-02f-210：layout warn noops
+#[no_mangle]
+function pipeline_typeck_pad_fields_warn_layout(module: *u8, arena: *u8, li: i32): void {
+  return;
+}
+
+#[no_mangle]
+function pipeline_typeck_hot_reorder_warn_layout(module: *u8, arena: *u8, li: i32): void {
+  return;
+}
+
+#[no_mangle]
+function pipeline_type_stamp_block_let_region_c(arena: *u8, block_ref: i32, let_idx: i32, ctx: *u8): i32 {
+  return 0;
+}
+
+#[no_mangle]
+function pipeline_typeck_check_allocator_region_assign_c(module: *u8, arena: *u8, site_expr_ref: i32, left_ref: i32, ctx: *u8): i32 {
+  return 0;
+}
+
+// G-02f-210：codegen_x_ast stub
+#[no_mangle]
+function codegen_x_ast(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8, dep_index: i32): i32 {
+  return 0 - 1;
+}
+
+// G-02f-210：main entry thin bridges
+#[no_mangle]
+function main_entry(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return driver_run_compiler_full(argc, argv);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function main_run_compiler_c(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return driver_run_compiler_full(argc, argv);
+  }
+  return 0 - 1;
 }
