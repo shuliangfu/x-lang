@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..69 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
- *         merge invoke_ld_platform/resolve_dir/append_objs + ensure gates.
- * .x covers: + invoke_ld_platform, resolve_compiler_dir, append_std/on_demand objs.
+ *         merge invoke_cc + linux_harden + remaining link gates.
+ * .x covers: + shux_invoke_cc, append_linux_link_harden; link_abi exported set nearly gated.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -25,6 +25,9 @@ void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *
     const char **argv, int *la, int max_la, int append_lsystem);
 void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la);
+/* G-02f-70 invoke_cc + harden */
+int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o);
+void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap);
 /* G-02f-69 mega link helpers */
 int shu_resolve_compiler_dir_impl(const char *argv0, char *out_dir, size_t out_dir_sz);
 int shux_asm_invoke_ld_platform_impl(const char *o_path, const char *exe_path, const char *target, int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots, int driver_freestanding);
@@ -3871,7 +3874,7 @@ static int link_abi_link_needs_std_heap_import(const char *user_o, const char **
  * 参数：c_paths/n 源文件；各 *_o 可选 std/core .o；include_root 用于 -I 与按需 .o 解析。
  * 返回值：0 成功，-1 失败。
  */
-int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
+int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
     (void)target;
     (void)json_o;
     (void)csv_o;
@@ -4519,6 +4522,20 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
     }
     return 0;
 }
+
+int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char *target, const char *opt_level, int use_lto, const char *io_o, const char *fs_o, const char *process_o, const char *string_o, const char *heap_o, const char *path_o, const char *runtime_o, const char *runtime_panic_o, const char *net_o, const char *thread_o, const char *time_o, const char *random_o, const char *env_o, const char *sync_o, const char *encoding_o, const char *base64_o, const char *crypto_o, const char *log_o, const char *atomic_o, const char *channel_o, const char *backtrace_o, const char *hash_o, const char *math_o, const char *sort_o, const char *ffi_o, const char *db_o, const char *elf_o, const char *json_o, const char *csv_o, const char *regex_o, const char *compress_o, const char *unicode_o, const char *dynlib_o, const char *http_o, const char *tar_o, const char *simd_o, const char *context_o, const char *datetime_o, const char *uuid_o, const char *url_o, const char *cli_o, const char *security_o, const char *config_o, const char *cache_o, const char *trace_o, const char *task_o, const char *schema_o, const char *test_o, const char *include_root, const char *async_scheduler_o) {
+  if (c_paths == NULL) {
+    return -1;
+  }
+  if (out_path == NULL) {
+    return -1;
+  }
+  {
+    return shux_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, include_root, async_scheduler_o);
+  }
+  return -1;
+}
+
 
 /**
  * 若 net.o / tls_openssl.o 仍为 TLS 桩且 SHUX_NET_TLS 非 stub，尝试 make net-o-openssl / net-o-mbedtls。
@@ -6260,7 +6277,7 @@ void shux_asm_ld_append_unix_gcc_tail_libs(const char *compress_o, const char *u
  * Linux release 链接硬化：PIE + NX（GNU_STACK 无 E）+ partial RELRO。
  * 参数：argv/la/cap 为 gcc/ld 链接 argv 构建状态。
  */
-void shux_append_linux_link_harden(char *argv[], int *la, int cap) {
+void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap) {
     if (!argv || !la || *la < 0)
         return;
     if (*la < cap - 1)
@@ -6276,7 +6293,27 @@ void shux_append_linux_link_harden(char *argv[], int *la, int cap) {
         argv[(*la)++] = "-Wl,--allow-multiple-definition";
 }
 
+
+#else
+void shux_append_linux_link_harden_impl(char *argv[], int *la, int cap) {
+    (void)argv;
+    (void)la;
+    (void)cap;
+}
 #endif
+
+void shux_append_linux_link_harden(char *argv[], int *la, int cap) {
+  if (argv == NULL) {
+    return;
+  }
+  if (la == NULL) {
+    return;
+  }
+  {
+    shux_append_linux_link_harden_impl(argv, la, cap);
+  }
+}
+
 
 /**
  * ASM -o exe：fork 子进程执行 clang/ld 或 lld-link/ld；调用方须先 shux_asm_ld_prepare_for_exe_link。

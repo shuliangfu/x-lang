@@ -1,9 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..44/47/53/55/56/64..69：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
+// G-02f-34..44/47/53/55/56/64..70：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
 // C 尾：invoke_cc/ld 主体、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
+// G-02f-70：+ shux_invoke_cc / linux_link_harden 门闩（link_abi 导出集基本门闩化）。
 // G-02f-69：+ invoke_ld_platform / resolve_dir / append_std/on_demand 门闩。
 // G-02f-68：+ prepare_for_exe_link / waitpid / compress / argv_push 门闩。
 // G-02f-67：+ shux_ensure_* 族门闩（argv0 单参标准模板）。
@@ -1847,6 +1848,9 @@ function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, driver_fre
   return 0 - 1;
 }
 
+extern "C" function shux_invoke_cc_impl(c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32, io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8, runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8, sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8, channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8, db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8, dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8, uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8, trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8): i32;
+extern "C" function shux_append_linux_link_harden_impl(argv: *u8, la: *i32, cap: i32): void;
+
 /* ---- G-02f-69：invoke_ld_platform / resolve_dir / append objs 门闩 ---- */
 
 #[no_mangle]
@@ -1930,5 +1934,34 @@ function invoke_cc_append_net_tls_ld(argv: *u8, i: *i32, argv_cap: i32, net_o: *
 function ensure_std_net_o_auto_tls(repo_root: *u8): void {
   unsafe {
     ensure_std_net_o_auto_tls_impl(repo_root);
+  }
+}
+
+/* ---- G-02f-70：invoke_cc + linux link harden 门闩 ---- */
+
+#[no_mangle]
+function shux_invoke_cc(c_paths: *u8, n: i32, out_path: *u8, target: *u8, opt_level: *u8, use_lto: i32, io_o: *u8, fs_o: *u8, process_o: *u8, string_o: *u8, heap_o: *u8, path_o: *u8, runtime_o: *u8, runtime_panic_o: *u8, net_o: *u8, thread_o: *u8, time_o: *u8, random_o: *u8, env_o: *u8, sync_o: *u8, encoding_o: *u8, base64_o: *u8, crypto_o: *u8, log_o: *u8, atomic_o: *u8, channel_o: *u8, backtrace_o: *u8, hash_o: *u8, math_o: *u8, sort_o: *u8, ffi_o: *u8, db_o: *u8, elf_o: *u8, json_o: *u8, csv_o: *u8, regex_o: *u8, compress_o: *u8, unicode_o: *u8, dynlib_o: *u8, http_o: *u8, tar_o: *u8, simd_o: *u8, context_o: *u8, datetime_o: *u8, uuid_o: *u8, url_o: *u8, cli_o: *u8, security_o: *u8, config_o: *u8, cache_o: *u8, trace_o: *u8, task_o: *u8, schema_o: *u8, test_o: *u8, include_root: *u8, async_scheduler_o: *u8): i32 {
+  if (c_paths == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out_path == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    return shux_invoke_cc_impl(c_paths, n, out_path, target, opt_level, use_lto, io_o, fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o, thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o, atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o, csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o, datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o, schema_o, test_o, include_root, async_scheduler_o);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_append_linux_link_harden(argv: *u8, la: *i32, cap: i32): void {
+  if (argv == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    shux_append_linux_link_harden_impl(argv, la, cap);
   }
 }
