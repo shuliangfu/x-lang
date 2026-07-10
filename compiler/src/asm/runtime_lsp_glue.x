@@ -7,6 +7,7 @@
 // G-02f-251：P1-9 开局 — uri↔path pure + copy_text pure。
 // G-02f-252：json_escape_str pure + entry_dir 路径拆分 pure。
 // G-02f-253：line_char_to_offset + lsp_doc_line_count pure。
+// G-02f-254：lsp_find_text_value / _from pure。
 
 function runtime_lsp_glue_x_doc_anchor(): i32 {
   return 0;
@@ -439,10 +440,9 @@ function type_to_string(ty: *u8, buf: *u8, cap: i32): i32 { unsafe { return type
 // G-02f-111 / G-02f-253：JSON/offset/format document helpers。
 
 extern "C" function try_apply_content_changes_impl(doc: *u8, json: *u8): i32;
-/* line_char_to_offset / lsp_doc_line_count：G-02f-253 下方真迁 pure */
+/* line_char_to_offset / lsp_doc_line_count：G-02f-253 pure */
+/* find_text_value：G-02f-254 pure */
 extern "C" function parse_first_content_change_impl(json: *u8, out: *u8): i32;
-extern "C" function lsp_find_text_value_from_impl(s: *u8, from: i32, out: *u8, cap: i32): i32;
-extern "C" function lsp_find_text_value_impl(s: *u8, out: *u8, cap: i32): i32;
 extern "C" function lsp_extract_formatting_options_impl(json: *u8, out: *u8): i32;
 extern "C" function lsp_format_line_update_depth_impl(line: *u8, depth: *i32): void;
 extern "C" function lsp_fmt_try_emit_op_impl(ctx: *u8): i32;
@@ -563,29 +563,233 @@ function parse_first_content_change(json: *u8, out: *u8): i32 {
   return 0;
 }
 
+// G-02f-254：JSON 空白
+function lsp_json_is_ws(c: u8): i32 {
+  if (c == 32) {
+    return 1;
+  }
+  if (c == 9) {
+    return 1;
+  }
+  if (c == 10) {
+    return 1;
+  }
+  if (c == 13) {
+    return 1;
+  }
+  return 0;
+}
+
+// G-02f-254：body[i..] 是否为 "text"
+function lsp_match_quote_text_quote(body: *u8, i: i32): i32 {
+  unsafe {
+    // "text"
+    if (body[i] != 34) {
+      return 0;
+    }
+    if (body[i + 1] != 116) {
+      return 0;
+    }
+    if (body[i + 2] != 101) {
+      return 0;
+    }
+    if (body[i + 3] != 120) {
+      return 0;
+    }
+    if (body[i + 4] != 116) {
+      return 0;
+    }
+    if (body[i + 5] != 34) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+// G-02f-254：body[i..] 是否为 "textDocument"
+function lsp_match_quote_textdocument_quote(body: *u8, i: i32): i32 {
+  unsafe {
+    // "textDocument" = 14 bytes
+    if (body[i] != 34) {
+      return 0;
+    }
+    if (body[i + 1] != 116) {
+      return 0;
+    }
+    if (body[i + 2] != 101) {
+      return 0;
+    }
+    if (body[i + 3] != 120) {
+      return 0;
+    }
+    if (body[i + 4] != 116) {
+      return 0;
+    }
+    if (body[i + 5] != 68) {
+      return 0;
+    }
+    if (body[i + 6] != 111) {
+      return 0;
+    }
+    if (body[i + 7] != 99) {
+      return 0;
+    }
+    if (body[i + 8] != 117) {
+      return 0;
+    }
+    if (body[i + 9] != 109) {
+      return 0;
+    }
+    if (body[i + 10] != 101) {
+      return 0;
+    }
+    if (body[i + 11] != 110) {
+      return 0;
+    }
+    if (body[i + 12] != 116) {
+      return 0;
+    }
+    if (body[i + 13] != 34) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+// G-02f-254：从 search_start 找 "text":"..." 并 unescape
 #[no_mangle]
-function lsp_find_text_value_from(s: *u8, from: i32, out: *u8, cap: i32): i32 {
-  if (out == 0 as *u8) {
+function lsp_find_text_value_from(body: *u8, len: i32, search_start: i32, out_buf: *u8, out_cap: i32): i32 {
+  if (body == 0 as *u8) {
     return 0 - 1;
   }
-  if (cap <= 0) {
+  if (out_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out_cap <= 0) {
+    return 0 - 1;
+  }
+  if (len < 0) {
+    return 0 - 1;
+  }
+  if (search_start < 0) {
     return 0 - 1;
   }
   unsafe {
-    return lsp_find_text_value_from_impl(s, from, out, cap);
+    let i: i32 = search_start;
+    while (i + 6 <= len) {
+      if (lsp_match_quote_text_quote(body, i) == 0) {
+        i = i + 1;
+      } else {
+        let s: i32 = i + 6;
+        while (s < len) {
+          if (lsp_json_is_ws(body[s]) == 0) {
+            break;
+          }
+          s = s + 1;
+        }
+        if (s >= len) {
+          i = i + 1;
+        } else {
+          if (body[s] != 58) {
+            // :
+            i = i + 1;
+          } else {
+            s = s + 1;
+            while (s < len) {
+              if (lsp_json_is_ws(body[s]) == 0) {
+                break;
+              }
+              s = s + 1;
+            }
+            if (s >= len) {
+              i = i + 1;
+            } else {
+              if (body[s] != 34) {
+                i = i + 1;
+              } else {
+                let start: i32 = s + 1;
+                let out_len: i32 = 0;
+                while (start < len) {
+                  if (out_len >= out_cap - 1) {
+                    break;
+                  }
+                  let c: u8 = body[start];
+                  // 未转义的 "
+                  if (c == 34) {
+                    if (start == 0) {
+                      break;
+                    }
+                    if (body[start - 1] != 92) {
+                      break;
+                    }
+                  }
+                  if (c == 92) {
+                    if (start + 1 >= len) {
+                      break;
+                    }
+                    start = start + 1;
+                    let e: u8 = body[start];
+                    if (e == 110) {
+                      out_buf[out_len] = 10;
+                    } else {
+                      if (e == 114) {
+                        out_buf[out_len] = 13;
+                      } else {
+                        if (e == 116) {
+                          out_buf[out_len] = 9;
+                        } else {
+                          out_buf[out_len] = e;
+                        }
+                      }
+                    }
+                    out_len = out_len + 1;
+                    start = start + 1;
+                  } else {
+                    out_buf[out_len] = c;
+                    out_len = out_len + 1;
+                    start = start + 1;
+                  }
+                }
+                out_buf[out_len] = 0;
+                return out_len;
+              }
+            }
+          }
+        }
+      }
+    }
   }
   return 0 - 1;
 }
 
+// G-02f-254：优先在 "textDocument" 后找 "text"；否则全段找
 #[no_mangle]
-function lsp_find_text_value(s: *u8, out: *u8, cap: i32): i32 {
-  if (out == 0 as *u8) {
+function lsp_find_text_value(body: *u8, len: i32, out_buf: *u8, out_cap: i32): i32 {
+  if (body == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out_cap <= 0) {
+    return 0 - 1;
+  }
+  if (len < 0) {
     return 0 - 1;
   }
   unsafe {
-    return lsp_find_text_value_impl(s, out, cap);
+    let i: i32 = 0;
+    while (i + 14 <= len) {
+      if (lsp_match_quote_textdocument_quote(body, i) != 0) {
+        let n: i32 = lsp_find_text_value_from(body, len, i + 14, out_buf, out_cap);
+        if (n >= 0) {
+          return n;
+        }
+      }
+      i = i + 1;
+    }
   }
-  return 0 - 1;
+  return lsp_find_text_value_from(body, len, 0, out_buf, out_cap);
 }
 
 #[no_mangle]

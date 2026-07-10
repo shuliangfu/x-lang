@@ -10,6 +10,7 @@
  * G-02f-251: P1-9 open — uri↔path pure + copy_text pure.
  * G-02f-252: json_escape_str pure + entry_dir path split pure.
  * G-02f-253: line_char_to_offset + lsp_doc_line_count pure.
+ * G-02f-254: lsp_find_text_value / _from pure.
  * Product object from this seed; more logic still C until further L1 port.
  */
 /**
@@ -1963,60 +1964,94 @@ int parse_first_content_change(const uint8_t *body, int len,
 
 
 /** 在 body[search_start..len) 中找 "text" 键（支持 "text":"、"text": "、"text" : " 等），取 JSON 字符串值到 out_buf，做 unescape；返回 out 长度，未找到或出错 -1。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-254：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 int lsp_find_text_value_from(const uint8_t *body, int len, int search_start, uint8_t *out_buf, int out_cap) {
     const int key6_len = 6;  /* "\"text\"" */
-    int i = search_start;
+    int i;
+    if (!body || !out_buf || out_cap <= 0 || len < 0 || search_start < 0)
+        return -1;
+    i = search_start;
     while (i + key6_len <= len) {
-        if (body[i] != (uint8_t)'"' || body[i+1] != (uint8_t)'t' || body[i+2] != (uint8_t)'e' ||
-            body[i+3] != (uint8_t)'x' || body[i+4] != (uint8_t)'t' || body[i+5] != (uint8_t)'"')
-            { i++; continue; }
-        int s = i + key6_len;
-        while (s < len && (body[s] == ' ' || body[s] == '\t' || body[s] == '\n' || body[s] == '\r')) s++;
-        if (s >= len || body[s] != ':') { i++; continue; }
-        s++;
-        while (s < len && (body[s] == ' ' || body[s] == '\t' || body[s] == '\n' || body[s] == '\r')) s++;
-        if (s >= len || body[s] != '"') { i++; continue; }
-        int value_start = s + 1;
-        int start = value_start;
-        int out_len = 0;
-        while (start < len && out_len < out_cap - 1) {
-            uint8_t c = body[start];
-            if (c == '"' && (start == 0 || body[start-1] != '\\'))
-                break;
-            if (c == '\\' && start + 1 < len) {
-                start++;
-                if (body[start] == 'n') { out_buf[out_len++] = '\n'; start++; continue; }
-                if (body[start] == 'r') { out_buf[out_len++] = '\r'; start++; continue; }
-                if (body[start] == 't') { out_buf[out_len++] = '\t'; start++; continue; }
-                if (body[start] == '"' || body[start] == '\\') { out_buf[out_len++] = body[start]; start++; continue; }
-                out_buf[out_len++] = body[start];
-                start++;
+        if (body[i] != (uint8_t)'"' || body[i + 1] != (uint8_t)'t' || body[i + 2] != (uint8_t)'e' ||
+            body[i + 3] != (uint8_t)'x' || body[i + 4] != (uint8_t)'t' || body[i + 5] != (uint8_t)'"') {
+            i++;
+            continue;
+        }
+        {
+            int s = i + key6_len;
+            int start;
+            int out_len = 0;
+            while (s < len && (body[s] == ' ' || body[s] == '\t' || body[s] == '\n' || body[s] == '\r'))
+                s++;
+            if (s >= len || body[s] != ':') {
+                i++;
                 continue;
             }
-            out_buf[out_len++] = c;
-            start++;
+            s++;
+            while (s < len && (body[s] == ' ' || body[s] == '\t' || body[s] == '\n' || body[s] == '\r'))
+                s++;
+            if (s >= len || body[s] != '"') {
+                i++;
+                continue;
+            }
+            start = s + 1;
+            while (start < len && out_len < out_cap - 1) {
+                uint8_t c = body[start];
+                if (c == '"' && (start == 0 || body[start - 1] != '\\'))
+                    break;
+                if (c == '\\' && start + 1 < len) {
+                    start++;
+                    if (body[start] == 'n') {
+                        out_buf[out_len++] = '\n';
+                        start++;
+                        continue;
+                    }
+                    if (body[start] == 'r') {
+                        out_buf[out_len++] = '\r';
+                        start++;
+                        continue;
+                    }
+                    if (body[start] == 't') {
+                        out_buf[out_len++] = '\t';
+                        start++;
+                        continue;
+                    }
+                    if (body[start] == '"' || body[start] == '\\') {
+                        out_buf[out_len++] = body[start];
+                        start++;
+                        continue;
+                    }
+                    out_buf[out_len++] = body[start];
+                    start++;
+                    continue;
+                }
+                out_buf[out_len++] = c;
+                start++;
+            }
+            out_buf[out_len] = '\0';
+            return (int)out_len;
         }
-        out_buf[out_len] = '\0';
-        return (int)out_len;
     }
     return -1;
 }
 
-
-
-
 /** 在 body[0..len) 中找 didOpen 的 text：先定位到 "textDocument" 对象内再找 "text" 键，取 JSON 字符串值到 out_buf；返回 out 长度，未找到 -1。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-254：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, int out_cap) {
     const char *td = "\"textDocument\"";
     const int td_len = 14;
     int i = 0;
+    if (!body || !out_buf || out_cap <= 0 || len < 0)
+        return -1;
     for (; i + td_len <= len; i++) {
-        if (memcmp(body + i, td, (size_t)td_len) != 0) continue;
+        if (memcmp(body + i, td, (size_t)td_len) != 0)
+            continue;
         /* 在 "textDocument" 之后查找 "text" 键，避免误匹配 method 等处的 text */
-        int n = lsp_find_text_value_from(body, len, i + td_len, out_buf, out_cap);
-        if (n >= 0) return n;
+        {
+            int n = lsp_find_text_value_from(body, len, i + td_len, out_buf, out_cap);
+            if (n >= 0)
+                return n;
+        }
     }
     /* 未找到 textDocument 时回退：整段 body 中找第一个 "text" 键（兼容旧或简化的请求） */
     return lsp_find_text_value_from(body, len, 0, out_buf, out_cap);
