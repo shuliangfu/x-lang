@@ -1725,28 +1725,41 @@ int shux_host_is_apple_aarch64(void);
 
 
 
+/* G-02f-276 L7 freestanding list pure */
+#ifndef SHUX_LABI_FREESTANDING_LIST_FROM_X
+#include "seeds/labi_freestanding_list.from_x.c"
+#else
+const char *labi_fs_env_freestanding(void);
+int labi_fs_io_sym_count(void);
+const char *labi_fs_io_sym_at(int i);
+const char *labi_fs_panic_sym(void);
+int labi_fs_ensure_catalog_count(void);
+int labi_fs_ensure_catalog_step_at(int i, const char **stem_out, const char **out_base_out,
+                                   const char **src_rel_out);
+const char *labi_fs_ensure_out_base(int i);
+const char *labi_fs_ensure_src_rel(int i);
+const char *labi_fs_ensure_stem(int i);
+const char *labi_fs_crt0_out_base(void);
+const char *labi_fs_crt0_src_rel(void);
+const char *labi_fs_io_out_base(void);
+const char *labi_fs_io_src_rel(void);
+#endif
+
+/* G-02f-276：env name from pure table */
 int shux_link_freestanding_enabled(int driver_freestanding) {
-  (void)(({   {
-    char *e = getenv("SHUX_FREESTANDING");
-    if ((shux_host_is_linux() ==0)) {
-      return 0;
-    }
-    if ((driver_freestanding !=0)) {
-      return 1;
-    }
-    if ((e ==NULL)) {
-      return 0;
-    }
-    if (((e)[0] ==0)) {
-      return 0;
-    }
-    if (((e)[0] ==48)) {
-      return 0;
-    }
+  char *e;
+  if (shux_host_is_linux() == 0)
+    return 0;
+  if (driver_freestanding != 0)
     return 1;
-  }
- }));
-  return 0;
+  e = getenv(labi_fs_env_freestanding());
+  if (e == NULL)
+    return 0;
+  if (e[0] == 0)
+    return 0;
+  if (e[0] == 48) /* '0' */
+    return 0;
+  return 1;
 }
 
 /**
@@ -2355,34 +2368,38 @@ int shux_ensure_runtime_ed25519_ref10_glue_o(const char *argv0) {
  * 返回值：0 成功；未启用 freestanding 时 no-op 返回 0。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-276：crt0 ensure paths from pure table */
 int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_s[PATH_MAX];
+    const char *out_base = labi_fs_crt0_out_base();
+    const char *src_rel = labi_fs_crt0_src_rel();
+    const char *stem = labi_fs_ensure_stem(0);
     if (!shux_link_freestanding_enabled(driver_freestanding))
         return 0;
     if (asm_link_obj_skip_missing(shux_crt0_user_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("crt0_user.o", NULL);
+        link_diag_runtime_obj_resolve_fail(out_base ? out_base : "crt0_user.o", NULL);
         return -1;
     }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/crt0_user.o", comp) >= sizeof out_o)
+    if ((size_t)snprintf(out_o, sizeof out_o, "%s/%s", comp, out_base ? out_base : "crt0_user.o") >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/crt0_user_x86_64.s", comp) >= sizeof src_s
+    if ((size_t)snprintf(src_s, sizeof src_s, "%s/%s", comp, src_rel ? src_rel : "src/asm/crt0_user_x86_64.s") >= sizeof src_s
         || access(src_s, R_OK) != 0) {
-        link_diag_runtime_source_missing("crt0_user", src_s);
+        link_diag_runtime_source_missing(stem ? stem : "crt0_user", src_s);
         return -1;
     }
     {
         int rc = shux_cc_compile_sync(src_s, out_o, NULL, NULL, NULL, 1);
         if (rc != 0) {
-            link_diag_runtime_obj_build_status("crt0_user.o", rc);
+            link_diag_runtime_obj_build_status(out_base ? out_base : "crt0_user.o", rc);
             return -1;
         }
     }
     if (!asm_link_obj_skip_missing(shux_crt0_user_o_path(argv0))) {
-        link_diag_runtime_obj_missing("crt0_user.o", out_o);
+        link_diag_runtime_obj_missing(out_base ? out_base : "crt0_user.o", out_o);
         return -1;
     }
     return 0;
@@ -2397,34 +2414,38 @@ int shux_ensure_crt0_user_o(const char *argv0, int driver_freestanding) {
  * 返回值：0 成功；未启用 freestanding 时 no-op 返回 0。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-276：freestanding_io ensure paths from pure table */
 int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
     char comp[PATH_MAX];
     char out_o[PATH_MAX];
     char src_s[PATH_MAX];
+    const char *out_base = labi_fs_io_out_base();
+    const char *src_rel = labi_fs_io_src_rel();
+    const char *stem = labi_fs_ensure_stem(1);
     if (!shux_link_freestanding_enabled(driver_freestanding))
         return 0;
     if (asm_link_obj_skip_missing(shux_freestanding_io_o_path(argv0)))
         return 0;
     if (shu_resolve_compiler_dir(argv0, comp, sizeof comp) != 0) {
-        link_diag_runtime_obj_resolve_fail("freestanding_io.o", NULL);
+        link_diag_runtime_obj_resolve_fail(out_base ? out_base : "freestanding_io.o", NULL);
         return -1;
     }
-    if ((size_t)snprintf(out_o, sizeof out_o, "%s/freestanding_io.o", comp) >= sizeof out_o)
+    if ((size_t)snprintf(out_o, sizeof out_o, "%s/%s", comp, out_base ? out_base : "freestanding_io.o") >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_s, sizeof src_s, "%s/src/asm/freestanding_io_x86_64.s", comp) >= sizeof src_s
+    if ((size_t)snprintf(src_s, sizeof src_s, "%s/%s", comp, src_rel ? src_rel : "src/asm/freestanding_io_x86_64.s") >= sizeof src_s
         || access(src_s, R_OK) != 0) {
-        link_diag_runtime_source_missing("freestanding_io", src_s);
+        link_diag_runtime_source_missing(stem ? stem : "freestanding_io", src_s);
         return -1;
     }
     {
         int rc = shux_cc_compile_sync(src_s, out_o, NULL, NULL, NULL, 1);
         if (rc != 0) {
-            link_diag_runtime_obj_build_status("freestanding_io.o", rc);
+            link_diag_runtime_obj_build_status(out_base ? out_base : "freestanding_io.o", rc);
             return -1;
         }
     }
     if (!asm_link_obj_skip_missing(shux_freestanding_io_o_path(argv0))) {
-        link_diag_runtime_obj_missing("freestanding_io.o", out_o);
+        link_diag_runtime_obj_missing(out_base ? out_base : "freestanding_io.o", out_o);
         return -1;
     }
     return 0;
@@ -4347,60 +4368,30 @@ int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int l
 
 
 
+/* G-02f-276：needs_io from pure symbol table */
 int shux_freestanding_user_o_needs_io(const char *user_o) {
-  (void)(({   {
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_write") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_read") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_close") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_exit") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_open") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_openat") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_mmap") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_munmap") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_socket") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_connect") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_bind") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_listen") !=0)) {
-      return 1;
-    }
-    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_accept") !=0)) {
-      return 1;
-    }
+  int n;
+  int i;
+  if (!user_o || !user_o[0])
     return 0;
+  n = labi_fs_io_sym_count();
+  for (i = 0; i < n; i++) {
+    const char *s = labi_fs_io_sym_at(i);
+    if (s && s[0] && shux_link_obj_needs_undef_sym(user_o, s))
+      return 1;
   }
- }));
   return 0;
 }
 
+/* G-02f-276：needs_panic from pure table */
 int shux_freestanding_user_o_needs_panic(const char *user_o) {
-  (void)(({   {
-    int r = shux_link_obj_needs_undef_sym(user_o, "shux_panic_");
-    return r;
-  }
- }));
-  return 0;
+  const char *s;
+  if (!user_o || !user_o[0])
+    return 0;
+  s = labi_fs_panic_sym();
+  if (!s || !s[0])
+    return 0;
+  return shux_link_obj_needs_undef_sym(user_o, s);
 }
 
 /**
