@@ -1326,9 +1326,9 @@ void driver_run_thread_on_large_stack_pthread_impl(void *(*fn)(void *), void *ar
 /**
  * 在大栈 pthread 上执行 fn(arg)；早退 pure 后进 pthread 体。
  * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，深递归 pipeline/typeck 须与大 pipeline 同路径。
- * G-02f-246：逻辑源 .x（真迁早退编排）；pthread 创建 🔒。
+ * G-02f-246/414：实现体始终 seed；public PREFER 时 thin pure forward；pthread 创建 🔒。
  */
-void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
+void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg) {
     if (fn == NULL)
         return;
     if (driver_is_large_stack_thread()) {
@@ -1350,23 +1350,32 @@ void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
     }
     driver_run_thread_on_large_stack_pthread_impl(fn, arg);
 }
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
+    driver_run_thread_on_large_stack_impl(fn, arg);
+}
+#endif
 
 
 
 /** 对外别名：LSP 主循环等在 256MiB 栈 pthread 上执行 fn(arg)。 */
-void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
-  {
-    driver_run_thread_on_large_stack(fn, arg);
-  }
+/* G-02f-414：实现体始终 seed；public PREFER 时 thin pure forward */
+void driver_run_on_large_stack_pthread_impl(void *(*fn)(void *), void *arg) {
+    driver_run_thread_on_large_stack_impl(fn, arg);
 }
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
+    driver_run_on_large_stack_pthread_impl(fn, arg);
+}
+#endif
 
 /**
  * 扫描预处理后源码是否含顶层 import（`import("` 或 `= import(`）。
  * 参数：src 预处理后缓冲；src_len 有效字节数。
  * 返回值：1 含顶层 import；0 否。
- * G-02f-243：逻辑源 .x（真迁字节扫描）；seed 保留同语义 C 供产品 cc。
+ * G-02f-243/414：实现体始终 seed（memcmp 字面量）；public PREFER 时 thin pure forward。
  */
-int driver_source_scan_top_level_import(const char *src, size_t src_len) {
+int driver_source_scan_top_level_import_impl(const char *src, size_t src_len) {
     const char *p;
     const char *end;
     if (src == NULL)
@@ -1384,20 +1393,27 @@ int driver_source_scan_top_level_import(const char *src, size_t src_len) {
     }
     return 0;
 }
-
-/* G-02f-243：逻辑源 .x（门闩 → scan pure）；seed 保留同语义 C 供产品 cc */
-int driver_source_has_top_level_import(const char *src, size_t src_len) {
-  if (src == NULL) {
-    return 0;
-  }
-  if (src_len < 9) {
-    return 0;
-  }
-  {
-    return driver_source_scan_top_level_import(src, src_len);
-  }
-  return 0;
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int driver_source_scan_top_level_import(const char *src, size_t src_len) {
+    return driver_source_scan_top_level_import_impl(src, src_len);
 }
+#endif
+
+/* G-02f-243/414：实现体始终 seed；public PREFER 时 thin pure forward */
+int driver_source_has_top_level_import_impl(const char *src, size_t src_len) {
+    if (src == NULL) {
+        return 0;
+    }
+    if (src_len < 9) {
+        return 0;
+    }
+    return driver_source_scan_top_level_import_impl(src, src_len);
+}
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int driver_source_has_top_level_import(const char *src, size_t src_len) {
+    return driver_source_has_top_level_import_impl(src, src_len);
+}
+#endif
 
 /**
  * 读入口 .x 并预处理；返回 malloc 缓冲，长度经 driver_path_last_preprocess_len。
@@ -1434,37 +1450,25 @@ int64_t driver_path_last_preprocess_len(void) {
 }
 #endif
 
-/* 兼容旧名：整路径 has_import 仍可直接调 */
+/* G-02f-244/414：实现体始终 seed（IO/preprocess）；public PREFER 时 thin pure forward */
 int driver_source_has_top_level_import_path_impl(const char *path) {
     char *src;
     int has;
     int64_t len;
 
+    if (path == NULL)
+        return 0;
     src = driver_path_read_preprocess_malloc(path);
     if (!src)
         return 0;
     len = driver_path_last_preprocess_len_impl();
-    has = driver_source_has_top_level_import(src, (size_t)len);
+    has = driver_source_has_top_level_import_impl(src, (size_t)len);
     free(src);
     return has;
 }
-
-/* G-02f-244：逻辑源 .x（真迁编排）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int driver_source_has_top_level_import_path(const char *path) {
-  if (path == NULL) {
-    return 0;
-  }
-  {
-    char *src = driver_path_read_preprocess_malloc(path);
-    int has;
-    int64_t len;
-    if (!src)
-      return 0;
-    len = driver_path_last_preprocess_len_impl();
-    has = driver_source_has_top_level_import(src, (size_t)len);
-    free(src);
-    return has;
-  }
-  return 0;
+    return driver_source_has_top_level_import_path_impl(path);
 }
+#endif
 
