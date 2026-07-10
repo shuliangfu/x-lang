@@ -159,25 +159,19 @@ int diag_should_color(void) {
 }
 
 
-const char * diag_color_prefix_impl(const char *plain, const char *color) {
+/** 供 .x 读 g_diag_ctx.use_color（G-02f-154）。 */
+int diag_ctx_get_use_color(void) {
+    return g_diag_ctx.use_color ? 1 : 0;
+}
+
+/* G-02f-154：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+const char * diag_color_prefix(const char *plain, const char *color) {
     return g_diag_ctx.use_color ? color : plain;
 }
-const char * diag_color_prefix(const char *plain, const char *color) {
-  {
-    return diag_color_prefix_impl(plain, color);
-  }
-  return ((const char *)0);
-}
 
-
-const char * diag_color_reset_impl(void) {
-    return g_diag_ctx.use_color ? "\x1b[0m" : "";
-}
+/* G-02f-154：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 const char * diag_color_reset(void) {
-  {
-    return diag_color_reset_impl();
-  }
-  return ((const char *)0);
+    return g_diag_ctx.use_color ? "\x1b[0m" : "";
 }
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int diag_code_eq(const char *lhs, const char *rhs) {
@@ -299,7 +293,8 @@ int diag_line_digits(int line) {
 
 
 
-int diag_extract_line_impl(int line_no, const char **line_start_out, size_t *line_len_out) {
+/* G-02f-154：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int diag_extract_line(int line_no, const char **line_start_out, size_t *line_len_out) {
     const char *src = g_diag_ctx.source;
     size_t len = g_diag_ctx.source_len;
     int line = 1;
@@ -323,12 +318,6 @@ int diag_extract_line_impl(int line_no, const char **line_start_out, size_t *lin
     *line_start_out = src + start;
     *line_len_out = i - start;
     return 0;
-}
-int diag_extract_line(int line_no, const char **line_start_out, size_t *line_len_out) {
-  {
-    return diag_extract_line_impl(line_no, line_start_out, line_len_out);
-  }
-  return 0;
 }
 
 

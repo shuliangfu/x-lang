@@ -25,16 +25,14 @@ extern "C" function diag_print_code_explain_impl(out: *u8, code: *u8): void;
 extern "C" function diag_print_code_table_impl(out: *u8): void;
 extern "C" function diag_json_get_state(): i32;
 extern "C" function diag_json_set_state(v: i32): void;
+extern "C" function diag_ctx_get_use_color(): i32;
 extern "C" function getenv(name: *u8): *u8;
 extern "C" function isatty(fd: i32): i32;
-extern "C" function diag_color_prefix_impl(plain: *u8, color: *u8): *u8;
-extern "C" function diag_color_reset_impl(): *u8;
 extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
 extern "C" function diag_kind_is_exact_impl(kind: *u8, needle: *u8): i32;
 extern "C" function diag_line_digits_impl(line: i32): i32;
 
 extern "C" function diag_print_header_impl(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void;
-extern "C" function diag_extract_line_impl(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32;
 extern "C" function diag_json_write_str_impl(out: *u8, s: *u8): void;
 
 #[no_mangle]
@@ -157,7 +155,7 @@ function diag_json_enabled(): i32 {
   return 0;
 }
 
-/* ---- G-02f-96 / G-02f-153：color ---- */
+/* ---- G-02f-96 / G-02f-153 / G-02f-154：color ---- */
 
 #[no_mangle]
 function diag_should_color(): i32 {
@@ -173,27 +171,75 @@ function diag_should_color(): i32 {
   return 0;
 }
 
+// G-02f-154：use_color ? color : plain
 #[no_mangle]
 function diag_color_prefix(plain: *u8, color: *u8): *u8 {
   unsafe {
-    return diag_color_prefix_impl(plain, color);
+    if (diag_ctx_get_use_color() != 0) {
+      return color;
+    }
+    return plain;
   }
-  return 0 as *u8;
+  return plain;
 }
 
+// G-02f-154：use_color ? ANSI reset : ""
 #[no_mangle]
 function diag_color_reset(): *u8 {
   unsafe {
-    return diag_color_reset_impl();
+    if (diag_ctx_get_use_color() != 0) {
+      // "\x1b[0m"
+      return "\x1b[0m";
+    }
+    return "";
   }
-  return 0 as *u8;
+  return "";
 }
 
+// G-02f-154：64 位 LE 写指针 / size_t（**out / *size_t 语义）
+function diag_store_ptr_le(p: *u8, val: *u8): void {
+  if (p == 0) { return; }
+  let a: usize = val as usize;
+  let m: usize = 256;
+  p[0] = (a % m) as u8;
+  a = a / m;
+  p[1] = (a % m) as u8;
+  a = a / m;
+  p[2] = (a % m) as u8;
+  a = a / m;
+  p[3] = (a % m) as u8;
+  a = a / m;
+  p[4] = (a % m) as u8;
+  a = a / m;
+  p[5] = (a % m) as u8;
+  a = a / m;
+  p[6] = (a % m) as u8;
+  a = a / m;
+  p[7] = (a % m) as u8;
+}
 
+function diag_store_usize_le(p: *u8, val: usize): void {
+  if (p == 0) { return; }
+  let a: usize = val;
+  let m: usize = 256;
+  p[0] = (a % m) as u8;
+  a = a / m;
+  p[1] = (a % m) as u8;
+  a = a / m;
+  p[2] = (a % m) as u8;
+  a = a / m;
+  p[3] = (a % m) as u8;
+  a = a / m;
+  p[4] = (a % m) as u8;
+  a = a / m;
+  p[5] = (a % m) as u8;
+  a = a / m;
+  p[6] = (a % m) as u8;
+  a = a / m;
+  p[7] = (a % m) as u8;
+}
 
-
-
-/* ---- G-02f-97：print_header / extract_line / json 门闩 ---- */
+/* ---- G-02f-97 / G-02f-154：print_header / extract_line / json ---- */
 
 #[no_mangle]
 function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void {
@@ -202,10 +248,48 @@ function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, rese
   }
 }
 
+// G-02f-154：按行号从 diag 源缓冲取一行
 #[no_mangle]
 function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32 {
+  if (line_no <= 0) { return 0 - 1; }
+  if (line_start_out == 0) { return 0 - 1; }
+  if (line_len_out == 0) { return 0 - 1; }
   unsafe {
-    return diag_extract_line_impl(line_no, line_start_out, line_len_out);
+    let src: *u8 = diag_get_source_impl();
+    let len64: i64 = diag_get_source_len_impl();
+    if (src == 0) { return 0 - 1; }
+    if (len64 <= 0) { return 0 - 1; }
+    let len: i32 = len64 as i32;
+    if (len64 > 2147483647) { len = 2147483647; }
+    let line: i32 = 1;
+    let i: i32 = 0;
+    let start: i32 = 0;
+    while (i < len) {
+      if (line == line_no) { break; }
+      if (src[i] == 10) {
+        line = line + 1;
+        start = i + 1;
+      }
+      i = i + 1;
+    }
+    if (line != line_no) { return 0 - 1; }
+    while (i < len) {
+      let c: u8 = src[i];
+      if (c == 10) { break; }
+      if (c == 13) { break; }
+      i = i + 1;
+    }
+    // src + start via byte walk (no pointer arithmetic of large offsets if needed)
+    let p: *u8 = src;
+    let k: i32 = 0;
+    while (k < start) {
+      p = p + 1;
+      k = k + 1;
+    }
+    diag_store_ptr_le(line_start_out, p);
+    let ln: usize = (i - start) as usize;
+    diag_store_usize_le(line_len_out, ln);
+    return 0;
   }
   return 0 - 1;
 }
