@@ -195,3 +195,4 @@ G05_SYNC_ASM=1 sh scripts/g05_prepare_and_relink.sh
 |------|------|
 | 2026-07-11 | f-260 初版：runtime mega 拆分 RFC |
 | 2026-07-11 | **f-261 R2 落地**：`src/runtime/rt_content.x` + `seeds/rt_content.from_x.c`；mega `SHUX_RT_CONTENT_FROM_X`；`PREFER_X_O` hybrid `content.o+rest → runtime_driver_no_c.o`。live `-E` 全量 `.x` 仍可能挂/截断，默认 hybrid 用 seed slice；`SHUX_RT_CONTENT_TRY_X_E=1` 可选试 -E。 |
+| 2026-07-11 | **f-262 R0 落地**：`rt_util.x` + `seeds/rt_util.from_x.c`（`driver_unlink_failed_output` / `driver_argv0_basename_is`）；`SHUX_RT_UTIL_FROM_X`；hybrid **R2+R0+rest**。 |

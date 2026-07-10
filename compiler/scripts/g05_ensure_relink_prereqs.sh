@@ -142,56 +142,65 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_link_abi.o "$_rlink"
     fi
   fi
-  # G-02f-14 / G-02f-261：runtime_driver_no_c.o ← seeds/runtime.from_x.c + NO_C flags
-  # PREFER_X_O=1：R2 content_has_* hybrid（rt_content.from_x.c 或 .x→-E；+ rest -DSHUX_RT_CONTENT_FROM_X）
+  # G-02f-14 / G-02f-261/262：runtime_driver_no_c.o ← seeds/runtime.from_x.c + NO_C flags
+  # PREFER_X_O=1：R2 content + R0 util 切片 hybrid → rest（-DSHUX_RT_CONTENT_FROM_X -DSHUX_RT_UTIL_FROM_X）
   _rt=seeds/runtime.from_x.c
   _rt_content_x=src/runtime/rt_content.x
   _rt_content_seed=seeds/rt_content.from_x.c
+  _rt_util_seed=seeds/rt_util.from_x.c
   _rt_o=src/runtime_driver_no_c.o
   if [ -f "$_rt" ]; then
     if [ ! -f "$_rt_o" ] || [ "$_rt" -nt "$_rt_o" ] \
       || { [ -f "$_rt_content_seed" ] && [ "$_rt_content_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_util_seed" ] && [ "$_rt_util_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_content_x" ] && [ "$_rt_content_x" -nt "$_rt_o" ]; }; then
       _rt_done=0
       if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_content_seed" ]; then
         _rt_c_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_content.XXXXXX") || true
+        _rt_u_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_util.XXXXXX") || true
         _rt_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_rest.XXXXXX") || true
         _rt_content_ok=0
-        # 优先 seeds/rt_content.from_x.c（live -E 对 rt_content.x 仍可能挂/截断；.x 为逻辑源）
-        if [ "$_rt_content_ok" = "0" ] && [ -n "$_rt_c_o" ] && [ -f "$_rt_content_seed" ]; then
+        _rt_util_ok=0
+        # R2 content 切片
+        if [ -n "$_rt_c_o" ] && [ -f "$_rt_content_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_c_o" "$_rt_content_seed"; then
             _rt_content_ok=1
             echo "g05_ensure: R2 content ← $_rt_content_seed (G-02f-261 seed slice)"
           fi
         fi
-        # 可选：SHUX_RT_CONTENT_TRY_X_E=1 时再试 .x→-E（需完整双符号）
-        if [ "$_rt_content_ok" = "1" ] && [ "${SHUX_RT_CONTENT_TRY_X_E:-0}" = "1" ] \
-          && [ -n "$_rt_c_o" ] && [ -f "$_rt_content_x" ]; then
-          _rt_xe_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_xe_XXXXXX.o") || true
-          if [ -n "$_rt_xe_o" ] && g05_try_x_to_o "$_rt_content_x" "$_rt_xe_o"; then
-            if nm "$_rt_xe_o" 2>/dev/null | grep -q 'content_has_generic_syntax' \
-              && nm "$_rt_xe_o" 2>/dev/null | grep -q 'content_has_compound_assign_syntax'; then
-              mv -f "$_rt_xe_o" "$_rt_c_o"
-              echo "g05_ensure: R2 content ← $_rt_content_x (G-02f-261 L2 -E)"
-            else
-              rm -f "$_rt_xe_o"
-            fi
-          else
-            rm -f "$_rt_xe_o"
+        # R0 util 切片（可选；缺文件则 rest 仍内联 util）
+        if [ -n "$_rt_u_o" ] && [ -f "$_rt_util_seed" ]; then
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_u_o" "$_rt_util_seed"; then
+            _rt_util_ok=1
+            echo "g05_ensure: R0 util ← $_rt_util_seed (G-02f-262 seed slice)"
           fi
+        fi
+        _rt_rest_defs="-DSHUX_RT_CONTENT_FROM_X"
+        if [ "$_rt_util_ok" = "1" ]; then
+          _rt_rest_defs="$_rt_rest_defs -DSHUX_RT_UTIL_FROM_X"
         fi
         # shellcheck disable=SC2086
         if [ "$_rt_content_ok" = "1" ] && [ -n "$_rt_rest_o" ] \
           && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc \
-               -DSHUX_RT_CONTENT_FROM_X -c -o "$_rt_rest_o" "$_rt" \
-          && $CC -r -nostdlib -o "$_rt_o" "$_rt_c_o" "$_rt_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rt_o ← R2 content + runtime rest (G-02f-261 hybrid)"
-          _rt_done=1
-        else
-          echo "g05_ensure: L2 hybrid runtime R2 content failed; fallback full seed" >&2
+               $_rt_rest_defs -c -o "$_rt_rest_o" "$_rt"; then
+          if [ "$_rt_util_ok" = "1" ]; then
+            if $CC -r -nostdlib -o "$_rt_o" "$_rt_c_o" "$_rt_u_o" "$_rt_rest_o" 2>/dev/null; then
+              echo "g05_ensure: $_rt_o ← R2+R0 + runtime rest (G-02f-262 hybrid)"
+              _rt_done=1
+            fi
+          else
+            if $CC -r -nostdlib -o "$_rt_o" "$_rt_c_o" "$_rt_rest_o" 2>/dev/null; then
+              echo "g05_ensure: $_rt_o ← R2 content + runtime rest (G-02f-261 hybrid)"
+              _rt_done=1
+            fi
+          fi
         fi
-        rm -f "$_rt_c_o" "$_rt_rest_o"
+        if [ "$_rt_done" = "0" ]; then
+          echo "g05_ensure: L2 hybrid runtime R2/R0 failed; fallback full seed" >&2
+        fi
+        rm -f "$_rt_c_o" "$_rt_u_o" "$_rt_rest_o"
       fi
       if [ "$_rt_done" = "0" ]; then
         echo "g05_ensure: runtime_driver_no_c.o ← seed + NO_C (G-02f-14)"

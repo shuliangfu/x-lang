@@ -344,11 +344,16 @@ int shux_smoke_diag_enabled(void) {
 
 /* 编译/链接失败时删除 -o 目标，避免遗留 0 字节或半写入产物污染后续增量构建。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-262 R0：逻辑源 src/runtime/rt_util.x；hybrid → seeds/rt_util.from_x.c */
+#ifndef SHUX_RT_UTIL_FROM_X
 void driver_unlink_failed_output(const char *out_path) {
     if (!out_path || !out_path[0])
         return;
     (void)unlink(out_path);
 }
+#else
+void driver_unlink_failed_output(const char *out_path);
+#endif
 
 
 
@@ -4582,6 +4587,8 @@ int driver_c_mod_imports_are_core_only(ASTModule *mod) {
 
 /** argv[0] basename 是否等于给定名（如 shux-c，避免 sibling exec 自递归）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-262 R0 util */
+#ifndef SHUX_RT_UTIL_FROM_X
 int driver_argv0_basename_is(const char *argv0, const char *base) {
     const char *slash;
     const char *name;
@@ -4598,6 +4605,9 @@ int driver_argv0_basename_is(const char *argv0, const char *base) {
     name = slash ? slash + 1 : (argv0 ? argv0 : "");
     return strcmp(name, base) == 0;
 }
+#else
+int driver_argv0_basename_is(const char *argv0, const char *base);
+#endif
 
 
 
