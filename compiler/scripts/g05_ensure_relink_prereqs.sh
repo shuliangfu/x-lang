@@ -12,7 +12,8 @@
 # 环境：
 #   G05_SKIP_HOT_REBUILD=1  跳过热路径 cc 重编（仅检查）
 #   G05_CC                  覆盖编译器（默认 cc）
-#   SHUX_G05_PREFER_X_O=1   L2 试点：优先 .x→C(-E)→.o（失败回退 seed；见 analysis/G-02f-L2-x-o-pilot.md）
+#   SHUX_G05_PREFER_X_O=1   L2：优先 .x→C(-E)→.o（失败回退 seed；见 analysis/G-02f-L2-x-o-pilot.md）
+#                           TUs：sizes_nostub + target_cpu flags 子集（G-02f-256/257）
 
 set -e
 cd "$(dirname "$0")/.."
@@ -57,7 +58,7 @@ g05_cc_c() {
   esac
 }
 
-# G-02f-256 / L2 试点：.x → shux -backend c -E → cc -c → .o
+# G-02f-256/257 / L2：.x → shux -backend c -E → cc -c → .o
 # 返回 0 成功；失败不删既有 .o（调用方回退 seed）。
 # $1=.x  $2=.o  [$3...]=extra cflags for cc
 g05_try_x_to_o() {
@@ -95,6 +96,33 @@ g05_try_x_to_o() {
   fi
   rm -f "$_xtmp"
   return 0
+}
+
+# G-02f-257：1:1 L2 表项 — $1=.o $2=.x $3=seed.c $4=label
+# PREFER_X_O=1 时优先 .x；失败或未设则 seed cc。
+g05_ensure_l2_or_seed() {
+  _l2_o="$1"
+  _l2_x="$2"
+  _l2_seed="$3"
+  _l2_label="$4"
+  if [ ! -f "$_l2_o" ] \
+    || { [ -f "$_l2_seed" ] && [ "$_l2_seed" -nt "$_l2_o" ]; } \
+    || { [ -f "$_l2_x" ] && [ "$_l2_x" -nt "$_l2_o" ]; }; then
+    _l2_done=0
+    if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_l2_x" ]; then
+      if g05_try_x_to_o "$_l2_x" "$_l2_o"; then
+        echo "g05_ensure: $_l2_o ← $_l2_x (G-02f-257 L2 prefer .x: $_l2_label)"
+        _l2_done=1
+      else
+        echo "g05_ensure: L2 prefer .x failed for $_l2_label; fallback seed" >&2
+      fi
+    fi
+    if [ "$_l2_done" = "0" ] && [ -f "$_l2_seed" ]; then
+      echo "g05_ensure: cc -c $_l2_seed → $_l2_o ($_l2_label seed)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -c -o "$_l2_o" "$_l2_seed"
+    fi
+  fi
 }
 
 if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
@@ -163,37 +191,44 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC -c -o src/typeck/typeck_f64_bits.o "$_f64s"
     fi
   fi
-  # G-02f-1 / G-02f-256 L2 试点：sizes_nostub.o
-  # 默认仍链 seed C；SHUX_G05_PREFER_X_O=1 时优先 .x→-E→cc（失败回退 seed）
-  _sizes_x=src/lsp/lsp_diag_pipeline_sizes.x
-  _sizes_from_x=seeds/lsp_diag_pipeline_sizes.from_x.c
-  _sizes_o=src/lsp/lsp_diag_pipeline_sizes_nostub.o
-  if [ ! -f "$_sizes_o" ] \
-    || { [ -f "$_sizes_from_x" ] && [ "$_sizes_from_x" -nt "$_sizes_o" ]; } \
-    || { [ -f "$_sizes_x" ] && [ "$_sizes_x" -nt "$_sizes_o" ]; }; then
-    _sizes_done=0
-    if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_sizes_x" ]; then
-      if g05_try_x_to_o "$_sizes_x" "$_sizes_o"; then
-        echo "g05_ensure: $_sizes_o ← $_sizes_x (G-02f-256 L2 prefer .x)"
-        _sizes_done=1
-      else
-        echo "g05_ensure: L2 prefer .x failed for sizes; fallback seed" >&2
-      fi
-    fi
-    if [ "$_sizes_done" = "0" ] && [ -f "$_sizes_from_x" ]; then
-      echo "g05_ensure: cc -c $_sizes_from_x → $_sizes_o (G-02f-1 seed)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -c -o "$_sizes_o" "$_sizes_from_x"
-    fi
-  fi
-  # G-02f-6：target_cpu.o 单文件 pure seed（含 OS detect）
+  # G-02f-256/257 L2 表：1:1 pure TUs（默认 seed；PREFER_X_O=1 优先 .x）
+  g05_ensure_l2_or_seed \
+    src/lsp/lsp_diag_pipeline_sizes_nostub.o \
+    src/lsp/lsp_diag_pipeline_sizes.x \
+    seeds/lsp_diag_pipeline_sizes.from_x.c \
+    "sizes_nostub"
+  # G-02f-6 / G-02f-257：target_cpu.o
+  # 默认：整文件 pure seed（含 OS detect）
+  # PREFER_X_O=1：flags.x（pending/tolower/eq5/eq6）+ seed 残体 ld -r
   _tcpure=seeds/target_cpu_pure.from_x.c
+  _tcflags_x=src/driver/target_cpu_flags.x
+  _tc_o=src/driver/target_cpu.o
   if [ -f "$_tcpure" ]; then
-    if [ ! -f src/driver/target_cpu.o ] || [ "$_tcpure" -nt src/driver/target_cpu.o ] \
-      || [ src/driver/target_cpu_pure.x -nt src/driver/target_cpu.o ] 2>/dev/null; then
-      echo "g05_ensure: target_cpu.o ← pure.from_x (G-02f-6 single TU)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/driver/target_cpu.o "$_tcpure"
+    if [ ! -f "$_tc_o" ] || [ "$_tcpure" -nt "$_tc_o" ] \
+      || { [ -f src/driver/target_cpu_pure.x ] && [ src/driver/target_cpu_pure.x -nt "$_tc_o" ]; } \
+      || { [ -f "$_tcflags_x" ] && [ "$_tcflags_x" -nt "$_tc_o" ]; }; then
+      _tc_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_tcflags_x" ]; then
+        _tc_flags_o=$(mktemp "${TMPDIR:-/tmp}/g05_tc_flags_XXXXXX.o") || true
+        _tc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_tc_rest_XXXXXX.o") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_tc_flags_o" ] && [ -n "$_tc_rest_o" ] \
+          && g05_try_x_to_o "$_tcflags_x" "$_tc_flags_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_TARGET_CPU_FLAGS_FROM_X \
+               -c -o "$_tc_rest_o" "$_tcpure" \
+          && $CC -r -nostdlib -o "$_tc_o" "$_tc_flags_o" "$_tc_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_tc_o ← $_tcflags_x + seed-rest (G-02f-257 L2 hybrid flags)"
+          _tc_done=1
+        else
+          echo "g05_ensure: L2 hybrid target_cpu flags failed; fallback full seed" >&2
+        fi
+        rm -f "$_tc_flags_o" "$_tc_rest_o"
+      fi
+      if [ "$_tc_done" = "0" ]; then
+        echo "g05_ensure: target_cpu.o ← pure.from_x (G-02f-6 single TU)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_tc_o" "$_tcpure"
+      fi
     fi
   fi
   # G-02f-7：simd_enc.o 纯编码 seed

@@ -5,10 +5,12 @@
  * G-02f-110 helper gates.
  * G-02f-103 helper gates.
  * G-02f-97 pure helper gates.
+ * G-02f-257：SHUX_L2_TARGET_CPU_FLAGS_FROM_X 时省略 pending/tolower/eq5/eq6
+ *           （由 src/driver/target_cpu_flags.x → .o 提供，再 ld -r）。
  *
  * Source of truth: src/driver/target_cpu_pure.x (+ print is stdio C co-located; f-5)
  * Hand-synced when full shux-c -E hangs on multi-helper TUs.
- * Product: single TU → src/driver/target_cpu.o (no ld -r).
+ * Product default: single TU → src/driver/target_cpu.o (no ld -r).
  *
  * Exports: pending, resolve, simd spelling, print.
  * G-02f-6: also embeds OS detect_host / generic_for_host (#if/sysctl/proc).
@@ -20,6 +22,7 @@
 #include <string.h>
 #include "target_cpu.h"
 
+#ifndef SHUX_L2_TARGET_CPU_FLAGS_FROM_X
 static uint32_t g_driver_pending_target_cpu_features;
 
 void driver_set_pending_target_cpu_features(uint32_t features) {
@@ -37,6 +40,10 @@ uint8_t tcp_tolower(uint8_t c) {
   return c;
 
 }
+#else
+/* L2 flags.o provides pending/tolower/eq5/eq6; rest TU only needs tolower for tcp_eq_at. */
+extern uint8_t tcp_tolower(uint8_t c);
+#endif
 
 
 /** Compare name[base..base+n) case-insensitively to lowercase lit[0..n). */
@@ -141,6 +148,7 @@ int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out) {
   return tcp_parse_named(s, start, end, out);
 }
 
+#ifndef SHUX_L2_TARGET_CPU_FLAGS_FROM_X
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
   uint8_t lit[5];
@@ -167,6 +175,11 @@ int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t
   return tcp_eq_at(name, 0, 6, lit);
 
 }
+#else
+extern int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4);
+extern int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
+                       uint8_t a5);
+#endif
 
 
 int shu_simd_is_vector_type_spelling(const char *name, size_t name_len) {
