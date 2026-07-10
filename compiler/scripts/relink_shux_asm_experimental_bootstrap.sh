@@ -147,9 +147,9 @@ ensure_simd_glue_link_objs() {
   experimental_bootstrap_info "cc src/driver/target_cpu.o"
   sh scripts/cc_inc_tu.sh src/driver/target_cpu.inc src/driver/target_cpu.o -I. -Iinclude -Isrc
   fi
-  if [ ! -f src/asm/simd_enc.o ] || [ src/asm/simd_enc.inc -nt src/asm/simd_enc.o ]; then
-  experimental_bootstrap_info "cc src/asm/simd_enc.o"
-  sh scripts/cc_inc_tu.sh src/asm/simd_enc.inc src/asm/simd_enc.o -I. -Iinclude -Isrc
+  if [ ! -f src/asm/simd_enc.o ] || [ seeds/simd_enc.from_x.c -nt src/asm/simd_enc.o ]; then
+  experimental_bootstrap_info "cc seeds/simd_enc.from_x.c → src/asm/simd_enc.o"
+  $CC $CFLAGS -c seeds/simd_enc.from_x.c -o src/asm/simd_enc.o
   fi
   if [ ! -f src/asm/simd_loop.o ] || [ src/asm/simd_loop.inc -nt src/asm/simd_loop.o ]; then
   experimental_bootstrap_info "cc src/asm/simd_loop.o"

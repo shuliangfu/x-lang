@@ -98,6 +98,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/driver/target_cpu.o "$_tcpure"
     fi
   fi
+  # G-02f-7：simd_enc.o 纯编码 seed
+  _simd_enc=seeds/simd_enc.from_x.c
+  if [ -f "$_simd_enc" ]; then
+    if [ ! -f src/asm/simd_enc.o ] || [ "$_simd_enc" -nt src/asm/simd_enc.o ] \
+      || [ src/asm/simd_enc.x -nt src/asm/simd_enc.o ] 2>/dev/null; then
+      echo "g05_ensure: simd_enc.o ← simd_enc.from_x (G-02f-7)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_enc.o "$_simd_enc"
+    fi
+  fi
   # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
   if [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
     _tg_before=$(wc -c < typeck_gen.c | tr -d ' ')
@@ -123,7 +133,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
     case "$o" in
       # 已在热路径专用 flags / .x seed 编译
-      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|build_asm/*|*.s) continue ;;
+      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|build_asm/*|*.s) continue ;;
       # G-02e-7：link_alias 并入；产品默认 SKIP 前缀别名（与 Makefile PARSER_ASM_LINK_ALIAS_CFLAGS 一致）
       src/asm/parser_asm_parse_expr_link.o)
         if [ -n "$src" ] && { [ ! -f "$o" ] || [ "$src" -nt "$o" ]; }; then

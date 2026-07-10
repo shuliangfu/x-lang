@@ -1419,8 +1419,9 @@ src/main_driver.o: src/main.inc Makefile scripts/cc_inc_tu.sh
 # G-02f-6：target_cpu.o 单 TU（pure seed 含 OS detect；无 ld -r）
 src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pure.x include/target_cpu.h
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/target_cpu_pure.from_x.c -o $@
-src/asm/simd_enc.o: src/asm/simd_enc.inc include/simd_enc.h include/target_cpu.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/simd_enc.inc $@ -I. -Iinclude -Isrc
+# G-02f-7：simd_enc 产品单 TU seed（纯编码）
+src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc.x include/simd_enc.h include/target_cpu.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/simd_enc.from_x.c -o $@
 src/asm/simd_loop.o: src/asm/simd_loop.inc include/simd_loop.h include/simd_enc.h include/target_cpu.h scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/simd_loop.inc $@ -I. -Iinclude -Isrc
 # G-02a Step 1：默认构建切 no_c 模式；默认 bootstrap 不链 LEXER_LINK_O / AST_LINK_O。

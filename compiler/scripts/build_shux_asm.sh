@@ -3142,9 +3142,9 @@ ensure_bstrict_seed_support_objs() {
   sh scripts/cc_inc_tu.sh src/driver/target_cpu.inc src/driver/target_cpu.o -I. -Iinclude -Isrc
   fi
   if [ ! -f src/asm/simd_enc.o ] \
-  || [ "src/asm/simd_enc.inc" -nt src/asm/simd_enc.o ]; then
-  echo " cc -c src/asm/simd_enc.inc -> src/asm/simd_enc.o"
-  sh scripts/cc_inc_tu.sh src/asm/simd_enc.inc src/asm/simd_enc.o -I. -Iinclude -Isrc
+  || [ "seeds/simd_enc.from_x.c" -nt src/asm/simd_enc.o ]; then
+  echo " cc -c seeds/simd_enc.from_x.c -> src/asm/simd_enc.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/simd_enc.from_x.c -o src/asm/simd_enc.o
   fi
   if [ ! -f src/asm/simd_loop.o ] \
   || [ "src/asm/simd_loop.inc" -nt src/asm/simd_loop.o ]; then

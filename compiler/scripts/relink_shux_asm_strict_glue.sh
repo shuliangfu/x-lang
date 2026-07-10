@@ -897,9 +897,9 @@ ensure_simd_glue_link_objs() {
   strict_glue_info "cc -c seeds/target_cpu_pure.from_x.c -> src/driver/target_cpu.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/target_cpu_pure.from_x.c -o src/driver/target_cpu.o
   fi
-  if [ ! -f src/asm/simd_enc.o ] || [ src/asm/simd_enc.inc -nt src/asm/simd_enc.o ]; then
-  strict_glue_info "cc -c src/asm/simd_enc.inc -> src/asm/simd_enc.o"
-  sh scripts/cc_inc_tu.sh src/asm/simd_enc.inc src/asm/simd_enc.o -I. -Iinclude -Isrc
+  if [ ! -f src/asm/simd_enc.o ] || [ seeds/simd_enc.from_x.c -nt src/asm/simd_enc.o ]; then
+  strict_glue_info "cc -c seeds/simd_enc.from_x.c -> src/asm/simd_enc.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/simd_enc.from_x.c -o src/asm/simd_enc.o
   fi
   if [ ! -f src/asm/simd_loop.o ] || [ src/asm/simd_loop.inc -nt src/asm/simd_loop.o ]; then
   strict_glue_info "cc -c src/asm/simd_loop.inc -> src/asm/simd_loop.o"
