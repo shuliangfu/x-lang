@@ -1,13 +1,14 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-335 / G-02f-336：diag L2 thin — pure helper + 门闩子集（无字符串字面量，-E 稳定）。
+// G-02f-335 / G-02f-336 / G-02f-337：diag L2 thin — pure helper + 门闩子集（无字符串字面量，-E 稳定）。
 // 产品 PREFER_X_O：g05_try_x_to_o → thin.o + seeds/diag.from_x.c rest
 //   （-DSHUX_L2_DIAG_THIN_FROM_X）ld -r → src/diag.o
 // 完整逻辑源仍见 src/diag.x（整文件 -E 仍会截断/挂起）。
 //
 // f-335：line_digits / kind_is_exact / kind_contains / color_prefix
 // f-336：+ get_file/source/len / code_is_known/kind/summary/details / set_file / report
+// f-337：+ push_file / restore（门闩 → seed _impl）
 
 extern "C" function diag_ctx_get_use_color(): i32;
 extern "C" function diag_ctx_get_file(): *u8;
@@ -20,6 +21,8 @@ extern "C" function diag_entry_summary(code: *u8): *u8;
 extern "C" function diag_entry_details(code: *u8): *u8;
 extern "C" function diag_should_color(): i32;
 extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
+extern "C" function diag_push_file_impl(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void;
+extern "C" function diag_restore_impl(snapshot: *u8): void;
 
 // ---- G-02f-335 pure helpers ----
 
@@ -189,5 +192,24 @@ function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail
   unsafe {
     let z: *u8 = 0;
     diag_report_with_code(file, line, col, kind, z, msg, detail);
+  }
+}
+
+// ---- G-02f-337：snapshot push/restore 门闩（struct 布局 C 尾 _impl）----
+
+#[no_mangle]
+function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void {
+  unsafe {
+    diag_push_file_impl(snapshot, path, source, source_len);
+  }
+}
+
+#[no_mangle]
+function diag_restore(snapshot: *u8): void {
+  if (snapshot == 0) {
+    return;
+  }
+  unsafe {
+    diag_restore_impl(snapshot);
   }
 }

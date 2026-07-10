@@ -1,7 +1,8 @@
 /* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97/98 true .x + C tail; G-02f-74/82 diag gates).
- * G-02f-335/336：PREFER_X_O hybrid 时 pure thin 由 src/diag_thin.x→-E；rest 用
+ * G-02f-335/336/337：PREFER_X_O hybrid 时 pure thin 由 src/diag_thin.x→-E；rest 用
  *   SHUX_L2_DIAG_THIN_FROM_X（省略 line_digits / kind_* / color_prefix /
- *   get_file|source|len / code_is_known|kind|summary|details / set_file / report）。
+ *   get_file|source|len / code_* / set_file / report / push_file / restore；
+ *   push/restore 本体出 _impl）。
  * G-02f-181: P0-1 close-out — code table + reportf/vreportf 🔒 (priority doc §4.3).
  * G-02f-130 true .x pure helpers.
  * G-02f-116 true .x pure helpers.
@@ -392,7 +393,13 @@ extern void diag_set_file(const char *path, const char *source, size_t source_le
 #endif
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len) {
+/* G-02f-337：hybrid 时 public 由 thin 门闩提供，本文件出 _impl */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len)
+#else
+void diag_push_file_impl(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len)
+#endif
+{
     if (snapshot) {
         snapshot->file_path = g_diag_ctx.file_path;
         snapshot->source = g_diag_ctx.source;
@@ -406,7 +413,13 @@ void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char 
 }
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void diag_restore(const DiagContextSnapshot *snapshot) {
+/* G-02f-337：hybrid 时 public 由 thin 门闩提供，本文件出 _impl */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
+void diag_restore(const DiagContextSnapshot *snapshot)
+#else
+void diag_restore_impl(const DiagContextSnapshot *snapshot)
+#endif
+{
     if (!snapshot)
         return;
     g_diag_ctx.file_path = snapshot->file_path;
