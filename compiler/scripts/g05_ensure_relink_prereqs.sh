@@ -88,6 +88,27 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -c -o src/lsp/lsp_diag_pipeline_sizes_nostub.o "$_sizes_from_x"
     fi
   fi
+  # G-02f-2：target_cpu.o = pure.from_x + detect.inc（ld -r）
+  _tcpure=seeds/target_cpu_pure.from_x.c
+  _tcdet=src/driver/target_cpu.inc
+  if [ -f "$_tcpure" ] && [ -f "$_tcdet" ]; then
+    if [ ! -f src/driver/target_cpu.o ] || [ "$_tcpure" -nt src/driver/target_cpu.o ] \
+      || [ "$_tcdet" -nt src/driver/target_cpu.o ] \
+      || [ src/driver/target_cpu_pure.x -nt src/driver/target_cpu.o ] 2>/dev/null; then
+      echo "g05_ensure: target_cpu.o ← pure.from_x + detect.inc (G-02f-2 .x)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -c -o src/driver/target_cpu_pure.o "$_tcpure"
+      g05_cc_c src/driver/target_cpu_detect.o "$_tcdet"
+      _ld="${LD:-ld}"
+      _ldrel=""
+      case "${G05_UNAME_S:-$(uname -s)}/${G05_UNAME_M:-$(uname -m)}" in
+        Darwin/arm64) _ldrel="-arch arm64" ;;
+        Darwin/x86_64) _ldrel="-arch x86_64" ;;
+      esac
+      # shellcheck disable=SC2086
+      $_ld $_ldrel -r -o src/driver/target_cpu.o src/driver/target_cpu_pure.o src/driver/target_cpu_detect.o
+    fi
+  fi
   # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
   if [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
     _tg_before=$(wc -c < typeck_gen.c | tr -d ' ')
@@ -113,7 +134,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
     case "$o" in
       # 已在热路径专用 flags / .x seed 编译
-      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|build_asm/*|*.s) continue ;;
+      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|build_asm/*|*.s) continue ;;
       # G-02e-7：link_alias 并入；产品默认 SKIP 前缀别名（与 Makefile PARSER_ASM_LINK_ALIAS_CFLAGS 一致）
       src/asm/parser_asm_parse_expr_link.o)
         if [ -n "$src" ] && { [ ! -f "$o" ] || [ "$src" -nt "$o" ]; }; then

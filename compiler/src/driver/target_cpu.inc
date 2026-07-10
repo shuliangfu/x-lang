@@ -1,5 +1,8 @@
 /**
- * target_cpu.c — SIMD-S1：宿主机 CPU feature 探测与 `-target-cpu` 规格解析。
+ * target_cpu.inc — SIMD-S1：宿主机 CPU feature 探测与 `-target-cpu` 规格解析。
+ *
+ * G-02f-2：`driver_set/get_pending_target_cpu_features` 已迁
+ * `target_cpu_pure.x`（产品链 ld -r pure + 本 TU → target_cpu.o）。
  *
  * Linux：读 /proc/cpuinfo flags/Features；
  * macOS：sysctl hw.optional.* / machdep.cpu.leaf7_features；
@@ -22,17 +25,6 @@
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #endif
-
-/** driver 暂存：impl_c 解析 argv 后、asm backend 建 pctx 前写入。 */
-static uint32_t g_driver_pending_target_cpu_features;
-
-void driver_set_pending_target_cpu_features(uint32_t features) {
-    g_driver_pending_target_cpu_features = features;
-}
-
-uint32_t driver_get_pending_target_cpu_features(void) {
-    return g_driver_pending_target_cpu_features;
-}
 
 /**
  * 忽略大小写比较 spec 与 literal（spec_len 为 spec 有效长度）。
