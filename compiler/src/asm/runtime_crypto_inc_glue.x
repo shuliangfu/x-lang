@@ -45,3 +45,16 @@ function shu_sha256_ch(x: u32, y: u32, z: u32): u32 {
 function shu_sha256_maj(x: u32, y: u32, z: u32): u32 {
   return (x & y) ^ (x & z) ^ (y & z);
 }
+
+// G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function crypto_i32_sub_c(a: i32, b: i32): i32 {
+  return a - b;
+}
+
+#[no_mangle]
+function crypto_rotl32_c(x: u32, n: u32): u32 {
+  n = n & 31;
+  return (x << n) | (x >> (32 - n));
+}

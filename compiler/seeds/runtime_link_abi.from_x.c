@@ -1,4 +1,5 @@
 /* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70/89/91/92/94 true .x + C tail).
+ * G-02f-115 true .x pure helpers.
  * G-02f-112 helper gates.
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
  *         merge invoke_cc + linux_harden + remaining link gates.
@@ -609,15 +610,11 @@ void shux_link_perror(const char *msg) {
  * 参数：p 候选 lib root 字符串指针。
  * 返回值：非 0 表示可用。
  */
-int shux_asm_ld_lib_root_ptr_usable_impl(const char *p) {
-    return p && (uintptr_t)p >= 4096u && p[0] != '\0';
-}
+/* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int shux_asm_ld_lib_root_ptr_usable(const char *p) {
-  {
-    return shux_asm_ld_lib_root_ptr_usable_impl(p);
-  }
-  return 0;
+  return p && (uintptr_t)p >= 4096u && p[0] != '\0';
 }
+
 
 
 /**

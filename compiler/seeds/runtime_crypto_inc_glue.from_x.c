@@ -36,10 +36,12 @@
 
 /** 下列 helper 定义在本文件后部；须前向声明供 SHA-256 静态函数使用。 */
 uint32_t crypto_rotr32_c(uint32_t x, uint32_t n);
+/* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint32_t crypto_rotl32_c(uint32_t x, uint32_t n);
 uint32_t crypto_sha256_k256_c(int32_t i);
 
 /** i32 减法 a - b；seed asm 字面量减变量 emit 失败（如 64 - klen）。 */
+/* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t crypto_i32_sub_c(int32_t a, int32_t b) {
   return a - b;
 }

@@ -83,11 +83,6 @@ function shux_async_take_suspend_io_flag(): i32 {
   return 0;
 }
 
-#[no_mangle]
-function shux_async_q_occupancy(): i32 {
-  unsafe { return shux_async_q_occupancy_impl(); }
-  return 0;
-}
 
 #[no_mangle]
 function shu_coop_frame_step_jmp(frame: *u8): i32 {
@@ -137,4 +132,11 @@ function shux_async_drain_queue(q: *u8, wid: u32, acc: *i32): i32 {
 function shux_async_spawn_ctx_echo_task(): i32 {
   unsafe { return shux_async_spawn_ctx_echo_task_impl(); }
   return 0;
+}
+
+// G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function shux_async_q_occupancy(head: u32, tail: u32): u32 {
+  return tail - head;
 }

@@ -163,117 +163,15 @@ function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 { unsafe { return sim
 function simd_x86_movups_xmm0_to_rbx_rax4(elf: *u8): i32 { unsafe { return simd_x86_movups_xmm0_to_rbx_rax4_impl(elf); } return 0; }
 #[no_mangle]
 function simd_append_u32_le(elf: *u8, word: u32): i32 { unsafe { return simd_append_u32_le_impl(elf, word); } return 0; }
-#[no_mangle]
-function simd_arm64_ins_v1_from_v0_s(dst: i32, src: i32): u32 { unsafe { return simd_arm64_ins_v1_from_v0_s_impl(dst, src); } return 0; }
-#[no_mangle]
-function simd_arm64_pshufd_imm8_128_rbp(elf: *u8, lea_src: i32, lea_dst: i32, imm8: i32): i32 { unsafe { return simd_arm64_pshufd_imm8_128_rbp_impl(elf, lea_src, lea_dst, imm8); } return 0; }
-#[no_mangle]
-function simd_arm64_select_128_rbp(elf: *u8, lea_mask: i32, lea_a: i32, lea_b: i32): i32 { unsafe { return simd_arm64_select_128_rbp_impl(elf, lea_mask, lea_a, lea_b); } return 0; }
-#[no_mangle]
-function simd_x86_pshufd_xmm0_imm8(elf: *u8, imm8: i32): i32 { unsafe { return simd_x86_pshufd_xmm0_imm8_impl(elf, imm8); } return 0; }
-#[no_mangle]
-function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 { unsafe { return simd_x86_vpshufd_ymm0_imm8_impl(elf, imm8); } return 0; }
 
-// G-02f-110：+ more x86 select/mask vector ops 薄门闩。
-
-extern "C" function simd_x86_vmovups_ymm2_from_rbp_impl(elf: *u8, disp: i32): i32;
-extern "C" function simd_x86_pxor_xmm3_xmm3_impl(elf: *u8): i32;
-extern "C" function simd_x86_pcmpgtd_xmm2_xmm3_impl(elf: *u8): i32;
-extern "C" function simd_x86_pand_xmm0_xmm2_impl(elf: *u8): i32;
-extern "C" function simd_x86_pandn_xmm2_xmm1_impl(elf: *u8): i32;
-extern "C" function simd_x86_por_xmm0_xmm2_impl(elf: *u8): i32;
-extern "C" function simd_x86_xorps_xmm3_xmm3_impl(elf: *u8): i32;
-extern "C" function simd_x86_andps_xmm0_xmm2_impl(elf: *u8): i32;
-extern "C" function simd_x86_andnps_xmm2_xmm1_impl(elf: *u8): i32;
-extern "C" function simd_x86_orps_xmm0_xmm2_impl(elf: *u8): i32;
-extern "C" function simd_x86_vpxor_ymm3_ymm3_impl(elf: *u8): i32;
-extern "C" function simd_x86_vpcmpgtd_ymm2_ymm3_impl(elf: *u8): i32;
-extern "C" function simd_x86_vpand_ymm0_ymm2_impl(elf: *u8): i32;
-extern "C" function simd_x86_vpandn_ymm2_ymm1_impl(elf: *u8): i32;
-extern "C" function simd_x86_vpor_ymm0_ymm2_impl(elf: *u8): i32;
-extern "C" function simd_x86_cmpgtps_xmm2_xmm3_impl(elf: *u8): i32;
-extern "C" function simd_x86_vxorps_ymm3_ymm3_impl(elf: *u8): i32;
-extern "C" function simd_x86_vcmpgtps_ymm2_ymm3_impl(elf: *u8): i32;
-extern "C" function simd_x86_vandps_ymm0_ymm2_impl(elf: *u8): i32;
-
-/* ---- G-02f-110：simd_enc mask/select ops 门闩 ---- */
+// G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
 
 #[no_mangle]
-function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 { unsafe { return simd_x86_vmovups_ymm2_from_rbp_impl(elf, disp); } return 0; }
-#[no_mangle]
-function simd_x86_pxor_xmm3_xmm3(elf: *u8): i32 { unsafe { return simd_x86_pxor_xmm3_xmm3_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_pcmpgtd_xmm2_xmm3(elf: *u8): i32 { unsafe { return simd_x86_pcmpgtd_xmm2_xmm3_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_pand_xmm0_xmm2(elf: *u8): i32 { unsafe { return simd_x86_pand_xmm0_xmm2_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_pandn_xmm2_xmm1(elf: *u8): i32 { unsafe { return simd_x86_pandn_xmm2_xmm1_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_por_xmm0_xmm2(elf: *u8): i32 { unsafe { return simd_x86_por_xmm0_xmm2_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_xorps_xmm3_xmm3(elf: *u8): i32 { unsafe { return simd_x86_xorps_xmm3_xmm3_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_andps_xmm0_xmm2(elf: *u8): i32 { unsafe { return simd_x86_andps_xmm0_xmm2_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_andnps_xmm2_xmm1(elf: *u8): i32 { unsafe { return simd_x86_andnps_xmm2_xmm1_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_orps_xmm0_xmm2(elf: *u8): i32 { unsafe { return simd_x86_orps_xmm0_xmm2_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_vpxor_ymm3_ymm3(elf: *u8): i32 { unsafe { return simd_x86_vpxor_ymm3_ymm3_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_vpcmpgtd_ymm2_ymm3(elf: *u8): i32 { unsafe { return simd_x86_vpcmpgtd_ymm2_ymm3_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_vpand_ymm0_ymm2(elf: *u8): i32 { unsafe { return simd_x86_vpand_ymm0_ymm2_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_vpandn_ymm2_ymm1(elf: *u8): i32 { unsafe { return simd_x86_vpandn_ymm2_ymm1_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_vpor_ymm0_ymm2(elf: *u8): i32 { unsafe { return simd_x86_vpor_ymm0_ymm2_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_cmpgtps_xmm2_xmm3(elf: *u8): i32 { unsafe { return simd_x86_cmpgtps_xmm2_xmm3_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 { unsafe { return simd_x86_vxorps_ymm3_ymm3_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 { unsafe { return simd_x86_vcmpgtps_ymm2_ymm3_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 { unsafe { return simd_x86_vandps_ymm0_ymm2_impl(elf); } return 0; }
-
-// G-02f-111：+ try_hw iadd/isub + select seq + remaining vor/vandn/pshufd 薄门闩。
-
-extern "C" function simd_enc_try_hw_vector_iadd_isub_rbp_impl(elf: *u8, a: i32, b: i32, c: i32): i32;
-extern "C" function simd_x86_vandnps_ymm2_ymm1_impl(elf: *u8): i32;
-extern "C" function simd_x86_vorps_ymm0_ymm2_impl(elf: *u8): i32;
-extern "C" function simd_enc_emit_i32_select_xmm_seq_impl(elf: *u8): i32;
-extern "C" function simd_enc_emit_f32_select_xmm_seq_impl(elf: *u8): i32;
-extern "C" function simd_enc_emit_i32_select_ymm_seq_impl(elf: *u8): i32;
-extern "C" function simd_enc_emit_f32_select_ymm_seq_impl(elf: *u8): i32;
-extern "C" function simd_x86_pshufd_xmm1_xmm0_impl(elf: *u8, imm: i32): i32;
-
-/* ---- G-02f-111：simd_enc try_hw/select 门闩 ---- */
-
-#[no_mangle]
-function simd_enc_try_hw_vector_iadd_isub_rbp(elf: *u8, a: i32, b: i32, c: i32): i32 { unsafe { return simd_enc_try_hw_vector_iadd_isub_rbp_impl(elf, a, b, c); } return 0; }
-#[no_mangle]
-function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 { unsafe { return simd_x86_vandnps_ymm2_ymm1_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_vorps_ymm0_ymm2(elf: *u8): i32 { unsafe { return simd_x86_vorps_ymm0_ymm2_impl(elf); } return 0; }
-#[no_mangle]
-function simd_enc_emit_i32_select_xmm_seq(elf: *u8): i32 { unsafe { return simd_enc_emit_i32_select_xmm_seq_impl(elf); } return 0; }
-#[no_mangle]
-function simd_enc_emit_f32_select_xmm_seq(elf: *u8): i32 { unsafe { return simd_enc_emit_f32_select_xmm_seq_impl(elf); } return 0; }
-#[no_mangle]
-function simd_enc_emit_i32_select_ymm_seq(elf: *u8): i32 { unsafe { return simd_enc_emit_i32_select_ymm_seq_impl(elf); } return 0; }
-#[no_mangle]
-function simd_enc_emit_f32_select_ymm_seq(elf: *u8): i32 { unsafe { return simd_enc_emit_f32_select_ymm_seq_impl(elf); } return 0; }
-#[no_mangle]
-function simd_x86_pshufd_xmm1_xmm0(elf: *u8, imm: i32): i32 { unsafe { return simd_x86_pshufd_xmm1_xmm0_impl(elf, imm); } return 0; }
-
-// G-02f-113：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
-
-#[no_mangle]
-function simd_rbp_disp32(slot_off: i32, lanes: i32, esz: i32): i32 {
-  // lanes/esz reserved for future half-width; product path uses -slot_off.
-  if (slot_off < 0) {
-    return 0;
-  }
-  return 0 - slot_off;
+function simd_arm64_ins_v1_from_v0_s(dst_lane: i32, src_lane: i32): u32 {
+  // Encoding: 0x6E040000 | ((dst_lane&3)<<19) | ((src_lane&3)<<13) | 0x401
+  // Keep arithmetic form; seed C uses bitwise OR equivalent.
+  let d: i32 = dst_lane & 3;
+  let s: i32 = src_lane & 3;
+  let enc: i32 = 1846018048 | (d << 19) | (s << 13) | 1025;
+  return enc;
 }

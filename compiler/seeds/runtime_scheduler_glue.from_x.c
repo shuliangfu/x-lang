@@ -1,4 +1,5 @@
 /* seeds/runtime_scheduler_glue.from_x.c — G-02f-18 product TU
+ * G-02f-115 true .x pure helpers.
  * G-02f-108 helper gates.
  * G-02f-107 helper gates.
  * G-02f-106 helper gates.
@@ -462,15 +463,11 @@ int shux_async_io_wait_push(shux_async_task_fn_t fn) {
 
 
 /** 队列占用（tail - head；计数器可绕回 uint32）。 */
-uint32_t shux_async_q_occupancy_impl(uint32_t head, uint32_t tail) {
-    return tail - head;
-}
+/* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint32_t shux_async_q_occupancy(uint32_t head, uint32_t tail) {
-  {
-    return shux_async_q_occupancy_impl(head, tail);
-  }
-  return 0;
+  return tail - head;
 }
+
 
 
 /** 协作任务帧：phase 为状态机下标，ops 为步进计数。 */

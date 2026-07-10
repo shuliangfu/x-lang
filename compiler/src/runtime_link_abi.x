@@ -2140,13 +2140,6 @@ function link_diag_ld_debug_argv(label: *u8, argv: *u8): void {
   }
 }
 
-#[no_mangle]
-function shux_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
-  unsafe {
-    return shux_asm_ld_lib_root_ptr_usable_impl(p);
-  }
-  return 0;
-}
 
 #[no_mangle]
 function shux_asm_ld_lib_root_default(root_buf: *u8): void {
@@ -2324,4 +2317,13 @@ extern "C" function shux_debug_hello_stage1_report_impl(): void;
 #[no_mangle]
 function shux_debug_hello_stage1_report(): void {
   unsafe { shux_debug_hello_stage1_report_impl(); }
+}
+
+// G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function shux_asm_ld_lib_root_ptr_usable(p: *u8): i32 {
+  if (p == 0) { return 0; }
+  if (p[0] == 0) { return 0; }
+  return 1;
 }

@@ -1,4 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
+ * G-02f-115 true .x pure helpers.
  * G-02f-108 helper gates.
  * G-02f-107 helper gates.
  * G-02f-106 helper gates.
@@ -394,34 +395,30 @@ uint32_t glue_simd_loop_cpu_features_c(void) {
 
 
 /** 按 binop 与 CPU feature 选取 SIMD lane 宽（add/sub→SSE2/AVX2，mul→SSE4.1/AVX2）。 */
-int32_t glue_simd_loop_pick_lanes_c_impl(uint32_t feats, int32_t binop_ko, int32_t *lanes_out) {
-    if (binop_ko == GLUE_EXPR_MUL) {
-        if ((feats & SHUX_CPU_FEAT_AVX2) != 0) {
-            *lanes_out = 8;
-            return 0;
-        }
-        if ((feats & SHUX_CPU_FEAT_SSE41) != 0) {
-            *lanes_out = 4;
-            return 0;
-        }
-        return -1;
-    }
+/* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *lanes_out) {
+  if (binop_ko == GLUE_EXPR_MUL) {
     if ((feats & SHUX_CPU_FEAT_AVX2) != 0) {
-        *lanes_out = 8;
-        return 0;
+      *lanes_out = 8;
+      return 0;
     }
-    if ((feats & SHUX_CPU_FEAT_SSE2) != 0) {
-        *lanes_out = 4;
-        return 0;
+    if ((feats & SHUX_CPU_FEAT_SSE41) != 0) {
+      *lanes_out = 4;
+      return 0;
     }
     return -1;
-}
-int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *lanes_out) {
-  {
-    return glue_simd_loop_pick_lanes_c_impl(feats, binop_ko, lanes_out);
   }
-  return 0;
+  if ((feats & SHUX_CPU_FEAT_AVX2) != 0) {
+    *lanes_out = 8;
+    return 0;
+  }
+  if ((feats & SHUX_CPU_FEAT_SSE2) != 0) {
+    *lanes_out = 4;
+    return 0;
+  }
+  return -1;
 }
+
 
 
 /** 发射单 chunk 硬件向量 binop；0=成功，-1=失败。 */
@@ -597,27 +594,19 @@ extern int32_t backend_enc_mov_imm64_to_rax_arch(struct platform_elf_ElfCodegenC
 #define GLUE_TYPE_F32 14
 
 /** SoA x 列 x[start] 的 [rbp+disp32]（col0 为 x[0] 栈正偏移）。 */
-int32_t glue_soa_f32_col_rbp_disp32_impl(int32_t off_col0, int32_t start_idx) {
-    return -(off_col0 - start_idx * 4);
-}
+/* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_soa_f32_col_rbp_disp32(int32_t off_col0, int32_t start_idx) {
-  {
-    return glue_soa_f32_col_rbp_disp32_impl(off_col0, start_idx);
-  }
-  return 0;
+  return -(off_col0 - start_idx * 4);
 }
+
 
 
 /** f32 局部槽 [rbp+disp32]。 */
-int32_t glue_f32_slot_rbp_disp32_impl(int32_t off) {
-    return -off;
-}
+/* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_f32_slot_rbp_disp32(int32_t off) {
-  {
-    return glue_f32_slot_rbp_disp32_impl(off);
-  }
-  return 0;
+  return -off;
 }
+
 
 
 /** VAR 定长数组元素个数；失败 0。 */

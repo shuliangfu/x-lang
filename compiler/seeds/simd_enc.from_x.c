@@ -1,4 +1,5 @@
 /* seeds/simd_enc.from_x.c — G-02f-7 product pure SIMD encode TU
+ * G-02f-115 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-110 helper gates.
@@ -691,15 +692,11 @@ int32_t simd_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t 
  * arm64 NEON：INS V1.S[dst_lane], V0.S[src_lane]（V0 源 / V1 目的，Rn=0 Rd=1）。
  * 低 16 位须为 0x401（clang -c 烟测）；误写 |1 会被 otool 解成 EXT，shuffle 结果错误。
  */
-uint32_t simd_arm64_ins_v1_from_v0_s_impl(int32_t dst_lane, int32_t src_lane) {
+/* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+uint32_t simd_arm64_ins_v1_from_v0_s(int32_t dst_lane, int32_t src_lane) {
   return (uint32_t)(0x6E040000U | ((dst_lane & 3) << 19) | ((src_lane & 3) << 13) | 0x401U);
 }
-uint32_t simd_arm64_ins_v1_from_v0_s(int32_t dst_lane, int32_t src_lane) {
-  {
-    return simd_arm64_ins_v1_from_v0_s_impl(dst_lane, src_lane);
-  }
-  return 0;
-}
+
 
 
 /**

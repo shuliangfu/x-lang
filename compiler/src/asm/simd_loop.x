@@ -50,11 +50,6 @@ function glue_simd_loop_cpu_features_c(): u32 {
   return 0;
 }
 
-#[no_mangle]
-function glue_simd_loop_pick_lanes_c(feats: u32, binop_ko: i32, lanes_out: *i32): i32 {
-  unsafe { return glue_simd_loop_pick_lanes_c_impl(feats, binop_ko, lanes_out); }
-  return 0;
-}
 
 extern "C" function glue_block_let_init_lit_c_impl(arena: *u8, block_ref: i32, var_ref: i32, out_lit: *i32): i32;
 extern "C" function glue_parse_i_plus_one_step_c_impl(arena: *u8, step_ref: i32, i_var_ref: i32): i32;
@@ -110,17 +105,7 @@ function glue_var_array_size_c(arena: *u8, var_ref: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
-function glue_soa_f32_col_rbp_disp32(off_col0: i32, start_idx: i32): i32 {
-  unsafe { return glue_soa_f32_col_rbp_disp32_impl(off_col0, start_idx); }
-  return 0;
-}
 
-#[no_mangle]
-function glue_f32_slot_rbp_disp32(slot_off: i32): i32 {
-  unsafe { return glue_f32_slot_rbp_disp32_impl(slot_off); }
-  return 0;
-}
 
 // G-02f-108：+ peel/strip/soa emit 薄门闩。
 
@@ -160,4 +145,30 @@ function glue_parse_f32_soa_sum_assign_c(arena: *u8, ar: i32, ir: i32, sum: *i32
 function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf: *u8, c: *u8): i32 {
   unsafe { return glue_emit_f32_soa_sum_strip_c_impl(arena, elf, c); }
   return 0;
+}
+
+// G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function glue_soa_f32_col_rbp_disp32(off_col0: i32, start_idx: i32): i32 {
+  return 0 - (off_col0 - start_idx * 4);
+}
+
+#[no_mangle]
+function glue_f32_slot_rbp_disp32(off: i32): i32 {
+  return 0 - off;
+}
+
+// GLUE_EXPR_MUL=6; SSE2=1, SSE41=2, AVX2=8
+#[no_mangle]
+function glue_simd_loop_pick_lanes_c(feats: u32, binop_ko: i32, lanes_out: *i32): i32 {
+  if (lanes_out == 0) { return -1; }
+  if (binop_ko == 6) {
+    if ((feats & 8) != 0) { lanes_out[0] = 8; return 0; }
+    if ((feats & 2) != 0) { lanes_out[0] = 4; return 0; }
+    return -1;
+  }
+  if ((feats & 8) != 0) { lanes_out[0] = 8; return 0; }
+  if ((feats & 1) != 0) { lanes_out[0] = 4; return 0; }
+  return -1;
 }
