@@ -893,8 +893,8 @@ struct codegen_CodegenOutBuf {
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 _Static_assert(offsetof(struct codegen_CodegenOutBuf, len) == X_CODEGEN_OUTBUF_CAP, "CodegenOutBuf: len must follow data[] for ABI");
 #endif
-/** asm 后端 C 桩：-backend asm 时由 pipeline 调用，写出最小 GAS（main return 42），便于 pipeline 不 import asm 仍可构建 shux_x。
- * 实验 asm-only 链并入 build_asm/backend.o 时须为 weak，避免与 backend.x 导出的 asm_codegen_ast 重复定义。 */
+/** asm 后端 C 桩：最小 GAS（main return 42）。G-02f-300 R9 → rt_asm_stub hybrid */
+#ifndef SHUX_RT_ASM_STUB_FROM_X
 SHUX_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out) {
     (void)module;
     (void)arena;
@@ -921,6 +921,11 @@ SHUX_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_Code
     out->len = (int32_t)n;
     return 0;
 }
+#else
+SHUX_WEAK int32_t asm_codegen_ast(void *module, void *arena, struct codegen_CodegenOutBuf *out);
+int32_t driver_asm_output_want_exe(uint8_t *path);
+int labi_rt_asm_stub_slice_marker(void);
+#endif
 /* 诊断 -x 失败阶段：pipeline_gen.c 中 parser 符号 */
 struct parser_ParseIntoResult { int32_t ok; int32_t main_idx; };
 extern void parser_parse_into_init(void *arena, void *module);
@@ -3492,12 +3497,15 @@ int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) 
 
 /** shux_collect_deps_transitive / shux_merge_direct_then_transitive_deps / shux_load_direct_imports_for_asm_layout 见 runtime_pipeline_abi.c（E-04 v35）。 */
 #if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
-/** compile.x extern：-o 后缀是否表示可执行（非 .o/.obj/.s）；实现见 runtime_link_abi.c。 */
-/* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-
+/** compile.x extern：-o 后缀是否表示可执行（非 .o/.obj/.s）。 */
+/* G-02f-300 R9 → rt_asm_stub hybrid */
+#ifndef SHUX_RT_ASM_STUB_FROM_X
 int32_t driver_asm_output_want_exe(uint8_t *path) {
     return shux_output_want_exe(path ? (const char *)path : NULL);
 }
+#else
+int32_t driver_asm_output_want_exe(uint8_t *path);
+#endif
 
 
 
