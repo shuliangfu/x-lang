@@ -1,4 +1,5 @@
 /* seeds/runtime_crypto_inc_glue.from_x.c — G-02f-20 product TU
+ * G-02f-114 true .x pure helpers.
  * G-02f-100 sha256_block gate.
  * G-02f-99 SHA-256 pure helper gates.
  * Product: runtime_crypto_inc_glue.o; logic still C until full .x port.
@@ -44,38 +45,20 @@ int32_t crypto_i32_sub_c(int32_t a, int32_t b) {
 }
 
 /* ---------- SHA-256 / HMAC-SHA256（seed asm 单文件仅首函数可 emit；完整实现放 C） ---------- */
-
-uint32_t shu_sha256_rotr32_impl(uint32_t x, uint32_t n) {
-  return crypto_rotr32_c(x, n);
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint32_t shu_sha256_rotr32(uint32_t x, uint32_t n) {
-  {
-    return shu_sha256_rotr32_impl(x, n);
-  }
-  return 0;
+  n &= 31u;
+  return (x >> n) | (x << (32u - n));
 }
-
-
-uint32_t shu_sha256_ch_impl(uint32_t x, uint32_t y, uint32_t z) {
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+uint32_t shu_sha256_ch(uint32_t x, uint32_t y, uint32_t z) {
   return (x & y) ^ ((~x) & z);
 }
-uint32_t shu_sha256_ch(uint32_t x, uint32_t y, uint32_t z) {
-  {
-    return shu_sha256_ch_impl(x, y, z);
-  }
-  return 0;
-}
-
-
-uint32_t shu_sha256_maj_impl(uint32_t x, uint32_t y, uint32_t z) {
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+uint32_t shu_sha256_maj(uint32_t x, uint32_t y, uint32_t z) {
   return (x & y) ^ (x & z) ^ (y & z);
 }
-uint32_t shu_sha256_maj(uint32_t x, uint32_t y, uint32_t z) {
-  {
-    return shu_sha256_maj_impl(x, y, z);
-  }
-  return 0;
-}
+
 
 void shu_sha256_block_impl(uint32_t *H, const uint8_t *block) {
   uint32_t W[64];

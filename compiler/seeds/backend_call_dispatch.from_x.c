@@ -1,4 +1,5 @@
 /* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-114 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
@@ -1558,7 +1559,8 @@ int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *elf_ctx,
 /**
  * import 路径前缀是否为 std.fmt / std.debug（println/print 字符串字面量特化）。
  */
-int32_t glue_asm_prefix_is_fmt_or_debug_impl(const uint8_t *pre, int32_t pre_len) {
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len) {
   if (!pre || pre_len < 8)
     return 0;
   if (pre_len >= 8 && memcmp(pre, "std_fmt_", 8) == 0)
@@ -1567,12 +1569,7 @@ int32_t glue_asm_prefix_is_fmt_or_debug_impl(const uint8_t *pre, int32_t pre_len
     return 1;
   return 0;
 }
-int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len) {
-  {
-    return glue_asm_prefix_is_fmt_or_debug_impl(pre, pre_len);
-  }
-  return 0;
-}
+
 
 
 /**

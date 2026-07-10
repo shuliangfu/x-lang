@@ -574,125 +574,20 @@ function runtime_diag_code_for_kind(kind: *u8): *u8 {
 
 /* ---- G-02f-87：argv 令牌 / path 后缀 / lib_root 纯 helper 门闩 ---- */
 
-#[no_mangle]
-function driver_lib_root_ptr_usable(p: *u8): i32 {
-  unsafe {
-    return driver_lib_root_ptr_usable_impl(p);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_minus_o(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_minus_o_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_minus_L(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_minus_L_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_minus_O(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_minus_O_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_flto(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_flto_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_minus_freestanding(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_minus_freestanding_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_legacy_f32_abi(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_legacy_f32_abi_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_fsanitize_address(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_fsanitize_address_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_minus_backend(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_minus_backend_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_minus_target(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_minus_target_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_minus_target_cpu(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_minus_target_cpu_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_print_target_cpu(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_print_target_cpu_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_asm_word(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_asm_word_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_eq_c_word(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_eq_c_word_impl(buf, len);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function drv_path_ends_x(buf: *u8, len: i32): i32 {
-  unsafe {
-    return drv_path_ends_x_impl(buf, len);
-  }
-  return 0;
-}
 
 #[no_mangle]
 function drv_target_has_arm(buf: *u8, len: i32): i32 {
@@ -997,4 +892,144 @@ extern "C" function driver_c_typeck_entry_impl(mod: *u8, arena: *u8): i32;
 function driver_c_typeck_entry(mod: *u8, arena: *u8): i32 {
   unsafe { return driver_c_typeck_entry_impl(mod, arena); }
   return 0;
+}
+
+// G-02f-114：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function drv_eq_minus_o(buf: *u8, len: i32): i32 {
+  if (len != 2) { return 0; }
+  if (buf[0] == 45 && buf[1] == 111) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_L(buf: *u8, len: i32): i32 {
+  if (len != 2) { return 0; }
+  if (buf[0] == 45 && buf[1] == 76) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_O(buf: *u8, len: i32): i32 {
+  if (len != 2) { return 0; }
+  if (buf[0] == 45 && buf[1] == 79) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_flto(buf: *u8, len: i32): i32 {
+  if (len != 5) { return 0; }
+  if (buf[0] == 45 && buf[1] == 102 && buf[2] == 108 && buf[3] == 116 && buf[4] == 111) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_freestanding(buf: *u8, len: i32): i32 {
+  if (len != 13) { return 0; }
+  // -freestanding
+  if (buf[0] == 45 && buf[1] == 102 && buf[2] == 114 && buf[3] == 101 && buf[4] == 101
+      && buf[5] == 115 && buf[6] == 116 && buf[7] == 97 && buf[8] == 110 && buf[9] == 100
+      && buf[10] == 105 && buf[11] == 110 && buf[12] == 103) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_legacy_f32_abi(buf: *u8, len: i32): i32 {
+  if (len != 15) { return 0; }
+  // -legacy-f32-abi
+  if (buf[0] == 45 && buf[1] == 108 && buf[2] == 101 && buf[3] == 103 && buf[4] == 97
+      && buf[5] == 99 && buf[6] == 121 && buf[7] == 45 && buf[8] == 102 && buf[9] == 51
+      && buf[10] == 50 && buf[11] == 45 && buf[12] == 97 && buf[13] == 98 && buf[14] == 105) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_fsanitize_address(buf: *u8, len: i32): i32 {
+  if (len != 18) { return 0; }
+  // -fsanitize=address
+  if (buf[0] == 45 && buf[1] == 102 && buf[2] == 115 && buf[3] == 97 && buf[4] == 110
+      && buf[5] == 105 && buf[6] == 116 && buf[7] == 105 && buf[8] == 122 && buf[9] == 101
+      && buf[10] == 61 && buf[11] == 97 && buf[12] == 100 && buf[13] == 100 && buf[14] == 114
+      && buf[15] == 101 && buf[16] == 115 && buf[17] == 115) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_backend(buf: *u8, len: i32): i32 {
+  if (len != 8) { return 0; }
+  // -backend
+  if (buf[0] == 45 && buf[1] == 98 && buf[2] == 97 && buf[3] == 99 && buf[4] == 107
+      && buf[5] == 101 && buf[6] == 110 && buf[7] == 100) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_target(buf: *u8, len: i32): i32 {
+  if (len < 7) { return 0; }
+  // -target
+  if (buf[0] == 45 && buf[1] == 116 && buf[2] == 97 && buf[3] == 114 && buf[4] == 103
+      && buf[5] == 101 && buf[6] == 116) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_target_cpu(buf: *u8, len: i32): i32 {
+  if (len < 11) { return 0; }
+  // -target-cpu
+  if (buf[0] == 45 && buf[1] == 116 && buf[2] == 97 && buf[3] == 114 && buf[4] == 103
+      && buf[5] == 101 && buf[6] == 116 && buf[7] == 45 && buf[8] == 99 && buf[9] == 112
+      && buf[10] == 117) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_print_target_cpu(buf: *u8, len: i32): i32 {
+  // --print-target-cpu (18) or -print-target-cpu (17)
+  if (len == 18) {
+    if (buf[0] == 45 && buf[1] == 45 && buf[2] == 112 && buf[3] == 114 && buf[4] == 105
+        && buf[5] == 110 && buf[6] == 116 && buf[7] == 45 && buf[8] == 116 && buf[9] == 97
+        && buf[10] == 114 && buf[11] == 103 && buf[12] == 101 && buf[13] == 116 && buf[14] == 45
+        && buf[15] == 99 && buf[16] == 112 && buf[17] == 117) { return 1; }
+  }
+  if (len == 17) {
+    if (buf[0] == 45 && buf[1] == 112 && buf[2] == 114 && buf[3] == 105 && buf[4] == 110
+        && buf[5] == 116 && buf[6] == 45 && buf[7] == 116 && buf[8] == 97 && buf[9] == 114
+        && buf[10] == 103 && buf[11] == 101 && buf[12] == 116 && buf[13] == 45 && buf[14] == 99
+        && buf[15] == 112 && buf[16] == 117) { return 1; }
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_asm_word(buf: *u8, len: i32): i32 {
+  if (len != 3) { return 0; }
+  if (buf[0] == 97 && buf[1] == 115 && buf[2] == 109) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_c_word(buf: *u8, len: i32): i32 {
+  if (len != 1) { return 0; }
+  if (buf[0] == 99) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function drv_path_ends_x(buf: *u8, len: i32): i32 {
+  if (len >= 2) {
+    if (buf[len - 2] == 46 && buf[len - 1] == 120) { return 1; }
+  }
+  if (len >= 3) {
+    if (buf[len - 3] == 46 && buf[len - 2] == 115 && buf[len - 1] == 117) { return 1; }
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_lib_root_ptr_usable(p: *u8): i32 {
+  // .x 路径：非空指针且非空串（C 侧另有 >=4096 哨兵；seed 保持原语义）
+  if (p == 0) { return 0; }
+  if (p[0] == 0) { return 0; }
+  return 1;
 }

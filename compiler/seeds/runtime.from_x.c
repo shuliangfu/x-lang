@@ -1,4 +1,5 @@
 /* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+ * G-02f-114 true .x pure helpers.
  * G-02f-112 helper gates.
  * G-02f-111 helper gates.
  * G-02f-105 helper gates.
@@ -5697,15 +5698,11 @@ extern void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, i
  * 参数：p 候选 lib root 字符串指针。
  * 返回值：非 0 表示可用。
  */
-int driver_lib_root_ptr_usable_impl(const char *p) {
-    return p && (uintptr_t)p >= 4096u && p[0] != '\0';
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int driver_lib_root_ptr_usable(const char *p) {
-  {
-    return driver_lib_root_ptr_usable_impl(p);
-  }
-  return 0;
+  return p && (uintptr_t)p >= 4096u && p[0] != '\0';
 }
+
 
 
 /**
@@ -5973,151 +5970,71 @@ void driver_compile_ensure_default_lib_c(uint8_t *key);
 void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
 
 /** argv 令牌比较与 path 后缀检测（与 compile.x 同名 helper 语义一致）。 */
-int drv_eq_minus_o_impl(const char *buf, int len) {
-    return len == 2 && buf[0] == '-' && buf[1] == 'o';
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_minus_o(const char *buf, int len) {
-  {
-    return drv_eq_minus_o_impl(buf, len);
-  }
-  return 0;
+  return len == 2 && buf[0] == '-' && buf[1] == 'o';
 }
-
-int drv_eq_minus_L_impl(const char *buf, int len) {
-    return len == 2 && buf[0] == '-' && buf[1] == 'L';
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_minus_L(const char *buf, int len) {
-  {
-    return drv_eq_minus_L_impl(buf, len);
-  }
-  return 0;
+  return len == 2 && buf[0] == '-' && buf[1] == 'L';
 }
-
-int drv_eq_minus_O_impl(const char *buf, int len) {
-    return len == 2 && buf[0] == '-' && buf[1] == 'O';
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_minus_O(const char *buf, int len) {
-  {
-    return drv_eq_minus_O_impl(buf, len);
-  }
-  return 0;
+  return len == 2 && buf[0] == '-' && buf[1] == 'O';
 }
-
-int drv_eq_flto_impl(const char *buf, int len) {
-    return len == 5 && buf[0] == '-' && buf[1] == 'f' && buf[2] == 'l' && buf[3] == 't' && buf[4] == 'o';
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_flto(const char *buf, int len) {
-  {
-    return drv_eq_flto_impl(buf, len);
-  }
-  return 0;
+  return len == 5 && buf[0] == '-' && buf[1] == 'f' && buf[2] == 'l' && buf[3] == 't' && buf[4] == 'o';
 }
-
-int drv_eq_minus_freestanding_impl(const char *buf, int len) {
-    return len == 13 && !memcmp(buf, "-freestanding", 13);
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_minus_freestanding(const char *buf, int len) {
-  {
-    return drv_eq_minus_freestanding_impl(buf, len);
-  }
-  return 0;
+  return len == 13 && !memcmp(buf, "-freestanding", 13);
 }
-
-int drv_eq_legacy_f32_abi_impl(const char *buf, int len) {
-    return len == 15 && !memcmp(buf, "-legacy-f32-abi", 15);
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_legacy_f32_abi(const char *buf, int len) {
-  {
-    return drv_eq_legacy_f32_abi_impl(buf, len);
-  }
-  return 0;
+  return len == 15 && !memcmp(buf, "-legacy-f32-abi", 15);
 }
-
-int drv_eq_fsanitize_address_impl(const char *buf, int len) {
-    return len == 18 && !memcmp(buf, "-fsanitize=address", 18);
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_fsanitize_address(const char *buf, int len) {
-  {
-    return drv_eq_fsanitize_address_impl(buf, len);
-  }
-  return 0;
+  return len == 18 && !memcmp(buf, "-fsanitize=address", 18);
 }
-
-int drv_eq_minus_backend_impl(const char *buf, int len) {
-    return len == 8 && !memcmp(buf, "-backend", 8);
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_minus_backend(const char *buf, int len) {
-  {
-    return drv_eq_minus_backend_impl(buf, len);
-  }
-  return 0;
+  return len == 8 && !memcmp(buf, "-backend", 8);
 }
-
-int drv_eq_minus_target_impl(const char *buf, int len) {
-    return len >= 7 && !memcmp(buf, "-target", 7);
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_minus_target(const char *buf, int len) {
-  {
-    return drv_eq_minus_target_impl(buf, len);
-  }
-  return 0;
+  return len >= 7 && !memcmp(buf, "-target", 7);
 }
-
-int drv_eq_minus_target_cpu_impl(const char *buf, int len) {
-    return len >= 11 && !memcmp(buf, "-target-cpu", 11);
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_minus_target_cpu(const char *buf, int len) {
-  {
-    return drv_eq_minus_target_cpu_impl(buf, len);
-  }
-  return 0;
+  return len >= 11 && !memcmp(buf, "-target-cpu", 11);
 }
-
-int drv_eq_print_target_cpu_impl(const char *buf, int len) {
-    return (len == 18 && !memcmp(buf, "--print-target-cpu", 18)) ||
-           (len == 17 && !memcmp(buf, "-print-target-cpu", 17));
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_print_target_cpu(const char *buf, int len) {
-  {
-    return drv_eq_print_target_cpu_impl(buf, len);
-  }
-  return 0;
+  return (len == 18 && !memcmp(buf, "--print-target-cpu", 18)) ||
+         (len == 17 && !memcmp(buf, "-print-target-cpu", 17));
 }
-
-int drv_eq_asm_word_impl(const char *buf, int len) {
-    return len == 3 && buf[0] == 'a' && buf[1] == 's' && buf[2] == 'm';
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_asm_word(const char *buf, int len) {
-  {
-    return drv_eq_asm_word_impl(buf, len);
-  }
-  return 0;
+  return len == 3 && buf[0] == 'a' && buf[1] == 's' && buf[2] == 'm';
+}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int drv_eq_c_word(const char *buf, int len) {
+  return len == 1 && buf[0] == 'c';
 }
 
-int drv_eq_c_word_impl(const char *buf, int len) {
-    return len == 1 && buf[0] == 'c';
-}
-int drv_eq_c_word(const char *buf, int len) {
-  {
-    return drv_eq_c_word_impl(buf, len);
-  }
-  return 0;
-}
 
 /** 是否为 Shux 源文件路径（`.x`；仅 `.x`）。 */
-int drv_path_ends_x_impl(const char *buf, int len) {
-    if (len >= 2 && buf[len - 2] == '.' && buf[len - 1] == 'x')
-        return 1;
-    if (len >= 3 && buf[len - 3] == '.' && buf[len - 2] == 's' && buf[len - 1] == 'u')
-        return 1;
-    return 0;
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_path_ends_x(const char *buf, int len) {
-  {
-    return drv_path_ends_x_impl(buf, len);
-  }
+  if (len >= 2 && buf[len - 2] == '.' && buf[len - 1] == 'x')
+    return 1;
+  if (len >= 3 && buf[len - 3] == '.' && buf[len - 2] == 's' && buf[len - 1] == 'u')
+    return 1;
   return 0;
 }
+
 
 int drv_target_has_arm_impl(const char *buf, int len) {
     int start;

@@ -1,4 +1,5 @@
 /* seeds/bootstrap_nostdlib_stubs.from_x.c — G-02f-80 product cold-start TU
+ * G-02f-114 true .x pure helpers.
  * G-02f-104 helper gates.
  * G-02f-103 helper gates.
  * Promoted from compiler/src/asm/bootstrap_nostdlib_stubs.inc (stub/bridge; retired .inc).
@@ -233,15 +234,11 @@ static unsigned char *bootstrap_heap_end;
 static unsigned char *bootstrap_heap_limit;
 
 /** 对齐到 16 字节边界。 */
-size_t bootstrap_align16_impl(size_t n) {
-    return (n + 15u) & ~(size_t)15u;
-}
+/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 size_t bootstrap_align16(size_t n) {
-  {
-    return bootstrap_align16_impl(n);
-  }
-  return 0;
+  return (n + 15u) & ~(size_t)15u;
 }
+
 
 
 /** 扩展 bump 区；失败返回 NULL。 */

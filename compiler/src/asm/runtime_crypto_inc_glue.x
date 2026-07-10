@@ -18,33 +18,30 @@ function runtime_crypto_inc_glue_x_doc_anchor(): i32 {
 
 /* ---- G-02f-99：SHA-256 pure helpers 门闩 ---- */
 
-#[no_mangle]
-function shu_sha256_rotr32(x: u32, n: u32): u32 {
-  unsafe {
-    return shu_sha256_rotr32_impl(x, n);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function shu_sha256_ch(x: u32, y: u32, z: u32): u32 {
-  unsafe {
-    return shu_sha256_ch_impl(x, y, z);
-  }
-  return 0;
-}
 
-#[no_mangle]
-function shu_sha256_maj(x: u32, y: u32, z: u32): u32 {
-  unsafe {
-    return shu_sha256_maj_impl(x, y, z);
-  }
-  return 0;
-}
 
 #[no_mangle]
 function shu_sha256_block(H: *u32, block: *u8): void {
   unsafe {
     shu_sha256_block_impl(H, block);
   }
+}
+
+// G-02f-114：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+#[no_mangle]
+function shu_sha256_rotr32(x: u32, n: u32): u32 {
+  n = n & 31;
+  return (x >> n) | (x << (32 - n));
+}
+
+#[no_mangle]
+function shu_sha256_ch(x: u32, y: u32, z: u32): u32 {
+  return (x & y) ^ ((~x) & z);
+}
+
+#[no_mangle]
+function shu_sha256_maj(x: u32, y: u32, z: u32): u32 {
+  return (x & y) ^ (x & z) ^ (y & z);
 }
