@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-335～338：diag L2 thin — pure helper + 门闩子集（无字符串字面量，-E 稳定）。
+// G-02f-335～338/342/346：diag L2 thin — pure helper + 门闩子集（无字符串字面量，-E 稳定）。
 // 产品 PREFER_X_O：g05_try_x_to_o → thin.o + seeds/diag.from_x.c rest
 //   （-DSHUX_L2_DIAG_THIN_FROM_X）ld -r → src/diag.o
 // 完整逻辑源仍见 src/diag.x（整文件 -E 仍会截断/挂起）。
@@ -12,7 +12,8 @@
 // f-338：should_color / color_reset / json_mode / extract_line / print_* /
 // f-342：code_eq / levenshtein / json_write/report/severity / code_suggest
 // f-338 cont：
-//        report_with_code / report_human → _impl（共 26）
+//        report_with_code / report_human → _impl（共 32）
+// f-346：snap pure（store/load ptr/usize/i32 + le 写）→ 共 40；push/restore 仍 _impl
 
 // ---- rest / libc 提供的符号（勿与下方 thin public 同名，以免 -E 改名）----
 extern "C" function diag_ctx_get_use_color(): i32;
@@ -362,6 +363,194 @@ function diag_json_severity(kind: *u8): *u8 {
 function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
   unsafe {
     return diag_code_suggest_impl(code, out, out_cap);
+  }
+  return 0;
+}
+
+// ---- G-02f-346：diag snap pure（-E：无 let 再赋值；snap+off 指针算术）----
+// 布局与 DiagContextSnapshot 一致：file@0 source@8 len@16 color@24
+
+#[no_mangle]
+function diag_store_ptr_le(p: *u8, val: *u8): void {
+  if (p == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    let a: usize = val as usize;
+    let m: usize = 256;
+    let b0: usize = a % m;
+    let a1: usize = a / m;
+    let b1: usize = a1 % m;
+    let a2: usize = a1 / m;
+    let b2: usize = a2 % m;
+    let a3: usize = a2 / m;
+    let b3: usize = a3 % m;
+    let a4: usize = a3 / m;
+    let b4: usize = a4 % m;
+    let a5: usize = a4 / m;
+    let b5: usize = a5 % m;
+    let a6: usize = a5 / m;
+    let b6: usize = a6 % m;
+    let a7: usize = a6 / m;
+    let b7: usize = a7 % m;
+    p[0] = b0 as u8;
+    p[1] = b1 as u8;
+    p[2] = b2 as u8;
+    p[3] = b3 as u8;
+    p[4] = b4 as u8;
+    p[5] = b5 as u8;
+    p[6] = b6 as u8;
+    p[7] = b7 as u8;
+  }
+}
+
+#[no_mangle]
+function diag_store_usize_le(p: *u8, val: usize): void {
+  if (p == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    let a: usize = val;
+    let m: usize = 256;
+    let b0: usize = a % m;
+    let a1: usize = a / m;
+    let b1: usize = a1 % m;
+    let a2: usize = a1 / m;
+    let b2: usize = a2 % m;
+    let a3: usize = a2 / m;
+    let b3: usize = a3 % m;
+    let a4: usize = a3 / m;
+    let b4: usize = a4 % m;
+    let a5: usize = a4 / m;
+    let b5: usize = a5 % m;
+    let a6: usize = a5 / m;
+    let b6: usize = a6 % m;
+    let a7: usize = a6 / m;
+    let b7: usize = a7 % m;
+    p[0] = b0 as u8;
+    p[1] = b1 as u8;
+    p[2] = b2 as u8;
+    p[3] = b3 as u8;
+    p[4] = b4 as u8;
+    p[5] = b5 as u8;
+    p[6] = b6 as u8;
+    p[7] = b7 as u8;
+  }
+}
+
+#[no_mangle]
+function diag_snap_store_ptr(snap: *u8, off: i32, val: *u8): void {
+  if (snap == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    let q: *u8 = snap + off;
+    diag_store_ptr_le(q, val);
+  }
+}
+
+#[no_mangle]
+function diag_snap_store_usize(snap: *u8, off: i32, val: usize): void {
+  if (snap == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    let q: *u8 = snap + off;
+    diag_store_usize_le(q, val);
+  }
+}
+
+#[no_mangle]
+function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
+  if (snap == 0 as *u8) {
+    return;
+  }
+  if (val < 0) {
+    unsafe {
+      let q: *u8 = snap + off;
+      q[0] = 0;
+      q[1] = 0;
+      q[2] = 0;
+      q[3] = 0;
+    }
+    return;
+  }
+  unsafe {
+    let q: *u8 = snap + off;
+    let a: i32 = val;
+    let b0: i32 = a % 256;
+    let a1: i32 = a / 256;
+    let b1: i32 = a1 % 256;
+    let a2: i32 = a1 / 256;
+    let b2: i32 = a2 % 256;
+    let a3: i32 = a2 / 256;
+    let b3: i32 = a3 % 256;
+    q[0] = b0 as u8;
+    q[1] = b1 as u8;
+    q[2] = b2 as u8;
+    q[3] = b3 as u8;
+  }
+}
+
+#[no_mangle]
+function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
+  if (snap == 0 as *u8) {
+    return 0 as *u8;
+  }
+  unsafe {
+    let q: *u8 = snap + off;
+    let m: usize = 256;
+    let m2: usize = m * m;
+    let m4: usize = m2 * m2;
+    let a0: usize = q[0] as usize;
+    let a1: usize = a0 + (q[1] as usize) * m;
+    let a2: usize = a1 + (q[2] as usize) * m2;
+    let a3: usize = a2 + (q[3] as usize) * (m2 * m);
+    let a4: usize = a3 + (q[4] as usize) * m4;
+    let a5: usize = a4 + (q[5] as usize) * (m4 * m);
+    let a6: usize = a5 + (q[6] as usize) * (m4 * m2);
+    let a7: usize = a6 + (q[7] as usize) * (m4 * m2 * m);
+    return a7 as *u8;
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function diag_snap_load_usize(snap: *u8, off: i32): usize {
+  if (snap == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let q: *u8 = snap + off;
+    let m: usize = 256;
+    let m2: usize = m * m;
+    let m4: usize = m2 * m2;
+    let a0: usize = q[0] as usize;
+    let a1: usize = a0 + (q[1] as usize) * m;
+    let a2: usize = a1 + (q[2] as usize) * m2;
+    let a3: usize = a2 + (q[3] as usize) * (m2 * m);
+    let a4: usize = a3 + (q[4] as usize) * m4;
+    let a5: usize = a4 + (q[5] as usize) * (m4 * m);
+    let a6: usize = a5 + (q[6] as usize) * (m4 * m2);
+    let a7: usize = a6 + (q[7] as usize) * (m4 * m2 * m);
+    return a7;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function diag_snap_load_i32(snap: *u8, off: i32): i32 {
+  if (snap == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let q: *u8 = snap + off;
+    let m: i32 = 256;
+    let a0: i32 = q[0] as i32;
+    let a1: i32 = a0 + (q[1] as i32) * m;
+    let a2: i32 = a1 + (q[2] as i32) * m * m;
+    let a3: i32 = a2 + (q[3] as i32) * m * m * m;
+    return a3;
   }
   return 0;
 }

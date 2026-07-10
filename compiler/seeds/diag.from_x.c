@@ -1,6 +1,6 @@
 /* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97/98 true .x + C tail; G-02f-74/82 diag gates).
- * G-02f-335～342：PREFER_X_O hybrid 时 pure thin 由 src/diag_thin.x→-E；rest 用
- *   SHUX_L2_DIAG_THIN_FROM_X（省略 26 个 public 门闩；C 尾出 _impl 供 thin 调）。
+ * G-02f-335～346：PREFER_X_O hybrid 时 pure thin 由 src/diag_thin.x→-E；rest 用
+ *   SHUX_L2_DIAG_THIN_FROM_X（省略 public 门闩；C 尾出 _impl；f-346 snap pure 仅 thin）。
  * G-02f-181: P0-1 close-out — code table + reportf/vreportf 🔒 (priority doc §4.3).
  * G-02f-130 true .x pure helpers.
  * G-02f-116 true .x pure helpers.
