@@ -861,7 +861,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RDABI_THIN_FROM_X \
                -c -o "$_rdabi_rest_o" "$_rdabi" \
           && $CC -r -nostdlib -o "$_rdabi_o" "$_rdabi_thin_o" "$_rdabi_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rdabi_o ← $_rdabi_thin_x + seed-rest (G-02f-343/345 L2 hybrid driver_abi thin)"
+          echo "g05_ensure: $_rdabi_o ← $_rdabi_thin_x + seed-rest (G-02f-343/387 L2 hybrid driver_abi thin)"
           _rdabi_done=1
         else
           echo "g05_ensure: L2 hybrid runtime_driver_abi failed; fallback full seed" >&2
@@ -893,7 +893,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RDD_THIN_FROM_X \
                -c -o "$_rdd_rest_o" "$_rdd" \
           && $CC -r -nostdlib -o "$_rdd_o" "$_rdd_thin_o" "$_rdd_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_rdd_o ← $_rdd_thin_x + seed-rest (G-02f-341 L2 hybrid diagnostic thin)"
+          echo "g05_ensure: $_rdd_o ← $_rdd_thin_x + seed-rest (G-02f-341/387 L2 hybrid diagnostic thin)"
           _rdd_done=1
         else
           echo "g05_ensure: L2 hybrid runtime_driver_diagnostic failed; fallback full seed" >&2

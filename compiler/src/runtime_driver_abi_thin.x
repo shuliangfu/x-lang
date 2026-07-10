@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343/344/345：runtime_driver_abi L2 thin（31 门闩：+ ascii_toupper / typeck_skip / sanitize_get）。
+// G-02f-343/344/345/387：runtime_driver_abi L2 thin（31 门闩：+ ascii_toupper / typeck_skip / sanitize_get）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 //
 
@@ -334,3 +334,40 @@ function driver_sanitize_address_get(): i32 {
   return 0;
 }
 
+// ---- G-02f-387：env flag getters → seed impl（-E 勿写 getenv 字符串）----
+extern "C" function driver_typeck_force_c_enabled_impl(): i32;
+extern "C" function driver_asm_build_skip_typeck_impl(): i32;
+extern "C" function driver_asm_entry_emit_heavy_impl(): i32;
+extern "C" function driver_pipeline_no_large_stack_env_impl(): i32;
+
+#[no_mangle]
+function driver_typeck_force_c_enabled(): i32 {
+  unsafe {
+    return driver_typeck_force_c_enabled_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_asm_build_skip_typeck(): i32 {
+  unsafe {
+    return driver_asm_build_skip_typeck_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_asm_entry_emit_heavy(): i32 {
+  unsafe {
+    return driver_asm_entry_emit_heavy_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_pipeline_no_large_stack_env(): i32 {
+  unsafe {
+    return driver_pipeline_no_large_stack_env_impl();
+  }
+  return 0;
+}

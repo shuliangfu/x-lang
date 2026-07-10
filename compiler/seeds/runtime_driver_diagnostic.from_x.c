@@ -18,6 +18,7 @@
 #define driver_diag_fill_expr_part driver_diag_fill_expr_part_impl
 #define driver_diag_build_expected_found driver_diag_build_expected_found_impl
 #define driver_parse_strict_enabled driver_parse_strict_enabled_impl
+int driver_diag_env_debug_pipe(void);
 #endif
 
 #include <stdio.h>
@@ -919,10 +920,17 @@ void driver_diagnostic_typeck_var_resolution_impl(int32_t expr_ref, const uint8_
 
 /** -x -E 多文件诊断：codegen 前打印 module.num_funcs 与 out_buf.len，便于排查 dep 产出为空。 */
 /** 供 .x 探测 SHUX_DEBUG_PIPE（G-02f-164）。 */
-int driver_diag_env_debug_pipe(void) {
+/* G-02f-387：实现体始终 seed；public PREFER 时 thin forward */
+int driver_diag_env_debug_pipe_impl(void) {
     const char *e = getenv("SHUX_DEBUG_PIPE");
     return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
+
+#ifndef SHUX_L2_RDD_THIN_FROM_X
+int driver_diag_env_debug_pipe(void) {
+    return driver_diag_env_debug_pipe_impl();
+}
+#endif
 /** reportf 冷路径（va_list 限制，kind：0=before_codegen 1=source_len 2=after_entry 3=pipe_marker）。 */
 void driver_diag_pipe_note(int32_t kind, int32_t a, int32_t b) {
     if (kind == 0)

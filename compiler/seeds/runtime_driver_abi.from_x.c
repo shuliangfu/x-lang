@@ -29,6 +29,10 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
 char driver_ascii_toupper(char c);
 int32_t driver_typeck_skip_large_entry(void);
 int32_t driver_sanitize_address_get(void);
+int32_t driver_typeck_force_c_enabled(void);
+int32_t driver_asm_build_skip_typeck(void);
+int32_t driver_asm_entry_emit_heavy(void);
+int32_t driver_pipeline_no_large_stack_env(void);
 #define compile_phase_now_sec compile_phase_now_sec_impl
 #define driver_compile_phase_timing_enabled driver_compile_phase_timing_enabled_impl
 #endif
@@ -383,7 +387,8 @@ void driver_x_pipeline_skip_codegen_set(int32_t v) {
  * 非 0 时入口模块 typeck 走 C 的 typeck_module（大模块 asm 构建时避免 .x typeck 栈过深）。
  * 返回值：1 表示 SHUX_TYPECK_FORCE_C 已启用。
  */
-int32_t driver_typeck_force_c_enabled(void) {
+/* G-02f-387：实现体始终 seed；public PREFER 时 thin forward */
+int32_t driver_typeck_force_c_enabled_impl(void) {
   (void)(({   {
     char *e = getenv("SHUX_TYPECK_FORCE_C");
     if ((e ==((char *)(0)))) {
@@ -400,6 +405,12 @@ int32_t driver_typeck_force_c_enabled(void) {
  }));
   return 0;
 }
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_typeck_force_c_enabled(void) {
+  return driver_typeck_force_c_enabled_impl();
+}
+#endif
 
 /** 当前线程是否已在 driver_run_thread_on_large_stack 创建的大栈 pthread 内。 */
 static _Thread_local int g_driver_on_large_stack_thread;
@@ -512,7 +523,8 @@ int32_t driver_typeck_skip_large_entry(void) {
  * build_shux_asm 单模块 -o：SHUX_ASM_BUILD_SKIP_TYPECK=1 时跳过 .x typeck。
  * 返回值：环境变量非空且非 '0' 时为 1。
  */
-int32_t driver_asm_build_skip_typeck(void) {
+/* G-02f-387：实现体始终 seed；public PREFER 时 thin forward */
+int32_t driver_asm_build_skip_typeck_impl(void) {
   (void)(({   {
     char *e = getenv("SHUX_ASM_BUILD_SKIP_TYPECK");
     if ((e ==((char *)(0)))) {
@@ -530,11 +542,18 @@ int32_t driver_asm_build_skip_typeck(void) {
   return 0;
 }
 
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_asm_build_skip_typeck(void) {
+  return driver_asm_build_skip_typeck_impl();
+}
+#endif
+
 /**
  * typeck 第二遍 EMIT_HEAVY：SHUX_ASM_ENTRY_EMIT_HEAVY=1 时 pipeline 跳过文本 asm codegen。
  * 返回值：环境变量非空且非 '0' 时为 1。
  */
-int32_t driver_asm_entry_emit_heavy(void) {
+/* G-02f-387：实现体始终 seed；public PREFER 时 thin forward */
+int32_t driver_asm_entry_emit_heavy_impl(void) {
   (void)(({   {
     char *e = getenv("SHUX_ASM_ENTRY_EMIT_HEAVY");
     if ((e ==((char *)(0)))) {
@@ -551,6 +570,12 @@ int32_t driver_asm_entry_emit_heavy(void) {
  }));
   return 0;
 }
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_asm_entry_emit_heavy(void) {
+  return driver_asm_entry_emit_heavy_impl();
+}
+#endif
 
 /**
  * build_shux_asm 单模块 -o：SHUX_ASM_ENTRY_MODULE_ONLY=1 时仅编入口模块。
@@ -1105,12 +1130,19 @@ void driver_call_fn_void_arg_impl(void *(*fn)(void *), void *arg) {
 }
 
 /* G-02f-246：逻辑源 .x（真迁 NO_LARGE_STACK env）；seed 保留同语义 C 供产品 cc */
-int32_t driver_pipeline_no_large_stack_env(void) {
+/* G-02f-387：实现体始终 seed；public PREFER 时 thin forward */
+int32_t driver_pipeline_no_large_stack_env_impl(void) {
     const char *e = getenv("SHUX_PIPELINE_NO_LARGE_STACK");
     if (!e || !e[0] || e[0] == '0')
         return 0;
     return 1;
 }
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_pipeline_no_large_stack_env(void) {
+  return driver_pipeline_no_large_stack_env_impl();
+}
+#endif
 
 /** 在当前线程直接执行 fn(arg)，并临时标记大栈上下文。 */
 /* G-02f-246：逻辑源 .x（真迁 mark/bump/call 编排）；call 🔒 */

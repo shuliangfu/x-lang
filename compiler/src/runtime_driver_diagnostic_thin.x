@@ -700,3 +700,13 @@ function driver_diag_build_expected_found(msg: *u8, msg_cap: i32, pref: *u8, epa
   }
 }
 
+// ---- G-02f-387：DEBUG_PIPE env → seed impl ----
+extern "C" function driver_diag_env_debug_pipe_impl(): i32;
+
+#[no_mangle]
+function driver_diag_env_debug_pipe(): i32 {
+  unsafe {
+    return driver_diag_env_debug_pipe_impl();
+  }
+  return 0;
+}
