@@ -5,6 +5,7 @@
 // G-02f-86 / G-02f-163：driver_diag_copy_bytes / report_prefixed 真迁。
 // G-02f-163：asm_set_last_expr_kind / set_current_func 真迁。
 // G-02f-175：return_unresolved / return_subexpr 消息拼装真迁（copy_bytes + report_prefixed）。
+// G-02f-176：return_mismatch / assign_mismatch 消息拼装真迁。
 // G-02f-96：driver_diag_report_x_pipeline_code 门闩（va_list 本体 C _impl）。
 // 产品：./shux-c -E → seeds/runtime_driver_diagnostic.from_x.c（+ C 尾 + 字符串抛光）。
 // C 尾：snprintf 诊断、va_list pipeline 码、scratch 缓冲、debug getenv 详细路径。
@@ -24,7 +25,6 @@ extern "C" function driver_diagnostic_typeck_ptr_field_impl(bt_kind: i32, inner_
 extern "C" function driver_diagnostic_typeck_ret_fail_impl(stage: i32, op_expr_ref: i32, expect_ty_ref: i32, got_ty_ref: i32): void;
 extern "C" function driver_diagnostic_typeck_binop_operands_impl(expr_ref: i32, left_ref: i32, right_ref: i32, left_kind: i32, right_kind: i32, left_block_ref: i32, right_block_ref: i32, left_ty_ref: i32, right_ty_ref: i32, left_ty: *u8, left_ty_len: i32, right_ty: *u8, right_ty_len: i32): void;
 extern "C" function driver_diagnostic_parser_onefunc_param_ref_impl(func_name: *u8, func_name_len: i32, param_name: *u8, param_name_len: i32, stage: i32, param_idx: i32, type_ref: i32): void;
-extern "C" function driver_diagnostic_typeck_return_mismatch_impl(line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
 extern "C" function driver_diagnostic_typeck_call_not_generic_impl(line: i32, col: i32, name: *u8, name_len: i32): void;
 extern "C" function driver_diagnostic_typeck_call_wrong_num_type_args_impl(line: i32, col: i32, name: *u8, name_len: i32, expect_n: i32, got_n: i32): void;
 extern "C" function driver_diagnostic_typeck_call_requires_type_args_impl(line: i32, col: i32, name: *u8, name_len: i32): void;
@@ -32,7 +32,6 @@ extern "C" function driver_diagnostic_typeck_import_const_must_be_qualified_impl
 extern "C" function driver_diagnostic_typeck_struct_padding_before_impl(sname: *u8, sname_len: i32, gap: i32, fname: *u8, fname_len: i32): void;
 extern "C" function driver_diagnostic_typeck_struct_padding_trailing_impl(sname: *u8, sname_len: i32, gap: i32): void;
 extern "C" function driver_diagnostic_typeck_struct_field_bad_size_impl(sname: *u8, sname_len: i32, fname: *u8, fname_len: i32): void;
-extern "C" function driver_diagnostic_typeck_assign_mismatch_impl(is_compound: i32, line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void;
 extern "C" function driver_diagnostic_typeck_block_enter_impl(func_idx: i32, block_ref: i32, n_const: i32, n_let: i32, n_loop: i32, n_for: i32, n_expr: i32, final_ref: i32): void;
 extern "C" function driver_diagnostic_typeck_fn_enter_impl(func_idx: i32, name: *u8, name_len: i32): void;
 extern "C" function driver_diagnostic_typeck_var_resolution_impl(expr_ref: i32, name: *u8, name_len: i32, func_idx: i32, block_ref: i32, source: i32, type_ref: i32): void;
@@ -232,12 +231,7 @@ function driver_diagnostic_parser_onefunc_param_ref(func_name: *u8, func_name_le
   }
 }
 
-#[no_mangle]
-function driver_diagnostic_typeck_return_mismatch(line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void {
-  unsafe {
-    driver_diagnostic_typeck_return_mismatch_impl(line, col, expect_buf, expect_len, found_buf, found_len);
-  }
-}
+// return_mismatch / assign_mismatch：见文件尾 G-02f-176 真迁
 
 #[no_mangle]
 function driver_diagnostic_typeck_call_not_generic(line: i32, col: i32, name: *u8, name_len: i32): void {
@@ -288,12 +282,7 @@ function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname_len: i
   }
 }
 
-#[no_mangle]
-function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void {
-  unsafe {
-    driver_diagnostic_typeck_assign_mismatch_impl(is_compound, line, col, expect_buf, expect_len, found_buf, found_len);
-  }
-}
+// assign_mismatch：见文件尾 G-02f-176 真迁
 
 #[no_mangle]
 function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i32, n_const: i32, n_let: i32, n_loop: i32, n_for: i32, n_expr: i32, final_ref: i32): void {
@@ -629,6 +618,42 @@ function driver_diagnostic_typeck_return_subexpr(line: i32, col: i32, expr_buf: 
   let pref: *u8 = "typeck note: return subexpression: ";
   let at: i32 = driver_diag_append_cstr(&msg[0], 240, 0, pref);
   at = driver_diag_append_cstr(&msg[0], 240, at, &expr_part[0]);
+  driver_diag_report_prefixed(line, col, &msg[0]);
+}
+
+// G-02f-176：expected/found 双片段拼装
+function driver_diag_build_expected_found(msg: *u8, msg_cap: i32, pref: *u8, epart: *u8, fpart: *u8): void {
+  let mid: *u8 = ", found ";
+  let at: i32 = driver_diag_append_cstr(msg, msg_cap, 0, pref);
+  at = driver_diag_append_cstr(msg, msg_cap, at, epart);
+  at = driver_diag_append_cstr(msg, msg_cap, at, mid);
+  at = driver_diag_append_cstr(msg, msg_cap, at, fpart);
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_return_mismatch(line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void {
+  let epart: u8[112] = [];
+  let fpart: u8[112] = [];
+  let msg: u8[240] = [];
+  driver_diag_fill_expr_part(&epart[0], 112, expect_buf, expect_len);
+  driver_diag_fill_expr_part(&fpart[0], 112, found_buf, found_len);
+  let pref: *u8 = "typeck error: return expression type mismatch: expected ";
+  driver_diag_build_expected_found(&msg[0], 240, pref, &epart[0], &fpart[0]);
+  driver_diag_report_prefixed(line, col, &msg[0]);
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line: i32, col: i32, expect_buf: *u8, expect_len: i32, found_buf: *u8, found_len: i32): void {
+  let epart: u8[112] = [];
+  let fpart: u8[112] = [];
+  let msg: u8[240] = [];
+  driver_diag_fill_expr_part(&epart[0], 112, expect_buf, expect_len);
+  driver_diag_fill_expr_part(&fpart[0], 112, found_buf, found_len);
+  let pref: *u8 = "typeck error: assignment type mismatch: expected ";
+  if (is_compound != 0) {
+    pref = "typeck error: compound assignment type mismatch: expected ";
+  }
+  driver_diag_build_expected_found(&msg[0], 240, pref, &epart[0], &fpart[0]);
   driver_diag_report_prefixed(line, col, &msg[0]);
 }
 
