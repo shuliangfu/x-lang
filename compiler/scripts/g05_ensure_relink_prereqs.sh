@@ -843,13 +843,36 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-12：runtime_driver_abi seed
+  # G-02f-12 / G-02f-343：runtime_driver_abi.o
+  # 默认整 seed；PREFER_X_O=1 时 abi_thin.x（flag pure + check_ok/now_sec/large_stack）+ rest ld -r
   _rdabi=seeds/runtime_driver_abi.from_x.c
+  _rdabi_thin_x=src/runtime_driver_abi_thin.x
+  _rdabi_o=src/runtime_driver_abi.o
   if [ -f "$_rdabi" ]; then
-    if [ ! -f src/runtime_driver_abi.o ] || [ "$_rdabi" -nt src/runtime_driver_abi.o ]; then
-      echo "g05_ensure: src/runtime_driver_abi.o ← seed (G-02f-12)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_driver_abi.o "$_rdabi"
+    if [ ! -f "$_rdabi_o" ] || [ "$_rdabi" -nt "$_rdabi_o" ] \
+      || { [ -f "$_rdabi_thin_x" ] && [ "$_rdabi_thin_x" -nt "$_rdabi_o" ]; }; then
+      _rdabi_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rdabi_thin_x" ]; then
+        _rdabi_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdabi_thin.XXXXXX") || true
+        _rdabi_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdabi_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_rdabi_thin_o" ] && [ -n "$_rdabi_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_rdabi_thin_x" "$_rdabi_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RDABI_THIN_FROM_X \
+               -c -o "$_rdabi_rest_o" "$_rdabi" \
+          && $CC -r -nostdlib -o "$_rdabi_o" "$_rdabi_thin_o" "$_rdabi_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_rdabi_o ← $_rdabi_thin_x + seed-rest (G-02f-343 L2 hybrid driver_abi thin)"
+          _rdabi_done=1
+        else
+          echo "g05_ensure: L2 hybrid runtime_driver_abi failed; fallback full seed" >&2
+        fi
+        rm -f "$_rdabi_thin_o" "$_rdabi_rest_o"
+      fi
+      if [ "$_rdabi_done" = "0" ]; then
+        echo "g05_ensure: $_rdabi_o ← seed (G-02f-12)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rdabi_o" "$_rdabi"
+      fi
     fi
   fi
   # G-02f-12 / G-02f-339：runtime_driver_diagnostic.o

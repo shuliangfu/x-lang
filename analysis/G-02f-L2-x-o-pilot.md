@@ -31,6 +31,7 @@ src/**/*.x  →  工具链  →  *.o  →  link shux
 | 7 | `src/runtime_io_abi.x` | 并入 `runtime_io_abi.o` | hybrid：thin.o（**weak** fs/path/file_view 门闩）+ seed-rest（`-DSHUX_L2_RIO_THIN_FROM_X`，C 尾 `_impl` / `flags_impl`）`cc -r` | f-334 |
 | 8 | `src/diag_thin.x` | 并入 `diag.o` | hybrid：thin.o（**weak** **32** 门闩：…+ f-342 code_eq/levenshtein/json）+ seed-rest（`-DSHUX_L2_DIAG_THIN_FROM_X`）`cc -r` | f-335～342 |
 | 9 | `src/runtime_driver_diagnostic_thin.x` | 并入 `runtime_driver_diagnostic.o` | hybrid：thin.o（**weak** **~71** 门闩：覆盖几乎全部 rdd.x 导出）+ seed-rest（`-DSHUX_L2_RDD_THIN_FROM_X`）`cc -r` | f-339～341 |
+| 10 | `src/runtime_driver_abi_thin.x` | 并入 `runtime_driver_abi.o` | hybrid：thin.o（**weak** **23** flag pure + check_ok/now_sec/large_stack）+ seed-rest（`-DSHUX_L2_RDABI_THIN_FROM_X`）`cc -r` | f-343 |
 
 - **默认路径**：仍整 seed `cc`（冷启动/回滚安全）
 - **优先路径**：`SHUX_G05_PREFER_X_O=1`（显式 opt-in）

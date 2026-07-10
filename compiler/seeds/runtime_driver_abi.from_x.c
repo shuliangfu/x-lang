@@ -1,3 +1,5 @@
+/* G-02f-343：PREFER hybrid thin 由 src/runtime_driver_abi_thin.x；rest SHUX_L2_RDABI_THIN_FROM_X。
+ */
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
  * G-02f-116 true .x pure helpers.
  * G-02f-104 helper gates.
@@ -16,6 +18,15 @@
 #include "runtime_abi.h"
 #include "diag.h"
 #include "runtime_diag_codes.h"
+
+#ifdef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_check_quiet_ok_get(void);
+int32_t driver_check_diag_emitted_get(void);
+int32_t driver_is_large_stack_thread(void);
+void driver_large_stack_thread_mark(int on);
+void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg);
+#define compile_phase_now_sec compile_phase_now_sec_impl
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,6 +108,7 @@ static int driver_check_diag_emitted_flag;
  * 设置 check-only 模式。
  * 参数：v 非 0 启用。
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_check_only_set(int32_t v) {
   (void)(({   {
     int32_t * p = driver_check_only_flag_slot();
@@ -104,11 +116,13 @@ void driver_check_only_set(int32_t v) {
   }
  }));
 }
+#endif
 
 /**
  * 查询 check-only 模式。
  * 返回值：1 表示启用，0 表示否。
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_check_only_get(void) {
   (void)(({   {
     int32_t * p = driver_check_only_flag_slot();
@@ -120,7 +134,9 @@ int32_t driver_check_only_get(void) {
  }));
   return 0;
 }
+#endif
 
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_check_diag_emitted_reset(void) {
   (void)(({   {
     int32_t * p = driver_check_diag_emitted_flag_slot();
@@ -128,7 +144,9 @@ void driver_check_diag_emitted_reset(void) {
   }
  }));
 }
+#endif
 
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_check_diag_emitted_note(void) {
   (void)(({   {
     int32_t * p = driver_check_diag_emitted_flag_slot();
@@ -136,7 +154,9 @@ void driver_check_diag_emitted_note(void) {
   }
  }));
 }
+#endif
 
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_check_diag_emitted_get(void) {
   (void)(({   {
     int32_t * p = driver_check_diag_emitted_flag_slot();
@@ -148,11 +168,13 @@ int32_t driver_check_diag_emitted_get(void) {
  }));
   return 0;
 }
+#endif
 
 /** `-freestanding` / SHUX_FREESTANDING：用户程序 nostdlib 静态链（S4）。 */
 static int driver_freestanding_flag;
 
 /** 设置 freestanding 链接模式。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_freestanding_set(int32_t v) {
   (void)(({   {
     int32_t * p = driver_freestanding_flag_slot();
@@ -160,8 +182,10 @@ void driver_freestanding_set(int32_t v) {
   }
  }));
 }
+#endif
 
 /** 查询 freestanding 链接模式。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_freestanding_get(void) {
   (void)(({   {
     int32_t * p = driver_freestanding_flag_slot();
@@ -173,11 +197,13 @@ int32_t driver_freestanding_get(void) {
  }));
   return 0;
 }
+#endif
 
 /** M-6：`-fsanitize=address` 时强制数组/切片 INDEX 边界检查。 */
 static int driver_sanitize_address_flag;
 
 /** 设置 sanitize=address 标志。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_sanitize_address_set(int32_t v) {
   (void)(({   {
     int32_t * p = driver_sanitize_address_flag_slot();
@@ -185,6 +211,7 @@ void driver_sanitize_address_set(int32_t v) {
   }
  }));
 }
+#endif
 
 /**
  * 查询 sanitize=address；显式标志或 SHUX_SANITIZE_ADDRESS 环境变量。
@@ -215,6 +242,7 @@ int32_t driver_sanitize_address_get(void) {
 static int driver_fmt_check_only_flag;
 
 /** shux fmt --check：仅校验格式，不写回。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_fmt_check_only_set(int32_t v) {
   (void)(({   {
     int32_t * p = driver_fmt_check_only_flag_slot();
@@ -222,8 +250,10 @@ void driver_fmt_check_only_set(int32_t v) {
   }
  }));
 }
+#endif
 
 /** 查询 fmt --check 模式。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_fmt_check_only_get(void) {
   (void)(({   {
     int32_t * p = driver_fmt_check_only_flag_slot();
@@ -235,6 +265,7 @@ int32_t driver_fmt_check_only_get(void) {
  }));
   return 0;
 }
+#endif
 
 /* 【Why 根源】MinGW PE 格式不真正支持 __attribute__((weak))：weak 函数被当作普通强符号，
  * 与 fmt_check_cmd.c 的强符号并存；--allow-multiple-definition 选第一个遇到的定义，
@@ -251,6 +282,7 @@ SHUX_WEAK int32_t driver_check_quiet_ok_get(void) {
  * 统一 shux check 成功行；deno 风格批量 check 成功时由 fmt_check_cmd 保持静默。
  * 参数：input_path 被检查文件路径（可为 NULL）。
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_print_check_ok(const char *input_path) {
   (void)(({   {
     if ((driver_check_quiet_ok_get() !=0)) {
@@ -260,11 +292,13 @@ void driver_print_check_ok(const char *input_path) {
   }
  }));
 }
+#endif
 
 /** 非 0 时 pipeline_impl_typecheck 跳过 .x typeck。 */
 static int driver_x_pipeline_skip_typeck_flag;
 
 /** 供 pipeline.x 读取：是否跳过 X typeck。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_x_pipeline_skip_typeck_get(void) {
   (void)(({   {
     int32_t * p = driver_x_pipeline_skip_typeck_flag_slot();
@@ -276,8 +310,10 @@ int32_t driver_x_pipeline_skip_typeck_get(void) {
  }));
   return 0;
 }
+#endif
 
 /** 设置 X typeck 跳过标志（C 预检后由 runtime 置位/清位）。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_x_pipeline_skip_typeck_set(int32_t v) {
   (void)(({   {
     int32_t * p = driver_x_pipeline_skip_typeck_flag_slot();
@@ -285,11 +321,13 @@ void driver_x_pipeline_skip_typeck_set(int32_t v) {
   }
  }));
 }
+#endif
 
 /** 非 0 时 pipeline_impl_run_all 跳过 .x C codegen。 */
 static int driver_x_pipeline_skip_codegen_flag;
 
 /** 供 pipeline.x 读取：是否跳过 X C codegen。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_x_pipeline_skip_codegen_get(void) {
   (void)(({   {
     int32_t * p = driver_x_pipeline_skip_codegen_flag_slot();
@@ -301,8 +339,10 @@ int32_t driver_x_pipeline_skip_codegen_get(void) {
  }));
   return 0;
 }
+#endif
 
 /** 设置 X C codegen 跳过标志。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_x_pipeline_skip_codegen_set(int32_t v) {
   (void)(({   {
     int32_t * p = driver_x_pipeline_skip_codegen_flag_slot();
@@ -310,6 +350,7 @@ void driver_x_pipeline_skip_codegen_set(int32_t v) {
   }
  }));
 }
+#endif
 
 /**
  * 非 0 时入口模块 typeck 走 C 的 typeck_module（大模块 asm 构建时避免 .x typeck 栈过深）。
@@ -347,6 +388,7 @@ int32_t *driver_large_stack_thread_flag_slot(void) {
  * 返回值：非 0 表示当前在大栈线程上下文。
  */
 
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_is_large_stack_thread(void) {
   (void)(({   {
     int32_t * p = driver_large_stack_thread_flag_slot();
@@ -358,11 +400,13 @@ int32_t driver_is_large_stack_thread(void) {
  }));
   return 0;
 }
+#endif
 
 /**
  * 标记当前线程大栈上下文（runtime pthread trampoline 进入/退出时调用）。
  * 参数：on 非 0 进入，0 退出。
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_large_stack_thread_mark(int on) {
   (void)(({   {
     int32_t * p = driver_large_stack_thread_flag_slot();
@@ -370,6 +414,7 @@ void driver_large_stack_thread_mark(int on) {
   }
  }));
 }
+#endif
 
 /** 当前 pipeline 入口源码长度；供 .x 按体积跳过大库 merge/typeck。 */
 static size_t g_pipeline_entry_source_len;
@@ -537,6 +582,7 @@ int32_t *driver_skip_codegen_dep_0_flag_slot(void) { return (int32_t *)&driver_s
 
 
 /** 设置 skip_codegen_dep_0 标志（driver -o exe 路径）。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_skip_codegen_dep_0_set(int32_t v) {
   (void)(({   {
     int32_t * p = driver_skip_codegen_dep_0_flag_slot();
@@ -544,8 +590,10 @@ void driver_skip_codegen_dep_0_set(int32_t v) {
   }
  }));
 }
+#endif
 
 /** 查询 skip_codegen_dep_0；pipeline.x dep_j==0 时读取。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_skip_codegen_dep_0_get(void) {
   (void)(({   {
     int32_t * p = driver_skip_codegen_dep_0_flag_slot();
@@ -557,6 +605,7 @@ int32_t driver_skip_codegen_dep_0_get(void) {
  }));
   return 0;
 }
+#endif
 
 /** 当前 codegen 的 dep 逻辑路径（如 std.io.driver），供 .x codegen 前缀 C 符号。 */
 static const char *driver_current_dep_path_for_codegen;
@@ -606,12 +655,14 @@ void driver_print_x_smoke_typeck_ok_impl(void) {
  * 设置当前 dep 路径；pipeline codegen 循环每 dep 调用。
  * 参数：path import 逻辑路径或 NULL 清槽。
  */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 void driver_set_current_dep_path_for_codegen(const char *path) {
   (void)(({   {
     (void)(driver_current_dep_path_store(path));
   }
  }));
 }
+#endif
 const char *driver_get_current_dep_path_for_codegen(void) {
   (void)(({   {
     const char * r = (const char *)driver_current_dep_path_load();
@@ -640,7 +691,12 @@ int compile_phase_timing_enabled(void) {
 
 /** 单调 wall-clock 秒（gettimeofday）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-double compile_phase_now_sec(void) {
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+double compile_phase_now_sec(void)
+#else
+double compile_phase_now_sec_impl(void)
+#endif
+{
     struct timeval tv;
     #ifndef _WIN32
     gettimeofday(&tv, NULL);
@@ -1016,7 +1072,12 @@ int32_t driver_pipeline_no_large_stack_env(void) {
 
 /** 在当前线程直接执行 fn(arg)，并临时标记大栈上下文。 */
 /* G-02f-246：逻辑源 .x（真迁 mark/bump/call 编排）；call 🔒 */
-void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg) {
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg)
+#else
+void driver_run_fn_on_current_large_stack_impl(void *(*fn)(void *), void *arg)
+#endif
+{
     if (fn == NULL)
         return;
     driver_large_stack_thread_mark(1);
