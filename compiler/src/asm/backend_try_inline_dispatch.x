@@ -251,12 +251,9 @@ extern "C" function backend_arch_emit_load_rbp_to_rax(out: *u8, off: i32, ta: i3
 extern "C" function backend_arch_emit_lea_rbp_to_rax(out: *u8, off: i32, ta: i32): i32;
 
 extern "C" function glue_inner_call_arg_for_field_access_impl(arena: *u8, er: i32): i32;
-extern "C" function glue_dep_module_field_offset_by_name_impl(mod: *u8, name: *u8, nlen: i32): i32;
-extern "C" function glue_inline_var_field_access_offset_impl(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_array_lit_elem_ref(arena: *u8, er: i32, lane: i32): i32;
 extern "C" function pipeline_expr_struct_lit_init_ref(arena: *u8, lit: i32, fj: i32): i32;
-extern "C" function glue_fold_func_returns_param01_vector_binop_impl(arena: *u8, mod: *u8, fi: i32, out: *i32): i32;
 extern "C" function pipeline_module_func_return_type_at(mod: *u8, fi: i32): i32;
 extern "C" function asm_type_is_simd_vector_spelling(arena: *u8, tr: i32): i32;
 extern "C" function asm_type_is_simd_vector(arena: *u8, tr: i32): i32;
@@ -264,6 +261,20 @@ extern "C" function pipeline_expr_binop_left_ref_at(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_binop_right_ref_at(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_index_base_ref(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_index_index_ref(arena: *u8, er: i32): i32;
+extern "C" function pipeline_dep_ctx_ndep(pctx: *u8): i32;
+extern "C" function pipeline_dep_ctx_module_at(pctx: *u8, di: i32): *u8;
+extern "C" function pipeline_module_struct_layout_num_fields(mod: *u8, li: i32): i32;
+extern "C" function pipeline_module_struct_layout_field_name_len(mod: *u8, li: i32, j: i32): i32;
+extern "C" function pipeline_module_struct_layout_field_name_into(mod: *u8, li: i32, j: i32, dst: *u8): void;
+extern "C" function pipeline_module_struct_layout_field_offset_at(mod: *u8, li: i32, j: i32): i32;
+extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, er: i32): i32;
+extern "C" function asm_ctx_scope_block_ref_at(asm_ctx: *u8): i32;
+extern "C" function pipeline_block_resolve_var_type_ref(arena: *u8, br: i32, vname: *u8, vlen: i32): i32;
+extern "C" function pipeline_asm_emit_func_index_c(): i32;
+extern "C" function pipeline_type_elem_ref_at(arena: *u8, tr: i32): i32;
+extern "C" function typeck_get_field_offset_from_layout_deps(mod: *u8, pctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
+extern "C" function pipeline_expr_field_access_layout_offset(arena: *u8, mod: *u8, fa: i32): i32;
 
 /* ---- G-02f-110 / G-02f-136：try_inline fold/field ---- */
 
@@ -411,11 +422,135 @@ function glue_struct_lit_field_index_by_name(arena: *u8, lit_ref: i32, fn: *u8, 
 }
 #[no_mangle]
 function glue_inner_call_arg_for_field_access(arena: *u8, er: i32): i32 { unsafe { return glue_inner_call_arg_for_field_access_impl(arena, er); } return 0; }
+
+// G-02f-137：dep 编译单元 struct layout 按字段名查偏移；失败 -1
 #[no_mangle]
-function glue_dep_module_field_offset_by_name(mod: *u8, name: *u8, nlen: i32): i32 { unsafe { return glue_dep_module_field_offset_by_name_impl(mod, name, nlen); } return 0; }
+function glue_dep_module_field_offset_by_name(pctx: *u8, field_name: *u8, flen: i32): i32 {
+  if (pctx == 0) { return 0 - 1; }
+  if (field_name == 0) { return 0 - 1; }
+  if (flen <= 0) { return 0 - 1; }
+  unsafe {
+    let nd: i32 = pipeline_dep_ctx_ndep(pctx);
+    let di: i32 = 0;
+    while (di < nd) {
+      let dm: *u8 = pipeline_dep_ctx_module_at(pctx, di);
+      if (dm != 0) {
+        let nlay: i32 = pipeline_module_num_struct_layouts_at(dm);
+        let k: i32 = 0;
+        while (k < nlay) {
+          let nf: i32 = pipeline_module_struct_layout_num_fields(dm, k);
+          let j: i32 = 0;
+          while (j < nf) {
+            let fnlen: i32 = pipeline_module_struct_layout_field_name_len(dm, k, j);
+            if (fnlen == flen) {
+              if (fnlen > 0) {
+                if (fnlen <= 63) {
+                  let fb: u8[64] = [];
+                  pipeline_module_struct_layout_field_name_into(dm, k, j, &fb[0]);
+                  let fi: i32 = 0;
+                  let feq: i32 = 1;
+                  while (fi < fnlen) {
+                    if (fb[fi] != field_name[fi]) {
+                      feq = 0;
+                      break;
+                    }
+                    fi = fi + 1;
+                  }
+                  if (feq != 0) {
+                    return pipeline_module_struct_layout_field_offset_at(dm, k, j);
+                  }
+                }
+              }
+            }
+            j = j + 1;
+          }
+          k = k + 1;
+        }
+      }
+      di = di + 1;
+    }
+  }
+  return 0 - 1;
+}
+
+// G-02f-137：VAR 基址 FIELD_ACCESS 字节偏移；dep layout 回落
 #[no_mangle]
-function glue_inline_var_field_access_offset(arena: *u8, er: i32): i32 { unsafe { return glue_inline_var_field_access_offset_impl(arena, er); } return 0; }
-#[no_mangle]
+function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: *u8, asm_ctx: *u8, fa_ref: i32): i32 {
+  if (arena == 0) { return 0 - 1; }
+  if (mod == 0) { return 0 - 1; }
+  if (fa_ref <= 0) { return 0 - 1; }
+  unsafe {
+    let base_ref: i32 = pipeline_expr_field_access_base_ref(arena, fa_ref);
+    if (base_ref <= 0) { return 0 - 1; }
+    // VAR=3
+    if (pipeline_expr_kind_ord_at(arena, base_ref) != 3) { return 0 - 1; }
+    let base_ty: i32 = pipeline_expr_resolved_type_ref(arena, base_ref);
+    let scope_br: i32 = 0;
+    if (asm_ctx != 0) {
+      scope_br = asm_ctx_scope_block_ref_at(asm_ctx);
+    }
+    if (base_ty <= 0) {
+      if (scope_br > 0) {
+        let vlen: i32 = pipeline_expr_var_name_len(arena, base_ref);
+        if (vlen > 0) {
+          if (vlen <= 63) {
+            let vname: u8[64] = [];
+            pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
+            base_ty = pipeline_block_resolve_var_type_ref(arena, scope_br, &vname[0], vlen);
+          }
+        }
+      }
+    }
+    if (base_ty <= 0) {
+      if (asm_ctx != 0) {
+        let fi: i32 = pipeline_asm_emit_func_index_c();
+        let vlen: i32 = pipeline_expr_var_name_len(arena, base_ref);
+        if (fi >= 0) {
+          if (fi < pipeline_module_num_funcs(mod)) {
+            if (vlen > 0) {
+              if (vlen <= 63) {
+                let vname: u8[64] = [];
+                pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
+                let body_ref: i32 = pipeline_module_func_body_ref_at(mod, fi);
+                if (body_ref > 0) {
+                  base_ty = pipeline_block_resolve_var_type_ref(arena, body_ref, &vname[0], vlen);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    let flen: i32 = pipeline_expr_field_access_name_len(arena, fa_ref);
+    if (flen <= 0) { return 0 - 1; }
+    if (flen > 63) { return 0 - 1; }
+    let field_name: u8[64] = [];
+    pipeline_expr_field_access_name_into(arena, fa_ref, &field_name[0]);
+    if (pctx != 0) {
+      let off: i32 = glue_dep_module_field_offset_by_name(pctx, &field_name[0], flen);
+      if (off >= 0) { return off; }
+    }
+    if (base_ty <= 0) { return 0 - 1; }
+    let kind: i32 = pipeline_type_kind_ord_at(arena, base_ty);
+    // TYPE_PTR=9
+    if (kind == 9) {
+      base_ty = pipeline_type_elem_ref_at(arena, base_ty);
+      if (base_ty <= 0) { return 0 - 1; }
+      kind = pipeline_type_kind_ord_at(arena, base_ty);
+    }
+    // TYPE_NAMED=8
+    if (kind != 8) { return 0 - 1; }
+    let struct_name: u8[64] = [];
+    let nlen: i32 = pipeline_type_named_name_into(arena, base_ty, &struct_name[0]);
+    if (pctx != 0) {
+      let off2: i32 = typeck_get_field_offset_from_layout_deps(mod, pctx, &struct_name[0], nlen, &field_name[0], flen);
+      if (off2 >= 0) { return off2; }
+    }
+    return pipeline_expr_field_access_layout_offset(arena, mod, fa_ref);
+  }
+  return 0 - 1;
+}
+
 // G-02f-133：ARRAY_LIT=46 第 lane 常量
 #[no_mangle]
 function glue_try_array_lit_lane_const_i32(arena: *u8, arr_ref: i32, lane: i32, out: *i32): i32 {
@@ -431,8 +566,39 @@ function glue_try_array_lit_lane_const_i32(arena: *u8, arr_ref: i32, lane: i32, 
   }
   return 0;
 }
+
+// G-02f-137：return param0 binop param1（两形参、SIMD 向量返回）；out=ko
 #[no_mangle]
-function glue_fold_func_returns_param01_vector_binop(arena: *u8, mod: *u8, fi: i32, out: *i32): i32 { unsafe { return glue_fold_func_returns_param01_vector_binop_impl(arena, mod, fi, out); } return 0; }
+function glue_fold_func_returns_param01_vector_binop(arena: *u8, mod: *u8, func_idx: i32, out_binop_ko: *i32): i32 {
+  if (out_binop_ko == 0) { return 0; }
+  if (arena == 0) { return 0; }
+  if (mod == 0) { return 0; }
+  if (func_idx < 0) { return 0; }
+  unsafe {
+    if (pipeline_asm_module_func_num_params_at(mod, func_idx) != 2) { return 0; }
+    let ret_ty: i32 = pipeline_module_func_return_type_at(mod, func_idx);
+    let ret_ref: i32 = glue_try_fold_func_return_operand_ref(arena, mod, func_idx);
+    if (ret_ref <= 0) { return 0; }
+    let ko: i32 = pipeline_expr_kind_ord_at(arena, ret_ref);
+    if (glue_is_vector_lane_scalar_binop_ko(ko) == 0) { return 0; }
+    // typeck 常留默认 i32；return 已是向量 binop 形态（ko=51→add）则仍匹配
+    if (ret_ty > 0) {
+      if (asm_type_is_simd_vector_spelling(arena, ret_ty) == 0) {
+        if (asm_type_is_simd_vector(arena, ret_ty) == 0) {
+          if (ko != 51) { return 0; }
+        }
+      }
+    }
+    if (ko == 51) { ko = 4; }
+    let al: i32 = pipeline_expr_binop_left_ref_at(arena, ret_ref);
+    let ar: i32 = pipeline_expr_binop_right_ref_at(arena, ret_ref);
+    if (glue_expr_is_func_param_at(arena, mod, func_idx, al, 0) == 0) { return 0; }
+    if (glue_expr_is_func_param_at(arena, mod, func_idx, ar, 1) == 0) { return 0; }
+    out_binop_ko[0] = ko;
+    return 1;
+  }
+  return 0;
+}
 
 // G-02f-136：return param0[index_const]（单形参）；成功写 *out_lane
 #[no_mangle]

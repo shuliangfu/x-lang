@@ -998,7 +998,8 @@ int32_t try_inline_param0_single_field_call_elf(struct ast_ASTArena *arena, stru
 /**
  * 在 dep 编译单元 struct layout 中按字段名查偏移（import Pair 等 caller 无 layout 时）。
  */
-int32_t glue_dep_module_field_offset_by_name_impl(struct ast_PipelineDepCtx *pctx, uint8_t *field_name,
+/* G-02f-137：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_dep_module_field_offset_by_name(struct ast_PipelineDepCtx *pctx, uint8_t *field_name,
                                                     int32_t flen) {
   int32_t nd;
   int32_t di;
@@ -1036,19 +1037,13 @@ int32_t glue_dep_module_field_offset_by_name_impl(struct ast_PipelineDepCtx *pct
   }
   return -1;
 }
-int32_t glue_dep_module_field_offset_by_name(struct ast_PipelineDepCtx *pctx, uint8_t *field_name,
-                                                    int32_t flen) {
-  {
-    return glue_dep_module_field_offset_by_name_impl(pctx, field_name, flen);
-  }
-  return 0;
-}
 
 
 /**
  * 解析 VAR 基址 FIELD_ACCESS 的字节偏移；import struct layout 在 dep 模块时走 deps 回落。
  */
-int32_t glue_inline_var_field_access_offset_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-137：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_inline_var_field_access_offset(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    struct ast_PipelineDepCtx *pctx, uint8_t *asm_ctx,
                                                    int32_t fa_ref) {
   int32_t base_ref;
@@ -1117,14 +1112,6 @@ int32_t glue_inline_var_field_access_offset_impl(struct ast_ASTArena *arena, str
       return off;
   }
   return pipeline_expr_field_access_layout_offset(arena, mod, fa_ref);
-}
-int32_t glue_inline_var_field_access_offset(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                   struct ast_PipelineDepCtx *pctx, uint8_t *asm_ctx,
-                                                   int32_t fa_ref) {
-  {
-    return glue_inline_var_field_access_offset_impl(arena, mod, pctx, asm_ctx, fa_ref);
-  }
-  return 0;
 }
 
 
@@ -1410,7 +1397,8 @@ int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko) {
  * callee 是否为 `return param0 binop param1`（两形参、SIMD 向量返回）。
  * 成功写 *out_binop_ko（4=add,5=sub,6=mul,7=div,8=mod 等）。
  */
-int32_t glue_fold_func_returns_param01_vector_binop_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-137：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                            int32_t func_idx, int32_t *out_binop_ko) {
   int32_t ret_ref;
   int32_t ko;
@@ -1443,13 +1431,6 @@ int32_t glue_fold_func_returns_param01_vector_binop_impl(struct ast_ASTArena *ar
     return 0;
   *out_binop_ko = ko;
   return 1;
-}
-int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                           int32_t func_idx, int32_t *out_binop_ko) {
-  {
-    return glue_fold_func_returns_param01_vector_binop_impl(arena, mod, func_idx, out_binop_ko);
-  }
-  return 0;
 }
 
 
