@@ -189,9 +189,9 @@ ensure_pipeline_asm_orchestration_partial_obj() {
   PARTIAL="$BUILD_DIR/pipeline_asm_orchestration_partial.o"
   SYMS="$BUILD_DIR/pipeline_asm_orchestration_export.txt"
   ALIAS_O="$BUILD_DIR/pipeline_asm_orchestration_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_asm_orchestration_alias.c" -nt "$ALIAS_O" ]; then
-  strict_glue_info "cc -c src/asm/pipeline_asm_orchestration_alias.c -> $ALIAS_O"
-  "$CC" $CFLAGS -c -o "$ALIAS_O" src/asm/pipeline_asm_orchestration_alias.c
+  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_asm_orchestration_alias.inc" -nt "$ALIAS_O" ]; then
+  strict_glue_info "cc_inc_tu src/asm/pipeline_asm_orchestration_alias.inc -> $ALIAS_O"
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_asm_orchestration_alias.inc "$ALIAS_O"
   fi
   if [ ! -f "$PARTIAL" ] || [ "$ALIAS_O" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
   cat > "$SYMS" <<'EOF'
@@ -246,7 +246,7 @@ ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
   return 0
 }
 
-# B-hybrid / strict_glue：lsp_x.o 缺的 LSP 响应桩；typeck_lsp_io 见 src/lsp/typeck_lsp_io_stub.c。
+# B-hybrid / strict_glue：lsp_x.o 缺的 LSP 响应桩；typeck_lsp_io 见 src/lsp/typeck_lsp_io_stub.inc。
 # strict 链：ast.x 裸名 → pipeline_glue ast_ast_*（typeck_strict_link_partial 去重后缺 ast_block_if_*）。
 ensure_ast_asm_bare_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/ast_asm_bare_link_alias.o"
@@ -259,11 +259,11 @@ ensure_ast_asm_bare_link_alias_obj() {
 ensure_asm_shux_lsp_diag_stub_obj() {
   local STUB_C="scripts/asm_shux_lsp_diag_stub.c"
   local STUB_O="$BUILD_DIR/asm_shux_lsp_diag_stub.o"
-  local LSP_IO_STUB="src/lsp/typeck_lsp_io_stub.c"
+  local LSP_IO_STUB="src/lsp/typeck_lsp_io_stub.inc"
   local LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"
   if [ ! -f "$LSP_IO_O" ] || [ "$LSP_IO_STUB" -nt "$LSP_IO_O" ]; then
-  strict_glue_info "cc -c $LSP_IO_O <- $LSP_IO_STUB"
-  "$CC" $CFLAGS -c -o "$LSP_IO_O" "$LSP_IO_STUB"
+  strict_glue_info "cc_inc_tu $LSP_IO_O <- $LSP_IO_STUB"
+  sh scripts/cc_inc_tu.sh "$LSP_IO_STUB" "$LSP_IO_O"
   fi
   if [ ! -f "$STUB_O" ] || [ "$STUB_C" -nt "$STUB_O" ]; then
   strict_glue_info "cc -c $STUB_O <- $STUB_C"
@@ -369,7 +369,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
   fi
   if [ ! -f "$PARTIAL" ] || [ "$0" -nt "$PARTIAL" ] || [ "$PO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$PARTIAL" ]; } || \
-  [ "src/asm/pipeline_asm_orchestration_alias.c" -nt "$PARTIAL" ]; then
+  [ "src/asm/pipeline_asm_orchestration_alias.inc" -nt "$PARTIAL" ]; then
   strict_glue_info "ld partial export $SYMS pipeline.o -> $PARTIAL"
   ld_partial_export "$SYMS" "$PARTIAL" "$PO" || return 1
   fi

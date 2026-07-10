@@ -10,7 +10,7 @@ echo "=== F-test v2: test logic → test.x (F-ZC zero glue) ==="
 [ -f "$DOC" ] || die "missing $DOC"
 grep -q 'F-test v2' "$DOC" || die "doc marker"
 [ -f std/test/test.x ] || die "missing test.x"
-[ -f compiler/src/asm/runtime_test_fn_invoke.c ] || die "missing runtime_test_fn_invoke.c"
+[ -f compiler/src/asm/runtime_test_fn_invoke.inc ] || die "missing runtime_test_fn_invoke.inc"
 [ ! -f std/test/test_glue.c ] || die "test_glue.c should be deleted (F-ZC)"
 [ ! -f std/test/test.c ] || die "test.c should be deleted"
 while IFS=$'\t' read -r item_id kind anchor _n; do

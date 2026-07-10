@@ -3,8 +3,8 @@
 # 更新：SHUX_NO_HANDWRITTEN_C_UPDATE=1 ./tests/run-no-handwritten-c-gate.sh
 summary_std_c	0
 summary_core_c	0
-summary_compiler_src_c	87
-summary_total_c	87
+summary_compiler_src_c	82
+summary_total_c	82
 file	compiler/src/asm/asm_backend_compat_stubs.c
 file	compiler/src/asm/asm_experimental_symbol_bridge.c
 file	compiler/src/asm/backend_arch_emit_dispatch.c
@@ -19,7 +19,6 @@ file	compiler/src/asm/http/runtime_http_glue.c
 file	compiler/src/asm/parser_asm_parse_bootstrap_obj.c
 file	compiler/src/asm/parser_asm_parse_expr_link.c
 file	compiler/src/asm/parser_asm_thin_c.c
-file	compiler/src/asm/pipeline_asm_orchestration_alias.c
 file	compiler/src/asm/pipeline_glue_standalone.c
 file	compiler/src/asm/pipeline_glue_strict_minimal.c
 file	compiler/src/asm/runtime_arrow_simd_glue.c
@@ -55,11 +54,9 @@ file	compiler/src/asm/runtime_random_fill.c
 file	compiler/src/asm/runtime_scheduler_glue.c
 file	compiler/src/asm/runtime_slice_glue.c
 file	compiler/src/asm/runtime_sqlite_glue.c
-file	compiler/src/asm/runtime_std_runtime_fast.c
 file	compiler/src/asm/runtime_string_fast.c
 file	compiler/src/asm/runtime_sync_lock_diag_tls.c
 file	compiler/src/asm/runtime_sync_os.c
-file	compiler/src/asm/runtime_test_fn_invoke.c
 file	compiler/src/asm/runtime_thread_glue.c
 file	compiler/src/asm/runtime_time_os.c
 file	compiler/src/asm/runtime_tls_mbedtls_bio.c
@@ -79,9 +76,7 @@ file	compiler/src/lexer/cfg_eval_bootstrap_stub.c
 file	compiler/src/lsp/lsp_diag_pipeline_ctx.c
 file	compiler/src/lsp/lsp_diag_pipeline_sizes.c
 file	compiler/src/lsp/lsp_diag_stubs_no_c.c
-file	compiler/src/lsp/typeck_lsp_io_stub.c
 file	compiler/src/main.c
-file	compiler/src/preprocess_shim.c
 file	compiler/src/runtime.c
 file	compiler/src/runtime_c_import.c
 file	compiler/src/runtime_driver_abi.c

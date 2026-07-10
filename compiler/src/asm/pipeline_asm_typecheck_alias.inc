@@ -3,7 +3,7 @@
  *
  * build_asm/pipeline.o 第二遍 emit 的 if/else（force_c / typeck_x_ast）分支不完整，
  * 会跳过 typeck 或误走 library 路径（null module smoke 失败）；本 TU 单独 ld -r 链入，
- * 语义与 pipeline_asm_orchestration_alias.c / pipeline.x 一致，调用 C 侧 typeck_typeck_x_ast*。
+ * 语义与 pipeline_asm_orchestration_alias.inc / pipeline.x 一致，调用 C 侧 typeck_typeck_x_ast*。
  */
 #include <stddef.h>
 #include <stdint.h>

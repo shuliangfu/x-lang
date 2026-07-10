@@ -1449,9 +1449,9 @@ ensure_pipeline_asm_orchestration_partial_obj() {
   PARTIAL="$BUILD_DIR/pipeline_asm_orchestration_partial.o"
   SYMS="$BUILD_DIR/pipeline_asm_orchestration_export.txt"
   ALIAS_O="$BUILD_DIR/pipeline_asm_orchestration_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_asm_orchestration_alias.c" -nt "$ALIAS_O" ]; then
-  echo " cc -c src/asm/pipeline_asm_orchestration_alias.c -> $ALIAS_O"
-  "$CC" $CFLAGS -c -o "$ALIAS_O" src/asm/pipeline_asm_orchestration_alias.c
+  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_asm_orchestration_alias.inc" -nt "$ALIAS_O" ]; then
+  echo " cc_inc_tu src/asm/pipeline_asm_orchestration_alias.inc -> $ALIAS_O"
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_asm_orchestration_alias.inc "$ALIAS_O"
   fi
   if [ ! -f "$PARTIAL" ] || [ "$ALIAS_O" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
   cat > "$SYMS" <<'EOF'
@@ -1646,7 +1646,7 @@ ensure_pipeline_o_strict_link_partial_obj() {
   if [ ! -f "$PARTIAL" ] || [ "$0" -nt "$PARTIAL" ] || [ "$PO" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ] || \
   { [ -f "$WPO_E" ] && [ "$WPO_E" -nt "$PARTIAL" ]; } || \
   { [ -f "$BUILD_DIR/pipeline_x_glue_support_export.txt" ] && [ "$BUILD_DIR/pipeline_x_glue_support_export.txt" -nt "$PARTIAL" ]; } || \
-  [ "src/asm/pipeline_asm_orchestration_alias.c" -nt "$PARTIAL" ]; then
+  [ "src/asm/pipeline_asm_orchestration_alias.inc" -nt "$PARTIAL" ]; then
   if asm_strict_typeck_x_glue_via_pipeline_x && [ -f "$BUILD_DIR/pipeline_x_glue_support_export.txt" ] && \
   [ -s "$BUILD_DIR/pipeline_x_glue_support_export.txt" ]; then
   sort -u "$SYMS" -o "$SYMS"
@@ -1694,7 +1694,7 @@ ensure_pipeline_wpo_helpers_partial_obj() {
   rm -f "$tmp" 2>/dev/null || true
   done
   fi
-  if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ] || [ "src/asm/pipeline_asm_orchestration_alias.c" -nt "$SYMS" ] || \
+  if [ ! -f "$SYMS" ] || [ "$WPO_E" -nt "$SYMS" ] || [ "src/asm/pipeline_asm_orchestration_alias.inc" -nt "$SYMS" ] || \
   { ensure_pipeline_glue_standalone_export_syms_txt && [ "$BUILD_DIR/.pipeline_glue_standalone_export_syms.txt" -nt "$SYMS" ]; }; then
   nm "$WPO_E" 2>/dev/null | awk '/ T / {print $3}' | grep -vE \
   '^(run_x_pipeline_impl|run_x_pipeline_parse_entry_do_parse|run_x_pipeline_parse_entry_if_needed|run_x_pipeline_typecheck_entry|parse_into_with_init_buf|parse_into_with_init|pipeline_run_x_pipeline_impl|pipeline_run_x_pipeline|pipeline_should_skip_x_typeck)$' \
@@ -3638,15 +3638,15 @@ ensure_lsp_diag_pipeline_sizes_obj() {
   fi
 }
 
-# B-hybrid 链 lsp_x.o 需要 lsp_build_diagnostics_response 等；typeck_lsp_io 见 src/lsp/typeck_lsp_io_stub.c。
+# B-hybrid 链 lsp_x.o 需要 lsp_build_diagnostics_response 等；typeck_lsp_io 见 src/lsp/typeck_lsp_io_stub.inc。
 ensure_asm_shux_lsp_diag_stub_obj() {
   STUB_C="scripts/asm_shux_lsp_diag_stub.c"
   STUB_O="$BUILD_DIR/asm_shux_lsp_diag_stub.o"
-  LSP_IO_STUB="src/lsp/typeck_lsp_io_stub.c"
+  LSP_IO_STUB="src/lsp/typeck_lsp_io_stub.inc"
   LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"
   if [ ! -f "$LSP_IO_O" ] || [ "$LSP_IO_STUB" -nt "$LSP_IO_O" ]; then
-  echo " cc -c $LSP_IO_O <- $LSP_IO_STUB"
-  "$CC" $CFLAGS -c -o "$LSP_IO_O" "$LSP_IO_STUB"
+  echo " cc_inc_tu $LSP_IO_O <- $LSP_IO_STUB"
+  sh scripts/cc_inc_tu.sh "$LSP_IO_STUB" "$LSP_IO_O"
   fi
   if [ ! -f "$STUB_O" ] || [ "$STUB_C" -nt "$STUB_O" ]; then
   echo " cc -c $STUB_O <- $STUB_C"

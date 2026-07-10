@@ -3,7 +3,7 @@
 ftst_doc	doc	analysis/phase-f-test-v1.md	F-test v1
 ftst_gate	gate	tests/run-f-test-v1-gate.sh	聚合门禁
 ts_x	file	std/test/test.x	模块锚点 .x
-runtime_test_fn	file	compiler/src/asm/runtime_test_fn_invoke.c	fn-ptr invoke
+runtime_test_fn	file	compiler/src/asm/runtime_test_fn_invoke.inc	fn-ptr invoke
 ts_mod	file	std/test/mod.x	对外 API
 ts_glue_absent	absent	std/test/test_glue.c	F-ZC 已删除
 ts_c_absent	absent	std/test/test.c	已删除

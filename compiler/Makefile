@@ -134,8 +134,8 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 
 # std.runtime：保留 runtime.x 作为 F-runtime v1 源码锚点；runtime.o 仅提供
 # runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
-../std/runtime/runtime.o: ../std/runtime/runtime.x src/asm/runtime_std_runtime_fast.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/runtime/runtime_core.o src/asm/runtime_std_runtime_fast.c && \
+../std/runtime/runtime.o: ../std/runtime/runtime.x src/asm/runtime_std_runtime_fast.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_std_runtime_fast.inc ../std/runtime/runtime_core.o && \
 	ld -r -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
 	rm -f ../std/runtime/runtime_core.o
 
@@ -772,9 +772,9 @@ endif
 runtime_asm_io_stubs.o: src/asm/runtime_asm_io_stubs.c
 	$(CC) $(CFLAGS) -fPIE -c -o $@ $<
 
-# F-ZC：std.test fn-ptr invoke；与 test.o 一并链入（见 runtime_test_fn_invoke.c）
-runtime_test_fn_invoke.o: src/asm/runtime_test_fn_invoke.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：std.test fn-ptr invoke；与 test.o 一并链入（G-02e-16：.inc + cc_inc_tu）
+runtime_test_fn_invoke.o: src/asm/runtime_test_fn_invoke.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_test_fn_invoke.inc $@
 
 # F-ZC：CSPRNG OS fill；与 random.o 一并链入（见 runtime_random_fill.c）
 runtime_random_fill.o: src/asm/runtime_random_fill.c
@@ -1630,9 +1630,9 @@ lsp_io_gen.c: src/lsp/lsp_io.x
 # LSP 模块：main.x 依赖 lsp；std.io 由 .x codegen 提供（F-03 v2/v3，无 io.o）。
 # LSP state 单独 .c，避免 lsp_main 内大数组导致 state 被覆盖
 
-# lsp_gen.c 期望 typeck_read_message 等；lsp_io -E-extern 未产出时由桩提供。
-src/lsp/typeck_lsp_io_stub.o: src/lsp/typeck_lsp_io_stub.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+# lsp_gen.c 期望 typeck_read_message 等；lsp_io -E-extern 未产出时由桩提供（G-02e-16 .inc）。
+src/lsp/typeck_lsp_io_stub.o: src/lsp/typeck_lsp_io_stub.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/lsp/typeck_lsp_io_stub.inc $@
 
 src/seed_link_compat.o: src/seed_link_compat.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
