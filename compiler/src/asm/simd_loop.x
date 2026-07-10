@@ -7,7 +7,8 @@
 // G-02f-106：+ expr/index/array/cpu/lanes pure glue 薄门闩。
 // G-02f-107：+ parse/peel/slot glue 薄门闩。
 // G-02f-213：try_simd_peel f32_soa_sum / index_add while 真迁 .x。
-// G-02f-214：parse/local/chunk/const-peel 中层真迁；runtime/f32-strip 仍 seed。
+// G-02f-214：parse/local/chunk/const-peel 中层真迁。
+// G-02f-215：runtime_strip + f32_soa_sum_strip 真迁；simd_loop 主路径闭合。
 
 extern "C" function driver_get_pending_target_cpu_features(): u32;
 extern "C" function shu_target_cpu_detect_host(): u32;
@@ -97,7 +98,7 @@ function glue_simd_loop_cpu_features_c(): u32 {
 
 
 
-/* ---- G-02f-214：parse/local/short-emit true-port；runtime/f32-strip 仍 seed ---- */
+/* ---- G-02f-214/215：parse/local/emit true-port；simd_loop 主路径 ---- */
 
 // GLUE_EXPR_*: VAR=3 ADD=4 SUB=5 MUL=6 LT=16 ASSIGN=28 ADD_ASSIGN=29 INDEX=47 FIELD=44
 // GLUE_TYPE_*: I32=0 ARRAY=10 F32=14；LIT kind=0
@@ -119,8 +120,6 @@ extern "C" function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name:
 extern "C" function simd_enc_try_hw_vector_iadd_rbp(elf: *u8, a: i32, b: i32, d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
 extern "C" function simd_enc_try_hw_vector_isub_rbp(elf: *u8, a: i32, b: i32, d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
 extern "C" function simd_enc_try_hw_vector_imul_rbp(elf: *u8, a: i32, b: i32, d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
-extern "C" function glue_emit_runtime_strip_loop_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, binop_ko: i32, off_i: i32, off_n: i32, off_a: i32, off_b: i32, off_d: i32, array_n: i32, lanes: i32, feats: u32): i32;
-extern "C" function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, off_col0: i32, off_s: i32, off_i: i32, off_n: i32, n_lit: i32, lanes: i32, feats: u32): i32;
 extern "C" function ast_ast_block_while_cond_ref(arena: *u8, block_ref: i32, loop_idx: i32): i32;
 extern "C" function ast_ast_block_while_body_ref(arena: *u8, block_ref: i32, loop_idx: i32): i32;
 extern "C" function ast_ast_block_num_expr_stmts(arena: *u8, body: i32): i32;
@@ -589,3 +588,148 @@ function glue_simd_x86_cmp_rax_rbx_c(elf_ctx: *u8): i32 {
   return 0 - 1;
 }
 
+/* ---- G-02f-215：runtime strip + f32 soa sum strip ---- */
+
+extern "C" function pipeline_asm_emit_next_label_c(ctx: *u8, buf: *u8, cap: i32): i32;
+extern "C" function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, assign_ref: i32, ctx: *u8, ta: i32): i32;
+extern "C" function backend_enc_label_arch(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32, ta: i32): i32;
+extern "C" function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+extern "C" function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+extern "C" function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+extern "C" function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+extern "C" function backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+extern "C" function backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
+extern "C" function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32, off_b: i32, off_d: i32, off_i: i32, array_n: i32, binop_ko: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32;
+extern "C" function simd_enc_x86_xorps_xmm0_zero(elf_ctx: *u8): i32;
+extern "C" function simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx: *u8, off_col0: i32, off_i: i32, ta: i32): i32;
+extern "C" function simd_enc_x86_addps_xmm0_xmm1(elf_ctx: *u8): i32;
+extern "C" function simd_enc_x86_horizontal_addps_xmm0(elf_ctx: *u8): i32;
+extern "C" function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: i32): i32;
+
+// G-02f-215：可变 n / 非 lanes 整除 → 向量条带 + 标量 epilogue
+#[no_mangle]
+function glue_emit_runtime_strip_loop_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, binop_ko: i32, off_i: i32, off_n: i32, off_a: i32, off_b: i32, off_d: i32, array_n: i32, lanes: i32, feats: u32): i32 {
+  if (ta != 0) { return 0; }
+  unsafe {
+    let vec_loop: u8[64] = [];
+    let epi_loop: u8[64] = [];
+    let epi_done: u8[64] = [];
+    let vec_len: i32 = pipeline_asm_emit_next_label_c(ctx, &vec_loop[0], 64);
+    let epi_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_loop[0], 64);
+    let done_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_done[0], 64);
+    if (vec_len <= 0) { return 0 - 1; }
+    if (epi_len <= 0) { return 0 - 1; }
+    if (done_len <= 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &vec_loop[0], vec_len, 0, ta) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta) != 0) { return 0 - 1; }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_n, ta) != 0) { return 0 - 1; }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta) != 0) { return 0 - 1; }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0) { return 0 - 1; }
+    if (backend_enc_jge_arch(elf_ctx, &epi_loop[0], epi_len, ta) != 0) { return 0 - 1; }
+    if (simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx, off_a, off_b, off_d, off_i, array_n, binop_ko, lanes, 4, ta, feats) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta) != 0) { return 0 - 1; }
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (backend_enc_jmp_arch(elf_ctx, &vec_loop[0], vec_len, ta) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &epi_loop[0], epi_len, 0, ta) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, off_n, ta) != 0) { return 0 - 1; }
+    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0) { return 0 - 1; }
+    if (backend_enc_jge_arch(elf_ctx, &epi_done[0], done_len, ta) != 0) { return 0 - 1; }
+    if (pipeline_asm_emit_assign_elf_c(arena, elf_ctx, assign_body_ref, ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta) != 0) { return 0 - 1; }
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (backend_enc_jmp_arch(elf_ctx, &epi_loop[0], epi_len, ta) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &epi_done[0], done_len, 0, ta) != 0) { return 0 - 1; }
+  }
+  return 1;
+}
+
+// G-02f-215：f32 SoA sum 向量条带 + 水平加 + 标量 epilogue
+#[no_mangle]
+function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, off_col0: i32, off_s: i32, off_i: i32, off_n: i32, n_lit: i32, lanes: i32, feats: u32): i32 {
+  if (ta != 0) { return 0; }
+  if (lanes != 4) { return 0; }
+  // SSE2 = 1
+  if ((feats & 1) == 0) { return 0; }
+  unsafe {
+    let vec_loop: u8[64] = [];
+    let epi_merge: u8[64] = [];
+    let epi_loop: u8[64] = [];
+    let epi_done: u8[64] = [];
+    let vec_len: i32 = pipeline_asm_emit_next_label_c(ctx, &vec_loop[0], 64);
+    let merge_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_merge[0], 64);
+    let epi_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_loop[0], 64);
+    let done_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_done[0], 64);
+    if (vec_len <= 0) { return 0 - 1; }
+    if (merge_len <= 0) { return 0 - 1; }
+    if (epi_len <= 0) { return 0 - 1; }
+    if (done_len <= 0) { return 0 - 1; }
+    if (simd_enc_x86_xorps_xmm0_zero(elf_ctx) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &vec_loop[0], vec_len, 0, ta) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta) != 0) { return 0 - 1; }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (off_n >= 0) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_n, ta) != 0) { return 0 - 1; }
+    } else {
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_lit, 0, ta) != 0) { return 0 - 1; }
+    }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta) != 0) { return 0 - 1; }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0) { return 0 - 1; }
+    if (backend_enc_jge_arch(elf_ctx, &epi_merge[0], merge_len, ta) != 0) { return 0 - 1; }
+    if (simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx, off_col0, off_i, ta) != 0) {
+      let name: u8[24] = [];
+      name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
+      name[4] = 95; name[5] = 83; name[6] = 73; name[7] = 77;
+      name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
+      name[12] = 95; name[13] = 83; name[14] = 84; name[15] = 82;
+      name[16] = 73; name[17] = 67; name[18] = 84; name[19] = 0;
+      let p: *u8 = getenv(&name[0]);
+      if (p != 0) {
+        if (p[0] != 48) { return 0 - 1; }
+      }
+      return 0;
+    }
+    if (simd_enc_x86_addps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta) != 0) { return 0 - 1; }
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (backend_enc_jmp_arch(elf_ctx, &vec_loop[0], vec_len, ta) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &epi_merge[0], merge_len, 0, ta) != 0) { return 0 - 1; }
+    if (simd_enc_x86_horizontal_addps_xmm0(elf_ctx) != 0) { return 0 - 1; }
+    if (simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx, glue_f32_slot_rbp_disp32(off_s)) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &epi_loop[0], epi_len, 0, ta) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (off_n >= 0) {
+      if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, off_n, ta) != 0) { return 0 - 1; }
+    } else {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_lit, 0, ta) != 0) { return 0 - 1; }
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    }
+    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0) { return 0 - 1; }
+    if (backend_enc_jge_arch(elf_ctx, &epi_done[0], done_len, ta) != 0) { return 0 - 1; }
+    if (pipeline_asm_emit_assign_elf_c(arena, elf_ctx, assign_body_ref, ctx, ta) != 0) { return 0 - 1; }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta) != 0) { return 0 - 1; }
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
+    if (backend_enc_jmp_arch(elf_ctx, &epi_loop[0], epi_len, ta) != 0) { return 0 - 1; }
+    if (backend_enc_label_arch(elf_ctx, &epi_done[0], done_len, 0, ta) != 0) { return 0 - 1; }
+  }
+  return 1;
+}

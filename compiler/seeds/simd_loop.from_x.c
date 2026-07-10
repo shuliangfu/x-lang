@@ -1,5 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
- * G-02f-214 parse/local/const-peel true .x; G-02f-213 peel entries.
+ * G-02f-215 runtime/f32-strip true .x; G-02f-214/213 peel/parse.
  * G-02f-133 true .x pure helpers.
  * G-02f-130 true .x pure helpers.
  * G-02f-129 true .x pure helpers.
@@ -455,6 +455,7 @@ int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
  * → SIMD 块（i += lanes）+ 余数标量 while。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-215：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_emit_runtime_strip_loop_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                              struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref,
                                              int32_t binop_ko, int32_t off_i, int32_t off_n, int32_t off_a,
@@ -639,6 +640,7 @@ int32_t glue_parse_f32_soa_sum_assign_c(struct ast_ASTArena *arena, int32_t assi
  * 匹配 while i < n { s += arr[i].field; i++ }，n 可为字面量/let 常量或局部变量 n。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-215：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                               struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t assign_body_ref,
                                               int32_t off_col0, int32_t off_s, int32_t off_i, int32_t off_n,
