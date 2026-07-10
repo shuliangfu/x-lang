@@ -1,17 +1,15 @@
-/* seeds/main.from_x.c — G-02f-16 product TU
- * LEGACY/shux-c 极简 main 入口；crt0 路径可替代。
+/* Generated from src/main_c_entry.x (G-02f-23 true .x).
+ * Regen: ./shux-c -E -L .. src/main_c_entry.x > seeds/main.from_x.c
+ * argv polished to char** for C ABI (shux-c emits *u8).
  */
-/**
- * main.c — 6.4 极简入口：仅调 runtime_abi 转发至 main.x 的 main_entry
- *
- * Phase E active (E-04 v21+)：E-04 v21 minimal main；Linux/Darwin/Windows 默认 crt0；本 TU 仅 LEGACY / shux-c 链入。
- * Linux crt0 路径可替代本 TU（见 SELFHOST §6）。文件保留，不删除。
- *
- * 程序入口为 main()；实际驱动由 main_entry 实现（main.x 提供，或 runtime.c 的弱符号桩转调 run_compiler_c）。
- * 构建/文档标明：入口逻辑在 main.x，C 侧运行时在 runtime.c。
- */
-#include "runtime_abi.h"
-
+#include <stdint.h>
+#include <stddef.h>
+extern int shux_forward_main_to_main_entry(int argc, char **argv);
 int main(int argc, char **argv) {
-    return shux_forward_main_to_main_entry(argc, argv);
+  (void)(({   {
+    int32_t r = shux_forward_main_to_main_entry(argc, argv);
+    return r;
+  }
+ }));
+  return 0;
 }

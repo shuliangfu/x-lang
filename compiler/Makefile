@@ -134,7 +134,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 
 # std.runtime：保留 runtime.x 作为 F-runtime v1 源码锚点；runtime.o 仅提供
 # runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
-../std/runtime/runtime.o: ../std/runtime/runtime.x seeds/runtime_std_runtime_fast.from_x.c scripts/cc_inc_tu.sh
+../std/runtime/runtime.o: ../std/runtime/runtime.x seeds/runtime_std_runtime_fast.from_x.c src/asm/runtime_std_runtime_fast.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_std_runtime_fast.from_x.c -o ../std/runtime/runtime_core.o && \
 	ld -r -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
 	rm -f ../std/runtime/runtime_core.o
