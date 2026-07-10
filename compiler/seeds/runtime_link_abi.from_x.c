@@ -1,9 +1,9 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..38 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..39 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/link.c
  *         merge thin helpers; polish strings/signatures; SHUX_WEAK bootstrap;
- *         keep invoke_cc/ld + path suffix + nm/popen marker + argv-loop C.
- * .x covers: forward_main, needs_*, freestanding, async, heap probes,
- *            zlib/zstd/brotli/compress_libs, bootstrap weak stubs.
+ *         keep invoke_cc/ld + path suffix + nm/popen + fileview scan primitive C.
+ * .x covers: forward_main, needs_*, freestanding, async, heap, compress,
+ *            generated_c_needs_*, bootstrap weak stubs.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -2993,16 +2993,52 @@ static int link_abi_generated_c_contains_any_substr(const char *c_path, const ch
     return found;
 }
 
+/** G-02f-39：单 needle 包装，供 .x generated_c_needs_* 调用。 */
+int link_abi_generated_c_contains_substr(const char *c_path, const char *needle) {
+    const char *needles[1];
+    if (!needle || !needle[0])
+        return 0;
+    needles[0] = needle;
+    return link_abi_generated_c_contains_any_substr(c_path, needles, 1);
+}
+
+
 /**
  * 生成的 .c 是否引用 libc 堆符号（F-03 v2：libc.x 经 codegen 生成 extern malloc 等，按需 -lc）。
  */
-static int link_abi_generated_c_needs_libc_heap(const char *c_path) {
-    static const char *needles[] = {
-        "malloc(", "calloc(", "realloc(", "free(", "posix_memalign(",
-        "heap_alloc_c(", "heap_free_c(", "heap_realloc_c(", "heap_alloc_zeroed_c(",
-        "getenv(",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_libc_heap(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "malloc") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "calloc") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "realloc") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "posix_memalign") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "heap_alloc_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "heap_free_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "heap_realloc_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "heap_alloc_zeroed_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "getenv") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -3034,139 +3070,353 @@ int link_abi_user_o_needs_libc_heap(const char *user_o) {
   return 0;
 }
 
-static int link_abi_generated_c_needs_win32(const char *c_path) {
-    static const char *needles[] = {
-        "GetStdHandle", "WriteFile", "CreateFileA", "ReadFile", "CloseHandle", "ExitProcess",
-        "win32_write", "win32_read_file_into", "win32_exit_process",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_win32(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "GetStdHandle") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "WriteFile") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "CreateFileA") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "ReadFile") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "CloseHandle") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "ExitProcess") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "win32_write") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "win32_read_file_into") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "win32_exit_process") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
  * 生成的 .c 是否引用 winsock2（F-02 v2：按需 -lws2_32，无 win32_net.inc.c）。
  */
-static int link_abi_generated_c_needs_win32_wsa(const char *c_path) {
-    static const char *needles[] = {
-        "WSAStartup", "WSACleanup", "win32_net_available",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_win32_wsa(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "WSAStartup") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "WSACleanup") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "win32_net_available") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
  * 生成的 .c 是否引用 core.builtin 位运算（G-01：__builtin_* 内联，不再链 builtin.o）。
  */
-static int link_abi_generated_c_needs_core_builtin(const char *c_path) {
-    (void)c_path;
-    return 0;
+int link_abi_generated_c_needs_core_builtin(const char *c_path) {
+  return 0;
 }
 
 /** 扫描生成 C 是否引用 core.mem volatile/fence 符号（G-01：纯 .x，不再链 mem.o）。 */
-static int link_abi_generated_c_needs_core_mem(const char *c_path) {
-    (void)c_path;
-    return 0;
+int link_abi_generated_c_needs_core_mem(const char *c_path) {
+  return 0;
 }
 
 /** 扫描生成 C 是否引用 std.db.kv 符号（按需链 std/db/kv/kv.o）。 */
-static int link_abi_generated_c_needs_db_kv(const char *c_path) {
-    static const char *needles[] = {
-        "db_kv_open_c", "db_kv_put_c", "db_kv_get_c", "db_kv_append_ts_c",
-        "db_kv_wal_flush_c", "db_kv_compact_c", "db_kv_sst_level_count_c",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_db_kv(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_open_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_put_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_get_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_append_ts_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_wal_flush_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_compact_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "db_kv_sst_level_count_c") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 扫描生成 C 是否引用 std.db.arrow 符号（按需链 std/db/arrow/arrow.o）。 */
-static int link_abi_generated_c_needs_db_arrow(const char *c_path) {
-    static const char *needles[] = {
-        "arrow_column_", "arrow_batch_", "arrow_smoke_c",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_db_arrow(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "arrow_column_") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "arrow_batch_") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "arrow_smoke_c") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 扫描生成 C 是否引用 core.slice C 辅助符号（G-01：纯 .x，不再链 slice.o）。 */
-static int link_abi_generated_c_needs_core_slice(const char *c_path) {
-    /* core.slice subslice/chunk 经 core/slice/slice.c 薄封装构造（语言暂无 slice 复合字面量）。 */
-    static const char *needles[] = {
-        "core_slice_i32_from_ptr_c", "core_subslice_i32_c",
-        "core_slice_u8_from_ptr_c", "core_subslice_u8_c",
-        "core_slice_u64_from_ptr_c", "core_subslice_u64_c",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_core_slice(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "core_slice_i32_from_ptr_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "core_subslice_i32_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "core_slice_u8_from_ptr_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "core_subslice_u8_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "core_slice_u64_from_ptr_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "core_subslice_u64_c") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 
 /** 扫描生成 C 是否引用 std.fs 符号（F-03 v2：按需链 -lc，无 fs.o）。 */
-static int link_abi_generated_c_needs_fs(const char *c_path) {
-    static const char *needles[] = {
-        "fs_open_read_c", "fs_last_error_c", "fs_close_c", "fs_read_c", "fs_write_c",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_fs(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "fs_open_read_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "fs_last_error_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "fs_close_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "fs_read_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "fs_write_c") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 扫描生成 C 是否引用 libz（F-06 v1 / F-04 v7：无 compress.o，按需 -lz）。 */
-static int link_abi_generated_c_needs_zlib(const char *c_path) {
-    static const char *needles[] = {
-        "_compress2", "_deflate", "_inflate", "_uncompress", "compress2(", "deflate(", "inflate(",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_zlib(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "_compress2") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "_deflate") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "_inflate") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "_uncompress") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "compress2") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "deflateInit") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "inflateInit") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 扫描生成 C 是否引用 libzstd（F-06 v1 / F-04 v7：无 compress.o，按需 -lzstd）。 */
-static int link_abi_generated_c_needs_zstd(const char *c_path) {
-    static const char *needles[] = {
-        "ZSTD_compress", "ZSTD_decompress", "ZSTD_create", "ZSTD_free", "ZSTD_isError",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_zstd(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "ZSTD_compress") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "ZSTD_decompress") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "ZSTD_create") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "ZSTD_free") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "ZSTD_isError") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 扫描生成 C 是否引用 libbrotli（F-06 v1 / F-04 v7：无 compress.o，按需 -lbrotli*）。 */
-static int link_abi_generated_c_needs_brotli(const char *c_path) {
-    static const char *needles[] = {
-        "BrotliEncoder", "BrotliDecoder",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_brotli(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "BrotliEncoder") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "BrotliDecoder") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 扫描生成 C 是否引用 std.random C 符号（按需链 std/random/random.o）。 */
-static int link_abi_generated_c_needs_random(const char *c_path) {
-    static const char *needles[] = {
-        "random_rng_smoke_c", "random_fill_bytes_c", "random_u64_c",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_random(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "random_rng_smoke_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "random_fill_bytes_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "random_u64_c") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 扫描生成 C 是否引用 std.time 符号（按需链 std/time/time.o + runtime_time_os.o）。 */
-static int link_abi_generated_c_needs_time(const char *c_path) {
-    static const char *needles[] = {
-        "std_time_now_monotonic_ns", "std_time_sleep_ms", "std_time_duration_ns",
-        "std_time_now_wall_ns", "std_time_format_timezone_smoke",
-        "time_now_monotonic_ns_c", "time_sleep_ms_c", "time_duration_ns_c",
-        "time_now_wall_ns_c", "time_format_timezone_smoke_c",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_time(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "std_time_now_monotonic_ns") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "std_time_sleep_ms") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "std_time_duration_ns") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "std_time_now_wall_ns") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "std_time_format_timezone_smoke") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "time_now_monotonic_ns_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "time_sleep_ms_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "time_duration_ns_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "time_now_wall_ns_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "time_format_timezone_smoke_c") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 扫描生成 C 是否引用 std.runtime C 符号（按需链 std/runtime/runtime.o）。 */
-static int link_abi_generated_c_needs_runtime(const char *c_path) {
-    static const char *needles[] = {
-        "runtime_crash_evidence_collect_c", "runtime_panic", "runtime_abort",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+int link_abi_generated_c_needs_runtime(const char *c_path) {
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "runtime_crash_evidence_collect_c") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "runtime_panic") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "runtime_abort") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
  * 生成的 .c 是否引用 std.async scheduler（C 前端 invoke_cc 按需链 scheduler.o）。
  */
 int shux_generated_c_needs_async_scheduler(const char *c_path) {
-    static const char *needles[] = {
-        "shux_async_run_i32", "shux_async_cps_suspend",
-        "shux_async_task_submit", "shux_async_run_seed_",
-        "shux_async_coop_pingpong_jmp", "shux_async_coop_pingpong",
-        /* STD-118 hooks_smoke：runtime_drain/reset 走 scheduler 队列与 context 绑定 */
-        "shux_async_run_drain_until_idle", "shux_async_queue_reset",
-        "shux_async_bind_context_c",
-    };
-    return link_abi_generated_c_contains_any_substr(c_path, needles, (int)(sizeof(needles) / sizeof(needles[0])));
+  (void)(({   {
+    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_run_i32") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_cps_suspend") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_task_submit") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_run_seed_") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_coop_pingpong_jmp") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_coop_pingpong") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_run_drain_until_idle") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_queue_reset") !=0)) {
+      return 1;
+    }
+    if ((link_abi_generated_c_contains_substr(c_path, "shux_async_bind_context_c") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /* F-06 v1 前向声明：invoke_cc 按需链入 heap.o 时复用 ASM 后端检测逻辑 */

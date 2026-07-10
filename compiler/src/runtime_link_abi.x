@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..38：真迁 .x — link_abi 入口 / freestanding / needs_* / heap / async / compress。
+// G-02f-34..39：真迁 .x — link_abi 入口 / needs_* / compress / generated_c 子串探针。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
-// C 尾：invoke_cc/ld、路径后缀、nm/popen marker 扫描、argv 循环。
-// G-02f-38：+ zlib/zstd/brotli/compress_libs 按需链探针（经 C marker/undef 原语）。
+// C 尾：invoke_cc/ld、路径后缀、nm/popen、fileview 子串扫描原语、argv 循环。
+// G-02f-39：+ generated_c_needs_*（经 C contains_substr 单 needle）。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
 extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -12,6 +12,7 @@ extern "C" function getenv(name: *u8): *u8;
 extern "C" function shux_host_is_linux(): i32;
 extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
 extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
+extern "C" function link_abi_generated_c_contains_substr(c_path: *u8, needle: *u8): i32;
 
 #[no_mangle]
 function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
@@ -746,6 +747,374 @@ function link_abi_user_o_needs_compress_libs(user_o: *u8): i32 {
   return 0;
 }
 
+/* ---- G-02f-39：generated_c 子串探针（fileview 扫描原语仍 C）---- */
+
+#[no_mangle]
+function link_abi_generated_c_needs_core_builtin(c_path: *u8): i32 {
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_core_mem(c_path: *u8): i32 {
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_libc_heap(c_path: *u8): i32 {
+  /* needles 无 '('：shux-c -E 对含括号字符串会丢整函数 */
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "malloc") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "calloc") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "realloc") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "posix_memalign") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "heap_alloc_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "heap_free_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "heap_realloc_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "heap_alloc_zeroed_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "getenv") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_win32(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "GetStdHandle") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "WriteFile") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "CreateFileA") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "ReadFile") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "CloseHandle") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "ExitProcess") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "win32_write") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "win32_read_file_into") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "win32_exit_process") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_win32_wsa(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "WSAStartup") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "WSACleanup") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "win32_net_available") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_db_kv(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "db_kv_open_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "db_kv_put_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "db_kv_get_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "db_kv_append_ts_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "db_kv_wal_flush_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "db_kv_compact_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "db_kv_sst_level_count_c") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_db_arrow(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "arrow_column_") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "arrow_batch_") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "arrow_smoke_c") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_core_slice(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "core_slice_i32_from_ptr_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "core_subslice_i32_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "core_slice_u8_from_ptr_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "core_subslice_u8_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "core_slice_u64_from_ptr_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "core_subslice_u64_c") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_fs(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "fs_open_read_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "fs_last_error_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "fs_close_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "fs_read_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "fs_write_c") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_zlib(c_path: *u8): i32 {
+  /* 无 '(' needle：避免 -E 丢函数；_compress2 等前缀已覆盖 libc 符号 */
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "_compress2") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "_deflate") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "_inflate") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "_uncompress") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "compress2") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "deflateInit") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "inflateInit") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_zstd(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "ZSTD_compress") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "ZSTD_decompress") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "ZSTD_create") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "ZSTD_free") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "ZSTD_isError") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_brotli(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "BrotliEncoder") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "BrotliDecoder") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_random(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "random_rng_smoke_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "random_fill_bytes_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "random_u64_c") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_time(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "std_time_now_monotonic_ns") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "std_time_sleep_ms") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "std_time_duration_ns") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "std_time_now_wall_ns") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "std_time_format_timezone_smoke") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "time_now_monotonic_ns_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "time_sleep_ms_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "time_duration_ns_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "time_now_wall_ns_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "time_format_timezone_smoke_c") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_generated_c_needs_runtime(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "runtime_crash_evidence_collect_c") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "runtime_panic") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "runtime_abort") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_generated_c_needs_async_scheduler(c_path: *u8): i32 {
+  unsafe {
+    if (link_abi_generated_c_contains_substr(c_path, "shux_async_run_i32") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "shux_async_cps_suspend") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "shux_async_task_submit") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "shux_async_run_seed_") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "shux_async_coop_pingpong_jmp") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "shux_async_coop_pingpong") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "shux_async_run_drain_until_idle") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "shux_async_queue_reset") != 0) {
+      return 1;
+    }
+    if (link_abi_generated_c_contains_substr(c_path, "shux_async_bind_context_c") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
 #[no_mangle]
 function bootstrap_init_static_tls(): void {
 }
