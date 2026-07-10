@@ -1,4 +1,4 @@
-/* seeds/backend_enc_dispatch.from_x.c — G-02f-207/206 arch shells; G-02f-9 product backend dispatch TU
+/* seeds/backend_enc_dispatch.from_x.c — G-02f-208 enc_dispatch *_arch closed; G-02f-9 product TU
  * G-02f-130 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
  * G-02f-100/101 enc helper gates.
@@ -539,6 +539,7 @@ int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx,
  * x86：标量 f32 加法 addss（eax/rbx 低 32 位为 IEEE754 单精度，结果回 eax）。
  * movd xmm0,eax; movd xmm1,ebx; addss xmm0,xmm1; movd eax,xmm0
  */
+/* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t backend_enc_addss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t movd_xmm0_eax[4] = {0x66, 0x0f, 0x6e, 0xc0};
   static const uint8_t movd_xmm1_ebx[4] = {0x66, 0x0f, 0x6e, 0xcb};
@@ -558,6 +559,7 @@ int32_t backend_enc_addss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
 /**
  * x86：eax 中 f32 位型截断为 i32（cvttss2si）；输入/输出均在 eax。
  */
+/* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t movd_xmm0_eax[4] = {0x66, 0x0f, 0x6e, 0xc0};
   static const uint8_t cvttss2si_eax_xmm0[4] = {0xf3, 0x0f, 0x2c, 0xc0};
@@ -571,6 +573,7 @@ int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCode
 /**
  * x86：rax 中 f64 位型收窄为 f32 位型到 eax（cvtsd2ss）；SysV 形参槽存 f64、用 f32 须转换。
  */
+/* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   /** movq xmm0,rax 须 66 REX.W 0F 6E；缺 66 会落到 mm0，cvtsd2ss 读 xmm0 得 0。 */
   static const uint8_t movq_xmm0_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc0};
@@ -588,6 +591,7 @@ int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodeg
 /**
  * x86：eax 中 i32 转为 f32 位型写回 eax（cvtsi2ss）；return v.len as f32 等。
  */
+/* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t cvtsi2ss_xmm0_eax[4] = {0xf3, 0x0f, 0x2a, 0xc0};
   static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
@@ -601,6 +605,7 @@ int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx
 /**
  * x86：movd xmmK, eax（66 0F 6E C0+K*8）；SysV f32 实参写入 xmm0–xmm7。
  */
+/* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
   static const uint8_t prefix[3] = {0x66, 0x0f, 0x6e};
   uint8_t modrm;
@@ -615,6 +620,7 @@ int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCt
 /**
  * x86：movd eax, xmmK（66 0F 7E C0+K*8）；SysV f32 形参从 xmm 落栈槽。
  */
+/* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
   static const uint8_t prefix[3] = {0x66, 0x0f, 0x7e};
   uint8_t modrm;

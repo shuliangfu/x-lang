@@ -8,6 +8,7 @@
 // G-02f-101：+ arm64 load/store w0 from rbp 薄门闩。
 // G-02f-206：backend_enc_*_arch 短 ta 分派壳真迁 .x（arm64/riscv/x86）。
 // G-02f-207：x86-only / imm / lane / scale / disp encode 壳真迁。
+// G-02f-208：x86 f32/xmm 编码壳；enc_dispatch `*_arch` 逻辑源闭合。
 
 function backend_enc_dispatch_x_doc_anchor(): i32 {
   return 0;
@@ -1275,3 +1276,102 @@ function backend_enc_mul_imm_to_rbx_arch(elf_ctx: *u8, lit: i32, ta: i32): i32 {
   if (ta == 2) { return arch_riscv64_enc_enc_mul_imm_to_rbx(elf_ctx, lit); }
   return arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx, lit);
 }
+
+/* ---- G-02f-208：x86 f32/xmm 编码壳 ---- */
+
+// G-02f-208：addss via xmm0/xmm1
+#[no_mangle]
+function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let a: u8[4] = [];
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 203;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    a[0] = 243; a[1] = 15; a[2] = 88; a[3] = 193;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let a: u8[4] = [];
+    a[0] = 102; a[1] = 15; a[2] = 110; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    a[0] = 243; a[1] = 15; a[2] = 44; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let q: u8[5] = [];
+    q[0] = 102; q[1] = 72; q[2] = 15; q[3] = 110; q[4] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &q[0], 5) != 0) { return 0 - 1; }
+    let a: u8[4] = [];
+    a[0] = 242; a[1] = 15; a[2] = 90; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  unsafe {
+    let a: u8[4] = [];
+    a[0] = 243; a[1] = 15; a[2] = 42; a[3] = 192;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4) != 0) { return 0 - 1; }
+    a[0] = 102; a[1] = 15; a[2] = 126; a[3] = 192;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &a[0], 4);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (k < 0) { return 0 - 1; }
+  if (k > 7) { return 0 - 1; }
+  unsafe {
+    let p: u8[3] = [];
+    p[0] = 102; p[1] = 15; p[2] = 110;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &p[0], 3) != 0) { return 0 - 1; }
+    let modrm: u8 = (192 | ((k * 8) & 255)) as u8;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &modrm, 1);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  if (ta != 0) { return 0 - 1; }
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (k < 0) { return 0 - 1; }
+  if (k > 7) { return 0 - 1; }
+  unsafe {
+    let p: u8[3] = [];
+    p[0] = 102; p[1] = 15; p[2] = 126;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &p[0], 3) != 0) { return 0 - 1; }
+    let modrm: u8 = (192 | ((k * 8) & 255)) as u8;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &modrm, 1);
+  }
+  return 0 - 1;
+}
+
