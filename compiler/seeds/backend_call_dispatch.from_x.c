@@ -76,6 +76,10 @@ int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struct platf
 int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_expr_ref, int32_t arg_ref, int32_t arg_index, struct backend_AsmFuncCtx *ctx, int32_t ta);
 int32_t glue_asm_build_call_export_sym_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t callee_ref, struct ast_Module *mod, struct ast_PipelineDepCtx *dep_pipe, uint8_t *out, int32_t out_cap);
 int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, const uint8_t *pre_buf, int32_t pre_len, const uint8_t *field_name, int32_t field_len);
+void pipeline_asm_emit_set_call_f32_xmm(int32_t on);
+void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap);
+void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64);
+void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs, int32_t arg_index, int32_t *out_kind, int32_t *out_reg_k, int32_t *out_stack_k);
 #endif
 
 
@@ -165,14 +169,22 @@ int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref) {
 
 /** 拷贝 STRING_LIT 内容到 out64（至多 63 字节）。 */
 /* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
+/* G-02f-380 call：_impl 返回 i32（供 thin -E）；public void 仍 seed-only 非 PREFER */
+int32_t glue_asm_string_lit_into_impl(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
   if (!out64)
-    return;
+    return 0;
   memset(out64, 0, 64);
   if (glue_asm_string_lit_len(arena, expr_ref) <= 0)
-    return;
+    return 0;
   pipeline_expr_var_name_into(arena, expr_ref, out64);
+  return 0;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
+  (void)glue_asm_string_lit_into_impl(arena, expr_ref, out64);
+}
+#endif
 
 
 /**
@@ -330,9 +342,17 @@ int32_t pipeline_asm_abi_f32_xmm_enabled_c(void) {
 }
 #endif
 
-void pipeline_asm_emit_set_call_f32_xmm(int32_t on) {
+/* G-02f-380 call：_impl 返回 i32（供 thin -E）；public void 仍 seed-only 非 PREFER */
+int32_t pipeline_asm_emit_set_call_f32_xmm_impl(int32_t on) {
   g_pipeline_asm_emit_call_f32_xmm = on != 0 ? 1 : 0;
+  return 0;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+void pipeline_asm_emit_set_call_f32_xmm(int32_t on) {
+  (void)pipeline_asm_emit_set_call_f32_xmm_impl(on);
+}
+#endif
 
 int32_t glue_f32_xmm_flag_get_body(void) {
   return g_pipeline_asm_emit_call_f32_xmm;
@@ -366,7 +386,8 @@ int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
 
 /** SysV x86_64：第 arg_index 个实参的寄存器/栈归属（0=gp 1=xmm 2=stack）。 */
 /* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs,
+/* G-02f-380 call：_impl 返回 i32（供 thin -E）；public void 仍 seed-only 非 PREFER */
+int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs,
                                           int32_t arg_index, int32_t *out_kind, int32_t *out_reg_k,
                                           int32_t *out_stack_k) {
   int32_t gp;
@@ -375,7 +396,7 @@ void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr
   int32_t j;
   int32_t pty;
   if (!out_kind || !out_reg_k || !out_stack_k)
-    return;
+    return 0;
   gp = 0;
   xmm = 0;
   stk = 0;
@@ -397,7 +418,7 @@ void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr
         *out_kind = 2;
         *out_stack_k = stk;
       }
-      return;
+      return 0;
     }
     if (glue_call_param_is_f32_c(arena, pty)) {
       if (xmm < 8)
@@ -413,7 +434,16 @@ void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr
   *out_kind = 2;
   *out_reg_k = 0;
   *out_stack_k = 0;
+  return 0;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs,
+                                          int32_t arg_index, int32_t *out_kind, int32_t *out_reg_k,
+                                          int32_t *out_stack_k) {
+  (void)glue_sysv_x86_call_arg_slot_c_impl(arena, call_expr_ref, nargs, arg_index, out_kind, out_reg_k, out_stack_k);
+}
+#endif
 
 
 /** SysV x86_64：统计走栈的实参个数（gp/xmm 寄存器用尽后的余量）。 */
@@ -631,11 +661,12 @@ int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
  * 将 import 路径转为 C 符号前缀（`.`→`_`，末尾再补 `_`），与 codegen.x codegen_import_path_to_c_prefix_into 一致。
  */
 /* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
+/* G-02f-380 call：_impl 返回 i32（供 thin -E）；public void 仍 seed-only 非 PREFER */
+int32_t glue_codegen_import_path_to_c_prefix_into_impl(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
   int32_t off;
   int32_t pi;
   if (!buf || buf_cap <= 0)
-    return;
+    return 0;
   off = 0;
   pi = 0;
   while (path) {
@@ -653,7 +684,14 @@ void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf
     off++;
   }
   buf[off] = 0;
+  return 0;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
+  (void)glue_codegen_import_path_to_c_prefix_into_impl(path, buf, buf_cap);
+}
+#endif
 
 
 /** 前缀为 ASCII 「build_」（6 字节）且 name 已含此前缀时返回 1。 */

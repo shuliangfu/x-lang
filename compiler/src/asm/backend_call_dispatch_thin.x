@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/378：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/380：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -472,4 +472,42 @@ function glue_asm_try_emit_fmt_string_lit_import_call_elf_c(arena: *u8, elf_ctx:
     return glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl(arena, elf_ctx, call_expr_ref, ctx, ta, pre_buf, pre_len, field_name, field_len);
   }
   return 0 - 1;
+}
+
+// ---- G-02f-380：void 公开符号 → thin i32 壳 + seed int32 _impl（-E 可 emit）----
+extern "C" function pipeline_asm_emit_set_call_f32_xmm_impl(on: i32): i32;
+extern "C" function glue_codegen_import_path_to_c_prefix_into_impl(path: *u8, buf: *u8, buf_cap: i32): i32;
+extern "C" function glue_asm_string_lit_into_impl(arena: *u8, expr_ref: i32, out64: *u8): i32;
+extern "C" function glue_sysv_x86_call_arg_slot_c_impl(arena: *u8, call_expr_ref: i32, nargs: i32, arg_index: i32, out_kind: *i32, out_reg_k: *i32, out_stack_k: *i32): i32;
+
+#[no_mangle]
+function pipeline_asm_emit_set_call_f32_xmm(on: i32): i32 {
+  unsafe {
+    return pipeline_asm_emit_set_call_f32_xmm_impl(on);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): i32 {
+  unsafe {
+    return glue_codegen_import_path_to_c_prefix_into_impl(path, buf, buf_cap);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_asm_string_lit_into(arena: *u8, expr_ref: i32, out64: *u8): i32 {
+  unsafe {
+    return glue_asm_string_lit_into_impl(arena, expr_ref, out64);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_sysv_x86_call_arg_slot_c(arena: *u8, call_expr_ref: i32, nargs: i32, arg_index: i32, out_kind: *i32, out_reg_k: *i32, out_stack_k: *i32): i32 {
+  unsafe {
+    return glue_sysv_x86_call_arg_slot_c_impl(arena, call_expr_ref, nargs, arg_index, out_kind, out_reg_k, out_stack_k);
+  }
+  return 0;
 }
