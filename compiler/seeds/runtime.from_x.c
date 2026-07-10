@@ -490,6 +490,8 @@ extern int typeck_typeck_entry(struct ASTModule *mod, struct ASTModule **deps, i
 #endif
 
 #if defined(SHUX_USE_X_PIPELINE)
+/* G-02f-265 R3：逻辑源 src/runtime/rt_preamble.x；hybrid → seeds/rt_preamble.from_x.c */
+#ifndef SHUX_RT_PREAMBLE_FROM_X
 /** 向生成 C 写入 std.io / std.net 内联 ABI（原 io_abi.h、net_abi.h 内容），不再依赖该二头文件。成功返回 0。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int write_io_net_abi_inline(FILE *cf) {
@@ -734,6 +736,11 @@ int write_fs_path_map_error_abi_inline(FILE *cf) {
     }
     return 0;
 }
+#else
+int write_io_net_abi_inline(FILE *cf);
+int write_fs_path_map_error_abi_inline(FILE *cf);
+#endif /* !SHUX_RT_PREAMBLE_FROM_X */
+
 
 
 
