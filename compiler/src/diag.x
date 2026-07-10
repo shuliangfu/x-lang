@@ -236,3 +236,14 @@ function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
   }
   return 999;
 }
+
+// G-02f-109：+ diag_report_json 薄门闩。
+
+extern "C" function diag_report_json_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void;
+
+/* ---- G-02f-109：diag JSON report 门闩 ---- */
+
+#[no_mangle]
+function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
+  unsafe { diag_report_json_impl(file, line, col, kind, code, msg); }
+}

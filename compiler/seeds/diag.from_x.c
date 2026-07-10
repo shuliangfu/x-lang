@@ -1,4 +1,5 @@
 /* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97/98 true .x + C tail; G-02f-74/82 diag gates).
+ * G-02f-109 helper gates.
  * Regen: ./shux-c -E -L .. src/diag.x > /tmp/diag.c
  *         merge diag_report from .x; keep code table / va_list / JSON C tail.
  * .x covers: diag_report → diag_report_with_code(NULL code).
@@ -433,7 +434,7 @@ size_t diag_get_source_len(void) {
   return 0;
 }
 
-static void diag_report_json(const char *file, int line, int col,
+void diag_report_json(const char *file, int line, int col,
                              const char *kind, const char *code, const char *msg);
 
 void diag_report_with_code_impl(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail) {
@@ -835,7 +836,7 @@ const char * diag_json_severity(const char *kind) {
  * 字段：severity、code（可能为 null）、file（可能为 null）、line、col、message。
  * line/col 为 0 时仍输出（语义：未知）；调用方按需忽略。
  */
-static void diag_report_json(const char *file, int line, int col,
+void diag_report_json_impl(const char *file, int line, int col,
                              const char *kind, const char *code, const char *msg) {
     const char *sev = diag_json_severity(kind);
     fputs("{\"severity\":", stderr);
@@ -855,4 +856,11 @@ static void diag_report_json(const char *file, int line, int col,
     fputs("}\n", stderr);
     fflush(stderr);
 }
+void diag_report_json(const char *file, int line, int col,
+                             const char *kind, const char *code, const char *msg) {
+  {
+    diag_report_json_impl(file, line, col, kind, code, msg);
+  }
+}
+
 

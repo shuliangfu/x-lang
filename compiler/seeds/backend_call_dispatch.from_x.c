@@ -1,4 +1,5 @@
 /* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-109 helper gates.
  * G-02f-108 helper gates.
  * Source intent: src/asm/backend_call_dispatch.x (doc) + this seed (full C body).
  * Product: → src/asm/backend_call_dispatch.o. Logic still C until full .x port.
@@ -265,7 +266,7 @@ int32_t pipeline_asm_emit_get_call_f32_xmm_c(void) {
 
 #define GLUE_TYPE_F32_ORD 14
 
-static int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index);
+int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index);
 static int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                             int32_t call_expr_ref, int32_t arg_ref, int32_t arg_index,
                                             struct backend_AsmFuncCtx *ctx, int32_t ta);
@@ -333,7 +334,7 @@ static void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t ca
 }
 
 /** SysV x86_64：统计走栈的实参个数（gp/xmm 寄存器用尽后的余量）。 */
-static int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs) {
+int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs) {
   int32_t gp;
   int32_t xmm;
   int32_t stk;
@@ -357,6 +358,13 @@ static int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t 
   }
   return stk;
 }
+int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs) {
+  {
+    return glue_sysv_x86_call_n_stack_c_impl(arena, call_expr_ref, nargs);
+  }
+  return 0;
+}
+
 
 /**
  * 9–16B struct 实参：CALL 结果在 rax/rdx，须 spill 到栈再 lea 传址（C callee / import 与 lea VAR 一致）。
@@ -685,7 +693,7 @@ int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_c
 
 
 /** 统计模块内同名函数个数（>1 时 emit/call 须 mangled 符号）。 */
-static int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *name, int32_t name_len) {
+int32_t glue_module_func_overload_count_c_impl(struct ast_Module *m, const uint8_t *name, int32_t name_len) {
   int32_t i;
   int32_t c;
   if (!m || !name || name_len <= 0)
@@ -699,12 +707,19 @@ static int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uin
   }
   return c;
 }
+int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *name, int32_t name_len) {
+  {
+    return glue_module_func_overload_count_c_impl(m, name, name_len);
+  }
+  return 0;
+}
+
 
 /**
  * net_/fs_ 模块函数定义符号与 pipeline_asm_redirect_std_c_wrapper_sym 一致：补 _c 后缀。
  * 调用侧 net_foo → net_foo_c；定义侧须同名，否则 net.o ld -r 合并后内部 U 符号无法解析。
  */
-static int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(const uint8_t *fname, int32_t fname_len) {
+int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl(const uint8_t *fname, int32_t fname_len) {
   if (!fname || fname_len <= 0)
     return 0;
   if (fname_len >= 2 && fname[fname_len - 2] == '_' && fname[fname_len - 1] == 'c')
@@ -715,15 +730,29 @@ static int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(const uint8_t 
     return 1;
   return 0;
 }
+int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(const uint8_t *fname, int32_t fname_len) {
+  {
+    return glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl(fname, fname_len);
+  }
+  return 0;
+}
+
 
 /** 在 sym[sym_len] 处追加 _c；空间不足则返回原 sym_len。 */
-static int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap) {
+int32_t glue_asm_append_export_c_suffix_impl(uint8_t *sym, int32_t sym_len, int32_t cap) {
   if (!sym || sym_len <= 0 || sym_len + 2 >= cap)
     return sym_len;
   sym[sym_len] = '_';
   sym[sym_len + 1] = 'c';
   return sym_len + 2;
 }
+int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap) {
+  {
+    return glue_asm_append_export_c_suffix_impl(sym, sym_len, cap);
+  }
+  return 0;
+}
+
 
 /**
  * 函数定义/ CALL 导出符号：无 overload 时用裸名+dep 前缀；有 overload 时用 name_t1_t2（如 pick_i32）。
@@ -790,7 +819,7 @@ int32_t glue_asm_build_func_export_sym_c(struct ast_Module *m, struct ast_ASTAre
 }
 
 /** import 路径缓冲区中 '.' 分段数。 */
-static int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len) {
+int32_t glue_asm_import_path_segment_count_impl(const uint8_t *path, int32_t path_len) {
   int32_t n;
   int32_t ii;
   if (!path || path_len <= 0)
@@ -802,9 +831,16 @@ static int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t p
   }
   return n;
 }
+int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len) {
+  {
+    return glue_asm_import_path_segment_count_impl(path, path_len);
+  }
+  return 0;
+}
+
 
 /** 比较 module import 路径切片与外部字节序列是否相等。 */
-static int32_t glue_asm_import_path_slice_equal(struct ast_Module *module, int32_t imp_ix, int32_t off,
+int32_t glue_asm_import_path_slice_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t off,
                                                 int32_t seg_len, const uint8_t *nm, int32_t nm_len) {
   int32_t i;
   if (seg_len != nm_len || seg_len <= 0)
@@ -815,9 +851,17 @@ static int32_t glue_asm_import_path_slice_equal(struct ast_Module *module, int32
   }
   return 1;
 }
+int32_t glue_asm_import_path_slice_equal(struct ast_Module *module, int32_t imp_ix, int32_t off,
+                                                int32_t seg_len, const uint8_t *nm, int32_t nm_len) {
+  {
+    return glue_asm_import_path_slice_equal_impl(module, imp_ix, off, seg_len, nm, nm_len);
+  }
+  return 0;
+}
+
 
 /** 比较 import 绑定名与外部字节序列是否相等。 */
-static int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm,
+int32_t glue_asm_import_binding_name_equal_impl(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm,
                                                   int32_t nm_len) {
   int32_t bl;
   int32_t i;
@@ -830,9 +874,17 @@ static int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int
   }
   return 1;
 }
+int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm,
+                                                  int32_t nm_len) {
+  {
+    return glue_asm_import_binding_name_equal_impl(module, imp_ix, nm, nm_len);
+  }
+  return 0;
+}
+
 
 /** pipeline_module_import_path 内第 want_seg 段起点偏移与长度。 */
-static int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr,
+int32_t glue_asm_import_segment_at_impl(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr,
                                           int32_t *olen) {
   int32_t pl;
   int32_t ci;
@@ -864,9 +916,17 @@ static int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp
   }
   return 0;
 }
+int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr,
+                                          int32_t *olen) {
+  {
+    return glue_asm_import_segment_at_impl(module, imp_ix, want_seg, ostr, olen);
+  }
+  return 0;
+}
+
 
 /** 将 module 第 imp_ix 槽 import 逻辑路径转成 C ABI 前缀；成功返回前缀字节长度。 */
-static int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf) {
+int32_t glue_asm_fill_c_prefix_from_module_import_impl(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf) {
   uint8_t path_bytes[64];
   int32_t pre_len;
   parser_get_module_import_path(cur_mod, imp_ix, path_bytes);
@@ -878,6 +938,13 @@ static int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_
     pre_len++;
   return pre_len > 0 ? pre_len : -1;
 }
+int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf) {
+  {
+    return glue_asm_fill_c_prefix_from_module_import_impl(cur_mod, imp_ix, pre_buf);
+  }
+  return 0;
+}
+
 
 /**
  * `import a.b…` + `a.b….method(args)` 形式解析 C ABI 符号；成功写 sym_flat 并返回长度。
@@ -1029,9 +1096,16 @@ int32_t pipeline_asm_emit_call_args_text_c(struct ast_ASTArena *arena, struct co
  * ELF 路径：为 enc_call 准备实参（寄存器 + outgoing 栈；经 pipeline_asm_emit_expr_elf_for_call_args）。
  * 供 backend.x asm_emit_call_args_elf 薄包装（M8-tail）。
  */
-static int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index) {
+int32_t glue_call_param_type_ref_at_impl(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index) {
   return pipeline_asm_call_param_type_ref_at_c(arena, call_expr_ref, param_index);
 }
+int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index) {
+  {
+    return glue_call_param_type_ref_at_impl(arena, call_expr_ref, param_index);
+  }
+  return 0;
+}
+
 
 /** 设置 callee 形参 type_ref 后 emit 单个 CALL 实参。 */
 static int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
@@ -1170,7 +1244,7 @@ int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct pla
  * std.heap 薄包装 → heap_*_c / libc 符号。
  * co-emit 时 std.heap 模块常仅含 allocator_*（无 alloc/arena64_alloc 体）；须 redirect 避免 std_heap_* UND。
  */
-static int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+int32_t glue_try_std_heap_redirect_sym_local_impl(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
                                                     int32_t out_cap) {
   static const struct {
     const char *from;
@@ -1233,11 +1307,19 @@ static int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t
   }
   return 0;
 }
+int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+                                                    int32_t out_cap) {
+  {
+    return glue_try_std_heap_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
+  }
+  return 0;
+}
+
 
 /**
  * co-emit std.string 时 extern shux_string_* 带 std_string_ 前缀；redirect 到 string.o 符号。
  */
-static int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+int32_t glue_try_std_string_shux_redirect_sym_local_impl(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
                                                             int32_t out_cap) {
   int32_t suffix_len;
   if (!name || name_len <= 11 || !sym_out || out_cap <= 0)
@@ -1252,6 +1334,14 @@ static int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, 
   memcpy(sym_out, name + 11, (size_t)suffix_len);
   return suffix_len;
 }
+int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+                                                            int32_t out_cap) {
+  {
+    return glue_try_std_string_shux_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
+  }
+  return 0;
+}
+
 
 /**
  * VAR callee 导出符号：overload mangled → std.heap redirect → typeck dep 前缀 → co-emit dep 前缀。

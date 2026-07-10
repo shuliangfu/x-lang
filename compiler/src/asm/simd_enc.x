@@ -122,3 +122,60 @@ function simd_x86_vpsubd_ymm0_ymm1(elf: *u8): i32 {
   unsafe { return simd_x86_vpsubd_ymm0_ymm1_impl(elf); }
   return 0;
 }
+
+// G-02f-109：+ mul/vfmadd/rbx_rax4/pshufd/select 薄门闩。
+
+extern "C" function simd_x86_pmulld_xmm0_xmm1_impl(elf: *u8): i32;
+extern "C" function simd_x86_vpmulld_ymm0_ymm1_impl(elf: *u8): i32;
+extern "C" function simd_x86_mulps_xmm0_xmm1_impl(elf: *u8): i32;
+extern "C" function simd_x86_movups_xmm2_from_rbp_impl(elf: *u8, disp: i32): i32;
+extern "C" function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2_impl(elf: *u8): i32;
+extern "C" function simd_x86_vmovups_ymm0_from_rbx_rax4_impl(elf: *u8): i32;
+extern "C" function simd_x86_vmovups_ymm1_from_rbx_rax4_impl(elf: *u8): i32;
+extern "C" function simd_x86_vmovups_ymm0_to_rbx_rax4_impl(elf: *u8): i32;
+extern "C" function simd_x86_movups_xmm0_from_rbx_rax4_impl(elf: *u8): i32;
+extern "C" function simd_x86_movups_xmm1_from_rbx_rax4_impl(elf: *u8): i32;
+extern "C" function simd_x86_movups_xmm0_to_rbx_rax4_impl(elf: *u8): i32;
+extern "C" function simd_append_u32_le_impl(elf: *u8, word: u32): i32;
+extern "C" function simd_arm64_ins_v1_from_v0_s_impl(dst: i32, src: i32): u32;
+extern "C" function simd_arm64_pshufd_imm8_128_rbp_impl(elf: *u8, lea_src: i32, lea_dst: i32, imm8: i32): i32;
+extern "C" function simd_arm64_select_128_rbp_impl(elf: *u8, lea_mask: i32, lea_a: i32, lea_b: i32): i32;
+extern "C" function simd_x86_pshufd_xmm0_imm8_impl(elf: *u8, imm8: i32): i32;
+extern "C" function simd_x86_vpshufd_ymm0_imm8_impl(elf: *u8, imm8: i32): i32;
+
+/* ---- G-02f-109：simd_enc more ops 门闩 ---- */
+
+#[no_mangle]
+function simd_x86_pmulld_xmm0_xmm1(elf: *u8): i32 { unsafe { return simd_x86_pmulld_xmm0_xmm1_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vpmulld_ymm0_ymm1(elf: *u8): i32 { unsafe { return simd_x86_vpmulld_ymm0_ymm1_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_mulps_xmm0_xmm1(elf: *u8): i32 { unsafe { return simd_x86_mulps_xmm0_xmm1_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_movups_xmm2_from_rbp(elf: *u8, disp: i32): i32 { unsafe { return simd_x86_movups_xmm2_from_rbp_impl(elf, disp); } return 0; }
+#[no_mangle]
+function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(elf: *u8): i32 { unsafe { return simd_x86_vfmadd231ps_xmm0_xmm1_xmm2_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vmovups_ymm0_from_rbx_rax4(elf: *u8): i32 { unsafe { return simd_x86_vmovups_ymm0_from_rbx_rax4_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vmovups_ymm1_from_rbx_rax4(elf: *u8): i32 { unsafe { return simd_x86_vmovups_ymm1_from_rbx_rax4_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vmovups_ymm0_to_rbx_rax4(elf: *u8): i32 { unsafe { return simd_x86_vmovups_ymm0_to_rbx_rax4_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_movups_xmm0_from_rbx_rax4(elf: *u8): i32 { unsafe { return simd_x86_movups_xmm0_from_rbx_rax4_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 { unsafe { return simd_x86_movups_xmm1_from_rbx_rax4_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_movups_xmm0_to_rbx_rax4(elf: *u8): i32 { unsafe { return simd_x86_movups_xmm0_to_rbx_rax4_impl(elf); } return 0; }
+#[no_mangle]
+function simd_append_u32_le(elf: *u8, word: u32): i32 { unsafe { return simd_append_u32_le_impl(elf, word); } return 0; }
+#[no_mangle]
+function simd_arm64_ins_v1_from_v0_s(dst: i32, src: i32): u32 { unsafe { return simd_arm64_ins_v1_from_v0_s_impl(dst, src); } return 0; }
+#[no_mangle]
+function simd_arm64_pshufd_imm8_128_rbp(elf: *u8, lea_src: i32, lea_dst: i32, imm8: i32): i32 { unsafe { return simd_arm64_pshufd_imm8_128_rbp_impl(elf, lea_src, lea_dst, imm8); } return 0; }
+#[no_mangle]
+function simd_arm64_select_128_rbp(elf: *u8, lea_mask: i32, lea_a: i32, lea_b: i32): i32 { unsafe { return simd_arm64_select_128_rbp_impl(elf, lea_mask, lea_a, lea_b); } return 0; }
+#[no_mangle]
+function simd_x86_pshufd_xmm0_imm8(elf: *u8, imm8: i32): i32 { unsafe { return simd_x86_pshufd_xmm0_imm8_impl(elf, imm8); } return 0; }
+#[no_mangle]
+function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 { unsafe { return simd_x86_vpshufd_ymm0_imm8_impl(elf, imm8); } return 0; }

@@ -1,4 +1,5 @@
 /* seeds/runtime_lsp_glue.from_x.c — G-02f-15 product TU
+ * G-02f-109 helper gates.
  * Product object from this seed; logic still C until full .x port.
  */
 /**
@@ -53,7 +54,7 @@ void lsp_debug_ptr(uint8_t *p) {
 }
 
 /* 前向声明：行索引、引用索引与定义/引用/悬停。 */
-static void build_line_index(const struct ASTModule *mod);
+void build_line_index(const struct ASTModule *mod);
 static void build_refs_index(const struct ASTModule *mod);
 static struct ASTFunc *get_function_at_line(const struct ASTModule *mod, int line_1);
 static int find_def_in_expr(const struct ASTModule *mod, const struct ASTExpr *e, int line_1, int col_1, int *out_line, int *out_col);
@@ -130,7 +131,7 @@ static int s_refs_cols[LSP_LINE_INDEX_MAX][LSP_REFS_PER_FUNC_MAX];
 static int s_refs_count[LSP_LINE_INDEX_MAX];
 
 /** 释放 import 依赖缓存（不含 entry 模块 s_cached_mod）。 */
-static void lsp_free_import_cache(void) {
+void lsp_free_import_cache_impl(void) {
     shu_lsp_free_loaded_imports(s_all_dep_mods, s_all_dep_paths, s_n_all_deps);
     s_n_all_deps = 0;
     s_ndirect_deps = 0;
@@ -138,9 +139,15 @@ static void lsp_free_import_cache(void) {
     memset(s_all_dep_paths, 0, sizeof(s_all_dep_paths));
     memset(s_all_dep_fs, 0, sizeof(s_all_dep_fs));
 }
+void lsp_free_import_cache(void) {
+  {
+    lsp_free_import_cache_impl();
+  }
+}
+
 
 /** 从 file URI 提取本地路径写入 out（简单 file:// 解码，足够 macOS/Linux 开发）。 */
-static void lsp_uri_to_fs_path(const char *uri, char *out, size_t cap) {
+void lsp_uri_to_fs_path_impl(const char *uri, char *out, size_t cap) {
     size_t k = 0;
     if (!uri || !out || cap == 0) return;
     out[0] = '\0';
@@ -164,9 +171,15 @@ static void lsp_uri_to_fs_path(const char *uri, char *out, size_t cap) {
     }
     out[k] = '\0';
 }
+void lsp_uri_to_fs_path(const char *uri, char *out, size_t cap) {
+  {
+    lsp_uri_to_fs_path_impl(uri, out, cap);
+  }
+}
+
 
 /** 本地路径 → file URI（空格转 %20）。 */
-static void lsp_fs_path_to_uri(const char *path, char *uri, size_t cap) {
+void lsp_fs_path_to_uri_impl(const char *path, char *uri, size_t cap) {
     size_t k = 0;
     if (!path || !uri || cap < 8) return;
     uri[k++] = 'f'; uri[k++] = 'i'; uri[k++] = 'l'; uri[k++] = 'e';
@@ -177,9 +190,15 @@ static void lsp_fs_path_to_uri(const char *path, char *uri, size_t cap) {
     }
     uri[k] = '\0';
 }
+void lsp_fs_path_to_uri(const char *path, char *uri, size_t cap) {
+  {
+    lsp_fs_path_to_uri_impl(path, uri, cap);
+  }
+}
+
 
 /** 根据 entry 文件路径更新 import 解析用的 entry_dir。 */
-static void lsp_update_entry_dir(const char *fs_path) {
+void lsp_update_entry_dir_impl(const char *fs_path) {
     if (!fs_path || !fs_path[0]) {
         s_entry_dir[0] = '.';
         s_entry_dir[1] = '\0';
@@ -197,9 +216,15 @@ static void lsp_update_entry_dir(const char *fs_path) {
         s_entry_dir[1] = '\0';
     }
 }
+void lsp_update_entry_dir(const char *fs_path) {
+  {
+    lsp_update_entry_dir_impl(fs_path);
+  }
+}
+
 
 /** 初始化 libRoots（环境变量 SHUX_LSP_LIB_ROOTS 优先，否则仓库默认布局）。 */
-static void lsp_init_lib_roots_once(void) {
+void lsp_init_lib_roots_once_impl(void) {
     int i;
     if (s_lib_roots_inited) return;
     s_lib_roots_inited = 1;
@@ -229,6 +254,12 @@ static void lsp_init_lib_roots_once(void) {
         s_n_lib_roots = 4;
     }
 }
+void lsp_init_lib_roots_once(void) {
+  {
+    lsp_init_lib_roots_once_impl();
+  }
+}
+
 
 /** 查找函数 f 所属模块的 .x 文件路径；entry 模块用 s_entry_fs_path。 */
 static const char *lsp_fs_path_for_func(struct ASTFunc *f, ASTModule *entry) {
@@ -281,7 +312,7 @@ void lsp_diag_invalidate_cache(void) {
     s_typeck_full = 0;
 }
 
-static void lsp_diag_copy_text(char *dst, int cap, const char *src) {
+void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
     size_t n = 0;
     if (!dst || cap <= 0)
         return;
@@ -295,6 +326,12 @@ static void lsp_diag_copy_text(char *dst, int cap, const char *src) {
     }
     dst[n] = '\0';
 }
+void lsp_diag_copy_text(char *dst, int cap, const char *src) {
+  {
+    lsp_diag_copy_text_impl(dst, cap, src);
+  }
+}
+
 
 void lsp_diag_add_code(int line, int col, int severity, const char *code, const char *msg) {
     if (s_diag_count >= LSP_DIAG_MAX) return;
@@ -406,12 +443,19 @@ void *lsp_diag_x_module_ptr(void) {
 }
 
 /** 返回 LSP X pipeline 用的 PipelineDepCtx 分配尺寸。 */
-static size_t lsp_diag_x_ctx_alloc_size(void) {
+size_t lsp_diag_x_ctx_alloc_size_impl(void) {
     size_t sz = lsp_diag_x_alloc_dep_ctx_size();
     if (sz > lsp_diag_pipeline_sizeof_dep_ctx())
         return sz;
     return lsp_diag_pipeline_sizeof_dep_ctx();
 }
+size_t lsp_diag_x_ctx_alloc_size(void) {
+  {
+    return lsp_diag_x_ctx_alloc_size_impl();
+  }
+  return 0;
+}
+
 
 void *lsp_diag_x_ctx_ptr(void) {
     static void *p;
@@ -433,7 +477,7 @@ void lsp_diag_x_reset_parse_buffers(void) {
 }
 
 /** 将 msg 按 JSON 字符串转义写入 out，返回写入长度；out_cap 为 out 的容量。 */
-static int json_escape_str(const char *msg, char *out, int out_cap) {
+int json_escape_str_impl(const char *msg, char *out, int out_cap) {
     int k = 0;
     if (!msg || !out || out_cap <= 0) return 0;
     for (; *msg != '\0' && k < out_cap - 1; msg++) {
@@ -460,9 +504,16 @@ static int json_escape_str(const char *msg, char *out, int out_cap) {
     out[k] = '\0';
     return k;
 }
+int json_escape_str(const char *msg, char *out, int out_cap) {
+  {
+    return json_escape_str_impl(msg, out, out_cap);
+  }
+  return 0;
+}
+
 
 /** 快速 32 位哈希：64 位状态 + 8 字节块 mix，折叠为 32 位；大文档缓存校验比 djb2 更快。 */
-static unsigned lsp_hash_source(const uint8_t *src, int len) {
+unsigned lsp_hash_source_impl(const uint8_t *src, int len) {
     uint64_t h = (uint64_t)(unsigned)len;
     int i = 0;
     for (; i + 8 <= len; i += 8) {
@@ -474,6 +525,13 @@ static unsigned lsp_hash_source(const uint8_t *src, int len) {
         h = (h * 0x9e3779b97f4a7c15ULL) + (uint64_t)(unsigned)src[i];
     return (unsigned)(h ^ (h >> 32));
 }
+unsigned lsp_hash_source(const uint8_t *src, int len) {
+  {
+    return lsp_hash_source_impl(src, len);
+  }
+  return 0;
+}
+
 
 /** 加载 import 依赖并对 entry 模块做 typeck（含跨模块符号解析）。 */
 static void lsp_typeck_entry_module(ASTModule *mod, int only_func_index) {
@@ -649,12 +707,19 @@ static ASTModule *lsp_ensure_module(const uint8_t *source, int source_len, int c
 }
 
 /** 判断 (line_1,col_1) 是否落在标识符 name 从 start_col 开始的列区间内（1-based，含首列）。 */
-static int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, const char *name) {
+int col_in_ident_span_impl(int line_1, int col_1, int start_line, int start_col, const char *name) {
     if (!name || start_line != line_1 || start_col <= 0) return 0;
     int len = (int)strlen(name);
     if (len <= 0) return 0;
     return col_1 >= start_col && col_1 < start_col + len;
 }
+int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, const char *name) {
+  {
+    return col_in_ident_span_impl(line_1, col_1, start_line, start_col, name);
+  }
+  return 0;
+}
+
 
 /** 判断 (line_1, col_1) 是否与表达式起点一致（1-based）；VAR 按标识符宽度匹配。 */
 static int expr_at(const struct ASTExpr *e, int line_1, int col_1) {
@@ -665,9 +730,16 @@ static int expr_at(const struct ASTExpr *e, int line_1, int col_1) {
 }
 
 /** 函数名是否覆盖光标（支持点击长标识符中间字符）。 */
-static int func_name_covers(const struct ASTFunc *f, int line_1, int col_1) {
+int func_name_covers_impl(const struct ASTFunc *f, int line_1, int col_1) {
     return f && f->name && col_in_ident_span(line_1, col_1, f->line, f->col, f->name);
 }
+int func_name_covers(const struct ASTFunc *f, int line_1, int col_1) {
+  {
+    return func_name_covers_impl(f, line_1, col_1);
+  }
+  return 0;
+}
+
 
 /** 在 entry 与已加载 import 模块中按名称查找函数（含 extern 声明）。 */
 static struct ASTFunc *find_func_in_module_by_name(const struct ASTModule *mod, const char *name) {
@@ -786,7 +858,7 @@ static int block_max_line(const struct ASTBlock *b) {
 }
 
 /** 根据模块构建行→函数索引（每个函数的 [start_line, end_line]），供 get_function_at_line 使用。 */
-static void build_line_index(const struct ASTModule *mod) {
+void build_line_index_impl(const struct ASTModule *mod) {
     s_line_index_n = 0;
     if (!mod || !mod->funcs) return;
     for (int i = 0; i < mod->num_funcs && s_line_index_n < LSP_LINE_INDEX_MAX; i++) {
@@ -804,13 +876,26 @@ static void build_line_index(const struct ASTModule *mod) {
         s_line_index_n++;
     }
 }
+void build_line_index(const struct ASTModule *mod) {
+  {
+    build_line_index_impl(mod);
+  }
+}
+
 
 /** 返回 func 在 s_line_index 中的下标，未找到返回 -1。 */
-static int line_index_of_func(const struct ASTFunc *func) {
+int line_index_of_func_impl(const struct ASTFunc *func) {
     for (int i = 0; i < s_line_index_n; i++)
         if (s_line_index[i].func == func) return i;
     return -1;
 }
+int line_index_of_func(const struct ASTFunc *func) {
+  {
+    return line_index_of_func_impl(func);
+  }
+  return 0;
+}
+
 
 /** 向 func 对应的引用表追加 (line, col)；用于构建引用索引。 */
 static void add_ref_for_func(const struct ASTFunc *func, int line, int col) {
