@@ -254,3 +254,4 @@ nm -g parser_asm_thin_glue.o | head
 | 2026-07-11 | **f-290 P9 stretch lite**：`pthin_stretch.*`（emit_heavy_stretch_slice ≈481）；`SHUX_PTHIN_STRETCH_FROM_X`；suite 28k 仍 rest；prefer hybrid **P1–P7+P9+rest**（P8 smoke-only） |
 | 2026-07-11 | **f-318 P9 suite hybrid**：suite ≈28k 并入 `pthin_stretch.from_x.c`；`SHUX_PTHIN_STRETCH_FROM_X` 时 mega rest 不再 `#include` suite；`labi_pthin_stretch_suite_slice_marker`；prefer hybrid **P1–P7+P9(stretch+suite)+rest** |
 | 2026-07-11 | **f-319 P10 glue tail**：`pthin_glue.*` + `parser_asm_glue_tail_slice.inc`（≈6.5k `*_glue` + 晚期 skip/lex）；`SHUX_PTHIN_GLUE_FROM_X`；prefer hybrid **P1–P7+P9+P10+rest**；rest T **≈86** |
+| 2026-07-11 | **f-320 P11 imports**：`pthin_imports.*` + `parser_asm_imports_slice.inc`（skip/collect_imports 簇 ≈1.8k）；`SHUX_PTHIN_IMPORTS_FROM_X`；prefer hybrid **P1–P7+P9–P11+rest**；rest T **≈77** |
