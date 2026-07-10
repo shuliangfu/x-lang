@@ -31,3 +31,21 @@ function parser_asm_copy_token_bytes_to_buf64(src: *u8, n: i32, dst: *u8): void 
 function parser_asm_extern_parse_set_fail_c(of: *u8, code: i32): void {
   unsafe { parser_asm_extern_parse_set_fail_c_impl(of, code); }
 }
+
+// G-02f-111：+ skip trait/top-level let/const/cfg 薄门闩（zeros/arena 仍 static，.inc 冲突）。
+
+extern "C" function parser_asm_skip_trait_impl_block_raw_c_impl(out: *u8, start: *u8, a: i32, b: i32): void;
+extern "C" function parser_asm_skip_one_top_level_let_into_slice_c_impl(out: *u8, src: *u8, lex: *u8): void;
+extern "C" function parser_asm_skip_one_top_level_const_into_slice_c_impl(out: *u8, src: *u8, lex: *u8): void;
+extern "C" function parser_asm_cfg_skip_pending_top_level_into_slice_c_impl(lex: *u8, src: *u8, a: i32): void;
+
+/* ---- G-02f-111：thin skip helpers 门闩 ---- */
+
+#[no_mangle]
+function parser_asm_skip_trait_impl_block_raw_c(out: *u8, start: *u8, a: i32, b: i32): void { unsafe { parser_asm_skip_trait_impl_block_raw_c_impl(out, start, a, b); } }
+#[no_mangle]
+function parser_asm_skip_one_top_level_let_into_slice_c(out: *u8, src: *u8, lex: *u8): void { unsafe { parser_asm_skip_one_top_level_let_into_slice_c_impl(out, src, lex); } }
+#[no_mangle]
+function parser_asm_skip_one_top_level_const_into_slice_c(out: *u8, src: *u8, lex: *u8): void { unsafe { parser_asm_skip_one_top_level_const_into_slice_c_impl(out, src, lex); } }
+#[no_mangle]
+function parser_asm_cfg_skip_pending_top_level_into_slice_c(lex: *u8, src: *u8, a: i32): void { unsafe { parser_asm_cfg_skip_pending_top_level_into_slice_c_impl(lex, src, a); } }

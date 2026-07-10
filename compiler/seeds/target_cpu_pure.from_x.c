@@ -1,4 +1,5 @@
 /* target_cpu_pure.from_x.c — G-02f-2/3/4/5 product pure half of target_cpu.o
+ * G-02f-111 helper gates.
  * G-02f-110 helper gates.
  * G-02f-103 helper gates.
  * G-02f-97 pure helper gates.
@@ -590,13 +591,20 @@ uint32_t shu_target_cpu_detect_riscv64_linux(void) {
 
 #endif
 
-static uint32_t shu_target_cpu_detect_riscv64(void) {
+uint32_t shu_target_cpu_detect_riscv64_impl(void) {
 #if defined(__linux__)
     return shu_target_cpu_detect_riscv64_linux();
 #else
     return 0;
 #endif
 }
+uint32_t shu_target_cpu_detect_riscv64(void) {
+  {
+    return shu_target_cpu_detect_riscv64_impl();
+  }
+  return 0;
+}
+
 
 #endif /* riscv64 */
 

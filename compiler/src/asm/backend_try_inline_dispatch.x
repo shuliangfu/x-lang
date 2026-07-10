@@ -95,3 +95,21 @@ function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32 { unsafe { return glu
 function glue_fold_func_returns_param01_vector_binop(arena: *u8, mod: *u8, fi: i32, out: *i32): i32 { unsafe { return glue_fold_func_returns_param01_vector_binop_impl(arena, mod, fi, out); } return 0; }
 #[no_mangle]
 function glue_fold_func_returns_param0_index_const(arena: *u8, mod: *u8, fi: i32, out: *i32): i32 { unsafe { return glue_fold_func_returns_param0_index_const_impl(arena, mod, fi, out); } return 0; }
+
+// G-02f-111：+ default_alloc / const struct lit fold 薄门闩。
+
+extern "C" function glue_call_is_zero_arg_default_alloc_impl(arena: *u8, er: i32): i32;
+extern "C" function glue_const_struct_lit_field_can_inline_impl(arena: *u8, lit: i32, ix: i32): i32;
+extern "C" function glue_emit_default_alloc_to_rbx_offset_impl(elf: *u8, off: i32): i32;
+extern "C" function glue_fold_func_returns_const_struct_lit_impl(arena: *u8, mod: *u8, fi: i32, out: *i32): i32;
+
+/* ---- G-02f-111：try_inline alloc/const-lit 门闩 ---- */
+
+#[no_mangle]
+function glue_call_is_zero_arg_default_alloc(arena: *u8, er: i32): i32 { unsafe { return glue_call_is_zero_arg_default_alloc_impl(arena, er); } return 0; }
+#[no_mangle]
+function glue_const_struct_lit_field_can_inline(arena: *u8, lit: i32, ix: i32): i32 { unsafe { return glue_const_struct_lit_field_can_inline_impl(arena, lit, ix); } return 0; }
+#[no_mangle]
+function glue_emit_default_alloc_to_rbx_offset(elf: *u8, off: i32): i32 { unsafe { return glue_emit_default_alloc_to_rbx_offset_impl(elf, off); } return 0; }
+#[no_mangle]
+function glue_fold_func_returns_const_struct_lit(arena: *u8, mod: *u8, fi: i32, out: *i32): i32 { unsafe { return glue_fold_func_returns_const_struct_lit_impl(arena, mod, fi, out); } return 0; }

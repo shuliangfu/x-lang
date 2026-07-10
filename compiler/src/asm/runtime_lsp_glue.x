@@ -107,3 +107,96 @@ function collect_refs_in_block(b: *u8): void { unsafe { collect_refs_in_block_im
 function collect_refs_to_func(f: *u8): void { unsafe { collect_refs_to_func_impl(f); } }
 #[no_mangle]
 function type_to_string(ty: *u8, buf: *u8, cap: i32): i32 { unsafe { return type_to_string_impl(ty, buf, cap); } return 0; }
+
+// G-02f-111：+ JSON/offset/format document helpers 薄门闩。
+
+extern "C" function try_apply_content_changes_impl(doc: *u8, json: *u8): i32;
+extern "C" function line_char_to_offset_impl(doc: *u8, line: i32, ch: i32): i32;
+extern "C" function parse_first_content_change_impl(json: *u8, out: *u8): i32;
+extern "C" function lsp_find_text_value_from_impl(s: *u8, from: i32, out: *u8, cap: i32): i32;
+extern "C" function lsp_find_text_value_impl(s: *u8, out: *u8, cap: i32): i32;
+extern "C" function lsp_find_key_after_impl(s: *u8, key: *u8, from: i32): i32;
+extern "C" function lsp_parse_int_impl(s: *u8, from: i32, out: *i32): i32;
+extern "C" function lsp_json_escape_ident_impl(src: *u8, dst: *u8, cap: i32): i32;
+extern "C" function lsp_parse_bool_after_impl(s: *u8, from: i32, out: *i32): i32;
+extern "C" function lsp_extract_formatting_options_impl(json: *u8, out: *u8): i32;
+extern "C" function lsp_format_line_update_depth_impl(line: *u8, depth: *i32): void;
+extern "C" function lsp_line_has_block_comment_end_impl(line: *u8): i32;
+extern "C" function lsp_line_is_block_comment_impl(line: *u8, in_block: i32): i32;
+extern "C" function lsp_fmt_last_out_impl(out: *u8, n: i32): u8;
+extern "C" function lsp_fmt_prev_src_impl(doc: *u8, i: i32, j: i32): u8;
+extern "C" function lsp_fmt_is_atom_tail_impl(c: u8): i32;
+extern "C" function lsp_fmt_is_atom_head_impl(c: u8): i32;
+extern "C" function lsp_fmt_unary_lhs_impl(c: u8): i32;
+extern "C" function lsp_fmt_src_ws_before_impl(doc: *u8, i: i32): i32;
+extern "C" function lsp_fmt_src_ws_after_impl(doc: *u8, i: i32): i32;
+extern "C" function lsp_fmt_space_before_impl(a: u8, b: u8): i32;
+extern "C" function lsp_fmt_space_after_impl(a: u8, b: u8): i32;
+extern "C" function lsp_fmt_try_emit_op_impl(ctx: *u8): i32;
+extern "C" function lsp_format_emit_segment_impl(ctx: *u8): i32;
+extern "C" function lsp_fmt_comma_expand_extra_impl(ctx: *u8): i32;
+extern "C" function lsp_format_find_break_impl(ctx: *u8): i32;
+extern "C" function lsp_format_document_impl(src: *u8, out: *u8, cap: i32): i32;
+extern "C" function lsp_doc_line_count_impl(doc: *u8, out: *i32): void;
+extern "C" function lsp_extract_string_value_impl(s: *u8, from: i32, out: *u8, cap: i32): i32;
+
+/* ---- G-02f-111：lsp JSON/format 门闩 ---- */
+
+#[no_mangle]
+function try_apply_content_changes(doc: *u8, json: *u8): i32 { unsafe { return try_apply_content_changes_impl(doc, json); } return 0; }
+#[no_mangle]
+function line_char_to_offset(doc: *u8, line: i32, ch: i32): i32 { unsafe { return line_char_to_offset_impl(doc, line, ch); } return 0; }
+#[no_mangle]
+function parse_first_content_change(json: *u8, out: *u8): i32 { unsafe { return parse_first_content_change_impl(json, out); } return 0; }
+#[no_mangle]
+function lsp_find_text_value_from(s: *u8, from: i32, out: *u8, cap: i32): i32 { unsafe { return lsp_find_text_value_from_impl(s, from, out, cap); } return 0; }
+#[no_mangle]
+function lsp_find_text_value(s: *u8, out: *u8, cap: i32): i32 { unsafe { return lsp_find_text_value_impl(s, out, cap); } return 0; }
+#[no_mangle]
+function lsp_find_key_after(s: *u8, key: *u8, from: i32): i32 { unsafe { return lsp_find_key_after_impl(s, key, from); } return 0; }
+#[no_mangle]
+function lsp_parse_int(s: *u8, from: i32, out: *i32): i32 { unsafe { return lsp_parse_int_impl(s, from, out); } return 0; }
+#[no_mangle]
+function lsp_json_escape_ident(src: *u8, dst: *u8, cap: i32): i32 { unsafe { return lsp_json_escape_ident_impl(src, dst, cap); } return 0; }
+#[no_mangle]
+function lsp_parse_bool_after(s: *u8, from: i32, out: *i32): i32 { unsafe { return lsp_parse_bool_after_impl(s, from, out); } return 0; }
+#[no_mangle]
+function lsp_extract_formatting_options(json: *u8, out: *u8): i32 { unsafe { return lsp_extract_formatting_options_impl(json, out); } return 0; }
+#[no_mangle]
+function lsp_format_line_update_depth(line: *u8, depth: *i32): void { unsafe { lsp_format_line_update_depth_impl(line, depth); } }
+#[no_mangle]
+function lsp_line_has_block_comment_end(line: *u8): i32 { unsafe { return lsp_line_has_block_comment_end_impl(line); } return 0; }
+#[no_mangle]
+function lsp_line_is_block_comment(line: *u8, in_block: i32): i32 { unsafe { return lsp_line_is_block_comment_impl(line, in_block); } return 0; }
+#[no_mangle]
+function lsp_fmt_last_out(out: *u8, n: i32): u8 { unsafe { return lsp_fmt_last_out_impl(out, n); } return 0; }
+#[no_mangle]
+function lsp_fmt_prev_src(doc: *u8, i: i32, j: i32): u8 { unsafe { return lsp_fmt_prev_src_impl(doc, i, j); } return 0; }
+#[no_mangle]
+function lsp_fmt_is_atom_tail(c: u8): i32 { unsafe { return lsp_fmt_is_atom_tail_impl(c); } return 0; }
+#[no_mangle]
+function lsp_fmt_is_atom_head(c: u8): i32 { unsafe { return lsp_fmt_is_atom_head_impl(c); } return 0; }
+#[no_mangle]
+function lsp_fmt_unary_lhs(c: u8): i32 { unsafe { return lsp_fmt_unary_lhs_impl(c); } return 0; }
+#[no_mangle]
+function lsp_fmt_src_ws_before(doc: *u8, i: i32): i32 { unsafe { return lsp_fmt_src_ws_before_impl(doc, i); } return 0; }
+#[no_mangle]
+function lsp_fmt_src_ws_after(doc: *u8, i: i32): i32 { unsafe { return lsp_fmt_src_ws_after_impl(doc, i); } return 0; }
+#[no_mangle]
+function lsp_fmt_space_before(a: u8, b: u8): i32 { unsafe { return lsp_fmt_space_before_impl(a, b); } return 0; }
+#[no_mangle]
+function lsp_fmt_space_after(a: u8, b: u8): i32 { unsafe { return lsp_fmt_space_after_impl(a, b); } return 0; }
+#[no_mangle]
+function lsp_fmt_try_emit_op(ctx: *u8): i32 { unsafe { return lsp_fmt_try_emit_op_impl(ctx); } return 0; }
+#[no_mangle]
+function lsp_format_emit_segment(ctx: *u8): i32 { unsafe { return lsp_format_emit_segment_impl(ctx); } return 0; }
+#[no_mangle]
+function lsp_fmt_comma_expand_extra(ctx: *u8): i32 { unsafe { return lsp_fmt_comma_expand_extra_impl(ctx); } return 0; }
+#[no_mangle]
+function lsp_format_find_break(ctx: *u8): i32 { unsafe { return lsp_format_find_break_impl(ctx); } return 0; }
+#[no_mangle]
+function lsp_format_document(src: *u8, out: *u8, cap: i32): i32 { unsafe { return lsp_format_document_impl(src, out, cap); } return 0; }
+#[no_mangle]
+function lsp_doc_line_count(doc: *u8, out: *i32): void { unsafe { lsp_doc_line_count_impl(doc, out); } }
+#[no_mangle]
+function lsp_extract_string_value(s: *u8, from: i32, out: *u8, cap: i32): i32 { unsafe { return lsp_extract_string_value_impl(s, from, out, cap); } return 0; }

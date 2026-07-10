@@ -1,4 +1,5 @@
 /* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-111 helper gates.
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
  * Source intent: src/asm/backend_try_inline_dispatch.x (doc) + this seed (full C body).
@@ -1895,7 +1896,7 @@ extern int32_t glue_with_arena_scope_top_off_c(void);
 /**
  * 零实参 CALL 的 callee 是否为 `default_alloc` / `heap.default_alloc`。
  */
-static int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t call_ref) {
+int32_t glue_call_is_zero_arg_default_alloc_impl(struct ast_ASTArena *arena, int32_t call_ref) {
   int32_t callee_ref;
   int32_t nlen;
   int32_t narg;
@@ -1933,11 +1934,18 @@ static int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, i
                             (int)pipeline_expr_kind_ord_at(arena, callee_ref), (int)callee_ref, (int)call_ref);
   return 0;
 }
+int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t call_ref) {
+  {
+    return glue_call_is_zero_arg_default_alloc_impl(arena, call_ref);
+  }
+  return 0;
+}
+
 
 /**
  * const struct lit 单字段是否可内联到 let 栈槽（仅校验，不发射指令）。
  */
-static int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struct ast_Module *mod,
+int32_t glue_const_struct_lit_field_can_inline_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                       int32_t func_idx, int32_t lit_ref, int32_t fj) {
   int32_t init_ref;
   int32_t ko;
@@ -1952,11 +1960,19 @@ static int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena
     return glue_call_is_zero_arg_default_alloc(arena, init_ref);
   return (ko == 0 || ko == 1 || ko == 2) ? 1 : 0;
 }
+int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                      int32_t func_idx, int32_t lit_ref, int32_t fj) {
+  {
+    return glue_const_struct_lit_field_can_inline_impl(arena, mod, func_idx, lit_ref, fj);
+  }
+  return 0;
+}
+
 
 /**
  * default_alloc() 内联：with_arena 内写 kind=arena + 栈 Arena64*；否则 call runtime default_alloc。
  */
-static int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
+int32_t glue_emit_default_alloc_to_rbx_offset_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
                                                          int32_t fsz, int32_t ta) {
   static const uint8_t da_sym[21] = "std_heap_default_alloc";
   /** MEM-C1：块内 vec_u8_new 等须走 scope bump，勿 call 全局 heap default。 */
@@ -1987,11 +2003,19 @@ static int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCode
     return -1;
   return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta);
 }
+int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
+                                                         int32_t fsz, int32_t ta) {
+  {
+    return glue_emit_default_alloc_to_rbx_offset_impl(elf_ctx, foff, fsz, ta);
+  }
+  return 0;
+}
+
 
 /**
  * 函数体是否为 `return Struct { f: 常量… }`（各字段 init 均为整型/浮点字面量，无形参）。
  */
-static int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
+int32_t glue_fold_func_returns_const_struct_lit_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                        int32_t func_idx, int32_t *out_lit_ref) {
   int32_t ret_ref;
   int32_t nf;
@@ -2038,6 +2062,14 @@ static int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *aren
   *out_lit_ref = ret_ref;
   return 1;
 }
+int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                       int32_t func_idx, int32_t *out_lit_ref) {
+  {
+    return glue_fold_func_returns_const_struct_lit_impl(arena, mod, func_idx, out_lit_ref);
+  }
+  return 0;
+}
+
 
 /**
  * let v: Struct = mk() 内联：零实参且 callee 为 return Struct { 常量… } 时，字段直写 let 栈槽。

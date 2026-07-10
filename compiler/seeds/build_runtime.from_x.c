@@ -1,4 +1,5 @@
 /* seeds/build_runtime.from_x.c — G-02f-81 product cold-start TU
+ * G-02f-111 helper gates.
  * G-02f-105 helper gates.
  * Promoted from compiler/src/build_runtime.inc (build.x C backend).
  */
@@ -48,7 +49,7 @@ void build_runtime_warn(const char *msg) {
  * 从源头去补丁：pipeline.x 已用 run_x_pipeline_impl、get_ndep()；codegen 已对 slice/数组形参生成 -> 与 *。
  * 此处仅：必要时插入 parser_parse_into extern，并追加 pipeline_glue.c 内容（包装/sizeof/debug 等）。返回 0 成功，-1 失败。
  */
-static int build_patch_pipeline_gen_c(void) {
+int build_patch_pipeline_gen_c_impl(void) {
   FILE *f = fopen("pipeline_gen.c", "rb");
   if (!f) return -1;
   if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return -1; }
@@ -123,6 +124,13 @@ static int build_patch_pipeline_gen_c(void) {
   free(buf);
   return 0;
 }
+int build_patch_pipeline_gen_c(void) {
+  {
+    return build_patch_pipeline_gen_c_impl();
+  }
+  return 0;
+}
+
 
 /* build_patch_parser_export 已删除：当前 step 6 用 -E-extern 生成 parser_gen.c，已含 parser_* 符号，不再追写 ABI 包装。 */
 
@@ -207,7 +215,7 @@ int build_exec_cmd(char *cmd_buf) {
 /**
  * 6.3：对 driver_gen.c 做与 Makefile 等价的 sed 修正（slice . -> ->；preprocess_x_buf 签名）。
  */
-static int build_patch_driver_gen_c(void) {
+int build_patch_driver_gen_c_impl(void) {
   FILE *f = fopen("driver_gen.c", "rb");
   if (!f) return -1;
   if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return -1; }
@@ -227,6 +235,13 @@ static int build_patch_driver_gen_c(void) {
   free(buf);
   return 0;
 }
+int build_patch_driver_gen_c(void) {
+  {
+    return build_patch_driver_gen_c_impl();
+  }
+  return 0;
+}
+
 
 /**
  * 6.3 极薄原语：执行 step_id 对应的修正（1 pipeline_gen.c，3 driver_gen.c，6 preprocess_gen.c）。返回 0 成功 -1 失败。
@@ -403,7 +418,7 @@ int build_run_asm_build(const char *shu_path) {
 }
 
 /** 执行 build.x 配置的 legacy 逐步（生成 *_gen.c 并链接 shux）。返回 0 成功。 */
-static int build_run_legacy_steps(const char *shu_path) {
+int build_run_legacy_steps_impl(const char *shu_path) {
   int n = (int)build_get_step_count();
   for (int i = 0; i < n; i++) {
     int step_id = (int)build_get_step_at((int32_t)i);
@@ -412,6 +427,13 @@ static int build_run_legacy_steps(const char *shu_path) {
   }
   return 0;
 }
+int build_run_legacy_steps(const char *shu_path) {
+  {
+    return build_run_legacy_steps_impl(shu_path);
+  }
+  return 0;
+}
+
 
 #ifdef BUILD_TOOL_X_ENTRY
 /* 入口由 build_runner.x 提供；crt0 调 entry，此处提供 entry 包装调用 build_runner_entry（.x -E 生成符号为 build_runner_entry）。 */

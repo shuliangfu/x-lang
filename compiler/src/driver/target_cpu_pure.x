@@ -278,3 +278,12 @@ function shu_target_cpu_detect_arm64_macos(): i32 { unsafe { return shu_target_c
 function shu_target_cpu_detect_arm64(): i32 { unsafe { return shu_target_cpu_detect_arm64_impl(); } return 0; }
 #[no_mangle]
 function shu_target_cpu_detect_riscv64_linux(): i32 { unsafe { return shu_target_cpu_detect_riscv64_linux_impl(); } return 0; }
+
+// G-02f-111：+ shu_target_cpu_detect_riscv64 薄门闩。
+
+extern "C" function shu_target_cpu_detect_riscv64_impl(): i32;
+
+/* ---- G-02f-111：riscv64 detect 门闩 ---- */
+
+#[no_mangle]
+function shu_target_cpu_detect_riscv64(): i32 { unsafe { return shu_target_cpu_detect_riscv64_impl(); } return 0; }

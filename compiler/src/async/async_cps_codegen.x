@@ -47,3 +47,15 @@ function async_cps_callee_is_future_wait(callee: *u8): i32 {
   }
   return 0;
 }
+
+// G-02f-111：+ run_async ref scan 薄门闩。
+
+extern "C" function expr_references_run_async_impl(e: *u8): i32;
+extern "C" function block_has_run_async_ref_impl(b: *u8): i32;
+
+/* ---- G-02f-111：async_cps run_async scan 门闩 ---- */
+
+#[no_mangle]
+function expr_references_run_async(e: *u8): i32 { unsafe { return expr_references_run_async_impl(e); } return 0; }
+#[no_mangle]
+function block_has_run_async_ref(b: *u8): i32 { unsafe { return block_has_run_async_ref_impl(b); } return 0; }

@@ -971,3 +971,18 @@ function driver_compile_parse_argv_step_c(argc: i32, argv: *u8, state: *u8, i: i
   return i + 1;
 }
 
+// G-02f-111：+ write_io_net_abi_inline / driver_run_compiler_parsed / x_emit_c_extern 薄门闩。
+// 注：driver_c_typeck_entry 仍 static（#if 分支花括号，自动 promote 暂跳过）。
+
+extern "C" function write_io_net_abi_inline_impl(cf: *u8): i32;
+extern "C" function driver_run_compiler_parsed_impl(p: *u8, argc: i32, argv: *u8): i32;
+extern "C" function driver_run_x_emit_c_extern_via_cparser_impl(path: *u8): i32;
+
+/* ---- G-02f-111：runtime driver helpers 门闩 ---- */
+
+#[no_mangle]
+function write_io_net_abi_inline(cf: *u8): i32 { unsafe { return write_io_net_abi_inline_impl(cf); } return 0; }
+#[no_mangle]
+function driver_run_compiler_parsed(p: *u8, argc: i32, argv: *u8): i32 { unsafe { return driver_run_compiler_parsed_impl(p, argc, argv); } return 0; }
+#[no_mangle]
+function driver_run_x_emit_c_extern_via_cparser(path: *u8): i32 { unsafe { return driver_run_x_emit_c_extern_via_cparser_impl(path); } return 0; }

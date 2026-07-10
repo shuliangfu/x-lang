@@ -242,3 +242,33 @@ function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 { unsafe { return simd_x86_vxo
 function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 { unsafe { return simd_x86_vcmpgtps_ymm2_ymm3_impl(elf); } return 0; }
 #[no_mangle]
 function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 { unsafe { return simd_x86_vandps_ymm0_ymm2_impl(elf); } return 0; }
+
+// G-02f-111：+ try_hw iadd/isub + select seq + remaining vor/vandn/pshufd 薄门闩。
+
+extern "C" function simd_enc_try_hw_vector_iadd_isub_rbp_impl(elf: *u8, a: i32, b: i32, c: i32): i32;
+extern "C" function simd_x86_vandnps_ymm2_ymm1_impl(elf: *u8): i32;
+extern "C" function simd_x86_vorps_ymm0_ymm2_impl(elf: *u8): i32;
+extern "C" function simd_enc_emit_i32_select_xmm_seq_impl(elf: *u8): i32;
+extern "C" function simd_enc_emit_f32_select_xmm_seq_impl(elf: *u8): i32;
+extern "C" function simd_enc_emit_i32_select_ymm_seq_impl(elf: *u8): i32;
+extern "C" function simd_enc_emit_f32_select_ymm_seq_impl(elf: *u8): i32;
+extern "C" function simd_x86_pshufd_xmm1_xmm0_impl(elf: *u8, imm: i32): i32;
+
+/* ---- G-02f-111：simd_enc try_hw/select 门闩 ---- */
+
+#[no_mangle]
+function simd_enc_try_hw_vector_iadd_isub_rbp(elf: *u8, a: i32, b: i32, c: i32): i32 { unsafe { return simd_enc_try_hw_vector_iadd_isub_rbp_impl(elf, a, b, c); } return 0; }
+#[no_mangle]
+function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 { unsafe { return simd_x86_vandnps_ymm2_ymm1_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_vorps_ymm0_ymm2(elf: *u8): i32 { unsafe { return simd_x86_vorps_ymm0_ymm2_impl(elf); } return 0; }
+#[no_mangle]
+function simd_enc_emit_i32_select_xmm_seq(elf: *u8): i32 { unsafe { return simd_enc_emit_i32_select_xmm_seq_impl(elf); } return 0; }
+#[no_mangle]
+function simd_enc_emit_f32_select_xmm_seq(elf: *u8): i32 { unsafe { return simd_enc_emit_f32_select_xmm_seq_impl(elf); } return 0; }
+#[no_mangle]
+function simd_enc_emit_i32_select_ymm_seq(elf: *u8): i32 { unsafe { return simd_enc_emit_i32_select_ymm_seq_impl(elf); } return 0; }
+#[no_mangle]
+function simd_enc_emit_f32_select_ymm_seq(elf: *u8): i32 { unsafe { return simd_enc_emit_f32_select_ymm_seq_impl(elf); } return 0; }
+#[no_mangle]
+function simd_x86_pshufd_xmm1_xmm0(elf: *u8, imm: i32): i32 { unsafe { return simd_x86_pshufd_xmm1_xmm0_impl(elf, imm); } return 0; }

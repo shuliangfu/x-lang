@@ -1,4 +1,5 @@
 /* seeds/runtime_lsp_glue.from_x.c — G-02f-15 product TU
+ * G-02f-111 helper gates.
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
  * Product object from this seed; logic still C until full .x port.
@@ -1783,11 +1784,11 @@ __attribute__((weak)) int lsp_hover_at(const uint8_t *source, int source_len, in
 /* ---------- 原 lsp_io.c：文档缓冲、contentChanges、JSON 响应构建（lsp_extract_document_text 在 lsp_io.x） ---------- */
 #define LSP_BODY_SAFETY_CAP (64 * 1024 * 1024)
 
-static int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, int out_cap);
-static int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key);
-static int lsp_parse_int(const uint8_t *body, int len, int offset, int *out);
-static int line_char_to_offset(const uint8_t *doc, int len, int line, int character);
-static int parse_first_content_change(const uint8_t *body, int len,
+int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, int out_cap);
+int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key);
+int lsp_parse_int(const uint8_t *body, int len, int offset, int *out);
+int line_char_to_offset(const uint8_t *doc, int len, int line, int character);
+int parse_first_content_change(const uint8_t *body, int len,
     int *out_start_line, int *out_start_char, int *out_end_line, int *out_end_char,
     uint8_t *out_text, int out_text_cap, int *out_text_len);
 
@@ -1797,7 +1798,7 @@ static int s_doc_len = 0;
 /** lsp_alloc/lsp_free/lsp_is_null、read_message、extract_document_text 已迁至 lsp_io.x；不再提供 lsp_peek_u8/lsp_poke_u8/lsp_ptr_add。 */
 
 /** 若 body 含 contentChanges 且当前有文档，则解析并应用第一项 range 替换，成功返回 1，否则 0。 */
-static int try_apply_content_changes(const uint8_t *body, int body_len) {
+int try_apply_content_changes_impl(const uint8_t *body, int body_len) {
     if (!s_doc_ptr || s_doc_len < 0) return 0;
     uint8_t text_buf[256 * 1024];
     int text_len = 0;
@@ -1821,6 +1822,13 @@ static int try_apply_content_changes(const uint8_t *body, int body_len) {
     s_doc_len = (int)new_len;
     return 1;
 }
+int try_apply_content_changes(const uint8_t *body, int body_len) {
+  {
+    return try_apply_content_changes_impl(body, body_len);
+  }
+  return 0;
+}
+
 
 /** 从 didOpen/didChange 的 body 中提取文档内容，存入内部缓冲（替换旧文档）。若有 contentChanges 且当前有文档则做增量 range 替换，否则整份替换。先使 LSP 模块缓存失效，再释放旧缓冲，避免旧 AST 指向已释放内存。 */
 void lsp_set_document_from_body(const uint8_t *body, int body_len) {
@@ -1867,7 +1875,7 @@ int lsp_get_document_len(void) {
 /** lsp_read_c、lsp_read_at、lsp_read_message、lsp_write_c 已迁至 lsp_io.x（std.io）。 */
 
 /** 将 (line, character) 转为文档中的字节偏移；line/character 为 0-based。 */
-static int line_char_to_offset(const uint8_t *doc, int len, int line, int character) {
+int line_char_to_offset_impl(const uint8_t *doc, int len, int line, int character) {
     int cur_line = 0;
     int i = 0;
     while (i < len && cur_line < line) {
@@ -1883,9 +1891,16 @@ static int line_char_to_offset(const uint8_t *doc, int len, int line, int charac
     if (col != character) return -1;
     return i;
 }
+int line_char_to_offset(const uint8_t *doc, int len, int line, int character) {
+  {
+    return line_char_to_offset_impl(doc, len, line, character);
+  }
+  return 0;
+}
+
 
 /** 从 body 中解析 contentChanges[0]：range.start.line/character、range.end.line/character、text；成功返回 1 并写入 *out_*，否则 0。 */
-static int parse_first_content_change(const uint8_t *body, int len,
+int parse_first_content_change_impl(const uint8_t *body, int len,
     int *out_start_line, int *out_start_char, int *out_end_line, int *out_end_char,
     uint8_t *out_text, int out_text_cap, int *out_text_len) {
     const char *key_cc = "\"contentChanges\":[";
@@ -1944,9 +1959,18 @@ static int parse_first_content_change(const uint8_t *body, int len,
     *out_text_len = text_len;
     return 1;
 }
+int parse_first_content_change(const uint8_t *body, int len,
+    int *out_start_line, int *out_start_char, int *out_end_line, int *out_end_char,
+    uint8_t *out_text, int out_text_cap, int *out_text_len) {
+  {
+    return parse_first_content_change_impl(body, len, out_start_line, out_start_char, out_end_line, out_end_char, out_text, out_text_cap, out_text_len);
+  }
+  return 0;
+}
+
 
 /** 在 body[search_start..len) 中找 "text" 键（支持 "text":"、"text": "、"text" : " 等），取 JSON 字符串值到 out_buf，做 unescape；返回 out 长度，未找到或出错 -1。 */
-static int lsp_find_text_value_from(const uint8_t *body, int len, int search_start, uint8_t *out_buf, int out_cap) {
+int lsp_find_text_value_from_impl(const uint8_t *body, int len, int search_start, uint8_t *out_buf, int out_cap) {
     const int key6_len = 6;  /* "\"text\"" */
     int i = search_start;
     while (i + key6_len <= len) {
@@ -1984,9 +2008,16 @@ static int lsp_find_text_value_from(const uint8_t *body, int len, int search_sta
     }
     return -1;
 }
+int lsp_find_text_value_from(const uint8_t *body, int len, int search_start, uint8_t *out_buf, int out_cap) {
+  {
+    return lsp_find_text_value_from_impl(body, len, search_start, out_buf, out_cap);
+  }
+  return 0;
+}
+
 
 /** 在 body[0..len) 中找 didOpen 的 text：先定位到 "textDocument" 对象内再找 "text" 键，取 JSON 字符串值到 out_buf；返回 out 长度，未找到 -1。 */
-static int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, int out_cap) {
+int lsp_find_text_value_impl(const uint8_t *body, int len, uint8_t *out_buf, int out_cap) {
     const char *td = "\"textDocument\"";
     const int td_len = 14;
     int i = 0;
@@ -1999,6 +2030,13 @@ static int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, i
     /* 未找到 textDocument 时回退：整段 body 中找第一个 "text" 键（兼容旧或简化的请求） */
     return lsp_find_text_value_from(body, len, 0, out_buf, out_cap);
 }
+int lsp_find_text_value(const uint8_t *body, int len, uint8_t *out_buf, int out_cap) {
+  {
+    return lsp_find_text_value_impl(body, len, out_buf, out_cap);
+  }
+  return 0;
+}
+
 
 /**
  * 构建 InitializeResult JSON（capabilities + serverInfo），并用请求 id 封装为 JSON-RPC 响应。
@@ -2058,7 +2096,7 @@ int lsp_build_response_with_result(int id_val, const uint8_t *result_ptr, int re
 }
 
 /** 在 body[0..len) 中从 start 起找 key（如 "\"line\":\"），返回 key 结束后的偏移，未找到返回 -1。 */
-static int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key) {
+int lsp_find_key_after_impl(const uint8_t *body, int len, int start, const char *key) {
     int key_len = 0;
     while (key[key_len] != '\0') key_len++;
     while (start + key_len <= len) {
@@ -2070,9 +2108,16 @@ static int lsp_find_key_after(const uint8_t *body, int len, int start, const cha
     }
     return -1;
 }
+int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key) {
+  {
+    return lsp_find_key_after_impl(body, len, start, key);
+  }
+  return 0;
+}
+
 
 /** 从 offset 起解析一个非负整数，写入 *out，返回解析结束后的偏移；非法返回 -1。 */
-static int lsp_parse_int(const uint8_t *body, int len, int offset, int *out) {
+int lsp_parse_int_impl(const uint8_t *body, int len, int offset, int *out) {
     if (offset >= len || !out) return -1;
     *out = 0;
     while (offset < len && body[offset] >= '0' && body[offset] <= '9') {
@@ -2081,6 +2126,13 @@ static int lsp_parse_int(const uint8_t *body, int len, int offset, int *out) {
     }
     return offset;
 }
+int lsp_parse_int(const uint8_t *body, int len, int offset, int *out) {
+  {
+    return lsp_parse_int_impl(body, len, offset, out);
+  }
+  return 0;
+}
+
 
 /**
  * 从 definition/hover 等请求的 body 中提取 params.position：line 与 character（0-based）。
@@ -2242,7 +2294,7 @@ int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len,
 /**
  * 将标识符写入 esc，转义 JSON 中的 " 与 \\；返回写入长度（esc 以 NUL 结尾）。
  */
-static int lsp_json_escape_ident(const char *s, char *esc, int esc_cap) {
+int lsp_json_escape_ident_impl(const char *s, char *esc, int esc_cap) {
     int e = 0;
     if (!s || !esc || esc_cap < 4)
         return 0;
@@ -2257,6 +2309,13 @@ static int lsp_json_escape_ident(const char *s, char *esc, int esc_cap) {
     esc[e] = '\0';
     return e;
 }
+int lsp_json_escape_ident(const char *s, char *esc, int esc_cap) {
+  {
+    return lsp_json_escape_ident_impl(s, esc, esc_cap);
+  }
+  return 0;
+}
+
 
 /**
  * 构建 textDocument/completion：解析 position，确保模块缓存后收集顶层符号、import、struct/enum、关键字与内建类型，result 为 CompletionItem[]。
@@ -2461,7 +2520,7 @@ int lsp_build_document_symbol_response(int id_val, const uint8_t *body, int body
 /* ---------- textDocument/formatting ---------- */
 
 /** 在 body[start..] 中解析 key 对应的布尔值；1=true，0=false，未找到或无效返回 -1。 */
-static int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *key, int *out_val) {
+int lsp_parse_bool_after_impl(const uint8_t *body, int len, int start, const char *key, int *out_val) {
     int k = lsp_find_key_after(body, len, start, key);
     if (k < 0 || !out_val) return -1;
     if (k + 4 <= len && body[k] == 't' && body[k+1] == 'r' && body[k+2] == 'u' && body[k+3] == 'e') {
@@ -2474,9 +2533,16 @@ static int lsp_parse_bool_after(const uint8_t *body, int len, int start, const c
     }
     return -1;
 }
+int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *key, int *out_val) {
+  {
+    return lsp_parse_bool_after_impl(body, len, start, key, out_val);
+  }
+  return 0;
+}
+
 
 /** 从 params.options 提取格式化选项（见下方默认值）；成功返回 0。 */
-static int lsp_extract_formatting_options(const uint8_t *body, int len,
+int lsp_extract_formatting_options_impl(const uint8_t *body, int len,
     int *out_tab_size, int *out_insert_spaces, int *out_max_line_length,
     int *out_insert_final_newline, int *out_trim_trailing_whitespace, int *out_trim_final_newlines) {
     if (!body || len <= 0 || !out_tab_size || !out_insert_spaces || !out_max_line_length) return -1;
@@ -2506,11 +2572,20 @@ static int lsp_extract_formatting_options(const uint8_t *body, int len,
     if (out_trim_final_newlines) lsp_parse_bool_after(body, len, opt, "\"trimFinalNewlines\":", out_trim_final_newlines);
     return 0;
 }
+int lsp_extract_formatting_options(const uint8_t *body, int len,
+    int *out_tab_size, int *out_insert_spaces, int *out_max_line_length,
+    int *out_insert_final_newline, int *out_trim_trailing_whitespace, int *out_trim_final_newlines) {
+  {
+    return lsp_extract_formatting_options_impl(body, len, out_tab_size, out_insert_spaces, out_max_line_length, out_insert_final_newline, out_trim_trailing_whitespace, out_trim_final_newlines);
+  }
+  return 0;
+}
+
 
 /**
  * 在本行 [line_start, line_start+line_len) 内更新花括号 depth，忽略 // 注释与 "..." 字符串内的 { }。
  */
-static void lsp_format_line_update_depth(const uint8_t *doc, int line_start, int line_len, int *depth) {
+void lsp_format_line_update_depth_impl(const uint8_t *doc, int line_start, int line_len, int *depth) {
     int in_line_comment = 0;
     int in_string = 0;
     int escape = 0;
@@ -2548,6 +2623,12 @@ static void lsp_format_line_update_depth(const uint8_t *doc, int line_start, int
             (*depth)--;
     }
 }
+void lsp_format_line_update_depth(const uint8_t *doc, int line_start, int line_len, int *depth) {
+  {
+    lsp_format_line_update_depth_impl(doc, line_start, line_len, depth);
+  }
+}
+
 
 /**
  * 对文档做简单格式化：按行处理，根据 { } 跟踪缩进深度，每行输出规范缩进 + 去首尾空白的内容；
@@ -2555,27 +2636,41 @@ static void lsp_format_line_update_depth(const uint8_t *doc, int line_start, int
  * 写入 out_buf，返回长度；越界返回 -1。
  */
 /** 行 [start, start+len) 内是否出现块注释结束符 \c *\/ 。 */
-static int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
+int lsp_line_has_block_comment_end_impl(const uint8_t *doc, int start, int len) {
     for (int i = 0; i + 1 < len; i++) {
         if (doc[start + i] == '*' && doc[start + i + 1] == '/')
             return 1;
     }
     return 0;
 }
+int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
+  {
+    return lsp_line_has_block_comment_end_impl(doc, start, len);
+  }
+  return 0;
+}
+
 
 /**
  * 是否为块注释行（\c /** 、\c * 续行，或处于未闭合的块注释内）。
  */
-static int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content_len, int in_block) {
+int lsp_line_is_block_comment_impl(const uint8_t *doc, int content_start, int content_len, int in_block) {
     if (content_len >= 2 && doc[content_start] == '/' && doc[content_start + 1] == '*')
         return 1;
     if (in_block && content_len >= 1 && doc[content_start] == '*')
         return 1;
     return 0;
 }
+int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content_len, int in_block) {
+  {
+    return lsp_line_is_block_comment_impl(doc, content_start, content_len, in_block);
+  }
+  return 0;
+}
+
 
 /** 输出缓冲中最后一个非空白字符；无则返回 0。 */
-static uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
+uint8_t lsp_fmt_last_out_impl(const uint8_t *out_buf, int out_len) {
     int k;
     for (k = out_len - 1; k >= 0; k--) {
         if (out_buf[k] != ' ' && out_buf[k] != '\t')
@@ -2583,9 +2678,16 @@ static uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
     }
     return 0;
 }
+uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
+  {
+    return lsp_fmt_last_out_impl(out_buf, out_len);
+  }
+  return 0;
+}
+
 
 /** 源码 [start+j) 之前最后一个非空白字符；无则返回 0。 */
-static uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
+uint8_t lsp_fmt_prev_src_impl(const uint8_t *doc, int start, int j) {
     int k;
     for (k = j - 1; k >= 0; k--) {
         uint8_t c = doc[start + k];
@@ -2594,28 +2696,56 @@ static uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
     }
     return 0;
 }
+uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
+  {
+    return lsp_fmt_prev_src_impl(doc, start, j);
+  }
+  return 0;
+}
+
 
 /** 标识符/数字尾字符，可作为二元运算符左操作数尾部。 */
-static int lsp_fmt_is_atom_tail(uint8_t c) {
+int lsp_fmt_is_atom_tail_impl(uint8_t c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == ')' || c == ']' || c == '}';
 }
-
-/** 标识符/数字头或一元后缀，可作为二元运算符右操作数首部。 */
-static int lsp_fmt_is_atom_head(uint8_t c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '(' || c == '[' || c == '{';
+int lsp_fmt_is_atom_tail(uint8_t c) {
+  {
+    return lsp_fmt_is_atom_tail_impl(c);
+  }
+  return 0;
 }
 
+
+/** 标识符/数字头或一元后缀，可作为二元运算符右操作数首部。 */
+int lsp_fmt_is_atom_head_impl(uint8_t c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '(' || c == '[' || c == '{';
+}
+int lsp_fmt_is_atom_head(uint8_t c) {
+  {
+    return lsp_fmt_is_atom_head_impl(c);
+  }
+  return 0;
+}
+
+
 /** 一元运算符左邻字符（含行首 0）。 */
-static int lsp_fmt_unary_lhs(uint8_t prev) {
+int lsp_fmt_unary_lhs_impl(uint8_t prev) {
     if (prev == 0)
         return 1;
     return prev == '(' || prev == '[' || prev == '{' || prev == ',' || prev == ':' || prev == ';' || prev == '='
         || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == '%' || prev == '&' || prev == '|'
         || prev == '^' || prev == '!' || prev == '~' || prev == '<' || prev == '>';
 }
+int lsp_fmt_unary_lhs(uint8_t prev) {
+  {
+    return lsp_fmt_unary_lhs_impl(prev);
+  }
+  return 0;
+}
+
 
 /** 源码 j 之前是否已有空白（避免 1 +  2 双空格）。 */
-static int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
+int lsp_fmt_src_ws_before_impl(const uint8_t *doc, int start, int j) {
     int k = j - 1;
     while (k >= 0) {
         uint8_t c = doc[start + k];
@@ -2627,9 +2757,16 @@ static int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
     }
     return 0;
 }
+int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
+  {
+    return lsp_fmt_src_ws_before_impl(doc, start, j);
+  }
+  return 0;
+}
+
 
 /** 源码 j 之后是否已有空白。 */
-static int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
+int lsp_fmt_src_ws_after_impl(const uint8_t *doc, int start, int len, int j) {
     int k = j + 1;
     while (k < len) {
         uint8_t c = doc[start + k];
@@ -2641,9 +2778,16 @@ static int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
     }
     return 0;
 }
+int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
+  {
+    return lsp_fmt_src_ws_after_impl(doc, start, len, j);
+  }
+  return 0;
+}
+
 
 /** 在 out 中补一个前导空格（若需要且容量足够）。 */
-static int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap) {
+int lsp_fmt_space_before_impl(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap) {
     uint8_t last;
     if (lsp_fmt_src_ws_before(doc, start, j))
         return 0;
@@ -2654,9 +2798,16 @@ static int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *o
     }
     return 0;
 }
+int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap) {
+  {
+    return lsp_fmt_space_before_impl(doc, start, j, out_buf, out_len, out_cap);
+  }
+  return 0;
+}
+
 
 /** 在 out 中补一个后继空格（若需要且容量足够）。 */
-static int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap) {
+int lsp_fmt_space_after_impl(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap) {
     int k;
     if (lsp_fmt_src_ws_after(doc, start, len, j))
         return 0;
@@ -2672,11 +2823,18 @@ static int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, ui
     }
     return 0;
 }
+int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap) {
+  {
+    return lsp_fmt_space_after_impl(doc, start, len, j, out_buf, out_len, out_cap);
+  }
+  return 0;
+}
+
 
 /**
  * 尝试在 j 处匹配 len_op 的多字符运算符；匹配则写出（含两侧空格）并返回消耗长度，否则返回 0。
  */
-static int lsp_fmt_try_emit_op(const uint8_t *doc, int start, int len, int j, const char *op, int op_len,
+int lsp_fmt_try_emit_op_impl(const uint8_t *doc, int start, int len, int j, const char *op, int op_len,
                                uint8_t *out_buf, int *out_len, int out_cap) {
     int k;
     uint8_t prev;
@@ -2710,12 +2868,20 @@ static int lsp_fmt_try_emit_op(const uint8_t *doc, int start, int len, int j, co
     (void)lsp_fmt_space_after(doc, start, len, j + op_len - 1, out_buf, out_len, out_cap);
     return op_len;
 }
+int lsp_fmt_try_emit_op(const uint8_t *doc, int start, int len, int j, const char *op, int op_len,
+                               uint8_t *out_buf, int *out_len, int out_cap) {
+  {
+    return lsp_fmt_try_emit_op_impl(doc, start, len, j, op, op_len, out_buf, out_len, out_cap);
+  }
+  return 0;
+}
+
 
 /**
  * 将 doc[start .. start+len) 写入 out_buf：分号后空格、数组/列表元素逗号后空格、二元运算符两侧空格（字符串与 // 内不处理）。
  * 不对 . : :: ()[]{} 强行加空格，保持 arr[i]、let x: i32、f() 等惯写法；`, ` 仅在 ] } 前不补空格。
  */
-static int lsp_format_emit_segment(const uint8_t *doc, int start, int len, uint8_t *out_buf, int out_len, int out_cap) {
+int lsp_format_emit_segment_impl(const uint8_t *doc, int start, int len, uint8_t *out_buf, int out_len, int out_cap) {
     int in_string = 0;
     int escape = 0;
     int in_line_comment = 0;
@@ -2864,11 +3030,18 @@ emit_raw:
     }
     return out_len;
 }
+int lsp_format_emit_segment(const uint8_t *doc, int start, int len, uint8_t *out_buf, int out_len, int out_cap) {
+  {
+    return lsp_format_emit_segment_impl(doc, start, len, out_buf, out_len, out_cap);
+  }
+  return 0;
+}
+
 
 /**
  * 估算 [pos, break_at) 经 emit_segment 后相对原长多出的字符数（主要为紧凑逗号后补空格）。
  */
-static int lsp_fmt_comma_expand_extra(const uint8_t *doc, int content_start, int pos, int break_at, int content_len) {
+int lsp_fmt_comma_expand_extra_impl(const uint8_t *doc, int content_start, int pos, int break_at, int content_len) {
     int extra = 0;
     int k;
     int seg_len = break_at - pos;
@@ -2898,13 +3071,20 @@ static int lsp_fmt_comma_expand_extra(const uint8_t *doc, int content_start, int
     }
     return extra;
 }
+int lsp_fmt_comma_expand_extra(const uint8_t *doc, int content_start, int pos, int break_at, int content_len) {
+  {
+    return lsp_fmt_comma_expand_extra_impl(doc, content_start, pos, break_at, content_len);
+  }
+  return 0;
+}
+
 
 /**
  * 在 [pos, pos+room) 内选择折行点：优先 ; ，其次 ,（长数组字面量），再其次空格；禁止在标识符/单词中间硬切。
  * 候选断点须满足 emit_segment 后（含逗号补空格）不超过 room，保证 fmt 幂等。
  * 若无安全断点则返回 content_len（整段剩余保持一行，允许超 max_line_length）。
  */
-static int lsp_format_find_break(const uint8_t *doc, int content_start, int pos, int content_len, int room) {
+int lsp_format_find_break_impl(const uint8_t *doc, int content_start, int pos, int content_len, int room) {
     int end = pos + room;
     int k;
     if (end > content_len)
@@ -2934,8 +3114,15 @@ static int lsp_format_find_break(const uint8_t *doc, int content_start, int pos,
     }
     return content_len;
 }
+int lsp_format_find_break(const uint8_t *doc, int content_start, int pos, int content_len, int room) {
+  {
+    return lsp_format_find_break_impl(doc, content_start, pos, content_len, room);
+  }
+  return 0;
+}
 
-static int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, int insert_spaces, int max_line_length,
+
+int lsp_format_document_impl(const uint8_t *doc, int doc_len, int tab_size, int insert_spaces, int max_line_length,
                                int trim_trailing_whitespace, int insert_final_newline, int trim_final_newlines,
                                uint8_t *out_buf, int out_cap) {
     if (!doc || !out_buf || out_cap <= 0) return -1;
@@ -3044,6 +3231,15 @@ static int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, in
     }
     return out_len;
 }
+int lsp_format_document(const uint8_t *doc, int doc_len, int tab_size, int insert_spaces, int max_line_length,
+                               int trim_trailing_whitespace, int insert_final_newline, int trim_final_newlines,
+                               uint8_t *out_buf, int out_cap) {
+  {
+    return lsp_format_document_impl(doc, doc_len, tab_size, insert_spaces, max_line_length, trim_trailing_whitespace, insert_final_newline, trim_final_newlines, out_buf, out_cap);
+  }
+  return 0;
+}
+
 
 /** shux fmt CLI：默认 tabSize=2、空格缩进、maxLineLength=100，与 LSP formatting 一致。 */
 int shu_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int out_cap) {
@@ -3051,7 +3247,7 @@ int shu_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int
 }
 
 /** 统计文档行数（0-based 最后一行号）与最后一行的字符数。 */
-static void lsp_doc_line_count(const uint8_t *doc, int len, int *out_last_line, int *out_last_line_char) {
+void lsp_doc_line_count_impl(const uint8_t *doc, int len, int *out_last_line, int *out_last_line_char) {
     int lines = 0;
     int last_char = 0;
     for (int i = 0; i < len; i++) {
@@ -3064,6 +3260,12 @@ static void lsp_doc_line_count(const uint8_t *doc, int len, int *out_last_line, 
     *out_last_line = lines > 0 ? lines - 1 : 0;
     *out_last_line_char = last_char;
 }
+void lsp_doc_line_count(const uint8_t *doc, int len, int *out_last_line, int *out_last_line_char) {
+  {
+    lsp_doc_line_count_impl(doc, len, out_last_line, out_last_line_char);
+  }
+}
+
 
 /** 格式化结果 JSON（单条 TextEdit）最大长度，避免栈上 result_buf 过大。 */
 #define LSP_FORMATTING_RESULT_MAX (1024 * 1024)
@@ -3125,7 +3327,7 @@ int lsp_build_formatting_response(int id_val, const uint8_t *body, int body_len,
 
 /* ---------- textDocument/rename ---------- */
 
-static int lsp_extract_string_value(const uint8_t *body, int len, const char *key, char *out_buf, int out_cap) {
+int lsp_extract_string_value_impl(const uint8_t *body, int len, const char *key, char *out_buf, int out_cap) {
     char search[128];
     int sl = snprintf(search, sizeof(search), "\"%s\":\"", key);
     if (sl <= 0 || sl >= (int)sizeof(search)) return -1;
@@ -3142,6 +3344,13 @@ static int lsp_extract_string_value(const uint8_t *body, int len, const char *ke
     out_buf[out_len] = '\0';
     return out_len;
 }
+int lsp_extract_string_value(const uint8_t *body, int len, const char *key, char *out_buf, int out_cap) {
+  {
+    return lsp_extract_string_value_impl(body, len, key, out_buf, out_cap);
+  }
+  return 0;
+}
+
 
 /**
  * 构建 textDocument/rename 的 JSON-RPC 响应。

@@ -1,4 +1,5 @@
 /* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+ * G-02f-111 helper gates.
  * G-02f-105 helper gates.
  * Product objects from this seed (flags select variants):
  *   runtime_driver_no_c.o  — RUNTIME_DRIVER_NO_C_CFLAGS (G05 product)
@@ -510,7 +511,7 @@ extern int typeck_typeck_entry(struct ASTModule *mod, struct ASTModule **deps, i
 
 #if defined(SHUX_USE_X_PIPELINE)
 /** 向生成 C 写入 std.io / std.net 内联 ABI（原 io_abi.h、net_abi.h 内容），不再依赖该二头文件。成功返回 0。 */
-static int write_io_net_abi_inline(FILE *cf) {
+int write_io_net_abi_inline_impl(FILE *cf) {
     static const char *lines[] = {
         "#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L\n#error \"Generated code needs C11. Compile with -std=gnu11 or -std=c11.\"\n#endif\n",
         "#include <stddef.h>\n",
@@ -716,6 +717,13 @@ static int write_io_net_abi_inline(FILE *cf) {
     }
     return 0;
 }
+int write_io_net_abi_inline(FILE *cf) {
+  {
+    return write_io_net_abi_inline_impl(cf);
+  }
+  return 0;
+}
+
 
 /** 向生成 C 写入 std.fs / std.path / std.map / std.error 内联 ABI（F-ZC Z9：不再 #include std/*_abi.h）。成功返回 0。 */
 int write_fs_path_map_error_abi_inline_impl(FILE *cf) {
@@ -4747,7 +4755,7 @@ int driver_argv0_basename_is(const char *argv0, const char *base) {
  * argv 已解析后的编译执行：泛型降级、asm/C 分派、pipeline/cc。
  * 由 driver/compile.x 经 driver_run_compiler_dispatch_c 调用。
  */
-static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
+int driver_run_compiler_parsed_impl(DriverCompileParsed *p, int argc, char **argv) {
     /* 【Why 根源】-lib-name 仅 C 前端 RUN_CC_FUNC 路径需要（shux_compile_std_module.sh --bare-impl）；
      * x-pipeline 路径（shux-x）不编译 std 模块，用 NULL 走 path-based lib_name。 */
     const char *lib_name_override = NULL;
@@ -5662,6 +5670,13 @@ static int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **a
     pipeline_dep_ctx_heap_destroy(pctx);
     return 0;
 }
+int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
+  {
+    return driver_run_compiler_parsed_impl(p, argc, argv);
+  }
+  return 0;
+}
+
 
 extern int32_t driver_emit_lib_root_count(uint8_t *state);
 extern int32_t driver_emit_append_lib_root(uint8_t *state, uint8_t *path, int32_t len);
@@ -6941,7 +6956,7 @@ int driver_argv_parse_x_emit_c(int argc, char **argv) {
  * 说明：codegen_emit_dep_types_only / codegen_library_module_to_c 依赖 C ASTModule；parser_parse_into 的 .x Module 布局不同，故不能复用 x parse 结果。
  */
 #if !defined(SHUX_NO_C_FRONTEND)
-static int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
+int driver_run_x_emit_c_extern_via_cparser_impl(const char *input_path) {
     /* 【Why 根源】-lib-name 仅 C 前端 RUN_CC_FUNC 路径需要（shux_compile_std_module.sh --bare-impl）；
      * x-pipeline 路径（shux-x）不编译 std 模块，用 NULL 走 path-based lib_name。 */
     const char *lib_name_override = NULL;
@@ -7087,6 +7102,13 @@ static int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
     free(src);
     return ec != 0 ? 1 : 0;
 }
+int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
+  {
+    return driver_run_x_emit_c_extern_via_cparser_impl(input_path);
+  }
+  return 0;
+}
+
 #endif /* !SHUX_NO_C_FRONTEND */
 #endif /* SHUX_USE_X_DRIVER && SHUX_USE_X_PIPELINE */
 

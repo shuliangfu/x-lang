@@ -1,4 +1,5 @@
 /* seeds/async_cps_codegen.from_x.c — G-02f-18 product TU
+ * G-02f-111 helper gates.
  * G-02f-105 helper gates.
  * Product: src/async/async_cps_codegen.o; logic still C until full .x port.
  */
@@ -12,10 +13,10 @@
 #include <stdio.h>
 #include <string.h>
 
-static int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target);
+int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target);
 
 /** 表达式是否含 run/spawn target==async_fn 的调用。 */
-static int expr_references_run_async(const struct ASTExpr *e, const struct ASTFunc *target) {
+int expr_references_run_async_impl(const struct ASTExpr *e, const struct ASTFunc *target) {
     if (!e || !target)
         return 0;
     if (e->kind == AST_EXPR_RUN || e->kind == AST_EXPR_SPAWN) {
@@ -32,50 +33,50 @@ static int expr_references_run_async(const struct ASTExpr *e, const struct ASTFu
     case AST_EXPR_ADD_ASSIGN: case AST_EXPR_SUB_ASSIGN: case AST_EXPR_MUL_ASSIGN: case AST_EXPR_DIV_ASSIGN:
     case AST_EXPR_MOD_ASSIGN: case AST_EXPR_BITAND_ASSIGN: case AST_EXPR_BITOR_ASSIGN: case AST_EXPR_BITXOR_ASSIGN:
     case AST_EXPR_SHL_ASSIGN: case AST_EXPR_SHR_ASSIGN:
-        return expr_references_run_async(e->value.binop.left, target)
-            || expr_references_run_async(e->value.binop.right, target);
+        return expr_references_run_async_impl(e->value.binop.left, target)
+            || expr_references_run_async_impl(e->value.binop.right, target);
     case AST_EXPR_NEG: case AST_EXPR_BITNOT: case AST_EXPR_LOGNOT: case AST_EXPR_PANIC:
     case AST_EXPR_ADDR_OF: case AST_EXPR_DEREF: case AST_EXPR_RETURN: case AST_EXPR_AWAIT: case AST_EXPR_RUN:
     case AST_EXPR_SPAWN: case AST_EXPR_TRY_PROPAGATE:
     case AST_EXPR_AS:
-        return expr_references_run_async(e->value.unary.operand, target);
+        return expr_references_run_async_impl(e->value.unary.operand, target);
     case AST_EXPR_IF:
     case AST_EXPR_TERNARY:
-        return expr_references_run_async(e->value.if_expr.cond, target)
-            || expr_references_run_async(e->value.if_expr.then_expr, target)
-            || (e->value.if_expr.else_expr && expr_references_run_async(e->value.if_expr.else_expr, target));
+        return expr_references_run_async_impl(e->value.if_expr.cond, target)
+            || expr_references_run_async_impl(e->value.if_expr.then_expr, target)
+            || (e->value.if_expr.else_expr && expr_references_run_async_impl(e->value.if_expr.else_expr, target));
     case AST_EXPR_CALL:
         for (int i = 0; i < e->value.call.num_args; i++)
-            if (expr_references_run_async(e->value.call.args[i], target))
+            if (expr_references_run_async_impl(e->value.call.args[i], target))
                 return 1;
         return 0;
     case AST_EXPR_METHOD_CALL:
-        if (expr_references_run_async(e->value.method_call.base, target))
+        if (expr_references_run_async_impl(e->value.method_call.base, target))
             return 1;
         for (int i = 0; i < e->value.method_call.num_args; i++)
-            if (expr_references_run_async(e->value.method_call.args[i], target))
+            if (expr_references_run_async_impl(e->value.method_call.args[i], target))
                 return 1;
         return 0;
     case AST_EXPR_FIELD_ACCESS:
-        return expr_references_run_async(e->value.field_access.base, target);
+        return expr_references_run_async_impl(e->value.field_access.base, target);
     case AST_EXPR_INDEX:
-        return expr_references_run_async(e->value.index.base, target)
-            || expr_references_run_async(e->value.index.index_expr, target);
+        return expr_references_run_async_impl(e->value.index.base, target)
+            || expr_references_run_async_impl(e->value.index.index_expr, target);
     case AST_EXPR_STRUCT_LIT:
         for (int i = 0; i < e->value.struct_lit.num_fields; i++)
-            if (expr_references_run_async(e->value.struct_lit.inits[i], target))
+            if (expr_references_run_async_impl(e->value.struct_lit.inits[i], target))
                 return 1;
         return 0;
     case AST_EXPR_ARRAY_LIT:
         for (int i = 0; i < e->value.array_lit.num_elems; i++)
-            if (expr_references_run_async(e->value.array_lit.elems[i], target))
+            if (expr_references_run_async_impl(e->value.array_lit.elems[i], target))
                 return 1;
         return 0;
     case AST_EXPR_MATCH:
-        if (expr_references_run_async(e->value.match_expr.matched_expr, target))
+        if (expr_references_run_async_impl(e->value.match_expr.matched_expr, target))
             return 1;
         for (int i = 0; i < e->value.match_expr.num_arms; i++)
-            if (expr_references_run_async(e->value.match_expr.arms[i].result, target))
+            if (expr_references_run_async_impl(e->value.match_expr.arms[i].result, target))
                 return 1;
         return 0;
     case AST_EXPR_BLOCK:
@@ -84,9 +85,16 @@ static int expr_references_run_async(const struct ASTExpr *e, const struct ASTFu
         return 0;
     }
 }
+int expr_references_run_async(const struct ASTExpr *e, const struct ASTFunc *target) {
+  {
+    return expr_references_run_async_impl(e, target);
+  }
+  return 0;
+}
+
 
 /** 块内是否含 run/spawn target 调用。 */
-static int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target) {
+int block_has_run_async_ref_impl(const struct ASTBlock *b, const struct ASTFunc *target) {
     if (!b || !target)
         return 0;
     for (int i = 0; i < b->num_expr_stmts; i++)
@@ -99,13 +107,20 @@ static int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFun
             && expr_references_run_async(b->labeled_stmts[i].u.return_expr, target))
             return 1;
     for (int i = 0; i < b->num_loops; i++)
-        if (b->loops[i].body && block_has_run_async_ref(b->loops[i].body, target))
+        if (b->loops[i].body && block_has_run_async_ref_impl(b->loops[i].body, target))
             return 1;
     for (int i = 0; i < b->num_for_loops; i++)
-        if (b->for_loops[i].body && block_has_run_async_ref(b->for_loops[i].body, target))
+        if (b->for_loops[i].body && block_has_run_async_ref_impl(b->for_loops[i].body, target))
             return 1;
     return 0;
 }
+int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target) {
+  {
+    return block_has_run_async_ref_impl(b, target);
+  }
+  return 0;
+}
+
 
 /** 模块内是否有 run/spawn async_fn() 引用（供 DCE/WPO 保留协程体）。 */
 int async_cps_module_references_run_async(const struct ASTModule *m, const struct ASTFunc *async_fn) {

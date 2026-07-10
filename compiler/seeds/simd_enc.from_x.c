@@ -1,4 +1,5 @@
 /* seeds/simd_enc.from_x.c — G-02f-7 product pure SIMD encode TU
+ * G-02f-111 helper gates.
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
  * G-02f-108 helper gates.
@@ -305,7 +306,7 @@ int32_t simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(struct platform_elf_ElfCodegenCtx *e
 
 
 /** 发射整型向量 add/sub 公共路径（SSE paddd/psubd 或 AVX2 vpaddd/vpsubd）。 */
-static int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+int32_t simd_enc_try_hw_vector_iadd_isub_rbp_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                                     int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes,
                                                     int32_t esz, int32_t ta, uint32_t cpu_features, int32_t is_sub) {
     int32_t da;
@@ -353,6 +354,15 @@ static int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodeg
     }
     return -1;
 }
+int32_t simd_enc_try_hw_vector_iadd_isub_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
+                                                    int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes,
+                                                    int32_t esz, int32_t ta, uint32_t cpu_features, int32_t is_sub) {
+  {
+    return simd_enc_try_hw_vector_iadd_isub_rbp_impl(elf_ctx, slot_off_a, slot_off_b, slot_off_dst, lanes, esz, ta, cpu_features, is_sub);
+  }
+  return 0;
+}
+
 
 int32_t simd_enc_try_hw_vector_iadd_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_a,
                                         int32_t slot_off_b, int32_t slot_off_dst, int32_t lanes, int32_t esz,
@@ -1113,19 +1123,33 @@ int32_t simd_x86_vandps_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 /** x86 AVX：vandnps ymm2, ymm2, ymm1（C5 E8 55 D1）。 */
-static int32_t simd_x86_vandnps_ymm2_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+int32_t simd_x86_vandnps_ymm2_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0xc5, 0xe8, 0x55, 0xd1};
     return simd_append(elf_ctx, insn, 4);
 }
+int32_t simd_x86_vandnps_ymm2_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  {
+    return simd_x86_vandnps_ymm2_ymm1_impl(elf_ctx);
+  }
+  return 0;
+}
+
 
 /** x86 AVX：vorps ymm0, ymm0, ymm2（C5 E0 56 C2）。 */
-static int32_t simd_x86_vorps_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+int32_t simd_x86_vorps_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0xc5, 0xe0, 0x56, 0xc2};
     return simd_append(elf_ctx, insn, 4);
 }
+int32_t simd_x86_vorps_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  {
+    return simd_x86_vorps_ymm0_ymm2_impl(elf_ctx);
+  }
+  return 0;
+}
+
 
 /** i32 向量 select：xmm0=a, xmm1=b, xmm2=mask→结果写回 xmm0。 */
-static int32_t simd_enc_emit_i32_select_xmm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+int32_t simd_enc_emit_i32_select_xmm_seq_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     if (simd_x86_pxor_xmm3_xmm3(elf_ctx) != 0)
         return -1;
     if (simd_x86_pcmpgtd_xmm2_xmm3(elf_ctx) != 0)
@@ -1138,9 +1162,16 @@ static int32_t simd_enc_emit_i32_select_xmm_seq(struct platform_elf_ElfCodegenCt
         return -1;
     return 0;
 }
+int32_t simd_enc_emit_i32_select_xmm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  {
+    return simd_enc_emit_i32_select_xmm_seq_impl(elf_ctx);
+  }
+  return 0;
+}
+
 
 /** f32 向量 select：xmm0=a, xmm1=b, xmm2=mask→结果写回 xmm0。 */
-static int32_t simd_enc_emit_f32_select_xmm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+int32_t simd_enc_emit_f32_select_xmm_seq_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     if (simd_x86_xorps_xmm3_xmm3(elf_ctx) != 0)
         return -1;
     if (simd_x86_cmpgtps_xmm2_xmm3(elf_ctx) != 0)
@@ -1153,9 +1184,16 @@ static int32_t simd_enc_emit_f32_select_xmm_seq(struct platform_elf_ElfCodegenCt
         return -1;
     return 0;
 }
+int32_t simd_enc_emit_f32_select_xmm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  {
+    return simd_enc_emit_f32_select_xmm_seq_impl(elf_ctx);
+  }
+  return 0;
+}
+
 
 /** AVX2 i32 select：ymm0=a, ymm1=b, ymm2=mask。 */
-static int32_t simd_enc_emit_i32_select_ymm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+int32_t simd_enc_emit_i32_select_ymm_seq_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     if (simd_x86_vpxor_ymm3_ymm3(elf_ctx) != 0)
         return -1;
     if (simd_x86_vpcmpgtd_ymm2_ymm3(elf_ctx) != 0)
@@ -1168,9 +1206,16 @@ static int32_t simd_enc_emit_i32_select_ymm_seq(struct platform_elf_ElfCodegenCt
         return -1;
     return 0;
 }
+int32_t simd_enc_emit_i32_select_ymm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  {
+    return simd_enc_emit_i32_select_ymm_seq_impl(elf_ctx);
+  }
+  return 0;
+}
+
 
 /** AVX f32 select：ymm0=a, ymm1=b, ymm2=mask。 */
-static int32_t simd_enc_emit_f32_select_ymm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+int32_t simd_enc_emit_f32_select_ymm_seq_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     if (simd_x86_vxorps_ymm3_ymm3(elf_ctx) != 0)
         return -1;
     if (simd_x86_vcmpgtps_ymm2_ymm3(elf_ctx) != 0)
@@ -1183,6 +1228,13 @@ static int32_t simd_enc_emit_f32_select_ymm_seq(struct platform_elf_ElfCodegenCt
         return -1;
     return 0;
 }
+int32_t simd_enc_emit_f32_select_ymm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  {
+    return simd_enc_emit_f32_select_ymm_seq_impl(elf_ctx);
+  }
+  return 0;
+}
+
 
 int32_t simd_enc_try_hw_vector_select_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t slot_off_mask,
                                           int32_t slot_off_a, int32_t slot_off_b, int32_t slot_off_dst,
@@ -1288,7 +1340,7 @@ int32_t simd_enc_x86_addps_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx)
 }
 
 /** x86：pshufd xmm1, xmm0, imm8（66 0F 70 C8 imm）。 */
-static int32_t simd_x86_pshufd_xmm1_xmm0(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t imm) {
+int32_t simd_x86_pshufd_xmm1_xmm0_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t imm) {
     static const uint8_t prefix[3] = {0x66, 0x0f, 0x70};
     if (simd_append(elf_ctx, prefix, 3) != 0)
         return -1;
@@ -1299,6 +1351,13 @@ static int32_t simd_x86_pshufd_xmm1_xmm0(struct platform_elf_ElfCodegenCtx *elf_
     }
     return simd_append(elf_ctx, &imm, 1);
 }
+int32_t simd_x86_pshufd_xmm1_xmm0(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t imm) {
+  {
+    return simd_x86_pshufd_xmm1_xmm0_impl(elf_ctx, imm);
+  }
+  return 0;
+}
+
 
 /**
  * x86：xmm0 内 4×f32 归约为标量（低 lane = 四 lane 之和）。
