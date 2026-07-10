@@ -12,6 +12,7 @@
 // G-02f-223：entry_dir_pick + import_dep_dir pure；dep set/ndep 边界。
 // G-02f-224：path_registry scan + seed_slots pure。
 // G-02f-225：sidecar_clear + preprocess/import 诊断 pure（note + report_with_code）。
+// G-02f-226：entry_lib 关键词 pure + set_dep_slots pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -51,6 +52,9 @@ extern "C" function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, o
 extern "C" function driver_dep_seed_slots_impl(arenas: *u8, modules: *u8, n: i32): void;
 extern "C" function shux_entry_lib_name_from_path_impl(input_path: *u8): *u8;
 extern "C" function shux_cstr_typeck_lit(): *u8;
+extern "C" function shux_entry_lib_keyword_lit(k: i32): *u8;
+extern "C" function pipeline_dep_arena_slot_set(i: i32, p: *u8): void;
+extern "C" function pipeline_dep_module_slot_set(i: i32, p: *u8): void;
 extern "C" function pipeline_dep_arena_slot_at(i: i32): *u8;
 extern "C" function pipeline_dep_module_slot_at(i: i32): *u8;
 extern "C" function pipeline_diag_import_open_fail_once_impl(import_path: *u8, resolved_path: *u8): void;
@@ -760,6 +764,32 @@ function driver_dep_seed_slots(arenas: *u8, modules: *u8, n: i32): void {
   }
 }
 
+// G-02f-226 内部：hay 是否包含 needle（strstr 语义）
+function pipe_cstr_contains(hay: *u8, needle: *u8): i32 {
+  if (hay == 0 as *u8) { return 0; }
+  if (needle == 0 as *u8) { return 0; }
+  if (needle[0] == 0) { return 1; }
+  unsafe {
+    let hi: i32 = 0;
+    while (hi < 4096) {
+      if (hay[hi] == 0) { return 0; }
+      let j: i32 = 0;
+      let ok: i32 = 1;
+      while (ok != 0) {
+        if (needle[j] == 0) { return 1; }
+        if (hay[hi + j] == 0) { ok = 0; }
+        else {
+          if (hay[hi + j] != needle[j]) { ok = 0; }
+          else { j = j + 1; }
+        }
+      }
+      hi = hi + 1;
+    }
+  }
+  return 0;
+}
+
+// G-02f-226：入口路径 → lib 前缀；关键词 pure，std/ 等回落 impl
 #[no_mangle]
 function shux_entry_lib_name_from_path(input_path: *u8): *u8 {
   if (input_path == 0 as *u8) {
@@ -769,6 +799,42 @@ function shux_entry_lib_name_from_path(input_path: *u8): *u8 {
     return 0 as *u8;
   }
   unsafe {
+    // 先扫 std/：复杂 stem 仍走 impl
+    let stdn: u8[8] = [];
+    stdn[0]=115;stdn[1]=116;stdn[2]=100;stdn[3]=47;stdn[4]=0; // "std/"
+    if (pipe_cstr_contains(input_path, &stdn[0]) != 0) {
+      return shux_entry_lib_name_from_path_impl(input_path);
+    }
+    let k0: u8[8] = []; // main
+    k0[0]=109;k0[1]=97;k0[2]=105;k0[3]=110;k0[4]=0;
+    if (pipe_cstr_contains(input_path, &k0[0]) != 0) { return shux_entry_lib_keyword_lit(0); }
+    let k1: u8[8] = []; // build
+    k1[0]=98;k1[1]=117;k1[2]=105;k1[3]=108;k1[4]=100;k1[5]=0;
+    if (pipe_cstr_contains(input_path, &k1[0]) != 0) { return shux_entry_lib_keyword_lit(1); }
+    let k2: u8[16] = []; // pipeline
+    k2[0]=112;k2[1]=105;k2[2]=112;k2[3]=101;k2[4]=108;k2[5]=105;k2[6]=110;k2[7]=101;k2[8]=0;
+    if (pipe_cstr_contains(input_path, &k2[0]) != 0) { return shux_entry_lib_keyword_lit(2); }
+    let k3: u8[8] = []; // driver
+    k3[0]=100;k3[1]=114;k3[2]=105;k3[3]=118;k3[4]=101;k3[5]=114;k3[6]=0;
+    if (pipe_cstr_contains(input_path, &k3[0]) != 0) { return shux_entry_lib_keyword_lit(3); }
+    let k4: u8[16] = []; // codegen
+    k4[0]=99;k4[1]=111;k4[2]=100;k4[3]=101;k4[4]=103;k4[5]=101;k4[6]=110;k4[7]=0;
+    if (pipe_cstr_contains(input_path, &k4[0]) != 0) { return shux_entry_lib_keyword_lit(4); }
+    let k5: u8[8] = []; // typeck
+    k5[0]=116;k5[1]=121;k5[2]=112;k5[3]=101;k5[4]=99;k5[5]=107;k5[6]=0;
+    if (pipe_cstr_contains(input_path, &k5[0]) != 0) { return shux_entry_lib_keyword_lit(5); }
+    let k6: u8[8] = []; // parser
+    k6[0]=112;k6[1]=97;k6[2]=114;k6[3]=115;k6[4]=101;k6[5]=114;k6[6]=0;
+    if (pipe_cstr_contains(input_path, &k6[0]) != 0) { return shux_entry_lib_keyword_lit(6); }
+    let k7: u8[8] = []; // token
+    k7[0]=116;k7[1]=111;k7[2]=107;k7[3]=101;k7[4]=110;k7[5]=0;
+    if (pipe_cstr_contains(input_path, &k7[0]) != 0) { return shux_entry_lib_keyword_lit(7); }
+    let k8: u8[8] = []; // lexer
+    k8[0]=108;k8[1]=101;k8[2]=120;k8[3]=101;k8[4]=114;k8[5]=0;
+    if (pipe_cstr_contains(input_path, &k8[0]) != 0) { return shux_entry_lib_keyword_lit(8); }
+    let k9: u8[8] = []; // ast
+    k9[0]=97;k9[1]=115;k9[2]=116;k9[3]=0;
+    if (pipe_cstr_contains(input_path, &k9[0]) != 0) { return shux_entry_lib_keyword_lit(9); }
     return shux_entry_lib_name_from_path_impl(input_path);
   }
   return 0 as *u8;
@@ -947,10 +1013,24 @@ function pipeline_set_entry_dir(path: *u8): void {
   }
 }
 
+// G-02f-226：写入 32 个 pipeline dep arena/module 槽
 #[no_mangle]
 function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
-  unsafe {
-    pipeline_set_dep_slots_impl(arenas, modules);
+  let i: i32 = 0;
+  while (i < 32) {
+    unsafe {
+      let a: *u8 = 0 as *u8;
+      let m: *u8 = 0 as *u8;
+      if (arenas != 0 as *u8) {
+        a = pipe_load_ptr_slot(arenas, i);
+      }
+      if (modules != 0 as *u8) {
+        m = pipe_load_ptr_slot(modules, i);
+      }
+      pipeline_dep_arena_slot_set(i, a);
+      pipeline_dep_module_slot_set(i, m);
+    }
+    i = i + 1;
   }
 }
 

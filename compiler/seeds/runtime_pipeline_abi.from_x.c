@@ -7,6 +7,7 @@
  * G-02f-223: entry_dir_pick + import_dep_dir pure; dep set/ndep bounds.
  * G-02f-224: path_registry scan + seed_slots pure.
  * G-02f-225: sidecar_clear + preprocess/import diag pure.
+ * G-02f-226: entry_lib keywords + set_dep_slots pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -1297,6 +1298,22 @@ const char *shux_cstr_typeck_lit(void) {
     return "typeck";
 }
 
+/* G-02f-226：entry_lib 关键字字面量（0=main..9=ast；其它 typeck） */
+const char *shux_entry_lib_keyword_lit(int32_t k) {
+    if (k == 0) return "main";
+    if (k == 1) return "build";
+    if (k == 2) return "pipeline";
+    if (k == 3) return "driver";
+    if (k == 4) return "codegen";
+    if (k == 5) return "typeck";
+    if (k == 6) return "parser";
+    if (k == 7) return "token";
+    if (k == 8) return "lexer";
+    if (k == 9) return "ast";
+    return "typeck";
+}
+
+/* G-02f-226：逻辑源 .x（真迁关键词路径；std/ 仍走 impl） */
 const char *shux_entry_lib_name_from_path(const char *input_path) {
   if (input_path == NULL) {
     return shux_cstr_typeck_lit();
@@ -1683,8 +1700,21 @@ void pipeline_set_entry_dir(const char *path) {
 
 
 
+/* G-02f-226：dep 槽写（供 .x set_dep_slots 真迁） */
+void pipeline_dep_arena_slot_set(int32_t i, void *p) {
+    if (i < 0 || i >= 32)
+        return;
+    pipeline_dep_arena_slots[i] = p;
+}
+
+void pipeline_dep_module_slot_set(int32_t i, void *p) {
+    if (i < 0 || i >= 32)
+        return;
+    pipeline_dep_module_slots[i] = p;
+}
+
 /** 写入 dep arena/module 槽（collect_deps 预分配缓冲）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-226：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
     for (int i = 0; i < 32; i++) {
         pipeline_dep_arena_slots[i] = arenas ? arenas[i] : NULL;
