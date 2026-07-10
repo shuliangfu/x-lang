@@ -1,5 +1,5 @@
 /* seeds/async_liveness.from_x.c — G-02f-18 product TU
- * G-02f-132 true .x pure helpers.
+ * G-02f-166～168 await AST true .x; G-02f-132 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
  * G-02f-110 helper gates.
@@ -27,7 +27,7 @@ int expr_refs_var(const struct ASTExpr *e, const char *name);
 int block_refs_var(const struct ASTBlock *b, const char *name);
 
 /** 表达式是否含 await（递归）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-166：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int expr_has_await(const struct ASTExpr *e) {
     if (!e) return 0;
     if (e->kind == AST_EXPR_AWAIT) return 1;
@@ -87,7 +87,7 @@ int expr_has_await(const struct ASTExpr *e) {
     }
 }
 /** 统计表达式内 await 个数（递归累加）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-166：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int expr_count_await(const struct ASTExpr *e) {
     if (!e) return 0;
     if (e->kind == AST_EXPR_AWAIT)
@@ -150,7 +150,7 @@ int expr_count_await(const struct ASTExpr *e) {
     }
 }
 /** 块内是否存在 await（A3 v0 不扫描 loop/for 体）。 */
-/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-168：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int block_has_await(const struct ASTBlock *b) {
     return block_count_await(b) > 0;
 }
@@ -159,7 +159,7 @@ int block_has_await(const struct ASTBlock *b) {
 
 
 /** 块内 await 个数（A3 v0 不扫描 loop/for 体）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-168：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int block_count_await(const struct ASTBlock *b) {
     if (!b) return 0;
     int n = 0;
@@ -191,7 +191,7 @@ int async_liveness_callee_is_io_write(const struct ASTFunc *callee) {
 
 
 /** 表达式是否含 await read/read_fd（递归）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-167：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int expr_has_io_read_await(const struct ASTExpr *e) {
     const struct ASTExpr *op;
     const struct ASTFunc *callee;
@@ -269,7 +269,7 @@ int expr_has_io_read_await(const struct ASTExpr *e) {
     return 0;
 }
 /** 表达式是否含 await write/write_fd（递归）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-167：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int expr_has_io_write_await(const struct ASTExpr *e) {
     const struct ASTExpr *op;
     const struct ASTFunc *callee;
@@ -346,7 +346,7 @@ int expr_has_io_write_await(const struct ASTExpr *e) {
     return 0;
 }
 /** 块内是否含 await read/read_fd。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-167：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int block_has_io_read_await(const struct ASTBlock *b) {
     if (!b)
         return 0;
@@ -361,7 +361,7 @@ int block_has_io_read_await(const struct ASTBlock *b) {
     return 0;
 }
 /** 块内是否含 await write/write_fd。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-167：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int block_has_io_write_await(const struct ASTBlock *b) {
     if (!b)
         return 0;

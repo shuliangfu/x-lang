@@ -5,19 +5,24 @@
 // G-02f-161：frame_mangle_ident / frame_build_tag 真迁 .x。
 // G-02f-162：frame_live_add 真迁 .x（AsyncFrameLive names@0 n@4096）。
 // G-02f-164：frame_live_at_await 真迁 .x（char** defined LE 槽）。
-// G-02f-165：expr/block await/refs + analyze_block_linear 批折叠（public C 在 seed）。
+// G-02f-165：thin _impl 批折叠。
+// G-02f-166～168：expr/block await + count + io_await 真迁 .x（AST LE 偏移表）。
 // 产品：cc seeds/async_liveness.from_x.c → src/async/async_liveness.o
 
 function async_liveness_x_doc_anchor(): i32 {
   return 0;
 }
 
-// G-02f-108 / G-02f-132：await/io/block/frame helpers
+// G-02f-108 / G-02f-132 / G-02f-166：await/io/block/frame helpers
 
-// G-02f-165：block_* / expr_* AST walk 产品符号在 seeds/async_liveness.from_x.c（已无 _impl）。
-// 真迁 AST 递归仍属后续 Wave A 步进；此处仅保留已真迁 helper + live_at_await。
+/* ---- G-02f-108 / G-02f-132 / G-02f-166：async_liveness helpers ---- */
 
-/* ---- G-02f-108 / G-02f-132 / G-02f-165：async_liveness helpers ---- */
+// ASTExpr layout (host C): kind@0 i32; value@24 union; binop L@24 R@32; unary@24;
+// if cond@24 then@32 else@40; call callee@24 args@32 num@40 resolved_fn@72;
+// method base@24 args@40 num@48; struct inits@40 num@48; array elems@24 num@32;
+// match matched@24 arms@32 num@40; MatchArm size 88 result@80;
+// ASTBlock: let_decls@16 num_lets@24; expr_stmts@96 num@104; final@112.
+// ASTLetDecl size 48: name@0 init@16. AST_EXPR_AWAIT=54 CALL=48.
 
 // ASTFunc.name 偏移 8（line+col）
 function async_live_load_func_name(callee: *u8): *u8 {
@@ -66,9 +71,584 @@ function async_liveness_callee_is_io_write(f: *u8): i32 {
   return 0;
 }
 
+// ---- G-02f-166：AST LE load helpers ----
+function async_live_load_i32(p: *u8, off: i32): i32 {
+  if (p == 0) { return 0; }
+  let m: i32 = 256;
+  let a: i32 = p[off] as i32;
+  a = a + (p[off + 1] as i32) * m;
+  a = a + (p[off + 2] as i32) * m * m;
+  a = a + (p[off + 3] as i32) * m * m * m;
+  return a;
+}
 
+function async_live_load_ptr(p: *u8, off: i32): *u8 {
+  if (p == 0) { return 0 as *u8; }
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  let a: usize = p[off] as usize;
+  a = a + (p[off + 1] as usize) * m;
+  a = a + (p[off + 2] as usize) * m2;
+  a = a + (p[off + 3] as usize) * (m2 * m);
+  a = a + (p[off + 4] as usize) * m4;
+  a = a + (p[off + 5] as usize) * (m4 * m);
+  a = a + (p[off + 6] as usize) * (m4 * m2);
+  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
+  return a as *u8;
+}
 
-// G-02f-165：block_count/has_io/refs/rest_refs — 见 seed public C（无门闩 _impl）。
+function async_live_ptr_at(base: *u8, i: i32): *u8 {
+  if (base == 0) { return 0 as *u8; }
+  return async_live_load_ptr(base, i * 8);
+}
+
+function async_live_expr_kind(e: *u8): i32 {
+  return async_live_load_i32(e, 0);
+}
+
+function async_live_is_binop_kind(k: i32): i32 {
+  if (k >= 4) {
+    if (k <= 21) { return 1; }
+  }
+  if (k >= 28) {
+    if (k <= 38) { return 1; }
+  }
+  return 0;
+}
+
+function async_live_is_unary_kind(k: i32): i32 {
+  if (k == 22) { return 1; }
+  if (k == 23) { return 1; }
+  if (k == 24) { return 1; }
+  if (k == 41) { return 1; }
+  if (k == 42) { return 1; }
+  if (k == 51) { return 1; }
+  if (k == 52) { return 1; }
+  return 0;
+}
+
+// forward decls via mutual recursion (define block_* after expr_*)
+
+// G-02f-166：expr_has_await 真迁（主 kind 全表 + 递归）
+#[no_mangle]
+function expr_has_await(e: *u8): i32 {
+  if (e == 0) { return 0; }
+  let k: i32 = async_live_expr_kind(e);
+  if (k == 54) { return 1; }
+  if (async_live_is_binop_kind(k) != 0) {
+    if (expr_has_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    if (expr_has_await(async_live_load_ptr(e, 32)) != 0) { return 1; }
+    return 0;
+  }
+  if (async_live_is_unary_kind(k) != 0) {
+    return expr_has_await(async_live_load_ptr(e, 24));
+  }
+  if (k == 53) {
+    return expr_has_await(async_live_load_ptr(e, 24));
+  }
+  if (k == 25) {
+    if (expr_has_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    if (expr_has_await(async_live_load_ptr(e, 32)) != 0) { return 1; }
+    let el: *u8 = async_live_load_ptr(e, 40);
+    if (el != 0) {
+      if (expr_has_await(el) != 0) { return 1; }
+    }
+    return 0;
+  }
+  if (k == 27) {
+    if (expr_has_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    if (expr_has_await(async_live_load_ptr(e, 32)) != 0) { return 1; }
+    let el2: *u8 = async_live_load_ptr(e, 40);
+    if (el2 != 0) {
+      if (expr_has_await(el2) != 0) { return 1; }
+    }
+    return 0;
+  }
+  if (k == 26) {
+    return block_has_await(async_live_load_ptr(e, 24));
+  }
+  if (k == 44) {
+    return expr_has_await(async_live_load_ptr(e, 24));
+  }
+  if (k == 47) {
+    if (expr_has_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    return expr_has_await(async_live_load_ptr(e, 32));
+  }
+  if (k == 48) {
+    if (expr_has_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    let args: *u8 = async_live_load_ptr(e, 32);
+    let n: i32 = async_live_load_i32(e, 40);
+    let i: i32 = 0;
+    while (i < n) {
+      if (expr_has_await(async_live_ptr_at(args, i)) != 0) { return 1; }
+      i = i + 1;
+    }
+    return 0;
+  }
+  if (k == 49) {
+    if (expr_has_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    let args2: *u8 = async_live_load_ptr(e, 40);
+    let n2: i32 = async_live_load_i32(e, 48);
+    let j: i32 = 0;
+    while (j < n2) {
+      if (expr_has_await(async_live_ptr_at(args2, j)) != 0) { return 1; }
+      j = j + 1;
+    }
+    return 0;
+  }
+  if (k == 45) {
+    let inits: *u8 = async_live_load_ptr(e, 40);
+    let nf: i32 = async_live_load_i32(e, 48);
+    let fi: i32 = 0;
+    while (fi < nf) {
+      if (expr_has_await(async_live_ptr_at(inits, fi)) != 0) { return 1; }
+      fi = fi + 1;
+    }
+    return 0;
+  }
+  if (k == 46) {
+    let elems: *u8 = async_live_load_ptr(e, 24);
+    let ne: i32 = async_live_load_i32(e, 32);
+    let ei: i32 = 0;
+    while (ei < ne) {
+      if (expr_has_await(async_live_ptr_at(elems, ei)) != 0) { return 1; }
+      ei = ei + 1;
+    }
+    return 0;
+  }
+  if (k == 43) {
+    if (expr_has_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    let arms: *u8 = async_live_load_ptr(e, 32);
+    let na: i32 = async_live_load_i32(e, 40);
+    let ai: i32 = 0;
+    while (ai < na) {
+      if (arms == 0) { return 0; }
+      let arm: *u8 = arms + (ai * 88);
+      if (expr_has_await(async_live_load_ptr(arm, 80)) != 0) { return 1; }
+      ai = ai + 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+// G-02f-166：expr_count_await
+#[no_mangle]
+function expr_count_await(e: *u8): i32 {
+  if (e == 0) { return 0; }
+  let k: i32 = async_live_expr_kind(e);
+  if (k == 54) {
+    return 1 + expr_count_await(async_live_load_ptr(e, 24));
+  }
+  if (async_live_is_binop_kind(k) != 0) {
+    return expr_count_await(async_live_load_ptr(e, 24)) + expr_count_await(async_live_load_ptr(e, 32));
+  }
+  if (async_live_is_unary_kind(k) != 0) {
+    return expr_count_await(async_live_load_ptr(e, 24));
+  }
+  if (k == 53) {
+    return expr_count_await(async_live_load_ptr(e, 24));
+  }
+  if (k == 25) {
+    let n: i32 = expr_count_await(async_live_load_ptr(e, 24)) + expr_count_await(async_live_load_ptr(e, 32));
+    let el: *u8 = async_live_load_ptr(e, 40);
+    if (el != 0) { n = n + expr_count_await(el); }
+    return n;
+  }
+  if (k == 27) {
+    let n2: i32 = expr_count_await(async_live_load_ptr(e, 24)) + expr_count_await(async_live_load_ptr(e, 32));
+    let el2: *u8 = async_live_load_ptr(e, 40);
+    if (el2 != 0) { n2 = n2 + expr_count_await(el2); }
+    return n2;
+  }
+  if (k == 26) {
+    return block_count_await(async_live_load_ptr(e, 24));
+  }
+  if (k == 44) {
+    return expr_count_await(async_live_load_ptr(e, 24));
+  }
+  if (k == 47) {
+    return expr_count_await(async_live_load_ptr(e, 24)) + expr_count_await(async_live_load_ptr(e, 32));
+  }
+  if (k == 48) {
+    let n3: i32 = expr_count_await(async_live_load_ptr(e, 24));
+    let args: *u8 = async_live_load_ptr(e, 32);
+    let nn: i32 = async_live_load_i32(e, 40);
+    let i: i32 = 0;
+    while (i < nn) {
+      n3 = n3 + expr_count_await(async_live_ptr_at(args, i));
+      i = i + 1;
+    }
+    return n3;
+  }
+  if (k == 49) {
+    let n4: i32 = expr_count_await(async_live_load_ptr(e, 24));
+    let args2: *u8 = async_live_load_ptr(e, 40);
+    let nn2: i32 = async_live_load_i32(e, 48);
+    let j: i32 = 0;
+    while (j < nn2) {
+      n4 = n4 + expr_count_await(async_live_ptr_at(args2, j));
+      j = j + 1;
+    }
+    return n4;
+  }
+  if (k == 45) {
+    let n5: i32 = 0;
+    let inits: *u8 = async_live_load_ptr(e, 40);
+    let nf: i32 = async_live_load_i32(e, 48);
+    let fi: i32 = 0;
+    while (fi < nf) {
+      n5 = n5 + expr_count_await(async_live_ptr_at(inits, fi));
+      fi = fi + 1;
+    }
+    return n5;
+  }
+  if (k == 46) {
+    let n6: i32 = 0;
+    let elems: *u8 = async_live_load_ptr(e, 24);
+    let ne: i32 = async_live_load_i32(e, 32);
+    let ei: i32 = 0;
+    while (ei < ne) {
+      n6 = n6 + expr_count_await(async_live_ptr_at(elems, ei));
+      ei = ei + 1;
+    }
+    return n6;
+  }
+  if (k == 43) {
+    let n7: i32 = expr_count_await(async_live_load_ptr(e, 24));
+    let arms: *u8 = async_live_load_ptr(e, 32);
+    let na: i32 = async_live_load_i32(e, 40);
+    let ai: i32 = 0;
+    while (ai < na) {
+      if (arms == 0) { return n7; }
+      let arm: *u8 = arms + (ai * 88);
+      n7 = n7 + expr_count_await(async_live_load_ptr(arm, 80));
+      ai = ai + 1;
+    }
+    return n7;
+  }
+  return 0;
+}
+
+// G-02f-168：block_count_await / block_has_await
+#[no_mangle]
+function block_count_await(b: *u8): i32 {
+  if (b == 0) { return 0; }
+  let n: i32 = 0;
+  let nlets: i32 = async_live_load_i32(b, 24);
+  let lets: *u8 = async_live_load_ptr(b, 16);
+  let i: i32 = 0;
+  while (i < nlets) {
+    if (lets != 0) {
+      let ld: *u8 = lets + (i * 48);
+      let init: *u8 = async_live_load_ptr(ld, 16);
+      if (init != 0) {
+        n = n + expr_count_await(init);
+      }
+    }
+    i = i + 1;
+  }
+  let nst: i32 = async_live_load_i32(b, 104);
+  let stmts: *u8 = async_live_load_ptr(b, 96);
+  let j: i32 = 0;
+  while (j < nst) {
+    n = n + expr_count_await(async_live_ptr_at(stmts, j));
+    j = j + 1;
+  }
+  let fin: *u8 = async_live_load_ptr(b, 112);
+  if (fin != 0) {
+    n = n + expr_count_await(fin);
+  }
+  return n;
+}
+
+#[no_mangle]
+function block_has_await(b: *u8): i32 {
+  if (block_count_await(b) > 0) { return 1; }
+  return 0;
+}
+
+// G-02f-167：expr_has_io_read/write_await + block_has_io_*
+#[no_mangle]
+function expr_has_io_read_await(e: *u8): i32 {
+  if (e == 0) { return 0; }
+  let k: i32 = async_live_expr_kind(e);
+  if (k == 54) {
+    let op: *u8 = async_live_load_ptr(e, 24);
+    if (op != 0) {
+      if (async_live_expr_kind(op) == 48) {
+        let cal: *u8 = async_live_load_ptr(op, 72);
+        if (cal != 0) {
+          if (async_liveness_callee_is_io_read(cal) != 0) { return 1; }
+        }
+      }
+    }
+  }
+  if (expr_has_await(e) == 0) { return 0; }
+  if (k == 54) {
+    return expr_has_io_read_await(async_live_load_ptr(e, 24));
+  }
+  if (async_live_is_binop_kind(k) != 0) {
+    if (expr_has_io_read_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    return expr_has_io_read_await(async_live_load_ptr(e, 32));
+  }
+  if (async_live_is_unary_kind(k) != 0) {
+    return expr_has_io_read_await(async_live_load_ptr(e, 24));
+  }
+  if (k == 53) { return expr_has_io_read_await(async_live_load_ptr(e, 24)); }
+  if (k == 25) {
+    if (expr_has_io_read_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    if (expr_has_io_read_await(async_live_load_ptr(e, 32)) != 0) { return 1; }
+    let el: *u8 = async_live_load_ptr(e, 40);
+    if (el != 0) {
+      if (expr_has_io_read_await(el) != 0) { return 1; }
+    }
+    return 0;
+  }
+  if (k == 27) {
+    if (expr_has_io_read_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    if (expr_has_io_read_await(async_live_load_ptr(e, 32)) != 0) { return 1; }
+    let el2: *u8 = async_live_load_ptr(e, 40);
+    if (el2 != 0) {
+      if (expr_has_io_read_await(el2) != 0) { return 1; }
+    }
+    return 0;
+  }
+  if (k == 26) { return block_has_io_read_await(async_live_load_ptr(e, 24)); }
+  if (k == 44) { return expr_has_io_read_await(async_live_load_ptr(e, 24)); }
+  if (k == 47) {
+    if (expr_has_io_read_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    return expr_has_io_read_await(async_live_load_ptr(e, 32));
+  }
+  if (k == 48) {
+    if (expr_has_io_read_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    let args: *u8 = async_live_load_ptr(e, 32);
+    let n: i32 = async_live_load_i32(e, 40);
+    let i: i32 = 0;
+    while (i < n) {
+      if (expr_has_io_read_await(async_live_ptr_at(args, i)) != 0) { return 1; }
+      i = i + 1;
+    }
+    return 0;
+  }
+  if (k == 49) {
+    if (expr_has_io_read_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    let args2: *u8 = async_live_load_ptr(e, 40);
+    let n2: i32 = async_live_load_i32(e, 48);
+    let j: i32 = 0;
+    while (j < n2) {
+      if (expr_has_io_read_await(async_live_ptr_at(args2, j)) != 0) { return 1; }
+      j = j + 1;
+    }
+    return 0;
+  }
+  if (k == 45) {
+    let inits: *u8 = async_live_load_ptr(e, 40);
+    let nf: i32 = async_live_load_i32(e, 48);
+    let fi: i32 = 0;
+    while (fi < nf) {
+      if (expr_has_io_read_await(async_live_ptr_at(inits, fi)) != 0) { return 1; }
+      fi = fi + 1;
+    }
+    return 0;
+  }
+  if (k == 46) {
+    let elems: *u8 = async_live_load_ptr(e, 24);
+    let ne: i32 = async_live_load_i32(e, 32);
+    let ei: i32 = 0;
+    while (ei < ne) {
+      if (expr_has_io_read_await(async_live_ptr_at(elems, ei)) != 0) { return 1; }
+      ei = ei + 1;
+    }
+    return 0;
+  }
+  if (k == 43) {
+    if (expr_has_io_read_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    let arms: *u8 = async_live_load_ptr(e, 32);
+    let na: i32 = async_live_load_i32(e, 40);
+    let ai: i32 = 0;
+    while (ai < na) {
+      if (arms == 0) { return 0; }
+      let arm: *u8 = arms + (ai * 88);
+      if (expr_has_io_read_await(async_live_load_ptr(arm, 80)) != 0) { return 1; }
+      ai = ai + 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function expr_has_io_write_await(e: *u8): i32 {
+  if (e == 0) { return 0; }
+  let k: i32 = async_live_expr_kind(e);
+  if (k == 54) {
+    let op: *u8 = async_live_load_ptr(e, 24);
+    if (op != 0) {
+      if (async_live_expr_kind(op) == 48) {
+        let cal: *u8 = async_live_load_ptr(op, 72);
+        if (cal != 0) {
+          if (async_liveness_callee_is_io_write(cal) != 0) { return 1; }
+        }
+      }
+    }
+  }
+  if (expr_has_await(e) == 0) { return 0; }
+  if (k == 54) {
+    return expr_has_io_write_await(async_live_load_ptr(e, 24));
+  }
+  if (async_live_is_binop_kind(k) != 0) {
+    if (expr_has_io_write_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    return expr_has_io_write_await(async_live_load_ptr(e, 32));
+  }
+  if (async_live_is_unary_kind(k) != 0) {
+    return expr_has_io_write_await(async_live_load_ptr(e, 24));
+  }
+  if (k == 53) { return expr_has_io_write_await(async_live_load_ptr(e, 24)); }
+  if (k == 25) {
+    if (expr_has_io_write_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    if (expr_has_io_write_await(async_live_load_ptr(e, 32)) != 0) { return 1; }
+    let el: *u8 = async_live_load_ptr(e, 40);
+    if (el != 0) {
+      if (expr_has_io_write_await(el) != 0) { return 1; }
+    }
+    return 0;
+  }
+  if (k == 27) {
+    if (expr_has_io_write_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    if (expr_has_io_write_await(async_live_load_ptr(e, 32)) != 0) { return 1; }
+    let el2: *u8 = async_live_load_ptr(e, 40);
+    if (el2 != 0) {
+      if (expr_has_io_write_await(el2) != 0) { return 1; }
+    }
+    return 0;
+  }
+  if (k == 26) { return block_has_io_write_await(async_live_load_ptr(e, 24)); }
+  if (k == 44) { return expr_has_io_write_await(async_live_load_ptr(e, 24)); }
+  if (k == 47) {
+    if (expr_has_io_write_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    return expr_has_io_write_await(async_live_load_ptr(e, 32));
+  }
+  if (k == 48) {
+    if (expr_has_io_write_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    let args: *u8 = async_live_load_ptr(e, 32);
+    let n: i32 = async_live_load_i32(e, 40);
+    let i: i32 = 0;
+    while (i < n) {
+      if (expr_has_io_write_await(async_live_ptr_at(args, i)) != 0) { return 1; }
+      i = i + 1;
+    }
+    return 0;
+  }
+  if (k == 49) {
+    if (expr_has_io_write_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    let args2: *u8 = async_live_load_ptr(e, 40);
+    let n2: i32 = async_live_load_i32(e, 48);
+    let j: i32 = 0;
+    while (j < n2) {
+      if (expr_has_io_write_await(async_live_ptr_at(args2, j)) != 0) { return 1; }
+      j = j + 1;
+    }
+    return 0;
+  }
+  if (k == 45) {
+    let inits: *u8 = async_live_load_ptr(e, 40);
+    let nf: i32 = async_live_load_i32(e, 48);
+    let fi: i32 = 0;
+    while (fi < nf) {
+      if (expr_has_io_write_await(async_live_ptr_at(inits, fi)) != 0) { return 1; }
+      fi = fi + 1;
+    }
+    return 0;
+  }
+  if (k == 46) {
+    let elems: *u8 = async_live_load_ptr(e, 24);
+    let ne: i32 = async_live_load_i32(e, 32);
+    let ei: i32 = 0;
+    while (ei < ne) {
+      if (expr_has_io_write_await(async_live_ptr_at(elems, ei)) != 0) { return 1; }
+      ei = ei + 1;
+    }
+    return 0;
+  }
+  if (k == 43) {
+    if (expr_has_io_write_await(async_live_load_ptr(e, 24)) != 0) { return 1; }
+    let arms: *u8 = async_live_load_ptr(e, 32);
+    let na: i32 = async_live_load_i32(e, 40);
+    let ai: i32 = 0;
+    while (ai < na) {
+      if (arms == 0) { return 0; }
+      let arm: *u8 = arms + (ai * 88);
+      if (expr_has_io_write_await(async_live_load_ptr(arm, 80)) != 0) { return 1; }
+      ai = ai + 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function block_has_io_read_await(b: *u8): i32 {
+  if (b == 0) { return 0; }
+  let nlets: i32 = async_live_load_i32(b, 24);
+  let lets: *u8 = async_live_load_ptr(b, 16);
+  let i: i32 = 0;
+  while (i < nlets) {
+    if (lets != 0) {
+      let ld: *u8 = lets + (i * 48);
+      let init: *u8 = async_live_load_ptr(ld, 16);
+      if (init != 0) {
+        if (expr_has_io_read_await(init) != 0) { return 1; }
+      }
+    }
+    i = i + 1;
+  }
+  let nst: i32 = async_live_load_i32(b, 104);
+  let stmts: *u8 = async_live_load_ptr(b, 96);
+  let j: i32 = 0;
+  while (j < nst) {
+    if (expr_has_io_read_await(async_live_ptr_at(stmts, j)) != 0) { return 1; }
+    j = j + 1;
+  }
+  let fin: *u8 = async_live_load_ptr(b, 112);
+  if (fin != 0) {
+    if (expr_has_io_read_await(fin) != 0) { return 1; }
+  }
+  return 0;
+}
+
+#[no_mangle]
+function block_has_io_write_await(b: *u8): i32 {
+  if (b == 0) { return 0; }
+  let nlets: i32 = async_live_load_i32(b, 24);
+  let lets: *u8 = async_live_load_ptr(b, 16);
+  let i: i32 = 0;
+  while (i < nlets) {
+    if (lets != 0) {
+      let ld: *u8 = lets + (i * 48);
+      let init: *u8 = async_live_load_ptr(ld, 16);
+      if (init != 0) {
+        if (expr_has_io_write_await(init) != 0) { return 1; }
+      }
+    }
+    i = i + 1;
+  }
+  let nst: i32 = async_live_load_i32(b, 104);
+  let stmts: *u8 = async_live_load_ptr(b, 96);
+  let j: i32 = 0;
+  while (j < nst) {
+    if (expr_has_io_write_await(async_live_ptr_at(stmts, j)) != 0) { return 1; }
+    j = j + 1;
+  }
+  let fin: *u8 = async_live_load_ptr(b, 112);
+  if (fin != 0) {
+    if (expr_has_io_write_await(fin) != 0) { return 1; }
+  }
+  return 0;
+}
+
+// G-02f-169～：expr_refs_var / block_refs / rest / analyze 仍 seed（strcmp/stmt_order）。
 
 // G-02f-162：AsyncFrameLive — names[64][64] @0，n:i32 @4096
 function frame_live_load_n(out: *u8): i32 {
@@ -162,7 +742,7 @@ function frame_live_add(out: *u8, name: *u8): void {
   frame_live_store_n(out, n + 1);
 }
 
-// G-02f-165：expr_has/count/io/refs + analyze_block_linear — seed public C（批折叠）。
+// G-02f-169～：refs/analyze 仍 seed；frame 真迁如下。
 /* ---- G-02f-161 / G-02f-164：async_liveness frame 真迁 ---- */
 
 // G-02f-164 / G-02f-165：block_rest_refs_var 为 seed public C
@@ -317,15 +897,5 @@ function live_name_cmp(a: *u8, b: *u8): i32 {
   return 0;
 }
 
-// G-02f-127：block_has_await 真迁 .x（组合 block_count_await）
-
-extern "C" function block_count_await(b: *u8): i32;
-
-#[no_mangle]
-function block_has_await(b: *u8): i32 {
-  unsafe {
-    if (block_count_await(b) > 0) { return 1; }
-  }
-  return 0;
-}
+// G-02f-168：block_has_await 见上文（真迁 + block_count_await）。
 
