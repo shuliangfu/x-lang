@@ -60,7 +60,7 @@ extern int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t ca
 extern void std_heap_free(void *ptr);
 extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
 extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
-extern void pipeline_module_struct_layout_set_packed(struct ast_Module *module, int32_t idx, int32_t v);
+extern void pipeline_module_struct_layout_set_packed(uint8_t *module, int32_t idx, int32_t v);
 extern int32_t asm_ctx_local_offset_at(uint8_t *ctx, int32_t idx);
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
 extern int32_t pipeline_module_func_body_ref_at(struct ast_Module *m, int32_t func_index);
