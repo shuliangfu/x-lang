@@ -70,6 +70,9 @@ int32_t pipeline_asm_resolve_whole_import_qualified_symbol_c(struct ast_ASTArena
 int32_t pipeline_asm_emit_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 int32_t pipeline_asm_emit_method_call_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta);
 int32_t pipeline_asm_emit_call_args_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t target_arch, int32_t nargs);
+int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t nargs);
+int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t nargs);
+int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t nargs, uint8_t *cname, int32_t clen);
 #endif
 
 
@@ -496,7 +499,8 @@ int32_t glue_spill_struct16_call_arg_to_lea_elf_c(struct ast_ASTArena *arena,
 
 /** x86 SysV f32 xmm CALL 实参：gp/xmm 分轨 + 栈实参（SHUX_ABI_F32_XMM=1）。 */
 /* G-02f-145：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena,
+/* G-02f-377 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                       struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t nargs) {
   int32_t n_stack;
@@ -568,6 +572,14 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena,
   pipeline_asm_emit_set_call_param_type_ref(0);
   return 0;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena,
+                                                      struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
+                                                      struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t nargs) {
+  return glue_emit_call_args_elf_sysv_f32_xmm_c_impl(arena, elf_ctx, expr_ref, ctx, ta, nargs);
+}
+#endif
 
 
 /**
@@ -1294,7 +1306,8 @@ int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform
 
 
 /* G-02f-146：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* G-02f-377 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
                                           int32_t nargs) {
   int32_t reg_max;
@@ -1389,6 +1402,14 @@ int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct pla
     return 0;
   }
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                          int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                          int32_t nargs) {
+  return pipeline_asm_emit_call_args_elf_c_impl(arena, elf_ctx, expr_ref, ctx, ta, nargs);
+}
+#endif
 
 /**
  * std.heap 薄包装 → heap_*_c / libc 符号。
@@ -1791,7 +1812,8 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *
  * 发射实参、call 目标符号，并按 ABI 回收 outgoing 栈区。
  */
 /* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* G-02f-377 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                int32_t nargs, uint8_t *cname, int32_t clen) {
   int32_t cleanup;
@@ -1804,6 +1826,14 @@ int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struct platf
     return -1;
   return backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta);
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                               int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
+                                               int32_t nargs, uint8_t *cname, int32_t clen) {
+  return glue_asm_emit_call_with_cleanup_impl(arena, elf_ctx, expr_ref, ctx, ta, nargs, cname, clen);
+}
+#endif
 
 
 /**

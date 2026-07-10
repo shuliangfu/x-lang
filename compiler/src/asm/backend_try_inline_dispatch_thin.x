@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/376：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/377：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -406,6 +406,35 @@ function try_inline_wpo_const_vector_lane_of_binop_call_elf(arena: *u8, elf_ctx:
 function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   unsafe {
     return try_call_wpo_mono_symbol_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  }
+  return 0;
+}
+
+// ---- G-02f-377：var_field_offset / param0_field_sum / mono vector_lane → seed impl ----
+extern "C" function glue_inline_var_field_access_offset_impl(arena: *u8, mod: *u8, pctx: *u8, asm_ctx: *u8, fa_ref: i32): i32;
+extern "C" function try_inline_param0_field_sum_call_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+extern "C" function try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+
+#[no_mangle]
+function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: *u8, asm_ctx: *u8, fa_ref: i32): i32 {
+  unsafe {
+    return glue_inline_var_field_access_offset_impl(arena, mod, pctx, asm_ctx, fa_ref);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function try_inline_param0_field_sum_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return try_inline_param0_field_sum_call_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function try_call_wpo_mono_vector_lane_of_binop_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
   }
   return 0;
 }

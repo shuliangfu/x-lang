@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/376：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/377：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -412,6 +412,35 @@ function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
 function pipeline_asm_emit_call_args_text_c(arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32, nargs: i32): i32 {
   unsafe {
     return pipeline_asm_emit_call_args_text_c_impl(arena, out, expr_ref, ctx, target_arch, nargs);
+  }
+  return 0 - 1;
+}
+
+// ---- G-02f-377：call_args_elf / sysv_f32_xmm_args / emit_call_with_cleanup → seed impl ----
+extern "C" function pipeline_asm_emit_call_args_elf_c_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, nargs: i32): i32;
+extern "C" function glue_emit_call_args_elf_sysv_f32_xmm_c_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, nargs: i32): i32;
+extern "C" function glue_asm_emit_call_with_cleanup_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, nargs: i32, cname: *u8, clen: i32): i32;
+
+#[no_mangle]
+function pipeline_asm_emit_call_args_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, nargs: i32): i32 {
+  unsafe {
+    return pipeline_asm_emit_call_args_elf_c_impl(arena, elf_ctx, expr_ref, ctx, ta, nargs);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, nargs: i32): i32 {
+  unsafe {
+    return glue_emit_call_args_elf_sysv_f32_xmm_c_impl(arena, elf_ctx, expr_ref, ctx, ta, nargs);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function glue_asm_emit_call_with_cleanup(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, nargs: i32, cname: *u8, clen: i32): i32 {
+  unsafe {
+    return glue_asm_emit_call_with_cleanup_impl(arena, elf_ctx, expr_ref, ctx, ta, nargs, cname, clen);
   }
   return 0 - 1;
 }

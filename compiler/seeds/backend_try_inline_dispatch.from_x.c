@@ -69,6 +69,9 @@ int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform
 int32_t try_inline_param0_single_field_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta);
 int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta);
 int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta);
+int32_t glue_inline_var_field_access_offset(struct ast_ASTArena *arena, struct ast_Module *mod, struct ast_PipelineDepCtx *pctx, uint8_t *asm_ctx, int32_t fa_ref);
+int32_t try_inline_param0_field_sum_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta);
+int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta);
 #endif
 
 
@@ -1198,7 +1201,8 @@ int32_t glue_dep_module_field_offset_by_name(struct ast_PipelineDepCtx *pctx, ui
  * 解析 VAR 基址 FIELD_ACCESS 的字节偏移；import struct layout 在 dep 模块时走 deps 回落。
  */
 /* G-02f-137：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_inline_var_field_access_offset(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-377 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_inline_var_field_access_offset_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                    struct ast_PipelineDepCtx *pctx, uint8_t *asm_ctx,
                                                    int32_t fa_ref) {
   int32_t base_ref;
@@ -1268,6 +1272,14 @@ int32_t glue_inline_var_field_access_offset(struct ast_ASTArena *arena, struct a
   }
   return pipeline_expr_field_access_layout_offset(arena, mod, fa_ref);
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_inline_var_field_access_offset(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                   struct ast_PipelineDepCtx *pctx, uint8_t *asm_ctx,
+                                                   int32_t fa_ref) {
+  return glue_inline_var_field_access_offset_impl(arena, mod, pctx, asm_ctx, fa_ref);
+}
+#endif
 
 
 /**
@@ -1373,7 +1385,8 @@ int32_t try_inline_var_field_sum_binop_elf(struct ast_ASTArena *arena, struct pl
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
 /* G-02f-148：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t try_inline_param0_field_sum_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* G-02f-377 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t try_inline_param0_field_sum_call_elf_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                              int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
   struct ast_ASTArena *callee_arena;
   struct ast_Module *callee_mod;
@@ -1455,6 +1468,13 @@ int32_t try_inline_param0_field_sum_call_elf(struct ast_ASTArena *arena, struct 
     return -1;
   return 1;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t try_inline_param0_field_sum_call_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                             int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
+  return try_inline_param0_field_sum_call_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+}
+#endif
 
 /**
  * ELF CALL 简单内联：同模块 f(x) 且 f 为 x+K 链时 emit 实参后 add K。
@@ -1891,7 +1911,8 @@ int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform
  * 返回 1=已发射 call，0=未匹配或未启用，-1=错误。
  */
 /* G-02f-150：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTArena *arena,
+/* G-02f-377 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
   struct ast_Module *mod_ref;
@@ -1997,6 +2018,14 @@ int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTArena *are
     return -1;
   return 1;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTArena *arena,
+                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                          int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
+  return try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+}
+#endif
 
 extern int32_t pipeline_expr_struct_lit_field_offset_at(struct ast_ASTArena *a, struct ast_Module *m,
                                                         int32_t expr_ref, int32_t field_ix);
