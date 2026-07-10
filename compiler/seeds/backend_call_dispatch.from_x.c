@@ -33,6 +33,7 @@
 #include "runtime_pipeline_abi.h"
 #ifdef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
 struct ast_ASTArena;
+struct ast_Module;
 int32_t glue_asm_call_reg_max(int32_t ta);
 int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs);
 int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap);
@@ -48,6 +49,9 @@ int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *n
 int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(const uint8_t *fname, int32_t fname_len);
 int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf);
 int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len);
+int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr, int32_t *olen);
+int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name, int32_t field_len, uint8_t *out_name);
+int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out, int32_t out_cap);
 #endif
 
 
@@ -611,7 +615,8 @@ int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t pre
 
 /** 将 C 前缀与字段名拼成至多 63 字节的 call 符号；成功返回长度，失败 -1。 */
 /* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name,
+/* G-02f-371 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_asm_build_import_binding_call_sym_impl(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name,
                                                       int32_t field_len, uint8_t *out_name) {
   int32_t pos;
   int32_t pi;
@@ -627,6 +632,13 @@ int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_t pre_l
     out_name[pos++] = field_name[pi++];
   return pos > 0 ? pos : -1;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name,
+                                                      int32_t field_len, uint8_t *out_name) {
+  return glue_asm_build_import_binding_call_sym_impl(pre, pre_len, field_name, field_len, out_name);
+}
+#endif
 
 
 
@@ -924,7 +936,8 @@ int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t im
 
 /** pipeline_module_import_path 内第 want_seg 段起点偏移与长度。 */
 /* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr,
+/* G-02f-371 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_asm_import_segment_at_impl(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr,
                                           int32_t *olen) {
   int32_t pl;
   int32_t ci;
@@ -957,6 +970,13 @@ int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, in
   return 0;
 
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, int32_t want_seg, int32_t *ostr,
+                                          int32_t *olen) {
+  return glue_asm_import_segment_at_impl(module, imp_ix, want_seg, ostr, olen);
+}
+#endif
 
 
 /** 将 module 第 imp_ix 槽 import 逻辑路径转成 C ABI 前缀；成功返回前缀字节长度。 */
@@ -1356,7 +1376,8 @@ int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_l
  * co-emit std.string 时 extern shux_string_* 带 std_string_ 前缀；redirect 到 string.o 符号。
  */
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+/* G-02f-371 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_try_std_string_shux_redirect_sym_local_impl(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
                                                             int32_t out_cap) {
   int32_t suffix_len;
   if (!name || name_len <= 11 || !sym_out || out_cap <= 0)
@@ -1371,6 +1392,13 @@ int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, int32_t
   memcpy(sym_out, name + 11, (size_t)suffix_len);
   return suffix_len;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_try_std_string_shux_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+                                                            int32_t out_cap) {
+  return glue_try_std_string_shux_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
+}
+#endif
 
 
 

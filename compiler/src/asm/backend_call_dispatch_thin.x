@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/370：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/371：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -238,6 +238,35 @@ function glue_asm_std_c_wrapper_fname_needs_export_c_suffix(fname: *u8, fname_le
 function glue_asm_prefix_is_fmt_or_debug(pre: *u8, pre_len: i32): i32 {
   unsafe {
     return glue_asm_prefix_is_fmt_or_debug_impl(pre, pre_len);
+  }
+  return 0;
+}
+
+// ---- G-02f-371：import_segment_at / binding_call_sym / std_string_shux redirect → seed impl ----
+extern "C" function glue_asm_import_segment_at_impl(module: *u8, imp_ix: i32, want_seg: i32, ostr: *i32, olen: *i32): i32;
+extern "C" function glue_asm_build_import_binding_call_sym_impl(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32;
+extern "C" function glue_try_std_string_shux_redirect_sym_local_impl(name: *u8, name_len: i32, sym_out: *u8, out_cap: i32): i32;
+
+#[no_mangle]
+function glue_asm_import_segment_at(module: *u8, imp_ix: i32, want_seg: i32, ostr: *i32, olen: *i32): i32 {
+  unsafe {
+    return glue_asm_import_segment_at_impl(module, imp_ix, want_seg, ostr, olen);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_asm_build_import_binding_call_sym(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32 {
+  unsafe {
+    return glue_asm_build_import_binding_call_sym_impl(pre, pre_len, field_name, field_len, out_name);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function glue_try_std_string_shux_redirect_sym_local(name: *u8, name_len: i32, sym_out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return glue_try_std_string_shux_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
   }
   return 0;
 }

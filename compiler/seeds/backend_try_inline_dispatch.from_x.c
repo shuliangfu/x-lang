@@ -48,6 +48,9 @@ int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, in
 int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len);
 int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t *name, int32_t name_len);
 int32_t glue_type_ref_is_named_struct_layout(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t ty_ref);
+int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref, int32_t param_ix);
+int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t lit_ref, uint8_t *fn, int32_t fnlen);
+int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane, int32_t *out);
 #endif
 
 
@@ -575,8 +578,10 @@ int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, in
 
 
 
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
                                           int32_t expr_ref, int32_t param_ix);
+#endif
 
 /** 标量 i32 binop 编译期求值；不支持的 ko 或除零返回 0。 */
 /* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -852,7 +857,8 @@ int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena
  * expr 是否为 func 第 param_ix 形参同名 VAR。
  */
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
+/* G-02f-371 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_expr_is_func_param_at_impl(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
                                           int32_t expr_ref, int32_t param_ix) {
   uint8_t pbuf[32];
   uint8_t vbuf[64];
@@ -874,8 +880,14 @@ int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module
     k = k + 1;
   }
   return 1;
-
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx,
+                                          int32_t expr_ref, int32_t param_ix) {
+  return glue_expr_is_func_param_at_impl(arena, mod, func_idx, expr_ref, param_ix);
+}
+#endif
 
 
 /**
@@ -944,7 +956,8 @@ int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *arena, stru
  * struct_lit 中字段名 fn/fnlen 对应的字段下标；失败返回 -1。
  */
 /* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t lit_ref, uint8_t *fn,
+/* G-02f-371 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_struct_lit_field_index_by_name_impl(struct ast_ASTArena *arena, int32_t lit_ref, uint8_t *fn,
                                                    int32_t fnlen) {
   int32_t nf;
   int32_t j;
@@ -971,6 +984,13 @@ int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t 
   return -1;
 
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_struct_lit_field_index_by_name(struct ast_ASTArena *arena, int32_t lit_ref, uint8_t *fn,
+                                                   int32_t fnlen) {
+  return glue_struct_lit_field_index_by_name_impl(arena, lit_ref, fn, fnlen);
+}
+#endif
 
 
 /**
@@ -1447,7 +1467,8 @@ int32_t try_inline_x_plus_k_call_elf(struct ast_ASTArena *arena, struct platform
 
 /** ARRAY_LIT 第 lane 个元素是否为整型常量；成功写 *out。 */
 /* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane,
+/* G-02f-371 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_try_array_lit_lane_const_i32_impl(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane,
                                                  int32_t *out) {
   int32_t elem_ref;
   if (!arena || arr_ref <= 0 || !out || lane < 0)
@@ -1458,8 +1479,14 @@ int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t ar
     return 0;
   elem_ref = pipeline_expr_array_lit_elem_ref(arena, arr_ref, lane);
   return glue_try_expr_const_i32(arena, elem_ref, out);
-
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t arr_ref, int32_t lane,
+                                                 int32_t *out) {
+  return glue_try_array_lit_lane_const_i32_impl(arena, arr_ref, lane, out);
+}
+#endif
 
 
 /** 向量逐 lane 标量 binop kind（与 pipeline_glue glue_is_vector_lane_scalar_binop_ko 一致）。 */
