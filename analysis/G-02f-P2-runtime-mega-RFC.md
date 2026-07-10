@@ -207,6 +207,7 @@ G05_SYNC_ASM=1 sh scripts/g05_prepare_and_relink.sh
 | 2026-07-11 | **f-300 R9-lite**：`rt_asm_stub.*`（weak `asm_codegen_ast` GAS 桩 + `driver_asm_output_want_exe`）；`SHUX_RT_ASM_STUB_FROM_X` |
 | 2026-07-11 | **f-301 R10-lite**：`rt_entry.*`（explain CLI + smoke_diag + smoke_summary + fmt_report_no_files）；`SHUX_RT_ENTRY_FROM_X` |
 | 2026-07-11 | **f-302 rest diag errno**：`rt_diag_errno.*`（code_for_kind + errno/path/pair + cli_usage_note）；`SHUX_RT_DIAG_ERRNO_FROM_X` |
+| 2026-07-11 | **f-303 rest emit state**：`rt_emit_state.*`（-E path/lib/n/extern 状态 + setters）；`SHUX_RT_EMIT_STATE_FROM_X` |
 | 2026-07-11 | **f-262 R0 落地**：`rt_util.x` + `seeds/rt_util.from_x.c`（`driver_unlink_failed_output` / `driver_argv0_basename_is`）；`SHUX_RT_UTIL_FROM_X`；hybrid **R2+R0+rest**。 |
 | 2026-07-11 | **f-263 R1 落地**：`rt_argv.x` + `seeds/rt_argv.from_x.c`（全部 `drv_eq_*`、`drv_path_ends_x`、`drv_target_has_arm`）；`SHUX_RT_ARGV_FROM_X`；hybrid **R2+R0+R1+rest**。 |
 | 2026-07-11 | **f-264**：RFC **R4 DCE 产品路径跳过**（整块 `#if !SHUX_USE_X_DRIVER`，不进 `runtime_driver_no_c.o`）。改落地 **R5-lite emit_flags**：`driver_argv_has_emit_c_flag`、`set_use_lto_c`、`set_print_target_cpu_c` → `rt_emit_flags.*`；`SHUX_RT_EMIT_FLAGS_FROM_X`；hybrid 四切片+rest。 |

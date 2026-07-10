@@ -3078,16 +3078,15 @@ int run_compiler_x_path(int argc, char **argv) {
 /** driver_diagnostic_* / parser_diag_* 见 runtime_driver_diagnostic.c（E-04 v34）。 */
 
 #ifdef SHUX_USE_X_DRIVER
-/* 阶段 6.2：main.x 内实现 argv 解析与 -x -E 执行逻辑；C 仅提供极薄原语 driver_get_argv_i。 */
-/* 保留旧符号供未迁完时链接；main.x 自实现后不再调用。 */
-static const char *driver_x_emit_c_path;
+/* 阶段 6.2：-x -E emit 状态槽 + setters。G-02f-303 → rt_emit_state hybrid */
 #define X_EMIT_MAX_LIB_ROOTS 16
-static const char *driver_x_emit_lib_roots[X_EMIT_MAX_LIB_ROOTS];
-static int driver_x_emit_n_lib_roots;
-/* 供 main.x 在 -x -E 时把 path/lib_roots 灌入 C 侧，再调 driver_run_x_emit_c，以走完整多文件（deps+main）路径。 */
-static char driver_x_emit_path_buf[512];
-static char driver_x_emit_lib_bufs[X_EMIT_MAX_LIB_ROOTS][256];
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RT_EMIT_STATE_FROM_X
+const char *driver_x_emit_c_path;
+const char *driver_x_emit_lib_roots[X_EMIT_MAX_LIB_ROOTS];
+int driver_x_emit_n_lib_roots;
+char driver_x_emit_path_buf[512];
+char driver_x_emit_lib_bufs[X_EMIT_MAX_LIB_ROOTS][256];
+int driver_x_emit_c_want_extern;
 
 int driver_run_x_emit_c_set_path(const uint8_t *path, int path_len) {
     driver_x_emit_c_path = NULL;
@@ -3097,10 +3096,6 @@ int driver_run_x_emit_c_set_path(const uint8_t *path, int path_len) {
     driver_x_emit_c_path = driver_x_emit_path_buf;
     return 0;
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-
 
 int driver_run_x_emit_c_set_lib(int i, const uint8_t *buf, int len) {
     if (i < 0 || i >= X_EMIT_MAX_LIB_ROOTS || !buf || len < 0 || len >= 256) return 0;
@@ -3110,25 +3105,29 @@ int driver_run_x_emit_c_set_lib(int i, const uint8_t *buf, int len) {
     return 0;
 }
 
-
-/* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-
 int driver_run_x_emit_c_set_n_lib_roots(int n) {
     driver_x_emit_n_lib_roots = (n >= 0 && n <= X_EMIT_MAX_LIB_ROOTS) ? n : 0;
     return 0;
 }
 
-
-
-
-/** main.x 在解析到 -E-extern 后置 1；driver_run_x_emit_c 消费后清零。与 C 路径 emit_extern_imports 对齐。 */
-static int driver_x_emit_c_want_extern;
-/* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-
+/** main.x 在解析到 -E-extern 后置 1；driver_run_x_emit_c 消费后清零。 */
 int driver_run_x_emit_c_set_emit_extern(int v) {
     driver_x_emit_c_want_extern = v ? 1 : 0;
     return 0;
 }
+#else
+extern const char *driver_x_emit_c_path;
+extern const char *driver_x_emit_lib_roots[X_EMIT_MAX_LIB_ROOTS];
+extern int driver_x_emit_n_lib_roots;
+extern char driver_x_emit_path_buf[512];
+extern char driver_x_emit_lib_bufs[X_EMIT_MAX_LIB_ROOTS][256];
+extern int driver_x_emit_c_want_extern;
+int driver_run_x_emit_c_set_path(const uint8_t *path, int path_len);
+int driver_run_x_emit_c_set_lib(int i, const uint8_t *buf, int len);
+int driver_run_x_emit_c_set_n_lib_roots(int n);
+int driver_run_x_emit_c_set_emit_extern(int v);
+int labi_rt_emit_state_slice_marker(void);
+#endif
 
 
 
