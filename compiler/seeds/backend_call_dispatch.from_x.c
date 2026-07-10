@@ -1,4 +1,4 @@
-/* G-02f-364/366：PREFER hybrid thin 由 src/asm/backend_call_dispatch_thin.x；rest SHUX_L2_CALL_DISPATCH_THIN_FROM_X。
+/* G-02f-364/367：PREFER hybrid thin 由 src/asm/backend_call_dispatch_thin.x；rest SHUX_L2_CALL_DISPATCH_THIN_FROM_X。
  * seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
  * G-02f-134 true .x pure helpers.
  * G-02f-133 true .x pure helpers.
@@ -38,6 +38,8 @@ int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs);
 int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap);
 int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref);
 int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index);
+int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
+int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name, int32_t name_len);
 #endif
 
 
@@ -294,11 +296,13 @@ int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform
 
 /** 形参/实参 type_ref 是否为 f32。 */
 /* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
 int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
   if (!arena || type_ref <= 0)
     return 0;
   return pipeline_type_kind_ord_at(arena, type_ref) == GLUE_TYPE_F32_ORD ? 1 : 0;
 }
+#endif
 
 
 
@@ -571,6 +575,7 @@ void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf
 
 /** 前缀为 ASCII 「build_」（6 字节）且 name 已含此前缀时返回 1。 */
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
 int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name,
                                                      int32_t name_len) {
   int32_t i;
@@ -585,6 +590,7 @@ int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t pre
   }
   return 1;
 }
+#endif
 
 
 

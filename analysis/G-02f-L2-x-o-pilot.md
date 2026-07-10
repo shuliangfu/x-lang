@@ -38,7 +38,7 @@ src/**/*.x  →  工具链  →  *.o  →  link shux
 | 14 | `src/asm/backend_enc_dispatch_thin.x` | 并入 `backend_enc_dispatch.o` | hybrid：thin.o（**weak** **109**：arm64 encode 5 + ta 壳 104）+ seed-rest（`-DSHUX_L2_ENC_DISPATCH_THIN_FROM_X`）`cc -r` | f-352～361 |
 | 15 | `src/asm/backend_arch_emit_dispatch_thin.x` | 并入 `backend_arch_emit_dispatch.o` | hybrid：thin.o（**weak** **47** ta 壳）+ seed-rest（`-DSHUX_L2_ARCH_EMIT_THIN_FROM_X`）`cc -r` | f-362 |
 | 16 | `src/asm/backend_try_inline_dispatch_thin.x` | 并入 `backend_try_inline_dispatch.o` | hybrid：thin.o（**weak** **12**：+ array_lit elem/reserve forward）+ seed-rest（`-DSHUX_L2_TRY_INLINE_THIN_FROM_X`）`cc -r` | f-363～366 |
-| 17 | `src/asm/backend_call_dispatch_thin.x` | 并入 `backend_call_dispatch.o` | hybrid：thin.o（**weak** **5**：+ `call_param_type_ref_at`）+ seed-rest（`-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X`）`cc -r` | f-364～366 |
+| 17 | `src/asm/backend_call_dispatch_thin.x` | 并入 `backend_call_dispatch.o` | hybrid：thin.o（**weak** **7**：+ f32 判定 / `build_` 前缀冗余）+ seed-rest（`-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X`）`cc -r` | f-364～367 |
 
 - **默认路径**：仍整 seed `cc`（冷启动/回滚安全）
 - **优先路径**：`SHUX_G05_PREFER_X_O=1`（显式 opt-in）
