@@ -6,6 +6,7 @@
 // 产品：cc seeds/runtime_lsp_glue.from_x.c → src/lsp/lsp_diag.o
 // G-02f-251：P1-9 开局 — uri↔path pure + copy_text pure。
 // G-02f-252：json_escape_str pure + entry_dir 路径拆分 pure。
+// G-02f-253：line_char_to_offset + lsp_doc_line_count pure。
 
 function runtime_lsp_glue_x_doc_anchor(): i32 {
   return 0;
@@ -435,10 +436,10 @@ function collect_refs_to_func(f: *u8): void { unsafe { collect_refs_to_func_impl
 #[no_mangle]
 function type_to_string(ty: *u8, buf: *u8, cap: i32): i32 { unsafe { return type_to_string_impl(ty, buf, cap); } return 0; }
 
-// G-02f-111：+ JSON/offset/format document helpers 薄门闩。
+// G-02f-111 / G-02f-253：JSON/offset/format document helpers。
 
 extern "C" function try_apply_content_changes_impl(doc: *u8, json: *u8): i32;
-extern "C" function line_char_to_offset_impl(doc: *u8, line: i32, ch: i32): i32;
+/* line_char_to_offset / lsp_doc_line_count：G-02f-253 下方真迁 pure */
 extern "C" function parse_first_content_change_impl(json: *u8, out: *u8): i32;
 extern "C" function lsp_find_text_value_from_impl(s: *u8, from: i32, out: *u8, cap: i32): i32;
 extern "C" function lsp_find_text_value_impl(s: *u8, out: *u8, cap: i32): i32;
@@ -449,51 +450,209 @@ extern "C" function lsp_format_emit_segment_impl(ctx: *u8): i32;
 extern "C" function lsp_fmt_comma_expand_extra_impl(ctx: *u8): i32;
 extern "C" function lsp_format_find_break_impl(ctx: *u8): i32;
 extern "C" function lsp_format_document_impl(src: *u8, out: *u8, cap: i32): i32;
-extern "C" function lsp_doc_line_count_impl(doc: *u8, out: *i32): void;
 extern "C" function lsp_extract_string_value_impl(s: *u8, from: i32, out: *u8, cap: i32): i32;
 
-/* ---- G-02f-111：lsp JSON/format 门闩 ---- */
+/* ---- G-02f-111 / G-02f-253：lsp JSON/format ---- */
 
 #[no_mangle]
-function try_apply_content_changes(doc: *u8, json: *u8): i32 { unsafe { return try_apply_content_changes_impl(doc, json); } return 0; }
-#[no_mangle]
-function line_char_to_offset(doc: *u8, line: i32, ch: i32): i32 { unsafe { return line_char_to_offset_impl(doc, line, ch); } return 0; }
-#[no_mangle]
-function parse_first_content_change(json: *u8, out: *u8): i32 { unsafe { return parse_first_content_change_impl(json, out); } return 0; }
-#[no_mangle]
-function lsp_find_text_value_from(s: *u8, from: i32, out: *u8, cap: i32): i32 { unsafe { return lsp_find_text_value_from_impl(s, from, out, cap); } return 0; }
-#[no_mangle]
-function lsp_find_text_value(s: *u8, out: *u8, cap: i32): i32 { unsafe { return lsp_find_text_value_impl(s, out, cap); } return 0; }
+function try_apply_content_changes(doc: *u8, json: *u8): i32 {
+  if (doc == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    return try_apply_content_changes_impl(doc, json);
+  }
+  return 0;
+}
 
+// G-02f-253：(line, character) 0-based → 字节偏移；失败 -1
+#[no_mangle]
+function line_char_to_offset(doc: *u8, len: i32, line: i32, character: i32): i32 {
+  if (doc == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len < 0) {
+    return 0 - 1;
+  }
+  if (line < 0) {
+    return 0 - 1;
+  }
+  if (character < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let cur_line: i32 = 0;
+    let i: i32 = 0;
+    while (i < len) {
+      if (cur_line >= line) {
+        break;
+      }
+      if (doc[i] == 10) {
+        cur_line = cur_line + 1;
+      }
+      i = i + 1;
+    }
+    if (cur_line != line) {
+      return 0 - 1;
+    }
+    let col: i32 = 0;
+    while (col < character) {
+      if (i >= len) {
+        break;
+      }
+      if (doc[i] == 10) {
+        break;
+      }
+      col = col + 1;
+      i = i + 1;
+    }
+    if (col != character) {
+      return 0 - 1;
+    }
+    return i;
+  }
+  return 0 - 1;
+}
 
-
+// G-02f-253：最后一行号（0-based）与末行字符数
+#[no_mangle]
+function lsp_doc_line_count(doc: *u8, len: i32, out_last_line: *i32, out_last_line_char: *i32): void {
+  if (out_last_line == 0 as *i32) {
+    return;
+  }
+  if (out_last_line_char == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    if (doc == 0 as *u8) {
+      out_last_line[0] = 0;
+      out_last_line_char[0] = 0;
+      return;
+    }
+    if (len < 0) {
+      out_last_line[0] = 0;
+      out_last_line_char[0] = 0;
+      return;
+    }
+    let lines: i32 = 0;
+    let last_char: i32 = 0;
+    let i: i32 = 0;
+    while (i < len) {
+      if (doc[i] == 10) {
+        lines = lines + 1;
+        last_char = 0;
+      } else {
+        last_char = last_char + 1;
+      }
+      i = i + 1;
+    }
+    if (lines > 0) {
+      out_last_line[0] = lines - 1;
+    } else {
+      out_last_line[0] = 0;
+    }
+    out_last_line_char[0] = last_char;
+  }
+}
 
 #[no_mangle]
-function lsp_extract_formatting_options(json: *u8, out: *u8): i32 { unsafe { return lsp_extract_formatting_options_impl(json, out); } return 0; }
-#[no_mangle]
-function lsp_format_line_update_depth(line: *u8, depth: *i32): void { unsafe { lsp_format_line_update_depth_impl(line, depth); } }
-
-
-
-
-
-
-
+function parse_first_content_change(json: *u8, out: *u8): i32 {
+  unsafe {
+    return parse_first_content_change_impl(json, out);
+  }
+  return 0;
+}
 
 #[no_mangle]
-function lsp_fmt_try_emit_op(ctx: *u8): i32 { unsafe { return lsp_fmt_try_emit_op_impl(ctx); } return 0; }
+function lsp_find_text_value_from(s: *u8, from: i32, out: *u8, cap: i32): i32 {
+  if (out == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (cap <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    return lsp_find_text_value_from_impl(s, from, out, cap);
+  }
+  return 0 - 1;
+}
+
 #[no_mangle]
-function lsp_format_emit_segment(ctx: *u8): i32 { unsafe { return lsp_format_emit_segment_impl(ctx); } return 0; }
+function lsp_find_text_value(s: *u8, out: *u8, cap: i32): i32 {
+  if (out == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    return lsp_find_text_value_impl(s, out, cap);
+  }
+  return 0 - 1;
+}
+
 #[no_mangle]
-function lsp_fmt_comma_expand_extra(ctx: *u8): i32 { unsafe { return lsp_fmt_comma_expand_extra_impl(ctx); } return 0; }
+function lsp_extract_formatting_options(json: *u8, out: *u8): i32 {
+  unsafe {
+    return lsp_extract_formatting_options_impl(json, out);
+  }
+  return 0;
+}
+
 #[no_mangle]
-function lsp_format_find_break(ctx: *u8): i32 { unsafe { return lsp_format_find_break_impl(ctx); } return 0; }
+function lsp_format_line_update_depth(line: *u8, depth: *i32): void {
+  if (depth == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    lsp_format_line_update_depth_impl(line, depth);
+  }
+}
+
 #[no_mangle]
-function lsp_format_document(src: *u8, out: *u8, cap: i32): i32 { unsafe { return lsp_format_document_impl(src, out, cap); } return 0; }
+function lsp_fmt_try_emit_op(ctx: *u8): i32 {
+  unsafe {
+    return lsp_fmt_try_emit_op_impl(ctx);
+  }
+  return 0;
+}
+
 #[no_mangle]
-function lsp_doc_line_count(doc: *u8, out: *i32): void { unsafe { lsp_doc_line_count_impl(doc, out); } }
+function lsp_format_emit_segment(ctx: *u8): i32 {
+  unsafe {
+    return lsp_format_emit_segment_impl(ctx);
+  }
+  return 0;
+}
+
 #[no_mangle]
-function lsp_extract_string_value(s: *u8, from: i32, out: *u8, cap: i32): i32 { unsafe { return lsp_extract_string_value_impl(s, from, out, cap); } return 0; }
+function lsp_fmt_comma_expand_extra(ctx: *u8): i32 {
+  unsafe {
+    return lsp_fmt_comma_expand_extra_impl(ctx);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function lsp_format_find_break(ctx: *u8): i32 {
+  unsafe {
+    return lsp_format_find_break_impl(ctx);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function lsp_format_document(src: *u8, out: *u8, cap: i32): i32 {
+  unsafe {
+    return lsp_format_document_impl(src, out, cap);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function lsp_extract_string_value(s: *u8, from: i32, out: *u8, cap: i32): i32 {
+  unsafe {
+    return lsp_extract_string_value_impl(s, from, out, cap);
+  }
+  return 0;
+}
 
 // G-02f-113：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
 

@@ -9,6 +9,7 @@
  * G-02f-109 helper gates.
  * G-02f-251: P1-9 open — uri↔path pure + copy_text pure.
  * G-02f-252: json_escape_str pure + entry_dir path split pure.
+ * G-02f-253: line_char_to_offset + lsp_doc_line_count pure.
  * Product object from this seed; more logic still C until further L1 port.
  */
 /**
@@ -1869,21 +1870,27 @@ int lsp_get_document_len(void) {
 /** lsp_read_c、lsp_read_at、lsp_read_message、lsp_write_c 已迁至 lsp_io.x（std.io）。 */
 
 /** 将 (line, character) 转为文档中的字节偏移；line/character 为 0-based。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-253：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 int line_char_to_offset(const uint8_t *doc, int len, int line, int character) {
     int cur_line = 0;
     int i = 0;
+    int col;
+    if (!doc || len < 0 || line < 0 || character < 0)
+        return -1;
     while (i < len && cur_line < line) {
-        if (doc[i] == '\n') cur_line++;
+        if (doc[i] == '\n')
+            cur_line++;
         i++;
     }
-    if (cur_line != line) return -1;
-    int col = 0;
+    if (cur_line != line)
+        return -1;
+    col = 0;
     while (col < character && i < len && doc[i] != '\n') {
         col++;
         i++;
     }
-    if (col != character) return -1;
+    if (col != character)
+        return -1;
     return i;
 }
 
@@ -3154,11 +3161,19 @@ int shu_format_x_document(const uint8_t *doc, int doc_len, uint8_t *out_buf, int
 }
 
 /** 统计文档行数（0-based 最后一行号）与最后一行的字符数。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-253：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 void lsp_doc_line_count(const uint8_t *doc, int len, int *out_last_line, int *out_last_line_char) {
     int lines = 0;
     int last_char = 0;
-    for (int i = 0; i < len; i++) {
+    int i;
+    if (!out_last_line || !out_last_line_char)
+        return;
+    if (!doc || len < 0) {
+        *out_last_line = 0;
+        *out_last_line_char = 0;
+        return;
+    }
+    for (i = 0; i < len; i++) {
         if (doc[i] == '\n') {
             lines++;
             last_char = 0;
