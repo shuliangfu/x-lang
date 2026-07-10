@@ -87,6 +87,10 @@ int32_t check_user_passed_L_get(void);
 int fmt_user_ignore_count(void);
 int fmt_path_ends_with_dot_x(const char *path);
 int fmt_file_list_n(void);
+int check_lint_fail_on_warnings(void);
+int fmt_check_invoke_compile(int argc, char **check_argv);
+void fmt_check_dep_clear(void);
+int fmt_path_stat_kind(const char *path);
 #endif
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
@@ -403,10 +407,17 @@ void check_argv_append_default_libs_for_path(const char *path, char **check_argv
  * SHUX_LINT_CI_FAIL_ON=warn 时 warning 层诊断亦令 check 非零退出。
  */
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int check_lint_fail_on_warnings(void) {
+/* G-02f-405：实现体始终 seed；public PREFER 时 thin forward */
+int check_lint_fail_on_warnings_impl(void) {
   const char *v = getenv("SHUX_LINT_CI_FAIL_ON");
   return v && (strcmp(v, "warn") == 0 || strcmp(v, "warning") == 0);
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int check_lint_fail_on_warnings(void) {
+  return check_lint_fail_on_warnings_impl();
+}
+#endif
 
 
 
@@ -414,13 +425,20 @@ int check_lint_fail_on_warnings(void) {
  * 单文件 check：X pipeline 走 driver_run_compiler_full，shux-c 走 run_compiler_c。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int fmt_check_invoke_compile(int argc, char **check_argv) {
+/* G-02f-405：实现体始终 seed；public PREFER 时 thin forward */
+int fmt_check_invoke_compile_impl(int argc, char **check_argv) {
 #ifdef SHUX_USE_X_PIPELINE
     return driver_run_compiler_full(argc, check_argv);
 #else
     return run_compiler_c(argc, check_argv);
 #endif
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int fmt_check_invoke_compile(int argc, char **check_argv) {
+  return fmt_check_invoke_compile_impl(argc, check_argv);
+}
+#endif
 
 
 
@@ -429,11 +447,18 @@ int fmt_check_invoke_compile(int argc, char **check_argv) {
  * check 批次结束后清理 dep 槽（仅 X pipeline 需要）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void fmt_check_dep_clear(void) {
+/* G-02f-405：实现体始终 seed；public PREFER 时 thin forward */
+void fmt_check_dep_clear_impl(void) {
 #ifdef SHUX_USE_X_PIPELINE
     driver_dep_seeded_clear_all();
 #endif
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+void fmt_check_dep_clear(void) {
+  fmt_check_dep_clear_impl();
+}
+#endif
 
 
 
@@ -698,7 +723,8 @@ void check_collect_default_product_dirs(void) {
 
 
 /* G-02f-249：-1 不可访问；1 目录；0 文件/其它 */
-int fmt_path_stat_kind(const char *path) {
+/* G-02f-405：实现体始终 seed；public PREFER 时 thin forward */
+int fmt_path_stat_kind_impl(const char *path) {
     struct stat st;
     if (!path)
         return -1;
@@ -708,6 +734,12 @@ int fmt_path_stat_kind(const char *path) {
         return 1;
     return 0;
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int fmt_path_stat_kind(const char *path) {
+  return fmt_path_stat_kind_impl(path);
+}
+#endif
 
 void collect_paths_missing_diag_impl(const char *path) {
     diag_reportf_with_code(path, 0, 0, driver_collect_error_kind(),
@@ -723,7 +755,7 @@ void collect_paths_from_arg(const char *arg) {
     int k;
     if (!arg)
         return;
-    k = fmt_path_stat_kind(arg);
+    k = fmt_path_stat_kind_impl(arg);
     if (k < 0) {
         collect_paths_missing_diag_impl(arg);
         return;
@@ -909,13 +941,13 @@ int check_one_need_fallback_diag(int rc, int nd, int nd_errors, int nd_warnings,
 int check_one_finalize_rc(int rc, int warn_count) {
     if (rc != 0)
         return rc;
-    if (check_lint_fail_on_warnings() && warn_count > 0)
+    if (check_lint_fail_on_warnings_impl() && warn_count > 0)
         return 1;
     return rc;
 }
 #else
 int check_one_finalize_rc_lint_impl(int warn_count) {
-    if (check_lint_fail_on_warnings() && warn_count > 0)
+    if (check_lint_fail_on_warnings_impl() && warn_count > 0)
         return 1;
     return 0;
 }
@@ -968,7 +1000,7 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
     check_argv[n++] = (char *)path;
 
     driver_check_only_set(1);
-    rc = fmt_check_invoke_compile(n, check_argv);
+    rc = fmt_check_invoke_compile_impl(n, check_argv);
     driver_check_only_set(0);
 
     {
@@ -997,7 +1029,7 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
     lsp_diag_collect_end();
     if (have_diag_view)
         runtime_release_file_view(&diag_view);
-    fmt_check_dep_clear();
+    fmt_check_dep_clear_impl();
     return rc;
 }
 

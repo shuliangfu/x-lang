@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-350/383/389：fmt_check_cmd L2 thin — pure + lit 门闩（12）。
+// G-02f-350/383/389/405：fmt_check_cmd L2 thin — pure + lit 门闩（16）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // 对照：src/driver/fmt_check_cmd.x；默认仍整 seed。
@@ -175,4 +175,41 @@ function fmt_file_list_n(): i32 {
     return fmt_file_list_n_impl();
   }
   return 0;
+}
+
+// ---- G-02f-405：lint/invoke/dep_clear/path_stat → seed impl ----
+extern "C" function check_lint_fail_on_warnings_impl(): i32;
+extern "C" function fmt_check_invoke_compile_impl(argc: i32, check_argv: *u8): i32;
+extern "C" function fmt_check_dep_clear_impl(): void;
+extern "C" function fmt_path_stat_kind_impl(path: *u8): i32;
+
+#[no_mangle]
+function check_lint_fail_on_warnings(): i32 {
+  unsafe {
+    return check_lint_fail_on_warnings_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function fmt_check_invoke_compile(argc: i32, check_argv: *u8): i32 {
+  unsafe {
+    return fmt_check_invoke_compile_impl(argc, check_argv);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function fmt_check_dep_clear(): void {
+  unsafe {
+    fmt_check_dep_clear_impl();
+  }
+}
+
+#[no_mangle]
+function fmt_path_stat_kind(path: *u8): i32 {
+  unsafe {
+    return fmt_path_stat_kind_impl(path);
+  }
+  return 0 - 1;
 }
