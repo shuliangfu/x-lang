@@ -63,7 +63,8 @@ int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
 
 
 
-int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
+/* G-02f-146：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t backend_enc_arm64_call_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
   uint8_t reloc_name[64];
   int32_t at;
   int32_t reloc_len;
@@ -85,12 +86,6 @@ int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
     return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, at, reloc_name, reloc_len);
   }
   return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, at, name, name_len);
-}
-int32_t backend_enc_arm64_call_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
-  {
-    return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);
-  }
-  return 0;
 }
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {

@@ -7,24 +7,14 @@
 // G-02f-100：+ x86 jcc / append_u32 / arm64 call/add/sub/str 薄门闩。
 // G-02f-101：+ arm64 load/store w0 from rbp 薄门闩。
 
-extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
-
 function backend_enc_dispatch_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-100：enc helper 门闩 ---- */
+/* ---- G-02f-100 / G-02f-146：enc helpers ---- */
 /* backend_enc_x86_jcc_rel32_c 真迁见文件尾 G-02f-130 */
 
-
-
-#[no_mangle]
-function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
-  unsafe {
-    return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);
-  }
-  return 0 - 1;
-}
+// G-02f-146 前向：arm64 call 真迁见下方（append_u32 / reloc / macho underscore@598052）
 
 
 
@@ -41,6 +31,7 @@ extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i
 extern "C" function pipeline_elf_ctx_emit_code_len(ctx: *u8): i32;
 extern "C" function pipeline_elf_ctx_ensure_label(ctx: *u8, name: *u8, name_len: i32): i32;
 extern "C" function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len: i32, imm_bits: i32): i32;
+extern "C" function pipeline_elf_ctx_append_reloc(ctx: *u8, at: i32, name: *u8, name_len: i32): i32;
 extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, word: i32): i32;
 
 // G-02f-130：0F opcode2 + rel32 + patch（imm_bits=32，与 seed 一致）
@@ -78,6 +69,44 @@ function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32 {
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1) != 0) { return 0 - 1; }
     if (pipeline_elf_ctx_append_bytes(elf_ctx, &b2, 1) != 0) { return 0 - 1; }
     return pipeline_elf_ctx_append_bytes(elf_ctx, &b3, 1);
+  }
+  return 0 - 1;
+}
+
+// G-02f-146：ARM64 BL stub + reloc；macho_leading_underscore @ ElfCodegenCtx+598052 LE
+#[no_mangle]
+function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (name == 0) { return 0 - 1; }
+  if (name_len <= 0) { return 0 - 1; }
+  unsafe {
+    // 0x94000000 BL imm26 placeholder
+    if (backend_enc_append_u32_le_c(elf_ctx, 2483027968) != 0) { return 0 - 1; }
+    let at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    if (at < 0) { return 0 - 1; }
+    // macho_leading_underscore i32 @ offset 598052
+    let m: i32 = 256;
+    let macho: i32 = elf_ctx[598052] as i32;
+    macho = macho + (elf_ctx[598053] as i32) * m;
+    macho = macho + (elf_ctx[598054] as i32) * (m * m);
+    macho = macho + (elf_ctx[598055] as i32) * (m * m * m);
+    if (macho != 0) {
+      if (name_len <= 63) {
+        if (name[0] != 95) {
+          let reloc_name: u8[64] = [];
+          reloc_name[0] = 95;
+          let i: i32 = 0;
+          while (i < name_len) {
+            if (i >= 63) { break; }
+            reloc_name[i + 1] = name[i];
+            i = i + 1;
+          }
+          let reloc_len: i32 = name_len + 1;
+          return pipeline_elf_ctx_append_reloc(elf_ctx, at, &reloc_name[0], reloc_len);
+        }
+      }
+    }
+    return pipeline_elf_ctx_append_reloc(elf_ctx, at, name, name_len);
   }
   return 0 - 1;
 }

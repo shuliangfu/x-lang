@@ -1099,6 +1099,7 @@ int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform
 }
 
 
+/* G-02f-146：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                           int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
                                           int32_t nargs) {
@@ -1467,6 +1468,7 @@ int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len) {
  * 将 STRING_LIT 字节追加到 .text 尾（紧跟 lea [rip+0]），结果指针装入 rax（x86_64）。
  * 供 fmt.println 特化与其它须 *u8 实参的路径复用。
  */
+/* G-02f-146：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                int32_t str_expr_ref, int32_t ta) {
   uint8_t sbuf[64];
