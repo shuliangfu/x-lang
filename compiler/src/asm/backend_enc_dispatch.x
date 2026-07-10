@@ -6,6 +6,7 @@
 // 产品：cc seeds/backend_enc_dispatch.from_x.c → src/asm/backend_enc_dispatch.o
 // G-02f-100：+ x86 jcc / append_u32 / arm64 call/add/sub/str 薄门闩。
 // G-02f-101：+ arm64 load/store w0 from rbp 薄门闩。
+// G-02f-206：backend_enc_*_arch 短 ta 分派壳真迁 .x（arm64/riscv/x86）。
 
 function backend_enc_dispatch_x_doc_anchor(): i32 {
   return 0;
@@ -170,3 +171,787 @@ function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   return 0 - 1;
 }
 
+/* ---- G-02f-206：backend_enc_*_arch ta-dispatch shells ---- */
+
+extern "C" function arch_arm64_enc_enc_add_imm_to_rax(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_arm64_enc_enc_add_imm_to_rbx(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_arm64_enc_enc_add_rax_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_and_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_cltd(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_cmp_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32;
+extern "C" function arch_arm64_enc_enc_epilogue(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_imul_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_arm64_enc_enc_jge(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_arm64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_arm64_enc_enc_jnz(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_arm64_enc_enc_jz(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_arm64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32): i32;
+extern "C" function arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_arm64_enc_enc_load_64_from_rax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_arm64_enc_enc_load_rbp_to_x2(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_arm64_enc_enc_load_zext8_from_rax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32;
+extern "C" function arch_arm64_enc_enc_mov_imm64_to_rax(elf_ctx: *u8, lo: i32, hi: i32): i32;
+extern "C" function arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32;
+extern "C" function arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_mov_rbx_to_ecx(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_mov_rbx_to_rax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_neg_eax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_not_eax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_or_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_pop_rax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_pop_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32;
+extern "C" function arch_arm64_enc_enc_push_rax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_push_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_rax_plus_rbx_scale1(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_rax_plus_rbx_scale4(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_rax_plus_rbx_scale8(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_ret_imm32(elf_ctx: *u8, imm32: i32): i32;
+extern "C" function arch_arm64_enc_enc_sar_cl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_shl_cl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_shr_cl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_arm64_enc_enc_store_rax_to_rbx_indirect(elf_ctx: *u8, elem_sz: i32): i32;
+extern "C" function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset: i32, store_size: i32): i32;
+extern "C" function arch_arm64_enc_enc_sub_rax_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_sub_rbx_rax_then_mov(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_test_eax_eax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_test_rbx_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_xor_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_add_imm_to_rax(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_riscv64_enc_enc_add_imm_to_rbx(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_riscv64_enc_enc_add_rax_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_and_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32;
+extern "C" function arch_riscv64_enc_enc_cltd(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_cmp_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32;
+extern "C" function arch_riscv64_enc_enc_epilogue(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_imul_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_riscv64_enc_enc_jge(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_riscv64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_riscv64_enc_enc_jnz(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_riscv64_enc_enc_jz(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_riscv64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32): i32;
+extern "C" function arch_riscv64_enc_enc_lea_rbp_to_rax(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_riscv64_enc_enc_lea_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_riscv64_enc_enc_load_64_from_rax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_load_rbp_to_a2(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_riscv64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_riscv64_enc_enc_load_zext8_from_rax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32;
+extern "C" function arch_riscv64_enc_enc_mov_imm64_to_rax(elf_ctx: *u8, lo: i32, hi: i32): i32;
+extern "C" function arch_riscv64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32;
+extern "C" function arch_riscv64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_mov_rbx_to_ecx(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_mov_rbx_to_rax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_neg_eax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_not_eax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_or_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_pop_rax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_pop_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32;
+extern "C" function arch_riscv64_enc_enc_push_rax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_push_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_rax_plus_rbx_scale1(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_rax_plus_rbx_scale4(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_rax_plus_rbx_scale8(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_ret_imm32(elf_ctx: *u8, imm32: i32): i32;
+extern "C" function arch_riscv64_enc_enc_sar_cl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_shl_cl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_shr_cl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_riscv64_enc_enc_store_rax_to_rbx_indirect(elf_ctx: *u8, elem_sz: i32): i32;
+extern "C" function arch_riscv64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset: i32, store_size: i32): i32;
+extern "C" function arch_riscv64_enc_enc_sub_rbx_rax_then_mov(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_test_eax_eax(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_test_rbx_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_xor_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_add_imm_to_rax(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_x86_64_enc_enc_add_imm_to_rbx(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_x86_64_enc_enc_add_rax_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_and_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32;
+extern "C" function arch_x86_64_enc_enc_cltd(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_cmp_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32;
+extern "C" function arch_x86_64_enc_enc_epilogue(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_imul_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_x86_64_enc_enc_jge(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_x86_64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_x86_64_enc_enc_jnz(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_x86_64_enc_enc_jz(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32): i32;
+extern "C" function arch_x86_64_enc_enc_lea_rbp_to_rax(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_x86_64_enc_enc_lea_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_x86_64_enc_enc_load_64_from_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_load_rbp_to_ecx(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_x86_64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_x86_64_enc_enc_load_zext8_from_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32;
+extern "C" function arch_x86_64_enc_enc_mov_imm64_to_rax(elf_ctx: *u8, lo: i32, hi: i32): i32;
+extern "C" function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32;
+extern "C" function arch_x86_64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_mov_rbx_to_ecx(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_mov_rbx_to_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_neg_eax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_not_eax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_or_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_pop_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_pop_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32;
+extern "C" function arch_x86_64_enc_enc_push_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_push_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_rax_plus_rbx_scale1(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_rax_plus_rbx_scale4(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_rax_plus_rbx_scale8(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_ret_imm32(elf_ctx: *u8, imm32: i32): i32;
+extern "C" function arch_x86_64_enc_enc_sar_cl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_sar_cl_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_shl_cl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_shl_cl_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_shr_cl_eax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_shr_cl_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_x86_64_enc_enc_store_rax_to_rbx_indirect(elf_ctx: *u8, elem_sz: i32): i32;
+extern "C" function arch_x86_64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset: i32, store_size: i32): i32;
+extern "C" function arch_x86_64_enc_enc_sub_rax_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_sub_rbx_rax_then_mov(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_test_eax_eax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_test_rbx_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_xor_rbx_rax(elf_ctx: *u8): i32;
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_label_arch(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_label(elf_ctx, name, name_len, is_func); }
+  if (ta == 2) { return arch_riscv64_enc_enc_label(elf_ctx, name, name_len, is_func); }
+  return arch_x86_64_enc_enc_label(elf_ctx, name, name_len, is_func);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_prologue(elf_ctx, frame_sz); }
+  if (ta == 2) { return arch_riscv64_enc_enc_prologue(elf_ctx, frame_sz); }
+  return arch_x86_64_enc_enc_prologue(elf_ctx, frame_sz);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_epilogue(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_epilogue(elf_ctx); }
+  return arch_x86_64_enc_enc_epilogue(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_ret_imm32_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_ret_imm32(elf_ctx, imm32); }
+  if (ta == 2) { return arch_riscv64_enc_enc_ret_imm32(elf_ctx, imm32); }
+  return arch_x86_64_enc_enc_ret_imm32(elf_ctx, imm32);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_mov_imm32_to_rbx(elf_ctx, imm32); }
+  if (ta == 2) { return arch_riscv64_enc_enc_mov_imm32_to_rbx(elf_ctx, imm32); }
+  return arch_x86_64_enc_enc_mov_imm32_to_rbx(elf_ctx, imm32);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_mov_imm64_to_rax(elf_ctx, lo, hi); }
+  if (ta == 2) { return arch_riscv64_enc_enc_mov_imm64_to_rax(elf_ctx, lo, hi); }
+  return arch_x86_64_enc_enc_mov_imm64_to_rax(elf_ctx, lo, hi);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_push_rax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_push_rax(elf_ctx); }
+  return arch_x86_64_enc_enc_push_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_push_rbx(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_push_rbx(elf_ctx); }
+  return arch_x86_64_enc_enc_push_rbx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_pop_rax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_pop_rax(elf_ctx); }
+  return arch_x86_64_enc_enc_pop_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_pop_rbx(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_pop_rbx(elf_ctx); }
+  return arch_x86_64_enc_enc_pop_rbx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_add_rax_rbx(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_add_rax_rbx(elf_ctx); }
+  return arch_x86_64_enc_enc_add_rax_rbx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_sub_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_sub_rax_rbx(elf_ctx); }
+  if (ta == 2) { return -1; }
+  return arch_x86_64_enc_enc_sub_rax_rbx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_sub_rbx_rax_then_mov(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_sub_rbx_rax_then_mov(elf_ctx); }
+  return arch_x86_64_enc_enc_sub_rbx_rax_then_mov(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_imul_rbx_rax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_imul_rbx_rax(elf_ctx); }
+  return arch_x86_64_enc_enc_imul_rbx_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_mov_rax_to_rbx(elf_ctx); }
+  return arch_x86_64_enc_enc_mov_rax_to_rbx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_not_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_not_eax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_not_eax(elf_ctx); }
+  return arch_x86_64_enc_enc_not_eax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_and_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_and_rbx_rax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_and_rbx_rax(elf_ctx); }
+  return arch_x86_64_enc_enc_and_rbx_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_or_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_or_rbx_rax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_or_rbx_rax(elf_ctx); }
+  return arch_x86_64_enc_enc_or_rbx_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_xor_rbx_rax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_xor_rbx_rax(elf_ctx); }
+  return arch_x86_64_enc_enc_xor_rbx_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_mov_rbx_to_ecx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_mov_rbx_to_ecx(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_mov_rbx_to_ecx(elf_ctx); }
+  return arch_x86_64_enc_enc_mov_rbx_to_ecx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_shl_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_shl_cl_eax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_shl_cl_eax(elf_ctx); }
+  return arch_x86_64_enc_enc_shl_cl_eax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_shr_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_shr_cl_eax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_shr_cl_eax(elf_ctx); }
+  return arch_x86_64_enc_enc_shr_cl_eax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_sar_cl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_sar_cl_eax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_sar_cl_eax(elf_ctx); }
+  return arch_x86_64_enc_enc_sar_cl_eax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_shl_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_shl_cl_eax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_shl_cl_eax(elf_ctx); }
+  return arch_x86_64_enc_enc_shl_cl_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_shr_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_shr_cl_eax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_shr_cl_eax(elf_ctx); }
+  return arch_x86_64_enc_enc_shr_cl_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_sar_cl_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_sar_cl_eax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_sar_cl_eax(elf_ctx); }
+  return arch_x86_64_enc_enc_sar_cl_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_cltd_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_cltd(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_cltd(elf_ctx); }
+  return arch_x86_64_enc_enc_cltd(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_mov_edx_to_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_mov_edx_to_eax(elf_ctx); }
+  return arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_neg_eax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_neg_eax(elf_ctx); }
+  return arch_x86_64_enc_enc_neg_eax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_test_eax_eax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_test_eax_eax(elf_ctx); }
+  return arch_x86_64_enc_enc_test_eax_eax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_test_rbx_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_test_rbx_rbx(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_test_rbx_rbx(elf_ctx); }
+  return arch_x86_64_enc_enc_test_rbx_rbx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_setz_movzbl_eax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_setz_movzbl_eax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_setz_movzbl_eax(elf_ctx); }
+  return arch_x86_64_enc_enc_setz_movzbl_eax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_cmp_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_cmp_rbx_rax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_cmp_rbx_rax(elf_ctx); }
+  return arch_x86_64_enc_enc_cmp_rbx_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_cmp_rax_rbx(elf_ctx); }
+  if (ta == 2) { return -1; }
+  return arch_x86_64_enc_enc_cmp_rax_rbx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
+  if (ta == 2) { return arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
+  return arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_store_rax_to_rbp(elf_ctx, offset); }
+  if (ta == 2) { return arch_riscv64_enc_enc_store_rax_to_rbp(elf_ctx, offset); }
+  return arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx, offset);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
+  if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_rax(elf_ctx, offset); }
+  return arch_x86_64_enc_enc_load_rbp_to_rax(elf_ctx, offset);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset); }
+  if (ta == 2) { return arch_riscv64_enc_enc_lea_rbp_to_rax(elf_ctx, offset); }
+  return arch_x86_64_enc_enc_lea_rbp_to_rax(elf_ctx, offset);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_lea_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset); }
+  if (ta == 2) { return arch_riscv64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset); }
+  return arch_x86_64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_rax_plus_rbx_scale4_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_rax_plus_rbx_scale4(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_rax_plus_rbx_scale4(elf_ctx); }
+  return arch_x86_64_enc_enc_rax_plus_rbx_scale4(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_rax_plus_rbx_scale1_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_rax_plus_rbx_scale1(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_rax_plus_rbx_scale1(elf_ctx); }
+  return arch_x86_64_enc_enc_rax_plus_rbx_scale1(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_rax_plus_rbx_scale8_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_rax_plus_rbx_scale8(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_rax_plus_rbx_scale8(elf_ctx); }
+  return arch_x86_64_enc_enc_rax_plus_rbx_scale8(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_store_rax_to_rbx_indirect(elf_ctx, elem_sz); }
+  if (ta == 2) { return arch_riscv64_enc_enc_store_rax_to_rbx_indirect(elf_ctx, elem_sz); }
+  return arch_x86_64_enc_enc_store_rax_to_rbx_indirect(elf_ctx, elem_sz);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_load_zext8_from_rax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_load_zext8_from_rax(elf_ctx); }
+  return arch_x86_64_enc_enc_load_zext8_from_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_add_imm_to_rax(elf_ctx, imm); }
+  if (ta == 2) { return arch_riscv64_enc_enc_add_imm_to_rax(elf_ctx, imm); }
+  return arch_x86_64_enc_enc_add_imm_to_rax(elf_ctx, imm);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_add_imm_to_rbx(elf_ctx, imm); }
+  if (ta == 2) { return arch_riscv64_enc_enc_add_imm_to_rbx(elf_ctx, imm); }
+  return arch_x86_64_enc_enc_add_imm_to_rbx(elf_ctx, imm);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_load_rbp_index_scratch_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_load_rbp_to_x2(elf_ctx, offset); }
+  if (ta == 2) { return arch_riscv64_enc_enc_load_rbp_to_a2(elf_ctx, offset); }
+  return arch_x86_64_enc_enc_load_rbp_to_ecx(elf_ctx, offset);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_load_64_from_rax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_load_64_from_rax(elf_ctx); }
+  return arch_x86_64_enc_enc_load_64_from_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, offset: i32, store_size: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx, offset, store_size); }
+  if (ta == 2) { return arch_riscv64_enc_enc_store_rax_to_rbx_offset(elf_ctx, offset, store_size); }
+  return arch_x86_64_enc_enc_store_rax_to_rbx_offset(elf_ctx, offset, store_size);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_mov_rbx_to_rax(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_mov_rbx_to_rax(elf_ctx); }
+  return arch_x86_64_enc_enc_mov_rbx_to_rax(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_jz(elf_ctx, label, label_len); }
+  if (ta == 2) { return arch_riscv64_enc_enc_jz(elf_ctx, label, label_len); }
+  return arch_x86_64_enc_enc_jz(elf_ctx, label, label_len);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_jeq(elf_ctx, label, label_len); }
+  if (ta == 2) { return arch_riscv64_enc_enc_jeq(elf_ctx, label, label_len); }
+  return arch_x86_64_enc_enc_jeq(elf_ctx, label, label_len);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_jge(elf_ctx, label, label_len); }
+  if (ta == 2) { return arch_riscv64_enc_enc_jge(elf_ctx, label, label_len); }
+  return arch_x86_64_enc_enc_jge(elf_ctx, label, label_len);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_jnz(elf_ctx, label, label_len); }
+  if (ta == 2) { return arch_riscv64_enc_enc_jnz(elf_ctx, label, label_len); }
+  return arch_x86_64_enc_enc_jnz(elf_ctx, label, label_len);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_jmp(elf_ctx, label, label_len); }
+  if (ta == 2) { return arch_riscv64_enc_enc_jmp(elf_ctx, label, label_len); }
+  return arch_x86_64_enc_enc_jmp(elf_ctx, label, label_len);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx, k); }
+  if (ta == 2) { return arch_riscv64_enc_enc_mov_rax_to_arg_reg(elf_ctx, k); }
+  return arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx, k);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
+  if (ta == 1) { return backend_enc_arm64_call_c(elf_ctx, name, name_len); }
+  if (ta == 2) { return arch_riscv64_enc_enc_call(elf_ctx, name, name_len); }
+  return arch_x86_64_enc_enc_call(elf_ctx, name, name_len);
+}
+
+/* ---- G-02f-206b：残短 ta 壳 + idiv/rem ---- */
+extern "C" function arch_arm64_enc_enc_idiv_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_jne(elf_ctx: *u8, label: *u8, label_len: i32): i32;
+extern "C" function arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx: *u8, reg: i32, offset: i32): i32;
+extern "C" function arch_riscv64_enc_enc_add_a2_a3(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_riscv64_enc_enc_add_rbx_a3(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_riscv64_enc_enc_add_sp_imm12(elf_ctx: *u8, nbytes: i32): i32;
+extern "C" function arch_riscv64_enc_enc_idiv_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_riscv64_enc_enc_mul_a2_a3(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_riscv64_enc_enc_mul_rbx_a3(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_riscv64_enc_enc_rsub_a2_a3(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_riscv64_enc_enc_rsub_rbx_a3(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_riscv64_enc_enc_sub_a2_a3(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_riscv64_enc_enc_sub_rbx_a3(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_x86_64_enc_enc_add_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_x86_64_enc_enc_add_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_x86_64_enc_enc_add_rsp_imm(elf_ctx: *u8, nbytes: i32): i32;
+extern "C" function arch_x86_64_enc_enc_div_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_idiv_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_imul_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_x86_64_enc_enc_imul_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_x86_64_enc_enc_rsub_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_x86_64_enc_enc_rsub_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_x86_64_enc_enc_sub_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_x86_64_enc_enc_sub_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx: i32): i32;
+extern "C" function arch_x86_64_enc_enc_xor_edx_edx(elf_ctx: *u8): i32;
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_store_x_reg_to_rbp_arch(elf_ctx: *u8, reg: i32, offset: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, reg, offset); }
+  return 0 - 1;
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_jne_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_jne(elf_ctx, label, label_len); }
+  return backend_enc_jnz_arch(elf_ctx, label, label_len, ta);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_call_stack_cleanup_arch(elf_ctx: *u8, nbytes: i32, ta: i32): i32 {
+  if (nbytes <= 0) { return 0; }
+  if (ta == 1) { return backend_enc_arm64_add_sp_imm12_c(elf_ctx, nbytes); }
+  if (ta == 2) { return arch_riscv64_enc_enc_add_sp_imm12(elf_ctx, nbytes); }
+  return arch_x86_64_enc_enc_add_rsp_imm(elf_ctx, nbytes);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_call_stack_reserve_arch(elf_ctx: *u8, nbytes: i32, ta: i32): i32 {
+  if (nbytes <= 0) { return 0; }
+  if (ta == 1) { return backend_enc_arm64_sub_sp_imm12_c(elf_ctx, nbytes); }
+  return 0;
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_store_x0_sp_offset_arch(elf_ctx: *u8, off_bytes: i32, ta: i32): i32 {
+  if (ta == 1) { return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes); }
+  return 0 - 1;
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_index_scratch_add_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 184746050); }
+  if (ta == 2) { return arch_riscv64_enc_enc_add_a2_a3(elf_ctx); }
+  return arch_x86_64_enc_enc_add_ecx_edx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_index_scratch_sub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487874); }
+  if (ta == 2) { return arch_riscv64_enc_enc_sub_a2_a3(elf_ctx); }
+  return arch_x86_64_enc_enc_sub_ecx_edx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_index_scratch_rsub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258422370); }
+  if (ta == 2) { return arch_riscv64_enc_enc_rsub_a2_a3(elf_ctx); }
+  return arch_x86_64_enc_enc_rsub_ecx_edx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_rbx_index_rsub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258356833); }
+  if (ta == 2) { return arch_riscv64_enc_enc_rsub_rbx_a3(elf_ctx); }
+  return arch_x86_64_enc_enc_rsub_ebx_edx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_rbx_index_add_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 184746017); }
+  if (ta == 2) { return arch_riscv64_enc_enc_add_rbx_a3(elf_ctx); }
+  return arch_x86_64_enc_enc_add_ebx_edx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_rbx_index_sub_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 1258487841); }
+  if (ta == 2) { return arch_riscv64_enc_enc_sub_rbx_a3(elf_ctx); }
+  return arch_x86_64_enc_enc_sub_ebx_edx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_index_scratch_mul_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 453213250); }
+  if (ta == 2) { return arch_riscv64_enc_enc_mul_a2_a3(elf_ctx); }
+  return arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_rbx_index_mul_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, 453213217); }
+  if (ta == 2) { return arch_riscv64_enc_enc_mul_rbx_a3(elf_ctx); }
+  return arch_x86_64_enc_enc_imul_ebx_edx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_idiv_rbx(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_idiv_rbx(elf_ctx); }
+  if (arch_x86_64_enc_enc_cltd(elf_ctx) != 0) { return 0 - 1; }
+  return arch_x86_64_enc_enc_idiv_rbx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_idiv_rbx(elf_ctx); }
+  if (ta == 2) { return arch_riscv64_enc_enc_idiv_rbx(elf_ctx); }
+  if (arch_x86_64_enc_enc_xor_edx_edx(elf_ctx) != 0) { return 0 - 1; }
+  return arch_x86_64_enc_enc_div_rbx(elf_ctx);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_rem_mod_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta); }
+  if (backend_enc_cltd_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+  if (backend_enc_idiv_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+  return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta);
+}
+
+// G-02f-206：ta 分派壳真迁 .x
+#[no_mangle]
+function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) { return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta); }
+  if (backend_enc_div_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+  return backend_enc_mov_edx_to_eax_arch(elf_ctx, ta);
+}
