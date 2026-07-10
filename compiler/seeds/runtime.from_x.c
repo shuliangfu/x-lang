@@ -3569,6 +3569,8 @@ extern int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n);
 int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
 int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
 
+/* G-02f-315：asm backend → rt_run_asm_backend hybrid */
+#ifndef SHUX_RT_RUN_ASM_BACKEND_FROM_X
 /**
  * -backend asm 专用：读文件、跑 .x pipeline、写 .o 或调 ld。与 run_compiler_c 内 asm 路径逻辑一致，供 driver_run_compiler_full 转调。
  */
@@ -4333,6 +4335,11 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     free(src);
     return (ec != 0) ? 1 : 0;
 }
+#else
+int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
+    const char *target, int argc, char **argv);
+int labi_rt_run_asm_backend_slice_marker(void);
+#endif
 
 
 

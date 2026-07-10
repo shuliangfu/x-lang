@@ -219,6 +219,7 @@ G05_SYNC_ASM=1 sh scripts/g05_prepare_and_relink.sh
 | 2026-07-11 | **f-312 rest dispatch thin**：`rt_dispatch_thin.*`（asm/emit `_c` 薄门闩 + `run_compiler_full` + `try_compile_via_shu_c_sibling`）；`SHUX_RT_DISPATCH_THIN_FROM_X`；hybrid **十八切片+rest**；🔒 fork |
 | 2026-07-11 | **f-313 rest dispatch impl**：`rt_dispatch_impl.*`（`asm_backend_impl_c` / `emit_c_path_impl_c` / `x_emit_from_compile_state` / `full_x_post_parse` / `full_x_impl_c`）；`SHUX_RT_DISPATCH_IMPL_FROM_X`；hybrid **十九切片+rest** |
 | 2026-07-11 | **f-314 rest run_x_emit**：`rt_run_x_emit.*`（`driver_run_x_emit_c` ~394）；`SHUX_RT_RUN_X_EMIT_FROM_X`；hybrid **二十切片+rest**；product rest 仅剩 `run_asm_backend` + `run_compiler_parsed` |
+| 2026-07-11 | **f-315 rest run_asm_backend**：`rt_run_asm_backend.*`（`driver_run_asm_backend` ~760）；`SHUX_RT_RUN_ASM_BACKEND_FROM_X`；hybrid **二十一切片+rest**；product rest 仅剩 `run_compiler_parsed` |
 | 2026-07-11 | **f-262 R0 落地**：`rt_util.x` + `seeds/rt_util.from_x.c`（`driver_unlink_failed_output` / `driver_argv0_basename_is`）；`SHUX_RT_UTIL_FROM_X`；hybrid **R2+R0+rest**。 |
 | 2026-07-11 | **f-263 R1 落地**：`rt_argv.x` + `seeds/rt_argv.from_x.c`（全部 `drv_eq_*`、`drv_path_ends_x`、`drv_target_has_arm`）；`SHUX_RT_ARGV_FROM_X`；hybrid **R2+R0+R1+rest**。 |
 | 2026-07-11 | **f-264**：RFC **R4 DCE 产品路径跳过**（整块 `#if !SHUX_USE_X_DRIVER`，不进 `runtime_driver_no_c.o`）。改落地 **R5-lite emit_flags**：`driver_argv_has_emit_c_flag`、`set_use_lto_c`、`set_print_target_cpu_c` → `rt_emit_flags.*`；`SHUX_RT_EMIT_FLAGS_FROM_X`；hybrid 四切片+rest。 |
