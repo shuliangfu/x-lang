@@ -4,6 +4,7 @@
 // G-02f-34..44/47/53/55/56/64..70：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
 // C 尾：invoke_cc/ld 主体、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
+// G-02f-76：ensure_* 冷启动源统一 seeds/*.from_x.c（修 f-75 已删 wrapper 的 ensure 空洞）。
 // G-02f-70：+ shux_invoke_cc / linux_link_harden 门闩（link_abi 导出集基本门闩化）。
 // G-02f-69：+ invoke_ld_platform / resolve_dir / append_std/on_demand 门闩。
 // G-02f-68：+ prepare_for_exe_link / waitpid / compress / argv_push 门闩。

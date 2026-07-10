@@ -1007,7 +1007,7 @@ static int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf
 }
 
 /**
- * seed asm 用户程序：std.io 桩 .o（与 io.o 同链）；见 src/asm/runtime_asm_io_stubs.inc。
+ * seed asm 用户程序：std.io 桩 .o（与 io.o 同链）；见 seeds/runtime_asm_io_stubs.from_x.c。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：.o 路径或空串。
  */
@@ -1468,7 +1468,7 @@ const char *shux_runtime_ed25519_ref10_glue_o_path(const char *argv0) {
 
 /**
  * 若 runtime_panic.o 尚不存在则用 cc -c 从 src/asm 下源码生成到 shux 同目录，以便 ASM -o exe 链接能提供 shux_panic_。
- * 与 verify-selfhost.sh / Makefile 规则对齐：Linux 优先 x86_64 .s；Apple arm64 优先 runtime_panic_arm64.inc；否则 runtime_panic.inc。
+ * G-02f-76：产品冷启动源统一 seeds/*.from_x.c。Linux 优先 x86_64 .s；Apple arm64 优先 seeds/runtime_panic_arm64.from_x.c；否则 seeds/runtime_panic.from_x.c。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -1497,12 +1497,12 @@ int shux_ensure_runtime_panic_o_impl(const char *argv0) {
     }
 #endif
 #if (defined(__linux__) || defined(__APPLE__)) && (defined(__aarch64__) || defined(__arm64__))
-    if (!src && (size_t)snprintf(src_arm, sizeof src_arm, "%s/src/asm/runtime_panic_arm64.inc", comp) < sizeof src_arm && access(src_arm, R_OK) == 0)
+    if (!src && (size_t)snprintf(src_arm, sizeof src_arm, "%s/seeds/runtime_panic_arm64.from_x.c", comp) < sizeof src_arm && access(src_arm, R_OK) == 0)
         src = src_arm;
 #endif
     if (!src) {
-        if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_panic.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
-            link_diag_runtime_source_missing_under("runtime_panic", comp, "/src/asm/");
+        if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_panic.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+            link_diag_runtime_source_missing_under("runtime_panic", comp, "/seeds/");
             return -1;
         }
         src = src_c;
@@ -1582,7 +1582,7 @@ int shux_link_freestanding_enabled(int driver_freestanding) {
 }
 
 /**
- * 若 runtime_asm_io_stubs.o 尚不存在则用 cc -c 从 src/asm/runtime_asm_io_stubs.inc 生成到 shux 同目录，
+ * 若 runtime_asm_io_stubs.o 尚不存在则用 cc -c 从 seeds/runtime_asm_io_stubs.from_x.c 生成到 shux 同目录，
  * 以便 ASM -o exe 链 hello 等 import std.io 的程序时提供 std_io_print_str。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
@@ -1600,7 +1600,7 @@ int shux_ensure_runtime_asm_io_stubs_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_asm_io_stubs.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_asm_io_stubs.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_asm_io_stubs.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_asm_io_stubs", src_c);
         return -1;
     }
@@ -1631,7 +1631,7 @@ int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
 
 
 /**
- * 若 runtime_process_argv.o 尚不存在则用 cc -c 从 src/asm/runtime_process_argv.inc 生成到 shux 同目录，
+ * 若 runtime_process_argv.o 尚不存在则用 cc -c 从 seeds/runtime_process_argv.from_x.c 生成到 shux 同目录，
  * 以便链 process.o 时提供 shux_process_argc/argv 与 process_shux_argc_get。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
@@ -1649,7 +1649,7 @@ int shux_ensure_runtime_process_argv_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_process_argv.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_process_argv.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_process_argv.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_process_argv", src_c);
         return -1;
     }
@@ -1691,7 +1691,7 @@ int shux_ensure_runtime_process_os_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_process_os_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_process_os_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_process_os_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_process_os_glue", src_c);
         return -1;
     }
@@ -1722,7 +1722,7 @@ int shux_ensure_runtime_process_os_glue_o(const char *argv0) {
 
 /**
  * 若 runtime_test_fn_invoke.o 尚不存在则生成到 shux 同目录。
- * G-02e-16：源为 src/asm/runtime_test_fn_invoke.inc；写临时 wrap.c 再 cc -c。
+ * G-02e-16：源为 seeds/runtime_test_fn_invoke.from_x.c（G-02f-76）；写临时 wrap.c 再 cc -c。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -1741,9 +1741,9 @@ int shux_ensure_runtime_test_fn_invoke_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_test_fn_invoke.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(inc_path, sizeof inc_path, "%s/src/asm/runtime_test_fn_invoke.inc", comp) >= sizeof inc_path
+    if ((size_t)snprintf(inc_path, sizeof inc_path, "%s/seeds/runtime_test_fn_invoke.from_x.c", comp) >= sizeof inc_path
         || access(inc_path, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_test_fn_invoke.inc", inc_path);
+        link_diag_runtime_source_missing("runtime_test_fn_invoke", inc_path);
         return -1;
     }
     if ((size_t)snprintf(wrap_c, sizeof wrap_c, "%s/runtime_test_fn_invoke_wrap.c", comp) >= sizeof wrap_c)
@@ -1782,7 +1782,7 @@ int shux_ensure_runtime_test_fn_invoke_o(const char *argv0) {
 
 
 /**
- * 若 runtime_random_fill.o 尚不存在则用 cc -c 从 src/asm/runtime_random_fill.inc 生成到 shux 同目录。
+ * 若 runtime_random_fill.o 尚不存在则用 cc -c 从 seeds/runtime_random_fill.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -1799,7 +1799,7 @@ int shux_ensure_runtime_random_fill_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_random_fill.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_random_fill.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_random_fill.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_random_fill", src_c);
         return -1;
     }
@@ -1829,7 +1829,7 @@ int shux_ensure_runtime_random_fill_o(const char *argv0) {
 
 
 /**
- * 若 runtime_compress_zlib_glue.o 尚不存在则用 cc -c 从 src/asm/runtime_compress_zlib_glue.inc 生成。
+ * 若 runtime_compress_zlib_glue.o 尚不存在则用 cc -c 从 seeds/runtime_compress_zlib_glue.from_x.c 生成。
  * 提供 deflateInit2/inflateInit2 真实函数符号（zlib.h 中为宏，无函数符号）。
  */
 int shux_ensure_runtime_compress_zlib_glue_o_impl(const char *argv0) {
@@ -1845,7 +1845,7 @@ int shux_ensure_runtime_compress_zlib_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_compress_zlib_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_compress_zlib_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_compress_zlib_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_compress_zlib_glue", src_c);
         return -1;
     }
@@ -1876,7 +1876,7 @@ int shux_ensure_runtime_compress_zlib_glue_o(const char *argv0) {
 
 /**
  * 若 runtime_heap_user.o 尚不存在则生成到 shux 同目录。
- * G-02e-14：源为 src/runtime_heap_user.inc（无手写 .c）；写临时 wrap.c 再 cc -c。
+ * G-02e-14：源为 seeds/runtime_heap_user.from_x.c（G-02f-76；仍可 wrap 编译）。
  * co-emit std.heap allocator_* redirect 的 heap_alloc_c / heap_arena64_alloc_c 等符号。
  */
 int shux_ensure_runtime_heap_user_o_impl(const char *argv0) {
@@ -1894,9 +1894,9 @@ int shux_ensure_runtime_heap_user_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_heap_user.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(inc_path, sizeof inc_path, "%s/src/runtime_heap_user.inc", comp) >= sizeof inc_path
+    if ((size_t)snprintf(inc_path, sizeof inc_path, "%s/seeds/runtime_heap_user.from_x.c", comp) >= sizeof inc_path
         || access(inc_path, R_OK) != 0) {
-        link_diag_runtime_source_missing("runtime_heap_user.inc", inc_path);
+        link_diag_runtime_source_missing("runtime_heap_user", inc_path);
         return -1;
     }
     if ((size_t)snprintf(wrap_c, sizeof wrap_c, "%s/runtime_heap_user_wrap.c", comp) >= sizeof wrap_c)
@@ -1936,7 +1936,7 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
 
 
 /**
- * 若 runtime_time_os.o 尚不存在则用 cc -c 从 src/asm/runtime_time_os.inc 生成到 shux 同目录。
+ * 若 runtime_time_os.o 尚不存在则用 cc -c 从 seeds/runtime_time_os.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -1953,7 +1953,7 @@ int shux_ensure_runtime_time_os_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_time_os.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_time_os.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_time_os.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_time_os", src_c);
         return -1;
     }
@@ -1983,7 +1983,7 @@ int shux_ensure_runtime_time_os_o(const char *argv0) {
 
 
 /**
- * 若 runtime_queue_contention.o 尚不存在则用 cc -c 从 src/asm/runtime_queue_contention.inc 生成到 shux 同目录。
+ * 若 runtime_queue_contention.o 尚不存在则用 cc -c 从 seeds/runtime_queue_contention.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -2000,7 +2000,7 @@ int shux_ensure_runtime_queue_contention_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_queue_contention.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_queue_contention.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_queue_contention.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_queue_contention", src_c);
         return -1;
     }
@@ -2030,7 +2030,7 @@ int shux_ensure_runtime_queue_contention_o(const char *argv0) {
 
 
 /**
- * 若 runtime_dynlib_os.o 尚不存在则用 cc -c 从 src/asm/runtime_dynlib_os.inc 生成到 shux 同目录。
+ * 若 runtime_dynlib_os.o 尚不存在则用 cc -c 从 seeds/runtime_dynlib_os.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -2047,7 +2047,7 @@ int shux_ensure_runtime_dynlib_os_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_dynlib_os.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_dynlib_os.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_dynlib_os.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_dynlib_os", src_c);
         return -1;
     }
@@ -2077,7 +2077,7 @@ int shux_ensure_runtime_dynlib_os_o(const char *argv0) {
 
 
 /**
- * 若 runtime_env_os.o 尚不存在则用 cc -c 从 src/asm/runtime_env_os.inc 生成到 shux 同目录。
+ * 若 runtime_env_os.o 尚不存在则用 cc -c 从 seeds/runtime_env_os.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -2094,7 +2094,7 @@ int shux_ensure_runtime_env_os_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_env_os.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_env_os.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_env_os.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_env_os", src_c);
         return -1;
     }
@@ -2124,7 +2124,7 @@ int shux_ensure_runtime_env_os_o(const char *argv0) {
 
 
 /**
- * 若 runtime_backtrace_platform.o 尚不存在则用 cc -c 从 src/asm/runtime_backtrace_platform.inc 生成到 shux 同目录。
+ * 若 runtime_backtrace_platform.o 尚不存在则用 cc -c 从 seeds/runtime_backtrace_platform.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -2141,7 +2141,7 @@ int shux_ensure_runtime_backtrace_platform_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_backtrace_platform.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_backtrace_platform.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_backtrace_platform.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_backtrace_platform", src_c);
         return -1;
     }
@@ -2171,7 +2171,7 @@ int shux_ensure_runtime_backtrace_platform_o(const char *argv0) {
 
 
 /**
- * 若 runtime_log_os.o 尚不存在则用 cc -c 从 src/asm/runtime_log_os.inc 生成到 shux 同目录。
+ * 若 runtime_log_os.o 尚不存在则用 cc -c 从 seeds/runtime_log_os.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -2188,7 +2188,7 @@ int shux_ensure_runtime_log_os_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_log_os.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_log_os.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_log_os.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_log_os", src_c);
         return -1;
     }
@@ -2218,7 +2218,7 @@ int shux_ensure_runtime_log_os_o(const char *argv0) {
 
 
 /**
- * 若 runtime_math_libm.o 尚不存在则用 cc -c 从 src/asm/runtime_math_libm.inc 生成到 shux 同目录。
+ * 若 runtime_math_libm.o 尚不存在则用 cc -c 从 seeds/runtime_math_libm.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -2235,7 +2235,7 @@ int shux_ensure_runtime_math_libm_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_math_libm.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_math_libm.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_math_libm.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_math_libm", src_c);
         return -1;
     }
@@ -2265,7 +2265,7 @@ int shux_ensure_runtime_math_libm_o(const char *argv0) {
 
 
 /**
- * 若 runtime_atomic_glue.o 尚不存在则用 cc -c 从 src/asm/runtime_atomic_glue.inc 生成到 shux 同目录。
+ * 若 runtime_atomic_glue.o 尚不存在则用 cc -c 从 seeds/runtime_atomic_glue.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -2282,7 +2282,7 @@ int shux_ensure_runtime_atomic_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_atomic_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_atomic_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_atomic_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_atomic_glue", src_c);
         return -1;
     }
@@ -2312,7 +2312,7 @@ int shux_ensure_runtime_atomic_glue_o(const char *argv0) {
 
 
 /**
- * 若 runtime_channel_glue.o 尚不存在则用 cc -c 从 src/asm/runtime_channel_glue.inc 生成到 shux 同目录。
+ * 若 runtime_channel_glue.o 尚不存在则用 cc -c 从 seeds/runtime_channel_glue.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -2329,7 +2329,7 @@ int shux_ensure_runtime_channel_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_channel_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_channel_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_channel_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_channel_glue", src_c);
         return -1;
     }
@@ -2359,7 +2359,7 @@ int shux_ensure_runtime_channel_glue_o(const char *argv0) {
 
 
 /**
- * 若 runtime_net_udp_batch.o 尚不存在则用 cc -c 从 src/asm/runtime_net_udp_batch.inc 生成到 shux 同目录。
+ * 若 runtime_net_udp_batch.o 尚不存在则用 cc -c 从 seeds/runtime_net_udp_batch.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -2376,7 +2376,7 @@ int shux_ensure_runtime_net_udp_batch_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_net_udp_batch.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_net_udp_batch.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_net_udp_batch.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_net_udp_batch", src_c);
         return -1;
     }
@@ -2406,7 +2406,7 @@ int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
 
 
 /**
- * 若 runtime_net_workers.o 尚不存在则用 cc -c 从 src/asm/runtime_net_workers.inc 生成到 shux 同目录。
+ * 若 runtime_net_workers.o 尚不存在则用 cc -c 从 seeds/runtime_net_workers.from_x.c 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -2423,7 +2423,7 @@ int shux_ensure_runtime_net_workers_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_net_workers.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_net_workers.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_net_workers.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_net_workers", src_c);
         return -1;
     }
@@ -2465,7 +2465,7 @@ int shux_ensure_runtime_sync_os_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_sync_os.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_sync_os.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_sync_os.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_sync_os", src_c);
         return -1;
     }
@@ -2507,7 +2507,7 @@ int shux_ensure_runtime_sync_lock_diag_tls_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_sync_lock_diag_tls.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_sync_lock_diag_tls.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_sync_lock_diag_tls.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_sync_lock_diag_tls", src_c);
         return -1;
     }
@@ -2549,7 +2549,7 @@ int shux_ensure_runtime_thread_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_thread_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_thread_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_thread_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_thread_glue", src_c);
         return -1;
     }
@@ -2591,7 +2591,7 @@ int shux_ensure_runtime_scheduler_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_scheduler_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_scheduler_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_scheduler_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_scheduler_glue", src_c);
         return -1;
     }
@@ -2633,7 +2633,7 @@ int shux_ensure_runtime_http_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_http_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/http/runtime_http_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_http_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_http_glue", src_c);
         return -1;
     }
@@ -2675,7 +2675,7 @@ int shux_ensure_runtime_tls_mbedtls_bio_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_tls_mbedtls_bio.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_tls_mbedtls_bio.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_tls_mbedtls_bio.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_tls_mbedtls_bio", src_c);
         return -1;
     }
@@ -2719,7 +2719,7 @@ int shux_ensure_runtime_kv_mmap_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_kv_mmap_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_kv_mmap_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_kv_mmap_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_kv_mmap_glue", src_c);
         return -1;
     }
@@ -2761,7 +2761,7 @@ int shux_ensure_runtime_arrow_simd_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_arrow_simd_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_arrow_simd_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_arrow_simd_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_arrow_simd_glue", src_c);
         return -1;
     }
@@ -2803,7 +2803,7 @@ int shux_ensure_runtime_sqlite_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_sqlite_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_sqlite_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_sqlite_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_sqlite_glue", src_c);
         return -1;
     }
@@ -2846,7 +2846,7 @@ int shux_ensure_runtime_crypto_inc_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_crypto_inc_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_crypto_inc_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_crypto_inc_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_crypto_inc_glue", src_c);
         return -1;
     }
@@ -2888,7 +2888,7 @@ int shux_ensure_runtime_ed25519_ref10_glue_o_impl(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_ed25519_ref10_glue.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_ed25519_ref10_glue.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/seeds/runtime_ed25519_ref10_glue.from_x.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_ed25519_ref10_glue", src_c);
         return -1;
     }
@@ -4137,7 +4137,7 @@ int shux_invoke_cc_impl(const char **c_paths, int n, const char *out_path, const
                io_uring_accept / io_uring_accept_many / io_uring_connect_many /
                io_uring_prefetch_fd）及 shu_net_udp_recvmmsg2_c / shu_net_udp_sendmmsg2_c /
                shu_net_udp_recvmmsg_buf_c / shu_net_udp_sendmmsg_buf_c 等 weak 符号。
-               这些符号定义在 runtime_asm_io_stubs.o（src/asm/runtime_asm_io_stubs.inc）。
+               这些符号定义在 runtime_asm_io_stubs.o（seeds/runtime_asm_io_stubs.from_x.c）。
                若不链入此 .o，Linux 链接器报 undefined reference to 'io_uring_*' /
                'shu_net_udp_*'。
                macOS 上 Mach-O 不支持 weak 符号，io_stubs.o 中 std_io_write_stdout 等
