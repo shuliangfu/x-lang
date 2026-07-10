@@ -180,9 +180,8 @@ int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
 
 
 /** 同块 let 初值为整型字面量（`let n: i32 = K` 常量传播）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
+/* G-02f-165/214：逻辑源 .x；G-02f-411：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t glue_block_let_init_lit_c_impl(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
                                          int32_t *out_lit) {
     uint8_t vbuf[64];
     int32_t vlen;
@@ -222,6 +221,12 @@ int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref,
     }
     return 0;
 }
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
+                                         int32_t *out_lit) {
+    return glue_block_let_init_lit_c_impl(arena, block_ref, var_ref, out_lit);
+}
+#endif
 
 
 
@@ -239,9 +244,8 @@ int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, i
 
 
 /** 解析 `i = i + 1` 或 `i += 1` 步进语句。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
+/* G-02f-165/214：逻辑源 .x；G-02f-411：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t glue_parse_i_plus_one_step_c_impl(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
     int32_t left_ref;
     int32_t right_ref;
     int32_t add_l;
@@ -251,7 +255,7 @@ int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_re
     if (ko == GLUE_EXPR_ADD_ASSIGN) {
         left_ref = pipeline_expr_binop_left_ref_at(arena, step_ref);
         right_ref = pipeline_expr_binop_right_ref_at(arena, step_ref);
-        if (!glue_expr_same_var_c(arena, left_ref, i_var_ref))
+        if (!glue_expr_same_var_c_impl(arena, left_ref, i_var_ref))
             return 0;
         if (pipeline_expr_kind_ord_at(arena, right_ref) != 0)
             return 0;
@@ -261,13 +265,13 @@ int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_re
         return 0;
     left_ref = pipeline_expr_binop_left_ref_at(arena, step_ref);
     right_ref = pipeline_expr_binop_right_ref_at(arena, step_ref);
-    if (!glue_expr_same_var_c(arena, left_ref, i_var_ref))
+    if (!glue_expr_same_var_c_impl(arena, left_ref, i_var_ref))
         return 0;
     if (pipeline_expr_kind_ord_at(arena, right_ref) != GLUE_EXPR_ADD)
         return 0;
     add_l = pipeline_expr_binop_left_ref_at(arena, right_ref);
     add_r = pipeline_expr_binop_right_ref_at(arena, right_ref);
-    if (!glue_expr_same_var_c(arena, add_l, i_var_ref))
+    if (!glue_expr_same_var_c_impl(arena, add_l, i_var_ref))
         return 0;
     if (pipeline_expr_kind_ord_at(arena, add_r) != 0)
         return 0;
@@ -275,14 +279,18 @@ int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_re
         return 0;
     return 1;
 }
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
+    return glue_parse_i_plus_one_step_c_impl(arena, step_ref, i_var_ref);
+}
+#endif
 
 
 
 
 /** 解析 `dst[i]=a[i](+|-|*)b[i]`；binop_ko 输出 4=ADD / 5=SUB / 6=MUL。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
+/* G-02f-165/214：逻辑源 .x；G-02f-411：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t glue_parse_index_binop_assign_c_impl(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
                                                int32_t *binop_ko, int32_t *dst_base_ref, int32_t *a_base_ref,
                                                int32_t *b_base_ref) {
     int32_t left_ref;
@@ -297,14 +305,14 @@ int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32_t assi
         return 0;
     left_ref = pipeline_expr_binop_left_ref_at(arena, assign_ref);
     right_ref = pipeline_expr_binop_right_ref_at(arena, assign_ref);
-    if (!glue_index_uses_var_c(arena, left_ref, i_var_ref))
+    if (!glue_index_uses_var_c_impl(arena, left_ref, i_var_ref))
         return 0;
     rko = pipeline_expr_kind_ord_at(arena, right_ref);
     if (rko != GLUE_EXPR_ADD && rko != GLUE_EXPR_SUB && rko != GLUE_EXPR_MUL)
         return 0;
     al = pipeline_expr_binop_left_ref_at(arena, right_ref);
     ar = pipeline_expr_binop_right_ref_at(arena, right_ref);
-    if (!glue_index_uses_var_c(arena, al, i_var_ref) || !glue_index_uses_var_c(arena, ar, i_var_ref))
+    if (!glue_index_uses_var_c_impl(arena, al, i_var_ref) || !glue_index_uses_var_c_impl(arena, ar, i_var_ref))
         return 0;
     dst_base = pipeline_expr_index_base_ref(arena, left_ref);
     a_base = pipeline_expr_index_base_ref(arena, al);
@@ -321,14 +329,21 @@ int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32_t assi
     *b_base_ref = b_base;
     return 1;
 }
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
+                                               int32_t *binop_ko, int32_t *dst_base_ref, int32_t *a_base_ref,
+                                               int32_t *b_base_ref) {
+    return glue_parse_index_binop_assign_c_impl(arena, assign_ref, i_var_ref, binop_ko, dst_base_ref, a_base_ref,
+                                                b_base_ref);
+}
+#endif
 
 
 
 
 /** 解析 `i < N`：N 为字面量或同块 let 整型初值；n_is_const=1 时写 n_lit。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-214：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t cond_ref,
+/* G-02f-165/214：逻辑源 .x；G-02f-411：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t glue_parse_i_lt_bound_c_impl(struct ast_ASTArena *arena, int32_t block_ref, int32_t cond_ref,
                                        int32_t *i_var_ref, int32_t *n_lit, int32_t *n_is_const, int32_t *n_var_ref) {
     int32_t left_ref;
     int32_t right_ref;
@@ -353,7 +368,7 @@ int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, i
     if (rko != GLUE_EXPR_VAR)
         return 0;
     *n_var_ref = right_ref;
-    prop = glue_block_let_init_lit_c(arena, block_ref, right_ref, n_lit);
+    prop = glue_block_let_init_lit_c_impl(arena, block_ref, right_ref, n_lit);
     if (prop) {
         if (*n_lit <= 0)
             return 0;
@@ -363,6 +378,12 @@ int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, i
     *n_is_const = 0;
     return 1;
 }
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t cond_ref,
+                                       int32_t *i_var_ref, int32_t *n_lit, int32_t *n_is_const, int32_t *n_var_ref) {
+    return glue_parse_i_lt_bound_c_impl(arena, block_ref, cond_ref, i_var_ref, n_lit, n_is_const, n_var_ref);
+}
+#endif
 
 
 
@@ -871,7 +892,7 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
     body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
     if (cond_ref <= 0 || body_ref <= 0)
         return 0;
-    if (!glue_parse_i_lt_bound_c(arena, block_ref, cond_ref, &i_var_ref, &n_lit, &n_is_const, &n_var_ref))
+    if (!glue_parse_i_lt_bound_c_impl(arena, block_ref, cond_ref, &i_var_ref, &n_lit, &n_is_const, &n_var_ref))
         return 0;
     if (ast_ast_block_num_expr_stmts(arena, body_ref) != 2)
         return 0;
@@ -881,7 +902,7 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
         return 0;
     if (!glue_parse_f32_soa_sum_assign_c(arena, assign_body_ref, i_var_ref, &sum_ref, &arr_ref, &fa_ref))
         return 0;
-    if (!glue_parse_i_plus_one_step_c(arena, assign_step_ref, i_var_ref))
+    if (!glue_parse_i_plus_one_step_c_impl(arena, assign_step_ref, i_var_ref))
         return 0;
     array_n = glue_var_array_size_c_impl(arena, arr_ref);
     if (n_is_const) {
@@ -950,7 +971,7 @@ int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
     body_ref = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
     if (cond_ref <= 0 || body_ref <= 0)
         return 0;
-    if (!glue_parse_i_lt_bound_c(arena, block_ref, cond_ref, &i_var_ref, &n_lit, &n_is_const, &n_var_ref))
+    if (!glue_parse_i_lt_bound_c_impl(arena, block_ref, cond_ref, &i_var_ref, &n_lit, &n_is_const, &n_var_ref))
         return 0;
     nes = ast_ast_block_num_expr_stmts(arena, body_ref);
     if (nes != 2)
@@ -959,9 +980,9 @@ int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
     assign_step_ref = ast_ast_block_expr_stmt_ref(arena, body_ref, 1);
     if (assign_body_ref <= 0 || assign_step_ref <= 0)
         return 0;
-    if (!glue_parse_index_binop_assign_c(arena, assign_body_ref, i_var_ref, &binop_ko, &dst_base, &a_base, &b_base))
+    if (!glue_parse_index_binop_assign_c_impl(arena, assign_body_ref, i_var_ref, &binop_ko, &dst_base, &a_base, &b_base))
         return 0;
-    if (!glue_parse_i_plus_one_step_c(arena, assign_step_ref, i_var_ref))
+    if (!glue_parse_i_plus_one_step_c_impl(arena, assign_step_ref, i_var_ref))
         return 0;
     array_n = glue_var_array_i32_size_c(arena, dst_base);
     if (array_n <= 0 || glue_var_array_i32_size_c(arena, a_base) != array_n ||

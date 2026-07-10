@@ -1056,7 +1056,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_SIMD_LOOP_THIN_FROM_X \
                -c -o "$_simd_loop_rest_o" "$_simd_loop" \
           && $CC -r -nostdlib -o "$_simd_loop_o" "$_simd_loop_thin_o" "$_simd_loop_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_simd_loop_o ← $_simd_loop_thin_x + seed-rest (G-02f-349/404 L2 hybrid simd_loop thin)"
+          echo "g05_ensure: $_simd_loop_o ← $_simd_loop_thin_x + seed-rest (G-02f-349/411 L2 hybrid simd_loop thin)"
           _simd_loop_done=1
         else
           echo "g05_ensure: L2 hybrid simd_loop thin failed; fallback full seed" >&2
