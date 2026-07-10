@@ -1,4 +1,4 @@
-/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-221 linear/after_parse/block_const; G-02f-220 block_impl; G-02f-11 product TU
+/* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-222 type_eq/parse_diag; G-02f-221 linear; G-02f-11 product TU
  * G-02f-135 true .x pure helpers.
  * G-02f-123 true .x pure helpers.
  * G-02f-119 true .x pure helpers.
@@ -112,6 +112,7 @@ struct parser_ParseIntoResult {
   int32_t main_idx;
 };
 
+/* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so_far, uint8_t *name,
                                                                 int32_t name_len, int32_t num_generic_params,
                                                                 int32_t is_main) {
@@ -120,6 +121,7 @@ __attribute__((weak)) void parser_diagnostic_parse_func_generic(int32_t byte_pos
   driver_diagnostic_parse_func_generic(byte_pos, num_funcs_so_far, name, name_len, num_generic_params, is_main);
 }
 
+/* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) void parser_diagnostic_parse_commit_pre(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
                                                               int32_t block_ref, uint8_t *pool, int32_t final_expr_ref) {
   extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
@@ -143,6 +145,7 @@ __attribute__((weak)) void parser_diagnostic_parse_commit_pre(struct ast_ASTAren
                                        0, 0, 0, 0, 0, final_expr_ref);
 }
 
+/* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) void parser_diagnostic_parse_commit_post(struct ast_ASTArena *arena, uint8_t *name, int32_t name_len,
                                                                int32_t block_ref, uint8_t *pool) {
   extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
@@ -905,6 +908,7 @@ int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTA
 }
 
 
+/* G-02f-222：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 __attribute__((weak)) int32_t pipeline_typeck_type_refs_equal_c(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   int32_t kind;
   (void)g_typeck_entry_module_for_dep_map_strict_minimal;

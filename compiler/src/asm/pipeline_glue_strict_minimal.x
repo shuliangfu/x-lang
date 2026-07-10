@@ -751,7 +751,7 @@ extern "C" function pipeline_expr_call_resolved_func_index_at(arena: *u8, er: i3
 extern "C" function pipeline_expr_call_callee_ref_at(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_apply_call_resolve(arena: *u8, call_er: i32, dep: i32, fi: i32): void;
 extern "C" function typeck_typeck_struct_layout_metrics(module: *u8, arena: *u8, li: i32, depth: i32, flags: i32, out_sz: *i32, out_al: *i32): i32;
-extern "C" function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i32;
+/* type_refs_equal defined G-02f-222 */
 extern "C" function driver_run_compiler_full(argc: i32, argv: *u8): i32;
 
 /* ---- G-02f-210：pure weak / residual shells ---- */
@@ -2544,4 +2544,156 @@ function pipeline_typeck_block_const_init_is_const_c(arena: *u8, block_ref: i32,
     return glue_block_const_expr_is_const(arena, init_ref, block_ref, const_idx);
   }
   return 0;
+}
+
+/* ---- G-02f-222：type_refs_equal + parse diagnostic 桥 + glue 主路径闭合审计 ---- */
+
+extern "C" function driver_diagnostic_parse_func_generic(byte_pos: i32, num_funcs: i32, name: *u8, name_len: i32, ngen: i32, is_main: i32): void;
+extern "C" function pipeline_onefunc_num_consts(pool: *u8): i32;
+extern "C" function pipeline_onefunc_num_lets(pool: *u8): i32;
+extern "C" function pipeline_onefunc_num_if_stmts(pool: *u8): i32;
+extern "C" function pipeline_onefunc_num_regions(pool: *u8): i32;
+extern "C" function pipeline_onefunc_num_src_stmt_order(pool: *u8): i32;
+extern "C" function driver_diagnostic_parse_commit_shape(
+  byte_pos: i32, num_funcs: i32, name: *u8, name_len: i32, phase: i32, block_ref: i32,
+  pool_nc: i32, pool_nl: i32, pool_nif: i32, pool_nreg: i32, pool_nso: i32,
+  blk_nc: i32, blk_nl: i32, blk_nif: i32, blk_nreg: i32, blk_nso: i32, final_er: i32
+): void;
+extern "C" function ast_ast_block_num_consts(arena: *u8, br: i32): i32;
+extern "C" function ast_ast_block_num_lets(arena: *u8, br: i32): i32;
+extern "C" function ast_ast_block_num_if_stmts(arena: *u8, br: i32): i32;
+extern "C" function ast_ast_block_num_regions(arena: *u8, br: i32): i32;
+extern "C" function ast_ast_block_num_stmt_order(arena: *u8, br: i32): i32;
+extern "C" function ast_ast_block_final_expr_ref(arena: *u8, br: i32): i32;
+
+// G-02f-222：类型 ref 等价
+// NAMED=8 PTR=9 LINEAR=12 SLICE=11 ARRAY=10 VECTOR=13
+#[no_mangle]
+function pipeline_typeck_type_refs_equal_c(arena: *u8, a: i32, b: i32): i32 {
+  if (a == 0) {
+    if (b == 0) { return 1; }
+    return 0;
+  }
+  if (b == 0) { return 0; }
+  if (a == b) { return 1; }
+  if (arena == 0) { return 0; }
+  unsafe {
+    let kind: i32 = pipeline_type_kind_ord_at(arena, a);
+    if (kind != pipeline_type_kind_ord_at(arena, b)) { return 0; }
+    if (kind == 8) {
+      return pipeline_typeck_named_equal_strict_minimal(arena, a, b);
+    }
+    if (kind == 9) {
+      return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a), pipeline_type_elem_ref_at(arena, b));
+    }
+    if (kind == 12) {
+      return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a), pipeline_type_elem_ref_at(arena, b));
+    }
+    if (kind == 11) {
+      if (pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a), pipeline_type_elem_ref_at(arena, b)) == 0) {
+        return 0;
+      }
+      let alen: i32 = pipeline_type_region_label_len_at(arena, a);
+      let blen: i32 = pipeline_type_region_label_len_at(arena, b);
+      if (alen > 0) {
+        if (blen > 0) {
+          if (alen != blen) { return 0; }
+          let abuf: u8[64] = [];
+          let bbuf: u8[64] = [];
+          if (pipeline_type_region_label_into(arena, a, &abuf[0]) != alen) { return 0; }
+          if (pipeline_type_region_label_into(arena, b, &bbuf[0]) != blen) { return 0; }
+          let i: i32 = 0;
+          while (i < alen) {
+            if (abuf[i] != bbuf[i]) { return 0; }
+            i = i + 1;
+          }
+          return 1;
+        }
+      }
+      return 1;
+    }
+    if (kind == 10) {
+      if (pipeline_type_array_size_at(arena, a) != pipeline_type_array_size_at(arena, b)) { return 0; }
+      return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a), pipeline_type_elem_ref_at(arena, b));
+    }
+    if (kind == 13) {
+      if (pipeline_type_array_size_at(arena, a) != pipeline_type_array_size_at(arena, b)) { return 0; }
+      return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, a), pipeline_type_elem_ref_at(arena, b));
+    }
+  }
+  return 1;
+}
+
+// G-02f-222：parse generic 诊断转发
+#[no_mangle]
+function parser_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so_far: i32, name: *u8, name_len: i32, num_generic_params: i32, is_main: i32): void {
+  unsafe {
+    driver_diagnostic_parse_func_generic(byte_pos, num_funcs_so_far, name, name_len, num_generic_params, is_main);
+  }
+}
+
+// G-02f-222：parse commit pre 形状诊断
+#[no_mangle]
+function parser_diagnostic_parse_commit_pre(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8, final_expr_ref: i32): void {
+  unsafe {
+    let pool_nc: i32 = 0;
+    let pool_nl: i32 = 0;
+    let pool_nif: i32 = 0;
+    let pool_nreg: i32 = 0;
+    let pool_nso: i32 = 0;
+    if (pool != 0) {
+      pool_nc = pipeline_onefunc_num_consts(pool);
+      pool_nl = pipeline_onefunc_num_lets(pool);
+      pool_nif = pipeline_onefunc_num_if_stmts(pool);
+      pool_nreg = pipeline_onefunc_num_regions(pool);
+      pool_nso = pipeline_onefunc_num_src_stmt_order(pool);
+    }
+    let _a: *u8 = arena;
+    if (_a == 0) {
+      // keep seed (void)arena semantics
+    }
+    driver_diagnostic_parse_commit_shape(
+      0, 0, name, name_len, 0, block_ref,
+      pool_nc, pool_nl, pool_nif, pool_nreg, pool_nso,
+      0, 0, 0, 0, 0, final_expr_ref
+    );
+  }
+}
+
+// G-02f-222：parse commit post 形状诊断
+#[no_mangle]
+function parser_diagnostic_parse_commit_post(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8): void {
+  unsafe {
+    let pool_nc: i32 = 0;
+    let pool_nl: i32 = 0;
+    let pool_nif: i32 = 0;
+    let pool_nreg: i32 = 0;
+    let pool_nso: i32 = 0;
+    if (pool != 0) {
+      pool_nc = pipeline_onefunc_num_consts(pool);
+      pool_nl = pipeline_onefunc_num_lets(pool);
+      pool_nif = pipeline_onefunc_num_if_stmts(pool);
+      pool_nreg = pipeline_onefunc_num_regions(pool);
+      pool_nso = pipeline_onefunc_num_src_stmt_order(pool);
+    }
+    let blk_nc: i32 = 0;
+    let blk_nl: i32 = 0;
+    let blk_nif: i32 = 0;
+    let blk_nreg: i32 = 0;
+    let blk_nso: i32 = 0;
+    let final_er: i32 = 0;
+    if (arena != 0) {
+      blk_nc = ast_ast_block_num_consts(arena, block_ref);
+      blk_nl = ast_ast_block_num_lets(arena, block_ref);
+      blk_nif = ast_ast_block_num_if_stmts(arena, block_ref);
+      blk_nreg = ast_ast_block_num_regions(arena, block_ref);
+      blk_nso = ast_ast_block_num_stmt_order(arena, block_ref);
+      final_er = ast_ast_block_final_expr_ref(arena, block_ref);
+    }
+    driver_diagnostic_parse_commit_shape(
+      0, 0, name, name_len, 1, block_ref,
+      pool_nc, pool_nl, pool_nif, pool_nreg, pool_nso,
+      blk_nc, blk_nl, blk_nif, blk_nreg, blk_nso, final_er
+    );
+  }
 }
