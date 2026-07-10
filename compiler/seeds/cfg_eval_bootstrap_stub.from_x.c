@@ -1,4 +1,5 @@
 /* seeds/cfg_eval_bootstrap_stub.from_x.c — G-02f-80 product cold-start TU
+ * G-02f-112 helper gates.
  * G-02f-103 helper gates.
  * G-02f-101 cfg string helper gates.
  * Promoted from compiler/src/lexer/cfg_eval_bootstrap_stub.inc (stub/bridge; retired .inc).
@@ -176,7 +177,7 @@ int cfg_lit_eq_ci(const char *a, size_t alen, const char *b) {
 
 
 /** 递归求值 cfg 表达式；end 不含。 */
-static int cfg_eval_expr(const char *start, const char *end) {
+int cfg_eval_expr_impl(const char *start, const char *end) {
   const char *p = start;
 
   while (p < end && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'))
@@ -207,7 +208,7 @@ static int cfg_eval_expr(const char *start, const char *end) {
           break;
         p++;
       }
-      if (!cfg_eval_expr(part, p))
+      if (!cfg_eval_expr_impl(part, p))
         return 0;
       if (p < end && *p == ')')
         return 1;
@@ -230,7 +231,7 @@ static int cfg_eval_expr(const char *start, const char *end) {
       if (depth > 0)
         close++;
     }
-    return !cfg_eval_expr(inner, close);
+    return !cfg_eval_expr_impl(inner, close);
   }
   if ((size_t)(end - p) >= 9 && strncmp(p, "target_os", 9) == 0) {
     const char *lit;
@@ -286,6 +287,13 @@ static int cfg_eval_expr(const char *start, const char *end) {
   }
   return 0;
 }
+int cfg_eval_expr(const char *start, const char *end) {
+  {
+    return cfg_eval_expr_impl(start, end);
+  }
+  return 0;
+}
+
 
 /** #[cfg(...)] 表达式求值；1=保留，0=剪枝。 */
 int cfg_eval_expr_c(const char *start, int len) {

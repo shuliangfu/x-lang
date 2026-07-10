@@ -1,4 +1,5 @@
 /* seeds/runtime_http_glue.from_x.c — G-02f-21 product TU
+ * G-02f-112 helper gates.
  * G-02f-111 helper gates.
  * G-02f-107 helper gates.
  * G-02f-106 helper gates.
@@ -301,7 +302,7 @@ static const char *http_method_from_u8(uint8_t method_u8) {
 }
 
 /** 前向声明：供 http_request_ex_c / http_*_timeout_c 委托。 */
-static int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_t url_len,
+int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_t url_len,
                                          const uint8_t *body, int32_t body_len, uint8_t *out_buf,
                                          int32_t out_cap, uint32_t timeout_ms);
 
@@ -480,7 +481,7 @@ int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeou
 
 
 /** 通用 HTTP 客户端（带 connect/recv 超时毫秒；0=阻塞；支持 http/https）。 */
-static int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_t url_len,
+int32_t http_request_timeout_ex_c_impl(const char *method, const uint8_t *url, int32_t url_len,
                                          const uint8_t *body, int32_t body_len, uint8_t *out_buf,
                                          int32_t out_cap, uint32_t timeout_ms) {
   char host_buf[SHUX_HTTP_HOST_MAX];
@@ -634,6 +635,15 @@ static int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url,
 #endif
   return total;
 }
+int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_t url_len,
+                                         const uint8_t *body, int32_t body_len, uint8_t *out_buf,
+                                         int32_t out_cap, uint32_t timeout_ms) {
+  {
+    return http_request_timeout_ex_c_impl(method, url, url_len, body, body_len, out_buf, out_cap, timeout_ms);
+  }
+  return 0;
+}
+
 
 /** 带超时的 GET（STD-095）。 */
 int32_t http_get_timeout_c(const uint8_t *url, int32_t url_len, uint8_t *out_buf, int32_t out_cap,

@@ -1,4 +1,5 @@
 /* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+ * G-02f-112 helper gates.
  * G-02f-111 helper gates.
  * G-02f-105 helper gates.
  * Product objects from this seed (flags select variants):
@@ -3584,7 +3585,7 @@ int32_t driver_asm_output_want_exe(uint8_t *path) {
 
 #if !defined(SHUX_NO_C_FRONTEND)
 /** C 前端 typeck（定义见 driver_c_typeck_entry）；asm 编译前预检。 */
-static int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok);
+int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok);
 int driver_c_typeck_entry_large_stack_impl(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots,
     int print_ok);
 int driver_c_typeck_entry_large_stack(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots,
@@ -4496,7 +4497,7 @@ int32_t driver_stack_esc_gate_large_stack(uint8_t *src, int32_t src_len) {
 
 #endif
 
-static int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok) {
+int driver_c_typeck_entry_impl(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok) {
     diag_set_file(input_path, src, src ? strlen(src) : 0);
     Lexer *lex = lexer_new(src);
     ASTModule *mod = NULL;
@@ -4553,6 +4554,13 @@ static int driver_c_typeck_entry(const char *input_path, char *src, const char *
         driver_print_check_ok(input_path);
     return 0;
 }
+int driver_c_typeck_entry(const char *input_path, char *src, const char **lib_roots_arr, int n_lib_roots, int print_ok) {
+  {
+    return driver_c_typeck_entry_impl(input_path, src, lib_roots_arr, n_lib_roots, print_ok);
+  }
+  return 0;
+}
+
 
 /** C typeck 大栈线程参数。 */
 typedef struct {

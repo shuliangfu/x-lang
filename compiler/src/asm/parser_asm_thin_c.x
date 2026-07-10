@@ -49,3 +49,31 @@ function parser_asm_skip_one_top_level_let_into_slice_c(out: *u8, src: *u8, lex:
 function parser_asm_skip_one_top_level_const_into_slice_c(out: *u8, src: *u8, lex: *u8): void { unsafe { parser_asm_skip_one_top_level_const_into_slice_c_impl(out, src, lex); } }
 #[no_mangle]
 function parser_asm_cfg_skip_pending_top_level_into_slice_c(lex: *u8, src: *u8, a: i32): void { unsafe { parser_asm_cfg_skip_pending_top_level_into_slice_c_impl(lex, src, a); } }
+
+// G-02f-112：+ import skip / try_skip_allow / lex_from_lr 薄门闩。
+
+extern "C" function parser_asm_try_skip_const_import_stmt_impl(lex: *u8, src: *u8): i32;
+extern "C" function parser_asm_collect_imports_consume_path_impl(out: *u8, src: *u8, a: i32): i32;
+extern "C" function parser_asm_write_try_skip_allow_result_impl(out: *u8, a: i32, b: i32): void;
+extern "C" function parser_asm_lex_from_lr_next_c_impl(lex: *u8, r: *u8): void;
+
+/* ---- G-02f-112：thin import/lex helpers 门闩 ---- */
+
+#[no_mangle]
+function parser_asm_try_skip_const_import_stmt(lex: *u8, src: *u8): i32 {
+  unsafe { return parser_asm_try_skip_const_import_stmt_impl(lex, src); }
+  return 0;
+}
+#[no_mangle]
+function parser_asm_collect_imports_consume_path(out: *u8, src: *u8, a: i32): i32 {
+  unsafe { return parser_asm_collect_imports_consume_path_impl(out, src, a); }
+  return 0;
+}
+#[no_mangle]
+function parser_asm_write_try_skip_allow_result(out: *u8, a: i32, b: i32): void {
+  unsafe { parser_asm_write_try_skip_allow_result_impl(out, a, b); }
+}
+#[no_mangle]
+function parser_asm_lex_from_lr_next_c(lex: *u8, r: *u8): void {
+  unsafe { parser_asm_lex_from_lr_next_c_impl(lex, r); }
+}

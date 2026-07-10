@@ -42,3 +42,15 @@ function cfg_parse_triple_literals(triple: *u8, len: i32, os_out: *u8, os_sz: us
     cfg_parse_triple_literals_impl(triple, len, os_out, os_sz, arch_out, arch_sz);
   }
 }
+
+// G-02f-112：+ cfg_eval_expr 薄门闩。
+
+extern "C" function cfg_eval_expr_impl(s: *u8): i32;
+
+/* ---- G-02f-112：cfg_eval_expr 门闩 ---- */
+
+#[no_mangle]
+function cfg_eval_expr(s: *u8): i32 {
+  unsafe { return cfg_eval_expr_impl(s); }
+  return 0;
+}

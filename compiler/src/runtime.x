@@ -986,3 +986,15 @@ function write_io_net_abi_inline(cf: *u8): i32 { unsafe { return write_io_net_ab
 function driver_run_compiler_parsed(p: *u8, argc: i32, argv: *u8): i32 { unsafe { return driver_run_compiler_parsed_impl(p, argc, argv); } return 0; }
 #[no_mangle]
 function driver_run_x_emit_c_extern_via_cparser(path: *u8): i32 { unsafe { return driver_run_x_emit_c_extern_via_cparser_impl(path); } return 0; }
+
+// G-02f-112：+ driver_c_typeck_entry 薄门闩（#if-aware promote）。
+
+extern "C" function driver_c_typeck_entry_impl(mod: *u8, arena: *u8): i32;
+
+/* ---- G-02f-112：driver typeck entry 门闩 ---- */
+
+#[no_mangle]
+function driver_c_typeck_entry(mod: *u8, arena: *u8): i32 {
+  unsafe { return driver_c_typeck_entry_impl(mod, arena); }
+  return 0;
+}

@@ -1,4 +1,5 @@
 /* seeds/runtime_dynlib_os.from_x.c — G-02f-20 product TU
+ * G-02f-112 helper gates.
  * Product: runtime_dynlib_os.o; logic still C until full .x port.
  */
 /**
@@ -20,7 +21,7 @@ typedef HMODULE dynlib_handle_t;
  * 参数：out 输出缓冲；out_cap 容量；path UTF-8 路径。
  * 返回值：写入长度（不含 NUL）；失败 0。
  */
-static size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
+size_t dynlib_win_normalize_path_impl(char *out, size_t out_cap, const char *path) {
     size_t i = 0;
     if (!out || out_cap < 2 || !path)
         return 0;
@@ -33,9 +34,16 @@ static size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *p
     out[i] = '\0';
     return i;
 }
+size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
+  {
+    return dynlib_win_normalize_path_impl(out, out_cap, path);
+  }
+  return 0;
+}
+
 
 /** UTF-8 路径转宽字符后 LoadLibraryW（STD-097）。 */
-static HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
+HMODULE dynlib_win_load_library_w_utf8_impl(const char *path_utf8) {
     wchar_t wpath[512];
     char norm[512];
     int n;
@@ -48,6 +56,13 @@ static HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
         return NULL;
     return LoadLibraryW(wpath);
 }
+HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
+  {
+    return dynlib_win_load_library_w_utf8_impl(path_utf8);
+  }
+  return 0;
+}
+
 #else
 #include <dlfcn.h>
 typedef void *dynlib_handle_t;

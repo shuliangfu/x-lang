@@ -102,3 +102,14 @@ function http_transport_start_tls(tr: *u8, is_https: i32, host: *u8): i32 {
   return 0 - 1;
 }
 
+// G-02f-112：+ http_request_timeout_ex_c 薄门闩（#if 花括号 #if-aware promote）。
+
+extern "C" function http_request_timeout_ex_c_impl(method: *u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32, timeout_ms: u32): i32;
+
+/* ---- G-02f-112：http timeout client 门闩 ---- */
+
+#[no_mangle]
+function http_request_timeout_ex_c(method: *u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32, timeout_ms: u32): i32 {
+  unsafe { return http_request_timeout_ex_c_impl(method, url, url_len, body, body_len, out, out_cap, timeout_ms); }
+  return 0;
+}

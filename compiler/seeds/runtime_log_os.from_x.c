@@ -1,4 +1,5 @@
 /* seeds/runtime_log_os.from_x.c — G-02f-19 product TU
+ * G-02f-112 helper gates.
  * G-02f-105 helper gates.
  * Product: runtime_log_os.o; logic still C until full .x port.
  */
@@ -17,14 +18,21 @@
 #include <fcntl.h>
 #include <sys/stat.h> /* _S_IWRITE 声明在此 */
 #define STDERR_FILENO 2
-static int log_write_fd(int fd, const void *buf, size_t len) { return (int)_write((int)fd, buf, (unsigned)len); }
+int log_write_fd_impl(int fd, const void *buf, size_t len) { return (int)_write((int)fd, buf, (unsigned)len); }
+int log_write_fd(int fd, const void *buf, size_t len) {
+  {
+    return log_write_fd_impl(fd, buf, len);
+  }
+  return 0;
+}
+
 #else
 #ifndef _WIN32
 #include <unistd.h>
 #endif
 #include <fcntl.h>
 #include <sys/stat.h>
-static int log_write_fd(int fd, const void *buf, size_t len) { return (int)write(fd, buf, len); }
+int log_write_fd(int fd, const void *buf, size_t len) { return (int)write(fd, buf, len); }
 #endif
 
 /** sink 掩码位（与 mod.x SINK_* 一致）。 */

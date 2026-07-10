@@ -148,3 +148,13 @@ function check_one_file(path: *u8): i32 {
   return 0 - 1;
 }
 
+// G-02f-112：+ closedir_win 薄门闩。
+
+extern "C" function closedir_win_impl(d: *u8): void;
+
+/* ---- G-02f-112：closedir_win 门闩 ---- */
+
+#[no_mangle]
+function closedir_win(d: *u8): void {
+  unsafe { closedir_win_impl(d); }
+}

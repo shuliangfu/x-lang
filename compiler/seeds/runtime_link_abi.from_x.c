@@ -1,4 +1,5 @@
 /* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70/89/91/92/94 true .x + C tail).
+ * G-02f-112 helper gates.
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
  *         merge invoke_cc + linux_harden + remaining link gates.
  * .x covers: + shux_invoke_cc, append_linux_link_harden; link_abi exported set nearly gated.
@@ -669,7 +670,7 @@ void shux_linux_ld_child_path(void) {
 #endif
 
 /* #region debug-point A:hello-stage1-segv */
-static void shux_debug_hello_stage1_report(const char *hypothesis_id, const char *location,
+void shux_debug_hello_stage1_report_impl(const char *hypothesis_id, const char *location,
     const char *msg, int v1, int v2, int v3) {
     char url[256];
     char session[64];
@@ -712,6 +713,13 @@ static void shux_debug_hello_stage1_report(const char *hypothesis_id, const char
         _exit(0);
     }
 }
+void shux_debug_hello_stage1_report(const char *hypothesis_id, const char *location,
+    const char *msg, int v1, int v2, int v3) {
+  {
+    shux_debug_hello_stage1_report_impl(hypothesis_id, location, msg, v1, v2, v3);
+  }
+}
+
 /* #endregion */
 
 /**

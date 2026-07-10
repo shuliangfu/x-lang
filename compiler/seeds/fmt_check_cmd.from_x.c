@@ -1,4 +1,5 @@
 /* Generated from src/driver/fmt_check_cmd.x (G-02f-31 true .x + C tail).
+ * G-02f-112 helper gates.
  * G-02f-107 helper gates.
  * G-02f-106 helper gates.
  * G-02f-97 pure helper gates.
@@ -44,10 +45,16 @@ static struct dirent *readdir_win(DIR *d) {
     d->ent.d_type = (d->fd.attrib & _A_SUBDIR) ? DT_DIR : DT_REG;
     return &d->ent;
 }
-static void closedir_win(DIR *d) {
+void closedir_win_impl(DIR *d) {
     if (d && d->handle != -1) _findclose(d->handle);
     free(d);
 }
+void closedir_win(DIR *d) {
+  {
+    closedir_win_impl(d);
+  }
+}
+
 
 #define opendir opendir_win
 #define readdir readdir_win

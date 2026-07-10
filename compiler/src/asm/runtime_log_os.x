@@ -65,3 +65,15 @@ function log_emit_bytes(buf: *u8, len: usize): i32 {
   }
   return 0 - 1;
 }
+
+// G-02f-112：+ log_write_fd 薄门闩。
+
+extern "C" function log_write_fd_impl(fd: i32, buf: *u8, n: i64): i64;
+
+/* ---- G-02f-112：log_write_fd 门闩 ---- */
+
+#[no_mangle]
+function log_write_fd(fd: i32, buf: *u8, n: i64): i64 {
+  unsafe { return log_write_fd_impl(fd, buf, n); }
+  return 0;
+}

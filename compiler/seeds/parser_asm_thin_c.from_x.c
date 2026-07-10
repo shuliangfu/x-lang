@@ -1,4 +1,5 @@
 /* seeds/parser_asm_thin_c.from_x.c — G-02f-10 product parser EMIT_HEAVY thin glue
+ * G-02f-112 helper gates.
  * G-02f-111 helper gates.
  * G-02f-107 helper gates.
  * Compile with -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/asm for slice includes.
@@ -7498,7 +7499,7 @@ void parser_asm_body_skip_let_const_then_if_into_slice_c(struct parser_asm_lexer
 }
 
 /** 前向声明：解析 import("path"); 并更新 out->lex（定义见本文件后部）。 */
-static int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
+int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
                                                       struct parser_asm_slice_u8 *source, uint8_t *path_buf,
                                                       int32_t *path_len);
 
@@ -7638,7 +7639,7 @@ void parser_asm_cfg_skip_pending_top_level_into_slice_c(struct parser_asm_lexer 
  * 若 lex 位于 const 之后，尝试跳过整条 const [=|{]= import("path"); 语句。
  * 成功返回 1 并更新 *lex；否则返回 0。
  */
-static int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *lex,
+int32_t parser_asm_try_skip_const_import_stmt_impl(struct parser_asm_lexer *lex,
                                                      struct parser_asm_slice_u8 *source) {
   struct parser_asm_lexer_result r;
   struct parser_asm_lexer_result r2;
@@ -7668,6 +7669,14 @@ static int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *le
   (void)i;
   return 0;
 }
+int32_t parser_asm_try_skip_const_import_stmt(struct parser_asm_lexer *lex,
+                                                     struct parser_asm_slice_u8 *source) {
+  {
+    return parser_asm_try_skip_const_import_stmt_impl(lex, source);
+  }
+  return 0;
+}
+
 
 /**
  * skip_imports：跳过顶层 const import 语句，返回首个非 import 的 lex。
@@ -7742,7 +7751,7 @@ void parser_asm_copy_token_bytes_to_buf64(struct parser_asm_slice_u8 *source, si
 /**
  * 从 out.lex 当前位解析 import("path"); 成功更新 out.lex 并返回 1。
  */
-static int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
+int32_t parser_asm_collect_imports_consume_path_impl(struct parser_asm_collect_imports_result *out,
                                                       struct parser_asm_slice_u8 *source, uint8_t *path_buf,
                                                       int32_t *path_len) {
   struct parser_asm_lexer_result r;
@@ -7799,6 +7808,15 @@ static int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect
   parser_asm_lex_from_result_val_into(&out->lex, r);
   return 1;
 }
+int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
+                                                      struct parser_asm_slice_u8 *source, uint8_t *path_buf,
+                                                      int32_t *path_len) {
+  {
+    return parser_asm_collect_imports_consume_path_impl(out, source, path_buf, path_len);
+  }
+  return 0;
+}
+
 
 /**
  * collect_imports：收集顶层 import 路径到 module，并写出跳过 import 后的 lex。
@@ -12023,7 +12041,7 @@ struct parser_asm_lexer_result parser_asm_body_skip_let_const_then_if_buf_c(stru
 }
 
 /** 写入 TrySkipAllowResult 三字段（_pad 清零）。 */
-static void parser_asm_write_try_skip_allow_result(struct parser_asm_try_skip_allow_result *out,
+void parser_asm_write_try_skip_allow_result_impl(struct parser_asm_try_skip_allow_result *out,
                                                    struct parser_asm_lexer lex, int32_t skipped) {
   if (!out)
     return;
@@ -12031,6 +12049,13 @@ static void parser_asm_write_try_skip_allow_result(struct parser_asm_try_skip_al
   out->skipped = skipped;
   memset(out->_pad, 0, sizeof(out->_pad));
 }
+void parser_asm_write_try_skip_allow_result(struct parser_asm_try_skip_allow_result *out,
+                                                   struct parser_asm_lexer lex, int32_t skipped) {
+  {
+    parser_asm_write_try_skip_allow_result_impl(out, lex, skipped);
+  }
+}
+
 
 /**
  * try_skip_allow_padding_struct（slice 路径）：allow(padding) 前缀跳过 `( ... )`。
@@ -15129,10 +15154,16 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_buf
 }
 
 /** LexerResult.next_lex → 当前 Lexer（与 parser.x lex_from_next_into 一致）。 */
-static void parser_asm_lex_from_lr_next_c(struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r) {
+void parser_asm_lex_from_lr_next_c_impl(struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r) {
   if (lex && r)
     *lex = r->next_lex;
 }
+void parser_asm_lex_from_lr_next_c(struct parser_asm_lexer *lex, struct parser_asm_lexer_result *r) {
+  {
+    parser_asm_lex_from_lr_next_c_impl(lex, r);
+  }
+}
+
 
 /**
  * parse_one_function_library_scan：库函数 token 序列扫描（不建 AST），结果写入 *result。

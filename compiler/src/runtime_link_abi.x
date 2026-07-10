@@ -2315,3 +2315,13 @@ function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32 {
   return 0;
 }
 
+// G-02f-112：+ shux_debug_hello_stage1_report 薄门闩。
+
+extern "C" function shux_debug_hello_stage1_report_impl(): void;
+
+/* ---- G-02f-112：link_abi debug report 门闩 ---- */
+
+#[no_mangle]
+function shux_debug_hello_stage1_report(): void {
+  unsafe { shux_debug_hello_stage1_report_impl(); }
+}
