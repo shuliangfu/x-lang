@@ -1,15 +1,17 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34/35/36/37：真迁 .x — link_abi 入口 / freestanding / needs_* / heap 探针 / async。
+// G-02f-34..38：真迁 .x — link_abi 入口 / freestanding / needs_* / heap / async / compress。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
-// C 尾：invoke_cc/ld、路径后缀、object 扫描、argv 循环（heap import 半边仍 C）。
-// G-02f-37：+ async_scheduler 展开 if 链；std_heap_api / heap_user_c 单路径探针。
+// C 尾：invoke_cc/ld、路径后缀、nm/popen marker 扫描、argv 循环。
+// G-02f-38：+ zlib/zstd/brotli/compress_libs 按需链探针（经 C marker/undef 原语）。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
 extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
 extern "C" function getenv(name: *u8): *u8;
 extern "C" function shux_host_is_linux(): i32;
+extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
+extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
 
 #[no_mangle]
 function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
@@ -642,6 +644,101 @@ function link_abi_user_o_needs_async_scheduler(user_o: *u8): i32 {
       return 1;
     }
     if (shux_link_obj_needs_undef_sym(user_o, "shux_io_complete_write_async_slot") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+
+/* ---- G-02f-38：compress 库按需探针（nm marker/undef 原语仍 C）---- */
+
+#[no_mangle]
+function link_abi_obj_needs_zlib(obj_o: *u8): i32 {
+  if (obj_o == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (obj_o[0] == 0) {
+      return 0;
+    }
+    if (link_abi_obj_exports_marker(obj_o, "shu_compress_zlib_marker") != 0) {
+      return 1;
+    }
+    if (link_abi_obj_has_undef_sym(obj_o, "_compress2") != 0) {
+      return 1;
+    }
+    if (link_abi_obj_has_undef_sym(obj_o, "_deflate") != 0) {
+      return 1;
+    }
+    if (link_abi_obj_has_undef_sym(obj_o, "_inflate") != 0) {
+      return 1;
+    }
+    if (link_abi_obj_has_undef_sym(obj_o, "_uncompress") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_obj_needs_zstd(obj_o: *u8): i32 {
+  if (obj_o == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (obj_o[0] == 0) {
+      return 0;
+    }
+    if (link_abi_obj_exports_marker(obj_o, "shu_compress_zstd_marker") != 0) {
+      return 1;
+    }
+    if (link_abi_obj_has_undef_sym(obj_o, "ZSTD_") != 0) {
+      return 1;
+    }
+    if (link_abi_obj_has_undef_sym(obj_o, "_ZSTD") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_obj_needs_brotli(obj_o: *u8): i32 {
+  if (obj_o == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (obj_o[0] == 0) {
+      return 0;
+    }
+    if (link_abi_obj_exports_marker(obj_o, "shu_compress_brotli_marker") != 0) {
+      return 1;
+    }
+    if (link_abi_obj_has_undef_sym(obj_o, "BrotliEncoderCompress") != 0) {
+      return 1;
+    }
+    if (link_abi_obj_has_undef_sym(obj_o, "BrotliDecoderDecompress") != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_user_o_needs_compress_libs(user_o: *u8): i32 {
+  unsafe {
+    if (link_abi_obj_needs_zlib(user_o) != 0) {
+      return 1;
+    }
+    if (link_abi_obj_needs_zstd(user_o) != 0) {
+      return 1;
+    }
+    if (link_abi_obj_needs_brotli(user_o) != 0) {
       return 1;
     }
     return 0;

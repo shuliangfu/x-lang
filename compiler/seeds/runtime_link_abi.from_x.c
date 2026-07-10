@@ -1,9 +1,9 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..37 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..38 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/link.c
  *         merge thin helpers; polish strings/signatures; SHUX_WEAK bootstrap;
- *         keep invoke_cc/ld + path suffix + argv-loop heap wrappers C.
- * .x covers: forward_main, needs_*, freestanding_enabled, async_scheduler,
- *            std_heap_api / heap_user_syms probes, bootstrap weak stubs.
+ *         keep invoke_cc/ld + path suffix + nm/popen marker + argv-loop C.
+ * .x covers: forward_main, needs_*, freestanding, async, heap probes,
+ *            zlib/zstd/brotli/compress_libs, bootstrap weak stubs.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -2785,40 +2785,99 @@ static int link_abi_obj_has_undef_sym(const char *obj_o, const char *sym) {
 }
 
 /** 任意 .o 是否依赖 libz（marker 或 zlib 未定义符号）。F-04 v4：含用户 .x 链出的 .o。 */
-static int link_abi_obj_needs_zlib(const char *obj_o) {
-    if (!obj_o || !obj_o[0])
-        return 0;
-    if (link_abi_obj_exports_marker(obj_o, "shu_compress_zlib_marker"))
-        return 1;
-    return link_abi_obj_has_undef_sym(obj_o, "_compress2")
-        || link_abi_obj_has_undef_sym(obj_o, "_deflate")
-        || link_abi_obj_has_undef_sym(obj_o, "_inflate")
-        || link_abi_obj_has_undef_sym(obj_o, "_uncompress");
+int link_abi_obj_needs_zlib(const char *obj_o) {
+  if ((obj_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((obj_o)[0] ==0)) {
+      return 0;
+    }
+    if ((link_abi_obj_exports_marker(obj_o, "shu_compress_zlib_marker") !=0)) {
+      return 1;
+    }
+    if ((link_abi_obj_has_undef_sym(obj_o, "_compress2") !=0)) {
+      return 1;
+    }
+    if ((link_abi_obj_has_undef_sym(obj_o, "_deflate") !=0)) {
+      return 1;
+    }
+    if ((link_abi_obj_has_undef_sym(obj_o, "_inflate") !=0)) {
+      return 1;
+    }
+    if ((link_abi_obj_has_undef_sym(obj_o, "_uncompress") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 任意 .o 是否依赖 libzstd（F-04 v7+：zstd .x 用户链）。 */
-static int link_abi_obj_needs_zstd(const char *obj_o) {
-    if (!obj_o || !obj_o[0])
-        return 0;
-    if (link_abi_obj_exports_marker(obj_o, "shu_compress_zstd_marker"))
-        return 1;
-    return link_abi_obj_has_undef_sym(obj_o, "ZSTD_") || link_abi_obj_has_undef_sym(obj_o, "_ZSTD");
+int link_abi_obj_needs_zstd(const char *obj_o) {
+  if ((obj_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((obj_o)[0] ==0)) {
+      return 0;
+    }
+    if ((link_abi_obj_exports_marker(obj_o, "shu_compress_zstd_marker") !=0)) {
+      return 1;
+    }
+    if ((link_abi_obj_has_undef_sym(obj_o, "ZSTD_") !=0)) {
+      return 1;
+    }
+    if ((link_abi_obj_has_undef_sym(obj_o, "_ZSTD") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 任意 .o 是否依赖 libbrotli（F-04 v6：lib.x 用户链）。 */
-static int link_abi_obj_needs_brotli(const char *obj_o) {
-    if (!obj_o || !obj_o[0])
-        return 0;
-    if (link_abi_obj_exports_marker(obj_o, "shu_compress_brotli_marker"))
-        return 1;
-    return link_abi_obj_has_undef_sym(obj_o, "BrotliEncoderCompress")
-        || link_abi_obj_has_undef_sym(obj_o, "BrotliDecoderDecompress");
+int link_abi_obj_needs_brotli(const char *obj_o) {
+  if ((obj_o ==((char *)(0)))) {
+    return 0;
+  }
+  (void)(({   {
+    if (((obj_o)[0] ==0)) {
+      return 0;
+    }
+    if ((link_abi_obj_exports_marker(obj_o, "shu_compress_brotli_marker") !=0)) {
+      return 1;
+    }
+    if ((link_abi_obj_has_undef_sym(obj_o, "BrotliEncoderCompress") !=0)) {
+      return 1;
+    }
+    if ((link_abi_obj_has_undef_sym(obj_o, "BrotliDecoderDecompress") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** 用户 .o 是否引用任一压缩库（F-04 v7：全 .x 按需 -lz/-lzstd/-lbrotli*）。 */
-static int link_abi_user_o_needs_compress_libs(const char *user_o) {
-    return link_abi_obj_needs_zlib(user_o) || link_abi_obj_needs_zstd(user_o)
-        || link_abi_obj_needs_brotli(user_o);
+int link_abi_user_o_needs_compress_libs(const char *user_o) {
+  (void)(({   {
+    if ((link_abi_obj_needs_zlib(user_o) !=0)) {
+      return 1;
+    }
+    if ((link_abi_obj_needs_zstd(user_o) !=0)) {
+      return 1;
+    }
+    if ((link_abi_obj_needs_brotli(user_o) !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /** macOS Homebrew /usr/local：便于 -lz / -lzstd 解析。 */
