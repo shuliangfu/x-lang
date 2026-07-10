@@ -88,25 +88,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -c -o src/lsp/lsp_diag_pipeline_sizes_nostub.o "$_sizes_from_x"
     fi
   fi
-  # G-02f-2：target_cpu.o = pure.from_x + detect.inc（ld -r）
+  # G-02f-6：target_cpu.o 单文件 pure seed（含 OS detect）
   _tcpure=seeds/target_cpu_pure.from_x.c
-  _tcdet=src/driver/target_cpu.inc
-  if [ -f "$_tcpure" ] && [ -f "$_tcdet" ]; then
+  if [ -f "$_tcpure" ]; then
     if [ ! -f src/driver/target_cpu.o ] || [ "$_tcpure" -nt src/driver/target_cpu.o ] \
-      || [ "$_tcdet" -nt src/driver/target_cpu.o ] \
       || [ src/driver/target_cpu_pure.x -nt src/driver/target_cpu.o ] 2>/dev/null; then
-      echo "g05_ensure: target_cpu.o ← pure.from_x + detect.inc (G-02f-2 .x)"
+      echo "g05_ensure: target_cpu.o ← pure.from_x (G-02f-6 single TU)"
       # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -c -o src/driver/target_cpu_pure.o "$_tcpure"
-      g05_cc_c src/driver/target_cpu_detect.o "$_tcdet"
-      _ld="${LD:-ld}"
-      _ldrel=""
-      case "${G05_UNAME_S:-$(uname -s)}/${G05_UNAME_M:-$(uname -m)}" in
-        Darwin/arm64) _ldrel="-arch arm64" ;;
-        Darwin/x86_64) _ldrel="-arch x86_64" ;;
-      esac
-      # shellcheck disable=SC2086
-      $_ld $_ldrel -r -o src/driver/target_cpu.o src/driver/target_cpu_pure.o src/driver/target_cpu_detect.o
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/driver/target_cpu.o "$_tcpure"
     fi
   fi
   # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o

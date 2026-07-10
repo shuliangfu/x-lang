@@ -1,14 +1,12 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-2～5：target_cpu 纯逻辑真迁 .x / pure seed。
-// - pending（f-2）
-// - SIMD 拼写（f-3）
-// - resolve 具名（f-4；native/generic → detect 半边）
-// - print（f-5；stdio FILE*/fprintf 在 seed C，语言限制）
+// G-02f-2～6：target_cpu 真迁 pure seed 单 TU。
+// - pending（f-2）· SIMD（f-3）· resolve（f-4）· print（f-5）
+// - OS detect_host/generic（f-6；#if/sysctl/proc 在 seed C）
 //
-// 冷启动：seeds/target_cpu_pure.from_x.c
-// detect_host / generic_for_host 仍在 target_cpu.inc。
+// 产品：seeds/target_cpu_pure.from_x.c → src/driver/target_cpu.o（无 ld -r）
+// detect 对外 API 由 seed C 提供；.x 侧 resolve 仍可 extern 声明供语义对照。
 
 let g_driver_pending_target_cpu_features: u32 = 0;
 

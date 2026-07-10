@@ -1416,13 +1416,9 @@ bootstrap-codegen: $(TARGET) $(SHUX_C) bootstrap_shuxc $(RELINK_SHUX_PREREQS)
 src/main_driver.o: src/main.inc Makefile scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/main.inc $@ -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE
 # G-02a: preprocess.c 已物理删除；runtime preprocess() 走 preprocess.x（preprocess_x.o）。
-# G-02f-2：target_cpu.o = pure.x seed + detect/resolve/print .inc（ld -r）
-src/driver/target_cpu_pure.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pure.x
+# G-02f-6：target_cpu.o 单 TU（pure seed 含 OS detect；无 ld -r）
+src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pure.x include/target_cpu.h
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/target_cpu_pure.from_x.c -o $@
-src/driver/target_cpu_detect.o: src/driver/target_cpu.inc include/target_cpu.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/driver/target_cpu.inc $@ -I. -Iinclude -Isrc
-src/driver/target_cpu.o: src/driver/target_cpu_pure.o src/driver/target_cpu_detect.o
-	$(LD) $(LD_RELFLAGS) -r -o $@ src/driver/target_cpu_pure.o src/driver/target_cpu_detect.o
 src/asm/simd_enc.o: src/asm/simd_enc.inc include/simd_enc.h include/target_cpu.h scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/simd_enc.inc $@ -I. -Iinclude -Isrc
 src/asm/simd_loop.o: src/asm/simd_loop.inc include/simd_loop.h include/simd_enc.h include/target_cpu.h scripts/cc_inc_tu.sh
