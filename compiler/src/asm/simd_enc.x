@@ -15,7 +15,6 @@ function simd_enc_x_doc_anchor(): i32 {
 
 // G-02f-108：+ rbp/append/x86 movups/padd 薄门闩。
 
-extern "C" function simd_rbp_disp32_impl(slot: i32, lanes: i32, esz: i32): i32;
 extern "C" function simd_arm64_rbp_lea_off_128half_impl(slot: i32, half: i32, esz: i32): i32;
 extern "C" function simd_append_impl(elf: *u8, bytes: *u8, n: i32): i32;
 extern "C" function simd_append_disp32_impl(elf: *u8, disp: i32): i32;

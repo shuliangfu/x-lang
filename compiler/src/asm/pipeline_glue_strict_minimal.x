@@ -10,7 +10,6 @@ extern "C" function pipeline_typeck_named_equal_strict_minimal_impl(a: *u8, alen
 extern "C" function pipeline_typeck_import_binding_name_equal_strict_minimal_impl(a: *u8, alen: i32, b: *u8, blen: i32): i32;
 extern "C" function pipeline_expr_is_func_param_at_strict_minimal_impl(arena: *u8, mod: *u8, fi: i32, er: i32, pix: i32): i32;
 extern "C" function field_name_equal_strict_minimal_impl(buf: *u8, len: i32, lit: *u8): i32;
-extern "C" function pipeline_typeck_expr_is_any_assign_kind_strict_minimal_impl(kind: i32): i32;
 
 function pipeline_glue_strict_minimal_x_doc_anchor(): i32 {
   return 0;

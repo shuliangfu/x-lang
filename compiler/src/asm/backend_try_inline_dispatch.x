@@ -11,7 +11,6 @@ function backend_try_inline_dispatch_x_doc_anchor(): i32 {
 
 // G-02f-109：+ align/const fold/module lookup/param 薄门闩。
 
-extern "C" function glue_align_up8_c_impl(n: i32): i32;
 extern "C" function glue_module_func_index_by_name_impl(mod: *u8, name: *u8, nlen: i32): i32;
 extern "C" function glue_try_expr_const_i32_impl(arena: *u8, er: i32, out: *i32): i32;
 extern "C" function glue_const_scalar_binop_eval_i32_impl(ko: i32, a: i32, b: i32, out: *i32): i32;
@@ -59,7 +58,6 @@ extern "C" function glue_inner_call_arg_for_field_access_impl(arena: *u8, er: i3
 extern "C" function glue_dep_module_field_offset_by_name_impl(mod: *u8, name: *u8, nlen: i32): i32;
 extern "C" function glue_inline_var_field_access_offset_impl(arena: *u8, er: i32): i32;
 extern "C" function glue_try_array_lit_lane_const_i32_impl(arena: *u8, er: i32, lane: i32, out: *i32): i32;
-extern "C" function glue_is_vector_lane_scalar_binop_ko_impl(ko: i32): i32;
 extern "C" function glue_fold_func_returns_param01_vector_binop_impl(arena: *u8, mod: *u8, fi: i32, out: *i32): i32;
 extern "C" function glue_fold_func_returns_param0_index_const_impl(arena: *u8, mod: *u8, fi: i32, out: *i32): i32;
 

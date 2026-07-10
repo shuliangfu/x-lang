@@ -14,8 +14,6 @@ function backend_call_dispatch_x_doc_anchor(): i32 {
 extern "C" function glue_asm_string_lit_len_impl(arena: *u8, er: i32): i32;
 extern "C" function glue_asm_string_lit_into_impl(arena: *u8, er: i32, out: *u8): void;
 extern "C" function glue_call_param_is_f32_c_impl(arena: *u8, tr: i32): i32;
-extern "C" function glue_asm_call_reg_max_impl(ta: i32): i32;
-extern "C" function glue_asm_call_stack_cleanup_bytes_impl(ta: i32, nargs: i32): i32;
 extern "C" function glue_codegen_import_path_to_c_prefix_into_impl(path: *u8, buf: *u8, cap: i32): void;
 extern "C" function glue_asm_c_prefix_redundant_with_name_impl(pre: *u8, plen: i32, name: *u8, nlen: i32): i32;
 extern "C" function glue_asm_build_import_binding_call_sym_impl(pre: *u8, plen: i32, field: *u8, flen: i32, out: *u8): i32;
