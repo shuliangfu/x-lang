@@ -1,7 +1,7 @@
 # G-02e：compiler 物理去 C（终局清场）
 
 > **目标**：仓库内手写 `.c/.h` → 0（允许：平台 `.s` crt0、预编译 seed 二进制、`*_gen.c` 由 .x 再生后不再入库）。  
-> **现状（2026-07-10）**：`compiler/src` 手写 C **109**（G-04 permanent 白名单）；产品 G05 链 **62** objs，其中约半数仍源自 C。
+> **现状（2026-07-10）**：`compiler/src` 手写 C **108**（G-04 permanent 白名单）；产品 G05 链 **59** objs，其中约半数仍源自 C。
 
 ## 1. 分层（务必按层砍，禁止无回归乱删）
 
@@ -37,10 +37,11 @@
 | G-02e-5 | `runtime_abi.c`→`runtime_link_abi.c`（argv/target + nostdlib weak）；G05 −1 obj | ✅ 112→111 |
 | G-02e-6 | `codegen_pipeline_stubs.c`→`runtime_driver_strict_glue_stubs.c`；G05 −1 obj | ✅ 111→110 |
 | G-02e-7 | `parser_asm_link_alias.c`→`parser_asm_parse_expr_link.c`；G05 −1 obj | ✅ 110→109 |
+| G-02e-8 | 3×`*_x_link_alias`→`x_frontend_link_alias.c`；`lsp_diag_x_alias`→`lsp_diag_pipeline_ctx`；G05 −3 objs | ✅ 109→108 src；G05 62→59 |
 
 ## 4. 建议下一刀（工作量升序）
 
-1. **其它 `*_link_alias.c` 薄文件**合并进 companion 或删弱符号  
+1. **其它 `*_link_alias.c` 薄文件**（pipeline_*/cfg_eval）合并进 companion  
 2. **拆 `runtime_link_abi` / `runtime.c`**：先抽纯逻辑到 `.x`，C 只留 `posix_spawn`/`stat`  
 3. **backend dispatch / simd**：asm.x 固定点后删 C dispatch  
 4. **P3 整批**：http `.inc` + ed25519 改预编译 seed 或 .x，permanent 批量摘牌  

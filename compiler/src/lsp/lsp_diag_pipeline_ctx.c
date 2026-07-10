@@ -1,8 +1,10 @@
 /**
- * lsp_diag_pipeline_ctx.c — LSP PipelineDepCtx 路径填充（libRoots / entry_dir）
+ * lsp_diag_pipeline_ctx.c — LSP PipelineDepCtx 路径填充 + lsp_diag.x 符号别名
  *
  * 仅 bootstrap-driver / shux --lsp 链入；依赖 ast_pool 中 pipeline_ctx_append_lib_root。
  * shux-c 不链本文件，使用 lsp_diag_pipeline_sizes.c 中的弱符号占位。
+ *
+ * G-02e-8：原 lsp_diag_x_alias.c（typeck_* → 无前缀 / bootstrap 强覆盖）并入本 TU。
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -77,4 +79,79 @@ void lsp_diag_pipeline_ctx_fill_paths(void *ctx_void, const char *entry_dir, con
             (void)pipeline_ctx_append_lib_root(ctx, (uint8_t *)lib_roots[i], (int32_t)ll);
         }
     }
+}
+
+/* ---- G-02e-8：原 lsp_diag_x_alias（lsp_diag.x -E typeck_* 前缀 → 无前缀入口）---- */
+
+extern int32_t typeck_lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len, uint8_t *out_buf,
+                                                     int32_t out_cap);
+
+__attribute__((weak)) int32_t lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len, uint8_t *out_buf, int32_t out_cap) {
+  return typeck_lsp_build_diagnostics_response(id_val, source, source_len, out_buf, out_cap);
+}
+
+/* hover: .x 的 lsp_diag_hover_at → typeck_lsp_diag_hover_at */
+extern int32_t typeck_lsp_diag_hover_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
+                                         uint8_t *out_buf, int32_t out_cap);
+
+__attribute__((weak)) int32_t lsp_diag_hover_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
+                           uint8_t *out_buf, int32_t out_cap) {
+  return typeck_lsp_diag_hover_at(source, source_len, line_0, col_0, out_buf, out_cap);
+}
+
+/* references: .x 的 lsp_diag_references_at → typeck_lsp_diag_references_at */
+extern int32_t typeck_lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
+                                              int32_t *out_lines, int32_t *out_cols, int32_t max_refs);
+
+__attribute__((weak)) int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
+                                int32_t *out_lines, int32_t *out_cols, int32_t max_refs) {
+  return typeck_lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols, max_refs);
+}
+
+/** bootstrap driver：强符号覆盖 lsp_diag.c 内 weak 实现，统一走 parse_into_buf。 */
+__attribute__((weak)) int lsp_hover_at(const uint8_t *source, int source_len, int line_0, int col_0, char *out_buf, int out_cap) {
+  return (int)typeck_lsp_diag_hover_at((uint8_t *)source, (int32_t)source_len, (int32_t)line_0, (int32_t)col_0,
+                                       (uint8_t *)out_buf, (int32_t)out_cap);
+}
+
+__attribute__((weak)) int lsp_references_at(const uint8_t *source, int source_len, int line_0, int col_0,
+                      int *out_lines, int *out_cols, int max_refs) {
+  return (int)typeck_lsp_diag_references_at((uint8_t *)source, (int32_t)source_len, (int32_t)line_0, (int32_t)col_0,
+                                            (int32_t *)out_lines, (int32_t *)out_cols, (int32_t)max_refs);
+}
+
+/* definition: .x 的 lsp_diag_definition_at → typeck_lsp_diag_definition_at */
+extern int32_t typeck_lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
+                                              int32_t *out_line, int32_t *out_col);
+
+__attribute__((weak)) int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
+                                int32_t *out_line, int32_t *out_col) {
+  return typeck_lsp_diag_definition_at(source, source_len, line_0, col_0, out_line, out_col);
+}
+
+/** bootstrap driver：强符号覆盖 lsp_diag.c 内 weak 实现，统一走 parse_into_buf。 */
+__attribute__((weak)) int lsp_definition_at(const uint8_t *source, int source_len, int line_0, int col_0, int *out_line, int *out_col) {
+  int32_t ol = 0;
+  int32_t oc = 0;
+  if (!typeck_lsp_diag_definition_at((uint8_t *)source, (int32_t)source_len, (int32_t)line_0, (int32_t)col_0, &ol, &oc))
+    return 0;
+  if (out_line) *out_line = (int)ol;
+  if (out_col) *out_col = (int)oc;
+  return 1;
+}
+
+/* semanticTokens/full：lsp_diag.x -E 产出 typeck_ 前缀，lsp.x 期望无前缀名。 */
+extern int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
+                                                          uint8_t *out_buf, int32_t out_cap);
+
+__attribute__((weak)) int32_t lsp_build_semantic_tokens_response(int32_t id_val, uint8_t *doc_buf, int32_t doc_len,
+                                            uint8_t *out_buf, int32_t out_cap) {
+  return typeck_lsp_build_semantic_tokens_response(id_val, doc_buf, doc_len, out_buf, out_cap);
+}
+
+/* lsp.x -E 经 lsp_io 模块引用 invalidate，符号名为 lsp_io_lsp_diag_invalidate_cache；实现仍在 C lsp_diag.o。 */
+extern void lsp_diag_invalidate_cache(void);
+
+__attribute__((weak)) void lsp_io_lsp_diag_invalidate_cache(void) {
+  lsp_diag_invalidate_cache();
 }

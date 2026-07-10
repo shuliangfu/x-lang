@@ -121,7 +121,6 @@ file	compiler/src/lsp/lsp_codegen_extern.c
 file	compiler/src/lsp/lsp_diag_pipeline_ctx.c
 file	compiler/src/lsp/lsp_diag_pipeline_sizes.c
 file	compiler/src/lsp/lsp_diag_stubs_no_c.c
-file	compiler/src/lsp/lsp_diag_x_alias.c
 file	compiler/src/lsp/lsp_state.c
 file	compiler/src/lsp/typeck_lsp_io_stub.c
 file	compiler/src/main.c

@@ -1,8 +1,52 @@
 /**
- * pipeline_gen.c 调用 typeck_typeck_x_ast*；typeck_gen.c 导出 typeck_x_ast*。
- * 链接期别名，避免重编不同命名约定的 pipeline_x.o。
+ * x_frontend_link_alias.c — pipeline_x 与 lexer/typeck/codegen_x 命名约定链接桥。
+ *
+ * G-02e-8：原 lexer_x_link_alias.c + typeck_x_link_alias.c + codegen_x_link_alias.c 并入本 TU。
+ * pipeline_gen 常带模块前缀（lexer_lexer_* / typeck_typeck_* / codegen_codegen_*）；
+ * 对应 *_x.o 导出无重复前缀名；此处做转发，避免重编 pipeline_gen。
  */
+#include <stddef.h>
 #include <stdint.h>
+
+/* ---- lexer_x ---- */
+
+struct lexer_Lexer {
+  size_t pos;
+  int32_t line;
+  int32_t col;
+};
+
+extern struct lexer_Lexer lexer_init(void);
+
+struct lexer_LexerResult {
+  int32_t tok;
+  int32_t int_val;
+  double float_val;
+  struct lexer_Lexer next_lex;
+};
+
+struct shux_slice_uint8_t;
+
+extern void lexer_next_into(struct lexer_LexerResult *out, struct lexer_Lexer lex,
+                            struct shux_slice_uint8_t *data);
+extern struct lexer_LexerResult lexer_next_buf(struct lexer_Lexer lex,
+                                               struct shux_slice_uint8_t *data);
+
+struct lexer_Lexer lexer_lexer_init(void) {
+  return lexer_init();
+}
+
+void lexer_lexer_next_into(struct lexer_LexerResult *out, struct lexer_Lexer lex,
+                         struct shux_slice_uint8_t *data) {
+  lexer_next_into(out, lex, data);
+}
+
+struct lexer_LexerResult lexer_lexer_next_buf(struct lexer_Lexer lex,
+                                            struct shux_slice_uint8_t *data) {
+  return lexer_next_buf(lex, data);
+}
+
+/* ---- typeck_x ---- */
 
 struct ast_Module;
 struct ast_ASTArena;
@@ -132,3 +176,22 @@ void ast_pipeline_module_struct_layout_set_field_align(struct ast_Module *m, int
 }
 
 /** 定义在 pipeline_glue.c（C metrics 热路径）；此处勿重复导出以免 duplicate symbol。 */
+
+/* ---- codegen_x ---- */
+
+struct codegen_CodegenOutBuf;
+
+extern int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf *out);
+extern int32_t codegen_x_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+                              struct codegen_CodegenOutBuf *out, struct ast_PipelineDepCtx *ctx,
+                              int32_t dep_index);
+
+int32_t codegen_codegen_x_ast_emit_header(struct codegen_CodegenOutBuf *out) {
+  return codegen_x_ast_emit_header(out);
+}
+
+int32_t codegen_codegen_x_ast(struct ast_Module *module, struct ast_ASTArena *arena,
+                               struct codegen_CodegenOutBuf *out, struct ast_PipelineDepCtx *ctx,
+                               int32_t dep_index) {
+  return codegen_x_ast(module, arena, out, ctx, dep_index);
+}
