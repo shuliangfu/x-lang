@@ -1,4 +1,5 @@
 /* seeds/runtime_http_glue.from_x.c — G-02f-21 product TU
+ * G-02f-107 helper gates.
  * G-02f-106 helper gates.
  * G-02f-105 helper gates.
  * Logic still C until full .x port.
@@ -174,13 +175,20 @@ void http_transport_close(http_transport_t *tr) {
 
 
 /** HTTPS 时在已连接 fd 上建立 TLS；明文时 tls_ctx 保持 0。 */
-static int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const char *host) {
+int32_t http_transport_start_tls_impl(http_transport_t *tr, int32_t is_https, const char *host) {
   if (!is_https) return 0;
   if (net_tls_is_available_c() == 0) return HTTP_ERR_TLS_NOT_IMPL;
   tr->tls_ctx = net_tls_connect_client_c(tr->fd, host);
   if (tr->tls_ctx == 0) return -1;
   return 0;
 }
+int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const char *host) {
+  {
+    return http_transport_start_tls_impl(tr, is_https, host);
+  }
+  return 0;
+}
+
 
 /** 发送全部字节；失败 -1。 */
 int32_t http_transport_send_all_impl(http_transport_t *tr, const char *data, int len) {

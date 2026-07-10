@@ -1,4 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
+ * G-02f-107 helper gates.
  * G-02f-106 helper gates.
  * Source intent: src/asm/simd_loop.x (doc) + this seed (full C body).
  * Product: → src/asm/simd_loop.o. Logic still C until full .x port.
@@ -150,7 +151,7 @@ int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
 
 
 /** 同块 let 初值为整型字面量（`let n: i32 = K` 常量传播）。 */
-static int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
+int32_t glue_block_let_init_lit_c_impl(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
                                          int32_t *out_lit) {
     uint8_t vbuf[64];
     int32_t vlen;
@@ -190,6 +191,14 @@ static int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t blo
     }
     return 0;
 }
+int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t var_ref,
+                                         int32_t *out_lit) {
+  {
+    return glue_block_let_init_lit_c_impl(arena, block_ref, var_ref, out_lit);
+  }
+  return 0;
+}
+
 
 /** VAR 是否为 i32[N] 栈数组（resolved 类型）。 */
 int32_t glue_var_is_array_i32_n_c_impl(struct ast_ASTArena *arena, int32_t var_ref, int32_t n) {
@@ -204,7 +213,7 @@ int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, i
 
 
 /** 解析 `i = i + 1` 或 `i += 1` 步进语句。 */
-static int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
+int32_t glue_parse_i_plus_one_step_c_impl(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
     int32_t left_ref;
     int32_t right_ref;
     int32_t add_l;
@@ -238,9 +247,16 @@ static int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t 
         return 0;
     return 1;
 }
+int32_t glue_parse_i_plus_one_step_c(struct ast_ASTArena *arena, int32_t step_ref, int32_t i_var_ref) {
+  {
+    return glue_parse_i_plus_one_step_c_impl(arena, step_ref, i_var_ref);
+  }
+  return 0;
+}
+
 
 /** 解析 `dst[i]=a[i](+|-|*)b[i]`；binop_ko 输出 4=ADD / 5=SUB / 6=MUL。 */
-static int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
+int32_t glue_parse_index_binop_assign_c_impl(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
                                                int32_t *binop_ko, int32_t *dst_base_ref, int32_t *a_base_ref,
                                                int32_t *b_base_ref) {
     int32_t left_ref;
@@ -279,9 +295,18 @@ static int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32
     *b_base_ref = b_base;
     return 1;
 }
+int32_t glue_parse_index_binop_assign_c(struct ast_ASTArena *arena, int32_t assign_ref, int32_t i_var_ref,
+                                               int32_t *binop_ko, int32_t *dst_base_ref, int32_t *a_base_ref,
+                                               int32_t *b_base_ref) {
+  {
+    return glue_parse_index_binop_assign_c_impl(arena, assign_ref, i_var_ref, binop_ko, dst_base_ref, a_base_ref, b_base_ref);
+  }
+  return 0;
+}
+
 
 /** 解析 `i < N`：N 为字面量或同块 let 整型初值；n_is_const=1 时写 n_lit。 */
-static int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t cond_ref,
+int32_t glue_parse_i_lt_bound_c_impl(struct ast_ASTArena *arena, int32_t block_ref, int32_t cond_ref,
                                        int32_t *i_var_ref, int32_t *n_lit, int32_t *n_is_const, int32_t *n_var_ref) {
     int32_t left_ref;
     int32_t right_ref;
@@ -316,9 +341,17 @@ static int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block
     *n_is_const = 0;
     return 1;
 }
+int32_t glue_parse_i_lt_bound_c(struct ast_ASTArena *arena, int32_t block_ref, int32_t cond_ref,
+                                       int32_t *i_var_ref, int32_t *n_lit, int32_t *n_is_const, int32_t *n_var_ref) {
+  {
+    return glue_parse_i_lt_bound_c_impl(arena, block_ref, cond_ref, i_var_ref, n_lit, n_is_const, n_var_ref);
+  }
+  return 0;
+}
+
 
 /** EXPR_VAR 局部在 rbp 上的偏移；失败 -1。 */
-static int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+int32_t glue_simd_local_var_stack_off_c_impl(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
                                                 int32_t var_expr_ref) {
     uint8_t vname[64];
     int32_t vlen;
@@ -334,6 +367,14 @@ static int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struc
         off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
     return off;
 }
+int32_t glue_simd_local_var_stack_off_c(struct ast_ASTArena *arena, struct backend_AsmFuncCtx *ctx,
+                                                int32_t var_expr_ref) {
+  {
+    return glue_simd_local_var_stack_off_c_impl(arena, ctx, var_expr_ref);
+  }
+  return 0;
+}
+
 
 /** 读取 SIMD-S1 已解析的 target CPU feature 掩码。 */
 uint32_t glue_simd_loop_cpu_features_c_impl(void) {
@@ -394,12 +435,19 @@ static int32_t glue_simd_loop_emit_chunk_binop_c(struct platform_elf_ElfCodegenC
 }
 
 /** x86：cmp eax, ebx（i - n 置标志，紧接 jge 表示 i>=n 退出）。 */
-static int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+int32_t glue_simd_x86_cmp_rax_rbx_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[2] = {0x39, 0xd8};
     if (!elf_ctx)
         return -1;
     return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)insn, 2);
 }
+int32_t glue_simd_x86_cmp_rax_rbx_c(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  {
+    return glue_simd_x86_cmp_rax_rbx_c_impl(elf_ctx);
+  }
+  return 0;
+}
+
 
 /** 编译期 trip count 整段 peel（N 为 lanes 的整数倍）。 */
 static int32_t glue_emit_full_const_peel_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t binop_ko, int32_t off_a,
@@ -519,17 +567,31 @@ extern int32_t backend_enc_mov_imm64_to_rax_arch(struct platform_elf_ElfCodegenC
 #define GLUE_TYPE_F32 14
 
 /** SoA x 列 x[start] 的 [rbp+disp32]（col0 为 x[0] 栈正偏移）。 */
-static int32_t glue_soa_f32_col_rbp_disp32(int32_t off_col0, int32_t start_idx) {
+int32_t glue_soa_f32_col_rbp_disp32_impl(int32_t off_col0, int32_t start_idx) {
     return -(off_col0 - start_idx * 4);
 }
-
-/** f32 局部槽 [rbp+disp32]。 */
-static int32_t glue_f32_slot_rbp_disp32(int32_t off) {
-    return -off;
+int32_t glue_soa_f32_col_rbp_disp32(int32_t off_col0, int32_t start_idx) {
+  {
+    return glue_soa_f32_col_rbp_disp32_impl(off_col0, start_idx);
+  }
+  return 0;
 }
 
+
+/** f32 局部槽 [rbp+disp32]。 */
+int32_t glue_f32_slot_rbp_disp32_impl(int32_t off) {
+    return -off;
+}
+int32_t glue_f32_slot_rbp_disp32(int32_t off) {
+  {
+    return glue_f32_slot_rbp_disp32_impl(off);
+  }
+  return 0;
+}
+
+
 /** VAR 定长数组元素个数；失败 0。 */
-static int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
+int32_t glue_var_array_size_c_impl(struct ast_ASTArena *arena, int32_t var_ref) {
     int32_t tr;
     int32_t asz;
     if (pipeline_expr_kind_ord_at(arena, var_ref) != GLUE_EXPR_VAR)
@@ -542,6 +604,13 @@ static int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref
         return 0;
     return asz;
 }
+int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
+  {
+    return glue_var_array_size_c_impl(arena, var_ref);
+  }
+  return 0;
+}
+
 
 /**
  * 解析 `s = s + arr[i].field`（SoA f32 列累加）。

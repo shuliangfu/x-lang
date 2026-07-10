@@ -1,4 +1,5 @@
 /* seeds/runtime_scheduler_glue.from_x.c — G-02f-18 product TU
+ * G-02f-107 helper gates.
  * G-02f-106 helper gates.
  * Product: runtime_scheduler_glue.o; logic still C until full .x port.
  */
@@ -378,7 +379,7 @@ static int64_t shux_async_spawn_ctx_expected;
 extern int32_t ctx_is_cancelled_c(int64_t handle);
 
 /** 检测栈顶绑定 Context 是否已取消；无绑定返回 0。 */
-static int shux_async_bound_ctx_cancelled(void) {
+int shux_async_bound_ctx_cancelled_impl(void) {
     int64_t h;
     if (ctx_slots_depth <= 0)
         return 0;
@@ -387,6 +388,13 @@ static int shux_async_bound_ctx_cancelled(void) {
         return 0;
     return ctx_is_cancelled_c(h) != 0;
 }
+int shux_async_bound_ctx_cancelled(void) {
+  {
+    return shux_async_bound_ctx_cancelled_impl();
+  }
+  return 0;
+}
+
 
 /** 绑定 Context 供后续 spawn/drain 取消传播（STD-090）。 */
 void shux_async_bind_context_c(int64_t ctx_handle) {
@@ -418,11 +426,18 @@ int shux_async_spawn_i32(int32_t (*fn)(void), int32_t seed) {
 }
 
 /** 取出并清除 IO await suspend 标记；drain 见 SUSPENDED 时用于选 IO 等待队列。 */
-static int shux_async_take_suspend_io_flag(void) {
+int shux_async_take_suspend_io_flag_impl(void) {
     int v = shux_async_suspend_io_flag;
     shux_async_suspend_io_flag = 0;
     return v;
 }
+int shux_async_take_suspend_io_flag(void) {
+  {
+    return shux_async_take_suspend_io_flag_impl();
+  }
+  return 0;
+}
+
 
 /** 将任务放入 IO 等待队列；返回 0 成功。 */
 static int shux_async_io_wait_push(shux_async_task_fn_t fn) {
@@ -433,9 +448,16 @@ static int shux_async_io_wait_push(shux_async_task_fn_t fn) {
 }
 
 /** 队列占用（tail - head；计数器可绕回 uint32）。 */
-static uint32_t shux_async_q_occupancy(uint32_t head, uint32_t tail) {
+uint32_t shux_async_q_occupancy_impl(uint32_t head, uint32_t tail) {
     return tail - head;
 }
+uint32_t shux_async_q_occupancy(uint32_t head, uint32_t tail) {
+  {
+    return shux_async_q_occupancy_impl(head, tail);
+  }
+  return 0;
+}
+
 
 /** 协作任务帧：phase 为状态机下标，ops 为步进计数。 */
 typedef struct {
@@ -447,7 +469,7 @@ typedef struct {
  * 单任务一步（computed goto 跳转表）：phase 0↔1 交替并 ops++。
  * 返回 0=可继续，1=结束（本 bench 永不返回 1）。
  */
-static int shu_coop_frame_step_jmp(shu_coop_frame_t *f) {
+int shu_coop_frame_step_jmp_impl(shu_coop_frame_t *f) {
     if (!f)
         return 1;
 #if defined(__GNUC__) && !defined(__STRICT_ANSI__)
@@ -482,6 +504,13 @@ coop_done:
     }
 #endif
 }
+int shu_coop_frame_step_jmp(shu_coop_frame_t *f) {
+  {
+    return shu_coop_frame_step_jmp_impl(f);
+  }
+  return 0;
+}
+
 
 /**
  * A1/A2：双任务 computed-goto ping-pong，共 rounds 轮（每轮 ping+pong 各一步）。
@@ -501,7 +530,7 @@ int64_t shux_async_coop_pingpong_jmp(int64_t rounds) {
 }
 
 /** A1：switch 版单帧步进（对照 jmp 路径开销）。 */
-static int shu_coop_frame_step_switch(shu_coop_frame_t *f) {
+int shu_coop_frame_step_switch_impl(shu_coop_frame_t *f) {
     if (!f)
         return 1;
     switch (f->phase) {
@@ -519,6 +548,13 @@ static int shu_coop_frame_step_switch(shu_coop_frame_t *f) {
         return 0;
     }
 }
+int shu_coop_frame_step_switch(shu_coop_frame_t *f) {
+  {
+    return shu_coop_frame_step_switch_impl(f);
+  }
+  return 0;
+}
+
 
 /**
  * A1：双任务 switch dispatch ping-pong（与 jmp 版同语义，便于 A/B）。

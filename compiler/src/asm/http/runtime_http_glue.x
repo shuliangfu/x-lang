@@ -5,6 +5,7 @@
 // 实现仍在 seed C；本文件为文档锚点。
 // G-02f-105：+ method_has_body / set_timeouts / connect_timeout / send_all 薄门闩。
 // G-02f-106：+ parse_url / transport close/send/recv / format / drain 薄门闩。
+// G-02f-107：+ transport_start_tls 薄门闩。
 
 extern "C" function http_method_has_body_impl(method: *u8): i32;
 extern "C" function http_set_timeouts_impl(fd: i32, timeout_ms: u32): i32;
@@ -90,3 +91,14 @@ function http_drain_request(fd: i32): i32 {
   unsafe { return http_drain_request_impl(fd); }
   return 0 - 1;
 }
+
+extern "C" function http_transport_start_tls_impl(tr: *u8, is_https: i32, host: *u8): i32;
+
+/* ---- G-02f-107：tls start 门闩 ---- */
+
+#[no_mangle]
+function http_transport_start_tls(tr: *u8, is_https: i32, host: *u8): i32 {
+  unsafe { return http_transport_start_tls_impl(tr, is_https, host); }
+  return 0 - 1;
+}
+

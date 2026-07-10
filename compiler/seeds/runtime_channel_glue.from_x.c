@@ -1,4 +1,5 @@
 /* seeds/runtime_channel_glue.from_x.c — G-02f-18 product TU
+ * G-02f-107 helper gates.
  * G-02f-106 helper gates.
  * Product: runtime_channel_glue.o; logic still C until full .x port.
  */
@@ -208,25 +209,37 @@ void channel_broadcast_not_full(channel_i32_impl_t *c) {
 
 
 /** 阻塞等待直到 buffer 非空或 channel 关闭。 */
-static void channel_wait_not_empty(channel_i32_impl_t *c) {
+void channel_wait_not_empty_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_empty, &c->mutex, INFINITE);
 #else
     pthread_cond_wait(&c->cond_not_empty, &c->mutex);
 #endif
 }
+void channel_wait_not_empty(channel_i32_impl_t *c) {
+  {
+    channel_wait_not_empty_impl(c);
+  }
+}
+
 
 /** 阻塞等待直到 buffer 有空间或 channel 关闭。 */
-static void channel_wait_not_full(channel_i32_impl_t *c) {
+void channel_wait_not_full_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_full, &c->mutex, INFINITE);
 #else
     pthread_cond_wait(&c->cond_not_full, &c->mutex);
 #endif
 }
+void channel_wait_not_full(channel_i32_impl_t *c) {
+  {
+    channel_wait_not_full_impl(c);
+  }
+}
+
 
 /** 限时等待 buffer 非空（select 轮询用）。 */
-static void channel_timedwait_not_empty(channel_i32_impl_t *c, int32_t ms) {
+void channel_timedwait_not_empty_impl(channel_i32_impl_t *c, int32_t ms) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_empty, &c->mutex, (DWORD)ms);
 #else
@@ -240,9 +253,15 @@ static void channel_timedwait_not_empty(channel_i32_impl_t *c, int32_t ms) {
     pthread_cond_timedwait(&c->cond_not_empty, &c->mutex, &ts);
 #endif
 }
+void channel_timedwait_not_empty(channel_i32_impl_t *c, int32_t ms) {
+  {
+    channel_timedwait_not_empty_impl(c, ms);
+  }
+}
+
 
 /** 限时等待 buffer 有空间（select 轮询用）。 */
-static void channel_timedwait_not_full(channel_i32_impl_t *c, int32_t ms) {
+void channel_timedwait_not_full_impl(channel_i32_impl_t *c, int32_t ms) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_full, &c->mutex, (DWORD)ms);
 #else
@@ -256,9 +275,15 @@ static void channel_timedwait_not_full(channel_i32_impl_t *c, int32_t ms) {
     pthread_cond_timedwait(&c->cond_not_full, &c->mutex, &ts);
 #endif
 }
+void channel_timedwait_not_full(channel_i32_impl_t *c, int32_t ms) {
+  {
+    channel_timedwait_not_full_impl(c, ms);
+  }
+}
+
 
 /** 无界 channel 缓冲满时翻倍扩容并整理为连续布局。 */
-static int32_t channel_unbounded_grow(channel_i32_impl_t *c) {
+int32_t channel_unbounded_grow_impl(channel_i32_impl_t *c) {
     int32_t new_cap = c->cap * 2;
     int32_t *n;
     int32_t i, j;
@@ -272,6 +297,13 @@ static int32_t channel_unbounded_grow(channel_i32_impl_t *c) {
     c->head = 0;
     return 0;
 }
+int32_t channel_unbounded_grow(channel_i32_impl_t *c) {
+  {
+    return channel_unbounded_grow_impl(c);
+  }
+  return 0;
+}
+
 
 /** 有界 channel：容量 cap，send 满时阻塞。返回句柄或 NULL。 */
 void *channel_i32_bounded_c(int32_t cap) {
@@ -433,7 +465,7 @@ static void *channel_select_chs_get(int64_t *slots, int32_t idx) {
 }
 
 /** recv case 仍有可能：未关闭或缓冲仍有数据。 */
-static int32_t channel_select_recv_case_live(void *ch) {
+int32_t channel_select_recv_case_live_impl(void *ch) {
     channel_i32_impl_t *c;
     int32_t live;
     if (!ch) return 0;
@@ -443,9 +475,16 @@ static int32_t channel_select_recv_case_live(void *ch) {
     channel_unlock(c);
     return live;
 }
+int32_t channel_select_recv_case_live(void *ch) {
+  {
+    return channel_select_recv_case_live_impl(ch);
+  }
+  return 0;
+}
+
 
 /** send case 仍有可能：channel 未关闭。 */
-static int32_t channel_select_send_case_live(void *ch) {
+int32_t channel_select_send_case_live_impl(void *ch) {
     channel_i32_impl_t *c;
     int32_t live;
     if (!ch) return 0;
@@ -455,9 +494,16 @@ static int32_t channel_select_send_case_live(void *ch) {
     channel_unlock(c);
     return live;
 }
+int32_t channel_select_send_case_live(void *ch) {
+  {
+    return channel_select_send_case_live_impl(ch);
+  }
+  return 0;
+}
+
 
 /** 单路 recv 阻塞等待：轮询 try 之间的 timedwait（5ms）。 */
-static void channel_select_wait_recv_one(void *ch) {
+void channel_select_wait_recv_one_impl(void *ch) {
     channel_i32_impl_t *c;
     if (!ch) return;
     c = (channel_i32_impl_t *)ch;
@@ -469,9 +515,15 @@ static void channel_select_wait_recv_one(void *ch) {
     channel_timedwait_not_empty(c, SELECT_TIMEDWAIT_MS);
     channel_unlock(c);
 }
+void channel_select_wait_recv_one(void *ch) {
+  {
+    channel_select_wait_recv_one_impl(ch);
+  }
+}
+
 
 /** 单路 send 阻塞等待：轮询 try 之间的 timedwait（5ms）。 */
-static void channel_select_wait_send_one(void *ch) {
+void channel_select_wait_send_one_impl(void *ch) {
     channel_i32_impl_t *c;
     if (!ch) return;
     c = (channel_i32_impl_t *)ch;
@@ -483,6 +535,12 @@ static void channel_select_wait_send_one(void *ch) {
     channel_timedwait_not_full(c, SELECT_TIMEDWAIT_MS);
     channel_unlock(c);
 }
+void channel_select_wait_send_one(void *ch) {
+  {
+    channel_select_wait_send_one_impl(ch);
+  }
+}
+
 
 /** 非阻塞双路 recv；ch0 优先于 ch1。 */
 int32_t channel_select_try_recv_2_c(void *ch0, void *ch1, int32_t *out_val, int32_t *out_index) {

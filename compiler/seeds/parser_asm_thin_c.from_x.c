@@ -1,4 +1,5 @@
 /* seeds/parser_asm_thin_c.from_x.c — G-02f-10 product parser EMIT_HEAVY thin glue
+ * G-02f-107 helper gates.
  * Compile with -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/asm for slice includes.
  * Product: → parser_asm_thin_glue.o
  */
@@ -6595,6 +6596,7 @@ static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
   e->call_resolved_dep_index = -1;
 }
 
+
 #include "parser_asm_type_ref_slice.inc"
 #include "parser_asm_struct_layout_slice.inc"
 #include "parser_asm_library_slice.inc"
@@ -6626,11 +6628,18 @@ struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_
 #endif
 
 /** 参数/返回值标量或命名类型 token（不含 * 与 []）。 */
-static int32_t parser_asm_is_fn_sig_scalar_type_token_c(int32_t kind) {
+int32_t parser_asm_is_fn_sig_scalar_type_token_c_impl(int32_t kind) {
   return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL
       || kind == (int32_t)TOKEN_U8 || kind == (int32_t)TOKEN_U32 || kind == (int32_t)TOKEN_U64
       || kind == (int32_t)TOKEN_USIZE || kind == (int32_t)TOKEN_VOID || kind == (int32_t)TOKEN_IDENT;
 }
+int32_t parser_asm_is_fn_sig_scalar_type_token_c(int32_t kind) {
+  {
+    return parser_asm_is_fn_sig_scalar_type_token_c_impl(kind);
+  }
+  return 0;
+}
+
 
 /**
  * diag_first_ident_len：诊断用，返回 function 后首 IDENT 的 ident_len（失败负值）。
@@ -7678,7 +7687,7 @@ struct parser_asm_lexer parser_asm_skip_imports_buf_c(struct parser_asm_lexer le
 }
 
 /** 将 source[token_start..+tok_len) 复制到 64 字节缓冲（不足 zero-pad）。 */
-static void parser_asm_copy_token_bytes_to_buf64(struct parser_asm_slice_u8 *source, size_t token_start,
+void parser_asm_copy_token_bytes_to_buf64_impl(struct parser_asm_slice_u8 *source, size_t token_start,
                                                  int32_t tok_len, uint8_t *buf) {
   int32_t bi;
   if (!buf)
@@ -7690,6 +7699,13 @@ static void parser_asm_copy_token_bytes_to_buf64(struct parser_asm_slice_u8 *sou
       buf[bi] = 0;
   }
 }
+void parser_asm_copy_token_bytes_to_buf64(struct parser_asm_slice_u8 *source, size_t token_start,
+                                                 int32_t tok_len, uint8_t *buf) {
+  {
+    parser_asm_copy_token_bytes_to_buf64_impl(source, token_start, tok_len, buf);
+  }
+}
+
 
 /**
  * 从 out.lex 当前位解析 import("path"); 成功更新 out.lex 并返回 1。
@@ -9399,6 +9415,7 @@ static struct parser_asm_onefunc_result parser_asm_onefunc_wired_for_parse_c(str
   parser_onefunc_res_wire_dummy_for_if(&res);
   return res;
 }
+
 
 /**
  * diag_parse_one_after_collect_imports：collect_imports 后 parse_one_function_impl，返回 res.ok。
@@ -11247,7 +11264,7 @@ void parser_asm_skip_one_impl_into_slice_c(struct parser_asm_lexer *out, struct 
 }
 
 /** 将 extern 解析失败快照写入 out（name_len=-1）。 */
-static void parser_asm_extern_parse_set_fail_c(struct parser_asm_extern_parse_result *out,
+void parser_asm_extern_parse_set_fail_c_impl(struct parser_asm_extern_parse_result *out,
                                                struct parser_asm_lexer lex) {
   if (!out)
     return;
@@ -11258,6 +11275,13 @@ static void parser_asm_extern_parse_set_fail_c(struct parser_asm_extern_parse_re
   out->num_params = 0;
   out->abi_kind = 0;
 }
+void parser_asm_extern_parse_set_fail_c(struct parser_asm_extern_parse_result *out,
+                                               struct parser_asm_lexer lex) {
+  {
+    parser_asm_extern_parse_set_fail_c_impl(out, lex);
+  }
+}
+
 
 /**
  * parse_one_extern_skip_into：解析 extern function 到分号，结果写入 *out；失败时 name_len=-1。

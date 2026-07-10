@@ -5,6 +5,7 @@
 // 实现仍在 seed C；本文件为文档锚点。
 // 产品：cc seeds/runtime_scheduler_glue.from_x.c → runtime_scheduler_glue.o
 // G-02f-106：+ async trace / io_wait / affinity 薄门闩。
+// G-02f-107：+ bound/suspend/occupancy/coop step 薄门闩。
 
 extern "C" function shu_async_runtime_trace_enabled_impl(): i32;
 extern "C" function shu_async_trace_topn_impl(): i32;
@@ -61,3 +62,42 @@ function shux_async_affinity_enabled(): i32 {
   unsafe { return shux_async_affinity_enabled_impl(); }
   return 0;
 }
+
+extern "C" function shux_async_bound_ctx_cancelled_impl(ctx: *u8): i32;
+extern "C" function shux_async_take_suspend_io_flag_impl(): i32;
+extern "C" function shux_async_q_occupancy_impl(): i32;
+extern "C" function shu_coop_frame_step_jmp_impl(frame: *u8): i32;
+extern "C" function shu_coop_frame_step_switch_impl(frame: *u8): i32;
+
+/* ---- G-02f-107：async scheduler step 门闩 ---- */
+
+#[no_mangle]
+function shux_async_bound_ctx_cancelled(ctx: *u8): i32 {
+  unsafe { return shux_async_bound_ctx_cancelled_impl(ctx); }
+  return 0;
+}
+
+#[no_mangle]
+function shux_async_take_suspend_io_flag(): i32 {
+  unsafe { return shux_async_take_suspend_io_flag_impl(); }
+  return 0;
+}
+
+#[no_mangle]
+function shux_async_q_occupancy(): i32 {
+  unsafe { return shux_async_q_occupancy_impl(); }
+  return 0;
+}
+
+#[no_mangle]
+function shu_coop_frame_step_jmp(frame: *u8): i32 {
+  unsafe { return shu_coop_frame_step_jmp_impl(frame); }
+  return 0;
+}
+
+#[no_mangle]
+function shu_coop_frame_step_switch(frame: *u8): i32 {
+  unsafe { return shu_coop_frame_step_switch_impl(frame); }
+  return 0;
+}
+

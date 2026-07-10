@@ -1,4 +1,5 @@
 /* Generated from src/driver/fmt_check_cmd.x (G-02f-31 true .x + C tail).
+ * G-02f-107 helper gates.
  * G-02f-106 helper gates.
  * G-02f-97 pure helper gates.
  * Regen: ./shux-c -E -L .. src/driver/fmt_check_cmd.x > /tmp/fcc.c
@@ -195,7 +196,7 @@ void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
 /**
  * 从 path 所在目录向上查找含 core/ + std/ 的仓库根并注入 -L。
  */
-static void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
+void check_append_repo_lib_roots_impl(const char *path, char **check_argv, int *n) {
     char start[512];
     char cur[512];
     char parent[512];
@@ -243,6 +244,12 @@ static void check_append_repo_lib_roots(const char *path, char **check_argv, int
         }
     }
 }
+void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
+  {
+    check_append_repo_lib_roots_impl(path, check_argv, n);
+  }
+}
+
 
 /**
  * 扫描 argv：用户是否已传 -L（有则不再注入默认库根）。
@@ -269,7 +276,7 @@ void check_init_user_lib_flags(int argc, char **argv, int path_start) {
  * 按待检查文件路径注入默认 -L（在单文件路径之前）。
  * 始终注入仓库根；compiler/src 下文件再追加 compiler/src 库根（裸 import lexer/token）。
  */
-static void check_argv_append_default_libs_for_path(const char *path, char **check_argv, int *n) {
+void check_argv_append_default_libs_for_path_impl(const char *path, char **check_argv, int *n) {
     char cwd_buf[512];
     char cs[560];
     struct stat st;
@@ -297,6 +304,12 @@ static void check_argv_append_default_libs_for_path(const char *path, char **che
         }
     }
 }
+void check_argv_append_default_libs_for_path(const char *path, char **check_argv, int *n) {
+  {
+    check_argv_append_default_libs_for_path_impl(path, check_argv, n);
+  }
+}
+
 
 /**
  * SHUX_LINT_CI_FAIL_ON=warn 时 warning 层诊断亦令 check 非零退出。
@@ -316,13 +329,20 @@ int check_lint_fail_on_warnings(void) {
 /**
  * 单文件 check：X pipeline 走 driver_run_compiler_full，shux-c 走 run_compiler_c。
  */
-static int fmt_check_invoke_compile(int argc, char **check_argv) {
+int fmt_check_invoke_compile_impl(int argc, char **check_argv) {
 #ifdef SHUX_USE_X_PIPELINE
     return driver_run_compiler_full(argc, check_argv);
 #else
     return run_compiler_c(argc, check_argv);
 #endif
 }
+int fmt_check_invoke_compile(int argc, char **check_argv) {
+  {
+    return fmt_check_invoke_compile_impl(argc, check_argv);
+  }
+  return 0;
+}
+
 
 /**
  * check 批次结束后清理 dep 槽（仅 X pipeline 需要）。
@@ -426,7 +446,7 @@ int file_list_push(const char *path) {
 /**
  * 递归遍历目录，收集 .x 文件。
  */
-static void walk_dir_collect(const char *dir) {
+void walk_dir_collect_impl(const char *dir) {
     DIR *d = opendir(dir);
     struct dirent *ent;
     char child[768];
@@ -441,7 +461,7 @@ static void walk_dir_collect(const char *dir) {
         if (ent->d_type == DT_DIR || ent->d_type == DT_UNKNOWN) {
             struct stat st;
             if (stat(child, &st) == 0 && S_ISDIR(st.st_mode)) {
-                walk_dir_collect(child);
+                walk_dir_collect_impl(child);
                 continue;
             }
         }
@@ -453,11 +473,17 @@ static void walk_dir_collect(const char *dir) {
     }
     closedir(d);
 }
+void walk_dir_collect(const char *dir) {
+  {
+    walk_dir_collect_impl(dir);
+  }
+}
+
 
 /**
  * 无路径参数时 check 的默认扫描范围（产品树，不含 tests 负例目录）。
  */
-static void check_collect_default_product_dirs(void) {
+void check_collect_default_product_dirs_impl(void) {
     char cwd[512];
     char sub[560];
     struct stat st;
@@ -478,11 +504,17 @@ static void check_collect_default_product_dirs(void) {
     if (!any_product)
         walk_dir_collect(cwd);
 }
+void check_collect_default_product_dirs(void) {
+  {
+    check_collect_default_product_dirs_impl();
+  }
+}
+
 
 /**
  * 解析路径参数：文件直接加入；目录递归收集。
  */
-static void collect_paths_from_arg(const char *arg) {
+void collect_paths_from_arg_impl(const char *arg) {
     struct stat st;
     if (!arg)
         return;
@@ -507,11 +539,17 @@ static void collect_paths_from_arg(const char *arg) {
     }
     file_list_push(arg);
 }
+void collect_paths_from_arg(const char *arg) {
+  {
+    collect_paths_from_arg_impl(arg);
+  }
+}
+
 
 /**
  * 解析 --ignore=a,b,c 写入 s_ignore_paths。
  */
-static void parse_ignore_opt(const char *arg) {
+void parse_ignore_opt_impl(const char *arg) {
     char buf[512];
     char *p;
     char *tok;
@@ -531,6 +569,12 @@ static void parse_ignore_opt(const char *arg) {
         }
     }
 }
+void parse_ignore_opt(const char *arg) {
+  {
+    parse_ignore_opt_impl(arg);
+  }
+}
+
 
 /**
  * 释放文件列表。
@@ -648,7 +692,7 @@ int driver_run_fmt(int argc, char **argv) {
 /**
  * 对单个 .x 运行 check；复用 driver_run_compiler_full。
  */
-static int check_one_file(const char *path, int argc, char **argv) {
+int check_one_file_impl(const char *path, int argc, char **argv) {
     char *check_argv[64];
     ShuxRuntimeFileView diag_view = {0};
     int have_diag_view = 0;
@@ -726,6 +770,13 @@ static int check_one_file(const char *path, int argc, char **argv) {
     fmt_check_dep_clear();
     return rc;
 }
+int check_one_file(const char *path, int argc, char **argv) {
+  {
+    return check_one_file_impl(path, argc, argv);
+  }
+  return 0;
+}
+
 
 /**
  * 运行 shux check（deno check 语义：多文件/目录，失败打印诊断）。

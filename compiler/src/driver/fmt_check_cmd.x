@@ -7,6 +7,7 @@
 // 说明：本 TU 提供 driver_check_quiet_ok_get 强符号（覆盖 driver_abi weak 默认）。
 // G-02f-97：+ path_is_absolute / collect_error_kind / missing_path_code / lint_fail_on_warnings 门闩。
 // G-02f-106：+ path_should_ignore / file_list / dep_clear / lib_root 门闩。
+// G-02f-107：+ walk/collect/compile/check_one 薄门闩。
 
 extern "C" function shux_path_is_absolute_impl(path: *u8): i32;
 extern "C" function driver_collect_error_kind_impl(): *u8;
@@ -92,3 +93,58 @@ function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void 
 function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
   unsafe { check_try_append_lib_root_impl(check_argv, n, dir); }
 }
+
+extern "C" function check_append_repo_lib_roots_impl(check_argv: *u8, n: *i32): void;
+extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
+extern "C" function fmt_check_invoke_compile_impl(path: *u8): i32;
+extern "C" function walk_dir_collect_impl(dir: *u8): void;
+extern "C" function check_collect_default_product_dirs_impl(): void;
+extern "C" function collect_paths_from_arg_impl(arg: *u8): void;
+extern "C" function parse_ignore_opt_impl(arg: *u8): i32;
+extern "C" function check_one_file_impl(path: *u8): i32;
+
+/* ---- G-02f-107：fmt walk/collect/check 门闩 ---- */
+
+#[no_mangle]
+function check_append_repo_lib_roots(check_argv: *u8, n: *i32): void {
+  unsafe { check_append_repo_lib_roots_impl(check_argv, n); }
+}
+
+#[no_mangle]
+function check_argv_append_default_libs_for_path(path: *u8, check_argv: *u8, n: *i32): void {
+  unsafe { check_argv_append_default_libs_for_path_impl(path, check_argv, n); }
+}
+
+#[no_mangle]
+function fmt_check_invoke_compile(path: *u8): i32 {
+  unsafe { return fmt_check_invoke_compile_impl(path); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function walk_dir_collect(dir: *u8): void {
+  unsafe { walk_dir_collect_impl(dir); }
+}
+
+#[no_mangle]
+function check_collect_default_product_dirs(): void {
+  unsafe { check_collect_default_product_dirs_impl(); }
+}
+
+#[no_mangle]
+function collect_paths_from_arg(arg: *u8): void {
+  unsafe { collect_paths_from_arg_impl(arg); }
+}
+
+#[no_mangle]
+function parse_ignore_opt(arg: *u8): i32 {
+  unsafe { return parse_ignore_opt_impl(arg); }
+  return 0;
+}
+
+#[no_mangle]
+function check_one_file(path: *u8): i32 {
+  unsafe { return check_one_file_impl(path); }
+  return 0 - 1;
+}
+

@@ -3,8 +3,31 @@
 //
 // G-02f-10：parser_asm_thin_c 产品源迁 seeds/parser_asm_thin_c.from_x.c。
 // 产品：cc seed -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE -Isrc/asm → parser_asm_thin_glue.o
-// slice 碎片仍位于 seeds/parser_asm/parser_asm_*_slice.inc（由 seed #include）。
+// G-02f-107：+ scalar token / token copy / extern fail 薄门闩。
+// 注：expr_set_common_zeros / onefunc_wired 仍为 seed 内 static（.inc 前向 static 声明冲突；struct 返回不适合薄门闩）。
+
+extern "C" function parser_asm_is_fn_sig_scalar_type_token_c_impl(tok: i32): i32;
+extern "C" function parser_asm_copy_token_bytes_to_buf64_impl(src: *u8, n: i32, dst: *u8): void;
+extern "C" function parser_asm_extern_parse_set_fail_c_impl(of: *u8, code: i32): void;
 
 function parser_asm_thin_c_x_doc_anchor(): i32 {
   return 0;
+}
+
+/* ---- G-02f-107：parser thin helpers 门闩 ---- */
+
+#[no_mangle]
+function parser_asm_is_fn_sig_scalar_type_token_c(tok: i32): i32 {
+  unsafe { return parser_asm_is_fn_sig_scalar_type_token_c_impl(tok); }
+  return 0;
+}
+
+#[no_mangle]
+function parser_asm_copy_token_bytes_to_buf64(src: *u8, n: i32, dst: *u8): void {
+  unsafe { parser_asm_copy_token_bytes_to_buf64_impl(src, n, dst); }
+}
+
+#[no_mangle]
+function parser_asm_extern_parse_set_fail_c(of: *u8, code: i32): void {
+  unsafe { parser_asm_extern_parse_set_fail_c_impl(of, code); }
 }

@@ -1,4 +1,5 @@
 /* seeds/runtime_panic_arm64.from_x.c — G-02f-22 product TU
+ * G-02f-107 helper gates.
  * Logic still C until full .x port.
  */
 /* runtime_panic_arm64.c — ARM64/macOS 用最小 panic 实现。提供 shux_panic_ 符号供链接。 */
@@ -9,7 +10,7 @@
 #include <stdio.h>
 
 /** 无 backtrace.o 时的最小证据包（SHUX_CRASH_EVIDENCE=1）。 */
-static void shux_crash_evidence_minimal(int has_msg, int msg_val) {
+void shux_crash_evidence_minimal_impl(int has_msg, int msg_val) {
   const char *en = getenv("SHUX_CRASH_EVIDENCE");
   if (!en || en[0] != '1') {
     return;
@@ -29,6 +30,12 @@ static void shux_crash_evidence_minimal(int has_msg, int msg_val) {
     }
   }
 }
+void shux_crash_evidence_minimal(int has_msg, int msg_val) {
+  {
+    shux_crash_evidence_minimal_impl(has_msg, msg_val);
+  }
+}
+
 
 __attribute__((weak)) void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
   shux_crash_evidence_minimal(has_msg, msg_val);

@@ -188,7 +188,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f parser_asm_thin_glue.o ] || [ "$_pthin" -nt parser_asm_thin_glue.o ]; then
       echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"
       # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE \
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+        -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE \
         -c -o parser_asm_thin_glue.o "$_pthin"
     fi
   fi

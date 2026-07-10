@@ -1,4 +1,5 @@
 /* seeds/pipeline_glue_strict_minimal.from_x.c — G-02f-11 product TU
+ * G-02f-107 helper gates.
  * Product object from this seed; logic still C until full .x port.
  */
 /**
@@ -697,7 +698,7 @@ static int32_t pipeline_typeck_named_unqual_offset_strict_minimal(const uint8_t 
   return 0;
 }
 
-static int32_t pipeline_typeck_named_equal_strict_minimal(struct ast_ASTArena *arena, int32_t a, int32_t b) {
+int32_t pipeline_typeck_named_equal_strict_minimal_impl(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   uint8_t buf_a[64];
   uint8_t buf_b[64];
   int32_t na;
@@ -733,8 +734,15 @@ static int32_t pipeline_typeck_named_equal_strict_minimal(struct ast_ASTArena *a
   }
   return 1;
 }
+int32_t pipeline_typeck_named_equal_strict_minimal(struct ast_ASTArena *arena, int32_t a, int32_t b) {
+  {
+    return pipeline_typeck_named_equal_strict_minimal_impl(arena, a, b);
+  }
+  return 0;
+}
 
-static int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct ast_Module *module, int32_t dep_ix,
+
+int32_t pipeline_typeck_import_binding_name_equal_strict_minimal_impl(struct ast_Module *module, int32_t dep_ix,
                                                                         const uint8_t *name, int32_t name_len) {
   int32_t bind_len;
   int32_t i;
@@ -749,6 +757,14 @@ static int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct a
   }
   return 1;
 }
+int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct ast_Module *module, int32_t dep_ix,
+                                                                        const uint8_t *name, int32_t name_len) {
+  {
+    return pipeline_typeck_import_binding_name_equal_strict_minimal_impl(module, dep_ix, name, name_len);
+  }
+  return 0;
+}
+
 
 static int32_t pipeline_typeck_find_func_index_in_module_by_name_strict_minimal(struct ast_Module *mod, uint8_t *name,
                                                                                  int32_t name_len, int32_t want_arity) {
@@ -1134,7 +1150,7 @@ static int32_t pipeline_typeck_slice_region_escape_strict_minimal(struct ast_AST
              : 0;
 }
 
-static int pipeline_expr_is_func_param_at_strict_minimal(struct ast_ASTArena *arena, struct ast_Module *mod,
+int pipeline_expr_is_func_param_at_strict_minimal_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                          int32_t func_idx, int32_t expr_ref, int32_t param_ix) {
   uint8_t pbuf[32];
   uint8_t vbuf[64];
@@ -1155,6 +1171,14 @@ static int pipeline_expr_is_func_param_at_strict_minimal(struct ast_ASTArena *ar
   }
   return 1;
 }
+int pipeline_expr_is_func_param_at_strict_minimal(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                         int32_t func_idx, int32_t expr_ref, int32_t param_ix) {
+  {
+    return pipeline_expr_is_func_param_at_strict_minimal_impl(arena, mod, func_idx, expr_ref, param_ix);
+  }
+  return 0;
+}
+
 
 static void pipeline_typeck_expr_diag_line_col_strict_minimal(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *line,
                                                               int32_t *col) {
@@ -1934,19 +1958,33 @@ __attribute__((weak)) int32_t pipeline_typeck_check_block_one_region_c(struct as
   return typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
 }
 
-static int32_t pipeline_typeck_expr_is_any_assign_kind_strict_minimal(int32_t kind) {
+int32_t pipeline_typeck_expr_is_any_assign_kind_strict_minimal_impl(int32_t kind) {
   if (kind == (int32_t)ast_ExprKind_EXPR_ASSIGN)
     return 1;
   return kind >= (int32_t)ast_ExprKind_EXPR_ADD_ASSIGN && kind <= (int32_t)ast_ExprKind_EXPR_SHR_ASSIGN ? 1 : 0;
 }
+int32_t pipeline_typeck_expr_is_any_assign_kind_strict_minimal(int32_t kind) {
+  {
+    return pipeline_typeck_expr_is_any_assign_kind_strict_minimal_impl(kind);
+  }
+  return 0;
+}
 
-static int32_t field_name_equal_strict_minimal(uint8_t *buf, int32_t len, const char *lit) {
+
+int32_t field_name_equal_strict_minimal_impl(uint8_t *buf, int32_t len, const char *lit) {
   size_t lit_len;
   if (!buf || !lit || len <= 0)
     return 0;
   lit_len = strlen(lit);
   return len == (int32_t)lit_len && memcmp(buf, lit, lit_len) == 0 ? 1 : 0;
 }
+int32_t field_name_equal_strict_minimal(uint8_t *buf, int32_t len, const char *lit) {
+  {
+    return field_name_equal_strict_minimal_impl(buf, len, lit);
+  }
+  return 0;
+}
+
 
 __attribute__((weak)) int32_t pipeline_typeck_check_expr_field_access_c(struct ast_Module *module,
                                                                         struct ast_ASTArena *arena, int32_t expr_ref,
