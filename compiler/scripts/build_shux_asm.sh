@@ -3218,11 +3218,11 @@ ensure_asm_driver_seed_support_c_objs() {
   SEED_DIR="${SEED_DIR:-$BUILD_DIR/asm_driver_seed}"
   mkdir -p "$SEED_DIR"
   ensure_diag_seed_obj "$SEED_DIR"
-  if [ ! -f "$SEED_DIR/async_liveness.o" ] || [ src/async/async_liveness.inc -nt "$SEED_DIR/async_liveness.o" ]; then
-  sh scripts/cc_inc_tu.sh src/async/async_liveness.inc "$SEED_DIR/async_liveness.o"
+  if [ ! -f "$SEED_DIR/async_liveness.o" ] || [ seeds/async_liveness.from_x.c -nt "$SEED_DIR/async_liveness.o" ]; then
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/async_liveness.from_x.c -o "$SEED_DIR/async_liveness.o"
   fi
-  if [ ! -f "$SEED_DIR/async_cps_codegen.o" ] || [ src/async/async_cps_codegen.inc -nt "$SEED_DIR/async_cps_codegen.o" ]; then
-  sh scripts/cc_inc_tu.sh src/async/async_cps_codegen.inc "$SEED_DIR/async_cps_codegen.o"
+  if [ ! -f "$SEED_DIR/async_cps_codegen.o" ] || [ seeds/async_cps_codegen.from_x.c -nt "$SEED_DIR/async_cps_codegen.o" ]; then
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/async_cps_codegen.from_x.c -o "$SEED_DIR/async_cps_codegen.o"
   fi
   ensure_lsp_diag_seed_obj "$SEED_DIR"
   LSP_DIAG_SEED_O=$(lsp_diag_seed_obj_path "$SEED_DIR")

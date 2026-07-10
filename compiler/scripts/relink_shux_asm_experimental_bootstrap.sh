@@ -28,14 +28,14 @@ experimental_bootstrap_error() {
 ensure_async_cps_seed_objs() {
   local src out src_pair
   for src_pair in \
-  "src/async/async_liveness.inc:$SEED_O/async_liveness.o" \
-  "src/async/async_cps_codegen.inc:$SEED_O/async_cps_codegen.o"; do
+  "seeds/async_liveness.from_x.c:$SEED_O/async_liveness.o" \
+  "seeds/async_cps_codegen.from_x.c:$SEED_O/async_cps_codegen.o"; do
   src="${src_pair%%:*}"
   out="${src_pair##*:}"
   if [ ! -f "$out" ] || [ "$src" -nt "$out" ]; then
   experimental_bootstrap_info "cc $src -> $out"
   mkdir -p "$(dirname "$out")"
-  "$CC" $CFLAGS -c -o "$out" "$src"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$out" "$src"
   fi
   done
 }

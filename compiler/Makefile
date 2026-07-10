@@ -654,11 +654,13 @@ src/runtime_pipeline_abi.o: seeds/runtime_pipeline_abi.from_x.c src/runtime_pipe
 src/runtime_c_import.o: src/runtime_c_import.inc src/runtime_c_import.h scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/runtime_c_import.inc $@
 
-src/async/async_liveness.o: src/async/async_liveness.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/async/async_liveness.inc $@
+# G-02f-18：async_liveness 产品 seed
+src/async/async_liveness.o: seeds/async_liveness.from_x.c src/async/async_liveness.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_liveness.from_x.c -o $@
 
-src/async/async_cps_codegen.o: src/async/async_cps_codegen.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/async/async_cps_codegen.inc $@
+# G-02f-18：async_cps_codegen 产品 seed
+src/async/async_cps_codegen.o: seeds/async_cps_codegen.from_x.c src/async/async_cps_codegen.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/async_cps_codegen.from_x.c -o $@
 
 src/async/async_asm_pool.o: src/async/async_asm_pool.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/async/async_asm_pool.inc $@
@@ -837,8 +839,9 @@ runtime_atomic_glue.o: src/asm/runtime_atomic_glue.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_atomic_glue.inc $@
 
 # F-ZC：channel 有界/无界/select；与 channel.o 一并链入（G-02e-20：.inc + cc_inc_tu）
-runtime_channel_glue.o: src/asm/runtime_channel_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_channel_glue.inc $@
+# G-02f-18：runtime_channel_glue 产品 seed
+runtime_channel_glue.o: seeds/runtime_channel_glue.from_x.c src/asm/runtime_channel_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_channel_glue.from_x.c -o $@
 
 # F-ZC：net UDP batch recvmmsg/sendmmsg；与 net.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 runtime_net_udp_batch.o: src/asm/runtime_net_udp_batch.inc scripts/cc_inc_tu.sh
@@ -856,12 +859,14 @@ runtime_sync_lock_diag_tls.o: src/asm/runtime_sync_lock_diag_tls.inc scripts/cc_
 	sh scripts/cc_inc_tu.sh src/asm/runtime_sync_lock_diag_tls.inc $@
 
 # F-ZC：thread pthread/CreateThread；与 thread.o 一并链入（G-02e-20）
-runtime_thread_glue.o: src/asm/runtime_thread_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_thread_glue.inc $@
+# G-02f-18：runtime_thread_glue 产品 seed
+runtime_thread_glue.o: seeds/runtime_thread_glue.from_x.c src/asm/runtime_thread_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_thread_glue.from_x.c -o $@
 
 # F-ZC：async 协作调度 + async_net_fs；与 scheduler.o 一并链入（按需 -pthread）
-runtime_scheduler_glue.o: src/asm/runtime_scheduler_glue.inc src/asm/async_net_fs.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_scheduler_glue.inc $@ -Isrc/asm
+# G-02f-18：runtime_scheduler_glue 产品 seed（#include async_net_fs.inc）
+runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_scheduler_glue.x src/asm/async_net_fs.inc
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm -c seeds/runtime_scheduler_glue.from_x.c -o $@
 
 # F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入（G-02e-21）
 runtime_http_glue.o: src/asm/http/runtime_http_glue.inc scripts/cc_inc_tu.sh
@@ -901,8 +906,9 @@ runtime_process_argv.o: src/asm/runtime_process_argv.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_process_argv.inc $@
 
 # F-ZC：进程 OS 胶层（getenv/spawn/getcwd 等）；与 process.o 一并链入（G-02e-20）
-runtime_process_os_glue.o: src/asm/runtime_process_os_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_process_os_glue.inc $@
+# G-02f-18：runtime_process_os_glue 产品 seed
+runtime_process_os_glue.o: seeds/runtime_process_os_glue.from_x.c src/asm/runtime_process_os_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_process_os_glue.from_x.c -o $@
 
 # 无 C 自举：crt0 提供 _start 与 driver_get_argv_i；链接 asm 版 shux 时用本 .o 替代 main.o / runtime_asm_build.o
 ifeq ($(UNAME_S),Linux)
