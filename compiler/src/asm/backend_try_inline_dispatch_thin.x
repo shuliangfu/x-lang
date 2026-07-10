@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/378：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/379：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -464,6 +464,26 @@ function try_inline_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8,
 function try_inline_const_struct_lit_return_call_to_slot_elf(arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32 {
   unsafe {
     return try_inline_const_struct_lit_return_call_to_slot_elf_impl(arena, elf_ctx, call_ref, ctx, ta, stack_slot_off);
+  }
+  return 0;
+}
+
+// ---- G-02f-379：lookup_callee + var_field_sum → seed impl（try int32 收口）----
+extern "C" function glue_call_lookup_callee_mod_fi_arena_impl(caller_arena: *u8, call_ref: i32, ctx: *u8, out_ca: *u8, out_cm: *u8, out_fi: *i32): i32;
+extern "C" function try_inline_var_field_sum_binop_elf_impl(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+
+#[no_mangle]
+function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref: i32, ctx: *u8, out_ca: *u8, out_cm: *u8, out_fi: *i32): i32 {
+  unsafe {
+    return glue_call_lookup_callee_mod_fi_arena_impl(caller_arena, call_ref, ctx, out_ca, out_cm, out_fi);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function try_inline_var_field_sum_binop_elf(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
+  unsafe {
+    return try_inline_var_field_sum_binop_elf_impl(arena, elf_ctx, left_ref, right_ref, ctx, ta);
   }
   return 0;
 }
