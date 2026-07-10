@@ -1,4 +1,4 @@
-/* G-02f-363/366：PREFER hybrid thin 由 src/asm/backend_try_inline_dispatch_thin.x；rest SHUX_L2_TRY_INLINE_THIN_FROM_X。
+/* G-02f-363/368：PREFER hybrid thin 由 src/asm/backend_try_inline_dispatch_thin.x；rest SHUX_L2_TRY_INLINE_THIN_FROM_X。
  * seeds/backend_try_inline_dispatch.from_x.c — G-02f-196 local_slot/index pure; G-02f-184/185 lit stack pure; G-02f-9 product backend dispatch TU
  * G-02f-135 true .x pure helpers.
  * G-02f-134 true .x pure helpers.
@@ -30,18 +30,19 @@
 #include "diag.h"
 #ifdef SHUX_L2_TRY_INLINE_THIN_FROM_X
 struct ast_ASTArena;
+int32_t glue_align_up8_c(int32_t n);
+int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
+int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b, int32_t *out);
 int32_t asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_ref);
 int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
-int32_t glue_align_up8_c(int32_t n);
-int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b, int32_t *out);
-int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
-int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx);
-int32_t glue_try_inline_local_slot_off(uint8_t *ctx, struct ast_ASTArena *arena, uint8_t *name, int32_t name_len);
+int32_t pipeline_asm_struct_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
+int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
 int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
+int32_t glue_try_inline_local_slot_off(uint8_t *ctx, struct ast_ASTArena *arena, uint8_t *name, int32_t name_len);
+int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx);
 int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t array_lit_ref);
 int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
-int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
-int32_t pipeline_asm_struct_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
+int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *asm_ctx);
 #endif
 
 
@@ -84,6 +85,14 @@ struct glue_AsmFuncCtx {
   int32_t loop_label_depth;
   void *dep_pipe;
 };
+
+/* G-02f-368：供 thin local_slot 读 module_ref（始终在 seed，不 omit） */
+uint8_t *glue_asm_ctx_module_ref_c(uint8_t *asm_ctx) {
+  if (!asm_ctx)
+    return 0;
+  return (uint8_t *)((struct glue_AsmFuncCtx *)asm_ctx)->module_ref;
+}
+
 
 extern int32_t pipeline_expr_call_resolved_dep_index_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_call_resolved_func_index_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -749,6 +758,7 @@ int32_t asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_re
  * 须传入 ctx->module_ref，否则 let Pair 等会误判为形参指针槽。
  */
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref,
                                                       uint8_t *asm_ctx) {
   struct ast_Module *mod_ref = 0;
@@ -757,6 +767,7 @@ int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32
   return asm_local_var_slot_holds_indirect_ptr(arena, expr_ref, mod_ref, asm_ctx);
 
 }
+#endif
 
 
 /**

@@ -1,4 +1,4 @@
-/* G-02f-364/367：PREFER hybrid thin 由 src/asm/backend_call_dispatch_thin.x；rest SHUX_L2_CALL_DISPATCH_THIN_FROM_X。
+/* G-02f-364/368：PREFER hybrid thin 由 src/asm/backend_call_dispatch_thin.x；rest SHUX_L2_CALL_DISPATCH_THIN_FROM_X。
  * seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
  * G-02f-134 true .x pure helpers.
  * G-02f-133 true .x pure helpers.
@@ -40,6 +40,7 @@ int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref);
 int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index);
 int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref);
 int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name, int32_t name_len);
+int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len);
 #endif
 
 
@@ -824,7 +825,8 @@ int32_t glue_asm_build_func_export_sym_c(struct ast_Module *m, struct ast_ASTAre
 
 /** import 路径缓冲区中 '.' 分段数。 */
 /* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len) {
+/* G-02f-368：循环体始终在 seed；public 符号 PREFER 时由 thin forward */
+int32_t glue_asm_import_path_segment_count_impl(const uint8_t *path, int32_t path_len) {
   int32_t n;
   int32_t ii;
   if (!path || path_len <= 0)
@@ -836,6 +838,12 @@ int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len
   }
   return n;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len) {
+  return glue_asm_import_path_segment_count_impl(path, path_len);
+}
+#endif
 
 
 

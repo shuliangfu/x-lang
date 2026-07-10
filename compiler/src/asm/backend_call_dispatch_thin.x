@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/367：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/368：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -160,6 +160,17 @@ function glue_asm_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, nam
       return 0;
     }
     return 1;
+  }
+  return 0;
+}
+
+// ---- G-02f-368：path 段数 forward 到 seed impl ----
+extern "C" function glue_asm_import_path_segment_count_impl(path: *u8, path_len: i32): i32;
+
+#[no_mangle]
+function glue_asm_import_path_segment_count(path: *u8, path_len: i32): i32 {
+  unsafe {
+    return glue_asm_import_path_segment_count_impl(path, path_len);
   }
   return 0;
 }

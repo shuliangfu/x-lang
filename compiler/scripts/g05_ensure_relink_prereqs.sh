@@ -1152,7 +1152,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_TRY_INLINE_THIN_FROM_X \
                -c -o "$_bti_rest_o" "$_bti" \
           && $CC -r -nostdlib -o "$_bti_o" "$_bti_thin_o" "$_bti_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_bti_o ← $_bti_thin_x + seed-rest (G-02f-363/366 L2 hybrid try_inline thin)"
+          echo "g05_ensure: $_bti_o ← $_bti_thin_x + seed-rest (G-02f-363/368 L2 hybrid try_inline thin)"
           _bti_done=1
         else
           echo "g05_ensure: L2 hybrid try_inline thin failed; fallback full seed" >&2
@@ -1184,7 +1184,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_CALL_DISPATCH_THIN_FROM_X \
                -c -o "$_bcd_rest_o" "$_bcd" \
           && $CC -r -nostdlib -o "$_bcd_o" "$_bcd_thin_o" "$_bcd_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_bcd_o ← $_bcd_thin_x + seed-rest (G-02f-364/367 L2 hybrid call_dispatch thin)"
+          echo "g05_ensure: $_bcd_o ← $_bcd_thin_x + seed-rest (G-02f-364/368 L2 hybrid call_dispatch thin)"
           _bcd_done=1
         else
           echo "g05_ensure: L2 hybrid call_dispatch thin failed; fallback full seed" >&2

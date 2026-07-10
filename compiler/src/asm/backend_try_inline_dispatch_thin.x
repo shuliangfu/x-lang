@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/366：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/368：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -176,4 +176,21 @@ function pipeline_asm_array_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32)
   }
   return 0;
 }
+
+// ---- G-02f-368：local_slot 间接指针 + enc/arch 装址（无同文件 no_mangle 互调）----
+extern "C" function glue_asm_ctx_module_ref_c(asm_ctx: *u8): *u8;
+extern "C" function asm_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32, mod_ref: *u8, asm_ctx: *u8): i32;
+extern "C" function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, slot_off: i32, ta: i32): i32;
+extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, slot_off: i32, ta: i32): i32;
+extern "C" function backend_arch_emit_load_rbp_to_rax(out: *u8, slot_off: i32, ta: i32): i32;
+extern "C" function backend_arch_emit_lea_rbp_to_rax(out: *u8, slot_off: i32, ta: i32): i32;
+
+#[no_mangle]
+function glue_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32, asm_ctx: *u8): i32 {
+  unsafe {
+    return asm_local_var_slot_holds_indirect_ptr(arena, expr_ref, glue_asm_ctx_module_ref_c(asm_ctx), asm_ctx);
+  }
+  return 0;
+}
+
 
