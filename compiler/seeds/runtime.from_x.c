@@ -5729,6 +5729,8 @@ typedef struct DriverCompileStateSU {
     int32_t parse_saw_target_cpu;
 } DriverCompileStateSU;
 
+/* G-02f-313：dispatch impl → rt_dispatch_impl hybrid */
+#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
 /** asm 后端 C mega：lib_key sidecar → lib_roots，委托 driver_run_asm_backend。 */
 int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                       int32_t argc, uint8_t *argv) {
@@ -5742,6 +5744,10 @@ int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, ui
     return driver_run_asm_backend((const char *)input_path, out_path ? (const char *)out_path : NULL, lib_roots, n,
                                   target && target[0] ? (const char *)target : NULL, (int)argc, (char **)argv);
 }
+#else
+int32_t driver_run_asm_backend_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+                                      int32_t argc, uint8_t *argv);
+#endif
 
 /** 兼容旧符号名；新路径 compile.x 经 compile_dispatch_* 调 impl_c。 */
 /* G-02f-312：dispatch thin → rt_dispatch_thin hybrid */
@@ -5822,6 +5828,8 @@ int driver_try_compile_via_shu_c_sibling(int argc, char **argv);
 
 
 
+/* G-02f-313：dispatch impl → rt_dispatch_impl hybrid */
+#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
 /** C 后端 C mega：lib_key→lib_roots；含 import 时可选 exec 同目录 shux-c；否则 driver_run_compiler_parsed。 */
 int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
                                       uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv) {
@@ -5853,6 +5861,10 @@ int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, ui
 #endif
     return driver_run_compiler_parsed(&p, (int)argc, (char **)argv);
 }
+#else
+int32_t driver_run_emit_c_path_impl_c(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target,
+                                      uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv);
+#endif
 
 /** 兼容旧符号名；新路径 compile.x 经 compile_dispatch_* 调 impl_c。 */
 /* G-02f-312：dispatch thin → rt_dispatch_thin hybrid */
@@ -6479,6 +6491,8 @@ int driver_argv_has_emit_c_flag(int argc, char **argv);
  * `-E` 专用：将 compile state 中的 path/lib_roots 灌入 driver_run_x_emit_c，走 .x pipeline 出 C（deps+main）。
  * 返回 driver_run_x_emit_c 的 exit code（0 成功）。
  */
+/* G-02f-313：dispatch impl → rt_dispatch_impl hybrid */
+#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int32_t driver_run_x_emit_c_from_compile_state(DriverCompileStateSU *state, int argc, char **argv) {
     const char *lib_roots[X_EMIT_MAX_LIB_ROOTS];
@@ -6507,11 +6521,16 @@ int32_t driver_run_x_emit_c_from_compile_state(DriverCompileStateSU *state, int 
     }
     return (int32_t)driver_run_x_emit_c();
 }
+#else
+int32_t driver_run_x_emit_c_from_compile_state(DriverCompileStateSU *state, int argc, char **argv);
+#endif
 
 
 
 #endif
 
+/* G-02f-313：dispatch impl → rt_dispatch_impl hybrid */
+#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
 /** parse 完成后后端选择 + 分派；compile.x 薄包装 bl 本符号（EMIT_HEAVY 勿 X 真 emit，宿主 SIGSEGV）。 */
 int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv) {
     uint8_t *out_ptr;
@@ -6571,6 +6590,9 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
     return driver_run_emit_c_path_impl_c(state->path_buf, out_ptr, (uint8_t *)state, target_ptr,
                                          state->opt_level_buf, state->use_lto, argc, argv);
 }
+#else
+int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv);
+#endif
 
 /**
  * 扫描 argv 是否含 `-h` 或 `--help`。
@@ -6655,6 +6677,8 @@ int labi_rt_run_exec_slice_marker(void);
  * 完整编译 C 入口：堆 state + parse_argv + post_parse（standalone / 非 asm 链回退）。
  * parse_argv 须走 impl_c（C mega），勿调 compile.x 的 driver_compile_parse_argv（EMIT_HEAVY 下易 silent fail）。
  */
+/* G-02f-313：dispatch impl → rt_dispatch_impl hybrid */
+#ifndef SHUX_RT_DISPATCH_IMPL_FROM_X
 int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
     DriverCompileStateSU *state;
     int32_t rc;
@@ -6689,6 +6713,10 @@ int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
     driver_compile_state_free_c(state);
     return rc;
 }
+#else
+int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv);
+int labi_rt_dispatch_impl_slice_marker(void);
+#endif
 
 /**
  * 完整编译入口：argv 解析在 driver/compile.x；B-strict shux_asm 走 impl_c（完整 parse_argv+finalize），避免 X emit 的 driver_run_compiler_full_x 在 strict 链 silent fail。
