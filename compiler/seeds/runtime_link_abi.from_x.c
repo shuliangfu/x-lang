@@ -1,7 +1,8 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34/35 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/link.c
- *         merge thin link helpers; polish getenv/strings; keep invoke_cc/ld C.
- * .x covers: forward_main, freestanding panic probe, skip_native_tuning.
+ *         merge thin helpers; polish strings/signatures; SHUX_WEAK bootstrap;
+ *         keep invoke_cc/ld + path suffix is_elf_o/want_exe C.
+ * .x covers: forward_main, needs_panic/io, skip_native, bootstrap weak stubs.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -4009,19 +4010,50 @@ static int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv
 }
 
 int shux_freestanding_user_o_needs_io(const char *user_o) {
-    return shux_link_obj_needs_undef_sym(user_o, "shux_sys_write")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_read")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_close")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_exit")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_open")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_openat")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_mmap")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_munmap")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_socket")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_connect")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_bind")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_listen")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_sys_accept");
+  (void)(({   {
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_write") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_read") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_close") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_exit") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_open") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_openat") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_mmap") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_munmap") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_socket") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_connect") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_bind") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_listen") !=0)) {
+      return 1;
+    }
+    if ((shux_link_obj_needs_undef_sym(user_o, "shux_sys_accept") !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 int shux_freestanding_user_o_needs_panic(const char *user_o) {
@@ -5518,14 +5550,14 @@ int shux_forward_main_to_main_entry(int argc, char **argv) {
 }
 
 SHUX_WEAK void bootstrap_init_static_tls(void) {
+  (void)(0);
 }
 
 SHUX_WEAK void bootstrap_init_environ(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
+  (void)(0);
 }
 
 SHUX_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
-    return 0;
+  return 0;
 }
 
