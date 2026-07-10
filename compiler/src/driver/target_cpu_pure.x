@@ -5,7 +5,7 @@
 // - pending（f-2）· SIMD（f-3）· resolve（f-4）· print（f-5）
 // - OS detect_host/generic（f-6；#if/sysctl/proc 在 seed C）
 // G-02f-97：+ tcp_tolower / tcp_eq5 / tcp_eq6 纯 helper 导出门闩（#[no_mangle]）。
-// G-02f-103：+ append_feat_name / flags_has_token seed 导出门闩（_impl）。
+// G-02f-103 / G-02f-160：append_feat_name / flags_has_token 真迁 .x
 //
 // 产品：seeds/target_cpu_pure.from_x.c → src/driver/target_cpu.o（无 ld -r）
 // detect 对外 API 由 seed C 提供；.x 侧 resolve 仍可 extern 声明供语义对照。
@@ -229,22 +229,83 @@ function shu_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out
   return 0;
 }
 
-/* ---- G-02f-103：print helpers（seed C 实现）门闩 ---- */
+/* ---- G-02f-103 / G-02f-160：print / flags pure helpers 真迁 ---- */
 
-extern "C" function append_feat_name_impl(buf: *u8, cap: usize, pos: *usize, name: *u8): void;
-extern "C" function flags_has_token_impl(hay: *u8, token: *u8): i32;
-
+// G-02f-160：逗号分隔追加 feature 名
 #[no_mangle]
 function append_feat_name(buf: *u8, cap: usize, pos: *usize, name: *u8): void {
-  unsafe {
-    append_feat_name_impl(buf, cap, pos, name);
+  if (buf == 0) { return; }
+  if (pos == 0) { return; }
+  if (name == 0) { return; }
+  let p: usize = pos[0];
+  if (p >= cap) { return; }
+  if (p > 0) {
+    if (p + 1 < cap) {
+      buf[p as i32] = 44;
+      p = p + 1;
+    }
   }
+  let nlen: usize = 0;
+  while (nlen < 256) {
+    if (name[nlen as i32] == 0) { break; }
+    nlen = nlen + 1;
+  }
+  if (p + nlen >= cap) { return; }
+  let i: usize = 0;
+  while (i < nlen) {
+    buf[(p + i) as i32] = name[i as i32];
+    i = i + 1;
+  }
+  p = p + nlen;
+  buf[p as i32] = 0;
+  pos[0] = p;
 }
 
+// G-02f-160：token 边界匹配（空白/逗号分隔）
 #[no_mangle]
 function flags_has_token(hay: *u8, token: *u8): i32 {
-  unsafe {
-    return flags_has_token_impl(hay, token);
+  if (hay == 0) { return 0; }
+  if (token == 0) { return 0; }
+  let tlen: i32 = 0;
+  while (tlen < 256) {
+    if (token[tlen] == 0) { break; }
+    tlen = tlen + 1;
+  }
+  if (tlen <= 0) { return 0; }
+  let i: i32 = 0;
+  while (i < 65536) {
+    if (hay[i] == 0) { break; }
+    let ok: i32 = 1;
+    let j: i32 = 0;
+    while (j < tlen) {
+      if (hay[i + j] != token[j]) {
+        ok = 0;
+        break;
+      }
+      j = j + 1;
+    }
+    if (ok != 0) {
+      let b_ok: i32 = 0;
+      if (i == 0) {
+        b_ok = 1;
+      } else {
+        let before: u8 = hay[i - 1];
+        if (before == 32) { b_ok = 1; }
+        if (before == 9) { b_ok = 1; }
+        if (before == 44) { b_ok = 1; }
+      }
+      let after: u8 = hay[i + tlen];
+      let a_ok: i32 = 0;
+      if (after == 0) { a_ok = 1; }
+      if (after == 32) { a_ok = 1; }
+      if (after == 9) { a_ok = 1; }
+      if (after == 44) { a_ok = 1; }
+      if (after == 10) { a_ok = 1; }
+      if (b_ok != 0) {
+        if (a_ok != 0) { return 1; }
+      }
+    }
+    i = i + 1;
   }
   return 0;
 }

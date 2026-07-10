@@ -51,7 +51,8 @@ int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8_t *lit
 }
 
 
-int32_t tcp_parse_named_impl(const uint8_t *spec, size_t base, size_t end, uint32_t *out) {
+/* G-02f-160：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *out) {
   size_t n;
   if (!out || end < base)
     return -1;
@@ -114,12 +115,6 @@ int32_t tcp_parse_named_impl(const uint8_t *spec, size_t base, size_t end, uint3
     return 0;
   }
   return -1;
-}
-int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *out) {
-  {
-    return tcp_parse_named_impl(spec, base, end, out);
-  }
-  return 0 - 1;
 }
 
 
@@ -224,7 +219,8 @@ int shu_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, i
 
 /* --- G-02f-5：print（stdio / FILE* 语言限制，逻辑与原 target_cpu.inc 一致）--- */
 
-void append_feat_name_impl(char *buf, size_t cap, size_t *pos, const char *name) {
+/* G-02f-160：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name) {
   size_t nlen;
   if (!buf || !pos || !name || *pos >= cap)
     return;
@@ -236,11 +232,6 @@ void append_feat_name_impl(char *buf, size_t cap, size_t *pos, const char *name)
   memcpy(buf + *pos, name, nlen);
   *pos += nlen;
   buf[*pos] = '\0';
-}
-void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name) {
-  {
-    append_feat_name_impl(buf, cap, pos, name);
-  }
 }
 
 
@@ -290,10 +281,10 @@ void shu_target_cpu_print(FILE *out, uint32_t features) {
 
 /**
  * 在 flags 行（x86）或 Features 行（arm）中查找 token（前后空白/逗号分隔）。
- * 仅 Linux /proc/cpuinfo 解析使用。
+ * Linux /proc/cpuinfo 解析使用；pure 字符串匹配，全平台提供。
  */
-#if defined(__linux__)
-int flags_has_token_impl(const char *hay, const char *token) {
+/* G-02f-160：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int flags_has_token(const char *hay, const char *token) {
     const char *p;
     size_t tlen;
 
@@ -310,14 +301,6 @@ int flags_has_token_impl(const char *hay, const char *token) {
     }
     return 0;
 }
-int flags_has_token(const char *hay, const char *token) {
-  {
-    return flags_has_token_impl(hay, token);
-  }
-  return 0;
-}
-
-#endif /* __linux__ */
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 
