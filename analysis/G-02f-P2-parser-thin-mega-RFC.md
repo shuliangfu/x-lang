@@ -253,3 +253,4 @@ nm -g parser_asm_thin_glue.o | head
 | 2026-07-11 | **f-289 P8 seed_parse**：`pthin_seed_parse.*`（seed_parse_into_buf_slice）；`SHUX_PTHIN_SEED_PARSE_FROM_X` 嵌套于 `!NO_SEED_PARSE`；产品 G05 仍 NO_SEED_PARSE + smoke -c；不 ld -r 进产品 glue |
 | 2026-07-11 | **f-290 P9 stretch lite**：`pthin_stretch.*`（emit_heavy_stretch_slice ≈481）；`SHUX_PTHIN_STRETCH_FROM_X`；suite 28k 仍 rest；prefer hybrid **P1–P7+P9+rest**（P8 smoke-only） |
 | 2026-07-11 | **f-318 P9 suite hybrid**：suite ≈28k 并入 `pthin_stretch.from_x.c`；`SHUX_PTHIN_STRETCH_FROM_X` 时 mega rest 不再 `#include` suite；`labi_pthin_stretch_suite_slice_marker`；prefer hybrid **P1–P7+P9(stretch+suite)+rest** |
+| 2026-07-11 | **f-319 P10 glue tail**：`pthin_glue.*` + `parser_asm_glue_tail_slice.inc`（≈6.5k `*_glue` + 晚期 skip/lex）；`SHUX_PTHIN_GLUE_FROM_X`；prefer hybrid **P1–P7+P9+P10+rest**；rest T **≈86** |

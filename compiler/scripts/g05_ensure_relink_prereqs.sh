@@ -897,9 +897,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS -c -o src/asm/parser_asm_parse_expr_link.o "$_pel"
     fi
   fi
-  # G-02f-10 / G-02f-279～290：parser_asm_thin_glue.o ← thin seed（默认整 TU；prefer 时 P1–P7+P9 hybrid）
+  # G-02f-10 / G-02f-279～319：parser_asm_thin_glue.o ← thin seed（默认整 TU；prefer 时 P1–P7+P9+P10 hybrid）
   # P8 seed_parse：产品仍 NO_SEED_PARSE（parse_into_buf 由 parser_x 提供）；仅 smoke -c，不 ld -r 进产品 glue
-  # P9 stretch lite：hybrid；suite ≈28k 仍 rest #include
+  # P9 stretch+suite hybrid；P10 glue tail hybrid（G-02f-319）
   _pthin=seeds/parser_asm_thin_c.from_x.c
   _pthin_p1_seed=seeds/pthin_lex_skip.from_x.c
   _pthin_p2_seed=seeds/pthin_let_alias.from_x.c
@@ -914,6 +914,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _pthin_p7_seed=seeds/pthin_simd.from_x.c
   _pthin_p8_seed=seeds/pthin_seed_parse.from_x.c
   _pthin_p9_seed=seeds/pthin_stretch.from_x.c
+  _pthin_p10_seed=seeds/pthin_glue.from_x.c
   if [ -f "$_pthin" ]; then
     if [ ! -f parser_asm_thin_glue.o ] || [ "$_pthin" -nt parser_asm_thin_glue.o ] \
       || { [ -f "$_pthin_p1_seed" ] && [ "$_pthin_p1_seed" -nt parser_asm_thin_glue.o ]; } \
@@ -928,9 +929,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_pthin_p6_seed" ] && [ "$_pthin_p6_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p7_seed" ] && [ "$_pthin_p7_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p8_seed" ] && [ "$_pthin_p8_seed" -nt parser_asm_thin_glue.o ]; } \
-      || { [ -f "$_pthin_p9_seed" ] && [ "$_pthin_p9_seed" -nt parser_asm_thin_glue.o ]; }; then
+      || { [ -f "$_pthin_p9_seed" ] && [ "$_pthin_p9_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p10_seed" ] && [ "$_pthin_p10_seed" -nt parser_asm_thin_glue.o ]; }; then
       _pthin_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && { [ -f "$_pthin_p1_seed" ] || [ -f "$_pthin_p2_seed" ] || [ -f "$_pthin_p3_seed" ] || [ -f "$_pthin_p4p_seed" ] || [ -f "$_pthin_p4u_seed" ] || [ -f "$_pthin_p4b_seed" ] || [ -f "$_pthin_p4as_seed" ] || [ -f "$_pthin_p4t_seed" ] || [ -f "$_pthin_p5_seed" ] || [ -f "$_pthin_p6_seed" ] || [ -f "$_pthin_p7_seed" ] || [ -f "$_pthin_p9_seed" ]; }; then
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && { [ -f "$_pthin_p1_seed" ] || [ -f "$_pthin_p2_seed" ] || [ -f "$_pthin_p3_seed" ] || [ -f "$_pthin_p4p_seed" ] || [ -f "$_pthin_p4u_seed" ] || [ -f "$_pthin_p4b_seed" ] || [ -f "$_pthin_p4as_seed" ] || [ -f "$_pthin_p4t_seed" ] || [ -f "$_pthin_p5_seed" ] || [ -f "$_pthin_p6_seed" ] || [ -f "$_pthin_p7_seed" ] || [ -f "$_pthin_p9_seed" ] || [ -f "$_pthin_p10_seed" ]; }; then
         _pthin_p1_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p1.XXXXXX") || true
         _pthin_p2_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p2.XXXXXX") || true
         _pthin_p3_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p3.XXXXXX") || true
@@ -943,6 +945,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p6_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p6.XXXXXX") || true
         _pthin_p7_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p7.XXXXXX") || true
         _pthin_p9_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p9.XXXXXX") || true
+        _pthin_p10_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p10.XXXXXX") || true
         _pthin_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_rest.XXXXXX") || true
         _pthin_p1_ok=0
         _pthin_p2_ok=0
@@ -956,6 +959,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p6_ok=0
         _pthin_p7_ok=0
         _pthin_p9_ok=0
+        _pthin_p10_ok=0
         _pthin_rest_defs="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
         if [ -n "$_pthin_p1_o" ] && [ -f "$_pthin_p1_seed" ]; then
           # shellcheck disable=SC2086
@@ -1065,6 +1069,15 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P9 stretch+suite ← $_pthin_p9_seed (G-02f-318 seed slice)"
           fi
         fi
+        if [ -n "$_pthin_p10_o" ] && [ -f "$_pthin_p10_seed" ]; then
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               -c -o "$_pthin_p10_o" "$_pthin_p10_seed"; then
+            _pthin_p10_ok=1
+            _pthin_rest_defs="$_pthin_rest_defs -DSHUX_PTHIN_GLUE_FROM_X"
+            echo "g05_ensure: P10 glue tail ← $_pthin_p10_seed (G-02f-319 seed slice)"
+          fi
+        fi
         # G-02f-289 P8：仅 smoke -c（不进产品 hybrid ld -r；产品 rest 仍 NO_SEED_PARSE）
         if [ -f "$_pthin_p8_seed" ]; then
           _pthin_p8_smoke=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p8_smoke.XXXXXX") || true
@@ -1079,7 +1092,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           rm -f "$_pthin_p8_smoke"
         fi
         # shellcheck disable=SC2086
-        if { [ "$_pthin_p1_ok" = "1" ] || [ "$_pthin_p2_ok" = "1" ] || [ "$_pthin_p3_ok" = "1" ] || [ "$_pthin_p4p_ok" = "1" ] || [ "$_pthin_p4u_ok" = "1" ] || [ "$_pthin_p4b_ok" = "1" ] || [ "$_pthin_p4as_ok" = "1" ] || [ "$_pthin_p4t_ok" = "1" ] || [ "$_pthin_p5_ok" = "1" ] || [ "$_pthin_p6_ok" = "1" ] || [ "$_pthin_p7_ok" = "1" ] || [ "$_pthin_p9_ok" = "1" ]; } && [ -n "$_pthin_rest_o" ] \
+        if { [ "$_pthin_p1_ok" = "1" ] || [ "$_pthin_p2_ok" = "1" ] || [ "$_pthin_p3_ok" = "1" ] || [ "$_pthin_p4p_ok" = "1" ] || [ "$_pthin_p4u_ok" = "1" ] || [ "$_pthin_p4b_ok" = "1" ] || [ "$_pthin_p4as_ok" = "1" ] || [ "$_pthin_p4t_ok" = "1" ] || [ "$_pthin_p5_ok" = "1" ] || [ "$_pthin_p6_ok" = "1" ] || [ "$_pthin_p7_ok" = "1" ] || [ "$_pthin_p9_ok" = "1" ] || [ "$_pthin_p10_ok" = "1" ]; } && [ -n "$_pthin_rest_o" ] \
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
                $_pthin_rest_defs -c -o "$_pthin_rest_o" "$_pthin"; then
           _pthin_link=""
@@ -1119,16 +1132,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ "$_pthin_p9_ok" = "1" ]; then
             _pthin_link="$_pthin_link $_pthin_p9_o"
           fi
+          if [ "$_pthin_p10_ok" = "1" ]; then
+            _pthin_link="$_pthin_link $_pthin_p10_o"
+          fi
           # shellcheck disable=SC2086
           if $CC -r -nostdlib -o parser_asm_thin_glue.o $_pthin_link "$_pthin_rest_o" 2>/dev/null; then
-            echo "g05_ensure: parser_asm_thin_glue.o ← P1–P7+P9(stretch+suite) + thin rest (G-02f-318 hybrid; P8 smoke-only)"
+            echo "g05_ensure: parser_asm_thin_glue.o ← P1–P7+P9+P10(glue) + thin rest (G-02f-319 hybrid; P8 smoke-only)"
             _pthin_done=1
           fi
         fi
         if [ "$_pthin_done" = "0" ]; then
-          echo "g05_ensure: parser thin P1–P7+P9 hybrid failed; fallback full seed" >&2
+          echo "g05_ensure: parser thin P1–P7+P9+P10 hybrid failed; fallback full seed" >&2
         fi
-        rm -f "$_pthin_p1_o" "$_pthin_p2_o" "$_pthin_p3_o" "$_pthin_p4p_o" "$_pthin_p4u_o" "$_pthin_p4b_o" "$_pthin_p4as_o" "$_pthin_p4t_o" "$_pthin_p5_o" "$_pthin_p6_o" "$_pthin_p7_o" "$_pthin_p9_o" "$_pthin_rest_o"
+        rm -f "$_pthin_p1_o" "$_pthin_p2_o" "$_pthin_p3_o" "$_pthin_p4p_o" "$_pthin_p4u_o" "$_pthin_p4b_o" "$_pthin_p4as_o" "$_pthin_p4t_o" "$_pthin_p5_o" "$_pthin_p6_o" "$_pthin_p7_o" "$_pthin_p9_o" "$_pthin_p10_o" "$_pthin_rest_o"
       fi
       if [ "$_pthin_done" = "0" ]; then
         echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"
