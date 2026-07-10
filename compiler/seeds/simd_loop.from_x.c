@@ -1,4 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
+ * G-02f-213 peel f32_soa_sum/index_add while true .x.
  * G-02f-133 true .x pure helpers.
  * G-02f-130 true .x pure helpers.
  * G-02f-129 true .x pure helpers.
@@ -746,6 +747,7 @@ int32_t glue_emit_f32_soa_sum_strip_c(struct ast_ASTArena *arena, struct platfor
 /**
  * 尝试将 `while i < n { s = s + arr[i].field; i++ }`（SoA f32 列）矢量化 reduce peel。
  */
+/* G-02f-213：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref,
                                                     int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta) {
@@ -821,6 +823,7 @@ int32_t glue_try_simd_peel_f32_soa_sum_while_elf_c(struct ast_ASTArena *arena,
                                          n_lit, lanes, feats);
 }
 
+/* G-02f-213：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t glue_try_simd_peel_index_add_while_elf_c(struct ast_ASTArena *arena,
                                                  struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t block_ref,
                                                  int32_t loop_idx, struct backend_AsmFuncCtx *ctx, int32_t ta) {
