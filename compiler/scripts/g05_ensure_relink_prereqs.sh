@@ -12,6 +12,7 @@
 # 环境：
 #   G05_SKIP_HOT_REBUILD=1  跳过热路径 cc 重编（仅检查）
 #   G05_CC                  覆盖编译器（默认 cc）
+#   SHUX_G05_PREFER_X_O=1   L2 试点：优先 .x→C(-E)→.o（失败回退 seed；见 analysis/G-02f-L2-x-o-pilot.md）
 
 set -e
 cd "$(dirname "$0")/.."
@@ -54,6 +55,46 @@ g05_cc_c() {
       $CC $BASE_CFLAGS "$@" -c -o "$_o" "$_c"
       ;;
   esac
+}
+
+# G-02f-256 / L2 试点：.x → shux -backend c -E → cc -c → .o
+# 返回 0 成功；失败不删既有 .o（调用方回退 seed）。
+# $1=.x  $2=.o  [$3...]=extra cflags for cc
+g05_try_x_to_o() {
+  _xsrc="$1"
+  _xout="$2"
+  shift 2
+  _xshux=""
+  if [ -x ./shux ]; then
+    _xshux=./shux
+  elif [ -x ./shux-c ]; then
+    _xshux=./shux-c
+  elif [ -x ./bootstrap_shuxc ]; then
+    _xshux=./bootstrap_shuxc
+  else
+    return 1
+  fi
+  if [ ! -f "$_xsrc" ]; then
+    return 1
+  fi
+  mkdir -p "$(dirname "$_xout")"
+  _xtmp=$(mktemp "${TMPDIR:-/tmp}/g05_x_XXXXXX.c") || return 1
+  # shellcheck disable=SC2086
+  if ! "$_xshux" -backend c -E "$_xsrc" >"$_xtmp" 2>/dev/null; then
+    rm -f "$_xtmp"
+    return 1
+  fi
+  if [ ! -s "$_xtmp" ]; then
+    rm -f "$_xtmp"
+    return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS "$@" -c -o "$_xout" "$_xtmp"; then
+    rm -f "$_xtmp"
+    return 1
+  fi
+  rm -f "$_xtmp"
+  return 0
 }
 
 if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
@@ -122,14 +163,27 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC -c -o src/typeck/typeck_f64_bits.o "$_f64s"
     fi
   fi
-  # G-02f-1：lsp_diag_pipeline_sizes_nostub 来自 .x 冷启动 C（非 .inc）
+  # G-02f-1 / G-02f-256 L2 试点：sizes_nostub.o
+  # 默认仍链 seed C；SHUX_G05_PREFER_X_O=1 时优先 .x→-E→cc（失败回退 seed）
+  _sizes_x=src/lsp/lsp_diag_pipeline_sizes.x
   _sizes_from_x=seeds/lsp_diag_pipeline_sizes.from_x.c
-  if [ -f "$_sizes_from_x" ]; then
-    if [ ! -f src/lsp/lsp_diag_pipeline_sizes_nostub.o ] || [ "$_sizes_from_x" -nt src/lsp/lsp_diag_pipeline_sizes_nostub.o ] \
-      || [ src/lsp/lsp_diag_pipeline_sizes.x -nt src/lsp/lsp_diag_pipeline_sizes_nostub.o ] 2>/dev/null; then
-      echo "g05_ensure: cc -c $_sizes_from_x → src/lsp/lsp_diag_pipeline_sizes_nostub.o (G-02f-1 .x)"
+  _sizes_o=src/lsp/lsp_diag_pipeline_sizes_nostub.o
+  if [ ! -f "$_sizes_o" ] \
+    || { [ -f "$_sizes_from_x" ] && [ "$_sizes_from_x" -nt "$_sizes_o" ]; } \
+    || { [ -f "$_sizes_x" ] && [ "$_sizes_x" -nt "$_sizes_o" ]; }; then
+    _sizes_done=0
+    if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_sizes_x" ]; then
+      if g05_try_x_to_o "$_sizes_x" "$_sizes_o"; then
+        echo "g05_ensure: $_sizes_o ← $_sizes_x (G-02f-256 L2 prefer .x)"
+        _sizes_done=1
+      else
+        echo "g05_ensure: L2 prefer .x failed for sizes; fallback seed" >&2
+      fi
+    fi
+    if [ "$_sizes_done" = "0" ] && [ -f "$_sizes_from_x" ]; then
+      echo "g05_ensure: cc -c $_sizes_from_x → $_sizes_o (G-02f-1 seed)"
       # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -c -o src/lsp/lsp_diag_pipeline_sizes_nostub.o "$_sizes_from_x"
+      $CC $BASE_CFLAGS -c -o "$_sizes_o" "$_sizes_from_x"
     fi
   fi
   # G-02f-6：target_cpu.o 单文件 pure seed（含 OS detect）
