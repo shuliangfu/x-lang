@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..43：真迁 .x — pipeline 占位 + dep + publish + arena_buf 转发。
+// G-02f-32..43/50：真迁 .x — pipeline 占位 + dep + import 路径判定 + asm dep 门闩。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
-// C 尾：存储槽数组、import/path、seeded_clear、malloc buf 本体、path 扫描。
-// G-02f-43：+ typeck_driver_dep_arena_buf 转发。
+// C 尾：存储槽数组、import resolve/snprintf、seeded_clear、malloc buf、大 pipeline。
+// G-02f-50：+ import_path_is_file_path / asm_user_*_dep 薄门闩 / asm_out_buf_is_object。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -19,6 +19,12 @@ extern "C" function driver_dep_module_ptr_set(i: i32, module: *u8): void;
 extern "C" function driver_dep_path_registry_set(i: i32, path: *u8): void;
 extern "C" function driver_dep_module_buf(i: i32): *u8;
 extern "C" function driver_dep_arena_buf(i: i32): *u8;
+extern "C" function strchr(s: *u8, c: i32): *u8;
+extern "C" function shux_cstr_ends_with_dot_x(s: *u8): i32;
+extern "C" function pipeline_asm_user_dep_skip_x_typeck(path: *u8): i32;
+extern "C" function pipeline_asm_user_std_net_dep_path(path: *u8): i32;
+extern "C" function pipeline_codegen_path_is_std_io_driver_bytes(path: *u8): i32;
+extern "C" function shux_asm_out_buf_is_object_magic(data: *u8): i32;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -246,4 +252,112 @@ function typeck_driver_dep_arena_buf(i: i32): *u8 {
     return r;
   }
   return 0 as *u8;
+}
+
+/* ---- G-02f-50：import 路径形态 + asm dep 门闩 + object 魔数 ---- */
+
+#[no_mangle]
+function shux_import_path_is_file_path(import_path: *u8): i32 {
+  if (import_path == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (import_path[0] == 0) {
+      return 0;
+    }
+    /* '/' or '.' */
+    if (import_path[0] == 47) {
+      return 1;
+    }
+    if (import_path[0] == 46) {
+      return 1;
+    }
+    if (strchr(import_path, 47) != 0 as *u8) {
+      return 1;
+    }
+    if (shux_cstr_ends_with_dot_x(import_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_asm_user_std_dep_skip_x_typeck(dep_path: *u8): i32 {
+  if (dep_path == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (dep_path[0] == 0) {
+      return 0;
+    }
+    if (pipeline_asm_user_dep_skip_x_typeck(dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_asm_user_std_net_dep_path(dep_path: *u8): i32 {
+  if (dep_path == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (dep_path[0] == 0) {
+      return 0;
+    }
+    if (pipeline_asm_user_std_net_dep_path(dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_asm_user_std_io_driver_dep_path(dep_path: *u8): i32 {
+  if (dep_path == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (dep_path[0] == 0) {
+      return 0;
+    }
+    if (pipeline_codegen_path_is_std_io_driver_bytes(dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_asm_user_dep_parse_skip_typeck_path(dep_path: *u8): i32 {
+  unsafe {
+    if (shux_asm_user_std_net_dep_path(dep_path) != 0) {
+      return 1;
+    }
+    if (shux_asm_user_std_io_driver_dep_path(dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_asm_out_buf_is_object(data: *u8, len: i64): i32 {
+  if (data == 0 as *u8) {
+    return 0;
+  }
+  if (len < 4) {
+    return 0;
+  }
+  unsafe {
+    return shux_asm_out_buf_is_object_magic(data);
+  }
+  return 0;
 }

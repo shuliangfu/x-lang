@@ -1,7 +1,7 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..43 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..43/50 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge dep/publish/buf fwds; C slots + clear_all + import/path + malloc.
- * .x covers: placeholders, ndep, dep_seeded, get/set_dep, publish, module/arena_buf.
+ *         merge dep slots + import path gates + asm dep thin; C resolve bulk.
+ * .x covers: diag/ndep/dep get-set/publish/buf + import_path_is_file + asm_user_* + out_buf object.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -26,6 +26,8 @@ extern int32_t preprocess_if_stack_len(void);
 extern void preprocess_define_add(const char *name);
 
 /* G-02f-33 forward slots (defs near storage) */
+int shux_cstr_ends_with_dot_x(const char *s);
+int shux_asm_out_buf_is_object_magic(const unsigned char *data);
 int32_t *pipeline_diag_emitted_flag_slot(void);
 int32_t *typeck_ndep_slot(void);
 void typeck_ndep_store(int32_t n);
@@ -470,17 +472,52 @@ void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
  * 判断 import 是否为文件路径（相对/绝对/.x），而非逻辑模块名 std.io。
  * 返回值：非 0 表示文件路径形式。
  */
-int shux_import_path_is_file_path(const char *import_path) {
-    if (!import_path || !import_path[0])
+
+int shux_cstr_ends_with_dot_x(const char *s) {
+    size_t n;
+    if (!s)
         return 0;
-    if (import_path[0] == '/' || import_path[0] == '.')
+    n = strlen(s);
+    if (n < 2)
+        return 0;
+    return s[n - 2] == '.' && s[n - 1] == 'x';
+}
+
+int shux_asm_out_buf_is_object_magic(const unsigned char *data) {
+    if (!data)
+        return 0;
+    if (data[0] == 0xcf && data[1] == 0xfa && data[2] == 0xed && data[3] == 0xfe)
         return 1;
-    if (strchr(import_path, '/') != NULL)
+    if (data[0] == 0xfe && data[1] == 0xed && data[2] == 0xfa && data[3] == 0xcf)
         return 1;
-    size_t n = strlen(import_path);
-    if (n >= 2 && strcmp(import_path + n - 2, ".x") == 0)
+    if (data[0] == 0x7f && data[1] == 'E' && data[2] == 'L' && data[3] == 'F')
         return 1;
     return 0;
+}
+
+int shux_import_path_is_file_path(const char *import_path) {
+  if (import_path == NULL) {
+    return 0;
+  }
+  {
+    if (import_path[0] == 0) {
+      return 0;
+    }
+    if (import_path[0] == '/') {
+      return 1;
+    }
+    if (import_path[0] == '.') {
+      return 1;
+    }
+    if (strchr(import_path, '/') != NULL) {
+      return 1;
+    }
+    if (shux_cstr_ends_with_dot_x(import_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
 }
 
 /**
@@ -930,15 +967,16 @@ void driver_asm_fclose_asm_out(FILE *fp) {
  * 返回值：非 0 表示已是对象文件字节。
  */
 int shux_asm_out_buf_is_object(const unsigned char *data, size_t len) {
-    if (!data || len < 4)
-        return 0;
-    if (data[0] == 0xcf && data[1] == 0xfa && data[2] == 0xed && data[3] == 0xfe)
-        return 1;
-    if (data[0] == 0xfe && data[1] == 0xed && data[2] == 0xfa && data[3] == 0xcf)
-        return 1;
-    if (data[0] == 0x7f && data[1] == 'E' && data[2] == 'L' && data[3] == 'F')
-        return 1;
+  if (data == NULL) {
     return 0;
+  }
+  if (len < 4) {
+    return 0;
+  }
+  {
+    return shux_asm_out_buf_is_object_magic(data);
+  }
+  return 0;
 }
 
 /** ast.x pipeline_dep_ctx_* 与 lib_root sidecar（由 ast_pool.c 提供）。 */
@@ -1131,28 +1169,67 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
 
 /** asm 用户程序：std.io/fs/net dep 跳过 .x typeck（符号由并列 .o 提供）。 */
 int shux_asm_user_std_dep_skip_x_typeck(const char *dep_path) {
-    if (!dep_path || dep_path[0] == '\0')
-        return 0;
-    return pipeline_asm_user_dep_skip_x_typeck((uint8_t *)dep_path) != 0;
+  if (dep_path == NULL) {
+    return 0;
+  }
+  {
+    if (dep_path[0] == 0) {
+      return 0;
+    }
+    if (pipeline_asm_user_dep_skip_x_typeck((uint8_t *)dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
 }
 
 /** std.net dep：须 co-emit listen/accept_many，seed typeck 对 stream_* 假阳性。 */
 int shux_asm_user_std_net_dep_path(const char *dep_path) {
-    if (!dep_path || dep_path[0] == '\0')
-        return 0;
-    return pipeline_asm_user_std_net_dep_path((uint8_t *)dep_path) != 0;
+  if (dep_path == NULL) {
+    return 0;
+  }
+  {
+    if (dep_path[0] == 0) {
+      return 0;
+    }
+    if (pipeline_asm_user_std_net_dep_path((uint8_t *)dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
 }
 
 /** std.io.driver：co-emit submit_* 包装；seed typeck 对 register 假阳性。 */
 int shux_asm_user_std_io_driver_dep_path(const char *dep_path) {
-    if (!dep_path || dep_path[0] == '\0')
-        return 0;
-    return pipeline_codegen_path_is_std_io_driver_bytes((uint8_t *)dep_path) != 0;
+  if (dep_path == NULL) {
+    return 0;
+  }
+  {
+    if (dep_path[0] == 0) {
+      return 0;
+    }
+    if (pipeline_codegen_path_is_std_io_driver_bytes((uint8_t *)dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
 }
 
 /** dep 预跑 parse+skip typeck 路径（std.net / std.io.driver）。 */
 int shux_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
-    return shux_asm_user_std_net_dep_path(dep_path) || shux_asm_user_std_io_driver_dep_path(dep_path);
+  {
+    if (shux_asm_user_std_net_dep_path(dep_path) != 0) {
+      return 1;
+    }
+    if (shux_asm_user_std_io_driver_dep_path(dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
 }
 
 /** pipeline.x 编排：entry_dir / resolved / loaded import 与 dep arena/module 槽。 */
