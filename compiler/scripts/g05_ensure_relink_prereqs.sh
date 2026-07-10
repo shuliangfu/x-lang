@@ -13,7 +13,7 @@
 #   G05_SKIP_HOT_REBUILD=1  跳过热路径 cc 重编（仅检查）
 #   G05_CC                  覆盖编译器（默认 cc）
 #   SHUX_G05_PREFER_X_O=1   L2：优先 .x→C(-E)→.o（失败回退 seed；见 analysis/G-02f-L2-x-o-pilot.md）
-#                           TUs：sizes_nostub + target_cpu flags 子集（G-02f-256/257）
+#                           TUs：sizes + target_cpu_flags + strict_glue_thin（G-02f-256～258）
 
 set -e
 cd "$(dirname "$0")/.."
@@ -58,9 +58,11 @@ g05_cc_c() {
   esac
 }
 
-# G-02f-256/257 / L2：.x → shux -backend c -E → cc -c → .o
+# G-02f-256/257/258 / L2：.x → shux -backend c -E → cc -c → .o
 # 返回 0 成功；失败不删既有 .o（调用方回退 seed）。
 # $1=.x  $2=.o  [$3...]=extra cflags for cc
+# 环境：G05_X_O_WEAK=1 时给顶层函数加 __attribute__((weak))
+#       （strict_glue 等与 bootstrap_seed_pipeline_filtered 同名符号需 weak，对齐 seed）
 g05_try_x_to_o() {
   _xsrc="$1"
   _xout="$2"
@@ -88,6 +90,10 @@ g05_try_x_to_o() {
   if [ ! -s "$_xtmp" ]; then
     rm -f "$_xtmp"
     return 1
+  fi
+  if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
+    # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
+    perl -i -pe 's/^(void|int32_t|int|size_t|uint8_t|uint32_t|uint64_t)\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
   fi
   # shellcheck disable=SC2086
   if ! $CC $BASE_CFLAGS "$@" -c -o "$_xout" "$_xtmp"; then
@@ -307,13 +313,38 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/seed_link_compat.o "$_slc"
     fi
   fi
+  # G-02f-11 / G-02f-258：strict_glue_stubs.o
+  # 默认整 seed；PREFER_X_O=1 时 thin.x（asm_driver/i32/metrics peek）+ seed 残体 ld -r
   _rdss=seeds/runtime_driver_strict_glue_stubs.from_x.c
+  _rdss_thin_x=src/runtime_driver_strict_glue_thin.x
+  _rdss_o=src/runtime_driver_strict_glue_stubs.o
   if [ -f "$_rdss" ]; then
-    if [ ! -f src/runtime_driver_strict_glue_stubs.o ] || [ "$_rdss" -nt src/runtime_driver_strict_glue_stubs.o ] \
-      || [ seeds/runtime_heap_user.from_x.c -nt src/runtime_driver_strict_glue_stubs.o ] 2>/dev/null; then
-      echo "g05_ensure: runtime_driver_strict_glue_stubs.o ← seed (G-02f-11)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_driver_strict_glue_stubs.o "$_rdss"
+    if [ ! -f "$_rdss_o" ] || [ "$_rdss" -nt "$_rdss_o" ] \
+      || { [ -f seeds/runtime_heap_user.from_x.c ] && [ seeds/runtime_heap_user.from_x.c -nt "$_rdss_o" ]; } \
+      || { [ -f "$_rdss_thin_x" ] && [ "$_rdss_thin_x" -nt "$_rdss_o" ]; }; then
+      _rdss_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rdss_thin_x" ]; then
+        _rdss_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdss_thin_XXXXXX.o") || true
+        _rdss_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdss_rest_XXXXXX.o") || true
+        # shellcheck disable=SC2086
+        # thin 符号须 weak，否则与 bootstrap_seed_pipeline_filtered 强符号冲突
+        if [ -n "$_rdss_thin_o" ] && [ -n "$_rdss_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_rdss_thin_x" "$_rdss_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_STRICT_GLUE_THIN_FROM_X \
+               -c -o "$_rdss_rest_o" "$_rdss" \
+          && $CC -r -nostdlib -o "$_rdss_o" "$_rdss_thin_o" "$_rdss_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_rdss_o ← $_rdss_thin_x + seed-rest (G-02f-258 L2 hybrid thin weak)"
+          _rdss_done=1
+        else
+          echo "g05_ensure: L2 hybrid strict_glue thin failed; fallback full seed" >&2
+        fi
+        rm -f "$_rdss_thin_o" "$_rdss_rest_o"
+      fi
+      if [ "$_rdss_done" = "0" ]; then
+        echo "g05_ensure: runtime_driver_strict_glue_stubs.o ← seed (G-02f-11)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rdss_o" "$_rdss"
+      fi
     fi
   fi
   _fcc=seeds/fmt_check_cmd.from_x.c

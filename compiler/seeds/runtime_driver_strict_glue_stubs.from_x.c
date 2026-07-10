@@ -1,5 +1,7 @@
 /* Generated from src/runtime_driver_strict_glue_stubs.x (G-02f-32/33 true .x + C tail).
  * G-02f-105 helper gates.
+ * G-02f-258：SHUX_L2_STRICT_GLUE_THIN_FROM_X 时省略 thin 转发
+ *           （由 src/runtime_driver_strict_glue_thin.x → .o 提供，再 ld -r）。
  * Regen: ./shux-c -E -L .. src/runtime_driver_strict_glue_stubs.x > /tmp/sgs.c
  *         merge thin forwards/metrics peek; weak polish; heap_user/slot arrays C.
  * .x covers: asm_driver_*, i32_ptr_*, metrics init/read, call_resolve peek.
@@ -266,6 +268,7 @@ SHUX_WEAK void codegen_dump_wpo_callgraph_json(FILE *out,
 extern int32_t driver_skip_codegen_dep_0_get(void);
 extern void driver_set_current_dep_path_for_codegen(const char *path);
 
+#ifndef SHUX_L2_STRICT_GLUE_THIN_FROM_X
 int32_t asm_driver_skip_codegen_dep_0_get(void) {
   (void)(({   {
     int32_t r = driver_skip_codegen_dep_0_get();
@@ -281,6 +284,7 @@ void asm_driver_set_current_dep_path_for_codegen(uint8_t * path) {
   }
  }));
 }
+#endif
 
 /* ---- G-02e-11：原 lsp_codegen_extern（LSP -E-extern 字符串块）---- */
 
@@ -748,6 +752,7 @@ __attribute__((weak)) int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth
   return &g_typeck_layout_metrics_al_depth[depth];
 }
 
+#ifndef SHUX_L2_STRICT_GLUE_THIN_FROM_X
 __attribute__((weak)) void typeck_layout_metrics_init_depth(int32_t depth) {
   int32_t *sz = typeck_layout_metrics_sz_slot_depth(depth);
   int32_t *al = typeck_layout_metrics_al_slot_depth(depth);
@@ -782,6 +787,7 @@ __attribute__((weak)) int32_t typeck_i32_ptr_read(int32_t *p) {
 __attribute__((weak)) void typeck_driver_diagnostic_pipe_marker(int32_t id) {
   driver_diagnostic_pipe_marker(id);
 }
+#endif
 
 __attribute__((weak)) int32_t *typeck_call_resolve_dep_idx_slot(void) {
   return &g_typeck_call_resolve_dep_idx_slot;
@@ -791,6 +797,7 @@ __attribute__((weak)) int32_t *typeck_call_resolve_func_idx_slot(void) {
   return &g_typeck_call_resolve_func_idx_slot;
 }
 
+#ifndef SHUX_L2_STRICT_GLUE_THIN_FROM_X
 __attribute__((weak)) int32_t typeck_call_resolve_dep_idx_peek(void) {
   return *typeck_call_resolve_dep_idx_slot();
 }
@@ -798,6 +805,7 @@ __attribute__((weak)) int32_t typeck_call_resolve_dep_idx_peek(void) {
 __attribute__((weak)) int32_t typeck_call_resolve_func_idx_peek(void) {
   return *typeck_call_resolve_func_idx_slot();
 }
+#endif
 
 __attribute__((weak)) int32_t run_x_pipeline_fill_dep_import_path_c(struct ast_Module *module,
                                                                      struct ast_PipelineDepCtx *ctx, int32_t dep_j) {
