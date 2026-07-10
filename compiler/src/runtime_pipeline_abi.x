@@ -1,15 +1,19 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32/33/34：真迁 .x — pipeline_abi 占位桩 + 标志/ndep/dep_seeded（经 C 槽）。
+// G-02f-32/33/34/40：真迁 .x — pipeline_abi 占位桩 + 标志/ndep/dep_seeded/dep 指针 API。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
-// C 尾：存储槽、dep 指针数组、import/path、seeded_clear 循环（while 语言限制）。
-// set_ndep 经 typeck_ndep_store 钳位（C）；dep_seeded 经 slot 读写。
+// C 尾：存储槽、dep 指针数组本体、import/path、seeded_clear 循环（while 语言限制）。
+// G-02f-40：+ get_dep_module/arena、pipeline_set_dep、typeck_get_dep_*（经 C get/set 槽）。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
 extern "C" function typeck_ndep_store(n: i32): void;
 extern "C" function driver_dep_seeded_slot(i: i32): *i32;
+extern "C" function typeck_dep_module_get(i: i32): *u8;
+extern "C" function typeck_dep_arena_get(i: i32): *u8;
+extern "C" function typeck_dep_module_set(i: i32, mod: *u8): void;
+extern "C" function typeck_dep_arena_set(i: i32, arena: *u8): void;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -142,4 +146,62 @@ function driver_dep_seeded_set(i: i32, v: i32): void {
 #[no_mangle]
 function typeck_driver_dep_seeded_get(i: i32): i32 {
   return driver_dep_seeded_get(i);
+}
+
+/* ---- G-02f-40：dep module/arena get/set（数组本体 C，API 逻辑 .x）---- */
+
+#[no_mangle]
+function get_dep_module(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  unsafe {
+    let n: i32 = get_ndep();
+    if (i >= n) {
+      return 0 as *u8;
+    }
+    let r: *u8 = typeck_dep_module_get(i);
+    return r;
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function get_dep_arena(i: i32): *u8 {
+  if (i < 0) {
+    return 0 as *u8;
+  }
+  unsafe {
+    let n: i32 = get_ndep();
+    if (i >= n) {
+      return 0 as *u8;
+    }
+    let r: *u8 = typeck_dep_arena_get(i);
+    return r;
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function typeck_get_dep_module(i: i32): *u8 {
+  return get_dep_module(i);
+}
+
+#[no_mangle]
+function typeck_get_dep_arena(i: i32): *u8 {
+  return get_dep_arena(i);
+}
+
+#[no_mangle]
+function pipeline_set_dep(i: i32, mod: *u8, arena: *u8): void {
+  if (i < 0) {
+    return;
+  }
+  if (i >= 32) {
+    return;
+  }
+  unsafe {
+    typeck_dep_module_set(i, mod);
+    typeck_dep_arena_set(i, arena);
+  }
 }

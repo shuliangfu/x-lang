@@ -1,7 +1,7 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32/33/34 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32/33/34/40 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge no-ops/flags/dep_seeded; C slots + clear_all + import/path.
- * .x covers: placeholders, diag_emitted, ndep get/set, dep_seeded get/set.
+ *         merge no-ops/flags/dep_seeded/dep ptr API; C slots + clear_all + import/path.
+ * .x covers: placeholders, diag_emitted, ndep, dep_seeded, get/set_dep module/arena.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -300,6 +300,32 @@ void typeck_ndep_store(int32_t n) {
     typeck_ndep = (n <= 32) ? n : 32;
 }
 
+/* G-02f-40: opaque dep pointer get/set slots for .x API */
+void *typeck_dep_module_get(int32_t i) {
+    if (i < 0 || i >= 32)
+        return NULL;
+    return typeck_dep_module_ptrs[i];
+}
+
+void *typeck_dep_arena_get(int32_t i) {
+    if (i < 0 || i >= 32)
+        return NULL;
+    return typeck_dep_arena_ptrs[i];
+}
+
+void typeck_dep_module_set(int32_t i, void *mod) {
+    if (i < 0 || i >= 32)
+        return;
+    typeck_dep_module_ptrs[i] = mod;
+}
+
+void typeck_dep_arena_set(int32_t i, void *arena) {
+    if (i < 0 || i >= 32)
+        return;
+    typeck_dep_arena_ptrs[i] = arena;
+}
+
+
 /**
  * 清 typeck dep 侧车；driver_dep_seeded_clear_all 调用，避免悬空指针。
  */
@@ -314,16 +340,36 @@ void driver_typeck_dep_sidecar_clear(void) {
 
 /** 按 dep 下标取 module 指针；越界返回 NULL。 */
 void *get_dep_module(int32_t i) {
-    if (i < 0 || i >= typeck_ndep)
-        return NULL;
-    return typeck_dep_module_ptrs[i];
+  if ((i < 0)) {
+    return ((void *)(0));
+  }
+  (void)(({   {
+    int32_t n = get_ndep();
+    if ((i >=n)) {
+      return ((void *)(0));
+    }
+    void * r = typeck_dep_module_get(i);
+    return r;
+  }
+ }));
+  return ((void *)(0));
 }
 
 /** 按 dep 下标取 arena 指针；越界返回 NULL。 */
 void *get_dep_arena(int32_t i) {
-    if (i < 0 || i >= typeck_ndep)
-        return NULL;
-    return typeck_dep_arena_ptrs[i];
+  if ((i < 0)) {
+    return ((void *)(0));
+  }
+  (void)(({   {
+    int32_t n = get_ndep();
+    if ((i >=n)) {
+      return ((void *)(0));
+    }
+    void * r = typeck_dep_arena_get(i);
+    return r;
+  }
+ }));
+  return ((void *)(0));
 }
 
 /** 当前 dep 数量。 */
@@ -339,20 +385,27 @@ int32_t get_ndep(void) {
 
 /** pipeline_gen.c 别名：与 get_dep_module 相同。 */
 void *typeck_get_dep_module(int32_t i) {
-    return get_dep_module(i);
+  return get_dep_module(i);
 }
 
 /** pipeline_gen.c 别名：与 get_dep_arena 相同。 */
 void *typeck_get_dep_arena(int32_t i) {
-    return get_dep_arena(i);
+  return get_dep_arena(i);
 }
 
 /** 写入单 dep 槽（pipeline.x 编排 import 加载时调用）。 */
 void pipeline_set_dep(int32_t i, void *mod, void *arena) {
-    if (i < 0 || i >= 32)
-        return;
-    typeck_dep_module_ptrs[i] = mod;
-    typeck_dep_arena_ptrs[i] = arena;
+  if ((i < 0)) {
+    return;
+  }
+  if ((i >=32)) {
+    return;
+  }
+  (void)(({   {
+    (void)(typeck_dep_module_set(i, mod));
+    (void)(typeck_dep_arena_set(i, arena));
+  }
+ }));
 }
 
 /** 设置 dep 数量上限 32。 */
@@ -1984,7 +2037,7 @@ int32_t parser_get_module_num_imports(uint8_t * module) {
 }
 
 void parser_get_module_import_path(uint8_t * module, int32_t idx, uint8_t * path_buf) {
-  if ((path_buf ==((uint8_t *)(0)))) {
+  if ((path_buf ==((void *)(0)))) {
     return;
   }
   (void)(({   {
