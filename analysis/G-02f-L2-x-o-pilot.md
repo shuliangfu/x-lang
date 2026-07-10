@@ -85,7 +85,8 @@ cd compiler
 rm -f src/lsp/lsp_diag_pipeline_sizes_nostub.o src/driver/target_cpu.o \
       src/runtime_driver_strict_glue_stubs.o src/lsp/lsp_diag_pipeline_ctx.o \
       src/x_seed_bridge.o src/asm/parser_asm_parse_expr_link.o \
-      src/runtime_io_abi.o src/diag.o src/runtime_driver_diagnostic.o
+      src/runtime_io_abi.o src/diag.o src/runtime_driver_diagnostic.o \
+      src/runtime_driver_abi.o
 SHUX_G05_PREFER_X_O=1 sh scripts/g05_ensure_relink_prereqs.sh
 # 日志应含：
 #   sizes_nostub.o ← ...sizes.x (... L2 prefer .x: sizes_nostub)
@@ -97,6 +98,7 @@ SHUX_G05_PREFER_X_O=1 sh scripts/g05_ensure_relink_prereqs.sh
 #   runtime_io_abi.o ← ...runtime_io_abi.x + seed-rest (... L2 hybrid runtime_io_abi thin)
 #   diag.o ← ...diag_thin.x + seed-rest (... L2 hybrid diag thin)
 #   runtime_driver_diagnostic.o ← ...diagnostic_thin.x + seed-rest (... L2 hybrid diagnostic thin)
+#   runtime_driver_abi.o ← ...abi_thin.x + seed-rest (... L2 hybrid driver_abi thin)
 nm src/lsp/lsp_diag_pipeline_sizes_nostub.o | grep sizeof
 nm src/driver/target_cpu.o | grep 'T _tcp_tolower\|T _shu_target_cpu_detect'
 nm -m src/runtime_driver_strict_glue_stubs.o | grep 'typeck_i32_ptr_store'   # weak external
@@ -125,9 +127,10 @@ macOS arm64 默认 asm 可能 `code_len=0`（已知限制）；C 后端 smoke �
 7. ~~**L2 第 7 TU**~~ ✅ f-334 `runtime_io_abi` hybrid thin（POSIX 头 + strip libc redecls；flags→flags_impl）  
 8. ~~**L2 第 8 TU**~~ ✅ f-335～342 `diag_thin` hybrid（**32** 门闩）  
 9. ~~**L2 第 9 TU**~~ ✅ f-339～341 `rdd_thin` hybrid（**~71** 门闩，近满覆盖）  
-10. **L2**：diag snap 内部 helper / 新 TU（driver_abi / fmt / simd…）  
-11. **asm 直出 .o**：修 CG002 后去掉 `-E` 中间步  
-12. 冷启动可稳定 `-E` 后再议默认 `PREFER_X_O`
+10. ~~**L2 第 10 TU**~~ ✅ f-343 `runtime_driver_abi_thin` hybrid（**23** 门闩）  
+11. **L2**：diag snap / fmt / simd thin；扩 abi timing 全套  
+12. **asm 直出 .o**：修 CG002 后去掉 `-E` 中间步  
+13. 冷启动可稳定 `-E` 后再议默认 `PREFER_X_O`
 
 ### 6.1 f-259 默认 `SHUX_G05_PREFER_X_O` 评估（结论：否）
 
