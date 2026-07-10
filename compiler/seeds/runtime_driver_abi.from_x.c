@@ -1,7 +1,7 @@
-/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..49/54/55 true .x + C tail).
+/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
- *         merge flags/env/phase/peek/smoke/import/stack; C pthread bulk + argv defines.
- * .x covers: + driver_run_thread_on_large_stack thin gate.
+ *         merge flags/env/phase/peek/smoke/stack/defines; C argv scan + pthread bulk.
+ * .x covers: + driver_argv_collect_defines.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -56,6 +56,7 @@ void driver_current_dep_path_store(const char *path);
 const char *driver_current_dep_path_load(void);
 void driver_print_check_ok_impl(const char *input_path);
 void driver_bump_stack_limit_impl(void);
+int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines, int max_defines);
 void driver_run_thread_on_large_stack_impl(void *(*fn)(void *), void *arg);
 void driver_pipeline_fail_code_rc_impl(int32_t rc);
 void driver_pipeline_fail_code_path_impl(const uint8_t *path);
@@ -712,7 +713,7 @@ void driver_compile_phase_timing_begin(int32_t phase) {
  * 从 argv 收集 -D / -DFOO 与 -target 推导 OS_*、uname 的 SHUX_OS_/SHUX_ARCH_（run_compiler_c / asm 后端共用）。
  * 参数：defines 至少 max_defines 个槽；返回 ndefines。
  */
-int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines) {
+int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines, int max_defines) {
     int ndefines = 0;
     const char *target_arg = NULL;
     for (int i = 1; i < argc; i++) {
@@ -761,6 +762,22 @@ int driver_argv_collect_defines(int argc, char **argv, const char **defines, int
         }
     }
     return ndefines;
+}
+
+int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines) {
+  if (argv == NULL) {
+    return 0;
+  }
+  if (defines == NULL) {
+    return 0;
+  }
+  if (max_defines <= 0) {
+    return 0;
+  }
+  {
+    return driver_argv_collect_defines_impl(argc, argv, defines, max_defines);
+  }
+  return 0;
 }
 
 /** pipeline_gen.c / main.x：module num_funcs 与 main 下标。 */

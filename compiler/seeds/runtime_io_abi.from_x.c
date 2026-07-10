@@ -1,7 +1,7 @@
-/* Generated from src/runtime_io_abi.x (G-02f-29/44 true .x + C tail).
+/* Generated from src/runtime_io_abi.x (G-02f-29/44/57 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_io_abi.x > /tmp/io.c
- *         merge fs shim; open_write via flags/mode slots; file_view/os_read C.
- * .x covers: open_read/write/close/read/write/invalid + fs_posix_* aliases.
+ *         merge fs shim + path read/write gates; C file_view mmap bulk.
+ * .x covers: + shux_read_file_into_path, write_path_bytes, release_file_view.
  */
 #include "win32_compat.h"
 #include "runtime_io_abi.h"
@@ -94,6 +94,12 @@ static int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFi
     return 0;
 }
 
+
+/* G-02f-57 helper protos */
+int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap);
+int shux_write_path_bytes_impl(const char *path, const void *data, size_t len);
+void runtime_release_file_view_impl(ShuxRuntimeFileView *view);
+
 int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
     int fd;
     int fd_fallback;
@@ -133,9 +139,7 @@ int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
     return 0;
 }
 
-void runtime_release_file_view(ShuxRuntimeFileView *view) {
-    if (!view)
-        return;
+void runtime_release_file_view_impl(ShuxRuntimeFileView *view) {
     if (view->needs_munmap && view->data && view->length > 0)
         munmap((void *)view->data, view->length);
     if (view->needs_free && view->data)
@@ -144,6 +148,15 @@ void runtime_release_file_view(ShuxRuntimeFileView *view) {
     view->length = 0;
     view->needs_free = 0;
     view->needs_munmap = 0;
+}
+
+void runtime_release_file_view(ShuxRuntimeFileView *view) {
+  if (view == NULL) {
+    return;
+  }
+  {
+    runtime_release_file_view_impl(view);
+  }
 }
 
 /**
@@ -174,11 +187,11 @@ char *runtime_read_file_malloc(const char *path, size_t *out_len) {
  * B-20：open/read/close 将文件读入 buf；供 ast_pool 与 driver 语法探测。
  * 参数：见 runtime_io_abi.h。
  */
-int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
+int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap) {
     int fd;
     int n;
 
-    if (!path || !buf || cap == 0 || cap > (size_t)INT32_MAX)
+    if (cap > (size_t)INT32_MAX)
         return -1;
     fd = open(path, O_RDONLY | SHUX_O_BINARY);
     if (fd < 0)
@@ -188,17 +201,31 @@ int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
     return n;
 }
 
+int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
+  if (path == NULL) {
+    return -1;
+  }
+  if (buf == NULL) {
+    return -1;
+  }
+  if (cap == 0) {
+    return -1;
+  }
+  {
+    return shux_read_file_into_path_impl(path, buf, cap);
+  }
+  return -1;
+}
+
 /**
  * B-20：open(O_WRONLY|O_CREAT|O_TRUNC)/write 写整文件。
  * 参数：见 runtime_io_abi.h。
  */
-int shux_write_path_bytes(const char *path, const void *data, size_t len) {
+int shux_write_path_bytes_impl(const char *path, const void *data, size_t len) {
     int fd;
     size_t off;
     ssize_t n;
 
-    if (!path || !data)
-        return -1;
     fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY, (mode_t)0644);
     if (fd < 0)
         return -1;
@@ -215,6 +242,19 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
     }
     close(fd);
     return off == len ? 0 : -1;
+}
+
+int shux_write_path_bytes(const char *path, const void *data, size_t len) {
+  if (path == NULL) {
+    return -1;
+  }
+  if (data == NULL) {
+    return -1;
+  }
+  {
+    return shux_write_path_bytes_impl(path, data, len);
+  }
+  return -1;
 }
 
 /* -------------------------------------------------------------------------- */

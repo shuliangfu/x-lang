@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-29/44：真迁 .x — std.fs / posix 薄 shim（open_read/write）。
+// G-02f-29/44/57：真迁 .x — std.fs / posix 薄 shim + 路径读写门闩。
 // 产品：./shux-c -E → seeds/runtime_io_abi.from_x.c（+ C 尾段）。
-// C 尾：open_write flags/mode 槽（O_CREAT/TRUNC 平台相关）、file_view、os_read_file_into。
-// G-02f-44：+ std_fs_fs_open_write（经 shux_fs_open_write_flags/mode 槽）。
+// C 尾：open_write flags/mode 槽、file_view mmap、os_read_file_into 循环。
+// G-02f-57：+ shux_read_file_into_path / write_path_bytes / runtime_release_file_view。
 
 extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 extern "C" function close(fd: i32): i32;
@@ -12,6 +12,9 @@ extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function shux_fs_open_write_flags(): i32;
 extern "C" function shux_fs_open_write_mode(): i32;
+extern "C" function shux_read_file_into_path_impl(path: *u8, buf: *u8, cap: i64): i32;
+extern "C" function shux_write_path_bytes_impl(path: *u8, data: *u8, len: i64): i32;
+extern "C" function runtime_release_file_view_impl(view: *u8): void;
 
 #[no_mangle]
 function std_fs_fs_open_read(path: *u8): i32 {
@@ -95,4 +98,47 @@ function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize {
 #[no_mangle]
 function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize {
   return std_fs_fs_write(fd, buf, count);
+}
+
+/* ---- G-02f-57：路径读/写与 file_view 释放 ---- */
+
+#[no_mangle]
+function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32 {
+  if (path == 0 as *u8) {
+    return -1;
+  }
+  if (buf == 0 as *u8) {
+    return -1;
+  }
+  if (cap == 0) {
+    return -1;
+  }
+  unsafe {
+    return shux_read_file_into_path_impl(path, buf, cap);
+  }
+  return -1;
+}
+
+#[no_mangle]
+function shux_write_path_bytes(path: *u8, data: *u8, len: i64): i32 {
+  if (path == 0 as *u8) {
+    return -1;
+  }
+  if (data == 0 as *u8) {
+    return -1;
+  }
+  unsafe {
+    return shux_write_path_bytes_impl(path, data, len);
+  }
+  return -1;
+}
+
+#[no_mangle]
+function runtime_release_file_view(view: *u8): void {
+  if (view == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    runtime_release_file_view_impl(view);
+  }
 }

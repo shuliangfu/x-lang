@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-29/41/45..49/54/55：真迁 .x — driver flags/env/phase + peek/smoke/import/stack。
+// G-02f-29/41/45..49/54/55/57：真迁 .x — driver flags/env/phase + peek/smoke/stack/defines。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
-// C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、argv defines、import 扫描。
-// G-02f-55：+ driver_run_thread_on_large_stack 薄门闩（pthread 本体 C）。
+// C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、argv defines 扫描、import 扫描。
+// G-02f-57：+ driver_argv_collect_defines 薄门闩（扫描本体 C）。
 // 注意：set 侧禁止 if/else 写 *p → 直接 p[0]=v；禁止 if (ptr!=null) 整函数被 -E 丢掉。
 
 extern "C" function getenv(name: *u8): *u8;
@@ -38,6 +38,7 @@ extern "C" function driver_source_has_top_level_import_path_impl(path: *u8): i32
 extern "C" function driver_pipeline_entry_source_len_store(len: i64): void;
 extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
 extern "C" function driver_bump_stack_limit_impl(): void;
+extern "C" function driver_argv_collect_defines_impl(argc: i32, argv: *u8, defines: *u8, max_defines: i32): i32;
 
 #[no_mangle]
 function driver_check_quiet_ok_get(): i32 {
@@ -544,4 +545,23 @@ function driver_bump_stack_limit(): void {
   unsafe {
     driver_bump_stack_limit_impl();
   }
+}
+
+/* ---- G-02f-57：argv -D/-target defines 收集 ---- */
+
+#[no_mangle]
+function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, max_defines: i32): i32 {
+  if (argv == 0 as *u8) {
+    return 0;
+  }
+  if (defines == 0 as *u8) {
+    return 0;
+  }
+  if (max_defines <= 0) {
+    return 0;
+  }
+  unsafe {
+    return driver_argv_collect_defines_impl(argc, argv, defines, max_defines);
+  }
+  return 0;
 }

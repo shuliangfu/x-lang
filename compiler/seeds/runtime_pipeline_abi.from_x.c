@@ -1,8 +1,8 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..56 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..57 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge resolve/read/parse loaded import; C multi resolve + large pipeline.
- * .x covers: + pipeline_resolve_path, read_file, parse_into_loaded_import.
+ *         merge resolve/read/parse + large_stack run; C multi resolve + bulk.
+ * .x covers: + shux_pipeline_run_x_pipeline_large_stack.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -25,6 +25,11 @@ extern int32_t preprocess_x_buf(const uint8_t *source_buf, ptrdiff_t source_len,
 extern void preprocess_define_reset(void);
 extern int32_t preprocess_if_stack_len(void);
 extern void preprocess_define_add(const char *name);
+
+
+/* G-02f-57 helper protos */
+int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+    void *out_buf, void *ctx);
 
 /* G-02f-56 helper protos */
 int32_t pipeline_resolve_path_impl(const uint8_t *path_ptr, int32_t path_len);
@@ -1633,7 +1638,7 @@ static void *pipeline_run_x_thread_fn(void *arg) {
 }
 
 /** 大栈 pthread 上调用 pipeline_run_x_pipeline；pthread 失败时回退当前线程。 */
-int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
     void *out_buf, void *ctx) {
     PipelineRunSuArgs args;
     driver_set_pipeline_entry_source_len(source_len);
@@ -1648,6 +1653,14 @@ int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const ui
     if (args.result == -99)
         return pipeline_run_x_pipeline(module, arena, source_data, source_len, out_buf, ctx);
     return args.result;
+}
+
+int shux_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+    void *out_buf, void *ctx) {
+  {
+    return shux_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
+  }
+  return -1;
 }
 
 /** dep 预跑：完整 parse，跳过 typeck/codegen。 */
