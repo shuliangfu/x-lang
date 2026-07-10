@@ -9,8 +9,9 @@
 // G-02f-243：P1-6 开局 — entry_source_len_i32 saturate + scan_top_level_import 字节扫描 pure。
 // G-02f-244：phase index / stack want / path import 编排 pure；smoke/thread null 门闩。
 // G-02f-245：argv_collect_defines 主循环 pure（-D/-target/skip）；uname 🔒。
+// G-02f-246：large_stack 早退/当前栈编排 pure；P1-6 soft 近闭。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
-// C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、uname host defines、path IO。
+// C 尾：flag/len/path 槽、pthread 创建体、gettimeofday、diag format、uname、path IO、setrlimit。
 // G-02f-57：+ driver_argv_collect_defines 薄门闩（扫描本体曾 C；f-245 主循环 pure）。
 // 注意：set 侧禁止 if/else 写 *p → 直接 p[0]=v；禁止 if (ptr!=null) 整函数被 -E 丢掉。
 
@@ -36,7 +37,10 @@ extern "C" function compile_phase_now_sec_impl(): f64;
 extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 extern "C" function driver_pipeline_fail_code_rc_impl(rc: i32): void;
 extern "C" function driver_pipeline_fail_code_path_impl(path: *u8): void;
-extern "C" function driver_run_thread_on_large_stack_impl(fn: *u8, arg: *u8): void;
+/* large_stack：G-02f-246 早退 pure；pthread 创建 🔒 */
+extern "C" function driver_run_thread_on_large_stack_pthread_impl(fn: *u8, arg: *u8): void;
+extern "C" function driver_call_fn_void_arg_impl(fn: *u8, arg: *u8): void;
+extern "C" function bootstrap_nostdlib_pthread_is_stub(): i32;
 extern "C" function driver_get_module_num_funcs(m: *u8): i32;
 extern "C" function driver_get_module_main_func_index(m: *u8): i32;
 extern "C" function driver_print_x_smoke_parse_ok_impl(num_funcs: i32, main_ix: i32, codegen_len: i64): void;
@@ -56,7 +60,7 @@ extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
 extern "C" function driver_os_define_lit(kind: i32): *u8;
 extern "C" function driver_argv_collect_append_uname_impl(defines: *u8, ndefines: i32, max_defines: i32): i32;
 extern "C" function driver_large_stack_thread_trampoline_impl(v: *u8): *u8;
-extern "C" function driver_run_fn_on_current_large_stack_impl(fn: *u8, arg: *u8): void;
+/* run_fn_on_current：G-02f-246 编排 pure；call 🔒 */
 
 #[no_mangle]
 function driver_check_quiet_ok_get(): i32 {
@@ -489,13 +493,64 @@ function driver_pipeline_fail_code(rc: i32, path: *u8): void {
   }
 }
 
+// G-02f-246：SHUX_PIPELINE_NO_LARGE_STACK 非空且非 '0'
+#[no_mangle]
+function driver_pipeline_no_large_stack_env(): i32 {
+  unsafe {
+    let e: *u8 = getenv("SHUX_PIPELINE_NO_LARGE_STACK");
+    if (e == 0 as *u8) {
+      return 0;
+    }
+    if (e[0] == 0) {
+      return 0;
+    }
+    if (e[0] == 48) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+// G-02f-246：当前线程 mark+bump+call；fn 指针调用 🔒
+#[no_mangle]
+function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
+  if (fn == 0 as *u8) {
+    return;
+  }
+  driver_large_stack_thread_mark(1);
+  driver_bump_stack_limit();
+  unsafe {
+    driver_call_fn_void_arg_impl(fn, arg);
+  }
+  driver_large_stack_thread_mark(0);
+}
+
+// G-02f-246：早退 pure（已在大栈 / nostdlib 桩 / NO_LARGE_STACK）→ pthread 体 🔒
 #[no_mangle]
 function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void {
   if (fn == 0 as *u8) {
     return;
   }
+  if (driver_is_large_stack_thread() != 0) {
+    unsafe {
+      driver_call_fn_void_arg_impl(fn, arg);
+    }
+    return;
+  }
+  driver_bump_stack_limit();
   unsafe {
-    driver_run_thread_on_large_stack_impl(fn, arg);
+    if (bootstrap_nostdlib_pthread_is_stub() != 0) {
+      driver_run_fn_on_current_large_stack(fn, arg);
+      return;
+    }
+  }
+  if (driver_pipeline_no_large_stack_env() != 0) {
+    driver_run_fn_on_current_large_stack(fn, arg);
+    return;
+  }
+  unsafe {
+    driver_run_thread_on_large_stack_pthread_impl(fn, arg);
   }
 }
 
@@ -1013,7 +1068,7 @@ function driver_source_scan_top_level_import(src: *u8, src_len: i64): i32 {
 
 /* ---- G-02f-92：ascii_toupper 真迁见文末 ---- */
 
-/* ---- G-02f-94：large_stack trampoline / run_fn 门闩（pthread/fn 指针 🔒）---- */
+/* ---- G-02f-94 / G-02f-246：large_stack trampoline 门闩（解包 🔒）；run_fn 见上文 pure ---- */
 
 /* ---- G-02f-104：phase clock 门闩（gettimeofday 🔒）---- */
 
@@ -1034,16 +1089,6 @@ function driver_large_stack_thread_trampoline(v: *u8): *u8 {
     return driver_large_stack_thread_trampoline_impl(v);
   }
   return 0 as *u8;
-}
-
-#[no_mangle]
-function driver_run_fn_on_current_large_stack(fn: *u8, arg: *u8): void {
-  if (fn == 0 as *u8) {
-    return;
-  }
-  unsafe {
-    driver_run_fn_on_current_large_stack_impl(fn, arg);
-  }
 }
 
 // G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）

@@ -4,9 +4,10 @@
  * G-02f-243: P1-6 open — entry_source_len_i32 saturate + scan_top_level_import pure.
  * G-02f-244: phase index + stack want + path import orchestrate pure.
  * G-02f-245: argv_collect_defines main loop pure; uname host defines locked.
+ * G-02f-246: large_stack early-exit/current-stack orch pure; P1-6 soft near-close.
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
- *         merge flags/env/phase/peek/smoke/stack/defines; C uname + pthread bulk.
- * .x covers: + argv_collect pure + entry_len_i32 + import scan + stack want + path orch.
+ *         merge flags/env/phase/peek/smoke/stack/defines; C uname + pthread create bulk.
+ * .x covers: + argv_collect pure + large_stack orch + entry_len/scan/stack want/path.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -72,6 +73,9 @@ const char *driver_os_define_lit(int kind);
 int driver_argv_collect_append_uname_impl(const char **defines, int ndefines, int max_defines);
 int32_t driver_target_arg_os_kind(const char *target);
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
+void driver_run_thread_on_large_stack_pthread_impl(void *(*fn)(void *), void *arg);
+void driver_call_fn_void_arg_impl(void *(*fn)(void *), void *arg);
+int32_t driver_pipeline_no_large_stack_env(void);
 void driver_pipeline_fail_code_rc_impl(int32_t rc);
 void driver_pipeline_fail_code_path_impl(const uint8_t *path);
 void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int64_t codegen_len);
@@ -996,57 +1000,48 @@ void * driver_large_stack_thread_trampoline(void *v) {
     return r;
 }
 
+/** fn 指针调用 🔒（.x 无法安全间接调用） */
+void driver_call_fn_void_arg_impl(void *(*fn)(void *), void *arg) {
+    if (fn)
+        (void)fn(arg);
+}
+
+/* G-02f-246：逻辑源 .x（真迁 NO_LARGE_STACK env）；seed 保留同语义 C 供产品 cc */
+int32_t driver_pipeline_no_large_stack_env(void) {
+    const char *e = getenv("SHUX_PIPELINE_NO_LARGE_STACK");
+    if (!e || !e[0] || e[0] == '0')
+        return 0;
+    return 1;
+}
+
 /** 在当前线程直接执行 fn(arg)，并临时标记大栈上下文。 */
-/* G-02f-243：.x 门闩 null 边界；主体 mark/bump/fn 🔒 */
+/* G-02f-246：逻辑源 .x（真迁 mark/bump/call 编排）；call 🔒 */
 void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg) {
     if (fn == NULL)
         return;
     driver_large_stack_thread_mark(1);
     driver_bump_stack_limit();
-    fn(arg);
+    driver_call_fn_void_arg_impl(fn, arg);
     driver_large_stack_thread_mark(0);
 }
 
-
-
-
 /**
- * 在大栈 pthread 上执行 fn(arg)；默认 256MiB，可用 SHUX_STACK_LIMIT_MB 覆盖。
- * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，深递归 pipeline/typeck 须与大 pipeline 同路径。
+ * pthread 创建/join 体 🔒；调用方已做 null / 早退 pure。
+ * 默认 256MiB，可用 SHUX_STACK_LIMIT_MB 覆盖。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-244：.x 门闩 null fn；主体 pthread 🔒 */
-void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
+void driver_run_thread_on_large_stack_pthread_impl(void *(*fn)(void *), void *arg) {
     pthread_attr_t attr;
     pthread_t tid;
     void *stk = NULL;
     size_t stack_sz = (size_t)256 * 1024 * 1024;
+    const char *mb_env = getenv("SHUX_STACK_LIMIT_MB");
+    DriverLargeStackCall call = { fn, arg };
     if (fn == NULL)
         return;
-    const char *mb_env = getenv("SHUX_STACK_LIMIT_MB");
     if (mb_env && mb_env[0]) {
         unsigned long mb = strtoul(mb_env, NULL, 10);
         if (mb >= 64 && mb <= 8192)
             stack_sz = (size_t)mb * (size_t)(1024 * 1024);
-    }
-    const char *no_large = getenv("SHUX_PIPELINE_NO_LARGE_STACK");
-    DriverLargeStackCall call = { fn, arg };
-    if (driver_is_large_stack_thread()) {
-        fn(arg);
-        return;
-    }
-    driver_bump_stack_limit();
-    /*
-     * NL-07 nostdlib：bootstrap pthread 桩同步跑在当前栈上，256MiB posix_memalign 栈不会生效；
-     * 依赖 driver_bump_stack_limit(256MiB) 在当前线程跑 pipeline，避免栈溢出 SIGSEGV。
-     */
-    if (bootstrap_nostdlib_pthread_is_stub()) {
-        driver_run_fn_on_current_large_stack(fn, arg);
-        return;
-    }
-    if (no_large != NULL && no_large[0] != '\0' && no_large[0] != '0') {
-        driver_run_fn_on_current_large_stack(fn, arg);
-        return;
     }
     if (pthread_attr_init(&attr) != 0) {
         driver_run_fn_on_current_large_stack(fn, arg);
@@ -1081,6 +1076,34 @@ void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
     }
     pthread_join(tid, NULL);
     pthread_attr_destroy(&attr);
+}
+
+/**
+ * 在大栈 pthread 上执行 fn(arg)；早退 pure 后进 pthread 体。
+ * macOS 主线程 RLIMIT_STACK 硬顶约 8MiB，深递归 pipeline/typeck 须与大 pipeline 同路径。
+ * G-02f-246：逻辑源 .x（真迁早退编排）；pthread 创建 🔒。
+ */
+void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
+    if (fn == NULL)
+        return;
+    if (driver_is_large_stack_thread()) {
+        driver_call_fn_void_arg_impl(fn, arg);
+        return;
+    }
+    driver_bump_stack_limit();
+    /*
+     * NL-07 nostdlib：bootstrap pthread 桩同步跑在当前栈上，256MiB posix_memalign 栈不会生效；
+     * 依赖 driver_bump_stack_limit 在当前线程跑 pipeline，避免栈溢出 SIGSEGV。
+     */
+    if (bootstrap_nostdlib_pthread_is_stub()) {
+        driver_run_fn_on_current_large_stack(fn, arg);
+        return;
+    }
+    if (driver_pipeline_no_large_stack_env()) {
+        driver_run_fn_on_current_large_stack(fn, arg);
+        return;
+    }
+    driver_run_thread_on_large_stack_pthread_impl(fn, arg);
 }
 
 
