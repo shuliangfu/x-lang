@@ -12,6 +12,7 @@
  *
  * Exports: pending, resolve, simd spelling, print.
  * G-02f-6: also embeds OS detect_host / generic_for_host (#if/sysctl/proc).
+ * G-02f-174: host detect 🔒 language-limit seed (sysctl/proc/#if); not true-.x.
  */
 #include <stdint.h>
 #include <stddef.h>

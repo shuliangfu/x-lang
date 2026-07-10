@@ -4,6 +4,7 @@
 // G-02f-2～6：target_cpu 真迁 pure seed 单 TU。
 // - pending（f-2）· SIMD（f-3）· resolve（f-4）· print（f-5）
 // - OS detect_host/generic（f-6；#if/sysctl/proc 在 seed C）
+// G-02f-174：host detect 登记 🔒 语言限制（见优先级表 §6）；pure parse/flags 已真迁。
 // G-02f-165 批折叠 detect；G-02f-97：+ tcp_tolower / tcp_eq5 / tcp_eq6 纯 helper 导出门闩（#[no_mangle]）。
 // G-02f-103 / G-02f-160：append_feat_name / flags_has_token 真迁 .x
 //
