@@ -8,9 +8,10 @@
 // G-02f-104：+ compile_phase_now_sec 门闩。
 // G-02f-243：P1-6 开局 — entry_source_len_i32 saturate + scan_top_level_import 字节扫描 pure。
 // G-02f-244：phase index / stack want / path import 编排 pure；smoke/thread null 门闩。
+// G-02f-245：argv_collect_defines 主循环 pure（-D/-target/skip）；uname 🔒。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
-// C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、argv defines 扫描、path IO。
-// G-02f-57：+ driver_argv_collect_defines 薄门闩（扫描本体 C）。
+// C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、uname host defines、path IO。
+// G-02f-57：+ driver_argv_collect_defines 薄门闩（扫描本体曾 C；f-245 主循环 pure）。
 // 注意：set 侧禁止 if/else 写 *p → 直接 p[0]=v；禁止 if (ptr!=null) 整函数被 -E 丢掉。
 
 extern "C" function getenv(name: *u8): *u8;
@@ -48,7 +49,12 @@ extern "C" function driver_pipeline_entry_source_len_store(len: i64): void;
 extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
 /* bump：G-02f-244 want pure → to_impl(setrlimit) */
 extern "C" function driver_bump_stack_limit_to_impl(want_bytes: i64): void;
-extern "C" function driver_argv_collect_defines_impl(argc: i32, argv: *u8, defines: *u8, max_defines: i32): i32;
+/* argv_collect：G-02f-245 主循环 pure；uname 🔒 */
+extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
+extern "C" function driver_defines_set_at(defines: *u8, i: i32, s: *u8): void;
+extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
+extern "C" function driver_os_define_lit(kind: i32): *u8;
+extern "C" function driver_argv_collect_append_uname_impl(defines: *u8, ndefines: i32, max_defines: i32): i32;
 extern "C" function driver_large_stack_thread_trampoline_impl(v: *u8): *u8;
 extern "C" function driver_run_fn_on_current_large_stack_impl(fn: *u8, arg: *u8): void;
 
@@ -636,8 +642,206 @@ function driver_bump_stack_limit(): void {
   }
 }
 
-/* ---- G-02f-57：argv -D/-target defines 收集 ---- */
+/* ---- G-02f-57 / G-02f-245：argv -D/-target defines 收集 pure ---- */
 
+// G-02f-245：arg 是否恰好 "-D"
+function driver_argv_is_D_alone(arg: *u8): i32 {
+  if (arg == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (arg[0] != 45) {
+      return 0;
+    }
+    if (arg[1] != 68) {
+      return 0;
+    }
+    if (arg[2] != 0) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+// G-02f-245：arg 是否 "-D..." 且非单独 "-D"
+function driver_argv_is_D_inline(arg: *u8): i32 {
+  if (arg == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (arg[0] != 45) {
+      return 0;
+    }
+    if (arg[1] != 68) {
+      return 0;
+    }
+    if (arg[2] == 0) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+// G-02f-245：-target
+function driver_argv_is_target_flag(arg: *u8): i32 {
+  if (arg == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    // -target
+    if (arg[0] != 45) {
+      return 0;
+    }
+    if (arg[1] != 116) {
+      return 0;
+    }
+    if (arg[2] != 97) {
+      return 0;
+    }
+    if (arg[3] != 114) {
+      return 0;
+    }
+    if (arg[4] != 103) {
+      return 0;
+    }
+    if (arg[5] != 101) {
+      return 0;
+    }
+    if (arg[6] != 116) {
+      return 0;
+    }
+    if (arg[7] != 0) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+// G-02f-245：-o / -L / -O / -backend（吃下一参数）
+function driver_argv_is_value_skip_flag(arg: *u8): i32 {
+  if (arg == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (arg[0] != 45) {
+      return 0;
+    }
+    // -o
+    if (arg[1] == 111) {
+      if (arg[2] == 0) {
+        return 1;
+      }
+    }
+    // -L
+    if (arg[1] == 76) {
+      if (arg[2] == 0) {
+        return 1;
+      }
+    }
+    // -O
+    if (arg[1] == 79) {
+      if (arg[2] == 0) {
+        return 1;
+      }
+    }
+    // -backend
+    if (arg[1] == 98) {
+      if (arg[2] == 97) {
+        if (arg[3] == 99) {
+          if (arg[4] == 107) {
+            if (arg[5] == 101) {
+              if (arg[6] == 110) {
+                if (arg[7] == 100) {
+                  if (arg[8] == 0) {
+                    return 1;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+// G-02f-245：hay 是否含固定子串（needle_len 字节，不含 NUL）
+function driver_cstr_contains_bytes(hay: *u8, n0: u8, n1: u8, n2: u8, n3: u8, n4: u8, nlen: i32): i32 {
+  if (hay == 0 as *u8) {
+    return 0;
+  }
+  if (nlen <= 0) {
+    return 0;
+  }
+  unsafe {
+    let i: i32 = 0;
+    while (i < 4096) {
+      if (hay[i] == 0) {
+        return 0;
+      }
+      if (hay[i] == n0) {
+        if (nlen == 1) {
+          return 1;
+        }
+        if (hay[i + 1] == n1) {
+          if (nlen == 2) {
+            return 1;
+          }
+          if (hay[i + 2] == n2) {
+            if (nlen == 3) {
+              return 1;
+            }
+            if (hay[i + 3] == n3) {
+              if (nlen == 4) {
+                return 1;
+              }
+              if (hay[i + 4] == n4) {
+                return 1;
+              }
+            }
+          }
+        }
+      }
+      i = i + 1;
+    }
+  }
+  return 0;
+}
+
+// G-02f-245：target → OS lit kind（1 linux 2 macos 3 freebsd 4 windows；0 无）
+#[no_mangle]
+function driver_target_arg_os_kind(target: *u8): i32 {
+  if (target == 0 as *u8) {
+    return 0;
+  }
+  // linux
+  if (driver_cstr_contains_bytes(target, 108, 105, 110, 117, 120, 5) != 0) {
+    return 1;
+  }
+  // darwin
+  if (driver_cstr_contains_bytes(target, 100, 97, 114, 119, 105, 5) != 0) {
+    return 2;
+  }
+  // apple（nlen=5: a p p l e）
+  if (driver_cstr_contains_bytes(target, 97, 112, 112, 108, 101, 5) != 0) {
+    return 2;
+  }
+  // freeb → freebsd 用 freeb 5 字节前缀够用
+  if (driver_cstr_contains_bytes(target, 102, 114, 101, 101, 98, 5) != 0) {
+    return 3;
+  }
+  // windo → windows
+  if (driver_cstr_contains_bytes(target, 119, 105, 110, 100, 111, 5) != 0) {
+    return 4;
+  }
+  return 0;
+}
+
+// G-02f-245：主循环 pure；uname host defines 🔒
 #[no_mangle]
 function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, max_defines: i32): i32 {
   if (argv == 0 as *u8) {
@@ -652,10 +856,82 @@ function driver_argv_collect_defines(argc: i32, argv: *u8, defines: *u8, max_def
   if (argc <= 0) {
     return 0;
   }
-  unsafe {
-    return driver_argv_collect_defines_impl(argc, argv, defines, max_defines);
+  let ndefines: i32 = 0;
+  let target_arg: *u8 = 0 as *u8;
+  let i: i32 = 1;
+  while (i < argc) {
+    unsafe {
+      let arg: *u8 = driver_argv_at(argv, i);
+      if (arg == 0 as *u8) {
+        i = i + 1;
+      } else {
+        if (driver_argv_is_D_alone(arg) != 0) {
+          if (i + 1 >= argc) {
+            i = i + 1;
+          } else {
+            let v: *u8 = driver_argv_at(argv, i + 1);
+            if (v != 0 as *u8) {
+              if (ndefines < max_defines) {
+                driver_defines_set_at(defines, ndefines, v);
+                ndefines = ndefines + 1;
+              }
+            }
+            i = i + 2;
+          }
+        } else {
+          if (driver_argv_is_D_inline(arg) != 0) {
+            let def: *u8 = shux_cstr_offset(arg, 2);
+            if (def != 0 as *u8) {
+              if (ndefines < max_defines) {
+                driver_defines_set_at(defines, ndefines, def);
+                ndefines = ndefines + 1;
+              }
+            }
+            i = i + 1;
+          } else {
+            if (driver_argv_is_target_flag(arg) != 0) {
+              if (i + 1 < argc) {
+                target_arg = driver_argv_at(argv, i + 1);
+                i = i + 2;
+              } else {
+                i = i + 1;
+              }
+            } else {
+              if (driver_argv_is_value_skip_flag(arg) != 0) {
+                if (i + 1 < argc) {
+                  i = i + 2;
+                } else {
+                  i = i + 1;
+                }
+              } else {
+                i = i + 1;
+              }
+            }
+          }
+        }
+      }
+    }
   }
-  return 0;
+  if (target_arg != 0 as *u8) {
+    if (ndefines < max_defines) {
+      let k: i32 = driver_target_arg_os_kind(target_arg);
+      if (k != 0) {
+        unsafe {
+          let lit: *u8 = driver_os_define_lit(k);
+          if (lit != 0 as *u8) {
+            driver_defines_set_at(defines, ndefines, lit);
+            ndefines = ndefines + 1;
+          }
+        }
+      }
+    }
+  }
+  if (ndefines + 2 <= max_defines) {
+    unsafe {
+      ndefines = driver_argv_collect_append_uname_impl(defines, ndefines, max_defines);
+    }
+  }
+  return ndefines;
 }
 
 

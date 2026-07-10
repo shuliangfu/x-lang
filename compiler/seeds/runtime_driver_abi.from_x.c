@@ -3,9 +3,10 @@
  * G-02f-104 helper gates.
  * G-02f-243: P1-6 open — entry_source_len_i32 saturate + scan_top_level_import pure.
  * G-02f-244: phase index + stack want + path import orchestrate pure.
+ * G-02f-245: argv_collect_defines main loop pure; uname host defines locked.
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
- *         merge flags/env/phase/peek/smoke/stack/defines; C argv scan + pthread bulk.
- * .x covers: + argv_collect gate + entry_len_i32 + import scan + stack want + path orch.
+ *         merge flags/env/phase/peek/smoke/stack/defines; C uname + pthread bulk.
+ * .x covers: + argv_collect pure + entry_len_i32 + import scan + stack want + path orch.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -66,7 +67,10 @@ void driver_print_check_ok_impl(const char *input_path);
 void driver_bump_stack_limit(void);
 void driver_bump_stack_limit_to_impl(int64_t want_bytes);
 int64_t driver_stack_limit_want_bytes(void);
-int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines, int max_defines);
+void driver_defines_set_at(const char **defines, int i, const char *s);
+const char *driver_os_define_lit(int kind);
+int driver_argv_collect_append_uname_impl(const char **defines, int ndefines, int max_defines);
+int32_t driver_target_arg_os_kind(const char *target);
 void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 void driver_pipeline_fail_code_rc_impl(int32_t rc);
 void driver_pipeline_fail_code_path_impl(const uint8_t *path);
@@ -740,76 +744,113 @@ void driver_compile_phase_timing_begin(int32_t phase) {
 /**
  * 从 argv 收集 -D / -DFOO 与 -target 推导 OS_*、uname 的 SHUX_OS_/SHUX_ARCH_（run_compiler_c / asm 后端共用）。
  * 参数：defines 至少 max_defines 个槽；返回 ndefines。
+ * G-02f-245：主循环逻辑源 .x pure；uname 🔒。
  */
-int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines, int max_defines) {
+void driver_defines_set_at(const char **defines, int i, const char *s) {
+    if (!defines || i < 0)
+        return;
+    defines[i] = s;
+}
+
+const char *driver_os_define_lit(int kind) {
+    if (kind == 1)
+        return "OS_LINUX";
+    if (kind == 2)
+        return "OS_MACOS";
+    if (kind == 3)
+        return "OS_FREEBSD";
+    if (kind == 4)
+        return "OS_WINDOWS";
+    return NULL;
+}
+
+/* G-02f-245：逻辑源 .x（真迁 target→OS kind）；seed 保留同语义 C 供产品 cc */
+int32_t driver_target_arg_os_kind(const char *target) {
+    if (!target)
+        return 0;
+    if (strstr(target, "linux") != NULL)
+        return 1;
+    if (strstr(target, "darwin") != NULL || strstr(target, "apple") != NULL)
+        return 2;
+    if (strstr(target, "freebsd") != NULL)
+        return 3;
+    if (strstr(target, "windows") != NULL)
+        return 4;
+    return 0;
+}
+
+/* G-02f-245：uname + SHUX_OS_/SHUX_ARCH_ 🔒 */
+int driver_argv_collect_append_uname_impl(const char **defines, int ndefines, int max_defines) {
+    struct utsname u;
+    static char shu_os_def[80], shu_arch_def[80];
+    if (!defines)
+        return ndefines;
+    if (ndefines + 2 > max_defines)
+        return ndefines;
+    if (uname(&u) != 0)
+        return ndefines;
+    snprintf(shu_os_def, sizeof shu_os_def, "SHUX_OS_%s", u.sysname);
+    snprintf(shu_arch_def, sizeof shu_arch_def, "SHUX_ARCH_%s", u.machine);
+    for (char *p = shu_os_def + 7; *p; p++)
+        *p = driver_ascii_toupper(*p);
+    for (char *p = shu_arch_def + 9; *p; p++)
+        *p = driver_ascii_toupper(*p);
+    defines[ndefines++] = shu_os_def;
+    defines[ndefines++] = shu_arch_def;
+    return ndefines;
+}
+
+/* G-02f-245：逻辑源 .x（真迁主循环）；seed 保留同语义 C 供产品 cc */
+int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines) {
     int ndefines = 0;
     const char *target_arg = NULL;
-    for (int i = 1; i < argc; i++) {
-        if (!argv[i])
+    int i;
+    if (argv == NULL)
+        return 0;
+    if (defines == NULL)
+        return 0;
+    if (max_defines <= 0)
+        return 0;
+    if (argc <= 0)
+        return 0;
+    for (i = 1; i < argc; i++) {
+        const char *arg = argv[i];
+        if (!arg)
             continue;
-        if (strcmp(argv[i], "-D") == 0) {
+        if (strcmp(arg, "-D") == 0) {
             if (i + 1 >= argc)
                 continue;
             if (ndefines < max_defines)
                 defines[ndefines++] = argv[i + 1];
             i++;
-        } else if (strncmp(argv[i], "-D", 2) == 0 && argv[i][2] != '\0') {
+        } else if (strncmp(arg, "-D", 2) == 0 && arg[2] != '\0') {
             if (ndefines < max_defines)
-                defines[ndefines++] = argv[i] + 2;
-        } else if (strcmp(argv[i], "-target") == 0 && i + 1 < argc) {
+                defines[ndefines++] = arg + 2;
+        } else if (strcmp(arg, "-target") == 0 && i + 1 < argc) {
             target_arg = argv[i + 1];
             i++;
-        } else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "-L") == 0 || strcmp(argv[i], "-O") == 0 ||
-                   strcmp(argv[i], "-backend") == 0) {
+        } else if (strcmp(arg, "-o") == 0 || strcmp(arg, "-L") == 0 || strcmp(arg, "-O") == 0 ||
+                   strcmp(arg, "-backend") == 0) {
             if (i + 1 < argc)
                 i++;
         }
     }
     if (target_arg && ndefines < max_defines) {
-        if (strstr(target_arg, "linux") != NULL)
-            defines[ndefines++] = "OS_LINUX";
-        else if (strstr(target_arg, "darwin") != NULL || strstr(target_arg, "apple") != NULL)
-            defines[ndefines++] = "OS_MACOS";
-        else if (strstr(target_arg, "freebsd") != NULL)
-            defines[ndefines++] = "OS_FREEBSD";
-        else if (strstr(target_arg, "windows") != NULL)
-            defines[ndefines++] = "OS_WINDOWS";
-    }
-    if (ndefines + 2 <= max_defines) {
-        struct utsname u;
-        static char shu_os_def[80], shu_arch_def[80];
-        if (uname(&u) == 0) {
-            snprintf(shu_os_def, sizeof shu_os_def, "SHUX_OS_%s", u.sysname);
-            snprintf(shu_arch_def, sizeof shu_arch_def, "SHUX_ARCH_%s", u.machine);
-            for (char *p = shu_os_def + 7; *p; p++)
-                *p = driver_ascii_toupper(*p);
-            for (char *p = shu_arch_def + 9; *p; p++)
-                *p = driver_ascii_toupper(*p);
-            defines[ndefines++] = shu_os_def;
-            defines[ndefines++] = shu_arch_def;
+        int k = (int)driver_target_arg_os_kind(target_arg);
+        if (k != 0) {
+            const char *lit = driver_os_define_lit(k);
+            if (lit)
+                defines[ndefines++] = lit;
         }
     }
+    if (ndefines + 2 <= max_defines)
+        ndefines = driver_argv_collect_append_uname_impl(defines, ndefines, max_defines);
     return ndefines;
 }
 
-/* G-02f-244：逻辑源 .x（门闩 + argc<=0）；seed 保留同语义 C 供产品 cc */
-int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines) {
-  if (argv == NULL) {
-    return 0;
-  }
-  if (defines == NULL) {
-    return 0;
-  }
-  if (max_defines <= 0) {
-    return 0;
-  }
-  if (argc <= 0) {
-    return 0;
-  }
-  {
-    return driver_argv_collect_defines_impl(argc, argv, defines, max_defines);
-  }
-  return 0;
+/* 兼容旧名：整函数实现已折叠为 pub */
+int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines, int max_defines) {
+    return driver_argv_collect_defines(argc, argv, defines, max_defines);
 }
 
 /** pipeline_gen.c / main.x：module num_funcs 与 main 下标。 */
