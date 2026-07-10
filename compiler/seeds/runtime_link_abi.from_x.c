@@ -1689,6 +1689,8 @@ int shux_ensure_runtime_panic_o(const char *argv0) {
  * 返回值：非 0 表示 freestanding 链启用。
  */
 /** G-02f-36：OS 门闩槽 — .x freestanding_enabled 读此，避免 .x 内 #if。 */
+/* G-02f-269 L2 host lit */
+#ifndef SHUX_LABI_HOST_LIT_FROM_X
 int shux_host_is_linux(void) {
 #if defined(__linux__)
     return 1;
@@ -1696,8 +1698,14 @@ int shux_host_is_linux(void) {
     return 0;
 #endif
 }
+#else
+int shux_host_is_linux(void);
+#endif
+
 
 /** G-02f-43：Apple aarch64 门闩槽 — .x resolve_target_arch 读此。 */
+/* G-02f-269 L2 host lit */
+#ifndef SHUX_LABI_HOST_LIT_FROM_X
 int shux_host_is_apple_aarch64(void) {
 #if defined(__APPLE__) && defined(__aarch64__)
     return 1;
@@ -1705,6 +1713,10 @@ int shux_host_is_apple_aarch64(void) {
     return 0;
 #endif
 }
+#else
+int shux_host_is_apple_aarch64(void);
+#endif
+
 
 
 int shux_link_freestanding_enabled(int driver_freestanding) {
