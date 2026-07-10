@@ -6318,7 +6318,14 @@ int labi_pthin_let_alias_slice_marker(void);
 #include "parser_asm_match_subject_slice.inc"
 #include "parser_asm_simd_builtin_slice.inc"
 #include "parser_asm_if_expr_slice.inc"
+/* G-02f-285 P4 as_suffix：默认 #include；hybrid 时在 pthin_expr_as_suffix.from_x.c */
+#ifndef SHUX_PTHIN_EXPR_AS_SUFFIX_FROM_X
 #include "parser_asm_as_suffix_slice.inc"
+#else
+void parser_asm_parse_as_suffix_into_slice_c(void *arena, struct parser_asm_slice_u8 *source,
+                                            struct parser_asm_parse_expr_result *out);
+int labi_pthin_expr_as_suffix_slice_marker(void);
+#endif
 /* G-02f-282 P4 primary+struct_lit：默认 #include；hybrid 时在 pthin_expr_primary.from_x.c
  * （primary 调用 finish_struct_lit 内 static parse_struct_lit_fields — 须同 TU） */
 #ifndef SHUX_PTHIN_EXPR_PRIMARY_FROM_X
@@ -6382,7 +6389,18 @@ void parser_asm_parse_logor_into_slice_c(void *arena, struct parser_asm_lexer le
                                         struct parser_asm_parse_expr_result *out);
 int labi_pthin_expr_binop_slice_marker(void);
 #endif
+/* G-02f-285 P4 ternary/assign：默认 #include；hybrid 时在 pthin_expr_ternary.from_x.c */
+#ifndef SHUX_PTHIN_EXPR_TERNARY_FROM_X
 #include "parser_asm_ternary_assign_slice.inc"
+#else
+void parser_asm_parse_ternary_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                          struct parser_asm_slice_u8 *source,
+                                          struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_assign_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                         struct parser_asm_slice_u8 *source,
+                                         struct parser_asm_parse_expr_result *out);
+int labi_pthin_expr_ternary_slice_marker(void);
+#endif
 #include "parser_asm_emit_heavy_stretch_slice.inc"
 struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lexer lex,
                                                             struct parser_asm_slice_u8 *source);

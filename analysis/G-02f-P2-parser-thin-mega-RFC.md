@@ -246,3 +246,4 @@ nm -g parser_asm_thin_glue.o | head
 | 2026-07-11 | **f-282 P4 primary 首册**：`pthin_expr_primary.*`（`finish_struct_lit`+`primary` 同 TU，因 static `parse_struct_lit_fields`）；`SHUX_PTHIN_EXPR_PRIMARY_FROM_X`；prefer hybrid **P1+P2+P3+P4primary+rest** |
 | 2026-07-11 | **f-283 P4 unary**：`pthin_expr_unary.*`（unary_slice.inc）；`SHUX_PTHIN_EXPR_UNARY_FROM_X`；prefer hybrid **P1–P4unary+rest** |
 | 2026-07-11 | **f-284 P4 binop**：`pthin_expr_binop.*`（term…logor 十级）；`SHUX_PTHIN_EXPR_BINOP_FROM_X`；prefer hybrid **P1–P4binop+rest** |
+| 2026-07-11 | **f-285 P4 收口**：`pthin_expr_as_suffix.*` + `pthin_expr_ternary.*`；`SHUX_PTHIN_EXPR_AS_SUFFIX_FROM_X` / `SHUX_PTHIN_EXPR_TERNARY_FROM_X`；prefer hybrid **P1–P4 全 + rest**（expr 册齐） |
