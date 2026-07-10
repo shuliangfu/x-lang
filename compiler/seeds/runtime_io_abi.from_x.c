@@ -113,8 +113,6 @@ int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFileView 
 
 /* G-02f-59 io helper protos */
 int32_t shux_fs_open_write_flags_impl(void);
-int32_t shux_fs_open_write_mode_impl(void);
-
 /* G-02f-58 helper protos */
 int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out);
 char *runtime_read_file_malloc_impl(const char *path, size_t *out_len);
@@ -314,10 +312,12 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
 int32_t shux_fs_open_write_flags_impl(void) {
     return (int32_t)(O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY);
 }
+/* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
-int32_t shux_fs_open_write_mode_impl(void) {
+int32_t shux_fs_open_write_mode(void) {
     return (int32_t)0644;
 }
+
 
 int32_t shux_fs_open_write_flags(void) {
   {
@@ -326,12 +326,6 @@ int32_t shux_fs_open_write_flags(void) {
   return 0;
 }
 
-int32_t shux_fs_open_write_mode(void) {
-  {
-    return shux_fs_open_write_mode_impl();
-  }
-  return 0;
-}
 
 int32_t std_fs_fs_open_read(uint8_t * path) {
   if ((path ==((uint8_t *)(0)))) {

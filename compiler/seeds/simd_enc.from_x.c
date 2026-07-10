@@ -1,4 +1,5 @@
 /* seeds/simd_enc.from_x.c — G-02f-7 product pure SIMD encode TU
+ * G-02f-120 true .x pure helpers.
  * G-02f-115 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
  * G-02f-111 helper gates.
@@ -38,17 +39,14 @@ int32_t simd_rbp_disp32(int32_t slot_off, int32_t lanes, int32_t esz) {
  * slot_off 为 lane0 距 fp 的字节距；lane 序号增大时地址升高、#off 减小，
  * 故 half1 = slot_off - 16（非 +16）；与 let 向量 init 的 [base+lane*esz] 一致。
  */
-int32_t simd_arm64_rbp_lea_off_128half_impl(int32_t slot_off, int32_t half, int32_t esz) {
+/* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t simd_arm64_rbp_lea_off_128half(int32_t slot_off, int32_t half, int32_t esz) {
     if (slot_off < 0 || esz <= 0 || half < 0)
         return slot_off;
     return slot_off - half * 4 * esz;
 }
-int32_t simd_arm64_rbp_lea_off_128half(int32_t slot_off, int32_t half, int32_t esz) {
-  {
-    return simd_arm64_rbp_lea_off_128half_impl(slot_off, half, esz);
-  }
-  return 0;
-}
+
+
 
 
 int32_t simd_append_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *bytes, int32_t n) {

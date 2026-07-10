@@ -1,4 +1,5 @@
 /* seeds/async_cps_codegen.from_x.c — G-02f-18 product TU
+ * G-02f-120 true .x pure helpers.
  * G-02f-111 helper gates.
  * G-02f-105 helper gates.
  * Product: src/async/async_cps_codegen.o; logic still C until full .x port.
@@ -335,7 +336,8 @@ int async_cps_expr_is_await_write(const struct ASTExpr *await_expr) {
 }
 
 /** callee 是否为 Future 等待（future_wait / runtime_wait_future / C 符号）。 */
-int async_cps_callee_is_future_wait_by_name_impl(const char *n) {
+/* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int async_cps_callee_is_future_wait_by_name(const char *n) {
     if (!n || !n[0])
         return 0;
     if (strcmp(n, "future_wait") == 0)
@@ -354,12 +356,8 @@ int async_cps_callee_is_future_wait_by_name_impl(const char *n) {
         return 1;
     return 0;
 }
-int async_cps_callee_is_future_wait_by_name(const char *n) {
-  {
-    return async_cps_callee_is_future_wait_by_name_impl(n);
-  }
-  return 0;
-}
+
+
 
 
 int async_cps_callee_is_future_wait_impl(const struct ASTFunc *callee) {

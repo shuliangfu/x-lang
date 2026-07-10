@@ -10,7 +10,6 @@
 extern "C" function seed_asm_debug_enabled_impl(): i32;
 extern "C" function seed_asm_emit_trace_enabled_impl(): i32;
 extern "C" function seed_elf_ctx_set_macho_leading_underscore_impl(elf_ctx: *u8, on: i32): void;
-extern "C" function seed_elf_ctx_code_len_impl(elf_ctx: *u8): i32;
 extern "C" function seed_asm_reject_empty_elf_text_impl(module: *u8, elf_ctx: *u8): i32;
 extern "C" function seed_platform_macho_write_macho_o_to_buf_impl(elf_ctx: *u8, out_buf: *u8): i32;
 extern "C" function seed_platform_coff_write_coff_o_to_buf_impl(elf_ctx: *u8, out_buf: *u8): i32;
@@ -30,13 +29,7 @@ function seed_elf_ctx_set_macho_leading_underscore(elf_ctx: *u8, on: i32): void 
   }
 }
 
-#[no_mangle]
-function seed_elf_ctx_code_len(elf_ctx: *u8): i32 {
-  unsafe {
-    return seed_elf_ctx_code_len_impl(elf_ctx);
-  }
-  return 0;
-}
+
 
 /* ---- G-02f-98：reject empty / platform writer 门闩 ---- */
 
@@ -82,6 +75,18 @@ function seed_asm_emit_trace_enabled(): i32 {
   unsafe {
     let e: *u8 = getenv("SHUX_ASM_EMIT_TRACE");
     if (e != 0) { return 1; }
+  }
+  return 0;
+}
+
+// G-02f-120：seed_elf_ctx_code_len 真迁 .x
+
+#[no_mangle]
+function seed_elf_ctx_code_len(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0) { return 0; }
+  unsafe {
+    let p: *i32 = elf_ctx as *i32;
+    return p[0];
   }
   return 0;
 }

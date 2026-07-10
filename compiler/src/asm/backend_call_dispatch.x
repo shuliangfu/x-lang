@@ -13,7 +13,6 @@ function backend_call_dispatch_x_doc_anchor(): i32 {
 
 extern "C" function glue_asm_string_lit_len_impl(arena: *u8, er: i32): i32;
 extern "C" function glue_asm_string_lit_into_impl(arena: *u8, er: i32, out: *u8): void;
-extern "C" function glue_call_param_is_f32_c_impl(arena: *u8, tr: i32): i32;
 extern "C" function glue_codegen_import_path_to_c_prefix_into_impl(path: *u8, buf: *u8, cap: i32): void;
 extern "C" function glue_asm_c_prefix_redundant_with_name_impl(pre: *u8, plen: i32, name: *u8, nlen: i32): i32;
 extern "C" function glue_asm_build_import_binding_call_sym_impl(pre: *u8, plen: i32, field: *u8, flen: i32, out: *u8): i32;
@@ -32,11 +31,7 @@ function glue_asm_string_lit_into(arena: *u8, er: i32, out: *u8): void {
   unsafe { glue_asm_string_lit_into_impl(arena, er, out); }
 }
 
-#[no_mangle]
-function glue_call_param_is_f32_c(arena: *u8, tr: i32): i32 {
-  unsafe { return glue_call_param_is_f32_c_impl(arena, tr); }
-  return 0;
-}
+
 
 
 
@@ -66,9 +61,6 @@ function glue_type_kind_to_suffix_c(kind: i32, out: *u8, cap: i32): i32 {
 // G-02f-109：+ overload/export_c/import path/heap redirect 薄门闩。
 
 extern "C" function glue_module_func_overload_count_c_impl(m: *u8, name: *u8, nlen: i32): i32;
-extern "C" function glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl(fname: *u8, nlen: i32): i32;
-extern "C" function glue_asm_append_export_c_suffix_impl(sym: *u8, slen: i32, cap: i32): i32;
-extern "C" function glue_asm_import_path_segment_count_impl(path: *u8, plen: i32): i32;
 extern "C" function glue_asm_import_path_slice_equal_impl(mod: *u8, ix: i32, off: i32, slen: i32, nm: *u8): i32;
 extern "C" function glue_asm_import_binding_name_equal_impl(mod: *u8, ix: i32, nm: *u8, nlen: i32): i32;
 extern "C" function glue_asm_import_segment_at_impl(mod: *u8, ix: i32, want: i32, ostr: *i32, olen: *i32): i32;
@@ -82,12 +74,9 @@ extern "C" function glue_sysv_x86_call_n_stack_c_impl(arena: *u8, call: i32, nar
 
 #[no_mangle]
 function glue_module_func_overload_count_c(m: *u8, name: *u8, nlen: i32): i32 { unsafe { return glue_module_func_overload_count_c_impl(m, name, nlen); } return 0; }
-#[no_mangle]
-function glue_asm_std_c_wrapper_fname_needs_export_c_suffix(fname: *u8, nlen: i32): i32 { unsafe { return glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl(fname, nlen); } return 0; }
-#[no_mangle]
-function glue_asm_append_export_c_suffix(sym: *u8, slen: i32, cap: i32): i32 { unsafe { return glue_asm_append_export_c_suffix_impl(sym, slen, cap); } return 0; }
-#[no_mangle]
-function glue_asm_import_path_segment_count(path: *u8, plen: i32): i32 { unsafe { return glue_asm_import_path_segment_count_impl(path, plen); } return 0; }
+
+
+
 #[no_mangle]
 function glue_asm_import_path_slice_equal(mod: *u8, ix: i32, off: i32, slen: i32, nm: *u8): i32 { unsafe { return glue_asm_import_path_slice_equal_impl(mod, ix, off, slen, nm); } return 0; }
 #[no_mangle]
@@ -183,4 +172,63 @@ function glue_asm_prefix_is_fmt_or_debug(pre: *u8, pre_len: i32): i32 {
     }
   }
   return 0;
+}
+
+// G-02f-120：call_dispatch pure helpers 真迁 .x
+
+extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+
+#[no_mangle]
+function glue_call_param_is_f32_c(arena: *u8, tr: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (tr <= 0) { return 0; }
+  unsafe {
+    let k: i32 = pipeline_type_kind_ord_at(arena, tr);
+    // GLUE_TYPE_F32_ORD = 14
+    if (k == 14) { return 1; }
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_asm_std_c_wrapper_fname_needs_export_c_suffix(fname: *u8, nlen: i32): i32 {
+  if (fname == 0) { return 0; }
+  if (nlen <= 0) { return 0; }
+  if (nlen >= 2) {
+    if (fname[nlen - 2] == 95) { // '_'
+      if (fname[nlen - 1] == 99) { // 'c'
+        return 0;
+      }
+    }
+  }
+  if (nlen >= 4) {
+    if (fname[0]==110 && fname[1]==101 && fname[2]==116 && fname[3]==95) { return 1; } // net_
+  }
+  if (nlen >= 3) {
+    if (fname[0]==102 && fname[1]==115 && fname[2]==95) { return 1; } // fs_
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_asm_append_export_c_suffix(sym: *u8, slen: i32, cap: i32): i32 {
+  if (sym == 0) { return slen; }
+  if (slen <= 0) { return slen; }
+  if (slen + 2 >= cap) { return slen; }
+  sym[slen] = 95; // '_'
+  sym[slen + 1] = 99; // 'c'
+  return slen + 2;
+}
+
+#[no_mangle]
+function glue_asm_import_path_segment_count(path: *u8, plen: i32): i32 {
+  if (path == 0) { return 0; }
+  if (plen <= 0) { return 0; }
+  let n: i32 = 1;
+  let ii: i32 = 0;
+  while (ii < plen) {
+    if (path[ii] == 46) { n = n + 1; } // '.'
+    ii = ii + 1;
+  }
+  return n;
 }

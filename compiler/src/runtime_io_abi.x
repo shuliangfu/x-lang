@@ -12,7 +12,6 @@ extern "C" function close(fd: i32): i32;
 extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function shux_fs_open_write_flags_impl(): i32;
-extern "C" function shux_fs_open_write_mode_impl(): i32;
 extern "C" function shux_read_file_into_path_impl(path: *u8, buf: *u8, cap: i64): i32;
 extern "C" function shux_write_path_bytes_impl(path: *u8, data: *u8, len: i64): i32;
 extern "C" function runtime_release_file_view_impl(view: *u8): void;
@@ -43,13 +42,7 @@ function shux_fs_open_write_flags(): i32 {
   return 0;
 }
 
-#[no_mangle]
-function shux_fs_open_write_mode(): i32 {
-  unsafe {
-    return shux_fs_open_write_mode_impl();
-  }
-  return 0;
-}
+
 
 #[no_mangle]
 function std_fs_fs_open_write(path: *u8): i32 {
@@ -225,4 +218,12 @@ function shux_runtime_file_view_read_malloc(fd: i32, size: i64, out: *u8): i32 {
     return shux_runtime_file_view_read_malloc_impl(fd, size, out);
   }
   return 0 - 1;
+}
+
+// G-02f-120：shux_fs_open_write_mode 真迁 .x
+
+#[no_mangle]
+function shux_fs_open_write_mode(): i32 {
+  // 0644
+  return 420;
 }

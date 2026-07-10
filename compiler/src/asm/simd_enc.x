@@ -15,7 +15,6 @@ function simd_enc_x_doc_anchor(): i32 {
 
 // G-02f-108：+ rbp/append/x86 movups/padd 薄门闩。
 
-extern "C" function simd_arm64_rbp_lea_off_128half_impl(slot: i32, half: i32, esz: i32): i32;
 extern "C" function simd_append_impl(elf: *u8, bytes: *u8, n: i32): i32;
 extern "C" function simd_append_disp32_impl(elf: *u8, disp: i32): i32;
 extern "C" function simd_x86_movups_xmm0_from_rbp_impl(elf: *u8, disp: i32): i32;
@@ -33,11 +32,7 @@ extern "C" function simd_x86_vpsubd_ymm0_ymm1_impl(elf: *u8): i32;
 /* ---- G-02f-108：simd_enc low-level helpers 门闩 ---- */
 
 
-#[no_mangle]
-function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): i32 {
-  unsafe { return simd_arm64_rbp_lea_off_128half_impl(slot, half, esz); }
-  return 0;
-}
+
 
 #[no_mangle]
 function simd_append(elf: *u8, bytes: *u8, n: i32): i32 {
@@ -174,4 +169,14 @@ function simd_arm64_ins_v1_from_v0_s(dst_lane: i32, src_lane: i32): u32 {
   let s: i32 = src_lane & 3;
   let enc: i32 = 1846018048 | (d << 19) | (s << 13) | 1025;
   return enc;
+}
+
+// G-02f-120：simd_arm64_rbp_lea_off_128half 真迁 .x
+
+#[no_mangle]
+function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): i32 {
+  if (slot < 0) { return slot; }
+  if (esz <= 0) { return slot; }
+  if (half < 0) { return slot; }
+  return slot - half * 4 * esz;
 }

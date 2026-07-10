@@ -1,4 +1,5 @@
 /* seeds/user_asm_seed_bridge.from_x.c — G-02f-15 product TU
+ * G-02f-120 true .x pure helpers.
  * G-02f-97 pure helper gates; G-02f-98 reject/empty/macho/coff writer gates.
  * Product object from this seed; logic still C until full .x port.
  */
@@ -210,17 +211,14 @@ int32_t platform_elf_elf_resolve_patches(void *elf_ctx) {
 }
 
 /** 读 ElfCodegenCtx.code_len（前缀字段；与 platform/elf.x / PipelineElfCtxAccess 一致）。 */
-int32_t seed_elf_ctx_code_len_impl(const void *elf_ctx) {
+/* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t seed_elf_ctx_code_len(const void *elf_ctx) {
   if (!elf_ctx)
     return 0;
   return *(const int32_t *)elf_ctx;
 }
-int32_t seed_elf_ctx_code_len(const void *elf_ctx) {
-  {
-    return seed_elf_ctx_code_len_impl(elf_ctx);
-  }
-  return 0;
-}
+
+
 
 
 extern int32_t pipeline_elf_ctx_total_code_len(uint8_t *ctx_bytes);

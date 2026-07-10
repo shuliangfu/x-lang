@@ -1,4 +1,5 @@
 /* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-120 true .x pure helpers.
  * G-02f-114 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
  * G-02f-110 helper gates.
@@ -283,17 +284,14 @@ int32_t glue_emit_one_call_arg_elf_c(struct ast_ASTArena *arena, struct platform
                                             struct backend_AsmFuncCtx *ctx, int32_t ta);
 
 /** 形参/实参 type_ref 是否为 f32。 */
-int32_t glue_call_param_is_f32_c_impl(struct ast_ASTArena *arena, int32_t type_ref) {
+/* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
   if (!arena || type_ref <= 0)
     return 0;
   return pipeline_type_kind_ord_at(arena, type_ref) == GLUE_TYPE_F32_ORD ? 1 : 0;
 }
-int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
-  {
-    return glue_call_param_is_f32_c_impl(arena, type_ref);
-  }
-  return 0;
-}
+
+
 
 
 /** SysV x86_64：第 arg_index 个实参的寄存器/栈归属（0=gp 1=xmm 2=stack）。 */
@@ -749,7 +747,8 @@ int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *n
  * net_/fs_ 模块函数定义符号与 pipeline_asm_redirect_std_c_wrapper_sym 一致：补 _c 后缀。
  * 调用侧 net_foo → net_foo_c；定义侧须同名，否则 net.o ld -r 合并后内部 U 符号无法解析。
  */
-int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl(const uint8_t *fname, int32_t fname_len) {
+/* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(const uint8_t *fname, int32_t fname_len) {
   if (!fname || fname_len <= 0)
     return 0;
   if (fname_len >= 2 && fname[fname_len - 2] == '_' && fname[fname_len - 1] == 'c')
@@ -760,28 +759,21 @@ int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl(const uint8_t *f
     return 1;
   return 0;
 }
-int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(const uint8_t *fname, int32_t fname_len) {
-  {
-    return glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl(fname, fname_len);
-  }
-  return 0;
-}
+
+
 
 
 /** 在 sym[sym_len] 处追加 _c；空间不足则返回原 sym_len。 */
-int32_t glue_asm_append_export_c_suffix_impl(uint8_t *sym, int32_t sym_len, int32_t cap) {
+/* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap) {
   if (!sym || sym_len <= 0 || sym_len + 2 >= cap)
     return sym_len;
   sym[sym_len] = '_';
   sym[sym_len + 1] = 'c';
   return sym_len + 2;
 }
-int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap) {
-  {
-    return glue_asm_append_export_c_suffix_impl(sym, sym_len, cap);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -849,7 +841,8 @@ int32_t glue_asm_build_func_export_sym_c(struct ast_Module *m, struct ast_ASTAre
 }
 
 /** import 路径缓冲区中 '.' 分段数。 */
-int32_t glue_asm_import_path_segment_count_impl(const uint8_t *path, int32_t path_len) {
+/* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len) {
   int32_t n;
   int32_t ii;
   if (!path || path_len <= 0)
@@ -861,12 +854,8 @@ int32_t glue_asm_import_path_segment_count_impl(const uint8_t *path, int32_t pat
   }
   return n;
 }
-int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len) {
-  {
-    return glue_asm_import_path_segment_count_impl(path, path_len);
-  }
-  return 0;
-}
+
+
 
 
 /** 比较 module import 路径切片与外部字节序列是否相等。 */
