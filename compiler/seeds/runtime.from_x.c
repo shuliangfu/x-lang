@@ -138,9 +138,8 @@ int driver_argv_parse_x_emit_c(int argc, char **argv);
 int driver_run_x_emit_c(void);
 int driver_fmt_one_file(const uint8_t *path, int path_len);
 int main_entry(int argc, char **argv);
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
+/* G-02f-302 rest diag errno → rt_diag_errno hybrid */
+#ifndef SHUX_RT_DIAG_ERRNO_FROM_X
 const char *runtime_diag_code_for_kind(const char *kind) {
     if (!kind)
         return SHUX_DIAG_CODE_BUILD_BLD001;
@@ -152,6 +151,9 @@ const char *runtime_diag_code_for_kind(const char *kind) {
         return SHUX_DIAG_CODE_BUILD_BLD001;
     return NULL;
 }
+#else
+const char *runtime_diag_code_for_kind(const char *kind);
+#endif
 
 
 /* G-02f-301 R10 → rt_entry hybrid */
@@ -367,8 +369,8 @@ void driver_unlink_failed_output(const char *out_path);
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-302 rest diag errno → rt_diag_errno hybrid */
+#ifndef SHUX_RT_DIAG_ERRNO_FROM_X
 void runtime_diag_errno(const char *file, const char *kind, const char *op) {
     int saved_errno = errno;
     const char *err = strerror(saved_errno);
@@ -386,10 +388,6 @@ void runtime_diag_errno(const char *file, const char *kind, const char *op) {
                      err ? err : "unknown error");
     }
 }
-
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
 
 void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path) {
     int saved_errno = errno;
@@ -415,10 +413,6 @@ void runtime_diag_errno_path(const char *file, const char *kind, const char *op,
     runtime_diag_errno(file, resolved_kind, op);
 }
 
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
 void runtime_diag_errno_path_pair(const char *file, const char *kind, const char *op,
                                          const char *from_path, const char *to_path) {
     int saved_errno = errno;
@@ -442,18 +436,22 @@ void runtime_diag_errno_path_pair(const char *file, const char *kind, const char
     }
 }
 
-
-
-
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((unused))
 #endif
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void runtime_diag_cli_usage_note(const char *argv0) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "usage: %s [ -L <lib> ] [ -target <triple> ] [ -D <sym> ] [ -O 0|1|2|3|s ] [ -flto ] <file.x> [ -o <out> ]",
                  argv0 ? argv0 : "shux");
 }
+#else
+void runtime_diag_errno(const char *file, const char *kind, const char *op);
+void runtime_diag_errno_path(const char *file, const char *kind, const char *op, const char *path);
+void runtime_diag_errno_path_pair(const char *file, const char *kind, const char *op, const char *from_path,
+                                  const char *to_path);
+void runtime_diag_cli_usage_note(const char *argv0);
+int labi_rt_diag_errno_slice_marker(void);
+#endif
 
 
 
