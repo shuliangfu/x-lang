@@ -1,8 +1,8 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70/89 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..70/89/91 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
  *         merge invoke_cc + linux_harden + remaining link gates.
  * .x covers: + shux_invoke_cc, append_linux_link_harden; link_abi exported set nearly gated.
- * G-02f-89: path sep + lib_root + link_diag thin helpers gated over _impl.
+ * G-02f-89/91: path/diag + needs/argv/path-copy helpers gated over _impl.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -921,11 +921,18 @@ const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_ro
  * 参数：path 候选；resolved 输出缓冲（PATH_MAX）。
  * 返回值：resolved 或 NULL。
  */
-static const char *shux_runtime_o_realpath_if_exists(const char *path, char *resolved) {
+const char * shux_runtime_o_realpath_if_exists_impl(const char *path, char *resolved) {
     if (!path || !path[0] || !resolved || realpath(path, resolved) == NULL)
         return NULL;
     return asm_link_obj_skip_missing(resolved);
 }
+const char * shux_runtime_o_realpath_if_exists(const char *path, char *resolved) {
+  {
+    return shux_runtime_o_realpath_if_exists_impl(path, resolved);
+  }
+  return ((const char *)0);
+}
+
 
 /**
  * runtime_panic.o 路径；优先 cwd（runtime_panic.o / compiler/runtime_panic.o），再 argv0 目录。
@@ -1111,7 +1118,7 @@ const char *shux_freestanding_io_o_path(const char *argv0) {
     return buf;
 }
 
-static int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz) {
+int shux_runtime_compiler_o_path_copy_impl(const char *argv0, const char *leaf, char *out, size_t out_sz) {
     char comp_dir[PATH_MAX];
     int nn;
     if (!out || out_sz == 0 || !leaf || !leaf[0])
@@ -1126,6 +1133,13 @@ static int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf
     }
     return 0;
 }
+int shux_runtime_compiler_o_path_copy(const char *argv0, const char *leaf, char *out, size_t out_sz) {
+  {
+    return shux_runtime_compiler_o_path_copy_impl(argv0, leaf, out, out_sz);
+  }
+  return 0;
+}
+
 
 /**
  * seed asm 用户程序：std.io 桩 .o（与 io.o 同链）；见 seeds/runtime_asm_io_stubs.from_x.c。
@@ -3988,7 +4002,8 @@ const char *asm_link_obj_skip_missing(const char *path) {
 int link_abi_user_o_needs_std_heap_api(const char *user_o);
 int link_abi_user_o_needs_heap_user_syms(const char *user_o);
 int link_abi_user_o_needs_async_scheduler(const char *user_o);
-static int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
+int link_abi_link_needs_std_heap_import_impl(const char *user_o, const char **argv, int la);
+int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la);
 
 /**
  * 调用系统 cc 将多个 C 文件编译链接为可执行文件（fork/exec + 可选 strip）。
@@ -4957,7 +4972,7 @@ int link_abi_ld_argv_entry_is_obj(const char *s) {
  * 用户主 .o 或已入链 argv 中的 std/*.o 是否仍引用 heap_*_c。
  * hash/sort 等经 libc.x 编译，hello 全量 std 链时 user.o 本身可无 heap 符号。
  */
-static int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int la) {
+int link_abi_link_needs_heap_user_c_impl(const char *user_o, const char **argv, int la) {
     /* G-02f-37：单路径探针 .x link_abi_user_o_needs_heap_user_syms；argv 循环仍 C。 */
     int i;
     if (user_o && user_o[0] && link_abi_user_o_needs_heap_user_syms(user_o))
@@ -4972,6 +4987,13 @@ static int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv
     }
     return 0;
 }
+int link_abi_link_needs_heap_user_c(const char *user_o, const char **argv, int la) {
+  {
+    return link_abi_link_needs_heap_user_c_impl(user_o, argv, la);
+  }
+  return 0;
+}
+
 
 int shux_freestanding_user_o_needs_io(const char *user_o) {
   (void)(({   {
@@ -5211,7 +5233,7 @@ int link_abi_user_o_needs_heap_user_syms(const char *user_o) {
   return 0;
 }
 
-static int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la) {
+int link_abi_link_needs_std_heap_import_impl(const char *user_o, const char **argv, int la) {
     /* G-02f-37：单路径探针 .x link_abi_user_o_needs_std_heap_api；argv 循环仍 C。 */
     int i;
     if (user_o && user_o[0] && link_abi_user_o_needs_std_heap_api(user_o))
@@ -5226,6 +5248,13 @@ static int link_abi_link_needs_std_heap_import(const char *user_o, const char **
     }
     return 0;
 }
+int link_abi_link_needs_std_heap_import(const char *user_o, const char **argv, int la) {
+  {
+    return link_abi_link_needs_std_heap_import_impl(user_o, argv, la);
+  }
+  return 0;
+}
+
 
 /**
  * 判断用户 .o 是否引用 std.map API（按需链 map.o）。
@@ -5286,7 +5315,7 @@ int link_abi_user_o_needs_std_test(const char *user_o) {
 /**
  * 检查 path 是否已在 ld argv 中（realpath 去重，避免 /src/std/... 与 -L 解析路径重复入链）。
  */
-static int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path) {
+int link_abi_asm_ld_argv_has_obj_impl(const char **argv, int la, const char *path) {
     int k;
     /** 勿放栈上：nostdlib shux_asm 在 elf emit 后主栈已深，8KiB×递归 realpath 易 SIGSEGV。 */
     static char abs_new[PATH_MAX];
@@ -5312,11 +5341,18 @@ static int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *p
     }
     return 0;
 }
+int link_abi_asm_ld_argv_has_obj(const char **argv, int la, const char *path) {
+  {
+    return link_abi_asm_ld_argv_has_obj_impl(argv, la, path);
+  }
+  return 0;
+}
+
 
 /**
  * 将已解析 .o 路径拷入 bank 后追加到 ld argv（避免静态路径缓冲被后续解析覆盖）。
  */
-static void link_abi_asm_ld_argv_push_stable(ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la,
+void link_abi_asm_ld_argv_push_stable_impl(ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la,
     const char *p) {
     if (!p || !p[0] || !la || *la >= max_la - 1)
         return;
@@ -5329,8 +5365,15 @@ static void link_abi_asm_ld_argv_push_stable(ShuAsmLdPathBank *bank, const char 
         return;
     argv[(*la)++] = p;
 }
+void link_abi_asm_ld_argv_push_stable(ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la,
+    const char *p) {
+  {
+    link_abi_asm_ld_argv_push_stable_impl(bank, argv, la, max_la, p);
+  }
+}
 
-static int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
+
+int link_abi_asm_ld_push_obj_impl(const char *primary, const char *link_argv0, const char *rel,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, int *flag_out) {
     const char *p = NULL;
@@ -5369,6 +5412,15 @@ static int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0,
         *flag_out = 1;
     return 1;
 }
+int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, int *flag_out) {
+  {
+    return link_abi_asm_ld_push_obj_impl(primary, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
+  }
+  return 0;
+}
+
 
 /**
  * F-03：仅当对应 std/*.o 已入链时才追加 runtime_*_glue.o，避免 glue 引用 log_write_c 等未定义符号。

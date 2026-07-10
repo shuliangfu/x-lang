@@ -5,6 +5,7 @@
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
 // C 尾：invoke_cc/ld 主体、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
 // G-02f-89：+ path sep / lib_root / link_diag 薄 helper 门闩。
+// G-02f-91：+ needs_heap / argv_has_obj / push_obj / runtime_o path 门闩。
 // G-02f-83：+ driver_copy_cstr_n / shux_link_obj_needs_undef_sym 门闩。
 // G-02f-76：ensure_* 冷启动源统一 seeds/*.from_x.c（修 f-75 已删 wrapper 的 ensure 空洞）。
 // G-02f-70：+ shux_invoke_cc / linux_link_harden 门闩（link_abi 导出集基本门闩化）。
@@ -82,6 +83,14 @@ extern "C" function shux_asm_ld_lib_root_ptr_usable_impl(p: *u8): i32;
 extern "C" function shux_asm_ld_lib_root_default_impl(root_buf: *u8): void;
 extern "C" function shux_linux_host_gcc_path_impl(): *u8;
 extern "C" function shux_linux_ld_child_path_impl(): void;
+
+extern "C" function shux_runtime_o_realpath_if_exists_impl(path: *u8, resolved: *u8): *u8;
+extern "C" function shux_runtime_compiler_o_path_copy_impl(argv0: *u8, leaf: *u8, out: *u8, out_sz: i64): i32;
+extern "C" function link_abi_link_needs_heap_user_c_impl(user_o: *u8, argv: *u8, la: i32): i32;
+extern "C" function link_abi_link_needs_std_heap_import_impl(user_o: *u8, argv: *u8, la: i32): i32;
+extern "C" function link_abi_asm_ld_argv_has_obj_impl(argv: *u8, la: i32, path: *u8): i32;
+extern "C" function link_abi_asm_ld_argv_push_stable_impl(bank: *u8, argv: *u8, la: *i32, max_la: i32, p: *u8): void;
+extern "C" function link_abi_asm_ld_push_obj_impl(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flag_out: *i32): i32;
 
 #[no_mangle]
 function shux_forward_main_to_main_entry(argc: i32, argv: *u8): i32 {
@@ -2146,5 +2155,62 @@ function shux_linux_ld_child_path(): void {
   unsafe {
     shux_linux_ld_child_path_impl();
   }
+}
+
+/* ---- G-02f-91：needs_heap / argv has+push / runtime_o path 门闩 ---- */
+
+#[no_mangle]
+function shux_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8 {
+  unsafe {
+    return shux_runtime_o_realpath_if_exists_impl(path, resolved);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function shux_runtime_compiler_o_path_copy(argv0: *u8, leaf: *u8, out: *u8, out_sz: i64): i32 {
+  unsafe {
+    return shux_runtime_compiler_o_path_copy_impl(argv0, leaf, out, out_sz);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_link_needs_heap_user_c(user_o: *u8, argv: *u8, la: i32): i32 {
+  unsafe {
+    return link_abi_link_needs_heap_user_c_impl(user_o, argv, la);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_link_needs_std_heap_import(user_o: *u8, argv: *u8, la: i32): i32 {
+  unsafe {
+    return link_abi_link_needs_std_heap_import_impl(user_o, argv, la);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_asm_ld_argv_has_obj(argv: *u8, la: i32, path: *u8): i32 {
+  unsafe {
+    return link_abi_asm_ld_argv_has_obj_impl(argv, la, path);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function link_abi_asm_ld_argv_push_stable(bank: *u8, argv: *u8, la: *i32, max_la: i32, p: *u8): void {
+  unsafe {
+    link_abi_asm_ld_argv_push_stable_impl(bank, argv, la, max_la, p);
+  }
+}
+
+#[no_mangle]
+function link_abi_asm_ld_push_obj(primary: *u8, link_argv0: *u8, rel: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flag_out: *i32): i32 {
+  unsafe {
+    return link_abi_asm_ld_push_obj_impl(primary, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, flag_out);
+  }
+  return 0;
 }
 
