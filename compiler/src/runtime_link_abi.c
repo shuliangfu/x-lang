@@ -1471,7 +1471,7 @@ int shux_ensure_runtime_asm_io_stubs_o(const char *argv0) {
 }
 
 /**
- * 若 runtime_process_argv.o 尚不存在则用 cc -c 从 src/asm/runtime_process_argv.c 生成到 shux 同目录，
+ * 若 runtime_process_argv.o 尚不存在则用 cc -c 从 src/asm/runtime_process_argv.inc 生成到 shux 同目录，
  * 以便链 process.o 时提供 shux_process_argc/argv 与 process_shux_argc_get。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
@@ -1489,7 +1489,7 @@ int shux_ensure_runtime_process_argv_o(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_process_argv.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_process_argv.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_process_argv.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_process_argv", src_c);
         return -1;
     }
@@ -1728,7 +1728,7 @@ int shux_ensure_runtime_heap_user_o(const char *argv0) {
 }
 
 /**
- * 若 runtime_time_os.o 尚不存在则用 cc -c 从 src/asm/runtime_time_os.c 生成到 shux 同目录。
+ * 若 runtime_time_os.o 尚不存在则用 cc -c 从 src/asm/runtime_time_os.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -1745,7 +1745,7 @@ int shux_ensure_runtime_time_os_o(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_time_os.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_time_os.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_time_os.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_time_os", src_c);
         return -1;
     }
@@ -2118,7 +2118,7 @@ int shux_ensure_runtime_net_udp_batch_o(const char *argv0) {
 }
 
 /**
- * 若 runtime_net_workers.o 尚不存在则用 cc -c 从 src/asm/runtime_net_workers.c 生成到 shux 同目录。
+ * 若 runtime_net_workers.o 尚不存在则用 cc -c 从 src/asm/runtime_net_workers.inc 生成到 shux 同目录。
  * 参数：argv0 用于解析 compiler 目录。
  * 返回值：0 成功，-1 失败并已写 stderr。
  */
@@ -2135,7 +2135,7 @@ int shux_ensure_runtime_net_workers_o(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_net_workers.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_net_workers.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_net_workers.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_net_workers", src_c);
         return -1;
     }
@@ -2339,7 +2339,7 @@ int shux_ensure_runtime_tls_mbedtls_bio_o(const char *argv0) {
     }
     if ((size_t)snprintf(out_o, sizeof out_o, "%s/runtime_tls_mbedtls_bio.o", comp) >= sizeof out_o)
         return -1;
-    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_tls_mbedtls_bio.c", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
+    if ((size_t)snprintf(src_c, sizeof src_c, "%s/src/asm/runtime_tls_mbedtls_bio.inc", comp) >= sizeof src_c || access(src_c, R_OK) != 0) {
         link_diag_runtime_source_missing("runtime_tls_mbedtls_bio", src_c);
         return -1;
     }

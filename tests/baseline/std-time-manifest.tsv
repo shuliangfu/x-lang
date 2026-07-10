@@ -20,7 +20,7 @@ api_sleep_us	api	sleep_us	std/time/mod.x	core	睡眠 us
 api_sleep_ms	api	sleep_ms	std/time/mod.x	core	睡眠 ms
 api_sleep_sec	api	sleep_sec	std/time/mod.x	core	睡眠 sec
 api_duration_ns	api	duration_ns	std/time/mod.x	core	纯算术差
-impl_time_runtime	file	compiler/src/asm/runtime_time_os.c	compiler/src/asm/runtime_time_os.c	impl	F-ZC OS syscall runtime
+impl_time_runtime	file	compiler/src/asm/runtime_time_os.inc	compiler/src/asm/runtime_time_os.inc	impl	F-ZC OS syscall runtime
 impl_x	file	std/time/time.x	std/time/time.x	impl	派生与烟测
 impl_readme	file	std/time/README.md	std/time/README.md	doc	模块说明
 lib	script	lib/std-time.sh	tests/lib/std-time.sh	-	共享库

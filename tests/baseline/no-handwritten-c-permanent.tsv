@@ -60,17 +60,10 @@ file	compiler/src/asm/runtime_lexer_glue.c
 file	compiler/src/asm/runtime_log_os.c
 file	compiler/src/asm/runtime_lsp_glue.c
 file	compiler/src/asm/runtime_math_libm.c
-file	compiler/src/asm/runtime_net_addr_fast.c
-file	compiler/src/asm/runtime_net_dns_fast.c
-file	compiler/src/asm/runtime_net_io_batch_fast.c
-file	compiler/src/asm/runtime_net_ipv6_fast.c
-file	compiler/src/asm/runtime_net_sock_fast.c
 file	compiler/src/asm/runtime_net_udp_batch.c
-file	compiler/src/asm/runtime_net_workers.c
 file	compiler/src/asm/runtime_panic.c
 file	compiler/src/asm/runtime_panic_arm64.c
 file	compiler/src/asm/runtime_path_fast.c
-file	compiler/src/asm/runtime_process_argv.c
 file	compiler/src/asm/runtime_process_os_glue.c
 file	compiler/src/asm/runtime_queue_contention.c
 file	compiler/src/asm/runtime_scheduler_glue.c
@@ -78,8 +71,6 @@ file	compiler/src/asm/runtime_sqlite_glue.c
 file	compiler/src/asm/runtime_sync_lock_diag_tls.c
 file	compiler/src/asm/runtime_sync_os.c
 file	compiler/src/asm/runtime_thread_glue.c
-file	compiler/src/asm/runtime_time_os.c
-file	compiler/src/asm/runtime_tls_mbedtls_bio.c
 file	compiler/src/asm/simd_enc.c
 file	compiler/src/asm/simd_loop.c
 file	compiler/src/asm/user_asm_seed_bridge.c

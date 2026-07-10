@@ -139,8 +139,8 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	ld -r -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
 	rm -f ../std/runtime/runtime_core.o
 
-# std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue C 实现由 runtime_net_*_fast.c 提供（F-闭合）。
-../std/net/net.o: ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x src/asm/runtime_net_dns_fast.c src/asm/runtime_net_io_batch_fast.c src/asm/runtime_net_addr_fast.c src/asm/runtime_net_ipv6_fast.c src/asm/runtime_net_sock_fast.c
+# std.net：F-04 v10～v14 纯 .x（F-ZC）；OS glue 由 runtime_net_*_fast.inc 提供（G-02e-18）。
+../std/net/net.o: ../std/net/alpn.x ../std/net/dns.x ../std/net/io_batch.x ../std/net/addr.x ../std/net/ipv6.x ../std/net/sock.x ../std/net/udp.x ../std/net/tcp.x ../std/net/udp_batch.x ../std/net/workers.x src/asm/runtime_net_dns_fast.inc src/asm/runtime_net_io_batch_fast.inc src/asm/runtime_net_addr_fast.inc src/asm/runtime_net_ipv6_fast.inc src/asm/runtime_net_sock_fast.inc scripts/cc_inc_tu.sh
 	@objs=""; \
 	shux="$${SHUX:-}"; \
 	if [ -z "$$shux" ] || [ ! -x "$$shux" ]; then \
@@ -154,11 +154,11 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 	  sh scripts/shux_compile_std_x.sh $$shux ../std/net/$$x.x ../std/net/$$x.o || exit 1; \
 	  objs="$$objs ../std/net/$$x.o"; \
 	  done; \
-	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_dns_fast.o src/asm/runtime_net_dns_fast.c && \
-	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_io_batch_fast.o src/asm/runtime_net_io_batch_fast.c && \
-	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_addr_fast.o src/asm/runtime_net_addr_fast.c && \
-	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_ipv6_fast.o src/asm/runtime_net_ipv6_fast.c && \
-	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o ../std/net/net_sock_fast.o src/asm/runtime_net_sock_fast.c && \
+	  sh scripts/cc_inc_tu.sh src/asm/runtime_net_dns_fast.inc ../std/net/net_dns_fast.o && \
+	  sh scripts/cc_inc_tu.sh src/asm/runtime_net_io_batch_fast.inc ../std/net/net_io_batch_fast.o && \
+	  sh scripts/cc_inc_tu.sh src/asm/runtime_net_addr_fast.inc ../std/net/net_addr_fast.o && \
+	  sh scripts/cc_inc_tu.sh src/asm/runtime_net_ipv6_fast.inc ../std/net/net_ipv6_fast.o && \
+	  sh scripts/cc_inc_tu.sh src/asm/runtime_net_sock_fast.inc ../std/net/net_sock_fast.o && \
 	  ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $$objs ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o && \
 	  rm -f ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o ../std/net/net_sock_fast.o; \
 	else \
@@ -784,9 +784,9 @@ runtime_random_fill.o: src/asm/runtime_random_fill.inc scripts/cc_inc_tu.sh
 runtime_compress_zlib_glue.o: src/asm/runtime_compress_zlib_glue.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_compress_zlib_glue.inc $@
 
-# F-ZC：time OS syscall；与 time.o 一并链入（见 runtime_time_os.c）
-runtime_time_os.o: src/asm/runtime_time_os.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：time OS syscall；与 time.o 一并链入（G-02e-18：.inc + cc_inc_tu）
+runtime_time_os.o: src/asm/runtime_time_os.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_time_os.inc $@
 
 # F-ZC：queue 竞争烟测 pthread；与 queue.o 一并链入（见 runtime_queue_contention.c）
 runtime_queue_contention.o: src/asm/runtime_queue_contention.c
@@ -824,9 +824,9 @@ runtime_channel_glue.o: src/asm/runtime_channel_glue.c
 runtime_net_udp_batch.o: src/asm/runtime_net_udp_batch.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-# F-ZC：net accept worker 线程入口；与 net.o 一并链入（见 runtime_net_workers.c）
-runtime_net_workers.o: src/asm/runtime_net_workers.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：net accept worker 线程入口；与 net.o 一并链入（G-02e-18：.inc + cc_inc_tu）
+runtime_net_workers.o: src/asm/runtime_net_workers.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_net_workers.inc $@
 
 # F-ZC：sync Mutex/RwLock/Condvar + 锁诊断 TLS；与 sync.o 一并链入（Unix 须 -lpthread）
 runtime_sync_os.o: src/asm/runtime_sync_os.c
@@ -847,9 +847,10 @@ runtime_scheduler_glue.o: src/asm/runtime_scheduler_glue.c src/asm/async_net_fs.
 runtime_http_glue.o: src/asm/http/runtime_http_glue.c
 	$(CC) $(CFLAGS) -Isrc/asm/http -c -o $@ $<
 
-# F-ZC：mbedTLS BIO 胶层；net-o-mbedtls 时 ld -r 并入 tls_mbedtls.o
-runtime_tls_mbedtls_bio.o: src/asm/runtime_tls_mbedtls_bio.c
-	$(CC) $(CFLAGS) -I/opt/homebrew/opt/mbedtls/include -c -o $@ $< 2>/dev/null || $(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：mbedTLS BIO 胶层；net-o-mbedtls 时 ld -r 并入 tls_mbedtls.o（G-02e-18 .inc）
+runtime_tls_mbedtls_bio.o: src/asm/runtime_tls_mbedtls_bio.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_tls_mbedtls_bio.inc $@ -I/opt/homebrew/opt/mbedtls/include 2>/dev/null \
+	  || sh scripts/cc_inc_tu.sh src/asm/runtime_tls_mbedtls_bio.inc $@
 
 # F-ZC：db.kv mmap 胶层；与 kv.o 按需同链（G-02e-17：.inc + cc_inc_tu）
 runtime_kv_mmap_glue.o: src/asm/runtime_kv_mmap_glue.inc scripts/cc_inc_tu.sh
@@ -875,9 +876,9 @@ runtime_crypto_inc_glue.o: src/asm/runtime_crypto_inc_glue.c
 runtime_ed25519_ref10_glue.o: src/asm/runtime_ed25519_ref10_glue.inc scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh src/asm/runtime_ed25519_ref10_glue.inc $@ -Isrc/asm
 
-# F-ZC：codegen 入口 argc/argv 全局；与 process.o 一并链入（见 runtime_process_argv.c）
-runtime_process_argv.o: src/asm/runtime_process_argv.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+# F-ZC：codegen 入口 argc/argv 全局；与 process.o 一并链入（G-02e-18：.inc + cc_inc_tu）
+runtime_process_argv.o: src/asm/runtime_process_argv.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/runtime_process_argv.inc $@
 
 # F-ZC：进程 OS 胶层（getenv/spawn/getcwd 等）；与 process.o 一并链入
 runtime_process_os_glue.o: src/asm/runtime_process_os_glue.c

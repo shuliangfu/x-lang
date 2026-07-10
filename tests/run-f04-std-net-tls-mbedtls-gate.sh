@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 FAIL=${SHUX_F04_NET_TLS_MBEDTLS_FAIL:-0}
 DOC="analysis/phase-f-f04-v9.md"
 TLS_X="std/net/tls_mbedtls.x"
-TLS_BIO="compiler/src/asm/runtime_tls_mbedtls_bio.c"
+TLS_BIO="compiler/src/asm/runtime_tls_mbedtls_bio.inc"
 NET_C="std/net/net.c"
 
 die() {

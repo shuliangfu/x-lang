@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 DOC="${SHUX_STD_TIME_DOC:-analysis/std-time-precision-v1.md}"
 MANIFEST="${SHUX_STD_TIME_MANIFEST:-tests/baseline/std-time-manifest.tsv}"
 MOD_X="${SHUX_STD_TIME_MOD:-std/time/mod.x}"
-TIME_RUNTIME="compiler/src/asm/runtime_time_os.c"
+TIME_RUNTIME="compiler/src/asm/runtime_time_os.inc"
 TIME_X="std/time/time.x"
 MIN_APIS=13
 
@@ -109,7 +109,7 @@ if [ "$API_N" -lt "$MIN_APIS" ]; then
 fi
 
 if ! grep -q '_WIN32' "$TIME_RUNTIME" 2>/dev/null || ! grep -q 'CLOCK_MONOTONIC' "$TIME_RUNTIME" 2>/dev/null; then
-  echo "std-time gate FAIL: runtime_time_os.c missing platform branches" >&2
+  echo "std-time gate FAIL: runtime_time_os.inc missing platform branches" >&2
   exit 1
 fi
 

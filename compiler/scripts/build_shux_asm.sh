@@ -3885,17 +3885,17 @@ ensure_runtime_user_link_objs() {
   echo " cc -c runtime_asm_io_stubs.o <- src/asm/runtime_asm_io_stubs.c"
   "$CC" $CFLAGS -c -o runtime_asm_io_stubs.o src/asm/runtime_asm_io_stubs.c
   fi
-  if [ ! -f runtime_process_argv.o ] || [ src/asm/runtime_process_argv.c -nt runtime_process_argv.o ]; then
-  echo " cc -c runtime_process_argv.o <- src/asm/runtime_process_argv.c"
-  "$CC" $CFLAGS -c -o runtime_process_argv.o src/asm/runtime_process_argv.c
+  if [ ! -f runtime_process_argv.o ] || [ src/asm/runtime_process_argv.inc -nt runtime_process_argv.o ]; then
+  echo " cc_inc_tu runtime_process_argv.o <- src/asm/runtime_process_argv.inc"
+  sh scripts/cc_inc_tu.sh src/asm/runtime_process_argv.inc runtime_process_argv.o
   fi
   if [ ! -f runtime_random_fill.o ] || [ src/asm/runtime_random_fill.inc -nt runtime_random_fill.o ]; then
   echo " cc_inc_tu runtime_random_fill.o <- src/asm/runtime_random_fill.inc"
   sh scripts/cc_inc_tu.sh src/asm/runtime_random_fill.inc runtime_random_fill.o
   fi
-  if [ ! -f runtime_time_os.o ] || [ src/asm/runtime_time_os.c -nt runtime_time_os.o ]; then
-  echo " cc -c runtime_time_os.o <- src/asm/runtime_time_os.c"
-  "$CC" $CFLAGS -c -o runtime_time_os.o src/asm/runtime_time_os.c
+  if [ ! -f runtime_time_os.o ] || [ src/asm/runtime_time_os.inc -nt runtime_time_os.o ]; then
+  echo " cc_inc_tu runtime_time_os.o <- src/asm/runtime_time_os.inc"
+  sh scripts/cc_inc_tu.sh src/asm/runtime_time_os.inc runtime_time_os.o
   fi
   if [ ! -f runtime_env_os.o ] || [ src/asm/runtime_env_os.c -nt runtime_env_os.o ]; then
   echo " cc -c runtime_env_os.o <- src/asm/runtime_env_os.c"

@@ -60,9 +60,9 @@ if [ ! -x "$TARGET" ]; then
   exit 1
 fi
 
-if [ -f compiler/src/asm/runtime_process_argv.c ]; then
+if [ -f compiler/src/asm/runtime_process_argv.inc ]; then
   if [ ! -f compiler/runtime_process_argv.o ] \
-     || [ compiler/src/asm/runtime_process_argv.c -nt compiler/runtime_process_argv.o ]; then
+     || [ compiler/src/asm/runtime_process_argv.inc -nt compiler/runtime_process_argv.o ]; then
     gate_progress "V6: 重编 runtime_process_argv.o ..."
     gate_progress_run "runtime_process_argv.o" make -C compiler runtime_process_argv.o
   fi

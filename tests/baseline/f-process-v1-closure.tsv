@@ -3,7 +3,7 @@
 fprocess_doc	doc	analysis/phase-f-process-v1.md	F-process v1
 fprocess_gate	gate	tests/run-f-process-v1-gate.sh	聚合门禁
 process_x	file	std/process/process.x	args 薄封装
-runtime_process_argv	file	compiler/src/asm/runtime_process_argv.c	argc/argv 全局（F-ZC 自 std 迁出）
+runtime_process_argv	file	compiler/src/asm/runtime_process_argv.inc	argc/argv 全局（F-ZC 自 std 迁出）
 process_os_runtime	file	compiler/src/asm/runtime_process_os_glue.c	OS syscall runtime
 process_os_glue_absent	absent	std/process/process_os_glue.c	已迁入 runtime
 process_mod	file	std/process/mod.x	对外 API
