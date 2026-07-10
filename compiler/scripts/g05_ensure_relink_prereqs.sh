@@ -1023,7 +1023,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_SIMD_ENC_THIN_FROM_X \
                -c -o "$_simd_enc_rest_o" "$_simd_enc" \
           && $CC -r -nostdlib -o "$_simd_enc_o" "$_simd_enc_thin_o" "$_simd_enc_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_simd_enc_o ← $_simd_enc_thin_x + seed-rest (G-02f-348 L2 hybrid simd_enc thin)"
+          echo "g05_ensure: $_simd_enc_o ← $_simd_enc_thin_x + seed-rest (G-02f-348/385 L2 hybrid simd_enc thin)"
           _simd_enc_done=1
         else
           echo "g05_ensure: L2 hybrid simd_enc thin failed; fallback full seed" >&2
