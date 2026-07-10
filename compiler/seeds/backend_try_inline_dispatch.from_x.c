@@ -1,4 +1,4 @@
-/* seeds/backend_try_inline_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+/* seeds/backend_try_inline_dispatch.from_x.c — G-02f-184/185 lit stack pure; G-02f-9 product backend dispatch TU
  * G-02f-135 true .x pure helpers.
  * G-02f-134 true .x pure helpers.
  * G-02f-133 true .x pure helpers.
@@ -295,6 +295,7 @@ int32_t glue_align_up8_c(int32_t n) {
 /**
  * ARRAY_LIT 元素字节宽；与 pipeline_glue.c pipeline_asm_array_lit_elem_byte_sz_c 一致。
  */
+/* G-02f-184：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t asm_array_lit_elem_byte_sz(struct ast_ASTArena *arena, int32_t array_lit_ref) {
   int32_t elem_ty;
   int32_t kind_ord;
@@ -318,6 +319,7 @@ int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_
 /**
  * 定长 ARRAY_LIT 初值在栈 temp 区占用字节数（不含 8 字节指针槽）。
  */
+/* G-02f-185：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t asm_array_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref) {
   int32_t n;
   int32_t esz;
@@ -339,6 +341,7 @@ int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena,
 /**
  * STRUCT_LIT 初值在 temp 区按 8 字节/字段存放。
  */
+/* G-02f-185：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref) {
   int32_t nf;
   if (!arena || init_ref <= 0)

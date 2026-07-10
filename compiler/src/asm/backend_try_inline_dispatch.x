@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-9：backend_try_inline_dispatch 产品源迁 seeds/backend_try_inline_dispatch.from_x.c。
-// 本文件为语义对照 / 后续真迁 .x 锚点；分派实现仍在 seed C。
+// G-02f-184/185：array/struct lit stack 字节 pure 真迁。
 // 产品：cc seeds/backend_try_inline_dispatch.from_x.c → src/asm/backend_try_inline_dispatch.o
 
 function backend_try_inline_dispatch_x_doc_anchor(): i32 {
@@ -32,6 +32,7 @@ extern "C" function pipeline_expr_struct_lit_num_fields(arena: *u8, lit: i32): i
 extern "C" function pipeline_expr_struct_lit_field_name_len(arena: *u8, lit: i32, j: i32): i32;
 extern "C" function pipeline_expr_struct_lit_field_name_into(arena: *u8, lit: i32, j: i32, dst: *u8): void;
 extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_asm_array_lit_elem_type_ref(arena: *u8, array_lit: i32): i32;
 extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
 extern "C" function backend_fold_func_return_operand_ref(arena: *u8, mod: *u8, fi: i32): i32;
@@ -1649,5 +1650,68 @@ function try_call_wpo_mono_vector_lane_of_binop_call_elf(
     return 1;
   }
   return 0;
+}
+
+// G-02f-184/185：ARRAY_LIT / STRUCT_LIT 栈占用 pure（kind 序与 seed GLUE_* 一致）
+// type kind: u8=1 i8=2 i32=0 u32=3 f32=13 → 4；else 8（与 seed 一致）
+// EXPR_ARRAY_LIT=46 STRUCT_LIT=45
+
+#[no_mangle]
+function asm_array_lit_elem_byte_sz(arena: *u8, array_lit_ref: i32): i32 {
+  if (arena == 0) { return 4; }
+  if (array_lit_ref <= 0) { return 4; }
+  let elem_ty: i32 = 0;
+  unsafe { elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, array_lit_ref); }
+  if (elem_ty <= 0) { return 4; }
+  let kind_ord: i32 = 0;
+  unsafe { kind_ord = pipeline_type_kind_ord_at(arena, elem_ty); }
+  if (kind_ord == 2) { return 1; }
+  if (kind_ord == 1) { return 1; }
+  if (kind_ord == 0) { return 4; }
+  if (kind_ord == 3) { return 4; }
+  if (kind_ord == 13) { return 4; }
+  return 8;
+}
+
+#[no_mangle]
+function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, array_lit_ref: i32): i32 {
+  return asm_array_lit_elem_byte_sz(arena, array_lit_ref);
+}
+
+#[no_mangle]
+function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (init_ref <= 0) { return 0; }
+  let ko: i32 = 0;
+  unsafe { ko = pipeline_expr_kind_ord_at(arena, init_ref); }
+  if (ko != 46) { return 0; }
+  let n: i32 = 0;
+  unsafe { n = pipeline_expr_array_lit_num_elems_at(arena, init_ref); }
+  if (n <= 0) { return 0; }
+  let esz: i32 = asm_array_lit_elem_byte_sz(arena, init_ref);
+  return glue_align_up8_c(n * esz);
+}
+
+#[no_mangle]
+function pipeline_asm_array_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32): i32 {
+  return asm_array_lit_reserve_stack_bytes(arena, init_ref);
+}
+
+#[no_mangle]
+function asm_struct_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (init_ref <= 0) { return 0; }
+  let ko: i32 = 0;
+  unsafe { ko = pipeline_expr_kind_ord_at(arena, init_ref); }
+  if (ko != 45) { return 0; }
+  let nf: i32 = 0;
+  unsafe { nf = pipeline_expr_struct_lit_num_fields(arena, init_ref); }
+  if (nf <= 0) { return 0; }
+  return glue_align_up8_c(nf * 8);
+}
+
+#[no_mangle]
+function pipeline_asm_struct_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32): i32 {
+  return asm_struct_lit_reserve_stack_bytes(arena, init_ref);
 }
 

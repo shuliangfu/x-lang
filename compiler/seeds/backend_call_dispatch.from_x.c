@@ -11,8 +11,9 @@
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
  * G-02f-108 helper gates.
- * Source intent: src/asm/backend_call_dispatch.x (doc) + this seed (full C body).
- * Product: → src/asm/backend_call_dispatch.o. Logic still C until full .x port.
+ * G-02f-184: f32 xmm flags true .x; residual mega emit still dual.
+ * Source intent: src/asm/backend_call_dispatch.x + this seed (product C body).
+ * Product: → src/asm/backend_call_dispatch.o.
  */
 /**
  * backend_call_dispatch.c — EXPR_CALL ELF 发射与 import 限定符号解析（C 实现）
@@ -251,9 +252,11 @@ extern int32_t backend_enc_lea_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx
 extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t type_ref);
 
 /* G-02e：原 pipeline_abi_f32_xmm.c 并入本 TU，去掉独立手写 C 文件。 */
+/* G-02f-184：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 static int32_t g_pipeline_asm_emit_call_f32_xmm;
 
 /** 默认开启 f32 xmm ABI；SHUX_ABI_F32_XMM=0 回落 legacy f64 widen。 */
+/* G-02f-184：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_asm_abi_f32_xmm_enabled_c(void) {
   const char *env = getenv("SHUX_ABI_F32_XMM");
   if (env && env[0] == '0' && env[1] == '\0')

@@ -2,12 +2,46 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-9：backend_call_dispatch 产品源迁 seeds/backend_call_dispatch.from_x.c。
-// 本文件为语义对照 / 后续真迁 .x 锚点；分派实现仍在 seed C。
+// G-02f-184：f32 xmm 标志三件套真迁；残余扫描见优先级表 §4.5。
 // 产品：cc seeds/backend_call_dispatch.from_x.c → src/asm/backend_call_dispatch.o
 
 function backend_call_dispatch_x_doc_anchor(): i32 {
   return 0;
 }
+
+extern "C" function getenv(name: *u8): *u8;
+
+// G-02f-184：CALL f32 xmm ABI 开关（原独立 pipeline_abi_f32_xmm）
+let g_pipeline_asm_emit_call_f32_xmm: i32 = 0;
+
+#[no_mangle]
+function pipeline_asm_abi_f32_xmm_enabled_c(): i32 {
+  unsafe {
+    let env: *u8 = getenv("SHUX_ABI_F32_XMM");
+    if (env != 0) {
+      // "0"
+      if (env[0] == 48) {
+        if (env[1] == 0) { return 0; }
+      }
+    }
+  }
+  return 1;
+}
+
+#[no_mangle]
+function pipeline_asm_emit_set_call_f32_xmm(on: i32): void {
+  if (on != 0) {
+    g_pipeline_asm_emit_call_f32_xmm = 1;
+  } else {
+    g_pipeline_asm_emit_call_f32_xmm = 0;
+  }
+}
+
+#[no_mangle]
+function pipeline_asm_emit_get_call_f32_xmm_c(): i32 {
+  return g_pipeline_asm_emit_call_f32_xmm;
+}
+
 
 // G-02f-108：+ string_lit / f32 param / reg_max / import_sym 薄门闩。
 // G-02f-139：string_lit_into / import_path_to_c_prefix 真迁 .x
@@ -175,7 +209,6 @@ extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i
 extern "C" function pipeline_asm_redirect_std_c_wrapper_sym(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
 extern "C" function backend_enc_call_arch(elf: *u8, name: *u8, nlen: i32, ta: i32): i32;
 extern "C" function backend_enc_call_stack_cleanup_arch(elf: *u8, nbytes: i32, ta: i32): i32;
-extern "C" function pipeline_asm_abi_f32_xmm_enabled_c(): i32;
 extern "C" function pipeline_asm_emit_call_sret_reg_shift_c(): i32;
 extern "C" function backend_enc_store_x0_sp_offset_arch(elf: *u8, off_bytes: i32, ta: i32): i32;
 extern "C" function pipeline_asm_emit_set_call_param_type_ref(tr: i32): void;
@@ -202,7 +235,6 @@ extern "C" function backend_enc_lea_rbp_to_rax_arch(elf: *u8, off: i32, ta: i32)
 extern "C" function backend_enc_call_stack_reserve_arch(elf: *u8, nbytes: i32, ta: i32): i32;
 extern "C" function backend_enc_push_rax_arch(elf: *u8, ta: i32): i32;
 extern "C" function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
-extern "C" function pipeline_asm_emit_set_call_f32_xmm(on: i32): void;
 extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
 extern "C" function pipeline_expr_call_resolved_dep_index_at(arena: *u8, call: i32): i32;
 extern "C" function pipeline_dep_ctx_ndep(dep: *u8): i32;
@@ -1017,7 +1049,6 @@ extern "C" function try_call_wpo_mono_symbol_elf(a: *u8, elf: *u8, er: i32, ctx:
 extern "C" function try_call_wpo_mono_vector_lane_of_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
 extern "C" function try_inline_wpo_const_vector_lane_of_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
 extern "C" function try_inline_wpo_const_scalar_binop_call_elf(a: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
-extern "C" function getenv(name: *u8): *u8;
 extern "C" function pipeline_expr_method_call_base_ref_at(a: *u8, er: i32): i32;
 extern "C" function pipeline_expr_method_call_num_args_at(a: *u8, er: i32): i32;
 extern "C" function pipeline_expr_method_call_name_len(a: *u8, er: i32): i32;
