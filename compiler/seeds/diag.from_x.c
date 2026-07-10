@@ -1,10 +1,11 @@
 /* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97/98 true .x + C tail; G-02f-74/82 diag gates).
+ * G-02f-181: P0-1 close-out — code table + reportf/vreportf 🔒 (priority doc §4.3).
  * G-02f-130 true .x pure helpers.
  * G-02f-116 true .x pure helpers.
  * G-02f-109 helper gates.
  * Regen: ./shux-c -E -L .. src/diag.x > /tmp/diag.c
  *         merge diag_report from .x; keep code table / va_list / JSON C tail.
- * .x covers: diag_report → diag_report_with_code(NULL code).
+ * .x covers: report/human/json/print/code-query/levenshtein/…; C: table data + va_list.
  */
 #include "diag.h"
 
