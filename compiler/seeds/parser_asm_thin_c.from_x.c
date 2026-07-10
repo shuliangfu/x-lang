@@ -6314,10 +6314,39 @@ int labi_pthin_let_alias_slice_marker(void);
 #endif
 #include "parser_asm_one_function_buf_slice.inc"
 #include "parser_asm_block_from_res_slice.inc"
+/* G-02f-286 P5 ctrl：默认 #include；hybrid 时在 pthin_ctrl.from_x.c
+ * rest 须保留 parse_block_result（primary 等同 TU 仍可能需要布局）。 */
+#ifndef SHUX_PTHIN_CTRL_FROM_X
 #include "parser_asm_if_stmt_slice.inc"
 #include "parser_asm_match_subject_slice.inc"
 #include "parser_asm_simd_builtin_slice.inc"
 #include "parser_asm_if_expr_slice.inc"
+#else
+struct parser_asm_parse_block_result {
+  int32_t ok;
+  int32_t block_ref;
+  struct parser_asm_lexer next_lex;
+};
+struct parser_asm_lexer parser_asm_realign_lex_after_if_arm_c(struct parser_asm_lexer lex_cur,
+                                                             struct parser_asm_slice_u8 *source);
+int32_t parser_asm_parse_if_stmt_into_c(void *arena, struct parser_asm_lexer lex_at_if,
+                                        struct parser_asm_slice_u8 *source, int32_t type_ref, int32_t *out_cond,
+                                        int32_t *out_then, int32_t *out_else, struct parser_asm_lexer *lex_out);
+void parser_realign_lex_after_if_stmt_onefunc_glue(struct parser_asm_lexer *lex,
+                                                   struct parser_asm_slice_u8 *source);
+void parser_asm_parse_match_subject_into_c(void *arena, struct parser_asm_lexer lex,
+                                           struct parser_asm_slice_u8 *source,
+                                           struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_match_into_c(void *arena, struct parser_asm_lexer lex,
+                                   struct parser_asm_slice_u8 *source,
+                                   struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_if_expr_into_c(void *arena, struct parser_asm_lexer lex_at_if,
+                                     struct parser_asm_slice_u8 *source, int32_t type_ref,
+                                     struct parser_asm_parse_expr_result *out);
+int labi_pthin_ctrl_slice_marker(void);
+/* simd 仍在 rest（P7 另册）；P5 hybrid 时不连带 simd */
+#include "parser_asm_simd_builtin_slice.inc"
+#endif
 /* G-02f-285 P4 as_suffix：默认 #include；hybrid 时在 pthin_expr_as_suffix.from_x.c */
 #ifndef SHUX_PTHIN_EXPR_AS_SUFFIX_FROM_X
 #include "parser_asm_as_suffix_slice.inc"
