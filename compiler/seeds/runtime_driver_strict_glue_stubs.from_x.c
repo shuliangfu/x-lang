@@ -1,12 +1,7 @@
-/* seeds/runtime_driver_strict_glue_stubs.from_x.c — G-02f-11 product TU
- * Product object from this seed; logic still C until full .x port.
- */
-/**
- * runtime_driver_strict_glue_stubs.c — seed/no_c weak stubs + asm_driver_* 桥（G-02e-10 并入 _stubs_driver）。
-  * G-02e-11：原 lsp_codegen_extern.c 并入本 TU。
- * G-02e-12：原 runtime_pipeline_abi_shux_c_stubs.c 并入本 TU。
- * G-02e-13：原 ast_pool_l5_bridge.c 并入本 TU。
- * G-02e-14：#include runtime_heap_user.inc（原 runtime_heap_user.c）。
+/* Generated from src/runtime_driver_strict_glue_stubs.x (G-02f-32 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/runtime_driver_strict_glue_stubs.x > /tmp/sgs.c
+ *         merge thin forwards + i32 ptr; polish weak; keep heap_user/metrics C.
+ * .x covers: asm_driver_* / typeck_driver_diagnostic_pipe_marker / typeck_i32_ptr_*.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -177,14 +172,16 @@ SHUX_WEAK void ast_module_free(ASTModule *mod) {
   (void)mod;
 }
 
-
 /* -------------------------------------------------------------------------- */
 /* G-02e：原 codegen_pipeline_stubs.c 并入本 TU。 */
 /* -------------------------------------------------------------------------- */
 
 SHUX_WEAK void codegen_set_preamble_has_core_option_result(int on) { (void)on; }
+
 SHUX_WEAK void codegen_reset_preamble_skip_mask(void) { }
+
 SHUX_WEAK void codegen_or_preamble_skip_mask(unsigned mask) { (void)mask; }
+
 SHUX_WEAK unsigned codegen_get_preamble_skip_mask(void) { return 0; }
 
 SHUX_WEAK void codegen_set_dep_slots_for_x_pipeline(struct ASTModule **mods, const char **paths, int n) {
@@ -269,11 +266,19 @@ extern int32_t driver_skip_codegen_dep_0_get(void);
 extern void driver_set_current_dep_path_for_codegen(const char *path);
 
 int32_t asm_driver_skip_codegen_dep_0_get(void) {
-  return driver_skip_codegen_dep_0_get();
+  (void)(({   {
+    int32_t r = driver_skip_codegen_dep_0_get();
+    return r;
+  }
+ }));
+  return 0;
 }
 
-void asm_driver_set_current_dep_path_for_codegen(uint8_t *path) {
-  driver_set_current_dep_path_for_codegen((const char *)path);
+void asm_driver_set_current_dep_path_for_codegen(uint8_t * path) {
+  (void)(({   {
+    (void)(driver_set_current_dep_path_for_codegen((const char *)path));
+  }
+ }));
 }
 
 /* ---- G-02e-11：原 lsp_codegen_extern（LSP -E-extern 字符串块）---- */
@@ -892,3 +897,4 @@ void pipeline_block_labeled_set_names(struct ast_ASTArena *a, int32_t br, int32_
     ls->goto_target_len = goto_target_len;
   }
 }
+

@@ -1,14 +1,8 @@
-/* seeds/runtime_pipeline_abi.from_x.c — G-02f-12 product TU
- * Product object from this seed; logic still C until full .x port.
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
+ *         merge no-op stubs from .x; keep dep/import/path C logic.
+ * .x covers: parse/fill/codegen placeholder stubs.
  */
-/**
- * runtime_pipeline_abi.c — 编译器 C 侧 pipeline import / dep 槽 ABI 实现（Phase E-04 v24～v30）
- *
- * 文件职责：import 路径解析；dep 全局槽；v29～v31 预处理/typeck/asm ELF；v32 shux_preprocess。
- * 所属模块：compiler 运行时；被 runtime.c pipeline / run_compiler_c 链接。
- * 与其它文件的关系：仅依赖 POSIX access/realpath；不 include C 前端头。
- */
-
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
 #include "runtime_driver_abi.h"
@@ -1904,18 +1898,51 @@ char *shux_preprocess_quiet(const char *source, size_t source_len, const char **
 #ifdef _WIN32
 struct platform_elf_ElfCodegenCtx; /* 前向声明 */
 /* Windows stub: parser_parse_into_init / parser_parse_into / parser_get_module_num_imports / parser_get_module_import_path */
-void parser_parse_into_init(void *module, void *arena) { (void)module; (void)arena; }
+void parser_parse_into_init(uint8_t * module, uint8_t * arena) {
+  (void)(0);
+}
+
 struct parser_ParseIntoResult parser_parse_into(void *arena, void *module, struct shux_slice_uint8_t *source) {
     struct parser_ParseIntoResult r; r.ok = -1; r.main_idx = -1; (void)arena; (void)module; (void)source; return r;
 }
-int32_t parser_get_module_num_imports(void *module) { (void)module; return 0; }
-void parser_get_module_import_path(void *module, int32_t idx, uint8_t *path_buf) { (void)module; (void)idx; if(path_buf) path_buf[0] = 0; }
+int32_t parser_get_module_num_imports(uint8_t * module) {
+  return 0;
+}
+
+void parser_get_module_import_path(uint8_t * module, int32_t idx, uint8_t * path_buf) {
+  if ((path_buf ==((uint8_t *)(0)))) {
+    return;
+  }
+  (void)(({   {
+    (void)(((path_buf)[0] = 0));
+  }
+ }));
+}
+
 /* asm stubs */
-void asm_skip_heavy_set_pipeline_ctx(void *ctx) { (void)ctx; }
-void pipeline_fill_array_lit_types_for_skipped_typeck(void *m, void *a) { (void)m; (void)a; }
-void pipeline_fill_soa_field_access_for_asm_emit(void *m, void *a) { (void)m; (void)a; }
-void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *a) { (void)m; (void)a; }
-int32_t asm_asm_codegen_elf_o(void *m, void *a, void *c, struct platform_elf_ElfCodegenCtx *e, void *o) { (void)m; (void)a; (void)c; (void)e; (void)o; return -1; }
+void asm_skip_heavy_set_pipeline_ctx(uint8_t * ctx) {
+  (void)(0);
+}
+
+void pipeline_fill_array_lit_types_for_skipped_typeck(uint8_t * m, uint8_t * a) {
+  (void)(0);
+}
+
+void pipeline_fill_soa_field_access_for_asm_emit(uint8_t * m, uint8_t * a) {
+  (void)(0);
+}
+
+void pipeline_module_fixup_with_arena_stmt_orders(uint8_t * m, uint8_t * a) {
+  (void)(0);
+}
+
+int32_t asm_asm_codegen_elf_o(uint8_t * m, uint8_t * a, uint8_t * c, uint8_t * e, uint8_t * o) {
+  return (0 - 1);
+}
+
 /* 更多 pipeline stub */
-int32_t pipeline_parse_set_main_from_buf_c(struct ast_Module *m, struct ast_ASTArena *a, uint8_t *d, int32_t len) { (void)m; (void)a; (void)d; (void)len; return 0; }
+int32_t pipeline_parse_set_main_from_buf_c(uint8_t * m, uint8_t * a, uint8_t * d, int32_t len) {
+  return 0;
+}
+
 #endif
