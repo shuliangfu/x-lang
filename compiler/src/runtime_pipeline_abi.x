@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..43/50..60：真迁 .x — pipeline dep/import/path + 预跑 + ctx seed 门闩。
+// G-02f-32..43/50..61：真迁 .x — pipeline dep/import/path + ctx seed + emit 编排。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
 // C 尾：存储槽数组、import resolve/snprintf、clear 槽循环、malloc buf、大 pipeline。
-// G-02f-60：+ set_entry_dir / set_dep_slots / fill_ctx / pctx_seed / one_ctx_for_dep_prerun。
+// G-02f-61：+ prepare_entry_elf_emit / asm_codegen large_stack / load_direct / merge paths。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -59,6 +59,10 @@ extern "C" function shux_pipeline_fill_ctx_path_buffers_impl(ctx: *u8, entry_dir
 extern "C" function shux_pipeline_pctx_seed_dep_slots_impl(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void;
 extern "C" function shux_pipeline_pctx_seed_dep_import_paths_only_impl(ctx: *u8, import_paths: *u8, n: i32): void;
 extern "C" function shux_pipeline_one_ctx_for_dep_prerun_impl(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
+extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
+extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
+extern "C" function shux_load_direct_imports_for_asm_layout_impl(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32;
+extern "C" function shux_merge_direct_then_transitive_dep_paths_impl(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -846,4 +850,54 @@ function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, d
   unsafe {
     shux_pipeline_one_ctx_for_dep_prerun_impl(ctx, j, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
   }
+}
+
+/* ---- G-02f-61：asm emit 编排 / large_stack codegen / load+merge paths ---- */
+
+#[no_mangle]
+function shux_driver_asm_prepare_entry_elf_emit(module: *u8, arena: *u8, pctx: *u8): void {
+  unsafe {
+    asm_skip_heavy_set_pipeline_ctx(pctx);
+    pipeline_fill_array_lit_types_for_skipped_typeck(module, arena);
+    pipeline_fill_soa_field_access_for_asm_emit(module, arena);
+    pipeline_debug_trace_named_func_bodies("emit_prepare_pre_fixup", module, arena);
+    pipeline_module_fixup_with_arena_stmt_orders(module, arena);
+    pipeline_debug_trace_named_func_bodies("emit_prepare_post_fixup", module, arena);
+  }
+}
+
+#[no_mangle]
+function shux_asm_codegen_elf_o_large_stack(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32 {
+  unsafe {
+    return shux_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
+  }
+  return -1;
+}
+
+#[no_mangle]
+function shux_load_direct_imports_for_asm_layout(module: *u8, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, out_n: *i32): i32 {
+  if (module == 0 as *u8) {
+    return -1;
+  }
+  if (out_n == 0 as *i32) {
+    return -1;
+  }
+  unsafe {
+    return shux_load_direct_imports_for_asm_layout_impl(module, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, out_n);
+  }
+  return -1;
+}
+
+#[no_mangle]
+function shux_merge_direct_then_transitive_dep_paths(module: *u8, n_imports: i32, cpaths: *u8, n_closure: i32, out_paths: *u8, out_n: *i32): i32 {
+  if (module == 0 as *u8) {
+    return -1;
+  }
+  if (out_n == 0 as *i32) {
+    return -1;
+  }
+  unsafe {
+    return shux_merge_direct_then_transitive_dep_paths_impl(module, n_imports, cpaths, n_closure, out_paths, out_n);
+  }
+  return -1;
 }

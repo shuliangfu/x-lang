@@ -1,8 +1,8 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..60 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..61 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge entry_dir/dep slots/ctx seed; C multi resolve + large pipeline bulk.
- * .x covers: + set_entry_dir, set_dep_slots, fill_ctx, pctx_seed, one_ctx prerun.
+ *         merge prepare_entry/load/merge/large_stack; C collect/transitive bulk.
+ * .x covers: + prepare_entry_elf_emit, asm_codegen large_stack, load_direct, merge paths.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -29,6 +29,16 @@ extern void preprocess_define_add(const char *name);
 
 
 
+
+
+/* G-02f-61 helper protos */
+int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf);
+int shux_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
+    char *dep_paths[], int *out_n);
+int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imports, char *cpaths[], int n_closure,
+    char *out_paths[], int *out_n);
 
 /* G-02f-60 helper protos */
 void pipeline_set_entry_dir_impl(const char *path);
@@ -1964,7 +1974,7 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * 供 parse-only 填 dep struct layout；避免 shux_collect_deps_transitive 耗时/失败。
  * 返回 0 成功；失败时释放已写入 dep_sources/dep_paths 并返回 1。
  */
-int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots_arr, int n_lib_roots,
+int shux_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_roots_arr, int n_lib_roots,
     const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
     char *dep_paths[], int *out_n) {
     int32_t n_imports = parser_get_module_num_imports(module);
@@ -2025,6 +2035,22 @@ fail_partial:
     return 1;
 }
 
+int shux_load_direct_imports_for_asm_layout(void *module, const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
+    char *dep_paths[], int *out_n) {
+  if (module == NULL) {
+    return -1;
+  }
+  if (out_n == NULL) {
+    return -1;
+  }
+  {
+    return shux_load_direct_imports_for_asm_layout_impl(module, lib_roots_arr, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, out_n);
+  }
+  return -1;
+}
+
+
 /**
  * 将 shux_collect_deps_transitive 得到的 closure（调用方已对 triple 数组做过反转）合并为 pipeline/asm_elf dep 列表。
  * 前 n_imports 项与入口 module import 槽对齐；传递依赖按 closure 顺序追加并路径去重。
@@ -2081,7 +2107,7 @@ int shux_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char
     return 0;
 }
 
-int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports, char *cpaths[], int n_closure,
+int shux_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_imports, char *cpaths[], int n_closure,
     char *out_paths[], int *out_n) {
     unsigned char used[SHUX_DRIVER_DEP_SLOT_MAX];
     int mi = 0;
@@ -2128,6 +2154,21 @@ int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports,
     *out_n = mi;
     return 0;
 }
+
+int shux_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports, char *cpaths[], int n_closure,
+    char *out_paths[], int *out_n) {
+  if (module == NULL) {
+    return -1;
+  }
+  if (out_n == NULL) {
+    return -1;
+  }
+  {
+    return shux_merge_direct_then_transitive_dep_paths_impl(module, n_imports, cpaths, n_closure, out_paths, out_n);
+  }
+  return -1;
+}
+
 
 /**
  * 传递加载 dep：从 main 的 import 出发递归解析子 import，填满 dep_sources/dep_lens/dep_paths。
@@ -2414,14 +2455,16 @@ extern void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *arena);
 
 /** asm_codegen_elf_o 前：设置 skip_heavy 上下文并为 ARRAY_LIT / SoA field 补类型。 */
 void shux_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pctx) {
+  {
     asm_skip_heavy_set_pipeline_ctx(pctx);
     pipeline_fill_array_lit_types_for_skipped_typeck(module, arena);
     pipeline_fill_soa_field_access_for_asm_emit(module, arena);
     pipeline_debug_trace_named_func_bodies("emit_prepare_pre_fixup", module, arena);
-    /** with_arena：parse 扁平 stmt_order 时补 kind=6 region，否则 main 仅 emit 前几条 if（SIGSEGV）。 */
-    pipeline_module_fixup_with_arena_stmt_orders((struct ast_Module *)module, (struct ast_ASTArena *)arena);
+    pipeline_module_fixup_with_arena_stmt_orders(module, arena);
     pipeline_debug_trace_named_func_bodies("emit_prepare_post_fixup", module, arena);
+  }
 }
+
 
 /** pthread 大栈 emit 参数包。 */
 typedef struct {
@@ -2445,7 +2488,7 @@ static void *shux_asm_codegen_elf_o_thread_fn(void *arg) {
 }
 
 /** 在 256MiB 栈 pthread 上调用 asm_asm_codegen_elf_o；主线程栈已深时避免 lexer emit Abort。 */
-int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
+int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
     struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
     ShuxAsmCodegenElfLargeArgs args;
 
@@ -2460,6 +2503,15 @@ int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
         return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
     return args.result;
 }
+
+int32_t shux_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
+  {
+    return shux_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
+  }
+  return -1;
+}
+
 
 /** C typecheck 入口；由 typeck.c 提供。 */
 extern int typeck_module(void *module, void **dep_mods, int ndep, void *a, int b);
