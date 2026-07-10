@@ -6,6 +6,7 @@
 // G-02f-163：asm_set_last_expr_kind / set_current_func 真迁。
 // G-02f-175：return_unresolved / return_subexpr 消息拼装真迁（copy_bytes + report_prefixed）。
 // G-02f-176：return_mismatch / assign_mismatch 消息拼装真迁。
+// G-02f-177：call_not_generic / wrong_num_type_args / requires_type_args 拼装真迁。
 // G-02f-96：driver_diag_report_x_pipeline_code 门闩（va_list 本体 C _impl）。
 // 产品：./shux-c -E → seeds/runtime_driver_diagnostic.from_x.c（+ C 尾 + 字符串抛光）。
 // C 尾：snprintf 诊断、va_list pipeline 码、scratch 缓冲、debug getenv 详细路径。
@@ -25,9 +26,6 @@ extern "C" function driver_diagnostic_typeck_ptr_field_impl(bt_kind: i32, inner_
 extern "C" function driver_diagnostic_typeck_ret_fail_impl(stage: i32, op_expr_ref: i32, expect_ty_ref: i32, got_ty_ref: i32): void;
 extern "C" function driver_diagnostic_typeck_binop_operands_impl(expr_ref: i32, left_ref: i32, right_ref: i32, left_kind: i32, right_kind: i32, left_block_ref: i32, right_block_ref: i32, left_ty_ref: i32, right_ty_ref: i32, left_ty: *u8, left_ty_len: i32, right_ty: *u8, right_ty_len: i32): void;
 extern "C" function driver_diagnostic_parser_onefunc_param_ref_impl(func_name: *u8, func_name_len: i32, param_name: *u8, param_name_len: i32, stage: i32, param_idx: i32, type_ref: i32): void;
-extern "C" function driver_diagnostic_typeck_call_not_generic_impl(line: i32, col: i32, name: *u8, name_len: i32): void;
-extern "C" function driver_diagnostic_typeck_call_wrong_num_type_args_impl(line: i32, col: i32, name: *u8, name_len: i32, expect_n: i32, got_n: i32): void;
-extern "C" function driver_diagnostic_typeck_call_requires_type_args_impl(line: i32, col: i32, name: *u8, name_len: i32): void;
 extern "C" function driver_diagnostic_typeck_import_const_must_be_qualified_impl(line: i32, col: i32, name: *u8, name_len: i32, binding: *u8, binding_len: i32): void;
 extern "C" function driver_diagnostic_typeck_struct_padding_before_impl(sname: *u8, sname_len: i32, gap: i32, fname: *u8, fname_len: i32): void;
 extern "C" function driver_diagnostic_typeck_struct_padding_trailing_impl(sname: *u8, sname_len: i32, gap: i32): void;
@@ -233,26 +231,8 @@ function driver_diagnostic_parser_onefunc_param_ref(func_name: *u8, func_name_le
 
 // return_mismatch / assign_mismatch：见文件尾 G-02f-176 真迁
 
-#[no_mangle]
-function driver_diagnostic_typeck_call_not_generic(line: i32, col: i32, name: *u8, name_len: i32): void {
-  unsafe {
-    driver_diagnostic_typeck_call_not_generic_impl(line, col, name, name_len);
-  }
-}
+// call_not_generic / wrong_num / requires_type_args：见文件尾 G-02f-177 真迁
 
-#[no_mangle]
-function driver_diagnostic_typeck_call_wrong_num_type_args(line: i32, col: i32, name: *u8, name_len: i32, expect_n: i32, got_n: i32): void {
-  unsafe {
-    driver_diagnostic_typeck_call_wrong_num_type_args_impl(line, col, name, name_len, expect_n, got_n);
-  }
-}
-
-#[no_mangle]
-function driver_diagnostic_typeck_call_requires_type_args(line: i32, col: i32, name: *u8, name_len: i32): void {
-  unsafe {
-    driver_diagnostic_typeck_call_requires_type_args_impl(line, col, name, name_len);
-  }
-}
 
 #[no_mangle]
 function driver_diagnostic_typeck_import_const_must_be_qualified(line: i32, col: i32, name: *u8, name_len: i32, binding: *u8, binding_len: i32): void {
@@ -655,5 +635,92 @@ function driver_diagnostic_typeck_assign_mismatch(is_compound: i32, line: i32, c
   }
   driver_diag_build_expected_found(&msg[0], 240, pref, &epart[0], &fpart[0]);
   driver_diag_report_prefixed(line, col, &msg[0]);
+}
+
+// G-02f-177：generic call 诊断 — 拼完整句后走 lsp_diag_report_typeck（无 %.*s）
+function driver_diag_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32 {
+  if (dst == 0) { return at; }
+  if (at + 1 >= cap) { return at; }
+  let v: i32 = val;
+  if (v < 0) {
+    dst[at] = 45; // '-'
+    at = at + 1;
+    v = 0 - v;
+  }
+  let digits: i32[12] = [];
+  let dn: i32 = 0;
+  if (v == 0) {
+    digits[0] = 0;
+    dn = 1;
+  } else {
+    let t: i32 = v;
+    while (t > 0) {
+      if (dn >= 12) { break; }
+      digits[dn] = t % 10;
+      t = t / 10;
+      dn = dn + 1;
+    }
+  }
+  let i: i32 = dn - 1;
+  while (i >= 0) {
+    if (at + 1 >= cap) { break; }
+    dst[at] = (digits[i] + 48) as u8;
+    at = at + 1;
+    i = i - 1;
+  }
+  dst[at] = 0;
+  return at;
+}
+
+function driver_diag_append_name(dst: *u8, cap: i32, at: i32, name: *u8, name_len: i32): i32 {
+  if (name == 0) { return at; }
+  if (name_len <= 0) { return at; }
+  let n: i32 = 0;
+  while (n < name_len) {
+    if (at + 1 >= cap) { break; }
+    dst[at] = name[n];
+    at = at + 1;
+    n = n + 1;
+  }
+  dst[at] = 0;
+  return at;
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_call_not_generic(line: i32, col: i32, name: *u8, name_len: i32): void {
+  let msg: u8[240] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 240, 0, "function '");
+  at = driver_diag_append_name(&msg[0], 240, at, name, name_len);
+  at = driver_diag_append_cstr(&msg[0], 240, at, "' is not generic but type arguments were provided");
+  unsafe {
+    lsp_diag_report_typeck(line, col, &msg[0]);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_call_wrong_num_type_args(line: i32, col: i32, name: *u8, name_len: i32, expect_n: i32, got_n: i32): void {
+  let msg: u8[240] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 240, 0, "generic function '");
+  at = driver_diag_append_name(&msg[0], 240, at, name, name_len);
+  at = driver_diag_append_cstr(&msg[0], 240, at, "' expects ");
+  at = driver_diag_append_i32(&msg[0], 240, at, expect_n);
+  at = driver_diag_append_cstr(&msg[0], 240, at, " type arguments, got ");
+  at = driver_diag_append_i32(&msg[0], 240, at, got_n);
+  unsafe {
+    lsp_diag_report_typeck(line, col, &msg[0]);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_call_requires_type_args(line: i32, col: i32, name: *u8, name_len: i32): void {
+  let msg: u8[280] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 280, 0, "generic function '");
+  at = driver_diag_append_name(&msg[0], 280, at, name, name_len);
+  at = driver_diag_append_cstr(&msg[0], 280, at, "' requires type arguments (e.g. ");
+  at = driver_diag_append_name(&msg[0], 280, at, name, name_len);
+  at = driver_diag_append_cstr(&msg[0], 280, at, "<Type>(...))");
+  unsafe {
+    lsp_diag_report_typeck(line, col, &msg[0]);
+  }
 }
 

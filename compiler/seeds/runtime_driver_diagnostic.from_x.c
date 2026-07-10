@@ -1,4 +1,4 @@
-/* Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
+/* Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
  * .x covers: fixed typeck msgs (f-30/31) + remaining diags gated f-73
@@ -381,7 +381,7 @@ void driver_diagnostic_typeck_return_subexpr(int32_t line, int32_t col,
 }
 
 
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-177：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
 
 void driver_diagnostic_typeck_call_not_generic(int32_t line, int32_t col,
@@ -393,7 +393,7 @@ void driver_diagnostic_typeck_call_not_generic(int32_t line, int32_t col,
 }
 
 
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-177：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
 
 void driver_diagnostic_typeck_call_wrong_num_type_args(int32_t line, int32_t col,
@@ -405,9 +405,7 @@ void driver_diagnostic_typeck_call_wrong_num_type_args(int32_t line, int32_t col
                            (const char *)(name ? name : (const uint8_t *)""),
                            (int)expect_n, (int)got_n);
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
+/* G-02f-177：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
 
 void driver_diagnostic_typeck_call_requires_type_args(int32_t line, int32_t col,
