@@ -7,7 +7,6 @@
 // G-02f-100：+ x86 jcc / append_u32 / arm64 call/add/sub/str 薄门闩。
 // G-02f-101：+ arm64 load/store w0 from rbp 薄门闩。
 
-extern "C" function backend_enc_x86_jcc_rel32_c_impl(elf_ctx: *u8, opcode2: u8, label: *u8, label_len: i32): i32;
 extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 
 function backend_enc_dispatch_x_doc_anchor(): i32 {
@@ -15,14 +14,7 @@ function backend_enc_dispatch_x_doc_anchor(): i32 {
 }
 
 /* ---- G-02f-100：enc helper 门闩 ---- */
-
-#[no_mangle]
-function backend_enc_x86_jcc_rel32_c(elf_ctx: *u8, opcode2: u8, label: *u8, label_len: i32): i32 {
-  unsafe {
-    return backend_enc_x86_jcc_rel32_c_impl(elf_ctx, opcode2, label, label_len);
-  }
-  return 0 - 1;
-}
+/* backend_enc_x86_jcc_rel32_c 真迁见文件尾 G-02f-130 */
 
 
 
@@ -43,9 +35,36 @@ function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
 /* ---- G-02f-101：arm64 load/store w0 门闩 ---- */
 
 // G-02f-127：arm64/x86 enc pure helpers 真迁 .x
+// G-02f-130：backend_enc_x86_jcc_rel32_c 真迁 .x
 
 extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+extern "C" function pipeline_elf_ctx_emit_code_len(ctx: *u8): i32;
+extern "C" function pipeline_elf_ctx_ensure_label(ctx: *u8, name: *u8, name_len: i32): i32;
+extern "C" function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len: i32, imm_bits: i32): i32;
 extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, word: i32): i32;
+
+// G-02f-130：0F opcode2 + rel32 + patch（imm_bits=32，与 seed 一致）
+#[no_mangle]
+function backend_enc_x86_jcc_rel32_c(elf_ctx: *u8, opcode2: u8, label: *u8, label_len: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (label == 0) { return 0 - 1; }
+  if (label_len <= 0) { return 0 - 1; }
+  let b0: u8 = 15;
+  let b1: u8 = opcode2;
+  let z: u8 = 0;
+  unsafe {
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b0, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &z, 1) != 0) { return 0 - 1; }
+    let rel32_at: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx) - 4;
+    if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) { return 0 - 1; }
+    return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 32);
+  }
+  return 0 - 1;
+}
 
 #[no_mangle]
 function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32 {

@@ -1,4 +1,5 @@
 /* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97/98 true .x + C tail; G-02f-74/82 diag gates).
+ * G-02f-130 true .x pure helpers.
  * G-02f-116 true .x pure helpers.
  * G-02f-109 helper gates.
  * Regen: ./shux-c -E -L .. src/diag.x > /tmp/diag.c
@@ -229,16 +230,12 @@ int diag_kind_is_exact(const char *kind, const char *needle) {
 
 
 
-int diag_kind_contains_impl(const char *kind, const char *needle) {
+/* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int diag_kind_contains(const char *kind, const char *needle) {
     if (!kind || !needle || needle[0] == '\0')
         return 0;
     return strstr(kind, needle) != NULL ? 1 : 0;
-}
-int diag_kind_contains(const char *kind, const char *needle) {
-  {
-    return diag_kind_contains_impl(kind, needle);
-  }
-  return 0;
+
 }
 
 

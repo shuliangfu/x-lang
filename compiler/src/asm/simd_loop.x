@@ -93,9 +93,7 @@ extern "C" function glue_parse_i_plus_one_step_c_impl(arena: *u8, step_ref: i32,
 extern "C" function glue_parse_index_binop_assign_c_impl(arena: *u8, assign_ref: i32, i_var_ref: i32, out_a: *i32, out_b: *i32, out_op: *i32): i32;
 extern "C" function glue_parse_i_lt_bound_c_impl(arena: *u8, block_ref: i32, cond_ref: i32, i_var_ref: i32, out_bound: *i32): i32;
 extern "C" function glue_simd_local_var_stack_off_c_impl(arena: *u8, ctx: *u8, var_ref: i32): i32;
-extern "C" function glue_var_array_size_c_impl(arena: *u8, var_ref: i32): i32;
-extern "C" function glue_soa_f32_col_rbp_disp32_impl(off_col0: i32, start_idx: i32): i32;
-extern "C" function glue_f32_slot_rbp_disp32_impl(slot_off: i32): i32;
+// glue_var_array_size_c / soa/f32 disp 真迁见下
 
 /* ---- G-02f-107：simd_loop parse/slot glue 门闩 ---- */
 
@@ -132,8 +130,19 @@ function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_ref: i32): i3
 
 
 #[no_mangle]
+// G-02f-130：VAR 定长数组元素个数（任意 elem；上限 65536）
+#[no_mangle]
 function glue_var_array_size_c(arena: *u8, var_ref: i32): i32 {
-  unsafe { return glue_var_array_size_c_impl(arena, var_ref); }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) { return 0; }
+    let tr: i32 = pipeline_expr_resolved_type_ref(arena, var_ref);
+    if (tr <= 0) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, tr) != 10) { return 0; }
+    let asz: i32 = pipeline_type_array_size_at(arena, tr);
+    if (asz <= 0) { return 0; }
+    if (asz > 65536) { return 0; }
+    return asz;
+  }
   return 0;
 }
 

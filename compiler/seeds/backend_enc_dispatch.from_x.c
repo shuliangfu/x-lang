@@ -1,4 +1,5 @@
 /* seeds/backend_enc_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-130 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
  * G-02f-100/101 enc helper gates.
  * Source intent: src/asm/backend_enc_dispatch.x (doc) + this seed (full C body).
@@ -26,7 +27,8 @@ extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset,
  * x86_64 条件跳转 rel32：0F opcode2 00 00 00 00 + patch（与 x86_64_enc.x enc_jle/enc_jl 一致）。
  * 供 pipeline_glue LCG 计数循环；bootstrap partial.o 未导出 enc_jle/enc_jl 时用 C 路由。
  */
-int32_t backend_enc_x86_jcc_rel32_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2,
+/* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t backend_enc_x86_jcc_rel32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2,
                                            uint8_t *label, int32_t label_len) {
   uint8_t buf[6];
   int32_t rel32_at;
@@ -44,13 +46,7 @@ int32_t backend_enc_x86_jcc_rel32_c_impl(struct platform_elf_ElfCodegenCtx *elf_
   if (pipeline_elf_ctx_ensure_label((uint8_t *)elf_ctx, label, label_len) != 0)
     return -1;
   return pipeline_elf_ctx_append_patch((uint8_t *)elf_ctx, rel32_at, label, label_len, 32);
-}
-int32_t backend_enc_x86_jcc_rel32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2,
-                                           uint8_t *label, int32_t label_len) {
-  {
-    return backend_enc_x86_jcc_rel32_c_impl(elf_ctx, opcode2, label, label_len);
-  }
-  return 0;
+
 }
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {

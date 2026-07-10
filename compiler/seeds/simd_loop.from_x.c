@@ -1,4 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
+ * G-02f-130 true .x pure helpers.
  * G-02f-129 true .x pure helpers.
  * G-02f-128 true .x pure helpers.
  * G-02f-124 true .x pure helpers.
@@ -593,7 +594,8 @@ int32_t glue_f32_slot_rbp_disp32(int32_t off) {
 
 
 /** VAR 定长数组元素个数；失败 0。 */
-int32_t glue_var_array_size_c_impl(struct ast_ASTArena *arena, int32_t var_ref) {
+/* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
     int32_t tr;
     int32_t asz;
     if (pipeline_expr_kind_ord_at(arena, var_ref) != GLUE_EXPR_VAR)
@@ -605,12 +607,7 @@ int32_t glue_var_array_size_c_impl(struct ast_ASTArena *arena, int32_t var_ref) 
     if (asz <= 0 || asz > 65536)
         return 0;
     return asz;
-}
-int32_t glue_var_array_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
-  {
-    return glue_var_array_size_c_impl(arena, var_ref);
-  }
-  return 0;
+
 }
 
 

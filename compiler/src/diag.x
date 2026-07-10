@@ -31,7 +31,6 @@ extern "C" function diag_color_prefix_impl(plain: *u8, color: *u8): *u8;
 extern "C" function diag_color_reset_impl(): *u8;
 extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
 extern "C" function diag_kind_is_exact_impl(kind: *u8, needle: *u8): i32;
-extern "C" function diag_kind_contains_impl(kind: *u8, needle: *u8): i32;
 extern "C" function diag_line_digits_impl(line: i32): i32;
 
 extern "C" function diag_print_header_impl(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void;
@@ -214,6 +213,38 @@ function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, 
 }
 
 // G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
+
+// G-02f-130：diag_kind_contains 真迁 .x（子串探测）
+#[no_mangle]
+function diag_kind_contains(kind: *u8, needle: *u8): i32 {
+  if (kind == 0) { return 0; }
+  if (needle == 0) { return 0; }
+  if (needle[0] == 0) { return 0; }
+  let nlen: i32 = 0;
+  while (nlen < 4096) {
+    if (needle[nlen] == 0) { break; }
+    nlen = nlen + 1;
+  }
+  if (nlen <= 0) { return 0; }
+  let klen: i32 = 0;
+  while (klen < 4096) {
+    if (kind[klen] == 0) { break; }
+    klen = klen + 1;
+  }
+  if (klen < nlen) { return 0; }
+  let s: i32 = 0;
+  while (s + nlen <= klen) {
+    let j: i32 = 0;
+    let ok: i32 = 1;
+    while (j < nlen) {
+      if (kind[s + j] != needle[j]) { ok = 0; break; }
+      j = j + 1;
+    }
+    if (ok != 0) { return 1; }
+    s = s + 1;
+  }
+  return 0;
+}
 
 #[no_mangle]
 function diag_line_digits(line: i32): i32 {
