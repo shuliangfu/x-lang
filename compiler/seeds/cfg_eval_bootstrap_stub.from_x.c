@@ -1,4 +1,5 @@
 /* seeds/cfg_eval_bootstrap_stub.from_x.c — G-02f-80 product cold-start TU
+ * G-02f-101 cfg string helper gates.
  * Promoted from compiler/src/lexer/cfg_eval_bootstrap_stub.inc (stub/bridge; retired .inc).
  * Compile: cc -c / cc_inc_tu seeds/cfg_eval_bootstrap_stub.from_x.c
  */
@@ -54,7 +55,7 @@ static int g_cfg_has_target_override;
 static int g_cfg_freestanding;
 
 /** triple 子串忽略大小写匹配。 */
-static int cfg_triple_contains_ci(const char *triple, int len, const char *needle) {
+int cfg_triple_contains_ci_impl(const char *triple, int len, const char *needle) {
   size_t nlen;
   int i;
   if (!triple || len <= 0 || !needle)
@@ -82,6 +83,13 @@ static int cfg_triple_contains_ci(const char *triple, int len, const char *needl
   }
   return 0;
 }
+int cfg_triple_contains_ci(const char *triple, int len, const char *needle) {
+  {
+    return cfg_triple_contains_ci_impl(triple, len, needle);
+  }
+  return 0;
+}
+
 
 /** 从 `-target` triple 解析 os/arch；失败回退 host。 */
 static void cfg_parse_triple_literals(const char *triple, int len, char *os_out, size_t os_sz, char *arch_out,
@@ -131,7 +139,7 @@ static const char *cfg_effective_arch_lit(void) {
 }
 
 /** 忽略大小写比较 [a, a+alen) 与 C 字符串 b。 */
-static int cfg_lit_eq_ci(const char *a, size_t alen, const char *b) {
+int cfg_lit_eq_ci_impl(const char *a, size_t alen, const char *b) {
   size_t blen;
   size_t i;
   if (!a || !b)
@@ -151,6 +159,13 @@ static int cfg_lit_eq_ci(const char *a, size_t alen, const char *b) {
   }
   return 1;
 }
+int cfg_lit_eq_ci(const char *a, size_t alen, const char *b) {
+  {
+    return cfg_lit_eq_ci_impl(a, alen, b);
+  }
+  return 0;
+}
+
 
 /** 递归求值 cfg 表达式；end 不含。 */
 static int cfg_eval_expr(const char *start, const char *end) {

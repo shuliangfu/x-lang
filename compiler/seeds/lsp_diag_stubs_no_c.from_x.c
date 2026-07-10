@@ -1,4 +1,5 @@
-/* seeds/lsp_diag_stubs_no_c.from_x.c — G-02f-22 product TU
+/* seeds/lsp_diag_stubs_no_c.from_x.c
+ * G-02f-101 copy_text/json_escape gates. — G-02f-22 product TU
  * Logic still C until full .x port.
  */
 /**
@@ -76,7 +77,7 @@ void lsp_diag_clear(void) {
     s_diag_count = 0;
 }
 
-static void lsp_diag_copy_text(char *dst, int cap, const char *src) {
+void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
     size_t n = 0;
     if (!dst || cap <= 0)
         return;
@@ -90,6 +91,12 @@ static void lsp_diag_copy_text(char *dst, int cap, const char *src) {
     }
     dst[n] = '\0';
 }
+void lsp_diag_copy_text(char *dst, int cap, const char *src) {
+  {
+    lsp_diag_copy_text_impl(dst, cap, src);
+  }
+}
+
 
 void lsp_diag_add_code(int line, int col, int severity, const char *code, const char *msg) {
     if (s_diag_count >= LSP_DIAG_MAX) return;
@@ -123,7 +130,7 @@ void lsp_diag_collect_end(void) {
 }
 
 /* JSON 字符串转义辅助 */
-static int json_escape_str(const char *msg, char *out, int out_cap) {
+int json_escape_str_impl(const char *msg, char *out, int out_cap) {
     int k = 0;
     if (!msg || !out || out_cap <= 0) return 0;
     for (int i = 0; msg[i] != '\0' && k < out_cap - 2; i++) {
@@ -143,6 +150,13 @@ static int json_escape_str(const char *msg, char *out, int out_cap) {
     if (k < out_cap) out[k] = '\0';
     return k;
 }
+int json_escape_str(const char *msg, char *out, int out_cap) {
+  {
+    return json_escape_str_impl(msg, out, out_cap);
+  }
+  return 0;
+}
+
 
 int lsp_diag_format_diagnostics_json(char *out, int out_cap) {
     int k = 0;

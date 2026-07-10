@@ -1,4 +1,5 @@
-/* seeds/runtime_sync_lock_diag_tls.from_x.c — G-02f-19 product TU
+/* seeds/runtime_sync_lock_diag_tls.from_x.c
+ * G-02f-101 append helper gates. — G-02f-19 product TU
  * Product: runtime_sync_lock_diag_tls.o; logic still C until full .x port.
  */
 /**
@@ -238,16 +239,23 @@ void sync_lock_diag_clear_c(void) {
 }
 
 /** 向 out[pos] 追加单字节；满则 -1。 */
-static int32_t sync_lock_diag_append_byte(uint8_t *out, int32_t pos, int32_t cap, uint8_t b) {
+int32_t sync_lock_diag_append_byte_impl(uint8_t *out, int32_t pos, int32_t cap, uint8_t b) {
     if (out == NULL || pos < 0 || pos >= cap) {
         return -1;
     }
     out[pos] = b;
     return pos + 1;
 }
+int32_t sync_lock_diag_append_byte(uint8_t *out, int32_t pos, int32_t cap, uint8_t b) {
+  {
+    return sync_lock_diag_append_byte_impl(out, pos, cap, b);
+  }
+  return 0 - 1;
+}
+
 
 /** 向 out 追加 n 字节字面量。 */
-static int32_t sync_lock_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap,
+int32_t sync_lock_diag_append_lit_impl(uint8_t *out, int32_t pos, int32_t cap,
                                          const uint8_t *s, int32_t n) {
     int32_t i;
     for (i = 0; i < n; i++) {
@@ -258,9 +266,17 @@ static int32_t sync_lock_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap,
     }
     return pos;
 }
+int32_t sync_lock_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap,
+                                         const uint8_t *s, int32_t n) {
+  {
+    return sync_lock_diag_append_lit_impl(out, pos, cap, s, n);
+  }
+  return 0 - 1;
+}
+
 
 /** 将 i32 十进制追加到 out；失败 -1。 */
-static int32_t sync_lock_diag_append_i32(uint8_t *out, int32_t pos, int32_t cap, int32_t v) {
+int32_t sync_lock_diag_append_i32_impl(uint8_t *out, int32_t pos, int32_t cap, int32_t v) {
     uint8_t tmp[16];
     int32_t n = 0;
     int32_t x = v;
@@ -291,6 +307,13 @@ static int32_t sync_lock_diag_append_i32(uint8_t *out, int32_t pos, int32_t cap,
     }
     return pos;
 }
+int32_t sync_lock_diag_append_i32(uint8_t *out, int32_t pos, int32_t cap, int32_t v) {
+  {
+    return sync_lock_diag_append_i32_impl(out, pos, cap, v);
+  }
+  return 0 - 1;
+}
+
 
 /** 写入文本快照；返回写入字节数，失败 -1。 */
 int32_t sync_lock_diag_snapshot_c(uint8_t *out, int32_t cap) {

@@ -1,5 +1,5 @@
 /* seeds/backend_enc_dispatch.from_x.c — G-02f-9 product backend dispatch TU
- * G-02f-100 enc helper gates.
+ * G-02f-100/101 enc helper gates.
  * Source intent: src/asm/backend_enc_dispatch.x (doc) + this seed (full C body).
  * Product: → src/asm/backend_enc_dispatch.o. Logic still C until full .x port.
  */
@@ -1113,7 +1113,7 @@ int32_t backend_enc_load_rbp_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_
 /**
  * arm64：LDUR w0, [x29, #-offset]（f32/i32 单向量 lane load）。
  */
-static int32_t arm64_enc_load_w0_from_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+int32_t arm64_enc_load_w0_from_rbp_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
   int32_t simm9;
   int32_t u9;
   int32_t base;
@@ -1128,6 +1128,13 @@ static int32_t arm64_enc_load_w0_from_rbp_c(struct platform_elf_ElfCodegenCtx *e
   insn = (uint32_t)base | ((uint32_t)u9 << 12) | (29u << 5);
   return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)insn);
 }
+int32_t arm64_enc_load_w0_from_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  {
+    return arm64_enc_load_w0_from_rbp_c_impl(elf_ctx, offset);
+  }
+  return 0 - 1;
+}
+
 
 /**
  * x86：movl 取 i32 lane；arm64 f32/i32 lane 用 LDUR w0；其它走 64-bit load。
@@ -1154,7 +1161,7 @@ int32_t backend_enc_load_rbp_lane_to_rbx_arch(struct platform_elf_ElfCodegenCtx 
 /**
  * arm64：STUR w0, [x29, #-offset]（f32 局部 let/assign；勿 64 位 str x0 覆盖相邻 4B 槽）。
  */
-static int32_t arm64_enc_store_w0_to_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+int32_t arm64_enc_store_w0_to_rbp_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
   int32_t simm9;
   int32_t u9;
   uint32_t insn;
@@ -1167,6 +1174,13 @@ static int32_t arm64_enc_store_w0_to_rbp_c(struct platform_elf_ElfCodegenCtx *el
   insn = 0xB8000000u | ((uint32_t)u9 << 12) | (29u << 5);
   return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)insn);
 }
+int32_t arm64_enc_store_w0_to_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  {
+    return arm64_enc_store_w0_to_rbp_c_impl(elf_ctx, offset);
+  }
+  return 0 - 1;
+}
+
 
 /**
  * x86：movl %eax, -off(%rbp)（f32 局部 let/assign store）；arm64 走 STUR w0。

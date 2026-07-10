@@ -1,4 +1,5 @@
 /* seeds/runtime_backtrace_platform.from_x.c — G-02f-19 product TU
+ * G-02f-101 hex2/gold_anchor gates.
  * Product: runtime_backtrace_platform.o; logic still C until full .x port.
  */
 /**
@@ -63,7 +64,7 @@ void backtrace_write_frame_addr_c(uint8_t *buf, int32_t i, void *addr) {
 }
 
 /** 单字节转两位小写十六进制。 */
-static void backtrace_u8_hex2(uint8_t b, char *out) {
+void backtrace_u8_hex2_impl(uint8_t b, char *out) {
   uint8_t hi = (uint8_t)((b >> 4) & 0x0fu);
   uint8_t lo = (uint8_t)(b & 0x0fu);
   if (!out) {
@@ -72,6 +73,12 @@ static void backtrace_u8_hex2(uint8_t b, char *out) {
   out[0] = (char)(hi < 10 ? ('0' + hi) : ('a' + hi - 10));
   out[1] = (char)(lo < 10 ? ('0' + lo) : ('a' + lo - 10));
 }
+void backtrace_u8_hex2(uint8_t b, char *out) {
+  {
+    backtrace_u8_hex2_impl(b, out);
+  }
+}
+
 
 /** 复制符号名到 out（最多 name_cap-1 字节 + NUL）。 */
 void backtrace_copy_sym_name_c(char *out, int32_t name_cap, const char *name) {
@@ -332,9 +339,16 @@ const char *backtrace_xplat_platform_name_c(void) {
 }
 
 /** 检查符号名是否含 gold_anchor。 */
-static int32_t name_has_gold_anchor(const char *name) {
+int32_t name_has_gold_anchor_impl(const char *name) {
   return backtrace_name_has_gold_anchor_c((const uint8_t *)name);
 }
+int32_t name_has_gold_anchor(const char *name) {
+  {
+    return name_has_gold_anchor_impl(name);
+  }
+  return 0;
+}
+
 
 /** STD-147 跨平台符号质量探测。 */
 int32_t backtrace_xplat_quality_c(void) {

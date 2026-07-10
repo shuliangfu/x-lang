@@ -5,6 +5,7 @@
 // 本文件为语义对照 / 后续真迁 .x 锚点；分派实现仍在 seed C。
 // 产品：cc seeds/backend_enc_dispatch.from_x.c → src/asm/backend_enc_dispatch.o
 // G-02f-100：+ x86 jcc / append_u32 / arm64 call/add/sub/str 薄门闩。
+// G-02f-101：+ arm64 load/store w0 from rbp 薄门闩。
 
 extern "C" function backend_enc_x86_jcc_rel32_c_impl(elf_ctx: *u8, opcode2: u8, label: *u8, label_len: i32): i32;
 extern "C" function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32;
@@ -12,6 +13,8 @@ extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_
 extern "C" function backend_enc_arm64_add_sp_imm12_c_impl(elf_ctx: *u8, imm: i32): i32;
 extern "C" function backend_enc_arm64_sub_sp_imm12_c_impl(elf_ctx: *u8, imm: i32): i32;
 extern "C" function backend_enc_arm64_str_x0_sp_offset_c_impl(elf_ctx: *u8, off_bytes: i32): i32;
+extern "C" function arm64_enc_load_w0_from_rbp_c_impl(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arm64_enc_store_w0_to_rbp_c_impl(elf_ctx: *u8, offset: i32): i32;
 
 function backend_enc_dispatch_x_doc_anchor(): i32 {
   return 0;
@@ -63,6 +66,24 @@ function backend_enc_arm64_sub_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
 function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i32): i32 {
   unsafe {
     return backend_enc_arm64_str_x0_sp_offset_c_impl(elf_ctx, off_bytes);
+  }
+  return 0 - 1;
+}
+
+/* ---- G-02f-101：arm64 load/store w0 门闩 ---- */
+
+#[no_mangle]
+function arm64_enc_load_w0_from_rbp_c(elf_ctx: *u8, offset: i32): i32 {
+  unsafe {
+    return arm64_enc_load_w0_from_rbp_c_impl(elf_ctx, offset);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
+  unsafe {
+    return arm64_enc_store_w0_to_rbp_c_impl(elf_ctx, offset);
   }
   return 0 - 1;
 }

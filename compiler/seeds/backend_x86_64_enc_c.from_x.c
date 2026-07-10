@@ -1,4 +1,5 @@
-/* seeds/backend_x86_64_enc_c.from_x.c — G-02f-15 product TU
+/* seeds/backend_x86_64_enc_c.from_x.c
+ * G-02f-101 x86 enc helper gates. — G-02f-15 product TU
  * Product object from this seed; logic still C until full .x port.
  */
 /**
@@ -29,12 +30,19 @@ static uint8_t *x86_enc_ctx_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 }
 
 /** 追加 1 字节机器码。 */
-static int32_t x86_enc_u8(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t b) {
+int32_t x86_enc_u8_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t b) {
   return pipeline_elf_ctx_append_bytes(x86_enc_ctx_bytes(elf_ctx), &b, 1);
 }
+int32_t x86_enc_u8(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t b) {
+  {
+    return x86_enc_u8_impl(elf_ctx, b);
+  }
+  return 0 - 1;
+}
+
 
 /** 追加 imm32 小端。 */
-static int32_t x86_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
+int32_t x86_enc_u32_le_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
   uint8_t buf[4];
   buf[0] = (uint8_t)(imm & 255);
   buf[1] = (uint8_t)((imm >> 8) & 255);
@@ -42,16 +50,30 @@ static int32_t x86_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_
   buf[3] = (uint8_t)((imm >> 24) & 255);
   return pipeline_elf_ctx_append_bytes(x86_enc_ctx_bytes(elf_ctx), buf, 4);
 }
+int32_t x86_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
+  {
+    return x86_enc_u32_le_impl(elf_ctx, imm);
+  }
+  return 0 - 1;
+}
+
 
 /** 追加固定字节序列。 */
-static int32_t x86_enc_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *buf, int32_t n) {
+int32_t x86_enc_bytes_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *buf, int32_t n) {
   return pipeline_elf_ctx_append_bytes(x86_enc_ctx_bytes(elf_ctx), (uint8_t *)buf, n);
 }
+int32_t x86_enc_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *buf, int32_t n) {
+  {
+    return x86_enc_bytes_impl(elf_ctx, buf, n);
+  }
+  return 0 - 1;
+}
+
 
 #define X86_ENC_FIXED(ctx, arr) x86_enc_bytes((ctx), (const uint8_t *)(arr), (int32_t)sizeof(arr))
 
 /** x86 rel32 条件跳转 + patch（与 x86_64_enc.x enc_jz/enc_jge 一致）。 */
-static int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2, uint8_t *label,
+int32_t x86_enc_jcc_rel32_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2, uint8_t *label,
                                  int32_t label_len) {
   uint8_t buf[6];
   int32_t rel32_at;
@@ -69,6 +91,14 @@ static int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
     return -1;
   return pipeline_elf_ctx_append_patch(cb, rel32_at, label, label_len, 0);
 }
+int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2, uint8_t *label,
+                                 int32_t label_len) {
+  {
+    return x86_enc_jcc_rel32_impl(elf_ctx, opcode2, label, label_len);
+  }
+  return 0 - 1;
+}
+
 
 /** movq -offset(%rbp), %reg：modrm_reg 为 disp8 第三字节（69=rax, 93=rbx 等）。 */
 static int32_t x86_enc_movq_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
