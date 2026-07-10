@@ -53,6 +53,11 @@ int32_t simd_x86_cmpgtps_xmm2_xmm3(struct platform_elf_ElfCodegenCtx *elf_ctx);
 int32_t simd_x86_andps_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx);
 int32_t simd_x86_andnps_xmm2_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
 int32_t simd_x86_orps_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_vpxor_ymm3_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_vpcmpgtd_ymm2_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_vpand_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_vpandn_ymm2_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_vpor_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx);
 #endif
 
 /** slot_off 为 asm 局部槽距 fp 的正字节距（lane0 低址端，与向量 let init 的 lea 一致）；x86 disp = -slot_off。 */
@@ -1075,50 +1080,85 @@ int32_t simd_x86_orps_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 /** x86 AVX2：vpxor ymm3, ymm3, ymm3（C5 F5 77 DB）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_vpxor_ymm3_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-394：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_vpxor_ymm3_ymm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0xc5, 0xf5, 0x77, 0xdb};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_vpxor_ymm3_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_vpxor_ymm3_ymm3_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 AVX2：vpcmpgtd ymm2, ymm2, ymm3（C5 ED 66 D3）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_vpcmpgtd_ymm2_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-394：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_vpcmpgtd_ymm2_ymm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0xc5, 0xed, 0x66, 0xd3};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_vpcmpgtd_ymm2_ymm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_vpcmpgtd_ymm2_ymm3_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 AVX2：vpand ymm0, ymm0, ymm2（C5 E5 DB C2）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_vpand_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-394：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_vpand_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0xc5, 0xe5, 0xdb, 0xc2};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_vpand_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_vpand_ymm0_ymm2_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 AVX2：vpandn ymm2, ymm2, ymm1（C5 E5 DF D1）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_vpandn_ymm2_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-394：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_vpandn_ymm2_ymm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0xc5, 0xe5, 0xdf, 0xd1};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_vpandn_ymm2_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_vpandn_ymm2_ymm1_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 AVX2：vpor ymm0, ymm0, ymm2（C5 E5 EB C2）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_vpor_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-394：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_vpor_ymm0_ymm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0xc5, 0xe5, 0xeb, 0xc2};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_vpor_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_vpor_ymm0_ymm2_impl(elf_ctx);
+}
+#endif
 
 
 
@@ -1217,15 +1257,15 @@ int32_t simd_enc_emit_f32_select_xmm_seq(struct platform_elf_ElfCodegenCtx *elf_
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-212：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t simd_enc_emit_i32_select_ymm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-    if (simd_x86_vpxor_ymm3_ymm3(elf_ctx) != 0)
+    if (simd_x86_vpxor_ymm3_ymm3_impl(elf_ctx) != 0)
         return -1;
-    if (simd_x86_vpcmpgtd_ymm2_ymm3(elf_ctx) != 0)
+    if (simd_x86_vpcmpgtd_ymm2_ymm3_impl(elf_ctx) != 0)
         return -1;
-    if (simd_x86_vpand_ymm0_ymm2(elf_ctx) != 0)
+    if (simd_x86_vpand_ymm0_ymm2_impl(elf_ctx) != 0)
         return -1;
-    if (simd_x86_vpandn_ymm2_ymm1(elf_ctx) != 0)
+    if (simd_x86_vpandn_ymm2_ymm1_impl(elf_ctx) != 0)
         return -1;
-    if (simd_x86_vpor_ymm0_ymm2(elf_ctx) != 0)
+    if (simd_x86_vpor_ymm0_ymm2_impl(elf_ctx) != 0)
         return -1;
     return 0;
 }
