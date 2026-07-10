@@ -1,4 +1,4 @@
-/* seeds/rt_compile.from_x.c — G-02f-291～294 P2 runtime R6 compile helpers
+/* seeds/rt_compile.from_x.c — G-02f-291～295 P2 runtime R6 compile helpers
  * Logic source: src/runtime/rt_compile.x
  * Hybrid: SHUX_RT_COMPILE_FROM_X + ld -r into runtime_driver_no_c.o
  *
@@ -6,7 +6,8 @@
  * f-292: argv state field helpers (copy_path / freestanding / help)
  * f-293: apply_minus_o/L/O + backend/target/target_cpu next
  * f-294: parse_argv_init + ensure_default_lib + append_lib_root
- * Full parse_argv_step/scan/impl + resolve_target_cpu remain mega rest.
+ * f-295: parse_argv_step + scan
+ * Full parse_argv_impl + resolve_target_cpu remain mega rest.
  */
 #if !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 200809L
@@ -48,8 +49,20 @@ extern int32_t driver_emit_lib_root_count(uint8_t *state);
 extern int32_t driver_emit_append_lib_root(uint8_t *state, uint8_t *path, int32_t len);
 extern void driver_emit_lib_root_reset(uint8_t *state);
 /* From rt_argv seed when hybrid; else mega rest. */
+extern int drv_eq_minus_o(const char *buf, int len);
+extern int drv_eq_minus_L(const char *buf, int len);
+extern int drv_eq_minus_O(const char *buf, int len);
+extern int drv_eq_flto(const char *buf, int len);
+extern int drv_eq_minus_freestanding(const char *buf, int len);
+extern int drv_eq_legacy_f32_abi(const char *buf, int len);
+extern int drv_eq_fsanitize_address(const char *buf, int len);
+extern int drv_eq_minus_backend(const char *buf, int len);
+extern int drv_eq_minus_target(const char *buf, int len);
+extern int drv_eq_minus_target_cpu(const char *buf, int len);
+extern int drv_eq_print_target_cpu(const char *buf, int len);
 extern int drv_eq_asm_word(const char *buf, int len);
 extern int drv_eq_c_word(const char *buf, int len);
+extern int drv_path_ends_x(const char *buf, int len);
 extern int drv_target_has_arm(const char *buf, int len);
 
 /**
@@ -298,6 +311,101 @@ void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, in
   tlen = driver_get_argv_i(argc, argv, i + 1, (char *)state->target_cpu_buf, 64);
   if (tlen >= 0)
     state->target_cpu_len = tlen;
+}
+
+/* --- G-02f-295: parse_argv_step + scan --- */
+
+/**
+ * 处理 argv[i] 一项；返回下一 argv 下标。
+ */
+int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
+                                     int arg_cap) {
+  int len = driver_get_argv_i(argc, argv, i, arg_buf, arg_cap);
+  if (len < 0)
+    return i + 1;
+  if (drv_eq_minus_o(arg_buf, len) && i + 1 < argc) {
+    int olen = driver_get_argv_i(argc, argv, i + 1, (char *)state->out_path_buf, 512);
+    if (olen >= 0)
+      state->out_path_len = olen;
+    return i + 2;
+  }
+  if (drv_eq_minus_L(arg_buf, len) && i + 1 < argc) {
+    int llen = driver_get_argv_i(argc, argv, i + 1, arg_buf, arg_cap);
+    if (llen >= 0)
+      driver_compile_append_lib_root_c(state, (uint8_t *)arg_buf, llen);
+    return i + 2;
+  }
+  if (drv_eq_minus_O(arg_buf, len) && i + 1 < argc) {
+    int olen = driver_get_argv_i(argc, argv, i + 1, (char *)state->opt_level_buf, 8);
+    if (olen >= 0)
+      state->opt_level_len = olen;
+    return i + 2;
+  }
+  if (drv_eq_flto(arg_buf, len)) {
+    state->use_lto = 1;
+    return i + 1;
+  }
+  if (drv_eq_minus_freestanding(arg_buf, len)) {
+    driver_compile_argv_set_use_freestanding_c(state);
+    return i + 1;
+  }
+  if (drv_eq_legacy_f32_abi(arg_buf, len)) {
+    driver_compile_argv_set_legacy_f32_abi_c();
+    return i + 1;
+  }
+  if (drv_eq_fsanitize_address(arg_buf, len)) {
+    driver_sanitize_address_set(1);
+    return i + 1;
+  }
+  if (drv_eq_minus_backend(arg_buf, len) && i + 1 < argc) {
+    int vlen = driver_get_argv_i(argc, argv, i + 1, arg_buf, arg_cap);
+    if (vlen >= 0 && drv_eq_asm_word(arg_buf, vlen)) {
+      state->use_asm_backend = 1;
+      state->backend_asm_explicit = 1;
+    }
+    if (vlen >= 0 && drv_eq_c_word(arg_buf, vlen)) {
+      state->use_asm_backend = 0;
+      state->backend_asm_explicit = 0;
+    }
+    return i + 2;
+  }
+  if (drv_eq_minus_target(arg_buf, len) && i + 1 < argc) {
+    int tlen;
+    state->parse_saw_target = 1;
+    tlen = driver_get_argv_i(argc, argv, i + 1, (char *)state->target_buf, 512);
+    if (tlen >= 0) {
+      state->target_len = tlen;
+      if (drv_target_has_arm((char *)state->target_buf, tlen))
+        state->target_arch = 1;
+    }
+    return i + 2;
+  }
+  if (drv_eq_minus_target_cpu(arg_buf, len) && i + 1 < argc) {
+    int tlen;
+    state->parse_saw_target_cpu = 1;
+    tlen = driver_get_argv_i(argc, argv, i + 1, (char *)state->target_cpu_buf, 64);
+    if (tlen >= 0)
+      state->target_cpu_len = tlen;
+    return i + 2;
+  }
+  if (drv_eq_print_target_cpu(arg_buf, len)) {
+    state->print_target_cpu = 1;
+    return i + 1;
+  }
+  if (arg_buf[0] != '-' && drv_path_ends_x(arg_buf, len))
+    driver_compile_argv_copy_path_c(state, (uint8_t *)arg_buf, len);
+  return i + 1;
+}
+
+void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
+  char **argv = (char **)argv_opaque;
+  char arg_buf[512];
+  int i;
+
+  if (argc < 2 || !state)
+    return;
+  for (i = 1; i < argc;)
+    i = driver_compile_parse_argv_step_c(argc, argv, state, i, arg_buf, (int)sizeof arg_buf);
 }
 
 int labi_rt_compile_slice_marker(void) {

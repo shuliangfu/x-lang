@@ -4587,6 +4587,9 @@ void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, in
 void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
 void driver_compile_ensure_default_lib_c(uint8_t *key);
 void driver_compile_parse_argv_init_c(DriverCompileStateSU *state);
+int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
+                                     int arg_cap);
+void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state);
 int labi_rt_compile_slice_marker(void);
 #endif /* !SHUX_RT_COMPILE_FROM_X */
 
@@ -5926,9 +5929,10 @@ int drv_target_has_arm(const char *buf, int len);
 
 /**
  * 处理 argv[i] 一项（C 实现；strict emit 下 X step 的 if+side-effect+return 会错序提前 return）。
- * 返回下一 argv 下标。
+ * 返回下一 argv 下标。scan 循环调用 step。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-295 R6 → rt_compile hybrid */
+#ifndef SHUX_RT_COMPILE_FROM_X
 int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
                                             int arg_cap) {
     int len = driver_get_argv_i(argc, argv, i, arg_buf, arg_cap);
@@ -6008,10 +6012,6 @@ int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU
     return i + 1;
 }
 
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
 void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
     char **argv = (char **)argv_opaque;
     char arg_buf[512];
@@ -6022,6 +6022,11 @@ void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, Driver
     for (i = 1; i < argc;)
         i = driver_compile_parse_argv_step_c(argc, argv, state, i, arg_buf, (int)sizeof arg_buf);
 }
+#else
+int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
+                                     int arg_cap);
+void driver_compile_parse_argv_scan_c(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state);
+#endif
 
 
 
