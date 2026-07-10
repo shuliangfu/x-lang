@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-28：真迁 .x — LSP pipeline ctx 尺寸桥 + typeck_ 前缀去前缀别名。
-// G-02f-74：+ remaining lsp_diag_pipeline_ctx gates.
+// G-02f-74：+ remaining lsp_diag_pipeline_ctx gates。
+// G-02f-98：+ lsp_debug_report_sqpoll_env / lsp_apply_default_io_policy 门闩。
 // 产品：./shux-c -E → seeds/lsp_diag_pipeline_ctx.from_x.c（+ C 尾段 + weak 抛光）。
 // C 尾：fill_paths（struct memset/strlen）、g_lsp_state_buf 静态、typeck_lsp_main 大栈、
 //       lsp_write_all（EINTR/write）、lsp_definition_at 出参逻辑。
@@ -23,6 +24,8 @@ extern "C" function lsp_diag_invalidate_cache(): void;
 extern "C" function lsp_diag_pipeline_ctx_fill_paths_impl(ctx_void: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void;
 extern "C" function typeck_lsp_main_impl(): i32;
 extern "C" function lsp_write_all_impl(fd: i32, buf: *u8, len: i32): i32;
+extern "C" function lsp_debug_report_sqpoll_env_impl(): void;
+extern "C" function lsp_apply_default_io_policy_impl(): void;
 
 #[no_mangle]
 function lsp_diag_x_alloc_dep_ctx_size(): usize {
@@ -135,4 +138,20 @@ function lsp_write_all(fd: i32, buf: *u8, len: i32): i32 {
     return lsp_write_all_impl(fd, buf, len);
   }
   return 0 - 1;
+}
+
+/* ---- G-02f-98：LSP IO policy / debug env 门闩 ---- */
+
+#[no_mangle]
+function lsp_debug_report_sqpoll_env(): void {
+  unsafe {
+    lsp_debug_report_sqpoll_env_impl();
+  }
+}
+
+#[no_mangle]
+function lsp_apply_default_io_policy(): void {
+  unsafe {
+    lsp_apply_default_io_policy_impl();
+  }
 }

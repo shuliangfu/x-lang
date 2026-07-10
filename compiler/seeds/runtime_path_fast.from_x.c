@@ -1,25 +1,40 @@
 /* seeds/runtime_path_fast.from_x.c — G-02f-21 product TU
+ * G-02f-98 pure path helper gates.
  * Logic still C until full .x port.
  */
 #include <stdint.h>
 
-static uint8_t path_sep_c(void) {
+uint8_t path_sep_c_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     return (uint8_t)92;
 #else
     return (uint8_t)47;
 #endif
 }
+uint8_t path_sep_c(void) {
+  {
+    return path_sep_c_impl();
+  }
+  return 0;
+}
 
-static int32_t path_is_sep_c(uint8_t c) {
+
+int32_t path_is_sep_c_impl(uint8_t c) {
     if (c == (uint8_t)47)
         return 1;
     if (c == (uint8_t)92)
         return 1;
     return 0;
 }
+int32_t path_is_sep_c(uint8_t c) {
+  {
+    return path_is_sep_c_impl(c);
+  }
+  return 0;
+}
 
-static int32_t path_last_sep_c(uint8_t *path, int32_t path_len) {
+
+int32_t path_last_sep_c_impl(uint8_t *path, int32_t path_len) {
     int32_t i;
     for (i = path_len - 1; i >= 0; i--) {
         if (path_is_sep_c(path[i]) != 0)
@@ -27,14 +42,27 @@ static int32_t path_last_sep_c(uint8_t *path, int32_t path_len) {
     }
     return -1;
 }
+int32_t path_last_sep_c(uint8_t *path, int32_t path_len) {
+  {
+    return path_last_sep_c_impl(path, path_len);
+  }
+  return 0 - 1;
+}
 
-static int32_t path_last_dot_c(uint8_t *path, int32_t start, int32_t len) {
+
+int32_t path_last_dot_c_impl(uint8_t *path, int32_t start, int32_t len) {
     int32_t i;
     for (i = start + len - 1; i >= start; i--) {
         if (path[i] == (uint8_t)46)
             return i - start;
     }
     return -1;
+}
+int32_t path_last_dot_c(uint8_t *path, int32_t start, int32_t len) {
+  {
+    return path_last_dot_c_impl(path, start, len);
+  }
+  return 0 - 1;
 }
 
 int32_t std_path_empty_len(void) { return 0; }

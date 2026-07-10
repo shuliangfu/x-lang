@@ -1,4 +1,4 @@
-/* Generated from src/lsp/lsp_diag_pipeline_ctx.x (G-02f-28 true .x + C tail; G-02f-74 lsp ctx gates).
+/* Generated from src/lsp/lsp_diag_pipeline_ctx.x (G-02f-28 true .x + C tail; G-02f-74/98 lsp ctx gates).
  * Regen: ./shux-c -E -L .. src/lsp/lsp_diag_pipeline_ctx.x > /tmp/ldpc.c
  *         then re-apply weak polish + C tail (fill_paths/state/write_all).
  * .x covers: sizeof bridge + typeck_ → bare name aliases.
@@ -185,7 +185,8 @@ typedef struct LspMainThreadArgs {
     int32_t result;
 } LspMainThreadArgs;
 
-static void lsp_debug_report_sqpoll_env(void) {
+/* G-02f-98：LSP IO policy / debug env gates. */
+void lsp_debug_report_sqpoll_env_impl(void) {
     const char *dbg = getenv("SHUX_LSP_IO_DEBUG");
     const char *sq = getenv("SHUX_IO_URING_SQPOLL");
     if (!dbg || dbg[0] == '\0' || dbg[0] == '0')
@@ -194,11 +195,22 @@ static void lsp_debug_report_sqpoll_env(void) {
                  "lsp io debug: SHUX_IO_URING_SQPOLL=%s",
                  (sq && sq[0]) ? sq : "<unset>");
 }
+void lsp_debug_report_sqpoll_env(void) {
+  {
+    lsp_debug_report_sqpoll_env_impl();
+  }
+}
 
-static void lsp_apply_default_io_policy(void) {
+
+void lsp_apply_default_io_policy_impl(void) {
     const char *sq = getenv("SHUX_IO_URING_SQPOLL");
     if (!sq || sq[0] == '\0')
         (void)setenv("SHUX_IO_URING_SQPOLL", "0", 1);
+}
+void lsp_apply_default_io_policy(void) {
+  {
+    lsp_apply_default_io_policy_impl();
+  }
 }
 
 static void *lsp_main_large_stack_thread_fn(void *arg) {

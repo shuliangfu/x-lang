@@ -1,4 +1,4 @@
-/* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97 true .x + C tail; G-02f-74/82 diag gates).
+/* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97/98 true .x + C tail; G-02f-74/82 diag gates).
  * Regen: ./shux-c -E -L .. src/diag.x > /tmp/diag.c
  *         merge diag_report from .x; keep code table / va_list / JSON C tail.
  * .x covers: diag_report → diag_report_with_code(NULL code).
@@ -614,8 +614,9 @@ void diag_print_code_explain(FILE *out, const char *code) {
  * 仅用于诊断码建议（码长度很短，O(n*m) 可接受；仅在 --explain 未知码冷路径调用）。
  * max_dist 为上界：一旦当前行最小值超过 max_dist 即可提前判定超过（这里为简洁用完整 DP，码短无妨）。
  * 返回将 a 变换为 b 的最小单字符编辑（插入/删除/替换）次数。
+ * G-02f-98：export gate.
  */
-static int diag_levenshtein_ci(const char *a, const char *b) {
+int diag_levenshtein_ci_impl(const char *a, const char *b) {
     size_t la = a ? strlen(a) : 0;
     size_t lb = b ? strlen(b) : 0;
     size_t i, j;
@@ -657,6 +658,12 @@ static int diag_levenshtein_ci(const char *a, const char *b) {
         memcpy(prev, cur, (lb + 1) * sizeof(int));
     }
     return prev[lb];
+}
+int diag_levenshtein_ci(const char *a, const char *b) {
+  {
+    return diag_levenshtein_ci_impl(a, b);
+  }
+  return 999;
 }
 
 /**

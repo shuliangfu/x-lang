@@ -1,5 +1,5 @@
 /* seeds/user_asm_seed_bridge.from_x.c — G-02f-15 product TU
- * G-02f-97 pure helper gates.
+ * G-02f-97 pure helper gates; G-02f-98 reject/empty/macho/coff writer gates.
  * Product object from this seed; logic still C until full .x port.
  */
 /**
@@ -239,8 +239,9 @@ extern int32_t pipeline_elf_ctx_total_code_len(uint8_t *ctx_bytes);
 
 /**
  * 用户 .o 须含非空 __text；code_len==0 时拒绝写出（避免 576B 空 .o + U main 误导 ld）。
+ * G-02f-98：export gate.
  */
-static int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
+int32_t seed_asm_reject_empty_elf_text_impl(void *module, void *elf_ctx) {
   int32_t nf;
   int32_t clen;
   int32_t total_code_len;
@@ -257,6 +258,13 @@ static int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
     return 0;
   return SHUX_ASM_CODEGEN_ELF_EMPTY_TEXT_RC;
 }
+int32_t seed_asm_reject_empty_elf_text(void *module, void *elf_ctx) {
+  {
+    return seed_asm_reject_empty_elf_text_impl(module, elf_ctx);
+  }
+  return 0;
+}
+
 /*
  * Seed bridge 仅消费 seed_host/asm_backend_partial.o 提供的真实 writer。
  * 这里不能再定义同名 fallback，否则同一 TU 内调用会静态绑定到本地 stub，
@@ -268,7 +276,7 @@ extern int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf)
 extern int32_t platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) __attribute__((weak));
 #endif
 
-static int32_t seed_platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
+int32_t seed_platform_macho_write_macho_o_to_buf_impl(void *elf_ctx, void *out_buf) {
 #if defined(__APPLE__)
   if (!platform_macho_write_macho_o_to_buf)
     return -1;
@@ -279,8 +287,15 @@ static int32_t seed_platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out
   return -1;
 #endif
 }
+int32_t seed_platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
+  {
+    return seed_platform_macho_write_macho_o_to_buf_impl(elf_ctx, out_buf);
+  }
+  return 0 - 1;
+}
 
-static int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
+
+int32_t seed_platform_coff_write_coff_o_to_buf_impl(void *elf_ctx, void *out_buf) {
 #if defined(_WIN32) || defined(_WIN64)
   if (!platform_coff_write_coff_o_to_buf)
     return -1;
@@ -290,6 +305,12 @@ static int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_b
   (void)out_buf;
   return -1;
 #endif
+}
+int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
+  {
+    return seed_platform_coff_write_coff_o_to_buf_impl(elf_ctx, out_buf);
+  }
+  return 0 - 1;
 }
 
 /** .x 模块名修饰后的 pipeline_module_num_funcs 转发（asm/backend 分 TU 链接）。 */

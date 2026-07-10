@@ -5,11 +5,15 @@
 // 本文件为语义对照 / 后续真迁 .x 锚点；实现仍在 seed C。
 // 产品：cc seeds/user_asm_seed_bridge.from_x.c → src/asm/user_asm_seed_bridge.o
 // G-02f-97：+ debug/trace/elf_ctx helpers 薄门闩。
+// G-02f-98：+ reject_empty_text / macho/coff writer 薄门闩。
 
 extern "C" function seed_asm_debug_enabled_impl(): i32;
 extern "C" function seed_asm_emit_trace_enabled_impl(): i32;
 extern "C" function seed_elf_ctx_set_macho_leading_underscore_impl(elf_ctx: *u8, on: i32): void;
 extern "C" function seed_elf_ctx_code_len_impl(elf_ctx: *u8): i32;
+extern "C" function seed_asm_reject_empty_elf_text_impl(module: *u8, elf_ctx: *u8): i32;
+extern "C" function seed_platform_macho_write_macho_o_to_buf_impl(elf_ctx: *u8, out_buf: *u8): i32;
+extern "C" function seed_platform_coff_write_coff_o_to_buf_impl(elf_ctx: *u8, out_buf: *u8): i32;
 
 function user_asm_seed_bridge_x_doc_anchor(): i32 {
   return 0;
@@ -46,4 +50,30 @@ function seed_elf_ctx_code_len(elf_ctx: *u8): i32 {
     return seed_elf_ctx_code_len_impl(elf_ctx);
   }
   return 0;
+}
+
+/* ---- G-02f-98：reject empty / platform writer 门闩 ---- */
+
+#[no_mangle]
+function seed_asm_reject_empty_elf_text(module: *u8, elf_ctx: *u8): i32 {
+  unsafe {
+    return seed_asm_reject_empty_elf_text_impl(module, elf_ctx);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function seed_platform_macho_write_macho_o_to_buf(elf_ctx: *u8, out_buf: *u8): i32 {
+  unsafe {
+    return seed_platform_macho_write_macho_o_to_buf_impl(elf_ctx, out_buf);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function seed_platform_coff_write_coff_o_to_buf(elf_ctx: *u8, out_buf: *u8): i32 {
+  unsafe {
+    return seed_platform_coff_write_coff_o_to_buf_impl(elf_ctx, out_buf);
+  }
+  return 0 - 1;
 }

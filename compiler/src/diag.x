@@ -6,6 +6,7 @@
 // G-02f-82：+ diag_get_source / diag_get_source_len / diag_report_with_code 门闩。
 // G-02f-96：+ color/kind/code_eq/line_digits 薄 helper 门闩。
 // G-02f-97：+ print_header / extract_line / json_write_str / json_severity 门闩。
+// G-02f-98：+ diag_levenshtein_ci 门闩。
 // 产品：./shux-c -E → seeds/diag.from_x.c（+ C 尾段）。
 // C 尾：上下文静态、code 表、JSON/颜色、va_list reportf/vreportf、lookup。
 // 注意：va_list 入口仍留 C（语言/ABI 限制）。
@@ -37,6 +38,7 @@ extern "C" function diag_print_header_impl(kind: *u8, code: *u8, msg: *u8, kind_
 extern "C" function diag_extract_line_impl(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32;
 extern "C" function diag_json_write_str_impl(out: *u8, s: *u8): void;
 extern "C" function diag_json_severity_impl(kind: *u8): *u8;
+extern "C" function diag_levenshtein_ci_impl(a: *u8, b: *u8): i32;
 
 #[no_mangle]
 function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
@@ -223,4 +225,14 @@ function diag_json_severity(kind: *u8): *u8 {
     return diag_json_severity_impl(kind);
   }
   return 0 as *u8;
+}
+
+/* ---- G-02f-98：levenshtein 门闩 ---- */
+
+#[no_mangle]
+function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
+  unsafe {
+    return diag_levenshtein_ci_impl(a, b);
+  }
+  return 999;
 }
