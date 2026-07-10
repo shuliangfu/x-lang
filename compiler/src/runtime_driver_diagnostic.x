@@ -8,6 +8,7 @@
 // G-02f-176：return_mismatch / assign_mismatch 消息拼装真迁。
 // G-02f-177：call_not_generic / wrong_num_type_args / requires_type_args 拼装真迁。
 // G-02f-178：struct_padding_before/trailing / field_bad_size 拼装真迁。
+// G-02f-179：asm unsupported / elf patch / macho reloc 笔记拼装真迁。
 // G-02f-96：driver_diag_report_x_pipeline_code 门闩（va_list 本体 C _impl）。
 // 产品：./shux-c -E → seeds/runtime_driver_diagnostic.from_x.c（+ C 尾 + 字符串抛光）。
 // C 尾：snprintf 诊断、va_list pipeline 码、scratch 缓冲、debug getenv 详细路径。
@@ -40,10 +41,6 @@ extern "C" function parser_diagnostic_parse_commit_shape_impl(byte_pos: i32, num
 extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
 extern "C" function driver_diagnostic_codegen_fail_impl(dep_index: i32, is_dep: i32): void;
 extern "C" function driver_diagnostic_codegen_emit_func_fail_impl(module: *u8, func_index: i32): void;
-extern "C" function driver_diagnostic_asm_unsupported_expr_impl(kind: i32): void;
-extern "C" function driver_diagnostic_asm_elf_unresolved_patch_impl(name: *u8, len: i32): void;
-extern "C" function driver_diagnostic_asm_macho_empty_reloc_impl(reloc_idx: i32): void;
-extern "C" function driver_diagnostic_asm_macho_missing_und_reloc_impl(reloc_idx: i32): void;
 extern "C" function driver_diagnostic_asm_last_expr_kind_set(k: i32): void;
 extern "C" function driver_diagnostic_asm_current_func_store(name: *u8, len: i32): void;
 extern "C" function driver_diagnostic_asm_current_func_maybe_trace(): void;
@@ -351,33 +348,8 @@ function driver_diagnostic_codegen_emit_func_fail(module: *u8, func_index: i32):
   }
 }
 
-#[no_mangle]
-function driver_diagnostic_asm_unsupported_expr(kind: i32): void {
-  unsafe {
-    driver_diagnostic_asm_unsupported_expr_impl(kind);
-  }
-}
+// asm unsupported/elf/macho：见文件尾 G-02f-179 真迁
 
-#[no_mangle]
-function driver_diagnostic_asm_elf_unresolved_patch(name: *u8, len: i32): void {
-  unsafe {
-    driver_diagnostic_asm_elf_unresolved_patch_impl(name, len);
-  }
-}
-
-#[no_mangle]
-function driver_diagnostic_asm_macho_empty_reloc(reloc_idx: i32): void {
-  unsafe {
-    driver_diagnostic_asm_macho_empty_reloc_impl(reloc_idx);
-  }
-}
-
-#[no_mangle]
-function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void {
-  unsafe {
-    driver_diagnostic_asm_macho_missing_und_reloc_impl(reloc_idx);
-  }
-}
 
 // G-02f-163：asm emit 状态
 #[no_mangle]
@@ -744,5 +716,51 @@ function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname_len: i
   unsafe {
     lsp_diag_report_typeck(0, 0, &msg[0]);
   }
+}
+
+// G-02f-179：asm 笔记类（diag_report note，无 va_list reportf）
+function driver_diag_note(msg: *u8): void {
+  unsafe {
+    let m: *u8 = msg;
+    if (m == 0) { m = ""; }
+    diag_report(0 as *u8, 0, 0, "note", m, 0 as *u8);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_unsupported_expr(kind: i32): void {
+  let msg: u8[96] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "asm codegen unsupported ExprKind=");
+  at = driver_diag_append_i32(&msg[0], 96, at, kind);
+  driver_diag_note(&msg[0]);
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_elf_unresolved_patch(name: *u8, len: i32): void {
+  let namebuf: u8[65] = [];
+  driver_diag_fill_expr_part(&namebuf[0], 65, name, len);
+  let msg: u8[160] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 160, 0, "elf unresolved patch label name_len=");
+  at = driver_diag_append_i32(&msg[0], 160, at, len);
+  at = driver_diag_append_cstr(&msg[0], 160, at, " name='");
+  at = driver_diag_append_cstr(&msg[0], 160, at, &namebuf[0]);
+  at = driver_diag_append_cstr(&msg[0], 160, at, "'");
+  driver_diag_note(&msg[0]);
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_macho_empty_reloc(reloc_idx: i32): void {
+  let msg: u8[96] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "macho empty reloc symbol at idx=");
+  at = driver_diag_append_i32(&msg[0], 96, at, reloc_idx);
+  driver_diag_note(&msg[0]);
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void {
+  let msg: u8[96] = [];
+  let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "macho undef reloc not in und pool at idx=");
+  at = driver_diag_append_i32(&msg[0], 96, at, reloc_idx);
+  driver_diag_note(&msg[0]);
 }
 

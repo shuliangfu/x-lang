@@ -1,4 +1,4 @@
-/* Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-178 padding true .x; G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
+/* Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x (G-02f-179 asm notes true .x; G-02f-178 padding true .x; G-02f-177 generic call true .x; G-02f-176 mismatch true .x; G-02f-175 return_unresolved/subexpr true .x; G-02f-30/31/73 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; keep snprintf C.
  * .x covers: fixed typeck msgs (f-30/31) + remaining diags gated f-73
@@ -887,7 +887,7 @@ void driver_diagnostic_codegen_emit_func_fail(void *module, int32_t func_index) 
 
 
 /** asm 后端：不支持的 ExprKind 时由 backend.x 调用，便于定位 rc=-6；kind 为 ast_ExprKind 枚举值。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-179：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_diagnostic_asm_unsupported_expr(int32_t kind) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "asm codegen unsupported ExprKind=%d", (int)kind);
@@ -897,7 +897,7 @@ void driver_diagnostic_asm_unsupported_expr(int32_t kind) {
 
 
 /** asm 后端：elf_resolve_patches 找不到补丁目标标签。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-179：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_diagnostic_asm_elf_unresolved_patch(const uint8_t *name, int32_t len) {
     char namebuf[65];
     driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, len);
@@ -910,7 +910,7 @@ void driver_diagnostic_asm_elf_unresolved_patch(const uint8_t *name, int32_t len
 
 
 /** asm 后端：Mach-O 写出时 reloc 符号名为空。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-179：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_diagnostic_asm_macho_empty_reloc(int32_t reloc_idx) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "macho empty reloc symbol at idx=%d", (int)reloc_idx);
@@ -920,7 +920,7 @@ void driver_diagnostic_asm_macho_empty_reloc(int32_t reloc_idx) {
 
 
 /** asm 后端：Mach-O 写出时外部 reloc 未命中 und 池（常与 macho_leading_underscore 未置 1 有关）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-179：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_diagnostic_asm_macho_missing_und_reloc(int32_t reloc_idx) {
     diag_reportf(NULL, 0, 0, "note", NULL,
                  "macho undef reloc not in und pool at idx=%d", (int)reloc_idx);
