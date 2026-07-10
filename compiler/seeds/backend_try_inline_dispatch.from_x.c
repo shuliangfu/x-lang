@@ -1,4 +1,4 @@
-/* G-02f-363/365：PREFER hybrid thin 由 src/asm/backend_try_inline_dispatch_thin.x；rest SHUX_L2_TRY_INLINE_THIN_FROM_X。
+/* G-02f-363/366：PREFER hybrid thin 由 src/asm/backend_try_inline_dispatch_thin.x；rest SHUX_L2_TRY_INLINE_THIN_FROM_X。
  * seeds/backend_try_inline_dispatch.from_x.c — G-02f-196 local_slot/index pure; G-02f-184/185 lit stack pure; G-02f-9 product backend dispatch TU
  * G-02f-135 true .x pure helpers.
  * G-02f-134 true .x pure helpers.
@@ -28,6 +28,22 @@
 #include <string.h>
 
 #include "diag.h"
+#ifdef SHUX_L2_TRY_INLINE_THIN_FROM_X
+struct ast_ASTArena;
+int32_t asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_ref);
+int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
+int32_t glue_align_up8_c(int32_t n);
+int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b, int32_t *out);
+int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
+int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx);
+int32_t glue_try_inline_local_slot_off(uint8_t *ctx, struct ast_ASTArena *arena, uint8_t *name, int32_t name_len);
+int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
+int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t array_lit_ref);
+int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
+int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
+int32_t pipeline_asm_struct_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
+#endif
+
 
 static void backend_try_inline_debugf(const char *fmt, ...) {
   char buf[256];
@@ -288,19 +304,6 @@ extern int32_t pipeline_asm_index_elem_byte_sz(struct ast_ASTArena *a, int32_t i
 
 /** 向上取整到 8 字节（与 backend.x asm_align_up8 一致）。 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-#ifdef SHUX_L2_TRY_INLINE_THIN_FROM_X
-int32_t glue_align_up8_c(int32_t n);
-int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
-int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b, int32_t *out);
-int32_t asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_ref);
-int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
-int32_t pipeline_asm_struct_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
-int32_t pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
-int32_t pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(struct ast_ASTArena *arena, struct codegen_CodegenOutBuf *out, int32_t arg_ref, int32_t slot_off, int32_t ta, uint8_t *asm_ctx);
-int32_t glue_try_inline_local_slot_off(uint8_t *ctx, struct ast_ASTArena *arena, uint8_t *name, int32_t name_len);
-int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx);
-#endif
-
 #ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t glue_align_up8_c(int32_t n) {
   int32_t m = n % 8;
@@ -332,9 +335,11 @@ int32_t asm_array_lit_elem_byte_sz(struct ast_ASTArena *arena, int32_t array_lit
   return 8;
 }
 
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t array_lit_ref) {
   return asm_array_lit_elem_byte_sz(arena, array_lit_ref);
 }
+#endif
 
 /**
  * 定长 ARRAY_LIT 初值在栈 temp 区占用字节数（不含 8 字节指针槽）。
@@ -354,9 +359,11 @@ int32_t asm_array_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t in
   return glue_align_up8_c(n * esz);
 }
 
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref) {
   return asm_array_lit_reserve_stack_bytes(arena, init_ref);
 }
+#endif
 
 /**
  * STRUCT_LIT 初值在 temp 区按 8 字节/字段存放。

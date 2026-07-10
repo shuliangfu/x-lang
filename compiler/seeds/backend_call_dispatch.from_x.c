@@ -1,4 +1,4 @@
-/* G-02f-364/365：PREFER hybrid thin 由 src/asm/backend_call_dispatch_thin.x；rest SHUX_L2_CALL_DISPATCH_THIN_FROM_X。
+/* G-02f-364/366：PREFER hybrid thin 由 src/asm/backend_call_dispatch_thin.x；rest SHUX_L2_CALL_DISPATCH_THIN_FROM_X。
  * seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
  * G-02f-134 true .x pure helpers.
  * G-02f-133 true .x pure helpers.
@@ -24,14 +24,6 @@
  */
 #include <stdint.h>
 
-#ifdef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
-struct ast_ASTArena; /* incomplete OK for thin protos */
-int32_t glue_asm_call_reg_max(int32_t ta);
-int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs);
-int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap);
-int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref);
-#endif
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +31,15 @@ int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref);
 
 #include "diag.h"
 #include "runtime_pipeline_abi.h"
+#ifdef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+struct ast_ASTArena;
+int32_t glue_asm_call_reg_max(int32_t ta);
+int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs);
+int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t cap);
+int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref);
+int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index);
+#endif
+
 
 static void backend_call_debugf(const char *fmt, ...) {
   char buf[256];
@@ -265,7 +266,7 @@ extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t typ
 
 /* G-02e：原 pipeline_abi_f32_xmm.c 并入本 TU，去掉独立手写 C 文件。 */
 /* G-02f-184：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-static int32_t g_pipeline_asm_emit_call_f32_xmm;
+/* G-02f-366 thin get */ int32_t g_pipeline_asm_emit_call_f32_xmm;
 
 /** 默认开启 f32 xmm ABI；SHUX_ABI_F32_XMM=0 回落 legacy f64 widen。 */
 /* G-02f-184：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -1076,9 +1077,11 @@ int32_t pipeline_asm_emit_call_args_text_c(struct ast_ASTArena *arena, struct co
  * 供 backend.x asm_emit_call_args_elf 薄包装（M8-tail）。
  */
 /* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
 int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index) {
   return pipeline_asm_call_param_type_ref_at_c(arena, call_expr_ref, param_index);
 }
+#endif
 
 
 

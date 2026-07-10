@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/365：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/366：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -156,3 +156,24 @@ function glue_try_fold_func_return_operand_ref(arena: *u8, mod: *u8, func_idx: i
   }
   return 0;
 }
+
+// ---- G-02f-366：array lit forward + try_expr_const ----
+extern "C" function asm_array_lit_elem_byte_sz(arena: *u8, array_lit_ref: i32): i32;
+extern "C" function asm_array_lit_reserve_stack_bytes(arena: *u8, init_ref: i32): i32;
+
+#[no_mangle]
+function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, array_lit_ref: i32): i32 {
+  unsafe {
+    return asm_array_lit_elem_byte_sz(arena, array_lit_ref);
+  }
+  return 4;
+}
+
+#[no_mangle]
+function pipeline_asm_array_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32): i32 {
+  unsafe {
+    return asm_array_lit_reserve_stack_bytes(arena, init_ref);
+  }
+  return 0;
+}
+

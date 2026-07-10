@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/365：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/366：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -75,3 +75,16 @@ function glue_asm_string_lit_len(arena: *u8, expr_ref: i32): i32 {
   }
   return 0;
 }
+
+// ---- G-02f-366：f32 type / param type_ref / path segment count ----
+extern "C" function pipeline_asm_call_param_type_ref_at_c(arena: *u8, call_expr_ref: i32, param_index: i32): i32;
+
+
+#[no_mangle]
+function glue_call_param_type_ref_at(arena: *u8, call_expr_ref: i32, param_index: i32): i32 {
+  unsafe {
+    return pipeline_asm_call_param_type_ref_at_c(arena, call_expr_ref, param_index);
+  }
+  return 0;
+}
+
