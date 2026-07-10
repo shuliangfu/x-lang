@@ -243,3 +243,4 @@ nm -g parser_asm_thin_glue.o | head
 | 2026-07-11 | **f-279 P2 let/alias 落地**：`pthin_let_alias.x` + `seeds/pthin_let_alias.from_x.c`（include body_let/top_level_let/type_alias）；`SHUX_PTHIN_LET_ALIAS_FROM_X`；prefer hybrid `P2+rest → parser_asm_thin_glue.o` |
 | 2026-07-11 | **f-280 P3 type_ref 落地**：`pthin_type_ref.*`（type_ref_slice.inc）；`SHUX_PTHIN_TYPE_REF_FROM_X`；rest 保留 `ast_Type`/TypeKind；prefer hybrid **P2+P3+rest** |
 | 2026-07-11 | **f-281 P1 lex/skip 落地**：`pthin_lex_skip.*` + `parser_asm_lex_skip_slice.inc`（lex_from_result / copy_slice / skip_balanced / skip_generic_angle / is_*_token）；`SHUX_PTHIN_LEX_SKIP_FROM_X`；`lex_from_result_val_into` 升为非 static（expr 各 slice 去掉 static 前向）；prefer hybrid **P1+P2+P3+rest** |
+| 2026-07-11 | **f-282 P4 primary 首册**：`pthin_expr_primary.*`（`finish_struct_lit`+`primary` 同 TU，因 static `parse_struct_lit_fields`）；`SHUX_PTHIN_EXPR_PRIMARY_FROM_X`；prefer hybrid **P1+P2+P3+P4primary+rest** |

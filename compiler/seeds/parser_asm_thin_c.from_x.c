@@ -6318,9 +6318,25 @@ int labi_pthin_let_alias_slice_marker(void);
 #include "parser_asm_match_subject_slice.inc"
 #include "parser_asm_simd_builtin_slice.inc"
 #include "parser_asm_if_expr_slice.inc"
-#include "parser_asm_finish_struct_lit_slice.inc"
 #include "parser_asm_as_suffix_slice.inc"
+/* G-02f-282 P4 primary+struct_lit：默认 #include；hybrid 时在 pthin_expr_primary.from_x.c
+ * （primary 调用 finish_struct_lit 内 static parse_struct_lit_fields — 须同 TU） */
+#ifndef SHUX_PTHIN_EXPR_PRIMARY_FROM_X
+#include "parser_asm_finish_struct_lit_slice.inc"
 #include "parser_asm_primary_slice.inc"
+#else
+void parser_asm_parse_anonymous_struct_lit_c(void *arena, struct parser_asm_lexer lex_in_brace,
+                                            struct parser_asm_slice_u8 *source,
+                                            struct parser_asm_parse_expr_result *out);
+void parser_asm_finish_struct_lit_from_type_ident_into_c(void *arena, int32_t lit_ref,
+                                                        struct parser_asm_lexer lex_in_brace,
+                                                        struct parser_asm_slice_u8 *source,
+                                                        struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_primary_into_slice_c(void *arena, struct parser_asm_lexer lex,
+                                          struct parser_asm_slice_u8 *source,
+                                          struct parser_asm_parse_expr_result *out);
+int labi_pthin_expr_primary_slice_marker(void);
+#endif
 #include "parser_asm_unary_slice.inc"
 #include "parser_asm_expr_binop_slice.inc"
 #include "parser_asm_ternary_assign_slice.inc"
