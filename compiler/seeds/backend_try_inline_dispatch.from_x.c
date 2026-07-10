@@ -1663,6 +1663,7 @@ int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform
  * 符号形如 lane0__wpo_1_2_3_4_10_20_30_40（8 个 lane 常量实参 profile）。
  * 返回 1=已发射 call，0=未匹配或未启用，-1=错误。
  */
+/* G-02f-150：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {

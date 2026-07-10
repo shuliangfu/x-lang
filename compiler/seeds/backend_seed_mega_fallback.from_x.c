@@ -75,7 +75,8 @@ extern int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *modu
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          struct ast_PipelineDepCtx *ctx);
 
-void pipeline_seed_mega_ctx_reset_impl(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
+/* G-02f-150：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
   int32_t label_counter;
   if (!ctx)
     return;
@@ -83,11 +84,6 @@ void pipeline_seed_mega_ctx_reset_impl(pipeline_glue_AsmFuncCtxLayout *ctx, stru
   memset(ctx, 0, sizeof(*ctx));
   ctx->label_counter = label_counter;
   ctx->module_ref = mod;
-}
-void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
-  {
-    pipeline_seed_mega_ctx_reset_impl(ctx, mod);
-  }
 }
 
 

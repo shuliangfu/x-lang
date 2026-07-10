@@ -1561,3 +1561,93 @@ function try_inline_struct_lit_return_call_to_slot_elf(
   return 0;
 }
 
+// G-02f-150：WPO vec mono laneK(vec_binop) → 单态 thunk；ARRAY_LIT=46；MAX_ARGS=8
+extern "C" function glue_wpo_mono_register_thunk_n(name: *u8, nargs: i32, args: *i32, folded: i32): void;
+
+#[no_mangle]
+function try_call_wpo_mono_vector_lane_of_binop_call_elf(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  if (arena == 0) { return 0; }
+  if (elf_ctx == 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  unsafe {
+    let kmono: u8[16] = [];
+    kmono[0] = 83; kmono[1] = 72; kmono[2] = 85; kmono[3] = 88; kmono[4] = 95;
+    kmono[5] = 87; kmono[6] = 80; kmono[7] = 79; kmono[8] = 95;
+    kmono[9] = 77; kmono[10] = 79; kmono[11] = 78; kmono[12] = 79; kmono[13] = 0;
+    if (getenv(&kmono[0]) == 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 48) { return 0; }
+    let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);
+    if (mod_ref == 0) { return 0; }
+    if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
+    let outer_callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    if (outer_callee_ref <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, outer_callee_ref) != 3) { return 0; }
+    let olen: i32 = pipeline_expr_var_name_len(arena, outer_callee_ref);
+    if (olen <= 0) { return 0; }
+    if (olen > 63) { return 0; }
+    let outer_name: u8[64] = [];
+    pipeline_expr_var_name_into(arena, outer_callee_ref, &outer_name[0]);
+    outer_name[olen] = 0;
+    let outer_fi: i32 = glue_module_func_index_by_name(mod_ref, &outer_name[0], olen);
+    if (outer_fi < 0) { return 0; }
+    let lane: i32 = 0;
+    if (glue_fold_func_returns_param0_index_const(arena, mod_ref, outer_fi, &lane) == 0) { return 0; }
+    let inner_call_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    if (inner_call_ref <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, inner_call_ref) != 48) { return 0; }
+    if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2) { return 0; }
+    let inner_callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, inner_call_ref);
+    if (inner_callee_ref <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, inner_callee_ref) != 3) { return 0; }
+    let ilen: i32 = pipeline_expr_var_name_len(arena, inner_callee_ref);
+    if (ilen <= 0) { return 0; }
+    if (ilen > 63) { return 0; }
+    let inner_name: u8[64] = [];
+    pipeline_expr_var_name_into(arena, inner_callee_ref, &inner_name[0]);
+    let inner_fi: i32 = glue_module_func_index_by_name(mod_ref, &inner_name[0], ilen);
+    if (inner_fi < 0) { return 0; }
+    let binop_ko: i32 = 0;
+    if (glue_fold_func_returns_param01_vector_binop(arena, mod_ref, inner_fi, &binop_ko) == 0) { return 0; }
+    let arg0: i32 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
+    let arg1: i32 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
+    if (arg0 <= 0) { return 0; }
+    if (arg1 <= 0) { return 0; }
+    // ARRAY_LIT=46
+    if (pipeline_expr_kind_ord_at(arena, arg0) != 46) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, arg1) != 46) { return 0; }
+    let nargs: i32 = pipeline_expr_array_lit_num_elems_at(arena, arg0);
+    if (nargs <= 0) { return 0; }
+    if (nargs != pipeline_expr_array_lit_num_elems_at(arena, arg1)) { return 0; }
+    // GLUE_WPO_MONO_MAX_ARGS=8 → 每侧最多 4 lane
+    if (nargs > 4) { return 0; }
+    let mono_args: i32[8] = [];
+    let li: i32 = 0;
+    while (li < nargs) {
+      let e0: i32 = 0;
+      let e1: i32 = 0;
+      if (glue_try_array_lit_lane_const_i32(arena, arg0, li, &e0) == 0) { return 0; }
+      if (glue_try_array_lit_lane_const_i32(arena, arg1, li, &e1) == 0) { return 0; }
+      mono_args[li] = e0;
+      mono_args[nargs + li] = e1;
+      li = li + 1;
+    }
+    let av0: i32 = 0;
+    let av1: i32 = 0;
+    if (glue_try_array_lit_lane_const_i32(arena, arg0, lane, &av0) == 0) { return 0; }
+    if (glue_try_array_lit_lane_const_i32(arena, arg1, lane, &av1) == 0) { return 0; }
+    let folded: i32 = 0;
+    if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0) { return 0; }
+    glue_wpo_mono_register_thunk_n(&outer_name[0], nargs * 2, &mono_args[0], folded);
+    let sym: u8[128] = [];
+    let sym_len: i32 = codegen_wpo_mono_sym_format(&outer_name[0], nargs * 2, &mono_args[0], &sym[0], 128);
+    if (sym_len <= 0) { return 0 - 1; }
+    if (backend_enc_call_arch(elf_ctx, &sym[0], sym_len, ta) != 0) { return 0 - 1; }
+    if (backend_enc_call_stack_cleanup_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+    return 1;
+  }
+  return 0;
+}
+
