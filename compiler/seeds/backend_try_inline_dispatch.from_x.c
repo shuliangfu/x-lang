@@ -31,6 +31,8 @@
 #ifdef SHUX_L2_TRY_INLINE_THIN_FROM_X
 struct ast_ASTArena;
 struct ast_Module;
+struct ast_PipelineDepCtx;
+struct platform_elf_ElfCodegenCtx;
 int32_t glue_align_up8_c(int32_t n);
 int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
 int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b, int32_t *out);
@@ -57,6 +59,9 @@ int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, 
 int32_t glue_fold_func_returns_param_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_lit_ref);
 int32_t glue_fold_func_returns_param01_vector_binop(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_binop_ko);
 int32_t glue_call_is_zero_arg_default_alloc(struct ast_ASTArena *arena, int32_t call_ref);
+int32_t glue_dep_module_field_offset_by_name(struct ast_PipelineDepCtx *pctx, uint8_t *field_name, int32_t flen);
+int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_idx, int32_t *out_lit_ref);
+int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff, int32_t fsz, int32_t ta);
 #endif
 
 
@@ -1117,7 +1122,8 @@ int32_t try_inline_param0_single_field_call_elf(struct ast_ASTArena *arena, stru
  * 在 dep 编译单元 struct layout 中按字段名查偏移（import Pair 等 caller 无 layout 时）。
  */
 /* G-02f-137：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_dep_module_field_offset_by_name(struct ast_PipelineDepCtx *pctx, uint8_t *field_name,
+/* G-02f-374 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_dep_module_field_offset_by_name_impl(struct ast_PipelineDepCtx *pctx, uint8_t *field_name,
                                                     int32_t flen) {
   int32_t nd;
   int32_t di;
@@ -1155,6 +1161,13 @@ int32_t glue_dep_module_field_offset_by_name(struct ast_PipelineDepCtx *pctx, ui
   }
   return -1;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_dep_module_field_offset_by_name(struct ast_PipelineDepCtx *pctx, uint8_t *field_name,
+                                                    int32_t flen) {
+  return glue_dep_module_field_offset_by_name_impl(pctx, field_name, flen);
+}
+#endif
 
 
 /**
@@ -2022,7 +2035,8 @@ int32_t glue_const_struct_lit_field_can_inline(struct ast_ASTArena *arena, struc
  * default_alloc() 内联：with_arena 内写 kind=arena + 栈 Arena64*；否则 call runtime default_alloc。
  */
 /* G-02f-138：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
+/* G-02f-374 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_emit_default_alloc_to_rbx_offset_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
                                                          int32_t fsz, int32_t ta) {
   static const uint8_t da_sym[24] = "std_heap_default_alloc";
   /** MEM-C1：块内 vec_u8_new 等须走 scope bump，勿 call 全局 heap default。 */
@@ -2054,12 +2068,20 @@ int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCodegenCtx 
   return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff + 8, 8, ta);
 }
 
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_emit_default_alloc_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t foff,
+                                                         int32_t fsz, int32_t ta) {
+  return glue_emit_default_alloc_to_rbx_offset_impl(elf_ctx, foff, fsz, ta);
+}
+#endif
+
 
 /**
  * 函数体是否为 `return Struct { f: 常量… }`（各字段 init 均为整型/浮点字面量，无形参）。
  */
 /* G-02f-136：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-374 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_fold_func_returns_const_struct_lit_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                        int32_t func_idx, int32_t *out_lit_ref) {
   int32_t ret_ref;
   int32_t nf;
@@ -2106,6 +2128,13 @@ int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, stru
   *out_lit_ref = ret_ref;
   return 1;
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                       int32_t func_idx, int32_t *out_lit_ref) {
+  return glue_fold_func_returns_const_struct_lit_impl(arena, mod, func_idx, out_lit_ref);
+}
+#endif
 
 
 /**

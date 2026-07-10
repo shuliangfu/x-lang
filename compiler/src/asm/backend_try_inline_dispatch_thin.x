@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/373：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/374：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -321,4 +321,33 @@ function glue_call_is_zero_arg_default_alloc(arena: *u8, call_ref: i32): i32 {
     return glue_call_is_zero_arg_default_alloc_impl(arena, call_ref);
   }
   return 0;
+}
+
+// ---- G-02f-374：dep field offset / const struct lit fold / default_alloc emit → seed impl ----
+extern "C" function glue_dep_module_field_offset_by_name_impl(pctx: *u8, field_name: *u8, flen: i32): i32;
+extern "C" function glue_fold_func_returns_const_struct_lit_impl(arena: *u8, mod: *u8, func_idx: i32, out_lit_ref: *i32): i32;
+extern "C" function glue_emit_default_alloc_to_rbx_offset_impl(elf_ctx: *u8, foff: i32, fsz: i32, ta: i32): i32;
+
+#[no_mangle]
+function glue_dep_module_field_offset_by_name(pctx: *u8, field_name: *u8, flen: i32): i32 {
+  unsafe {
+    return glue_dep_module_field_offset_by_name_impl(pctx, field_name, flen);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function glue_fold_func_returns_const_struct_lit(arena: *u8, mod: *u8, func_idx: i32, out_lit_ref: *i32): i32 {
+  unsafe {
+    return glue_fold_func_returns_const_struct_lit_impl(arena, mod, func_idx, out_lit_ref);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_emit_default_alloc_to_rbx_offset(elf_ctx: *u8, foff: i32, fsz: i32, ta: i32): i32 {
+  unsafe {
+    return glue_emit_default_alloc_to_rbx_offset_impl(elf_ctx, foff, fsz, ta);
+  }
+  return 0 - 1;
 }

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/373：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/374：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -325,6 +325,35 @@ function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *u8, out
 function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
   unsafe {
     return glue_asm_enc_call_redirected_impl(elf_ctx, name, name_len, ta);
+  }
+  return 0 - 1;
+}
+
+// ---- G-02f-374：heap redirect / f32 xmm env / build_func_export_sym → seed impl ----
+extern "C" function glue_try_std_heap_redirect_sym_local_impl(name: *u8, name_len: i32, sym_out: *u8, out_cap: i32): i32;
+extern "C" function pipeline_asm_abi_f32_xmm_enabled_c_impl(): i32;
+extern "C" function glue_asm_build_func_export_sym_c_impl(m: *u8, a: *u8, func_ix: i32, out: *u8, out_cap: i32): i32;
+
+#[no_mangle]
+function glue_try_std_heap_redirect_sym_local(name: *u8, name_len: i32, sym_out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return glue_try_std_heap_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function pipeline_asm_abi_f32_xmm_enabled_c(): i32 {
+  unsafe {
+    return pipeline_asm_abi_f32_xmm_enabled_c_impl();
+  }
+  return 1;
+}
+
+#[no_mangle]
+function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, out: *u8, out_cap: i32): i32 {
+  unsafe {
+    return glue_asm_build_func_export_sym_c_impl(m, a, func_ix, out, out_cap);
   }
   return 0 - 1;
 }

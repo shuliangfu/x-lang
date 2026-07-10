@@ -59,6 +59,9 @@ int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(struct ast_ASTArena *arena, struc
 int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs);
 int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, uint8_t *out, int32_t out_cap);
 int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
+int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out, int32_t out_cap);
+int32_t pipeline_asm_abi_f32_xmm_enabled_c(void);
+int32_t glue_asm_build_func_export_sym_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix, uint8_t *out, int32_t out_cap);
 #endif
 
 
@@ -291,12 +294,19 @@ extern int32_t pipeline_type_kind_ord_at(struct ast_ASTArena *arena, int32_t typ
 
 /** 默认开启 f32 xmm ABI；SHUX_ABI_F32_XMM=0 回落 legacy f64 widen。 */
 /* G-02f-184：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t pipeline_asm_abi_f32_xmm_enabled_c(void) {
+/* G-02f-374 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t pipeline_asm_abi_f32_xmm_enabled_c_impl(void) {
   const char *env = getenv("SHUX_ABI_F32_XMM");
   if (env && env[0] == '0' && env[1] == '\0')
     return 0;
   return 1;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t pipeline_asm_abi_f32_xmm_enabled_c(void) {
+  return pipeline_asm_abi_f32_xmm_enabled_c_impl();
+}
+#endif
 
 void pipeline_asm_emit_set_call_f32_xmm(int32_t on) {
   g_pipeline_asm_emit_call_f32_xmm = on != 0 ? 1 : 0;
@@ -828,7 +838,8 @@ int32_t glue_asm_append_export_c_suffix(uint8_t *sym, int32_t sym_len, int32_t c
  * 函数定义/ CALL 导出符号：无 overload 时用裸名+dep 前缀；有 overload 时用 name_t1_t2（如 pick_i32）。
  */
 /* G-02f-144：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_build_func_export_sym_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
+/* G-02f-374 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_asm_build_func_export_sym_c_impl(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
                                          uint8_t *out, int32_t out_cap) {
   uint8_t fname[64];
   int32_t fname_len;
@@ -888,6 +899,13 @@ int32_t glue_asm_build_func_export_sym_c(struct ast_Module *m, struct ast_ASTAre
     pos = glue_asm_append_export_c_suffix(out, pos, out_cap);
   return pos > 0 ? pos : -1;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_build_func_export_sym_c(struct ast_Module *m, struct ast_ASTArena *a, int32_t func_ix,
+                                         uint8_t *out, int32_t out_cap) {
+  return glue_asm_build_func_export_sym_c_impl(m, a, func_ix, out, out_cap);
+}
+#endif
 
 /** import 路径缓冲区中 '.' 分段数。 */
 /* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -1333,7 +1351,8 @@ int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct pla
  * co-emit 时 std.heap 模块常仅含 allocator_*（无 alloc/arena64_alloc 体）；须 redirect 避免 std_heap_* UND。
  */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+/* G-02f-374 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_try_std_heap_redirect_sym_local_impl(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
                                                     int32_t out_cap) {
   static const struct {
     const char *from;
@@ -1396,6 +1415,13 @@ int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_l
   }
   return 0;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+                                                    int32_t out_cap) {
+  return glue_try_std_heap_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
+}
+#endif
 
 
 
