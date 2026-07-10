@@ -11,6 +11,7 @@
 // G-02f-95：+ pipeline_run_x_thread_fn / asm_codegen_elf_o_thread_fn 门闩。
 // G-02f-223：entry_dir_pick + import_dep_dir pure；dep set/ndep 边界。
 // G-02f-224：path_registry scan + seed_slots pure。
+// G-02f-225：sidecar_clear + preprocess/import 诊断 pure（note + report_with_code）。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -40,7 +41,6 @@ extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
 extern "C" function shux_emit_pipeline_glue_include_impl(): void;
 extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
 extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
-extern "C" function driver_typeck_dep_sidecar_clear_impl(): void;
 extern "C" function driver_dep_seeded_clear_slots_impl(): void;
 extern "C" function shux_get_entry_dir_impl(input_path: *u8, entry_dir: *u8, size: i64): void;
 extern "C" function driver_asm_fclose_asm_out_impl(fp: *u8): void;
@@ -55,11 +55,9 @@ extern "C" function pipeline_dep_arena_slot_at(i: i32): *u8;
 extern "C" function pipeline_dep_module_slot_at(i: i32): *u8;
 extern "C" function pipeline_diag_import_open_fail_once_impl(import_path: *u8, resolved_path: *u8): void;
 extern "C" function pipeline_asm_debug_enabled_impl(): i32;
-extern "C" function pipeline_diag_preprocess_unclosed_if_impl(path_diag: *u8): void;
-extern "C" function pipeline_diag_preprocess_fail_impl(path_diag: *u8): void;
-extern "C" function pipeline_diag_import_preprocess_fail_impl(import_path: *u8, resolved_path: *u8): void;
-extern "C" function pipeline_diag_preprocess_alloc_fail_impl(path_diag: *u8, what: *u8): void;
-extern "C" function pipeline_diag_merge_dep_missing_impl(import_path: *u8): void;
+extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
+extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
+/* preprocess/import diag：G-02f-225 下方真迁 */
 
 extern "C" function pipeline_resolve_path_impl(path_ptr: *u8, path_len: i32): i32;
 extern "C" function pipeline_read_file_impl(): i32;
@@ -621,10 +619,15 @@ function pipeline_debug_trace_body_x_mega_pre_emit(module: *u8, arena: *u8): voi
   }
 }
 
+// G-02f-225：清 typeck dep 侧车（ndep=0 + 32 槽空）
 #[no_mangle]
 function driver_typeck_dep_sidecar_clear(): void {
-  unsafe {
-    driver_typeck_dep_sidecar_clear_impl();
+  typeck_ndep_store(0);
+  let i: i32 = 0;
+  while (i < 32) {
+    typeck_dep_module_set(i, 0 as *u8);
+    typeck_dep_arena_set(i, 0 as *u8);
+    i = i + 1;
   }
 }
 
@@ -1131,38 +1134,116 @@ function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_al
 /* ---- G-02f-84：preprocess diag / asm debug / dep slot store 门闩 ---- */
 
 
+// G-02f-225：preprocess / import 诊断 pure（先 note 再 report_with_code）
+// kind="preprocess error" / "pipeline error" / "import error"；code=PP001/PP002/XP005/IMP002/IMP004
+
 #[no_mangle]
 function pipeline_diag_preprocess_unclosed_if(path_diag: *u8): void {
+  pipeline_diag_emitted_note();
+  let kind: u8[24] = [];
+  let code: u8[8] = [];
+  let msg: u8[16] = [];
+  // "preprocess error"
+  kind[0]=112;kind[1]=114;kind[2]=101;kind[3]=112;kind[4]=114;kind[5]=111;kind[6]=99;kind[7]=101;
+  kind[8]=115;kind[9]=115;kind[10]=32;kind[11]=101;kind[12]=114;kind[13]=114;kind[14]=111;kind[15]=114;kind[16]=0;
+  // "PP001"
+  code[0]=80;code[1]=80;code[2]=48;code[3]=48;code[4]=49;code[5]=0;
+  // "unclosed #if"
+  msg[0]=117;msg[1]=110;msg[2]=99;msg[3]=108;msg[4]=111;msg[5]=115;msg[6]=101;msg[7]=100;
+  msg[8]=32;msg[9]=35;msg[10]=105;msg[11]=102;msg[12]=0;
   unsafe {
-    pipeline_diag_preprocess_unclosed_if_impl(path_diag);
+    diag_report_with_code(path_diag, 0, 0, &kind[0], &code[0], &msg[0], 0 as *u8);
   }
 }
 
 #[no_mangle]
 function pipeline_diag_preprocess_fail(path_diag: *u8): void {
+  pipeline_diag_emitted_note();
+  let kind: u8[24] = [];
+  let code: u8[8] = [];
+  let msg: u8[40] = [];
+  kind[0]=112;kind[1]=114;kind[2]=101;kind[3]=112;kind[4]=114;kind[5]=111;kind[6]=99;kind[7]=101;
+  kind[8]=115;kind[9]=115;kind[10]=32;kind[11]=101;kind[12]=114;kind[13]=114;kind[14]=111;kind[15]=114;kind[16]=0;
+  code[0]=80;code[1]=80;code[2]=48;code[3]=48;code[4]=50;code[5]=0; // PP002
+  // ".x preprocess failed"
+  msg[0]=46;msg[1]=120;msg[2]=32;msg[3]=112;msg[4]=114;msg[5]=101;msg[6]=112;msg[7]=114;
+  msg[8]=111;msg[9]=99;msg[10]=101;msg[11]=115;msg[12]=115;msg[13]=32;msg[14]=102;msg[15]=97;
+  msg[16]=105;msg[17]=108;msg[18]=101;msg[19]=100;msg[20]=0;
   unsafe {
-    pipeline_diag_preprocess_fail_impl(path_diag);
+    diag_report_with_code(path_diag, 0, 0, &kind[0], &code[0], &msg[0], 0 as *u8);
   }
 }
 
 #[no_mangle]
 function pipeline_diag_import_preprocess_fail(import_path: *u8, resolved_path: *u8): void {
+  pipeline_diag_emitted_note();
+  let kind: u8[24] = [];
+  let code: u8[8] = [];
+  let msg: u8[40] = [];
+  kind[0]=112;kind[1]=114;kind[2]=101;kind[3]=112;kind[4]=114;kind[5]=111;kind[6]=99;kind[7]=101;
+  kind[8]=115;kind[9]=115;kind[10]=32;kind[11]=101;kind[12]=114;kind[13]=114;kind[14]=111;kind[15]=114;kind[16]=0;
+  code[0]=73;code[1]=77;code[2]=80;code[3]=48;code[4]=48;code[5]=50;code[6]=0; // IMP002
+  // "import preprocess failed"
+  msg[0]=105;msg[1]=109;msg[2]=112;msg[3]=111;msg[4]=114;msg[5]=116;msg[6]=32;msg[7]=112;
+  msg[8]=114;msg[9]=101;msg[10]=112;msg[11]=114;msg[12]=111;msg[13]=99;msg[14]=101;msg[15]=115;
+  msg[16]=115;msg[17]=32;msg[18]=102;msg[19]=97;msg[20]=105;msg[21]=108;msg[22]=101;msg[23]=100;msg[24]=0;
+  let file: *u8 = resolved_path;
+  if (file == 0 as *u8) { file = import_path; }
   unsafe {
-    pipeline_diag_import_preprocess_fail_impl(import_path, resolved_path);
+    diag_report_with_code(file, 0, 0, &kind[0], &code[0], &msg[0], 0 as *u8);
   }
 }
 
 #[no_mangle]
 function pipeline_diag_preprocess_alloc_fail(path_diag: *u8, what: *u8): void {
+  pipeline_diag_emitted_note();
+  let kind: u8[24] = [];
+  let code: u8[8] = [];
+  let msg: u8[48] = [];
+  // "pipeline error"
+  kind[0]=112;kind[1]=105;kind[2]=112;kind[3]=101;kind[4]=108;kind[5]=105;kind[6]=110;kind[7]=101;
+  kind[8]=32;kind[9]=101;kind[10]=114;kind[11]=114;kind[12]=111;kind[13]=114;kind[14]=0;
+  code[0]=88;code[1]=80;code[2]=48;code[3]=48;code[4]=53;code[5]=0; // XP005
+  // "allocation failed during preprocess"
+  msg[0]=97;msg[1]=108;msg[2]=108;msg[3]=111;msg[4]=99;msg[5]=97;msg[6]=116;msg[7]=105;
+  msg[8]=111;msg[9]=110;msg[10]=32;msg[11]=102;msg[12]=97;msg[13]=105;msg[14]=108;msg[15]=101;
+  msg[16]=100;msg[17]=32;msg[18]=100;msg[19]=117;msg[20]=114;msg[21]=105;msg[22]=110;msg[23]=103;
+  msg[24]=32;msg[25]=112;msg[26]=114;msg[27]=101;msg[28]=112;msg[29]=114;msg[30]=111;msg[31]=99;
+  msg[32]=101;msg[33]=115;msg[34]=115;msg[35]=0;
+  let _w: *u8 = what;
   unsafe {
-    pipeline_diag_preprocess_alloc_fail_impl(path_diag, what);
+    diag_report_with_code(path_diag, 0, 0, &kind[0], &code[0], &msg[0], 0 as *u8);
   }
 }
 
 #[no_mangle]
 function pipeline_diag_merge_dep_missing(import_path: *u8): void {
+  pipeline_diag_emitted_note();
+  let kind: u8[16] = [];
+  let code: u8[8] = [];
+  let msg: u8[48] = [];
+  let note_k: u8[8] = [];
+  let note_m: u8[64] = [];
+  // "import error"
+  kind[0]=105;kind[1]=109;kind[2]=112;kind[3]=111;kind[4]=114;kind[5]=116;kind[6]=32;kind[7]=101;
+  kind[8]=114;kind[9]=114;kind[10]=111;kind[11]=114;kind[12]=0;
+  code[0]=73;code[1]=77;code[2]=80;code[3]=48;code[4]=48;code[5]=52;code[6]=0; // IMP004
+  // "direct import missing from dependency closure"
+  msg[0]=100;msg[1]=105;msg[2]=114;msg[3]=101;msg[4]=99;msg[5]=116;msg[6]=32;msg[7]=105;
+  msg[8]=109;msg[9]=112;msg[10]=111;msg[11]=114;msg[12]=116;msg[13]=32;msg[14]=109;msg[15]=105;
+  msg[16]=115;msg[17]=115;msg[18]=105;msg[19]=110;msg[20]=103;msg[21]=32;msg[22]=102;msg[23]=114;
+  msg[24]=111;msg[25]=109;msg[26]=32;msg[27]=100;msg[28]=101;msg[29]=112;msg[30]=32;msg[31]=99;
+  msg[32]=108;msg[33]=111;msg[34]=115;msg[35]=117;msg[36]=114;msg[37]=101;msg[38]=0;
+  note_k[0]=110;note_k[1]=111;note_k[2]=116;note_k[3]=101;note_k[4]=0;
+  // "dependency closure construction failed before merge_deps completed"
+  note_m[0]=100;note_m[1]=101;note_m[2]=112;note_m[3]=101;note_m[4]=110;note_m[5]=100;note_m[6]=101;note_m[7]=110;
+  note_m[8]=99;note_m[9]=121;note_m[10]=32;note_m[11]=99;note_m[12]=108;note_m[13]=111;note_m[14]=115;note_m[15]=117;
+  note_m[16]=114;note_m[17]=101;note_m[18]=32;note_m[19]=99;note_m[20]=111;note_m[21]=110;note_m[22]=115;note_m[23]=116;
+  note_m[24]=114;note_m[25]=117;note_m[26]=99;note_m[27]=116;note_m[28]=105;note_m[29]=111;note_m[30]=110;note_m[31]=32;
+  note_m[32]=102;note_m[33]=97;note_m[34]=105;note_m[35]=108;note_m[36]=101;note_m[37]=100;note_m[38]=0;
   unsafe {
-    pipeline_diag_merge_dep_missing_impl(import_path);
+    diag_report_with_code(import_path, 0, 0, &kind[0], &code[0], &msg[0], 0 as *u8);
+    diag_report(0 as *u8, 0, 0, &note_k[0], &note_m[0], 0 as *u8);
   }
 }
 

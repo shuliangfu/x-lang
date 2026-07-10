@@ -6,6 +6,7 @@
  * G-02f-93/95: dep-slot/debug match + pipeline thread fns gates.
  * G-02f-223: entry_dir_pick + import_dep_dir pure; dep set/ndep bounds.
  * G-02f-224: path_registry scan + seed_slots pure.
+ * G-02f-225: sidecar_clear + preprocess/import diag pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -156,17 +157,13 @@ void pipeline_diag_import_open_fail_once(const char *import_path, const char *re
 }
 
 
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-225：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc（含 printf 细文案） */
 void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
     pipeline_diag_emitted_note();
     diag_report_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP001, "unclosed #if", NULL);
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-
-
-
+/* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
 void pipeline_diag_preprocess_fail(const char *path_diag) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
@@ -174,10 +171,7 @@ void pipeline_diag_preprocess_fail(const char *path_diag) {
                  path_diag ? path_diag : "?");
 }
 
-
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
+/* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
 void pipeline_diag_import_preprocess_fail(const char *import_path, const char *resolved_path) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(resolved_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_IMPORT_IMP002, NULL,
@@ -185,22 +179,16 @@ void pipeline_diag_import_preprocess_fail(const char *import_path, const char *r
                  import_path ? import_path : "?",
                  resolved_path ? resolved_path : "?");
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-
-
-
+/* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
 void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(path_diag, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005, NULL,
                  "%s allocation failed during .x preprocess",
                  what ? what : "buffer");
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-
-
-
+/* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
 void pipeline_diag_merge_dep_missing(const char *import_path) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(import_path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP004, NULL,
@@ -459,7 +447,7 @@ void typeck_dep_arena_set(int32_t i, void *arena) {
 /**
  * 清 typeck dep 侧车；driver_dep_seeded_clear_all 调用，避免悬空指针。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-225：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_typeck_dep_sidecar_clear(void) {
     int i;
     typeck_ndep = 0;
