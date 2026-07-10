@@ -5,9 +5,10 @@
  * G-02f-106 helper gates.
  * G-02f-97 pure helper gates.
  * G-02f-247: P1-8 open — collect lit + path_should_ignore pure + null bounds.
+ * G-02f-248: file_list_push orch pure + lib_root early pure.
  * Regen: ./shux-c -E -L .. src/driver/fmt_check_cmd.x > /tmp/fcc.c
  *         merge quiet_ok; keep path walk / check argv / fmt CLI C.
- * .x covers: quiet_ok + collect lit + path ignore + path_is_absolute + lint env.
+ * .x covers: quiet_ok + collect lit + path ignore + file_list orch + path_abs + lint.
  */
 #include "win32_compat.h"
 #include "driver/fmt_check_cmd.h"
@@ -188,17 +189,24 @@ const char *fmt_user_ignore_at(int i) {
 
 
 
+/* G-02f-248：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t check_user_passed_L_get(void) {
+    return s_user_passed_L ? 1 : 0;
+}
+
 /**
  * 若 dir 下同时存在 core/ 与 std/ 子目录，则作为仓库 lib 根注入 -L（去重）。
+ * G-02f-248：早退 pure 在 .x；stat/dedup 体 🔒。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
+void check_try_append_lib_root_impl(char **check_argv, int *n, const char *dir) {
     char core_path[560];
     char std_path[560];
     struct stat st;
     int i;
 
-    if (s_user_passed_L || *n >= 58 || !dir || !dir[0])
+    if (!check_argv || !n || !dir || !dir[0])
+        return;
+    if (s_user_passed_L || *n >= 58)
         return;
     snprintf(core_path, sizeof core_path, "%s/core", dir);
     snprintf(std_path, sizeof std_path, "%s/std", dir);
@@ -215,6 +223,19 @@ void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
     snprintf(s_check_lib_bufs[s_n_check_lib_bufs], sizeof s_check_lib_bufs[0], "%s", dir);
     check_argv[(*n)++] = "-L";
     check_argv[(*n)++] = s_check_lib_bufs[s_n_check_lib_bufs++];
+}
+
+/* G-02f-248：逻辑源 .x（早退 pure）；seed 保留同语义 C 供产品 cc */
+void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
+    if (!check_argv || !n || !dir)
+        return;
+    if (!dir[0])
+        return;
+    if (check_user_passed_L_get())
+        return;
+    if (*n >= 58)
+        return;
+    check_try_append_lib_root_impl(check_argv, n, dir);
 }
 
 
@@ -419,37 +440,68 @@ int path_should_ignore(const char *path) {
 
 
 
-/**
- * 将相对/绝对路径加入待处理列表（去重由调用方保证顺序）。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int file_list_push(const char *path) {
-    char ab[512];
-    if (!path || s_n_files >= DRIVER_FMT_MAX_FILES)
-        return -1;
+/* G-02f-248：逻辑源 .x（真迁 .x 后缀）；seed 保留同语义 C 供产品 cc */
+int fmt_path_ends_with_dot_x(const char *path) {
+    size_t len;
+    if (!path)
+        return 0;
+    len = strlen(path);
+    if (len < 2)
+        return 0;
+    return path[len - 2] == '.' && path[len - 1] == 'x';
+}
+
+int fmt_file_list_n(void) {
+    return s_n_files;
+}
+
+/* getcwd + 相对拼接 🔒；返回静态缓冲指针（勿 free） */
+const char *fmt_path_resolve_abs(const char *path) {
+    static char ab[512];
+    if (!path)
+        return NULL;
     if (!shux_path_is_absolute(path)) {
         if (!getcwd(ab, sizeof ab))
-            return -1;
+            return NULL;
         size_t n = strlen(ab);
         if (n + 1 + strlen(path) >= sizeof ab)
-            return -1;
+            return NULL;
         ab[n] = '/';
         strcpy(ab + n + 1, path);
-        path = ab;
     } else {
         snprintf(ab, sizeof ab, "%s", path);
-        path = ab;
     }
-    if (path_should_ignore(path))
-        return 0;
-    size_t len = strlen(path);
-    if (len < 3 || strcmp(path + len - 2, ".x") != 0)
-        return 0;
-    s_file_list[s_n_files] = strdup(path);
+    return ab;
+}
+
+int fmt_file_list_store_impl(const char *abs_path) {
+    if (!abs_path || s_n_files >= DRIVER_FMT_MAX_FILES)
+        return -1;
+    s_file_list[s_n_files] = strdup(abs_path);
     if (!s_file_list[s_n_files])
         return -1;
     s_n_files++;
     return 0;
+}
+
+/**
+ * 将相对/绝对路径加入待处理列表（去重由调用方保证顺序）。
+ * G-02f-248：逻辑源 .x（编排 pure）；getcwd/strdup 🔒。
+ */
+int file_list_push(const char *path) {
+    const char *abs_path;
+    if (!path)
+        return -1;
+    if (fmt_file_list_n() >= DRIVER_FMT_MAX_FILES)
+        return -1;
+    abs_path = fmt_path_resolve_abs(path);
+    if (!abs_path)
+        return -1;
+    if (path_should_ignore(abs_path))
+        return 0;
+    if (!fmt_path_ends_with_dot_x(abs_path))
+        return 0;
+    return fmt_file_list_store_impl(abs_path);
 }
 
 

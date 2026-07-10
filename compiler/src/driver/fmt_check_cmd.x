@@ -9,6 +9,7 @@
 // G-02f-106：+ path_should_ignore / file_list / dep_clear / lib_root 门闩。
 // G-02f-107：+ walk/collect/compile/check_one 薄门闩。
 // G-02f-247：P1-8 开局 — collect lit pure + path_should_ignore pure + 多门闩 null 边界。
+// G-02f-248：file_list_push 编排 pure（.x 后缀 + ignore）+ lib_root 早退 pure。
 
 extern "C" function getenv(name: *u8): *u8;
 extern "C" function strstr(hay: *u8, needle: *u8): *u8;
@@ -22,10 +23,15 @@ extern "C" function driver_fmt_check_lit_fmt001(): *u8;
 extern "C" function fmt_builtin_ignore_at(i: i32): *u8;
 extern "C" function fmt_user_ignore_count(): i32;
 extern "C" function fmt_user_ignore_at(i: i32): *u8;
-extern "C" function file_list_push_impl(path: *u8): i32;
+/* file_list：G-02f-248 下方真迁编排；getcwd/strdup 🔒 */
+extern "C" function fmt_file_list_n(): i32;
+extern "C" function fmt_path_resolve_abs(path: *u8): *u8;
+extern "C" function fmt_file_list_store_impl(abs_path: *u8): i32;
 extern "C" function file_list_clear_impl(): void;
 extern "C" function fmt_check_dep_clear_impl(): void;
 extern "C" function check_init_user_lib_flags_impl(argc: i32, argv: *u8, path_start: i32): void;
+/* lib_root：G-02f-248 早退 pure；stat/dedup 🔒 */
+extern "C" function check_user_passed_L_get(): i32;
 extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir: *u8): void;
 extern "C" function check_append_repo_lib_roots_impl(check_argv: *u8, n: *i32): void;
 extern "C" function check_argv_append_default_libs_for_path_impl(path: *u8, check_argv: *u8, n: *i32): void;
@@ -69,7 +75,7 @@ function driver_collect_missing_path_code(): *u8 {
   return 0 as *u8;
 }
 
-/* ---- G-02f-106 / G-02f-247：path/list/dep/lib ---- */
+/* ---- G-02f-106 / G-02f-247 / G-02f-248：path/list/dep/lib ---- */
 
 // G-02f-247：内置 + --ignore 子串；null path → 忽略
 #[no_mangle]
@@ -106,13 +112,54 @@ function path_should_ignore(path: *u8): i32 {
   return 0;
 }
 
+// G-02f-248：路径是否以 ".x" 结尾
+#[no_mangle]
+function fmt_path_ends_with_dot_x(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    let i: i32 = 0;
+    while (i < 4096) {
+      if (path[i] == 0) {
+        if (i < 2) {
+          return 0;
+        }
+        // ".x"
+        if (path[i - 2] == 46) {
+          if (path[i - 1] == 120) {
+            return 1;
+          }
+        }
+        return 0;
+      }
+      i = i + 1;
+    }
+  }
+  return 0;
+}
+
+// G-02f-248：满员/解析/ignore/.x 过滤 pure；strdup 入表 🔒
 #[no_mangle]
 function file_list_push(path: *u8): i32 {
   if (path == 0 as *u8) {
     return 0 - 1;
   }
   unsafe {
-    return file_list_push_impl(path);
+    if (fmt_file_list_n() >= 8192) {
+      return 0 - 1;
+    }
+    let abs_path: *u8 = fmt_path_resolve_abs(path);
+    if (abs_path == 0 as *u8) {
+      return 0 - 1;
+    }
+    if (path_should_ignore(abs_path) != 0) {
+      return 0;
+    }
+    if (fmt_path_ends_with_dot_x(abs_path) == 0) {
+      return 0;
+    }
+    return fmt_file_list_store_impl(abs_path);
   }
   return 0 - 1;
 }
@@ -141,6 +188,7 @@ function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void 
   }
 }
 
+// G-02f-248：user -L / n>=58 / 空 dir 早退 pure；stat 体 🔒
 #[no_mangle]
 function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
   if (check_argv == 0 as *u8) {
@@ -153,6 +201,15 @@ function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
     return;
   }
   unsafe {
+    if (dir[0] == 0) {
+      return;
+    }
+    if (check_user_passed_L_get() != 0) {
+      return;
+    }
+    if (*n >= 58) {
+      return;
+    }
     check_try_append_lib_root_impl(check_argv, n, dir);
   }
 }
