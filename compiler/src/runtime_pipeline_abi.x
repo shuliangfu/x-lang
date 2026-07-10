@@ -23,6 +23,7 @@
 // G-02f-234：fclose/emit_glue pure + merge dep_paths 编排 pure。
 // G-02f-235：merge_direct_then_transitive_deps pure（src/lens/path）。
 // G-02f-236：load_direct_imports_for_asm_layout 编排 pure。
+// G-02f-237：pipeline_resolve_path pure + collect 空 import 早退。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -87,7 +88,8 @@ extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: 
 extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
 /* preprocess/import diag：G-02f-225 下方真迁 */
 
-extern "C" function pipeline_resolve_path_impl(path_ptr: *u8, path_len: i32): i32;
+/* pipeline_resolve_path：G-02f-237 下方真迁 */
+extern "C" function pipeline_resolve_path_into_static(path_c: *u8): void;
 extern "C" function pipeline_read_file_impl(): i32;
 extern "C" function pipeline_parse_into_loaded_import_impl(arena: *u8, module: *u8): i32;
 extern "C" function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, arena: *u8, source_data: *u8, source_len: i64, out_buf: *u8, ctx: *u8): i32;
@@ -1163,15 +1165,33 @@ function pipeline_diag_import_open_fail_once(import_path: *u8, resolved_path: *u
 
 /* ---- G-02f-56：resolve_path / read_file / parse loaded import ---- */
 
+// G-02f-237：拷 path 字节 → 静态 resolved（multi resolve 🔒 helper）
 #[no_mangle]
 function pipeline_resolve_path(path_ptr: *u8, path_len: i32): i32 {
   if (path_ptr == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
+  let plen: i32 = path_len;
+  if (plen <= 0) {
+    plen = 64;
+  }
+  if (plen > 64) {
+    plen = 64;
+  }
+  let path_c: u8[65] = [];
+  let k: i32 = 0;
   unsafe {
-    return pipeline_resolve_path_impl(path_ptr, path_len);
+    while (k < plen) {
+      if (path_ptr[k] == 0) {
+        break;
+      }
+      path_c[k] = path_ptr[k];
+      k = k + 1;
+    }
+    path_c[k] = 0;
+    pipeline_resolve_path_into_static(&path_c[0]);
   }
-  return -1;
+  return 0;
 }
 
 #[no_mangle]
@@ -2029,32 +2049,54 @@ function shux_merge_direct_then_transitive_deps(module: *u8, n_imports: i32, cls
   return 0;
 }
 
+// G-02f-237：空 import 早退 pure；闭包队列/IO 仍 work_impl
 #[no_mangle]
 function shux_collect_deps_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32 {
   if (module == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   if (n_deps == 0 as *i32) {
-    return -1;
+    return 0 - 1;
+  }
+  let nimp: i32 = 0;
+  unsafe {
+    nimp = shux_module_num_imports(module);
+  }
+  if (nimp <= 0) {
+    unsafe {
+      shux_i32_store(n_deps, 0);
+    }
+    return 0;
   }
   unsafe {
     return shux_collect_deps_transitive_impl(module, arena_sz, module_sz, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, n_deps);
   }
-  return -1;
+  return 0 - 1;
 }
 
+// G-02f-237：路径-only 闭包；空 import 早退 pure
 #[no_mangle]
 function shux_collect_dep_paths_transitive(module: *u8, arena_sz: i64, module_sz: i64, lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, defines: *u8, ndefines: i32, dep_paths: *u8, n_deps: *i32): i32 {
   if (module == 0 as *u8) {
-    return -1;
+    return 0 - 1;
   }
   if (n_deps == 0 as *i32) {
-    return -1;
+    return 0 - 1;
+  }
+  let nimp: i32 = 0;
+  unsafe {
+    nimp = shux_module_num_imports(module);
+  }
+  if (nimp <= 0) {
+    unsafe {
+      shux_i32_store(n_deps, 0);
+    }
+    return 0;
   }
   unsafe {
     return shux_collect_dep_paths_transitive_impl(module, arena_sz, module_sz, lib_roots, n_lib_roots, entry_dir, defines, ndefines, dep_paths, n_deps);
   }
-  return -1;
+  return 0 - 1;
 }
 
 #[no_mangle]

@@ -18,6 +18,7 @@
  * G-02f-234: fclose/emit_glue + merge dep_paths pure.
  * G-02f-235: merge_direct_then_transitive_deps pure.
  * G-02f-236: load_direct_imports_for_asm_layout pure.
+ * G-02f-237: resolve_path pure + collect empty-import early.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -1836,6 +1837,16 @@ void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
 
 
 /** 将 import 逻辑路径解析为文件系统路径写入内部 buffer。 */
+/* G-02f-237：path_c → 静态 resolved_path_buf（.x resolve pure 后调用） */
+void pipeline_resolve_path_into_static(const char *path_c) {
+    const char *lib_roots[1] = { "." };
+    if (!path_c)
+        return;
+    shux_resolve_import_file_path_multi(lib_roots, 1, pipeline_entry_dir, path_c, pipeline_resolved_path_buf,
+        sizeof(pipeline_resolved_path_buf));
+}
+
+/* G-02f-237：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_resolve_path_impl(const uint8_t *path_ptr, int32_t path_len) {
     char path_c[65];
     size_t k = 0;
@@ -1846,12 +1857,11 @@ int32_t pipeline_resolve_path_impl(const uint8_t *path_ptr, int32_t path_len) {
         k++;
     }
     path_c[k] = '\0';
-    const char *lib_roots[1] = { "." };
-    shux_resolve_import_file_path_multi(lib_roots, 1, pipeline_entry_dir, path_c, pipeline_resolved_path_buf,
-        sizeof(pipeline_resolved_path_buf));
+    pipeline_resolve_path_into_static(path_c);
     return 0;
 }
 
+/* G-02f-237：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 int32_t pipeline_resolve_path(const uint8_t *path_ptr, int32_t path_len) {
   if (path_ptr == NULL) {
     return -1;
@@ -2646,6 +2656,7 @@ fail_to_load:
     return 1;
 }
 
+/* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc */
 int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
     size_t dep_lens[], char *dep_paths[], int *n_deps) {
@@ -2654,6 +2665,10 @@ int shux_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz
   }
   if (n_deps == NULL) {
     return -1;
+  }
+  if (shux_module_num_imports(module) <= 0) {
+    *n_deps = 0;
+    return 0;
   }
   {
     return shux_collect_deps_transitive_impl(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines, dep_sources, dep_lens, dep_paths, n_deps);
@@ -2798,6 +2813,7 @@ fail_to_load:
     return 1;
 }
 
+/* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc */
 int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps) {
   if (module == NULL) {
@@ -2805,6 +2821,10 @@ int shux_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t modu
   }
   if (n_deps == NULL) {
     return -1;
+  }
+  if (shux_module_num_imports(module) <= 0) {
+    *n_deps = 0;
+    return 0;
   }
   {
     return shux_collect_dep_paths_transitive_impl(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines, dep_paths, n_deps);
