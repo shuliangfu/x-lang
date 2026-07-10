@@ -1588,17 +1588,17 @@ ensure_runtime_driver_obj() {
 
 ensure_ast_obj() {
   local o="src/ast/ast.o"
-  if [ ! -f "$o" ] || [ "src/asm/runtime_ast_glue.inc" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/asm/runtime_ast_glue.inc"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_ast_glue.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_ast_glue.from_x.c" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- seeds/runtime_ast_glue.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_ast_glue.from_x.c -o "$o"
   fi
 }
 
 ensure_lexer_obj() {
   local o="src/lexer/lexer.o"
-  if [ ! -f "$o" ] || [ "src/asm/runtime_lexer_glue.inc" -nt "$o" ]; then
-  strict_glue_info "cc_inc_tu $o <- src/asm/runtime_lexer_glue.inc"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_lexer_glue.from_x.c" -nt "$o" ]; then
+  strict_glue_info "cc_inc_tu $o <- seeds/runtime_lexer_glue.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lexer_glue.from_x.c -o "$o"
   fi
 }
 

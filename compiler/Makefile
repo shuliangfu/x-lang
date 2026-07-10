@@ -87,16 +87,16 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 
 # std.string：F 闭合 — mod.x + string.x 用 -E-extern 编译（裸符号），
 # ld -r 合并 runtime_string_fast.o（提供 string_*_c fast-path 定义）。
-../std/string/string.o: ../std/string/mod.x ../std/string/string.x scripts/shux_compile_std_module.sh src/asm/runtime_string_fast.inc scripts/cc_inc_tu.sh
-	@sh scripts/cc_inc_tu.sh src/asm/runtime_string_fast.inc $@.fast && \
+../std/string/string.o: ../std/string/mod.x ../std/string/string.x scripts/shux_compile_std_module.sh seeds/runtime_string_fast.from_x.c scripts/cc_inc_tu.sh
+	@$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_string_fast.from_x.c -o $@.fast && \
 	sh scripts/shux_compile_std_module.sh --bare-impl $@.core ../std/string/mod.x ../std/string/string.x && \
 	ld -r -o $@ $@.core $@.fast && \
 	rm -f $@.core $@.fast
 
 # std.path：保留 mod.x 作为 F-path v1 源码锚点；path.o 由 C provider 产出，
 # 避免 bootstrap asm backend 在 dirname/last_slash 链上反复卡住。
-../std/path/path.o: ../std/path/mod.x src/asm/runtime_path_fast.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_path_fast.inc ../std/path/path_core.o && \
+../std/path/path.o: ../std/path/mod.x seeds/runtime_path_fast.from_x.c scripts/cc_inc_tu.sh
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_path_fast.from_x.c -o ../std/path/path_core.o && \
 	ld -r -o ../std/path/path.o ../std/path/path_core.o && \
 	rm -f ../std/path/path_core.o
 
@@ -134,8 +134,8 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 
 # std.runtime：保留 runtime.x 作为 F-runtime v1 源码锚点；runtime.o 仅提供
 # runtime_panic/runtime_abort/runtime_crash_evidence_collect_c 三个 extern provider。
-../std/runtime/runtime.o: ../std/runtime/runtime.x src/asm/runtime_std_runtime_fast.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_std_runtime_fast.inc ../std/runtime/runtime_core.o && \
+../std/runtime/runtime.o: ../std/runtime/runtime.x seeds/runtime_std_runtime_fast.from_x.c scripts/cc_inc_tu.sh
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_std_runtime_fast.from_x.c -o ../std/runtime/runtime_core.o && \
 	ld -r -o ../std/runtime/runtime.o ../std/runtime/runtime_core.o && \
 	rm -f ../std/runtime/runtime_core.o
 
@@ -589,13 +589,15 @@ $(SHUX_C): $(OBJS_CORE) $(LEGACY_SHUX_C_EXTRA)
 
 # G-02a: lexer.o 从 runtime_lexer_glue.inc 编译（G-02e-19：cc_inc_tu）。
 # 仅提供 lexer_new/lexer_free；lexer_next 由 lexer_x.o（.x）或 runtime_driver_strict_glue_stubs.o（weak 桩）提供。
-src/lexer/lexer.o: src/asm/runtime_lexer_glue.inc src/lexer/lexer.h include/token.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc $@
+# G-02f-21：runtime_lexer_glue 产品 seed
+src/lexer/lexer.o: seeds/runtime_lexer_glue.from_x.c src/asm/runtime_lexer_glue.x src/lexer/lexer.h include/token.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_lexer_glue.from_x.c -o $@
 
 # G-02a: ast.o 从 runtime_ast_glue.inc 编译（LEGACY 模式 SHUX_LEGACY_C_FRONTEND=1）。
 # LEGACY parser.o 不引用 ast_expr_init_match_enum，安全。
-src/ast/ast.o: src/asm/runtime_ast_glue.inc include/ast.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_ast_glue.inc $@
+# G-02f-21：runtime_ast_glue 产品 seed
+src/ast/ast.o: seeds/runtime_ast_glue.from_x.c src/asm/runtime_ast_glue.x include/ast.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_ast_glue.from_x.c -o $@
 
 # G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），C 编排由 typeck_c_module_stubs.o 提供。
 
@@ -796,8 +798,9 @@ runtime_asm_io_stubs.o: seeds/runtime_asm_io_stubs.from_x.c src/asm/runtime_asm_
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -fPIE -c seeds/runtime_asm_io_stubs.from_x.c -o $@
 
 # F-ZC：std.test fn-ptr invoke；与 test.o 一并链入（G-02e-16：.inc + cc_inc_tu）
-runtime_test_fn_invoke.o: src/asm/runtime_test_fn_invoke.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_test_fn_invoke.inc $@
+# G-02f-21：runtime_test_fn_invoke 产品 seed
+runtime_test_fn_invoke.o: seeds/runtime_test_fn_invoke.from_x.c src/asm/runtime_test_fn_invoke.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_test_fn_invoke.from_x.c -o $@
 
 # F-ZC：CSPRNG OS fill；与 random.o 一并链入（G-02e-17：.inc + cc_inc_tu）
 # G-02f-20：runtime_random_fill 产品 seed
@@ -805,8 +808,9 @@ runtime_random_fill.o: seeds/runtime_random_fill.from_x.c src/asm/runtime_random
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_random_fill.from_x.c -o $@
 
 # zlib 宏包装桩；与 compress 同链（G-02e-17：.inc + cc_inc_tu）
-runtime_compress_zlib_glue.o: src/asm/runtime_compress_zlib_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_compress_zlib_glue.inc $@
+# G-02f-21：runtime_compress_zlib_glue 产品 seed
+runtime_compress_zlib_glue.o: seeds/runtime_compress_zlib_glue.from_x.c src/asm/runtime_compress_zlib_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_compress_zlib_glue.from_x.c -o $@
 
 # F-ZC：time OS syscall；与 time.o 一并链入（G-02e-18：.inc + cc_inc_tu）
 # G-02f-19：runtime_time_os 产品 seed
@@ -814,8 +818,9 @@ runtime_time_os.o: seeds/runtime_time_os.from_x.c src/asm/runtime_time_os.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_time_os.from_x.c -o $@
 
 # F-ZC：queue 竞争烟测 pthread；与 queue.o 一并链入（G-02e-19：.inc + cc_inc_tu）
-runtime_queue_contention.o: src/asm/runtime_queue_contention.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_queue_contention.inc $@
+# G-02f-21：runtime_queue_contention 产品 seed
+runtime_queue_contention.o: seeds/runtime_queue_contention.from_x.c src/asm/runtime_queue_contention.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_queue_contention.from_x.c -o $@
 
 # F-ZC：dynlib dlopen/LoadLibrary；与 dynlib.o 一并链入（G-02e-19：.inc + cc_inc_tu）
 # G-02f-20：runtime_dynlib_os 产品 seed
@@ -882,29 +887,34 @@ runtime_scheduler_glue.o: seeds/runtime_scheduler_glue.from_x.c src/asm/runtime_
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm -c seeds/runtime_scheduler_glue.from_x.c -o $@
 
 # F-ZC：HTTP 客户端/服务端胶层（含 http2/*.inc.c）；与 http.o 一并链入（G-02e-21）
-runtime_http_glue.o: src/asm/http/runtime_http_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/http/runtime_http_glue.inc $@ -Isrc/asm/http
+# G-02f-21：runtime_http_glue 产品 seed（#include http2/*.inc）
+runtime_http_glue.o: seeds/runtime_http_glue.from_x.c src/asm/http/runtime_http_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -Isrc/asm/http -c seeds/runtime_http_glue.from_x.c -o $@
 
 # F-ZC：mbedTLS BIO 胶层；net-o-mbedtls 时 ld -r 并入 tls_mbedtls.o（G-02e-18 .inc）
-runtime_tls_mbedtls_bio.o: src/asm/runtime_tls_mbedtls_bio.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_tls_mbedtls_bio.inc $@ -I/opt/homebrew/opt/mbedtls/include 2>/dev/null \
-	  || sh scripts/cc_inc_tu.sh src/asm/runtime_tls_mbedtls_bio.inc $@
+# G-02f-21：runtime_tls_mbedtls_bio 产品 seed
+runtime_tls_mbedtls_bio.o: seeds/runtime_tls_mbedtls_bio.from_x.c src/asm/runtime_tls_mbedtls_bio.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -I/opt/homebrew/opt/mbedtls/include -c seeds/runtime_tls_mbedtls_bio.from_x.c -o $@ 2>/dev/null \
+	  || $(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_tls_mbedtls_bio.from_x.c -o $@
 
 # F-ZC：db.kv mmap 胶层；与 kv.o 按需同链（G-02e-17：.inc + cc_inc_tu）
-runtime_kv_mmap_glue.o: src/asm/runtime_kv_mmap_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_kv_mmap_glue.inc $@
+# G-02f-21：runtime_kv_mmap_glue 产品 seed
+runtime_kv_mmap_glue.o: seeds/runtime_kv_mmap_glue.from_x.c src/asm/runtime_kv_mmap_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_kv_mmap_glue.from_x.c -o $@
 
 # F-ZC：db.arrow SIMD 胶层；与 arrow.o 按需同链（G-02e-19：.inc + cc_inc_tu）
-runtime_arrow_simd_glue.o: src/asm/runtime_arrow_simd_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_arrow_simd_glue.inc $@
+# G-02f-21：runtime_arrow_simd_glue 产品 seed
+runtime_arrow_simd_glue.o: seeds/runtime_arrow_simd_glue.from_x.c src/asm/runtime_arrow_simd_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_arrow_simd_glue.from_x.c -o $@
 
 # F-ZC：db.sqlite 胶层（libsqlite3）；与 sqlite.o 同链（G-02e-20）
-runtime_sqlite_glue.o: src/asm/runtime_sqlite_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_sqlite_glue.inc $@ -DSHUX_DB_USE_SQLITE3
+# G-02f-21：runtime_sqlite_glue 产品 seed
+runtime_sqlite_glue.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_sqlite_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_DB_USE_SQLITE3 -c seeds/runtime_sqlite_glue.from_x.c -o $@
 
 # F-ZC：db.sqlite stub 胶层（无 libsqlite3）；sqlite-o-stub 时 ld -r 并入 sqlite.o（G-02e-20）
-runtime_sqlite_glue_stub.o: src/asm/runtime_sqlite_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_sqlite_glue.inc $@
+runtime_sqlite_glue_stub.o: seeds/runtime_sqlite_glue.from_x.c src/asm/runtime_sqlite_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_sqlite_glue.from_x.c -o $@
 
 # F-ZC：crypto SHA-512/HMAC 胶层；与 crypto.o 一并链入（G-02e-20）
 # G-02f-20：runtime_crypto_inc_glue 产品 seed
@@ -1628,8 +1638,8 @@ src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.f
 # G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
 # 提供 ast_module_free/ast_expr_free/ast_block_free 等 8 个内存管理函数。
 # 不含 ast_expr_init_match_enum（no_c 模式下由 x_seed_bridge.o 提供）。
-src/ast/ast_seed.o: src/asm/runtime_ast_glue.inc include/ast.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_ast_glue.inc $@
+src/ast/ast_seed.o: seeds/runtime_ast_glue.from_x.c src/asm/runtime_ast_glue.x include/ast.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_ast_glue.from_x.c -o $@
 
 # G-02a: ast_x.o alias — ast_seed.o 提供 C ABI 内存管理实现。
 ast_x.o: src/ast/ast_seed.o
@@ -1638,8 +1648,9 @@ ast_x.o: src/ast/ast_seed.o
 # G-02a: preprocess.c 已物理删除；preprocess.o 不再编译（preprocess_x.o 由 .x 生成）。
 
 # G-02a: lexer.o 从 runtime_lexer_glue.inc 编译（G-02e-19：cc_inc_tu）。
-src/lexer/lexer.o: src/asm/runtime_lexer_glue.inc src/lexer/lexer.h include/token.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc $@
+# G-02f-21：runtime_lexer_glue 产品 seed
+src/lexer/lexer.o: seeds/runtime_lexer_glue.from_x.c src/asm/runtime_lexer_glue.x src/lexer/lexer.h include/token.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_lexer_glue.from_x.c -o $@
 
 # G-02a: typeck.c 已物理删除；typeck_x.o 由 typeck.x 生成，typeck_c_module_stubs.o 提供 weak 桩。
 

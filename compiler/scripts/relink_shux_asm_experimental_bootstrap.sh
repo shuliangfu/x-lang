@@ -44,13 +44,13 @@ ensure_async_cps_seed_objs
 # bootstrap-driver-seed 同款 C 种子 .o（experimental 链须 parser/typeck 等；缺则 ld 失败）。
 ensure_asm_driver_seed_c_objs() {
   mkdir -p "$SEED_O"
-  if [ ! -f "$SEED_O/lexer.o" ] || [ "src/asm/runtime_lexer_glue.inc" -nt "$SEED_O/lexer.o" ]; then
+  if [ ! -f "$SEED_O/lexer.o" ] || [ "seeds/runtime_lexer_glue.from_x.c" -nt "$SEED_O/lexer.o" ]; then
   experimental_bootstrap_info "cc_inc_tu $SEED_O/lexer.o"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_lexer_glue.inc "$SEED_O/lexer.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lexer_glue.from_x.c -o "$SEED_O/lexer.o"
   fi
-  if [ ! -f "$SEED_O/ast_seed.o" ] || [ "src/asm/runtime_ast_glue.inc" -nt "$SEED_O/ast_seed.o" ]; then
+  if [ ! -f "$SEED_O/ast_seed.o" ] || [ "seeds/runtime_ast_glue.from_x.c" -nt "$SEED_O/ast_seed.o" ]; then
   experimental_bootstrap_info "cc $SEED_O/ast_seed.o"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_ast_glue.inc "$SEED_O/ast_seed.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_ast_glue.from_x.c -o "$SEED_O/ast_seed.o"
   fi
   # G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），编排桩由 typeck_c_module_stubs.o 提供。
   # G-02a: codegen.c 已物理删除；codegen.o 由 codegen.x 生成（codegen_x.o），编排桩由 codegen_pipeline_stubs.o 提供。
