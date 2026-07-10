@@ -61,7 +61,7 @@ PIPELINE_ABI_H="compiler/src/runtime_pipeline_abi.h"
 CRT0_LINUX="compiler/src/asm/crt0_x86_64.s"
 CRT0_DARWIN_ARM="compiler/src/asm/crt0_arm64.s"
 CRT0_DARWIN_X64="compiler/src/asm/crt0_darwin_x86_64.s"
-CRT0_MINGW="compiler/src/asm/crt0_mingw.c"
+CRT0_MINGW="compiler/src/asm/crt0_mingw.inc"
 
 die() {
   echo "e04 gate FAIL: $*" >&2
@@ -72,7 +72,7 @@ die() {
 echo "=== E-04 v35: dep transitive collect/merge in pipeline_abi ==="
 for f in "$DOC" "$DOC_V34" "$DOC_V33" "$DOC_V32" "$DOC_V31" "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUILD" "$RUNTIME" "$MAIN" "$DRIVER_ABI_C" "$DRIVER_ABI_H" "$PIPELINE_ABI_C" "$PIPELINE_ABI_H" "$CRT0_MINGW" "$CRT0_LINUX" "$CRT0_DARWIN_ARM" "$CRT0_DARWIN_X64" \
   compiler/src/runtime_driver_diagnostic.c compiler/src/runtime_driver_diagnostic.h \
-  compiler/src/runtime_c_import.c compiler/src/runtime_c_import.h \
+  compiler/src/runtime_c_import.inc compiler/src/runtime_c_import.h \
   "$ABI_C" "$IO_ABI_C" "$PROC_ABI_C" "$LINK_ABI_C" "$LINK_ABI_H" "$ABI_MF"; do
   [ -f "$f" ] || die "missing $f"
 done
@@ -95,7 +95,7 @@ grep -q 'shux_collect_deps_transitive' "$RUNTIME" || die "runtime.c should call 
 echo "=== E-04 v34: driver diagnostic block in runtime_driver_diagnostic TU ==="
 for f in "$DOC_V34" "$DOC_V33" "$DOC_V32" "$DOC_V31" "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUILD" "$RUNTIME" "$MAIN" "$DRIVER_ABI_C" "$DRIVER_ABI_H" "$PIPELINE_ABI_C" "$PIPELINE_ABI_H" "$CRT0_MINGW" "$CRT0_LINUX" "$CRT0_DARWIN_ARM" "$CRT0_DARWIN_X64" \
   compiler/src/runtime_driver_diagnostic.c compiler/src/runtime_driver_diagnostic.h \
-  compiler/src/runtime_c_import.c compiler/src/runtime_c_import.h \
+  compiler/src/runtime_c_import.inc compiler/src/runtime_c_import.h \
   "$ABI_C" "$IO_ABI_C" "$PROC_ABI_C" "$LINK_ABI_C" "$LINK_ABI_H" "$ABI_MF"; do
   [ -f "$f" ] || die "missing $f"
 done
@@ -114,13 +114,13 @@ grep -q 'runtime_driver_diagnostic.c' "$RUNTIME" || die "runtime.c should refere
 
 echo "=== E-04 v33: C import load TU + top-level import detect in driver/pipeline ABI ==="
 for f in "$DOC_V33" "$DOC_V32" "$DOC_V31" "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUILD" "$RUNTIME" "$MAIN" "$DRIVER_ABI_C" "$DRIVER_ABI_H" "$PIPELINE_ABI_C" "$PIPELINE_ABI_H" "$CRT0_MINGW" "$CRT0_LINUX" "$CRT0_DARWIN_ARM" "$CRT0_DARWIN_X64" \
-  compiler/src/runtime_c_import.c compiler/src/runtime_c_import.h \
+  compiler/src/runtime_c_import.inc compiler/src/runtime_c_import.h \
   "$ABI_C" "$IO_ABI_C" "$PROC_ABI_C" "$LINK_ABI_C" "$LINK_ABI_H" "$ABI_MF"; do
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v33' "$DOC_V33" || die "doc missing E-04 v33 marker"
-grep -q 'shu_c_resolve_and_load_imports' compiler/src/runtime_c_import.c || die "runtime_c_import.c missing shu_c_resolve_and_load_imports"
-grep -q 'shu_lsp_resolve_and_load_imports' compiler/src/runtime_c_import.c || die "runtime_c_import.c missing shu_lsp_resolve_and_load_imports"
+grep -q 'shu_c_resolve_and_load_imports' compiler/src/runtime_c_import.inc || die "runtime_c_import.inc missing shu_c_resolve_and_load_imports"
+grep -q 'shu_lsp_resolve_and_load_imports' compiler/src/runtime_c_import.inc || die "runtime_c_import.inc missing shu_lsp_resolve_and_load_imports"
 grep -q 'runtime_c_import.o' "$MF" || die "Makefile OBJS_CORE missing runtime_c_import.o"
 grep -q 'driver_source_has_top_level_import_path' "$DRIVER_ABI_C" || die "runtime_driver_abi.c missing driver_source_has_top_level_import_path"
 grep -q 'shux_merge_deps_path_already_out' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.c missing shux_merge_deps_path_already_out"
@@ -180,7 +180,7 @@ if grep -qE '^void shu_lsp_free_loaded_imports\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines shu_lsp_free_loaded_imports"
 fi
 grep -q 'shux_asm_codegen_elf_o_large_stack' "$RUNTIME" || die "runtime.c should call shux_asm_codegen_elf_o_large_stack"
-grep -q 'shux_import_dep_dir_from_path' compiler/src/runtime_c_import.c || die "runtime_c_import.c should call shux_import_dep_dir_from_path"
+grep -q 'shux_import_dep_dir_from_path' compiler/src/runtime_c_import.inc || die "runtime_c_import.inc should call shux_import_dep_dir_from_path"
 
 echo "=== E-04 v30: pipeline I/O primitives + dep prerun in pipeline_abi ==="
 for f in "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUILD" "$RUNTIME" "$MAIN" "$DRIVER_ABI_C" "$DRIVER_ABI_H" "$PIPELINE_ABI_C" "$PIPELINE_ABI_H" "$CRT0_MINGW" "$CRT0_LINUX" "$CRT0_DARWIN_ARM" "$CRT0_DARWIN_X64" \
@@ -377,7 +377,7 @@ done
 grep -q 'E-04 v21' "$DOC_V21" || die "doc missing E-04 v21 marker"
 grep -q 'crt0_mingw.o' "$MF" || die "Makefile missing crt0_mingw.o in MAIN_LINK_O path"
 grep -q 'SHUX_IS_WIN_HOST' "$MF" || die "Makefile missing SHUX_IS_WIN_HOST"
-grep -q 'shux_forward_main_to_main_entry' "$CRT0_MINGW" || die "crt0_mingw.c must call shux_forward_main_to_main_entry"
+grep -q 'shux_forward_main_to_main_entry' "$CRT0_MINGW" || die "crt0_mingw.inc must call shux_forward_main_to_main_entry"
 
 echo "=== E-04 v20: Darwin crt0 + MAIN_LINK_FLAGS ==="
 for f in "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUILD" "$RUNTIME" "$MAIN" "$CRT0_LINUX" "$CRT0_DARWIN_ARM" "$CRT0_DARWIN_X64" \
@@ -667,9 +667,9 @@ while IFS=$'\t' read -r item_id _e_task path status _replacement check_type note
           sym="${path#runtime_pipeline_abi.h:}"
           grep -q "$sym" "$PIPELINE_ABI_H" || { echo "e04 grep fail: $PIPELINE_ABI_H need $sym" >&2; MISS=$((MISS + 1)); }
           ;;
-        runtime_c_import.c:*)
-          sym="${path#runtime_c_import.c:}"
-          grep -q "$sym" compiler/src/runtime_c_import.c || { echo "e04 grep fail: runtime_c_import.c need $sym" >&2; MISS=$((MISS + 1)); }
+        runtime_c_import.inc:*)
+          sym="${path#runtime_c_import.inc:}"
+          grep -q "$sym" compiler/src/runtime_c_import.inc || { echo "e04 grep fail: runtime_c_import.inc need $sym" >&2; MISS=$((MISS + 1)); }
           ;;
         runtime_driver_diagnostic.c:*)
           sym="${path#runtime_driver_diagnostic.c:}"

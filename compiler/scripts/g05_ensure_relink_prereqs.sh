@@ -31,9 +31,9 @@ if [ ! -f "${G05_BOOTSTRAP:-bootstrap_shuxc}" ] && [ ! -f shux ] && [ ! -f shux-
   exit 1
 fi
 
-# --- 热路径：直接 cc -c（不经 make）---
+# --- 热路径：直接 cc -c（不经 make）；G-02e-22：.inc 走 cc_inc_tu ---
 g05_cc_c() {
-  # $1 = .o  $2 = .c  [$3...] = extra cflags
+  # $1 = .o  $2 = .c|.inc  [$3...] = extra cflags
   _o="$1"
   _c="$2"
   shift 2
@@ -42,9 +42,18 @@ g05_cc_c() {
     exit 1
   fi
   mkdir -p "$(dirname "$_o")"
-  echo "g05_ensure: cc -c $_c → $_o"
-  # shellcheck disable=SC2086
-  $CC $BASE_CFLAGS "$@" -c -o "$_o" "$_c"
+  case "$_c" in
+    *.inc)
+      echo "g05_ensure: cc_inc_tu $_c → $_o"
+      # shellcheck disable=SC2086
+      sh scripts/cc_inc_tu.sh "$_c" "$_o" "$@"
+      ;;
+    *)
+      echo "g05_ensure: cc -c $_c → $_o"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS "$@" -c -o "$_o" "$_c"
+      ;;
+  esac
 }
 
 if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
@@ -82,20 +91,27 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # shellcheck disable=SC2086
   for o in $G05_OBJS; do
     c="${o%.o}.c"
+    inc="${o%.o}.inc"
+    src=""
+    if [ -f "$c" ]; then
+      src="$c"
+    elif [ -f "$inc" ]; then
+      src="$inc"
+    fi
     # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
     case "$o" in
       src/runtime_driver_no_c.o|src/typeck/typeck_f64_bits.o|build_asm/*|*.s) continue ;;
       # G-02e-7：link_alias 并入；产品默认 SKIP 前缀别名（与 Makefile PARSER_ASM_LINK_ALIAS_CFLAGS 一致）
       src/asm/parser_asm_parse_expr_link.o)
-        if [ -f "$c" ] && { [ ! -f "$o" ] || [ "$c" -nt "$o" ]; }; then
-          g05_cc_c "$o" "$c" -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
+        if [ -n "$src" ] && { [ ! -f "$o" ] || [ "$src" -nt "$o" ]; }; then
+          g05_cc_c "$o" "$src" -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
         fi
         continue
         ;;
     esac
-    if [ -f "$c" ]; then
-      if [ ! -f "$o" ] || [ "$c" -nt "$o" ]; then
-        g05_cc_c "$o" "$c"
+    if [ -n "$src" ]; then
+      if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
+        g05_cc_c "$o" "$src"
       fi
     fi
   done

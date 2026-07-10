@@ -20,7 +20,7 @@ case_warn_pad	case	lint_warn_pad	tests/lint/lint_warn_pad.x	warn	pad-fields
 case_warn_reorder	case	lint_warn_reorder	tests/lint/lint_warn_reorder.x	warn	hot-reorder
 case_info_unused	case	lint_unused_hint	tests/lint/lint_unused_hint.x	info	unused-hint
 impl_diag	file	compiler/src/lsp/lsp_diag.h	compiler/src/lsp/lsp_diag.h	driver	severity
-impl_check	file	compiler/src/driver/fmt_check_cmd.c	compiler/src/driver/fmt_check_cmd.c	driver	check
+impl_check	file	compiler/src/driver/fmt_check_cmd.inc	compiler/src/driver/fmt_check_cmd.inc	driver	check
 profile_file	file	tests/baseline/tool-lint-ci-profile.tsv	tests/baseline/tool-lint-ci-profile.tsv	ci	profile
 lib	script	lib/tool-lint.sh	tests/lib/tool-lint.sh	-	共享库
 gate	script	run-tool-lint-gate.sh	tests/run-tool-lint-gate.sh	-	manifest

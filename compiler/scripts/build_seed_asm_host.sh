@@ -291,12 +291,12 @@ has_real_partial_seed_mega() {
   } END { exit !found }'
 }
 
-BACKEND_FALLBACK_SRC="src/asm/backend_seed_mega_fallback.c"
+BACKEND_FALLBACK_SRC="src/asm/backend_seed_mega_fallback.inc"
 
 build_backend_partial_from_c_fallback() {
   rm -f "$BACKEND_PARTIAL"
   build_seed_asm_host_warn "fallback cc $BACKEND_FALLBACK_SRC -> $BACKEND_PARTIAL"
-  if ! $CC $CFLAGS -c "$BACKEND_FALLBACK_SRC" -o "$BACKEND_PARTIAL" 2>"$OUT_DIR/backend_seed_mega_fallback.err"; then
+  if ! sh scripts/cc_inc_tu.sh "$BACKEND_FALLBACK_SRC" "$BACKEND_PARTIAL" 2>"$OUT_DIR/backend_seed_mega_fallback.err"; then
     build_seed_asm_host_dump_tail "$OUT_DIR/backend_seed_mega_fallback.err" 20
     rm -f "$BACKEND_PARTIAL"
     return 1

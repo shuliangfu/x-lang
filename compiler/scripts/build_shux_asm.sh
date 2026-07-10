@@ -3132,9 +3132,9 @@ ensure_bstrict_seed_support_objs() {
   fi
   done
   if [ ! -f src/driver/fmt_check_cmd_driver.o ] \
-  || [ "src/driver/fmt_check_cmd.c" -nt src/driver/fmt_check_cmd_driver.o ]; then
-  echo " cc -c src/driver/fmt_check_cmd.c -> src/driver/fmt_check_cmd_driver.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/driver/fmt_check_cmd_driver.o src/driver/fmt_check_cmd.c
+  || [ "src/driver/fmt_check_cmd.inc" -nt src/driver/fmt_check_cmd_driver.o ]; then
+  echo " cc -c src/driver/fmt_check_cmd.inc -> src/driver/fmt_check_cmd_driver.o"
+  sh scripts/cc_inc_tu.sh src/driver/fmt_check_cmd.inc src/driver/fmt_check_cmd_driver.o -DSHUX_USE_X_PIPELINE
   fi
   if [ ! -f src/driver/target_cpu.o ] \
   || [ "src/driver/target_cpu.c" -nt src/driver/target_cpu.o ]; then
@@ -3187,9 +3187,9 @@ ensure_lsp_diag_seed_obj() {
   sh scripts/cc_inc_tu.sh src/asm/runtime_lsp_glue.inc "$seed_dir/lsp_diag.o"
   fi
   else
-  if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "src/lsp/lsp_diag_stubs_no_c.c" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then
+  if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "src/lsp/lsp_diag_stubs_no_c.inc" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then
   echo " cc -c $seed_dir/lsp_diag_stubs_no_c.o (E-02 soft-retire lsp_diag.c)"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$seed_dir/lsp_diag_stubs_no_c.o" src/lsp/lsp_diag_stubs_no_c.c
+  sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_stubs_no_c.inc "$seed_dir/lsp_diag_stubs_no_c.o"
   fi
   fi
 }
@@ -3206,11 +3206,11 @@ ensure_asm_driver_seed_support_c_objs() {
   SEED_DIR="${SEED_DIR:-$BUILD_DIR/asm_driver_seed}"
   mkdir -p "$SEED_DIR"
   ensure_diag_seed_obj "$SEED_DIR"
-  if [ ! -f "$SEED_DIR/async_liveness.o" ] || [ src/async/async_liveness.c -nt "$SEED_DIR/async_liveness.o" ]; then
-  "$CC" $CFLAGS -c -o "$SEED_DIR/async_liveness.o" src/async/async_liveness.c
+  if [ ! -f "$SEED_DIR/async_liveness.o" ] || [ src/async/async_liveness.inc -nt "$SEED_DIR/async_liveness.o" ]; then
+  sh scripts/cc_inc_tu.sh src/async/async_liveness.inc "$SEED_DIR/async_liveness.o"
   fi
-  if [ ! -f "$SEED_DIR/async_cps_codegen.o" ] || [ src/async/async_cps_codegen.c -nt "$SEED_DIR/async_cps_codegen.o" ]; then
-  "$CC" $CFLAGS -c -o "$SEED_DIR/async_cps_codegen.o" src/async/async_cps_codegen.c
+  if [ ! -f "$SEED_DIR/async_cps_codegen.o" ] || [ src/async/async_cps_codegen.inc -nt "$SEED_DIR/async_cps_codegen.o" ]; then
+  sh scripts/cc_inc_tu.sh src/async/async_cps_codegen.inc "$SEED_DIR/async_cps_codegen.o"
   fi
   ensure_lsp_diag_seed_obj "$SEED_DIR"
   LSP_DIAG_SEED_O=$(lsp_diag_seed_obj_path "$SEED_DIR")
@@ -3328,9 +3328,9 @@ ensure_asm_strict_link_extra_objs() {
   "$CC" $CFLAGS -c -o src/runtime_io_abi.o src/runtime_io_abi.c
   fi
   if [ ! -f src/asm/parser_asm_parse_expr_link.o ] \
-  || [ src/asm/parser_asm_parse_expr_link.c -nt src/asm/parser_asm_parse_expr_link.o ]; then
-  echo " cc -c src/asm/parser_asm_parse_expr_link.c -> src/asm/parser_asm_parse_expr_link.o"
-  "$CC" $CFLAGS -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS -c -o src/asm/parser_asm_parse_expr_link.o src/asm/parser_asm_parse_expr_link.c
+  || [ src/asm/parser_asm_parse_expr_link.inc -nt src/asm/parser_asm_parse_expr_link.o ]; then
+  echo " cc -c src/asm/parser_asm_parse_expr_link.inc -> src/asm/parser_asm_parse_expr_link.o"
+  sh scripts/cc_inc_tu.sh src/asm/parser_asm_parse_expr_link.inc src/asm/parser_asm_parse_expr_link.o -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS
   fi
   # G-02-B1：优先 .x（-backend asm）；无 shux 或失败时回退 .c（删 C 前须 Docker Stage2 回归）。
   if [ -f src/asm/pipeline_fill_dep_strict_alias.x ] \

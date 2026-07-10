@@ -53,7 +53,7 @@ else
   LD_RELFLAGS =
 endif
 TARGET = shux
-SRCS = src/main.c src/runtime.c src/async/async_liveness.c src/async/async_cps_codegen.c
+SRCS = src/main.c src/runtime.c src/async/async_liveness.inc src/async/async_cps_codegen.inc
 # OBJS_CORE：G-06 默认 shux-c=bootstrap_shuxc；仅 SHUX_LEGACY_C_FRONTEND=1 时链下列 runtime 桩（无 C 前端 .c）。
 OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
@@ -644,8 +644,17 @@ src/runtime_driver_abi.o: src/runtime_driver_abi.c src/runtime_driver_abi.h
 src/runtime_pipeline_abi.o: src/runtime_pipeline_abi.c src/runtime_pipeline_abi.h Makefile
 	$(CC) $(CFLAGS) $(RUNTIME_PIPELINE_ABI_CFLAGS) -c -o $@ $<
 
-src/runtime_c_import.o: src/runtime_c_import.c src/runtime_c_import.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/runtime_c_import.o: src/runtime_c_import.inc src/runtime_c_import.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/runtime_c_import.inc $@
+
+src/async/async_liveness.o: src/async/async_liveness.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/async/async_liveness.inc $@
+
+src/async/async_cps_codegen.o: src/async/async_cps_codegen.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/async/async_cps_codegen.inc $@
+
+src/async/async_asm_pool.o: src/async/async_asm_pool.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/async/async_asm_pool.inc $@
 
 src/runtime_driver_diagnostic.o: src/runtime_driver_diagnostic.c src/runtime_driver_diagnostic.h include/diag.h
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -675,11 +684,11 @@ src/runtime_driver.o: src/runtime.c Makefile include/diag.h
 src/runtime_x.o: src/runtime.c include/diag.h
 	$(CC) $(CFLAGS) -DSHUX_USE_X_PIPELINE -c -o $@ $<
 
-src/driver/fmt_check_cmd.o: src/driver/fmt_check_cmd.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/driver/fmt_check_cmd.o: src/driver/fmt_check_cmd.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/driver/fmt_check_cmd.inc $@
 
-src/driver/fmt_check_cmd_driver.o: src/driver/fmt_check_cmd.c
-	$(CC) $(CFLAGS) -DSHUX_USE_X_PIPELINE -c -o $@ $<
+src/driver/fmt_check_cmd_driver.o: src/driver/fmt_check_cmd.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/driver/fmt_check_cmd.inc $@ -DSHUX_USE_X_PIPELINE
 
 # G-02a：C 前端 lexer/ast/parser/typeck/codegen/preprocess/autovec/lsp_diag 已物理删除；见对应 .x。
 
@@ -917,8 +926,8 @@ endif
 endif
 # E-04 v21：Windows/MinGW/MSYS bootstrap 默认 crt0_mingw 替代 main_driver.o
 ifeq ($(SHUX_IS_WIN_HOST),1)
-src/asm/crt0_mingw.o: src/asm/crt0_mingw.c Makefile
-	$(CC) $(CFLAGS) $(WIN32_O_CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/asm/crt0_mingw.o: src/asm/crt0_mingw.inc Makefile scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/crt0_mingw.inc $@ $(WIN32_O_CFLAGS)
 endif
 
 # asm 链接无 runtime_driver 时：提供 typeck_float64_bits_lo/hi（G-02e：全平台 .s，零 C）。
@@ -1220,8 +1229,8 @@ src/asm/asm_backend_compat_stubs.o: src/asm/asm_backend_compat_stubs.inc scripts
 src/asm/backend_enc_dispatch.o: src/asm/backend_enc_dispatch.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
 
-src/asm/backend_x86_64_enc_c.o: src/asm/backend_x86_64_enc_c.c
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/asm/backend_x86_64_enc_c.o: src/asm/backend_x86_64_enc_c.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/backend_x86_64_enc_c.inc $@
 
 src/asm/backend_arch_emit_dispatch.o: src/asm/backend_arch_emit_dispatch.c
 	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
@@ -1261,8 +1270,8 @@ parser_asm_thin_glue.o: src/asm/parser_asm_thin_c.c \
 	$(CC) $(CFLAGS) $(PARSER_ASM_THIN_GLUE_CFLAGS) -I. -Iinclude -Isrc -Isrc/lexer -c -o $@ src/asm/parser_asm_thin_c.c
 
 # parse_expr_into 桥 + pipeline 弱 parse 桩 / 可选 parser_* 别名（G-02e-7 并入 link_alias）。
-src/asm/parser_asm_parse_expr_link.o: src/asm/parser_asm_parse_expr_link.c
-	$(CC) $(CFLAGS) $(PARSER_ASM_LINK_ALIAS_CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/asm/parser_asm_parse_expr_link.o: src/asm/parser_asm_parse_expr_link.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/asm/parser_asm_parse_expr_link.inc $@ $(PARSER_ASM_LINK_ALIAS_CFLAGS)
 
 build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o: src/asm/backend_x86_64_enc_c.o build_asm/seed_host/asm_backend_partial.o
 	@mkdir -p build_asm
@@ -1934,8 +1943,8 @@ preprocess_x.o: preprocess_gen.c $(PREPROCESS_X_DEPS)
 	$(CC) $(CFLAGS) -c preprocess_gen.c -o preprocess_x.o
 
 # SHUX_NO_C_FRONTEND 下 lsp_diag_x.o / lsp_x.o 需要的文档缓冲 + X 管道缓冲桩
-src/lsp/lsp_diag_stubs_no_c.o: src/lsp/lsp_diag_stubs_no_c.c include/diag.h
-	$(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o $@ $<
+src/lsp/lsp_diag_stubs_no_c.o: src/lsp/lsp_diag_stubs_no_c.inc include/diag.h scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_stubs_no_c.inc $@
 
 # SHUX_SKIP_SUBSCRIPT_MAKE=1：run-all 入口已链 seed，子脚本 `make` 仅在校验 shux 缺失时再完整 bootstrap。
 ifeq ($(SHUX_SKIP_SUBSCRIPT_MAKE),1)
@@ -2199,15 +2208,15 @@ build-tool:
 	fi
 	cp -f seeds/build_runner_gen.c build_runner_gen.c
 	$(CC) $(CFLAGS) -Wno-unused -c build_gen.c -o build_tool.o
-	$(CC) $(CFLAGS) -c src/build_tool_libc_bridge.c -o build_tool_libc_bridge.o
+	sh scripts/cc_inc_tu.sh src/build_tool_libc_bridge.inc build_tool_libc_bridge.o
 	$(CC) $(CFLAGS) -c build_runner_gen.c -o build_runner.o
 	$(CC) $(CFLAGS) -Wno-unused -c build_runtime_x_gen.c -o build_runtime_x.o
-	$(CC) $(CFLAGS) -c src/build_tool_main.c -o build_tool_main.o
+	sh scripts/cc_inc_tu.sh src/build_tool_main.inc build_tool_main.o
 	$(CC) $(CFLAGS) -o build_tool build_tool_main.o build_runner.o build_tool.o build_runtime_x.o build_tool_libc_bridge.o -lc
 	@echo "build_tool OK（./build_tool ./shux [asm|legacy]；G-05 pinned seeds）"
 
-src/build_tool_main.o: src/build_tool_main.c
-	$(CC) $(CFLAGS) -c src/build_tool_main.c -o src/build_tool_main.o
+src/build_tool_main.o: src/build_tool_main.inc scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh src/build_tool_main.inc $@
 
 # 别名：与 build-tool 相同（历史 target 名）
 build-tool-x: build-tool

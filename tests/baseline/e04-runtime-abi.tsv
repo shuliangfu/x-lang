@@ -12,9 +12,9 @@ e04_driver_diag_unused_hint	abi_sym	runtime_driver_diagnostic.c:driver_diagnosti
 e04_runtime_diag_ref	abi_sym	runtime.c:runtime_driver_diagnostic.c	active	E-04 v34	grep	runtime_driver_diagnostic.c
 e04_objs_core_driver_diag	E-04	compiler/Makefile	active	shux-c + seed	grep	runtime_driver_diagnostic\.o
 e04_v33_doc	doc	analysis/phase-e-e04-v33.md	active	n/a	grep	E-04 v33
-e04_c_import_tu	abi_tu	compiler/src/runtime_c_import.c	active	shux-c only	exists	C import load
-e04_c_import_resolve	abi_sym	runtime_c_import.c:shu_c_resolve_and_load_imports	active	run_compiler_c	grep	shu_c_resolve_and_load_imports
-e04_c_import_lsp	abi_sym	runtime_c_import.c:shu_lsp_resolve_and_load_imports	active	lsp_diag	grep	shu_lsp_resolve_and_load_imports
+e04_c_import_tu	abi_tu	compiler/src/runtime_c_import.inc	active	shux-c only	exists	C import load
+e04_c_import_resolve	abi_sym	runtime_c_import.inc:shu_c_resolve_and_load_imports	active	run_compiler_c	grep	shu_c_resolve_and_load_imports
+e04_c_import_lsp	abi_sym	runtime_c_import.inc:shu_lsp_resolve_and_load_imports	active	lsp_diag	grep	shu_lsp_resolve_and_load_imports
 e04_driver_top_level_import	abi_sym	runtime_driver_abi.c:driver_source_has_top_level_import_path	active	compile.x	grep	driver_source_has_top_level_import_path
 e04_pipeline_merge_deps	abi_sym	runtime_pipeline_abi.c:shux_merge_deps_path_already_out	active	asm layout	grep	shux_merge_deps_path_already_out
 e04_objs_core_c_import	E-04	compiler/Makefile	active	shux-c cold start	grep	runtime_c_import\.o
@@ -88,7 +88,7 @@ e04_driver_check_only	abi_sym	runtime_driver_abi.c:driver_check_only_get	active	
 e04_driver_freestanding	abi_sym	runtime_driver_abi.c:driver_freestanding_get	active	-backend asm	grep	driver_freestanding_get
 e04_seed_links_driver_abi	E-04	compiler/Makefile	active	runtime_driver_abi.o	grep	src/runtime_driver_abi.o
 e04_v21_doc	doc	analysis/phase-e-e04-v21.md	active	n/a	grep	E-04 v21
-e04_crt0_mingw	E-04	compiler/src/asm/crt0_mingw.c	active	main_entry	grep	shux_forward_main_to_main_entry
+e04_crt0_mingw	E-04	compiler/src/asm/crt0_mingw.inc	active	main_entry	grep	shux_forward_main_to_main_entry
 e04_win_host	E-04	compiler/Makefile	active	SHUX_IS_WIN_HOST	grep	SHUX_IS_WIN_HOST
 e04_v20_doc	doc	analysis/phase-e-e04-v20.md	active	n/a	grep	E-04 v20
 e04_crt0_arm64	E-04	compiler/src/asm/crt0_arm64.s	active	main_entry	grep	_main_entry

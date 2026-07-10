@@ -28,8 +28,8 @@ experimental_bootstrap_error() {
 ensure_async_cps_seed_objs() {
   local src out src_pair
   for src_pair in \
-  "src/async/async_liveness.c:$SEED_O/async_liveness.o" \
-  "src/async/async_cps_codegen.c:$SEED_O/async_cps_codegen.o"; do
+  "src/async/async_liveness.inc:$SEED_O/async_liveness.o" \
+  "src/async/async_cps_codegen.inc:$SEED_O/async_cps_codegen.o"; do
   src="${src_pair%%:*}"
   out="${src_pair##*:}"
   if [ ! -f "$out" ] || [ "$src" -nt "$out" ]; then
@@ -208,9 +208,9 @@ if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.c" -nt "$PARSER
 fi
 
 # parse_expr_into 桥 + pipeline 弱 parse 桩（G-02e-7：原 parser_asm_link_alias 并入）
-if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "src/asm/parser_asm_parse_expr_link.c" -nt "$PARSER_EXPR_LINK_O" ]; then
+if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "src/asm/parser_asm_parse_expr_link.inc" -nt "$PARSER_EXPR_LINK_O" ]; then
   experimental_bootstrap_info "cc parser_asm_parse_expr_link.o"
-  "$CC" $CFLAGS $PARSER_ASM_LINK_ALIAS_CFLAGS -c -o "$PARSER_EXPR_LINK_O" src/asm/parser_asm_parse_expr_link.c
+  sh scripts/cc_inc_tu.sh src/asm/parser_asm_parse_expr_link.inc "$PARSER_EXPR_LINK_O" $PARSER_ASM_LINK_ALIAS_CFLAGS
 fi
 if [ ! -f "$PARSER_ASM_PARTIAL" ] && [ -f "$BUILD_DIR/parser.o" ]; then
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then

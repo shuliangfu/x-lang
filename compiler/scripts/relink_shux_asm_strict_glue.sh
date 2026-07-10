@@ -95,8 +95,8 @@ have_link_liburing() {
 ensure_async_cps_seed_objs() {
   local src out
   for src_pair in \
-  "src/async/async_liveness.c:$SEED_O/async_liveness.o" \
-  "src/async/async_cps_codegen.c:$SEED_O/async_cps_codegen.o"; do
+  "src/async/async_liveness.inc:$SEED_O/async_liveness.o" \
+  "src/async/async_cps_codegen.inc:$SEED_O/async_cps_codegen.o"; do
   src="${src_pair%%:*}"
   out="${src_pair##*:}"
   if [ ! -f "$out" ] || [ "$src" -nt "$out" ]; then
@@ -289,9 +289,9 @@ ensure_lsp_diag_seed_obj() {
   sh scripts/cc_inc_tu.sh src/asm/runtime_lsp_glue.inc "$seed_dir/lsp_diag.o"
   fi
   else
-  if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "src/lsp/lsp_diag_stubs_no_c.c" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then
+  if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "src/lsp/lsp_diag_stubs_no_c.inc" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then
   strict_glue_info "cc -c $seed_dir/lsp_diag_stubs_no_c.o (E-02 soft-retire lsp_diag.c)"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$seed_dir/lsp_diag_stubs_no_c.o" src/lsp/lsp_diag_stubs_no_c.c
+  sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_stubs_no_c.inc "$seed_dir/lsp_diag_stubs_no_c.o"
   fi
   fi
 }
@@ -1256,9 +1256,9 @@ if [ ! -f parser_x.o ] && ensure_parser_asm_minimal_partial_obj; then
 fi
 
 PARSER_EXPR_LINK_O="src/asm/parser_asm_parse_expr_link.o"
-if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "src/asm/parser_asm_parse_expr_link.c" -nt "$PARSER_EXPR_LINK_O" ]; then
+if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "src/asm/parser_asm_parse_expr_link.inc" -nt "$PARSER_EXPR_LINK_O" ]; then
   strict_glue_info "cc parser_asm_parse_expr_link.o"
-  "$CC" $CFLAGS $PARSER_ASM_LINK_ALIAS_CFLAGS -c -o "$PARSER_EXPR_LINK_O" src/asm/parser_asm_parse_expr_link.c
+  sh scripts/cc_inc_tu.sh src/asm/parser_asm_parse_expr_link.inc "$PARSER_EXPR_LINK_O" $PARSER_ASM_LINK_ALIAS_CFLAGS
 fi
 
 ST_LAYOUT_PARTIAL=""
@@ -1606,9 +1606,9 @@ ensure_lexer_obj() {
 
 ensure_runtime_c_import_obj() {
   local o="src/runtime_c_import.o"
-  if [ ! -f "$o" ] || [ "src/runtime_c_import.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_c_import.c"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_c_import.c
+  if [ ! -f "$o" ] || [ "src/runtime_c_import.inc" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- src/runtime_c_import.inc"
+  sh scripts/cc_inc_tu.sh src/runtime_c_import.inc "$o"
   fi
 }
 
@@ -1694,18 +1694,18 @@ ensure_lsp_pipeline_ctx_obj() {
 }
 ensure_backend_seed_mega_fallback_obj() {
   local o="$BUILD_DIR/backend_seed_mega_fallback.o"
-  local src="src/asm/backend_seed_mega_fallback.c"
+  local src="src/asm/backend_seed_mega_fallback.inc"
   if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- $src (weak backend stubs)"
-  "$CC" $CFLAGS -c -o "$o" "$src"
+  strict_glue_info "cc_inc_tu $o <- $src (weak backend stubs)"
+  sh scripts/cc_inc_tu.sh "$src" "$o"
   fi
 }
 ensure_backend_x86_64_enc_c_obj() {
   local o="$BUILD_DIR/backend_x86_64_enc_c.o"
-  local src="src/asm/backend_x86_64_enc_c.c"
+  local src="src/asm/backend_x86_64_enc_c.inc"
   if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- $src (x86_64 enc fallback)"
-  "$CC" $CFLAGS -c -o "$o" "$src"
+  strict_glue_info "cc_inc_tu $o <- $src (x86_64 enc fallback)"
+  sh scripts/cc_inc_tu.sh "$src" "$o"
   fi
 }
 ensure_typeck_f64_bits_obj() {

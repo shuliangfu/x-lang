@@ -78,9 +78,9 @@ entries = [
     ("src/asm/runtime_lsp_glue.inc", base),
     ("src/main_driver.c", driver_flags),
     ("src/runtime_driver.c", driver_flags),
-    ("src/driver/fmt_check_cmd.c", base),
-    ("src/async/async_liveness.c", base),
-    ("src/async/async_cps_codegen.c", base),
+    ("src/driver/fmt_check_cmd.inc", base),
+    ("src/async/async_liveness.inc", base),
+    ("src/async/async_cps_codegen.inc", base),
     ("pipeline_bootstrap_orchestration.c", base + [
         "-Ibuild_asm", "-DPIPELINE_BOOTSTRAP_ORCH_NO_PIPELINE_RUN_WRAPPER",
         "-include", "ide/clangd_glued_preamble.h",

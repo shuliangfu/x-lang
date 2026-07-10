@@ -19,7 +19,7 @@ case_semicolon	case	fmt_semicolon_space	tests/fmt/fmt_semicolon_space.x	wrap	分
 case_operator	case	fmt_operator_space	tests/fmt/fmt_operator_space.x	wrap	运算符
 case_array_comma	case	fmt_array_comma_space	tests/fmt/fmt_array_comma_space.x	wrap	逗号
 impl_fmt	file	compiler/src/driver/fmt.x	compiler/src/driver/fmt.x	driver	cmd_fmt
-impl_c	file	compiler/src/driver/fmt_check_cmd.c	compiler/src/driver/fmt_check_cmd.c	driver	C 实现
+impl_c	file	compiler/src/driver/fmt_check_cmd.inc	compiler/src/driver/fmt_check_cmd.inc	driver	C 实现
 script_scan	script	scan_fmt_damage.py	compiler/scripts/scan_fmt_damage.py	audit	损坏扫描
 script_comment	script	verify_comment_prefixes.py	compiler/scripts/verify_comment_prefixes.py	audit	注释
 lib	script	lib/tool-fmt.sh	tests/lib/tool-fmt.sh	-	共享库
