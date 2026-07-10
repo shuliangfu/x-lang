@@ -16,6 +16,7 @@
 // G-02f-227：lsp free_loaded 循环 + import_open_fail_once 去重 pure。
 // G-02f-228：pctx seed_dep_slots / import_paths_only / update_dep_slots_no_reset pure。
 // G-02f-229：get_entry_dir + import_path_to_file_path pure。
+// G-02f-230：seeded_clear 槽循环 + fill_ctx_path_buffers 编排 pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -52,10 +53,13 @@ extern "C" function shux_asm_codegen_elf_o_thread_fn_impl(arg: *u8): *u8;
 extern "C" function shux_emit_pipeline_glue_include_impl(): void;
 extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
 extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
-extern "C" function driver_dep_seeded_clear_slots_impl(): void;
+/* seeded_clear_slots：G-02f-230 下方真迁 */
 /* get_entry_dir / import_path_to_file_path：G-02f-229 下方真迁 */
 extern "C" function driver_asm_fclose_asm_out_impl(fp: *u8): void;
 extern "C" function shux_resolve_file_import_path_impl(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void;
+extern "C" function pipeline_dep_ctx_path_bufs_reset(ctx: *u8): void;
+extern "C" function pipeline_dep_ctx_copy_entry_dir(ctx: *u8, entry_dir: *u8): void;
+extern "C" function ast_pipeline_ctx_append_lib_root(ctx: *u8, path: *u8, len: i32): i32;
 /* driver_dep_slot_for_path_scan：G-02f-224 下方真迁 */
 extern "C" function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32;
 extern "C" function driver_dep_seed_slots_impl(arenas: *u8, modules: *u8, n: i32): void;
@@ -82,7 +86,7 @@ extern "C" function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_
 extern "C" function shux_resolve_import_file_path_multi_impl(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void;
 extern "C" function pipeline_set_entry_dir_impl(path: *u8): void;
 extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8): void;
-extern "C" function shux_pipeline_fill_ctx_path_buffers_impl(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void;
+/* fill_ctx_path_buffers：G-02f-230 下方真迁 */
 /* pctx_seed_dep_slots / import_paths_only：G-02f-228 下方真迁 */
 extern "C" function shux_pipeline_one_ctx_for_dep_prerun_impl(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
 extern "C" function shux_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8, ctx: *u8, elf_ctx: *u8, out_buf: *u8): i32;
@@ -643,12 +647,26 @@ function driver_typeck_dep_sidecar_clear(): void {
   }
 }
 
+// G-02f-230：清 32 槽 seeded/path/arena/module 指针
+#[no_mangle]
+function driver_dep_seeded_clear_slots(): void {
+  let i: i32 = 0;
+  while (i < 32) {
+    driver_dep_seeded_set(i, 0);
+    unsafe {
+      driver_dep_path_registry_set(i, 0 as *u8);
+      driver_dep_arena_ptr_set(i, 0 as *u8);
+      driver_dep_module_ptr_set(i, 0 as *u8);
+    }
+    i = i + 1;
+  }
+}
+
+// G-02f-230：clear_slots + typeck dep 侧车
 #[no_mangle]
 function driver_dep_seeded_clear_all(): void {
-  unsafe {
-    driver_dep_seeded_clear_slots_impl();
-    driver_typeck_dep_sidecar_clear();
-  }
+  driver_dep_seeded_clear_slots();
+  driver_typeck_dep_sidecar_clear();
 }
 
 // G-02f-229：入口路径 → 所在目录（末尾 / 前缀）；无 / 则写 "."
@@ -1203,13 +1221,39 @@ function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
   }
 }
 
+// G-02f-230：reset path 侧车 + 写 entry_dir + 追加 lib_roots
 #[no_mangle]
 function shux_pipeline_fill_ctx_path_buffers(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void {
   if (ctx == 0 as *u8) {
     return;
   }
   unsafe {
-    shux_pipeline_fill_ctx_path_buffers_impl(ctx, entry_dir, lib_roots, n_lib_roots);
+    pipeline_dep_ctx_path_bufs_reset(ctx);
+    if (entry_dir != 0 as *u8) {
+      pipeline_dep_ctx_copy_entry_dir(ctx, entry_dir);
+    }
+  }
+  if (lib_roots == 0 as *u8) {
+    return;
+  }
+  if (n_lib_roots <= 0) {
+    return;
+  }
+  let i: i32 = 0;
+  while (i < n_lib_roots) {
+    unsafe {
+      let p: *u8 = pipe_load_ptr_slot(lib_roots, i);
+      if (p != 0 as *u8) {
+        let ll: i32 = pipe_cstr_len(p);
+        if (ll > 255) {
+          ll = 255;
+        }
+        if (ll > 0) {
+          let _r: i32 = ast_pipeline_ctx_append_lib_root(ctx, p, ll);
+        }
+      }
+    }
+    i = i + 1;
   }
 }
 

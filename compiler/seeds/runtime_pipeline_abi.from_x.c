@@ -11,6 +11,7 @@
  * G-02f-227: lsp free_loaded + import_open_fail_once pure.
  * G-02f-228: pctx seed_dep_slots / import_paths_only / update_no_reset pure.
  * G-02f-229: get_entry_dir + import_path_to_file_path pure.
+ * G-02f-230: seeded_clear + fill_ctx_path_buffers pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -1008,6 +1009,7 @@ int32_t driver_dep_slot_for_path(const char *path) {
 /**
  * entry pipeline 返回后清除 seeded 与槽指针；并同步清 runtime.c typeck dep 侧车。
  */
+/* G-02f-230：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_dep_seeded_clear_slots_impl(void) {
     int i;
     for (i = 0; i < SHUX_DRIVER_DEP_SLOT_MAX; i++) {
@@ -1018,6 +1020,12 @@ void driver_dep_seeded_clear_slots_impl(void) {
     }
 }
 
+/* G-02f-230：逻辑源 .x（真迁）；产品门闩可走 impl 或与 .x 同语义循环 */
+void driver_dep_seeded_clear_slots(void) {
+    driver_dep_seeded_clear_slots_impl();
+}
+
+/* G-02f-230：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void driver_dep_seeded_clear_all(void) {
   {
     driver_dep_seeded_clear_slots_impl();
@@ -1384,22 +1392,37 @@ extern int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path);
  * 填充 ctx 的 entry_dir_buf、lib_root sidecar，供 .x 内 resolve_path_x 使用。
  * 参数：ctx 非 NULL；entry_dir 入口目录；lib_roots/n_lib_roots 与 -L 一致。
  */
-void shux_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
-    const char **lib_roots, int n_lib_roots) {
+/* G-02f-230：字段写 helper（.x fill_ctx 编排调用） */
+void pipeline_dep_ctx_path_bufs_reset(struct ast_PipelineDepCtx *ctx) {
     if (!ctx)
         return;
     ctx->loaded_len = 0;
     ctx->preprocess_len = 0;
     ctx->entry_dir_len = 0;
     ctx->num_lib_roots = 0;
-    if (entry_dir) {
-        size_t el = strlen(entry_dir);
-        if (el >= 512)
-            el = 511;
-        memcpy(ctx->entry_dir_buf, entry_dir, el);
-        ctx->entry_dir_buf[el] = '\0';
-        ctx->entry_dir_len = (int32_t)el;
-    }
+}
+
+/* G-02f-230：拷贝 entry_dir 到 ctx->entry_dir_buf（上限 511） */
+void pipeline_dep_ctx_copy_entry_dir(struct ast_PipelineDepCtx *ctx, const char *entry_dir) {
+    size_t el;
+    if (!ctx || !entry_dir)
+        return;
+    el = strlen(entry_dir);
+    if (el >= 512)
+        el = 511;
+    memcpy(ctx->entry_dir_buf, entry_dir, el);
+    ctx->entry_dir_buf[el] = '\0';
+    ctx->entry_dir_len = (int32_t)el;
+}
+
+/* G-02f-230：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void shux_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
+    const char **lib_roots, int n_lib_roots) {
+    if (!ctx)
+        return;
+    pipeline_dep_ctx_path_bufs_reset(ctx);
+    if (entry_dir)
+        pipeline_dep_ctx_copy_entry_dir(ctx, entry_dir);
     if (lib_roots && n_lib_roots > 0) {
         for (int i = 0; i < n_lib_roots && lib_roots[i]; i++) {
             size_t ll = strlen(lib_roots[i]);
@@ -1410,6 +1433,7 @@ void shux_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, co
     }
 }
 
+/* G-02f-230：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 void shux_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
     const char **lib_roots, int n_lib_roots) {
   if (ctx == NULL) {
