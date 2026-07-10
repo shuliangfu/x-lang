@@ -1,9 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..44/47/53/55/56/64..68：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
+// G-02f-34..44/47/53/55/56/64..69：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
 // C 尾：invoke_cc/ld 主体、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
+// G-02f-69：+ invoke_ld_platform / resolve_dir / append_std/on_demand 门闩。
 // G-02f-68：+ prepare_for_exe_link / waitpid / compress / argv_push 门闩。
 // G-02f-67：+ shux_ensure_* 族门闩（argv0 单参标准模板）。
 // G-02f-66：+ invoke_ld_for_exe / mach+unix tail libs 门闩。
@@ -1764,6 +1765,13 @@ function shux_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i32): i3
   return 0 - 1;
 }
 
+extern "C" function shu_resolve_compiler_dir_impl(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32;
+extern "C" function shux_asm_invoke_ld_platform_impl(o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32, link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32, driver_freestanding: i32): i32;
+extern "C" function shux_asm_ld_append_std_objs_impl(link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flags: *u8): void;
+extern "C" function shux_asm_ld_append_on_demand_user_objs_impl(link_argv0: *u8, user_o: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flags: *u8): void;
+extern "C" function invoke_cc_append_net_tls_ld_impl(argv: *u8, i: *i32, argv_cap: i32, net_o: *u8, repo_root: *u8): i32;
+extern "C" function ensure_std_net_o_auto_tls_impl(repo_root: *u8): void;
+
 /* ---- G-02f-68：prepare / waitpid / compress / argv_push 门闩 ---- */
 
 #[no_mangle]
@@ -1837,4 +1845,90 @@ function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, driver_fre
     return shux_asm_ld_prepare_for_exe_link_impl(link_eff, user_o, driver_freestanding, use_macho_o, use_coff_o);
   }
   return 0 - 1;
+}
+
+/* ---- G-02f-69：invoke_ld_platform / resolve_dir / append objs 门闩 ---- */
+
+#[no_mangle]
+function shu_resolve_compiler_dir(argv0: *u8, out_dir: *u8, out_dir_sz: i64): i32 {
+  if (out_dir == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out_dir_sz == 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    return shu_resolve_compiler_dir_impl(argv0, out_dir, out_dir_sz);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_asm_invoke_ld_platform(o_path: *u8, exe_path: *u8, target: *u8, use_macho_o: i32, use_coff_o: i32, link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32, driver_freestanding: i32): i32 {
+  if (o_path == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (exe_path == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    return shux_asm_invoke_ld_platform_impl(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots, driver_freestanding);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_asm_ld_append_std_objs(link_argv0: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flags: *u8): void {
+  if (argv == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  if (flags == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    shux_asm_ld_append_std_objs_impl(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, flags);
+  }
+}
+
+#[no_mangle]
+function shux_asm_ld_append_on_demand_user_objs(link_argv0: *u8, user_o: *u8, lib_roots: *u8, n_lib_roots: i32, bank: *u8, argv: *u8, la: *i32, max_la: i32, flags: *u8): void {
+  if (user_o == 0 as *u8) {
+    return;
+  }
+  if (argv == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  if (flags == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    shux_asm_ld_append_on_demand_user_objs_impl(link_argv0, user_o, lib_roots, n_lib_roots, bank, argv, la, max_la, flags);
+  }
+}
+
+#[no_mangle]
+function invoke_cc_append_net_tls_ld(argv: *u8, i: *i32, argv_cap: i32, net_o: *u8, repo_root: *u8): i32 {
+  if (argv == 0 as *u8) {
+    return 0;
+  }
+  if (i == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    return invoke_cc_append_net_tls_ld_impl(argv, i, argv_cap, net_o, repo_root);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function ensure_std_net_o_auto_tls(repo_root: *u8): void {
+  unsafe {
+    ensure_std_net_o_auto_tls_impl(repo_root);
+  }
 }

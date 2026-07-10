@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..68 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..69 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
- *         merge prepare_exe_link/waitpid/compress + ensure_* gates.
- * .x covers: + prepare_for_exe_link, waitpid, compress libs, ensure_* family.
+ *         merge invoke_ld_platform/resolve_dir/append_objs + ensure gates.
+ * .x covers: + invoke_ld_platform, resolve_compiler_dir, append_std/on_demand objs.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -25,6 +25,13 @@ void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *
     const char **argv, int *la, int max_la, int append_lsystem);
 void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la);
+/* G-02f-69 mega link helpers */
+int shu_resolve_compiler_dir_impl(const char *argv0, char *out_dir, size_t out_dir_sz);
+int shux_asm_invoke_ld_platform_impl(const char *o_path, const char *exe_path, const char *target, int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots, int driver_freestanding);
+void shux_asm_ld_append_std_objs_impl(const char *link_argv0, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
+void shux_asm_ld_append_on_demand_user_objs_impl(const char *link_argv0, const char *user_o, const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
+int invoke_cc_append_net_tls_ld_impl(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root);
+void ensure_std_net_o_auto_tls_impl(const char *repo_root);
 /* G-02f-68 link helpers */
 int shu_waitpid_retry_impl(pid_t pid, int *status_out);
 int shux_asm_user_o_has_undef_syms_impl(const char *o_path);
@@ -557,7 +564,7 @@ static void shux_debug_hello_stage1_report(const char *hypothesis_id, const char
  * 参数：argv0 可选；out_dir/out_dir_sz 输出缓冲。
  * 返回值：0 成功，-1 失败。
  */
-int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz) {
+int shu_resolve_compiler_dir_impl(const char *argv0, char *out_dir, size_t out_dir_sz) {
     char buf[PATH_MAX];
     buf[0] = '\0';
     if (!out_dir || out_dir_sz < 2)
@@ -634,6 +641,14 @@ int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz
     }
     return 0;
 }
+
+int shu_resolve_compiler_dir(const char *argv0, char *out_dir, size_t out_dir_sz) {
+  {
+    return shu_resolve_compiler_dir_impl(argv0, out_dir, out_dir_sz);
+  }
+  return -1;
+}
+
 
 /**
  * argv0 缺失时构造 «compiler-dir/shux» 供 get_*_path 走 ../std/…；shux 毋须真实存在。
@@ -4511,7 +4526,7 @@ int shux_invoke_cc(const char **c_paths, int n, const char *out_path, const char
  * SHUX_NET_TLS：stub | openssl | mbedtls | auto（默认 auto）。
  * 参数：repo_root 仓库根目录绝对路径。
  */
-void ensure_std_net_o_auto_tls(const char *repo_root) {
+void ensure_std_net_o_auto_tls_impl(const char *repo_root) {
     char cmd[640];
     char resolved[PATH_MAX];
     const char *mode;
@@ -4559,13 +4574,20 @@ void ensure_std_net_o_auto_tls(const char *repo_root) {
     }
 }
 
+void ensure_std_net_o_auto_tls(const char *repo_root) {
+  {
+    ensure_std_net_o_auto_tls_impl(repo_root);
+  }
+}
+
+
 /**
  * net.o / tls_openssl.o / tls_mbedtls.o 为 OpenSSL/mbedTLS 后端时追加对应 -L/-l 链接参数。
  * F-04 v8/v9：marker 在 std/net/tls_*.o（.x 产物），不再编译进 net.o。
  * 参数：argv/i/argv_cap 为 cc 链接 argv；net_o std/net .o；repo_root 仓库根（查 tls_openssl.o）。
  * 返回值：1 已追加 TLS 库，0 否。
  */
-int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root) {
+int invoke_cc_append_net_tls_ld_impl(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root) {
     static char hb_ssl_lib[72] = "-L/opt/homebrew/opt/openssl/lib";
     static char hb_mb_lib[72] = "-L/opt/homebrew/opt/mbedtls/lib";
     const char *use = net_o;
@@ -4649,6 +4671,14 @@ int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *
     }
     return 0;
 }
+
+int invoke_cc_append_net_tls_ld(char *argv[], int *i, int argv_cap, const char *net_o, const char *repo_root) {
+  {
+    return invoke_cc_append_net_tls_ld_impl(argv, i, argv_cap, net_o, repo_root);
+  }
+  return 0;
+}
+
 
 /**
  * 相对仓库根的 .o 路径解析：realpath(rel)、cwd/rel、argv0/../rel。
@@ -5589,7 +5619,7 @@ static int shux_asm_nostdlib_minimal_selfcontained_exe_link(const char *o_path, 
 #endif /* __linux__ */
 #endif
 
-void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
+void shux_asm_ld_append_std_objs_impl(const char *link_argv0, const char **lib_roots, int n_lib_roots,
     ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
     const char *p;
     char io_stubs_o[PATH_MAX];
@@ -5746,7 +5776,15 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
     }
 }
 
-void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o,
+void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots, int n_lib_roots,
+    ShuAsmLdPathBank *bank, const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
+  {
+    shux_asm_ld_append_std_objs_impl(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la, flags);
+  }
+}
+
+
+void shux_asm_ld_append_on_demand_user_objs_impl(const char *link_argv0, const char *user_o,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
 #if defined(__linux__) || defined(__APPLE__)
@@ -5962,6 +6000,15 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
     (void)flags;
 #endif
 }
+
+void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
+  {
+    shux_asm_ld_append_on_demand_user_objs_impl(link_argv0, user_o, lib_roots, n_lib_roots, bank, argv, la, max_la, flags);
+  }
+}
+
 
 /**
  * invoke_ld / driver_asm_invoke_ld 共用：ensure 链入对象并校验 freestanding 仅 Linux ELF。
@@ -6236,7 +6283,7 @@ void shux_append_linux_link_harden(char *argv[], int *la, int cap) {
  * 参数：driver_freestanding 同 shux_link_freestanding_enabled；link_argv0 用于 std/.o 路径解析。
  * 返回值：0 成功，-1 失败。
  */
-int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const char *target,
+int shux_asm_invoke_ld_platform_impl(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots,
     int driver_freestanding) {
     char link_argv_syn[PATH_MAX];
@@ -6584,6 +6631,16 @@ int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const 
     }
     return 0;
 }
+
+int shux_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const char *target,
+    int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots,
+    int driver_freestanding) {
+  {
+    return shux_asm_invoke_ld_platform_impl(o_path, exe_path, target, use_macho_o, use_coff_o, link_argv0, lib_roots, n_lib_roots, driver_freestanding);
+  }
+  return -1;
+}
+
 
 /**
  * 判断 -o 路径是否写出对象文件（.o / .obj 则写 ELF/Mach-O/COFF 而非 .s）。
