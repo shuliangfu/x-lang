@@ -1,4 +1,5 @@
 /* target_cpu_pure.from_x.c — G-02f-2/3/4/5 product pure half of target_cpu.o
+ * G-02f-103 helper gates.
  * G-02f-97 pure helper gates.
  *
  * Source of truth: src/driver/target_cpu_pure.x (+ print is stdio C co-located; f-5)
@@ -54,7 +55,7 @@ int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8_t *lit
 }
 
 
-static int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *out) {
+int32_t tcp_parse_named_impl(const uint8_t *spec, size_t base, size_t end, uint32_t *out) {
   size_t n;
   if (!out || end < base)
     return -1;
@@ -118,6 +119,13 @@ static int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uin
   }
   return -1;
 }
+int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *out) {
+  {
+    return tcp_parse_named_impl(spec, base, end, out);
+  }
+  return 0 - 1;
+}
+
 
 int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out) {
   const uint8_t *s = (const uint8_t *)spec;
@@ -229,7 +237,7 @@ int shu_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, i
 
 /* --- G-02f-5：print（stdio / FILE* 语言限制，逻辑与原 target_cpu.inc 一致）--- */
 
-static void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name) {
+void append_feat_name_impl(char *buf, size_t cap, size_t *pos, const char *name) {
   size_t nlen;
   if (!buf || !pos || !name || *pos >= cap)
     return;
@@ -242,6 +250,12 @@ static void append_feat_name(char *buf, size_t cap, size_t *pos, const char *nam
   *pos += nlen;
   buf[*pos] = '\0';
 }
+void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name) {
+  {
+    append_feat_name_impl(buf, cap, pos, name);
+  }
+}
+
 
 void shu_target_cpu_print(FILE *out, uint32_t features) {
   char list[256];
@@ -292,7 +306,7 @@ void shu_target_cpu_print(FILE *out, uint32_t features) {
  * 仅 Linux /proc/cpuinfo 解析使用。
  */
 #if defined(__linux__)
-static int flags_has_token(const char *hay, const char *token) {
+int flags_has_token_impl(const char *hay, const char *token) {
     const char *p;
     size_t tlen;
 
@@ -309,6 +323,13 @@ static int flags_has_token(const char *hay, const char *token) {
     }
     return 0;
 }
+int flags_has_token(const char *hay, const char *token) {
+  {
+    return flags_has_token_impl(hay, token);
+  }
+  return 0;
+}
+
 #endif /* __linux__ */
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)

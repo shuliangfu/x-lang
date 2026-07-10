@@ -1,4 +1,5 @@
 /* seeds/bootstrap_nostdlib_stubs.from_x.c — G-02f-80 product cold-start TU
+ * G-02f-103 helper gates.
  * Promoted from compiler/src/asm/bootstrap_nostdlib_stubs.inc (stub/bridge; retired .inc).
  * Compile: cc -c / cc_inc_tu seeds/bootstrap_nostdlib_stubs.from_x.c
  */
@@ -231,12 +232,19 @@ static unsigned char *bootstrap_heap_end;
 static unsigned char *bootstrap_heap_limit;
 
 /** 对齐到 16 字节边界。 */
-static size_t bootstrap_align16(size_t n) {
+size_t bootstrap_align16_impl(size_t n) {
     return (n + 15u) & ~(size_t)15u;
 }
+size_t bootstrap_align16(size_t n) {
+  {
+    return bootstrap_align16_impl(n);
+  }
+  return 0;
+}
+
 
 /** 扩展 bump 区；失败返回 NULL。 */
-static int bootstrap_heap_grow(size_t need) {
+int bootstrap_heap_grow_impl(size_t need) {
     unsigned long chunk = 1024UL * 1024UL;
     void *p;
     if (need > chunk)
@@ -249,6 +257,13 @@ static int bootstrap_heap_grow(size_t need) {
     bootstrap_heap_limit = bootstrap_heap_base + chunk;
     return 0;
 }
+int bootstrap_heap_grow(size_t need) {
+  {
+    return bootstrap_heap_grow_impl(need);
+  }
+  return 0;
+}
+
 
 /** malloc 最小实现；bootstrap 链按需。 */
 void *malloc(size_t size) {
@@ -861,19 +876,33 @@ int feraiseexcept(int excepts) {
 #if defined(__linux__) && defined(__x86_64__)
 
 /** Linux x86_64 三参数 syscall 助手。 */
-static long bootstrap_syscall3(long nr, long a0, long a1, long a2) {
+long bootstrap_syscall3_impl(long nr, long a0, long a1, long a2) {
     long ret;
     __asm__ volatile("syscall" : "=a"(ret) : "a"(nr), "D"(a0), "S"(a1), "d"(a2) : "rcx", "r11", "memory");
     return ret;
 }
+long bootstrap_syscall3(long nr, long a0, long a1, long a2) {
+  {
+    return bootstrap_syscall3_impl(nr, a0, a1, a2);
+  }
+  return 0;
+}
+
 
 /** Linux x86_64 四参数 syscall 助手（waitpid 等）。 */
-static long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3) {
+long bootstrap_syscall4_impl(long nr, long a0, long a1, long a2, long a3) {
     long ret;
     register long r10 asm("r10") = a3;
     __asm__ volatile("syscall" : "=a"(ret) : "a"(nr), "D"(a0), "S"(a1), "d"(a2), "r"(r10) : "rcx", "r11", "memory");
     return ret;
 }
+long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3) {
+  {
+    return bootstrap_syscall4_impl(nr, a0, a1, a2, a3);
+  }
+  return 0;
+}
+
 
 #endif
 

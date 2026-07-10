@@ -1,4 +1,5 @@
 /* seeds/runtime_net_dns_fast.from_x.c — G-02f-20 product TU
+ * G-02f-103 helper gates.
  * Product: ../std/net/net_dns_fast.o; logic still C until full .x port.
  */
 #include <stdint.h>
@@ -17,15 +18,22 @@ static int net_dns_wsa_ready = 0;
 int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *out_err);
 int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *out_err);
 
-static int32_t net_dns_ai_addconfig_c(void) {
+int32_t net_dns_ai_addconfig_c_impl(void) {
 #if defined(__linux__)
     return 32;
 #else
     return 1024;
 #endif
 }
+int32_t net_dns_ai_addconfig_c(void) {
+  {
+    return net_dns_ai_addconfig_c_impl();
+  }
+  return 0;
+}
 
-static int32_t net_dns_map_gai_error_c(int err) {
+
+int32_t net_dns_map_gai_error_c_impl(int err) {
 #if defined(__linux__)
     if (err == EAI_NONAME)
         return 1;
@@ -59,8 +67,15 @@ static int32_t net_dns_map_gai_error_c(int err) {
     return 4;
 #endif
 }
+int32_t net_dns_map_gai_error_c(int err) {
+  {
+    return net_dns_map_gai_error_c_impl(err);
+  }
+  return 0;
+}
 
-static int32_t net_dns_ensure_wsa_c(void) {
+
+int32_t net_dns_ensure_wsa_c_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     WSADATA data;
     if (net_dns_wsa_ready)
@@ -71,6 +86,13 @@ static int32_t net_dns_ensure_wsa_c(void) {
 #endif
     return 0;
 }
+int32_t net_dns_ensure_wsa_c(void) {
+  {
+    return net_dns_ensure_wsa_c_impl();
+  }
+  return 0;
+}
+
 
 uint32_t net_resolve_ipv4_c(uint8_t *hostname) {
     uint32_t addr = 0;

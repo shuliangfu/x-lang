@@ -1,4 +1,5 @@
 /* seeds/runtime_env_os.from_x.c — G-02f-19 product TU
+ * G-02f-103 helper gates.
  * Product: runtime_env_os.o; logic still C until full .x port.
  */
 /**
@@ -41,12 +42,19 @@
  * 参数：key/key_len 输入；key_buf 至少 key_len+1 字节。
  * 返回值：0 成功，-1 非法。
  */
-static inline int env_build_key(const uint8_t * restrict key, int32_t key_len, char * restrict key_buf) {
+int env_build_key_impl(const uint8_t * restrict key, int32_t key_len, char * restrict key_buf) {
     if (key == NULL || key_len <= 0 || key_len >= ENV_KEY_MAX) return -1;
     memcpy(key_buf, key, (size_t)key_len);
     key_buf[key_len] = '\0';
     return 0;
 }
+int env_build_key(const uint8_t * restrict key, int32_t key_len, char * restrict key_buf) {
+  {
+    return env_build_key_impl(key, key_len, key_buf);
+  }
+  return 0 - 1;
+}
+
 
 /**
  * getenv：key[0..key_len) 拷贝到栈上并加 NUL，调用系统 getenv；结果写入 out。

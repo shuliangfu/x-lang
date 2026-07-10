@@ -5,6 +5,7 @@
 // - pending（f-2）· SIMD（f-3）· resolve（f-4）· print（f-5）
 // - OS detect_host/generic（f-6；#if/sysctl/proc 在 seed C）
 // G-02f-97：+ tcp_tolower / tcp_eq5 / tcp_eq6 纯 helper 导出门闩（#[no_mangle]）。
+// G-02f-103：+ append_feat_name / flags_has_token seed 导出门闩（_impl）。
 //
 // 产品：seeds/target_cpu_pure.from_x.c → src/driver/target_cpu.o（无 ld -r）
 // detect 对外 API 由 seed C 提供；.x 侧 resolve 仍可 extern 声明供语义对照。
@@ -225,5 +226,25 @@ function shu_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out
   }
   out_lanes[0] = lanes;
   out_esz[0] = esz;
+  return 0;
+}
+
+/* ---- G-02f-103：print helpers（seed C 实现）门闩 ---- */
+
+extern "C" function append_feat_name_impl(buf: *u8, cap: usize, pos: *usize, name: *u8): void;
+extern "C" function flags_has_token_impl(hay: *u8, token: *u8): i32;
+
+#[no_mangle]
+function append_feat_name(buf: *u8, cap: usize, pos: *usize, name: *u8): void {
+  unsafe {
+    append_feat_name_impl(buf, cap, pos, name);
+  }
+}
+
+#[no_mangle]
+function flags_has_token(hay: *u8, token: *u8): i32 {
+  unsafe {
+    return flags_has_token_impl(hay, token);
+  }
   return 0;
 }

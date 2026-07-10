@@ -1,4 +1,5 @@
 /* seeds/runtime_arrow_simd_glue.from_x.c — G-02f-21 product TU
+ * G-02f-103 helper gates.
  * Logic still C until full .x port.
  */
 /**
@@ -34,17 +35,24 @@ typedef struct {
 
 #if defined(ARROW_HAVE_SSE2)
 /** SSE2：水平求和 4×f32。 */
-static float arrow_hsum_ps(__m128 v) {
+float arrow_hsum_ps_impl(__m128 v) {
     __m128 shuf = _mm_shuffle_ps(v, v, _MM_SHUFFLE(2, 3, 0, 1));
     __m128 sums = _mm_add_ps(v, shuf);
     shuf = _mm_movehl_ps(shuf, sums);
     sums = _mm_add_ss(sums, shuf);
     return _mm_cvtss_f32(sums);
 }
+float arrow_hsum_ps(__m128 v) {
+  {
+    return arrow_hsum_ps_impl(v);
+  }
+  return 0.0f;
+}
+
 #endif
 
 /** f32 列前 n 元素求和（SIMD 内核，无 null 检查）。 */
-static float arrow_f32_sum_kernel(const float *data, int32_t n) {
+float arrow_f32_sum_kernel_impl(const float *data, int32_t n) {
     int32_t i = 0;
     float sum = 0.0f;
 #if defined(ARROW_HAVE_SSE2)
@@ -66,9 +74,16 @@ static float arrow_f32_sum_kernel(const float *data, int32_t n) {
         sum += data[i];
     return sum;
 }
+float arrow_f32_sum_kernel(const float *data, int32_t n) {
+  {
+    return arrow_f32_sum_kernel_impl(data, n);
+  }
+  return 0.0f;
+}
+
 
 /** f32 两列点积（SIMD 内核）。 */
-static float arrow_f32_dot_kernel(const float *a, const float *b, int32_t n) {
+float arrow_f32_dot_kernel_impl(const float *a, const float *b, int32_t n) {
     int32_t i = 0;
     float sum = 0.0f;
 #if defined(ARROW_HAVE_SSE2)
@@ -92,9 +107,16 @@ static float arrow_f32_dot_kernel(const float *a, const float *b, int32_t n) {
         sum += a[i] * b[i];
     return sum;
 }
+float arrow_f32_dot_kernel(const float *a, const float *b, int32_t n) {
+  {
+    return arrow_f32_dot_kernel_impl(a, b, n);
+  }
+  return 0.0f;
+}
+
 
 /** i32 列前 n 个有效元素累加（null bitmap）。 */
-static int32_t arrow_i32_sum_valid_kernel(const int32_t *data, const uint8_t *bm, int32_t n) {
+int32_t arrow_i32_sum_valid_kernel_impl(const int32_t *data, const uint8_t *bm, int32_t n) {
     int32_t i = 0;
     int32_t sum = 0;
     if (!data)
@@ -131,9 +153,16 @@ static int32_t arrow_i32_sum_valid_kernel(const int32_t *data, const uint8_t *bm
     }
     return sum;
 }
+int32_t arrow_i32_sum_valid_kernel(const int32_t *data, const uint8_t *bm, int32_t n) {
+  {
+    return arrow_i32_sum_valid_kernel_impl(data, bm, n);
+  }
+  return 0;
+}
+
 
 /** f32 列前 n 个有效元素求和（null bitmap）。 */
-static float arrow_f32_sum_valid_kernel(const float *data, const uint8_t *bm, int32_t n) {
+float arrow_f32_sum_valid_kernel_impl(const float *data, const uint8_t *bm, int32_t n) {
     int32_t i = 0;
     float sum = 0.0f;
     if (!data)
@@ -175,6 +204,13 @@ static float arrow_f32_sum_valid_kernel(const float *data, const uint8_t *bm, in
     }
     return sum;
 }
+float arrow_f32_sum_valid_kernel(const float *data, const uint8_t *bm, int32_t n) {
+  {
+    return arrow_f32_sum_valid_kernel_impl(data, bm, n);
+  }
+  return 0.0f;
+}
+
 
 static arrow_column_t *arrow_col_ptr(int64_t handle) {
     return (arrow_column_t *)(uintptr_t)handle;

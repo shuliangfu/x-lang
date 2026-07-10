@@ -1,4 +1,5 @@
 /* seeds/cfg_eval_bootstrap_stub.from_x.c — G-02f-80 product cold-start TU
+ * G-02f-103 helper gates.
  * G-02f-101 cfg string helper gates.
  * Promoted from compiler/src/lexer/cfg_eval_bootstrap_stub.inc (stub/bridge; retired .inc).
  * Compile: cc -c / cc_inc_tu seeds/cfg_eval_bootstrap_stub.from_x.c
@@ -92,7 +93,7 @@ int cfg_triple_contains_ci(const char *triple, int len, const char *needle) {
 
 
 /** 从 `-target` triple 解析 os/arch；失败回退 host。 */
-static void cfg_parse_triple_literals(const char *triple, int len, char *os_out, size_t os_sz, char *arch_out,
+void cfg_parse_triple_literals_impl(const char *triple, int len, char *os_out, size_t os_sz, char *arch_out,
                                       size_t arch_sz) {
   const char *host_os;
   const char *host_arch;
@@ -123,6 +124,13 @@ static void cfg_parse_triple_literals(const char *triple, int len, char *os_out,
     strncpy(arch_out, "riscv64", arch_sz - 1);
   arch_out[arch_sz - 1] = '\0';
 }
+void cfg_parse_triple_literals(const char *triple, int len, char *os_out, size_t os_sz, char *arch_out,
+                                      size_t arch_sz) {
+  {
+    cfg_parse_triple_literals_impl(triple, len, os_out, os_sz, arch_out, arch_sz);
+  }
+}
+
 
 /** effective target_os（triple 覆盖或 host）。 */
 static const char *cfg_effective_os_lit(void) {

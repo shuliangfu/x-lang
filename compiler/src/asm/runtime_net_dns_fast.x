@@ -4,7 +4,38 @@
 // G-02f-20：runtime_net_dns_fast 产品源迁 seeds/runtime_net_dns_fast.from_x.c。
 // 实现仍在 seed C；本文件为文档锚点。
 // 产品：cc seeds/runtime_net_dns_fast.from_x.c → ../std/net/net_dns_fast.o
+// G-02f-103：+ ai_addconfig / map_gai / ensure_wsa 薄门闩。
+
+extern "C" function net_dns_ai_addconfig_c_impl(): i32;
+extern "C" function net_dns_map_gai_error_c_impl(err: i32): i32;
+extern "C" function net_dns_ensure_wsa_c_impl(): i32;
 
 function runtime_net_dns_fast_x_doc_anchor(): i32 {
+  return 0;
+}
+
+/* ---- G-02f-103：dns helpers 门闩 ---- */
+
+#[no_mangle]
+function net_dns_ai_addconfig_c(): i32 {
+  unsafe {
+    return net_dns_ai_addconfig_c_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function net_dns_map_gai_error_c(err: i32): i32 {
+  unsafe {
+    return net_dns_map_gai_error_c_impl(err);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function net_dns_ensure_wsa_c(): i32 {
+  unsafe {
+    return net_dns_ensure_wsa_c_impl();
+  }
   return 0;
 }
