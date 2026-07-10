@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..67 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56/64..68 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
- *         merge ensure_* (argv0) gates + invoke_ld/tail libs.
- * .x covers: + shux_ensure_* argv0 family, invoke_ld_for_exe, tail libs.
+ *         merge prepare_exe_link/waitpid/compress + ensure_* gates.
+ * .x covers: + prepare_for_exe_link, waitpid, compress libs, ensure_* family.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -25,6 +25,13 @@ void shux_asm_ld_append_mach_tail_libs_impl(const char *compress_o, const char *
     const char **argv, int *la, int max_la, int append_lsystem);
 void shux_asm_ld_append_unix_gcc_tail_libs_impl(const char *compress_o, const char *user_o, const ShuAsmLdStdLinkFlags *flags,
     int need_pt, const char **argv, int *la, int max_la);
+/* G-02f-68 link helpers */
+int shu_waitpid_retry_impl(pid_t pid, int *status_out);
+int shux_asm_user_o_has_undef_syms_impl(const char *o_path);
+void asm_ld_append_compress_libs_impl(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la);
+void invoke_cc_append_compress_ld_impl(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o);
+int invoke_cc_argv_push_existing_impl(char *argv[], int *ia, int max_ia, const char *path);
+int shux_asm_ld_prepare_for_exe_link_impl(const char *link_eff, const char *user_o, int driver_freestanding, int use_macho_o, int use_coff_o);
 /* G-02f-67 ensure impls */
 int shux_ensure_freestanding_io_o_impl(const char *argv0, int driver_freestanding);
 int shux_ensure_crt0_user_o_impl(const char *argv0, int driver_freestanding);
@@ -3014,7 +3021,7 @@ int invoke_cc_skip_native_tuning(void) {
  * 参数：见 runtime_link_abi.h。
  * 返回值：1 已追加，0 跳过。
  */
-int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path) {
+int invoke_cc_argv_push_existing_impl(char *argv[], int *ia, int max_ia, const char *path) {
     static char abs_pool[INVOKE_CC_ABS_POOL_SZ][PATH_MAX];
     static int abs_pool_i;
     const char *use;
@@ -3043,6 +3050,14 @@ int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *
     argv[(*ia)++] = (char *)use;
     return 1;
 }
+
+int invoke_cc_argv_push_existing(char *argv[], int *ia, int max_ia, const char *path) {
+  {
+    return invoke_cc_argv_push_existing_impl(argv, ia, max_ia, path);
+  }
+  return 0;
+}
+
 
 /**
  * task.o 链入时须同时链入 scheduler.o；若调用方未显式传入则从 task_o 路径推导。
@@ -3254,7 +3269,7 @@ static void ld_append_brew_lib_paths(const char **argv, int *la, int max_la) {
  * ASM 链接：按 compress.o / 用户 .o 实际依赖追加 -lz / -lzstd / -lbrotli*。
  * 参数：compress_o std/compress .o；user_o 用户主 .o（F-04 v4 libz.x）；argv/la/max_la 为 ld argv 构建状态。
  */
-void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la) {
+void asm_ld_append_compress_libs_impl(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la) {
     if (!argv || !la)
         return;
     if (link_abi_obj_needs_zlib(compress_o) || link_abi_obj_needs_zlib(user_o)) {
@@ -3283,11 +3298,18 @@ void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, con
     }
 }
 
+void asm_ld_append_compress_libs(const char *compress_o, const char *user_o, const char **argv, int *la, int max_la) {
+  {
+    asm_ld_append_compress_libs_impl(compress_o, user_o, argv, la, max_la);
+  }
+}
+
+
 /**
  * invoke_cc 链接：按 compress.o / 用户 .o 实际依赖追加 -lz / -lzstd / -lbrotli*。
  * 参数：argv/i/argv_cap 为 cc 链接 argv；compress_o 候选 compress .o；user_o 用户 .o（可 NULL）。
  */
-void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o) {
+void invoke_cc_append_compress_ld_impl(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o) {
     if (!argv || !i || *i >= argv_cap - 1)
         return;
     if (link_abi_obj_needs_zlib(compress_o) || link_abi_obj_needs_zlib(user_o)) {
@@ -3312,6 +3334,13 @@ void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char
             argv[(*i)++] = (char *)"-lbrotlidec";
     }
 }
+
+void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char *compress_o, const char *user_o) {
+  {
+    invoke_cc_append_compress_ld_impl(argv, i, argv_cap, compress_o, user_o);
+  }
+}
+
 
 /**
  * B-20 v1：扫描生成 C 是否含任一子串（invoke_cc 按需链入判定）。
@@ -5939,7 +5968,7 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
  * 参数：link_eff 有效 link argv0；user_o 用户 .o；driver_freestanding 同 shux_link_freestanding_enabled。
  * 返回值：0 成功，-1 失败。
  */
-int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, int driver_freestanding,
+int shux_asm_ld_prepare_for_exe_link_impl(const char *link_eff, const char *user_o, int driver_freestanding,
     int use_macho_o, int use_coff_o) {
     /* #region debug-point A:prepare-enter */
     shux_debug_hello_stage1_report("A", "runtime_link_abi.c:4427", "prepare_for_exe_link_enter", driver_freestanding, use_macho_o, use_coff_o);
@@ -5989,13 +6018,22 @@ int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, i
     return 0;
 }
 
+int shux_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o, int driver_freestanding,
+    int use_macho_o, int use_coff_o) {
+  {
+    return shux_asm_ld_prepare_for_exe_link_impl(link_eff, user_o, driver_freestanding, use_macho_o, use_coff_o);
+  }
+  return -1;
+}
+
+
 #if defined(__linux__) || defined(__APPLE__)
 /**
  * 用户 .o 是否无任何未定义符号（nm -u 为空）；用于 Linux 最小 gcc 链 user.o+-lc。
  * 参数：o_path 用户对象路径。
  * 返回值：1 有未定义符号或 nm 失败（保守），0 完全自包含。
  */
-int shux_asm_user_o_has_undef_syms(const char *o_path) {
+int shux_asm_user_o_has_undef_syms_impl(const char *o_path) {
     char cmd[PATH_MAX + 160];
     FILE *fp;
     char line[512];
@@ -6018,6 +6056,14 @@ int shux_asm_user_o_has_undef_syms(const char *o_path) {
     pclose(fp);
     return 0;
 }
+
+int shux_asm_user_o_has_undef_syms(const char *o_path) {
+  {
+    return shux_asm_user_o_has_undef_syms_impl(o_path);
+  }
+  return 1;
+}
+
 
 #endif /* __linux__ || __APPLE__ */
 
@@ -6664,7 +6710,7 @@ int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char 
 /**
  * 等待子进程；EINTR 时重试，避免 invoke_cc/asm_invoke_ld 误判失败。
  */
-int shu_waitpid_retry(pid_t pid, int *status_out) {
+int shu_waitpid_retry_impl(pid_t pid, int *status_out) {
     int st = 0;
     for (;;) {
         pid_t w = waitpid(pid, &st, 0);
@@ -6685,6 +6731,14 @@ int shu_waitpid_retry(pid_t pid, int *status_out) {
         return -1;
     }
 }
+
+int shu_waitpid_retry(pid_t pid, int *status_out) {
+  {
+    return shu_waitpid_retry_impl(pid, status_out);
+  }
+  return -1;
+}
+
 
 /**
  * 仅当 path 指向已存在且非空的常规文件时返回 path，供 clang/ld argv 追加。

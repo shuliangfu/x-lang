@@ -1,9 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..44/47/53/55/56/64..67：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
+// G-02f-34..44/47/53/55/56/64..68：真迁 .x — link_abi needs_* / 空 .o / bank / 路径 / ld 门闩。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
 // C 尾：invoke_cc/ld 主体、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
+// G-02f-68：+ prepare_for_exe_link / waitpid / compress / argv_push 门闩。
 // G-02f-67：+ shux_ensure_* 族门闩（argv0 单参标准模板）。
 // G-02f-66：+ invoke_ld_for_exe / mach+unix tail libs 门闩。
 
@@ -1498,6 +1499,12 @@ function shux_asm_ld_append_unix_gcc_tail_libs(compress_o: *u8, user_o: *u8, fla
 extern "C" function shux_ensure_crt0_user_o_impl(argv0: *u8, driver_freestanding: i32): i32;
 
 extern "C" function shux_ensure_freestanding_io_o_impl(argv0: *u8, driver_freestanding: i32): i32;
+extern "C" function shu_waitpid_retry_impl(pid: i64, status_out: *i32): i32;
+extern "C" function shux_asm_user_o_has_undef_syms_impl(o_path: *u8): i32;
+extern "C" function asm_ld_append_compress_libs_impl(compress_o: *u8, user_o: *u8, argv: *u8, la: *i32, max_la: i32): void;
+extern "C" function invoke_cc_append_compress_ld_impl(argv: *u8, i: *i32, argv_cap: i32, compress_o: *u8, user_o: *u8): void;
+extern "C" function invoke_cc_argv_push_existing_impl(argv: *u8, ia: *i32, max_ia: i32, path: *u8): i32;
+extern "C" function shux_asm_ld_prepare_for_exe_link_impl(link_eff: *u8, user_o: *u8, driver_freestanding: i32, use_macho_o: i32, use_coff_o: i32): i32;
 
 /* ---- G-02f-67：ensure_* 标准模板门闩（argv0） ---- */
 
@@ -1753,6 +1760,81 @@ function shux_ensure_crt0_user_o(argv0: *u8, driver_freestanding: i32): i32 {
 function shux_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: i32): i32 {
   unsafe {
     return shux_ensure_freestanding_io_o_impl(argv0, driver_freestanding);
+  }
+  return 0 - 1;
+}
+
+/* ---- G-02f-68：prepare / waitpid / compress / argv_push 门闩 ---- */
+
+#[no_mangle]
+function shu_waitpid_retry(pid: i64, status_out: *i32): i32 {
+  unsafe {
+    return shu_waitpid_retry_impl(pid, status_out);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function shux_asm_user_o_has_undef_syms(o_path: *u8): i32 {
+  if (o_path == 0 as *u8) {
+    return 1;
+  }
+  unsafe {
+    return shux_asm_user_o_has_undef_syms_impl(o_path);
+  }
+  return 1;
+}
+
+#[no_mangle]
+function asm_ld_append_compress_libs(compress_o: *u8, user_o: *u8, argv: *u8, la: *i32, max_la: i32): void {
+  if (argv == 0 as *u8) {
+    return;
+  }
+  if (la == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    asm_ld_append_compress_libs_impl(compress_o, user_o, argv, la, max_la);
+  }
+}
+
+#[no_mangle]
+function invoke_cc_append_compress_ld(argv: *u8, i: *i32, argv_cap: i32, compress_o: *u8, user_o: *u8): void {
+  if (argv == 0 as *u8) {
+    return;
+  }
+  if (i == 0 as *i32) {
+    return;
+  }
+  unsafe {
+    invoke_cc_append_compress_ld_impl(argv, i, argv_cap, compress_o, user_o);
+  }
+}
+
+#[no_mangle]
+function invoke_cc_argv_push_existing(argv: *u8, ia: *i32, max_ia: i32, path: *u8): i32 {
+  if (argv == 0 as *u8) {
+    return 0;
+  }
+  if (ia == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    return invoke_cc_argv_push_existing_impl(argv, ia, max_ia, path);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function shux_asm_ld_prepare_for_exe_link(link_eff: *u8, user_o: *u8, driver_freestanding: i32, use_macho_o: i32, use_coff_o: i32): i32 {
+  if (link_eff == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (user_o == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    return shux_asm_ld_prepare_for_exe_link_impl(link_eff, user_o, driver_freestanding, use_macho_o, use_coff_o);
   }
   return 0 - 1;
 }
