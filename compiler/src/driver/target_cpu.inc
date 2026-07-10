@@ -1,8 +1,8 @@
 /**
  * target_cpu.inc — SIMD-S1：宿主机 CPU feature 探测与 `-target-cpu` 规格解析。
  *
- * G-02f-2：`driver_set/get_pending_target_cpu_features` 已迁
- * `target_cpu_pure.x`（产品链 ld -r pure + 本 TU → target_cpu.o）。
+ * G-02f-2/3：pending + SIMD 拼写已迁 `target_cpu_pure.x`
+ *（产品链 ld -r pure + 本 TU → target_cpu.o）。
  *
  * Linux：读 /proc/cpuinfo flags/Features；
  * macOS：sysctl hw.optional.* / machdep.cpu.leaf7_features；
@@ -429,41 +429,5 @@ void shu_target_cpu_print(FILE *out, uint32_t features) {
     fprintf(out, "target_cpu_host_features=0x%08x\n", shu_target_cpu_detect_host());
 }
 
-/** 比较固定长度类型名（如 "Vec4f"）。 */
-static int simd_name_eq(const char *name, size_t name_len, const char *literal) {
-    return spec_eq_ci(name, name_len, literal);
-}
-
-/**
- * SIMD-S2：标准向量 TYPE_NAMED / lex 回落拼写表。
- * Vec4f→4×f32（128-bit NEON/SSE）；Vec8i→8×i32（256-bit AVX2）。
- */
-int shu_simd_is_vector_type_spelling(const char *name, size_t name_len) {
-    if (!name || name_len == 0)
-        return 0;
-    if (simd_name_eq(name, name_len, "i32x4") || simd_name_eq(name, name_len, "i32x8") ||
-        simd_name_eq(name, name_len, "i32x16") || simd_name_eq(name, name_len, "u32x4") ||
-        simd_name_eq(name, name_len, "u32x8") || simd_name_eq(name, name_len, "u32x16") ||
-        simd_name_eq(name, name_len, "f32x4") || simd_name_eq(name, name_len, "Vec4f") ||
-        simd_name_eq(name, name_len, "Vec8i"))
-        return 1;
-    return 0;
-}
-
-/**
- * 从拼写推断 lane 数；默认 4 lane i32/u32/f32（esz=4）。
- */
-int shu_simd_vector_lanes_esz_from_spelling(const char *name, size_t name_len, int32_t *out_lanes,
-                                            int32_t *out_esz) {
-    if (!out_lanes || !out_esz || !shu_simd_is_vector_type_spelling(name, name_len))
-        return -1;
-    *out_lanes = 4;
-    *out_esz = 4;
-    if (name_len == 5 && name[4] == '8')
-        *out_lanes = 8;
-    if (name_len == 6 && name[4] == '1' && name[5] == '6')
-        *out_lanes = 16;
-    if (simd_name_eq(name, name_len, "Vec8i"))
-        *out_lanes = 8;
-    return 0;
-}
+/* G-02f-3：shu_simd_is_vector_type_spelling / shu_simd_vector_lanes_esz_from_spelling
+ * 已迁 target_cpu_pure.x（产品链 pure.from_x.c）。 */
