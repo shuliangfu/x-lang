@@ -1037,14 +1037,37 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-8：simd_loop.o seed
+  # G-02f-8 / G-02f-349：simd_loop.o
+  # 默认整 seed；PREFER_X_O=1 时 simd_loop_thin.x（5 pure glue）+ seed-rest ld -r
   _simd_loop=seeds/simd_loop.from_x.c
+  _simd_loop_thin_x=src/asm/simd_loop_thin.x
+  _simd_loop_o=src/asm/simd_loop.o
   if [ -f "$_simd_loop" ]; then
-    if [ ! -f src/asm/simd_loop.o ] || [ "$_simd_loop" -nt src/asm/simd_loop.o ] \
-      || [ src/asm/simd_loop.x -nt src/asm/simd_loop.o ] 2>/dev/null; then
-      echo "g05_ensure: simd_loop.o ← simd_loop.from_x (G-02f-8)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_loop.o "$_simd_loop"
+    if [ ! -f "$_simd_loop_o" ] || [ "$_simd_loop" -nt "$_simd_loop_o" ] \
+      || { [ -f "$_simd_loop_thin_x" ] && [ "$_simd_loop_thin_x" -nt "$_simd_loop_o" ]; } \
+      || [ src/asm/simd_loop.x -nt "$_simd_loop_o" ] 2>/dev/null; then
+      _simd_loop_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_simd_loop_thin_x" ]; then
+        _simd_loop_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_loop_thin.XXXXXX") || true
+        _simd_loop_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_loop_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_simd_loop_thin_o" ] && [ -n "$_simd_loop_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_simd_loop_thin_x" "$_simd_loop_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_SIMD_LOOP_THIN_FROM_X \
+               -c -o "$_simd_loop_rest_o" "$_simd_loop" \
+          && $CC -r -nostdlib -o "$_simd_loop_o" "$_simd_loop_thin_o" "$_simd_loop_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_simd_loop_o ← $_simd_loop_thin_x + seed-rest (G-02f-349 L2 hybrid simd_loop thin)"
+          _simd_loop_done=1
+        else
+          echo "g05_ensure: L2 hybrid simd_loop thin failed; fallback full seed" >&2
+        fi
+        rm -f "$_simd_loop_thin_o" "$_simd_loop_rest_o"
+      fi
+      if [ "$_simd_loop_done" = "0" ]; then
+        echo "g05_ensure: $_simd_loop_o ← simd_loop.from_x (G-02f-8)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_simd_loop_o" "$_simd_loop"
+      fi
     fi
   fi
   # G-02f-9：backend_*_dispatch 四件套 seed

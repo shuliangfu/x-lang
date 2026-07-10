@@ -1,4 +1,5 @@
-/* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
+/* G-02f-349：PREFER hybrid thin 由 src/asm/simd_loop_thin.x；rest SHUX_L2_SIMD_LOOP_THIN_FROM_X。
+ * seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
  * G-02f-215 runtime/f32-strip true .x; G-02f-214/213 peel/parse.
  * G-02f-133 true .x pure helpers.
  * G-02f-130 true .x pure helpers.
@@ -27,6 +28,14 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+
+#ifdef SHUX_L2_SIMD_LOOP_THIN_FROM_X
+int32_t glue_f32_slot_rbp_disp32(int32_t off);
+int32_t glue_soa_f32_col_rbp_disp32(int32_t off_col0, int32_t start_idx);
+int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *lanes_out);
+int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref);
+int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, int32_t n);
+#endif
 
 extern int32_t pipeline_expr_kind_ord_at(struct ast_ASTArena *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_binop_left_ref_at(struct ast_ASTArena *arena, int32_t expr_ref);
@@ -121,6 +130,7 @@ int32_t glue_index_uses_var_c(struct ast_ASTArena *arena, int32_t index_expr_ref
 
 /** VAR 的 i32[N] 定长数组元素个数；失败 0。 */
 /* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
     int32_t tr;
     int32_t elem;
@@ -142,6 +152,8 @@ int32_t glue_var_array_i32_size_c(struct ast_ASTArena *arena, int32_t var_ref) {
         return 0;
     return asz;
 }
+#endif
+
 
 
 /** 同块 let 初值为整型字面量（`let n: i32 = K` 常量传播）。 */
@@ -193,9 +205,12 @@ int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref,
 
 /** VAR 是否为 i32[N] 栈数组（resolved 类型）。 */
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, int32_t n) {
     return glue_var_array_i32_size_c(arena, var_ref) == n ? 1 : 0;
 }
+#endif
+
 
 
 
@@ -365,6 +380,7 @@ uint32_t glue_simd_loop_cpu_features_c(void) {
 
 /** 按 binop 与 CPU feature 选取 SIMD lane 宽（add/sub→SSE2/AVX2，mul→SSE4.1/AVX2）。 */
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *lanes_out) {
   if (binop_ko == GLUE_EXPR_MUL) {
     if ((feats & SHUX_CPU_FEAT_AVX2) != 0) {
@@ -387,6 +403,8 @@ int32_t glue_simd_loop_pick_lanes_c(uint32_t feats, int32_t binop_ko, int32_t *l
   }
   return -1;
 }
+#endif
+
 
 
 
@@ -547,17 +565,23 @@ extern int32_t backend_enc_mov_imm64_to_rax_arch(struct platform_elf_ElfCodegenC
 
 /** SoA x 列 x[start] 的 [rbp+disp32]（col0 为 x[0] 栈正偏移）。 */
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_soa_f32_col_rbp_disp32(int32_t off_col0, int32_t start_idx) {
   return -(off_col0 - start_idx * 4);
 }
+#endif
+
 
 
 
 /** f32 局部槽 [rbp+disp32]。 */
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_SIMD_LOOP_THIN_FROM_X
 int32_t glue_f32_slot_rbp_disp32(int32_t off) {
   return -off;
 }
+#endif
+
 
 
 
