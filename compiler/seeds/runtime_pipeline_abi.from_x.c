@@ -1,9 +1,9 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84/85/93/95 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
  *         merge ends_with/magic true logic + typeck/lsp free gates; C bulk remains.
  * .x covers: + ends_with/.x magic, typeck_for_ctx, lsp_free_loaded_imports, preprocess diag + dep slot stores (G-02f-84).
- * G-02f-93: pipeline_debug_body_func_match + pctx_update_dep_slots_no_reset gates.
+ * G-02f-93/95: dep-slot/debug match + pipeline thread fns gates.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -1906,7 +1906,7 @@ typedef struct {
 } PipelineRunSuArgs;
 
 /** pthread 入口：跑 pipeline_run_x_pipeline 并写回 ec。 */
-static void *pipeline_run_x_thread_fn(void *arg) {
+void * pipeline_run_x_thread_fn_impl(void *arg) {
     PipelineRunSuArgs *a = (PipelineRunSuArgs *)arg;
     driver_set_pipeline_entry_source_len(a->source_len);
     if (getenv("SHUX_DEBUG_PIPE"))
@@ -1918,6 +1918,13 @@ static void *pipeline_run_x_thread_fn(void *arg) {
                      "pipeline debug: pipeline thread done ec=%d", a->result);
     return NULL;
 }
+void * pipeline_run_x_thread_fn(void *arg) {
+  {
+    return pipeline_run_x_thread_fn_impl(arg);
+  }
+  return ((void *)0);
+}
+
 
 /** 大栈 pthread 上调用 pipeline_run_x_pipeline；pthread 失败时回退当前线程。 */
 int shux_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
@@ -2697,12 +2704,19 @@ extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struc
     void *out_buf);
 
 /** pthread 入口：调用 asm_asm_codegen_elf_o 并将 ec 写入 args->result。 */
-static void *shux_asm_codegen_elf_o_thread_fn(void *arg) {
+void * shux_asm_codegen_elf_o_thread_fn_impl(void *arg) {
     ShuxAsmCodegenElfLargeArgs *a = (ShuxAsmCodegenElfLargeArgs *)arg;
 
     a->result = asm_asm_codegen_elf_o(a->module, a->arena, a->ctx, a->elf_ctx, a->out_buf);
     return NULL;
 }
+void * shux_asm_codegen_elf_o_thread_fn(void *arg) {
+  {
+    return shux_asm_codegen_elf_o_thread_fn_impl(arg);
+  }
+  return ((void *)0);
+}
+
 
 /** 在 256MiB 栈 pthread 上调用 asm_asm_codegen_elf_o；主线程栈已深时避免 lexer emit Abort。 */
 int32_t shux_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,

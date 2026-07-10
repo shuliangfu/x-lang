@@ -1,4 +1,4 @@
-/* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/71/72 product TU
+/* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
  * Product objects from this seed (flags select variants):
  *   runtime_driver_no_c.o  — RUNTIME_DRIVER_NO_C_CFLAGS (G05 product)
  *   runtime_driver.o / runtime_x.o / runtime.o / runtime_driver_asm_*
@@ -717,7 +717,7 @@ static int write_io_net_abi_inline(FILE *cf) {
 }
 
 /** 向生成 C 写入 std.fs / std.path / std.map / std.error 内联 ABI（F-ZC Z9：不再 #include std/*_abi.h）。成功返回 0。 */
-static int write_fs_path_map_error_abi_inline(FILE *cf) {
+int write_fs_path_map_error_abi_inline_impl(FILE *cf) {
     static const char *lines[] = {
         "typedef struct std_fs_FsIovecBuf fs_iovec_buf_t;\n",
         "extern int32_t fs_open_read_c(uint8_t *path);\n",
@@ -747,10 +747,17 @@ static int write_fs_path_map_error_abi_inline(FILE *cf) {
     }
     return 0;
 }
+int write_fs_path_map_error_abi_inline(FILE *cf) {
+  {
+    return write_fs_path_map_error_abi_inline_impl(cf);
+  }
+  return 0;
+}
+
 #endif /* SHUX_USE_X_PIPELINE */
 
 #if !defined(SHUX_USE_X_DRIVER)
-static void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
+void codegen_emit_include_pipeline_glue_c_impl(FILE *out, const char *argv0) {
     char rel[PATH_MAX];
     static char canon[PATH_MAX];
     rel[0] = '\0';
@@ -784,6 +791,12 @@ static void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
         fprintf(out, "\n#include \"%s\"\n", canon);
     }
 }
+void codegen_emit_include_pipeline_glue_c(FILE *out, const char *argv0) {
+  {
+    codegen_emit_include_pipeline_glue_c_impl(out, argv0);
+  }
+}
+
 #endif /* !SHUX_USE_X_DRIVER */
 
 
@@ -835,7 +848,7 @@ typedef struct {
     int32_t num_patches;
 } RuntimePipelineElfCtxAccess;
 
-static void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
+void runtime_pipeline_elf_ctx_diag_note_impl(uint8_t *ctx_bytes) {
     RuntimePipelineElfCtxAccess *ctx;
     int32_t l;
     char namebuf[65];
@@ -873,6 +886,12 @@ static void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
     }
     diag_report(NULL, 0, 0, "note", "elf no label match for first patch", NULL);
 }
+void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
+  {
+    runtime_pipeline_elf_ctx_diag_note_impl(ctx_bytes);
+  }
+}
+
 
 /** 调试：打印 module 中每个 func 的 name_len/name（由 Makefile 追加到 pipeline_gen.c）；便于定位 mai/ba 截断 */
 extern void pipeline_debug_module_funcs(void *module);
@@ -3539,7 +3558,6 @@ int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) 
 }
 
 
-
 /** shux_collect_deps_transitive / shux_merge_direct_then_transitive_deps / shux_load_direct_imports_for_asm_layout 见 runtime_pipeline_abi.c（E-04 v35）。 */
 #if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
 /** compile.x extern：-o 后缀是否表示可执行（非 .o/.obj/.s）；实现见 runtime_link_abi.c。 */
@@ -6098,7 +6116,7 @@ int drv_target_has_arm(const char *buf, int len) {
  * 处理 argv[i] 一项（C 实现；strict emit 下 X step 的 if+side-effect+return 会错序提前 return）。
  * 返回下一 argv 下标。
  */
-static int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
+int driver_compile_parse_argv_step_c_impl(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
                                             int arg_cap) {
     int len = driver_get_argv_i(argc, argv, i, arg_buf, arg_cap);
     if (len < 0)
@@ -6176,10 +6194,15 @@ static int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompile
         driver_compile_argv_copy_path_c(state, (uint8_t *)arg_buf, len);
     return i + 1;
 }
+int driver_compile_parse_argv_step_c(int argc, char **argv, DriverCompileStateSU *state, int i, char *arg_buf,
+                                            int arg_cap) {
+  {
+    return driver_compile_parse_argv_step_c_impl(argc, argv, state, i, arg_buf, arg_cap);
+  }
+  return 0;
+}
 
-/**
- * argv[1..] 扫描 loop（C step_c）；compile.x parse_argv X 编排调本符号。
- */
+
 void driver_compile_parse_argv_scan_c_impl(int32_t argc, uint8_t *argv_opaque, DriverCompileStateSU *state) {
     char **argv = (char **)argv_opaque;
     char arg_buf[512];

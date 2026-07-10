@@ -9,6 +9,7 @@
 // G-02f-90：DCE 回调 / tmp 前缀 / parse fail / lib_roots_from_key / run_test 门闩。
 // G-02f-93：large-stack helpers / prepare_dce_ctx / x_emit_from_compile_state 门闩。
 // G-02f-94：C frontend smoke / shu-c sibling / smoke lex thread 门闩。
+// G-02f-95：fs/path/map ABI emit / pipeline_glue include / elf diag / argv_step 门闩。
 // G-02f-71/72：driver compile/run 薄封装 + main_entry/argv/exec/fmt/大 run_* 门闩。
 // 产品：cc seeds/runtime.from_x.c + RUNTIME_DRIVER_NO_C_CFLAGS → src/runtime_driver_no_c.o
 // C 尾：argv 解析循环、#if 变体、大 driver 路径、syscall/fs。
@@ -127,6 +128,11 @@ extern "C" function driver_run_x_emit_c_from_compile_state_impl(state: *u8, argc
 extern "C" function driver_c_frontend_smoke_impl(input_path: *u8, src: *u8, lib_roots_arr: *u8, n_lib_roots: i32): i32;
 extern "C" function driver_try_compile_via_shu_c_sibling_impl(argc: i32, argv: *u8): i32;
 extern "C" function driver_smoke_lex_dump_thread_fn_impl(arg: *u8): *u8;
+
+extern "C" function write_fs_path_map_error_abi_inline_impl(cf: *u8): i32;
+extern "C" function codegen_emit_include_pipeline_glue_c_impl(out: *u8, argv0: *u8): void;
+extern "C" function runtime_pipeline_elf_ctx_diag_note_impl(ctx_bytes: *u8): void;
+extern "C" function driver_compile_parse_argv_step_c_impl(argc: i32, argv: *u8, state: *u8, i: i32, arg_buf: *u8, arg_cap: i32): i32;
 
 #[no_mangle]
 function run_compiler_c(argc: i32, argv: *u8): i32 {
@@ -931,5 +937,37 @@ function driver_smoke_lex_dump_thread_fn(arg: *u8): *u8 {
     return driver_smoke_lex_dump_thread_fn_impl(arg);
   }
   return 0 as *u8;
+}
+
+/* ---- G-02f-95：ABI emit / pipeline_glue include / elf diag / argv_step 门闩 ---- */
+
+#[no_mangle]
+function write_fs_path_map_error_abi_inline(cf: *u8): i32 {
+  unsafe {
+    return write_fs_path_map_error_abi_inline_impl(cf);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function codegen_emit_include_pipeline_glue_c(out: *u8, argv0: *u8): void {
+  unsafe {
+    codegen_emit_include_pipeline_glue_c_impl(out, argv0);
+  }
+}
+
+#[no_mangle]
+function runtime_pipeline_elf_ctx_diag_note(ctx_bytes: *u8): void {
+  unsafe {
+    runtime_pipeline_elf_ctx_diag_note_impl(ctx_bytes);
+  }
+}
+
+#[no_mangle]
+function driver_compile_parse_argv_step_c(argc: i32, argv: *u8, state: *u8, i: i32, arg_buf: *u8, arg_cap: i32): i32 {
+  unsafe {
+    return driver_compile_parse_argv_step_c_impl(argc, argv, state, i, arg_buf, arg_cap);
+  }
+  return i + 1;
 }
 
