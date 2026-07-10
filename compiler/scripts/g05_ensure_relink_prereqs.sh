@@ -13,7 +13,7 @@
 #   G05_SKIP_HOT_REBUILD=1  跳过热路径 cc 重编（仅检查）
 #   G05_CC                  覆盖编译器（默认 cc）
 #   SHUX_G05_PREFER_X_O=1   L2：优先 .x→C(-E)→.o（失败回退 seed；见 analysis/G-02f-L2-x-o-pilot.md）
-#                           TUs：sizes + target_cpu_flags + strict_glue_thin + lsp_ctx + x_seed_bridge（G-02f-256～258/331～332）
+#                           TUs：sizes+tc_flags+strict_glue+lsp_ctx+x_seed_bridge+parse_expr_link（G-02f-256～258/331～333）
 
 set -e
 cd "$(dirname "$0")/.."
@@ -931,13 +931,36 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   done
-  # G-02f-10：parser parse_expr_link + thin_glue seed
+  # G-02f-10 / G-02f-333：parser_asm_parse_expr_link.o
+  # 默认整 seed（SKIP_X）；PREFER_X_O=1 时 .x thin（debug_enabled 门闩）+ seed-rest ld -r
   _pel=seeds/parser_asm_parse_expr_link.from_x.c
+  _pel_x=src/asm/parser_asm_parse_expr_link.x
+  _pel_o=src/asm/parser_asm_parse_expr_link.o
   if [ -f "$_pel" ]; then
-    if [ ! -f src/asm/parser_asm_parse_expr_link.o ] || [ "$_pel" -nt src/asm/parser_asm_parse_expr_link.o ]; then
-      echo "g05_ensure: parser_asm_parse_expr_link.o ← seed (G-02f-10 SKIP_X)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS -c -o src/asm/parser_asm_parse_expr_link.o "$_pel"
+    if [ ! -f "$_pel_o" ] || [ "$_pel" -nt "$_pel_o" ] \
+      || { [ -f "$_pel_x" ] && [ "$_pel_x" -nt "$_pel_o" ]; }; then
+      _pel_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_pel_x" ]; then
+        _pel_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pel_thin.XXXXXX") || true
+        _pel_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_pel_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_pel_thin_o" ] && [ -n "$_pel_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_pel_x" "$_pel_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS \
+               -DSHUX_L2_PEL_THIN_FROM_X -c -o "$_pel_rest_o" "$_pel" \
+          && $CC -r -nostdlib -o "$_pel_o" "$_pel_thin_o" "$_pel_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_pel_o ← $_pel_x + seed-rest (G-02f-333 L2 hybrid parse_expr_link thin)"
+          _pel_done=1
+        else
+          echo "g05_ensure: L2 hybrid parse_expr_link failed; fallback full seed" >&2
+        fi
+        rm -f "$_pel_thin_o" "$_pel_rest_o"
+      fi
+      if [ "$_pel_done" = "0" ]; then
+        echo "g05_ensure: $_pel_o ← seed (G-02f-10 SKIP_X)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS -c -o "$_pel_o" "$_pel"
+      fi
     fi
   fi
   # G-02f-10 / G-02f-279～319：parser_asm_thin_glue.o ← thin seed（默认整 TU；prefer 时 P1–P7+P9+P10 hybrid）

@@ -1,6 +1,7 @@
 /* seeds/parser_asm_parse_expr_link.from_x.c — G-02f-10 product parse_expr bridge
  * G-02f-116 true .x pure helpers.
  * G-02f-102 helper gates.
+ * G-02f-333：PREFER_X_O hybrid 时 debug_enabled 由 .x thin 提供，本文件出 _impl。
  * Compile with -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS for product G05.
  * Product: → src/asm/parser_asm_parse_expr_link.o
  */
@@ -71,8 +72,14 @@ extern void parser_parse_expr_into(struct ast_ASTArena *arena, struct lexer_Lexe
 extern int32_t parser_asm_copy_module_import_path64_c(struct ASTModule *module, int32_t i, uint8_t *out);
 extern int32_t parser_parse_one_function_ok_for_pipeline_glue(void *arena, struct shux_slice_uint8_t *source);
 extern int32_t parser_diag_token_after_collect_imports_glue(struct shux_slice_uint8_t *source, void *module);
-/* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int parser_asm_parse_expr_debug_enabled(void) {
+/* G-02f-116 / G-02f-333：debug_enabled 真体；hybrid 时作 _impl 供 .x thin 调用 */
+#ifndef SHUX_L2_PEL_THIN_FROM_X
+int parser_asm_parse_expr_debug_enabled(void)
+#else
+extern int parser_asm_parse_expr_debug_enabled(void);
+int parser_asm_parse_expr_debug_enabled_impl(void)
+#endif
+{
   const char *v = getenv("SHUX_PARSER_ASM_DEBUG");
   return v && *v && *v != '0';
 }
