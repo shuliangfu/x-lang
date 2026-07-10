@@ -837,7 +837,8 @@ int32_t pipeline_typeck_map_import_binding_named_to_caller_strict_minimal(struct
 }
 
 
-int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(struct ast_ASTArena *dep_arena,
+/* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTArena *dep_arena,
                                                                          int32_t dep_return_type_ref,
                                                                          struct ast_ASTArena *caller_arena) {
   int32_t kind;
@@ -867,7 +868,7 @@ int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(struct ast
   elem_ref = pipeline_type_elem_ref_at(dep_arena, dep_return_type_ref);
   inner_mapped = 0;
   if (elem_ref > 0) {
-    inner_mapped = pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(dep_arena, elem_ref, caller_arena);
+    inner_mapped = pipeline_typeck_dep_return_type_to_caller_strict_minimal(dep_arena, elem_ref, caller_arena);
     if (inner_mapped == 0)
       return 0;
   }
@@ -896,14 +897,6 @@ int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(struct ast
   if (nlen != 0)
     return 0;
   return pipeline_type_ensure_by_kind_ord(caller_arena, kind);
-}
-int32_t pipeline_typeck_dep_return_type_to_caller_strict_minimal(struct ast_ASTArena *dep_arena,
-                                                                         int32_t dep_return_type_ref,
-                                                                         struct ast_ASTArena *caller_arena) {
-  {
-    return pipeline_typeck_dep_return_type_to_caller_strict_minimal_impl(dep_arena, dep_return_type_ref, caller_arena);
-  }
-  return 0;
 }
 
 
@@ -1281,32 +1274,27 @@ int32_t typeck_expr_lval_root_var_strict_minimal(struct ast_ASTArena *arena, int
 }
 
 
-int32_t typeck_name_is_block_local_strict_minimal_impl(struct ast_Module *module, struct ast_ASTArena *arena,
+/* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t typeck_name_is_block_local_strict_minimal(struct ast_Module *module, struct ast_ASTArena *arena,
                                                          struct ast_PipelineDepCtx *ctx, uint8_t *name, int32_t name_len) {
   int32_t func_ix;
   int32_t site_block;
   if (!module || !arena || !ctx || !name || name_len <= 0)
     return 0;
-  func_ix = ctx->current_func_index;
+  func_ix = pipeline_dep_ctx_current_func_index(ctx);
   if (func_ix >= 0 && pipeline_module_func_param_type_ref_for_name(module, func_ix, name, name_len) > 0)
     return 0;
-  site_block = ctx->current_block_ref;
+  site_block = pipeline_dep_ctx_current_block_ref_at(ctx);
   if (site_block <= 0 && func_ix >= 0)
     site_block = pipeline_module_func_body_ref_at(module, func_ix);
   if (site_block <= 0)
     return 0;
   return pipeline_block_find_var_decl_block_ref(arena, site_block, name, name_len) > 0 ? 1 : 0;
 }
-int32_t typeck_name_is_block_local_strict_minimal(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                         struct ast_PipelineDepCtx *ctx, uint8_t *name, int32_t name_len) {
-  {
-    return typeck_name_is_block_local_strict_minimal_impl(module, arena, ctx, name, name_len);
-  }
-  return 0;
-}
 
 
-int32_t typeck_expr_is_addr_of_block_local_strict_minimal_impl(struct ast_Module *module, struct ast_ASTArena *arena,
+/* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t typeck_expr_is_addr_of_block_local_strict_minimal(struct ast_Module *module, struct ast_ASTArena *arena,
                                                                  struct ast_PipelineDepCtx *ctx, int32_t expr_ref) {
   uint8_t vbuf[64];
   int32_t vlen;
@@ -1321,13 +1309,6 @@ int32_t typeck_expr_is_addr_of_block_local_strict_minimal_impl(struct ast_Module
   if (!typeck_expr_lval_root_var_strict_minimal(arena, op_ref, vbuf, &vlen))
     return 0;
   return typeck_name_is_block_local_strict_minimal(module, arena, ctx, vbuf, vlen);
-}
-int32_t typeck_expr_is_addr_of_block_local_strict_minimal(struct ast_Module *module, struct ast_ASTArena *arena,
-                                                                 struct ast_PipelineDepCtx *ctx, int32_t expr_ref) {
-  {
-    return typeck_expr_is_addr_of_block_local_strict_minimal_impl(module, arena, ctx, expr_ref);
-  }
-  return 0;
 }
 
 

@@ -294,7 +294,8 @@ int32_t glue_call_param_is_f32_c(struct ast_ASTArena *arena, int32_t type_ref) {
 
 
 /** SysV x86_64：第 arg_index 个实参的寄存器/栈归属（0=gp 1=xmm 2=stack）。 */
-void glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs,
+/* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs,
                                           int32_t arg_index, int32_t *out_kind, int32_t *out_reg_k,
                                           int32_t *out_stack_k) {
   int32_t gp;
@@ -302,6 +303,8 @@ void glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t call
   int32_t stk;
   int32_t j;
   int32_t pty;
+  if (!out_kind || !out_reg_k || !out_stack_k)
+    return;
   gp = 0;
   xmm = 0;
   stk = 0;
@@ -339,13 +342,6 @@ void glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t call
   *out_kind = 2;
   *out_reg_k = 0;
   *out_stack_k = 0;
-}
-void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs,
-                                          int32_t arg_index, int32_t *out_kind, int32_t *out_reg_k,
-                                          int32_t *out_stack_k) {
-  {
-    glue_sysv_x86_call_arg_slot_c_impl(arena, call_expr_ref, nargs, arg_index, out_kind, out_reg_k, out_stack_k);
-  }
 }
 
 
@@ -1462,7 +1458,8 @@ int32_t glue_try_std_encoding_redirect_sym_local(const uint8_t *name, int32_t na
 
 
 /** 经 std.fs/net/std.heap 薄包装重定向表发射 call；无命中则直调 name。 */
-int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
+/* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
                                             int32_t ta) {
   uint8_t redir[64];
   int32_t rlen;
@@ -1480,13 +1477,6 @@ int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf
     return backend_enc_call_arch(elf_ctx, redir, rlen, ta);
   }
   return backend_enc_call_arch(elf_ctx, name, name_len, ta);
-}
-int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
-                                            int32_t ta) {
-  {
-    return glue_asm_enc_call_redirected_impl(elf_ctx, name, name_len, ta);
-  }
-  return 0;
 }
 
 
@@ -1599,7 +1589,8 @@ int32_t glue_asm_try_emit_fmt_string_lit_import_call_elf_c(struct ast_ASTArena *
 /**
  * 发射实参、call 目标符号，并按 ABI 回收 outgoing 栈区。
  */
-int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
+/* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
                                                int32_t nargs, uint8_t *cname, int32_t clen) {
   int32_t cleanup;
@@ -1611,14 +1602,6 @@ int32_t glue_asm_emit_call_with_cleanup_impl(struct ast_ASTArena *arena, struct 
   if (cleanup < 0)
     return -1;
   return backend_enc_call_stack_cleanup_arch(elf_ctx, cleanup, ta);
-}
-int32_t glue_asm_emit_call_with_cleanup(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                               int32_t expr_ref, struct backend_AsmFuncCtx *ctx, int32_t ta,
-                                               int32_t nargs, uint8_t *cname, int32_t clen) {
-  {
-    return glue_asm_emit_call_with_cleanup_impl(arena, elf_ctx, expr_ref, ctx, ta, nargs, cname, clen);
-  }
-  return 0;
 }
 
 
