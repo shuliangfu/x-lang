@@ -29,7 +29,7 @@ src/**/*.x  →  工具链  →  *.o  →  link shux
 | 5 | `src/x_seed_bridge.x` | 并入 `x_seed_bridge.o` | hybrid：thin.o（**weak** heap/io 桩）+ seed-rest（`-DSHUX_L2_X_SEED_BRIDGE_THIN_FROM_X`，C 尾）`cc -r` | f-332 |
 | 6 | `src/asm/parser_asm_parse_expr_link.x` | 并入 `parser_asm_parse_expr_link.o` | hybrid：thin.o（**weak** `debug_enabled`）+ seed-rest（`-DSHUX_L2_PEL_THIN_FROM_X` + SKIP_X）`cc -r` | f-333 |
 | 7 | `src/runtime_io_abi.x` | 并入 `runtime_io_abi.o` | hybrid：thin.o（**weak** fs/path/file_view 门闩）+ seed-rest（`-DSHUX_L2_RIO_THIN_FROM_X`，C 尾 `_impl` / `flags_impl`）`cc -r` | f-334 |
-| 8 | `src/diag_thin.x` | 并入 `diag.o` | hybrid：thin.o（**weak** 4 pure：`line_digits` / `kind_is_exact` / `kind_contains` / `color_prefix`）+ seed-rest（`-DSHUX_L2_DIAG_THIN_FROM_X`）`cc -r` | f-335 |
+| 8 | `src/diag_thin.x` | 并入 `diag.o` | hybrid：thin.o（**weak** 13 门闩：f-335 四 pure + f-336 get_* / code_* / set_file / report）+ seed-rest（`-DSHUX_L2_DIAG_THIN_FROM_X`）`cc -r` | f-335/336 |
 
 - **默认路径**：仍整 seed `cc`（冷启动/回滚安全）
 - **优先路径**：`SHUX_G05_PREFER_X_O=1`（显式 opt-in）

@@ -1,6 +1,7 @@
 /* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97/98 true .x + C tail; G-02f-74/82 diag gates).
- * G-02f-335：PREFER_X_O hybrid 时 pure thin 由 src/diag_thin.x→-E；rest 用
- *   SHUX_L2_DIAG_THIN_FROM_X（省略 line_digits / kind_is_exact / kind_contains / color_prefix）。
+ * G-02f-335/336：PREFER_X_O hybrid 时 pure thin 由 src/diag_thin.x→-E；rest 用
+ *   SHUX_L2_DIAG_THIN_FROM_X（省略 line_digits / kind_* / color_prefix /
+ *   get_file|source|len / code_is_known|kind|summary|details / set_file / report）。
  * G-02f-181: P0-1 close-out — code table + reportf/vreportf 🔒 (priority doc §4.3).
  * G-02f-130 true .x pure helpers.
  * G-02f-116 true .x pure helpers.
@@ -378,12 +379,17 @@ void diag_ctx_set_all(const char *path, const char *source, size_t source_len, i
 }
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-336：hybrid 时由 diag_thin.x 提供 */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
 void diag_set_file(const char *path, const char *source, size_t source_len) {
     g_diag_ctx.file_path = path;
     g_diag_ctx.source = source;
     g_diag_ctx.source_len = source_len;
     g_diag_ctx.use_color = diag_should_color();
 }
+#else
+extern void diag_set_file(const char *path, const char *source, size_t source_len);
+#endif
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char *source, size_t source_len) {
@@ -422,19 +428,24 @@ size_t diag_ctx_get_source_len(void) {
 }
 
 /* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-336：hybrid 时由 diag_thin.x 提供 */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
 const char *diag_get_file(void) {
     return g_diag_ctx.file_path;
 }
 
-/* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 const char *diag_get_source(void) {
     return g_diag_ctx.source;
 }
 
-/* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 size_t diag_get_source_len(void) {
     return g_diag_ctx.source_len;
 }
+#else
+extern const char *diag_get_file(void);
+extern const char *diag_get_source(void);
+extern size_t diag_get_source_len(void);
+#endif
 
 void diag_report_json(const char *file, int line, int col,
                              const char *kind, const char *code, const char *msg);
@@ -504,9 +515,14 @@ void diag_report_with_code(const char *file, int line, int col, const char *kind
 }
 
 /* G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-336：hybrid 时由 diag_thin.x 提供 */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
 void diag_report(const char *file, int line, int col, const char *kind, const char *msg, const char *detail) {
     diag_report_with_code(file, line, col, kind, NULL, msg, detail);
 }
+#else
+extern void diag_report(const char *file, int line, int col, const char *kind, const char *msg, const char *detail);
+#endif
 
 void diag_vreportf_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *detail, const char *fmt, va_list ap) {
     char buf[1024];
@@ -551,9 +567,14 @@ int diag_code_table_has(const char *code) {
 }
 
 /* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-336：hybrid 时由 diag_thin.x 提供 */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
 int diag_code_is_known(const char *code) {
     return diag_lookup_code_explain(code) ? 1 : 0;
 }
+#else
+extern int diag_code_is_known(const char *code);
+#endif
 
 
 /** 供 .x 遍历 / 查询 code 表（G-02f-157）。 */
@@ -609,22 +630,27 @@ void diag_io_fprint_code_table_row(FILE *out, const char *code, const char *kind
 }
 
 /* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-336：hybrid 时由 diag_thin.x 提供 */
+#ifndef SHUX_L2_DIAG_THIN_FROM_X
 const char *diag_code_kind(const char *code) {
     const DiagCodeExplain *entry = diag_lookup_code_explain(code);
     return entry ? entry->kind : NULL;
 }
 
-/* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 const char *diag_code_summary(const char *code) {
     const DiagCodeExplain *entry = diag_lookup_code_explain(code);
     return entry ? entry->summary : NULL;
 }
 
-/* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 const char *diag_code_details(const char *code) {
     const DiagCodeExplain *entry = diag_lookup_code_explain(code);
     return entry ? entry->details : NULL;
 }
+#else
+extern const char *diag_code_kind(const char *code);
+extern const char *diag_code_summary(const char *code);
+extern const char *diag_code_details(const char *code);
+#endif
 
 /* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void diag_print_known_codes(FILE *out) {

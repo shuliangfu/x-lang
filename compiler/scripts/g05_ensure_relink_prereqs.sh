@@ -94,8 +94,8 @@ g05_try_x_to_o() {
   fi
   if [ "${G05_X_O_WEAK:-0}" = "1" ]; then
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
-    # G-02f-335：含 uint8_t * / char * 返回（diag_color_prefix 等）
-    perl -i -pe 's/^((?:void|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
+    # G-02f-335/336：含 uint8_t * / char * / int64_t 返回（diag_color_prefix / get_source_len 等）
+    perl -i -pe 's/^((?:void|int64_t|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
   fi
   # G-02f-332/334：-E 缺 ssize_t / open 原型；前置 POSIX 头，并删掉 -E 里冲突的 libc extern
   {
@@ -1482,7 +1482,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_DIAG_THIN_FROM_X \
                -c -o "$_diag_rest_o" "$_diag" \
           && $CC -r -nostdlib -o "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-335 L2 hybrid diag thin)"
+          echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-336 L2 hybrid diag thin)"
           _diag_done=1
         else
           echo "g05_ensure: L2 hybrid diag thin failed; fallback full seed" >&2
