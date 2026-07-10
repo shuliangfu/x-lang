@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-348/385/390–399：simd_enc L2 thin — pure 编码助手 + insn forward（56 门闩）。
+// G-02f-348/385/390–399/417：simd_enc L2 thin — pure 编码助手 + insn forward（64 门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_SIMD_ENC_THIN_FROM_X）ld -r → simd_enc.o
 // 完整逻辑对照：src/asm/simd_enc.x；产品默认仍整 seed。
 //
@@ -515,5 +515,63 @@ function simd_x86_vpshufd_ymm0_imm8(elf_ctx: *u8, imm8: i32): i32 {
   unsafe {
     return simd_x86_vpshufd_ymm0_imm8_impl(elf_ctx, imm8);
   }
+  return 0 - 1;
+}
+
+// ---- G-02f-417：select seq + pshufd/hadd/movss/soa → seed impl ----
+extern "C" function simd_enc_emit_i32_select_xmm_seq_impl(elf_ctx: *u8): i32;
+extern "C" function simd_enc_emit_f32_select_xmm_seq_impl(elf_ctx: *u8): i32;
+extern "C" function simd_enc_emit_i32_select_ymm_seq_impl(elf_ctx: *u8): i32;
+extern "C" function simd_enc_emit_f32_select_ymm_seq_impl(elf_ctx: *u8): i32;
+extern "C" function simd_x86_pshufd_xmm1_xmm0_impl(elf_ctx: *u8, imm: u8): i32;
+extern "C" function simd_enc_x86_horizontal_addps_xmm0_impl(elf_ctx: *u8): i32;
+extern "C" function simd_enc_x86_movss_xmm0_rbp_disp_impl(elf_ctx: *u8, disp: i32): i32;
+extern "C" function simd_enc_f32_soa_col_movups_xmm1_at_idx_impl(elf_ctx: *u8, off_col0: i32, off_i: i32, ta: i32): i32;
+
+#[no_mangle]
+function simd_enc_emit_i32_select_xmm_seq(elf_ctx: *u8): i32 {
+  unsafe { return simd_enc_emit_i32_select_xmm_seq_impl(elf_ctx); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_emit_f32_select_xmm_seq(elf_ctx: *u8): i32 {
+  unsafe { return simd_enc_emit_f32_select_xmm_seq_impl(elf_ctx); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_emit_i32_select_ymm_seq(elf_ctx: *u8): i32 {
+  unsafe { return simd_enc_emit_i32_select_ymm_seq_impl(elf_ctx); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_emit_f32_select_ymm_seq(elf_ctx: *u8): i32 {
+  unsafe { return simd_enc_emit_f32_select_ymm_seq_impl(elf_ctx); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_x86_pshufd_xmm1_xmm0(elf_ctx: *u8, imm: u8): i32 {
+  unsafe { return simd_x86_pshufd_xmm1_xmm0_impl(elf_ctx, imm); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_x86_horizontal_addps_xmm0(elf_ctx: *u8): i32 {
+  unsafe { return simd_enc_x86_horizontal_addps_xmm0_impl(elf_ctx); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: i32): i32 {
+  unsafe { return simd_enc_x86_movss_xmm0_rbp_disp_impl(elf_ctx, disp); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx: *u8, off_col0: i32, off_i: i32, ta: i32): i32 {
+  unsafe { return simd_enc_f32_soa_col_movups_xmm1_at_idx_impl(elf_ctx, off_col0, off_i, ta); }
   return 0 - 1;
 }
