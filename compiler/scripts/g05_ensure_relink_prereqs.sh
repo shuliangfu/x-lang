@@ -1102,8 +1102,40 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
+  # G-02f-9 / G-02f-362：backend_arch_emit_dispatch.o
+  # 默认整 seed；PREFER 时 thin 47 ta shells + rest ld -r
+  _bae=seeds/backend_arch_emit_dispatch.from_x.c
+  _bae_thin_x=src/asm/backend_arch_emit_dispatch_thin.x
+  _bae_o=src/asm/backend_arch_emit_dispatch.o
+  if [ -f "$_bae" ]; then
+    if [ ! -f "$_bae_o" ] || [ "$_bae" -nt "$_bae_o" ] \
+      || { [ -f "$_bae_thin_x" ] && [ "$_bae_thin_x" -nt "$_bae_o" ]; }; then
+      _bae_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_bae_thin_x" ]; then
+        _bae_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_bae_thin.XXXXXX") || true
+        _bae_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bae_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_bae_thin_o" ] && [ -n "$_bae_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_bae_thin_x" "$_bae_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_ARCH_EMIT_THIN_FROM_X \
+               -c -o "$_bae_rest_o" "$_bae" \
+          && $CC -r -nostdlib -o "$_bae_o" "$_bae_thin_o" "$_bae_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_bae_o ← $_bae_thin_x + seed-rest (G-02f-362 L2 hybrid arch_emit thin)"
+          _bae_done=1
+        else
+          echo "g05_ensure: L2 hybrid arch_emit thin failed; fallback full seed" >&2
+        fi
+        rm -f "$_bae_thin_o" "$_bae_rest_o"
+      fi
+      if [ "$_bae_done" = "0" ]; then
+        echo "g05_ensure: backend_arch_emit_dispatch.o ← backend_arch_emit_dispatch.from_x (G-02f-9)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_bae_o" "$_bae"
+      fi
+    fi
+  fi
   # G-02f-9：其余 backend_*_dispatch seed
-  for _disp in backend_arch_emit_dispatch backend_try_inline_dispatch backend_call_dispatch; do
+  for _disp in backend_try_inline_dispatch backend_call_dispatch; do
     _ds="seeds/${_disp}.from_x.c"
     _do="src/asm/${_disp}.o"
     if [ -f "$_ds" ]; then
