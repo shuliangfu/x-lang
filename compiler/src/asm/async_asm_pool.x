@@ -24,7 +24,6 @@ extern "C" function ast_ast_block_stmt_order_idx(a: *u8, br: i32, si: i32): i32;
 extern "C" function pipeline_block_let_init_ref(a: *u8, br: i32, li: i32): i32;
 extern "C" function ast_pipeline_block_expr_stmt_ref(a: *u8, br: i32, ei: i32): i32;
 extern "C" function pipeline_asm_block_final_expr_ref_at(a: *u8, br: i32): i32;
-extern "C" function asm_pool_live_add_impl(lay: *u8, name: *u8, nlen: i32, sz: i32): void;
 extern "C" function pipeline_type_kind_ord_at(a: *u8, tr: i32): i32;
 extern "C" function pipeline_type_named_name_into(a: *u8, tr: i32, out: *u8): i32;
 extern "C" function pipeline_module_num_struct_layouts_at(m: *u8): i32;
@@ -223,7 +222,8 @@ function asm_pool_block_rest_refs_name(a: *u8, br: i32, from_exclusive: i32, nam
   return 0;
 }
 
-// G-02f-142/143：type_size 真迁；live_add 仍 seed（layout 结构字段）
+// G-02f-142/143：type_size 真迁
+// G-02f-144：live_add 真迁（AsyncAsmPoolLayout LE：num_live@8 live@12 stride 76）
 #[no_mangle]
 function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
   if (a == 0) { return 8; }
@@ -272,10 +272,76 @@ function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
   return 8;
 }
 
+// LE i32 load/store（little-endian；避免 <<）
+function asm_pool_load_i32_le(p: *u8, off: i32): i32 {
+  if (p == 0) { return 0; }
+  let m: i32 = 256;
+  let a: i32 = p[off] as i32;
+  a = a + (p[off + 1] as i32) * m;
+  a = a + (p[off + 2] as i32) * (m * m);
+  a = a + (p[off + 3] as i32) * (m * m * m);
+  return a;
+}
+
+function asm_pool_store_i32_le(p: *u8, off: i32, v: i32): void {
+  if (p == 0) { return; }
+  let u: u32 = v as u32;
+  p[off] = (u & 255) as u8;
+  p[off + 1] = ((u / 256) & 255) as u8;
+  p[off + 2] = ((u / 65536) & 255) as u8;
+  p[off + 3] = ((u / 16777216) & 255) as u8;
+}
+
+// G-02f-144：live 表去重追加
+// AsyncAsmPoolLiveVar: name[64]@0 name_len@64 size_bytes@68 frame_data_off@72; stride 76
+// ASYNC_LIVE_MAX_VARS=64
 #[no_mangle]
 function asm_pool_live_add(lay: *u8, name: *u8, nlen: i32, sz: i32): void {
+  if (lay == 0) { return; }
+  if (name == 0) { return; }
+  if (nlen <= 0) { return; }
+  if (nlen > 63) { return; }
   unsafe {
-    asm_pool_live_add_impl(lay, name, nlen, sz);
+    let num: i32 = asm_pool_load_i32_le(lay, 8);
+    if (num >= 64) { return; }
+    let i: i32 = 0;
+    while (i < num) {
+      let base: i32 = 12 + i * 76;
+      let elen: i32 = asm_pool_load_i32_le(lay, base + 64);
+      if (elen == nlen) {
+        let eq: i32 = 1;
+        let j: i32 = 0;
+        while (j < nlen) {
+          if (lay[base + j] != name[j]) {
+            eq = 0;
+            break;
+          }
+          j = j + 1;
+        }
+        if (eq != 0) { return; }
+      }
+      i = i + 1;
+    }
+    let off: i32 = 0;
+    i = 0;
+    while (i < num) {
+      let base2: i32 = 12 + i * 76;
+      off = off + asm_pool_load_i32_le(lay, base2 + 68);
+      i = i + 1;
+    }
+    let slot: i32 = 12 + num * 76;
+    let k: i32 = 0;
+    while (k < nlen) {
+      lay[slot + k] = name[k];
+      k = k + 1;
+    }
+    lay[slot + nlen] = 0;
+    asm_pool_store_i32_le(lay, slot + 64, nlen);
+    let sz2: i32 = sz;
+    if (sz2 <= 0) { sz2 = 4; }
+    asm_pool_store_i32_le(lay, slot + 68, sz2);
+    asm_pool_store_i32_le(lay, slot + 72, off);
+    asm_pool_store_i32_le(lay, 8, num + 1);
   }
 }
 

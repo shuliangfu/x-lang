@@ -220,7 +220,8 @@ int32_t asm_pool_type_size_bytes(struct ast_ASTArena *a, struct ast_Module *m, i
 
 
 /** live 表去重追加。 */
-void asm_pool_live_add_impl(AsyncAsmPoolLayout *lay, const uint8_t *name, int32_t nlen, int32_t sz) {
+/* G-02f-144：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void asm_pool_live_add(AsyncAsmPoolLayout *lay, const uint8_t *name, int32_t nlen, int32_t sz) {
     int32_t i;
     int32_t off;
     if (!lay || !name || nlen <= 0 || nlen > 63 || lay->num_live >= ASYNC_LIVE_MAX_VARS)
@@ -238,11 +239,6 @@ void asm_pool_live_add_impl(AsyncAsmPoolLayout *lay, const uint8_t *name, int32_
     lay->live[lay->num_live].size_bytes = sz > 0 ? sz : 4;
     lay->live[lay->num_live].frame_data_off = off;
     lay->num_live++;
-}
-void asm_pool_live_add(AsyncAsmPoolLayout *lay, const uint8_t *name, int32_t nlen, int32_t sz) {
-  {
-    asm_pool_live_add_impl(lay, name, nlen, sz);
-  }
 }
 
 
