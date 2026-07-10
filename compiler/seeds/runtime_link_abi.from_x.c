@@ -1,7 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..56/64 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..56/64/65 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/labi.c
- *         merge output_is_elf_o/want_exe true logic; C invoke bulk remains.
- * .x covers: + shux_output_is_elf_o / shux_output_want_exe path-suffix logic.
+ *         merge path_is_nonempty gate + ld_argv_entry_is_obj true logic.
+ * .x covers: + path_is_nonempty_regular_file, link_abi_ld_argv_entry_is_obj.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -12,11 +12,13 @@
 #include "diag.h"
 #include "runtime_diag_codes.h"
 
-/* G-02f-53: empty C string for retired .o path APIs */
+/* G-02f-53/65: empty C string + path_is_nonempty impl */
 const char *shux_asm_ld_bank_push_impl(ShuAsmLdPathBank *b, const char *path);
 const char *shux_runtime_asm_io_stubs_o_path_impl(const char *argv0);
 const char *shux_runtime_process_argv_o_path_impl(const char *argv0);
 const char *shux_asm_ld_effective_link_argv0_impl(const char *link_argv0, char *syn_buf, size_t syn_sz);
+int shux_path_is_nonempty_regular_file_impl(const char *path);
+int link_abi_ld_argv_entry_is_obj(const char *s);
 const char *shux_empty_cstr(void) {
     static char buf[1];
     buf[0] = '\0';
@@ -3477,8 +3479,8 @@ int shux_generated_c_needs_async_scheduler(const char *c_path) {
  }));
   return 0;
 }
-/** G-02f-47：path 为已存在且 size>0 的常规文件。 */
-int shux_path_is_nonempty_regular_file(const char *path) {
+/** G-02f-47/65：path 为已存在且 size>0 的常规文件。stat 在 _impl；.x 门闩。 */
+int shux_path_is_nonempty_regular_file_impl(const char *path) {
     struct stat st;
     if (!path || !path[0])
         return 0;
@@ -3487,6 +3489,19 @@ int shux_path_is_nonempty_regular_file(const char *path) {
     if (st.st_size <= 0)
         return 0;
     return 1;
+}
+
+int shux_path_is_nonempty_regular_file(const char *path) {
+  if (path == NULL) {
+    return 0;
+  }
+  if (path[0] == 0) {
+    return 0;
+  }
+  {
+    return shux_path_is_nonempty_regular_file_impl(path);
+  }
+  return 0;
 }
 
 const char *asm_link_obj_skip_missing(const char *path) {
@@ -4405,15 +4420,37 @@ int shux_link_obj_needs_undef_sym(const char *o_path, const char *sym) {
 }
 
 /** ld argv 项是否为已解析的 .o/.obj 路径（跳过 -o、编译器驱动等）。 */
-static int link_abi_ld_argv_entry_is_obj(const char *s) {
+/* G-02f-65：真逻辑来自 .x（.o / .obj 后缀；原 static 提升为导出）。 */
+int link_abi_ld_argv_entry_is_obj(const char *s) {
     size_t n;
-    if (!s || !s[0])
+    if (s == NULL) {
         return 0;
-    n = strlen(s);
-    if (n >= 2u && s[n - 2u] == '.' && s[n - 1u] == 'o')
-        return 1;
-    if (n >= 4u && strcmp(s + n - 4u, ".obj") == 0)
-        return 1;
+    }
+    if (s[0] == 0) {
+        return 0;
+    }
+    n = 0;
+    while (s[n] != 0) {
+        n = n + 1;
+    }
+    if (n >= 2) {
+        if (s[n - 2] == '.') {
+            if (s[n - 1] == 'o') {
+                return 1;
+            }
+        }
+    }
+    if (n >= 4) {
+        if (s[n - 4] == '.') {
+            if (s[n - 3] == 'o') {
+                if (s[n - 2] == 'b') {
+                    if (s[n - 1] == 'j') {
+                        return 1;
+                    }
+                }
+            }
+        }
+    }
     return 0;
 }
 

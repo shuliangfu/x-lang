@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..44/47/53/55/56/64：真迁 .x — link_abi needs_* / 空 .o / bank / 路径后缀。
+// G-02f-34..44/47/53/55/56/64/65：真迁 .x — link_abi needs_* / 空 .o / bank / 路径后缀。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
 // C 尾：invoke_cc/ld、nm/popen、fileview、cstr 拷贝、stat 原语、#if host。
-// G-02f-64：+ shux_output_is_elf_o / shux_output_want_exe 真逻辑（.o/.obj/.s 后缀）。
+// G-02f-65：+ path_is_nonempty 门闩；ld_argv_entry_is_obj 真逻辑。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
 extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -13,7 +13,7 @@ extern "C" function shux_host_is_linux(): i32;
 extern "C" function shux_host_is_apple_aarch64(): i32;
 extern "C" function driver_argv_at(argv: *u8, i: i32): *u8;
 extern "C" function driver_copy_cstr_n(src: *u8, buf: *u8, max: i32): i32;
-extern "C" function shux_path_is_nonempty_regular_file(path: *u8): i32;
+extern "C" function shux_path_is_nonempty_regular_file_impl(path: *u8): i32;
 extern "C" function link_abi_obj_exports_marker(obj_o: *u8, marker: *u8): i32;
 extern "C" function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32;
 extern "C" function link_abi_generated_c_contains_substr(c_path: *u8, needle: *u8): i32;
@@ -1350,6 +1350,59 @@ function shux_output_want_exe(path: *u8): i32 {
       }
     }
     return 1;
+  }
+  return 0;
+}
+
+/* ---- G-02f-65：stat 门闩 + ld argv 条目是否为 .o/.obj ---- */
+
+#[no_mangle]
+function shux_path_is_nonempty_regular_file(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (path[0] == 0) {
+      return 0;
+    }
+    return shux_path_is_nonempty_regular_file_impl(path);
+  }
+  return 0;
+}
+
+/* 真逻辑：argv 槽是否为对象文件路径（.o / .obj）。供 merge/needs 循环复用。 */
+#[no_mangle]
+function link_abi_ld_argv_entry_is_obj(s: *u8): i32 {
+  if (s == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    if (s[0] == 0) {
+      return 0;
+    }
+    let n: i64 = 0;
+    while (s[n] != 0) {
+      n = n + 1;
+    }
+    if (n >= 2) {
+      if (s[n - 2] == 46) {
+        if (s[n - 1] == 111) {
+          return 1;
+        }
+      }
+    }
+    if (n >= 4) {
+      if (s[n - 4] == 46) {
+        if (s[n - 3] == 111) {
+          if (s[n - 2] == 98) {
+            if (s[n - 1] == 106) {
+              return 1;
+            }
+          }
+        }
+      }
+    }
+    return 0;
   }
   return 0;
 }
