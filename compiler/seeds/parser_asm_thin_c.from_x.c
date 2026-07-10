@@ -6607,9 +6607,44 @@ static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
 #include "parser_asm_type_ref_slice.inc"
 #include "parser_asm_struct_layout_slice.inc"
 #include "parser_asm_library_slice.inc"
+/* G-02f-279 P2 let/alias：默认仍 #include；hybrid 时函数体在 pthin_let_alias.from_x.c */
+#ifndef SHUX_PTHIN_LET_ALIAS_FROM_X
 #include "parser_asm_body_let_slice.inc"
 #include "parser_asm_top_level_let_slice.inc"
 #include "parser_asm_type_alias_slice.inc"
+#else
+/* 布局须与 slice.inc 一致（其它 slice 仍用完整类型）。 */
+struct parser_asm_parse_expr_result {
+  int32_t ok;
+  int32_t expr_ref;
+  struct parser_asm_lexer next_lex;
+};
+struct parser_asm_type_alias_result {
+  int32_t ok;
+  uint8_t _pad[4];
+  struct parser_asm_lexer next_lex;
+};
+struct parser_asm_top_level_let_result {
+  int32_t ok;
+  uint8_t _pad[4];
+  struct parser_asm_lexer next_lex;
+};
+int32_t parser_asm_parse_body_let_bracket_compound_init_ref_slice_c(void *arena, size_t bracket_start,
+                                                                    struct parser_asm_lexer lex,
+                                                                    struct parser_asm_slice_u8 *source,
+                                                                    struct parser_asm_lexer *lex_out,
+                                                                    struct parser_asm_lexer_result *r_out);
+void parser_asm_parse_cond_expr_into_slice_c(void *arena, struct parser_asm_lexer lex_start,
+                                             struct parser_asm_slice_u8 *source,
+                                             struct parser_asm_parse_expr_result *out);
+void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
+                                                     struct parser_asm_slice_u8 *source, int32_t is_const,
+                                                     struct parser_asm_top_level_let_result *out);
+void parser_asm_parse_one_type_alias_into_slice_c(void *arena, void *module, struct parser_asm_lexer lex,
+                                                  struct parser_asm_slice_u8 *source,
+                                                  struct parser_asm_type_alias_result *out);
+int labi_pthin_let_alias_slice_marker(void);
+#endif
 #include "parser_asm_one_function_buf_slice.inc"
 #include "parser_asm_block_from_res_slice.inc"
 #include "parser_asm_if_stmt_slice.inc"

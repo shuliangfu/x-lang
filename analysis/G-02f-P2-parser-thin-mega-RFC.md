@@ -240,3 +240,4 @@ nm -g parser_asm_thin_glue.o | head
 | 日期 | 说明 |
 |------|------|
 | 2026-07-11 | f-278 / f-304 初版：parser thin God-View；承认 `seeds/parser_asm/*_slice.inc` 为 A0；首迁 P2 let/alias；suite stretch 后置 |
+| 2026-07-11 | **f-279 P2 let/alias 落地**：`pthin_let_alias.x` + `seeds/pthin_let_alias.from_x.c`（include body_let/top_level_let/type_alias）；`SHUX_PTHIN_LET_ALIAS_FROM_X`；prefer hybrid `P2+rest → parser_asm_thin_glue.o` |
