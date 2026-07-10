@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-348/385/390/391：simd_enc L2 thin — pure 编码助手 + insn forward（15 门闩）。
+// G-02f-348/385/390/391/392：simd_enc L2 thin — pure 编码助手 + insn forward（19 门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_SIMD_ENC_THIN_FROM_X）ld -r → simd_enc.o
 // 完整逻辑对照：src/asm/simd_enc.x；产品默认仍整 seed。
 //
@@ -39,7 +39,7 @@ function simd_rbp_disp32(slot_off: i32, lanes: i32, esz: i32): i32 {
   return 0 - slot_off;
 }
 
-// ---- G-02f-385/390/391：append / insn → seed impl ----
+// ---- G-02f-385/390/391/392：append / insn → seed impl ----
 extern "C" function simd_append_impl(elf_ctx: *u8, bytes: *u8, n: i32): i32;
 extern "C" function simd_append_disp32_impl(elf_ctx: *u8, disp: i32): i32;
 extern "C" function simd_x86_addps_xmm0_xmm1_impl(elf_ctx: *u8): i32;
@@ -52,6 +52,10 @@ extern "C" function simd_x86_pmulld_xmm0_xmm1_impl(elf_ctx: *u8): i32;
 extern "C" function simd_x86_vpmulld_ymm0_ymm1_impl(elf_ctx: *u8): i32;
 extern "C" function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2_impl(elf_ctx: *u8): i32;
 extern "C" function simd_x86_pxor_xmm3_xmm3_impl(elf_ctx: *u8): i32;
+extern "C" function simd_x86_pcmpgtd_xmm2_xmm3_impl(elf_ctx: *u8): i32;
+extern "C" function simd_x86_pand_xmm0_xmm2_impl(elf_ctx: *u8): i32;
+extern "C" function simd_x86_pandn_xmm2_xmm1_impl(elf_ctx: *u8): i32;
+extern "C" function simd_x86_por_xmm0_xmm2_impl(elf_ctx: *u8): i32;
 
 #[no_mangle]
 function simd_append(elf_ctx: *u8, bytes: *u8, n: i32): i32 {
@@ -145,6 +149,38 @@ function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(elf_ctx: *u8): i32 {
 function simd_x86_pxor_xmm3_xmm3(elf_ctx: *u8): i32 {
   unsafe {
     return simd_x86_pxor_xmm3_xmm3_impl(elf_ctx);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_x86_pcmpgtd_xmm2_xmm3(elf_ctx: *u8): i32 {
+  unsafe {
+    return simd_x86_pcmpgtd_xmm2_xmm3_impl(elf_ctx);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_x86_pand_xmm0_xmm2(elf_ctx: *u8): i32 {
+  unsafe {
+    return simd_x86_pand_xmm0_xmm2_impl(elf_ctx);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_x86_pandn_xmm2_xmm1(elf_ctx: *u8): i32 {
+  unsafe {
+    return simd_x86_pandn_xmm2_xmm1_impl(elf_ctx);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function simd_x86_por_xmm0_xmm2(elf_ctx: *u8): i32 {
+  unsafe {
+    return simd_x86_por_xmm0_xmm2_impl(elf_ctx);
   }
   return 0 - 1;
 }

@@ -44,6 +44,10 @@ int32_t simd_x86_pmulld_xmm0_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
 int32_t simd_x86_vpmulld_ymm0_ymm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
 int32_t simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx);
 int32_t simd_x86_pxor_xmm3_xmm3(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_pcmpgtd_xmm2_xmm3(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_pand_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_pandn_xmm2_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t simd_x86_por_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx);
 #endif
 
 /** slot_off 为 asm 局部槽距 fp 的正字节距（lane0 低址端，与向量 let init 的 lea 一致）；x86 disp = -slot_off。 */
@@ -913,40 +917,68 @@ int32_t simd_x86_pxor_xmm3_xmm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 /** x86 SSE2：pcmpgtd xmm2, xmm3（66 0F 66 D3）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_pcmpgtd_xmm2_xmm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-392：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_pcmpgtd_xmm2_xmm3_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0x66, 0x0f, 0x66, 0xd3};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_pcmpgtd_xmm2_xmm3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_pcmpgtd_xmm2_xmm3_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 SSE2：pand xmm0, xmm2（66 0F DB C2）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_pand_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-392：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_pand_xmm0_xmm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0x66, 0x0f, 0xdb, 0xc2};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_pand_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_pand_xmm0_xmm2_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 SSE2：pandn xmm2, xmm1（66 0F DF D1）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_pandn_xmm2_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-392：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_pandn_xmm2_xmm1_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0x66, 0x0f, 0xdf, 0xd1};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_pandn_xmm2_xmm1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_pandn_xmm2_xmm1_impl(elf_ctx);
+}
+#endif
 
 
 
 
 /** x86 SSE2：por xmm0, xmm2（66 0F EB C2）。 */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t simd_x86_por_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-392：实现体始终 seed；public PREFER 时 thin forward */
+int32_t simd_x86_por_xmm0_xmm2_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     static const uint8_t insn[4] = {0x66, 0x0f, 0xeb, 0xc2};
     return simd_append_impl(elf_ctx, insn, 4);
 }
+
+#ifndef SHUX_L2_SIMD_ENC_THIN_FROM_X
+int32_t simd_x86_por_xmm0_xmm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return simd_x86_por_xmm0_xmm2_impl(elf_ctx);
+}
+#endif
 
 
 
@@ -1107,13 +1139,13 @@ int32_t simd_x86_vorps_ymm0_ymm2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 int32_t simd_enc_emit_i32_select_xmm_seq(struct platform_elf_ElfCodegenCtx *elf_ctx) {
     if (simd_x86_pxor_xmm3_xmm3_impl(elf_ctx) != 0)
         return -1;
-    if (simd_x86_pcmpgtd_xmm2_xmm3(elf_ctx) != 0)
+    if (simd_x86_pcmpgtd_xmm2_xmm3_impl(elf_ctx) != 0)
         return -1;
-    if (simd_x86_pand_xmm0_xmm2(elf_ctx) != 0)
+    if (simd_x86_pand_xmm0_xmm2_impl(elf_ctx) != 0)
         return -1;
-    if (simd_x86_pandn_xmm2_xmm1(elf_ctx) != 0)
+    if (simd_x86_pandn_xmm2_xmm1_impl(elf_ctx) != 0)
         return -1;
-    if (simd_x86_por_xmm0_xmm2(elf_ctx) != 0)
+    if (simd_x86_por_xmm0_xmm2_impl(elf_ctx) != 0)
         return -1;
     return 0;
 }
