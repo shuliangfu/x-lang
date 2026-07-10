@@ -1,9 +1,7 @@
-/* Generated from src/runtime_link_abi.x (G-02f-34..39 true .x + C tail).
+/* Generated from src/runtime_link_abi.x (G-02f-34..39/43 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/link.c
- *         merge thin helpers; polish strings/signatures; SHUX_WEAK bootstrap;
- *         keep invoke_cc/ld + path suffix + nm/popen + fileview scan primitive C.
- * .x covers: forward_main, needs_*, freestanding, async, heap, compress,
- *            generated_c_needs_*, bootstrap weak stubs.
+ *         merge needs/compress/generated_c/resolve_target; C host slots + invoke.
+ * .x covers: needs_*, freestanding, compress, generated_c_needs_*, resolve_target_arch.
  */
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
@@ -1423,6 +1421,16 @@ int shux_host_is_linux(void) {
     return 0;
 #endif
 }
+
+/** G-02f-43：Apple aarch64 门闩槽 — .x resolve_target_arch 读此。 */
+int shux_host_is_apple_aarch64(void) {
+#if defined(__APPLE__) && defined(__aarch64__)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 
 int shux_link_freestanding_enabled(int driver_freestanding) {
   (void)(({   {
@@ -6218,14 +6226,18 @@ uint8_t *driver_argv_drop_subcommand(int argc, uint8_t *argv_opaque) {
     return (uint8_t *)adj;
 }
 
-int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_flag) {
-    if (saw_target_flag)
-        return parsed_target;
-#if defined(__APPLE__) && defined(__aarch64__)
-    return 1;
-#else
+int32_t driver_resolve_target_arch(int parsed_target, int saw_target_flag) {
+  if ((saw_target_flag !=0)) {
     return parsed_target;
-#endif
+  }
+  (void)(({   {
+    if ((shux_host_is_apple_aarch64() !=0)) {
+      return 1;
+    }
+    return parsed_target;
+  }
+ }));
+  return parsed_target;
 }
 
 extern int main_entry(int argc, char **argv);
@@ -6247,7 +6259,7 @@ SHUX_WEAK void bootstrap_init_environ(int argc, char **argv) {
   (void)(0);
 }
 
-SHUX_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
+int bootstrap_nostdlib_pthread_is_stub(void) {
   return 0;
 }
 

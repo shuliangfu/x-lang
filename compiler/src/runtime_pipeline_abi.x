@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..42：真迁 .x — pipeline 占位 + ndep/dep_seeded/dep 指针 + publish。
+// G-02f-32..43：真迁 .x — pipeline 占位 + dep + publish + arena_buf 转发。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
-// C 尾：存储槽数组、import/path、seeded_clear 循环、malloc buf、path 扫描。
-// G-02f-42：publish_slot 与 typeck module_buf 转发（经 C 指针/path 槽）。
+// C 尾：存储槽数组、import/path、seeded_clear、malloc buf 本体、path 扫描。
+// G-02f-43：+ typeck_driver_dep_arena_buf 转发。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -18,6 +18,7 @@ extern "C" function driver_dep_arena_ptr_set(i: i32, arena: *u8): void;
 extern "C" function driver_dep_module_ptr_set(i: i32, module: *u8): void;
 extern "C" function driver_dep_path_registry_set(i: i32, path: *u8): void;
 extern "C" function driver_dep_module_buf(i: i32): *u8;
+extern "C" function driver_dep_arena_buf(i: i32): *u8;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -233,6 +234,15 @@ function driver_dep_publish_slot(i: i32, arena: *u8, module: *u8, import_path: *
 function typeck_driver_dep_module_buf(i: i32): *u8 {
   unsafe {
     let r: *u8 = driver_dep_module_buf(i);
+    return r;
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function typeck_driver_dep_arena_buf(i: i32): *u8 {
+  unsafe {
+    let r: *u8 = driver_dep_arena_buf(i);
     return r;
   }
   return 0 as *u8;

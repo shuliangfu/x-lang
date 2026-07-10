@@ -1,7 +1,7 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..42 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..43 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge no-ops/flags/dep_seeded/dep ptr/publish; C slots + clear_all + import/path.
- * .x covers: placeholders, ndep, dep_seeded, get/set_dep, publish_slot, module_buf fwd.
+ *         merge dep/publish/buf fwds; C slots + clear_all + import/path + malloc.
+ * .x covers: placeholders, ndep, dep_seeded, get/set_dep, publish, module/arena_buf.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -765,6 +765,14 @@ uint8_t *driver_dep_module_buf(int32_t i) {
 uint8_t *typeck_driver_dep_module_buf(int32_t i) {
   (void)(({   {
     uint8_t * r = driver_dep_module_buf(i);
+    return r;
+  }
+ }));
+  return ((void *)(0));
+}
+uint8_t *typeck_driver_dep_arena_buf(int32_t i) {
+  (void)(({   {
+    uint8_t * r = driver_dep_arena_buf(i);
     return r;
   }
  }));

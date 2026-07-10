@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-34..39：真迁 .x — link_abi 入口 / needs_* / compress / generated_c 子串探针。
+// G-02f-34..39/43：真迁 .x — link_abi needs_* / compress / generated_c / target arch。
 // 产品：./shux-c -E → seeds/runtime_link_abi.from_x.c（+ C 尾 + 字符串/签名抛光）。
-// C 尾：invoke_cc/ld、路径后缀、nm/popen、fileview 子串扫描原语、argv 循环。
-// G-02f-39：+ generated_c_needs_*（经 C contains_substr 单 needle）。
+// C 尾：invoke_cc/ld、路径后缀、nm/popen、fileview、argv 循环、#if host 槽。
+// G-02f-43：+ driver_resolve_target_arch（经 shux_host_is_apple_aarch64）。
 
 extern "C" function main_entry(argc: i32, argv: *u8): i32;
 extern "C" function shux_link_obj_needs_undef_sym(user_o: *u8, sym: *u8): i32;
@@ -1115,6 +1115,22 @@ function shux_generated_c_needs_async_scheduler(c_path: *u8): i32 {
   }
   return 0;
 }
+/* ---- G-02f-43：target arch 解析（OS 门闩经 C 槽）---- */
+
+#[no_mangle]
+function driver_resolve_target_arch(parsed_target: i32, saw_target_flag: i32): i32 {
+  if (saw_target_flag != 0) {
+    return parsed_target;
+  }
+  unsafe {
+    if (shux_host_is_apple_aarch64() != 0) {
+      return 1;
+    }
+    return parsed_target;
+  }
+  return parsed_target;
+}
+
 #[no_mangle]
 function bootstrap_init_static_tls(): void {
 }
