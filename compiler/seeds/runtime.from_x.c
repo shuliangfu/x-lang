@@ -4511,7 +4511,8 @@ int driver_check_only_c_typeck(const char *input_path, char *src, const char **l
  * dep 列表是否全为 std./core. 闭包（符号由预编 .o / preamble 提供，勿 dep_prerun 全量 typeck）。
  * tests/multi-file 的 import("foo") 等用户 dep 返回 0，仍走 typeck_only。
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-291 R6-lite：逻辑源 src/runtime/rt_compile.x；hybrid → seeds/rt_compile.from_x.c */
+#ifndef SHUX_RT_COMPILE_FROM_X
 int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
     int k;
     if (!dep_paths || n_deps <= 0)
@@ -4527,14 +4528,10 @@ int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps) {
     return 1;
 }
 
-
-
-
 /**
  * `-E src/asm/asm.x` 的 compiler-internal 闭包仅需 parse 填 import/签名槽；
  * 对 `ast` 等大模块做 dep_prerun typeck 会显著拖慢甚至卡住 seed host 构建。
  */
-/* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path) {
     if (!input_path || !dep_path)
         return 0;
@@ -4549,8 +4546,6 @@ int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_
     return 0;
 }
 
-
-/* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int driver_x_emit_asm_direct_import_only(const char *input_path) {
     if (!input_path)
         return 0;
@@ -4562,13 +4557,18 @@ int driver_x_emit_asm_direct_import_only(const char *input_path) {
     return 0;
 }
 
-
-/* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const char *dep_path) {
     if (!driver_x_emit_asm_direct_import_only(input_path) || !dep_path)
         return 0;
     return strcmp(dep_path, "backend") == 0;
 }
+#else
+int driver_deps_are_std_core_closure_only(char **dep_paths, int n_deps);
+int driver_x_emit_asm_dep_parse_only_ok(const char *input_path, const char *dep_path);
+int driver_x_emit_asm_direct_import_only(const char *input_path);
+int driver_x_emit_asm_dep_parse_skip_typeck_ok(const char *input_path, const char *dep_path);
+int labi_rt_compile_slice_marker(void);
+#endif /* !SHUX_RT_COMPILE_FROM_X */
 
 
 #if !defined(SHUX_NO_C_FRONTEND)
