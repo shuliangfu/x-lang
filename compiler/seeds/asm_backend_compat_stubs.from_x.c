@@ -45,7 +45,8 @@ __attribute__((weak)) int32_t append_asm_line(struct codegen_CodegenOutBuf *out,
 }
 
 /** 内部 u32 格式化，避免依赖 build_asm/types.o 的 format_u32_to_buf。 G-02f-99 gate. */
-int32_t shu_format_u32_to_buf_impl(uint8_t *buf, int32_t off, int32_t max, uint32_t u) {
+/* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t shu_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uint32_t u) {
   static const uint8_t digit_chars[10] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
   uint8_t tmp[10];
   int32_t num_digits = 0;
@@ -69,12 +70,6 @@ int32_t shu_format_u32_to_buf_impl(uint8_t *buf, int32_t off, int32_t max, uint3
     idx++;
   }
   return num_digits;
-}
-int32_t shu_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uint32_t u) {
-  {
-    return shu_format_u32_to_buf_impl(buf, off, max, u);
-  }
-  return 0 - 1;
 }
 
 /**

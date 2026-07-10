@@ -10,26 +10,57 @@ function backend_call_dispatch_x_doc_anchor(): i32 {
 }
 
 // G-02f-108：+ string_lit / f32 param / reg_max / import_sym 薄门闩。
+// G-02f-139：string_lit_into / import_path_to_c_prefix 真迁 .x
 
-extern "C" function glue_asm_string_lit_into_impl(arena: *u8, er: i32, out: *u8): void;
-extern "C" function glue_codegen_import_path_to_c_prefix_into_impl(path: *u8, buf: *u8, cap: i32): void;
+extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
 
-/* ---- G-02f-108：backend call dispatch helpers 门闩 ---- */
+/* ---- G-02f-108 / G-02f-139：backend call dispatch helpers ---- */
 
-
-
+// G-02f-139：拷贝 STRING_LIT 内容到 out64（至多 63 字节，先清零）
 #[no_mangle]
-function glue_asm_string_lit_into(arena: *u8, er: i32, out: *u8): void {
-  unsafe { glue_asm_string_lit_into_impl(arena, er, out); }
+function glue_asm_string_lit_into(arena: *u8, er: i32, out64: *u8): void {
+  if (out64 == 0) { return; }
+  let zi: i32 = 0;
+  while (zi < 64) {
+    out64[zi] = 0;
+    zi = zi + 1;
+  }
+  if (arena == 0) { return; }
+  unsafe {
+    if (glue_asm_string_lit_len(arena, er) <= 0) { return; }
+    pipeline_expr_var_name_into(arena, er, out64);
+  }
 }
 
-
-
-
-
+// G-02f-139：import 路径 → C 前缀（'.'→'_'，末尾再补 '_'）
 #[no_mangle]
-function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, cap: i32): void {
-  unsafe { glue_codegen_import_path_to_c_prefix_into_impl(path, buf, cap); }
+function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void {
+  if (buf == 0) { return; }
+  if (buf_cap <= 0) { return; }
+  let off: i32 = 0;
+  let pi: i32 = 0;
+  if (path != 0) {
+    while (1 == 1) {
+      let ch: u8 = path[pi];
+      if (ch == 0) { break; }
+      if (off + 2 >= buf_cap) { break; }
+      // '.'=46 → '_'=95
+      if (ch == 46) {
+        buf[off] = 95;
+      } else {
+        buf[off] = ch;
+      }
+      off = off + 1;
+      pi = pi + 1;
+    }
+  }
+  if (off + 1 < buf_cap) {
+    buf[off] = 95;
+    off = off + 1;
+  }
+  if (off < buf_cap) {
+    buf[off] = 0;
+  }
 }
 
 
@@ -41,7 +72,6 @@ function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, cap: i32
 // G-02f-109：+ overload/export_c/import path/heap redirect 薄门闩。
 
 extern "C" function parser_get_module_import_path(mod: *u8, ix: i32, path_bytes: *u8): void;
-extern "C" function glue_codegen_import_path_to_c_prefix_into(path: *u8, pre: *u8, cap: i32): void;
 extern "C" function pipeline_module_num_funcs(m: *u8): i32;
 extern "C" function pipeline_asm_module_func_is_extern_at(m: *u8, i: i32): i32;
 extern "C" function pipeline_module_func_name_equal_at(m: *u8, i: i32, name: *u8, nlen: i32): i32;

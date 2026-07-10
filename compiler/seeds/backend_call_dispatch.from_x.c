@@ -112,18 +112,14 @@ int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref) {
 
 
 /** 拷贝 STRING_LIT 内容到 out64（至多 63 字节）。 */
-void glue_asm_string_lit_into_impl(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
+/* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
   if (!out64)
     return;
   memset(out64, 0, 64);
   if (glue_asm_string_lit_len(arena, expr_ref) <= 0)
     return;
   pipeline_expr_var_name_into(arena, expr_ref, out64);
-}
-void glue_asm_string_lit_into(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *out64) {
-  {
-    glue_asm_string_lit_into_impl(arena, expr_ref, out64);
-  }
 }
 
 
@@ -552,7 +548,8 @@ int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
 /**
  * 将 import 路径转为 C 符号前缀（`.`→`_`，末尾再补 `_`），与 codegen.x codegen_import_path_to_c_prefix_into 一致。
  */
-void glue_codegen_import_path_to_c_prefix_into_impl(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
+/* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
   int32_t off;
   int32_t pi;
   if (!buf || buf_cap <= 0)
@@ -574,11 +571,6 @@ void glue_codegen_import_path_to_c_prefix_into_impl(const uint8_t *path, uint8_t
     off++;
   }
   buf[off] = 0;
-}
-void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf, int32_t buf_cap) {
-  {
-    glue_codegen_import_path_to_c_prefix_into_impl(path, buf, buf_cap);
-  }
 }
 
 

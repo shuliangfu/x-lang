@@ -5,32 +5,105 @@
 // 本文件为语义对照 / 后续真迁 .x 锚点；B-strict 最小 glue 实现仍在 seed C。
 // G-02f-107：+ named_equal / binding / param / field / assign_kind 薄门闩。
 // G-02f-108：+ unqual/find/map/slice/ancestor/const_name 薄门闩。
+// G-02f-139：named_equal / binding_name_equal / is_func_param / slice_region_conflict 真迁 .x
 
-extern "C" function pipeline_typeck_named_equal_strict_minimal_impl(a: *u8, alen: i32, b: *u8, blen: i32): i32;
-extern "C" function pipeline_typeck_import_binding_name_equal_strict_minimal_impl(a: *u8, alen: i32, b: *u8, blen: i32): i32;
-extern "C" function pipeline_expr_is_func_param_at_strict_minimal_impl(arena: *u8, mod: *u8, fi: i32, er: i32, pix: i32): i32;
+extern "C" function pipeline_type_named_name_into(arena: *u8, tr: i32, out64: *u8): i32;
+extern "C" function pipeline_module_import_binding_name_len(mod: *u8, idx: i32): i32;
+extern "C" function pipeline_module_import_binding_name_byte_at(mod: *u8, idx: i32, off: i32): u8;
+extern "C" function parser_get_module_num_imports(mod: *u8): i32;
+extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
+extern "C" function pipeline_module_func_param_name_len_at(mod: *u8, fi: i32, pix: i32): i32;
+extern "C" function pipeline_module_func_param_name_copy32(mod: *u8, fi: i32, pix: i32, dst: *u8): void;
+extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
+extern "C" function pipeline_type_region_label_into(arena: *u8, tr: i32, out64: *u8): i32;
 
 function pipeline_glue_strict_minimal_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-107：strict minimal typeck helpers 门闩 ---- */
+/* ---- G-02f-107 / G-02f-139：strict minimal typeck helpers ---- */
 
+// G-02f-139：TYPE_NAMED 全名或 unqualified 后缀相等
 #[no_mangle]
-function pipeline_typeck_named_equal_strict_minimal(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
-  unsafe { return pipeline_typeck_named_equal_strict_minimal_impl(a, alen, b, blen); }
+function pipeline_typeck_named_equal_strict_minimal(arena: *u8, a: i32, b: i32): i32 {
+  if (arena == 0) { return 0; }
+  unsafe {
+    let buf_a: u8[64] = [];
+    let buf_b: u8[64] = [];
+    let na: i32 = pipeline_type_named_name_into(arena, a, &buf_a[0]);
+    let nb: i32 = pipeline_type_named_name_into(arena, b, &buf_b[0]);
+    if (na <= 0) { return 0; }
+    if (nb <= 0) { return 0; }
+    if (na == nb) {
+      let i: i32 = 0;
+      let ok: i32 = 1;
+      while (i < na) {
+        if (buf_a[i] != buf_b[i]) { ok = 0; break; }
+        i = i + 1;
+      }
+      if (ok != 0) { return 1; }
+    }
+    let oa: i32 = pipeline_typeck_named_unqual_offset_strict_minimal(&buf_a[0], na);
+    let ob: i32 = pipeline_typeck_named_unqual_offset_strict_minimal(&buf_b[0], nb);
+    let ua: i32 = na - oa;
+    let ub: i32 = nb - ob;
+    if (ua != ub) { return 0; }
+    let j: i32 = 0;
+    while (j < ua) {
+      if (buf_a[oa + j] != buf_b[ob + j]) { return 0; }
+      j = j + 1;
+    }
+    return 1;
+  }
   return 0;
 }
 
+// G-02f-139：import binding 名与 name 逐字节相等
 #[no_mangle]
-function pipeline_typeck_import_binding_name_equal_strict_minimal(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
-  unsafe { return pipeline_typeck_import_binding_name_equal_strict_minimal_impl(a, alen, b, blen); }
+function pipeline_typeck_import_binding_name_equal_strict_minimal(module: *u8, dep_ix: i32, name: *u8, name_len: i32): i32 {
+  if (module == 0) { return 0; }
+  if (name == 0) { return 0; }
+  if (name_len <= 0) { return 0; }
+  if (dep_ix < 0) { return 0; }
+  unsafe {
+    if (dep_ix >= parser_get_module_num_imports(module)) { return 0; }
+    let bind_len: i32 = pipeline_module_import_binding_name_len(module, dep_ix);
+    if (bind_len != name_len) { return 0; }
+    if (bind_len <= 0) { return 0; }
+    if (bind_len > 63) { return 0; }
+    let i: i32 = 0;
+    while (i < bind_len) {
+      if (pipeline_module_import_binding_name_byte_at(module, dep_ix, i) != name[i]) { return 0; }
+      i = i + 1;
+    }
+    return 1;
+  }
   return 0;
 }
 
+// G-02f-139：VAR 是否为指定形参（EXPR_VAR=3）
 #[no_mangle]
-function pipeline_expr_is_func_param_at_strict_minimal(arena: *u8, mod: *u8, fi: i32, er: i32, pix: i32): i32 {
-  unsafe { return pipeline_expr_is_func_param_at_strict_minimal_impl(arena, mod, fi, er, pix); }
+function pipeline_expr_is_func_param_at_strict_minimal(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (mod == 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 3) { return 0; }
+    let plen: i32 = pipeline_module_func_param_name_len_at(mod, func_idx, param_ix);
+    let vlen: i32 = pipeline_expr_var_name_len(arena, expr_ref);
+    if (plen <= 0) { return 0; }
+    if (plen != vlen) { return 0; }
+    let pbuf: u8[32] = [];
+    let vbuf: u8[64] = [];
+    pipeline_module_func_param_name_copy32(mod, func_idx, param_ix, &pbuf[0]);
+    pipeline_expr_var_name_into(arena, expr_ref, &vbuf[0]);
+    let k: i32 = 0;
+    while (k < plen) {
+      if (pbuf[k] != vbuf[k]) { return 0; }
+      k = k + 1;
+    }
+    return 1;
+  }
   return 0;
 }
 
@@ -41,7 +114,6 @@ extern "C" function pipeline_typeck_find_func_index_in_module_by_name_strict_min
 extern "C" function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal_impl(mod: *u8, arena: *u8, name: *u8, nlen: i32, a: i32, b: i32, c: *u8, d: *u8): i32;
 extern "C" function pipeline_typeck_map_import_binding_named_to_caller_strict_minimal_impl(mod: *u8, dep: i32, arena: *u8, nm: *u8, nlen: i32): i32;
 extern "C" function pipeline_typeck_linear_name_already_moved_strict_minimal_impl(name: *u8, nlen: i32): i32;
-extern "C" function pipeline_typeck_slice_region_conflict_strict_minimal_impl(arena: *u8, a: i32, b: i32): i32;
 extern "C" function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
 extern "C" function pipeline_type_region_label_len_at(arena: *u8, tr: i32): i32;
 extern "C" function pipeline_typeck_expr_diag_line_col_strict_minimal_impl(arena: *u8, er: i32, line: *i32, col: *i32): void;
@@ -79,13 +151,34 @@ function pipeline_typeck_linear_name_already_moved_strict_minimal(name: *u8, nle
   return 0;
 }
 
+// G-02f-139：两 SLICE region label 均有且不等 → conflict
 #[no_mangle]
-function pipeline_typeck_slice_region_conflict_strict_minimal(arena: *u8, a: i32, b: i32): i32 {
-  unsafe { return pipeline_typeck_slice_region_conflict_strict_minimal_impl(arena, a, b); }
+function pipeline_typeck_slice_region_conflict_strict_minimal(arena: *u8, expect_ref: i32, src_ref: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (expect_ref <= 0) { return 0; }
+  if (src_ref <= 0) { return 0; }
+  unsafe {
+    // TYPE_SLICE=11
+    if (pipeline_type_kind_ord_at(arena, expect_ref) != 11) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, src_ref) != 11) { return 0; }
+    let ek: i32 = pipeline_type_region_label_len_at(arena, expect_ref);
+    let sk: i32 = pipeline_type_region_label_len_at(arena, src_ref);
+    if (ek <= 0) { return 0; }
+    if (sk <= 0) { return 0; }
+    let eb: u8[64] = [];
+    let sb: u8[64] = [];
+    if (pipeline_type_region_label_into(arena, expect_ref, &eb[0]) != ek) { return 0; }
+    if (pipeline_type_region_label_into(arena, src_ref, &sb[0]) != sk) { return 0; }
+    if (ek != sk) { return 1; }
+    let i: i32 = 0;
+    while (i < ek) {
+      if (eb[i] != sb[i]) { return 1; }
+      i = i + 1;
+    }
+  }
   return 0;
 }
 
-#[no_mangle]
 // G-02f-135：SLICE=11；src 有 region 而 expect 无 → escape
 #[no_mangle]
 function pipeline_typeck_slice_region_escape_strict_minimal(arena: *u8, expect_ref: i32, src_ref: i32): i32 {

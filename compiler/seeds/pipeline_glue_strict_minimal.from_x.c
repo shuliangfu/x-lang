@@ -715,7 +715,8 @@ int32_t pipeline_typeck_named_unqual_offset_strict_minimal(const uint8_t *buf, i
 
 
 
-int32_t pipeline_typeck_named_equal_strict_minimal_impl(struct ast_ASTArena *arena, int32_t a, int32_t b) {
+/* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_named_equal_strict_minimal(struct ast_ASTArena *arena, int32_t a, int32_t b) {
   uint8_t buf_a[64];
   uint8_t buf_b[64];
   int32_t na;
@@ -751,15 +752,10 @@ int32_t pipeline_typeck_named_equal_strict_minimal_impl(struct ast_ASTArena *are
   }
   return 1;
 }
-int32_t pipeline_typeck_named_equal_strict_minimal(struct ast_ASTArena *arena, int32_t a, int32_t b) {
-  {
-    return pipeline_typeck_named_equal_strict_minimal_impl(arena, a, b);
-  }
-  return 0;
-}
 
 
-int32_t pipeline_typeck_import_binding_name_equal_strict_minimal_impl(struct ast_Module *module, int32_t dep_ix,
+/* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct ast_Module *module, int32_t dep_ix,
                                                                         const uint8_t *name, int32_t name_len) {
   int32_t bind_len;
   int32_t i;
@@ -773,13 +769,6 @@ int32_t pipeline_typeck_import_binding_name_equal_strict_minimal_impl(struct ast
       return 0;
   }
   return 1;
-}
-int32_t pipeline_typeck_import_binding_name_equal_strict_minimal(struct ast_Module *module, int32_t dep_ix,
-                                                                        const uint8_t *name, int32_t name_len) {
-  {
-    return pipeline_typeck_import_binding_name_equal_strict_minimal_impl(module, dep_ix, name, name_len);
-  }
-  return 0;
 }
 
 
@@ -1176,7 +1165,8 @@ __attribute__((weak)) int32_t pipeline_typeck_linear_accepts_init_c(struct ast_A
   return pipeline_typeck_type_refs_equal_c(arena, pipeline_type_elem_ref_at(arena, decl_ref), init_ref);
 }
 
-int32_t pipeline_typeck_slice_region_conflict_strict_minimal_impl(struct ast_ASTArena *arena, int32_t expect_ref,
+/* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t pipeline_typeck_slice_region_conflict_strict_minimal(struct ast_ASTArena *arena, int32_t expect_ref,
                                                                     int32_t src_ref) {
   int32_t ek;
   int32_t sk;
@@ -1196,13 +1186,6 @@ int32_t pipeline_typeck_slice_region_conflict_strict_minimal_impl(struct ast_AST
     return 0;
   return (ek != sk || memcmp(eb, sb, (size_t)ek) != 0) ? 1 : 0;
 }
-int32_t pipeline_typeck_slice_region_conflict_strict_minimal(struct ast_ASTArena *arena, int32_t expect_ref,
-                                                                    int32_t src_ref) {
-  {
-    return pipeline_typeck_slice_region_conflict_strict_minimal_impl(arena, expect_ref, src_ref);
-  }
-  return 0;
-}
 
 
 /* G-02f-135：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -1221,7 +1204,8 @@ int32_t pipeline_typeck_slice_region_escape_strict_minimal(struct ast_ASTArena *
 }
 
 
-int pipeline_expr_is_func_param_at_strict_minimal_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int pipeline_expr_is_func_param_at_strict_minimal(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                          int32_t func_idx, int32_t expr_ref, int32_t param_ix) {
   uint8_t pbuf[32];
   uint8_t vbuf[64];
@@ -1241,13 +1225,6 @@ int pipeline_expr_is_func_param_at_strict_minimal_impl(struct ast_ASTArena *aren
       return 0;
   }
   return 1;
-}
-int pipeline_expr_is_func_param_at_strict_minimal(struct ast_ASTArena *arena, struct ast_Module *mod,
-                                                         int32_t func_idx, int32_t expr_ref, int32_t param_ix) {
-  {
-    return pipeline_expr_is_func_param_at_strict_minimal_impl(arena, mod, func_idx, expr_ref, param_ix);
-  }
-  return 0;
 }
 
 

@@ -7,21 +7,41 @@
 // G-02f-99：+ format_u32 / elf append u32 / arm64 mov imm32 薄门闩。
 // G-02f-128：shu_elf_ctx_append_u32_le / shu_arm64_mov_imm32_to_w0_c 真迁 .x
 
-extern "C" function shu_format_u32_to_buf_impl(buf: *u8, off: i32, max: i32, u: u32): i32;
 extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
 
 function asm_backend_compat_stubs_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-99：format 门闩 ---- */
+/* ---- G-02f-99 / G-02f-139：format ---- */
 
+// G-02f-139：u32 十进制写入 buf[off..]，返回位数；失败 -1
 #[no_mangle]
 function shu_format_u32_to_buf(buf: *u8, off: i32, max: i32, u: u32): i32 {
-  unsafe {
-    return shu_format_u32_to_buf_impl(buf, off, max, u);
+  if (buf == 0) { return 0 - 1; }
+  if (max < 1) { return 0 - 1; }
+  let tmp: u8[10] = [];
+  let num_digits: i32 = 0;
+  let v: u32 = u;
+  // digit_chars '0'+d
+  while (v > 0) {
+    if (num_digits >= 10) { break; }
+    let d: u32 = v % 10;
+    tmp[num_digits] = (48 + (d as i32)) as u8;
+    num_digits = num_digits + 1;
+    v = v / 10;
   }
-  return 0 - 1;
+  if (num_digits == 0) {
+    buf[off] = 48;
+    return 1;
+  }
+  if (num_digits > max) { return 0 - 1; }
+  let idx: i32 = 0;
+  while (idx < num_digits) {
+    buf[off + idx] = tmp[num_digits - 1 - idx];
+    idx = idx + 1;
+  }
+  return num_digits;
 }
 
 #[no_mangle]
