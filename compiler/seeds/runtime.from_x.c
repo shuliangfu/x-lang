@@ -6972,6 +6972,8 @@ int driver_run_x_emit_c_extern_via_cparser(const char *input_path) {
 #endif /* !SHUX_NO_C_FRONTEND */
 #endif /* SHUX_USE_X_DRIVER && SHUX_USE_X_PIPELINE */
 
+/* G-02f-314：-x -E emit → rt_run_x_emit hybrid */
+#ifndef SHUX_RT_RUN_X_EMIT_FROM_X
 /** 执行刚解析的 -x -E（读文件、.x pipeline、写 stdout）；成功 0，失败 1。无 SHUX_USE_X_PIPELINE 时返回 1。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int driver_run_x_emit_c(void) {
@@ -7368,6 +7370,10 @@ x_emit_c_done:
     return 1;
 #endif
 }
+#else
+int driver_run_x_emit_c(void);
+int labi_rt_run_x_emit_slice_marker(void);
+#endif
 
 
 
