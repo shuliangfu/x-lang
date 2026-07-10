@@ -1,4 +1,5 @@
-/* Generated from src/driver/fmt_check_cmd.x (G-02f-31 true .x + C tail).
+/* G-02f-350：PREFER hybrid thin 由 src/driver/fmt_check_cmd_thin.x；rest SHUX_L2_FMT_CHECK_THIN_FROM_X。
+ * Generated from src/driver/fmt_check_cmd.x (G-02f-31 true .x + C tail).
  * G-02f-116 true .x pure helpers.
  * G-02f-112 helper gates.
  * G-02f-107 helper gates.
@@ -71,6 +72,12 @@ void closedir_win(DIR *d) {
 #include <sys/stat.h>
 #ifndef _WIN32
 #include <unistd.h>
+
+#ifdef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int32_t driver_check_quiet_ok_get(void);
+int fmt_walk_skip_dot_name(const char *name);
+int check_one_need_fallback_diag(int rc, int nd, int nd_errors, int nd_warnings, int nd_infos, int direct_diag);
+#endif
 #endif
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
@@ -119,9 +126,12 @@ static int s_check_quiet_ok = 1;
 /**
  * 供 runtime.c 查询：check 子命令是否抑制逐文件 check OK 行。
  */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int32_t driver_check_quiet_ok_get(void) {
   return 1;
 }
+#endif
+
 
 static char s_unformatted_paths[DRIVER_FMT_MAX_FILES][512];
 static int s_unformatted_count;
@@ -510,6 +520,7 @@ int file_list_push(const char *path) {
 
 
 /* G-02f-249：逻辑源 .x（真迁 skip '.' 名）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int fmt_walk_skip_dot_name(const char *name) {
     if (!name || !name[0])
         return 1;
@@ -517,6 +528,8 @@ int fmt_walk_skip_dot_name(const char *name) {
         return 1;
     return 0;
 }
+#endif
+
 
 void walk_dir_collect(const char *dir);
 
@@ -828,6 +841,7 @@ int driver_run_fmt(int argc, char **argv) {
 }
 
 /* G-02f-250：逻辑源 .x（真迁 fallback/lint 判定）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 int check_one_need_fallback_diag(int rc, int nd, int nd_errors, int nd_warnings, int nd_infos,
                                 int direct_diag) {
     if (rc == 0)
@@ -840,6 +854,8 @@ int check_one_need_fallback_diag(int rc, int nd, int nd_errors, int nd_warnings,
         return 1;
     return 0;
 }
+#endif
+
 
 int check_one_finalize_rc(int rc, int warn_count) {
     if (rc != 0)

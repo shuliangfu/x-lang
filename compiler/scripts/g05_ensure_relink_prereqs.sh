@@ -1662,12 +1662,36 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
+  # G-02f-11 / G-02f-350：fmt_check_cmd_driver.o
+  # 默认整 seed（-DSHUX_USE_X_PIPELINE）；PREFER 时 thin 3 pure + rest ld -r
   _fcc=seeds/fmt_check_cmd.from_x.c
+  _fcc_thin_x=src/driver/fmt_check_cmd_thin.x
+  _fcc_o=src/driver/fmt_check_cmd_driver.o
   if [ -f "$_fcc" ]; then
-    if [ ! -f src/driver/fmt_check_cmd_driver.o ] || [ "$_fcc" -nt src/driver/fmt_check_cmd_driver.o ]; then
-      echo "g05_ensure: fmt_check_cmd_driver.o ← seed -DSHUX_USE_X_PIPELINE (G-02f-11)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c -o src/driver/fmt_check_cmd_driver.o "$_fcc"
+    if [ ! -f "$_fcc_o" ] || [ "$_fcc" -nt "$_fcc_o" ] \
+      || { [ -f "$_fcc_thin_x" ] && [ "$_fcc_thin_x" -nt "$_fcc_o" ]; }; then
+      _fcc_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_fcc_thin_x" ]; then
+        _fcc_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_fcc_thin.XXXXXX") || true
+        _fcc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_fcc_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_fcc_thin_o" ] && [ -n "$_fcc_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_fcc_thin_x" "$_fcc_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -DSHUX_L2_FMT_CHECK_THIN_FROM_X \
+               -c -o "$_fcc_rest_o" "$_fcc" \
+          && $CC -r -nostdlib -o "$_fcc_o" "$_fcc_thin_o" "$_fcc_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_fcc_o ← $_fcc_thin_x + seed-rest (G-02f-350 L2 hybrid fmt_check thin)"
+          _fcc_done=1
+        else
+          echo "g05_ensure: L2 hybrid fmt_check thin failed; fallback full seed" >&2
+        fi
+        rm -f "$_fcc_thin_o" "$_fcc_rest_o"
+      fi
+      if [ "$_fcc_done" = "0" ]; then
+        echo "g05_ensure: fmt_check_cmd_driver.o ← seed -DSHUX_USE_X_PIPELINE (G-02f-11)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c -o "$_fcc_o" "$_fcc"
+      fi
     fi
   fi
   # G-02f-15：lsp_diag + USER_ASM seed bridges
