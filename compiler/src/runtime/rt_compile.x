@@ -1,12 +1,13 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-291/292 / P2 runtime R6 compile pure helpers。
+// G-02f-291/292/293 / P2 runtime R6 compile helpers。
 // 产品实现：seeds/rt_compile.from_x.c；hybrid 宏 SHUX_RT_COMPILE_FROM_X。
 //
 // f-291：deps_std_core + emit_asm path pure
 // f-292：argv state — copy_path / freestanding / help
-// 主编排/IO 仍 mega。
+// f-293：apply_minus_o/L/O + backend/target/target_cpu next
+// parse_argv_step/scan/impl 仍 mega。
 
 extern "C" function strncmp(a: *u8, b: *u8, n: usize): i32;
 extern "C" function strcmp(a: *u8, b: *u8): i32;

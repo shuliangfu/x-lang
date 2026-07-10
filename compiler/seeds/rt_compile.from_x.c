@@ -1,10 +1,11 @@
-/* seeds/rt_compile.from_x.c — G-02f-291/292 P2 runtime R6 compile pure helpers
+/* seeds/rt_compile.from_x.c — G-02f-291/292/293 P2 runtime R6 compile helpers
  * Logic source: src/runtime/rt_compile.x
  * Hybrid: SHUX_RT_COMPILE_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * f-291: deps_std_core + emit_asm path pure
  * f-292: argv state field helpers (copy_path / freestanding / help)
- * Full driver_compile_* phase/IO remains in runtime mega rest.
+ * f-293: apply_minus_o/L/O + backend/target/target_cpu next
+ * Full parse_argv_step/scan/impl + resolve_target_cpu remain mega rest.
  */
 #if !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 200809L
@@ -41,6 +42,11 @@ extern void driver_freestanding_set(int on);
 extern void cfg_set_freestanding(int on);
 extern void driver_sanitize_address_set(int on);
 extern int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max);
+extern void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
+/* From rt_argv seed when hybrid; else mega rest. */
+extern int drv_eq_asm_word(const char *buf, int len);
+extern int drv_eq_c_word(const char *buf, int len);
+extern int drv_target_has_arm(const char *buf, int len);
 
 /**
  * dep 列表是否全为 std./core. 闭包（符号由预编 .o / preamble 提供，勿 dep_prerun 全量 typeck）。
@@ -150,6 +156,97 @@ int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
       return 1;
   }
   return 0;
+}
+
+/* --- G-02f-293: apply next-token argv helpers --- */
+
+/** -o：下一 argv 写入 out_path_buf/out_path_len。 */
+void driver_compile_argv_apply_minus_o_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i) {
+  char **argv = (char **)argv_opaque;
+  int32_t olen;
+
+  if (!state || i + 1 >= argc)
+    return;
+  olen = driver_get_argv_i(argc, argv, i + 1, (char *)state->out_path_buf, 512);
+  if (olen >= 0)
+    state->out_path_len = olen;
+}
+
+/** -L：下一 argv 经 arg_buf 追加 lib_root sidecar。 */
+void driver_compile_argv_apply_minus_L_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                               int32_t i, uint8_t *arg_buf, int32_t arg_cap) {
+  char **argv = (char **)argv_opaque;
+  int32_t llen;
+
+  if (!state || !arg_buf || arg_cap <= 0 || i + 1 >= argc)
+    return;
+  llen = driver_get_argv_i(argc, argv, i + 1, (char *)arg_buf, arg_cap);
+  if (llen >= 0)
+    driver_compile_append_lib_root_c(state, arg_buf, llen);
+}
+
+/** -O：下一 argv 写入 opt_level_buf/opt_level_len。 */
+void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i) {
+  char **argv = (char **)argv_opaque;
+  int32_t olen;
+
+  if (!state || i + 1 >= argc)
+    return;
+  olen = driver_get_argv_i(argc, argv, i + 1, (char *)state->opt_level_buf, 8);
+  if (olen >= 0)
+    state->opt_level_len = olen;
+}
+
+/** -backend <asm|c>：更新 use_asm_backend/backend_asm_explicit。 */
+void driver_compile_argv_apply_backend_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i, uint8_t *arg_buf, int32_t arg_cap) {
+  char **argv = (char **)argv_opaque;
+  int32_t vlen;
+
+  if (!state || !arg_buf || arg_cap <= 0 || i + 1 >= argc)
+    return;
+  vlen = driver_get_argv_i(argc, argv, i + 1, (char *)arg_buf, arg_cap);
+  if (vlen >= 0 && drv_eq_asm_word((char *)arg_buf, vlen)) {
+    state->use_asm_backend = 1;
+    state->backend_asm_explicit = 1;
+  }
+  if (vlen >= 0 && drv_eq_c_word((char *)arg_buf, vlen)) {
+    state->use_asm_backend = 0;
+    state->backend_asm_explicit = 0;
+  }
+}
+
+/** -target：写入 target_buf/target_len/parse_saw_target/target_arch。 */
+void driver_compile_argv_apply_target_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                             int32_t i) {
+  char **argv = (char **)argv_opaque;
+  int32_t tlen;
+
+  if (!state || i + 1 >= argc)
+    return;
+  state->parse_saw_target = 1;
+  tlen = driver_get_argv_i(argc, argv, i + 1, (char *)state->target_buf, 512);
+  if (tlen >= 0) {
+    state->target_len = tlen;
+    if (drv_target_has_arm((char *)state->target_buf, tlen))
+      state->target_arch = 1;
+  }
+}
+
+/** `-target-cpu`：下一 argv 写入 target_cpu_buf/target_cpu_len。 */
+void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                                  int32_t i) {
+  char **argv = (char **)argv_opaque;
+  int32_t tlen;
+
+  if (!state || i + 1 >= argc)
+    return;
+  state->parse_saw_target_cpu = 1;
+  tlen = driver_get_argv_i(argc, argv, i + 1, (char *)state->target_cpu_buf, 64);
+  if (tlen >= 0)
+    state->target_cpu_len = tlen;
 }
 
 int labi_rt_compile_slice_marker(void) {

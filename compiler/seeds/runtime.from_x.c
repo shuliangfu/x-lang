@@ -4572,6 +4572,18 @@ void driver_compile_argv_set_use_freestanding_c(DriverCompileStateSU *state);
 void driver_compile_argv_set_legacy_f32_abi_c(void);
 void driver_compile_argv_set_sanitize_address_c(void);
 int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque);
+void driver_compile_argv_apply_minus_o_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i);
+void driver_compile_argv_apply_minus_L_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                               int32_t i, uint8_t *arg_buf, int32_t arg_cap);
+void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i);
+void driver_compile_argv_apply_backend_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i, uint8_t *arg_buf, int32_t arg_cap);
+void driver_compile_argv_apply_target_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                             int32_t i);
+void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                                  int32_t i);
 int labi_rt_compile_slice_marker(void);
 #endif /* !SHUX_RT_COMPILE_FROM_X */
 
@@ -6131,8 +6143,9 @@ void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path
 
 
 
-/** -o：下一 argv 写入 out_path_buf/out_path_len（EMIT_HEAVY step 勿 X field store）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/** -o / -L / -O：下一 argv 写入 state 或 lib_root sidecar。 */
+/* G-02f-293 R6 → rt_compile hybrid */
+#ifndef SHUX_RT_COMPILE_FROM_X
 void driver_compile_argv_apply_minus_o_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                               int32_t i) {
     char **argv = (char **)argv_opaque;
@@ -6145,11 +6158,6 @@ void driver_compile_argv_apply_minus_o_next_c(DriverCompileStateSU *state, int32
         state->out_path_len = olen;
 }
 
-
-
-
-/** -L：下一 argv 经 arg_buf 追加 lib_root sidecar。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void driver_compile_argv_apply_minus_L_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                                int32_t i, uint8_t *arg_buf, int32_t arg_cap) {
     char **argv = (char **)argv_opaque;
@@ -6162,11 +6170,6 @@ void driver_compile_argv_apply_minus_L_next_c(DriverCompileStateSU *state, int32
         driver_compile_append_lib_root_c(state, arg_buf, llen);
 }
 
-
-
-
-/** -O：下一 argv 写入 opt_level_buf/opt_level_len。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                               int32_t i) {
     char **argv = (char **)argv_opaque;
@@ -6178,6 +6181,14 @@ void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32
     if (olen >= 0)
         state->opt_level_len = olen;
 }
+#else
+void driver_compile_argv_apply_minus_o_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i);
+void driver_compile_argv_apply_minus_L_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                               int32_t i, uint8_t *arg_buf, int32_t arg_cap);
+void driver_compile_argv_apply_minus_O_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i);
+#endif
 
 
 
@@ -6227,8 +6238,9 @@ void driver_compile_argv_set_sanitize_address_c(void);
 
 
 
-/** -backend <asm|c>：更新 use_asm_backend/backend_asm_explicit。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/** -backend / -target / -target-cpu next-token 写入 state。 */
+/* G-02f-293 R6 → rt_compile hybrid */
+#ifndef SHUX_RT_COMPILE_FROM_X
 void driver_compile_argv_apply_backend_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                               int32_t i, uint8_t *arg_buf, int32_t arg_cap) {
     char **argv = (char **)argv_opaque;
@@ -6247,11 +6259,6 @@ void driver_compile_argv_apply_backend_next_c(DriverCompileStateSU *state, int32
     }
 }
 
-
-
-
-/** -target：写入 target_buf/target_len/parse_saw_target/target_arch。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void driver_compile_argv_apply_target_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                              int32_t i) {
     char **argv = (char **)argv_opaque;
@@ -6268,11 +6275,6 @@ void driver_compile_argv_apply_target_next_c(DriverCompileStateSU *state, int32_
     }
 }
 
-
-
-
-/** `-target-cpu`：下一 argv 写入 target_cpu_buf/target_cpu_len。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                                   int32_t i) {
     char **argv = (char **)argv_opaque;
@@ -6285,6 +6287,14 @@ void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, in
     if (tlen >= 0)
         state->target_cpu_len = tlen;
 }
+#else
+void driver_compile_argv_apply_backend_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                              int32_t i, uint8_t *arg_buf, int32_t arg_cap);
+void driver_compile_argv_apply_target_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                             int32_t i);
+void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
+                                                  int32_t i);
+#endif
 
 
 
