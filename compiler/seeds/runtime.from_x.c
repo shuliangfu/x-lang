@@ -3313,7 +3313,8 @@ int driver_fs_open_write(const uint8_t *path, int path_len) {
 
 
 /** 检测内存中的源码 content[0..n-1] 是否含泛型或 trait 语法（.x 流水线不支持，需走 C 路径）。 */
-/* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-126 / G-02f-261：逻辑源 src/runtime/rt_content.x；hybrid 时 SHUX_RT_CONTENT_FROM_X + seeds/rt_content.from_x.c */
+#ifndef SHUX_RT_CONTENT_FROM_X
 int content_has_generic_syntax(const char *content, size_t n) {
     static const char *generic_type_tokens[] = {
         "<i8>", "<i16>", "<i32>", "<i64>", "<u8>", "<u16>", "<u32>", "<u64>", "<f32>", "<f64>", "<bool>",
@@ -3358,6 +3359,10 @@ int content_has_generic_syntax(const char *content, size_t n) {
 
 /** 检测 path 指向的源码文件是否含泛型语法（如 <T> 或 <i32>），有则返回 1 否则 0；供 .x driver 在 run_compiler_x_path 中决定是否走 C 流水线。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#else
+int content_has_generic_syntax(const char *content, size_t n);
+#endif /* !SHUX_RT_CONTENT_FROM_X (generic) */
+
 int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
     char content[65536];
     int rn;
@@ -3380,7 +3385,8 @@ int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
 
 /** 检测内存源码是否含复合赋值（+= 等）；.x 解析器未覆盖时须走 C 流水线（run-compound-assign 等）。
  * 跳过 //、块注释与双引号字符串，避免注释/字面量中的 token 误触发 asm→C 降级。 */
-/* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-126 / G-02f-261：逻辑源 rt_content.x */
+#ifndef SHUX_RT_CONTENT_FROM_X
 int content_has_compound_assign_syntax(const char *content, size_t n) {
     if (!content || n < 3)
         return 0;
@@ -3428,6 +3434,10 @@ int content_has_compound_assign_syntax(const char *content, size_t n) {
 
 /** 供 compile.x：源码含复合赋值则返回 1，默认 asm 应降级为 C。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#else
+int content_has_compound_assign_syntax(const char *content, size_t n);
+#endif /* !SHUX_RT_CONTENT_FROM_X (compound) */
+
 int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) {
     char content[65536];
     int rn;
