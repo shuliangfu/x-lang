@@ -4,6 +4,7 @@
 // G-02f-15：runtime_lsp_glue 产品源迁 seeds/runtime_lsp_glue.from_x.c。
 // 本文件为语义对照 / 后续真迁 .x 锚点；实现仍在 seed C。
 // 产品：cc seeds/runtime_lsp_glue.from_x.c → src/lsp/lsp_diag.o
+// G-02f-251：P1-9 开局 — uri↔path pure + copy_text pure。
 
 function runtime_lsp_glue_x_doc_anchor(): i32 {
   return 0;
@@ -12,34 +13,250 @@ function runtime_lsp_glue_x_doc_anchor(): i32 {
 // G-02f-109：+ uri/path/json/hash/line_index 薄门闩。
 
 extern "C" function lsp_free_import_cache_impl(): void;
-extern "C" function lsp_uri_to_fs_path_impl(uri: *u8, out: *u8, cap: i64): void;
-extern "C" function lsp_fs_path_to_uri_impl(path: *u8, uri: *u8, cap: i64): void;
+/* uri↔path：G-02f-251 下方真迁 pure */
 extern "C" function lsp_update_entry_dir_impl(path: *u8): void;
 extern "C" function lsp_init_lib_roots_once_impl(): void;
-extern "C" function lsp_diag_copy_text_impl(dst: *u8, cap: i32, src: *u8): void;
+/* copy_text：G-02f-251 下方真迁 pure */
 extern "C" function lsp_diag_x_ctx_alloc_size_impl(): i64;
 extern "C" function json_escape_str_impl(msg: *u8, out: *u8, cap: i32): i32;
 extern "C" function build_line_index_impl(mod: *u8): void;
 extern "C" function line_index_of_func_impl(f: *u8): i32;
 
-/* ---- G-02f-109：lsp glue helpers 门闩 ---- */
+/* ---- G-02f-109 / G-02f-251：lsp glue helpers ---- */
 
 #[no_mangle]
-function lsp_free_import_cache(): void { unsafe { lsp_free_import_cache_impl(); } }
+function lsp_free_import_cache(): void {
+  unsafe {
+    lsp_free_import_cache_impl();
+  }
+}
+
+// G-02f-251：hex nibble → 0..15；非法 -1
+function lsp_hex_nibble(c: i32): i32 {
+  if (c >= 48) {
+    if (c <= 57) {
+      return c - 48;
+    }
+  }
+  if (c >= 97) {
+    if (c <= 102) {
+      return c - 97 + 10;
+    }
+  }
+  if (c >= 65) {
+    if (c <= 70) {
+      return c - 65 + 10;
+    }
+  }
+  return 0 - 1;
+}
+
+// G-02f-251：是否以 file:// 开头
+function lsp_uri_has_file_scheme(uri: *u8): i32 {
+  if (uri == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    // file://
+    if (uri[0] != 102) {
+      return 0;
+    }
+    if (uri[1] != 105) {
+      return 0;
+    }
+    if (uri[2] != 108) {
+      return 0;
+    }
+    if (uri[3] != 101) {
+      return 0;
+    }
+    if (uri[4] != 58) {
+      return 0;
+    }
+    if (uri[5] != 47) {
+      return 0;
+    }
+    if (uri[6] != 47) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+// G-02f-251：file URI → 本地路径（%XX 解码）
 #[no_mangle]
-function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void { unsafe { lsp_uri_to_fs_path_impl(uri, out, cap); } }
+function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
+  if (uri == 0 as *u8) {
+    return;
+  }
+  if (out == 0 as *u8) {
+    return;
+  }
+  if (cap <= 0) {
+    return;
+  }
+  unsafe {
+    out[0] = 0;
+    if (lsp_uri_has_file_scheme(uri) == 0) {
+      return;
+    }
+    let p: i64 = 7;
+    let k: i64 = 0;
+    while (k + 1 < cap) {
+      let c: u8 = uri[p];
+      if (c == 0) {
+        break;
+      }
+      if (c == 37) {
+        // %XX；非法 nibble 按 0（与 seed C 一致）
+        let hi: i32 = uri[p + 1] as i32;
+        let lo: i32 = uri[p + 2] as i32;
+        if (hi == 0) {
+          break;
+        }
+        if (lo == 0) {
+          break;
+        }
+        let vh: i32 = lsp_hex_nibble(hi);
+        let vl: i32 = lsp_hex_nibble(lo);
+        let v: i32 = 0;
+        if (vh >= 0) {
+          v = vh * 16;
+        }
+        if (vl >= 0) {
+          v = v + vl;
+        }
+        out[k] = v as u8;
+        k = k + 1;
+        p = p + 3;
+      } else {
+        out[k] = c;
+        k = k + 1;
+        p = p + 1;
+      }
+    }
+    out[k] = 0;
+  }
+}
+
+// G-02f-251：本地路径 → file URI（空格 → %20）
 #[no_mangle]
-function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i64): void { unsafe { lsp_fs_path_to_uri_impl(path, uri, cap); } }
+function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i64): void {
+  if (path == 0 as *u8) {
+    return;
+  }
+  if (uri == 0 as *u8) {
+    return;
+  }
+  if (cap < 8) {
+    return;
+  }
+  unsafe {
+    let k: i64 = 0;
+    // file://
+    uri[k] = 102;
+    k = k + 1;
+    uri[k] = 105;
+    k = k + 1;
+    uri[k] = 108;
+    k = k + 1;
+    uri[k] = 101;
+    k = k + 1;
+    uri[k] = 58;
+    k = k + 1;
+    uri[k] = 47;
+    k = k + 1;
+    uri[k] = 47;
+    k = k + 1;
+    let p: i64 = 0;
+    while (k + 4 < cap) {
+      let c: u8 = path[p];
+      if (c == 0) {
+        break;
+      }
+      if (c == 32) {
+        // space
+        uri[k] = 37;
+        k = k + 1;
+        uri[k] = 50;
+        k = k + 1;
+        uri[k] = 48;
+        k = k + 1;
+      } else {
+        uri[k] = c;
+        k = k + 1;
+      }
+      p = p + 1;
+    }
+    uri[k] = 0;
+  }
+}
+
 #[no_mangle]
-function lsp_update_entry_dir(path: *u8): void { unsafe { lsp_update_entry_dir_impl(path); } }
+function lsp_update_entry_dir(path: *u8): void {
+  if (path == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    lsp_update_entry_dir_impl(path);
+  }
+}
+
 #[no_mangle]
-function lsp_init_lib_roots_once(): void { unsafe { lsp_init_lib_roots_once_impl(); } }
+function lsp_init_lib_roots_once(): void {
+  unsafe {
+    lsp_init_lib_roots_once_impl();
+  }
+}
+
+// G-02f-251：有界 cstr 拷贝 pure
 #[no_mangle]
-function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void { unsafe { lsp_diag_copy_text_impl(dst, cap, src); } }
+function lsp_diag_copy_text(dst: *u8, cap: i32, src: *u8): void {
+  if (dst == 0 as *u8) {
+    return;
+  }
+  if (cap <= 0) {
+    return;
+  }
+  unsafe {
+    if (src == 0 as *u8) {
+      dst[0] = 0;
+      return;
+    }
+    let n: i32 = 0;
+    while (n + 1 < cap) {
+      let c: u8 = src[n];
+      if (c == 0) {
+        break;
+      }
+      dst[n] = c;
+      n = n + 1;
+    }
+    dst[n] = 0;
+  }
+}
+
 #[no_mangle]
-function lsp_diag_x_ctx_alloc_size(): i64 { unsafe { return lsp_diag_x_ctx_alloc_size_impl(); } return 0; }
+function lsp_diag_x_ctx_alloc_size(): i64 {
+  unsafe {
+    return lsp_diag_x_ctx_alloc_size_impl();
+  }
+  return 0;
+}
+
 #[no_mangle]
-function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 { unsafe { return json_escape_str_impl(msg, out, cap); } return 0; }
+function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 {
+  if (out == 0 as *u8) {
+    return 0;
+  }
+  if (cap <= 0) {
+    return 0;
+  }
+  unsafe {
+    return json_escape_str_impl(msg, out, cap);
+  }
+  return 0;
+}
 
 
 // G-02f-133：func_name_covers 见文件尾（依赖 col_in_ident_span）

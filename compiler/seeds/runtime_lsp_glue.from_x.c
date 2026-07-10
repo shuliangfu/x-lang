@@ -7,7 +7,8 @@
  * G-02f-111 helper gates.
  * G-02f-110 helper gates.
  * G-02f-109 helper gates.
- * Product object from this seed; logic still C until full .x port.
+ * G-02f-251: P1-9 open — uri↔path pure + copy_text pure.
+ * Product object from this seed; more logic still C until further L1 port.
  */
 /**
  * lsp_diag.c — LSP 诊断收集器与 definition/hover/references/formatting 等 C 实现
@@ -151,24 +152,37 @@ void lsp_free_import_cache(void) {
 
 
 
+/* G-02f-251：逻辑源 .x（真迁 hex nibble）；seed 保留同语义 C 供产品 cc */
+static int lsp_hex_nibble(int c) {
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
+    return -1;
+}
+
 /** 从 file URI 提取本地路径写入 out（简单 file:// 解码，足够 macOS/Linux 开发）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-251：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 void lsp_uri_to_fs_path(const char *uri, char *out, size_t cap) {
     size_t k = 0;
-    if (!uri || !out || cap == 0) return;
+    const char *p;
+    if (!uri || !out || cap == 0)
+        return;
     out[0] = '\0';
-    if (strncmp(uri, "file://", 7) != 0) return;
-    const char *p = uri + 7;
+    if (strncmp(uri, "file://", 7) != 0)
+        return;
+    p = uri + 7;
     while (*p && k + 1 < cap) {
         if (p[0] == '%' && p[1] && p[2]) {
-            int hi = p[1], lo = p[2];
+            int vh = lsp_hex_nibble((unsigned char)p[1]);
+            int vl = lsp_hex_nibble((unsigned char)p[2]);
             int v = 0;
-            if (hi >= '0' && hi <= '9') v = (hi - '0') << 4;
-            else if (hi >= 'a' && hi <= 'f') v = (hi - 'a' + 10) << 4;
-            else if (hi >= 'A' && hi <= 'F') v = (hi - 'A' + 10) << 4;
-            if (lo >= '0' && lo <= '9') v |= (lo - '0');
-            else if (lo >= 'a' && lo <= 'f') v |= (lo - 'a' + 10);
-            else if (lo >= 'A' && lo <= 'F') v |= (lo - 'A' + 10);
+            if (vh >= 0)
+                v = vh << 4;
+            if (vl >= 0)
+                v |= vl;
             out[k++] = (char)v;
             p += 3;
             continue;
@@ -178,19 +192,27 @@ void lsp_uri_to_fs_path(const char *uri, char *out, size_t cap) {
     out[k] = '\0';
 }
 
-
-
-
 /** 本地路径 → file URI（空格转 %20）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-251：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 void lsp_fs_path_to_uri(const char *path, char *uri, size_t cap) {
     size_t k = 0;
-    if (!path || !uri || cap < 8) return;
-    uri[k++] = 'f'; uri[k++] = 'i'; uri[k++] = 'l'; uri[k++] = 'e';
-    uri[k++] = ':'; uri[k++] = '/'; uri[k++] = '/';
-    for (const char *p = path; *p && k + 4 < cap; p++) {
-        if (*p == ' ') { uri[k++] = '%'; uri[k++] = '2'; uri[k++] = '0'; }
-        else uri[k++] = *p;
+    const char *p;
+    if (!path || !uri || cap < 8)
+        return;
+    uri[k++] = 'f';
+    uri[k++] = 'i';
+    uri[k++] = 'l';
+    uri[k++] = 'e';
+    uri[k++] = ':';
+    uri[k++] = '/';
+    uri[k++] = '/';
+    for (p = path; *p && k + 4 < cap; p++) {
+        if (*p == ' ') {
+            uri[k++] = '%';
+            uri[k++] = '2';
+            uri[k++] = '0';
+        } else
+            uri[k++] = *p;
     }
     uri[k] = '\0';
 }
@@ -308,8 +330,7 @@ void lsp_diag_invalidate_cache(void) {
     s_line_index_n = 0;
     s_typeck_full = 0;
 }
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-251：逻辑源 .x（真迁 pure 有界拷贝）；seed 保留同语义 C 供产品 cc */
 void lsp_diag_copy_text(char *dst, int cap, const char *src) {
     size_t n = 0;
     if (!dst || cap <= 0)
