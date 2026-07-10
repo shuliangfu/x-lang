@@ -11,7 +11,8 @@
  * G-02f-252: json_escape_str pure + entry_dir path split pure.
  * G-02f-253: line_char_to_offset + lsp_doc_line_count pure.
  * G-02f-254: lsp_find_text_value / _from pure.
- * Product object from this seed; more logic still C until further L1 port.
+ * G-02f-255: extract_position pure; P1-9 soft near-close.
+ * Product object from this seed; refs/AST/format/cache still mostly C.
  */
 /**
  * lsp_diag.c — LSP 诊断收集器与 definition/hover/references/formatting 等 C 实现
@@ -2118,27 +2119,40 @@ int lsp_build_response_with_result(int id_val, const uint8_t *result_ptr, int re
 }
 
 /** 在 body[0..len) 中从 start 起找 key（如 "\"line\":\"），返回 key 结束后的偏移，未找到返回 -1。 */
-/* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-122 / G-02f-255：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key) {
     int key_len = 0;
-    while (key[key_len] != '\0') key_len++;
+    if (!body || !key || len < 0 || start < 0)
+        return -1;
+    while (key[key_len] != '\0')
+        key_len++;
+    if (key_len <= 0)
+        return -1;
     while (start + key_len <= len) {
         int match = 1;
-        for (int j = 0; j < key_len; j++)
-            if (body[start + j] != (uint8_t)key[j]) { match = 0; break; }
-        if (match) return start + key_len;
+        int j;
+        for (j = 0; j < key_len; j++)
+            if (body[start + j] != (uint8_t)key[j]) {
+                match = 0;
+                break;
+            }
+        if (match)
+            return start + key_len;
         start++;
     }
     return -1;
 }
 
-
-
+/* G-02f-255：JSON key 字面量（.x extract_position 用） */
+const char *lsp_json_key_position(void) { return "\"position\":"; }
+const char *lsp_json_key_line(void) { return "\"line\":"; }
+const char *lsp_json_key_character(void) { return "\"character\":"; }
 
 /** 从 offset 起解析一个非负整数，写入 *out，返回解析结束后的偏移；非法返回 -1。 */
-/* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-118 / G-02f-255：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
 int lsp_parse_int(const uint8_t *body, int len, int offset, int *out) {
-    if (offset >= len || !out) return -1;
+    if (!body || !out || len < 0 || offset < 0 || offset >= len)
+        return -1;
     *out = 0;
     while (offset < len && body[offset] >= '0' && body[offset] <= '9') {
         *out = *out * 10 + (body[offset] - '0');
@@ -2147,25 +2161,34 @@ int lsp_parse_int(const uint8_t *body, int len, int offset, int *out) {
     return offset;
 }
 
-
-
-
 /**
  * 从 definition/hover 等请求的 body 中提取 params.position：line 与 character（0-based）。
  * 写入 *out_line、*out_character，成功返回 0，失败返回 -1。
+ * G-02f-255：逻辑源 .x（真迁编排 pure）；seed 保留同语义 C 供产品 cc。
  */
 int lsp_extract_position_from_params(const uint8_t *body, int len, int *out_line, int *out_character) {
-    if (!body || len <= 0 || !out_line || !out_character) return -1;
-    int pos = lsp_find_key_after(body, len, 0, "\"position\":");
-    if (pos < 0) return -1;
-    int line_start = lsp_find_key_after(body, len, pos, "\"line\":");
-    if (line_start < 0) return -1;
-    int char_start = lsp_find_key_after(body, len, pos, "\"character\":");
-    if (char_start < 0) return -1;
-    int line_end = lsp_parse_int(body, len, line_start, out_line);
-    if (line_end < 0) return -1;
-    int char_end = lsp_parse_int(body, len, char_start, out_character);
-    if (char_end < 0) return -1;
+    int pos;
+    int line_start;
+    int char_start;
+    int line_end;
+    int char_end;
+    if (!body || len <= 0 || !out_line || !out_character)
+        return -1;
+    pos = lsp_find_key_after(body, len, 0, lsp_json_key_position());
+    if (pos < 0)
+        return -1;
+    line_start = lsp_find_key_after(body, len, pos, lsp_json_key_line());
+    if (line_start < 0)
+        return -1;
+    char_start = lsp_find_key_after(body, len, pos, lsp_json_key_character());
+    if (char_start < 0)
+        return -1;
+    line_end = lsp_parse_int(body, len, line_start, out_line);
+    if (line_end < 0)
+        return -1;
+    char_end = lsp_parse_int(body, len, char_start, out_character);
+    if (char_end < 0)
+        return -1;
     return 0;
 }
 

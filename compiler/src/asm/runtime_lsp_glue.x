@@ -8,6 +8,7 @@
 // G-02f-252：json_escape_str pure + entry_dir 路径拆分 pure。
 // G-02f-253：line_char_to_offset + lsp_doc_line_count pure。
 // G-02f-254：lsp_find_text_value / _from pure。
+// G-02f-255：extract_position pure；P1-9 soft 近闭。
 
 function runtime_lsp_glue_x_doc_anchor(): i32 {
   return 0;
@@ -975,20 +976,38 @@ function func_name_covers(f: *u8, line: i32, col: i32): i32 {
   return col_in_ident_span(line, col, sl, sc, name);
 }
 
+// G-02f-255：加强边界；无数字时仍返回 offset（与 seed 一致）
 #[no_mangle]
 function lsp_parse_int(body: *u8, len: i32, offset: i32, out: *i32): i32 {
-  if (offset >= len) { return 0 - 1; }
-  if (out == 0) { return 0 - 1; }
-  unsafe { out[0] = 0; }
-  while (offset < len) {
-    let c: u8 = body[offset];
-    if (c < 48) { break; }
-    if (c > 57) { break; }
-    unsafe {
+  if (body == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (out == 0 as *i32) {
+    return 0 - 1;
+  }
+  if (len < 0) {
+    return 0 - 1;
+  }
+  if (offset < 0) {
+    return 0 - 1;
+  }
+  if (offset >= len) {
+    return 0 - 1;
+  }
+  unsafe {
+    out[0] = 0;
+    while (offset < len) {
+      let c: u8 = body[offset];
+      if (c < 48) {
+        break;
+      }
+      if (c > 57) {
+        break;
+      }
       let v: i32 = out[0];
-      out[0] = v * 10 + (c - 48);
+      out[0] = v * 10 + ((c as i32) - 48);
+      offset = offset + 1;
     }
-    offset = offset + 1;
   }
   return offset;
 }
@@ -1053,28 +1072,96 @@ function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
   return 0;
 }
 
-// G-02f-122：LSP pure helpers 真迁 .x（签名与产品 seed C 对齐）
+// G-02f-122 / G-02f-255：LSP pure helpers 真迁 .x（签名与产品 seed C 对齐）
+
+// G-02f-255：JSON key 字面量槽（产品 seed 提供）
+extern "C" function lsp_json_key_position(): *u8;
+extern "C" function lsp_json_key_line(): *u8;
+extern "C" function lsp_json_key_character(): *u8;
 
 #[no_mangle]
 function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
-  if (body == 0) { return 0 - 1; }
-  if (key == 0) { return 0 - 1; }
-  let key_len: i32 = 0;
-  while (key_len < 256) {
-    if (key[key_len] == 0) { break; }
-    key_len = key_len + 1;
+  if (body == 0 as *u8) {
+    return 0 - 1;
   }
-  while (start + key_len <= len) {
-    let match: i32 = 1;
-    let j: i32 = 0;
-    while (j < key_len) {
-      if (body[start + j] != key[j]) { match = 0; break; }
-      j = j + 1;
+  if (key == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len < 0) {
+    return 0 - 1;
+  }
+  if (start < 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let key_len: i32 = 0;
+    while (key_len < 256) {
+      if (key[key_len] == 0) {
+        break;
+      }
+      key_len = key_len + 1;
     }
-    if (match != 0) { return start + key_len; }
-    start = start + 1;
+    if (key_len <= 0) {
+      return 0 - 1;
+    }
+    let s: i32 = start;
+    while (s + key_len <= len) {
+      let match: i32 = 1;
+      let j: i32 = 0;
+      while (j < key_len) {
+        if (body[s + j] != key[j]) {
+          match = 0;
+          break;
+        }
+        j = j + 1;
+      }
+      if (match != 0) {
+        return s + key_len;
+      }
+      s = s + 1;
+    }
   }
   return 0 - 1;
+}
+
+// G-02f-255：params.position.line / character pure 编排
+#[no_mangle]
+function lsp_extract_position_from_params(body: *u8, len: i32, out_line: *i32, out_character: *i32): i32 {
+  if (body == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len <= 0) {
+    return 0 - 1;
+  }
+  if (out_line == 0 as *i32) {
+    return 0 - 1;
+  }
+  if (out_character == 0 as *i32) {
+    return 0 - 1;
+  }
+  unsafe {
+    let pos: i32 = lsp_find_key_after(body, len, 0, lsp_json_key_position());
+    if (pos < 0) {
+      return 0 - 1;
+    }
+    let line_start: i32 = lsp_find_key_after(body, len, pos, lsp_json_key_line());
+    if (line_start < 0) {
+      return 0 - 1;
+    }
+    let char_start: i32 = lsp_find_key_after(body, len, pos, lsp_json_key_character());
+    if (char_start < 0) {
+      return 0 - 1;
+    }
+    let line_end: i32 = lsp_parse_int(body, len, line_start, out_line);
+    if (line_end < 0) {
+      return 0 - 1;
+    }
+    let char_end: i32 = lsp_parse_int(body, len, char_start, out_character);
+    if (char_end < 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
 }
 
 #[no_mangle]
