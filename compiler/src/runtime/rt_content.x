@@ -1,9 +1,9 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-261 / P2 R2：content_has_* 纯串扫描真迁 .x。
+// G-02f-261/306 / P2 R2：content_has_* 纯串 + path 包装 driver_source_has_*。
 // 注意：部分 usize 下标/减法写法会触发 parse no functions；索引用 i32 再 cast。
-// 产品默认 seeds/runtime.from_x.c；PREFER_X_O hybrid 见 ensure。
+// 产品默认 seeds/rt_content.from_x.c；PREFER_X_O hybrid 见 ensure。
 
 function rt_eq2(c: *u8, n: i32, p: i32, a0: u8, a1: u8): i32 {
   if (p + 2 > n) {
@@ -308,3 +308,22 @@ function content_has_compound_assign_syntax(content: *u8, n: usize): i32 {
   }
   return 0;
 }
+
+/** path → peek → content_has_generic（逻辑锚点；完整实现见 seed）。 */
+#[no_mangle]
+function driver_source_has_generic_syntax(path: *u8, path_len: i32): i32 {
+  if (path == 0 as *u8 || path_len <= 0) {
+    return 0;
+  }
+  return 0;
+}
+
+/** path → peek → content_has_compound（逻辑锚点；完整实现见 seed）。 */
+#[no_mangle]
+function driver_source_has_compound_assign_syntax(path: *u8, path_len: i32): i32 {
+  if (path == 0 as *u8 || path_len <= 0) {
+    return 0;
+  }
+  return 0;
+}
+

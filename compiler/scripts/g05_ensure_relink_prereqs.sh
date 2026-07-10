@@ -415,7 +415,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_c_o" "$_rt_content_seed"; then
             _rt_content_ok=1
-            echo "g05_ensure: R2 content ← $_rt_content_seed (G-02f-261 seed slice)"
+            echo "g05_ensure: R2 content ← $_rt_content_seed (G-02f-261/306 seed slice)"
           fi
         fi
         if [ -n "$_rt_u_o" ] && [ -f "$_rt_util_seed" ]; then

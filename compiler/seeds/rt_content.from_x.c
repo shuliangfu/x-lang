@@ -1,10 +1,15 @@
-/* seeds/rt_content.from_x.c — G-02f-261 P2 R2 pure content_has_*
+/* seeds/rt_content.from_x.c — G-02f-261/306 P2 R2 content_has_* + path wrappers
  * Logic source: src/runtime/rt_content.x
  * Hybrid: SHUX_RT_CONTENT_FROM_X + ld -r into runtime_driver_no_c.o
+ *
+ * f-261: content_has_generic / compound_assign（纯串）
+ * f-306: driver_source_has_*（path → peek → content_has）
  */
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+
+extern int driver_peek_source_file(const char *path, char *content, size_t cap);
 
 /** 检测内存中的源码 content[0..n-1] 是否含泛型或 trait 语法（.x 流水线不支持，需走 C 路径）。 */
 /* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -98,8 +103,51 @@ int content_has_compound_assign_syntax(const char *content, size_t n) {
     return 0;
 }
 
+/** 检测 path 指向的源码是否含泛型语法；peek 后转 content_has_generic_syntax。 */
+int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
+    char content[65536];
+    int rn;
+    size_t n;
 
+    if (!path || path_len <= 0 || path_len >= 512)
+        return 0;
+    {
+        char buf[512];
+        memcpy(buf, path, (size_t)path_len);
+        buf[path_len] = '\0';
+        rn = driver_peek_source_file(buf, content, sizeof(content));
+    }
+    if (rn < 0)
+        return 0;
+    n = (size_t)rn;
+    return content_has_generic_syntax(content, n);
+}
 
+/** 检测 path 指向的源码是否含复合赋值；peek 后转 content_has_compound_assign_syntax。 */
+int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) {
+    char content[65536];
+    int rn;
+    size_t n;
+
+    if (!path || path_len <= 0 || path_len >= 512)
+        return 0;
+    {
+        char buf[512];
+        memcpy(buf, path, (size_t)path_len);
+        buf[path_len] = '\0';
+        rn = driver_peek_source_file(buf, content, sizeof(content));
+    }
+    if (rn < 0)
+        return 0;
+    n = (size_t)rn;
+    if (n < sizeof(content))
+        content[n] = '\0';
+    return content_has_compound_assign_syntax(content, n);
+}
+
+int labi_rt_content_slice_marker(void) {
+    return 1;
+}
 
 /** 供 compile.x：源码含复合赋值则返回 1，默认 asm 应降级为 C。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */

@@ -3404,6 +3404,8 @@ int content_has_generic_syntax(const char *content, size_t n) {
 int content_has_generic_syntax(const char *content, size_t n);
 #endif /* !SHUX_RT_CONTENT_FROM_X (generic) */
 
+/* G-02f-306：path wrappers → rt_content hybrid */
+#ifndef SHUX_RT_CONTENT_FROM_X
 int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
     char content[65536];
     int rn;
@@ -3420,6 +3422,9 @@ int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {
     n = (size_t)rn;
     return content_has_generic_syntax(content, n);
 }
+#else
+int driver_source_has_generic_syntax(const uint8_t *path, int path_len);
+#endif
 
 
 
@@ -3479,6 +3484,8 @@ int content_has_compound_assign_syntax(const char *content, size_t n) {
 int content_has_compound_assign_syntax(const char *content, size_t n);
 #endif /* !SHUX_RT_CONTENT_FROM_X (compound) */
 
+/* G-02f-306：path wrappers → rt_content hybrid */
+#ifndef SHUX_RT_CONTENT_FROM_X
 int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) {
     char content[65536];
     int rn;
@@ -3499,6 +3506,10 @@ int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) 
         content[n] = '\0';
     return content_has_compound_assign_syntax(content, n);
 }
+#else
+int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len);
+int labi_rt_content_slice_marker(void);
+#endif
 
 
 
