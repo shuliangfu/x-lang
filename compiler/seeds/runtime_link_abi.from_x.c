@@ -955,11 +955,17 @@ const char *shux_asm_ld_try_under_lib_roots(const char *rel, const char **lib_ro
  * 返回值：resolved 或 NULL。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-270 L3 path IO */
+#ifndef SHUX_LABI_PATH_IO_FROM_X
 const char * shux_runtime_o_realpath_if_exists(const char *path, char *resolved) {
     if (!path || !path[0] || !resolved || realpath(path, resolved) == NULL)
         return NULL;
     return asm_link_obj_skip_missing(resolved);
 }
+#else
+const char *shux_runtime_o_realpath_if_exists(const char *path, char *resolved);
+#endif
+
 
 
 
@@ -3866,6 +3872,8 @@ int shux_generated_c_needs_async_scheduler(const char *c_path) {
   return 0;
 }
 /** G-02f-47/65：path 为已存在且 size>0 的常规文件。stat 在 _impl；.x 门闩。 */
+/* G-02f-270 L3 path IO */
+#ifndef SHUX_LABI_PATH_IO_FROM_X
 int shux_path_is_nonempty_regular_file_impl(const char *path) {
     struct stat st;
     if (!path || !path[0])
@@ -3876,7 +3884,13 @@ int shux_path_is_nonempty_regular_file_impl(const char *path) {
         return 0;
     return 1;
 }
+#else
+int shux_path_is_nonempty_regular_file_impl(const char *path);
+#endif
 
+
+/* G-02f-270 L3 path IO */
+#ifndef SHUX_LABI_PATH_IO_FROM_X
 int shux_path_is_nonempty_regular_file(const char *path) {
   if (path == NULL) {
     return 0;
@@ -3889,7 +3903,13 @@ int shux_path_is_nonempty_regular_file(const char *path) {
   }
   return 0;
 }
+#else
+int shux_path_is_nonempty_regular_file(const char *path);
+#endif
 
+
+/* G-02f-270 L3 path IO */
+#ifndef SHUX_LABI_PATH_IO_FROM_X
 const char *asm_link_obj_skip_missing(const char *path) {
   if ((path ==NULL)) {
     return NULL;
@@ -3906,6 +3926,10 @@ const char *asm_link_obj_skip_missing(const char *path) {
  }));
   return NULL;
 }
+#else
+const char *asm_link_obj_skip_missing(const char *path);
+#endif
+
 
 /* F-06 v1 前向声明：invoke_cc 按需链入 heap.o 时复用 ASM 后端检测逻辑 */
 int link_abi_user_o_needs_std_heap_api(const char *user_o);
