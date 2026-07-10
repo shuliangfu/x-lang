@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-32..43/50..59：真迁 .x — pipeline dep/import/path + dep 预跑 + multi resolve 门闩。
+// G-02f-32..43/50..60：真迁 .x — pipeline dep/import/path + 预跑 + ctx seed 门闩。
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
 // C 尾：存储槽数组、import resolve/snprintf、clear 槽循环、malloc buf、大 pipeline。
-// G-02f-59：+ dep_prerun_typeck_only / for_asm_module_o / resolve_import_file_path_multi。
+// G-02f-60：+ set_entry_dir / set_dep_slots / fill_ctx / pctx_seed / one_ctx_for_dep_prerun。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -53,6 +53,12 @@ extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8
 extern "C" function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32;
 extern "C" function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
 extern "C" function shux_resolve_import_file_path_multi_impl(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void;
+extern "C" function pipeline_set_entry_dir_impl(path: *u8): void;
+extern "C" function pipeline_set_dep_slots_impl(arenas: *u8, modules: *u8): void;
+extern "C" function shux_pipeline_fill_ctx_path_buffers_impl(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void;
+extern "C" function shux_pipeline_pctx_seed_dep_slots_impl(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void;
+extern "C" function shux_pipeline_pctx_seed_dep_import_paths_only_impl(ctx: *u8, import_paths: *u8, n: i32): void;
+extern "C" function shux_pipeline_one_ctx_for_dep_prerun_impl(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void;
 
 /* ---- G-02f-32：占位 no-op ---- */
 
@@ -783,5 +789,61 @@ function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, e
   }
   unsafe {
     shux_resolve_import_file_path_multi_impl(lib_roots, n_lib_roots, entry_dir, import_path, path, path_size);
+  }
+}
+
+/* ---- G-02f-60：entry_dir / dep 槽 / ctx path 与 dep seed ---- */
+
+#[no_mangle]
+function pipeline_set_entry_dir(path: *u8): void {
+  unsafe {
+    pipeline_set_entry_dir_impl(path);
+  }
+}
+
+#[no_mangle]
+function pipeline_set_dep_slots(arenas: *u8, modules: *u8): void {
+  unsafe {
+    pipeline_set_dep_slots_impl(arenas, modules);
+  }
+}
+
+#[no_mangle]
+function shux_pipeline_fill_ctx_path_buffers(ctx: *u8, entry_dir: *u8, lib_roots: *u8, n_lib_roots: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    shux_pipeline_fill_ctx_path_buffers_impl(ctx, entry_dir, lib_roots, n_lib_roots);
+  }
+}
+
+#[no_mangle]
+function shux_pipeline_pctx_seed_dep_slots(ctx: *u8, dep_mods: *u8, dep_ar: *u8, import_paths: *u8, n: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    shux_pipeline_pctx_seed_dep_slots_impl(ctx, dep_mods, dep_ar, import_paths, n);
+  }
+}
+
+#[no_mangle]
+function shux_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_paths: *u8, n: i32): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    shux_pipeline_pctx_seed_dep_import_paths_only_impl(ctx, import_paths, n);
+  }
+}
+
+#[no_mangle]
+function shux_pipeline_one_ctx_for_dep_prerun(ctx: *u8, j: i32, dep_mods: *u8, dep_ars: *u8, dep_paths: *u8, ndep: i32, dep_src: *u8, dep_src_len: i64): void {
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    shux_pipeline_one_ctx_for_dep_prerun_impl(ctx, j, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
   }
 }

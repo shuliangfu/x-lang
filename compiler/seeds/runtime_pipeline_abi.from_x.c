@@ -1,8 +1,8 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..59 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..60 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge dep prerun typeck/for_asm + multi resolve; C bulk remains.
- * .x covers: + dep_prerun_typeck_only, for_asm_module_o, resolve_import multi.
+ *         merge entry_dir/dep slots/ctx seed; C multi resolve + large pipeline bulk.
+ * .x covers: + set_entry_dir, set_dep_slots, fill_ctx, pctx_seed, one_ctx prerun.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -28,6 +28,19 @@ extern void preprocess_define_add(const char *name);
 
 
 
+
+
+/* G-02f-60 helper protos */
+void pipeline_set_entry_dir_impl(const char *path);
+void pipeline_set_dep_slots_impl(void *arenas[32], void *modules[32]);
+void shux_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
+    const char **lib_roots, int n_lib_roots);
+void shux_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
+    char **import_paths, int n);
+void shux_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepCtx *ctx, char **import_paths, int n);
+void shux_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
+                                          void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
+                                          size_t dep_src_len);
 
 /* G-02f-59 helper protos */
 int shux_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
@@ -1228,7 +1241,7 @@ extern int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path);
  * 填充 ctx 的 entry_dir_buf、lib_root sidecar，供 .x 内 resolve_path_x 使用。
  * 参数：ctx 非 NULL；entry_dir 入口目录；lib_roots/n_lib_roots 与 -L 一致。
  */
-void shux_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
+void shux_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
     const char **lib_roots, int n_lib_roots) {
     if (!ctx)
         return;
@@ -1254,11 +1267,22 @@ void shux_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const c
     }
 }
 
+void shux_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
+    const char **lib_roots, int n_lib_roots) {
+  if (ctx == NULL) {
+    return;
+  }
+  {
+    shux_pipeline_fill_ctx_path_buffers_impl(ctx, entry_dir, lib_roots, n_lib_roots);
+  }
+}
+
+
 /**
  * 将 C 侧 dep 槽写入 PipelineDepCtx sidecar（与 ast.x pipeline_dep_ctx_* 对齐）。
  * 参数：dep_mods/dep_ar/import_paths 长度 n；ctx 输出 sidecar。
  */
-void shux_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
+void shux_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
     char **import_paths, int n) {
     int i;
     if (!ctx)
@@ -1275,7 +1299,18 @@ void shux_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **de
     ast_pipeline_dep_ctx_set_ndep(ctx, n);
 }
 
-void shux_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
+void shux_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
+    char **import_paths, int n) {
+  if (ctx == NULL) {
+    return;
+  }
+  {
+    shux_pipeline_pctx_seed_dep_slots_impl(ctx, dep_mods, dep_ar, import_paths, n);
+  }
+}
+
+
+void shux_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
     int i;
     if (!ctx)
         return;
@@ -1288,6 +1323,16 @@ void shux_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ct
     }
     /* 仅镜像 import path；ndep 保持 0，让 entry pipeline 自行 load/sync direct imports。 */
 }
+
+void shux_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
+  if (ctx == NULL) {
+    return;
+  }
+  {
+    shux_pipeline_pctx_seed_dep_import_paths_only_impl(ctx, import_paths, n);
+  }
+}
+
 
 /**
  * 更新 dep 槽 module/arena/path，不调用 ast_pipeline_dep_ctx_reset（保留 lib_root 等路径缓冲）。
@@ -1322,7 +1367,7 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * 单 dep 预跑 ctx：按 dep 自身 import 表过滤 ctx 槽（import_idx 与 ctx 下标一一对应）。
  * 勿写入 entry 全量 dep 表：coff→[elf,codegen,ast] 时 codegen 仅 import ast，ndep=3 会使 sync/typeck 错位 ec=-5。
  */
-void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
+void shux_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
                                           void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
                                           size_t dep_src_len) {
     int32_t n_imp;
@@ -1398,6 +1443,18 @@ void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j,
     free(tmp_module);
     ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
 }
+
+void shux_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
+                                          void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
+                                          size_t dep_src_len) {
+  if (ctx == NULL) {
+    return;
+  }
+  {
+    shux_pipeline_one_ctx_for_dep_prerun_impl(ctx, j, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
+  }
+}
+
 
 /** asm 用户程序：std.io/fs/net dep 跳过 .x typeck（符号由并列 .o 提供）。 */
 int shux_asm_user_std_dep_skip_x_typeck(const char *dep_path) {
@@ -1491,7 +1548,7 @@ extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx *ctx, 
 extern int32_t pipeline_module_num_funcs(void *module);
 
 /** 设置 pipeline resolve/read 用的 entry 目录。 */
-void pipeline_set_entry_dir(const char *path) {
+void pipeline_set_entry_dir_impl(const char *path) {
     if (path && path[0]) {
         (void)snprintf(pipeline_entry_dir_buf, sizeof(pipeline_entry_dir_buf), "%s", path);
         pipeline_entry_dir = pipeline_entry_dir_buf;
@@ -1500,13 +1557,27 @@ void pipeline_set_entry_dir(const char *path) {
     }
 }
 
+void pipeline_set_entry_dir(const char *path) {
+  {
+    pipeline_set_entry_dir_impl(path);
+  }
+}
+
+
 /** 写入 dep arena/module 槽（collect_deps 预分配缓冲）。 */
-void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
+void pipeline_set_dep_slots_impl(void *arenas[32], void *modules[32]) {
     for (int i = 0; i < 32; i++) {
         pipeline_dep_arena_slots[i] = arenas ? arenas[i] : NULL;
         pipeline_dep_module_slots[i] = modules ? modules[i] : NULL;
     }
 }
+
+void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
+  {
+    pipeline_set_dep_slots_impl(arenas, modules);
+  }
+}
+
 
 /** 将 import 逻辑路径解析为文件系统路径写入内部 buffer。 */
 int32_t pipeline_resolve_path_impl(const uint8_t *path_ptr, int32_t path_len) {
