@@ -1,7 +1,7 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32/33 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32/33/34 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge no-ops + diag_emitted/ndep bridges; C provides storage slots.
- * .x covers: placeholders + pipeline_diag_emitted_* + get_ndep + typeck_driver_dep_seeded_get.
+ *         merge no-ops/flags/dep_seeded; C slots + clear_all + import/path.
+ * .x covers: placeholders, diag_emitted, ndep get/set, dep_seeded get/set.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -28,6 +28,7 @@ extern void preprocess_define_add(const char *name);
 /* G-02f-33 forward slots (defs near storage) */
 int32_t *pipeline_diag_emitted_flag_slot(void);
 int32_t *typeck_ndep_slot(void);
+void typeck_ndep_store(int32_t n);
 
 static int pipeline_diag_emitted_flag;
 
@@ -295,6 +296,10 @@ int32_t *typeck_ndep_slot(void) {
     return (int32_t *)&typeck_ndep;
 }
 
+void typeck_ndep_store(int32_t n) {
+    typeck_ndep = (n <= 32) ? n : 32;
+}
+
 /**
  * 清 typeck dep 侧车；driver_dep_seeded_clear_all 调用，避免悬空指针。
  */
@@ -352,7 +357,10 @@ void pipeline_set_dep(int32_t i, void *mod, void *arena) {
 
 /** 设置 dep 数量上限 32。 */
 void pipeline_set_ndep(int32_t n) {
-    typeck_ndep = n <= 32 ? n : 32;
+  (void)(({   {
+    (void)(typeck_ndep_store(n));
+  }
+ }));
 }
 
 /**
@@ -527,6 +535,15 @@ static void *driver_dep_module_ptrs[SHUX_DRIVER_DEP_SLOT_MAX];
 static const char *driver_dep_path_registry[SHUX_DRIVER_DEP_SLOT_MAX];
 static int driver_dep_seeded[SHUX_DRIVER_DEP_SLOT_MAX];
 
+/* G-02f-34: per-slot storage for .x dep_seeded get/set */
+int32_t *driver_dep_seeded_slot(int32_t i) {
+    if (i < 0)
+        i = 0;
+    if (i >= SHUX_DRIVER_DEP_SLOT_MAX)
+        i = SHUX_DRIVER_DEP_SLOT_MAX - 1;
+    return (int32_t *)&driver_dep_seeded[i];
+}
+
 extern size_t pipeline_sizeof_arena(void);
 extern size_t pipeline_sizeof_module(void);
 
@@ -536,9 +553,21 @@ extern size_t pipeline_sizeof_module(void);
  * 返回值：1 已 seeded，0 否或 i 越界。
  */
 int32_t driver_dep_seeded_get(int32_t i) {
-    if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
-        return 0;
-    return driver_dep_seeded[i] ? 1 : 0;
+  if ((i < 0)) {
+    return 0;
+  }
+  if ((i >=32)) {
+    return 0;
+  }
+  (void)(({   {
+    int32_t * p = driver_dep_seeded_slot(i);
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -546,8 +575,17 @@ int32_t driver_dep_seeded_get(int32_t i) {
  * 参数：i 槽下标；v 非 0 表示 seeded。
  */
 void driver_dep_seeded_set(int32_t i, int32_t v) {
-    if (i >= 0 && i < SHUX_DRIVER_DEP_SLOT_MAX)
-        driver_dep_seeded[i] = (v != 0);
+  if ((i < 0)) {
+    return;
+  }
+  if ((i >=32)) {
+    return;
+  }
+  (void)(({   {
+    int32_t * p = driver_dep_seeded_slot(i);
+    (void)(((p)[0] = v));
+  }
+ }));
 }
 
 /**
@@ -649,12 +687,7 @@ uint8_t *typeck_driver_dep_module_buf(int32_t i) {
 
 /** typeck.x 导出名：转发 driver_dep_seeded_get。 */
 int32_t typeck_driver_dep_seeded_get(int32_t i) {
-  (void)(({   {
-    int32_t r = driver_dep_seeded_get(i);
-    return r;
-  }
- }));
-  return 0;
+  return driver_dep_seeded_get(i);
 }
 
 /**

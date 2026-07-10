@@ -1,14 +1,8 @@
-/* seeds/runtime_link_abi.from_x.c — G-02f-13 product TU
- * Product object from this seed; logic still C until full .x port.
+/* Generated from src/runtime_link_abi.x (G-02f-34 true .x + C tail).
+ * Regen: ./shux-c -E -L .. src/runtime_link_abi.x > /tmp/link.c
+ *         merge thin link helpers; polish getenv/strings; keep invoke_cc/ld C.
+ * .x covers: forward_main, freestanding panic probe, skip_native_tuning.
  */
-/**
- * runtime_link_abi.c — 编译器 C 侧链接/cc 辅助 ABI 实现（Phase E-04 v5～v23）
- *
- * 文件职责：invoke_cc / asm_ld 链接 argv 辅助；E-04 v23 起 invoke_ld 薄包装与 -o 后缀判断。
- * 所属模块：compiler 运行时；被 runtime.c driver 链接。
- * 与其它文件的关系：E-04 v17 起 invoke_cc 主体在本文件；main.c crt0 仍延后。
- */
-
 #include "win32_compat.h"
 #include "runtime_link_abi.h"
 #include "runtime_proc_abi.h"
@@ -2618,9 +2612,23 @@ int shux_ensure_freestanding_io_o(const char *argv0, int driver_freestanding) {
  * 返回值：非 0 表示跳过 native 调优。
  */
 int invoke_cc_skip_native_tuning(void) {
-    if (getenv("CI") || getenv("SHUX_CI_DOCKER") || getenv("SHUX_NO_MARCH_NATIVE"))
-        return 1;
+  (void)(({   {
+    uint8_t * a = getenv("CI");
+    if ((a !=((uint8_t *)(0)))) {
+      return 1;
+    }
+    uint8_t * b = getenv("SHUX_CI_DOCKER");
+    if ((b !=((uint8_t *)(0)))) {
+      return 1;
+    }
+    uint8_t * c = getenv("SHUX_NO_MARCH_NATIVE");
+    if ((c !=((uint8_t *)(0)))) {
+      return 1;
+    }
     return 0;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -2867,7 +2875,6 @@ void invoke_cc_append_compress_ld(char *argv[], int *i, int argv_cap, const char
             argv[(*i)++] = (char *)"-lbrotlidec";
     }
 }
-
 
 /**
  * B-20 v1：扫描生成 C 是否含任一子串（invoke_cc 按需链入判定）。
@@ -4018,7 +4025,12 @@ int shux_freestanding_user_o_needs_io(const char *user_o) {
 }
 
 int shux_freestanding_user_o_needs_panic(const char *user_o) {
-    return shux_link_obj_needs_undef_sym(user_o, "shux_panic_");
+  (void)(({   {
+    int r = shux_link_obj_needs_undef_sym(user_o, "shux_panic_");
+    return r;
+  }
+ }));
+  return 0;
 }
 
 /**
@@ -4781,7 +4793,6 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
 #endif
 }
 
-
 /**
  * invoke_ld / driver_asm_invoke_ld 共用：ensure 链入对象并校验 freestanding 仅 Linux ELF。
  * 参数：link_eff 有效 link argv0；user_o 用户 .o；driver_freestanding 同 shux_link_freestanding_enabled。
@@ -4866,6 +4877,7 @@ int shux_asm_user_o_has_undef_syms(const char *o_path) {
     pclose(fp);
     return 0;
 }
+
 #endif /* __linux__ || __APPLE__ */
 
 /**
@@ -4995,6 +5007,7 @@ void shux_append_linux_link_harden(char *argv[], int *la, int cap) {
     if (*la < cap - 1)
         argv[(*la)++] = "-Wl,--allow-multiple-definition";
 }
+
 #endif
 
 /**
@@ -5406,7 +5419,6 @@ int shux_invoke_ld_for_exe(const char *o_path, const char *exe_path, const char 
         freestanding);
 }
 
-
 /* -------------------------------------------------------------------------- */
 /* G-02e：原 runtime_proc_abi.c 并入本 TU（产品链减 1 个手写 C 文件）。 */
 /* -------------------------------------------------------------------------- */
@@ -5497,7 +5509,12 @@ int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_fla
 extern int main_entry(int argc, char **argv);
 
 int shux_forward_main_to_main_entry(int argc, char **argv) {
-    return main_entry(argc, argv);
+  (void)(({   {
+    int r = main_entry(argc, argv);
+    return r;
+  }
+ }));
+  return 0;
 }
 
 SHUX_WEAK void bootstrap_init_static_tls(void) {
@@ -5511,3 +5528,4 @@ SHUX_WEAK void bootstrap_init_environ(int argc, char **argv) {
 SHUX_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
     return 0;
 }
+
