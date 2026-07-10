@@ -1,10 +1,10 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-29/41/45/46/47/48：真迁 .x — driver flags/env/phase + peek/fail/large_stack 薄门闩。
+// G-02f-29/41/45..49：真迁 .x — driver flags/env/phase + peek/fail/smoke/import/len。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
-// C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday 累加、diag format、argv defines。
-// G-02f-48：+ peek_source_file / pipeline_fail_code / run_on_large_stack_pthread。
+// C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、argv defines、import 扫描。
+// G-02f-49：+ print_x_smoke_summary / source_has_top_level_import{,_path} / entry_source_len set/get。
 // 注意：set 侧禁止 if/else 写 *p → 直接 p[0]=v；禁止 if (ptr!=null) 整函数被 -E 丢掉。
 
 extern "C" function getenv(name: *u8): *u8;
@@ -28,6 +28,15 @@ extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32
 extern "C" function driver_pipeline_fail_code_rc_impl(rc: i32): void;
 extern "C" function driver_pipeline_fail_code_path_impl(path: *u8): void;
 extern "C" function driver_run_thread_on_large_stack(fn: *u8, arg: *u8): void;
+extern "C" function driver_get_module_num_funcs(m: *u8): i32;
+extern "C" function driver_get_module_main_func_index(m: *u8): i32;
+extern "C" function driver_print_x_smoke_parse_ok_impl(num_funcs: i32, main_ix: i32, codegen_len: i64): void;
+extern "C" function driver_print_x_smoke_parse_empty_impl(): void;
+extern "C" function driver_print_x_smoke_typeck_ok_impl(): void;
+extern "C" function driver_source_scan_top_level_import(src: *u8, src_len: i64): i32;
+extern "C" function driver_source_has_top_level_import_path_impl(path: *u8): i32;
+extern "C" function driver_pipeline_entry_source_len_store(len: i64): void;
+extern "C" function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64;
 
 #[no_mangle]
 function driver_check_quiet_ok_get(): i32 {
@@ -459,4 +468,63 @@ function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
   unsafe {
     driver_run_thread_on_large_stack(fn, arg);
   }
+}
+
+/* ---- G-02f-49：smoke summary / top-level import / entry source len ---- */
+
+#[no_mangle]
+function driver_print_x_smoke_summary(module: *u8, codegen_len: i64): void {
+  unsafe {
+    if (driver_check_diag_emitted_get() != 0) {
+      return;
+    }
+    let num_funcs: i32 = driver_get_module_num_funcs(module);
+    let main_ix: i32 = driver_get_module_main_func_index(module);
+    driver_print_x_smoke_parse_ok_impl(num_funcs, main_ix, codegen_len);
+    if (num_funcs <= 0) {
+      driver_print_x_smoke_parse_empty_impl();
+      return;
+    }
+    driver_print_x_smoke_typeck_ok_impl();
+  }
+}
+
+#[no_mangle]
+function driver_source_has_top_level_import(src: *u8, src_len: i64): i32 {
+  if (src == 0 as *u8) {
+    return 0;
+  }
+  if (src_len < 9) {
+    return 0;
+  }
+  unsafe {
+    return driver_source_scan_top_level_import(src, src_len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_source_has_top_level_import_path(path: *u8): i32 {
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    return driver_source_has_top_level_import_path_impl(path);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_set_pipeline_entry_source_len(len: i64): void {
+  unsafe {
+    driver_pipeline_entry_source_len_store(len);
+  }
+}
+
+#[no_mangle]
+function driver_pipeline_entry_source_len(): i64 {
+  unsafe {
+    return driver_pipeline_entry_source_len_load_and_maybe_debug();
+  }
+  return 0;
 }

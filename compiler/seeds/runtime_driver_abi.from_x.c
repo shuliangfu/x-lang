@@ -1,7 +1,7 @@
-/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45/46/47/48 true .x + C tail).
+/* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..49 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
- *         merge flags/env/phase/peek/fail/pthread-alias; C gettimeofday + pthread bulk.
- * .x covers: quiet_ok, env, flags, skip_large, dep_path, print_check, phase, peek, fail, large_stack alias.
+ *         merge flags/env/phase/peek/fail/smoke/import/len; C gettimeofday + pthread bulk.
+ * .x covers: + smoke summary, top-level import gates, entry_source_len set/get.
  */
 #include "win32_compat.h"
 #include "runtime_driver_abi.h"
@@ -57,6 +57,13 @@ const char *driver_current_dep_path_load(void);
 void driver_print_check_ok_impl(const char *input_path);
 void driver_pipeline_fail_code_rc_impl(int32_t rc);
 void driver_pipeline_fail_code_path_impl(const uint8_t *path);
+void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int64_t codegen_len);
+void driver_print_x_smoke_parse_empty_impl(void);
+void driver_print_x_smoke_typeck_ok_impl(void);
+int driver_source_scan_top_level_import(const char *src, size_t src_len);
+int driver_source_has_top_level_import_path_impl(const char *path);
+void driver_pipeline_entry_source_len_store(size_t len);
+size_t driver_pipeline_entry_source_len_load_and_maybe_debug(void);
 int32_t driver_compile_phase_timing_enabled(void);
 
 /** shux check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 X pipeline 共用）。 */
@@ -352,12 +359,25 @@ int32_t driver_pipeline_entry_source_len_i32(void) {
 }
 
 
+void driver_pipeline_entry_source_len_store(size_t len) {
+    g_pipeline_entry_source_len = len;
+}
+
+size_t driver_pipeline_entry_source_len_load_and_maybe_debug(void) {
+    if (getenv("SHUX_DEBUG_PIPE"))
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "pipeline debug: entry_source_len_global=%zu", g_pipeline_entry_source_len);
+    return g_pipeline_entry_source_len;
+}
+
 /**
  * 记录 pipeline 入口源码字节数（大栈 pthread 进入 pipeline 前调用）。
  * 参数：len 预处理后的入口源码长度。
  */
 void driver_set_pipeline_entry_source_len(size_t len) {
-    g_pipeline_entry_source_len = len;
+  {
+    driver_pipeline_entry_source_len_store(len);
+  }
 }
 
 /**
@@ -365,10 +385,10 @@ void driver_set_pipeline_entry_source_len(size_t len) {
  * 返回值：最近一次 driver_set_pipeline_entry_source_len 写入的长度。
  */
 size_t driver_pipeline_entry_source_len(void) {
-    if (getenv("SHUX_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: entry_source_len_global=%zu", g_pipeline_entry_source_len);
-    return g_pipeline_entry_source_len;
+  {
+    return driver_pipeline_entry_source_len_load_and_maybe_debug();
+  }
+  return 0;
 }
 
 /**
@@ -537,6 +557,22 @@ void driver_pipeline_fail_code_path_impl(const uint8_t *path) {
     diag_reportf_with_code(NULL, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP004, NULL,
                            "resolve path tried: %s", path ? (const char *)path : "?");
 }
+
+void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int64_t codegen_len) {
+    diag_reportf(NULL, 0, 0, "info", NULL,
+                 "parse OK: num_funcs=%d main_idx=%d codegen_bytes=%zu",
+                 (int)num_funcs, (int)main_ix, (size_t)codegen_len);
+}
+
+void driver_print_x_smoke_parse_empty_impl(void) {
+    diag_report_with_code(NULL, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001,
+                "parse produced no functions in module", NULL);
+}
+
+void driver_print_x_smoke_typeck_ok_impl(void) {
+    diag_report(NULL, 0, 0, "info", "typeck OK", NULL);
+}
+
 
 
 /**
@@ -748,19 +784,19 @@ void driver_pipeline_fail_code(int rc, const uint8_t *path) {
  * 参数：module ASTModule*；codegen_len 产出字节数（可为 0）。
  */
 void driver_print_x_smoke_summary(void *module, size_t codegen_len) {
-    if (driver_check_diag_emitted_get())
-        return;
-    int num_funcs = driver_get_module_num_funcs(module);
-    int main_ix = driver_get_module_main_func_index(module);
-    diag_reportf(NULL, 0, 0, "info", NULL,
-                 "parse OK: num_funcs=%d main_idx=%d codegen_bytes=%zu",
-                 num_funcs, main_ix, codegen_len);
-    if (num_funcs <= 0) {
-        diag_report_with_code(NULL, 0, 0, "parse error", SHUX_DIAG_CODE_PARSE_P001,
-                    "parse produced no functions in module", NULL);
-        return;
+  {
+    if (driver_check_diag_emitted_get() != 0) {
+      return;
     }
-    diag_report(NULL, 0, 0, "info", "typeck OK", NULL);
+    int32_t num_funcs = (int32_t)driver_get_module_num_funcs(module);
+    int32_t main_ix = (int32_t)driver_get_module_main_func_index(module);
+    driver_print_x_smoke_parse_ok_impl(num_funcs, main_ix, (int64_t)codegen_len);
+    if (num_funcs <= 0) {
+      driver_print_x_smoke_parse_empty_impl();
+      return;
+    }
+    driver_print_x_smoke_typeck_ok_impl();
+  }
 }
 
 /**
@@ -914,12 +950,9 @@ void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
  * 参数：src 预处理后缓冲；src_len 有效字节数。
  * 返回值：1 含顶层 import；0 否。
  */
-int driver_source_has_top_level_import(const char *src, size_t src_len) {
+int driver_source_scan_top_level_import(const char *src, size_t src_len) {
     const char *p;
     const char *end;
-
-    if (!src || src_len < 9)
-        return 0;
     p = src;
     end = src + src_len;
     while (p + 9 <= end) {
@@ -931,13 +964,25 @@ int driver_source_has_top_level_import(const char *src, size_t src_len) {
     }
     return 0;
 }
+int driver_source_has_top_level_import(const char *src, size_t src_len) {
+  if (src == NULL) {
+    return 0;
+  }
+  if (src_len < 9) {
+    return 0;
+  }
+  {
+    return driver_source_scan_top_level_import(src, src_len);
+  }
+  return 0;
+}
 
 /**
  * 读入口 .x 并检测预处理后是否含顶层 import（compile.x asm 分派降级 C 后端用）。
  * 参数：path 源文件路径。
  * 返回值：1 含顶层 import；0 否或读/预处理失败。
  */
-int driver_source_has_top_level_import_path(const char *path) {
+int driver_source_has_top_level_import_path_impl(const char *path) {
     ShuxRuntimeFileView raw_view;
     size_t src_len = 0;
     char *src;
@@ -952,5 +997,15 @@ int driver_source_has_top_level_import_path(const char *path) {
     has = driver_source_has_top_level_import(src, src_len);
     free(src);
     return has;
+}
+
+int driver_source_has_top_level_import_path(const char *path) {
+  if (path == NULL) {
+    return 0;
+  }
+  {
+    return driver_source_has_top_level_import_path_impl(path);
+  }
+  return 0;
 }
 
