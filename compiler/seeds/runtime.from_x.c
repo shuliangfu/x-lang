@@ -5797,6 +5797,8 @@ void driver_compile_parse_argv_init_c(DriverCompileStateSU *state);
 void driver_compile_ensure_default_lib_c(uint8_t *key);
 void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
 
+/* G-02f-263 R1：逻辑源 src/runtime/rt_argv.x；hybrid → seeds/rt_argv.from_x.c */
+#ifndef SHUX_RT_ARGV_FROM_X
 /** argv 令牌比较与 path 后缀检测（与 compile.x 同名 helper 语义一致）。 */
 /* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int drv_eq_minus_o(const char *buf, int len) {
@@ -5872,6 +5874,25 @@ int drv_target_has_arm(const char *buf, int len) {
     }
     return 0;
 }
+#else
+
+int drv_eq_minus_o(const char *buf, int len);
+int drv_eq_minus_L(const char *buf, int len);
+int drv_eq_minus_O(const char *buf, int len);
+int drv_eq_flto(const char *buf, int len);
+int drv_eq_minus_freestanding(const char *buf, int len);
+int drv_eq_legacy_f32_abi(const char *buf, int len);
+int drv_eq_fsanitize_address(const char *buf, int len);
+int drv_eq_minus_backend(const char *buf, int len);
+int drv_eq_minus_target(const char *buf, int len);
+int drv_eq_minus_target_cpu(const char *buf, int len);
+int drv_eq_print_target_cpu(const char *buf, int len);
+int drv_eq_asm_word(const char *buf, int len);
+int drv_eq_c_word(const char *buf, int len);
+int drv_path_ends_x(const char *buf, int len);
+int drv_target_has_arm(const char *buf, int len);
+#endif /* !SHUX_RT_ARGV_FROM_X */
+
 
 
 
