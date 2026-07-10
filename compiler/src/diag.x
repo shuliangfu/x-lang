@@ -5,6 +5,7 @@
 // G-02f-74：+ remaining diag_* gates.
 // G-02f-82：+ diag_get_source / diag_get_source_len / diag_report_with_code 门闩。
 // G-02f-96：+ color/kind/code_eq/line_digits 薄 helper 门闩。
+// G-02f-97：+ print_header / extract_line / json_write_str / json_severity 门闩。
 // 产品：./shux-c -E → seeds/diag.from_x.c（+ C 尾段）。
 // C 尾：上下文静态、code 表、JSON/颜色、va_list reportf/vreportf、lookup。
 // 注意：va_list 入口仍留 C（语言/ABI 限制）。
@@ -31,6 +32,11 @@ extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
 extern "C" function diag_kind_is_exact_impl(kind: *u8, needle: *u8): i32;
 extern "C" function diag_kind_contains_impl(kind: *u8, needle: *u8): i32;
 extern "C" function diag_line_digits_impl(line: i32): i32;
+
+extern "C" function diag_print_header_impl(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void;
+extern "C" function diag_extract_line_impl(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32;
+extern "C" function diag_json_write_str_impl(out: *u8, s: *u8): void;
+extern "C" function diag_json_severity_impl(kind: *u8): *u8;
 
 #[no_mangle]
 function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
@@ -185,4 +191,36 @@ function diag_line_digits(line: i32): i32 {
     return diag_line_digits_impl(line);
   }
   return 1;
+}
+
+/* ---- G-02f-97：print_header / extract_line / json 门闩 ---- */
+
+#[no_mangle]
+function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void {
+  unsafe {
+    diag_print_header_impl(kind, code, msg, kind_color, reset);
+  }
+}
+
+#[no_mangle]
+function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32 {
+  unsafe {
+    return diag_extract_line_impl(line_no, line_start_out, line_len_out);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function diag_json_write_str(out: *u8, s: *u8): void {
+  unsafe {
+    diag_json_write_str_impl(out, s);
+  }
+}
+
+#[no_mangle]
+function diag_json_severity(kind: *u8): *u8 {
+  unsafe {
+    return diag_json_severity_impl(kind);
+  }
+  return 0 as *u8;
 }

@@ -1,4 +1,4 @@
-/* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96 true .x + C tail; G-02f-74/82 diag gates).
+/* Generated from src/diag.x (G-02f-82 +) (G-02f-30/96/97 true .x + C tail; G-02f-74/82 diag gates).
  * Regen: ./shux-c -E -L .. src/diag.x > /tmp/diag.c
  *         merge diag_report from .x; keep code table / va_list / JSON C tail.
  * .x covers: diag_report → diag_report_with_code(NULL code).
@@ -285,7 +285,7 @@ static DiagPalette diag_palette_for_kind(const char *kind) {
     return pal;
 }
 
-static void diag_print_header(const char *kind, const char *code, const char *msg,
+void diag_print_header_impl(const char *kind, const char *code, const char *msg,
                               const char *kind_color, const char *reset) {
     if (!msg)
         msg = "";
@@ -300,6 +300,13 @@ static void diag_print_header(const char *kind, const char *code, const char *ms
     else
         fprintf(stderr, "%s%s%s: %s\n", kind_color, kind, reset, msg);
 }
+void diag_print_header(const char *kind, const char *code, const char *msg,
+                              const char *kind_color, const char *reset) {
+  {
+    diag_print_header_impl(kind, code, msg, kind_color, reset);
+  }
+}
+
 
 int diag_line_digits_impl(int line) {
     int width = 1;
@@ -317,7 +324,7 @@ int diag_line_digits(int line) {
 }
 
 
-static int diag_extract_line(int line_no, const char **line_start_out, size_t *line_len_out) {
+int diag_extract_line_impl(int line_no, const char **line_start_out, size_t *line_len_out) {
     const char *src = g_diag_ctx.source;
     size_t len = g_diag_ctx.source_len;
     int line = 1;
@@ -342,6 +349,13 @@ static int diag_extract_line(int line_no, const char **line_start_out, size_t *l
     *line_len_out = i - start;
     return 0;
 }
+int diag_extract_line(int line_no, const char **line_start_out, size_t *line_len_out) {
+  {
+    return diag_extract_line_impl(line_no, line_start_out, line_len_out);
+  }
+  return 0;
+}
+
 
 void diag_set_file_impl(const char *path, const char *source, size_t source_len) {
     g_diag_ctx.file_path = path;
@@ -755,7 +769,7 @@ int diag_json_enabled(void) {
  * 将单个字符串以 JSON 字符串字面量形式写入 out（含两端引号）。
  * 转义 "、\ 与控制字符（\\uXXXX）；NULL 视作空串。仅在诊断冷路径调用。
  */
-static void diag_json_write_str(FILE *out, const char *s) {
+void diag_json_write_str_impl(FILE *out, const char *s) {
     const unsigned char *p = (const unsigned char *)(s ? s : "");
     fputc('"', out);
     for (; *p; p++) {
@@ -777,12 +791,18 @@ static void diag_json_write_str(FILE *out, const char *s) {
     }
     fputc('"', out);
 }
+void diag_json_write_str(FILE *out, const char *s) {
+  {
+    diag_json_write_str_impl(out, s);
+  }
+}
+
 
 /**
  * 由诊断 kind 推导 JSON severity 字段。
  * 含 "warning" → warning；精确 "info"/"note"/"help"/"hint" → 同名；其余（含 error/parse error/...）→ error。
  */
-static const char *diag_json_severity(const char *kind) {
+const char * diag_json_severity_impl(const char *kind) {
     if (!kind || !kind[0])
         return "error";
     if (strstr(kind, "warning"))
@@ -795,6 +815,13 @@ static const char *diag_json_severity(const char *kind) {
         return "help";
     return "error";
 }
+const char * diag_json_severity(const char *kind) {
+  {
+    return diag_json_severity_impl(kind);
+  }
+  return ((const char *)0);
+}
+
 
 /**
  * 以 NDJSON（每条诊断一行 JSON 对象）形式输出到 stderr，供 CI / 工具消费。

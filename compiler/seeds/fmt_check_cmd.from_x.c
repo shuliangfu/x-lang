@@ -1,4 +1,5 @@
 /* Generated from src/driver/fmt_check_cmd.x (G-02f-31 true .x + C tail).
+ * G-02f-97 pure helper gates.
  * Regen: ./shux-c -E -L .. src/driver/fmt_check_cmd.x > /tmp/fcc.c
  *         merge quiet_ok; keep path walk / check argv / fmt CLI C.
  * .x covers: driver_check_quiet_ok_get (strong silent-success).
@@ -72,7 +73,7 @@ extern void driver_dep_seeded_clear_all(void);
  * 绝对路径当相对路径拼接到 getcwd，产生 C:\cwd/C:/abs/path 双重前缀。
  * 【Invariant】path 非空时返回 1 表示绝对路径（POSIX / 或 Windows 盘符）。
  * 【Asm/Perf】纯 ASCII 比较，零运行时开销。 */
-static int shux_path_is_absolute(const char *path) {
+int shux_path_is_absolute_impl(const char *path) {
     if (!path || !path[0])
         return 0;
     if (path[0] == '/')
@@ -84,6 +85,13 @@ static int shux_path_is_absolute(const char *path) {
 #endif
     return 0;
 }
+int shux_path_is_absolute(const char *path) {
+  {
+    return shux_path_is_absolute_impl(path);
+  }
+  return 0;
+}
+
 
 /** 单目录遍历时最多收集的 .x 路径数。 */
 #define DRIVER_FMT_MAX_FILES 8192
@@ -127,13 +135,27 @@ typedef enum DriverCollectMode {
 
 static DriverCollectMode s_collect_mode = DRIVER_COLLECT_MODE_FMT;
 
-static const char *driver_collect_error_kind(void) {
+const char * driver_collect_error_kind_impl(void) {
     return s_collect_mode == DRIVER_COLLECT_MODE_CHECK ? "check error" : "fmt error";
 }
+const char * driver_collect_error_kind(void) {
+  {
+    return driver_collect_error_kind_impl();
+  }
+  return ((const char *)0);
+}
 
-static const char *driver_collect_missing_path_code(void) {
+
+const char * driver_collect_missing_path_code_impl(void) {
     return s_collect_mode == DRIVER_COLLECT_MODE_CHECK ? "CHK002" : "FMT001";
 }
+const char * driver_collect_missing_path_code(void) {
+  {
+    return driver_collect_missing_path_code_impl();
+  }
+  return ((const char *)0);
+}
+
 
 /**
  * 若 dir 下同时存在 core/ 与 std/ 子目录，则作为仓库 lib 根注入 -L（去重）。
@@ -266,10 +288,17 @@ static void check_argv_append_default_libs_for_path(const char *path, char **che
 /**
  * SHUX_LINT_CI_FAIL_ON=warn 时 warning 层诊断亦令 check 非零退出。
  */
-static int check_lint_fail_on_warnings(void) {
+int check_lint_fail_on_warnings_impl(void) {
     const char *v = getenv("SHUX_LINT_CI_FAIL_ON");
     return v && (strcmp(v, "warn") == 0 || strcmp(v, "warning") == 0);
 }
+int check_lint_fail_on_warnings(void) {
+  {
+    return check_lint_fail_on_warnings_impl();
+  }
+  return 0;
+}
+
 
 /**
  * 单文件 check：X pipeline 走 driver_run_compiler_full，shux-c 走 run_compiler_c。

@@ -1,4 +1,5 @@
 /* seeds/user_asm_seed_bridge.from_x.c — G-02f-15 product TU
+ * G-02f-97 pure helper gates.
  * Product object from this seed; logic still C until full .x port.
  */
 /**
@@ -22,13 +23,27 @@ struct codegen_CodegenOutBuf {
   int32_t len;
 };
 
-static int seed_asm_debug_enabled(void) {
+int seed_asm_debug_enabled_impl(void) {
   return getenv("SHUX_ASM_DEBUG") != NULL;
 }
+int seed_asm_debug_enabled(void) {
+  {
+    return seed_asm_debug_enabled_impl();
+  }
+  return 0;
+}
 
-static int seed_asm_emit_trace_enabled(void) {
+
+int seed_asm_emit_trace_enabled_impl(void) {
   return getenv("SHUX_ASM_EMIT_TRACE") != NULL;
 }
+int seed_asm_emit_trace_enabled(void) {
+  {
+    return seed_asm_emit_trace_enabled_impl();
+  }
+  return 0;
+}
+
 
 struct ast_Module;
 struct ast_ASTArena;
@@ -166,11 +181,17 @@ extern int32_t peephole_elf_run(void *elf_ctx);
 #define SHUX_ELF_CTX_MACHO_UNDERSCORE_OFF 598052
 
 /** Darwin -o：call/reloc 符号须 leading `_`（与 asm.x::asm_codegen_elf_o 一致）。 */
-static void seed_elf_ctx_set_macho_leading_underscore(void *elf_ctx, int32_t on) {
+void seed_elf_ctx_set_macho_leading_underscore_impl(void *elf_ctx, int32_t on) {
   if (!elf_ctx)
     return;
   *(int32_t *)((uint8_t *)elf_ctx + SHUX_ELF_CTX_MACHO_UNDERSCORE_OFF) = on ? 1 : 0;
 }
+void seed_elf_ctx_set_macho_leading_underscore(void *elf_ctx, int32_t on) {
+  {
+    seed_elf_ctx_set_macho_leading_underscore_impl(elf_ctx, on);
+  }
+}
+
 /** asm 失败时打印 backend.x 记录的当前函数名。 */
 extern void driver_diagnostic_asm_print_current_func(void);
 extern int32_t pipeline_asm_patch_module_parent_links(struct ast_Module *m, struct ast_ASTArena *a);
@@ -201,11 +222,18 @@ int32_t platform_elf_elf_resolve_patches(void *elf_ctx) {
 }
 
 /** 读 ElfCodegenCtx.code_len（前缀字段；与 platform/elf.x / PipelineElfCtxAccess 一致）。 */
-static int32_t seed_elf_ctx_code_len(const void *elf_ctx) {
+int32_t seed_elf_ctx_code_len_impl(const void *elf_ctx) {
   if (!elf_ctx)
     return 0;
   return *(const int32_t *)elf_ctx;
 }
+int32_t seed_elf_ctx_code_len(const void *elf_ctx) {
+  {
+    return seed_elf_ctx_code_len_impl(elf_ctx);
+  }
+  return 0;
+}
+
 
 extern int32_t pipeline_elf_ctx_total_code_len(uint8_t *ctx_bytes);
 

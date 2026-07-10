@@ -4,9 +4,12 @@
 // G-02f-2～6：target_cpu 真迁 pure seed 单 TU。
 // - pending（f-2）· SIMD（f-3）· resolve（f-4）· print（f-5）
 // - OS detect_host/generic（f-6；#if/sysctl/proc 在 seed C）
+// G-02f-97：+ tcp_tolower / tcp_eq5 / tcp_eq6 纯 helper 导出门闩（#[no_mangle]）。
 //
 // 产品：seeds/target_cpu_pure.from_x.c → src/driver/target_cpu.o（无 ld -r）
 // detect 对外 API 由 seed C 提供；.x 侧 resolve 仍可 extern 声明供语义对照。
+// 说明：tcp_eq_at 的 .x 形参为展开 lit 字节（供 pure resolve/SIMD），seed C 为 lit 指针形参；
+// 两者并行；产品仍走 seed；pure 路径已用 no_mangle 锚定 tolower/eq5/eq6。
 
 let g_driver_pending_target_cpu_features: u32 = 0;
 
@@ -23,6 +26,8 @@ function driver_get_pending_target_cpu_features(): u32 {
   return g_driver_pending_target_cpu_features;
 }
 
+/* G-02f-97：纯 helper 导出门闩（真 .x 体，非 _impl 转发） */
+#[no_mangle]
 function tcp_tolower(c: u8): u8 {
   if (c >= 65 && c <= 90) {
     return (c + 32) as u8;
@@ -168,10 +173,12 @@ function shu_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32): i32 {
   return tcp_parse_named(spec, start, end, out);
 }
 
+#[no_mangle]
 function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 {
   return tcp_eq_at(name, 0, 5, a0, a1, a2, a3, a4, 0, 0, 0, 0);
 }
 
+#[no_mangle]
 function tcp_eq6(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8): i32 {
   return tcp_eq_at(name, 0, 6, a0, a1, a2, a3, a4, a5, 0, 0, 0);
 }

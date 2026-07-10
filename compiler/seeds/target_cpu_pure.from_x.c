@@ -1,4 +1,5 @@
 /* target_cpu_pure.from_x.c — G-02f-2/3/4/5 product pure half of target_cpu.o
+ * G-02f-97 pure helper gates.
  *
  * Source of truth: src/driver/target_cpu_pure.x (+ print is stdio C co-located; f-5)
  * Hand-synced when full shux-c -E hangs on multi-helper TUs.
@@ -23,14 +24,21 @@ uint32_t driver_get_pending_target_cpu_features(void) {
   return g_driver_pending_target_cpu_features;
 }
 
-static uint8_t tcp_tolower(uint8_t c) {
+uint8_t tcp_tolower_impl(uint8_t c) {
   if (c >= 65 && c <= 90)
     return (uint8_t)(c + 32);
   return c;
 }
+uint8_t tcp_tolower(uint8_t c) {
+  {
+    return tcp_tolower_impl(c);
+  }
+  return 0;
+}
+
 
 /** Compare name[base..base+n) case-insensitively to lowercase lit[0..n). */
-static int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8_t *lit) {
+int32_t tcp_eq_at_impl(const uint8_t *name, size_t base, size_t n, const uint8_t *lit) {
   size_t i;
   for (i = 0; i < n; i++) {
     if (tcp_tolower(name[base + i]) != lit[i])
@@ -38,6 +46,13 @@ static int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8
   }
   return 1;
 }
+int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8_t *lit) {
+  {
+    return tcp_eq_at_impl(name, base, n, lit);
+  }
+  return 0;
+}
+
 
 static int32_t tcp_parse_named(const uint8_t *spec, size_t base, size_t end, uint32_t *out) {
   size_t n;
@@ -126,7 +141,7 @@ int shu_target_cpu_resolve(const char *spec, size_t spec_len, uint32_t *out) {
   return tcp_parse_named(s, start, end, out);
 }
 
-static int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
+int32_t tcp_eq5_impl(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
   uint8_t lit[5];
   lit[0] = a0;
   lit[1] = a1;
@@ -135,8 +150,15 @@ static int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, 
   lit[4] = a4;
   return tcp_eq_at(name, 0, 5, lit);
 }
+int32_t tcp_eq5(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
+  {
+    return tcp_eq5_impl(name, a0, a1, a2, a3, a4);
+  }
+  return 0;
+}
 
-static int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
+
+int32_t tcp_eq6_impl(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
                        uint8_t a5) {
   uint8_t lit[6];
   lit[0] = a0;
@@ -147,6 +169,14 @@ static int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, 
   lit[5] = a5;
   return tcp_eq_at(name, 0, 6, lit);
 }
+int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4,
+                       uint8_t a5) {
+  {
+    return tcp_eq6_impl(name, a0, a1, a2, a3, a4, a5);
+  }
+  return 0;
+}
+
 
 int shu_simd_is_vector_type_spelling(const char *name, size_t name_len) {
   const uint8_t *n = (const uint8_t *)name;
