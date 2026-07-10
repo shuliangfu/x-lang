@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-30/31/73：真迁 .x — 固定措辞 typeck 诊断薄包装 + parse_strict + 空桩。
-// G-02f-86：driver_diag_copy_bytes / report_prefixed 门闩。
+// G-02f-86 / G-02f-163：driver_diag_copy_bytes / report_prefixed 真迁。
+// G-02f-163：asm_set_last_expr_kind / set_current_func 真迁。
 // G-02f-96：driver_diag_report_x_pipeline_code 门闩（va_list 本体 C _impl）。
 // 产品：./shux-c -E → seeds/runtime_driver_diagnostic.from_x.c（+ C 尾 + 字符串抛光）。
 // C 尾：snprintf 诊断、va_list pipeline 码、scratch 缓冲、debug getenv 详细路径。
@@ -51,8 +52,9 @@ extern "C" function driver_diagnostic_asm_unsupported_expr_impl(kind: i32): void
 extern "C" function driver_diagnostic_asm_elf_unresolved_patch_impl(name: *u8, len: i32): void;
 extern "C" function driver_diagnostic_asm_macho_empty_reloc_impl(reloc_idx: i32): void;
 extern "C" function driver_diagnostic_asm_macho_missing_und_reloc_impl(reloc_idx: i32): void;
-extern "C" function driver_diagnostic_asm_set_last_expr_kind_impl(k: i32): void;
-extern "C" function driver_diagnostic_asm_set_current_func_impl(name: *u8, len: i32): void;
+extern "C" function driver_diagnostic_asm_last_expr_kind_set(k: i32): void;
+extern "C" function driver_diagnostic_asm_current_func_store(name: *u8, len: i32): void;
+extern "C" function driver_diagnostic_asm_current_func_maybe_trace(): void;
 extern "C" function driver_diagnostic_asm_print_current_func_impl(): void;
 extern "C" function driver_diagnostic_asm_var_not_found_impl(name: *u8, len: i32, num_locals: i32, first_slot: *u8, first_len: i32): void;
 extern "C" function driver_diagnostic_asm_fail_at_impl(loc: i32): void;
@@ -66,7 +68,10 @@ extern "C" function driver_diagnostic_warn_hot_reorder_field_impl(sname: *u8, sn
 extern "C" function driver_diagnostic_hint_unused_binding_impl(line: i32, col: i32, name: *u8, name_len: i32): void;
 
 
-extern "C" function driver_diag_report_prefixed_impl(line: i32, col: i32, msg: *u8): void;
+extern "C" function lsp_diag_get_enabled(): i32;
+extern "C" function lsp_diag_add(line: i32, col: i32, severity: i32, msg: *u8): void;
+extern "C" function driver_check_diag_emitted_note(): void;
+extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
 
 #[no_mangle]
 function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void {
@@ -433,17 +438,19 @@ function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void {
   }
 }
 
+// G-02f-163：asm emit 状态
 #[no_mangle]
 function driver_diagnostic_asm_set_last_expr_kind(k: i32): void {
   unsafe {
-    driver_diagnostic_asm_set_last_expr_kind_impl(k);
+    driver_diagnostic_asm_last_expr_kind_set(k);
   }
 }
 
 #[no_mangle]
 function driver_diagnostic_asm_set_current_func(name: *u8, len: i32): void {
   unsafe {
-    driver_diagnostic_asm_set_current_func_impl(name, len);
+    driver_diagnostic_asm_current_func_store(name, len);
+    driver_diagnostic_asm_current_func_maybe_trace();
   }
 }
 
@@ -519,14 +526,28 @@ function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name: *u8, n
 }
 
 
-/* ---- G-02f-86：diag copy_bytes / report_prefixed 门闩 ---- */
+/* ---- G-02f-86 / G-02f-163：diag copy_bytes / report_prefixed ---- */
 
-
-
+// G-02f-163：LSP 或 stderr 前缀诊断
 #[no_mangle]
 function driver_diag_report_prefixed(line: i32, col: i32, msg: *u8): void {
   unsafe {
-    driver_diag_report_prefixed_impl(line, col, msg);
+    if (lsp_diag_get_enabled() != 0) {
+      let ln: i32 = line;
+      let cl: i32 = col;
+      if (ln <= 0) { ln = 1; }
+      if (cl <= 0) { cl = 1; }
+      let m: *u8 = msg;
+      if (m == 0) { m = ""; }
+      lsp_diag_add(ln, cl, 1, m);
+      return;
+    }
+    if (driver_check_only_get() != 0) {
+      driver_check_diag_emitted_note();
+    }
+    let m2: *u8 = msg;
+    if (m2 == 0) { m2 = ""; }
+    diag_report(0 as *u8, line, col, 0 as *u8, m2, m2);
   }
 }
 
