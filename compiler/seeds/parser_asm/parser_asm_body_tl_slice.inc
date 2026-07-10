@@ -6,6 +6,12 @@
 #ifndef PARSER_ASM_BODY_TL_SLICE_INC
 #define PARSER_ASM_BODY_TL_SLICE_INC
 
+/* Forward decls: defined in skip_tl_slice.inc / glue_tail_slice.inc (G-02f-422 Ubuntu gcc fix) */
+void parser_asm_skip_one_struct_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                             struct parser_asm_slice_u8 *source);
+void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
+                                                    struct parser_asm_slice_u8 *source);
+
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t parser_asm_is_fn_sig_scalar_type_token_c(int32_t kind) {
   return kind == (int32_t)TOKEN_I32 || kind == (int32_t)TOKEN_I64 || kind == (int32_t)TOKEN_BOOL

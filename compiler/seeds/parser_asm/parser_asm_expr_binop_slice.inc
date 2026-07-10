@@ -50,7 +50,7 @@ extern void parser_parse_logand_into(void *arena, struct parser_asm_lexer lex, s
                                      struct parser_asm_parse_expr_result *out);
 
 static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
-static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
+void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 /* parser_asm_lex_from_result_val_into: provided by P1 lex_skip (non-static) */
 struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
 

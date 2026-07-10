@@ -23,7 +23,7 @@ extern int32_t pipeline_expr_ref_is_assign_lvalue(void *arena, int32_t expr_ref)
 extern int32_t compound_assign_token_to_expr_kind_from_glue(int32_t kind);
 
 static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae);
-static void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
+void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
 /* parser_asm_lex_from_result_val_into: provided by P1 lex_skip (non-static) */
 struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref);
 extern int32_t parser_asm_is_compound_assign_token_c(int32_t kind);

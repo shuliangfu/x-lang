@@ -1,3 +1,8 @@
+/* Forward decl: defined later in this file (G-02f-422 Ubuntu gcc fix) */
+int32_t parser_asm_collect_imports_consume_path(struct parser_asm_collect_imports_result *out,
+                                                      struct parser_asm_slice_u8 *source, uint8_t *path_buf,
+                                                      int32_t *path_len);
+
 /**
  * 若 lex 位于 const 之后，尝试跳过整条 const [=|{]= import("path"); 语句。
  * 成功返回 1 并更新 *lex；否则返回 0。
