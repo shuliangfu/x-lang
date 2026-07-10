@@ -2,14 +2,14 @@
 # run-l1-relink-fast.sh — L1 语义 gate 高效路径（parser/typeck 迭代用）
 #
 # 用法（仓库根）：
-#   ./tests/run-l1-relink-fast.sh              # Docker 内 relink + 4 条 L1 gate
-#   ./tests/run-l1-relink-fast.sh --smoke-only # 仅 slice 单文件烟测（最快）
-#   ./tests/run-l1-relink-fast.sh --relink-only
+# ./tests/run-l1-relink-fast.sh # Docker 内 relink + 4 条 L1 gate
+# ./tests/run-l1-relink-fast.sh --smoke-only # 仅 slice 单文件烟测（最快）
+# ./tests/run-l1-relink-fast.sh --relink-only
 #
 # 环境：
-#   SHUX_DOCKER_PERSIST=1      默认开启（常驻容器，二次 ~1min）
-#   SHUX_DOCKER_MEMORY=16g     默认 16g
-#   SHUX_FORCE_FULL_BOOTSTRAP=1  无 shux 时跑完整 bootstrap-driver-seed（慢，仅首次）
+# SHUX_DOCKER_PERSIST=1 默认开启（常驻容器，二次 ~1min）
+# SHUX_DOCKER_MEMORY=16g 默认 16g
+# SHUX_FORCE_FULL_BOOTSTRAP=1 无 shux 时跑完整 bootstrap-driver-seed（慢，仅首次）
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -18,13 +18,13 @@ SMOKE_ONLY=0
 RELINK_ONLY=0
 for arg in "$@"; do
   case "$arg" in
-    --smoke-only) SMOKE_ONLY=1 ;;
-    --relink-only) RELINK_ONLY=1 ;;
-    -h|--help)
-      sed -n '2,16p' "$0"
-      exit 0
-      ;;
-    *) echo "run-l1-relink-fast: unknown arg $arg" >&2; exit 1 ;;
+  --smoke-only) SMOKE_ONLY=1 ;;
+  --relink-only) RELINK_ONLY=1 ;;
+  -h|--help)
+  sed -n '2,16p' "$0"
+  exit 0
+  ;;
+  *) echo "run-l1-relink-fast: unknown arg $arg" >&2; exit 1 ;;
   esac
 done
 
@@ -66,8 +66,8 @@ final_link_shux() {
   local line
   line=$(make -n bootstrap-driver-seed 2>/dev/null | grep " -o shux " | grep -v shux-seed-phase1 | tail -1)
   if [ -z "$line" ]; then
-    echo "l1-fast FAIL: cannot extract final link line from make -n" >&2
-    exit 1
+  echo "l1-fast FAIL: cannot extract final link line from make -n" >&2
+  exit 1
   fi
   progress "final link shux (skip asm.x -E)"
   eval "$line"
@@ -84,19 +84,19 @@ else
   cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_bootstrap_stub.o src/lexer/cfg_eval_bootstrap_stub.c
   cp -f src/lexer/cfg_eval_bootstrap_stub.o src/lexer/cfg_eval.o
   make -j"$(nproc 2>/dev/null || echo 4)" \
-    parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o lexer_x.o x_frontend_link_alias.o \
-    preprocess_x.o pipeline_bootstrap_orchestration.o \
-    lsp_x.o lsp_diag_x.o lsp_io_x.o lsp_io_std_heap_x.o \
-    driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o \
-    src/main_driver.o src/runtime_driver.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o \
-    src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o \
-    src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
-    src/asm/bootstrap_seed_io_stubs.o src/x_seed_bridge.o src/std_fs_shim.o src/std_sys_shim.o \
-    src/ast_pool_l5_bridge.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes_nostub.o \
-    src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_state.o \
-    _stubs_driver.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o \
-    src/runtime_heap_user.o     src/runtime_heap_user.o \
-    2>&1 | while IFS= read -r line; do echo "$line"; done
+  parser_x.o typeck_x.o codegen_x.o driver_x.o pipeline_x.o lexer_x.o x_frontend_link_alias.o \
+  preprocess_x.o pipeline_bootstrap_orchestration.o \
+  lsp_x.o lsp_diag_x.o lsp_io_x.o lsp_io_std_heap_x.o \
+  driver_fmt_x.o driver_check_x.o driver_test_x.o driver_compile_x.o driver_build_x.o driver_run_x.o driver_emit_x.o \
+  src/main_driver.o src/runtime_driver.o src/runtime_abi.o src/runtime_io_abi.o src/runtime_proc_abi.o \
+  src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o \
+  src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o \
+  src/x_seed_bridge.o src/std_fs_shim.o src/std_sys_shim.o \
+  src/ast_pool_l5_bridge.o src/lsp/lsp_codegen_extern.o src/lsp/lsp_diag_pipeline_sizes_nostub.o \
+  src/lsp/lsp_diag_pipeline_ctx.o \
+  _stubs_driver.o typeck_c_module_stubs.o src/runtime_pipeline_abi_shux_c_stubs.o \
+  src/runtime_heap_user.o src/runtime_heap_user.o \
+  2>&1 | while IFS= read -r line; do echo "$line"; done
   progress "gen phase1 stub partial (avoid long asm -E)"
   ./scripts/gen_g06_phase1_backend_stub.sh
   final_link_shux

@@ -28,15 +28,15 @@ experimental_bootstrap_error() {
 ensure_async_cps_seed_objs() {
   local src out src_pair
   for src_pair in \
-    "src/async/async_liveness.c:$SEED_O/async_liveness.o" \
-    "src/async/async_cps_codegen.c:$SEED_O/async_cps_codegen.o"; do
-    src="${src_pair%%:*}"
-    out="${src_pair##*:}"
-    if [ ! -f "$out" ] || [ "$src" -nt "$out" ]; then
-      experimental_bootstrap_info "cc $src -> $out"
-      mkdir -p "$(dirname "$out")"
-      "$CC" $CFLAGS -c -o "$out" "$src"
-    fi
+  "src/async/async_liveness.c:$SEED_O/async_liveness.o" \
+  "src/async/async_cps_codegen.c:$SEED_O/async_cps_codegen.o"; do
+  src="${src_pair%%:*}"
+  out="${src_pair##*:}"
+  if [ ! -f "$out" ] || [ "$src" -nt "$out" ]; then
+  experimental_bootstrap_info "cc $src -> $out"
+  mkdir -p "$(dirname "$out")"
+  "$CC" $CFLAGS -c -o "$out" "$src"
+  fi
   done
 }
 ensure_async_cps_seed_objs
@@ -45,22 +45,22 @@ ensure_async_cps_seed_objs
 ensure_asm_driver_seed_c_objs() {
   mkdir -p "$SEED_O"
   if [ ! -f "$SEED_O/lexer.o" ] || [ "src/asm/runtime_lexer_glue.c" -nt "$SEED_O/lexer.o" ]; then
-    experimental_bootstrap_info "cc $SEED_O/lexer.o"
-    "$CC" $CFLAGS -c -o "$SEED_O/lexer.o" src/asm/runtime_lexer_glue.c
+  experimental_bootstrap_info "cc $SEED_O/lexer.o"
+  "$CC" $CFLAGS -c -o "$SEED_O/lexer.o" src/asm/runtime_lexer_glue.c
   fi
   if [ ! -f "$SEED_O/ast_seed.o" ] || [ "src/asm/runtime_ast_glue.c" -nt "$SEED_O/ast_seed.o" ]; then
-    experimental_bootstrap_info "cc $SEED_O/ast_seed.o"
-    "$CC" $CFLAGS -c -o "$SEED_O/ast_seed.o" src/asm/runtime_ast_glue.c
+  experimental_bootstrap_info "cc $SEED_O/ast_seed.o"
+  "$CC" $CFLAGS -c -o "$SEED_O/ast_seed.o" src/asm/runtime_ast_glue.c
   fi
   # G-02a: typeck.c 已物理删除；typeck.o 由 typeck.x 生成（typeck_x.o），编排桩由 typeck_c_module_stubs.o 提供。
   # G-02a: codegen.c 已物理删除；codegen.o 由 codegen.x 生成（codegen_x.o），编排桩由 codegen_pipeline_stubs.o 提供。
   if [ ! -f "$SEED_O/lsp_diag.o" ] || [ "src/asm/runtime_lsp_glue.c" -nt "$SEED_O/lsp_diag.o" ]; then
-    experimental_bootstrap_info "cc $SEED_O/lsp_diag.o"
-    "$CC" $CFLAGS -c -o "$SEED_O/lsp_diag.o" src/asm/runtime_lsp_glue.c
+  experimental_bootstrap_info "cc $SEED_O/lsp_diag.o"
+  "$CC" $CFLAGS -c -o "$SEED_O/lsp_diag.o" src/asm/runtime_lsp_glue.c
   fi
-  if [ ! -f "$SEED_O/lsp_state.o" ] || [ "src/lsp/lsp_state.c" -nt "$SEED_O/lsp_state.o" ]; then
-    experimental_bootstrap_info "cc $SEED_O/lsp_state.o"
-    "$CC" $CFLAGS -c -o "$SEED_O/lsp_state.o" src/lsp/lsp_state.c
+  if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ] || [ "src/lsp/lsp_diag_pipeline_ctx.c" -nt src/lsp/lsp_diag_pipeline_ctx.o ]; then
+  experimental_bootstrap_info "cc src/lsp/lsp_diag_pipeline_ctx.o"
+  "$CC" $CFLAGS -c -o src/lsp/lsp_diag_pipeline_ctx.o src/lsp/lsp_diag_pipeline_ctx.c
   fi
 }
 ensure_asm_driver_seed_c_objs
@@ -68,22 +68,22 @@ ensure_asm_driver_seed_c_objs
 # ast_pool.c / pipeline_glue.c 变更后须重编 pipeline_x.o（glue 在 pipeline_gen.c #include 内）。
 ensure_pipeline_x_fresh_for_ast_pool() {
   if [ -f ast_pool.c ] && { [ ! -f pipeline_x.o ] || [ ast_pool.c -nt pipeline_x.o ]; }; then
-    experimental_bootstrap_info "ast_pool.c newer than pipeline_x.o - rebuild"
-    if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-      make -s pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || {
-        experimental_bootstrap_warn "pipeline_x.o rebuild failed"
-        return 1
-      }
-    fi
+  experimental_bootstrap_info "ast_pool.c newer than pipeline_x.o - rebuild"
+  if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
+  make -s pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || {
+  experimental_bootstrap_warn "pipeline_x.o rebuild failed"
+  return 1
+  }
+  fi
   fi
   if [ -f pipeline_glue.c ] && { [ ! -f pipeline_x.o ] || [ pipeline_glue.c -nt pipeline_x.o ]; }; then
-    experimental_bootstrap_info "pipeline_glue.c newer than pipeline_x.o - rebuild"
-    if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-      make -s pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || {
-        experimental_bootstrap_warn "pipeline_x.o rebuild failed"
-        return 1
-      }
-    fi
+  experimental_bootstrap_info "pipeline_glue.c newer than pipeline_x.o - rebuild"
+  if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
+  make -s pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || {
+  experimental_bootstrap_warn "pipeline_x.o rebuild failed"
+  return 1
+  }
+  fi
   fi
   return 0
 }
@@ -105,22 +105,22 @@ fi
 ensure_runtime_abi_obj() {
   local o="src/runtime_abi.o"
   if [ ! -f "$o" ] || [ "src/runtime_abi.c" -nt "$o" ]; then
-    experimental_bootstrap_info "cc $o <- src/runtime_abi.c"
-    "$CC" $CFLAGS -c -o "$o" src/runtime_abi.c
+  experimental_bootstrap_info "cc $o <- src/runtime_abi.c"
+  "$CC" $CFLAGS -c -o "$o" src/runtime_abi.c
   fi
 }
 ensure_runtime_io_abi_obj() {
   local o="src/runtime_io_abi.o"
   if [ ! -f "$o" ] || [ "src/runtime_io_abi.c" -nt "$o" ]; then
-    experimental_bootstrap_info "cc $o <- src/runtime_io_abi.c"
-    "$CC" $CFLAGS -c -o "$o" src/runtime_io_abi.c
+  experimental_bootstrap_info "cc $o <- src/runtime_io_abi.c"
+  "$CC" $CFLAGS -c -o "$o" src/runtime_io_abi.c
   fi
 }
 ensure_runtime_proc_abi_obj() {
   local o="src/runtime_proc_abi.o"
   if [ ! -f "$o" ] || [ "src/runtime_proc_abi.c" -nt "$o" ]; then
-    experimental_bootstrap_info "cc $o <- src/runtime_proc_abi.c"
-    "$CC" $CFLAGS -c -o "$o" src/runtime_proc_abi.c
+  experimental_bootstrap_info "cc $o <- src/runtime_proc_abi.c"
+  "$CC" $CFLAGS -c -o "$o" src/runtime_proc_abi.c
   fi
 }
 ensure_runtime_driver_asm_strict_obj() {
@@ -129,9 +129,9 @@ ensure_runtime_driver_asm_strict_obj() {
   ensure_runtime_proc_abi_obj
   local o="src/runtime_driver_asm_strict.o"
   if [ ! -f "$o" ] || [ "src/runtime.c" -nt "$o" ]; then
-    experimental_bootstrap_info "cc $o <- src/runtime.c (-DSHUX_ASM_USE_COMPILER_IMPL_C)"
-    "$CC" $CFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS \
-      -DSHUX_ASM_USE_COMPILER_IMPL_C -c -o "$o" src/runtime.c
+  experimental_bootstrap_info "cc $o <- src/runtime.c (-DSHUX_ASM_USE_COMPILER_IMPL_C)"
+  "$CC" $CFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS \
+  -DSHUX_ASM_USE_COMPILER_IMPL_C -c -o "$o" src/runtime.c
   fi
 }
 ensure_runtime_driver_asm_strict_obj
@@ -140,20 +140,20 @@ ensure_runtime_driver_asm_strict_obj
 ensure_simd_glue_link_objs() {
   # G-02e: f32 xmm ABI 并入 backend_call_dispatch.o（无独立 pipeline_abi_f32_xmm.o）
   if [ ! -f src/asm/backend_call_dispatch.o ] || [ src/asm/backend_call_dispatch.c -nt src/asm/backend_call_dispatch.o ]; then
-    experimental_bootstrap_info "cc src/asm/backend_call_dispatch.o (incl. f32 xmm ABI)"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/backend_call_dispatch.o src/asm/backend_call_dispatch.c
+  experimental_bootstrap_info "cc src/asm/backend_call_dispatch.o (incl. f32 xmm ABI)"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/backend_call_dispatch.o src/asm/backend_call_dispatch.c
   fi
   if [ ! -f src/driver/target_cpu.o ] || [ src/driver/target_cpu.c -nt src/driver/target_cpu.o ]; then
-    experimental_bootstrap_info "cc src/driver/target_cpu.o"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/driver/target_cpu.o src/driver/target_cpu.c
+  experimental_bootstrap_info "cc src/driver/target_cpu.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/driver/target_cpu.o src/driver/target_cpu.c
   fi
   if [ ! -f src/asm/simd_enc.o ] || [ src/asm/simd_enc.c -nt src/asm/simd_enc.o ]; then
-    experimental_bootstrap_info "cc src/asm/simd_enc.o"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_enc.o src/asm/simd_enc.c
+  experimental_bootstrap_info "cc src/asm/simd_enc.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_enc.o src/asm/simd_enc.c
   fi
   if [ ! -f src/asm/simd_loop.o ] || [ src/asm/simd_loop.c -nt src/asm/simd_loop.o ]; then
-    experimental_bootstrap_info "cc src/asm/simd_loop.o"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_loop.o src/asm/simd_loop.c
+  experimental_bootstrap_info "cc src/asm/simd_loop.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/simd_loop.o src/asm/simd_loop.c
   fi
 }
 ensure_simd_glue_link_objs
@@ -162,39 +162,39 @@ ensure_simd_glue_link_objs
 ensure_experimental_companion_objs() {
   mkdir -p "$BUILD_DIR" "$BUILD_DIR/seed_host"
   if [ -f Makefile ] && command -v make >/dev/null 2>&1; then
-    make -s parser_x.o lexer_x.o typeck_x.o codegen_x.o preprocess_x.o \
-      x_frontend_link_alias.o \
-      driver_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
-      driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-      pipeline_bootstrap_orchestration.o 2>/dev/null || true
+  make -s parser_x.o lexer_x.o typeck_x.o codegen_x.o preprocess_x.o \
+  x_frontend_link_alias.o \
+  driver_x.o driver_fmt_x.o driver_check_x.o driver_test_x.o \
+  driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
+  pipeline_bootstrap_orchestration.o 2>/dev/null || true
   fi
   if [ ! -f src/runtime_io_abi.o ] || [ src/runtime_io_abi.c -nt src/runtime_io_abi.o ]; then
-    experimental_bootstrap_info "cc runtime_io_abi.o (incl. fs/sys shim)"
-    "$CC" $CFLAGS -c -o src/runtime_io_abi.o src/runtime_io_abi.c
+  experimental_bootstrap_info "cc runtime_io_abi.o (incl. fs/sys shim)"
+  "$CC" $CFLAGS -c -o src/runtime_io_abi.o src/runtime_io_abi.c
   fi
   if [ ! -f "$BUILD_DIR/x_seed_bridge.o" ] || [ "src/x_seed_bridge.c" -nt "$BUILD_DIR/x_seed_bridge.o" ]; then
-    experimental_bootstrap_info "cc x_seed_bridge.o"
-    "$CC" $CFLAGS -c -o "$BUILD_DIR/x_seed_bridge.o" src/x_seed_bridge.c
+  experimental_bootstrap_info "cc x_seed_bridge.o"
+  "$CC" $CFLAGS -c -o "$BUILD_DIR/x_seed_bridge.o" src/x_seed_bridge.c
   fi
   if [ ! -f "$BUILD_DIR/ast_pool_l5_bridge.o" ] || [ "src/ast_pool_l5_bridge.c" -nt "$BUILD_DIR/ast_pool_l5_bridge.o" ]; then
-    experimental_bootstrap_info "cc ast_pool_l5_bridge.o"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/ast_pool_l5_bridge.o" src/ast_pool_l5_bridge.c
+  experimental_bootstrap_info "cc ast_pool_l5_bridge.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/ast_pool_l5_bridge.o" src/ast_pool_l5_bridge.c
   fi
   if [ ! -f "$BUILD_DIR/lsp_codegen_extern.o" ] || [ "src/lsp/lsp_codegen_extern.c" -nt "$BUILD_DIR/lsp_codegen_extern.o" ]; then
-    experimental_bootstrap_info "cc lsp_codegen_extern.o"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/lsp_codegen_extern.o" src/lsp/lsp_codegen_extern.c
+  experimental_bootstrap_info "cc lsp_codegen_extern.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/lsp_codegen_extern.o" src/lsp/lsp_codegen_extern.c
   fi
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.x" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
-    experimental_bootstrap_info "build_seed_asm_host (asm_backend_partial.o)"
-    ./scripts/build_seed_asm_host.sh
+  experimental_bootstrap_info "build_seed_asm_host (asm_backend_partial.o)"
+  ./scripts/build_seed_asm_host.sh
   fi
   if [ ! -f src/asm/asm_backend_compat_stubs.o ] || [ "src/asm/asm_backend_compat_stubs.c" -nt src/asm/asm_backend_compat_stubs.o ]; then
-    experimental_bootstrap_info "cc asm_backend_compat_stubs.o"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/asm_backend_compat_stubs.o src/asm/asm_backend_compat_stubs.c
+  experimental_bootstrap_info "cc asm_backend_compat_stubs.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/asm_backend_compat_stubs.o src/asm/asm_backend_compat_stubs.c
   fi
   if [ ! -f src/asm/user_asm_seed_bridge.o ] || [ "src/asm/user_asm_seed_bridge.c" -nt src/asm/user_asm_seed_bridge.o ]; then
-    experimental_bootstrap_info "cc user_asm_seed_bridge.o"
-    "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/user_asm_seed_bridge.o src/asm/user_asm_seed_bridge.c
+  experimental_bootstrap_info "cc user_asm_seed_bridge.o"
+  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/user_asm_seed_bridge.o src/asm/user_asm_seed_bridge.c
   fi
 }
 ensure_experimental_companion_objs
@@ -218,37 +218,37 @@ if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "src/asm/parser_asm_parse_expr_link.c" -n
 fi
 if [ ! -f "$PARSER_ASM_PARTIAL" ] && [ -f "$BUILD_DIR/parser.o" ]; then
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
-    cat > "$BUILD_DIR/parser_asm_minimal_export.txt" <<'EOF'
+  cat > "$BUILD_DIR/parser_asm_minimal_export.txt" <<'EOF'
 _parse_expr_into
 _copy_module_import_path64
 _parse_one_function_ok_for_pipeline
 EOF
-    ld -r -exported_symbols_list "$BUILD_DIR/parser_asm_minimal_export.txt" -o "$PARSER_ASM_PARTIAL" "$BUILD_DIR/parser.o"
+  ld -r -exported_symbols_list "$BUILD_DIR/parser_asm_minimal_export.txt" -o "$PARSER_ASM_PARTIAL" "$BUILD_DIR/parser.o"
   else
-    # Linux：ld -exported_symbols_list 为 Mach-O 语法；bootstrap 链不依赖 partial，跳过即可。
-    cp -f "$BUILD_DIR/parser.o" "$PARSER_ASM_PARTIAL"
+  # Linux：ld -exported_symbols_list 为 Mach-O 语法；bootstrap 链不依赖 partial，跳过即可。
+  cp -f "$BUILD_DIR/parser.o" "$PARSER_ASM_PARTIAL"
   fi
 fi
 
 # parser_x.o：Makefile 要求 parser_copy_module_import_path64 在 gen 内；experimental 链由 link_alias+thin_glue 提供。
 ensure_parser_x_obj() {
   if [ -f parser_x.o ]; then
-    return 0
+  return 0
   fi
   if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-    make -s parser_x.o 2>/dev/null || true
+  make -s parser_x.o 2>/dev/null || true
   fi
   if [ ! -f parser_x.o ] && [ -f parser_gen.c ]; then
-    experimental_bootstrap_info "cc parser_gen.c -> parser_x.o (link_alias supplies parser_* pipeline symbols)"
-    "$CC" $CFLAGS $(make -s -f Makefile print-PIPELINE_GEN_CFLAGS 2>/dev/null || echo "") \
-      -I. -Iinclude -Isrc \
-      -Dstd_io_driver_driver_read_ptr_len=shux_io_read_ptr_len \
-      -Dstd_io_driver_driver_read_ptr=shux_io_read_ptr \
-      -c parser_gen.c -o parser_x.o
+  experimental_bootstrap_info "cc parser_gen.c -> parser_x.o (link_alias supplies parser_* pipeline symbols)"
+  "$CC" $CFLAGS $(make -s -f Makefile print-PIPELINE_GEN_CFLAGS 2>/dev/null || echo "") \
+  -I. -Iinclude -Isrc \
+  -Dstd_io_driver_driver_read_ptr_len=shux_io_read_ptr_len \
+  -Dstd_io_driver_driver_read_ptr=shux_io_read_ptr \
+  -c parser_gen.c -o parser_x.o
   fi
   if [ ! -f parser_x.o ]; then
-    experimental_bootstrap_error "missing parser_x.o (make parser_x.o or restore parser_gen.c)"
-    exit 1
+  experimental_bootstrap_error "missing parser_x.o (make parser_x.o or restore parser_gen.c)"
+  exit 1
   fi
 }
 ensure_parser_x_obj
@@ -261,88 +261,88 @@ ensure_parser_parse_bootstrap_asm_obj() {
   mkdir -p "$BUILD_DIR"
 
   compile_parser_parse_bootstrap_cc_obj() {
-    experimental_bootstrap_info "cc parser_asm_parse_bootstrap_obj.c -> $PARSER_PARSE_BOOT_O"
-    if ! "$CC" $CFLAGS -c -o "$PARSER_PARSE_BOOT_O" "$PBOOT_C_SRC"; then
-      experimental_bootstrap_warn "cc parser_parse_bootstrap.o failed"
-      rm -f "$PARSER_PARSE_BOOT_O"
-      return 1
-    fi
-    if ! nm -g "$PARSER_PARSE_BOOT_O" 2>/dev/null | grep -qE '[[:space:]]parse_into_buf$'; then
-      experimental_bootstrap_warn "parser_parse_bootstrap.o missing parse_into_buf"
-      rm -f "$PARSER_PARSE_BOOT_O"
-      return 1
-    fi
-    return 0
+  experimental_bootstrap_info "cc parser_asm_parse_bootstrap_obj.c -> $PARSER_PARSE_BOOT_O"
+  if ! "$CC" $CFLAGS -c -o "$PARSER_PARSE_BOOT_O" "$PBOOT_C_SRC"; then
+  experimental_bootstrap_warn "cc parser_parse_bootstrap.o failed"
+  rm -f "$PARSER_PARSE_BOOT_O"
+  return 1
+  fi
+  if ! nm -g "$PARSER_PARSE_BOOT_O" 2>/dev/null | grep -qE '[[:space:]]parse_into_buf$'; then
+  experimental_bootstrap_warn "parser_parse_bootstrap.o missing parse_into_buf"
+  rm -f "$PARSER_PARSE_BOOT_O"
+  return 1
+  fi
+  return 0
   }
 
   try_parser_parse_bootstrap_x_emit() {
-    SHUX_SEED="./shux"
-    PBOOT_LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
-    if [ -x ./shux_asm2_refreshed ] && file ./shux_asm2_refreshed 2>/dev/null | grep -q "ELF.*x86-64"; then
-      _min="/tmp/shux_seed_parse_probe.$$.x"
-      printf 'function main(): i32 { return 0; }\n' > "$_min"
-      if ! env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 ./shux -backend asm -o /tmp/shux_seed_probe.$$.o \
-          $PBOOT_LIBROOT "$_min" 2>/dev/null || [ ! -s /tmp/shux_seed_probe.$$.o ]; then
-        SHUX_SEED="./shux_asm2_refreshed"
-        experimental_bootstrap_warn "./shux parse probe failed - bootstrap seed=$SHUX_SEED"
-      fi
-      rm -f "$_min" /tmp/shux_seed_probe.$$.o 2>/dev/null || true
-    fi
-    if [ ! -x "$SHUX_SEED" ]; then
-      return 1
-    fi
-    if [ -f ast_pool.c ] && { [ ! -f pipeline_x.o ] || [ ast_pool.c -nt pipeline_x.o ]; }; then
-      experimental_bootstrap_info "ast_pool.c newer - rebuild pipeline_x.o for parse bootstrap"
-      if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-        make -s pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || true
-      fi
-    fi
-    if [ -f pipeline_x.o ] && [ pipeline_x.o -nt "$SHUX_SEED" ] 2>/dev/null; then
-      experimental_bootstrap_info "refresh ./shux (pipeline_x.o for parse bootstrap emit)"
-      if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
-        make -s relink-shux 2>/dev/null || true
-      fi
-    fi
-    experimental_bootstrap_info "$SHUX_SEED asm parser parse bootstrap (SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT opt-in)"
-    ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
-    if ! env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
-        SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
-        "$SHUX_SEED" -backend asm -o "$PARSER_PARSE_BOOT_O" $PBOOT_LIBROOT src/parser/parser.x \
-        2>"$BUILD_DIR/.parser_parse_bootstrap_err"; then
-      experimental_bootstrap_warn "parser parse bootstrap X emit failed"
-      tail -8 "$BUILD_DIR/.parser_parse_bootstrap_err" 2>/dev/null | sed 's/^/  /' || true
-      rm -f "$PARSER_PARSE_BOOT_O"
-      return 1
-    fi
-    if ! nm -g "$PARSER_PARSE_BOOT_O" 2>/dev/null | grep -qE '[[:space:]]parse_into_buf$'; then
-      experimental_bootstrap_warn "X bootstrap .o missing parse_into_buf"
-      rm -f "$PARSER_PARSE_BOOT_O"
-      return 1
-    fi
-    return 0
+  SHUX_SEED="./shux"
+  PBOOT_LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
+  if [ -x ./shux_asm2_refreshed ] && file ./shux_asm2_refreshed 2>/dev/null | grep -q "ELF.*x86-64"; then
+  _min="/tmp/shux_seed_parse_probe.$$.x"
+  printf 'function main(): i32 { return 0; }\n' > "$_min"
+  if ! env SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 ./shux -backend asm -o /tmp/shux_seed_probe.$$.o \
+  $PBOOT_LIBROOT "$_min" 2>/dev/null || [ ! -s /tmp/shux_seed_probe.$$.o ]; then
+  SHUX_SEED="./shux_asm2_refreshed"
+  experimental_bootstrap_warn "./shux parse probe failed - bootstrap seed=$SHUX_SEED"
+  fi
+  rm -f "$_min" /tmp/shux_seed_probe.$$.o 2>/dev/null || true
+  fi
+  if [ ! -x "$SHUX_SEED" ]; then
+  return 1
+  fi
+  if [ -f ast_pool.c ] && { [ ! -f pipeline_x.o ] || [ ast_pool.c -nt pipeline_x.o ]; }; then
+  experimental_bootstrap_info "ast_pool.c newer - rebuild pipeline_x.o for parse bootstrap"
+  if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
+  make -s pipeline_x.o PIPELINE_X_FORCE_COMPILE=1 || true
+  fi
+  fi
+  if [ -f pipeline_x.o ] && [ pipeline_x.o -nt "$SHUX_SEED" ] 2>/dev/null; then
+  experimental_bootstrap_info "refresh ./shux (pipeline_x.o for parse bootstrap emit)"
+  if command -v make >/dev/null 2>&1 && [ -f Makefile ]; then
+  make -s relink-shux 2>/dev/null || true
+  fi
+  fi
+  experimental_bootstrap_info "$SHUX_SEED asm parser parse bootstrap (SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT opt-in)"
+  ulimit -s 65532 2>/dev/null || ulimit -s hard 2>/dev/null || true
+  if ! env -u SHUX_ASM_START_FUNC SHUX_ASM_PARSER_PARSE_BOOTSTRAP_EMIT=1 \
+  SHUX_ASM_ENTRY_MODULE_ONLY=1 SHUX_ASM_BUILD_SKIP_TYPECK=1 SHUX_ASM_WPO_DCE=0 \
+  "$SHUX_SEED" -backend asm -o "$PARSER_PARSE_BOOT_O" $PBOOT_LIBROOT src/parser/parser.x \
+  2>"$BUILD_DIR/.parser_parse_bootstrap_err"; then
+  experimental_bootstrap_warn "parser parse bootstrap X emit failed"
+  tail -8 "$BUILD_DIR/.parser_parse_bootstrap_err" 2>/dev/null | sed 's/^/ /' || true
+  rm -f "$PARSER_PARSE_BOOT_O"
+  return 1
+  fi
+  if ! nm -g "$PARSER_PARSE_BOOT_O" 2>/dev/null | grep -qE '[[:space:]]parse_into_buf$'; then
+  experimental_bootstrap_warn "X bootstrap .o missing parse_into_buf"
+  rm -f "$PARSER_PARSE_BOOT_O"
+  return 1
+  fi
+  return 0
   }
 
   need_rebuild=0
   if [ ! -f "$PARSER_PARSE_BOOT_O" ]; then
-    need_rebuild=1
+  need_rebuild=1
   elif [ "$PBOOT_C_SRC" -nt "$PARSER_PARSE_BOOT_O" ] || [ "$PBOOT_SEED_SLICE" -nt "$PARSER_PARSE_BOOT_O" ]; then
-    need_rebuild=1
+  need_rebuild=1
   fi
 
   if [ "$need_rebuild" = "1" ]; then
-    if [ "${SHUX_ASM_PARSER_PARSE_BOOTSTRAP_X_EMIT:-0}" = "1" ]; then
-      try_parser_parse_bootstrap_x_emit || compile_parser_parse_bootstrap_cc_obj || true
-    else
-      compile_parser_parse_bootstrap_cc_obj || true
-    fi
+  if [ "${SHUX_ASM_PARSER_PARSE_BOOTSTRAP_X_EMIT:-0}" = "1" ]; then
+  try_parser_parse_bootstrap_x_emit || compile_parser_parse_bootstrap_cc_obj || true
+  else
+  compile_parser_parse_bootstrap_cc_obj || true
+  fi
   fi
 
   if [ ! -f "$PARSER_PARSE_BOOT_O" ]; then
-    PARSER_PARSE_BOOT_O=""
+  PARSER_PARSE_BOOT_O=""
   fi
   # parser_x.o 已真 emit parse_into* 时勿再链 bootstrap .o（否则 ld multiple definition）。
   if [ -f parser_x.o ] && nm parser_x.o 2>/dev/null | grep -qE '[[:space:]]T parser_parse_into_buf$'; then
-    PARSER_PARSE_BOOT_O=""
+  PARSER_PARSE_BOOT_O=""
   fi
 }
 ensure_parser_parse_bootstrap_asm_obj
@@ -351,8 +351,8 @@ for o in pipeline_x.o pipeline_bootstrap_orchestration.o preprocess_x.o lexer_x.
   x_frontend_link_alias.o \
   driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o; do
   if [ ! -f "$o" ]; then
-    experimental_bootstrap_error "missing $o (make $o)"
-    exit 1
+  experimental_bootstrap_error "missing $o (make $o)"
+  exit 1
   fi
 done
 
@@ -375,11 +375,11 @@ ensure_experimental_lsp_objs() {
   GEN_DIR="$BUILD_DIR/gen_driver"
   mkdir -p "$GEN_DIR"
   if [ ! -f Makefile ] || ! command -v make >/dev/null 2>&1; then
-    experimental_bootstrap_warn "cannot make lsp_x.o"
-    return 1
+  experimental_bootstrap_warn "cannot make lsp_x.o"
+  return 1
   fi
   make -s lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c \
-    lsp_x.o lsp_io_x.o lsp_diag_x.o lsp_io_std_heap_x.o
+  lsp_x.o lsp_io_x.o lsp_diag_x.o lsp_io_std_heap_x.o
   cp -f lsp_x.o lsp_io_x.o lsp_diag_x.o lsp_io_std_heap_x.o "$GEN_DIR/"
 }
 ensure_experimental_lsp_objs || true
@@ -439,7 +439,7 @@ fi
   "$SEED_O/parser.o" \
   "$SEED_O/lsp_diag.o" \
   $ST_LSP_X \
-  "$SEED_O/lsp_state.o" \
+  src/lsp/lsp_diag_pipeline_ctx.o \
   src/lsp/lsp_diag_pipeline_sizes.o \
   "$PARSER_ASM_THIN_C" \
   "$PARSER_EXPR_LINK_O" \
@@ -449,7 +449,7 @@ fi
 
 if [ ! -x shux_asm.experimental ]; then
   experimental_bootstrap_error "link failed"
-  tail -n 12 "$BUILD_DIR/.relink_experimental_bootstrap_err" 2>/dev/null | sed 's/^/  /' || true
+  tail -n 12 "$BUILD_DIR/.relink_experimental_bootstrap_err" 2>/dev/null | sed 's/^/ /' || true
   exit 1
 fi
 

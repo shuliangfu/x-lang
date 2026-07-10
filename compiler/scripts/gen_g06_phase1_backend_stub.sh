@@ -53,9 +53,9 @@ fi
 mkdir -p "$OUT_DIR"
 
 # phase1 试链需要 DRIVER_SEED_OBJS 中的 io 桩；gen 脚本可能在 recipe 中段先于最终 prerequisite 链执行。
-if [ ! -f src/asm/bootstrap_seed_io_stubs.o ]; then
-  make src/asm/bootstrap_seed_io_stubs.o >/dev/null 2>&1 || {
-    echo "gen_g06_phase1_backend_stub: failed to build src/asm/bootstrap_seed_io_stubs.o" >&2
+if [ ! -f src/x_seed_bridge.o ]; then
+  make src/x_seed_bridge.o >/dev/null 2>&1 || {
+    echo "gen_g06_phase1_backend_stub: failed to build src/x_seed_bridge.o" >&2
     exit 1
   }
 fi

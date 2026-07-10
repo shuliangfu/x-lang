@@ -40,7 +40,6 @@ file	compiler/src/asm/backend_seed_mega_fallback.c
 file	compiler/src/asm/backend_try_inline_dispatch.c
 file	compiler/src/asm/backend_x86_64_enc_c.c
 file	compiler/src/asm/bootstrap_nostdlib_stubs.c
-file	compiler/src/asm/bootstrap_seed_io_stubs.c
 file	compiler/src/asm/crt0_mingw.c
 file	compiler/src/asm/driver_compile_asm_link_alias.c
 file	compiler/src/asm/http/runtime_http_glue.c
@@ -121,7 +120,6 @@ file	compiler/src/lsp/lsp_codegen_extern.c
 file	compiler/src/lsp/lsp_diag_pipeline_ctx.c
 file	compiler/src/lsp/lsp_diag_pipeline_sizes.c
 file	compiler/src/lsp/lsp_diag_stubs_no_c.c
-file	compiler/src/lsp/lsp_state.c
 file	compiler/src/lsp/typeck_lsp_io_stub.c
 file	compiler/src/main.c
 file	compiler/src/preprocess_if_stack_bridge.c
