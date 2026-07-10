@@ -1,4 +1,5 @@
 /* Generated from src/x_seed_bridge.x (G-02f-27 true .x + C tail).
+ * G-02f-332：PREFER_X_O hybrid thin 由 .x→-E；rest 用 SHUX_L2_X_SEED_BRIDGE_THIN_FROM_X。
  * Regen: ./shux-c -E -L .. src/x_seed_bridge.x > /tmp/xsb.c
  *         then re-apply C tail (match-module / ast_expr / io_read-write / buffer / weak).
  * .x covers: typeck_preprocess_x_buf, std_heap_*, io register/read_ptr stubs.
@@ -17,6 +18,7 @@
 
 extern int32_t preprocess_x_buf(uint8_t * src, ssize_t src_len, uint8_t * out_buf, int32_t out_cap);
 extern uint8_t * typeck_std_heap_alloc(size_t size);
+#ifndef SHUX_L2_X_SEED_BRIDGE_THIN_FROM_X
 int32_t typeck_preprocess_x_buf(uint8_t * src, ssize_t src_len, uint8_t * out_buf, int32_t out_cap) {
   (void)(({   {
     int32_t r = preprocess_x_buf(src, src_len, out_buf, out_cap);
@@ -77,6 +79,24 @@ int32_t io_register_buffers_buf_i32(ssize_t bufs, int32_t nr) {
 int32_t shux_io_register(uint8_t * ptr, size_t len, size_t handle) {
   return io_register_buffer(ptr, len);
 }
+
+#else
+/* G-02f-332：thin 由 src/x_seed_bridge.x（-E）提供 */
+extern int32_t typeck_preprocess_x_buf(uint8_t *src, ssize_t src_len, uint8_t *out_buf, int32_t out_cap);
+extern uint8_t *std_heap_alloc_zeroed(size_t size);
+extern uint8_t *std_heap_alloc_zero(size_t size);
+extern void std_heap_free(uint8_t *ptr);
+extern uint8_t *std_heap_alloc(size_t size);
+extern uint8_t *io_read_ptr(uint32_t handle, uint32_t timeout_ms);
+extern int32_t io_read_ptr_len(void);
+extern int32_t io_register_buffer(uint8_t *ptr, size_t len);
+extern void io_unregister_buffers(void);
+extern int32_t io_wait_readable(int32_t *fds, int32_t n, uint32_t timeout_ms);
+extern int32_t io_register_buffers_4(uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2, uint8_t *p3, size_t l3, uint32_t nr);
+extern int32_t io_register_buffers_buf(uint8_t *bufs, int32_t nr);
+extern int32_t io_register_buffers_buf_i32(ssize_t bufs, int32_t nr);
+extern int32_t shux_io_register(uint8_t *ptr, size_t len, size_t handle);
+#endif
 
 /* ---- C tail (G-02f-27): static global / struct field / ssize io / weak ---- */
 

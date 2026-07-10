@@ -13,7 +13,7 @@
 #   G05_SKIP_HOT_REBUILD=1  跳过热路径 cc 重编（仅检查）
 #   G05_CC                  覆盖编译器（默认 cc）
 #   SHUX_G05_PREFER_X_O=1   L2：优先 .x→C(-E)→.o（失败回退 seed；见 analysis/G-02f-L2-x-o-pilot.md）
-#                           TUs：sizes + target_cpu_flags + strict_glue_thin + lsp_ctx thin（G-02f-256～258/331）
+#                           TUs：sizes + target_cpu_flags + strict_glue_thin + lsp_ctx + x_seed_bridge（G-02f-256～258/331～332）
 
 set -e
 cd "$(dirname "$0")/.."
@@ -96,6 +96,14 @@ g05_try_x_to_o() {
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
     perl -i -pe 's/^(void|int32_t|int|size_t|uint8_t|uint32_t|uint64_t)\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
   fi
+  # G-02f-332：-E 常缺 ssize_t；只前置 sys/types（勿 #include unistd，以免与 -E 的 read/write 声明冲突）
+  {
+    echo '/* g05_try_x_to_o prologue (G-02f-332) */'
+    echo '#include <stddef.h>'
+    echo '#include <stdint.h>'
+    echo '#include <sys/types.h>'
+    cat "$_xtmp"
+  } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086
   # -x c：mktemp 无扩展名时 clang 否则不当作 C 源
   if ! $CC $BASE_CFLAGS "$@" -x c -c -o "$_xout" "$_xtmp"; then
@@ -1388,12 +1396,31 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/diag.o "$_diag"
     fi
   fi
+  # G-02f-11 / G-02f-332：x_seed_bridge.o
+  # 默认整 seed；PREFER_X_O=1 时 .x thin（heap/io 桩）+ seed-rest（C 尾）ld -r
   _xsb=seeds/x_seed_bridge.from_x.c
+  _xsb_x=src/x_seed_bridge.x
+  _xsb_o=src/x_seed_bridge.o
   if [ -f "$_xsb" ]; then
-    if [ ! -f src/x_seed_bridge.o ] || [ "$_xsb" -nt src/x_seed_bridge.o ]; then
-      echo "g05_ensure: x_seed_bridge.o ← seed (G-02f-11)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/x_seed_bridge.o "$_xsb"
+    if [ ! -f "$_xsb_o" ] || [ "$_xsb" -nt "$_xsb_o" ]       || { [ -f "$_xsb_x" ] && [ "$_xsb_x" -nt "$_xsb_o" ]; }; then
+      _xsb_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_xsb_x" ]; then
+        _xsb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_xsb_thin.XXXXXX") || true
+        _xsb_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_xsb_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_xsb_thin_o" ] && [ -n "$_xsb_rest_o" ]           && G05_X_O_WEAK=1 g05_try_x_to_o "$_xsb_x" "$_xsb_thin_o"           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_X_SEED_BRIDGE_THIN_FROM_X                -c -o "$_xsb_rest_o" "$_xsb"           && $CC -r -nostdlib -o "$_xsb_o" "$_xsb_thin_o" "$_xsb_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_xsb_o ← $_xsb_x + seed-rest (G-02f-332 L2 hybrid x_seed_bridge thin)"
+          _xsb_done=1
+        else
+          echo "g05_ensure: L2 hybrid x_seed_bridge failed; fallback full seed" >&2
+        fi
+        rm -f "$_xsb_thin_o" "$_xsb_rest_o"
+      fi
+      if [ "$_xsb_done" = "0" ]; then
+        echo "g05_ensure: $_xsb_o ← seed (G-02f-11)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_xsb_o" "$_xsb"
+      fi
     fi
   fi
   _slc=seeds/seed_link_compat.from_x.c
