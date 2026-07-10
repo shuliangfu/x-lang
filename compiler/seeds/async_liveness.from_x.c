@@ -623,7 +623,8 @@ int live_name_cmp(const void *a, const void *b) {
 
 
 /** 函数名转 C 标识符（非 alnum/_ → _）。 */
-void frame_mangle_ident_impl(const char *fn, char *out, size_t n) {
+/* G-02f-161：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void frame_mangle_ident(const char *fn, char *out, size_t n) {
     if (!out || n == 0) return;
     if (!fn || !fn[0]) {
         strncpy(out, "fn", n - 1);
@@ -640,23 +641,14 @@ void frame_mangle_ident_impl(const char *fn, char *out, size_t n) {
     }
     out[j] = '\0';
 }
-void frame_mangle_ident(const char *fn, char *out, size_t n) {
-  {
-    frame_mangle_ident_impl(fn, out, n);
-  }
-}
 
 
 /** 构造协程帧 C 类型名 __shux_async_frame_<mangled>。 */
-void frame_build_tag_impl(const struct ASTFunc *f, char *buf, size_t n) {
+/* G-02f-161：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void frame_build_tag(const struct ASTFunc *f, char *buf, size_t n) {
     char m[64];
     frame_mangle_ident(f && f->name ? f->name : "fn", m, sizeof(m));
     (void)snprintf(buf, n, "__shux_async_frame_%s", m);
-}
-void frame_build_tag(const struct ASTFunc *f, char *buf, size_t n) {
-  {
-    frame_build_tag_impl(f, buf, n);
-  }
 }
 
 

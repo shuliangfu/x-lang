@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-18：async_liveness 产品源迁 seeds/async_liveness.from_x.c。
-// 实现仍在 seed C；本文件为文档锚点。
+// G-02f-161：frame_mangle_ident / frame_build_tag 真迁 .x。
 // 产品：cc seeds/async_liveness.from_x.c → src/async/async_liveness.o
 
 function async_liveness_x_doc_anchor(): i32 {
@@ -113,10 +113,8 @@ extern "C" function expr_has_io_write_await_impl(e: *u8): i32;
 extern "C" function expr_refs_var_impl(e: *u8, name: *u8): i32;
 extern "C" function frame_live_at_await_impl(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): void;
 extern "C" function analyze_block_linear_impl(b: *u8, out: *u8): void;
-extern "C" function frame_mangle_ident_impl(in_name: *u8, out: *u8, cap: i32): void;
-extern "C" function frame_build_tag_impl(name: *u8, out: *u8, cap: i32): void;
 
-/* ---- G-02f-110：async_liveness expr/frame 门闩 ---- */
+/* ---- G-02f-110 / G-02f-161：async_liveness expr/frame 门闩 ---- */
 
 #[no_mangle]
 function expr_has_await(e: *u8): i32 { unsafe { return expr_has_await_impl(e); } return 0; }
@@ -133,10 +131,94 @@ function frame_live_at_await(b: *u8, idx: i32, defs: *u8, nd: i32, out: *u8): vo
 
 #[no_mangle]
 function analyze_block_linear(b: *u8, out: *u8): void { unsafe { analyze_block_linear_impl(b, out); } }
+
+// G-02f-161：函数名 → C 标识符（非 alnum/_ → _）
 #[no_mangle]
-function frame_mangle_ident(in_name: *u8, out: *u8, cap: i32): void { unsafe { frame_mangle_ident_impl(in_name, out, cap); } }
+function frame_mangle_ident(in_name: *u8, out: *u8, cap: i32): void {
+  if (out == 0) { return; }
+  if (cap <= 0) { return; }
+  if (in_name == 0) {
+    if (cap > 2) {
+      out[0] = 102;
+      out[1] = 110;
+      out[2] = 0;
+    } else {
+      out[0] = 0;
+    }
+    return;
+  }
+  if (in_name[0] == 0) {
+    if (cap > 2) {
+      out[0] = 102;
+      out[1] = 110;
+      out[2] = 0;
+    } else {
+      out[0] = 0;
+    }
+    return;
+  }
+  let j: i32 = 0;
+  let i: i32 = 0;
+  while (i < 4096) {
+    if (in_name[i] == 0) { break; }
+    if (j + 1 >= cap) { break; }
+    let c: u8 = in_name[i];
+    let ok: i32 = 0;
+    if (c >= 97) {
+      if (c <= 122) { ok = 1; }
+    }
+    if (c >= 65) {
+      if (c <= 90) { ok = 1; }
+    }
+    if (c >= 48) {
+      if (c <= 57) { ok = 1; }
+    }
+    if (c == 95) { ok = 1; }
+    if (ok != 0) {
+      out[j] = c;
+    } else {
+      out[j] = 95;
+    }
+    j = j + 1;
+    i = i + 1;
+  }
+  out[j] = 0;
+}
+
+// G-02f-161：__shux_async_frame_<mangled>（f 为 ASTFunc*，name@8）
 #[no_mangle]
-function frame_build_tag(name: *u8, out: *u8, cap: i32): void { unsafe { frame_build_tag_impl(name, out, cap); } }
+function frame_build_tag(f: *u8, out: *u8, cap: i32): void {
+  if (out == 0) { return; }
+  if (cap <= 1) { return; }
+  let name: *u8 = 0 as *u8;
+  if (f != 0) {
+    name = async_live_load_func_name(f);
+  }
+  if (name == 0) {
+    name = "fn";
+  } else {
+    if (name[0] == 0) { name = "fn"; }
+  }
+  let m: u8[64] = [];
+  frame_mangle_ident(name, &m[0], 64);
+  let pref: *u8 = "__shux_async_frame_";
+  let j: i32 = 0;
+  let i: i32 = 0;
+  while (j + 1 < cap) {
+    if (pref[i] == 0) { break; }
+    out[j] = pref[i];
+    j = j + 1;
+    i = i + 1;
+  }
+  i = 0;
+  while (j + 1 < cap) {
+    if (m[i] == 0) { break; }
+    out[j] = m[i];
+    j = j + 1;
+    i = i + 1;
+  }
+  out[j] = 0;
+}
 
 // G-02f-119：live_name_cmp 真迁 .x
 
