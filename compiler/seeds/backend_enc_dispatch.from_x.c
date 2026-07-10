@@ -1,4 +1,4 @@
-/* G-02f-352～360：PREFER hybrid thin 由 src/asm/backend_enc_dispatch_thin.x；rest SHUX_L2_ENC_DISPATCH_THIN_FROM_X。
+/* G-02f-352～361：PREFER hybrid thin 由 src/asm/backend_enc_dispatch_thin.x；rest SHUX_L2_ENC_DISPATCH_THIN_FROM_X。
  */
 /* seeds/backend_enc_dispatch.from_x.c — G-02f-208 enc_dispatch *_arch closed; G-02f-9 product TU
  * G-02f-130 true .x pure helpers.
@@ -121,6 +121,13 @@ int32_t backend_enc_add_imm_to_rbx_index_arch(struct platform_elf_ElfCodegenCtx 
 int32_t backend_enc_sub_imm_from_rbx_index_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, int32_t ta);
 int32_t backend_enc_load_rbp_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta);
 int32_t backend_enc_load_rbp_lane_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t esz, int32_t ta);
+int32_t backend_enc_addss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
+int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta);
+int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta);
 #endif
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
@@ -165,6 +172,15 @@ int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
   buf[2] = (uint8_t)((word >> 16) & 255u);
   buf[3] = (uint8_t)((word >> 24) & 255u);
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, buf, 4);
+}
+
+/* G-02f-361：单字节 append，供 thin f32/xmm / store_eax 无 static 数组路径 */
+int32_t backend_enc_append_u8_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t byte) {
+  uint8_t b;
+  if (!elf_ctx)
+    return -1;
+  b = (uint8_t)(byte & 255);
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b, 1);
 }
 
 
@@ -689,6 +705,7 @@ int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx,
  * movd xmm0,eax; movd xmm1,ebx; addss xmm0,xmm1; movd eax,xmm0
  */
 /* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_addss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t movd_xmm0_eax[4] = {0x66, 0x0f, 0x6e, 0xc0};
   static const uint8_t movd_xmm1_ebx[4] = {0x66, 0x0f, 0x6e, 0xcb};
@@ -704,11 +721,13 @@ int32_t backend_enc_addss_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ct
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_eax_xmm0, 4);
 }
+#endif
 
 /**
  * x86：eax 中 f32 位型截断为 i32（cvttss2si）；输入/输出均在 eax。
  */
 /* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t movd_xmm0_eax[4] = {0x66, 0x0f, 0x6e, 0xc0};
   static const uint8_t cvttss2si_eax_xmm0[4] = {0xf3, 0x0f, 0x2c, 0xc0};
@@ -718,11 +737,13 @@ int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(struct platform_elf_ElfCode
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cvttss2si_eax_xmm0, 4);
 }
+#endif
 
 /**
  * x86：rax 中 f64 位型收窄为 f32 位型到 eax（cvtsd2ss）；SysV 形参槽存 f64、用 f32 须转换。
  */
 /* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   /** movq xmm0,rax 须 66 REX.W 0F 6E；缺 66 会落到 mm0，cvtsd2ss 读 xmm0 得 0。 */
   static const uint8_t movq_xmm0_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc0};
@@ -736,11 +757,13 @@ int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(struct platform_elf_ElfCodeg
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_eax_xmm0, 4);
 }
+#endif
 
 /**
  * x86：eax 中 i32 转为 f32 位型写回 eax（cvtsi2ss）；return v.len as f32 等。
  */
 /* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   static const uint8_t cvtsi2ss_xmm0_eax[4] = {0xf3, 0x0f, 0x2a, 0xc0};
   static const uint8_t movd_eax_xmm0[4] = {0x66, 0x0f, 0x7e, 0xc0};
@@ -750,11 +773,13 @@ int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(struct platform_elf_ElfCodegenCtx
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_eax_xmm0, 4);
 }
+#endif
 
 /**
  * x86：movd xmmK, eax（66 0F 6E C0+K*8）；SysV f32 实参写入 xmm0–xmm7。
  */
 /* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
   static const uint8_t prefix[3] = {0x66, 0x0f, 0x6e};
   uint8_t modrm;
@@ -765,11 +790,13 @@ int32_t backend_enc_mov_eax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCt
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &modrm, 1);
 }
+#endif
 
 /**
  * x86：movd eax, xmmK（66 0F 7E C0+K*8）；SysV f32 形参从 xmm 落栈槽。
  */
 /* G-02f-208：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
   static const uint8_t prefix[3] = {0x66, 0x0f, 0x7e};
   uint8_t modrm;
@@ -780,6 +807,7 @@ int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCt
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &modrm, 1);
 }
+#endif
 
 /**
  * ta 分派：enc_sub_rax_rbx_arch
@@ -1474,6 +1502,7 @@ int32_t arm64_enc_store_w0_to_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
  * x86：movl %eax, -off(%rbp)（f32 局部 let/assign store）；arm64 走 STUR w0。
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta) {
   if (ta == 1)
     return arm64_enc_store_w0_to_rbp_c(elf_ctx, offset);
@@ -1497,6 +1526,7 @@ int32_t backend_enc_store_eax_to_rbp_arch(struct platform_elf_ElfCodegenCtx *elf
     return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, b, 6);
   }
 }
+#endif
 
 /**
  * ta 分派：enc_lea_rbp_to_rax_arch

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-352～360：backend_enc_dispatch L2 thin — arm64 encode + ta 分派壳（92+10=102）。
+// G-02f-352～361：backend_enc_dispatch L2 thin — arm64 encode + ta 分派壳（102+7=109）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_ENC_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_enc_dispatch.o
 // 对照：src/asm/backend_enc_dispatch.x；默认仍整 seed。
@@ -1700,5 +1700,197 @@ function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32, esz: i
     unsafe { return arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx, offset); }
   }
   unsafe { return arch_x86_64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
+  return 0 - 1;
+}
+
+// ---- G-02f-361：f32/xmm + store_eax（无 static 数组；append_u32/u8）----
+extern "C" function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
+
+#[no_mangle]
+function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_append_u32_le_c(elf_ctx, 3228438374) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u32_le_c(elf_ctx, 3412987750) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u32_le_c(elf_ctx, 3243773939) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u32_le_c(elf_ctx, 3229486950);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_append_u32_le_c(elf_ctx, 3228438374) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u32_le_c(elf_ctx, 3224113139);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_append_u32_le_c(elf_ctx, 1846495334) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 192) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u32_le_c(elf_ctx, 3227127794) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u32_le_c(elf_ctx, 3229486950);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_append_u32_le_c(elf_ctx, 3223982067) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u32_le_c(elf_ctx, 3229486950);
+  }
+  return 0 - 1;
+}
+
+// movd xmmK, eax：66 0F 6E /r ；modrm = C0 | (k<<3)
+#[no_mangle]
+function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (k < 0) {
+    return 0 - 1;
+  }
+  if (k > 7) {
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_append_u8_c(elf_ctx, 102) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 110) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u8_c(elf_ctx, 192 + (k * 8));
+  }
+  return 0 - 1;
+}
+
+// movd eax, xmmK：66 0F 7E /r
+#[no_mangle]
+function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (k < 0) {
+    return 0 - 1;
+  }
+  if (k > 7) {
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_append_u8_c(elf_ctx, 102) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 126) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u8_c(elf_ctx, 192 + (k * 8));
+  }
+  return 0 - 1;
+}
+
+// arm64：STUR w0 内联；x86：movl %eax, -off(%rbp)
+#[no_mangle]
+function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  if (ta == 1) {
+    if (elf_ctx == 0 as *u8) {
+      return 0 - 1;
+    }
+    if (offset < 0) {
+      return 0 - 1;
+    }
+    if (offset > 256) {
+      unsafe {
+        return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | (256 * 4096) | 928) as i32);
+      }
+      return 0 - 1;
+    }
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | ((((0 - offset) & 511) as u32) * 4096) | 928) as i32);
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  // x86 always disp32：89 85 + disp LE（语义同 seed disp32 路，小 offset 也可）
+  unsafe {
+    if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, ((0 - offset) as u32) & 255) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, (((0 - offset) as u32) / 256) & 255) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, (((0 - offset) as u32) / 65536) & 255) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u8_c(elf_ctx, (((0 - offset) as u32) / 16777216) & 255);
+  }
   return 0 - 1;
 }
