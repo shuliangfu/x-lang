@@ -172,9 +172,6 @@ function glue_asm_fill_c_prefix_from_module_import(mod: *u8, ix: i32, pre: *u8):
 // G-02f-110：+ jmp/lea/arg slot/export/call cleanup 薄门闩。
 
 extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
-extern "C" function glue_spill_struct16_call_arg_to_lea_elf_c_impl(arena: *u8, elf: *u8, ctx: *u8, pty: i32, ta: i32): i32;
-extern "C" function glue_emit_call_args_elf_sysv_f32_xmm_c_impl(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32, nargs: i32): i32;
-extern "C" function glue_asm_build_call_export_sym_c_impl(arena: *u8, call: i32, callee: i32, mod: *u8, dep: *u8, out: *u8, cap: i32): i32;
 extern "C" function pipeline_asm_redirect_std_c_wrapper_sym(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
 extern "C" function backend_enc_call_arch(elf: *u8, name: *u8, nlen: i32, ta: i32): i32;
 extern "C" function pipeline_asm_emit_call_args_elf_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32, nargs: i32): i32;
@@ -195,7 +192,43 @@ extern "C" function pipeline_asm_module_func_name_copy64(m: *u8, fi: i32, dst: *
 extern "C" function pipeline_module_func_num_params_at(m: *u8, fi: i32): i32;
 extern "C" function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
 extern "C" function pipeline_type_elem_ref_at(a: *u8, tr: i32): i32;
-/* ---- G-02f-110 / G-02f-141 / G-02f-142：call_dispatch emit helpers ---- */
+// G-02f-145：spill / f32_xmm / build_call_export 真迁所需
+extern "C" function pipeline_asm_type_ref_byte_size_c(arena: *u8, pty: i32): i32;
+extern "C" function backend_enc_store_rax_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
+extern "C" function backend_enc_store_rdx_to_rbp_arch(elf: *u8, off: i32, ta: i32): i32;
+extern "C" function backend_enc_lea_rbp_to_rax_arch(elf: *u8, off: i32, ta: i32): i32;
+extern "C" function backend_enc_call_stack_reserve_arch(elf: *u8, nbytes: i32, ta: i32): i32;
+extern "C" function backend_enc_push_rax_arch(elf: *u8, ta: i32): i32;
+extern "C" function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf: *u8, k: i32, ta: i32): i32;
+extern "C" function pipeline_asm_emit_set_call_f32_xmm(on: i32): void;
+extern "C" function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
+extern "C" function pipeline_expr_call_resolved_dep_index_at(arena: *u8, call: i32): i32;
+extern "C" function pipeline_dep_ctx_ndep(dep: *u8): i32;
+extern "C" function pipeline_dep_ctx_module_at(dep: *u8, j: i32): *u8;
+extern "C" function pipeline_dep_ctx_import_path_copy64(dep: *u8, j: i32, path: *u8): void;
+extern "C" function pipeline_module_func_is_extern_at(m: *u8, fi: i32): i32;
+extern "C" function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8, call: i32): i32;
+/* ---- G-02f-110 / G-02f-141 / G-02f-142 / G-02f-145：call_dispatch emit helpers ---- */
+
+// LE i32 load/store（AsmFuncCtx.next_offset @4）
+function call_dispatch_load_i32_le(p: *u8, off: i32): i32 {
+  if (p == 0) { return 0; }
+  let m: i32 = 256;
+  let a: i32 = p[off] as i32;
+  a = a + (p[off + 1] as i32) * m;
+  a = a + (p[off + 2] as i32) * (m * m);
+  a = a + (p[off + 3] as i32) * (m * m * m);
+  return a;
+}
+
+function call_dispatch_store_i32_le(p: *u8, off: i32, v: i32): void {
+  if (p == 0) { return; }
+  let u: u32 = v as u32;
+  p[off] = (u & 255) as u8;
+  p[off + 1] = ((u / 256) & 255) as u8;
+  p[off + 2] = ((u / 65536) & 255) as u8;
+  p[off + 3] = ((u / 16777216) & 255) as u8;
+}
 
 // G-02f-142：CALL 整数寄存器实参个数（x86_64 SysV=6，AAPCS64/RISC-V=8）
 #[no_mangle]
@@ -291,15 +324,118 @@ function glue_sysv_x86_call_arg_slot_c(
   out_stack_k[0] = 0;
 }
 
+// G-02f-145：9–16B struct 实参 spill 到 [rbp-off] 再 lea；next_offset@4 LE
 #[no_mangle]
 function glue_spill_struct16_call_arg_to_lea_elf_c(arena: *u8, elf: *u8, ctx: *u8, pty: i32, ta: i32): i32 {
-  unsafe { return glue_spill_struct16_call_arg_to_lea_elf_c_impl(arena, elf, ctx, pty, ta); }
+  if (ta != 0) { return 0; }
+  if (elf == 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  unsafe {
+    let sz: i32 = pipeline_asm_type_ref_byte_size_c(arena, pty);
+    if (sz <= 8) { return 0; }
+    if (sz > 16) { return 0; }
+    // spill 区在全部局部之后：rax@off、rdx@(off-8)
+    let next: i32 = call_dispatch_load_i32_le(ctx, 4);
+    let off: i32 = next + 16;
+    if (off < 16) {
+      off = 16;
+      call_dispatch_store_i32_le(ctx, 4, 0);
+    }
+    if (off < 16) { return 0 - 1; }
+    if (backend_enc_store_rax_to_rbp_arch(elf, off, ta) != 0) { return 0 - 1; }
+    if (backend_enc_store_rdx_to_rbp_arch(elf, off - 8, ta) != 0) { return 0 - 1; }
+    call_dispatch_store_i32_le(ctx, 4, off + 16);
+    return backend_enc_lea_rbp_to_rax_arch(elf, off, ta);
+  }
   return 0;
 }
+
+// G-02f-145：x86 SysV f32 xmm CALL 实参（gp/xmm 分轨 + 栈）
+// GLUE_ASM_MAX_CALL_ARGS=96
 #[no_mangle]
 function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32, nargs: i32): i32 {
-  unsafe { return glue_emit_call_args_elf_sysv_f32_xmm_c_impl(arena, elf, er, ctx, ta, nargs); }
-  return 0;
+  if (arena == 0) { return 0 - 1; }
+  if (elf == 0) { return 0 - 1; }
+  if (ctx == 0) { return 0 - 1; }
+  if (nargs < 0) { return 0 - 1; }
+  if (nargs > 96) { return 0 - 1; }
+  unsafe {
+    let n_stack: i32 = glue_sysv_x86_call_n_stack_c(arena, er, nargs);
+    let stack_reserve: i32 = 0;
+    if (n_stack > 0) {
+      stack_reserve = n_stack * 8;
+      if ((n_stack & 1) != 0) {
+        stack_reserve = stack_reserve + 8;
+      }
+    }
+    if (backend_enc_call_stack_reserve_arch(elf, stack_reserve, ta) != 0) { return 0 - 1; }
+    let stk_push: i32[96] = [];
+    let n_stk_push: i32 = 0;
+    let i: i32 = 0;
+    while (i < nargs) {
+      let kind: i32 = 0;
+      let reg_k: i32 = 0;
+      let stack_k: i32 = 0;
+      glue_sysv_x86_call_arg_slot_c(arena, er, nargs, i, &kind, &reg_k, &stack_k);
+      if (kind == 2) {
+        if (n_stk_push < 96) {
+          stk_push[n_stk_push] = i;
+          n_stk_push = n_stk_push + 1;
+        }
+      }
+      i = i + 1;
+    }
+    if (n_stack > 0) {
+      if ((n_stack & 1) != 0) {
+        if (backend_enc_mov_imm32_to_w0_arch(elf, 0, ta) != 0) { return 0 - 1; }
+        if (backend_enc_push_rax_arch(elf, ta) != 0) { return 0 - 1; }
+      }
+    }
+    let si: i32 = n_stk_push - 1;
+    while (si >= 0) {
+      i = stk_push[si];
+      let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, er, i);
+      if (arg_ref != 0) {
+        if (glue_emit_one_call_arg_elf_c(arena, elf, er, arg_ref, i, ctx, ta) != 0) { return 0 - 1; }
+        if (backend_enc_push_rax_arch(elf, ta) != 0) { return 0 - 1; }
+      }
+      si = si - 1;
+    }
+    pipeline_asm_emit_set_call_f32_xmm(1);
+    // 高序号寄存器实参先 emit，避免 clobber 低序号
+    i = nargs - 1;
+    while (i >= 0) {
+      let arg_ref2: i32 = pipeline_expr_call_arg_ref(arena, er, i);
+      if (arg_ref2 != 0) {
+        let kind2: i32 = 0;
+        let reg_k2: i32 = 0;
+        let stack_k2: i32 = 0;
+        glue_sysv_x86_call_arg_slot_c(arena, er, nargs, i, &kind2, &reg_k2, &stack_k2);
+        if (kind2 != 2) {
+          if (glue_emit_one_call_arg_elf_c(arena, elf, er, arg_ref2, i, ctx, ta) != 0) {
+            pipeline_asm_emit_set_call_f32_xmm(0);
+            return 0 - 1;
+          }
+          if (kind2 == 0) {
+            if (backend_enc_mov_rax_to_arg_reg_arch(elf, reg_k2, ta) != 0) {
+              pipeline_asm_emit_set_call_f32_xmm(0);
+              return 0 - 1;
+            }
+          } else {
+            if (backend_enc_mov_eax_to_xmm_arg_reg_arch(elf, reg_k2, ta) != 0) {
+              pipeline_asm_emit_set_call_f32_xmm(0);
+              return 0 - 1;
+            }
+          }
+        }
+      }
+      i = i - 1;
+    }
+    pipeline_asm_emit_set_call_f32_xmm(0);
+    pipeline_asm_emit_set_call_param_type_ref(0);
+    return 0;
+  }
+  return 0 - 1;
 }
 
 // G-02f-144：单实参 emit + 嵌套 CALL 16B struct spill
@@ -343,11 +479,125 @@ function glue_emit_one_call_arg_elf_c(
   return 0;
 }
 
+// G-02f-145：VAR callee 导出符号（heap redirect → dep 前缀 → func export / 裸名）
 #[no_mangle]
 function glue_asm_build_call_export_sym_c(
   arena: *u8, call_expr_ref: i32, callee_ref: i32, mod: *u8, dep_pipe: *u8, out: *u8, out_cap: i32
 ): i32 {
-  unsafe { return glue_asm_build_call_export_sym_c_impl(arena, call_expr_ref, callee_ref, mod, dep_pipe, out, out_cap); }
+  if (arena == 0) { return 0 - 1; }
+  if (callee_ref <= 0) { return 0 - 1; }
+  if (out == 0) { return 0 - 1; }
+  if (out_cap <= 0) { return 0 - 1; }
+  unsafe {
+    let clen: i32 = pipeline_expr_var_name_len(arena, callee_ref);
+    if (clen <= 0) { return 0 - 1; }
+    if (clen > 63) { return 0 - 1; }
+    let cname: u8[64] = [];
+    pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
+    let rlen: i32 = glue_try_std_heap_redirect_sym_local(&cname[0], clen, out, out_cap);
+    if (rlen > 0) { return rlen; }
+    let dep_ix: i32 = pipeline_expr_call_resolved_dep_index_at(arena, call_expr_ref);
+    if (dep_ix < 0) {
+      if (dep_pipe != 0) {
+        let nd: i32 = pipeline_dep_ctx_ndep(dep_pipe);
+        let j: i32 = 0;
+        while (j < nd) {
+          let dm: *u8 = pipeline_dep_ctx_module_at(dep_pipe, j);
+          if (dm != 0) {
+            let nfunc: i32 = pipeline_module_num_funcs(dm);
+            let fi: i32 = 0;
+            while (fi < nfunc) {
+              if (pipeline_module_func_name_equal_at(dm, fi, &cname[0], clen) != 0) {
+                dep_ix = j;
+                break;
+              }
+              fi = fi + 1;
+            }
+          }
+          if (dep_ix >= 0) { break; }
+          j = j + 1;
+        }
+      }
+    }
+    if (dep_ix >= 0) {
+      if (dep_pipe != 0) {
+        // extern 用裸名（定义由桩/libc 提供）
+        let dep_mod: *u8 = pipeline_dep_ctx_module_at(dep_pipe, dep_ix);
+        if (dep_mod != 0) {
+          let nfunc2: i32 = pipeline_module_num_funcs(dep_mod);
+          let fi2: i32 = 0;
+          while (fi2 < nfunc2) {
+            if (pipeline_module_func_name_equal_at(dep_mod, fi2, &cname[0], clen) != 0) {
+              if (pipeline_module_func_is_extern_at(dep_mod, fi2) != 0) {
+                if (clen > 0) {
+                  if (clen < out_cap) {
+                    let ci: i32 = 0;
+                    while (ci < clen) {
+                      out[ci] = cname[ci];
+                      ci = ci + 1;
+                    }
+                    return clen;
+                  }
+                }
+                return 0 - 1;
+              }
+              break;
+            }
+            fi2 = fi2 + 1;
+          }
+        }
+        let path: u8[64] = [];
+        let zi: i32 = 0;
+        while (zi < 64) {
+          path[zi] = 0;
+          zi = zi + 1;
+        }
+        pipeline_dep_ctx_import_path_copy64(dep_pipe, dep_ix, &path[0]);
+        if (path[0] != 0) {
+          let prefix: u8[128] = [];
+          glue_codegen_import_path_to_c_prefix_into(&path[0], &prefix[0], 128);
+          let plen: i32 = 0;
+          while (plen < 127) {
+            if (prefix[plen] == 0) { break; }
+            plen = plen + 1;
+          }
+          if (plen > 0) {
+            return glue_asm_build_import_binding_call_sym(&prefix[0], plen, &cname[0], clen, out);
+          }
+        }
+      }
+    }
+    if (mod != 0) {
+      let func_ix: i32 = pipeline_typeck_resolve_call_func_index_for_emit_c(mod, arena, call_expr_ref);
+      if (func_ix >= 0) {
+        if (pipeline_module_func_is_extern_at(mod, func_ix) != 0) {
+          if (clen > 0) {
+            if (clen < out_cap) {
+              let ci2: i32 = 0;
+              while (ci2 < clen) {
+                out[ci2] = cname[ci2];
+                ci2 = ci2 + 1;
+              }
+              return clen;
+            }
+          }
+          return 0 - 1;
+        }
+        return glue_asm_build_func_export_sym_c(mod, arena, func_ix, out, out_cap);
+      }
+    }
+    // 兜底：裸名 extern
+    if (clen > 0) {
+      if (clen < out_cap) {
+        let ci3: i32 = 0;
+        while (ci3 < clen) {
+          out[ci3] = cname[ci3];
+          ci3 = ci3 + 1;
+        }
+        return clen;
+      }
+    }
+  }
   return 0 - 1;
 }
 

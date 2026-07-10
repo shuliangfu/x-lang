@@ -372,7 +372,8 @@ int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_ex
 /**
  * 9–16B struct 实参：CALL 结果在 rax/rdx，须 spill 到栈再 lea 传址（C callee / import 与 lea VAR 一致）。
  */
-int32_t glue_spill_struct16_call_arg_to_lea_elf_c_impl(struct ast_ASTArena *arena,
+/* G-02f-145：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_spill_struct16_call_arg_to_lea_elf_c(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           struct backend_AsmFuncCtx *ctx, int32_t pty,
                                                           int32_t ta) {
@@ -403,19 +404,11 @@ int32_t glue_spill_struct16_call_arg_to_lea_elf_c_impl(struct ast_ASTArena *aren
   ly->next_offset = off + 16;
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
 }
-int32_t glue_spill_struct16_call_arg_to_lea_elf_c(struct ast_ASTArena *arena,
-                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                          struct backend_AsmFuncCtx *ctx, int32_t pty,
-                                                          int32_t ta) {
-  {
-    return glue_spill_struct16_call_arg_to_lea_elf_c_impl(arena, elf_ctx, ctx, pty, ta);
-  }
-  return 0;
-}
 
 
 /** x86 SysV f32 xmm CALL 实参：gp/xmm 分轨 + 栈实参（SHUX_ABI_F32_XMM=1）。 */
-int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
+/* G-02f-145：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                       struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t nargs) {
   int32_t n_stack;
@@ -485,14 +478,6 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
   }
   pipeline_asm_emit_set_call_f32_xmm(0);
   pipeline_asm_emit_set_call_param_type_ref(0);
-  return 0;
-}
-int32_t glue_emit_call_args_elf_sysv_f32_xmm_c(struct ast_ASTArena *arena,
-                                                      struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
-                                                      struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t nargs) {
-  {
-    return glue_emit_call_args_elf_sysv_f32_xmm_c_impl(arena, elf_ctx, expr_ref, ctx, ta, nargs);
-  }
   return 0;
 }
 
@@ -1313,7 +1298,8 @@ extern int32_t pipeline_typeck_resolve_call_func_index_for_emit_c(struct ast_Mod
 /** 查询函数是否为 extern 声明（无函数体，定义由外部桩/libc 提供）。 */
 extern int32_t pipeline_module_func_is_extern_at(struct ast_Module *module, int32_t fi);
 
-int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_t call_expr_ref,
+/* G-02f-145：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_build_call_export_sym_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
                                                 int32_t callee_ref, struct ast_Module *mod,
                                                 struct ast_PipelineDepCtx *dep_pipe, uint8_t *out, int32_t out_cap) {
   uint8_t cname[64];
@@ -1406,14 +1392,6 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
     return clen;
   }
   return -1;
-}
-int32_t glue_asm_build_call_export_sym_c(struct ast_ASTArena *arena, int32_t call_expr_ref,
-                                                int32_t callee_ref, struct ast_Module *mod,
-                                                struct ast_PipelineDepCtx *dep_pipe, uint8_t *out, int32_t out_cap) {
-  {
-    return glue_asm_build_call_export_sym_c_impl(arena, call_expr_ref, callee_ref, mod, dep_pipe, out, out_cap);
-  }
-  return 0;
 }
 
 
