@@ -154,8 +154,8 @@ const char *runtime_diag_code_for_kind(const char *kind) {
 }
 
 
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-301 R10 → rt_entry hybrid */
+#ifndef SHUX_RT_ENTRY_FROM_X
 int runtime_try_handle_explain_cli(int argc, char **argv) {
     const char *code = NULL;
     if (argc < 2 || !argv || !argv[1])
@@ -180,7 +180,6 @@ int runtime_try_handle_explain_cli(int argc, char **argv) {
                                "--explain requires a diagnostic code (example: shux --explain P001; use --list to see all)");
         return 1;
     }
-    /* 用户面列表模式：`shux explain --list` / `shux --explain --list` / `shux --explain=list`。 */
     if (strcmp(code, "list") == 0 || strcmp(code, "--list") == 0) {
         diag_print_code_table(stdout);
         return 0;
@@ -202,6 +201,9 @@ int runtime_try_handle_explain_cli(int argc, char **argv) {
     diag_print_code_explain(stdout, code);
     return 0;
 }
+#else
+int runtime_try_handle_explain_cli(int argc, char **argv);
+#endif
 
 
 
@@ -212,8 +214,8 @@ int runtime_try_handle_explain_cli(int argc, char **argv) {
  */
 /* 结构化 smoke 是否启用：`--diag-json` 或 SHUX_SMOKE_DIAG=1；定义延后到 <stdlib.h> 可见处。 */
 int shux_smoke_diag_enabled(void);
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-301 R10 → rt_entry hybrid */
+#ifndef SHUX_RT_ENTRY_FROM_X
 void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_final_lit,
                                                     int has_main_body) {
     const char *name = main_name ? main_name : "?";
@@ -226,9 +228,6 @@ void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_fin
         printf("parse OK (library module)\n");
     }
     printf("typeck OK\n");
-    /* 双写过渡：opt-in（--diag-json / SHUX_SMOKE_DIAG=1）时另向 stderr 输出结构化 info 诊断，
-     * 将 smoke 纳入统一诊断体系（编号 SMOKE001/SMOKE002、JSON、颜色）；默认仅 stdout 旧行，
-     * 保持 run-lexer golden、run-import/run-stdlib-import grep 完全不变。 */
     if (shux_smoke_diag_enabled()) {
         if (has_main_body) {
             if (main_final_lit >= 0)
@@ -244,6 +243,9 @@ void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_fin
         diag_report_with_code(NULL, 0, 0, "info", SHUX_DIAG_CODE_SMOKE_SMOKE002, "typeck OK", NULL);
     }
 }
+#else
+void driver_emit_legacy_smoke_summary_stdout(const char *main_name, int main_final_lit, int has_main_body);
+#endif
 
 
 
@@ -332,6 +334,8 @@ extern int codegen_codegen_entry_library_module_to_c(struct ASTModule *m, const 
  * 默认关闭，保持 stdout 旧行（grep/golden 兼容）；启用时另向 stderr 输出带编号的 info 诊断。
  */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-301 R10 → rt_entry hybrid */
+#ifndef SHUX_RT_ENTRY_FROM_X
 int shux_smoke_diag_enabled(void) {
   const char *e;
   if (diag_json_enabled())
@@ -339,6 +343,9 @@ int shux_smoke_diag_enabled(void) {
   e = getenv("SHUX_SMOKE_DIAG");
   return (e && e[0] && e[0] != '0') ? 1 : 0;
 }
+#else
+int shux_smoke_diag_enabled(void);
+#endif
 
 
 
@@ -7352,15 +7359,20 @@ extern int driver_run_compiler_check(int argc, char **argv);
 extern int driver_run_fmt(int argc, char **argv);
 
 /**
- * 兼容旧 driver_fmt_gen.c 的 extern；新实现委托 driver_run_fmt（支持无参递归 cwd）。
+ * 兼容旧 driver_fmt_gen.c 的 extern；新实现委托 driver_run_fmt。
+ * G-02f-301 R10 → rt_entry hybrid
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RT_ENTRY_FROM_X
 int driver_fmt_report_no_files(void) {
     char *argv_fmt[2];
     argv_fmt[0] = "shux";
     argv_fmt[1] = "fmt";
     return driver_run_fmt(2, argv_fmt);
 }
+#else
+int driver_fmt_report_no_files(void);
+int labi_rt_entry_slice_marker(void);
+#endif
 
 
 

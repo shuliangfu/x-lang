@@ -360,6 +360,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_compile_seed=seeds/rt_compile.from_x.c
   _rt_run_seed=seeds/rt_run_exec.from_x.c
   _rt_asm_seed=seeds/rt_asm_stub.from_x.c
+  _rt_entry_seed=seeds/rt_entry.from_x.c
   _rt_o=src/runtime_driver_no_c.o
   if [ -f "$_rt" ]; then
     if [ ! -f "$_rt_o" ] || [ "$_rt" -nt "$_rt_o" ] \
@@ -371,6 +372,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_compile_seed" ] && [ "$_rt_compile_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_run_seed" ] && [ "$_rt_run_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_asm_seed" ] && [ "$_rt_asm_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_entry_seed" ] && [ "$_rt_entry_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_content_x" ] && [ "$_rt_content_x" -nt "$_rt_o" ]; }; then
       _rt_done=0
       if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_content_seed" ]; then
@@ -382,6 +384,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _rt_cmp_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_compile.XXXXXX") || true
         _rt_run_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_run.XXXXXX") || true
         _rt_asm_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_asm.XXXXXX") || true
+        _rt_ent_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_entry.XXXXXX") || true
         _rt_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_rest.XXXXXX") || true
         _rt_content_ok=0
         _rt_util_ok=0
@@ -391,6 +394,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _rt_compile_ok=0
         _rt_run_ok=0
         _rt_asm_ok=0
+        _rt_entry_ok=0
         if [ -n "$_rt_c_o" ] && [ -f "$_rt_content_seed" ]; then
           # shellcheck disable=SC2086
           if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_c_o" "$_rt_content_seed"; then
@@ -447,6 +451,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: R9 asm stub ← $_rt_asm_seed (G-02f-300 seed slice)"
           fi
         fi
+        if [ -n "$_rt_ent_o" ] && [ -f "$_rt_entry_seed" ]; then
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_ent_o" "$_rt_entry_seed"; then
+            _rt_entry_ok=1
+            echo "g05_ensure: R10 entry gates ← $_rt_entry_seed (G-02f-301 seed slice)"
+          fi
+        fi
         _rt_rest_defs="-DSHUX_RT_CONTENT_FROM_X"
         if [ "$_rt_util_ok" = "1" ]; then
           _rt_rest_defs="$_rt_rest_defs -DSHUX_RT_UTIL_FROM_X"
@@ -468,6 +479,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ "$_rt_asm_ok" = "1" ]; then
           _rt_rest_defs="$_rt_rest_defs -DSHUX_RT_ASM_STUB_FROM_X"
+        fi
+        if [ "$_rt_entry_ok" = "1" ]; then
+          _rt_rest_defs="$_rt_rest_defs -DSHUX_RT_ENTRY_FROM_X"
         fi
         # shellcheck disable=SC2086
         if [ "$_rt_content_ok" = "1" ] && [ -n "$_rt_rest_o" ] \
@@ -495,16 +509,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ "$_rt_asm_ok" = "1" ]; then
             _rt_link_objs="$_rt_link_objs $_rt_asm_o"
           fi
+          if [ "$_rt_entry_ok" = "1" ]; then
+            _rt_link_objs="$_rt_link_objs $_rt_ent_o"
+          fi
           # shellcheck disable=SC2086
           if $CC -r -nostdlib -o "$_rt_o" $_rt_link_objs "$_rt_rest_o" 2>/dev/null; then
-            echo "g05_ensure: $_rt_o ← R2/R0/R1/R5-lite/R3/R6/R7/R9 + rest (G-02f-300 hybrid)"
+            echo "g05_ensure: $_rt_o ← R2/R0/R1/R5-lite/R3/R6/R7/R9/R10 + rest (G-02f-301 hybrid)"
             _rt_done=1
           fi
         fi
         if [ "$_rt_done" = "0" ]; then
           echo "g05_ensure: L2 hybrid runtime slices failed; fallback full seed" >&2
         fi
-        rm -f "$_rt_c_o" "$_rt_u_o" "$_rt_a_o" "$_rt_e_o" "$_rt_p_o" "$_rt_cmp_o" "$_rt_run_o" "$_rt_asm_o" "$_rt_rest_o"
+        rm -f "$_rt_c_o" "$_rt_u_o" "$_rt_a_o" "$_rt_e_o" "$_rt_p_o" "$_rt_cmp_o" "$_rt_run_o" "$_rt_asm_o" "$_rt_ent_o" "$_rt_rest_o"
       fi
       if [ "$_rt_done" = "0" ]; then
         echo "g05_ensure: runtime_driver_no_c.o ← seed + NO_C (G-02f-14)"
