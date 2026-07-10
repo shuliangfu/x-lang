@@ -58,7 +58,7 @@ ensure_asm_driver_seed_c_objs() {
   experimental_bootstrap_info "cc $SEED_O/lsp_diag.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lsp_glue.from_x.c -o "$SEED_O/lsp_diag.o"
   fi
-  if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ] || [ "src/lsp/lsp_diag_pipeline_ctx.inc" -nt src/lsp/lsp_diag_pipeline_ctx.o ]; then
+  if [ ! -f src/lsp/lsp_diag_pipeline_ctx.o ] || [ "seeds/lsp_diag_pipeline_ctx.from_x.c" -nt src/lsp/lsp_diag_pipeline_ctx.o ]; then
   experimental_bootstrap_info "cc src/lsp/lsp_diag_pipeline_ctx.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_ctx.from_x.c -o src/lsp/lsp_diag_pipeline_ctx.o
   fi
@@ -112,7 +112,7 @@ ensure_runtime_abi_obj() {
 ensure_runtime_io_abi_obj() {
   local o="src/runtime_io_abi.o"
   if [ ! -f "$o" ] || [ "seeds/runtime_io_abi.from_x.c" -nt "$o" ]; then
-  experimental_bootstrap_info "cc $o <- src/runtime_io_abi.inc"
+  experimental_bootstrap_info "cc $o <- seeds/runtime_io_abi.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o "$o"
   fi
 }
@@ -143,9 +143,9 @@ ensure_simd_glue_link_objs() {
   experimental_bootstrap_info "cc seeds/backend_call_dispatch.from_x.c → src/asm/backend_call_dispatch.o"
   $CC $CFLAGS -c seeds/backend_call_dispatch.from_x.c -o src/asm/backend_call_dispatch.o
   fi
-  if [ ! -f src/driver/target_cpu.o ] || [ src/driver/target_cpu.inc -nt src/driver/target_cpu.o ]; then
+  if [ ! -f src/driver/target_cpu.o ] || [ seeds/target_cpu_pure.from_x.c -nt src/driver/target_cpu.o ]; then
   experimental_bootstrap_info "cc src/driver/target_cpu.o"
-  sh scripts/cc_inc_tu.sh src/driver/target_cpu.inc src/driver/target_cpu.o -I. -Iinclude -Isrc
+  sh scripts/cc_inc_tu.sh seeds/target_cpu_pure.from_x.c src/driver/target_cpu.o -I. -Iinclude -Isrc
   fi
   if [ ! -f src/asm/simd_enc.o ] || [ seeds/simd_enc.from_x.c -nt src/asm/simd_enc.o ]; then
   experimental_bootstrap_info "cc seeds/simd_enc.from_x.c → src/asm/simd_enc.o"
@@ -168,7 +168,7 @@ ensure_experimental_companion_objs() {
   driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
   pipeline_bootstrap_orchestration.o 2>/dev/null || true
   fi
-  if [ ! -f src/runtime_io_abi.o ] || [ src/runtime_io_abi.inc -nt src/runtime_io_abi.o ]; then
+  if [ ! -f src/runtime_io_abi.o ] || [ seeds/runtime_io_abi.from_x.c -nt src/runtime_io_abi.o ]; then
   experimental_bootstrap_info "cc runtime_io_abi.o (incl. fs/sys shim)"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
   fi
@@ -199,18 +199,18 @@ ensure_experimental_companion_objs
 PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
 PARSER_ASM_LINK_ALIAS_CFLAGS="-DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS"
 PARSER_ASM_THIN_C="parser_asm_thin_glue.o"
-if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "src/asm/parser_asm_thin_c.inc" -nt "$PARSER_ASM_THIN_C" ] \
+if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "seeds/parser_asm_thin_c.from_x.c" -nt "$PARSER_ASM_THIN_C" ] \
   || [ "src/asm/parser_asm_struct_layout_slice.inc" -nt "$PARSER_ASM_THIN_C" ] \
   || [ "src/asm/parser_asm_block_from_res_slice.inc" -nt "$PARSER_ASM_THIN_C" ] \
   || [ "src/asm/parser_asm_if_stmt_slice.inc" -nt "$PARSER_ASM_THIN_C" ]; then
   experimental_bootstrap_info "cc parser_asm_thin_glue.o"
-  sh scripts/cc_inc_tu.sh src/asm/parser_asm_thin_c.inc "$PARSER_ASM_THIN_C" $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer
+  sh scripts/cc_inc_tu.sh seeds/parser_asm_thin_c.from_x.c "$PARSER_ASM_THIN_C" $PARSER_ASM_THIN_GLUE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer
 fi
 
 # parse_expr_into 桥 + pipeline 弱 parse 桩（G-02e-7：原 parser_asm_link_alias 并入）
-if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "src/asm/parser_asm_parse_expr_link.inc" -nt "$PARSER_EXPR_LINK_O" ]; then
+if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "seeds/parser_asm_parse_expr_link.from_x.c" -nt "$PARSER_EXPR_LINK_O" ]; then
   experimental_bootstrap_info "cc parser_asm_parse_expr_link.o"
-  sh scripts/cc_inc_tu.sh src/asm/parser_asm_parse_expr_link.inc "$PARSER_EXPR_LINK_O" $PARSER_ASM_LINK_ALIAS_CFLAGS
+  sh scripts/cc_inc_tu.sh seeds/parser_asm_parse_expr_link.from_x.c "$PARSER_EXPR_LINK_O" $PARSER_ASM_LINK_ALIAS_CFLAGS
 fi
 if [ ! -f "$PARSER_ASM_PARTIAL" ] && [ -f "$BUILD_DIR/parser.o" ]; then
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then

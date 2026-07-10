@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-MAIN_C="compiler/src/main.inc"
+MAIN_C="compiler/seeds/main.from_x.c"
 MAIN_X="compiler/src/main.x"
 DOC="analysis/phase-c-c08-v1.md"
 

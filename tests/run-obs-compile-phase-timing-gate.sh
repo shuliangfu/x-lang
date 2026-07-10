@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 DOC="${SHUX_OBS_PHASE_TIMING_DOC:-analysis/obs-compile-phase-timing-v1.md}"
 MANIFEST="${SHUX_OBS_PHASE_TIMING_TSV:-tests/baseline/obs-compile-phase-timing.tsv}"
-RUNTIME="${SHUX_OBS_PHASE_TIMING_RUNTIME:-compiler/src/runtime_driver_abi.inc}"
+RUNTIME="${SHUX_OBS_PHASE_TIMING_RUNTIME:-compiler/seeds/runtime_driver_abi.from_x.c}"
 PIPELINE="${SHUX_OBS_PHASE_TIMING_PIPELINE:-compiler/src/pipeline/pipeline.x}"
 MIN_ITEMS=6
 OUTPUT_PREFIX="shux: [SHUX_COMPILE_PHASE_TIMING]"

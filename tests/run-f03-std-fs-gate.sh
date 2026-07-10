@@ -30,7 +30,7 @@ fi
 if grep -q '../std/fs/fs.o' compiler/Makefile 2>/dev/null; then
   die "Makefile still references ../std/fs/fs.o"
 fi
-if grep -q 'std/fs/fs.o' compiler/src/runtime_link_abi.inc 2>/dev/null; then
+if grep -q 'std/fs/fs.o' compiler/seeds/runtime_link_abi.from_x.c 2>/dev/null; then
   die "runtime_link_abi.inc still pushes std/fs/fs.o"
 fi
 grep -q 'have_fs' compiler/src/runtime_link_abi.h || die "runtime_link_abi.h missing have_fs"

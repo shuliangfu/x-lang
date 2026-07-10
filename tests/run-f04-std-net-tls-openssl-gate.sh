@@ -32,7 +32,7 @@ if grep -q 'SHUX_NET_USE_OPENSSL' "$NET_C" 2>/dev/null; then
   die "net.c still defines SHUX_NET_USE_OPENSSL include path"
 fi
 grep -q 'tls_openssl.x' compiler/Makefile || die "Makefile missing tls_openssl.x build"
-grep -q 'invoke_cc_append_net_tls_ld.*repo_root' compiler/src/runtime_link_abi.inc \
+grep -q 'invoke_cc_append_net_tls_ld.*repo_root' compiler/seeds/runtime_link_abi.from_x.c \
   || die "runtime_link_abi missing tls_openssl.o link path"
 
 if [ -f tests/run-std-net-tls-gate.sh ]; then

@@ -8,8 +8,8 @@ cd "$(dirname "$0")/.."
 
 FAIL=${SHUX_F06_RUNTIME_CLEANUP_FAIL:-0}
 DOC="analysis/phase-f-f06-v1.md"
-RUNTIME="compiler/src/runtime.inc"
-LINK_ABI="compiler/src/runtime_link_abi.inc"
+RUNTIME="compiler/seeds/runtime.from_x.c"
+LINK_ABI="compiler/seeds/runtime_link_abi.from_x.c"
 BUILD_ASM="compiler/scripts/build_shux_asm.sh"
 RELINK_EXP="compiler/scripts/relink_shux_asm_experimental_bootstrap.sh"
 RELINK_GLUE="compiler/scripts/relink_shux_asm_strict_glue.sh"

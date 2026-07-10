@@ -220,7 +220,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rdss=seeds/runtime_driver_strict_glue_stubs.from_x.c
   if [ -f "$_rdss" ]; then
     if [ ! -f src/runtime_driver_strict_glue_stubs.o ] || [ "$_rdss" -nt src/runtime_driver_strict_glue_stubs.o ] \
-      || [ src/runtime_heap_user.inc -nt src/runtime_driver_strict_glue_stubs.o ] 2>/dev/null; then
+      || [ seeds/runtime_heap_user.from_x.c -nt src/runtime_driver_strict_glue_stubs.o ] 2>/dev/null; then
       echo "g05_ensure: runtime_driver_strict_glue_stubs.o ← seed (G-02f-11)"
       # shellcheck disable=SC2086
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/runtime_driver_strict_glue_stubs.o "$_rdss"

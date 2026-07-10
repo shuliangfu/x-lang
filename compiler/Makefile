@@ -53,7 +53,7 @@ else
   LD_RELFLAGS =
 endif
 TARGET = shux
-SRCS = src/main.inc src/runtime.inc src/async/async_liveness.inc src/async/async_cps_codegen.inc
+SRCS = seeds/main.from_x.c seeds/runtime.from_x.c seeds/async_liveness.from_x.c seeds/async_cps_codegen.from_x.c
 # OBJS_CORE：G-06 默认 shux-c=bootstrap_shuxc；仅 SHUX_LEGACY_C_FRONTEND=1 时链下列 runtime 桩（无 C 前端 .c）。
 OBJS_CORE = src/main.o src/runtime.o src/diag.o src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_driver_strict_glue_stubs.o src/lexer/cfg_eval_bootstrap_stub.o src/driver/fmt_check_cmd.o src/async/async_liveness.o src/async/async_cps_codegen.o src/lsp/lsp_diag_pipeline_sizes.o src/lsp/lsp_diag_stubs_no_c.o
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)

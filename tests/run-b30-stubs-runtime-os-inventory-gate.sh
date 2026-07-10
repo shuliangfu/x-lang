@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 MANIFEST="tests/baseline/b30-os-inventory.tsv"
-RT="compiler/src/runtime.inc"
+RT="compiler/seeds/runtime.from_x.c"
 DOC="analysis/phase-b-completion-v1.md"
 
 echo "=== B-30: stubs/runtime OS inventory ==="

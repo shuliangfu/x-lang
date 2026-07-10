@@ -17,6 +17,6 @@ std_net	std_obj	std/net/net.o	net_tcp_listen_c	get_std_net_o_path	STD-002
 std_sync	std_obj	std/sync/sync.o	sync_mutex_new_c	get_std_sync_o_path	STD-045
 std_channel	std_obj	std/channel/channel.o	channel_i32_bounded_c	get_std_channel_o_path	STD-044
 cross_link_contract	cross_ref	tests/baseline/boot-std-link-contract.tsv	BOOT-014	契约
-cross_runtime	cross_ref	compiler/src/runtime.inc	asm_ld_append_std_objs	链接
+cross_runtime	cross_ref	compiler/seeds/runtime.from_x.c	asm_ld_append_std_objs	链接
 doc	file	boot-016-std-asm-symbols-v1.md	analysis/boot-016-std-asm-symbols-v1.md	RFC
 gate	script	run-boot-016-std-asm-symbols-gate.sh	tests/run-boot-016-std-asm-symbols-gate.sh	manifest

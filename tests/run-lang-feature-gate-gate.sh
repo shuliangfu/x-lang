@@ -17,7 +17,7 @@ MIN_SYMBOLS=3
 
 echo "=== LANG-001: feature gate manifest ==="
 for f in "$DOC" "$MANIFEST" "$CATALOG" docs/01-关键字.md \
-  compiler/src/runtime.inc scripts/shux-lang-edition.sh \
+  compiler/seeds/runtime.from_x.c scripts/shux-lang-edition.sh \
   tests/lang-feature/edition_stable.x tests/lang-feature/feature_match.x; do
   if [ ! -f "$f" ]; then
     echo "lang-feature-gate gate FAIL: missing $f" >&2

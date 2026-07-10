@@ -133,7 +133,7 @@ int build_get_argv_i(int argc, char **argv, int i, char *buf, int max) {
  */
 static const char *const build_literals[] = {
   /* 0: step 0 全命令（含 std_fs_shim.o 供 pipeline/driver 的 std.fs 符号） */
-  "cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/main.o src/main.inc && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/runtime.o src/runtime.inc && cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS -c -o src/runtime_driver.o src/runtime.inc && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o std_fs.o src/std_fs_shim.c && sh scripts/cc_inc_tu.sh src/preprocess_shim.inc preprocess_shim.o",
+  "cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/main.o seeds/main.from_x.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o src/runtime.o seeds/runtime.from_x.c && cc -Wall -Wextra -I. -Iinclude -Isrc -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_FRONTEND -DSHUX_USE_X_PREPROCESS -c -o src/runtime_driver.o seeds/runtime.from_x.c && cc -Wall -Wextra -I. -Iinclude -Isrc -c -o std_fs.o src/std_fs_shim.c && sh scripts/cc_inc_tu.sh src/preprocess_shim.inc preprocess_shim.o",
   /* 1: step 1 后缀（前接 shu_path） */
   " -L .. -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/asm -L src/preprocess -E -E-extern src/pipeline/pipeline.x > pipeline_gen.c",
   /* 2: step 2 */
@@ -260,12 +260,12 @@ int build_run_step(int step_id, const char *shu_path) {
      * G-02a: codegen.c 已物理删除；codegen 由 codegen_x.o 提供，codegen_pipeline_stubs.o 提供 weak 桩。
      * 同时编译所有 C 侧模块，供 step 5 链接（runtime_driver 仍引用了部分 C 侧函数）。 */
     n = (int)snprintf(cmd, sizeof(cmd),
-      "%s %s -c -o src/main.o src/main.inc && "
-      "%s %s -c -o src/runtime.o src/runtime.inc && "
-      "%s %s -DSHUX_USE_X_PREPROCESS -c -o src/runtime_driver.o src/runtime.inc && "
-      "%s %s -c -o src/lexer/lexer.o src/asm/runtime_lexer_glue.inc && "
-      "%s %s -c -o src/ast/ast.o src/asm/runtime_ast_glue.inc && "
-      "%s %s -c -o src/lsp/lsp_diag.o src/asm/runtime_lsp_glue.inc && "
+      "%s %s -c -o src/main.o seeds/main.from_x.c && "
+      "%s %s -c -o src/runtime.o seeds/runtime.from_x.c && "
+      "%s %s -DSHUX_USE_X_PREPROCESS -c -o src/runtime_driver.o seeds/runtime.from_x.c && "
+      "%s %s -c -o src/lexer/lexer.o seeds/runtime_lexer_glue.from_x.c && "
+      "%s %s -c -o src/ast/ast.o seeds/runtime_ast_glue.from_x.c && "
+      "%s %s -c -o src/lsp/lsp_diag.o seeds/runtime_lsp_glue.from_x.c && "
       "%s %s -c -o std_fs_shim.o src/std_fs_shim.c && "
       "sh scripts/cc_inc_tu.sh src/x_stubs.inc x_stubs.o",
       cc, cflags, cc, cflags, cc, cflags_driver,

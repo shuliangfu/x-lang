@@ -36,7 +36,7 @@ fi
 cp -f ./shux_asm "$PRE"
 echo "relink_shux_asm_link_abi_only: backup -> $PRE ($(wc -c <"$PRE" | tr -d ' ')B)"
 
-touch src/runtime_link_abi.inc seeds/runtime_asm_io_stubs.from_x.c
+touch seeds/runtime_link_abi.from_x.c seeds/runtime_asm_io_stubs.from_x.c
 make -s src/runtime_link_abi.o runtime_asm_io_stubs.o
 
 export SHUX_ASM_EXPERIMENTAL_SKIP_GEN=1

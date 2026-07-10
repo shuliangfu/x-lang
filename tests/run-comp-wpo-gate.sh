@@ -17,7 +17,7 @@ MIN_CAPS=6
 
 echo "=== COMP-004: WPO v1 manifest ==="
 for f in "$DOC" "$MANIFEST" "$PROTO" \
-  compiler/src/runtime.inc compiler/scripts/wpo_dce.pl compiler/scripts/wpo_const_spec.pl \
+  compiler/seeds/runtime.from_x.c compiler/scripts/wpo_dce.pl compiler/scripts/wpo_const_spec.pl \
   tests/wpo/dead_fn.x tests/wpo/dead_user.x tests/wpo/if_block_reach.x tests/wpo/const_spec.x \
   tests/run-wpo-dce-emit.sh tests/run-pipeline-wpo-optin-smoke.sh; do
   if [ ! -f "$f" ]; then

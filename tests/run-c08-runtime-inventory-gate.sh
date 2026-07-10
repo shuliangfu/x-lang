@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 MANIFEST="tests/baseline/c08-runtime-driver-inventory.tsv"
-RT="compiler/src/runtime.inc"
+RT="compiler/seeds/runtime.from_x.c"
 
 echo "=== C-08: runtime/driver inventory ==="
 for f in "$MANIFEST" "$RT" analysis/phase-c-c08-v1.md; do

@@ -31,7 +31,7 @@ if [ -n "$SEED" ]; then
   cp -f "$SEED" ./shux-c
 else
   echo "[1/4] LEGACY: compiling minimal C runtime (no C frontend)..."
-  SRCS="src/main.inc src/runtime.inc src/async/async_liveness.inc src/async/async_cps_codegen.inc"
+  SRCS="seeds/main.from_x.c seeds/runtime.from_x.c seeds/async_liveness.from_x.c seeds/async_cps_codegen.from_x.c"
   OBJS=""
   for src in $SRCS; do
     obj="${src%.c}.o"

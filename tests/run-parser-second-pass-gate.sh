@@ -128,7 +128,7 @@ fi
 if [ "$EMIT_HEAVY" = "1" ] && [ "${SHUX_PARSER_SECOND_PASS_SEED_METRIC_DYNAMIC:-1}" = "1" ]; then
   SEED_METRIC_TMP="/tmp/shux_parser_seed_metric.$$.o"
   SEED_METRIC_TMP2="/tmp/shux_parser_seed_metric_noseed.$$.o"
-  THIN_SRC="compiler/src/asm/parser_asm_thin_c.inc"
+  THIN_SRC="compiler/seeds/parser_asm_thin_c.from_x.c"
   if [ -f "$THIN_SRC" ] && command -v cc >/dev/null 2>&1; then
     if cc -Wall -Icompiler -Icompiler/include -Icompiler/src -Icompiler/src/lexer \
       -c -o "$SEED_METRIC_TMP" "$THIN_SRC" 2>/dev/null \

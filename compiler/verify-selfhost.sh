@@ -14,7 +14,7 @@ echo ""
 echo "── Step 0: 冷启动 ──"
 rm -f *.o src/*.o src/*/*.o _x_stubs.* _shux2_* shux shux-c shux-x *_gen.c *_x.o 2>/dev/null || true
 
-SRCS="src/main.c src/runtime.c src/asm/runtime_lexer_glue.c src/asm/runtime_ast_glue.inc src/asm/runtime_lsp_glue.inc"
+SRCS="src/main.c src/runtime.c src/asm/runtime_lexer_glue.c seeds/runtime_ast_glue.from_x.c seeds/runtime_lsp_glue.from_x.c"
 OBJS=""
 for src in $SRCS; do
   obj="${src%.c}.o"
@@ -115,9 +115,9 @@ cc $CFLAGS -c driver_gen.c -o driver_x.o
 # 编译 C 侧模块
 echo ""
 echo "  编译 C 侧模块..."
-cc $CFLAGS -c src/asm/runtime_ast_glue.inc -o ast_c.o
+cc $CFLAGS -c seeds/runtime_ast_glue.from_x.c -o ast_c.o
 cc $CFLAGS -c src/asm/runtime_lexer_glue.c -o lexer_c.o
-cc $CFLAGS -c src/asm/runtime_lsp_glue.inc -o lsp_diag_c.o
+cc $CFLAGS -c seeds/runtime_lsp_glue.from_x.c -o lsp_diag_c.o
 cc $CFLAGS -c src/std_fs_shim.c -o std_fs_shim_c.o
 
 # 编译桩文件

@@ -11,7 +11,7 @@
 #include "token.h"
 #include "codegen/codegen.h"
 #include <string.h>
-#include "runtime_heap_user.inc"
+#include "seeds/runtime_heap_user.from_x.c"
 
 /* SHUX_WEAK: POSIX 用 weak attribute；Windows/MinGW 不支持 weak 函数符号，改为正常定义，
  * 配合 Makefile 的 -Wl,--allow-multiple-definition 解决重复定义冲突。 */

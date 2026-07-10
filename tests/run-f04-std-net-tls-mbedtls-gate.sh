@@ -35,7 +35,7 @@ if grep -q 'SHUX_NET_USE_MBEDTLS' "$NET_C" 2>/dev/null; then
   die "net.c still defines SHUX_NET_USE_MBEDTLS include path"
 fi
 grep -q 'tls_mbedtls.x' compiler/Makefile || die "Makefile missing tls_mbedtls.x build"
-grep -q 'std/net/tls_mbedtls.o' compiler/src/runtime_link_abi.inc \
+grep -q 'std/net/tls_mbedtls.o' compiler/seeds/runtime_link_abi.from_x.c \
   || die "runtime_link_abi missing tls_mbedtls.o link path"
 
 if [ -f tests/run-std-net-tls-gate.sh ]; then

@@ -14,7 +14,7 @@ freestanding_io	.s	compiler/src/asm/freestanding_io_x86_64.s	exists	syscall 桩
 sys_linux	x	std/sys/linux.x	exists	extern 声明
 sys_mod	x	std/sys/mod.x	exists	os_write 门面
 freestanding_hello	gate	tests/run-freestanding-hello.sh	gate_ref	S4 基线烟测
-runtime_nl05	runtime	compiler/src/runtime_link_abi.inc	grep_marker	F-no-libc NL-05 BEGIN/END
+runtime_nl05	runtime	compiler/seeds/runtime_link_abi.from_x.c	grep_marker	F-no-libc NL-05 BEGIN/END
 sub_gate_socket	gate_ref	tests/run-no-libc-socket-gate.sh	gate_ref	NL-02 委托
 sub_gate_heap	gate_ref	tests/run-no-libc-heap-gate.sh	gate_ref	NL-03 委托
 sub_gate_fs	gate_ref	tests/run-no-libc-fs-gate.sh	gate_ref	NL-04 委托

@@ -15,11 +15,11 @@ for f in "$MANIFEST" "$SRC"; do
     exit 1
   fi
 done
-if ! grep -qF "shux_append_linux_link_harden" compiler/src/runtime_link_abi.inc 2>/dev/null; then
+if ! grep -qF "shux_append_linux_link_harden" compiler/seeds/runtime_link_abi.from_x.c 2>/dev/null; then
   echo "link-hardening gate FAIL: runtime_link_abi.inc missing shux_append_linux_link_harden" >&2
   exit 1
 fi
-if grep -qE '^static void shux_append_linux_link_harden\(' compiler/src/runtime.inc 2>/dev/null; then
+if grep -qE '^static void shux_append_linux_link_harden\(' compiler/seeds/runtime.from_x.c 2>/dev/null; then
   echo "link-hardening gate FAIL: runtime.c still defines shux_append_linux_link_harden (expected runtime_link_abi.inc)" >&2
   exit 1
 fi

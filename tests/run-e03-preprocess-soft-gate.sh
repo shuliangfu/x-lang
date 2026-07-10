@@ -11,8 +11,8 @@ cd "$(dirname "$0")/.."
 FAIL=${SHUX_E03_PREPROCESS_FAIL:-0}
 DOC="analysis/phase-e-e03-v2-preprocess.md"
 MF="compiler/Makefile"
-RUNTIME="compiler/src/runtime.inc"
-PIPELINE_ABI_C="compiler/src/runtime_pipeline_abi.inc"
+RUNTIME="compiler/seeds/runtime.from_x.c"
+PIPELINE_ABI_C="compiler/seeds/runtime_pipeline_abi.from_x.c"
 PREPROCESS_C="compiler/src/preprocess.c"
 
 die() {

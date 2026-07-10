@@ -7,7 +7,7 @@ hook_symbol_integrity	hook_gate	run-parser-thin-glue-symbol-integrity-gate.sh	Li
 hook_mega7_manifest	hook_gate	run-comp-parser-mega7-gate.sh	COMP-001 矩阵
 hook_second_pass	hook_gate	run-parser-second-pass-gate.sh	second-pass 烟测
 baseline_symbols	file	tests/baseline/parser-thin-glue-symbols.tsv	thin glue 基线
-thin_src	file	compiler/src/asm/parser_asm_thin_c.inc	glue 源
+thin_src	file	compiler/seeds/parser_asm_thin_c.from_x.c	glue 源
 mega7_matrix	cross_ref	tests/baseline/comp-parser-mega7-matrix.tsv	COMP-001
 mega7_plan	cross_ref	analysis/comp-parser-mega7-v1.md	COMP-001 RFC
 mega7_gap	cross_ref	analysis/boot-mega7-gap.md	BOOT-009

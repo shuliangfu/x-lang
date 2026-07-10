@@ -37,7 +37,7 @@ native_shu() {
 
 echo "=== C-05: LSP lsp_diag.x (v1) ==="
 for f in "$DOC" "$MANIFEST" "$MF" "$LSP_X" \
-  compiler/src/lsp/lsp_diag_pipeline_ctx.inc tests/run-lsp.sh tests/run-lsp-completion.sh; do
+  compiler/seeds/lsp_diag_pipeline_ctx.from_x.c tests/run-lsp.sh tests/run-lsp-completion.sh; do
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'C-05 v1' "$DOC" || die "doc missing C-05 v1 marker"

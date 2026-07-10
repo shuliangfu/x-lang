@@ -47,16 +47,16 @@ DOC_V1="analysis/phase-e-e04-v1.md"
 MF="compiler/Makefile"
 ABI_MF="tests/baseline/e04-runtime-abi.tsv"
 BUILD="compiler/scripts/build_shux_asm.sh"
-RUNTIME="compiler/src/runtime.inc"
-MAIN="compiler/src/main.inc"
+RUNTIME="compiler/seeds/runtime.from_x.c"
+MAIN="compiler/seeds/main.from_x.c"
 ABI_C="compiler/src/runtime_abi.c"
-IO_ABI_C="compiler/src/runtime_io_abi.inc"
+IO_ABI_C="compiler/seeds/runtime_io_abi.from_x.c"
 PROC_ABI_C="compiler/src/runtime_proc_abi.c"
-LINK_ABI_C="compiler/src/runtime_link_abi.inc"
+LINK_ABI_C="compiler/seeds/runtime_link_abi.from_x.c"
 LINK_ABI_H="compiler/src/runtime_link_abi.h"
-DRIVER_ABI_C="compiler/src/runtime_driver_abi.inc"
+DRIVER_ABI_C="compiler/seeds/runtime_driver_abi.from_x.c"
 DRIVER_ABI_H="compiler/src/runtime_driver_abi.h"
-PIPELINE_ABI_C="compiler/src/runtime_pipeline_abi.inc"
+PIPELINE_ABI_C="compiler/seeds/runtime_pipeline_abi.from_x.c"
 PIPELINE_ABI_H="compiler/src/runtime_pipeline_abi.h"
 CRT0_LINUX="compiler/src/asm/crt0_x86_64.s"
 CRT0_DARWIN_ARM="compiler/src/asm/crt0_arm64.s"
@@ -71,15 +71,15 @@ die() {
 
 echo "=== E-04 v35: dep transitive collect/merge in pipeline_abi ==="
 for f in "$DOC" "$DOC_V34" "$DOC_V33" "$DOC_V32" "$DOC_V31" "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUILD" "$RUNTIME" "$MAIN" "$DRIVER_ABI_C" "$DRIVER_ABI_H" "$PIPELINE_ABI_C" "$PIPELINE_ABI_H" "$CRT0_MINGW" "$CRT0_LINUX" "$CRT0_DARWIN_ARM" "$CRT0_DARWIN_X64" \
-  compiler/src/runtime_driver_diagnostic.inc compiler/src/runtime_driver_diagnostic.h \
-  compiler/src/runtime_c_import.inc compiler/src/runtime_c_import.h \
+  compiler/seeds/runtime_driver_diagnostic.from_x.c compiler/src/runtime_driver_diagnostic.h \
+  compiler/seeds/runtime_c_import.from_x.c compiler/src/runtime_c_import.h \
   "$ABI_C" "$IO_ABI_C" "$PROC_ABI_C" "$LINK_ABI_C" "$LINK_ABI_H" "$ABI_MF"; do
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v35' "$DOC" || die "doc missing E-04 v35 marker"
-grep -q 'shux_collect_deps_transitive' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_collect_deps_transitive"
-grep -q 'shux_merge_direct_then_transitive_deps' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_merge_direct_then_transitive_deps"
-grep -q 'shux_load_direct_imports_for_asm_layout' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_load_direct_imports_for_asm_layout"
+grep -q 'shux_collect_deps_transitive' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_collect_deps_transitive"
+grep -q 'shux_merge_direct_then_transitive_deps' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_merge_direct_then_transitive_deps"
+grep -q 'shux_load_direct_imports_for_asm_layout' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_load_direct_imports_for_asm_layout"
 grep -q 'shux_collect_deps_transitive' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing shux_collect_deps_transitive"
 if grep -qE '^static int collect_deps_transitive\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines collect_deps_transitive"
@@ -94,14 +94,14 @@ grep -q 'shux_collect_deps_transitive' "$RUNTIME" || die "runtime.c should call 
 
 echo "=== E-04 v34: driver diagnostic block in runtime_driver_diagnostic TU ==="
 for f in "$DOC_V34" "$DOC_V33" "$DOC_V32" "$DOC_V31" "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUILD" "$RUNTIME" "$MAIN" "$DRIVER_ABI_C" "$DRIVER_ABI_H" "$PIPELINE_ABI_C" "$PIPELINE_ABI_H" "$CRT0_MINGW" "$CRT0_LINUX" "$CRT0_DARWIN_ARM" "$CRT0_DARWIN_X64" \
-  compiler/src/runtime_driver_diagnostic.inc compiler/src/runtime_driver_diagnostic.h \
-  compiler/src/runtime_c_import.inc compiler/src/runtime_c_import.h \
+  compiler/seeds/runtime_driver_diagnostic.from_x.c compiler/src/runtime_driver_diagnostic.h \
+  compiler/seeds/runtime_c_import.from_x.c compiler/src/runtime_c_import.h \
   "$ABI_C" "$IO_ABI_C" "$PROC_ABI_C" "$LINK_ABI_C" "$LINK_ABI_H" "$ABI_MF"; do
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v34' "$DOC_V34" || die "doc missing E-04 v34 marker"
-grep -q 'driver_diagnostic_parse_fail' compiler/src/runtime_driver_diagnostic.inc || die "runtime_driver_diagnostic.inc missing driver_diagnostic_parse_fail"
-grep -q 'driver_diagnostic_hint_unused_binding' compiler/src/runtime_driver_diagnostic.inc || die "runtime_driver_diagnostic.inc missing driver_diagnostic_hint_unused_binding"
+grep -q 'driver_diagnostic_parse_fail' compiler/seeds/runtime_driver_diagnostic.from_x.c || die "runtime_driver_diagnostic.from_x.c missing driver_diagnostic_parse_fail"
+grep -q 'driver_diagnostic_hint_unused_binding' compiler/seeds/runtime_driver_diagnostic.from_x.c || die "runtime_driver_diagnostic.from_x.c missing driver_diagnostic_hint_unused_binding"
 grep -q 'runtime_driver_diagnostic.o' "$MF" || die "Makefile OBJS_CORE missing runtime_driver_diagnostic.o"
 grep -q 'runtime_driver_diagnostic.o' "$MF" && grep -q 'DRIVER_SEED_OBJS' "$MF" && grep -q 'runtime_driver_diagnostic.o' "$MF" || die "Makefile DRIVER_SEED_OBJS missing runtime_driver_diagnostic.o"
 if grep -qE '^void driver_diagnostic_parse_fail\(' "$RUNTIME" 2>/dev/null; then
@@ -110,20 +110,20 @@ fi
 if grep -qE '^void driver_diagnostic_hint_unused_binding\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines driver_diagnostic_hint_unused_binding"
 fi
-grep -q 'runtime_driver_diagnostic.inc' "$RUNTIME" || die "runtime.c should reference runtime_driver_diagnostic.inc"
+grep -q 'runtime_driver_diagnostic' "$RUNTIME" || die "runtime seed should reference runtime_driver_diagnostic"
 
 echo "=== E-04 v33: C import load TU + top-level import detect in driver/pipeline ABI ==="
 for f in "$DOC_V33" "$DOC_V32" "$DOC_V31" "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUILD" "$RUNTIME" "$MAIN" "$DRIVER_ABI_C" "$DRIVER_ABI_H" "$PIPELINE_ABI_C" "$PIPELINE_ABI_H" "$CRT0_MINGW" "$CRT0_LINUX" "$CRT0_DARWIN_ARM" "$CRT0_DARWIN_X64" \
-  compiler/src/runtime_c_import.inc compiler/src/runtime_c_import.h \
+  compiler/seeds/runtime_c_import.from_x.c compiler/src/runtime_c_import.h \
   "$ABI_C" "$IO_ABI_C" "$PROC_ABI_C" "$LINK_ABI_C" "$LINK_ABI_H" "$ABI_MF"; do
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v33' "$DOC_V33" || die "doc missing E-04 v33 marker"
-grep -q 'shu_c_resolve_and_load_imports' compiler/src/runtime_c_import.inc || die "runtime_c_import.inc missing shu_c_resolve_and_load_imports"
-grep -q 'shu_lsp_resolve_and_load_imports' compiler/src/runtime_c_import.inc || die "runtime_c_import.inc missing shu_lsp_resolve_and_load_imports"
+grep -q 'shu_c_resolve_and_load_imports' compiler/seeds/runtime_c_import.from_x.c || die "runtime_c_import.from_x.c missing shu_c_resolve_and_load_imports"
+grep -q 'shu_lsp_resolve_and_load_imports' compiler/seeds/runtime_c_import.from_x.c || die "runtime_c_import.from_x.c missing shu_lsp_resolve_and_load_imports"
 grep -q 'runtime_c_import.o' "$MF" || die "Makefile OBJS_CORE missing runtime_c_import.o"
-grep -q 'driver_source_has_top_level_import_path' "$DRIVER_ABI_C" || die "runtime_driver_abi.inc missing driver_source_has_top_level_import_path"
-grep -q 'shux_merge_deps_path_already_out' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_merge_deps_path_already_out"
+grep -q 'driver_source_has_top_level_import_path' "$DRIVER_ABI_C" || die "runtime_driver_abi.from_x.c missing driver_source_has_top_level_import_path"
+grep -q 'shux_merge_deps_path_already_out' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_merge_deps_path_already_out"
 if grep -qE '^static ASTModule \*load_one_import\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines load_one_import"
 fi
@@ -144,7 +144,7 @@ for f in "$DOC_V32" "$DOC_V31" "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v32' "$DOC_V32" || die "doc missing E-04 v32 marker"
-grep -q 'shux_preprocess' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_preprocess"
+grep -q 'shux_preprocess' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_preprocess"
 grep -q 'shux_preprocess' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing shux_preprocess"
 grep -q 'RUNTIME_PIPELINE_ABI_CFLAGS' "$MF" || die "Makefile missing RUNTIME_PIPELINE_ABI_CFLAGS"
 grep -q 'SHUX_RUNTIME_PREPROCESS' "$RUNTIME" || die "runtime.c missing SHUX_RUNTIME_PREPROCESS macro"
@@ -162,10 +162,10 @@ for f in "$DOC_V31" "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v31' "$DOC_V31" || die "doc missing E-04 v31 marker"
-grep -q 'shux_import_dep_dir_from_path' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_import_dep_dir_from_path"
+grep -q 'shux_import_dep_dir_from_path' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_import_dep_dir_from_path"
 grep -q 'shux_driver_asm_prepare_entry_elf_emit' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing shux_driver_asm_prepare_entry_elf_emit"
-grep -q 'shux_asm_codegen_elf_o_large_stack' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_asm_codegen_elf_o_large_stack"
-grep -q 'pipeline_typeck_module_for_ctx' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing pipeline_typeck_module_for_ctx"
+grep -q 'shux_asm_codegen_elf_o_large_stack' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_asm_codegen_elf_o_large_stack"
+grep -q 'pipeline_typeck_module_for_ctx' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing pipeline_typeck_module_for_ctx"
 grep -q 'shu_lsp_free_loaded_imports' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing shu_lsp_free_loaded_imports"
 if grep -qE '^static void driver_asm_prepare_entry_elf_emit\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines driver_asm_prepare_entry_elf_emit"
@@ -180,7 +180,7 @@ if grep -qE '^void shu_lsp_free_loaded_imports\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines shu_lsp_free_loaded_imports"
 fi
 grep -q 'shux_asm_codegen_elf_o_large_stack' "$RUNTIME" || die "runtime.c should call shux_asm_codegen_elf_o_large_stack"
-grep -q 'shux_import_dep_dir_from_path' compiler/src/runtime_c_import.inc || die "runtime_c_import.inc should call shux_import_dep_dir_from_path"
+grep -q 'shux_import_dep_dir_from_path' compiler/seeds/runtime_c_import.from_x.c || die "runtime_c_import.inc should call shux_import_dep_dir_from_path"
 
 echo "=== E-04 v30: pipeline I/O primitives + dep prerun in pipeline_abi ==="
 for f in "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUILD" "$RUNTIME" "$MAIN" "$DRIVER_ABI_C" "$DRIVER_ABI_H" "$PIPELINE_ABI_C" "$PIPELINE_ABI_H" "$CRT0_MINGW" "$CRT0_LINUX" "$CRT0_DARWIN_ARM" "$CRT0_DARWIN_X64" \
@@ -188,9 +188,9 @@ for f in "$DOC_V30" "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v30' "$DOC_V30" || die "doc missing E-04 v30 marker"
-grep -q 'pipeline_set_entry_dir' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing pipeline_set_entry_dir"
-grep -q 'pipeline_read_file' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing pipeline_read_file"
-grep -q 'shux_pipeline_run_x_pipeline_large_stack' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_pipeline_run_x_pipeline_large_stack"
+grep -q 'pipeline_set_entry_dir' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing pipeline_set_entry_dir"
+grep -q 'pipeline_read_file' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing pipeline_read_file"
+grep -q 'shux_pipeline_run_x_pipeline_large_stack' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_pipeline_run_x_pipeline_large_stack"
 grep -q 'shux_pipeline_dep_prerun_parse_only' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing shux_pipeline_dep_prerun_parse_only"
 if grep -qE '^void pipeline_set_entry_dir\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines pipeline_set_entry_dir"
@@ -206,11 +206,11 @@ for f in "$DOC_V29" "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v29' "$DOC_V29" || die "doc missing E-04 v29 marker"
-grep -q 'driver_bump_stack_limit' "$DRIVER_ABI_C" || die "runtime_driver_abi.inc missing driver_bump_stack_limit"
+grep -q 'driver_bump_stack_limit' "$DRIVER_ABI_C" || die "runtime_driver_abi.from_x.c missing driver_bump_stack_limit"
 grep -q 'driver_run_thread_on_large_stack' "$DRIVER_ABI_H" || die "runtime_driver_abi.h missing driver_run_thread_on_large_stack"
-grep -q 'shux_preprocess_raw_to_malloc' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_preprocess_raw_to_malloc"
-grep -q 'typeck_ndep' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing typeck_ndep"
-grep -q 'driver_typeck_dep_sidecar_clear' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing driver_typeck_dep_sidecar_clear"
+grep -q 'shux_preprocess_raw_to_malloc' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_preprocess_raw_to_malloc"
+grep -q 'typeck_ndep' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing typeck_ndep"
+grep -q 'driver_typeck_dep_sidecar_clear' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing driver_typeck_dep_sidecar_clear"
 if grep -qE '^void driver_bump_stack_limit\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines driver_bump_stack_limit"
 fi
@@ -231,12 +231,12 @@ for f in "$DOC_V28" "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v28' "$DOC_V28" || die "doc missing E-04 v28 marker"
-grep -q 'shux_pipeline_fill_ctx_path_buffers' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_pipeline_fill_ctx_path_buffers"
+grep -q 'shux_pipeline_fill_ctx_path_buffers' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_pipeline_fill_ctx_path_buffers"
 grep -q 'shux_pipeline_pctx_seed_dep_slots' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing shux_pipeline_pctx_seed_dep_slots"
-grep -q 'shux_asm_user_std_dep_skip_x_typeck' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_asm_user_std_dep_skip_x_typeck"
-grep -q 'driver_pipeline_fail_code' "$DRIVER_ABI_C" || die "runtime_driver_abi.inc missing driver_pipeline_fail_code"
+grep -q 'shux_asm_user_std_dep_skip_x_typeck' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_asm_user_std_dep_skip_x_typeck"
+grep -q 'driver_pipeline_fail_code' "$DRIVER_ABI_C" || die "runtime_driver_abi.from_x.c missing driver_pipeline_fail_code"
 grep -q 'driver_print_x_smoke_summary' "$DRIVER_ABI_H" || die "runtime_driver_abi.h missing driver_print_x_smoke_summary"
-grep -q 'driver_peek_source_file' "$DRIVER_ABI_C" || die "runtime_driver_abi.inc missing driver_peek_source_file"
+grep -q 'driver_peek_source_file' "$DRIVER_ABI_C" || die "runtime_driver_abi.from_x.c missing driver_peek_source_file"
 if grep -qE '^static void pipeline_fill_ctx_path_buffers\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines pipeline_fill_ctx_path_buffers"
 fi
@@ -251,10 +251,10 @@ for f in "$DOC_V27" "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v27' "$DOC_V27" || die "doc missing E-04 v27 marker"
-grep -q 'shux_find_loaded_import_index' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_find_loaded_import_index"
+grep -q 'shux_find_loaded_import_index' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_find_loaded_import_index"
 grep -q 'shux_dep_prerun_entry_dir' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing shux_dep_prerun_entry_dir"
-grep -q 'shux_asm_out_buf_is_object' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_asm_out_buf_is_object"
-grep -q 'driver_argv_collect_defines' "$DRIVER_ABI_C" || die "runtime_driver_abi.inc missing driver_argv_collect_defines"
+grep -q 'shux_asm_out_buf_is_object' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_asm_out_buf_is_object"
+grep -q 'driver_argv_collect_defines' "$DRIVER_ABI_C" || die "runtime_driver_abi.from_x.c missing driver_argv_collect_defines"
 if grep -qE '^static int find_loaded_index\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines find_loaded_index"
 fi
@@ -272,7 +272,7 @@ for f in "$DOC_V26" "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v26' "$DOC_V26" || die "doc missing E-04 v26 marker"
-grep -q 'driver_dep_publish_slot' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing driver_dep_publish_slot"
+grep -q 'driver_dep_publish_slot' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing driver_dep_publish_slot"
 grep -q 'driver_dep_arena_buf' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing driver_dep_arena_buf"
 grep -q 'SHUX_DRIVER_DEP_SLOT_MAX' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing SHUX_DRIVER_DEP_SLOT_MAX"
 grep -q 'driver_dep_seeded_clear_all' "$RUNTIME" || die "runtime.c should call driver_dep_seeded_clear_all"
@@ -290,8 +290,8 @@ for f in "$DOC_V25" "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v25' "$DOC_V25" || die "doc missing E-04 v25 marker"
-grep -q 'driver_asm_build_skip_typeck' "$DRIVER_ABI_C" || die "runtime_driver_abi.inc missing driver_asm_build_skip_typeck"
-grep -q 'driver_compile_phase_timing_begin' "$DRIVER_ABI_C" || die "runtime_driver_abi.inc missing driver_compile_phase_timing_begin"
+grep -q 'driver_asm_build_skip_typeck' "$DRIVER_ABI_C" || die "runtime_driver_abi.from_x.c missing driver_asm_build_skip_typeck"
+grep -q 'driver_compile_phase_timing_begin' "$DRIVER_ABI_C" || die "runtime_driver_abi.from_x.c missing driver_compile_phase_timing_begin"
 grep -q 'driver_set_pipeline_entry_source_len' "$DRIVER_ABI_H" || die "runtime_driver_abi.h missing driver_set_pipeline_entry_source_len"
 if grep -qE '^int32_t driver_asm_build_skip_typeck\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines driver_asm_build_skip_typeck"
@@ -312,7 +312,7 @@ for f in "$DOC_V24" "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC
 done
 grep -q 'E-04 v24' "$DOC_V24" || die "doc missing E-04 v24 marker"
 grep -q 'runtime_pipeline_abi.o' "$MF" || die "Makefile missing runtime_pipeline_abi.o in OBJS_CORE/seed"
-grep -q 'shux_resolve_import_file_path_multi' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.inc missing shux_resolve_import_file_path_multi"
+grep -q 'shux_resolve_import_file_path_multi' "$PIPELINE_ABI_C" || die "runtime_pipeline_abi.from_x.c missing shux_resolve_import_file_path_multi"
 grep -q 'shux_get_entry_dir' "$PIPELINE_ABI_H" || die "runtime_pipeline_abi.h missing shux_get_entry_dir"
 grep -q 'runtime_pipeline_abi.h' "$RUNTIME" || die "runtime.c must include runtime_pipeline_abi.h"
 if grep -qE '^static void resolve_import_file_path_multi\(' "$RUNTIME" 2>/dev/null; then
@@ -334,7 +334,7 @@ for f in "$DOC_V23" "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v23' "$DOC_V23" || die "doc missing E-04 v23 marker"
-grep -q 'shux_invoke_ld_for_exe' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_invoke_ld_for_exe"
+grep -q 'shux_invoke_ld_for_exe' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_invoke_ld_for_exe"
 grep -q 'shux_output_want_exe' "$LINK_ABI_H" || die "runtime_link_abi.h missing shux_output_want_exe"
 grep -q 'shux_output_is_elf_o' "$LINK_ABI_H" || die "runtime_link_abi.h missing shux_output_is_elf_o"
 grep -q 'runtime_driver_abi.h' "$LINK_ABI_C" || die "runtime_link_abi.inc must include runtime_driver_abi.h for freestanding"
@@ -360,7 +360,7 @@ for f in "$DOC_V22" "$DOC_V21" "$DOC_V20" "$DOC_V19" "$DOC_V18" "$DOC_V17" "$DOC
 done
 grep -q 'E-04 v22' "$DOC_V22" || die "doc missing E-04 v22 marker"
 grep -q 'runtime_driver_abi.o' "$MF" || die "Makefile missing runtime_driver_abi.o in seed link"
-grep -q 'driver_check_only_get' "$DRIVER_ABI_C" || die "runtime_driver_abi.inc missing driver_check_only_get"
+grep -q 'driver_check_only_get' "$DRIVER_ABI_C" || die "runtime_driver_abi.from_x.c missing driver_check_only_get"
 if grep -qE '^void driver_check_only_set\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines driver_check_only_set"
 fi
@@ -425,8 +425,8 @@ for f in "$DOC_V17" "$DOC_V16" "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v17' "$DOC_V17" || die "doc missing E-04 v17 marker"
-grep -q 'shux_invoke_cc' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_invoke_cc"
-grep -q 'shux_generated_c_needs_async_scheduler' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_generated_c_needs_async_scheduler"
+grep -q 'shux_invoke_cc' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_invoke_cc"
+grep -q 'shux_generated_c_needs_async_scheduler' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_generated_c_needs_async_scheduler"
 grep -q 'SHUX_INVOKE_CC_MAX_C_FILES' "$LINK_ABI_H" || die "runtime_link_abi.h missing SHUX_INVOKE_CC_MAX_C_FILES"
 if grep -qE '^static int invoke_cc\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines invoke_cc"
@@ -455,7 +455,7 @@ for f in "$DOC_V15" "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v15' "$DOC_V15" || die "doc missing E-04 v15 marker"
-grep -q 'shux_asm_invoke_ld_platform' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_asm_invoke_ld_platform"
+grep -q 'shux_asm_invoke_ld_platform' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_asm_invoke_ld_platform"
 if grep -qE '^static int asm_invoke_ld_platform\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines asm_invoke_ld_platform"
 fi
@@ -470,10 +470,10 @@ for f in "$DOC_V14" "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_
 done
 grep -q 'E-04 v14' "$DOC_V14" || die "doc missing E-04 v14 marker"
 grep -q 'SHUX_LD_ARGV_CAP' "$LINK_ABI_H" || die "runtime_link_abi.h missing SHUX_LD_ARGV_CAP"
-grep -q 'shux_asm_ld_prepare_for_exe_link' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_asm_ld_prepare_for_exe_link"
-grep -q 'shux_asm_user_o_has_undef_syms' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_asm_user_o_has_undef_syms"
-grep -q 'shux_asm_ld_append_mach_tail_libs' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_asm_ld_append_mach_tail_libs"
-grep -q 'shux_asm_ld_append_unix_gcc_tail_libs' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_asm_ld_append_unix_gcc_tail_libs"
+grep -q 'shux_asm_ld_prepare_for_exe_link' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_asm_ld_prepare_for_exe_link"
+grep -q 'shux_asm_user_o_has_undef_syms' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_asm_user_o_has_undef_syms"
+grep -q 'shux_asm_ld_append_mach_tail_libs' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_asm_ld_append_mach_tail_libs"
+grep -q 'shux_asm_ld_append_unix_gcc_tail_libs' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_asm_ld_append_unix_gcc_tail_libs"
 if grep -qE '^static int (freestanding_prepare_runtime_panic_o|asm_user_o_has_undef_syms)\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines freestanding_prepare_runtime_panic_o or asm_user_o_has_undef_syms"
 fi
@@ -488,9 +488,9 @@ for f in "$DOC_V13" "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V
 done
 grep -q 'E-04 v13' "$DOC_V13" || die "doc missing E-04 v13 marker"
 grep -q 'ShuAsmLdStdLinkFlags' "$LINK_ABI_H" || die "runtime_link_abi.h missing ShuAsmLdStdLinkFlags"
-grep -q 'shux_rel_o_path_from_argv0' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_rel_o_path_from_argv0"
-grep -q 'shux_asm_ld_append_std_objs' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_asm_ld_append_std_objs"
-grep -q 'shux_asm_ld_append_on_demand_user_objs' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_asm_ld_append_on_demand_user_objs"
+grep -q 'shux_rel_o_path_from_argv0' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_rel_o_path_from_argv0"
+grep -q 'shux_asm_ld_append_std_objs' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_asm_ld_append_std_objs"
+grep -q 'shux_asm_ld_append_on_demand_user_objs' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_asm_ld_append_on_demand_user_objs"
 if grep -qE '^static void (asm_ld_append_std_objs|asm_ld_append_on_demand_user_objs)\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines asm_ld_append_std/on_demand"
 fi
@@ -501,11 +501,11 @@ for f in "$DOC_V12" "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v12' "$DOC_V12" || die "doc missing E-04 v12 marker"
-grep -q 'ShuAsmLdPathBank' "$LINK_ABI_C" || die "runtime_link_abi.inc missing ShuAsmLdPathBank"
-grep -q 'shux_asm_ld_bank_push' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_asm_ld_bank_push"
-grep -q 'shux_asm_ld_try_under_lib_roots' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_asm_ld_try_under_lib_roots"
-grep -q 'shux_std_io_o_path' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_std_io_o_path"
-grep -q 'shux_repo_root_from_argv0' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_repo_root_from_argv0"
+grep -q 'ShuAsmLdPathBank' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing ShuAsmLdPathBank"
+grep -q 'shux_asm_ld_bank_push' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_asm_ld_bank_push"
+grep -q 'shux_asm_ld_try_under_lib_roots' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_asm_ld_try_under_lib_roots"
+grep -q 'shux_std_io_o_path' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_std_io_o_path"
+grep -q 'shux_repo_root_from_argv0' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_repo_root_from_argv0"
 if grep -qE '^static const char \*(get_io_o_path|get_repo_root)\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines get_io_o_path or get_repo_root"
 fi
@@ -522,10 +522,10 @@ for f in "$DOC_V11" "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5"
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v11' "$DOC_V11" || die "doc missing E-04 v11 marker"
-grep -q 'shux_link_freestanding_enabled' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_link_freestanding_enabled"
-grep -q 'shux_ensure_runtime_asm_io_stubs_o' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_ensure_runtime_asm_io_stubs_o"
-grep -q 'shux_ensure_crt0_user_o' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_ensure_crt0_user_o"
-grep -q 'shux_ensure_freestanding_io_o' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_ensure_freestanding_io_o"
+grep -q 'shux_link_freestanding_enabled' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_link_freestanding_enabled"
+grep -q 'shux_ensure_runtime_asm_io_stubs_o' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_ensure_runtime_asm_io_stubs_o"
+grep -q 'shux_ensure_crt0_user_o' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_ensure_crt0_user_o"
+grep -q 'shux_ensure_freestanding_io_o' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_ensure_freestanding_io_o"
 if grep -qE '^static int ensure_(runtime_asm_io_stubs_o|crt0_user_o|freestanding_io_o)\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines ensure_runtime_asm_io_stubs_o/crt0/freestanding_io"
 fi
@@ -536,10 +536,10 @@ for f in "$DOC_V10" "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" 
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v10' "$DOC_V10" || die "doc missing E-04 v10 marker"
-grep -q 'shux_crt0_user_o_path' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_crt0_user_o_path"
-grep -q 'shux_freestanding_io_o_path' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_freestanding_io_o_path"
-grep -q 'shux_runtime_asm_io_stubs_o_path' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_runtime_asm_io_stubs_o_path"
-grep -q 'shux_ensure_runtime_panic_o' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_ensure_runtime_panic_o"
+grep -q 'shux_crt0_user_o_path' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_crt0_user_o_path"
+grep -q 'shux_freestanding_io_o_path' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_freestanding_io_o_path"
+grep -q 'shux_runtime_asm_io_stubs_o_path' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_runtime_asm_io_stubs_o_path"
+grep -q 'shux_ensure_runtime_panic_o' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_ensure_runtime_panic_o"
 if grep -qE '^static (const char \*(get_crt0_user_o_path|get_freestanding_io_o_path|get_runtime_asm_io_stubs_o_path)|int ensure_runtime_panic_o)\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines crt0/freestanding/io_stubs path or ensure_runtime_panic_o"
 fi
@@ -550,8 +550,8 @@ for f in "$DOC_V9" "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v9' "$DOC_V9" || die "doc missing E-04 v9 marker"
-grep -q 'shux_runtime_panic_o_path' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_runtime_panic_o_path"
-grep -q 'shux_std_async_scheduler_o_path' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_std_async_scheduler_o_path"
+grep -q 'shux_runtime_panic_o_path' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_runtime_panic_o_path"
+grep -q 'shux_std_async_scheduler_o_path' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_std_async_scheduler_o_path"
 if grep -qE '^static const char \*(get_runtime_panic_o_path|get_std_async_scheduler_o_path)\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines get_runtime_panic_o_path or get_std_async_scheduler_o_path"
 fi
@@ -562,8 +562,8 @@ for f in "$DOC_V8" "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v8' "$DOC_V8" || die "doc missing E-04 v8 marker"
-grep -q 'shu_resolve_compiler_dir' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shu_resolve_compiler_dir"
-grep -q 'shux_asm_ld_effective_link_argv0' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_asm_ld_effective_link_argv0"
+grep -q 'shu_resolve_compiler_dir' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shu_resolve_compiler_dir"
+grep -q 'shux_asm_ld_effective_link_argv0' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_asm_ld_effective_link_argv0"
 if grep -qE '^static (int shu_resolve_compiler_dir|const char \*shux_asm_ld_effective_link_argv0)\(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines shu_resolve_compiler_dir or shux_asm_ld_effective_link_argv0"
 fi
@@ -574,7 +574,7 @@ for f in "$DOC_V7" "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v7' "$DOC_V7" || die "doc missing E-04 v7 marker"
-grep -q 'shux_append_linux_link_harden' "$LINK_ABI_C" || die "runtime_link_abi.inc missing shux_append_linux_link_harden"
+grep -q 'shux_append_linux_link_harden' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing shux_append_linux_link_harden"
 if grep -q '^static void shux_append_linux_link_harden(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines shux_append_linux_link_harden (expected runtime_link_abi.inc)"
 fi
@@ -585,7 +585,7 @@ for f in "$DOC_V6" "$DOC_V5" "$DOC_V4" "$DOC_V3" "$DOC_V2" "$DOC_V1" "$MF" "$BUI
   [ -f "$f" ] || die "missing $f"
 done
 grep -q 'E-04 v6' "$DOC_V6" || die "doc missing E-04 v6 marker"
-grep -q 'invoke_cc_append_compress_ld' "$LINK_ABI_C" || die "runtime_link_abi.inc missing invoke_cc_append_compress_ld"
+grep -q 'invoke_cc_append_compress_ld' "$LINK_ABI_C" || die "runtime_link_abi.from_x.c missing invoke_cc_append_compress_ld"
 if grep -q '^static void invoke_cc_append_compress_ld(' "$RUNTIME" 2>/dev/null; then
   die "runtime.c still defines invoke_cc_append_compress_ld (expected runtime_link_abi.inc)"
 fi
@@ -643,37 +643,37 @@ while IFS=$'\t' read -r item_id _e_task path status _replacement check_type note
           sym="${path#runtime_abi.c:}"
           grep -q "$sym" "$ABI_C" || { echo "e04 grep fail: $ABI_C need $sym" >&2; MISS=$((MISS + 1)); }
           ;;
-        runtime_io_abi.inc:*)
-          sym="${path#runtime_io_abi.inc:}"
+        runtime_io_abi.from_x.c:*)
+          sym="${path#runtime_io_abi.from_x.c:}"
           grep -q "$sym" "$IO_ABI_C" || { echo "e04 grep fail: $IO_ABI_C need $sym" >&2; MISS=$((MISS + 1)); }
           ;;
         runtime_proc_abi.c:*)
           sym="${path#runtime_proc_abi.c:}"
           grep -q "$sym" "$PROC_ABI_C" || { echo "e04 grep fail: $PROC_ABI_C need $sym" >&2; MISS=$((MISS + 1)); }
           ;;
-        runtime_link_abi.inc:*)
-          sym="${path#runtime_link_abi.inc:}"
+        runtime_link_abi.from_x.c:*)
+          sym="${path#runtime_link_abi.from_x.c:}"
           grep -q "$sym" "$LINK_ABI_C" || { echo "e04 grep fail: $LINK_ABI_C need $sym" >&2; MISS=$((MISS + 1)); }
           ;;
-        runtime_driver_abi.inc:*)
-          sym="${path#runtime_driver_abi.inc:}"
+        runtime_driver_abi.from_x.c:*)
+          sym="${path#runtime_driver_abi.from_x.c:}"
           grep -q "$sym" "$DRIVER_ABI_C" || { echo "e04 grep fail: $DRIVER_ABI_C need $sym" >&2; MISS=$((MISS + 1)); }
           ;;
-        runtime_pipeline_abi.inc:*)
-          sym="${path#runtime_pipeline_abi.inc:}"
+        runtime_pipeline_abi.from_x.c:*)
+          sym="${path#runtime_pipeline_abi.from_x.c:}"
           grep -q "$sym" "$PIPELINE_ABI_C" || { echo "e04 grep fail: $PIPELINE_ABI_C need $sym" >&2; MISS=$((MISS + 1)); }
           ;;
         runtime_pipeline_abi.h:*)
           sym="${path#runtime_pipeline_abi.h:}"
           grep -q "$sym" "$PIPELINE_ABI_H" || { echo "e04 grep fail: $PIPELINE_ABI_H need $sym" >&2; MISS=$((MISS + 1)); }
           ;;
-        runtime_c_import.inc:*)
-          sym="${path#runtime_c_import.inc:}"
-          grep -q "$sym" compiler/src/runtime_c_import.inc || { echo "e04 grep fail: runtime_c_import.inc need $sym" >&2; MISS=$((MISS + 1)); }
+        runtime_c_import.from_x.c:*)
+          sym="${path#runtime_c_import.from_x.c:}"
+          grep -q "$sym" compiler/seeds/runtime_c_import.from_x.c || { echo "e04 grep fail: runtime_c_import.inc need $sym" >&2; MISS=$((MISS + 1)); }
           ;;
-        runtime_driver_diagnostic.inc:*)
-          sym="${path#runtime_driver_diagnostic.inc:}"
-          grep -q "$sym" compiler/src/runtime_driver_diagnostic.inc || { echo "e04 grep fail: runtime_driver_diagnostic.inc need $sym" >&2; MISS=$((MISS + 1)); }
+        runtime_driver_diagnostic.from_x.c:*)
+          sym="${path#runtime_driver_diagnostic.from_x.c:}"
+          grep -q "$sym" compiler/seeds/runtime_driver_diagnostic.from_x.c || { echo "e04 grep fail: runtime_driver_diagnostic.inc need $sym" >&2; MISS=$((MISS + 1)); }
           ;;
         runtime.c:*)
           sym="${path#runtime.c:}"

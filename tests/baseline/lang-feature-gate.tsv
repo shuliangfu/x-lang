@@ -12,7 +12,7 @@ gate_g3	gates	G3-feature-flag	analysis/lang-feature-gate-v1.md	feature	SHUX_FEAT
 gate_g4	gates	G4-preprocessor	analysis/lang-feature-gate-v1.md	pp	#if
 gate_g5	gates	G5-driver-define	analysis/lang-feature-gate-v1.md	driver	-D
 gate_g6	gates	G6-platform-auto	analysis/lang-feature-gate-v1.md	platform	SHUX_OS_
-sym_defines	symbol	driver_argv_collect_defines	compiler/src/runtime_driver_abi.inc	driver	-D收集
+sym_defines	symbol	driver_argv_collect_defines	compiler/seeds/runtime_driver_abi.from_x.c	driver	-D收集
 sym_preprocess	docs	预处理	docs/01-关键字.md	pp	#if说明
 case_edition	case	edition_stable	tests/lang-feature/edition_stable.x	stable	默认0
 case_feature	case	feature_match	tests/lang-feature/feature_match.x	feature	42/0

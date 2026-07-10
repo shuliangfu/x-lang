@@ -32,7 +32,7 @@ fi
 if grep -q 'std/heap/heap.o' compiler/Makefile 2>/dev/null; then
   die "Makefile still references heap.o"
 fi
-if grep -q 'std/heap/heap.o' compiler/src/runtime_link_abi.inc 2>/dev/null; then
+if grep -q 'std/heap/heap.o' compiler/seeds/runtime_link_abi.from_x.c 2>/dev/null; then
   die "runtime_link_abi.inc still pushes heap.o"
 fi
 grep -q 'malloc' compiler/src/lsp/lsp_io_std_heap.x || die "lsp_io_std_heap missing malloc extern"
