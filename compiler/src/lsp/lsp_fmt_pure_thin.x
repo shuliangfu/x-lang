@@ -80,7 +80,7 @@ function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
     }
     k = k - 1;
   }
-  return 0;
+  return 0 as u8;
 }
 
 #[no_mangle]
@@ -95,5 +95,5 @@ function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
     }
     k = k - 1;
   }
-  return 0;
+  return 0 as u8;
 }
