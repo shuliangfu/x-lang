@@ -1810,13 +1810,34 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-15：lsp_diag + USER_ASM seed bridges
+  # G-02f-15 / G-02f-423：lsp_diag + USER_ASM seed bridges
+  # 默认整 seed；PREFER_X_O=1 时 thin.x（5 pure leaf）+ seed-rest（-DSHUX_L2_LSP_FMT_THIN_FROM_X）ld -r
   _lspg=seeds/runtime_lsp_glue.from_x.c
+  _lspg_thin_x=src/lsp/lsp_fmt_pure_thin.x
   if [ -f "$_lspg" ]; then
-    if [ ! -f src/lsp/lsp_diag.o ] || [ "$_lspg" -nt src/lsp/lsp_diag.o ]; then
-      echo "g05_ensure: lsp_diag.o ← runtime_lsp_glue seed (G-02f-15)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/lsp/lsp_diag.o "$_lspg"
+    if [ ! -f src/lsp/lsp_diag.o ] || [ "$_lspg" -nt src/lsp/lsp_diag.o ] \
+      || { [ -f "$_lspg_thin_x" ] && [ "$_lspg_thin_x" -nt src/lsp/lsp_diag.o ]; }; then
+      _lspg_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_lspg_thin_x" ]; then
+        _lspg_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_lspg_thin_XXXXXX.o") || true
+        _lspg_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_lspg_rest_XXXXXX.o") || true
+        if [ -n "$_lspg_thin_o" ] && [ -n "$_lspg_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_lspg_thin_x" "$_lspg_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_LSP_FMT_THIN_FROM_X \
+               -c -o "$_lspg_rest_o" "$_lspg" \
+          && $CC -r -nostdlib -o src/lsp/lsp_diag.o "$_lspg_thin_o" "$_lspg_rest_o" 2>/dev/null; then
+          echo "g05_ensure: src/lsp/lsp_diag.o ← $_lspg_thin_x + seed-rest (G-02f-423 L2 hybrid lsp_fmt pure thin)"
+          _lspg_done=1
+        else
+          echo "g05_ensure: L2 hybrid runtime_lsp_glue failed; fallback full seed" >&2
+        fi
+        rm -f "$_lspg_thin_o" "$_lspg_rest_o"
+      fi
+      if [ "$_lspg_done" = "0" ]; then
+        echo "g05_ensure: lsp_diag.o ← runtime_lsp_glue seed (G-02f-15)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/lsp/lsp_diag.o "$_lspg"
+      fi
     fi
   fi
   for _pair in \

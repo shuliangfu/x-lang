@@ -2689,8 +2689,19 @@ int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content
 
 
 
+/* G-02f-423：L2 hybrid thin — PREFER_X_O 时 5 pure leaf 由 lsp_fmt_pure_thin.x 提供。
+ * 此处 extern 声明供 seed-rest 中其它函数（lsp_fmt_space_before / try_emit_op 等）调用。 */
+#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len);
+uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j);
+int lsp_fmt_is_atom_tail(uint8_t c);
+int lsp_fmt_is_atom_head(uint8_t c);
+int lsp_fmt_unary_lhs(uint8_t prev);
+#endif
+
 /** 输出缓冲中最后一个非空白字符；无则返回 0。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
     int k;
     for (k = out_len - 1; k >= 0; k--) {
@@ -2699,12 +2710,14 @@ uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len) {
     }
     return 0;
 }
+#endif
 
 
 
 
 /** 源码 [start+j) 之前最后一个非空白字符；无则返回 0。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
     int k;
     for (k = j - 1; k >= 0; k--) {
@@ -2714,28 +2727,34 @@ uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j) {
     }
     return 0;
 }
+#endif
 
 
 
 
 /** 标识符/数字尾字符，可作为二元运算符左操作数尾部。 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_is_atom_tail(uint8_t c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == ')' || c == ']' || c == '}';
 }
+#endif
 
 
 
 /** 标识符/数字头或一元后缀，可作为二元运算符右操作数首部。 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_is_atom_head(uint8_t c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '(' || c == '[' || c == '{';
 }
+#endif
 
 
 
 /** 一元运算符左邻字符（含行首 0）。 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_unary_lhs(uint8_t prev) {
   if (prev == 0)
     return 1;
@@ -2743,6 +2762,7 @@ int lsp_fmt_unary_lhs(uint8_t prev) {
       || prev == '+' || prev == '-' || prev == '*' || prev == '/' || prev == '%' || prev == '&' || prev == '|'
       || prev == '^' || prev == '!' || prev == '~' || prev == '<' || prev == '>';
 }
+#endif
 
 
 
