@@ -91,6 +91,11 @@ int check_lint_fail_on_warnings(void);
 int fmt_check_invoke_compile(int argc, char **check_argv);
 void fmt_check_dep_clear(void);
 int fmt_path_stat_kind(const char *path);
+void check_try_append_lib_root(char **check_argv, int *n, const char *dir);
+void check_init_user_lib_flags(int argc, char **argv, int path_start);
+void driver_check_set_current_file(const char *path);
+int driver_check_print_collected_diagnostics(const char *path);
+int check_one_file(const char *path, int argc, char **argv);
 #endif
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
@@ -276,6 +281,8 @@ void check_try_append_lib_root_impl(char **check_argv, int *n, const char *dir) 
 }
 
 /* G-02f-248：逻辑源 .x（早退 pure）；seed 保留同语义 C 供产品 cc */
+/* G-02f-406：实现体始终 seed；public PREFER 时 thin forward */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
     if (!check_argv || !n || !dir)
         return;
@@ -287,6 +294,7 @@ void check_try_append_lib_root(char **check_argv, int *n, const char *dir) {
         return;
     check_try_append_lib_root_impl(check_argv, n, dir);
 }
+#endif
 
 
 
@@ -305,7 +313,7 @@ void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
         return;
     if (!path || !path[0]) {
         if (getcwd(start, sizeof start))
-            check_try_append_lib_root(check_argv, n, start);
+            check_try_append_lib_root_impl(check_argv, n, start);
         return;
     }
     if (path[0] == '/') {
@@ -326,7 +334,7 @@ void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
     }
     snprintf(cur, sizeof cur, "%s", start);
     for (depth = 0; depth < 8; depth++) {
-        check_try_append_lib_root(check_argv, n, cur);
+        check_try_append_lib_root_impl(check_argv, n, cur);
         if (strcmp(cur, "/") == 0)
             break;
         snprintf(parent, sizeof parent, "%s", cur);
@@ -351,7 +359,8 @@ void check_append_repo_lib_roots(const char *path, char **check_argv, int *n) {
  * 扫描 argv：用户是否已传 -L（有则不再注入默认库根）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void check_init_user_lib_flags(int argc, char **argv, int path_start) {
+/* G-02f-406：实现体始终 seed；public PREFER 时 thin forward */
+void check_init_user_lib_flags_impl(int argc, char **argv, int path_start) {
     int i;
     s_user_passed_L = 0;
     s_n_check_lib_bufs = 0;
@@ -362,6 +371,12 @@ void check_init_user_lib_flags(int argc, char **argv, int path_start) {
         }
     }
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+void check_init_user_lib_flags(int argc, char **argv, int path_start) {
+  check_init_user_lib_flags_impl(argc, argv, path_start);
+}
+#endif
 
 
 
@@ -381,7 +396,7 @@ void check_argv_append_default_libs_for_path(const char *path, char **check_argv
     check_append_repo_lib_roots(path, check_argv, n);
     if (!getcwd(cwd_buf, sizeof cwd_buf))
         return;
-    check_try_append_lib_root(check_argv, n, cwd_buf);
+    check_try_append_lib_root_impl(check_argv, n, cwd_buf);
     if (path && strstr(path, "compiler/src/") && *n < 56) {
         snprintf(cs, sizeof cs, "%s/compiler/src", cwd_buf);
         if (stat(cs, &st) == 0 && S_ISDIR(st.st_mode)) {
@@ -466,7 +481,8 @@ void fmt_check_dep_clear(void) {
 /**
  * 记录当前 check 的源文件路径，供诊断前缀使用。
  */
-void driver_check_set_current_file(const char *path) {
+/* G-02f-406：实现体始终 seed；public PREFER 时 thin forward */
+void driver_check_set_current_file_impl(const char *path) {
     if (!path) {
         s_check_current_file[0] = '\0';
         return;
@@ -474,14 +490,27 @@ void driver_check_set_current_file(const char *path) {
     snprintf(s_check_current_file, sizeof s_check_current_file, "%s", path);
 }
 
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+void driver_check_set_current_file(const char *path) {
+  driver_check_set_current_file_impl(path);
+}
+#endif
+
 /**
  * 将 lsp_diag 收集器中的条目打印为 deno 风格行；返回条数。
  */
-int driver_check_print_collected_diagnostics(const char *path) {
+/* G-02f-406：实现体始终 seed；public PREFER 时 thin forward */
+int driver_check_print_collected_diagnostics_impl(const char *path) {
     extern int lsp_diag_enabled;
     (void)lsp_diag_enabled;
     return lsp_diag_print_stderr_human(path ? path : s_check_current_file);
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int driver_check_print_collected_diagnostics(const char *path) {
+  return driver_check_print_collected_diagnostics_impl(path);
+}
+#endif
 
 /**
  * 路径是否应忽略（内置 + --ignore 子串匹配）。
@@ -974,7 +1003,7 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
     }
     lsp_diag_collect_begin();
     driver_check_diag_emitted_reset();
-    driver_check_set_current_file(path);
+    driver_check_set_current_file_impl(path);
 
     /* 每个文件独立构建 check_argv；-L 缓冲须按文件重置，否则跨文件 dedup 会漏注入仓库根。 */
     s_n_check_lib_bufs = 0;
@@ -1034,11 +1063,18 @@ int check_one_file_body_impl(const char *path, int argc, char **argv) {
 }
 
 /* G-02f-250：逻辑源 .x（门闩）；seed 保留同语义 C 供产品 cc */
-int check_one_file(const char *path, int argc, char **argv) {
+/* G-02f-406：实现体始终 seed；public PREFER 时 thin forward */
+int check_one_file_impl(const char *path, int argc, char **argv) {
     if (!path || !argv || argc <= 0)
         return -1;
     return check_one_file_body_impl(path, argc, argv);
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+int check_one_file(const char *path, int argc, char **argv) {
+  return check_one_file_impl(path, argc, argv);
+}
+#endif
 
 
 
@@ -1062,7 +1098,7 @@ int driver_run_compiler_check(int argc, char **argv) {
     if (argc >= 2 && argv[1] && strcmp(argv[1], "check") == 0)
         path_start = 2;
 
-    check_init_user_lib_flags(argc, argv, path_start);
+    check_init_user_lib_flags_impl(argc, argv, path_start);
 
     for (i = path_start; i < argc; i++) {
         if (!argv[i])
@@ -1107,7 +1143,7 @@ int driver_run_compiler_check(int argc, char **argv) {
     }
 
     for (i = 0; i < s_n_files; i++) {
-        if (check_one_file(s_file_list[i], argc, argv) != 0) {
+        if (check_one_file_impl(s_file_list[i], argc, argv) != 0) {
             failed = 1;
             if (fail_fast)
                 break;

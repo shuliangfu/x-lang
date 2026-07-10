@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-350/383/389/405：fmt_check_cmd L2 thin — pure + lit 门闩（16）。
+// G-02f-350/383/389/405/406：fmt_check_cmd L2 thin — pure + lit 门闩（21）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_FMT_CHECK_THIN_FROM_X）ld -r
 //   → fmt_check_cmd_driver.o
 // 对照：src/driver/fmt_check_cmd.x；默认仍整 seed。
@@ -210,6 +210,50 @@ function fmt_check_dep_clear(): void {
 function fmt_path_stat_kind(path: *u8): i32 {
   unsafe {
     return fmt_path_stat_kind_impl(path);
+  }
+  return 0 - 1;
+}
+
+// ---- G-02f-406：lib roots / current file / one_file → seed impl ----
+extern "C" function check_try_append_lib_root_impl(check_argv: *u8, n: *i32, dir: *u8): void;
+extern "C" function check_init_user_lib_flags_impl(argc: i32, argv: *u8, path_start: i32): void;
+extern "C" function driver_check_set_current_file_impl(path: *u8): void;
+extern "C" function driver_check_print_collected_diagnostics_impl(path: *u8): i32;
+extern "C" function check_one_file_impl(path: *u8, argc: i32, argv: *u8): i32;
+
+#[no_mangle]
+function check_try_append_lib_root(check_argv: *u8, n: *i32, dir: *u8): void {
+  unsafe {
+    check_try_append_lib_root_impl(check_argv, n, dir);
+  }
+}
+
+#[no_mangle]
+function check_init_user_lib_flags(argc: i32, argv: *u8, path_start: i32): void {
+  unsafe {
+    check_init_user_lib_flags_impl(argc, argv, path_start);
+  }
+}
+
+#[no_mangle]
+function driver_check_set_current_file(path: *u8): void {
+  unsafe {
+    driver_check_set_current_file_impl(path);
+  }
+}
+
+#[no_mangle]
+function driver_check_print_collected_diagnostics(path: *u8): i32 {
+  unsafe {
+    return driver_check_print_collected_diagnostics_impl(path);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function check_one_file(path: *u8, argc: i32, argv: *u8): i32 {
+  unsafe {
+    return check_one_file_impl(path, argc, argv);
   }
   return 0 - 1;
 }
