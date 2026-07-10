@@ -30,7 +30,7 @@
 # - string_fast / heap_*: libc mem* / malloc / posix_memalign thin wrappers (P0b extern "C" 自举后可再评估迁 .x)
 # - std_runtime_fast: panic/abort 符号别名 → shux_panic_
 # - lsp_codegen_extern: 大块 C 源字符串 + strstr 路径探测（codegen -E preamble）
-# - preprocess_if_stack_bridge: 分 TU 链静态 #if 栈（pipeline_gen2 不链 glue 时）
+# - preprocess_if_stack_bridge: G-02e-15 已 .inc+cc_inc_tu（不再计手写 .c）
 file	compiler/src/asm/asm_backend_compat_stubs.c
 file	compiler/src/asm/asm_experimental_symbol_bridge.c
 file	compiler/src/asm/backend_arch_emit_dispatch.c
@@ -41,26 +41,14 @@ file	compiler/src/asm/backend_try_inline_dispatch.c
 file	compiler/src/asm/backend_x86_64_enc_c.c
 file	compiler/src/asm/bootstrap_nostdlib_stubs.c
 file	compiler/src/asm/crt0_mingw.c
-file	compiler/src/asm/driver_compile_asm_link_alias.c
 file	compiler/src/asm/http/runtime_http_glue.c
 file	compiler/src/asm/parser_asm_parse_bootstrap_obj.c
 file	compiler/src/asm/parser_asm_parse_expr_link.c
 file	compiler/src/asm/parser_asm_thin_c.c
 file	compiler/src/asm/pipeline_asm_orchestration_alias.c
-file	compiler/src/asm/pipeline_asm_run_all_alias.c
-file	compiler/src/asm/pipeline_asm_typecheck_alias.c
-file	compiler/src/asm/pipeline_fill_dep_strict_alias.c
-file	compiler/src/asm/pipeline_glue_link.c
 file	compiler/src/asm/pipeline_glue_standalone.c
 file	compiler/src/asm/pipeline_glue_strict_minimal.c
-file	compiler/src/asm/pipeline_phase_parse_only_alias.c
-file	compiler/src/asm/pipeline_run_bootstrap_trampoline.c
-file	compiler/src/asm/pipeline_run_impl_alias.c
-file	compiler/src/asm/pipeline_run_x_link_alias.c
-file	compiler/src/asm/pipeline_wpo_strict_link_alias.c
-file	compiler/src/asm/pipeline_wpo_typecheck_emit_bridge.c
 file	compiler/src/asm/runtime_arrow_simd_glue.c
-file	compiler/src/asm/runtime_asm_build.c
 file	compiler/src/asm/runtime_asm_io_stubs.c
 file	compiler/src/asm/runtime_ast_glue.c
 file	compiler/src/asm/runtime_atomic_glue.c
@@ -114,13 +102,11 @@ file	compiler/src/diag.c
 file	compiler/src/driver/fmt_check_cmd.c
 file	compiler/src/driver/target_cpu.c
 file	compiler/src/lexer/cfg_eval_bootstrap_stub.c
-file	compiler/src/lexer/cfg_eval_link_alias.c
 file	compiler/src/lsp/lsp_diag_pipeline_ctx.c
 file	compiler/src/lsp/lsp_diag_pipeline_sizes.c
 file	compiler/src/lsp/lsp_diag_stubs_no_c.c
 file	compiler/src/lsp/typeck_lsp_io_stub.c
 file	compiler/src/main.c
-file	compiler/src/preprocess_if_stack_bridge.c
 file	compiler/src/preprocess_shim.c
 file	compiler/src/runtime.c
 file	compiler/src/runtime_c_import.c
@@ -132,4 +118,3 @@ file	compiler/src/runtime_link_abi.c
 file	compiler/src/runtime_pipeline_abi.c
 file	compiler/src/seed_link_compat.c
 file	compiler/src/x_seed_bridge.c
-file	compiler/src/x_stubs.c

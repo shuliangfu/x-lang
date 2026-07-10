@@ -783,15 +783,15 @@ ensure_driver_parse_argv_loop_partial_obj() {
 
 ensure_driver_compile_link_obj() {
   local eh_o="$BUILD_DIR/driver_compile_emit_heavy.o"
-  local alias_src="src/asm/driver_compile_asm_link_alias.c"
+  local alias_src="src/asm/driver_compile_asm_link_alias.inc"
   local alias_o="$BUILD_DIR/driver_compile_asm_link_alias.o"
   local link_o="$BUILD_DIR/driver_compile_link.o"
   local loop_partial="$BUILD_DIR/driver_compile_parse_argv_loop_partial.o"
   [ -f "$eh_o" ] && [ -s "$eh_o" ] || return 1
   [ -f "$alias_src" ] || return 1
   if [ ! -f "$alias_o" ] || [ "$alias_src" -nt "$alias_o" ]; then
-  build_shux_asm_info "cc driver_compile_asm_link_alias.o"
-  "$CC" $CFLAGS -c -o "$alias_o" "$alias_src"
+  build_shux_asm_info "cc_inc_tu driver_compile_asm_link_alias.o"
+  sh scripts/cc_inc_tu.sh "$alias_src" "$alias_o"
   fi
   if nm "$eh_o" 2>/dev/null | grep -qE ' U (_)?driver_compile_parse_argv_loop$'; then
   ensure_driver_parse_argv_loop_partial_obj || return 1
@@ -1344,12 +1344,12 @@ detect_pipeline_gen_cflags() {
   fi
 }
 
-# Target B 实验链：编译 pipeline_run_x_pipeline 最小 C 桥（见 src/asm/pipeline_glue_link.c）。
+# Target B 实验链：编译 pipeline_run_x_pipeline 最小 C 桥（见 src/asm/pipeline_glue_link.inc）。
 ensure_asm_pipeline_glue_link_obj() {
   GLUE_LINK_OBJ="$BUILD_DIR/pipeline_glue_link.o"
-  if [ ! -f "$GLUE_LINK_OBJ" ] || [ "src/asm/pipeline_glue_link.c" -nt "$GLUE_LINK_OBJ" ]; then
-  echo " cc -c src/asm/pipeline_glue_link.c -> $GLUE_LINK_OBJ"
-  "$CC" $CFLAGS -c -o "$GLUE_LINK_OBJ" src/asm/pipeline_glue_link.c
+  if [ ! -f "$GLUE_LINK_OBJ" ] || [ "src/asm/pipeline_glue_link.inc" -nt "$GLUE_LINK_OBJ" ]; then
+  echo " cc -c src/asm/pipeline_glue_link.inc -> $GLUE_LINK_OBJ"
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_glue_link.inc "$GLUE_LINK_OBJ"
   fi
 }
 
@@ -1360,12 +1360,12 @@ ensure_asm_pipeline_run_impl_alias_obj() {
   if asm_strict_x_orchestration_ok; then
   ALIAS_CFLAGS="$CFLAGS -DSHUX_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES=0"
   fi
-  if [ ! -f "$ALIAS_OBJ" ] || [ "src/asm/pipeline_run_impl_alias.c" -nt "$ALIAS_OBJ" ] || \
+  if [ ! -f "$ALIAS_OBJ" ] || [ "src/asm/pipeline_run_impl_alias.inc" -nt "$ALIAS_OBJ" ] || \
   [ ! -f "$BUILD_DIR/.pipeline_run_impl_alias_x_orch" ] || \
   { asm_strict_x_orchestration_ok && [ "$(cat "$BUILD_DIR/.pipeline_run_impl_alias_x_orch" 2>/dev/null)" != "1" ]; } || \
   { ! asm_strict_x_orchestration_ok && [ "$(cat "$BUILD_DIR/.pipeline_run_impl_alias_x_orch" 2>/dev/null)" = "1" ]; }; then
-  echo " cc -c src/asm/pipeline_run_impl_alias.c -> $ALIAS_OBJ (X orch=$(asm_strict_x_orchestration_ok && echo 1 || echo 0))"
-  "$CC" $ALIAS_CFLAGS -c -o "$ALIAS_OBJ" src/asm/pipeline_run_impl_alias.c
+  echo " cc -c src/asm/pipeline_run_impl_alias.inc -> $ALIAS_OBJ (X orch=$(asm_strict_x_orchestration_ok && echo 1 || echo 0))"
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_run_impl_alias.inc "$ALIAS_OBJ"
   if asm_strict_x_orchestration_ok; then echo "1" >"$BUILD_DIR/.pipeline_run_impl_alias_x_orch"; else echo "0" >"$BUILD_DIR/.pipeline_run_impl_alias_x_orch"; fi
   fi
 }
@@ -1473,9 +1473,9 @@ EOF
 ensure_pipeline_asm_typecheck_alias_obj() {
   local ALIAS_O
   ALIAS_O="$BUILD_DIR/pipeline_asm_typecheck_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_asm_typecheck_alias.c" -nt "$ALIAS_O" ]; then
-  echo " cc -c src/asm/pipeline_asm_typecheck_alias.c -> $ALIAS_O"
-  "$CC" $CFLAGS -c -o "$ALIAS_O" src/asm/pipeline_asm_typecheck_alias.c
+  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_asm_typecheck_alias.inc" -nt "$ALIAS_O" ]; then
+  echo " cc -c src/asm/pipeline_asm_typecheck_alias.inc -> $ALIAS_O"
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_asm_typecheck_alias.inc "$ALIAS_O"
   fi
 }
 
@@ -1485,9 +1485,9 @@ ensure_pipeline_asm_run_all_partial_obj() {
   PARTIAL="$BUILD_DIR/pipeline_asm_run_all_partial.o"
   SYMS="$BUILD_DIR/pipeline_asm_run_all_export.txt"
   ALIAS_O="$BUILD_DIR/pipeline_asm_run_all_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_asm_run_all_alias.c" -nt "$ALIAS_O" ]; then
-  echo " cc -c src/asm/pipeline_asm_run_all_alias.c -> $ALIAS_O"
-  "$CC" $CFLAGS -c -o "$ALIAS_O" src/asm/pipeline_asm_run_all_alias.c
+  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_asm_run_all_alias.inc" -nt "$ALIAS_O" ]; then
+  echo " cc -c src/asm/pipeline_asm_run_all_alias.inc -> $ALIAS_O"
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_asm_run_all_alias.inc "$ALIAS_O"
   fi
   if [ ! -f "$PARTIAL" ] || [ "$ALIAS_O" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
   cat > "$SYMS" <<'EOF'
@@ -1549,9 +1549,9 @@ ensure_pipeline_phase_parse_only_partial_obj() {
   PARTIAL="$BUILD_DIR/pipeline_phase_parse_only_partial.o"
   SYMS="$BUILD_DIR/pipeline_phase_parse_only_export.txt"
   ALIAS_O="$BUILD_DIR/pipeline_phase_parse_only_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_phase_parse_only_alias.c" -nt "$ALIAS_O" ]; then
-  echo " cc -c src/asm/pipeline_phase_parse_only_alias.c -> $ALIAS_O"
-  "$CC" $CFLAGS -c -o "$ALIAS_O" src/asm/pipeline_phase_parse_only_alias.c
+  if [ ! -f "$ALIAS_O" ] || [ "src/asm/pipeline_phase_parse_only_alias.inc" -nt "$ALIAS_O" ]; then
+  echo " cc -c src/asm/pipeline_phase_parse_only_alias.inc -> $ALIAS_O"
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_phase_parse_only_alias.inc "$ALIAS_O"
   fi
   if [ ! -f "$PARTIAL" ] || [ "$ALIAS_O" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
   if [ "${STRICT_LINK_BUILD_ASM_PIPELINE:-0}" -eq 1 ]; then
@@ -1930,13 +1930,13 @@ EOF
 # WPO opt-in helper 链：仅 typecheck emit 桥（编排入口由 C orchestration partial 提供）。
 ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
   local BR_O="$BUILD_DIR/pipeline_wpo_typecheck_emit_bridge.o"
-  local BR_SRC="src/asm/pipeline_wpo_typecheck_emit_bridge.c"
+  local BR_SRC="src/asm/pipeline_wpo_typecheck_emit_bridge.inc"
   if [ ! -f "$BR_SRC" ]; then
   return 1
   fi
   if [ ! -f "$BR_O" ] || [ "$BR_SRC" -nt "$BR_O" ]; then
-  echo " cc -c $BR_SRC -> $BR_O (WPO typecheck emit bridge)"
-  "$CC" $CFLAGS -c -o "$BR_O" "$BR_SRC" || return 1
+  echo " cc_inc_tu $BR_SRC -> $BR_O (WPO typecheck emit bridge)"
+  sh scripts/cc_inc_tu.sh "$BR_SRC" "$BR_O" || return 1
   fi
   return 0
 }
@@ -1944,7 +1944,7 @@ ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
 # S5 WPO strict 链：pipeline_wpo.o + glue 入口/typecheck emit 别名（替代 C orchestration partial）。
 ensure_pipeline_wpo_strict_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/pipeline_wpo_strict_link_alias.o"
-  local ALIAS_SRC="src/asm/pipeline_wpo_strict_link_alias.c"
+  local ALIAS_SRC="src/asm/pipeline_wpo_strict_link_alias.inc"
   if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -ne 1 ] || ! asm_pipeline_wpo_strict_reach_ok; then
   return 0
   fi
@@ -1952,8 +1952,8 @@ ensure_pipeline_wpo_strict_link_alias_obj() {
   return 1
   fi
   if [ ! -f "$ALIAS_O" ] || [ "$ALIAS_SRC" -nt "$ALIAS_O" ]; then
-  echo " cc -c $ALIAS_SRC -> $ALIAS_O (WPO strict link alias)"
-  "$CC" $CFLAGS -c -o "$ALIAS_O" "$ALIAS_SRC" || return 1
+  echo " cc_inc_tu $ALIAS_SRC -> $ALIAS_O (WPO strict link alias)"
+  sh scripts/cc_inc_tu.sh "$ALIAS_SRC" "$ALIAS_O" || return 1
   fi
   return 0
 }
@@ -2103,11 +2103,11 @@ ensure_pipeline_run_bootstrap_trampoline_obj() {
   if [ "${STRICT_LINK_BUILD_ASM_PIPELINE:-0}" -eq 1 ]; then
   TRAMP_CFLAGS="$CFLAGS -DSTRICT_LINK_BUILD_ASM_PIPELINE=1"
   fi
-  if [ ! -f "$TRAMP_O" ] || [ "src/asm/pipeline_run_bootstrap_trampoline.c" -nt "$TRAMP_O" ] || \
+  if [ ! -f "$TRAMP_O" ] || [ "src/asm/pipeline_run_bootstrap_trampoline.inc" -nt "$TRAMP_O" ] || \
   [ ! -f "$BUILD_DIR/.pipeline_trampoline_strict_flag" ] || \
   [ "$(cat "$BUILD_DIR/.pipeline_trampoline_strict_flag" 2>/dev/null)" != "${STRICT_LINK_BUILD_ASM_PIPELINE:-0}" ]; then
-  echo " cc -c src/asm/pipeline_run_bootstrap_trampoline.c -> $TRAMP_O (STRICT_LINK_BUILD_ASM_PIPELINE=${STRICT_LINK_BUILD_ASM_PIPELINE:-0})"
-  "$CC" $TRAMP_CFLAGS -c -o "$TRAMP_O" src/asm/pipeline_run_bootstrap_trampoline.c
+  echo " cc -c src/asm/pipeline_run_bootstrap_trampoline.inc -> $TRAMP_O (STRICT_LINK_BUILD_ASM_PIPELINE=${STRICT_LINK_BUILD_ASM_PIPELINE:-0})"
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_run_bootstrap_trampoline.inc "$TRAMP_O"
   echo "${STRICT_LINK_BUILD_ASM_PIPELINE:-0}" >"$BUILD_DIR/.pipeline_trampoline_strict_flag"
   fi
 }
@@ -2996,9 +2996,9 @@ ensure_std_fs_io_heap_objs() {
 
 # pipeline.x import pipeline.run_x_pipeline → pipeline_run_x_link_alias 提供 C 符号。
 ensure_pipeline_run_x_link_alias_obj() {
-  if [ ! -f src/asm/pipeline_run_x_link_alias.o ] || [ src/asm/pipeline_run_x_link_alias.c -nt src/asm/pipeline_run_x_link_alias.o ]; then
+  if [ ! -f src/asm/pipeline_run_x_link_alias.o ] || [ src/asm/pipeline_run_x_link_alias.inc -nt src/asm/pipeline_run_x_link_alias.o ]; then
   build_shux_asm_info "cc pipeline_run_x_link_alias.o"
-  "$CC" $CFLAGS -c -o src/asm/pipeline_run_x_link_alias.o src/asm/pipeline_run_x_link_alias.c
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_run_x_link_alias.inc src/asm/pipeline_run_x_link_alias.o
   fi
 }
 
@@ -3051,9 +3051,9 @@ ensure_asm_bootstrap_x_companion_objs() {
   echo " cc -c src/seed_link_compat.c -> $BUILD_DIR/seed_link_compat.o"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/seed_link_compat.o" src/seed_link_compat.c
   fi
-  if [ ! -f "$BUILD_DIR/preprocess_if_stack_bridge.o" ] || [ "src/preprocess_if_stack_bridge.c" -nt "$BUILD_DIR/preprocess_if_stack_bridge.o" ]; then
-  echo " cc -c src/preprocess_if_stack_bridge.c -> $BUILD_DIR/preprocess_if_stack_bridge.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/preprocess_if_stack_bridge.o" src/preprocess_if_stack_bridge.c
+  if [ ! -f "$BUILD_DIR/preprocess_if_stack_bridge.o" ] || [ "src/preprocess_if_stack_bridge.inc" -nt "$BUILD_DIR/preprocess_if_stack_bridge.o" ]; then
+  echo " cc -c src/preprocess_if_stack_bridge.inc -> $BUILD_DIR/preprocess_if_stack_bridge.o"
+  sh scripts/cc_inc_tu.sh src/preprocess_if_stack_bridge.inc "$BUILD_DIR/preprocess_if_stack_bridge.o"
   fi
   # dispatch TU 须先于 build_seed_asm_host（partial 导出须 nm 四份 dispatch .o）。
   ensure_bstrict_seed_support_objs
@@ -3340,21 +3340,21 @@ ensure_asm_strict_link_extra_objs() {
   src/asm/pipeline_fill_dep_strict_alias.x 2>/dev/null \
   && [ -s src/asm/pipeline_fill_dep_strict_alias.o ]; then
   echo " $SHUX -backend asm -> src/asm/pipeline_fill_dep_strict_alias.o (G-02-B1 .x)"
-  elif [ -f src/asm/pipeline_fill_dep_strict_alias.c ]; then
-  echo " cc -c src/asm/pipeline_fill_dep_strict_alias.c -> src/asm/pipeline_fill_dep_strict_alias.o (fallback)"
-  "$CC" $CFLAGS -c -o src/asm/pipeline_fill_dep_strict_alias.o src/asm/pipeline_fill_dep_strict_alias.c
+  elif [ -f src/asm/pipeline_fill_dep_strict_alias.inc ]; then
+  echo " cc -c src/asm/pipeline_fill_dep_strict_alias.inc -> src/asm/pipeline_fill_dep_strict_alias.o (fallback)"
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_fill_dep_strict_alias.inc src/asm/pipeline_fill_dep_strict_alias.o
   fi
   elif [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
-  && [ -f src/asm/pipeline_fill_dep_strict_alias.c ]; then
-  echo " cc -c src/asm/pipeline_fill_dep_strict_alias.c -> src/asm/pipeline_fill_dep_strict_alias.o"
-  "$CC" $CFLAGS -c -o src/asm/pipeline_fill_dep_strict_alias.o src/asm/pipeline_fill_dep_strict_alias.c
+  && [ -f src/asm/pipeline_fill_dep_strict_alias.inc ]; then
+  echo " cc -c src/asm/pipeline_fill_dep_strict_alias.inc -> src/asm/pipeline_fill_dep_strict_alias.o"
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_fill_dep_strict_alias.inc src/asm/pipeline_fill_dep_strict_alias.o
   fi
   # G-03 NL-07 v5：strict link 用 pipeline_glue_strict_minimal.o（无 preprocess_if_stack_*）
   # 但 preprocess_x.o 引用 preprocess_if_stack_*；bridge 文件提供这些符号。
   # standalone 模式下重复定义由 --allow-multiple-definition 兜底。
-  if [ ! -f "$BUILD_DIR/preprocess_if_stack_bridge.o" ] || [ "src/preprocess_if_stack_bridge.c" -nt "$BUILD_DIR/preprocess_if_stack_bridge.o" ]; then
-  echo " cc -c src/preprocess_if_stack_bridge.c -> $BUILD_DIR/preprocess_if_stack_bridge.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/preprocess_if_stack_bridge.o" src/preprocess_if_stack_bridge.c
+  if [ ! -f "$BUILD_DIR/preprocess_if_stack_bridge.o" ] || [ "src/preprocess_if_stack_bridge.inc" -nt "$BUILD_DIR/preprocess_if_stack_bridge.o" ]; then
+  echo " cc -c src/preprocess_if_stack_bridge.inc -> $BUILD_DIR/preprocess_if_stack_bridge.o"
+  sh scripts/cc_inc_tu.sh src/preprocess_if_stack_bridge.inc "$BUILD_DIR/preprocess_if_stack_bridge.o"
   fi
 }
 
@@ -3666,8 +3666,8 @@ ensure_asm_lsp_codegen_extern_obj() {
 
 # 回退链接所需的 C 桩（不依赖 make）
 ensure_runtime_cc_stubs() {
-  echo " cc -c src/asm/runtime_asm_build.o <- src/asm/runtime_asm_build.c"
-  "$CC" $CFLAGS -c -o src/asm/runtime_asm_build.o src/asm/runtime_asm_build.c
+  echo " cc -c src/asm/runtime_asm_build.o <- src/asm/runtime_asm_build.inc"
+  sh scripts/cc_inc_tu.sh src/asm/runtime_asm_build.inc src/asm/runtime_asm_build.o
   echo " cc -c src/runtime_driver.o <- src/runtime.c (-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS)"
   local rt_flags="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS"
   if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
@@ -3785,7 +3785,7 @@ ensure_asm_bootstrap_support_extra_objs() {
   && [ -s src/lexer/cfg_eval_gen.c ]; then
   echo " $SHUX -E-extern -> cfg_eval_gen.c + link alias -> $o (G-02-B1 cfg_eval.x)"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_link_alias.o src/lexer/cfg_eval_link_alias.c
+  sh scripts/cc_inc_tu.sh src/lexer/cfg_eval_link_alias.inc src/lexer/cfg_eval_link_alias.o
   "$LD" $LD_RELFLAGS -r -o "$o" src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o
   elif [ -f src/lexer/cfg_eval.x ] && [ -x "$SHUX" ]; then
   build_shux_asm_error "cfg_eval: need $SHUX -backend asm or -E-extern for cfg_eval.x (G-02a: no cfg_eval.c)"

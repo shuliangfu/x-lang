@@ -688,7 +688,7 @@ src/driver/fmt_check_cmd_driver.o: src/driver/fmt_check_cmd.c
 
 # G-02-B1：cfg_eval 仅 cfg_eval.x（无 cfg_eval.c 回退）。
 # cold bootstrap 时 shux-c 默认 pipeline 可能挂起；timeout 后回退 -E-extern / stub。
-src/lexer/cfg_eval.o: src/lexer/cfg_eval.x src/lexer/cfg_eval_link_alias.c
+src/lexer/cfg_eval.o: src/lexer/cfg_eval.x src/lexer/cfg_eval_link_alias.inc scripts/cc_inc_tu.sh
 	@set -e; \
 	$(MAKE) $(SHUX_C); \
 	rm -f src/lexer/cfg_eval_x.o; \
@@ -700,13 +700,13 @@ src/lexer/cfg_eval.o: src/lexer/cfg_eval.x src/lexer/cfg_eval_link_alias.c
 	  || rm -f src/lexer/cfg_eval_x.o; \
 	fi; \
 	if [ -s src/lexer/cfg_eval_x.o ]; then \
-	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_link_alias.o src/lexer/cfg_eval_link_alias.c; \
+	  sh scripts/cc_inc_tu.sh src/lexer/cfg_eval_link_alias.inc src/lexer/cfg_eval_link_alias.o; \
 	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
 	  echo "cfg_eval.o from cfg_eval.x (default pipeline + alias)"; \
 	elif ./$(SHUX_C) -E -E-extern -L .. src/lexer/cfg_eval.x > src/lexer/cfg_eval_gen.c 2>/dev/null \
 	  && [ -s src/lexer/cfg_eval_gen.c ]; then \
 	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c; \
-	  $(CC) $(CFLAGS) -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_link_alias.o src/lexer/cfg_eval_link_alias.c; \
+	  sh scripts/cc_inc_tu.sh src/lexer/cfg_eval_link_alias.inc src/lexer/cfg_eval_link_alias.o; \
 	  $(LD) $(LD_RELFLAGS) -r -o $@ src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o; \
 	  echo "cfg_eval.o from cfg_eval.x (-E-extern + alias)"; \
 	else \
@@ -953,7 +953,7 @@ clean:
 	rm -f .lldb_* *.bak pipeline_gen.c.bak lsp_gen.c.bak
 	rm -f 0 2>/dev/null || true
 	@for f in _*; do \
-	  case "$$f" in _stubs.c|_x_stubs.c|_x_stubs2.c) ;; *) rm -rf "$$f" ;; esac; \
+	  case "$$f" in _stubs.c|_x_stubs.inc|_x_stubs2.c) ;; *) rm -rf "$$f" ;; esac; \
 	done 2>/dev/null || true
 	find . -name '*.o' -delete 2>/dev/null || true
 	find . -name '*.o.tmp' -delete 2>/dev/null || true

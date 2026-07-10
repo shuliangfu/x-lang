@@ -88,13 +88,13 @@ if [ "$WPO_OK" -eq 0 ]; then
 fi
 
 # ── 3) ld -r：emit_heavy + link_alias → driver_compile_link.o ──
-LINK_ALIAS_SRC="compiler/src/asm/driver_compile_asm_link_alias.c"
+# G-02e-15：alias 源为 .inc，经 compiler/scripts/cc_inc_tu.sh 编译
+LINK_ALIAS_INC="compiler/src/asm/driver_compile_asm_link_alias.inc"
 LINK_ALIAS_O="compiler/build_asm/driver_compile_asm_link_alias.o"
 LINK_O="compiler/build_asm/driver_compile_link.o"
-CC=${CC:-cc}
-CFLAGS="-Wall -Wextra -Icompiler -Icompiler/include -Icompiler/src"
-if [ -f "$LINK_ALIAS_SRC" ]; then
-  "$CC" $CFLAGS -c -o "$LINK_ALIAS_O" "$LINK_ALIAS_SRC"
+if [ -f "$LINK_ALIAS_INC" ]; then
+  # cc_inc_tu 在 compiler/ 下解析路径；此处从仓库根调用
+  ( cd compiler && sh scripts/cc_inc_tu.sh src/asm/driver_compile_asm_link_alias.inc build_asm/driver_compile_asm_link_alias.o )
   ld -r -o "$LINK_O" "$DEST_EH" "$LINK_ALIAS_O"
   if nm "$LINK_O" 2>/dev/null | grep -q ' T _driver_run_compiler_full_x$'; then
     echo "s3 driver sync-build-o: wrote $LINK_O (driver_run_compiler_full_x alias OK)"

@@ -96,9 +96,9 @@ if [ ! -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ] || [ "src/asm/asm_expe
 fi
 
 # runtime_asm_build.o（首链 bootstrap-asm 产物；缺则 ld 失败）。
-if [ ! -f src/asm/runtime_asm_build.o ] || [ "src/asm/runtime_asm_build.c" -nt src/asm/runtime_asm_build.o ]; then
+if [ ! -f src/asm/runtime_asm_build.o ] || [ "src/asm/runtime_asm_build.inc" -nt src/asm/runtime_asm_build.o ]; then
   experimental_bootstrap_info "cc runtime_asm_build.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/asm/runtime_asm_build.o src/asm/runtime_asm_build.c
+  sh scripts/cc_inc_tu.sh src/asm/runtime_asm_build.inc src/asm/runtime_asm_build.o
 fi
 
 # B-strict shux_asm：driver_run_compiler_full 走 impl_c（与 build_shux_asm.sh 一致）。
@@ -353,9 +353,9 @@ for o in pipeline_x.o pipeline_bootstrap_orchestration.o preprocess_x.o lexer_x.
 done
 
 PIPELINE_RUN_X_ALIAS_O="src/asm/pipeline_run_x_link_alias.o"
-if [ ! -f "$PIPELINE_RUN_X_ALIAS_O" ] || [ "src/asm/pipeline_run_x_link_alias.c" -nt "$PIPELINE_RUN_X_ALIAS_O" ]; then
+if [ ! -f "$PIPELINE_RUN_X_ALIAS_O" ] || [ "src/asm/pipeline_run_x_link_alias.inc" -nt "$PIPELINE_RUN_X_ALIAS_O" ]; then
   experimental_bootstrap_info "cc pipeline_run_x_link_alias.o"
-  "$CC" $CFLAGS -c -o "$PIPELINE_RUN_X_ALIAS_O" src/asm/pipeline_run_x_link_alias.c
+  sh scripts/cc_inc_tu.sh src/asm/pipeline_run_x_link_alias.inc "$PIPELINE_RUN_X_ALIAS_O"
 fi
 
 # Linux：std/io io_uring 须 -luring（与 build_shux_asm.sh PIPELINE_LIBS 一致）。

@@ -267,7 +267,7 @@ int build_run_step(int step_id, const char *shu_path) {
       "%s %s -c -o src/ast/ast.o src/asm/runtime_ast_glue.c && "
       "%s %s -c -o src/lsp/lsp_diag.o src/asm/runtime_lsp_glue.c && "
       "%s %s -c -o std_fs_shim.o src/std_fs_shim.c && "
-      "%s %s -c -o x_stubs.o src/x_stubs.c",
+      "sh scripts/cc_inc_tu.sh src/x_stubs.inc x_stubs.o",
       cc, cflags, cc, cflags, cc, cflags_driver,
       cc, cflags, cc, cflags,
       cc, cflags, cc, cflags, cc, cflags);
