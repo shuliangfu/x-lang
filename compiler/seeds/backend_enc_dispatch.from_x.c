@@ -1,4 +1,4 @@
-/* G-02f-352/353：PREFER hybrid thin 由 src/asm/backend_enc_dispatch_thin.x；rest SHUX_L2_ENC_DISPATCH_THIN_FROM_X。
+/* G-02f-352/353/354：PREFER hybrid thin 由 src/asm/backend_enc_dispatch_thin.x；rest SHUX_L2_ENC_DISPATCH_THIN_FROM_X。
  */
 /* seeds/backend_enc_dispatch.from_x.c — G-02f-208 enc_dispatch *_arch closed; G-02f-9 product TU
  * G-02f-130 true .x pure helpers.
@@ -24,6 +24,14 @@ int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_
 int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes);
 int32_t arm64_enc_load_w0_from_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
 int32_t arm64_enc_store_w0_to_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_push_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_pop_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_pop_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_epilogue_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_sub_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
+int32_t backend_enc_imul_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 #endif
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
@@ -450,6 +458,7 @@ int32_t backend_enc_prologue_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, in
  * ta 分派：enc_epilogue_arch
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_epilogue_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   if (ta == 1)
     return arch_arm64_enc_enc_epilogue(elf_ctx);
@@ -457,6 +466,8 @@ int32_t backend_enc_epilogue_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, in
     return arch_riscv64_enc_enc_epilogue(elf_ctx);
   return arch_x86_64_enc_enc_epilogue(elf_ctx);
 }
+#endif
+
 
 /**
  * ta 分派：enc_ret_imm32_arch
@@ -498,6 +509,7 @@ int32_t backend_enc_mov_imm64_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf
  * ta 分派：enc_push_rax_arch
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   if (ta == 1)
     return arch_arm64_enc_enc_push_rax(elf_ctx);
@@ -505,11 +517,14 @@ int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, in
     return arch_riscv64_enc_enc_push_rax(elf_ctx);
   return arch_x86_64_enc_enc_push_rax(elf_ctx);
 }
+#endif
+
 
 /**
  * ta 分派：enc_push_rbx_arch
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_push_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   if (ta == 1)
     return arch_arm64_enc_enc_push_rbx(elf_ctx);
@@ -517,11 +532,14 @@ int32_t backend_enc_push_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, in
     return arch_riscv64_enc_enc_push_rbx(elf_ctx);
   return arch_x86_64_enc_enc_push_rbx(elf_ctx);
 }
+#endif
+
 
 /**
  * ta 分派：enc_pop_rax_arch
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_pop_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   if (ta == 1)
     return arch_arm64_enc_enc_pop_rax(elf_ctx);
@@ -529,11 +547,14 @@ int32_t backend_enc_pop_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int
     return arch_riscv64_enc_enc_pop_rax(elf_ctx);
   return arch_x86_64_enc_enc_pop_rax(elf_ctx);
 }
+#endif
+
 
 /**
  * ta 分派：enc_pop_rbx_arch
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_pop_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   if (ta == 1)
     return arch_arm64_enc_enc_pop_rbx(elf_ctx);
@@ -541,11 +562,14 @@ int32_t backend_enc_pop_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int
     return arch_riscv64_enc_enc_pop_rbx(elf_ctx);
   return arch_x86_64_enc_enc_pop_rbx(elf_ctx);
 }
+#endif
+
 
 /**
  * ta 分派：enc_add_rax_rbx_arch
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   if (ta == 1)
     return arch_arm64_enc_enc_add_rax_rbx(elf_ctx);
@@ -553,6 +577,8 @@ int32_t backend_enc_add_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx,
     return arch_riscv64_enc_enc_add_rax_rbx(elf_ctx);
   return arch_x86_64_enc_enc_add_rax_rbx(elf_ctx);
 }
+#endif
+
 
 /**
  * x86：标量 f32 加法 addss（eax/rbx 低 32 位为 IEEE754 单精度，结果回 eax）。
@@ -655,6 +681,7 @@ int32_t backend_enc_mov_xmm_arg_reg_to_eax_arch(struct platform_elf_ElfCodegenCt
  * ta 分派：enc_sub_rax_rbx_arch
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_sub_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   if (ta == 1)
     return arch_arm64_enc_enc_sub_rax_rbx(elf_ctx);
@@ -662,6 +689,8 @@ int32_t backend_enc_sub_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx,
     return -1;
   return arch_x86_64_enc_enc_sub_rax_rbx(elf_ctx);
 }
+#endif
+
 
 /**
  * ta 分派：enc_sub_rbx_rax_then_mov_arch
@@ -679,6 +708,7 @@ int32_t backend_enc_sub_rbx_rax_then_mov_arch(struct platform_elf_ElfCodegenCtx 
  * ta 分派：enc_imul_rbx_rax_arch
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_imul_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
   if (ta == 1)
     return arch_arm64_enc_enc_imul_rbx_rax(elf_ctx);
@@ -686,6 +716,8 @@ int32_t backend_enc_imul_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx
     return arch_riscv64_enc_enc_imul_rbx_rax(elf_ctx);
   return arch_x86_64_enc_enc_imul_rbx_rax(elf_ctx);
 }
+#endif
+
 
 /**
  * ta 分派：enc_mov_rax_to_rbx_arch
