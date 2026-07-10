@@ -1252,11 +1252,6 @@ function try_inline_var_field_sum_binop_elf(
       di = di + 1;
     }
     if (off_a < 0) {
-      if (off_b < 0) {
-        // both missing — try name path
-      }
-    }
-    if (off_a < 0) {
       let flen_a: i32 = pipeline_expr_field_access_name_len(arena, left_ref);
       if (flen_a > 0) {
         if (flen_a <= 63) {
@@ -1295,6 +1290,272 @@ function try_inline_var_field_sum_binop_elf(
     if (backend_enc_add_imm_to_rax_arch(elf_ctx, off_b, ta) != 0) { return 0 - 1; }
     if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
     if (backend_enc_add_rax_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    return 1;
+  }
+  return 0;
+}
+
+// G-02f-149：WPO const fold + mono + struct lit 写栈槽
+extern "C" function pipeline_expr_struct_lit_field_offset_at(a: *u8, m: *u8, er: i32, fj: i32): i32;
+extern "C" function pipeline_expr_struct_lit_field_store_sz(a: *u8, m: *u8, er: i32, fj: i32): i32;
+extern "C" function backend_enc_call_stack_cleanup_arch(elf: *u8, nbytes: i32, ta: i32): i32;
+extern "C" function getenv(name: *u8): *u8;
+extern "C" function glue_wpo_mono_register_thunk(name: *u8, a0: i32, a1: i32, folded: i32): void;
+extern "C" function codegen_wpo_mono_sym_format(name: *u8, nargs: i32, args: *i32, out: *u8, out_cap: i32): i32;
+
+// G-02f-149：两常量实参 + return param0 binop param1 → imm 进 rax；CALL=48 VAR=3
+#[no_mangle]
+function try_inline_wpo_const_scalar_binop_call_elf(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  if (arena == 0) { return 0; }
+  if (elf_ctx == 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 48) { return 0; }
+    let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);
+    if (mod_ref == 0) { return 0; }
+    if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) { return 0; }
+    let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    if (callee_ref <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return 0; }
+    let clen: i32 = pipeline_expr_var_name_len(arena, callee_ref);
+    if (clen <= 0) { return 0; }
+    if (clen > 63) { return 0; }
+    let cname: u8[64] = [];
+    pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
+    let fi: i32 = glue_module_func_index_by_name(mod_ref, &cname[0], clen);
+    if (fi < 0) { return 0; }
+    let binop_ko: i32 = 0;
+    if (glue_fold_func_returns_param01_scalar_binop(arena, mod_ref, fi, &binop_ko) == 0) { return 0; }
+    let arg0: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    let arg1: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+    if (arg0 <= 0) { return 0; }
+    if (arg1 <= 0) { return 0; }
+    let av0: i32 = 0;
+    let av1: i32 = 0;
+    if (glue_try_expr_const_i32(arena, arg0, &av0) == 0) { return 0; }
+    if (glue_try_expr_const_i32(arena, arg1, &av1) == 0) { return 0; }
+    let folded: i32 = 0;
+    if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0) { return 0; }
+    let hi: i32 = 0;
+    if (folded < 0) { hi = 0 - 1; }
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, folded, hi, ta) != 0) { return 0 - 1; }
+    return 1;
+  }
+  return 0;
+}
+
+// G-02f-149：laneK(vec_binop([const…],[const…])) 编译期 fold
+#[no_mangle]
+function try_inline_wpo_const_vector_lane_of_binop_call_elf(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  if (arena == 0) { return 0; }
+  if (elf_ctx == 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 48) { return 0; }
+    let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);
+    if (mod_ref == 0) { return 0; }
+    if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
+    let outer_callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    if (outer_callee_ref <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, outer_callee_ref) != 3) { return 0; }
+    let olen: i32 = pipeline_expr_var_name_len(arena, outer_callee_ref);
+    if (olen <= 0) { return 0; }
+    if (olen > 63) { return 0; }
+    let outer_name: u8[64] = [];
+    pipeline_expr_var_name_into(arena, outer_callee_ref, &outer_name[0]);
+    let outer_fi: i32 = glue_module_func_index_by_name(mod_ref, &outer_name[0], olen);
+    if (outer_fi < 0) { return 0; }
+    let lane: i32 = 0;
+    if (glue_fold_func_returns_param0_index_const(arena, mod_ref, outer_fi, &lane) == 0) { return 0; }
+    let inner_call_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    if (inner_call_ref <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, inner_call_ref) != 48) { return 0; }
+    if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2) { return 0; }
+    let inner_callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, inner_call_ref);
+    if (inner_callee_ref <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, inner_callee_ref) != 3) { return 0; }
+    let ilen: i32 = pipeline_expr_var_name_len(arena, inner_callee_ref);
+    if (ilen <= 0) { return 0; }
+    if (ilen > 63) { return 0; }
+    let inner_name: u8[64] = [];
+    pipeline_expr_var_name_into(arena, inner_callee_ref, &inner_name[0]);
+    let inner_fi: i32 = glue_module_func_index_by_name(mod_ref, &inner_name[0], ilen);
+    if (inner_fi < 0) { return 0; }
+    let binop_ko: i32 = 0;
+    if (glue_fold_func_returns_param01_vector_binop(arena, mod_ref, inner_fi, &binop_ko) == 0) { return 0; }
+    let arg0: i32 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
+    let arg1: i32 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
+    if (arg0 <= 0) { return 0; }
+    if (arg1 <= 0) { return 0; }
+    let av0: i32 = 0;
+    let av1: i32 = 0;
+    if (glue_try_array_lit_lane_const_i32(arena, arg0, lane, &av0) == 0) { return 0; }
+    if (glue_try_array_lit_lane_const_i32(arena, arg1, lane, &av1) == 0) { return 0; }
+    let folded: i32 = 0;
+    if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0) { return 0; }
+    let hi: i32 = 0;
+    if (folded < 0) { hi = 0 - 1; }
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, folded, hi, ta) != 0) { return 0 - 1; }
+    return 1;
+  }
+  return 0;
+}
+
+// G-02f-149：SHUX_WPO_MONO=1 时两常量实参标量 binop → 单态 thunk call
+#[no_mangle]
+function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  if (arena == 0) { return 0; }
+  if (elf_ctx == 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (expr_ref <= 0) { return 0; }
+  unsafe {
+    let kmono: u8[16] = [];
+    kmono[0] = 83; kmono[1] = 72; kmono[2] = 85; kmono[3] = 88; kmono[4] = 95;
+    kmono[5] = 87; kmono[6] = 80; kmono[7] = 79; kmono[8] = 95;
+    kmono[9] = 77; kmono[10] = 79; kmono[11] = 78; kmono[12] = 79; kmono[13] = 0;
+    if (getenv(&kmono[0]) == 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, expr_ref) != 48) { return 0; }
+    let mod_ref: *u8 = g02f_load_ptr_at(ctx, 16);
+    if (mod_ref == 0) { return 0; }
+    if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) { return 0; }
+    let callee_ref: i32 = pipeline_expr_call_callee_ref_at(arena, expr_ref);
+    if (callee_ref <= 0) { return 0; }
+    if (pipeline_expr_kind_ord_at(arena, callee_ref) != 3) { return 0; }
+    let clen: i32 = pipeline_expr_var_name_len(arena, callee_ref);
+    if (clen <= 0) { return 0; }
+    if (clen > 63) { return 0; }
+    let cname: u8[64] = [];
+    pipeline_expr_var_name_into(arena, callee_ref, &cname[0]);
+    cname[clen] = 0;
+    let fi: i32 = glue_module_func_index_by_name(mod_ref, &cname[0], clen);
+    if (fi < 0) { return 0; }
+    let binop_ko: i32 = 0;
+    if (glue_fold_func_returns_param01_scalar_binop(arena, mod_ref, fi, &binop_ko) == 0) { return 0; }
+    let arg0: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
+    let arg1: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
+    if (arg0 <= 0) { return 0; }
+    if (arg1 <= 0) { return 0; }
+    let av0: i32 = 0;
+    let av1: i32 = 0;
+    if (glue_try_expr_const_i32(arena, arg0, &av0) == 0) { return 0; }
+    if (glue_try_expr_const_i32(arena, arg1, &av1) == 0) { return 0; }
+    let folded: i32 = 0;
+    if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0) { return 0; }
+    glue_wpo_mono_register_thunk(&cname[0], av0, av1, folded);
+    let args: i32[2] = [];
+    args[0] = av0;
+    args[1] = av1;
+    let sym: u8[128] = [];
+    let sym_len: i32 = codegen_wpo_mono_sym_format(&cname[0], 2, &args[0], &sym[0], 128);
+    if (sym_len <= 0) { return 0 - 1; }
+    if (backend_enc_call_arch(elf_ctx, &sym[0], sym_len, ta) != 0) { return 0 - 1; }
+    if (backend_enc_call_stack_cleanup_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+    return 1;
+  }
+  return 0;
+}
+
+// G-02f-149：let v = mk() 零实参 const struct lit 字段直写栈槽
+#[no_mangle]
+function try_inline_const_struct_lit_return_call_to_slot_elf(
+  arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32
+): i32 {
+  if (arena == 0) { return 0; }
+  if (elf_ctx == 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (call_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, call_ref) != 48) { return 0; }
+    if (pipeline_expr_call_num_args_at(arena, call_ref) != 0) { return 0; }
+    let ca_slot: u8[8] = [];
+    let cm_slot: u8[8] = [];
+    let fi: i32 = 0;
+    if (glue_call_lookup_callee_mod_fi_arena(arena, call_ref, ctx, &ca_slot[0], &cm_slot[0], &fi) == 0) {
+      return 0;
+    }
+    let callee_arena: *u8 = g02f_load_ptr_at(&ca_slot[0], 0);
+    let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
+    if (callee_arena == 0) { return 0; }
+    if (callee_mod == 0) { return 0; }
+    let lit_ref: i32 = 0;
+    if (glue_fold_func_returns_const_struct_lit(callee_arena, callee_mod, fi, &lit_ref) == 0) { return 0; }
+    let nf: i32 = pipeline_expr_struct_lit_num_fields(callee_arena, lit_ref);
+    let fj: i32 = 0;
+    while (fj < nf) {
+      if (glue_const_struct_lit_field_can_inline(callee_arena, callee_mod, fi, lit_ref, fj) == 0) {
+        return 0;
+      }
+      fj = fj + 1;
+    }
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0) { return 0 - 1; }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    fj = 0;
+    while (fj < nf) {
+      let init_ref: i32 = pipeline_expr_struct_lit_init_ref(callee_arena, lit_ref, fj);
+      let foff: i32 = pipeline_expr_struct_lit_field_offset_at(callee_arena, callee_mod, lit_ref, fj);
+      let fsz: i32 = pipeline_expr_struct_lit_field_store_sz(callee_arena, callee_mod, lit_ref, fj);
+      if (pipeline_expr_kind_ord_at(callee_arena, init_ref) == 48) {
+        if (glue_call_is_zero_arg_default_alloc(callee_arena, init_ref) == 0) { return 0; }
+        if (glue_emit_default_alloc_to_rbx_offset(elf_ctx, foff, fsz, ta) != 0) { return 0 - 1; }
+      } else {
+        if (pipeline_asm_emit_expr_elf_c(callee_arena, elf_ctx, init_ref, ctx, ta) != 0) { return 0 - 1; }
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0) { return 0 - 1; }
+      }
+      fj = fj + 1;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+// G-02f-149：let p = mk(args) param struct lit 实参直写栈槽；max fields=8
+#[no_mangle]
+function try_inline_struct_lit_return_call_to_slot_elf(
+  arena: *u8, elf_ctx: *u8, call_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32
+): i32 {
+  if (arena == 0) { return 0; }
+  if (elf_ctx == 0) { return 0; }
+  if (ctx == 0) { return 0; }
+  if (call_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, call_ref) != 48) { return 0; }
+    let ca_slot: u8[8] = [];
+    let cm_slot: u8[8] = [];
+    let fi: i32 = 0;
+    if (glue_call_lookup_callee_mod_fi_arena(arena, call_ref, ctx, &ca_slot[0], &cm_slot[0], &fi) == 0) {
+      return 0;
+    }
+    let callee_arena: *u8 = g02f_load_ptr_at(&ca_slot[0], 0);
+    let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
+    if (callee_arena == 0) { return 0; }
+    if (callee_mod == 0) { return 0; }
+    let lit_ref: i32 = 0;
+    if (glue_fold_func_returns_param_struct_lit(callee_arena, callee_mod, fi, &lit_ref) == 0) { return 0; }
+    let nf: i32 = pipeline_expr_struct_lit_num_fields(callee_arena, lit_ref);
+    if (nf <= 0) { return 0; }
+    if (nf > 8) { return 0; }
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0) { return 0 - 1; }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    let fj: i32 = 0;
+    while (fj < nf) {
+      let pix: i32 = 0;
+      if (glue_struct_lit_field_init_param_index(callee_arena, callee_mod, fi, lit_ref, fj, &pix) != 0) {
+        return 0 - 1;
+      }
+      let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, call_ref, pix);
+      if (arg_ref <= 0) { return 0 - 1; }
+      let foff: i32 = pipeline_expr_struct_lit_field_offset_at(callee_arena, callee_mod, lit_ref, fj);
+      let fsz: i32 = pipeline_expr_struct_lit_field_store_sz(callee_arena, callee_mod, lit_ref, fj);
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) { return 0 - 1; }
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, foff, fsz, ta) != 0) { return 0 - 1; }
+      fj = fj + 1;
+    }
     return 1;
   }
   return 0;

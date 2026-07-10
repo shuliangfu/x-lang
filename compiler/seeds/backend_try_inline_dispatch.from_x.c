@@ -1457,6 +1457,7 @@ int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, st
  * 典型：lane0(vec_add4([1,2,3,4],[10,20,30,40])) → 11。
  * 返回 1=已 fold，0=未匹配，-1=错误。
  */
+/* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf(struct ast_ASTArena *arena,
                                                            struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                            struct glue_AsmFuncCtx *ctx, int32_t ta) {
@@ -1536,6 +1537,7 @@ int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf(struct ast_ASTArena *
  * WPO-S2：两整型常量实参 + callee 为 `return param0 binop param1`（i32 标量）时编译期 fold 到 rax。
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
+/* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t try_inline_wpo_const_scalar_binop_call_elf(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                     struct glue_AsmFuncCtx *ctx, int32_t ta) {
@@ -1592,6 +1594,7 @@ int32_t try_inline_wpo_const_scalar_binop_call_elf(struct ast_ASTArena *arena,
  * WPO-S2 monomorphize：SHUX_WPO_MONO=1 时将全常量实参 call 改调单态符号（零实参 thunk）。
  * 返回 1=已发射 call，0=未匹配或未启用，-1=错误。
  */
+/* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
   struct ast_Module *mod_ref;
@@ -1938,6 +1941,7 @@ int32_t glue_fold_func_returns_const_struct_lit(struct ast_ASTArena *arena, stru
  * let v: Struct = mk() 内联：零实参且 callee 为 return Struct { 常量… } 时，字段直写 let 栈槽。
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
+/* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena,
                                                             struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                             int32_t call_ref, struct glue_AsmFuncCtx *ctx, int32_t ta,
@@ -2005,6 +2009,7 @@ int32_t try_inline_const_struct_lit_return_call_to_slot_elf(struct ast_ASTArena 
  * let p: Struct = mk(...) 内联：callee 为 return Struct { f: param… } 时，CALL 实参直写 let 栈槽。
  * 返回 1=已内联，0=未匹配，-1=错误。
  */
+/* G-02f-149：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t try_inline_struct_lit_return_call_to_slot_elf(struct ast_ASTArena *arena,
                                                       struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t call_ref,
                                                       struct glue_AsmFuncCtx *ctx, int32_t ta,
