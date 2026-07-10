@@ -113,13 +113,9 @@ extern "C" function line_char_to_offset_impl(doc: *u8, line: i32, ch: i32): i32;
 extern "C" function parse_first_content_change_impl(json: *u8, out: *u8): i32;
 extern "C" function lsp_find_text_value_from_impl(s: *u8, from: i32, out: *u8, cap: i32): i32;
 extern "C" function lsp_find_text_value_impl(s: *u8, out: *u8, cap: i32): i32;
-extern "C" function lsp_find_key_after_impl(s: *u8, key: *u8, from: i32): i32;
 extern "C" function lsp_json_escape_ident_impl(src: *u8, dst: *u8, cap: i32): i32;
-extern "C" function lsp_parse_bool_after_impl(s: *u8, from: i32, out: *i32): i32;
 extern "C" function lsp_extract_formatting_options_impl(json: *u8, out: *u8): i32;
 extern "C" function lsp_format_line_update_depth_impl(line: *u8, depth: *i32): void;
-extern "C" function lsp_line_is_block_comment_impl(line: *u8, in_block: i32): i32;
-extern "C" function lsp_fmt_space_before_impl(a: u8, b: u8): i32;
 extern "C" function lsp_fmt_space_after_impl(a: u8, b: u8): i32;
 extern "C" function lsp_fmt_try_emit_op_impl(ctx: *u8): i32;
 extern "C" function lsp_format_emit_segment_impl(ctx: *u8): i32;
@@ -141,26 +137,22 @@ function parse_first_content_change(json: *u8, out: *u8): i32 { unsafe { return 
 function lsp_find_text_value_from(s: *u8, from: i32, out: *u8, cap: i32): i32 { unsafe { return lsp_find_text_value_from_impl(s, from, out, cap); } return 0; }
 #[no_mangle]
 function lsp_find_text_value(s: *u8, out: *u8, cap: i32): i32 { unsafe { return lsp_find_text_value_impl(s, out, cap); } return 0; }
-#[no_mangle]
-function lsp_find_key_after(s: *u8, key: *u8, from: i32): i32 { unsafe { return lsp_find_key_after_impl(s, key, from); } return 0; }
+
 
 #[no_mangle]
 function lsp_json_escape_ident(src: *u8, dst: *u8, cap: i32): i32 { unsafe { return lsp_json_escape_ident_impl(src, dst, cap); } return 0; }
-#[no_mangle]
-function lsp_parse_bool_after(s: *u8, from: i32, out: *i32): i32 { unsafe { return lsp_parse_bool_after_impl(s, from, out); } return 0; }
+
 #[no_mangle]
 function lsp_extract_formatting_options(json: *u8, out: *u8): i32 { unsafe { return lsp_extract_formatting_options_impl(json, out); } return 0; }
 #[no_mangle]
 function lsp_format_line_update_depth(line: *u8, depth: *i32): void { unsafe { lsp_format_line_update_depth_impl(line, depth); } }
 
-#[no_mangle]
-function lsp_line_is_block_comment(line: *u8, in_block: i32): i32 { unsafe { return lsp_line_is_block_comment_impl(line, in_block); } return 0; }
 
 
 
 
-#[no_mangle]
-function lsp_fmt_space_before(a: u8, b: u8): i32 { unsafe { return lsp_fmt_space_before_impl(a, b); } return 0; }
+
+
 #[no_mangle]
 function lsp_fmt_space_after(a: u8, b: u8): i32 { unsafe { return lsp_fmt_space_after_impl(a, b); } return 0; }
 #[no_mangle]
@@ -337,3 +329,87 @@ function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
   return 0;
 }
 
+// G-02f-122：LSP pure helpers 真迁 .x（签名与产品 seed C 对齐）
+
+#[no_mangle]
+function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
+  if (body == 0) { return 0 - 1; }
+  if (key == 0) { return 0 - 1; }
+  let key_len: i32 = 0;
+  while (key_len < 256) {
+    if (key[key_len] == 0) { break; }
+    key_len = key_len + 1;
+  }
+  while (start + key_len <= len) {
+    let match: i32 = 1;
+    let j: i32 = 0;
+    while (j < key_len) {
+      if (body[start + j] != key[j]) { match = 0; break; }
+      j = j + 1;
+    }
+    if (match != 0) { return start + key_len; }
+    start = start + 1;
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i32, in_block: i32): i32 {
+  if (doc == 0) { return 0; }
+  if (content_len >= 2) {
+    if (doc[content_start] == 47) { // '/'
+      if (doc[content_start + 1] == 42) { return 1; } // '*'
+    }
+  }
+  if (in_block != 0) {
+    if (content_len >= 1) {
+      if (doc[content_start] == 42) { return 1; }
+    }
+  }
+  return 0;
+}
+
+#[no_mangle]
+function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, out_val: *i32): i32 {
+  if (out_val == 0) { return 0 - 1; }
+  let k: i32 = lsp_find_key_after(body, len, start, key);
+  if (k < 0) { return 0 - 1; }
+  // true
+  if (k + 4 <= len) {
+    if (body[k]==116 && body[k+1]==114 && body[k+2]==117 && body[k+3]==101) {
+      unsafe { out_val[0] = 1; }
+      return 0;
+    }
+  }
+  // false
+  if (k + 5 <= len) {
+    if (body[k]==102 && body[k+1]==97 && body[k+2]==108 && body[k+3]==115 && body[k+4]==101) {
+      unsafe { out_val[0] = 0; }
+      return 0;
+    }
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
+  if (out_buf == 0) { return 0; }
+  if (out_len == 0) { return 0; }
+  if (lsp_fmt_src_ws_before(doc, start, j) != 0) { return 0; }
+  unsafe {
+    let olen: i32 = out_len[0];
+    let last: u8 = lsp_fmt_last_out(out_buf, olen);
+    if (last != 0) {
+      if (last != 32) {
+        if (last != 9) {
+          if (olen < out_cap - 1) {
+            out_buf[olen] = 32;
+            out_len[0] = olen + 1;
+            return 1;
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}

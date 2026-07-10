@@ -1,4 +1,5 @@
 /* seeds/runtime.from_x.c — G-02f-14/85/86/87/88/90/93/94/95/71/72 product TU
+ * G-02f-122 true .x pure helpers.
  * G-02f-117 true .x pure helpers.
  * G-02f-114 true .x pure helpers.
  * G-02f-112 helper gates.
@@ -98,7 +99,6 @@ int driver_run_x_emit_c_set_lib_impl(int i, const uint8_t *buf, int len);
 int driver_run_x_emit_c_set_n_lib_roots_impl(int n);
 int driver_run_x_emit_c_set_emit_extern_impl(int v);
 int driver_fs_open_read_path_impl(const uint8_t *path, int path_len);
-int32_t driver_asm_output_want_exe_impl(uint8_t *path);
 int32_t driver_run_asm_backend_c_impl(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target, int32_t argc, uint8_t *argv);
 int32_t driver_run_emit_c_path_c_impl(uint8_t *input_path, uint8_t *out_path, uint8_t *lib_key, uint8_t *target, uint8_t *opt_level, int32_t use_lto, int32_t argc, uint8_t *argv);
 void driver_compile_state_free_c_impl(DriverCompileStateSU *state);
@@ -3569,16 +3569,13 @@ int driver_source_has_compound_assign_syntax(const uint8_t *path, int path_len) 
 /** shux_collect_deps_transitive / shux_merge_direct_then_transitive_deps / shux_load_direct_imports_for_asm_layout 见 runtime_pipeline_abi.c（E-04 v35）。 */
 #if defined(SHUX_USE_X_DRIVER) && defined(SHUX_USE_X_PIPELINE)
 /** compile.x extern：-o 后缀是否表示可执行（非 .o/.obj/.s）；实现见 runtime_link_abi.c。 */
-int32_t driver_asm_output_want_exe_impl(uint8_t *path) {
+/* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+
+int32_t driver_asm_output_want_exe(uint8_t *path) {
     return shux_output_want_exe(path ? (const char *)path : NULL);
 }
 
-int32_t driver_asm_output_want_exe(uint8_t *path) {
-  {
-    return driver_asm_output_want_exe_impl(path);
-  }
-  return -1;
-}
+
 
 
 #if !defined(SHUX_NO_C_FRONTEND)

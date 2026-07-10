@@ -1,4 +1,5 @@
 /* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-122 true .x pure helpers.
  * G-02f-121 true .x pure helpers.
  * G-02f-120 true .x pure helpers.
  * G-02f-114 true .x pure helpers.
@@ -94,19 +95,16 @@ extern struct ast_Expr *pipeline_arena_expr_ptr(struct ast_ASTArena *a, int32_t 
 extern int32_t pipeline_expr_var_name_len_for_string_lit_c(struct ast_ASTArena *arena, int32_t expr_ref);
 
 /** STRING_LIT（kind 59）字节长度。 */
-int32_t glue_asm_string_lit_len_impl(struct ast_ASTArena *arena, int32_t expr_ref) {
+/* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref) {
   if (!arena || expr_ref <= 0)
     return 0;
   if (pipeline_expr_kind_ord_at(arena, expr_ref) != GLUE_EXPR_STRING_LIT_ORD)
     return 0;
   return pipeline_expr_var_name_len_for_string_lit_c(arena, expr_ref);
 }
-int32_t glue_asm_string_lit_len(struct ast_ASTArena *arena, int32_t expr_ref) {
-  {
-    return glue_asm_string_lit_len_impl(arena, expr_ref);
-  }
-  return 0;
-}
+
+
 
 
 /** 拷贝 STRING_LIT 内容到 out64（至多 63 字节）。 */
@@ -601,7 +599,8 @@ int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t pre
 
 
 /** 将 C 前缀与字段名拼成至多 63 字节的 call 符号；成功返回长度，失败 -1。 */
-int32_t glue_asm_build_import_binding_call_sym_impl(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name,
+/* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name,
                                                       int32_t field_len, uint8_t *out_name) {
   int32_t pos;
   int32_t pi;
@@ -617,13 +616,8 @@ int32_t glue_asm_build_import_binding_call_sym_impl(const uint8_t *pre, int32_t 
     out_name[pos++] = field_name[pi++];
   return pos > 0 ? pos : -1;
 }
-int32_t glue_asm_build_import_binding_call_sym(const uint8_t *pre, int32_t pre_len, const uint8_t *field_name,
-                                                      int32_t field_len, uint8_t *out_name) {
-  {
-    return glue_asm_build_import_binding_call_sym_impl(pre, pre_len, field_name, field_len, out_name);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -1098,15 +1092,12 @@ int32_t pipeline_asm_emit_call_args_text_c(struct ast_ASTArena *arena, struct co
  * ELF 路径：为 enc_call 准备实参（寄存器 + outgoing 栈；经 pipeline_asm_emit_expr_elf_for_call_args）。
  * 供 backend.x asm_emit_call_args_elf 薄包装（M8-tail）。
  */
-int32_t glue_call_param_type_ref_at_impl(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index) {
+/* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index) {
   return pipeline_asm_call_param_type_ref_at_c(arena, call_expr_ref, param_index);
 }
-int32_t glue_call_param_type_ref_at(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t param_index) {
-  {
-    return glue_call_param_type_ref_at_impl(arena, call_expr_ref, param_index);
-  }
-  return 0;
-}
+
+
 
 
 /** 设置 callee 形参 type_ref 后 emit 单个 CALL 实参。 */

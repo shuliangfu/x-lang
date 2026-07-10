@@ -1,4 +1,5 @@
 /* seeds/simd_enc.from_x.c — G-02f-7 product pure SIMD encode TU
+ * G-02f-122 true .x pure helpers.
  * G-02f-120 true .x pure helpers.
  * G-02f-115 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
@@ -63,7 +64,8 @@ int32_t simd_append(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *b
 
 
 /** 向指令尾追加 disp32（小端）。 */
-int32_t simd_append_disp32_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
+/* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t simd_append_disp32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
     uint8_t d[4];
     d[0] = (uint8_t)(disp & 0xff);
     d[1] = (uint8_t)((disp >> 8) & 0xff);
@@ -71,12 +73,8 @@ int32_t simd_append_disp32_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
     d[3] = (uint8_t)((disp >> 24) & 0xff);
     return simd_append(elf_ctx, d, 4);
 }
-int32_t simd_append_disp32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t disp) {
-  {
-    return simd_append_disp32_impl(elf_ctx, disp);
-  }
-  return 0;
-}
+
+
 
 
 /** x86：movups xmm0, [rbp+disp32]（0F 10 85 disp32）。 */

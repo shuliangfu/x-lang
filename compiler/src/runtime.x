@@ -20,7 +20,6 @@ extern "C" function driver_run_x_emit_c_set_lib_impl(i: i32, buf: *u8, len: i32)
 extern "C" function driver_run_x_emit_c_set_n_lib_roots_impl(n: i32): i32;
 extern "C" function driver_run_x_emit_c_set_emit_extern_impl(v: i32): i32;
 extern "C" function driver_fs_open_read_path_impl(path: *u8, path_len: i32): i32;
-extern "C" function driver_asm_output_want_exe_impl(path: *u8): i32;
 extern "C" function driver_run_asm_backend_c_impl(input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8, argc: i32, argv: *u8): i32;
 extern "C" function driver_run_emit_c_path_c_impl(input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8, opt_level: *u8, use_lto: i32, argc: i32, argv: *u8): i32;
 extern "C" function driver_compile_state_free_c_impl(state: *u8): void;
@@ -181,13 +180,7 @@ function driver_fs_open_read_path(path: *u8, path_len: i32): i32 {
   return 0 - 1;
 }
 
-#[no_mangle]
-function driver_asm_output_want_exe(path: *u8): i32 {
-  unsafe {
-    return driver_asm_output_want_exe_impl(path);
-  }
-  return 0 - 1;
-}
+
 
 #[no_mangle]
 function driver_run_asm_backend_c(input_path: *u8, out_path: *u8, lib_key: *u8, target: *u8, argc: i32, argv: *u8): i32 {
@@ -1042,6 +1035,18 @@ function shux_smoke_diag_enabled(): i32 {
     if (e[0] == 0) { return 0; }
     if (e[0] == 48) { return 0; }
     return 1;
+  }
+  return 0;
+}
+
+// G-02f-122：driver_asm_output_want_exe 真迁 .x
+
+extern "C" function shux_output_want_exe(path: *u8): i32;
+
+#[no_mangle]
+function driver_asm_output_want_exe(path: *u8): i32 {
+  unsafe {
+    return shux_output_want_exe(path);
   }
   return 0;
 }

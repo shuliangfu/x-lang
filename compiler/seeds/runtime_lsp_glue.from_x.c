@@ -1,4 +1,5 @@
 /* seeds/runtime_lsp_glue.from_x.c — G-02f-15 product TU
+ * G-02f-122 true .x pure helpers.
  * G-02f-118 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
  * G-02f-111 helper gates.
@@ -2095,7 +2096,8 @@ int lsp_build_response_with_result(int id_val, const uint8_t *result_ptr, int re
 }
 
 /** 在 body[0..len) 中从 start 起找 key（如 "\"line\":\"），返回 key 结束后的偏移，未找到返回 -1。 */
-int lsp_find_key_after_impl(const uint8_t *body, int len, int start, const char *key) {
+/* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key) {
     int key_len = 0;
     while (key[key_len] != '\0') key_len++;
     while (start + key_len <= len) {
@@ -2107,12 +2109,8 @@ int lsp_find_key_after_impl(const uint8_t *body, int len, int start, const char 
     }
     return -1;
 }
-int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key) {
-  {
-    return lsp_find_key_after_impl(body, len, start, key);
-  }
-  return 0;
-}
+
+
 
 
 /** 从 offset 起解析一个非负整数，写入 *out，返回解析结束后的偏移；非法返回 -1。 */
@@ -2516,7 +2514,8 @@ int lsp_build_document_symbol_response(int id_val, const uint8_t *body, int body
 /* ---------- textDocument/formatting ---------- */
 
 /** 在 body[start..] 中解析 key 对应的布尔值；1=true，0=false，未找到或无效返回 -1。 */
-int lsp_parse_bool_after_impl(const uint8_t *body, int len, int start, const char *key, int *out_val) {
+/* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *key, int *out_val) {
     int k = lsp_find_key_after(body, len, start, key);
     if (k < 0 || !out_val) return -1;
     if (k + 4 <= len && body[k] == 't' && body[k+1] == 'r' && body[k+2] == 'u' && body[k+3] == 'e') {
@@ -2529,12 +2528,8 @@ int lsp_parse_bool_after_impl(const uint8_t *body, int len, int start, const cha
     }
     return -1;
 }
-int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *key, int *out_val) {
-  {
-    return lsp_parse_bool_after_impl(body, len, start, key, out_val);
-  }
-  return 0;
-}
+
+
 
 
 /** 从 params.options 提取格式化选项（见下方默认值）；成功返回 0。 */
@@ -2647,19 +2642,16 @@ int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
 /**
  * 是否为块注释行（\c /** 、\c * 续行，或处于未闭合的块注释内）。
  */
-int lsp_line_is_block_comment_impl(const uint8_t *doc, int content_start, int content_len, int in_block) {
+/* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content_len, int in_block) {
     if (content_len >= 2 && doc[content_start] == '/' && doc[content_start + 1] == '*')
         return 1;
     if (in_block && content_len >= 1 && doc[content_start] == '*')
         return 1;
     return 0;
 }
-int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content_len, int in_block) {
-  {
-    return lsp_line_is_block_comment_impl(doc, content_start, content_len, in_block);
-  }
-  return 0;
-}
+
+
 
 
 /** 输出缓冲中最后一个非空白字符；无则返回 0。 */
@@ -2756,7 +2748,8 @@ int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
 
 
 /** 在 out 中补一个前导空格（若需要且容量足够）。 */
-int lsp_fmt_space_before_impl(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap) {
+/* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap) {
     uint8_t last;
     if (lsp_fmt_src_ws_before(doc, start, j))
         return 0;
@@ -2767,12 +2760,8 @@ int lsp_fmt_space_before_impl(const uint8_t *doc, int start, int j, uint8_t *out
     }
     return 0;
 }
-int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap) {
-  {
-    return lsp_fmt_space_before_impl(doc, start, j, out_buf, out_len, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /** 在 out 中补一个后继空格（若需要且容量足够）。 */

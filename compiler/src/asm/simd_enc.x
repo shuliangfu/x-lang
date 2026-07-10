@@ -16,7 +16,6 @@ function simd_enc_x_doc_anchor(): i32 {
 // G-02f-108：+ rbp/append/x86 movups/padd 薄门闩。
 
 extern "C" function simd_append_impl(elf: *u8, bytes: *u8, n: i32): i32;
-extern "C" function simd_append_disp32_impl(elf: *u8, disp: i32): i32;
 extern "C" function simd_x86_movups_xmm0_from_rbp_impl(elf: *u8, disp: i32): i32;
 extern "C" function simd_x86_movups_xmm1_from_rbp_impl(elf: *u8, disp: i32): i32;
 extern "C" function simd_x86_addps_xmm0_xmm1_impl(elf: *u8): i32;
@@ -40,11 +39,7 @@ function simd_append(elf: *u8, bytes: *u8, n: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
-function simd_append_disp32(elf: *u8, disp: i32): i32 {
-  unsafe { return simd_append_disp32_impl(elf, disp); }
-  return 0;
-}
+
 
 #[no_mangle]
 function simd_x86_movups_xmm0_from_rbp(elf: *u8, disp: i32): i32 {
@@ -180,3 +175,14 @@ function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): i32 {
   if (half < 0) { return slot; }
   return slot - half * 4 * esz;
 }
+
+// G-02f-122：simd_append_disp32 真迁 .x（与 simd_append_u32_le 同 LE 编码）
+
+#[no_mangle]
+function simd_append_disp32(elf: *u8, disp: i32): i32 {
+  unsafe {
+    return simd_append_u32_le(elf, disp as u32);
+  }
+  return 0 - 1;
+}
+
