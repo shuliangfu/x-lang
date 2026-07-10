@@ -1,4 +1,5 @@
-/* seeds/backend_try_inline_dispatch.from_x.c — G-02f-196 local_slot/index pure; G-02f-184/185 lit stack pure; G-02f-9 product backend dispatch TU
+/* G-02f-363：PREFER hybrid thin 由 src/asm/backend_try_inline_dispatch_thin.x；rest SHUX_L2_TRY_INLINE_THIN_FROM_X。
+ * seeds/backend_try_inline_dispatch.from_x.c — G-02f-196 local_slot/index pure; G-02f-184/185 lit stack pure; G-02f-9 product backend dispatch TU
  * G-02f-135 true .x pure helpers.
  * G-02f-134 true .x pure helpers.
  * G-02f-133 true .x pure helpers.
@@ -283,12 +284,23 @@ extern int32_t pipeline_asm_index_elem_byte_sz(struct ast_ASTArena *a, int32_t i
 
 /** 向上取整到 8 字节（与 backend.x asm_align_up8 一致）。 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifdef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_align_up8_c(int32_t n);
+int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
+int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b, int32_t *out);
+int32_t asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_ref);
+int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref);
+int32_t pipeline_asm_struct_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
+#endif
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t glue_align_up8_c(int32_t n) {
   int32_t m = n % 8;
   if (m != 0)
     n += (8 - m);
   return n;
 }
+#endif
 
 
 
@@ -342,6 +354,7 @@ int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena,
  * STRUCT_LIT 初值在 temp 区按 8 字节/字段存放。
  */
 /* G-02f-185：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t init_ref) {
   int32_t nf;
   if (!arena || init_ref <= 0)
@@ -353,10 +366,13 @@ int32_t asm_struct_lit_reserve_stack_bytes(struct ast_ASTArena *arena, int32_t i
     return 0;
   return glue_align_up8_c(nf * 8);
 }
+#endif
 
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t pipeline_asm_struct_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref) {
   return asm_struct_lit_reserve_stack_bytes(arena, init_ref);
 }
+#endif
 
 /** 按名称查本模块函数下标；-1 未找到（定义见下）。 */
 int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len);
@@ -520,6 +536,7 @@ int32_t glue_expr_is_func_param_at(struct ast_ASTArena *arena, struct ast_Module
 
 /** 标量 i32 binop 编译期求值；不支持的 ko 或除零返回 0。 */
 /* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b, int32_t *out) {
   int64_t wide;
   if (!out)
@@ -550,6 +567,7 @@ int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b,
   *out = (int32_t)wide;
   return 1;
 }
+#endif
 
 
 /**
@@ -705,9 +723,11 @@ int32_t asm_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_
  * INDEX 元素字节宽；委托 pipeline_glue.c（避免 X Type 按值 emit）。
  */
 /* G-02f-196：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t asm_index_elem_byte_sz(struct ast_ASTArena *arena, int32_t index_expr_ref) {
   return pipeline_asm_index_elem_byte_sz(arena, index_expr_ref);
 }
+#endif
 
 /**
  * 局部 VAR 槽是否为间接指针（内部用，try_inline 路径）。
@@ -1380,11 +1400,13 @@ int32_t glue_try_array_lit_lane_const_i32(struct ast_ASTArena *arena, int32_t ar
 
 /** 向量逐 lane 标量 binop kind（与 pipeline_glue glue_is_vector_lane_scalar_binop_ko 一致）。 */
 /* G-02f-113：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko) {
   if (ko == 51)
     ko = 4;
   return (ko >= 4 && ko <= 13) ? 1 : 0;
 }
+#endif
 
 
 
