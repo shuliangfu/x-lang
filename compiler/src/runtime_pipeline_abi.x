@@ -18,6 +18,7 @@
 // G-02f-229：get_entry_dir + import_path_to_file_path pure。
 // G-02f-230：seeded_clear 槽循环 + fill_ctx_path_buffers 编排 pure。
 // G-02f-231：resolve_file_import 拼接 pure + set_entry_dir 编排 pure。
+// G-02f-232：resolve_import_file_path_multi 编排 pure（access 🔒）。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -85,7 +86,9 @@ extern "C" function shux_pipeline_run_x_pipeline_large_stack_impl(module: *u8, a
 extern "C" function shux_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
 extern "C" function shux_pipeline_dep_prerun_parse_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64): i32;
 extern "C" function shux_pipeline_dep_prerun_typeck_only_impl(dep_mod: *u8, dep_arena: *u8, src: *u8, len: i64, dep_out: *u8, one_ctx: *u8): i32;
-extern "C" function shux_resolve_import_file_path_multi_impl(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void;
+/* resolve_import_file_path_multi：G-02f-232 下方真迁 */
+extern "C" function access(path: *u8, mode: i32): i32;
+extern "C" function shux_cstr_offset(s: *u8, off: i32): *u8;
 /* set_entry_dir：G-02f-231 下方真迁 */
 extern "C" function pipeline_entry_dir_copy(path: *u8): void;
 extern "C" function pipeline_entry_dir_set_dot(): void;
@@ -1233,6 +1236,162 @@ function shux_pipeline_dep_prerun_for_asm_module_o(dep_mod: *u8, dep_arena: *u8,
   return -1;
 }
 
+// G-02f-232 内部：POSIX R_OK=4
+function pipe_path_readable(path: *u8): i32 {
+  if (path == 0 as *u8) { return 0; }
+  unsafe {
+    if (access(path, 4) == 0) { return 1; }
+  }
+  return 0;
+}
+
+function pipe_cstr_has_char(s: *u8, ch: u8): i32 {
+  if (s == 0 as *u8) { return 0; }
+  let i: i32 = 0;
+  while (i < 4096) {
+    if (s[i] == 0) { return 0; }
+    if (s[i] == ch) { return 1; }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// 写 root/name/name.x（单段 nested）
+function pipe_write_nested_name_x(dst: *u8, cap: i32, root: *u8, name: *u8): void {
+  if (dst == 0 as *u8) { return; }
+  if (cap <= 0) { return; }
+  let off: i32 = 0;
+  unsafe {
+    if (root != 0 as *u8) {
+      let i: i32 = 0;
+      while (i < 4096) {
+        if (root[i] == 0) { break; }
+        if (off + 1 >= cap) { break; }
+        dst[off] = root[i];
+        off = off + 1;
+        i = i + 1;
+      }
+    }
+    if (off + 1 < cap) { dst[off] = 47; off = off + 1; }
+    if (name != 0 as *u8) {
+      let j: i32 = 0;
+      while (j < 4096) {
+        if (name[j] == 0) { break; }
+        if (off + 1 >= cap) { break; }
+        dst[off] = name[j];
+        off = off + 1;
+        j = j + 1;
+      }
+    }
+    if (off + 1 < cap) { dst[off] = 47; off = off + 1; }
+    if (name != 0 as *u8) {
+      let k: i32 = 0;
+      while (k < 4096) {
+        if (name[k] == 0) { break; }
+        if (off + 1 >= cap) { break; }
+        dst[off] = name[k];
+        off = off + 1;
+        k = k + 1;
+      }
+    }
+    if (off + 2 < cap) {
+      dst[off] = 46; dst[off + 1] = 120; dst[off + 2] = 0;
+    } else if (off < cap) {
+      dst[off] = 0;
+    } else {
+      dst[cap - 1] = 0;
+    }
+  }
+}
+
+// root + '/' + dots_to_slash(imp) 写入；返回 off（末字节位置，未含 .x）
+function pipe_write_root_dotted_imp(dst: *u8, cap: i32, root: *u8, imp: *u8): i32 {
+  if (dst == 0 as *u8) { return 0; }
+  if (cap <= 0) { return 0; }
+  let off: i32 = 0;
+  unsafe {
+    if (root != 0 as *u8) {
+      let i: i32 = 0;
+      while (i < 4096) {
+        if (root[i] == 0) { break; }
+        if (off + 1 >= cap) { break; }
+        dst[off] = root[i];
+        off = off + 1;
+        i = i + 1;
+      }
+    }
+    if (off + 1 < cap) { dst[off] = 47; off = off + 1; }
+    if (imp != 0 as *u8) {
+      let j: i32 = 0;
+      while (j < 4096) {
+        if (imp[j] == 0) { break; }
+        if (off + 1 >= cap) { break; }
+        let ch: u8 = imp[j];
+        if (ch == 46) { dst[off] = 47; } else { dst[off] = ch; }
+        off = off + 1;
+        j = j + 1;
+      }
+    }
+    if (off < cap) { dst[off] = 0; } else { dst[cap - 1] = 0; }
+  }
+  return off;
+}
+
+function pipe_append_suffix(dst: *u8, cap: i32, off: i32, suf: *u8): void {
+  if (dst == 0 as *u8) { return; }
+  if (suf == 0 as *u8) { return; }
+  if (cap <= 0) { return; }
+  let o: i32 = off;
+  let si: i32 = 0;
+  unsafe {
+    while (si < 16) {
+      if (suf[si] == 0) { break; }
+      if (o + 1 >= cap) { break; }
+      dst[o] = suf[si];
+      o = o + 1;
+      si = si + 1;
+    }
+    if (o < cap) { dst[o] = 0; } else { dst[cap - 1] = 0; }
+  }
+}
+
+// 取 entry_dir 末段（最后一个 / 之后）
+function pipe_dir_tail(entry_dir: *u8): *u8 {
+  if (entry_dir == 0 as *u8) { return 0 as *u8; }
+  let last: i32 = 0 - 1;
+  let i: i32 = 0;
+  unsafe {
+    while (i < 4096) {
+      if (entry_dir[i] == 0) { break; }
+      if (entry_dir[i] == 47) { last = i; }
+      i = i + 1;
+    }
+    if (last < 0) { return entry_dir; }
+    return shux_cstr_offset(entry_dir, last + 1);
+  }
+  return entry_dir;
+}
+
+// 若 import 首段 == dir_tail，返回首段后；否则 import 本身
+function pipe_strip_prefix_seg(import_path: *u8, dir_tail: *u8): *u8 {
+  if (import_path == 0 as *u8) { return import_path; }
+  if (dir_tail == 0 as *u8) { return import_path; }
+  unsafe {
+    let tl: i32 = pipe_cstr_len(dir_tail);
+    let i: i32 = 0;
+    while (i < tl) {
+      if (import_path[i] == 0) { return import_path; }
+      if (import_path[i] != dir_tail[i]) { return import_path; }
+      i = i + 1;
+    }
+    if (import_path[tl] == 46) {
+      return shux_cstr_offset(import_path, tl + 1);
+    }
+  }
+  return import_path;
+}
+
+// G-02f-232：lib_roots + entry_dir 多路径解析；access 判可读
 #[no_mangle]
 function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
@@ -1247,8 +1406,103 @@ function shux_resolve_import_file_path_multi(lib_roots: *u8, n_lib_roots: i32, e
     }
     return;
   }
-  unsafe {
-    shux_resolve_import_file_path_multi_impl(lib_roots, n_lib_roots, entry_dir, import_path, path, path_size);
+  let cap: i32 = path_size as i32;
+  if (cap <= 0) {
+    return;
+  }
+  // 文件路径形式
+  if (shux_import_path_is_file_path(import_path) != 0) {
+    shux_resolve_file_import_path(entry_dir, import_path, path, path_size);
+    if (pipe_path_readable(path) != 0) { return; }
+    unsafe {
+      if (import_path[0] != 47) {
+        pipe_cstr_copy(path, cap, import_path);
+        if (pipe_path_readable(path) != 0) { return; }
+      }
+    }
+  }
+  // -L roots
+  let r: i32 = 0;
+  while (r < n_lib_roots) {
+    let lib_root: *u8 = 0 as *u8;
+    unsafe {
+      if (lib_roots != 0 as *u8) {
+        lib_root = pipe_load_ptr_slot(lib_roots, r);
+      }
+    }
+    let use_root: *u8 = lib_root;
+    let dot: u8[2] = [];
+    dot[0] = 46;
+    dot[1] = 0;
+    if (use_root == 0 as *u8) {
+      use_root = &dot[0];
+    } else {
+      unsafe {
+        if (use_root[0] == 0) { use_root = &dot[0]; }
+      }
+    }
+    shux_import_path_to_file_path(use_root, import_path, path, path_size);
+    if (pipe_path_readable(path) != 0) { return; }
+    // 单段：lib_root/name/name.x
+    if (pipe_cstr_has_char(import_path, 46) == 0) {
+      if (path_size >= 16) {
+        let n: i32 = pipe_cstr_len(import_path);
+        if (n > 0) {
+          if (n < 64) {
+            pipe_write_nested_name_x(path, cap, use_root, import_path);
+            if (pipe_path_readable(path) != 0) { return; }
+          }
+        }
+      }
+    } else {
+      if (path_size >= 16) {
+        let off: i32 = pipe_write_root_dotted_imp(path, cap, use_root, import_path);
+        let modx: u8[8] = [];
+        modx[0] = 47; modx[1] = 109; modx[2] = 111; modx[3] = 100; modx[4] = 46; modx[5] = 120; modx[6] = 0;
+        if (off + 8 <= cap) {
+          pipe_append_suffix(path, cap, off, &modx[0]);
+          if (pipe_path_readable(path) != 0) { return; }
+        }
+        shux_import_path_to_file_path(use_root, import_path, path, path_size);
+        if (pipe_path_readable(path) != 0) { return; }
+      }
+    }
+    r = r + 1;
+  }
+  // entry 同目录单段
+  if (entry_dir != 0 as *u8) {
+    unsafe {
+      if (entry_dir[0] != 0) {
+        if (pipe_cstr_has_char(import_path, 46) == 0) {
+          let off2: i32 = pipe_write_root_dotted_imp(path, cap, entry_dir, import_path);
+          // pipe_write already did entry/import with dots; for no-dot it's entry/import
+          // need entry/import.x
+          let dx: u8[4] = [];
+          dx[0] = 46; dx[1] = 120; dx[2] = 0;
+          pipe_append_suffix(path, cap, off2, &dx[0]);
+          if (pipe_path_readable(path) != 0) { return; }
+        } else {
+          if (path_size >= 16) {
+            let tail: *u8 = pipe_dir_tail(entry_dir);
+            let eff: *u8 = pipe_strip_prefix_seg(import_path, tail);
+            let off3: i32 = pipe_write_root_dotted_imp(path, cap, entry_dir, eff);
+            let dx2: u8[4] = [];
+            dx2[0] = 46; dx2[1] = 120; dx2[2] = 0;
+            if (off3 + 3 <= cap) {
+              pipe_append_suffix(path, cap, off3, &dx2[0]);
+              if (pipe_path_readable(path) != 0) { return; }
+            }
+            let modx2: u8[8] = [];
+            modx2[0] = 47; modx2[1] = 109; modx2[2] = 111; modx2[3] = 100;
+            modx2[4] = 46; modx2[5] = 120; modx2[6] = 0;
+            if (off3 + 8 <= cap) {
+              pipe_append_suffix(path, cap, off3, &modx2[0]);
+              if (pipe_path_readable(path) != 0) { return; }
+            }
+          }
+        }
+      }
+    }
   }
 }
 

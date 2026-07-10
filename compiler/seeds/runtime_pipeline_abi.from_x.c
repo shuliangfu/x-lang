@@ -13,6 +13,7 @@
  * G-02f-229: get_entry_dir + import_path_to_file_path pure.
  * G-02f-230: seeded_clear + fill_ctx_path_buffers pure.
  * G-02f-231: resolve_file_import join pure + set_entry_dir pure.
+ * G-02f-232: resolve_import_file_path_multi pure (access locked).
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -765,10 +766,20 @@ void shux_resolve_file_import_path(const char *entry_dir, const char *import_pat
   }
 }
 
+/* G-02f-232：s + off（.x 无可靠指针算术时用） */
+const char *shux_cstr_offset(const char *s, int32_t off) {
+    if (!s)
+        return NULL;
+    if (off < 0)
+        return s;
+    return s + off;
+}
+
 /**
  * 在 lib_roots 与 entry_dir 下解析 import 到可读 .x 路径。
  * 参数：见 runtime_pipeline_abi.h；未找到时 path 仍写入最后一次尝试路径。
  */
+/* G-02f-232：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void shux_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char *import_path, char *path, size_t path_size) {
     if (shux_import_path_is_file_path(import_path)) {
@@ -839,6 +850,7 @@ void shux_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib_
     }
 }
 
+/* G-02f-232：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 void shux_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir,
     const char *import_path, char *path, size_t path_size) {
   if (path == NULL) {
