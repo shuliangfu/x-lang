@@ -142,7 +142,8 @@ extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset,
  * 供 pipeline_glue LCG 计数循环；bootstrap partial.o 未导出 enc_jle/enc_jl 时用 C 路由。
  */
 /* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t backend_enc_x86_jcc_rel32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2,
+/* G-02f-419：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t backend_enc_x86_jcc_rel32_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2,
                                            uint8_t *label, int32_t label_len) {
   uint8_t buf[6];
   int32_t rel32_at;
@@ -162,8 +163,16 @@ int32_t backend_enc_x86_jcc_rel32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
   return pipeline_elf_ctx_append_patch((uint8_t *)elf_ctx, rel32_at, label, label_len, 32);
 
 }
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_x86_jcc_rel32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2,
+                                           uint8_t *label, int32_t label_len) {
+  return backend_enc_x86_jcc_rel32_c_impl(elf_ctx, opcode2, label, label_len);
+}
+#endif
+
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
+/* G-02f-419：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t backend_enc_append_u32_le_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
   uint8_t buf[4];
   if (!elf_ctx)
     return -1;
@@ -174,8 +183,15 @@ int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, buf, 4);
 }
 
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
+  return backend_enc_append_u32_le_c_impl(elf_ctx, word);
+}
+#endif
+
 /* G-02f-361：单字节 append，供 thin f32/xmm / store_eax 无 static 数组路径 */
-int32_t backend_enc_append_u8_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t byte) {
+/* G-02f-419：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t backend_enc_append_u8_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t byte) {
   uint8_t b;
   if (!elf_ctx)
     return -1;
@@ -183,11 +199,18 @@ int32_t backend_enc_append_u8_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int3
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b, 1);
 }
 
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_append_u8_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t byte) {
+  return backend_enc_append_u8_c_impl(elf_ctx, byte);
+}
+#endif
+
 
 
 
 /* G-02f-146：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t backend_enc_arm64_call_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
+/* G-02f-419：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
   uint8_t reloc_name[64];
   int32_t at;
   int32_t reloc_len;
@@ -195,7 +218,7 @@ int32_t backend_enc_arm64_call_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
   int32_t macho_leading_underscore;
   if (!elf_ctx || !name || name_len <= 0)
     return -1;
-  if (backend_enc_append_u32_le_c(elf_ctx, 0x94000000u) != 0)
+  if (backend_enc_append_u32_le_c_impl(elf_ctx, 0x94000000u) != 0)
     return -1;
   at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 4;
   if (at < 0)
@@ -210,6 +233,12 @@ int32_t backend_enc_arm64_call_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
   }
   return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, at, name, name_len);
 }
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_arm64_call_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
+  return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);
+}
+#endif
+
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
@@ -221,7 +250,7 @@ int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_
   imm12 = imm;
   if (imm12 > 4095)
     imm12 = 4095;
-  return backend_enc_append_u32_le_c(elf_ctx, 0x910003ffu | ((uint32_t)imm12 << 10));
+  return backend_enc_append_u32_le_c_impl(elf_ctx, 0x910003ffu | ((uint32_t)imm12 << 10));
 }
 #endif
 
@@ -236,7 +265,7 @@ int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_
   imm12 = imm;
   if (imm12 > 4095)
     imm12 = 4095;
-  return backend_enc_append_u32_le_c(elf_ctx, 0xd10003ffu | ((uint32_t)imm12 << 10));
+  return backend_enc_append_u32_le_c_impl(elf_ctx, 0xd10003ffu | ((uint32_t)imm12 << 10));
 }
 #endif
 
@@ -253,7 +282,7 @@ int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *
   imm12 = off >> 3;
   if (imm12 > 4095)
     imm12 = 4095;
-  return backend_enc_append_u32_le_c(elf_ctx, 0xf90003e0u | ((uint32_t)imm12 << 10));
+  return backend_enc_append_u32_le_c_impl(elf_ctx, 0xf90003e0u | ((uint32_t)imm12 << 10));
 }
 #endif
 
@@ -262,7 +291,7 @@ int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *
 
 
 /** x86_64 cdqe；定义见本文件末尾。 */
-int32_t arch_x86_64_enc_enc_cdqe_rax(struct platform_elf_ElfCodegenCtx *elf_ctx);
+int32_t arch_x86_64_enc_enc_cdqe_rax_impl(struct platform_elf_ElfCodegenCtx *elf_ctx);
 
 extern int32_t arch_arm64_enc_enc_add_imm_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
 extern int32_t arch_arm64_enc_enc_add_imm_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
@@ -498,7 +527,7 @@ extern int32_t arch_x86_64_enc_enc_mov_rdx_to_arg_reg(struct platform_elf_ElfCod
  * host link can resolve them; real encoder objects override these definitions.
  */
 SHUX_WEAK int32_t arch_arm64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
-  return backend_enc_arm64_call_c(elf_ctx, name, name_len);
+  return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);
 }
 
 SHUX_WEAK int32_t arch_arm64_enc_enc_add_sp_imm12(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
@@ -1636,7 +1665,7 @@ int32_t backend_enc_load_32_from_rax_arch(struct platform_elf_ElfCodegenCtx *elf
   if (arch_x86_64_enc_enc_load_32_from_rax(elf_ctx) != 0)
     return -1;
   /** movl (%rax), %eax 后 cdqe：rax 勿残留指针（SoA/index 读 + binop 共用）。 */
-  return arch_x86_64_enc_enc_cdqe_rax(elf_ctx);
+  return arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx);
 }
 #endif
 
@@ -2117,7 +2146,7 @@ int32_t backend_enc_jge_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t
 int32_t backend_enc_jle_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta) {
   if (ta != 0)
     return -1;
-  return backend_enc_x86_jcc_rel32_c(elf_ctx, 0x8E, label, label_len);
+  return backend_enc_x86_jcc_rel32_c_impl(elf_ctx, 0x8E, label, label_len);
 }
 #endif
 
@@ -2129,7 +2158,7 @@ int32_t backend_enc_jle_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t
 int32_t backend_enc_jl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta) {
   if (ta != 0)
     return -1;
-  return backend_enc_x86_jcc_rel32_c(elf_ctx, 0x8C, label, label_len);
+  return backend_enc_x86_jcc_rel32_c_impl(elf_ctx, 0x8C, label, label_len);
 }
 #endif
 
@@ -2194,7 +2223,7 @@ int32_t backend_enc_mov_rax_to_arg_reg_arch(struct platform_elf_ElfCodegenCtx *e
 #ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_call_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
   if (ta == 1)
-    return backend_enc_arm64_call_c(elf_ctx, name, name_len);
+    return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);
   if (ta == 2)
     return arch_riscv64_enc_enc_call(elf_ctx, name, name_len);
   return arch_x86_64_enc_enc_call(elf_ctx, name, name_len);
@@ -2246,9 +2275,16 @@ int32_t backend_enc_store_x0_sp_offset_arch(struct platform_elf_ElfCodegenCtx *e
 /**
  * x86_64 cdqe（48 98）：movl (%rax),%eax 后符号扩展 eax→rax，避免 binop 误用残留指针。
  */
-int32_t arch_x86_64_enc_enc_cdqe_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+/* G-02f-419：实现体始终 seed；public PREFER 时 thin pure forward */
+int32_t arch_x86_64_enc_enc_cdqe_rax_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   static const uint8_t cdqe[2] = {0x48, 0x98};
   if (!elf_ctx)
     return -1;
   return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cdqe, 2);
 }
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t arch_x86_64_enc_enc_cdqe_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
+  return arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx);
+}
+#endif
+

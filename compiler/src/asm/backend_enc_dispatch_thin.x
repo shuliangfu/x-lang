@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-352～361：backend_enc_dispatch L2 thin — arm64 encode + ta 分派壳（102+7=109）。
+// G-02f-352～361：backend_enc_dispatch L2 thin — arm64 encode + ta 分派壳（114：G-02f-419 append/call/jcc/cdqe）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_ENC_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_enc_dispatch.o
 // 对照：src/asm/backend_enc_dispatch.x；默认仍整 seed。
@@ -11,7 +11,8 @@
 // -E 大立即数可能写成有符号同比特，传 append/u32_le 仍正确。
 //
 
-extern "C" function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
+extern "C" function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32;
+extern "C" function backend_enc_append_u8_c_impl(elf_ctx: *u8, byte: i32): i32;
 extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i32;
 
 // ADD X31, X31, #imm12  （SP+imm）
@@ -25,12 +26,12 @@ function backend_enc_arm64_add_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
   }
   if (imm > 4095) {
     unsafe {
-      return backend_enc_append_u32_le_c(elf_ctx, 2432697343 | (4095 * 1024));
+      return backend_enc_append_u32_le_c_impl(elf_ctx, 2432697343 | (4095 * 1024));
     }
     return 0 - 1;
   }
   unsafe {
-    return backend_enc_append_u32_le_c(elf_ctx, 2432697343 | ((imm as u32) * 1024));
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 2432697343 | ((imm as u32) * 1024));
   }
   return 0 - 1;
 }
@@ -46,12 +47,12 @@ function backend_enc_arm64_sub_sp_imm12_c(elf_ctx: *u8, imm: i32): i32 {
   }
   if (imm > 4095) {
     unsafe {
-      return backend_enc_append_u32_le_c(elf_ctx, 3506439167 | (4095 * 1024));
+      return backend_enc_append_u32_le_c_impl(elf_ctx, 3506439167 | (4095 * 1024));
     }
     return 0 - 1;
   }
   unsafe {
-    return backend_enc_append_u32_le_c(elf_ctx, 3506439167 | ((imm as u32) * 1024));
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3506439167 | ((imm as u32) * 1024));
   }
   return 0 - 1;
 }
@@ -64,18 +65,18 @@ function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i32): i32
   }
   if (off_bytes < 0) {
     unsafe {
-      return backend_enc_append_u32_le_c(elf_ctx, 4177527776);
+      return backend_enc_append_u32_le_c_impl(elf_ctx, 4177527776);
     }
     return 0 - 1;
   }
   if (off_bytes / 8 > 4095) {
     unsafe {
-      return backend_enc_append_u32_le_c(elf_ctx, 4177527776 | (4095 * 1024));
+      return backend_enc_append_u32_le_c_impl(elf_ctx, 4177527776 | (4095 * 1024));
     }
     return 0 - 1;
   }
   unsafe {
-    return backend_enc_append_u32_le_c(elf_ctx, 4177527776 | (((off_bytes / 8) as u32) * 1024));
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 4177527776 | (((off_bytes / 8) as u32) * 1024));
   }
   return 0 - 1;
 }
@@ -846,7 +847,7 @@ extern "C" function arch_x86_64_enc_enc_store_rax_to_rbx_indirect(elf_ctx: *u8, 
 extern "C" function arch_arm64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
 extern "C" function arch_riscv64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
 extern "C" function arch_x86_64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
-extern "C" function arch_x86_64_enc_enc_cdqe_rax(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx: *u8): i32;
 extern "C" function arch_arm64_enc_enc_load_rbp_to_x2(elf_ctx: *u8, offset: i32): i32;
 extern "C" function arch_riscv64_enc_enc_load_rbp_to_a2(elf_ctx: *u8, offset: i32): i32;
 extern "C" function arch_x86_64_enc_enc_load_rbp_to_ecx(elf_ctx: *u8, offset: i32): i32;
@@ -909,7 +910,7 @@ function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32 {
     if (arch_x86_64_enc_enc_load_32_from_rax(elf_ctx) != 0) {
       return 0 - 1;
     }
-    return arch_x86_64_enc_enc_cdqe_rax(elf_ctx);
+    return arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx);
   }
   return 0 - 1;
 }
@@ -926,7 +927,7 @@ function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32 {
     if (arch_x86_64_enc_enc_load_32_from_rax(elf_ctx) != 0) {
       return 0 - 1;
     }
-    return arch_x86_64_enc_enc_cdqe_rax(elf_ctx);
+    return arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx);
   }
   return 0 - 1;
 }
@@ -1124,12 +1125,12 @@ function backend_enc_call_stack_cleanup_arch(elf_ctx: *u8, nbytes: i32, ta: i32)
     }
     if (nbytes > 4095) {
       unsafe {
-        return backend_enc_append_u32_le_c(elf_ctx, 2432697343 | (4095 * 1024));
+        return backend_enc_append_u32_le_c_impl(elf_ctx, 2432697343 | (4095 * 1024));
       }
       return 0 - 1;
     }
     unsafe {
-      return backend_enc_append_u32_le_c(elf_ctx, 2432697343 | ((nbytes as u32) * 1024));
+      return backend_enc_append_u32_le_c_impl(elf_ctx, 2432697343 | ((nbytes as u32) * 1024));
     }
     return 0 - 1;
   }
@@ -1151,12 +1152,12 @@ function backend_enc_call_stack_reserve_arch(elf_ctx: *u8, nbytes: i32, ta: i32)
     }
     if (nbytes > 4095) {
       unsafe {
-        return backend_enc_append_u32_le_c(elf_ctx, 3506439167 | (4095 * 1024));
+        return backend_enc_append_u32_le_c_impl(elf_ctx, 3506439167 | (4095 * 1024));
       }
       return 0 - 1;
     }
     unsafe {
-      return backend_enc_append_u32_le_c(elf_ctx, 3506439167 | ((nbytes as u32) * 1024));
+      return backend_enc_append_u32_le_c_impl(elf_ctx, 3506439167 | ((nbytes as u32) * 1024));
     }
     return 0 - 1;
   }
@@ -1171,18 +1172,18 @@ function backend_enc_store_x0_sp_offset_arch(elf_ctx: *u8, off_bytes: i32, ta: i
     }
     if (off_bytes < 0) {
       unsafe {
-        return backend_enc_append_u32_le_c(elf_ctx, 4177527776);
+        return backend_enc_append_u32_le_c_impl(elf_ctx, 4177527776);
       }
       return 0 - 1;
     }
     if (off_bytes / 8 > 4095) {
       unsafe {
-        return backend_enc_append_u32_le_c(elf_ctx, 4177527776 | (4095 * 1024));
+        return backend_enc_append_u32_le_c_impl(elf_ctx, 4177527776 | (4095 * 1024));
       }
       return 0 - 1;
     }
     unsafe {
-      return backend_enc_append_u32_le_c(elf_ctx, 4177527776 | (((off_bytes / 8) as u32) * 1024));
+      return backend_enc_append_u32_le_c_impl(elf_ctx, 4177527776 | (((off_bytes / 8) as u32) * 1024));
     }
     return 0 - 1;
   }
@@ -1241,7 +1242,7 @@ extern "C" function arch_riscv64_enc_enc_mul_a2_a3(elf_ctx: *u8): i32;
 extern "C" function arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx: *u8): i32;
 extern "C" function arch_riscv64_enc_enc_mul_rbx_a3(elf_ctx: *u8): i32;
 extern "C" function arch_x86_64_enc_enc_imul_ebx_edx(elf_ctx: *u8): i32;
-extern "C" function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32): i32;
+extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 extern "C" function arch_riscv64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 extern "C" function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 extern "C" function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): i32;
@@ -1258,7 +1259,7 @@ extern "C" function arch_arm64_enc_enc_rbx_plus_x2_scale8(elf_ctx: *u8): i32;
 extern "C" function arch_riscv64_enc_enc_rbx_plus_a2_scale8(elf_ctx: *u8): i32;
 extern "C" function arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale8(elf_ctx: *u8): i32;
 extern "C" function arch_x86_64_enc_enc_load_rbp_to_eax32(elf_ctx: *u8, offset: i32): i32;
-extern "C" function backend_enc_x86_jcc_rel32_c(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32;
+extern "C" function backend_enc_x86_jcc_rel32_c_impl(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32;
 
 #[no_mangle]
 function backend_enc_index_scratch_add_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
@@ -1359,7 +1360,7 @@ function backend_enc_rbx_index_mul_secondary_arch(elf_ctx: *u8, ta: i32): i32 {
 #[no_mangle]
 function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
   if (ta == 1) {
-    unsafe { return backend_enc_arm64_call_c(elf_ctx, name, name_len); }
+    unsafe { return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_call(elf_ctx, name, name_len); }
@@ -1455,7 +1456,7 @@ function backend_enc_jle_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32)
   if (ta != 0) {
     return 0 - 1;
   }
-  unsafe { return backend_enc_x86_jcc_rel32_c(elf_ctx, 142, label, label_len); }
+  unsafe { return backend_enc_x86_jcc_rel32_c_impl(elf_ctx, 142, label, label_len); }
   return 0 - 1;
 }
 
@@ -1464,7 +1465,7 @@ function backend_enc_jl_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32):
   if (ta != 0) {
     return 0 - 1;
   }
-  unsafe { return backend_enc_x86_jcc_rel32_c(elf_ctx, 140, label, label_len); }
+  unsafe { return backend_enc_x86_jcc_rel32_c_impl(elf_ctx, 140, label, label_len); }
   return 0 - 1;
 }
 
@@ -1704,7 +1705,6 @@ function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32, esz: i
 }
 
 // ---- G-02f-361：f32/xmm + store_eax（无 static 数组；append_u32/u8）----
-extern "C" function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
 
 #[no_mangle]
 function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
@@ -1715,16 +1715,16 @@ function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
     return 0 - 1;
   }
   unsafe {
-    if (backend_enc_append_u32_le_c(elf_ctx, 3228438374) != 0) {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3228438374) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u32_le_c(elf_ctx, 3412987750) != 0) {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3412987750) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u32_le_c(elf_ctx, 3243773939) != 0) {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3243773939) != 0) {
       return 0 - 1;
     }
-    return backend_enc_append_u32_le_c(elf_ctx, 3229486950);
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3229486950);
   }
   return 0 - 1;
 }
@@ -1738,10 +1738,10 @@ function backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i3
     return 0 - 1;
   }
   unsafe {
-    if (backend_enc_append_u32_le_c(elf_ctx, 3228438374) != 0) {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3228438374) != 0) {
       return 0 - 1;
     }
-    return backend_enc_append_u32_le_c(elf_ctx, 3224113139);
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3224113139);
   }
   return 0 - 1;
 }
@@ -1755,16 +1755,16 @@ function backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx: *u8, ta: i32): i32
     return 0 - 1;
   }
   unsafe {
-    if (backend_enc_append_u32_le_c(elf_ctx, 1846495334) != 0) {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 1846495334) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c(elf_ctx, 192) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, 192) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u32_le_c(elf_ctx, 3227127794) != 0) {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3227127794) != 0) {
       return 0 - 1;
     }
-    return backend_enc_append_u32_le_c(elf_ctx, 3229486950);
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3229486950);
   }
   return 0 - 1;
 }
@@ -1778,10 +1778,10 @@ function backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx: *u8, ta: i32): i32 {
     return 0 - 1;
   }
   unsafe {
-    if (backend_enc_append_u32_le_c(elf_ctx, 3223982067) != 0) {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, 3223982067) != 0) {
       return 0 - 1;
     }
-    return backend_enc_append_u32_le_c(elf_ctx, 3229486950);
+    return backend_enc_append_u32_le_c_impl(elf_ctx, 3229486950);
   }
   return 0 - 1;
 }
@@ -1802,16 +1802,16 @@ function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32):
     return 0 - 1;
   }
   unsafe {
-    if (backend_enc_append_u8_c(elf_ctx, 102) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, 102) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, 15) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c(elf_ctx, 110) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, 110) != 0) {
       return 0 - 1;
     }
-    return backend_enc_append_u8_c(elf_ctx, 192 + (k * 8));
+    return backend_enc_append_u8_c_impl(elf_ctx, 192 + (k * 8));
   }
   return 0 - 1;
 }
@@ -1832,16 +1832,16 @@ function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta: i32):
     return 0 - 1;
   }
   unsafe {
-    if (backend_enc_append_u8_c(elf_ctx, 102) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, 102) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, 15) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c(elf_ctx, 126) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, 126) != 0) {
       return 0 - 1;
     }
-    return backend_enc_append_u8_c(elf_ctx, 192 + (k * 8));
+    return backend_enc_append_u8_c_impl(elf_ctx, 192 + (k * 8));
   }
   return 0 - 1;
 }
@@ -1875,22 +1875,53 @@ function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): 
   }
   // x86 always disp32：89 85 + disp LE（语义同 seed disp32 路，小 offset 也可）
   unsafe {
-    if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, 137) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, 133) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c(elf_ctx, ((0 - offset) as u32) & 255) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, ((0 - offset) as u32) & 255) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c(elf_ctx, (((0 - offset) as u32) / 256) & 255) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, (((0 - offset) as u32) / 256) & 255) != 0) {
       return 0 - 1;
     }
-    if (backend_enc_append_u8_c(elf_ctx, (((0 - offset) as u32) / 65536) & 255) != 0) {
+    if (backend_enc_append_u8_c_impl(elf_ctx, (((0 - offset) as u32) / 65536) & 255) != 0) {
       return 0 - 1;
     }
-    return backend_enc_append_u8_c(elf_ctx, (((0 - offset) as u32) / 16777216) & 255);
+    return backend_enc_append_u8_c_impl(elf_ctx, (((0 - offset) as u32) / 16777216) & 255);
   }
+  return 0 - 1;
+}
+
+// ---- G-02f-419：append/call/jcc/cdqe → seed impl pure forward ----
+#[no_mangle]
+function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32 {
+  unsafe { return backend_enc_append_u32_le_c_impl(elf_ctx, word); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32 {
+  unsafe { return backend_enc_append_u8_c_impl(elf_ctx, byte); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_arm64_call_c(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  unsafe { return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_x86_jcc_rel32_c(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32 {
+  unsafe { return backend_enc_x86_jcc_rel32_c_impl(elf_ctx, opcode2, label, label_len); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function arch_x86_64_enc_enc_cdqe_rax(elf_ctx: *u8): i32 {
+  unsafe { return arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx); }
   return 0 - 1;
 }
