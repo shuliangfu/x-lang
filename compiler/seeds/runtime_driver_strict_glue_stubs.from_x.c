@@ -1,7 +1,7 @@
-/* Generated from src/runtime_driver_strict_glue_stubs.x (G-02f-32 true .x + C tail).
+/* Generated from src/runtime_driver_strict_glue_stubs.x (G-02f-32/33 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_driver_strict_glue_stubs.x > /tmp/sgs.c
- *         merge thin forwards + i32 ptr; polish weak; keep heap_user/metrics C.
- * .x covers: asm_driver_* / typeck_driver_diagnostic_pipe_marker / typeck_i32_ptr_*.
+ *         merge thin forwards/metrics peek; weak polish; heap_user/slot arrays C.
+ * .x covers: asm_driver_*, i32_ptr_*, metrics init/read, call_resolve peek.
  */
 #include <stddef.h>
 #include <stdint.h>

@@ -1,7 +1,7 @@
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32/33 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
- *         merge no-op stubs from .x; keep dep/import/path C logic.
- * .x covers: parse/fill/codegen placeholder stubs.
+ *         merge no-ops + diag_emitted/ndep bridges; C provides storage slots.
+ * .x covers: placeholders + pipeline_diag_emitted_* + get_ndep + typeck_driver_dep_seeded_get.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -25,21 +25,46 @@ extern void preprocess_define_reset(void);
 extern int32_t preprocess_if_stack_len(void);
 extern void preprocess_define_add(const char *name);
 
+/* G-02f-33 forward slots (defs near storage) */
+int32_t *pipeline_diag_emitted_flag_slot(void);
+int32_t *typeck_ndep_slot(void);
+
 static int pipeline_diag_emitted_flag;
+
+/* G-02f-33: storage slot for .x pipeline_diag_emitted_* */
+int32_t *pipeline_diag_emitted_flag_slot(void) {
+    return (int32_t *)&pipeline_diag_emitted_flag;
+}
 static int pipeline_last_import_open_valid;
 static char pipeline_last_import_open_import[65];
 static char pipeline_last_import_open_resolved[PATH_MAX];
 
 void pipeline_diag_emitted_reset(void) {
-    pipeline_diag_emitted_flag = 0;
+  (void)(({   {
+    int32_t * p = pipeline_diag_emitted_flag_slot();
+    (void)(((p)[0] = 0));
+  }
+ }));
 }
 
 void pipeline_diag_emitted_note(void) {
-    pipeline_diag_emitted_flag = 1;
+  (void)(({   {
+    int32_t * p = pipeline_diag_emitted_flag_slot();
+    (void)(((p)[0] = 1));
+  }
+ }));
 }
 
 int32_t pipeline_diag_emitted_get(void) {
-    return pipeline_diag_emitted_flag ? 1 : 0;
+  (void)(({   {
+    int32_t * p = pipeline_diag_emitted_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
 }
 
 void pipeline_diag_import_open_fail_once(const char *import_path, const char *resolved_path) {
@@ -265,6 +290,11 @@ void *typeck_dep_module_ptrs[32];
 void *typeck_dep_arena_ptrs[32];
 int typeck_ndep;
 
+/* G-02f-33: storage slot for .x get_ndep */
+int32_t *typeck_ndep_slot(void) {
+    return (int32_t *)&typeck_ndep;
+}
+
 /**
  * 清 typeck dep 侧车；driver_dep_seeded_clear_all 调用，避免悬空指针。
  */
@@ -293,7 +323,13 @@ void *get_dep_arena(int32_t i) {
 
 /** 当前 dep 数量。 */
 int32_t get_ndep(void) {
-    return (int32_t)typeck_ndep;
+  (void)(({   {
+    int32_t * p = typeck_ndep_slot();
+    int32_t r = (p)[0];
+    return r;
+  }
+ }));
+  return 0;
 }
 
 /** pipeline_gen.c 别名：与 get_dep_module 相同。 */
@@ -613,7 +649,12 @@ uint8_t *typeck_driver_dep_module_buf(int32_t i) {
 
 /** typeck.x 导出名：转发 driver_dep_seeded_get。 */
 int32_t typeck_driver_dep_seeded_get(int32_t i) {
-    return driver_dep_seeded_get(i);
+  (void)(({   {
+    int32_t r = driver_dep_seeded_get(i);
+    return r;
+  }
+ }));
+  return 0;
 }
 
 /**
