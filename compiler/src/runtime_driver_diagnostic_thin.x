@@ -1,11 +1,11 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-339：runtime_driver_diagnostic L2 thin — pure _impl 门闩子集（无字符串字面量）。
+// G-02f-339/340：runtime_driver_diagnostic L2 thin — pure _impl 门闩子集（无字符串字面量）。
 // 产品 PREFER_X_O：g05_try_x_to_o → thin.o + seeds/runtime_driver_diagnostic.from_x.c rest
 //   （-DSHUX_L2_RDD_THIN_FROM_X）ld -r → src/runtime_driver_diagnostic.o
 // 完整逻辑源仍见 src/runtime_driver_diagnostic.x（整文件 -E 仍 typeck/字符串阻）。
-// 本 TU 门闩数：28
+// 本 TU 门闩数：51（f-339+340）
 
 extern "C" function driver_debug_log_impl(step: i32): void;
 extern "C" function driver_diagnostic_after_entry_parse_module_impl(module: *u8): void;
@@ -256,6 +256,265 @@ function driver_diagnostic_warn_hot_reorder_field(sname: *u8, sname_len: i32, ho
 function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name: *u8, name_len: i32): void {
   unsafe {
     driver_diagnostic_hint_unused_binding_impl(line, col, name, name_len);
+  }
+}
+
+// ---- G-02f-340 pure full bodies ----
+extern "C" function driver_check_only_get(): i32;
+extern "C" function driver_check_diag_emitted_get(): i32;
+extern "C" function driver_diagnostic_asm_last_expr_kind_set(k: i32): void;
+extern "C" function driver_diagnostic_asm_current_func_store(name: *u8, len: i32): void;
+extern "C" function driver_diagnostic_asm_current_func_maybe_trace(): void;
+
+#[no_mangle]
+function driver_diagnostic_entry_already(v: i32): void {
+}
+
+#[no_mangle]
+function driver_diagnostic_after_dep_codegen(j: i32, out_len: i32): void {
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_fail(): void {
+  unsafe {
+    let _a: i32 = driver_check_only_get();
+    let _b: i32 = driver_check_diag_emitted_get();
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_set_last_expr_kind(k: i32): void {
+  unsafe {
+    driver_diagnostic_asm_last_expr_kind_set(k);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_asm_set_current_func(name: *u8, len: i32): void {
+  unsafe {
+    driver_diagnostic_asm_current_func_store(name, len);
+    driver_diagnostic_asm_current_func_maybe_trace();
+  }
+}
+
+#[no_mangle]
+function driver_diag_append_cstr(dst: *u8, cap: i32, at: i32, src: *u8): i32 {
+  if (dst == 0) { return at; }
+  if (src == 0) { return at; }
+  let j: i32 = at;
+  let i: i32 = 0;
+  while (j + 1 < cap) {
+    let c: u8 = src[i];
+    if (c == 0) { break; }
+    dst[j] = c;
+    j = j + 1;
+    i = i + 1;
+  }
+  dst[j] = 0;
+  return j;
+}
+
+#[no_mangle]
+function driver_diag_append_name(dst: *u8, cap: i32, at: i32, name: *u8, name_len: i32): i32 {
+  if (name == 0) { return at; }
+  if (name_len <= 0) { return at; }
+  let n: i32 = 0;
+  while (n < name_len) {
+    if (at + 1 >= cap) { break; }
+    dst[at] = name[n];
+    at = at + 1;
+    n = n + 1;
+  }
+  dst[at] = 0;
+  return at;
+}
+
+#[no_mangle]
+function driver_diag_append_i32(dst: *u8, cap: i32, at: i32, val: i32): i32 {
+  if (dst == 0) { return at; }
+  if (at + 1 >= cap) { return at; }
+  let v: i32 = val;
+  if (v < 0) {
+    dst[at] = 45;
+    at = at + 1;
+    v = 0 - v;
+  }
+  let d0: i32 = 0;
+  let d1: i32 = 0;
+  let d2: i32 = 0;
+  let d3: i32 = 0;
+  let d4: i32 = 0;
+  let d5: i32 = 0;
+  let d6: i32 = 0;
+  let d7: i32 = 0;
+  let d8: i32 = 0;
+  let d9: i32 = 0;
+  let dn: i32 = 0;
+  if (v == 0) {
+    d0 = 0;
+    dn = 1;
+  } else {
+    let t: i32 = v;
+    while (t > 0) {
+      if (dn >= 10) { break; }
+      let dig: i32 = t % 10;
+      if (dn == 0) { d0 = dig; }
+      if (dn == 1) { d1 = dig; }
+      if (dn == 2) { d2 = dig; }
+      if (dn == 3) { d3 = dig; }
+      if (dn == 4) { d4 = dig; }
+      if (dn == 5) { d5 = dig; }
+      if (dn == 6) { d6 = dig; }
+      if (dn == 7) { d7 = dig; }
+      if (dn == 8) { d8 = dig; }
+      if (dn == 9) { d9 = dig; }
+      t = t / 10;
+      dn = dn + 1;
+    }
+  }
+  let i: i32 = dn - 1;
+  while (i >= 0) {
+    if (at + 1 >= cap) { break; }
+    let dig: i32 = 0;
+    if (i == 0) { dig = d0; }
+    if (i == 1) { dig = d1; }
+    if (i == 2) { dig = d2; }
+    if (i == 3) { dig = d3; }
+    if (i == 4) { dig = d4; }
+    if (i == 5) { dig = d5; }
+    if (i == 6) { dig = d6; }
+    if (i == 7) { dig = d7; }
+    if (i == 8) { dig = d8; }
+    if (i == 9) { dig = d9; }
+    dst[at] = (dig + 48) as u8;
+    at = at + 1;
+    i = i - 1;
+  }
+  dst[at] = 0;
+  return at;
+}
+
+// ---- G-02f-340 _impl gates ----
+extern "C" function driver_diagnostic_before_codegen_impl(num_funcs: i32, out_len: i32): void;
+extern "C" function driver_diagnostic_source_len_impl(len: i32): void;
+extern "C" function driver_diagnostic_after_entry_parse_impl(num_funcs: i32): void;
+extern "C" function driver_diagnostic_pipe_marker_impl(id: i32): void;
+extern "C" function driver_diag_copy_bytes_impl(dst: *u8, dst_size: i64, src: *u8, src_len: i32): i32;
+extern "C" function driver_diag_fill_expr_part_impl(dst: *u8, cap: i32, expr_buf: *u8, expr_len: i32): void;
+extern "C" function driver_diagnostic_typeck_if_condition_not_bool_impl(line: i32, col: i32): void;
+extern "C" function driver_diagnostic_typeck_while_condition_not_bool_impl(line: i32, col: i32): void;
+extern "C" function driver_diagnostic_typeck_for_condition_not_bool_impl(line: i32, col: i32): void;
+extern "C" function driver_diagnostic_typeck_deref_outside_unsafe_impl(line: i32, col: i32): void;
+extern "C" function driver_diagnostic_typeck_extern_call_outside_unsafe_impl(line: i32, col: i32): void;
+extern "C" function driver_diagnostic_typeck_linear_addr_of_impl(line: i32, col: i32): void;
+extern "C" function driver_diagnostic_typeck_subscript_base_impl(line: i32, col: i32): void;
+extern "C" function driver_diagnostic_typeck_enum_no_variant_impl(line: i32, col: i32): void;
+extern "C" function driver_diagnostic_typeck_try_propagate_bad_enclosing_impl(line: i32, col: i32): void;
+extern "C" function driver_diagnostic_typeck_break_continue_outside_impl(line: i32, col: i32, is_break: i32): void;
+
+#[no_mangle]
+function driver_diagnostic_before_codegen(num_funcs: i32, out_len: i32): void {
+  unsafe {
+    driver_diagnostic_before_codegen_impl(num_funcs, out_len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_source_len(len: i32): void {
+  unsafe {
+    driver_diagnostic_source_len_impl(len);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_after_entry_parse(num_funcs: i32): void {
+  unsafe {
+    driver_diagnostic_after_entry_parse_impl(num_funcs);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_pipe_marker(id: i32): void {
+  unsafe {
+    driver_diagnostic_pipe_marker_impl(id);
+  }
+}
+
+#[no_mangle]
+function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_len: i32): i32 {
+  unsafe {
+    return driver_diag_copy_bytes_impl(dst, dst_size, src, src_len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_if_condition_not_bool_impl(line, col);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_while_condition_not_bool_impl(line, col);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_for_condition_not_bool(line: i32, col: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_for_condition_not_bool_impl(line, col);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, col: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_deref_outside_unsafe_impl(line, col);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_extern_call_outside_unsafe(line: i32, col: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_extern_call_outside_unsafe_impl(line, col);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_linear_addr_of(line: i32, col: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_linear_addr_of_impl(line, col);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_subscript_base_impl(line, col);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_enum_no_variant(line: i32, col: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_enum_no_variant_impl(line, col);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_try_propagate_bad_enclosing(line: i32, col: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_try_propagate_bad_enclosing_impl(line, col);
+  }
+}
+
+#[no_mangle]
+function driver_diagnostic_typeck_break_continue_outside(line: i32, col: i32, is_break: i32): void {
+  unsafe {
+    driver_diagnostic_typeck_break_continue_outside_impl(line, col, is_break);
   }
 }
 
