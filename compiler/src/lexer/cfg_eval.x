@@ -19,6 +19,7 @@
 // 职责：供 lexer.x / preprocess / runtime 调用 cfg_eval_expr_c、
 // cfg_apply_compile_target_from_triple、cfg_reset_compile_target。
 // seed / X pipeline 不链 C lexer.o 时仍须正确 #[cfg] 剪枝（不可恒返回 1）。
+// G-02f-182：与 bootstrap_stub 对齐审计 — 见 analysis/G-02f-自举剩余优先级.md §4.4。
 
 /** `-target` triple 覆盖后的 effective os/arch；未设置时与 host 相同。 */
 let g_cfg_os_override: u8[32] = [];

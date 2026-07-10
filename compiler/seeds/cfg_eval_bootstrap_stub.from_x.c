@@ -1,4 +1,5 @@
 /* seeds/cfg_eval_bootstrap_stub.from_x.c — G-02f-80 product cold-start TU
+ * G-02f-182: aligned with cfg_eval.x (priority doc §4.4); host lit via #if.
  * G-02f-112 helper gates.
  * G-02f-103 helper gates.
  * G-02f-101 cfg string helper gates.

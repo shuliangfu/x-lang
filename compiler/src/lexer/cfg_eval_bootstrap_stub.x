@@ -7,6 +7,7 @@
 // G-02f-112：+ cfg_eval_expr 薄门闩。
 // G-02f-151：cfg_triple_contains_ci / cfg_lit_eq_ci 真迁 .x
 // G-02f-153：cfg_eval_expr 真迁 .x（effective_os/arch + freestanding 导出）
+// G-02f-182：与 cfg_eval.x 语义对齐审计 — 见优先级表 §4.4（冷启动 fallback）。
 
 extern "C" function cfg_host_os_lit(): *u8;
 extern "C" function cfg_host_arch_lit(): *u8;
