@@ -42,7 +42,12 @@ function shux_fs_open_write_flags(): i32 {
   return 0;
 }
 
-
+// G-02f-120 / G-02f-334：mode 须在 open_write 之前（-E 产物 C 无前向声明）
+#[no_mangle]
+function shux_fs_open_write_mode(): i32 {
+  // 0644
+  return 420;
+}
 
 #[no_mangle]
 function std_fs_fs_open_write(path: *u8): i32 {
@@ -220,10 +225,4 @@ function shux_runtime_file_view_read_malloc(fd: i32, size: i64, out: *u8): i32 {
   return 0 - 1;
 }
 
-// G-02f-120：shux_fs_open_write_mode 真迁 .x
-
-#[no_mangle]
-function shux_fs_open_write_mode(): i32 {
-  // 0644
-  return 420;
-}
+/* open_write_mode 已上移到 open_write 之前（G-02f-334） */

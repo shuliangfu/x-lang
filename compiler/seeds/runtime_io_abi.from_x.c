@@ -1,7 +1,9 @@
 /* Generated from src/runtime_io_abi.x (G-02f-29/44/57..59 true .x + C tail).
+ * G-02f-334：PREFER_X_O hybrid 时 thin 由 .x→-E；rest 用 SHUX_L2_RIO_THIN_FROM_X
+ *   （C 尾 _impl + open_write flags_impl；省略 .x 公共门闩）。
  * Regen: ./shux-c -E -L .. src/runtime_io_abi.x > /tmp/io.c
  *         merge fs/path/file_view + open_write flag slots; C mmap bulk.
- * .x covers: + shux_fs_open_write_flags/mode thin gates.
+ * .x covers: std.fs/posix + path/file_view 门闩 + open_write flags/mode。
  */
 #include "win32_compat.h"
 #include "runtime_io_abi.h"
@@ -40,9 +42,15 @@
 /**
  * B-20：POSIX read 循环读 fd 到 buf[0..cap-1]；成功返回读入字节数，失败 -1。
  * 参数：fd 已打开描述符；buf/cap 输出缓冲与容量。
+ * G-02f-334：hybrid 时作 _impl（.x thin 门闩调 _impl）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_read_fd_into_buf(int fd, void *buf, size_t cap) {
+#ifndef SHUX_L2_RIO_THIN_FROM_X
+int shux_read_fd_into_buf(int fd, void *buf, size_t cap)
+#else
+int shux_read_fd_into_buf_impl(int fd, void *buf, size_t cap)
+#endif
+{
     size_t off;
     ssize_t n;
 
@@ -62,9 +70,14 @@ int shux_read_fd_into_buf(int fd, void *buf, size_t cap) {
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-334：hybrid 时作 _impl */
 
-
-int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFileView *out) {
+#ifndef SHUX_L2_RIO_THIN_FROM_X
+int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFileView *out)
+#else
+int shux_runtime_file_view_read_malloc_impl(int fd, size_t size, ShuxRuntimeFileView *out)
+#endif
+{
     size_t off;
     char *buf;
     ssize_t n;
@@ -100,13 +113,12 @@ int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFileView 
 }
 
 
-
-
-
-
-
-/* G-02f-59 io helper protos */
+/* G-02f-59 io helper protos（hybrid 时 flags 由 thin 调 flags_impl） */
+#ifndef SHUX_L2_RIO_THIN_FROM_X
 int32_t shux_fs_open_write_flags(void);
+#else
+int32_t shux_fs_open_write_flags_impl(void);
+#endif
 /* G-02f-58 helper protos */
 int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out);
 char *runtime_read_file_malloc_impl(const char *path, size_t *out_len);
@@ -147,7 +159,11 @@ int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
         fd_fallback = open(path, O_RDONLY | SHUX_O_BINARY);
         if (fd_fallback < 0)
             return -1;
+#ifdef SHUX_L2_RIO_THIN_FROM_X
+        return shux_runtime_file_view_read_malloc_impl(fd_fallback, size, out);
+#else
         return shux_runtime_file_view_read_malloc(fd_fallback, size, out);
+#endif
     }
     out->data = (const char *)mapped;
     out->length = size;
@@ -156,6 +172,7 @@ int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     return 0;
 }
 
+#ifndef SHUX_L2_RIO_THIN_FROM_X
 int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
   if (path == NULL) {
     return -1;
@@ -168,6 +185,7 @@ int runtime_read_file_view(const char *path, ShuxRuntimeFileView *out) {
   }
   return -1;
 }
+#endif
 
 void runtime_release_file_view_impl(ShuxRuntimeFileView *view) {
     if (view->needs_munmap && view->data && view->length > 0)
@@ -180,6 +198,7 @@ void runtime_release_file_view_impl(ShuxRuntimeFileView *view) {
     view->needs_munmap = 0;
 }
 
+#ifndef SHUX_L2_RIO_THIN_FROM_X
 void runtime_release_file_view(ShuxRuntimeFileView *view) {
   if (view == NULL) {
     return;
@@ -188,6 +207,7 @@ void runtime_release_file_view(ShuxRuntimeFileView *view) {
     runtime_release_file_view_impl(view);
   }
 }
+#endif
 
 /**
  * B-20：POSIX open/fstat/read 读整文件到堆缓冲。
@@ -197,11 +217,19 @@ char *runtime_read_file_malloc_impl(const char *path, size_t *out_len) {
     ShuxRuntimeFileView view;
     char *buf;
 
+#ifdef SHUX_L2_RIO_THIN_FROM_X
+    if (runtime_read_file_view_impl(path, &view) != 0)
+#else
     if (runtime_read_file_view(path, &view) != 0)
+#endif
         return NULL;
     buf = (char *)malloc(view.length + 1);
     if (!buf) {
+#ifdef SHUX_L2_RIO_THIN_FROM_X
+        runtime_release_file_view_impl(&view);
+#else
         runtime_release_file_view(&view);
+#endif
         return NULL;
     }
     if (view.length > 0)
@@ -209,10 +237,15 @@ char *runtime_read_file_malloc_impl(const char *path, size_t *out_len) {
     buf[view.length] = '\0';
     if (out_len)
         *out_len = view.length;
+#ifdef SHUX_L2_RIO_THIN_FROM_X
+    runtime_release_file_view_impl(&view);
+#else
     runtime_release_file_view(&view);
+#endif
     return buf;
 }
 
+#ifndef SHUX_L2_RIO_THIN_FROM_X
 char *runtime_read_file_malloc(const char *path, size_t *out_len) {
   if (path == NULL) {
     return NULL;
@@ -222,6 +255,7 @@ char *runtime_read_file_malloc(const char *path, size_t *out_len) {
   }
   return NULL;
 }
+#endif
 
 /**
  * B-20：open/read/close 将文件读入 buf；供 ast_pool 与 driver 语法探测。
@@ -236,11 +270,16 @@ int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap) {
     fd = open(path, O_RDONLY | SHUX_O_BINARY);
     if (fd < 0)
         return -1;
+#ifdef SHUX_L2_RIO_THIN_FROM_X
+    n = shux_read_fd_into_buf_impl(fd, buf, cap);
+#else
     n = shux_read_fd_into_buf(fd, buf, cap);
+#endif
     close(fd);
     return n;
 }
 
+#ifndef SHUX_L2_RIO_THIN_FROM_X
 int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
   if (path == NULL) {
     return -1;
@@ -256,6 +295,7 @@ int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
   }
   return -1;
 }
+#endif
 
 /**
  * B-20：open(O_WRONLY|O_CREAT|O_TRUNC)/write 写整文件。
@@ -284,6 +324,7 @@ int shux_write_path_bytes_impl(const char *path, const void *data, size_t len) {
     return off == len ? 0 : -1;
 }
 
+#ifndef SHUX_L2_RIO_THIN_FROM_X
 int shux_write_path_bytes(const char *path, const void *data, size_t len) {
   if (path == NULL) {
     return -1;
@@ -296,6 +337,7 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
   }
   return -1;
 }
+#endif
 
 /* -------------------------------------------------------------------------- */
 /* G-02e：原 std_fs_shim.c / std_sys_shim.c 并入本 TU（产品链减 2 个手写 C 文件）。 */
@@ -304,17 +346,25 @@ int shux_write_path_bytes(const char *path, const void *data, size_t len) {
 
 /** G-02f-44：open_write 平台 flags/mode 槽（.x 调 open）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t shux_fs_open_write_flags(void) {
+/* G-02f-334：hybrid 时作 flags_impl（.x thin 门闩调 _impl） */
+#ifndef SHUX_L2_RIO_THIN_FROM_X
+int32_t shux_fs_open_write_flags(void)
+#else
+int32_t shux_fs_open_write_flags_impl(void)
+#endif
+{
     return (int32_t)(O_WRONLY | O_CREAT | O_TRUNC | SHUX_O_BINARY);
 }
 
-/* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-
+/* G-02f-120：逻辑源 .x（真迁）；hybrid 时 mode 由 .x thin 提供 */
+#ifndef SHUX_L2_RIO_THIN_FROM_X
 int32_t shux_fs_open_write_mode(void) {
     return (int32_t)0644;
 }
+#endif
 
-
+/* G-02f-334：std.fs / posix 公共门闩由 .x thin；默认 seed 保留 */
+#ifndef SHUX_L2_RIO_THIN_FROM_X
 
 int32_t std_fs_fs_open_read(uint8_t * path) {
   if ((path ==((uint8_t *)(0)))) {
@@ -395,6 +445,8 @@ ssize_t fs_posix_read_c(int32_t fd, uint8_t * buf, size_t count) {
   return std_fs_fs_read(fd, buf, count);
 }
 
+#endif /* !SHUX_L2_RIO_THIN_FROM_X */
+
 /**
  * std.sys.os_read_file_into 的 C 链接符号（-E-extern import 名）。
  * 成功返回读入字节数；失败 -1。
@@ -423,6 +475,7 @@ int32_t std_sys_os_read_file_into_impl(uint8_t *path, uint8_t *buf, int32_t cap)
   return total;
 }
 
+#ifndef SHUX_L2_RIO_THIN_FROM_X
 int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
   if (path == NULL) {
     return -1;
@@ -438,4 +491,5 @@ int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
   }
   return -1;
 }
+#endif
 

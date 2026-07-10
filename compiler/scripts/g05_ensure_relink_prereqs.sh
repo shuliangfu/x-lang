@@ -96,13 +96,34 @@ g05_try_x_to_o() {
     # 仅改非 static 的简单返回类型函数定义行（-E 产物形态）
     perl -i -pe 's/^(void|int32_t|int|size_t|uint8_t|uint32_t|uint64_t)\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
   fi
-  # G-02f-332：-E 常缺 ssize_t；只前置 sys/types（勿 #include unistd，以免与 -E 的 read/write 声明冲突）
+  # G-02f-332/334：-E 缺 ssize_t / open 原型；前置 POSIX 头，并删掉 -E 里冲突的 libc extern
   {
-    echo '/* g05_try_x_to_o prologue (G-02f-332) */'
+    echo '/* g05_try_x_to_o prologue (G-02f-332/334) */'
     echo '#include <stddef.h>'
     echo '#include <stdint.h>'
     echo '#include <sys/types.h>'
-    cat "$_xtmp"
+    echo '#include <stdlib.h>'
+    echo '#include <string.h>'
+    echo '#include <stdio.h>'
+    echo '#ifndef _WIN32'
+    echo '#include <unistd.h>'
+    echo '#include <fcntl.h>'
+    echo '#include <errno.h>'
+    echo '#endif'
+    # 去掉 -E 自带 #include 与 libc 再声明（与上方头冲突）
+    sed -e '/^#include /d' \
+        -e '/^extern ssize_t read(/d' \
+        -e '/^extern ssize_t write(/d' \
+        -e '/^extern int32_t open(/d' \
+        -e '/^extern int open(/d' \
+        -e '/^extern int32_t close(/d' \
+        -e '/^extern int close(/d' \
+        -e '/^extern uint8_t \* calloc(/d' \
+        -e '/^extern uint8_t \* malloc(/d' \
+        -e '/^extern void free(/d' \
+        -e '/^extern char \* getenv(/d' \
+        -e '/^extern uint8_t \* getenv(/d' \
+        "$_xtmp"
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086
   # -x c：mktemp 无扩展名时 clang 否则不当作 C 源
@@ -789,8 +810,40 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c -o src/runtime_pipeline_abi.o "$_rpabi"
     fi
   fi
-  # G-02f-12：runtime_io / driver_abi / diagnostic seeds
-  for _pair in     "src/runtime_io_abi.o:seeds/runtime_io_abi.from_x.c"     "src/runtime_driver_abi.o:seeds/runtime_driver_abi.from_x.c"     "src/runtime_driver_diagnostic.o:seeds/runtime_driver_diagnostic.from_x.c"
+  # G-02f-12 / G-02f-334：runtime_io_abi.o
+  # 默认整 seed；PREFER_X_O=1 时 .x thin（fs/path/file_view 门闩）+ seed-rest（_impl / flags_impl）ld -r
+  _rio=seeds/runtime_io_abi.from_x.c
+  _rio_x=src/runtime_io_abi.x
+  _rio_o=src/runtime_io_abi.o
+  if [ -f "$_rio" ]; then
+    if [ ! -f "$_rio_o" ] || [ "$_rio" -nt "$_rio_o" ] \
+      || { [ -f "$_rio_x" ] && [ "$_rio_x" -nt "$_rio_o" ]; }; then
+      _rio_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rio_x" ]; then
+        _rio_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rio_thin.XXXXXX") || true
+        _rio_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rio_rest.XXXXXX") || true
+        # shellcheck disable=SC2086
+        if [ -n "$_rio_thin_o" ] && [ -n "$_rio_rest_o" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_rio_x" "$_rio_thin_o" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_L2_RIO_THIN_FROM_X \
+               -c -o "$_rio_rest_o" "$_rio" \
+          && $CC -r -nostdlib -o "$_rio_o" "$_rio_thin_o" "$_rio_rest_o" 2>/dev/null; then
+          echo "g05_ensure: $_rio_o ← $_rio_x + seed-rest (G-02f-334 L2 hybrid runtime_io_abi thin)"
+          _rio_done=1
+        else
+          echo "g05_ensure: L2 hybrid runtime_io_abi failed; fallback full seed" >&2
+        fi
+        rm -f "$_rio_thin_o" "$_rio_rest_o"
+      fi
+      if [ "$_rio_done" = "0" ]; then
+        echo "g05_ensure: $_rio_o ← seed (G-02f-12)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rio_o" "$_rio"
+      fi
+    fi
+  fi
+  # G-02f-12：runtime_driver_abi / diagnostic seeds
+  for _pair in     "src/runtime_driver_abi.o:seeds/runtime_driver_abi.from_x.c"     "src/runtime_driver_diagnostic.o:seeds/runtime_driver_diagnostic.from_x.c"
   do
     _o="${_pair%%:*}"
     _s="${_pair#*:}"
