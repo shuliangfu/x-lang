@@ -653,8 +653,9 @@ src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_a
 src/runtime_pipeline_abi.o: seeds/runtime_pipeline_abi.from_x.c src/runtime_pipeline_abi.x src/runtime_pipeline_abi.h Makefile
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) $(RUNTIME_PIPELINE_ABI_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_pipeline_abi.from_x.c -o $@
 
-src/runtime_c_import.o: src/runtime_c_import.inc src/runtime_c_import.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/runtime_c_import.inc $@
+# G-02f-22：runtime_c_import 产品 seed
+src/runtime_c_import.o: seeds/runtime_c_import.from_x.c src/runtime_c_import.x src/runtime_c_import.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_c_import.from_x.c -o $@
 
 # G-02f-18：async_liveness 产品 seed
 src/async/async_liveness.o: seeds/async_liveness.from_x.c src/async/async_liveness.x
@@ -780,16 +781,19 @@ ifneq (,$(RUNTIME_PANIC_S))
 runtime_panic.o: src/asm/runtime_panic_x86_64.s $(RUNTIME_PANIC_PLATFORM_STAMP)
 	$(CC) -c -o $@ $<
 else
-runtime_panic.o: src/asm/runtime_panic.inc $(RUNTIME_PANIC_PLATFORM_STAMP) scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_panic.inc $@
+# G-02f-22：runtime_panic C 变体 seed
+runtime_panic.o: seeds/runtime_panic.from_x.c src/asm/runtime_panic.x $(RUNTIME_PANIC_PLATFORM_STAMP)
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o $@
 endif
 else
-runtime_panic.o: src/asm/runtime_panic_arm64.inc $(RUNTIME_PANIC_PLATFORM_STAMP) scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_panic_arm64.inc $@
+# G-02f-22：runtime_panic_arm64 seed
+runtime_panic.o: seeds/runtime_panic_arm64.from_x.c src/asm/runtime_panic_arm64.x $(RUNTIME_PANIC_PLATFORM_STAMP)
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_panic_arm64.from_x.c -o $@
 endif
 else
-runtime_panic.o: src/asm/runtime_panic.inc $(RUNTIME_PANIC_PLATFORM_STAMP) scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_panic.inc $@
+# G-02f-22：runtime_panic C 变体 seed
+runtime_panic.o: seeds/runtime_panic.from_x.c src/asm/runtime_panic.x $(RUNTIME_PANIC_PLATFORM_STAMP)
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o $@
 endif
 
 # seed asm 用户程序：std.io 跳过 .x emit 时的 print/write/read_ptr 链接桩（G-02e-20 .inc）
@@ -1632,7 +1636,7 @@ src/lsp/lsp_diag_pipeline_ctx.o: seeds/lsp_diag_pipeline_ctx.from_x.c src/lsp/ls
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_ctx.from_x.c -o $@
 
 # G-02f-11：runtime_driver_strict_glue_stubs 产品 seed（内含 runtime_heap_user.inc）
-src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.from_x.c src/runtime_driver_strict_glue_stubs.x src/runtime_heap_user.inc
+src/runtime_driver_strict_glue_stubs.o: seeds/runtime_driver_strict_glue_stubs.from_x.c src/runtime_driver_strict_glue_stubs.x seeds/runtime_heap_user.from_x.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o $@
 
 # G-02a：ast_seed.o 从 runtime_ast_glue.inc 编译（从 src/ast/ast.c 迁移）。
@@ -2016,8 +2020,9 @@ preprocess_x.o: preprocess_gen.c $(PREPROCESS_X_DEPS)
 	$(CC) $(CFLAGS) -c preprocess_gen.c -o preprocess_x.o
 
 # SHUX_NO_C_FRONTEND 下 lsp_diag_x.o / lsp_x.o 需要的文档缓冲 + X 管道缓冲桩
-src/lsp/lsp_diag_stubs_no_c.o: src/lsp/lsp_diag_stubs_no_c.inc include/diag.h scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_stubs_no_c.inc $@
+# G-02f-22：lsp_diag_stubs_no_c 产品 seed
+src/lsp/lsp_diag_stubs_no_c.o: seeds/lsp_diag_stubs_no_c.from_x.c src/lsp/lsp_diag_stubs_no_c.x include/diag.h
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_stubs_no_c.from_x.c -o $@
 
 # SHUX_SKIP_SUBSCRIPT_MAKE=1：run-all 入口已链 seed，子脚本 `make` 仅在校验 shux 缺失时再完整 bootstrap。
 ifeq ($(SHUX_SKIP_SUBSCRIPT_MAKE),1)
@@ -2436,5 +2441,10 @@ perf-baseline:
 	@if [ -f ../tests/run-perf-baseline.sh ]; then (cd .. && chmod +x tests/run-perf-baseline.sh && SHUX=./compiler/shux-c ./tests/run-perf-baseline.sh); fi
 
 # core.slice：语言限制 C 桩（G-01 core 零 C；G-02e-17：.inc + cc_inc_tu）。
-../core/slice/slice.o: src/asm/runtime_slice_glue.inc scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh src/asm/runtime_slice_glue.inc $@
+# G-02f-22：runtime_slice_glue 产品 seed
+../core/slice/slice.o: seeds/runtime_slice_glue.from_x.c src/asm/runtime_slice_glue.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_slice_glue.from_x.c -o $@
+
+# G-02f-22：runtime_asm_build 产品 seed
+src/asm/runtime_asm_build.o: seeds/runtime_asm_build.from_x.c src/asm/runtime_asm_build.x
+	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o $@

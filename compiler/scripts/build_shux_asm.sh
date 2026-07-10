@@ -3199,9 +3199,9 @@ ensure_lsp_diag_seed_obj() {
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lsp_glue.from_x.c -o "$seed_dir/lsp_diag.o"
   fi
   else
-  if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "src/lsp/lsp_diag_stubs_no_c.inc" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then
+  if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "seeds/lsp_diag_stubs_no_c.from_x.c" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then
   echo " cc -c $seed_dir/lsp_diag_stubs_no_c.o (E-02 soft-retire lsp_diag.c)"
-  sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_stubs_no_c.inc "$seed_dir/lsp_diag_stubs_no_c.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/lsp_diag_stubs_no_c.from_x.c -o "$seed_dir/lsp_diag_stubs_no_c.o"
   fi
   fi
 }
@@ -3679,8 +3679,8 @@ ensure_asm_lsp_codegen_extern_obj() {
 
 # 回退链接所需的 C 桩（不依赖 make）
 ensure_runtime_cc_stubs() {
-  echo " cc -c src/asm/runtime_asm_build.o <- src/asm/runtime_asm_build.inc"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_asm_build.inc src/asm/runtime_asm_build.o
+  echo " cc -c src/asm/runtime_asm_build.o <- seeds/runtime_asm_build.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o src/asm/runtime_asm_build.o
   echo " cc -c src/runtime_driver.o <- seeds/runtime.from_x.c (-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS)"
   local rt_flags="-DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_PREPROCESS"
   if [ "${SHUX_LEGACY_PREPROCESS_C:-0}" = "1" ]; then
@@ -3866,12 +3866,12 @@ ensure_asm_link_objs() {
   if [ "$UNAME_S" = "Linux" ] && [ "$(uname -m 2>/dev/null)" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
   echo " cc -c runtime_panic.o <- src/asm/runtime_panic_x86_64.s"
   "$CC" -c -o runtime_panic.o src/asm/runtime_panic_x86_64.s
-  elif [ -f src/asm/runtime_panic_arm64.inc ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
-  echo " cc_inc_tu runtime_panic.o <- src/asm/runtime_panic_arm64.inc"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_panic_arm64.inc runtime_panic.o
+  elif [ -f seeds/runtime_panic_arm64.from_x.c ] && { [ "$(uname -m 2>/dev/null)" = "aarch64" ] || [ "$(uname -m 2>/dev/null)" = "arm64" ]; }; then
+  echo " cc_inc_tu runtime_panic.o <- seeds/runtime_panic_arm64.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic_arm64.from_x.c -o runtime_panic.o
   else
-  echo " cc_inc_tu runtime_panic.o <- src/asm/runtime_panic.inc"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_panic.inc runtime_panic.o
+  echo " cc_inc_tu runtime_panic.o <- seeds/runtime_panic.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_panic.from_x.c -o runtime_panic.o
   fi
   if [ "$UNAME_S" = "Linux" ] && [ -f src/asm/crt0_x86_64.s ]; then
   echo " cc -c src/asm/crt0_x86_64.o <- src/asm/crt0_x86_64.s"

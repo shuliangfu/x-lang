@@ -289,9 +289,9 @@ ensure_lsp_diag_seed_obj() {
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lsp_glue.from_x.c -o "$seed_dir/lsp_diag.o"
   fi
   else
-  if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "src/lsp/lsp_diag_stubs_no_c.inc" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then
+  if [ ! -f "$seed_dir/lsp_diag_stubs_no_c.o" ] || [ "seeds/lsp_diag_stubs_no_c.from_x.c" -nt "$seed_dir/lsp_diag_stubs_no_c.o" ]; then
   strict_glue_info "cc -c $seed_dir/lsp_diag_stubs_no_c.o (E-02 soft-retire lsp_diag.c)"
-  sh scripts/cc_inc_tu.sh src/lsp/lsp_diag_stubs_no_c.inc "$seed_dir/lsp_diag_stubs_no_c.o"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/lsp_diag_stubs_no_c.from_x.c -o "$seed_dir/lsp_diag_stubs_no_c.o"
   fi
   fi
 }
@@ -1608,9 +1608,9 @@ ensure_lexer_obj() {
 
 ensure_runtime_c_import_obj() {
   local o="src/runtime_c_import.o"
-  if [ ! -f "$o" ] || [ "src/runtime_c_import.inc" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/runtime_c_import.inc"
-  sh scripts/cc_inc_tu.sh src/runtime_c_import.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_c_import.from_x.c" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- seeds/runtime_c_import.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_c_import.from_x.c -o "$o"
   fi
 }
 
@@ -1639,9 +1639,9 @@ ensure_runtime_driver_strict_glue_stubs_obj() {
 }
 ensure_runtime_asm_build_obj() {
   local o="src/asm/runtime_asm_build.o"
-  if [ ! -f "$o" ] || [ "src/asm/runtime_asm_build.inc" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- src/asm/runtime_asm_build.inc"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_asm_build.inc "$o"
+  if [ ! -f "$o" ] || [ "seeds/runtime_asm_build.from_x.c" -nt "$o" ]; then
+  strict_glue_info "cc -c $o <- seeds/runtime_asm_build.from_x.c"
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o "$o"
   fi
 }
 
@@ -1781,10 +1781,10 @@ if [ "$(uname -s 2>/dev/null)" = "Linux" ]; then
   _panic_src=""
   if [ "$_arch" = "x86_64" ] && [ -f src/asm/runtime_panic_x86_64.s ]; then
   _panic_src="src/asm/runtime_panic_x86_64.s"
-  elif { [ "$_arch" = "aarch64" ] || [ "$_arch" = "arm64" ]; } && [ -f src/asm/runtime_panic_arm64.inc ]; then
-  _panic_src="src/asm/runtime_panic_arm64.inc"
-  elif [ -f src/asm/runtime_panic.inc ]; then
-  _panic_src="src/asm/runtime_panic.inc"
+  elif { [ "$_arch" = "aarch64" ] || [ "$_arch" = "arm64" ]; } && [ -f seeds/runtime_panic_arm64.from_x.c ]; then
+  _panic_src="seeds/runtime_panic_arm64.from_x.c"
+  elif [ -f seeds/runtime_panic.from_x.c ]; then
+  _panic_src="seeds/runtime_panic.from_x.c"
   fi
   if [ -n "$_panic_src" ] && { [ ! -f runtime_panic.o ] || [ "$_panic_src" -nt runtime_panic.o ]; }; then
   strict_glue_info "cc runtime_panic.o <- $_panic_src"

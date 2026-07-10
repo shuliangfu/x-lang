@@ -96,9 +96,9 @@ if [ ! -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ] || [ "src/asm/asm_expe
 fi
 
 # runtime_asm_build.o（首链 bootstrap-asm 产物；缺则 ld 失败）。
-if [ ! -f src/asm/runtime_asm_build.o ] || [ "src/asm/runtime_asm_build.inc" -nt src/asm/runtime_asm_build.o ]; then
+if [ ! -f src/asm/runtime_asm_build.o ] || [ "seeds/runtime_asm_build.from_x.c" -nt src/asm/runtime_asm_build.o ]; then
   experimental_bootstrap_info "cc runtime_asm_build.o"
-  sh scripts/cc_inc_tu.sh src/asm/runtime_asm_build.inc src/asm/runtime_asm_build.o
+  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o src/asm/runtime_asm_build.o
 fi
 
 # B-strict shux_asm：driver_run_compiler_full 走 impl_c（与 build_shux_asm.sh 一致）。
