@@ -59,8 +59,10 @@ g05_cc_c() {
 if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   echo "g05_ensure_relink_prereqs: hot rebuild (cc, no make)"
   g05_cc_c src/runtime_link_abi.o src/runtime_link_abi.inc
-  # 注意：.o 名是 runtime_driver_no_c.o，源文件是 runtime.c + NO_C flags
+  # 注意：.o 名是 runtime_driver_no_c.o，源文件是 runtime.inc + NO_C flags
   g05_cc_c src/runtime_driver_no_c.o src/runtime.inc $RUNTIME_DRIVER_NO_C_CFLAGS
+  # 与 Makefile RUNTIME_PIPELINE_ABI_CFLAGS 一致（须 SHUX_USE_X_PIPELINE，避免链 preprocess_c_fallback）
+  g05_cc_c src/runtime_pipeline_abi.o src/runtime_pipeline_abi.inc -DSHUX_USE_X_PIPELINE
   g05_cc_c build_asm/pipeline_glue_strict_minimal.o src/asm/pipeline_glue_strict_minimal.inc
   # G-02e：typeck_f64_bits 纯 .s
   _f64s=""
@@ -100,7 +102,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
     # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
     case "$o" in
-      src/runtime_driver_no_c.o|src/typeck/typeck_f64_bits.o|build_asm/*|*.s) continue ;;
+      # 已在热路径专用 flags 编译
+      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/typeck/typeck_f64_bits.o|build_asm/*|*.s) continue ;;
       # G-02e-7：link_alias 并入；产品默认 SKIP 前缀别名（与 Makefile PARSER_ASM_LINK_ALIAS_CFLAGS 一致）
       src/asm/parser_asm_parse_expr_link.o)
         if [ -n "$src" ] && { [ ! -f "$o" ] || [ "$src" -nt "$o" ]; }; then
