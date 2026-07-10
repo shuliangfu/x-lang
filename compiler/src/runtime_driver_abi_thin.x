@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-343/344/345/387：runtime_driver_abi L2 thin（31 门闩：+ ascii_toupper / typeck_skip / sanitize_get）。
+// G-02f-343/344/345/387/388：runtime_driver_abi L2 thin（38 门闩）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 //
 
@@ -15,7 +15,7 @@ extern "C" function driver_x_pipeline_skip_codegen_flag_slot(): *i32;
 extern "C" function driver_skip_codegen_dep_0_flag_slot(): *i32;
 extern "C" function driver_large_stack_thread_flag_slot(): *i32;
 extern "C" function driver_current_dep_path_store(path: *u8): void;
-extern "C" function driver_pipeline_entry_source_len_i32(): i32;
+extern "C" function driver_pipeline_entry_source_len_i32_impl(): i32;
 extern "C" function driver_sanitize_address_env_enabled_impl(): i32;
 
 #[no_mangle]
@@ -313,7 +313,7 @@ function driver_ascii_toupper(c: i32): i32 {
 #[no_mangle]
 function driver_typeck_skip_large_entry(): i32 {
   unsafe {
-    let len: i32 = driver_pipeline_entry_source_len_i32();
+    let len: i32 = driver_pipeline_entry_source_len_i32_impl();
     if (len > 150000) {
       return 1;
     }
@@ -368,6 +368,34 @@ function driver_asm_entry_emit_heavy(): i32 {
 function driver_pipeline_no_large_stack_env(): i32 {
   unsafe {
     return driver_pipeline_no_large_stack_env_impl();
+  }
+  return 0;
+}
+
+// ---- G-02f-388：module_only / parse_metric_only / entry_source_len_i32 → seed impl ----
+extern "C" function driver_asm_entry_module_only_from_env_impl(): i32;
+extern "C" function driver_asm_parse_metric_only_from_env_impl(): i32;
+
+#[no_mangle]
+function driver_asm_entry_module_only_from_env(): i32 {
+  unsafe {
+    return driver_asm_entry_module_only_from_env_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_asm_parse_metric_only_from_env(): i32 {
+  unsafe {
+    return driver_asm_parse_metric_only_from_env_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_pipeline_entry_source_len_i32(): i32 {
+  unsafe {
+    return driver_pipeline_entry_source_len_i32_impl();
   }
   return 0;
 }

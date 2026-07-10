@@ -33,6 +33,9 @@ int32_t driver_typeck_force_c_enabled(void);
 int32_t driver_asm_build_skip_typeck(void);
 int32_t driver_asm_entry_emit_heavy(void);
 int32_t driver_pipeline_no_large_stack_env(void);
+int32_t driver_asm_entry_module_only_from_env(void);
+int32_t driver_asm_parse_metric_only_from_env(void);
+int32_t driver_pipeline_entry_source_len_i32(void);
 #define compile_phase_now_sec compile_phase_now_sec_impl
 #define driver_compile_phase_timing_enabled driver_compile_phase_timing_enabled_impl
 #endif
@@ -459,11 +462,18 @@ static size_t g_pipeline_entry_source_len;
 
 /* G-02f-45 */
 /* G-02f-243：逻辑源 .x（真迁 saturate）；seed 保留同语义 C 供产品 cc */
-int32_t driver_pipeline_entry_source_len_i32(void) {
+/* G-02f-388：实现体始终 seed（读 static g_pipeline_entry_source_len）；public PREFER 时 thin forward */
+int32_t driver_pipeline_entry_source_len_i32_impl(void) {
     if (g_pipeline_entry_source_len > (size_t)0x7fffffff)
         return 0x7fffffff;
     return (int32_t)g_pipeline_entry_source_len;
 }
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_pipeline_entry_source_len_i32(void) {
+    return driver_pipeline_entry_source_len_i32_impl();
+}
+#endif
 
 
 
@@ -508,7 +518,7 @@ size_t driver_pipeline_entry_source_len(void) {
 #ifndef SHUX_L2_RDABI_THIN_FROM_X
 int32_t driver_typeck_skip_large_entry(void) {
   (void)(({   {
-    int32_t len = driver_pipeline_entry_source_len_i32();
+    int32_t len = driver_pipeline_entry_source_len_i32_impl();
     if ((len > 150000)) {
       return 1;
     }
@@ -581,7 +591,8 @@ int32_t driver_asm_entry_emit_heavy(void) {
  * build_shux_asm 单模块 -o：SHUX_ASM_ENTRY_MODULE_ONLY=1 时仅编入口模块。
  * 返回值：环境变量非空且非 '0' 时为 1。
  */
-int32_t driver_asm_entry_module_only_from_env(void) {
+/* G-02f-388：实现体始终 seed；public PREFER 时 thin forward */
+int32_t driver_asm_entry_module_only_from_env_impl(void) {
   (void)(({   {
     char *e = getenv("SHUX_ASM_ENTRY_MODULE_ONLY");
     if ((e ==((char *)(0)))) {
@@ -599,11 +610,18 @@ int32_t driver_asm_entry_module_only_from_env(void) {
   return 0;
 }
 
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_asm_entry_module_only_from_env(void) {
+  return driver_asm_entry_module_only_from_env_impl();
+}
+#endif
+
 /**
  * A-11 typeck-parse-count-gate：仅采集 parse 指标，不跑 pipeline/asm_codegen_elf_o。
  * 返回值：SHUX_ASM_PARSE_METRIC_ONLY 非空且非 '0' 时为 1。
  */
-int32_t driver_asm_parse_metric_only_from_env(void) {
+/* G-02f-388：实现体始终 seed；public PREFER 时 thin forward */
+int32_t driver_asm_parse_metric_only_from_env_impl(void) {
   (void)(({   {
     char *e = getenv("SHUX_ASM_PARSE_METRIC_ONLY");
     if ((e ==((char *)(0)))) {
@@ -620,6 +638,12 @@ int32_t driver_asm_parse_metric_only_from_env(void) {
  }));
   return 0;
 }
+
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
+int32_t driver_asm_parse_metric_only_from_env(void) {
+  return driver_asm_parse_metric_only_from_env_impl();
+}
+#endif
 
 /** -o 可执行文件路径：非 0 时 pipeline 跳过 dep 0 的 codegen。 */
 static int driver_skip_codegen_dep_0_flag;
