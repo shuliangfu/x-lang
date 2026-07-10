@@ -1,4 +1,4 @@
-/* G-02f-352～359：PREFER hybrid thin 由 src/asm/backend_enc_dispatch_thin.x；rest SHUX_L2_ENC_DISPATCH_THIN_FROM_X。
+/* G-02f-352～360：PREFER hybrid thin 由 src/asm/backend_enc_dispatch_thin.x；rest SHUX_L2_ENC_DISPATCH_THIN_FROM_X。
  */
 /* seeds/backend_enc_dispatch.from_x.c — G-02f-208 enc_dispatch *_arch closed; G-02f-9 product TU
  * G-02f-130 true .x pure helpers.
@@ -111,6 +111,16 @@ int32_t backend_enc_rbx_plus_index_scratch_scaled_arch(struct platform_elf_ElfCo
 int32_t backend_enc_load_rbp_lane_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t esz, int32_t ta);
 int32_t backend_enc_jle_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
 int32_t backend_enc_jl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+int32_t backend_enc_load_x29_pos_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_pos, int32_t ta);
+int32_t backend_enc_add_imm_to_index_scratch_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, int32_t ta);
+int32_t backend_enc_load_rbp_index_secondary_scratch_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta);
+int32_t backend_enc_sub_imm_from_index_scratch_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, int32_t ta);
+int32_t backend_enc_mul_imm_to_index_scratch_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lit, int32_t ta);
+int32_t backend_enc_mul_imm_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lit, int32_t ta);
+int32_t backend_enc_add_imm_to_rbx_index_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, int32_t ta);
+int32_t backend_enc_sub_imm_from_rbx_index_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, int32_t ta);
+int32_t backend_enc_load_rbp_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta);
+int32_t backend_enc_load_rbp_lane_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t esz, int32_t ta);
 #endif
 
 extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, int32_t n);
@@ -1288,6 +1298,7 @@ int32_t backend_enc_store_x_reg_to_rbp_arch(struct platform_elf_ElfCodegenCtx *e
  * 在 C 侧用 uint32_t 拼 LDR 机器码，避免 partial 内 i32 大常量被宿主 cc 误加载（0xF93FFFA0）。
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_load_x29_pos_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_pos,
                                              int32_t ta) {
   if (ta == 1) {
@@ -1305,6 +1316,7 @@ int32_t backend_enc_load_x29_pos_to_rax_arch(struct platform_elf_ElfCodegenCtx *
   }
   return -1;
 }
+#endif
 
 /**
  * ta 分派：enc_mov_arg_reg_to_rax（x86 SysV 形参寄存器 → rax）。
@@ -1350,6 +1362,7 @@ int32_t backend_enc_load_rbp_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_
  * ta 分派：enc_load_rbp_to_rbx_arch
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_load_rbp_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset, int32_t ta) {
   if (ta == 1)
     return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset);
@@ -1377,6 +1390,7 @@ int32_t backend_enc_load_rbp_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_
   }
   return -1;
 }
+#endif
 
 /**
  * arm64：LDUR w0, [x29, #-offset]（f32/i32 单向量 lane load）。
@@ -1423,12 +1437,14 @@ int32_t backend_enc_load_rbp_lane_to_rax_arch(struct platform_elf_ElfCodegenCtx 
  * x86：movl 取 i32 lane；其它 arch / 8B lane 走 movq。
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_load_rbp_lane_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                               int32_t esz, int32_t ta) {
   if (ta == 0 && esz == 4)
     return arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx, offset);
   return backend_enc_load_rbp_to_rbx_arch(elf_ctx, offset, ta);
 }
+#endif
 
 /**
  * arm64：STUR w0, [x29, #-offset]（f32 局部 let/assign；勿 64 位 str x0 覆盖相邻 4B 槽）。
@@ -1697,6 +1713,7 @@ int32_t backend_enc_rbx_plus_index_scratch_scaled_arch(struct platform_elf_ElfCo
  * ta 分派：INDEX scratch 下标 + 字面量偏移（var+lit / lit+var add 下标）。
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_add_imm_to_index_scratch_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm,
                                                    int32_t ta) {
   if (ta == 1) {
@@ -1715,11 +1732,13 @@ int32_t backend_enc_add_imm_to_index_scratch_arch(struct platform_elf_ElfCodegen
     return arch_riscv64_enc_enc_add_imm_to_a2(elf_ctx, imm);
   return arch_x86_64_enc_enc_add_imm_to_ecx(elf_ctx, imm);
 }
+#endif
 
 /**
  * ta 分派：INDEX 第二下标 load 到 scratch2（arm64 w3 / x86 edx / riscv a3）。
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_load_rbp_index_secondary_scratch_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                                            int32_t ta) {
   int32_t simm9;
@@ -1738,6 +1757,7 @@ int32_t backend_enc_load_rbp_index_secondary_scratch_arch(struct platform_elf_El
     return arch_riscv64_enc_enc_load_rbp_to_a3(elf_ctx, offset);
   return arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx, offset);
 }
+#endif
 
 /**
  * ta 分派：INDEX scratch 下标 i+j（primary += secondary）。
@@ -1757,6 +1777,7 @@ int32_t backend_enc_index_scratch_add_secondary_arch(struct platform_elf_ElfCode
  * ta 分派：INDEX scratch 下标 var-lit（primary -= imm）。
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_sub_imm_from_index_scratch_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm,
                                                      int32_t ta) {
   if (ta == 1) {
@@ -1775,6 +1796,7 @@ int32_t backend_enc_sub_imm_from_index_scratch_arch(struct platform_elf_ElfCodeg
     return arch_riscv64_enc_enc_sub_imm_from_a2(elf_ctx, imm);
   return arch_x86_64_enc_enc_sub_imm_from_ecx(elf_ctx, imm);
 }
+#endif
 
 /**
  * ta 分派：INDEX scratch 下标 i-j（primary -= secondary）。
@@ -1823,6 +1845,7 @@ int32_t backend_enc_rbx_index_rsub_secondary_arch(struct platform_elf_ElfCodegen
  * arm64：mov w3,#imm + mul w2,w2,w3；x86：imull $imm,%ecx；riscv：addi a3 + mul a2,a2,a3。
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_mul_imm_to_index_scratch_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lit,
                                                    int32_t ta) {
   uint32_t ins;
@@ -1842,11 +1865,13 @@ int32_t backend_enc_mul_imm_to_index_scratch_arch(struct platform_elf_ElfCodegen
     return arch_riscv64_enc_enc_mul_imm_to_a2(elf_ctx, lit);
   return arch_x86_64_enc_enc_imul_imm_to_ecx(elf_ctx, lit);
 }
+#endif
 
 /**
  * ta 分派：INDEX 读路径下标（rbx）× 正字面量（return arr[i*lit] 等；2≤lit≤65535）。
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_mul_imm_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lit, int32_t ta) {
   uint32_t ins;
   if (lit <= 1)
@@ -1864,11 +1889,13 @@ int32_t backend_enc_mul_imm_to_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_c
     return arch_riscv64_enc_enc_mul_imm_to_rbx(elf_ctx, lit);
   return arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx, lit);
 }
+#endif
 
 /**
  * ta 分派：INDEX 读路径下标（rbx/w1）+ 字面量（return arr[i+lit] 等）。
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_add_imm_to_rbx_index_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, int32_t ta) {
   int32_t imm12;
   uint32_t ins;
@@ -1886,11 +1913,13 @@ int32_t backend_enc_add_imm_to_rbx_index_arch(struct platform_elf_ElfCodegenCtx 
     return arch_riscv64_enc_enc_add_imm_to_rbx(elf_ctx, imm);
   return arch_x86_64_enc_enc_add_imm_to_ebx_index(elf_ctx, imm);
 }
+#endif
 
 /**
  * ta 分派：INDEX 读路径下标（rbx）- 字面量（return arr[i-lit] 等）。
  */
 /* G-02f-207：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_sub_imm_from_rbx_index_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, int32_t ta) {
   int32_t imm12;
   uint32_t ins;
@@ -1908,6 +1937,7 @@ int32_t backend_enc_sub_imm_from_rbx_index_arch(struct platform_elf_ElfCodegenCt
     return arch_riscv64_enc_enc_sub_imm_from_rbx_index(elf_ctx, imm);
   return arch_x86_64_enc_enc_sub_imm_from_ebx_index(elf_ctx, imm);
 }
+#endif
 
 /**
  * ta 分派：INDEX 读路径 i+j（primary rbx += secondary scratch）。

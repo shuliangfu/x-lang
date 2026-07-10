@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-352～359：backend_enc_dispatch L2 thin — arm64 encode + ta 分派壳（75+17=92）。
+// G-02f-352～360：backend_enc_dispatch L2 thin — arm64 encode + ta 分派壳（92+10=102）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_ENC_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_enc_dispatch.o
 // 对照：src/asm/backend_enc_dispatch.x；默认仍整 seed。
@@ -1465,5 +1465,240 @@ function backend_enc_jl_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32):
     return 0 - 1;
   }
   unsafe { return backend_enc_x86_jcc_rel32_c(elf_ctx, 140, label, label_len); }
+  return 0 - 1;
+}
+
+// ---- G-02f-360：ta 分派壳 batch7（index imm / x29 pos / load_rbp_to_rbx / lane_rbx）----
+extern "C" function arch_riscv64_enc_enc_add_imm_to_a2(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_x86_64_enc_enc_add_imm_to_ecx(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_riscv64_enc_enc_load_rbp_to_a3(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_riscv64_enc_enc_sub_imm_from_a2(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_x86_64_enc_enc_sub_imm_from_ecx(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_riscv64_enc_enc_mul_imm_to_a2(elf_ctx: *u8, lit: i32): i32;
+extern "C" function arch_x86_64_enc_enc_imul_imm_to_ecx(elf_ctx: *u8, lit: i32): i32;
+extern "C" function arch_riscv64_enc_enc_mul_imm_to_rbx(elf_ctx: *u8, lit: i32): i32;
+extern "C" function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, lit: i32): i32;
+extern "C" function arch_x86_64_enc_enc_add_imm_to_ebx_index(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_riscv64_enc_enc_sub_imm_from_rbx_index(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_x86_64_enc_enc_sub_imm_from_ebx_index(elf_ctx: *u8, imm: i32): i32;
+extern "C" function arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_riscv64_enc_enc_load_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_x86_64_enc_enc_load_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32;
+extern "C" function arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx: *u8, offset: i32): i32;
+
+// arm64 only：LDR x0, [x29, #off]；imm12 = off/8
+#[no_mangle]
+function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32 {
+  if (ta != 1) {
+    return 0 - 1;
+  }
+  if (off_pos < 0) {
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 4181722016 as i32);
+    }
+    return 0 - 1;
+  }
+  if ((off_pos / 8) > 4095) {
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (4181722016 | (4095 * 1024)) as i32);
+    }
+    return 0 - 1;
+  }
+  unsafe {
+    return arch_arm64_enc_enc_u32_le(elf_ctx, (4181722016 | (((off_pos / 8) as u32) * 1024)) as i32);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_add_imm_to_index_scratch_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  if (ta == 1) {
+    if (imm == 0) {
+      return 0;
+    }
+    if (imm > 4095) {
+      unsafe {
+        return arch_arm64_enc_enc_u32_le(elf_ctx, (285213762 + ((4095 - 1) * 1024)) as i32);
+      }
+      return 0 - 1;
+    }
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (285213762 + ((imm - 1) * 1024)) as i32);
+    }
+    return 0 - 1;
+  }
+  if (ta == 2) {
+    unsafe { return arch_riscv64_enc_enc_add_imm_to_a2(elf_ctx, imm); }
+  }
+  unsafe { return arch_x86_64_enc_enc_add_imm_to_ecx(elf_ctx, imm); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_load_rbp_index_secondary_scratch_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  if (ta == 1) {
+    if (offset > 256) {
+      unsafe {
+        return arch_arm64_enc_enc_u32_le(elf_ctx, (3091202048 | (256 * 4096) | 931) as i32);
+      }
+      return 0 - 1;
+    }
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (3091202048 | ((((0 - offset) & 511) as u32) * 4096) | 931) as i32);
+    }
+    return 0 - 1;
+  }
+  if (ta == 2) {
+    unsafe { return arch_riscv64_enc_enc_load_rbp_to_a3(elf_ctx, offset); }
+  }
+  unsafe { return arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx, offset); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_sub_imm_from_index_scratch_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  if (ta == 1) {
+    if (imm == 0) {
+      return 0;
+    }
+    if (imm > 4095) {
+      unsafe {
+        return arch_arm64_enc_enc_u32_le(elf_ctx, (1358955586 + ((4095 - 1) * 1024)) as i32);
+      }
+      return 0 - 1;
+    }
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (1358955586 + ((imm - 1) * 1024)) as i32);
+    }
+    return 0 - 1;
+  }
+  if (ta == 2) {
+    unsafe { return arch_riscv64_enc_enc_sub_imm_from_a2(elf_ctx, imm); }
+  }
+  unsafe { return arch_x86_64_enc_enc_sub_imm_from_ecx(elf_ctx, imm); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_mul_imm_to_index_scratch_arch(elf_ctx: *u8, lit: i32, ta: i32): i32 {
+  if (lit <= 1) {
+    return 0;
+  }
+  if (lit > 65535) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (1384120320 | ((lit as u32) * 32) | 3) as i32) != 0) {
+        return 0 - 1;
+      }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 453213250);
+    }
+    return 0 - 1;
+  }
+  if (ta == 2) {
+    unsafe { return arch_riscv64_enc_enc_mul_imm_to_a2(elf_ctx, lit); }
+  }
+  unsafe { return arch_x86_64_enc_enc_imul_imm_to_ecx(elf_ctx, lit); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_mul_imm_to_rbx_arch(elf_ctx: *u8, lit: i32, ta: i32): i32 {
+  if (lit <= 1) {
+    return 0;
+  }
+  if (lit > 65535) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (1384120320 | ((lit as u32) * 32) | 3) as i32) != 0) {
+        return 0 - 1;
+      }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 453213217);
+    }
+    return 0 - 1;
+  }
+  if (ta == 2) {
+    unsafe { return arch_riscv64_enc_enc_mul_imm_to_rbx(elf_ctx, lit); }
+  }
+  unsafe { return arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx, lit); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_add_imm_to_rbx_index_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  if (imm == 0) {
+    return 0;
+  }
+  if (ta == 1) {
+    if (imm > 4095) {
+      unsafe {
+        return arch_arm64_enc_enc_u32_le(elf_ctx, (285213729 + ((4095 - 1) * 1024)) as i32);
+      }
+      return 0 - 1;
+    }
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (285213729 + ((imm - 1) * 1024)) as i32);
+    }
+    return 0 - 1;
+  }
+  if (ta == 2) {
+    unsafe { return arch_riscv64_enc_enc_add_imm_to_rbx(elf_ctx, imm); }
+  }
+  unsafe { return arch_x86_64_enc_enc_add_imm_to_ebx_index(elf_ctx, imm); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_sub_imm_from_rbx_index_arch(elf_ctx: *u8, imm: i32, ta: i32): i32 {
+  if (imm == 0) {
+    return 0;
+  }
+  if (ta == 1) {
+    if (imm > 4095) {
+      unsafe {
+        return arch_arm64_enc_enc_u32_le(elf_ctx, (1358955553 + ((4095 - 1) * 1024)) as i32);
+      }
+      return 0 - 1;
+    }
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (1358955553 + ((imm - 1) * 1024)) as i32);
+    }
+    return 0 - 1;
+  }
+  if (ta == 2) {
+    unsafe { return arch_riscv64_enc_enc_sub_imm_from_rbx_index(elf_ctx, imm); }
+  }
+  unsafe { return arch_x86_64_enc_enc_sub_imm_from_ebx_index(elf_ctx, imm); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32 {
+  if (ta == 1) {
+    unsafe { return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
+  }
+  if (ta == 2) {
+    unsafe { return arch_riscv64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
+  }
+  unsafe { return arch_x86_64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32, esz: i32, ta: i32): i32 {
+  if (ta == 1) {
+    unsafe { return arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
+  }
+  if (ta == 2) {
+    unsafe { return arch_riscv64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
+  }
+  if (esz == 4) {
+    unsafe { return arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx, offset); }
+  }
+  unsafe { return arch_x86_64_enc_enc_load_rbp_to_rbx(elf_ctx, offset); }
   return 0 - 1;
 }
