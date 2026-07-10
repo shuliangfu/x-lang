@@ -1,4 +1,5 @@
 /* seeds/parser_asm_parse_expr_link.from_x.c — G-02f-10 product parse_expr bridge
+ * G-02f-102 helper gates.
  * Compile with -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS for product G05.
  * Product: → src/asm/parser_asm_parse_expr_link.o
  */
@@ -70,12 +71,19 @@ extern int32_t parser_asm_copy_module_import_path64_c(struct ASTModule *module, 
 extern int32_t parser_parse_one_function_ok_for_pipeline_glue(void *arena, struct shux_slice_uint8_t *source);
 extern int32_t parser_diag_token_after_collect_imports_glue(struct shux_slice_uint8_t *source, void *module);
 
-static int parser_asm_parse_expr_debug_enabled(void) {
+int parser_asm_parse_expr_debug_enabled_impl(void) {
   const char *v = getenv("SHUX_PARSER_ASM_DEBUG");
   return v && *v && *v != '0';
 }
+int parser_asm_parse_expr_debug_enabled(void) {
+  {
+    return parser_asm_parse_expr_debug_enabled_impl();
+  }
+  return 0;
+}
 
-static void parser_asm_parse_expr_debug_snippet_c(struct parser_asm_slice_u8 *source, size_t pos) {
+
+void parser_asm_parse_expr_debug_snippet_c_impl(struct parser_asm_slice_u8 *source, size_t pos) {
   size_t start;
   size_t end;
   size_t i;
@@ -109,6 +117,12 @@ static void parser_asm_parse_expr_debug_snippet_c(struct parser_asm_slice_u8 *so
   }
   fputc('\n', stderr);
 }
+void parser_asm_parse_expr_debug_snippet_c(struct parser_asm_slice_u8 *source, size_t pos) {
+  {
+    parser_asm_parse_expr_debug_snippet_c_impl(source, pos);
+  }
+}
+
 
 /**
  * asm thin 切片入口：转发至 parser_x.o 的 parser_parse_expr_into。

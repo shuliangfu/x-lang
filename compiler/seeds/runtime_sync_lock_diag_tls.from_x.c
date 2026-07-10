@@ -1,4 +1,5 @@
 /* seeds/runtime_sync_lock_diag_tls.from_x.c
+ * G-02f-102 helper gates.
  * G-02f-101 append helper gates. — G-02f-19 product TU
  * Product: runtime_sync_lock_diag_tls.o; logic still C until full .x port.
  */
@@ -53,7 +54,7 @@ extern int32_t sync_mutex_unlock_c(void *m);
 extern void sync_mutex_free_c(void *m);
 
 /** 查找 mutex 对应元数据索引；不存在 -1。 */
-static int32_t sync_lock_diag_find_meta_idx(void *m) {
+int32_t sync_lock_diag_find_meta_idx_impl(void *m) {
     int32_t i;
     if (m == NULL) {
         return -1;
@@ -65,15 +66,29 @@ static int32_t sync_lock_diag_find_meta_idx(void *m) {
     }
     return -1;
 }
+int32_t sync_lock_diag_find_meta_idx(void *m) {
+  {
+    return sync_lock_diag_find_meta_idx_impl(m);
+  }
+  return 0 - 1;
+}
+
 
 /** 读取 mutex 绑定的锁序 id；未绑定返回 0。 */
-static int32_t sync_lock_diag_get_order(void *m) {
+int32_t sync_lock_diag_get_order_impl(void *m) {
     int32_t idx = sync_lock_diag_find_meta_idx(m);
     if (idx < 0) {
         return 0;
     }
     return g_sync_meta[idx].order;
 }
+int32_t sync_lock_diag_get_order(void *m) {
+  {
+    return sync_lock_diag_get_order_impl(m);
+  }
+  return 0;
+}
+
 
 /** 入栈；满返回 -1。 */
 int32_t sync_lock_diag_tls_push_c(void *m, int32_t order_id) {

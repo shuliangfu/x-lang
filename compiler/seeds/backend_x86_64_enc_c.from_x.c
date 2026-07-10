@@ -1,4 +1,5 @@
 /* seeds/backend_x86_64_enc_c.from_x.c
+ * G-02f-102 helper gates.
  * G-02f-101 x86 enc helper gates. — G-02f-15 product TU
  * Product object from this seed; logic still C until full .x port.
  */
@@ -101,7 +102,7 @@ int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t op
 
 
 /** movq -offset(%rbp), %reg：modrm_reg 为 disp8 第三字节（69=rax, 93=rbx 等）。 */
-static int32_t x86_enc_movq_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+int32_t x86_enc_movq_from_rbp_neg_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                          uint8_t disp8_modrm, uint8_t disp32_modrm) {
   int32_t disp;
   uint8_t buf[7];
@@ -122,9 +123,17 @@ static int32_t x86_enc_movq_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_
   buf[6] = (uint8_t)((disp >> 24) & 255);
   return x86_enc_bytes(elf_ctx, buf, 7);
 }
+int32_t x86_enc_movq_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+                                         uint8_t disp8_modrm, uint8_t disp32_modrm) {
+  {
+    return x86_enc_movq_from_rbp_neg_impl(elf_ctx, offset, disp8_modrm, disp32_modrm);
+  }
+  return 0 - 1;
+}
+
 
 /** leaq -offset(%rbp), %reg。 */
-static int32_t x86_enc_lea_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+int32_t x86_enc_lea_from_rbp_neg_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                         uint8_t disp8_modrm, uint8_t disp32_modrm) {
   int32_t disp;
   uint8_t buf[7];
@@ -145,9 +154,17 @@ static int32_t x86_enc_lea_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_c
   buf[6] = (uint8_t)((disp >> 24) & 255);
   return x86_enc_bytes(elf_ctx, buf, 7);
 }
+int32_t x86_enc_lea_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+                                        uint8_t disp8_modrm, uint8_t disp32_modrm) {
+  {
+    return x86_enc_lea_from_rbp_neg_impl(elf_ctx, offset, disp8_modrm, disp32_modrm);
+  }
+  return 0 - 1;
+}
+
 
 /** movl -offset(%rbp), 32-bit reg（disp8 modrm 在 buf[2]）。 */
-static int32_t x86_enc_movl_from_rbp_neg32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+int32_t x86_enc_movl_from_rbp_neg32_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
                                            uint8_t disp8_modrm, uint8_t disp32_modrm) {
   int32_t disp;
   uint8_t buf[6];
@@ -166,9 +183,17 @@ static int32_t x86_enc_movl_from_rbp_neg32(struct platform_elf_ElfCodegenCtx *el
   buf[5] = (uint8_t)((disp >> 24) & 255);
   return x86_enc_bytes(elf_ctx, buf, 6);
 }
+int32_t x86_enc_movl_from_rbp_neg32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+                                           uint8_t disp8_modrm, uint8_t disp32_modrm) {
+  {
+    return x86_enc_movl_from_rbp_neg32_impl(elf_ctx, offset, disp8_modrm, disp32_modrm);
+  }
+  return 0 - 1;
+}
+
 
 /** movq %rax, -offset(%rbp)。 */
-static int32_t x86_enc_store_rax_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+int32_t x86_enc_store_rax_to_rbp_neg_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
   int32_t disp;
   uint8_t buf[7];
   disp = 0 - offset;
@@ -188,9 +213,16 @@ static int32_t x86_enc_store_rax_to_rbp_neg(struct platform_elf_ElfCodegenCtx *e
   buf[6] = (uint8_t)((disp >> 24) & 255);
   return x86_enc_bytes(elf_ctx, buf, 7);
 }
+int32_t x86_enc_store_rax_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  {
+    return x86_enc_store_rax_to_rbp_neg_impl(elf_ctx, offset);
+  }
+  return 0 - 1;
+}
+
 
 /** add/sub/imul imm32 到 32-bit reg 的通用模板。 */
-static int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, uint8_t op_prefix,
+int32_t x86_enc_alu_imm32_to_reg_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, uint8_t op_prefix,
                                         uint8_t reg_modrm) {
   uint8_t buf[6];
   if (imm == 0)
@@ -209,6 +241,14 @@ static int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_c
   buf[5] = (uint8_t)((imm >> 24) & 255);
   return x86_enc_bytes(elf_ctx, buf, 6);
 }
+int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, uint8_t op_prefix,
+                                        uint8_t reg_modrm) {
+  {
+    return x86_enc_alu_imm32_to_reg_impl(elf_ctx, imm, op_prefix, reg_modrm);
+  }
+  return 0 - 1;
+}
+
 
 int32_t arch_x86_64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_size) {
   uint8_t mov[3] = {72, 137, 229};
@@ -881,7 +921,7 @@ int32_t arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(struct platform_elf_ElfCodege
 }
 
 /** movq %rdx, -offset(%rbp)。 */
-static int32_t x86_enc_store_rdx_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+int32_t x86_enc_store_rdx_to_rbp_neg_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
   int32_t disp;
   uint8_t buf[7];
   disp = 0 - offset;
@@ -901,6 +941,13 @@ static int32_t x86_enc_store_rdx_to_rbp_neg(struct platform_elf_ElfCodegenCtx *e
   buf[6] = (uint8_t)((disp >> 24) & 255);
   return x86_enc_bytes(elf_ctx, buf, 7);
 }
+int32_t x86_enc_store_rdx_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
+  {
+    return x86_enc_store_rdx_to_rbp_neg_impl(elf_ctx, offset);
+  }
+  return 0 - 1;
+}
+
 
 /** movq %rdx, -offset(%rbp)（16B struct 第二寄存器落栈）。 */
 int32_t arch_x86_64_enc_enc_store_rdx_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {

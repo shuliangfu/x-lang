@@ -1,4 +1,5 @@
 /* seeds/runtime_thread_glue.from_x.c — G-02f-18 product TU
+ * G-02f-102 helper gates.
  * Product: runtime_thread_glue.o; logic still C until full .x port.
  */
 /**
@@ -18,16 +19,28 @@
 #include <sched.h>
 #include <string.h>
 /* 手写 cpu_set 清零与置位，避免依赖 CPU_ZERO/CPU_SET/CPU_ZERO_S/CPU_SET_S 的链接符号（部分 glibc 会未定义） */
-static void shu_cpu_zero(cpu_set_t *set) {
+void shu_cpu_zero_impl(cpu_set_t *set) {
     memset(set, 0, sizeof(cpu_set_t));
 }
-static void shu_cpu_set(unsigned int cpu, cpu_set_t *set) {
+void shu_cpu_zero(cpu_set_t *set) {
+  {
+    shu_cpu_zero_impl(set);
+  }
+}
+
+void shu_cpu_set_impl(unsigned int cpu, cpu_set_t *set) {
     if (cpu < sizeof(cpu_set_t) * 8) {
         size_t idx = cpu / (8 * sizeof(unsigned long));
         size_t bit = cpu % (8 * sizeof(unsigned long));
         ((unsigned long *)set)[idx] |= (unsigned long)1 << bit;
     }
 }
+void shu_cpu_set(unsigned int cpu, cpu_set_t *set) {
+  {
+    shu_cpu_set_impl(cpu, set);
+  }
+}
+
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)

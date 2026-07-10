@@ -1,4 +1,5 @@
 /* seeds/runtime_net_udp_batch.from_x.c — G-02f-20 product TU
+ * G-02f-102 helper gates.
  * Product: runtime_net_udp_batch.o; logic still C until full .x port.
  */
 /**
@@ -39,20 +40,33 @@ typedef struct {
 } shu_net_buf_t;
 
 /** 填充 IPv4 sockaddr_in。 */
-static void shu_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
+void shu_udp_batch_set_addr_port_impl(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
     sin->sin_family = AF_INET;
     sin->sin_addr.s_addr = htonl(addr_u32);
     sin->sin_port = htons((uint16_t)(port_u32 & 0xFFFFu));
 }
+void shu_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
+  {
+    shu_udp_batch_set_addr_port_impl(sin, addr_u32, port_u32);
+  }
+}
+
 
 /** poll 可读；失败 -1。 */
-static int shu_udp_batch_poll_readable(int fd, uint32_t timeout_ms) {
+int shu_udp_batch_poll_readable_impl(int fd, uint32_t timeout_ms) {
     struct pollfd pfd = { fd, POLLIN, 0 };
     int n = poll(&pfd, 1, (int)(timeout_ms ? timeout_ms : (-1)));
     if (n <= 0 || (pfd.revents & (POLLERR | POLLHUP)))
         return -1;
     return 0;
 }
+int shu_udp_batch_poll_readable(int fd, uint32_t timeout_ms) {
+  {
+    return shu_udp_batch_poll_readable_impl(fd, timeout_ms);
+  }
+  return 0;
+}
+
 
 /**
  * Linux recvmmsg：最多 2 段；timeout_ms 非 0 时先 poll。

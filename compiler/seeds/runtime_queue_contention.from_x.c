@@ -1,4 +1,5 @@
 /* seeds/runtime_queue_contention.from_x.c — G-02f-21 product TU
+ * G-02f-102 helper gates.
  * Logic still C until full .x port.
  */
 /**
@@ -42,16 +43,23 @@ void queue_os_mutex_unlock_c(void *mu);
 int32_t queue_os_run_two_workers_c(void *ctx);
 
 /** 逻辑下标 i 对应的物理下标。 */
-static int32_t queue_smoke_at(QueueSmokeState *q, int32_t i) {
+int32_t queue_smoke_at_impl(QueueSmokeState *q, int32_t i) {
   int32_t idx = q->head + i;
   if (idx >= q->cap) {
     idx -= q->cap;
   }
   return idx;
 }
+int32_t queue_smoke_at(QueueSmokeState *q, int32_t i) {
+  {
+    return queue_smoke_at_impl(q, i);
+  }
+  return 0;
+}
+
 
 /** 队尾插入；失败 -1。 */
-static int32_t queue_smoke_push_back(QueueSmokeState *q, int32_t x) {
+int32_t queue_smoke_push_back_impl(QueueSmokeState *q, int32_t x) {
   int32_t new_cap;
   int32_t *p;
   int32_t i;
@@ -82,6 +90,13 @@ static int32_t queue_smoke_push_back(QueueSmokeState *q, int32_t x) {
   q->len++;
   return 0;
 }
+int32_t queue_smoke_push_back(QueueSmokeState *q, int32_t x) {
+  {
+    return queue_smoke_push_back_impl(q, x);
+  }
+  return 0;
+}
+
 
 /** 每 worker 线程：加锁 push 500 次。 */
 int32_t queue_contention_worker_push_c(void *ctx) {
@@ -157,10 +172,17 @@ static unsigned __stdcall queue_os_worker_trampoline(void *arg) {
     return 0;
 }
 #else
-static void *queue_os_worker_trampoline(void *arg) {
+void *queue_os_worker_trampoline_impl(void *arg) {
     (void)queue_contention_worker_push_c(arg);
     return NULL;
 }
+void *queue_os_worker_trampoline(void *arg) {
+  {
+    return queue_os_worker_trampoline_impl(arg);
+  }
+  return ((void *)0);
+}
+
 #endif
 
 /**
