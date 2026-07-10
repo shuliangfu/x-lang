@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-363/369：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
+// G-02f-363/370：backend_try_inline_dispatch L2 thin — pure/forward 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_TRY_INLINE_THIN_FROM_X）ld -r
 //   → backend_try_inline_dispatch.o
 //
@@ -202,6 +202,35 @@ extern "C" function glue_try_expr_const_i32_impl(arena: *u8, expr_ref: i32, out:
 function glue_try_expr_const_i32(arena: *u8, expr_ref: i32, out: *i32): i32 {
   unsafe {
     return glue_try_expr_const_i32_impl(arena, expr_ref, out);
+  }
+  return 0;
+}
+
+// ---- G-02f-370：module func index / named type layout → seed impl ----
+extern "C" function glue_module_func_index_by_name_impl(mod: *u8, name: *u8, name_len: i32): i32;
+extern "C" function glue_module_named_type_has_struct_layout_impl(mod: *u8, name: *u8, name_len: i32): i32;
+extern "C" function glue_type_ref_is_named_struct_layout_impl(arena: *u8, mod: *u8, ty_ref: i32): i32;
+
+#[no_mangle]
+function glue_module_func_index_by_name(mod: *u8, name: *u8, name_len: i32): i32 {
+  unsafe {
+    return glue_module_func_index_by_name_impl(mod, name, name_len);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function glue_module_named_type_has_struct_layout(mod: *u8, name: *u8, name_len: i32): i32 {
+  unsafe {
+    return glue_module_named_type_has_struct_layout_impl(mod, name, name_len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_type_ref_is_named_struct_layout(arena: *u8, mod: *u8, ty_ref: i32): i32 {
+  unsafe {
+    return glue_type_ref_is_named_struct_layout_impl(arena, mod, ty_ref);
   }
   return 0;
 }

@@ -30,6 +30,7 @@
 #include "diag.h"
 #ifdef SHUX_L2_TRY_INLINE_THIN_FROM_X
 struct ast_ASTArena;
+struct ast_Module;
 int32_t glue_align_up8_c(int32_t n);
 int32_t glue_is_vector_lane_scalar_binop_ko(int32_t ko);
 int32_t glue_const_scalar_binop_eval_i32(int32_t binop_ko, int32_t a, int32_t b, int32_t *out);
@@ -44,6 +45,9 @@ int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_
 int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
 int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *asm_ctx);
 int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out);
+int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len);
+int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t *name, int32_t name_len);
+int32_t glue_type_ref_is_named_struct_layout(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t ty_ref);
 #endif
 
 
@@ -399,8 +403,10 @@ int32_t pipeline_asm_struct_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena
 }
 #endif
 
-/** 按名称查本模块函数下标；-1 未找到（定义见下）。 */
+/** 按名称查本模块函数下标；-1 未找到（定义见下）。PREFER 时头文件原型已声明。 */
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
 int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len);
+#endif
 
 /**
  * 解析 CALL 的 callee（同模块或 typeck 填写的 import dep/func）；写 callee 模块/arena/函数下标。
@@ -515,7 +521,8 @@ int32_t glue_call_lookup_callee_mod_fi_arena(struct ast_ASTArena *caller_arena, 
  * 按名称查本模块函数下标；-1 未找到。
  */
 /* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
+/* G-02f-370 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_module_func_index_by_name_impl(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t fi;
   int32_t flen;
   uint8_t fb[64];
@@ -535,8 +542,13 @@ int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, in
       return fi;
   }
   return -1;
-
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
+  return glue_module_func_index_by_name_impl(mod, name, name_len);
+}
+#endif
 
 
 /** EXPR_LIT(0) / EXPR_BOOL_LIT(2) 读整型常量；失败返回 0。 */
@@ -643,7 +655,8 @@ int32_t glue_fold_func_returns_param01_scalar_binop(struct ast_ASTArena *arena, 
  * 模块内是否存在与 name 同名的 struct_layout（与 backend.x asm_module_named_type_has_struct_layout 一致）。
  */
 /* G-02f-135：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
+/* G-02f-370 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_module_named_type_has_struct_layout_impl(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
   int32_t k;
   int32_t nlen;
   int32_t j;
@@ -661,15 +674,21 @@ int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t
       return 1;
   }
   return 0;
-
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t *name, int32_t name_len) {
+  return glue_module_named_type_has_struct_layout_impl(mod, name, name_len);
+}
+#endif
 
 
 /**
  * 类型 ref 是否为模块内具 layout 的命名 struct（Pair 等）。
  */
 /* G-02f-135：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_type_ref_is_named_struct_layout(struct ast_ASTArena *arena, struct ast_Module *mod,
+/* G-02f-370 try：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_type_ref_is_named_struct_layout_impl(struct ast_ASTArena *arena, struct ast_Module *mod,
                                                     int32_t ty_ref) {
   uint8_t nm[64];
   int32_t nlen;
@@ -680,9 +699,15 @@ int32_t glue_type_ref_is_named_struct_layout(struct ast_ASTArena *arena, struct 
   nlen = pipeline_type_named_name_into(arena, ty_ref, nm);
   if (nlen <= 0)
     return 0;
-  return glue_module_named_type_has_struct_layout(mod, nm, nlen);
-
+  return glue_module_named_type_has_struct_layout_impl(mod, nm, nlen);
 }
+
+#ifndef SHUX_L2_TRY_INLINE_THIN_FROM_X
+int32_t glue_type_ref_is_named_struct_layout(struct ast_ASTArena *arena, struct ast_Module *mod,
+                                                    int32_t ty_ref) {
+  return glue_type_ref_is_named_struct_layout_impl(arena, mod, ty_ref);
+}
+#endif
 
 
 /**

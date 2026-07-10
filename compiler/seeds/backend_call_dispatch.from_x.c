@@ -44,6 +44,10 @@ int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len
 int32_t glue_asm_import_path_slice_equal(struct ast_Module *module, int32_t imp_ix, int32_t off, int32_t seg_len, const uint8_t *nm, int32_t nm_len);
 int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm, int32_t nm_len);
 int32_t pipeline_asm_emit_get_call_f32_xmm_c(void);
+int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *name, int32_t name_len);
+int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(const uint8_t *fname, int32_t fname_len);
+int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf);
+int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len);
 #endif
 
 
@@ -715,7 +719,8 @@ int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_c
 
 /** 统计模块内同名函数个数（>1 时 emit/call 须 mangled 符号）。 */
 /* G-02f-134：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *name, int32_t name_len) {
+/* G-02f-370 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_module_func_overload_count_c_impl(struct ast_Module *m, const uint8_t *name, int32_t name_len) {
   int32_t i;
   int32_t c;
   if (!m || !name || name_len <= 0)
@@ -728,8 +733,13 @@ int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *n
       c++;
   }
   return c;
-
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *name, int32_t name_len) {
+  return glue_module_func_overload_count_c_impl(m, name, name_len);
+}
+#endif
 
 
 /**
@@ -737,7 +747,8 @@ int32_t glue_module_func_overload_count_c(struct ast_Module *m, const uint8_t *n
  * 调用侧 net_foo → net_foo_c；定义侧须同名，否则 net.o ld -r 合并后内部 U 符号无法解析。
  */
 /* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(const uint8_t *fname, int32_t fname_len) {
+/* G-02f-370 call：实现体始终 seed；public PREFER 时 thin forward（-E 丢 pure 嵌套） */
+int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl(const uint8_t *fname, int32_t fname_len) {
   if (!fname || fname_len <= 0)
     return 0;
   if (fname_len >= 2 && fname[fname_len - 2] == '_' && fname[fname_len - 1] == 'c')
@@ -748,6 +759,12 @@ int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(const uint8_t *fname,
     return 1;
   return 0;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_std_c_wrapper_fname_needs_export_c_suffix(const uint8_t *fname, int32_t fname_len) {
+  return glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl(fname, fname_len);
+}
+#endif
 
 
 
@@ -944,7 +961,8 @@ int32_t glue_asm_import_segment_at(struct ast_Module *module, int32_t imp_ix, in
 
 /** 将 module 第 imp_ix 槽 import 逻辑路径转成 C ABI 前缀；成功返回前缀字节长度。 */
 /* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf) {
+/* G-02f-370 call：实现体始终 seed；public PREFER 时 thin forward */
+int32_t glue_asm_fill_c_prefix_from_module_import_impl(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf) {
   uint8_t path_bytes[64];
   int32_t pre_len;
   parser_get_module_import_path(cur_mod, imp_ix, path_bytes);
@@ -955,8 +973,13 @@ int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, in
   while (pre_len < 128 && pre_buf[pre_len] != 0)
     pre_len++;
   return pre_len > 0 ? pre_len : -1;
-
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_fill_c_prefix_from_module_import(struct ast_Module *cur_mod, int32_t imp_ix, uint8_t *pre_buf) {
+  return glue_asm_fill_c_prefix_from_module_import_impl(cur_mod, imp_ix, pre_buf);
+}
+#endif
 
 
 /**
@@ -1513,7 +1536,8 @@ int32_t glue_asm_enc_call_redirected(struct platform_elf_ElfCodegenCtx *elf_ctx,
  * import 路径前缀是否为 std.fmt / std.debug（println/print 字符串字面量特化）。
  */
 /* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len) {
+/* G-02f-370 call：实现体始终 seed；public PREFER 时 thin forward（-E 丢 pure 嵌套） */
+int32_t glue_asm_prefix_is_fmt_or_debug_impl(const uint8_t *pre, int32_t pre_len) {
   if (!pre || pre_len < 8)
     return 0;
   if (pre_len >= 8 && memcmp(pre, "std_fmt_", 8) == 0)
@@ -1522,6 +1546,12 @@ int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len) {
     return 1;
   return 0;
 }
+
+#ifndef SHUX_L2_CALL_DISPATCH_THIN_FROM_X
+int32_t glue_asm_prefix_is_fmt_or_debug(const uint8_t *pre, int32_t pre_len) {
+  return glue_asm_prefix_is_fmt_or_debug_impl(pre, pre_len);
+}
+#endif
 
 
 

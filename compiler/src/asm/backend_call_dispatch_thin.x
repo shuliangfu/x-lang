@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-364/369：backend_call_dispatch L2 thin — pure 门闩（weak）。
+// G-02f-364/370：backend_call_dispatch L2 thin — pure 门闩（weak）。
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
 //
@@ -200,6 +200,44 @@ function glue_asm_import_binding_name_equal(module: *u8, imp_ix: i32, nm: *u8, n
 function pipeline_asm_emit_get_call_f32_xmm_c(): i32 {
   unsafe {
     return glue_f32_xmm_flag_get_body();
+  }
+  return 0;
+}
+
+// ---- G-02f-370：overload / fill_c_prefix / std_c_wrapper / prefix_is_fmt → seed impl ----
+extern "C" function glue_module_func_overload_count_c_impl(m: *u8, name: *u8, name_len: i32): i32;
+extern "C" function glue_asm_fill_c_prefix_from_module_import_impl(cur_mod: *u8, imp_ix: i32, pre_buf: *u8): i32;
+extern "C" function glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl(fname: *u8, fname_len: i32): i32;
+extern "C" function glue_asm_prefix_is_fmt_or_debug_impl(pre: *u8, pre_len: i32): i32;
+
+#[no_mangle]
+function glue_module_func_overload_count_c(m: *u8, name: *u8, name_len: i32): i32 {
+  unsafe {
+    return glue_module_func_overload_count_c_impl(m, name, name_len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_asm_fill_c_prefix_from_module_import(cur_mod: *u8, imp_ix: i32, pre_buf: *u8): i32 {
+  unsafe {
+    return glue_asm_fill_c_prefix_from_module_import_impl(cur_mod, imp_ix, pre_buf);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function glue_asm_std_c_wrapper_fname_needs_export_c_suffix(fname: *u8, fname_len: i32): i32 {
+  unsafe {
+    return glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl(fname, fname_len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function glue_asm_prefix_is_fmt_or_debug(pre: *u8, pre_len: i32): i32 {
+  unsafe {
+    return glue_asm_prefix_is_fmt_or_debug_impl(pre, pre_len);
   }
   return 0;
 }
