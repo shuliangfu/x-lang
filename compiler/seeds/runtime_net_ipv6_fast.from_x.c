@@ -1,4 +1,5 @@
 /* seeds/runtime_net_ipv6_fast.from_x.c — G-02f-20 product TU
+ * G-02f-104 helper gates.
  * Product: ../std/net/net_ipv6_fast.o; logic still C until full .x port.
  */
 #include <stdint.h>
@@ -32,7 +33,7 @@ void net_ipv6_set_addr_port_buf_c(uint8_t *sin, uint8_t *addr_16, uint32_t port_
     memcpy(&sa6->sin6_addr, addr_16, 16);
 }
 
-static int32_t net_ipv6_ensure_wsa_c(void) {
+int32_t net_ipv6_ensure_wsa_c_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     WSADATA data;
     if (net_ipv6_wsa_done)
@@ -43,16 +44,30 @@ static int32_t net_ipv6_ensure_wsa_c(void) {
 #endif
     return 0;
 }
+int32_t net_ipv6_ensure_wsa_c(void) {
+  {
+    return net_ipv6_ensure_wsa_c_impl();
+  }
+  return 0;
+}
 
-static int32_t net_ipv6_close_socket_c(int32_t fd) {
+
+int32_t net_ipv6_close_socket_c_impl(int32_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
     return closesocket(fd) == 0 ? 0 : -1;
 #else
     return close(fd) == 0 ? 0 : -1;
 #endif
 }
+int32_t net_ipv6_close_socket_c(int32_t fd) {
+  {
+    return net_ipv6_close_socket_c_impl(fd);
+  }
+  return 0;
+}
 
-static int32_t net_ipv6_set_nonblock_c(int32_t fd) {
+
+int32_t net_ipv6_set_nonblock_c_impl(int32_t fd) {
 #if defined(_WIN32) || defined(_WIN64)
     u_long one = 1;
     return ioctlsocket(fd, FIONBIO, &one) == 0 ? 0 : -1;
@@ -63,8 +78,15 @@ static int32_t net_ipv6_set_nonblock_c(int32_t fd) {
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0 ? 0 : -1;
 #endif
 }
+int32_t net_ipv6_set_nonblock_c(int32_t fd) {
+  {
+    return net_ipv6_set_nonblock_c_impl(fd);
+  }
+  return 0;
+}
 
-static int32_t net_ipv6_poll_writable_c(int32_t fd, uint32_t timeout_ms) {
+
+int32_t net_ipv6_poll_writable_c_impl(int32_t fd, uint32_t timeout_ms) {
 #if defined(_WIN32) || defined(_WIN64)
     (void)fd;
     (void)timeout_ms;
@@ -81,14 +103,28 @@ static int32_t net_ipv6_poll_writable_c(int32_t fd, uint32_t timeout_ms) {
     return 0;
 #endif
 }
+int32_t net_ipv6_poll_writable_c(int32_t fd, uint32_t timeout_ms) {
+  {
+    return net_ipv6_poll_writable_c_impl(fd, timeout_ms);
+  }
+  return 0;
+}
 
-static int32_t net_ipv6_connect_retry_ok_c(void) {
+
+int32_t net_ipv6_connect_retry_ok_c_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     return 1;
 #else
     return (errno == EINPROGRESS || errno == EAGAIN) ? 1 : 0;
 #endif
 }
+int32_t net_ipv6_connect_retry_ok_c(void) {
+  {
+    return net_ipv6_connect_retry_ok_c_impl();
+  }
+  return 0;
+}
+
 
 int32_t net_tcp_connect_ipv6_c(uint8_t *addr_16, uint32_t port_u32, uint32_t timeout_ms) {
     uint8_t sin_mem[28];

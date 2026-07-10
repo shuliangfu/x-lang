@@ -1,4 +1,5 @@
 /* seeds/backend_seed_mega_fallback.from_x.c — G-02f-80 product cold-start TU
+ * G-02f-104 helper gates.
  * Promoted from compiler/src/asm/backend_seed_mega_fallback.inc (stub/bridge; retired .inc).
  * Compile: cc -c / cc_inc_tu seeds/backend_seed_mega_fallback.from_x.c
  */
@@ -73,7 +74,7 @@ extern int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *modu
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          struct ast_PipelineDepCtx *ctx);
 
-static void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
+void pipeline_seed_mega_ctx_reset_impl(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
   int32_t label_counter;
   if (!ctx)
     return;
@@ -82,10 +83,23 @@ static void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, st
   ctx->label_counter = label_counter;
   ctx->module_ref = mod;
 }
+void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
+  {
+    pipeline_seed_mega_ctx_reset_impl(ctx, mod);
+  }
+}
 
-static int32_t pipeline_dep_ctx_target_arch_local(struct ast_PipelineDepCtx *ctx) {
+
+int32_t pipeline_dep_ctx_target_arch_local_impl(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->target_arch : 0;
 }
+int32_t pipeline_dep_ctx_target_arch_local(struct ast_PipelineDepCtx *ctx) {
+  {
+    return pipeline_dep_ctx_target_arch_local_impl(ctx);
+  }
+  return 0;
+}
+
 
 int32_t backend_asm_codegen_ast_seed_mega(struct ast_Module *module, struct ast_ASTArena *arena,
                                           struct codegen_CodegenOutBuf *out,

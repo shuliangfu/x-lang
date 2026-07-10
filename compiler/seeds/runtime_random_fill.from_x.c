@@ -1,4 +1,5 @@
 /* seeds/runtime_random_fill.from_x.c — G-02f-20 product TU
+ * G-02f-104 helper gates.
  * Product: runtime_random_fill.o; logic still C until full .x port.
  */
 /**
@@ -36,7 +37,7 @@
 static INIT_ONCE g_random_init_once = INIT_ONCE_STATIC_INIT;
 static BCRYPT_ALG_HANDLE g_random_alg = NULL;
 
-static BOOL CALLBACK random_init_callback(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
+BOOL CALLBACK random_init_callback_impl(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
     (void)InitOnce;
     (void)Parameter;
     BCRYPT_ALG_HANDLE alg = NULL;
@@ -45,13 +46,27 @@ static BOOL CALLBACK random_init_callback(PINIT_ONCE InitOnce, PVOID Parameter, 
     *(BCRYPT_ALG_HANDLE *)Context = alg;
     return TRUE;
 }
+BOOL CALLBACK random_init_callback(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
+  {
+    return random_init_callback_impl(InitOnce, Parameter, Context);
+  }
+  return 0;
+}
+
 
 /** Windows：懒初始化 BCrypt RNG 算法句柄；失败返回 NULL。 */
-static BCRYPT_ALG_HANDLE random_get_alg(void) {
+BCRYPT_ALG_HANDLE random_get_alg_impl(void) {
     if (!InitOnceExecuteOnce(&g_random_init_once, random_init_callback, NULL, (PVOID *)&g_random_alg))
         return NULL;
     return g_random_alg;
 }
+BCRYPT_ALG_HANDLE random_get_alg(void) {
+  {
+    return random_get_alg_impl();
+  }
+  return 0;
+}
+
 #endif
 
 /**

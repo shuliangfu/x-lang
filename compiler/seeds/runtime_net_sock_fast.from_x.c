@@ -1,4 +1,5 @@
 /* seeds/runtime_net_sock_fast.from_x.c — G-02f-20 product TU
+ * G-02f-104 helper gates.
  * Product: ../std/net/net_sock_fast.o; logic still C until full .x port.
  */
 #include <stdint.h>
@@ -23,14 +24,26 @@ extern void net_udp_set_addr_port_buf_c(uint8_t *sin, uint32_t addr_u32, uint32_
  * 【Asm/Perf】constructor 仅执行一次，热路径无开销。 */
 #if defined(_WIN32) || defined(_WIN64)
 static int net_wsa_done = 0;
-static void net_ensure_wsa(void) {
+void net_ensure_wsa_impl(void) {
     WSADATA data;
     if (net_wsa_done) return;
     if (WSAStartup(MAKEWORD(2, 2), &data) == 0)
         net_wsa_done = 1;
 }
+void net_ensure_wsa(void) {
+  {
+    net_ensure_wsa_impl();
+  }
+}
+
 __attribute__((constructor(65534)))
-static void net_wsa_ctor(void) { net_ensure_wsa(); }
+void net_wsa_ctor_impl(void) { net_ensure_wsa(); }
+void net_wsa_ctor(void) {
+  {
+    net_wsa_ctor_impl();
+  }
+}
+
 #endif
 
 int32_t net_set_blocking_c(int32_t fd, int32_t blocking) {

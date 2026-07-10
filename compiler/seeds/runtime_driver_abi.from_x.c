@@ -1,4 +1,5 @@
 /* Generated from src/runtime_driver_abi.x (G-02f-29/41/45..57/83 true .x + C tail).
+ * G-02f-104 helper gates.
  * Regen: ./shux-c -E -L .. src/runtime_driver_abi.x > /tmp/dabi.c
  *         merge flags/env/phase/peek/smoke/stack/defines; C argv scan + pthread bulk.
  * .x covers: + driver_argv_collect_defines.
@@ -633,7 +634,7 @@ int compile_phase_timing_enabled(void) {
 
 
 /** 单调 wall-clock 秒（gettimeofday）。 */
-static double compile_phase_now_sec(void) {
+double compile_phase_now_sec_impl(void) {
     struct timeval tv;
     #ifndef _WIN32
     gettimeofday(&tv, NULL);
@@ -642,6 +643,13 @@ static double compile_phase_now_sec(void) {
 #endif
     return (double)tv.tv_sec + (double)tv.tv_usec * 1e-6;
 }
+double compile_phase_now_sec(void) {
+  {
+    return compile_phase_now_sec_impl();
+  }
+  return 0.0;
+}
+
 
 /**
  * 标记编译阶段开始；由 pipeline.x run_x_pipeline_impl 调用。

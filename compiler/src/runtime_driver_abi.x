@@ -5,6 +5,7 @@
 // G-02f-83：+ driver_source_scan_top_level_import / entry_source_len_i32 门闩。
 // G-02f-92：+ driver_ascii_toupper 门闩。
 // G-02f-94：+ large_stack trampoline / run_fn_on_current_large_stack 门闩。
+// G-02f-104：+ compile_phase_now_sec 门闩。
 // 产品：./shux-c -E → seeds/runtime_driver_abi.from_x.c（+ C 尾 + getenv/slot 抛光）。
 // C 尾：flag/len/path 槽、大栈 pthread 本体、gettimeofday、diag format、argv defines 扫描、import 扫描。
 // G-02f-57：+ driver_argv_collect_defines 薄门闩（扫描本体 C）。
@@ -27,6 +28,7 @@ extern "C" function driver_print_check_ok_impl(input_path: *u8): void;
 extern "C" function driver_compile_phase_timing_begin_impl(phase: i32): void;
 extern "C" function driver_compile_phase_timing_end_impl(phase: i32): void;
 extern "C" function driver_compile_phase_timing_flush_impl(): void;
+extern "C" function compile_phase_now_sec_impl(): f64;
 extern "C" function shux_read_file_into_path(path: *u8, buf: *u8, cap: i64): i32;
 extern "C" function driver_pipeline_fail_code_rc_impl(rc: i32): void;
 extern "C" function driver_pipeline_fail_code_path_impl(path: *u8): void;
@@ -608,6 +610,16 @@ function driver_ascii_toupper(c: i32): i32 {
 }
 
 /* ---- G-02f-94：large_stack trampoline / run_fn 门闩 ---- */
+
+/* ---- G-02f-104：phase clock 门闩 ---- */
+
+#[no_mangle]
+function compile_phase_now_sec(): f64 {
+  unsafe {
+    return compile_phase_now_sec_impl();
+  }
+  return 0.0;
+}
 
 #[no_mangle]
 function driver_large_stack_thread_trampoline(v: *u8): *u8 {

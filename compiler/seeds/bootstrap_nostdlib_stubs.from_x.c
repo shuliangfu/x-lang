@@ -1,4 +1,5 @@
 /* seeds/bootstrap_nostdlib_stubs.from_x.c — G-02f-80 product cold-start TU
+ * G-02f-104 helper gates.
  * G-02f-103 helper gates.
  * Promoted from compiler/src/asm/bootstrap_nostdlib_stubs.inc (stub/bridge; retired .inc).
  * Compile: cc -c / cc_inc_tu seeds/bootstrap_nostdlib_stubs.from_x.c
@@ -513,7 +514,7 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
 }
 
 /** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f（%f 精度有限）。 */
-static int bootstrap_format_double(double x, char *out, size_t cap) {
+int bootstrap_format_double_impl(double x, char *out, size_t cap) {
     size_t n = 0;
     long ipart;
     unsigned frac6;
@@ -553,6 +554,13 @@ static int bootstrap_format_double(double x, char *out, size_t cap) {
     }
     return (int)n;
 }
+int bootstrap_format_double(double x, char *out, size_t cap) {
+  {
+    return bootstrap_format_double_impl(x, out, cap);
+  }
+  return 0;
+}
+
 
 /** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f（%f 精度有限）。 */
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap) {
@@ -733,7 +741,7 @@ int snprintf(char *buf, size_t size, const char *fmt, ...) {
 }
 
 /** 向 fd 格式化输出；返回写入字节数。 */
-static int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) {
+int bootstrap_vfprintf_fd_impl(int fd, const char *fmt, va_list ap) {
     char stack_buf[512];
     char *heap_buf = NULL;
     char *use_buf = stack_buf;
@@ -759,6 +767,13 @@ static int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) {
     free(heap_buf);
     return wrote;
 }
+int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) {
+  {
+    return bootstrap_vfprintf_fd_impl(fd, fmt, ap);
+  }
+  return 0;
+}
+
 
 /** fprintf 最小实现；仅 stdout/stderr fd 路径。 */
 int fprintf(FILE *stream, const char *fmt, ...) {

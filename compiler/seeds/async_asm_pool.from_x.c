@@ -1,4 +1,5 @@
 /* seeds/async_asm_pool.from_x.c — G-02f-80 product cold-start TU
+ * G-02f-104 helper gates.
  * Promoted from compiler/src/async/async_asm_pool.inc (stub/bridge; retired .inc).
  * Compile: cc -c / cc_inc_tu seeds/async_asm_pool.from_x.c
  */
@@ -52,7 +53,7 @@ extern uint8_t pipeline_module_struct_layout_name_byte_at(struct ast_Module *m, 
 #define ASM_POOL_KIND_X_AWAIT 55
 
 /** X pool EXPR_AWAIT(55) 或 C parser await（序 54 且非 as cast）。 */
-static int32_t asm_pool_expr_is_await(struct ast_ASTArena *a, int32_t er) {
+int32_t asm_pool_expr_is_await_impl(struct ast_ASTArena *a, int32_t er) {
     int32_t ko, uop;
     if (!a || er <= 0)
         return 0;
@@ -68,9 +69,16 @@ static int32_t asm_pool_expr_is_await(struct ast_ASTArena *a, int32_t er) {
     uop = pipeline_expr_unary_operand_ref_at(a, er);
     return uop > 0 ? 1 : 0;
 }
+int32_t asm_pool_expr_is_await(struct ast_ASTArena *a, int32_t er) {
+  {
+    return asm_pool_expr_is_await_impl(a, er);
+  }
+  return 0;
+}
+
 
 /** 表达式树是否含 await。 */
-static int32_t asm_pool_expr_has_await(struct ast_ASTArena *a, int32_t er) {
+int32_t asm_pool_expr_has_await_impl(struct ast_ASTArena *a, int32_t er) {
     int32_t ko;
     if (!a || er <= 0)
         return 0;
@@ -90,9 +98,16 @@ static int32_t asm_pool_expr_has_await(struct ast_ASTArena *a, int32_t er) {
                asm_pool_expr_has_await(a, pipeline_expr_index_index_ref(a, er));
     return 0;
 }
+int32_t asm_pool_expr_has_await(struct ast_ASTArena *a, int32_t er) {
+  {
+    return asm_pool_expr_has_await_impl(a, er);
+  }
+  return 0;
+}
+
 
 /** VAR 是否引用给定 let 名。 */
-static int32_t asm_pool_expr_is_var_named(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
+int32_t asm_pool_expr_is_var_named_impl(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
     int32_t vlen;
     uint8_t vbuf[64];
     int32_t i;
@@ -110,9 +125,16 @@ static int32_t asm_pool_expr_is_var_named(struct ast_ASTArena *a, int32_t er, co
     }
     return 1;
 }
+int32_t asm_pool_expr_is_var_named(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
+  {
+    return asm_pool_expr_is_var_named_impl(a, er, name, nlen);
+  }
+  return 0;
+}
+
 
 /** 表达式是否引用变量名。 */
-static int32_t asm_pool_expr_refs_name(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
+int32_t asm_pool_expr_refs_name_impl(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
     int32_t ko;
     if (!a || er <= 0 || !name || nlen <= 0)
         return 0;
@@ -132,9 +154,16 @@ static int32_t asm_pool_expr_refs_name(struct ast_ASTArena *a, int32_t er, const
                asm_pool_expr_refs_name(a, pipeline_expr_index_index_ref(a, er), name, nlen);
     return 0;
 }
+int32_t asm_pool_expr_refs_name(struct ast_ASTArena *a, int32_t er, const uint8_t *name, int32_t nlen) {
+  {
+    return asm_pool_expr_refs_name_impl(a, er, name, nlen);
+  }
+  return 0;
+}
+
 
 /** stmt_order(from_exclusive+1..) 是否仍引用 name。 */
-static int32_t asm_pool_block_rest_refs_name(struct ast_ASTArena *a, int32_t br, int32_t from_exclusive,
+int32_t asm_pool_block_rest_refs_name_impl(struct ast_ASTArena *a, int32_t br, int32_t from_exclusive,
                                              const uint8_t *name, int32_t nlen) {
     int32_t nso;
     int32_t si;
@@ -161,9 +190,17 @@ static int32_t asm_pool_block_rest_refs_name(struct ast_ASTArena *a, int32_t br,
     }
     return 0;
 }
+int32_t asm_pool_block_rest_refs_name(struct ast_ASTArena *a, int32_t br, int32_t from_exclusive,
+                                             const uint8_t *name, int32_t nlen) {
+  {
+    return asm_pool_block_rest_refs_name_impl(a, br, from_exclusive, name, nlen);
+  }
+  return 0;
+}
+
 
 /** let 类型字节数（i32/struct 等；失败时默认 8）。 */
-static int32_t asm_pool_type_size_bytes(struct ast_ASTArena *a, struct ast_Module *m, int32_t type_ref) {
+int32_t asm_pool_type_size_bytes_impl(struct ast_ASTArena *a, struct ast_Module *m, int32_t type_ref) {
     int32_t kind;
     uint8_t name[64];
     int32_t nlen;
@@ -202,9 +239,16 @@ static int32_t asm_pool_type_size_bytes(struct ast_ASTArena *a, struct ast_Modul
     }
     return 8;
 }
+int32_t asm_pool_type_size_bytes(struct ast_ASTArena *a, struct ast_Module *m, int32_t type_ref) {
+  {
+    return asm_pool_type_size_bytes_impl(a, m, type_ref);
+  }
+  return 0;
+}
+
 
 /** live 表去重追加。 */
-static void asm_pool_live_add(AsyncAsmPoolLayout *lay, const uint8_t *name, int32_t nlen, int32_t sz) {
+void asm_pool_live_add_impl(AsyncAsmPoolLayout *lay, const uint8_t *name, int32_t nlen, int32_t sz) {
     int32_t i;
     int32_t off;
     if (!lay || !name || nlen <= 0 || nlen > 63 || lay->num_live >= ASYNC_LIVE_MAX_VARS)
@@ -223,6 +267,12 @@ static void asm_pool_live_add(AsyncAsmPoolLayout *lay, const uint8_t *name, int3
     lay->live[lay->num_live].frame_data_off = off;
     lay->num_live++;
 }
+void asm_pool_live_add(AsyncAsmPoolLayout *lay, const uint8_t *name, int32_t nlen, int32_t sz) {
+  {
+    asm_pool_live_add_impl(lay, name, nlen, sz);
+  }
+}
+
 
 uint32_t async_asm_pool_fn_id_from_name(const uint8_t *name, int32_t name_len) {
     uint32_t h = 2166136261u;
