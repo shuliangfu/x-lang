@@ -5,17 +5,18 @@
 // 产品：./shux-c -E → seeds/runtime_pipeline_abi.from_x.c（+ C 尾段）。
 // C 尾：存储槽数组、import resolve/snprintf、clear 槽循环、malloc buf、大 pipeline。
 // G-02f-63：+ ends_with/.x 魔数真逻辑；typeck_for_ctx / lsp_free_loaded 门闩。
+// G-02f-84：pipeline preprocess diag + dep slot store 门闩。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
-extern "C" function typeck_ndep_store(n: i32): void;
+extern "C" function typeck_ndep_store_impl(n: i32): void;
 extern "C" function driver_dep_seeded_slot(i: i32): *i32;
 extern "C" function typeck_dep_module_get(i: i32): *u8;
 extern "C" function typeck_dep_arena_get(i: i32): *u8;
-extern "C" function typeck_dep_module_set(i: i32, mod: *u8): void;
-extern "C" function typeck_dep_arena_set(i: i32, arena: *u8): void;
-extern "C" function driver_dep_arena_ptr_set(i: i32, arena: *u8): void;
-extern "C" function driver_dep_module_ptr_set(i: i32, module: *u8): void;
+extern "C" function typeck_dep_module_set_impl(i: i32, mod: *u8): void;
+extern "C" function typeck_dep_arena_set_impl(i: i32, arena: *u8): void;
+extern "C" function driver_dep_arena_ptr_set_impl(i: i32, arena: *u8): void;
+extern "C" function driver_dep_module_ptr_set_impl(i: i32, module: *u8): void;
 extern "C" function driver_dep_path_registry_set(i: i32, path: *u8): void;
 extern "C" function driver_dep_module_buf(i: i32): *u8;
 extern "C" function driver_dep_arena_buf(i: i32): *u8;
@@ -45,6 +46,13 @@ extern "C" function shux_cstr_typeck_lit(): *u8;
 extern "C" function pipeline_dep_arena_slot_at(i: i32): *u8;
 extern "C" function pipeline_dep_module_slot_at(i: i32): *u8;
 extern "C" function pipeline_diag_import_open_fail_once_impl(import_path: *u8, resolved_path: *u8): void;
+extern "C" function pipeline_asm_debug_enabled_impl(): i32;
+extern "C" function pipeline_diag_preprocess_unclosed_if_impl(path_diag: *u8): void;
+extern "C" function pipeline_diag_preprocess_fail_impl(path_diag: *u8): void;
+extern "C" function pipeline_diag_import_preprocess_fail_impl(import_path: *u8, resolved_path: *u8): void;
+extern "C" function pipeline_diag_preprocess_alloc_fail_impl(path_diag: *u8, what: *u8): void;
+extern "C" function pipeline_diag_merge_dep_missing_impl(import_path: *u8): void;
+
 extern "C" function pipeline_resolve_path_impl(path_ptr: *u8, path_len: i32): i32;
 extern "C" function pipeline_read_file_impl(): i32;
 extern "C" function pipeline_parse_into_loaded_import_impl(arena: *u8, module: *u8): i32;
@@ -159,7 +167,7 @@ function get_ndep(): i32 {
 #[no_mangle]
 function pipeline_set_ndep(n: i32): void {
   unsafe {
-    typeck_ndep_store(n);
+    typeck_ndep_store_impl(n);
   }
 }
 
@@ -253,8 +261,8 @@ function pipeline_set_dep(i: i32, mod: *u8, arena: *u8): void {
     return;
   }
   unsafe {
-    typeck_dep_module_set(i, mod);
-    typeck_dep_arena_set(i, arena);
+    typeck_dep_module_set_impl(i, mod);
+    typeck_dep_arena_set_impl(i, arena);
   }
 }
 
@@ -269,8 +277,8 @@ function driver_dep_publish_slot(i: i32, arena: *u8, module: *u8, import_path: *
     return;
   }
   unsafe {
-    driver_dep_arena_ptr_set(i, arena);
-    driver_dep_module_ptr_set(i, module);
+    driver_dep_arena_ptr_set_impl(i, arena);
+    driver_dep_module_ptr_set_impl(i, module);
     driver_dep_seeded_set(i, 1);
     /* 始终调 path 槽：if (path!=null) 会被 -E 丢整函数；null 在 C 槽内忽略 */
     driver_dep_path_registry_set(i, import_path);
@@ -1062,3 +1070,85 @@ function shu_lsp_free_loaded_imports(all_dep_mods: *u8, all_dep_paths: *u8, n_al
     shu_lsp_free_loaded_imports_impl(all_dep_mods, all_dep_paths, n_all);
   }
 }
+
+
+/* ---- G-02f-84：preprocess diag / asm debug / dep slot store 门闩 ---- */
+
+#[no_mangle]
+function pipeline_asm_debug_enabled(): i32 {
+  unsafe {
+    return pipeline_asm_debug_enabled_impl();
+  }
+  return 0;
+}
+
+#[no_mangle]
+function pipeline_diag_preprocess_unclosed_if(path_diag: *u8): void {
+  unsafe {
+    pipeline_diag_preprocess_unclosed_if_impl(path_diag);
+  }
+}
+
+#[no_mangle]
+function pipeline_diag_preprocess_fail(path_diag: *u8): void {
+  unsafe {
+    pipeline_diag_preprocess_fail_impl(path_diag);
+  }
+}
+
+#[no_mangle]
+function pipeline_diag_import_preprocess_fail(import_path: *u8, resolved_path: *u8): void {
+  unsafe {
+    pipeline_diag_import_preprocess_fail_impl(import_path, resolved_path);
+  }
+}
+
+#[no_mangle]
+function pipeline_diag_preprocess_alloc_fail(path_diag: *u8, what: *u8): void {
+  unsafe {
+    pipeline_diag_preprocess_alloc_fail_impl(path_diag, what);
+  }
+}
+
+#[no_mangle]
+function pipeline_diag_merge_dep_missing(import_path: *u8): void {
+  unsafe {
+    pipeline_diag_merge_dep_missing_impl(import_path);
+  }
+}
+
+#[no_mangle]
+function typeck_ndep_store(n: i32): void {
+  unsafe {
+    typeck_ndep_store_impl(n);
+  }
+}
+
+#[no_mangle]
+function typeck_dep_module_set(i: i32, mod: *u8): void {
+  unsafe {
+    typeck_dep_module_set_impl(i, mod);
+  }
+}
+
+#[no_mangle]
+function typeck_dep_arena_set(i: i32, arena: *u8): void {
+  unsafe {
+    typeck_dep_arena_set_impl(i, arena);
+  }
+}
+
+#[no_mangle]
+function driver_dep_arena_ptr_set(i: i32, arena: *u8): void {
+  unsafe {
+    driver_dep_arena_ptr_set_impl(i, arena);
+  }
+}
+
+#[no_mangle]
+function driver_dep_module_ptr_set(i: i32, module: *u8): void {
+  unsafe {
+    driver_dep_module_ptr_set_impl(i, module);
+  }
+}
+

@@ -1,8 +1,8 @@
 
-/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63 true .x + C tail).
+/* Generated from src/runtime_pipeline_abi.x (G-02f-32..63/84 true .x + C tail).
  * Regen: ./shux-c -E -L .. src/runtime_pipeline_abi.x > /tmp/pabi.c
  *         merge ends_with/magic true logic + typeck/lsp free gates; C bulk remains.
- * .x covers: + ends_with/.x magic, typeck_for_ctx, lsp_free_loaded_imports.
+ * .x covers: + ends_with/.x magic, typeck_for_ctx, lsp_free_loaded_imports, preprocess diag + dep slot stores (G-02f-84).
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -157,34 +157,58 @@ void pipeline_diag_import_open_fail_once(const char *import_path, const char *re
   }
 }
 
-static void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
+void pipeline_diag_preprocess_unclosed_if_impl(const char *path_diag) {
     pipeline_diag_emitted_note();
     diag_report_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP001, "unclosed #if", NULL);
 }
+void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
+  {
+    pipeline_diag_preprocess_unclosed_if_impl(path_diag);
+  }
+}
 
-static void pipeline_diag_preprocess_fail(const char *path_diag) {
+
+void pipeline_diag_preprocess_fail_impl(const char *path_diag) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(path_diag, 0, 0, "preprocess error", SHUX_DIAG_CODE_PREPROCESS_PP002, NULL,
                  ".x preprocess failed for '%s'",
                  path_diag ? path_diag : "?");
 }
+void pipeline_diag_preprocess_fail(const char *path_diag) {
+  {
+    pipeline_diag_preprocess_fail_impl(path_diag);
+  }
+}
 
-static void pipeline_diag_import_preprocess_fail(const char *import_path, const char *resolved_path) {
+
+void pipeline_diag_import_preprocess_fail_impl(const char *import_path, const char *resolved_path) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(resolved_path, 0, 0, "preprocess error", SHUX_DIAG_CODE_IMPORT_IMP002, NULL,
                  "preprocess failed for import '%s' (%s)",
                  import_path ? import_path : "?",
                  resolved_path ? resolved_path : "?");
 }
+void pipeline_diag_import_preprocess_fail(const char *import_path, const char *resolved_path) {
+  {
+    pipeline_diag_import_preprocess_fail_impl(import_path, resolved_path);
+  }
+}
 
-static void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what) {
+
+void pipeline_diag_preprocess_alloc_fail_impl(const char *path_diag, const char *what) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(path_diag, 0, 0, "pipeline error", SHUX_DIAG_CODE_X_PIPELINE_XP005, NULL,
                  "%s allocation failed during .x preprocess",
                  what ? what : "buffer");
 }
+void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what) {
+  {
+    pipeline_diag_preprocess_alloc_fail_impl(path_diag, what);
+  }
+}
 
-static void pipeline_diag_merge_dep_missing(const char *import_path) {
+
+void pipeline_diag_merge_dep_missing_impl(const char *import_path) {
     pipeline_diag_emitted_note();
     diag_reportf_with_code(import_path, 0, 0, "import error", SHUX_DIAG_CODE_IMPORT_IMP004, NULL,
                  "direct import '%s' was not found in the resolved dependency closure",
@@ -192,10 +216,23 @@ static void pipeline_diag_merge_dep_missing(const char *import_path) {
     diag_report(NULL, 0, 0, "note",
                 "dependency closure construction failed before merge_deps completed", NULL);
 }
+void pipeline_diag_merge_dep_missing(const char *import_path) {
+  {
+    pipeline_diag_merge_dep_missing_impl(import_path);
+  }
+}
 
-static int pipeline_asm_debug_enabled(void) {
+
+int pipeline_asm_debug_enabled_impl(void) {
     return getenv("SHUX_ASM_DEBUG") != NULL;
 }
+int pipeline_asm_debug_enabled(void) {
+  {
+    return pipeline_asm_debug_enabled_impl();
+  }
+  return 0;
+}
+
 
 extern int32_t pipeline_module_num_funcs(void *module);
 extern int32_t pipeline_module_func_name_len_at(void *module, int32_t fi);
@@ -385,9 +422,15 @@ int32_t *typeck_ndep_slot(void) {
     return (int32_t *)&typeck_ndep;
 }
 
-void typeck_ndep_store(int32_t n) {
+void typeck_ndep_store_impl(int32_t n) {
     typeck_ndep = (n <= 32) ? n : 32;
 }
+void typeck_ndep_store(int32_t n) {
+  {
+    typeck_ndep_store_impl(n);
+  }
+}
+
 
 /* G-02f-40: opaque dep pointer get/set slots for .x API */
 void *typeck_dep_module_get(int32_t i) {
@@ -402,17 +445,29 @@ void *typeck_dep_arena_get(int32_t i) {
     return typeck_dep_arena_ptrs[i];
 }
 
-void typeck_dep_module_set(int32_t i, void *mod) {
+void typeck_dep_module_set_impl(int32_t i, void *mod) {
     if (i < 0 || i >= 32)
         return;
     typeck_dep_module_ptrs[i] = mod;
 }
+void typeck_dep_module_set(int32_t i, void *mod) {
+  {
+    typeck_dep_module_set_impl(i, mod);
+  }
+}
 
-void typeck_dep_arena_set(int32_t i, void *arena) {
+
+void typeck_dep_arena_set_impl(int32_t i, void *arena) {
     if (i < 0 || i >= 32)
         return;
     typeck_dep_arena_ptrs[i] = arena;
 }
+void typeck_dep_arena_set(int32_t i, void *arena) {
+  {
+    typeck_dep_arena_set_impl(i, arena);
+  }
+}
+
 
 
 /**
@@ -841,17 +896,29 @@ extern size_t pipeline_sizeof_module(void);
  */
 
 /* G-02f-42: driver dep pointer/path slots for .x publish_slot */
-void driver_dep_arena_ptr_set(int32_t i, void *arena) {
+void driver_dep_arena_ptr_set_impl(int32_t i, void *arena) {
     if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
         return;
     driver_dep_arena_ptrs[i] = arena;
 }
+void driver_dep_arena_ptr_set(int32_t i, void *arena) {
+  {
+    driver_dep_arena_ptr_set_impl(i, arena);
+  }
+}
 
-void driver_dep_module_ptr_set(int32_t i, void *module) {
+
+void driver_dep_module_ptr_set_impl(int32_t i, void *module) {
     if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
         return;
     driver_dep_module_ptrs[i] = module;
 }
+void driver_dep_module_ptr_set(int32_t i, void *module) {
+  {
+    driver_dep_module_ptr_set_impl(i, module);
+  }
+}
+
 
 void driver_dep_path_registry_set(int32_t i, const char *path) {
     if (i < 0 || i >= SHUX_DRIVER_DEP_SLOT_MAX)
