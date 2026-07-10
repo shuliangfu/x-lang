@@ -10,6 +10,7 @@
  * G-02f-226: entry_lib keywords + set_dep_slots pure.
  * G-02f-227: lsp free_loaded + import_open_fail_once pure.
  * G-02f-228: pctx seed_dep_slots / import_paths_only / update_no_reset pure.
+ * G-02f-229: get_entry_dir + import_path_to_file_path pure.
  */
 #include "win32_compat.h"
 #include "runtime_pipeline_abi.h"
@@ -553,6 +554,7 @@ void pipeline_set_ndep(int32_t n) {
  * 参数：见 runtime_pipeline_abi.h。
  * 副作用：写入 path，保证 NUL 结尾（path_size>0 时）。
  */
+/* G-02f-229：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void shux_import_path_to_file_path_impl(const char *lib_root, const char *import_path, char *path, size_t path_size) {
     const char *r = lib_root && lib_root[0] ? lib_root : ".";
     size_t off = (size_t)snprintf(path, path_size, "%s/", r);
@@ -566,6 +568,7 @@ void shux_import_path_to_file_path_impl(const char *lib_root, const char *import
         snprintf(path + off, path_size - off, ".x");
 }
 
+/* G-02f-229：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 void shux_import_path_to_file_path(const char *lib_root, const char *import_path, char *path, size_t path_size) {
   if (path == NULL) {
     return;
@@ -582,6 +585,7 @@ void shux_import_path_to_file_path(const char *lib_root, const char *import_path
  * 从入口 .x 路径得到所在目录；无目录时写入 "."。
  * 参数：见 runtime_pipeline_abi.h。
  */
+/* G-02f-229：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void shux_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t size) {
     const char *last = strrchr(input_path, '/');
     if (!last) {
@@ -595,6 +599,7 @@ void shux_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t siz
     entry_dir[len] = '\0';
 }
 
+/* G-02f-229：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 void shux_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
   if (entry_dir == NULL) {
     return;

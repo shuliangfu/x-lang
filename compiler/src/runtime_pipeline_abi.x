@@ -15,6 +15,7 @@
 // G-02f-226：entry_lib 关键词 pure + set_dep_slots pure。
 // G-02f-227：lsp free_loaded 循环 + import_open_fail_once 去重 pure。
 // G-02f-228：pctx seed_dep_slots / import_paths_only / update_dep_slots_no_reset pure。
+// G-02f-229：get_entry_dir + import_path_to_file_path pure。
 
 extern "C" function pipeline_diag_emitted_flag_slot(): *i32;
 extern "C" function typeck_ndep_slot(): *i32;
@@ -52,9 +53,8 @@ extern "C" function shux_emit_pipeline_glue_include_impl(): void;
 extern "C" function shux_import_dep_dir_from_path_impl(path: *u8, dep_dir: *u8, dep_dir_size: i64): i32;
 extern "C" function pipeline_debug_trace_named_func_bodies(phase: *u8, module: *u8, arena: *u8): void;
 extern "C" function driver_dep_seeded_clear_slots_impl(): void;
-extern "C" function shux_get_entry_dir_impl(input_path: *u8, entry_dir: *u8, size: i64): void;
+/* get_entry_dir / import_path_to_file_path：G-02f-229 下方真迁 */
 extern "C" function driver_asm_fclose_asm_out_impl(fp: *u8): void;
-extern "C" function shux_import_path_to_file_path_impl(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void;
 extern "C" function shux_resolve_file_import_path_impl(entry_dir: *u8, import_path: *u8, path: *u8, path_size: i64): void;
 /* driver_dep_slot_for_path_scan：G-02f-224 下方真迁 */
 extern "C" function shux_preprocess_raw_to_malloc_impl(raw: *u8, raw_len: i64, out_src: *u8, out_src_len: *u8, path_diag: *u8, defines: *u8, ndefines: i32, emit_diag: i32): i32;
@@ -651,6 +651,7 @@ function driver_dep_seeded_clear_all(): void {
   }
 }
 
+// G-02f-229：入口路径 → 所在目录（末尾 / 前缀）；无 / 则写 "."
 #[no_mangle]
 function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
   if (entry_dir == 0 as *u8) {
@@ -666,7 +667,40 @@ function shux_get_entry_dir(input_path: *u8, entry_dir: *u8, size: i64): void {
     return;
   }
   unsafe {
-    shux_get_entry_dir_impl(input_path, entry_dir, size);
+    let last: i32 = 0 - 1;
+    let i: i32 = 0;
+    while (i < 65536) {
+      if (input_path[i] == 0) {
+        break;
+      }
+      if (input_path[i] == 47) {
+        last = i;
+      }
+      i = i + 1;
+    }
+    if (last < 0) {
+      if (size >= 2) {
+        entry_dir[0] = 46;
+        entry_dir[1] = 0;
+      } else {
+        entry_dir[0] = 0;
+      }
+      return;
+    }
+    let len: i32 = last;
+    let cap: i32 = size as i32;
+    if (cap <= 0) {
+      return;
+    }
+    if (len >= cap) {
+      len = cap - 1;
+    }
+    let k: i32 = 0;
+    while (k < len) {
+      entry_dir[k] = input_path[k];
+      k = k + 1;
+    }
+    entry_dir[len] = 0;
   }
 }
 
@@ -679,6 +713,7 @@ function driver_asm_fclose_asm_out(fp: *u8): void {
 
 /* ---- G-02f-53：import 路径转换 / resolve 文件 import / dep 槽查路径 ---- */
 
+// G-02f-229：lib_root + import（'.'→'/'）+ ".x"
 #[no_mangle]
 function shux_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u8, path_size: i64): void {
   if (path == 0 as *u8) {
@@ -688,7 +723,76 @@ function shux_import_path_to_file_path(lib_root: *u8, import_path: *u8, path: *u
     return;
   }
   unsafe {
-    shux_import_path_to_file_path_impl(lib_root, import_path, path, path_size);
+    let cap: i32 = path_size as i32;
+    if (cap <= 0) {
+      return;
+    }
+    let r: *u8 = lib_root;
+    if (r == 0 as *u8) {
+      // "."
+      r = 0 as *u8;
+    } else {
+      if (r[0] == 0) {
+        r = 0 as *u8;
+      }
+    }
+    let off: i32 = 0;
+    if (r == 0 as *u8) {
+      if (off + 1 < cap) {
+        path[off] = 46;
+        off = off + 1;
+      }
+    } else {
+      let ri: i32 = 0;
+      while (ri < 4096) {
+        if (r[ri] == 0) {
+          break;
+        }
+        if (off + 1 >= cap) {
+          break;
+        }
+        path[off] = r[ri];
+        off = off + 1;
+        ri = ri + 1;
+      }
+    }
+    if (off + 1 < cap) {
+      path[off] = 47;
+      off = off + 1;
+    }
+    if (import_path != 0 as *u8) {
+      let s: i32 = 0;
+      while (s < 4096) {
+        if (import_path[s] == 0) {
+          break;
+        }
+        if (off + 1 >= cap) {
+          break;
+        }
+        let ch: u8 = import_path[s];
+        if (ch == 46) {
+          path[off] = 47;
+        } else {
+          path[off] = ch;
+        }
+        off = off + 1;
+        s = s + 1;
+      }
+    }
+    // ".x"
+    if (off + 2 < cap) {
+      path[off] = 46;
+      path[off + 1] = 120;
+      path[off + 2] = 0;
+    } else {
+      if (off < cap) {
+        path[off] = 0;
+      } else {
+        if (cap > 0) {
+          path[cap - 1] = 0;
+        }
+      }
+    }
   }
 }
 
