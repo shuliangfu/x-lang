@@ -1,10 +1,11 @@
-/* seeds/rt_compile.from_x.c — G-02f-291/292/293 P2 runtime R6 compile helpers
+/* seeds/rt_compile.from_x.c — G-02f-291～294 P2 runtime R6 compile helpers
  * Logic source: src/runtime/rt_compile.x
  * Hybrid: SHUX_RT_COMPILE_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * f-291: deps_std_core + emit_asm path pure
  * f-292: argv state field helpers (copy_path / freestanding / help)
  * f-293: apply_minus_o/L/O + backend/target/target_cpu next
+ * f-294: parse_argv_init + ensure_default_lib + append_lib_root
  * Full parse_argv_step/scan/impl + resolve_target_cpu remain mega rest.
  */
 #if !defined(_POSIX_C_SOURCE)
@@ -42,7 +43,10 @@ extern void driver_freestanding_set(int on);
 extern void cfg_set_freestanding(int on);
 extern void driver_sanitize_address_set(int on);
 extern int driver_get_argv_i(int argc, char **argv, int i, char *buf, int max);
-extern void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
+extern void cfg_reset_compile_target(void);
+extern int32_t driver_emit_lib_root_count(uint8_t *state);
+extern int32_t driver_emit_append_lib_root(uint8_t *state, uint8_t *path, int32_t len);
+extern void driver_emit_lib_root_reset(uint8_t *state);
 /* From rt_argv seed when hybrid; else mega rest. */
 extern int drv_eq_asm_word(const char *buf, int len);
 extern int drv_eq_c_word(const char *buf, int len);
@@ -156,6 +160,53 @@ int32_t driver_compile_argv_is_help_c(int32_t argc, uint8_t *argv_opaque) {
       return 1;
   }
   return 0;
+}
+
+/* --- G-02f-294: init / ensure_default_lib / append_lib_root --- */
+
+/** parse_argv -L 分支：直接用 state 指针作 sidecar 键。 */
+void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len) {
+  if (!state || !path || len <= 0)
+    return;
+  (void)driver_emit_append_lib_root((uint8_t *)state, path, len);
+}
+
+/**
+ * 无显式 -L 时向 sidecar 追加默认 lib_root "."。
+ */
+void driver_compile_ensure_default_lib_c(uint8_t *key) {
+  static const uint8_t dot[1] = {46};
+  if (!key)
+    return;
+  if (driver_emit_lib_root_count(key) == 0)
+    (void)driver_emit_append_lib_root(key, (uint8_t *)dot, 1);
+}
+
+/**
+ * 重置 DriverCompileState 默认值并清空 lib_root sidecar。
+ */
+void driver_compile_parse_argv_init_c(DriverCompileStateSU *state) {
+  if (!state)
+    return;
+  cfg_reset_compile_target();
+  state->path_len = 0;
+  state->out_path_len = 0;
+  state->use_asm_backend = 1;
+  state->target_arch = 0;
+  state->target_len = 0;
+  state->opt_level_len = 1;
+  state->opt_level_buf[0] = (uint8_t)'2';
+  state->use_lto = 0;
+  state->backend_asm_explicit = 0;
+  state->use_freestanding = 0;
+  state->parse_saw_target = 0;
+  state->target_cpu_len = 0;
+  state->target_cpu_features = 0;
+  state->print_target_cpu = 0;
+  state->parse_saw_target_cpu = 0;
+  driver_freestanding_set(0);
+  cfg_set_freestanding(0);
+  driver_emit_lib_root_reset((uint8_t *)state);
 }
 
 /* --- G-02f-293: apply next-token argv helpers --- */

@@ -4584,6 +4584,9 @@ void driver_compile_argv_apply_target_next_c(DriverCompileStateSU *state, int32_
                                              int32_t i);
 void driver_compile_argv_apply_target_cpu_next_c(DriverCompileStateSU *state, int32_t argc, uint8_t *argv_opaque,
                                                   int32_t i);
+void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
+void driver_compile_ensure_default_lib_c(uint8_t *key);
+void driver_compile_parse_argv_init_c(DriverCompileStateSU *state);
 int labi_rt_compile_slice_marker(void);
 #endif /* !SHUX_RT_COMPILE_FROM_X */
 
@@ -6085,10 +6088,10 @@ void driver_compile_argv_copy_path_c(DriverCompileStateSU *state, uint8_t *arg_b
 
 
 /**
- * 无显式 -L 时向 sidecar 追加默认 lib_root "."（与 compile.x ensure_default_lib 语义一致）。
- * EMIT_HEAVY driver_compile.o 中 X 体常为 ret0 桩；finalize 与薄包装均 bl 本符号。
+ * ensure_default_lib / parse_argv_init / append_lib_root。
+ * G-02f-294 R6 → rt_compile hybrid
  */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RT_COMPILE_FROM_X
 void driver_compile_ensure_default_lib_c(uint8_t *key) {
     static const uint8_t dot[1] = {46};
     if (!key)
@@ -6097,14 +6100,6 @@ void driver_compile_ensure_default_lib_c(uint8_t *key) {
         (void)driver_emit_append_lib_root(key, (uint8_t *)dot, 1);
 }
 
-
-
-
-/**
- * 重置 DriverCompileState 默认值并清空 lib_root sidecar（与 compile.x parse_argv_init 语义一致）。
- * EMIT_HEAVY 下对 *DriverCompileState 形参的 field store 易写成 fp 槽地址+offset，须走 C。
- */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void driver_compile_parse_argv_init_c(DriverCompileStateSU *state) {
     if (!state)
         return;
@@ -6129,16 +6124,16 @@ void driver_compile_parse_argv_init_c(DriverCompileStateSU *state) {
     driver_emit_lib_root_reset((uint8_t *)state);
 }
 
-
-
-
-/** parse_argv -L 分支：直接用 state 指针作 sidecar 键（与 init_c/ensure_default 一致）。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len) {
     if (!state || !path || len <= 0)
         return;
     (void)driver_emit_append_lib_root((uint8_t *)state, path, len);
 }
+#else
+void driver_compile_ensure_default_lib_c(uint8_t *key);
+void driver_compile_parse_argv_init_c(DriverCompileStateSU *state);
+void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
+#endif
 
 
 

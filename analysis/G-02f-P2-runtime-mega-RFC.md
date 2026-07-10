@@ -198,6 +198,7 @@ G05_SYNC_ASM=1 sh scripts/g05_prepare_and_relink.sh
 | 2026-07-11 | **f-291 R6-lite**：`rt_compile.*`（deps_std_core + emit_asm path pure）；`SHUX_RT_COMPILE_FROM_X`；hybrid 六切片+rest；主编排/IO 仍 mega |
 | 2026-07-11 | **f-292 R6 扩**：`rt_compile` 增 copy_path / freestanding / legacy_f32 / sanitize / is_help；仍 `SHUX_RT_COMPILE_FROM_X` |
 | 2026-07-11 | **f-293 R6 apply_***：`rt_compile` 增 apply_minus_o/L/O + backend/target/target_cpu next；仍 `SHUX_RT_COMPILE_FROM_X` |
+| 2026-07-11 | **f-294 R6 init/ensure**：`parse_argv_init` + `ensure_default_lib` + `append_lib_root` → `rt_compile` |
 | 2026-07-11 | **f-262 R0 落地**：`rt_util.x` + `seeds/rt_util.from_x.c`（`driver_unlink_failed_output` / `driver_argv0_basename_is`）；`SHUX_RT_UTIL_FROM_X`；hybrid **R2+R0+rest**。 |
 | 2026-07-11 | **f-263 R1 落地**：`rt_argv.x` + `seeds/rt_argv.from_x.c`（全部 `drv_eq_*`、`drv_path_ends_x`、`drv_target_has_arm`）；`SHUX_RT_ARGV_FROM_X`；hybrid **R2+R0+R1+rest**。 |
 | 2026-07-11 | **f-264**：RFC **R4 DCE 产品路径跳过**（整块 `#if !SHUX_USE_X_DRIVER`，不进 `runtime_driver_no_c.o`）。改落地 **R5-lite emit_flags**：`driver_argv_has_emit_c_flag`、`set_use_lto_c`、`set_print_target_cpu_c` → `rt_emit_flags.*`；`SHUX_RT_EMIT_FLAGS_FROM_X`；hybrid 四切片+rest。 |
