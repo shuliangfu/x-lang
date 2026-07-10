@@ -4,6 +4,7 @@
 // G-02f-14/71/72：runtime 产品源 seeds/runtime.from_x.c + 真迁 .x 门闩。
 // G-02f-85：smoke_diag / unlink_failed_out / asm direct-import 门闩。
 // G-02f-86：explain CLI / errno diag / legacy smoke summary 门闩。
+// G-02f-87：argv 令牌/path 后缀纯 helper（drv_eq_* / path_ends / lib_root_usable）门闩。
 // G-02f-71/72：driver compile/run 薄封装 + main_entry/argv/exec/fmt/大 run_* 门闩。
 // 产品：cc seeds/runtime.from_x.c + RUNTIME_DRIVER_NO_C_CFLAGS → src/runtime_driver_no_c.o
 // C 尾：argv 解析循环、#if 变体、大 driver 路径、syscall/fs。
@@ -72,6 +73,25 @@ extern "C" function runtime_diag_errno_path_pair_impl(file: *u8, kind: *u8, op: 
 extern "C" function runtime_try_handle_explain_cli_impl(argc: i32, argv: *u8): i32;
 extern "C" function driver_emit_legacy_smoke_summary_stdout_impl(main_name: *u8, main_final_lit: i32, has_main_body: i32): void;
 extern "C" function runtime_diag_code_for_kind_impl(kind: *u8): *u8;
+
+extern "C" function driver_lib_root_ptr_usable_impl(p: *u8): i32;
+extern "C" function drv_eq_minus_o_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_minus_L_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_minus_O_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_flto_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_minus_freestanding_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_legacy_f32_abi_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_fsanitize_address_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_minus_backend_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_minus_target_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_minus_target_cpu_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_print_target_cpu_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_asm_word_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_eq_c_word_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_path_ends_x_impl(buf: *u8, len: i32): i32;
+extern "C" function drv_target_has_arm_impl(buf: *u8, len: i32): i32;
+extern "C" function driver_argv_has_emit_c_flag_impl(argc: i32, argv: *u8): i32;
+extern "C" function driver_argv0_basename_is_impl(argv0: *u8, base: *u8): i32;
 
 #[no_mangle]
 function run_compiler_c(argc: i32, argv: *u8): i32 {
@@ -509,5 +529,151 @@ function runtime_diag_code_for_kind(kind: *u8): *u8 {
     return runtime_diag_code_for_kind_impl(kind);
   }
   return 0 as *u8;
+}
+
+/* ---- G-02f-87：argv 令牌 / path 后缀 / lib_root 纯 helper 门闩 ---- */
+
+#[no_mangle]
+function driver_lib_root_ptr_usable(p: *u8): i32 {
+  unsafe {
+    return driver_lib_root_ptr_usable_impl(p);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_o(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_minus_o_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_L(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_minus_L_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_O(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_minus_O_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_flto(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_flto_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_freestanding(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_minus_freestanding_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_legacy_f32_abi(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_legacy_f32_abi_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_fsanitize_address(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_fsanitize_address_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_backend(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_minus_backend_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_target(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_minus_target_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_minus_target_cpu(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_minus_target_cpu_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_print_target_cpu(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_print_target_cpu_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_asm_word(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_asm_word_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_eq_c_word(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_eq_c_word_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_path_ends_x(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_path_ends_x_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function drv_target_has_arm(buf: *u8, len: i32): i32 {
+  unsafe {
+    return drv_target_has_arm_impl(buf, len);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_argv_has_emit_c_flag(argc: i32, argv: *u8): i32 {
+  unsafe {
+    return driver_argv_has_emit_c_flag_impl(argc, argv);
+  }
+  return 0;
+}
+
+#[no_mangle]
+function driver_argv0_basename_is(argv0: *u8, base: *u8): i32 {
+  unsafe {
+    return driver_argv0_basename_is_impl(argv0, base);
+  }
+  return 0;
 }
 

@@ -1,4 +1,4 @@
-/* seeds/runtime.from_x.c — G-02f-14/85/86/71/72 product TU
+/* seeds/runtime.from_x.c — G-02f-14/85/86/87/71/72 product TU
  * Product objects from this seed (flags select variants):
  *   runtime_driver_no_c.o  — RUNTIME_DRIVER_NO_C_CFLAGS (G05 product)
  *   runtime_driver.o / runtime_x.o / runtime.o / runtime_driver_asm_*
@@ -4554,7 +4554,7 @@ static int driver_c_mod_imports_are_core_only(ASTModule *mod) {
 #endif
 
 /** argv[0] basename 是否等于给定名（如 shux-c，避免 sibling exec 自递归）。 */
-static int driver_argv0_basename_is(const char *argv0, const char *base) {
+int driver_argv0_basename_is_impl(const char *argv0, const char *base) {
     const char *slash;
     const char *name;
     if (!base)
@@ -4570,6 +4570,13 @@ static int driver_argv0_basename_is(const char *argv0, const char *base) {
     name = slash ? slash + 1 : (argv0 ? argv0 : "");
     return strcmp(name, base) == 0;
 }
+int driver_argv0_basename_is(const char *argv0, const char *base) {
+  {
+    return driver_argv0_basename_is_impl(argv0, base);
+  }
+  return 0;
+}
+
 
 /**
  * argv 已解析后的编译执行：泛型降级、asm/C 分派、pipeline/cc。
@@ -5502,9 +5509,16 @@ extern void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, i
  * 参数：p 候选 lib root 字符串指针。
  * 返回值：非 0 表示可用。
  */
-static int driver_lib_root_ptr_usable(const char *p) {
+int driver_lib_root_ptr_usable_impl(const char *p) {
     return p && (uintptr_t)p >= 4096u && p[0] != '\0';
 }
+int driver_lib_root_ptr_usable(const char *p) {
+  {
+    return driver_lib_root_ptr_usable_impl(p);
+  }
+  return 0;
+}
+
 
 /**
  * 写入默认 lib root：优先 SHUX_LIB（拷贝到 root_buf），否则 "."。
@@ -5751,55 +5765,153 @@ void driver_compile_ensure_default_lib_c(uint8_t *key);
 void driver_compile_append_lib_root_c(DriverCompileStateSU *state, uint8_t *path, int32_t len);
 
 /** argv 令牌比较与 path 后缀检测（与 compile.x 同名 helper 语义一致）。 */
-static int drv_eq_minus_o(const char *buf, int len) {
+int drv_eq_minus_o_impl(const char *buf, int len) {
     return len == 2 && buf[0] == '-' && buf[1] == 'o';
 }
-static int drv_eq_minus_L(const char *buf, int len) {
+int drv_eq_minus_o(const char *buf, int len) {
+  {
+    return drv_eq_minus_o_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_minus_L_impl(const char *buf, int len) {
     return len == 2 && buf[0] == '-' && buf[1] == 'L';
 }
-static int drv_eq_minus_O(const char *buf, int len) {
+int drv_eq_minus_L(const char *buf, int len) {
+  {
+    return drv_eq_minus_L_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_minus_O_impl(const char *buf, int len) {
     return len == 2 && buf[0] == '-' && buf[1] == 'O';
 }
-static int drv_eq_flto(const char *buf, int len) {
+int drv_eq_minus_O(const char *buf, int len) {
+  {
+    return drv_eq_minus_O_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_flto_impl(const char *buf, int len) {
     return len == 5 && buf[0] == '-' && buf[1] == 'f' && buf[2] == 'l' && buf[3] == 't' && buf[4] == 'o';
 }
-static int drv_eq_minus_freestanding(const char *buf, int len) {
+int drv_eq_flto(const char *buf, int len) {
+  {
+    return drv_eq_flto_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_minus_freestanding_impl(const char *buf, int len) {
     return len == 13 && !memcmp(buf, "-freestanding", 13);
 }
-static int drv_eq_legacy_f32_abi(const char *buf, int len) {
+int drv_eq_minus_freestanding(const char *buf, int len) {
+  {
+    return drv_eq_minus_freestanding_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_legacy_f32_abi_impl(const char *buf, int len) {
     return len == 15 && !memcmp(buf, "-legacy-f32-abi", 15);
 }
-static int drv_eq_fsanitize_address(const char *buf, int len) {
+int drv_eq_legacy_f32_abi(const char *buf, int len) {
+  {
+    return drv_eq_legacy_f32_abi_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_fsanitize_address_impl(const char *buf, int len) {
     return len == 18 && !memcmp(buf, "-fsanitize=address", 18);
 }
-static int drv_eq_minus_backend(const char *buf, int len) {
+int drv_eq_fsanitize_address(const char *buf, int len) {
+  {
+    return drv_eq_fsanitize_address_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_minus_backend_impl(const char *buf, int len) {
     return len == 8 && !memcmp(buf, "-backend", 8);
 }
-static int drv_eq_minus_target(const char *buf, int len) {
+int drv_eq_minus_backend(const char *buf, int len) {
+  {
+    return drv_eq_minus_backend_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_minus_target_impl(const char *buf, int len) {
     return len >= 7 && !memcmp(buf, "-target", 7);
 }
-static int drv_eq_minus_target_cpu(const char *buf, int len) {
+int drv_eq_minus_target(const char *buf, int len) {
+  {
+    return drv_eq_minus_target_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_minus_target_cpu_impl(const char *buf, int len) {
     return len >= 11 && !memcmp(buf, "-target-cpu", 11);
 }
-static int drv_eq_print_target_cpu(const char *buf, int len) {
+int drv_eq_minus_target_cpu(const char *buf, int len) {
+  {
+    return drv_eq_minus_target_cpu_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_print_target_cpu_impl(const char *buf, int len) {
     return (len == 18 && !memcmp(buf, "--print-target-cpu", 18)) ||
            (len == 17 && !memcmp(buf, "-print-target-cpu", 17));
 }
-static int drv_eq_asm_word(const char *buf, int len) {
+int drv_eq_print_target_cpu(const char *buf, int len) {
+  {
+    return drv_eq_print_target_cpu_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_asm_word_impl(const char *buf, int len) {
     return len == 3 && buf[0] == 'a' && buf[1] == 's' && buf[2] == 'm';
 }
-static int drv_eq_c_word(const char *buf, int len) {
+int drv_eq_asm_word(const char *buf, int len) {
+  {
+    return drv_eq_asm_word_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_eq_c_word_impl(const char *buf, int len) {
     return len == 1 && buf[0] == 'c';
 }
+int drv_eq_c_word(const char *buf, int len) {
+  {
+    return drv_eq_c_word_impl(buf, len);
+  }
+  return 0;
+}
+
 /** 是否为 Shux 源文件路径（`.x`；仅 `.x`）。 */
-static int drv_path_ends_x(const char *buf, int len) {
+int drv_path_ends_x_impl(const char *buf, int len) {
     if (len >= 2 && buf[len - 2] == '.' && buf[len - 1] == 'x')
         return 1;
     if (len >= 3 && buf[len - 3] == '.' && buf[len - 2] == 's' && buf[len - 1] == 'u')
         return 1;
     return 0;
 }
-static int drv_target_has_arm(const char *buf, int len) {
+int drv_path_ends_x(const char *buf, int len) {
+  {
+    return drv_path_ends_x_impl(buf, len);
+  }
+  return 0;
+}
+
+int drv_target_has_arm_impl(const char *buf, int len) {
     int start;
     for (start = 0; start + 5 <= len; start++) {
         if (buf[start] == 'a' && buf[start + 1] == 'r' && buf[start + 2] == 'm' && buf[start + 3] == '6' &&
@@ -5808,6 +5920,13 @@ static int drv_target_has_arm(const char *buf, int len) {
     }
     return 0;
 }
+int drv_target_has_arm(const char *buf, int len) {
+  {
+    return drv_target_has_arm_impl(buf, len);
+  }
+  return 0;
+}
+
 
 /**
  * 处理 argv[i] 一项（C 实现；strict emit 下 X step 的 if+side-effect+return 会错序提前 return）。
@@ -6297,7 +6416,7 @@ void driver_compile_resolve_target_cpu_c(DriverCompileStateSU *state) {
 int driver_run_x_emit_c(void);
 
 /** argv 是否含 `-E` / `-E-extern`（G-06 build_seed_asm_host 用 `shux -E file.x`，勿走 asm 后端）。 */
-static int driver_argv_has_emit_c_flag(int argc, char **argv) {
+int driver_argv_has_emit_c_flag_impl(int argc, char **argv) {
     int i;
     if (argc < 2 || !argv)
         return 0;
@@ -6307,6 +6426,13 @@ static int driver_argv_has_emit_c_flag(int argc, char **argv) {
     }
     return 0;
 }
+int driver_argv_has_emit_c_flag(int argc, char **argv) {
+  {
+    return driver_argv_has_emit_c_flag_impl(argc, argv);
+  }
+  return 0;
+}
+
 
 /**
  * `-E` 专用：将 compile state 中的 path/lib_roots 灌入 driver_run_x_emit_c，走 .x pipeline 出 C（deps+main）。
