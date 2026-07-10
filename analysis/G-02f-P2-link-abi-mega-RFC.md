@@ -213,3 +213,4 @@ cc -o /tmp/labi0_ut tests_or_inline_ut.c seeds/labi_path_pure.from_x.c && /tmp/l
 | 2026-07-11 | **f-269 L2 落地**：`labi_host_lit.*`（`shux_host_is_linux` / `shux_host_is_apple_aarch64`，C `#if` 字面量）；`SHUX_LABI_HOST_LIT_FROM_X`；hybrid **L0+L1+L2+rest**。 |
 | 2026-07-11 | **f-270 L3 落地**：`labi_path_io.*`（`shux_path_is_nonempty_regular_file*` / `asm_link_obj_skip_missing` / `shux_runtime_o_realpath_if_exists`，stat/realpath 🔒）；`SHUX_LABI_PATH_IO_FROM_X`；hybrid **L0+L1+L2+L3+rest**。 |
 | 2026-07-11 | **f-271 L8 列表纯落地**：`labi_std_list.*`（默认 ASM ld plan 表 + `labi_std_plan_count/step_at` / `labi_std_default_std_rel_*`）；`append_std_objs` 改为 plan 解释器（IO/ensure 仍 mega）；`SHUX_LABI_STD_LIST_FROM_X`；hybrid **L0～L3+L8+rest**。 |
+| 2026-07-11 | **f-272 L8b on_demand 列表纯落地**：`labi_ondemand_list.*`（simple 6 组符号→rel + kv/arrow/time/queue 表 + `labi_od_rel_*`）；`append_on_demand_user_objs` 表驱动（nm/ensure 仍 mega）；`SHUX_LABI_ONDEMAND_LIST_FROM_X`；hybrid **L0～L3+L8+L8b+rest**。 |

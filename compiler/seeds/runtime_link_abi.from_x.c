@@ -6091,68 +6091,138 @@ void shux_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots,
     }
 }
 
+/* G-02f-272 L8b on_demand list pure */
+#ifndef SHUX_LABI_ONDEMAND_LIST_FROM_X
+#include "seeds/labi_ondemand_list.from_x.c"
+#else
+int labi_od_simple_group_count(void);
+int labi_od_simple_group_sym_count(int g);
+const char *labi_od_simple_group_sym_at(int g, int i);
+const char *labi_od_simple_group_rel(int g);
+int labi_od_kv_sym_count(void);
+const char *labi_od_kv_sym_at(int i);
+const char *labi_od_kv_rel(void);
+const char *labi_od_kv_glue_rel(void);
+int labi_od_arrow_sym_count(void);
+const char *labi_od_arrow_sym_at(int i);
+const char *labi_od_arrow_rel(void);
+const char *labi_od_arrow_glue_rel(void);
+int labi_od_time_sym_count(void);
+const char *labi_od_time_sym_at(int i);
+const char *labi_od_time_rel(void);
+const char *labi_od_time_os_rel(void);
+int labi_od_queue_sym_count(void);
+const char *labi_od_queue_sym_at(int i);
+const char *labi_od_queue_rel(void);
+const char *labi_od_queue_contention_rel(void);
+const char *labi_od_rel_net(void);
+const char *labi_od_rel_thread(void);
+const char *labi_od_rel_heap(void);
+const char *labi_od_rel_set(void);
+const char *labi_od_rel_map(void);
+const char *labi_od_rel_async_scheduler(void);
+const char *labi_od_rel_core_mem(void);
+const char *labi_od_rel_sys_linux(void);
+const char *labi_od_rel_page_mmap(void);
+const char *labi_od_rel_sys(void);
+const char *labi_od_rel_core_slice(void);
+const char *labi_od_rel_test(void);
+const char *labi_od_rel_heap_user(void);
+const char *labi_od_rel_scheduler_glue(void);
+const char *labi_od_rel_thread_glue(void);
+const char *labi_od_rel_net_udp_batch(void);
+const char *labi_od_rel_net_workers(void);
+const char *labi_od_rel_test_fn_invoke(void);
+#endif
+
+/* local helper: any of pure-table syms undefined in user_o (nm). */
+static int labi_od_user_needs_any_sym_table(const char *user_o, int n, const char *(*sym_at)(int)) {
+    int i;
+    if (!user_o || !user_o[0] || n <= 0 || !sym_at)
+        return 0;
+    for (i = 0; i < n; i++) {
+        const char *s = sym_at(i);
+        if (s && s[0] && shux_link_obj_needs_undef_sym(user_o, s))
+            return 1;
+    }
+    return 0;
+}
+
+static int labi_od_user_needs_simple_group(const char *user_o, int g) {
+    int n = labi_od_simple_group_sym_count(g);
+    int i;
+    if (!user_o || !user_o[0] || n <= 0)
+        return 0;
+    for (i = 0; i < n; i++) {
+        const char *s = labi_od_simple_group_sym_at(g, i);
+        if (s && s[0] && shux_link_obj_needs_undef_sym(user_o, s))
+            return 1;
+    }
+    return 0;
+}
+
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
+/* G-02f-272：on_demand 列表纯表 + 本函数 IO 解释 */
 void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *user_o,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
 #if defined(__linux__) || defined(__APPLE__)
     const char *p;
+    int sg;
     if (!user_o || !user_o[0] || !la || *la >= max_la - 1)
         return;
     if (link_abi_user_o_needs_std_net(user_o)) {
         int have_net = 0;
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/net/net.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_net);
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_net(), lib_roots, n_lib_roots, bank, argv, la, max_la, &have_net);
         if (have_net) {
             if (flags)
                 flags->have_net = 1;
             /* workers.x 依赖 thread_create_c；按需再推 thread.o + glue（默认 ld 可能未链）。 */
-            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/thread/thread.o", lib_roots, n_lib_roots, bank, argv, la, max_la,
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_thread(), lib_roots, n_lib_roots, bank, argv, la, max_la,
                 flags ? &flags->have_thread : NULL);
             if (flags && flags->have_thread) {
                 link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_thread_glue_o,
                     shux_runtime_thread_glue_o_path(link_argv0), link_argv0,
-                    "compiler/runtime_thread_glue.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+                    labi_od_rel_thread_glue(), lib_roots, n_lib_roots, bank, argv, la, max_la);
             }
             link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_net_udp_batch_o,
                 shux_runtime_net_udp_batch_o_path(link_argv0), link_argv0,
-                "compiler/runtime_net_udp_batch.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+                labi_od_rel_net_udp_batch(), lib_roots, n_lib_roots, bank, argv, la, max_la);
             link_abi_asm_ld_push_glue_after_std(1, shux_ensure_runtime_net_workers_o,
                 shux_runtime_net_workers_o_path(link_argv0), link_argv0,
-                "compiler/runtime_net_workers.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+                labi_od_rel_net_workers(), lib_roots, n_lib_roots, bank, argv, la, max_la);
         }
     }
     if (link_abi_link_needs_std_heap_import(user_o, argv, la ? *la : 0)) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
     if (link_abi_user_o_needs_std_set(user_o)) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/set/set.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_set(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         if (!link_abi_link_needs_std_heap_import(user_o, argv, la ? *la : 0)) {
-            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/heap.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_heap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
     }
     if (link_abi_user_o_needs_std_map(user_o)) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/map/map.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_map(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
     if (link_abi_user_o_needs_async_scheduler(user_o)) {
         p = asm_link_obj_skip_missing(shux_std_async_scheduler_o_path(link_argv0));
         if (!p && bank)
-            p = shux_asm_ld_try_under_lib_roots("std/async/scheduler.o", lib_roots, n_lib_roots, bank);
+            p = shux_asm_ld_try_under_lib_roots(labi_od_rel_async_scheduler(), lib_roots, n_lib_roots, bank);
         if (p && *la < max_la - 1)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
         if (p && *la < max_la - 1) {
             const char *rsg = asm_link_obj_skip_missing(shux_runtime_scheduler_glue_o_path(link_argv0));
             if (!rsg && bank)
-                rsg = shux_asm_ld_try_under_lib_roots("compiler/runtime_scheduler_glue.o", lib_roots, n_lib_roots, bank);
+                rsg = shux_asm_ld_try_under_lib_roots(labi_od_rel_scheduler_glue(), lib_roots, n_lib_roots, bank);
             if (rsg)
                 link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, rsg);
         }
     }
     if (link_abi_user_o_needs_core_mem(user_o)) {
-        p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, "core/mem/mem.o"));
+        p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, labi_od_rel_core_mem()));
         if (!p && bank)
-            p = shux_asm_ld_try_under_lib_roots("core/mem/mem.o", lib_roots, n_lib_roots, bank);
+            p = shux_asm_ld_try_under_lib_roots(labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank);
         if (p)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
     }
@@ -6172,131 +6242,88 @@ void shux_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char *
         if (link_abi_user_o_needs_std_sys_linux(user_o)
             || link_abi_user_o_needs_std_heap_page_mmap(user_o)
             || link_abi_user_o_needs_std_sys(user_o)) {
-            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sys/linux.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_sys_linux(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
         if (link_abi_user_o_needs_std_heap_page_mmap(user_o)
             || link_abi_user_o_needs_std_sys(user_o)) {
-            link_abi_asm_ld_push_obj(NULL, link_argv0, "core/mem/mem.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_core_mem(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
         if (link_abi_user_o_needs_std_heap_page_mmap(user_o)) {
-            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/heap/page_mmap.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_page_mmap(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
         if (link_abi_user_o_needs_std_sys(user_o)) {
-            link_abi_asm_ld_push_obj(NULL, link_argv0, "std/sys/sys.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_sys(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         }
     }
     if (link_abi_user_o_needs_core_slice(user_o)) {
-        p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, "core/slice/slice.o"));
+        p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, labi_od_rel_core_slice()));
         if (!p && bank)
-            p = shux_asm_ld_try_under_lib_roots("core/slice/slice.o", lib_roots, n_lib_roots, bank);
+            p = shux_asm_ld_try_under_lib_roots(labi_od_rel_core_slice(), lib_roots, n_lib_roots, bank);
         if (p)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "db_kv_open_c") || shux_link_obj_needs_undef_sym(user_o, "db_kv_get_c")) {
-        p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, "std/db/kv/kv.o"));
+    if (labi_od_user_needs_any_sym_table(user_o, labi_od_kv_sym_count(), labi_od_kv_sym_at)) {
+        p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, labi_od_kv_rel()));
         if (!p && bank)
-            p = shux_asm_ld_try_under_lib_roots("std/db/kv/kv.o", lib_roots, n_lib_roots, bank);
+            p = shux_asm_ld_try_under_lib_roots(labi_od_kv_rel(), lib_roots, n_lib_roots, bank);
         if (p)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
         if (p && *la < max_la - 1) {
             const char *rkv = asm_link_obj_skip_missing(shux_runtime_kv_mmap_glue_o_path(link_argv0));
             if (!rkv && bank)
-                rkv = shux_asm_ld_try_under_lib_roots("compiler/runtime_kv_mmap_glue.o", lib_roots, n_lib_roots, bank);
+                rkv = shux_asm_ld_try_under_lib_roots(labi_od_kv_glue_rel(), lib_roots, n_lib_roots, bank);
             if (rkv)
                 link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, rkv);
         }
     }
-    if (shux_link_obj_needs_undef_sym(user_o, "arrow_column_i32_create_c")
-        || shux_link_obj_needs_undef_sym(user_o, "arrow_column_adopt_f32_c")) {
-        p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, "std/db/arrow/arrow.o"));
+    if (labi_od_user_needs_any_sym_table(user_o, labi_od_arrow_sym_count(), labi_od_arrow_sym_at)) {
+        p = asm_link_obj_skip_missing(shux_rel_o_path_from_argv0(link_argv0, labi_od_arrow_rel()));
         if (!p && bank)
-            p = shux_asm_ld_try_under_lib_roots("std/db/arrow/arrow.o", lib_roots, n_lib_roots, bank);
+            p = shux_asm_ld_try_under_lib_roots(labi_od_arrow_rel(), lib_roots, n_lib_roots, bank);
         if (p)
             link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, p);
         if (p && *la < max_la - 1) {
             const char *rar = asm_link_obj_skip_missing(shux_runtime_arrow_simd_glue_o_path(link_argv0));
             if (!rar && bank)
-                rar = shux_asm_ld_try_under_lib_roots("compiler/runtime_arrow_simd_glue.o", lib_roots, n_lib_roots, bank);
+                rar = shux_asm_ld_try_under_lib_roots(labi_od_arrow_glue_rel(), lib_roots, n_lib_roots, bank);
             if (rar)
                 link_abi_asm_ld_argv_push_stable(bank, argv, la, max_la, rar);
         }
     }
     if (link_abi_user_o_needs_std_test(user_o)) {
         int have_test = 0;
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/test/test.o", lib_roots, n_lib_roots, bank, argv, la, max_la, &have_test);
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_rel_test(), lib_roots, n_lib_roots, bank, argv, la, max_la, &have_test);
         link_abi_asm_ld_push_glue_after_std(have_test, shux_ensure_runtime_test_fn_invoke_o,
             shux_runtime_test_fn_invoke_o_path(link_argv0), link_argv0,
-            "compiler/runtime_test_fn_invoke.o", lib_roots, n_lib_roots, bank, argv, la, max_la);
+            labi_od_rel_test_fn_invoke(), lib_roots, n_lib_roots, bank, argv, la, max_la);
     }
     if (link_abi_link_needs_heap_user_c(user_o, argv, la ? *la : 0)) {
         if (shux_ensure_runtime_heap_user_o(link_argv0) != 0)
             return;
-        link_abi_asm_ld_push_obj(shux_runtime_heap_user_o_path(link_argv0), link_argv0, "compiler/runtime_heap_user.o",
+        link_abi_asm_ld_push_obj(shux_runtime_heap_user_o_path(link_argv0), link_argv0, labi_od_rel_heap_user(),
                                  lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
         if (flags)
             flags->have_libc_heap = 1;
     }
-    /** co-emit std.string/mod.x 时 call 重定向到 string.o 内 shux_string_*；import binding 走 std_string_* 别名桩。 */
-    if (shux_link_obj_needs_undef_sym(user_o, "shux_string_copy_c")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_string_memcmp_c")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_string_memchr_c")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_string_memmem_c")
-        || shux_link_obj_needs_undef_sym(user_o, "shux_string_memrchr_c")
-        || shux_link_obj_needs_undef_sym(user_o, "std_string_string_new")
-        || shux_link_obj_needs_undef_sym(user_o, "std_string_string_from_slice")
-        || shux_link_obj_needs_undef_sym(user_o, "std_string_string_view")
-        || shux_link_obj_needs_undef_sym(user_o, "std_string_string_len")) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/string/string.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+    /* co-emit simple multi-sym groups → single std rel (pure table). */
+    for (sg = 0; sg < labi_od_simple_group_count(); sg++) {
+        const char *rel = labi_od_simple_group_rel(sg);
+        if (!rel || !rel[0])
+            continue;
+        if (labi_od_user_needs_simple_group(user_o, sg))
+            link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
-    /** core.types 跳过 co-emit；size_of/align_of 由 base64.o 导出 core_types_*。 */
-    if (shux_link_obj_needs_undef_sym(user_o, "core_types_size_of_i32")
-        || shux_link_obj_needs_undef_sym(user_o, "core_types_placeholder")) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/base64/base64.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    }
-    /** co-emit std.encoding/mod.x 调用 encoding_*_c；按需链 encoding.o。 */
-    if (shux_link_obj_needs_undef_sym(user_o, "encoding_utf8_valid_c")
-        || shux_link_obj_needs_undef_sym(user_o, "encoding_hex_encode_c")
-        || shux_link_obj_needs_undef_sym(user_o, "encoding_ascii_is_alpha_c")
-        || shux_link_obj_needs_undef_sym(user_o, "std_encoding_utf8_valid")
-        || shux_link_obj_needs_undef_sym(user_o, "std_encoding_utf8_decode_rune")
-        || shux_link_obj_needs_undef_sym(user_o, "std_encoding_ascii_is_alpha")) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/encoding/encoding.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    }
-    /** co-emit std.base64/mod.x 调用 base64_*_c；按需链 base64.o（含 std_base64_* 别名桩）。 */
-    if (shux_link_obj_needs_undef_sym(user_o, "base64_encode_standard_c")
-        || shux_link_obj_needs_undef_sym(user_o, "std_base64_encode_standard")
-        || shux_link_obj_needs_undef_sym(user_o, "std_base64_decode_standard")
-        || shux_link_obj_needs_undef_sym(user_o, "std_base64_encode_url")) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/base64/base64.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    }
-    /** co-emit std.time/mod.x 调用 time_*_c；按需链 time.o + runtime_time_os.o。 */
-    if (shux_link_obj_needs_undef_sym(user_o, "std_time_now_monotonic_ns")
-        || shux_link_obj_needs_undef_sym(user_o, "std_time_sleep_ms")
-        || shux_link_obj_needs_undef_sym(user_o, "std_time_timer_start")
-        || shux_link_obj_needs_undef_sym(user_o, "time_now_monotonic_ns_c")) {
+    if (labi_od_user_needs_any_sym_table(user_o, labi_od_time_sym_count(), labi_od_time_sym_at)) {
         if (shux_ensure_runtime_time_os_o(link_argv0) == 0)
             link_abi_asm_ld_push_obj(shux_runtime_time_os_o_path(link_argv0), link_argv0,
-                                     "compiler/runtime_time_os.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/time/time.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+                                     labi_od_time_os_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_time_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
-    /** import std.csv 按需链 csv.o（含 std_csv_escape 别名桩）。 */
-    if (shux_link_obj_needs_undef_sym(user_o, "std_csv_next_field")
-        || shux_link_obj_needs_undef_sym(user_o, "std_csv_escape")
-        || shux_link_obj_needs_undef_sym(user_o, "std_csv_csv_test_quoted_first")) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/csv/csv.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    }
-    if (shux_link_obj_needs_undef_sym(user_o, "schema_create_c")
-        || shux_link_obj_needs_undef_sym(user_o, "schema_decode_json_c")
-        || shux_link_obj_needs_undef_sym(user_o, "schema_smoke_c")) {
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/schema/schema.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-    }
-    if (shux_link_obj_needs_undef_sym(user_o, "sync_queue_contention_smoke_c")
-        || shux_link_obj_needs_undef_sym(user_o, "queue_os_run_two_workers_c")
-        || shux_link_obj_needs_undef_sym(user_o, "queue_contention_worker_push_c")) {
+    if (labi_od_user_needs_any_sym_table(user_o, labi_od_queue_sym_count(), labi_od_queue_sym_at)) {
         (void)shux_ensure_runtime_queue_contention_o(link_argv0);
         link_abi_asm_ld_push_obj(shux_runtime_queue_contention_o_path(link_argv0), link_argv0,
-            "compiler/runtime_queue_contention.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
-        link_abi_asm_ld_push_obj(NULL, link_argv0, "std/queue/queue.o", lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+            labi_od_queue_contention_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        link_abi_asm_ld_push_obj(NULL, link_argv0, labi_od_queue_rel(), lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
     }
 #else
     (void)link_argv0;
