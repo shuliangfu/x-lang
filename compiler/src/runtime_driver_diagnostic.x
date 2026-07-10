@@ -66,7 +66,6 @@ extern "C" function driver_diagnostic_warn_hot_reorder_field_impl(sname: *u8, sn
 extern "C" function driver_diagnostic_hint_unused_binding_impl(line: i32, col: i32, name: *u8, name_len: i32): void;
 
 
-extern "C" function driver_diag_copy_bytes_impl(dst: *u8, dst_size: i64, src: *u8, src_len: i32): i32;
 extern "C" function driver_diag_report_prefixed_impl(line: i32, col: i32, msg: *u8): void;
 
 #[no_mangle]
@@ -522,13 +521,7 @@ function driver_diagnostic_hint_unused_binding(line: i32, col: i32, name: *u8, n
 
 /* ---- G-02f-86：diag copy_bytes / report_prefixed 门闩 ---- */
 
-#[no_mangle]
-function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_len: i32): i32 {
-  unsafe {
-    return driver_diag_copy_bytes_impl(dst, dst_size, src, src_len);
-  }
-  return 0;
-}
+
 
 #[no_mangle]
 function driver_diag_report_prefixed(line: i32, col: i32, msg: *u8): void {
@@ -548,4 +541,24 @@ function parser_is_ident_allow(ident: *u8, len: i32): i32 {
     return 1;
   }
   return 0;
+}
+
+// G-02f-121：driver_diag_copy_bytes 真迁 .x
+
+#[no_mangle]
+function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_len: i32): i32 {
+  if (dst == 0) { return 0; }
+  if (dst_size == 0) { return 0; }
+  let n: i32 = 0;
+  if (src != 0) {
+    if (src_len > 0) {
+      while (n < src_len) {
+        if ((n as i64) + 1 >= dst_size) { break; }
+        dst[n] = src[n];
+        n = n + 1;
+      }
+    }
+  }
+  dst[n] = 0;
+  return n;
 }

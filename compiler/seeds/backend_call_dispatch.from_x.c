@@ -1,4 +1,5 @@
 /* seeds/backend_call_dispatch.from_x.c — G-02f-9 product backend dispatch TU
+ * G-02f-121 true .x pure helpers.
  * G-02f-120 true .x pure helpers.
  * G-02f-114 true .x pure helpers.
  * G-02f-113 true .x pure helpers.
@@ -351,7 +352,8 @@ void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr
 
 
 /** SysV x86_64：统计走栈的实参个数（gp/xmm 寄存器用尽后的余量）。 */
-int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs) {
+/* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs) {
   int32_t gp;
   int32_t xmm;
   int32_t stk;
@@ -375,12 +377,8 @@ int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t ca
   }
   return stk;
 }
-int32_t glue_sysv_x86_call_n_stack_c(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs) {
-  {
-    return glue_sysv_x86_call_n_stack_c_impl(arena, call_expr_ref, nargs);
-  }
-  return 0;
-}
+
+
 
 
 /**
@@ -583,7 +581,8 @@ void glue_codegen_import_path_to_c_prefix_into(const uint8_t *path, uint8_t *buf
 
 
 /** 前缀为 ASCII 「build_」（6 字节）且 name 已含此前缀时返回 1。 */
-int32_t glue_asm_c_prefix_redundant_with_name_impl(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name,
+/* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name,
                                                      int32_t name_len) {
   int32_t i;
   if (!prefix || !name || prefix_len != 6 || name_len < prefix_len)
@@ -597,13 +596,8 @@ int32_t glue_asm_c_prefix_redundant_with_name_impl(const uint8_t *prefix, int32_
   }
   return 1;
 }
-int32_t glue_asm_c_prefix_redundant_with_name(const uint8_t *prefix, int32_t prefix_len, const uint8_t *name,
-                                                     int32_t name_len) {
-  {
-    return glue_asm_c_prefix_redundant_with_name_impl(prefix, prefix_len, name, name_len);
-  }
-  return 0;
-}
+
+
 
 
 /** 将 C 前缀与字段名拼成至多 63 字节的 call 符号；成功返回长度，失败 -1。 */
@@ -662,7 +656,8 @@ int32_t glue_asm_build_dep_export_sym_c(const uint8_t *name, int32_t name_len, u
 }
 
 /** 将 TypeKind 序数写成 overload mangled 后缀（对齐 codegen.c type_to_suffix 标量子集）。 */
-int32_t glue_type_kind_to_suffix_c_impl(int32_t kind_ord, uint8_t *out, int32_t out_cap) {
+/* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_cap) {
   static const uint8_t lit_i32[3] = { 105, 51, 50 };
   static const uint8_t lit_i64[3] = { 105, 54, 52 };
   static const uint8_t lit_u8[2] = { 117, 56 };
@@ -712,12 +707,8 @@ int32_t glue_type_kind_to_suffix_c_impl(int32_t kind_ord, uint8_t *out, int32_t 
     out[i] = src[i];
   return slen;
 }
-int32_t glue_type_kind_to_suffix_c(int32_t kind_ord, uint8_t *out, int32_t out_cap) {
-  {
-    return glue_type_kind_to_suffix_c_impl(kind_ord, out, out_cap);
-  }
-  return 0;
-}
+
+
 
 
 /** 统计模块内同名函数个数（>1 时 emit/call 须 mangled 符号）。 */
@@ -859,7 +850,8 @@ int32_t glue_asm_import_path_segment_count(const uint8_t *path, int32_t path_len
 
 
 /** 比较 module import 路径切片与外部字节序列是否相等。 */
-int32_t glue_asm_import_path_slice_equal_impl(struct ast_Module *module, int32_t imp_ix, int32_t off,
+/* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_import_path_slice_equal(struct ast_Module *module, int32_t imp_ix, int32_t off,
                                                 int32_t seg_len, const uint8_t *nm, int32_t nm_len) {
   int32_t i;
   if (seg_len != nm_len || seg_len <= 0)
@@ -870,17 +862,13 @@ int32_t glue_asm_import_path_slice_equal_impl(struct ast_Module *module, int32_t
   }
   return 1;
 }
-int32_t glue_asm_import_path_slice_equal(struct ast_Module *module, int32_t imp_ix, int32_t off,
-                                                int32_t seg_len, const uint8_t *nm, int32_t nm_len) {
-  {
-    return glue_asm_import_path_slice_equal_impl(module, imp_ix, off, seg_len, nm, nm_len);
-  }
-  return 0;
-}
+
+
 
 
 /** 比较 import 绑定名与外部字节序列是否相等。 */
-int32_t glue_asm_import_binding_name_equal_impl(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm,
+/* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm,
                                                   int32_t nm_len) {
   int32_t bl;
   int32_t i;
@@ -893,13 +881,8 @@ int32_t glue_asm_import_binding_name_equal_impl(struct ast_Module *module, int32
   }
   return 1;
 }
-int32_t glue_asm_import_binding_name_equal(struct ast_Module *module, int32_t imp_ix, const uint8_t *nm,
-                                                  int32_t nm_len) {
-  {
-    return glue_asm_import_binding_name_equal_impl(module, imp_ix, nm, nm_len);
-  }
-  return 0;
-}
+
+
 
 
 /** pipeline_module_import_path 内第 want_seg 段起点偏移与长度。 */

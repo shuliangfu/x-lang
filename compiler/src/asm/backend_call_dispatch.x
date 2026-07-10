@@ -14,9 +14,7 @@ function backend_call_dispatch_x_doc_anchor(): i32 {
 extern "C" function glue_asm_string_lit_len_impl(arena: *u8, er: i32): i32;
 extern "C" function glue_asm_string_lit_into_impl(arena: *u8, er: i32, out: *u8): void;
 extern "C" function glue_codegen_import_path_to_c_prefix_into_impl(path: *u8, buf: *u8, cap: i32): void;
-extern "C" function glue_asm_c_prefix_redundant_with_name_impl(pre: *u8, plen: i32, name: *u8, nlen: i32): i32;
 extern "C" function glue_asm_build_import_binding_call_sym_impl(pre: *u8, plen: i32, field: *u8, flen: i32, out: *u8): i32;
-extern "C" function glue_type_kind_to_suffix_c_impl(kind: i32, out: *u8, cap: i32): i32;
 
 /* ---- G-02f-108：backend call dispatch helpers 门闩 ---- */
 
@@ -40,11 +38,7 @@ function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, cap: i32
   unsafe { glue_codegen_import_path_to_c_prefix_into_impl(path, buf, cap); }
 }
 
-#[no_mangle]
-function glue_asm_c_prefix_redundant_with_name(pre: *u8, plen: i32, name: *u8, nlen: i32): i32 {
-  unsafe { return glue_asm_c_prefix_redundant_with_name_impl(pre, plen, name, nlen); }
-  return 0;
-}
+
 
 #[no_mangle]
 function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, field: *u8, flen: i32, out: *u8): i32 {
@@ -52,23 +46,16 @@ function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, field: *u8,
   return 0;
 }
 
-#[no_mangle]
-function glue_type_kind_to_suffix_c(kind: i32, out: *u8, cap: i32): i32 {
-  unsafe { return glue_type_kind_to_suffix_c_impl(kind, out, cap); }
-  return 0;
-}
+
 
 // G-02f-109：+ overload/export_c/import path/heap redirect 薄门闩。
 
 extern "C" function glue_module_func_overload_count_c_impl(m: *u8, name: *u8, nlen: i32): i32;
-extern "C" function glue_asm_import_path_slice_equal_impl(mod: *u8, ix: i32, off: i32, slen: i32, nm: *u8): i32;
-extern "C" function glue_asm_import_binding_name_equal_impl(mod: *u8, ix: i32, nm: *u8, nlen: i32): i32;
 extern "C" function glue_asm_import_segment_at_impl(mod: *u8, ix: i32, want: i32, ostr: *i32, olen: *i32): i32;
 extern "C" function glue_asm_fill_c_prefix_from_module_import_impl(mod: *u8, ix: i32, pre: *u8): i32;
 extern "C" function glue_call_param_type_ref_at_impl(arena: *u8, call: i32, pix: i32): i32;
 extern "C" function glue_try_std_heap_redirect_sym_local_impl(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
 extern "C" function glue_try_std_string_shux_redirect_sym_local_impl(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
-extern "C" function glue_sysv_x86_call_n_stack_c_impl(arena: *u8, call: i32, nargs: i32): i32;
 
 /* ---- G-02f-109：call_dispatch more helpers 门闩 ---- */
 
@@ -77,10 +64,8 @@ function glue_module_func_overload_count_c(m: *u8, name: *u8, nlen: i32): i32 { 
 
 
 
-#[no_mangle]
-function glue_asm_import_path_slice_equal(mod: *u8, ix: i32, off: i32, slen: i32, nm: *u8): i32 { unsafe { return glue_asm_import_path_slice_equal_impl(mod, ix, off, slen, nm); } return 0; }
-#[no_mangle]
-function glue_asm_import_binding_name_equal(mod: *u8, ix: i32, nm: *u8, nlen: i32): i32 { unsafe { return glue_asm_import_binding_name_equal_impl(mod, ix, nm, nlen); } return 0; }
+
+
 #[no_mangle]
 function glue_asm_import_segment_at(mod: *u8, ix: i32, want: i32, ostr: *i32, olen: *i32): i32 { unsafe { return glue_asm_import_segment_at_impl(mod, ix, want, ostr, olen); } return 0; }
 #[no_mangle]
@@ -91,8 +76,7 @@ function glue_call_param_type_ref_at(arena: *u8, call: i32, pix: i32): i32 { uns
 function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 { unsafe { return glue_try_std_heap_redirect_sym_local_impl(name, nlen, out, cap); } return 0; }
 #[no_mangle]
 function glue_try_std_string_shux_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 { unsafe { return glue_try_std_string_shux_redirect_sym_local_impl(name, nlen, out, cap); } return 0; }
-#[no_mangle]
-function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32): i32 { unsafe { return glue_sysv_x86_call_n_stack_c_impl(arena, call, nargs); } return 0; }
+
 
 // G-02f-110：+ jmp/lea/arg slot/export/call cleanup 薄门闩。
 
@@ -231,4 +215,126 @@ function glue_asm_import_path_segment_count(path: *u8, plen: i32): i32 {
     ii = ii + 1;
   }
   return n;
+}
+
+// G-02f-121：call_dispatch pure helpers 真迁 .x
+
+extern "C" function pipeline_module_import_path_byte_at(mod: *u8, ix: i32, off: i32): u8;
+extern "C" function pipeline_module_import_binding_name_len(mod: *u8, ix: i32): i32;
+extern "C" function pipeline_module_import_binding_name_byte_at(mod: *u8, ix: i32, i: i32): u8;
+// glue_call_param_type_ref_at / glue_call_param_is_f32_c already in this TU or linked
+
+#[no_mangle]
+function glue_asm_c_prefix_redundant_with_name(pre: *u8, plen: i32, name: *u8, nlen: i32): i32 {
+  // prefix must be "build_" (6 chars) and name starts with it
+  if (pre == 0) { return 0; }
+  if (name == 0) { return 0; }
+  if (plen != 6) { return 0; }
+  if (nlen < plen) { return 0; }
+  // build_
+  if (pre[0] != 98) { return 0; }
+  if (pre[1] != 117) { return 0; }
+  if (pre[2] != 105) { return 0; }
+  if (pre[3] != 108) { return 0; }
+  if (pre[4] != 100) { return 0; }
+  if (pre[5] != 95) { return 0; }
+  let i: i32 = 0;
+  while (i < plen) {
+    if (name[i] != pre[i]) { return 0; }
+    i = i + 1;
+  }
+  return 1;
+}
+
+#[no_mangle]
+function glue_type_kind_to_suffix_c(kind: i32, out: *u8, cap: i32): i32 {
+  if (out == 0) { return 0; }
+  if (cap <= 0) { return 0; }
+  // default i32
+  let s0: u8 = 105; let s1: u8 = 51; let s2: u8 = 50; let s3: u8 = 0; let s4: u8 = 0;
+  let slen: i32 = 3;
+  if (kind == 5) { // i64
+    s0 = 105; s1 = 54; s2 = 52; slen = 3;
+  } else if (kind == 2) { // u8
+    s0 = 117; s1 = 56; slen = 2;
+  } else if (kind == 3) { // u32
+    s0 = 117; s1 = 51; s2 = 50; slen = 3;
+  } else if (kind == 4) { // u64
+    s0 = 117; s1 = 54; s2 = 52; slen = 3;
+  } else if (kind == 6) { // usize
+    s0 = 117; s1 = 115; s2 = 105; s3 = 122; s4 = 101; slen = 5;
+  } else if (kind == 7) { // isize
+    s0 = 105; s1 = 115; s2 = 105; s3 = 122; s4 = 101; slen = 5;
+  } else if (kind == 14) { // f32
+    s0 = 102; s1 = 51; s2 = 50; slen = 3;
+  } else if (kind == 15) { // f64
+    s0 = 102; s1 = 54; s2 = 52; slen = 3;
+  } else if (kind == 1) { // bool
+    s0 = 98; s1 = 111; s2 = 111; s3 = 108; slen = 4;
+  }
+  let i: i32 = 0;
+  while (i < slen) {
+    if (i >= cap - 1) { break; }
+    if (i == 0) { out[i] = s0; }
+    if (i == 1) { out[i] = s1; }
+    if (i == 2) { out[i] = s2; }
+    if (i == 3) { out[i] = s3; }
+    if (i == 4) { out[i] = s4; }
+    i = i + 1;
+  }
+  return slen;
+}
+
+#[no_mangle]
+function glue_asm_import_path_slice_equal(mod: *u8, ix: i32, off: i32, slen: i32, nm: *u8, nm_len: i32): i32 {
+  if (slen != nm_len) { return 0; }
+  if (slen <= 0) { return 0; }
+  if (nm == 0) { return 0; }
+  let i: i32 = 0;
+  while (i < slen) {
+    unsafe {
+      let b: u8 = pipeline_module_import_path_byte_at(mod, ix, off + i);
+      if (b != nm[i]) { return 0; }
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+#[no_mangle]
+function glue_asm_import_binding_name_equal(mod: *u8, ix: i32, nm: *u8, nlen: i32): i32 {
+  if (nm == 0) { return 0; }
+  if (nlen <= 0) { return 0; }
+  unsafe {
+    let bl: i32 = pipeline_module_import_binding_name_len(mod, ix);
+    if (bl != nlen) { return 0; }
+    let i: i32 = 0;
+    while (i < nlen) {
+      let b: u8 = pipeline_module_import_binding_name_byte_at(mod, ix, i);
+      if (b != nm[i]) { return 0; }
+      i = i + 1;
+    }
+  }
+  return 1;
+}
+
+#[no_mangle]
+function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32): i32 {
+  let gp: i32 = 0;
+  let xmm: i32 = 0;
+  let stk: i32 = 0;
+  let j: i32 = 0;
+  while (j < nargs) {
+    let pty: i32 = glue_call_param_type_ref_at(arena, call, j);
+    let is_f: i32 = glue_call_param_is_f32_c(arena, pty);
+    if (is_f != 0) {
+      if (xmm < 8) { xmm = xmm + 1; }
+      else { stk = stk + 1; }
+    } else {
+      if (gp < 6) { gp = gp + 1; }
+      else { stk = stk + 1; }
+    }
+    j = j + 1;
+  }
+  return stk;
 }

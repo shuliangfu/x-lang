@@ -108,9 +108,8 @@ void driver_diag_report_x_pipeline_code(const char *code, const char *fmt, ...) 
     va_end(ap);
   }
 }
-
-
-int driver_diag_copy_bytes_impl(char *dst, size_t dst_size, const uint8_t *src, int32_t src_len) {
+/* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src, int32_t src_len) {
     int n = 0;
     if (!dst || dst_size == 0)
         return 0;
@@ -123,12 +122,8 @@ int driver_diag_copy_bytes_impl(char *dst, size_t dst_size, const uint8_t *src, 
     dst[n] = '\0';
     return n;
 }
-int driver_diag_copy_bytes(char *dst, size_t dst_size, const uint8_t *src, int32_t src_len) {
-  {
-    return driver_diag_copy_bytes_impl(dst, dst_size, src, src_len);
-  }
-  return 0;
-}
+
+
 
 
 void driver_diagnostic_parse_fail_impl(int32_t main_idx, int32_t num_funcs, int32_t arena_num_types) {

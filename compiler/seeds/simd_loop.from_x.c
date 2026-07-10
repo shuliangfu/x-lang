@@ -1,4 +1,5 @@
 /* seeds/simd_loop.from_x.c — G-02f-8 product SIMD loop peel TU
+ * G-02f-121 true .x pure helpers.
  * G-02f-115 true .x pure helpers.
  * G-02f-108 helper gates.
  * G-02f-107 helper gates.
@@ -203,15 +204,12 @@ int32_t glue_block_let_init_lit_c(struct ast_ASTArena *arena, int32_t block_ref,
 
 
 /** VAR 是否为 i32[N] 栈数组（resolved 类型）。 */
-int32_t glue_var_is_array_i32_n_c_impl(struct ast_ASTArena *arena, int32_t var_ref, int32_t n) {
+/* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, int32_t n) {
     return glue_var_array_i32_size_c(arena, var_ref) == n ? 1 : 0;
 }
-int32_t glue_var_is_array_i32_n_c(struct ast_ASTArena *arena, int32_t var_ref, int32_t n) {
-  {
-    return glue_var_is_array_i32_n_c_impl(arena, var_ref, n);
-  }
-  return 0;
-}
+
+
 
 
 /** 解析 `i = i + 1` 或 `i += 1` 步进语句。 */

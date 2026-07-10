@@ -10,7 +10,6 @@
 extern "C" function glue_expr_same_var_c_impl(arena: *u8, a_ref: i32, b_ref: i32): i32;
 extern "C" function glue_index_uses_var_c_impl(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32;
 extern "C" function glue_var_array_i32_size_c_impl(arena: *u8, var_ref: i32): i32;
-extern "C" function glue_var_is_array_i32_n_c_impl(arena: *u8, var_ref: i32, n: i32): i32;
 extern "C" function glue_simd_loop_cpu_features_c_impl(): u32;
 extern "C" function glue_simd_loop_pick_lanes_c_impl(feats: u32, binop_ko: i32, lanes_out: *i32): i32;
 
@@ -38,11 +37,7 @@ function glue_var_array_i32_size_c(arena: *u8, var_ref: i32): i32 {
   return 0;
 }
 
-#[no_mangle]
-function glue_var_is_array_i32_n_c(arena: *u8, var_ref: i32, n: i32): i32 {
-  unsafe { return glue_var_is_array_i32_n_c_impl(arena, var_ref, n); }
-  return 0;
-}
+
 
 #[no_mangle]
 function glue_simd_loop_cpu_features_c(): u32 {
@@ -171,4 +166,17 @@ function glue_simd_loop_pick_lanes_c(feats: u32, binop_ko: i32, lanes_out: *i32)
   if ((feats & 8) != 0) { lanes_out[0] = 8; return 0; }
   if ((feats & 1) != 0) { lanes_out[0] = 4; return 0; }
   return -1;
+}
+
+// G-02f-121：glue_var_is_array_i32_n_c 真迁 .x
+
+extern "C" function glue_var_array_i32_size_c(arena: *u8, var_ref: i32): i32;
+
+#[no_mangle]
+function glue_var_is_array_i32_n_c(arena: *u8, var_ref: i32, n: i32): i32 {
+  unsafe {
+    let sz: i32 = glue_var_array_i32_size_c(arena, var_ref);
+    if (sz == n) { return 1; }
+  }
+  return 0;
 }
