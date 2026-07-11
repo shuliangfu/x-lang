@@ -159,19 +159,19 @@ function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i64): void {
   unsafe {
     let k: i64 = 0;
     // file://
-    uri[k] = 102;
+    uri[k] = 102 as u8;
     k = k + 1;
-    uri[k] = 105;
+    uri[k] = 105 as u8;
     k = k + 1;
-    uri[k] = 108;
+    uri[k] = 108 as u8;
     k = k + 1;
-    uri[k] = 101;
+    uri[k] = 101 as u8;
     k = k + 1;
-    uri[k] = 58;
+    uri[k] = 58 as u8;
     k = k + 1;
-    uri[k] = 47;
+    uri[k] = 47 as u8;
     k = k + 1;
-    uri[k] = 47;
+    uri[k] = 47 as u8;
     k = k + 1;
     let p: i64 = 0;
     while (k + 4 < cap) {
@@ -181,11 +181,11 @@ function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i64): void {
       }
       if (c == 32) {
         // space
-        uri[k] = 37;
+        uri[k] = 37 as u8;
         k = k + 1;
-        uri[k] = 50;
+        uri[k] = 50 as u8;
         k = k + 1;
-        uri[k] = 48;
+        uri[k] = 48 as u8;
         k = k + 1;
       } else {
         uri[k] = c;
@@ -193,7 +193,7 @@ function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i64): void {
       }
       p = p + 1;
     }
-    uri[k] = 0;
+    uri[k] = 0 as u8;
   }
 }
 
@@ -1034,7 +1034,7 @@ function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
     }
     k = k - 1;
   }
-  return 0;
+  return 0 as u8;
 }
 
 #[no_mangle]
@@ -1049,7 +1049,7 @@ function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
     }
     k = k - 1;
   }
-  return 0;
+  return 0 as u8;
 }
 
 #[no_mangle]

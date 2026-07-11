@@ -25,7 +25,7 @@ function runtime_path_fast_x_doc_anchor(): i32 {
 #[no_mangle]
 function path_sep_c(): u8 {
   // 产品 seed 在 Win 下为 '\\'；posix 验收路径为 '/'
-  return 47;
+  return 47 as u8;
 }
 
 #[no_mangle]

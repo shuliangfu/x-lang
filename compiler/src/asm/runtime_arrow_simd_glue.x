@@ -21,7 +21,7 @@ function arrow_f32_sum_kernel(data: *u8, n: i32): f32 {
   unsafe {
     return arrow_f32_sum_kernel_impl(data, n);
   }
-  return 0.0;
+  return 0.0 as f32;
 }
 
 #[no_mangle]
@@ -29,7 +29,7 @@ function arrow_f32_dot_kernel(a: *u8, b: *u8, n: i32): f32 {
   unsafe {
     return arrow_f32_dot_kernel_impl(a, b, n);
   }
-  return 0.0;
+  return 0.0 as f32;
 }
 
 #[no_mangle]
@@ -45,5 +45,5 @@ function arrow_f32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): f32 {
   unsafe {
     return arrow_f32_sum_valid_kernel_impl(data, bm, n);
   }
-  return 0.0;
+  return 0.0 as f32;
 }
