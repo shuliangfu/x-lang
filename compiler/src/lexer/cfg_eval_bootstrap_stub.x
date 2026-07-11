@@ -216,6 +216,32 @@ function cfg_get_freestanding_safe(): i32 {
   return 0;
 }
 
+function cfg_is_upper(c: u8): i32 {
+  if (c < 65) { return 0; }
+  if (c > 90) { return 0; }
+  return 1;
+}
+
+function cfg_is_lower(c: u8): i32 {
+  if (c < 97) { return 0; }
+  if (c > 122) { return 0; }
+  return 1;
+}
+
+function cfg_is_digit(c: u8): i32 {
+  if (c < 48) { return 0; }
+  if (c > 57) { return 0; }
+  return 1;
+}
+
+function cfg_is_ident_char(c: u8): i32 {
+  if (cfg_is_upper(c) != 0) { return 1; }
+  if (cfg_is_lower(c) != 0) { return 1; }
+  if (cfg_is_digit(c) != 0) { return 1; }
+  if (c == 95) { return 1; }
+  return 0;
+}
+
 /** Check if buf[p] == c with bounds check (no nested if for -E parser). */
 function cfg_buf_eq_at(buf: *u8, p: i32, end: i32, c: u8): i32 {
   if (p >= end) { return 0; }
@@ -359,16 +385,7 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
     let q: i32 = p;
     while (q < end) {
       let c: u8 = buf[q];
-      if (c >= 65) {
-        if (c <= 90) { q = q + 1; continue; }
-      }
-      if (c >= 97) {
-        if (c <= 122) { q = q + 1; continue; }
-      }
-      if (c >= 48) {
-        if (c <= 57) { q = q + 1; continue; }
-      }
-      if (c == 95) { q = q + 1; continue; }
+      if (cfg_is_ident_char(c) != 0) { q = q + 1; continue; }
       break;
     }
     let n_fs: u8[16] = [];
