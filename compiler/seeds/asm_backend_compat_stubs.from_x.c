@@ -45,7 +45,13 @@ __attribute__((weak)) int32_t append_asm_line(struct codegen_CodegenOutBuf *out,
 }
 
 /** 内部 u32 格式化，避免依赖 build_asm/types.o 的 format_u32_to_buf。 G-02f-99 gate. */
+/* Forward declarations: when SHUX_ASM_BACKEND_COMPAT_STUBS_FROM_X is defined,
+   the .x implementations provide these symbols via thin .o. */
+int32_t shu_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uint32_t u);
+int32_t shu_elf_ctx_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word);
+int32_t shu_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
 /* G-02f-139：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_ASM_BACKEND_COMPAT_STUBS_FROM_X
 int32_t shu_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uint32_t u) {
   static const uint8_t digit_chars[10] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
   uint8_t tmp[10];
@@ -71,6 +77,7 @@ int32_t shu_format_u32_to_buf(uint8_t *buf, int32_t off, int32_t max, uint32_t u
   }
   return num_digits;
 }
+#endif /* SHUX_ASM_BACKEND_COMPAT_STUBS_FROM_X */
 
 /**
  * 将 i32 十进制写入 buf[off..]；与 types.x format_i32_to_buf 语义一致。
@@ -209,6 +216,7 @@ extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx_bytes, uint8_t *ptr, i
  * 勿手算 code_data 偏移（前缀含 labels/patches 等大表，sizeof 小 header 会写错区导致 udf/SIGILL）。
  */
 /* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_ASM_BACKEND_COMPAT_STUBS_FROM_X
 int32_t shu_elf_ctx_append_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
   uint8_t bytes[4];
   if (!elf_ctx)
@@ -236,6 +244,7 @@ int32_t shu_arm64_mov_imm32_to_w0_c(struct platform_elf_ElfCodegenCtx *elf_ctx, 
     return -1;
   return 0;
 }
+#endif /* SHUX_ASM_BACKEND_COMPAT_STUBS_FROM_X */
 
 
 /** 与 backend.x AsmFuncCtx 前缀一致，供 block_slot_base_for 读 num_locals。 */
