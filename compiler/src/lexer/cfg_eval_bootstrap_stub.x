@@ -97,16 +97,24 @@ function cfg_lit_eq_ci(a: *u8, alen: usize, b: *u8): i32 {
 
 // G-02f-152：-target triple → os/arch；回退 host
 #[no_mangle]
+function cfg_get_host_os_safe(): *u8 {
+  unsafe { return cfg_host_os_lit(); }
+  return 0 as *u8;
+}
+
+function cfg_get_host_arch_safe(): *u8 {
+  unsafe { return cfg_host_arch_lit(); }
+  return 0 as *u8;
+}
+
 function cfg_parse_triple_literals(triple: *u8, len: i32, os_out: *u8, os_sz: usize, arch_out: *u8,
                                    arch_sz: usize): void {
   if (os_out == 0) { return; }
   if (os_sz == 0) { return; }
   if (arch_out == 0) { return; }
   if (arch_sz == 0) { return; }
-  let host_os: *u8 = 0;
-  let host_arch: *u8 = 0;
-  unsafe { host_os = cfg_host_os_lit(); }
-  unsafe { host_arch = cfg_host_arch_lit(); }
+  let host_os: *u8 = cfg_get_host_os_safe();
+  let host_arch: *u8 = cfg_get_host_arch_safe();
   cfg_cstr_copy(os_out, os_sz, host_os);
   cfg_cstr_copy(arch_out, arch_sz, host_arch);
   if (triple == 0) { return; }
