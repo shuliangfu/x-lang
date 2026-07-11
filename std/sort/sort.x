@@ -21,13 +21,15 @@
 // sort_i32_cmp 自定义比较器（usize 承载内建 cmp id）；
 // KeyTag 稳定 key 排序与烟测入口。
 //
-// 【依赖】core.mem；libc malloc/free（稳定排序临时缓冲）。
+// 【依赖】libc malloc（稳定排序临时缓冲；不依赖 core.mem 或 std.heap，
+//          避免 ASM 后端 free→heap_free_c 重定向导致用户代码链接缺失）。
+// 【Why 根源】ASM 后端 kGlueStdHeapRedirect 将 "free" 重定向为 "heap_free_c"，
+//          但用户代码链接集不含 heap_free_c（仅编译器内部 .o 有定义）；
+//          sort.o 作为 std 模块被链入用户代码时产生未定义引用。
+//          移除 free 调用，temp buffer 暂留（量与输入成正比，仅稳定排序路径）。
 
-const mem = import("core.mem");
-
-/** libc 堆（稳定归并临时缓冲；与 heap_libc 一致，避免环依赖 std.heap）。 */
+/** libc 堆（稳定归并临时缓冲）。 */
 extern "C" function malloc(size: usize): *u8;
-extern "C" function free(ptr: *u8): void;
 
 /** 内建比较器 id（usize 承载；与 sort_cmp_*_fn_c 返回值一致，STD-060 v1）。 */
 const SORT_CMP_I32_ASC: usize = 1;
@@ -152,7 +154,15 @@ function sort_merge_i32_range(base: *i32, temp: *i32, left: i32, right: i32, cmp
     ri = ri + 1;
     out = out + 1;
   }
-  mem.mem_copy((&base[left]) as *u8, temp as *u8, (n * 4) as usize);
+  /* inline byte copy (avoid core.mem dependency → core_mem_mem_copy undefined in user link) */
+  let bi: usize = 0;
+  let nbytes: usize = (n * 4) as usize;
+  let dst_bytes: *u8 = (&base[left]) as *u8;
+  let src_bytes: *u8 = temp as *u8;
+  while (bi < nbytes) {
+    dst_bytes[bi] = src_bytes[bi];
+    bi = bi + 1;
+  }
 }
 
 /** i32 稳定归并排序入口。 */
@@ -162,7 +172,7 @@ function sort_stable_i32_impl(ptr: *i32, len: i32, cmp_dir: i32): void {
   unsafe { temp = malloc((len * 4) as usize) as *i32; }
   if (temp == 0) { return; }
   sort_merge_i32_range(ptr, temp, 0, len, cmp_dir);
-  unsafe { free(temp as *u8); }
+  /* temp buffer not freed: ASM backend redirects free→heap_free_c which is unavailable in user link */
 }
 
 /** u8 稳定归并：cmp_dir 1=升序。 */
@@ -207,7 +217,15 @@ function sort_merge_u8_range(base: *u8, temp: *u8, left: i32, right: i32, cmp_di
     ri = ri + 1;
     out = out + 1;
   }
-  mem.mem_copy(&base[left], temp, n);
+  /* inline byte copy (avoid core.mem dependency) */
+  let bi2: usize = 0;
+  let nbytes2: usize = n as usize;
+  let dst2: *u8 = &base[left];
+  let src2: *u8 = temp;
+  while (bi2 < nbytes2) {
+    dst2[bi2] = src2[bi2];
+    bi2 = bi2 + 1;
+  }
 }
 
 /** u8 稳定归并排序入口。 */
@@ -217,7 +235,7 @@ function sort_stable_u8_impl(ptr: *u8, len: i32, cmp_dir: i32): void {
   unsafe { temp = malloc(len as usize); }
   if (temp == 0) { return; }
   sort_merge_u8_range(ptr, temp, 0, len, cmp_dir);
-  unsafe { free(temp); }
+  /* temp buffer not freed: ASM backend redirects free→heap_free_c */
 }
 
 /** KeyTag 仅按 key 比较。 */
@@ -268,7 +286,15 @@ function sort_merge_key_range(base: *SortKeyTag, temp: *SortKeyTag, left: i32, r
     ri = ri + 1;
     out = out + 1;
   }
-  mem.mem_copy((&base[left]) as *u8, temp as *u8, (n * 8) as usize);
+  /* inline byte copy (avoid core.mem dependency) */
+  let bi3: usize = 0;
+  let nbytes3: usize = (n * 8) as usize;
+  let dst3: *u8 = (&base[left]) as *u8;
+  let src3: *u8 = temp as *u8;
+  while (bi3 < nbytes3) {
+    dst3[bi3] = src3[bi3];
+    bi3 = bi3 + 1;
+  }
 }
 
 /** 原地排序 ptr[0..len]（i32 升序）；不稳定。 */
@@ -310,7 +336,7 @@ function stable_key_tag(ptr: *SortKeyTag, len: i32): void {
   unsafe { temp = malloc((len * 8) as usize) as *SortKeyTag; }
   if (temp == 0) { return; }
   sort_merge_key_range(ptr, temp, 0, len);
-  unsafe { free(temp as *u8); }
+  /* temp buffer not freed: ASM backend redirects free→heap_free_c */
 }
 
 /** 返回降序 i32 比较器 id（usize）。 */
