@@ -19,6 +19,15 @@ extern int32_t parser_diag_fail_at_token_kind(struct shux_slice_uint8_t *source)
 extern void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code,
                                    const char *detail, const char *fmt, ...);
 
+/* G-02f-448：thin+rest PREFER_X_O
+ *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_PARSE_DIAG_FROM_X):
+ *     - runtime_report_precise_parse_failure_if_known renamed to *_impl via macro.
+ *   No #ifndef guard needed (no real .x implementation; .x is thin-only). */
+#ifdef SHUX_RT_PARSE_DIAG_FROM_X
+#define runtime_report_precise_parse_failure_if_known    runtime_report_precise_parse_failure_if_known_impl
+#endif
+
 int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
   struct shux_slice_uint8_t diag_src_slice;
   int32_t fail_tok;
