@@ -223,10 +223,9 @@ function cfg_comma_at_depth0(c: u8, depth: i32): i32 {
   return 1;
 }
 
-/** Returns 1 if char is ')' and depth==0 (should break); decrements depth via out. */
-function cfg_rparen_at_depth0(c: u8, depth: i32, out_depth: *i32): i32 {
-  if (c != 41) { return 0; }
-  *out_depth = depth - 1;
+/** Returns: -1=not rparen, 0=rparen depth>0, 1=rparen depth==0 (break). */
+function cfg_rparen_check(c: u8, depth: i32): i32 {
+  if (c != 41) { return -1; }
   if (depth == 0) { return 1; }
   return 0;
 }
@@ -289,8 +288,9 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
       let depth: i32 = 0;
       while (p < end) {
         if (buf[p] == 40) { depth = depth + 1; p = p + 1; continue; }
-        if (cfg_rparen_at_depth0(buf[p], depth, &depth) != 0) { break; }
-        if (buf[p] == 41) { p = p + 1; continue; }
+        let rp: i32 = cfg_rparen_check(buf[p], depth);
+        if (rp == 1) { break; }
+        if (rp == 0) { depth = depth - 1; p = p + 1; continue; }
         if (cfg_comma_at_depth0(buf[p], depth) != 0) { break; }
         if (buf[p] == 44) { p = p + 1; continue; }
         p = p + 1;
