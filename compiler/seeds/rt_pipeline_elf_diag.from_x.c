@@ -35,6 +35,15 @@ extern void diag_reportf(const char *file, int line, int col, const char *kind, 
                          ...);
 extern void diag_report(const char *file, int line, int col, const char *kind, const char *msg, const char *detail);
 
+/* G-02f-445：thin+rest PREFER_X_O
+ *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_PIPELINE_ELF_DIAG_FROM_X):
+ *     - runtime_pipeline_elf_ctx_diag_note renamed to *_impl via macro.
+ *   No #ifndef guard needed (no real .x implementation; .x is thin-only). */
+#ifdef SHUX_RT_PIPELINE_ELF_DIAG_FROM_X
+#define runtime_pipeline_elf_ctx_diag_note    runtime_pipeline_elf_ctx_diag_note_impl
+#endif
+
 void runtime_pipeline_elf_ctx_diag_note(uint8_t *ctx_bytes) {
   RuntimePipelineElfCtxAccess *ctx;
   int32_t l;
