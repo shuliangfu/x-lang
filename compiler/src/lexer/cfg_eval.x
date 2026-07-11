@@ -144,8 +144,10 @@ function cfg_strlen(s: *u8): i32 {
 
 /** ASCII 小写化单字节。 */
 function cfg_tolower_c(c: u8): u8 {
-  if (c >= 65 && c <= 90) {
-    return (c + 32) as u8;
+  if (c >= 65) {
+    if (c <= 90) {
+      return (c + 32) as u8;
+    }
   }
   return c;
 }
@@ -153,10 +155,11 @@ function cfg_tolower_c(c: u8): u8 {
 /** 拷贝 NUL 结尾 C 串到 dest（最多 dest_sz-1 字节）。 */
 function cfg_copy_cstr(dest: *u8, dest_sz: i32, src: *u8): void {
   let i: i32 = 0;
-  if (dest == 0 || dest_sz <= 0 || src == 0) {
-    return;
-  }
-  while (i < dest_sz - 1 && src[i] != 0) {
+  if (dest == 0) { return; }
+  if (dest_sz <= 0) { return; }
+  if (src == 0) { return; }
+  while (i < dest_sz - 1) {
+    if (src[i] == 0) { break; }
     dest[i] = src[i];
     i = i + 1;
   }
@@ -168,9 +171,9 @@ function cfg_range_eq_ci(buf: *u8, b: i32, e: i32, lit: *u8): i32 {
   let blen: i32 = e - b;
   let llen: i32 = cfg_strlen(lit);
   let i: i32 = 0;
-  if (buf == 0 || lit == 0 || blen != llen) {
-    return 0;
-  }
+  if (buf == 0) { return 0; }
+  if (lit == 0) { return 0; }
+  if (blen != llen) { return 0; }
   while (i < blen) {
     let ca: u8 = cfg_tolower_c(buf[b + i]);
     let cb: u8 = cfg_tolower_c(lit[i]);
@@ -186,9 +189,10 @@ function cfg_range_eq_ci(buf: *u8, b: i32, e: i32, lit: *u8): i32 {
 function cfg_triple_contains_ci(buf: *u8, b: i32, e: i32, needle: *u8): i32 {
   let nlen: i32 = cfg_strlen(needle);
   let i: i32 = b;
-  if (buf == 0 || needle == 0 || nlen <= 0 || e - b < nlen) {
-    return 0;
-  }
+  if (buf == 0) { return 0; }
+  if (needle == 0) { return 0; }
+  if (nlen <= 0) { return 0; }
+  if (e - b < nlen) { return 0; }
   while (i + nlen <= e) {
     let j: i32 = 0;
     let ok: i32 = 1;
@@ -209,6 +213,13 @@ function cfg_triple_contains_ci(buf: *u8, b: i32, e: i32, needle: *u8): i32 {
   return 0;
 }
 
+/** triple 是否含 a 或 b（扁平化 helper）。 */
+function cfg_triple_has(triple: *u8, tlen: i32, a: *u8, b: *u8): i32 {
+  if (cfg_triple_contains_ci(triple, 0, tlen, a) != 0) { return 1; }
+  if (cfg_triple_contains_ci(triple, 0, tlen, b) != 0) { return 1; }
+  return 0;
+}
+
 /** 从 triple 解析 target_os / target_arch 写入 os_out/arch_out。 */
 function cfg_parse_triple_literals(triple: *u8, tlen: i32, os_out: *u8, os_sz: i32, arch_out: *u8, arch_sz: i32): void {
   let lit_linux: u8[6] = [108, 105, 110, 117, 120, 0];
@@ -222,30 +233,26 @@ function cfg_parse_triple_literals(triple: *u8, tlen: i32, os_out: *u8, os_sz: i
   let lit_x86_64: u8[7] = [120, 56, 54, 95, 54, 52, 0];
   let lit_amd64: u8[6] = [97, 109, 100, 54, 52, 0];
   let lit_riscv64: u8[8] = [114, 105, 115, 99, 118, 54, 52, 0];
-  if (os_out == 0 || os_sz <= 0 || arch_out == 0 || arch_sz <= 0) {
-    return;
-  }
+  if (os_out == 0) { return; }
+  if (os_sz <= 0) { return; }
+  if (arch_out == 0) { return; }
+  if (arch_sz <= 0) { return; }
   cfg_copy_cstr(os_out, os_sz, cfg_host_os_lit());
   cfg_copy_cstr(arch_out, arch_sz, cfg_host_arch_lit());
-  if (triple == 0 || tlen <= 0) {
-    return;
-  }
+  if (triple == 0) { return; }
+  if (tlen <= 0) { return; }
   if (cfg_triple_contains_ci(triple, 0, tlen, &lit_linux[0]) != 0) {
     cfg_copy_cstr(os_out, os_sz, &lit_linux[0]);
-  } else if (cfg_triple_contains_ci(triple, 0, tlen, &lit_darwin[0]) != 0
-    || cfg_triple_contains_ci(triple, 0, tlen, &lit_macos[0]) != 0) {
+  } else if (cfg_triple_has(triple, tlen, &lit_darwin[0], &lit_macos[0]) != 0) {
     cfg_copy_cstr(os_out, os_sz, &lit_macos[0]);
   } else if (cfg_triple_contains_ci(triple, 0, tlen, &lit_freebsd[0]) != 0) {
     cfg_copy_cstr(os_out, os_sz, &lit_freebsd[0]);
-  } else if (cfg_triple_contains_ci(triple, 0, tlen, &lit_windows[0]) != 0
-    || cfg_triple_contains_ci(triple, 0, tlen, &lit_win32[0]) != 0) {
+  } else if (cfg_triple_has(triple, tlen, &lit_windows[0], &lit_win32[0]) != 0) {
     cfg_copy_cstr(os_out, os_sz, &lit_windows[0]);
   }
-  if (cfg_triple_contains_ci(triple, 0, tlen, &lit_aarch64[0]) != 0
-    || cfg_triple_contains_ci(triple, 0, tlen, &lit_arm64[0]) != 0) {
+  if (cfg_triple_has(triple, tlen, &lit_aarch64[0], &lit_arm64[0]) != 0) {
     cfg_copy_cstr(arch_out, arch_sz, &lit_aarch64[0]);
-  } else if (cfg_triple_contains_ci(triple, 0, tlen, &lit_x86_64[0]) != 0
-    || cfg_triple_contains_ci(triple, 0, tlen, &lit_amd64[0]) != 0) {
+  } else if (cfg_triple_has(triple, tlen, &lit_x86_64[0], &lit_amd64[0]) != 0) {
     cfg_copy_cstr(arch_out, arch_sz, &lit_x86_64[0]);
   } else if (cfg_triple_contains_ci(triple, 0, tlen, &lit_riscv64[0]) != 0) {
     cfg_copy_cstr(arch_out, arch_sz, &lit_riscv64[0]);
@@ -254,16 +261,20 @@ function cfg_parse_triple_literals(triple: *u8, tlen: i32, os_out: *u8, os_sz: i
 
 /** #[cfg] 求值 effective target_os。 */
 function cfg_effective_os_lit(): *u8 {
-  if (g_cfg_has_target_override != 0 && g_cfg_os_override[0] != 0) {
-    return &g_cfg_os_override[0];
+  if (g_cfg_has_target_override != 0) {
+    if (g_cfg_os_override[0] != 0) {
+      return &g_cfg_os_override[0];
+    }
   }
   return cfg_host_os_lit();
 }
 
 /** #[cfg] 求值 effective target_arch。 */
 function cfg_effective_arch_lit(): *u8 {
-  if (g_cfg_has_target_override != 0 && g_cfg_arch_override[0] != 0) {
-    return &g_cfg_arch_override[0];
+  if (g_cfg_has_target_override != 0) {
+    if (g_cfg_arch_override[0] != 0) {
+      return &g_cfg_arch_override[0];
+    }
   }
   return cfg_host_arch_lit();
 }
@@ -272,7 +283,12 @@ function cfg_effective_arch_lit(): *u8 {
 function cfg_skip_ws(buf: *u8, p: i32, end: i32): i32 {
   while (p < end) {
     let c: u8 = buf[p];
-    if (c == 32 || c == 9 || c == 10 || c == 13) {
+    let is_ws: i32 = 0;
+    if (c == 32) { is_ws = 1; }
+    if (c == 9) { is_ws = 1; }
+    if (c == 10) { is_ws = 1; }
+    if (c == 13) { is_ws = 1; }
+    if (is_ws != 0) {
       p = p + 1;
     } else {
       break;
@@ -286,163 +302,162 @@ function cfg_prefix4(buf: *u8, p: i32, end: i32, c0: u8, c1: u8, c2: u8, c3: u8)
   if (p + 4 > end) {
     return 0;
   }
-  if (buf[p] != c0 || buf[p + 1] != c1 || buf[p + 2] != c2 || buf[p + 3] != c3) {
-    return 0;
+  if (buf[p] != c0) { return 0; }
+  if (buf[p + 1] != c1) { return 0; }
+  if (buf[p + 2] != c2) { return 0; }
+  if (buf[p + 3] != c3) { return 0; }
+  return 1;
+}
+
+/** 字节是否标识符字符（扁平化 helper）。 */
+function cfg_is_ident_char(c: u8): i32 {
+  if (c >= 65) { if (c <= 90) { return 1; } }
+  if (c >= 97) { if (c <= 122) { return 1; } }
+  if (c >= 48) { if (c <= 57) { return 1; } }
+  if (c == 95) { return 1; }
+  return 0;
+}
+
+/** 递归求值 cfg 表达式 buf[b..end)。 */
+/** all(...) 合取求值。 */
+function cfg_eval_all(buf: *u8, b: i32, end: i32): i32 {
+  let p: i32 = b + 4;
+  while (p < end) {
+    let part: i32 = 0;
+    let depth: i32 = 0;
+    p = cfg_skip_ws(buf, p, end);
+    if (p >= end) { break; }
+    if (buf[p] == 41) { return 1; }
+    part = p;
+    depth = 0;
+    while (p < end) {
+      if (buf[p] == 40) {
+        depth = depth + 1;
+      } else if (buf[p] == 41) {
+        if (depth == 0) { break; }
+        depth = depth - 1;
+      } else if (buf[p] == 44) {
+        if (depth == 0) { break; }
+      }
+      p = p + 1;
+    }
+    if (cfg_eval_expr_range(buf, part, p) == 0) { return 0; }
+    if (p < end) {
+      if (buf[p] == 41) { return 1; }
+    }
   }
   return 1;
+}
+
+/** not(...) 否定求值。 */
+function cfg_eval_not(buf: *u8, b: i32, end: i32): i32 {
+  let inner: i32 = b + 4;
+  let close: i32 = inner;
+  let depth: i32 = 1;
+  while (close < end) {
+    if (depth <= 0) { break; }
+    if (buf[close] == 40) {
+      depth = depth + 1;
+    } else if (buf[close] == 41) {
+      depth = depth - 1;
+    }
+    if (depth > 0) { close = close + 1; }
+  }
+  if (cfg_eval_expr_range(buf, inner, close) != 0) { return 0; }
+  return 1;
+}
+
+/** target_os = "..." 求值。返回 1=匹配，0=不匹配，-1=非 target_os。 */
+function cfg_eval_target_os(buf: *u8, p: i32, end: i32): i32 {
+  let lit_target_os: u8[10] = [116, 97, 114, 103, 101, 116, 95, 111, 115, 0];
+  if (p + 9 > end) { return -1; }
+  if (cfg_range_eq_ci(buf, p, p + 9, &lit_target_os[0]) == 0) { return -1; }
+  p = p + 9;
+  p = cfg_skip_ws(buf, p, end);
+  if (p >= end) { return 0; }
+  if (buf[p] != 61) { return 0; }
+  p = p + 1;
+  if (p < end) {
+    if (buf[p] == 61) { p = p + 1; }
+  }
+  p = cfg_skip_ws(buf, p, end);
+  if (p >= end) { return 0; }
+  if (buf[p] != 34) { return 0; }
+  p = p + 1;
+  let lit: i32 = p;
+  while (p < end) {
+    if (buf[p] == 34) { break; }
+    p = p + 1;
+  }
+  if (cfg_range_eq_ci(buf, lit, p, cfg_effective_os_lit()) != 0) { return 1; }
+  return 0;
+}
+
+/** target_arch = "..." 求值。返回 1=匹配，0=不匹配，-1=非 target_arch。 */
+function cfg_eval_target_arch(buf: *u8, p: i32, end: i32): i32 {
+  let lit_target_arch: u8[12] = [116, 97, 114, 103, 101, 116, 95, 97, 114, 99, 104, 0];
+  if (p + 11 > end) { return -1; }
+  if (cfg_range_eq_ci(buf, p, p + 11, &lit_target_arch[0]) == 0) { return -1; }
+  p = p + 11;
+  p = cfg_skip_ws(buf, p, end);
+  if (p >= end) { return 0; }
+  if (buf[p] != 61) { return 0; }
+  p = p + 1;
+  if (p < end) {
+    if (buf[p] == 61) { p = p + 1; }
+  }
+  p = cfg_skip_ws(buf, p, end);
+  if (p >= end) { return 0; }
+  if (buf[p] != 34) { return 0; }
+  p = p + 1;
+  let lit: i32 = p;
+  while (p < end) {
+    if (buf[p] == 34) { break; }
+    p = p + 1;
+  }
+  if (cfg_range_eq_ci(buf, lit, p, cfg_effective_arch_lit()) != 0) { return 1; }
+  return 0;
+}
+
+/** freestanding 裸标志求值。 */
+function cfg_eval_freestanding_flag(buf: *u8, p: i32, end: i32): i32 {
+  let lit_freestanding: u8[13] = [102, 114, 101, 101, 115, 116, 97, 110, 100, 105, 110, 103, 0];
+  let q: i32 = p;
+  while (q < end) {
+    let c: u8 = buf[q];
+    if (cfg_is_ident_char(c) != 0) {
+      q = q + 1;
+    } else {
+      break;
+    }
+  }
+  if (cfg_range_eq_ci(buf, p, q, &lit_freestanding[0]) != 0) {
+    return g_cfg_freestanding;
+  }
+  return 0;
 }
 
 /** 递归求值 cfg 表达式 buf[b..end)。 */
 function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   let p: i32 = cfg_skip_ws(buf, b, end);
-  let lit_target_os: u8[10] = [116, 97, 114, 103, 101, 116, 95, 111, 115, 0];
-  let lit_target_arch: u8[12] = [116, 97, 114, 103, 101, 116, 95, 97, 114, 99, 104, 0];
-  if (p >= end) {
-    return 0;
-  }
-  /** all(...) */
+  let r: i32 = 0;
+  if (p >= end) { return 0; }
   if (cfg_prefix4(buf, p, end, 97, 108, 108, 40) != 0) {
-    p = p + 4;
-    while (p < end) {
-      let part: i32 = 0;
-      let depth: i32 = 0;
-      p = cfg_skip_ws(buf, p, end);
-      if (p >= end) {
-        break;
-      }
-      if (buf[p] == 41) {
-        return 1;
-      }
-      part = p;
-      depth = 0;
-      while (p < end) {
-        if (buf[p] == 40) {
-          depth = depth + 1;
-        } else if (buf[p] == 41) {
-          if (depth == 0) {
-            break;
-          }
-          depth = depth - 1;
-        } else if (buf[p] == 44 && depth == 0) {
-          break;
-        }
-        p = p + 1;
-      }
-      if (cfg_eval_expr_range(buf, part, p) == 0) {
-        return 0;
-      }
-      if (p < end && buf[p] == 41) {
-        return 1;
-      }
-    }
-    return 1;
+    return cfg_eval_all(buf, p, end);
   }
-  /** not(...) */
   if (cfg_prefix4(buf, p, end, 110, 111, 116, 40) != 0) {
-    let inner: i32 = p + 4;
-    let close: i32 = inner;
-    let depth: i32 = 1;
-    while (close < end && depth > 0) {
-      if (buf[close] == 40) {
-        depth = depth + 1;
-      } else if (buf[close] == 41) {
-        depth = depth - 1;
-      }
-      if (depth > 0) {
-        close = close + 1;
-      }
-    }
-    if (cfg_eval_expr_range(buf, inner, close) != 0) {
-      return 0;
-    }
-    return 1;
+    return cfg_eval_not(buf, p, end);
   }
-  /** target_os = "..." */
-  if (p + 9 <= end && cfg_range_eq_ci(buf, p, p + 9, &lit_target_os[0]) != 0) {
-    let lit: i32 = 0;
-    p = p + 9;
-    p = cfg_skip_ws(buf, p, end);
-    if (p >= end || buf[p] != 61) {
-      return 0;
-    }
-    p = p + 1;
-    if (p < end && buf[p] == 61) {
-      p = p + 1;
-    }
-    p = cfg_skip_ws(buf, p, end);
-    if (p >= end || buf[p] != 34) {
-      return 0;
-    }
-    p = p + 1;
-    lit = p;
-    while (p < end && buf[p] != 34) {
-      p = p + 1;
-    }
-    if (cfg_range_eq_ci(buf, lit, p, cfg_effective_os_lit()) != 0) {
-      return 1;
-    }
-    return 0;
-  }
-  /** target_arch = "..." */
-  if (p + 11 <= end && cfg_range_eq_ci(buf, p, p + 11, &lit_target_arch[0]) != 0) {
-    let lit: i32 = 0;
-    p = p + 11;
-    p = cfg_skip_ws(buf, p, end);
-    if (p >= end || buf[p] != 61) {
-      return 0;
-    }
-    p = p + 1;
-    if (p < end && buf[p] == 61) {
-      p = p + 1;
-    }
-    p = cfg_skip_ws(buf, p, end);
-    if (p >= end || buf[p] != 34) {
-      return 0;
-    }
-    p = p + 1;
-    lit = p;
-    while (p < end && buf[p] != 34) {
-      p = p + 1;
-    }
-    if (cfg_range_eq_ci(buf, lit, p, cfg_effective_arch_lit()) != 0) {
-      return 1;
-    }
-    return 0;
-  }
-  /**
-   * freestanding 裸标志：#[cfg(freestanding)] / #[cfg(not(freestanding))]。
-   *
-   * 【Why】co-emit 模式下需在 parse 阶段剪枝 hosted-only 函数（调用 libc），
-   * 避免其 extern 引用残留导致 freestanding 链接失败。bare flag 无 `=`，
-   * 扫描标识符字符后与 "freestanding" 比较，返回 g_cfg_freestanding。
-   * 【Invariant】仅当 range 恰为标识符 "freestanding" 时生效；含其他字符则不匹配，
-   * 落入末尾 return 0。all()/not() 已递归调用本函数，故 not(freestanding) 自动支持。
-   */
-  {
-    let lit_freestanding: u8[13] = [102, 114, 101, 101, 115, 116, 97, 110, 100, 105, 110, 103, 0];
-    let q: i32 = p;
-    while (q < end) {
-      let c: u8 = buf[q];
-      if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c == 95) {
-        q = q + 1;
-      } else {
-        break;
-      }
-    }
-    if (cfg_range_eq_ci(buf, p, q, &lit_freestanding[0]) != 0) {
-      return g_cfg_freestanding;
-    }
-  }
-  return 0;
+  r = cfg_eval_target_os(buf, p, end);
+  if (r != -1) { return r; }
+  r = cfg_eval_target_arch(buf, p, end);
+  if (r != -1) { return r; }
+  return cfg_eval_freestanding_flag(buf, p, end);
 }
 
-/**
- * #[cfg(...)] 括号内表达式求值；供 lexer.x / preprocess 调用（C ABI 符号名）。
- */
 function cfg_eval_expr_c(start: *u8, len: i32): i32 {
-  if (start == 0 || len <= 0) {
-    return 0;
-  }
+  if (start == 0) { return 0; }
+  if (len <= 0) { return 0; }
   if (cfg_eval_expr_range(start, 0, len) != 0) {
     return 1;
   }
@@ -464,11 +479,6 @@ function cfg_reset_compile_target(): void {
 
 /**
  * 设置 freestanding 模式标志。
- *
- * 【Why】runtime.c 解析 `-freestanding` 时调用 cfg_set_freestanding(1)，
- * 使后续 #[cfg(freestanding)] / #[cfg(not(freestanding))] 按模式剪枝；
- * driver reset 时调用 cfg_set_freestanding(0) 清零，避免跨编译单元泄漏。
- * 【Invariant】必须在 parse 前设置；parse 中读取 g_cfg_freestanding 决定剪枝。
  */
 function cfg_set_freestanding(v: i32): void {
   g_cfg_freestanding = v;
