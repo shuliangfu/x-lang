@@ -39,7 +39,7 @@ src/**/*.x  →  工具链  →  *.o  →  link shux
 | 15 | `src/asm/backend_arch_emit_dispatch_thin.x` | 并入 `backend_arch_emit_dispatch.o` | hybrid：thin.o（**weak** **47** ta 壳）+ seed-rest（`-DSHUX_L2_ARCH_EMIT_THIN_FROM_X`）`cc -r` | f-362 |
 | 16 | `src/asm/backend_try_inline_dispatch_thin.x` | 并入 `backend_try_inline_dispatch.o` | hybrid：thin.o（**weak** **14**：+ `try_expr_const`→seed `_impl`）+ seed-rest（`-DSHUX_L2_TRY_INLINE_THIN_FROM_X`）`cc -r` | f-363～369 |
 | 17 | `src/asm/backend_call_dispatch_thin.x` | 并入 `backend_call_dispatch.o` | hybrid：thin.o（**weak** **11**：+ path/binding equal + f32 get→impl）+ seed-rest（`-DSHUX_L2_CALL_DISPATCH_THIN_FROM_X`）`cc -r` | f-364～369 |
-| 18 | `src/lsp/lsp_fmt_pure_thin.x` | 并入 `lsp_diag.o` | hybrid：thin.o（**weak** **5** pure leaf：`is_atom_tail`/`is_atom_head`/`unary_lhs`/`last_out`/`prev_src`）+ seed-rest（`-DSHUX_L2_LSP_FMT_THIN_FROM_X`）`cc -r` | f-423 |
+| 18 | `src/lsp/lsp_fmt_pure_thin.x` | 并入 `lsp_diag.o` | hybrid：thin.o（**weak** **10** pure：`is_atom_tail`/`is_atom_head`/`unary_lhs`/`last_out`/`prev_src`/`src_ws_before`/`src_ws_after`/`space_before`/`space_after`/`json_escape_ident`）+ seed-rest（`-DSHUX_L2_LSP_FMT_THIN_FROM_X`）`cc -r` | f-423/424 |
 
 - **默认路径**：仍整 seed `cc`（冷启动/回滚安全）
 - **优先路径**：`SHUX_G05_PREFER_X_O=1`（显式 opt-in）
