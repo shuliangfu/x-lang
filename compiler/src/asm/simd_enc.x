@@ -132,7 +132,6 @@ function simd_append_u32_le(elf: *u8, word: u32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &b3, 1); }
   return r;
-  return 0 - 1;
 }
 
 // G-02f-124：simd 固定指令 / rbp+disp 真迁 .x
@@ -151,7 +150,6 @@ function simd_x86_addps_xmm0_xmm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -168,7 +166,6 @@ function simd_x86_mulps_xmm0_xmm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -188,7 +185,6 @@ function simd_x86_paddd_xmm0_xmm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -208,7 +204,6 @@ function simd_x86_psubd_xmm0_xmm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -231,7 +226,6 @@ function simd_x86_pmulld_xmm0_xmm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -251,7 +245,6 @@ function simd_x86_vpaddd_ymm0_ymm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -271,7 +264,6 @@ function simd_x86_vpsubd_ymm0_ymm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -291,7 +283,6 @@ function simd_x86_vpmulld_ymm0_ymm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -314,7 +305,6 @@ function simd_x86_vfmadd231ps_xmm0_xmm1_xmm2(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -337,7 +327,6 @@ function simd_x86_movups_xmm0_to_rbx_rax4(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -360,7 +349,6 @@ function simd_x86_movups_xmm0_from_rbx_rax4(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -383,7 +371,6 @@ function simd_x86_movups_xmm1_from_rbx_rax4(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -409,7 +396,6 @@ function simd_x86_vmovups_ymm0_from_rbx_rax4(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -435,7 +421,6 @@ function simd_x86_vmovups_ymm1_from_rbx_rax4(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -461,7 +446,6 @@ function simd_x86_vmovups_ymm0_to_rbx_rax4(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -478,7 +462,6 @@ function simd_x86_movups_xmm0_from_rbp(elf: *u8, disp: i32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -495,7 +478,6 @@ function simd_x86_movups_xmm1_from_rbp(elf: *u8, disp: i32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -512,7 +494,6 @@ function simd_x86_movups_xmm0_to_rbp(elf: *u8, disp: i32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -532,7 +513,6 @@ function simd_x86_vmovups_ymm0_from_rbp(elf: *u8, disp: i32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -552,7 +532,6 @@ function simd_x86_vmovups_ymm1_from_rbp(elf: *u8, disp: i32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -572,7 +551,6 @@ function simd_x86_vmovups_ymm0_to_rbp(elf: *u8, disp: i32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
-  return 0 - 1;
 }
 
 // G-02f-125：更多 simd 固定/disp 指令真迁 .x
@@ -591,7 +569,6 @@ function simd_x86_movups_xmm2_from_rbp(elf: *u8, disp: i32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -612,7 +589,6 @@ function simd_x86_pshufd_xmm0_imm8(elf: *u8, imm8: i32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &ib, 1); }
   return r;
-  return 0 - 1;
 }
 
 
@@ -634,7 +610,6 @@ function simd_x86_vpshufd_ymm0_imm8(elf: *u8, imm8: i32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &ib, 1); }
   return r;
-  return 0 - 1;
 }
 
 
@@ -655,7 +630,6 @@ function simd_x86_vmovups_ymm2_from_rbp(elf: *u8, disp: i32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf, disp); }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -675,7 +649,6 @@ function simd_x86_pxor_xmm3_xmm3(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -695,7 +668,6 @@ function simd_x86_pcmpgtd_xmm2_xmm3(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -715,7 +687,6 @@ function simd_x86_pand_xmm0_xmm2(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -735,7 +706,6 @@ function simd_x86_pandn_xmm2_xmm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -755,7 +725,6 @@ function simd_x86_por_xmm0_xmm2(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -772,7 +741,6 @@ function simd_x86_xorps_xmm3_xmm3(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -789,7 +757,6 @@ function simd_x86_cmpgtps_xmm2_xmm3(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -806,7 +773,6 @@ function simd_x86_andps_xmm0_xmm2(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -823,7 +789,6 @@ function simd_x86_andnps_xmm2_xmm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -840,7 +805,6 @@ function simd_x86_orps_xmm0_xmm2(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -860,7 +824,6 @@ function simd_x86_vpxor_ymm3_ymm3(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -880,7 +843,6 @@ function simd_x86_vpcmpgtd_ymm2_ymm3(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -900,7 +862,6 @@ function simd_x86_vpand_ymm0_ymm2(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -920,7 +881,6 @@ function simd_x86_vpandn_ymm2_ymm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -940,7 +900,6 @@ function simd_x86_vpor_ymm0_ymm2(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -960,7 +919,6 @@ function simd_x86_vxorps_ymm3_ymm3(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -980,7 +938,6 @@ function simd_x86_vcmpgtps_ymm2_ymm3(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -1000,7 +957,6 @@ function simd_x86_vandps_ymm0_ymm2(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -1020,7 +976,6 @@ function simd_x86_vandnps_ymm2_ymm1(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -1040,7 +995,6 @@ function simd_x86_vorps_ymm0_ymm2(elf: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = 0; }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -1061,7 +1015,6 @@ function simd_x86_pshufd_xmm1_xmm0(elf: *u8, imm: u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append(elf, &ib, 1); }
   return r;
-  return 0 - 1;
 }
 
 /* ---- G-02f-211：try_hw vector + x86 short shells ---- */
@@ -1284,7 +1237,6 @@ function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: i32): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = simd_append_disp32(elf_ctx, disp); }
   return r;
-  return 0 - 1;
 }
 
 #[no_mangle]
@@ -1293,8 +1245,12 @@ function simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx: *u8, off_col0: i32, of
   if (off_col0 < 0) { return 0 - 1; }
   if (off_i < 0) { return 0 - 1; }
   if (ta != 0) { return 0 - 1; }
-  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-  if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, off_col0, ta) != 0) { return 0 - 1; }
+  let re1: i32 = 0;
+  unsafe { re1 = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
+  if (re1 != 0) { return 0 - 1; }
+  let re2: i32 = 0;
+  unsafe { re2 = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, off_col0, ta); }
+  if (re2 != 0) { return 0 - 1; }
   let insn: u8[4] = [];
   insn[0] = 15; insn[1] = 16; insn[2] = 12; insn[3] = 131;
   let r: i32 = 0;
@@ -1312,7 +1268,9 @@ extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, t
 // G-02f-212：arm64 pshufd-imm8 128-bit half
 #[no_mangle]
 function simd_arm64_pshufd_imm8_128_rbp(elf_ctx: *u8, lea_src: i32, lea_dst: i32, imm8: i32, ta: i32): i32 {
-  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_src, ta) != 0) { return 0 - 1; }
+  let re3: i32 = 0;
+  unsafe { re3 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_src, ta); }
+  if (re3 != 0) { return 0 - 1; }
   // ld1 {v0.4s}, [x0]
   if (simd_append_u32_le(elf_ctx, 1279293440) != 0) { return 0 - 1; }
   // mov v1.16b, v0.16b
@@ -1331,7 +1289,9 @@ function simd_arm64_pshufd_imm8_128_rbp(elf_ctx: *u8, lea_src: i32, lea_dst: i32
     if (simd_append_u32_le(elf_ctx, ins) != 0) { return 0 - 1; }
     li = li + 1;
   }
-  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta) != 0) { return 0 - 1; }
+  let re4: i32 = 0;
+  unsafe { re4 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
+  if (re4 != 0) { return 0 - 1; }
   // st1 {v1.4s}, [x0]
   if (simd_append_u32_le(elf_ctx, 1275099137) != 0) { return 0 - 1; }
   return 0;
@@ -1340,11 +1300,17 @@ function simd_arm64_pshufd_imm8_128_rbp(elf_ctx: *u8, lea_src: i32, lea_dst: i32
 // G-02f-212：arm64 select 128
 #[no_mangle]
 function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i32, lea_b: i32, lea_dst: i32, is_f32: i32, ta: i32): i32 {
-  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_mask, ta) != 0) { return 0 - 1; }
+  let re5: i32 = 0;
+  unsafe { re5 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_mask, ta); }
+  if (re5 != 0) { return 0 - 1; }
   if (simd_append_u32_le(elf_ctx, 1279293440) != 0) { return 0 - 1; } // ld1 v0
-  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta) != 0) { return 0 - 1; }
+  let re6: i32 = 0;
+  unsafe { re6 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_a, ta); }
+  if (re6 != 0) { return 0 - 1; }
   if (simd_append_u32_le(elf_ctx, 1279293441) != 0) { return 0 - 1; } // ld1 v1
-  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta) != 0) { return 0 - 1; }
+  let re7: i32 = 0;
+  unsafe { re7 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_b, ta); }
+  if (re7 != 0) { return 0 - 1; }
   if (simd_append_u32_le(elf_ctx, 1279293442) != 0) { return 0 - 1; } // ld1 v2
   if (is_f32 != 0) {
     if (simd_append_u32_le(elf_ctx, 1319159811) != 0) { return 0 - 1; } // fcmgt
@@ -1353,7 +1319,9 @@ function simd_arm64_select_128_rbp(elf_ctx: *u8, lea_mask: i32, lea_a: i32, lea_
     if (simd_append_u32_le(elf_ctx, 1319143427) != 0) { return 0 - 1; } // cmgt
     if (simd_append_u32_le(elf_ctx, 1851923491) != 0) { return 0 - 1; } // bsl
   }
-  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta) != 0) { return 0 - 1; }
+  let re8: i32 = 0;
+  unsafe { re8 = backend_enc_lea_rbp_to_rax_arch(elf_ctx, lea_dst, ta); }
+  if (re8 != 0) { return 0 - 1; }
   if (simd_append_u32_le(elf_ctx, 1275099139) != 0) { return 0 - 1; } // st1 v3
   return 0;
 }
@@ -1413,12 +1381,18 @@ function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32, off_b
   let elem0_a: i32 = off_a - (array_n - 1) * esz;
   let elem0_b: i32 = off_b - (array_n - 1) * esz;
   let elem0_d: i32 = off_d - (array_n - 1) * esz;
-  if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-  if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_a, ta) != 0) { return 0 - 1; }
+  let re9: i32 = 0;
+  unsafe { re9 = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
+  if (re9 != 0) { return 0 - 1; }
+  let re10: i32 = 0;
+  unsafe { re10 = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_a, ta); }
+  if (re10 != 0) { return 0 - 1; }
   if (lanes == 8) {
     if ((cpu_features & 8) != 0) {
       if (simd_x86_vmovups_ymm0_from_rbx_rax4(elf_ctx) != 0) { return 0 - 1; }
-      if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_b, ta) != 0) { return 0 - 1; }
+      let re11: i32 = 0;
+      unsafe { re11 = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_b, ta); }
+      if (re11 != 0) { return 0 - 1; }
       if (simd_x86_vmovups_ymm1_from_rbx_rax4(elf_ctx) != 0) { return 0 - 1; }
       if (binop_ko == 5) {
         if (simd_x86_vpsubd_ymm0_ymm1(elf_ctx) != 0) { return 0 - 1; }
@@ -1427,7 +1401,9 @@ function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32, off_b
       } else {
         if (simd_x86_vpaddd_ymm0_ymm1(elf_ctx) != 0) { return 0 - 1; }
       }
-      if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_d, ta) != 0) { return 0 - 1; }
+      let re12: i32 = 0;
+      unsafe { re12 = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_d, ta); }
+      if (re12 != 0) { return 0 - 1; }
       if (simd_x86_vmovups_ymm0_to_rbx_rax4(elf_ctx) != 0) { return 0 - 1; }
       return 0;
     }
@@ -1439,7 +1415,9 @@ function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32, off_b
       if ((cpu_features & 1) == 0) { return 0 - 1; }
     }
     if (simd_x86_movups_xmm0_from_rbx_rax4(elf_ctx) != 0) { return 0 - 1; }
-    if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_b, ta) != 0) { return 0 - 1; }
+    let re13: i32 = 0;
+    unsafe { re13 = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_b, ta); }
+    if (re13 != 0) { return 0 - 1; }
     if (simd_x86_movups_xmm1_from_rbx_rax4(elf_ctx) != 0) { return 0 - 1; }
     if (binop_ko == 5) {
       if (simd_x86_psubd_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
@@ -1448,7 +1426,9 @@ function simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx: *u8, off_a: i32, off_b
     } else {
       if (simd_x86_paddd_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
     }
-    if (backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_d, ta) != 0) { return 0 - 1; }
+    let re14: i32 = 0;
+    unsafe { re14 = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, elem0_d, ta); }
+    if (re14 != 0) { return 0 - 1; }
     if (simd_x86_movups_xmm0_to_rbx_rax4(elf_ctx) != 0) { return 0 - 1; }
     return 0;
   }
