@@ -22,6 +22,17 @@ char driver_x_emit_path_buf[512];
 char driver_x_emit_lib_bufs[X_EMIT_MAX_LIB_ROOTS][256];
 int driver_x_emit_c_want_extern;
 
+/* G-02f-455：thin+rest PREFER_X_O
+ *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_EMIT_STATE_FROM_X):
+ *     - driver_run_x_emit_c_set_path renamed to *_impl via macro.
+ *   Other functions stay in rest:
+ *     - driver_argv_parse_x_emit_c uses char **argv (signature mismatch with .x *u8).
+ *     - set_lib / set_n_lib_roots / set_emit_extern / labi_marker have no .x counterpart. */
+#ifdef SHUX_RT_EMIT_STATE_FROM_X
+#define driver_run_x_emit_c_set_path    driver_run_x_emit_c_set_path_impl
+#endif
+
 int driver_run_x_emit_c_set_path(const uint8_t *path, int path_len) {
   driver_x_emit_c_path = NULL;
   if (!path || path_len <= 0 || path_len >= (int)sizeof(driver_x_emit_path_buf))
