@@ -1436,6 +1436,15 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[
     if (r.tok.kind == TokenKind.TOKEN_RBRACE) {
       break;
     }
+    /*
+     * 块体中遇到 EOF 说明缺少 `}`，报语法错误。
+     * 无此检查时 EOF 会落入 expr_stmt 分支，依赖 parse_expr_into 对 EOF 返回 ok=false；
+     * 但 if 分支可能因 C 侧 scan_sync 返回未推进的 lex_cur 导致无限重解析 if（不经过 EOF）。
+     */
+    if (r.tok.kind == TokenKind.TOKEN_EOF) {
+      out.ok = false;
+      return;
+    }
     /**
      * parse_if 偶发将 lex 落在下一 if 的 `(`；若落入 expr 分支会把 `(N != 0)` 记入 stmt_order，
      * 块内连续 if（尤其块首 let 后）只 codegen 前几条。回扫至 TOKEN_IF 后走 if 分支。
@@ -3455,7 +3464,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
       }
       /* 块尾 } 或 return 结束 stmt 循环；勿把语句首 int（如 0 as *u8;、if (0 as *u8)）误判为块尾裸表达式。 */
       if (r.tok.kind == TokenKind.TOKEN_RETURN || r.tok.kind == TokenKind.TOKEN_RBRACE
-          || r.tok.kind == TokenKind.TOKEN_MATCH) {
+          || r.tok.kind == TokenKind.TOKEN_MATCH || r.tok.kind == TokenKind.TOKEN_EOF) {
         break;
       }
       /* if/while/for 之后仍可跟 let/const：首段仅 parse_body_lets_into({ 后…) 吃掉连续 let，此处不认 TOKEN_LET 会落入 expr 分支失败 */
@@ -3860,7 +3869,7 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
       out.num_src_body_expr_stmts = pipeline_onefunc_num_body_expr_stmts(onefunc_result_pool_ptr(out));
       onefunc_push_src_stmt(out, 2, ex_i);
       if (r.tok.kind == TokenKind.TOKEN_RETURN || r.tok.kind == TokenKind.TOKEN_RBRACE
-          || r.tok.kind == TokenKind.TOKEN_MATCH) {
+          || r.tok.kind == TokenKind.TOKEN_MATCH || r.tok.kind == TokenKind.TOKEN_EOF) {
         break;
       }
       lex = lex_at_token_from_result(r);
