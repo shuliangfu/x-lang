@@ -51,13 +51,15 @@ function shu_elf_ctx_append_u32_le(elf_ctx: *u8, word: u32): i32 {
   let b1: u8 = ((word / 256) & 255) as u8;
   let b2: u8 = ((word / 65536) & 255) as u8;
   let b3: u8 = ((word / 16777216) & 255) as u8;
-  unsafe {
-    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b0, 1) != 0) { return 0 - 1; }
-    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1) != 0) { return 0 - 1; }
-    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b2, 1) != 0) { return 0 - 1; }
-    return pipeline_elf_ctx_append_bytes(elf_ctx, &b3, 1);
-  }
-  return 0 - 1;
+  let r: i32 = 0;
+  unsafe { r = pipeline_elf_ctx_append_bytes(elf_ctx, &b0, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = pipeline_elf_ctx_append_bytes(elf_ctx, &b2, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = pipeline_elf_ctx_append_bytes(elf_ctx, &b3, 1); }
+  return r;
 }
 
 #[no_mangle]

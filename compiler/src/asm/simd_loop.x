@@ -271,18 +271,17 @@ function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_ref: i32
   if (arena == 0) { return 0 - 1; }
   if (ctx == 0) { return 0 - 1; }
   if (var_expr_ref <= 0) { return 0 - 1; }
-  unsafe {
-    let vlen: i32 = pipeline_expr_var_name_len(arena, var_expr_ref);
-    if (vlen <= 0) { return 0 - 1; }
-    if (vlen > 63) { return 0 - 1; }
-    let vname: u8[64] = [];
-    pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
-    let off: i32 = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
-    if (off < 0) {
-      off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
-    }
-    return off;
+  let vlen: i32 = pipeline_expr_var_name_len(arena, var_expr_ref);
+  if (vlen <= 0) { return 0 - 1; }
+  if (vlen > 63) { return 0 - 1; }
+  let vname: u8[64] = [];
+  pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
+  let off: i32 = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
+  if (off < 0) { off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
   }
+  let r: i32 = 0;
+  unsafe { r = off; }
+  return r;
   return 0 - 1;
 }
 
@@ -346,18 +345,14 @@ function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: i32, of
     let chunk_off_b: i32 = off_b - start * esz;
     let chunk_off_d: i32 = off_d - start * esz;
     if (glue_simd_loop_emit_chunk_binop_c(elf_ctx, binop_ko, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats) != 0) {
-      unsafe {
-        let name: u8[24] = [];
-        // SHUX_SIMD_HW_STRICT
-        name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
-        name[4] = 95; name[5] = 83; name[6] = 73; name[7] = 77;
-        name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
-        name[12] = 95; name[13] = 83; name[14] = 84; name[15] = 82;
-        name[16] = 73; name[17] = 67; name[18] = 84; name[19] = 0;
-        let p: *u8 = getenv(&name[0]);
-        if (p != 0) {
-          if (p[0] != 48) { return 0 - 1; }
-        }
+      let name: u8[24] = [];
+      // SHUX_SIMD_HW_STRICT name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
+      name[4] = 95; name[5] = 83; name[6] = 73; name[7] = 77;
+      name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
+      name[12] = 95; name[13] = 83; name[14] = 84; name[15] = 82;
+      name[16] = 73; name[17] = 67; name[18] = 84; name[19] = 0;
+      let p: *u8 = getenv(&name[0]);
+      if (p != 0) { if (p[0] != 48) { return 0 - 1; }
       }
       return 0;
     }
@@ -581,10 +576,11 @@ function glue_simd_x86_cmp_rax_rbx_c(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   let b0: u8 = 0x39;
   let b1: u8 = 0xd8;
-  unsafe {
-    if (pipeline_elf_ctx_append_bytes(elf_ctx, &b0, 1) != 0) { return 0 - 1; }
-    return pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1);
-  }
+  let r: i32 = 0;
+  unsafe { r = pipeline_elf_ctx_append_bytes(elf_ctx, &b0, 1); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1); }
+  return r;
   return 0 - 1;
 }
 
@@ -614,45 +610,68 @@ extern "C" function simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx: *u8, disp: i32): i
 #[no_mangle]
 function glue_emit_runtime_strip_loop_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, assign_body_ref: i32, binop_ko: i32, off_i: i32, off_n: i32, off_a: i32, off_b: i32, off_d: i32, array_n: i32, lanes: i32, feats: u32): i32 {
   if (ta != 0) { return 0; }
-  unsafe {
-    let vec_loop: u8[64] = [];
-    let epi_loop: u8[64] = [];
-    let epi_done: u8[64] = [];
-    let vec_len: i32 = pipeline_asm_emit_next_label_c(ctx, &vec_loop[0], 64);
-    let epi_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_loop[0], 64);
-    let done_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_done[0], 64);
-    if (vec_len <= 0) { return 0 - 1; }
-    if (epi_len <= 0) { return 0 - 1; }
-    if (done_len <= 0) { return 0 - 1; }
-    if (backend_enc_label_arch(elf_ctx, &vec_loop[0], vec_len, 0, ta) != 0) { return 0 - 1; }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta) != 0) { return 0 - 1; }
-    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_n, ta) != 0) { return 0 - 1; }
-    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta) != 0) { return 0 - 1; }
-    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0) { return 0 - 1; }
-    if (backend_enc_jge_arch(elf_ctx, &epi_loop[0], epi_len, ta) != 0) { return 0 - 1; }
-    if (simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx, off_a, off_b, off_d, off_i, array_n, binop_ko, lanes, 4, ta, feats) != 0) {
-      return 0 - 1;
-    }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta) != 0) { return 0 - 1; }
-    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (backend_enc_jmp_arch(elf_ctx, &vec_loop[0], vec_len, ta) != 0) { return 0 - 1; }
-    if (backend_enc_label_arch(elf_ctx, &epi_loop[0], epi_len, 0, ta) != 0) { return 0 - 1; }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, off_n, ta) != 0) { return 0 - 1; }
-    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0) { return 0 - 1; }
-    if (backend_enc_jge_arch(elf_ctx, &epi_done[0], done_len, ta) != 0) { return 0 - 1; }
-    if (pipeline_asm_emit_assign_elf_c(arena, elf_ctx, assign_body_ref, ctx, ta) != 0) { return 0 - 1; }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta) != 0) { return 0 - 1; }
-    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (backend_enc_jmp_arch(elf_ctx, &epi_loop[0], epi_len, ta) != 0) { return 0 - 1; }
-    if (backend_enc_label_arch(elf_ctx, &epi_done[0], done_len, 0, ta) != 0) { return 0 - 1; }
+  let vec_loop: u8[64] = [];
+  let epi_loop: u8[64] = [];
+  let epi_done: u8[64] = [];
+  let vec_len: i32 = pipeline_asm_emit_next_label_c(ctx, &vec_loop[0], 64);
+  let epi_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_loop[0], 64);
+  let done_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_done[0], 64);
+  if (vec_len <= 0) { return 0 - 1; }
+  if (epi_len <= 0) { return 0 - 1; }
+  if (done_len <= 0) { return 0 - 1; }
+  let r: i32 = 0;
+  unsafe { r = backend_enc_label_arch(elf_ctx, &vec_loop[0], vec_len, 0, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_push_rax_arch(elf_ctx, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_n, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_pop_rax_arch(elf_ctx, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = glue_simd_x86_cmp_rax_rbx_c(elf_ctx); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_jge_arch(elf_ctx, &epi_loop[0], epi_len, ta); }
+  if (r != 0) { return 0 - 1; }
+  if (simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx, off_a, off_b, off_d, off_i, array_n, binop_ko, lanes, 4, ta, feats) != 0) { return 0 - 1;
   }
+  unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_jmp_arch(elf_ctx, &vec_loop[0], vec_len, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_label_arch(elf_ctx, &epi_loop[0], epi_len, 0, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_load_rbp_to_rbx_arch(elf_ctx, off_n, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = glue_simd_x86_cmp_rax_rbx_c(elf_ctx); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_jge_arch(elf_ctx, &epi_done[0], done_len, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, assign_body_ref, ctx, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_jmp_arch(elf_ctx, &epi_loop[0], epi_len, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_label_arch(elf_ctx, &epi_done[0], done_len, 0, ta); }
+  if (r != 0) { return 0 - 1; }
   return 1;
 }
 
@@ -663,73 +682,104 @@ function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i
   if (lanes != 4) { return 0; }
   // SSE2 = 1
   if ((feats & 1) == 0) { return 0; }
-  unsafe {
-    let vec_loop: u8[64] = [];
-    let epi_merge: u8[64] = [];
-    let epi_loop: u8[64] = [];
-    let epi_done: u8[64] = [];
-    let vec_len: i32 = pipeline_asm_emit_next_label_c(ctx, &vec_loop[0], 64);
-    let merge_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_merge[0], 64);
-    let epi_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_loop[0], 64);
-    let done_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_done[0], 64);
-    if (vec_len <= 0) { return 0 - 1; }
-    if (merge_len <= 0) { return 0 - 1; }
-    if (epi_len <= 0) { return 0 - 1; }
-    if (done_len <= 0) { return 0 - 1; }
-    if (simd_enc_x86_xorps_xmm0_zero(elf_ctx) != 0) { return 0 - 1; }
-    if (backend_enc_label_arch(elf_ctx, &vec_loop[0], vec_len, 0, ta) != 0) { return 0 - 1; }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta) != 0) { return 0 - 1; }
-    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-    if (off_n >= 0) {
-      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_n, ta) != 0) { return 0 - 1; }
-    } else {
-      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_lit, 0, ta) != 0) { return 0 - 1; }
-    }
-    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta) != 0) { return 0 - 1; }
-    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0) { return 0 - 1; }
-    if (backend_enc_jge_arch(elf_ctx, &epi_merge[0], merge_len, ta) != 0) { return 0 - 1; }
-    if (simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx, off_col0, off_i, ta) != 0) {
-      let name: u8[24] = [];
-      name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
-      name[4] = 95; name[5] = 83; name[6] = 73; name[7] = 77;
-      name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
-      name[12] = 95; name[13] = 83; name[14] = 84; name[15] = 82;
-      name[16] = 73; name[17] = 67; name[18] = 84; name[19] = 0;
-      let p: *u8 = getenv(&name[0]);
-      if (p != 0) {
-        if (p[0] != 48) { return 0 - 1; }
-      }
-      return 0;
-    }
-    if (simd_enc_x86_addps_xmm0_xmm1(elf_ctx) != 0) { return 0 - 1; }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta) != 0) { return 0 - 1; }
-    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (backend_enc_jmp_arch(elf_ctx, &vec_loop[0], vec_len, ta) != 0) { return 0 - 1; }
-    if (backend_enc_label_arch(elf_ctx, &epi_merge[0], merge_len, 0, ta) != 0) { return 0 - 1; }
-    if (simd_enc_x86_horizontal_addps_xmm0(elf_ctx) != 0) { return 0 - 1; }
-    if (simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx, glue_f32_slot_rbp_disp32(off_s)) != 0) { return 0 - 1; }
-    if (backend_enc_label_arch(elf_ctx, &epi_loop[0], epi_len, 0, ta) != 0) { return 0 - 1; }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (off_n >= 0) {
-      if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, off_n, ta) != 0) { return 0 - 1; }
-    } else {
-      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_lit, 0, ta) != 0) { return 0 - 1; }
-      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-    }
-    if (glue_simd_x86_cmp_rax_rbx_c(elf_ctx) != 0) { return 0 - 1; }
-    if (backend_enc_jge_arch(elf_ctx, &epi_done[0], done_len, ta) != 0) { return 0 - 1; }
-    if (pipeline_asm_emit_assign_elf_c(arena, elf_ctx, assign_body_ref, ctx, ta) != 0) { return 0 - 1; }
-    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta) != 0) { return 0 - 1; }
-    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta) != 0) { return 0 - 1; }
-    if (backend_enc_jmp_arch(elf_ctx, &epi_loop[0], epi_len, ta) != 0) { return 0 - 1; }
-    if (backend_enc_label_arch(elf_ctx, &epi_done[0], done_len, 0, ta) != 0) { return 0 - 1; }
+  let vec_loop: u8[64] = [];
+  let epi_merge: u8[64] = [];
+  let epi_loop: u8[64] = [];
+  let epi_done: u8[64] = [];
+  let vec_len: i32 = pipeline_asm_emit_next_label_c(ctx, &vec_loop[0], 64);
+  let merge_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_merge[0], 64);
+  let epi_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_loop[0], 64);
+  let done_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_done[0], 64);
+  if (vec_len <= 0) { return 0 - 1; }
+  if (merge_len <= 0) { return 0 - 1; }
+  if (epi_len <= 0) { return 0 - 1; }
+  if (done_len <= 0) { return 0 - 1; }
+  let r: i32 = 0;
+  unsafe { r = simd_enc_x86_xorps_xmm0_zero(elf_ctx); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_label_arch(elf_ctx, &vec_loop[0], vec_len, 0, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_push_rax_arch(elf_ctx, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = off_n >= 0) { if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_n, ta); }
+  if (r != 0) { return 0 - 1; }
+  } else {
+  unsafe { r = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_lit, 0, ta); }
+  if (r != 0) { return 0 - 1; }
   }
+  unsafe { r = backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_pop_rax_arch(elf_ctx, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = glue_simd_x86_cmp_rax_rbx_c(elf_ctx); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_jge_arch(elf_ctx, &epi_merge[0], merge_len, ta); }
+  if (r != 0) { return 0 - 1; }
+  if (simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx, off_col0, off_i, ta) != 0) { let name: u8[24] = [];
+  name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
+  name[4] = 95; name[5] = 83; name[6] = 73; name[7] = 77;
+  name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
+  name[12] = 95; name[13] = 83; name[14] = 84; name[15] = 82;
+  name[16] = 73; name[17] = 67; name[18] = 84; name[19] = 0;
+  let p: *u8 = getenv(&name[0]);
+  if (p != 0) { if (p[0] != 48) { return 0 - 1; }
+  }
+  unsafe { r = 0; }
+  return r;
+  }
+  unsafe { r = simd_enc_x86_addps_xmm0_xmm1(elf_ctx); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_jmp_arch(elf_ctx, &vec_loop[0], vec_len, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_label_arch(elf_ctx, &epi_merge[0], merge_len, 0, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_enc_x86_horizontal_addps_xmm0(elf_ctx); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = simd_enc_x86_movss_xmm0_rbp_disp(elf_ctx, glue_f32_slot_rbp_disp32(off_s)); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_label_arch(elf_ctx, &epi_loop[0], epi_len, 0, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = off_n >= 0) { if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, off_n, ta); }
+  if (r != 0) { return 0 - 1; }
+  } else {
+  unsafe { r = backend_enc_push_rax_arch(elf_ctx, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_lit, 0, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_pop_rax_arch(elf_ctx, ta); }
+  if (r != 0) { return 0 - 1; }
+  }
+  unsafe { r = glue_simd_x86_cmp_rax_rbx_c(elf_ctx); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_jge_arch(elf_ctx, &epi_done[0], done_len, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, assign_body_ref, ctx, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_store_rax_to_rbp_arch(elf_ctx, off_i, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_jmp_arch(elf_ctx, &epi_loop[0], epi_len, ta); }
+  if (r != 0) { return 0 - 1; }
+  unsafe { r = backend_enc_label_arch(elf_ctx, &epi_done[0], done_len, 0, ta); }
+  if (r != 0) { return 0 - 1; }
   return 1;
 }
