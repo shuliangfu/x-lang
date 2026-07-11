@@ -316,7 +316,8 @@ extern function pipeline_expr_block_ref_at(arena: *ASTArena, expr_ref: i32): i32
 /** 读 Block 字段；勿 ast_block_* / ast_arena_block_get 按值拷贝（EMIT_HEAVY asm SIGSEGV）。 */
 extern function pipeline_asm_block_final_expr_ref_at(arena: *ASTArena, block_ref: i32): i32;
 extern function pipeline_block_expr_stmt_ref(arena: *ASTArena, block_ref: i32, ei: i32): i32;
-/** 显式设置 block 的 parent_block_ref（仅在为 0 时）；用于 typeck 嵌套块 parent 链修复。 */
+/** 显式设置 block 的 parent_block_ref（仅在为 0 时）；补 pipeline_patch_block_parent_links
+ *  无法覆盖块表达式（ord_block 表达式关联的块）的场景。 */
 extern function pipeline_block_set_parent_if_zero(arena: *ASTArena, block_ref: i32, parent_ref: i32): i32;
 /** 读 unary_operand_ref；块末 void return 判定用，避免 Expr 按值拷贝。 */
 extern function pipeline_expr_unary_operand_ref_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -5895,6 +5896,9 @@ ctx: *PipelineDepCtx): i32 {
     return - 1;
   }
   saved_block_ref = pipeline_typeck_block_impl_bind_ctx_c(ctx, block_ref);
+  /* 补设 parent_block_ref：pipeline_patch_block_parent_links 遍历 while/for/if/region body，
+     但无法覆盖块表达式（ord_block 表达式关联的块，通过 pipeline_expr_block_ref_at 关联）。
+     saved_block_ref 是进入此块之前的 current_block_ref = 直接父块。 */
   pipeline_block_set_parent_if_zero(arena, block_ref, saved_block_ref);
   nc = ast.ast_block_num_consts(arena, block_ref);
   nl = ast.ast_block_num_lets(arena, block_ref);

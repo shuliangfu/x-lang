@@ -2286,13 +2286,27 @@ void pipeline_patch_block_parent_links(struct ast_ASTArena *a, int32_t block_ref
         sp++;
       }
     }
+    /**
+     * NOTE: 块表达式（ord_block 表达式关联的块）不在此遍历范围内。
+     * 块表达式通过表达式树关联（pipeline_expr_block_ref_at），不在块的
+     * while/for/if/region 子块列表中。typeck_check_block_impl 中的
+     * pipeline_block_set_parent_if_zero 补充覆盖了这种情况。
+     */
   }
 }
 
 /**
  * 显式设置 block 的 parent_block_ref（仅在为 0 时）。
- * 用于 typeck_check_block_impl 中确保嵌套块（unsafe region body / if-then body）
- * 的 parent 链正确，补 pipeline_patch_block_parent_links 在某些路径下未生效的场景。
+ *
+ * 【Why】pipeline_patch_block_parent_links 遍历 while/for/if/region body 设置 parent，
+ *   但无法覆盖块表达式（ord_block 表达式关联的块）——块表达式通过表达式树关联
+ *   （pipeline_expr_block_ref_at），不在块的子块列表中。typeck_check_block_impl
+ *   在进入每个块时调用此函数，利用 saved_block_ref（= 直接父块）补设 parent。
+ *
+ * 【Invariant】仅在 parent_block_ref==0 时设置；已由 patch 设置的块不受影响。
+ *
+ * 【Asm/Perf】O(1) 操作，仅在 typeck check_block 入口调用一次，无性能影响。
+ *
  * 返回 1=已设置，0=无需设置或无效。
  */
 int32_t pipeline_block_set_parent_if_zero(struct ast_ASTArena *a, int32_t block_ref, int32_t parent_ref) {
