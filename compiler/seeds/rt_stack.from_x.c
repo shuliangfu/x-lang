@@ -19,6 +19,16 @@ typedef struct {
 extern int32_t pipeline_typeck_x_stack_escape_gate_from_src_c(uint8_t *src, int32_t src_len);
 extern void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg);
 
+/* G-02f-449：thin+rest PREFER_X_O
+ *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_STACK_FROM_X):
+ *     - driver_stack_esc_gate_large_stack renamed to *_impl via macro.
+ *   driver_stack_esc_gate_thread_fn stays in rest (internal helper, no .x counterpart).
+ *   No #ifndef guard needed (no real .x implementation; .x is thin-only). */
+#ifdef SHUX_RT_STACK_FROM_X
+#define driver_stack_esc_gate_large_stack    driver_stack_esc_gate_large_stack_impl
+#endif
+
 /** pthread 入口：WPO-S3 post-scan gate。 */
 void *driver_stack_esc_gate_thread_fn(void *arg) {
   DriverStackEscGateArgs *a = (DriverStackEscGateArgs *)arg;
