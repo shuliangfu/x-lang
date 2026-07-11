@@ -35,29 +35,6 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   if (buf == 0) { return 0; }
   let p: i32 = cfg_skip_ws_range(buf, b, end);
   if (p >= end) { return 0; }
-  if (cfg_prefix4(buf, p, end, 97, 108, 108, 40) != 0) { return cfg_eval_all_expr(buf, p, end); }
-  if (cfg_prefix4(buf, p, end, 110, 111, 116, 40) != 0) { return cfg_eval_not_expr(buf, p, end); }
-  if (cfg_match_target_os(buf, p, end) != 0) { return cfg_parse_target_kv(buf, p, end, 9, cfg_get_effective_os_safe()); }
-  if (cfg_match_target_arch(buf, p, end) != 0) { return cfg_parse_target_kv(buf, p, end, 11, cfg_get_effective_arch_safe()); }
-  return cfg_eval_freestanding_expr(buf, p, end);
-}
-
-function cfg_eval_expr(start: *u8, end: *u8): i32 {
-  if (start == 0) { return 0; }
-  if (end == 0) { return 0; }
-  // compute len via scan (end - start) without pointer sub if needed - use byte walk
-  let len: i32 = 0;
-  let p: *u8 = start;
-  while (1 == 1) {
-    if (p == end) { break; }
-    if (len > 65536) { break; }
- 
-
-/** Recursive cfg expression evaluation. Uses else-if chains to avoid nested-if parser bug. */
-function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
-  if (buf == 0) { return 0; }
-  let p: i32 = cfg_skip_ws_range(buf, b, end);
-  if (p >= end) { return 0; }
   // all(
   if (cfg_prefix4(buf, p, end, 97, 108, 108, 40) != 0) {
     p = p + 4;
