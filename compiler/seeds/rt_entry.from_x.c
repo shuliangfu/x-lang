@@ -30,6 +30,20 @@ extern int driver_run_fmt(int argc, char **argv);
 extern int main_run_compiler_c(int argc, uint8_t *argv);
 extern int system(const char *command);
 
+/* G-02f-456：thin+rest PREFER_X_O
+ *   thin .x provides 2 #[no_mangle] wrappers (call *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_ENTRY_FROM_X):
+ *     - shux_smoke_diag_enabled renamed to *_impl via macro.
+ *     - driver_build_build_x renamed to *_impl via macro.
+ *   Other functions stay in rest:
+ *     - run_compiler_c uses char **argv (signature mismatch with .x *u8).
+ *     - runtime_try_handle_explain_cli / driver_emit_legacy_smoke_summary_stdout /
+ *       driver_fmt_report_no_files / labi_marker have no .x counterpart. */
+#ifdef SHUX_RT_ENTRY_FROM_X
+#define shux_smoke_diag_enabled    shux_smoke_diag_enabled_impl
+#define driver_build_build_x    driver_build_build_x_impl
+#endif
+
 /** explain 子命令 / --explain：-1=非 explain，0=成功，1=失败。 */
 int runtime_try_handle_explain_cli(int argc, char **argv) {
   const char *code = NULL;
