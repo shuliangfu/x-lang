@@ -398,28 +398,9 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   if (cfg_match_target_os(buf, p, end) != 0) {
     return cfg_parse_target_os_value(buf, p, end);
   }
-  }
   // target_arch
   if (cfg_match_target_arch(buf, p, end) != 0) {
-      p = p + 11;
-      p = cfg_skip_ws_range(buf, p, end);
-      if (p >= end) { return 0; }
-      if (buf[p] != 61) { return 0; }
-      p = p + 1;
-      if (cfg_buf_eq_at(buf, p, end, 61) != 0) { p = p + 1; }
-      p = cfg_skip_ws_range(buf, p, end);
-      if (p >= end) { return 0; }
-      if (buf[p] != 34) { return 0; }
-      p = p + 1;
-      let lit2: i32 = p;
-      while (p < end) {
-        if (buf[p] == 34) { break; }
-        p = p + 1;
-      }
-      let arch: *u8 = cfg_get_effective_arch_safe();
-      let alen2: usize = (p - lit2) as usize;
-      return cfg_lit_eq_ci(&buf[lit2], alen2, arch);
-    }
+    return cfg_parse_target_arch_value(buf, p, end);
   }
   // freestanding bare flag
   {
