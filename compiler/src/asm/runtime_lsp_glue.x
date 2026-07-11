@@ -90,7 +90,7 @@ function lsp_uri_has_file_scheme(uri: *u8): i32 {
 
 // G-02f-251：file URI → 本地路径（%XX 解码）
 #[no_mangle]
-function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i32): void {
+function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
   if (uri == 0 as *u8) {
     return;
   }
@@ -105,8 +105,8 @@ function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i32): void {
     if (lsp_uri_has_file_scheme(uri) == 0) {
       return;
     }
-    let p: i32 = 7;
-    let k: i32 = 0;
+    let p: i64 = 7;
+    let k: i64 = 0;
     while (k + 1 < cap) {
       let c: u8 = uri[p];
       if (c == 0) {
@@ -156,45 +156,43 @@ function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i32): void {
   if (cap < 8) {
     return;
   }
-  unsafe {
-    let k: i32 = 0;
-    // file://
-    uri[k] = 102 as u8;
-    k = k + 1;
-    uri[k] = 105 as u8;
-    k = k + 1;
-    uri[k] = 108 as u8;
-    k = k + 1;
-    uri[k] = 101 as u8;
-    k = k + 1;
-    uri[k] = 58 as u8;
-    k = k + 1;
-    uri[k] = 47 as u8;
-    k = k + 1;
-    uri[k] = 47 as u8;
-    k = k + 1;
-    let p: i32 = 0;
-    while (k + 4 < cap) {
-      let c: u8 = path[p];
-      if (c == 0) {
-        break;
-      }
-      if (c == 32) {
-        // space
-        uri[k] = 37 as u8;
-        k = k + 1;
-        uri[k] = 50 as u8;
-        k = k + 1;
-        uri[k] = 48 as u8;
-        k = k + 1;
-      } else {
-        uri[k] = c;
-        k = k + 1;
-      }
-      p = p + 1;
+  let k: i32 = 0;
+  // file://
+  uri[k] = 102 as u8;
+  k = k + 1;
+  uri[k] = 105 as u8;
+  k = k + 1;
+  uri[k] = 108 as u8;
+  k = k + 1;
+  uri[k] = 101 as u8;
+  k = k + 1;
+  uri[k] = 58 as u8;
+  k = k + 1;
+  uri[k] = 47 as u8;
+  k = k + 1;
+  uri[k] = 47 as u8;
+  k = k + 1;
+  let p: i32 = 0;
+  while (k + 4 < cap) {
+    let c: u8 = path[p];
+    if (c == 0) {
+      break;
     }
-    uri[k] = 0 as u8;
+    if (c == 32) {
+      // space
+      uri[k] = 37 as u8;
+      k = k + 1;
+      uri[k] = 50 as u8;
+      k = k + 1;
+      uri[k] = 48 as u8;
+      k = k + 1;
+    } else {
+      uri[k] = c;
+      k = k + 1;
+    }
+    p = p + 1;
   }
+  uri[k] = 0 as u8;
 }
 
 // G-02f-252：最后 '/' 下标；无则 -1
