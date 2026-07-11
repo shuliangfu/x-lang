@@ -30,6 +30,13 @@ function cfg_eval_freestanding_expr(buf: *u8, p: i32, end: i32): i32 {
   return 0;
 }
 
+/** Scan for ) or , at given depth. Returns: 0=other, 1=break, 2=) depth>0, 3=, depth>0. */
+function cfg_scan_delim(c: u8, depth: i32): i32 {
+  if (c == 41) { if (depth == 0) { return 1; } return 2; }
+  if (c == 44) { if (depth == 0) { return 1; } return 3; }
+  return 0;
+}
+
 /** Recursive cfg expression evaluation (flat dispatcher, no nested if). */
 function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   if (buf == 0) { return 0; }
@@ -55,8 +62,10 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
       let depth: i32 = 0;
       while (p < end) {
         if (buf[p] == 40) { depth = depth + 1; p = p + 1; continue; }
-        else if (buf[p] == 41) { if (depth == 0) { break; } depth = depth - 1; p = p + 1; continue; }
-        else if (buf[p] == 44) { if (depth == 0) { break; } p = p + 1; continue; }
+        let scan: i32 = cfg_scan_delim(buf[p], depth);
+        if (scan == 1) { break; }
+        if (scan == 2) { depth = depth - 1; p = p + 1; continue; }
+        if (scan == 3) { p = p + 1; continue; }
         p = p + 1;
       }
       if (cfg_eval_expr_range(buf, part, p) == 0) { return 0; }
