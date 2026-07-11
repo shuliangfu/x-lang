@@ -293,6 +293,50 @@ function cfg_buf_eq_at(buf: *u8, p: i32, end: i32, c: u8): i32 {
   return 0;
 }
 
+/** Parse target_os = "..." value. Returns 1=match, 0=no match. */
+function cfg_parse_target_os_value(buf: *u8, p: i32, end: i32): i32 {
+  p = p + 9;
+  p = cfg_skip_ws_range(buf, p, end);
+  if (p >= end) { return 0; }
+  if (buf[p] != 61) { return 0; }
+  p = p + 1;
+  if (cfg_buf_eq_at(buf, p, end, 61) != 0) { p = p + 1; }
+  p = cfg_skip_ws_range(buf, p, end);
+  if (p >= end) { return 0; }
+  if (buf[p] != 34) { return 0; }
+  p = p + 1;
+  let lit: i32 = p;
+  while (p < end) {
+    if (buf[p] == 34) { break; }
+    p = p + 1;
+  }
+  let os: *u8 = cfg_get_effective_os_safe();
+  let alen: usize = (p - lit) as usize;
+  return cfg_lit_eq_ci(&buf[lit], alen, os);
+}
+
+/** Parse target_arch = "..." value. Returns 1=match, 0=no match. */
+function cfg_parse_target_arch_value(buf: *u8, p: i32, end: i32): i32 {
+  p = p + 11;
+  p = cfg_skip_ws_range(buf, p, end);
+  if (p >= end) { return 0; }
+  if (buf[p] != 61) { return 0; }
+  p = p + 1;
+  if (cfg_buf_eq_at(buf, p, end, 61) != 0) { p = p + 1; }
+  p = cfg_skip_ws_range(buf, p, end);
+  if (p >= end) { return 0; }
+  if (buf[p] != 34) { return 0; }
+  p = p + 1;
+  let lit: i32 = p;
+  while (p < end) {
+    if (buf[p] == 34) { break; }
+    p = p + 1;
+  }
+  let arch: *u8 = cfg_get_effective_arch_safe();
+  let alen: usize = (p - lit) as usize;
+  return cfg_lit_eq_ci(&buf[lit], alen, arch);
+}
+
 function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   if (buf == 0) { return 0; }
   let p: i32 = cfg_skip_ws_range(buf, b, end);
@@ -352,25 +396,8 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   }
   // target_os
   if (cfg_match_target_os(buf, p, end) != 0) {
-      p = p + 9;
-      p = cfg_skip_ws_range(buf, p, end);
-      if (p >= end) { return 0; }
-      if (buf[p] != 61) { return 0; }
-      p = p + 1;
-      if (cfg_buf_eq_at(buf, p, end, 61) != 0) { p = p + 1; }
-      p = cfg_skip_ws_range(buf, p, end);
-      if (p >= end) { return 0; }
-      if (buf[p] != 34) { return 0; }
-      p = p + 1;
-      let lit: i32 = p;
-      while (p < end) {
-        if (buf[p] == 34) { break; }
-        p = p + 1;
-      }
-      let os: *u8 = cfg_get_effective_os_safe();
-      let alen: usize = (p - lit) as usize;
-      return cfg_lit_eq_ci(&buf[lit], alen, os);
-    }
+    return cfg_parse_target_os_value(buf, p, end);
+  }
   }
   // target_arch
   if (cfg_match_target_arch(buf, p, end) != 0) {
