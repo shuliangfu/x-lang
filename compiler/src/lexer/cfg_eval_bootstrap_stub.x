@@ -216,6 +216,21 @@ function cfg_get_freestanding_safe(): i32 {
   return 0;
 }
 
+/** Returns 1 if char is comma at depth 0 (should break). */
+function cfg_comma_at_depth0(c: u8, depth: i32): i32 {
+  if (c != 44) { return 0; }
+  if (depth != 0) { return 0; }
+  return 1;
+}
+
+/** Returns 1 if char is ')' and depth==0 (should break); decrements depth via out. */
+function cfg_rparen_at_depth0(c: u8, depth: i32, out_depth: *i32): i32 {
+  if (c != 41) { return 0; }
+  *out_depth = depth - 1;
+  if (depth == 0) { return 1; }
+  return 0;
+}
+
 function cfg_is_upper(c: u8): i32 {
   if (c < 65) { return 0; }
   if (c > 90) { return 0; }
@@ -274,8 +289,10 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
       let depth: i32 = 0;
       while (p < end) {
         if (buf[p] == 40) { depth = depth + 1; p = p + 1; continue; }
-        if (buf[p] == 41) { depth = depth - 1; if (depth < 0) { break; } p = p + 1; continue; }
-        if (buf[p] == 44) { if (depth == 0) { break; } p = p + 1; continue; }
+        if (cfg_rparen_at_depth0(buf[p], depth, &depth) != 0) { break; }
+        if (buf[p] == 41) { p = p + 1; continue; }
+        if (cfg_comma_at_depth0(buf[p], depth) != 0) { break; }
+        if (buf[p] == 44) { p = p + 1; continue; }
         p = p + 1;
       }
       if (cfg_eval_expr_range(buf, part, p) == 0) { return 0; }
