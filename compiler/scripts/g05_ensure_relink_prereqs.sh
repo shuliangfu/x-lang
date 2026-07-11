@@ -404,6 +404,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_compile_seed=seeds/rt_compile.from_x.c
   _rt_run_seed=seeds/rt_run_exec.from_x.c
   _rt_asm_seed=seeds/rt_asm_stub.from_x.c
+  _rt_asm_stub_x=src/runtime/rt_asm_stub.x
   _rt_entry_seed=seeds/rt_entry.from_x.c
   _rt_diag_seed=seeds/rt_diag_errno.from_x.c
   _rt_emit_st_seed=seeds/rt_emit_state.from_x.c
@@ -432,6 +433,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_compile_seed" ] && [ "$_rt_compile_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_run_seed" ] && [ "$_rt_run_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_asm_seed" ] && [ "$_rt_asm_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_asm_stub_x" ] && [ "$_rt_asm_stub_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_entry_seed" ] && [ "$_rt_entry_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_diag_seed" ] && [ "$_rt_diag_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_emit_st_seed" ] && [ "$_rt_emit_st_seed" -nt "$_rt_o" ]; } \
@@ -556,11 +558,27 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: R7 run/exec ← $_rt_run_seed (G-02f-297~299/311 seed slice)"
           fi
         fi
-        if [ -n "$_rt_asm_o" ] && [ -f "$_rt_asm_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_asm_o" "$_rt_asm_seed"; then
-            _rt_asm_ok=1
-            echo "g05_ensure: R9 asm stub ← $_rt_asm_seed (G-02f-300 seed slice)"
+        if [ -n "$_rt_asm_o" ]; then
+          # G-02f-433：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_asm_stub_x" ]; then
+            _rt_asm_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_asm_thin.XXXXXX") || true
+            _rt_asm_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_asm_rest.XXXXXX") || true
+            if [ -n "$_rt_asm_thin_o" ] && [ -n "$_rt_asm_rest_o" ] \
+              && g05_try_x_to_o "$_rt_asm_stub_x" "$_rt_asm_thin_o" \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_ASM_STUB_FROM_X \
+                   -c -o "$_rt_asm_rest_o" "$_rt_asm_seed" \
+              && $CC -r -nostdlib -o "$_rt_asm_o" "$_rt_asm_thin_o" "$_rt_asm_rest_o" 2>/dev/null; then
+              _rt_asm_ok=1
+              echo "g05_ensure: R9 asm stub ← thin .x + rest (G-02f-433 L2 prefer .x)"
+            fi
+            rm -f "$_rt_asm_thin_o" "$_rt_asm_rest_o"
+          fi
+          if [ "$_rt_asm_ok" = "0" ] && [ -f "$_rt_asm_seed" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_asm_o" "$_rt_asm_seed"; then
+              _rt_asm_ok=1
+              echo "g05_ensure: R9 asm stub ← $_rt_asm_seed (G-02f-300 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_rt_ent_o" ] && [ -f "$_rt_entry_seed" ]; then

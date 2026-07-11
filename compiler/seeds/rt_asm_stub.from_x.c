@@ -26,10 +26,15 @@ struct codegen_CodegenOutBuf {
 
 extern int shux_output_want_exe(const char *path);
 
+/* G-02f-433：.x 真迁到 rt_asm_stub.x（转调 shux_output_want_exe，unsafe + trailing return） */
+#ifndef SHUX_RT_ASM_STUB_FROM_X
 /** compile.x extern：-o 后缀是否表示可执行（非 .o/.obj/.s）。 */
 int32_t driver_asm_output_want_exe(uint8_t *path) {
   return shux_output_want_exe(path ? (const char *)path : NULL);
 }
+#else
+int32_t driver_asm_output_want_exe(uint8_t *path);
+#endif
 
 /**
  * asm 后端 C 桩：-backend asm 时由 pipeline 调用，写出最小 GAS（main return 42）。
