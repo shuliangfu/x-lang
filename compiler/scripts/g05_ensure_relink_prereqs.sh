@@ -423,6 +423,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_arena_buf_seed=seeds/rt_arena_buf.from_x.c
   _rt_arena_buf_x=src/runtime/rt_arena_buf.x
   _rt_fmt_one_seed=seeds/rt_fmt_one.from_x.c
+  _rt_fmt_one_x=src/runtime/rt_fmt_one.x
   _rt_dispatch_thin_seed=seeds/rt_dispatch_thin.from_x.c
   _rt_dispatch_impl_seed=seeds/rt_dispatch_impl.from_x.c
   _rt_dispatch_impl_x=src/runtime/rt_dispatch_impl.x
@@ -458,6 +459,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_arena_buf_seed" ] && [ "$_rt_arena_buf_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_arena_buf_x" ] && [ "$_rt_arena_buf_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_fmt_one_seed" ] && [ "$_rt_fmt_one_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_fmt_one_x" ] && [ "$_rt_fmt_one_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_dispatch_thin_seed" ] && [ "$_rt_dispatch_thin_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_dispatch_impl_seed" ] && [ "$_rt_dispatch_impl_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_dispatch_impl_x" ] && [ "$_rt_dispatch_impl_x" -nt "$_rt_o" ]; } \
@@ -750,10 +752,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_fo_o" ] && [ -f "$_rt_fmt_one_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_fo_o" "$_rt_fmt_one_seed"; then
-            _rt_fo_ok=1
-            echo "g05_ensure: rest fmt_one ← $_rt_fmt_one_seed (G-02f-311 seed slice)"
+          # G-02f-447：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_fmt_one_x" ]; then
+            _rt_fo_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_fmt_one_thin.XXXXXX") || true
+            _rt_fo_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_fmt_one_rest.XXXXXX") || true
+            if [ -n "$_rt_fo_thin_o" ] && [ -n "$_rt_fo_rest_o" ] \
+              && g05_try_x_to_o "$_rt_fmt_one_x" "$_rt_fo_thin_o" \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_FMT_ONE_FROM_X \
+                   -c -o "$_rt_fo_rest_o" "$_rt_fmt_one_seed" \
+              && $CC -r -nostdlib -o "$_rt_fo_o" "$_rt_fo_thin_o" "$_rt_fo_rest_o" 2>/dev/null; then
+              _rt_fo_ok=1
+              echo "g05_ensure: rest fmt_one ← thin .x + rest (G-02f-447 L2 prefer .x)"
+            fi
+            rm -f "$_rt_fo_thin_o" "$_rt_fo_rest_o"
+          fi
+          if [ "$_rt_fo_ok" = "0" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_fo_o" "$_rt_fmt_one_seed"; then
+              _rt_fo_ok=1
+              echo "g05_ensure: rest fmt_one ← $_rt_fmt_one_seed (G-02f-311 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_rt_dt_o" ] && [ -f "$_rt_dispatch_thin_seed" ]; then
