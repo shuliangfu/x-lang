@@ -1,45 +1,11 @@
-// Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
-// SPDX-License-Identifier: AGPL-3.0-or-later
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// cfg_eval.x — #[cfg(...)] 表达式求值（G-02-B1；替代 cfg_eval.c）
-//
-// 职责：供 lexer.x / preprocess / runtime 调用 cfg_eval_expr_c、
-// cfg_apply_compile_target_from_triple、cfg_reset_compile_target。
-// seed / X pipeline 不链 C lexer.o 时仍须正确 #[cfg] 剪枝（不可恒返回 1）。
-// G-02f-182：与 bootstrap_stub 对齐审计 — 见 analysis/G-02f-自举剩余优先级.md §4.4。
 
-/** `-target` triple 覆盖后的 effective os/arch；未设置时与 host 相同。 */
 let g_cfg_os_override: u8[32] = [];
 let g_cfg_arch_override: u8[32] = [];
 let g_cfg_has_target_override: i32 = 0;
 
-/**
- * `-freestanding` 模式标志：1 表示当前为 freestanding 编译（无 libc，仅 syscall 桩）。
- *
- * 【Why 逻辑根源】co-emit 模式下，dep 模块（如 std.sys.linux）的全部函数被 emit
- * 到入口 .o，包括 hosted-only 函数（linux_mmap_rw 调用 libc open/lseek/ftruncate）。
- * SHUX ASM codegen 把所有函数放在同一 .text section，ld --gc-sections 无法消除单个
- * 不可达函数 → hosted 函数的 extern 引用残留 → undefined reference。
- * 用 `#[cfg(not(freestanding))]` 在 parse 阶段剪枝 hosted 函数是根源解法。
- * 【Invariant】parse 前必须由 runtime.c 调用 cfg_set_freestanding(1) 设置；
- * 每次 driver reset 必须清零，避免跨编译单元泄漏。
- */
 let g_cfg_freestanding: i32 = 0;
 
-/** host target_os：分平台独立命名，避免多 cfg 同名 let 在 -E-extern 下重复 emit。 */
 #[cfg(target_os = "linux")]
 let CFG_HOST_OS_LINUX: u8[6] = [108, 105, 110, 117, 120, 0];
 #[cfg(target_os = "macos")]
@@ -65,7 +31,6 @@ let CFG_HOST_ARCH_RV64: u8[8] = [114, 105, 115, 99, 118, 54, 52, 0];
 #[cfg(not(target_arch = "riscv64"))]
 let CFG_HOST_ARCH_UNKNOWN: u8[8] = [117, 110, 107, 110, 111, 119, 110, 0];
 
-/** 非 linux 时 cfg_host_os_lit 子路径（macos / windows / unknown）。 */
 #[cfg(not(target_os = "linux"))]
 #[cfg(target_os = "macos")]
 function cfg_host_os_lit_non_linux(): *u8 {
@@ -92,7 +57,6 @@ function cfg_host_os_lit_non_linux(): *u8 {
   return &CFG_HOST_OS_UNKNOWN[0];
 }
 
-/** 非 x86_64 时 cfg_host_arch_lit 子路径。 */
 #[cfg(not(target_arch = "x86_64"))]
 #[cfg(target_arch = "aarch64")]
 function cfg_host_arch_lit_non_x64(): *u8 {
@@ -110,7 +74,6 @@ function cfg_host_arch_lit_non_x64(): *u8 {
   return &CFG_HOST_ARCH_UNKNOWN[0];
 }
 
-/** 返回当前 host 的 target_os 字面量。 */
 #[cfg(target_os = "linux")]
 function cfg_host_os_lit(): *u8 {
   return &CFG_HOST_OS_LINUX[0];
@@ -120,7 +83,6 @@ function cfg_host_os_lit(): *u8 {
   return cfg_host_os_lit_non_linux();
 }
 
-/** 返回当前 host 的 target_arch 字面量。 */
 #[cfg(target_arch = "x86_64")]
 function cfg_host_arch_lit(): *u8 {
   return &CFG_HOST_ARCH_X64[0];
@@ -130,7 +92,6 @@ function cfg_host_arch_lit(): *u8 {
   return cfg_host_arch_lit_non_x64();
 }
 
-/** C 字符串长度（不含 NUL）。 */
 function cfg_strlen(s: *u8): i32 {
   let n: i32 = 0;
   if (s == 0) {
@@ -142,7 +103,6 @@ function cfg_strlen(s: *u8): i32 {
   return n;
 }
 
-/** ASCII 小写化单字节。 */
 function cfg_tolower_c(c: u8): u8 {
   if (c >= 65) {
     if (c <= 90) {
@@ -152,7 +112,6 @@ function cfg_tolower_c(c: u8): u8 {
   return c;
 }
 
-/** 拷贝 NUL 结尾 C 串到 dest（最多 dest_sz-1 字节）。 */
 function cfg_copy_cstr(dest: *u8, dest_sz: i32, src: *u8): void {
   let i: i32 = 0;
   if (dest == 0) { return; }
@@ -166,7 +125,6 @@ function cfg_copy_cstr(dest: *u8, dest_sz: i32, src: *u8): void {
   dest[i] = 0;
 }
 
-/** 忽略大小写比较 buf[b..e) 与 lit C 串。 */
 function cfg_range_eq_ci(buf: *u8, b: i32, e: i32, lit: *u8): i32 {
   let blen: i32 = e - b;
   let llen: i32 = cfg_strlen(lit);
@@ -185,7 +143,6 @@ function cfg_range_eq_ci(buf: *u8, b: i32, e: i32, lit: *u8): i32 {
   return 1;
 }
 
-/** triple[b..e) 中是否含 needle（忽略大小写）。 */
 function cfg_triple_contains_ci(buf: *u8, b: i32, e: i32, needle: *u8): i32 {
   let nlen: i32 = cfg_strlen(needle);
   let i: i32 = b;
@@ -213,14 +170,12 @@ function cfg_triple_contains_ci(buf: *u8, b: i32, e: i32, needle: *u8): i32 {
   return 0;
 }
 
-/** triple 是否含 a 或 b（扁平化 helper）。 */
 function cfg_triple_has(triple: *u8, tlen: i32, a: *u8, b: *u8): i32 {
   if (cfg_triple_contains_ci(triple, 0, tlen, a) != 0) { return 1; }
   if (cfg_triple_contains_ci(triple, 0, tlen, b) != 0) { return 1; }
   return 0;
 }
 
-/** 从 triple 解析 target_os / target_arch 写入 os_out/arch_out。 */
 function cfg_parse_triple_literals(triple: *u8, tlen: i32, os_out: *u8, os_sz: i32, arch_out: *u8, arch_sz: i32): void {
   let lit_linux: u8[6] = [108, 105, 110, 117, 120, 0];
   let lit_macos: u8[6] = [109, 97, 99, 111, 115, 0];
@@ -259,7 +214,6 @@ function cfg_parse_triple_literals(triple: *u8, tlen: i32, os_out: *u8, os_sz: i
   }
 }
 
-/** #[cfg] 求值 effective target_os。 */
 function cfg_effective_os_lit(): *u8 {
   if (g_cfg_has_target_override != 0) {
     if (g_cfg_os_override[0] != 0) {
@@ -269,7 +223,6 @@ function cfg_effective_os_lit(): *u8 {
   return cfg_host_os_lit();
 }
 
-/** #[cfg] 求值 effective target_arch。 */
 function cfg_effective_arch_lit(): *u8 {
   if (g_cfg_has_target_override != 0) {
     if (g_cfg_arch_override[0] != 0) {
@@ -279,7 +232,6 @@ function cfg_effective_arch_lit(): *u8 {
   return cfg_host_arch_lit();
 }
 
-/** 跳过空白；返回新下标。 */
 function cfg_skip_ws(buf: *u8, p: i32, end: i32): i32 {
   while (p < end) {
     let c: u8 = buf[p];
@@ -297,7 +249,6 @@ function cfg_skip_ws(buf: *u8, p: i32, end: i32): i32 {
   return p;
 }
 
-/** buf[p..end) 是否以四字节前缀开头。 */
 function cfg_prefix4(buf: *u8, p: i32, end: i32, c0: u8, c1: u8, c2: u8, c3: u8): i32 {
   if (p + 4 > end) {
     return 0;
@@ -309,17 +260,17 @@ function cfg_prefix4(buf: *u8, p: i32, end: i32, c0: u8, c1: u8, c2: u8, c3: u8)
   return 1;
 }
 
-/** 字节是否标识符字符（扁平化 helper）。 */
 function cfg_is_ident_char(c: u8): i32 {
-  if (c >= 65) { if (c <= 90) { return 1; } }
-  if (c >= 97) { if (c <= 122) { return 1; } }
-  if (c >= 48) { if (c <= 57) { return 1; } }
   if (c == 95) { return 1; }
-  return 0;
+  if (c < 48) { return 0; }
+  if (c > 122) { return 0; }
+  if (c <= 57) { return 1; }
+  if (c < 65) { return 0; }
+  if (c <= 90) { return 1; }
+  if (c < 97) { return 0; }
+  return 1;
 }
 
-/** 递归求值 cfg 表达式 buf[b..end)。 */
-/** all(...) 合取求值。 */
 function cfg_eval_all(buf: *u8, b: i32, end: i32): i32 {
   let p: i32 = b + 4;
   while (p < end) {
@@ -349,7 +300,6 @@ function cfg_eval_all(buf: *u8, b: i32, end: i32): i32 {
   return 1;
 }
 
-/** not(...) 否定求值。 */
 function cfg_eval_not(buf: *u8, b: i32, end: i32): i32 {
   let inner: i32 = b + 4;
   let close: i32 = inner;
@@ -367,7 +317,6 @@ function cfg_eval_not(buf: *u8, b: i32, end: i32): i32 {
   return 1;
 }
 
-/** target_os = "..." 求值。返回 1=匹配，0=不匹配，-1=非 target_os。 */
 function cfg_eval_target_os(buf: *u8, p: i32, end: i32): i32 {
   let lit_target_os: u8[10] = [116, 97, 114, 103, 101, 116, 95, 111, 115, 0];
   if (p + 9 > end) { return -1; }
@@ -393,7 +342,6 @@ function cfg_eval_target_os(buf: *u8, p: i32, end: i32): i32 {
   return 0;
 }
 
-/** target_arch = "..." 求值。返回 1=匹配，0=不匹配，-1=非 target_arch。 */
 function cfg_eval_target_arch(buf: *u8, p: i32, end: i32): i32 {
   let lit_target_arch: u8[12] = [116, 97, 114, 103, 101, 116, 95, 97, 114, 99, 104, 0];
   if (p + 11 > end) { return -1; }
@@ -419,7 +367,6 @@ function cfg_eval_target_arch(buf: *u8, p: i32, end: i32): i32 {
   return 0;
 }
 
-/** freestanding 裸标志求值。 */
 function cfg_eval_freestanding_flag(buf: *u8, p: i32, end: i32): i32 {
   let lit_freestanding: u8[13] = [102, 114, 101, 101, 115, 116, 97, 110, 100, 105, 110, 103, 0];
   let q: i32 = p;
@@ -437,7 +384,6 @@ function cfg_eval_freestanding_flag(buf: *u8, p: i32, end: i32): i32 {
   return 0;
 }
 
-/** 递归求值 cfg 表达式 buf[b..end)。 */
 function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   let p: i32 = cfg_skip_ws(buf, b, end);
   let r: i32 = 0;
@@ -464,22 +410,17 @@ function cfg_eval_expr_c(start: *u8, len: i32): i32 {
   return 0;
 }
 
-/** 应用 `-target` triple，使后续 #[cfg] 按 cross 目标剪枝。 */
 function cfg_apply_compile_target_from_triple(triple: *u8, len: i32): void {
   cfg_parse_triple_literals(triple, len, &g_cfg_os_override[0], 32, &g_cfg_arch_override[0], 32);
   g_cfg_has_target_override = 1;
 }
 
-/** 清除 triple 覆盖，#[cfg] 回退 host。 */
 function cfg_reset_compile_target(): void {
   g_cfg_has_target_override = 0;
   g_cfg_os_override[0] = 0;
   g_cfg_arch_override[0] = 0;
 }
 
-/**
- * 设置 freestanding 模式标志。
- */
 function cfg_set_freestanding(v: i32): void {
   g_cfg_freestanding = v;
 }
