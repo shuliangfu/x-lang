@@ -31,6 +31,15 @@ typedef struct DriverCompileStateSU {
   int32_t parse_saw_target_cpu;
 } DriverCompileStateSU;
 
+/* G-02f-451：thin+rest PREFER_X_O
+ *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_EMIT_FLAGS_FROM_X):
+ *     - driver_argv_has_emit_c_flag renamed to *_impl via macro.
+ *   Other functions stay in rest (no .x counterpart). */
+#ifdef SHUX_RT_EMIT_FLAGS_FROM_X
+#define driver_argv_has_emit_c_flag    driver_argv_has_emit_c_flag_impl
+#endif
+
 /** argv 是否含 -E / -E-extern。 */
 int driver_argv_has_emit_c_flag(int argc, char **argv) {
   int i;

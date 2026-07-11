@@ -405,6 +405,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_argv_seed=seeds/rt_argv.from_x.c
   _rt_argv_x=src/runtime/rt_argv.x
   _rt_ef_seed=seeds/rt_emit_flags.from_x.c
+  _rt_ef_x=src/runtime/rt_emit_flags.x
   _rt_pre_seed=seeds/rt_preamble.from_x.c
   _rt_compile_seed=seeds/rt_compile.from_x.c
   _rt_run_seed=seeds/rt_run_exec.from_x.c
@@ -444,6 +445,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_argv_seed" ] && [ "$_rt_argv_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_argv_x" ] && [ "$_rt_argv_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_ef_seed" ] && [ "$_rt_ef_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_ef_x" ] && [ "$_rt_ef_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_pre_seed" ] && [ "$_rt_pre_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_compile_seed" ] && [ "$_rt_compile_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_run_seed" ] && [ "$_rt_run_seed" -nt "$_rt_o" ]; } \
@@ -587,10 +589,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_e_o" ] && [ -f "$_rt_ef_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_e_o" "$_rt_ef_seed"; then
-            _rt_ef_ok=1
-            echo "g05_ensure: R5-lite emit_flags ← $_rt_ef_seed (G-02f-264 seed slice)"
+          # G-02f-451：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_ef_x" ]; then
+            _rt_ef_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_emit_flags_thin.XXXXXX") || true
+            _rt_ef_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_emit_flags_rest.XXXXXX") || true
+            if [ -n "$_rt_ef_thin_o" ] && [ -n "$_rt_ef_rest_o" ] \
+              && g05_try_x_to_o "$_rt_ef_x" "$_rt_ef_thin_o" \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_EMIT_FLAGS_FROM_X \
+                   -c -o "$_rt_ef_rest_o" "$_rt_ef_seed" \
+              && $CC -r -nostdlib -o "$_rt_e_o" "$_rt_ef_thin_o" "$_rt_ef_rest_o" 2>/dev/null; then
+              _rt_ef_ok=1
+              echo "g05_ensure: R5-lite emit_flags ← thin .x + rest (G-02f-451 L2 prefer .x)"
+            fi
+            rm -f "$_rt_ef_thin_o" "$_rt_ef_rest_o"
+          fi
+          if [ "$_rt_ef_ok" = "0" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_e_o" "$_rt_ef_seed"; then
+              _rt_ef_ok=1
+              echo "g05_ensure: R5-lite emit_flags ← $_rt_ef_seed (G-02f-264 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_rt_p_o" ] && [ -f "$_rt_pre_seed" ]; then
