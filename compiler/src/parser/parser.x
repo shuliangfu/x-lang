@@ -5337,7 +5337,7 @@ function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoR
       continue;
     }
     if (r.tok.kind == TokenKind.TOKEN_ATTR_CFG) {
-      module.pending_cfg_skip = r.tok.int_val == 0 ? 1 : 0;
+      if (r.tok.int_val == 0) { module.pending_cfg_skip = 1; }
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start.pos && lex.pos < source.length) {
         lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
@@ -6860,7 +6860,7 @@ function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32):
       continue;
     }
     if (r.tok.kind == TokenKind.TOKEN_ATTR_CFG) {
-      module.pending_cfg_skip = r.tok.int_val == 0 ? 1 : 0;
+      if (r.tok.int_val == 0) { module.pending_cfg_skip = 1; }
       lex_from_next_into(&lex, r);
       if (lex.pos == iter_start_buf.pos && lex.pos < (len as usize)) {
         lex = Lexer { pos: lex.pos + 1, line: lex.line, col: lex.col + 1 };
