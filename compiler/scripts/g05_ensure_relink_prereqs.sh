@@ -12,8 +12,9 @@
 # 环境：
 #   G05_SKIP_HOT_REBUILD=1  跳过热路径 cc 重编（仅检查）
 #   G05_CC                  覆盖编译器（默认 cc）
-#   SHUX_G05_PREFER_X_O=1   L2：优先 .x→C(-E)→.o（失败回退 seed；见 analysis/G-02f-L2-x-o-pilot.md）
-#                           TUs：sizes+tc_flags+strict_glue+lsp_ctx+x_seed_bridge+parse_expr_link（G-02f-256～258/331～333）
+#   SHUX_G05_PREFER_X_O     L2：优先 .x→C(-E)→.o（失败回退 seed；见 analysis/G-02f-L2-x-o-pilot.md）
+#                           默认=1（G-02f-437 默认化）；=0 回退纯 seed C 路径
+#                           TUs：labi L0+rt 7+L2 thin 17（G-02f-256～436）
 
 set -e
 cd "$(dirname "$0")/.."
@@ -124,6 +125,9 @@ g05_try_x_to_o() {
         -e '/^extern void free(/d' \
         -e '/^extern char \* getenv(/d' \
         -e '/^extern uint8_t \* getenv(/d' \
+        -e '/^extern int32_t unlink(/d' \
+        -e '/^extern int unlink(/d' \
+        -e '/^extern size_t strlen(/d' \
         "$_xtmp"
   } >"${_xtmp}.full" && mv "${_xtmp}.full" "$_xtmp"
   # shellcheck disable=SC2086
@@ -147,7 +151,7 @@ g05_ensure_l2_or_seed() {
     || { [ -f "$_l2_seed" ] && [ "$_l2_seed" -nt "$_l2_o" ]; } \
     || { [ -f "$_l2_x" ] && [ "$_l2_x" -nt "$_l2_o" ]; }; then
     _l2_done=0
-    if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_l2_x" ]; then
+    if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_l2_x" ]; then
       if g05_try_x_to_o "$_l2_x" "$_l2_o"; then
         echo "g05_ensure: $_l2_o ← $_l2_x (G-02f-257 L2 prefer .x: $_l2_label)"
         _l2_done=1
@@ -196,7 +200,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_labi_l8b_seed" ] && [ "$_labi_l8b_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l9_seed" ] && [ "$_labi_l9_seed" -nt "$_labi_o" ]; }; then
       _labi_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_labi_l0_seed" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l0_seed" ]; then
         _labi_l0_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l0.XXXXXX") || true
         _labi_l1_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l1.XXXXXX") || true
         _labi_l2_o=$(mktemp "${TMPDIR:-/tmp}/g05_labi_l2.XXXXXX") || true
@@ -222,7 +226,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _labi_l9_ok=0
         if [ -n "$_labi_l0_o" ]; then
           # G-02f-429：PREFER_X_O=1 时优先 .x → shux -E → cc -c；失败回退 seed C
-          if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_labi_l0_x" ]; then
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_labi_l0_x" ]; then
             if g05_try_x_to_o "$_labi_l0_x" "$_labi_l0_o"; then
               _labi_l0_ok=1
               echo "g05_ensure: L0 path pure ← $_labi_l0_x (G-02f-429 L2 prefer .x)"
@@ -456,7 +460,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_stack_seed" ] && [ "$_rt_stack_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_content_x" ] && [ "$_rt_content_x" -nt "$_rt_o" ]; }; then
       _rt_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_content_seed" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_content_seed" ]; then
         _rt_c_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_content.XXXXXX") || true
         _rt_u_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_util.XXXXXX") || true
         _rt_a_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_argv.XXXXXX") || true
@@ -506,7 +510,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _rt_st_ok=0
         if [ -n "$_rt_c_o" ]; then
           # G-02f-436：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
-          if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_content_x" ]; then
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_content_x" ]; then
             _rt_content_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_content_thin.XXXXXX") || true
             _rt_content_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_content_rest.XXXXXX") || true
             if [ -n "$_rt_content_thin_o" ] && [ -n "$_rt_content_rest_o" ] \
@@ -529,7 +533,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ -n "$_rt_u_o" ]; then
           # G-02f-435：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
-          if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_util_x" ]; then
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_util_x" ]; then
             _rt_util_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_util_thin.XXXXXX") || true
             _rt_util_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_util_rest.XXXXXX") || true
             if [ -n "$_rt_util_thin_o" ] && [ -n "$_rt_util_rest_o" ] \
@@ -552,7 +556,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ -n "$_rt_a_o" ]; then
           # G-02f-431：PREFER_X_O=1 时优先 .x → shux -E → cc -c；失败回退 seed C
-          if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_argv_x" ]; then
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_argv_x" ]; then
             if g05_try_x_to_o "$_rt_argv_x" "$_rt_a_o"; then
               _rt_argv_ok=1
               echo "g05_ensure: R1 argv ← $_rt_argv_x (G-02f-431 L2 prefer .x)"
@@ -589,7 +593,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ -n "$_rt_run_o" ]; then
           # G-02f-434：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
-          if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_run_exec_x" ]; then
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_run_exec_x" ]; then
             _rt_run_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_run_thin.XXXXXX") || true
             _rt_run_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_run_rest.XXXXXX") || true
             if [ -n "$_rt_run_thin_o" ] && [ -n "$_rt_run_rest_o" ] \
@@ -612,7 +616,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ -n "$_rt_asm_o" ]; then
           # G-02f-433：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
-          if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_asm_stub_x" ]; then
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_asm_stub_x" ]; then
             _rt_asm_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_asm_thin.XXXXXX") || true
             _rt_asm_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_asm_rest.XXXXXX") || true
             if [ -n "$_rt_asm_thin_o" ] && [ -n "$_rt_asm_rest_o" ] \
@@ -663,7 +667,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         if [ -n "$_rt_lr_o" ]; then
           # G-02f-432：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
-          if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_lib_root_x" ]; then
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_lib_root_x" ]; then
             _rt_lr_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_lr_thin.XXXXXX") || true
             _rt_lr_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_lr_rest.XXXXXX") || true
             if [ -n "$_rt_lr_thin_o" ] && [ -n "$_rt_lr_rest_o" ] \
@@ -930,7 +934,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_rio_o" ] || [ "$_rio" -nt "$_rio_o" ] \
       || { [ -f "$_rio_x" ] && [ "$_rio_x" -nt "$_rio_o" ]; }; then
       _rio_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rio_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rio_x" ]; then
         _rio_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rio_thin.XXXXXX") || true
         _rio_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rio_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -962,7 +966,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_rdabi_o" ] || [ "$_rdabi" -nt "$_rdabi_o" ] \
       || { [ -f "$_rdabi_thin_x" ] && [ "$_rdabi_thin_x" -nt "$_rdabi_o" ]; }; then
       _rdabi_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rdabi_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rdabi_thin_x" ]; then
         _rdabi_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdabi_thin.XXXXXX") || true
         _rdabi_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdabi_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -994,7 +998,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_rdd_o" ] || [ "$_rdd" -nt "$_rdd_o" ] \
       || { [ -f "$_rdd_thin_x" ] && [ "$_rdd_thin_x" -nt "$_rdd_o" ]; }; then
       _rdd_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rdd_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rdd_thin_x" ]; then
         _rdd_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdd_thin.XXXXXX") || true
         _rdd_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdd_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1026,7 +1030,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_ldpc_o" ] || [ "$_ldpc" -nt "$_ldpc_o" ] \
       || { [ -f "$_ldpc_x" ] && [ "$_ldpc_x" -nt "$_ldpc_o" ]; }; then
       _ldpc_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_ldpc_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_ldpc_x" ]; then
         _ldpc_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_ldpc_thin_XXXXXX.o") || true
         _ldpc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_ldpc_rest_XXXXXX.o") || true
         # shellcheck disable=SC2086
@@ -1091,7 +1095,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f src/driver/target_cpu_pure.x ] && [ src/driver/target_cpu_pure.x -nt "$_tc_o" ]; } \
       || { [ -f "$_tcflags_x" ] && [ "$_tcflags_x" -nt "$_tc_o" ]; }; then
       _tc_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_tcflags_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_tcflags_x" ]; then
         _tc_flags_o=$(mktemp "${TMPDIR:-/tmp}/g05_tc_flags_XXXXXX.o") || true
         _tc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_tc_rest_XXXXXX.o") || true
         # shellcheck disable=SC2086
@@ -1124,7 +1128,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_simd_enc_thin_x" ] && [ "$_simd_enc_thin_x" -nt "$_simd_enc_o" ]; } \
       || [ src/asm/simd_enc.x -nt "$_simd_enc_o" ] 2>/dev/null; then
       _simd_enc_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_simd_enc_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_simd_enc_thin_x" ]; then
         _simd_enc_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_enc_thin.XXXXXX") || true
         _simd_enc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_enc_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1157,7 +1161,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_simd_loop_thin_x" ] && [ "$_simd_loop_thin_x" -nt "$_simd_loop_o" ]; } \
       || [ src/asm/simd_loop.x -nt "$_simd_loop_o" ] 2>/dev/null; then
       _simd_loop_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_simd_loop_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_simd_loop_thin_x" ]; then
         _simd_loop_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_loop_thin.XXXXXX") || true
         _simd_loop_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_simd_loop_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1189,7 +1193,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_bed_o" ] || [ "$_bed" -nt "$_bed_o" ] \
       || { [ -f "$_bed_thin_x" ] && [ "$_bed_thin_x" -nt "$_bed_o" ]; }; then
       _bed_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_bed_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bed_thin_x" ]; then
         _bed_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_bed_thin.XXXXXX") || true
         _bed_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bed_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1221,7 +1225,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_bae_o" ] || [ "$_bae" -nt "$_bae_o" ] \
       || { [ -f "$_bae_thin_x" ] && [ "$_bae_thin_x" -nt "$_bae_o" ]; }; then
       _bae_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_bae_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bae_thin_x" ]; then
         _bae_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_bae_thin.XXXXXX") || true
         _bae_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bae_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1253,7 +1257,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_bti_o" ] || [ "$_bti" -nt "$_bti_o" ] \
       || { [ -f "$_bti_thin_x" ] && [ "$_bti_thin_x" -nt "$_bti_o" ]; }; then
       _bti_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_bti_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bti_thin_x" ]; then
         _bti_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_bti_thin.XXXXXX") || true
         _bti_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bti_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1285,7 +1289,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_bcd_o" ] || [ "$_bcd" -nt "$_bcd_o" ] \
       || { [ -f "$_bcd_thin_x" ] && [ "$_bcd_thin_x" -nt "$_bcd_o" ]; }; then
       _bcd_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_bcd_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bcd_thin_x" ]; then
         _bcd_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_bcd_thin.XXXXXX") || true
         _bcd_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bcd_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1317,7 +1321,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_pel_o" ] || [ "$_pel" -nt "$_pel_o" ] \
       || { [ -f "$_pel_x" ] && [ "$_pel_x" -nt "$_pel_o" ]; }; then
       _pel_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_pel_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_pel_x" ]; then
         _pel_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pel_thin.XXXXXX") || true
         _pel_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_pel_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1395,7 +1399,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_pthin_p19_seed" ] && [ "$_pthin_p19_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p20_seed" ] && [ "$_pthin_p20_seed" -nt parser_asm_thin_glue.o ]; }; then
       _pthin_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && { [ -f "$_pthin_p1_seed" ] || [ -f "$_pthin_p2_seed" ] || [ -f "$_pthin_p3_seed" ] || [ -f "$_pthin_p4p_seed" ] || [ -f "$_pthin_p4u_seed" ] || [ -f "$_pthin_p4b_seed" ] || [ -f "$_pthin_p4as_seed" ] || [ -f "$_pthin_p4t_seed" ] || [ -f "$_pthin_p5_seed" ] || [ -f "$_pthin_p6_seed" ] || [ -f "$_pthin_p7_seed" ] || [ -f "$_pthin_p9_seed" ] || [ -f "$_pthin_p10_seed" ] || [ -f "$_pthin_p11_seed" ] || [ -f "$_pthin_p12_seed" ] || [ -f "$_pthin_p13_seed" ] || [ -f "$_pthin_p14_seed" ] || [ -f "$_pthin_p15_seed" ] || [ -f "$_pthin_p16_seed" ] || [ -f "$_pthin_p17_seed" ] || [ -f "$_pthin_p18_seed" ] || [ -f "$_pthin_p19_seed" ] || [ -f "$_pthin_p20_seed" ]; }; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && { [ -f "$_pthin_p1_seed" ] || [ -f "$_pthin_p2_seed" ] || [ -f "$_pthin_p3_seed" ] || [ -f "$_pthin_p4p_seed" ] || [ -f "$_pthin_p4u_seed" ] || [ -f "$_pthin_p4b_seed" ] || [ -f "$_pthin_p4as_seed" ] || [ -f "$_pthin_p4t_seed" ] || [ -f "$_pthin_p5_seed" ] || [ -f "$_pthin_p6_seed" ] || [ -f "$_pthin_p7_seed" ] || [ -f "$_pthin_p9_seed" ] || [ -f "$_pthin_p10_seed" ] || [ -f "$_pthin_p11_seed" ] || [ -f "$_pthin_p12_seed" ] || [ -f "$_pthin_p13_seed" ] || [ -f "$_pthin_p14_seed" ] || [ -f "$_pthin_p15_seed" ] || [ -f "$_pthin_p16_seed" ] || [ -f "$_pthin_p17_seed" ] || [ -f "$_pthin_p18_seed" ] || [ -f "$_pthin_p19_seed" ] || [ -f "$_pthin_p20_seed" ]; }; then
         _pthin_p1_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p1.XXXXXX") || true
         _pthin_p2_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p2.XXXXXX") || true
         _pthin_p3_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p3.XXXXXX") || true
@@ -1796,7 +1800,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_diag_o" ] || [ "$_diag" -nt "$_diag_o" ] \
       || { [ -f "$_diag_thin_x" ] && [ "$_diag_thin_x" -nt "$_diag_o" ]; }; then
       _diag_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_diag_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_diag_thin_x" ]; then
         _diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_thin.XXXXXX") || true
         _diag_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1827,7 +1831,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   if [ -f "$_xsb" ]; then
     if [ ! -f "$_xsb_o" ] || [ "$_xsb" -nt "$_xsb_o" ]       || { [ -f "$_xsb_x" ] && [ "$_xsb_x" -nt "$_xsb_o" ]; }; then
       _xsb_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_xsb_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_xsb_x" ]; then
         _xsb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_xsb_thin.XXXXXX") || true
         _xsb_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_xsb_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1864,7 +1868,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f seeds/runtime_heap_user.from_x.c ] && [ seeds/runtime_heap_user.from_x.c -nt "$_rdss_o" ]; } \
       || { [ -f "$_rdss_thin_x" ] && [ "$_rdss_thin_x" -nt "$_rdss_o" ]; }; then
       _rdss_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rdss_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rdss_thin_x" ]; then
         _rdss_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdss_thin_XXXXXX.o") || true
         _rdss_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rdss_rest_XXXXXX.o") || true
         # shellcheck disable=SC2086
@@ -1897,7 +1901,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_fcc_o" ] || [ "$_fcc" -nt "$_fcc_o" ] \
       || { [ -f "$_fcc_thin_x" ] && [ "$_fcc_thin_x" -nt "$_fcc_o" ]; }; then
       _fcc_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_fcc_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_fcc_thin_x" ]; then
         _fcc_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_fcc_thin.XXXXXX") || true
         _fcc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_fcc_rest.XXXXXX") || true
         # shellcheck disable=SC2086
@@ -1928,7 +1932,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f src/lsp/lsp_diag.o ] || [ "$_lspg" -nt src/lsp/lsp_diag.o ] \
       || { [ -f "$_lspg_thin_x" ] && [ "$_lspg_thin_x" -nt src/lsp/lsp_diag.o ]; }; then
       _lspg_done=0
-      if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_lspg_thin_x" ]; then
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_lspg_thin_x" ]; then
         _lspg_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_lspg_thin_XXXXXX.o") || true
         _lspg_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_lspg_rest_XXXXXX.o") || true
         if [ -n "$_lspg_thin_o" ] && [ -n "$_lspg_rest_o" ] \
