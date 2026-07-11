@@ -429,6 +429,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_fmt_one_seed=seeds/rt_fmt_one.from_x.c
   _rt_fmt_one_x=src/runtime/rt_fmt_one.x
   _rt_dispatch_thin_seed=seeds/rt_dispatch_thin.from_x.c
+  _rt_dispatch_thin_x=src/runtime/rt_dispatch_thin.x
   _rt_dispatch_impl_seed=seeds/rt_dispatch_impl.from_x.c
   _rt_dispatch_impl_x=src/runtime/rt_dispatch_impl.x
   _rt_run_x_emit_seed=seeds/rt_run_x_emit.from_x.c
@@ -470,6 +471,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_fmt_one_seed" ] && [ "$_rt_fmt_one_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_fmt_one_x" ] && [ "$_rt_fmt_one_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_dispatch_thin_seed" ] && [ "$_rt_dispatch_thin_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_dispatch_thin_x" ] && [ "$_rt_dispatch_thin_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_dispatch_impl_seed" ] && [ "$_rt_dispatch_impl_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_dispatch_impl_x" ] && [ "$_rt_dispatch_impl_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_run_x_emit_seed" ] && [ "$_rt_run_x_emit_seed" -nt "$_rt_o" ]; } \
@@ -849,11 +851,28 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_dt_o" ] && [ -f "$_rt_dispatch_thin_seed" ]; then
-          # shellcheck disable=SC2086
-          # product path defines SHUX_ASM_USE_COMPILER_IMPL_C on rest; dispatch thin needs same for run_compiler_full
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_ASM_USE_COMPILER_IMPL_C -c -o "$_rt_dt_o" "$_rt_dispatch_thin_seed"; then
-            _rt_dt_ok=1
-            echo "g05_ensure: rest dispatch_thin ← $_rt_dispatch_thin_seed (G-02f-312 seed slice)"
+          # G-02f-453：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          # rest 仍需 -DSHUX_ASM_USE_COMPILER_IMPL_C（driver_run_compiler_full 内部分派依赖）
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_dispatch_thin_x" ]; then
+            _rt_dt_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_dispatch_thin_thin.XXXXXX") || true
+            _rt_dt_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_dispatch_thin_rest.XXXXXX") || true
+            if [ -n "$_rt_dt_thin_o" ] && [ -n "$_rt_dt_rest_o" ] \
+              && g05_try_x_to_o "$_rt_dispatch_thin_x" "$_rt_dt_thin_o" \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_DISPATCH_THIN_FROM_X -DSHUX_ASM_USE_COMPILER_IMPL_C \
+                   -c -o "$_rt_dt_rest_o" "$_rt_dispatch_thin_seed" \
+              && $CC -r -nostdlib -o "$_rt_dt_o" "$_rt_dt_thin_o" "$_rt_dt_rest_o" 2>/dev/null; then
+              _rt_dt_ok=1
+              echo "g05_ensure: rest dispatch_thin ← thin .x + rest (G-02f-453 L2 prefer .x)"
+            fi
+            rm -f "$_rt_dt_thin_o" "$_rt_dt_rest_o"
+          fi
+          if [ "$_rt_dt_ok" = "0" ]; then
+            # shellcheck disable=SC2086
+            # product path defines SHUX_ASM_USE_COMPILER_IMPL_C on rest; dispatch thin needs same for run_compiler_full
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_ASM_USE_COMPILER_IMPL_C -c -o "$_rt_dt_o" "$_rt_dispatch_thin_seed"; then
+              _rt_dt_ok=1
+              echo "g05_ensure: rest dispatch_thin ← $_rt_dispatch_thin_seed (G-02f-312 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_rt_di_o" ] && [ -f "$_rt_dispatch_impl_seed" ]; then
