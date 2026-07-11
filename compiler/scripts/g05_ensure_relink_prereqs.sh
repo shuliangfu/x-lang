@@ -397,6 +397,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_content_x=src/runtime/rt_content.x
   _rt_content_seed=seeds/rt_content.from_x.c
   _rt_util_seed=seeds/rt_util.from_x.c
+  _rt_util_x=src/runtime/rt_util.x
   _rt_argv_seed=seeds/rt_argv.from_x.c
   _rt_argv_x=src/runtime/rt_argv.x
   _rt_ef_seed=seeds/rt_emit_flags.from_x.c
@@ -427,6 +428,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_rt_o" ] || [ "$_rt" -nt "$_rt_o" ] \
       || { [ -f "$_rt_content_seed" ] && [ "$_rt_content_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_util_seed" ] && [ "$_rt_util_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_util_x" ] && [ "$_rt_util_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_argv_seed" ] && [ "$_rt_argv_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_argv_x" ] && [ "$_rt_argv_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_ef_seed" ] && [ "$_rt_ef_seed" -nt "$_rt_o" ]; } \
@@ -509,11 +511,27 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: R2 content ← $_rt_content_seed (G-02f-261/306 seed slice)"
           fi
         fi
-        if [ -n "$_rt_u_o" ] && [ -f "$_rt_util_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_u_o" "$_rt_util_seed"; then
-            _rt_util_ok=1
-            echo "g05_ensure: R0 util ← $_rt_util_seed (G-02f-262 seed slice)"
+        if [ -n "$_rt_u_o" ]; then
+          # G-02f-435：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_util_x" ]; then
+            _rt_util_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_util_thin.XXXXXX") || true
+            _rt_util_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_util_rest.XXXXXX") || true
+            if [ -n "$_rt_util_thin_o" ] && [ -n "$_rt_util_rest_o" ] \
+              && g05_try_x_to_o "$_rt_util_x" "$_rt_util_thin_o" \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_UTIL_FROM_X \
+                   -c -o "$_rt_util_rest_o" "$_rt_util_seed" \
+              && $CC -r -nostdlib -o "$_rt_u_o" "$_rt_util_thin_o" "$_rt_util_rest_o" 2>/dev/null; then
+              _rt_util_ok=1
+              echo "g05_ensure: R0 util ← thin .x + rest (G-02f-435 L2 prefer .x)"
+            fi
+            rm -f "$_rt_util_thin_o" "$_rt_util_rest_o"
+          fi
+          if [ "$_rt_util_ok" = "0" ] && [ -f "$_rt_util_seed" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_u_o" "$_rt_util_seed"; then
+              _rt_util_ok=1
+              echo "g05_ensure: R0 util ← $_rt_util_seed (G-02f-262 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_rt_a_o" ]; then
