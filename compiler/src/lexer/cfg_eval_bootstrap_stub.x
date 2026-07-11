@@ -403,8 +403,7 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
     return cfg_parse_target_arch_value(buf, p, end);
   }
   // freestanding bare flag
-  {
-    let q: i32 = p;
+  let q: i32 = p;
     while (q < end) {
       let c: u8 = buf[q];
       if (cfg_is_ident_char(c) != 0) { q = q + 1; continue; }
@@ -417,7 +416,6 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
     if (cfg_lit_eq_ci(&buf[p], alen3, &n_fs[0]) != 0) {
       return cfg_get_freestanding_safe();
     }
-  }
   return 0;
 }
 
