@@ -47,6 +47,7 @@ src/**/*.x  →  工具链  →  *.o  →  link shux
 - **f-429 link_abi L0 .x真迁 + PREFER_X_O 接入**：`labi_path_pure.x` 新增 `shux_path_has_sep`/`shux_path_last_sep`；扁平化原有 2 函数（`labi_suffix_eq2`/`eq4` helper 消除 `&&`/`||`/深层嵌套 if → 修复 `shux -E` 丢弃函数体）；`g05_ensure_relink_prereqs.sh` L0 接入 PREFER_X_O；macOS + Ubuntu 双平台 6 函数 `-E` / `cc -c` / `ld -r` 4 符号全 T
 - **f-430 shux_output_want_exe .x真迁 + rt_asm_stub 修复**：`labi_path_pure.x` 新增 `shux_output_want_exe`（后缀 `.o`/`.O`/`.s`/`.obj` → 0，否则 → 1）；seed C 添加 `#ifndef` 包裹；修复 `rt_asm_stub.x` `-E` 失败（extern 调用缺 `unsafe` + typeck 要求 trailing `return`）；macOS + Ubuntu 双平台 7+2 函数 `-E` / `cc -c` / `ld -r` 5 符号全 T
 - **f-431 rt_argv.x 15 函数全部 .x 真迁 + PREFER_X_O 接入**：补全 7 个缺失函数（`drv_eq_minus_freestanding`/`legacy_f32_abi`/`fsanitize_address`/`minus_backend`/`minus_target`/`minus_target_cpu`/`print_target_cpu`；memcmp → flat early-return 逐字节比较）；`g05_ensure_relink_prereqs.sh` R1 argv 接入 PREFER_X_O（.x 优先回退 seed C）；mega `runtime.from_x.c` 已有 `#ifndef SHUX_RT_ARGV_FROM_X` wrapper；macOS `shux -E` 15 函数 0 错误 / `cc -c` 15 符号全 T
+- **f-432 rt_lib_root.x thin+rest PREFER_X_O 接入**：seed C `rt_lib_root.from_x.c` 加 `#ifndef SHUX_RT_LIB_ROOT_FROM_X` 包裹 `driver_lib_root_ptr_usable`（.x 已真迁 1/4 函数）；`g05_ensure_relink_prereqs.sh` rt_lib_root 编译块改 thin+rest 模式（thin .x `g05_try_x_to_o` + rest seed `-D` + `cc -r` 合并）；macOS `shux -E` 1 函数 / thin 1 符号 + rest 3 符号 / merged 4 符号全 T 无重复
 
 ### 2.1 target_cpu hybrid 细节
 

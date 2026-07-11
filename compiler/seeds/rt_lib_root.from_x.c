@@ -17,12 +17,17 @@ extern int32_t driver_emit_lib_root_count(uint8_t *state);
 extern int32_t driver_emit_lib_root_len(uint8_t *state, int32_t i);
 extern void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, int32_t cap);
 
+/* G-02f-432：.x 真迁到 rt_lib_root.x（NULL + 空串检查，flat early-return） */
+#ifndef SHUX_RT_LIB_ROOT_FROM_X
 /**
  * 判断 lib root 指针可安全解引用（避开 NULL/low tag/getenv 脏值）。
  */
 int driver_lib_root_ptr_usable(const char *p) {
   return p && (uintptr_t)p >= 4096u && p[0] != '\0';
 }
+#else
+int driver_lib_root_ptr_usable(const char *p);
+#endif
 
 /**
  * 写入默认 lib root：优先 SHUX_LIB（拷贝到 root_buf），否则 "."。
