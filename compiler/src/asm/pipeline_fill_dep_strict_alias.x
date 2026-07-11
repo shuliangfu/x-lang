@@ -32,5 +32,8 @@ extern function run_x_pipeline_fill_dep_import_path_c(
  * orchestration 裸名 → C glue；与 pipeline.x 语义一致，供 relink strict 链使用。
  */
 function run_x_pipeline_fill_dep_import_path(module: *u8, ctx: *u8, dep_j: i32): i32 {
-  return run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
+  unsafe {
+    return run_x_pipeline_fill_dep_import_path_c(module, ctx, dep_j);
+  }
+  return 0;
 }
