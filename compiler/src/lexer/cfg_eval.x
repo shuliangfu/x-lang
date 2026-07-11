@@ -212,21 +212,15 @@ function cfg_parse_triple_literals(triple: *u8, tlen: i32, os_out: *u8, os_sz: i
 }
 
 function cfg_effective_os_lit(): *u8 {
-  if (g_cfg_has_target_override != 0) {
-    if (g_cfg_os_override[0] != 0) {
-      return &g_cfg_os_override[0];
-    }
-  }
-  return cfg_host_os_lit();
+  if (g_cfg_has_target_override == 0) { return cfg_host_os_lit(); }
+  if (g_cfg_os_override[0] == 0) { return cfg_host_os_lit(); }
+  return &g_cfg_os_override[0];
 }
 
 function cfg_effective_arch_lit(): *u8 {
-  if (g_cfg_has_target_override != 0) {
-    if (g_cfg_arch_override[0] != 0) {
-      return &g_cfg_arch_override[0];
-    }
-  }
-  return cfg_host_arch_lit();
+  if (g_cfg_has_target_override == 0) { return cfg_host_arch_lit(); }
+  if (g_cfg_arch_override[0] == 0) { return cfg_host_arch_lit(); }
+  return &g_cfg_arch_override[0];
 }
 
 function cfg_skip_ws(buf: *u8, p: i32, end: i32): i32 {
