@@ -20,8 +20,7 @@
 //   - 无参数（仅 shux build）：由 C 侧在当前目录查找
 // build.x，编译并运行默认产物 ./a.out（driver_build_build_x）。
 // 用法：shux build [x.x] [-o exe] [-E] [-backend c] [-L path]
-
-const ast = import("ast");
+// 勿 import ast：-E 生成 driver_build_gen.c 时无需 AST 类型。
 
 /** main.x 实现；链接符号 main_run_compiler_x_path_impl。 */
 extern function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32;
@@ -35,8 +34,11 @@ extern function driver_build_build_x(): i32;
 * 表示除程序名外无额外参数。
 */
 function cmd_build(argc: i32, argv: *u8): i32 {
-  if (argc < 2) {
-    return driver_build_build_x();
+  unsafe {
+    if (argc < 2) {
+      return driver_build_build_x();
+    }
+    return main_run_compiler_x_path_impl(argc, argv);
   }
-  return main_run_compiler_x_path_impl(argc, argv);
+  return 0;
 }

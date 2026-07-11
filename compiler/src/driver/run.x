@@ -19,8 +19,8 @@
 // 用法：shux run x.x [-o exe]
 // 注：cmd_run 内用 `if (rc == 0)` 再执行 exec；`if (rc != 0) return` 与 import ast
 // 同编时 typeck 会误报 check_block（compiler 限制）。
+// 勿 import ast：-E 生成 driver_run_gen.c 时无需 AST 类型。
 
-const ast = import("ast");
 /** C 侧 runtime.c：fork+exec 运行编译产物（须写全 C 链接名，-E-extern
 * 不追加模块前缀）。 */
 extern function driver_exec_compiled(argc: i32, argv: *u8): i32;
@@ -44,12 +44,15 @@ function run_eq_word(buf: *u8, len: i32, word_ptr: *u8, word_len: i32): i32 {
 }
 
 function cmd_run(argc: i32, argv: *u8): i32 {
-  if (argc < 2) {
-    return 1;
+  unsafe {
+    if (argc < 2) {
+      return 1;
+    }
+    let rc: i32 = main_run_compiler_x_path_impl(argc, argv);
+    if (rc == 0) {
+      return driver_exec_compiled(argc, argv);
+    }
+    return rc;
   }
-  let rc: i32 = main_run_compiler_x_path_impl(argc, argv);
-  if (rc == 0) {
-    return driver_exec_compiled(argc, argv);
-  }
-  return rc;
+  return 0;
 }
