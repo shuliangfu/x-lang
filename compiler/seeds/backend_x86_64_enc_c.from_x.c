@@ -29,11 +29,30 @@ extern int32_t pipeline_elf_ctx_pad_code_to_4(uint8_t *ctx_bytes);
 extern int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset);
 extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
 
+/* G-02f-441：thin+rest PREFER_X_O — common 函数由 .x -E 提供 thin .o；
+ * rest .o 编译时定义 SHUX_BACKEND_X86_64_ENC_C_FROM_X 跳过 common 定义。 */
+extern int32_t x86_enc_u8(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t b);
+extern int32_t x86_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
+extern int32_t x86_enc_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *buf, int32_t n);
+extern int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2, uint8_t *label,
+                                 int32_t label_len);
+extern int32_t x86_enc_movq_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+                                         uint8_t disp8_modrm, uint8_t disp32_modrm);
+extern int32_t x86_enc_lea_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+                                        uint8_t disp8_modrm, uint8_t disp32_modrm);
+extern int32_t x86_enc_movl_from_rbp_neg32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
+                                           uint8_t disp8_modrm, uint8_t disp32_modrm);
+extern int32_t x86_enc_store_rax_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+extern int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, uint8_t op_prefix,
+                                        uint8_t reg_modrm);
+extern int32_t x86_enc_store_rdx_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+
 /** 取 ElfCodegenCtx 字节视图。 */
 static uint8_t *x86_enc_ctx_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return (uint8_t *)elf_ctx;
 }
 
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
 /** 追加 1 字节机器码。 */
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t x86_enc_u8(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t b) {
@@ -62,10 +81,11 @@ int32_t x86_enc_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t 
 }
 
 
-
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
 #define X86_ENC_FIXED(ctx, arr) x86_enc_bytes((ctx), (const uint8_t *)(arr), (int32_t)sizeof(arr))
 
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
 /** x86 rel32 条件跳转 + patch（与 x86_64_enc.x enc_jz/enc_jge 一致）。 */
 /* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2, uint8_t *label,
@@ -211,6 +231,7 @@ int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int
   return x86_enc_bytes(elf_ctx, buf, 6);
 
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 int32_t arch_x86_64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_size) {
@@ -883,6 +904,7 @@ int32_t arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(struct platform_elf_ElfCodege
   return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
 }
 
+#ifndef SHUX_BACKEND_X86_64_ENC_C_FROM_X
 /** movq %rdx, -offset(%rbp)。 */
 /* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t x86_enc_store_rdx_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
@@ -906,6 +928,7 @@ int32_t x86_enc_store_rdx_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx,
   return x86_enc_bytes(elf_ctx, buf, 7);
 
 }
+#endif /* !SHUX_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 /** movq %rdx, -offset(%rbp)（16B struct 第二寄存器落栈）。 */

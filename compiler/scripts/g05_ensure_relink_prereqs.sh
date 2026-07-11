@@ -2034,8 +2034,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   for _pair in \
-    "src/asm/user_asm_seed_bridge.o:seeds/user_asm_seed_bridge.from_x.c" \
-    "src/asm/backend_x86_64_enc_c.o:seeds/backend_x86_64_enc_c.from_x.c"
+    "src/asm/user_asm_seed_bridge.o:seeds/user_asm_seed_bridge.from_x.c"
   do
     _o="${_pair%%:*}"
     _s="${_pair#*:}"
@@ -2047,6 +2046,37 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   done
+  # G-02f-441：backend_x86_64_enc_c thin+rest PREFER_X_O
+  _bxec_o="src/asm/backend_x86_64_enc_c.o"
+  _bxec_seed="seeds/backend_x86_64_enc_c.from_x.c"
+  _bxec_x="src/asm/backend_x86_64_enc_c.x"
+  if [ -f "$_bxec_seed" ]; then
+    _bxec_need=0
+    if [ ! -f "$_bxec_o" ] || [ "$_bxec_seed" -nt "$_bxec_o" ] \
+      || { [ -f "$_bxec_x" ] && [ "$_bxec_x" -nt "$_bxec_o" ]; }; then
+      _bxec_need=1
+    fi
+    if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_bxec_x" ] && [ "$_bxec_need" = "1" ]; then
+      _bxec_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_bxec_thin.XXXXXX") || true
+      _bxec_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_bxec_rest.XXXXXX") || true
+      if [ -n "$_bxec_thin_o" ] && [ -n "$_bxec_rest_o" ] \
+        && g05_try_x_to_o "$_bxec_x" "$_bxec_thin_o" \
+        && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_BACKEND_X86_64_ENC_C_FROM_X \
+             -c -o "$_bxec_rest_o" "$_bxec_seed" \
+        && $CC -r -nostdlib -o "$_bxec_o" "$_bxec_thin_o" "$_bxec_rest_o" 2>/dev/null; then
+        echo "g05_ensure: backend_x86_64_enc_c ← thin .x + rest (G-02f-441 L2 prefer .x)"
+      else
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_bxec_o" "$_bxec_seed"
+        echo "g05_ensure: backend_x86_64_enc_c ← $_bxec_seed (G-02f-15 fallback)"
+      fi
+      rm -f "$_bxec_thin_o" "$_bxec_rest_o"
+    elif [ "$_bxec_need" = "1" ]; then
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_bxec_o" "$_bxec_seed"
+      echo "g05_ensure: backend_x86_64_enc_c ← $_bxec_seed (G-02f-15)"
+    fi
+  fi
   # G-02f-439：asm_backend_compat_stubs thin+rest PREFER_X_O
   _abcs_o="src/asm/asm_backend_compat_stubs.o"
   _abcs_seed="seeds/asm_backend_compat_stubs.from_x.c"
