@@ -571,7 +571,11 @@ int json_escape_str(const char *msg, char *out, int out_cap) {
 
 
 /** 快速 32 位哈希：64 位状态 + 8 字节块 mix，折叠为 32 位；大文档缓存校验比 djb2 更快。 */
-/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-123/427：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+unsigned lsp_hash_source(const uint8_t *src, int len);
+#endif
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 unsigned lsp_hash_source(const uint8_t *src, int len) {
     uint64_t h = (uint64_t)(unsigned)len;
     int i = 0;
@@ -584,6 +588,7 @@ unsigned lsp_hash_source(const uint8_t *src, int len) {
         h = (h * 0x9e3779b97f4a7c15ULL) + (uint64_t)(unsigned)src[i];
     return (unsigned)(h ^ (h >> 32));
 }
+#endif
 
 
 

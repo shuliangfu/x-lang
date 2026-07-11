@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-423/424/425/426：L2 hybrid thin — lsp_fmt 18 functions.
+// G-02f-423/424/425/426/427：L2 hybrid thin — lsp_fmt 19 functions.
 // PREFER_X_O: thin.o + seed-rest (-DSHUX_L2_LSP_FMT_THIN_FROM_X) ld -r -> runtime_lsp_glue.o
 // 逻辑对照: src/asm/runtime_lsp_glue.x; 产品默认仍整 seed.
 //
@@ -17,6 +17,8 @@
 //   lsp_line_has_block_comment_end / lsp_line_is_block_comment
 // f-426: 3 ASTFunc 辅助（func_name_covers + 2 byte-offset helper；.x 用 usize 替代 struct 成员访问）:
 //   lsp_load_i32_at / lsp_load_ptr_at / func_name_covers
+// f-427: lsp_hash_source（usize FNV hash；大常量 0x9e3779b97f4a7c15 / 2^32 用字节构造绕过 -E 截断；
+//   Ubuntu shux -E 不支持 u64，改用 usize 替代）
 
 #[no_mangle]
 function lsp_fmt_is_atom_tail(c: u8): i32 {
@@ -364,4 +366,55 @@ function func_name_covers(f: *u8, line: i32, col: i32): i32 {
   let sl: i32 = lsp_load_i32_at(f, 0);
   let sc: i32 = lsp_load_i32_at(f, 4);
   return col_in_ident_span(line, col, sl, sc, name);
+}
+
+// ---- f-427: lsp_hash_source（usize FNV-like hash）----
+// 【Why】shux -E 截断 > 2^32 的整数字面量到 32 位，故 0x9e3779b97f4a7c15 和
+//   4294967296 (2^32) 必须从单字节构造。Ubuntu shux -E 不支持 u64 类型（静默跳过
+//   含 u64 的函数），改用 usize（64 位平台等价于 uint64_t，已在 lsp_load_ptr_at
+//   等函数中验证 -E 正确）。
+// 【Invariant】所有中间值 ≤ 256^8 = 2^64，usize 乘法不溢出绕回（mod 2^64 即 C 语义）。
+// 【Perf】常量构造在函数入口一次，循环内仅 usize 乘加；final fold 用 / two32
+//   （等价 >> 32，但 SHUX .x 未见 >> 用于 usize，除法已验证 -E 正确）。
+//   字节序列 LE: 0x15, 0x7c, 0x4a, 0x7f, 0xb9, 0x79, 0x37, 0x9e
+#[no_mangle]
+function lsp_hash_source(src: *u8, len: i32): u32 {
+  if (src == 0) { return 0 as u32; }
+  let b256: usize = 256;
+  let b256_2: usize = b256 * b256;
+  let b256_3: usize = b256_2 * b256;
+  let b256_4: usize = b256_3 * b256;
+  let b256_5: usize = b256_4 * b256;
+  let b256_6: usize = b256_5 * b256;
+  let b256_7: usize = b256_6 * b256;
+  let prime: usize = 21;
+  prime = prime + 124 * b256;
+  prime = prime + 74 * b256_2;
+  prime = prime + 127 * b256_3;
+  prime = prime + 185 * b256_4;
+  prime = prime + 121 * b256_5;
+  prime = prime + 55 * b256_6;
+  prime = prime + 158 * b256_7;
+  let two32: usize = b256_4;
+  let h: usize = len as usize;
+  let i: i32 = 0;
+  while (i + 8 <= len) {
+    let x: usize = 0;
+    let k: i32 = 0;
+    while (k < 8) {
+      let b: usize = src[i + k] as usize;
+      let shift: usize = 1;
+      let s: i32 = 0;
+      while (s < k) { shift = shift * 256; s = s + 1; }
+      x = x + b * shift;
+      k = k + 1;
+    }
+    h = h * prime + x;
+    i = i + 8;
+  }
+  while (i < len) {
+    h = h * prime + (src[i] as usize);
+    i = i + 1;
+  }
+  return (h ^ (h / two32)) as u32;
 }
