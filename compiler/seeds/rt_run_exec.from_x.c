@@ -146,6 +146,9 @@ const char *driver_exec_scan_out_path(int argc, char **argv) {
   return "a.out";
 }
 
+/* G-02f-434：.x 真迁到 rt_run_exec.x（flat early-return + helper 函数，
+ *   消除 &&/||/嵌套 if → 修复 shux -E 丢弃函数体） */
+#ifndef SHUX_RT_RUN_EXEC_FROM_X
 /**
  * 路径是否为不应 exec 的对象/汇编产物（.o/.O/.obj/.s）。
  * 与 shux_output_want_exe 后缀规则对齐。
@@ -163,6 +166,9 @@ int driver_exec_path_is_non_exe(const char *exe) {
     return 1;
   return 0;
 }
+#else
+int driver_exec_path_is_non_exe(const char *exe);
+#endif
 
 /**
  * cmd_run：编译成功后 exec 产物。spawn/fork 为 🔒 OS 路径，留在本 seed。
