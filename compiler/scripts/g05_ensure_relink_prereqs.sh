@@ -169,6 +169,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # PREFER_X_O=1：L0..L9 + L8b hybrid → rest（SHUX_LABI_*_FROM_X）
   _rlink=seeds/runtime_link_abi.from_x.c
   _labi_l0_seed=seeds/labi_path_pure.from_x.c
+  _labi_l0_x=src/runtime/labi_path_pure.x
   _labi_l1_seed=seeds/labi_diag_pure.from_x.c
   _labi_l2_seed=seeds/labi_host_lit.from_x.c
   _labi_l3_seed=seeds/labi_path_io.from_x.c
@@ -183,6 +184,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   if [ -f "$_rlink" ]; then
     if [ ! -f "$_labi_o" ] || [ "$_rlink" -nt "$_labi_o" ] \
       || { [ -f "$_labi_l0_seed" ] && [ "$_labi_l0_seed" -nt "$_labi_o" ]; } \
+      || { [ -f "$_labi_l0_x" ] && [ "$_labi_l0_x" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l1_seed" ] && [ "$_labi_l1_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l2_seed" ] && [ "$_labi_l2_seed" -nt "$_labi_o" ]; } \
       || { [ -f "$_labi_l3_seed" ] && [ "$_labi_l3_seed" -nt "$_labi_o" ]; } \
@@ -219,10 +221,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _labi_l8b_ok=0
         _labi_l9_ok=0
         if [ -n "$_labi_l0_o" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l0_o" "$_labi_l0_seed"; then
-            _labi_l0_ok=1
-            echo "g05_ensure: L0 path pure ← $_labi_l0_seed (G-02f-267 seed slice)"
+          # G-02f-429：PREFER_X_O=1 时优先 .x → shux -E → cc -c；失败回退 seed C
+          if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_labi_l0_x" ]; then
+            if g05_try_x_to_o "$_labi_l0_x" "$_labi_l0_o"; then
+              _labi_l0_ok=1
+              echo "g05_ensure: L0 path pure ← $_labi_l0_x (G-02f-429 L2 prefer .x)"
+            fi
+          fi
+          if [ "$_labi_l0_ok" = "0" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_labi_l0_o" "$_labi_l0_seed"; then
+              _labi_l0_ok=1
+              echo "g05_ensure: L0 path pure ← $_labi_l0_seed (G-02f-267 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_labi_l1_o" ] && [ -f "$_labi_l1_seed" ]; then
