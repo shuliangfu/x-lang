@@ -58,14 +58,14 @@ function seed_platform_coff_write_coff_o_to_buf(elf_ctx: *u8, out_buf: *u8): i32
 }
 
 // G-02f-116：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
-
-extern "C" function getenv(name: *u8): *u8;
+// G-02f-442：seed_asm_debug_enabled / seed_asm_emit_trace_enabled 改回薄门闩
+//   （shux -E 将字符串字面量转为 struct shulang_slice_uint8_t，与 getenv(const char*) 类型冲突，
+//    无法 cc 编译；待 SHUX 支持零终止字符串字面量后再真迁）
 
 #[no_mangle]
 function seed_asm_debug_enabled(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASM_DEBUG");
-    if (e != 0) { return 1; }
+    return seed_asm_debug_enabled_impl();
   }
   return 0;
 }
@@ -73,8 +73,7 @@ function seed_asm_debug_enabled(): i32 {
 #[no_mangle]
 function seed_asm_emit_trace_enabled(): i32 {
   unsafe {
-    let e: *u8 = getenv("SHUX_ASM_EMIT_TRACE");
-    if (e != 0) { return 1; }
+    return seed_asm_emit_trace_enabled_impl();
   }
   return 0;
 }

@@ -2033,19 +2033,37 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  for _pair in \
-    "src/asm/user_asm_seed_bridge.o:seeds/user_asm_seed_bridge.from_x.c"
-  do
-    _o="${_pair%%:*}"
-    _s="${_pair#*:}"
-    if [ -f "$_s" ]; then
-      if [ ! -f "$_o" ] || [ "$_s" -nt "$_o" ]; then
-        echo "g05_ensure: $_o ← seed (G-02f-15)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_o" "$_s"
-      fi
+  # G-02f-442：user_asm_seed_bridge thin+rest PREFER_X_O
+  _uasb_o="src/asm/user_asm_seed_bridge.o"
+  _uasb_seed="seeds/user_asm_seed_bridge.from_x.c"
+  _uasb_x="src/asm/user_asm_seed_bridge.x"
+  if [ -f "$_uasb_seed" ]; then
+    _uasb_need=0
+    if [ ! -f "$_uasb_o" ] || [ "$_uasb_seed" -nt "$_uasb_o" ] \
+      || { [ -f "$_uasb_x" ] && [ "$_uasb_x" -nt "$_uasb_o" ]; }; then
+      _uasb_need=1
     fi
-  done
+    if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_uasb_x" ] && [ "$_uasb_need" = "1" ]; then
+      _uasb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_uasb_thin.XXXXXX") || true
+      _uasb_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_uasb_rest.XXXXXX") || true
+      if [ -n "$_uasb_thin_o" ] && [ -n "$_uasb_rest_o" ] \
+        && g05_try_x_to_o "$_uasb_x" "$_uasb_thin_o" \
+        && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_USER_ASM_SEED_BRIDGE_FROM_X \
+             -c -o "$_uasb_rest_o" "$_uasb_seed" \
+        && $CC -r -nostdlib -o "$_uasb_o" "$_uasb_thin_o" "$_uasb_rest_o" 2>/dev/null; then
+        echo "g05_ensure: user_asm_seed_bridge ← thin .x + rest (G-02f-442 L2 prefer .x)"
+      else
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_uasb_o" "$_uasb_seed"
+        echo "g05_ensure: user_asm_seed_bridge ← $_uasb_seed (G-02f-15 fallback)"
+      fi
+      rm -f "$_uasb_thin_o" "$_uasb_rest_o"
+    elif [ "$_uasb_need" = "1" ]; then
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_uasb_o" "$_uasb_seed"
+      echo "g05_ensure: user_asm_seed_bridge ← $_uasb_seed (G-02f-15)"
+    fi
+  fi
   # G-02f-441：backend_x86_64_enc_c thin+rest PREFER_X_O
   _bxec_o="src/asm/backend_x86_64_enc_c.o"
   _bxec_seed="seeds/backend_x86_64_enc_c.from_x.c"

@@ -23,6 +23,21 @@ struct codegen_CodegenOutBuf {
   uint8_t data[8388608];
   int32_t len;
 };
+/* G-02f-442：thin+rest PREFER_X_O
+ *   thin .x provides 7 #[no_mangle] wrappers (6 call *_impl in rest, 1 real .x).
+ *   rest seed C (compiled with -DSHUX_USER_ASM_SEED_BRIDGE_FROM_X):
+ *     - 6 functions renamed to *_impl via macros (real C implementations stay).
+ *     - seed_elf_ctx_code_len guarded out (real .x in thin).
+ *   Forward declaration for seed_elf_ctx_code_len (always visible; from thin in rest mode). */
+extern int32_t seed_elf_ctx_code_len(const void *elf_ctx);
+#ifdef SHUX_USER_ASM_SEED_BRIDGE_FROM_X
+#define seed_asm_debug_enabled               seed_asm_debug_enabled_impl
+#define seed_asm_emit_trace_enabled          seed_asm_emit_trace_enabled_impl
+#define seed_elf_ctx_set_macho_leading_underscore  seed_elf_ctx_set_macho_leading_underscore_impl
+#define seed_asm_reject_empty_elf_text       seed_asm_reject_empty_elf_text_impl
+#define seed_platform_macho_write_macho_o_to_buf  seed_platform_macho_write_macho_o_to_buf_impl
+#define seed_platform_coff_write_coff_o_to_buf   seed_platform_coff_write_coff_o_to_buf_impl
+#endif
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int seed_asm_debug_enabled(void) {
   return getenv("SHUX_ASM_DEBUG") != NULL;
@@ -209,12 +224,14 @@ int32_t platform_elf_elf_resolve_patches(void *elf_ctx) {
 }
 
 /** 读 ElfCodegenCtx.code_len（前缀字段；与 platform/elf.x / PipelineElfCtxAccess 一致）。 */
-/* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-120：逻辑源 .x（真迁）；G-02f-442 thin+rest：真 .x 实现，rest 下 guard 掉 */
+#ifndef SHUX_USER_ASM_SEED_BRIDGE_FROM_X
 int32_t seed_elf_ctx_code_len(const void *elf_ctx) {
   if (!elf_ctx)
     return 0;
   return *(const int32_t *)elf_ctx;
 }
+#endif
 
 
 
