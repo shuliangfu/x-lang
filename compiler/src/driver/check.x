@@ -28,5 +28,8 @@ extern function driver_run_compiler_check(argc: i32, argv: *u8): i32;
  * 无路径时递归检查当前目录 *.x（与 shux fmt 一致）；目录则递归 *.x。
  */
 function cmd_check(argc: i32, argv: *u8): i32 {
-  return driver_run_compiler_check(argc, argv);
+  unsafe {
+    return driver_run_compiler_check(argc, argv);
+  }
+  return 0;
 }

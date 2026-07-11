@@ -17,8 +17,7 @@
 // test.x — shux test 子命令：在仓库根目录执行测试脚本（默认
 // tests/run-all.sh）
 // 符号名 driver_cmd_test：源码标识符 cmd_test + 模块前缀 driver_
-
-const ast = import("ast");
+// 勿 import ast：-E 生成 driver_test_gen.c 时无需 AST 类型。
 
 /** C 侧 runtime.c：cd 到仓库根并 bash 执行测试脚本。 */
 extern function driver_run_test(argc: i32, argv: *u8): i32;
@@ -30,5 +29,8 @@ extern function driver_run_test(argc: i32, argv: *u8): i32;
 * 映射为 1）。
 */
 function cmd_test(argc: i32, argv: *u8): i32 {
-  return driver_run_test(argc, argv);
+  unsafe {
+    return driver_run_test(argc, argv);
+  }
+  return 0;
 }

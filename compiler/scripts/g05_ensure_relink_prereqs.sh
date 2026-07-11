@@ -99,14 +99,19 @@ g05_try_x_to_o() {
     perl -i -pe 's/^((?:void|int64_t|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
   fi
   # G-02f-458: 前端 *_gen.c .o 的符号重命名
-  # 格式：G05_X_O_SYM_RENAME="old_name:new_name"
+  # 格式：G05_X_O_SYM_RENAME="old1:new1,old2:new2,..."
   # 将 -E 输出中的 .x 函数名重命名为 gen.c 期望的符号名（模块前缀+函数名）
   if [ -n "${G05_X_O_SYM_RENAME:-}" ]; then
-    _old_name="${G05_X_O_SYM_RENAME%%:*}"
-    _new_name="${G05_X_O_SYM_RENAME#*:}"
-    if [ -n "$_old_name" ] && [ -n "$_new_name" ] && [ "$_old_name" != "$_new_name" ]; then
-      perl -i -pe "s/\\b${_old_name}\\b/${_new_name}/g" "$_xtmp" || true
-    fi
+    _old_ifs="$IFS"
+    IFS=','
+    for _pair in $G05_X_O_SYM_RENAME; do
+      _old_name="${_pair%%:*}"
+      _new_name="${_pair#*:}"
+      if [ -n "$_old_name" ] && [ -n "$_new_name" ] && [ "$_old_name" != "$_new_name" ]; then
+        perl -i -pe "s/\\b${_old_name}\\b/${_new_name}/g" "$_xtmp" || true
+      fi
+    done
+    IFS="$_old_ifs"
   fi
   # G-02f-332/334：-E 缺 ssize_t / open 原型；前置 POSIX 头，并删掉 -E 里冲突的 libc extern
   {
@@ -2456,6 +2461,39 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o "$_fmt_o" "$_fmt_gen"
     fi
   fi
+  # G-02f-459: driver_check_x.o / driver_test_x.o / lsp_io_std_heap_x.o 前端 PREFER_X_O 扩展
+  # driver_check: cmd_check → driver_cmd_check
+  # driver_test:  cmd_test  → driver_cmd_test
+  # lsp_io_std_heap: std_heap_alloc/alloc_zeroed/free → lsp_io_std_heap_* 前缀
+  for _fe_pair in \
+    "src/driver/check.x|driver_check_gen.c|driver_check_x.o|cmd_check:driver_cmd_check" \
+    "src/driver/test.x|driver_test_gen.c|driver_test_x.o|cmd_test:driver_cmd_test" \
+    "src/lsp/lsp_io_std_heap.x|lsp_io_std_heap_gen.c|lsp_io_std_heap_x.o|std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_alloc_zeroed:lsp_io_std_heap_std_heap_alloc_zeroed,std_heap_free:lsp_io_std_heap_std_heap_free"
+  do
+    _fe_x="${_fe_pair%%|*}"
+    _fe_rest="${_fe_pair#*|}"
+    _fe_gen="${_fe_rest%%|*}"
+    _fe_rest2="${_fe_rest#*|}"
+    _fe_o="${_fe_rest2%%|*}"
+    _fe_rename="${_fe_rest2#*|}"
+    if [ ! -f "$_fe_o" ] || { [ -f "$_fe_x" ] && [ "$_fe_x" -nt "$_fe_o" ]; } \
+      || { [ -f "$_fe_gen" ] && [ "$_fe_gen" -nt "$_fe_o" ]; }; then
+      _fe_done=0
+      if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_fe_x" ]; then
+        if G05_X_O_SYM_RENAME="$_fe_rename" g05_try_x_to_o "$_fe_x" "$_fe_o"; then
+          echo "g05_ensure: $_fe_o ← $_fe_x (G-02f-459 frontend PREFER_X_O)"
+          _fe_done=1
+        else
+          echo "g05_ensure: frontend PREFER_X_O failed for $_fe_o; fallback gen.c" >&2
+        fi
+      fi
+      if [ "$_fe_done" = "0" ] && [ -f "$_fe_gen" ]; then
+        echo "g05_ensure: cc -c $_fe_gen → $_fe_o (gen.c seed)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o "$_fe_o" "$_fe_gen"
+      fi
+    fi
+  done
   # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
 
 
@@ -2483,7 +2521,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
     case "$o" in
       # 已在热路径专用 flags / .x seed 编译
-      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/runtime_io_abi.o|src/runtime_driver_abi.o|src/runtime_driver_diagnostic.o|src/lsp/lsp_diag_pipeline_ctx.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|src/asm/parser_asm_parse_expr_link.o|parser_asm_thin_glue.o|src/diag.o|src/x_seed_bridge.o|src/seed_link_compat.o|src/runtime_driver_strict_glue_stubs.o|src/driver/fmt_check_cmd_driver.o|src/lsp/lsp_diag.o|src/asm/user_asm_seed_bridge.o|src/asm/asm_backend_compat_stubs.o|src/asm/backend_x86_64_enc_c.o|x_frontend_link_alias.o|driver_fmt_x.o|build_asm/*|*.s) continue ;;
+      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/runtime_io_abi.o|src/runtime_driver_abi.o|src/runtime_driver_diagnostic.o|src/lsp/lsp_diag_pipeline_ctx.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|src/asm/parser_asm_parse_expr_link.o|parser_asm_thin_glue.o|src/diag.o|src/x_seed_bridge.o|src/seed_link_compat.o|src/runtime_driver_strict_glue_stubs.o|src/driver/fmt_check_cmd_driver.o|src/lsp/lsp_diag.o|src/asm/user_asm_seed_bridge.o|src/asm/asm_backend_compat_stubs.o|src/asm/backend_x86_64_enc_c.o|x_frontend_link_alias.o|driver_fmt_x.o|driver_check_x.o|driver_test_x.o|lsp_io_std_heap_x.o|build_asm/*|*.s) continue ;;
     esac
 
     if [ -n "$src" ]; then

@@ -31,7 +31,10 @@ function std_heap_alloc(size: usize): *u8 {
   if (size == 0 as usize) {
     return 0 as *u8;
   }
-  return malloc(size);
+  unsafe {
+    return malloc(size);
+  }
+  return 0 as *u8;
 }
 
 /** 分配 size 字节并清零；失败返回 null。parser -E-extern 路径引用
@@ -40,7 +43,10 @@ function std_heap_alloc_zeroed(size: usize): *u8 {
   if (size == 0 as usize) {
     return 0 as *u8;
   }
-  return calloc(1 as usize, size);
+  unsafe {
+    return calloc(1 as usize, size);
+  }
+  return 0 as *u8;
 }
 
 /** 释放 ptr；ptr 可为 null（libc free 对 null 无操作）。供 lsp_io 层通过
@@ -49,5 +55,7 @@ function std_heap_free(ptr: *u8): void {
   if (ptr == 0 as *u8) {
     return;
   }
-  free(ptr);
+  unsafe {
+    free(ptr);
+  }
 }
