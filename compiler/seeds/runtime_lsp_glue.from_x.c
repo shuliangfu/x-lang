@@ -796,10 +796,15 @@ int expr_at(const struct ASTExpr *e, int line_1, int col_1) {
 
 /** 函数名是否覆盖光标（支持点击长标识符中间字符）。 */
 /* G-02f-133：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+int func_name_covers(const struct ASTFunc *f, int line_1, int col_1);
+#endif
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int func_name_covers(const struct ASTFunc *f, int line_1, int col_1) {
     return f && f->name && col_in_ident_span(line_1, col_1, f->line, f->col, f->name);
 
 }
+#endif
 
 
 /** 在 entry 与已加载 import 模块中按名称查找函数（含 extern 声明）。 */

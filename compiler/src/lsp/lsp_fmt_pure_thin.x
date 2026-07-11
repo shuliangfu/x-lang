@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-423/424/425：L2 hybrid thin — lsp_fmt 15 pure functions.
+// G-02f-423/424/425/426：L2 hybrid thin — lsp_fmt 18 functions.
 // PREFER_X_O: thin.o + seed-rest (-DSHUX_L2_LSP_FMT_THIN_FROM_X) ld -r -> runtime_lsp_glue.o
 // 逻辑对照: src/asm/runtime_lsp_glue.x; 产品默认仍整 seed.
 //
@@ -15,6 +15,8 @@
 // f-425: 5 LSP helper（含 JSON 解析 + 块注释检测；lsp_parse_bool_after 依赖 lsp_find_key_after）:
 //   col_in_ident_span / lsp_find_key_after / lsp_parse_bool_after
 //   lsp_line_has_block_comment_end / lsp_line_is_block_comment
+// f-426: 3 ASTFunc 辅助（func_name_covers + 2 byte-offset helper；.x 用 usize 替代 struct 成员访问）:
+//   lsp_load_i32_at / lsp_load_ptr_at / func_name_covers
 
 #[no_mangle]
 function lsp_fmt_is_atom_tail(c: u8): i32 {
@@ -320,4 +322,46 @@ function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i3
     }
   }
   return 0;
+}
+
+// ---- f-426: ASTFunc byte-offset helpers + func_name_covers ----
+// .x 不支持 C struct 成员访问，用字节偏移读取 ASTFunc 字段：
+//   line@+0 (i32) / col@+4 (i32) / name@+8 (*u8)
+
+// G-02f-133：从 *u8 偏移 off 处读取 4 字节小端 i32
+function lsp_load_i32_at(p: *u8, off: i32): i32 {
+  let m: i32 = 256;
+  let a: i32 = p[off] as i32;
+  a = a + (p[off + 1] as i32) * m;
+  a = a + (p[off + 2] as i32) * (m * m);
+  a = a + (p[off + 3] as i32) * (m * m * m);
+  return a;
+}
+
+// G-02f-133：从 *u8 偏移 off 处读取 8 字节小端指针
+function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
+  if (p == 0) { return 0 as *u8; }
+  let m: usize = 256;
+  let m2: usize = m * m;
+  let m4: usize = m2 * m2;
+  let a: usize = p[off] as usize;
+  a = a + (p[off + 1] as usize) * m;
+  a = a + (p[off + 2] as usize) * m2;
+  a = a + (p[off + 3] as usize) * (m2 * m);
+  a = a + (p[off + 4] as usize) * m4;
+  a = a + (p[off + 5] as usize) * (m4 * m);
+  a = a + (p[off + 6] as usize) * (m4 * m2);
+  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
+  return a as *u8;
+}
+
+// G-02f-133：函数名是否覆盖光标（ASTFunc: line@0 col@4 name@+8）
+#[no_mangle]
+function func_name_covers(f: *u8, line: i32, col: i32): i32 {
+  if (f == 0) { return 0; }
+  let name: *u8 = lsp_load_ptr_at(f, 8);
+  if (name == 0) { return 0; }
+  let sl: i32 = lsp_load_i32_at(f, 0);
+  let sc: i32 = lsp_load_i32_at(f, 4);
+  return col_in_ident_span(line, col, sl, sc, name);
 }
