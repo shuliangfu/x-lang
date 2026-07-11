@@ -104,12 +104,9 @@ function cfg_strlen(s: *u8): i32 {
 }
 
 function cfg_tolower_c(c: u8): u8 {
-  if (c >= 65) {
-    if (c <= 90) {
-      return (c + 32) as u8;
-    }
-  }
-  return c;
+  if (c < 65) { return c; }
+  if (c > 90) { return c; }
+  return (c + 32) as u8;
 }
 
 function cfg_copy_cstr(dest: *u8, dest_sz: i32, src: *u8): void {
