@@ -90,7 +90,7 @@ function lsp_uri_has_file_scheme(uri: *u8): i32 {
 
 // G-02f-251：file URI → 本地路径（%XX 解码）
 #[no_mangle]
-function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
+function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i32): void {
   if (uri == 0 as *u8) {
     return;
   }
@@ -105,8 +105,8 @@ function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
     if (lsp_uri_has_file_scheme(uri) == 0) {
       return;
     }
-    let p: i64 = 7;
-    let k: i64 = 0;
+    let p: i32 = 7;
+    let k: i32 = 0;
     while (k + 1 < cap) {
       let c: u8 = uri[p];
       if (c == 0) {
@@ -146,7 +146,7 @@ function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
 
 // G-02f-251：本地路径 → file URI（空格 → %20）
 #[no_mangle]
-function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i64): void {
+function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i32): void {
   if (path == 0 as *u8) {
     return;
   }
@@ -157,7 +157,7 @@ function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i64): void {
     return;
   }
   unsafe {
-    let k: i64 = 0;
+    let k: i32 = 0;
     // file://
     uri[k] = 102 as u8;
     k = k + 1;
@@ -173,7 +173,7 @@ function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i64): void {
     k = k + 1;
     uri[k] = 47 as u8;
     k = k + 1;
-    let p: i64 = 0;
+    let p: i32 = 0;
     while (k + 4 < cap) {
       let c: u8 = path[p];
       if (c == 0) {
