@@ -413,6 +413,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_asm_stub_x=src/runtime/rt_asm_stub.x
   _rt_entry_seed=seeds/rt_entry.from_x.c
   _rt_diag_seed=seeds/rt_diag_errno.from_x.c
+  _rt_diag_x=src/runtime/rt_diag_errno.x
   _rt_emit_st_seed=seeds/rt_emit_state.from_x.c
   _rt_elf_diag_seed=seeds/rt_pipeline_elf_diag.from_x.c
   _rt_elf_diag_x=src/runtime/rt_pipeline_elf_diag.x
@@ -451,6 +452,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_asm_stub_x" ] && [ "$_rt_asm_stub_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_entry_seed" ] && [ "$_rt_entry_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_diag_seed" ] && [ "$_rt_diag_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_diag_x" ] && [ "$_rt_diag_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_emit_st_seed" ] && [ "$_rt_emit_st_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_elf_diag_seed" ] && [ "$_rt_elf_diag_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_elf_diag_x" ] && [ "$_rt_elf_diag_x" -nt "$_rt_o" ]; } \
@@ -659,10 +661,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_diag_o" ] && [ -f "$_rt_diag_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_diag_o" "$_rt_diag_seed"; then
-            _rt_diag_ok=1
-            echo "g05_ensure: rest diag errno ← $_rt_diag_seed (G-02f-302 seed slice)"
+          # G-02f-450：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_diag_x" ]; then
+            _rt_diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_diag_thin.XXXXXX") || true
+            _rt_diag_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_diag_rest.XXXXXX") || true
+            if [ -n "$_rt_diag_thin_o" ] && [ -n "$_rt_diag_rest_o" ] \
+              && g05_try_x_to_o "$_rt_diag_x" "$_rt_diag_thin_o" \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_DIAG_ERRNO_FROM_X \
+                   -c -o "$_rt_diag_rest_o" "$_rt_diag_seed" \
+              && $CC -r -nostdlib -o "$_rt_diag_o" "$_rt_diag_thin_o" "$_rt_diag_rest_o" 2>/dev/null; then
+              _rt_diag_ok=1
+              echo "g05_ensure: rest diag_errno ← thin .x + rest (G-02f-450 L2 prefer .x)"
+            fi
+            rm -f "$_rt_diag_thin_o" "$_rt_diag_rest_o"
+          fi
+          if [ "$_rt_diag_ok" = "0" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_diag_o" "$_rt_diag_seed"; then
+              _rt_diag_ok=1
+              echo "g05_ensure: rest diag errno ← $_rt_diag_seed (G-02f-302 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_rt_est_o" ] && [ -f "$_rt_emit_st_seed" ]; then

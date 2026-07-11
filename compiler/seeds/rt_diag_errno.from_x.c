@@ -16,6 +16,16 @@ extern void diag_reportf_with_code(const char *file, int line, int col, const ch
 extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail, const char *fmt,
                          ...);
 
+/* G-02f-450：thin+rest PREFER_X_O
+ *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_DIAG_ERRNO_FROM_X):
+ *     - runtime_diag_code_for_kind renamed to *_impl via macro.
+ *   Other functions (runtime_diag_errno{,_path,_path_pair}, runtime_diag_cli_usage_note)
+ *   stay in rest (no .x counterpart; internal helpers calling *_impl). */
+#ifdef SHUX_RT_DIAG_ERRNO_FROM_X
+#define runtime_diag_code_for_kind    runtime_diag_code_for_kind_impl
+#endif
+
 const char *runtime_diag_code_for_kind(const char *kind) {
   if (!kind)
     return SHUX_DIAG_CODE_BUILD_BLD001;
