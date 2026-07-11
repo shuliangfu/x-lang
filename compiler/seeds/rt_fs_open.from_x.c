@@ -12,6 +12,17 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+/* G-02f-452：thin+rest PREFER_X_O
+ *   thin .x provides 2 #[no_mangle] wrappers (call *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_FS_OPEN_FROM_X):
+ *     - driver_fs_open_read_path renamed to *_impl via macro.
+ *     - driver_fs_open_write renamed to *_impl via macro.
+ *   labi_rt_fs_open_slice_marker stays in rest (internal helper, no .x counterpart). */
+#ifdef SHUX_RT_FS_OPEN_FROM_X
+#define driver_fs_open_read_path    driver_fs_open_read_path_impl
+#define driver_fs_open_write    driver_fs_open_write_impl
+#endif
+
 /** path[0..path_len-1] 打开只读；失败 -1。 */
 int driver_fs_open_read_path(const uint8_t *path, int path_len) {
   if (!path || path_len <= 0 || path_len >= 512)
