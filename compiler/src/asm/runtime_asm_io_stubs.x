@@ -6,8 +6,8 @@
 // 产品：cc seeds/runtime_asm_io_stubs.from_x.c → runtime_asm_io_stubs.o
 // G-02f-100：+ seed_io_syscall write/read + write_fd1 薄门闩。
 
-extern "C" function seed_io_syscall_write_impl(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function seed_io_syscall_read_impl(fd: i32, buf: *u8, count: usize): isize;
+extern "C" function seed_io_syscall_write_impl(fd: i32, buf: *u8, count: usize): i64;
+extern "C" function seed_io_syscall_read_impl(fd: i32, buf: *u8, count: usize): i64;
 extern "C" function seed_io_write_fd1_impl(ptr: *u8, len: usize, timeout_ms: u32): i32;
 
 function runtime_asm_io_stubs_x_doc_anchor(): i32 {
@@ -17,7 +17,7 @@ function runtime_asm_io_stubs_x_doc_anchor(): i32 {
 /* ---- G-02f-100：seed io 门闩 ---- */
 
 #[no_mangle]
-function seed_io_syscall_write(fd: i32, buf: *u8, count: usize): isize {
+function seed_io_syscall_write(fd: i32, buf: *u8, count: usize): i64 {
   unsafe {
     return seed_io_syscall_write_impl(fd, buf, count);
   }
@@ -25,7 +25,7 @@ function seed_io_syscall_write(fd: i32, buf: *u8, count: usize): isize {
 }
 
 #[no_mangle]
-function seed_io_syscall_read(fd: i32, buf: *u8, count: usize): isize {
+function seed_io_syscall_read(fd: i32, buf: *u8, count: usize): i64 {
   unsafe {
     return seed_io_syscall_read_impl(fd, buf, count);
   }
