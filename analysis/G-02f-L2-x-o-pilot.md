@@ -45,6 +45,7 @@ src/**/*.x  →  工具链  →  *.o  →  link shux
 - **优先路径**：`SHUX_G05_PREFER_X_O=1`（显式 opt-in）
 - **f-428 全 TU PREFER 评估**：✅ Ubuntu x86_64 11+ L2 hybrid TU 同时 PREFER 通过（diag/simd_enc/simd_loop/enc_disp/arch_emit/try_inline/call_dispatch/diag/strict_glue/fmt_check/lsp_fmt）；51 objs 链接 3254920B；return-value 42；STRICT 对比一致
 - **f-429 link_abi L0 .x真迁 + PREFER_X_O 接入**：`labi_path_pure.x` 新增 `shux_path_has_sep`/`shux_path_last_sep`；扁平化原有 2 函数（`labi_suffix_eq2`/`eq4` helper 消除 `&&`/`||`/深层嵌套 if → 修复 `shux -E` 丢弃函数体）；`g05_ensure_relink_prereqs.sh` L0 接入 PREFER_X_O；macOS + Ubuntu 双平台 6 函数 `-E` / `cc -c` / `ld -r` 4 符号全 T
+- **f-430 shux_output_want_exe .x真迁 + rt_asm_stub 修复**：`labi_path_pure.x` 新增 `shux_output_want_exe`（后缀 `.o`/`.O`/`.s`/`.obj` → 0，否则 → 1）；seed C 添加 `#ifndef` 包裹；修复 `rt_asm_stub.x` `-E` 失败（extern 调用缺 `unsafe` + typeck 要求 trailing `return`）；macOS + Ubuntu 双平台 7+2 函数 `-E` / `cc -c` / `ld -r` 5 符号全 T
 
 ### 2.1 target_cpu hybrid 细节
 
