@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # g05_ensure_relink_prereqs.sh — G-05 100%：依赖齐备（纯 shell，不调用 make）
 #
 # 职责：
@@ -21,7 +21,7 @@ cd "$(dirname "$0")/.."
 
 echo "g05_ensure_relink_prereqs: load env (shell, no make)"
 # shellcheck disable=SC2046
-eval "$(sh scripts/g05_relink_env.sh)"
+eval "$(bash scripts/g05_relink_env.sh)"
 
 CC="${G05_CC:-cc}"
 BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
@@ -49,7 +49,7 @@ g05_cc_c() {
     *.inc)
       echo "g05_ensure: cc_inc_tu $_c → $_o"
       # shellcheck disable=SC2086
-      sh scripts/cc_inc_tu.sh "$_c" "$_o" "$@"
+      bash scripts/cc_inc_tu.sh "$_c" "$_o" "$@"
       ;;
     *)
       echo "g05_ensure: cc -c $_c → $_o"
@@ -420,6 +420,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_parse_diag_seed=seeds/rt_parse_diag.from_x.c
   _rt_fs_open_seed=seeds/rt_fs_open.from_x.c
   _rt_arena_buf_seed=seeds/rt_arena_buf.from_x.c
+  _rt_arena_buf_x=src/runtime/rt_arena_buf.x
   _rt_fmt_one_seed=seeds/rt_fmt_one.from_x.c
   _rt_dispatch_thin_seed=seeds/rt_dispatch_thin.from_x.c
   _rt_dispatch_impl_seed=seeds/rt_dispatch_impl.from_x.c
@@ -451,6 +452,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_parse_diag_seed" ] && [ "$_rt_parse_diag_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_fs_open_seed" ] && [ "$_rt_fs_open_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_arena_buf_seed" ] && [ "$_rt_arena_buf_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_arena_buf_x" ] && [ "$_rt_arena_buf_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_fmt_one_seed" ] && [ "$_rt_fmt_one_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_dispatch_thin_seed" ] && [ "$_rt_dispatch_thin_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_dispatch_impl_seed" ] && [ "$_rt_dispatch_impl_seed" -nt "$_rt_o" ]; } \
@@ -703,10 +705,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_ab_o" ] && [ -f "$_rt_arena_buf_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_ab_o" "$_rt_arena_buf_seed"; then
-            _rt_ab_ok=1
-            echo "g05_ensure: rest arena_buf ← $_rt_arena_buf_seed (G-02f-309 seed slice)"
+          # G-02f-443：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_arena_buf_x" ]; then
+            _rt_ab_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_arena_thin.XXXXXX") || true
+            _rt_ab_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_arena_rest.XXXXXX") || true
+            if [ -n "$_rt_ab_thin_o" ] && [ -n "$_rt_ab_rest_o" ] \
+              && g05_try_x_to_o "$_rt_arena_buf_x" "$_rt_ab_thin_o" \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_ARENA_BUF_FROM_X \
+                   -c -o "$_rt_ab_rest_o" "$_rt_arena_buf_seed" \
+              && $CC -r -nostdlib -o "$_rt_ab_o" "$_rt_ab_thin_o" "$_rt_ab_rest_o" 2>/dev/null; then
+              _rt_ab_ok=1
+              echo "g05_ensure: rest arena_buf ← thin .x + rest (G-02f-443 L2 prefer .x)"
+            fi
+            rm -f "$_rt_ab_thin_o" "$_rt_ab_rest_o"
+          fi
+          if [ "$_rt_ab_ok" = "0" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_ab_o" "$_rt_arena_buf_seed"; then
+              _rt_ab_ok=1
+              echo "g05_ensure: rest arena_buf ← $_rt_arena_buf_seed (G-02f-309 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_rt_fo_o" ] && [ -f "$_rt_fmt_one_seed" ]; then

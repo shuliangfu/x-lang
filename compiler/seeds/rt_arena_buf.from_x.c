@@ -9,6 +9,16 @@
 #include <stdint.h>
 #include <string.h>
 
+/* G-02f-443：thin+rest PREFER_X_O
+ *   thin .x provides 2 #[no_mangle] wrappers (call *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_ARENA_BUF_FROM_X):
+ *     - 2 functions renamed to *_impl via macros (real C implementations stay).
+ *   No #ifndef guard needed (no real .x implementations; .x is thin-only). */
+#ifdef SHUX_RT_ARENA_BUF_FROM_X
+#define driver_arena_buf    driver_arena_buf_impl
+#define driver_module_buf   driver_module_buf_impl
+#endif
+
 /** arena 对应 .x codegen `struct ast_ASTArena`，须 ≥ pipeline_sizeof_arena()；
  * 池扩大后宿主约 ~90MiB，预留 128MiB 避免静默越界。 */
 #define DRIVER_ARENA_STATIC_SIZE (128 * 1024 * 1024)
