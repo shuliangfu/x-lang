@@ -80,6 +80,15 @@ extern int runtime_report_precise_parse_failure_if_known(const char *input_path,
 extern int driver_run_x_emit_c_extern_via_cparser(const char *input_path);
 extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
 
+/* G-02f-444：thin+rest PREFER_X_O
+ *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_RUN_X_EMIT_FROM_X):
+ *     - driver_run_x_emit_c renamed to *_impl via macro (real C impl stays).
+ *   No #ifndef guard needed (no real .x implementation; .x is thin-only). */
+#ifdef SHUX_RT_RUN_X_EMIT_FROM_X
+#define driver_run_x_emit_c    driver_run_x_emit_c_impl
+#endif
+
 /** 执行刚解析的 -x -E（读文件、.x pipeline、写 stdout）；成功 0，失败 1。无 SHUX_USE_X_PIPELINE 时返回 1。 */
 int driver_run_x_emit_c(void) {
     const char *input_path = driver_x_emit_c_path;
