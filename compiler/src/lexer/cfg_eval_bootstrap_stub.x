@@ -337,90 +337,84 @@ function cfg_parse_target_arch_value(buf: *u8, p: i32, end: i32): i32 {
   return cfg_lit_eq_ci(&buf[lit], alen, arch);
 }
 
+/** all(...) conjunction evaluation. */
+function cfg_eval_all_expr(buf: *u8, p: i32, end: i32): i32 {
+  p = p + 4;
+  while (p < end) {
+    p = cfg_skip_ws_range(buf, p, end);
+    while (p < end) {
+      let c: u8 = buf[p];
+      if (c == 32) { p = p + 1; continue; }
+      if (c == 9) { p = p + 1; continue; }
+      if (c == 44) { p = p + 1; continue; }
+      if (c == 10) { p = p + 1; continue; }
+      if (c == 13) { p = p + 1; continue; }
+      break;
+    }
+    if (p >= end) { break; }
+    if (buf[p] == 41) { return 1; }
+    let part: i32 = p;
+    let depth: i32 = 0;
+    while (p < end) {
+      if (buf[p] == 40) { depth = depth + 1; p = p + 1; continue; }
+      let rp: i32 = cfg_rparen_check(buf[p], depth);
+      if (rp == 1) { break; }
+      if (rp == 0) { depth = depth - 1; p = p + 1; continue; }
+      if (cfg_comma_at_depth0(buf[p], depth) != 0) { break; }
+      if (buf[p] == 44) { p = p + 1; continue; }
+      p = p + 1;
+    }
+    if (cfg_eval_expr_range(buf, part, p) == 0) { return 0; }
+    if (cfg_buf_eq_at(buf, p, end, 41) != 0) { return 1; }
+  }
+  return 1;
+}
+
+/** not(...) negation evaluation. */
+function cfg_eval_not_expr(buf: *u8, p: i32, end: i32): i32 {
+  let inner: i32 = p + 4;
+  let close: i32 = inner;
+  let depth: i32 = 1;
+  while (close < end) {
+    if (depth <= 0) { break; }
+    if (buf[close] == 40) { depth = depth + 1; }
+    if (buf[close] == 41) { depth = depth - 1; }
+    if (depth > 0) { close = close + 1; }
+  }
+  if (cfg_eval_expr_range(buf, inner, close) != 0) { return 0; }
+  return 1;
+}
+
+/** freestanding bare flag evaluation. */
+function cfg_eval_freestanding_expr(buf: *u8, p: i32, end: i32): i32 {
+  let q: i32 = p;
+  while (q < end) {
+    let c: u8 = buf[q];
+    if (cfg_is_ident_char(c) != 0) { q = q + 1; continue; }
+    break;
+  }
+  let n_fs: u8[16] = [];
+  n_fs[0]=102;n_fs[1]=114;n_fs[2]=101;n_fs[3]=101;n_fs[4]=115;n_fs[5]=116;
+  n_fs[6]=97;n_fs[7]=110;n_fs[8]=100;n_fs[9]=105;n_fs[10]=110;n_fs[11]=103;n_fs[12]=0;
+  let alen: usize = (q - p) as usize;
+  if (cfg_lit_eq_ci(&buf[p], alen, &n_fs[0]) != 0) {
+    return cfg_get_freestanding_safe();
+  }
+  return 0;
+}
+
+/** Recursive cfg expression evaluation (flat dispatcher, no nested if). */
 function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   if (buf == 0) { return 0; }
   let p: i32 = cfg_skip_ws_range(buf, b, end);
   if (p >= end) { return 0; }
-  // all(
-  if (cfg_prefix4(buf, p, end, 97, 108, 108, 40) != 0) {
-    p = p + 4;
-    while (p < end) {
-      p = cfg_skip_ws_range(buf, p, end);
-      // also skip commas
-      while (p < end) {
-        let c: u8 = buf[p];
-        if (c == 32) { p = p + 1; continue; }
-        if (c == 9) { p = p + 1; continue; }
-        if (c == 44) { p = p + 1; continue; }
-        if (c == 10) { p = p + 1; continue; }
-        if (c == 13) { p = p + 1; continue; }
-        break;
-      }
-      if (p >= end) { break; }
-      if (buf[p] == 41) { return 1; }
-      let part: i32 = p;
-      let depth: i32 = 0;
-      while (p < end) {
-        if (buf[p] == 40) { depth = depth + 1; p = p + 1; continue; }
-        let rp: i32 = cfg_rparen_check(buf[p], depth);
-        if (rp == 1) { break; }
-        if (rp == 0) { depth = depth - 1; p = p + 1; continue; }
-        if (cfg_comma_at_depth0(buf[p], depth) != 0) { break; }
-        if (buf[p] == 44) { p = p + 1; continue; }
-        p = p + 1;
-      }
-      if (cfg_eval_expr_range(buf, part, p) == 0) { return 0; }
-      if (cfg_buf_eq_at(buf, p, end, 41) != 0) { return 1; }
-    }
-    return 1;
-  }
-  // not(
-  if (cfg_prefix4(buf, p, end, 110, 111, 116, 40) != 0) {
-    let inner: i32 = p + 4;
-    let close: i32 = inner;
-    let depth: i32 = 1;
-    while (close < end) {
-      if (depth <= 0) { break; }
-      if (buf[close] == 40) {
-        depth = depth + 1;
-      }
-      if (buf[close] == 41) {
-        depth = depth - 1;
-      }
-      if (depth > 0) {
-        close = close + 1;
-      }
-    }
-    if (cfg_eval_expr_range(buf, inner, close) != 0) { return 0; }
-    return 1;
-  }
-  // target_os
-  if (cfg_match_target_os(buf, p, end) != 0) {
-    return cfg_parse_target_os_value(buf, p, end);
-  }
-  // target_arch
-  if (cfg_match_target_arch(buf, p, end) != 0) {
-    return cfg_parse_target_arch_value(buf, p, end);
-  }
-  // freestanding bare flag
-  let q: i32 = p;
-    while (q < end) {
-      let c: u8 = buf[q];
-      if (cfg_is_ident_char(c) != 0) { q = q + 1; continue; }
-      break;
-    }
-    let n_fs: u8[16] = [];
-    n_fs[0]=102;n_fs[1]=114;n_fs[2]=101;n_fs[3]=101;n_fs[4]=115;n_fs[5]=116;
-    n_fs[6]=97;n_fs[7]=110;n_fs[8]=100;n_fs[9]=105;n_fs[10]=110;n_fs[11]=103;n_fs[12]=0;
-    let alen3: usize = (q - p) as usize;
-    if (cfg_lit_eq_ci(&buf[p], alen3, &n_fs[0]) != 0) {
-      return cfg_get_freestanding_safe();
-    }
-  return 0;
+  if (cfg_prefix4(buf, p, end, 97, 108, 108, 40) != 0) { return cfg_eval_all_expr(buf, p, end); }
+  if (cfg_prefix4(buf, p, end, 110, 111, 116, 40) != 0) { return cfg_eval_not_expr(buf, p, end); }
+  if (cfg_match_target_os(buf, p, end) != 0) { return cfg_parse_target_os_value(buf, p, end); }
+  if (cfg_match_target_arch(buf, p, end) != 0) { return cfg_parse_target_arch_value(buf, p, end); }
+  return cfg_eval_freestanding_expr(buf, p, end);
 }
 
-// start/end 指针 API：用下标差求值
-#[no_mangle]
 function cfg_eval_expr(start: *u8, end: *u8): i32 {
   if (start == 0) { return 0; }
   if (end == 0) { return 0; }
