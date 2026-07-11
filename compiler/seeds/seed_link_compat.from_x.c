@@ -33,7 +33,27 @@ extern int32_t lsp_diag_references_at(uint8_t *source, int32_t source_len, int32
 extern int32_t lsp_diag_definition_at(uint8_t *source, int32_t source_len, int32_t line_0, int32_t col_0,
                                       int32_t *out_line, int32_t *out_col) __attribute__((weak));
 
+/* Forward declarations: when SHUX_SEED_LINK_COMPAT_FROM_X is defined,
+   the .x implementations provide these symbols via thin .o. */
+uint8_t *typeck_lsp_alloc(size_t size);
+void typeck_lsp_free(uint8_t *ptr);
+int32_t typeck_lsp_is_null(uint8_t *ptr);
+int32_t typeck_lsp_main_impl(void);
+uint8_t *typeck_std_heap_alloc(size_t size);
+uint8_t *typeck_std_heap_alloc_zeroed(size_t size);
+void typeck_std_heap_free(uint8_t *ptr);
+int32_t std_sys_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap);
+void std_heap_free_u8_ptr(uint8_t *ptr);
+void ast_pipeline_module_struct_layout_set_packed(uint8_t *module, int32_t idx, int32_t v);
+int32_t backend_asm_ctx_slot_offset(uint8_t *ctx, int32_t slot_idx);
+int32_t shux_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
+                                   int32_t param_ix);
+int32_t shux_expr_is_param0_field_access(void *arena, struct ast_Module *mod, int32_t func_idx,
+                                         int32_t expr_ref);
+int32_t shux_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len);
 
+/* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_SEED_LINK_COMPAT_FROM_X
 __attribute__((weak)) int32_t lsp_diag_lsp_build_diagnostics_response(int32_t id_val, uint8_t * source, int32_t source_len, uint8_t * out_buf, int32_t out_cap) {
   return (0 - 1);
 }
@@ -53,6 +73,7 @@ __attribute__((weak)) int32_t lsp_diag_references_at(uint8_t * source, int32_t s
 __attribute__((weak)) int32_t lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_line, int32_t * out_col) {
   return (0 - 1);
 }
+#endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
 
 extern uint8_t *lsp_io_std_heap_std_heap_alloc(size_t size);
 extern uint8_t *lsp_io_std_heap_std_heap_alloc_zeroed(size_t size);
@@ -92,6 +113,8 @@ extern int32_t pipeline_expr_field_access_name_len(void *arena, int32_t expr_ref
 extern void pipeline_expr_field_access_name_into(void *arena, int32_t expr_ref, uint8_t *out);
 extern int32_t append_asm_line(struct codegen_CodegenOutBuf *out, uint8_t *ptr, int32_t len);
 
+/* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_SEED_LINK_COMPAT_FROM_X
 __attribute__((weak)) uint8_t *typeck_lsp_alloc(size_t size) {
   return lsp_io_lsp_alloc(size);
 }
@@ -112,11 +135,13 @@ __attribute__((weak)) int32_t typeck_lsp_is_null(uint8_t * ptr) {
  }));
   return 0;
 }
+#endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
 
 __attribute__((weak)) ptrdiff_t typeck_read_message(int32_t fd, uint8_t *body_out, int32_t body_cap, uint8_t *state_buf) {
   return lsp_io_read_message(fd, body_out, body_cap, state_buf);
 }
 
+#ifndef SHUX_SEED_LINK_COMPAT_FROM_X
 __attribute__((weak)) int32_t typeck_lsp_main_impl(void) {
   (void)(({   {
     int32_t r = lsp_main_impl();
@@ -125,6 +150,7 @@ __attribute__((weak)) int32_t typeck_lsp_main_impl(void) {
  }));
   return 0;
 }
+#endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
 
 __attribute__((weak)) int32_t typeck_lsp_build_diagnostics_response(int32_t id_val, uint8_t *source, int32_t source_len,
                                                                     uint8_t *out_buf, int32_t out_cap) {
@@ -162,6 +188,8 @@ __attribute__((weak)) int32_t typeck_lsp_diag_definition_at(uint8_t *source, int
   return lsp_diag_definition_at(source, source_len, line_0, col_0, out_line, out_col);
 }
 
+/* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_SEED_LINK_COMPAT_FROM_X
 __attribute__((weak)) uint8_t *typeck_std_heap_alloc(size_t size) {
   return lsp_io_std_heap_std_heap_alloc(size);
 }
@@ -193,6 +221,7 @@ __attribute__((weak)) void std_heap_free_u8_ptr(uint8_t * ptr) {
   }
  }));
 }
+#endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
 
 __attribute__((weak)) int32_t std_io_read_usize_u8_ptr_usize_u32(size_t handle, uint8_t *ptr, size_t len,
                                                                  uint32_t timeout_ms) {
@@ -204,6 +233,8 @@ __attribute__((weak)) int32_t std_io_write_usize_u8_ptr_usize_u32(size_t handle,
   return (int32_t)io_write((int)handle, ptr, len, (unsigned)timeout_ms);
 }
 
+/* G-02f-440：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_SEED_LINK_COMPAT_FROM_X
 __attribute__((weak)) void ast_pipeline_module_struct_layout_set_packed(uint8_t * module, int32_t idx, int32_t v) {
   (void)(({   {
     (void)(pipeline_module_struct_layout_set_packed(module, idx, v));
@@ -219,6 +250,7 @@ __attribute__((weak)) int32_t backend_asm_ctx_slot_offset(uint8_t * ctx, int32_t
  }));
   return 0;
 }
+#endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
 
 __attribute__((weak)) int32_t backend_fold_func_return_operand_ref(void *arena, struct ast_Module *mod, int32_t func_idx) {
   int32_t body_ref;
@@ -262,6 +294,8 @@ __attribute__((weak)) int32_t backend_fold_func_return_operand_ref(void *arena, 
 
 /* G-02f-99：expr/param/func-index helpers export gates. */
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-440：thin+rest PREFER_X_O guard */
+#ifndef SHUX_SEED_LINK_COMPAT_FROM_X
 int32_t shux_expr_is_func_param_at(void *arena, struct ast_Module *mod, int32_t func_idx, int32_t expr_ref,
                                           int32_t param_ix) {
   uint8_t pbuf[32];
@@ -320,6 +354,7 @@ int32_t shux_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, in
   return -1;
 
 }
+#endif /* SHUX_SEED_LINK_COMPAT_FROM_X */
 
 
 __attribute__((weak)) int32_t backend_fold_func_returns_param0_field_sum(void *arena, struct ast_Module *mod,

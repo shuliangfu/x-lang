@@ -1850,12 +1850,91 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  _slc=seeds/seed_link_compat.from_x.c
-  if [ -f "$_slc" ]; then
-    if [ ! -f src/seed_link_compat.o ] || [ "$_slc" -nt src/seed_link_compat.o ]; then
-      echo "g05_ensure: seed_link_compat.o ← seed (G-02f-11)"
+  # G-02f-440：seed_link_compat thin+rest PREFER_X_O
+  # 特殊：6 个 weak stub 函数（5 lsp_diag_* + typeck_lsp_main_impl）在 .x 中是 #[no_mangle]（强符号），
+  # 但 seed C 中是 __attribute__((weak))，被 lsp_diag_x.o / lsp_diag_pipeline_ctx.o 的强定义覆盖。
+  # 需在 thin C 层面注入 __attribute__((weak)) 以保持链接拓扑。
+  _slc_o="src/seed_link_compat.o"
+  _slc_seed="seeds/seed_link_compat.from_x.c"
+  _slc_x="src/seed_link_compat.x"
+  if [ -f "$_slc_seed" ]; then
+    _slc_need=0
+    if [ ! -f "$_slc_o" ] || [ "$_slc_seed" -nt "$_slc_o" ] \
+      || { [ -f "$_slc_x" ] && [ "$_slc_x" -nt "$_slc_o" ]; }; then
+      _slc_need=1
+    fi
+    if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_slc_x" ] && [ "$_slc_need" = "1" ]; then
+      _slc_thin_c=$(mktemp "${TMPDIR:-/tmp}/g05_slc_c.XXXXXX") || true
+      _slc_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_slc_thin.XXXXXX") || true
+      _slc_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_slc_rest.XXXXXX") || true
+      _slc_ok=0
+      if [ -n "$_slc_thin_c" ] && [ -n "$_slc_thin_o" ] && [ -n "$_slc_rest_o" ]; then
+        _slc_shux=""
+        if [ -x ./shux ]; then _slc_shux=./shux
+        elif [ -x ./shux-c ]; then _slc_shux=./shux-c
+        elif [ -x ./bootstrap_shuxc ]; then _slc_shux=./bootstrap_shuxc
+        fi
+        if [ -n "$_slc_shux" ] && "$_slc_shux" -E "$_slc_x" >"$_slc_thin_c" 2>/dev/null && [ -s "$_slc_thin_c" ]; then
+          # Weaken 6 stub functions overridden by lsp_diag_x.o / lsp_diag_pipeline_ctx.o
+          sed -i.bak \
+            -e 's/^int32_t lsp_diag_lsp_build_diagnostics_response(/__attribute__((weak)) int32_t lsp_diag_lsp_build_diagnostics_response(/' \
+            -e 's/^int32_t lsp_diag_lsp_build_semantic_tokens_response(/__attribute__((weak)) int32_t lsp_diag_lsp_build_semantic_tokens_response(/' \
+            -e 's/^int32_t lsp_diag_hover_at(/__attribute__((weak)) int32_t lsp_diag_hover_at(/' \
+            -e 's/^int32_t lsp_diag_references_at(/__attribute__((weak)) int32_t lsp_diag_references_at(/' \
+            -e 's/^int32_t lsp_diag_definition_at(/__attribute__((weak)) int32_t lsp_diag_definition_at(/' \
+            -e 's/^int32_t typeck_lsp_main_impl(/__attribute__((weak)) int32_t typeck_lsp_main_impl(/' \
+            "$_slc_thin_c" && rm -f "${_slc_thin_c}.bak"
+          # Add POSIX headers + strip conflicting libc externs (same as g05_try_x_to_o)
+          {
+            echo '/* g05 seed_link_compat thin prologue (G-02f-440) */'
+            echo '#include <stddef.h>'
+            echo '#include <stdint.h>'
+            echo '#include <sys/types.h>'
+            echo '#include <stdlib.h>'
+            echo '#include <string.h>'
+            echo '#include <stdio.h>'
+            echo '#ifndef _WIN32'
+            echo '#include <unistd.h>'
+            echo '#include <fcntl.h>'
+            echo '#include <errno.h>'
+            echo '#endif'
+            sed -e '/^#include /d' \
+                -e '/^extern ssize_t read(/d' \
+                -e '/^extern ssize_t write(/d' \
+                -e '/^extern int32_t open(/d' \
+                -e '/^extern int open(/d' \
+                -e '/^extern int32_t close(/d' \
+                -e '/^extern int close(/d' \
+                -e '/^extern uint8_t \* calloc(/d' \
+                -e '/^extern uint8_t \* malloc(/d' \
+                -e '/^extern void free(/d' \
+                -e '/^extern char \* getenv(/d' \
+                -e '/^extern uint8_t \* getenv(/d' \
+                -e '/^extern int32_t unlink(/d' \
+                -e '/^extern int unlink(/d' \
+                -e '/^extern size_t strlen(/d' \
+                "$_slc_thin_c"
+          } >"${_slc_thin_c}.full" && mv "${_slc_thin_c}.full" "$_slc_thin_c"
+          # shellcheck disable=SC2086
+          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -x c -c -o "$_slc_thin_o" "$_slc_thin_c" \
+            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/asm -Isrc/lexer -DSHUX_SEED_LINK_COMPAT_FROM_X \
+                 -c -o "$_slc_rest_o" "$_slc_seed" \
+            && $CC -r -nostdlib -o "$_slc_o" "$_slc_thin_o" "$_slc_rest_o" 2>/dev/null; then
+            echo "g05_ensure: seed_link_compat ← thin .x + rest (G-02f-440 L2 prefer .x)"
+            _slc_ok=1
+          fi
+        fi
+      fi
+      if [ "$_slc_ok" = "0" ]; then
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_slc_o" "$_slc_seed"
+        echo "g05_ensure: seed_link_compat ← $_slc_seed (G-02f-11 fallback)"
+      fi
+      rm -f "$_slc_thin_c" "$_slc_thin_o" "$_slc_rest_o"
+    elif [ "$_slc_need" = "1" ]; then
       # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o src/seed_link_compat.o "$_slc"
+      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_slc_o" "$_slc_seed"
+      echo "g05_ensure: seed_link_compat ← $_slc_seed (G-02f-11)"
     fi
   fi
   # G-02f-11 / G-02f-258：strict_glue_stubs.o
