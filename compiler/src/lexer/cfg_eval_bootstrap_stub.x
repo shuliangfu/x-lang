@@ -19,12 +19,9 @@ function cfg_eval_bootstrap_stub_x_doc_anchor(): i32 {
 /* ---- G-02f-151：cfg string pure helpers ---- */
 
 function cfg_ascii_tolower(ch: u8): u8 {
-  if (ch >= 65) {
-    if (ch <= 90) {
-      return (ch + 32) as u8;
-    }
-  }
-  return ch;
+  if (ch < 65) { return ch; }
+  if (ch > 90) { return ch; }
+  return (ch + 32) as u8;
 }
 
 function cfg_cstr_copy(dst: *u8, cap: usize, src: *u8): void {
@@ -106,13 +103,14 @@ function cfg_parse_triple_literals(triple: *u8, len: i32, os_out: *u8, os_sz: us
   if (os_sz == 0) { return; }
   if (arch_out == 0) { return; }
   if (arch_sz == 0) { return; }
-  unsafe {
-    let host_os: *u8 = cfg_host_os_lit();
-    let host_arch: *u8 = cfg_host_arch_lit();
-    cfg_cstr_copy(os_out, os_sz, host_os);
-    cfg_cstr_copy(arch_out, arch_sz, host_arch);
-    if (triple == 0) { return; }
-    if (len <= 0) { return; }
+  let host_os: *u8 = 0;
+  let host_arch: *u8 = 0;
+  unsafe { host_os = cfg_host_os_lit(); }
+  unsafe { host_arch = cfg_host_arch_lit(); }
+  cfg_cstr_copy(os_out, os_sz, host_os);
+  cfg_cstr_copy(arch_out, arch_sz, host_arch);
+  if (triple == 0) { return; }
+  if (len <= 0) { return; }
     // os needles as local C strings
     let n_linux: u8[8] = [];
     n_linux[0] = 108; n_linux[1] = 105; n_linux[2] = 110; n_linux[3] = 117; n_linux[4] = 120; n_linux[5] = 0;
@@ -126,29 +124,13 @@ function cfg_parse_triple_literals(triple: *u8, len: i32, os_out: *u8, os_sz: us
     n_windows[0] = 119; n_windows[1] = 105; n_windows[2] = 110; n_windows[3] = 100; n_windows[4] = 111; n_windows[5] = 119; n_windows[6] = 115; n_windows[7] = 0;
     let n_win32: u8[8] = [];
     n_win32[0] = 119; n_win32[1] = 105; n_win32[2] = 110; n_win32[3] = 51; n_win32[4] = 50; n_win32[5] = 0;
-    if (cfg_triple_contains_ci(triple, len, &n_linux[0]) != 0) {
-      cfg_cstr_copy(os_out, os_sz, &n_linux[0]);
-    } else {
-      if (cfg_triple_contains_ci(triple, len, &n_darwin[0]) != 0) {
-        cfg_cstr_copy(os_out, os_sz, &n_macos[0]);
-      } else {
-        if (cfg_triple_contains_ci(triple, len, &n_macos[0]) != 0) {
-          cfg_cstr_copy(os_out, os_sz, &n_macos[0]);
-        } else {
-          if (cfg_triple_contains_ci(triple, len, &n_freebsd[0]) != 0) {
-            cfg_cstr_copy(os_out, os_sz, &n_freebsd[0]);
-          } else {
-            if (cfg_triple_contains_ci(triple, len, &n_windows[0]) != 0) {
-              cfg_cstr_copy(os_out, os_sz, &n_windows[0]);
-            } else {
-              if (cfg_triple_contains_ci(triple, len, &n_win32[0]) != 0) {
-                cfg_cstr_copy(os_out, os_sz, &n_windows[0]);
-              }
-            }
-          }
-        }
-      }
-    }
+    let os_found: i32 = 0;
+    if (cfg_triple_contains_ci(triple, len, &n_linux[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_linux[0]); os_found = 1; }
+    if (os_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_darwin[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_macos[0]); os_found = 1; } }
+    if (os_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_macos[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_macos[0]); os_found = 1; } }
+    if (os_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_freebsd[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_freebsd[0]); os_found = 1; } }
+    if (os_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_windows[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_windows[0]); os_found = 1; } }
+    if (os_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_win32[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_windows[0]); os_found = 1; } }
     let n_aarch64: u8[16] = [];
     n_aarch64[0] = 97; n_aarch64[1] = 97; n_aarch64[2] = 114; n_aarch64[3] = 99; n_aarch64[4] = 104;
     n_aarch64[5] = 54; n_aarch64[6] = 52; n_aarch64[7] = 0;
@@ -161,27 +143,13 @@ function cfg_parse_triple_literals(triple: *u8, len: i32, os_out: *u8, os_sz: us
     let n_riscv64: u8[16] = [];
     n_riscv64[0] = 114; n_riscv64[1] = 105; n_riscv64[2] = 115; n_riscv64[3] = 99; n_riscv64[4] = 118;
     n_riscv64[5] = 54; n_riscv64[6] = 52; n_riscv64[7] = 0;
-    if (cfg_triple_contains_ci(triple, len, &n_aarch64[0]) != 0) {
-      cfg_cstr_copy(arch_out, arch_sz, &n_aarch64[0]);
-    } else {
-      if (cfg_triple_contains_ci(triple, len, &n_arm64[0]) != 0) {
-        cfg_cstr_copy(arch_out, arch_sz, &n_aarch64[0]);
-      } else {
-        if (cfg_triple_contains_ci(triple, len, &n_x86_64[0]) != 0) {
-          cfg_cstr_copy(arch_out, arch_sz, &n_x86_64[0]);
-        } else {
-          if (cfg_triple_contains_ci(triple, len, &n_amd64[0]) != 0) {
-            cfg_cstr_copy(arch_out, arch_sz, &n_x86_64[0]);
-          } else {
-            if (cfg_triple_contains_ci(triple, len, &n_riscv64[0]) != 0) {
-              cfg_cstr_copy(arch_out, arch_sz, &n_riscv64[0]);
-            }
-          }
-        }
-      }
-    }
+    let arch_found: i32 = 0;
+    if (cfg_triple_contains_ci(triple, len, &n_aarch64[0]) != 0) { cfg_cstr_copy(arch_out, arch_sz, &n_aarch64[0]); arch_found = 1; }
+    if (arch_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_arm64[0]) != 0) { cfg_cstr_copy(arch_out, arch_sz, &n_aarch64[0]); arch_found = 1; } }
+    if (arch_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_x86_64[0]) != 0) { cfg_cstr_copy(arch_out, arch_sz, &n_x86_64[0]); arch_found = 1; } }
+    if (arch_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_amd64[0]) != 0) { cfg_cstr_copy(arch_out, arch_sz, &n_x86_64[0]); arch_found = 1; } }
+    if (arch_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_riscv64[0]) != 0) { cfg_cstr_copy(arch_out, arch_sz, &n_riscv64[0]); arch_found = 1; } }
   }
-}
 
 /* ---- G-02f-112 / G-02f-153：cfg_eval_expr 真迁 ---- */
 
