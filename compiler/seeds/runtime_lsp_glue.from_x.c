@@ -2334,6 +2334,9 @@ int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len,
  * 将标识符写入 esc，转义 JSON 中的 " 与 \\；返回写入长度（esc 以 NUL 结尾）。
  */
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+int lsp_json_escape_ident(const char *s, char *esc, int esc_cap);
+#endif
 #ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_json_escape_ident(const char *s, char *esc, int esc_cap) {
     int e = 0;
@@ -2703,7 +2706,6 @@ int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j);
 int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j);
 int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap);
 int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap);
-int lsp_json_escape_ident(const char *s, char *esc, int esc_cap);
 #endif
 
 /** 输出缓冲中最后一个非空白字符；无则返回 0。 */
