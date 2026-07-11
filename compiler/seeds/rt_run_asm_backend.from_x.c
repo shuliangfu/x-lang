@@ -41,6 +41,11 @@
 #define PATH_MAX 4096
 #endif
 
+/* G-02f-457：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名 */
+#ifdef SHUX_RT_RUN_ASM_BACKEND_FROM_X
+#define driver_run_asm_backend    driver_run_asm_backend_impl
+#endif
+
 #define X_CODEGEN_OUTBUF_CAP (9 * 1024 * 1024)
 struct codegen_CodegenOutBuf {
   unsigned char data[X_CODEGEN_OUTBUF_CAP];
