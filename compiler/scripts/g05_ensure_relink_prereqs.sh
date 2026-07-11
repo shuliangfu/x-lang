@@ -398,6 +398,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_content_seed=seeds/rt_content.from_x.c
   _rt_util_seed=seeds/rt_util.from_x.c
   _rt_argv_seed=seeds/rt_argv.from_x.c
+  _rt_argv_x=src/runtime/rt_argv.x
   _rt_ef_seed=seeds/rt_emit_flags.from_x.c
   _rt_pre_seed=seeds/rt_preamble.from_x.c
   _rt_compile_seed=seeds/rt_compile.from_x.c
@@ -424,6 +425,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_content_seed" ] && [ "$_rt_content_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_util_seed" ] && [ "$_rt_util_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_argv_seed" ] && [ "$_rt_argv_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_argv_x" ] && [ "$_rt_argv_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_ef_seed" ] && [ "$_rt_ef_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_pre_seed" ] && [ "$_rt_pre_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_compile_seed" ] && [ "$_rt_compile_seed" -nt "$_rt_o" ]; } \
@@ -508,11 +510,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: R0 util ← $_rt_util_seed (G-02f-262 seed slice)"
           fi
         fi
-        if [ -n "$_rt_a_o" ] && [ -f "$_rt_argv_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_a_o" "$_rt_argv_seed"; then
-            _rt_argv_ok=1
-            echo "g05_ensure: R1 argv ← $_rt_argv_seed (G-02f-263 seed slice)"
+        if [ -n "$_rt_a_o" ]; then
+          # G-02f-431：PREFER_X_O=1 时优先 .x → shux -E → cc -c；失败回退 seed C
+          if [ "${SHUX_G05_PREFER_X_O:-0}" = "1" ] && [ -f "$_rt_argv_x" ]; then
+            if g05_try_x_to_o "$_rt_argv_x" "$_rt_a_o"; then
+              _rt_argv_ok=1
+              echo "g05_ensure: R1 argv ← $_rt_argv_x (G-02f-431 L2 prefer .x)"
+            fi
+          fi
+          if [ "$_rt_argv_ok" = "0" ] && [ -f "$_rt_argv_seed" ]; then
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_a_o" "$_rt_argv_seed"; then
+              _rt_argv_ok=1
+              echo "g05_ensure: R1 argv ← $_rt_argv_seed (G-02f-263 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_rt_e_o" ] && [ -f "$_rt_ef_seed" ]; then
