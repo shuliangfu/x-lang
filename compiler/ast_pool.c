@@ -12,7 +12,7 @@
 #include "diag.h"
 
 #ifndef AST_POOL_GROW
-#define AST_POOL_GROW 64
+#define AST_POOL_GROW 4096
 #endif
 
 /** 多 Module 共用 elf_ctx 时分配 tail_join 等局部标签 scope（定义见本文件后部）。 */
