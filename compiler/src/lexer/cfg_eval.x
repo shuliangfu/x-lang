@@ -259,6 +259,18 @@ function cfg_is_ident_char(c: u8): i32 {
   return 1;
 }
 
+function cfg_scan_delim(c: u8, depth: i32): i32 {
+  if (c == 41) { if (depth == 0) { return 1; } return 2; }
+  if (c == 44) { if (depth == 0) { return 1; } return 3; }
+  return 0;
+}
+
+function cfg_buf_eq_at(buf: *u8, p: i32, end: i32, c: u8): i32 {
+  if (p >= end) { return 0; }
+  if (buf[p] == c) { return 1; }
+  return 0;
+}
+
 function cfg_eval_all(buf: *u8, b: i32, end: i32): i32 {
   let p: i32 = b + 4;
   while (p < end) {
@@ -270,20 +282,15 @@ function cfg_eval_all(buf: *u8, b: i32, end: i32): i32 {
     part = p;
     depth = 0;
     while (p < end) {
-      if (buf[p] == 40) {
-        depth = depth + 1;
-      } else if (buf[p] == 41) {
-        if (depth == 0) { break; }
-        depth = depth - 1;
-      } else if (buf[p] == 44) {
-        if (depth == 0) { break; }
-      }
+      if (buf[p] == 40) { depth = depth + 1; p = p + 1; continue; }
+      let sd: i32 = cfg_scan_delim(buf[p], depth);
+      if (sd == 1) { break; }
+      if (sd == 2) { depth = depth - 1; p = p + 1; continue; }
+      if (sd == 3) { p = p + 1; continue; }
       p = p + 1;
     }
     if (cfg_eval_expr_range(buf, part, p) == 0) { return 0; }
-    if (p < end) {
-      if (buf[p] == 41) { return 1; }
-    }
+    if (cfg_buf_eq_at(buf, p, end, 41) != 0) { return 1; }
   }
   return 1;
 }
