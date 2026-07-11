@@ -2334,6 +2334,7 @@ int lsp_build_hover_response(int id_val, const uint8_t *body, int body_len,
  * 将标识符写入 esc，转义 JSON 中的 " 与 \\；返回写入长度（esc 以 NUL 结尾）。
  */
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_json_escape_ident(const char *s, char *esc, int esc_cap) {
     int e = 0;
     if (!s || !esc || esc_cap < 4)
@@ -2349,6 +2350,7 @@ int lsp_json_escape_ident(const char *s, char *esc, int esc_cap) {
     esc[e] = '\0';
     return e;
 }
+#endif
 
 
 
@@ -2689,14 +2691,19 @@ int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content
 
 
 
-/* G-02f-423：L2 hybrid thin — PREFER_X_O 时 5 pure leaf 由 lsp_fmt_pure_thin.x 提供。
- * 此处 extern 声明供 seed-rest 中其它函数（lsp_fmt_space_before / try_emit_op 等）调用。 */
+/* G-02f-423/424：L2 hybrid thin — PREFER_X_O 时 10 pure 由 lsp_fmt_pure_thin.x 提供。
+ * 此处 extern 声明供 seed-rest 中其它函数（lsp_fmt_try_emit_op 等）调用。 */
 #ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
 uint8_t lsp_fmt_last_out(const uint8_t *out_buf, int out_len);
 uint8_t lsp_fmt_prev_src(const uint8_t *doc, int start, int j);
 int lsp_fmt_is_atom_tail(uint8_t c);
 int lsp_fmt_is_atom_head(uint8_t c);
 int lsp_fmt_unary_lhs(uint8_t prev);
+int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j);
+int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j);
+int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap);
+int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap);
+int lsp_json_escape_ident(const char *s, char *esc, int esc_cap);
 #endif
 
 /** 输出缓冲中最后一个非空白字符；无则返回 0。 */
@@ -2768,6 +2775,7 @@ int lsp_fmt_unary_lhs(uint8_t prev) {
 
 /** 源码 j 之前是否已有空白（避免 1 +  2 双空格）。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
     int k = j - 1;
     while (k >= 0) {
@@ -2780,12 +2788,14 @@ int lsp_fmt_src_ws_before(const uint8_t *doc, int start, int j) {
     }
     return 0;
 }
+#endif
 
 
 
 
 /** 源码 j 之后是否已有空白。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
     int k = j + 1;
     while (k < len) {
@@ -2798,12 +2808,14 @@ int lsp_fmt_src_ws_after(const uint8_t *doc, int start, int len, int j) {
     }
     return 0;
 }
+#endif
 
 
 
 
 /** 在 out 中补一个前导空格（若需要且容量足够）。 */
 /* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf, int *out_len, int out_cap) {
     uint8_t last;
     if (lsp_fmt_src_ws_before(doc, start, j))
@@ -2815,12 +2827,14 @@ int lsp_fmt_space_before(const uint8_t *doc, int start, int j, uint8_t *out_buf,
     }
     return 0;
 }
+#endif
 
 
 
 
 /** 在 out 中补一个后继空格（若需要且容量足够）。 */
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *out_buf, int *out_len, int out_cap) {
     int k;
     if (lsp_fmt_src_ws_after(doc, start, len, j))
@@ -2837,6 +2851,7 @@ int lsp_fmt_space_after(const uint8_t *doc, int start, int len, int j, uint8_t *
     }
     return 0;
 }
+#endif
 
 
 

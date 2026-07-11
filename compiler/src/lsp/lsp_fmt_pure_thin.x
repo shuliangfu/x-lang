@@ -1,13 +1,17 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-423：L2 hybrid thin — lsp_fmt 5 pure leaf functions.
+// G-02f-423/424：L2 hybrid thin — lsp_fmt 10 pure functions.
 // PREFER_X_O: thin.o + seed-rest (-DSHUX_L2_LSP_FMT_THIN_FROM_X) ld -r -> runtime_lsp_glue.o
 // 逻辑对照: src/asm/runtime_lsp_glue.x; 产品默认仍整 seed.
 //
-// 5 个纯叶函数（无 libc 依赖、无全局状态、无跨函数调用）:
+// f-423: 5 pure leaf（无 libc 依赖、无全局状态、无跨函数调用）:
 //   lsp_fmt_is_atom_tail / lsp_fmt_is_atom_head / lsp_fmt_unary_lhs
 //   lsp_fmt_last_out / lsp_fmt_prev_src
+// f-424: 5 中层（依赖上述叶函数，无 libc 依赖）:
+//   lsp_fmt_src_ws_before / lsp_fmt_src_ws_after
+//   lsp_fmt_space_before / lsp_fmt_space_after
+//   lsp_json_escape_ident
 
 #[no_mangle]
 function lsp_fmt_is_atom_tail(c: u8): i32 {
@@ -96,4 +100,105 @@ function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
     k = k - 1;
   }
   return 0 as u8;
+}
+
+#[no_mangle]
+function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
+  let k: i32 = j - 1;
+  if (k < 0) { return 0; }
+  let c: u8 = doc[start + k];
+  if (c == 32) { return 1; }
+  if (c == 9) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
+  let k: i32 = j + 1;
+  if (k >= len) { return 0; }
+  let c: u8 = doc[start + k];
+  if (c == 32) { return 1; }
+  if (c == 9) { return 1; }
+  return 0;
+}
+
+#[no_mangle]
+function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
+  if (out_buf == 0) { return 0; }
+  if (out_len == 0) { return 0; }
+  if (lsp_fmt_src_ws_before(doc, start, j) != 0) { return 0; }
+  unsafe {
+    let olen: i32 = out_len[0];
+    let last: u8 = lsp_fmt_last_out(out_buf, olen);
+    if (last != 0) {
+      if (last != 32) {
+        if (last != 9) {
+          if (olen < out_cap - 1) {
+            out_buf[olen] = 32;
+            out_len[0] = olen + 1;
+            return 1;
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+#[no_mangle]
+function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_buf: *u8, out_len: *i32, out_cap: i32): i32 {
+  if (out_buf == 0) { return 0; }
+  if (out_len == 0) { return 0; }
+  if (lsp_fmt_src_ws_after(doc, start, len, j) != 0) { return 0; }
+  let k: i32 = j + 1;
+  while (k < len) {
+    let n: u8 = doc[start + k];
+    if (n == 32) { k = k + 1; continue; }
+    if (n == 9) { k = k + 1; continue; }
+    if (n == 13) { k = k + 1; continue; }
+    if (lsp_fmt_is_atom_head(n) != 0) {
+      unsafe {
+        let olen: i32 = out_len[0];
+        if (olen < out_cap - 1) {
+          out_buf[olen] = 32;
+          out_len[0] = olen + 1;
+          return 1;
+        }
+      }
+    }
+    return 0;
+  }
+  return 0;
+}
+
+#[no_mangle]
+function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
+  if (s == 0) { return 0; }
+  if (esc == 0) { return 0; }
+  if (esc_cap < 4) { return 0; }
+  let e: i32 = 0;
+  let i: i32 = 0;
+  while (s[i] != 0) {
+    if (e >= esc_cap - 3) { break; }
+    let c: u8 = s[i];
+    if (c == 34) {
+      esc[e] = 92;
+      e = e + 1;
+      if (e >= esc_cap - 1) { break; }
+      esc[e] = c;
+      e = e + 1;
+    } else if (c == 92) {
+      esc[e] = 92;
+      e = e + 1;
+      if (e >= esc_cap - 1) { break; }
+      esc[e] = c;
+      e = e + 1;
+    } else {
+      esc[e] = c;
+      e = e + 1;
+    }
+    i = i + 1;
+  }
+  esc[e] = 0;
+  return e;
 }
