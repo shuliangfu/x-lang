@@ -2289,6 +2289,26 @@ void pipeline_patch_block_parent_links(struct ast_ASTArena *a, int32_t block_ref
   }
 }
 
+/**
+ * 显式设置 block 的 parent_block_ref（仅在为 0 时）。
+ * 用于 typeck_check_block_impl 中确保嵌套块（unsafe region body / if-then body）
+ * 的 parent 链正确，补 pipeline_patch_block_parent_links 在某些路径下未生效的场景。
+ * 返回 1=已设置，0=无需设置或无效。
+ */
+int32_t pipeline_block_set_parent_if_zero(struct ast_ASTArena *a, int32_t block_ref, int32_t parent_ref) {
+  struct ast_Block *b;
+  if (!a || block_ref <= 0 || block_ref > a->num_blocks || parent_ref <= 0)
+    return 0;
+  b = block_at(a, block_ref);
+  if (!b)
+    return 0;
+  if (b->parent_block_ref == 0) {
+    b->parent_block_ref = parent_ref;
+    return 1;
+  }
+  return 0;
+}
+
 /** 按名查块内 const/let 类型 ref。 */
 int32_t pipeline_block_resolve_var_type_ref(struct ast_ASTArena *a, int32_t block_ref, uint8_t *vname,
                                              int32_t vlen) {

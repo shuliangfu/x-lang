@@ -316,6 +316,8 @@ extern function pipeline_expr_block_ref_at(arena: *ASTArena, expr_ref: i32): i32
 /** 读 Block 字段；勿 ast_block_* / ast_arena_block_get 按值拷贝（EMIT_HEAVY asm SIGSEGV）。 */
 extern function pipeline_asm_block_final_expr_ref_at(arena: *ASTArena, block_ref: i32): i32;
 extern function pipeline_block_expr_stmt_ref(arena: *ASTArena, block_ref: i32, ei: i32): i32;
+/** 显式设置 block 的 parent_block_ref（仅在为 0 时）；用于 typeck 嵌套块 parent 链修复。 */
+extern function pipeline_block_set_parent_if_zero(arena: *ASTArena, block_ref: i32, parent_ref: i32): i32;
 /** 读 unary_operand_ref；块末 void return 判定用，避免 Expr 按值拷贝。 */
 extern function pipeline_expr_unary_operand_ref_at(arena: *ASTArena, expr_ref: i32): i32;
 /** EXPR_CALL 侧车字段；勿 ast_arena_expr_get 读 call_*（EMIT_HEAVY asm 按值撕裂）。 */
@@ -5893,6 +5895,7 @@ ctx: *PipelineDepCtx): i32 {
     return - 1;
   }
   saved_block_ref = pipeline_typeck_block_impl_bind_ctx_c(ctx, block_ref);
+  pipeline_block_set_parent_if_zero(arena, block_ref, saved_block_ref);
   nc = ast.ast_block_num_consts(arena, block_ref);
   nl = ast.ast_block_num_lets(arena, block_ref);
   nlp = ast.ast_block_num_loops(arena, block_ref);
