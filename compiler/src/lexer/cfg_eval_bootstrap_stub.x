@@ -273,18 +273,9 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
       let part: i32 = p;
       let depth: i32 = 0;
       while (p < end) {
-        if (buf[p] == 40) {
-          depth = depth + 1;
-        } else {
-          if (buf[p] == 41) {
-            if (depth == 0) { break; }
-            depth = depth - 1;
-          } else {
-            if (buf[p] == 44) {
-              if (depth == 0) { break; }
-            }
-          }
-        }
+        if (buf[p] == 40) { depth = depth + 1; p = p + 1; continue; }
+        if (buf[p] == 41) { depth = depth - 1; if (depth < 0) { break; } p = p + 1; continue; }
+        if (buf[p] == 44) { if (depth == 0) { break; } p = p + 1; continue; }
         p = p + 1;
       }
       if (cfg_eval_expr_range(buf, part, p) == 0) { return 0; }
