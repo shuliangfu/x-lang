@@ -125,12 +125,12 @@ function cfg_parse_triple_literals(triple: *u8, len: i32, os_out: *u8, os_sz: us
     let n_win32: u8[8] = [];
     n_win32[0] = 119; n_win32[1] = 105; n_win32[2] = 110; n_win32[3] = 51; n_win32[4] = 50; n_win32[5] = 0;
     let os_found: i32 = 0;
-    if (cfg_triple_contains_ci(triple, len, &n_linux[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_linux[0]); os_found = 1; }
-    if (os_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_darwin[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_macos[0]); os_found = 1; } }
-    if (os_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_macos[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_macos[0]); os_found = 1; } }
-    if (os_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_freebsd[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_freebsd[0]); os_found = 1; } }
-    if (os_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_windows[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_windows[0]); os_found = 1; } }
-    if (os_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_win32[0]) != 0) { cfg_cstr_copy(os_out, os_sz, &n_windows[0]); os_found = 1; } }
+    os_found = cfg_triple_set_os(triple, len, &n_linux[0], os_out, os_sz, &n_linux[0]);
+    if (os_found == 0) { os_found = cfg_triple_set_os(triple, len, &n_darwin[0], os_out, os_sz, &n_macos[0]); }
+    if (os_found == 0) { os_found = cfg_triple_set_os(triple, len, &n_macos[0], os_out, os_sz, &n_macos[0]); }
+    if (os_found == 0) { os_found = cfg_triple_set_os(triple, len, &n_freebsd[0], os_out, os_sz, &n_freebsd[0]); }
+    if (os_found == 0) { os_found = cfg_triple_set_os(triple, len, &n_windows[0], os_out, os_sz, &n_windows[0]); }
+    if (os_found == 0) { os_found = cfg_triple_set_os(triple, len, &n_win32[0], os_out, os_sz, &n_windows[0]); }
     let n_aarch64: u8[16] = [];
     n_aarch64[0] = 97; n_aarch64[1] = 97; n_aarch64[2] = 114; n_aarch64[3] = 99; n_aarch64[4] = 104;
     n_aarch64[5] = 54; n_aarch64[6] = 52; n_aarch64[7] = 0;
@@ -144,11 +144,11 @@ function cfg_parse_triple_literals(triple: *u8, len: i32, os_out: *u8, os_sz: us
     n_riscv64[0] = 114; n_riscv64[1] = 105; n_riscv64[2] = 115; n_riscv64[3] = 99; n_riscv64[4] = 118;
     n_riscv64[5] = 54; n_riscv64[6] = 52; n_riscv64[7] = 0;
     let arch_found: i32 = 0;
-    if (cfg_triple_contains_ci(triple, len, &n_aarch64[0]) != 0) { cfg_cstr_copy(arch_out, arch_sz, &n_aarch64[0]); arch_found = 1; }
-    if (arch_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_arm64[0]) != 0) { cfg_cstr_copy(arch_out, arch_sz, &n_aarch64[0]); arch_found = 1; } }
-    if (arch_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_x86_64[0]) != 0) { cfg_cstr_copy(arch_out, arch_sz, &n_x86_64[0]); arch_found = 1; } }
-    if (arch_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_amd64[0]) != 0) { cfg_cstr_copy(arch_out, arch_sz, &n_x86_64[0]); arch_found = 1; } }
-    if (arch_found == 0) { if (cfg_triple_contains_ci(triple, len, &n_riscv64[0]) != 0) { cfg_cstr_copy(arch_out, arch_sz, &n_riscv64[0]); arch_found = 1; } }
+    arch_found = cfg_triple_set_arch(triple, len, &n_aarch64[0], arch_out, arch_sz, &n_aarch64[0]);
+    if (arch_found == 0) { arch_found = cfg_triple_set_arch(triple, len, &n_arm64[0], arch_out, arch_sz, &n_aarch64[0]); }
+    if (arch_found == 0) { arch_found = cfg_triple_set_arch(triple, len, &n_x86_64[0], arch_out, arch_sz, &n_x86_64[0]); }
+    if (arch_found == 0) { arch_found = cfg_triple_set_arch(triple, len, &n_amd64[0], arch_out, arch_sz, &n_x86_64[0]); }
+    if (arch_found == 0) { arch_found = cfg_triple_set_arch(triple, len, &n_riscv64[0], arch_out, arch_sz, &n_riscv64[0]); }
   }
 
 /* ---- G-02f-112 / G-02f-153：cfg_eval_expr 真迁 ---- */
@@ -181,6 +181,25 @@ function cfg_prefix4(buf: *u8, p: i32, end: i32, c0: u8, c1: u8, c2: u8, c3: u8)
 }
 
 // G-02f-153：递归求值 buf[b..end)
+/** If needle found in triple, copy result to os_out. Returns 1 if found. */
+function cfg_triple_set_os(triple: *u8, len: i32, needle: *u8, os_out: *u8, os_sz: usize, result: *u8): i32 {
+  if (cfg_triple_contains_ci(triple, len, needle) != 0) { cfg_cstr_copy(os_out, os_sz, result); return 1; }
+  return 0;
+}
+
+/** If needle found in triple, copy result to arch_out. Returns 1 if found. */
+function cfg_triple_set_arch(triple: *u8, len: i32, needle: *u8, arch_out: *u8, arch_sz: usize, result: *u8): i32 {
+  if (cfg_triple_contains_ci(triple, len, needle) != 0) { cfg_cstr_copy(arch_out, arch_sz, result); return 1; }
+  return 0;
+}
+
+/** Check if buf[p] == c with bounds check (no nested if for -E parser). */
+function cfg_buf_eq_at(buf: *u8, p: i32, end: i32, c: u8): i32 {
+  if (p >= end) { return 0; }
+  if (buf[p] == c) { return 1; }
+  return 0;
+}
+
 function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   if (buf == 0) { return 0; }
   let p: i32 = cfg_skip_ws_range(buf, b, end);
@@ -220,9 +239,7 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
         p = p + 1;
       }
       if (cfg_eval_expr_range(buf, part, p) == 0) { return 0; }
-      if (p < end) {
-        if (buf[p] == 41) { return 1; }
-      }
+      if (cfg_buf_eq_at(buf, p, end, 41) != 0) { return 1; }
     }
     return 1;
   }
@@ -235,10 +252,9 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
       if (depth <= 0) { break; }
       if (buf[close] == 40) {
         depth = depth + 1;
-      } else {
-        if (buf[close] == 41) {
-          depth = depth - 1;
-        }
+      }
+      if (buf[close] == 41) {
+        depth = depth - 1;
       }
       if (depth > 0) {
         close = close + 1;
@@ -265,9 +281,7 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
       if (p >= end) { return 0; }
       if (buf[p] != 61) { return 0; }
       p = p + 1;
-      if (p < end) {
-        if (buf[p] == 61) { p = p + 1; }
-      }
+      if (cfg_buf_eq_at(buf, p, end, 61) != 0) { p = p + 1; }
       p = cfg_skip_ws_range(buf, p, end);
       if (p >= end) { return 0; }
       if (buf[p] != 34) { return 0; }
@@ -304,9 +318,7 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
       if (p >= end) { return 0; }
       if (buf[p] != 61) { return 0; }
       p = p + 1;
-      if (p < end) {
-        if (buf[p] == 61) { p = p + 1; }
-      }
+      if (cfg_buf_eq_at(buf, p, end, 61) != 0) { p = p + 1; }
       p = cfg_skip_ws_range(buf, p, end);
       if (p >= end) { return 0; }
       if (buf[p] != 34) { return 0; }
