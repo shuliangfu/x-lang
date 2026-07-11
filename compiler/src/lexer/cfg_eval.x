@@ -231,11 +231,8 @@ function cfg_skip_ws(buf: *u8, p: i32, end: i32): i32 {
     if (c == 9) { is_ws = 1; }
     if (c == 10) { is_ws = 1; }
     if (c == 13) { is_ws = 1; }
-    if (is_ws != 0) {
-      p = p + 1;
-    } else {
-      break;
-    }
+    if (is_ws == 0) { break; }
+    p = p + 1;
   }
   return p;
 }
@@ -363,11 +360,8 @@ function cfg_eval_freestanding_flag(buf: *u8, p: i32, end: i32): i32 {
   let q: i32 = p;
   while (q < end) {
     let c: u8 = buf[q];
-    if (cfg_is_ident_char(c) != 0) {
-      q = q + 1;
-    } else {
-      break;
-    }
+    if (cfg_is_ident_char(c) == 0) { break; }
+    q = q + 1;
   }
   if (cfg_range_eq_ci(buf, p, q, &lit_freestanding[0]) != 0) {
     return g_cfg_freestanding;
