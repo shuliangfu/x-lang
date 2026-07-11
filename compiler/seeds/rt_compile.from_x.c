@@ -67,6 +67,16 @@ extern void diag_reportf(const char *file, int line, int col, const char *kind, 
 extern void cfg_apply_compile_target_from_triple(const char *triple, int32_t len);
 extern int32_t driver_resolve_target_arch(int32_t parsed_target, int32_t saw_target_flag);
 
+/* G-02f-454：thin+rest PREFER_X_O
+ *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_COMPILE_FROM_X):
+ *     - driver_deps_are_std_core_closure_only renamed to *_impl via macro.
+ *   Other 24 functions stay in rest (no .x counterpart; parse_argv_impl,
+ *   resolve_target_cpu, cfg_sync, state_alloc/free, apply_* helpers, etc.). */
+#ifdef SHUX_RT_COMPILE_FROM_X
+#define driver_deps_are_std_core_closure_only    driver_deps_are_std_core_closure_only_impl
+#endif
+
 /**
  * dep 列表是否全为 std./core. 闭包（符号由预编 .o / preamble 提供，勿 dep_prerun 全量 typeck）。
  * tests/multi-file 的 import("foo") 等用户 dep 返回 0，仍走 typeck_only。

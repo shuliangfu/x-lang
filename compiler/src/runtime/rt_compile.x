@@ -1,42 +1,18 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-291～296 / P2 runtime R6 compile helpers。
+// G-02f-291～296/454 / P2 runtime R6 compile helpers。
 // 产品实现：seeds/rt_compile.from_x.c；hybrid 宏 SHUX_RT_COMPILE_FROM_X。
-//
-// f-291～295：deps / flags / apply_* / init / step-scan
-// f-296：parse_argv_impl + resolve_target_cpu + cfg_sync + state_alloc/free
+// G-02f-454：thin+rest PREFER_X_O；.x 薄门闩调 _impl，seed 宏重命名。
+//   原函数含 unsafe{let+if+strncmp} 组合（shux -E 易丢体）；thin wrapper 消除此风险。
 
-extern "C" function strncmp(a: *u8, b: *u8, n: usize): i32;
-extern "C" function strcmp(a: *u8, b: *u8): i32;
-extern "C" function strstr(hay: *u8, needle: *u8): *u8;
+extern "C" function driver_deps_are_std_core_closure_only_impl(dep_paths: **u8, n_deps: i32): i32;
 
-/** dep 列表是否全为 std./core. 闭包（逻辑锚点；完整实现见 seed）。 */
+/** dep 列表是否全为 std./core. 闭包（薄门闩；实际实现 seed _impl）。 */
 #[no_mangle]
 function driver_deps_are_std_core_closure_only(dep_paths: **u8, n_deps: i32): i32 {
-  let k: i32 = 0;
-  if (dep_paths == 0 as **u8 || n_deps <= 0) {
-    return 0;
+  unsafe {
+    return driver_deps_are_std_core_closure_only_impl(dep_paths, n_deps);
   }
-  while (k < n_deps) {
-    unsafe {
-      let p: *u8 = dep_paths[k as usize];
-      if (p == 0 as *u8) {
-        return 0;
-      }
-      if (p[0] == 0) {
-        return 0;
-      }
-      if (strncmp(p, "std." as *u8, 4 as usize) == 0) {
-        k = k + 1;
-      } else {
-        if (strncmp(p, "core." as *u8, 5 as usize) == 0) {
-          k = k + 1;
-        } else {
-          return 0;
-        }
-      }
-    }
-  }
-  return 1;
+  return 0;
 }
