@@ -13,6 +13,7 @@ extern int driver_peek_source_file(const char *path, char *content, size_t cap);
 
 /** 检测内存中的源码 content[0..n-1] 是否含泛型或 trait 语法（.x 流水线不支持，需走 C 路径）。 */
 /* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RT_CONTENT_FROM_X
 int content_has_generic_syntax(const char *content, size_t n) {
     static const char *generic_type_tokens[] = {
         "<i8>", "<i16>", "<i32>", "<i64>", "<u8>", "<u16>", "<u32>", "<u64>", "<f32>", "<f64>", "<bool>",
@@ -51,6 +52,9 @@ int content_has_generic_syntax(const char *content, size_t n) {
     }
     return 0;
 }
+#else
+int content_has_generic_syntax(const char *content, size_t n);
+#endif
 
 
 
@@ -61,6 +65,7 @@ int content_has_generic_syntax(const char *content, size_t n) {
 /** 检测内存源码是否含复合赋值（+= 等）；.x 解析器未覆盖时须走 C 流水线（run-compound-assign 等）。
  * 跳过 //、块注释与双引号字符串，避免注释/字面量中的 token 误触发 asm→C 降级。 */
 /* G-02f-126：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RT_CONTENT_FROM_X
 int content_has_compound_assign_syntax(const char *content, size_t n) {
     if (!content || n < 3)
         return 0;
@@ -102,6 +107,9 @@ int content_has_compound_assign_syntax(const char *content, size_t n) {
     }
     return 0;
 }
+#else
+int content_has_compound_assign_syntax(const char *content, size_t n);
+#endif
 
 /** 检测 path 指向的源码是否含泛型语法；peek 后转 content_has_generic_syntax。 */
 int driver_source_has_generic_syntax(const uint8_t *path, int path_len) {

@@ -177,10 +177,9 @@ function content_has_generic_syntax(content: *u8, n: usize): i32 {
   if (n == 0) {
     return 0;
   }
-  if (n > 2147483647) {
+  ni = n as i32;
+  if (ni < 0) {
     ni = 2147483647;
-  } else {
-    ni = n as i32;
   }
   p = 0;
   while (p < ni) {
@@ -238,69 +237,93 @@ function rt_is_compound_at(content: *u8, n: i32, at: i32): i32 {
   return 0;
 }
 
+// G-02f-436：消除 && 条件 → flat helper（避免 -E 指数级分析超时）
+
+function rt_is_block_comment_end(c: *u8, n: i32, at: i32): i32 {
+  if (at + 1 >= n) { return 0; }
+  if (c[at as usize] != 42) { return 0; }
+  if (c[(at + 1) as usize] != 47) { return 0; }
+  return 1;
+}
+
+function rt_is_string_escape(c: *u8, n: i32, at: i32): i32 {
+  if (c[at as usize] != 92) { return 0; }
+  if (at + 1 >= n) { return 0; }
+  return 1;
+}
+
+function rt_is_line_comment_start(c: *u8, n: i32, at: i32): i32 {
+  if (at + 1 >= n) { return 0; }
+  if (c[at as usize] != 47) { return 0; }
+  if (c[(at + 1) as usize] != 47) { return 0; }
+  return 1;
+}
+
+function rt_is_block_comment_start(c: *u8, n: i32, at: i32): i32 {
+  if (at + 1 >= n) { return 0; }
+  if (c[at as usize] != 47) { return 0; }
+  if (c[(at + 1) as usize] != 42) { return 0; }
+  return 1;
+}
+
 #[no_mangle]
 function content_has_compound_assign_syntax(content: *u8, n: usize): i32 {
   let at: i32 = 0;
   let ni: i32 = 0;
-  let in_line: i32 = 0;
-  let in_block: i32 = 0;
-  let in_str: i32 = 0;
+  let state: i32 = 0;
   if (content == 0 as *u8) {
     return 0;
   }
   if (n < 3) {
     return 0;
   }
-  if (n > 2147483647) {
+  ni = n as i32;
+  if (ni < 0) {
     ni = 2147483647;
-  } else {
-    ni = n as i32;
   }
   while (at < ni) {
-    if (in_line != 0) {
-      if (content[at as usize] == 10) {
-        in_line = 0;
-      }
-      at = at + 1;
-    } else {
-      if (in_block != 0) {
-        if (at + 1 < ni && content[at as usize] == 42 && content[(at + 1) as usize] == 47) {
-          in_block = 0;
+    if (state == 0) {
+      if (rt_is_line_comment_start(content, ni, at) != 0) {
+        state = 1;
+        at = at + 2;
+      } else {
+        if (rt_is_block_comment_start(content, ni, at) != 0) {
+          state = 2;
           at = at + 2;
         } else {
-          at = at + 1;
+          if (content[at as usize] == 34) {
+            state = 3;
+            at = at + 1;
+          } else {
+            if (rt_is_compound_at(content, ni, at) != 0) {
+              return 1;
+            }
+            at = at + 1;
+          }
         }
+      }
+    } else {
+      if (state == 1) {
+        if (content[at as usize] == 10) {
+          state = 0;
+        }
+        at = at + 1;
       } else {
-        if (in_str != 0) {
-          if (content[at as usize] == 92 && at + 1 < ni) {
+        if (state == 2) {
+          if (rt_is_block_comment_end(content, ni, at) != 0) {
+            state = 0;
+            at = at + 2;
+          } else {
+            at = at + 1;
+          }
+        } else {
+          if (rt_is_string_escape(content, ni, at) != 0) {
             at = at + 2;
           } else {
             if (content[at as usize] == 34) {
-              in_str = 0;
-              at = at + 1;
-            } else {
-              at = at + 1;
+              state = 0;
             }
-          }
-        } else {
-          if (at + 1 < ni && content[at as usize] == 47 && content[(at + 1) as usize] == 47) {
-            in_line = 1;
-            at = at + 2;
-          } else {
-            if (at + 1 < ni && content[at as usize] == 47 && content[(at + 1) as usize] == 42) {
-              in_block = 1;
-              at = at + 2;
-            } else {
-              if (content[at as usize] == 34) {
-                in_str = 1;
-                at = at + 1;
-              } else {
-                if (rt_is_compound_at(content, ni, at) != 0) {
-                  return 1;
-                }
-                at = at + 1;
-              }
-            }
+            at = at + 1;
           }
         }
       }
@@ -309,21 +332,6 @@ function content_has_compound_assign_syntax(content: *u8, n: usize): i32 {
   return 0;
 }
 
-/** path → peek → content_has_generic（逻辑锚点；完整实现见 seed）。 */
-#[no_mangle]
-function driver_source_has_generic_syntax(path: *u8, path_len: i32): i32 {
-  if (path == 0 as *u8 || path_len <= 0) {
-    return 0;
-  }
-  return 0;
-}
-
-/** path → peek → content_has_compound（逻辑锚点；完整实现见 seed）。 */
-#[no_mangle]
-function driver_source_has_compound_assign_syntax(path: *u8, path_len: i32): i32 {
-  if (path == 0 as *u8 || path_len <= 0) {
-    return 0;
-  }
-  return 0;
-}
+// G-02f-436：driver_source_has_generic_syntax / driver_source_has_compound_assign_syntax
+// 暂留 seed C（需 driver_peek_source_file + 65536 字节栈缓冲，.x 不支持）。
 
