@@ -27,5 +27,8 @@ extern function driver_run_fmt(argc: i32, argv: *u8): i32;
 * 无路径时格式化当前目录下全部 .x；--check 成功时无输出。
 */
 function cmd_fmt(argc: i32, argv: *u8): i32 {
-  return driver_run_fmt(argc, argv);
+  unsafe {
+    return driver_run_fmt(argc, argv);
+  }
+  return 0;
 }

@@ -98,6 +98,16 @@ g05_try_x_to_o() {
     # G-02f-335/336：含 uint8_t * / char * / int64_t 返回（diag_color_prefix / get_source_len 等）
     perl -i -pe 's/^((?:void|int64_t|int32_t|int|size_t|uint32_t|uint64_t|uint8_t \*|uint8_t|const char \*|char \*))\s+(\w+)\s*\(/__attribute__((weak)) $1 $2(/' "$_xtmp" || true
   fi
+  # G-02f-458: 前端 *_gen.c .o 的符号重命名
+  # 格式：G05_X_O_SYM_RENAME="old_name:new_name"
+  # 将 -E 输出中的 .x 函数名重命名为 gen.c 期望的符号名（模块前缀+函数名）
+  if [ -n "${G05_X_O_SYM_RENAME:-}" ]; then
+    _old_name="${G05_X_O_SYM_RENAME%%:*}"
+    _new_name="${G05_X_O_SYM_RENAME#*:}"
+    if [ -n "$_old_name" ] && [ -n "$_new_name" ] && [ "$_old_name" != "$_new_name" ]; then
+      perl -i -pe "s/\\b${_old_name}\\b/${_new_name}/g" "$_xtmp" || true
+    fi
+  fi
   # G-02f-332/334：-E 缺 ssize_t / open 原型；前置 POSIX 头，并删掉 -E 里冲突的 libc extern
   {
     echo '/* g05_try_x_to_o prologue (G-02f-332/334) */'
@@ -2423,6 +2433,29 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o x_frontend_link_alias.o "$_xfla"
     fi
   fi
+  # G-02f-458: driver_fmt_x.o 前端 *_gen.c PREFER_X_O 试点
+  # .x → shux -E → 符号重命名(cmd_fmt→driver_cmd_fmt) → cc -c → .o
+  # 回退：driver_fmt_gen.c（G-06 seed 生成器产物）
+  _fmt_x=src/driver/fmt.x
+  _fmt_gen=driver_fmt_gen.c
+  _fmt_o=driver_fmt_x.o
+  if [ ! -f "$_fmt_o" ] || { [ -f "$_fmt_x" ] && [ "$_fmt_x" -nt "$_fmt_o" ]; } \
+    || { [ -f "$_fmt_gen" ] && [ "$_fmt_gen" -nt "$_fmt_o" ]; }; then
+    _fmt_done=0
+    if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_fmt_x" ]; then
+      if G05_X_O_SYM_RENAME="cmd_fmt:driver_cmd_fmt" g05_try_x_to_o "$_fmt_x" "$_fmt_o"; then
+        echo "g05_ensure: $_fmt_o ← $_fmt_x (G-02f-458 frontend PREFER_X_O)"
+        _fmt_done=1
+      else
+        echo "g05_ensure: frontend PREFER_X_O failed for driver_fmt; fallback gen.c" >&2
+      fi
+    fi
+    if [ "$_fmt_done" = "0" ] && [ -f "$_fmt_gen" ]; then
+      echo "g05_ensure: cc -c $_fmt_gen → $_fmt_o (driver_fmt gen.c seed)"
+      # shellcheck disable=SC2086
+      $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o "$_fmt_o" "$_fmt_gen"
+    fi
+  fi
   # LANG-007：host-local typeck_gen.c 可能缺 S0 边界委托；补丁后若变更则重编 typeck_x.o
 
 
@@ -2450,7 +2483,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
     case "$o" in
       # 已在热路径专用 flags / .x seed 编译
-      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/runtime_io_abi.o|src/runtime_driver_abi.o|src/runtime_driver_diagnostic.o|src/lsp/lsp_diag_pipeline_ctx.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|src/asm/parser_asm_parse_expr_link.o|parser_asm_thin_glue.o|src/diag.o|src/x_seed_bridge.o|src/seed_link_compat.o|src/runtime_driver_strict_glue_stubs.o|src/driver/fmt_check_cmd_driver.o|src/lsp/lsp_diag.o|src/asm/user_asm_seed_bridge.o|src/asm/asm_backend_compat_stubs.o|src/asm/backend_x86_64_enc_c.o|x_frontend_link_alias.o|build_asm/*|*.s) continue ;;
+      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/runtime_io_abi.o|src/runtime_driver_abi.o|src/runtime_driver_diagnostic.o|src/lsp/lsp_diag_pipeline_ctx.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|src/asm/parser_asm_parse_expr_link.o|parser_asm_thin_glue.o|src/diag.o|src/x_seed_bridge.o|src/seed_link_compat.o|src/runtime_driver_strict_glue_stubs.o|src/driver/fmt_check_cmd_driver.o|src/lsp/lsp_diag.o|src/asm/user_asm_seed_bridge.o|src/asm/asm_backend_compat_stubs.o|src/asm/backend_x86_64_enc_c.o|x_frontend_link_alias.o|driver_fmt_x.o|build_asm/*|*.s) continue ;;
     esac
 
     if [ -n "$src" ]; then
