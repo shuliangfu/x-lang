@@ -37,8 +37,8 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   if (p >= end) { return 0; }
   if (cfg_prefix4(buf, p, end, 97, 108, 108, 40) != 0) { return cfg_eval_all_expr(buf, p, end); }
   if (cfg_prefix4(buf, p, end, 110, 111, 116, 40) != 0) { return cfg_eval_not_expr(buf, p, end); }
-  if (cfg_match_target_os(buf, p, end) != 0) { return cfg_parse_target_os_value(buf, p, end); }
-  if (cfg_match_target_arch(buf, p, end) != 0) { return cfg_parse_target_arch_value(buf, p, end); }
+  if (cfg_match_target_os(buf, p, end) != 0) { return cfg_parse_target_kv(buf, p, end, 9, cfg_get_effective_os_safe()); }
+  if (cfg_match_target_arch(buf, p, end) != 0) { return cfg_parse_target_kv(buf, p, end, 11, cfg_get_effective_arch_safe()); }
   return cfg_eval_freestanding_expr(buf, p, end);
 }
 
@@ -102,12 +102,12 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
     return 1;
   }
   // target_os = "..."
-  else if (cfg_match_target_os(buf, p, end) != 0) {
-    return cfg_parse_target_os_value(buf, p, end);
+  else if (cfg_prefix_n(buf, p, end, &lit_target_os[0], 9) != 0) {
+    return cfg_parse_target_kv(buf, p, end, 9, cfg_get_effective_os_safe());
   }
   // target_arch = "..."
-  else if (cfg_match_target_arch(buf, p, end) != 0) {
-    return cfg_parse_target_arch_value(buf, p, end);
+  else if (cfg_prefix_n(buf, p, end, &lit_target_arch[0], 11) != 0) {
+    return cfg_parse_target_kv(buf, p, end, 11, cfg_get_effective_arch_safe());
   }
   // freestanding bare flag
   else {
@@ -391,74 +391,23 @@ function cfg_get_freestanding_safe(): i32 {
   return 0;
 }
 
-/** Returns 1 if char is comma at depth 0 (should break). */
-function cfg_match_target_os(buf: *u8, p: i32, end: i32): i32 {
-  if (p + 9 > end) { return 0; }
-  if (buf[p] != 116) { return 0; }
-  if (buf[p+1] != 97) { return 0; }
-  if (buf[p+2] != 114) { return 0; }
-  if (buf[p+3] != 103) { return 0; }
-  if (buf[p+4] != 101) { return 0; }
-  if (buf[p+5] != 116) { return 0; }
-  if (buf[p+6] != 95) { return 0; }
-  if (buf[p+7] != 111) { return 0; }
-  if (buf[p+8] != 115) { return 0; }
-  return 1;
-}
-
-function cfg_match_target_arch(buf: *u8, p: i32, end: i32): i32 {
-  if (p + 11 > end) { return 0; }
-  if (buf[p] != 116) { return 0; }
-  if (buf[p+1] != 97) { return 0; }
-  if (buf[p+2] != 114) { return 0; }
-  if (buf[p+3] != 103) { return 0; }
-  if (buf[p+4] != 101) { return 0; }
-  if (buf[p+5] != 116) { return 0; }
-  if (buf[p+6] != 95) { return 0; }
-  if (buf[p+7] != 97) { return 0; }
-  if (buf[p+8] != 114) { return 0; }
-  if (buf[p+9] != 99) { return 0; }
-  if (buf[p+10] != 104) { return 0; }
-  return 1;
-}
-
-function cfg_comma_at_depth0(c: u8, depth: i32): i32 {
-  if (c != 44) { return 0; }
   if (depth != 0) { return 0; }
   return 1;
 }
 
-/** Returns: -1=not rparen, 0=rparen depth>0, 1=rparen depth==0 (break). */
-function cfg_rparen_check(c: u8, depth: i32): i32 {
-  if (c != 41) { return -1; }
   if (depth == 0) { return 1; }
   return 0;
 }
 
-function cfg_is_upper(c: u8): i32 {
-  if (c < 65) { return 0; }
-  if (c > 90) { return 0; }
-  return 1;
-}
-
-function cfg_is_lower(c: u8): i32 {
-  if (c < 97) { return 0; }
-  if (c > 122) { return 0; }
-  return 1;
-}
-
-function cfg_is_digit(c: u8): i32 {
-  if (c < 48) { return 0; }
-  if (c > 57) { return 0; }
-  return 1;
-}
-
 function cfg_is_ident_char(c: u8): i32 {
-  if (cfg_is_upper(c) != 0) { return 1; }
-  if (cfg_is_lower(c) != 0) { return 1; }
-  if (cfg_is_digit(c) != 0) { return 1; }
   if (c == 95) { return 1; }
-  return 0;
+  if (c < 48) { return 0; }
+  if (c > 122) { return 0; }
+  if (c <= 57) { return 1; }
+  if (c < 65) { return 0; }
+  if (c <= 90) { return 1; }
+  if (c < 97) { return 0; }
+  return 1;
 }
 
 /** Check if buf[p] == c with bounds check (no nested if for -E parser). */
@@ -468,9 +417,9 @@ function cfg_buf_eq_at(buf: *u8, p: i32, end: i32, c: u8): i32 {
   return 0;
 }
 
-/** Parse target_os = "..." value. Returns 1=match, 0=no match. */
-function cfg_parse_target_os_value(buf: *u8, p: i32, end: i32): i32 {
-  p = p + 9;
+/** Parse target_key = "value". Returns 1=match, 0=no match. */
+function cfg_parse_target_kv(buf: *u8, p: i32, end: i32, klen: i32, eff_lit: *u8): i32 {
+  p = p + klen;
   p = cfg_skip_ws_range(buf, p, end);
   if (p >= end) { return 0; }
   if (buf[p] != 61) { return 0; }
@@ -485,31 +434,8 @@ function cfg_parse_target_os_value(buf: *u8, p: i32, end: i32): i32 {
     if (buf[p] == 34) { break; }
     p = p + 1;
   }
-  let os: *u8 = cfg_get_effective_os_safe();
   let alen: usize = (p - lit) as usize;
-  return cfg_lit_eq_ci(&buf[lit], alen, os);
-}
-
-/** Parse target_arch = "..." value. Returns 1=match, 0=no match. */
-function cfg_parse_target_arch_value(buf: *u8, p: i32, end: i32): i32 {
-  p = p + 11;
-  p = cfg_skip_ws_range(buf, p, end);
-  if (p >= end) { return 0; }
-  if (buf[p] != 61) { return 0; }
-  p = p + 1;
-  if (cfg_buf_eq_at(buf, p, end, 61) != 0) { p = p + 1; }
-  p = cfg_skip_ws_range(buf, p, end);
-  if (p >= end) { return 0; }
-  if (buf[p] != 34) { return 0; }
-  p = p + 1;
-  let lit: i32 = p;
-  while (p < end) {
-    if (buf[p] == 34) { break; }
-    p = p + 1;
-  }
-  let arch: *u8 = cfg_get_effective_arch_safe();
-  let alen: usize = (p - lit) as usize;
-  return cfg_lit_eq_ci(&buf[lit], alen, arch);
+  return cfg_lit_eq_ci(&buf[lit], alen, eff_lit);
 }
 
    p = p + 1;
