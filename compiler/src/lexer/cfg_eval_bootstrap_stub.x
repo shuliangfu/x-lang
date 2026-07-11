@@ -201,6 +201,21 @@ function cfg_triple_set_arch(triple: *u8, len: i32, needle: *u8, arch_out: *u8, 
   return 0;
 }
 
+function cfg_get_effective_os_safe(): *u8 {
+  unsafe { return cfg_effective_os_lit(); }
+  return 0 as *u8;
+}
+
+function cfg_get_effective_arch_safe(): *u8 {
+  unsafe { return cfg_effective_arch_lit(); }
+  return 0 as *u8;
+}
+
+function cfg_get_freestanding_safe(): i32 {
+  unsafe { return cfg_get_freestanding(); }
+  return 0;
+}
+
 /** Check if buf[p] == c with bounds check (no nested if for -E parser). */
 function cfg_buf_eq_at(buf: *u8, p: i32, end: i32, c: u8): i32 {
   if (p >= end) { return 0; }
@@ -299,11 +314,9 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
         if (buf[p] == 34) { break; }
         p = p + 1;
       }
-      unsafe {
-        let os: *u8 = cfg_effective_os_lit();
-        let alen: usize = (p - lit) as usize;
-        return cfg_lit_eq_ci(&buf[lit], alen, os);
-      }
+      let os: *u8 = cfg_get_effective_os_safe();
+      let alen: usize = (p - lit) as usize;
+      return cfg_lit_eq_ci(&buf[lit], alen, os);
     }
   }
   // target_arch
@@ -336,11 +349,9 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
         if (buf[p] == 34) { break; }
         p = p + 1;
       }
-      unsafe {
-        let arch: *u8 = cfg_effective_arch_lit();
-        let alen2: usize = (p - lit2) as usize;
-        return cfg_lit_eq_ci(&buf[lit2], alen2, arch);
-      }
+      let arch: *u8 = cfg_get_effective_arch_safe();
+      let alen2: usize = (p - lit2) as usize;
+      return cfg_lit_eq_ci(&buf[lit2], alen2, arch);
     }
   }
   // freestanding bare flag
@@ -365,7 +376,7 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
     n_fs[6]=97;n_fs[7]=110;n_fs[8]=100;n_fs[9]=105;n_fs[10]=110;n_fs[11]=103;n_fs[12]=0;
     let alen3: usize = (q - p) as usize;
     if (cfg_lit_eq_ci(&buf[p], alen3, &n_fs[0]) != 0) {
-      unsafe { return cfg_get_freestanding(); }
+      return cfg_get_freestanding_safe();
     }
   }
   return 0;
