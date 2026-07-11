@@ -6475,6 +6475,8 @@ int shux_output_is_elf_o(const char *path);
  * 返回值：非 0 表示 -backend asm 应自动调 ld 出 exe。
  * G-02f-64：真逻辑来自 .x。
  */
+/* G-02f-430：.x 真迁到 labi_path_pure.x */
+#ifndef SHUX_LABI_PATH_PURE_FROM_X
 int shux_output_want_exe(const char *path) {
     size_t n;
     if (path == NULL) {
@@ -6513,6 +6515,9 @@ int shux_output_want_exe(const char *path) {
     }
     return 1;
 }
+#else
+int shux_output_want_exe(const char *path);
+#endif
 
 /**
  * ASM -o exe 薄包装：ensure .o + shux_asm_ld_prepare_for_exe_link + shux_asm_invoke_ld_platform。

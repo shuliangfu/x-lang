@@ -46,6 +46,24 @@ function shux_output_is_elf_o(path: *u8): i32 {
   return 0;
 }
 
+// G-02f-430：shux_output_want_exe 真迁（.o/.O/.s/.obj 后缀 → 0；否则 → 1）。
+// 【Why】C 原实现手动 strlen + 逐级嵌套 if 检查后缀；.x 用 labi_suffix_eq2/eq4
+//   helper 扁平化等价（与 shux_output_is_elf_o 互补，多 .s 后缀）。
+// 【Invariant】path == NULL 或空串 → 0；后缀 .o/.O/.s/.obj → 0；否则 → 1。
+// 【Perf】最多 4 次 helper 调用（每次 ≤2 比较），首次命中即返回。
+#[no_mangle]
+function shux_output_want_exe(path: *u8): i32 {
+  let n: usize = 0;
+  if (path == 0 as *u8) { return 0; }
+  if (path[0] == 0) { return 0; }
+  while (path[n] != 0) { n = n + 1; }
+  if (labi_suffix_eq2(path, n, 46, 111) != 0) { return 0; }
+  if (labi_suffix_eq2(path, n, 46, 79) != 0) { return 0; }
+  if (labi_suffix_eq2(path, n, 46, 115) != 0) { return 0; }
+  if (labi_suffix_eq4(path, n, 46, 111, 98, 106) != 0) { return 0; }
+  return 1;
+}
+
 // G-02f-429：shux_path_has_sep 真迁（POSIX '/' only）。
 // 【Why】C 原实现用 strchr(s, '/') + Windows #if strchr(s, '\\')；
 //   .x 无法表达 C #if host 分支，POSIX 路径分隔符仅 '/' (47)，故纯串扫描等价。

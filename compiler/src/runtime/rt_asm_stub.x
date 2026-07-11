@@ -9,8 +9,11 @@
 
 extern "C" function shux_output_want_exe(path: *u8): i32;
 
-/** -o 路径是否表示可执行（逻辑锚点；seed 转调 shux_output_want_exe）。 */
+/** -o 路径是否表示可执行（转调 shux_output_want_exe；G-02f-430 已 .x 真迁）。 */
 #[no_mangle]
 function driver_asm_output_want_exe(path: *u8): i32 {
-  return shux_output_want_exe(path);
+  unsafe {
+    return shux_output_want_exe(path);
+  }
+  return 0;
 }
