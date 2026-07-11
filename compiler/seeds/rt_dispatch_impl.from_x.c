@@ -204,6 +204,15 @@ int32_t driver_run_compiler_full_x_post_parse_impl_c(DriverCompileStateSU *state
                                        state->use_lto, argc, argv);
 }
 
+/* G-02f-446：thin+rest PREFER_X_O
+ *   thin .x provides 1 #[no_mangle] wrapper (calls *_impl in rest).
+ *   rest seed C (compiled with -DSHUX_RT_DISPATCH_IMPL_FROM_X):
+ *     - driver_run_compiler_full_x_impl_c renamed to *_impl via macro.
+ *   No #ifndef guard needed (no real .x implementation; .x is thin-only). */
+#ifdef SHUX_RT_DISPATCH_IMPL_FROM_X
+#define driver_run_compiler_full_x_impl_c    driver_run_compiler_full_x_impl_c_impl
+#endif
+
 /** 完整编译 C 入口：堆 state + parse_argv + post_parse。 */
 int32_t driver_run_compiler_full_x_impl_c(int32_t argc, uint8_t *argv) {
   DriverCompileStateSU *state;

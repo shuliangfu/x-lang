@@ -425,6 +425,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _rt_fmt_one_seed=seeds/rt_fmt_one.from_x.c
   _rt_dispatch_thin_seed=seeds/rt_dispatch_thin.from_x.c
   _rt_dispatch_impl_seed=seeds/rt_dispatch_impl.from_x.c
+  _rt_dispatch_impl_x=src/runtime/rt_dispatch_impl.x
   _rt_run_x_emit_seed=seeds/rt_run_x_emit.from_x.c
   _rt_run_x_emit_x=src/runtime/rt_run_x_emit.x
   _rt_run_asm_backend_seed=seeds/rt_run_asm_backend.from_x.c
@@ -459,6 +460,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_rt_fmt_one_seed" ] && [ "$_rt_fmt_one_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_dispatch_thin_seed" ] && [ "$_rt_dispatch_thin_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_dispatch_impl_seed" ] && [ "$_rt_dispatch_impl_seed" -nt "$_rt_o" ]; } \
+      || { [ -f "$_rt_dispatch_impl_x" ] && [ "$_rt_dispatch_impl_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_run_x_emit_seed" ] && [ "$_rt_run_x_emit_seed" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_run_x_emit_x" ] && [ "$_rt_run_x_emit_x" -nt "$_rt_o" ]; } \
       || { [ -f "$_rt_run_asm_backend_seed" ] && [ "$_rt_run_asm_backend_seed" -nt "$_rt_o" ]; } \
@@ -763,11 +765,27 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         if [ -n "$_rt_di_o" ] && [ -f "$_rt_dispatch_impl_seed" ]; then
-          # shellcheck disable=SC2086
-          # same product NO_C / pipeline / impl flags as runtime rest
-          if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_di_o" "$_rt_dispatch_impl_seed"; then
-            _rt_di_ok=1
-            echo "g05_ensure: rest dispatch_impl ← $_rt_dispatch_impl_seed (G-02f-313 seed slice)"
+          # G-02f-446：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
+          if [ "${SHUX_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_dispatch_impl_x" ]; then
+            _rt_di_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_dispatch_impl_thin.XXXXXX") || true
+            _rt_di_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_rt_dispatch_impl_rest.XXXXXX") || true
+            if [ -n "$_rt_di_thin_o" ] && [ -n "$_rt_di_rest_o" ] \
+              && g05_try_x_to_o "$_rt_dispatch_impl_x" "$_rt_di_thin_o" \
+              && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DSHUX_RT_DISPATCH_IMPL_FROM_X \
+                   -c -o "$_rt_di_rest_o" "$_rt_dispatch_impl_seed" \
+              && $CC -r -nostdlib -o "$_rt_di_o" "$_rt_di_thin_o" "$_rt_di_rest_o" 2>/dev/null; then
+              _rt_di_ok=1
+              echo "g05_ensure: rest dispatch_impl ← thin .x + rest (G-02f-446 L2 prefer .x)"
+            fi
+            rm -f "$_rt_di_thin_o" "$_rt_di_rest_o"
+          fi
+          if [ "$_rt_di_ok" = "0" ]; then
+            # shellcheck disable=SC2086
+            # same product NO_C / pipeline / impl flags as runtime rest
+            if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_di_o" "$_rt_dispatch_impl_seed"; then
+              _rt_di_ok=1
+              echo "g05_ensure: rest dispatch_impl ← $_rt_dispatch_impl_seed (G-02f-313 seed slice)"
+            fi
           fi
         fi
         if [ -n "$_rt_xe_o" ] && [ -f "$_rt_run_x_emit_seed" ]; then
