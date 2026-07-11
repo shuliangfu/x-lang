@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-423/424：L2 hybrid thin — lsp_fmt 10 pure functions.
+// G-02f-423/424/425：L2 hybrid thin — lsp_fmt 15 pure functions.
 // PREFER_X_O: thin.o + seed-rest (-DSHUX_L2_LSP_FMT_THIN_FROM_X) ld -r -> runtime_lsp_glue.o
 // 逻辑对照: src/asm/runtime_lsp_glue.x; 产品默认仍整 seed.
 //
@@ -12,6 +12,9 @@
 //   lsp_fmt_src_ws_before / lsp_fmt_src_ws_after
 //   lsp_fmt_space_before / lsp_fmt_space_after
 //   lsp_json_escape_ident
+// f-425: 5 LSP helper（含 JSON 解析 + 块注释检测；lsp_parse_bool_after 依赖 lsp_find_key_after）:
+//   col_in_ident_span / lsp_find_key_after / lsp_parse_bool_after
+//   lsp_line_has_block_comment_end / lsp_line_is_block_comment
 
 #[no_mangle]
 function lsp_fmt_is_atom_tail(c: u8): i32 {
@@ -201,4 +204,120 @@ function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
   }
   esc[e] = 0;
   return e;
+}
+
+// ---- f-425: LSP helpers（JSON 解析 + 块注释检测）----
+
+// G-02f-118：标识符列区间匹配（1-based，含首列）
+#[no_mangle]
+function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *u8): i32 {
+  if (name == 0) { return 0; }
+  if (sl != line) { return 0; }
+  if (sc <= 0) { return 0; }
+  let len: i32 = 0;
+  while (len < 512) {
+    if (name[len] == 0) { break; }
+    len = len + 1;
+  }
+  if (len <= 0) { return 0; }
+  if (col < sc) { return 0; }
+  if (col >= sc + len) { return 0; }
+  return 1;
+}
+
+// G-02f-122/255：在 body[0..len) 中从 start 起找 key，返回 key 结束后偏移，未找到 -1
+#[no_mangle]
+function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
+  if (body == 0) { return 0 - 1; }
+  if (key == 0) { return 0 - 1; }
+  if (len < 0) { return 0 - 1; }
+  if (start < 0) { return 0 - 1; }
+  let key_len: i32 = 0;
+  while (key_len < 256) {
+    if (key[key_len] == 0) { break; }
+    key_len = key_len + 1;
+  }
+  if (key_len <= 0) { return 0 - 1; }
+  let s: i32 = start;
+  while (s + key_len <= len) {
+    let is_match: i32 = 1;
+    let j: i32 = 0;
+    while (j < key_len) {
+      if (body[s + j] != key[j]) {
+        is_match = 0;
+        break;
+      }
+      j = j + 1;
+    }
+    if (is_match != 0) {
+      return s + key_len;
+    }
+    s = s + 1;
+  }
+  return 0 - 1;
+}
+
+// G-02f-122：解析 key 对应的布尔值；1=true，0=false，未找到 -1
+#[no_mangle]
+function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, out_val: *i32): i32 {
+  if (out_val == 0) { return 0 - 1; }
+  let k: i32 = lsp_find_key_after(body, len, start, key);
+  if (k < 0) { return 0 - 1; }
+  if (k + 4 <= len) {
+    if (body[k] == 116) {
+      if (body[k + 1] == 114) {
+        if (body[k + 2] == 117) {
+          if (body[k + 3] == 101) {
+            unsafe { out_val[0] = 1; }
+            return 0;
+          }
+        }
+      }
+    }
+  }
+  if (k + 5 <= len) {
+    if (body[k] == 102) {
+      if (body[k + 1] == 97) {
+        if (body[k + 2] == 108) {
+          if (body[k + 3] == 115) {
+            if (body[k + 4] == 101) {
+              unsafe { out_val[0] = 0; }
+              return 0;
+            }
+          }
+        }
+      }
+    }
+  }
+  return 0 - 1;
+}
+
+// G-02f-118：行 [start, start+len) 内是否出现块注释结束符 */
+#[no_mangle]
+function lsp_line_has_block_comment_end(doc: *u8, start: i32, len: i32): i32 {
+  let i: i32 = 0;
+  while (i + 1 < len) {
+    if (doc[start + i] == 42) {
+      if (doc[start + i + 1] == 47) { return 1; }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+// G-02f-122：是否为块注释行（/** 、* 续行，或处于未闭合块注释内）
+#[no_mangle]
+function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i32, in_block: i32): i32 {
+  if (doc == 0) { return 0; }
+  if (content_len >= 2) {
+    if (doc[content_start] == 47) {
+      if (doc[content_start + 1] == 42) { return 1; }
+    }
+  }
+  if (in_block != 0) {
+    if (content_len >= 1) {
+      if (doc[content_start] == 42) { return 1; }
+    }
+  }
+  return 0;
 }

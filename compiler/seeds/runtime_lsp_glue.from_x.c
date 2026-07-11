@@ -767,12 +767,17 @@ static ASTModule *lsp_ensure_module(const uint8_t *source, int source_len, int c
 
 /** 判断 (line_1,col_1) 是否落在标识符 name 从 start_col 开始的列区间内（1-based，含首列）。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, const char *name);
+#endif
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int col_in_ident_span(int line_1, int col_1, int start_line, int start_col, const char *name) {
     if (!name || start_line != line_1 || start_col <= 0) return 0;
     int len = (int)strlen(name);
     if (len <= 0) return 0;
     return col_1 >= start_col && col_1 < start_col + len;
 }
+#endif
 
 
 
@@ -2120,6 +2125,7 @@ int lsp_build_response_with_result(int id_val, const uint8_t *result_ptr, int re
 
 /** 在 body[0..len) 中从 start 起找 key（如 "\"line\":\"），返回 key 结束后的偏移，未找到返回 -1。 */
 /* G-02f-122 / G-02f-255：逻辑源 .x（真迁 pure）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key) {
     int key_len = 0;
     if (!body || !key || len < 0 || start < 0)
@@ -2142,6 +2148,7 @@ int lsp_find_key_after(const uint8_t *body, int len, int start, const char *key)
     }
     return -1;
 }
+#endif
 
 /* G-02f-255：JSON key 字面量（.x extract_position 用） */
 const char *lsp_json_key_position(void) { return "\"position\":"; }
@@ -2562,6 +2569,10 @@ int lsp_build_document_symbol_response(int id_val, const uint8_t *body, int body
 
 /** 在 body[start..] 中解析 key 对应的布尔值；1=true，0=false，未找到或无效返回 -1。 */
 /* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *key, int *out_val);
+#endif
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *key, int *out_val) {
     int k = lsp_find_key_after(body, len, start, key);
     if (k < 0 || !out_val) return -1;
@@ -2575,6 +2586,7 @@ int lsp_parse_bool_after(const uint8_t *body, int len, int start, const char *ke
     }
     return -1;
 }
+#endif
 
 
 
@@ -2668,6 +2680,10 @@ void lsp_format_line_update_depth(const uint8_t *doc, int line_start, int line_l
  */
 /** 行 [start, start+len) 内是否出现块注释结束符 \c *\/ 。 */
 /* G-02f-118：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len);
+#endif
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
     for (int i = 0; i + 1 < len; i++) {
         if (doc[start + i] == '*' && doc[start + i + 1] == '/')
@@ -2675,6 +2691,7 @@ int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
     }
     return 0;
 }
+#endif
 
 
 
@@ -2683,6 +2700,10 @@ int lsp_line_has_block_comment_end(const uint8_t *doc, int start, int len) {
  * 是否为块注释行（\c /** 、\c * 续行，或处于未闭合的块注释内）。
  */
 /* G-02f-122：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifdef SHUX_L2_LSP_FMT_THIN_FROM_X
+int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content_len, int in_block);
+#endif
+#ifndef SHUX_L2_LSP_FMT_THIN_FROM_X
 int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content_len, int in_block) {
     if (content_len >= 2 && doc[content_start] == '/' && doc[content_start + 1] == '*')
         return 1;
@@ -2690,6 +2711,7 @@ int lsp_line_is_block_comment(const uint8_t *doc, int content_start, int content
         return 1;
     return 0;
 }
+#endif
 
 
 
