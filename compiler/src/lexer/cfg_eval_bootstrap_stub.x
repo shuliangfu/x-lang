@@ -281,7 +281,17 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   }
   // target_os
   if (p + 9 <= end) {
-    if (buf[p]==116&&buf[p+1]==97&&buf[p+2]==114&&buf[p+3]==103&&buf[p+4]==101&&buf[p+5]==116&&buf[p+6]==95&&buf[p+7]==111&&buf[p+8]==115) {
+    let match_os: i32 = 1;
+    if (buf[p] != 116) { match_os = 0; }
+    if (buf[p+1] != 97) { match_os = 0; }
+    if (buf[p+2] != 114) { match_os = 0; }
+    if (buf[p+3] != 103) { match_os = 0; }
+    if (buf[p+4] != 101) { match_os = 0; }
+    if (buf[p+5] != 116) { match_os = 0; }
+    if (buf[p+6] != 95) { match_os = 0; }
+    if (buf[p+7] != 111) { match_os = 0; }
+    if (buf[p+8] != 115) { match_os = 0; }
+    if (match_os != 0) {
       p = p + 9;
       p = cfg_skip_ws_range(buf, p, end);
       if (p >= end) { return 0; }
@@ -308,7 +318,19 @@ function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
   }
   // target_arch
   if (p + 11 <= end) {
-    if (buf[p]==116&&buf[p+1]==97&&buf[p+2]==114&&buf[p+3]==103&&buf[p+4]==101&&buf[p+5]==116&&buf[p+6]==95&&buf[p+7]==97&&buf[p+8]==114&&buf[p+9]==99&&buf[p+10]==104) {
+    let match_arch: i32 = 1;
+    if (buf[p] != 116) { match_arch = 0; }
+    if (buf[p+1] != 97) { match_arch = 0; }
+    if (buf[p+2] != 114) { match_arch = 0; }
+    if (buf[p+3] != 103) { match_arch = 0; }
+    if (buf[p+4] != 101) { match_arch = 0; }
+    if (buf[p+5] != 116) { match_arch = 0; }
+    if (buf[p+6] != 95) { match_arch = 0; }
+    if (buf[p+7] != 97) { match_arch = 0; }
+    if (buf[p+8] != 114) { match_arch = 0; }
+    if (buf[p+9] != 99) { match_arch = 0; }
+    if (buf[p+10] != 104) { match_arch = 0; }
+    if (match_arch != 0) {
       p = p + 11;
       p = cfg_skip_ws_range(buf, p, end);
       if (p >= end) { return 0; }
