@@ -26,7 +26,8 @@
  */
 #if defined(__linux__) && defined(__x86_64__)
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-long seed_io_syscall_write(int fd, const void *buf, unsigned long count) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_asm_io_stubs.x）提供 public wrapper */
+long seed_io_syscall_write_impl(int fd, const void *buf, unsigned long count) {
   long ret;
   __asm__ volatile("syscall"
                    : "=a"(ret)
@@ -40,7 +41,8 @@ long seed_io_syscall_write(int fd, const void *buf, unsigned long count) {
 
 /** Linux x86_64 裸 syscall read(2)。 G-02f-100 gate. */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-long seed_io_syscall_read(int fd, void *buf, unsigned long count) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_asm_io_stubs.x）提供 public wrapper */
+long seed_io_syscall_read_impl(int fd, void *buf, unsigned long count) {
   long ret;
   __asm__ volatile("syscall"
                    : "=a"(ret)
@@ -51,6 +53,26 @@ long seed_io_syscall_read(int fd, void *buf, unsigned long count) {
 
 
 #endif
+
+#ifndef SHUX_RUNTIME_ASM_IO_STUBS_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供
+ * 注意：seed_io_syscall_write/read 仅 Linux x86_64 有 _impl 定义；
+ * 非 Linux x86_64 平台 wrapper 仍由 thin.o 提供（调用 U _impl，rest 不引用）。
+ * 为避免非 Linux x86_64 平台 seed 重复定义 wrapper，此处 wrapper 仅在 Linux x86_64 emit。 */
+#if defined(__linux__) && defined(__x86_64__)
+long seed_io_syscall_write(int fd, const void *buf, unsigned long count) {
+  return seed_io_syscall_write_impl(fd, buf, count);
+}
+long seed_io_syscall_read(int fd, void *buf, unsigned long count) {
+  return seed_io_syscall_read_impl(fd, buf, count);
+}
+#endif
+#endif
+
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+long seed_io_syscall_write(int fd, const void *buf, unsigned long count);
+long seed_io_syscall_read(int fd, void *buf, unsigned long count);
+int32_t seed_io_write_fd1(uint8_t *ptr, size_t len, uint32_t timeout_ms);
 
 /** F-03：sync.x 机器码不在 io.o；本 TU 提供 io_write/io_read 同步 ABI。 */
 ptrdiff_t io_write(int fd, const uint8_t *buf, size_t count, unsigned timeout_ms) {
@@ -175,7 +197,8 @@ int32_t std_io_read(size_t handle, uint8_t *ptr, size_t len, uint32_t timeout_ms
 
 /** stdout 写：供 std_io_write_stdout / write_with_timeout 桩使用。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t seed_io_write_fd1(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_asm_io_stubs.x）提供 public wrapper */
+int32_t seed_io_write_fd1_impl(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
   ptrdiff_t r;
   if (!ptr && len > 0)
     return -1;
@@ -184,6 +207,13 @@ int32_t seed_io_write_fd1(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
     return -1;
   return (int32_t)r;
 }
+
+#ifndef SHUX_RUNTIME_ASM_IO_STUBS_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int32_t seed_io_write_fd1(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
+  return seed_io_write_fd1_impl(ptr, len, timeout_ms);
+}
+#endif
 
 
 
