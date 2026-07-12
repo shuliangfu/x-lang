@@ -50,7 +50,7 @@ runtime_ed25519_ref10_glue	src/asm/runtime_ed25519_ref10_glue.x	seeds/runtime_ed
 runtime_env_os	src/asm/runtime_env_os.x	seeds/runtime_env_os.from_x.c	1	399	0	no	yes	ifdef	already_split
 runtime_kv_mmap_glue	src/asm/runtime_kv_mmap_glue.x	seeds/runtime_kv_mmap_glue.from_x.c	0	74	0	no	no	ifdef	not_candidate
 runtime_lexer_glue	src/asm/runtime_lexer_glue.x	seeds/runtime_lexer_glue.from_x.c	0	51	0	no	no		not_candidate
-runtime_log_os	src/asm/runtime_log_os.x	seeds/runtime_log_os.from_x.c	7	394	0	no	no	ifdef	candidate
+runtime_log_os	src/asm/runtime_log_os.x	seeds/runtime_log_os.from_x.c	7	394	0	no	no	ifdef	already_split
 runtime_lsp_glue	src/asm/runtime_lsp_glue.x	seeds/runtime_lsp_glue.from_x.c	60	3500	0	no	yes	va_list,weak,ifdef,large	already_split
 runtime_math_libm	src/asm/runtime_math_libm.x	seeds/runtime_math_libm.from_x.c	4	272	0	no	yes	weak,ifdef	already_split
 runtime_net_addr_fast	src/asm/runtime_net_addr_fast.x	seeds/runtime_net_addr_fast.from_x.c	1	68	0	no	yes	ifdef	already_split
