@@ -37,6 +37,7 @@
 static INIT_ONCE g_random_init_once = INIT_ONCE_STATIC_INIT;
 static BCRYPT_ALG_HANDLE g_random_alg = NULL;
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_random_fill.x）提供 public wrapper */
 
 BOOL CALLBACK random_init_callback(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
     (void)InitOnce;
@@ -53,13 +54,18 @@ BOOL CALLBACK random_init_callback(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *
 
 /** Windows：懒初始化 BCrypt RNG 算法句柄；失败返回 NULL。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-BCRYPT_ALG_HANDLE random_get_alg(void) {
+BCRYPT_ALG_HANDLE random_get_alg_impl(void) {
     if (!InitOnceExecuteOnce(&g_random_init_once, random_init_callback, NULL, (PVOID *)&g_random_alg))
         return NULL;
     return g_random_alg;
 }
 
-
+#ifndef SHUX_RUNTIME_RANDOM_FILL_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+BCRYPT_ALG_HANDLE random_get_alg(void) {
+    return random_get_alg_impl();
+}
+#endif
 
 #endif
 
@@ -74,7 +80,7 @@ int32_t random_fill_bytes_c(uint8_t *buf, int32_t len) {
 
 #if defined(_WIN32) || defined(_WIN64)
     {
-        BCRYPT_ALG_HANDLE alg = random_get_alg();
+        BCRYPT_ALG_HANDLE alg = random_get_alg_impl();
         if (!alg) return -1;
         return (BCryptGenRandom(alg, buf, (ULONG)(size_t)len, 0) == 0) ? len : -1;
     }
