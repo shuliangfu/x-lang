@@ -18,24 +18,37 @@
 #if defined(__linux__)
 #include <sched.h>
 #include <string.h>
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+void shu_cpu_zero(cpu_set_t *set);
+void shu_cpu_set(unsigned int cpu, cpu_set_t *set);
 /* 手写 cpu_set 清零与置位，避免依赖 CPU_ZERO/CPU_SET/CPU_ZERO_S/CPU_SET_S 的链接符号（部分 glibc 会未定义） */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void shu_cpu_zero(cpu_set_t *set) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_thread_glue.x）提供 public wrapper */
+void shu_cpu_zero_impl(cpu_set_t *set) {
     memset(set, 0, sizeof(cpu_set_t));
 }
+#ifndef SHUX_RUNTIME_THREAD_GLUE_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void shu_cpu_zero(cpu_set_t *set) {
+    shu_cpu_zero_impl(set);
+}
+#endif
+
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-
-void shu_cpu_set(unsigned int cpu, cpu_set_t *set) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_thread_glue.x）提供 public wrapper */
+void shu_cpu_set_impl(unsigned int cpu, cpu_set_t *set) {
     if (cpu < sizeof(cpu_set_t) * 8) {
         size_t idx = cpu / (8 * sizeof(unsigned long));
         size_t bit = cpu % (8 * sizeof(unsigned long));
         ((unsigned long *)set)[idx] |= (unsigned long)1 << bit;
     }
 }
-
-
+#ifndef SHUX_RUNTIME_THREAD_GLUE_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void shu_cpu_set(unsigned int cpu, cpu_set_t *set) {
+    shu_cpu_set_impl(cpu, set);
+}
+#endif
 
 #endif
 
