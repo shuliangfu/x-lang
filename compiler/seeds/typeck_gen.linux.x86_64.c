@@ -3226,6 +3226,7 @@ int32_t typeck_check_expr_var(struct ast_Module * module, struct ast_ASTArena * 
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   (func_ix = (pipeline_dep_ctx_current_func_index(ctx)));
+  if (getenv("SHUX_DEBUG_VAR")) fprintf(stderr, "DBG-VAR: vnlen=%d vbuf=%.*s func_ix=%d block=%d vd_tr=%d\n", vnlen, vnlen, (char*)vbuf, (int)func_ix, (int)pipeline_dep_ctx_current_block_ref_at(ctx), (int)vd_tr);
   (void)(({ int32_t __tmp = 0; if (func_ix >= 0 && func_ix < (module)->num_funcs) {   (pr = (pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen)));
   __tmp = ({ int32_t __tmp = 0; if (pr != 0) {   (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, pr));
   (void)(({ int32_t __tmp = 0; if (pipeline_typeck_linear_use_var_c(arena, pr, expr_ref, vbuf, vnlen) != 0) {   return (-1);
