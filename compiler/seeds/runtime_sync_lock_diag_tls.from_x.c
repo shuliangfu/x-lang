@@ -54,9 +54,16 @@ extern int32_t sync_mutex_lock_c(void *m);
 extern int32_t sync_mutex_unlock_c(void *m);
 extern void sync_mutex_free_c(void *m);
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+int32_t sync_lock_diag_find_meta_idx(void *m);
+int32_t sync_lock_diag_get_order(void *m);
+int32_t sync_lock_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap, const uint8_t *s, int32_t n);
+int32_t sync_lock_diag_append_i32(uint8_t *out, int32_t pos, int32_t cap, int32_t v);
+
 /** 查找 mutex 对应元数据索引；不存在 -1。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t sync_lock_diag_find_meta_idx(void *m) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_sync_lock_diag_tls.x）提供 public wrapper */
+int32_t sync_lock_diag_find_meta_idx_impl(void *m) {
     int32_t i;
     if (m == NULL) {
         return -1;
@@ -69,18 +76,33 @@ int32_t sync_lock_diag_find_meta_idx(void *m) {
     return -1;
 }
 
+#ifndef SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int32_t sync_lock_diag_find_meta_idx(void *m) {
+    return sync_lock_diag_find_meta_idx_impl(m);
+}
+#endif
+
 
 
 
 /** 读取 mutex 绑定的锁序 id；未绑定返回 0。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t sync_lock_diag_get_order(void *m) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_sync_lock_diag_tls.x）提供 public wrapper */
+int32_t sync_lock_diag_get_order_impl(void *m) {
     int32_t idx = sync_lock_diag_find_meta_idx(m);
     if (idx < 0) {
         return 0;
     }
     return g_sync_meta[idx].order;
 }
+
+#ifndef SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int32_t sync_lock_diag_get_order(void *m) {
+    return sync_lock_diag_get_order_impl(m);
+}
+#endif
 
 
 
@@ -250,6 +272,8 @@ void sync_lock_diag_clear_c(void) {
 
 /** 向 out[pos] 追加单字节；满则 -1。 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
+#ifndef SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
 int32_t sync_lock_diag_append_byte(uint8_t *out, int32_t pos, int32_t cap, uint8_t b) {
     if (out == NULL || pos < 0 || pos >= cap) {
         return -1;
@@ -257,12 +281,15 @@ int32_t sync_lock_diag_append_byte(uint8_t *out, int32_t pos, int32_t cap, uint8
     out[pos] = b;
     return pos + 1;
 }
+#endif
 
 
 
 
 /** 向 out 追加 n 字节字面量。 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
+#ifndef SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
 int32_t sync_lock_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap,
                                          const uint8_t *s, int32_t n) {
     int32_t i;
@@ -274,12 +301,15 @@ int32_t sync_lock_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap,
     }
     return pos;
 }
+#endif
 
 
 
 
 /** 将 i32 十进制追加到 out；失败 -1。 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
+#ifndef SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
 int32_t sync_lock_diag_append_i32(uint8_t *out, int32_t pos, int32_t cap, int32_t v) {
     uint8_t tmp[16];
     int32_t n = 0;
@@ -311,6 +341,7 @@ int32_t sync_lock_diag_append_i32(uint8_t *out, int32_t pos, int32_t cap, int32_
     }
     return pos;
 }
+#endif
 
 
 

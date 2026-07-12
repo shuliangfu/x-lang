@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_sync_lock_diag_tls",
+  "x_src": "src/asm/runtime_sync_lock_diag_tls.x",
+  "seed_src": "seeds/runtime_sync_lock_diag_tls.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (mixed IMPL+DIRECT mode)",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 6,
+    "seed_symbols": 19,
+    "only_x": 1
+  },
+  "symbols": {
+    "x": [
+      "runtime_sync_lock_diag_tls_x_doc_anchor",
+      "sync_lock_diag_find_meta_idx",
+      "sync_lock_diag_get_order",
+      "sync_lock_diag_append_byte",
+      "sync_lock_diag_append_lit",
+      "sync_lock_diag_append_i32"
+    ],
+    "seed": [
+      "sync_lock_diag_find_meta_idx_impl",
+      "sync_lock_diag_get_order_impl",
+      "sync_lock_diag_tls_push_c",
+      "sync_lock_diag_tls_pop_c",
+      "sync_lock_diag_tls_has_c",
+      "sync_lock_diag_tls_max_order_c",
+      "sync_lock_diag_tls_count_c",
+      "sync_lock_diag_tls_clear_c",
+      "sync_lock_diag_before_lock",
+      "sync_lock_diag_after_lock",
+      "sync_lock_diag_before_unlock",
+      "sync_lock_diag_after_unlock",
+      "sync_lock_diag_set_enabled_c",
+      "sync_lock_diag_is_enabled_c",
+      "sync_lock_diag_mutex_set_id_c",
+      "sync_lock_diag_last_err_c",
+      "sync_lock_diag_clear_c",
+      "sync_lock_diag_snapshot_c",
+      "sync_lock_diag_smoke_c"
+    ],
+    "only_x": ["runtime_sync_lock_diag_tls_x_doc_anchor"]
+  },
+  "rest_macro": "SHUX_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X",
+  "impl_residuals": [
+    "sync_lock_diag_find_meta_idx_impl",
+    "sync_lock_diag_get_order_impl"
+  ],
+  "direct_symbols": [
+    "sync_lock_diag_append_byte",
+    "sync_lock_diag_append_lit",
+    "sync_lock_diag_append_i32"
+  ],
+  "forward_decls": [
+    "sync_lock_diag_find_meta_idx",
+    "sync_lock_diag_get_order",
+    "sync_lock_diag_append_lit",
+    "sync_lock_diag_append_i32"
+  ],
+  "internal_call_rewrites": [
+    "sync_lock_diag_get_order_impl -> sync_lock_diag_find_meta_idx",
+    "sync_lock_diag_before_lock -> sync_lock_diag_get_order",
+    "sync_lock_diag_after_lock -> sync_lock_diag_get_order",
+    "sync_lock_diag_mutex_set_id_c -> sync_lock_diag_find_meta_idx",
+    "sync_lock_diag_snapshot_c -> sync_lock_diag_append_lit + sync_lock_diag_append_i32"
+  ],
+  "known_limitations": [
+    "预存行为（非本次切割引入）：Linux 上 thin wrapper 为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1，macOS Mach-O 忽略 weak 均为 T",
+    "类型擦除：.x 侧 find_meta_idx/get_order 参数为 *u8（void * 在 .x 无法表达）；seed 前向声明用 void * 与调用处一致，thin.o 实际签名 uint8_t *，C 链接器不看类型，ABI 兼容"
+  ],
+  "platform_notes": "混合模式：2 IMPL wrapper（find_meta_idx/get_order，调用 _impl）+ 3 DIRECT（append_byte/append_lit/append_i32，G-02f-119 真迁 .x 完整实现）。rest 模式下 thin 函数为 U 符号由 thin.o 提供",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}
