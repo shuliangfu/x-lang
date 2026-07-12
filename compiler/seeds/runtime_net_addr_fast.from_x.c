@@ -15,6 +15,12 @@ typedef int shux_socklen_t;
 typedef socklen_t shux_socklen_t;
 #endif
 
+/* thin+rest 切割：thin 部分（net_sockaddr_in_pack_addr_port_c）由 .x 提供，
+ * rest 模式下跳过编译避免重复定义。rest 部分（net_tcp/udp_* 4 函数）始终编译。
+ * 宏边界：SHUX_RUNTIME_NET_ADDR_FAST_FROM_X
+ * 语义差异：.x 用手动字节解析（无 libc 依赖）；seed 用 struct cast + ntohl/ntohs（libc 依赖）。两者语义等价。
+ * rest 跨调用依赖：net_tcp_local/peer_addr_c 调用 net_sockaddr_in_pack_addr_port_c（thin 提供）。 */
+#ifndef SHUX_RUNTIME_NET_ADDR_FAST_FROM_X
 /* G-02f-151：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int64_t net_sockaddr_in_pack_addr_port_c(uint8_t *sin_ptr) {
     struct sockaddr_in *sa = (struct sockaddr_in *)(void *)sin_ptr;
@@ -22,6 +28,10 @@ int64_t net_sockaddr_in_pack_addr_port_c(uint8_t *sin_ptr) {
     uint32_t port = (uint32_t)ntohs(sa->sin_port);
     return ((int64_t)addr << 32) | (int64_t)(port & 0xffffu);
 }
+#else
+/* rest 模式：thin 函数由 .x 提供，extern 声明供 rest 部分调用 */
+extern int64_t net_sockaddr_in_pack_addr_port_c(uint8_t *sin_ptr);
+#endif /* SHUX_RUNTIME_NET_ADDR_FAST_FROM_X */
 
 
 int64_t net_tcp_local_addr_c(int32_t fd) {
