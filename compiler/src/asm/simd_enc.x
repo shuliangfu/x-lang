@@ -96,10 +96,9 @@ function simd_arm64_rbp_lea_off_128half(slot: i32, half: i32, esz: i32): i32 {
 
 #[no_mangle]
 function simd_append_disp32(elf: *u8, disp: i32): i32 {
-  unsafe {
-    return simd_append_u32_le(elf, disp as u32);
-  }
-  return 0 - 1;
+  let r: i32 = 0;
+  unsafe { r = simd_append_u32_le(elf, disp as u32); }
+  return r;
 }
 
 // G-02f-123：simd_append / simd_append_u32_le 真迁 .x
@@ -111,10 +110,9 @@ function simd_append(elf: *u8, bytes: *u8, n: i32): i32 {
   if (elf == 0) { return 0 - 1; }
   if (bytes == 0) { return 0 - 1; }
   if (n <= 0) { return 0 - 1; }
-  unsafe {
-    return pipeline_elf_ctx_append_bytes(elf, bytes, n);
-  }
-  return 0 - 1;
+  let r: i32 = 0;
+  unsafe { r = pipeline_elf_ctx_append_bytes(elf, bytes, n); }
+  return r;
 }
 
 #[no_mangle]
