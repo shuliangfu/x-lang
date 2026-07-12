@@ -42,9 +42,15 @@ void queue_os_mutex_lock_c(void *mu);
 void queue_os_mutex_unlock_c(void *mu);
 int32_t queue_os_run_two_workers_c(void *ctx);
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+int32_t queue_smoke_at(QueueSmokeState *q, int32_t i);
+int32_t queue_smoke_push_back(QueueSmokeState *q, int32_t x);
+void *queue_os_worker_trampoline(void *arg);
+
 /** 逻辑下标 i 对应的物理下标。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t queue_smoke_at(QueueSmokeState *q, int32_t i) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_queue_contention.x）提供 public wrapper */
+int32_t queue_smoke_at_impl(QueueSmokeState *q, int32_t i) {
   int32_t idx = q->head + i;
   if (idx >= q->cap) {
     idx -= q->cap;
@@ -52,12 +58,20 @@ int32_t queue_smoke_at(QueueSmokeState *q, int32_t i) {
   return idx;
 }
 
+#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int32_t queue_smoke_at(QueueSmokeState *q, int32_t i) {
+    return queue_smoke_at_impl(q, i);
+}
+#endif
+
 
 
 
 /** 队尾插入；失败 -1。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t queue_smoke_push_back(QueueSmokeState *q, int32_t x) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_queue_contention.x）提供 public wrapper */
+int32_t queue_smoke_push_back_impl(QueueSmokeState *q, int32_t x) {
   int32_t new_cap;
   int32_t *p;
   int32_t i;
@@ -88,6 +102,13 @@ int32_t queue_smoke_push_back(QueueSmokeState *q, int32_t x) {
   q->len++;
   return 0;
 }
+
+#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int32_t queue_smoke_push_back(QueueSmokeState *q, int32_t x) {
+    return queue_smoke_push_back_impl(q, x);
+}
+#endif
 
 
 
@@ -167,12 +188,18 @@ static unsigned __stdcall queue_os_worker_trampoline(void *arg) {
 }
 #else
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void *queue_os_worker_trampoline(void *arg) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_queue_contention.x）提供 public wrapper */
+void *queue_os_worker_trampoline_impl(void *arg) {
     (void)queue_contention_worker_push_c(arg);
     return NULL;
 }
 
-
+#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void *queue_os_worker_trampoline(void *arg) {
+    return queue_os_worker_trampoline_impl(arg);
+}
+#endif
 
 #endif
 

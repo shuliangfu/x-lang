@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_queue_contention",
+  "x_src": "src/asm/runtime_queue_contention.x",
+  "seed_src": "seeds/runtime_queue_contention.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (IMPL mode)",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 4,
+    "seed_symbols": 10,
+    "only_x": 1
+  },
+  "symbols": {
+    "x": [
+      "runtime_queue_contention_x_doc_anchor",
+      "queue_smoke_at",
+      "queue_smoke_push_back",
+      "queue_os_worker_trampoline"
+    ],
+    "seed": [
+      "queue_smoke_at_impl",
+      "queue_smoke_push_back_impl",
+      "queue_os_worker_trampoline_impl",
+      "queue_contention_worker_push_c",
+      "queue_os_mutex_create_c",
+      "queue_os_mutex_destroy_c",
+      "queue_os_mutex_lock_c",
+      "queue_os_mutex_unlock_c",
+      "queue_os_run_two_workers_c",
+      "sync_queue_contention_smoke_c"
+    ],
+    "only_x": ["runtime_queue_contention_x_doc_anchor"]
+  },
+  "rest_macro": "SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X",
+  "impl_residuals": [
+    "queue_smoke_at_impl",
+    "queue_smoke_push_back_impl",
+    "queue_os_worker_trampoline_impl"
+  ],
+  "forward_decls": [
+    "queue_smoke_at",
+    "queue_smoke_push_back",
+    "queue_os_worker_trampoline"
+  ],
+  "internal_call_rewrites": [],
+  "known_limitations": [
+    "预存行为（非本次切割引入）：所有 4 个 thin wrapper 在 Linux 上为 W（weak）符号——shux-c 编译器对 #[no_mangle] 属性处理不完整（3 个 wrapper 有 #[no_mangle] 但 gen.c 仍标记 weak；doc_anchor 无 #[no_mangle] 故 weak 正确）。macOS Mach-O 不支持 weak，均为 T 符号",
+    "平台条件符号：queue_os_worker_trampoline Windows 版本为 static unsigned __stdcall（不导出，不切割）；Unix 版本为 void *（导出，切割为 _impl + thin wrapper）。thin wrapper 在 #else（非 Windows）块内"
+  ],
+  "platform_notes": "queue_smoke_push_back_impl 内部调用 queue_smoke_at（thin wrapper）；queue_contention_worker_push_c 调用 queue_smoke_push_back（thin wrapper）；queue_os_run_two_workers_c 取 queue_os_worker_trampoline（thin wrapper）地址传给 pthread_create/_beginthreadex。rest 模式下均为 U 符号由 thin.o 提供",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "shux-c #[no_mangle] weak 符号问题修复（独立 issue）",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}
