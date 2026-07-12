@@ -1,0 +1,142 @@
+pair_name                                  x_nm seed_lines   impl     risk status
+-----------------------------------------------------------------------------------------
+asm_backend_compat_stubs                      3        520      0          candidate
+async_asm_pool                                9        359      0          candidate
+backend_arch_emit_dispatch                   47        856      0          already_split
+backend_call_dispatch                        43       2232      0    large already_split
+backend_enc_dispatch                        114       2295      0    large already_split
+backend_seed_mega_fallback                    3        336      0          candidate
+backend_try_inline_dispatch                  54       2441      0    large already_split
+backend_x86_64_enc_c                         10        976      0          candidate
+bootstrap_nostdlib_stubs                      6       1648      0    large candidate
+runtime_http_glue                            12       1073      0    large candidate
+parser_asm_parse_expr_link                    1        255      0          candidate
+parser_asm_thin_c                            11       4542      0    large candidate
+pipeline_fill_dep_strict_alias                0         11      0          not_candidate
+pipeline_glue_strict_minimal                 71       2339      0    large candidate
+pthin_body_tl                                 0         62      0          not_candidate
+pthin_ctrl                                    0        119      0          not_candidate
+pthin_diag_late                               0         78      0          not_candidate
+pthin_diag_pipeline                           0        161      0          not_candidate
+pthin_expr_as_suffix                          0        263      0          not_candidate
+pthin_expr_binop                              0        230      0          not_candidate
+pthin_expr_primary                            0        264      0          not_candidate
+pthin_expr_ternary                            0        225      0          not_candidate
+pthin_expr_unary                              0        229      0          not_candidate
+pthin_fn_block                                0        211      0          not_candidate
+pthin_foundation                              0        159      0          not_candidate
+pthin_glue                                    0        730      0          not_candidate
+pthin_helpers                                 0         69      0          not_candidate
+pthin_imports                                 0        182      0          not_candidate
+pthin_let_alias                               0         63      0          not_candidate
+pthin_lex_skip                                0         63      0          not_candidate
+pthin_library                                 0        190      0          not_candidate
+pthin_seed_parse                              0        229      0          not_candidate
+pthin_simd                                    0        112      0          not_candidate
+pthin_skip_if                                 0        126      0          not_candidate
+pthin_skip_tl                                 0        185      0          not_candidate
+pthin_stretch                                 0        238      0          not_candidate
+pthin_try_skip_allow                          0        156      0          not_candidate
+pthin_type_ref                                0         69      0          not_candidate
+runtime_arrow_simd_glue                       4        251      0          candidate
+runtime_asm_build                             3         31      0          candidate
+runtime_asm_io_stubs                          3        400      0          candidate
+runtime_ast_glue                              0        499      0          not_candidate
+runtime_atomic_glue                           0        360      0          not_candidate
+runtime_backtrace_platform                    3        417      0          candidate
+runtime_channel_glue                         17        686      0          candidate
+runtime_compress_zlib_glue                    0         41      0          not_candidate
+runtime_crypto_inc_glue                       6        341      0          candidate
+runtime_dynlib_os                             2        180      0          candidate
+runtime_ed25519_ref10_glue                    0         56      0          not_candidate
+runtime_env_os                                1        390      0          candidate
+runtime_kv_mmap_glue                          0         74      0          not_candidate
+runtime_lexer_glue                            0         51      0          not_candidate
+runtime_log_os                                7        394      0          candidate
+runtime_lsp_glue                             60       3500      0    large candidate
+runtime_math_libm                             4        272      0          candidate
+runtime_net_addr_fast                         1         58      0          candidate
+runtime_net_dns_fast                          3        189      0          candidate
+runtime_net_io_batch_fast                     0         95      0          not_candidate
+runtime_net_ipv6_fast                         5        175      0          candidate
+runtime_net_sock_fast                         2        141      0          candidate
+runtime_net_udp_batch                         2        209      0          candidate
+runtime_net_workers                           0         58      0          not_candidate
+runtime_panic_arm64                           1         45      0          candidate
+runtime_panic                                 1         70      0          candidate
+runtime_path_fast                             4        262      0          candidate
+runtime_process_argv                          1        158      0          candidate
+runtime_process_os_glue                       2        569      0          candidate
+runtime_queue_contention                      3        230      0          candidate
+runtime_random_fill                           1        109      0          candidate
+runtime_scheduler_glue                       17       1068      0    large candidate
+runtime_slice_glue                            0         55      0          not_candidate
+runtime_sqlite_glue                           0        412      0          not_candidate
+runtime_std_runtime_fast                      6         40      0          candidate
+runtime_string_fast                           4         89      0          candidate
+runtime_sync_lock_diag_tls                    5        421      0          candidate
+runtime_sync_os                               0        404      0          not_candidate
+runtime_test_fn_invoke                        0         20      0          not_candidate
+runtime_thread_glue                           2        476      0          candidate
+runtime_time_os                               0        135      0          not_candidate
+runtime_tls_mbedtls_bio                       2         65      0          candidate
+simd_enc                                     74       1831      0    large already_split
+simd_loop                                    23       1050      0    large already_split
+user_asm_seed_bridge                          7        459      0          candidate
+async_cps_codegen                             6        489      0          candidate
+async_liveness                               19        857      0          candidate
+build_runtime                                 5        462      0          candidate
+diag                                         32       1236      0    large already_split
+fmt_check_cmd                                25       1279      0    large already_split
+target_cpu_pure                              11        556      0          candidate
+cfg_eval_bootstrap_stub                       0        308      0          not_candidate
+lsp_diag_pipeline_ctx                        14        308      0          candidate
+lsp_diag_pipeline_sizes                       3         15      0          candidate
+lsp_diag_stubs_no_c                           2        359      0          candidate
+main                                          0         16      0          not_candidate
+runtime_c_import                              0        190      0          not_candidate
+runtime_driver_abi                           55       1492      0    large already_split
+runtime_driver_diagnostic                    65       1633      0    large already_split
+runtime_driver_strict_glue_stubs             12        935      0          candidate
+runtime_heap_user                             4        138      0          candidate
+runtime_io_abi                               19        495      0          candidate
+runtime_link_abi                            143       6713      0    large candidate
+runtime_pipeline_abi                        102       3222      0    large candidate
+runtime                                     110       7580      0    large candidate
+labi_diag_pure                                0        120      0          not_candidate
+labi_ensure_list                              0        157      0          not_candidate
+labi_freestanding_list                        0        105      0          not_candidate
+labi_gates                                    0        116      0          not_candidate
+labi_host_lit                                 0         21      0          not_candidate
+labi_invoke_cc_list                           0        100      0          not_candidate
+labi_invoke_ld_list                           0         92      0          not_candidate
+labi_ondemand_list                            0        234      0          not_candidate
+labi_path_io                                  0         43      0          not_candidate
+labi_path_pure                                5         86      0          candidate
+labi_std_list                                 0        158      0          not_candidate
+rt_arena_buf                                  2         50      0          candidate
+rt_argv                                      15         78      0          candidate
+rt_asm_stub                                   1         66      0          candidate
+rt_compile                                    1        497      0          candidate
+rt_content                                    2        161      0          candidate
+rt_diag_errno                                 1        100      0          candidate
+rt_dispatch_impl                              1        254      0          candidate
+rt_emit_flags                                 1         63      0          candidate
+rt_emit_state                                 1        104      0          candidate
+rt_entry                                      2        163      0          candidate
+rt_fmt_one                                    1         97      0          candidate
+rt_fs_open                                    2         55      0          candidate
+rt_lib_root                                   1         72      0          candidate
+rt_parse_diag                                 1         50      0          candidate
+rt_pipeline_elf_diag                          1         85      0          candidate
+rt_preamble                                   0        261      0          not_candidate
+rt_run_asm_backend                            1        877      0          candidate
+rt_run_compiler_parsed                        1       1062      0    large candidate
+rt_run_exec                                   1        243      0          candidate
+rt_run_x_emit                                 1        490      0          candidate
+rt_stack                                      1         55      0          candidate
+rt_util                                       1         37      0          candidate
+seed_link_compat                             20       1037      0    large candidate
+x_seed_bridge                                14        323      0          candidate
+-----------------------------------------------------------------------------------------
+summary: candidates=76 already_split=10 not_candidate=52

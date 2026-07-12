@@ -1,0 +1,8 @@
+# 忽略二进制工件和临时文件，只跟踪稳定文本工件（.tsv/.txt/.json）
+*.o
+*.nm
+*.err
+*.tmp
+.seed_stems.tmp
+.seed_meta.tmp
+seed_optional/*/
