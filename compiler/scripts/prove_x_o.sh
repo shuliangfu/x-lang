@@ -169,8 +169,6 @@ strip_libc_redecls() {
     echo '#include <stddef.h>'
     echo '#include <stdint.h>'
     echo '#include <sys/types.h>'
-    echo '#include <stdlib.h>'
-    echo '#include <stdio.h>'
     echo '#ifndef _WIN32'
     echo '#include <unistd.h>'
     echo '#include <fcntl.h>'

@@ -1,4 +1,8 @@
 // Copyright (C) 2026 Shuliang Fu <admin@shuliangfu.com>
+extern "C" function malloc(size: usize): *u8;
+extern "C" function calloc(nmemb: usize, size: usize): *u8;
+extern "C" function realloc(ptr: *u8, new_size: usize): *u8;
+extern "C" function free(ptr: *u8): void;
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-27：真迁 .x — 用户链 heap_*_c 薄 libc 转发（alloc/free/realloc/zeroed）。
