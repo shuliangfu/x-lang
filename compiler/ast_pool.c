@@ -2252,6 +2252,10 @@ void pipeline_patch_block_parent_links(struct ast_ASTArena *a, int32_t block_ref
       continue;
     for (i = 0; i < b->num_loops; i++) {
       wb = pipeline_block_while_body_ref(a, cur, i);
+      if (getenv("SHUX_DBG_BLK") && (cur == 1106 || cur == 750 || cur == 748 || wb == 751 || wb == 750)) {
+        fprintf(stderr, "DBG-BLK: patch parent cur=%d num_loops=%d i=%d wb=%d parent_was=%d\n",
+                (int)cur, (int)b->num_loops, (int)i, (int)wb, (int)b->parent_block_ref);
+      }
       if (wb > 0 && sp < 256) {
         stack_blk[sp] = wb;
         stack_par[sp] = cur;
