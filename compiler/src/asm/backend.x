@@ -875,119 +875,119 @@ function local_offset(ctx: *AsmFuncCtx, name: *u8, name_len: i32): i32 {
 }
 
 function arch_emit_ret_imm32(out: *CodegenOutBuf, imm: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_ret_imm32(out, imm); }
-  if (ta == 2) { return arch.riscv64.emit_ret_imm32(out, imm); }
-  return arch.x86_64.emit_ret_imm32(out, imm);
+  if (ta == 1) { return arm64.emit_ret_imm32(out, imm); }
+  if (ta == 2) { return riscv64.emit_ret_imm32(out, imm); }
+  return x86_64.emit_ret_imm32(out, imm);
 }
 /** å° 64 ä½ç«å³æ°ï¼lo/hi ä¸ºä½/é« 32 ä½ï¼è£å¥ rax/x0ãç¨äº EXPR_FLOAT_LIT åå° double ä½æ¨¡å¼ã */
 function arch_emit_mov_imm64_to_rax(out: *CodegenOutBuf, lo: i32, hi: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_mov_imm64_to_rax(out, lo, hi); }
-  if (ta == 2) { return arch.riscv64.emit_mov_imm64_to_rax(out, lo, hi); }
-  return arch.x86_64.emit_mov_imm64_to_rax(out, lo, hi);
+  if (ta == 1) { return arm64.emit_mov_imm64_to_rax(out, lo, hi); }
+  if (ta == 2) { return riscv64.emit_mov_imm64_to_rax(out, lo, hi); }
+  return x86_64.emit_mov_imm64_to_rax(out, lo, hi);
 }
 /** 7.3ï¼ç«å³æ°å¥ rbx/w1ï¼ADD å·¦æä½æ°ä¸ºå­é¢éæ¶å push/popã */
 function arch_emit_mov_imm32_to_rbx(out: *CodegenOutBuf, imm: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_mov_imm32_to_rbx(out, imm); }
-  if (ta == 2) { return arch.riscv64.emit_mov_imm32_to_rbx(out, imm); }
-  return arch.x86_64.emit_mov_imm32_to_rbx(out, imm);
+  if (ta == 1) { return arm64.emit_mov_imm32_to_rbx(out, imm); }
+  if (ta == 2) { return riscv64.emit_mov_imm32_to_rbx(out, imm); }
+  return x86_64.emit_mov_imm32_to_rbx(out, imm);
 }
 function arch_emit_neg_eax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_neg_eax(out); }
-  if (ta == 2) { return arch.riscv64.emit_neg_eax(out); }
-  return arch.x86_64.emit_neg_eax(out);
+  if (ta == 1) { return arm64.emit_neg_eax(out); }
+  if (ta == 2) { return riscv64.emit_neg_eax(out); }
+  return x86_64.emit_neg_eax(out);
 }
 function arch_emit_test_setz(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) {
-    if (arch.arm64.emit_test_eax_eax(out) != 0) { return -1; }
-    return arch.arm64.emit_setz_movzbl_eax(out);
+    if (arm64.emit_test_eax_eax(out) != 0) { return -1; }
+    return arm64.emit_setz_movzbl_eax(out);
   }
   if (ta == 2) {
-    if (arch.riscv64.emit_test_eax_eax(out) != 0) { return -1; }
-    return arch.riscv64.emit_setz_movzbl_eax(out);
+    if (riscv64.emit_test_eax_eax(out) != 0) { return -1; }
+    return riscv64.emit_setz_movzbl_eax(out);
   }
-  if (arch.x86_64.emit_test_eax_eax(out) != 0) { return -1; }
-  return arch.x86_64.emit_setz_movzbl_eax(out);
+  if (x86_64.emit_test_eax_eax(out) != 0) { return -1; }
+  return x86_64.emit_setz_movzbl_eax(out);
 }
 
 /** ä»æ¯è¾ rbx ä¸ raxï¼ç½®æ å¿/ç»æä¾ jzï¼ãmatch åæ¯ç¸ç­æ¯è¾ç¨ã */
 function arch_emit_cmp_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_cmp_rbx_rax(out); }
-  if (ta == 2) { return arch.riscv64.emit_cmp_rbx_rax(out); }
-  return arch.x86_64.emit_cmp_rbx_rax(out);
+  if (ta == 1) { return arm64.emit_cmp_rbx_rax(out); }
+  if (ta == 2) { return riscv64.emit_cmp_rbx_rax(out); }
+  return x86_64.emit_cmp_rbx_rax(out);
 }
 
 /** æ¯è¾è¿ç®ï¼left å·²å¨ rbxï¼right å¨ raxï¼æ ¹æ® cc ç½®ç»æä¸º 0/1ãcc: 0=eq, 1=ne, 2=lt, 3=le, 4=gt, 5=geã */
 function arch_emit_cmp_setcc(out: *CodegenOutBuf, cc: i32, ta: i32): i32 {
   if (ta == 1) {
-    return arch.arm64.emit_cmp_setcc(out, cc);
+    return arm64.emit_cmp_setcc(out, cc);
   }
-  if (ta == 2) { return arch.riscv64.emit_cmp_setcc(out, cc); }
-  return arch.x86_64.emit_cmp_setcc(out, cc);
+  if (ta == 2) { return riscv64.emit_cmp_setcc(out, cc); }
+  return x86_64.emit_cmp_setcc(out, cc);
 }
 
 function arch_emit_push_rax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_push_rax(out); }
-  if (ta == 2) { return arch.riscv64.emit_push_rax(out); }
-  return arch.x86_64.emit_push_rax(out);
+  if (ta == 1) { return arm64.emit_push_rax(out); }
+  if (ta == 2) { return riscv64.emit_push_rax(out); }
+  return x86_64.emit_push_rax(out);
 }
 function arch_emit_pop_rbx(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_pop_rbx(out); }
-  if (ta == 2) { return arch.riscv64.emit_pop_rbx(out); }
-  return arch.x86_64.emit_pop_rbx(out);
+  if (ta == 1) { return arm64.emit_pop_rbx(out); }
+  if (ta == 2) { return riscv64.emit_pop_rbx(out); }
+  return x86_64.emit_pop_rbx(out);
 }
 function arch_emit_pop_rax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_pop_rax(out); }
-  if (ta == 2) { return arch.riscv64.emit_pop_rax(out); }
-  return arch.x86_64.emit_pop_rax(out);
+  if (ta == 1) { return arm64.emit_pop_rax(out); }
+  if (ta == 2) { return riscv64.emit_pop_rax(out); }
+  return x86_64.emit_pop_rax(out);
 }
 function arch_emit_add_rax_rbx(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_add_rax_rbx(out); }
-  if (ta == 2) { return arch.riscv64.emit_add_rax_rbx(out); }
-  return arch.x86_64.emit_add_rax_rbx(out);
+  if (ta == 1) { return arm64.emit_add_rax_rbx(out); }
+  if (ta == 2) { return riscv64.emit_add_rax_rbx(out); }
+  return x86_64.emit_add_rax_rbx(out);
 }
 function arch_emit_sub_rbx_rax_then_mov(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_sub_rbx_rax_then_mov(out); }
-  if (ta == 2) { return arch.riscv64.emit_sub_rbx_rax_then_mov(out); }
-  return arch.x86_64.emit_sub_rbx_rax_then_mov(out);
+  if (ta == 1) { return arm64.emit_sub_rbx_rax_then_mov(out); }
+  if (ta == 2) { return riscv64.emit_sub_rbx_rax_then_mov(out); }
+  return x86_64.emit_sub_rbx_rax_then_mov(out);
 }
 function arch_emit_imul_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_imul_rbx_rax(out); }
-  if (ta == 2) { return arch.riscv64.emit_imul_rbx_rax(out); }
-  return arch.x86_64.emit_imul_rbx_rax(out);
+  if (ta == 1) { return arm64.emit_imul_rbx_rax(out); }
+  if (ta == 2) { return riscv64.emit_imul_rbx_rax(out); }
+  return x86_64.emit_imul_rbx_rax(out);
 }
 function arch_emit_mov_rax_to_rbx(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_mov_rax_to_rbx(out); }
-  if (ta == 2) { return arch.riscv64.emit_mov_rax_to_rbx(out); }
-  return arch.x86_64.emit_mov_rax_to_rbx(out);
+  if (ta == 1) { return arm64.emit_mov_rax_to_rbx(out); }
+  if (ta == 2) { return riscv64.emit_mov_rax_to_rbx(out); }
+  return x86_64.emit_mov_rax_to_rbx(out);
 }
 function arch_emit_idiv_rbx(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_idiv_rbx(out); }
-  if (ta == 2) { return arch.riscv64.emit_idiv_rbx(out); }
-  if (arch.x86_64.emit_cltd(out) != 0) { return -1; }
-  return arch.x86_64.emit_idiv_rbx(out);
+  if (ta == 1) { return arm64.emit_idiv_rbx(out); }
+  if (ta == 2) { return riscv64.emit_idiv_rbx(out); }
+  if (x86_64.emit_cltd(out) != 0) { return -1; }
+  return x86_64.emit_idiv_rbx(out);
 }
 function arch_emit_rem_mod(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_rem_w0_w1(out); }
-  if (ta == 2) { return arch.riscv64.emit_rem_w0_w1(out); }
-  if (arch.x86_64.emit_cltd(out) != 0) { return -1; }
-  if (arch.x86_64.emit_idiv_rbx(out) != 0) { return -1; }
-  return arch.x86_64.emit_mov_edx_to_eax(out);
+  if (ta == 1) { return arm64.emit_rem_w0_w1(out); }
+  if (ta == 2) { return riscv64.emit_rem_w0_w1(out); }
+  if (x86_64.emit_cltd(out) != 0) { return -1; }
+  if (x86_64.emit_idiv_rbx(out) != 0) { return -1; }
+  return x86_64.emit_mov_edx_to_eax(out);
 }
 function arch_emit_load_rbp_to_rax(out: *CodegenOutBuf, off: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_load_rbp_to_rax(out, off); }
-  if (ta == 2) { return arch.riscv64.emit_load_rbp_to_rax(out, off); }
-  return arch.x86_64.emit_load_rbp_to_rax(out, off);
+  if (ta == 1) { return arm64.emit_load_rbp_to_rax(out, off); }
+  if (ta == 2) { return riscv64.emit_load_rbp_to_rax(out, off); }
+  return x86_64.emit_load_rbp_to_rax(out, off);
 }
 function arch_emit_store_rax_to_rbp(out: *CodegenOutBuf, off: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_store_rax_to_rbp(out, off); }
-  if (ta == 2) { return arch.riscv64.emit_store_rax_to_rbp(out, off); }
-  return arch.x86_64.emit_store_rax_to_rbp(out, off);
+  if (ta == 1) { return arm64.emit_store_rax_to_rbp(out, off); }
+  if (ta == 2) { return riscv64.emit_store_rax_to_rbp(out, off); }
+  return x86_64.emit_store_rax_to_rbp(out, off);
 }
 /** LEA å±é¨åéå°åå° raxï¼x86/arm64ï¼ãç¨äº EXPR_INDEX base ä¸º VARãSTRUCT_LIT/ARRAY_LIT temp åºã */
 function arch_emit_lea_rbp_to_rax(out: *CodegenOutBuf, off: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_lea_rbp_to_rax(out, off); }
-  if (ta == 2) { return arch.riscv64.emit_lea_rbp_to_rax(out, off); }
-  return arch.x86_64.emit_lea_rbp_to_rax(out, off);
+  if (ta == 1) { return arm64.emit_lea_rbp_to_rax(out, off); }
+  if (ta == 2) { return riscv64.emit_lea_rbp_to_rax(out, off); }
+  return x86_64.emit_lea_rbp_to_rax(out, off);
 }
 /**
  * Textï¼å±é¨ VAR ä¸ºæéåä»æ æ§½è½½å¥æéå° raxï¼å¦å rax = æ æ§½å°åï¼å°±å°ç»æ/æ°ç»ï¼ã
@@ -998,81 +998,81 @@ function arch_emit_local_slot_ptr_or_addr(arena: *ASTArena, out: *CodegenOutBuf,
 }
 /** rax/x0 = rax/x0 + rbx/x1*4ãç¨äº EXPR_INDEX ä¸æ ä¹åç´ å¤§å° 4ã */
 function arch_emit_rax_plus_rbx_scale4(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_rax_plus_rbx_scale4(out); }
-  if (ta == 2) { return arch.riscv64.emit_rax_plus_rbx_scale4(out); }
-  return arch.x86_64.emit_rax_plus_rbx_scale4(out);
+  if (ta == 1) { return arm64.emit_rax_plus_rbx_scale4(out); }
+  if (ta == 2) { return riscv64.emit_rax_plus_rbx_scale4(out); }
+  return x86_64.emit_rax_plus_rbx_scale4(out);
 }
 /** rbxÃ1 åå å°å°åï¼u8 æ°ç»ï¼ã */
 function arch_emit_rax_plus_rbx_scale1(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_rax_plus_rbx_scale1(out); }
-  if (ta == 2) { return arch.riscv64.emit_rax_plus_rbx_scale1(out); }
-  return arch.x86_64.emit_rax_plus_rbx_scale1(out);
+  if (ta == 1) { return arm64.emit_rax_plus_rbx_scale1(out); }
+  if (ta == 2) { return riscv64.emit_rax_plus_rbx_scale1(out); }
+  return x86_64.emit_rax_plus_rbx_scale1(out);
 }
 /** rbxÃ8ï¼æéåçç­ï¼ã */
 function arch_emit_rax_plus_rbx_scale8(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_rax_plus_rbx_scale8(out); }
-  if (ta == 2) { return arch.riscv64.emit_rax_plus_rbx_scale8(out); }
-  return arch.x86_64.emit_rax_plus_rbx_scale8(out);
+  if (ta == 1) { return arm64.emit_rax_plus_rbx_scale8(out); }
+  if (ta == 2) { return riscv64.emit_rax_plus_rbx_scale8(out); }
+  return x86_64.emit_rax_plus_rbx_scale8(out);
 }
 /** INDEX èµå¼ï¼store è³ [rbx]ã */
 function arch_emit_store_rax_to_rbx_indirect(out: *CodegenOutBuf, elem_sz: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_store_rax_to_rbx_indirect(out, elem_sz); }
-  if (ta == 2) { return arch.riscv64.emit_store_rax_to_rbx_indirect(out, elem_sz); }
-  return arch.x86_64.emit_store_rax_to_rbx_indirect(out, elem_sz);
+  if (ta == 1) { return arm64.emit_store_rax_to_rbx_indirect(out, elem_sz); }
+  if (ta == 2) { return riscv64.emit_store_rax_to_rbx_indirect(out, elem_sz); }
+  return x86_64.emit_store_rax_to_rbx_indirect(out, elem_sz);
 }
 /** ä» [rax]/[x0] å è½½ 4 å­èå° rax/w0ãç¨äº EXPR_INDEX è¯»åç´ ã */
 function arch_emit_load_32_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_load_32_from_rax(out); }
-  if (ta == 2) { return arch.riscv64.emit_load_32_from_rax(out); }
-  return arch.x86_64.emit_load_32_from_rax(out);
+  if (ta == 1) { return arm64.emit_load_32_from_rax(out); }
+  if (ta == 2) { return riscv64.emit_load_32_from_rax(out); }
+  return x86_64.emit_load_32_from_rax(out);
 }
 /** u8 åç´ è¯»åï¼é¶æ©å±å°ç®æ è¿åå¯å­å¨ã */
 function arch_emit_load_zext8_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_load_zext8_from_rax(out); }
-  if (ta == 2) { return arch.riscv64.emit_load_zext8_from_rax(out); }
-  return arch.x86_64.emit_load_zext8_from_rax(out);
+  if (ta == 1) { return arm64.emit_load_zext8_from_rax(out); }
+  if (ta == 2) { return riscv64.emit_load_zext8_from_rax(out); }
+  return x86_64.emit_load_zext8_from_rax(out);
 }
 /** rax/x0 += ç«å³æ°ãç¨äº EXPR_FIELD_ACCESS å­æ®µåç§»ã */
 function arch_emit_add_imm_to_rax(out: *CodegenOutBuf, imm: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_add_imm_to_rax(out, imm); }
-  if (ta == 2) { return arch.riscv64.emit_add_imm_to_rax(out, imm); }
-  return arch.x86_64.emit_add_imm_to_rax(out, imm);
+  if (ta == 1) { return arm64.emit_add_imm_to_rax(out, imm); }
+  if (ta == 2) { return riscv64.emit_add_imm_to_rax(out, imm); }
+  return x86_64.emit_add_imm_to_rax(out, imm);
 }
 /** ä» [rax]/[x0] å è½½ 8 å­èå° rax/x0ãç¨äº EXPR_FIELD_ACCESSã */
 function arch_emit_load_64_from_rax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_load_64_from_rax(out); }
-  if (ta == 2) { return arch.riscv64.emit_load_64_from_rax(out); }
-  return arch.x86_64.emit_load_64_from_rax(out);
+  if (ta == 1) { return arm64.emit_load_64_from_rax(out); }
+  if (ta == 2) { return riscv64.emit_load_64_from_rax(out); }
+  return x86_64.emit_load_64_from_rax(out);
 }
 /** å° rax å­å° [rbx+offset]ãstore_size 4=ARRAY_LIT åç´ ï¼8=STRUCT_LIT å­æ®µãç¨äº STRUCT_LIT/ARRAY_LIT temp åºã */
 function arch_emit_store_rax_to_rbx_offset(out: *CodegenOutBuf, offset: i32, store_size: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_store_rax_to_rbx_offset(out, offset, store_size); }
-  if (ta == 2) { return arch.riscv64.emit_store_rax_to_rbx_offset(out, offset, store_size); }
-  return arch.x86_64.emit_store_rax_to_rbx_offset(out, offset, store_size);
+  if (ta == 1) { return arm64.emit_store_rax_to_rbx_offset(out, offset, store_size); }
+  if (ta == 2) { return riscv64.emit_store_rax_to_rbx_offset(out, offset, store_size); }
+  return x86_64.emit_store_rax_to_rbx_offset(out, offset, store_size);
 }
 /** å° rbx æ·å° raxï¼åºå/å¼ï¼ãç¨äº STRUCT_LIT/ARRAY_LIT è¿å temp åºåºåã */
 function arch_emit_mov_rbx_to_rax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_mov_rbx_to_rax(out); }
-  if (ta == 2) { return arch.riscv64.emit_mov_rbx_to_rax(out); }
-  return arch.x86_64.emit_mov_rbx_to_rax(out);
+  if (ta == 1) { return arm64.emit_mov_rbx_to_rax(out); }
+  if (ta == 2) { return riscv64.emit_mov_rbx_to_rax(out); }
+  return x86_64.emit_mov_rbx_to_rax(out);
 }
 /** å°å½å rax æ·å°ç¬¬ k ä¸ªåæ°å¯å­å¨ï¼System Vï¼0=rdi..5=r9ï¼ãarm64 å¤åéè¿æ æ§½ + ä¸æ load å®ç°ï¼æ­¤å¤ x86 æ movã */
 function arch_emit_mov_rax_to_arg_reg(out: *CodegenOutBuf, k: i32, ta: i32): i32 {
   if (ta == 1) { return 0; }
-  if (ta == 2) { return arch.riscv64.emit_mov_rax_to_arg_reg(out, k); }
-  return arch.x86_64.emit_mov_rax_to_arg_reg(out, k);
+  if (ta == 2) { return riscv64.emit_mov_rax_to_arg_reg(out, k); }
+  return x86_64.emit_mov_rax_to_arg_reg(out, k);
 }
 
 /** arm64ï¼ä» [sp + i*16] è£å¥ wiï¼ç¨äºå¤å call åãx86 ä¸è°ç¨ã */
 function arch_emit_ldr_sp_offset_to_wi(out: *CodegenOutBuf, i: i32, ta: i32): i32 {
   if (ta != 1) { return 0; }
-  return arch.arm64.emit_ldr_sp_offset_to_wi(out, i);
+  return arm64.emit_ldr_sp_offset_to_wi(out, i);
 }
 
 /** arm64ï¼add sp, sp, #nï¼å¤å call ååæ¶æ ãx86 ä¸è°ç¨ã */
 function arch_emit_add_sp_imm(out: *CodegenOutBuf, n: i32, ta: i32): i32 {
   if (ta != 1) { return 0; }
-  return arch.arm64.emit_add_sp_imm(out, n);
+  return arm64.emit_add_sp_imm(out, n);
 }
 
 /** åç¬å¤ç EXPR_CALLï¼æ¯æç»å® import ç FIELD_ACCESS calleeï¼å¯¹é½ codegenï¼ï¼å¦åè¦æ± EXPR_VARã */
@@ -1287,106 +1287,106 @@ function emit_expr_elf_call(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref:
 
 
 function arch_emit_call(out: *CodegenOutBuf, name: u8[64], name_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_call(out, name, name_len); }
-  if (ta == 2) { return arch.riscv64.emit_call(out, name, name_len); }
-  return arch.x86_64.emit_call(out, name, name_len);
+  if (ta == 1) { return arm64.emit_call(out, name, name_len); }
+  if (ta == 2) { return riscv64.emit_call(out, name, name_len); }
+  return x86_64.emit_call(out, name, name_len);
 }
 function arch_emit_jz(out: *CodegenOutBuf, label: u8[64], label_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_jz(out, label, label_len); }
-  if (ta == 2) { return arch.riscv64.emit_jz(out, label, label_len); }
-  return arch.x86_64.emit_jz(out, label, label_len);
+  if (ta == 1) { return arm64.emit_jz(out, label, label_len); }
+  if (ta == 2) { return riscv64.emit_jz(out, label, label_len); }
+  return x86_64.emit_jz(out, label, label_len);
 }
 /** match èç¸ç­åæ¯ï¼cmp å beq/jeï¼ã */
 function arch_emit_jeq(out: *CodegenOutBuf, label: u8[64], label_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_jeq(out, label, label_len); }
-  if (ta == 2) { return arch.riscv64.emit_jeq(out, label, label_len); }
-  return arch.x86_64.emit_jeq(out, label, label_len);
+  if (ta == 1) { return arm64.emit_jeq(out, label, label_len); }
+  if (ta == 2) { return riscv64.emit_jeq(out, label, label_len); }
+  return x86_64.emit_jeq(out, label, label_len);
 }
 function arch_emit_jmp(out: *CodegenOutBuf, label: u8[64], label_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_jmp(out, label, label_len); }
-  if (ta == 2) { return arch.riscv64.emit_jmp(out, label, label_len); }
-  return arch.x86_64.emit_jmp(out, label, label_len);
+  if (ta == 1) { return arm64.emit_jmp(out, label, label_len); }
+  if (ta == 2) { return riscv64.emit_jmp(out, label, label_len); }
+  return x86_64.emit_jmp(out, label, label_len);
 }
 
 /** æ¡ä»¶è·³è½¬ï¼rax é 0 åè·³ï¼ç¨äº LOGOR ç­è·¯ï¼ã */
 function arch_emit_jnz(out: *CodegenOutBuf, label: u8[64], label_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_jnz(out, label, label_len); }
-  if (ta == 2) { return arch.riscv64.emit_jnz(out, label, label_len); }
-  return arch.x86_64.emit_jnz(out, label, label_len);
+  if (ta == 1) { return arm64.emit_jnz(out, label, label_len); }
+  if (ta == 2) { return riscv64.emit_jnz(out, label, label_len); }
+  return x86_64.emit_jnz(out, label, label_len);
 }
 
 /** ä½ååï¼not/mvn åæä½æ°å¨ raxã */
 function arch_emit_not_eax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_not_eax(out); }
-  if (ta == 2) { return arch.riscv64.emit_not_eax(out); }
-  return arch.x86_64.emit_not_eax(out);
+  if (ta == 1) { return arm64.emit_not_eax(out); }
+  if (ta == 2) { return riscv64.emit_not_eax(out); }
+  return x86_64.emit_not_eax(out);
 }
 
 /** ä½ä¸/æ/å¼æï¼left å¨ rbxï¼right å¨ raxï¼ç»æå¨ raxã */
 function arch_emit_and_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_and_rbx_rax(out); }
-  if (ta == 2) { return arch.riscv64.emit_and_rbx_rax(out); }
-  return arch.x86_64.emit_and_rbx_rax(out);
+  if (ta == 1) { return arm64.emit_and_rbx_rax(out); }
+  if (ta == 2) { return riscv64.emit_and_rbx_rax(out); }
+  return x86_64.emit_and_rbx_rax(out);
 }
 function arch_emit_or_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_or_rbx_rax(out); }
-  if (ta == 2) { return arch.riscv64.emit_or_rbx_rax(out); }
-  return arch.x86_64.emit_or_rbx_rax(out);
+  if (ta == 1) { return arm64.emit_or_rbx_rax(out); }
+  if (ta == 2) { return riscv64.emit_or_rbx_rax(out); }
+  return x86_64.emit_or_rbx_rax(out);
 }
 function arch_emit_xor_rbx_rax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_xor_rbx_rax(out); }
-  if (ta == 2) { return arch.riscv64.emit_xor_rbx_rax(out); }
-  return arch.x86_64.emit_xor_rbx_rax(out);
+  if (ta == 1) { return arm64.emit_xor_rbx_rax(out); }
+  if (ta == 2) { return riscv64.emit_xor_rbx_rax(out); }
+  return x86_64.emit_xor_rbx_rax(out);
 }
 
 /** å° rbx æ·å° ecxï¼x86 ç§»ä½è®¡æ°ï¼ï¼arm64 æ éæ­¤æ­¥ã */
 function arch_emit_mov_rbx_to_ecx(out: *CodegenOutBuf, ta: i32): i32 {
   if (ta == 1) { return 0; }
-  if (ta == 2) { return arch.riscv64.emit_mov_rbx_to_ecx(out); }
-  return arch.x86_64.emit_mov_rbx_to_ecx(out);
+  if (ta == 2) { return riscv64.emit_mov_rbx_to_ecx(out); }
+  return x86_64.emit_mov_rbx_to_ecx(out);
 }
 
 /** å·¦ç§»/é»è¾å³ç§»/ç®æ¯å³ç§»ï¼å¼å¨ raxï¼è®¡æ°å·²å¨ rbxï¼x86 ä¼å mov rbxâecxï¼ã */
 function arch_emit_shl_cl_eax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_shl_cl_eax(out); }
-  if (ta == 2) { return arch.riscv64.emit_shl_cl_eax(out); }
-  return arch.x86_64.emit_shl_cl_eax(out);
+  if (ta == 1) { return arm64.emit_shl_cl_eax(out); }
+  if (ta == 2) { return riscv64.emit_shl_cl_eax(out); }
+  return x86_64.emit_shl_cl_eax(out);
 }
 function arch_emit_shr_cl_eax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_shr_cl_eax(out); }
-  if (ta == 2) { return arch.riscv64.emit_shr_cl_eax(out); }
-  return arch.x86_64.emit_shr_cl_eax(out);
+  if (ta == 1) { return arm64.emit_shr_cl_eax(out); }
+  if (ta == 2) { return riscv64.emit_shr_cl_eax(out); }
+  return x86_64.emit_shr_cl_eax(out);
 }
 function arch_emit_sar_cl_eax(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_sar_cl_eax(out); }
-  if (ta == 2) { return arch.riscv64.emit_sar_cl_eax(out); }
-  return arch.x86_64.emit_sar_cl_eax(out);
+  if (ta == 1) { return arm64.emit_sar_cl_eax(out); }
+  if (ta == 2) { return riscv64.emit_sar_cl_eax(out); }
+  return x86_64.emit_sar_cl_eax(out);
 }
 
 function arch_emit_label(out: *CodegenOutBuf, name: u8[64], name_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_label(out, name, name_len); }
-  if (ta == 2) { return arch.riscv64.emit_label(out, name, name_len); }
-  return arch.x86_64.emit_label(out, name, name_len);
+  if (ta == 1) { return arm64.emit_label(out, name, name_len); }
+  if (ta == 2) { return riscv64.emit_label(out, name, name_len); }
+  return x86_64.emit_label(out, name, name_len);
 }
 function arch_emit_section_text(out: *CodegenOutBuf, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_section_text(out); }
-  if (ta == 2) { return arch.riscv64.emit_section_text(out); }
-  return arch.x86_64.emit_section_text(out);
+  if (ta == 1) { return arm64.emit_section_text(out); }
+  if (ta == 2) { return riscv64.emit_section_text(out); }
+  return x86_64.emit_section_text(out);
 }
 function arch_emit_globl(out: *CodegenOutBuf, name: u8[64], name_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_globl(out, name, name_len); }
-  if (ta == 2) { return arch.riscv64.emit_globl(out, name, name_len); }
-  return arch.x86_64.emit_globl(out, name, name_len);
+  if (ta == 1) { return arm64.emit_globl(out, name, name_len); }
+  if (ta == 2) { return riscv64.emit_globl(out, name, name_len); }
+  return x86_64.emit_globl(out, name, name_len);
 }
 function arch_emit_prologue(out: *CodegenOutBuf, frame_sz: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_prologue(out, frame_sz); }
-  if (ta == 2) { return arch.riscv64.emit_prologue(out, frame_sz); }
-  return arch.x86_64.emit_prologue(out, frame_sz);
+  if (ta == 1) { return arm64.emit_prologue(out, frame_sz); }
+  if (ta == 2) { return riscv64.emit_prologue(out, frame_sz); }
+  return x86_64.emit_prologue(out, frame_sz);
 }
 function arch_emit_epilogue(out: *CodegenOutBuf, frame_sz: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64.emit_epilogue(out, frame_sz); }
-  if (ta == 2) { return arch.riscv64.emit_epilogue(out, frame_sz); }
-  return arch.x86_64.emit_epilogue(out);
+  if (ta == 1) { return arm64.emit_epilogue(out, frame_sz); }
+  if (ta == 2) { return riscv64.emit_epilogue(out, frame_sz); }
+  return x86_64.emit_epilogue(out);
 }
 
 /** è¯»å ctx å±é¨ sidecar ä¸­ç¬¬ slot_idx æ§½çæ åç§»ã */
