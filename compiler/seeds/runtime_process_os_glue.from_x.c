@@ -63,6 +63,10 @@
 extern char **environ;
 #endif
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+void process_nop_sigchld(int sig);
+int process_dup_stdio_posix(int32_t fd, int slot);
+
 /** 热路径：单次 getenv，零分配；-flto 可内联。 */
 uint8_t *process_getenv_c(uint8_t *name) {
     if (name == NULL) return NULL;
@@ -312,9 +316,15 @@ int32_t process_self_exe_path_cached_len_c(void) {
 #if !defined(_WIN32) && !defined(_WIN64)
 /** 空 SIGCHLD handler，用于 spawn 前临时替换 SIG_IGN，使子进程可被 waitpid 回收（SIG_IGN 时系统会自动回收，waitpid 得 ECHILD）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void process_nop_sigchld(int sig) { (void)sig; }
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_process_os_glue.x）提供 public wrapper */
+void process_nop_sigchld_impl(int sig) { (void)sig; }
 
-
+#ifndef SHUX_RUNTIME_PROCESS_OS_GLUE_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void process_nop_sigchld(int sig) {
+    process_nop_sigchld_impl(sig);
+}
+#endif
 
 #endif
 
@@ -443,13 +453,19 @@ typedef struct {
 #if !defined(_WIN32) && !defined(_WIN64)
 /** POSIX：在子进程 dup2 指定 fd 到 stdio 后 execve。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int process_dup_stdio_posix(int32_t fd, int slot) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_process_os_glue.x）提供 public wrapper */
+int process_dup_stdio_posix_impl(int32_t fd, int slot) {
     if (fd < 0) return 0;
     if (dup2(fd, slot) < 0) return -1;
     return 0;
 }
 
-
+#ifndef SHUX_RUNTIME_PROCESS_OS_GLUE_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int process_dup_stdio_posix(int32_t fd, int slot) {
+    return process_dup_stdio_posix_impl(fd, slot);
+}
+#endif
 
 #endif
 

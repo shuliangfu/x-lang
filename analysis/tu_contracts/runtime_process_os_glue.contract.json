@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_process_os_glue",
+  "x_src": "src/asm/runtime_process_os_glue.x",
+  "seed_src": "seeds/runtime_process_os_glue.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (IMPL mode)",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 3,
+    "seed_symbols": 21,
+    "only_x": 1
+  },
+  "symbols": {
+    "x": [
+      "runtime_process_os_glue_x_doc_anchor",
+      "process_nop_sigchld",
+      "process_dup_stdio_posix"
+    ],
+    "seed": [
+      "process_nop_sigchld_impl",
+      "process_dup_stdio_posix_impl",
+      "process_getenv_c",
+      "process_setenv_c",
+      "process_unsetenv_c",
+      "process_getpid_c",
+      "process_getppid_c",
+      "process_getcwd_c",
+      "process_getcwd_ptr_c",
+      "process_getcwd_cached_len_c",
+      "process_chdir_c",
+      "process_self_exe_path_c",
+      "process_self_exe_path_ptr_c",
+      "process_self_exe_path_cached_len_c",
+      "process_spawn_c",
+      "process_spawn_simple_c",
+      "process_spawn_io_c",
+      "process_exec_c",
+      "process_exec_simple_c",
+      "process_waitpid_c",
+      "process_pipe_c"
+    ],
+    "only_x": ["runtime_process_os_glue_x_doc_anchor"]
+  },
+  "rest_macro": "SHUX_RUNTIME_PROCESS_OS_GLUE_FROM_X",
+  "impl_residuals": [
+    "process_nop_sigchld_impl",
+    "process_dup_stdio_posix_impl"
+  ],
+  "forward_decls": [
+    "process_nop_sigchld",
+    "process_dup_stdio_posix"
+  ],
+  "internal_call_rewrites": [],
+  "known_limitations": [
+    "预存行为（非本次切割引入）：Linux 上 thin wrapper 为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1，macOS Mach-O 忽略 weak 均为 T",
+    "平台条件符号：process_nop_sigchld 和 process_dup_stdio_posix 都在 #if !defined(_WIN32) && !defined(_WIN64) 块内（POSIX only）；Windows 下不编译，不切割"
+  ],
+  "platform_notes": "process_spawn_c 取 process_nop_sigchld 地址传给 signal()；process_spawn_io_c 调用 process_nop_sigchld + process_dup_stdio_posix。rest 模式下均为 U 符号由 thin.o 提供",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}
