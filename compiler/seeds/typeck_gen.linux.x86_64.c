@@ -3474,6 +3474,16 @@ int typeck_func_body_has_implicit_return_tail(struct ast_ASTArena * arena, int32
  } else (__tmp = 0) ; __tmp; }));
   (void)(({ int __tmp = 0; if (ast_expr_disallows_implicit_tail(arena, tail_ref)) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
+  /* G-02f-477: EXPR_BLOCK (ord=26) — recursively check inner block for explicit return.
+   * unsafe { return expr; } is parsed as EXPR_BLOCK; without this check, the typeck
+   * incorrectly reports implicit tail return because EXPR_BLOCK doesn't disallow it. */
+  { int32_t tail_kind = pipeline_expr_kind_ord_at(arena, tail_ref);
+    if (tail_kind == 26) {
+      int32_t inner_block = pipeline_expr_block_ref_at(arena, tail_ref);
+      if (!ast_ref_is_null(inner_block))
+        return typeck_func_body_has_implicit_return_tail(arena, inner_block);
+    }
+  }
   return 1;
 }
 int32_t typeck_loop_depth_push(struct ast_PipelineDepCtx * ctx) {
