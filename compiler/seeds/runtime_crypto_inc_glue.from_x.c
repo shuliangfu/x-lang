@@ -39,9 +39,16 @@ uint32_t crypto_rotr32_c(uint32_t x, uint32_t n);
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint32_t crypto_rotl32_c(uint32_t x, uint32_t n);
 uint32_t crypto_sha256_k256_c(int32_t i);
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 _impl 调用 */
+uint32_t shu_sha256_rotr32(uint32_t x, uint32_t n);
+uint32_t shu_sha256_ch(uint32_t x, uint32_t y, uint32_t z);
+uint32_t shu_sha256_maj(uint32_t x, uint32_t y, uint32_t z);
 
 /** i32 减法 a - b；seed asm 字面量减变量 emit 失败（如 64 - klen）。 */
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：thin（src/asm/runtime_crypto_inc_glue.x）提供 public wrapper */
+#ifndef SHUX_RUNTIME_CRYPTO_INC_GLUE_FROM_X
+/* 完整模式（未定义 thin 宏）：thin 函数由 seed 提供 */
 int32_t crypto_i32_sub_c(int32_t a, int32_t b) {
   return a - b;
 }
@@ -60,10 +67,10 @@ uint32_t shu_sha256_ch(uint32_t x, uint32_t y, uint32_t z) {
 uint32_t shu_sha256_maj(uint32_t x, uint32_t y, uint32_t z) {
   return (x & y) ^ (x & z) ^ (y & z);
 }
+#endif /* SHUX_RUNTIME_CRYPTO_INC_GLUE_FROM_X */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-
-
-void shu_sha256_block(uint32_t *H, const uint8_t *block) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_crypto_inc_glue.x）提供 public wrapper */
+void shu_sha256_block_impl(uint32_t *H, const uint8_t *block) {
   uint32_t W[64];
   int i;
   for (i = 0; i < 16; i++) {
@@ -94,8 +101,12 @@ void shu_sha256_block(uint32_t *H, const uint8_t *block) {
   H[4] += e; H[5] += f; H[6] += g; H[7] += h;
 }
 
-
-
+#ifndef SHUX_RUNTIME_CRYPTO_INC_GLUE_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void shu_sha256_block(uint32_t *H, const uint8_t *block) {
+  shu_sha256_block_impl(H, block);
+}
+#endif
 
 CRYPTO_HOT
 void crypto_sha256_c(const uint8_t * restrict msg, int32_t len, uint8_t * restrict out) {
@@ -118,7 +129,7 @@ void crypto_sha256_c(const uint8_t * restrict msg, int32_t len, uint8_t * restri
   p = msg;
   rem = len;
   while (rem >= 64) {
-    shu_sha256_block(H, p);
+    shu_sha256_block_impl(H, p);
     p += 64;
     rem -= 64;
   }
@@ -132,7 +143,7 @@ void crypto_sha256_c(const uint8_t * restrict msg, int32_t len, uint8_t * restri
     while (pad_len < 64) {
       block[pad_len++] = 0;
     }
-    shu_sha256_block(H, block);
+    shu_sha256_block_impl(H, block);
     pad_len = 0;
     memset(block, 0, 56);
   } else {
@@ -148,7 +159,7 @@ void crypto_sha256_c(const uint8_t * restrict msg, int32_t len, uint8_t * restri
   block[61] = (uint8_t)(total_bits >> 16);
   block[62] = (uint8_t)(total_bits >> 8);
   block[63] = (uint8_t)total_bits;
-  shu_sha256_block(H, block);
+  shu_sha256_block_impl(H, block);
   for (hi = 0; hi < 8; hi++) {
     out[hi * 4] = (uint8_t)(H[hi] >> 24);
     out[hi * 4 + 1] = (uint8_t)(H[hi] >> 16);
@@ -256,10 +267,14 @@ uint32_t crypto_rotr32_c(uint32_t x, uint32_t n) {
 }
 
 /** u32 左旋转；n 取模 32。 */
+/* G-02f-20 thin+rest：thin（src/asm/runtime_crypto_inc_glue.x）提供 public wrapper */
+#ifndef SHUX_RUNTIME_CRYPTO_INC_GLUE_FROM_X
+/* 完整模式（未定义 thin 宏）：thin 函数由 seed 提供 */
 uint32_t crypto_rotl32_c(uint32_t x, uint32_t n) {
   n &= 31u;
   return (x << n) | (x >> (32u - n));
 }
+#endif
 
 /** AES S-box（FIPS-197）；idx 越界返回 0。 */
 static const uint8_t k_crypto_aes_sbox[256] = {

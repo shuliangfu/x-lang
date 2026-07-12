@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_crypto_inc_glue",
+  "x_src": "src/asm/runtime_crypto_inc_glue.x",
+  "seed_src": "seeds/runtime_crypto_inc_glue.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (mixed IMPL + DIRECT)",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 7,
+    "seed_symbols": 11,
+    "only_x": 1,
+    "only_seed": 11
+  },
+  "symbols": {
+    "x": [
+      "runtime_crypto_inc_glue_x_doc_anchor",
+      "shu_sha256_block",
+      "shu_sha256_rotr32",
+      "shu_sha256_ch",
+      "shu_sha256_maj",
+      "crypto_i32_sub_c",
+      "crypto_rotl32_c"
+    ],
+    "seed": [
+      "shu_sha256_block_impl",
+      "crypto_sha256_c",
+      "crypto_hmac_sha256_c",
+      "crypto_sha512_c",
+      "crypto_hmac_sha512_c",
+      "crypto_rotr32_c",
+      "crypto_aes_sbox_byte_c",
+      "crypto_aes_rcon_byte_c",
+      "crypto_chacha_sigma_byte_c",
+      "crypto_sha256_k256_c",
+      "crypto_block16_fill_c"
+    ],
+    "only_x": ["runtime_crypto_inc_glue_x_doc_anchor"],
+    "only_seed": [
+      "shu_sha256_block_impl",
+      "crypto_sha256_c",
+      "crypto_hmac_sha256_c",
+      "crypto_sha512_c",
+      "crypto_hmac_sha512_c",
+      "crypto_rotr32_c",
+      "crypto_aes_sbox_byte_c",
+      "crypto_aes_rcon_byte_c",
+      "crypto_chacha_sigma_byte_c",
+      "crypto_sha256_k256_c",
+      "crypto_block16_fill_c"
+    ]
+  },
+  "rest_macro": "SHUX_RUNTIME_CRYPTO_INC_GLUE_FROM_X",
+  "impl_residuals": ["shu_sha256_block_impl"],
+  "forward_decls": [
+    "shu_sha256_rotr32",
+    "shu_sha256_ch",
+    "shu_sha256_maj"
+  ],
+  "internal_call_rewrites": [
+    {"site": "crypto_sha256_c", "old": "shu_sha256_block", "new": "shu_sha256_block_impl", "count": 3}
+  ],
+  "known_limitations": [
+    ".x 编译器未生成 shu_sha256_ch（疑似内联），rest 模式下 merged.o 中为 U 符号。完整模式下 seed 在 #ifndef 块内提供该函数，产品构建不受影响。Phase 3/4 需修复 .x 编译器内联策略"
+  ],
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      ".x 编译器内联问题修复（shu_sha256_ch 必须生成独立符号）",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}
