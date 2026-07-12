@@ -282,7 +282,6 @@ function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_ref: i32
   let r: i32 = 0;
   unsafe { r = off; }
   return r;
-  return 0 - 1;
 }
 
 // G-02f-214：f32 SoA sum assign 形
@@ -581,7 +580,6 @@ function glue_simd_x86_cmp_rax_rbx_c(elf_ctx: *u8): i32 {
   if (r != 0) { return 0 - 1; }
   unsafe { r = pipeline_elf_ctx_append_bytes(elf_ctx, &b1, 1); }
   return r;
-  return 0 - 1;
 }
 
 /* ---- G-02f-215：runtime strip + f32 soa sum strip ---- */
