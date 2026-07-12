@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "lsp_diag_pipeline_sizes",
+  "x_src": "src/lsp/lsp_diag_pipeline_sizes.x",
+  "seed_src": "seeds/lsp_diag_pipeline_sizes.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/lsp_diag_pipeline_sizes",
+  "phase": "phase0_trial",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "pending",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 3,
+    "seed_symbols": 3,
+    "only_x": 0,
+    "only_seed": 0
+  },
+  "symbols": {
+    "x": ["lsp_diag_pipeline_sizeof_arena", "lsp_diag_pipeline_sizeof_dep_ctx", "lsp_diag_pipeline_sizeof_module"],
+    "seed": ["lsp_diag_pipeline_sizeof_arena", "lsp_diag_pipeline_sizeof_dep_ctx", "lsp_diag_pipeline_sizeof_module"],
+    "only_x": [],
+    "only_seed": []
+  },
+  "rest_macro": "",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}
