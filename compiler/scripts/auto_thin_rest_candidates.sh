@@ -80,65 +80,72 @@ PAIRS_FILE="${PROBE_DIR}/pairs.tsv"
 SEED_STEMS_FILE="${PROBE_DIR}/.seed_stems.tmp"
 ls "$SEED_DIR"/*.from_x.c 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/\.from_x\.c$//' | sort -u >"$SEED_STEMS_FILE"
 
+# 【Why 根源】批量 rg：对所有 seed 文件单次扫描，避免 N×6 次 per-file rg 调用。
+# 【Invariant】每模式输出 path:count，awk 归一为 stem→count 查找表。
+# 【Asm/Perf】O(6) rg 调用（每模式一次）+ O(N) awk 解析，N=seed 文件数。
+
+# 批量：所有 seed 的行数
+SEED_LINES_FILE="${PROBE_DIR}/.seed_lines.tmp"
+wc -l "$SEED_DIR"/*.from_x.c 2>/dev/null | awk '{n=split($2,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$1}' >"$SEED_LINES_FILE"
+
+# 批量：每模式一次 rg，输出 stem→count
+SEED_WEAK_FILE="${PROBE_DIR}/.seed_weak.tmp"
+SEED_IFDEF_FILE="${PROBE_DIR}/.seed_ifdef.tmp"
+SEED_VALIST_FILE="${PROBE_DIR}/.seed_valist.tmp"
+SEED_ARGV_FILE="${PROBE_DIR}/.seed_argv.tmp"
+SEED_IMPL_FILE="${PROBE_DIR}/.seed_impl.tmp"
+SEED_MACRO_FILE="${PROBE_DIR}/.seed_macro.tmp"
+
+rg -c '__attribute__\s*\(\(weak\)\)' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$2}' >"$SEED_WEAK_FILE" || true
+rg -c '^\s*#\s*(if|ifdef|ifndef)' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$2}' >"$SEED_IFDEF_FILE" || true
+rg -c '\bva_list\b' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$2}' >"$SEED_VALIST_FILE" || true
+rg -c '\bargv\b' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$2}' >"$SEED_ARGV_FILE" || true
+rg -c '^[a-zA-Z_][a-zA-Z0-9_ \*]*\bimpl\b[[:space:]]*\(' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$2}' >"$SEED_IMPL_FILE" || true
+rg -c 'SHUX_[A-Z0-9_]+_FROM_X' "$SEED_DIR"/*.from_x.c 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.from_x\.c$/,"",stem); print stem"\t"$2}' >"$SEED_MACRO_FILE" || true
+
 # 预计算：每个 seed 的行数 + 风险标记 + impl 计数 + 是否有 rest 宏
-# 输出 TSV: stem \t lines \t impl_count \t has_rest_macro \t risk_flags
+# 输出 TSV: stem \t lines \t impl_count \t has_rest_macro \t risk_flags \t seed_path
 SEED_META_FILE="${PROBE_DIR}/.seed_meta.tmp"
-: >"$SEED_META_FILE"
 
-while IFS= read -r _seed_path; do
-  [ -z "$_seed_path" ] && continue
-  _seed_name="$(basename "$_seed_path" .from_x.c)"
-  _lines="$(wc -l <"$_seed_path" | tr -d ' ')"
+# 【Why 根源】单次 awk 合并 7 个查找表，用 FILENAME 模式区分来源（portable，BSD awk 兼容）。
+awk -F'\t' '
+  FILENAME ~ /seed_lines/  { lines[$1]=$2;  next }
+  FILENAME ~ /seed_weak/   { weak[$1]=$2;   next }
+  FILENAME ~ /seed_ifdef/  { ifdef[$1]=$2;  next }
+  FILENAME ~ /seed_valist/ { valist[$1]=$2; next }
+  FILENAME ~ /seed_argv/   { argv[$1]=$2;   next }
+  FILENAME ~ /seed_impl/   { impl[$1]=$2;   next }
+  FILENAME ~ /seed_macro/  { macro[$1]=$2;  next }
+  END {
+    for (stem in lines) {
+      l = lines[stem]+0
+      w = weak[stem]+0
+      i = ifdef[stem]+0
+      v = valist[stem]+0
+      a = argv[stem]+0
+      im = impl[stem]+0
+      mc = macro[stem]+0
 
-  # 单次 rg 调用收集所有风险标记 + impl 计数 + rest 宏
-  _rg_out="$(rg -c -e '__attribute__\s*\(\(weak\)\)' -e '^\s*#\s*(if|ifdef|ifndef)' -e '\bva_list\b' -e '\bargv\b' -e '^[a-zA-Z_][a-zA-Z0-9_ \*]*\bimpl\b[[:space:]]*\(' -e 'SHUX_[A-Z0-9_]+_FROM_X' "$_seed_path" 2>/dev/null || true)"
+      risk = ""
+      if (a>0) risk = risk "argv,"
+      if (v>0) risk = risk "va_list,"
+      if (w>0) risk = risk "weak,"
+      if (i>0) risk = risk "ifdef,"
+      if (l>1000) risk = risk "large,"
+      sub(/,$/, "", risk)
 
-  _weak_n=0
-  _ifdef_n=0
-  _va_list_n=0
-  _argv_n=0
-  _impl_n=0
-  _rest_macro_n=0
+      has_macro = (mc > 0) ? "yes" : "no"
+      print stem "\t" l "\t" im "\t" has_macro "\t" risk "\t" "seeds/" stem ".from_x.c"
+    }
+  }
+' "$SEED_LINES_FILE" "$SEED_WEAK_FILE" "$SEED_IFDEF_FILE" "$SEED_VALIST_FILE" "$SEED_ARGV_FILE" "$SEED_IMPL_FILE" "$SEED_MACRO_FILE" >"$SEED_META_FILE"
 
-  if [ -n "$_rg_out" ]; then
-    # rg -c 输出格式：file:count（多模式时按模式顺序输出，每模式一行 file:count）
-    _weak_n="$(printf '%s\n' "$_rg_out" | awk -F: '$1~/weak/{print $2}' | head -n1)"
-    _ifdef_n="$(printf '%s\n' "$_rg_out" | awk -F: '$1~/ifdef/{print $2}' | head -n1)"
-    _va_list_n="$(printf '%s\n' "$_rg_out" | awk -F: '$1~/va_list/{print $2}' | head -n1)"
-    _argv_n="$(printf '%s\n' "$_rg_out" | awk -F: '$1~/argv/{print $2}' | head -n1)"
-    _impl_n="$(printf '%s\n' "$_rg_out" | awk -F: '$1~/impl/{print $2}' | head -n1)"
-    _rest_macro_n="$(printf '%s\n' "$_rg_out" | awk -F: '$1~/FROM_X/{print $2}' | head -n1)"
-  fi
+# 【Why 根源】批量 rg：对所有 .x 文件单次扫描 #[no_mangle]，避免 M 次 per-file rg 调用。
+# 【Asm/Perf】O(1) rg 调用 + O(M) awk 解析，M=.x 文件数。
+X_NM_FILE="${PROBE_DIR}/.x_nm.tmp"
+find "$SRC_DIR" -type f -name '*.x' ! -name '*_thin.x' -print0 | xargs -0 rg -c '#\[no_mangle\]' 2>/dev/null | awk -F: '{n=split($1,pa,"/"); stem=pa[n]; sub(/\.x$/,"",stem); print stem"\t"$2}' >"$X_NM_FILE" || true
 
-  _weak_n="${_weak_n:-0}"
-  _ifdef_n="${_ifdef_n:-0}"
-  _va_list_n="${_va_list_n:-0}"
-  _argv_n="${_argv_n:-0}"
-  _impl_n="${_impl_n:-0}"
-  _rest_macro_n="${_rest_macro_n:-0}"
-
-  _risk_flags=""
-  [ "$_argv_n" -gt 0 ] 2>/dev/null && _risk_flags="${_risk_flags}argv,"
-  [ "$_va_list_n" -gt 0 ] 2>/dev/null && _risk_flags="${_risk_flags}va_list,"
-  [ "$_weak_n" -gt 0 ] 2>/dev/null && _risk_flags="${_risk_flags}weak,"
-  [ "$_ifdef_n" -gt 0 ] 2>/dev/null && _risk_flags="${_risk_flags}ifdef,"
-  [ "$_lines" -gt 1000 ] 2>/dev/null && _risk_flags="${_risk_flags}large,"
-  _risk_flags="${_risk_flags%,}"
-
-  _has_rest_macro="no"
-  [ "$_rest_macro_n" -gt 0 ] 2>/dev/null && _has_rest_macro="yes"
-
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$_seed_name" "$_lines" "$_impl_n" "$_has_rest_macro" "$_risk_flags" "$_seed_path" >>"$SEED_META_FILE"
-done <<EOF
-$(ls "$SEED_DIR"/*.from_x.c 2>/dev/null)
-EOF
-
-# 查找 seed meta 的 helper
-lookup_seed_meta() {
-  _stem="$1"
-  awk -F'\t' -v s="$_stem" '$1==s {print $2"\t"$3"\t"$4"\t"$5"\t"$6; exit}' "$SEED_META_FILE"
-}
-
+# 查找 seed meta 的 helper（内联 awk，避免函数调用开销）
 # 主扫描：遍历 .x 文件
 while IFS= read -r x_file; do
   _stem="$(basename "$x_file" .x)"
@@ -154,8 +161,8 @@ while IFS= read -r x_file; do
     continue
   fi
 
-  # 读取 seed meta
-  _meta="$(lookup_seed_meta "$_stem")"
+  # 读取 seed meta（单次 awk 查找）
+  _meta="$(awk -F'\t' -v s="$_stem" '$1==s {print $2"\t"$3"\t"$4"\t"$5"\t"$6; exit}' "$SEED_META_FILE")"
   if [ -z "$_meta" ]; then
     continue
   fi
@@ -170,8 +177,9 @@ while IFS= read -r x_file; do
   _thin_file="${x_file%.x}_thin.x"
   [ -f "$_thin_file" ] && _has_thin="yes"
 
-  # 统计 .x 中 #[no_mangle] 数量
-  _nm_count="$(rg -c '#\[no_mangle\]' "$x_file" 2>/dev/null || echo 0)"
+  # 从批量预计算查找 #[no_mangle] 数量
+  _nm_count="$(awk -F'\t' -v s="$_stem" '$1==s{print $2; exit}' "$X_NM_FILE")"
+  _nm_count="${_nm_count:-0}"
 
   # 状态判定
   _status="candidate"
@@ -286,7 +294,9 @@ else
 fi
 
 # 清理临时文件
-rm -f "$SEED_STEMS_FILE" "$SEED_META_FILE"
+rm -f "$SEED_STEMS_FILE" "$SEED_META_FILE" "$SEED_LINES_FILE" \
+      "$SEED_WEAK_FILE" "$SEED_IFDEF_FILE" "$SEED_VALIST_FILE" \
+      "$SEED_ARGV_FILE" "$SEED_IMPL_FILE" "$SEED_MACRO_FILE" "$X_NM_FILE"
 
 echo "  pairs_tsv:  $PAIRS_FILE" >&2
 
