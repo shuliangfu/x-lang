@@ -39,26 +39,43 @@ typedef struct {
     size_t handle;
 } shu_net_buf_t;
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+void shu_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32);
+int shu_udp_batch_poll_readable(int fd, uint32_t timeout_ms);
+
 /** 填充 IPv4 sockaddr_in。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void shu_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_udp_batch.x）提供 public wrapper */
+void shu_udp_batch_set_addr_port_impl(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
     sin->sin_family = AF_INET;
     sin->sin_addr.s_addr = htonl(addr_u32);
     sin->sin_port = htons((uint16_t)(port_u32 & 0xFFFFu));
 }
 
-
-
+#ifndef SHUX_RUNTIME_NET_UDP_BATCH_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void shu_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
+    shu_udp_batch_set_addr_port_impl(sin, addr_u32, port_u32);
+}
+#endif
 
 /** poll 可读；失败 -1。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shu_udp_batch_poll_readable(int fd, uint32_t timeout_ms) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_udp_batch.x）提供 public wrapper */
+int shu_udp_batch_poll_readable_impl(int fd, uint32_t timeout_ms) {
     struct pollfd pfd = { fd, POLLIN, 0 };
     int n = poll(&pfd, 1, (int)(timeout_ms ? timeout_ms : (-1)));
     if (n <= 0 || (pfd.revents & (POLLERR | POLLHUP)))
         return -1;
     return 0;
 }
+
+#ifndef SHUX_RUNTIME_NET_UDP_BATCH_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int shu_udp_batch_poll_readable(int fd, uint32_t timeout_ms) {
+    return shu_udp_batch_poll_readable_impl(fd, timeout_ms);
+}
+#endif
 
 
 

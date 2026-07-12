@@ -58,7 +58,7 @@ runtime_net_dns_fast	src/asm/runtime_net_dns_fast.x	seeds/runtime_net_dns_fast.f
 runtime_net_io_batch_fast	src/asm/runtime_net_io_batch_fast.x	seeds/runtime_net_io_batch_fast.from_x.c	0	95	0	no	no	weak,ifdef	not_candidate
 runtime_net_ipv6_fast	src/asm/runtime_net_ipv6_fast.x	seeds/runtime_net_ipv6_fast.from_x.c	5	175	0	no	no	ifdef	candidate
 runtime_net_sock_fast	src/asm/runtime_net_sock_fast.x	seeds/runtime_net_sock_fast.from_x.c	2	141	0	no	yes	ifdef	already_split
-runtime_net_udp_batch	src/asm/runtime_net_udp_batch.x	seeds/runtime_net_udp_batch.from_x.c	2	209	0	no	no	ifdef	candidate
+runtime_net_udp_batch	src/asm/runtime_net_udp_batch.x	seeds/runtime_net_udp_batch.from_x.c	2	209	0	no	yes	ifdef	already_split
 runtime_net_workers	src/asm/runtime_net_workers.x	seeds/runtime_net_workers.from_x.c	0	58	0	no	no	weak,ifdef	not_candidate
 runtime_panic_arm64	src/asm/runtime_panic_arm64.x	seeds/runtime_panic_arm64.from_x.c	1	45	0	no	yes	weak,ifdef	already_split
 runtime_panic	src/asm/runtime_panic.x	seeds/runtime_panic.from_x.c	1	78	0	no	yes	weak,ifdef	already_split
