@@ -77,7 +77,7 @@ runtime_sync_os	src/asm/runtime_sync_os.x	seeds/runtime_sync_os.from_x.c	0	404	0
 runtime_test_fn_invoke	src/asm/runtime_test_fn_invoke.x	seeds/runtime_test_fn_invoke.from_x.c	0	20	0	no	no		not_candidate
 runtime_thread_glue	src/asm/runtime_thread_glue.x	seeds/runtime_thread_glue.from_x.c	2	476	0	no	no	ifdef	candidate
 runtime_time_os	src/asm/runtime_time_os.x	seeds/runtime_time_os.from_x.c	0	135	0	no	no	ifdef	not_candidate
-runtime_tls_mbedtls_bio	src/asm/runtime_tls_mbedtls_bio.x	seeds/runtime_tls_mbedtls_bio.from_x.c	2	65	0	no	no	ifdef	candidate
+runtime_tls_mbedtls_bio	src/asm/runtime_tls_mbedtls_bio.x	seeds/runtime_tls_mbedtls_bio.from_x.c	2	65	0	no	yes	ifdef	already_split
 simd_enc	src/asm/simd_enc.x	seeds/simd_enc.from_x.c	74	1831	0	yes	yes	ifdef,large	already_split
 simd_loop	src/asm/simd_loop.x	seeds/simd_loop.from_x.c	23	1050	0	yes	yes	ifdef,large	already_split
 user_asm_seed_bridge	src/asm/user_asm_seed_bridge.x	seeds/user_asm_seed_bridge.from_x.c	7	459	0	no	yes	weak,ifdef	already_split

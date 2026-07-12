@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_tls_mbedtls_bio",
+  "x_src": "src/asm/runtime_tls_mbedtls_bio.x",
+  "seed_src": "seeds/runtime_tls_mbedtls_bio.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (IMPL mode)",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 3,
+    "seed_symbols": 3,
+    "only_x": 1,
+    "only_seed": 3
+  },
+  "symbols": {
+    "x": [
+      "runtime_tls_mbedtls_bio_x_doc_anchor",
+      "shu_mbedtls_bio_send",
+      "shu_mbedtls_bio_recv"
+    ],
+    "seed": [
+      "shu_mbedtls_bio_send_impl",
+      "shu_mbedtls_bio_recv_impl",
+      "shu_mbedtls_ssl_bind_fd_c"
+    ],
+    "only_x": ["runtime_tls_mbedtls_bio_x_doc_anchor"],
+    "only_seed": [
+      "shu_mbedtls_bio_send_impl",
+      "shu_mbedtls_bio_recv_impl",
+      "shu_mbedtls_ssl_bind_fd_c"
+    ]
+  },
+  "rest_macro": "SHUX_RUNTIME_TLS_MBEDTLS_BIO_FROM_X",
+  "impl_residuals": ["shu_mbedtls_bio_send_impl", "shu_mbedtls_bio_recv_impl"],
+  "forward_decls": [
+    "shu_mbedtls_bio_send",
+    "shu_mbedtls_bio_recv"
+  ],
+  "internal_call_rewrites": [],
+  "external_deps": [
+    "mbedtls/ssl.h (macOS: /opt/homebrew/opt/mbedtls/include; Ubuntu: libmbedtls-dev /usr/include/mbedtls)",
+    "errno.h, sys/socket.h (Unix only)"
+  ],
+  "platform_notes": "send/recv/bind impl bodies inside #if !defined(_WIN32); thin wrappers in .x always defined; Windows produces unreferenced T+U pair (same as runtime_dynlib_os pattern)",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}
