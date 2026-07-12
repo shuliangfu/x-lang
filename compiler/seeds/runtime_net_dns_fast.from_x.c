@@ -18,8 +18,9 @@ static int net_dns_wsa_ready = 0;
 int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *out_err);
 int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *out_err);
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_dns_fast.x）提供 public wrapper */
 
-int32_t net_dns_ai_addconfig_c(void) {
+int32_t net_dns_ai_addconfig_c_impl(void) {
 #if defined(__linux__)
     return 32;
 #else
@@ -27,11 +28,18 @@ int32_t net_dns_ai_addconfig_c(void) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_NET_DNS_FAST_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int32_t net_dns_ai_addconfig_c(void) {
+    return net_dns_ai_addconfig_c_impl();
+}
+#endif
+
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-int32_t net_dns_map_gai_error_c(int err) {
+int32_t net_dns_map_gai_error_c_impl(int err) {
 #if defined(__linux__)
     if (err == EAI_NONAME)
         return 1;
@@ -65,12 +73,19 @@ int32_t net_dns_map_gai_error_c(int err) {
     return 4;
 #endif
 }
+
+#ifndef SHUX_RUNTIME_NET_DNS_FAST_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int32_t net_dns_map_gai_error_c(int err) {
+    return net_dns_map_gai_error_c_impl(err);
+}
+#endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
 
 
-int32_t net_dns_ensure_wsa_c(void) {
+int32_t net_dns_ensure_wsa_c_impl(void) {
 #if defined(_WIN32) || defined(_WIN64)
     WSADATA data;
     if (net_dns_wsa_ready)
@@ -81,6 +96,13 @@ int32_t net_dns_ensure_wsa_c(void) {
 #endif
     return 0;
 }
+
+#ifndef SHUX_RUNTIME_NET_DNS_FAST_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int32_t net_dns_ensure_wsa_c(void) {
+    return net_dns_ensure_wsa_c_impl();
+}
+#endif
 
 
 
@@ -99,7 +121,7 @@ int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *ou
     struct sockaddr_in *sa = 0;
     int ga = 0;
     uint32_t addr_u32 = 0;
-    if (net_dns_ensure_wsa_c() != 0) {
+    if (net_dns_ensure_wsa_c_impl() != 0) {
         if (out_addr)
             out_addr[0] = 0;
         if (out_err)
@@ -116,13 +138,13 @@ int32_t net_resolve_ipv4_ex_c(uint8_t *hostname, uint32_t *out_addr, int32_t *ou
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = net_dns_ai_addconfig_c();
+    hints.ai_flags = net_dns_ai_addconfig_c_impl();
     ga = getaddrinfo((const char *)hostname, 0, &hints, &res);
     if (ga != 0 || !res) {
         if (out_addr)
             out_addr[0] = 0;
         if (out_err)
-            out_err[0] = net_dns_map_gai_error_c(ga);
+            out_err[0] = net_dns_map_gai_error_c_impl(ga);
         if (res)
             freeaddrinfo(res);
         return -1;
@@ -151,7 +173,7 @@ int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *
     struct addrinfo *res = 0;
     struct sockaddr_in6 *sa6 = 0;
     int ga = 0;
-    if (net_dns_ensure_wsa_c() != 0) {
+    if (net_dns_ensure_wsa_c_impl() != 0) {
         if (out_err)
             out_err[0] = 4;
         return -1;
@@ -165,11 +187,11 @@ int32_t net_resolve_ipv6_ex_c(uint8_t *hostname, uint8_t *out_addr_16, int32_t *
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET6;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = net_dns_ai_addconfig_c();
+    hints.ai_flags = net_dns_ai_addconfig_c_impl();
     ga = getaddrinfo((const char *)hostname, 0, &hints, &res);
     if (ga != 0 || !res) {
         if (out_err)
-            out_err[0] = net_dns_map_gai_error_c(ga);
+            out_err[0] = net_dns_map_gai_error_c_impl(ga);
         if (res)
             freeaddrinfo(res);
         return -1;
