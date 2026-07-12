@@ -2473,9 +2473,13 @@ SHUX_LIB_WEAK int32_t codegen_emit_module_enum_definitions(struct ast_Module * m
   }
   return 0;
 }
+static int32_t g_codegen_dep_types_emitted = 0;
 SHUX_LIB_WEAK int32_t codegen_emit_skipped_dep_type_definitions(struct ast_PipelineDepCtx * ctx, struct codegen_CodegenOutBuf * out) {
   if (ctx == ((struct ast_PipelineDepCtx *)(0)) || out == ((struct codegen_CodegenOutBuf *)(0))) {   return 0;
  }
+  if (g_codegen_dep_types_emitted != 0) {   return 0;
+ }
+  g_codegen_dep_types_emitted = 1;
   struct ast_Module * saved_module = (ctx)->current_codegen_module;
   struct ast_ASTArena * saved_arena = (ctx)->current_codegen_arena;
   int32_t saved_dep_index = (ctx)->current_codegen_dep_index;
@@ -5589,7 +5593,7 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
   while (i < (module)->num_funcs) {
     if (i == 0) {   if (codegen_x_ast_emit_header(out) != 0) {   return (-1);
  }
-  if (dep_index < 0 && codegen_emit_skipped_dep_type_definitions(ctx, out) != 0) {   return (-1);
+  if (codegen_emit_skipped_dep_type_definitions(ctx, out) != 0) {   return (-1);
  }
   if (codegen_emit_dep_struct_forward_declarations(ctx, out) != 0) {   return (-1);
  }
