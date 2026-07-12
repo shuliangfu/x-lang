@@ -36,6 +36,10 @@ void shux_string_copy_c(uint8_t *dst, uint8_t *src, int32_t n) {
     memcpy(dst, src, (size_t)n);
 }
 
+/* G-02f-20 thin+rest：thin（src/asm/runtime_string_fast.x）提供 4 个 pure helpers */
+#ifndef SHUX_RUNTIME_STRING_FAST_FROM_X
+/* 完整模式（未定义 thin 宏）：thin 函数由 seed 提供 */
+
 int32_t shux_string_memchr_c(uint8_t *ptr, uint8_t c, int32_t n) {
     uint8_t *p;
     if (n <= 0)
@@ -87,3 +91,5 @@ int32_t shux_string_memmem_c(uint8_t *hay, int32_t hay_len, uint8_t *needle, int
         return shux_string_memchr_c(hay, needle[0], hay_len);
     return shux_string_portable_memmem_c(hay, hay_len, needle, needle_len);
 }
+
+#endif /* SHUX_RUNTIME_STRING_FAST_FROM_X */
