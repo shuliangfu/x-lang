@@ -2038,12 +2038,12 @@ DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o cod
 # legacy shux-c 复用 bootstrap-driver-seed 的现有权威闭包，避免手写对象清单与 pinned seed 漂移。
 LEGACY_SHUX_C_LINK_BASE := $(BOOTSTRAP_DRIVER_SEED_LINK_BASE)
 LEGACY_SHUX_C_USER_ASM_LINK := $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
-LEGACY_SHUX_C_PREREQS := $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) build_asm/pipeline_glue_strict_minimal.o
+LEGACY_SHUX_C_PREREQS := $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) build_asm/pipeline_glue_strict_minimal.o ast_gen2.o
 
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 $(SHUX_C): DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
 $(SHUX_C): $(LEGACY_SHUX_C_PREREQS)
-	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $@ $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX)
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $@ $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX) ast_gen2.o
 endif
 
 bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
