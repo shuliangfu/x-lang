@@ -1871,6 +1871,11 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
           lex.pos++;
         continue;
       }
+      if (getenv("SHUX_DBG_FUNC")) {
+        fprintf(stderr, "[DBG_FUNC] ok name=%.*s pos_before=%zu pos_after=%zu\n",
+                (int)(res.name_len > 0 ? res.name_len : 0), res.name,
+                (size_t)lex_at_function.pos, (size_t)lex.pos);
+      }
     }
   }
 
