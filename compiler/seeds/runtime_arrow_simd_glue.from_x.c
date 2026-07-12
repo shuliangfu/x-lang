@@ -48,9 +48,16 @@ float arrow_hsum_ps(__m128 v) {
 
 #endif
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+float arrow_f32_sum_kernel(const float *data, int32_t n);
+float arrow_f32_dot_kernel(const float *a, const float *b, int32_t n);
+int32_t arrow_i32_sum_valid_kernel(const int32_t *data, const uint8_t *bm, int32_t n);
+float arrow_f32_sum_valid_kernel(const float *data, const uint8_t *bm, int32_t n);
+
 /** f32 列前 n 元素求和（SIMD 内核，无 null 检查）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-float arrow_f32_sum_kernel(const float *data, int32_t n) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_arrow_simd_glue.x）提供 public wrapper */
+float arrow_f32_sum_kernel_impl(const float *data, int32_t n) {
     int32_t i = 0;
     float sum = 0.0f;
 #if defined(ARROW_HAVE_SSE2)
@@ -73,12 +80,20 @@ float arrow_f32_sum_kernel(const float *data, int32_t n) {
     return sum;
 }
 
+#ifndef SHUX_RUNTIME_ARROW_SIMD_GLUE_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+float arrow_f32_sum_kernel(const float *data, int32_t n) {
+    return arrow_f32_sum_kernel_impl(data, n);
+}
+#endif
+
 
 
 
 /** f32 两列点积（SIMD 内核）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-float arrow_f32_dot_kernel(const float *a, const float *b, int32_t n) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_arrow_simd_glue.x）提供 public wrapper */
+float arrow_f32_dot_kernel_impl(const float *a, const float *b, int32_t n) {
     int32_t i = 0;
     float sum = 0.0f;
 #if defined(ARROW_HAVE_SSE2)
@@ -103,12 +118,20 @@ float arrow_f32_dot_kernel(const float *a, const float *b, int32_t n) {
     return sum;
 }
 
+#ifndef SHUX_RUNTIME_ARROW_SIMD_GLUE_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+float arrow_f32_dot_kernel(const float *a, const float *b, int32_t n) {
+    return arrow_f32_dot_kernel_impl(a, b, n);
+}
+#endif
+
 
 
 
 /** i32 列前 n 个有效元素累加（null bitmap）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t arrow_i32_sum_valid_kernel(const int32_t *data, const uint8_t *bm, int32_t n) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_arrow_simd_glue.x）提供 public wrapper */
+int32_t arrow_i32_sum_valid_kernel_impl(const int32_t *data, const uint8_t *bm, int32_t n) {
     int32_t i = 0;
     int32_t sum = 0;
     if (!data)
@@ -146,12 +169,20 @@ int32_t arrow_i32_sum_valid_kernel(const int32_t *data, const uint8_t *bm, int32
     return sum;
 }
 
+#ifndef SHUX_RUNTIME_ARROW_SIMD_GLUE_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int32_t arrow_i32_sum_valid_kernel(const int32_t *data, const uint8_t *bm, int32_t n) {
+    return arrow_i32_sum_valid_kernel_impl(data, bm, n);
+}
+#endif
+
 
 
 
 /** f32 列前 n 个有效元素求和（null bitmap）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-float arrow_f32_sum_valid_kernel(const float *data, const uint8_t *bm, int32_t n) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_arrow_simd_glue.x）提供 public wrapper */
+float arrow_f32_sum_valid_kernel_impl(const float *data, const uint8_t *bm, int32_t n) {
     int32_t i = 0;
     float sum = 0.0f;
     if (!data)
@@ -193,6 +224,13 @@ float arrow_f32_sum_valid_kernel(const float *data, const uint8_t *bm, int32_t n
     }
     return sum;
 }
+
+#ifndef SHUX_RUNTIME_ARROW_SIMD_GLUE_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+float arrow_f32_sum_valid_kernel(const float *data, const uint8_t *bm, int32_t n) {
+    return arrow_f32_sum_valid_kernel_impl(data, bm, n);
+}
+#endif
 
 
 

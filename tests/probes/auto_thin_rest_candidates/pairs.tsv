@@ -36,7 +36,7 @@ pthin_skip_tl	src/asm/pthin_skip_tl.x	seeds/pthin_skip_tl.from_x.c	0	185	0	no	ye
 pthin_stretch	src/asm/pthin_stretch.x	seeds/pthin_stretch.from_x.c	0	238	0	no	yes		already_split
 pthin_try_skip_allow	src/asm/pthin_try_skip_allow.x	seeds/pthin_try_skip_allow.from_x.c	0	156	0	no	yes		already_split
 pthin_type_ref	src/asm/pthin_type_ref.x	seeds/pthin_type_ref.from_x.c	0	69	0	no	yes		already_split
-runtime_arrow_simd_glue	src/asm/runtime_arrow_simd_glue.x	seeds/runtime_arrow_simd_glue.from_x.c	4	251	0	no	no	ifdef	candidate
+runtime_arrow_simd_glue	src/asm/runtime_arrow_simd_glue.x	seeds/runtime_arrow_simd_glue.from_x.c	4	251	0	no	yes	ifdef	already_split
 runtime_asm_build	src/asm/runtime_asm_build.x	seeds/runtime_asm_build.from_x.c	3	31	0	no	no	argv	candidate
 runtime_asm_io_stubs	src/asm/runtime_asm_io_stubs.x	seeds/runtime_asm_io_stubs.from_x.c	3	400	0	no	no	weak,ifdef	candidate
 runtime_ast_glue	src/asm/runtime_ast_glue.x	seeds/runtime_ast_glue.from_x.c	0	499	0	no	no		not_candidate
