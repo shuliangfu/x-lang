@@ -4227,6 +4227,7 @@ SHUX_LIB_WEAK int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena 
   return codegen_emit_bytes_4(out, sc, 2);
 }
 SHUX_LIB_WEAK int32_t codegen_emit_block(struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, int32_t block_ref, int32_t indent, struct ast_PipelineDepCtx * ctx) {
+  { char dbg[128]; int dl = snprintf(dbg, sizeof(dbg), "/*DBG:block_ref=%d num_lets=%d num_stmt_order=%d*/\n", block_ref, ast_block_num_lets(arena, block_ref), ast_block_num_stmt_order(arena, block_ref)); codegen_emit_bytes_from_ptr(out, (uint8_t*)dbg, dl); }
   uint8_t blk_prefix[128] = { 0 };
   int32_t blk_prefix_len = codegen_emit_prefix_len_from_ctx(ctx, (&((blk_prefix)[0])), 128);
   int32_t fn_ret_void = codegen_current_func_returns_void(arena, ctx);
