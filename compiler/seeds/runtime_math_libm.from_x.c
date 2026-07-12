@@ -31,6 +31,12 @@ __attribute__((weak)) void diag_reportf(const char *file, int line, int col, con
 
 #define FENV_NOT_IMPL (-9)
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+int math_special_near(double a, double b, double eps);
+int math_fenv_mask_to_fe(int32_t mask);
+int32_t math_fenv_fe_to_mask(int fe);
+void math_fenv_emit_cap_report(int32_t avail);
+
 /** libm：向下取整。 */
 double math_floor_c(double x) { return floor(x); }
 
@@ -113,6 +119,8 @@ double math_expm1_c(double x) { return expm1(x); }
 
 /** 近似相等；1 是，0 否（STD-115 special_smoke 金样）。 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_math_libm.x）提供完整实现 */
+#ifndef SHUX_RUNTIME_MATH_LIBM_FROM_X
 int math_special_near(double a, double b, double eps) {
   double d = a - b;
   if (d < 0.0) {
@@ -120,6 +128,7 @@ int math_special_near(double a, double b, double eps) {
   }
   return d <= eps ? 1 : 0;
 }
+#endif
 
 
 
@@ -147,7 +156,8 @@ int32_t math_special_smoke_c(void) {
 #if SHUX_MATH_HAVE_FENV
 /** 将 Shux fenv 掩码转为 FE_* 位。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int math_fenv_mask_to_fe(int32_t mask) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_math_libm.x）提供 public wrapper */
+int math_fenv_mask_to_fe_impl(int32_t mask) {
   int fe = 0;
   if (mask & 1) fe |= FE_INVALID;
   if (mask & 2) fe |= FE_DIVBYZERO;
@@ -157,12 +167,20 @@ int math_fenv_mask_to_fe(int32_t mask) {
   return fe;
 }
 
+#ifndef SHUX_RUNTIME_MATH_LIBM_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int math_fenv_mask_to_fe(int32_t mask) {
+    return math_fenv_mask_to_fe_impl(mask);
+}
+#endif
+
 
 
 
 /** 将 FE_* 位转为 Shux fenv 掩码。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t math_fenv_fe_to_mask(int fe) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_math_libm.x）提供 public wrapper */
+int32_t math_fenv_fe_to_mask_impl(int fe) {
   int32_t m = 0;
   if (fe & FE_INVALID) m |= 1;
   if (fe & FE_DIVBYZERO) m |= 2;
@@ -172,13 +190,21 @@ int32_t math_fenv_fe_to_mask(int fe) {
   return m;
 }
 
+#ifndef SHUX_RUNTIME_MATH_LIBM_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int32_t math_fenv_fe_to_mask(int fe) {
+    return math_fenv_fe_to_mask_impl(fe);
+}
+#endif
+
 
 
 #endif
 
 /** 输出 STD-149 fenv 能力报告行到 stderr。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void math_fenv_emit_cap_report(int32_t avail) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_math_libm.x）提供 public wrapper */
+void math_fenv_emit_cap_report_impl(int32_t avail) {
   const char *plat = "Unknown";
 #if defined(__APPLE__)
   plat = "Darwin";
@@ -191,6 +217,13 @@ void math_fenv_emit_cap_report(int32_t avail) {
                "math fenv cap: platform=%s available=%d",
                plat, (int)avail);
 }
+
+#ifndef SHUX_RUNTIME_MATH_LIBM_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void math_fenv_emit_cap_report(int32_t avail) {
+    math_fenv_emit_cap_report_impl(avail);
+}
+#endif
 
 
 

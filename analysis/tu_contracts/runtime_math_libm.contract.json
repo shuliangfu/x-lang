@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_math_libm",
+  "x_src": "src/asm/runtime_math_libm.x",
+  "seed_src": "seeds/runtime_math_libm.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (mixed IMPL+DIRECT mode)",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 5,
+    "seed_symbols": 34,
+    "only_x": 1
+  },
+  "symbols": {
+    "x": [
+      "runtime_math_libm_x_doc_anchor",
+      "math_fenv_mask_to_fe",
+      "math_fenv_fe_to_mask",
+      "math_fenv_emit_cap_report",
+      "math_special_near"
+    ],
+    "seed": [
+      "math_fenv_mask_to_fe_impl",
+      "math_fenv_fe_to_mask_impl",
+      "math_fenv_emit_cap_report_impl",
+      "math_floor_c",
+      "math_ceil_c",
+      "math_trunc_c",
+      "math_round_c",
+      "math_sin_c",
+      "math_cos_c",
+      "math_tan_c",
+      "math_asin_c",
+      "math_acos_c",
+      "math_atan_c",
+      "math_atan2_c",
+      "math_sqrt_c",
+      "math_cbrt_c",
+      "math_pow_c",
+      "math_exp_c",
+      "math_log_c",
+      "math_fabs_c",
+      "math_signum_c",
+      "math_fmin_c",
+      "math_fmax_c",
+      "math_erf_c",
+      "math_erfc_c",
+      "math_log1p_c",
+      "math_expm1_c",
+      "math_special_smoke_c",
+      "math_fenv_available_c",
+      "math_fenv_test_c",
+      "math_fenv_clear_c",
+      "math_fenv_raise_c",
+      "math_fenv_smoke_c",
+      "math_fenv_capability_smoke_c"
+    ],
+    "only_x": ["runtime_math_libm_x_doc_anchor"]
+  },
+  "rest_macro": "SHUX_RUNTIME_MATH_LIBM_FROM_X",
+  "impl_residuals": [
+    "math_fenv_mask_to_fe_impl",
+    "math_fenv_fe_to_mask_impl",
+    "math_fenv_emit_cap_report_impl"
+  ],
+  "direct_symbols": [
+    "math_special_near"
+  ],
+  "forward_decls": [
+    "math_special_near",
+    "math_fenv_mask_to_fe",
+    "math_fenv_fe_to_mask",
+    "math_fenv_emit_cap_report"
+  ],
+  "internal_call_rewrites": [
+    "math_special_smoke_c -> math_special_near",
+    "math_fenv_test_c -> math_fenv_mask_to_fe + math_fenv_fe_to_mask",
+    "math_fenv_clear_c -> math_fenv_mask_to_fe",
+    "math_fenv_raise_c -> math_fenv_mask_to_fe",
+    "math_fenv_available_c -> math_fenv_emit_cap_report"
+  ],
+  "known_limitations": [
+    "预存行为（非本次切割引入）：Linux 上 thin wrapper 为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1，macOS Mach-O 忽略 weak 均为 T",
+    "平台条件符号：math_fenv_mask_to_fe / math_fenv_fe_to_mask 及其 _impl 在 #if SHUX_MATH_HAVE_FENV 块内（macOS/Linux only）；math_fenv_emit_cap_report 及其 _impl 在 fenv #endif 之后（跨平台）"
+  ],
+  "platform_notes": "混合模式：3 IMPL wrapper（fenv 系列，调用 _impl）+ 1 DIRECT（math_special_near，G-02f-119 真迁 .x 完整实现）。rest 模式下 thin 函数为 U 符号由 thin.o 提供",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}
