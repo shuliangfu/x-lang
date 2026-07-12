@@ -67,7 +67,8 @@ void backtrace_write_frame_addr_c(uint8_t *buf, int32_t i, void *addr) {
 
 /** 单字节转两位小写十六进制。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void backtrace_u8_hex2(uint8_t b, char *out) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_backtrace_platform.x）提供 public wrapper */
+void backtrace_u8_hex2_impl(uint8_t b, char *out) {
   uint8_t hi = (uint8_t)((b >> 4) & 0x0fu);
   uint8_t lo = (uint8_t)(b & 0x0fu);
   if (!out) {
@@ -76,6 +77,13 @@ void backtrace_u8_hex2(uint8_t b, char *out) {
   out[0] = (char)(hi < 10 ? ('0' + hi) : ('a' + hi - 10));
   out[1] = (char)(lo < 10 ? ('0' + lo) : ('a' + lo - 10));
 }
+
+#ifndef SHUX_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void backtrace_u8_hex2(uint8_t b, char *out) {
+  backtrace_u8_hex2_impl(b, out);
+}
+#endif
 
 
 
@@ -113,7 +121,7 @@ void backtrace_format_hex_addr_c(char *out, int32_t cap, void *addr) {
   tmp[1] = 'x';
   for (i = 15; i >= 0; i--) {
     uint8_t nib = (uint8_t)((v >> (i * 4)) & 15u);
-    backtrace_u8_hex2(nib, &tmp[pos]);
+    backtrace_u8_hex2_impl(nib, &tmp[pos]);
     pos += 2;
   }
   if (pos >= cap) {
@@ -268,7 +276,8 @@ void *backtrace_gold_anchor_addr_c(void) {
 
 /** 从当前栈 capture 并检查是否含 gold_anchor 符号。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t backtrace_capture_and_check_gold_c(void) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_backtrace_platform.x）提供 public wrapper */
+int32_t backtrace_capture_and_check_gold_c_impl(void) {
   uint8_t buf[512];
   uint8_t names[1024];
   int32_t n;
@@ -291,13 +300,20 @@ int32_t backtrace_capture_and_check_gold_c(void) {
   return 12;
 }
 
+#ifndef SHUX_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int32_t backtrace_capture_and_check_gold_c(void) {
+  return backtrace_capture_and_check_gold_c_impl();
+}
+#endif
+
 
 
 
 /** platform glue 金样锚点回调：烟测模式下在栈内 capture。 */
 int32_t backtrace_gold_anchor_smoke_enter_c(void) {
   if (g_sym_capture_mode != 0) {
-    g_sym_capture_result = backtrace_capture_and_check_gold_c();
+    g_sym_capture_result = backtrace_capture_and_check_gold_c_impl();
     g_sym_capture_mode = 0;
   }
   return 0;
@@ -344,9 +360,13 @@ const char *backtrace_xplat_platform_name_c(void) {
 
 /** 检查符号名是否含 gold_anchor。 */
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：thin（src/asm/runtime_backtrace_platform.x）提供 public wrapper */
+#ifndef SHUX_RUNTIME_BACKTRACE_PLATFORM_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t name_has_gold_anchor(const char *name) {
   return backtrace_name_has_gold_anchor_c((const uint8_t *)name);
 }
+#endif
 
 
 
@@ -362,7 +382,7 @@ int32_t backtrace_xplat_quality_c(void) {
 
   backtrace_write_frame_addr_c(buf, 0, backtrace_gold_anchor_addr_c());
   if (backtrace_symbolicate_c(buf, 1, buf, names, 1) > 0) {
-    if (name_has_gold_anchor((char *)names))
+    if (backtrace_name_has_gold_anchor_c((const uint8_t *)names))
       gold = 1;
   }
   total = backtrace_capture_c(buf, 32);
