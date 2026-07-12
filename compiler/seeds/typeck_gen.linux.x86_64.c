@@ -3214,6 +3214,7 @@ int32_t typeck_check_expr_var(struct ast_Module * module, struct ast_ASTArena * 
   (void)(({ int32_t __tmp = 0; if (vnlen <= 0 || vnlen > 63) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (void)(pipeline_expr_var_name_into(arena, expr_ref, vbuf));
+  if (getenv("SHUX_DEBUG_VAR")) fprintf(stderr, "DBG-VAR-ENTER: vnlen=%d vbuf=%.*s func_ix=%d block=%d\n", vnlen, vnlen, vbuf, (int)pipeline_dep_ctx_current_func_index(ctx), (int)pipeline_dep_ctx_current_block_ref_at(ctx));
   (block_ref = (pipeline_dep_ctx_current_block_ref_at(ctx)));
   (void)(({ int32_t __tmp = 0; if (block_ref != 0 && block_ref <= (arena)->num_blocks) {   (vd_tr = (pipeline_block_resolve_var_type_ref(arena, block_ref, vbuf, vnlen)));
   __tmp = ({ int32_t __tmp = 0; if (vd_tr != 0) {   (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, vd_tr));
