@@ -43,6 +43,11 @@
  * 参数：key/key_len 输入；key_buf 至少 key_len+1 字节。
  * 返回值：0 成功，-1 非法。
  */
+/* thin+rest 切割：thin 部分（env_build_key）由 .x 提供,
+ * rest 模式下跳过编译避免重复定义; rest 部分（env_getenv/setenv/unsetenv/temp_dir/iter 9 函数）始终编译.
+ * 宏边界：SHUX_RUNTIME_ENV_OS_FROM_X
+ * rest 跨调用依赖：env_getenv_c/env_getenv_ptr_c/env_getenv_exists_c 调用 env_build_key（thin 提供） */
+#ifndef SHUX_RUNTIME_ENV_OS_FROM_X
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int env_build_key(const uint8_t * restrict key, int32_t key_len, char * restrict key_buf) {
     if (key == NULL || key_len <= 0 || key_len >= ENV_KEY_MAX) return -1;
@@ -50,6 +55,10 @@ int env_build_key(const uint8_t * restrict key, int32_t key_len, char * restrict
     key_buf[key_len] = '\0';
     return 0;
 }
+#else
+/* rest 模式：thin 函数由 .x 提供，extern 声明供 rest 部分调用 */
+extern int env_build_key(const uint8_t *key, int32_t key_len, char *key_buf);
+#endif /* SHUX_RUNTIME_ENV_OS_FROM_X */
 
 
 
