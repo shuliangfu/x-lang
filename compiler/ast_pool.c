@@ -2286,13 +2286,61 @@ void pipeline_patch_block_parent_links(struct ast_ASTArena *a, int32_t block_ref
         sp++;
       }
     }
-    /**
-     * NOTE: 块表达式（ord_block 表达式关联的块）不在此遍历范围内。
-     * 块表达式通过表达式树关联（pipeline_expr_block_ref_at），不在块的
-     * while/for/if/region 子块列表中。typeck_check_block_impl 中的
-     * pipeline_block_set_parent_if_zero 补充覆盖了这种情况。
-     */
+    /* G-02f-477: patch block expression (EXPR_BLOCK) parent links. */
+    patch_block_expr_parents(a, cur);
   }
+}
+
+/**
+ * 扫描所有 block 的表达式语句与尾表达式，为 EXPR_BLOCK 补设 parent_block_ref。
+ */
+static int32_t expr_has_inner_block(struct ast_ASTArena *a, int32_t expr_ref, int32_t parent_block, int32_t depth);
+
+static void patch_block_expr_parents(struct ast_ASTArena *a, int32_t block_ref) {
+  struct ast_Block *b;
+  int32_t i, ne, nf;
+  if (!a || block_ref <= 0 || block_ref > a->num_blocks) return;
+  b = block_at(a, block_ref);
+  if (!b) return;
+  ne = b->num_expr_stmts;
+  for (i = 0; i < ne; i++) {
+    int32_t es_ref = pipeline_block_expr_stmt_ref(a, block_ref, i);
+    if (es_ref > 0 && es_ref <= a->num_exprs) {
+      expr_has_inner_block(a, es_ref, block_ref, 0);
+    }
+  }
+  nf = b->final_expr_ref;
+  if (nf > 0 && nf <= a->num_exprs) {
+    expr_has_inner_block(a, nf, block_ref, 0);
+  }
+}
+
+static int32_t expr_has_inner_block(struct ast_ASTArena *a, int32_t expr_ref, int32_t parent_block, int32_t depth) {
+  struct ast_Expr *ex;
+  int32_t kind;
+  int32_t inner_blk;
+  if (!a || expr_ref <= 0 || expr_ref > a->num_exprs || depth > 64) return 0;
+  ex = glue_arena_expr_at_ref(a, expr_ref);
+  if (!ex) return 0;
+  kind = (int32_t)ex->kind;
+  if (kind == 26) {
+    inner_blk = ex->block_ref;
+    if (inner_blk > 0 && inner_blk <= a->num_blocks) {
+      struct ast_Block *ib = block_at(a, inner_blk);
+      if (ib && ib->parent_block_ref == 0) {
+        ib->parent_block_ref = parent_block;
+      }
+      patch_block_expr_parents(a, inner_blk);
+    }
+  }
+  if (ex->binop_left_ref > 0) expr_has_inner_block(a, ex->binop_left_ref, parent_block, depth + 1);
+  if (ex->binop_right_ref > 0) expr_has_inner_block(a, ex->binop_right_ref, parent_block, depth + 1);
+  if (ex->unary_operand_ref > 0) expr_has_inner_block(a, ex->unary_operand_ref, parent_block, depth + 1);
+  if (ex->if_then_ref > 0) expr_has_inner_block(a, ex->if_then_ref, parent_block, depth + 1);
+  if (ex->if_else_ref > 0) expr_has_inner_block(a, ex->if_else_ref, parent_block, depth + 1);
+  if (ex->block_ref > 0 && kind != 26) expr_has_inner_block(a, ex->block_ref, parent_block, depth + 1);
+  if (ex->call_callee_ref > 0) expr_has_inner_block(a, ex->call_callee_ref, parent_block, depth + 1);
+  return 0;
 }
 
 /**
