@@ -9,7 +9,7 @@
 // G-02f-98：+ diag_levenshtein_ci 门闩。
 // 产品：./shux-c -E → seeds/diag.from_x.c（+ C 尾段）。
 // C 尾：g_diag 上下文静态、g_diag_code_table 数据、stdio 桥、va_list reportf/vreportf。
-// G-02f-181：P0-1 闭合登记 — 见 analysis/G-02f-自举剩余优先级.md §4.3；code 表+reportf 🔒。
+// G-02f-181：P0-1 闭合登记；code 表+reportf 仍属语言/ABI 限制，当前总进度见 analysis/自举进度.md。
 // 注意：va_list 入口仍留 C（语言/ABI 限制）。
 
 extern "C" function diag_json_get_state(): i32;
@@ -969,4 +969,3 @@ function diag_json_severity(kind: *u8): *u8 {
   if (kind[0]==104 && kind[1]==105 && kind[2]==110 && kind[3]==116 && kind[4]==0) { return "help"; }
   return "error";
 }
-

@@ -211,12 +211,20 @@ function pipeline_asm_array_lit_reserve_stack_bytes_c(arena: *u8, init_ref: i32)
 }
 
 // ---- G-02f-368：local_slot 间接指针 + enc/arch 装址（无同文件 no_mangle 互调）----
-extern "C" function glue_asm_ctx_module_ref_c(asm_ctx: *u8): *u8;
+extern "C" function glue_asm_ctx_module_ref_c_impl(asm_ctx: *u8): *u8;
 extern "C" function asm_local_var_slot_holds_indirect_ptr_impl(arena: *u8, expr_ref: i32, mod_ref: *u8, asm_ctx: *u8): i32;
 extern "C" function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, slot_off: i32, ta: i32): i32;
 extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, slot_off: i32, ta: i32): i32;
 extern "C" function backend_arch_emit_load_rbp_to_rax(out: *u8, slot_off: i32, ta: i32): i32;
 extern "C" function backend_arch_emit_lea_rbp_to_rax(out: *u8, slot_off: i32, ta: i32): i32;
+
+#[no_mangle]
+function glue_asm_ctx_module_ref_c(asm_ctx: *u8): *u8 {
+  unsafe {
+    return glue_asm_ctx_module_ref_c_impl(asm_ctx);
+  }
+  return 0 as *u8;
+}
 
 #[no_mangle]
 function glue_local_var_slot_holds_indirect_ptr(arena: *u8, expr_ref: i32, asm_ctx: *u8): i32 {

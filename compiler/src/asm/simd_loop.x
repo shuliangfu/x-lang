@@ -20,6 +20,9 @@ extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): 
 extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 extern "C" function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
 extern "C" function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
+extern "C" function glue_expr_same_var_c_impl(arena: *u8, a_ref: i32, b_ref: i32): i32;
+extern "C" function glue_index_uses_var_c_impl(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32;
+extern "C" function glue_simd_loop_cpu_features_c_impl(): u32;
 
 function simd_loop_x_doc_anchor(): i32 {
   return 0;
@@ -30,36 +33,14 @@ function simd_loop_x_doc_anchor(): i32 {
 // G-02f-129：两 EXPR_VAR 是否同名（GLUE_EXPR_VAR=3）
 #[no_mangle]
 function glue_expr_same_var_c(arena: *u8, a_ref: i32, b_ref: i32): i32 {
-  unsafe {
-    if (pipeline_expr_kind_ord_at(arena, a_ref) != 3) { return 0; }
-    if (pipeline_expr_kind_ord_at(arena, b_ref) != 3) { return 0; }
-    let alen: i32 = pipeline_expr_var_name_len(arena, a_ref);
-    let blen: i32 = pipeline_expr_var_name_len(arena, b_ref);
-    if (alen <= 0) { return 0; }
-    if (alen != blen) { return 0; }
-    if (alen > 63) { return 0; }
-    let an: u8[64] = [];
-    let bn: u8[64] = [];
-    pipeline_expr_var_name_into(arena, a_ref, &an[0]);
-    pipeline_expr_var_name_into(arena, b_ref, &bn[0]);
-    let k: i32 = 0;
-    while (k < alen) {
-      if (an[k] != bn[k]) { return 0; }
-      k = k + 1;
-    }
-    return 1;
-  }
+  unsafe { return glue_expr_same_var_c_impl(arena, a_ref, b_ref); }
   return 0;
 }
 
 // G-02f-128：glue_index_uses_var_c 真迁 .x（GLUE_EXPR_INDEX=47）
 #[no_mangle]
 function glue_index_uses_var_c(arena: *u8, index_expr_ref: i32, i_var_ref: i32): i32 {
-  unsafe {
-    if (pipeline_expr_kind_ord_at(arena, index_expr_ref) != 47) { return 0; }
-    let idx_ref: i32 = pipeline_expr_index_index_ref(arena, index_expr_ref);
-    return glue_expr_same_var_c(arena, idx_ref, i_var_ref);
-  }
+  unsafe { return glue_index_uses_var_c_impl(arena, index_expr_ref, i_var_ref); }
   return 0;
 }
 
@@ -88,11 +69,7 @@ function glue_var_array_i32_size_c(arena: *u8, var_ref: i32): i32 {
 // G-02f-133：pending features，否则 host detect
 #[no_mangle]
 function glue_simd_loop_cpu_features_c(): u32 {
-  unsafe {
-    let feats: u32 = driver_get_pending_target_cpu_features();
-    if (feats != 0) { return feats; }
-    return shu_target_cpu_detect_host();
-  }
+  unsafe { return glue_simd_loop_cpu_features_c_impl(); }
   return 0;
 }
 
@@ -271,17 +248,18 @@ function glue_simd_local_var_stack_off_c(arena: *u8, ctx: *u8, var_expr_ref: i32
   if (arena == 0) { return 0 - 1; }
   if (ctx == 0) { return 0 - 1; }
   if (var_expr_ref <= 0) { return 0 - 1; }
-  let vlen: i32 = pipeline_expr_var_name_len(arena, var_expr_ref);
-  if (vlen <= 0) { return 0 - 1; }
-  if (vlen > 63) { return 0 - 1; }
-  let vname: u8[64] = [];
-  pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
-  let off: i32 = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
-  if (off < 0) { off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
+  unsafe {
+    let vlen: i32 = pipeline_expr_var_name_len(arena, var_expr_ref);
+    if (vlen <= 0) { return 0 - 1; }
+    if (vlen > 63) { return 0 - 1; }
+    let vname: u8[64] = [];
+    pipeline_expr_var_name_into(arena, var_expr_ref, &vname[0]);
+    let off: i32 = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
+    if (off < 0) { return asm_ctx_local_find_offset(ctx, &vname[0], vlen);
+    }
+    return off;
   }
-  let r: i32 = 0;
-  unsafe { r = off; }
-  return r;
+  return 0 - 1;
 }
 
 // G-02f-214：f32 SoA sum assign 形
@@ -322,13 +300,16 @@ function glue_parse_f32_soa_sum_assign_c(arena: *u8, assign_ref: i32, i_var_ref:
 // G-02f-214：chunk binop → try_hw
 #[no_mangle]
 function glue_simd_loop_emit_chunk_binop_c(elf_ctx: *u8, binop_ko: i32, chunk_off_a: i32, chunk_off_b: i32, chunk_off_d: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32 {
-  if (binop_ko == 5) {
-    return simd_enc_try_hw_vector_isub_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
+  unsafe {
+    if (binop_ko == 5) {
+      return simd_enc_try_hw_vector_isub_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
+    }
+    if (binop_ko == 6) {
+      return simd_enc_try_hw_vector_imul_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
+    }
+    return simd_enc_try_hw_vector_iadd_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
   }
-  if (binop_ko == 6) {
-    return simd_enc_try_hw_vector_imul_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
-  }
-  return simd_enc_try_hw_vector_iadd_rbp(elf_ctx, chunk_off_a, chunk_off_b, chunk_off_d, lanes, esz, ta, feats);
+  return 0 - 1;
 }
 
 // G-02f-214：const n 整 peel
@@ -350,8 +331,10 @@ function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: i32, of
       name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
       name[12] = 95; name[13] = 83; name[14] = 84; name[15] = 82;
       name[16] = 73; name[17] = 67; name[18] = 84; name[19] = 0;
-      let p: *u8 = getenv(&name[0]);
-      if (p != 0) { if (p[0] != 48) { return 0 - 1; }
+      unsafe {
+        let p: *u8 = getenv(&name[0]);
+        if (p != 0) { if (p[0] != 48) { return 0 - 1; }
+        }
       }
       return 0;
     }
@@ -611,9 +594,12 @@ function glue_emit_runtime_strip_loop_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: 
   let vec_loop: u8[64] = [];
   let epi_loop: u8[64] = [];
   let epi_done: u8[64] = [];
-  let vec_len: i32 = pipeline_asm_emit_next_label_c(ctx, &vec_loop[0], 64);
-  let epi_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_loop[0], 64);
-  let done_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_done[0], 64);
+  let vec_len: i32 = 0;
+  let epi_len: i32 = 0;
+  let done_len: i32 = 0;
+  unsafe { vec_len = pipeline_asm_emit_next_label_c(ctx, &vec_loop[0], 64); }
+  unsafe { epi_len = pipeline_asm_emit_next_label_c(ctx, &epi_loop[0], 64); }
+  unsafe { done_len = pipeline_asm_emit_next_label_c(ctx, &epi_done[0], 64); }
   if (vec_len <= 0) { return 0 - 1; }
   if (epi_len <= 0) { return 0 - 1; }
   if (done_len <= 0) { return 0 - 1; }
@@ -638,8 +624,8 @@ function glue_emit_runtime_strip_loop_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: 
   if (r != 0) { return 0 - 1; }
   unsafe { r = backend_enc_jge_arch(elf_ctx, &epi_loop[0], epi_len, ta); }
   if (r != 0) { return 0 - 1; }
-  if (simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx, off_a, off_b, off_d, off_i, array_n, binop_ko, lanes, 4, ta, feats) != 0) { return 0 - 1;
-  }
+  unsafe { r = simd_enc_try_hw_vector_binop_rbp_at_idx(elf_ctx, off_a, off_b, off_d, off_i, array_n, binop_ko, lanes, 4, ta, feats); }
+  if (r != 0) { return 0 - 1; }
   unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
   if (r != 0) { return 0 - 1; }
   unsafe { r = backend_enc_add_imm_to_rax_arch(elf_ctx, lanes, ta); }
@@ -684,10 +670,14 @@ function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i
   let epi_merge: u8[64] = [];
   let epi_loop: u8[64] = [];
   let epi_done: u8[64] = [];
-  let vec_len: i32 = pipeline_asm_emit_next_label_c(ctx, &vec_loop[0], 64);
-  let merge_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_merge[0], 64);
-  let epi_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_loop[0], 64);
-  let done_len: i32 = pipeline_asm_emit_next_label_c(ctx, &epi_done[0], 64);
+  let vec_len: i32 = 0;
+  let merge_len: i32 = 0;
+  let epi_len: i32 = 0;
+  let done_len: i32 = 0;
+  unsafe { vec_len = pipeline_asm_emit_next_label_c(ctx, &vec_loop[0], 64); }
+  unsafe { merge_len = pipeline_asm_emit_next_label_c(ctx, &epi_merge[0], 64); }
+  unsafe { epi_len = pipeline_asm_emit_next_label_c(ctx, &epi_loop[0], 64); }
+  unsafe { done_len = pipeline_asm_emit_next_label_c(ctx, &epi_done[0], 64); }
   if (vec_len <= 0) { return 0 - 1; }
   if (merge_len <= 0) { return 0 - 1; }
   if (epi_len <= 0) { return 0 - 1; }
@@ -703,11 +693,12 @@ function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i
   if (r != 0) { return 0 - 1; }
   unsafe { r = backend_enc_push_rax_arch(elf_ctx, ta); }
   if (r != 0) { return 0 - 1; }
-  unsafe { r = off_n >= 0) { if (backend_enc_load_rbp_to_rax_arch(elf_ctx, off_n, ta); }
-  if (r != 0) { return 0 - 1; }
+  if (off_n >= 0) {
+    unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_n, ta); }
+    if (r != 0) { return 0 - 1; }
   } else {
-  unsafe { r = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_lit, 0, ta); }
-  if (r != 0) { return 0 - 1; }
+    unsafe { r = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_lit, 0, ta); }
+    if (r != 0) { return 0 - 1; }
   }
   unsafe { r = backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta); }
   if (r != 0) { return 0 - 1; }
@@ -719,17 +710,20 @@ function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i
   if (r != 0) { return 0 - 1; }
   unsafe { r = backend_enc_jge_arch(elf_ctx, &epi_merge[0], merge_len, ta); }
   if (r != 0) { return 0 - 1; }
-  if (simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx, off_col0, off_i, ta) != 0) { let name: u8[24] = [];
-  name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
-  name[4] = 95; name[5] = 83; name[6] = 73; name[7] = 77;
-  name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
-  name[12] = 95; name[13] = 83; name[14] = 84; name[15] = 82;
-  name[16] = 73; name[17] = 67; name[18] = 84; name[19] = 0;
-  let p: *u8 = getenv(&name[0]);
-  if (p != 0) { if (p[0] != 48) { return 0 - 1; }
-  }
-  unsafe { r = 0; }
-  return r;
+  unsafe { r = simd_enc_f32_soa_col_movups_xmm1_at_idx(elf_ctx, off_col0, off_i, ta); }
+  if (r != 0) {
+    let name: u8[24] = [];
+    name[0] = 83; name[1] = 72; name[2] = 85; name[3] = 88;
+    name[4] = 95; name[5] = 83; name[6] = 73; name[7] = 77;
+    name[8] = 68; name[9] = 95; name[10] = 72; name[11] = 87;
+    name[12] = 95; name[13] = 83; name[14] = 84; name[15] = 82;
+    name[16] = 73; name[17] = 67; name[18] = 84; name[19] = 0;
+    unsafe {
+      let p: *u8 = getenv(&name[0]);
+      if (p != 0) { if (p[0] != 48) { return 0 - 1; }
+      }
+    }
+    return 0;
   }
   unsafe { r = simd_enc_x86_addps_xmm0_xmm1(elf_ctx); }
   if (r != 0) { return 0 - 1; }
@@ -751,17 +745,18 @@ function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i
   if (r != 0) { return 0 - 1; }
   unsafe { r = backend_enc_load_rbp_to_rax_arch(elf_ctx, off_i, ta); }
   if (r != 0) { return 0 - 1; }
-  unsafe { r = off_n >= 0) { if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, off_n, ta); }
-  if (r != 0) { return 0 - 1; }
+  if (off_n >= 0) {
+    unsafe { r = backend_enc_load_rbp_to_rbx_arch(elf_ctx, off_n, ta); }
+    if (r != 0) { return 0 - 1; }
   } else {
-  unsafe { r = backend_enc_push_rax_arch(elf_ctx, ta); }
-  if (r != 0) { return 0 - 1; }
-  unsafe { r = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_lit, 0, ta); }
-  if (r != 0) { return 0 - 1; }
-  unsafe { r = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta); }
-  if (r != 0) { return 0 - 1; }
-  unsafe { r = backend_enc_pop_rax_arch(elf_ctx, ta); }
-  if (r != 0) { return 0 - 1; }
+    unsafe { r = backend_enc_push_rax_arch(elf_ctx, ta); }
+    if (r != 0) { return 0 - 1; }
+    unsafe { r = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_lit, 0, ta); }
+    if (r != 0) { return 0 - 1; }
+    unsafe { r = backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta); }
+    if (r != 0) { return 0 - 1; }
+    unsafe { r = backend_enc_pop_rax_arch(elf_ctx, ta); }
+    if (r != 0) { return 0 - 1; }
   }
   unsafe { r = glue_simd_x86_cmp_rax_rbx_c(elf_ctx); }
   if (r != 0) { return 0 - 1; }

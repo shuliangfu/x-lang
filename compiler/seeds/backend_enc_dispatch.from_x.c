@@ -24,6 +24,12 @@ int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_
 int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes);
 int32_t arm64_enc_load_w0_from_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
 int32_t arm64_enc_store_w0_to_rbp_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
+#define arch_arm64_enc_enc_call arch_arm64_enc_enc_call_impl
+#define arch_arm64_enc_enc_add_sp_imm12 arch_arm64_enc_enc_add_sp_imm12_impl
+#define arch_arm64_enc_enc_sub_sp_imm12 arch_arm64_enc_enc_sub_sp_imm12_impl
+#define arch_arm64_enc_enc_str_x0_sp_offset arch_arm64_enc_enc_str_x0_sp_offset_impl
+#define arch_riscv64_enc_enc_call arch_riscv64_enc_enc_call_impl
+#define arch_riscv64_enc_enc_mov_rax_to_arg_reg arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl
 int32_t backend_enc_push_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_push_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
 int32_t backend_enc_pop_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta);
@@ -2287,4 +2293,3 @@ int32_t arch_x86_64_enc_enc_cdqe_rax(struct platform_elf_ElfCodegenCtx *elf_ctx)
   return arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx);
 }
 #endif
-

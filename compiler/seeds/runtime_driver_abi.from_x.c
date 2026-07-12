@@ -49,6 +49,16 @@ int compile_phase_timing_enabled(void);
 const char *driver_os_define_lit(int kind);
 #define compile_phase_now_sec compile_phase_now_sec_impl
 #define driver_compile_phase_timing_enabled driver_compile_phase_timing_enabled_impl
+#define driver_check_only_flag_slot driver_check_only_flag_slot_impl
+#define driver_check_diag_emitted_flag_slot driver_check_diag_emitted_flag_slot_impl
+#define driver_freestanding_flag_slot driver_freestanding_flag_slot_impl
+#define driver_sanitize_address_flag_slot driver_sanitize_address_flag_slot_impl
+#define driver_fmt_check_only_flag_slot driver_fmt_check_only_flag_slot_impl
+#define driver_x_pipeline_skip_typeck_flag_slot driver_x_pipeline_skip_typeck_flag_slot_impl
+#define driver_x_pipeline_skip_codegen_flag_slot driver_x_pipeline_skip_codegen_flag_slot_impl
+#define driver_skip_codegen_dep_0_flag_slot driver_skip_codegen_dep_0_flag_slot_impl
+#define driver_large_stack_thread_flag_slot driver_large_stack_thread_flag_slot_impl
+#define driver_path_read_preprocess_malloc driver_path_read_preprocess_malloc_impl
 #endif
 
 #include <stdio.h>
@@ -1480,4 +1490,3 @@ int driver_source_has_top_level_import_path(const char *path) {
     return driver_source_has_top_level_import_path_impl(path);
 }
 #endif
-

@@ -5,21 +5,82 @@
 // PREFER_X_O：thin.o + seed-rest（-DSHUX_L2_RDABI_THIN_FROM_X）ld -r → runtime_driver_abi.o
 //
 
-extern "C" function driver_check_only_flag_slot(): *i32;
-extern "C" function driver_check_diag_emitted_flag_slot(): *i32;
-extern "C" function driver_freestanding_flag_slot(): *i32;
-extern "C" function driver_sanitize_address_flag_slot(): *i32;
-extern "C" function driver_fmt_check_only_flag_slot(): *i32;
-extern "C" function driver_x_pipeline_skip_typeck_flag_slot(): *i32;
-extern "C" function driver_x_pipeline_skip_codegen_flag_slot(): *i32;
-extern "C" function driver_skip_codegen_dep_0_flag_slot(): *i32;
-extern "C" function driver_large_stack_thread_flag_slot(): *i32;
+extern "C" function driver_check_only_flag_slot_impl(): *i32;
+extern "C" function driver_check_diag_emitted_flag_slot_impl(): *i32;
+extern "C" function driver_freestanding_flag_slot_impl(): *i32;
+extern "C" function driver_sanitize_address_flag_slot_impl(): *i32;
+extern "C" function driver_fmt_check_only_flag_slot_impl(): *i32;
+extern "C" function driver_x_pipeline_skip_typeck_flag_slot_impl(): *i32;
+extern "C" function driver_x_pipeline_skip_codegen_flag_slot_impl(): *i32;
+extern "C" function driver_skip_codegen_dep_0_flag_slot_impl(): *i32;
+extern "C" function driver_large_stack_thread_flag_slot_impl(): *i32;
+extern "C" function driver_path_read_preprocess_malloc_impl(path: *u8): *u8;
 extern "C" function driver_current_dep_path_store_impl(path: *u8): void;
 extern "C" function driver_current_dep_path_load_impl(): *u8;
 extern "C" function driver_pipeline_entry_source_len_store_impl(len: i64): void;
 extern "C" function driver_target_arg_os_kind_impl(target: *u8): i32;
 extern "C" function driver_pipeline_entry_source_len_i32_impl(): i32;
 extern "C" function driver_sanitize_address_env_enabled_impl(): i32;
+
+#[no_mangle]
+function driver_check_only_flag_slot(): *i32 {
+  unsafe { return driver_check_only_flag_slot_impl(); }
+  return 0 as *i32;
+}
+
+#[no_mangle]
+function driver_check_diag_emitted_flag_slot(): *i32 {
+  unsafe { return driver_check_diag_emitted_flag_slot_impl(); }
+  return 0 as *i32;
+}
+
+#[no_mangle]
+function driver_freestanding_flag_slot(): *i32 {
+  unsafe { return driver_freestanding_flag_slot_impl(); }
+  return 0 as *i32;
+}
+
+#[no_mangle]
+function driver_sanitize_address_flag_slot(): *i32 {
+  unsafe { return driver_sanitize_address_flag_slot_impl(); }
+  return 0 as *i32;
+}
+
+#[no_mangle]
+function driver_fmt_check_only_flag_slot(): *i32 {
+  unsafe { return driver_fmt_check_only_flag_slot_impl(); }
+  return 0 as *i32;
+}
+
+#[no_mangle]
+function driver_x_pipeline_skip_typeck_flag_slot(): *i32 {
+  unsafe { return driver_x_pipeline_skip_typeck_flag_slot_impl(); }
+  return 0 as *i32;
+}
+
+#[no_mangle]
+function driver_x_pipeline_skip_codegen_flag_slot(): *i32 {
+  unsafe { return driver_x_pipeline_skip_codegen_flag_slot_impl(); }
+  return 0 as *i32;
+}
+
+#[no_mangle]
+function driver_skip_codegen_dep_0_flag_slot(): *i32 {
+  unsafe { return driver_skip_codegen_dep_0_flag_slot_impl(); }
+  return 0 as *i32;
+}
+
+#[no_mangle]
+function driver_large_stack_thread_flag_slot(): *i32 {
+  unsafe { return driver_large_stack_thread_flag_slot_impl(); }
+  return 0 as *i32;
+}
+
+#[no_mangle]
+function driver_path_read_preprocess_malloc(path: *u8): *u8 {
+  unsafe { return driver_path_read_preprocess_malloc_impl(path); }
+  return 0 as *u8;
+}
 
 #[no_mangle]
 function driver_fmt_check_only_set(v: i32): void {

@@ -20,17 +20,47 @@
 // f-427: lsp_hash_source（usize FNV hash；大常量 0x9e3779b97f4a7c15 / 2^32 用字节构造绕过 -E 截断；
 //   Ubuntu shux -E 不支持 u64，改用 usize 替代）
 
+function lsp_char_in_range(c: u8, lo: u8, hi: u8): i32 {
+  if (c < lo) { return 0; }
+  if (c > hi) { return 0; }
+  return 1;
+}
+
+function lsp_fmt_is_inline_ws(c: u8): i32 {
+  if (c == 32) { return 1; }
+  if (c == 9) { return 1; }
+  return 0;
+}
+
+function lsp_fmt_is_src_ws(c: u8): i32 {
+  if (lsp_fmt_is_inline_ws(c) != 0) { return 1; }
+  if (c == 13) { return 1; }
+  return 0;
+}
+
+function lsp_store_i32(dst: *i32, value: i32): void {
+  if (dst == 0) { return; }
+  unsafe {
+    dst[0] = value;
+  }
+}
+
+function lsp_match_bytes_at(buf: *u8, off: i32, lit: *u8, lit_len: i32): i32 {
+  let j: i32 = 0;
+  while (j < lit_len) {
+    if (buf[off + j] != lit[j]) {
+      return 0;
+    }
+    j = j + 1;
+  }
+  return 1;
+}
+
 #[no_mangle]
 function lsp_fmt_is_atom_tail(c: u8): i32 {
-  if (c >= 97) {
-    if (c <= 122) { return 1; }
-  }
-  if (c >= 65) {
-    if (c <= 90) { return 1; }
-  }
-  if (c >= 48) {
-    if (c <= 57) { return 1; }
-  }
+  if (lsp_char_in_range(c, 97 as u8, 122 as u8) != 0) { return 1; }
+  if (lsp_char_in_range(c, 65 as u8, 90 as u8) != 0) { return 1; }
+  if (lsp_char_in_range(c, 48 as u8, 57 as u8) != 0) { return 1; }
   if (c == 95) { return 1; }
   if (c == 41) { return 1; }
   if (c == 93) { return 1; }
@@ -40,15 +70,9 @@ function lsp_fmt_is_atom_tail(c: u8): i32 {
 
 #[no_mangle]
 function lsp_fmt_is_atom_head(c: u8): i32 {
-  if (c >= 97) {
-    if (c <= 122) { return 1; }
-  }
-  if (c >= 65) {
-    if (c <= 90) { return 1; }
-  }
-  if (c >= 48) {
-    if (c <= 57) { return 1; }
-  }
+  if (lsp_char_in_range(c, 97 as u8, 122 as u8) != 0) { return 1; }
+  if (lsp_char_in_range(c, 65 as u8, 90 as u8) != 0) { return 1; }
+  if (lsp_char_in_range(c, 48 as u8, 57 as u8) != 0) { return 1; }
   if (c == 95) { return 1; }
   if (c == 40) { return 1; }
   if (c == 91) { return 1; }
@@ -86,9 +110,7 @@ function lsp_fmt_last_out(out_buf: *u8, out_len: i32): u8 {
   let k: i32 = out_len - 1;
   while (k >= 0) {
     let c: u8 = out_buf[k];
-    if (c != 32) {
-      if (c != 9) { return c; }
-    }
+    if (lsp_fmt_is_inline_ws(c) == 0) { return c; }
     k = k - 1;
   }
   return 0 as u8;
@@ -99,11 +121,7 @@ function lsp_fmt_prev_src(doc: *u8, start: i32, j: i32): u8 {
   let k: i32 = j - 1;
   while (k >= 0) {
     let c: u8 = doc[start + k];
-    if (c != 32) {
-      if (c != 9) {
-        if (c != 13) { return c; }
-      }
-    }
+    if (lsp_fmt_is_src_ws(c) == 0) { return c; }
     k = k - 1;
   }
   return 0 as u8;
@@ -114,9 +132,7 @@ function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
   let k: i32 = j - 1;
   if (k < 0) { return 0; }
   let c: u8 = doc[start + k];
-  if (c == 32) { return 1; }
-  if (c == 9) { return 1; }
-  return 0;
+  return lsp_fmt_is_inline_ws(c);
 }
 
 #[no_mangle]
@@ -124,9 +140,7 @@ function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
   let k: i32 = j + 1;
   if (k >= len) { return 0; }
   let c: u8 = doc[start + k];
-  if (c == 32) { return 1; }
-  if (c == 9) { return 1; }
-  return 0;
+  return lsp_fmt_is_inline_ws(c);
 }
 
 #[no_mangle]
@@ -137,17 +151,12 @@ function lsp_fmt_space_before(doc: *u8, start: i32, j: i32, out_buf: *u8, out_le
   unsafe {
     let olen: i32 = out_len[0];
     let last: u8 = lsp_fmt_last_out(out_buf, olen);
-    if (last != 0) {
-      if (last != 32) {
-        if (last != 9) {
-          if (olen < out_cap - 1) {
-            out_buf[olen] = 32;
-            out_len[0] = olen + 1;
-            return 1;
-          }
-        }
-      }
-    }
+    if (last == 0) { return 0; }
+    if (lsp_fmt_is_inline_ws(last) != 0) { return 0; }
+    if (olen >= out_cap - 1) { return 0; }
+    out_buf[olen] = 32;
+    out_len[0] = olen + 1;
+    return 1;
   }
   return 0;
 }
@@ -160,9 +169,7 @@ function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_buf: *u
   let k: i32 = j + 1;
   while (k < len) {
     let n: u8 = doc[start + k];
-    if (n == 32) { k = k + 1; continue; }
-    if (n == 9) { k = k + 1; continue; }
-    if (n == 13) { k = k + 1; continue; }
+    if (lsp_fmt_is_src_ws(n) != 0) { k = k + 1; continue; }
     if (lsp_fmt_is_atom_head(n) != 0) {
       unsafe {
         let olen: i32 = out_len[0];
@@ -267,30 +274,18 @@ function lsp_parse_bool_after(body: *u8, len: i32, start: i32, key: *u8, out_val
   if (out_val == 0) { return 0 - 1; }
   let k: i32 = lsp_find_key_after(body, len, start, key);
   if (k < 0) { return 0 - 1; }
+  let lit_true: u8[5] = [116, 114, 117, 101, 0];
+  let lit_false: u8[6] = [102, 97, 108, 115, 101, 0];
   if (k + 4 <= len) {
-    if (body[k] == 116) {
-      if (body[k + 1] == 114) {
-        if (body[k + 2] == 117) {
-          if (body[k + 3] == 101) {
-            unsafe { out_val[0] = 1; }
-            return 0;
-          }
-        }
-      }
+    if (lsp_match_bytes_at(body, k, &lit_true[0], 4) != 0) {
+      lsp_store_i32(out_val, 1);
+      return 0;
     }
   }
   if (k + 5 <= len) {
-    if (body[k] == 102) {
-      if (body[k + 1] == 97) {
-        if (body[k + 2] == 108) {
-          if (body[k + 3] == 115) {
-            if (body[k + 4] == 101) {
-              unsafe { out_val[0] = 0; }
-              return 0;
-            }
-          }
-        }
-      }
+    if (lsp_match_bytes_at(body, k, &lit_false[0], 5) != 0) {
+      lsp_store_i32(out_val, 0);
+      return 0;
     }
   }
   return 0 - 1;
@@ -318,11 +313,9 @@ function lsp_line_is_block_comment(doc: *u8, content_start: i32, content_len: i3
       if (doc[content_start + 1] == 42) { return 1; }
     }
   }
-  if (in_block != 0) {
-    if (content_len >= 1) {
-      if (doc[content_start] == 42) { return 1; }
-    }
-  }
+  if (in_block == 0) { return 0; }
+  if (content_len < 1) { return 0; }
+  if (doc[content_start] == 42) { return 1; }
   return 0;
 }
 

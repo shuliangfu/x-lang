@@ -595,6 +595,8 @@ extern "C" function driver_diagnostic_asm_unsupported_expr_impl(kind: i32): void
 extern "C" function driver_diagnostic_asm_elf_unresolved_patch_impl(name: *u8, len: i32): void;
 extern "C" function driver_diagnostic_asm_macho_empty_reloc_impl(reloc_idx: i32): void;
 extern "C" function driver_diagnostic_asm_macho_missing_und_reloc_impl(reloc_idx: i32): void;
+extern "C" function driver_typeck_diag_scratch_expect_impl(): *u8;
+extern "C" function driver_typeck_diag_scratch_found_impl(): *u8;
 
 #[no_mangle]
 function driver_parse_strict_enabled(): i32 {
@@ -616,6 +618,22 @@ function driver_diag_note(msg: *u8): void {
   unsafe {
     driver_diag_note_impl(msg);
   }
+}
+
+#[no_mangle]
+function driver_typeck_diag_scratch_expect(): *u8 {
+  unsafe {
+    return driver_typeck_diag_scratch_expect_impl();
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function driver_typeck_diag_scratch_found(): *u8 {
+  unsafe {
+    return driver_typeck_diag_scratch_found_impl();
+  }
+  return 0 as *u8;
 }
 
 #[no_mangle]

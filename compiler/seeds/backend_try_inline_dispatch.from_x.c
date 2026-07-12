@@ -49,6 +49,8 @@ int32_t glue_try_fold_func_return_operand_ref(struct ast_ASTArena *arena, struct
 int32_t pipeline_asm_array_lit_elem_byte_sz_c(struct ast_ASTArena *arena, int32_t array_lit_ref);
 int32_t pipeline_asm_array_lit_reserve_stack_bytes_c(struct ast_ASTArena *arena, int32_t init_ref);
 int32_t glue_local_var_slot_holds_indirect_ptr(struct ast_ASTArena *arena, int32_t expr_ref, uint8_t *asm_ctx);
+uint8_t *glue_asm_ctx_module_ref_c_impl(uint8_t *asm_ctx);
+#define glue_asm_ctx_module_ref_c glue_asm_ctx_module_ref_c_impl
 int32_t glue_try_expr_const_i32(struct ast_ASTArena *arena, int32_t expr_ref, int32_t *out);
 int32_t glue_module_func_index_by_name(struct ast_Module *mod, uint8_t *name, int32_t name_len);
 int32_t glue_module_named_type_has_struct_layout(struct ast_Module *mod, uint8_t *name, int32_t name_len);

@@ -55,6 +55,31 @@ function diag_line_digits(line: i32): i32 {
   return width;
 }
 
+function diag_cstr_len_bounded(s: *u8): i32 {
+  if (s == 0) {
+    return 0;
+  }
+  let n: i32 = 0;
+  while (n < 4096) {
+    if (s[n] == 0) {
+      return n;
+    }
+    n = n + 1;
+  }
+  return 4096;
+}
+
+function diag_bytes_match_at(hay: *u8, needle: *u8, off: i32, nlen: i32): i32 {
+  let j: i32 = 0;
+  while (j < nlen) {
+    if (hay[off + j] != needle[j]) {
+      return 0;
+    }
+    j = j + 1;
+  }
+  return 1;
+}
+
 #[no_mangle]
 function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
   if (kind == 0) {
@@ -63,19 +88,12 @@ function diag_kind_is_exact(kind: *u8, needle: *u8): i32 {
   if (needle == 0) {
     return 0;
   }
-  let i: i32 = 0;
-  while (i < 4096) {
-    let a: u8 = kind[i];
-    let b: u8 = needle[i];
-    if (a != b) {
-      return 0;
-    }
-    if (a == 0) {
-      return 1;
-    }
-    i = i + 1;
+  let klen: i32 = diag_cstr_len_bounded(kind);
+  let nlen: i32 = diag_cstr_len_bounded(needle);
+  if (klen != nlen) {
+    return 0;
   }
-  return 0;
+  return diag_bytes_match_at(kind, needle, 0, nlen);
 }
 
 #[no_mangle]
@@ -89,38 +107,17 @@ function diag_kind_contains(kind: *u8, needle: *u8): i32 {
   if (needle[0] == 0) {
     return 0;
   }
-  let nlen: i32 = 0;
-  while (nlen < 4096) {
-    if (needle[nlen] == 0) {
-      break;
-    }
-    nlen = nlen + 1;
-  }
+  let nlen: i32 = diag_cstr_len_bounded(needle);
   if (nlen <= 0) {
     return 0;
   }
-  let klen: i32 = 0;
-  while (klen < 4096) {
-    if (kind[klen] == 0) {
-      break;
-    }
-    klen = klen + 1;
-  }
+  let klen: i32 = diag_cstr_len_bounded(kind);
   if (klen < nlen) {
     return 0;
   }
   let s: i32 = 0;
   while (s + nlen <= klen) {
-    let j: i32 = 0;
-    let ok: i32 = 1;
-    while (j < nlen) {
-      if (kind[s + j] != needle[j]) {
-        ok = 0;
-        break;
-      }
-      j = j + 1;
-    }
-    if (ok != 0) {
+    if (diag_bytes_match_at(kind, needle, s, nlen) != 0) {
       return 1;
     }
     s = s + 1;

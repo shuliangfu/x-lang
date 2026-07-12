@@ -239,11 +239,17 @@ int fmt_user_ignore_count(void) {
 }
 #endif
 
-const char *fmt_user_ignore_at(int i) {
+const char *fmt_user_ignore_at_impl(int i) {
     if (i < 0 || i >= s_n_ignore)
         return NULL;
     return s_ignore_paths[i];
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+const char *fmt_user_ignore_at(int i) {
+    return fmt_user_ignore_at_impl(i);
+}
+#endif
 
 
 
@@ -556,7 +562,7 @@ int path_should_ignore_impl(const char *path) {
     }
     n = fmt_user_ignore_count();
     for (i = 0; i < n; i++) {
-        const char *u = fmt_user_ignore_at(i);
+        const char *u = fmt_user_ignore_at_impl(i);
         if (u && u[0] && strstr(path, u))
             return 1;
     }
@@ -602,7 +608,7 @@ int fmt_file_list_n(void) {
 #endif
 
 /* getcwd + 相对拼接 🔒；返回静态缓冲指针（勿 free） */
-const char *fmt_path_resolve_abs(const char *path) {
+const char *fmt_path_resolve_abs_impl(const char *path) {
     static char ab[512];
     if (!path)
         return NULL;
@@ -619,6 +625,12 @@ const char *fmt_path_resolve_abs(const char *path) {
     }
     return ab;
 }
+
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
+const char *fmt_path_resolve_abs(const char *path) {
+    return fmt_path_resolve_abs_impl(path);
+}
+#endif
 
 int fmt_file_list_store_impl(const char *abs_path) {
     if (!abs_path || s_n_files >= DRIVER_FMT_MAX_FILES)
@@ -641,7 +653,7 @@ int file_list_push_impl(const char *path) {
         return -1;
     if (fmt_file_list_n() >= DRIVER_FMT_MAX_FILES)
         return -1;
-    abs_path = fmt_path_resolve_abs(path);
+    abs_path = fmt_path_resolve_abs_impl(path);
     if (!abs_path)
         return -1;
     if (path_should_ignore_impl(abs_path))
@@ -855,7 +867,7 @@ void collect_paths_from_arg_impl(const char *arg) {
         return;
     }
     if (k == 1) {
-        const char *base = fmt_path_resolve_abs(arg);
+        const char *base = fmt_path_resolve_abs_impl(arg);
         if (base)
             walk_dir_collect(base);
         return;
@@ -1255,4 +1267,3 @@ int driver_run_compiler_check(int argc, char **argv) {
     return driver_run_compiler_check_impl(argc, argv);
 }
 #endif
-

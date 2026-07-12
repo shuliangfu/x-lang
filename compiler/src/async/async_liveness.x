@@ -8,7 +8,7 @@
 // G-02f-165：thin _impl 批折叠。
 // G-02f-166～168：expr/block await + count + io_await 真迁 .x（AST LE 偏移表）。
 // G-02f-169～171：expr/block refs_var + rest_refs + analyze_block_linear 真迁 .x。
-// G-02f-172：P0-2 审计 — 见 analysis/G-02f-自举剩余优先级.md §3.1 / Wave A f-172。
+// G-02f-172：P0-2 审计；当前总进度与后续推进统一见 analysis/自举进度.md。
 // 产品：cc seeds/async_liveness.from_x.c → src/async/async_liveness.o
 
 function async_liveness_x_doc_anchor(): i32 {
@@ -1229,4 +1229,3 @@ function live_name_cmp(a: *u8, b: *u8): i32 {
 }
 
 // G-02f-168：block_has_await 见上文（真迁 + block_count_await）。
-

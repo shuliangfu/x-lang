@@ -14,11 +14,28 @@ extern "C" function check_user_passed_L_get_impl(): i32;
 extern "C" function fmt_user_ignore_count_impl(): i32;
 extern "C" function fmt_path_ends_with_dot_x_impl(path: *u8): i32;
 extern "C" function fmt_file_list_n_impl(): i32;
-extern "C" function driver_fmt_check_lit_check_error(): *u8;
-extern "C" function driver_fmt_check_lit_fmt_error(): *u8;
-extern "C" function driver_fmt_check_lit_chk002(): *u8;
-extern "C" function driver_fmt_check_lit_fmt001(): *u8;
+extern "C" function fmt_user_ignore_at_impl(i: i32): *u8;
+extern "C" function fmt_path_resolve_abs_impl(path: *u8): *u8;
 extern "C" function check_one_finalize_rc_lint_impl(warn_count: i32): i32;
+
+let g_fmt_lit_check_error: u8[12] = [99, 104, 101, 99, 107, 32, 101, 114, 114, 111, 114, 0];
+let g_fmt_lit_fmt_error: u8[10] = [102, 109, 116, 32, 101, 114, 114, 111, 114, 0];
+let g_fmt_lit_chk002: u8[7] = [67, 72, 75, 48, 48, 50, 0];
+let g_fmt_lit_fmt001: u8[7] = [70, 77, 84, 48, 48, 49, 0];
+
+let g_fmt_builtin_ignore_0: u8[8] = [47, 46, 103, 105, 116, 47, 0, 0];
+let g_fmt_builtin_ignore_1: u8[12] = [47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0];
+let g_fmt_builtin_ignore_2: u8[8] = [47, 98, 117, 105, 108, 100, 47, 0];
+let g_fmt_builtin_ignore_3: u8[15] = [47, 110, 111, 100, 101, 95, 109, 111, 100, 117, 108, 101, 115, 47, 0];
+let g_fmt_builtin_ignore_4: u8[11] = [47, 46, 99, 117, 114, 115, 111, 114, 47, 0, 0];
+let g_fmt_builtin_ignore_5: u8[21] = [47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 98, 117, 105, 108, 100, 95, 97, 115, 109, 47, 0];
+let g_fmt_builtin_ignore_6: u8[17] = [47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 98, 117, 105, 108, 100, 47, 0];
+let g_fmt_builtin_ignore_7: u8[17] = [47, 99, 111, 109, 112, 105, 108, 101, 114, 47, 116, 101, 115, 116, 115, 47, 0];
+
+let g_fmt_default_product_sub_0: u8[13] = [99, 111, 109, 112, 105, 108, 101, 114, 47, 115, 114, 99, 0];
+let g_fmt_default_product_sub_1: u8[5] = [99, 111, 114, 101, 0];
+let g_fmt_default_product_sub_2: u8[4] = [115, 116, 100, 0];
+let g_fmt_default_product_sub_3: u8[9] = [101, 120, 97, 109, 112, 108, 101, 115, 0];
 
 // deno check：全部成功时不打印逐文件 check OK
 #[no_mangle]
@@ -114,23 +131,103 @@ function check_one_finalize_rc(rc: i32, warn_count: i32): i32 {
 }
 
 #[no_mangle]
+function driver_fmt_check_lit_check_error(): *u8 {
+  return &g_fmt_lit_check_error[0];
+}
+
+#[no_mangle]
+function driver_fmt_check_lit_fmt_error(): *u8 {
+  return &g_fmt_lit_fmt_error[0];
+}
+
+#[no_mangle]
+function driver_fmt_check_lit_chk002(): *u8 {
+  return &g_fmt_lit_chk002[0];
+}
+
+#[no_mangle]
+function driver_fmt_check_lit_fmt001(): *u8 {
+  return &g_fmt_lit_fmt001[0];
+}
+
+#[no_mangle]
 function driver_collect_error_kind(): *u8 {
   unsafe {
     if (driver_collect_mode_is_check_impl() != 0) {
-      return driver_fmt_check_lit_check_error();
+      return &g_fmt_lit_check_error[0];
     }
-    return driver_fmt_check_lit_fmt_error();
   }
-  return 0 as *u8;
+  return &g_fmt_lit_fmt_error[0];
 }
 
 #[no_mangle]
 function driver_collect_missing_path_code(): *u8 {
   unsafe {
     if (driver_collect_mode_is_check_impl() != 0) {
-      return driver_fmt_check_lit_chk002();
+      return &g_fmt_lit_chk002[0];
     }
-    return driver_fmt_check_lit_fmt001();
+  }
+  return &g_fmt_lit_fmt001[0];
+}
+
+#[no_mangle]
+function fmt_builtin_ignore_at(i: i32): *u8 {
+  if (i == 0) {
+    return &g_fmt_builtin_ignore_0[0];
+  }
+  if (i == 1) {
+    return &g_fmt_builtin_ignore_1[0];
+  }
+  if (i == 2) {
+    return &g_fmt_builtin_ignore_2[0];
+  }
+  if (i == 3) {
+    return &g_fmt_builtin_ignore_3[0];
+  }
+  if (i == 4) {
+    return &g_fmt_builtin_ignore_4[0];
+  }
+  if (i == 5) {
+    return &g_fmt_builtin_ignore_5[0];
+  }
+  if (i == 6) {
+    return &g_fmt_builtin_ignore_6[0];
+  }
+  if (i == 7) {
+    return &g_fmt_builtin_ignore_7[0];
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function fmt_default_product_sub_at(i: i32): *u8 {
+  if (i == 0) {
+    return &g_fmt_default_product_sub_0[0];
+  }
+  if (i == 1) {
+    return &g_fmt_default_product_sub_1[0];
+  }
+  if (i == 2) {
+    return &g_fmt_default_product_sub_2[0];
+  }
+  if (i == 3) {
+    return &g_fmt_default_product_sub_3[0];
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function fmt_user_ignore_at(i: i32): *u8 {
+  unsafe {
+    return fmt_user_ignore_at_impl(i);
+  }
+  return 0 as *u8;
+}
+
+#[no_mangle]
+function fmt_path_resolve_abs(path: *u8): *u8 {
+  unsafe {
+    return fmt_path_resolve_abs_impl(path);
   }
   return 0 as *u8;
 }

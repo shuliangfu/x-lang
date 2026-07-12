@@ -9,7 +9,7 @@
 // G-02f-177：call_not_generic / wrong_num_type_args / requires_type_args 拼装真迁。
 // G-02f-178：struct_padding_before/trailing / field_bad_size 拼装真迁。
 // G-02f-179：asm unsupported / elf patch / macho reloc 笔记拼装真迁。
-// G-02f-180：P0-4 审计 — 见 analysis/G-02f-自举剩余优先级.md §4.2；va_list/pipeline_code 🔒。
+// G-02f-180：P0-4 审计；va_list/pipeline_code 仍属语言/ABI 限制，当前总进度见 analysis/自举进度.md。
 // G-02f-96：driver_diag_report_x_pipeline_code 门闩（va_list 本体 C _impl，f-180 🔒）。
 // 产品：./shux-c -E → seeds/runtime_driver_diagnostic.from_x.c（+ C 尾 + 字符串抛光）。
 // C 尾：snprintf 调试诊断、va_list pipeline 码、scratch 缓冲、getenv 冷路径。
@@ -764,4 +764,3 @@ function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): void {
   at = driver_diag_append_i32(&msg[0], 96, at, reloc_idx);
   driver_diag_note(&msg[0]);
 }
-

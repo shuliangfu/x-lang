@@ -14,6 +14,9 @@
 extern "C" function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32;
 extern "C" function backend_enc_append_u8_c_impl(elf_ctx: *u8, byte: i32): i32;
 extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i32;
+extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
+extern "C" function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
+extern "C" function arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx: *u8, k: i32): i32;
 
 // ADD X31, X31, #imm12  （SP+imm）
 #[no_mangle]
@@ -121,6 +124,45 @@ function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   unsafe {
     let u9: i32 = (0 - offset) & 511;
     return arch_arm64_enc_enc_u32_le(elf_ctx, (3087007744 | ((u9 as u32) * 4096) | 928) as i32);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function arch_arm64_enc_enc_add_sp_imm12(elf_ctx: *u8, imm: i32): i32 {
+  return backend_enc_arm64_add_sp_imm12_c(elf_ctx, imm);
+}
+
+#[no_mangle]
+function arch_arm64_enc_enc_sub_sp_imm12(elf_ctx: *u8, imm: i32): i32 {
+  return backend_enc_arm64_sub_sp_imm12_c(elf_ctx, imm);
+}
+
+#[no_mangle]
+function arch_arm64_enc_enc_str_x0_sp_offset(elf_ctx: *u8, off_bytes: i32): i32 {
+  return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes);
+}
+
+#[no_mangle]
+function arch_arm64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  unsafe {
+    return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function arch_riscv64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  unsafe {
+    return arch_riscv64_enc_enc_call_impl(elf_ctx, name, name_len);
+  }
+  return 0 - 1;
+}
+
+#[no_mangle]
+function arch_riscv64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
+  unsafe {
+    return arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx, k);
   }
   return 0 - 1;
 }
@@ -877,7 +919,6 @@ extern "C" function arch_arm64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: 
 extern "C" function arch_riscv64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32;
 extern "C" function arch_x86_64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32;
 extern "C" function arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32;
-extern "C" function arch_riscv64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32;
 extern "C" function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32;
 extern "C" function arch_riscv64_enc_enc_add_sp_imm12(elf_ctx: *u8, nbytes: i32): i32;
 extern "C" function arch_x86_64_enc_enc_add_rsp_imm(elf_ctx: *u8, nbytes: i32): i32;
@@ -1242,8 +1283,6 @@ extern "C" function arch_riscv64_enc_enc_mul_a2_a3(elf_ctx: *u8): i32;
 extern "C" function arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx: *u8): i32;
 extern "C" function arch_riscv64_enc_enc_mul_rbx_a3(elf_ctx: *u8): i32;
 extern "C" function arch_x86_64_enc_enc_imul_ebx_edx(elf_ctx: *u8): i32;
-extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
-extern "C" function arch_riscv64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 extern "C" function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 extern "C" function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): i32;
 extern "C" function arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx: *u8, k: i32): i32;

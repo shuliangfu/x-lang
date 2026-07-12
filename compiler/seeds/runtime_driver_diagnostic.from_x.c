@@ -18,6 +18,8 @@
 #define driver_diag_fill_expr_part driver_diag_fill_expr_part_impl
 #define driver_diag_build_expected_found driver_diag_build_expected_found_impl
 #define driver_parse_strict_enabled driver_parse_strict_enabled_impl
+#define driver_typeck_diag_scratch_expect driver_typeck_diag_scratch_expect_impl
+#define driver_typeck_diag_scratch_found driver_typeck_diag_scratch_found_impl
 int driver_diag_env_debug_pipe(void);
 #endif
 
@@ -1628,5 +1630,4 @@ void driver_diag_build_expected_found_impl(char *msg, int32_t msg_cap, const cha
     if (fpart && at + 1 < (size_t)msg_cap)
         (void)snprintf(msg + at, (size_t)msg_cap - at, "%s", fpart);
 }
-
 
