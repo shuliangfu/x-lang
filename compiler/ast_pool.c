@@ -83,7 +83,7 @@ typedef struct {
 } TypeAliasEntry;
 
 /** 顶层 enum 名槽；变体名在 parse 跳过 enum { A, B } 时登记，供 asm Color.Green 等发射 tag。 */
-#define MODULE_ENUM_MAX_VARIANTS 32
+#define MODULE_ENUM_MAX_VARIANTS 64
 typedef struct {
   uint8_t name[64];
   int32_t name_len;
