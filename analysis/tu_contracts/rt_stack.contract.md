@@ -6,22 +6,23 @@
 - prove 工件目录：`../tests/probes/prove_x_o/rt_stack`
 
 ## 2. 当前目标
-- 当前阶段：Phase 0 试点
-- 本次目标：先证明该 TU 已具备最小 L1/L2 闭环
+- 当前阶段：Phase 2（thin+rest 切割完成）
+- 本次目标：已证明该 TU 具备 L1/L2/L3 闭环（含 ld -r 合并）
 - 当前角色判断：
-  - `thin wrapper / partial provider`
-  - `rest provider (_impl residual present)`
+  - `thin/.x provider`：src/runtime/rt_stack.x（driver_stack_esc_gate_large_stack public wrapper）
+  - `seed/rest provider`：seeds/rt_stack.from_x.c（macro 重命名 _impl + 2 个残余符号）
 
 ## 3. 导出符号合同
 - thin/.x 当前导出数：1
 - seed/rest 当前导出数：3
 - thin/.x 独有导出：0
-- seed/rest 残余导出：2
+- seed/rest 残余导出：3
 
 ### 3.1 必须由 thin/.x 提供
 - `driver_stack_esc_gate_large_stack`
 
 ### 3.2 当前仍由 seed/rest 提供
+- `driver_stack_esc_gate_large_stack_impl`
 - `driver_stack_esc_gate_thread_fn`
 - `labi_rt_stack_slice_marker`
 
@@ -32,8 +33,8 @@
 - 当前阶段先锁定：
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
-  - _impl 残余列表
-  - thin+rest 宏边界：N/A
+  - _impl 残余列表：`driver_stack_esc_gate_large_stack_impl`（macro 重命名模式）
+  - thin+rest 宏边界：`SHUX_RT_STACK_FROM_X`
 - 下一步补充：
   - arg_count / arg_shapes
   - ret_shape
@@ -48,7 +49,7 @@
   - cc -c
   - nm
   - seed 符号对照
-  - ld -r thin+rest 合并：pending
+  - ld -r thin+rest 合并：✅ 已通过（macOS arm64 + Ubuntu x86_64 双平台验证）
 - 待补：
   - smoke / probe：pending
   - canonical snapshot compare：pending

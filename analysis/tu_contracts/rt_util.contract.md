@@ -6,15 +6,15 @@
 - prove 工件目录：`../tests/probes/prove_x_o/rt_util`
 
 ## 2. 当前目标
-- 当前阶段：Phase 0 试点
-- 本次目标：先证明该 TU 已具备最小 L1/L2 闭环
+- 当前阶段：Phase 2（thin+rest 切割完成）
+- 本次目标：已证明该 TU 具备 L1/L2/L3 闭环（含 ld -r 合并）
 - 当前角色判断：
-  - `thin wrapper / partial provider`
-  - `rest provider (_impl residual present)`
+  - `thin/.x provider`：src/runtime/rt_util.x（driver_unlink_failed_output public wrapper）
+  - `seed/rest provider`：seeds/rt_util.from_x.c（driver_argv0_basename_is 残余符号）
 
 ## 3. 导出符号合同
 - thin/.x 当前导出数：1
-- seed/rest 当前导出数：2
+- seed/rest 当前导出数：1
 - thin/.x 独有导出：0
 - seed/rest 残余导出：1
 
@@ -31,8 +31,8 @@
 - 当前阶段先锁定：
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
-  - _impl 残余列表
-  - thin+rest 宏边界：N/A
+  - _impl 残余列表：N/A（本 TU 使用 #ifndef/extern 模式，非 _impl 模式）
+  - thin+rest 宏边界：`SHUX_RT_UTIL_FROM_X`
 - 下一步补充：
   - arg_count / arg_shapes
   - ret_shape
@@ -47,7 +47,7 @@
   - cc -c
   - nm
   - seed 符号对照
-  - ld -r thin+rest 合并：pending
+  - ld -r thin+rest 合并：✅ 已通过（macOS arm64 + Ubuntu x86_64 双平台验证）
 - 待补：
   - smoke / probe：pending
   - canonical snapshot compare：pending

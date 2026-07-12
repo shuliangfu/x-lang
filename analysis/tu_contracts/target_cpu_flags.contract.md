@@ -2,21 +2,21 @@
 
 ## 1. 当前权威源
 - x 源：`src/driver/target_cpu_flags.x`
-- seed 源：`N/A`
+- seed 源：`seeds/target_cpu_pure.from_x.c`
 - prove 工件目录：`../tests/probes/prove_x_o/target_cpu_flags`
 
 ## 2. 当前目标
-- 当前阶段：Phase 0 试点
-- 本次目标：先证明该 TU 已具备最小 L1/L2 闭环
+- 当前阶段：Phase 2（thin+rest 切割完成）
+- 本次目标：已证明该 TU 具备 L1/L2/L3 闭环（含 ld -r 合并）
 - 当前角色判断：
-  - `thin/.x provider`
-  - `seed/rest provider`
+  - `thin/.x provider`：src/driver/target_cpu_flags.x（5 个 #[no_mangle] 函数真迁 .x）
+  - `seed/rest provider`：seeds/target_cpu_pure.from_x.c（rest 模式省略 thin 5 函数，提供残余 ~12+ 个函数）
 
 ## 3. 导出符号合同
 - thin/.x 当前导出数：5
-- seed/rest 当前导出数：0
+- seed/rest 当前导出数：12+（平台相关：x86/arm64/riscv detect 函数条件编译）
 - thin/.x 独有导出：0
-- seed/rest 残余导出：0
+- seed/rest 残余导出：12+
 
 ### 3.1 必须由 thin/.x 提供
 - `driver_get_pending_target_cpu_features`
@@ -26,7 +26,18 @@
 - `tcp_tolower`
 
 ### 3.2 当前仍由 seed/rest 提供
-- （空）
+- `append_feat_name`
+- `flags_has_token`
+- `shu_simd_is_vector_type_spelling`
+- `shu_simd_vector_lanes_esz_from_spelling`
+- `shu_target_cpu_detect_arm64`
+- `shu_target_cpu_detect_host`
+- `shu_target_cpu_generic_for_host`
+- `shu_target_cpu_print`
+- `shu_target_cpu_resolve`
+- `tcp_eq_at`
+- `tcp_parse_named`
+- （平台相关：x86/riscv detect 函数条件编译）
 
 ### 3.3 thin/.x 独有导出（若非空，后续需审计）
 - （空）
@@ -35,8 +46,8 @@
 - 当前阶段先锁定：
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
-  - _impl 残余列表
-  - thin+rest 宏边界：N/A
+  - _impl 残余列表：N/A（本 TU 使用 #ifndef/extern 模式，非 _impl 模式）
+  - thin+rest 宏边界：`SHUX_L2_TARGET_CPU_FLAGS_FROM_X`
 - 下一步补充：
   - arg_count / arg_shapes
   - ret_shape
@@ -51,7 +62,7 @@
   - cc -c
   - nm
   - seed 符号对照
-  - ld -r thin+rest 合并：pending
+  - ld -r thin+rest 合并：✅ 已通过（macOS arm64 + Ubuntu x86_64 双平台验证）
 - 待补：
   - smoke / probe：pending
   - canonical snapshot compare：pending
