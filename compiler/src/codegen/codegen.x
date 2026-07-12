@@ -4797,8 +4797,8 @@ function emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, ctx: *P
   }
   /* panic 或 panic(expr)：输出 shux_panic_(0,0) 或 shux_panic_(1, expr) */
   if (e.kind == ExprKind.EXPR_PANIC) {
-    let p: u8[22] = [115, 104, 117, 108, 97, 110, 103, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0];
-    if (emit_bytes_22(out, p, 15) != 0) {
+    let p: u8[22] = [115, 104, 117, 120, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    if (emit_bytes_22(out, p, 12) != 0) {
       return -1;
     }
     if (ast.ref_is_null(e.unary_operand_ref)) {

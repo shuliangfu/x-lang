@@ -3814,8 +3814,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
  }
   return codegen_append_byte(out, 41);
  }
-  if ((e).kind == ast_ExprKind_EXPR_PANIC) {   uint8_t p[22] = { 115, 104, 117, 108, 97, 110, 103, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0 };
-  if (codegen_emit_bytes_22(out, p, 15) != 0) {   return (-1);
+  if ((e).kind == ast_ExprKind_EXPR_PANIC) {   uint8_t p[22] = { 115, 104, 117, 120, 95, 112, 97, 110, 105, 99, 95, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  if (codegen_emit_bytes_22(out, p, 12) != 0) {   return (-1);
  }
   if (ast_ref_is_null((e).unary_operand_ref)) {   if (codegen_append_byte(out, 48) != 0) {   return (-1);
  }
