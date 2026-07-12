@@ -31,6 +31,18 @@ const elf = import("platform.elf");
 extern function pipeline_elf_ctx_reloc_offset_at(ctx: *u8, idx: i32): i32;
 extern function pipeline_elf_ctx_reloc_offset_set(ctx: *u8, idx: i32, offset: i32): void;
 
+function peephole_reloc_offset_at(ctx: *ElfCodegenCtx, idx: i32): i32 {
+  unsafe {
+    return pipeline_elf_ctx_reloc_offset_at(ctx as *u8, idx);
+  }
+}
+
+function peephole_reloc_offset_set(ctx: *ElfCodegenCtx, idx: i32, offset: i32): void {
+  unsafe {
+    pipeline_elf_ctx_reloc_offset_set(ctx as *u8, idx, offset);
+  }
+}
+
 /** 比较 out.data[pos..pos+len] 与 ptr 指向的 len 字节是否相等。相等返回
 * 1，否则 0。 */
 function slice_eq(out: *CodegenOutBuf, pos: i32, ptr: *u8, len: i32): i32 {
@@ -207,7 +219,7 @@ function peephole_elf_region_has_meta(ctx: *ElfCodegenCtx, pos: i32, len: i32): 
   }
   let ri: i32 = 0;
   while (ri < ctx.num_relocs) {
-    let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx as *u8, ri);
+    let roff: i32 = peephole_reloc_offset_at(ctx, ri);
     if (roff >= pos && roff < end) {
       return 1;
     }
@@ -243,9 +255,9 @@ function peephole_elf_shift_meta_after_remove(ctx: *ElfCodegenCtx, pos: i32, len
   }
   let ri: i32 = 0;
   while (ri < ctx.num_relocs) {
-    let roff: i32 = pipeline_elf_ctx_reloc_offset_at(ctx as *u8, ri);
+    let roff: i32 = peephole_reloc_offset_at(ctx, ri);
     if (roff >= bound) {
-      pipeline_elf_ctx_reloc_offset_set(ctx as *u8, ri, roff - len);
+      peephole_reloc_offset_set(ctx, ri, roff - len);
     }
     ri = ri + 1;
   }
