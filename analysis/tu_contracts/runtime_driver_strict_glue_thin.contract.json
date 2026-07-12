@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_driver_strict_glue_thin",
+  "x_src": "src/runtime_driver_strict_glue_thin.x",
+  "seed_src": "",
+  "probe_dir": "../tests/probes/prove_x_o/runtime_driver_strict_glue_thin",
+  "phase": "phase0_trial",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "pending",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 11,
+    "seed_symbols": 0,
+    "only_x": 0,
+    "only_seed": 0
+  },
+  "symbols": {
+    "x": ["asm_driver_set_current_dep_path_for_codegen", "asm_driver_skip_codegen_dep_0_get", "typeck_call_resolve_dep_idx_peek", "typeck_call_resolve_func_idx_peek", "typeck_driver_diagnostic_pipe_marker", "typeck_i32_ptr_read", "typeck_i32_ptr_store", "typeck_layout_metrics_al_read_depth", "typeck_layout_metrics_init_depth", "typeck_layout_metrics_init_slot", "typeck_layout_metrics_sz_read_depth"],
+    "seed": [],
+    "only_x": [],
+    "only_seed": []
+  },
+  "rest_macro": "",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

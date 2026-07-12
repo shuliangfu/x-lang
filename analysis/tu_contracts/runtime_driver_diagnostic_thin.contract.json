@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_driver_diagnostic_thin",
+  "x_src": "src/runtime_driver_diagnostic_thin.x",
+  "seed_src": "seeds/runtime_driver_diagnostic.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/runtime_driver_diagnostic_thin",
+  "phase": "phase0_trial",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "pending",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 79,
+    "seed_symbols": 84,
+    "only_x": 3,
+    "only_seed": 8
+  },
+  "symbols": {
+    "x": ["driver_debug_log", "driver_diag_append_cstr", "driver_diag_append_i32", "driver_diag_append_name", "driver_diag_build_expected_found", "driver_diag_copy_bytes", "driver_diag_env_debug_pipe", "driver_diag_fill_expr_part", "driver_diag_note", "driver_diag_pipe_note", "driver_diag_report_prefixed", "driver_diagnostic_after_dep_codegen", "driver_diagnostic_after_entry_parse", "driver_diagnostic_after_entry_parse_module", "driver_diagnostic_asm_current_func_maybe_trace", "driver_diagnostic_asm_current_func_store", "driver_diagnostic_asm_elf_unresolved_patch", "driver_diagnostic_asm_fail_at", "driver_diagnostic_asm_last_expr_kind_set", "driver_diagnostic_asm_macho_empty_reloc", "driver_diagnostic_asm_macho_missing_und_reloc", "driver_diagnostic_asm_print_current_func", "driver_diagnostic_asm_set_current_func", "driver_diagnostic_asm_set_last_expr_kind", "driver_diagnostic_asm_unsupported_expr", "driver_diagnostic_asm_var_not_found", "driver_diagnostic_before_codegen", "driver_diagnostic_codegen_emit_func_fail", "driver_diagnostic_codegen_fail", "driver_diagnostic_entry_already", "driver_diagnostic_hint_unused_binding", "driver_diagnostic_parse_commit_fail", "driver_diagnostic_parse_commit_shape", "driver_diagnostic_parse_fail", "driver_diagnostic_parse_func_generic", "driver_diagnostic_parse_skip_function", "driver_diagnostic_parser_onefunc_param_ref", "driver_diagnostic_pipe_marker", "driver_diagnostic_source_len", "driver_diagnostic_typeck_assign_mismatch", "driver_diagnostic_typeck_binop_operands", "driver_diagnostic_typeck_block_enter", "driver_diagnostic_typeck_break_continue_outside", "driver_diagnostic_typeck_call_not_generic", "driver_diagnostic_typeck_call_requires_type_args", "driver_diagnostic_typeck_call_wrong_num_type_args", "driver_diagnostic_typeck_deref_outside_unsafe", "driver_diagnostic_typeck_enum_no_variant", "driver_diagnostic_typeck_extern_call_outside_unsafe", "driver_diagnostic_typeck_fail", "driver_diagnostic_typeck_fn_enter", "driver_diagnostic_typeck_for_condition_not_bool", "driver_diagnostic_typeck_func_fail", "driver_diagnostic_typeck_if_condition_not_bool", "driver_diagnostic_typeck_import_const_must_be_qualified", "driver_diagnostic_typeck_linear_addr_of", "driver_diagnostic_typeck_ptr_field", "driver_diagnostic_typeck_ret_fail", "driver_diagnostic_typeck_return_mismatch", "driver_diagnostic_typeck_return_subexpr", "driver_diagnostic_typeck_return_unresolved", "driver_diagnostic_typeck_struct_field_bad_size", "driver_diagnostic_typeck_struct_padding_before", "driver_diagnostic_typeck_struct_padding_trailing", "driver_diagnostic_typeck_subscript_base", "driver_diagnostic_typeck_try_propagate_bad_enclosing", "driver_diagnostic_typeck_var_resolution", "driver_diagnostic_typeck_while_condition_not_bool", "driver_diagnostic_warn_hot_reorder_field", "driver_diagnostic_warn_pad_fields_same_cache_line", "driver_parse_strict_enabled", "driver_typeck_diag_scratch_expect", "driver_typeck_diag_scratch_found", "lsp_diag_get_enabled", "parser_diag_ident_len", "parser_diag_scan_fail", "parser_diag_tok_kind", "parser_diagnostic_parse_commit_shape", "parser_is_ident_allow"],
+    "seed": ["driver_debug_log", "driver_diag_build_expected_found", "driver_diag_copy_bytes", "driver_diag_env_debug_pipe", "driver_diag_env_debug_pipe_impl", "driver_diag_fill_expr_part", "driver_diag_note", "driver_diag_pipe_note", "driver_diag_pipe_note_impl", "driver_diag_report_prefixed", "driver_diag_report_x_pipeline_code", "driver_diag_report_x_pipeline_code_impl", "driver_diagnostic_after_dep_codegen", "driver_diagnostic_after_entry_parse", "driver_diagnostic_after_entry_parse_module", "driver_diagnostic_asm_current_func_maybe_trace", "driver_diagnostic_asm_current_func_maybe_trace_impl", "driver_diagnostic_asm_current_func_store", "driver_diagnostic_asm_current_func_store_impl", "driver_diagnostic_asm_elf_unresolved_patch", "driver_diagnostic_asm_fail_at", "driver_diagnostic_asm_last_expr_kind_set", "driver_diagnostic_asm_last_expr_kind_set_impl", "driver_diagnostic_asm_macho_empty_reloc", "driver_diagnostic_asm_macho_missing_und_reloc", "driver_diagnostic_asm_print_current_func", "driver_diagnostic_asm_set_current_func", "driver_diagnostic_asm_set_last_expr_kind", "driver_diagnostic_asm_unsupported_expr", "driver_diagnostic_asm_var_not_found", "driver_diagnostic_before_codegen", "driver_diagnostic_codegen_emit_func_fail", "driver_diagnostic_codegen_fail", "driver_diagnostic_entry_already", "driver_diagnostic_hint_unused_binding", "driver_diagnostic_parse_commit_fail", "driver_diagnostic_parse_commit_shape", "driver_diagnostic_parse_fail", "driver_diagnostic_parse_func_generic", "driver_diagnostic_parse_skip_function", "driver_diagnostic_parser_onefunc_param_ref", "driver_diagnostic_pipe_marker", "driver_diagnostic_source_len", "driver_diagnostic_typeck_assign_mismatch", "driver_diagnostic_typeck_binop_operands", "driver_diagnostic_typeck_block_enter", "driver_diagnostic_typeck_break_continue_outside", "driver_diagnostic_typeck_call_not_generic", "driver_diagnostic_typeck_call_requires_type_args", "driver_diagnostic_typeck_call_wrong_num_type_args", "driver_diagnostic_typeck_deref_outside_unsafe", "driver_diagnostic_typeck_enum_no_variant", "driver_diagnostic_typeck_extern_call_outside_unsafe", "driver_diagnostic_typeck_fail", "driver_diagnostic_typeck_fn_enter", "driver_diagnostic_typeck_for_condition_not_bool", "driver_diagnostic_typeck_func_fail", "driver_diagnostic_typeck_if_condition_not_bool", "driver_diagnostic_typeck_import_const_must_be_qualified", "driver_diagnostic_typeck_linear_addr_of", "driver_diagnostic_typeck_ptr_field", "driver_diagnostic_typeck_ret_fail", "driver_diagnostic_typeck_return_mismatch", "driver_diagnostic_typeck_return_subexpr", "driver_diagnostic_typeck_return_unresolved", "driver_diagnostic_typeck_struct_field_bad_size", "driver_diagnostic_typeck_struct_padding_before", "driver_diagnostic_typeck_struct_padding_trailing", "driver_diagnostic_typeck_subscript_base", "driver_diagnostic_typeck_try_propagate_bad_enclosing", "driver_diagnostic_typeck_var_resolution", "driver_diagnostic_typeck_while_condition_not_bool", "driver_diagnostic_warn_hot_reorder_field", "driver_diagnostic_warn_pad_fields_same_cache_line", "driver_parse_strict_enabled", "driver_typeck_diag_scratch_expect", "driver_typeck_diag_scratch_found", "lsp_diag_get_enabled", "lsp_diag_get_enabled_impl", "parser_diag_ident_len", "parser_diag_scan_fail", "parser_diag_tok_kind", "parser_diagnostic_parse_commit_shape", "parser_is_ident_allow"],
+    "only_x": ["driver_diag_append_cstr", "driver_diag_append_i32", "driver_diag_append_name"],
+    "only_seed": ["driver_diag_env_debug_pipe_impl", "driver_diag_pipe_note_impl", "driver_diag_report_x_pipeline_code", "driver_diag_report_x_pipeline_code_impl", "driver_diagnostic_asm_current_func_maybe_trace_impl", "driver_diagnostic_asm_current_func_store_impl", "driver_diagnostic_asm_last_expr_kind_set_impl", "lsp_diag_get_enabled_impl"]
+  },
+  "rest_macro": "",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

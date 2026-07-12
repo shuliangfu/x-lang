@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "backend_call_dispatch_thin",
+  "x_src": "src/asm/backend_call_dispatch_thin.x",
+  "seed_src": "seeds/backend_call_dispatch.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/backend_call_dispatch_thin",
+  "phase": "phase0_trial",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "pending",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin wrapper / partial provider",
+    "seed": "rest provider (_impl residual present)"
+  },
+  "counts": {
+    "x_symbols": 44,
+    "seed_symbols": 80,
+    "only_x": 0,
+    "only_seed": 36
+  },
+  "symbols": {
+    "x": ["glue_asm_append_export_c_suffix", "glue_asm_build_call_export_sym_c", "glue_asm_build_dep_export_sym_c", "glue_asm_build_func_export_sym_c", "glue_asm_build_import_binding_call_sym", "glue_asm_c_prefix_redundant_with_name", "glue_asm_call_reg_max", "glue_asm_call_stack_cleanup_bytes", "glue_asm_emit_call_with_cleanup", "glue_asm_emit_jmp_skip_string_then_lea", "glue_asm_emit_string_lit_ptr_rax_elf_c", "glue_asm_enc_call_redirected", "glue_asm_fill_c_prefix_from_module_import", "glue_asm_import_binding_name_equal", "glue_asm_import_path_segment_count", "glue_asm_import_path_slice_equal", "glue_asm_import_segment_at", "glue_asm_prefix_is_fmt_or_debug", "glue_asm_std_c_wrapper_fname_needs_export_c_suffix", "glue_asm_string_lit_into", "glue_asm_string_lit_len", "glue_asm_try_emit_fmt_string_lit_import_call_elf_c", "glue_call_param_is_f32_c", "glue_call_param_type_ref_at", "glue_codegen_import_path_to_c_prefix_into", "glue_emit_call_args_elf_sysv_f32_xmm_c", "glue_emit_one_call_arg_elf_c", "glue_f32_xmm_flag_get_body", "glue_module_func_overload_count_c", "glue_spill_struct16_call_arg_to_lea_elf_c", "glue_sysv_x86_call_arg_slot_c", "glue_sysv_x86_call_n_stack_c", "glue_try_std_encoding_redirect_sym_local", "glue_try_std_heap_redirect_sym_local", "glue_try_std_string_shux_redirect_sym_local", "glue_type_kind_to_suffix_c", "pipeline_asm_abi_f32_xmm_enabled_c", "pipeline_asm_emit_call_args_elf_c", "pipeline_asm_emit_call_args_text_c", "pipeline_asm_emit_call_elf_c", "pipeline_asm_emit_get_call_f32_xmm_c", "pipeline_asm_emit_method_call_elf_c", "pipeline_asm_emit_set_call_f32_xmm", "pipeline_asm_resolve_whole_import_qualified_symbol_c"],
+    "seed": ["glue_asm_append_export_c_suffix", "glue_asm_build_call_export_sym_c", "glue_asm_build_call_export_sym_c_impl", "glue_asm_build_dep_export_sym_c", "glue_asm_build_dep_export_sym_c_impl", "glue_asm_build_func_export_sym_c", "glue_asm_build_func_export_sym_c_impl", "glue_asm_build_import_binding_call_sym", "glue_asm_build_import_binding_call_sym_impl", "glue_asm_c_prefix_redundant_with_name", "glue_asm_call_reg_max", "glue_asm_call_stack_cleanup_bytes", "glue_asm_emit_call_with_cleanup", "glue_asm_emit_call_with_cleanup_impl", "glue_asm_emit_jmp_skip_string_then_lea", "glue_asm_emit_jmp_skip_string_then_lea_impl", "glue_asm_emit_string_lit_ptr_rax_elf_c", "glue_asm_emit_string_lit_ptr_rax_elf_c_impl", "glue_asm_enc_call_redirected", "glue_asm_enc_call_redirected_impl", "glue_asm_fill_c_prefix_from_module_import", "glue_asm_fill_c_prefix_from_module_import_impl", "glue_asm_import_binding_name_equal", "glue_asm_import_binding_name_equal_impl", "glue_asm_import_path_segment_count", "glue_asm_import_path_segment_count_impl", "glue_asm_import_path_slice_equal", "glue_asm_import_path_slice_equal_impl", "glue_asm_import_segment_at", "glue_asm_import_segment_at_impl", "glue_asm_prefix_is_fmt_or_debug", "glue_asm_prefix_is_fmt_or_debug_impl", "glue_asm_std_c_wrapper_fname_needs_export_c_suffix", "glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl", "glue_asm_string_lit_into", "glue_asm_string_lit_into_impl", "glue_asm_string_lit_len", "glue_asm_try_emit_fmt_string_lit_import_call_elf_c", "glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl", "glue_call_param_is_f32_c", "glue_call_param_type_ref_at", "glue_codegen_import_path_to_c_prefix_into", "glue_codegen_import_path_to_c_prefix_into_impl", "glue_emit_call_args_elf_sysv_f32_xmm_c", "glue_emit_call_args_elf_sysv_f32_xmm_c_impl", "glue_emit_one_call_arg_elf_c", "glue_emit_one_call_arg_elf_c_impl", "glue_f32_xmm_flag_get_body", "glue_f32_xmm_flag_get_body_impl", "glue_module_func_overload_count_c", "glue_module_func_overload_count_c_impl", "glue_spill_struct16_call_arg_to_lea_elf_c", "glue_spill_struct16_call_arg_to_lea_elf_c_impl", "glue_sysv_x86_call_arg_slot_c", "glue_sysv_x86_call_arg_slot_c_impl", "glue_sysv_x86_call_n_stack_c", "glue_sysv_x86_call_n_stack_c_impl", "glue_try_std_encoding_redirect_sym_local", "glue_try_std_encoding_redirect_sym_local_impl", "glue_try_std_heap_redirect_sym_local", "glue_try_std_heap_redirect_sym_local_impl", "glue_try_std_string_shux_redirect_sym_local", "glue_try_std_string_shux_redirect_sym_local_impl", "glue_type_kind_to_suffix_c", "glue_type_kind_to_suffix_c_impl", "pipeline_asm_abi_f32_xmm_enabled_c", "pipeline_asm_abi_f32_xmm_enabled_c_impl", "pipeline_asm_emit_call_args_elf_c", "pipeline_asm_emit_call_args_elf_c_impl", "pipeline_asm_emit_call_args_text_c", "pipeline_asm_emit_call_args_text_c_impl", "pipeline_asm_emit_call_elf_c", "pipeline_asm_emit_call_elf_c_impl", "pipeline_asm_emit_get_call_f32_xmm_c", "pipeline_asm_emit_method_call_elf_c", "pipeline_asm_emit_method_call_elf_c_impl", "pipeline_asm_emit_set_call_f32_xmm", "pipeline_asm_emit_set_call_f32_xmm_impl", "pipeline_asm_resolve_whole_import_qualified_symbol_c", "pipeline_asm_resolve_whole_import_qualified_symbol_c_impl"],
+    "only_x": [],
+    "only_seed": ["glue_asm_build_call_export_sym_c_impl", "glue_asm_build_dep_export_sym_c_impl", "glue_asm_build_func_export_sym_c_impl", "glue_asm_build_import_binding_call_sym_impl", "glue_asm_emit_call_with_cleanup_impl", "glue_asm_emit_jmp_skip_string_then_lea_impl", "glue_asm_emit_string_lit_ptr_rax_elf_c_impl", "glue_asm_enc_call_redirected_impl", "glue_asm_fill_c_prefix_from_module_import_impl", "glue_asm_import_binding_name_equal_impl", "glue_asm_import_path_segment_count_impl", "glue_asm_import_path_slice_equal_impl", "glue_asm_import_segment_at_impl", "glue_asm_prefix_is_fmt_or_debug_impl", "glue_asm_std_c_wrapper_fname_needs_export_c_suffix_impl", "glue_asm_string_lit_into_impl", "glue_asm_try_emit_fmt_string_lit_import_call_elf_c_impl", "glue_codegen_import_path_to_c_prefix_into_impl", "glue_emit_call_args_elf_sysv_f32_xmm_c_impl", "glue_emit_one_call_arg_elf_c_impl", "glue_f32_xmm_flag_get_body_impl", "glue_module_func_overload_count_c_impl", "glue_spill_struct16_call_arg_to_lea_elf_c_impl", "glue_sysv_x86_call_arg_slot_c_impl", "glue_sysv_x86_call_n_stack_c_impl", "glue_try_std_encoding_redirect_sym_local_impl", "glue_try_std_heap_redirect_sym_local_impl", "glue_try_std_string_shux_redirect_sym_local_impl", "glue_type_kind_to_suffix_c_impl", "pipeline_asm_abi_f32_xmm_enabled_c_impl", "pipeline_asm_emit_call_args_elf_c_impl", "pipeline_asm_emit_call_args_text_c_impl", "pipeline_asm_emit_call_elf_c_impl", "pipeline_asm_emit_method_call_elf_c_impl", "pipeline_asm_emit_set_call_f32_xmm_impl", "pipeline_asm_resolve_whole_import_qualified_symbol_c_impl"]
+  },
+  "rest_macro": "",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

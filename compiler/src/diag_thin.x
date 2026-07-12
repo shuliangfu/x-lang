@@ -143,7 +143,6 @@ function diag_get_file(): *u8 {
   unsafe {
     return diag_ctx_get_file_impl();
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -151,7 +150,6 @@ function diag_get_source(): *u8 {
   unsafe {
     return diag_ctx_get_source_impl();
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -159,7 +157,6 @@ function diag_get_source_len(): i64 {
   unsafe {
     return diag_ctx_get_source_len_impl();
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -167,7 +164,6 @@ function diag_code_is_known(code: *u8): i32 {
   unsafe {
     return diag_code_table_has_impl(code);
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -175,7 +171,6 @@ function diag_code_kind(code: *u8): *u8 {
   unsafe {
     return diag_entry_kind_impl(code);
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -183,7 +178,6 @@ function diag_code_summary(code: *u8): *u8 {
   unsafe {
     return diag_entry_summary_impl(code);
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -191,7 +185,6 @@ function diag_code_details(code: *u8): *u8 {
   unsafe {
     return diag_entry_details_impl(code);
   }
-  return 0;
 }
 
 // set_file 直接调 should_color_impl（勿依赖同文件 public，避免 -E 符号冲突）
@@ -446,7 +439,6 @@ function diag_should_color(): i32 {
   unsafe {
     return diag_should_color_impl();
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -454,7 +446,6 @@ function diag_color_reset(): *u8 {
   unsafe {
     return diag_color_reset_impl();
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -469,7 +460,6 @@ function diag_json_enabled(): i32 {
   unsafe {
     return diag_json_enabled_impl();
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -535,7 +525,6 @@ function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
   unsafe {
     return diag_code_eq_impl(lhs, rhs);
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -543,7 +532,6 @@ function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
   unsafe {
     return diag_levenshtein_ci_impl(a, b);
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -565,7 +553,6 @@ function diag_json_severity(kind: *u8): *u8 {
   unsafe {
     return diag_json_severity_impl(kind);
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -573,7 +560,6 @@ function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
   unsafe {
     return diag_code_suggest_impl(code, out, out_cap);
   }
-  return 0;
 }
 
 // ---- G-02f-386：ctx color / code_table_has / json state → seed impl ----
@@ -585,7 +571,6 @@ function diag_ctx_get_use_color(): i32 {
   unsafe {
     return diag_ctx_get_use_color_impl();
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -593,7 +578,6 @@ function diag_code_table_has(code: *u8): i32 {
   unsafe {
     return diag_code_table_has_impl(code);
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -609,7 +593,6 @@ function diag_json_set_state(v: i32): i32 {
   unsafe {
     return diag_json_set_state_impl(v);
   }
-  return 0;
 }
 
 // ---- G-02f-415：stdio / fprint 冷路径 + code_table_len → seed impl ----
@@ -634,13 +617,11 @@ extern "C" function diag_io_fprint_code_table_row_impl(out: *u8, code: *u8, kind
 #[no_mangle]
 function diag_io_fputc(o: *u8, c: i32): i32 {
   unsafe { return diag_io_fputc_impl(o, c); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_io_fputs(s: *u8, o: *u8): i32 {
   unsafe { return diag_io_fputs_impl(s, o); }
-  return 0;
 }
 
 #[no_mangle]
@@ -701,7 +682,6 @@ function diag_io_fprint_caret_mark(o: *u8, cc: *u8, rs: *u8, detail: *u8): void 
 #[no_mangle]
 function diag_code_table_len(): i64 {
   unsafe { return diag_code_table_len_impl(); }
-  return 0;
 }
 
 #[no_mangle]
@@ -723,19 +703,16 @@ function diag_io_fprint_code_table_row(out: *u8, code: *u8, kind: *u8, summary: 
 #[no_mangle]
 function diag_ctx_get_file(): *u8 {
   unsafe { return diag_ctx_get_file_impl(); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_ctx_get_source(): *u8 {
   unsafe { return diag_ctx_get_source_impl(); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_ctx_get_source_len(): i64 {
   unsafe { return diag_ctx_get_source_len_impl(); }
-  return 0;
 }
 
 #[no_mangle]
@@ -755,59 +732,49 @@ extern "C" function diag_stdout_impl(): *u8;
 #[no_mangle]
 function diag_code_table_code_at(i: i64): *u8 {
   unsafe { return diag_code_table_code_at_impl(i); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_code_table_kind_at(i: i64): *u8 {
   unsafe { return diag_code_table_kind_at_impl(i); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_code_table_summary_at(i: i64): *u8 {
   unsafe { return diag_code_table_summary_at_impl(i); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_code_table_details_at(i: i64): *u8 {
   unsafe { return diag_code_table_details_at_impl(i); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_entry_code(code: *u8): *u8 {
   unsafe { return diag_entry_code_impl(code); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_entry_kind(code: *u8): *u8 {
   unsafe { return diag_entry_kind_impl(code); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_entry_summary(code: *u8): *u8 {
   unsafe { return diag_entry_summary_impl(code); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_entry_details(code: *u8): *u8 {
   unsafe { return diag_entry_details_impl(code); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_stderr(): *u8 {
   unsafe { return diag_stderr_impl(); }
-  return 0;
 }
 
 #[no_mangle]
 function diag_stdout(): *u8 {
   unsafe { return diag_stdout_impl(); }
-  return 0;
 }
