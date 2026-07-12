@@ -122,13 +122,13 @@ function glue_block_let_init_lit_c(arena: *u8, block_ref: i32, var_ref: i32, out
       if (llen == vlen) {
         let lb: u8[64] = [];
         pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
-        let match: i32 = 1;
+        let matched: i32 = 1;
         let k: i32 = 0;
         while (k < vlen) {
-          if (lb[k] != vbuf[k]) { match = 0; }
+          if (lb[k] != vbuf[k]) { matched = 0; }
           k = k + 1;
         }
-        if (match != 0) {
+        if (matched != 0) {
           let init_ref: i32 = pipeline_block_let_init_ref(arena, block_ref, li);
           if (init_ref <= 0) { return 0; }
           if (pipeline_expr_kind_ord_at(arena, init_ref) != 0) { return 0; }

@@ -1604,16 +1604,16 @@ function field_access_base_is_pointer_param(arena: *ASTArena, base_ref: i32, mod
     if (p_name_len > 0 && p_name_len == base.var_name_len) {
       let pname_buf: u8[32] = [];
       pipeline_module_func_param_name_copy32(mod, func_index, pi, &pname_buf[0]);
-      let match: bool = true;
+      let matched: bool = true;
       let j: i32 = 0;
       while (j < p_name_len && j < 32) {
         if (pname_buf[j] != base.var_name[j]) {
-          match = false;
+          matched = false;
           break;
         }
         j = j + 1;
       }
-      if (match) {
+      if (matched) {
         let param_ty_ref: i32 = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
         if (!ast.ref_is_null(param_ty_ref) && param_ty_ref > 0 && param_ty_ref <= arena.num_types) {
           let pty: Type = ast.ast_arena_type_get(arena, param_ty_ref);

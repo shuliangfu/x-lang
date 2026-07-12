@@ -1104,16 +1104,16 @@ function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
     }
     let s: i32 = start;
     while (s + key_len <= len) {
-      let match: i32 = 1;
+      let matched: i32 = 1;
       let j: i32 = 0;
       while (j < key_len) {
         if (body[s + j] != key[j]) {
-          match = 0;
+          matched = 0;
           break;
         }
         j = j + 1;
       }
-      if (match != 0) {
+      if (matched != 0) {
         return s + key_len;
       }
       s = s + 1;

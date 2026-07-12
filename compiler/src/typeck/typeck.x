@@ -2395,19 +2395,19 @@ call_expr_ref: i32, from_dep_index: i32, ctx: *PipelineDepCtx, func_index_out: *
         let nparams: i32 = pipeline_module_func_num_params_at(mod, j);
         if (nparams == num_args) {
           let ai: i32 = 0;
-          let match: i32 = 1;
+          let matched: i32 = 1;
           while (ai < num_args) {
             let arg_ref: i32 = pipeline_expr_call_arg_ref(caller_arena, call_expr_ref, ai);
             let arg_ty: i32 = pipeline_expr_resolved_type_ref(caller_arena, arg_ref);
             let param_ty: i32 = pipeline_module_func_param_type_ref_at(mod, j, ai);
             /** 同模块类型 ref 直接比较；跨模块暂跳过类型检查（回退首匹配）。 */
             if (from_dep_index < 0 && arg_ty != param_ty) {
-              match = 0;
+              matched = 0;
               break;
             }
             ai = ai + 1;
           }
-          if (match != 0) {
+          if (matched != 0) {
             /** 找到完全匹配的重载。 */
             if (func_index_out != 0 as * i32) {
               func_index_out[0] = j;
