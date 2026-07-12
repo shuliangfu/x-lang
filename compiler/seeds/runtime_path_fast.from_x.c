@@ -4,6 +4,12 @@
  * Logic still C until full .x port.
  */
 #include <stdint.h>
+/* thin+rest 切割：thin 部分（path_sep/is_sep/last_sep/last_dot_c）由 .x 提供，
+ * rest 模式下跳过编译避免重复定义。rest 部分（std_path_* 系列）始终编译。
+ * 宏边界：SHUX_RUNTIME_PATH_FAST_FROM_X
+ * 语义差异：.x path_sep_c 总是返回 '/'（47，posix 验收路径）；seed Win 分支返回 '\'（92）保留但 rest 模式下不生效。
+ * rest 跨调用依赖：std_path_* 调用 path_sep_c/path_is_sep_c/path_last_sep_c/path_last_dot_c（thin 提供）。 */
+#ifndef SHUX_RUNTIME_PATH_FAST_FROM_X
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint8_t path_sep_c(void) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -38,6 +44,13 @@ int32_t path_last_dot_c(uint8_t *path, int32_t start, int32_t len) {
     }
     return -1;
 }
+#else
+/* rest 模式：thin 函数由 .x 提供，extern 声明供 rest 部分调用 */
+extern uint8_t path_sep_c(void);
+extern int32_t path_is_sep_c(uint8_t c);
+extern int32_t path_last_sep_c(uint8_t *path, int32_t path_len);
+extern int32_t path_last_dot_c(uint8_t *path, int32_t start, int32_t len);
+#endif /* SHUX_RUNTIME_PATH_FAST_FROM_X */
 
 
 
