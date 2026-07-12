@@ -1656,6 +1656,10 @@ ast_x.o: src/ast/ast_seed.o
 src/lexer/lexer.o: seeds/runtime_lexer_glue.from_x.c src/asm/runtime_lexer_glue.x src/lexer/lexer.h include/token.h
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_lexer_glue.from_x.c -o $@
 
+# G-02f-80：cfg_eval 冷启动 stub；legacy shux-c 直链需要独立 .o 规则。
+src/lexer/cfg_eval_bootstrap_stub.o: seeds/cfg_eval_bootstrap_stub.from_x.c src/lexer/cfg_eval_bootstrap_stub.x scripts/cc_inc_tu.sh
+	sh scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c $@
+
 # G-02a: typeck.c 已物理删除；typeck_x.o 由 typeck.x 生成，typeck_c_module_stubs.o 提供 weak 桩。
 
 # G-02a: codegen.c 已物理删除；codegen_x.o 由 codegen.x 生成，codegen_pipeline_stubs.o 提供 weak 桩。
