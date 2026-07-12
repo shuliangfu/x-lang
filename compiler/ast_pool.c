@@ -3844,7 +3844,8 @@ void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_A
 }
 
 /* Codegen-time enum variant marking: search current + dep modules */
-void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref) {
+void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a,
+                                                  int32_t expr_ref, struct ast_PipelineDepCtx *dep_ctx) {
   struct ast_Expr *e;
   struct ast_Expr *base;
   int32_t tag;
@@ -3871,6 +3872,21 @@ void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct as
     e->field_access_is_enum_variant = 1;
     e->enum_variant_tag = tag;
     return;
+  }
+  /* Search dep modules */
+  if (dep_ctx) {
+    int32_t ndep = pipeline_dep_ctx_ndep(dep_ctx);
+    int32_t di;
+    for (di = 0; di < ndep; di++) {
+      struct ast_Module *dep_mod = pipeline_dep_ctx_module_at(dep_ctx, di);
+      if (!dep_mod || dep_mod == m) continue;
+      tag = pipeline_module_enum_variant_tag_for_names(dep_mod, ename, elen, vname, vlen);
+      if (tag >= 0) {
+        e->field_access_is_enum_variant = 1;
+        e->enum_variant_tag = tag;
+        return;
+      }
+    }
   }
 }
 
