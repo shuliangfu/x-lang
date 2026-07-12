@@ -581,7 +581,7 @@ bootstrap_shuxc: scripts/bootstrap_shuxc_create.sh scripts/select_bootstrap_shux
 	@./scripts/select_bootstrap_shuxc.sh
 
 # 考古 shux-c 额外链 runtime ABI 薄壳（runtime.c 已拆分，LEGACY C 前端仍依赖这些符号）
-LEGACY_SHUX_C_EXTRA = src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_driver_strict_glue_stubs.o src/preprocess_shim.o src/preprocess_if_stack_bridge.o src/x_seed_bridge.o
+LEGACY_SHUX_C_EXTRA = src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_driver_strict_glue_stubs.o preprocess_x.o src/preprocess_if_stack_bridge.o
 
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 $(SHUX_C): $(OBJS_CORE) $(LEGACY_SHUX_C_EXTRA)
@@ -1659,10 +1659,6 @@ src/lexer/lexer.o: seeds/runtime_lexer_glue.from_x.c src/asm/runtime_lexer_glue.
 # G-02f-80：cfg_eval 冷启动 stub；legacy shux-c 直链需要独立 .o 规则。
 src/lexer/cfg_eval_bootstrap_stub.o: seeds/cfg_eval_bootstrap_stub.from_x.c src/lexer/cfg_eval_bootstrap_stub.x scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c $@
-
-# G-02f-79：legacy / stage2 预处理桥；runtime_pipeline_abi 直链时提供 preprocess_x_buf。
-src/preprocess_shim.o: seeds/preprocess_shim.from_x.c scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh seeds/preprocess_shim.from_x.c $@
 
 # G-02f-79：legacy / stage2 的 #if 栈桥；preprocess.x 仍依赖 preprocess_if_stack_*。
 src/preprocess_if_stack_bridge.o: seeds/preprocess_if_stack_bridge.from_x.c scripts/cc_inc_tu.sh
