@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_heap_user",
+  "x_src": "src/runtime_heap_user.x",
+  "seed_src": "seeds/runtime_heap_user.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/runtime_heap_user",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 4,
+    "seed_symbols": 4,
+    "only_x": 0,
+    "only_seed": 4
+  },
+  "symbols": {
+    "x": ["heap_alloc_c", "heap_free_c", "heap_realloc_c", "heap_alloc_zeroed_c"],
+    "seed": ["heap_alloc_aligned_c", "heap_arena_init_c", "heap_arena64_alloc_c", "heap_arena64_deinit_c"],
+    "only_x": [],
+    "only_seed": ["heap_alloc_aligned_c", "heap_arena_init_c", "heap_arena64_alloc_c", "heap_arena64_deinit_c"]
+  },
+  "rest_macro": "SHUX_RUNTIME_HEAP_USER_FROM_X",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

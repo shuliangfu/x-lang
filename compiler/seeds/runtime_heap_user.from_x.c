@@ -13,6 +13,10 @@
 #include <stdlib.h>
 #endif
 
+/* thin+rest 切割：thin 部分（heap_alloc/free/realloc/zeroed_c）由 .x 提供，
+ * rest 模式下跳过编译避免重复定义。rest 部分（aligned_c + Arena64）始终编译。
+ * 宏边界：SHUX_RUNTIME_HEAP_USER_FROM_X */
+#ifndef SHUX_RUNTIME_HEAP_USER_FROM_X
 uint8_t * heap_alloc_c(size_t size) {
   if ((size ==0)) {
     return ((uint8_t *)(0));
@@ -55,6 +59,13 @@ uint8_t * heap_alloc_zeroed_c(size_t size) {
  }));
   return ((uint8_t *)(0));
 }
+#else
+/* rest 模式：thin 函数由 .x 提供，extern 声明供 rest 部分调用 */
+extern uint8_t * heap_alloc_c(size_t size);
+extern void heap_free_c(uint8_t * ptr);
+extern uint8_t * heap_realloc_c(uint8_t * ptr, size_t new_size);
+extern uint8_t * heap_alloc_zeroed_c(size_t size);
+#endif /* SHUX_RUNTIME_HEAP_USER_FROM_X */
 
 /** posix_memalign 薄封装；失败返回 null。 */
 uint8_t *heap_alloc_aligned_c(size_t align_bytes, size_t size) {
