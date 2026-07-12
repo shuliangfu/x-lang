@@ -721,6 +721,17 @@ __attribute__((weak)) void pipeline_dep_ctx_set_import_path(struct ast_PipelineD
   ast_pipeline_dep_ctx_set_import_path(ctx, idx, bytes, len);
 }
 
+__attribute__((weak)) int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]) {
+  int32_t k;
+  (void)module;
+  (void)i;
+  if (!out)
+    return 0;
+  for (k = 0; k < 64; k++)
+    out[k] = 0;
+  return 0;
+}
+
 #define PREPROCESS_MAX_DEFINES 32
 static char g_preprocess_defines[PREPROCESS_MAX_DEFINES][64];
 static int g_preprocess_ndefines;
