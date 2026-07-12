@@ -2213,6 +2213,9 @@ int32_t pipeline_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int3
  * 为嵌套块补 parent_block_ref（while/for/if 体）；显式栈遍历，避免递归栈溢出。
  * 与 ast.x::ast_arena_patch_block_parent_links 一致；typeck 在 check_block 前调用。
  */
+static int32_t expr_has_inner_block(struct ast_ASTArena *a, int32_t expr_ref, int32_t parent_block, int32_t depth);
+static void patch_block_expr_parents(struct ast_ASTArena *a, int32_t block_ref);
+
 void pipeline_patch_block_parent_links(struct ast_ASTArena *a, int32_t block_ref, int32_t parent_ref) {
   int32_t stack_blk[256];
   int32_t stack_par[256];
