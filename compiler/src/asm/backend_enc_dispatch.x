@@ -182,7 +182,9 @@ extern "C" function arch_arm64_enc_enc_and_rbx_rax(elf_ctx: *u8): i32;
 extern "C" function arch_arm64_enc_enc_cltd(elf_ctx: *u8): i32;
 extern "C" function arch_arm64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32;
 extern "C" function arch_arm64_enc_enc_cmp_rbx_rax(elf_ctx: *u8): i32;
+extern "C" function arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx: *u8, imm12: i32): i32;
 extern "C" function arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32;
+extern "C" function arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx: *u8, cc: i32): i32;
 extern "C" function arch_arm64_enc_enc_epilogue(elf_ctx: *u8): i32;
 extern "C" function arch_arm64_enc_enc_imul_rbx_rax(elf_ctx: *u8): i32;
 extern "C" function arch_arm64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32): i32;
@@ -287,6 +289,7 @@ extern "C" function arch_x86_64_enc_enc_and_rbx_rax(elf_ctx: *u8): i32;
 extern "C" function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 extern "C" function arch_x86_64_enc_enc_cltd(elf_ctx: *u8): i32;
 extern "C" function arch_x86_64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32;
+extern "C" function arch_x86_64_enc_enc_cmp_eax_imm32(elf_ctx: *u8, imm32: i32): i32;
 extern "C" function arch_x86_64_enc_enc_cmp_rbx_rax(elf_ctx: *u8): i32;
 extern "C" function arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32;
 extern "C" function arch_x86_64_enc_enc_epilogue(elf_ctx: *u8): i32;
@@ -616,6 +619,19 @@ function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 
   if (ta == 1) { return arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
   if (ta == 2) { return arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
   return arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+}
+
+#[no_mangle]
+function backend_enc_cmp_w0_imm12_arch(elf_ctx: *u8, imm12: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx, imm12); }
+  if (ta == 2) { return arch_riscv64_enc_enc_cmp_rbx_rax(elf_ctx); }
+  return arch_x86_64_enc_enc_cmp_eax_imm32(elf_ctx, imm12);
+}
+
+#[no_mangle]
+function backend_enc_cset_w0_from_cc_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx, cc); }
+  return backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
 }
 
 // G-02f-206：ta 分派壳真迁 .x
@@ -1374,4 +1390,3 @@ function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta: i32):
   }
   return 0 - 1;
 }
-

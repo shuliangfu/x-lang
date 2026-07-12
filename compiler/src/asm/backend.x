@@ -27,9 +27,70 @@ const x86_64 = import("arch.x86_64");
 const arm64 = import("arch.arm64");
 const riscv64 = import("arch.riscv64");
 const elf = import("platform.elf");
-const x86_64_enc = import("arch.x86_64_enc");
-const arm64_enc = import("arch.arm64_enc");
-const riscv64_enc = import("arch.riscv64_enc");
+const backend_enc_dispatch = import("backend_enc_dispatch");
+
+// G-02f-479：full 单 TU 先发 backend.x 调用点，再发 backend_enc_dispatch 定义；
+// 显式提前声明 mangled dispatch 符号，避免 C99 隐式声明错误。
+extern "C" function enc_dispatch_backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_and_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_cltd_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_cmp_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_cmp_w0_imm12_arch(elf_ctx: *u8, imm12: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_cset_w0_from_cc_arch(elf_ctx: *u8, cc: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_label_arch(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_mov_edx_to_eax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_mov_rbx_to_ecx_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_not_eax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_or_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_rax_plus_rbx_scale1_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_rax_plus_rbx_scale4_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_rax_plus_rbx_scale8_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_rem_mod_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_ret_imm32_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_sar_cl_eax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_sar_cl_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_setz_movzbl_eax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_shl_cl_eax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_shl_cl_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_shr_cl_eax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_shr_cl_rax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, offset: i32, store_size: i32, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_sub_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32;
+extern "C" function enc_dispatch_backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 
 /** è¯æ­ï¼asm ä¸æ¯æç ExprKind æ¶ç± runtime.c æå°ï¼ä¾¿äºå®ä½ rc=-6ã */
 extern function driver_diagnostic_asm_unsupported_expr(kind: i32): void;
@@ -100,6 +161,7 @@ extern function pipeline_asm_array_lit_elem_byte_sz_c(arena: *ASTArena, array_li
 extern function pipeline_asm_array_lit_reserve_stack_bytes_c(arena: *ASTArena, init_ref: i32): i32;
 extern function pipeline_asm_struct_lit_reserve_stack_bytes_c(arena: *ASTArena, init_ref: i32): i32;
 extern function pipeline_type_kind_ord_at(arena: *ASTArena, type_ref: i32): i32;
+extern "C" function pipeline_type_named_name_into(arena: *u8, tr: i32, out64: *u8): i32;
 extern function pipeline_expr_kind_ord_at(arena: *ASTArena, expr_ref: i32): i32;
 /** è¯» binop å­è¡¨è¾¾å¼ refï¼å¿ç¨ ast_arena_expr_get å e.binop_*ï¼èªä¸¾ asm ä¸å­æ®µæè£ï¼return 1+2 ä»å¾ 1ï¼ã */
 extern function pipeline_expr_binop_left_ref_at(arena: *ASTArena, expr_ref: i32): i32;
@@ -252,232 +314,146 @@ function enc_label_arch(elf_ctx: *ElfCodegenCtx, name: u8[64], name_len: i32, is
   let use_len: i32 = name_len;
   let use_ptr: *u8 = &name[0];
   /** S4 freestanding：Linux x86_64 用户 `main` 保持 ELF 裸名 main（与 crt0_user_x86_64.s 一致）。 */
-  if (ta == 1) { return arch.arm64_enc.enc_label(elf_ctx, use_ptr, use_len, is_func); }
-  if (ta == 2) { return arch.riscv64_enc.enc_label(elf_ctx, use_ptr, use_len, is_func); }
-  return arch.x86_64_enc.enc_label(elf_ctx, use_ptr, use_len, is_func);
+  return backend_enc_dispatch.backend_enc_label_arch(elf_ctx as *u8, use_ptr, use_len, is_func, ta);
 }
 function enc_prologue_arch(elf_ctx: *ElfCodegenCtx, frame_sz: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_prologue(elf_ctx, frame_sz); }
-  if (ta == 2) { return arch.riscv64_enc.enc_prologue(elf_ctx, frame_sz); }
-  return arch.x86_64_enc.enc_prologue(elf_ctx, frame_sz);
+  return backend_enc_dispatch.backend_enc_prologue_arch(elf_ctx as *u8, frame_sz, ta);
 }
 function enc_epilogue_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_epilogue(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_epilogue(elf_ctx); }
-  return arch.x86_64_enc.enc_epilogue(elf_ctx);
+  return backend_enc_dispatch.backend_enc_epilogue_arch(elf_ctx as *u8, ta);
 }
 function enc_ret_imm32_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_ret_imm32(elf_ctx, imm32); }
-  if (ta == 2) { return arch.riscv64_enc.enc_ret_imm32(elf_ctx, imm32); }
-  return arch.x86_64_enc.enc_ret_imm32(elf_ctx, imm32);
+  return backend_enc_dispatch.backend_enc_ret_imm32_arch(elf_ctx as *u8, imm32, ta);
 }
 
 function enc_mov_imm32_to_rbx_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_mov_imm32_to_rbx(elf_ctx, imm32); }
-  if (ta == 2) { return arch.riscv64_enc.enc_mov_imm32_to_rbx(elf_ctx, imm32); }
-  return arch.x86_64_enc.enc_mov_imm32_to_rbx(elf_ctx, imm32);
+  return backend_enc_dispatch.backend_enc_mov_imm32_to_rbx_arch(elf_ctx as *u8, imm32, ta);
 }
 /** å° 64 ä½ç«å³æ°è£å¥ rax/x0ï¼ç¨äº EXPR_FLOAT_LITï¼double ä½æ¨¡å¼ï¼ã */
 function enc_mov_imm64_to_rax_arch(elf_ctx: *ElfCodegenCtx, lo: i32, hi: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_mov_imm64_to_rax(elf_ctx, lo, hi); }
-  if (ta == 2) { return arch.riscv64_enc.enc_mov_imm64_to_rax(elf_ctx, lo, hi); }
-  return arch.x86_64_enc.enc_mov_imm64_to_rax(elf_ctx, lo, hi);
+  return backend_enc_dispatch.backend_enc_mov_imm64_to_rax_arch(elf_ctx as *u8, lo, hi, ta);
 }
 function enc_push_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_push_rax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_push_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_push_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_push_rax_arch(elf_ctx as *u8, ta);
 }
 function enc_pop_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_pop_rax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_pop_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_pop_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_pop_rax_arch(elf_ctx as *u8, ta);
 }
 function enc_pop_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_pop_rbx(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_pop_rbx(elf_ctx); }
-  return arch.x86_64_enc.enc_pop_rbx(elf_ctx);
+  return backend_enc_dispatch.backend_enc_pop_rbx_arch(elf_ctx as *u8, ta);
 }
 function enc_add_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_add_rax_rbx(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_add_rax_rbx(elf_ctx); }
-  return arch.x86_64_enc.enc_add_rax_rbx(elf_ctx);
+  return backend_enc_dispatch.backend_enc_add_rax_rbx_arch(elf_ctx as *u8, ta);
 }
 /** w0/eax = w0 - w1ï¼å·¦å¨ w0ãå³/ç«å³æ°å¨ w1ï¼ï¼ä» arm64 æ enc_sub_rax_rbxï¼x86/rv èµ° C glueã */
 function enc_sub_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_sub_rax_rbx(elf_ctx); }
-  return -1;
+  return backend_enc_dispatch.backend_enc_sub_rax_rbx_arch(elf_ctx as *u8, ta);
 }
 function enc_sub_rbx_rax_then_mov_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_sub_rbx_rax_then_mov(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_sub_rbx_rax_then_mov(elf_ctx); }
-  return arch.x86_64_enc.enc_sub_rbx_rax_then_mov(elf_ctx);
+  return backend_enc_dispatch.backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx as *u8, ta);
 }
 function enc_imul_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_imul_rbx_rax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_imul_rbx_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_imul_rbx_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_imul_rbx_rax_arch(elf_ctx as *u8, ta);
 }
 function enc_mov_rax_to_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_mov_rax_to_rbx(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_mov_rax_to_rbx(elf_ctx); }
-  return arch.x86_64_enc.enc_mov_rax_to_rbx(elf_ctx);
+  return backend_enc_dispatch.backend_enc_mov_rax_to_rbx_arch(elf_ctx as *u8, ta);
 }
 function enc_not_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_not_eax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_not_eax(elf_ctx); }
-  return arch.x86_64_enc.enc_not_eax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_not_eax_arch(elf_ctx as *u8, ta);
 }
 function enc_and_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_and_rbx_rax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_and_rbx_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_and_rbx_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_and_rbx_rax_arch(elf_ctx as *u8, ta);
 }
 function enc_or_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_or_rbx_rax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_or_rbx_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_or_rbx_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_or_rbx_rax_arch(elf_ctx as *u8, ta);
 }
 function enc_xor_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_xor_rbx_rax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_xor_rbx_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_xor_rbx_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_xor_rbx_rax_arch(elf_ctx as *u8, ta);
 }
 function enc_mov_rbx_to_ecx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_mov_rbx_to_ecx(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_mov_rbx_to_ecx(elf_ctx); }
-  return arch.x86_64_enc.enc_mov_rbx_to_ecx(elf_ctx);
+  return backend_enc_dispatch.backend_enc_mov_rbx_to_ecx_arch(elf_ctx as *u8, ta);
 }
 function enc_shl_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_shl_cl_eax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_shl_cl_eax(elf_ctx); }
-  return arch.x86_64_enc.enc_shl_cl_eax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_shl_cl_eax_arch(elf_ctx as *u8, ta);
 }
 function enc_shr_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_shr_cl_eax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_shr_cl_eax(elf_ctx); }
-  return arch.x86_64_enc.enc_shr_cl_eax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_shr_cl_eax_arch(elf_ctx as *u8, ta);
 }
 function enc_sar_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_sar_cl_eax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_sar_cl_eax(elf_ctx); }
-  return arch.x86_64_enc.enc_sar_cl_eax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_sar_cl_eax_arch(elf_ctx as *u8, ta);
 }
 function enc_cltd_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_cltd(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_cltd(elf_ctx); }
-  return arch.x86_64_enc.enc_cltd(elf_ctx);
+  return backend_enc_dispatch.backend_enc_cltd_arch(elf_ctx as *u8, ta);
 }
 function enc_idiv_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_idiv_rbx(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_idiv_rbx(elf_ctx); }
-  return arch.x86_64_enc.enc_idiv_rbx(elf_ctx);
+  return backend_enc_dispatch.backend_enc_idiv_rbx_arch(elf_ctx as *u8, ta);
 }
 function enc_mov_edx_to_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_mov_edx_to_eax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_mov_edx_to_eax(elf_ctx); }
-  return arch.x86_64_enc.enc_mov_edx_to_eax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_mov_edx_to_eax_arch(elf_ctx as *u8, ta);
 }
 /** MODï¼arm64 ç¨ sdiv+msubï¼å¿å idiv è¦çè¢«é¤æ°ï¼ï¼x86 ä¸º cltd+idiv+edxâeaxã */
 function enc_rem_mod_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_mov_edx_to_eax(elf_ctx); }
-  if (enc_cltd_arch(elf_ctx, ta) != 0) { return -1; }
-  if (enc_idiv_rbx_arch(elf_ctx, ta) != 0) { return -1; }
-  return enc_mov_edx_to_eax_arch(elf_ctx, ta);
+  return backend_enc_dispatch.backend_enc_rem_mod_arch(elf_ctx as *u8, ta);
 }
 /** shlq %cl, %rax (64-bit logical left shift for i64/u64/usize/isize). */
 function enc_shl_cl_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_shl_cl_eax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_shl_cl_eax(elf_ctx); }
-  return arch.x86_64_enc.enc_shl_cl_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_shl_cl_rax_arch(elf_ctx as *u8, ta);
 }
 /** shrq %cl, %rax (64-bit logical right shift). */
 function enc_shr_cl_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_shr_cl_eax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_shr_cl_eax(elf_ctx); }
-  return arch.x86_64_enc.enc_shr_cl_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_shr_cl_rax_arch(elf_ctx as *u8, ta);
 }
 /** sarq %cl, %rax (64-bit arithmetic right shift). */
 function enc_sar_cl_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_sar_cl_eax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_sar_cl_eax(elf_ctx); }
-  return arch.x86_64_enc.enc_sar_cl_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_sar_cl_rax_arch(elf_ctx as *u8, ta);
 }
 /** divl %ebx (32-bit unsigned division; x86_64 emits xor_edx_edx then divl). */
 function enc_div_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_idiv_rbx(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_idiv_rbx(elf_ctx); }
-  if (arch.x86_64_enc.enc_xor_edx_edx(elf_ctx) != 0) { return -1; }
-  return arch.x86_64_enc.enc_div_rbx(elf_ctx);
+  return backend_enc_dispatch.backend_enc_div_rbx_arch(elf_ctx as *u8, ta);
 }
 /** Unsigned MOD (x86_64: xor_edx_edx+divl+edx->eax; arm64 fallback). */
 function enc_rem_mod_unsigned_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return enc_mov_edx_to_eax_arch(elf_ctx, ta); }
-  if (enc_div_rbx_arch(elf_ctx, ta) != 0) { return -1; }
-  return enc_mov_edx_to_eax_arch(elf_ctx, ta);
+  return backend_enc_dispatch.backend_enc_rem_mod_unsigned_arch(elf_ctx as *u8, ta);
 }
 function enc_neg_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_neg_eax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_neg_eax(elf_ctx); }
-  return arch.x86_64_enc.enc_neg_eax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_neg_eax_arch(elf_ctx as *u8, ta);
 }
 function enc_test_eax_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_test_eax_eax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_test_eax_eax(elf_ctx); }
-  return arch.x86_64_enc.enc_test_eax_eax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_test_eax_eax_arch(elf_ctx as *u8, ta);
 }
 function enc_setz_movzbl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_setz_movzbl_eax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_setz_movzbl_eax(elf_ctx); }
-  return arch.x86_64_enc.enc_setz_movzbl_eax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_setz_movzbl_eax_arch(elf_ctx as *u8, ta);
 }
 function enc_cmp_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_cmp_rbx_rax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_cmp_rbx_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_cmp_rbx_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_cmp_rbx_rax_arch(elf_ctx as *u8, ta);
 }
 /** cmp 左在 w0/eax、右在 w1/ebx（i 与 n：i-n 供 jge 退出 while）。 */
 function enc_cmp_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_cmp_rax_rbx(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_cmp_rbx_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_cmp_rax_rbx(elf_ctx);
+  return backend_enc_dispatch.backend_enc_cmp_rax_rbx_arch(elf_ctx as *u8, ta);
 }
 /** 比较 w0 与 12 位立即数（字面量 n）；x86 用 cmpl $imm, %eax（i-n）。 */
 function enc_cmp_w0_imm12_arch(elf_ctx: *ElfCodegenCtx, imm12: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_cmp_w0_imm12(elf_ctx, imm12); }
-  if (ta == 2) { return arch.riscv64_enc.enc_cmp_rbx_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_cmp_eax_imm32(elf_ctx, imm12);
+  return backend_enc_dispatch.backend_enc_cmp_w0_imm12_arch(elf_ctx as *u8, imm12, ta);
 }
 /** ä» cset å° w0ï¼é¡»å·² cmpï¼ã */
 function enc_cset_w0_from_cc_arch(elf_ctx: *ElfCodegenCtx, cc: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_cset_w0_from_cc(elf_ctx, cc); }
-  return enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+  return backend_enc_dispatch.backend_enc_cset_w0_from_cc_arch(elf_ctx as *u8, cc, ta);
 }
 function enc_cmp_setcc_movzbl_arch(elf_ctx: *ElfCodegenCtx, cc: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_cmp_setcc_movzbl(elf_ctx, cc); }
-  if (ta == 2) { return arch.riscv64_enc.enc_cmp_setcc_movzbl(elf_ctx, cc); }
-  return arch.x86_64_enc.enc_cmp_setcc_movzbl(elf_ctx, cc);
+  return backend_enc_dispatch.backend_enc_cmp_setcc_movzbl_arch(elf_ctx as *u8, cc, ta);
 }
 function enc_store_rax_to_rbp_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_store_rax_to_rbp(elf_ctx, offset); }
-  if (ta == 2) { return arch.riscv64_enc.enc_store_rax_to_rbp(elf_ctx, offset); }
-  return arch.x86_64_enc.enc_store_rax_to_rbp(elf_ctx, offset);
+  return backend_enc_dispatch.backend_enc_store_rax_to_rbp_arch(elf_ctx as *u8, offset, ta);
 }
 function enc_load_rbp_to_rax_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_load_rbp_to_rax(elf_ctx, offset); }
-  if (ta == 2) { return arch.riscv64_enc.enc_load_rbp_to_rax(elf_ctx, offset); }
-  return arch.x86_64_enc.enc_load_rbp_to_rax(elf_ctx, offset);
+  return backend_enc_dispatch.backend_enc_load_rbp_to_rax_arch(elf_ctx as *u8, offset, ta);
 }
 /** 从 rbp 负偏移 load 到 rbx（while i<n 比较右操作数）。 */
 function enc_load_rbp_to_rbx_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_load_rbp_to_rbx(elf_ctx, offset); }
-  if (ta == 2) { return arch.riscv64_enc.enc_load_rbp_to_rbx(elf_ctx, offset); }
-  return arch.x86_64_enc.enc_load_rbp_to_rbx(elf_ctx, offset);
+  return backend_enc_dispatch.backend_enc_load_rbp_to_rbx_arch(elf_ctx as *u8, offset, ta);
 }
 function enc_lea_rbp_to_rax_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_lea_rbp_to_rax(elf_ctx, offset); }
-  if (ta == 2) { return arch.riscv64_enc.enc_lea_rbp_to_rax(elf_ctx, offset); }
-  return arch.x86_64_enc.enc_lea_rbp_to_rax(elf_ctx, offset);
+  return backend_enc_dispatch.backend_enc_lea_rbp_to_rax_arch(elf_ctx as *u8, offset, ta);
 }
 /**
  * å±é¨æ§½æ¯å¦ä¸ºãæå temp åºå¯¹è±¡ãç 8 å­èæéï¼ARRAY_LIT / STRUCT_LIT åå¼ï¼ã
@@ -485,6 +461,7 @@ function enc_lea_rbp_to_rax_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32):
  */
 function asm_local_var_slot_holds_indirect_ptr(arena: *ASTArena, base_var: Expr, mod: *Module): i32 {
   let rtbv: i32 = base_var.resolved_type_ref;
+  let kind: i32 = 0;
   if (rtbv <= 0) {
     /** emit 时 resolved 缺失：module 形参表识别 *T（driver compile.x state 等）。 */
     if (mod != 0 as *Module && base_var.kind == ExprKind.EXPR_VAR && base_var.var_name_len > 0
@@ -493,14 +470,17 @@ function asm_local_var_slot_holds_indirect_ptr(arena: *ASTArena, base_var: Expr,
     }
     return 0;
   }
-  let vtyp: Type = ast.ast_arena_type_get(arena, rtbv);
+  kind = pipeline_type_kind_ord_at(arena, rtbv);
   /** 定长 T[N] 内联栈槽用 lea；仅 *T 为 8B 指针槽须 load。 */
-  if (vtyp.kind == TypeKind.TYPE_PTR) {
+  if (kind == TypeKind.TYPE_PTR) {
     return 1;
   }
-  if (vtyp.kind == TypeKind.TYPE_NAMED && mod != 0 as *Module
-      && asm_module_named_type_has_struct_layout(mod, &vtyp.name[0], vtyp.name_len)) {
-    return 1;
+  if (kind == TypeKind.TYPE_NAMED && mod != 0 as *Module) {
+    let type_name: u8[64] = [];
+    let type_name_len: i32 = pipeline_type_named_name_into(arena as *u8, rtbv, &type_name[0]);
+    if (type_name_len > 0 && asm_module_named_type_has_struct_layout(mod, &type_name[0], type_name_len)) {
+      return 1;
+    }
   }
   return 0;
 }
@@ -513,95 +493,61 @@ function enc_local_slot_ptr_or_addr_arch(arena: *ASTArena, elf_ctx: *ElfCodegenC
   return pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, stack_off, ta, ctx as *u8);
 }
 function enc_rax_plus_rbx_scale4_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_rax_plus_rbx_scale4(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_rax_plus_rbx_scale4(elf_ctx); }
-  return arch.x86_64_enc.enc_rax_plus_rbx_scale4(elf_ctx);
+  return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale4_arch(elf_ctx as *u8, ta);
 }
 /** INDEX åç§»ï¼rbxÃ1ï¼u8ï¼ã */
 function enc_rax_plus_rbx_scale1_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_rax_plus_rbx_scale1(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_rax_plus_rbx_scale1(elf_ctx); }
-  return arch.x86_64_enc.enc_rax_plus_rbx_scale1(elf_ctx);
+  return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale1_arch(elf_ctx as *u8, ta);
 }
 /** INDEX åç§»ï¼rbxÃ8ï¼æé/å®½æ´ï¼ã */
 function enc_rax_plus_rbx_scale8_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_rax_plus_rbx_scale8(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_rax_plus_rbx_scale8(elf_ctx); }
-  return arch.x86_64_enc.enc_rax_plus_rbx_scale8(elf_ctx);
+  return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale8_arch(elf_ctx as *u8, ta);
 }
 /** å° rax å­å¥ [rbx]ï¼å®½åº¦ elem_sz â {1,4,8}ï¼INDEX èµå¼ï¼ã */
 function enc_store_rax_to_rbx_indirect_arch(elf_ctx: *ElfCodegenCtx, elem_sz: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_store_rax_to_rbx_indirect(elf_ctx, elem_sz); }
-  if (ta == 2) { return arch.riscv64_enc.enc_store_rax_to_rbx_indirect(elf_ctx, elem_sz); }
-  return arch.x86_64_enc.enc_store_rax_to_rbx_indirect(elf_ctx, elem_sz);
+  return backend_enc_dispatch.backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx as *u8, elem_sz, ta);
 }
 function enc_load_32_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_load_32_from_rax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_load_32_from_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_load_32_from_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_load_32_from_rax_arch(elf_ctx as *u8, ta);
 }
 /** u8 INDEX è¯»åºï¼movzbl/ldrb/lbuï¼é¶æ©å±ä¸ºç®æ å¯å­å¨ï¼ã */
 function enc_load_zext8_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_load_zext8_from_rax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_load_zext8_from_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_load_zext8_from_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_load_zext8_from_rax_arch(elf_ctx as *u8, ta);
 }
 function enc_add_imm_to_rax_arch(elf_ctx: *ElfCodegenCtx, imm: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_add_imm_to_rax(elf_ctx, imm); }
-  if (ta == 2) { return arch.riscv64_enc.enc_add_imm_to_rax(elf_ctx, imm); }
-  return arch.x86_64_enc.enc_add_imm_to_rax(elf_ctx, imm);
+  return backend_enc_dispatch.backend_enc_add_imm_to_rax_arch(elf_ctx as *u8, imm, ta);
 }
 function enc_load_64_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_load_64_from_rax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_load_64_from_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_load_64_from_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_load_64_from_rax_arch(elf_ctx as *u8, ta);
 }
 function enc_store_rax_to_rbx_offset_arch(elf_ctx: *ElfCodegenCtx, offset: i32, store_size: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_store_rax_to_rbx_offset(elf_ctx, offset, store_size); }
-  if (ta == 2) { return arch.riscv64_enc.enc_store_rax_to_rbx_offset(elf_ctx, offset, store_size); }
-  return arch.x86_64_enc.enc_store_rax_to_rbx_offset(elf_ctx, offset, store_size);
+  return backend_enc_dispatch.backend_enc_store_rax_to_rbx_offset_arch(elf_ctx as *u8, offset, store_size, ta);
 }
 function enc_mov_rbx_to_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_mov_rbx_to_rax(elf_ctx); }
-  if (ta == 2) { return arch.riscv64_enc.enc_mov_rbx_to_rax(elf_ctx); }
-  return arch.x86_64_enc.enc_mov_rbx_to_rax(elf_ctx);
+  return backend_enc_dispatch.backend_enc_mov_rbx_to_rax_arch(elf_ctx as *u8, ta);
 }
 function enc_jz_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_jz(elf_ctx, label, label_len); }
-  if (ta == 2) { return arch.riscv64_enc.enc_jz(elf_ctx, label, label_len); }
-  return arch.x86_64_enc.enc_jz(elf_ctx, label, label_len);
+  return backend_enc_dispatch.backend_enc_jz_arch(elf_ctx as *u8, &label[0], label_len, ta);
 }
 /** cmp åæç¸ç­åæ¯ï¼match èï¼ï¼arm64 ä¸º beqï¼x86 ä¸º jeã */
 function enc_jeq_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_jeq(elf_ctx, label, label_len); }
-  if (ta == 2) { return arch.riscv64_enc.enc_jeq(elf_ctx, label, label_len); }
-  return arch.x86_64_enc.enc_jeq(elf_ctx, label, label_len);
+  return backend_enc_dispatch.backend_enc_jeq_arch(elf_ctx as *u8, &label[0], label_len, ta);
 }
 /** cmp å i>=n åæ¯ï¼è®¡æ° while ä¼åï¼ï¼arm64 b.ge / x86 jge / riscv bge a0,a1ã */
 function enc_jge_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_jge(elf_ctx, label, label_len); }
-  if (ta == 2) { return arch.riscv64_enc.enc_jge(elf_ctx, label, label_len); }
-  return arch.x86_64_enc.enc_jge(elf_ctx, label, label_len);
+  return backend_enc_dispatch.backend_enc_jge_arch(elf_ctx as *u8, &label[0], label_len, ta);
 }
 function enc_jnz_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_jnz(elf_ctx, label, label_len); }
-  if (ta == 2) { return arch.riscv64_enc.enc_jnz(elf_ctx, label, label_len); }
-  return arch.x86_64_enc.enc_jnz(elf_ctx, label, label_len);
+  return backend_enc_dispatch.backend_enc_jnz_arch(elf_ctx as *u8, &label[0], label_len, ta);
 }
 function enc_jmp_arch(elf_ctx: *ElfCodegenCtx, label: u8[64], label_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_jmp(elf_ctx, label, label_len); }
-  if (ta == 2) { return arch.riscv64_enc.enc_jmp(elf_ctx, label, label_len); }
-  return arch.x86_64_enc.enc_jmp(elf_ctx, label, label_len);
+  return backend_enc_dispatch.backend_enc_jmp_arch(elf_ctx as *u8, &label[0], label_len, ta);
 }
 function enc_mov_rax_to_arg_reg_arch(elf_ctx: *ElfCodegenCtx, k: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_mov_rax_to_arg_reg(elf_ctx, k); }
-  if (ta == 2) { return arch.riscv64_enc.enc_mov_rax_to_arg_reg(elf_ctx, k); }
-  return arch.x86_64_enc.enc_mov_rax_to_arg_reg(elf_ctx, k);
+  return backend_enc_dispatch.backend_enc_mov_rax_to_arg_reg_arch(elf_ctx as *u8, k, ta);
 }
 function enc_call_arch(elf_ctx: *ElfCodegenCtx, name: u8[64], name_len: i32, ta: i32): i32 {
-  if (ta == 1) { return arch.arm64_enc.enc_call(elf_ctx, name, name_len); }
-  if (ta == 2) { return arch.riscv64_enc.enc_call(elf_ctx, name, name_len); }
-  return arch.x86_64_enc.enc_call(elf_ctx, name, name_len);
+  return backend_enc_dispatch.backend_enc_call_arch(elf_ctx as *u8, &name[0], name_len, ta);
 }
 
 /** å½åå½æ°ä¸ä¸æï¼æ å¸§å¤§å°ãå±é¨åéè¡¨ï¼sidecarï¼ãæ ç­¾è®¡æ°å¨ï¼å¾ªç¯æ¶å¡«å¥ break/continue ç®æ æ ç­¾æ ï¼
@@ -837,6 +783,7 @@ function asm_module_named_type_has_struct_layout(module: *Module, name: *u8, nam
  * module_ref ä¸ºç©ºæ¶éå 8 å­èä»¥ä¿æåå²è¡ä¸ºã
  */
 function asm_field_access_load_byte_sz(arena: *ASTArena, field_expr_ref: i32, module: *Module): i32 {
+  let kind: i32 = 0;
   if (field_expr_ref <= 0) {
     return 8;
   }
@@ -844,16 +791,20 @@ function asm_field_access_load_byte_sz(arena: *ASTArena, field_expr_ref: i32, mo
   if (fx.resolved_type_ref <= 0) {
     return 8;
   }
-  let t: Type = ast.ast_arena_type_get(arena, fx.resolved_type_ref);
-  if (t.kind == TypeKind.TYPE_U8) {
+  kind = pipeline_type_kind_ord_at(arena, fx.resolved_type_ref);
+  if (kind == TypeKind.TYPE_U8) {
     return 1;
   }
-  if (t.kind == TypeKind.TYPE_PTR || t.kind == TypeKind.TYPE_I64 || t.kind == TypeKind.TYPE_U64
-      || t.kind == TypeKind.TYPE_USIZE || t.kind == TypeKind.TYPE_ISIZE || t.kind == TypeKind.TYPE_F64) {
+  if (kind == TypeKind.TYPE_PTR || kind == TypeKind.TYPE_I64 || kind == TypeKind.TYPE_U64
+      || kind == TypeKind.TYPE_USIZE || kind == TypeKind.TYPE_ISIZE || kind == TypeKind.TYPE_F64) {
     return 8;
   }
-  if (t.kind == TypeKind.TYPE_NAMED && module != 0 as *Module && asm_module_named_type_has_struct_layout(module, &t.name[0], t.name_len)) {
-    return 8;
+  if (kind == TypeKind.TYPE_NAMED && module != 0 as *Module) {
+    let type_name: u8[64] = [];
+    let type_name_len: i32 = pipeline_type_named_name_into(arena as *u8, fx.resolved_type_ref, &type_name[0]);
+    if (type_name_len > 0 && asm_module_named_type_has_struct_layout(module, &type_name[0], type_name_len)) {
+      return 8;
+    }
   }
   return 4;
 }

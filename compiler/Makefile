@@ -580,13 +580,7 @@ bootstrap_shuxc: scripts/bootstrap_shuxc_create.sh scripts/select_bootstrap_shux
 	@chmod +x scripts/select_bootstrap_shuxc.sh 2>/dev/null || true
 	@./scripts/select_bootstrap_shuxc.sh
 
-# 考古 shux-c 额外链 runtime ABI 薄壳（runtime.c 已拆分，LEGACY C 前端仍依赖这些符号）
-LEGACY_SHUX_C_EXTRA = src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_driver_strict_glue_stubs.o preprocess_x.o src/preprocess_if_stack_bridge.o driver_x.o parser_x.o pipeline_x.o src/driver/target_cpu.o
-
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
-$(SHUX_C): $(OBJS_CORE) $(LEGACY_SHUX_C_EXTRA)
-	$(CC) $(CFLAGS) -o $@ $^ $(PIPELINE_LIBS) $(WIN_LDFLAGS)
-
 # G-02a: lexer.o 从 runtime_lexer_glue.inc 编译（G-02e-19：cc_inc_tu）。
 # 仅提供 lexer_new/lexer_free；lexer_next 由 lexer_x.o（.x）或 runtime_driver_strict_glue_stubs.o（weak 桩）提供。
 # G-02f-21：runtime_lexer_glue 产品 seed
@@ -1064,7 +1058,8 @@ bootstrap-parse-file: $(TARGET) $(STD_AND_PANIC_O) bootstrap-parser
 
 # 迁移到 .x：parser.x -E-extern + ast 池 getter 补丁 → parser_x.o（提供 parser_parse_into_buf；与瘦 pipeline_x.o 分 TU）。
 # 须 shux-x -x -E 全量 TU；shux-c 瘦 gen 缺 copy_module_import_path64 / parse_expr_into 等。
-parser_gen.c: ast_gen2.c src/parser/parser.x
+# ast_gen2.c 仅 typeck/codegen 单 TU 需要；clean worktree 用 pinned parser seed 时不应先触发它。
+parser_gen.c: src/parser/parser.x
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
 	  tmp="$@.tmp"; \
 	  if [ -f $(SHUX_X) ]; then \
@@ -1410,7 +1405,7 @@ ast_gen2.c: src/ast/ast.x
 ast_gen2.o: ast_gen2.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c ast_gen2.c -o ast_gen2.o
 
-typeck_gen.c: ast_gen2.c src/typeck/typeck.x
+typeck_gen.c: src/typeck/typeck.x
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
 	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
 	  $(MAKE) $(SHUX_C) && \
@@ -1433,7 +1428,7 @@ typeck_x.o: typeck_gen.c
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c typeck_gen.c -o typeck_x.o
 	@test $$(stat -f%z typeck_x.o 2>/dev/null || stat -c%s typeck_x.o) -gt 10000 || (echo "typeck_x.o too small (corrupt gen? rm typeck_gen.c && make typeck_gen.c typeck_x.o)" >&2; exit 1)
 
-codegen_gen.c: ast_gen2.c src/codegen/codegen.x
+codegen_gen.c: src/codegen/codegen.x
 	@if [ "$(SHUX_FORCE_REGEN_GEN)" = "1" ]; then \
 	  tmp="$@.tmp.$$$$"; rm -f "$$tmp"; \
 	  $(MAKE) $(SHUX_C) && \
@@ -1509,7 +1504,7 @@ DRIVER_SEED_C_FRONTEND_LEGACY =
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 DRIVER_SEED_RUNTIME_O = src/runtime_driver.o
 DRIVER_SEED_FRONTEND_EXTRA = $(DRIVER_SEED_C_FRONTEND_LEGACY)
-DRIVER_SEED_SUPPORT_EXTRA = src/async/async_liveness.o src/async/async_cps_codegen.o
+DRIVER_SEED_SUPPORT_EXTRA = src/async/async_liveness.o src/async/async_cps_codegen.o src/lexer/cfg_eval_bootstrap_stub.o src/typeck/typeck_f64_bits.o
 DRIVER_SEED_LINK_FLAGS = -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -DSHUX_USE_X_TYPECK -DSHUX_USE_X_CODEGEN
 DRIVER_SEED_RUNTIME_REBUILD = src/runtime_driver.o src/async/async_cps_codegen.o
 else ifeq ($(SHUX_NO_C_SEED_LINK),1)
@@ -1604,6 +1599,7 @@ MAIN_LINK_FLAGS =
 endif
 DRIVER_SEED_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_X_FRONTEND_OBJS) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o src/runtime_driver_strict_glue_stubs.o
 DRIVER_SEED_X_OBJS = parser_x.o typeck_x.o codegen_x.o
+DRIVER_SEED_X_FRONTEND_OBJS = lexer_x.o $(DRIVER_SEED_X_OBJS) x_frontend_link_alias.o
 
 # 阶段 10.4 实验：链 typeck_x.o/codegen_x.o 替代 C 前端（不含 pipeline_x.o，无 SHUX_USE_X_PIPELINE）。
 # 勿复用 DRIVER_SEED_X_FRONTEND_OBJS 名：bootstrap-driver-seed 链依赖 parser_x.o/lexer_x.o（见上 §1280）。
@@ -1659,10 +1655,6 @@ src/lexer/lexer.o: seeds/runtime_lexer_glue.from_x.c src/asm/runtime_lexer_glue.
 # G-02f-80：cfg_eval 冷启动 stub；legacy shux-c 直链需要独立 .o 规则。
 src/lexer/cfg_eval_bootstrap_stub.o: seeds/cfg_eval_bootstrap_stub.from_x.c src/lexer/cfg_eval_bootstrap_stub.x scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/cfg_eval_bootstrap_stub.from_x.c $@
-
-# G-02f-79：legacy / stage2 的 #if 栈桥；preprocess.x 仍依赖 preprocess_if_stack_*。
-src/preprocess_if_stack_bridge.o: seeds/preprocess_if_stack_bridge.from_x.c scripts/cc_inc_tu.sh
-	sh scripts/cc_inc_tu.sh seeds/preprocess_if_stack_bridge.from_x.c $@
 
 # G-02a: typeck.c 已物理删除；typeck_x.o 由 typeck.x 生成，typeck_c_module_stubs.o 提供 weak 桩。
 
@@ -2042,6 +2034,17 @@ DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o pipeline_x.o lsp_x.o lsp_
 BOOTSTRAP_DRIVER_SEED_LINK_BASE = $(DRIVER_SEED_OBJS) driver_x.o $(BOOTSTRAP_DRIVER_SEED_PIPELINE_LINK_O) lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $(DRIVER_SUBCMD_OBJS) $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(PIPELINE_LIBS)
 
 DRIVER_SEED_PREREQS = $(SHUX_C) pipeline_x.o parser_x.o lexer_x.o typeck_x.o codegen_x.o x_frontend_link_alias.o driver_x.o preprocess_x.o lsp_io_gen.c lsp_gen.c lsp_diag_gen.c lsp_io_std_heap_gen.c $(DRIVER_SUBCMD_GEN) $(MAIN_LINK_REBUILD) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o src/runtime_driver_strict_glue_stubs.o $(LSP_DIAG_LINK_O) src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $(DRIVER_SUBCMD_OBJS) $(USER_ASM_SEED_OBJS)
+
+# legacy shux-c 复用 bootstrap-driver-seed 的现有权威闭包，避免手写对象清单与 pinned seed 漂移。
+LEGACY_SHUX_C_LINK_BASE := $(BOOTSTRAP_DRIVER_SEED_LINK_BASE)
+LEGACY_SHUX_C_USER_ASM_LINK := $(USER_ASM_SEED_HOST_OBJS) $(USER_ASM_SEED_HOST_STUBS) $(BOOTSTRAP_DRIVER_SEED_USER_ASM_OBJS)
+LEGACY_SHUX_C_PREREQS := $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) build_asm/pipeline_glue_strict_minimal.o
+
+ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
+$(SHUX_C): DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
+$(SHUX_C): $(LEGACY_SHUX_C_PREREQS)
+	$(CC) $(CFLAGS) $(DRIVER_SEED_LINK_FLAGS) $(ASM_GLUE_DUP_LDFLAGS) $(MAIN_LINK_FLAGS) -o $@ $(LEGACY_SHUX_C_LINK_BASE) $(LEGACY_SHUX_C_USER_ASM_LINK) $(DRIVER_SEED_GLUE_SUFFIX)
+endif
 
 bootstrap-driver-seed: DRIVER_SEED_GLUE_SUFFIX = build_asm/pipeline_glue_strict_minimal.o
 bootstrap-driver-seed: $(DRIVER_SEED_PREREQS) build_asm/pipeline_glue_strict_minimal.o

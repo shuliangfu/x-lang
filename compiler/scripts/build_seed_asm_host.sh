@@ -27,6 +27,10 @@ build_seed_asm_host_dump_tail() {
   tail -n "$_lines" "$_file" | sed 's/^/  /' >&2
 }
 
+clear_asm_seed_stale_logs() {
+  rm -f "$OUT_DIR/asm_full_gen.err" "$OUT_DIR/asm_full_gen.c.tmp"
+}
+
 _seed_os="$(uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 _seed_arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
 case "$_seed_arch" in x86_64|amd64) _seed_arch="x86_64" ;; aarch64|arm64) _seed_arch="arm64" ;; esac
@@ -388,6 +392,7 @@ if [ ! -f "$BACKEND_PARTIAL" ] && [ -f "$SEED_PARTIAL" ] && [ -s "$SEED_PARTIAL"
     && has_real_partial_seed_mega "$SEED_PARTIAL"; then
   mkdir -p "$OUT_DIR"
   cp -f "$SEED_PARTIAL" "$BACKEND_PARTIAL"
+  clear_asm_seed_stale_logs
   build_seed_asm_host_info "seed partial (seed_mega) <- $SEED_PARTIAL"
   exit 0
 fi
@@ -421,10 +426,12 @@ seed_partial_needs_regen() {
 if seed_partial_needs_regen; then
   if ! darwin_seed_full_e_allowed; then
     if [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
+      clear_asm_seed_stale_logs
       build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.x -E, keep existing $BACKEND_PARTIAL (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
       exit 0
     fi
     if build_backend_partial_from_c_fallback; then
+      clear_asm_seed_stale_logs
       build_seed_asm_host_info "Darwin safety guard - skip asm_seed_full.x -E, use source fallback partial (set SHUX_DARWIN_ALLOW_ASM_SEED_FULL_E=1 to force)"
       exit 0
     fi
@@ -461,11 +468,13 @@ if seed_partial_needs_regen; then
     elif [ -f "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; then
       build_seed_asm_host_warn "asm_seed_full.x -E 失败，沿用已有 $BACKEND_PARTIAL"
       rm -f "$ASM_TMP"
+      clear_asm_seed_stale_logs
       exit 0
     else
       rm -f "$ASM_TMP"
       if build_backend_partial_from_c_fallback; then
         build_seed_asm_host_warn "asm_seed_full.x -E 失败，改用源码 fallback partial"
+        clear_asm_seed_stale_logs
         exit 0
       fi
       build_seed_asm_host_error "asm_seed_full.x -E 失败且无已有 $ASM_FULL_C / $BACKEND_PARTIAL / fallback partial"
@@ -478,6 +487,7 @@ if seed_partial_needs_regen; then
   if ! asm_full_gen_c_usable_for_fix "$ASM_FULL_C"; then
     if build_backend_partial_from_c_fallback; then
       build_seed_asm_host_warn "$ASM_FULL_C 不可用，改用源码 fallback partial"
+      clear_asm_seed_stale_logs
       exit 0
     fi
     build_seed_asm_host_error "$ASM_FULL_C 不可用（畸形 -E 截断）"
@@ -497,11 +507,13 @@ if seed_partial_needs_regen; then
   if ! try_cc_asm_full_gen_c "$ASM_FULL_C"; then
     if [ -f "$BACKEND_PARTIAL" ]; then
       build_seed_asm_host_warn "cc asm_full_gen.c 失败，沿用已有 $BACKEND_PARTIAL"
+      clear_asm_seed_stale_logs
       exit 0
     fi
     build_seed_asm_host_warn "cc asm_full_gen.c 失败且无已有 $BACKEND_PARTIAL，尝试 source fallback ..."
     if build_backend_partial_from_c_fallback; then
       build_seed_asm_host_info "source fallback partial 创建成功 ($BACKEND_PARTIAL)"
+      clear_asm_seed_stale_logs
       exit 0
     fi
     build_seed_asm_host_error "cc asm_full_gen.c 失败且 source fallback 也失败"
@@ -589,6 +601,7 @@ if seed_partial_needs_regen; then
     if ! ld_partial_export "$SYMS" "$BACKEND_PARTIAL" "$ASM_FULL_O"; then
       if [ -f "$BACKEND_PARTIAL" ]; then
         build_seed_asm_host_warn "ld -r 失败，沿用已有 $BACKEND_PARTIAL"
+        clear_asm_seed_stale_logs
         exit 0
       fi
       build_seed_asm_host_error "ld -r 失败且无已有 $BACKEND_PARTIAL"
@@ -602,4 +615,5 @@ if [ -s "$BACKEND_PARTIAL" ] && has_real_partial_seed_mega "$BACKEND_PARTIAL"; t
   cp -f "$BACKEND_PARTIAL" "$SEED_PARTIAL"
 fi
 
+clear_asm_seed_stale_logs
 build_seed_asm_host_info "OK ($OUT_DIR)"

@@ -2243,17 +2243,90 @@ function emit_type(arena: *ASTArena, out: *CodegenOutBuf, type_ref: i32, struct_
       let i32_enum: u8[8] = [105, 110, 116, 51, 50, 95, 116, 0];
       return emit_bytes_8(out, i32_enum, 7);
     }
+    /* dep 模块 user enum：emit "enum <prefix>_<name>" 而非 "struct <prefix>_<name>"
+     * 【Why 根源】TypeKind/ExprKind 等在 ast 模块定义为 enum，入口模块引用时
+     *   codegen_type_is_module_user_enum 仅查当前模块找不到，需遍历 dep 模块。
+     *   不做此检查会误走 struct 前缀生成 "struct ast_TypeKind"，C 编译报 incomplete type。
+     * 【Invariant】dep_enum_prefix_len > 0 仅当类型在 dep 模块 enums 中找到。
+     * 【Asm/Perf】仅 TYPE_NAMED 且非当前模块 enum 时触发，热路径无额外开销。 */
+    if (ctx != 0 as *PipelineDepCtx) {
+      let dep_enum_prefix: u8[128] = [];
+      let dep_enum_prefix_len: i32 = codegen_type_dep_enum_prefix_into(ctx, arena, type_ref, &dep_enum_prefix[0], 128);
+      if (dep_enum_prefix_len > 0) {
+        let e: u8[8] = [101, 110, 117, 109, 32, 0, 0, 0];
+        if (emit_bytes_8(out, e, 5) != 0) {
+          return -1;
+        }
+        if (emit_bytes_from_ptr(out, &dep_enum_prefix[0], dep_enum_prefix_len) != 0) {
+          return -1;
+        }
+        let bare_off2: i32 = 0;
+        let bi2: i32 = 0;
+        while (bi2 < name_len && bi2 < 64) {
+          if (nm[bi2] == 46) {
+            bare_off2 = bi2 + 1;
+          }
+          bi2 = bi2 + 1;
+        }
+        let ci2: i32 = bare_off2;
+        while (ci2 < name_len && ci2 < 64) {
+          if (append_byte_u8(out, nm[ci2]) != 0) {
+            return -1;
+          }
+          ci2 = ci2 + 1;
+        }
+        return 0;
+      }
+    }
     let s: u8[8] = [115, 116, 114, 117, 99, 116, 32, 0];
     if (emit_bytes_8(out, s, 7) != 0) {
       return -1;
     }
     dep_prefix_len = codegen_type_dep_struct_prefix_into(ctx, arena, type_ref, &dep_prefix_buf[0], 128);
-    if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
-      if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
+    /* 【Why 根源】dep_prefix 查找失败（struct_layouts 不含该类型）时，若类型名为限定名（如 ast.Module），
+     *   从限定名最后 '.' 之前提取模块路径，用 codegen_import_path_to_c_prefix_into 转为 C 前缀。
+     *   backend dep 模块的 struct_layouts 不含 ast 模块的 Module，dep_prefix 查找返回 0，
+     *   但限定名 "ast.Module" 明确指示定义模块为 ast，应生成 struct ast_Module 而非 struct backend_Module。
+     * 【Invariant】仅在 dep_prefix_len == 0 且 name 含 '.' 时触发；非限定名走原有 fallback 链。
+     * 【Asm/Perf】仅 dep_prefix 查找失败时触发，不增加热路径开销。 */
+    if (dep_prefix_len == 0) {
+      let qmod_end: i32 = 0;
+      let qhas_dot: bool = false;
+      let qi: i32 = 0;
+      while (qi < name_len && qi < 64) {
+        if (nm[qi] == 46) {
+          qhas_dot = true;
+          qmod_end = qi;
+        }
+        qi = qi + 1;
+      }
+      if (qhas_dot && qmod_end > 0 && qmod_end < 64) {
+        let mod_path: u8[64] = [];
+        let mi: i32 = 0;
+        while (mi < qmod_end) {
+          mod_path[mi] = nm[mi];
+          mi = mi + 1;
+        }
+        mod_path[mi] = 0 as u8;
+        codegen_import_path_to_c_prefix_into(&mod_path[0], &dep_prefix_buf[0], 128);
+        dep_prefix_len = 0;
+        while (dep_prefix_len < 128 && dep_prefix_buf[dep_prefix_len] != 0 as u8) {
+          dep_prefix_len = dep_prefix_len + 1;
+        }
+      }
+    }
+    /* 【Why 根源】dep_prefix（定义模块前缀，如 platform_elf_）必须优先于 struct_prefix（当前模块前缀，如 peephole_）。
+     *   dep 模块函数签名引用跨模块 struct 时，struct_prefix 是当前 dep 模块前缀（由 codegen_x_ast 按 dep_index 计算），
+     *   但 C 编译器要求 struct 名与定义模块一致，否则跨模块调用类型不匹配（peephole_ElfCodegenCtx vs platform_elf_ElfCodegenCtx）。
+     *   入口模块 struct_prefix 为空，自然走 dep_prefix；dep 模块 struct_prefix 非空，旧逻辑错误地优先用它。
+     * 【Invariant】dep_prefix_len > 0 仅当类型在其他 dep 模块的 struct_layouts 中找到；当前模块自定义 struct 不在 dep 池，dep_prefix_len=0 走 struct_prefix。
+     * 【Asm/Perf】无额外开销——codegen_type_dep_struct_prefix_into 已在上方无条件调用，仅交换分支顺序。 */
+    if (dep_prefix_len > 0) {
+      if (emit_bytes_from_ptr(out, &dep_prefix_buf[0], dep_prefix_len) != 0) {
         return -1;
       }
-    } else if (dep_prefix_len > 0) {
-      if (emit_bytes_from_ptr(out, &dep_prefix_buf[0], dep_prefix_len) != 0) {
+    } else if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+      if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
         return -1;
       }
     } else if (ctx != 0 as *PipelineDepCtx && ctx.current_codegen_module != 0 as *Module
@@ -2668,6 +2741,73 @@ function codegen_type_is_module_user_enum(module: *Module, arena: *ASTArena, typ
   return 0;
 }
 
+/** 遍历 dep 模块 enums，返回匹配 enum 的 C prefix（如 "ast_"）；未命中返回 0。
+ * 【Why 根源】TypeKind/ExprKind 等在 ast 模块定义为 enum，入口模块引用时
+ *   codegen_type_is_module_user_enum 仅查当前模块找不到，需遍历 dep 模块。
+ *   不做此检查会误走 struct 前缀生成 "struct ast_TypeKind"，C 编译报 incomplete type。
+ * 【Invariant】用裸名（最后一个 '.' 之后）与 dep enum name 比较，对齐 codegen_type_dep_struct_prefix_into。
+ * 【Asm/Perf】仅 TYPE_NAMED 且非当前模块 enum 时触发，热路径无额外开销。 */
+function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *ASTArena, type_ref: i32, dst: *u8, dst_cap: i32): i32 {
+  let name_len: i32 = 0;
+  let ty_nm: u8[64] = [];
+  let di: i32 = 0;
+  if (ctx == 0 as *PipelineDepCtx || arena == 0 as *ASTArena || dst == 0 as *u8 || dst_cap <= 0 || ast.ref_is_null(type_ref)) {
+    return 0;
+  }
+  if (pipeline_type_kind_ord_at(arena, type_ref) != TypeKind.TYPE_NAMED) {
+    return 0;
+  }
+  name_len = pipeline_type_named_name_into(arena, type_ref, &ty_nm[0]);
+  if (name_len <= 0) {
+    return 0;
+  }
+  let bare_off: i32 = 0;
+  let bi: i32 = 0;
+  while (bi < name_len && bi < 64) {
+    if (ty_nm[bi] == 46) {
+      bare_off = bi + 1;
+    }
+    bi = bi + 1;
+  }
+  let bare_len: i32 = name_len - bare_off;
+  di = 0;
+  while (di < pipeline_dep_ctx_ndep(ctx)) {
+    let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
+    if (dep_mod != 0 as *Module) {
+      let ei: i32 = 0;
+      while (ei < dep_mod.num_module_enums) {
+        let dep_name_len: i32 = pipeline_module_enum_name_len(dep_mod, ei);
+        if (dep_name_len == bare_len) {
+          let eq: bool = true;
+          let j: i32 = 0;
+          while (j < bare_len && j < 64) {
+            if (pipeline_module_enum_name_byte_at(dep_mod, ei, j) != ty_nm[bare_off + j]) {
+              eq = false;
+              break;
+            }
+            j = j + 1;
+          }
+          if (eq) {
+            let dep_path: u8[64] = [];
+            let plen: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
+            if (plen > 0) {
+              codegen_import_path_to_c_prefix_into(&dep_path[0], dst, dst_cap);
+              let out_len: i32 = 0;
+              while (out_len < dst_cap && dst[out_len] != 0 as u8) {
+                out_len = out_len + 1;
+              }
+              return out_len;
+            }
+          }
+        }
+        ei = ei + 1;
+      }
+    }
+    di = di + 1;
+  }
+  return 0;
+}
+
 /**
  * 发射完整 struct 字段声明，支持多维数组的 `type name[N][M]` 顺序；
  * 与旧 C glue 的职责相同，但改在 X 侧走 emit_type(ctx) 以正确解析 dep struct 前缀。
@@ -2783,6 +2923,47 @@ function codegen_emit_module_struct_definitions(module: *Module, arena: *ASTAren
   return 0;
 }
 
+/** 遍历 module 的 struct layouts，emit forward declaration（struct <prefix>_<name>;\n）。
+ * 【Why 根源】C 语言 struct tag 作用域规则：extern 函数声明引用 struct 时，若完整定义尚未 emit，
+ *   tag 首次出现在参数列表中会创建局部作用域 tag → 后续完整定义被视为不同类型 → conflicting types。
+ *   forward declaration 使 extern 声明引用文件作用域 tag，与后续完整定义匹配。
+ * 【Invariant】forward declaration 的 struct 名须与 codegen_emit_module_struct_definitions 一致：
+ *   struct <prefix>_<name>（prefix 为空时不加前缀）。
+ * 【Asm/Perf】仅在 -E 输出写一次，无热路径影响。 */
+function codegen_emit_module_struct_forward_declarations(module: *Module, out: *CodegenOutBuf, struct_prefix: *u8, struct_prefix_len: i32): i32 {
+  let k: i32 = 0;
+  while (k < module.num_struct_layouts) {
+    let nf: i32 = pipeline_module_struct_layout_num_fields(module, k);
+    let nl: i32 = pipeline_module_struct_layout_name_len(module, k);
+    if (nf <= 0 || nl <= 0) {
+      k = k + 1;
+      continue;
+    }
+    /* "struct " */
+    let hdr: u8[8] = [115, 116, 114, 117, 99, 116, 32, 0];
+    if (emit_bytes_from_ptr(out, &hdr[0], 7) != 0) {
+      return -1;
+    }
+    if (struct_prefix != 0 as *u8 && struct_prefix_len > 0) {
+      if (emit_bytes_from_ptr(out, struct_prefix, struct_prefix_len) != 0) {
+        return -1;
+      }
+    }
+    let ty_nm: u8[64] = [];
+    pipeline_module_struct_layout_name_into(module, k, &ty_nm[0]);
+    if (emit_bytes_from_ptr(out, &ty_nm[0], nl) != 0) {
+      return -1;
+    }
+    /* ";\n" */
+    let semi_nl: u8[2] = [59, 10];
+    if (emit_bytes_from_ptr(out, &semi_nl[0], 2) != 0) {
+      return -1;
+    }
+    k = k + 1;
+  }
+  return 0;
+}
+
 /**
  * 遍历 module.enums，按 `enum prefix_Name { prefix_Name_Variant, ... };` 发射完整 C enum。
  * 供 entry 单文件模式为“被跳过或纯类型 dep”补齐类型定义，避免 dep struct 字段引用不完整 enum。
@@ -2878,21 +3059,17 @@ function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, out: *C
     sp = sp + 1;
   }
   let nd: i32 = pipeline_dep_ctx_ndep(ctx);
-  let phase: i32 = 0;
-  while (phase < 2) {
-    let di: i32 = 0;
-    while (di < nd) {
-      let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
-      let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di);
-      let dep_path: u8[64] = [];
-      let dep_path_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
-      if (dep_mod != 0 as *Module && dep_arena != 0 as *ASTArena && dep_path_len > 0) {
-        let should_emit_types: i32 = 0;
-        if (phase == 0 && dep_mod.num_funcs <= 0) {
-          should_emit_types = 1;
-        } else if (phase == 1 && dep_mod.num_funcs > 0 && pipeline_codegen_dep_skip_x_bootstrap_partial(&dep_path[0]) != 0) {
-          should_emit_types = 1;
-        }
+  /* emit ALL dep 模块类型（不限 skipped）：pipeline.x L692 先 codegen dep、L697 后 codegen entry，
+   * 若仅 skipped 模块 emit 类型，非 skipped dep 的函数体（在 entry 之前输出）引用其他 dep 类型时不完整。
+   * seen_before 去重防同路径重复。dep 模块各自 codegen_x_ast 跳过 struct emit（dep_index>=0 guard）。 */
+  let di: i32 = 0;
+  while (di < nd) {
+    let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
+    let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, di);
+    let dep_path: u8[64] = [];
+    let dep_path_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
+    if (dep_mod != 0 as *Module && dep_arena != 0 as *ASTArena && dep_path_len > 0) {
+      let should_emit_types: i32 = 1;
         if (should_emit_types != 0) {
           let seen_before: i32 = 0;
           let pj: i32 = 0;
@@ -2947,7 +3124,6 @@ function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, out: *C
       }
       di = di + 1;
     }
-    phase = phase + 1;
   }
   ctx.current_codegen_module = saved_module;
   ctx.current_codegen_arena = saved_arena;
@@ -2957,6 +3133,40 @@ function codegen_emit_skipped_dep_type_definitions(ctx: *PipelineDepCtx, out: *C
   while (sp < 64) {
     ctx.current_codegen_prefix_mirror[sp] = saved_prefix[sp];
     sp = sp + 1;
+  }
+  return 0;
+}
+
+/** 遍历所有 dep 模块，emit struct forward declaration。
+ * 【Why 根源】在 codegen_emit_import_dep_function_declarations 之前调用，确保 extern 声明引用的
+ *   dep 模块 struct tag 在文件作用域已知，避免 conflicting types。C 允许对已有完整定义的 struct
+ *   再 emit forward declaration（无副作用），故无需排除 skipped 模块。
+ * 【Invariant】遍历顺序与 codegen_emit_skipped_dep_type_definitions 一致（dep_index 递增）。
+ * 【Asm/Perf】仅在 -E 输出写一次，无热路径影响。 */
+function codegen_emit_dep_struct_forward_declarations(ctx: *PipelineDepCtx, out: *CodegenOutBuf): i32 {
+  if (ctx == 0 as *PipelineDepCtx || out == 0 as *CodegenOutBuf) {
+    return 0;
+  }
+  let nd: i32 = pipeline_dep_ctx_ndep(ctx);
+  let di: i32 = 0;
+  while (di < nd) {
+    let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
+    if (dep_mod != 0 as *Module) {
+      let dep_path: u8[64] = [];
+      let dep_path_len: i32 = codegen_dep_import_path_len_at(ctx, di, &dep_path[0]);
+      let prefix_buf: u8[128] = [];
+      let prefix_len: i32 = 0;
+      if (dep_path_len > 0 && codegen_path_is_std_io_core_bytes(&dep_path[0]) == 0) {
+        codegen_import_path_to_c_prefix_into(&dep_path[0], &prefix_buf[0], 128);
+        while (prefix_len < 128 && prefix_buf[prefix_len] != 0 as u8) {
+          prefix_len = prefix_len + 1;
+        }
+      }
+      if (codegen_emit_module_struct_forward_declarations(dep_mod, out, &prefix_buf[0], prefix_len) != 0) {
+        return -1;
+      }
+    }
+    di = di + 1;
   }
   return 0;
 }
@@ -7134,12 +7344,17 @@ function codegen_emit_import_dep_function_declarations(module: *Module, out: *Co
   return 0;
 }
 
-/** 仅写 C 头（#include <stdint.h>\\n#include <stddef.h>\\n）到 out。拆成独立函数避免 C 代码生成时被重排到 while/return 之后。 */
+/** 仅写 C 头（#include <stdint.h>\\n#include <stddef.h>\\n#include <sys/types.h>\\n）到 out。
+ * 【Why 根源】ssize_t 由 POSIX <sys/types.h> 提供，asm 模块 file_io 用到 loaded_len: ssize_t；
+ *   不 include 会导致 cc 报 'ssize_t' undeclared。dep 模块 struct 的 forward declaration 由
+ *   codegen_emit_dep_struct_forward_declarations 在本函数之后 emit，不在 header 硬编码。
+ * 拆成独立函数避免 C 代码生成时被重排到 while/return 之后。 */
 function codegen_x_ast_emit_header(out: *CodegenOutBuf): i32 {
   let h: u8[64] = [35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10,
     35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  return emit_bytes_64(out, &h[0], 40);
+    35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 121, 115, 47, 116, 121, 112, 101, 115, 46, 104, 62, 10,
+    0];
+  return emit_bytes_64(out, &h[0], 63);
 }
 
 /**
@@ -7218,15 +7433,34 @@ function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, c
       if (codegen_x_ast_emit_header(out) != 0) {
         return -1;
       }
-      /* 用户 struct 完整定义须在任意函数/全局使用该类型之前（否则 cc 报不完整类型）。 */
+      /* dep 模块完整类型定义（struct+enum，带前缀）须在任意函数/extern 声明之前 emit。
+       * 【Why 根源】-E 单文件模式下 pipeline 将 dep 模块函数合并到 entry AST，dep 模块 num_funcs==0，
+       *   ast_pool.c L6407 `if (num_funcs > 0)` 跳过 dep codegen_x_ast 调用。因此 dep_index==0 的
+       *   codegen_x_ast 永不执行，只有 entry 模块（dep_index<0）的 codegen_x_ast 被调用。
+       *   此处由 entry 模块统一 emit 所有 dep 模块的 struct/enum 定义（带模块前缀），确保
+       *   extern 声明和函数体引用的 `struct ast_Type`/`enum ast_ExprKind` 等类型有完整定义。
+       * 【Invariant】codegen_emit_skipped_dep_type_definitions 遍历 dep 列表，用 dep 模块 import path
+       *   计算 C 前缀（ast_、platform_elf_ 等），与 emit_type/forward declaration 的前缀一致。
+       *   seen_before 去重防同路径重复。entry 模块自身的 struct/enum（无前缀）在下方 dep_index<0 块 emit。 */
       if (dep_index < 0 && codegen_emit_skipped_dep_type_definitions(ctx, out) != 0) {
+        return -1;
+      }
+      /* dep 模块 struct forward declaration：确保 extern 声明引用的 dep struct tag 在文件作用域已知，
+       * 避免 C struct tag 局部作用域规则导致 conflicting types。C 允许重复 forward declaration。 */
+      if (codegen_emit_dep_struct_forward_declarations(ctx, out) != 0) {
         return -1;
       }
       if (codegen_emit_import_dep_function_declarations(module, out, ctx) != 0) {
         return -1;
       }
-      if (codegen_emit_module_struct_definitions(module, arena, out, &prefix_buf[0], prefix_len, ctx) != 0) {
-        return -1;
+      /* entry 模块自身的 enum+struct 定义（不带模块前缀）。dep 模块类型已由上方统一 emit。 */
+      if (dep_index < 0) {
+        if (codegen_emit_module_enum_definitions(module, out, &prefix_buf[0], prefix_len) != 0) {
+          return -1;
+        }
+        if (codegen_emit_module_struct_definitions(module, arena, out, &prefix_buf[0], prefix_len, ctx) != 0) {
+          return -1;
+        }
       }
       /* 顶层 let/const（入口与 dep 模块均 emit）：dep 模块 const 以裸名 emit 供本模块
        * 函数体 EXPR_VAR 裸名引用；入口模块 main 调用 init_globals()，dep 模块不调用。 */
