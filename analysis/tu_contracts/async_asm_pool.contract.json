@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "async_asm_pool",
+  "x_src": "src/asm/async_asm_pool.x",
+  "seed_src": "seeds/async_asm_pool.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/async_asm_pool",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 9,
+    "seed_symbols": 1,
+    "only_x": 3,
+    "only_seed": 1
+  },
+  "symbols": {
+    "x": ["asm_pool_expr_is_await", "asm_pool_expr_has_await", "asm_pool_expr_is_var_named", "asm_pool_expr_refs_name", "asm_pool_block_rest_refs_name", "asm_pool_type_size_bytes", "asm_pool_live_add", "async_asm_pool_fn_id_from_name", "async_asm_pool_func_needs_cps"],
+    "seed": ["async_asm_pool_build_layout"],
+    "only_x": ["asm_pool_load_i32_le", "asm_pool_store_i32_le", "async_asm_pool_x_doc_anchor"],
+    "only_seed": ["async_asm_pool_build_layout"]
+  },
+  "rest_macro": "SHUX_ASYNC_ASM_POOL_FROM_X",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

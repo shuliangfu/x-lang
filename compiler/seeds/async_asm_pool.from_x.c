@@ -53,6 +53,11 @@ extern int32_t pipeline_module_num_struct_layouts_at(struct ast_Module *m);
 #define ASM_POOL_KIND_ORD54 54
 #define ASM_POOL_KIND_X_AWAIT 55
 
+/* thin+rest 切割：thin 部分（9 个 asm_pool / async_asm_pool 函数）由 .x 提供,
+ * rest 模式下跳过编译避免重复定义; rest 部分（async_asm_pool_build_layout）始终编译.
+ * 宏边界：SHUX_ASYNC_ASM_POOL_FROM_X
+ * rest 跨调用依赖：async_asm_pool_build_layout 调用 6 个 thin 函数 */
+#ifndef SHUX_ASYNC_ASM_POOL_FROM_X
 /** X pool EXPR_AWAIT(55) 或 C parser await（序 54 且非 as cast）。 */
 /* G-02f-142：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t asm_pool_expr_is_await(struct ast_ASTArena *a, int32_t er) {
@@ -277,6 +282,15 @@ int32_t async_asm_pool_func_needs_cps(struct ast_ASTArena *arena, struct ast_Mod
     }
     return 0;
 }
+#else
+/* rest 模式：thin 函数由 .x 提供，extern 声明供 rest 部分调用 */
+extern int32_t async_asm_pool_func_needs_cps(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index);
+extern uint32_t async_asm_pool_fn_id_from_name(const uint8_t *name, int32_t name_len);
+extern int32_t asm_pool_expr_has_await(struct ast_ASTArena *a, int32_t er);
+extern int32_t asm_pool_block_rest_refs_name(struct ast_ASTArena *a, int32_t br, int32_t from_exclusive, const uint8_t *name, int32_t nlen);
+extern void asm_pool_live_add(AsyncAsmPoolLayout *lay, const uint8_t *name, int32_t nlen, int32_t sz);
+extern int32_t asm_pool_type_size_bytes(struct ast_ASTArena *a, struct ast_Module *m, int32_t type_ref);
+#endif /* SHUX_ASYNC_ASM_POOL_FROM_X */
 
 int32_t async_asm_pool_build_layout(struct ast_ASTArena *arena, struct ast_Module *mod, int32_t func_index,
                                     AsyncAsmPoolLayout *out) {
