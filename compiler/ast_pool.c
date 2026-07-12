@@ -3730,6 +3730,9 @@ int32_t pipeline_module_enum_append_variant(struct ast_Module *m, int32_t idx, u
 }
 
 /** 按枚举类型名 + 变体名查 tag；未命中返回 -1。 */
+static struct ast_PipelineDepCtx *g_typeck_dep_ctx = 0;
+void pipeline_typeck_set_dep_ctx(struct ast_PipelineDepCtx *ctx) { g_typeck_dep_ctx = ctx; }
+
 int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t *enum_name, int32_t enum_len,
                                                    uint8_t *variant_name, int32_t variant_len) {
   ModuleSidecar *sc;
@@ -3773,6 +3776,37 @@ int32_t pipeline_module_enum_variant_tag_for_names(struct ast_Module *m, uint8_t
       }
     }
     return -1;
+  }
+  /* Fallback: search dep modules' enums if not found in current module */
+  if (g_typeck_dep_ctx) {
+    int32_t ndep = pipeline_dep_ctx_ndep(g_typeck_dep_ctx);
+    int32_t di;
+    for (di = 0; di < ndep; di++) {
+      struct ast_Module *dep_mod = pipeline_dep_ctx_module_at(g_typeck_dep_ctx, di);
+      if (!dep_mod || dep_mod == m) continue;
+      sc = module_sidecar_get(dep_mod, 0);
+      if (!sc) continue;
+      for (ei = 0; ei < sc->module_enums.len; ei++) {
+        ModuleEnumEntry *me = (ModuleEnumEntry *)grow_vec_at(&sc->module_enums, ei);
+        int32_t vi;
+        if (!me || me->name_len != enum_len) continue;
+        { int32_t j; int match = 1;
+          for (j = 0; j < enum_len; j++) {
+            if (me->name[j] != enum_name[j]) { match = 0; break; }
+          }
+          if (!match) continue;
+        }
+        for (vi = 0; vi < me->num_variants; vi++) {
+          if (me->variant_name_len[vi] != variant_len) continue;
+          { int32_t j; int match = 1;
+            for (j = 0; j < variant_len; j++) {
+              if (me->variant_name[vi][j] != variant_name[j]) { match = 0; break; }
+            }
+            if (match) return vi;
+          }
+        }
+      }
+    }
   }
   return -1;
 }
@@ -5841,6 +5875,7 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
   if (getenv("SHUX_DEBUG_PIPE"))
     fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] typeck_parsed_module_c main_idx=%d num_funcs=%d\n",
             (int)pipeline_module_main_func_index(module), (int)pipeline_module_num_funcs(module));
+  pipeline_typeck_set_dep_ctx(ctx);
   if (pipeline_module_main_func_index(module) < 0) {
     int32_t tc_lib = typeck_typeck_x_ast_library(module, arena, ctx);
     if (tc_lib != 0) {
@@ -5861,6 +5896,7 @@ int32_t pipeline_typeck_parsed_module_c(struct ast_Module *module, struct ast_AS
     return 0;
   }
   {
+    pipeline_typeck_set_dep_ctx(ctx);
     int32_t tc = typeck_typeck_x_ast(module, arena, ctx);
     if (tc != 0) {
       driver_diagnostic_typeck_fail();
