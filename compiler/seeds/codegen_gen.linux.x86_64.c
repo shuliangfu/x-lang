@@ -5543,8 +5543,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_import_dep_function_declarations(struct ast_M
   return 0;
 }
 SHUX_LIB_WEAK int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out) {
-  uint8_t h[64] = { 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  return codegen_emit_bytes_64(out, (&((h)[0])), 40);
+  uint8_t h[64] = { 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 105, 110, 116, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 116, 100, 100, 101, 102, 46, 104, 62, 10, 35, 105, 110, 99, 108, 117, 100, 101, 32, 60, 115, 121, 115, 47, 116, 121, 112, 101, 115, 46, 104, 62, 10, 0, 0 };
+  return codegen_emit_bytes_64(out, (&((h)[0])), 63);
 }
 SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTArena * arena, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx, int32_t dep_index) {
   if (ctx != ((struct ast_PipelineDepCtx *)(0))) {   ((ctx)->current_codegen_module = (module));
