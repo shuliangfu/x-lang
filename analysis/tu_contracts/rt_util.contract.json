@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "rt_util",
+  "x_src": "src/runtime/rt_util.x",
+  "seed_src": "seeds/rt_util.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/rt_util",
+  "phase": "phase0_trial",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "pending",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin wrapper / partial provider",
+    "seed": "rest provider (_impl residual present)"
+  },
+  "counts": {
+    "x_symbols": 1,
+    "seed_symbols": 2,
+    "only_x": 0,
+    "only_seed": 1
+  },
+  "symbols": {
+    "x": ["driver_unlink_failed_output"],
+    "seed": ["driver_argv0_basename_is", "driver_unlink_failed_output"],
+    "only_x": [],
+    "only_seed": ["driver_argv0_basename_is"]
+  },
+  "rest_macro": "",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

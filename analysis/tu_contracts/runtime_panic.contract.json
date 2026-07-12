@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_panic",
+  "x_src": "src/asm/runtime_panic.x",
+  "seed_src": "seeds/runtime_panic.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/runtime_panic",
+  "phase": "phase0_trial",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "pending",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 2,
+    "seed_symbols": 4,
+    "only_x": 1,
+    "only_seed": 3
+  },
+  "symbols": {
+    "x": ["runtime_panic_x_doc_anchor", "shux_crash_evidence_minimal"],
+    "seed": ["io_register_buffers_buf_c", "shux_crash_evidence_collect_c", "shux_crash_evidence_minimal", "shux_panic_"],
+    "only_x": ["runtime_panic_x_doc_anchor"],
+    "only_seed": ["io_register_buffers_buf_c", "shux_crash_evidence_collect_c", "shux_panic_"]
+  },
+  "rest_macro": "",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}
