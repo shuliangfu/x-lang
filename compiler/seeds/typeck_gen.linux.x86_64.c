@@ -3215,8 +3215,6 @@ int32_t typeck_check_expr_var(struct ast_Module * module, struct ast_ASTArena * 
  } else (__tmp = 0) ; __tmp; }));
   (void)(pipeline_expr_var_name_into(arena, expr_ref, vbuf));
   (block_ref = (pipeline_dep_ctx_current_block_ref_at(ctx)));
-  if (getenv("SHUX_DBG_VAR2")) { int32_t dbg_fix2 = pipeline_dep_ctx_current_func_index(ctx); fprintf(stderr, "DBG-VAR2: expr_ref=%d name=%.*s vnlen=%d func_ix=%d block_ref=%d num_toplevel=%d resolved=%d\n", (int)expr_ref, (int)vnlen, (char*)vbuf, (int)vnlen, (int)dbg_fix2, (int)block_ref, (int)(module->num_top_level_lets), (int)pipeline_expr_resolved_type_ref(arena, expr_ref)); }
-  if (getenv("SHUX_DBG_TLNAMES") && !getenv("SHUX_TLNAMES_PRINTED")) { int32_t tl_i; for (tl_i = 0; tl_i < module->num_top_level_lets; tl_i++) { int32_t tl_len = pipeline_module_top_level_let_name_len(module, tl_i); int32_t tl_tr = pipeline_module_top_level_let_type_ref(module, tl_i); char tl_name[64] = {0}; int32_t tl_j; for (tl_j = 0; tl_j < tl_len && tl_j < 63; tl_j++) tl_name[tl_j] = (char)pipeline_module_top_level_let_name_byte_at(module, tl_i, tl_j); fprintf(stderr, "DBG-TLNAMES: idx=%d name=%s len=%d type_ref=%d\n", (int)tl_i, tl_name, (int)tl_len, (int)tl_tr); } setenv("SHUX_TLNAMES_PRINTED", "1", 1); }
   (void)(({ int32_t __tmp = 0; if (block_ref != 0 && block_ref <= (arena)->num_blocks) {   (vd_tr = (pipeline_block_resolve_var_type_ref(arena, block_ref, vbuf, vnlen)));
   __tmp = ({ int32_t __tmp = 0; if (vd_tr != 0) {   (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, vd_tr));
   (void)(({ int32_t __tmp = 0; if (pipeline_typeck_linear_use_var_c(arena, vd_tr, expr_ref, vbuf, vnlen) != 0) {   return (-1);
@@ -3224,11 +3222,10 @@ int32_t typeck_check_expr_var(struct ast_Module * module, struct ast_ASTArena * 
   return 0;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
-  (void)(({ int32_t __tmp = 0; if ((module)->num_top_level_lets > 0) {   __tmp = ({ int32_t __tmp = 0; if (typeck_check_expr_var_top_level(module, arena, expr_ref, vbuf, vnlen, 0) != 0) { if (getenv("SHUX_DBG_TL")) { fprintf(stderr, "DBG-TL: MATCH expr_ref=%d name=%.*s func_ix=%d resolved=%d\n", (int)expr_ref, (int)vnlen, (char*)vbuf, (int)pipeline_dep_ctx_current_func_index(ctx), (int)pipeline_expr_resolved_type_ref(arena, expr_ref)); } return 0;
+  (void)(({ int32_t __tmp = 0; if ((module)->num_top_level_lets > 0) {   __tmp = ({ int32_t __tmp = 0; if (typeck_check_expr_var_top_level(module, arena, expr_ref, vbuf, vnlen, 0) != 0) { return 0;
  } else (__tmp = 0) ; __tmp; });
  } else (__tmp = 0) ; __tmp; }));
   (func_ix = (pipeline_dep_ctx_current_func_index(ctx)));
-  if (getenv("SHUX_DEBUG_VAR")) fprintf(stderr, "DBG-VAR: vnlen=%d vbuf=%.*s func_ix=%d block=%d vd_tr=%d\n", vnlen, vnlen, (char*)vbuf, (int)func_ix, (int)pipeline_dep_ctx_current_block_ref_at(ctx), (int)vd_tr);
   (void)(({ int32_t __tmp = 0; if (func_ix >= 0 && func_ix < (module)->num_funcs) {   (pr = (pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen)));
   __tmp = ({ int32_t __tmp = 0; if (pr != 0) {   (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, pr));
   (void)(({ int32_t __tmp = 0; if (pipeline_typeck_linear_use_var_c(arena, pr, expr_ref, vbuf, vnlen) != 0) {   return (-1);
@@ -3326,7 +3323,6 @@ int32_t typeck_check_expr_index(struct ast_Module * module, struct ast_ASTArena 
   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > (arena)->num_exprs) {   return 0;
  } else (__tmp = 0) ; __tmp; }));
   (base_ty = (pipeline_expr_resolved_type_ref(arena, base_ref)));
-  if (getenv("SHUX_DBG_IDX")) { int32_t dbg_fix = pipeline_dep_ctx_current_func_index(ctx); int32_t dbg_bkind = pipeline_expr_kind_ord_at(arena, base_ref); fprintf(stderr, "DBG-IDX: expr_ref=%d base_ref=%d base_kind=%d base_ty=%d func_ix=%d line=%d\n", (int)expr_ref, (int)base_ref, (int)dbg_bkind, (int)base_ty, (int)dbg_fix, (int)line); }
   (void)(({ int32_t __tmp = 0; if (ast_ref_is_null(base_ty) || base_ty <= 0 || base_ty > (arena)->num_types) {   (void)(driver_diagnostic_typeck_subscript_base(line, col));
   return (-1);
  } else (__tmp = 0) ; __tmp; }));

@@ -22069,7 +22069,6 @@ int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_A
   int32_t tg_tr;
   static const uint8_t nm_tok_kind_sym[9] = {84, 111, 107, 101, 110, 75, 105, 110, 100};
   static const uint8_t nm_typ_kind_sym[8] = {84, 121, 112, 101, 75, 105, 110, 100};
-  const char *var_dbg = getenv("SHUX_TYPECK_VAR");
 
   if (!arena || !module || !ctx || expr_ref <= 0 || expr_ref > arena->num_exprs)
     return 0;
@@ -22077,20 +22076,10 @@ int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_A
   if (vnlen <= 0 || vnlen > 63)
     return -1;
   pipeline_expr_var_name_into(arena, expr_ref, vbuf);
-  if (var_dbg) {
-    fprintf(stderr, "shux: [SHUX_TYPECK_VAR] expr=%d lookup=%.*s func=%d block=%d expr_block=%d\n",
-            (int)expr_ref, (int)vnlen, (const char *)vbuf,
-            (int)ctx->current_func_index, (int)ctx->current_block_ref,
-            (int)pipeline_expr_block_ref_at(arena, expr_ref));
-  }
   /** 当前块 let/const symtab（含 if/while 外层续延）。 */
   if (ctx->current_block_ref != 0 && ctx->current_block_ref <= arena->num_blocks) {
     vd_tr = pipeline_block_resolve_var_type_ref(arena, ctx->current_block_ref, vbuf, vnlen);
     if (!ast_ref_is_null(vd_tr)) {
-      if (var_dbg) {
-        fprintf(stderr, "shux: [SHUX_TYPECK_VAR] expr=%d source=block type_ref=%d\n",
-                (int)expr_ref, (int)vd_tr);
-      }
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, vd_tr);
       return 0;
     }
@@ -22113,10 +22102,6 @@ int32_t pipeline_typeck_check_expr_var_c(struct ast_Module *module, struct ast_A
   if (ctx->current_func_index >= 0 && ctx->current_func_index < module->num_funcs) {
     pr = pipeline_module_func_param_type_ref_for_name(module, ctx->current_func_index, vbuf, vnlen);
     if (!ast_ref_is_null(pr)) {
-      if (var_dbg) {
-        fprintf(stderr, "shux: [SHUX_TYPECK_VAR] expr=%d source=param type_ref=%d\n",
-                (int)expr_ref, (int)pr);
-      }
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, pr);
       return 0;
     }

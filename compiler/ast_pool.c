@@ -1318,7 +1318,6 @@ int32_t pipeline_module_func_param_type_ref_for_name(struct ast_Module *m, int32
   struct ast_Func *f;
   int32_t n, i;
   FuncParamEntry *pe;
-  const char *var_dbg;
   if (!m || !var_name || func_index < 0 || func_index >= m->num_funcs)
     return 0;
   if (var_name_len <= 0 || var_name_len > 31)
@@ -1326,12 +1325,6 @@ int32_t pipeline_module_func_param_type_ref_for_name(struct ast_Module *m, int32
   f = module_func_at(m, func_index);
   if (!f)
     return 0;
-  var_dbg = getenv("SHUX_TYPECK_VAR");
-  if (var_dbg) {
-    fprintf(stderr, "shux: [SHUX_TYPECK_VAR] func=%d name=%.*s lookup=%.*s num_params=%d\n",
-            (int)func_index, (int)(f->name_len > 0 ? f->name_len : 0), (const char *)f->name,
-            (int)var_name_len, (const char *)var_name, (int)f->num_params);
-  }
   n = (int32_t)f->num_params;
   for (i = 0; i < n; i++) {
     pe = module_func_param_entry(m, func_index, i, 0);
@@ -1343,10 +1336,6 @@ int32_t pipeline_module_func_param_type_ref_for_name(struct ast_Module *m, int32
       continue;
     if (memcmp(pe->name, var_name, (size_t)var_name_len) != 0)
       continue;
-    if (var_dbg) {
-      fprintf(stderr, "shux: [SHUX_TYPECK_VAR] param-match func=%d param=%d pname=%.*s type_ref=%d\n",
-              (int)func_index, (int)i, (int)pe->name_len, (const char *)pe->name, (int)pe->type_ref);
-    }
     return (int32_t)pe->type_ref;
   }
   return 0;
@@ -2252,10 +2241,6 @@ void pipeline_patch_block_parent_links(struct ast_ASTArena *a, int32_t block_ref
       continue;
     for (i = 0; i < b->num_loops; i++) {
       wb = pipeline_block_while_body_ref(a, cur, i);
-      if (getenv("SHUX_DBG_BLK") && (cur == 1106 || cur == 750 || cur == 748 || wb == 751 || wb == 750)) {
-        fprintf(stderr, "DBG-BLK: patch parent cur=%d num_loops=%d i=%d wb=%d parent_was=%d\n",
-                (int)cur, (int)b->num_loops, (int)i, (int)wb, (int)b->parent_block_ref);
-      }
       if (wb > 0 && sp < 256) {
         stack_blk[sp] = wb;
         stack_par[sp] = cur;
@@ -2384,10 +2369,8 @@ int32_t pipeline_block_resolve_var_type_ref(struct ast_ASTArena *a, int32_t bloc
   struct ast_Block *b;
   int32_t cur;
   int32_t depth;
-  const char *var_dbg;
   if (!a || !vname || vlen <= 0)
     return 0;
-  var_dbg = getenv("SHUX_TYPECK_VAR");
   cur = block_ref;
   depth = 0;
   while (cur > 0 && cur <= a->num_blocks && depth < 128) {
@@ -2395,28 +2378,16 @@ int32_t pipeline_block_resolve_var_type_ref(struct ast_ASTArena *a, int32_t bloc
     b = block_at(a, cur);
     if (!b)
       break;
-    if (var_dbg) {
-      fprintf(stderr, "shux: [SHUX_TYPECK_VAR] lookup=%.*s block=%d parent=%d num_lets=%d depth=%d\n",
-              (int)vlen, (const char *)vname, (int)cur, (int)b->parent_block_ref, (int)b->num_lets, (int)depth);
-    }
     for (i = 0; i < b->num_consts; i++) {
       struct ast_ConstDecl *cd = block_const_at(a, cur, i);
       if (cd && cd->type_ref != 0 && cd->name_len == vlen &&
           memcmp(cd->name, vname, (size_t)vlen) == 0) {
-        if (var_dbg) {
-          fprintf(stderr, "shux: [SHUX_TYPECK_VAR] const-match block=%d name=%.*s type_ref=%d\n",
-                  (int)cur, (int)cd->name_len, (const char *)cd->name, (int)cd->type_ref);
-        }
         return (int32_t)cd->type_ref;
       }
     }
     for (i = 0; i < b->num_lets; i++) {
       struct ast_LetDecl *ld = block_let_at(a, cur, i);
       if (ld && ld->type_ref != 0 && ld->name_len == vlen && memcmp(ld->name, vname, (size_t)vlen) == 0) {
-        if (var_dbg) {
-          fprintf(stderr, "shux: [SHUX_TYPECK_VAR] let-match block=%d name=%.*s type_ref=%d\n",
-                  (int)cur, (int)ld->name_len, (const char *)ld->name, (int)ld->type_ref);
-        }
         return (int32_t)ld->type_ref;
       }
     }
