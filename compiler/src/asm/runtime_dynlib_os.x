@@ -19,7 +19,6 @@ extern "C" function dynlib_win_load_library_w_utf8_impl(path: *u8): *u8;
 #[no_mangle]
 function dynlib_win_load_library_w_utf8(path: *u8): *u8 {
   unsafe { return dynlib_win_load_library_w_utf8_impl(path); }
-  return 0;
 }
 
 // G-02f-123：dynlib_win_normalize_path 真迁 .x（签名对齐 seed：out, out_cap, path）
