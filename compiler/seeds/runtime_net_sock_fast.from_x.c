@@ -25,18 +25,31 @@ extern void net_udp_set_addr_port_buf_c(uint8_t *sin, uint32_t addr_u32, uint32_
 #if defined(_WIN32) || defined(_WIN64)
 static int net_wsa_done = 0;
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void net_ensure_wsa(void) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_net_sock_fast.x）提供 public wrapper */
+void net_ensure_wsa_impl(void) {
     WSADATA data;
     if (net_wsa_done) return;
     if (WSAStartup(MAKEWORD(2, 2), &data) == 0)
         net_wsa_done = 1;
 }
 
+#ifndef SHUX_RUNTIME_NET_SOCK_FAST_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void net_ensure_wsa(void) {
+    net_ensure_wsa_impl();
+}
+#endif
+
 
 
 __attribute__((constructor(65534)))
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void net_wsa_ctor_impl(void) { net_ensure_wsa_impl(); }
+
+#ifndef SHUX_RUNTIME_NET_SOCK_FAST_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void net_wsa_ctor(void) { net_ensure_wsa(); }
+#endif
 
 
 
