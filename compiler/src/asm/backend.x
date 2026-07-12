@@ -283,7 +283,9 @@ extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx:
 /** å° ExprKind è½¬ä¸ºåºæ° (0..60)ï¼ä¾è¯æ­æå°ï¼typeck æä¸æ¯æ enum as i32ï¼æç¨åæ¯æ¾å¼æ å°ã */
 function expr_kind_ordinal(k: ExprKind): i32 {
   let o: i32 = k as i32;
-  if ((o < (ExprKind.EXPR_LIT as i32)) || (o > (ExprKind.EXPR_TRY_PROPAGATE as i32))) {
+  let lo: i32 = ExprKind.EXPR_LIT as i32;
+  let hi: i32 = ExprKind.EXPR_TRY_PROPAGATE as i32;
+  if (o < lo || o > hi) {
     return -1;
   }
   return o;
