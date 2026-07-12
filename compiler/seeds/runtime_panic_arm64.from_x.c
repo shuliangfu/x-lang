@@ -11,7 +11,8 @@
 
 /** 无 backtrace.o 时的最小证据包（SHUX_CRASH_EVIDENCE=1）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void shux_crash_evidence_minimal(int has_msg, int msg_val) {
+/* G-02f-22 thin+rest：_impl 实现；thin（src/asm/runtime_panic_arm64.x）提供 public wrapper */
+void shux_crash_evidence_minimal_impl(int has_msg, int msg_val) {
   const char *en = getenv("SHUX_CRASH_EVIDENCE");
   if (!en || en[0] != '1') {
     return;
@@ -32,11 +33,18 @@ void shux_crash_evidence_minimal(int has_msg, int msg_val) {
   }
 }
 
+#ifndef SHUX_RUNTIME_PANIC_ARM64_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void shux_crash_evidence_minimal(int has_msg, int msg_val) {
+  shux_crash_evidence_minimal_impl(has_msg, msg_val);
+}
+#endif
+
 
 
 
 __attribute__((weak)) void shux_crash_evidence_collect_c(int has_msg, int msg_val) {
-  shux_crash_evidence_minimal(has_msg, msg_val);
+  shux_crash_evidence_minimal_impl(has_msg, msg_val);
 }
 
 __attribute__((noreturn)) void shux_panic_(int has_msg, int msg_val) {
