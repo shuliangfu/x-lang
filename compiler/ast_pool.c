@@ -3843,6 +3843,37 @@ void pipeline_expr_try_mark_enum_field_access(struct ast_Module *m, struct ast_A
   e->enum_variant_tag = tag;
 }
 
+/* Codegen-time enum variant marking: search current + dep modules */
+void pipeline_codegen_try_mark_enum_field_access(struct ast_Module *m, struct ast_ASTArena *a, int32_t expr_ref) {
+  struct ast_Expr *e;
+  struct ast_Expr *base;
+  int32_t tag;
+  uint8_t ename[64];
+  uint8_t vname[64];
+  int32_t elen;
+  int32_t vlen;
+  if (!m || !a || expr_ref <= 0 || expr_ref > a->num_exprs)
+    return;
+  e = pipeline_arena_expr_ptr(a, expr_ref);
+  if (!e || e->kind != ast_ExprKind_EXPR_FIELD_ACCESS || e->field_access_is_enum_variant != 0)
+    return;
+  base = pipeline_arena_expr_ptr(a, e->field_access_base_ref);
+  if (!base || base->kind != ast_ExprKind_EXPR_VAR || base->var_name_len <= 0)
+    return;
+  elen = base->var_name_len;
+  if (elen > 63) elen = 63;
+  memcpy(ename, base->var_name, (size_t)elen);
+  vlen = e->field_access_field_len;
+  if (vlen <= 0 || vlen > 63) return;
+  memcpy(vname, e->field_access_field_name, (size_t)vlen);
+  tag = pipeline_module_enum_variant_tag_for_names(m, ename, elen, vname, vlen);
+  if (tag >= 0) {
+    e->field_access_is_enum_variant = 1;
+    e->enum_variant_tag = tag;
+    return;
+  }
+}
+
 int32_t pipeline_module_enum_name_len(struct ast_Module *m, int32_t idx) {
   ModuleSidecar *sc = module_sidecar_get(m, 0);
   ModuleEnumEntry *me;

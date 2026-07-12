@@ -512,6 +512,7 @@ int32_t codegen_emit_func_link_name(struct codegen_CodegenOutBuf * out, struct a
 int32_t codegen_emit_call_func_name(struct codegen_CodegenOutBuf * out, struct ast_ASTArena * arena, struct ast_PipelineDepCtx * ctx, int32_t expr_ref, struct ast_Module * current_module, uint8_t * fallback_name, int32_t fallback_len);
 int32_t codegen_emit_import_dep_function_declarations(struct ast_Module * module, struct codegen_CodegenOutBuf * out, struct ast_PipelineDepCtx * ctx);
 int32_t codegen_emit_dep_struct_forward_declarations(struct ast_PipelineDepCtx * ctx, struct codegen_CodegenOutBuf * out);
+void pipeline_codegen_try_mark_enum_field_access(struct ast_Module * m, struct ast_ASTArena * a, int32_t expr_ref);
 int32_t codegen_emit_module_struct_forward_declarations(struct ast_Module * module, struct codegen_CodegenOutBuf * out, uint8_t * struct_prefix, int32_t struct_prefix_len);
 int32_t codegen_type_dep_enum_prefix_into(struct ast_PipelineDepCtx * ctx, struct ast_ASTArena * arena, int32_t type_ref, uint8_t * dst, int32_t dst_cap);
 int32_t codegen_x_ast_emit_header(struct codegen_CodegenOutBuf * out);
@@ -3827,7 +3828,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
  }
   return codegen_append_byte(out, 93);
  }
-  if ((e).kind == ast_ExprKind_EXPR_FIELD_ACCESS) {   if ((e).field_access_is_enum_variant != 0) {   return codegen_format_int(out, (e).enum_variant_tag);
+  if ((e).kind == ast_ExprKind_EXPR_FIELD_ACCESS) {   if ((ctx) != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && (ctx)->current_codegen_arena != ((struct ast_ASTArena *)(0))) { pipeline_codegen_try_mark_enum_field_access((ctx)->current_codegen_module, (ctx)->current_codegen_arena, expr_ref); }
+  if ((e).field_access_is_enum_variant != 0) {   return codegen_format_int(out, (e).enum_variant_tag);
  }
   if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->emit_expr_as_callee != 0 && codegen_emit_import_module_field_symbol(arena, out, expr_ref, ctx) == 0) {   return 0;
  }
