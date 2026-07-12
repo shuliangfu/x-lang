@@ -3828,7 +3828,7 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
  }
   return codegen_append_byte(out, 93);
  }
-  if ((e).kind == ast_ExprKind_EXPR_FIELD_ACCESS) {   if ((ctx) != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && (ctx)->current_codegen_arena != ((struct ast_ASTArena *)(0))) { pipeline_codegen_try_mark_enum_field_access((ctx)->current_codegen_module, (ctx)->current_codegen_arena, expr_ref, ctx); }
+  if ((e).kind == ast_ExprKind_EXPR_FIELD_ACCESS) {   if ((ctx) != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && (ctx)->current_codegen_arena != ((struct ast_ASTArena *)(0))) { pipeline_codegen_try_mark_enum_field_access((ctx)->current_codegen_module, (ctx)->current_codegen_arena, expr_ref, ctx); e = ast_arena_expr_get(arena, expr_ref); }
   if ((e).field_access_is_enum_variant != 0) {   return codegen_format_int(out, (e).enum_variant_tag);
  }
   if (ctx != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->emit_expr_as_callee != 0 && codegen_emit_import_module_field_symbol(arena, out, expr_ref, ctx) == 0) {   return 0;
