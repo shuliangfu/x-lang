@@ -5,6 +5,9 @@
 #include <stddef.h>
 extern void shux_panic_(int32_t has_msg, int32_t msg_val);
 extern void shux_crash_evidence_collect_c(int32_t has_msg, int32_t msg_val);
+
+#ifndef SHUX_RUNTIME_STD_RUNTIME_FAST_FROM_X
+/* G-02f-20 thin+rest：完整模式下函数由 seed 提供；rest 模式下由 .x thin 提供 */
 void std_runtime_crash_evidence_collect(int32_t has_msg, int32_t msg_val) {
   (void)(({   {
     (void)(shux_crash_evidence_collect_c(has_msg, msg_val));
@@ -38,3 +41,4 @@ void runtime_abort(void) {
   }
  }));
 }
+#endif /* SHUX_RUNTIME_STD_RUNTIME_FAST_FROM_X */

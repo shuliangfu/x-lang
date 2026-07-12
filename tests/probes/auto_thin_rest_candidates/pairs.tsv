@@ -70,7 +70,7 @@ runtime_random_fill	src/asm/runtime_random_fill.x	seeds/runtime_random_fill.from
 runtime_scheduler_glue	src/asm/runtime_scheduler_glue.x	seeds/runtime_scheduler_glue.from_x.c	17	1068	0	no	no	weak,ifdef,large	candidate
 runtime_slice_glue	src/asm/runtime_slice_glue.x	seeds/runtime_slice_glue.from_x.c	0	55	0	no	no		not_candidate
 runtime_sqlite_glue	src/asm/runtime_sqlite_glue.x	seeds/runtime_sqlite_glue.from_x.c	0	412	0	no	no	ifdef	not_candidate
-runtime_std_runtime_fast	src/asm/runtime_std_runtime_fast.x	seeds/runtime_std_runtime_fast.from_x.c	6	40	0	no	no		candidate
+runtime_std_runtime_fast	src/asm/runtime_std_runtime_fast.x	seeds/runtime_std_runtime_fast.from_x.c	6	40	0	no	yes		already_split
 runtime_string_fast	src/asm/runtime_string_fast.x	seeds/runtime_string_fast.from_x.c	4	89	0	no	yes		already_split
 runtime_sync_lock_diag_tls	src/asm/runtime_sync_lock_diag_tls.x	seeds/runtime_sync_lock_diag_tls.from_x.c	5	421	0	no	no	ifdef	candidate
 runtime_sync_os	src/asm/runtime_sync_os.x	seeds/runtime_sync_os.from_x.c	0	404	0	no	no	ifdef	not_candidate
