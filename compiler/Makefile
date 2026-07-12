@@ -581,7 +581,7 @@ bootstrap_shuxc: scripts/bootstrap_shuxc_create.sh scripts/select_bootstrap_shux
 	@./scripts/select_bootstrap_shuxc.sh
 
 # 考古 shux-c 额外链 runtime ABI 薄壳（runtime.c 已拆分，LEGACY C 前端仍依赖这些符号）
-LEGACY_SHUX_C_EXTRA = src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_driver_strict_glue_stubs.o src/preprocess_shim.o src/preprocess_if_stack_bridge.o src/asm/parser_asm_parse_expr_link.o build_asm/pipeline_glue_standalone.o
+LEGACY_SHUX_C_EXTRA = src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/runtime_pipeline_abi.o src/runtime_c_import.o src/runtime_driver_strict_glue_stubs.o src/preprocess_shim.o src/preprocess_if_stack_bridge.o src/asm/parser_asm_parse_expr_link.o
 
 ifeq ($(SHUX_LEGACY_C_FRONTEND),1)
 $(SHUX_C): $(OBJS_CORE) $(LEGACY_SHUX_C_EXTRA)

@@ -709,6 +709,18 @@ extern void driver_diagnostic_pipe_marker(int32_t id);
 extern int32_t parser_copy_module_import_path64(struct ast_Module *module, int32_t i, uint8_t out[64]);
 extern void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes, int32_t len);
 
+__attribute__((weak)) struct ast_LabeledStmt *pipeline_block_labeled_ptr(struct ast_ASTArena *a, int32_t br, int32_t li) {
+  (void)a;
+  (void)br;
+  (void)li;
+  return NULL;
+}
+
+__attribute__((weak)) void pipeline_dep_ctx_set_import_path(struct ast_PipelineDepCtx *ctx, int32_t idx, uint8_t *bytes,
+                                                            int32_t len) {
+  ast_pipeline_dep_ctx_set_import_path(ctx, idx, bytes, len);
+}
+
 #define PREPROCESS_MAX_DEFINES 32
 static char g_preprocess_defines[PREPROCESS_MAX_DEFINES][64];
 static int g_preprocess_ndefines;
@@ -910,4 +922,3 @@ void pipeline_block_labeled_set_names(struct ast_ASTArena *a, int32_t br, int32_
     ls->goto_target_len = goto_target_len;
   }
 }
-
