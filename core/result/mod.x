@@ -200,7 +200,5 @@ function map_i32(r: Result_i32, mapped: i32): Result_i32 { return map(r, mapped)
 function and_then_i32(r: Result_i32, next: Result_i32): Result_i32 { return and_then(r, next); }
 function or_else_i32(r: Result_i32, other: Result_i32): Result_i32 { return or_else(r, other); }
 
-// 泛型占位，表示本模块可 import；完整 Result<T,E> 待类型实参语法后扩展
-function result_placeholder<T>(x: T): T { return x; }
 /** 模块尾占位：transitive import 解析时末位 function 会丢失，须保留非 API 锚点。 */
 function result_module_anchor(): i32 { return 0; }

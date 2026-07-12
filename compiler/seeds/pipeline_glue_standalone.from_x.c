@@ -17,7 +17,8 @@
 #include "pipeline_glue_types.inc"
 
 #define SHUX_PIPELINE_GLUE_STANDALONE_TU 1
-#include "../../pipeline_glue.c"
+/* G-02f-477: seeds/ 在 compiler/ 下一级（非 src/asm/ 下两级），路径修正为 ../pipeline_glue.c。 */
+#include "../pipeline_glue.c"
 
 struct ast_Module;
 struct ast_ASTArena;

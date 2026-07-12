@@ -177,7 +177,7 @@ int write_io_net_abi_inline(FILE *cf) {
         "struct std_string_StrView { uint8_t *ptr; int32_t len; };\n",
         "struct std_vec_Vec_i32 { int32_t *ptr; int32_t len; int32_t cap; };\n",
         "struct core_option_Option_i32 { int is_some; int32_t value; };\n",
-        "struct core_result_Result_i32 { int32_t value; int32_t _pad1; int32_t err; int32_t _pad2; };\n",
+        "extern void shux_panic_(int, int);\n",
         "extern int32_t core_types_placeholder(int32_t, int32_t);\n",
         "#ifndef __cplusplus\n",
         "__attribute__((weak)) int32_t core_types_placeholder(int32_t a, int32_t b) { (void)a;(void)b; return 0; }\n",

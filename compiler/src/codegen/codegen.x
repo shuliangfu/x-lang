@@ -5295,6 +5295,19 @@ function emit_return_stmt_with_context(arena: *ASTArena, out: *CodegenOutBuf, in
     let retv: u8[9] = [114, 101, 116, 117, 114, 110, 59, 10, 0];
     return emit_bytes_9(out, retv, 8);
   }
+  /* G-02f-476: panic() 是 noreturn；return panic() 不应生成 "return shux_panic_(0,0);"（void 返回值赋给非 void 函数报错）。直接输出 panic 调用 + ";\n"，不带 return 前缀。 */
+  if (!ast.ref_is_null(operand_ref)) {
+    if (pipeline_expr_kind_ord_at(arena, operand_ref) == (42 as i32)) {
+      if (emit_indent(out, indent) != 0) {
+        return -1;
+      }
+      if (emit_expr(arena, out, operand_ref, ctx) != 0) {
+        return -1;
+      }
+      let sc_panic: u8[4] = [59, 10, 0, 0];
+      return emit_bytes_4(out, sc_panic, 2);
+    }
+  }
   if (emit_indent(out, indent) != 0) {
     return -1;
   }

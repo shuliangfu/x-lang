@@ -20883,6 +20883,8 @@ int32_t pipeline_typeck_func_body_tail_expr_ref_for_implicit_rule_c(struct ast_A
 
 /**
  * typeck.x::func_body_has_implicit_return_tail 的 C 委托：判定块末是否存在不允许的隐式尾返回。
+ * G-02f-477: EXPR_BLOCK（如 unsafe { return ...; }）需递归检查内部 block 尾表达式，
+ * 否则 unsafe 块内的 return 会被误报为 implicit tail return。
  */
 int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena *arena, int32_t body_ref) {
   int32_t tail_ref;
@@ -20899,6 +20901,18 @@ int32_t pipeline_typeck_func_body_has_implicit_return_tail_c(struct ast_ASTArena
             (int)tail_ref, (int)tail_kind);
   if (implicit_tail_expr_disallowed_by_glue(arena, tail_ref) != 0)
     return 0;
+  /* G-02f-477: EXPR_BLOCK（ord=26）— 递归检查内部 block 是否有显式 return。
+   * 不安全块 `unsafe { return expr; }` 在 X parser 中被解析为 EXPR_BLOCK 而非 region，
+   * 需递归进入 block_ref 检查尾表达式，避免误报 implicit tail return。
+   * 用 pipeline_expr_block_ref_at accessor（与 line 19812 一致），避免直接访问 Expr 结构体。 */
+  if (tail_kind == 26) {
+    int32_t inner_block = pipeline_expr_block_ref_at(arena, tail_ref);
+    if (getenv("SHUX_DEBUG_PIPE"))
+      fprintf(stderr, "shux: [SHUX_DEBUG_PIPE] implicit_tail_block body=%d tail=%d inner_block=%d\n",
+              (int)body_ref, (int)tail_ref, (int)inner_block);
+    if (!ast_ref_is_null(inner_block))
+      return pipeline_typeck_func_body_has_implicit_return_tail_c(arena, inner_block);
+  }
   return 1;
 }
 

@@ -4159,6 +4159,15 @@ SHUX_LIB_WEAK int32_t codegen_emit_return_stmt_with_context(struct ast_ASTArena 
   uint8_t retv[9] = { 114, 101, 116, 117, 114, 110, 59, 10, 0 };
   return codegen_emit_bytes_9(out, retv, 8);
  }
+  /* G-02f-476: panic() noreturn — return panic() 不生成 return 前缀，直接输出 panic 调用 + ";\n"。 */
+  if ((!ast_ref_is_null(operand_ref))) {   if (pipeline_expr_kind_ord_at(arena, operand_ref) == ((int32_t)(42))) {   if (codegen_emit_indent(out, indent) != 0) {   return (-1);
+ }
+  if (codegen_emit_expr(arena, out, operand_ref, ctx) != 0) {   return (-1);
+ }
+  uint8_t sc_panic[4] = { 59, 10, 0, 0 };
+  return codegen_emit_bytes_4(out, sc_panic, 2);
+ }
+ }
   if (codegen_emit_indent(out, indent) != 0) {   return (-1);
  }
   uint8_t ret[8] = { 114, 101, 116, 117, 114, 110, 32, 0 };
