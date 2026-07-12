@@ -10,6 +10,7 @@
 // G-02f-116/117：trace/io_wait/affinity 真迁 .x 函数体（见文件尾）。
 extern "C" function shu_async_runtime_trace_enabled_impl(): i32;
 extern "C" function shu_async_trace_now_us_impl(): u64;
+extern "C" function getenv(name: *u8): *u8;
 
 function runtime_scheduler_glue_x_doc_anchor(): i32 {
   return 0;
@@ -24,7 +25,6 @@ function runtime_scheduler_glue_x_doc_anchor(): i32 {
 #[no_mangle]
 function shu_async_trace_now_us(): u64 {
   unsafe { return shu_async_trace_now_us_impl(); }
-  return 0;
 }
 
 
@@ -40,26 +40,22 @@ extern "C" function shu_coop_frame_step_switch_impl(frame: *u8): i32;
 #[no_mangle]
 function shux_async_bound_ctx_cancelled(ctx: *u8): i32 {
   unsafe { return shux_async_bound_ctx_cancelled_impl(ctx); }
-  return 0;
 }
 
 #[no_mangle]
 function shux_async_take_suspend_io_flag(): i32 {
   unsafe { return shux_async_take_suspend_io_flag_impl(); }
-  return 0;
 }
 
 
 #[no_mangle]
 function shu_coop_frame_step_jmp(frame: *u8): i32 {
   unsafe { return shu_coop_frame_step_jmp_impl(frame); }
-  return 0;
 }
 
 #[no_mangle]
 function shu_coop_frame_step_switch(frame: *u8): i32 {
   unsafe { return shu_coop_frame_step_switch_impl(frame); }
-  return 0;
 }
 
 // G-02f-108：+ init_workers / io_wait_push / bind / drain / echo 薄门闩。
@@ -80,7 +76,6 @@ function shux_async_init_workers(): void {
 #[no_mangle]
 function shux_async_io_wait_push(fn: *u8): i32 {
   unsafe { return shux_async_io_wait_push_impl(fn); }
-  return 0;
 }
 
 #[no_mangle]
@@ -91,13 +86,11 @@ function shux_async_maybe_bind_worker(wid: u32): void {
 #[no_mangle]
 function shux_async_drain_queue(q: *u8, wid: u32, acc: *i32): i32 {
   unsafe { return shux_async_drain_queue_impl(q, wid, acc); }
-  return 0;
 }
 
 #[no_mangle]
 function shux_async_spawn_ctx_echo_task(): i32 {
   unsafe { return shux_async_spawn_ctx_echo_task_impl(); }
-  return 0;
 }
 
 // G-02f-115：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
@@ -122,7 +115,6 @@ function shu_async_runtime_trace_enabled(): i32 {
     }
     return 1;
   }
-  return 0;
 }
 
 // G-02f-117：以下 helper 真迁 .x 函数体（产品 seed 同步折叠 _impl）
@@ -137,7 +129,6 @@ function shux_async_io_wait_enabled(): i32 {
       if (e[1] == 0) { return 1; }
     }
   }
-  return 0;
 }
 
 #[no_mangle]
@@ -150,7 +141,6 @@ function shux_async_affinity_enabled(): i32 {
       if (e[1] == 0) { return 1; }
     }
   }
-  return 0;
 }
 
 // Parse unsigned decimal; defaults handled by callers.

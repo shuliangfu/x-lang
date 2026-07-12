@@ -136,6 +136,7 @@ extern int32_t ast_pipeline_expr_call_arg_ref(struct ast_ASTArena * arena, int32
 extern int32_t ast_pipeline_expr_call_num_args_at(struct ast_ASTArena * arena, int32_t expr_ref);
 extern int32_t ast_pipeline_module_top_level_let_type_ref(struct ast_Module * module, int32_t idx);
 extern int32_t ast_pipeline_block_resolve_var_type_ref(struct ast_ASTArena * arena, int32_t block_ref, uint8_t * vname, int32_t vlen);
+extern int32_t pipeline_block_set_parent_if_zero(struct ast_ASTArena * arena, int32_t block_ref, int32_t parent_ref);
 extern int32_t ast_pipeline_expr_method_call_arg_ref(struct ast_ASTArena * arena, int32_t expr_ref, int32_t idx);
 extern int32_t ast_pipeline_module_func_body_expr_ref_at(struct ast_Module * module, int32_t fi);
 extern int32_t typeck_float64_bits_lo(double d);
@@ -3742,6 +3743,7 @@ int32_t typeck_check_block_impl(struct ast_Module * module, struct ast_ASTArena 
   (void)(({ int32_t __tmp = 0; if (arena == ((struct ast_ASTArena *)(0)) || ctx == ((struct ast_PipelineDepCtx *)(0)) || block_ref <= 0) {   return (-1);
  } else (__tmp = 0) ; __tmp; }));
   (saved_block_ref = (pipeline_typeck_block_impl_bind_ctx_c(ctx, block_ref)));
+  (void)(pipeline_block_set_parent_if_zero(arena, block_ref, saved_block_ref));
   (nc = (ast_block_num_consts(arena, block_ref)));
   (nl = (ast_block_num_lets(arena, block_ref)));
   (nlp = (ast_block_num_loops(arena, block_ref)));
