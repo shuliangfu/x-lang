@@ -679,34 +679,34 @@ function lsp_find_text_value_from(body: *u8, len: i32, search_start: i32, out_bu
       if (lsp_match_quote_text_quote(body, i) == 0) {
         i = i + 1;
       } else {
-        let s_idx: i32 = i + 6;
-        while (s_idx < len) {
-          if (lsp_json_is_ws(body[s_idx]) == 0) {
+        let s: i32 = i + 6;
+        while (s < len) {
+          if (lsp_json_is_ws(body[s]) == 0) {
             break;
           }
-          s_idx = s_idx + 1;
+          s = s + 1;
         }
-        if (s_idx >= len) {
+        if (s >= len) {
           i = i + 1;
         } else {
-          if (body[s_idx] != 58) {
+          if (body[s] != 58) {
             // :
             i = i + 1;
           } else {
-            s_idx = s_idx + 1;
-            while (s_idx < len) {
-              if (lsp_json_is_ws(body[s_idx]) == 0) {
+            s = s + 1;
+            while (s < len) {
+              if (lsp_json_is_ws(body[s]) == 0) {
                 break;
               }
-              s_idx = s_idx + 1;
+              s = s + 1;
             }
-            if (s_idx >= len) {
+            if (s >= len) {
               i = i + 1;
             } else {
-              if (body[s_idx] != 34) {
+              if (body[s] != 34) {
                 i = i + 1;
               } else {
-                let start: i32 = s_idx + 1;
+                let start: i32 = s + 1;
                 let out_len: i32 = 0;
                 while (start < len) {
                   if (out_len >= out_cap - 1) {
@@ -1102,21 +1102,21 @@ function lsp_find_key_after(body: *u8, len: i32, start: i32, key: *u8): i32 {
     if (key_len <= 0) {
       return 0 - 1;
     }
-    let s_idx: i32 = start;
-    while (s_idx + key_len <= len) {
+    let s: i32 = start;
+    while (s + key_len <= len) {
       let match: i32 = 1;
       let j: i32 = 0;
       while (j < key_len) {
-        if (body[s_idx + j] != key[j]) {
+        if (body[s + j] != key[j]) {
           match = 0;
           break;
         }
         j = j + 1;
       }
       if (match != 0) {
-        return s_idx + key_len;
+        return s + key_len;
       }
-      s_idx = s_idx + 1;
+      s = s + 1;
     }
   }
   return 0 - 1;
@@ -1296,8 +1296,8 @@ function lsp_hash_source(src: *u8, len: i32): u32 {
       let b: u64 = src[i + k] as u64;
       // little-endian pack
       let shift: u64 = 1;
-      let s_idx: i32 = 0;
-      while (s_idx < k) { shift = shift * 256; s_idx = s_idx + 1; }
+      let s: i32 = 0;
+      while (s < k) { shift = shift * 256; s = s + 1; }
       x = x + b * shift;
       k = k + 1;
     }
