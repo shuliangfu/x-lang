@@ -2491,18 +2491,13 @@ SHUX_LIB_WEAK int32_t codegen_emit_skipped_dep_type_definitions(struct ast_Pipel
     ++sp;
   }
   int32_t nd = pipeline_dep_ctx_ndep(ctx);
-  int32_t phase = 0;
-  while (phase < 2) {
     int32_t di = 0;
     while (di < nd) {
       struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, di);
       struct ast_ASTArena * dep_arena = pipeline_dep_ctx_arena_at(ctx, di);
       uint8_t dep_path[64] = { 0 };
       int32_t dep_path_len = codegen_dep_import_path_len_at(ctx, di, (&((dep_path)[0])));
-      if (dep_mod != ((struct ast_Module *)(0)) && dep_arena != ((struct ast_ASTArena *)(0)) && dep_path_len > 0) {   int32_t should_emit_types = 0;
-  if (phase == 0 && (dep_mod)->num_funcs <= 0) {   (should_emit_types = (1));
- } else   if (phase == 1 && (dep_mod)->num_funcs > 0 && pipeline_codegen_dep_skip_x_bootstrap_partial((&((dep_path)[0]))) != 0) {   (should_emit_types = (1));
- }
+      if (dep_mod != ((struct ast_Module *)(0)) && dep_arena != ((struct ast_ASTArena *)(0)) && dep_path_len > 0) {   int32_t should_emit_types = 1;
 
   if (should_emit_types != 0) {   int32_t seen_before = 0;
   int32_t pj = 0;
@@ -2549,8 +2544,6 @@ SHUX_LIB_WEAK int32_t codegen_emit_skipped_dep_type_definitions(struct ast_Pipel
  }
  }
       ++di;
-    }
-    ++phase;
   }
   ((ctx)->current_codegen_module = (saved_module));
   ((ctx)->current_codegen_arena = (saved_arena));
