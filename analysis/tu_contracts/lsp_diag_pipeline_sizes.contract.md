@@ -1,67 +1,40 @@
 # TU Contract: lsp_diag_pipeline_sizes
 
 ## 1. 当前权威源
-- x 源：`src/lsp/lsp_diag_pipeline_sizes.x`
-- seed 源：`seeds/lsp_diag_pipeline_sizes.from_x.c`
-- prove 工件目录：`../tests/probes/prove_x_o/lsp_diag_pipeline_sizes`
+- x 源：`src/lsp/lsp_diag_pipeline_sizes.x`（G-02f-1 真迁 .x，包含完整实现）
+- seed 源：`seeds/lsp_diag_pipeline_sizes.from_x.c`（.x 的 C 翻译，rest 模式下为空）
 
 ## 2. 当前目标
-- 当前阶段：Phase 0 试点
-- 本次目标：先证明该 TU 已具备最小 L1/L2 闭环
-- 当前角色判断：
-  - `thin/.x provider`
-  - `seed/rest provider`
+- 当前阶段：Phase 2（thin+rest 切割完成）
+- 当前角色：thin/.x 提供 3 个函数完整实现，seed/rest 在 rest 模式下为空（DIRECT 模式）
 
 ## 3. 导出符号合同
-- thin/.x 当前导出数：3
-- seed/rest 当前导出数：3
-- thin/.x 独有导出：0
-- seed/rest 残余导出：0
+- thin/.x 导出：3（全部函数完整实现）
+- seed/rest 导出：0（DIRECT 模式，rest 模式下 seed #ifndef 保护所有函数，为空）
+- only_x：3（所有函数都由 .x 提供）
 
 ### 3.1 必须由 thin/.x 提供
-- `lsp_diag_pipeline_sizeof_arena`
-- `lsp_diag_pipeline_sizeof_dep_ctx`
-- `lsp_diag_pipeline_sizeof_module`
+- `lsp_diag_pipeline_sizeof_arena`（返回 16，与历史 C `sizeof(struct ast_ASTArena)` 瘦布局一致）
+- `lsp_diag_pipeline_sizeof_module`（返回 40，与历史 C `sizeof(struct ast_Module)` 瘦布局一致）
+- `lsp_diag_pipeline_sizeof_dep_ctx`（返回 1368，与历史 C `sizeof(struct ast_PipelineDepCtx)` 瘦布局一致）
 
 ### 3.2 当前仍由 seed/rest 提供
-- （空）
+- 无（DIRECT 模式，seed 在 rest 模式下为空）
 
-### 3.3 thin/.x 独有导出（若非空，后续需审计）
-- （空）
-
-## 4. ABI Manifest（试点版）
-- 当前阶段先锁定：
-  - symbol 集
-  - thin/.x 与 seed/rest 的 provider 边界
-  - _impl 残余列表
-  - thin+rest 宏边界：N/A
-- 下一步补充：
-  - arg_count / arg_shapes
-  - ret_shape
-  - struct_size_snapshot
-  - critical_field_offsets
+## 4. ABI Manifest
+- _impl 残余列表：无（DIRECT 模式无 _impl）
+- thin+rest 宏边界：`SHUX_LSP_DIAG_PIPELINE_SIZES_FROM_X`
+- 前向声明：无（DIRECT 模式不需要）
+- 内部调用更新：无（纯常量返回函数）
 
 ## 5. 验证状态
-- prove_x_o.sh：已跑通最小 L1/L2
-- 已完成：
-  - bootstrap-safe lint
-  - .x -> -E
-  - cc -c
-  - nm
-  - seed 符号对照
-  - ld -r thin+rest 合并：pending
-- 待补：
-  - smoke / probe：pending
-  - canonical snapshot compare：pending
+- prove_x_o：ok（.x 生成 + thin.o 编译通过，macOS 完整流程含 merged.o）
+- ld -r：ok（macOS merged 3 T 0 U；Ubuntu merged 3 W 0 U，无任何外部依赖）
+- smoke/probe：pending
 
-## 6. 删除 seed 的门槛
-- 当前阶段：**不允许删 seed**
-- 必须补齐：
-  - provider 边界稳定
-  - ld -r 闭环
-  - smoke / probe 一致
-  - 连续构建不回退 seed
-
-## 7. 备注
-- 本文件由 compiler/scripts/gen_tu_contract.sh 生成
-- 当前只作为试点 TU 的最小合同，不代表最终 ABI 审计已完成
+## 6. 备注
+- DIRECT 模式（G-02f-1 真迁 .x）：.x 文件包含所有 3 个函数完整实现（纯常量返回），seed 是 .x 的 C 翻译
+- rest 模式下 seed 为空（#ifndef 保护所有 3 个函数），所有符号由 thin.o 提供
+- 无外部依赖：纯常量返回函数，不调用任何外部符号，merged U = 0
+- 已知预存行为：Linux 上 thin.o 的 3 个函数为 W（weak）符号——prove_x_o.sh 默认 G05_X_O_WEAK=1 给函数加 __attribute__((weak))，Linux 产生 W 符号；macOS Mach-O 忽略 weak 属性，均为 T 符号。非本次切割引入
+- 依赖：无（纯常量返回，无 libc 依赖）

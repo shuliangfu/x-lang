@@ -89,7 +89,7 @@ fmt_check_cmd	src/driver/fmt_check_cmd.x	seeds/fmt_check_cmd.from_x.c	25	1279	0	
 target_cpu_pure	src/driver/target_cpu_pure.x	seeds/target_cpu_pure.from_x.c	11	556	0	no	yes	ifdef	already_split
 cfg_eval_bootstrap_stub	src/lexer/cfg_eval_bootstrap_stub.x	seeds/cfg_eval_bootstrap_stub.from_x.c	0	308	0	no	no	ifdef	not_candidate
 lsp_diag_pipeline_ctx	src/lsp/lsp_diag_pipeline_ctx.x	seeds/lsp_diag_pipeline_ctx.from_x.c	14	308	0	no	yes	weak,ifdef	already_split
-lsp_diag_pipeline_sizes	src/lsp/lsp_diag_pipeline_sizes.x	seeds/lsp_diag_pipeline_sizes.from_x.c	3	15	0	no	no		candidate
+lsp_diag_pipeline_sizes	src/lsp/lsp_diag_pipeline_sizes.x	seeds/lsp_diag_pipeline_sizes.from_x.c	3	15	0	no	yes		already_split
 lsp_diag_stubs_no_c	src/lsp/lsp_diag_stubs_no_c.x	seeds/lsp_diag_stubs_no_c.from_x.c	2	375	0	no	yes	va_list,ifdef	already_split
 main	src/main.x	seeds/main.from_x.c	0	16	0	no	no	argv	not_candidate
 runtime_c_import	src/runtime_c_import.x	seeds/runtime_c_import.from_x.c	0	190	0	no	no		not_candidate
