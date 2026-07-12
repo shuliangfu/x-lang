@@ -6,17 +6,17 @@
 - prove 工件目录：`../tests/probes/prove_x_o/lsp_diag_stubs_no_c`
 
 ## 2. 当前目标
-- 当前阶段：Phase 0 试点
-- 本次目标：先证明该 TU 已具备最小 L1/L2 闭环
+- 当前阶段：Phase 2（thin+rest 切割完成）
+- 本次目标：已证明该 TU 具备 L1/L2/L3 闭环（含 ld -r 合并）
 - 当前角色判断：
-  - `thin/.x provider`
-  - `seed/rest provider`
+  - `thin/.x provider`：src/lsp/lsp_diag_stubs_no_c.x（lsp_diag_copy_text + json_escape_str public wrapper）
+  - `seed/rest provider`：seeds/lsp_diag_stubs_no_c.from_x.c（_impl 实现 + 31 个残余符号）
 
 ## 3. 导出符号合同
 - thin/.x 当前导出数：3
 - seed/rest 当前导出数：33
 - thin/.x 独有导出：1
-- seed/rest 残余导出：31
+- seed/rest 残余导出：33
 
 ### 3.1 必须由 thin/.x 提供
 - `json_escape_str`
@@ -24,6 +24,7 @@
 - `lsp_diag_stubs_no_c_x_doc_anchor`
 
 ### 3.2 当前仍由 seed/rest 提供
+- `json_escape_str_impl`
 - `lsp_build_completion_response`
 - `lsp_build_definition_response`
 - `lsp_build_document_symbol_response`
@@ -41,6 +42,7 @@
 - `lsp_diag_collect_begin`
 - `lsp_diag_collect_end`
 - `lsp_diag_count_severity`
+- `lsp_diag_copy_text_impl`
 - `lsp_diag_format_diagnostics_json`
 - `lsp_diag_invalidate_cache`
 - `lsp_diag_prepare_pipeline_ctx`
@@ -63,8 +65,8 @@
 - 当前阶段先锁定：
   - symbol 集
   - thin/.x 与 seed/rest 的 provider 边界
-  - _impl 残余列表
-  - thin+rest 宏边界：N/A
+  - _impl 残余列表：`json_escape_str_impl`、`lsp_diag_copy_text_impl`
+  - thin+rest 宏边界：`SHUX_LSP_DIAG_STUBS_NO_C_FROM_X`
 - 下一步补充：
   - arg_count / arg_shapes
   - ret_shape
@@ -79,7 +81,7 @@
   - cc -c
   - nm
   - seed 符号对照
-  - ld -r thin+rest 合并：pending
+  - ld -r thin+rest 合并：✅ 已通过（macOS arm64 + Ubuntu x86_64 双平台验证）
 - 待补：
   - smoke / probe：pending
   - canonical snapshot compare：pending

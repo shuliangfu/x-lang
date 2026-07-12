@@ -77,8 +77,9 @@ void lsp_diag_clear(void) {
     s_diag_count = 0;
 }
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-22 thin+rest：_impl 实现；thin（src/lsp/lsp_diag_stubs_no_c.x）提供 public wrapper */
 
-void lsp_diag_copy_text(char *dst, int cap, const char *src) {
+void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
     size_t n = 0;
     if (!dst || cap <= 0)
         return;
@@ -93,6 +94,13 @@ void lsp_diag_copy_text(char *dst, int cap, const char *src) {
     dst[n] = '\0';
 }
 
+#ifndef SHUX_LSP_DIAG_STUBS_NO_C_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void lsp_diag_copy_text(char *dst, int cap, const char *src) {
+    lsp_diag_copy_text_impl(dst, cap, src);
+}
+#endif
+
 
 
 
@@ -102,8 +110,8 @@ void lsp_diag_add_code(int line, int col, int severity, const char *code, const 
     e->line = line;
     e->col = col;
     e->severity = (severity == 2) ? 2 : ((severity == 3) ? 3 : 1);
-    lsp_diag_copy_text(e->code, (int)sizeof(e->code), code);
-    lsp_diag_copy_text(e->msg, (int)sizeof(e->msg), msg);
+    lsp_diag_copy_text_impl(e->code, (int)sizeof(e->code), code);
+    lsp_diag_copy_text_impl(e->msg, (int)sizeof(e->msg), msg);
 }
 
 void lsp_diag_add(int line, int col, int severity, const char *msg) {
@@ -129,7 +137,8 @@ void lsp_diag_collect_end(void) {
 
 /* JSON 字符串转义辅助 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int json_escape_str(const char *msg, char *out, int out_cap) {
+/* G-02f-22 thin+rest：_impl 实现；thin 提供 public wrapper */
+int json_escape_str_impl(const char *msg, char *out, int out_cap) {
     int k = 0;
     if (!msg || !out || out_cap <= 0) return 0;
     for (int i = 0; msg[i] != '\0' && k < out_cap - 2; i++) {
@@ -150,6 +159,13 @@ int json_escape_str(const char *msg, char *out, int out_cap) {
     return k;
 }
 
+#ifndef SHUX_LSP_DIAG_STUBS_NO_C_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int json_escape_str(const char *msg, char *out, int out_cap) {
+    return json_escape_str_impl(msg, out, out_cap);
+}
+#endif
+
 
 
 
@@ -163,7 +179,7 @@ int lsp_diag_format_diagnostics_json(char *out, int out_cap) {
         int line0 = e->line > 0 ? e->line - 1 : 0;
         int col0 = e->col > 0 ? e->col - 1 : 0;
         char esc_buf[LSP_MSG_MAX * 2 + 16];
-        json_escape_str(e->msg, esc_buf, (int)sizeof(esc_buf));
+        json_escape_str_impl(e->msg, esc_buf, (int)sizeof(esc_buf));
         int n = snprintf(out + k, (size_t)(out_cap - k),
             "%s{\"range\":{\"start\":{\"line\":%d,\"character\":%d},\"end\":{\"line\":%d,\"character\":%d}},\"message\":\"%s\",\"severity\":%d%s%s%s}",
             i > 0 ? "," : "", line0, col0, line0, col0 + 1, esc_buf, e->severity,
