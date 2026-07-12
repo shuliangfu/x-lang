@@ -446,6 +446,7 @@ int32_t codegen_use_buf_wrapper(uint8_t * name, int32_t name_len, int32_t num_ar
 int32_t codegen_emit_io_driver_buf_call_name(struct codegen_CodegenOutBuf * out, uint8_t * name, int32_t name_len, int32_t num_args);
 int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_CodegenOutBuf * out, struct ast_Module * module, int32_t fi, uint8_t * prefix, int32_t prefix_len);
 int32_t codegen_field_access_base_is_pointer_ref(struct ast_ASTArena * arena, int32_t base_ref);
+int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index);
 int32_t codegen_field_access_base_is_slice_param_name(struct ast_ASTArena * arena, int32_t base_ref);
 int32_t codegen_block_stmt_order_has_let(struct ast_ASTArena * arena, int32_t block_ref, int32_t let_idx);
 int32_t codegen_c_prefix_redundant_with_name(uint8_t * prefix, int32_t prefix_len, uint8_t * name, int32_t name_len);
@@ -1555,6 +1556,37 @@ SHUX_LIB_WEAK int32_t codegen_try_emit_std_io_driver_buf_body(struct codegen_Cod
  }
   return 1;
  }
+  return 0;
+}
+SHUX_LIB_WEAK int32_t codegen_field_access_base_is_pointer_param(struct ast_ASTArena * arena, int32_t base_ref, struct ast_Module * mod, int32_t func_index) {
+  struct ast_Expr base;
+  int32_t np, pi;
+  if (ast_ref_is_null(base_ref) || base_ref <= 0 || base_ref > (arena)->num_exprs) return 0;
+  if (!mod || func_index < 0 || func_index >= (mod)->num_funcs) return 0;
+  base = ast_arena_expr_get(arena, base_ref);
+  if ((base).kind != ast_ExprKind_EXPR_VAR || (base).var_name_len <= 0) return 0;
+  np = pipeline_module_func_num_params_at(mod, func_index);
+  pi = 0;
+  while (pi < np) {
+    int32_t p_name_len = pipeline_module_func_param_name_len_at(mod, func_index, pi);
+    if (p_name_len > 0 && p_name_len == (base).var_name_len) {
+      uint8_t pname_buf[32] = { 0 };
+      int match = 1; int32_t j = 0;
+      pipeline_module_func_param_name_copy32(mod, func_index, pi, (&((pname_buf)[0])));
+      while (j < p_name_len && j < 32) {
+        if (pname_buf[j] != (base).var_name[j]) { match = 0; break; }
+        ++j;
+      }
+      if (match) {
+        int32_t param_ty_ref = pipeline_module_func_param_type_ref_at(mod, func_index, pi);
+        if (!ast_ref_is_null(param_ty_ref) && param_ty_ref > 0 && param_ty_ref <= (arena)->num_types) {
+          struct ast_Type pty = ast_arena_type_get(arena, param_ty_ref);
+          if ((pty).kind == ast_TypeKind_TYPE_PTR) return 1;
+        }
+      }
+    }
+    ++pi;
+  }
   return 0;
 }
 SHUX_LIB_WEAK int32_t codegen_field_access_base_is_pointer_ref(struct ast_ASTArena * arena, int32_t base_ref) {
@@ -3851,13 +3883,18 @@ SHUX_LIB_WEAK int32_t codegen_emit_expr(struct ast_ASTArena * arena, struct code
  }
   if ((!ast_ref_is_null((e).field_access_base_ref)) && codegen_emit_expr(arena, out, (e).field_access_base_ref, ctx) != 0) {   return (-1);
  }
-  if (codegen_field_access_base_is_pointer_ref(arena, (e).field_access_base_ref) != 0 || codegen_field_access_base_is_slice_param_name(arena, (e).field_access_base_ref) != 0) {   uint8_t arrow[3] = { 45, 62, 0 };
+  { int32_t is_ptr_base = codegen_field_access_base_is_pointer_ref(arena, (e).field_access_base_ref);
+    if (is_ptr_base == 0 && (ctx) != ((struct ast_PipelineDepCtx *)(0)) && (ctx)->current_codegen_module != ((struct ast_Module *)(0)) && (ctx)->current_func_index >= 0) {
+      is_ptr_base = codegen_field_access_base_is_pointer_param(arena, (e).field_access_base_ref, (ctx)->current_codegen_module, (ctx)->current_func_index);
+    }
+    if (is_ptr_base != 0 || codegen_field_access_base_is_slice_param_name(arena, (e).field_access_base_ref) != 0) {   uint8_t arrow[3] = { 45, 62, 0 };
   if (codegen_emit_bytes_3(out, arrow, 2) != 0) {   return (-1);
  }
  } else {   uint8_t dot[2] = { 46, 0 };
   if (codegen_emit_bytes_2(out, dot, 1) != 0) {   return (-1);
  }
  }
+  }
   if (codegen_emit_bytes_64(out, (&(((e).field_access_field_name)[0])), (e).field_access_field_len) != 0) {   return (-1);
  }
   return codegen_append_byte(out, 41);
