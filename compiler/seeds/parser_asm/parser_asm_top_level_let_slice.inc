@@ -108,6 +108,15 @@ void parser_asm_parse_one_top_level_let_into_slice_c(void *arena, void *module, 
     fprintf(stderr, "note: parse top-level let debug: idx=%d const=%d name=%.*s type_ref=%d init_ref=%d pos=%zu line=%d\n",
             (int)tl_ix, (int)ic, (int)name_len, (const char *)name_buf, (int)type_ref, (int)expr_res.expr_ref,
             dbg_initial_pos, (int)dbg_initial_line);
+    /* 打印 pos 之前 100 字节的上下文，用 | 替换换行 */
+    size_t ctx_start = dbg_initial_pos > 100 ? dbg_initial_pos - 100 : 0;
+    size_t ctx_len = dbg_initial_pos - ctx_start;
+    fprintf(stderr, "  ctx_before: ");
+    for (size_t ci = 0; ci < ctx_len; ci++) {
+      char cc = (char)source->data[ctx_start + ci];
+      fputc(cc == '\n' ? '|' : cc, stderr);
+    }
+    fprintf(stderr, "\n");
   }
   pipeline_module_top_level_let_set(module, tl_ix, name_buf, name_len, type_ref, expr_res.expr_ref, ic);
   parser_lex_from_next_into_glue(&out->next_lex, r);
