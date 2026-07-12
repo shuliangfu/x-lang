@@ -17,9 +17,17 @@
 
 int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target);
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+void emit_hoisted_lets(const struct ASTFunc *f, FILE *out);
+int expr_references_run_async(const struct ASTExpr *e, const struct ASTFunc *target);
+int async_cps_callee_is_io(const struct ASTFunc *callee);
+int async_cps_callee_is_future_wait_by_name(const char *n);
+int async_cps_callee_is_future_wait(const struct ASTFunc *callee);
+
 /** 表达式是否含 run/spawn target==async_fn 的调用。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int expr_references_run_async(const struct ASTExpr *e, const struct ASTFunc *target) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/async/async_cps_codegen.x）提供 public wrapper */
+int expr_references_run_async_impl(const struct ASTExpr *e, const struct ASTFunc *target) {
     if (!e || !target)
         return 0;
     if (e->kind == AST_EXPR_RUN || e->kind == AST_EXPR_SPAWN) {
@@ -89,12 +97,20 @@ int expr_references_run_async(const struct ASTExpr *e, const struct ASTFunc *tar
     }
 }
 
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int expr_references_run_async(const struct ASTExpr *e, const struct ASTFunc *target) {
+    return expr_references_run_async_impl(e, target);
+}
+#endif
+
 
 
 
 /** 块内是否含 run/spawn target 调用。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/async/async_cps_codegen.x）提供 public wrapper */
+int block_has_run_async_ref_impl(const struct ASTBlock *b, const struct ASTFunc *target) {
     if (!b || !target)
         return 0;
     for (int i = 0; i < b->num_expr_stmts; i++)
@@ -114,6 +130,13 @@ int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *targ
             return 1;
     return 0;
 }
+
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+int block_has_run_async_ref(const struct ASTBlock *b, const struct ASTFunc *target) {
+    return block_has_run_async_ref_impl(b, target);
+}
+#endif
 
 
 
@@ -155,7 +178,8 @@ void async_cps_codegen_emit_param_statics(const struct ASTFunc *f, FILE *out) {
 
 /** 块内 used let 全部 hoist 到 switch 之前（A3 v0 线性函数）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void emit_hoisted_lets(const struct ASTFunc *f, FILE *out) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/async/async_cps_codegen.x）提供 public wrapper */
+void emit_hoisted_lets_impl(const struct ASTFunc *f, FILE *out) {
     const struct ASTBlock *b = f && f->body ? f->body : NULL;
     if (!b || !b->let_decls) return;
     for (int i = 0; i < b->num_lets; i++) {
@@ -166,6 +190,13 @@ void emit_hoisted_lets(const struct ASTFunc *f, FILE *out) {
         fprintf(out, "  static %s %s;\n", cty, name);
     }
 }
+
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+void emit_hoisted_lets(const struct ASTFunc *f, FILE *out) {
+    emit_hoisted_lets_impl(f, out);
+}
+#endif
 
 
 
@@ -230,6 +261,8 @@ void async_cps_codegen_end(AsyncCpsCodegenCtx *ctx, FILE *out) {
 
 /** callee 是否为 IO-A5 await 目标（std.io 同步 API / shux_io_* C 入口）。 */
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：DIRECT 模式，thin（src/async/async_cps_codegen.x）提供完整实现 */
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 int async_cps_callee_is_io(const struct ASTFunc *callee) {
     const char *name;
     if (!callee || !callee->name || !callee->name[0])
@@ -250,6 +283,7 @@ int async_cps_callee_is_io(const struct ASTFunc *callee) {
     return 0;
 
 }
+#endif
 
 
 int async_cps_expr_is_io_await(const struct ASTExpr *await_expr) {
@@ -326,6 +360,8 @@ int async_cps_expr_is_await_write(const struct ASTExpr *await_expr) {
 
 /** callee 是否为 Future 等待（future_wait / runtime_wait_future / C 符号）。 */
 /* G-02f-120：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：DIRECT 模式，thin（src/async/async_cps_codegen.x）提供完整实现 */
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 int async_cps_callee_is_future_wait_by_name(const char *n) {
     if (!n || !n[0])
         return 0;
@@ -345,17 +381,21 @@ int async_cps_callee_is_future_wait_by_name(const char *n) {
         return 1;
     return 0;
 }
+#endif
 
 
 
 
 /* G-02f-132：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：DIRECT 模式，thin（src/async/async_cps_codegen.x）提供完整实现 */
+#ifndef SHUX_ASYNC_CPS_CODEGEN_FROM_X
 int async_cps_callee_is_future_wait(const struct ASTFunc *callee) {
     if (!callee || !callee->name)
         return 0;
     return async_cps_callee_is_future_wait_by_name(callee->name);
 
 }
+#endif
 
 
 /** await future_wait(...)：Pending 时走 suspend_io 循环（STD-041 Future 绑定）。 */
