@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_net_ipv6_fast",
+  "x_src": "src/asm/runtime_net_ipv6_fast.x",
+  "seed_src": "seeds/runtime_net_ipv6_fast.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (IMPL mode)",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 6,
+    "seed_symbols": 8,
+    "only_x": 1,
+    "only_seed": 8
+  },
+  "symbols": {
+    "x": [
+      "runtime_net_ipv6_fast_x_doc_anchor",
+      "net_ipv6_ensure_wsa_c",
+      "net_ipv6_close_socket_c",
+      "net_ipv6_set_nonblock_c",
+      "net_ipv6_poll_writable_c",
+      "net_ipv6_connect_retry_ok_c"
+    ],
+    "seed": [
+      "net_ipv6_set_addr_port_buf_c",
+      "net_ipv6_ensure_wsa_c_impl",
+      "net_ipv6_close_socket_c_impl",
+      "net_ipv6_set_nonblock_c_impl",
+      "net_ipv6_poll_writable_c_impl",
+      "net_ipv6_connect_retry_ok_c_impl",
+      "net_tcp_connect_ipv6_c",
+      "net_tcp_listen_ipv6_c"
+    ],
+    "only_x": ["runtime_net_ipv6_fast_x_doc_anchor"],
+    "only_seed": [
+      "net_ipv6_set_addr_port_buf_c",
+      "net_ipv6_ensure_wsa_c_impl",
+      "net_ipv6_close_socket_c_impl",
+      "net_ipv6_set_nonblock_c_impl",
+      "net_ipv6_poll_writable_c_impl",
+      "net_ipv6_connect_retry_ok_c_impl",
+      "net_tcp_connect_ipv6_c",
+      "net_tcp_listen_ipv6_c"
+    ]
+  },
+  "rest_macro": "SHUX_RUNTIME_NET_IPV6_FAST_FROM_X",
+  "impl_residuals": [
+    "net_ipv6_ensure_wsa_c_impl",
+    "net_ipv6_close_socket_c_impl",
+    "net_ipv6_set_nonblock_c_impl",
+    "net_ipv6_poll_writable_c_impl",
+    "net_ipv6_connect_retry_ok_c_impl"
+  ],
+  "forward_decls": [
+    "net_ipv6_ensure_wsa_c",
+    "net_ipv6_close_socket_c",
+    "net_ipv6_set_nonblock_c",
+    "net_ipv6_poll_writable_c",
+    "net_ipv6_connect_retry_ok_c"
+  ],
+  "internal_call_rewrites": [],
+  "known_limitations": [],
+  "platform_notes": "_impl 函数体内用 #if defined(_WIN32) || defined(_WIN64) 分支 Windows/Unix；thin wrapper 在 .x 中无平台条件；rest 函数（net_tcp_connect_ipv6_c + net_tcp_listen_ipv6_c）调用 5 个 thin wrapper，rest 模式下 thin wrapper 为 U 符号由 thin.o 提供",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}
