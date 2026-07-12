@@ -22,6 +22,9 @@ typedef HMODULE dynlib_handle_t;
  * 返回值：写入长度（不含 NUL）；失败 0。
  */
 /* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+/* G-02f-20 thin+rest：thin（src/asm/runtime_dynlib_os.x）提供 public wrapper */
+#ifndef SHUX_RUNTIME_DYNLIB_OS_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
     size_t i = 0;
     if (!out || out_cap < 2 || !path)
@@ -35,13 +38,15 @@ size_t dynlib_win_normalize_path(char *out, size_t out_cap, const char *path) {
     out[i] = '\0';
     return i;
 }
+#endif
 
 
 
 
 /** UTF-8 路径转宽字符后 LoadLibraryW（STD-097）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
+/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_dynlib_os.x）提供 public wrapper */
+HMODULE dynlib_win_load_library_w_utf8_impl(const char *path_utf8) {
     wchar_t wpath[512];
     char norm[512];
     int n;
@@ -54,6 +59,13 @@ HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
         return NULL;
     return LoadLibraryW(wpath);
 }
+
+#ifndef SHUX_RUNTIME_DYNLIB_OS_FROM_X
+/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
+HMODULE dynlib_win_load_library_w_utf8(const char *path_utf8) {
+    return dynlib_win_load_library_w_utf8_impl(path_utf8);
+}
+#endif
 
 
 
@@ -119,7 +131,7 @@ void *dynlib_os_open_c(const uint8_t *path) {
     {
         HMODULE h = LoadLibraryA((const char *)path);
         if (!h)
-            h = dynlib_win_load_library_w_utf8((const char *)path);
+            h = dynlib_win_load_library_w_utf8_impl((const char *)path);
         return (void *)h;
     }
 #else
@@ -172,7 +184,7 @@ int32_t dynlib_os_win_path_smoke_c(void) {
     }
     h = LoadLibraryW(L"C:\\Windows\\System32\\kernel32.dll");
     if (!h)
-        h = dynlib_win_load_library_w_utf8("C:/Windows/System32/kernel32.dll");
+        h = dynlib_win_load_library_w_utf8_impl("C:/Windows/System32/kernel32.dll");
     return h ? 0 : -3;
 #else
     return 0;
