@@ -5631,6 +5631,15 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
  }
   if (codegen_emit_module_struct_definitions(module, arena, out, (&((prefix_buf)[0])), prefix_len, ctx) != 0) {   return (-1);
  }
+  /* Emit forward declarations for all non-extern functions in this module */
+  { int32_t fwd_fi = 0;
+    while (fwd_fi < (module)->num_funcs) {
+      if (pipeline_module_func_is_extern_at(module, fwd_fi) == 0) {
+        if (codegen_emit_func_extern_declaration(arena, out, module, fwd_fi, (&((prefix_buf)[0])), prefix_len, ctx) != 0) { return (-1); }
+      }
+      ++fwd_fi;
+    }
+  }
   if ((module)->num_top_level_lets > 0) {   int32_t ti = 0;
   while (ti < (module)->num_top_level_lets) {
     int32_t is_const = pipeline_module_top_level_let_is_const(module, ti);
