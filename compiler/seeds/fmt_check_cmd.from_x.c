@@ -711,14 +711,24 @@ void walk_dir_collect_process_child(const char *child, int is_dir, int is_reg) {
 /**
  * 递归遍历目录，收集 .x 文件。
  * G-02f-249：opendir 循环 🔒；过滤/递归编排 pure。
+ *
+ * 【Why 根源】dir 可能指向 fmt_path_resolve_abs_impl 的 static char ab[512] 静态缓冲区
+ * （collect_paths_from_arg_impl → fmt_path_resolve_abs_impl → walk_dir_collect 传入）。
+ * 循环中 file_list_push_impl → fmt_path_resolve_abs_impl 会覆盖该静态缓冲区，
+ * 导致 dir 指针内容变为上一个 .x 文件路径，snprintf 拼接出
+ * "compiler/foo.x/bar.x" 这样的错误路径。拷贝到本地 dir_buf 隔离别名。
+ * 【Invariant】dir_buf 在本函数栈帧内，不受下游调用影响。
+ * 【Asm/Perf】单次 snprintf 拷贝，零热路径影响（目录遍历非热路径）。
  */
 void walk_dir_collect_impl(const char *dir) {
     DIR *d;
     struct dirent *ent;
     char child[768];
+    char dir_buf[512];
     if (!dir)
         return;
-    d = opendir(dir);
+    snprintf(dir_buf, sizeof dir_buf, "%s", dir);
+    d = opendir(dir_buf);
     if (!d)
         return;
     while ((ent = readdir(d)) != NULL) {
@@ -726,7 +736,7 @@ void walk_dir_collect_impl(const char *dir) {
         int is_reg = 0;
         if (fmt_walk_skip_dot_name(ent->d_name))
             continue;
-        snprintf(child, sizeof child, "%s/%s", dir, ent->d_name);
+        snprintf(child, sizeof child, "%s/%s", dir_buf, ent->d_name);
         if (ent->d_type == DT_DIR || ent->d_type == DT_UNKNOWN) {
             struct stat st;
             if (stat(child, &st) == 0 && S_ISDIR(st.st_mode))
