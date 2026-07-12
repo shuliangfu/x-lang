@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "tu": "backend_seed_mega_fallback",
+  "x_src": "src/asm/backend_seed_mega_fallback.x",
+  "seed_src": "seeds/backend_seed_mega_fallback.from_x.c",
+  "probe_dir": "../tests/probes/prove_x_o/backend_seed_mega_fallback",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider",
+    "seed": "seed/rest provider"
+  },
+  "counts": {
+    "x_symbols": 2,
+    "seed_symbols": 14,
+    "only_x": 4,
+    "only_seed": 14
+  },
+  "symbols": {
+    "x": ["pipeline_seed_mega_ctx_reset", "pipeline_dep_ctx_target_arch_local"],
+    "seed": ["backend_asm_codegen_ast", "backend_asm_codegen_ast_seed_mega", "backend_asm_codegen_ast_to_elf", "backend_asm_codegen_ast_to_elf_seed_mega", "backend_emit_block_body", "backend_emit_block_inits", "backend_emit_expr", "backend_emit_expr_call", "backend_emit_expr_elf", "backend_emit_expr_method_call", "backend_emit_for_loop", "backend_emit_if_then_block_body_text", "backend_emit_loop_body_content", "backend_emit_while_loop"],
+    "only_x": ["mega_load_i32_le", "mega_store_i32_le", "mega_store_ptr_le", "backend_seed_mega_fallback_x_doc_anchor"],
+    "only_seed": ["backend_asm_codegen_ast", "backend_asm_codegen_ast_seed_mega", "backend_asm_codegen_ast_to_elf", "backend_asm_codegen_ast_to_elf_seed_mega", "backend_emit_block_body", "backend_emit_block_inits", "backend_emit_expr", "backend_emit_expr_call", "backend_emit_expr_elf", "backend_emit_expr_method_call", "backend_emit_for_loop", "backend_emit_if_then_block_body_text", "backend_emit_loop_body_content", "backend_emit_while_loop"]
+  },
+  "rest_macro": "SHUX_BACKEND_SEED_MEGA_FALLBACK_FROM_X",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds"
+    ]
+  }
+}

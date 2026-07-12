@@ -75,6 +75,11 @@ extern int32_t pipeline_backend_asm_codegen_ast_to_elf_c(struct ast_Module *modu
                                                          struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                          struct ast_PipelineDepCtx *ctx);
 
+/* thin+rest 切割：thin 部分（pipeline_seed_mega_ctx_reset / pipeline_dep_ctx_target_arch_local）由 .x 提供,
+ * rest 模式下跳过编译避免重复定义; rest 部分（backend_asm_codegen / backend_emit 14 函数）始终编译.
+ * 宏边界：SHUX_BACKEND_SEED_MEGA_FALLBACK_FROM_X
+ * rest 跨调用依赖：backend_asm_codegen_ast_seed_mega 调用 pipeline_seed_mega_ctx_reset + pipeline_dep_ctx_target_arch_local（thin 提供） */
+#ifndef SHUX_BACKEND_SEED_MEGA_FALLBACK_FROM_X
 /* G-02f-150：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod) {
   int32_t label_counter;
@@ -92,6 +97,11 @@ int32_t pipeline_dep_ctx_target_arch_local(struct ast_PipelineDepCtx *ctx) {
   return ctx ? ctx->target_arch : 0;
 
 }
+#else
+/* rest 模式：thin 函数由 .x 提供，extern 声明供 rest 部分调用 */
+extern void pipeline_seed_mega_ctx_reset(pipeline_glue_AsmFuncCtxLayout *ctx, struct ast_Module *mod);
+extern int32_t pipeline_dep_ctx_target_arch_local(struct ast_PipelineDepCtx *ctx);
+#endif /* SHUX_BACKEND_SEED_MEGA_FALLBACK_FROM_X */
 
 
 int32_t backend_asm_codegen_ast_seed_mega(struct ast_Module *module, struct ast_ASTArena *arena,
