@@ -2053,8 +2053,8 @@ function try_fold_count_up_while_elf(
   let off_i: i32 = local_offset(ctx, i_e.var_name, i_e.var_name_len);
   if (off_i < 0) { return 0; }
   let off_n: i32 = -1;
+  let n_e: Expr = ast.ast_arena_expr_get(arena, n_var_ref);
   if (n_is_lit == 0) {
-    let n_e: Expr = ast.ast_arena_expr_get(arena, n_var_ref);
     off_n = local_offset(ctx, n_e.var_name, n_e.var_name_len);
     if (off_n < 0) { return 0; }
   }
@@ -2064,8 +2064,8 @@ function try_fold_count_up_while_elf(
   let has_call: i32 = fold_body_has_call_or_nested_loop(arena, body_ref);
   let n_const: i32 = n_lit;
   let n_const_ok: i32 = n_is_lit;
+  let n_from_let: i32 = 0;
   if (n_const_ok == 0 && n_var_ref > 0) {
-    let n_from_let: i32 = 0;
     if (fold_block_let_init_lit(arena, block_ref, n_var_ref, &n_from_let) != 0) {
       n_const = n_from_let;
       n_const_ok = 1;
@@ -2074,28 +2074,36 @@ function try_fold_count_up_while_elf(
   /** å¸¸é n + `s += (i+K); i++`ï¼â(i+K)=n(n-1)/2+Knï¼call_boundary ç­ï¼ã */
   let affine_s: i32 = 0;
   let affine_k: i32 = 0;
+  let s_ea: Expr = ast.ast_arena_expr_get(arena, affine_s);
+  let off_sa: i32 = -1;
+  let nm1: i32 = 0;
+  let sum_i: i32 = 0;
+  let sum_k: i32 = 0;
+  let total: i32 = 0;
   if (n_const_ok != 0 && ctx.module_ref != 0 as *Module
       && fold_parse_affine_sum_body(arena, ctx.module_ref, body_ref, i_ref, &affine_s, &affine_k) != 0) {
-    let s_ea: Expr = ast.ast_arena_expr_get(arena, affine_s);
-    let off_sa: i32 = local_offset(ctx, s_ea.var_name, s_ea.var_name_len);
+    off_sa = local_offset(ctx, s_ea.var_name, s_ea.var_name_len);
     if (off_sa < 0) { return 0; }
-    let nm1: i32 = n_const - 1;
-    let sum_i: i32 = nm1 * n_const / 2;
-    let sum_k: i32 = affine_k * n_const;
-    let total: i32 = sum_i + sum_k;
+    nm1 = n_const - 1;
+    sum_i = nm1 * n_const / 2;
+    sum_k = affine_k * n_const;
+    total = sum_i + sum_k;
     if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, total, ta) != 0) { return -1; }
     if (enc_store_rax_to_rbp_arch(elf_ctx, off_sa, ta) != 0) { return -1; }
     return 1;
   }
   /** 常量 n + struct_param 四语句体：s = n*n；暂禁（compile stack smash 待查）。 */
+  let struct_n2_s: i32 = 0;
+  let s_e2: Expr = ast.ast_arena_expr_get(arena, 0);
+  let off_s2: i32 = -1;
+  let prod_n2: i32 = 0;
   if (0 != 0) {
-    let struct_n2_s: i32 = 0;
     if (n_const_ok != 0 && ctx.module_ref != 0 as *Module
         && fold_parse_struct_pair_n2_body(arena, ctx.module_ref, body_ref, i_ref, &struct_n2_s) != 0) {
-      let s_e2: Expr = ast.ast_arena_expr_get(arena, struct_n2_s);
-      let off_s2: i32 = local_offset(ctx, s_e2.var_name, s_e2.var_name_len);
+      s_e2 = ast.ast_arena_expr_get(arena, struct_n2_s);
+      off_s2 = local_offset(ctx, s_e2.var_name, s_e2.var_name_len);
       if (off_s2 < 0) { return 0; }
-      let prod_n2: i32 = n_const * n_const;
+      prod_n2 = n_const * n_const;
       if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, prod_n2, ta) != 0) { return -1; }
       if (enc_store_rax_to_rbp_arch(elf_ctx, off_s2, ta) != 0) { return -1; }
       return 1;
@@ -2104,22 +2112,27 @@ function try_fold_count_up_while_elf(
   /** å¸¸é n + `s += add_pair(const p); i++`ï¼s = n * âfieldsï¼struct_param ç­ï¼ã */
   let struct_s: i32 = 0;
   let struct_step: i32 = 0;
+  let s_es: Expr = ast.ast_arena_expr_get(arena, 0);
+  let off_ss: i32 = -1;
+  let prod_s: i32 = 0;
   if (n_const_ok != 0 && ctx.module_ref != 0 as *Module
       && fold_parse_count_up_const_field_call_body(arena, ctx.module_ref, block_ref, body_ref, i_ref, &struct_s, &struct_step) != 0) {
-    let s_es: Expr = ast.ast_arena_expr_get(arena, struct_s);
-    let off_ss: i32 = local_offset(ctx, s_es.var_name, s_es.var_name_len);
+    s_es = ast.ast_arena_expr_get(arena, struct_s);
+    off_ss = local_offset(ctx, s_es.var_name, s_es.var_name_len);
     if (off_ss < 0) { return 0; }
-    let prod_s: i32 = n_const * struct_step;
+    prod_s = n_const * struct_step;
     if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, prod_s, ta) != 0) { return -1; }
     if (enc_store_rax_to_rbp_arch(elf_ctx, off_ss, ta) != 0) { return -1; }
     return 1;
   }
   /** å¸¸é n + çº¯éå¢ä½ï¼æå ä¸º s = n * stepï¼loop_i32 ç­ï¼ã */
+  let s_e: Expr = ast.ast_arena_expr_get(arena, s_ref);
+  let off_s: i32 = -1;
+  let prod: i32 = 0;
   if (simple_body != 0 && has_call == 0 && n_const_ok != 0) {
-    let s_e: Expr = ast.ast_arena_expr_get(arena, s_ref);
-    let off_s: i32 = local_offset(ctx, s_e.var_name, s_e.var_name_len);
+    off_s = local_offset(ctx, s_e.var_name, s_e.var_name_len);
     if (off_s < 0) { return 0; }
-    let prod: i32 = n_const * step_v;
+    prod = n_const * step_v;
     if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, prod, ta) != 0) { return -1; }
     if (enc_store_rax_to_rbp_arch(elf_ctx, off_s, ta) != 0) { return -1; }
     return 1;
