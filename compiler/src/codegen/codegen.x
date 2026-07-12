@@ -1698,13 +1698,7 @@ function codegen_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, name
   if (prefix == 0 as *u8 || name == 0 as *u8) {
     return 0;
   }
-  if (prefix_len != 6) {
-    return 0;
-  }
-  if (prefix[0] != 98 || prefix[1] != 117 || prefix[2] != 105 || prefix[3] != 108 || prefix[4] != 100 || prefix[5] != 95) {
-    return 0;
-  }
-  if (name_len < prefix_len) {
+  if (prefix_len <= 0 || name_len < prefix_len) {
     return 0;
   }
   let i: i32 = 0;

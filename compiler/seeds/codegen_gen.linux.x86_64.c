@@ -1608,11 +1608,7 @@ SHUX_LIB_WEAK int32_t codegen_block_stmt_order_has_let(struct ast_ASTArena * are
 SHUX_LIB_WEAK int32_t codegen_c_prefix_redundant_with_name(uint8_t * prefix, int32_t prefix_len, uint8_t * name, int32_t name_len) {
   if (prefix == ((uint8_t *)(0)) || name == ((uint8_t *)(0))) {   return 0;
  }
-  if (prefix_len != 6) {   return 0;
- }
-  if ((prefix)[0] != 98 || (prefix)[1] != 117 || (prefix)[2] != 105 || (prefix)[3] != 108 || (prefix)[4] != 100 || (prefix)[5] != 95) {   return 0;
- }
-  if (name_len < prefix_len) {   return 0;
+  if (prefix_len <= 0 || name_len < prefix_len) {   return 0;
  }
   int32_t i = 0;
   while (i < prefix_len) {
