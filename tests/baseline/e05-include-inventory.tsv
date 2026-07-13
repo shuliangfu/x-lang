@@ -12,7 +12,7 @@ e05_simd_vector_h	E-05	compiler/include/simd_vector_inline.h	active_bootstrap	si
 e05_layout_arith_h	E-05	compiler/include/shux_layout_arith.h	active_bootstrap	typeck/layout gate	exists	P1-4 overflow
 e05_ast_h	E-05	compiler/include/ast.h	soft_retired_frontend	ast_pool/x	exists	runtime NO_C 不 include（E-05 v2）
 e05_token_h	E-05	compiler/include/token.h	soft_retired_frontend	lexer_x	exists	C lexer/parser
-e05_autovec_h	E-05	compiler/include/autovec.h	soft_retired_frontend	codegen_x	exists	LEGACY/shux-c
+e05_autovec_h	E-05	compiler/include/autovec.h	hard_retired	codegen_x.o	not_exists	G-02a physical delete (commit fdb383a9); autovec.c + autovec.h 一并删除
 e05_async_live_h	E-05	compiler/include/async_liveness.h	soft_retired_legacy	async_x	exists	SHUX_LEGACY_C_FRONTEND
 e05_async_cps_h	E-05	compiler/include/async_cps_codegen.h	soft_retired_legacy	async_x	exists	LEGACY
 e05_async_pool_h	E-05	compiler/include/async_asm_pool.h	active_asm	async pool	exists	asm 路径
