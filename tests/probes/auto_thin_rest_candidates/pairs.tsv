@@ -67,7 +67,7 @@ runtime_process_argv	src/asm/runtime_process_argv.x	seeds/runtime_process_argv.f
 runtime_process_os_glue	src/asm/runtime_process_os_glue.x	seeds/runtime_process_os_glue.from_x.c	2	569	0	no	yes	argv,ifdef	already_split
 runtime_queue_contention	src/asm/runtime_queue_contention.x	seeds/runtime_queue_contention.from_x.c	3	230	0	no	yes	ifdef	already_split
 runtime_random_fill	src/asm/runtime_random_fill.x	seeds/runtime_random_fill.from_x.c	1	109	0	no	yes	ifdef	already_split
-runtime_scheduler_glue	src/asm/runtime_scheduler_glue.x	seeds/runtime_scheduler_glue.from_x.c	17	1068	0	no	no	weak,ifdef,large	candidate
+runtime_scheduler_glue	src/asm/runtime_scheduler_glue.x	seeds/runtime_scheduler_glue.from_x.c	17	1068	0	no	no	weak,ifdef,large	already_split
 runtime_slice_glue	src/asm/runtime_slice_glue.x	seeds/runtime_slice_glue.from_x.c	0	55	0	no	no		not_candidate
 runtime_sqlite_glue	src/asm/runtime_sqlite_glue.x	seeds/runtime_sqlite_glue.from_x.c	0	412	0	no	no	ifdef	not_candidate
 runtime_std_runtime_fast	src/asm/runtime_std_runtime_fast.x	seeds/runtime_std_runtime_fast.from_x.c	6	40	0	no	yes		already_split

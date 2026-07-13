@@ -79,17 +79,37 @@ static unsigned shu_async_trace_ring_n;
 static unsigned shu_async_trace_events_total;
 static unsigned shu_async_trace_sample_tick;
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+int shu_async_runtime_trace_enabled(void);
+unsigned shu_async_trace_topn(void);
+unsigned shu_async_trace_sample_rate(void);
+uint64_t shu_async_trace_slow_us(void);
+uint64_t shu_async_trace_now_us(void);
+void shux_async_init_workers(void);
+int shux_async_bound_ctx_cancelled(void);
+int shux_async_take_suspend_io_flag(void);
+int shux_async_io_wait_enabled(void);
+int shux_async_affinity_enabled(void);
+void shux_async_maybe_bind_worker(uint32_t worker_id);
+int32_t shux_async_spawn_ctx_echo_task(void);
+uint32_t shux_async_q_occupancy(uint32_t head, uint32_t tail);
+
 /** 是否启用 trace（SHUX_ASYNC_RUNTIME_TRACE 非空且非 0）。 */
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_scheduler_glue.x）直接实现 */
 int shu_async_runtime_trace_enabled(void) {
   const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE");
   return e && e[0] && !(e[0] == '0' && e[1] == '\0');
 }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
 /** 解析 SHUX_ASYNC_RUNTIME_TRACE_TOPN（1..64，默认 20）。 */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
 unsigned shu_async_trace_topn(void) {
   const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_TOPN");
   long v = (e && e[0]) ? strtol(e, NULL, 10) : 20;
@@ -99,11 +119,14 @@ unsigned shu_async_trace_topn(void) {
     v = 64;
   return (unsigned)v;
 }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
 /** 解析 SHUX_ASYNC_RUNTIME_TRACE_SAMPLE（默认 1 = 每条）。 */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
 unsigned shu_async_trace_sample_rate(void) {
   const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SAMPLE");
   long v = (e && e[0]) ? strtol(e, NULL, 10) : 1;
@@ -111,11 +134,14 @@ unsigned shu_async_trace_sample_rate(void) {
     v = 1;
   return (unsigned)v;
 }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
 /** 解析 SHUX_ASYNC_RUNTIME_TRACE_SLOW_US（默认 500）。 */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
 uint64_t shu_async_trace_slow_us(void) {
   const char *e = getenv("SHUX_ASYNC_RUNTIME_TRACE_SLOW_US");
   long v = (e && e[0]) ? strtol(e, NULL, 10) : 500;
@@ -123,17 +149,23 @@ uint64_t shu_async_trace_slow_us(void) {
     v = 0;
   return (uint64_t)v;
 }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
 /** 单调时钟微秒（trace 耗时）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-uint64_t shu_async_trace_now_us(void) {
+uint64_t shu_async_trace_now_us_impl(void) {
     struct timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
         return 0;
     return (uint64_t)ts.tv_sec * 1000000ull + (uint64_t)ts.tv_nsec / 1000ull;
 }
+
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+uint64_t shu_async_trace_now_us(void) { return shu_async_trace_now_us_impl(); }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
@@ -242,6 +274,10 @@ typedef struct {
     shux_async_task_fn_t slots[SHUX_ASYNC_TASK_Q_CAP] __attribute__((aligned(64)));
 } shux_async_task_queue_t;
 
+/* thin+rest Group B：依赖 shux_async_task_fn_t / shux_async_task_queue_t 的 thin 前向声明 */
+int shux_async_io_wait_push(shux_async_task_fn_t fn);
+int32_t shux_async_drain_queue(shux_async_task_queue_t *q, uint32_t worker_id, int32_t *acc);
+
 /** per-worker 就绪环（SHUX_ASYNC_WORKERS>1 时多 consumer 各 drain 一环）。 */
 static shux_async_task_queue_t shux_async_worker_q[SHUX_ASYNC_MAX_WORKERS];
 
@@ -255,7 +291,7 @@ static _Thread_local uint32_t shux_async_tls_worker;
 
 /** 解析 SHUX_ASYNC_WORKERS（1..SHUX_ASYNC_MAX_WORKERS，默认 1）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void shux_async_init_workers(void) {
+void shux_async_init_workers_impl(void) {
     const char *e;
     long v;
     if (shux_async_workers_inited)
@@ -269,6 +305,11 @@ void shux_async_init_workers(void) {
     if (v >= 1 && v <= SHUX_ASYNC_MAX_WORKERS)
         shux_async_n_workers = (uint32_t)v;
 }
+
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void shux_async_init_workers(void) { shux_async_init_workers_impl(); }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
@@ -289,10 +330,13 @@ static uint32_t shux_async_io_wait_n;
 
 /** SHUX_ASYNC_IO_WAIT=1 时 suspend 任务进入 IO 等待队列而非就绪环。 */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
 int shux_async_io_wait_enabled(void) {
   const char *e = getenv("SHUX_ASYNC_IO_WAIT");
   return e && e[0] == '1' && e[1] == '\0';
 }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
@@ -365,7 +409,7 @@ extern int32_t ctx_is_cancelled_c(int64_t handle);
 
 /** 检测栈顶绑定 Context 是否已取消；无绑定返回 0。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_async_bound_ctx_cancelled(void) {
+int shux_async_bound_ctx_cancelled_impl(void) {
     int64_t h;
     if (ctx_slots_depth <= 0)
         return 0;
@@ -374,6 +418,11 @@ int shux_async_bound_ctx_cancelled(void) {
         return 0;
     return ctx_is_cancelled_c(h) != 0;
 }
+
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int shux_async_bound_ctx_cancelled(void) { return shux_async_bound_ctx_cancelled_impl(); }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
@@ -409,32 +458,45 @@ int shux_async_spawn_i32(int32_t (*fn)(void), int32_t seed) {
 
 /** 取出并清除 IO await suspend 标记；drain 见 SUSPENDED 时用于选 IO 等待队列。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_async_take_suspend_io_flag(void) {
+int shux_async_take_suspend_io_flag_impl(void) {
     int v = shux_async_suspend_io_flag;
     shux_async_suspend_io_flag = 0;
     return v;
 }
+
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int shux_async_take_suspend_io_flag(void) { return shux_async_take_suspend_io_flag_impl(); }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
 
 /** 将任务放入 IO 等待队列；返回 0 成功。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shux_async_io_wait_push(shux_async_task_fn_t fn) {
+int shux_async_io_wait_push_impl(shux_async_task_fn_t fn) {
     if (!fn || shux_async_io_wait_n >= SHUX_ASYNC_IO_WAIT_CAP)
         return -1;
     shux_async_io_wait[shux_async_io_wait_n++] = fn;
     return 0;
 }
 
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int shux_async_io_wait_push(shux_async_task_fn_t fn) { return shux_async_io_wait_push_impl(fn); }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
+
 
 
 
 /** 队列占用（tail - head；计数器可绕回 uint32）。 */
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
 uint32_t shux_async_q_occupancy(uint32_t head, uint32_t tail) {
   return tail - head;
 }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
@@ -444,12 +506,16 @@ typedef struct {
     int64_t ops;
 } shu_coop_frame_t;
 
+/* thin+rest Group C：依赖 shu_coop_frame_t 的 thin 前向声明 */
+int shu_coop_frame_step_jmp(shu_coop_frame_t *f);
+int shu_coop_frame_step_switch(shu_coop_frame_t *f);
+
 /**
  * 单任务一步（computed goto 跳转表）：phase 0↔1 交替并 ops++。
  * 返回 0=可继续，1=结束（本 bench 永不返回 1）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shu_coop_frame_step_jmp(shu_coop_frame_t *f) {
+int shu_coop_frame_step_jmp_impl(shu_coop_frame_t *f) {
     if (!f)
         return 1;
 #if defined(__GNUC__) && !defined(__STRICT_ANSI__)
@@ -485,6 +551,11 @@ coop_done:
 #endif
 }
 
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int shu_coop_frame_step_jmp(shu_coop_frame_t *f) { return shu_coop_frame_step_jmp_impl(f); }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
+
 
 
 
@@ -507,7 +578,7 @@ int64_t shux_async_coop_pingpong_jmp(int64_t rounds) {
 
 /** A1：switch 版单帧步进（对照 jmp 路径开销）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int shu_coop_frame_step_switch(shu_coop_frame_t *f) {
+int shu_coop_frame_step_switch_impl(shu_coop_frame_t *f) {
     if (!f)
         return 1;
     switch (f->phase) {
@@ -525,6 +596,11 @@ int shu_coop_frame_step_switch(shu_coop_frame_t *f) {
         return 0;
     }
 }
+
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int shu_coop_frame_step_switch(shu_coop_frame_t *f) { return shu_coop_frame_step_switch_impl(f); }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
@@ -751,16 +827,19 @@ int shux_async_task_submit_with_ctx(shux_async_task_fn_t fn, int64_t ctx_handle)
 
 /** SHUX_ASYNC_AFFINITY=1 时 worker drain 尝试绑核。 */
 /* G-02f-117：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：DIRECT 模式，thin 直接实现 */
 int shux_async_affinity_enabled(void) {
   const char *e = getenv("SHUX_ASYNC_AFFINITY");
   return e && e[0] == '1' && e[1] == '\0';
 }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
 /** worker drain 前绑核（SHUX_ASYNC_AFFINITY=1 时调用 thread_set_affinity_self_c）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void shux_async_maybe_bind_worker(uint32_t worker_id) {
+void shux_async_maybe_bind_worker_impl(uint32_t worker_id) {
 #if defined(__GNUC__) || defined(__clang__)
     if (!shux_async_affinity_enabled())
         return;
@@ -770,12 +849,17 @@ void shux_async_maybe_bind_worker(uint32_t worker_id) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void shux_async_maybe_bind_worker(uint32_t worker_id) { shux_async_maybe_bind_worker_impl(worker_id); }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
+
 
 
 
 /** 单 worker 就绪环 drain；suspend 任务 re-queue 到 tls worker；acc 非空时累加已完成任务返回值。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t shux_async_drain_queue(shux_async_task_queue_t *q, uint32_t worker_id, int32_t *acc) {
+int32_t shux_async_drain_queue_impl(shux_async_task_queue_t *q, uint32_t worker_id, int32_t *acc) {
     int32_t last = 0;
     shux_async_maybe_bind_worker(worker_id);
     shux_async_tls_worker = worker_id;
@@ -817,6 +901,11 @@ int32_t shux_async_drain_queue(shux_async_task_queue_t *q, uint32_t worker_id, i
     }
     return last;
 }
+
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t shux_async_drain_queue(shux_async_task_queue_t *q, uint32_t worker_id, int32_t *acc) { return shux_async_drain_queue_impl(q, worker_id, acc); }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 
@@ -920,7 +1009,7 @@ int32_t shux_async_run_i32(int32_t (*fn)(void)) {
 
 /** spawn 烟测 echo 任务：校验继承 Context 并返回 seed*10。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t shux_async_spawn_ctx_echo_task(void) {
+int32_t shux_async_spawn_ctx_echo_task_impl(void) {
     int32_t seed = 0;
     if (shux_async_run_seed_valid())
         seed = shux_async_run_seed_take_i32();
@@ -929,6 +1018,11 @@ int32_t shux_async_spawn_ctx_echo_task(void) {
         return -99;
     return seed * 10;
 }
+
+#ifndef SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t shux_async_spawn_ctx_echo_task(void) { return shux_async_spawn_ctx_echo_task_impl(); }
+#endif /* SHUX_RUNTIME_SCHEDULER_GLUE_FROM_X */
 
 
 

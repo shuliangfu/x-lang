@@ -29,7 +29,7 @@ function shu_async_trace_now_us(): u64 {
 
 
 
-extern "C" function shux_async_bound_ctx_cancelled_impl(ctx: *u8): i32;
+extern "C" function shux_async_bound_ctx_cancelled_impl(): i32;
 extern "C" function shux_async_take_suspend_io_flag_impl(): i32;
 // G-02f-115：shux_async_q_occupancy 真迁 .x
 extern "C" function shu_coop_frame_step_jmp_impl(frame: *u8): i32;
@@ -38,8 +38,8 @@ extern "C" function shu_coop_frame_step_switch_impl(frame: *u8): i32;
 /* ---- G-02f-107：async scheduler step 门闩 ---- */
 
 #[no_mangle]
-function shux_async_bound_ctx_cancelled(ctx: *u8): i32 {
-  unsafe { return shux_async_bound_ctx_cancelled_impl(ctx); }
+function shux_async_bound_ctx_cancelled(): i32 {
+  unsafe { return shux_async_bound_ctx_cancelled_impl(); }
 }
 
 #[no_mangle]
