@@ -32,7 +32,15 @@ int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena 
 }
 """
 
-EXPR_BLOCK_BODY = """\
+EXPR_METHOD_CALL_BODY = """\\
+int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+  /* LANG-007: delegate to C glue for import binding call resolve + unsafe boundary. */
+  extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
+  return pipeline_typeck_check_expr_method_call_c(module, arena, expr_ref, return_type_ref, ctx);
+}
+"""
+
+BLOCK_BODY = """\
 int32_t typeck_check_expr_block(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   int32_t ord_assign = 28;
   int32_t block_ref = pipeline_expr_block_ref_at(arena, expr_ref);
@@ -116,6 +124,8 @@ def replace_weak_fn(src: str, name: str, new_body: str) -> tuple[str, bool]:
                     return src, False
                 if "pipeline_typeck_unsafe_depth_push_c" in old and name == "typeck_check_expr_block":
                     return src, False
+                if "pipeline_typeck_check_expr_method_call_c" in old and name == "typeck_check_expr_method_call":
+                    return src, False
                 return src[:start] + new_body.rstrip() + "\n" + src[end:], True
         i += 1
     raise RuntimeError(f"unbalanced braces for {name}")
@@ -184,6 +194,7 @@ def main() -> int:
         ("typeck_check_expr_deref", DEREF_BODY),
         ("typeck_check_block_one_region", BLOCK_BODY),
         ("typeck_check_expr_block", EXPR_BLOCK_BODY),
+        ("typeck_check_expr_method_call", METHOD_CALL_BODY),
     ):
         src, did = replace_weak_fn(src, name, body)
         if did:
