@@ -98,7 +98,7 @@ PREPROCESS_X_DEPS = src/preprocess/preprocess.x
 ../std/string/string.o: ../std/string/mod.x ../std/string/string.x scripts/shux_compile_std_module.sh seeds/runtime_string_fast.from_x.c scripts/cc_inc_tu.sh
 	@$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_string_fast.from_x.c -o $@.fast && \
 	sh scripts/shux_compile_std_module.sh --bare-impl $@.core ../std/string/mod.x ../std/string/string.x && \
-	ld -r -o $@ $@.core $@.fast && \
+	ld -r $(LD_R_MULTIDEF_FLAGS) -o $@ $@.core $@.fast && \
 	rm -f $@.core $@.fast
 
 # std.path：保留 mod.x 作为 F-path v1 源码锚点；path.o 由 C provider 产出，
