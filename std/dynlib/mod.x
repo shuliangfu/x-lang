@@ -26,16 +26,16 @@ extern function dynlib_last_error_copy_c(buf: *u8, cap: i32): i32;
 
 /** 打开动态库 path（NUL 结尾）；失败返回 0。 */
 function open(path: *u8): *u8 {
-  unsafe {
-    return dynlib_open_c(path);
-  }
+  let _rc: *u8 = 0;
+  unsafe { _rc = dynlib_open_c(path); }
+  return _rc;
 }
 
 /** 取符号 name（NUL 结尾）；失败返回 0。 */
 function sym(lib: *u8, name: *u8): *u8 {
-  unsafe {
-    return dynlib_sym_c(lib, name);
-  }
+  let _rc: *u8 = 0;
+  unsafe { _rc = dynlib_sym_c(lib, name); }
+  return _rc;
 }
 
 /** 关闭动态库。 */
@@ -47,7 +47,7 @@ function close(lib: *u8): void {
 
 /** 复制最近一次 open/sym 失败诊断到 buf；返回写入字节数，无内容返回 0（STD-096）。 */
 function last_os_error(buf: *u8, cap: i32): i32 {
-  unsafe {
-    return dynlib_last_error_copy_c(buf, cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = dynlib_last_error_copy_c(buf, cap); }
+  return _rc;
 }

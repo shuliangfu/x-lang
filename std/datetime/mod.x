@@ -112,9 +112,9 @@ function to_utc_fields(t: DateTime): DateFields {
 
 /** 比较两个 DateTime：-1/0/1。 */
 function compare(a: DateTime, b: DateTime): i32 {
-  unsafe {
-    return datetime_compare_c(a.sec, a.nsec, b.sec, b.nsec);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = datetime_compare_c(a.sec, a.nsec, b.sec, b.nsec); }
+  return _rc;
 }
 
 /** 解析 RFC3339 / RFC3339Nano；0 成功，-1 失败。 */
@@ -133,23 +133,23 @@ function parse_rfc3339(ptr: *u8, len: i32, out: *DateTime, offset_min: *i32): i3
 
 /** 格式化为 RFC3339 UTC（Z）；返回写入长度，失败 -1。 */
 function format_rfc3339(t: DateTime, out: *u8, out_cap: i32): i32 {
-  unsafe {
-    return datetime_format_rfc3339_c(t.sec, t.nsec, out, out_cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = datetime_format_rfc3339_c(t.sec, t.nsec, out, out_cap); }
+  return _rc;
 }
 
 /** 格式化为 RFC3339Nano UTC；返回写入长度，失败 -1。 */
 function format_rfc3339_nano(t: DateTime, out: *u8, out_cap: i32): i32 {
-  unsafe {
-    return datetime_format_rfc3339_nano_c(t.sec, t.nsec, out, out_cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = datetime_format_rfc3339_nano_c(t.sec, t.nsec, out, out_cap); }
+  return _rc;
 }
 
 /** 本地时区相对 UTC 偏移（分钟，东为正）。 */
 function local_offset_min(): i32 {
-  unsafe {
-    return datetime_local_offset_min_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = datetime_local_offset_min_c(); }
+  return _rc;
 }
 
 /** 按本地偏移分解日历字段。 */
@@ -275,9 +275,9 @@ function timezone_offset_at(t: DateTime, tz: TimeZone): i32 {
 
 /** 解析 ±HH:MM / ±HHMM / Z 或内置时区名；成功 0。 */
 function parse_offset_min(ptr: *u8, len: i32, out: *i32): i32 {
-  unsafe {
-    return datetime_parse_offset_min_c(ptr, len, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = datetime_parse_offset_min_c(ptr, len, out); }
+  return _rc;
 }
 
 /** UTC DateTime → 时区墙钟日历字段（IANA 按 t.sec 查 DST）。 */
@@ -310,14 +310,14 @@ function from_zoned_fields(f: DateFields, tz: TimeZone): DateTime {
 
 /** IANA DST 烟测；0 通过。 */
 function iana_dst_smoke(): i32 {
-  unsafe {
-    return datetime_iana_dst_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = datetime_iana_dst_smoke_c(); }
+  return _rc;
 }
 
 /** STD-135 C 金样。 */
 function timezone_smoke(): i32 {
-  unsafe {
-    return datetime_timezone_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = datetime_timezone_smoke_c(); }
+  return _rc;
 }

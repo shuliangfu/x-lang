@@ -97,58 +97,58 @@ function is_implemented(): i32 { return 1; }
 
 /** 解析 ELF64 文件头。 */
 function parse_hdr(ptr: *u8, len: i32, out: *Elf64Hdr): i32 {
-  unsafe {
-    return elf64_parse_hdr_c(ptr, len, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_parse_hdr_c(ptr, len, out); }
+  return _rc;
 }
 
 /** 读取第 idx 个 section 头。 */
 function read_section(ptr: *u8, len: i32, hdr: *Elf64Hdr, idx: i32, out: *Elf64Sec): i32 {
-  unsafe {
-    return elf64_read_shdr_c(ptr, len, hdr.shoff, hdr.shnum, idx, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_read_shdr_c(ptr, len, hdr.shoff, hdr.shnum, idx, out); }
+  return _rc;
 }
 
 /** 从 shstrtab 取节名。 */
 function sec_name(ptr: *u8, len: i32, strtab: *Elf64Sec, name_off: i32, buf: *u8, buf_len: i32): i32 {
-  unsafe {
-    return elf64_sec_name_c(ptr, len, strtab.offset, strtab.size, name_off, buf, buf_len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_sec_name_c(ptr, len, strtab.offset, strtab.size, name_off, buf, buf_len); }
+  return _rc;
 }
 
 /** 按节名查找索引。 */
 function find_section_idx(ptr: *u8, len: i32, hdr: *Elf64Hdr, want: *u8, out_idx: *i32): i32 {
-  unsafe {
-    return elf64_find_section_c(ptr, len, hdr.shoff, hdr.shnum, hdr.shstrndx, want, out_idx);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_find_section_c(ptr, len, hdr.shoff, hdr.shnum, hdr.shstrndx, want, out_idx); }
+  return _rc;
 }
 
 /** 读取节体内字节。 */
 function read_sec_byte(ptr: *u8, len: i32, sec: *Elf64Sec, at: u64, out: *u8): i32 {
-  unsafe {
-    return elf64_read_sec_byte_c(ptr, len, sec.offset, sec.size, at, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_read_sec_byte_c(ptr, len, sec.offset, sec.size, at, out); }
+  return _rc;
 }
 
 /** 读取 program 头。 */
 function read_phdr(ptr: *u8, len: i32, hdr: *Elf64Hdr, idx: i32, out: *Elf64Phdr): i32 {
-  unsafe {
-    return elf64_read_phdr_c(ptr, len, hdr.phoff, hdr.phnum, idx, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_read_phdr_c(ptr, len, hdr.phoff, hdr.phnum, idx, out); }
+  return _rc;
 }
 
 /** 读取 symtab 条目。 */
 function read_sym(ptr: *u8, len: i32, sec: *Elf64Sec, idx: i32, out: *Elf64Sym): i32 {
-  unsafe {
-    return elf64_read_sym_c(ptr, len, sec.offset, sec.size, idx, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_read_sym_c(ptr, len, sec.offset, sec.size, idx, out); }
+  return _rc;
 }
 
 /** 从 strtab 节取符号名。 */
 function sym_name(ptr: *u8, len: i32, strtab: *Elf64Sec, name_off: i32, buf: *u8, buf_len: i32): i32 {
-  unsafe {
-    return elf64_sec_name_c(ptr, len, strtab.offset, strtab.size, name_off, buf, buf_len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_sec_name_c(ptr, len, strtab.offset, strtab.size, name_off, buf, buf_len); }
+  return _rc;
 }
 
 /** symtab 条目数（每符号 24 字节）。 */
@@ -163,9 +163,9 @@ function symtab_entry_count(sec: *Elf64Sec): i32 {
 
 /** 读取 rela 条目。 */
 function read_rela(ptr: *u8, len: i32, sec: *Elf64Sec, idx: i32, out: *Elf64Rela): i32 {
-  unsafe {
-    return elf64_read_rela_c(ptr, len, sec.offset, sec.size, idx, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_read_rela_c(ptr, len, sec.offset, sec.size, idx, out); }
+  return _rc;
 }
 
 /** rela 条目数。 */
@@ -185,28 +185,28 @@ function write_err_ok(): i32 {
 
 /** 计算 write_min_reloc 所需缓冲容量。 */
 function write_min_reloc_size(text_len: i32): i32 {
-  unsafe {
-    return elf64_write_min_reloc_size_c(text_len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_write_min_reloc_size_c(text_len); }
+  return _rc;
 }
 
 /** 写入带最小重定位表的 ELF64 可执行镜像。 */
 function write_min_reloc(buf: *u8, cap: i32, text: *u8, text_len: i32, out_len: *i32): i32 {
-  unsafe {
-    return elf64_write_min_reloc_c(buf, cap, text, text_len, out_len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_write_min_reloc_c(buf, cap, text, text_len, out_len); }
+  return _rc;
 }
 
 /** C 层写入 round-trip 烟测；0 通过。 */
 function write_smoke(): i32 {
-  unsafe {
-    return elf64_write_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_write_smoke_c(); }
+  return _rc;
 }
 
 /** C 层解析烟测；0 通过。 */
 function parse_smoke(): i32 {
-  unsafe {
-    return elf64_parse_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = elf64_parse_smoke_c(); }
+  return _rc;
 }

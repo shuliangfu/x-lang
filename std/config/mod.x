@@ -228,7 +228,7 @@ function load_yaml_file(cfg: *Config, path: *u8, override: i32): i32 {
 
 /** STD-119：YAML 后端 C 烟测；0 通过。 */
 function yaml_smoke(): i32 {
-  unsafe {
-    return config_yaml_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = config_yaml_smoke_c(); }
+  return _rc;
 }

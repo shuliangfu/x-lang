@@ -521,9 +521,9 @@ struct TcpConnPool {
 
 /** 创建 TCP 连接池；host 为 Ipv4Addr 数值（同 addr_to_packed）；max_idle 默认 1。 */
 function tcp_pool_new(host: u32, port: u32, max_idle: i32): TcpConnPool {
-  unsafe {
-    return TcpConnPool { handle: tcp_pool_plat.net_tcp_pool_create_c(host, port, max_idle) };
-  }
+  let _rc: TcpConnPool = 0;
+  unsafe { _rc = TcpConnPool { handle: tcp_pool_plat.net_tcp_pool_create_c(host, port, max_idle) }; }
+  return _rc;
 }
 
 /** 从池取连接（idle 复用或新建 TCP）；失败 -1。 */

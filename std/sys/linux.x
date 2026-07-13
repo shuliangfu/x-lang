@@ -162,9 +162,9 @@ function linux_syscall_read(fd: i32, buf: *u8, len: i32): i32 {
  * Linux close(2) freestanding 薄封装。
  */
 function linux_syscall_close(fd: i32): i32 {
-  unsafe {
-    return shux_sys_close(fd);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_sys_close(fd); }
+  return _rc;
 }
 
 /**
@@ -341,9 +341,9 @@ const LINUX_SOCK_DGRAM: i32 = 2;
  * Linux socket(2) freestanding 薄封装。
  */
 function linux_syscall_socket(domain: i32, sock_type: i32, protocol: i32): i32 {
-  unsafe {
-    return shux_sys_socket(domain, sock_type, protocol);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_sys_socket(domain, sock_type, protocol); }
+  return _rc;
 }
 
 /**
@@ -374,18 +374,18 @@ function linux_syscall_bind(sockfd: i32, addr: *u8, addrlen: i32): i32 {
  * Linux listen(2) freestanding 薄封装。
  */
 function linux_syscall_listen(sockfd: i32, backlog: i32): i32 {
-  unsafe {
-    return shux_sys_listen(sockfd, backlog);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_sys_listen(sockfd, backlog); }
+  return _rc;
 }
 
 /**
  * Linux accept(2) freestanding 薄封装。
  */
 function linux_syscall_accept(sockfd: i32, addr: *u8, addrlen: *i32): i32 {
-  unsafe {
-    return shux_sys_accept(sockfd, addr, addrlen);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_sys_accept(sockfd, addr, addrlen); }
+  return _rc;
 }
 
 /** Linux open(2) O_RDWR。 */

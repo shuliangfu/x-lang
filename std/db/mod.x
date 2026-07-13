@@ -50,30 +50,30 @@ function is_deprecated(): i32 {
 
 /** 打开数据库（转发 std.db.sqlite / db_open_c）。 */
 function open(path: *u8): DbConn {
-  unsafe {
-    return DbConn { handle: db_open_c(path) };
-  }
+  let _rc: DbConn = 0;
+  unsafe { _rc = DbConn { handle: db_open_c(path) }; }
+  return _rc;
 }
 
 /** 关闭连接。 */
 function close(conn: DbConn): i32 {
-  unsafe {
-    return db_close_c(conn.handle);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = db_close_c(conn.handle); }
+  return _rc;
 }
 
 /** 执行无结果集 SQL。 */
 function exec(conn: DbConn, sql: *u8): i32 {
-  unsafe {
-    return db_exec_c(conn.handle, sql);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = db_exec_c(conn.handle, sql); }
+  return _rc;
 }
 
 /** 最近一次 exec 影响行数。 */
 function changes(conn: DbConn): i32 {
-  unsafe {
-    return db_changes_c(conn.handle);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = db_changes_c(conn.handle); }
+  return _rc;
 }
 
 /** SQLite 后端是否可用（委托 std.db.sqlite）。 */

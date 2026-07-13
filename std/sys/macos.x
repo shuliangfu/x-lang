@@ -142,9 +142,9 @@ function macos_read(fd: i32, buf: *u8, len: i32): i32 {
 
 /** B-16 v2：close(2) 薄封装。 */
 function macos_close(fd: i32): i32 {
-  unsafe {
-    return close(fd);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = close(fd); }
+  return _rc;
 }
 
 /**

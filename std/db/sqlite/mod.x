@@ -101,9 +101,9 @@ extern function db_pool_idle_c(pool: i64): i32;
 
 /** 打开数据库文件路径（UTF-8 C 串）；失败 handle=0。 */
 function open(path: *u8): DbConn {
-  unsafe {
-    return DbConn { handle: db_open_c(path) };
-  }
+  let _rc: DbConn = 0;
+  unsafe { _rc = DbConn { handle: db_open_c(path) }; }
+  return _rc;
 }
 
 /** 关闭连接。 */
@@ -123,9 +123,9 @@ function rows(conn: DbConn, sql: *u8): i32 {
 
 /** 准备 SELECT 游标；失败 cursor=0。 */
 function begin(conn: DbConn, sql: *u8): DbRowCursor {
-  unsafe {
-    return DbRowCursor { cursor: db_query_begin_c(conn.handle, sql) };
-  }
+  let _rc: DbRowCursor = 0;
+  unsafe { _rc = DbRowCursor { cursor: db_query_begin_c(conn.handle, sql) }; }
+  return _rc;
 }
 
 /** 推进游标：DB_ROW_OK=有行，DB_ROW_DONE=结束，<0=错误。 */
@@ -180,12 +180,12 @@ function rollback(conn: DbConn): i32 {
 
 /** 读取线程局部最后一次库错误。 */
 function last_error(): DbError {
-  unsafe {
-    return DbError {
+  let _rc: DbError = 0;
+  unsafe { _rc = DbError {
       code: db_last_code_c(),
       msg: db_last_error_msg_c(),
-    };
-  }
+    }; }
+  return _rc;
 }
 
 /** 当前链接后端名称（"sqlite3" 或 "stub"）。 */
@@ -200,16 +200,16 @@ function changes(conn: DbConn): i32 {
 
 /** 预编译 SQL（须 stmt_finalize 释放；不入连接缓存）。 */
 function prepare(conn: DbConn, sql: *u8): DbStmt {
-  unsafe {
-    return DbStmt { handle: db_prepare_c(conn.handle, sql) };
-  }
+  let _rc: DbStmt = 0;
+  unsafe { _rc = DbStmt { handle: db_prepare_c(conn.handle, sql) }; }
+  return _rc;
 }
 
 /** 预编译并缓存（同连接同 SQL 复用；关闭连接或 stmt_cache_clear 失效）。 */
 function prepare_cached(conn: DbConn, sql: *u8): DbStmt {
-  unsafe {
-    return DbStmt { handle: db_prepare_cached_c(conn.handle, sql) };
-  }
+  let _rc: DbStmt = 0;
+  unsafe { _rc = DbStmt { handle: db_prepare_cached_c(conn.handle, sql) }; }
+  return _rc;
 }
 
 /** 绑定整型参数（idx 从 1 起，SQLite 约定）。 */
@@ -264,9 +264,9 @@ function col_blob_read(stmt: DbStmt, col: i32, offset: i32, out: *u8, cap: i32):
 
 /** 打开连接池（惰性建连；max_conns 上限 8）。 */
 function open(path: *u8, max_conns: i32): DbPool {
-  unsafe {
-    return DbPool { handle: db_pool_open_c(path, max_conns) };
-  }
+  let _rc: DbPool = 0;
+  unsafe { _rc = DbPool { handle: db_pool_open_c(path, max_conns) }; }
+  return _rc;
 }
 
 /** 关闭连接池（须先 release 全部借出连接）。 */
@@ -276,9 +276,9 @@ function close(pool: DbPool): i32 {
 
 /** 从池借连接；失败 handle=0（池耗尽时为 DB_ERR_BUSY）。 */
 function acquire(pool: DbPool): DbConn {
-  unsafe {
-    return DbConn { handle: db_pool_acquire_c(pool.handle) };
-  }
+  let _rc: DbConn = 0;
+  unsafe { _rc = DbConn { handle: db_pool_acquire_c(pool.handle) }; }
+  return _rc;
 }
 
 /** 归还连接到池 idle 队列。 */

@@ -26,7 +26,7 @@ extern function shux_io_uring_is_available_c(): i32;
  * 返回 1 表示当前构建/宿主可安全尝试 io_uring 路径。
  */
 function io_uring_available(): i32 {
-  unsafe {
-    return shux_io_uring_is_available_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_io_uring_is_available_c(); }
+  return _rc;
 }

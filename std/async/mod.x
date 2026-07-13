@@ -126,9 +126,9 @@ function unbind_ctx(): void {
 
 /** 返回当前绑定的 Context 句柄；未绑定返回 0。 */
 function current_ctx(): Context {
-  unsafe {
-    return Context { handle: shux_async_current_context_c() };
-  }
+  let _rc: Context = 0;
+  unsafe { _rc = Context { handle: shux_async_current_context_c() }; }
+  return _rc;
 }
 
 /** 创建带默认 Context 的 AsyncRuntime。 */
@@ -156,30 +156,30 @@ function drain(rt: *AsyncRuntime): i32 {
 
 /** 提交 async 任务到就绪环；0 成功。 */
 function submit(fn: *u8): i32 {
-  unsafe {
-    return shux_async_task_submit(fn);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_async_task_submit(fn); }
+  return _rc;
 }
 
 /** push seed 并 submit 协程（language spawn 的手动门面；与上一 overload 按实参个数分派）。 */
 function submit(fn: *u8, seed: i32): i32 {
-  unsafe {
-    return shux_async_spawn_i32(fn, seed);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_async_spawn_i32(fn, seed); }
+  return _rc;
 }
 
 /** 提交任务并绑定 Context；ctx 已取消时返回 -2。 */
 function submit_ctx(fn: *u8, ctx: Context): i32 {
-  unsafe {
-    return shux_async_task_submit_with_ctx(fn, ctx.handle);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_async_task_submit_with_ctx(fn, ctx.handle); }
+  return _rc;
 }
 
 /** STD-093：spawn 自动继承 bind_ctx 烟测；0 通过。 */
 function spawn_ctx_smoke(): i32 {
-  unsafe {
-    return shux_async_spawn_ctx_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_async_spawn_ctx_smoke_c(); }
+  return _rc;
 }
 
 /** 清空就绪环与 IO 等待队列（保留 run seed 时见 shux_async_queue_reset_impl）。 */
@@ -189,23 +189,23 @@ function scheduler_reset(): void {
 
 /** poll + drain 直至就绪环与 IO 等待队列皆空。 */
 function drain_idle(): i32 {
-  unsafe {
-    return shux_async_run_drain_until_idle();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_async_run_drain_until_idle(); }
+  return _rc;
 }
 
 /** await IO 边界 suspend 门面。 */
 function cps_suspend_io(phase: *i32, next_phase: i32): i32 {
-  unsafe {
-    return shux_async_cps_suspend_io(phase, next_phase);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_async_cps_suspend_io(phase, next_phase); }
+  return _rc;
 }
 
 /** poll io_uring completion 并唤醒 IO 等待任务。 */
 function poll_completions(timeout_ms: u32): u32 {
-  unsafe {
-    return shux_io_poll_async_completions(timeout_ms);
-  }
+  let _rc: u32 = 0;
+  unsafe { _rc = shux_io_poll_async_completions(timeout_ms); }
+  return _rc;
 }
 
 // ─── STD-049：io_uring 完整路径门面（与 std.io async API 对齐，供手动 CPS 驱动）───
@@ -379,16 +379,16 @@ extern function shux_async_net_fs_smoke_c(): i32;
 
 /** async net/fs fd 路径 C 烟测（pipe 模拟）；0 通过。 */
 function net_fs_async_smoke(): i32 {
-  unsafe {
-    return shux_async_net_fs_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_async_net_fs_smoke_c(); }
+  return _rc;
 }
 
 /** IO 等待队列深度。 */
 function waiters(): u32 {
-  unsafe {
-    return shux_async_io_waiters_pending();
-  }
+  let _rc: u32 = 0;
+  unsafe { _rc = shux_async_io_waiters_pending(); }
+  return _rc;
 }
 
 /** CPS suspend 哨兵（与 scheduler_glue.c SHUX_ASYNC_SUSPENDED 一致）。 */
@@ -414,9 +414,9 @@ extern function shux_async_future_smoke_c(): i32;
 
 /** 创建 pending Future；池满时 handle=0。 */
 function future_new(): Future {
-  unsafe {
-    return Future { handle: shux_async_future_create_c() };
-  }
+  let _rc: Future = 0;
+  unsafe { _rc = Future { handle: shux_async_future_create_c() }; }
+  return _rc;
 }
 
 /**
@@ -455,9 +455,9 @@ function future_reset(): void {
 
 /** C 侧 Future 烟测；0 通过。 */
 function future_smoke(): i32 {
-  unsafe {
-    return shux_async_future_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = shux_async_future_smoke_c(); }
+  return _rc;
 }
 
 /**
@@ -547,16 +547,16 @@ function poll_loop_ctx(rt: *AsyncRuntime, max_rounds: i32): i32 {
 
 /** A1：switch dispatch 双任务 ping-pong；rounds 轮返回总 ops（2*rounds）。 */
 function coop_pingpong(rounds: i64): i64 {
-  unsafe {
-    return shux_async_coop_pingpong(rounds);
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = shux_async_coop_pingpong(rounds); }
+  return _rc;
 }
 
 /** A2：computed-goto 跳转表 dispatch；语义同 coop_pingpong。 */
 function coop_pingpong_jmp(rounds: i64): i64 {
-  unsafe {
-    return shux_async_coop_pingpong_jmp(rounds);
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = shux_async_coop_pingpong_jmp(rounds); }
+  return _rc;
 }
 
 /** 模块可 import 锚点（Future/Poll 见 future_* / poll_*）。 */

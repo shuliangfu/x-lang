@@ -77,23 +77,23 @@ extern function arrow_smoke_c(): i32;
 
 /** 创建 Int32 列。 */
 function new_i32(capacity: i32): ArrowColumn {
-  unsafe {
-    return ArrowColumn { handle: arrow_column_i32_create_c(capacity) };
-  }
+  let _rc: ArrowColumn = 0;
+  unsafe { _rc = ArrowColumn { handle: arrow_column_i32_create_c(capacity) }; }
+  return _rc;
 }
 
 /** 创建 Float32 列。 */
 function new_f32(capacity: i32): ArrowColumn {
-  unsafe {
-    return ArrowColumn { handle: arrow_column_f32_create_c(capacity) };
-  }
+  let _rc: ArrowColumn = 0;
+  unsafe { _rc = ArrowColumn { handle: arrow_column_f32_create_c(capacity) }; }
+  return _rc;
 }
 
 /** 创建 Float64 列。 */
 function new_f64(capacity: i32): ArrowColumn {
-  unsafe {
-    return ArrowColumn { handle: arrow_column_f64_create_c(capacity) };
-  }
+  let _rc: ArrowColumn = 0;
+  unsafe { _rc = ArrowColumn { handle: arrow_column_f64_create_c(capacity) }; }
+  return _rc;
 }
 
 /**
@@ -101,16 +101,16 @@ function new_f64(capacity: i32): ArrowColumn {
  * len 为当前有效元素数，capacity 为 buffer 容量。
  */
 function adopt(ptr: *f32, len: i32, capacity: i32): ArrowColumn {
-  unsafe {
-    return ArrowColumn { handle: arrow_column_adopt_f32_c(ptr, len, capacity) };
-  }
+  let _rc: ArrowColumn = 0;
+  unsafe { _rc = ArrowColumn { handle: arrow_column_adopt_f32_c(ptr, len, capacity) }; }
+  return _rc;
 }
 
 /** 零拷贝：接管外部 I32 buffer。 */
 function adopt(ptr: *i32, len: i32, capacity: i32): ArrowColumn {
-  unsafe {
-    return ArrowColumn { handle: arrow_column_adopt_i32_c(ptr, len, capacity) };
-  }
+  let _rc: ArrowColumn = 0;
+  unsafe { _rc = ArrowColumn { handle: arrow_column_adopt_i32_c(ptr, len, capacity) }; }
+  return _rc;
 }
 
 /** 列当前元素个数。 */
@@ -175,9 +175,9 @@ function free(col: ArrowColumn): void {
 
 /** 创建 RecordBatch。 */
 function batch(max_cols: i32): ArrowBatch {
-  unsafe {
-    return ArrowBatch { handle: arrow_batch_create_c(max_cols) };
-  }
+  let _rc: ArrowBatch = 0;
+  unsafe { _rc = ArrowBatch { handle: arrow_batch_create_c(max_cols) }; }
+  return _rc;
 }
 
 /** 向 batch 添加列（batch 取得所有权）。 */
@@ -187,9 +187,9 @@ function add(batch: ArrowBatch, col: ArrowColumn): i32 {
 
 /** 按索引取列。 */
 function get(batch: ArrowBatch, index: i32): ArrowColumn {
-  unsafe {
-    return ArrowColumn { handle: arrow_batch_column_c(batch.handle, index) };
-  }
+  let _rc: ArrowColumn = 0;
+  unsafe { _rc = ArrowColumn { handle: arrow_batch_column_c(batch.handle, index) }; }
+  return _rc;
 }
 
 /** batch 列数。 */

@@ -28,16 +28,16 @@ extern function regex_group_length_c(re: *u8, group: i32): i32;
 
 /** 编译模式；失败返回 null。 */
 function compile(pat: *u8, pat_len: i32): *u8 {
-  unsafe {
-    return regex_compile_c(pat, pat_len);
-  }
+  let _rc: *u8 = 0;
+  unsafe { _rc = regex_compile_c(pat, pat_len); }
+  return _rc;
 }
 
 /** 子串匹配；成功 0，失败 -1（对标 Rust is_match；`match` 为关键字，仅作模块 API 名）。 */
 function match(re: *u8, str: *u8, len: i32): i32 {
-  unsafe {
-    return regex_match_c(re, str, len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = regex_match_c(re, str, len); }
+  return _rc;
 }
 
 /** 释放 compile 返回的句柄。 */
@@ -49,21 +49,21 @@ function free(re: *u8): void {
 
 /** 返回 capture 槽数（含 group 0 全匹配）；compile 后即可读。 */
 function group_count(re: *u8): i32 {
-  unsafe {
-    return regex_group_count_c(re);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = regex_group_count_c(re); }
+  return _rc;
 }
 
 /** 读上次 match 的 group 起始字节偏移；无有效 capture 时 -1。 */
 function group_offset(re: *u8, group: i32): i32 {
-  unsafe {
-    return regex_group_offset_c(re, group);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = regex_group_offset_c(re, group); }
+  return _rc;
 }
 
 /** 读上次 match 的 group 匹配长度；无有效 capture 时 -1。 */
 function group_length(re: *u8, group: i32): i32 {
-  unsafe {
-    return regex_group_length_c(re, group);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = regex_group_length_c(re, group); }
+  return _rc;
 }

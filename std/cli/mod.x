@@ -62,37 +62,37 @@ function arg_len(p: *u8): i32 {
 
 /** 是否为 help 选项。 */
 function is_help(arg: *u8, len: i32): i32 {
-  unsafe {
-    return cli_is_help_c(arg, len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = cli_is_help_c(arg, len); }
+  return _rc;
 }
 
 /** 是否为 version 选项。 */
 function is_version(arg: *u8, len: i32): i32 {
-  unsafe {
-    return cli_is_version_c(arg, len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = cli_is_version_c(arg, len); }
+  return _rc;
 }
 
 /** 匹配长选项 --name。 */
 function match_long(arg: *u8, len: i32, name: *u8, name_len: i32): i32 {
-  unsafe {
-    return cli_match_long_c(arg, len, name, name_len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = cli_match_long_c(arg, len, name, name_len); }
+  return _rc;
 }
 
 /** 匹配短选项 -x。 */
 function match_short(arg: *u8, len: i32, c: u8): i32 {
-  unsafe {
-    return cli_match_short_c(arg, len, c);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = cli_match_short_c(arg, len, c); }
+  return _rc;
 }
 
 /** 写入 usage 文本；返回长度。 */
 function write_usage(prog: *u8, prog_len: i32, desc: *u8, desc_len: i32, out: *u8, out_cap: i32): i32 {
-  unsafe {
-    return cli_write_usage_c(prog, prog_len, desc, desc_len, out, out_cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = cli_write_usage_c(prog, prog_len, desc, desc_len, out, out_cap); }
+  return _rc;
 }
 
 /** 从 args_iter 解析（跳过 argv[0] 程序名）；expect_sub 可为空 len=0。 */

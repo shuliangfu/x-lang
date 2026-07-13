@@ -46,30 +46,30 @@ const HASHER_XXHASH: i32 = 2;
 
 /** 读取 SHUX_HASH_ALGO 环境变量，返回默认 Hasher 算法 id。 */
 function default_hasher(): i32 {
-  unsafe {
-    return hash_default_algo_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = hash_default_algo_c(); }
+  return _rc;
 }
 
 /** Map/Set 场景推荐 Hasher（SipHash）。 */
 function recommend_hasher_map(): i32 {
-  unsafe {
-    return hash_recommend_hasher_map_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = hash_recommend_hasher_map_c(); }
+  return _rc;
 }
 
 /** 内部去重/checksum 推荐 Hasher（xxHash64）。 */
 function recommend_hasher_fast(): i32 {
-  unsafe {
-    return hash_recommend_hasher_fast_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = hash_recommend_hasher_fast_c(); }
+  return _rc;
 }
 
 /** 按算法创建 Hasher 状态；失败返回 0。 */
 function start_algo(algo: i32): *u8 {
-  unsafe {
-    return hash_unified_new_c(algo);
-  }
+  let _rc: *u8 = 0;
+  unsafe { _rc = hash_unified_new_c(algo); }
+  return _rc;
 }
 
 /** 向 algo Hasher 写入字节 ptr[0..len)。 */
@@ -88,9 +88,9 @@ function write_algo(h: *u8, x: u32): void {
 
 /** 完成 algo Hasher，返回 u64 摘要。 */
 function finish_algo(h: *u8): u64 {
-  unsafe {
-    return hash_unified_finish_c(h);
-  }
+  let _rc: u64 = 0;
+  unsafe { _rc = hash_unified_finish_c(h); }
+  return _rc;
 }
 
 /** 释放 algo Hasher 状态。 */
@@ -102,9 +102,9 @@ function free_algo(h: *u8): void {
 
 /** 创建 Hasher 状态（Tier-S：恒 SipHash）；失败返回 0。 */
 function start(): *u8 {
-  unsafe {
-    return hash_sip_new_c();
-  }
+  let _rc: *u8 = 0;
+  unsafe { _rc = hash_sip_new_c(); }
+  return _rc;
 }
 
 /** 写入 u32（小端）。 */
@@ -130,9 +130,9 @@ function write_bytes(h: *u8, ptr: *u8, len: i32): void {
 
 /** 完成哈希，返回 u64；调用后 h 仍可继续写。 */
 function finish(h: *u8): u64 {
-  unsafe {
-    return hash_sip_finish_c(h);
-  }
+  let _rc: u64 = 0;
+  unsafe { _rc = hash_sip_finish_c(h); }
+  return _rc;
 }
 
 /** 释放 Hasher 状态。 */
@@ -144,21 +144,21 @@ function free(h: *u8): void {
 
 /** 单次对 ptr[0..len) 做 SipHash-2-4，返回 u64。 */
 function bytes(ptr: *u8, len: i32): u64 {
-  unsafe {
-    return hash_sip_bytes_c(ptr, len);
-  }
+  let _rc: u64 = 0;
+  unsafe { _rc = hash_sip_bytes_c(ptr, len); }
+  return _rc;
 }
 
 /** 一次性 xxHash64（seed=0）。 */
 function xxhash64(ptr: *u8, len: i32): u64 {
-  unsafe {
-    return hash_xxhash64_bytes_c(ptr, len);
-  }
+  let _rc: u64 = 0;
+  unsafe { _rc = hash_xxhash64_bytes_c(ptr, len); }
+  return _rc;
 }
 
 /** 一次性 xxHash64（指定 seed）。 */
 function xxhash64_seed(ptr: *u8, len: i32, seed: u64): u64 {
-  unsafe {
-    return hash_xxhash64_seed_bytes_c(ptr, len, seed);
-  }
+  let _rc: u64 = 0;
+  unsafe { _rc = hash_xxhash64_seed_bytes_c(ptr, len, seed); }
+  return _rc;
 }

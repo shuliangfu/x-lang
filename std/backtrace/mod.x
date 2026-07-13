@@ -29,17 +29,17 @@ const SYM_NAME_LEN: i32 = 128;
 /** 捕获当前调用栈到 buf；buf 需至少 max_frames * sizeof(void*)
 * 字节。返回实际帧数，失败为 0。 */
 function capture(buf: *u8, max_frames: i32): i32 {
-  unsafe {
-    return backtrace_capture_c(buf, max_frames);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = backtrace_capture_c(buf, max_frames); }
+  return _rc;
 }
 
 /** 将 capture 得到的 buf 符号化；len 为帧数；out_names 布局 max × SYM_NAME_LEN。
 * 返回成功解析符号的帧数。 */
 function symbolicate(buf: *u8, len: i32, out_ptrs: *u8, out_names: *u8, max: i32): i32 {
-  unsafe {
-    return backtrace_symbolicate_c(buf, len, out_ptrs, out_names, max);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = backtrace_symbolicate_c(buf, len, out_ptrs, out_names, max); }
+  return _rc;
 }
 
 /** SAFE-007：收集崩溃证据（须环境变量 SHUX_CRASH_EVIDENCE=1；可选 SHUX_CRASH_EVIDENCE_DIR 落盘）。 */

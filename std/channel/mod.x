@@ -52,44 +52,44 @@ extern function channel_select_mixed_n_c(chs_slots: *i64, dirs: *i32, n: i32, se
 
 /** 创建容量为 cap 的有界 channel；失败返回 0。 */
 function bounded(cap: i32): *u8 {
-  unsafe {
-    return channel_i32_bounded_c(cap);
-  }
+  let _rc: *u8 = 0;
+  unsafe { _rc = channel_i32_bounded_c(cap); }
+  return _rc;
 }
 
 /** 创建无界 channel；失败返回 0。 */
 function unbounded(): *u8 {
-  unsafe {
-    return channel_i32_unbounded_c();
-  }
+  let _rc: *u8 = 0;
+  unsafe { _rc = channel_i32_unbounded_c(); }
+  return _rc;
 }
 
 /** 发送；有界且满时阻塞。返回 0 成功，-1 已关闭。 */
 function send(ch: *u8, val: i32): i32 {
-  unsafe {
-    return channel_i32_send_c(ch, val);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_i32_send_c(ch, val); }
+  return _rc;
 }
 
 /** 接收；空时阻塞。返回 0 成功且 *out 有效，-1 已关闭。 */
 function recv(ch: *u8, out: *i32): i32 {
-  unsafe {
-    return channel_i32_recv_c(ch, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_i32_recv_c(ch, out); }
+  return _rc;
 }
 
 /** 非阻塞发送。返回 0 成功，1 满，-1 已关闭。 */
 function try_send(ch: *u8, val: i32): i32 {
-  unsafe {
-    return channel_i32_try_send_c(ch, val);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_i32_try_send_c(ch, val); }
+  return _rc;
 }
 
 /** 非阻塞接收。返回 0 成功，1 空，-1 已关闭。 */
 function try_recv(ch: *u8, out: *i32): i32 {
-  unsafe {
-    return channel_i32_try_recv_c(ch, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_i32_try_recv_c(ch, out); }
+  return _rc;
 }
 
 /** 关闭 channel，唤醒阻塞的 recv。 */
@@ -108,23 +108,23 @@ function free(ch: *u8): void {
 
 /** 通用 channel 是否已关闭；1=是，0=否。 */
 function is_closed(ch: *u8): i32 {
-  unsafe {
-    return channel_i32_is_closed_c(ch);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_i32_is_closed_c(ch); }
+  return _rc;
 }
 
 /** 无界 channel 发送；等同 send。 */
 function send_unbounded(ch: *u8, val: i32): i32 {
-  unsafe {
-    return channel_i32_send_c(ch, val);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_i32_send_c(ch, val); }
+  return _rc;
 }
 
 /** 无界 channel 非阻塞接收；等同 try_recv。 */
 function try_recv_unbounded(ch: *u8, out: *i32): i32 {
-  unsafe {
-    return channel_i32_try_recv_c(ch, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_i32_try_recv_c(ch, out); }
+  return _rc;
 }
 
 /** 关闭无界 channel。 */
@@ -136,9 +136,9 @@ function unbounded_close(ch: *u8): void {
 
 /** 无界 channel 是否已关闭；1=是，0=否。 */
 function unbounded_is_closed(ch: *u8): i32 {
-  unsafe {
-    return channel_i32_is_closed_c(ch);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_i32_is_closed_c(ch); }
+  return _rc;
 }
 
 /** select 最大路数（CHANNEL_SELECT_MAX）。 */
@@ -162,84 +162,84 @@ function select_dirs_set(dirs: *i32, idx: i32, dir: i32): void {
 
 /** 非阻塞双路 recv；ch0 优先。返回 0 成功，1 暂无，-1 皆已关闭。 */
 function select_try_recv(ch0: *u8, ch1: *u8, out_val: *i32, out_index: *i32): i32 {
-  unsafe {
-    return channel_select_try_recv_2_c(ch0, ch1, out_val, out_index);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_try_recv_2_c(ch0, ch1, out_val, out_index); }
+  return _rc;
 }
 
 /** 阻塞双路 recv 直至任一路有数据。返回 0 成功，-1 皆已关闭。 */
 function select_recv(ch0: *u8, ch1: *u8, out_val: *i32, out_index: *i32): i32 {
-  unsafe {
-    return channel_select_recv_2_c(ch0, ch1, out_val, out_index);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_recv_2_c(ch0, ch1, out_val, out_index); }
+  return _rc;
 }
 
 /** 非阻塞 N 路 recv；index 升序优先。 */
 function select_try_recv_n(chs_slots: *i64, n: i32, out_val: *i32, out_index: *i32): i32 {
-  unsafe {
-    return channel_select_try_recv_n_c(chs_slots, n, out_val, out_index);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_try_recv_n_c(chs_slots, n, out_val, out_index); }
+  return _rc;
 }
 
 /** 阻塞 N 路 recv 直至任一路有数据。 */
 function select_recv_n(chs_slots: *i64, n: i32, out_val: *i32, out_index: *i32): i32 {
-  unsafe {
-    return channel_select_recv_n_c(chs_slots, n, out_val, out_index);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_recv_n_c(chs_slots, n, out_val, out_index); }
+  return _rc;
 }
 
 /** 非阻塞双路 send；ch0 优先。返回 0 成功，1 暂满，-1 皆已关闭。 */
 function select_try_send(ch0: *u8, ch1: *u8, val: i32, out_index: *i32): i32 {
-  unsafe {
-    return channel_select_try_send_2_c(ch0, ch1, val, out_index);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_try_send_2_c(ch0, ch1, val, out_index); }
+  return _rc;
 }
 
 /** 阻塞双路 send 直至任一路可写。 */
 function select_send(ch0: *u8, ch1: *u8, val: i32, out_index: *i32): i32 {
-  unsafe {
-    return channel_select_send_2_c(ch0, ch1, val, out_index);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_send_2_c(ch0, ch1, val, out_index); }
+  return _rc;
 }
 
 /** 非阻塞 N 路 send；index 升序优先。 */
 function select_try_send_n(chs_slots: *i64, n: i32, val: i32, out_index: *i32): i32 {
-  unsafe {
-    return channel_select_try_send_n_c(chs_slots, n, val, out_index);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_try_send_n_c(chs_slots, n, val, out_index); }
+  return _rc;
 }
 
 /** 阻塞 N 路 send 直至任一路可写。 */
 function select_send_n(chs_slots: *i64, n: i32, val: i32, out_index: *i32): i32 {
-  unsafe {
-    return channel_select_send_n_c(chs_slots, n, val, out_index);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_send_n_c(chs_slots, n, val, out_index); }
+  return _rc;
 }
 
 /** 非阻塞混合双路；recv 优先于 send。 */
 function select_try_mixed(recv_ch: *u8, send_ch: *u8, send_val: i32, out_val: *i32, out_is_send: *i32): i32 {
-  unsafe {
-    return channel_select_try_mixed_2_c(recv_ch, send_ch, send_val, out_val, out_is_send);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_try_mixed_2_c(recv_ch, send_ch, send_val, out_val, out_is_send); }
+  return _rc;
 }
 
 /** 阻塞混合双路；recv 优先于 send。 */
 function select_mixed(recv_ch: *u8, send_ch: *u8, send_val: i32, out_val: *i32, out_is_send: *i32): i32 {
-  unsafe {
-    return channel_select_mixed_2_c(recv_ch, send_ch, send_val, out_val, out_is_send);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_mixed_2_c(recv_ch, send_ch, send_val, out_val, out_is_send); }
+  return _rc;
 }
 
 /** 非阻塞 N 路混合；index 升序优先，同下标 recv 先于 send。 */
 function select_try_mixed_n(chs_slots: *i64, dirs: *i32, n: i32, send_val: i32, out_val: *i32, out_index: *i32, out_is_send: *i32): i32 {
-  unsafe {
-    return channel_select_try_mixed_n_c(chs_slots, dirs, n, send_val, out_val, out_index, out_is_send);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_try_mixed_n_c(chs_slots, dirs, n, send_val, out_val, out_index, out_is_send); }
+  return _rc;
 }
 
 /** 阻塞 N 路混合。 */
 function select_mixed_n(chs_slots: *i64, dirs: *i32, n: i32, send_val: i32, out_val: *i32, out_index: *i32, out_is_send: *i32): i32 {
-  unsafe {
-    return channel_select_mixed_n_c(chs_slots, dirs, n, send_val, out_val, out_index, out_is_send);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = channel_select_mixed_n_c(chs_slots, dirs, n, send_val, out_val, out_index, out_is_send); }
+  return _rc;
 }

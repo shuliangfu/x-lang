@@ -29,16 +29,16 @@ extern function random_rng_smoke_c(): i32;
 /** 用密码学安全随机字节填满 buf[0..len)，返回写入的字节数（成功时为
  * len），失败时返回负值。对标 getrandom/OsRng.fill_bytes。 */
 function fill_bytes(buf: *u8, len: i32): i32 {
-  unsafe {
-    return random_fill_bytes_c(buf, len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = random_fill_bytes_c(buf, len); }
+  return _rc;
 }
 
 /** 生成密码学安全随机 u64（Tier-S `next`；u32 场景用 `as u32` 截断）。 */
 function next(): u64 {
-  unsafe {
-    return random_u64_c();
-  }
+  let _rc: u64 = 0;
+  unsafe { _rc = random_u64_c(); }
+  return _rc;
 }
 
 /** CSPRNG：[lo, hi] 闭区间内均匀 u32（含两端）；lo > hi 时返回 lo。 */
@@ -64,9 +64,9 @@ function range(lo: u32, hi: u32): u32 {
 
 /** 生成均匀随机布尔，返回 0 或 1。对标 gen_bool。 */
 function gen(): i32 {
-  unsafe {
-    return (random_u32_c() & 1) as i32;
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = (random_u32_c() & 1) as i32; }
+  return _rc;
 }
 
 /** Tier-S：均匀随机布尔 0/1（gen 别名）。 */
@@ -135,7 +135,7 @@ function range(r: *Rng, lo: u32, hi: u32): u32 {
 
 /** C 层 PRNG 烟测；0 成功，非 0 失败。 */
 function rng_smoke(): i32 {
-  unsafe {
-    return random_rng_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = random_rng_smoke_c(); }
+  return _rc;
 }

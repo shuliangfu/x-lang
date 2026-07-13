@@ -42,9 +42,9 @@ extern function args_iter_at_c(i: i32): *u8;
  * 返回写入字节数（不含 NUL），不存在或错误返回 -1。对标 env::var()。
  */
 function getenv(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
-  unsafe {
-    return env_getenv_c(key, key_len, out, out_cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = env_getenv_c(key, key_len, out, out_cap); }
+  return _rc;
 }
 
 /**
@@ -52,9 +52,9 @@ function getenv(key: *u8, key_len: i32, out: *u8, out_cap: i32): i32 {
  * out_len 可选写入长度（不含 NUL）。指针在 setenv/unsetenv 或下次 getenv_ptr/getenv_z 前有效。
  */
 function getenv_ptr(key: *u8, key_len: i32, out_len: *i32): *u8 {
-  unsafe {
-    return env_getenv_ptr_c(key, key_len, out_len);
-  }
+  let _rc: *u8 = 0;
+  unsafe { _rc = env_getenv_ptr_c(key, key_len, out_len); }
+  return _rc;
 }
 
 /**
@@ -62,37 +62,37 @@ function getenv_ptr(key: *u8, key_len: i32, out_len: *i32): *u8 {
  * out_len 可选。适合字面量如 getenv_z("PATH", &len)。
  */
 function getenv_z(key_z: *u8, out_len: *i32): *u8 {
-  unsafe {
-    return env_getenv_z_c(key_z, out_len);
-  }
+  let _rc: *u8 = 0;
+  unsafe { _rc = env_getenv_z_c(key_z, out_len); }
+  return _rc;
 }
 
 /** 判断环境变量 key[0..key_len) 是否存在；存在返回 1，不存在返回 0。 */
 function getenv_exists(key: *u8, key_len: i32): i32 {
-  unsafe {
-    return env_getenv_exists_c(key, key_len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = env_getenv_exists_c(key, key_len); }
+  return _rc;
 }
 
 /** 设置环境变量 name=value（name、value 须为 NUL 结尾）；overwrite 非 0 时覆盖。 */
 function setenv(name: *u8, value: *u8, overwrite: i32): i32 {
-  unsafe {
-    return env_setenv_c(name, value, overwrite);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = env_setenv_c(name, value, overwrite); }
+  return _rc;
 }
 
 /** 删除环境变量 name（NUL 结尾）。返回 0 成功，-1 失败。 */
 function unsetenv(name: *u8): i32 {
-  unsafe {
-    return env_unsetenv_c(name);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = env_unsetenv_c(name); }
+  return _rc;
 }
 
 /** 将临时目录路径写入 out（NUL 结尾），最多 cap 字节；失败 -1。 */
 function temp_dir(out: *u8, cap: i32): i32 {
-  unsafe {
-    return env_temp_dir_c(out, cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = env_temp_dir_c(out, cap); }
+  return _rc;
 }
 
 /** 环境变量遍历状态：index 为下一次 env_iter_at_c 下标。 */
@@ -112,9 +112,9 @@ function iter(): EnvIter {
 
 /** 当前进程环境变量条目数（原 env_iter_count）。 */
 function iter_count(): i32 {
-  unsafe {
-    return env_iter_count_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = env_iter_count_c(); }
+  return _rc;
 }
 
 /** 读取下一环境变量；成功 1，结束 0，错误 -1。缓冲不足时跳过该条目。 */
@@ -147,9 +147,9 @@ function args_iter(): ArgsIter {
 
 /** 命令行参数个数（含 argv[0]）。 */
 function args_iter_count(): i32 {
-  unsafe {
-    return args_iter_count_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = args_iter_count_c(); }
+  return _rc;
 }
 
 /** 读取下一 argv 指针；结束返回 null。 */

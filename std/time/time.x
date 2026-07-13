@@ -35,44 +35,44 @@ extern function time_wall_local_offset_min_c(): i32;
 
 /** 单调：微秒。 */
 function time_now_monotonic_us_c(): i64 {
-  unsafe {
-    return time_now_monotonic_ns_c() / 1000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_monotonic_ns_c() / 1000; }
+  return _rc;
 }
 
 /** 单调：毫秒。 */
 function time_now_monotonic_ms_c(): i64 {
-  unsafe {
-    return time_now_monotonic_ns_c() / 1000000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_monotonic_ns_c() / 1000000; }
+  return _rc;
 }
 
 /** 单调：秒。 */
 function time_now_monotonic_sec_c(): i64 {
-  unsafe {
-    return time_now_monotonic_ns_c() / 1000000000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_monotonic_ns_c() / 1000000000; }
+  return _rc;
 }
 
 /** 墙钟：秒。 */
 function time_now_wall_sec_c(): i64 {
-  unsafe {
-    return time_now_wall_ns_c() / 1000000000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_wall_ns_c() / 1000000000; }
+  return _rc;
 }
 
 /** 墙钟：毫秒。 */
 function time_now_wall_ms_c(): i64 {
-  unsafe {
-    return time_now_wall_ns_c() / 1000000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_wall_ns_c() / 1000000; }
+  return _rc;
 }
 
 /** 墙钟：微秒。 */
 function time_now_wall_us_c(): i64 {
-  unsafe {
-    return time_now_wall_ns_c() / 1000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_wall_ns_c() / 1000; }
+  return _rc;
 }
 
 /** 睡眠：微秒。 */

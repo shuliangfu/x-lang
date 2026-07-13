@@ -45,100 +45,100 @@ extern function encoding_extra_smoke_c(): i32;
 
 /** UTF-8 校验 ptr[0..len)；合法返回 1，非法返回 0。单遍、表驱动。 */
 function utf8_valid(ptr: *u8, len: i32): i32 {
-  unsafe {
-    return encoding_utf8_valid_c(ptr, len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_utf8_valid_c(ptr, len); }
+  return _rc;
 }
 
 /** UTF-8 码点个数；非法序列返回 -1。 */
 function utf8_len_chars(ptr: *u8, len: i32): i32 {
-  unsafe {
-    return encoding_utf8_len_chars_c(ptr, len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_utf8_len_chars_c(ptr, len); }
+  return _rc;
 }
 
 /** 将码点 r 编码到 out，返回写入字节数 1..4，非法 r 返回 0。 */
 function utf8_encode_rune(r: u32, out: *u8): i32 {
-  unsafe {
-    return encoding_utf8_encode_rune_c(r, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_utf8_encode_rune_c(r, out); }
+  return _rc;
 }
 
 /** 从 ptr 解码一个 rune 到 *out_r，返回消费字节数 1..4，非法返回 0。 */
 function utf8_decode_rune(ptr: *u8, len: i32, out_r: *u32): i32 {
-  unsafe {
-    return encoding_utf8_decode_rune_c(ptr, len, out_r);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_utf8_decode_rune_c(ptr, len, out_r); }
+  return _rc;
 }
 
 /** ASCII 字母判定。 */
 function ascii_is_alpha(c: u8): i32 {
-  unsafe {
-    return encoding_ascii_is_alpha_c(c);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_ascii_is_alpha_c(c); }
+  return _rc;
 }
 
 /** ASCII 数字判定。 */
 function ascii_is_digit(c: u8): i32 {
-  unsafe {
-    return encoding_ascii_is_digit_c(c);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_ascii_is_digit_c(c); }
+  return _rc;
 }
 
 /** ASCII 字母或数字判定。 */
 function ascii_is_alnum(c: u8): i32 {
-  unsafe {
-    return encoding_ascii_is_alnum_c(c);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_ascii_is_alnum_c(c); }
+  return _rc;
 }
 
 /** ASCII 小写字母判定。 */
 function ascii_is_lower(c: u8): i32 {
-  unsafe {
-    return encoding_ascii_is_lower_c(c);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_ascii_is_lower_c(c); }
+  return _rc;
 }
 
 /** ASCII 大写字母判定。 */
 function ascii_is_upper(c: u8): i32 {
-  unsafe {
-    return encoding_ascii_is_upper_c(c);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_ascii_is_upper_c(c); }
+  return _rc;
 }
 
 /** ASCII 转小写。 */
 function ascii_to_lower(c: u8): u8 {
-  unsafe {
-    return encoding_ascii_to_lower_c(c);
-  }
+  let _rc: u8 = 0;
+  unsafe { _rc = encoding_ascii_to_lower_c(c); }
+  return _rc;
 }
 
 /** ASCII 转大写。 */
 function ascii_to_upper(c: u8): u8 {
-  unsafe {
-    return encoding_ascii_to_upper_c(c);
-  }
+  let _rc: u8 = 0;
+  unsafe { _rc = encoding_ascii_to_upper_c(c); }
+  return _rc;
 }
 
 /** 原始字节缓冲 hex 编码（小写）；返回写入字符数或 -1（STD-040）。 */
 function hex_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  unsafe {
-    return encoding_hex_encode_c(src, src_len, out, out_cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_hex_encode_c(src, src_len, out, out_cap); }
+  return _rc;
 }
 
 /** hex 解码；返回写入字节数，非法输入 -1。 */
 function hex_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  unsafe {
-    return encoding_hex_decode_c(src, src_len, out, out_cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_hex_decode_c(src, src_len, out, out_cap); }
+  return _rc;
 }
 
 /** hex 编码输出长度上界（src_len 为输入字节数）。 */
 function hex_encoded_len(src_len: i32): i32 {
-  unsafe {
-    return encoding_hex_encoded_len_c(src_len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_hex_encoded_len_c(src_len); }
+  return _rc;
 }
 
 /** hex 解码输出字节数上界（hex_len 为 hex 字符数；奇数或负返回 -1）。 */
@@ -198,30 +198,30 @@ function decode_base64_string(b64: StrView, out: *u8, out_cap: i32): i32 {
 
 /** RFC 4648 Base32 编码（含填充）；返回写入字符数，失败 -1。 */
 function base32_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  unsafe {
-    return encoding_base32_encode_c(src, src_len, out, out_cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_base32_encode_c(src, src_len, out, out_cap); }
+  return _rc;
 }
 
 /** RFC 4648 Base32 解码；返回写入字节数，非法 -1。 */
 function base32_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  unsafe {
-    return encoding_base32_decode_c(src, src_len, out, out_cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_base32_decode_c(src, src_len, out, out_cap); }
+  return _rc;
 }
 
 /** percent 编码（unreserved 保留）；返回写入长度，失败 -1。 */
 function percent_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  unsafe {
-    return encoding_percent_encode_c(src, src_len, out, out_cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_percent_encode_c(src, src_len, out, out_cap); }
+  return _rc;
 }
 
 /** percent 解码；返回写入字节数，非法 -1。 */
 function percent_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
-  unsafe {
-    return encoding_percent_decode_c(src, src_len, out, out_cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_percent_decode_c(src, src_len, out, out_cap); }
+  return _rc;
 }
 
 /** 将原始字节 Base32 编码写入 String；成功 0，失败 -1。 */
@@ -270,7 +270,7 @@ function decode_url_base64_string(b64: StrView, out: *u8, out_cap: i32): i32 {
 
 /** STD-127 C 烟测门面；成功 0。 */
 function extra_smoke(): i32 {
-  unsafe {
-    return encoding_extra_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = encoding_extra_smoke_c(); }
+  return _rc;
 }

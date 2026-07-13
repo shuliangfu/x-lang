@@ -52,30 +52,30 @@ extern function ctx_smoke_c(): i32;
 
 /** 根上下文：永不取消、无 deadline。 */
 function background(): Context {
-  unsafe {
-    return Context { handle: ctx_background_c() };
-  }
+  let _rc: Context = 0;
+  unsafe { _rc = Context { handle: ctx_background_c() }; }
+  return _rc;
 }
 
 /** 派生可取消子上下文；失败 handle=0。 */
 function with_cancel(parent: Context): Context {
-  unsafe {
-    return Context { handle: ctx_with_cancel_c(parent.handle) };
-  }
+  let _rc: Context = 0;
+  unsafe { _rc = Context { handle: ctx_with_cancel_c(parent.handle) }; }
+  return _rc;
 }
 
 /** 派生带绝对 deadline（单调纳秒）的子上下文。 */
 function with_deadline(parent: Context, deadline_ns: i64): Context {
-  unsafe {
-    return Context { handle: ctx_with_deadline_c(parent.handle, deadline_ns) };
-  }
+  let _rc: Context = 0;
+  unsafe { _rc = Context { handle: ctx_with_deadline_c(parent.handle, deadline_ns) }; }
+  return _rc;
 }
 
 /** 派生相对超时子上下文（now + timeout_ns）。 */
 function with_timeout(parent: Context, timeout_ns: i64): Context {
-  unsafe {
-    return Context { handle: ctx_with_timeout_c(parent.handle, timeout_ns) };
-  }
+  let _rc: Context = 0;
+  unsafe { _rc = Context { handle: ctx_with_timeout_c(parent.handle, timeout_ns) }; }
+  return _rc;
 }
 
 /** 取消上下文（本节点及子链查询可见）。 */
@@ -87,37 +87,37 @@ function cancel(ctx: Context): void {
 
 /** 是否已取消：1 是，0 否。 */
 function is_cancelled(ctx: Context): i32 {
-  unsafe {
-    return ctx_is_cancelled_c(ctx.handle);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = ctx_is_cancelled_c(ctx.handle); }
+  return _rc;
 }
 
 /** 有效 deadline（单调纳秒）；0 表示无 deadline。 */
 function deadline_ns(ctx: Context): i64 {
-  unsafe {
-    return ctx_deadline_ns_c(ctx.handle);
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = ctx_deadline_ns_c(ctx.handle); }
+  return _rc;
 }
 
 /** 剩余时间（纳秒）；已取消或过期返回 0。 */
 function remaining_ns(ctx: Context): i64 {
-  unsafe {
-    return ctx_remaining_ns_c(ctx.handle);
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = ctx_remaining_ns_c(ctx.handle); }
+  return _rc;
 }
 
 /** 设置键值；成功 CTX_OK，槽满 -1。 */
 function set_value(ctx: Context, key: *u8, value: i64): i32 {
-  unsafe {
-    return ctx_set_value_c(ctx.handle, key, value);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = ctx_set_value_c(ctx.handle, key, value); }
+  return _rc;
 }
 
 /** 读取键值；找到返回 1 并写 *out，否则 0。 */
 function get_value(ctx: Context, key: *u8, out: *i64): i32 {
-  unsafe {
-    return ctx_get_value_c(ctx.handle, key, out);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = ctx_get_value_c(ctx.handle, key, out); }
+  return _rc;
 }
 
 /** 释放派生上下文（不可释放 background）。 */

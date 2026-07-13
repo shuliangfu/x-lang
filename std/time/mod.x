@@ -45,58 +45,58 @@ extern function time_wall_local_offset_min_c(): i32;
 
 /** 单调时钟：纳秒（自任意起点，仅用于差值；对标 Rust Instant、Zig Timer）。 */
 function now_monotonic_ns(): i64 {
-  unsafe {
-    return time_now_monotonic_ns_c();
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_monotonic_ns_c(); }
+  return _rc;
 }
 
 /** 单调时钟：微秒。 */
 function now_monotonic_us(): i64 {
-  unsafe {
-    return time_now_monotonic_ns_c() / 1000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_monotonic_ns_c() / 1000; }
+  return _rc;
 }
 
 /** 单调时钟：毫秒。 */
 function now_monotonic_ms(): i64 {
-  unsafe {
-    return time_now_monotonic_ns_c() / 1000000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_monotonic_ns_c() / 1000000; }
+  return _rc;
 }
 
 /** 单调时钟：秒。 */
 function now_monotonic_sec(): i64 {
-  unsafe {
-    return time_now_monotonic_ns_c() / 1000000000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_monotonic_ns_c() / 1000000000; }
+  return _rc;
 }
 
 /** 墙钟：自 Unix 纪元 1970-01-01 00:00:00 UTC 的秒。 */
 function now_wall_sec(): i64 {
-  unsafe {
-    return time_now_wall_ns_c() / 1000000000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_wall_ns_c() / 1000000000; }
+  return _rc;
 }
 
 /** 墙钟：毫秒。 */
 function now_wall_ms(): i64 {
-  unsafe {
-    return time_now_wall_ns_c() / 1000000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_wall_ns_c() / 1000000; }
+  return _rc;
 }
 
 /** 墙钟：微秒。 */
 function now_wall_us(): i64 {
-  unsafe {
-    return time_now_wall_ns_c() / 1000;
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_wall_ns_c() / 1000; }
+  return _rc;
 }
 
 /** 墙钟：纳秒（Windows 粒度为 100ns）。 */
 function now_wall_ns(): i64 {
-  unsafe {
-    return time_now_wall_ns_c();
-  }
+  let _rc: i64 = 0;
+  unsafe { _rc = time_now_wall_ns_c(); }
+  return _rc;
 }
 
 /** 睡眠：纳秒。可能提前唤醒，不保证精度。 */
@@ -185,16 +185,16 @@ function lap_ns(t: *Timer): i64 {
 
 /** 将当前 UTC 墙钟写入 buf（RFC3339，STD-137）。 */
 function format_wall_rfc3339(buf: *u8, cap: i32): i32 {
-  unsafe {
-    return time_format_wall_rfc3339_c(buf, cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = time_format_wall_rfc3339_c(buf, cap); }
+  return _rc;
 }
 
 /** 本地时区相对 UTC 偏移（分钟；东为正，STD-137）。 */
 function wall_local_offset_min(): i32 {
-  unsafe {
-    return time_wall_local_offset_min_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = time_wall_local_offset_min_c(); }
+  return _rc;
 }
 
 /** 时区/格式化烟测；0 成功。 */

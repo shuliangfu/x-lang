@@ -57,30 +57,30 @@ function escape(ptr: *u8, len: i32, buf: *u8, buf_cap: i32): i32 {
 
 /** C 层引号字段探针（第一字段）；测试专用。 */
 function test_quoted_first(out_start: *i32, out_len: *i32): i32 {
-  unsafe {
-    return csv_test_quoted_first(out_start, out_len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = csv_test_quoted_first(out_start, out_len); }
+  return _rc;
 }
 
 /** C 层引号字段探针（第二字段）；测试专用。 */
 function test_quoted_second(offset: i32, out_start: *i32, out_len: *i32): i32 {
-  unsafe {
-    return csv_test_quoted_second(offset, out_start, out_len);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = csv_test_quoted_second(offset, out_start, out_len); }
+  return _rc;
 }
 
 /** C 层 unescape 正例探针；测试专用。 */
 function test_unescape_ok(buf: *u8, buf_cap: i32): i32 {
-  unsafe {
-    return csv_test_unescape_ok(buf, buf_cap);
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = csv_test_unescape_ok(buf, buf_cap); }
+  return _rc;
 }
 
 /** C 层 unescape 缓冲不足探针；测试专用。 */
 function test_unescape_fail(): i32 {
-  unsafe {
-    return csv_test_unescape_fail();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = csv_test_unescape_fail(); }
+  return _rc;
 }
 
 /* --- STD-128：流式 reader/writer（单缓冲区内 offset 迭代） --- */
@@ -158,7 +158,7 @@ function len(w: StreamCsvWriter): i32 {
 
 /** STD-128：C 层多行流式烟测；0 通过。 */
 function smoke(): i32 {
-  unsafe {
-    return csv_stream_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = csv_stream_smoke_c(); }
+  return _rc;
 }

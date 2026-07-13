@@ -68,9 +68,9 @@ function mmap_available(): i32 {
 
 /** 打开/创建 mmap KV + WAL（path.wal）；capacity_bytes 建议 ≥ 64KiB。 */
 function open(path: *u8, capacity_bytes: u64): KvStore {
-  unsafe {
-    return KvStore { handle: db_kv_open_c(path, capacity_bytes) };
-  }
+  let _rc: KvStore = 0;
+  unsafe { _rc = KvStore { handle: db_kv_open_c(path, capacity_bytes) }; }
+  return _rc;
 }
 
 /** 关闭并 munmap 主文件与 WAL。 */

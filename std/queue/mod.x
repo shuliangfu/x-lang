@@ -233,9 +233,9 @@ function is_empty(sq: SyncQueue_i32): i32 {
 
 /** 门面：C 层 sync_queue_contention_smoke_c 烟测。 */
 function sync_smoke(): i32 {
-  unsafe {
-    return sync_queue_contention_smoke_c();
-  }
+  let _rc: i32 = 0;
+  unsafe { _rc = sync_queue_contention_smoke_c(); }
+  return _rc;
 }
 
 // ——— Queue_u8（STD-163） ———
