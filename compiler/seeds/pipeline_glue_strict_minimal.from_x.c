@@ -2221,11 +2221,20 @@ __attribute__((weak)) int32_t pipeline_typeck_check_block_one_region_c(struct as
                                                                        int32_t region_idx, int32_t return_type_ref,
                                                                        struct ast_PipelineDepCtx *ctx) {
   int32_t body_ref;
+  int32_t rc;
+  extern int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx);
+  extern void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved);
   if (!module || !arena || !ctx || block_ref <= 0 || region_idx < 0)
     return 0;
   body_ref = pipeline_block_region_body_ref(arena, block_ref, region_idx);
   if (body_ref <= 0)
     return 0;
+  if (pipeline_block_region_is_unsafe(arena, block_ref, region_idx)) {
+    int32_t saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
+    rc = typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
+    pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
+    return rc;
+  }
   return typeck_check_block(module, arena, body_ref, return_type_ref, ctx);
 }
 #endif /* SHUX_PIPELINE_GLUE_STRICT_MINIMAL_FROM_X */

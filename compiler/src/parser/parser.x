@@ -1978,8 +1978,12 @@ function parse_block_into(arena: *ASTArena, lex_after_lbrace: Lexer, source: u8[
         }
         b = ast.ast_arena_block_get(arena, block_ref);
         lex_cur = block_res_unsafe.next_lex;
-        lexer.lexer_next_into(&r, lex_cur, source);
-        stmt_tok_ready = true;
+        /**
+         * parse_block_into() 已返回 unsafe 之后的下一 stmt 首 token；勿再二次 realign（与 while/loop 一致）。
+         * 旧实现额外 lexer_next_into + stmt_tok_ready=true 会导致 unsafe 后跟赋值语句时
+         * 函数体截断、局部 let 被误识别为 top-level let。
+         */
+        stmt_tok_ready = false;
         continue;
       }
     }
@@ -3610,8 +3614,12 @@ function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, lex: Lex
           }
           onefunc_push_src_stmt(out, 6, unsafe_idx_fn);
           lex = block_res_unsafe_fn.next_lex;
-          lexer.lexer_next_into(&r, lex, source);
-          stmt_tok_ready = true;
+          /**
+           * parse_block_into() 已返回 unsafe 之后的下一 stmt 首 token；勿再二次 realign（与 while/loop 一致）。
+           * 旧实现额外 lexer_next_into + stmt_tok_ready=true 会导致 unsafe 后跟赋值语句时
+           * 函数体截断、局部 let 被误识别为 top-level let。
+           */
+          stmt_tok_ready = false;
           continue;
         }
       }
