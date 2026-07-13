@@ -82,7 +82,7 @@ simd_enc	src/asm/simd_enc.x	seeds/simd_enc.from_x.c	74	1831	0	yes	yes	ifdef,larg
 simd_loop	src/asm/simd_loop.x	seeds/simd_loop.from_x.c	23	1050	0	yes	yes	ifdef,large	already_split
 user_asm_seed_bridge	src/asm/user_asm_seed_bridge.x	seeds/user_asm_seed_bridge.from_x.c	7	459	0	no	yes	weak,ifdef	already_split
 async_cps_codegen	src/async/async_cps_codegen.x	seeds/async_cps_codegen.from_x.c	6	489	0	no	yes	impl,direct	already_split
-async_liveness	src/async/async_liveness.x	seeds/async_liveness.from_x.c	19	857	0	no	no		candidate
+async_liveness	src/async/async_liveness.x	seeds/async_liveness.from_x.c	19	857	0	no	yes	direct	already_split
 build_runtime	src/build_runtime.x	seeds/build_runtime.from_x.c	5	462	0	no	no	argv,ifdef	candidate
 diag	src/diag.x	seeds/diag.from_x.c	32	1236	0	yes	yes	va_list,ifdef,large	already_split
 fmt_check_cmd	src/driver/fmt_check_cmd.x	seeds/fmt_check_cmd.from_x.c	25	1279	0	yes	yes	argv,ifdef,large	already_split

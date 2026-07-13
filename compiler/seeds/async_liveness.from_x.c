@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
 int expr_has_await(const struct ASTExpr *e);
 int block_has_await(const struct ASTBlock *b);
 int block_has_io_read_await(const struct ASTBlock *b);
@@ -25,7 +26,13 @@ int expr_count_await(const struct ASTExpr *e);
 int block_count_await(const struct ASTBlock *b);
 int expr_refs_var(const struct ASTExpr *e, const char *name);
 int block_refs_var(const struct ASTBlock *b, const char *name);
+void analyze_block_linear(const struct ASTBlock *b, const char **prefix, int n_prefix, AsyncFrameLive *frame);
+void frame_build_tag(const struct ASTFunc *f, char *buf, size_t n);
+void frame_mangle_ident(const char *fn, char *out, size_t n);
+int live_name_cmp(const void *a, const void *b);
 
+#ifndef SHUX_ASYNC_LIVENESS_FROM_X
+/* G-02f-20 thin+rest：DIRECT 模式，thin（src/async/async_liveness.x）提供完整实现 */
 /** 表达式是否含 await（递归）。 */
 /* G-02f-166：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int expr_has_await(const struct ASTExpr *e) {
@@ -560,9 +567,12 @@ void frame_mangle_ident(const char *fn, char *out, size_t n) {
     }
     out[j] = '\0';
 }
+#endif /* SHUX_ASYNC_LIVENESS_FROM_X */
 
 
-/** 构造协程帧 C 类型名 __shux_async_frame_<mangled>。 */
+/** 构造协程帧 C 类型名 __shux_async_frame_<mangled>。
+ * frame_build_tag 为 rest 函数：.x 编译器静默跳过使用字符串字面量的函数
+ *（frame_build_tag 使用 "fn" 和 "__shux_async_frame_"），故始终由 seed 提供。 */
 /* G-02f-161：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 void frame_build_tag(const struct ASTFunc *f, char *buf, size_t n) {
     char m[64];
