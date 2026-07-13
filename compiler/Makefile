@@ -318,7 +318,7 @@ net-o-mbedtls:
 # std.math：F-math v2 纯 .x（F-ZC）；libm 胶层在 runtime_math_libm.o（链接 exe 仍须 -lm）。
 # LANG-007 v2：shux-c -E → cc -c 库模块；fallback shux_compile_std_x.sh。
 ../std/math/math.o: ../std/math/math.x
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 	  ./shux-c -E -L .. ../std/math/math.x > ../std/math/math_core_gen.c && \
 	  $(CC) $(CFLAGS) -c -o ../std/math/math.o ../std/math/math_core_gen.c && \
 	  rm -f ../std/math/math_core_gen.c; \
@@ -641,7 +641,7 @@ src/main.o: seeds/main.from_x.c src/main_c_entry.x
 # G-02f-12 / Phase 4：runtime_io_abi PREFER_X_O（rest→.x 迁移）
 # 5 个 _impl 真迁 .x（read/malloc/memcpy）；4 个保留 seed（mmap/fstat/O_* flags/平台 #ifdef）
 src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/runtime_io_abi.h
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rio.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_io_abi.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_io_abi_x.o && \
@@ -649,6 +649,7 @@ src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/run
 		ld -r src/runtime_io_abi_x.o src/runtime_io_abi_rest.o -o $@ && \
 		rm -f "$$_tmp" src/runtime_io_abi_x.o src/runtime_io_abi_rest.o && \
 		echo "phase4: $@ <- .x + seed-rest (PREFER_X_O)"; \
+	}; then :; \
 	elif [ -f seeds/runtime_io_abi.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/runtime_io_abi.from_x.c (cold start seed)"; \
@@ -663,7 +664,7 @@ src/runtime_link_abi.o: seeds/runtime_link_abi.from_x.c src/runtime_link_abi.x s
 
 # G-02f-12 / Phase 4：runtime_driver_abi thin+rest PREFER_X_O
 src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_abi_thin.x src/runtime_driver_abi.x src/runtime_driver_abi.h
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rdabi.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_abi_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_abi_thin.o && \
@@ -671,6 +672,7 @@ src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_a
 		ld -r src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o -o $@ && \
 		rm -f "$$_tmp" src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	}; then :; \
 	elif [ -f seeds/runtime_driver_abi.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_abi.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/runtime_driver_abi.from_x.c (cold start seed)"; \
@@ -699,7 +701,7 @@ src/async/async_asm_pool.o: seeds/async_asm_pool.from_x.c scripts/cc_inc_tu.sh
 
 # G-02f-12 / Phase 4：runtime_driver_diagnostic thin+rest PREFER_X_O
 src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/runtime_driver_diagnostic_thin.x src/runtime_driver_diagnostic.x src/runtime_driver_diagnostic.h include/diag.h
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rdd.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_diagnostic_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_diagnostic_thin.o && \
@@ -707,6 +709,7 @@ src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/ru
 		ld -r src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o -o $@ && \
 		rm -f "$$_tmp" src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	}; then :; \
 	elif [ -f seeds/runtime_driver_diagnostic.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_diagnostic.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/runtime_driver_diagnostic.from_x.c (cold start seed)"; \
@@ -743,7 +746,7 @@ src/runtime_x.o: seeds/runtime.from_x.c src/runtime.x include/diag.h
 # G-02f-11 / Phase 4：fmt_check_cmd thin+rest PREFER_X_O
 # 两目标共用 thin.x；driver 变体 rest 编译额外加 -DSHUX_USE_X_PIPELINE
 src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd_thin.x src/driver/fmt_check_cmd.x
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/fcc.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/driver/fmt_check_cmd_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_thin.o && \
@@ -751,6 +754,7 @@ src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cm
 		ld -r src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o -o $@ && \
 		rm -f "$$_tmp" src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	}; then :; \
 	elif [ -f seeds/fmt_check_cmd.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/fmt_check_cmd.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/fmt_check_cmd.from_x.c (cold start seed)"; \
@@ -759,7 +763,7 @@ src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cm
 	fi
 
 src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd_thin.x src/driver/fmt_check_cmd.x
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/fccd.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/driver/fmt_check_cmd_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_driver_thin.o && \
@@ -767,6 +771,7 @@ src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_c
 		ld -r src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o -o $@ && \
 		rm -f "$$_tmp" src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O, driver)"; \
+	}; then :; \
 	elif [ -f seeds/fmt_check_cmd.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/fmt_check_cmd.from_x.c (cold start seed, driver)"; \
@@ -1361,7 +1366,7 @@ src/asm/asm_backend_compat_stubs.o: seeds/asm_backend_compat_stubs.from_x.c src/
 
 # G-02f-9 / Phase 4：backend_*_dispatch thin+rest PREFER_X_O
 src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/backend_enc_dispatch_thin.x src/asm/backend_enc_dispatch.x
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/enc_disp.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_enc_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_enc_dispatch_thin.o && \
@@ -1369,6 +1374,7 @@ src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/back
 		ld -r src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	}; then :; \
 	elif [ -f seeds/backend_enc_dispatch.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_enc_dispatch.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/backend_enc_dispatch.from_x.c (cold start seed)"; \
@@ -1381,7 +1387,7 @@ src/asm/backend_x86_64_enc_c.o: seeds/backend_x86_64_enc_c.from_x.c src/asm/back
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_x86_64_enc_c.from_x.c -o $@
 
 src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c src/asm/backend_arch_emit_dispatch_thin.x src/asm/backend_arch_emit_dispatch.x
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/arch_disp.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_arch_emit_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_arch_emit_dispatch_thin.o && \
@@ -1389,6 +1395,7 @@ src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c 
 		ld -r src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	}; then :; \
 	elif [ -f seeds/backend_arch_emit_dispatch.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_arch_emit_dispatch.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/backend_arch_emit_dispatch.from_x.c (cold start seed)"; \
@@ -1397,7 +1404,7 @@ src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c 
 	fi
 
 src/asm/backend_try_inline_dispatch.o: seeds/backend_try_inline_dispatch.from_x.c src/asm/backend_try_inline_dispatch_thin.x src/asm/backend_try_inline_dispatch.x
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/try_inl.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_try_inline_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_try_inline_dispatch_thin.o && \
@@ -1405,6 +1412,7 @@ src/asm/backend_try_inline_dispatch.o: seeds/backend_try_inline_dispatch.from_x.
 		ld -r src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	}; then :; \
 	elif [ -f seeds/backend_try_inline_dispatch.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_try_inline_dispatch.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/backend_try_inline_dispatch.from_x.c (cold start seed)"; \
@@ -1413,7 +1421,7 @@ src/asm/backend_try_inline_dispatch.o: seeds/backend_try_inline_dispatch.from_x.
 	fi
 
 src/asm/backend_call_dispatch.o: seeds/backend_call_dispatch.from_x.c src/asm/backend_call_dispatch_thin.x src/asm/backend_call_dispatch.x
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/call_disp.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_call_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_call_dispatch_thin.o && \
@@ -1421,6 +1429,7 @@ src/asm/backend_call_dispatch.o: seeds/backend_call_dispatch.from_x.c src/asm/ba
 		ld -r src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o -o $@ && \
 		rm -f "$$_tmp" src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	}; then :; \
 	elif [ -f seeds/backend_call_dispatch.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_call_dispatch.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/backend_call_dispatch.from_x.c (cold start seed)"; \
@@ -1612,7 +1621,7 @@ src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pu
 # shux-c 可用时：thin.x -E → thin.o + seed -DSHUX_L2_SIMD_ENC_THIN_FROM_X → rest.o → ld -r → simd_enc.o
 # 冷启动（无 shux-c）：seed 完整编译 → simd_enc.o
 src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc_thin.x src/asm/simd_enc.x include/simd_enc.h include/target_cpu.h
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp_thin=$$(mktemp "$${TMPDIR:-/tmp}/simd_enc_thin.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_enc_thin.x > "$$_tmp_thin" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_enc_thin.o && \
@@ -1620,6 +1629,7 @@ src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc_thin.x src/asm/simd
 		ld -r src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o -o $@ && \
 		rm -f "$$_tmp_thin" src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	}; then :; \
 	elif [ -f seeds/simd_enc.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/simd_enc.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/simd_enc.from_x.c (cold start seed)"; \
@@ -1631,7 +1641,7 @@ src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc_thin.x src/asm/simd
 # shux-c 可用时：thin.x -E → thin.o + seed -DSHUX_L2_SIMD_LOOP_THIN_FROM_X → rest.o → ld -r → simd_loop.o
 # 冷启动（无 shux-c）：seed 完整编译 → simd_loop.o
 src/asm/simd_loop.o: seeds/simd_loop.from_x.c src/asm/simd_loop_thin.x src/asm/simd_loop.x include/simd_loop.h include/simd_enc.h include/target_cpu.h
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp_thin=$$(mktemp "$${TMPDIR:-/tmp}/simd_loop_thin.XXXXXX") && \
 		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_loop_thin.x > "$$_tmp_thin" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_loop_thin.o && \
@@ -1639,6 +1649,7 @@ src/asm/simd_loop.o: seeds/simd_loop.from_x.c src/asm/simd_loop_thin.x src/asm/s
 		ld -r src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o -o $@ && \
 		rm -f "$$_tmp_thin" src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o && \
 		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	}; then :; \
 	elif [ -f seeds/simd_loop.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/simd_loop.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/simd_loop.from_x.c (cold start seed)"; \
@@ -1784,11 +1795,12 @@ src/lsp/lsp_diag_pipeline_sizes.o: seeds/lsp_diag_pipeline_sizes_weak.from_x.c s
 # Phase 4：shux-c 可用时优先从 .x 生成 .o（PREFER_X_O）；冷启动无 shux-c 时用 seed。
 # bootstrap/relink 同时链 lsp_diag_pipeline_ctx.o；.x 产物无 weak 占位（等同旧 nostub）。
 src/lsp/lsp_diag_pipeline_sizes_nostub.o: src/lsp/lsp_diag_pipeline_sizes.x
-	@if [ -x ./shux-c ]; then \
+	@if [ -x ./shux-c ] && { \
 		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/lsp_sizes.XXXXXX") && \
 		./shux-c -E src/lsp/lsp_diag_pipeline_sizes.x > "$$_tmp" 2>/dev/null && \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o $@ && \
 		rm -f "$$_tmp" && echo "phase4: $@ <- src/lsp/lsp_diag_pipeline_sizes.x (PREFER_X_O)"; \
+	}; then :; \
 	elif [ -f seeds/lsp_diag_pipeline_sizes.from_x.c ]; then \
 		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_sizes.from_x.c -o $@ && \
 		echo "phase4: $@ <- seeds/lsp_diag_pipeline_sizes.from_x.c (cold start seed)"; \
