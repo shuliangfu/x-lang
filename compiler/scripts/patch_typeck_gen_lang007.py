@@ -17,7 +17,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 PATH = ROOT / "typeck_gen.c"
 
 CALL_BODY = """\
-SHUX_LIB_WEAK int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /* LANG-007: always use glue path (S0 extern requires unsafe). */
   extern int32_t pipeline_typeck_check_expr_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_call_c(module, arena, expr_ref, return_type_ref, ctx);
@@ -25,7 +25,7 @@ SHUX_LIB_WEAK int32_t typeck_check_expr_call(struct ast_Module * module, struct 
 """
 
 DEREF_BODY = """\
-SHUX_LIB_WEAK int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
+int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /* LANG-007: always use glue path (S0 deref requires unsafe). */
   extern int32_t pipeline_typeck_check_expr_deref_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
   return pipeline_typeck_check_expr_deref_c(module, arena, expr_ref, return_type_ref, ctx);
@@ -33,7 +33,7 @@ SHUX_LIB_WEAK int32_t typeck_check_expr_deref(struct ast_Module * module, struct
 """
 
 BLOCK_BODY = """\
-SHUX_LIB_WEAK int32_t typeck_check_block_one_region(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx) {
+int32_t typeck_check_block_one_region(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx) {
   /* LANG-007: C 委托 pipeline_typeck_check_block_one_region_c 内部已做 unsafe depth push/pop，
    *           直接委托即可，禁止 double push（会导致 g_typeck_unsafe_depth 多增 1）。 */
   extern int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref, int32_t region_idx, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
@@ -46,7 +46,7 @@ def replace_weak_fn(src: str, name: str, new_body: str) -> tuple[str, bool]:
     """Replace (SHUX_LIB_WEAK)? int32_t <name>(...) { ... } balanced braces.
 
     【Why 根源】-E-extern 生成的 typeck_gen.c 用普通 int32_t（无 SHUX_LIB_WEAK 前缀），
-    旧正则只匹配 SHUX_LIB_WEAK int32_t 导致补丁从未生效。LANG-007 S0 守卫缺失。
+    旧正则只匹配 int32_t 导致补丁从未生效。LANG-007 S0 守卫缺失。
     """
     pat = re.compile(
         rf"((?:SHUX_LIB_WEAK\s+)?int32_t\s+{re.escape(name)}\s*\([^;]*?\)\s*\{{)",
