@@ -278,16 +278,16 @@ function eio_type_noop(): i32 { return 6; }
 function sio_type_event(): i32 { return 2; }
 
 /** Socket.IO ACK（带 packet id 应答）。 */
-function sio_type_ack(): i32 { unsafe { return sio_sio_type_ack_c(); } }
+function sio_type_ack(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_sio_type_ack_c(); } return _rc; }
 
 /** Engine.IO 协议版本（4）。 */
-function eio_version(): i32 { unsafe { return sio_eio_version_c(); } }
+function eio_version(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_eio_version_c(); } return _rc; }
 
 /** 传输常量：HTTP long-polling。 */
-function transport_polling(): i32 { unsafe { return sio_transport_polling_c(); } }
+function transport_polling(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_transport_polling_c(); } return _rc; }
 
 /** 传输常量：WebSocket upgrade。 */
-function transport_websocket(): i32 { unsafe { return sio_transport_websocket_c(); } }
+function transport_websocket(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_transport_websocket_c(); } return _rc; }
 
 /** 构建 Engine.IO URL（polling 或 websocket；sid 可选）。 */
 function build_eio_url(base: *u8, base_len: i32, sid: *u8, sid_len: i32, transport: i32, out: *u8, out_cap: i32): i32 {
@@ -334,7 +334,7 @@ function polling_smoke(): i32 {
 }
 
 /** Socket.IO CONNECT 类型常量（0）。 */
-function sio_type_connect(): i32 { unsafe { return sio_sio_type_connect_c(); } }
+function sio_type_connect(): i32 { let _rc: i32 = 0; unsafe { _rc = sio_sio_type_connect_c(); } return _rc; }
 
 /** http(s):// base 转为 ws(s):// 前缀。 */
 function http_to_ws_base(http_base: *u8, base_len: i32, out: *u8, out_cap: i32): i32 {
