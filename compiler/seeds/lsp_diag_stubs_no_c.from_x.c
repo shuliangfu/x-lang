@@ -79,6 +79,8 @@ void lsp_diag_clear(void) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-22 thin+rest：_impl 实现；thin（src/lsp/lsp_diag_stubs_no_c.x）提供 public wrapper */
 
+#ifndef SHUX_LSP_DIAG_STUBS_NO_C_FROM_X
+/* rest→.x 迁移：_impl 由 src/lsp/lsp_diag_stubs_no_c.x 提供（PREFER_X_O 路径） */
 void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
     size_t n = 0;
     if (!dst || cap <= 0)
@@ -93,6 +95,9 @@ void lsp_diag_copy_text_impl(char *dst, int cap, const char *src) {
     }
     dst[n] = '\0';
 }
+#else
+extern void lsp_diag_copy_text_impl(char *dst, int cap, const char *src);
+#endif
 
 #ifndef SHUX_LSP_DIAG_STUBS_NO_C_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
@@ -138,6 +143,9 @@ void lsp_diag_collect_end(void) {
 /* JSON 字符串转义辅助 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-22 thin+rest：_impl 实现；thin 提供 public wrapper */
+
+#ifndef SHUX_LSP_DIAG_STUBS_NO_C_FROM_X
+/* rest→.x 迁移：_impl 由 src/lsp/lsp_diag_stubs_no_c.x 提供（PREFER_X_O 路径） */
 int json_escape_str_impl(const char *msg, char *out, int out_cap) {
     int k = 0;
     if (!msg || !out || out_cap <= 0) return 0;
@@ -158,6 +166,9 @@ int json_escape_str_impl(const char *msg, char *out, int out_cap) {
     if (k < out_cap) out[k] = '\0';
     return k;
 }
+#else
+extern int json_escape_str_impl(const char *msg, char *out, int out_cap);
+#endif
 
 #ifndef SHUX_LSP_DIAG_STUBS_NO_C_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */

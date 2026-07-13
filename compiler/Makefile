@@ -2203,8 +2203,25 @@ preprocess_x.o: preprocess_gen.c $(PREPROCESS_X_DEPS)
 
 # SHUX_NO_C_FRONTEND 下 lsp_diag_x.o / lsp_x.o 需要的文档缓冲 + X 管道缓冲桩
 # G-02f-22：lsp_diag_stubs_no_c 产品 seed
+# G-02f-rest：rest→.x 迁移（lsp_diag_copy_text_impl + json_escape_str_impl 真迁 .x）
+#   PREFER_X_O 路径：.x 提供 _impl + wrapper，seed 加 -DSHUX_LSP_DIAG_STUBS_NO_C_FROM_X 跳过 _impl/wrapper，
+#   ld -r 合并 thin.o + rest.o；冷启动无 shux-c 时回退纯 seed。
 src/lsp/lsp_diag_stubs_no_c.o: seeds/lsp_diag_stubs_no_c.from_x.c src/lsp/lsp_diag_stubs_no_c.x include/diag.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_stubs_no_c.from_x.c -o $@
+	@if [ -x ./shux-c ] && { \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/ldsn.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/lsp/lsp_diag_stubs_no_c.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/lsp/lsp_diag_stubs_no_c_x.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_LSP_DIAG_STUBS_NO_C_FROM_X -c seeds/lsp_diag_stubs_no_c.from_x.c -o src/lsp/lsp_diag_stubs_no_c_rest.o && \
+		ld -r src/lsp/lsp_diag_stubs_no_c_x.o src/lsp/lsp_diag_stubs_no_c_rest.o -o $@ && \
+		rm -f "$$_tmp" src/lsp/lsp_diag_stubs_no_c_x.o src/lsp/lsp_diag_stubs_no_c_rest.o && \
+		echo "phase4: $@ <- .x + seed-rest (PREFER_X_O)"; \
+	}; then :; \
+	elif [ -f seeds/lsp_diag_stubs_no_c.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_stubs_no_c.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/lsp_diag_stubs_no_c.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
 # SHUX_SKIP_SUBSCRIPT_MAKE=1：run-all 入口已链 seed，子脚本 `make` 仅在校验 shux 缺失时再完整 bootstrap。
 ifeq ($(SHUX_SKIP_SUBSCRIPT_MAKE),1)
