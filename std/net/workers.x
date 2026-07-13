@@ -93,10 +93,3 @@ function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: 
   }
   return 0;
 }
-
-/**
- * 兼容别名：runtime / 旧链接路径仍引用 net_run_accept_workers_c。
- */
-function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32 {
-  return net_run_accept_workers_c_real_c(listener_fd, n_workers, timeout_ms);
-}
