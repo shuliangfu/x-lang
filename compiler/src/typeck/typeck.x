@@ -217,6 +217,8 @@ extern function pipeline_dep_ctx_typeck_loop_depth_at(ctx: *PipelineDepCtx): i32
 /** EXPR_VAR：读当前块/函数下标（勿 X 直接读 ctx 字段）。 */
 extern function pipeline_dep_ctx_current_block_ref_at(ctx: *PipelineDepCtx): i32;
 extern function pipeline_dep_ctx_current_func_index(ctx: *PipelineDepCtx): i32;
+/** LANG-007 v2：读 unsafe { } 嵌套深度（>0 表示在 unsafe 块内）；deref/extern call 边界检查共用（pipeline_glue.c 侧车）。 */
+extern function pipeline_dep_ctx_typeck_unsafe_depth_at(ctx: *PipelineDepCtx): i32;
 /** check_block_impl：绑定/恢复 ctx.current_block_ref（EMIT_HEAVY 勿 X 写字段+while 混用）。 */
 extern function pipeline_typeck_block_impl_bind_ctx_c(ctx: *PipelineDepCtx, block_ref: i32): i32;
 extern function pipeline_typeck_block_impl_restore_ctx_c(ctx: *PipelineDepCtx, saved_block_ref: i32): void;
@@ -271,6 +273,8 @@ op_ref: i32, func_return_ref: i32): i32;
 /** LANG-007 v2：S0 内 extern 调用须在 unsafe { }（pipeline_glue.c）。 */
 extern function pipeline_typeck_check_extern_call_unsafe_boundary_c(module: *Module, arena: *ASTArena,
 expr_ref: i32, ctx: *PipelineDepCtx): i32;
+/** LANG-007 v2：*T 解引用在 unsafe { } 块外时报错（pipeline_glue.c）。 */
+extern function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, col: i32): void;
 extern function pipeline_typeck_check_call_slice_region_c(module: *Module, arena: *ASTArena,
 call_expr_ref: i32, ctx: *PipelineDepCtx): i32;
 extern function pipeline_type_stamp_block_let_region_c(arena: *ASTArena, block_ref: i32, let_idx: i32,
@@ -4938,6 +4942,15 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  */
 function typeck_check_expr_deref(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
+  /** 【Why 根源】LANG-007 v2：S0 内 *T 解引用须在 unsafe { } 块内（与 extern call 边界对称）。
+   *  【Invariant】pipeline_dep_ctx_typeck_unsafe_depth_at > 0 ⇔ 当前在 unsafe 块内。
+   *  【Asm/Perf】单字段读 + 分支，热路径无额外开销。 */
+  if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) <= 0) {
+    let line: i32 = pipeline_expr_line_at(arena, expr_ref);
+    let col: i32 = pipeline_expr_col_at(arena, expr_ref);
+    driver_diagnostic_typeck_deref_outside_unsafe(line, col);
+    return -1;
+  }
   let ord_ptr: i32 = 9;
   let op_ref: i32 = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
   let op_ptr: i32 = 0;
@@ -5677,16 +5690,16 @@ return_type_ref: i32, ctx: *PipelineDepCtx, fin0: i32): i32 {
     return - 1;
   }
   fin_k_tail = pipeline_expr_kind_ord_at(arena, fin0);
-  if (fin_k_tail == 41) {
-    if (ast.ref_is_null(pipeline_expr_unary_operand_ref_at(arena, fin0))) {
-      skip_tail_ty_cmp = true;
-    }
-  }
-  if (fin_k_tail == 39 || fin_k_tail == 40) {
+  /** 【Why 根源】SHUX 拒绝隐式尾返回（typeck_x_ast_check_one_func 用 func_body_has_implicit_return_tail 门禁）。
+   *  仅 return（kind 41）有操作数时做 return_type_ref 类型比较；其余一律跳过：
+   *    - break(39)/continue(40)：控制流无值
+   *    - assign：parse_block_into 块尾 `}` 前无 `;` 的赋值落 final_expr，非返回值
+   *    - call/var/lit/field_access 等：内层块（unsafe { } 等）的尾表达式是块值，非函数返回值
+   *  【Invariant】return_type_ref 仅对 return 操作数有意义；透传给内层块时不触发误报。
+   *  【Asm/Perf】单分支 kind 比较，无额外开销。 */
+  if (fin_k_tail != 41) {
     skip_tail_ty_cmp = true;
-  }
-  /** parse_block_into 块尾 `}` 前无 `;` 的 assign 会落 final_expr；勿当作 return 值做尾类型比较。 */
-  if (typeck_expr_is_any_assign_kind(fin_k_tail)) {
+  } else if (ast.ref_is_null(pipeline_expr_unary_operand_ref_at(arena, fin0))) {
     skip_tail_ty_cmp = true;
   }
   if (ast.ref_is_null(return_type_ref) || skip_tail_ty_cmp) {

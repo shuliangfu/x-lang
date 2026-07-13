@@ -166,12 +166,13 @@ while IFS=$'\t' read -r case_id mode script policy want_ec notes; do
     hook)
       hook="tests/${script}"
       chmod +x "$hook" 2>/dev/null || true
-      # struct 回归：typeck 走 seed shux；-o 链接仍由 bootstrap-link-shux 选 shux-c（Docker 上 seed -o 易 SIGSEGV）。
-      hook_env=()
+      # struct 回归：typeck check 需 X pipeline 输出 "implicit padding"（shux-c 只输出 CHK001），
+      # 故 run-struct.sh 须用 ./compiler/shux；其他 hook 默认用 SHUX_BIN（shux-c seed）。
+      hook_env=(SHUX="$SHUX_BIN")
       if [ "$script" = "run-struct.sh" ] && [ -x ./compiler/shux ]; then
         hook_env=(SHUX=./compiler/shux)
       fi
-      if run_timeout_case env "${hook_env[@]}" SHUX="$SHUX_BIN" "$hook"; then
+      if run_timeout_case env "${hook_env[@]}" "$hook"; then
         echo "lang-unsafe OK $case_id ($script)"
       else
         echo "lang-unsafe FAIL $case_id ($script)" >&2
