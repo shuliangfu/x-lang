@@ -7152,7 +7152,28 @@ function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutBuf, mod
      【Invariant】name_prefix_len 仅影响函数名 emit，不影响返回类型/参数类型的 prefix 传递。 */
   let name_prefix_len: i32 = prefix_len;
   if (pipeline_module_func_is_extern_at(module, fi) != 0) {
-    name_prefix_len = 0;
+    /* 【Why 根源】extern function 分两类：
+     *   1. 真正外部链接库符号（如 shux_sys_mmap）：函数名不含模块前缀，须用裸名。
+     *   2. .x extern 声明但 C 实现在 pipeline_glue.c（如 ast_arena_expr_get）：
+     *      函数名已含模块前缀（ast_），C 定义为双前缀（ast_ast_arena_expr_get）。
+     *      须保留前缀使声明符号 = ast_ast_arena_expr_get，与 C 定义匹配。
+     * 判断：函数名是否以模块前缀开头。是 → 保留前缀（双前缀匹配 C 定义）；
+     *       否 → 裸名（外部链接库符号）。 */
+    let _starts_with_prefix: bool = false;
+    if (prefix_len > 0 && fn_len >= prefix_len) {
+      let _k: i32 = 0;
+      _starts_with_prefix = true;
+      while (_k < prefix_len) {
+        if (fn_local[_k] != prefix[_k]) {
+          _starts_with_prefix = false;
+          break;
+        }
+        _k = _k + 1;
+      }
+    }
+    if (!_starts_with_prefix) {
+      name_prefix_len = 0;
+    }
   }
   if (name_prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, name_prefix_len, &fn_local[0], fn_len) == 0 && emit_bytes_from_ptr(out, prefix, name_prefix_len) != 0) {
     return -1;

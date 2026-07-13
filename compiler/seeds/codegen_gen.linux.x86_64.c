@@ -5327,7 +5327,13 @@ SHUX_LIB_WEAK int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena *
  }
   /* 【Why extern 裸名】extern function 符号由外部链接库提供，须用裸名，不加 dep 前缀 */
   int32_t name_prefix_len = prefix_len;
-  if (pipeline_module_func_is_extern_at(module, fi) != 0) {   name_prefix_len = 0;
+  if (pipeline_module_func_is_extern_at(module, fi) != 0) {
+    int _starts = 0; int _k2 = 0;
+    if (prefix_len > 0 && fn_len >= prefix_len) {
+      _starts = 1;
+      while (_k2 < prefix_len) { if (fn_local[_k2] != prefix[_k2]) { _starts = 0; break; } ++_k2; }
+    }
+    if (!_starts) { name_prefix_len = 0; }
  }
   if (name_prefix_len > 0 && codegen_c_prefix_redundant_with_name(prefix, name_prefix_len, (&((fn_local)[0])), fn_len) == 0 && codegen_emit_bytes_from_ptr(out, prefix, name_prefix_len) != 0) {   return (-1);
  }
