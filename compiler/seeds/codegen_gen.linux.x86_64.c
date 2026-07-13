@@ -4376,8 +4376,8 @@ SHUX_LIB_WEAK int32_t codegen_emit_block(struct ast_ASTArena * arena, struct cod
  }
   if (type_emitted == 0 && (!ast_ref_is_null((init_e).resolved_type_ref)) && (init_e).resolved_type_ref > 0 && (init_e).resolved_type_ref <= (arena)->num_types) {   struct ast_Type rt = ast_arena_type_get(arena, (init_e).resolved_type_ref);
   if ((rt).kind == ast_TypeKind_TYPE_NAMED && (rt).name_len >= 6) {   int32_t n0 = (rt).name_len - 6;
-  if ((n0 < 0 || (n0) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0]) == 83 && (n0 + 1 < 0 || (n0 + 1) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 1]) == 116 && (n0 + 2 < 0 || (n0 + 2) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 2]) == 114 && (n0 + 3 < 0 || (n0 + 3) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 3]) == 105 && (n0 + 4 < 0 || (n0 + 4) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 4]) == 110 && (n0 + 5 < 0 || (n0 + 5) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 5]) == 103) {   uint8_t str_ty[8] = { 83, 116, 114, 105, 110, 103, 32, 0 };
-  if (codegen_emit_bytes_from_ptr(out, (&((str_ty)[0])), 6) != 0) {   return (-1);
+  if ((n0 < 0 || (n0) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0]) == 83 && (n0 + 1 < 0 || (n0 + 1) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 1]) == 116 && (n0 + 2 < 0 || (n0 + 2) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 2]) == 114 && (n0 + 3 < 0 || (n0 + 3) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 3]) == 105 && (n0 + 4 < 0 || (n0 + 4) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 4]) == 110 && (n0 + 5 < 0 || (n0 + 5) >= 64 ? (shux_panic_(1, 0), ((rt).name)[0]) : ((rt).name)[n0 + 5]) == 103) {   uint8_t str_ty[14] = { 115, 116, 114, 117, 99, 116, 32, 83, 116, 114, 105, 110, 103, 0 };
+  if (codegen_emit_bytes_from_ptr(out, (&((str_ty)[0])), 13) != 0) {   return (-1);
  }
   if (codegen_append_byte(out, 32) != 0) {   return (-1);
  }
