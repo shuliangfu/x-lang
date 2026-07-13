@@ -3681,27 +3681,13 @@ ensure_runtime_cc_stubs() {
 }
 
 # B-strict shux_asm：driver_run_compiler_full 走 impl_c（完整 parse_argv），勿与 seed 共用 runtime_driver.o 宏。
-ensure_runtime_abi_obj() {
-  local o="src/runtime_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_abi.c" -nt "$o" ]; then
-  echo " cc -c $o <- src/runtime_abi.c (E-04 v2 ABI thin shell)"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_abi.c
-  fi
-}
-
+# G-02e：runtime_abi.c / runtime_proc_abi.c 已合并到 runtime_link_abi（ensure_runtime_link_abi_obj）；
+#   codegen_pipeline_stubs.c 已合并到 strict_glue（runtime_driver_strict_glue_stubs.o）。
 ensure_runtime_io_abi_obj() {
   local o="src/runtime_io_abi.o"
   if [ ! -f "$o" ] || [ "seeds/runtime_io_abi.from_x.c" -nt "$o" ]; then
   echo " cc -c $o <- seeds/runtime_io_abi.from_x.c (E-04 v3 I/O ABI)"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o "$o"
-  fi
-}
-
-ensure_runtime_proc_abi_obj() {
-  local o="src/runtime_proc_abi.o"
-  if [ ! -f "$o" ] || [ "src/runtime_proc_abi.c" -nt "$o" ]; then
-  echo " cc -c $o <- src/runtime_proc_abi.c (E-04 v4 proc/link ABI)"
-  "$CC" $CFLAGS -c -o "$o" src/runtime_proc_abi.c
   fi
 }
 
@@ -3750,9 +3736,7 @@ ensure_runtime_driver_diagnostic_obj() {
 }
 
 ensure_runtime_driver_asm_strict_obj() {
-  ensure_runtime_abi_obj
   ensure_runtime_io_abi_obj
-  ensure_runtime_proc_abi_obj
   ensure_runtime_link_abi_obj
   ensure_runtime_pipeline_abi_obj
   ensure_runtime_driver_abi_obj
@@ -3774,11 +3758,6 @@ ensure_runtime_driver_asm_strict_obj() {
 # bootstrap-driver-seed DRIVER_SEED_SUPPORT_EXTRA 对齐：X 前端 experimental 链缺 C codegen/lexer 时的桩。
 ensure_asm_bootstrap_support_extra_objs() {
   local o
-  o=""
-  if [ ! -f "$o" ] || [ "src/codegen/codegen_pipeline_stubs.c" -nt "$o" ]; then
-  echo " cc -c $o <- src/codegen/codegen_pipeline_stubs.c (cfg/WPO/C-codegen stubs)"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$o" src/codegen/codegen_pipeline_stubs.c
-  fi
   o="src/lexer/cfg_eval.o"
   if [ -f src/lexer/cfg_eval.x ] \
   && { [ ! -f "$o" ] || [ src/lexer/cfg_eval.x -nt "$o" ]; }; then
@@ -4050,9 +4029,7 @@ shux_asm_bstrict_relink_runtime_only() {
   ensure_asm_experimental_symbol_bridge_obj
   ensure_asm_bootstrap_x_companion_objs
   ensure_asm_experimental_lsp_objs
-  ensure_runtime_abi_obj
   ensure_runtime_io_abi_obj
-  ensure_runtime_proc_abi_obj
   ensure_runtime_link_abi_obj
   ensure_runtime_pipeline_abi_obj
   ensure_runtime_driver_abi_obj
