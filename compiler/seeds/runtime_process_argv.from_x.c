@@ -30,12 +30,15 @@
 int shux_process_argc = 0;
 char **shux_process_argv = NULL;
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+void shux_process_argv_bind_from_crt(void);
+
 /**
  * 从 CRT 绑定 argc/argv（asm 用户 main 无参、gcc -pie 链入时）。
  * 若已由 codegen 写入则 no-op。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void shux_process_argv_bind_from_crt(void) {
+void shux_process_argv_bind_from_crt_impl(void) {
   if (shux_process_argc > 0 && shux_process_argv != NULL)
     return;
 #if defined(__APPLE__)
@@ -106,6 +109,11 @@ void shux_process_argv_bind_from_crt(void) {
   }
 #endif
 }
+
+#ifndef SHUX_RUNTIME_PROCESS_ARGV_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/runtime_process_argv.x）提供 wrapper 调用 _impl */
+void shux_process_argv_bind_from_crt(void) { shux_process_argv_bind_from_crt_impl(); }
+#endif /* SHUX_RUNTIME_PROCESS_ARGV_FROM_X */
 
 
 

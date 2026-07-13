@@ -63,7 +63,7 @@ runtime_net_workers	src/asm/runtime_net_workers.x	seeds/runtime_net_workers.from
 runtime_panic_arm64	src/asm/runtime_panic_arm64.x	seeds/runtime_panic_arm64.from_x.c	1	45	0	no	yes	weak,ifdef	already_split
 runtime_panic	src/asm/runtime_panic.x	seeds/runtime_panic.from_x.c	1	78	0	no	yes	weak,ifdef	already_split
 runtime_path_fast	src/asm/runtime_path_fast.x	seeds/runtime_path_fast.from_x.c	4	275	0	no	yes	ifdef	already_split
-runtime_process_argv	src/asm/runtime_process_argv.x	seeds/runtime_process_argv.from_x.c	1	158	0	no	no	argv,weak,ifdef	candidate
+runtime_process_argv	src/asm/runtime_process_argv.x	seeds/runtime_process_argv.from_x.c	1	158	0	no	no	argv,weak,ifdef,impl	already_split
 runtime_process_os_glue	src/asm/runtime_process_os_glue.x	seeds/runtime_process_os_glue.from_x.c	2	569	0	no	yes	argv,ifdef	already_split
 runtime_queue_contention	src/asm/runtime_queue_contention.x	seeds/runtime_queue_contention.from_x.c	3	230	0	no	yes	ifdef	already_split
 runtime_random_fill	src/asm/runtime_random_fill.x	seeds/runtime_random_fill.from_x.c	1	109	0	no	yes	ifdef	already_split
