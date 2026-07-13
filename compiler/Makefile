@@ -1491,9 +1491,25 @@ src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pu
 # G-02f-7：simd_enc 产品单 TU seed（纯编码）
 src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc.x include/simd_enc.h include/target_cpu.h
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/simd_enc.from_x.c -o $@
-# G-02f-8：simd_loop 产品单 TU seed
-src/asm/simd_loop.o: seeds/simd_loop.from_x.c src/asm/simd_loop.x include/simd_loop.h include/simd_enc.h include/target_cpu.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/simd_loop.from_x.c -o $@
+# G-02f-8 / Phase 4：simd_loop thin+rest PREFER_X_O
+# 源：src/asm/simd_loop_thin.x（22 #[no_mangle] thin wrapper）+ seeds/simd_loop.from_x.c（17 _impl rest）
+# shux-c 可用时：thin.x -E → thin.o + seed -DSHUX_L2_SIMD_LOOP_THIN_FROM_X → rest.o → ld -r → simd_loop.o
+# 冷启动（无 shux-c）：seed 完整编译 → simd_loop.o
+src/asm/simd_loop.o: seeds/simd_loop.from_x.c src/asm/simd_loop_thin.x src/asm/simd_loop.x include/simd_loop.h include/simd_enc.h include/target_cpu.h
+	@if [ -x ./shux-c ]; then \
+		_tmp_thin=$$(mktemp "$${TMPDIR:-/tmp}/simd_loop_thin.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_loop_thin.x > "$$_tmp_thin" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_loop_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_SIMD_LOOP_THIN_FROM_X -c seeds/simd_loop.from_x.c -o src/asm/simd_loop_rest.o && \
+		ld -r src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o -o $@ && \
+		rm -f "$$_tmp_thin" src/asm/simd_loop_thin.o src/asm/simd_loop_rest.o && \
+		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	elif [ -f seeds/simd_loop.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/simd_loop.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/simd_loop.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 # G-02a Step 1：默认构建切 no_c 模式；默认 bootstrap 不链 LEXER_LINK_O / AST_LINK_O。
 # C 前端 .c（ast/lexer/parser/typeck/codegen）仍保留，因 build_shux_asm.sh + relink 脚本仍引用 ast_seed.o 等。
 # bootstrap-driver-seed：pipeline_x.o 为 -E-extern 编排；parser/lexer/typeck/codegen *_x.o 分 TU。
