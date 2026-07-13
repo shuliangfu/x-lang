@@ -47,9 +47,9 @@ int32_t queue_smoke_at(QueueSmokeState *q, int32_t i);
 int32_t queue_smoke_push_back(QueueSmokeState *q, int32_t x);
 void *queue_os_worker_trampoline(void *arg);
 
+#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+/* G-02f-rest：rest→.x 迁移：_impl + thin wrapper 真迁 .x，PREFER_X_O 路径下整体跳过 */
 /** 逻辑下标 i 对应的物理下标。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_queue_contention.x）提供 public wrapper */
 int32_t queue_smoke_at_impl(QueueSmokeState *q, int32_t i) {
   int32_t idx = q->head + i;
   if (idx >= q->cap) {
@@ -58,7 +58,6 @@ int32_t queue_smoke_at_impl(QueueSmokeState *q, int32_t i) {
   return idx;
 }
 
-#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t queue_smoke_at(QueueSmokeState *q, int32_t i) {
     return queue_smoke_at_impl(q, i);
@@ -68,9 +67,9 @@ int32_t queue_smoke_at(QueueSmokeState *q, int32_t i) {
 
 
 
+#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+/* G-02f-rest：rest→.x 迁移：push_back _impl + thin wrapper + worker_push 真迁 .x */
 /** 队尾插入；失败 -1。 */
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_queue_contention.x）提供 public wrapper */
 int32_t queue_smoke_push_back_impl(QueueSmokeState *q, int32_t x) {
   int32_t new_cap;
   int32_t *p;
@@ -103,15 +102,10 @@ int32_t queue_smoke_push_back_impl(QueueSmokeState *q, int32_t x) {
   return 0;
 }
 
-#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t queue_smoke_push_back(QueueSmokeState *q, int32_t x) {
     return queue_smoke_push_back_impl(q, x);
 }
-#endif
-
-
-
 
 /** 每 worker 线程：加锁 push 500 次。 */
 int32_t queue_contention_worker_push_c(void *ctx) {
@@ -127,6 +121,7 @@ int32_t queue_contention_worker_push_c(void *ctx) {
   }
   return 0;
 }
+#endif
 
 /**
  * 创建 mutex。
@@ -182,25 +177,25 @@ void queue_os_mutex_unlock_c(void *mu) {
 }
 
 #if SHUX_QUEUE_WIN
+#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+/* G-02f-rest：rest→.x 迁移：Win32 trampoline 真迁 .x（PREFER_X_O 路径下跳过） */
 static unsigned __stdcall queue_os_worker_trampoline(void *arg) {
     (void)queue_contention_worker_push_c(arg);
     return 0;
 }
+#endif
 #else
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_queue_contention.x）提供 public wrapper */
+#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+/* G-02f-rest：rest→.x 迁移：_impl + thin wrapper 真迁 .x（PREFER_X_O 路径下跳过） */
 void *queue_os_worker_trampoline_impl(void *arg) {
     (void)queue_contention_worker_push_c(arg);
     return NULL;
 }
 
-#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 void *queue_os_worker_trampoline(void *arg) {
     return queue_os_worker_trampoline_impl(arg);
 }
 #endif
-
 #endif
 
 /**
@@ -232,6 +227,8 @@ int32_t queue_os_run_two_workers_c(void *ctx) {
     return 0;
 }
 
+#ifndef SHUX_RUNTIME_QUEUE_CONTENTION_FROM_X
+/* G-02f-rest：rest→.x 迁移：smoke 烟测真迁 .x（PREFER_X_O 路径下跳过） */
 /** STD-048：双线程并发 push 烟测；0 通过，-1 失败。 */
 int32_t sync_queue_contention_smoke_c(void) {
   QueueSmokeState st;
@@ -255,3 +252,4 @@ int32_t sync_queue_contention_smoke_c(void) {
   queue_os_mutex_destroy_c(st.mu);
   return rc;
 }
+#endif
