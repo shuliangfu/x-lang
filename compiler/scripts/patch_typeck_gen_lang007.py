@@ -279,6 +279,31 @@ def patch_implicit_tail_region(src: str) -> tuple[str, bool]:
     return src, False
 
 
+
+def patch_tail_debug_print(src: str) -> tuple[str, bool]:
+    """Add debug print to typeck_func_body_has_implicit_return_tail (SHUX_DEBUG_TAIL).
+    Idempotent.
+    """
+    marker = "SHUX_DEBUG_TAIL"
+    fn_sig = "int typeck_func_body_has_implicit_return_tail(struct ast_ASTArena * arena, int32_t body_ref) {"
+    pos = src.find(fn_sig)
+    if pos < 0:
+        return src, False
+    # Check if already patched
+    fn_end = src.find("\n}\n", pos)
+    if fn_end < 0:
+        return src, False
+    if marker in src[pos:fn_end]:
+        return src, False
+    # Insert debug print after tail_ref assignment
+    target = "  int32_t tail_ref = typeck_func_body_tail_expr_ref_for_implicit_rule(arena, body_ref);\n"
+    if target not in src[pos:fn_end]:
+        return src, False
+    debug_line = '  if (getenv("SHUX_DEBUG_TAIL")) { int32_t _tk = (tail_ref > 0 && tail_ref <= (arena)->num_exprs) ? pipeline_expr_kind_ord_at(arena, tail_ref) : -1; int32_t _ib = (_tk == 26 && tail_ref > 0) ? pipeline_expr_block_ref_at(arena, tail_ref) : 0; fprintf(stderr, "DBG-TAIL body=%d tail=%d kind=%d inner=%d\\n", (int)body_ref, (int)tail_ref, (int)_tk, (int)_ib); }\n'
+    new_src = src[:pos] + src[pos:fn_end].replace(target, target + debug_line, 1) + src[fn_end:]
+    return new_src, True
+
+
 def main() -> int:
     if not PATH.is_file():
         print(f"patch_typeck_gen_lang007: skip (missing {PATH.name})")
@@ -316,6 +341,12 @@ def main() -> int:
         changed = True
     else:
         print("patch_typeck_gen_lang007: implicit_tail_region already ok or missing")
+    src, did = patch_tail_debug_print(src)
+    if did:
+        print("patch_typeck_gen_lang007: added tail debug print")
+        changed = True
+    else:
+        print("patch_typeck_gen_lang007: tail debug print already ok or missing")
     if changed:
         PATH.write_text(src, encoding="utf-8")
         print(f"patch_typeck_gen_lang007: wrote {PATH}")
