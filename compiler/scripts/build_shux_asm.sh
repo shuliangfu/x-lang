@@ -4118,9 +4118,7 @@ shux_asm_bstrict_relink_runtime_only() {
   # shellcheck disable=SC2086
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -o shux_asm \
   $BOOT_ENTRY_OBJ \
-  src/runtime_abi.o \
   src/runtime_io_abi.o \
-  src/runtime_proc_abi.o \
   src/runtime_link_abi.o \
   src/runtime_pipeline_abi.o \
   src/runtime_driver_abi.o \
@@ -4375,9 +4373,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   $BOOT_ENTRY_OBJ \
   "$BSTRICT_EXPERIMENTAL_GLUE_OBJ" \
   $BSTRICT_MINIMAL_GLUE_COMPANION \
-  src/runtime_abi.o \
   src/runtime_io_abi.o \
-  src/runtime_proc_abi.o \
   src/runtime_link_abi.o \
   src/runtime_pipeline_abi.o \
   src/runtime_driver_abi.o \
@@ -4751,9 +4747,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # shellcheck disable=SC2086
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -o shux_asm \
   $BOOT_ENTRY_OBJ \
-  src/runtime_abi.o \
   src/runtime_io_abi.o \
-  src/runtime_proc_abi.o \
   src/runtime_link_abi.o \
   src/runtime_pipeline_abi.o \
   src/runtime_driver_abi.o \
@@ -4816,9 +4810,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -o shux_asm \
   $BOOT_ENTRY_OBJ \
-  src/runtime_abi.o \
   src/runtime_io_abi.o \
-  src/runtime_proc_abi.o \
   src/runtime_link_abi.o \
   src/runtime_pipeline_abi.o \
   src/runtime_driver_abi.o \
@@ -4999,9 +4991,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   # shellcheck disable=SC2086
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -o shux_asm \
   $BOOT_ENTRY_OBJ \
-  src/runtime_abi.o \
   src/runtime_io_abi.o \
-  src/runtime_proc_abi.o \
   src/runtime_link_abi.o \
   src/runtime_pipeline_abi.o \
   src/runtime_driver_abi.o \
@@ -5074,9 +5064,7 @@ else
   # shellcheck disable=SC2086
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS -DSHUX_USE_X_DRIVER -DSHUX_USE_X_PIPELINE -o shux_asm \
   $BOOT_ENTRY_OBJ \
-  src/runtime_abi.o \
   src/runtime_io_abi.o \
-  src/runtime_proc_abi.o \
   src/runtime_link_abi.o \
   src/runtime_pipeline_abi.o \
   src/runtime_driver_abi.o \
