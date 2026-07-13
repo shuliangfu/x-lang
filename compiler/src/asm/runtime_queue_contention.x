@@ -99,9 +99,11 @@ function queue_contention_worker_push_c(ctx: *u8): i32 {
   }
   let i: i32 = 0;
   while (i < 500) {
-    queue_os_mutex_lock_c(q.mu);
-    queue_smoke_push_back(q, 1);
-    queue_os_mutex_unlock_c(q.mu);
+    unsafe {
+      queue_os_mutex_lock_c(q.mu);
+      queue_smoke_push_back(q, 1);
+      queue_os_mutex_unlock_c(q.mu);
+    }
     i = i + 1;
   }
   return 0;
@@ -130,12 +132,20 @@ function sync_queue_contention_smoke_c(): i32 {
     head: 0,
   };
   let rc: i32 = -1;
-  st.mu = queue_os_mutex_create_c();
+  unsafe {
+    st.mu = queue_os_mutex_create_c();
+  }
   if (st.mu == 0 as *u8) {
     return -1;
   }
-  if (queue_os_run_two_workers_c(&st as *u8) != 0) {
-    queue_os_mutex_destroy_c(st.mu);
+  let workers_rc: i32 = 0;
+  unsafe {
+    workers_rc = queue_os_run_two_workers_c(&st as *u8);
+  }
+  if (workers_rc != 0) {
+    unsafe {
+      queue_os_mutex_destroy_c(st.mu);
+    }
     if (st.data != 0 as *i32) {
       unsafe {
         free(st.data as *u8);
@@ -151,6 +161,8 @@ function sync_queue_contention_smoke_c(): i32 {
       free(st.data as *u8);
     }
   }
-  queue_os_mutex_destroy_c(st.mu);
+  unsafe {
+    queue_os_mutex_destroy_c(st.mu);
+  }
   return rc;
 }
