@@ -6,7 +6,7 @@ backend_enc_dispatch	src/asm/backend_enc_dispatch.x	seeds/backend_enc_dispatch.f
 backend_seed_mega_fallback	src/asm/backend_seed_mega_fallback.x	seeds/backend_seed_mega_fallback.from_x.c	3	346	0	no	yes	weak,ifdef	already_split
 backend_try_inline_dispatch	src/asm/backend_try_inline_dispatch.x	seeds/backend_try_inline_dispatch.from_x.c	54	2441	0	yes	yes	va_list,ifdef,large	already_split
 backend_x86_64_enc_c	src/asm/backend_x86_64_enc_c.x	seeds/backend_x86_64_enc_c.from_x.c	10	976	0	no	yes	ifdef	already_split
-bootstrap_nostdlib_stubs	src/asm/bootstrap_nostdlib_stubs.x	seeds/bootstrap_nostdlib_stubs.from_x.c	6	1648	0	no	no	argv,va_list,ifdef,large	candidate
+bootstrap_nostdlib_stubs	src/asm/bootstrap_nostdlib_stubs.x	seeds/bootstrap_nostdlib_stubs.from_x.c	6	1648	0	no	no	argv,va_list,ifdef,large,impl,direct	already_split
 runtime_http_glue	src/asm/http/runtime_http_glue.x	seeds/runtime_http_glue.from_x.c	12	1073	0	no	no	ifdef,large	candidate
 parser_asm_parse_expr_link	src/asm/parser_asm_parse_expr_link.x	seeds/parser_asm_parse_expr_link.from_x.c	1	255	0	no	yes	weak,ifdef	already_split
 parser_asm_thin_c	src/asm/parser_asm_thin_c.x	seeds/parser_asm_thin_c.from_x.c	11	4542	0	no	yes	ifdef,large	already_split

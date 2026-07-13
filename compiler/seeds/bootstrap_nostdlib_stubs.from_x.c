@@ -233,17 +233,29 @@ static unsigned char *bootstrap_heap_base;
 static unsigned char *bootstrap_heap_end;
 static unsigned char *bootstrap_heap_limit;
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+size_t bootstrap_align16(size_t n);
+int bootstrap_heap_grow(size_t need);
+int bootstrap_format_double(double x, char *out, size_t cap);
+int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap);
+#if defined(__linux__) && defined(__x86_64__)
+long bootstrap_syscall3(long nr, long a0, long a1, long a2);
+long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3);
+#endif
+
 /** 对齐到 16 字节边界。 */
-/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+/* G-02f-114：逻辑源 .x（真迁）；DIRECT 模式，rest 模式下 seed 不提供 */
 size_t bootstrap_align16(size_t n) {
   return (n + 15u) & ~(size_t)15u;
 }
+#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
 /** 扩展 bump 区；失败返回 NULL。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int bootstrap_heap_grow(size_t need) {
+int bootstrap_heap_grow_impl(size_t need) {
     unsigned long chunk = 1024UL * 1024UL;
     void *p;
     if (need > chunk)
@@ -256,6 +268,11 @@ int bootstrap_heap_grow(size_t need) {
     bootstrap_heap_limit = bootstrap_heap_base + chunk;
     return 0;
 }
+
+#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
+int bootstrap_heap_grow(size_t need) { return bootstrap_heap_grow_impl(need); }
+#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
@@ -509,7 +526,7 @@ int posix_memalign(void **memptr, size_t alignment, size_t size) {
 
 /** 最小 vsnprintf：支持 %% %c %s %d %u %ld %lu %x %p %f（%f 精度有限）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int bootstrap_format_double(double x, char *out, size_t cap) {
+int bootstrap_format_double_impl(double x, char *out, size_t cap) {
     size_t n = 0;
     long ipart;
     unsigned frac6;
@@ -549,6 +566,11 @@ int bootstrap_format_double(double x, char *out, size_t cap) {
     }
     return (int)n;
 }
+
+#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
+int bootstrap_format_double(double x, char *out, size_t cap) { return bootstrap_format_double_impl(x, out, cap); }
+#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
@@ -733,7 +755,7 @@ int snprintf(char *buf, size_t size, const char *fmt, ...) {
 
 /** 向 fd 格式化输出；返回写入字节数。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) {
+int bootstrap_vfprintf_fd_impl(int fd, const char *fmt, va_list ap) {
     char stack_buf[512];
     char *heap_buf = NULL;
     char *use_buf = stack_buf;
@@ -759,6 +781,12 @@ int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) {
     free(heap_buf);
     return wrote;
 }
+
+#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl
+ * 类型擦除：.x 侧 ap 参数为 *u8，seed 前向声明用 va_list，C 链接器不看类型，ABI 兼容 */
+int bootstrap_vfprintf_fd(int fd, const char *fmt, va_list ap) { return bootstrap_vfprintf_fd_impl(fd, fmt, ap); }
+#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
@@ -880,23 +908,33 @@ int feraiseexcept(int excepts) {
 
 /** Linux x86_64 三参数 syscall 助手。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-long bootstrap_syscall3(long nr, long a0, long a1, long a2) {
+long bootstrap_syscall3_impl(long nr, long a0, long a1, long a2) {
     long ret;
     __asm__ volatile("syscall" : "=a"(ret) : "a"(nr), "D"(a0), "S"(a1), "d"(a2) : "rcx", "r11", "memory");
     return ret;
 }
+
+#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
+long bootstrap_syscall3(long nr, long a0, long a1, long a2) { return bootstrap_syscall3_impl(nr, a0, a1, a2); }
+#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
 
 /** Linux x86_64 四参数 syscall 助手（waitpid 等）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3) {
+long bootstrap_syscall4_impl(long nr, long a0, long a1, long a2, long a3) {
     long ret;
     register long r10 asm("r10") = a3;
     __asm__ volatile("syscall" : "=a"(ret) : "a"(nr), "D"(a0), "S"(a1), "d"(a2), "r"(r10) : "rcx", "r11", "memory");
     return ret;
 }
+
+#ifndef SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
+long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3) { return bootstrap_syscall4_impl(nr, a0, a1, a2, a3); }
+#endif /* SHUX_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
 
