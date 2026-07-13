@@ -41,8 +41,8 @@ extern function shu_net_worker_accept_entry_ptr_c(): usize;
 /**
  * 取 NetWorkerArg 数组第 i 项指针（seed emit 不支持 &args[i] 直接作 call 实参）。
  */
-function net_worker_arg_slot_ptr_c(args: *NetWorkerArg, i: i32): *NetWorkerArg {
-  return args + i;
+function net_worker_arg_slot_ptr_c(base: *NetWorkerArg, i: i32): *NetWorkerArg {
+  return base + i;
 }
 
 /**
