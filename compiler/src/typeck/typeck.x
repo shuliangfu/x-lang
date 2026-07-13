@@ -4211,6 +4211,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   let ord_index: i32 = 47;
   let ord_call: i32 = 48;
   let ord_expr_array_lit: i32 = 46;
+  let ord_string_lit: i32 = 59;
   let expr_kind: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
   let left_ref: i32 = pipeline_expr_binop_left_ref_at(arena, expr_ref);
   let right_ref: i32 = pipeline_expr_binop_right_ref_at(arena, expr_ref);
@@ -4336,6 +4337,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   if (!ast.ref_is_null(lt) && ast.ref_is_null(rt)) {
     rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
     if (rhs_kind == ord_call) {
+      pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
+      rt = lt;
+    }
+    /** string_lit(kind 59) 类型推断依赖 slice 分配；slice 分配异常时 resolved_type_ref 保持 0。
+     *  与 let 声明 init_ty=null 跳过检查行为对齐：rhs 为 string_lit 且类型未设时回填 lhs 类型，
+     *  避免赋值路径误报 mismatch。codegen 依 kind=59 生成 (uint8_t[]){...}，不依赖 resolved_type_ref。 */
+    if (rhs_kind == ord_string_lit) {
       pipeline_expr_set_resolved_type_ref(arena, right_ref, lt);
       rt = lt;
     }
@@ -5039,6 +5047,21 @@ ctx: *PipelineDepCtx): i32 {
       return 0;
     }
   }
+  /** 【Why 根源】函数参数查找须先于 top-level let 查找：parser bug 可能将函数局部 let
+   *   误加入 module.num_top_level_lets，导致同名变量被解析为错误类型（跨函数泄漏）。
+   *   先查参数可确保函数参数优先于误置的 top-level let。 */
+  func_ix = pipeline_dep_ctx_current_func_index(ctx);
+  if (func_ix >= 0 && func_ix < module.num_funcs) {
+    pr = pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen);
+    if (pr != 0) {
+      driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 2, pr);
+      pipeline_expr_set_resolved_type_ref(arena, expr_ref, pr);
+      if (pipeline_typeck_linear_use_var_c(arena, pr, expr_ref, vbuf, vnlen) != 0) {
+        return - 1;
+      }
+      return 0;
+    }
+  }
   driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, pipeline_dep_ctx_current_func_index(ctx),
   block_ref, 100, pipeline_expr_resolved_type_ref(arena, expr_ref));
   if (module.num_top_level_lets > 0) {
@@ -5050,19 +5073,6 @@ ctx: *PipelineDepCtx): i32 {
   }
   driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, pipeline_dep_ctx_current_func_index(ctx),
   block_ref, 102, pipeline_expr_resolved_type_ref(arena, expr_ref));
-  func_ix = pipeline_dep_ctx_current_func_index(ctx);
-  if (func_ix >= 0 && func_ix < module.num_funcs) {
-    pr = pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen);
-    driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 103, pr);
-    if (pr != 0) {
-      driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 2, pr);
-      pipeline_expr_set_resolved_type_ref(arena, expr_ref, pr);
-      if (pipeline_typeck_linear_use_var_c(arena, pr, expr_ref, vbuf, vnlen) != 0) {
-        return - 1;
-      }
-      return 0;
-    }
-  }
   driver_diagnostic_typeck_var_resolution(expr_ref, vbuf, vnlen, func_ix, block_ref, 104,
   pipeline_expr_resolved_type_ref(arena, expr_ref));
   if (vnlen == 9 && name_equal(vbuf, vnlen, &nm_tok_kind[0], 9)) {

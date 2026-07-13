@@ -183,6 +183,102 @@ def insert_block_final_skip(src: str) -> tuple[str, bool]:
     return src[:start] + new_body + src[end:], True
 
 
+
+def swap_var_param_order(src: str) -> tuple[str, bool]:
+    """Swap top_level_let check and func_param check in typeck_check_expr_var.
+
+    Parser bug may put function-local lets into module.num_top_level_lets,
+    causing cross-function variable name leakage. Moving func_param check
+    before top_level_let check ensures function parameters are found first.
+    Idempotent.
+    """
+    # The original order in seed: top_level_lets block, then func_param block
+    # Target order: func_param block first, then top_level_lets block
+    tl_block = (
+        "  (void)(({ int32_t __tmp = 0; if ((module)->num_top_level_lets > 0) {"
+        "   __tmp = ({ int32_t __tmp = 0; if (typeck_check_expr_var_top_level"
+        "(module, arena, expr_ref, vbuf, vnlen, 0) != 0) { return 0;\n"
+        " } else (__tmp = 0) ; __tmp; });\n"
+        " } else (__tmp = 0) ; __tmp; }));\n"
+    )
+    fp_block = (
+        "  (func_ix = (pipeline_dep_ctx_current_func_index(ctx)));\n"
+        "  (void)(({ int32_t __tmp = 0; if (func_ix >= 0 && func_ix < (module)->num_funcs) {"
+        "   (pr = (pipeline_module_func_param_type_ref_for_name(module, func_ix, vbuf, vnlen)));\n"
+        "  __tmp = ({ int32_t __tmp = 0; if (pr != 0) {"
+        "   (void)(pipeline_expr_set_resolved_type_ref(arena, expr_ref, pr));\n"
+        "  (void)(({ int32_t __tmp = 0; if (pipeline_typeck_linear_use_var_c"
+        "(arena, pr, expr_ref, vbuf, vnlen) != 0) {   return (-1);\n"
+        " } else (__tmp = 0) ; __tmp; }));\n"
+        "  return 0;\n"
+        " } else (__tmp = 0) ; __tmp; });\n"
+        " } else (__tmp = 0) ; __tmp; }));\n"
+    )
+    # Check if already swapped: fp_block before tl_block
+    fp_pos = src.find(fp_block)
+    tl_pos = src.find(tl_block)
+    if fp_pos < 0 or tl_pos < 0:
+        return src, False
+    if fp_pos < tl_pos:
+        return src, False  # already swapped
+    # Swap: replace tl_block + fp_block with fp_block + tl_block
+    combined = tl_block + fp_block
+    swapped = fp_block + tl_block
+    new_src = src.replace(combined, swapped, 1)
+    if new_src == src:
+        return src, False
+    return new_src, True
+
+
+
+def patch_implicit_tail_region(src: str) -> tuple[str, bool]:
+    """Add region (unsafe block) handling to typeck_func_body_tail_expr_ref_for_implicit_rule.
+
+    Seed lacks handling for stmt_order kind 5/6 (region) as last statement.
+    When a function body ends with unsafe { return ... }, the seed doesn't
+    find the return and reports false "implicit tail return" error.
+    Fix: add region check after the expr_stmt (kind 2) check.
+    Idempotent: skip if 'region_c_parser' already present.
+    """
+    marker = "region_c_parser"
+    fn_sig = "int32_t typeck_func_body_tail_expr_ref_for_implicit_rule(struct ast_ASTArena * arena, int32_t body_ref) {"
+    pos = src.find(fn_sig)
+    if pos < 0:
+        return src, False
+    # Check if already patched
+    fn_end = src.find("\n}\n", pos)
+    if fn_end < 0:
+        return src, False
+    fn_body = src[pos:fn_end]
+    if marker in fn_body:
+        return src, False  # already patched
+
+    # Insert region handling after the expr_stmt (kind 2) check
+    # The pattern: after the kind==2 block closes, before "return 0;"
+    insert_point = ' } else (__tmp = 0) ; __tmp; }));\n  return 0;\n } else (__tmp = 0) ; __tmp; }));'
+
+    region_code = """ } else (__tmp = 0) ; __tmp; }));
+  /* G-02f-477: region (unsafe block) as last stmt — check inner block for explicit return */
+  extern int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena *a, int32_t br, int32_t ri);
+  extern int32_t pipeline_block_region_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ri);
+  (void)(({ int __tmp = 0; if (last_k == ((uint8_t)(5)) || last_k == ((uint8_t)(6))) {   int32_t ridx = ast_block_stmt_order_idx(arena, body_ref, nso - 1);
+  int32_t nreg = ast_block_num_regions(arena, body_ref);
+  __tmp = ({ int __tmp = 0; if (ridx >= 0 && ridx < nreg) {   int32_t unsafe_region = pipeline_block_region_is_unsafe(arena, body_ref, ridx);
+  __tmp = ({ int __tmp = 0; if (unsafe_region != 0) {   int32_t inner_ref = pipeline_block_region_body_ref(arena, body_ref, ridx);
+  __tmp = ({ int __tmp = 0; if ((!ast_ref_is_null(inner_ref))) {   return typeck_func_body_tail_expr_ref_for_implicit_rule(arena, inner_ref);
+ } else (__tmp = 0) ; __tmp; });
+ } else (__tmp = 0) ; __tmp; });
+ } else (__tmp = 0) ; __tmp; });
+ } else (__tmp = 0) ; __tmp; }));
+  return 0;
+ } else (__tmp = 0) ; __tmp; }));"""
+
+    if insert_point in src[pos:fn_end+4]:
+        new_src = src[:pos] + src[pos:fn_end+4].replace(insert_point, region_code, 1) + src[fn_end+4:]
+        return new_src, True
+    return src, False
+
+
 def main() -> int:
     if not PATH.is_file():
         print(f"patch_typeck_gen_lang007: skip (missing {PATH.name})")
@@ -208,6 +304,18 @@ def main() -> int:
         changed = True
     else:
         print("patch_typeck_gen_lang007: block_final skip guard already ok or missing")
+    src, did = swap_var_param_order(src)
+    if did:
+        print("patch_typeck_gen_lang007: swapped var param order (func_param before top_level_let)")
+        changed = True
+    else:
+        print("patch_typeck_gen_lang007: var param order already ok or missing")
+    src, did = patch_implicit_tail_region(src)
+    if did:
+        print("patch_typeck_gen_lang007: patched implicit_tail_region handling")
+        changed = True
+    else:
+        print("patch_typeck_gen_lang007: implicit_tail_region already ok or missing")
     if changed:
         PATH.write_text(src, encoding="utf-8")
         print(f"patch_typeck_gen_lang007: wrote {PATH}")
