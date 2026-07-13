@@ -32,7 +32,7 @@ int32_t typeck_check_expr_deref(struct ast_Module * module, struct ast_ASTArena 
 }
 """
 
-EXPR_METHOD_CALL_BODY = """\\
+METHOD_CALL_BODY = """\
 int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   /* LANG-007: delegate to C glue for import binding call resolve + unsafe boundary. */
   extern int32_t pipeline_typeck_check_expr_method_call_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
@@ -40,7 +40,7 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
 }
 """
 
-BLOCK_BODY = """\
+EXPR_BLOCK_BODY = """\
 int32_t typeck_check_expr_block(struct ast_Module * module, struct ast_ASTArena * arena, int32_t expr_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx) {
   int32_t ord_assign = 28;
   int32_t block_ref = pipeline_expr_block_ref_at(arena, expr_ref);
