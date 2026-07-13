@@ -2972,6 +2972,35 @@ ensure_asm_pipeline_glue_standalone_obj() {
   fi
 }
 
+# preprocess_if_stack_* 6 个符号的独立 provider。
+# 【Why】strict re-link 不链入 pipeline_x.o（by design），ST_GLUE_OBJ=pipeline_glue_strict_minimal.o
+#        不含 ast_pool.c 的 preprocess_if_stack_* 定义；preprocess_x.o 引用这些符号会 undefined。
+#        直接链入 pipeline_glue_standalone.o 会引入 1314 个 T 符号，与 strict_minimal 的 24 个 T 符号
+#        在 --allow-multiple-definition 下冲突，strict_minimal 的不完整实现被选中导致运行时 SIGSEGV。
+# 【Invariant】用 objcopy --keep-global-symbols 把 standalone.o 的其他符号全部 local 化，
+#              只保留 preprocess_if_stack_* 6 个 global 符号，避免符号冲突。
+# 【Asm/Perf】objcopy 一次调用，输出 .o 体积不变但只导出 6 个符号，链接器解析无歧义。
+ensure_preprocess_if_stack_provider_obj() {
+  ensure_asm_pipeline_glue_standalone_obj
+  local src_o out_o keep_list
+  src_o="$BUILD_DIR/pipeline_glue_standalone.o"
+  out_o="$BUILD_DIR/preprocess_if_stack_only.o"
+  [ -f "$src_o" ] || return 0
+  command -v objcopy >/dev/null 2>&1 || {
+  build_shux_asm_warn "objcopy missing; preprocess_if_stack_* provider skipped (macOS/non-Linux)"
+  return 0
+  }
+  keep_list=$(mktemp)
+  printf 'preprocess_if_stack_reset\npreprocess_if_stack_len\npreprocess_if_stack_push\npreprocess_if_stack_pop\npreprocess_if_stack_at\npreprocess_if_stack_set_at\n' >"$keep_list"
+  if [ ! -f "$out_o" ] || [ "$src_o" -nt "$out_o" ]; then
+  objcopy --keep-global-symbols "$keep_list" "$src_o" "$out_o" 2>/dev/null || {
+    build_shux_asm_warn "objcopy preprocess_if_stack_only.o failed (strict 链 preprocess_if_stack_* 将 undefined)"
+    rm -f "$out_o" 2>/dev/null || true
+  }
+  fi
+  rm -f "$keep_list" 2>/dev/null || true
+}
+
 # 收集非空 build_asm/*.o（空文件多为 asm SKIP 残留）
 build_nonempty_asm_objs() {
   NONEMPTY_ASM=""
@@ -4582,6 +4611,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   ASM_TRY_OBJS="$FILTERED"
   fi
   echo " re-link shux_asm (strict: ${ST_RUNTIME_MODE}, no pipeline_x.o) ..."
+  ensure_preprocess_if_stack_provider_obj
   ensure_asm_driver_seed_c_objs
   SEED_O="$BUILD_DIR/asm_driver_seed"
   ensure_asm_strict_link_extra_objs
@@ -4755,7 +4785,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
-  "$BUILD_DIR/pipeline_glue_standalone.o" \
+  "$BUILD_DIR/preprocess_if_stack_only.o" \
   "$ST_GLUE_OBJ" \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
@@ -4819,7 +4849,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
-  "$BUILD_DIR/pipeline_glue_standalone.o" \
+  "$BUILD_DIR/preprocess_if_stack_only.o" \
   "$ST_GLUE_OBJ" \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
