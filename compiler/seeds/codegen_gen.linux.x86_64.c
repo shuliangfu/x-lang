@@ -348,6 +348,7 @@ extern int32_t pipeline_codegen_dep_skip_x_bootstrap_partial(uint8_t * path);
 extern void pipeline_module_func_name_copy64(struct ast_Module * module, int32_t fi, uint8_t * dst);
 extern void pipeline_module_func_param_name_copy32(struct ast_Module * module, int32_t fi, int32_t pi, uint8_t * dst);
 extern int32_t pipeline_module_func_num_params_at(struct ast_Module * module, int32_t fi);
+extern int32_t pipeline_module_func_is_variadic_at(struct ast_Module * module, int32_t fi);
 extern int32_t pipeline_module_func_param_name_len_at(struct ast_Module * module, int32_t fi, int32_t pi);
 extern int32_t pipeline_module_func_name_len_at(struct ast_Module * module, int32_t fi);
 extern int32_t pipeline_module_func_return_type_at(struct ast_Module * module, int32_t fi);
@@ -5390,6 +5391,10 @@ SHUX_LIB_WEAK int32_t codegen_emit_func_extern_declaration(struct ast_ASTArena *
     ++p;
   }
  }
+  if (pipeline_module_func_is_variadic_at(module, fi) != 0 && pipeline_module_func_num_params_at(module, fi) > 0) {   uint8_t ellipsis[5] = { 44, 32, 46, 46, 46 };
+    if (codegen_emit_bytes_from_ptr(out, (&((ellipsis)[0])), 5) != 0) {   return (-1);
+ }
+  }
   uint8_t end_proto[3] = { 41, 59, 10 };
   if (codegen_emit_bytes_from_ptr(out, (&((end_proto)[0])), 3) != 0) {   return (-1);
  }
