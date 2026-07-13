@@ -1341,7 +1341,8 @@ build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o: src/asm/backend_x86_64
 	  nm src/asm/backend_x86_64_enc_c.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
 	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
 	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/backend_x86_64_enc_c.o
+	  printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; \
+	  ld -r --version-script $@.ver -o $@ src/asm/backend_x86_64_enc_c.o
 
 build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o: src/asm/user_asm_seed_bridge.o build_asm/seed_host/asm_backend_partial.o
 	@mkdir -p build_asm
@@ -1351,7 +1352,8 @@ build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o: src/asm/user_asm_seed_
 	  nm src/asm/user_asm_seed_bridge.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
 	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
 	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/user_asm_seed_bridge.o
+	  printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; \
+	  ld -r --version-script $@.ver -o $@ src/asm/user_asm_seed_bridge.o
 
 build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: src/asm/asm_backend_compat_stubs.o build_asm/seed_host/asm_backend_partial.o
 	@mkdir -p build_asm
@@ -1361,7 +1363,8 @@ build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: src/asm/asm_backen
 	  nm src/asm/asm_backend_compat_stubs.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
 	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
 	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  ld -r -exported_symbols_list "$$keep_syms" -o $@ src/asm/asm_backend_compat_stubs.o
+	  printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; \
+	  ld -r --version-script $@.ver -o $@ src/asm/asm_backend_compat_stubs.o
 
 build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_x.o build_asm/seed_host/asm_backend_partial.o build_asm/pipeline_glue_strict_minimal.o
 	@mkdir -p build_asm
@@ -1377,7 +1380,8 @@ build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_x.o build_asm/seed_host/a
 	  done; \
 	  sort -u "$$omit_syms" -o "$$omit_syms"; \
 	  comm -23 "$$all_syms" "$$omit_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  ld -r -exported_symbols_list "$$keep_syms" -o $@ pipeline_x.o
+	  printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; \
+	  ld -r --version-script $@.ver -o $@ pipeline_x.o
 
 src/asm/asm_experimental_symbol_bridge.o: seeds/asm_experimental_symbol_bridge.from_x.c scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c $@
