@@ -438,8 +438,16 @@ int32_t driver_typeck_force_c_enabled(void) {
 }
 #endif
 
-/** 当前线程是否已在 driver_run_thread_on_large_stack 创建的大栈 pthread 内。 */
-static _Thread_local int g_driver_on_large_stack_thread;
+/** 当前线程是否已在 driver_run_thread_on_large_stack 创建的大栈 pthread 内。
+ * 【Why 逻辑根源】nostdlib 静态链下 pthread 是 stub（bootstrap_nostdlib_pthread_is_stub()=1），
+ *                driver_run_thread_on_large_stack 在当前栈运行不创建新线程，全程单线程无需 TLS。
+ *                之前用 _Thread_local 时 gcc 对 _impl 生成 `mov %fs:0x0,%rax; add $-16,%rax` 间接访问，
+ *                bootstrap_init_static_tls 只把 %fs 设为 &bootstrap_tls（48 字节 block），
+ *                %fs:0x0 读到 BSS 默认值 0，0-16=0xfffffffffffffff0 无效地址 → SIGSEGV。
+ *                stage1 工作纯属巧合：编译器把 driver_is_large_stack_thread 内联为 `mov %fs:-16,%eax`。
+ * 【Invariant 状态不变量】nostdlib 路径下进程内只有 1 个执行流，单变量即正确反映"在大栈线程上下文"标志。
+ * 【Asm/Perf 性能预期】普通 static int 在 BSS 中，访问为 RIP-relative 一次 load，比 TLS 间接访问快且无 %fs 依赖。 */
+static int g_driver_on_large_stack_thread;
 
 /* G-02f-45 */
 int32_t *driver_large_stack_thread_flag_slot(void) {
