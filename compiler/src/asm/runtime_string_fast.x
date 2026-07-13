@@ -93,7 +93,10 @@ function shux_string_ptr_at_c(ptr: *u8, off: i32): *u8 {
 #[no_mangle]
 function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
   if (n <= 0) { return 0; }
-  let r: i32 = memcmp(a, b, n);
+  let r: i32 = 0;
+  unsafe {
+    r = memcmp(a, b, n);
+  }
   if (r < 0) { return 0 - 1; }
   if (r > 0) { return 1; }
   return 0;
@@ -103,12 +106,17 @@ function shux_string_memcmp_c(a: *u8, b: *u8, n: i32): i32 {
 #[no_mangle]
 function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
   if (n <= 0) { return 0; }
-  return memcmp(a + off, b, n);
+  unsafe {
+    return memcmp(a + off, b, n);
+  }
+  return 0;
 }
 
 // memcpy 封装；n<=0 跳过
 #[no_mangle]
 function shux_string_copy_c(dst: *u8, src: *u8, n: i32): void {
   if (n <= 0) { return; }
-  memcpy(dst, src, n);
+  unsafe {
+    memcpy(dst, src, n);
+  }
 }
