@@ -647,9 +647,22 @@ src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/run
 src/runtime_link_abi.o: seeds/runtime_link_abi.from_x.c src/runtime_link_abi.x src/runtime_link_abi.h src/runtime_proc_abi.h
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_link_abi.from_x.c -o $@
 
-# G-02f-12：runtime_driver_abi 产品 seed
-src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_abi.x src/runtime_driver_abi.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_abi.from_x.c -o $@
+# G-02f-12 / Phase 4：runtime_driver_abi thin+rest PREFER_X_O
+src/runtime_driver_abi.o: seeds/runtime_driver_abi.from_x.c src/runtime_driver_abi_thin.x src/runtime_driver_abi.x src/runtime_driver_abi.h
+	@if [ -x ./shux-c ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rdabi.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_abi_thin.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_abi_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_RDABI_THIN_FROM_X -c seeds/runtime_driver_abi.from_x.c -o src/runtime_driver_abi_rest.o && \
+		ld -r src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o -o $@ && \
+		rm -f "$$_tmp" src/runtime_driver_abi_thin.o src/runtime_driver_abi_rest.o && \
+		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	elif [ -f seeds/runtime_driver_abi.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_abi.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_driver_abi.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
 # G-02f-12：runtime_pipeline_abi 产品 seed（须 SHUX_USE_X_PIPELINE）
 src/runtime_pipeline_abi.o: seeds/runtime_pipeline_abi.from_x.c src/runtime_pipeline_abi.x src/runtime_pipeline_abi.h Makefile
@@ -670,9 +683,22 @@ src/async/async_cps_codegen.o: seeds/async_cps_codegen.from_x.c src/async/async_
 src/async/async_asm_pool.o: seeds/async_asm_pool.from_x.c scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/async_asm_pool.from_x.c $@
 
-# G-02f-12：runtime_driver_diagnostic 产品 seed
-src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/runtime_driver_diagnostic.x src/runtime_driver_diagnostic.h include/diag.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_diagnostic.from_x.c -o $@
+# G-02f-12 / Phase 4：runtime_driver_diagnostic thin+rest PREFER_X_O
+src/runtime_driver_diagnostic.o: seeds/runtime_driver_diagnostic.from_x.c src/runtime_driver_diagnostic_thin.x src/runtime_driver_diagnostic.x src/runtime_driver_diagnostic.h include/diag.h
+	@if [ -x ./shux-c ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rdd.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_driver_diagnostic_thin.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_driver_diagnostic_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_RDD_THIN_FROM_X -c seeds/runtime_driver_diagnostic.from_x.c -o src/runtime_driver_diagnostic_rest.o && \
+		ld -r src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o -o $@ && \
+		rm -f "$$_tmp" src/runtime_driver_diagnostic_thin.o src/runtime_driver_diagnostic_rest.o && \
+		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	elif [ -f seeds/runtime_driver_diagnostic.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_driver_diagnostic.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_driver_diagnostic.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
 # 6.3：runtime.c 提供 run_compiler_c 与弱符号 main_entry；带 .x 入口时用 runtime_driver.o（含 driver_*/pipeline_*）
 # G-02f-14：runtime 产品 seed（多变体）
@@ -700,12 +726,39 @@ src/runtime_driver.o: seeds/runtime.from_x.c src/runtime.x Makefile include/diag
 src/runtime_x.o: seeds/runtime.from_x.c src/runtime.x include/diag.h
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c seeds/runtime.from_x.c -o $@
 
-# G-02f-11：fmt_check_cmd 产品 seed（driver 变体须 SHUX_USE_X_PIPELINE）
-src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/fmt_check_cmd.from_x.c -o $@
+# G-02f-11 / Phase 4：fmt_check_cmd thin+rest PREFER_X_O
+# 两目标共用 thin.x；driver 变体 rest 编译额外加 -DSHUX_USE_X_PIPELINE
+src/driver/fmt_check_cmd.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd_thin.x src/driver/fmt_check_cmd.x
+	@if [ -x ./shux-c ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/fcc.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/driver/fmt_check_cmd_thin.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_FMT_CHECK_THIN_FROM_X -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_rest.o && \
+		ld -r src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o -o $@ && \
+		rm -f "$$_tmp" src/driver/fmt_check_cmd_thin.o src/driver/fmt_check_cmd_rest.o && \
+		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	elif [ -f seeds/fmt_check_cmd.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/fmt_check_cmd.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/fmt_check_cmd.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
-src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o $@
+src/driver/fmt_check_cmd_driver.o: seeds/fmt_check_cmd.from_x.c src/driver/fmt_check_cmd_thin.x src/driver/fmt_check_cmd.x
+	@if [ -x ./shux-c ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/fccd.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/driver/fmt_check_cmd_thin.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/driver/fmt_check_cmd_driver_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_FMT_CHECK_THIN_FROM_X -DSHUX_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_driver_rest.o && \
+		ld -r src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o -o $@ && \
+		rm -f "$$_tmp" src/driver/fmt_check_cmd_driver_thin.o src/driver/fmt_check_cmd_driver_rest.o && \
+		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O, driver)"; \
+	elif [ -f seeds/fmt_check_cmd.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/fmt_check_cmd.from_x.c (cold start seed, driver)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
 # G-02a：C 前端 lexer/ast/parser/typeck/codegen/preprocess/autovec/lsp_diag 已物理删除；见对应 .x。
 

@@ -329,9 +329,11 @@ int32_t driver_fmt_check_only_get(void) {
  * 【Invariant】deno check 语义：成功时静默。weak 默认值必须返回 1（静默），保证无论
  * Windows 链接器选中哪个版本，driver_print_check_ok 都不输出逐文件 check OK。
  * 【Asm/Perf】macOS/Linux 上 weak 正常工作，强符号覆盖 weak 默认值，此改动无影响。 */
+#ifndef SHUX_L2_RDABI_THIN_FROM_X
 SHUX_WEAK int32_t driver_check_quiet_ok_get(void) {
   return 1;
 }
+#endif
 
 /**
  * 统一 shux check 成功行；deno 风格批量 check 成功时由 fmt_check_cmd 保持静默。

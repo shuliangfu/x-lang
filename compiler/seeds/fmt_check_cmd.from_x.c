@@ -107,6 +107,12 @@ void check_collect_default_product_dirs(void);
 void collect_paths_from_arg(const char *arg);
 void check_append_repo_lib_roots(const char *path, char **check_argv, int *n);
 void check_argv_append_default_libs_for_path(const char *path, char **check_argv, int *n);
+const char *fmt_builtin_ignore_at(int i);
+const char *fmt_default_product_sub_at(int i);
+const char *driver_fmt_check_lit_check_error(void);
+const char *driver_fmt_check_lit_fmt_error(void);
+const char *driver_fmt_check_lit_chk002(void);
+const char *driver_fmt_check_lit_fmt001(void);
 #endif
 
 extern int driver_fmt_one_file(const uint8_t *path, int path_len);
@@ -198,10 +204,12 @@ int32_t driver_collect_mode_is_check(void) {
 }
 #endif
 
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 const char *driver_fmt_check_lit_check_error(void) { return "check error"; }
 const char *driver_fmt_check_lit_fmt_error(void) { return "fmt error"; }
 const char *driver_fmt_check_lit_chk002(void) { return "CHK002"; }
 const char *driver_fmt_check_lit_fmt001(void) { return "FMT001"; }
+#endif
 
 /* G-02f-247/351：逻辑源 .x（mode→lit）；hybrid 时由 thin 门闩 */
 #ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
@@ -219,6 +227,7 @@ const char *driver_collect_missing_path_code(void) {
 #endif
 
 /* G-02f-247：ignore 槽访问（.x path_should_ignore pure） */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 const char *fmt_builtin_ignore_at(int i) {
     int n = 0;
     while (s_builtin_ignore[n])
@@ -227,6 +236,7 @@ const char *fmt_builtin_ignore_at(int i) {
         return NULL;
     return s_builtin_ignore[i];
 }
+#endif
 
 /* G-02f-389：实现体始终 seed；public PREFER 时 thin forward */
 int fmt_user_ignore_count_impl(void) {
@@ -768,6 +778,7 @@ void walk_dir_collect(const char *dir) {
 
 
 /* G-02f-250：逻辑源 .x（真迁 sub 表）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_L2_FMT_CHECK_THIN_FROM_X
 const char *fmt_default_product_sub_at(int i) {
     static const char *subs[] = {"compiler/src", "core", "std", "examples", NULL};
     int n = 0;
@@ -777,6 +788,7 @@ const char *fmt_default_product_sub_at(int i) {
         return NULL;
     return subs[i];
 }
+#endif
 
 /* getcwd+stat+walk 🔒；命中产品子目录返回 1 */
 /* G-02f-408：实现体始终 seed；public PREFER 时 thin forward */

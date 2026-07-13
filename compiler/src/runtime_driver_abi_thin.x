@@ -22,6 +22,10 @@ extern "C" function driver_target_arg_os_kind_impl(target: *u8): i32;
 extern "C" function driver_pipeline_entry_source_len_i32_impl(): i32;
 extern "C" function driver_sanitize_address_env_enabled_impl(): i32;
 
+// driver_check_quiet_ok_get：weak default 由 seed 提供，强符号由 fmt_check_cmd 提供。
+// thin.x 不导出，仅 extern 声明供 driver_print_check_ok 调用。
+extern "C" function driver_check_quiet_ok_get(): i32;
+
 #[no_mangle]
 function driver_check_only_flag_slot(): *i32 {
   unsafe { return driver_check_only_flag_slot_impl(); }
@@ -211,10 +215,8 @@ function driver_x_pipeline_skip_typeck_set(v: i32): void {
   }
 }
 
-#[no_mangle]
-function driver_check_quiet_ok_get(): i32 {
-  return 1;
-}
+// driver_check_quiet_ok_get：weak default 由 seed 提供（fmt_check_cmd 强符号覆盖）。
+// thin.x 不导出，避免与 fmt_check_cmd_thin.x 的强符号冲突。
 
 #[no_mangle]
 function driver_x_pipeline_skip_codegen_set(v: i32): void {
