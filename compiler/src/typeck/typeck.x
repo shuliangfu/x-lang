@@ -5306,6 +5306,7 @@ ctx: *PipelineDepCtx): i32 {
     return 0;
   }
   kind = pipeline_expr_kind_ord_at(arena, expr_ref);
+  driver_diagnostic_typeck_block_enter(expr_ref, kind, 0, 0, 0, 0, 0, 0);
   /** MEM-C1/WPO：assign/return 走 C glue（逃逸诊断优先于类型匹配）。 */
   if (typeck_expr_is_any_assign_kind(kind)) {
     return pipeline_typeck_check_expr_impl_mega_c(module, arena, expr_ref, return_type_ref, ctx);
