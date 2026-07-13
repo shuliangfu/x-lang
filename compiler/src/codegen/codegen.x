@@ -7556,8 +7556,31 @@ function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, c
           }
           ti = ti + 1;
         }
-        if (any_let != 0) {
-          /* static void init_globals(void) {\n */
+        /* 入口模块也检查 dep 模块是否有非 const 顶层 let */
+        if (dep_index < 0 && any_let == 0) {
+          let dep_scan_i: i32 = 0;
+          let dep_ndep: i32 = pipeline_dep_ctx_ndep(ctx);
+          while (dep_scan_i < dep_ndep) {
+            let dep_scan_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_scan_i);
+            if (dep_scan_mod != 0 as *Module) {
+              let dep_ti: i32 = 0;
+              while (dep_ti < dep_scan_mod.num_top_level_lets) {
+                if (pipeline_module_top_level_let_is_const(dep_scan_mod, dep_ti) == 0) {
+                  any_let = 1;
+                  break;
+                }
+                dep_ti = dep_ti + 1;
+              }
+            }
+            if (any_let != 0) {
+              break;
+            }
+            dep_scan_i = dep_scan_i + 1;
+          }
+        }
+        if (any_let != 0 && dep_index < 0) {
+          /* 入口模块 init_globals 统一初始化入口模块 + dep 模块的非 const 顶层 let。
+           * dep 模块不再各自 emit init_globals，避免 C redefinition error。 */
           let init_globals_def: u8[32] = [115, 116, 97, 116, 105, 99, 32, 118, 111, 105, 100, 32, 105, 110, 105, 116, 95, 103, 108, 111, 98, 97, 108, 115, 40, 118, 111, 105, 100, 41, 32, 0];
           /* 31 字节：`static void init_globals(void) `（含闭合 ) 与尾空格），少 2 字节会生成 `void {` 非法 C */
           if (emit_bytes_from_ptr(out, &init_globals_def[0], 31) != 0) {
@@ -7600,6 +7623,50 @@ function codegen_x_ast(module: *Module, arena: *ASTArena, out: *CodegenOutBuf, c
               return -1;
             }
             ti = ti + 1;
+          }
+          /* dep 模块非 const 顶层 let 也由入口模块 init_globals 统一初始化，
+           * 避免 dep 模块各自 emit init_globals 导致 C redefinition error。
+           * dep 模块 static 变量已在上方声明（裸名），此处用相同裸名赋值。 */
+          let dep_i: i32 = 0;
+          let ndep: i32 = pipeline_dep_ctx_ndep(ctx);
+          while (dep_i < ndep) {
+            let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_i);
+            if (dep_mod != 0 as *Module) {
+              let dep_arena: *ASTArena = pipeline_dep_ctx_arena_at(ctx, dep_i);
+              let dti: i32 = 0;
+              while (dti < dep_mod.num_top_level_lets) {
+                if (pipeline_module_top_level_let_is_const(dep_mod, dti) == 0) {
+                  if (emit_indent(out, 2) != 0) {
+                    return -1;
+                  }
+                  let dnlen: i32 = pipeline_module_top_level_let_name_len(dep_mod, dti);
+                  if (dnlen > 0 && dnlen <= 63) {
+                    let dtl_name: u8[64] = [];
+                    let dtni: i32 = 0;
+                    while (dtni < dnlen && dtni < 64) {
+                      dtl_name[dtni] = pipeline_module_top_level_let_name_byte_at(dep_mod, dti, dtni);
+                      dtni = dtni + 1;
+                    }
+                    if (emit_bytes_from_ptr(out, &dtl_name[0], dnlen) != 0) {
+                      return -1;
+                    }
+                  }
+                  let deq: u8[4] = [32, 61, 32, 0];
+                  if (emit_bytes_4(out, deq, 3) != 0) {
+                    return -1;
+                  }
+                  if (!ast.ref_is_null(pipeline_module_top_level_let_init_ref(dep_mod, dti)) && emit_expr(dep_arena, out, pipeline_module_top_level_let_init_ref(dep_mod, dti), ctx) != 0) {
+                    return -1;
+                  }
+                  let dsc: u8[3] = [59, 10, 0];
+                  if (emit_bytes_3(out, dsc, 2) != 0) {
+                    return -1;
+                  }
+                }
+                dti = dti + 1;
+              }
+            }
+            dep_i = dep_i + 1;
           }
           let close_brace: u8[3] = [125, 10, 0];
           if (emit_bytes_3(out, close_brace, 2) != 0) {
