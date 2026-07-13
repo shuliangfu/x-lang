@@ -1292,22 +1292,74 @@ src/asm/user_asm_seed_bridge.o: seeds/user_asm_seed_bridge.from_x.c src/asm/user
 src/asm/asm_backend_compat_stubs.o: seeds/asm_backend_compat_stubs.from_x.c src/asm/asm_backend_compat_stubs.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o $@
 
-# G-02f-9：backend_*_dispatch 产品 seed 单 TU
-src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/backend_enc_dispatch.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_enc_dispatch.from_x.c -o $@
+# G-02f-9 / Phase 4：backend_*_dispatch thin+rest PREFER_X_O
+src/asm/backend_enc_dispatch.o: seeds/backend_enc_dispatch.from_x.c src/asm/backend_enc_dispatch_thin.x src/asm/backend_enc_dispatch.x
+	@if [ -x ./shux-c ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/enc_disp.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_enc_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_enc_dispatch_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_ENC_DISPATCH_THIN_FROM_X -c seeds/backend_enc_dispatch.from_x.c -o src/asm/backend_enc_dispatch_rest.o && \
+		ld -r src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o -o $@ && \
+		rm -f "$$_tmp" src/asm/backend_enc_dispatch_thin.o src/asm/backend_enc_dispatch_rest.o && \
+		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	elif [ -f seeds/backend_enc_dispatch.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_enc_dispatch.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/backend_enc_dispatch.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
 # G-02f-15：backend_x86_64_enc_c 产品 seed
 src/asm/backend_x86_64_enc_c.o: seeds/backend_x86_64_enc_c.from_x.c src/asm/backend_x86_64_enc_c.x
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_x86_64_enc_c.from_x.c -o $@
 
-src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c src/asm/backend_arch_emit_dispatch.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_arch_emit_dispatch.from_x.c -o $@
+src/asm/backend_arch_emit_dispatch.o: seeds/backend_arch_emit_dispatch.from_x.c src/asm/backend_arch_emit_dispatch_thin.x src/asm/backend_arch_emit_dispatch.x
+	@if [ -x ./shux-c ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/arch_disp.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_arch_emit_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_arch_emit_dispatch_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_ARCH_EMIT_THIN_FROM_X -c seeds/backend_arch_emit_dispatch.from_x.c -o src/asm/backend_arch_emit_dispatch_rest.o && \
+		ld -r src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o -o $@ && \
+		rm -f "$$_tmp" src/asm/backend_arch_emit_dispatch_thin.o src/asm/backend_arch_emit_dispatch_rest.o && \
+		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	elif [ -f seeds/backend_arch_emit_dispatch.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_arch_emit_dispatch.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/backend_arch_emit_dispatch.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
-src/asm/backend_try_inline_dispatch.o: seeds/backend_try_inline_dispatch.from_x.c src/asm/backend_try_inline_dispatch.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_try_inline_dispatch.from_x.c -o $@
+src/asm/backend_try_inline_dispatch.o: seeds/backend_try_inline_dispatch.from_x.c src/asm/backend_try_inline_dispatch_thin.x src/asm/backend_try_inline_dispatch.x
+	@if [ -x ./shux-c ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/try_inl.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_try_inline_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_try_inline_dispatch_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_TRY_INLINE_THIN_FROM_X -c seeds/backend_try_inline_dispatch.from_x.c -o src/asm/backend_try_inline_dispatch_rest.o && \
+		ld -r src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o -o $@ && \
+		rm -f "$$_tmp" src/asm/backend_try_inline_dispatch_thin.o src/asm/backend_try_inline_dispatch_rest.o && \
+		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	elif [ -f seeds/backend_try_inline_dispatch.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_try_inline_dispatch.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/backend_try_inline_dispatch.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
-src/asm/backend_call_dispatch.o: seeds/backend_call_dispatch.from_x.c src/asm/backend_call_dispatch.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_call_dispatch.from_x.c -o $@
+src/asm/backend_call_dispatch.o: seeds/backend_call_dispatch.from_x.c src/asm/backend_call_dispatch_thin.x src/asm/backend_call_dispatch.x
+	@if [ -x ./shux-c ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/call_disp.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/backend_call_dispatch_thin.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/asm/backend_call_dispatch_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_CALL_DISPATCH_THIN_FROM_X -c seeds/backend_call_dispatch.from_x.c -o src/asm/backend_call_dispatch_rest.o && \
+		ld -r src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o -o $@ && \
+		rm -f "$$_tmp" src/asm/backend_call_dispatch_thin.o src/asm/backend_call_dispatch_rest.o && \
+		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	elif [ -f seeds/backend_call_dispatch.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/backend_call_dispatch.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/backend_call_dispatch.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
 # parser EMIT_HEAVY thin delegate C 目标：bootstrap shux 须链入，extern bl 白名单 emit 才不 segfault。
 # 全量 parser_x.o 已含 parse_into_buf / get_module_* 等；禁 seed slice 与重复前缀符号。
@@ -1488,9 +1540,25 @@ src/main_driver.o: seeds/main.from_x.c src/main_c_entry.x Makefile
 # G-02f-6：target_cpu.o 单 TU（pure seed 含 OS detect；无 ld -r）
 src/driver/target_cpu.o: seeds/target_cpu_pure.from_x.c src/driver/target_cpu_pure.x include/target_cpu.h
 	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/target_cpu_pure.from_x.c -o $@
-# G-02f-7：simd_enc 产品单 TU seed（纯编码）
-src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc.x include/simd_enc.h include/target_cpu.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/simd_enc.from_x.c -o $@
+# G-02f-7 / Phase 4：simd_enc thin+rest PREFER_X_O
+# 源：src/asm/simd_enc_thin.x（74 #[no_mangle] thin wrapper）+ seeds/simd_enc.from_x.c（_impl rest）
+# shux-c 可用时：thin.x -E → thin.o + seed -DSHUX_L2_SIMD_ENC_THIN_FROM_X → rest.o → ld -r → simd_enc.o
+# 冷启动（无 shux-c）：seed 完整编译 → simd_enc.o
+src/asm/simd_enc.o: seeds/simd_enc.from_x.c src/asm/simd_enc_thin.x src/asm/simd_enc.x include/simd_enc.h include/target_cpu.h
+	@if [ -x ./shux-c ]; then \
+		_tmp_thin=$$(mktemp "$${TMPDIR:-/tmp}/simd_enc_thin.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/asm/simd_enc_thin.x > "$$_tmp_thin" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp_thin" -o src/asm/simd_enc_thin.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_SIMD_ENC_THIN_FROM_X -c seeds/simd_enc.from_x.c -o src/asm/simd_enc_rest.o && \
+		ld -r src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o -o $@ && \
+		rm -f "$$_tmp_thin" src/asm/simd_enc_thin.o src/asm/simd_enc_rest.o && \
+		echo "phase4: $@ <- thin.x + seed-rest (PREFER_X_O)"; \
+	elif [ -f seeds/simd_enc.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/simd_enc.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/simd_enc.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 # G-02f-8 / Phase 4：simd_loop thin+rest PREFER_X_O
 # 源：src/asm/simd_loop_thin.x（22 #[no_mangle] thin wrapper）+ seeds/simd_loop.from_x.c（17 _impl rest）
 # shux-c 可用时：thin.x -E → thin.o + seed -DSHUX_L2_SIMD_LOOP_THIN_FROM_X → rest.o → ld -r → simd_loop.o
