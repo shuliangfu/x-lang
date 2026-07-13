@@ -240,7 +240,7 @@ def patch_implicit_tail_region(src: str) -> tuple[str, bool]:
     Fix: add region check after the expr_stmt (kind 2) check.
     Idempotent: skip if 'region_c_parser' already present.
     """
-    marker = "region_c_parser"
+    marker = "(uint8_t)(5)"
     fn_sig = "int32_t typeck_func_body_tail_expr_ref_for_implicit_rule(struct ast_ASTArena * arena, int32_t body_ref) {"
     pos = src.find(fn_sig)
     if pos < 0:
