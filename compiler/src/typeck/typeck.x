@@ -4943,7 +4943,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
 function typeck_check_expr_deref(module: *Module, arena: *ASTArena, expr_ref: i32,
 return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
   /** 【Why 根源】LANG-007 v2：S0 内 *T 解引用须在 unsafe { } 块内（与 extern call 边界对称）。
-   *  【Invariant】pipeline_dep_ctx_typeck_unsafe_depth_at > 0 ⇔ 当前在 unsafe 块内。
+   *  【Invariant】pipeline_dep_ctx_typeck_unsafe_depth_at > 0 表示当前在 unsafe 块内。
    *  【Asm/Perf】单字段读 + 分支，热路径无额外开销。 */
   if (pipeline_dep_ctx_typeck_unsafe_depth_at(ctx) <= 0) {
     let line: i32 = pipeline_expr_line_at(arena, expr_ref);
