@@ -1618,13 +1618,24 @@ bootstrap-driver-seed-x-frontend: $(SHUX_C) migrate-x-objs driver_x.o preprocess
 src/lsp/lsp_diag_pipeline_sizes.o: seeds/lsp_diag_pipeline_sizes_weak.from_x.c scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c $@ -I. -Iinclude -Isrc
 
-# G-02f-1：产品 G05 nostub 真迁 .x（#[no_mangle] 三枚 sizeof）
+# G-02f-1 / Phase 4：产品 G05 nostub 真迁 .x（#[no_mangle] 三枚 sizeof）
 # 源：src/lsp/lsp_diag_pipeline_sizes.x
-# 冷启动产物：seeds/lsp_diag_pipeline_sizes.from_x.c
+# 冷启动产物：seeds/lsp_diag_pipeline_sizes.from_x.c（shux-c 不存在时回退）
 #   regen: ./shux-c src/lsp/lsp_diag_pipeline_sizes.x -E > seeds/lsp_diag_pipeline_sizes.from_x.c
+# Phase 4：shux-c 可用时优先从 .x 生成 .o（PREFER_X_O）；冷启动无 shux-c 时用 seed。
 # bootstrap/relink 同时链 lsp_diag_pipeline_ctx.o；.x 产物无 weak 占位（等同旧 nostub）。
-src/lsp/lsp_diag_pipeline_sizes_nostub.o: seeds/lsp_diag_pipeline_sizes.from_x.c src/lsp/lsp_diag_pipeline_sizes.x
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_sizes.from_x.c -o $@
+src/lsp/lsp_diag_pipeline_sizes_nostub.o: src/lsp/lsp_diag_pipeline_sizes.x
+	@if [ -x ./shux-c ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/lsp_sizes.XXXXXX") && \
+		./shux-c -E src/lsp/lsp_diag_pipeline_sizes.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o $@ && \
+		rm -f "$$_tmp" && echo "phase4: $@ <- src/lsp/lsp_diag_pipeline_sizes.x (PREFER_X_O)"; \
+	elif [ -f seeds/lsp_diag_pipeline_sizes.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/lsp_diag_pipeline_sizes.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/lsp_diag_pipeline_sizes.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
 # G-02e-8：lsp_diag_x_alias 已并入本 TU。
 # G-02f-12：lsp_diag_pipeline_ctx 产品 seed
