@@ -72,9 +72,28 @@ typedef struct {
     int32_t         unbounded; /* 1 无界，可扩容 */
 } channel_i32_impl_t;
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+int32_t channel_sync_init(channel_i32_impl_t *c);
+void channel_sync_destroy(channel_i32_impl_t *c);
+void channel_lock(channel_i32_impl_t *c);
+void channel_unlock(channel_i32_impl_t *c);
+void channel_signal_not_empty(channel_i32_impl_t *c);
+void channel_signal_not_full(channel_i32_impl_t *c);
+void channel_broadcast_not_empty(channel_i32_impl_t *c);
+void channel_broadcast_not_full(channel_i32_impl_t *c);
+void channel_wait_not_empty(channel_i32_impl_t *c);
+void channel_wait_not_full(channel_i32_impl_t *c);
+void channel_timedwait_not_empty(channel_i32_impl_t *c, int32_t ms);
+void channel_timedwait_not_full(channel_i32_impl_t *c, int32_t ms);
+int32_t channel_unbounded_grow(channel_i32_impl_t *c);
+int32_t channel_select_recv_case_live(void *ch);
+int32_t channel_select_send_case_live(void *ch);
+void channel_select_wait_recv_one(void *ch);
+void channel_select_wait_send_one(void *ch);
+
 /** 初始化 channel 同步原语；失败返回非 0。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t channel_sync_init(channel_i32_impl_t *c) {
+int32_t channel_sync_init_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     InitializeCriticalSection(&c->mutex);
     InitializeConditionVariable(&c->cond_not_empty);
@@ -95,12 +114,17 @@ int32_t channel_sync_init(channel_i32_impl_t *c) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/runtime_channel_glue.x）提供 wrapper 调用 _impl */
+int32_t channel_sync_init(channel_i32_impl_t *c) { return channel_sync_init_impl(c); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 销毁 channel 同步原语。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_sync_destroy(channel_i32_impl_t *c) {
+void channel_sync_destroy_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     DeleteCriticalSection(&c->mutex);
 #else
@@ -110,12 +134,17 @@ void channel_sync_destroy(channel_i32_impl_t *c) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_sync_destroy(channel_i32_impl_t *c) { channel_sync_destroy_impl(c); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 加锁 channel。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_lock(channel_i32_impl_t *c) {
+void channel_lock_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     EnterCriticalSection(&c->mutex);
 #else
@@ -123,12 +152,17 @@ void channel_lock(channel_i32_impl_t *c) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_lock(channel_i32_impl_t *c) { channel_lock_impl(c); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 解锁 channel。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_unlock(channel_i32_impl_t *c) {
+void channel_unlock_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     LeaveCriticalSection(&c->mutex);
 #else
@@ -136,12 +170,17 @@ void channel_unlock(channel_i32_impl_t *c) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_unlock(channel_i32_impl_t *c) { channel_unlock_impl(c); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 唤醒一个等待 recv 的线程。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_signal_not_empty(channel_i32_impl_t *c) {
+void channel_signal_not_empty_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeConditionVariable(&c->cond_not_empty);
 #else
@@ -149,12 +188,17 @@ void channel_signal_not_empty(channel_i32_impl_t *c) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_signal_not_empty(channel_i32_impl_t *c) { channel_signal_not_empty_impl(c); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 唤醒一个等待 send 的线程。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_signal_not_full(channel_i32_impl_t *c) {
+void channel_signal_not_full_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeConditionVariable(&c->cond_not_full);
 #else
@@ -162,12 +206,17 @@ void channel_signal_not_full(channel_i32_impl_t *c) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_signal_not_full(channel_i32_impl_t *c) { channel_signal_not_full_impl(c); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 广播唤醒所有等待 recv 的线程。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_broadcast_not_empty(channel_i32_impl_t *c) {
+void channel_broadcast_not_empty_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeAllConditionVariable(&c->cond_not_empty);
 #else
@@ -175,12 +224,17 @@ void channel_broadcast_not_empty(channel_i32_impl_t *c) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_broadcast_not_empty(channel_i32_impl_t *c) { channel_broadcast_not_empty_impl(c); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 广播唤醒所有等待 send 的线程。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_broadcast_not_full(channel_i32_impl_t *c) {
+void channel_broadcast_not_full_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     WakeAllConditionVariable(&c->cond_not_full);
 #else
@@ -188,12 +242,17 @@ void channel_broadcast_not_full(channel_i32_impl_t *c) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_broadcast_not_full(channel_i32_impl_t *c) { channel_broadcast_not_full_impl(c); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 阻塞等待直到 buffer 非空或 channel 关闭。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_wait_not_empty(channel_i32_impl_t *c) {
+void channel_wait_not_empty_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_empty, &c->mutex, INFINITE);
 #else
@@ -201,12 +260,17 @@ void channel_wait_not_empty(channel_i32_impl_t *c) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_wait_not_empty(channel_i32_impl_t *c) { channel_wait_not_empty_impl(c); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 阻塞等待直到 buffer 有空间或 channel 关闭。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_wait_not_full(channel_i32_impl_t *c) {
+void channel_wait_not_full_impl(channel_i32_impl_t *c) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_full, &c->mutex, INFINITE);
 #else
@@ -214,12 +278,17 @@ void channel_wait_not_full(channel_i32_impl_t *c) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_wait_not_full(channel_i32_impl_t *c) { channel_wait_not_full_impl(c); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 限时等待 buffer 非空（select 轮询用）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_timedwait_not_empty(channel_i32_impl_t *c, int32_t ms) {
+void channel_timedwait_not_empty_impl(channel_i32_impl_t *c, int32_t ms) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_empty, &c->mutex, (DWORD)ms);
 #else
@@ -234,12 +303,17 @@ void channel_timedwait_not_empty(channel_i32_impl_t *c, int32_t ms) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_timedwait_not_empty(channel_i32_impl_t *c, int32_t ms) { channel_timedwait_not_empty_impl(c, ms); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 限时等待 buffer 有空间（select 轮询用）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_timedwait_not_full(channel_i32_impl_t *c, int32_t ms) {
+void channel_timedwait_not_full_impl(channel_i32_impl_t *c, int32_t ms) {
 #if CHAN_SYNC_WIN
     SleepConditionVariableCS(&c->cond_not_full, &c->mutex, (DWORD)ms);
 #else
@@ -254,12 +328,17 @@ void channel_timedwait_not_full(channel_i32_impl_t *c, int32_t ms) {
 #endif
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_timedwait_not_full(channel_i32_impl_t *c, int32_t ms) { channel_timedwait_not_full_impl(c, ms); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 无界 channel 缓冲满时翻倍扩容并整理为连续布局。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t channel_unbounded_grow(channel_i32_impl_t *c) {
+int32_t channel_unbounded_grow_impl(channel_i32_impl_t *c) {
     int32_t new_cap = c->cap * 2;
     int32_t *n;
     int32_t i, j;
@@ -273,6 +352,11 @@ int32_t channel_unbounded_grow(channel_i32_impl_t *c) {
     c->head = 0;
     return 0;
 }
+
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t channel_unbounded_grow(channel_i32_impl_t *c) { return channel_unbounded_grow_impl(c); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
@@ -438,7 +522,7 @@ static void *channel_select_chs_get(int64_t *slots, int32_t idx) {
 
 /** recv case 仍有可能：未关闭或缓冲仍有数据。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t channel_select_recv_case_live(void *ch) {
+int32_t channel_select_recv_case_live_impl(void *ch) {
     channel_i32_impl_t *c;
     int32_t live;
     if (!ch) return 0;
@@ -449,12 +533,17 @@ int32_t channel_select_recv_case_live(void *ch) {
     return live;
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t channel_select_recv_case_live(void *ch) { return channel_select_recv_case_live_impl(ch); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** send case 仍有可能：channel 未关闭。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t channel_select_send_case_live(void *ch) {
+int32_t channel_select_send_case_live_impl(void *ch) {
     channel_i32_impl_t *c;
     int32_t live;
     if (!ch) return 0;
@@ -465,12 +554,17 @@ int32_t channel_select_send_case_live(void *ch) {
     return live;
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t channel_select_send_case_live(void *ch) { return channel_select_send_case_live_impl(ch); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 单路 recv 阻塞等待：轮询 try 之间的 timedwait（5ms）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_select_wait_recv_one(void *ch) {
+void channel_select_wait_recv_one_impl(void *ch) {
     channel_i32_impl_t *c;
     if (!ch) return;
     c = (channel_i32_impl_t *)ch;
@@ -483,12 +577,17 @@ void channel_select_wait_recv_one(void *ch) {
     channel_unlock(c);
 }
 
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_select_wait_recv_one(void *ch) { channel_select_wait_recv_one_impl(ch); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
+
 
 
 
 /** 单路 send 阻塞等待：轮询 try 之间的 timedwait（5ms）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void channel_select_wait_send_one(void *ch) {
+void channel_select_wait_send_one_impl(void *ch) {
     channel_i32_impl_t *c;
     if (!ch) return;
     c = (channel_i32_impl_t *)ch;
@@ -500,6 +599,11 @@ void channel_select_wait_send_one(void *ch) {
     channel_timedwait_not_full(c, SELECT_TIMEDWAIT_MS);
     channel_unlock(c);
 }
+
+#ifndef SHUX_RUNTIME_CHANNEL_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+void channel_select_wait_send_one(void *ch) { channel_select_wait_send_one_impl(ch); }
+#endif /* SHUX_RUNTIME_CHANNEL_GLUE_FROM_X */
 
 
 
