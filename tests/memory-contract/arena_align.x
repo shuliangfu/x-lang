@@ -1,7 +1,13 @@
 // L9 / X2：Bump 分配须 align_up — 13 字节对象后下一槽 8 字节对齐（防 ARM64 SIGBUS）。
 //
 // 验收：13B bump 后 off=13；align_up(13,8)=16 为下一槽；再 bump 8B 后 off=24。
-const mem = import("core.mem");
+/** Local align_up (inlined from core.mem to avoid field_access callee — seed typeck limitation). */
+function align_up(addr: usize, alignment: usize): usize {
+  if (alignment == 0) {
+    return addr;
+  }
+  return ((addr + alignment - 1) / alignment) * alignment;
+}
 
 /**
  * 模拟 page_mmap_heap_alloc 的 offset 推进（与 std/heap/page_mmap.x 一致）。
@@ -13,7 +19,7 @@ function bump_simulate(off: usize, size: usize, align_bytes: usize): usize {
   if (align_bytes != 0) {
     a = align_bytes;
   }
-  let start: usize = mem.align_up(off, a);
+  let start: usize = align_up(off, a);
   let end: usize = start + size;
   if (end < start) {
     return 0;
@@ -32,7 +38,7 @@ function main(): i32 {
     return 2;
   }
   /* 下一槽须 align_up(13,8)==16，防 ARM64 SIGBUS */
-  let start2: usize = mem.align_up(end1, 8);
+  let start2: usize = align_up(end1, 8);
   if (start2 != 16) {
     return 5;
   }
