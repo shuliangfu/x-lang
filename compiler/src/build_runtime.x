@@ -30,15 +30,15 @@ function build_runtime_warn(msg: *u8): void {
 
 // G-02f-111：+ patch pipeline/driver gen + legacy steps 薄门闩。
 
-extern "C" function build_patch_pipeline_gen_c_impl(path: *u8): i32;
-extern "C" function build_patch_driver_gen_c_impl(path: *u8): i32;
-extern "C" function build_run_legacy_steps_impl(): i32;
+extern "C" function build_patch_pipeline_gen_c_impl(): i32;
+extern "C" function build_patch_driver_gen_c_impl(): i32;
+extern "C" function build_run_legacy_steps_impl(shu_path: *u8): i32;
 
 /* ---- G-02f-111：build_runtime patch/legacy 门闩 ---- */
 
 #[no_mangle]
-function build_patch_pipeline_gen_c(path: *u8): i32 { unsafe { return build_patch_pipeline_gen_c_impl(path); } return 0; }
+function build_patch_pipeline_gen_c(): i32 { unsafe { return build_patch_pipeline_gen_c_impl(); } return 0; }
 #[no_mangle]
-function build_patch_driver_gen_c(path: *u8): i32 { unsafe { return build_patch_driver_gen_c_impl(path); } return 0; }
+function build_patch_driver_gen_c(): i32 { unsafe { return build_patch_driver_gen_c_impl(); } return 0; }
 #[no_mangle]
-function build_run_legacy_steps(): i32 { unsafe { return build_run_legacy_steps_impl(); } return 0; }
+function build_run_legacy_steps(shu_path: *u8): i32 { unsafe { return build_run_legacy_steps_impl(shu_path); } return 0; }

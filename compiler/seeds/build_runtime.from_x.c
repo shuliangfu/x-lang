@@ -24,9 +24,16 @@
 #include "diag.h"
 
 #define PIPELINE_GEN_PATCH_BUF_SIZE (512 * 1024)
-/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
-void build_runtime_info(const char *msg) {
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+void build_runtime_info(const char *msg);
+void build_runtime_warn(const char *msg);
+int build_patch_pipeline_gen_c(void);
+int build_patch_driver_gen_c(void);
+int build_run_legacy_steps(const char *shu_path);
+
+/* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+void build_runtime_info_impl(const char *msg) {
   diag_report(NULL, 0, 0, "info", msg ? msg : "build step complete", NULL);
 }
 
@@ -34,7 +41,7 @@ void build_runtime_info(const char *msg) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
-void build_runtime_warn(const char *msg) {
+void build_runtime_warn_impl(const char *msg) {
   diag_report(NULL, 0, 0, "warning", msg ? msg : "build step degraded", NULL);
 }
 
@@ -46,7 +53,7 @@ void build_runtime_warn(const char *msg) {
  * 此处仅：必要时插入 parser_parse_into extern，并追加 pipeline_glue.c 内容（包装/sizeof/debug 等）。返回 0 成功，-1 失败。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int build_patch_pipeline_gen_c(void) {
+int build_patch_pipeline_gen_c_impl(void) {
   FILE *f = fopen("pipeline_gen.c", "rb");
   if (!f) return -1;
   if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return -1; }
@@ -209,7 +216,7 @@ int build_exec_cmd(char *cmd_buf) {
  * 6.3：对 driver_gen.c 做与 Makefile 等价的 sed 修正（slice . -> ->；preprocess_x_buf 签名）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int build_patch_driver_gen_c(void) {
+int build_patch_driver_gen_c_impl(void) {
   FILE *f = fopen("driver_gen.c", "rb");
   if (!f) return -1;
   if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return -1; }
@@ -409,7 +416,7 @@ int build_run_asm_build(const char *shu_path) {
 
 /** 执行 build.x 配置的 legacy 逐步（生成 *_gen.c 并链接 shux）。返回 0 成功。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int build_run_legacy_steps(const char *shu_path) {
+int build_run_legacy_steps_impl(const char *shu_path) {
   int n = (int)build_get_step_count();
   for (int i = 0; i < n; i++) {
     int step_id = (int)build_get_step_at((int32_t)i);
@@ -418,6 +425,15 @@ int build_run_legacy_steps(const char *shu_path) {
   }
   return 0;
 }
+
+#ifndef SHUX_BUILD_RUNTIME_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin（src/build_runtime.x）提供 wrapper 调用 _impl */
+void build_runtime_info(const char *msg) { build_runtime_info_impl(msg); }
+void build_runtime_warn(const char *msg) { build_runtime_warn_impl(msg); }
+int build_patch_pipeline_gen_c(void) { return build_patch_pipeline_gen_c_impl(); }
+int build_patch_driver_gen_c(void) { return build_patch_driver_gen_c_impl(); }
+int build_run_legacy_steps(const char *shu_path) { return build_run_legacy_steps_impl(shu_path); }
+#endif /* SHUX_BUILD_RUNTIME_FROM_X */
 
 
 
