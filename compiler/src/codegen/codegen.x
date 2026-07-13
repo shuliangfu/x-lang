@@ -1701,14 +1701,11 @@ function codegen_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, name
   if (prefix_len <= 0 || name_len < prefix_len) {
     return 0;
   }
-  /* 【Why 根源】仅对 C 定义使用单前缀的模块去重：
-   *   build_  → C 定义为 build_*（单前缀），去重避免 build_build_*
-   *   codegen_ → C 定义为 codegen_*（单前缀，-E-extern 输出），去重避免 codegen_codegen_*
-   *   ast_    → C 定义为 ast_ast_*（双前缀，pipeline_glue.c 手写），不去重
-   * 不在此列表的前缀（如 ast_、platform_elf_ 等）不做去重，保留双前缀。 */
-  let is_build: bool = prefix_len == 6 && prefix[0] == 98 && prefix[1] == 117 && prefix[2] == 105 && prefix[3] == 108 && prefix[4] == 100 && prefix[5] == 95;
-  let is_codegen: bool = prefix_len == 8 && prefix[0] == 99 && prefix[1] == 111 && prefix[2] == 100 && prefix[3] == 101 && prefix[4] == 103 && prefix[5] == 101 && prefix[6] == 110 && prefix[7] == 95;
-  if (!is_build && !is_codegen) {
+  /* 【Why 根源】ast_ 模块的 C 定义在 pipeline_glue.c 中使用双前缀（ast_ast_*），
+   *   不需要去重。所有其他模块的 C 定义使用单前缀（函数名已含模块前缀），
+   *   需要去重以避免双前缀（如 backend_backend_*、codegen_codegen_*、build_build_*）。
+   *   仅排除 ast_（prefix = "ast_"，4 字节：97,115,116,95）。 */
+  if (prefix_len == 4 && prefix[0] == 97 && prefix[1] == 115 && prefix[2] == 116 && prefix[3] == 95) {
     return 0;
   }
   let i: i32 = 0;
