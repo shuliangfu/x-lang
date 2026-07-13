@@ -11,7 +11,7 @@ runtime_http_glue	src/asm/http/runtime_http_glue.x	seeds/runtime_http_glue.from_
 parser_asm_parse_expr_link	src/asm/parser_asm_parse_expr_link.x	seeds/parser_asm_parse_expr_link.from_x.c	1	255	0	no	yes	weak,ifdef	already_split
 parser_asm_thin_c	src/asm/parser_asm_thin_c.x	seeds/parser_asm_thin_c.from_x.c	11	4542	0	no	yes	ifdef,large	already_split
 pipeline_fill_dep_strict_alias	src/asm/pipeline_fill_dep_strict_alias.x	seeds/pipeline_fill_dep_strict_alias.from_x.c	0	11	0	no	no		not_candidate
-pipeline_glue_strict_minimal	src/asm/pipeline_glue_strict_minimal.x	seeds/pipeline_glue_strict_minimal.from_x.c	71	2339	0	no	no	argv,weak,large	candidate
+pipeline_glue_strict_minimal	src/asm/pipeline_glue_strict_minimal.x	seeds/pipeline_glue_strict_minimal.from_x.c	71	2552	0	no	no	argv,weak,ifdef,large,direct	already_split
 pthin_body_tl	src/asm/pthin_body_tl.x	seeds/pthin_body_tl.from_x.c	0	62	0	no	yes		already_split
 pthin_ctrl	src/asm/pthin_ctrl.x	seeds/pthin_ctrl.from_x.c	0	119	0	no	yes		already_split
 pthin_diag_late	src/asm/pthin_diag_late.x	seeds/pthin_diag_late.from_x.c	0	78	0	no	yes		already_split

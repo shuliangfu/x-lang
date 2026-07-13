@@ -419,18 +419,18 @@ extern "C" function pipeline_expr_binop_right_ref_at(arena: *u8, er: i32): i32;
 // G-02f-143：从 char** 槽读指针（64 位 LE）
 function g02f_load_ptr_at(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
-  let m: usize = 256;
-  let m2: usize = m * m;
-  let m4: usize = m2 * m2;
-  let a: usize = p[off] as usize;
-  a = a + (p[off + 1] as usize) * m;
-  a = a + (p[off + 2] as usize) * m2;
-  a = a + (p[off + 3] as usize) * (m2 * m);
-  a = a + (p[off + 4] as usize) * m4;
-  a = a + (p[off + 5] as usize) * (m4 * m);
-  a = a + (p[off + 6] as usize) * (m4 * m2);
-  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
-  return a as *u8;
+  let pm: usize = 256;
+  let pm2: usize = pm * pm;
+  let pm4: usize = pm2 * pm2;
+  let pacc: usize = p[off] as usize;
+  pacc = pacc + (p[off + 1] as usize) * pm;
+  pacc = pacc + (p[off + 2] as usize) * pm2;
+  pacc = pacc + (p[off + 3] as usize) * (pm2 * pm);
+  pacc = pacc + (p[off + 4] as usize) * pm4;
+  pacc = pacc + (p[off + 5] as usize) * (pm4 * pm);
+  pacc = pacc + (p[off + 6] as usize) * (pm4 * pm2);
+  pacc = pacc + (p[off + 7] as usize) * (pm4 * pm2 * pm);
+  return pacc as *u8;
 }
 
 /* ---- G-02f-110 / G-02f-140 / G-02f-141：pipeline remaining typeck ---- */
