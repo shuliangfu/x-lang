@@ -81,7 +81,7 @@ int32_t http_parse_status_line_c(const uint8_t *line, int32_t len, int32_t *out_
 
 /** 解析 http(s)://host[:port][/path]；*out_is_https=1 表示 https；默认端口 80/443。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int parse_http_url(const uint8_t *url, int32_t url_len,
+int parse_http_url_impl(const uint8_t *url, int32_t url_len,
                          char *host_buf, int host_cap,
                          char *port_buf, int port_cap,
                          char *path_buf, int path_cap,
@@ -142,6 +142,11 @@ int parse_http_url(const uint8_t *url, int32_t url_len,
   return 0;
 }
 
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int parse_http_url(const uint8_t *url, int32_t url_len, char *host_buf, int host_cap, char *port_buf, int port_cap, char *path_buf, int path_cap, int32_t *out_is_https) { return parse_http_url_impl(url, url_len, host_buf, host_cap, port_buf, port_cap, path_buf, path_cap, out_is_https); }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+
 
 
 
@@ -151,9 +156,24 @@ typedef struct {
   int64_t tls_ctx;
 } http_transport_t;
 
+/* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
+int parse_http_url(const uint8_t *url, int32_t url_len, char *host_buf, int host_cap,
+                   char *port_buf, int port_cap, char *path_buf, int path_cap, int32_t *out_is_https);
+void http_transport_close(http_transport_t *tr);
+int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const char *host);
+int32_t http_transport_send_all(http_transport_t *tr, const char *data, int len);
+int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap, uint32_t timeout_ms);
+int http_method_has_body(const char *method);
+int http_format_request(const char *method, const char *path_buf, const char *host_buf,
+                        int32_t body_len, char *req, int req_cap);
+int32_t http_set_timeouts(int fd, uint32_t timeout_ms);
+int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms);
+int32_t http_drain_request(int fd);
+int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket);
+
 /** 关闭传输层（含 TLS 与 socket）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-void http_transport_close(http_transport_t *tr) {
+void http_transport_close_impl(http_transport_t *tr) {
   if (!tr) return;
   if (tr->tls_ctx != 0) {
     net_tls_close_c(tr->tls_ctx);
@@ -165,12 +185,17 @@ void http_transport_close(http_transport_t *tr) {
   }
 }
 
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/http/runtime_http_glue.x）提供 wrapper 调用 _impl */
+void http_transport_close(http_transport_t *tr) { http_transport_close_impl(tr); }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+
 
 
 
 /** HTTPS 时在已连接 fd 上建立 TLS；明文时 tls_ctx 保持 0。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const char *host) {
+int32_t http_transport_start_tls_impl(http_transport_t *tr, int32_t is_https, const char *host) {
   if (!is_https) return 0;
   if (net_tls_is_available_c() == 0) return HTTP_ERR_TLS_NOT_IMPL;
   tr->tls_ctx = net_tls_connect_client_c(tr->fd, host);
@@ -178,12 +203,17 @@ int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const c
   return 0;
 }
 
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const char *host) { return http_transport_start_tls_impl(tr, is_https, host); }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+
 
 
 
 /** 发送全部字节；失败 -1。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t http_transport_send_all(http_transport_t *tr, const char *data, int len) {
+int32_t http_transport_send_all_impl(http_transport_t *tr, const char *data, int len) {
   int sent = 0;
   if (!tr || !data || len <= 0) return -1;
   while (sent < len) {
@@ -203,12 +233,17 @@ int32_t http_transport_send_all(http_transport_t *tr, const char *data, int len)
   return 0;
 }
 
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t http_transport_send_all(http_transport_t *tr, const char *data, int len) { return http_transport_send_all_impl(tr, data, len); }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+
 
 
 
 /** 读取响应到 out_buf；返回总字节数。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap,
+int32_t http_transport_recv_fill_impl(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap,
                                         uint32_t timeout_ms) {
   int32_t total = 0;
   if (!tr || !out_buf || out_cap <= 0) return -1;
@@ -232,24 +267,31 @@ int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t
   return total;
 }
 
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap, uint32_t timeout_ms) { return http_transport_recv_fill_impl(tr, out_buf, out_cap, timeout_ms); }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+
 
 
 
 /** 判定 HTTP 方法是否携带请求体（POST/PUT/PATCH）。 */
-/* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-119：逻辑源 .x（真迁）；DIRECT 模式，rest 模式下 seed 不提供 */
 int http_method_has_body(const char *method) {
   if (!method)
     return 0;
   return (strcmp(method, "POST") == 0 || strcmp(method, "PUT") == 0 ||
           strcmp(method, "PATCH") == 0);
 }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
 
 /** 构建 HTTP/1.0 请求行与 Host 头；带 body 的方法附加 Content-Length。返回 req_len，失败 -1。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int http_format_request(const char *method, const char *path_buf, const char *host_buf,
+int http_format_request_impl(const char *method, const char *path_buf, const char *host_buf,
                                int32_t body_len, char *req, int req_cap) {
   int req_len;
   if (http_method_has_body(method)) {
@@ -264,6 +306,11 @@ int http_format_request(const char *method, const char *path_buf, const char *ho
     return -1;
   return req_len;
 }
+
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int http_format_request(const char *method, const char *path_buf, const char *host_buf, int32_t body_len, char *req, int req_cap) { return http_format_request_impl(method, path_buf, host_buf, body_len, req, req_cap); }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
@@ -374,7 +421,7 @@ int32_t http_request_method_c(uint8_t method_u8, const uint8_t *url, int32_t url
 
 /** 为 fd 设置收发超时（毫秒）；0 表示不设。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t http_set_timeouts(int fd, uint32_t timeout_ms) {
+int32_t http_set_timeouts_impl(int fd, uint32_t timeout_ms) {
   if (timeout_ms == 0) return 0;
 #if defined(_WIN32) || defined(_WIN64)
   DWORD ms = (DWORD)timeout_ms;
@@ -390,12 +437,17 @@ int32_t http_set_timeouts(int fd, uint32_t timeout_ms) {
   return 0;
 }
 
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t http_set_timeouts(int fd, uint32_t timeout_ms) { return http_set_timeouts_impl(fd, timeout_ms); }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+
 
 
 
 /** 带超时 connect（非阻塞 connect + poll）；超时返回 HTTP_ERR_TIMEOUT。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms) {
+int32_t http_connect_timeout_impl(int fd, const struct addrinfo *res, uint32_t timeout_ms) {
 #if defined(_WIN32) || defined(_WIN64)
   u_long nb = 1;
   if (ioctlsocket((SOCKET)fd, FIONBIO, &nb) != 0) return -1;
@@ -445,6 +497,11 @@ done:
 #endif
   return 0;
 }
+
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms) { return http_connect_timeout_impl(fd, res, timeout_ms); }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
@@ -604,6 +661,8 @@ int32_t http_request_timeout_ex_c_impl(const char *method, const uint8_t *url, i
 #endif
   return total;
 }
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
 int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_t url_len,
                                          const uint8_t *body, int32_t body_len, uint8_t *out_buf,
                                          int32_t out_cap, uint32_t timeout_ms) {
@@ -612,6 +671,7 @@ int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_
   }
   return 0;
 }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 /** 带超时的 GET（STD-095）。 */
@@ -696,7 +756,7 @@ int32_t http_https_smoke_c(void) {
 
 /** 读并丢弃客户端请求头（至 \\r\\n\\r\\n）。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t http_drain_request(int fd) {
+int32_t http_drain_request_impl(int fd) {
   uint8_t buf[4096];
   int32_t total = 0;
   int32_t off;
@@ -716,12 +776,17 @@ int32_t http_drain_request(int fd) {
   return 0;
 }
 
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t http_drain_request(int fd) { return http_drain_request_impl(fd); }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
+
 
 
 
 /** 循环 send 直至 len 字节发完。 */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
-int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket) {
+int32_t shu_http_send_all_impl(int fd, const char *buf, int len, int is_socket) {
   int sent = 0;
   (void)is_socket;
   if (fd < 0 || !buf || len <= 0) return -1;
@@ -736,6 +801,11 @@ int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket) {
   }
   return 0;
 }
+
+#ifndef SHUX_RUNTIME_HTTP_GLUE_FROM_X
+/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
+int32_t shu_http_send_all(int fd, const char *buf, int len, int is_socket) { return shu_http_send_all_impl(fd, buf, len, is_socket); }
+#endif /* SHUX_RUNTIME_HTTP_GLUE_FROM_X */
 
 
 
