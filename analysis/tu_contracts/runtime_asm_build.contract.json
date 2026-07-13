@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "tu": "runtime_asm_build",
+  "x_src": "src/asm/runtime_asm_build.x",
+  "seed_src": "seeds/runtime_asm_build.from_x.c",
+  "phase": "phase2_thin_rest",
+  "status": {
+    "prove_x_o": "ok",
+    "ld_r": "ok",
+    "smoke_probe": "pending",
+    "snapshot_compare": "pending"
+  },
+  "role": {
+    "x": "thin/.x provider (DIRECT mode, main retained in seed)",
+    "seed": "seed/rest provider (main only)"
+  },
+  "counts": {
+    "x_symbols": 2,
+    "seed_symbols": 1,
+    "only_x": 0
+  },
+  "symbols": {
+    "x": [
+      "asm_driver_skip_codegen_dep_0_get",
+      "asm_driver_set_current_dep_path_for_codegen"
+    ],
+    "seed": [
+      "main"
+    ],
+    "only_x": []
+  },
+  "rest_macro": "SHUX_RUNTIME_ASM_BUILD_FROM_X",
+  "impl_residuals": [],
+  "direct_symbols": [
+    "asm_driver_skip_codegen_dep_0_get",
+    "asm_driver_set_current_dep_path_for_codegen"
+  ],
+  "forward_decls": [],
+  "internal_call_rewrites": [],
+  "known_limitations": [
+    "main 保留 seed：.x 无法表达 char** argv（Clang 强制 main 第二参数为 char **）；shux-c -E 生成的 uint8_t *argv 被 Clang 拒绝；.x 中 main 函数定义已删除，main 完全由 seed 提供"
+  ],
+  "platform_notes": "纯 DIRECT 模式：2 个转发函数由 .x 提供。main 因 argv 语言限制保留 seed。rest 模式下 seed 仅提供 main",
+  "delete_seed_gate": {
+    "allowed_now": false,
+    "requirements": [
+      "provider boundary stabilized",
+      "ld -r validated",
+      "smoke or probe matched",
+      "no seed fallback on repeated builds",
+      "main argv 语言限制解决（需 .x 支持 char** 或 main 模板化）"
+    ]
+  }
+}
