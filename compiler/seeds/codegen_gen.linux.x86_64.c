@@ -5698,7 +5698,7 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
  }
     ++ti;
   }
-  if (any_let != 0) {   uint8_t init_globals_def[32] = { 115, 116, 97, 116, 105, 99, 32, 118, 111, 105, 100, 32, 105, 110, 105, 116, 95, 103, 108, 111, 98, 97, 108, 115, 40, 118, 111, 105, 100, 41, 32, 0 };
+  if (any_let != 0 && dep_index < 0) {   uint8_t init_globals_def[32] = { 115, 116, 97, 116, 105, 99, 32, 118, 111, 105, 100, 32, 105, 110, 105, 116, 95, 103, 108, 111, 98, 97, 108, 115, 40, 118, 111, 105, 100, 41, 32, 0 };
   if (codegen_emit_bytes_from_ptr(out, (&((init_globals_def)[0])), 31) != 0) {   return (-1);
  }
   uint8_t brace3[3] = { 123, 10, 0 };
@@ -5731,11 +5731,94 @@ SHUX_LIB_WEAK int32_t codegen_x_ast(struct ast_Module * module, struct ast_ASTAr
  }
     ++ti;
   }
+  /* dep module non-const top-level let init */
+  int32_t dep_i = 0;
+  int32_t ndep = pipeline_dep_ctx_ndep(ctx);
+  while (dep_i < ndep) {
+    struct ast_Module * dep_mod = pipeline_dep_ctx_module_at(ctx, dep_i);
+    if (dep_mod != ((struct ast_Module *)(0))) {
+      struct ast_ASTArena * dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_i);
+      int32_t dti = 0;
+      while (dti < (dep_mod)->num_top_level_lets) {
+        if (pipeline_module_top_level_let_is_const(dep_mod, dti) == 0) {
+          if (codegen_emit_indent(out, 2) != 0) { return (-1); }
+          int32_t dnlen = pipeline_module_top_level_let_name_len(dep_mod, dti);
+          if (dnlen > 0 && dnlen <= 63) {
+            uint8_t dtl_name[64] = { 0 };
+            int32_t dtni = 0;
+            while (dtni < dnlen && dtni < 64) {
+              ((dtni < 0 || (dtni) >= 64 ? (shux_panic_(1, 0), 0) : ((dtl_name)[dtni] = pipeline_module_top_level_let_name_byte_at(dep_mod, dti, dtni), 0)));
+              ++dtni;
+            }
+            if (codegen_emit_bytes_from_ptr(out, (&((dtl_name)[0])), dnlen) != 0) { return (-1); }
+          }
+          uint8_t deq[4] = { 32, 61, 32, 0 };
+          if (codegen_emit_bytes_4(out, deq, 3) != 0) { return (-1); }
+          if ((!ast_ref_is_null(pipeline_module_top_level_let_init_ref(dep_mod, dti))) && codegen_emit_expr(dep_arena, out, pipeline_module_top_level_let_init_ref(dep_mod, dti), ctx) != 0) { return (-1); }
+          uint8_t dsc[3] = { 59, 10, 0 };
+          if (codegen_emit_bytes_3(out, dsc, 2) != 0) { return (-1); }
+        }
+        ++dti;
+      }
+    }
+    ++dep_i;
+  }
   uint8_t close_brace[3] = { 125, 10, 0 };
   if (codegen_emit_bytes_3(out, close_brace, 2) != 0) {   return (-1);
  }
  }
  }
+  /* entry module with 0 own lets but dep has non-const lets: emit init_globals */
+  if (dep_index < 0 && (module)->num_top_level_lets == 0) {
+    int32_t dep_any = 0;
+    int32_t dep_si = 0;
+    int32_t dep_sn = pipeline_dep_ctx_ndep(ctx);
+    while (dep_si < dep_sn) {
+      struct ast_Module * dsm = pipeline_dep_ctx_module_at(ctx, dep_si);
+      if (dsm) { int32_t dt = 0; while (dt < (dsm)->num_top_level_lets) { if (pipeline_module_top_level_let_is_const(dsm, dt) == 0) { dep_any = 1; break; } ++dt; } }
+      if (dep_any) break;
+      ++dep_si;
+    }
+    if (dep_any) {
+      uint8_t igd[32] = { 115, 116, 97, 116, 105, 99, 32, 118, 111, 105, 100, 32, 105, 110, 105, 116, 95, 103, 108, 111, 98, 97, 108, 115, 40, 118, 111, 105, 100, 41, 32, 0 };
+      if (codegen_emit_bytes_from_ptr(out, (&((igd)[0])), 31) != 0) { return (-1); }
+      uint8_t br[3] = { 123, 10, 0 };
+      if (codegen_emit_bytes_3(out, br, 2) != 0) { return (-1); }
+      int32_t di2 = 0;
+      while (di2 < dep_sn) {
+        struct ast_Module * dm2 = pipeline_dep_ctx_module_at(ctx, di2);
+        if (dm2) {
+          struct ast_ASTArena * da2 = pipeline_dep_ctx_arena_at(ctx, di2);
+          int32_t dt2 = 0;
+          while (dt2 < (dm2)->num_top_level_lets) {
+            if (pipeline_module_top_level_let_is_const(dm2, dt2) == 0) {
+              if (codegen_emit_indent(out, 2) != 0) { return (-1); }
+              int32_t dnl2 = pipeline_module_top_level_let_name_len(dm2, dt2);
+              if (dnl2 > 0 && dnl2 <= 63) {
+                uint8_t dn2[64] = { 0 };
+                int32_t dn_i2 = 0;
+                while (dn_i2 < dnl2 && dn_i2 < 64) {
+                  ((dn_i2 < 0 || (dn_i2) >= 64 ? (shux_panic_(1, 0), 0) : ((dn2)[dn_i2] = pipeline_module_top_level_let_name_byte_at(dm2, dt2, dn_i2), 0)));
+                  ++dn_i2;
+                }
+                if (codegen_emit_bytes_from_ptr(out, (&((dn2)[0])), dnl2) != 0) { return (-1); }
+              }
+              uint8_t deq2[4] = { 32, 61, 32, 0 };
+              if (codegen_emit_bytes_4(out, deq2, 3) != 0) { return (-1); }
+              if ((!ast_ref_is_null(pipeline_module_top_level_let_init_ref(dm2, dt2))) && codegen_emit_expr(da2, out, pipeline_module_top_level_let_init_ref(dm2, dt2), ctx) != 0) { return (-1); }
+              uint8_t dsc2[3] = { 59, 10, 0 };
+              if (codegen_emit_bytes_3(out, dsc2, 2) != 0) { return (-1); }
+            }
+            ++dt2;
+          }
+        }
+        ++di2;
+      }
+      uint8_t cb2[3] = { 125, 10, 0 };
+      if (codegen_emit_bytes_3(out, cb2, 2) != 0) { return (-1); }
+      call_init_globals = 1;
+    }
+  }
  }
     uint8_t skip_name[64] = { 0 };
     (void)(codegen_copy_func_name64_from_module(module, i, (&((skip_name)[0]))));
