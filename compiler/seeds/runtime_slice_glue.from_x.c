@@ -16,6 +16,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#ifndef SHUX_RUNTIME_SLICE_GLUE_FROM_X
+/* G-02f-rest：rest→.x 迁移：3 个 slice struct + 6 个函数真迁 .x，PREFER_X_O 路径下整体跳过 */
 struct shux_slice_int32_t { int32_t *data; size_t length; };
 struct shux_slice_uint8_t  { uint8_t  *data; size_t length; };
 struct shux_slice_uint64_t { uint64_t *data; size_t length; };
@@ -53,3 +55,4 @@ struct shux_slice_uint64_t core_subslice_u64_c(uint64_t *data, size_t total_len,
     if (len > avail) len = avail;
     s.data = data + start; s.length = len; return s;
 }
+#endif /* SHUX_RUNTIME_SLICE_GLUE_FROM_X */
