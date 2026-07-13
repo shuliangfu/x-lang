@@ -86,9 +86,13 @@ for x_path in "$@"; do
   base_name=$(basename "$x_path")
   if [ "$base_name" = "mod.x" ]; then
     if ! "$SHUX_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-      echo "shux_compile_std_module.sh: shux-c -x -E failed for $x_path" >&2
+      echo "shux_compile_std_module.sh: shux-c -x -E failed for $x_path, trying -E fallback" >&2
       cat "$tmp_dir/shuxc_${idx}.log" >&2
-      exit 1
+      if ! "$SHUX_BIN" -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+        echo "shux_compile_std_module.sh: shux-c -E also failed for $x_path" >&2
+        cat "$tmp_dir/shuxc_${idx}.log" >&2
+        exit 1
+      fi
     fi
   else
     if [ "$BARE_IMPL" = "1" ]; then
@@ -96,9 +100,13 @@ for x_path in "$@"; do
       # 旧 seed 不支持 -lib-name 但其无前缀逻辑也产出裸符号，故 LIB_NAME_SUPPORTED=0 时不加。
       if [ "$LIB_NAME_SUPPORTED" = "1" ]; then
         if ! "$SHUX_BIN" -x -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
-          echo "shux_compile_std_module.sh: shux-c -x -E -lib-name failed for $x_path" >&2
+          echo "shux_compile_std_module.sh: shux-c -x -E -lib-name failed for $x_path, trying -E fallback" >&2
           cat "$tmp_dir/shuxc_${idx}.log" >&2
-          exit 1
+          if ! "$SHUX_BIN" -E -lib-name "" -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
+            echo "shux_compile_std_module.sh: shux-c -E -lib-name also failed for $x_path" >&2
+            cat "$tmp_dir/shuxc_${idx}.log" >&2
+            exit 1
+          fi
         fi
       else
         if ! "$SHUX_BIN" -x -E -L .. "$x_path" >"$gen_c" 2>"$tmp_dir/shuxc_${idx}.log"; then
