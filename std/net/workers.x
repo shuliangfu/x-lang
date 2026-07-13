@@ -98,32 +98,5 @@ function net_run_accept_workers_c_real_c(listener_fd: i32, n_workers: i32, timeo
  * 兼容别名：runtime / 旧链接路径仍引用 net_run_accept_workers_c。
  */
 function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32 {
-  let nw: i32 = n_workers;
-  let args: NetWorkerArg[64] = [];
-  let tids: i64[64] = [];
-  let entry: usize = 0;
-  let i: i32 = 0;
-  if (listener_fd < 0 || nw <= 0) {
-    return -1;
-  }
-  if (nw > SHUX_NET_MAX_WORKERS) {
-    nw = SHUX_NET_MAX_WORKERS;
-  }
-  i = 0;
-  while (i < nw) {
-    net_worker_arg_fill_c(net_worker_arg_slot_ptr_c(&args[0], i), listener_fd, timeout_ms, i);
-    i = i + 1;
-  }
-  unsafe { entry = shu_net_worker_accept_entry_ptr_c(); }
-  i = 0;
-  while (i < nw) {
-    unsafe { tids[i] = thread_create_c(entry, net_worker_arg_slot_ptr_c(&args[0], i) as usize); }
-    i = i + 1;
-  }
-  i = 0;
-  while (i < nw) {
-    unsafe { thread_join_c(tids[i]); }
-    i = i + 1;
-  }
-  return 0;
+  return net_run_accept_workers_c_real_c(listener_fd, n_workers, timeout_ms);
 }
