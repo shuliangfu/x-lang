@@ -1643,6 +1643,10 @@ SHUX_LIB_WEAK int32_t codegen_c_prefix_redundant_with_name(uint8_t * prefix, int
  }
   if (prefix_len <= 0 || name_len < prefix_len) {   return 0;
  }
+  int is_build = (prefix_len == 6 && (prefix)[0] == 98 && (prefix)[1] == 117 && (prefix)[2] == 105 && (prefix)[3] == 108 && (prefix)[4] == 100 && (prefix)[5] == 95);
+  int is_codegen = (prefix_len == 8 && (prefix)[0] == 99 && (prefix)[1] == 111 && (prefix)[2] == 100 && (prefix)[3] == 101 && (prefix)[4] == 103 && (prefix)[5] == 101 && (prefix)[6] == 110 && (prefix)[7] == 95);
+  if (!is_build && !is_codegen) {   return 0;
+ }
   int32_t i = 0;
   while (i < prefix_len) {
     if ((name)[i] != (prefix)[i]) {   return 0;
