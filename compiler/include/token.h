@@ -108,6 +108,7 @@ typedef enum TokenKind {
     TOKEN_COLON,    /**< : 用于 let x: i32、const N: i32 */
     TOKEN_DOT,      /**< . 用于 import core.types、字段访问 */
     TOKEN_DOTDOT,   /**< .. 用于范围 for（for (i : 0 .. n)）与切片范围（远期） */
+    TOKEN_ELLIPSIS, /**< ... 用于变参函数声明（extern "C" function f(fmt: *u8, ...): i32） */
     TOKEN_SEMICOLON,/**< ; 用于 import path; */
     TOKEN_PLUS,     /**< + 二元加 */
     TOKEN_MINUS,    /**< - 二元减（单字符 -，非 ->） */

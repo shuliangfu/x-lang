@@ -1739,7 +1739,16 @@ function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
     tok); out.token_start = start; return; }
   if (c == 58) { tok.kind = TokenKind.TOKEN_COLON; write_next_lex_into(out, l); write_tok_into(out,
     tok); out.token_start = start; return; }
-  if (c == 46) { tok.kind = TokenKind.TOKEN_DOT; write_next_lex_into(out, l); write_tok_into(out,
+  if (c == 46) {
+    /** 变参 `...`：三个连续 `.`；c==46 已 advance_one，故检查 l.pos 与 l.pos+1 是否仍为 `.` */
+    if (l.pos + 1 < data.length && data[l.pos] == 46 && data[l.pos + 1] == 46) {
+      l = advance_one(l, 46);
+      l = advance_one(l, 46);
+      tok.kind = TokenKind.TOKEN_ELLIPSIS;
+    } else {
+      tok.kind = TokenKind.TOKEN_DOT;
+    }
+    write_next_lex_into(out, l); write_tok_into(out,
     tok); out.token_start = start; return; }
   if (c == 59) { tok.kind = TokenKind.TOKEN_SEMICOLON; write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
@@ -2178,7 +2187,16 @@ function lexer_next_body(l: Lexer, data: u8[]): LexerResult {
       token_start: start } };
   if (c == 58) { tok.kind = TokenKind.TOKEN_COLON; return LexerResult { next_lex: l, tok: tok,
       token_start: start } };
-  if (c == 46) { tok.kind = TokenKind.TOKEN_DOT; return LexerResult { next_lex: l, tok: tok,
+  if (c == 46) {
+    /** 变参 `...`：三个连续 `.`；c==46 已 advance_one，故检查 l.pos 与 l.pos+1 是否仍为 `.` */
+    if (l.pos + 1 < data.length && data[l.pos] == 46 && data[l.pos + 1] == 46) {
+      l = advance_one(l, 46);
+      l = advance_one(l, 46);
+      tok.kind = TokenKind.TOKEN_ELLIPSIS;
+    } else {
+      tok.kind = TokenKind.TOKEN_DOT;
+    }
+    return LexerResult { next_lex: l, tok: tok,
       token_start: start } };
   if (c == 59) { tok.kind = TokenKind.TOKEN_SEMICOLON; return LexerResult { next_lex: l, tok: tok,
       token_start: start } };

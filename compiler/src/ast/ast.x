@@ -316,6 +316,11 @@ struct Func {
    * 语法：`extern function f()` → abi_kind=0（默认 X）；`extern "C" function f()` → abi_kind=1。
    * P0a 阶段语义降级：typeck/codegen 统一按 C ABI 生成，不改变行为；P1 激活 X ABI 契约验证。 */
   abi_kind: i32;
+  /** 变参标记：1=C ABI 变参函数（extern "C" function f(fmt: *u8, ...): i32）；0=定参。
+   *  Why：printf/vfprintf 等 C 变参函数需声明处发 `...`、调用处透传实参；X ABI 不支持变参。
+   *  Invariant：仅 abi_kind==1 且 is_extern==1 时可置 1；parser 在 `...` token 后设置。
+   *  Asm/Perf：codegen 读取此字段决定是否发 `...`，无运行期开销。 */
+  is_variadic: i32;
 }
 
 /** 结构体布局（用于 typeck 填 field_access_offset / 字段类型）：名称 + field_base/num_fields；字段名/偏移/类型在 C sidecar grow 池。 */
@@ -601,6 +606,8 @@ extern function pipeline_module_func_set_return_type(module: *Module, fi: i32, t
 extern function pipeline_module_func_set_body_ref(module: *Module, fi: i32, body_ref: i32): void;
 extern function pipeline_module_func_set_body_expr_ref(module: *Module, fi: i32, body_expr_ref: i32): void;
 extern function pipeline_module_func_set_is_extern(module: *Module, fi: i32, is_extern: i32): void;
+extern function pipeline_module_func_set_is_variadic(module: *Module, fi: i32, is_variadic: i32): void;
+extern function pipeline_module_func_is_variadic_at(module: *Module, fi: i32): i32;
 extern function pipeline_module_func_set_num_params(module: *Module, fi: i32, n: i32): void;
 extern function pipeline_module_func_set_num_generic_params(module: *Module, fi: i32, n: i32): void;
 extern function pipeline_module_func_return_type_at(module: *Module, fi: i32): i32;

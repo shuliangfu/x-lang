@@ -1264,6 +1264,21 @@ int32_t pipeline_module_func_is_interrupt_at(struct ast_Module *m, int32_t func_
   return f ? (int32_t)f->is_interrupt : 0;
 }
 
+/** 变参：设置 module 第 fi 个函数是否为变参（extern "C" function f(fmt: *u8, ...): i32）。
+ *  Why：C ABI 变参函数（printf/vfprintf 等）需在声明处发 `...`，调用处透传实参。
+ *  Invariant：仅 abi_kind==1（C ABI）的 extern function 可置 1；X ABI 不支持变参。
+ *  Asm/Perf：单次字段写入，无运行期开销；codegen 读取后决定是否发 `...`。 */
+void pipeline_module_func_set_is_variadic(struct ast_Module *m, int32_t fi, int32_t is_variadic) {
+  struct ast_Func *f = module_func_at(m, fi);
+  if (f) f->is_variadic = is_variadic;
+}
+int32_t pipeline_module_func_is_variadic_at(struct ast_Module *m, int32_t func_index) {
+  struct ast_Func *f;
+  if (!m || func_index < 0 || func_index >= m->num_funcs) return 0;
+  f = module_func_at(m, func_index);
+  return f ? (int32_t)f->is_variadic : 0;
+}
+
 int32_t pipeline_module_func_is_async_at(struct ast_Module *m, int32_t func_index) {
   struct ast_Func *f;
   if (!m || func_index < 0 || func_index >= m->num_funcs)

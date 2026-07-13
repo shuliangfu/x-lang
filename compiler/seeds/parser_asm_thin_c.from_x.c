@@ -111,6 +111,7 @@ struct parser_asm_extern_parse_result {
   int32_t return_ty_ref;
   int32_t num_params;
   int32_t abi_kind; /**< ABI 标记：0=X ABI（默认），1=C ABI（extern "C"） */
+  int32_t is_variadic; /**< 变参：1=extern "C" function f(fmt: *u8, ...); 0=定参 */
 };
 
 /** 与 ast.x Func 布局一致（parse_one_extern_and_add C 路径写 arena）。 */
@@ -131,6 +132,7 @@ struct ast_Func {
   int32_t is_no_mangle;
   int32_t is_interrupt;
   int32_t abi_kind; /**< ABI 标记：0=X ABI（默认），1=C ABI（extern "C"） */
+  int32_t is_variadic; /**< 变参：1=extern "C" function f(fmt: *u8, ...); 0=定参 */
 };
 
 /** 与 parser_gen parser_OneFuncResult 布局一致（wire/parse_one_function_impl ABI）。 */
@@ -3828,6 +3830,8 @@ extern void pipeline_module_func_set_body_ref(void *module, int32_t fi, int32_t 
 extern void pipeline_module_func_set_body_expr_ref(void *module, int32_t fi, int32_t body_expr_ref);
 extern void pipeline_module_func_set_is_extern(void *module, int32_t fi, int32_t is_extern);
 extern void pipeline_module_func_set_is_async(void *module, int32_t fi, int32_t is_async);
+extern void pipeline_module_func_set_is_variadic(void *module, int32_t fi, int32_t is_variadic);
+extern int32_t pipeline_module_func_is_variadic_at(void *module, int32_t fi);
 extern void pipeline_module_func_ref_set(void *module, int32_t fi, int32_t func_ref);
 extern void pipeline_onefunc_param_name_copy32(uint8_t *pool, int32_t i, uint8_t *dst);
 extern int32_t pipeline_onefunc_param_name_len(uint8_t *pool, int32_t i);

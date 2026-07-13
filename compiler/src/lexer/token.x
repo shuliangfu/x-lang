@@ -145,6 +145,8 @@ enum TokenKind {
   TOKEN_DOT,
   /** .. 范围 for / 切片（与 token.h TOKEN_DOTDOT 一致） */
   TOKEN_DOTDOT,
+  /** ... 变参函数声明（与 token.h TOKEN_ELLIPSIS 一致；extern "C" function f(fmt: *u8, ...): i32） */
+  TOKEN_ELLIPSIS,
   TOKEN_SEMICOLON,
   TOKEN_PLUS,
   TOKEN_MINUS,

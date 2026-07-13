@@ -120,6 +120,7 @@ extern function pipeline_module_func_is_naked_at(module: *Module, fi: i32): i32;
 extern function pipeline_module_func_is_entry_at(module: *Module, fi: i32): i32;
 extern function pipeline_module_func_is_no_mangle_at(module: *Module, fi: i32): i32;
 extern function pipeline_module_func_is_interrupt_at(module: *Module, fi: i32): i32;
+extern function pipeline_module_func_is_variadic_at(module: *Module, fi: i32): i32;
 extern function pipeline_module_func_param_type_ref_at(module: *Module, fi: i32, pi: i32): i32;
 /** Block 池读（ast_pool.c）；emit_block 经 glue 访问 const/let/if/expr。 */
 extern function pipeline_block_const_name_copy64(arena: *ASTArena, br: i32, ci: i32, dst: *u8): void;
@@ -7250,6 +7251,16 @@ function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutBuf, mod
         }
       }
       p = p + 1;
+    }
+  }
+  /* 变参：C ABI extern function 尾部发 `...`（C89 要求至少有一个命名参数后才合法）。
+   *  Why：printf/vfprintf 等 C 变参函数原型必须含 `...`，否则调用方实参类型/数量校验失效。
+   *  Invariant：仅 is_variadic==1 且 num_params>0 时发；X ABI 不支持变参，不会进入此分支。
+   *  Asm/Perf：仅 codegen 时一次性发射，无运行期开销。 */
+  if (pipeline_module_func_is_variadic_at(module, fi) != 0 && pipeline_module_func_num_params_at(module, fi) > 0) {
+    let ellipsis: u8[5] = [44, 32, 46, 46, 46];
+    if (emit_bytes_from_ptr(out, &ellipsis[0], 5) != 0) {
+      return -1;
     }
   }
   let end_proto: u8[3] = [41, 59, 10];

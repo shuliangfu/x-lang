@@ -993,6 +993,7 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_extern_fn_audit_c(lex, source));
   ast_pool_onefunc_reset((uint8_t *)out);
   out->abi_kind = 0; /* 默认 X ABI；extern "C" 时在下方设为 1 */
+  out->is_variadic = 0; /* 默认定参；遇到 `...` 时在参数循环中设为 1 */
   lexer_next_into(&r, lex, source);
   if (r.tok.kind != (int32_t)TOKEN_EXTERN) {
     parser_asm_extern_parse_set_fail_c(out, lex);
@@ -1048,6 +1049,18 @@ void parser_asm_parse_one_extern_skip_into_slice_c(struct parser_asm_extern_pars
     parser_asm_lex_from_result_val_into(&lex, r);
   } else {
     for (;;) {
+      /* 变参 `...`：必须是形参列表最后一个 token，紧跟 `)`；仅 C ABI 支持。 */
+      if (r.tok.kind == (int32_t)TOKEN_ELLIPSIS) {
+        out->is_variadic = 1;
+        parser_asm_lex_from_result_val_into(&lex, r);
+        lexer_next_into(&r, lex, source);
+        if (r.tok.kind != (int32_t)TOKEN_RPAREN) {
+          parser_asm_extern_parse_set_fail_c(out, lex);
+          return;
+        }
+        parser_asm_lex_from_result_val_into(&lex, r);
+        break;
+      }
       if (r.tok.kind != (int32_t)TOKEN_IDENT) {
         parser_asm_extern_parse_set_fail_c(out, lex);
         return;
@@ -1177,6 +1190,7 @@ void parser_asm_parse_one_extern_and_add_into_slice_c(void *arena, void *module,
   f.is_extern = 1;
   f.is_async = 0;
   f.abi_kind = res.abi_kind;
+  f.is_variadic = res.is_variadic;
   ast_arena_func_set(arena, func_ref, f);
   fi_ex = parser_asm_module_register_arena_func_c(module, func_ref, f);
   if (fi_ex < 0) {
@@ -1210,6 +1224,7 @@ int32_t parser_asm_module_register_arena_func_c(void *module, int32_t func_ref, 
   pipeline_module_func_set_body_expr_ref(module, fi, f.body_expr_ref);
   pipeline_module_func_set_is_extern(module, fi, f.is_extern);
   pipeline_module_func_set_is_async(module, fi, f.is_async);
+  pipeline_module_func_set_is_variadic(module, fi, f.is_variadic);
   pipeline_module_func_ref_set(module, fi, func_ref);
   return fi;
 }

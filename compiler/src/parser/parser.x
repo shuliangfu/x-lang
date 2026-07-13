@@ -109,6 +109,8 @@ extern function pipeline_module_func_set_is_naked(module: *Module, fi: i32, is_n
 extern function pipeline_module_func_set_is_entry(module: *Module, fi: i32, is_entry: i32): void;
 extern function pipeline_module_func_set_is_no_mangle(module: *Module, fi: i32, is_no_mangle: i32): void;
 extern function pipeline_module_func_set_is_interrupt(module: *Module, fi: i32, is_interrupt: i32): void;
+extern function pipeline_module_func_set_is_variadic(module: *Module, fi: i32, is_variadic: i32): void;
+extern function pipeline_module_func_is_variadic_at(module: *Module, fi: i32): i32;
 extern function pipeline_struct_layout_set_is_send(module: *Module, idx: i32, is_send: i32): void;
 extern function pipeline_struct_layout_set_is_sync(module: *Module, idx: i32, is_sync: i32): void;
 extern function pipeline_module_func_set_num_params(module: *Module, fi: i32, n: i32): void;
@@ -4767,6 +4769,8 @@ allow(padding) struct ExternParseResult {
   num_params: i32;
   /** ABI 标记：0=X ABI（默认），1=C ABI（extern "C"）。P0a 语义降级阶段仅存储不改变行为。 */
   abi_kind: i32;
+  /** 变参：1=extern "C" function f(fmt: *u8, ...); 0=定参。仅 C ABI 支持变参。 */
+  is_variadic: i32;
 }
 
 /** 取 ExternParseResult 侧车池键（与 OneFunc 共用 grow 池 API，按 struct 地址索引）。 */

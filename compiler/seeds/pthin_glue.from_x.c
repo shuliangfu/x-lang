@@ -83,6 +83,7 @@ struct parser_asm_extern_parse_result {
   int32_t return_ty_ref;
   int32_t num_params;
   int32_t abi_kind; /**< ABI 标记：0=X ABI（默认），1=C ABI（extern "C"） */
+  int32_t is_variadic; /**< 变参：1=extern "C" function f(fmt: *u8, ...); 0=定参 */
 };
 
 struct parser_asm_onefunc_result {
