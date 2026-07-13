@@ -34,29 +34,22 @@ SHUX_LIB_WEAK int32_t typeck_check_expr_deref(struct ast_Module * module, struct
 
 BLOCK_BODY = """\
 SHUX_LIB_WEAK int32_t typeck_check_block_one_region(struct ast_Module * module, struct ast_ASTArena * arena, int32_t block_ref, int32_t return_type_ref, struct ast_PipelineDepCtx * ctx, int32_t idx) {
-  /* LANG-007: push unsafe depth for unsafe { } regions before seed/glue region check. */
-  extern int32_t pipeline_typeck_unsafe_depth_push_c(struct ast_PipelineDepCtx *ctx);
-  extern void pipeline_typeck_unsafe_depth_pop_c(struct ast_PipelineDepCtx *ctx, int32_t saved_unsafe_depth);
+  /* LANG-007: C 委托 pipeline_typeck_check_block_one_region_c 内部已做 unsafe depth push/pop，
+   *           直接委托即可，禁止 double push（会导致 g_typeck_unsafe_depth 多增 1）。 */
   extern int32_t pipeline_typeck_check_block_one_region_c(struct ast_Module *module, struct ast_ASTArena *arena, int32_t block_ref, int32_t region_idx, int32_t return_type_ref, struct ast_PipelineDepCtx *ctx);
-  extern int32_t pipeline_block_region_is_unsafe(struct ast_ASTArena *arena, int32_t block_ref, int32_t region_idx);
-  int32_t saved_ud = 0;
-  int32_t rc;
-  if (pipeline_block_region_is_unsafe(arena, block_ref, idx)) {
-    saved_ud = pipeline_typeck_unsafe_depth_push_c(ctx);
-  }
-  rc = pipeline_typeck_check_block_one_region_c(module, arena, block_ref, idx, return_type_ref, ctx);
-  if (pipeline_block_region_is_unsafe(arena, block_ref, idx)) {
-    pipeline_typeck_unsafe_depth_pop_c(ctx, saved_ud);
-  }
-  return rc;
+  return pipeline_typeck_check_block_one_region_c(module, arena, block_ref, idx, return_type_ref, ctx);
 }
 """
 
 
 def replace_weak_fn(src: str, name: str, new_body: str) -> tuple[str, bool]:
-    """Replace SHUX_LIB_WEAK int32_t <name>(...) { ... } balanced braces."""
+    """Replace (SHUX_LIB_WEAK)? int32_t <name>(...) { ... } balanced braces.
+
+    【Why 根源】-E-extern 生成的 typeck_gen.c 用普通 int32_t（无 SHUX_LIB_WEAK 前缀），
+    旧正则只匹配 SHUX_LIB_WEAK int32_t 导致补丁从未生效。LANG-007 S0 守卫缺失。
+    """
     pat = re.compile(
-        rf"(SHUX_LIB_WEAK\s+int32_t\s+{re.escape(name)}\s*\([^;]*?\)\s*\{{)",
+        rf"((?:SHUX_LIB_WEAK\s+)?int32_t\s+{re.escape(name)}\s*\([^;]*?\)\s*\{{)",
         re.M | re.S,
     )
     m = pat.search(src)
@@ -79,11 +72,63 @@ def replace_weak_fn(src: str, name: str, new_body: str) -> tuple[str, bool]:
                     return src, False  # already delegated
                 if "pipeline_typeck_check_expr_deref_c" in old and name == "typeck_check_expr_deref":
                     return src, False
-                if "pipeline_typeck_unsafe_depth_push_c" in old and name == "typeck_check_block_one_region":
+                if "pipeline_typeck_check_block_one_region_c" in old and name == "typeck_check_block_one_region":
                     return src, False
                 return src[:start] + new_body.rstrip() + "\n" + src[end:], True
         i += 1
     raise RuntimeError(f"unbalanced braces for {name}")
+
+
+def insert_block_final_skip(src: str) -> tuple[str, bool]:
+    """在 typeck_check_block_final 的 fin_k_tail 赋值后插入 != 41 skip 守卫。
+
+    【Why 根源】S0_region 修复：只有 return 表达式（kind 41）才做尾类型比较，
+    其余 kind（39/40/assign/其他）一律跳过。旧 seed 三分支 if 漏掉非 39/40/assign 的
+    非 41 kind（如字面量、var 等），导致误报 return type mismatch。
+    【Invariant】幂等：若 body 已含 'fin_k_tail != 41' 则跳过。
+    """
+    sig_pat = re.compile(
+        r"(int32_t\s+typeck_check_block_final\s*\([^;]*?\)\s*\{)",
+        re.M | re.S,
+    )
+    m = sig_pat.search(src)
+    if not m:
+        return src, False
+    start = m.start()
+    brace_at = m.end() - 1
+    i = brace_at
+    depth = 0
+    end = -1
+    while i < len(src):
+        c = src[i]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                end = i + 1
+                break
+        i += 1
+    if end < 0:
+        raise RuntimeError("unbalanced braces for typeck_check_block_final")
+    body = src[start:end]
+    if "fin_k_tail != 41" in body:
+        return src, False  # already patched
+    assign_pat = re.compile(
+        r"(\(fin_k_tail = \(pipeline_expr_kind_ord_at\(arena, fin0\)\)\);)",
+        re.M,
+    )
+    am = assign_pat.search(body)
+    if not am:
+        return src, False  # 结构不符，跳过
+    insert_pos = am.end()
+    guard = (
+        "\n  /* LANG-007 S0_region: 只有 return 表达式（kind 41）才做尾类型比较；"
+        "\n   * 其余 kind 一律 skip，避免字面量/var 等误报 return type mismatch。 */"
+        "\n  if (fin_k_tail != 41) { skip_tail_ty_cmp = 1; }"
+    )
+    new_body = body[:insert_pos] + guard + body[insert_pos:]
+    return src[:start] + new_body + src[end:], True
 
 
 def main() -> int:
@@ -103,6 +148,12 @@ def main() -> int:
             changed = True
         else:
             print(f"patch_typeck_gen_lang007: {name} already ok or missing")
+    src, did = insert_block_final_skip(src)
+    if did:
+        print("patch_typeck_gen_lang007: inserted block_final skip guard")
+        changed = True
+    else:
+        print("patch_typeck_gen_lang007: block_final skip guard already ok or missing")
     if changed:
         PATH.write_text(src, encoding="utf-8")
         print(f"patch_typeck_gen_lang007: wrote {PATH}")
