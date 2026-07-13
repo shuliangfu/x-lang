@@ -638,9 +638,23 @@ src/main.o: seeds/main.from_x.c src/main_c_entry.x
 
 # E-04 v2/v3：argv/target 与 POSIX I/O ABI 薄壳；默认 seed / B-strict 均链入。
 
-# G-02f-12：runtime_io_abi 产品 seed
+# G-02f-12 / Phase 4：runtime_io_abi PREFER_X_O（rest→.x 迁移）
+# 5 个 _impl 真迁 .x（read/malloc/memcpy）；4 个保留 seed（mmap/fstat/O_* flags/平台 #ifdef）
 src/runtime_io_abi.o: seeds/runtime_io_abi.from_x.c src/runtime_io_abi.x src/runtime_io_abi.h
-	$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o $@
+	@if [ -x ./shux-c ]; then \
+		_tmp=$$(mktemp "$${TMPDIR:-/tmp}/rio.XXXXXX") && \
+		./shux-c -L .. -L src -L src/asm -L src/ast -L src/parser -L src/typeck -L src/preprocess -L src/codegen -L src/pipeline -E src/runtime_io_abi.x > "$$_tmp" 2>/dev/null && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -x c -c "$$_tmp" -o src/runtime_io_abi_x.o && \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -DSHUX_L2_RIO_THIN_FROM_X -DSHUX_RUNTIME_IO_ABI_FROM_X -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi_rest.o && \
+		ld -r src/runtime_io_abi_x.o src/runtime_io_abi_rest.o -o $@ && \
+		rm -f "$$_tmp" src/runtime_io_abi_x.o src/runtime_io_abi_rest.o && \
+		echo "phase4: $@ <- .x + seed-rest (PREFER_X_O)"; \
+	elif [ -f seeds/runtime_io_abi.from_x.c ]; then \
+		$(CC) $(CFLAGS) $(PIPELINE_GEN_CFLAGS) -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o $@ && \
+		echo "phase4: $@ <- seeds/runtime_io_abi.from_x.c (cold start seed)"; \
+	else \
+		echo "ERROR: no shux-c and no seed for $@" >&2; exit 1; \
+	fi
 
 
 # G-02f-13：runtime_link_abi 产品 seed（G05 hot）

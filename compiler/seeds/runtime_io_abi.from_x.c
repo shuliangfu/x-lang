@@ -45,6 +45,8 @@
  * G-02f-334：hybrid 时作 _impl（.x thin 门闩调 _impl）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* G-02f-rest：rest→.x 迁移：_impl 真迁 .x，PREFER_X_O 路径下整体跳过 */
+#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
 #ifndef SHUX_L2_RIO_THIN_FROM_X
 int shux_read_fd_into_buf(int fd, void *buf, size_t cap)
 #else
@@ -67,11 +69,13 @@ int shux_read_fd_into_buf_impl(int fd, void *buf, size_t cap)
     }
     return (int)off;
 }
+#endif /* SHUX_RUNTIME_IO_ABI_FROM_X */
 
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-334：hybrid 时作 _impl */
-
+/* G-02f-rest：rest→.x 迁移：_impl 真迁 .x，PREFER_X_O 路径下整体跳过 */
+#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
 #ifndef SHUX_L2_RIO_THIN_FROM_X
 int shux_runtime_file_view_read_malloc(int fd, size_t size, ShuxRuntimeFileView *out)
 #else
@@ -111,6 +115,7 @@ int shux_runtime_file_view_read_malloc_impl(int fd, size_t size, ShuxRuntimeFile
     out->needs_munmap = 0;
     return 0;
 }
+#endif /* SHUX_RUNTIME_IO_ABI_FROM_X */
 
 
 /* G-02f-59 io helper protos（hybrid 时 flags 由 thin 调 flags_impl） */
@@ -128,6 +133,10 @@ int32_t std_sys_os_read_file_into_impl(uint8_t *path, uint8_t *buf, int32_t cap)
 int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap);
 int shux_write_path_bytes_impl(const char *path, const void *data, size_t len);
 void runtime_release_file_view_impl(ShuxRuntimeFileView *view);
+
+/* G-02f-rest：rest→.x 迁移后，5 个 _impl 由 .x 提供，seed 保留 extern 声明供 4 个保留 _impl 调用 */
+int shux_read_fd_into_buf_impl(int fd, void *buf, size_t cap);
+int shux_runtime_file_view_read_malloc_impl(int fd, size_t size, ShuxRuntimeFileView *out);
 
 int runtime_read_file_view_impl(const char *path, ShuxRuntimeFileView *out) {
     int fd;
@@ -213,6 +222,8 @@ void runtime_release_file_view(ShuxRuntimeFileView *view) {
  * B-20：POSIX open/fstat/read 读整文件到堆缓冲。
  * 参数：见 runtime_io_abi.h。
  */
+/* G-02f-rest：rest→.x 迁移：_impl 真迁 .x，PREFER_X_O 路径下整体跳过 */
+#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
 char *runtime_read_file_malloc_impl(const char *path, size_t *out_len) {
     ShuxRuntimeFileView view;
     char *buf;
@@ -244,6 +255,7 @@ char *runtime_read_file_malloc_impl(const char *path, size_t *out_len) {
 #endif
     return buf;
 }
+#endif /* SHUX_RUNTIME_IO_ABI_FROM_X */
 
 #ifndef SHUX_L2_RIO_THIN_FROM_X
 char *runtime_read_file_malloc(const char *path, size_t *out_len) {
@@ -261,6 +273,8 @@ char *runtime_read_file_malloc(const char *path, size_t *out_len) {
  * B-20：open/read/close 将文件读入 buf；供 ast_pool 与 driver 语法探测。
  * 参数：见 runtime_io_abi.h。
  */
+/* G-02f-rest：rest→.x 迁移：_impl 真迁 .x，PREFER_X_O 路径下整体跳过 */
+#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
 int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap) {
     int fd;
     int n;
@@ -278,6 +292,7 @@ int shux_read_file_into_path_impl(const char *path, void *buf, size_t cap) {
     close(fd);
     return n;
 }
+#endif /* SHUX_RUNTIME_IO_ABI_FROM_X */
 
 #ifndef SHUX_L2_RIO_THIN_FROM_X
 int shux_read_file_into_path(const char *path, void *buf, size_t cap) {
@@ -451,6 +466,8 @@ ssize_t fs_posix_read_c(int32_t fd, uint8_t * buf, size_t count) {
  * std.sys.os_read_file_into 的 C 链接符号（-E-extern import 名）。
  * 成功返回读入字节数；失败 -1。
  */
+/* G-02f-rest：rest→.x 迁移：_impl 真迁 .x，PREFER_X_O 路径下整体跳过 */
+#ifndef SHUX_RUNTIME_IO_ABI_FROM_X
 int32_t std_sys_os_read_file_into_impl(uint8_t *path, uint8_t *buf, int32_t cap) {
   int32_t fd;
   int32_t total;
@@ -474,6 +491,7 @@ int32_t std_sys_os_read_file_into_impl(uint8_t *path, uint8_t *buf, int32_t cap)
   close(fd);
   return total;
 }
+#endif /* SHUX_RUNTIME_IO_ABI_FROM_X */
 
 #ifndef SHUX_L2_RIO_THIN_FROM_X
 int32_t std_sys_os_read_file_into(uint8_t *path, uint8_t *buf, int32_t cap) {
