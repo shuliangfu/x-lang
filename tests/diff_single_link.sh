@@ -12,9 +12,20 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT/compiler" || exit 1
 
 # 解析 SHUX 为绝对路径（支持 SHUX=./compiler/shux 或 SHUX=./shux 两种写法）
+# 根因：macOS arm64 ASM backend 链接失败（pre-existing），shux 二进制可能不存在；
+# 此时 fallback 到 shux-c（C 前端构建，-E 功能等价用于差分验证）
 SHUX_REL="${SHUX:-./shux}"
 if [ ! -f "$SHUX_REL" ]; then
   SHUX_REL="$REPO_ROOT/compiler/shux"
+fi
+if [ ! -f "$SHUX_REL" ]; then
+  # shux 不存在，fallback 到 shux-c
+  SHUX_REL="$REPO_ROOT/compiler/shux-c"
+  if [ ! -f "$SHUX_REL" ]; then
+    echo "diff_single_link: neither shux nor shux-c found in compiler/" >&2
+    exit 127
+  fi
+  echo "diff_single_link: WARN shux not found, fallback to shux-c" >&2
 fi
 SHUX_BIN="$(cd "$(dirname "$SHUX_REL")" && pwd)/$(basename "$SHUX_REL")"
 COMPILER_DIR="."
