@@ -6,12 +6,12 @@ backend_enc_dispatch	src/asm/backend_enc_dispatch.x	seeds/backend_enc_dispatch.f
 backend_seed_mega_fallback	src/asm/backend_seed_mega_fallback.x	seeds/backend_seed_mega_fallback.from_x.c	3	346	0	no	yes	weak,ifdef	already_split
 backend_try_inline_dispatch	src/asm/backend_try_inline_dispatch.x	seeds/backend_try_inline_dispatch.from_x.c	54	2441	0	yes	yes	va_list,ifdef,large	already_split
 backend_x86_64_enc_c	src/asm/backend_x86_64_enc_c.x	seeds/backend_x86_64_enc_c.from_x.c	10	976	0	no	yes	ifdef	already_split
-bootstrap_nostdlib_stubs	src/asm/bootstrap_nostdlib_stubs.x	seeds/bootstrap_nostdlib_stubs.from_x.c	6	1648	0	no	no	argv,va_list,ifdef,large,impl,direct	already_split
-runtime_http_glue	src/asm/http/runtime_http_glue.x	seeds/runtime_http_glue.from_x.c	12	1073	0	no	no	argv,ifdef,large,impl,direct	already_split
+bootstrap_nostdlib_stubs	src/asm/bootstrap_nostdlib_stubs.x	seeds/bootstrap_nostdlib_stubs.from_x.c	6	1686	0	no	yes	argv,va_list,ifdef,large	already_split
+runtime_http_glue	src/asm/http/runtime_http_glue.x	seeds/runtime_http_glue.from_x.c	12	1143	0	no	yes	ifdef,large	already_split
 parser_asm_parse_expr_link	src/asm/parser_asm_parse_expr_link.x	seeds/parser_asm_parse_expr_link.from_x.c	1	255	0	no	yes	weak,ifdef	already_split
 parser_asm_thin_c	src/asm/parser_asm_thin_c.x	seeds/parser_asm_thin_c.from_x.c	11	4542	0	no	yes	ifdef,large	already_split
 pipeline_fill_dep_strict_alias	src/asm/pipeline_fill_dep_strict_alias.x	seeds/pipeline_fill_dep_strict_alias.from_x.c	0	11	0	no	no		not_candidate
-pipeline_glue_strict_minimal	src/asm/pipeline_glue_strict_minimal.x	seeds/pipeline_glue_strict_minimal.from_x.c	71	2552	0	no	no	argv,weak,ifdef,large,direct	already_split
+pipeline_glue_strict_minimal	src/asm/pipeline_glue_strict_minimal.x	seeds/pipeline_glue_strict_minimal.from_x.c	71	2552	0	no	yes	argv,weak,ifdef,large	already_split
 pthin_body_tl	src/asm/pthin_body_tl.x	seeds/pthin_body_tl.from_x.c	0	62	0	no	yes		already_split
 pthin_ctrl	src/asm/pthin_ctrl.x	seeds/pthin_ctrl.from_x.c	0	119	0	no	yes		already_split
 pthin_diag_late	src/asm/pthin_diag_late.x	seeds/pthin_diag_late.from_x.c	0	78	0	no	yes		already_split
@@ -36,70 +36,70 @@ pthin_skip_tl	src/asm/pthin_skip_tl.x	seeds/pthin_skip_tl.from_x.c	0	185	0	no	ye
 pthin_stretch	src/asm/pthin_stretch.x	seeds/pthin_stretch.from_x.c	0	238	0	no	yes		already_split
 pthin_try_skip_allow	src/asm/pthin_try_skip_allow.x	seeds/pthin_try_skip_allow.from_x.c	0	156	0	no	yes		already_split
 pthin_type_ref	src/asm/pthin_type_ref.x	seeds/pthin_type_ref.from_x.c	0	69	0	no	yes		already_split
-runtime_arrow_simd_glue	src/asm/runtime_arrow_simd_glue.x	seeds/runtime_arrow_simd_glue.from_x.c	4	251	0	no	yes	ifdef	already_split
-runtime_asm_build	src/asm/runtime_asm_build.x	seeds/runtime_asm_build.from_x.c	3	31	0	no	yes	argv,direct	already_split
-runtime_asm_io_stubs	src/asm/runtime_asm_io_stubs.x	seeds/runtime_asm_io_stubs.from_x.c	3	400	0	no	no	weak,ifdef	already_split
+runtime_arrow_simd_glue	src/asm/runtime_arrow_simd_glue.x	seeds/runtime_arrow_simd_glue.from_x.c	4	289	0	no	yes	ifdef	already_split
+runtime_asm_build	src/asm/runtime_asm_build.x	seeds/runtime_asm_build.from_x.c	2	37	0	no	yes	argv,ifdef	already_split
+runtime_asm_io_stubs	src/asm/runtime_asm_io_stubs.x	seeds/runtime_asm_io_stubs.from_x.c	3	430	0	no	yes	weak,ifdef	already_split
 runtime_ast_glue	src/asm/runtime_ast_glue.x	seeds/runtime_ast_glue.from_x.c	0	499	0	no	no		not_candidate
 runtime_atomic_glue	src/asm/runtime_atomic_glue.x	seeds/runtime_atomic_glue.from_x.c	0	360	0	no	no	ifdef	not_candidate
-runtime_backtrace_platform	src/asm/runtime_backtrace_platform.x	seeds/runtime_backtrace_platform.from_x.c	3	417	0	no	yes	ifdef	already_split
-runtime_channel_glue	src/asm/runtime_channel_glue.x	seeds/runtime_channel_glue.from_x.c	17	686	0	no	no	ifdef	already_split
+runtime_backtrace_platform	src/asm/runtime_backtrace_platform.x	seeds/runtime_backtrace_platform.from_x.c	3	437	0	no	yes	ifdef	already_split
+runtime_channel_glue	src/asm/runtime_channel_glue.x	seeds/runtime_channel_glue.from_x.c	17	790	0	no	yes	ifdef	already_split
 runtime_compress_zlib_glue	src/asm/runtime_compress_zlib_glue.x	seeds/runtime_compress_zlib_glue.from_x.c	0	41	0	no	no		not_candidate
-runtime_crypto_inc_glue	src/asm/runtime_crypto_inc_glue.x	seeds/runtime_crypto_inc_glue.from_x.c	6	341	0	no	yes	ifdef	already_split
-runtime_dynlib_os	src/asm/runtime_dynlib_os.x	seeds/runtime_dynlib_os.from_x.c	2	180	0	no	yes	ifdef	already_split
+runtime_crypto_inc_glue	src/asm/runtime_crypto_inc_glue.x	seeds/runtime_crypto_inc_glue.from_x.c	6	356	0	no	yes	ifdef	already_split
+runtime_dynlib_os	src/asm/runtime_dynlib_os.x	seeds/runtime_dynlib_os.from_x.c	2	192	0	no	yes	ifdef	already_split
 runtime_ed25519_ref10_glue	src/asm/runtime_ed25519_ref10_glue.x	seeds/runtime_ed25519_ref10_glue.from_x.c	0	56	0	no	no		not_candidate
 runtime_env_os	src/asm/runtime_env_os.x	seeds/runtime_env_os.from_x.c	1	399	0	no	yes	ifdef	already_split
 runtime_kv_mmap_glue	src/asm/runtime_kv_mmap_glue.x	seeds/runtime_kv_mmap_glue.from_x.c	0	74	0	no	no	ifdef	not_candidate
 runtime_lexer_glue	src/asm/runtime_lexer_glue.x	seeds/runtime_lexer_glue.from_x.c	0	51	0	no	no		not_candidate
-runtime_log_os	src/asm/runtime_log_os.x	seeds/runtime_log_os.from_x.c	7	394	0	no	no	ifdef	already_split
+runtime_log_os	src/asm/runtime_log_os.x	seeds/runtime_log_os.from_x.c	7	457	0	no	yes	ifdef	already_split
 runtime_lsp_glue	src/asm/runtime_lsp_glue.x	seeds/runtime_lsp_glue.from_x.c	60	3500	0	no	yes	va_list,weak,ifdef,large	already_split
-runtime_math_libm	src/asm/runtime_math_libm.x	seeds/runtime_math_libm.from_x.c	4	272	0	no	yes	weak,ifdef	already_split
+runtime_math_libm	src/asm/runtime_math_libm.x	seeds/runtime_math_libm.from_x.c	4	305	0	no	yes	weak,ifdef	already_split
 runtime_net_addr_fast	src/asm/runtime_net_addr_fast.x	seeds/runtime_net_addr_fast.from_x.c	1	68	0	no	yes	ifdef	already_split
-runtime_net_dns_fast	src/asm/runtime_net_dns_fast.x	seeds/runtime_net_dns_fast.from_x.c	3	189	0	no	yes	ifdef	already_split
+runtime_net_dns_fast	src/asm/runtime_net_dns_fast.x	seeds/runtime_net_dns_fast.from_x.c	3	211	0	no	yes	ifdef	already_split
 runtime_net_io_batch_fast	src/asm/runtime_net_io_batch_fast.x	seeds/runtime_net_io_batch_fast.from_x.c	0	95	0	no	no	weak,ifdef	not_candidate
-runtime_net_ipv6_fast	src/asm/runtime_net_ipv6_fast.x	seeds/runtime_net_ipv6_fast.from_x.c	5	175	0	no	yes	ifdef	already_split
-runtime_net_sock_fast	src/asm/runtime_net_sock_fast.x	seeds/runtime_net_sock_fast.from_x.c	2	141	0	no	yes	ifdef	already_split
-runtime_net_udp_batch	src/asm/runtime_net_udp_batch.x	seeds/runtime_net_udp_batch.from_x.c	2	209	0	no	yes	ifdef	already_split
+runtime_net_ipv6_fast	src/asm/runtime_net_ipv6_fast.x	seeds/runtime_net_ipv6_fast.from_x.c	5	215	0	no	yes	ifdef	already_split
+runtime_net_sock_fast	src/asm/runtime_net_sock_fast.x	seeds/runtime_net_sock_fast.from_x.c	2	154	0	no	yes	ifdef	already_split
+runtime_net_udp_batch	src/asm/runtime_net_udp_batch.x	seeds/runtime_net_udp_batch.from_x.c	2	226	0	no	yes	ifdef	already_split
 runtime_net_workers	src/asm/runtime_net_workers.x	seeds/runtime_net_workers.from_x.c	0	58	0	no	no	weak,ifdef	not_candidate
-runtime_panic_arm64	src/asm/runtime_panic_arm64.x	seeds/runtime_panic_arm64.from_x.c	1	45	0	no	yes	weak,ifdef	already_split
+runtime_panic_arm64	src/asm/runtime_panic_arm64.x	seeds/runtime_panic_arm64.from_x.c	1	53	0	no	yes	weak,ifdef	already_split
 runtime_panic	src/asm/runtime_panic.x	seeds/runtime_panic.from_x.c	1	78	0	no	yes	weak,ifdef	already_split
 runtime_path_fast	src/asm/runtime_path_fast.x	seeds/runtime_path_fast.from_x.c	4	275	0	no	yes	ifdef	already_split
-runtime_process_argv	src/asm/runtime_process_argv.x	seeds/runtime_process_argv.from_x.c	1	158	0	no	no	argv,weak,ifdef,impl	already_split
-runtime_process_os_glue	src/asm/runtime_process_os_glue.x	seeds/runtime_process_os_glue.from_x.c	2	569	0	no	yes	argv,ifdef	already_split
-runtime_queue_contention	src/asm/runtime_queue_contention.x	seeds/runtime_queue_contention.from_x.c	3	230	0	no	yes	ifdef	already_split
-runtime_random_fill	src/asm/runtime_random_fill.x	seeds/runtime_random_fill.from_x.c	1	109	0	no	yes	ifdef	already_split
-runtime_scheduler_glue	src/asm/runtime_scheduler_glue.x	seeds/runtime_scheduler_glue.from_x.c	17	1068	0	no	no	weak,ifdef,large	already_split
+runtime_process_argv	src/asm/runtime_process_argv.x	seeds/runtime_process_argv.from_x.c	1	166	0	no	yes	argv,weak,ifdef	already_split
+runtime_process_os_glue	src/asm/runtime_process_os_glue.x	seeds/runtime_process_os_glue.from_x.c	2	585	0	no	yes	argv,ifdef	already_split
+runtime_queue_contention	src/asm/runtime_queue_contention.x	seeds/runtime_queue_contention.from_x.c	3	257	0	no	yes	ifdef	already_split
+runtime_random_fill	src/asm/runtime_random_fill.x	seeds/runtime_random_fill.from_x.c	1	115	0	no	yes	ifdef	already_split
+runtime_scheduler_glue	src/asm/runtime_scheduler_glue.x	seeds/runtime_scheduler_glue.from_x.c	17	1162	0	no	yes	weak,ifdef,large	already_split
 runtime_slice_glue	src/asm/runtime_slice_glue.x	seeds/runtime_slice_glue.from_x.c	0	55	0	no	no		not_candidate
 runtime_sqlite_glue	src/asm/runtime_sqlite_glue.x	seeds/runtime_sqlite_glue.from_x.c	0	412	0	no	no	ifdef	not_candidate
-runtime_std_runtime_fast	src/asm/runtime_std_runtime_fast.x	seeds/runtime_std_runtime_fast.from_x.c	6	40	0	no	yes		already_split
-runtime_string_fast	src/asm/runtime_string_fast.x	seeds/runtime_string_fast.from_x.c	4	89	0	no	yes		already_split
-runtime_sync_lock_diag_tls	src/asm/runtime_sync_lock_diag_tls.x	seeds/runtime_sync_lock_diag_tls.from_x.c	5	421	0	no	yes	ifdef	already_split
+runtime_std_runtime_fast	src/asm/runtime_std_runtime_fast.x	seeds/runtime_std_runtime_fast.from_x.c	6	44	0	no	yes	ifdef	already_split
+runtime_string_fast	src/asm/runtime_string_fast.x	seeds/runtime_string_fast.from_x.c	4	95	0	no	yes	ifdef	already_split
+runtime_sync_lock_diag_tls	src/asm/runtime_sync_lock_diag_tls.x	seeds/runtime_sync_lock_diag_tls.from_x.c	5	452	0	no	yes	ifdef	already_split
 runtime_sync_os	src/asm/runtime_sync_os.x	seeds/runtime_sync_os.from_x.c	0	404	0	no	no	ifdef	not_candidate
 runtime_test_fn_invoke	src/asm/runtime_test_fn_invoke.x	seeds/runtime_test_fn_invoke.from_x.c	0	20	0	no	no		not_candidate
-runtime_thread_glue	src/asm/runtime_thread_glue.x	seeds/runtime_thread_glue.from_x.c	2	476	0	no	yes	ifdef	already_split
+runtime_thread_glue	src/asm/runtime_thread_glue.x	seeds/runtime_thread_glue.from_x.c	2	489	0	no	yes	ifdef	already_split
 runtime_time_os	src/asm/runtime_time_os.x	seeds/runtime_time_os.from_x.c	0	135	0	no	no	ifdef	not_candidate
-runtime_tls_mbedtls_bio	src/asm/runtime_tls_mbedtls_bio.x	seeds/runtime_tls_mbedtls_bio.from_x.c	2	65	0	no	yes	ifdef	already_split
+runtime_tls_mbedtls_bio	src/asm/runtime_tls_mbedtls_bio.x	seeds/runtime_tls_mbedtls_bio.from_x.c	2	82	0	no	yes	ifdef	already_split
 simd_enc	src/asm/simd_enc.x	seeds/simd_enc.from_x.c	74	1831	0	yes	yes	ifdef,large	already_split
 simd_loop	src/asm/simd_loop.x	seeds/simd_loop.from_x.c	23	1050	0	yes	yes	ifdef,large	already_split
 user_asm_seed_bridge	src/asm/user_asm_seed_bridge.x	seeds/user_asm_seed_bridge.from_x.c	7	459	0	no	yes	weak,ifdef	already_split
-async_cps_codegen	src/async/async_cps_codegen.x	seeds/async_cps_codegen.from_x.c	6	489	0	no	yes	impl,direct	already_split
-async_liveness	src/async/async_liveness.x	seeds/async_liveness.from_x.c	19	857	0	no	yes	direct	already_split
-build_runtime	src/build_runtime.x	seeds/build_runtime.from_x.c	5	462	0	no	yes	impl	already_split
+async_cps_codegen	src/async/async_cps_codegen.x	seeds/async_cps_codegen.from_x.c	6	529	0	no	yes	ifdef	already_split
+async_liveness	src/async/async_liveness.x	seeds/async_liveness.from_x.c	19	867	0	no	yes	ifdef	already_split
+build_runtime	src/build_runtime.x	seeds/build_runtime.from_x.c	5	478	0	no	yes	argv,ifdef	already_split
 diag	src/diag.x	seeds/diag.from_x.c	32	1236	0	yes	yes	va_list,ifdef,large	already_split
-fmt_check_cmd	src/driver/fmt_check_cmd.x	seeds/fmt_check_cmd.from_x.c	25	1279	0	yes	yes	argv,ifdef,large	already_split
+fmt_check_cmd	src/driver/fmt_check_cmd.x	seeds/fmt_check_cmd.from_x.c	25	1291	0	yes	yes	argv,ifdef,large	already_split
 target_cpu_pure	src/driver/target_cpu_pure.x	seeds/target_cpu_pure.from_x.c	11	556	0	no	yes	ifdef	already_split
 cfg_eval_bootstrap_stub	src/lexer/cfg_eval_bootstrap_stub.x	seeds/cfg_eval_bootstrap_stub.from_x.c	0	308	0	no	no	ifdef	not_candidate
 lsp_diag_pipeline_ctx	src/lsp/lsp_diag_pipeline_ctx.x	seeds/lsp_diag_pipeline_ctx.from_x.c	14	308	0	no	yes	weak,ifdef	already_split
-lsp_diag_pipeline_sizes	src/lsp/lsp_diag_pipeline_sizes.x	seeds/lsp_diag_pipeline_sizes.from_x.c	3	15	0	no	yes		already_split
+lsp_diag_pipeline_sizes	src/lsp/lsp_diag_pipeline_sizes.x	seeds/lsp_diag_pipeline_sizes.from_x.c	3	18	0	no	yes	ifdef	already_split
 lsp_diag_stubs_no_c	src/lsp/lsp_diag_stubs_no_c.x	seeds/lsp_diag_stubs_no_c.from_x.c	2	375	0	no	yes	va_list,ifdef	already_split
 main	src/main.x	seeds/main.from_x.c	0	16	0	no	no	argv	not_candidate
 runtime_c_import	src/runtime_c_import.x	seeds/runtime_c_import.from_x.c	0	190	0	no	no		not_candidate
-runtime_driver_abi	src/runtime_driver_abi.x	seeds/runtime_driver_abi.from_x.c	55	1492	0	yes	yes	argv,weak,ifdef,large	already_split
+runtime_driver_abi	src/runtime_driver_abi.x	seeds/runtime_driver_abi.from_x.c	55	1494	0	yes	yes	argv,weak,ifdef,large	already_split
 runtime_driver_diagnostic	src/runtime_driver_diagnostic.x	seeds/runtime_driver_diagnostic.from_x.c	65	1633	0	yes	yes	va_list,ifdef,large	already_split
 runtime_driver_strict_glue_stubs	src/runtime_driver_strict_glue_stubs.x	seeds/runtime_driver_strict_glue_stubs.from_x.c	12	935	0	no	yes	weak,ifdef	already_split
 runtime_heap_user	src/runtime_heap_user.x	seeds/runtime_heap_user.from_x.c	4	149	0	no	yes	ifdef	already_split
 runtime_io_abi	src/runtime_io_abi.x	seeds/runtime_io_abi.from_x.c	19	495	0	no	yes	ifdef	already_split
 runtime_link_abi	src/runtime_link_abi.x	seeds/runtime_link_abi.from_x.c	143	6713	0	no	yes	argv,weak,ifdef,large	already_split
-runtime_pipeline_abi	src/runtime_pipeline_abi.x	seeds/runtime_pipeline_abi.from_x.c	102	3437	0	no	no	ifdef,large,direct	already_split
+runtime_pipeline_abi	src/runtime_pipeline_abi.x	seeds/runtime_pipeline_abi.from_x.c	102	3439	0	no	yes	ifdef,large	already_split
 runtime	src/runtime.x	seeds/runtime.from_x.c	110	7580	0	no	yes	argv,weak,ifdef,large	already_split
 labi_diag_pure	src/runtime/labi_diag_pure.x	seeds/labi_diag_pure.from_x.c	0	120	0	no	yes	argv	already_split
 labi_ensure_list	src/runtime/labi_ensure_list.x	seeds/labi_ensure_list.from_x.c	0	157	0	no	yes		already_split

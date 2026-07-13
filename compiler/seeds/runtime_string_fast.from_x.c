@@ -1,10 +1,16 @@
 /* seeds/runtime_string_fast.from_x.c — G-02f-21 product TU
  * G-02f-99 portable memmem gate.
- * Logic still C until full .x port.
+ * G-02f-rest：rest→.x 迁移完成；seed 中 8 个函数均由 .x 提供。
+ *   PREFER_X_O 路径下 seed 整体跳过，进入 DIRECT 模式（无 ld -r）。
+ *   冷启动路径下（shux-c 不可用）seed 完整编译，保持语义同源。
  */
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+
+/* G-02f-rest：rest→.x 迁移 — 8 个函数全部包入 #ifndef，由 .x 提供权威实现 */
+#ifndef SHUX_RUNTIME_STRING_FAST_FROM_X
+/* 完整模式（未定义 FROM_X 宏）：8 个函数由 seed 提供（冷启动路径） */
 
 uint8_t *shux_string_ptr_at_c(uint8_t *ptr, int32_t off) {
     if (!ptr)
@@ -37,7 +43,6 @@ void shux_string_copy_c(uint8_t *dst, uint8_t *src, int32_t n) {
 }
 
 /* G-02f-20 thin+rest：thin（src/asm/runtime_string_fast.x）提供 4 个 pure helpers */
-#ifndef SHUX_RUNTIME_STRING_FAST_FROM_X
 /* 完整模式（未定义 thin 宏）：thin 函数由 seed 提供 */
 
 int32_t shux_string_memchr_c(uint8_t *ptr, uint8_t c, int32_t n) {
