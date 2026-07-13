@@ -99,7 +99,7 @@ runtime_driver_strict_glue_stubs	src/runtime_driver_strict_glue_stubs.x	seeds/ru
 runtime_heap_user	src/runtime_heap_user.x	seeds/runtime_heap_user.from_x.c	4	149	0	no	yes	ifdef	already_split
 runtime_io_abi	src/runtime_io_abi.x	seeds/runtime_io_abi.from_x.c	19	495	0	no	yes	ifdef	already_split
 runtime_link_abi	src/runtime_link_abi.x	seeds/runtime_link_abi.from_x.c	143	6713	0	no	yes	argv,weak,ifdef,large	already_split
-runtime_pipeline_abi	src/runtime_pipeline_abi.x	seeds/runtime_pipeline_abi.from_x.c	102	3222	0	no	no	ifdef,large	candidate
+runtime_pipeline_abi	src/runtime_pipeline_abi.x	seeds/runtime_pipeline_abi.from_x.c	102	3437	0	no	no	ifdef,large,direct	already_split
 runtime	src/runtime.x	seeds/runtime.from_x.c	110	7580	0	no	yes	argv,weak,ifdef,large	already_split
 labi_diag_pure	src/runtime/labi_diag_pure.x	seeds/labi_diag_pure.from_x.c	0	120	0	no	yes	argv	already_split
 labi_ensure_list	src/runtime/labi_ensure_list.x	seeds/labi_ensure_list.from_x.c	0	157	0	no	yes		already_split
