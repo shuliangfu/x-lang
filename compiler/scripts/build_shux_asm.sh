@@ -4755,8 +4755,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
-  "$ST_GLUE_OBJ" \
   "$BUILD_DIR/pipeline_glue_standalone.o" \
+  "$ST_GLUE_OBJ" \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
   $ST_PARSER_LINK \
@@ -4819,8 +4819,8 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   src/runtime_driver_diagnostic.o \
   src/runtime_driver_asm_strict.o \
   $BSTRICT_SEED_SUPPORT \
-  "$ST_GLUE_OBJ" \
   "$BUILD_DIR/pipeline_glue_standalone.o" \
+  "$ST_GLUE_OBJ" \
   $ST_WPO_ALIAS \
   $ASM_TRY_OBJS \
   "$ST_PARSER_LINK" \
