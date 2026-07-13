@@ -52,6 +52,14 @@ ifeq ($(UNAME_S),Darwin)
 else
   LD_RELFLAGS =
 endif
+# filtered .o 符号导出：macOS 用 -exported_symbols_list，GNU ld 用 --version-script
+ifeq ($(UNAME_S),Darwin)
+  LD_FILTER_EXPORT = -exported_symbols_list
+  LD_FILTER_USE_VER = 0
+else
+  LD_FILTER_EXPORT = --version-script
+  LD_FILTER_USE_VER = 1
+endif
 TARGET = shux
 SRCS = seeds/main.from_x.c seeds/runtime.from_x.c seeds/async_liveness.from_x.c seeds/async_cps_codegen.from_x.c
 # OBJS_CORE：G-06 默认 shux-c=bootstrap_shuxc；仅 SHUX_LEGACY_C_FRONTEND=1 时链下列 runtime 桩（无 C 前端 .c）。
@@ -1341,8 +1349,7 @@ build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o: src/asm/backend_x86_64
 	  nm src/asm/backend_x86_64_enc_c.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
 	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
 	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; \
-	  ld -r --version-script $@.ver -o $@ src/asm/backend_x86_64_enc_c.o
+	  if [ "$(LD_FILTER_USE_VER)" = "1" ]; then printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; ld -r $(LD_FILTER_EXPORT) $@.ver -o $@ src/asm/backend_x86_64_enc_c.o; else ld -r $(LD_FILTER_EXPORT) "$$keep_syms" -o $@ src/asm/backend_x86_64_enc_c.o; fi
 
 build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o: src/asm/user_asm_seed_bridge.o build_asm/seed_host/asm_backend_partial.o
 	@mkdir -p build_asm
@@ -1352,8 +1359,7 @@ build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o: src/asm/user_asm_seed_
 	  nm src/asm/user_asm_seed_bridge.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
 	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
 	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; \
-	  ld -r --version-script $@.ver -o $@ src/asm/user_asm_seed_bridge.o
+	  if [ "$(LD_FILTER_USE_VER)" = "1" ]; then printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; ld -r $(LD_FILTER_EXPORT) $@.ver -o $@ src/asm/user_asm_seed_bridge.o; else ld -r $(LD_FILTER_EXPORT) "$$keep_syms" -o $@ src/asm/user_asm_seed_bridge.o; fi
 
 build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: src/asm/asm_backend_compat_stubs.o build_asm/seed_host/asm_backend_partial.o
 	@mkdir -p build_asm
@@ -1363,8 +1369,7 @@ build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o: src/asm/asm_backen
 	  nm src/asm/asm_backend_compat_stubs.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$src_syms"; \
 	  nm build_asm/seed_host/asm_backend_partial.o 2>/dev/null | awk '/ [TDS] / { s=$$3; sub(/^_/, "", s); print s }' | sort -u > "$$part_syms"; \
 	  comm -23 "$$src_syms" "$$part_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; \
-	  ld -r --version-script $@.ver -o $@ src/asm/asm_backend_compat_stubs.o
+	  if [ "$(LD_FILTER_USE_VER)" = "1" ]; then printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; ld -r $(LD_FILTER_EXPORT) $@.ver -o $@ src/asm/asm_backend_compat_stubs.o; else ld -r $(LD_FILTER_EXPORT) "$$keep_syms" -o $@ src/asm/asm_backend_compat_stubs.o; fi
 
 build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_x.o build_asm/seed_host/asm_backend_partial.o build_asm/pipeline_glue_strict_minimal.o
 	@mkdir -p build_asm
@@ -1380,8 +1385,7 @@ build_asm/bootstrap_seed_pipeline_filtered.o: pipeline_x.o build_asm/seed_host/a
 	  done; \
 	  sort -u "$$omit_syms" -o "$$omit_syms"; \
 	  comm -23 "$$all_syms" "$$omit_syms" | sed 's/^/_/' > "$$keep_syms"; \
-	  printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; \
-	  ld -r --version-script $@.ver -o $@ pipeline_x.o
+	  if [ "$(LD_FILTER_USE_VER)" = "1" ]; then printf '{ global:\n' > $@.ver; sed 's/.*/  &;/' "$$keep_syms" >> $@.ver; printf '  *;\n};\n' >> $@.ver; ld -r $(LD_FILTER_EXPORT) $@.ver -o $@ pipeline_x.o; else ld -r $(LD_FILTER_EXPORT) "$$keep_syms" -o $@ pipeline_x.o; fi
 
 src/asm/asm_experimental_symbol_bridge.o: seeds/asm_experimental_symbol_bridge.from_x.c scripts/cc_inc_tu.sh
 	sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c $@
@@ -1601,7 +1605,7 @@ MAIN_LINK_O = src/main_driver.o
 MAIN_LINK_REBUILD = src/main_driver.o
 MAIN_LINK_FLAGS =
 endif
-DRIVER_SEED_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_X_FRONTEND_OBJS) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o src/runtime_driver_strict_glue_stubs.o
+DRIVER_SEED_OBJS = $(MAIN_LINK_O) src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $(DRIVER_SEED_RUNTIME_O) src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $(PREPROCESS_LINK_O) $(LEXER_LINK_O) $(AST_LINK_O) $(DRIVER_SEED_X_FRONTEND_OBJS) $(DRIVER_SEED_FRONTEND_EXTRA) $(DRIVER_SEED_SUPPORT_EXTRA) src/x_seed_bridge.o src/seed_link_compat.o
 DRIVER_SEED_X_OBJS = parser_x.o typeck_x.o codegen_x.o
 DRIVER_SEED_X_FRONTEND_OBJS = lexer_x.o $(DRIVER_SEED_X_OBJS) x_frontend_link_alias.o
 
