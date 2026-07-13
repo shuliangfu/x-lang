@@ -105,6 +105,7 @@ extern "C" function strcmp(a: *u8, b: *u8): i32;
 /** libc FFI 须 unsafe；集中薄包装，避免 hash_*_c 重复写 unsafe 块。 */
 function hash_libc_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
   unsafe { return memcpy(dst, src, n); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** xxHash64 流式 mem 区起始地址（offset 40 = mem64 字段）。 */

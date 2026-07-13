@@ -95,6 +95,7 @@ function add_field(sch: *Schema, name: *u8, name_len: i32, type: i32, optional: 
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero || name == 0) { return err_null(); }
   unsafe { return schema_add_field_c(sch.handle, name, name_len, type, optional, col_index); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 从 JSON 对象缓冲 typed decode；嵌套 object/array 递归展开为点分/索引键。 */
@@ -102,6 +103,7 @@ function decode_json(sch: *Schema, json: *u8, json_len: i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero || json == 0) { return err_null(); }
   unsafe { return schema_decode_json_c(sch.handle, json, json_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 从 CSV 行 decode（按 col_index 映射）。 */
@@ -109,6 +111,7 @@ function decode_csv_row(sch: *Schema, row: *u8, row_len: i32, offset: i32): i32 
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero || row == 0) { return err_null(); }
   unsafe { return schema_decode_csv_row_c(sch.handle, row, row_len, offset); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 从列偏移/长度数组映射（CSV 解析后或 SQLite row_col_text 联用）。 */
@@ -116,6 +119,7 @@ function map_columns(sch: *Schema, row: *u8, col_starts: *i32, col_lens: *i32, c
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero || row == 0) { return err_null(); }
   unsafe { return schema_map_columns_c(sch.handle, row, col_starts, col_lens, count); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读取 decode 后的 string 字段。 */
@@ -123,6 +127,7 @@ function get_string(sch: *Schema, name: *u8, name_len: i32, out: *u8, out_cap: i
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero) { return err_null(); }
   unsafe { return schema_get_string_c(sch.handle, name, name_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读取 decode 后的 i32 字段。 */
@@ -130,6 +135,7 @@ function get(sch: *Schema, name: *u8, name_len: i32, out: *i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero) { return err_null(); }
   unsafe { return schema_get_i32_c(sch.handle, name, name_len, out); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读取 decode 后的 bool 字段。 */
@@ -150,6 +156,7 @@ function get(sch: *Schema, name: *u8, name_len: i32, out: *f64): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero) { return err_null(); }
   unsafe { return schema_get_f64_c(sch.handle, name, name_len, out); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 最近错误字段名；无错误返回 0 长度。 */
@@ -157,6 +164,7 @@ function last_error_field(sch: *Schema, out: *u8, out_cap: i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero) { return err_null(); }
   unsafe { return schema_last_error_field_c(sch.handle, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 最近错误消息。 */
@@ -164,6 +172,7 @@ function last_error_message(sch: *Schema, out: *u8, out_cap: i32): i32 {
   let zero: i64 = 0;
   if (sch == 0 || sch.handle == zero) { return err_null(); }
   unsafe { return schema_last_error_message_c(sch.handle, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 将 schema 本地错误码映射为 std.error 风格负码（-1500 段占位）。 */

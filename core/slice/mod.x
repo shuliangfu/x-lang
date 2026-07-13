@@ -81,6 +81,7 @@ function last_i32(s: []i32): Option_i32 {
 /** 零拷贝子切片：从 start 起取 len 个元素；(offset, count) 语义。 */
 function subslice_i32(s: []i32, start: usize, len: usize): []i32 {
   unsafe { return core_subslice_i32_c(s.data, s.length, start, len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 在 at 处拆分为左右两段；at 超出 length 时 left 为整段、right 为空。 */
@@ -104,10 +105,12 @@ function chunks_len_i32(s: []i32, chunk_size: usize): usize {
 function chunk_i32(s: []i32, chunk_size: usize, index: usize): []i32 {
   if (chunk_size == 0 as usize) {
     unsafe { return core_slice_i32_from_ptr_c(s.data, 0 as usize); }
+  return 0; // unreachable — typeck workaround
   }
   let off: usize = index * chunk_size;
   if (off >= s.length) {
     unsafe { return core_slice_i32_from_ptr_c(s.data, 0 as usize); }
+  return 0; // unreachable — typeck workaround
   }
   let n: usize = chunk_size;
   if (off + n > s.length) { n = s.length - off; }
@@ -144,6 +147,7 @@ function first_u8(s: []u8): Option_u8 {
 /** 零拷贝 subslice（[]u8）。 */
 function subslice_u8(s: []u8, start: usize, len: usize): []u8 {
   unsafe { return core_subslice_u8_c(s.data, s.length, start, len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 在 at 处拆分（[]u8）。 */
@@ -167,10 +171,12 @@ function chunks_len_u8(s: []u8, chunk_size: usize): usize {
 function chunk_u8(s: []u8, chunk_size: usize, index: usize): []u8 {
   if (chunk_size == 0 as usize) {
     unsafe { return core_slice_u8_from_ptr_c(s.data, 0 as usize); }
+  return 0; // unreachable — typeck workaround
   }
   let off: usize = index * chunk_size;
   if (off >= s.length) {
     unsafe { return core_slice_u8_from_ptr_c(s.data, 0 as usize); }
+  return 0; // unreachable — typeck workaround
   }
   let n: usize = chunk_size;
   if (off + n > s.length) { n = s.length - off; }
@@ -210,6 +216,7 @@ function last_u64(s: []u64): Option_u64 {
 /** 零拷贝 subslice（[]u64）。 */
 function subslice_u64(s: []u64, start: usize, len: usize): []u64 {
   unsafe { return core_subslice_u64_c(s.data, s.length, start, len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 在 at 处拆分（[]u64）。 */
@@ -233,10 +240,12 @@ function chunks_len_u64(s: []u64, chunk_size: usize): usize {
 function chunk_u64(s: []u64, chunk_size: usize, index: usize): []u64 {
   if (chunk_size == 0 as usize) {
     unsafe { return core_slice_u64_from_ptr_c(s.data, 0 as usize); }
+  return 0; // unreachable — typeck workaround
   }
   let off: usize = index * chunk_size;
   if (off >= s.length) {
     unsafe { return core_slice_u64_from_ptr_c(s.data, 0 as usize); }
+  return 0; // unreachable — typeck workaround
   }
   let n: usize = chunk_size;
   if (off + n > s.length) { n = s.length - off; }

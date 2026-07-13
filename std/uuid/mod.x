@@ -58,21 +58,25 @@ function new_v7(): Uuid {
 function parse(ptr: *u8, len: i32, out: *Uuid): i32 {
   if (out == 0) { return -1; }
   unsafe { return uuid_parse_c(ptr, len, &out.bytes[0]); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 格式化为小写连字符字符串；返回 36，失败 -1。 */
 function format(u: Uuid, out: *u8, out_cap: i32): i32 {
   unsafe { return uuid_format_c(&u.bytes[0], out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 128-bit 相等：1 是，0 否。 */
 function eq(a: Uuid, b: Uuid): i32 {
   unsafe { return uuid_eq_c(&a.bytes[0], &b.bytes[0]); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 版本 nibble（4=v4，7=v7）；非法 -1。 */
 function version(u: Uuid): i32 {
   unsafe { return uuid_version_c(&u.bytes[0]); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 返回 UUID 首字节指针（16 字节连续；零拷贝视图）。 */

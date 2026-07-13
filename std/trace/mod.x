@@ -77,6 +77,7 @@ function current_span(tr: *Trace): i64 {
   let zero: i64 = 0;
   if (tr == 0 || tr.handle == zero) { return zero; }
   unsafe { return current_span_c(tr.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 开始 span；parent_id=0 为根 span。 */
@@ -106,6 +107,7 @@ function end(tr: *Trace, sp: Span): i32 {
   let zero: i64 = 0;
   if (tr == 0 || tr.handle == zero || sp.id == zero) { return err_null(); }
   unsafe { return end_span_c(tr.handle, sp.id); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 已完成 span 数量。 */
@@ -113,6 +115,7 @@ function count(tr: *Trace): i32 {
   let zero: i64 = 0;
   if (tr == 0 || tr.handle == zero) { return err_null(); }
   unsafe { return span_count_c(tr.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 导出 text 格式追踪记录；返回写入长度。 */
@@ -120,6 +123,7 @@ function export_text(tr: *Trace, out: *u8, out_cap: i32): i32 {
   let zero: i64 = 0;
   if (tr == 0 || tr.handle == zero || out == 0) { return err_null(); }
   unsafe { return export_text_c(tr.handle, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 将 trace 句柄写入 Context value bag。 */
@@ -220,4 +224,5 @@ extern function hooks_smoke_c(): i32;
 /** STD-118：挂钩路径 C 烟测；0 通过。 */
 function hooks_smoke(): i32 {
   unsafe { return hooks_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }

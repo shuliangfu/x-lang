@@ -184,6 +184,7 @@ function ws_io_read_some(fd: i32, tls_ctx: i64, buf: *u8, cap: i32, timeout_ms: 
     return -1;
   }
   unsafe { return recv(fd, buf, cap, 0) as i32; }
+  return 0; // unreachable — typeck workaround
 }
 
 /**

@@ -116,56 +116,67 @@ function adopt(ptr: *i32, len: i32, capacity: i32): ArrowColumn {
 /** 列当前元素个数。 */
 function len(col: ArrowColumn): i32 {
   unsafe { return arrow_column_len_c(col.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** data 是否由 arrow 模块拥有（adopt 列为 0）。 */
 function owned(col: ArrowColumn): i32 {
   unsafe { return arrow_column_data_owned_c(col.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** null bitmap 指针（bit=1 表示有效值）。 */
 function null_bitmap(col: ArrowColumn): *u8 {
   unsafe { return arrow_column_null_bitmap_c(col.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 索引处元素是否有效（非 null）。 */
 function valid(col: ArrowColumn, index: i32): i32 {
   unsafe { return arrow_column_is_valid_c(col.handle, index); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 零拷贝 Int32 data 指针。 */
 function data_i32(col: ArrowColumn): *i32 {
   unsafe { return arrow_column_i32_data_c(col.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 零拷贝 Float32 data 指针。 */
 function data_f32(col: ArrowColumn): *f32 {
   unsafe { return arrow_column_f32_data_c(col.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 零拷贝 Float64 data 指针。 */
 function data_f64(col: ArrowColumn): *f64 {
   unsafe { return arrow_column_f64_data_c(col.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 追加 Int32（非 null）。 */
 function append(col: ArrowColumn, val: i32): i32 {
   unsafe { return arrow_column_i32_append_c(col.handle, val); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 追加 Int32 并可标记 null（is_valid=0 表示 null）。 */
 function append_null(col: ArrowColumn, val: i32, is_valid: i32): i32 {
   unsafe { return arrow_column_i32_append_null_c(col.handle, val, is_valid); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 追加 Float32。 */
 function append(col: ArrowColumn, val: f32): i32 {
   unsafe { return arrow_column_f32_append_c(col.handle, val); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 追加 Float64。 */
 function append(col: ArrowColumn, val: f64): i32 {
   unsafe { return arrow_column_f64_append_c(col.handle, val); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 释放列（adopt 列不 free 外部 data）。 */
@@ -183,6 +194,7 @@ function batch(max_cols: i32): ArrowBatch {
 /** 向 batch 添加列（batch 取得所有权）。 */
 function add(batch: ArrowBatch, col: ArrowColumn): i32 {
   unsafe { return arrow_batch_add_column_c(batch.handle, col.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 按索引取列。 */
@@ -195,6 +207,7 @@ function get(batch: ArrowBatch, index: i32): ArrowColumn {
 /** batch 列数。 */
 function len(batch: ArrowBatch): i32 {
   unsafe { return arrow_batch_len_c(batch.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 销毁 batch 及所含列。 */
@@ -207,21 +220,25 @@ function free(batch: ArrowBatch): void {
  */
 function sum_valid_i32(col: ArrowColumn, n: i32): i32 {
   unsafe { return arrow_column_i32_sum_valid_c(col.handle, n); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** Float32 列前 n 元素求和（SIMD 内核）。 */
 function sum(col: ArrowColumn, n: i32): f32 {
   unsafe { return arrow_column_f32_sum_c(col.handle, n); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** Float32 列前 n 个有效元素求和（null-aware SIMD 内核）。 */
 function sum_valid_f32(col: ArrowColumn, n: i32): f32 {
   unsafe { return arrow_column_f32_sum_valid_c(col.handle, n); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 两列 Float32 点积 sum(a[i]*b[i])（SIMD 内核）。 */
 function dot(a: ArrowColumn, b: ArrowColumn, n: i32): f32 {
   unsafe { return arrow_column_f32_dot_c(a.handle, b.handle, n); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** SIMD 硬件是否可用。 */

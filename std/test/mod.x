@@ -59,6 +59,7 @@ function bench_run(fn: usize, iters: i32): i64 { let _rc: i64 = 0; unsafe { _rc 
 /** 写 bench 报告到 stderr：shux: [SHUX_BENCH] name=… ns=… */
 function bench_report(name: *u8, len: i32, ns: i64): i32 {
   unsafe { return test_bench_report_c(name, len, ns); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读取 SHUX_FUZZ_SEED 或默认种子。 */
@@ -82,6 +83,7 @@ function runner_reset(): void { unsafe { test_runner_reset_c(); } }
 /** 报告单条用例；exit_code=0 为 pass。 */
 function runner_case(name: *u8, len: i32, exit_code: i32): i32 {
   unsafe { return test_runner_report_case_c(name, len, exit_code); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 报告 skip 用例。 */

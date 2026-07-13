@@ -109,16 +109,19 @@ function open(path: *u8): DbConn {
 /** 关闭连接。 */
 function close(conn: DbConn): i32 {
   unsafe { return db_close_c(conn.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 执行无结果集 SQL（DDL/DML）。 */
 function exec(conn: DbConn, sql: *u8): i32 {
   unsafe { return db_exec_c(conn.handle, sql); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 执行查询并返回匹配行数（v1 原型：sqlite3 回调迭代计数）。 */
 function rows(conn: DbConn, sql: *u8): i32 {
   unsafe { return db_query_rows_c(conn.handle, sql); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 准备 SELECT 游标；失败 cursor=0。 */
@@ -131,51 +134,61 @@ function begin(conn: DbConn, sql: *u8): DbRowCursor {
 /** 推进游标：DB_ROW_OK=有行，DB_ROW_DONE=结束，<0=错误。 */
 function next_row(cur: DbRowCursor): i32 {
   unsafe { return db_next_row_c(cur.cursor); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读取当前行列值（i32）。 */
 function col(cur: DbRowCursor, col: i32): i32 {
   unsafe { return db_row_col_i32_c(cur.cursor, col); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读取当前行文本列到 out（UTF-8）；成功返回字节长度，<0 为错误。 */
 function col_text(cur: DbRowCursor, col: i32, out: *u8, cap: i32): i32 {
   unsafe { return db_row_col_text_c(cur.cursor, col, out, cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读取当前行 BLOB 列到 out；成功返回字节长度，<0 为错误。 */
 function col_blob(cur: DbRowCursor, col: i32, out: *u8, cap: i32): i32 {
   unsafe { return db_row_col_blob_c(cur.cursor, col, out, cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 返回当前行 BLOB 列总字节数（NULL/空列返回 0）。 */
 function col_blob_len(cur: DbRowCursor, col: i32): i32 {
   unsafe { return db_row_col_blob_len_c(cur.cursor, col); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 分块读取 BLOB 列：从 offset 起最多 cap 字节；返回写入字节数。 */
 function col_blob_read(cur: DbRowCursor, col: i32, offset: i32, out: *u8, cap: i32): i32 {
   unsafe { return db_row_col_blob_read_c(cur.cursor, col, offset, out, cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 释放游标。 */
 function end(cur: DbRowCursor): i32 {
   unsafe { return db_query_end_c(cur.cursor); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 开始显式事务。 */
 function begin_tx(conn: DbConn): i32 {
   unsafe { return db_begin_tx_c(conn.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 提交事务。 */
 function commit(conn: DbConn): i32 {
   unsafe { return db_commit_c(conn.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 回滚事务。 */
 function rollback(conn: DbConn): i32 {
   unsafe { return db_rollback_c(conn.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读取线程局部最后一次库错误。 */
@@ -191,11 +204,13 @@ function last_error(): DbError {
 /** 当前链接后端名称（"sqlite3" 或 "stub"）。 */
 function backend_name(): *u8 {
   unsafe { return db_backend_name_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 最近一次 exec 影响行数（SQLite 路径）。 */
 function changes(conn: DbConn): i32 {
   unsafe { return db_changes_c(conn.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 预编译 SQL（须 stmt_finalize 释放；不入连接缓存）。 */
@@ -215,51 +230,61 @@ function prepare_cached(conn: DbConn, sql: *u8): DbStmt {
 /** 绑定整型参数（idx 从 1 起，SQLite 约定）。 */
 function bind(stmt: DbStmt, idx: i32, val: i32): i32 {
   unsafe { return db_stmt_bind_i32_c(stmt.handle, idx, val); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 绑定 UTF-8 文本参数（idx 从 1 起）。 */
 function bind(stmt: DbStmt, idx: i32, text: *u8): i32 {
   unsafe { return db_stmt_bind_text_c(stmt.handle, idx, text); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 执行预编译一步：DB_ROW_OK=有行，DB_ROW_DONE=完成，<0=错误。 */
 function step(stmt: DbStmt): i32 {
   unsafe { return db_stmt_step_c(stmt.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 重置预编译语句以便再次 bind/step。 */
 function reset(stmt: DbStmt): i32 {
   unsafe { return db_stmt_reset_c(stmt.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 释放预编译语句（缓存项一并移除）。 */
 function finalize(stmt: DbStmt): i32 {
   unsafe { return db_stmt_finalize_c(stmt.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 清空连接上全部 stmt 缓存（不关闭连接）。 */
 function cache_clear(conn: DbConn): i32 {
   unsafe { return db_stmt_cache_clear_c(conn.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读预编译当前行列值（i32）；须先 step 返回 DB_ROW_OK。 */
 function col(stmt: DbStmt, col: i32): i32 {
   unsafe { return db_row_col_i32_c(stmt.handle, col); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读预编译当前行文本列；须先 step 返回 DB_ROW_OK。 */
 function col_text(stmt: DbStmt, col: i32, out: *u8, cap: i32): i32 {
   unsafe { return db_row_col_text_c(stmt.handle, col, out, cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读预编译当前行 BLOB 列总字节数。 */
 function col_blob_len(stmt: DbStmt, col: i32): i32 {
   unsafe { return db_row_col_blob_len_c(stmt.handle, col); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 分块读预编译当前行 BLOB 列。 */
 function col_blob_read(stmt: DbStmt, col: i32, offset: i32, out: *u8, cap: i32): i32 {
   unsafe { return db_row_col_blob_read_c(stmt.handle, col, offset, out, cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 打开连接池（惰性建连；max_conns 上限 8）。 */
@@ -272,6 +297,7 @@ function open(path: *u8, max_conns: i32): DbPool {
 /** 关闭连接池（须先 release 全部借出连接）。 */
 function close(pool: DbPool): i32 {
   unsafe { return db_pool_close_c(pool.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 从池借连接；失败 handle=0（池耗尽时为 DB_ERR_BUSY）。 */
@@ -284,11 +310,13 @@ function acquire(pool: DbPool): DbConn {
 /** 归还连接到池 idle 队列。 */
 function release(pool: DbPool, conn: DbConn): i32 {
   unsafe { return db_pool_release_c(pool.handle, conn.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 当前 idle 连接数（烟测/诊断）。 */
 function idle(pool: DbPool): i32 {
   unsafe { return db_pool_idle_c(pool.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** STD-167：SQLite 后端是否可用（"sqlite3" 全量 vs "stub"）；1 可用，0 桩。 */

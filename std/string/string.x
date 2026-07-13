@@ -44,6 +44,7 @@ function shux_string_memcmp_at_c(a: *u8, off: i32, b: *u8, n: i32): i32 {
   if (n <= 0) { return 0; }
   p = a + off;
   unsafe { return memcmp(p, b, n); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 块拷贝 dst[0..n-1] = src[0..n-1]；n<=0 不写。 */

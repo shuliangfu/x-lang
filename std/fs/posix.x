@@ -152,81 +152,106 @@ extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
 /** libc FFI 须 unsafe；集中薄包装，避免各 fs_*_c 重复写 unsafe 块。 */
 function fs_libc_open(path: *u8, flags: i32, mode: i32): i32 {
   unsafe { return open(path, flags, mode); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_close(fd: i32): i32 {
   unsafe { return close(fd); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_read(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return read(fd, buf, count); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_write(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return write(fd, buf, count); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize {
   unsafe { return pread(fd, buf, count, offset); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize {
   unsafe { return pwrite(fd, buf, count, offset); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8 {
   unsafe { return mmap(addr, len, prot, flags, fd, offset); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_munmap(addr: *u8, len: usize): i32 {
   unsafe { return munmap(addr, len); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_fstat(fd: i32, st: *PosixStatBuf): i32 {
   unsafe { return fstat(fd, st); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_stat(path: *u8, st: *PosixStatBuf): i32 {
   unsafe { return stat(path, st); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_fsync(fd: i32): i32 {
   unsafe { return fsync(fd); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_fchmod(fd: i32, mode: u32): i32 {
   unsafe { return fchmod(fd, mode); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_chmod(path: *u8, mode: u32): i32 {
   unsafe { return chmod(path, mode); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_mkdir(path: *u8, mode: u32): i32 {
   unsafe { return mkdir(path, mode); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_unlink(path: *u8): i32 {
   unsafe { return unlink(path); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_rmdir(path: *u8): i32 {
   unsafe { return rmdir(path); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_umask(mask: u32): u32 {
   unsafe { return umask(mask); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   unsafe { return readv(fd, iov, iovcnt); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   unsafe { return writev(fd, iov, iovcnt); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_opendir(name: *u8): *u8 {
   unsafe { return opendir(name); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_readdir(dirp: *u8): *u8 {
   unsafe { return readdir(dirp); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_closedir(dirp: *u8): i32 {
   unsafe { return closedir(dirp); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_malloc(size: usize): *u8 {
   unsafe { return malloc(size); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_free(ptr: *u8): void {
   unsafe { free(ptr); }
 }
 function fs_libc_memcpy(dst: *u8, src: *u8, n: usize): *u8 {
   unsafe { return memcpy(dst, src, n); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_strlen(s: *u8): usize {
   unsafe { return strlen(s); }
+  return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 function fs_libc_errno_location(): *i32 {
@@ -243,47 +268,59 @@ function fs_libc_errno_location(): *i32 {
 }
 function fs_libc_fcntl(fd: i32, cmd: i32, arg: i32): i32 {
   unsafe { return fcntl(fd, cmd, arg); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_usleep(usec: u32): i32 {
   unsafe { return usleep(usec); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_madvise(addr: *u8, len: usize, advice: i32): i32 {
   unsafe { return madvise(addr, len, advice); }
+  return 0; // unreachable — typeck workaround
 }
 function fs_libc_poll(fds: *PollFd, nfds: u64, timeout: i32): i32 {
   unsafe { return poll(fds, nfds, timeout); }
+  return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 function fs_libc_posix_fadvise(fd: i32, offset: i64, len: i64, advice: i32): i32 {
   unsafe { return posix_fadvise(fd, offset, len, advice); }
+  return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 function fs_libc_copy_file_range(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize {
   unsafe { return copy_file_range(fd_in, off_in, fd_out, off_out, len, flags); }
+  return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 function fs_libc_sendfile(out_fd: i32, in_fd: i32, offset: *i64, count: usize): isize {
   unsafe { return sendfile(out_fd, in_fd, offset, count); }
+  return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 function fs_libc_splice(fd_in: i32, off_in: *i64, fd_out: i32, off_out: *i64, len: usize, flags: u32): isize {
   unsafe { return splice(fd_in, off_in, fd_out, off_out, len, flags); }
+  return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 function fs_libc_pipe(pipefd: *i32): i32 {
   unsafe { return pipe(pipefd); }
+  return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 function fs_libc_sync_file_range(fd: i32, offset: i64, nbytes: i64, flags: u32): i32 {
   unsafe { return sync_file_range(fd, offset, nbytes, flags); }
+  return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "linux")]
 function fs_libc_fallocate(fd: i32, mode: i32, offset: i64, len: i64): i32 {
   unsafe { return fallocate(fd, mode, offset, len); }
+  return 0; // unreachable — typeck workaround
 }
 #[cfg(target_os = "macos")]
 function fs_libc_sendfile_mac(in_fd: i32, out_fd: i32, offset: i64, len: *i64, hdtr: *u8, flags: i32): i32 {
   unsafe { return sendfile(in_fd, out_fd, offset, len, hdtr, flags); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读取当前 errno；双步取值规避 C parser 对 let init 中 call()[i] postfix 的限制。 */

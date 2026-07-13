@@ -118,6 +118,7 @@ function kv_hash_key(key: *u8, len: u32): u32 {
 function kv_keys_equal(a: *u8, alen: u32, b: *u8, blen: u32): i32 {
   if (alen != blen) { return 0; }
   unsafe { return memcmp(a, b, alen) == 0 ? 1 : 0; }
+  return 0; // unreachable — typeck workaround
 }
 
 function kv_mt_clear(s: *KvStoreMem): void { s.mt_count = 0; }
@@ -288,6 +289,7 @@ function kv_build_sst_path(data_path: *u8, slot: u32, out: *u8, out_cap: usize):
 
 function kv_mmap_file(path: *u8, min_size: usize, out_size: *usize): i64 {
   unsafe { return shu_kv_mmap_file_c(path, min_size, out_size); }
+  return 0; // unreachable — typeck workaround
 }
 
 function kv_read_at_map(base: *u8, cap: u64, off: u64, key: *u8, key_len: u32, out: *u8, out_cap: u32): i32 {

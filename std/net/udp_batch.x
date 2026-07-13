@@ -57,6 +57,7 @@ function net_udp_recv_many_c(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, n:
     return -1;
   }
   unsafe { return shu_net_udp_recvmmsg2_c(fd, p0, l0, p1, l1, n, timeout_ms, out_sizes, out_addrs, out_ports); }
+  return 0; // unreachable — typeck workaround
 }
 
 /**
@@ -102,6 +103,7 @@ function net_udp_send_many_c(fd: i32, a0: u32, port0: u32, p0: *u8, l0: usize, a
     return -1;
   }
   unsafe { return shu_net_udp_sendmmsg2_c(fd, a0, port0, p0, l0, a1, port1, p1, l1, n); }
+  return 0; // unreachable — typeck workaround
 }
 
 /**

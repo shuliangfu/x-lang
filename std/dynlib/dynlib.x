@@ -131,4 +131,5 @@ function dynlib_last_error_smoke_c(): i32 {
 /** STD-097：Windows 正斜杠路径烟测；POSIX 直接返回 0。 */
 function dynlib_win_path_smoke_c(): i32 {
   unsafe { return dynlib_os_win_path_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }

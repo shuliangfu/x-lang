@@ -408,6 +408,7 @@ extern function net_tcp_listen_c(addr_u32: u32, port_u32: u32): i32;
 #[no_mangle]
 function net_accept_c(listener_fd: i32, timeout_ms: u32): i32 {
   unsafe { return io_uring_accept(listener_fd, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /**
@@ -446,6 +447,7 @@ function net_accept_many_c(listener_fd: i32, out_fds: *i32, n: i32, timeout_ms: 
     return 0;
   }
   unsafe { return io_uring_accept_many(listener_fd, out_fds, n, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /**
@@ -485,6 +487,7 @@ function net_connect_many_c(addr_u32: u32, port_u32: u32, out_fds: *i32, n: i32,
     return 0;
   }
   unsafe { return io_uring_connect_many(addr_u32, port_u32, out_fds, n, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /**

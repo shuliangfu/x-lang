@@ -58,18 +58,23 @@ extern "C" function poll(fds: *PollFd, nfds: u64, timeout: i32): i32;
 /** libc FFI 须 unsafe；集中薄包装，避免各 io_* 重复写 unsafe 块。 */
 function io_libc_read(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return read(fd, buf, count); }
+  return 0; // unreachable — typeck workaround
 }
 function io_libc_write(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return write(fd, buf, count); }
+  return 0; // unreachable — typeck workaround
 }
 function io_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   unsafe { return readv(fd, iov, iovcnt); }
+  return 0; // unreachable — typeck workaround
 }
 function io_libc_writev(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   unsafe { return writev(fd, iov, iovcnt); }
+  return 0; // unreachable — typeck workaround
 }
 function io_libc_poll(fds: *PollFd, nfds: i32, timeout: i32): i32 {
   unsafe { return poll(fds, nfds, timeout); }
+  return 0; // unreachable — typeck workaround
 }
 
 /**

@@ -139,6 +139,7 @@ function ctx_glue_cancelled_load_c(handle: i64): i32 {
   let n: *CtxNode = ctx_ptr(handle);
   if (n == 0) { return 1; }
   unsafe { return atomic_load_i32_c(&n.cancelled); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 原子写 cancelled。 */

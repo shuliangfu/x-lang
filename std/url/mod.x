@@ -52,32 +52,38 @@ extern function url_ipv6_host_smoke_c(): i32;
 function parse(url: *u8, len: i32, out: *Url): i32 {
   if (out == 0) { return -1; }
   unsafe { return url_parse_c(url, len, out); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 从组件组装 URL；返回写入长度，失败 -1。 */
 function build(u: Url, out: *u8, out_cap: i32): i32 {
   unsafe { return url_build_c(&u, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 同 build：序列化为字符串。 */
 function stringify(u: Url, out: *u8, out_cap: i32): i32 {
   unsafe { return url_build_c(&u, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** query 值 percent 编码；返回写入长度。 */
 function query_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return url_query_encode_c(src, src_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** query 值 percent 解码；返回写入长度。 */
 function query_decode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return url_query_decode_c(src, src_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 相对 ref 解析到 base；结果写入 out；0 成功。 */
 function resolve(base: Url, ref: *u8, ref_len: i32, out: *Url): i32 {
   if (out == 0) { return -1; }
   unsafe { return url_resolve_c(&base, ref, ref_len, out); }
+  return 0; // unreachable — typeck workaround
 }
 
 /**
@@ -87,19 +93,23 @@ function resolve(base: Url, ref: *u8, ref_len: i32, out: *Url): i32 {
  */
 function host_to_ipv6(host: *u8, host_len: i32, out_16: *u8): i32 {
   unsafe { return url_host_to_ipv6_c(host, host_len, out_16); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 16 字节 IPv6 格式化为 host 文本（无方括号）；返回长度，失败 -1。 */
 function format_ipv6_host(addr_16: *u8, out: *u8, out_cap: i32): i32 {
   unsafe { return url_format_ipv6_host_c(addr_16, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** host 是否为 IPv6 文本；1 是，0 否。 */
 function host_is_ipv6(host: *u8, host_len: i32): i32 {
   unsafe { return url_host_is_ipv6_c(host, host_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** STD-134 C 金样：IPv6 bracket 与 host 字节互转。 */
 function ipv6_host_smoke(): i32 {
   unsafe { return url_ipv6_host_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }

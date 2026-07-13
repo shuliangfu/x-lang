@@ -40,21 +40,26 @@ extern "C" function getenv(name: *u8): *u8;
 /** libc 堆/环境 FFI 须 unsafe；薄包装供 heap_*_c 调用。 */
 function heap_libc_malloc(size: usize): *u8 {
   unsafe { return malloc(size); }
+  return 0; // unreachable — typeck workaround
 }
 function heap_libc_free(ptr: *u8): void {
   unsafe { free(ptr); }
 }
 function heap_libc_realloc(ptr: *u8, new_size: usize): *u8 {
   unsafe { return realloc(ptr, new_size); }
+  return 0; // unreachable — typeck workaround
 }
 function heap_libc_calloc(nmemb: usize, size: usize): *u8 {
   unsafe { return calloc(nmemb, size); }
+  return 0; // unreachable — typeck workaround
 }
 function heap_libc_posix_memalign(memptr: * *void, alignment: usize, size: usize): i32 {
   unsafe { return posix_memalign(memptr, alignment, size); }
+  return 0; // unreachable — typeck workaround
 }
 function heap_libc_getenv(name: *u8): *u8 {
   unsafe { return getenv(name); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** SHUX_HEAP_TRACE 环境变量名（NUL 结尾）。 */

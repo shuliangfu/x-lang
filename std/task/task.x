@@ -102,6 +102,7 @@ function tg_is_cancelled(g: *TaskGroupMem): i32 {
     return 0;
   }
   unsafe { return ctx_is_cancelled_c(g.ctx_handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 烟测/demo 任务：返回 seed*10。 */
@@ -116,6 +117,7 @@ function task_echo_fn_c(): i32 {
 /** 返回 demo 任务函数指针（供 .x spawn 烟测）。 */
 function task_echo_fn_ptr_c(): *u8 {
   unsafe { return shux_async_task_echo_fn_ptr_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 创建 TaskGroup；capacity 须 1..TASK_MAX。 */

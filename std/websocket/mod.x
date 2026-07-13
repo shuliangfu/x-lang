@@ -359,6 +359,7 @@ function ws_close(stream: WsStream): i32 {
   }
   if (stream.fd < 0) { return ws_err_ok(); }
   unsafe { return net_close_socket_c(stream.fd); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 从 HTTP Upgrade 请求提取 Sec-WebSocket-Key；成功返回 key 长度。 */

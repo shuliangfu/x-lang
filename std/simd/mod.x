@@ -36,11 +36,13 @@ function SIMD_PATH_HW(): i32 { return 1; }
 /** 宿主是否具备已知 SIMD 能力（1/0）。 */
 function hw_available(): i32 {
   unsafe { return simd_hw_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** STD-153：推荐向量化路径（0=scalar，1=hw）。 */
 function recommend_path(): i32 {
   unsafe { return simd_recommend_path_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** Vec8i 逐 lane 加法（当前 lane-scalar emit；SIMD-S3 起可矢量化）。 */

@@ -275,6 +275,7 @@ function db_stmt_cache_remove_stmt(stmt_h: i64): void {
 /** stub 后端统一入口：设置 DB_NOT_IMPL 并返回 1 表示 stub。 */
 function db_stub_active(): i32 {
   unsafe { return shu_db_use_sqlite3_c() == 0 ? 1 : 0; }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 打开数据库；失败返回 handle=0。 */
@@ -446,6 +447,7 @@ function db_row_col_i32_c(cursor: i64, col: i32): i32 {
   } }
   db_clear_err();
   unsafe { return shu_sqlite3_column_int_c(cursor, col); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 读取当前行文本列到 out_buf；成功返回字节长度（不含 NUL），NULL 列返回 0。 */
@@ -799,6 +801,7 @@ function db_changes_c(handle: i64): i32 {
   if (db_stub_active() != 0) { return 0; }
   if (handle == 0 as i64) { return 0; }
   unsafe { return shu_sqlite3_changes_c(handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 单字节转两位十六进制（小写）。 */

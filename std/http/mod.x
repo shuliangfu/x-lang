@@ -1015,106 +1015,127 @@ extern function http2_hpack_encode_status_c(status: i32, out: *u8, out_cap: i32)
 /** 包装 `http_get_c`；glue FFI 须 unsafe。 */
 function http_libc_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_get_c(url, url_len, out_buf, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_post_c`；glue FFI 须 unsafe。 */
 function http_libc_post_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_post_c(url, url_len, body, body_len, out_buf, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_head_c`；glue FFI 须 unsafe。 */
 function http_libc_head_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_head_c(url, url_len, out_buf, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_put_c`；glue FFI 须 unsafe。 */
 function http_libc_put_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_put_c(url, url_len, body, body_len, out_buf, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_delete_c`；glue FFI 须 unsafe。 */
 function http_libc_delete_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_delete_c(url, url_len, out_buf, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_patch_c`；glue FFI 须 unsafe。 */
 function http_libc_patch_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_patch_c(url, url_len, body, body_len, out_buf, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_options_c`；glue FFI 须 unsafe。 */
 function http_libc_options_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_options_c(url, url_len, out_buf, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_get_timeout_c`；glue FFI 须 unsafe。 */
 function http_libc_get_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_get_timeout_c(url, url_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_post_timeout_c`；glue FFI 须 unsafe。 */
 function http_libc_post_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_post_timeout_c(url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_head_timeout_c`；glue FFI 须 unsafe。 */
 function http_libc_head_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_head_timeout_c(url, url_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_put_timeout_c`；glue FFI 须 unsafe。 */
 function http_libc_put_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_put_timeout_c(url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_delete_timeout_c`；glue FFI 须 unsafe。 */
 function http_libc_delete_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_delete_timeout_c(url, url_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_patch_timeout_c`；glue FFI 须 unsafe。 */
 function http_libc_patch_timeout_c(url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_patch_timeout_c(url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_options_timeout_c`；glue FFI 须 unsafe。 */
 function http_libc_options_timeout_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_options_timeout_c(url, url_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_ex_c`；glue FFI 须 unsafe。 */
 function http_libc_request_ex_c(method: *u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_request_ex_c(method, url, url_len, body, body_len, out_buf, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_method_c`；glue FFI 须 unsafe。 */
 function http_libc_request_method_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_request_method_c(method_u8, url, url_len, body, body_len, out_buf, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_method_timeout_c`；glue FFI 须 unsafe。 */
 function http_libc_request_method_timeout_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_request_method_timeout_c(method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_respond_get_ok_c`；glue FFI 须 unsafe。 */
 function http_libc_respond_get_ok_c(fd: i32, body: *u8, body_len: i32): i32 {
   unsafe { return http_respond_get_ok_c(fd, body, body_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_listen_c`；glue FFI 须 unsafe。 */
 function http_libc_listen_c(addr_u32: u32, port_u32: u32, backlog: i32): i32 {
   unsafe { return http_listen_c(addr_u32, port_u32, backlog); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_serve_one_c`；glue FFI 须 unsafe。 */
 function http_libc_serve_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http_serve_one_c(listener_fd, body, body_len, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_client_pool_create_c`；glue FFI 须 unsafe。 */
 function http_libc_client_pool_create_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
   unsafe { return http_client_pool_create_c(host, host_len, port, port_len, max_conns); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_client_pool_destroy_c`；glue FFI 须 unsafe。 */
@@ -1125,176 +1146,211 @@ function http_libc_client_pool_destroy_c(pool_h: i64): void {
 /** 包装 `http_client_pool_get_c`；glue FFI 须 unsafe。 */
 function http_libc_client_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32): i32 {
   unsafe { return http_client_pool_get_c(pool_h, url, url_len, out_buf, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_parse_status_line_c`；glue FFI 须 unsafe。 */
 function http_libc_parse_status_line_c(line: *u8, len: i32, out_code: *i32): i32 {
   unsafe { return http_parse_status_line_c(line, len, out_code); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_headers_body_offset_c`；glue FFI 须 unsafe。 */
 function http_libc_headers_body_offset_c(buf: *u8, len: i32, out_off: *i32): i32 {
   unsafe { return http_headers_body_offset_c(buf, len, out_off); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_has_chunked_encoding_c`；glue FFI 须 unsafe。 */
 function http_libc_has_chunked_encoding_c(buf: *u8, len: i32): i32 {
   unsafe { return http_has_chunked_encoding_c(buf, len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_has_keep_alive_c`；glue FFI 须 unsafe。 */
 function http_libc_has_keep_alive_c(buf: *u8, len: i32): i32 {
   unsafe { return http_has_keep_alive_c(buf, len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_decode_chunked_body_c`；glue FFI 须 unsafe。 */
 function http_libc_decode_chunked_body_c(buf: *u8, len: i32, hdr_end: i32, out_body: *u8, out_cap: i32): i32 {
   unsafe { return http_decode_chunked_body_c(buf, len, hdr_end, out_body, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_build_get_keep_alive_c`；glue FFI 须 unsafe。 */
 function http_libc_build_get_keep_alive_c(host: *u8, path: *u8, out: *u8, out_cap: i32): i32 {
   unsafe { return http_build_get_keep_alive_c(host, path, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_is_upgrade_websocket_c`；glue FFI 须 unsafe。 */
 function http_libc_is_upgrade_websocket_c(buf: *u8, len: i32): i32 {
   unsafe { return http_is_upgrade_websocket_c(buf, len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_build_ws_upgrade_101_c`；glue FFI 须 unsafe。 */
 function http_libc_build_ws_upgrade_101_c(accept: *u8, out: *u8, out_cap: i32): i32 {
   unsafe { return http_build_ws_upgrade_101_c(accept, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_is_https_available_c`；glue FFI 须 unsafe。 */
 function http_libc_is_https_available_c(): i32 {
   unsafe { return http_is_https_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_https_smoke_c`；glue FFI 须 unsafe。 */
 function http_libc_https_smoke_c(): i32 {
   unsafe { return http_https_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_response_parse_c`；glue FFI 须 unsafe。 */
 function http_libc_response_parse_c(buf: *u8, len: i32, out_status: *i32, out_hdr_end: *i32, out_body_len: *i32, out_chunked: *i32): i32 {
   unsafe { return http_response_parse_c(buf, len, out_status, out_hdr_end, out_body_len, out_chunked); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_response_parse_smoke_c`；glue FFI 须 unsafe。 */
 function http_libc_response_parse_smoke_c(): i32 {
   unsafe { return http_response_parse_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_response_body_ptr_c`；glue FFI 须 unsafe。 */
 function http_libc_response_body_ptr_c(buf: *u8, hdr_end: i32): *u8 {
   unsafe { return http_response_body_ptr_c(buf, hdr_end); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_response_body_copy_c`；glue FFI 须 unsafe。 */
 function http_libc_response_body_copy_c(buf: *u8, hdr_end: i32, body_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http_response_body_copy_c(buf, hdr_end, body_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_response_body_owned_smoke_c`；glue FFI 须 unsafe。 */
 function http_libc_response_body_owned_smoke_c(): i32 {
   unsafe { return http_response_body_owned_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_url_exceeds_string_cap_c`；glue FFI 须 unsafe。 */
 function http_libc_url_exceeds_string_cap_c(url_len: i32): i32 {
   unsafe { return http_url_exceeds_string_cap_c(url_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_url_copy_c`；glue FFI 须 unsafe。 */
 function http_libc_url_copy_c(src: *u8, len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http_url_copy_c(src, len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_url_owned_smoke_c`；glue FFI 须 unsafe。 */
 function http_libc_url_owned_smoke_c(): i32 {
   unsafe { return http_url_owned_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_owned_smoke_c`；glue FFI 须 unsafe。 */
 function http_libc_request_owned_smoke_c(): i32 {
   unsafe { return http_request_owned_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_preface_len_c`；glue FFI 须 unsafe。 */
 function http2_libc_preface_len_c(): i32 {
   unsafe { return http2_preface_len_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_is_connection_preface_c`；glue FFI 须 unsafe。 */
 function http2_libc_is_connection_preface_c(buf: *u8, len: i32): i32 {
   unsafe { return http2_is_connection_preface_c(buf, len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_frame_header_c`；glue FFI 须 unsafe。 */
 function http2_libc_parse_frame_header_c(buf: *u8, len: i32, out_type: *i32, out_flags: *i32, out_stream_id: *i32, out_payload_len: *i32): i32 {
   unsafe { return http2_parse_frame_header_c(buf, len, out_type, out_flags, out_stream_id, out_payload_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_settings_ack_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_settings_ack_c(out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_settings_ack_c(out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_settings_one_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_settings_one_c(setting_id: i32, value: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_settings_one_c(setting_id, value, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_wire_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_wire_is_available_c(): i32 {
   unsafe { return http2_wire_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_client_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_client_is_available_c(): i32 {
   unsafe { return http2_client_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_alpn_h2_len_c`；glue FFI 须 unsafe。 */
 function http2_libc_alpn_h2_len_c(): i32 {
   unsafe { return http2_alpn_h2_len_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_write_alpn_h2_c`；glue FFI 须 unsafe。 */
 function http2_libc_write_alpn_h2_c(out: *u8, out_cap: i32): i32 {
   unsafe { return http2_write_alpn_h2_c(out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_smoke_c(): i32 {
   unsafe { return http2_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_indexed_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_encode_indexed_c(index: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_indexed_c(index, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_literal_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_encode_literal_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_literal_c(name_index, value, value_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_get_request_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_encode_get_request_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_get_request_c(authority, authority_len, path, path_len, is_https, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_decode_status_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_decode_status_c(block: *u8, block_len: i32, out_status: *i32): i32 {
   unsafe { return http2_hpack_decode_status_c(block, block_len, out_status); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_smoke_c(): i32 {
   unsafe { return http2_hpack_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_dyn_reset_c`；glue FFI 须 unsafe。 */
@@ -1305,31 +1361,37 @@ function http2_libc_hpack_dyn_reset_c(): void {
 /** 包装 `http2_hpack_dyn_count_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_dyn_count_c(): i32 {
   unsafe { return http2_hpack_dyn_count_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_literal_incremental_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_encode_literal_incremental_c(name_index: i32, value: *u8, value_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_literal_incremental_c(name_index, value, value_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_indexed_any_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_encode_indexed_any_c(index: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_indexed_any_c(index, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_request_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_encode_request_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_request_c(method_u8, authority, authority_len, path, path_len, is_https, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_dyn_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_dyn_smoke_c(): i32 {
   unsafe { return http2_hpack_dyn_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_server_dyn_create_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_server_dyn_create_c(peer: *Http2PeerSettings): i64 {
   unsafe { return http2_hpack_server_dyn_create_c(peer); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_server_dyn_destroy_c`；glue FFI 须 unsafe。 */
@@ -1345,226 +1407,271 @@ function http2_libc_hpack_server_dyn_set_table_size_h_c(handle: i64, size: i32):
 /** 包装 `http2_hpack_server_dyn_max_size_h_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_server_dyn_max_size_h_c(handle: i64): i32 {
   unsafe { return http2_hpack_server_dyn_max_size_h_c(handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_server_dyn_count_h_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_server_dyn_count_h_c(handle: i64): i32 {
   unsafe { return http2_hpack_server_dyn_count_h_c(handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_server_encode_status_h_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_server_encode_status_h_c(handle: i64, status: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_server_encode_status_h_c(handle, status, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_server_dyn_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_server_dyn_smoke_c(): i32 {
   unsafe { return http2_hpack_server_dyn_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_payload_limit_c`；glue FFI 须 unsafe。 */
 function http2_libc_frame_payload_limit_c(max_frame_size: i32): i32 {
   unsafe { return http2_frame_payload_limit_c(max_frame_size); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_check_payload_c`；glue FFI 须 unsafe。 */
 function http2_libc_frame_check_payload_c(payload_len: i32, max_frame_size: i32): i32 {
   unsafe { return http2_frame_check_payload_c(payload_len, max_frame_size); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_count_data_chunks_c`；glue FFI 须 unsafe。 */
 function http2_libc_frame_count_data_chunks_c(data_len: i32, max_frame_size: i32): i32 {
   unsafe { return http2_frame_count_data_chunks_c(data_len, max_frame_size); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_capped_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_frame_capped_smoke_c(): i32 {
   unsafe { return http2_frame_capped_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_goaway_c`；glue FFI 须 unsafe。 */
 function http2_libc_frame_goaway_c(): i32 {
   unsafe { return http2_frame_goaway_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_goaway_error_no_error_c`；glue FFI 须 unsafe。 */
 function http2_libc_goaway_error_no_error_c(): i32 {
   unsafe { return http2_goaway_error_no_error_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_err_goaway_c`；glue FFI 须 unsafe。 */
 function http2_libc_err_goaway_c(): i32 {
   unsafe { return http2_err_goaway_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_goaway_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_goaway_c(last_stream_id: i32, code: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_goaway_c(last_stream_id, code, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_goaway_c`；glue FFI 须 unsafe。 */
 function http2_libc_parse_goaway_c(payload: *u8, plen: i32, out_last_stream: *i32, out_code: *i32): i32 {
   unsafe { return http2_parse_goaway_c(payload, plen, out_last_stream, out_code); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_goaway_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_goaway_smoke_c(): i32 {
   unsafe { return http2_goaway_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_ping_c`；glue FFI 须 unsafe。 */
 function http2_libc_frame_ping_c(): i32 {
   unsafe { return http2_frame_ping_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_err_ping_c`；glue FFI 须 unsafe。 */
 function http2_libc_err_ping_c(): i32 {
   unsafe { return http2_err_ping_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_ping_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_ping_c(opaque: *u8, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_ping_c(opaque, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_ping_ack_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_ping_ack_c(opaque: *u8, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_ping_ack_c(opaque, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_ping_c`；glue FFI 须 unsafe。 */
 function http2_libc_parse_ping_c(payload: *u8, plen: i32, out_opaque: *u8): i32 {
   unsafe { return http2_parse_ping_c(payload, plen, out_opaque); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_ping_opaque_match_c`；glue FFI 须 unsafe。 */
 function http2_libc_ping_opaque_match_c(a: *u8, b: *u8): i32 {
   unsafe { return http2_ping_opaque_match_c(a, b); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_ping_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_ping_smoke_c(): i32 {
   unsafe { return http2_ping_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_rst_stream_c`；glue FFI 须 unsafe。 */
 function http2_libc_frame_rst_stream_c(): i32 {
   unsafe { return http2_frame_rst_stream_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_rst_error_cancel_c`；glue FFI 须 unsafe。 */
 function http2_libc_rst_error_cancel_c(): i32 {
   unsafe { return http2_rst_error_cancel_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_err_rst_stream_c`；glue FFI 须 unsafe。 */
 function http2_libc_err_rst_stream_c(): i32 {
   unsafe { return http2_err_rst_stream_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_rst_stream_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_rst_stream_c(stream_id: i32, code: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_rst_stream_c(stream_id, code, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_rst_stream_c`；glue FFI 须 unsafe。 */
 function http2_libc_parse_rst_stream_c(payload: *u8, plen: i32, out_code: *i32): i32 {
   unsafe { return http2_parse_rst_stream_c(payload, plen, out_code); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_rst_stream_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_rst_stream_smoke_c(): i32 {
   unsafe { return http2_rst_stream_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_reset_stream_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_reset_stream_c(conn: *Http2Conn, stream_id: i32, code: i32): i32 {
   unsafe { return http2_conn_reset_stream_c(conn, stream_id, code); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_http2_complete_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_http2_complete_smoke_c(): i32 {
   unsafe { return http2_http2_complete_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_headers_frame_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_headers_frame_c(stream_id: i32, flags: i32, hpack: *u8, hpack_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_headers_frame_c(stream_id, flags, hpack, hpack_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_data_frame_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_data_frame_c(stream_id: i32, flags: i32, data: *u8, data_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_data_frame_c(stream_id, flags, data, data_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_get_headers_frame_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_get_headers_frame_c(authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_get_headers_frame_c(authority, authority_len, path, path_len, is_https, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_request_headers_frame_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_request_headers_frame_c(method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, is_https: i32, has_body: i32, stream_id: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_request_headers_frame_c(method_u8, authority, authority_len, path, path_len, is_https, has_body, stream_id, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_client_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_client_smoke_c(): i32 {
   unsafe { return http2_client_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_network_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_network_is_available_c(): i32 {
   unsafe { return http2_network_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_network_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_network_smoke_c(): i32 {
   unsafe { return http2_network_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2_get_c`；glue FFI 须 unsafe。 */
 function http_libc_h2_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2_get_c(url, url_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2_request_c`；glue FFI 须 unsafe。 */
 function http_libc_h2_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2_request_c(method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_method_h2_c`；glue FFI 须 unsafe。 */
 function http_libc_request_method_h2_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_request_method_h2_c(method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_huffman_decode_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_huffman_decode_c(in: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_huffman_decode_c(in, in_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_huffman_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_huffman_is_available_c(): i32 {
   unsafe { return http2_hpack_huffman_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_huffman_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_huffman_smoke_c(): i32 {
   unsafe { return http2_hpack_huffman_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_window_update_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_window_update_c(stream_id: i32, increment: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_window_update_c(stream_id, increment, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_default_initial_window_c`；glue FFI 须 unsafe。 */
 function http2_libc_default_initial_window_c(): i32 {
   unsafe { return http2_default_initial_window_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_control_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_flow_control_smoke_c(): i32 {
   unsafe { return http2_flow_control_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_state_init_c`；glue FFI 须 unsafe。 */
@@ -1585,31 +1692,37 @@ function http2_libc_flow_state_apply_initial_window_c(st: *Http2FlowState, initi
 /** 包装 `http2_flow_state_apply_window_update_c`；glue FFI 须 unsafe。 */
 function http2_libc_flow_state_apply_window_update_c(st: *Http2FlowState, stream_id: i32, increment: i32): i32 {
   unsafe { return http2_flow_state_apply_window_update_c(st, stream_id, increment); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_state_max_send_c`；glue FFI 须 unsafe。 */
 function http2_libc_flow_state_max_send_c(st: *Http2FlowState, want: i32): i32 {
   unsafe { return http2_flow_state_max_send_c(st, want); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_state_can_send_c`；glue FFI 须 unsafe。 */
 function http2_libc_flow_state_can_send_c(st: *Http2FlowState, want: i32): i32 {
   unsafe { return http2_flow_state_can_send_c(st, want); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_state_consume_send_c`；glue FFI 须 unsafe。 */
 function http2_libc_flow_state_consume_send_c(st: *Http2FlowState, nbytes: i32): i32 {
   unsafe { return http2_flow_state_consume_send_c(st, nbytes); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_window_update_payload_c`；glue FFI 须 unsafe。 */
 function http2_libc_parse_window_update_payload_c(payload: *u8, plen: i32, out_increment: *i32): i32 {
   unsafe { return http2_parse_window_update_payload_c(payload, plen, out_increment); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_state_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_flow_state_smoke_c(): i32 {
   unsafe { return http2_flow_state_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_recv_init_c`；glue FFI 须 unsafe。 */
@@ -1625,66 +1738,79 @@ function http2_libc_flow_recv_reset_stream_c(st: *Http2FlowRecvState, initial_wi
 /** 包装 `http2_flow_recv_on_data_c`；glue FFI 须 unsafe。 */
 function http2_libc_flow_recv_on_data_c(st: *Http2FlowRecvState, nbytes: i32): i32 {
   unsafe { return http2_flow_recv_on_data_c(st, nbytes); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_recv_release_c`；glue FFI 须 unsafe。 */
 function http2_libc_flow_recv_release_c(st: *Http2FlowRecvState, stream_id: i32, nbytes: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_flow_recv_release_c(st, stream_id, nbytes, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_flow_recv_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_flow_recv_smoke_c(): i32 {
   unsafe { return http2_flow_recv_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_frame_push_promise_c`；glue FFI 须 unsafe。 */
 function http2_libc_frame_push_promise_c(): i32 {
   unsafe { return http2_frame_push_promise_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_is_push_promise_frame_c`；glue FFI 须 unsafe。 */
 function http2_libc_is_push_promise_frame_c(ftype: i32): i32 {
   unsafe { return http2_is_push_promise_frame_c(ftype); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_push_promise_stream_c`；glue FFI 须 unsafe。 */
 function http2_libc_parse_push_promise_stream_c(payload: *u8, plen: i32, out_promised_id: *i32): i32 {
   unsafe { return http2_parse_push_promise_stream_c(payload, plen, out_promised_id); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_is_h2c_upgrade_response_c`；glue FFI 须 unsafe。 */
 function http2_libc_is_h2c_upgrade_response_c(buf: *u8, len: i32): i32 {
   unsafe { return http2_is_h2c_upgrade_response_c(buf, len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_h2c_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_h2c_is_available_c(): i32 {
   unsafe { return http2_h2c_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_push_h2c_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_push_h2c_smoke_c(): i32 {
   unsafe { return http2_push_h2c_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_h2c_wire_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_h2c_wire_is_available_c(): i32 {
   unsafe { return http2_h2c_wire_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_h2c_session_begin_c`；glue FFI 须 unsafe。 */
 function http2_libc_h2c_session_begin_c(out: *u8, out_cap: i32): i32 {
   unsafe { return http2_h2c_session_begin_c(out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_push_collect_data_c`；glue FFI 须 unsafe。 */
 function http2_libc_push_collect_data_c(promised_id: i32, stream_id: i32, data: *u8, dlen: i32, inout_promised_id: *i32, acc: *u8, acc_cap: i32, acc_len: *i32): i32 {
   unsafe { return http2_push_collect_data_c(promised_id, stream_id, data, dlen, inout_promised_id, acc, acc_cap, acc_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_push_fetch_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_push_fetch_smoke_c(): i32 {
   unsafe { return http2_push_fetch_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_push_last_reset_c`；glue FFI 须 unsafe。 */
@@ -1695,41 +1821,49 @@ function http2_libc_push_last_reset_c(): void {
 /** 包装 `http2_push_last_copy_c`；glue FFI 须 unsafe。 */
 function http2_libc_push_last_copy_c(out_meta: *Http2PushLast, out_body: *u8, out_cap: i32): i32 {
   unsafe { return http2_push_last_copy_c(out_meta, out_body, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_push_network_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_push_network_smoke_c(): i32 {
   unsafe { return http2_push_network_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_session_request_h2c_c`；glue FFI 须 unsafe。 */
 function http2_libc_session_request_h2c_c(fd: i32, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_session_request_h2c_c(fd, method_u8, authority, authority_len, path, path_len, body, body_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_h2c_network_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_h2c_network_smoke_c(): i32 {
   unsafe { return http2_h2c_network_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2c_get_c`；glue FFI 须 unsafe。 */
 function http_libc_h2c_get_c(url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2c_get_c(url, url_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2c_request_c`；glue FFI 须 unsafe。 */
 function http_libc_h2c_request_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2c_request_c(method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_request_method_h2c_c`；glue FFI 须 unsafe。 */
 function http_libc_request_method_h2c_c(method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_request_method_h2c_c(method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2c_client_smoke_c`；glue FFI 须 unsafe。 */
 function http_libc_h2c_client_smoke_c(): i32 {
   unsafe { return http_h2c_client_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_stream_registry_init_c`；glue FFI 须 unsafe。 */
@@ -1740,6 +1874,7 @@ function http2_libc_stream_registry_init_c(reg: *Http2StreamRegistry): void {
 /** 包装 `http2_stream_registry_open_c`；glue FFI 须 unsafe。 */
 function http2_libc_stream_registry_open_c(reg: *Http2StreamRegistry): i32 {
   unsafe { return http2_stream_registry_open_c(reg); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_stream_registry_close_c`；glue FFI 须 unsafe。 */
@@ -1750,11 +1885,13 @@ function http2_libc_stream_registry_close_c(reg: *Http2StreamRegistry, stream_id
 /** 包装 `http2_stream_registry_is_open_c`；glue FFI 须 unsafe。 */
 function http2_libc_stream_registry_is_open_c(reg: *Http2StreamRegistry, stream_id: i32): i32 {
   unsafe { return http2_stream_registry_is_open_c(reg, stream_id); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_stream_registry_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_stream_registry_smoke_c(): i32 {
   unsafe { return http2_stream_registry_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_init_c`；glue FFI 须 unsafe。 */
@@ -1765,11 +1902,13 @@ function http2_libc_peer_settings_init_c(ps: *Http2PeerSettings): void {
 /** 包装 `http2_settings_entry_count_c`；glue FFI 须 unsafe。 */
 function http2_libc_settings_entry_count_c(plen: i32): i32 {
   unsafe { return http2_settings_entry_count_c(plen); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_parse_settings_entry_c`；glue FFI 须 unsafe。 */
 function http2_libc_parse_settings_entry_c(payload: *u8, plen: i32, entry_index: i32, out_id: *i32, out_value: *i32): i32 {
   unsafe { return http2_parse_settings_entry_c(payload, plen, entry_index, out_id, out_value); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_apply_entry_c`；glue FFI 须 unsafe。 */
@@ -1780,81 +1919,97 @@ function http2_libc_peer_settings_apply_entry_c(ps: *Http2PeerSettings, setting_
 /** 包装 `http2_peer_settings_consume_payload_c`；glue FFI 须 unsafe。 */
 function http2_libc_peer_settings_consume_payload_c(payload: *u8, plen: i32, ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_consume_payload_c(payload, plen, ps); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_client_settings_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_client_settings_c(max_streams: i32, initial_window: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_client_settings_c(max_streams, initial_window, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_client_settings_ex_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_client_settings_ex_c(max_streams: i32, initial_window: i32, enable_push: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_client_settings_ex_c(max_streams, initial_window, enable_push, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_client_settings_with_max_frame_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_client_settings_with_max_frame_c(max_streams: i32, initial_window: i32, enable_push: i32, max_frame_size: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_client_settings_with_max_frame_c(max_streams, initial_window, enable_push, max_frame_size, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_build_server_settings_c`；glue FFI 须 unsafe。 */
 function http2_libc_build_server_settings_c(out: *u8, out_cap: i32): i32 {
   unsafe { return http2_build_server_settings_c(out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_setting_enable_push_c`；glue FFI 须 unsafe。 */
 function http2_libc_setting_enable_push_c(): i32 {
   unsafe { return http2_setting_enable_push_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_setting_header_table_size_c`；glue FFI 须 unsafe。 */
 function http2_libc_setting_header_table_size_c(): i32 {
   unsafe { return http2_setting_header_table_size_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_setting_max_frame_size_c`；glue FFI 须 unsafe。 */
 function http2_libc_setting_max_frame_size_c(): i32 {
   unsafe { return http2_setting_max_frame_size_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_setting_max_header_list_size_c`；glue FFI 须 unsafe。 */
 function http2_libc_setting_max_header_list_size_c(): i32 {
   unsafe { return http2_setting_max_header_list_size_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_enable_push_c`；glue FFI 须 unsafe。 */
 function http2_libc_peer_settings_enable_push_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_enable_push_c(ps); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_header_table_size_c`；glue FFI 须 unsafe。 */
 function http2_libc_peer_settings_header_table_size_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_header_table_size_c(ps); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_max_frame_size_c`；glue FFI 须 unsafe。 */
 function http2_libc_peer_settings_max_frame_size_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_max_frame_size_c(ps); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_max_header_list_size_c`；glue FFI 须 unsafe。 */
 function http2_libc_peer_settings_max_header_list_size_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_max_header_list_size_c(ps); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_max_streams_c`；glue FFI 须 unsafe。 */
 function http2_libc_peer_settings_max_streams_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_max_streams_c(ps); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_peer_settings_initial_window_c`；glue FFI 须 unsafe。 */
 function http2_libc_peer_settings_initial_window_c(ps: *Http2PeerSettings): i32 {
   unsafe { return http2_peer_settings_initial_window_c(ps); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_settings_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_settings_smoke_c(): i32 {
   unsafe { return http2_settings_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_multistream_client_init_c`；glue FFI 须 unsafe。 */
@@ -1865,11 +2020,13 @@ function http2_libc_multistream_client_init_c(cli: *Http2MultistreamClient): voi
 /** 包装 `http2_multistream_client_on_settings_c`；glue FFI 须 unsafe。 */
 function http2_libc_multistream_client_on_settings_c(cli: *Http2MultistreamClient, payload: *u8, plen: i32): i32 {
   unsafe { return http2_multistream_client_on_settings_c(cli, payload, plen); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_multistream_client_open_stream_c`；glue FFI 须 unsafe。 */
 function http2_libc_multistream_client_open_stream_c(cli: *Http2MultistreamClient): i32 {
   unsafe { return http2_multistream_client_open_stream_c(cli); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_multistream_client_close_stream_c`；glue FFI 须 unsafe。 */
@@ -1880,16 +2037,19 @@ function http2_libc_multistream_client_close_stream_c(cli: *Http2MultistreamClie
 /** 包装 `http2_multistream_client_build_get_c`；glue FFI 须 unsafe。 */
 function http2_libc_multistream_client_build_get_c(cli: *Http2MultistreamClient, stream_id: i32, authority: *u8, authority_len: i32, path: *u8, path_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_multistream_client_build_get_c(cli, stream_id, authority, authority_len, path, path_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_multistream_client_build_parallel_get_c`；glue FFI 须 unsafe。 */
 function http2_libc_multistream_client_build_parallel_get_c(cli: *Http2MultistreamClient, authority: *u8, authority_len: i32, path: *u8, path_len: i32, n_reqs: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_multistream_client_build_parallel_get_c(cli, authority, authority_len, path, path_len, n_reqs, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_multistream_client_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_multistream_client_smoke_c(): i32 {
   unsafe { return http2_multistream_client_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_init_c`；glue FFI 须 unsafe。 */
@@ -1900,36 +2060,43 @@ function http2_libc_conn_init_c(conn: *Http2Conn): void {
 /** 包装 `http2_conn_attach_h2c_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_attach_h2c_c(fd: i32, conn: *Http2Conn): i32 {
   unsafe { return http2_conn_attach_h2c_c(fd, conn); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_attach_tls_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_attach_tls_c(tls_ctx: i64, conn: *Http2Conn): i32 {
   unsafe { return http2_conn_attach_tls_c(tls_ctx, conn); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_is_ready_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_is_ready_c(conn: *Http2Conn): i32 {
   unsafe { return http2_conn_is_ready_c(conn); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_handshake_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_handshake_c(conn: *Http2Conn): i32 {
   unsafe { return http2_conn_handshake_c(conn); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_handshake_with_enable_push_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_handshake_with_enable_push_c(conn: *Http2Conn, client_enable_push: i32): i32 {
   unsafe { return http2_conn_handshake_with_enable_push_c(conn, client_enable_push); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_handshake_with_max_frame_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_handshake_with_max_frame_c(conn: *Http2Conn, client_max_frame_size: i32): i32 {
   unsafe { return http2_conn_handshake_with_max_frame_c(conn, client_max_frame_size); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_request_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_request_c(conn: *Http2Conn, method_u8: u8, authority: *u8, authority_len: i32, path: *u8, path_len: i32, body: *u8, body_len: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_conn_request_c(conn, method_u8, authority, authority_len, path, path_len, body, body_len, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_close_c`；glue FFI 须 unsafe。 */
@@ -1945,51 +2112,61 @@ function http2_libc_conn_shutdown_graceful_c(conn: *Http2Conn, last_stream_id: i
 /** 包装 `http2_conn_read_goaway_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_read_goaway_c(conn: *Http2Conn, out_last_stream: *i32, out_code: *i32): i32 {
   unsafe { return http2_conn_read_goaway_c(conn, out_last_stream, out_code); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_ping_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_ping_c(conn: *Http2Conn, opaque: *u8): i32 {
   unsafe { return http2_conn_ping_c(conn, opaque); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_goaway_seen_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_goaway_seen_c(conn: *Http2Conn): i32 {
   unsafe { return http2_conn_goaway_seen_c(conn); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_is_pool_reusable_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_is_pool_reusable_c(conn: *Http2Conn): i32 {
   unsafe { return http2_conn_is_pool_reusable_c(conn); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_goaway_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_goaway_smoke_c(): i32 {
   unsafe { return http2_conn_goaway_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_ping_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_ping_smoke_c(): i32 {
   unsafe { return http2_conn_ping_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_reuse_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_reuse_smoke_c(): i32 {
   unsafe { return http2_conn_reuse_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_reuse_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_reuse_is_available_c(): i32 {
   unsafe { return http2_conn_reuse_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_create_h2c_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_pool_create_h2c_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
   unsafe { return http2_conn_pool_create_h2c_c(host, host_len, port, port_len, max_conns); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_create_h2_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_pool_create_h2_c(host: *u8, host_len: i32, port: *u8, port_len: i32, max_conns: i32): i64 {
   unsafe { return http2_conn_pool_create_h2_c(host, host_len, port, port_len, max_conns); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_destroy_c`；glue FFI 须 unsafe。 */
@@ -2000,41 +2177,49 @@ function http2_libc_conn_pool_destroy_c(pool_h: i64): void {
 /** 包装 `http2_conn_pool_request_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_pool_request_c(pool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http2_conn_pool_request_c(pool_h, method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2c_pool_get_c`；glue FFI 须 unsafe。 */
 function http_libc_h2c_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2c_pool_get_c(pool_h, url, url_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http_h2_pool_get_c`；glue FFI 须 unsafe。 */
 function http_libc_h2_pool_get_c(pool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http_h2_pool_get_c(pool_h, url, url_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_pool_smoke_c(): i32 {
   unsafe { return http2_conn_pool_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_goaway_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_pool_goaway_smoke_c(): i32 {
   unsafe { return http2_conn_pool_goaway_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_connect_count_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_pool_connect_count_c(pool_h: i64): i32 {
   unsafe { return http2_conn_pool_connect_count_c(pool_h); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_conn_pool_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_conn_pool_is_available_c(): i32 {
   unsafe { return http2_conn_pool_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_create_c`；glue FFI 须 unsafe。 */
 function http2_libc_global_pool_create_c(max_entries: i32, max_conns_per_host: i32): i64 {
   unsafe { return http2_global_pool_create_c(max_entries, max_conns_per_host); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_destroy_c`；glue FFI 须 unsafe。 */
@@ -2045,201 +2230,241 @@ function http2_libc_global_pool_destroy_c(gpool_h: i64): void {
 /** 包装 `http2_global_pool_get_c`；glue FFI 须 unsafe。 */
 function http2_libc_global_pool_get_c(gpool_h: i64, url: *u8, url_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http2_global_pool_get_c(gpool_h, url, url_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_request_c`；glue FFI 须 unsafe。 */
 function http2_libc_global_pool_request_c(gpool_h: i64, method_u8: u8, url: *u8, url_len: i32, body: *u8, body_len: i32, out_buf: *u8, out_cap: i32, timeout_ms: u32): i32 {
   unsafe { return http2_global_pool_request_c(gpool_h, method_u8, url, url_len, body, body_len, out_buf, out_cap, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_entry_count_c`；glue FFI 须 unsafe。 */
 function http2_libc_global_pool_entry_count_c(gpool_h: i64): i32 {
   unsafe { return http2_global_pool_entry_count_c(gpool_h); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_connect_count_c`；glue FFI 须 unsafe。 */
 function http2_libc_global_pool_connect_count_c(gpool_h: i64): i32 {
   unsafe { return http2_global_pool_connect_count_c(gpool_h); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_global_pool_smoke_c(): i32 {
   unsafe { return http2_global_pool_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_global_pool_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_global_pool_is_available_c(): i32 {
   unsafe { return http2_global_pool_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_one_c`；glue FFI 须 unsafe。 */
 function http2_libc_serve_h2c_one_c(listener_fd: i32, body: *u8, body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_one_c(listener_fd, body, body_len, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_one_with_goaway_c`；glue FFI 须 unsafe。 */
 function http2_libc_serve_h2c_one_with_goaway_c(listener_fd: i32, body: *u8, body_len: i32, last_stream_id: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_one_with_goaway_c(listener_fd, body, body_len, last_stream_id, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_serve_h2c_c(client_fd: i32, body: *u8, body_len: i32): i32 {
   unsafe { return http2_server_serve_h2c_c(client_fd, body, body_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_with_goaway_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_serve_h2c_with_goaway_c(client_fd: i32, body: *u8, body_len: i32, last_stream_id: i32): i32 {
   unsafe { return http2_server_serve_h2c_with_goaway_c(client_fd, body, body_len, last_stream_id); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_one_ping_echo_c`；glue FFI 须 unsafe。 */
 function http2_libc_serve_h2c_one_ping_echo_c(listener_fd: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_one_ping_echo_c(listener_fd, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_ping_echo_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_serve_h2c_ping_echo_c(client_fd: i32): i32 {
   unsafe { return http2_server_serve_h2c_ping_echo_c(client_fd); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_one_with_push_c`；glue FFI 须 unsafe。 */
 function http2_libc_serve_h2c_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_one_with_push_c(listener_fd, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_with_push_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_serve_h2c_with_push_c(client_fd: i32, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   unsafe { return http2_server_serve_h2c_with_push_c(client_fd, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2_with_push_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_serve_h2_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   unsafe { return http2_server_serve_h2_with_push_c(tls_ctx, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2_one_with_push_c`；glue FFI 须 unsafe。 */
 function http2_libc_serve_h2_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2_one_with_push_c(listener_fd, srv_ctx_h, body, body_len, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_push_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_push_smoke_c(): i32 {
   unsafe { return http2_server_push_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_push_tls_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_push_tls_smoke_c(): i32 {
   unsafe { return http2_server_push_tls_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_push_settings_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_push_settings_smoke_c(): i32 {
   unsafe { return http2_server_push_settings_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_settings_full_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_settings_full_smoke_c(): i32 {
   unsafe { return http2_server_settings_full_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_hpack_dyn_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_hpack_dyn_smoke_c(): i32 {
   unsafe { return http2_server_hpack_dyn_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_max_frame_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_max_frame_smoke_c(): i32 {
   unsafe { return http2_server_max_frame_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_push_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_push_is_available_c(): i32 {
   unsafe { return http2_server_push_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_multi_one_c`；glue FFI 须 unsafe。 */
 function http2_libc_serve_h2c_multi_one_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_multi_one_c(listener_fd, body, body_len, max_requests, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_multi_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_serve_h2c_multi_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32): i32 {
   unsafe { return http2_server_serve_h2c_multi_c(client_fd, body, body_len, max_requests); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2c_multi_one_with_push_c`；glue FFI 须 unsafe。 */
 function http2_libc_serve_h2c_multi_one_with_push_c(listener_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2c_multi_one_with_push_c(listener_fd, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2c_multi_with_push_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_serve_h2c_multi_with_push_c(client_fd: i32, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   unsafe { return http2_server_serve_h2c_multi_with_push_c(client_fd, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2_multi_one_c`；glue FFI 须 unsafe。 */
 function http2_libc_serve_h2_multi_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2_multi_one_c(listener_fd, srv_ctx_h, body, body_len, max_requests, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2_multi_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_serve_h2_multi_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32): i32 {
   unsafe { return http2_server_serve_h2_multi_c(tls_ctx, body, body_len, max_requests); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2_multi_one_with_push_c`；glue FFI 须 unsafe。 */
 function http2_libc_serve_h2_multi_one_with_push_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2_multi_one_with_push_c(listener_fd, srv_ctx_h, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2_multi_with_push_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_serve_h2_multi_with_push_c(tls_ctx: i64, body: *u8, body_len: i32, max_requests: i32, authority: *u8, authority_len: i32, push_path: *u8, push_path_len: i32, push_body: *u8, push_body_len: i32): i32 {
   unsafe { return http2_server_serve_h2_multi_with_push_c(tls_ctx, body, body_len, max_requests, authority, authority_len, push_path, push_path_len, push_body, push_body_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_multistream_push_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_multistream_push_smoke_c(): i32 {
   unsafe { return http2_server_multistream_push_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_multistream_push_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_multistream_push_is_available_c(): i32 {
   unsafe { return http2_server_multistream_push_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_multistream_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_multistream_smoke_c(): i32 {
   unsafe { return http2_server_multistream_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_multistream_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_multistream_is_available_c(): i32 {
   unsafe { return http2_server_multistream_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_smoke_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_smoke_c(): i32 {
   unsafe { return http2_server_smoke_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_is_available_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_is_available_c(): i32 {
   unsafe { return http2_server_is_available_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_serve_h2_one_c`；glue FFI 须 unsafe。 */
 function http2_libc_serve_h2_one_c(listener_fd: i32, srv_ctx_h: i64, body: *u8, body_len: i32, timeout_ms: u32): i32 {
   unsafe { return http2_serve_h2_one_c(listener_fd, srv_ctx_h, body, body_len, timeout_ms); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_server_serve_h2_c`；glue FFI 须 unsafe。 */
 function http2_libc_server_serve_h2_c(tls_ctx: i64, body: *u8, body_len: i32): i32 {
   unsafe { return http2_server_serve_h2_c(tls_ctx, body, body_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_tls_server_ctx_create_c`；glue FFI 须 unsafe。 */
 function http2_libc_tls_server_ctx_create_c(cert_pem: *u8, cert_len: i32, key_pem: *u8, key_len: i32): i64 {
   unsafe { return http2_tls_server_ctx_create_c(cert_pem, cert_len, key_pem, key_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_tls_server_ctx_destroy_c`；glue FFI 须 unsafe。 */
@@ -2250,11 +2475,13 @@ function http2_libc_tls_server_ctx_destroy_c(srv_ctx_h: i64): void {
 /** 包装 `http2_hpack_decode_get_request_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_decode_get_request_c(block: *u8, block_len: i32, out_is_get: *i32, out_path: *u8, path_cap: i32, out_path_len: *i32): i32 {
   unsafe { return http2_hpack_decode_get_request_c(block, block_len, out_is_get, out_path, path_cap, out_path_len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 包装 `http2_hpack_encode_status_c`；glue FFI 须 unsafe。 */
 function http2_libc_hpack_encode_status_c(status: i32, out: *u8, out_cap: i32): i32 {
   unsafe { return http2_hpack_encode_status_c(status, out, out_cap); }
+  return 0; // unreachable — typeck workaround
 }
 
 

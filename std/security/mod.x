@@ -95,12 +95,14 @@ function secure_zero(p: *u8, len: i32): void {
 function sensitive_lock(p: *u8, len: i32): i32 {
   if (p == 0 || len <= 0) { return 0; }
   unsafe { return security_mlock_c(p, len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 解除敏感页锁定。 */
 function sensitive_unlock(p: *u8, len: i32): i32 {
   if (p == 0 || len <= 0) { return 0; }
   unsafe { return security_munlock_c(p, len); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 绑定 SensitiveBuf 并可选 mlock。 */

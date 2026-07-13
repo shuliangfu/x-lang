@@ -43,6 +43,7 @@ extern function env_unsetenv_c(name: *u8): i32;
 #[no_mangle]
 function args_iter_count_c(): i32 {
   unsafe { return process_args_count_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** args_iter 取第 i 个 argv 指针（NUL 结尾）；越界返回 NULL。 */
@@ -50,6 +51,7 @@ function args_iter_count_c(): i32 {
 #[no_mangle]
 function args_iter_at_c(i: i32): *u8 {
   unsafe { return process_arg_c(i); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** C 串相等比较；1 相等。 */

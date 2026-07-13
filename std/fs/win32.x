@@ -472,6 +472,7 @@ function fs_last_error_c(): i32 {
     return fs_saved_last_error;
   }
   unsafe { return GetLastError() as i32; }
+  return 0; // unreachable — typeck workaround
 }
 
 function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64 {
@@ -480,6 +481,7 @@ function fs_posix_read_c(fd: i32, buf: *u8, count: usize): i64 {
     c = 0x7fffffff;
   }
   unsafe { return _read(fd, buf, c) as i64; }
+  return 0; // unreachable — typeck workaround
 }
 
 function fs_posix_write_c(fd: i32, buf: *u8, count: usize): i64 {
@@ -488,10 +490,12 @@ function fs_posix_write_c(fd: i32, buf: *u8, count: usize): i64 {
     c = 0x7fffffff;
   }
   unsafe { return _write(fd, buf, c) as i64; }
+  return 0; // unreachable — typeck workaround
 }
 
 function fs_posix_close_c(fd: i32): i32 {
   unsafe { return _close(fd); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** Windows：lseek+read 模拟 pread（小文件/烟测足够）。 */

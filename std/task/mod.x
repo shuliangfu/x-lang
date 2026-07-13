@@ -70,11 +70,13 @@ extern function task_echo_fn_ptr_c(): *u8;
 /** 烟测用回显任务入口。 */
 function echo(): i32 {
   unsafe { return task_echo_fn_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 烟测用回显任务函数指针。 */
 function echo_ptr(): *u8 {
   unsafe { return task_echo_fn_ptr_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 创建 TaskGroup。 */
@@ -106,6 +108,7 @@ function spawn(tg: *TaskGroup, fn: *u8, seed: i32): i32 {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero || fn == 0) { return err_null(); }
   unsafe { return task_group_spawn_c(tg.handle, fn, seed); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 等待组内全部任务完成；返回结果之和。 */
@@ -113,6 +116,7 @@ function join(tg: *TaskGroup): i32 {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return err_null(); }
   unsafe { return task_group_join_c(tg.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 未 join 的 pending 任务数。 */
@@ -120,6 +124,7 @@ function pending(tg: *TaskGroup): i32 {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return err_null(); }
   unsafe { return task_group_pending_c(tg.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 结构化并发边界检查；泄漏返回 err_leak()。 */
@@ -127,6 +132,7 @@ function check_leak(tg: *TaskGroup): i32 {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return err_null(); }
   unsafe { return task_group_check_leak_c(tg.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 取消绑定 Context。 */
@@ -141,6 +147,7 @@ function total(tg: *TaskGroup): i64 {
   let zero: i64 = 0;
   if (tg == 0 || tg.handle == zero) { return zero; }
   unsafe { return task_group_join_total_c(tg.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 创建 JoinSet。 */
@@ -165,6 +172,7 @@ function set_spawn(js: *JoinSet, fn: *u8, seed: i32): i32 {
   let zero: i64 = 0;
   if (js == 0 || js.handle == zero || fn == 0) { return err_null(); }
   unsafe { return join_set_spawn_c(js.handle, fn, seed); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** JoinSet 等待全部完成。 */
@@ -172,6 +180,7 @@ function set_join(js: *JoinSet): i32 {
   let zero: i64 = 0;
   if (js == 0 || js.handle == zero) { return err_null(); }
   unsafe { return join_set_join_c(js.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** JoinSet 泄漏检测。 */
@@ -179,10 +188,12 @@ function set_check_leak(js: *JoinSet): i32 {
   let zero: i64 = 0;
   if (js == 0 || js.handle == zero) { return err_null(); }
   unsafe { return join_set_check_leak_c(js.handle); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** Supervisor：带退避的重试执行。 */
 function retry(fn: *u8, seed: i32, max_attempts: i32, backoff_ns: i64): i32 {
   if (fn == 0) { return err_null(); }
   unsafe { return task_supervise_retry_c(fn, seed, max_attempts, backoff_ns); }
+  return 0; // unreachable — typeck workaround
 }

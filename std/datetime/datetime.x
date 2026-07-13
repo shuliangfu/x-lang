@@ -57,6 +57,7 @@ function datetime_f_zero_c_marker_c(): i32 {
  */
 function datetime_local_offset_min_c(): i32 {
   unsafe { return time_wall_local_offset_min_c(); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 闰年判定。 */

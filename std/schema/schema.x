@@ -417,6 +417,7 @@ function sch_i32_to_str(buf: *u8, cap: i32, val: i32): i32 {
       if (neg != 0) { buf[0] = 45; j = 1; }
       sch_strncpy(buf + j, min_s, cap - j);
       unsafe { return (strlen(buf) as i32); }
+  return 0; // unreachable — typeck workaround
     }
     v = -v;
   }

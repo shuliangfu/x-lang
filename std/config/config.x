@@ -171,6 +171,7 @@ function config_read_file_c(path: *u8, out_buf: *u8, out_cap: i32): i32 {
 /** smoke 专用 setenv（经 std.env 胶层 env_setenv_c）。 */
 function config_smoke_setenv_c(key: *u8, val: *u8): i32 {
   unsafe { return env_setenv_c(key, val, 1); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 句柄转 store 指针；非法 0。 */

@@ -172,6 +172,7 @@ function test_fuzz_seed_c(): u32 {
   unsafe { n = env_getenv_c(&key[0], 14, &buf[0], 64); }
   if (n > 0) {
     unsafe { return strtoul(&buf[0], 0, 0); }
+  return 0; // unreachable — typeck workaround
   }
   return 0xABCDEF01;
 }
@@ -303,6 +304,7 @@ function test_expect_ne_i32_c(a: i32, b: i32): i32 {
 function test_run_c(fn: usize): i32 {
   if (fn == 0) { return -1; }
   unsafe { return test_call_i32_void_c(fn); }
+  return 0; // unreachable — typeck workaround
 }
 
 /** 调用 fn 共 iters 次，返回纳秒耗时；非法参数 -1。 */
