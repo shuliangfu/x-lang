@@ -58,7 +58,7 @@ function net_worker_arg_fill_c(slot: *NetWorkerArg, listener_fd: i32, timeout_ms
  * 起 n_workers 线程，每线程循环 accept_many 后立即 close。
  * 主线程阻塞 join（永不返回）；失败 -1。
  */
-function net_run_accept_workers_c_real_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32 {
+function net_run_accept_workers_c(listener_fd: i32, n_workers: i32, timeout_ms: u32): i32 {
   let nw: i32 = n_workers;
   let args: NetWorkerArg[64] = [];
   let tids: i64[64] = [];
