@@ -36,7 +36,23 @@ if [ "$shux_bin" = "auto" ]; then
 fi
 case "$(basename "$shux_bin")" in
   shux-c)
-    exec "$shux_bin" -L .. "$x_path" -o "$out_o"
+    # -o may use ASM backend which fails on some .x files (pointer arith, arrays).
+    # Use -E + cc -c instead for reliable C backend compilation.
+    gen_c="$out_o.gen.c"
+    "$shux_bin" -E -L .. "$x_path" > "$gen_c" 2>/dev/null || { rm -f "$gen_c"; exit 1; }
+    if grep -q '^#include' "$gen_c" 2>/dev/null; then
+      last_inc_line=$(grep -n '^#include' "$gen_c" | tail -1 | cut -d: -f1)
+      if [ -n "$last_inc_line" ]; then
+        sed -i.bak "${last_inc_line}a\\
+#undef htonl\\
+#undef htons\\
+#undef ntohl\\
+#undef ntohs" "$gen_c"
+        rm -f "$gen_c.bak"
+      fi
+    fi
+    cc -Wall -Wextra -I. -Iinclude -Isrc -c -o "$out_o" "$gen_c" || { rm -f "$gen_c"; exit 1; }
+    rm -f "$gen_c"
     ;;
   *)
     # 【Why 根源】Darwin 的 bootstrap-driver-seed 使用 asm_backend_partial.o 中的
